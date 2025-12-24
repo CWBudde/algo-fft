@@ -20,7 +20,7 @@ name = "var-naming"
 disabled = true
 
 [linters.settings.varnamelen]
-ignore-names = ['i', 'j', 'k', 'n', 'ok', 're', 'im', 'pi', 'p']
+ignore-names = ['i', 'j', 'k', 'n', 'ok', 're', 'im', 'pi', 'p', 't0', 't1', 't2', 't3']
 ignore-decls = ['T any', 'T Complex']
 
 [linters.settings.wsl_v5]
