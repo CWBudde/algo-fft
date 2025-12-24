@@ -1,0 +1,99 @@
+//go:build amd64 && fft_asm
+
+#include "textflag.h"
+
+TEXT ·forwardAVX2Complex64Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+	XORL AX, AX
+	RET
+
+TEXT ·inverseAVX2Complex64Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+	XORL AX, AX
+	RET
+
+TEXT ·forwardSSE2Complex64Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+	XORL AX, AX
+	RET
+
+TEXT ·inverseSSE2Complex64Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+	XORL AX, AX
+	RET
+
+TEXT ·forwardAVX2Complex128Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+	XORL AX, AX
+	RET
+
+TEXT ·inverseAVX2Complex128Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+	XORL AX, AX
+	RET
+
+TEXT ·forwardSSE2Complex128Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+	XORL AX, AX
+	RET
+
+TEXT ·inverseSSE2Complex128Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+	XORL AX, AX
+	RET
+
+TEXT ·asmCopyComplex64(SB), NOSPLIT|NOFRAME|ABIInternal, $0-16
+	MOVQ (BX), CX
+	MOVQ CX, (AX)
+	RET
+
+DATA ·half32+0(SB)/4, $0x3f000000
+GLOBL ·half32(SB), RODATA|NOPTR, $4
+
+TEXT ·asmForward2Complex64(SB), NOSPLIT|NOFRAME|ABIInternal, $0-16
+	MOVSS (BX), X0
+	MOVSS 4(BX), X1
+	MOVSS 8(BX), X2
+	MOVSS 12(BX), X3
+
+	MOVSS X0, X4
+	ADDSS X2, X4
+	MOVSS X1, X5
+	ADDSS X3, X5
+
+	MOVSS X4, (AX)
+	MOVSS X5, 4(AX)
+
+	MOVSS X0, X6
+	SUBSS X2, X6
+	MOVSS X1, X7
+	SUBSS X3, X7
+
+	MOVSS X6, 8(AX)
+	MOVSS X7, 12(AX)
+
+	MOVL $1, AX
+	RET
+
+TEXT ·asmInverse2Complex64(SB), NOSPLIT|NOFRAME|ABIInternal, $0-16
+	MOVSS (BX), X0
+	MOVSS 4(BX), X1
+	MOVSS 8(BX), X2
+	MOVSS 12(BX), X3
+
+	MOVSS X0, X4
+	ADDSS X2, X4
+	MOVSS X1, X5
+	ADDSS X3, X5
+
+	MULSS ·half32(SB), X4
+	MULSS ·half32(SB), X5
+
+	MOVSS X4, (AX)
+	MOVSS X5, 4(AX)
+
+	MOVSS X0, X6
+	SUBSS X2, X6
+	MOVSS X1, X7
+	SUBSS X3, X7
+
+	MULSS ·half32(SB), X6
+	MULSS ·half32(SB), X7
+
+	MOVSS X6, 8(AX)
+	MOVSS X7, 12(AX)
+
+	MOVL $1, AX
+	RET
