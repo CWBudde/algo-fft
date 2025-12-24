@@ -27,15 +27,18 @@ func NaiveDFT(src []complex64) []complex64 {
 
 	// Compute DFT using the direct formula
 	output := make([]complex128, n)
-	for k := range n {
+
+	for freqBin := range n {
 		var sum complex128
-		for m := range n {
+
+		for sampleIdx := range n {
 			// W_n^(k*m) = exp(-2πi*k*m/N)
-			angle := -2.0 * math.Pi * float64(k) * float64(m) / float64(n)
+			angle := -2.0 * math.Pi * float64(freqBin) * float64(sampleIdx) / float64(n)
 			twiddle := complex(math.Cos(angle), math.Sin(angle))
-			sum += input[m] * twiddle
+			sum += input[sampleIdx] * twiddle
 		}
-		output[k] = sum
+
+		output[freqBin] = sum
 	}
 
 	// Convert back to complex64
@@ -69,16 +72,20 @@ func NaiveIDFT(src []complex64) []complex64 {
 
 	// Compute IDFT using the direct formula
 	output := make([]complex128, n)
+
 	scale := 1.0 / float64(n)
-	for m := range n {
+
+	for sampleIdx := range n {
 		var sum complex128
-		for k := range n {
+
+		for freqBin := range n {
 			// W_n^(-k*m) = exp(2πi*k*m/N) (positive exponent for inverse)
-			angle := 2.0 * math.Pi * float64(k) * float64(m) / float64(n)
+			angle := 2.0 * math.Pi * float64(freqBin) * float64(sampleIdx) / float64(n)
 			twiddle := complex(math.Cos(angle), math.Sin(angle))
-			sum += input[k] * twiddle
+			sum += input[freqBin] * twiddle
 		}
-		output[m] = sum * complex(scale, 0)
+
+		output[sampleIdx] = sum * complex(scale, 0)
 	}
 
 	// Convert back to complex64
@@ -99,14 +106,17 @@ func NaiveDFT128(src []complex128) []complex128 {
 	}
 
 	output := make([]complex128, n)
-	for k := range n {
+
+	for freqBin := range n {
 		var sum complex128
-		for m := range n {
-			angle := -2.0 * math.Pi * float64(k) * float64(m) / float64(n)
+
+		for sampleIdx := range n {
+			angle := -2.0 * math.Pi * float64(freqBin) * float64(sampleIdx) / float64(n)
 			twiddle := complex(math.Cos(angle), math.Sin(angle))
-			sum += src[m] * twiddle
+			sum += src[sampleIdx] * twiddle
 		}
-		output[k] = sum
+
+		output[freqBin] = sum
 	}
 
 	return output
@@ -121,15 +131,19 @@ func NaiveIDFT128(src []complex128) []complex128 {
 	}
 
 	output := make([]complex128, n)
+
 	scale := 1.0 / float64(n)
-	for m := range n {
+
+	for sampleIdx := range n {
 		var sum complex128
-		for k := range n {
-			angle := 2.0 * math.Pi * float64(k) * float64(m) / float64(n)
+
+		for freqBin := range n {
+			angle := 2.0 * math.Pi * float64(freqBin) * float64(sampleIdx) / float64(n)
 			twiddle := complex(math.Cos(angle), math.Sin(angle))
-			sum += src[k] * twiddle
+			sum += src[freqBin] * twiddle
 		}
-		output[m] = sum * complex(scale, 0)
+
+		output[sampleIdx] = sum * complex(scale, 0)
 	}
 
 	return output

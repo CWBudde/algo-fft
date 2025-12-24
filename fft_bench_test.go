@@ -1,0 +1,132 @@
+package algoforge
+
+import (
+	"testing"
+
+	"github.com/MeKo-Christian/algoforge/internal/reference"
+)
+
+// Forward FFT benchmarks for various sizes.
+func BenchmarkPlanForward_16(b *testing.B)    { benchmarkPlanForward(b, 16) }
+func BenchmarkPlanForward_64(b *testing.B)    { benchmarkPlanForward(b, 64) }
+func BenchmarkPlanForward_256(b *testing.B)   { benchmarkPlanForward(b, 256) }
+func BenchmarkPlanForward_1024(b *testing.B)  { benchmarkPlanForward(b, 1024) }
+func BenchmarkPlanForward_4096(b *testing.B)  { benchmarkPlanForward(b, 4096) }
+func BenchmarkPlanForward_16384(b *testing.B) { benchmarkPlanForward(b, 16384) }
+func BenchmarkPlanForward_65536(b *testing.B) { benchmarkPlanForward(b, 65536) }
+
+// Inverse FFT benchmarks for various sizes.
+func BenchmarkPlanInverse_16(b *testing.B)    { benchmarkPlanInverse(b, 16) }
+func BenchmarkPlanInverse_64(b *testing.B)    { benchmarkPlanInverse(b, 64) }
+func BenchmarkPlanInverse_256(b *testing.B)   { benchmarkPlanInverse(b, 256) }
+func BenchmarkPlanInverse_1024(b *testing.B)  { benchmarkPlanInverse(b, 1024) }
+func BenchmarkPlanInverse_4096(b *testing.B)  { benchmarkPlanInverse(b, 4096) }
+func BenchmarkPlanInverse_16384(b *testing.B) { benchmarkPlanInverse(b, 16384) }
+func BenchmarkPlanInverse_65536(b *testing.B) { benchmarkPlanInverse(b, 65536) }
+
+// Plan creation benchmarks (additional sizes - 64, 1024, 65536 are in plan_test.go).
+func BenchmarkNewPlan_16(b *testing.B)    { benchmarkNewPlan(b, 16) }
+func BenchmarkNewPlan_256(b *testing.B)   { benchmarkNewPlan(b, 256) }
+func BenchmarkNewPlan_4096(b *testing.B)  { benchmarkNewPlan(b, 4096) }
+func BenchmarkNewPlan_16384(b *testing.B) { benchmarkNewPlan(b, 16384) }
+
+// Reference DFT comparison benchmarks (for small sizes only due to O(n²) complexity).
+func BenchmarkReferenceDFT_16(b *testing.B)  { benchmarkReferenceDFT(b, 16) }
+func BenchmarkReferenceDFT_64(b *testing.B)  { benchmarkReferenceDFT(b, 64) }
+func BenchmarkReferenceDFT_256(b *testing.B) { benchmarkReferenceDFT(b, 256) }
+
+func benchmarkPlanForward(b *testing.B, fftSize int) {
+	b.Helper()
+
+	plan, err := NewPlan[complex64](fftSize)
+	if err != nil {
+		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+	}
+
+	src := make([]complex64, fftSize)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	dst := make([]complex64, fftSize)
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 8)) // 8 bytes per complex64 for throughput calculation
+	b.ResetTimer()
+
+	for b.Loop() {
+		fwdErr := plan.Forward(dst, src)
+		if fwdErr != nil {
+			b.Fatalf("Forward() returned error: %v", fwdErr)
+		}
+	}
+}
+
+func benchmarkPlanInverse(b *testing.B, fftSize int) {
+	b.Helper()
+
+	plan, err := NewPlan[complex64](fftSize)
+	if err != nil {
+		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+	}
+
+	src := make([]complex64, fftSize)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	freq := make([]complex64, fftSize)
+
+	fwdErr := plan.Forward(freq, src)
+	if fwdErr != nil {
+		b.Fatalf("Forward() returned error: %v", fwdErr)
+	}
+
+	dst := make([]complex64, fftSize)
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 8)) // 8 bytes per complex64 for throughput calculation
+	b.ResetTimer()
+
+	for b.Loop() {
+		invErr := plan.Inverse(dst, freq)
+		if invErr != nil {
+			b.Fatalf("Inverse() returned error: %v", invErr)
+		}
+	}
+}
+
+func benchmarkNewPlan(b *testing.B, fftSize int) {
+	b.Helper()
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		plan, err := NewPlan[complex64](fftSize)
+		if err != nil {
+			b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		}
+
+		// Prevent compiler from optimizing away the allocation
+		_ = plan
+	}
+}
+
+func benchmarkReferenceDFT(b *testing.B, fftSize int) {
+	b.Helper()
+
+	src := make([]complex64, fftSize)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 8)) // 8 bytes per complex64 for throughput calculation
+	b.ResetTimer()
+
+	for b.Loop() {
+		result := reference.NaiveDFT(src)
+		// Prevent compiler from optimizing away the result
+		_ = result
+	}
+}

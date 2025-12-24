@@ -184,11 +184,11 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 5.1 Reference Implementation
 
-- [ ] Create `internal/reference/dft.go` with naive O(n²) DFT
-- [ ] Implement `NaiveDFT(src []complex64) []complex64`
-- [ ] Implement `NaiveIDFT(src []complex64) []complex64`
-- [ ] Use complex128 internally for higher precision reference
-- [ ] Write tests verifying naive DFT correctness on tiny inputs
+- [x] Create `internal/reference/dft.go` with naive O(n²) DFT
+- [x] Implement `NaiveDFT(src []complex64) []complex64`
+- [x] Implement `NaiveIDFT(src []complex64) []complex64`
+- [x] Use complex128 internally for higher precision reference
+- [x] Write tests verifying naive DFT correctness on tiny inputs
 
 ### 5.2 Correctness Test Suite
 
@@ -203,11 +203,16 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 5.3 Property-Based Testing
 
-- [ ] Implement Parseval's theorem test: energy conservation
-- [ ] Implement linearity test: `FFT(ax + by) = a*FFT(x) + b*FFT(y)`
-- [ ] Implement shift theorem tests
-- [ ] Implement convolution theorem test (prep for later)
-- [ ] Create randomized input generators for property tests
+- [x] Implement Parseval's theorem test: energy conservation
+  - Note: Implemented in `internal/reference/dft_test.go:TestNaiveDFT_Parseval`
+- [x] Implement linearity test: `FFT(ax + by) = a*FFT(x) + b*FFT(y)`
+  - Note: Implemented in `internal/reference/dft_test.go:TestNaiveDFT_Linearity`
+- [x] Implement shift theorem tests
+  - Note: Implemented in `internal/reference/dft_test.go:TestNaiveDFT_TimeShift` and `TestNaiveDFT_FrequencyShift`
+- [x] Implement convolution theorem test (prep for later)
+  - Note: Implemented in `internal/reference/dft_test.go:TestNaiveDFT_Convolution`
+- [x] Create randomized input generators for property tests
+  - Note: `generateRandomSignal` and `generateRandomSignal128` in `internal/reference/dft_test.go`
 
 ### 5.4 Fuzz Testing Setup
 
@@ -223,22 +228,26 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 6.1 Basic Benchmark Suite
 
-- [ ] Create `fft_bench_test.go`
-- [ ] Benchmark forward FFT for sizes: 16, 64, 256, 1024, 4096, 16384, 65536
-- [ ] Benchmark inverse FFT for same sizes
-- [ ] Benchmark Plan creation (one-time cost)
-- [ ] Add throughput calculation (samples/second)
+- [x] Create `fft_bench_test.go`
+- [x] Benchmark forward FFT for sizes: 16, 64, 256, 1024, 4096, 16384, 65536
+- [x] Benchmark inverse FFT for same sizes
+- [x] Benchmark Plan creation (one-time cost)
+  - Note: `BenchmarkNewPlan_*` in `fft_bench_test.go` and `plan_test.go`
+- [x] Add throughput calculation (samples/second)
+  - Note: Using `b.SetBytes()` for MB/s throughput in benchmarks
 
 ### 6.2 Memory & Allocation Benchmarks
 
-- [ ] Benchmark allocations per transform using `testing.B.ReportAllocs()`
+- [x] Benchmark allocations per transform using `testing.B.ReportAllocs()`
+  - Note: `b.ReportAllocs()` used in `fft_bench_test.go`
 - [ ] Profile memory usage with `runtime.MemStats`
 - [ ] Ensure zero allocations in steady-state transforms
 - [ ] Benchmark with varying Plan reuse patterns
 
 ### 6.3 Comparison Benchmarks
 
-- [ ] Create benchmarks comparing to reference DFT (for small sizes)
+- [x] Create benchmarks comparing to reference DFT (for small sizes)
+  - Note: `BenchmarkReferenceDFT_*` in `fft_bench_test.go`
 - [ ] Document baseline performance numbers in `BENCHMARKS.md`
 - [ ] Create benchmark runner script that outputs markdown table
 - [ ] Set up benchmark regression tracking in CI

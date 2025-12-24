@@ -265,7 +265,7 @@ func TestInPlace_LengthMismatch(t *testing.T) {
 	}
 }
 
-func TestForward_ReturnsNotImplemented(t *testing.T) {
+func TestForward_Impulse(t *testing.T) {
 	t.Parallel()
 
 	plan, err := NewPlan[complex64](8)
@@ -275,14 +275,20 @@ func TestForward_ReturnsNotImplemented(t *testing.T) {
 
 	dst := make([]complex64, 8)
 	src := make([]complex64, 8)
+
+	src[0] = 1
 
 	err = plan.Forward(dst, src)
-	if !errors.Is(err, ErrNotImplemented) {
-		t.Errorf("Forward() = %v, want ErrNotImplemented", err)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	for i := range dst {
+		assertApproxComplex64(t, dst[i], 1, 1e-4, "dst[%d]", i)
 	}
 }
 
-func TestInverse_ReturnsNotImplemented(t *testing.T) {
+func TestForwardInverse_RoundTrip(t *testing.T) {
 	t.Parallel()
 
 	plan, err := NewPlan[complex64](8)
@@ -290,16 +296,31 @@ func TestInverse_ReturnsNotImplemented(t *testing.T) {
 		t.Fatalf("NewPlan(8) returned error: %v", err)
 	}
 
-	dst := make([]complex64, 8)
 	src := make([]complex64, 8)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
 
-	err = plan.Inverse(dst, src)
-	if !errors.Is(err, ErrNotImplemented) {
-		t.Errorf("Inverse() = %v, want ErrNotImplemented", err)
+	dst := make([]complex64, 8)
+
+	err = plan.Forward(dst, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	roundTrip := make([]complex64, 8)
+
+	err = plan.Inverse(roundTrip, dst)
+	if err != nil {
+		t.Fatalf("Inverse() returned error: %v", err)
+	}
+
+	for i := range src {
+		assertApproxComplex64(t, roundTrip[i], src[i], 1e-4, "roundTrip[%d]", i)
 	}
 }
 
-func TestForwardInverse_Size2_Asm(t *testing.T) {
+func TestForwardInverse_Size2(t *testing.T) {
 	t.Parallel()
 
 	plan, err := NewPlan[complex64](2)
@@ -311,25 +332,67 @@ func TestForwardInverse_Size2_Asm(t *testing.T) {
 	dst := make([]complex64, 2)
 
 	err = plan.Forward(dst, src)
-	if err == nil {
-		roundTrip := make([]complex64, 2)
-
-		err = plan.Inverse(roundTrip, dst)
-		if err != nil {
-			t.Fatalf("Inverse() returned error: %v", err)
-		}
-
-		for i := range src {
-			if roundTrip[i] != src[i] {
-				t.Fatalf("roundTrip[%d] = %v, want %v", i, roundTrip[i], src[i])
-			}
-		}
-
-		return
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
 	}
 
-	if !errors.Is(err, ErrNotImplemented) {
-		t.Fatalf("Forward() = %v, want ErrNotImplemented or nil (asm)", err)
+	roundTrip := make([]complex64, 2)
+
+	err = plan.Inverse(roundTrip, dst)
+	if err != nil {
+		t.Fatalf("Inverse() returned error: %v", err)
+	}
+
+	for i := range src {
+		assertApproxComplex64(t, roundTrip[i], src[i], 1e-4, "roundTrip[%d]", i)
+	}
+}
+
+func TestForwardInverse_RoundTrip128(t *testing.T) {
+	t.Parallel()
+
+	plan, err := NewPlan[complex128](8)
+	if err != nil {
+		t.Fatalf("NewPlan(8) returned error: %v", err)
+	}
+
+	src := make([]complex128, 8)
+	for i := range src {
+		src[i] = complex(float64(i+1), float64(-i))
+	}
+
+	dst := make([]complex128, 8)
+
+	err = plan.Forward(dst, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	roundTrip := make([]complex128, 8)
+
+	err = plan.Inverse(roundTrip, dst)
+	if err != nil {
+		t.Fatalf("Inverse() returned error: %v", err)
+	}
+
+	for i := range src {
+		assertApproxComplex128(t, roundTrip[i], src[i], 1e-10, "roundTrip[%d]", i)
+	}
+}
+
+func assertApproxComplex64(t *testing.T, got, want complex64, tol float64, format string, args ...any) {
+	t.Helper()
+
+	if cmplx.Abs(complex128(got-want)) > tol {
+		t.Fatalf(format+": got %v want %v", append(args, got, want)...)
+	}
+}
+
+func assertApproxComplex128(t *testing.T, got, want complex128, tol float64, format string, args ...any) {
+	t.Helper()
+
+	if cmplx.Abs(got-want) > tol {
+		t.Fatalf(format+": got %v want %v", append(args, got, want)...)
 	}
 }
 
