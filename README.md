@@ -92,12 +92,19 @@ err = plan.InverseInPlace(data)
 
 ```go
 // Real-to-complex forward transform
-planReal := algoforge.NewPlanReal(n)
+planReal, err := algoforge.NewPlanReal(n)
+if err != nil {
+    // handle error
+}
 err = planReal.Forward(complexDst, realSrc)
 
 // Complex-to-real inverse transform
 err = planReal.Inverse(realDst, complexSrc)
 ```
+
+The real FFT returns the non-redundant half-spectrum with length N/2+1.
+For real inputs, the spectrum is conjugate-symmetric:
+`X[k] = conj(X[N-k])` for `k = 1..N/2-1`.
 
 ### Batch Processing
 

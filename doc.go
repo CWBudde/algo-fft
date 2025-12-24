@@ -100,7 +100,8 @@
 //	}
 //
 // The output contains only the non-redundant half of the spectrum due to
-// conjugate symmetry of real signals. Index 0 is DC, index N/2 is Nyquist.
+// conjugate symmetry of real signals: X[k] = conj(X[N-k]) for k = 1..N/2-1.
+// Index 0 is DC, index N/2 is Nyquist (purely real for even N).
 //
 // # 2D FFT
 //

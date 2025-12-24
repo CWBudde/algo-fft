@@ -385,27 +385,32 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 11.1 Real FFT API Design
 
-- [ ] Design `PlanReal` type or extend `Plan` with real mode
-- [ ] Define `PlanReal.Forward(dst []complex64, src []float32) error`
-- [ ] Define output format: N/2+1 complex values for N real inputs
-- [ ] Document conjugate symmetry property
-- [ ] Write API usage examples
+- [x] Design `PlanReal` type or extend `Plan` with real mode
+- [x] Define `PlanReal.Forward(dst []complex64, src []float32) error`
+- [x] Define output format: N/2+1 complex values for N real inputs
+- [x] Document conjugate symmetry property
+- [x] Write API usage examples
 
 ### 11.2 Real FFT Implementation (Pack Method)
 
-- [ ] Implement "pack" approach: treat N reals as N/2 complex
-- [ ] Perform N/2 complex FFT
-- [ ] Unpack and combine results using symmetry
-- [ ] Handle DC (index 0) and Nyquist (index N/2) specially
-- [ ] Write correctness tests for real sinusoids
+- [x] Implement "pack" approach: treat N reals as N/2 complex
+- [x] Perform N/2 complex FFT
+- [x] Unpack and combine results using symmetry
+- [x] Handle DC (index 0) and Nyquist (index N/2) specially
+- [x] Write correctness tests for real sinusoids
 
 ### 11.3 Real FFT Testing
 
-- [ ] Test real impulse response
-- [ ] Test real constant signal
-- [ ] Test real cosine at various frequencies
-- [ ] Verify output has conjugate symmetry
-- [ ] Benchmark real FFT vs equivalent complex FFT
+- [x] Test real impulse response
+- [x] Test real constant signal
+- [x] Test real cosine at various frequencies
+- [x] Verify output has conjugate symmetry
+- [x] Benchmark real FFT vs equivalent complex FFT
+
+### 11.x Optional Improvements
+
+- [ ] Optional: precompute `U[k]` weights (otfftpp style) to reduce recombination ops
+- [ ] Optional: add normalized forward variants (unitary / 1/N) or flags in PlanReal
 
 ---
 
@@ -418,6 +423,11 @@ Each phase is scoped to approximately one day of focused work.
 - [ ] Apply inverse complex FFT
 - [ ] Extract real part of result
 - [ ] Verify imaginary parts are near-zero
+
+Hints:
+
+- Mirror otfftpp's inverse pack method: build length N/2 complex `z[k]` from half-spectrum using the same weights, then inverse FFT and interleave real outputs.
+- Handle DC/Nyquist carefully to keep outputs purely real (use real-only bins at k=0 and k=N/2).
 
 ### 12.2 Real FFT Round-Trip Testing
 
