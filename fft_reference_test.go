@@ -49,6 +49,7 @@ func TestInverseMatchesReferenceSmall(t *testing.T) {
 		}
 
 		freq := reference.NaiveDFT(src)
+
 		got := make([]complex64, n)
 		if err := plan.Inverse(got, freq); err != nil {
 			t.Fatalf("Inverse(%d) returned error: %v", n, err)

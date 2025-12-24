@@ -187,6 +187,54 @@ func BenchmarkComputeBitReversalIndices_65536(b *testing.B) {
 	}
 }
 
+func TestComputePackedTwiddles_Radix4(t *testing.T) {
+	t.Parallel()
+
+	n := 16
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
+
+	if packed == nil {
+		t.Fatalf("ComputePackedTwiddles returned nil")
+	}
+
+	if packed.Radix != 4 {
+		t.Fatalf("Radix = %d, want 4", packed.Radix)
+	}
+
+	if len(packed.StageOffsets) != 2 {
+		t.Fatalf("StageOffsets length = %d, want 2", len(packed.StageOffsets))
+	}
+
+	if packed.StageOffsets[0] != 0 || packed.StageOffsets[1] != 3 {
+		t.Fatalf("StageOffsets = %v, want [0 3]", packed.StageOffsets)
+	}
+
+	expect := make([]complex64, 0, 15)
+
+	for _, size := range []int{4, 16} {
+		step := n / size
+
+		span := size / 4
+		for j := range span {
+			base := j * step
+			for k := 1; k < 4; k++ {
+				expect = append(expect, twiddle[(k*base)%n])
+			}
+		}
+	}
+
+	if len(packed.Values) != len(expect) {
+		t.Fatalf("Values length = %d, want %d", len(packed.Values), len(expect))
+	}
+
+	for i := range expect {
+		if packed.Values[i] != expect[i] {
+			t.Fatalf("Values[%d] = %v, want %v", i, packed.Values[i], expect[i])
+		}
+	}
+}
+
 // Precision tests comparing complex64 to complex128 reference (Phase 3.3)
 
 func TestTwiddleFactorPrecision(t *testing.T) {

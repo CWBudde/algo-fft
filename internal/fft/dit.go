@@ -21,9 +21,11 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	if n == 0 {
 		return true
 	}
+
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
 		return false
 	}
+
 	if n == 1 {
 		dst[0] = src[0]
 		return true
@@ -31,20 +33,22 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		work[i] = src[bitrev[i]]
 	}
 
 	for size := 2; size <= n; size <<= 1 {
 		half := size >> 1
+
 		step := n / size
 		for base := 0; base < n; base += size {
-			for j := 0; j < half; j++ {
+			for j := range half {
 				index1 := base + j
 				index2 := index1 + half
 				tw := twiddle[j*step]
@@ -68,9 +72,11 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	if n == 0 {
 		return true
 	}
+
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
 		return false
 	}
+
 	if n == 1 {
 		dst[0] = src[0]
 		return true
@@ -78,20 +84,22 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		work[i] = src[bitrev[i]]
 	}
 
 	for size := 2; size <= n; size <<= 1 {
 		half := size >> 1
+
 		step := n / size
 		for base := 0; base < n; base += size {
-			for j := 0; j < half; j++ {
+			for j := range half {
 				index1 := base + j
 				index2 := index1 + half
 				tw := conj(twiddle[j*step])

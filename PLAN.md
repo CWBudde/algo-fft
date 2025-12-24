@@ -123,40 +123,40 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 4.1 Decimation-in-Time (DIT) Algorithm
 
-- [ ] Implement iterative Cooley-Tukey DIT algorithm in `fft_dit.go`
-- [ ] Structure: bit-reverse input, then log2(n) stages of butterflies
+- [x] Implement iterative Cooley-Tukey DIT algorithm in `fft_dit.go`
+- [x] Structure: bit-reverse input, then log2(n) stages of butterflies
 - [ ] Implement basic butterfly operation: `butterfly2(a, b *complex64, w complex64)`
-- [ ] Wire DIT kernels into `selectKernels*` as an option
-- [ ] Write correctness tests for sizes 2, 4, 8 (compare vs reference DFT)
+- [x] Wire DIT kernels into `selectKernels*` as an option
+- [x] Write correctness tests for sizes 2, 4, 8 (compare vs reference DFT)
 
 ### 4.2 Forward Transform Completion
 
-- [ ] Complete forward FFT implementation for all power-of-2 sizes
+- [x] Complete forward FFT implementation for all power-of-2 sizes
 - [ ] Optimize loop structure for cache efficiency
-- [ ] Ensure no allocations in hot path (use Plan's scratch space)
+- [x] Ensure no allocations in hot path (use Plan's scratch space)
 - [ ] Write tests for sizes 16, 32, 64, 128, 256, 512, 1024
-- [ ] Verify against known FFT results (e.g., impulse → flat spectrum)
+- [x] Verify against known FFT results (e.g., impulse → flat spectrum)
 
 ### 4.3 Stockham Autosort Variant (OTFFT-Inspired)
 
 - [x] Implement Stockham autosort FFT kernel (no explicit bit-reversal)
 - [x] Validate numerical parity with reference DFT for small sizes
 - [ ] Compare cache behavior and throughput vs DIT implementation
-- [ ] Define selection heuristic (size threshold or plan flag)
+- [x] Define selection heuristic (size threshold or plan flag)
 - [ ] If Stockham is the default path, de-prioritize split-radix/mixed-radix work
 
 ### 4.4 Twiddle Packing & SIMD-Friendly Layout
 
-- [ ] Precompute per-radix twiddle tables in contiguous SIMD-friendly order
-- [ ] Add twiddle packing for radix-4/8/16 butterflies
-- [ ] Measure twiddle load impact in asm kernels
-- [ ] Ensure Plan memory stays aligned for SIMD loads/stores
+- [x] Precompute per-radix twiddle tables in contiguous SIMD-friendly order
+- [x] Add twiddle packing for radix-4/8/16 butterflies
+- [x] Measure twiddle load impact in asm kernels
+- [x] Ensure Plan memory stays aligned for SIMD loads/stores
 
 ### 4.5 Inverse Transform Implementation
 
 - [x] Implement inverse transform in Stockham kernel with 1/n scaling
 - [x] Write round-trip tests: `Inverse(Forward(x)) ≈ x`
-- [ ] Implement DIT inverse path (conjugate method or swapped twiddles)
+- [x] Implement DIT inverse path (conjugate method or swapped twiddles)
 - [ ] Test scaling factor correctness for DIT path
 
 ### 4.6 In-Place vs Out-of-Place Variants
@@ -171,15 +171,15 @@ Each phase is scoped to approximately one day of focused work.
 
 - [ ] Implement blocked transpose + FFT (six-step) for large power-of-two sizes
 - [ ] Add optional eight-step variant for very large N
-- [ ] Precompute transpose index tables to avoid per-call overhead
+- [x] Precompute transpose index tables to avoid per-call overhead
 - [ ] Evaluate when to enable (based on N and cache size heuristics)
 
 ### 4.8 Kernel Selection & Benchmark-Driven Tuning
 
-- [ ] Add plan-time heuristic to choose Stockham vs DIT (size + CPU features)
-- [ ] Add optional benchmark cache (persisted or in-memory) to inform selection
-- [ ] Provide override flag to force a kernel (for testing/profiling)
-- [ ] Record decision in Plan for visibility in benchmarks/logs
+- [x] Add plan-time heuristic to choose Stockham vs DIT (size + CPU features)
+- [x] Add optional benchmark cache (persisted or in-memory) to inform selection
+- [x] Provide override flag to force a kernel (for testing/profiling)
+- [x] Record decision in Plan for visibility in benchmarks/logs
 
 ---
 
@@ -196,11 +196,11 @@ Each phase is scoped to approximately one day of focused work.
 ### 5.2 Correctness Test Suite
 
 - [ ] Create `fft_test.go` with comprehensive tests:
-  - [ ] Test impulse response (delta function)
+  - [x] Test impulse response (delta function)
   - [ ] Test constant signal (DC component)
   - [ ] Test pure sinusoids at various frequencies
   - [ ] Test Nyquist frequency signal
-  - [ ] Test random signals vs reference DFT
+  - [x] Test random signals vs reference DFT
 - [ ] Add tolerance-based comparison helper: `complexSliceEqual(a, b []complex64, tol float32) bool`
 - [ ] Test edge cases: length 1, length 2
 
