@@ -115,7 +115,7 @@ Each phase is scoped to approximately one day of focused work.
 - [x] Implement `complexSub(a, b complex64) complex64`
   - Note: Go's built-in `-` operator is used
 - [x] Verify Go's built-in complex64 operations are sufficient
-- [ ] Write precision tests comparing to complex128 reference
+- [x] Write precision tests comparing to complex128 reference
 
 ---
 
@@ -137,7 +137,22 @@ Each phase is scoped to approximately one day of focused work.
 - [ ] Write tests for sizes 16, 32, 64, 128, 256, 512, 1024
 - [ ] Verify against known FFT results (e.g., impulse → flat spectrum)
 
-### 4.3 Inverse Transform Implementation
+### 4.3 Stockham Autosort Variant (OTFFT-Inspired)
+
+- [ ] Prototype Stockham autosort FFT (eliminate explicit bit-reversal)
+- [ ] Compare cache behavior and throughput vs current DIT implementation
+- [ ] Define selection heuristic (size threshold or plan flag)
+- [ ] Validate numerical parity with reference DFT
+- [ ] If Stockham is the default path, de-prioritize split-radix/mixed-radix work
+
+### 4.4 Twiddle Packing & SIMD-Friendly Layout
+
+- [ ] Precompute per-radix twiddle tables in contiguous SIMD-friendly order
+- [ ] Add twiddle packing for radix-4/8/16 butterflies
+- [ ] Measure twiddle load impact in asm kernels
+- [ ] Ensure Plan memory stays aligned for SIMD loads/stores
+
+### 4.5 Inverse Transform Implementation
 
 - [ ] Implement `Plan.Inverse()` using conjugate method:
   - [ ] Conjugate input
@@ -148,13 +163,20 @@ Each phase is scoped to approximately one day of focused work.
 - [ ] Write round-trip tests: `Inverse(Forward(x)) ≈ x`
 - [ ] Test scaling factor correctness
 
-### 4.4 In-Place vs Out-of-Place Variants
+### 4.6 In-Place vs Out-of-Place Variants
 
 - [ ] Implement true in-place FFT (modify input directly)
 - [ ] Implement out-of-place FFT (src → dst, src unchanged)
 - [ ] Add `Plan.Transform(dst, src []complex64, inverse bool)` unified API
 - [ ] Test that out-of-place doesn't modify source
 - [ ] Test that in-place produces same results as out-of-place
+
+### 4.7 Six-Step / Eight-Step Large FFT Strategy
+
+- [ ] Implement blocked transpose + FFT (six-step) for large power-of-two sizes
+- [ ] Add optional eight-step variant for very large N
+- [ ] Precompute transpose index tables to avoid per-call overhead
+- [ ] Evaluate when to enable (based on N and cache size heuristics)
 
 ---
 
@@ -488,33 +510,6 @@ Each phase is scoped to approximately one day of focused work.
 - [ ] Restructure loops to eliminate bounds checks
 - [ ] Use `_ = slice[len-1]` pattern where needed
 - [ ] Verify performance improvement without sacrificing safety
-
-### 16.4 Stockham Autosort Variant (OTFFT-Inspired)
-
-- [ ] Prototype Stockham autosort FFT (eliminate explicit bit-reversal)
-- [ ] Compare cache behavior and throughput vs current DIT implementation
-- [ ] Define selection heuristic (size threshold or plan flag)
-- [ ] Validate numerical parity with reference DFT
-
-### 16.5 Six-Step / Eight-Step Large FFT Strategy
-
-- [ ] Implement blocked transpose + FFT (six-step) for large power-of-two sizes
-- [ ] Add optional eight-step variant for very large N
-- [ ] Precompute transpose index tables to avoid per-call overhead
-- [ ] Evaluate when to enable (based on N and cache size heuristics)
-
-### 16.6 Twiddle Packing & SIMD-Friendly Layout
-
-- [ ] Precompute per-radix twiddle tables in contiguous SIMD-friendly order
-- [ ] Add twiddle packing for radix-4/8/16 butterflies
-- [ ] Measure twiddle load impact in asm kernels
-- [ ] Ensure Plan memory stays aligned for SIMD loads/stores
-
-### 16.7 Parallelization Thresholds
-
-- [ ] Benchmark goroutine/worker overhead vs size (N thresholds)
-- [ ] Add size-based parallel thresholds (similar to OTFFT OMP thresholds)
-- [ ] Ensure deterministic results across parallel paths
 
 ---
 
