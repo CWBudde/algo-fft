@@ -254,9 +254,12 @@ Each phase is scoped to approximately one day of focused work.
 
 - [x] Create benchmarks comparing to reference DFT (for small sizes)
   - Note: `BenchmarkReferenceDFT_*` in `fft_bench_test.go`
-- [ ] Document baseline performance numbers in `BENCHMARKS.md`
-- [ ] Create benchmark runner script that outputs markdown table
-- [ ] Set up benchmark regression tracking in CI
+- [x] Document baseline performance numbers in `BENCHMARKS.md`
+  - Note: `BENCHMARKS.md` and `benchmarks/baseline.txt`
+- [x] Create benchmark runner script that outputs markdown table
+  - Note: `scripts/bench_md.sh`
+- [x] Set up benchmark regression tracking in CI
+  - Note: `test-bench` workflow using `benchstat` with `benchmarks/baseline.txt`
 
 ---
 
@@ -264,27 +267,36 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 7.1 Code Organization Refactor
 
-- [ ] Move FFT implementation to `internal/fft/` package
-- [ ] Create clean separation: `algoforge` (public) → `internal/fft` (implementation)
-- [ ] Define internal interfaces for algorithm strategies
-- [ ] Ensure all internal functions are unexported
-- [ ] Update imports and fix any circular dependencies
+- [x] Move FFT implementation to `internal/fft/` package
+- [x] Create clean separation: `algoforge` (public) → `internal/fft` (implementation)
+- [x] Define internal interfaces for algorithm strategies
+- [x] Ensure all internal functions are unexported
+- [x] Update imports and fix any circular dependencies
 
 ### 7.2 Memory Management
 
-- [ ] Implement buffer pooling for scratch space
-- [ ] Add `Plan.Reset()` method to clear internal state
-- [ ] Implement `Plan.Close()` or finalizer if needed
-- [ ] Profile and eliminate unnecessary allocations
-- [ ] Add `sync.Pool` for frequently created small buffers
+- [x] Implement buffer pooling for scratch space
+  - Note: `internal/fft/pool.go` provides `BufferPool` with `sync.Pool` for complex64/128 and int slices
+- [x] Add `Plan.Reset()` method to clear internal state
+- [x] Implement `Plan.Close()` or finalizer if needed
+  - Note: `Close()` returns pooled buffers; no-op for non-pooled plans
+- [x] Profile and eliminate unnecessary allocations
+  - Note: Zero allocations during transforms; pooling reduces Plan creation allocations
+- [x] Add `sync.Pool` for frequently created small buffers
+  - Note: `NewPlanPooled[T]()` and `NewPlanFromPool[T]()` use pooled allocations
 
 ### 7.3 API Polish
 
-- [ ] Review and finalize all public API signatures
-- [ ] Ensure consistency in naming conventions
-- [ ] Add `String()` method to Plan for debugging
-- [ ] Implement `Plan.Clone()` if useful
-- [ ] Review error messages for clarity
+- [x] Review and finalize all public API signatures
+  - Note: Consistent naming (NewPlan*, Plan.Forward/Inverse/InPlace, etc.)
+- [x] Ensure consistency in naming conventions
+  - Note: All methods follow Go conventions; kernel strategies use consistent naming
+- [x] Add `String()` method to Plan for debugging
+  - Note: Returns "Plan[type](size, strategy, pooled)" format
+- [x] Implement `Plan.Clone()` if useful
+  - Note: Creates independent copy with own scratch buffer; shares immutable data
+- [x] Review error messages for clarity
+  - Note: All errors prefixed with "algoforge:" and include descriptive text
 
 ---
 

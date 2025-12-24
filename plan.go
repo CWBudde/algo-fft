@@ -35,6 +35,9 @@ type Plan[T Complex] struct {
 	// backing buffers keep aligned slices alive for GC.
 	twiddleBacking []byte
 	scratchBacking []byte
+
+	// pool is the buffer pool this Plan was allocated from (nil if not pooled).
+	pool *fft.BufferPool
 }
 
 // KernelStrategy controls which FFT kernel a plan should use.
@@ -72,6 +75,65 @@ func (p *Plan[T]) Len() int {
 // KernelStrategy reports the strategy chosen when the plan was created.
 func (p *Plan[T]) KernelStrategy() KernelStrategy {
 	return KernelStrategy(p.kernelStrategy)
+}
+
+// String returns a human-readable description of the Plan for debugging.
+// The format is: "Plan[type](size, strategy)" where type is "complex64" or "complex128".
+func (p *Plan[T]) String() string {
+	var zero T
+	typeName := "complex64"
+
+	if _, ok := any(zero).(complex128); ok {
+		typeName = "complex128"
+	}
+
+	strategyName := "auto"
+
+	switch p.kernelStrategy {
+	case fft.KernelDIT:
+		strategyName = "DIT"
+	case fft.KernelStockham:
+		strategyName = "Stockham"
+	case fft.KernelSixStep:
+		strategyName = "SixStep"
+	case fft.KernelEightStep:
+		strategyName = "EightStep"
+	}
+
+	pooled := ""
+	if p.pool != nil {
+		pooled = ", pooled"
+	}
+
+	return "Plan[" + typeName + "](" + itoa(p.n) + ", " + strategyName + pooled + ")"
+}
+
+// itoa converts an int to a string without importing strconv.
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+
+	negative := n < 0
+	if negative {
+		n = -n
+	}
+
+	var buf [20]byte
+	i := len(buf)
+
+	for n > 0 {
+		i--
+		buf[i] = byte('0' + n%10)
+		n /= 10
+	}
+
+	if negative {
+		i--
+		buf[i] = '-'
+	}
+
+	return string(buf[i:])
 }
 
 // Forward computes the forward (time-to-frequency) FFT.
@@ -244,4 +306,185 @@ func NewPlan32(n int) (*Plan[complex64], error) {
 // This is equivalent to NewPlan[complex128](n).
 func NewPlan64(n int) (*Plan[complex128], error) {
 	return NewPlan[complex128](n)
+}
+
+// NewPlanPooled creates a new FFT plan using pooled buffer allocations.
+// This is more efficient when creating and destroying many Plans of the same size.
+//
+// The returned Plan should be closed with Close() when no longer needed to return
+// buffers to the pool. If Close() is not called, the buffers will eventually be
+// garbage collected, but reuse efficiency will be reduced.
+//
+// Example:
+//
+//	plan, err := NewPlanPooled[complex64](1024)
+//	defer plan.Close()
+func NewPlanPooled[T Complex](n int) (*Plan[T], error) {
+	return NewPlanFromPool[T](n, fft.DefaultPool)
+}
+
+// NewPlanFromPool creates a new FFT plan using buffers from the specified pool.
+// This allows custom pool management for advanced use cases.
+func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
+	if !fft.IsPowerOfTwo(n) || n < 1 {
+		return nil, ErrInvalidLength
+	}
+
+	features := fft.DetectFeatures()
+	strategy := fft.ResolveKernelStrategy(n)
+	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
+
+	var (
+		zero           T
+		twiddle        []T
+		twiddleBacking []byte
+		scratch        []T
+		scratchBacking []byte
+	)
+
+	switch any(zero).(type) {
+	case complex64:
+		twiddleAligned, twiddleRaw := pool.GetComplex64(n)
+		tmp := fft.ComputeTwiddleFactors[complex64](n)
+		copy(twiddleAligned, tmp)
+		twiddle = any(twiddleAligned).([]T)
+		twiddleBacking = twiddleRaw
+
+		scratchAligned, scratchRaw := pool.GetComplex64(n)
+		scratch = any(scratchAligned).([]T)
+		scratchBacking = scratchRaw
+	case complex128:
+		twiddleAligned, twiddleRaw := pool.GetComplex128(n)
+		tmp := fft.ComputeTwiddleFactors[complex128](n)
+		copy(twiddleAligned, tmp)
+		twiddle = any(twiddleAligned).([]T)
+		twiddleBacking = twiddleRaw
+
+		scratchAligned, scratchRaw := pool.GetComplex128(n)
+		scratch = any(scratchAligned).([]T)
+		scratchBacking = scratchRaw
+	default:
+		twiddle = fft.ComputeTwiddleFactors[T](n)
+		scratch = make([]T, n)
+	}
+
+	bitrev := pool.GetIntSlice(n)
+	computed := fft.ComputeBitReversalIndices(n)
+	copy(bitrev, computed)
+
+	p := &Plan[T]{
+		n:              n,
+		twiddle:        twiddle,
+		scratch:        scratch,
+		bitrev:         bitrev,
+		forwardKernel:  kernels.Forward,
+		inverseKernel:  kernels.Inverse,
+		kernelStrategy: strategy,
+		twiddleBacking: twiddleBacking,
+		scratchBacking: scratchBacking,
+		pool:           pool,
+	}
+
+	p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
+	p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
+	p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
+
+	return p, nil
+}
+
+// Reset clears the scratch buffer and resets internal state.
+// This can be useful to ensure deterministic behavior or to clear sensitive data.
+// The Plan remains usable after Reset.
+func (p *Plan[T]) Reset() {
+	// Clear scratch buffer
+	clear(p.scratch)
+}
+
+// Close releases pooled resources back to the buffer pool.
+// After Close, the Plan must not be used.
+//
+// Close is only necessary for Plans created with NewPlanPooled or NewPlanFromPool.
+// For Plans created with NewPlan, Close is a no-op.
+//
+// It is safe to call Close multiple times; subsequent calls are no-ops.
+func (p *Plan[T]) Close() {
+	if p.pool == nil {
+		return // Not a pooled plan
+	}
+
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		if p.twiddleBacking != nil {
+			p.pool.PutComplex64(p.n, any(p.twiddle).([]complex64), p.twiddleBacking)
+		}
+		if p.scratchBacking != nil {
+			p.pool.PutComplex64(p.n, any(p.scratch).([]complex64), p.scratchBacking)
+		}
+	case complex128:
+		if p.twiddleBacking != nil {
+			p.pool.PutComplex128(p.n, any(p.twiddle).([]complex128), p.twiddleBacking)
+		}
+		if p.scratchBacking != nil {
+			p.pool.PutComplex128(p.n, any(p.scratch).([]complex128), p.scratchBacking)
+		}
+	}
+
+	if p.bitrev != nil {
+		p.pool.PutIntSlice(p.n, p.bitrev)
+	}
+
+	// Clear references to prevent reuse after Close
+	p.pool = nil
+	p.twiddle = nil
+	p.scratch = nil
+	p.bitrev = nil
+	p.twiddleBacking = nil
+	p.scratchBacking = nil
+}
+
+// Clone creates an independent copy of the Plan with its own scratch buffer.
+// This is useful when multiple goroutines need to perform transforms concurrently,
+// as each goroutine should use its own Plan to avoid data races on the scratch buffer.
+//
+// The cloned Plan shares immutable data (twiddle factors, bit-reversal indices)
+// with the original for memory efficiency, but has its own scratch buffer.
+//
+// Cloned Plans are never pooled, even if the original was.
+// Calling Close() on a cloned Plan is a no-op.
+func (p *Plan[T]) Clone() *Plan[T] {
+	var (
+		zero           T
+		scratch        []T
+		scratchBacking []byte
+	)
+
+	switch any(zero).(type) {
+	case complex64:
+		scratchAligned, scratchRaw := fft.AllocAlignedComplex64(p.n)
+		scratch = any(scratchAligned).([]T)
+		scratchBacking = scratchRaw
+	case complex128:
+		scratchAligned, scratchRaw := fft.AllocAlignedComplex128(p.n)
+		scratch = any(scratchAligned).([]T)
+		scratchBacking = scratchRaw
+	default:
+		scratch = make([]T, p.n)
+	}
+
+	return &Plan[T]{
+		n:               p.n,
+		twiddle:         p.twiddle,         // Shared (immutable)
+		scratch:         scratch,           // New allocation
+		bitrev:          p.bitrev,          // Shared (immutable)
+		packedTwiddle4:  p.packedTwiddle4,  // Shared (immutable)
+		packedTwiddle8:  p.packedTwiddle8,  // Shared (immutable)
+		packedTwiddle16: p.packedTwiddle16, // Shared (immutable)
+		forwardKernel:   p.forwardKernel,
+		inverseKernel:   p.inverseKernel,
+		kernelStrategy:  p.kernelStrategy,
+		twiddleBacking:  p.twiddleBacking, // Shared reference (keeps original alive)
+		scratchBacking:  scratchBacking,   // New allocation
+		pool:            nil,              // Clones are never pooled
+	}
 }
