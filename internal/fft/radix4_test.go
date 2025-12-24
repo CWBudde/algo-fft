@@ -28,7 +28,7 @@ func TestRadix4ForwardMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT(src)
-		assertComplex64SliceClose(t, dst, want, radix4Tol64, n)
+		assertComplex64SliceClose(t, dst, want, n)
 	}
 }
 
@@ -52,7 +52,7 @@ func TestRadix4InverseMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT(fwd)
-		assertComplex64SliceClose(t, dst, want, radix4Tol64, n)
+		assertComplex64SliceClose(t, dst, want, n)
 	}
 }
 
@@ -71,7 +71,7 @@ func TestRadix4ForwardMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT128(src)
-		assertComplex128SliceClose(t, dst, want, radix4Tol128, n)
+		assertComplex128SliceClose(t, dst, want, n)
 	}
 }
 
@@ -95,7 +95,7 @@ func TestRadix4InverseMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT128(fwd)
-		assertComplex128SliceClose(t, dst, want, radix4Tol128, n)
+		assertComplex128SliceClose(t, dst, want, n)
 	}
 }
 
@@ -163,7 +163,7 @@ func randomComplex128(n int, seed uint64) []complex128 {
 	return out
 }
 
-func assertComplex64SliceClose(t *testing.T, got, want []complex64, tol float64, n int) {
+func assertComplex64SliceClose(t *testing.T, got, want []complex64, n int) {
 	t.Helper()
 
 	if len(got) != len(want) {
@@ -171,13 +171,13 @@ func assertComplex64SliceClose(t *testing.T, got, want []complex64, tol float64,
 	}
 
 	for i := range got {
-		if cmplx.Abs(complex128(got[i]-want[i])) > tol {
+		if cmplx.Abs(complex128(got[i]-want[i])) > radix4Tol64 {
 			t.Fatalf("n=%d index=%d got=%v want=%v", n, i, got[i], want[i])
 		}
 	}
 }
 
-func assertComplex128SliceClose(t *testing.T, got, want []complex128, tol float64, n int) {
+func assertComplex128SliceClose(t *testing.T, got, want []complex128, n int) {
 	t.Helper()
 
 	if len(got) != len(want) {
@@ -185,7 +185,7 @@ func assertComplex128SliceClose(t *testing.T, got, want []complex128, tol float6
 	}
 
 	for i := range got {
-		if cmplx.Abs(got[i]-want[i]) > tol {
+		if cmplx.Abs(got[i]-want[i]) > radix4Tol128 {
 			t.Fatalf("n=%d index=%d got=%v want=%v", n, i, got[i], want[i])
 		}
 	}

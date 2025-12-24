@@ -89,7 +89,7 @@ func (p *Plan[T]) Len() int {
 
 // KernelStrategy reports the strategy chosen when the plan was created.
 func (p *Plan[T]) KernelStrategy() KernelStrategy {
-	return KernelStrategy(p.kernelStrategy)
+	return p.kernelStrategy
 }
 
 // String returns a human-readable description of the Plan for debugging.

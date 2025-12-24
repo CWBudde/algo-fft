@@ -12,6 +12,8 @@ import (
 	"github.com/MeKo-Christian/algoforge"
 )
 
+const modeInverse = "inverse"
+
 type benchResult struct {
 	strategy algoforge.KernelStrategy
 	nsPerOp  float64
@@ -84,7 +86,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 		algoforge.KernelEightStep,
 	}
 
-	var results []benchResult
+	results := make([]benchResult, 0, len(strategies))
 
 	for _, strategy := range strategies {
 		algoforge.SetKernelStrategy(strategy)
@@ -96,7 +98,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 
 		ok := true
 
-		if mode == "inverse" {
+		if mode == modeInverse {
 			err := plan.Forward(freq, src)
 			if err != nil {
 				continue
@@ -146,7 +148,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 
 func runPlanMode(plan *algoforge.Plan[complex64], dst, src, freq []complex64, mode string) error {
 	switch mode {
-	case "inverse":
+	case modeInverse:
 		return plan.Inverse(dst, freq)
 	case "roundtrip":
 		err := plan.Forward(freq, src)

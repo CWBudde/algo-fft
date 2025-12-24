@@ -116,6 +116,8 @@ func TestKernelStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			// Save and restore global strategy
 			oldStrategy := GetKernelStrategy()
 			defer SetKernelStrategy(oldStrategy)
@@ -250,7 +252,8 @@ func TestString_AllStrategies(t *testing.T) {
 
 	// Save and restore
 	oldStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(oldStrategy)
+
+	t.Cleanup(func() { SetKernelStrategy(oldStrategy) })
 
 	tests := []struct {
 		strategy     KernelStrategy
@@ -266,6 +269,8 @@ func TestString_AllStrategies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expectedName, func(t *testing.T) {
+			t.Parallel()
+
 			SetKernelStrategy(tt.strategy)
 
 			plan, err := NewPlan[complex64](tt.size)
@@ -318,6 +323,8 @@ func TestItoa(t *testing.T) {
 		}
 
 		t.Run(tt.expected, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan[complex64](tt.size)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", tt.size, err)

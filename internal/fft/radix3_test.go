@@ -6,11 +6,6 @@ import (
 	"github.com/MeKo-Christian/algoforge/internal/reference"
 )
 
-const (
-	radix3Tol64  = 1e-4
-	radix3Tol128 = 1e-10
-)
-
 func TestRadix3ForwardMatchesReferenceComplex64(t *testing.T) {
 	t.Parallel()
 
@@ -26,7 +21,7 @@ func TestRadix3ForwardMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT(src)
-		assertComplex64SliceClose(t, dst, want, radix3Tol64, n)
+		assertComplex64SliceClose(t, dst, want, n)
 	}
 }
 
@@ -50,7 +45,7 @@ func TestRadix3InverseMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT(fwd)
-		assertComplex64SliceClose(t, dst, want, radix3Tol64, n)
+		assertComplex64SliceClose(t, dst, want, n)
 	}
 }
 
@@ -69,7 +64,7 @@ func TestRadix3ForwardMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT128(src)
-		assertComplex128SliceClose(t, dst, want, radix3Tol128, n)
+		assertComplex128SliceClose(t, dst, want, n)
 	}
 }
 
@@ -93,7 +88,7 @@ func TestRadix3InverseMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT128(fwd)
-		assertComplex128SliceClose(t, dst, want, radix3Tol128, n)
+		assertComplex128SliceClose(t, dst, want, n)
 	}
 }
 

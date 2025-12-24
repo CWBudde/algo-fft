@@ -7,6 +7,8 @@ import (
 )
 
 func TestComputeChirpSequence(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		n int
 	}{
@@ -18,6 +20,8 @@ func TestComputeChirpSequence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("complex64", func(t *testing.T) {
+			t.Parallel()
+
 			chirp := ComputeChirpSequence[complex64](tt.n)
 			if len(chirp) != tt.n {
 				t.Errorf("expected length %d, got %d", tt.n, len(chirp))
@@ -26,6 +30,8 @@ func TestComputeChirpSequence(t *testing.T) {
 			validateChirp(t, chirp, tt.n)
 		})
 		t.Run("complex128", func(t *testing.T) {
+			t.Parallel()
+
 			chirp := ComputeChirpSequence[complex128](tt.n)
 			if len(chirp) != tt.n {
 				t.Errorf("expected length %d, got %d", tt.n, len(chirp))
@@ -77,6 +83,8 @@ func validateChirp[T Complex](t *testing.T, chirp []T, n int) {
 }
 
 func TestBluesteinHelper(t *testing.T) {
+	t.Parallel()
+
 	// Simple test for ComputeBluesteinFilter and BluesteinConvolution
 	// We won't verify the full convolution result correctness here rigorously (that's for integration tests),
 	// but we'll check that it runs and produces output.

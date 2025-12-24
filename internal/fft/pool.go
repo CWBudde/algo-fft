@@ -30,6 +30,11 @@ type alignedBuffer128 struct {
 	backing []byte
 }
 
+// intBuffer holds an int slice for pooling.
+type intBuffer struct {
+	data []int
+}
+
 // DefaultPool is the global buffer pool used by NewPlanPooled.
 var DefaultPool = &BufferPool{}
 
@@ -74,8 +79,9 @@ func (p *BufferPool) PutComplex128(n int, data []complex128, backing []byte) {
 // GetIntSlice retrieves or allocates an int slice of size n.
 func (p *BufferPool) GetIntSlice(n int) []int {
 	pool := p.getOrCreatePoolInt(n)
+	buf := pool.Get().(*intBuffer)
 
-	return pool.Get().([]int)
+	return buf.data
 }
 
 // PutIntSlice returns an int slice to the pool for reuse.
@@ -85,7 +91,7 @@ func (p *BufferPool) PutIntSlice(n int, data []int) {
 	}
 
 	pool := p.getOrCreatePoolInt(n)
-	pool.Put(data)
+	pool.Put(&intBuffer{data: data})
 }
 
 func (p *BufferPool) getOrCreatePool64(n int) *sync.Pool {
@@ -129,7 +135,7 @@ func (p *BufferPool) getOrCreatePoolInt(n int) *sync.Pool {
 
 	pool := &sync.Pool{
 		New: func() any {
-			return make([]int, n)
+			return &intBuffer{data: make([]int, n)}
 		},
 	}
 

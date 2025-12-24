@@ -8,10 +8,14 @@ import (
 )
 
 func TestNewPlan_Bluestein(t *testing.T) {
+	t.Parallel()
+
 	// Prime lengths trigger Bluestein
 	primes := []int{7, 11, 13, 17}
 	for _, n := range primes {
 		t.Run("complex64_"+itoa(n), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan[complex64](n)
 			if err != nil {
 				t.Errorf("NewPlan(%d) error: %v", n, err)
@@ -27,6 +31,8 @@ func TestNewPlan_Bluestein(t *testing.T) {
 			}
 		})
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan[complex128](n)
 			if err != nil {
 				t.Errorf("NewPlan(%d) error: %v", n, err)
@@ -45,10 +51,14 @@ func TestNewPlan_Bluestein(t *testing.T) {
 }
 
 func TestBluestein_RoundTrip(t *testing.T) {
+	t.Parallel()
+
 	// Simple round trip test for a prime size
 	n := 13
 
 	t.Run("complex64", func(t *testing.T) {
+		t.Parallel()
+
 		plan, err := NewPlan[complex64](n)
 		if err != nil {
 			t.Fatalf("NewPlan(%d) failed: %v", n, err)
@@ -78,6 +88,8 @@ func TestBluestein_RoundTrip(t *testing.T) {
 	})
 
 	t.Run("complex128", func(t *testing.T) {
+		t.Parallel()
+
 		plan, err := NewPlan[complex128](n)
 		if err != nil {
 			t.Fatalf("NewPlan(%d) failed: %v", n, err)
@@ -114,6 +126,8 @@ func TestBluestein_LargePrimes(t *testing.T) {
 
 	for _, n := range primes {
 		t.Run(itoa(n), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan[complex64](n)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", n, err)
@@ -155,6 +169,8 @@ func TestBluestein_MatchesReference(t *testing.T) {
 
 	for _, n := range primes {
 		t.Run("complex64_"+itoa(n), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan[complex64](n)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", n, err)
@@ -187,6 +203,8 @@ func TestBluestein_MatchesReference(t *testing.T) {
 		})
 
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan[complex128](n)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", n, err)
@@ -226,6 +244,8 @@ func TestBluestein_InverseMatchesReference(t *testing.T) {
 
 	for _, n := range primes {
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan[complex128](n)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", n, err)

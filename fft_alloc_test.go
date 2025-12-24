@@ -2,6 +2,7 @@ package algoforge
 
 import "testing"
 
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
 func TestPlanTransformsNoAllocsComplex64(t *testing.T) {
 	const n = 1024
 
@@ -18,7 +19,8 @@ func TestPlanTransformsNoAllocsComplex64(t *testing.T) {
 	dst := make([]complex64, n)
 	freq := make([]complex64, n)
 
-	if err := plan.Forward(freq, src); err != nil {
+	err = plan.Forward(freq, src)
+	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
 	}
 
@@ -30,6 +32,7 @@ func TestPlanTransformsNoAllocsComplex64(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
 func TestPlanTransformsNoAllocsComplex128(t *testing.T) {
 	const n = 1024
 
@@ -46,7 +49,8 @@ func TestPlanTransformsNoAllocsComplex128(t *testing.T) {
 	dst := make([]complex128, n)
 	freq := make([]complex128, n)
 
-	if err := plan.Forward(freq, src); err != nil {
+	err = plan.Forward(freq, src)
+	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
 	}
 

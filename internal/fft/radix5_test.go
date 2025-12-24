@@ -26,7 +26,7 @@ func TestRadix5ForwardMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT(src)
-		assertComplex64SliceClose(t, dst, want, radix5Tol64, n)
+		assertComplex64SliceClose(t, dst, want, n)
 	}
 }
 
@@ -50,7 +50,7 @@ func TestRadix5InverseMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT(fwd)
-		assertComplex64SliceClose(t, dst, want, radix5Tol64, n)
+		assertComplex64SliceClose(t, dst, want, n)
 	}
 }
 
@@ -69,7 +69,7 @@ func TestRadix5ForwardMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT128(src)
-		assertComplex128SliceClose(t, dst, want, radix5Tol128, n)
+		assertComplex128SliceClose(t, dst, want, n)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestRadix5InverseMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT128(fwd)
-		assertComplex128SliceClose(t, dst, want, radix5Tol128, n)
+		assertComplex128SliceClose(t, dst, want, n)
 	}
 }
 

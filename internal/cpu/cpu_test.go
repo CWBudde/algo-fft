@@ -41,7 +41,7 @@ func TestQueryFunctions(t *testing.T) {
 	t.Parallel()
 
 	// Ensure we're using real detection, not forced features
-	defer ResetDetection()
+	t.Cleanup(ResetDetection)
 
 	ResetDetection()
 
@@ -64,6 +64,8 @@ func TestQueryFunctions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			if tt.got != tt.expected {
 				t.Errorf("%s() = %v, want %v", tt.name, tt.got, tt.expected)
 			}
@@ -77,6 +79,8 @@ func TestForcedFeatures(t *testing.T) {
 
 	// Test SSE2-only system
 	t.Run("SSE2Only", func(t *testing.T) {
+		t.Parallel()
+
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -112,6 +116,8 @@ func TestForcedFeatures(t *testing.T) {
 
 	// Test AVX2 system
 	t.Run("AVX2System", func(t *testing.T) {
+		t.Parallel()
+
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -155,6 +161,8 @@ func TestForcedFeatures(t *testing.T) {
 
 	// Test ARM NEON system
 	t.Run("NEONSystem", func(t *testing.T) {
+		t.Parallel()
+
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -178,6 +186,8 @@ func TestForcedFeatures(t *testing.T) {
 
 	// Test ForceGeneric flag
 	t.Run("ForceGeneric", func(t *testing.T) {
+		t.Parallel()
+
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -247,21 +257,21 @@ func TestConcurrentDetection(t *testing.T) {
 
 	const goroutines = 100
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	results := make([]Features, goroutines)
 
 	for i := range goroutines {
-		wg.Add(1)
+		waitGroup.Add(1)
 
 		go func(index int) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			results[index] = DetectFeatures()
 		}(i)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 
 	// All results should be identical (detection ran once, cached for all)
 	first := results[0]

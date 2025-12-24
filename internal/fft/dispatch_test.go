@@ -58,6 +58,8 @@ func TestSelectKernelsWithStrategy(t *testing.T) {
 
 	for i, strategy := range strategies {
 		t.Run(strategyNames[i], func(t *testing.T) {
+			t.Parallel()
+
 			// Test complex64
 			kernels64 := SelectKernelsWithStrategy[complex64](features, strategy)
 			if kernels64.Forward == nil {
@@ -133,6 +135,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 
 	// Test SSE2-only system (no AVX2)
 	t.Run("SSE2Only", func(t *testing.T) {
+		t.Parallel()
+
 		defer cpu.ResetDetection()
 
 		cpu.SetForcedFeatures(cpu.Features{
@@ -148,6 +152,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 
 	// Test AVX2 system
 	t.Run("AVX2System", func(t *testing.T) {
+		t.Parallel()
+
 		defer cpu.ResetDetection()
 
 		cpu.SetForcedFeatures(cpu.Features{
@@ -168,6 +174,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 
 	// Test ForceGeneric flag disables SIMD
 	t.Run("ForceGeneric", func(t *testing.T) {
+		t.Parallel()
+
 		defer cpu.ResetDetection()
 
 		cpu.SetForcedFeatures(cpu.Features{
@@ -190,6 +198,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 
 	// Test ARM NEON system
 	t.Run("NEONSystem", func(t *testing.T) {
+		t.Parallel()
+
 		defer cpu.ResetDetection()
 
 		cpu.SetForcedFeatures(cpu.Features{

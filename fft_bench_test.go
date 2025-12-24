@@ -172,7 +172,8 @@ func benchmarkPlanForwardNewPlanEachIter(b *testing.B, fftSize int) {
 
 		dst := make([]complex64, fftSize)
 
-		if err := plan.Forward(dst, src); err != nil {
+		err = plan.Forward(dst, src)
+		if err != nil {
 			b.Fatalf("Forward() returned error: %v", err)
 		}
 	}

@@ -28,7 +28,7 @@ func TestForwardMatchesReferenceSmall(t *testing.T) {
 
 		want := reference.NaiveDFT(src)
 		for i := range got {
-			assertApproxComplex64Tol(t, got[i], want[i], 1e-4, "n=%d idx=%d", n, i)
+			assertApproxComplex64Tolf(t, got[i], want[i], 1e-4, "n=%d idx=%d", n, i)
 		}
 	}
 }
@@ -57,12 +57,12 @@ func TestInverseMatchesReferenceSmall(t *testing.T) {
 
 		want := reference.NaiveIDFT(freq)
 		for i := range got {
-			assertApproxComplex64Tol(t, got[i], want[i], 1e-4, "n=%d idx=%d", n, i)
+			assertApproxComplex64Tolf(t, got[i], want[i], 1e-4, "n=%d idx=%d", n, i)
 		}
 	}
 }
 
-func assertApproxComplex64Tol(t *testing.T, got, want complex64, tol float64, format string, args ...any) {
+func assertApproxComplex64Tolf(t *testing.T, got, want complex64, tol float64, format string, args ...any) {
 	t.Helper()
 
 	diff := complex128(got - want)

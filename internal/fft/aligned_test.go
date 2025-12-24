@@ -177,20 +177,20 @@ func TestAlignPtr(t *testing.T) {
 		{17, 16, 32},   // 16-byte alignment
 	}
 
-	for _, tc := range testCases {
-		result := alignPtr(tc.ptr, tc.align)
-		if result != tc.expected {
-			t.Errorf("alignPtr(0x%x, %d) = 0x%x, want 0x%x", tc.ptr, tc.align, result, tc.expected)
+	for _, testCase := range testCases {
+		result := alignPtr(testCase.ptr, testCase.align)
+		if result != testCase.expected {
+			t.Errorf("alignPtr(0x%x, %d) = 0x%x, want 0x%x", testCase.ptr, testCase.align, result, testCase.expected)
 		}
 
 		// Verify result is aligned
-		if result%uintptr(tc.align) != 0 {
-			t.Errorf("alignPtr(0x%x, %d) = 0x%x is not aligned to %d", tc.ptr, tc.align, result, tc.align)
+		if result%uintptr(testCase.align) != 0 {
+			t.Errorf("alignPtr(0x%x, %d) = 0x%x is not aligned to %d", testCase.ptr, testCase.align, result, testCase.align)
 		}
 
 		// Verify result >= original pointer
-		if result < tc.ptr {
-			t.Errorf("alignPtr(0x%x, %d) = 0x%x is less than original", tc.ptr, tc.align, result)
+		if result < testCase.ptr {
+			t.Errorf("alignPtr(0x%x, %d) = 0x%x is less than original", testCase.ptr, testCase.align, result)
 		}
 	}
 }
