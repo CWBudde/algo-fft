@@ -142,7 +142,7 @@ func TestPlan_Close_Pooled(t *testing.T) {
 func TestPlanPooled_InvalidLength(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewPlanPooled[complex64](100) // Not a power of 2
+	_, err := NewPlanPooled[complex64](98) // Includes unsupported prime factor
 	if !errors.Is(err, ErrInvalidLength) {
 		t.Errorf("expected ErrInvalidLength, got %v", err)
 	}

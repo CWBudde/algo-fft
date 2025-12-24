@@ -331,27 +331,27 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 9.1 Radix-3 Implementation
 
-- [ ] Implement `butterfly3` operation in `radix3.go`
-- [ ] Derive and implement radix-3 twiddle factors
-- [ ] Implement radix-3 FFT stage
-- [ ] Write correctness tests for lengths 3, 9, 27
-- [ ] Benchmark radix-3 performance
+- [x] Implement `butterfly3` operation in `radix3.go`
+- [x] Derive and implement radix-3 twiddle factors
+- [x] Implement radix-3 FFT stage
+- [x] Write correctness tests for lengths 3, 9, 27
+- [x] Benchmark radix-3 performance
 
 ### 9.2 Radix-5 Implementation
 
-- [ ] Implement `butterfly5` operation in `radix5.go`
-- [ ] Derive and implement radix-5 twiddle factors
-- [ ] Implement radix-5 FFT stage
-- [ ] Write correctness tests for lengths 5, 25, 125
-- [ ] Benchmark radix-5 performance
+- [x] Implement `butterfly5` operation in `radix5.go`
+- [x] Derive and implement radix-5 twiddle factors
+- [x] Implement radix-5 FFT stage
+- [x] Write correctness tests for lengths 5, 25, 125
+- [x] Benchmark radix-5 performance
 
 ### 9.3 Mixed-Radix Combiner
 
-- [ ] Implement mixed-radix FFT combining radix-2, 3, 4, 5
-- [ ] Create factor scheduling algorithm (which radix to apply when)
-- [ ] Test composite lengths: 6, 10, 12, 15, 20, 30, 60
-- [ ] Verify correctness against reference DFT
-- [ ] Benchmark mixed-radix vs zero-padded power-of-2
+- [x] Implement mixed-radix FFT combining radix-2, 3, 4, 5
+- [x] Create factor scheduling algorithm (which radix to apply when)
+- [x] Test composite lengths: 6, 10, 12, 15, 20, 30, 60
+- [x] Verify correctness against reference DFT
+- [x] Benchmark mixed-radix vs zero-padded power-of-2
 
 ---
 

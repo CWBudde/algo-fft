@@ -138,6 +138,14 @@ func itoa(n int) string {
 	return string(buf[i:])
 }
 
+func planBitReversal(n int) []int {
+	if !fft.IsPowerOfTwo(n) {
+		return nil
+	}
+
+	return fft.ComputeBitReversalIndices(n)
+}
+
 // Forward computes the forward (time-to-frequency) FFT.
 //
 // The transform is computed as:
@@ -230,14 +238,14 @@ func (p *Plan[T]) validateSlices(dst, src []T) error {
 }
 
 // NewPlan creates a new FFT plan for the given size using the generic type T.
-// The size n must be a positive power of 2.
+// The size n must be a positive power of 2 or factorable by 2, 3, or 5.
 //
 // Example:
 //
 //	plan, err := NewPlan[complex64](1024)
 //	plan128, err := NewPlan[complex128](1024)
 func NewPlan[T Complex](n int) (*Plan[T], error) {
-	if !fft.IsPowerOfTwo(n) || n < 1 {
+	if n < 1 || (!fft.IsPowerOfTwo(n) && !fft.IsHighlyComposite(n)) {
 		return nil, ErrInvalidLength
 	}
 
@@ -283,7 +291,7 @@ func NewPlan[T Complex](n int) (*Plan[T], error) {
 		n:              n,
 		twiddle:        twiddle,
 		scratch:        scratch,
-		bitrev:         fft.ComputeBitReversalIndices(n),
+		bitrev:         planBitReversal(n),
 		forwardKernel:  kernels.Forward,
 		inverseKernel:  kernels.Inverse,
 		kernelStrategy: strategy,
@@ -328,7 +336,7 @@ func NewPlanPooled[T Complex](n int) (*Plan[T], error) {
 // NewPlanFromPool creates a new FFT plan using buffers from the specified pool.
 // This allows custom pool management for advanced use cases.
 func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
-	if !fft.IsPowerOfTwo(n) || n < 1 {
+	if n < 1 || (!fft.IsPowerOfTwo(n) && !fft.IsHighlyComposite(n)) {
 		return nil, ErrInvalidLength
 	}
 
@@ -370,9 +378,12 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 		scratch = make([]T, n)
 	}
 
-	bitrev := pool.GetIntSlice(n)
-	computed := fft.ComputeBitReversalIndices(n)
-	copy(bitrev, computed)
+	var bitrev []int
+	if fft.IsPowerOfTwo(n) {
+		bitrev = pool.GetIntSlice(n)
+		computed := fft.ComputeBitReversalIndices(n)
+		copy(bitrev, computed)
+	}
 
 	p := &Plan[T]{
 		n:              n,

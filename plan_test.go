@@ -53,11 +53,36 @@ func TestNewPlan64(t *testing.T) {
 func TestNewPlan_InvalidLength(t *testing.T) {
 	t.Parallel()
 
-	invalidSizes := []int{0, -1, 3, 5, 6, 7, 9, 10, 12, 15, 17, 100, 1000}
+	invalidSizes := []int{0, -1, 7, 11, 13, 14, 17, 19, 21, 22, 26, 28, 33, 34}
 	for _, n := range invalidSizes {
 		plan, err := NewPlan[complex64](n)
 		if !errors.Is(err, ErrInvalidLength) {
 			t.Errorf("NewPlan(%d) = (%v, %v), want (nil, ErrInvalidLength)", n, plan, err)
+		}
+	}
+}
+
+func TestNewPlan_MixedRadixLengths(t *testing.T) {
+	t.Parallel()
+
+	for _, n := range []int{6, 10, 12, 15, 20, 30, 60} {
+		plan, err := NewPlan[complex64](n)
+		if err != nil {
+			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		}
+
+		src := make([]complex64, n)
+		src[0] = 1
+
+		dst := make([]complex64, n)
+		if err := plan.Forward(dst, src); err != nil {
+			t.Fatalf("Forward(%d) returned error: %v", n, err)
+		}
+
+		for i := range dst {
+			if absComplex64(dst[i]-1) > 1e-3 {
+				t.Fatalf("n=%d dst[%d] = %v, want ~1", n, i, dst[i])
+			}
 		}
 	}
 }

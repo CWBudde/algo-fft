@@ -68,3 +68,8 @@ func isHighlyComposite(n int) bool {
 
 	return true
 }
+
+// IsHighlyComposite reports whether n only contains 2, 3, or 5 factors.
+func IsHighlyComposite(n int) bool {
+	return isHighlyComposite(n)
+}

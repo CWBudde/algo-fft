@@ -5,8 +5,8 @@ import "errors"
 // Sentinel errors returned by FFT operations.
 var (
 	// ErrInvalidLength is returned when the FFT size is not valid.
-	// For basic plans, the length must be a positive power of 2.
-	// Mixed-radix and Bluestein algorithms extend supported sizes.
+	// Supported sizes include powers of two and lengths factored by 2, 3, or 5.
+	// Mixed-radix and Bluestein algorithms extend supported sizes further.
 	ErrInvalidLength = errors.New("algoforge: invalid FFT length")
 
 	// ErrNilSlice is returned when a nil slice is passed to a transform method.
