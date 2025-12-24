@@ -37,3 +37,9 @@ vendor/
 
 # Benchmark results
 benchstat.txt
+
+# Cache
+.gocache
+
+# Agents
+.claude
