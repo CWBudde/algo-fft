@@ -304,7 +304,6 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 8.1 Length Factorization
 
-- [ ] Implement `factorize(n int) []int` to find prime factors
 - [x] Implement `factorize(n int) []int` to find prime factors
 - [x] Implement `isPowerOf2(n int) bool` utility
 - [x] Implement `nextPowerOf2(n int) int` utility
@@ -313,18 +312,18 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 8.2 Radix-4 Implementation
 
-- [ ] Implement `butterfly4` operation in `radix4.go`
-- [ ] Implement radix-4 FFT for lengths that are powers of 4
-- [ ] Integrate radix-4 into Plan when `n` is power of 4
-- [ ] Write correctness tests for radix-4
-- [ ] Benchmark radix-4 vs radix-2 for powers of 4
+- [x] Implement `butterfly4` operation in `radix4.go`
+- [x] Implement radix-4 FFT for lengths that are powers of 4
+- [x] Integrate radix-4 into Plan when `n` is power of 4
+- [x] Write correctness tests for radix-4
+- [x] Benchmark radix-4 vs radix-2 for powers of 4
 
 ### 8.3 Split-Radix Preparation
 
-- [ ] Research split-radix algorithm structure
-- [ ] Design interface for pluggable radix implementations
-- [ ] Stub out `splitRadixFFT()` function
-- [ ] Document algorithm selection strategy
+- [x] Research split-radix algorithm structure
+- [x] Design interface for pluggable radix implementations
+- [x] Stub out `splitRadixFFT()` function
+- [x] Document algorithm selection strategy
 
 ---
 

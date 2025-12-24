@@ -1,18 +1,34 @@
 package fft
 
 func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	if forwardRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
+		return true
+	}
+
 	return ditForward[complex64](dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	if inverseRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
+		return true
+	}
+
 	return ditInverse[complex64](dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	if forwardRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
+		return true
+	}
+
 	return ditForward[complex128](dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	if inverseRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
+		return true
+	}
+
 	return ditInverse[complex128](dst, src, twiddle, scratch, bitrev)
 }
 

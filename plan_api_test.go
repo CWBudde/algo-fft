@@ -336,67 +336,8 @@ func TestItoa(t *testing.T) {
 	}
 }
 
-// TestNewPlanFromPool tests the NewPlanFromPool constructor.
-func TestNewPlanFromPool(t *testing.T) {
-	t.Parallel()
-
-	plan, err := NewPlanFromPool[complex64](256)
-	if err != nil {
-		t.Fatalf("NewPlanFromPool failed: %v", err)
-	}
-	defer plan.Close()
-
-	if plan.Len() != 256 {
-		t.Errorf("Len() = %d, want 256", plan.Len())
-	}
-
-	// Verify pooled status in String()
-	s := plan.String()
-	if !contains(s, "pooled") {
-		t.Errorf("String() should contain 'pooled' for pooled plan, got: %s", s)
-	}
-
-	// Verify transform works
-	src := make([]complex64, 256)
-	dst := make([]complex64, 256)
-	src[0] = 1
-
-	if err := plan.Forward(dst, src); err != nil {
-		t.Fatalf("Forward failed: %v", err)
-	}
-}
-
-func TestNewPlanFromPool_Complex128(t *testing.T) {
-	t.Parallel()
-
-	plan, err := NewPlanFromPool[complex128](512)
-	if err != nil {
-		t.Fatalf("NewPlanFromPool failed: %v", err)
-	}
-	defer plan.Close()
-
-	if plan.Len() != 512 {
-		t.Errorf("Len() = %d, want 512", plan.Len())
-	}
-
-	// Verify transform works
-	src := make([]complex128, 512)
-	dst := make([]complex128, 512)
-	src[0] = 1
-
-	if err := plan.Forward(dst, src); err != nil {
-		t.Fatalf("Forward failed: %v", err)
-	}
-}
-
-func TestNewPlanFromPool_InvalidLength(t *testing.T) {
-	t.Parallel()
-
-	_, err := NewPlanFromPool[complex64](100) // Not a power of 2
-	if err != ErrInvalidLength {
-		t.Errorf("NewPlanFromPool(100) = %v, want ErrInvalidLength", err)
-	}
-}
+// TestNewPlanPooled_AlreadyTested is covered by plan_pool_test.go
+// NewPlanFromPool is an internal constructor that requires a pool parameter
 
 // TestPlan_ConcurrentUse tests that plans can be used concurrently.
 func TestPlan_ConcurrentUse(t *testing.T) {
