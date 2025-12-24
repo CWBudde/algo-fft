@@ -288,7 +288,7 @@ Each phase is scoped to approximately one day of focused work.
 ### 7.3 API Polish
 
 - [x] Review and finalize all public API signatures
-  - Note: Consistent naming (NewPlan*, Plan.Forward/Inverse/InPlace, etc.)
+  - Note: Consistent naming (NewPlan\*, Plan.Forward/Inverse/InPlace, etc.)
 - [x] Ensure consistency in naming conventions
   - Note: All methods follow Go conventions; kernel strategies use consistent naming
 - [x] Add `String()` method to Plan for debugging
@@ -305,10 +305,11 @@ Each phase is scoped to approximately one day of focused work.
 ### 8.1 Length Factorization
 
 - [ ] Implement `factorize(n int) []int` to find prime factors
-- [ ] Implement `isPowerOf2(n int) bool` utility
-- [ ] Implement `nextPowerOf2(n int) int` utility
-- [ ] Implement `isHighlyComposite(n int) bool` (2,3,5 factors only)
-- [ ] Write tests for factorization edge cases
+- [x] Implement `factorize(n int) []int` to find prime factors
+- [x] Implement `isPowerOf2(n int) bool` utility
+- [x] Implement `nextPowerOf2(n int) int` utility
+- [x] Implement `isHighlyComposite(n int) bool` (2,3,5 factors only)
+- [x] Write tests for factorization edge cases
 
 ### 8.2 Radix-4 Implementation
 

@@ -81,6 +81,7 @@ func (p *Plan[T]) KernelStrategy() KernelStrategy {
 // The format is: "Plan[type](size, strategy)" where type is "complex64" or "complex128".
 func (p *Plan[T]) String() string {
 	var zero T
+
 	typeName := "complex64"
 
 	if _, ok := any(zero).(complex128); ok {
@@ -120,6 +121,7 @@ func itoa(n int) string {
 	}
 
 	var buf [20]byte
+
 	i := len(buf)
 
 	for n > 0 {
@@ -418,6 +420,7 @@ func (p *Plan[T]) Close() {
 		if p.twiddleBacking != nil {
 			p.pool.PutComplex64(p.n, any(p.twiddle).([]complex64), p.twiddleBacking)
 		}
+
 		if p.scratchBacking != nil {
 			p.pool.PutComplex64(p.n, any(p.scratch).([]complex64), p.scratchBacking)
 		}
@@ -425,6 +428,7 @@ func (p *Plan[T]) Close() {
 		if p.twiddleBacking != nil {
 			p.pool.PutComplex128(p.n, any(p.twiddle).([]complex128), p.twiddleBacking)
 		}
+
 		if p.scratchBacking != nil {
 			p.pool.PutComplex128(p.n, any(p.scratch).([]complex128), p.scratchBacking)
 		}

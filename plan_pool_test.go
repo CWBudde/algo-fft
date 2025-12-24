@@ -1,6 +1,7 @@
 package algoforge
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -61,6 +62,7 @@ func TestPlanPooled_BufferReuse(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewPlanPooled failed: %v", err)
 		}
+
 		plan.Close()
 	}
 
@@ -141,7 +143,7 @@ func TestPlanPooled_InvalidLength(t *testing.T) {
 	t.Parallel()
 
 	_, err := NewPlanPooled[complex64](100) // Not a power of 2
-	if err != ErrInvalidLength {
+	if !errors.Is(err, ErrInvalidLength) {
 		t.Errorf("expected ErrInvalidLength, got %v", err)
 	}
 }
@@ -163,6 +165,7 @@ func TestPlan_String_Complex64(t *testing.T) {
 	if !contains(s, "complex64") {
 		t.Errorf("String() should contain 'complex64', got: %s", s)
 	}
+
 	if !contains(s, "256") {
 		t.Errorf("String() should contain '256', got: %s", s)
 	}
@@ -181,6 +184,7 @@ func TestPlan_String_Complex128(t *testing.T) {
 	if !contains(s, "complex128") {
 		t.Errorf("String() should contain 'complex128', got: %s", s)
 	}
+
 	if !contains(s, "512") {
 		t.Errorf("String() should contain '512', got: %s", s)
 	}
@@ -227,6 +231,7 @@ func TestPlan_Clone(t *testing.T) {
 	if err := original.Forward(dstOriginal, src); err != nil {
 		t.Fatalf("original.Forward failed: %v", err)
 	}
+
 	if err := clone.Forward(dstClone, src); err != nil {
 		t.Fatalf("clone.Forward failed: %v", err)
 	}
@@ -293,6 +298,7 @@ func contains(s, substr string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -308,6 +314,7 @@ func BenchmarkPooledVsRegular(b *testing.B) {
 
 		b.Run("Pooled/"+itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				plan, _ := NewPlanPooled[complex64](size)
 				plan.Close()
@@ -316,10 +323,10 @@ func BenchmarkPooledVsRegular(b *testing.B) {
 
 		b.Run("Regular/"+itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				_, _ = NewPlan[complex64](size)
 			}
 		})
 	}
 }
-
