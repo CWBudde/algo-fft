@@ -350,3 +350,61 @@ func BenchmarkPlanRealForward(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkPlanRealForwardNormalized(b *testing.B) {
+	sizes := []int{256, 1024, 4096, 16384}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("Real_N=%d", n), func(b *testing.B) {
+			plan, err := NewPlanReal(n)
+			if err != nil {
+				b.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+			}
+
+			src := make([]float32, n)
+			for i := range src {
+				src[i] = float32(i)
+			}
+
+			dst := make([]complex64, n/2+1)
+
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 4)) // float32 = 4 bytes
+
+			b.ResetTimer()
+
+			for range b.N {
+				_ = plan.ForwardNormalized(dst, src)
+			}
+		})
+	}
+}
+
+func BenchmarkPlanRealForwardUnitary(b *testing.B) {
+	sizes := []int{256, 1024, 4096, 16384}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("Real_N=%d", n), func(b *testing.B) {
+			plan, err := NewPlanReal(n)
+			if err != nil {
+				b.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+			}
+
+			src := make([]float32, n)
+			for i := range src {
+				src[i] = float32(i)
+			}
+
+			dst := make([]complex64, n/2+1)
+
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 4)) // float32 = 4 bytes
+
+			b.ResetTimer()
+
+			for range b.N {
+				_ = plan.ForwardUnitary(dst, src)
+			}
+		})
+	}
+}

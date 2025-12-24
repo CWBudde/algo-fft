@@ -14,9 +14,9 @@ type PlanReal struct {
 	n    int
 	half int
 
-	plan    *Plan[complex64]
-	twiddle []complex64
-	buf     []complex64
+	plan   *Plan[complex64]
+	weight []complex64
+	buf    []complex64
 }
 
 // NewPlanReal creates a new real FFT plan for length n.
@@ -31,20 +31,20 @@ func NewPlanReal(n int) (*PlanReal, error) {
 		return nil, err
 	}
 
-	// Compute only the N/2+1 twiddle factors needed for real FFT recombination.
-	// W_N^k = exp(-2πik/N) for k = 0..N/2
-	twiddle := make([]complex64, n/2+1)
-	for k := range twiddle {
-		angle := -2 * math.Pi * float64(k) / float64(n)
-		twiddle[k] = complex64(complex(math.Cos(angle), math.Sin(angle)))
+	// Precompute U[k] weights for recombination:
+	// U[k] = 0.5 * (1 + i*W_N^k) where W_N^k = exp(-2πik/N).
+	weight := make([]complex64, n/2+1)
+	for k := range weight {
+		theta := 2 * math.Pi * float64(k) / float64(n)
+		weight[k] = complex64(complex(0.5*(1+math.Sin(theta)), 0.5*math.Cos(theta)))
 	}
 
 	return &PlanReal{
-		n:       n,
-		half:    n / 2,
-		plan:    plan,
-		twiddle: twiddle,
-		buf:     make([]complex64, n/2),
+		n:      n,
+		half:   n / 2,
+		plan:   plan,
+		weight: weight,
+		buf:    make([]complex64, n/2),
 	}, nil
 }
 
@@ -86,22 +86,40 @@ func (p *PlanReal) Forward(dst []complex64, src []float32) error {
 
 	// Recombination step: extract X[k] from the N/2-point FFT of packed data.
 	// Given z[m] = x[2m] + i*x[2m+1], we computed Y = FFT(z).
-	// The real FFT X[k] is recovered via:
-	//   A[k] = Y[k], B[k] = conj(Y[N/2-k])
-	//   X[k] = 0.5 * (A + B + W_N^k * (A - B) * (-i))
-	// The 0.5 factor accounts for the averaging in the symmetric decomposition.
+	// With A[k] = Y[k], B[k] = conj(Y[N/2-k]), and U[k] = 0.5 * (1 + i*W_N^k),
+	// the spectrum is recovered via: X[k] = A[k] - U[k] * (A[k] - B[k]).
 	for k := 1; k < p.half; k++ {
 		a := p.buf[k]
 		bSrc := p.buf[p.half-k]
 		b := complex(real(bSrc), -imag(bSrc)) // conj(Y[N/2-k])
 
-		t1 := a + b // A + B (symmetric part)
-		t2 := a - b // A - B (antisymmetric part)
-		w := p.twiddle[k]
-		u := w * t2
-		rot := complex(imag(u), -real(u)) // multiply by -i
-		dst[k] = 0.5 * (t1 + rot)
+		c := p.weight[k] * (a - b)
+		dst[k] = a - c
 	}
+
+	return nil
+}
+
+// ForwardNormalized computes the real-to-complex FFT and scales the result by 1/N.
+func (p *PlanReal) ForwardNormalized(dst []complex64, src []float32) error {
+	if err := p.Forward(dst, src); err != nil {
+		return err
+	}
+
+	scale := float32(1.0 / float64(p.n))
+	scaleSpectrumComplex64(dst, scale)
+
+	return nil
+}
+
+// ForwardUnitary computes the real-to-complex FFT and scales the result by 1/sqrt(N).
+func (p *PlanReal) ForwardUnitary(dst []complex64, src []float32) error {
+	if err := p.Forward(dst, src); err != nil {
+		return err
+	}
+
+	scale := float32(1.0 / math.Sqrt(float64(p.n)))
+	scaleSpectrumComplex64(dst, scale)
 
 	return nil
 }
@@ -118,4 +136,15 @@ func (p *PlanReal) Inverse(dst []float32, src []complex64) error {
 	}
 
 	return ErrNotImplemented
+}
+
+func scaleSpectrumComplex64(dst []complex64, scale float32) {
+	if scale == 1 {
+		return
+	}
+
+	factor := complex(scale, 0)
+	for i := range dst {
+		dst[i] *= factor
+	}
 }

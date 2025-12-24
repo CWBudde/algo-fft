@@ -409,8 +409,8 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 11.x Optional Improvements
 
-- [ ] Optional: precompute `U[k]` weights (otfftpp style) to reduce recombination ops
-- [ ] Optional: add normalized forward variants (unitary / 1/N) or flags in PlanReal
+- [x] Optional: precompute `U[k]` weights (otfftpp style) to reduce recombination ops
+- [x] Optional: add normalized forward variants (unitary / 1/N) or flags in PlanReal
 
 ---
 
