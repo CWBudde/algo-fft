@@ -453,11 +453,16 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 13.2 Backend Dispatch System
 
-- [ ] Create `internal/dispatch/dispatch.go`
-- [ ] Define function pointer types for FFT operations
-- [ ] Implement `init()` that sets function pointers based on CPU features
-- [ ] Create fallback pure-Go implementations
-- [ ] Test dispatch mechanism with mock feature flags
+- [x] Create `internal/dispatch/dispatch.go`
+  - Note: Implemented in `internal/fft/dispatch.go` - separate package not needed due to tight coupling
+- [x] Define function pointer types for FFT operations
+  - Note: `Kernel[T]` and `Kernels[T]` types in `dispatch.go`
+- [x] Implement `init()` that sets function pointers based on CPU features
+  - Note: `SelectKernels[T](features)` and `SelectKernelsWithStrategy[T](features, strategy)` in `dispatch.go`
+- [x] Create fallback pure-Go implementations
+  - Note: `autoKernelComplex64/128()` in `kernels_fallback.go`, tested in `TestKernelsFunctional_*`
+- [x] Test dispatch mechanism with mock feature flags
+  - Note: `TestKernelSelectionWithForcedFeatures` in `dispatch_test.go`
 
 ### 13.3 Assembly Infrastructure
 
