@@ -1,5 +1,12 @@
 package fft
 
+import "sync"
+
+var transposeCache struct {
+	sync.RWMutex
+	pairs map[int][]TransposePair
+}
+
 // TransposePair describes a swap between two indices in a flattened matrix.
 type TransposePair struct {
 	I int
@@ -13,6 +20,15 @@ func ComputeSquareTransposePairs(n int) []TransposePair {
 		return nil
 	}
 
+	transposeCache.RLock()
+	if transposeCache.pairs != nil {
+		if cached, ok := transposeCache.pairs[n]; ok {
+			transposeCache.RUnlock()
+			return cached
+		}
+	}
+	transposeCache.RUnlock()
+
 	pairs := make([]TransposePair, 0, n*(n-1)/2)
 	for i := 0; i < n; i++ {
 		for j := i + 1; j < n; j++ {
@@ -21,6 +37,13 @@ func ComputeSquareTransposePairs(n int) []TransposePair {
 			pairs = append(pairs, TransposePair{I: a, J: b})
 		}
 	}
+
+	transposeCache.Lock()
+	if transposeCache.pairs == nil {
+		transposeCache.pairs = make(map[int][]TransposePair)
+	}
+	transposeCache.pairs[n] = pairs
+	transposeCache.Unlock()
 
 	return pairs
 }

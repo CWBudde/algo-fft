@@ -5,13 +5,15 @@ import (
 	"sync/atomic"
 )
 
-// KernelStrategy controls how plans choose between DIT and Stockham kernels.
+// KernelStrategy controls how plans choose between DIT, Stockham, and step kernels.
 type KernelStrategy uint32
 
 const (
 	KernelAuto KernelStrategy = iota
 	KernelDIT
 	KernelStockham
+	KernelSixStep
+	KernelEightStep
 )
 
 var kernelStrategy uint32 = uint32(KernelAuto)
@@ -39,7 +41,9 @@ func RecordBenchmarkDecision(n int, strategy KernelStrategy) {
 		return
 	}
 
-	if strategy != KernelDIT && strategy != KernelStockham {
+	switch strategy {
+	case KernelDIT, KernelStockham, KernelSixStep, KernelEightStep:
+	default:
 		return
 	}
 
@@ -75,6 +79,16 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 
 		if ok {
 			return decision
+		}
+	}
+
+	m := intSqrt(n)
+	if m*m == n {
+		if n >= 1<<22 {
+			return KernelEightStep
+		}
+		if n >= 1<<18 {
+			return KernelSixStep
 		}
 	}
 

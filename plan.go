@@ -41,9 +41,11 @@ type Plan[T Complex] struct {
 type KernelStrategy = fft.KernelStrategy
 
 const (
-	KernelAuto     = fft.KernelAuto
-	KernelDIT      = fft.KernelDIT
-	KernelStockham = fft.KernelStockham
+	KernelAuto      = fft.KernelAuto
+	KernelDIT       = fft.KernelDIT
+	KernelStockham  = fft.KernelStockham
+	KernelSixStep   = fft.KernelSixStep
+	KernelEightStep = fft.KernelEightStep
 )
 
 // SetKernelStrategy overrides the global kernel selection strategy.
@@ -138,6 +140,16 @@ func (p *Plan[T]) InPlace(data []T) error {
 // Returns ErrLengthMismatch if slice length doesn't match Plan dimensions.
 func (p *Plan[T]) InverseInPlace(data []T) error {
 	return p.Inverse(data, data)
+}
+
+// Transform computes either forward or inverse FFT based on the inverse flag.
+// This is a convenience wrapper over Forward/Inverse.
+func (p *Plan[T]) Transform(dst, src []T, inverse bool) error {
+	if inverse {
+		return p.Inverse(dst, src)
+	}
+
+	return p.Forward(dst, src)
 }
 
 // validateSlices checks that dst and src are valid for this Plan.

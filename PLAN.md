@@ -125,25 +125,25 @@ Each phase is scoped to approximately one day of focused work.
 
 - [x] Implement iterative Cooley-Tukey DIT algorithm in `fft_dit.go`
 - [x] Structure: bit-reverse input, then log2(n) stages of butterflies
-- [ ] Implement basic butterfly operation: `butterfly2(a, b *complex64, w complex64)`
+- [x] Implement basic butterfly operation: `butterfly2(a, b *complex64, w complex64)`
 - [x] Wire DIT kernels into `selectKernels*` as an option
 - [x] Write correctness tests for sizes 2, 4, 8 (compare vs reference DFT)
 
 ### 4.2 Forward Transform Completion
 
 - [x] Complete forward FFT implementation for all power-of-2 sizes
-- [ ] Optimize loop structure for cache efficiency
+- [x] Optimize loop structure for cache efficiency
 - [x] Ensure no allocations in hot path (use Plan's scratch space)
-- [ ] Write tests for sizes 16, 32, 64, 128, 256, 512, 1024
+- [x] Write tests for sizes 16, 32, 64, 128, 256, 512, 1024
 - [x] Verify against known FFT results (e.g., impulse → flat spectrum)
 
 ### 4.3 Stockham Autosort Variant (OTFFT-Inspired)
 
 - [x] Implement Stockham autosort FFT kernel (no explicit bit-reversal)
 - [x] Validate numerical parity with reference DFT for small sizes
-- [ ] Compare cache behavior and throughput vs DIT implementation
+- [x] Compare cache behavior and throughput vs DIT implementation
 - [x] Define selection heuristic (size threshold or plan flag)
-- [ ] If Stockham is the default path, de-prioritize split-radix/mixed-radix work
+- [x] If Stockham is the default path, de-prioritize split-radix/mixed-radix work
 
 ### 4.4 Twiddle Packing & SIMD-Friendly Layout
 
@@ -157,22 +157,23 @@ Each phase is scoped to approximately one day of focused work.
 - [x] Implement inverse transform in Stockham kernel with 1/n scaling
 - [x] Write round-trip tests: `Inverse(Forward(x)) ≈ x`
 - [x] Implement DIT inverse path (conjugate method or swapped twiddles)
-- [ ] Test scaling factor correctness for DIT path
+- [x] Test scaling factor correctness for DIT path
 
 ### 4.6 In-Place vs Out-of-Place Variants
 
-- [ ] Implement true in-place FFT (modify input directly)
-- [ ] Implement out-of-place FFT (src → dst, src unchanged)
-- [ ] Add `Plan.Transform(dst, src []complex64, inverse bool)` unified API
-- [ ] Test that out-of-place doesn't modify source
-- [ ] Test that in-place produces same results as out-of-place
+- [x] Implement true in-place FFT (modify input directly)
+- [x] Implement out-of-place FFT (src → dst, src unchanged)
+- [x] Add `Plan.Transform(dst, src []complex64, inverse bool)` unified API
+- [x] Test that out-of-place doesn't modify source
+- [x] Test that in-place produces same results as out-of-place
 
 ### 4.7 Six-Step / Eight-Step Large FFT Strategy
 
-- [ ] Implement blocked transpose + FFT (six-step) for large power-of-two sizes
-- [ ] Add optional eight-step variant for very large N
+- [x] Implement blocked transpose + FFT (six-step) for large power-of-two sizes
+- [x] Add optional eight-step variant for very large N
 - [x] Precompute transpose index tables to avoid per-call overhead
-- [ ] Evaluate when to enable (based on N and cache size heuristics)
+- [x] Add kernel benchmark runner to compare strategies and emit recommendations
+- [x] Evaluate when to enable (based on N and cache size heuristics)
 
 ### 4.8 Kernel Selection & Benchmark-Driven Tuning
 
@@ -195,14 +196,14 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 5.2 Correctness Test Suite
 
-- [ ] Create `fft_test.go` with comprehensive tests:
+- [x] Create `fft_test.go` with comprehensive tests:
   - [x] Test impulse response (delta function)
-  - [ ] Test constant signal (DC component)
-  - [ ] Test pure sinusoids at various frequencies
-  - [ ] Test Nyquist frequency signal
+  - [x] Test constant signal (DC component)
+  - [x] Test pure sinusoids at various frequencies
+  - [x] Test Nyquist frequency signal
   - [x] Test random signals vs reference DFT
-- [ ] Add tolerance-based comparison helper: `complexSliceEqual(a, b []complex64, tol float32) bool`
-- [ ] Test edge cases: length 1, length 2
+- [x] Add tolerance-based comparison helper: `complexSliceEqual(a, b []complex64, tol float32) bool`
+- [x] Test edge cases: length 1, length 2
 
 ### 5.3 Property-Based Testing
 
@@ -219,10 +220,10 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 5.4 Fuzz Testing Setup
 
-- [ ] Create `fft_fuzz_test.go` with Go's native fuzzing
-- [ ] Fuzz test: `Inverse(Forward(x)) ≈ x` for random x
-- [ ] Fuzz test: no panics for any valid input
-- [ ] Fuzz test: consistent results for same input
+- [x] Create `fft_fuzz_test.go` with Go's native fuzzing
+- [x] Fuzz test: `Inverse(Forward(x)) ≈ x` for random x
+- [x] Fuzz test: no panics for any valid input
+- [x] Fuzz test: consistent results for same input
 - [ ] Set up CI to run fuzz tests periodically
 
 ---
