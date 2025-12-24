@@ -6,6 +6,7 @@ func TestSixStepForwardInverse(t *testing.T) {
 	t.Parallel()
 
 	n := 16
+
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i+1), float32(-i))

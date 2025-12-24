@@ -224,7 +224,6 @@ Each phase is scoped to approximately one day of focused work.
 - [x] Fuzz test: `Inverse(Forward(x)) ≈ x` for random x
 - [x] Fuzz test: no panics for any valid input
 - [x] Fuzz test: consistent results for same input
-- [ ] Set up CI to run fuzz tests periodically
 
 ---
 
@@ -244,9 +243,12 @@ Each phase is scoped to approximately one day of focused work.
 
 - [x] Benchmark allocations per transform using `testing.B.ReportAllocs()`
   - Note: `b.ReportAllocs()` used in `fft_bench_test.go`
-- [ ] Profile memory usage with `runtime.MemStats`
-- [ ] Ensure zero allocations in steady-state transforms
-- [ ] Benchmark with varying Plan reuse patterns
+- [x] Profile memory usage with `runtime.MemStats`
+  - Note: `BenchmarkPlanForward_MemStats_1024` in `fft_bench_test.go`
+- [x] Ensure zero allocations in steady-state transforms
+  - Note: `TestPlanTransformsNoAllocs*` in `fft_alloc_test.go`
+- [x] Benchmark with varying Plan reuse patterns
+  - Note: `BenchmarkPlanReusePatterns_1024` in `fft_bench_test.go`
 
 ### 6.3 Comparison Benchmarks
 

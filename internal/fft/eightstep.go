@@ -21,9 +21,11 @@ func eightStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 	if n == 0 {
 		return true
 	}
+
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
 		return false
 	}
+
 	if n == 1 {
 		dst[0] = src[0]
 		return true
@@ -51,7 +53,7 @@ func eightStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 	rowScratch := scratch[m : 2*m]
 	fillRowTwiddle(rowTwiddle, twiddle, n/m)
 
-	for r := 0; r < m; r++ {
+	for r := range m {
 		row := data[r*m : (r+1)*m]
 		if !stockhamForward(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
 			return false
@@ -60,13 +62,13 @@ func eightStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 
 	transposeSquareBlocked(data, m, block)
 
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
+	for i := range m {
+		for j := range m {
 			data[i*m+j] *= twiddle[(i*j)%n]
 		}
 	}
 
-	for r := 0; r < m; r++ {
+	for r := range m {
 		row := data[r*m : (r+1)*m]
 		if !stockhamForward(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
 			return false
@@ -83,9 +85,11 @@ func eightStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 	if n == 0 {
 		return true
 	}
+
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
 		return false
 	}
+
 	if n == 1 {
 		dst[0] = src[0]
 		return true
@@ -113,7 +117,7 @@ func eightStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 	rowScratch := scratch[m : 2*m]
 	fillRowTwiddle(rowTwiddle, twiddle, n/m)
 
-	for r := 0; r < m; r++ {
+	for r := range m {
 		row := data[r*m : (r+1)*m]
 		if !stockhamInverse(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
 			return false
@@ -122,13 +126,13 @@ func eightStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 
 	transposeSquareBlocked(data, m, block)
 
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
+	for i := range m {
+		for j := range m {
 			data[i*m+j] *= conj(twiddle[(i*j)%n])
 		}
 	}
 
-	for r := 0; r < m; r++ {
+	for r := range m {
 		row := data[r*m : (r+1)*m]
 		if !stockhamInverse(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
 			return false
@@ -144,6 +148,7 @@ func transposeSquareBlocked[T any](data []T, n, block int) {
 	if n <= 1 {
 		return
 	}
+
 	if block <= 0 || block > n {
 		block = n
 	}
@@ -153,11 +158,13 @@ func transposeSquareBlocked[T any](data []T, n, block int) {
 		if imax > n {
 			imax = n
 		}
+
 		for j := i + 1; j < n; j += block {
 			jmax := j + block
 			if jmax > n {
 				jmax = n
 			}
+
 			for r := i; r < imax; r++ {
 				for c := j; c < jmax; c++ {
 					a := r*n + c
@@ -173,8 +180,10 @@ func eightStepBlockSize(n int) int {
 	if n <= 32 {
 		return n
 	}
+
 	if n <= 64 {
 		return 32
 	}
+
 	return 64
 }

@@ -1,6 +1,7 @@
 package algoforge
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/MeKo-Christian/algoforge/internal/reference"
@@ -35,6 +36,22 @@ func BenchmarkReferenceDFT_16(b *testing.B)  { benchmarkReferenceDFT(b, 16) }
 func BenchmarkReferenceDFT_64(b *testing.B)  { benchmarkReferenceDFT(b, 64) }
 func BenchmarkReferenceDFT_256(b *testing.B) { benchmarkReferenceDFT(b, 256) }
 
+// Memory profiling benchmark using runtime.MemStats.
+func BenchmarkPlanForward_MemStats_1024(b *testing.B) { benchmarkPlanForwardMemStats(b, 1024) }
+
+// Benchmark transform behavior under different plan/buffer reuse patterns.
+func BenchmarkPlanReusePatterns_1024(b *testing.B) {
+	b.Run("ReusePlanReuseBuffers", func(b *testing.B) {
+		benchmarkPlanForward(b, 1024)
+	})
+	b.Run("ReusePlanAllocBuffers", func(b *testing.B) {
+		benchmarkPlanForwardAllocBuffers(b, 1024)
+	})
+	b.Run("NewPlanEachIter", func(b *testing.B) {
+		benchmarkPlanForwardNewPlanEachIter(b, 1024)
+	})
+}
+
 func benchmarkPlanForward(b *testing.B, fftSize int) {
 	b.Helper()
 
@@ -58,6 +75,105 @@ func benchmarkPlanForward(b *testing.B, fftSize int) {
 		fwdErr := plan.Forward(dst, src)
 		if fwdErr != nil {
 			b.Fatalf("Forward() returned error: %v", fwdErr)
+		}
+	}
+}
+
+func benchmarkPlanForwardMemStats(b *testing.B, fftSize int) {
+	b.Helper()
+
+	plan, err := NewPlan[complex64](fftSize)
+	if err != nil {
+		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+	}
+
+	src := make([]complex64, fftSize)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	dst := make([]complex64, fftSize)
+
+	runtime.GC()
+
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	b.SetBytes(int64(fftSize * 8)) // 8 bytes per complex64 for throughput calculation
+	b.ResetTimer()
+
+	for b.Loop() {
+		err := plan.Forward(dst, src)
+		if err != nil {
+			b.Fatalf("Forward() returned error: %v", err)
+		}
+	}
+
+	b.StopTimer()
+	runtime.ReadMemStats(&after)
+
+	allocBytes := int64(after.TotalAlloc - before.TotalAlloc)
+	allocs := int64(after.Mallocs - before.Mallocs)
+
+	b.ReportMetric(float64(allocBytes)/float64(b.N), "bytes/op")
+	b.ReportMetric(float64(allocs)/float64(b.N), "allocs/op")
+}
+
+func benchmarkPlanForwardAllocBuffers(b *testing.B, fftSize int) {
+	b.Helper()
+
+	plan, err := NewPlan[complex64](fftSize)
+	if err != nil {
+		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+	}
+
+	template := make([]complex64, fftSize)
+	for i := range template {
+		template[i] = complex(float32(i+1), float32(-i))
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 8)) // 8 bytes per complex64 for throughput calculation
+	b.ResetTimer()
+
+	for b.Loop() {
+		src := make([]complex64, fftSize)
+		copy(src, template)
+
+		dst := make([]complex64, fftSize)
+
+		err := plan.Forward(dst, src)
+		if err != nil {
+			b.Fatalf("Forward() returned error: %v", err)
+		}
+	}
+}
+
+func benchmarkPlanForwardNewPlanEachIter(b *testing.B, fftSize int) {
+	b.Helper()
+
+	template := make([]complex64, fftSize)
+	for i := range template {
+		template[i] = complex(float32(i+1), float32(-i))
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 8)) // 8 bytes per complex64 for throughput calculation
+	b.ResetTimer()
+
+	for b.Loop() {
+		plan, err := NewPlan[complex64](fftSize)
+		if err != nil {
+			b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		}
+
+		src := make([]complex64, fftSize)
+		copy(src, template)
+
+		dst := make([]complex64, fftSize)
+
+		if err := plan.Forward(dst, src); err != nil {
+			b.Fatalf("Forward() returned error: %v", err)
 		}
 	}
 }

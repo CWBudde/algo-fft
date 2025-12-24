@@ -35,6 +35,7 @@ func main() {
 	}
 
 	rnd := rand.New(rand.NewSource(*seed))
+
 	algoforge.SetKernelStrategy(algoforge.KernelAuto)
 	defer algoforge.SetKernelStrategy(algoforge.KernelAuto)
 
@@ -72,6 +73,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 	for i := range src {
 		src[i] = complex(rnd.Float32(), rnd.Float32())
 	}
+
 	dst := make([]complex64, n)
 	freq := make([]complex64, n)
 
@@ -83,41 +85,52 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 	}
 
 	var results []benchResult
+
 	for _, strategy := range strategies {
 		algoforge.SetKernelStrategy(strategy)
+
 		plan, err := algoforge.NewPlan[complex64](n)
 		if err != nil {
 			continue
 		}
 
 		ok := true
+
 		if mode == "inverse" {
-			if err := plan.Forward(freq, src); err != nil {
+			err := plan.Forward(freq, src)
+			if err != nil {
 				continue
 			}
 		}
 
-		for i := 0; i < warmup; i++ {
-			if err := runPlanMode(plan, dst, src, freq, mode); err != nil {
+		for range warmup {
+			err := runPlanMode(plan, dst, src, freq, mode)
+			if err != nil {
 				ok = false
 				break
 			}
 		}
+
 		if !ok {
 			continue
 		}
 
 		runtime.GC()
+
 		start := time.Now()
-		for i := 0; i < iters; i++ {
-			if err := runPlanMode(plan, dst, src, freq, mode); err != nil {
+
+		for range iters {
+			err := runPlanMode(plan, dst, src, freq, mode)
+			if err != nil {
 				ok = false
 				break
 			}
 		}
+
 		if !ok {
 			continue
 		}
+
 		elapsed := time.Since(start)
 
 		results = append(results, benchResult{
@@ -127,6 +140,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 	}
 
 	algoforge.SetKernelStrategy(algoforge.KernelAuto)
+
 	return results
 }
 
@@ -135,9 +149,11 @@ func runPlanMode(plan *algoforge.Plan[complex64], dst, src, freq []complex64, mo
 	case "inverse":
 		return plan.Inverse(dst, freq)
 	case "roundtrip":
-		if err := plan.Forward(freq, src); err != nil {
+		err := plan.Forward(freq, src)
+		if err != nil {
 			return err
 		}
+
 		return plan.Inverse(dst, freq)
 	default:
 		return plan.Forward(dst, src)
@@ -157,19 +173,24 @@ func resolveModes(mode string) []string {
 
 func parseSizes(list string) []int {
 	parts := strings.Split(list, ",")
+
 	out := make([]int, 0, len(parts))
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
 		}
+
 		var n int
+
 		_, err := fmt.Sscanf(part, "%d", &n)
 		if err != nil || n <= 0 {
 			continue
 		}
+
 		out = append(out, n)
 	}
+
 	return out
 }
 

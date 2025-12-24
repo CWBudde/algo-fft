@@ -6,6 +6,7 @@ func TestDITScalingRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	prev := GetKernelStrategy()
+
 	SetKernelStrategy(KernelDIT)
 	t.Cleanup(func() { SetKernelStrategy(prev) })
 
@@ -46,6 +47,7 @@ func TestOutOfPlaceDoesNotModifySource(t *testing.T) {
 	for i := range src {
 		src[i] = complex(float32(i+1), float32(-i))
 	}
+
 	orig := append([]complex64(nil), src...)
 
 	dst := make([]complex64, 16)

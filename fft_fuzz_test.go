@@ -62,9 +62,11 @@ func FuzzDeterministicForward(f *testing.F) {
 
 		out1 := make([]complex64, n)
 		out2 := make([]complex64, n)
+
 		if err := plan.Forward(out1, src); err != nil {
 			t.Fatalf("Forward() returned error: %v", err)
 		}
+
 		if err := plan.Forward(out2, src); err != nil {
 			t.Fatalf("Forward() returned error: %v", err)
 		}
@@ -106,9 +108,11 @@ func nearestPowerOfTwo(n int) int {
 	if n <= 0 {
 		return 0
 	}
+
 	p := 1
 	for p < n {
 		p <<= 1
 	}
+
 	return p
 }

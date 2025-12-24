@@ -18,6 +18,7 @@ func AllocAlignedComplex64(n int) ([]complex64, []byte) {
 	aligned := alignPtr(base, AlignmentBytes)
 	offset := int(aligned - base)
 	data := unsafe.Slice((*complex64)(unsafe.Pointer(&raw[offset])), n)
+
 	return data, raw
 }
 
@@ -34,6 +35,7 @@ func AllocAlignedComplex128(n int) ([]complex128, []byte) {
 	aligned := alignPtr(base, AlignmentBytes)
 	offset := int(aligned - base)
 	data := unsafe.Slice((*complex128)(unsafe.Pointer(&raw[offset])), n)
+
 	return data, raw
 }
 

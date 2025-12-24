@@ -1,0 +1,74 @@
+package algoforge
+
+import "testing"
+
+func TestPlanTransformsNoAllocsComplex64(t *testing.T) {
+	const n = 1024
+
+	plan, err := NewPlan[complex64](n)
+	if err != nil {
+		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+	}
+
+	src := make([]complex64, n)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	dst := make([]complex64, n)
+	freq := make([]complex64, n)
+
+	if err := plan.Forward(freq, src); err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	assertNoAllocs(t, "Forward", func() error {
+		return plan.Forward(dst, src)
+	})
+	assertNoAllocs(t, "Inverse", func() error {
+		return plan.Inverse(dst, freq)
+	})
+}
+
+func TestPlanTransformsNoAllocsComplex128(t *testing.T) {
+	const n = 1024
+
+	plan, err := NewPlan[complex128](n)
+	if err != nil {
+		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+	}
+
+	src := make([]complex128, n)
+	for i := range src {
+		src[i] = complex(float64(i+1), float64(-i))
+	}
+
+	dst := make([]complex128, n)
+	freq := make([]complex128, n)
+
+	if err := plan.Forward(freq, src); err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	assertNoAllocs(t, "Forward", func() error {
+		return plan.Forward(dst, src)
+	})
+	assertNoAllocs(t, "Inverse", func() error {
+		return plan.Inverse(dst, freq)
+	})
+}
+
+func assertNoAllocs(t *testing.T, label string, run func() error) {
+	t.Helper()
+
+	allocs := testing.AllocsPerRun(100, func() {
+		err := run()
+		if err != nil {
+			t.Fatalf("%s returned error: %v", label, err)
+		}
+	})
+
+	if allocs != 0 {
+		t.Fatalf("%s allocated %.2f per run, want 0", label, allocs)
+	}
+}

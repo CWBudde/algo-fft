@@ -9,6 +9,7 @@ func TestFFTConstantSignal(t *testing.T) {
 	t.Parallel()
 
 	n := 16
+
 	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
@@ -18,6 +19,7 @@ func TestFFTConstantSignal(t *testing.T) {
 	for i := range src {
 		src[i] = 1 + 0i
 	}
+
 	dst := make([]complex64, n)
 	if err := plan.Forward(dst, src); err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
@@ -40,6 +42,7 @@ func TestFFTPureSinusoid(t *testing.T) {
 
 	n := 32
 	k := 3
+
 	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
@@ -50,6 +53,7 @@ func TestFFTPureSinusoid(t *testing.T) {
 		angle := 2 * math.Pi * float64(k) * float64(i) / float64(n)
 		src[i] = complex64(complex(math.Cos(angle), math.Sin(angle)))
 	}
+
 	dst := make([]complex64, n)
 	if err := plan.Forward(dst, src); err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
@@ -60,8 +64,10 @@ func TestFFTPureSinusoid(t *testing.T) {
 			if absComplex64(dst[i]-complex(float32(n), 0)) > 1e-2 {
 				t.Fatalf("bin[%d] = %v, want %v", i, dst[i], complex(float32(n), 0))
 			}
+
 			continue
 		}
+
 		if absComplex64(dst[i]) > 1e-2 {
 			t.Fatalf("bin[%d] = %v, want near 0", i, dst[i])
 		}
@@ -72,6 +78,7 @@ func TestFFTNyquistFrequency(t *testing.T) {
 	t.Parallel()
 
 	n := 32
+
 	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
@@ -85,6 +92,7 @@ func TestFFTNyquistFrequency(t *testing.T) {
 			src[i] = -1
 		}
 	}
+
 	dst := make([]complex64, n)
 	if err := plan.Forward(dst, src); err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
@@ -96,8 +104,10 @@ func TestFFTNyquistFrequency(t *testing.T) {
 			if absComplex64(dst[i]-complex(float32(n), 0)) > 1e-2 {
 				t.Fatalf("bin[%d] = %v, want %v", i, dst[i], complex(float32(n), 0))
 			}
+
 			continue
 		}
+
 		if absComplex64(dst[i]) > 1e-2 {
 			t.Fatalf("bin[%d] = %v, want near 0", i, dst[i])
 		}
@@ -117,10 +127,12 @@ func TestFFTEdgeCases(t *testing.T) {
 		for i := range src {
 			src[i] = complex(float32(i+1), float32(-i))
 		}
+
 		dst := make([]complex64, n)
 		if err := plan.Forward(dst, src); err != nil {
 			t.Fatalf("Forward(%d) returned error: %v", n, err)
 		}
+
 		out := make([]complex64, n)
 		if err := plan.Inverse(out, dst); err != nil {
 			t.Fatalf("Inverse(%d) returned error: %v", n, err)
@@ -138,12 +150,14 @@ func complexSliceEqual(a, b []complex64, tol float32) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
 	limit := float64(tol)
 	for i := range a {
 		if absComplex64(a[i]-b[i]) > limit {
 			return false
 		}
 	}
+
 	return true
 }
 

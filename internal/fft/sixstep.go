@@ -23,9 +23,11 @@ func sixStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 	if n == 0 {
 		return true
 	}
+
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
 		return false
 	}
+
 	if n == 1 {
 		dst[0] = src[0]
 		return true
@@ -53,7 +55,7 @@ func sixStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 	rowScratch := scratch[m : 2*m]
 	fillRowTwiddle(rowTwiddle, twiddle, n/m)
 
-	for r := 0; r < m; r++ {
+	for r := range m {
 		row := data[r*m : (r+1)*m]
 		if !stockhamForward(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
 			return false
@@ -62,13 +64,13 @@ func sixStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 
 	ApplyTransposePairs(data, pairs)
 
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
+	for i := range m {
+		for j := range m {
 			data[i*m+j] *= twiddle[(i*j)%n]
 		}
 	}
 
-	for r := 0; r < m; r++ {
+	for r := range m {
 		row := data[r*m : (r+1)*m]
 		if !stockhamForward(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
 			return false
@@ -85,9 +87,11 @@ func sixStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 	if n == 0 {
 		return true
 	}
+
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
 		return false
 	}
+
 	if n == 1 {
 		dst[0] = src[0]
 		return true
@@ -115,7 +119,7 @@ func sixStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 	rowScratch := scratch[m : 2*m]
 	fillRowTwiddle(rowTwiddle, twiddle, n/m)
 
-	for r := 0; r < m; r++ {
+	for r := range m {
 		row := data[r*m : (r+1)*m]
 		if !stockhamInverse(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
 			return false
@@ -124,13 +128,13 @@ func sixStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 
 	ApplyTransposePairs(data, pairs)
 
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
+	for i := range m {
+		for j := range m {
 			data[i*m+j] *= conj(twiddle[(i*j)%n])
 		}
 	}
 
-	for r := 0; r < m; r++ {
+	for r := range m {
 		row := data[r*m : (r+1)*m]
 		if !stockhamInverse(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
 			return false
@@ -152,12 +156,15 @@ func intSqrt(n int) int {
 	if n <= 0 {
 		return 0
 	}
+
 	root := int(math.Sqrt(float64(n)))
 	for (root+1)*(root+1) <= n {
 		root++
 	}
+
 	for root*root > n {
 		root--
 	}
+
 	return root
 }

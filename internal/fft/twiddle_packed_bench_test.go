@@ -52,6 +52,7 @@ func BenchmarkBaseTwiddleLookup_Radix16_65536(b *testing.B) {
 
 func benchmarkPackedTwiddleLookup[T Complex](b *testing.B, n, radix int) {
 	twiddle := ComputeTwiddleFactors[T](n)
+
 	packed := ComputePackedTwiddles[T](n, radix, twiddle)
 	if packed == nil {
 		b.Fatalf("ComputePackedTwiddles(%d, %d) returned nil", n, radix)
@@ -59,12 +60,15 @@ func benchmarkPackedTwiddleLookup[T Complex](b *testing.B, n, radix int) {
 
 	total := 0
 	values := packed.Values
+
 	b.ResetTimer()
+
 	for b.Loop() {
 		for i := range values {
 			total += int(real(complex128(values[i])))
 		}
 	}
+
 	_ = total
 }
 
@@ -72,12 +76,15 @@ func benchmarkBaseTwiddleLookup[T Complex](b *testing.B, n, radix int) {
 	twiddle := ComputeTwiddleFactors[T](n)
 
 	total := 0
+
 	b.ResetTimer()
+
 	for b.Loop() {
 		for size := radix; size <= n; size *= radix {
 			step := n / size
+
 			span := size / radix
-			for j := 0; j < span; j++ {
+			for j := range span {
 				base := j * step
 				for k := 1; k < radix; k++ {
 					total += int(real(complex128(twiddle[(k*base)%n])))
@@ -85,5 +92,6 @@ func benchmarkBaseTwiddleLookup[T Complex](b *testing.B, n, radix int) {
 			}
 		}
 	}
+
 	_ = total
 }

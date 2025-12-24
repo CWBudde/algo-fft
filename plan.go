@@ -181,11 +181,13 @@ func NewPlan[T Complex](n int) (*Plan[T], error) {
 	strategy := fft.ResolveKernelStrategy(n)
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
-	var zero T
-	var twiddle []T
-	var twiddleBacking []byte
-	var scratch []T
-	var scratchBacking []byte
+	var (
+		zero           T
+		twiddle        []T
+		twiddleBacking []byte
+		scratch        []T
+		scratchBacking []byte
+	)
 
 	switch any(zero).(type) {
 	case complex64:

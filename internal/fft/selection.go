@@ -87,6 +87,7 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 		if n >= 1<<22 {
 			return KernelEightStep
 		}
+
 		if n >= 1<<18 {
 			return KernelSixStep
 		}

@@ -45,11 +45,13 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 
 	for size := 2; size <= n; size <<= 1 {
 		half := size >> 1
+
 		step := n / size
 		for base := 0; base < n; base += size {
 			index1 := base
+
 			index2 := base + half
-			for j := 0; j < half; j++ {
+			for j := range half {
 				tw := twiddle[j*step]
 				a, b := butterfly2(work[index1], work[index2], tw)
 				work[index1] = a
@@ -96,11 +98,13 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 
 	for size := 2; size <= n; size <<= 1 {
 		half := size >> 1
+
 		step := n / size
 		for base := 0; base < n; base += size {
 			index1 := base
+
 			index2 := base + half
-			for j := 0; j < half; j++ {
+			for j := range half {
 				tw := conj(twiddle[j*step])
 				a, b := butterfly2(work[index1], work[index2], tw)
 				work[index1] = a
