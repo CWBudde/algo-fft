@@ -82,32 +82,39 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 3.1 Twiddle Factor Generation
 
-- [ ] Implement `generateTwiddleFactors(n int) []complex64` in `twiddle.go`
-- [ ] Use `exp(-2πi*k/n)` formula for forward transform
-- [ ] Pre-compute all twiddle factors for size `n`
-- [ ] Store twiddle factors in Plan during initialization
-- [ ] Write unit tests verifying twiddle factor correctness:
-  - [ ] Test W_n^0 = 1
-  - [ ] Test W_n^(n/2) = -1 for even n
-  - [ ] Test periodicity: W_n^(k+n) = W_n^k
-- [ ] Benchmark twiddle generation for various sizes
+- [x] Implement `generateTwiddleFactors(n int) []complex64` in `twiddle.go`
+  - Note: Implemented as `ComputeTwiddleFactors[T]` in `internal/fft/fft.go`
+- [x] Use `exp(-2πi*k/n)` formula for forward transform
+- [x] Pre-compute all twiddle factors for size `n`
+- [x] Store twiddle factors in Plan during initialization
+- [x] Write unit tests verifying twiddle factor correctness:
+  - [x] Test W_n^0 = 1
+  - [x] Test W_n^(n/2) = -1 for even n
+  - [x] Test periodicity: W_n^(k+n) = W_n^k
+- [x] Benchmark twiddle generation for various sizes
 
 ### 3.2 Bit-Reversal Permutation
 
-- [ ] Implement `bitReverse(x, bits uint) uint` utility function
-- [ ] Implement `bitReversePermute(data []complex64)` in-place permutation
-- [ ] Create lookup table approach for common sizes (8, 16, 32, 64...)
-- [ ] Write unit tests for bit reversal:
-  - [ ] Test known permutations for small sizes
-  - [ ] Test that double permutation returns original
-- [ ] Benchmark bit-reversal for various sizes
+- [x] Implement `bitReverse(x, bits uint) uint` utility function
+  - Note: Implemented as `reverseBits(x, bits int) int` in `internal/fft/fft.go`
+- [x] Implement `bitReversePermute(data []complex64)` in-place permutation
+  - Note: Implemented as `ComputeBitReversalIndices` for precomputed lookup
+- [x] Create lookup table approach for common sizes (8, 16, 32, 64...)
+  - Note: Uses precomputed indices stored in Plan.bitrev
+- [x] Write unit tests for bit reversal:
+  - [x] Test known permutations for small sizes
+  - [x] Test that double permutation returns original
+- [x] Benchmark bit-reversal for various sizes
 
 ### 3.3 Basic Complex Arithmetic Helpers
 
-- [ ] Implement `complexMul(a, b complex64) complex64` (if needed beyond stdlib)
-- [ ] Implement `complexAdd(a, b complex64) complex64`
-- [ ] Implement `complexSub(a, b complex64) complex64`
-- [ ] Verify Go's built-in complex64 operations are sufficient
+- [x] Implement `complexMul(a, b complex64) complex64` (if needed beyond stdlib)
+  - Note: Go's built-in `*` operator is used
+- [x] Implement `complexAdd(a, b complex64) complex64`
+  - Note: Go's built-in `+` operator is used
+- [x] Implement `complexSub(a, b complex64) complex64`
+  - Note: Go's built-in `-` operator is used
+- [x] Verify Go's built-in complex64 operations are sufficient
 - [ ] Write precision tests comparing to complex128 reference
 
 ---
@@ -481,6 +488,33 @@ Each phase is scoped to approximately one day of focused work.
 - [ ] Restructure loops to eliminate bounds checks
 - [ ] Use `_ = slice[len-1]` pattern where needed
 - [ ] Verify performance improvement without sacrificing safety
+
+### 16.4 Stockham Autosort Variant (OTFFT-Inspired)
+
+- [ ] Prototype Stockham autosort FFT (eliminate explicit bit-reversal)
+- [ ] Compare cache behavior and throughput vs current DIT implementation
+- [ ] Define selection heuristic (size threshold or plan flag)
+- [ ] Validate numerical parity with reference DFT
+
+### 16.5 Six-Step / Eight-Step Large FFT Strategy
+
+- [ ] Implement blocked transpose + FFT (six-step) for large power-of-two sizes
+- [ ] Add optional eight-step variant for very large N
+- [ ] Precompute transpose index tables to avoid per-call overhead
+- [ ] Evaluate when to enable (based on N and cache size heuristics)
+
+### 16.6 Twiddle Packing & SIMD-Friendly Layout
+
+- [ ] Precompute per-radix twiddle tables in contiguous SIMD-friendly order
+- [ ] Add twiddle packing for radix-4/8/16 butterflies
+- [ ] Measure twiddle load impact in asm kernels
+- [ ] Ensure Plan memory stays aligned for SIMD loads/stores
+
+### 16.7 Parallelization Thresholds
+
+- [ ] Benchmark goroutine/worker overhead vs size (N thresholds)
+- [ ] Add size-based parallel thresholds (similar to OTFFT OMP thresholds)
+- [ ] Ensure deterministic results across parallel paths
 
 ---
 

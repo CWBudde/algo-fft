@@ -313,6 +313,7 @@ func TestForwardInverse_Size2_Asm(t *testing.T) {
 	err = plan.Forward(dst, src)
 	if err == nil {
 		roundTrip := make([]complex64, 2)
+
 		err = plan.Inverse(roundTrip, dst)
 		if err != nil {
 			t.Fatalf("Inverse() returned error: %v", err)
@@ -323,6 +324,7 @@ func TestForwardInverse_Size2_Asm(t *testing.T) {
 				t.Fatalf("roundTrip[%d] = %v, want %v", i, roundTrip[i], src[i])
 			}
 		}
+
 		return
 	}
 

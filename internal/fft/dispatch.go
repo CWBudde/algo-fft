@@ -30,16 +30,22 @@ func SelectKernels[T Complex](features Features) Kernels[T] {
 	case complex64:
 		k := selectKernelsComplex64(features)
 
+		forward, _ := any(k.Forward).(Kernel[T])
+		inverse, _ := any(k.Inverse).(Kernel[T])
+
 		return Kernels[T]{
-			Forward: any(k.Forward).(Kernel[T]),
-			Inverse: any(k.Inverse).(Kernel[T]),
+			Forward: forward,
+			Inverse: inverse,
 		}
 	case complex128:
 		k := selectKernelsComplex128(features)
 
+		forward, _ := any(k.Forward).(Kernel[T])
+		inverse, _ := any(k.Inverse).(Kernel[T])
+
 		return Kernels[T]{
-			Forward: any(k.Forward).(Kernel[T]),
-			Inverse: any(k.Inverse).(Kernel[T]),
+			Forward: forward,
+			Inverse: inverse,
 		}
 	default:
 		return Kernels[T]{

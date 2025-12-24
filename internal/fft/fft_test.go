@@ -116,3 +116,258 @@ func TestComplexFromFloat64_Complex128(t *testing.T) {
 		t.Errorf("complexFromFloat64[complex128](3.0, 4.0) = %v, want %v", c, expected)
 	}
 }
+
+// Benchmarks for twiddle factor generation (Phase 3.1)
+
+func BenchmarkComputeTwiddleFactors64_16(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeTwiddleFactors[complex64](16)
+	}
+}
+
+func BenchmarkComputeTwiddleFactors64_256(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeTwiddleFactors[complex64](256)
+	}
+}
+
+func BenchmarkComputeTwiddleFactors64_1024(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeTwiddleFactors[complex64](1024)
+	}
+}
+
+func BenchmarkComputeTwiddleFactors64_4096(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeTwiddleFactors[complex64](4096)
+	}
+}
+
+func BenchmarkComputeTwiddleFactors64_65536(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeTwiddleFactors[complex64](65536)
+	}
+}
+
+func BenchmarkComputeTwiddleFactors128_1024(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeTwiddleFactors[complex128](1024)
+	}
+}
+
+// Benchmarks for bit-reversal index computation (Phase 3.2)
+
+func BenchmarkComputeBitReversalIndices_16(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeBitReversalIndices(16)
+	}
+}
+
+func BenchmarkComputeBitReversalIndices_256(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeBitReversalIndices(256)
+	}
+}
+
+func BenchmarkComputeBitReversalIndices_1024(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeBitReversalIndices(1024)
+	}
+}
+
+func BenchmarkComputeBitReversalIndices_4096(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeBitReversalIndices(4096)
+	}
+}
+
+func BenchmarkComputeBitReversalIndices_65536(b *testing.B) {
+	for b.Loop() {
+		_ = ComputeBitReversalIndices(65536)
+	}
+}
+
+// Precision tests comparing complex64 to complex128 reference (Phase 3.3)
+
+func TestTwiddleFactorPrecision(t *testing.T) {
+	t.Parallel()
+
+	sizes := []int{8, 16, 64, 256, 1024}
+	for _, n := range sizes {
+		twiddle64 := ComputeTwiddleFactors[complex64](n)
+		twiddle128 := ComputeTwiddleFactors[complex128](n)
+
+		for k := range n {
+			// Convert complex64 to complex128 for comparison
+			got := complex128(twiddle64[k])
+			want := twiddle128[k]
+
+			// Calculate relative error
+			diff := got - want
+			magnitude := abs128(want)
+
+			var relError float64
+			if magnitude > 1e-15 {
+				relError = abs128(diff) / magnitude
+			} else {
+				relError = abs128(diff)
+			}
+
+			// float32 has ~7 decimal digits of precision
+			// Allow for ~1e-6 relative error due to float32 truncation
+			if relError > 1e-6 {
+				t.Errorf("n=%d, k=%d: twiddle64=%v, twiddle128=%v, relError=%e",
+					n, k, got, want, relError)
+			}
+		}
+	}
+}
+
+func TestComplexMultiplicationPrecision(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		a, b complex128
+	}{
+		{1 + 2i, 3 + 4i},
+		{0.1 + 0.2i, 0.3 + 0.4i},
+		{1e6 + 2e6i, 3e6 + 4e6i},
+		{1e-6 + 2e-6i, 3e-6 + 4e-6i},
+		{0.707106781186547 + 0.707106781186547i, 0.5 + 0.866025403784438i}, // unit circle values
+	}
+
+	for _, testCase := range testCases {
+		// Reference calculation in complex128
+		want := testCase.a * testCase.b
+
+		// Calculate in complex64
+		a64 := complex64(testCase.a)
+		b64 := complex64(testCase.b)
+		got64 := a64 * b64
+		got := complex128(got64)
+
+		// Calculate relative error
+		diff := got - want
+		magnitude := abs128(want)
+
+		var relError float64
+		if magnitude > 1e-15 {
+			relError = abs128(diff) / magnitude
+		} else {
+			relError = abs128(diff)
+		}
+
+		// float32 multiplication should maintain ~1e-6 relative precision
+		if relError > 1e-5 {
+			t.Errorf("(%v)*(%v): got=%v, want=%v, relError=%e",
+				testCase.a, testCase.b, got, want, relError)
+		}
+	}
+}
+
+func TestComplexAdditionPrecision(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		a, b complex128
+	}{
+		{1 + 2i, 3 + 4i},
+		{1e10 + 2e10i, 1e-10 + 1e-10i}, // Large + small (potential precision loss)
+		{-1e6 + 1e6i, 1e6 - 1e6i},      // Cancellation case
+	}
+
+	for _, testCase := range testCases {
+		want := testCase.a + testCase.b
+
+		a64 := complex64(testCase.a)
+		b64 := complex64(testCase.b)
+		got64 := a64 + b64
+		got := complex128(got64)
+
+		diff := got - want
+		magnitude := abs128(want)
+
+		var relError float64
+		if magnitude > 1e-15 {
+			relError = abs128(diff) / magnitude
+		} else {
+			relError = abs128(diff)
+		}
+
+		// Addition should maintain precision except in cancellation cases
+		if relError > 1e-5 && magnitude > 1e-6 {
+			t.Errorf("(%v)+(%v): got=%v, want=%v, relError=%e",
+				testCase.a, testCase.b, got, want, relError)
+		}
+	}
+}
+
+func TestComplexSubtractionPrecision(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		a, b complex128
+	}{
+		{5 + 6i, 3 + 4i},
+		{1.000001 + 0i, 1.0 + 0i}, // Subtraction of nearly equal numbers
+	}
+
+	for _, testCase := range testCases {
+		want := testCase.a - testCase.b
+
+		a64 := complex64(testCase.a)
+		b64 := complex64(testCase.b)
+		got64 := a64 - b64
+		got := complex128(got64)
+
+		diff := got - want
+		magnitude := abs128(want)
+
+		var relError float64
+		if magnitude > 1e-15 {
+			relError = abs128(diff) / magnitude
+		} else {
+			relError = abs128(diff)
+		}
+
+		// Subtraction of nearly equal numbers can have high relative error
+		// but the absolute error should still be bounded
+		absError := abs128(diff)
+		if relError > 1e-4 && absError > 1e-6 {
+			t.Errorf("(%v)-(%v): got=%v, want=%v, relError=%e, absError=%e",
+				testCase.a, testCase.b, got, want, relError, absError)
+		}
+	}
+}
+
+// abs128 computes the absolute value of a complex128 number.
+func abs128(c complex128) float64 {
+	re := real(c)
+	im := imag(c)
+
+	return sqrt64(re*re + im*im)
+}
+
+// sqrt64 computes the square root using Newton-Raphson iteration.
+func sqrt64(x float64) float64 {
+	if x < 0 {
+		return 0 // NaN case, but we only use positive values
+	}
+
+	if x == 0 {
+		return 0
+	}
+
+	// Newton-Raphson: x_{n+1} = 0.5 * (x_n + x/x_n)
+	guess := x
+	for range 100 {
+		next := 0.5 * (guess + x/guess)
+		if next == guess {
+			break
+		}
+
+		guess = next
+	}
+
+	return guess
+}
