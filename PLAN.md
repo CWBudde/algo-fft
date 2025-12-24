@@ -418,11 +418,11 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 12.1 Inverse Real FFT Implementation
 
-- [ ] Implement `PlanReal.Inverse(dst []float32, src []complex64) error`
-- [ ] Reconstruct full complex spectrum from half-spectrum
-- [ ] Apply inverse complex FFT
-- [ ] Extract real part of result
-- [ ] Verify imaginary parts are near-zero
+- [x] Implement `PlanReal.Inverse(dst []float32, src []complex64) error`
+- [x] Reconstruct full complex spectrum from half-spectrum
+- [x] Apply inverse complex FFT
+- [x] Extract real part of result
+- [x] Verify imaginary parts are near-zero
 
 Hints:
 
@@ -431,17 +431,17 @@ Hints:
 
 ### 12.2 Real FFT Round-Trip Testing
 
-- [ ] Test `Inverse(Forward(x)) ≈ x` for real signals
-- [ ] Test with various signal types (noise, tones, chirps)
-- [ ] Fuzz test real FFT round-trip
-- [ ] Document precision expectations
+- [x] Test `Inverse(Forward(x)) ≈ x` for real signals
+- [x] Test with various signal types (noise, tones, chirps)
+- [x] Fuzz test real FFT round-trip
+- [x] Document precision expectations
 
 ### 12.3 Real FFT Optimization
 
-- [ ] Optimize real FFT to avoid full complex allocation
-- [ ] Profile and reduce memory usage
-- [ ] Ensure zero steady-state allocations
-- [ ] Benchmark optimized real FFT
+- [x] Optimize real FFT to avoid full complex allocation
+- [x] Profile and reduce memory usage
+- [x] Ensure zero steady-state allocations
+- [x] Benchmark optimized real FFT
 
 ---
 

@@ -104,6 +104,45 @@ func FuzzNoPanicValidInput(f *testing.F) {
 	})
 }
 
+func FuzzRoundTripReal(f *testing.F) {
+	f.Add([]byte{1, 2, 3, 4, 5, 6, 7, 8})
+	f.Add([]byte{0, 1})
+	f.Add([]byte{9, 10, 11, 12, 13, 14, 15, 16})
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		n := nearestPowerOfTwo(len(data))
+		if n < 2 || n > 1024 || n%2 != 0 {
+			return
+		}
+
+		plan, err := NewPlanReal(n)
+		if err != nil {
+			t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+		}
+
+		src := make([]float32, n)
+		for i := range src {
+			src[i] = float32(data[i%len(data)])
+		}
+
+		freq := make([]complex64, plan.SpectrumLen())
+		if err := plan.Forward(freq, src); err != nil {
+			t.Fatalf("Forward() returned error: %v", err)
+		}
+
+		out := make([]float32, n)
+		if err := plan.Inverse(out, freq); err != nil {
+			t.Fatalf("Inverse() returned error: %v", err)
+		}
+
+		for i := range src {
+			if abs := out[i] - src[i]; abs < -1e-3 || abs > 1e-3 {
+				t.Fatalf("out[%d] = %v, want %v", i, out[i], src[i])
+			}
+		}
+	})
+}
+
 func nearestPowerOfTwo(n int) int {
 	if n <= 0 {
 		return 0

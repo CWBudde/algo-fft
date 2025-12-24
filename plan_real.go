@@ -135,7 +135,51 @@ func (p *PlanReal) Inverse(dst []float32, src []complex64) error {
 		return ErrLengthMismatch
 	}
 
-	return ErrNotImplemented
+	const spectrumEps = 1e-4
+
+	if math.Abs(float64(imag(src[0]))) > spectrumEps || math.Abs(float64(imag(src[p.half]))) > spectrumEps {
+		return ErrInvalidSpectrum
+	}
+
+	x0 := real(src[0])
+	xh := real(src[p.half])
+	p.buf[0] = complex(0.5*(x0+xh), 0.5*(x0-xh))
+
+	for k := 1; k < p.half; k++ {
+		m := p.half - k
+		if k > m {
+			continue
+		}
+
+		xk := src[k]
+		xmk := src[m]
+		xmkc := complex(real(xmk), -imag(xmk))
+
+		u := p.weight[k]
+		oneMinusU := complex64(1) - u
+		det := complex64(1) - 2*u
+		invDet := complex64(1) / det
+
+		a := (xk*oneMinusU - xmkc*u) * invDet
+		b := (oneMinusU*xmkc - u*xk) * invDet
+
+		p.buf[k] = a
+		if k != m {
+			p.buf[m] = complex(real(b), -imag(b))
+		}
+	}
+
+	if err := p.plan.Inverse(p.buf, p.buf); err != nil {
+		return err
+	}
+
+	for i := range p.half {
+		v := p.buf[i]
+		dst[2*i] = real(v)
+		dst[2*i+1] = imag(v)
+	}
+
+	return nil
 }
 
 func scaleSpectrumComplex64(dst []complex64, scale float32) {

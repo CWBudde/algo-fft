@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/cmplx"
+	"math/rand"
 	"testing"
 
 	"github.com/MeKo-Christian/algoforge/internal/reference"
@@ -191,6 +192,66 @@ func TestPlanRealForwardConjugateSymmetry(t *testing.T) {
 	}
 }
 
+func TestPlanRealRoundTripSignals(t *testing.T) {
+	t.Parallel()
+
+	sizes := []int{32, 128}
+	for _, n := range sizes {
+		n := n
+		t.Run(fmt.Sprintf("N=%d", n), func(t *testing.T) {
+			t.Parallel()
+
+			plan, err := NewPlanReal(n)
+			if err != nil {
+				t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+			}
+
+			t.Run("noise", func(t *testing.T) {
+				t.Parallel()
+
+				rng := rand.New(rand.NewSource(1))
+				src := make([]float32, n)
+				for i := range src {
+					src[i] = float32(rng.Float64()*2 - 1)
+				}
+
+				assertPlanRealRoundTrip(t, plan, src, 1e-3)
+			})
+
+			t.Run("tones", func(t *testing.T) {
+				t.Parallel()
+
+				src := make([]float32, n)
+				for i := range src {
+					angle1 := 2 * math.Pi * 3 * float64(i) / float64(n)
+					angle2 := 2 * math.Pi * 5 * float64(i) / float64(n)
+					src[i] = float32(math.Cos(angle1) + 0.5*math.Sin(angle2))
+				}
+
+				assertPlanRealRoundTrip(t, plan, src, 1e-3)
+			})
+
+			t.Run("chirp", func(t *testing.T) {
+				t.Parallel()
+
+				const f0 = 1.0
+				const f1 = 8.0
+
+				src := make([]float32, n)
+				phase := 0.0
+				for i := range src {
+					tp := float64(i) / float64(n-1)
+					freq := f0 + (f1-f0)*tp
+					phase += 2 * math.Pi * freq / float64(n)
+					src[i] = float32(math.Sin(phase))
+				}
+
+				assertPlanRealRoundTrip(t, plan, src, 1e-3)
+			})
+		})
+	}
+}
+
 func TestPlanRealEdgeCases(t *testing.T) {
 	t.Parallel()
 
@@ -299,6 +360,26 @@ func TestPlanRealErrors(t *testing.T) {
 	})
 }
 
+func assertPlanRealRoundTrip(t *testing.T, plan *PlanReal, src []float32, tol float64) {
+	t.Helper()
+
+	freq := make([]complex64, plan.SpectrumLen())
+	if err := plan.Forward(freq, src); err != nil {
+		t.Fatalf("Forward returned error: %v", err)
+	}
+
+	out := make([]float32, plan.Len())
+	if err := plan.Inverse(out, freq); err != nil {
+		t.Fatalf("Inverse returned error: %v", err)
+	}
+
+	for i := range src {
+		if math.Abs(float64(out[i]-src[i])) > tol {
+			t.Fatalf("out[%d] = %v want %v", i, out[i], src[i])
+		}
+	}
+}
+
 func BenchmarkPlanRealForward(b *testing.B) {
 	sizes := []int{256, 1024, 4096, 16384}
 
@@ -346,6 +427,40 @@ func BenchmarkPlanRealForward(b *testing.B) {
 
 			for range b.N {
 				_ = plan.Forward(dst, src)
+			}
+		})
+	}
+}
+
+func BenchmarkPlanRealInverse(b *testing.B) {
+	sizes := []int{256, 1024, 4096, 16384}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("Real_N=%d", n), func(b *testing.B) {
+			plan, err := NewPlanReal(n)
+			if err != nil {
+				b.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+			}
+
+			src := make([]float32, n)
+			for i := range src {
+				src[i] = float32(i)
+			}
+
+			freq := make([]complex64, n/2+1)
+			if err := plan.Forward(freq, src); err != nil {
+				b.Fatalf("Forward returned error: %v", err)
+			}
+
+			dst := make([]float32, n)
+
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 4)) // float32 = 4 bytes
+
+			b.ResetTimer()
+
+			for range b.N {
+				_ = plan.Inverse(dst, freq)
 			}
 		})
 	}

@@ -103,6 +103,9 @@
 // conjugate symmetry of real signals: X[k] = conj(X[N-k]) for k = 1..N/2-1.
 // Index 0 is DC, index N/2 is Nyquist (purely real for even N).
 //
+// Precision note: real FFT round-trips use float32 arithmetic. Expect small
+// absolute errors (around 1e-3 in typical tests) depending on size and input.
+//
 // # 2D FFT
 //
 // For image processing and 2D signal analysis:
@@ -278,6 +281,7 @@
 //   - ErrNilSlice: input or output slice is nil
 //   - ErrLengthMismatch: slice sizes don't match Plan dimensions
 //   - ErrInvalidStride: stride parameter is invalid for the data layout
+//   - ErrInvalidSpectrum: real FFT spectrum violates expected symmetry constraints
 //
 // # Examples
 //
