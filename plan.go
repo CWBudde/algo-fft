@@ -23,8 +23,18 @@ type Plan[T Complex] struct {
 	// bitrev[i] contains the bit-reversed index for position i.
 	bitrev []int
 
-	forwardKernel fft.Kernel[T]
-	inverseKernel fft.Kernel[T]
+	// packedTwiddle* store prepacked twiddle tables for SIMD-friendly radices.
+	packedTwiddle4  *fft.PackedTwiddles[T]
+	packedTwiddle8  *fft.PackedTwiddles[T]
+	packedTwiddle16 *fft.PackedTwiddles[T]
+
+	forwardKernel  fft.Kernel[T]
+	inverseKernel  fft.Kernel[T]
+	kernelStrategy fft.KernelStrategy
+
+	// backing buffers keep aligned slices alive for GC.
+	twiddleBacking []byte
+	scratchBacking []byte
 }
 
 // KernelStrategy controls which FFT kernel a plan should use.
@@ -55,6 +65,11 @@ func RecordBenchmarkDecision(n int, strategy KernelStrategy) {
 // Len returns the FFT length (number of complex samples) for this Plan.
 func (p *Plan[T]) Len() int {
 	return p.n
+}
+
+// KernelStrategy reports the strategy chosen when the plan was created.
+func (p *Plan[T]) KernelStrategy() KernelStrategy {
+	return KernelStrategy(p.kernelStrategy)
 }
 
 // Forward computes the forward (time-to-frequency) FFT.
@@ -151,16 +166,56 @@ func NewPlan[T Complex](n int) (*Plan[T], error) {
 	}
 
 	features := fft.DetectFeatures()
-	kernels := fft.SelectKernels[T](features)
+	strategy := fft.ResolveKernelStrategy(n)
+	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
+
+	var zero T
+	var twiddle []T
+	var twiddleBacking []byte
+	var scratch []T
+	var scratchBacking []byte
+
+	switch any(zero).(type) {
+	case complex64:
+		twiddleAligned, twiddleRaw := fft.AllocAlignedComplex64(n)
+		tmp := fft.ComputeTwiddleFactors[complex64](n)
+		copy(twiddleAligned, tmp)
+		twiddle = any(twiddleAligned).([]T)
+		twiddleBacking = twiddleRaw
+
+		scratchAligned, scratchRaw := fft.AllocAlignedComplex64(n)
+		scratch = any(scratchAligned).([]T)
+		scratchBacking = scratchRaw
+	case complex128:
+		twiddleAligned, twiddleRaw := fft.AllocAlignedComplex128(n)
+		tmp := fft.ComputeTwiddleFactors[complex128](n)
+		copy(twiddleAligned, tmp)
+		twiddle = any(twiddleAligned).([]T)
+		twiddleBacking = twiddleRaw
+
+		scratchAligned, scratchRaw := fft.AllocAlignedComplex128(n)
+		scratch = any(scratchAligned).([]T)
+		scratchBacking = scratchRaw
+	default:
+		twiddle = fft.ComputeTwiddleFactors[T](n)
+		scratch = make([]T, n)
+	}
 
 	p := &Plan[T]{
-		n:             n,
-		twiddle:       fft.ComputeTwiddleFactors[T](n),
-		scratch:       make([]T, n),
-		bitrev:        fft.ComputeBitReversalIndices(n),
-		forwardKernel: kernels.Forward,
-		inverseKernel: kernels.Inverse,
+		n:              n,
+		twiddle:        twiddle,
+		scratch:        scratch,
+		bitrev:         fft.ComputeBitReversalIndices(n),
+		forwardKernel:  kernels.Forward,
+		inverseKernel:  kernels.Inverse,
+		kernelStrategy: strategy,
+		twiddleBacking: twiddleBacking,
+		scratchBacking: scratchBacking,
 	}
+
+	p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
+	p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
+	p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
 
 	return p, nil
 }

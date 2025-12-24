@@ -38,25 +38,41 @@ func RecordBenchmarkDecision(n int, strategy KernelStrategy) {
 	if n <= 0 {
 		return
 	}
+
 	if strategy != KernelDIT && strategy != KernelStockham {
 		return
 	}
 
 	benchMu.Lock()
+
 	benchDecisions[n] = strategy
+
 	benchMu.Unlock()
 }
 
-func selectKernelStrategy(n int) KernelStrategy {
-	strategy := GetKernelStrategy()
+// ResolveKernelStrategy returns the selected strategy for size n using
+// the global override, benchmark cache, and size threshold.
+func ResolveKernelStrategy(n int) KernelStrategy {
+	return resolveKernelStrategy(n, KernelAuto)
+}
+
+func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy {
+	strategy := defaultStrategy
+	if strategy == KernelAuto {
+		strategy = GetKernelStrategy()
+	}
+
 	if strategy != KernelAuto {
 		return strategy
 	}
 
 	if n > 0 {
 		benchMu.RLock()
+
 		decision, ok := benchDecisions[n]
+
 		benchMu.RUnlock()
+
 		if ok {
 			return decision
 		}
