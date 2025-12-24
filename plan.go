@@ -27,6 +27,31 @@ type Plan[T Complex] struct {
 	inverseKernel fft.Kernel[T]
 }
 
+// KernelStrategy controls which FFT kernel a plan should use.
+type KernelStrategy = fft.KernelStrategy
+
+const (
+	KernelAuto     = fft.KernelAuto
+	KernelDIT      = fft.KernelDIT
+	KernelStockham = fft.KernelStockham
+)
+
+// SetKernelStrategy overrides the global kernel selection strategy.
+// Use KernelAuto to restore automatic selection.
+func SetKernelStrategy(strategy KernelStrategy) {
+	fft.SetKernelStrategy(strategy)
+}
+
+// GetKernelStrategy returns the current global kernel selection strategy.
+func GetKernelStrategy() KernelStrategy {
+	return fft.GetKernelStrategy()
+}
+
+// RecordBenchmarkDecision stores a per-size kernel choice for auto selection.
+func RecordBenchmarkDecision(n int, strategy KernelStrategy) {
+	fft.RecordBenchmarkDecision(n, strategy)
+}
+
 // Len returns the FFT length (number of complex samples) for this Plan.
 func (p *Plan[T]) Len() int {
 	return p.n

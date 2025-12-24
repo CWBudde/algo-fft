@@ -3,43 +3,39 @@
 package fft
 
 func selectKernelsComplex64(features Features) Kernels[complex64] {
+	auto := autoKernelComplex64()
 	if features.HasAVX2 && !features.ForceGeneric {
 		return Kernels[complex64]{
-			Forward: fallbackKernel(forwardAVX2Complex64, forwardStockhamComplex64),
-			Inverse: fallbackKernel(inverseAVX2Complex64, inverseStockhamComplex64),
+			Forward: fallbackKernel(forwardAVX2Complex64, auto.Forward),
+			Inverse: fallbackKernel(inverseAVX2Complex64, auto.Inverse),
 		}
 	}
 
 	if features.HasSSE2 && !features.ForceGeneric {
 		return Kernels[complex64]{
-			Forward: fallbackKernel(forwardSSE2Complex64, forwardStockhamComplex64),
-			Inverse: fallbackKernel(inverseSSE2Complex64, inverseStockhamComplex64),
+			Forward: fallbackKernel(forwardSSE2Complex64, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE2Complex64, auto.Inverse),
 		}
 	}
 
-	return Kernels[complex64]{
-		Forward: forwardStockhamComplex64,
-		Inverse: inverseStockhamComplex64,
-	}
+	return auto
 }
 
 func selectKernelsComplex128(features Features) Kernels[complex128] {
+	auto := autoKernelComplex128()
 	if features.HasAVX2 && !features.ForceGeneric {
 		return Kernels[complex128]{
-			Forward: fallbackKernel(forwardAVX2Complex128Asm, forwardStockhamComplex128),
-			Inverse: fallbackKernel(inverseAVX2Complex128Asm, inverseStockhamComplex128),
+			Forward: fallbackKernel(forwardAVX2Complex128Asm, auto.Forward),
+			Inverse: fallbackKernel(inverseAVX2Complex128Asm, auto.Inverse),
 		}
 	}
 
 	if features.HasSSE2 && !features.ForceGeneric {
 		return Kernels[complex128]{
-			Forward: fallbackKernel(forwardSSE2Complex128Asm, forwardStockhamComplex128),
-			Inverse: fallbackKernel(inverseSSE2Complex128Asm, inverseStockhamComplex128),
+			Forward: fallbackKernel(forwardSSE2Complex128Asm, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE2Complex128Asm, auto.Inverse),
 		}
 	}
 
-	return Kernels[complex128]{
-		Forward: forwardStockhamComplex128,
-		Inverse: inverseStockhamComplex128,
-	}
+	return auto
 }

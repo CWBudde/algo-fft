@@ -126,8 +126,8 @@ Each phase is scoped to approximately one day of focused work.
 - [ ] Implement iterative Cooley-Tukey DIT algorithm in `fft_dit.go`
 - [ ] Structure: bit-reverse input, then log2(n) stages of butterflies
 - [ ] Implement basic butterfly operation: `butterfly2(a, b *complex64, w complex64)`
-- [ ] Wire up to `Plan.Forward()` method
-- [ ] Write correctness tests for sizes 2, 4, 8
+- [ ] Wire DIT kernels into `selectKernels*` as an option
+- [ ] Write correctness tests for sizes 2, 4, 8 (compare vs reference DFT)
 
 ### 4.2 Forward Transform Completion
 
@@ -139,10 +139,10 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 4.3 Stockham Autosort Variant (OTFFT-Inspired)
 
-- [ ] Prototype Stockham autosort FFT (eliminate explicit bit-reversal)
-- [ ] Compare cache behavior and throughput vs current DIT implementation
+- [x] Implement Stockham autosort FFT kernel (no explicit bit-reversal)
+- [x] Validate numerical parity with reference DFT for small sizes
+- [ ] Compare cache behavior and throughput vs DIT implementation
 - [ ] Define selection heuristic (size threshold or plan flag)
-- [ ] Validate numerical parity with reference DFT
 - [ ] If Stockham is the default path, de-prioritize split-radix/mixed-radix work
 
 ### 4.4 Twiddle Packing & SIMD-Friendly Layout
@@ -154,14 +154,10 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 4.5 Inverse Transform Implementation
 
-- [ ] Implement `Plan.Inverse()` using conjugate method:
-  - [ ] Conjugate input
-  - [ ] Apply forward FFT
-  - [ ] Conjugate output
-  - [ ] Scale by 1/n
-- [ ] Alternative: implement dedicated inverse with swapped twiddles
-- [ ] Write round-trip tests: `Inverse(Forward(x)) ≈ x`
-- [ ] Test scaling factor correctness
+- [x] Implement inverse transform in Stockham kernel with 1/n scaling
+- [x] Write round-trip tests: `Inverse(Forward(x)) ≈ x`
+- [ ] Implement DIT inverse path (conjugate method or swapped twiddles)
+- [ ] Test scaling factor correctness for DIT path
 
 ### 4.6 In-Place vs Out-of-Place Variants
 
@@ -177,6 +173,13 @@ Each phase is scoped to approximately one day of focused work.
 - [ ] Add optional eight-step variant for very large N
 - [ ] Precompute transpose index tables to avoid per-call overhead
 - [ ] Evaluate when to enable (based on N and cache size heuristics)
+
+### 4.8 Kernel Selection & Benchmark-Driven Tuning
+
+- [ ] Add plan-time heuristic to choose Stockham vs DIT (size + CPU features)
+- [ ] Add optional benchmark cache (persisted or in-memory) to inform selection
+- [ ] Provide override flag to force a kernel (for testing/profiling)
+- [ ] Record decision in Plan for visibility in benchmarks/logs
 
 ---
 

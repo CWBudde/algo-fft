@@ -3,31 +3,27 @@
 package fft
 
 func selectKernelsComplex64(features Features) Kernels[complex64] {
+	auto := autoKernelComplex64()
 	if features.HasNEON && !features.ForceGeneric {
 		return Kernels[complex64]{
-			Forward: fallbackKernel(forwardNEONComplex64, forwardStockhamComplex64),
-			Inverse: fallbackKernel(inverseNEONComplex64, inverseStockhamComplex64),
+			Forward: fallbackKernel(forwardNEONComplex64, auto.Forward),
+			Inverse: fallbackKernel(inverseNEONComplex64, auto.Inverse),
 		}
 	}
 
-	return Kernels[complex64]{
-		Forward: forwardStockhamComplex64,
-		Inverse: inverseStockhamComplex64,
-	}
+	return auto
 }
 
 func selectKernelsComplex128(features Features) Kernels[complex128] {
+	auto := autoKernelComplex128()
 	if features.HasNEON && !features.ForceGeneric {
 		return Kernels[complex128]{
-			Forward: fallbackKernel(forwardNEONComplex128, forwardStockhamComplex128),
-			Inverse: fallbackKernel(inverseNEONComplex128, inverseStockhamComplex128),
+			Forward: fallbackKernel(forwardNEONComplex128, auto.Forward),
+			Inverse: fallbackKernel(inverseNEONComplex128, auto.Inverse),
 		}
 	}
 
-	return Kernels[complex128]{
-		Forward: forwardStockhamComplex128,
-		Inverse: inverseStockhamComplex128,
-	}
+	return auto
 }
 
 // TODO: Replace these with assembly-backed kernels.
