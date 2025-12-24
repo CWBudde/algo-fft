@@ -44,6 +44,7 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 	}
 
 	var radices [mixedRadixMaxStages]int
+
 	stageCount := mixedRadixSchedule(n, &radices)
 	if stageCount == 0 {
 		return false
@@ -79,6 +80,7 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int) int {
 	}
 
 	count := 0
+
 	for n > 1 {
 		switch {
 		case n%5 == 0:
@@ -116,11 +118,11 @@ func mixedRadixRecursive[T Complex](dst, src []T, n, stride, step int, radices [
 	span := n / radix
 
 	nextRadices := radices[1:]
-	for j := 0; j < radix; j++ {
+	for j := range radix {
 		mixedRadixRecursive(dst[j*span:], src[j*stride:], span, stride*radix, step*radix, nextRadices, twiddle, scratch[:span], inverse)
 	}
 
-	for k := 0; k < span; k++ {
+	for k := range span {
 		switch radix {
 		case 2:
 			w1 := twiddle[k*step]
@@ -136,6 +138,7 @@ func mixedRadixRecursive[T Complex](dst, src []T, n, stride, step int, radices [
 		case 3:
 			w1 := twiddle[k*step]
 			w2 := twiddle[2*k*step]
+
 			if inverse {
 				w1 = conj(w1)
 				w2 = conj(w2)
@@ -159,6 +162,7 @@ func mixedRadixRecursive[T Complex](dst, src []T, n, stride, step int, radices [
 			w1 := twiddle[k*step]
 			w2 := twiddle[2*k*step]
 			w3 := twiddle[3*k*step]
+
 			if inverse {
 				w1 = conj(w1)
 				w2 = conj(w2)
@@ -186,6 +190,7 @@ func mixedRadixRecursive[T Complex](dst, src []T, n, stride, step int, radices [
 			w2 := twiddle[2*k*step]
 			w3 := twiddle[3*k*step]
 			w4 := twiddle[4*k*step]
+
 			if inverse {
 				w1 = conj(w1)
 				w2 = conj(w2)

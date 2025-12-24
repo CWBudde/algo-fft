@@ -359,23 +359,23 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 10.1 Chirp-Z Transform Foundation
 
-- [ ] Study and document Bluestein's algorithm theory
-- [ ] Implement chirp sequence generation: `W_n^(k²/2)`
-- [ ] Implement convolution via FFT helper
-- [ ] Write tests for chirp sequence properties
+- [x] Study and document Bluestein's algorithm theory
+- [x] Implement chirp sequence generation: `W_n^(k²/2)`
+- [x] Implement convolution via FFT helper
+- [x] Write tests for chirp sequence properties
 
 ### 10.2 Bluestein Implementation
 
-- [ ] Implement `bluesteinFFT(data []complex64, n int)` in `bluestein.go`
-- [ ] Determine optimal padded length (next power of 2 ≥ 2n-1)
-- [ ] Pre-compute and cache chirp sequences in Plan
-- [ ] Wire Bluestein into Plan for prime-length inputs
+- [x] Implement `bluesteinFFT(data []complex64, n int)` in `bluestein.go`
+- [x] Determine optimal padded length (next power of 2 ≥ 2n-1)
+- [x] Pre-compute and cache chirp sequences in Plan
+- [x] Wire Bluestein into Plan for prime-length inputs
 
 ### 10.3 Bluestein Testing
 
-- [ ] Test prime lengths: 7, 11, 13, 17, 19, 23, 31, 127
-- [ ] Test large primes: 251, 509, 1021
-- [ ] Verify round-trip correctness
+- [x] Test prime lengths: 7, 11, 13, 17, 19, 23, 31, 127
+- [x] Test large primes: 251, 509, 1021
+- [x] Verify round-trip correctness
 - [ ] Benchmark Bluestein vs naive DFT for prime lengths
 - [ ] Profile and optimize Bluestein hot paths
 

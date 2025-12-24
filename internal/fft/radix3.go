@@ -60,15 +60,17 @@ func radix3Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, in
 
 	for size := 3; size <= n; size *= 3 {
 		third := size / 3
+
 		step := n / size
 		for base := 0; base < n; base += size {
-			for j := 0; j < third; j++ {
+			for j := range third {
 				idx0 := base + j
 				idx1 := idx0 + third
 				idx2 := idx1 + third
 
 				w1 := twiddle[j*step]
 				w2 := twiddle[2*j*step]
+
 				if inverse {
 					w1 = conj(w1)
 					w2 = conj(w2)
@@ -148,6 +150,7 @@ func reverseBase3(x, digits int) int {
 
 func logBase3(n int) int {
 	result := 0
+
 	for n > 1 {
 		n /= 3
 		result++

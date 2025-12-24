@@ -46,6 +46,7 @@ func TestRadix4InverseMatchesReferenceComplex64(t *testing.T) {
 		if !forwardRadix4Complex64(fwd, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardRadix4Complex64 failed for n=%d", n)
 		}
+
 		if !inverseRadix4Complex64(dst, fwd, twiddle, scratch, bitrev) {
 			t.Fatalf("inverseRadix4Complex64 failed for n=%d", n)
 		}
@@ -88,6 +89,7 @@ func TestRadix4InverseMatchesReferenceComplex128(t *testing.T) {
 		if !forwardRadix4Complex128(fwd, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardRadix4Complex128 failed for n=%d", n)
 		}
+
 		if !inverseRadix4Complex128(dst, fwd, twiddle, scratch, bitrev) {
 			t.Fatalf("inverseRadix4Complex128 failed for n=%d", n)
 		}
@@ -128,7 +130,7 @@ func benchmarkForwardKernel(b *testing.B, n int, kernel func(dst, src, twiddle, 
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if !kernel(dst, src, twiddle, scratch, bitrev) {
 			b.Fatalf("kernel failed for n=%d", n)
 		}
@@ -137,6 +139,7 @@ func benchmarkForwardKernel(b *testing.B, n int, kernel func(dst, src, twiddle, 
 
 func randomComplex64(n int, seed uint64) []complex64 {
 	rng := rand.New(rand.NewPCG(seed, seed^0x5A5A5A5A)) //nolint:gosec // Deterministic test data
+
 	out := make([]complex64, n)
 	for i := range out {
 		re := float32(rng.Float64()*2 - 1)
@@ -149,6 +152,7 @@ func randomComplex64(n int, seed uint64) []complex64 {
 
 func randomComplex128(n int, seed uint64) []complex128 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xA5A5A5A5)) //nolint:gosec // Deterministic test data
+
 	out := make([]complex128, n)
 	for i := range out {
 		re := rng.Float64()*2 - 1

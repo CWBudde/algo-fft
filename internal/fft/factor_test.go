@@ -34,7 +34,7 @@ func TestFactorize(t *testing.T) {
 	}
 }
 
-func TestNextPowerOf2(t *testing.T) {
+func TestNextPowerOfTwo(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -54,9 +54,9 @@ func TestNextPowerOf2(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := nextPowerOf2(tt.n)
+		got := NextPowerOfTwo(tt.n)
 		if got != tt.want {
-			t.Errorf("nextPowerOf2(%d) = %d, want %d", tt.n, got, tt.want)
+			t.Errorf("NextPowerOfTwo(%d) = %d, want %d", tt.n, got, tt.want)
 		}
 	}
 }

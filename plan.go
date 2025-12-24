@@ -31,6 +31,17 @@ type Plan[T Complex] struct {
 	packedTwiddle8  *fft.PackedTwiddles[T]
 	packedTwiddle16 *fft.PackedTwiddles[T]
 
+	// Bluestein specific fields (used only if kernelStrategy == KernelBluestein)
+	bluesteinM              int   // Padded size M >= 2N-1
+	bluesteinChirp          []T   // Size N
+	bluesteinChirpInv       []T   // Size N
+	bluesteinFilter         []T   // Size M
+	bluesteinFilterInv      []T   // Size M
+	bluesteinTwiddle        []T   // Size M
+	bluesteinBitrev         []int // Size M
+	bluesteinScratch        []T   // Size M (extra scratch for Bluestein)
+	bluesteinScratchBacking []byte
+
 	forwardKernel  fft.Kernel[T]
 	inverseKernel  fft.Kernel[T]
 	kernelStrategy fft.KernelStrategy
@@ -52,6 +63,7 @@ const (
 	KernelStockham  = fft.KernelStockham
 	KernelSixStep   = fft.KernelSixStep
 	KernelEightStep = fft.KernelEightStep
+	KernelBluestein = fft.KernelBluestein
 )
 
 // SetKernelStrategy overrides the global kernel selection strategy.
@@ -102,6 +114,8 @@ func (p *Plan[T]) String() string {
 		strategyName = "SixStep"
 	case fft.KernelEightStep:
 		strategyName = "EightStep"
+	case fft.KernelBluestein:
+		strategyName = "Bluestein"
 	}
 
 	pooled := ""
@@ -166,6 +180,10 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		return err
 	}
 
+	if p.kernelStrategy == fft.KernelBluestein {
+		return p.bluesteinForward(dst, src)
+	}
+
 	if p.forwardKernel != nil && p.forwardKernel(dst, src, p.twiddle, p.scratch, p.bitrev) {
 		return nil
 	}
@@ -188,6 +206,10 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 	err := p.validateSlices(dst, src)
 	if err != nil {
 		return err
+	}
+
+	if p.kernelStrategy == fft.KernelBluestein {
+		return p.bluesteinInverse(dst, src)
 	}
 
 	if p.inverseKernel != nil && p.inverseKernel(dst, src, p.twiddle, p.scratch, p.bitrev) {
@@ -241,19 +263,33 @@ func (p *Plan[T]) validateSlices(dst, src []T) error {
 }
 
 // NewPlan creates a new FFT plan for the given size using the generic type T.
-// The size n must be a positive power of 2 or factorable by 2, 3, or 5.
+// The size n can be any positive integer.
+// Power-of-2 sizes are most efficient.
+// Highly composite sizes (factors 2, 3, 5) use mixed-radix algorithms.
+// Prime or other sizes use Bluestein's algorithm (Chirp-Z transform).
 //
 // Example:
 //
 //	plan, err := NewPlan[complex64](1024)
 //	plan128, err := NewPlan[complex128](1024)
 func NewPlan[T Complex](n int) (*Plan[T], error) {
-	if n < 1 || (!fft.IsPowerOfTwo(n) && !fft.IsHighlyComposite(n)) {
+	if n < 1 {
 		return nil, ErrInvalidLength
 	}
 
 	features := cpu.DetectFeatures()
-	strategy := fft.ResolveKernelStrategy(n)
+
+	useBluestein := false
+
+	var strategy fft.KernelStrategy
+
+	if fft.IsPowerOfTwo(n) || fft.IsHighlyComposite(n) {
+		strategy = fft.ResolveKernelStrategy(n)
+	} else {
+		useBluestein = true
+		strategy = fft.KernelBluestein
+	}
+
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
 	var (
@@ -262,49 +298,114 @@ func NewPlan[T Complex](n int) (*Plan[T], error) {
 		twiddleBacking []byte
 		scratch        []T
 		scratchBacking []byte
+
+		// Bluestein specific
+		bluesteinM              int
+		bluesteinChirp          []T
+		bluesteinChirpInv       []T
+		bluesteinFilter         []T
+		bluesteinFilterInv      []T
+		bluesteinTwiddle        []T
+		bluesteinBitrev         []int
+		bluesteinScratch        []T
+		bluesteinScratchBacking []byte
 	)
 
-	switch any(zero).(type) {
-	case complex64:
-		twiddleAligned, twiddleRaw := fft.AllocAlignedComplex64(n)
-		tmp := fft.ComputeTwiddleFactors[complex64](n)
-		copy(twiddleAligned, tmp)
-		twiddle = any(twiddleAligned).([]T)
-		twiddleBacking = twiddleRaw
+	if useBluestein {
+		bluesteinM = fft.NextPowerOfTwo(2*n - 1)
+		scratchSize := bluesteinM
 
-		scratchAligned, scratchRaw := fft.AllocAlignedComplex64(n)
-		scratch = any(scratchAligned).([]T)
-		scratchBacking = scratchRaw
-	case complex128:
-		twiddleAligned, twiddleRaw := fft.AllocAlignedComplex128(n)
-		tmp := fft.ComputeTwiddleFactors[complex128](n)
-		copy(twiddleAligned, tmp)
-		twiddle = any(twiddleAligned).([]T)
-		twiddleBacking = twiddleRaw
+		// Alloc scratch (size M)
+		switch any(zero).(type) {
+		case complex64:
+			scratchAligned, scratchRaw := fft.AllocAlignedComplex64(scratchSize)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
 
-		scratchAligned, scratchRaw := fft.AllocAlignedComplex128(n)
-		scratch = any(scratchAligned).([]T)
-		scratchBacking = scratchRaw
-	default:
-		twiddle = fft.ComputeTwiddleFactors[T](n)
-		scratch = make([]T, n)
+			bsAligned, bsRaw := fft.AllocAlignedComplex64(scratchSize)
+			bluesteinScratch = any(bsAligned).([]T)
+			bluesteinScratchBacking = bsRaw
+		case complex128:
+			scratchAligned, scratchRaw := fft.AllocAlignedComplex128(scratchSize)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+
+			bsAligned, bsRaw := fft.AllocAlignedComplex128(scratchSize)
+			bluesteinScratch = any(bsAligned).([]T)
+			bluesteinScratchBacking = bsRaw
+		default:
+			scratch = make([]T, scratchSize)
+			bluesteinScratch = make([]T, scratchSize)
+		}
+
+		// Compute Bluestein tables
+		bluesteinChirp = fft.ComputeChirpSequence[T](n)
+
+		bluesteinChirpInv = make([]T, n)
+		for i, v := range bluesteinChirp {
+			bluesteinChirpInv[i] = fft.ConjugateOf(v)
+		}
+
+		bluesteinTwiddle = fft.ComputeTwiddleFactors[T](bluesteinM)
+		bluesteinBitrev = fft.ComputeBitReversalIndices(bluesteinM)
+
+		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, bluesteinBitrev)
+		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, bluesteinBitrev)
+	} else {
+		// Standard allocation
+		switch any(zero).(type) {
+		case complex64:
+			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex64(n)
+			tmp := fft.ComputeTwiddleFactors[complex64](n)
+			copy(twiddleAligned, tmp)
+			twiddle = any(twiddleAligned).([]T)
+			twiddleBacking = twiddleRaw
+
+			scratchAligned, scratchRaw := fft.AllocAlignedComplex64(n)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+		case complex128:
+			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex128(n)
+			tmp := fft.ComputeTwiddleFactors[complex128](n)
+			copy(twiddleAligned, tmp)
+			twiddle = any(twiddleAligned).([]T)
+			twiddleBacking = twiddleRaw
+
+			scratchAligned, scratchRaw := fft.AllocAlignedComplex128(n)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+		default:
+			twiddle = fft.ComputeTwiddleFactors[T](n)
+			scratch = make([]T, n)
+		}
 	}
 
 	p := &Plan[T]{
-		n:              n,
-		twiddle:        twiddle,
-		scratch:        scratch,
-		bitrev:         planBitReversal(n),
-		forwardKernel:  kernels.Forward,
-		inverseKernel:  kernels.Inverse,
-		kernelStrategy: strategy,
-		twiddleBacking: twiddleBacking,
-		scratchBacking: scratchBacking,
+		n:                       n,
+		twiddle:                 twiddle,
+		scratch:                 scratch,
+		bitrev:                  planBitReversal(n),
+		forwardKernel:           kernels.Forward,
+		inverseKernel:           kernels.Inverse,
+		kernelStrategy:          strategy,
+		twiddleBacking:          twiddleBacking,
+		scratchBacking:          scratchBacking,
+		bluesteinM:              bluesteinM,
+		bluesteinChirp:          bluesteinChirp,
+		bluesteinChirpInv:       bluesteinChirpInv,
+		bluesteinFilter:         bluesteinFilter,
+		bluesteinFilterInv:      bluesteinFilterInv,
+		bluesteinTwiddle:        bluesteinTwiddle,
+		bluesteinBitrev:         bluesteinBitrev,
+		bluesteinScratch:        bluesteinScratch,
+		bluesteinScratchBacking: bluesteinScratchBacking,
 	}
 
-	p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
-	p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
-	p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
+	if !useBluestein {
+		p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
+		p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
+		p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
+	}
 
 	return p, nil
 }
@@ -472,22 +573,44 @@ func (p *Plan[T]) Close() {
 // Calling Close() on a cloned Plan is a no-op.
 func (p *Plan[T]) Clone() *Plan[T] {
 	var (
-		zero           T
-		scratch        []T
-		scratchBacking []byte
+		zero                    T
+		scratch                 []T
+		scratchBacking          []byte
+		bluesteinScratch        []T
+		bluesteinScratchBacking []byte
 	)
+
+	scratchSize := p.n
+	if p.kernelStrategy == fft.KernelBluestein {
+		scratchSize = p.bluesteinM
+	}
 
 	switch any(zero).(type) {
 	case complex64:
-		scratchAligned, scratchRaw := fft.AllocAlignedComplex64(p.n)
+		scratchAligned, scratchRaw := fft.AllocAlignedComplex64(scratchSize)
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
+
+		if p.kernelStrategy == fft.KernelBluestein {
+			bsAligned, bsRaw := fft.AllocAlignedComplex64(p.bluesteinM)
+			bluesteinScratch = any(bsAligned).([]T)
+			bluesteinScratchBacking = bsRaw
+		}
 	case complex128:
-		scratchAligned, scratchRaw := fft.AllocAlignedComplex128(p.n)
+		scratchAligned, scratchRaw := fft.AllocAlignedComplex128(scratchSize)
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
+
+		if p.kernelStrategy == fft.KernelBluestein {
+			bsAligned, bsRaw := fft.AllocAlignedComplex128(p.bluesteinM)
+			bluesteinScratch = any(bsAligned).([]T)
+			bluesteinScratchBacking = bsRaw
+		}
 	default:
-		scratch = make([]T, p.n)
+		scratch = make([]T, scratchSize)
+		if p.kernelStrategy == fft.KernelBluestein {
+			bluesteinScratch = make([]T, p.bluesteinM)
+		}
 	}
 
 	return &Plan[T]{
@@ -504,5 +627,16 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		twiddleBacking:  p.twiddleBacking, // Shared reference (keeps original alive)
 		scratchBacking:  scratchBacking,   // New allocation
 		pool:            nil,              // Clones are never pooled
+
+		// Bluestein fields
+		bluesteinM:              p.bluesteinM,
+		bluesteinChirp:          p.bluesteinChirp,
+		bluesteinChirpInv:       p.bluesteinChirpInv,
+		bluesteinFilter:         p.bluesteinFilter,
+		bluesteinFilterInv:      p.bluesteinFilterInv,
+		bluesteinTwiddle:        p.bluesteinTwiddle,
+		bluesteinBitrev:         p.bluesteinBitrev,
+		bluesteinScratch:        bluesteinScratch,        // New allocation
+		bluesteinScratchBacking: bluesteinScratchBacking, // New allocation
 	}
 }

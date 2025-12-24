@@ -14,6 +14,7 @@ const (
 	KernelStockham
 	KernelSixStep
 	KernelEightStep
+	KernelBluestein
 )
 
 var kernelStrategy uint32 = uint32(KernelAuto)

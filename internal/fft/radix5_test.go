@@ -44,6 +44,7 @@ func TestRadix5InverseMatchesReferenceComplex64(t *testing.T) {
 		if !forwardRadix5Complex64(fwd, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardRadix5Complex64 failed for n=%d", n)
 		}
+
 		if !inverseRadix5Complex64(dst, fwd, twiddle, scratch, bitrev) {
 			t.Fatalf("inverseRadix5Complex64 failed for n=%d", n)
 		}
@@ -86,6 +87,7 @@ func TestRadix5InverseMatchesReferenceComplex128(t *testing.T) {
 		if !forwardRadix5Complex128(fwd, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardRadix5Complex128 failed for n=%d", n)
 		}
+
 		if !inverseRadix5Complex128(dst, fwd, twiddle, scratch, bitrev) {
 			t.Fatalf("inverseRadix5Complex128 failed for n=%d", n)
 		}
@@ -118,7 +120,7 @@ func benchmarkRadix5ForwardKernel(b *testing.B, n int, kernel func(dst, src, twi
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if !kernel(dst, src, twiddle, scratch, bitrev) {
 			b.Fatalf("kernel failed for n=%d", n)
 		}

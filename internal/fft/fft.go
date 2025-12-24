@@ -86,3 +86,22 @@ func complexFromFloat64[T Complex](re, im float64) T {
 		panic("unsupported complex type")
 	}
 }
+
+// conj returns the complex conjugate of val.
+// This is a private helper used by internal FFT algorithms.
+func conj[T Complex](val T) T {
+	switch v := any(val).(type) {
+	case complex64:
+		return any(complex(real(v), -imag(v))).(T)
+	case complex128:
+		return any(complex(real(v), -imag(v))).(T)
+	default:
+		panic("unsupported complex type")
+	}
+}
+
+// ConjugateOf returns the complex conjugate of val.
+// This is exported for use by the Plan type.
+func ConjugateOf[T Complex](val T) T {
+	return conj(val)
+}

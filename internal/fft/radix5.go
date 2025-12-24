@@ -75,9 +75,10 @@ func radix5Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, in
 
 	for size := 5; size <= n; size *= 5 {
 		span := size / 5
+
 		step := n / size
 		for base := 0; base < n; base += size {
-			for j := 0; j < span; j++ {
+			for j := range span {
 				idx0 := base + j
 				idx1 := idx0 + span
 				idx2 := idx1 + span
@@ -88,6 +89,7 @@ func radix5Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, in
 				w2 := twiddle[2*j*step]
 				w3 := twiddle[3*j*step]
 				w4 := twiddle[4*j*step]
+
 				if inverse {
 					w1 = conj(w1)
 					w2 = conj(w2)
@@ -189,6 +191,7 @@ func reverseBase5(x, digits int) int {
 
 func logBase5(n int) int {
 	result := 0
+
 	for n > 1 {
 		n /= 5
 		result++

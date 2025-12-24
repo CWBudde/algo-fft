@@ -58,9 +58,10 @@ func radix4Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, in
 
 	for size := 4; size <= n; size *= 4 {
 		quarter := size / 4
+
 		step := n / size
 		for base := 0; base < n; base += size {
-			for j := 0; j < quarter; j++ {
+			for j := range quarter {
 				idx0 := base + j
 				idx1 := idx0 + quarter
 				idx2 := idx1 + quarter
@@ -69,6 +70,7 @@ func radix4Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, in
 				w1 := twiddle[j*step]
 				w2 := twiddle[2*j*step]
 				w3 := twiddle[3*j*step]
+
 				if inverse {
 					w1 = conj(w1)
 					w2 = conj(w2)

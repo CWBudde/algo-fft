@@ -18,6 +18,7 @@ func TestSelectKernels(t *testing.T) {
 	if kernels64.Forward == nil {
 		t.Error("SelectKernels[complex64] returned nil Forward kernel")
 	}
+
 	if kernels64.Inverse == nil {
 		t.Error("SelectKernels[complex64] returned nil Inverse kernel")
 	}
@@ -27,6 +28,7 @@ func TestSelectKernels(t *testing.T) {
 	if kernels128.Forward == nil {
 		t.Error("SelectKernels[complex128] returned nil Forward kernel")
 	}
+
 	if kernels128.Inverse == nil {
 		t.Error("SelectKernels[complex128] returned nil Inverse kernel")
 	}
@@ -61,6 +63,7 @@ func TestSelectKernelsWithStrategy(t *testing.T) {
 			if kernels64.Forward == nil {
 				t.Errorf("SelectKernelsWithStrategy[complex64](%v) returned nil Forward kernel", strategy)
 			}
+
 			if kernels64.Inverse == nil {
 				t.Errorf("SelectKernelsWithStrategy[complex64](%v) returned nil Inverse kernel", strategy)
 			}
@@ -70,6 +73,7 @@ func TestSelectKernelsWithStrategy(t *testing.T) {
 			if kernels128.Forward == nil {
 				t.Errorf("SelectKernelsWithStrategy[complex128](%v) returned nil Forward kernel", strategy)
 			}
+
 			if kernels128.Inverse == nil {
 				t.Errorf("SelectKernelsWithStrategy[complex128](%v) returned nil Inverse kernel", strategy)
 			}
@@ -226,6 +230,7 @@ func TestKernelsFunctional_Complex64(t *testing.T) {
 		if real(dst[i]) < 0.99 || real(dst[i]) > 1.01 {
 			t.Errorf("dst[%d] = %v, expected ~1", i, dst[i])
 		}
+
 		if imag(dst[i]) < -0.01 || imag(dst[i]) > 0.01 {
 			t.Errorf("dst[%d] = %v, expected imaginary part ~0", i, dst[i])
 		}
@@ -241,6 +246,7 @@ func TestKernelsFunctional_Complex64(t *testing.T) {
 	if real(roundTrip[0]) < 0.99 || real(roundTrip[0]) > 1.01 {
 		t.Errorf("roundTrip[0] = %v, expected ~1", roundTrip[0])
 	}
+
 	for i := 1; i < n; i++ {
 		if real(roundTrip[i]) < -0.01 || real(roundTrip[i]) > 0.01 {
 			t.Errorf("roundTrip[%d] = %v, expected ~0", i, roundTrip[i])
@@ -286,6 +292,7 @@ func TestKernelsFunctional_Complex128(t *testing.T) {
 	if real(roundTrip[0]) < 0.999 || real(roundTrip[0]) > 1.001 {
 		t.Errorf("roundTrip[0] = %v, expected ~1", roundTrip[0])
 	}
+
 	for i := 1; i < n; i++ {
 		if abs128(roundTrip[i]) > 0.001 {
 			t.Errorf("roundTrip[%d] = %v, expected ~0", i, roundTrip[i])

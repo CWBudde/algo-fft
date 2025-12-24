@@ -149,17 +149,6 @@ func stockhamInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bo
 	return true
 }
 
-func conj[T Complex](value T) T {
-	switch v := any(value).(type) {
-	case complex64:
-		return any(complex(real(v), -imag(v))).(T)
-	case complex128:
-		return any(complex(real(v), -imag(v))).(T)
-	default:
-		panic("unsupported complex type")
-	}
-}
-
 func sameSlice[T any](a, b []T) bool {
 	if len(a) == 0 || len(b) == 0 {
 		return false

@@ -44,6 +44,7 @@ func TestMixedRadixInverseMatchesReferenceComplex64(t *testing.T) {
 		if !forwardMixedRadixComplex64(fwd, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardMixedRadixComplex64 failed for n=%d", n)
 		}
+
 		if !inverseMixedRadixComplex64(dst, fwd, twiddle, scratch, bitrev) {
 			t.Fatalf("inverseMixedRadixComplex64 failed for n=%d", n)
 		}
@@ -86,6 +87,7 @@ func TestMixedRadixInverseMatchesReferenceComplex128(t *testing.T) {
 		if !forwardMixedRadixComplex128(fwd, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardMixedRadixComplex128 failed for n=%d", n)
 		}
+
 		if !inverseMixedRadixComplex128(dst, fwd, twiddle, scratch, bitrev) {
 			t.Fatalf("inverseMixedRadixComplex128 failed for n=%d", n)
 		}
@@ -118,7 +120,7 @@ func benchmarkMixedRadixKernel(b *testing.B, n int, kernel func(dst, src, twiddl
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if !kernel(dst, src, twiddle, scratch, bitrev) {
 			b.Fatalf("kernel failed for n=%d", n)
 		}
@@ -148,7 +150,7 @@ func benchmarkMixedRadixPaddedKernel(b *testing.B, n, padded int, kernel func(ds
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if !kernel(dst, src, twiddle, scratch, bitrev) {
 			b.Fatalf("kernel failed for n=%d", padded)
 		}

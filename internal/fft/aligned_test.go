@@ -104,6 +104,7 @@ func TestAllocAligned_ZeroSize(t *testing.T) {
 	if data64 != nil {
 		t.Errorf("AllocAlignedComplex64(0) returned non-nil data: %v", data64)
 	}
+
 	if backing64 != nil {
 		t.Errorf("AllocAlignedComplex64(0) returned non-nil backing: %v", backing64)
 	}
@@ -113,6 +114,7 @@ func TestAllocAligned_ZeroSize(t *testing.T) {
 	if data128 != nil {
 		t.Errorf("AllocAlignedComplex128(0) returned non-nil data: %v", data128)
 	}
+
 	if backing128 != nil {
 		t.Errorf("AllocAlignedComplex128(0) returned non-nil backing: %v", backing128)
 	}
@@ -132,6 +134,7 @@ func TestAllocAligned_LargeSize(t *testing.T) {
 	if len(data64) != largeSize {
 		t.Errorf("AllocAlignedComplex64(%d) returned length %d", largeSize, len(data64))
 	}
+
 	if backing64 == nil {
 		t.Error("Large allocation returned nil backing")
 	}
@@ -200,6 +203,7 @@ func BenchmarkAllocAlignedComplex64(b *testing.B) {
 		b.Run(itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(size * 8)) // complex64 is 8 bytes
+
 			for b.Loop() {
 				_, _ = AllocAlignedComplex64(size)
 			}
@@ -214,6 +218,7 @@ func BenchmarkAllocAlignedComplex128(b *testing.B) {
 		b.Run(itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(size * 16)) // complex128 is 16 bytes
+
 			for b.Loop() {
 				_, _ = AllocAlignedComplex128(size)
 			}

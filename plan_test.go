@@ -21,6 +21,14 @@ func TestNewPlan_PowersOfTwo(t *testing.T) {
 		if plan.Len() != n {
 			t.Errorf("NewPlan(%d).Len() = %d, want %d", n, plan.Len(), n)
 		}
+
+		// Verify Forward works
+		src := make([]complex64, n)
+
+		dst := make([]complex64, n)
+		if err := plan.Forward(dst, src); err != nil {
+			t.Errorf("Forward(%d) returned error: %v", n, err)
+		}
 	}
 }
 
@@ -53,7 +61,7 @@ func TestNewPlan64(t *testing.T) {
 func TestNewPlan_InvalidLength(t *testing.T) {
 	t.Parallel()
 
-	invalidSizes := []int{0, -1, 7, 11, 13, 14, 17, 19, 21, 22, 26, 28, 33, 34}
+	invalidSizes := []int{0, -1, -100}
 	for _, n := range invalidSizes {
 		plan, err := NewPlan[complex64](n)
 		if !errors.Is(err, ErrInvalidLength) {

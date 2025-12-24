@@ -61,7 +61,9 @@ var (
 // For testing, use SetForcedFeatures() to override the detected features.
 func DetectFeatures() Features {
 	forcedMutex.RLock()
+
 	forced := forcedFeatures
+
 	forcedMutex.RUnlock()
 
 	if forced != nil {
@@ -145,7 +147,9 @@ func SetForcedFeatures(f Features) {
 // SetForcedFeatures() or other ResetDetection() calls.
 func ResetDetection() {
 	forcedMutex.Lock()
+
 	forcedFeatures = nil
+
 	forcedMutex.Unlock()
 
 	// Reset the sync.Once to allow re-detection

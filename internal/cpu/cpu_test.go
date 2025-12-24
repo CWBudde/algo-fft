@@ -42,6 +42,7 @@ func TestQueryFunctions(t *testing.T) {
 
 	// Ensure we're using real detection, not forced features
 	defer ResetDetection()
+
 	ResetDetection()
 
 	features := DetectFeatures()
@@ -86,15 +87,19 @@ func TestForcedFeatures(t *testing.T) {
 		if !HasSSE2() {
 			t.Error("Expected HasSSE2() to return true")
 		}
+
 		if HasSSE3() {
 			t.Error("Expected HasSSE3() to return false")
 		}
+
 		if HasAVX() {
 			t.Error("Expected HasAVX() to return false")
 		}
+
 		if HasAVX2() {
 			t.Error("Expected HasAVX2() to return false")
 		}
+
 		if HasNEON() {
 			t.Error("Expected HasNEON() to return false")
 		}
@@ -122,21 +127,27 @@ func TestForcedFeatures(t *testing.T) {
 		if !HasSSE2() {
 			t.Error("Expected HasSSE2() to return true")
 		}
+
 		if !HasSSE3() {
 			t.Error("Expected HasSSE3() to return true")
 		}
+
 		if !HasSSSE3() {
 			t.Error("Expected HasSSSE3() to return true")
 		}
+
 		if !HasSSE41() {
 			t.Error("Expected HasSSE41() to return true")
 		}
+
 		if !HasAVX() {
 			t.Error("Expected HasAVX() to return true")
 		}
+
 		if !HasAVX2() {
 			t.Error("Expected HasAVX2() to return true")
 		}
+
 		if HasAVX512() {
 			t.Error("Expected HasAVX512() to return false")
 		}
@@ -154,6 +165,7 @@ func TestForcedFeatures(t *testing.T) {
 		if !HasNEON() {
 			t.Error("Expected HasNEON() to return true")
 		}
+
 		if HasAVX2() {
 			t.Error("Expected HasAVX2() to return false on ARM")
 		}
@@ -178,6 +190,7 @@ func TestForcedFeatures(t *testing.T) {
 		if !features.ForceGeneric {
 			t.Error("Expected ForceGeneric to be true")
 		}
+
 		if !features.HasAVX2 {
 			t.Error("Expected HasAVX2 to still be true (flags are independent)")
 		}
@@ -209,9 +222,11 @@ func TestResetDetection(t *testing.T) {
 	if HasAVX2() != actualFeatures.HasAVX2 {
 		t.Error("Reset didn't restore real detection for AVX2")
 	}
+
 	if HasSSE2() != actualFeatures.HasSSE2 {
 		t.Error("Reset didn't restore real detection for SSE2")
 	}
+
 	if HasNEON() != actualFeatures.HasNEON {
 		t.Error("Reset didn't restore real detection for NEON")
 	}
@@ -231,13 +246,17 @@ func TestConcurrentDetection(t *testing.T) {
 	defer ResetDetection()
 
 	const goroutines = 100
+
 	var wg sync.WaitGroup
+
 	results := make([]Features, goroutines)
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		wg.Add(1)
+
 		go func(index int) {
 			defer wg.Done()
+
 			results[index] = DetectFeatures()
 		}(i)
 	}
@@ -272,6 +291,7 @@ func TestDetectionCaching(t *testing.T) {
 	if features1 != features2 {
 		t.Error("Second call returned different features")
 	}
+
 	if features1 != features3 {
 		t.Error("Third call returned different features")
 	}
@@ -298,30 +318,39 @@ func TestFeaturesStructFields(t *testing.T) {
 	if !features.HasSSE2 {
 		t.Error("HasSSE2 field not working")
 	}
+
 	if !features.HasSSE3 {
 		t.Error("HasSSE3 field not working")
 	}
+
 	if !features.HasSSSE3 {
 		t.Error("HasSSSE3 field not working")
 	}
+
 	if !features.HasSSE41 {
 		t.Error("HasSSE41 field not working")
 	}
+
 	if !features.HasAVX {
 		t.Error("HasAVX field not working")
 	}
+
 	if !features.HasAVX2 {
 		t.Error("HasAVX2 field not working")
 	}
+
 	if !features.HasAVX512 {
 		t.Error("HasAVX512 field not working")
 	}
+
 	if !features.HasNEON {
 		t.Error("HasNEON field not working")
 	}
+
 	if !features.ForceGeneric {
 		t.Error("ForceGeneric field not working")
 	}
+
 	if features.Architecture != "test" {
 		t.Error("Architecture field not working")
 	}
@@ -333,7 +362,8 @@ func BenchmarkDetectFeatures(b *testing.B) {
 	ResetDetection()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		_ = DetectFeatures()
 	}
 }
@@ -343,19 +373,19 @@ func BenchmarkQueryFunctions(b *testing.B) {
 	ResetDetection()
 
 	b.Run("HasAVX2", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = HasAVX2()
 		}
 	})
 
 	b.Run("HasSSE41", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = HasSSE41()
 		}
 	})
 
 	b.Run("HasNEON", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = HasNEON()
 		}
 	})

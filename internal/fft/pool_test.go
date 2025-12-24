@@ -9,6 +9,7 @@ func TestBufferPool_Complex64(t *testing.T) {
 	t.Parallel()
 
 	pool := &BufferPool{}
+
 	const size = 256
 
 	// Get a buffer from the pool
@@ -16,9 +17,11 @@ func TestBufferPool_Complex64(t *testing.T) {
 	if len(buf1) != size {
 		t.Errorf("GetComplex64(%d) returned buffer with length %d", size, len(buf1))
 	}
+
 	if cap(buf1) < size {
 		t.Errorf("GetComplex64(%d) returned buffer with capacity %d", size, cap(buf1))
 	}
+
 	if backing1 == nil {
 		t.Error("GetComplex64 returned nil backing buffer")
 	}
@@ -40,15 +43,18 @@ func TestBufferPool_Complex128(t *testing.T) {
 	t.Parallel()
 
 	pool := &BufferPool{}
+
 	const size = 512
 
 	buf1, backing1 := pool.GetComplex128(size)
 	if len(buf1) != size {
 		t.Errorf("GetComplex128(%d) returned buffer with length %d", size, len(buf1))
 	}
+
 	if cap(buf1) < size {
 		t.Errorf("GetComplex128(%d) returned buffer with capacity %d", size, cap(buf1))
 	}
+
 	if backing1 == nil {
 		t.Error("GetComplex128 returned nil backing buffer")
 	}
@@ -68,12 +74,14 @@ func TestBufferPool_IntSlice(t *testing.T) {
 	t.Parallel()
 
 	pool := &BufferPool{}
+
 	const size = 128
 
 	buf1 := pool.GetIntSlice(size)
 	if len(buf1) != size {
 		t.Errorf("GetIntSlice(%d) returned buffer with length %d", size, len(buf1))
 	}
+
 	if cap(buf1) < size {
 		t.Errorf("GetIntSlice(%d) returned buffer with capacity %d", size, cap(buf1))
 	}
@@ -101,18 +109,21 @@ func TestBufferPool_MultipleSizes(t *testing.T) {
 		if len(buf64) != size {
 			t.Errorf("size=%d: GetComplex64 returned length %d", size, len(buf64))
 		}
+
 		pool.PutComplex64(size, buf64, backing64)
 
 		buf128, backing128 := pool.GetComplex128(size)
 		if len(buf128) != size {
 			t.Errorf("size=%d: GetComplex128 returned length %d", size, len(buf128))
 		}
+
 		pool.PutComplex128(size, buf128, backing128)
 
 		bufInt := pool.GetIntSlice(size)
 		if len(bufInt) != size {
 			t.Errorf("size=%d: GetIntSlice returned length %d", size, len(bufInt))
 		}
+
 		pool.PutIntSlice(size, bufInt)
 	}
 }
@@ -122,8 +133,11 @@ func TestBufferPool_Concurrent(t *testing.T) {
 	t.Parallel()
 
 	pool := &BufferPool{}
-	const size = 256
-	const numGoroutines = 10
+
+	const (
+		size          = 256
+		numGoroutines = 10
+	)
 
 	done := make(chan bool, numGoroutines)
 
@@ -186,6 +200,7 @@ func TestBufferPool_ZeroSizeHandling(t *testing.T) {
 	if buf == nil {
 		t.Error("GetIntSlice(0) returned nil")
 	}
+
 	if len(buf) != 0 {
 		t.Errorf("GetIntSlice(0) returned length %d, want 0", len(buf))
 	}
@@ -204,6 +219,7 @@ func TestDefaultPool(t *testing.T) {
 	if len(buf) != 128 {
 		t.Errorf("DefaultPool.GetComplex64(128) returned length %d", len(buf))
 	}
+
 	DefaultPool.PutComplex64(128, buf, backing)
 }
 
@@ -215,6 +231,7 @@ func BenchmarkBufferPool_GetPut_Complex64(b *testing.B) {
 	for _, size := range sizes {
 		b.Run(itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				buf, backing := pool.GetComplex64(size)
 				pool.PutComplex64(size, buf, backing)
@@ -230,6 +247,7 @@ func BenchmarkBufferPool_GetPut_Complex128(b *testing.B) {
 	for _, size := range sizes {
 		b.Run(itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				buf, backing := pool.GetComplex128(size)
 				pool.PutComplex128(size, buf, backing)
@@ -245,6 +263,7 @@ func BenchmarkBufferPool_GetPut_IntSlice(b *testing.B) {
 	for _, size := range sizes {
 		b.Run(itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				buf := pool.GetIntSlice(size)
 				pool.PutIntSlice(size, buf)
@@ -265,6 +284,7 @@ func itoa(n int) string {
 	}
 
 	var buf [20]byte
+
 	i := len(buf)
 
 	for n > 0 {

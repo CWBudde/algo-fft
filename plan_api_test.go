@@ -1,6 +1,7 @@
 package algoforge
 
 import (
+	"errors"
 	"math/cmplx"
 	"testing"
 )
@@ -77,7 +78,7 @@ func TestInverseInPlace_NilSlice(t *testing.T) {
 	}
 
 	err = plan.InverseInPlace(nil)
-	if err != ErrNilSlice {
+	if !errors.Is(err, ErrNilSlice) {
 		t.Errorf("InverseInPlace(nil) = %v, want ErrNilSlice", err)
 	}
 }
@@ -91,7 +92,7 @@ func TestInverseInPlace_LengthMismatch(t *testing.T) {
 	}
 
 	err = plan.InverseInPlace(make([]complex64, 4))
-	if err != ErrLengthMismatch {
+	if !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("InverseInPlace(short) = %v, want ErrLengthMismatch", err)
 	}
 }
@@ -110,7 +111,7 @@ func TestKernelStrategy(t *testing.T) {
 		{"DIT", 128, KernelDIT},
 		{"Stockham", 256, KernelStockham},
 		{"SixStep", 4096, KernelSixStep},
-		{"EightStep", 8192, KernelEightStep},
+		{"EightStep", 16384, KernelEightStep},
 	}
 
 	for _, tt := range tests {
@@ -166,6 +167,7 @@ func TestSetGetKernelStrategy(t *testing.T) {
 
 	for _, strategy := range strategies {
 		SetKernelStrategy(strategy)
+
 		got := GetKernelStrategy()
 		if got != strategy {
 			t.Errorf("After SetKernelStrategy(%v), GetKernelStrategy() = %v", strategy, got)
@@ -265,6 +267,7 @@ func TestString_AllStrategies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.expectedName, func(t *testing.T) {
 			SetKernelStrategy(tt.strategy)
+
 			plan, err := NewPlan[complex64](tt.size)
 			if err != nil {
 				t.Fatalf("NewPlan failed: %v", err)
@@ -331,6 +334,7 @@ func TestItoa(t *testing.T) {
 	if result := itoa(-42); result != "-42" {
 		t.Errorf("itoa(-42) = %s, want -42", result)
 	}
+
 	if result := itoa(0); result != "0" {
 		t.Errorf("itoa(0) = %s, want 0", result)
 	}
@@ -350,6 +354,7 @@ func TestPlan_ConcurrentUse(t *testing.T) {
 
 	// Run multiple goroutines using the same plan
 	const numGoroutines = 10
+
 	done := make(chan bool, numGoroutines)
 
 	for range numGoroutines {
@@ -359,7 +364,8 @@ func TestPlan_ConcurrentUse(t *testing.T) {
 			src[0] = 1
 
 			// Perform forward transform
-			if err := plan.Forward(dst, src); err != nil {
+			err := plan.Forward(dst, src)
+			if err != nil {
 				t.Errorf("Forward failed: %v", err)
 			}
 
@@ -391,6 +397,7 @@ func TestClone_Concurrent(t *testing.T) {
 	}
 
 	const numGoroutines = 5
+
 	done := make(chan bool, numGoroutines)
 
 	for range numGoroutines {
@@ -402,7 +409,8 @@ func TestClone_Concurrent(t *testing.T) {
 			dst := make([]complex64, 256)
 			src[0] = 1
 
-			if err := clone.Forward(dst, src); err != nil {
+			err := clone.Forward(dst, src)
+			if err != nil {
 				t.Errorf("clone.Forward failed: %v", err)
 			}
 

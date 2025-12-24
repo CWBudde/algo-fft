@@ -32,7 +32,7 @@ func isPowerOf2(n int) bool {
 	return n > 0 && (n&(n-1)) == 0
 }
 
-func nextPowerOf2(n int) int {
+func NextPowerOfTwo(n int) int {
 	if n <= 1 {
 		return 1
 	}
