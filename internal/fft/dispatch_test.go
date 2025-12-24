@@ -1,14 +1,17 @@
 package fft
 
 import (
+	"runtime"
 	"testing"
+
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
 )
 
 // TestSelectKernels tests the generic kernel selection.
 func TestSelectKernels(t *testing.T) {
 	t.Parallel()
 
-	features := DetectFeatures()
+	features := cpu.DetectFeatures()
 
 	// Test complex64 kernel selection
 	kernels64 := SelectKernels[complex64](features)
@@ -33,7 +36,7 @@ func TestSelectKernels(t *testing.T) {
 func TestSelectKernelsWithStrategy(t *testing.T) {
 	t.Parallel()
 
-	features := DetectFeatures()
+	features := cpu.DetectFeatures()
 
 	strategies := []KernelStrategy{
 		KernelAuto,
@@ -95,18 +98,113 @@ func TestStubKernel(t *testing.T) {
 func TestDetectFeatures(t *testing.T) {
 	t.Parallel()
 
-	features := DetectFeatures()
+	features := cpu.DetectFeatures()
 
-	// At a minimum, the generic fallback should always be available
-	// We can't test for specific SIMD features as it depends on the test machine
+	// Architecture should always be set
+	if features.Architecture == "" {
+		t.Error("Architecture should be set")
+	}
+
+	// Architecture should match runtime.GOARCH
+	if features.Architecture != runtime.GOARCH {
+		t.Errorf("Architecture mismatch: got %q, want %q", features.Architecture, runtime.GOARCH)
+	}
+
+	// On amd64, SSE2 should always be available
+	if runtime.GOARCH == "amd64" && !features.HasSSE2 {
+		t.Error("SSE2 should be available on amd64")
+	}
+
+	// On arm64, NEON should always be available
+	if runtime.GOARCH == "arm64" && !features.HasNEON {
+		t.Error("NEON should be available on arm64")
+	}
+
 	t.Logf("Detected features: %+v", features)
+}
+
+// TestKernelSelectionWithForcedFeatures tests kernel selection with mocked CPU features.
+func TestKernelSelectionWithForcedFeatures(t *testing.T) {
+	t.Parallel()
+
+	// Test SSE2-only system (no AVX2)
+	t.Run("SSE2Only", func(t *testing.T) {
+		defer cpu.ResetDetection()
+
+		cpu.SetForcedFeatures(cpu.Features{
+			HasSSE2:      true,
+			Architecture: "amd64",
+		})
+
+		kernels := SelectKernels[complex64](cpu.DetectFeatures())
+		if kernels.Forward == nil || kernels.Inverse == nil {
+			t.Error("Should have valid kernels even with SSE2 only")
+		}
+	})
+
+	// Test AVX2 system
+	t.Run("AVX2System", func(t *testing.T) {
+		defer cpu.ResetDetection()
+
+		cpu.SetForcedFeatures(cpu.Features{
+			HasSSE2:      true,
+			HasSSE3:      true,
+			HasSSSE3:     true,
+			HasSSE41:     true,
+			HasAVX:       true,
+			HasAVX2:      true,
+			Architecture: "amd64",
+		})
+
+		kernels := SelectKernels[complex64](cpu.DetectFeatures())
+		if kernels.Forward == nil || kernels.Inverse == nil {
+			t.Error("Should have valid kernels with AVX2")
+		}
+	})
+
+	// Test ForceGeneric flag disables SIMD
+	t.Run("ForceGeneric", func(t *testing.T) {
+		defer cpu.ResetDetection()
+
+		cpu.SetForcedFeatures(cpu.Features{
+			HasAVX2:      true,
+			ForceGeneric: true,
+			Architecture: "amd64",
+		})
+
+		features := cpu.DetectFeatures()
+		if !features.ForceGeneric {
+			t.Error("ForceGeneric should be true")
+		}
+
+		// Kernels should still be selected (ForceGeneric is a hint, not a hard requirement)
+		kernels := SelectKernels[complex64](features)
+		if kernels.Forward == nil || kernels.Inverse == nil {
+			t.Error("Should have valid kernels even with ForceGeneric")
+		}
+	})
+
+	// Test ARM NEON system
+	t.Run("NEONSystem", func(t *testing.T) {
+		defer cpu.ResetDetection()
+
+		cpu.SetForcedFeatures(cpu.Features{
+			HasNEON:      true,
+			Architecture: "arm64",
+		})
+
+		kernels := SelectKernels[complex64](cpu.DetectFeatures())
+		if kernels.Forward == nil || kernels.Inverse == nil {
+			t.Error("Should have valid kernels with NEON")
+		}
+	})
 }
 
 // TestKernelsFunctional tests that selected kernels actually work.
 func TestKernelsFunctional_Complex64(t *testing.T) {
 	t.Parallel()
 
-	features := DetectFeatures()
+	features := cpu.DetectFeatures()
 	kernels := SelectKernels[complex64](features)
 
 	n := 8
@@ -154,7 +252,7 @@ func TestKernelsFunctional_Complex64(t *testing.T) {
 func TestKernelsFunctional_Complex128(t *testing.T) {
 	t.Parallel()
 
-	features := DetectFeatures()
+	features := cpu.DetectFeatures()
 	kernels := SelectKernels[complex128](features)
 
 	n := 16

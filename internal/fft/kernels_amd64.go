@@ -2,7 +2,11 @@
 
 package fft
 
-func selectKernelsComplex64(features Features) Kernels[complex64] {
+import (
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
+)
+
+func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	auto := autoKernelComplex64(KernelAuto)
 	if features.HasAVX2 && !features.ForceGeneric {
 		return Kernels[complex64]{
@@ -21,7 +25,7 @@ func selectKernelsComplex64(features Features) Kernels[complex64] {
 	return auto
 }
 
-func selectKernelsComplex128(features Features) Kernels[complex128] {
+func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 	auto := autoKernelComplex128(KernelAuto)
 	if features.HasAVX2 && !features.ForceGeneric {
 		return Kernels[complex128]{
@@ -40,7 +44,7 @@ func selectKernelsComplex128(features Features) Kernels[complex128] {
 	return auto
 }
 
-func selectKernelsComplex64WithStrategy(features Features, strategy KernelStrategy) Kernels[complex64] {
+func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
 	auto := autoKernelComplex64(strategy)
 	if features.HasAVX2 && !features.ForceGeneric {
 		return Kernels[complex64]{
@@ -59,7 +63,7 @@ func selectKernelsComplex64WithStrategy(features Features, strategy KernelStrate
 	return auto
 }
 
-func selectKernelsComplex128WithStrategy(features Features, strategy KernelStrategy) Kernels[complex128] {
+func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
 	auto := autoKernelComplex128(strategy)
 	if features.HasAVX2 && !features.ForceGeneric {
 		return Kernels[complex128]{

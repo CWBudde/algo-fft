@@ -2,7 +2,11 @@
 
 package fft
 
-func selectKernelsComplex64(features Features) Kernels[complex64] {
+import (
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
+)
+
+func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	if features.HasNEON && !features.ForceGeneric {
 		return Kernels[complex64]{
 			Forward: forwardNEONComplex64Asm,
@@ -16,7 +20,7 @@ func selectKernelsComplex64(features Features) Kernels[complex64] {
 	}
 }
 
-func selectKernelsComplex128(features Features) Kernels[complex128] {
+func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 	if features.HasNEON && !features.ForceGeneric {
 		return Kernels[complex128]{
 			Forward: forwardNEONComplex128Asm,

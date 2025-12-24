@@ -6,8 +6,10 @@ import (
 	"github.com/MeKo-Christian/algoforge/internal/reference"
 )
 
-const radix3Tol64 = 1e-4
-const radix3Tol128 = 1e-10
+const (
+	radix3Tol64  = 1e-4
+	radix3Tol128 = 1e-10
+)
 
 func TestRadix3ForwardMatchesReferenceComplex64(t *testing.T) {
 	t.Parallel()

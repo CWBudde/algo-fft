@@ -2,22 +2,26 @@
 
 package fft
 
-func selectKernelsComplex64(features Features) Kernels[complex64] {
+import (
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
+)
+
+func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	_ = features
 	return autoKernelComplex64(KernelAuto)
 }
 
-func selectKernelsComplex128(features Features) Kernels[complex128] {
+func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 	_ = features
 	return autoKernelComplex128(KernelAuto)
 }
 
-func selectKernelsComplex64WithStrategy(features Features, strategy KernelStrategy) Kernels[complex64] {
+func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
 	_ = features
 	return autoKernelComplex64(strategy)
 }
 
-func selectKernelsComplex128WithStrategy(features Features, strategy KernelStrategy) Kernels[complex128] {
+func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
 	_ = features
 	return autoKernelComplex128(strategy)
 }

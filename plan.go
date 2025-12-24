@@ -1,6 +1,9 @@
 package algoforge
 
-import "github.com/MeKo-Christian/algoforge/internal/fft"
+import (
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
+	"github.com/MeKo-Christian/algoforge/internal/fft"
+)
 
 // Plan is a pre-computed FFT plan for a specific size and precision.
 // Plans are reusable and safe for concurrent use during transforms.
@@ -249,7 +252,7 @@ func NewPlan[T Complex](n int) (*Plan[T], error) {
 		return nil, ErrInvalidLength
 	}
 
-	features := fft.DetectFeatures()
+	features := cpu.DetectFeatures()
 	strategy := fft.ResolveKernelStrategy(n)
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
@@ -340,7 +343,7 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 		return nil, ErrInvalidLength
 	}
 
-	features := fft.DetectFeatures()
+	features := cpu.DetectFeatures()
 	strategy := fft.ResolveKernelStrategy(n)
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 

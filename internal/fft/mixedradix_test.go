@@ -6,8 +6,10 @@ import (
 	"github.com/MeKo-Christian/algoforge/internal/reference"
 )
 
-const mixedRadixTol64 = 1e-4
-const mixedRadixTol128 = 1e-10
+const (
+	mixedRadixTol64  = 1e-4
+	mixedRadixTol128 = 1e-10
+)
 
 func TestMixedRadixForwardMatchesReferenceComplex64(t *testing.T) {
 	t.Parallel()

@@ -300,7 +300,7 @@ func TestItoa(t *testing.T) {
 		size     int
 		expected string
 	}{
-		{0, "0"},     // Edge case, though not valid for FFT
+		{0, "0"}, // Edge case, though not valid for FFT
 		{1, "1"},
 		{8, "8"},
 		{16, "16"},

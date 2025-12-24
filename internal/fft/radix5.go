@@ -2,8 +2,10 @@ package fft
 
 import "math"
 
-var radix5Twiddles64 [4]complex64
-var radix5Twiddles128 [4]complex128
+var (
+	radix5Twiddles64  [4]complex64
+	radix5Twiddles128 [4]complex128
+)
 
 func init() {
 	for k := 1; k <= 4; k++ {

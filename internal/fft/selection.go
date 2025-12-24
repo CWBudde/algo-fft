@@ -56,10 +56,10 @@ func RecordBenchmarkDecision(n int, strategy KernelStrategy) {
 
 // ResolveKernelStrategy returns the selected strategy for size n.
 // Selection order for KernelAuto:
-//  1) Global override (SetKernelStrategy)
-//  2) Per-size benchmark decision cache
-//  3) Square-size transforms: prefer six/eight-step for large sizes
-//  4) Size threshold: DIT for <= ditAutoThreshold, Stockham otherwise
+//  1. Global override (SetKernelStrategy)
+//  2. Per-size benchmark decision cache
+//  3. Square-size transforms: prefer six/eight-step for large sizes
+//  4. Size threshold: DIT for <= ditAutoThreshold, Stockham otherwise
 func ResolveKernelStrategy(n int) KernelStrategy {
 	return resolveKernelStrategy(n, KernelAuto)
 }

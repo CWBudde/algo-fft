@@ -1,5 +1,9 @@
 package fft
 
+import (
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
+)
+
 // Kernel reports whether it handled the transform.
 // It returns false when no implementation is available.
 type Kernel[T Complex] func(dst, src, twiddle, scratch []T, bitrev []int) bool
@@ -10,21 +14,9 @@ type Kernels[T Complex] struct {
 	Inverse Kernel[T]
 }
 
-// Features describes CPU capabilities relevant to FFT kernel selection.
-// TODO: Populate these from golang.org/x/sys/cpu or custom CPUID logic.
-type Features struct {
-	HasAVX2       bool
-	HasAVX512     bool
-	HasSSE2       bool
-	HasNEON       bool
-	ForceGeneric  bool
-	Architecture  string
-	Architecture2 string
-}
-
 // SelectKernels returns the best available kernels for the detected features.
 // Currently returns stubs until optimized kernels are implemented.
-func SelectKernels[T Complex](features Features) Kernels[T] {
+func SelectKernels[T Complex](features cpu.Features) Kernels[T] {
 	var zero T
 	switch any(zero).(type) {
 	case complex64:
@@ -56,7 +48,7 @@ func SelectKernels[T Complex](features Features) Kernels[T] {
 }
 
 // SelectKernelsWithStrategy returns kernels based on a forced or auto strategy.
-func SelectKernelsWithStrategy[T Complex](features Features, strategy KernelStrategy) Kernels[T] {
+func SelectKernelsWithStrategy[T Complex](features cpu.Features, strategy KernelStrategy) Kernels[T] {
 	var zero T
 	switch any(zero).(type) {
 	case complex64:

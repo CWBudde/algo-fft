@@ -161,17 +161,17 @@ func TestAlignPtr(t *testing.T) {
 		align    int
 		expected uintptr
 	}{
-		{0, 32, 0},       // Already aligned
-		{1, 32, 32},      // Round up to next 32-byte boundary
-		{31, 32, 32},     // Just before boundary
-		{32, 32, 32},     // Exactly on boundary
-		{33, 32, 64},     // Just after boundary
-		{64, 32, 64},     // Another boundary
-		{100, 32, 128},   // Mid-range
-		{0, 16, 0},       // 16-byte alignment
-		{15, 16, 16},     // 16-byte alignment
-		{16, 16, 16},     // 16-byte alignment
-		{17, 16, 32},     // 16-byte alignment
+		{0, 32, 0},     // Already aligned
+		{1, 32, 32},    // Round up to next 32-byte boundary
+		{31, 32, 32},   // Just before boundary
+		{32, 32, 32},   // Exactly on boundary
+		{33, 32, 64},   // Just after boundary
+		{64, 32, 64},   // Another boundary
+		{100, 32, 128}, // Mid-range
+		{0, 16, 0},     // 16-byte alignment
+		{15, 16, 16},   // 16-byte alignment
+		{16, 16, 16},   // 16-byte alignment
+		{17, 16, 32},   // 16-byte alignment
 	}
 
 	for _, tc := range testCases {

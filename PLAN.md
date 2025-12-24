@@ -439,11 +439,17 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 13.1 CPU Feature Detection
 
-- [ ] Implement `internal/cpu/detect.go` for feature detection
-- [ ] Detect SSE2, SSE4.1, AVX, AVX2, AVX-512 on amd64
-- [ ] Store detection results in package-level variables
-- [ ] Create `HasAVX2() bool` etc. query functions
-- [ ] Test detection on various CPU configurations
+- [x] Implement `internal/cpu/` package for feature detection
+  - [x] Created `cpu.go` with Features struct, caching, and query functions
+  - [x] Created `detect_amd64.go` with SSE2, SSE3, SSSE3, SSE4.1, AVX, AVX2, AVX-512 detection
+  - [x] Created `detect_arm64.go` with NEON detection
+  - [x] Created `detect_generic.go` as fallback for other architectures
+- [x] Store detection results in package-level variables (cached with sync.Once)
+- [x] Create `HasAVX2()`, `HasSSE41()`, `HasSSE2()`, `HasNEON()`, etc. query functions
+- [x] Test detection on various CPU configurations (via forced features for mocking)
+- [x] Migrate existing code from `internal/fft/features.go` to new package
+- [x] Update all kernel selection code to use `cpu.Features` type
+- [x] Add comprehensive test coverage with feature mocking support
 
 ### 13.2 Backend Dispatch System
 
