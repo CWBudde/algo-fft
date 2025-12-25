@@ -143,13 +143,19 @@ base_loop:
 	CMPQ CX, R13
 	JGE  next_size
 
-	// Check if we can use AVX2 (half >= 4 and step == 1)
+	// Check if we can use AVX2 (half >= 4)
 	CMPQ R15, $4
 	JL   scalar_butterflies
+	
+	// If step == 1, use contiguous load path
 	CMPQ BX, $1
-	JNE  scalar_butterflies
+	JE   avx2_contiguous
 
-	// AVX2 vectorized path: process 4 butterflies at a time
+	// If step > 1, use strided load path
+	JMP  avx2_strided
+
+avx2_contiguous:
+	// AVX2 vectorized path: process 4 butterflies at a time (contiguous twiddles)
 	XORQ DX, DX            // j = 0
 
 avx2_loop:
@@ -170,59 +176,206 @@ avx2_loop:
 	ADDQ SI, DI            // DI = (base + j + half) * 8
 
 	// Load 4 complex64 from work[index1:index1+4]
-	// Y0 = [a0.r, a0.i, a1.r, a1.i, a2.r, a2.i, a3.r, a3.i]
 	VMOVUPS (R8)(SI*1), Y0
 
 	// Load 4 complex64 from work[index2:index2+4]
-	// Y1 = [b0.r, b0.i, b1.r, b1.i, b2.r, b2.i, b3.r, b3.i]
 	VMOVUPS (R8)(DI*1), Y1
 
 	// Load 4 twiddle factors (step == 1, so contiguous)
-	// twiddle[j*step] ... twiddle[(j+3)*step] = twiddle[j:j+4]
 	MOVQ DX, AX
 	SHLQ $3, AX            // j * 8 (byte offset)
 	VMOVUPS (R10)(AX*1), Y2
 
+	// Perform butterfly with Y2 (twiddles)
+	JMP  avx2_butterfly
+
+avx2_strided:
+	// Setup for strided loop
+	// R12 = stride_bytes = step * 8
+	MOVQ BX, R12
+	SHLQ $3, R12
+	
+	// R11 = twiddle_offset = 0
+	XORQ R11, R11
+	
+	XORQ DX, DX            // j = 0
+
+avx2_strided_loop:
+	// Check bounds: need 8?
+	MOVQ R15, AX
+	SUBQ DX, AX
+	CMPQ AX, $8
+	JL   avx2_strided_single
+
+	// --- Unrolled Block (8 butterflies) ---
+
+	// Compute offsets for Block 1 (j)
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $3, SI            // SI = index1 * 8
+
+	MOVQ R15, DI
+	SHLQ $3, DI
+	ADDQ SI, DI            // DI = index2 * 8
+
+	// Load data Block 1
+	VMOVUPS (R8)(SI*1), Y0
+	VMOVUPS (R8)(DI*1), Y1
+
+	// Load data Block 2 (offset + 32 bytes)
+	VMOVUPS 32(R8)(SI*1), Y7
+	VMOVUPS 32(R8)(DI*1), Y8
+
+	// Load Twiddles Block 1 (offsets 0, 1s, 2s, 3s from R11)
+	VMOVSD (R10)(R11*1), X2
+	LEAQ (R11)(R12*1), AX
+	VMOVSD (R10)(AX*1), X3
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X4
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X5
+	
+	VPUNPCKLQDQ X3, X2, X2
+	VPUNPCKLQDQ X5, X4, X4
+	VINSERTF128 $1, X4, Y2, Y2     // Y2 = Twiddle 1
+
+	// Load Twiddles Block 2 (offsets 4s, 5s, 6s, 7s from R11)
+	// Current AX is R11 + 3s.
+	// Next is R11 + 4s = AX + s.
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X9         // w4
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X10        // w5
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X11        // w6
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X12        // w7
+
+	VPUNPCKLQDQ X10, X9, X9
+	VPUNPCKLQDQ X12, X11, X11
+	VINSERTF128 $1, X11, Y9, Y9    // Y9 = Twiddle 2
+
+	// --- Math Block 1 (FMA) ---
+	// Y0=a, Y1=b, Y2=w -> Y0=a', Y1=b'
+	VMOVSLDUP Y2, Y3
+	VMOVSHDUP Y2, Y4
+	VSHUFPS $0xB1, Y1, Y1, Y6
+	VMULPS Y4, Y6, Y6
+	VFMADDSUB231PS Y3, Y1, Y6  // Y6 = t
+	VADDPS Y6, Y0, Y3
+	VSUBPS Y6, Y0, Y4
+	VMOVUPS Y3, (R8)(SI*1)
+	VMOVUPS Y4, (R8)(DI*1)
+
+	// --- Math Block 2 (FMA) ---
+	// Y7=a, Y8=b, Y9=w -> Y7=a', Y8=b'
+	VMOVSLDUP Y9, Y10
+	VMOVSHDUP Y9, Y11
+	VSHUFPS $0xB1, Y8, Y8, Y6  // Recycle Y6
+	VMULPS Y11, Y6, Y6
+	VFMADDSUB231PS Y10, Y8, Y6 // Y6 = t
+	VADDPS Y6, Y7, Y10
+	VSUBPS Y6, Y7, Y11
+	VMOVUPS Y10, 32(R8)(SI*1)
+	VMOVUPS Y11, 32(R8)(DI*1)
+
+	// Update indices
+	LEAQ (R11)(R12*8), R11     // twiddle_offset += 8 * stride
+	ADDQ $8, DX                // j += 8
+	JMP avx2_strided_loop
+
+avx2_strided_single:
+	// Check if >= 4
+	CMPQ AX, $4
+	JL   scalar_remainder
+
+	// Compute offsets
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $3, SI
+	MOVQ R15, DI
+	SHLQ $3, DI
+	ADDQ SI, DI
+
+	// Load data
+	VMOVUPS (R8)(SI*1), Y0
+	VMOVUPS (R8)(DI*1), Y1
+
+	// Load Twiddles (4)
+	VMOVSD (R10)(R11*1), X2
+	LEAQ (R11)(R12*1), AX
+	VMOVSD (R10)(AX*1), X3
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X4
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X5
+	
+	VPUNPCKLQDQ X3, X2, X2
+	VPUNPCKLQDQ X5, X4, X4
+	VINSERTF128 $1, X4, Y2, Y2
+
+	// Math (FMA)
+	VMOVSLDUP Y2, Y3
+	VMOVSHDUP Y2, Y4
+	VSHUFPS $0xB1, Y1, Y1, Y6
+	VMULPS Y4, Y6, Y6
+	VFMADDSUB231PS Y3, Y1, Y6
+	VADDPS Y6, Y0, Y3
+	VSUBPS Y6, Y0, Y4
+	VMOVUPS Y3, (R8)(SI*1)
+	VMOVUPS Y4, (R8)(DI*1)
+
+	// Update
+	LEAQ (R11)(R12*4), R11
+	ADDQ $4, DX
+	
+	JMP scalar_remainder
+
+avx2_butterfly:
+    // ... contiguous path ...
+	// Expects:
+	// Y0: a (from index1)
+	// Y1: b (from index2)
+	// Y2: twiddles
+	// SI: index1 offset
+	// DI: index2 offset
+	// DX: j
+	// R8: buffer ptr
+
 	// Complex multiply: t = w * b
-	// (wr + wi*i) * (br + bi*i) = (wr*br - wi*bi) + (wr*bi + wi*br)*i
-	//
-	// Input layout: Y1 = [b0.r, b0.i, b1.r, b1.i, b2.r, b2.i, b3.r, b3.i]
-	//               Y2 = [w0.r, w0.i, w1.r, w1.i, w2.r, w2.i, w3.r, w3.i]
-	//
-	// Algorithm using MOVELDUP/MOVEHDUP pattern:
-	// 1. Duplicate real parts:     [r, r, r, r, ...] for each complex
-	// 2. Duplicate imag parts:     [i, i, i, i, ...] for each complex
-	// 3. Multiply, addsub for real/imag placement
+	// Uses FMA: t = b * w.r +/- (b_swapped * w.i)
+	// Even (Real): b.r*w.r - b.i*w.i
+	// Odd (Imag):  b.i*w.r + b.r*w.i
+	
+	VMOVSLDUP Y2, Y3         // Y3 = w.r
+	VMOVSHDUP Y2, Y4         // Y4 = w.i
 
-	// Create [w.r, w.r, w.r, w.r, ...] by duplicating low floats of each pair
-	VMOVSLDUP Y2, Y3         // Y3 = [w0.r, w0.r, w1.r, w1.r, w2.r, w2.r, w3.r, w3.r]
+	// Term 2 = b_swapped * w.i
+	VSHUFPS $0xB1, Y1, Y1, Y6  // Y6 = b_swapped
+	VMULPS Y4, Y6, Y6          // Y6 = b_swapped * w.i
 
-	// Create [w.i, w.i, w.i, w.i, ...] by duplicating high floats of each pair
-	VMOVSHDUP Y2, Y4         // Y4 = [w0.i, w0.i, w1.i, w1.i, w2.i, w2.i, w3.i, w3.i]
-
-	// Y5 = b * w.r = [b.r*w.r, b.i*w.r, ...]
-	VMULPS Y3, Y1, Y5
-
-	// Y6 = b_swapped * w.i where b_swapped = [b.i, b.r, b.i, b.r, ...]
-	// First swap real/imag pairs in Y1
-	VSHUFPS $0xB1, Y1, Y1, Y6  // 0xB1 = 10 11 00 01 => swap pairs: [b.i, b.r, ...]
-	VMULPS Y4, Y6, Y6          // Y6 = [b.i*w.i, b.r*w.i, ...]
-
-	// Result: real = b.r*w.r - b.i*w.i (even positions)
-	//         imag = b.i*w.r + b.r*w.i (odd positions)
-	// Use VADDSUBPS: Y5[even] - Y6[even], Y5[odd] + Y6[odd]
-	VADDSUBPS Y6, Y5, Y2       // Y2 = t = w * b
+	// FMA: Y6 = b * w.r +/- Y6
+	// VFMADDSUB231PS src3, src2, dst -> dst = src2*src3 -/+ dst (Wait, Intel: dst = src2*src3 +/- dst)
+	// Even: mul - dst. Odd: mul + dst.
+	// We want: Real (even) = b.r*w.r - b.i*w.i (mul - Term2) -> Correct
+	//          Imag (odd)  = b.i*w.r + b.r*w.i (mul + Term2) -> Correct
+	
+	VFMADDSUB231PS Y3, Y1, Y6  // Y6 = t
 
 	// Butterfly: a' = a + t, b' = a - t
-	VADDPS Y2, Y0, Y3       // Y3 = a + t
-	VSUBPS Y2, Y0, Y4       // Y4 = a - t
+	VADDPS Y6, Y0, Y3       // a + t
+	VSUBPS Y6, Y0, Y4       // a - t
 
 	// Store results
-	VMOVUPS Y3, (R8)(SI*1)  // work[index1:index1+4] = a + t
-	VMOVUPS Y4, (R8)(DI*1)  // work[index2:index2+4] = a - t
+	VMOVUPS Y3, (R8)(SI*1)
+	VMOVUPS Y4, (R8)(DI*1)
 
 	ADDQ $4, DX             // j += 4
-	JMP  avx2_loop
+	
+	// Loop back check
+	CMPQ BX, $1
+	JE   avx2_loop
+	JMP  avx2_strided_loop
 
 scalar_remainder:
 	// Handle remaining butterflies (0-3) with scalar code
@@ -475,9 +628,15 @@ inv_base_loop:
 	// Check for AVX2 path
 	CMPQ R15, $4
 	JL   inv_scalar_butterflies
+	
+	// If step == 1, use contiguous load path
 	CMPQ BX, $1
-	JNE  inv_scalar_butterflies
+	JE   inv_avx2_contiguous
+	
+	// If step > 1, use strided load path
+	JMP  inv_avx2_strided
 
+inv_avx2_contiguous:
 	XORQ DX, DX
 
 inv_avx2_loop:
@@ -499,55 +658,179 @@ inv_avx2_loop:
 	VMOVUPS (R8)(SI*1), Y0
 	VMOVUPS (R8)(DI*1), Y1
 
-	// Load twiddle
+	// Load twiddle (contiguous)
 	MOVQ DX, AX
 	SHLQ $3, AX
 	VMOVUPS (R10)(AX*1), Y2
 
+	JMP inv_avx2_butterfly
+
+inv_avx2_strided:
+	// Setup for strided loop
+	// R12 = stride_bytes = step * 8
+	MOVQ BX, R12
+	SHLQ $3, R12
+	
+	// R11 = twiddle_offset = 0
+	XORQ R11, R11
+	
+	XORQ DX, DX
+
+inv_avx2_strided_loop:
+	MOVQ R15, AX
+	SUBQ DX, AX
+	CMPQ AX, $8
+	JL   inv_avx2_strided_single
+
+	// --- Unrolled Block (8 butterflies) ---
+	// Compute offsets Block 1
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $3, SI
+	MOVQ R15, DI
+	SHLQ $3, DI
+	ADDQ SI, DI
+
+	// Load data Block 1
+	VMOVUPS (R8)(SI*1), Y0
+	VMOVUPS (R8)(DI*1), Y1
+
+	// Load data Block 2 (offset + 32 bytes)
+	VMOVUPS 32(R8)(SI*1), Y7
+	VMOVUPS 32(R8)(DI*1), Y8
+
+	// Load Twiddles Block 1 (offsets 0, 1s, 2s, 3s from R11)
+	VMOVSD (R10)(R11*1), X2
+	LEAQ (R11)(R12*1), AX
+	VMOVSD (R10)(AX*1), X3
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X4
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X5
+	
+	VPUNPCKLQDQ X3, X2, X2
+	VPUNPCKLQDQ X5, X4, X4
+	VINSERTF128 $1, X4, Y2, Y2
+
+	// Load Twiddles Block 2 (offsets 4s, 5s, 6s, 7s from R11)
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X9
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X10
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X11
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X12
+
+	VPUNPCKLQDQ X10, X9, X9
+	VPUNPCKLQDQ X12, X11, X11
+	VINSERTF128 $1, X11, Y9, Y9
+
+	// --- Math Block 1 (Inverse FMA) ---
+	VMOVSLDUP Y2, Y3
+	VMOVSHDUP Y2, Y4
+	VSHUFPS $0xB1, Y1, Y1, Y6
+	VMULPS Y4, Y6, Y6
+	VFMSUBADD231PS Y3, Y1, Y6  // Y6 = t
+	VADDPS Y6, Y0, Y3
+	VSUBPS Y6, Y0, Y4
+	VMOVUPS Y3, (R8)(SI*1)
+	VMOVUPS Y4, (R8)(DI*1)
+
+	// --- Math Block 2 (Inverse FMA) ---
+	VMOVSLDUP Y9, Y10
+	VMOVSHDUP Y9, Y11
+	VSHUFPS $0xB1, Y8, Y8, Y6
+	VMULPS Y11, Y6, Y6
+	VFMSUBADD231PS Y10, Y8, Y6
+	VADDPS Y6, Y7, Y10
+	VSUBPS Y6, Y7, Y11
+	VMOVUPS Y10, 32(R8)(SI*1)
+	VMOVUPS Y11, 32(R8)(DI*1)
+
+	// Update indices
+	LEAQ (R11)(R12*8), R11
+	ADDQ $8, DX
+	JMP inv_avx2_strided_loop
+
+inv_avx2_strided_single:
+	CMPQ AX, $4
+	JL   inv_scalar_remainder
+
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $3, SI
+	MOVQ R15, DI
+	SHLQ $3, DI
+	ADDQ SI, DI
+
+	// Load data
+	VMOVUPS (R8)(SI*1), Y0
+	VMOVUPS (R8)(DI*1), Y1
+
+	// Load Twiddles (4)
+	VMOVSD (R10)(R11*1), X2
+	LEAQ (R11)(R12*1), AX
+	VMOVSD (R10)(AX*1), X3
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X4
+	ADDQ R12, AX
+	VMOVSD (R10)(AX*1), X5
+	
+	VPUNPCKLQDQ X3, X2, X2
+	VPUNPCKLQDQ X5, X4, X4
+	VINSERTF128 $1, X4, Y2, Y2
+
+	// Math (Inverse FMA)
+	VMOVSLDUP Y2, Y3
+	VMOVSHDUP Y2, Y4
+	VSHUFPS $0xB1, Y1, Y1, Y6
+	VMULPS Y4, Y6, Y6
+	VFMSUBADD231PS Y3, Y1, Y6
+	VADDPS Y6, Y0, Y3
+	VSUBPS Y6, Y0, Y4
+	VMOVUPS Y3, (R8)(SI*1)
+	VMOVUPS Y4, (R8)(DI*1)
+
+	// Update
+	LEAQ (R11)(R12*4), R11
+	ADDQ $4, DX
+
+	JMP inv_scalar_remainder
+
+inv_avx2_butterfly:
+    // ... contiguous path ...
 	// Conjugate multiply: t = conj(w) * b
-	// conj(w) * b = (w.r - w.i*i) * (b.r + b.i*i)
-	//             = (w.r*b.r + w.i*b.i) + (w.r*b.i - w.i*b.r)*i
-	//
-	// With MOVSLDUP/MOVSHDUP pattern:
-	// Y3 = [w.r, w.r, w.r, w.r, ...]
-	// Y4 = [w.i, w.i, w.i, w.i, ...]
-	// Y5 = [b.r*w.r, b.i*w.r, ...]
-	// Y6 = [b.i*w.i, b.r*w.i, ...] (after swap)
-	//
-	// We need: real = Y5[0] + Y6[0], imag = Y5[1] - Y6[1]
-	// ADDSUBPS does: even = a - b, odd = a + b
-	// So VADDSUBPS Y6, Y5 gives: Y5[0]-Y6[0], Y5[1]+Y6[1] (wrong)
-	// We need the opposite: Y5[0]+Y6[0], Y5[1]-Y6[1]
-	//
-	// Solution: Negate Y6, then VADDSUBPS gives correct result
-	// -Y6 = [-b.i*w.i, -b.r*w.i, ...]
-	// VADDSUBPS (-Y6), Y5: Y5[0]-(-Y6[0]), Y5[1]+(-Y6[1])
-	//                    = Y5[0]+Y6[0], Y5[1]-Y6[1] ✓
+	// Real: b.r*w.r + b.i*w.i
+	// Imag: b.i*w.r - b.r*w.i
 
-	VMOVSLDUP Y2, Y3         // Y3 = [w.r, w.r, ...]
-	VMOVSHDUP Y2, Y4         // Y4 = [w.i, w.i, ...]
-	VMULPS Y3, Y1, Y5        // Y5 = [b.r*w.r, b.i*w.r, ...]
-	VSHUFPS $0xB1, Y1, Y1, Y6  // Y6 = [b.i, b.r, ...]
-	VMULPS Y4, Y6, Y6          // Y6 = [b.i*w.i, b.r*w.i, ...]
+	VMOVSLDUP Y2, Y3         // Y3 = w.r
+	VMOVSHDUP Y2, Y4         // Y4 = w.i
 
-	// Negate Y6: use VXORPS with sign bit mask
-	// Create mask with all sign bits set: 0x80000000 repeated
-	VXORPS Y7, Y7, Y7          // Y7 = 0
-	VPCMPEQD Y8, Y8, Y8        // Y8 = all 1s
-	VPSLLD $31, Y8, Y8         // Y8 = [0x80000000, ...] sign bit mask
-	VXORPS Y8, Y6, Y6          // Y6 = -Y6 (negate)
+	// Term 2 = b_swapped * w.i
+	VSHUFPS $0xB1, Y1, Y1, Y6  // Y6 = b_swapped
+	VMULPS Y4, Y6, Y6          // Y6 = b_swapped * w.i
 
-	// Now VADDSUBPS gives conjugate multiply result
-	VADDSUBPS Y6, Y5, Y2       // Y2 = t = conj(w) * b
+	// FMA: Y6 = b * w.r +/- Y6
+	// VFMSUBADD231PS src3, src2, dst -> dst = src2*src3 +/- dst (Intel: even +, odd -)
+	// We want:
+	// Real (even): b.r*w.r + b.i*w.i (mul + Term2) -> Correct
+	// Imag (odd):  b.i*w.r - b.r*w.i (mul - Term2) -> Correct
 
-	VADDPS Y2, Y0, Y3
-	VSUBPS Y2, Y0, Y4
+	VFMSUBADD231PS Y3, Y1, Y6  // Y6 = t
+
+	VADDPS Y6, Y0, Y3
+	VSUBPS Y6, Y0, Y4
 
 	VMOVUPS Y3, (R8)(SI*1)
 	VMOVUPS Y4, (R8)(DI*1)
 
 	ADDQ $4, DX
-	JMP  inv_avx2_loop
+	
+	// Loop back check
+	CMPQ BX, $1
+	JE   inv_avx2_loop
+	JMP  inv_avx2_strided_loop
 
 inv_scalar_remainder:
 	CMPQ DX, R15

@@ -87,3 +87,18 @@ scripts/bench_md.sh benchmarks/baseline.txt > /tmp/benchmarks.md
 | BenchmarkBaseTwiddleLookup_Radix4_65536-12               |  157334 |       - |       0 |         0 |
 | BenchmarkBaseTwiddleLookup_Radix8_65536-12               |   72736 |       - |       0 |         0 |
 | BenchmarkBaseTwiddleLookup_Radix16_65536-12              |  177567 |       - |       0 |         0 |
+
+## AVX2 Performance (Phase 14.2)
+
+Build with `-tags fft_asm` to enable AVX2 optimizations on amd64.
+These results compare the baseline Pure Go implementation with the AVX2 optimized version (including FMA and unrolling).
+
+| Benchmark | Size | Pure Go (MB/s) | AVX2 (MB/s) | Speedup |
+|---|---|---|---|---|
+| Forward | 64 | ~1016 | ~2835 | 2.8x |
+| Forward | 256 | ~782 | ~2594 | 3.3x |
+| Forward | 1024 | ~637 | ~2558 | 4.0x |
+| Forward | 4096 | ~467 | ~2251 | 4.8x |
+| Forward | 16384 | ~326 | ~1680 | 5.1x |
+| Inverse | 4096 | ~340 | ~1974 | 5.8x |
+
