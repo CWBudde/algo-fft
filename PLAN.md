@@ -480,38 +480,146 @@ Hints:
 
 ### 13.3 Assembly Infrastructure
 
-- [ ] Set up `internal/asm/` directory structure
-- [ ] Create build tags for `amd64`, `arm64`, `purego`
-- [ ] Create stub `.s` files with proper Go assembly syntax
-- [ ] Set up `go:noescape` pragma usage
-- [ ] Document assembly contribution guidelines
+- [x] Set up `internal/asm/` directory structure
+- [x] Create build tags for `amd64`, `arm64`, `purego`
+- [x] Create stub `.s` files with proper Go assembly syntax
+- [x] Set up `go:noescape` pragma usage
+- [x] Document assembly contribution guidelines
 
 ---
 
-## Phase 14: AVX2 Butterfly Implementation
+## Phase 14: AVX2 SIMD Acceleration
 
-### 14.1 AVX2 Radix-2 Butterfly
+**Note:** Assembly infrastructure already exists with stubs in `internal/fft/asm_amd64.s` and dispatch system in `kernels_amd64_asm.go`. This phase implements the actual AVX2 kernels within that framework.
 
-- [ ] Implement `butterfly2_avx2` in `butterfly_amd64.s`
-- [ ] Process 4 complex64 values (8 floats) per iteration
-- [ ] Handle memory alignment requirements
-- [ ] Write Go wrapper function with `go:noescape`
-- [ ] Test AVX2 butterfly against Go reference
+### 14.1 AVX2 DIT Kernel Implementation (complex64)
 
-### 14.2 AVX2 Radix-4 Butterfly
+**Approach:** Implement full DIT FFT kernel with AVX2 vectorization, not standalone butterfly functions.
 
-- [ ] Implement `butterfly4_avx2` in assembly
-- [ ] Optimize register usage for radix-4 structure
-- [ ] Handle twiddle factor loading efficiently
-- [ ] Test AVX2 radix-4 against Go reference
-- [ ] Benchmark AVX2 vs pure Go for radix-4
+**Files to modify:**
+- `internal/fft/asm_amd64.s` - Replace `forwardAVX2Complex64Asm` and `inverseAVX2Complex64Asm` stubs
+- `internal/fft/kernels_amd64_asm_wrapper.go` - Update wrappers to call assembly instead of returning false
+- `internal/fft/butterfly_avx2_test.go` - New comprehensive test file
 
-### 14.3 AVX2 Integration
+**Implementation tasks:**
 
-- [ ] Wire AVX2 butterflies into dispatch system
-- [ ] Implement hybrid approach: AVX2 for bulk, Go for edges
-- [ ] Test full FFT with AVX2 enabled
-- [ ] Benchmark end-to-end FFT speedup from AVX2
+- [x] **14.1.1 Create test suite first (TDD approach)**
+  - [x] Create `butterfly_avx2_test.go` with tests for AVX2 vs pure-Go DIT
+  - [x] Add correctness tests against reference DFT for sizes 16-256
+  - [x] Add round-trip tests: `Inverse(Forward(x)) ≈ x`
+  - [x] Add property tests: Parseval's theorem, linearity
+  - [x] Add edge case tests: all-zeros, impulse, random signals
+  - [x] Add benchmarks comparing AVX2 vs pure-Go for sizes 64-16384
+
+- [x] **14.1.2 Implement assembly foundation**
+  - [x] Add function prologue: extract slice parameters from Go calling convention
+  - [x] Add input validation: size >= 16, power-of-2 check, return false for invalid
+  - [x] Implement scalar bit-reversal stage (follows `dit.go` pattern exactly)
+  - [x] Add constants section: scaling factors for inverse transform
+
+- [x] **14.1.3 Implement scalar butterfly loops (SSE)**
+  - [x] Implement forward transform scalar path using SSE (MOVSS, ADDSS, SUBSS, MULSS)
+  - [x] Implement inverse transform scalar path (conjugate twiddles, scale by 1/n)
+  - [x] Follow DIT algorithm structure from `dit.go:35-86` exactly
+  - [x] Test that scalar path passes all tests for sizes 16-2048
+
+- [x] **14.1.4 Implement AVX2 vectorized butterflies**
+  - [x] Implement complex multiply using AVX2 (process 4 complex64 at once)
+    - [x] Use VSHUFPS to separate real/imaginary components
+    - [x] Use VMULPS for parallel multiplication
+    - [x] Use VADDPS/VSUBPS for butterfly additions
+    - [x] Use VUNPCKLPS/VUNPCKHPS to interleave results
+  - [x] Implement vectorized butterfly loop for `step==1` (contiguous twiddles)
+  - [x] Add scalar fallback for remainder when `half % 4 != 0`
+  - [x] Add scalar fallback for `step > 1` (non-contiguous twiddles)
+
+- [x] **14.1.5 Update wrapper functions**
+  - [x] Modify `forwardAVX2Complex64` in `kernels_amd64_asm_wrapper.go` to call assembly
+  - [x] Modify `inverseAVX2Complex64` similarly
+  - [x] Ensure proper feature detection and fallback mechanism
+
+- [x] **14.1.6 Verify integration and performance**
+  - [x] Confirm dispatch system routes to AVX2 kernel when `cpu.HasAVX2()`
+  - [x] Verify zero allocations during transform (use `fft_alloc_test.go` pattern)
+  - [x] Benchmark and verify 2-4x speedup over pure-Go DIT
+  - [x] Ensure no performance regression for any size
+
+**Success Criteria:**
+- All tests pass for sizes 16-2048 (forward and inverse)
+- Results match pure-Go DIT within 1e-6 relative error
+- Round-trip error < 1e-5
+- 2x speedup at size=64, 3-4x at size=1024+
+- Zero allocations during steady-state transforms
+
+### 14.2 AVX2 Optimization Pass
+
+**Prerequisite:** 14.1 must be complete and working
+
+- [ ] **14.2.1 Optimize twiddle access for step > 1**
+  - [ ] Implement manual twiddle gathering (4 scalar loads + shuffle)
+  - [ ] Compare performance vs VGATHERDPS instruction
+  - [ ] Test with various FFT sizes that produce different step values
+
+- [ ] **14.2.2 Optimize complex multiply**
+  - [ ] Experiment with FMA instructions (VFMADD231PS) to reduce instruction count
+  - [ ] Minimize shuffle operations using better permute patterns
+  - [ ] Profile and measure impact on different CPU microarchitectures
+
+- [ ] **14.2.3 Loop-level optimizations**
+  - [ ] Experiment with unrolling inner loop (8 butterflies at once)
+  - [ ] Add software prefetch hints (PREFETCHT0) for large transforms
+  - [ ] Measure L1/L2 cache hit rates and tune accordingly
+
+- [ ] **14.2.4 Benchmark and document**
+  - [ ] Run comprehensive benchmarks on various CPU models (if available)
+  - [ ] Document achieved speedups in comments
+  - [ ] Update BENCHMARKS.md with AVX2 performance characteristics
+
+**Success Criteria:**
+- Works correctly for all step values (non-contiguous twiddles)
+- 4-5x speedup over pure-Go for size >= 1024
+- No degradation in correctness (all tests still pass)
+
+### 14.3 AVX2 Stockham Kernel (Optional)
+
+**Note:** Stockham autosort has better cache locality than DIT but requires buffer swapping
+
+- [ ] **Implement AVX2 Stockham kernel**
+  - [ ] Implement `forwardStockhamAVX2Complex64Asm` following `stockham.go` structure
+  - [ ] Handle buffer swapping between dst and scratch
+  - [ ] Vectorize inner butterfly loops similar to 14.1
+  - [ ] Test against pure-Go Stockham implementation
+
+- [ ] **Benchmark Stockham vs DIT with AVX2**
+  - [ ] Compare throughput for sizes 256-16384
+  - [ ] Measure cache behavior (L1/L2 hit rates)
+  - [ ] Update strategy selection heuristics in `selection.go` if beneficial
+
+**Success Criteria:**
+- Stockham kernel achieves similar or better performance than DIT
+- Strategy auto-selection chooses optimal kernel based on size
+
+### 14.4 AVX2 complex128 Support
+
+**Prerequisite:** 14.1 must be complete
+
+**Note:** AVX2 YMM registers hold 4 float64 = 2 complex128, so half the parallelism
+
+- [ ] **Implement complex128 AVX2 kernels**
+  - [ ] Implement `forwardAVX2Complex128Asm` (process 2 complex128 at once)
+  - [ ] Implement `inverseAVX2Complex128Asm` similarly
+  - [ ] Adapt complex multiply for float64 (same algorithm, different types)
+  - [ ] Update wrappers in `kernels_amd64_asm_wrapper.go`
+
+- [ ] **Test and validate**
+  - [ ] Add tests comparing AVX2 vs pure-Go for complex128
+  - [ ] Verify higher precision (error < 1e-12 for round-trip)
+  - [ ] Benchmark speedup (expect ~2x due to half parallelism)
+
+**Success Criteria:**
+- complex128 kernels work correctly for all sizes >= 16
+- Achieve 2-3x speedup over pure-Go complex128 DIT
+- Maintain higher precision (< 1e-12 error)
 
 ---
 

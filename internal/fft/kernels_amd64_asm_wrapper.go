@@ -3,21 +3,13 @@
 package fft
 
 func forwardAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
-	return false
+	// Try AVX2 assembly kernel (requires n >= 16, power of 2)
+	return forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
-	return false
+	// Try AVX2 assembly kernel (requires n >= 16, power of 2)
+	return inverseAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
