@@ -8,8 +8,6 @@ import (
 
 // TestDetectFeatures tests that CPU feature detection returns valid results.
 func TestDetectFeatures(t *testing.T) {
-	t.Parallel()
-
 	features := DetectFeatures()
 
 	// Architecture should always be set
@@ -38,8 +36,6 @@ func TestDetectFeatures(t *testing.T) {
 
 // TestQueryFunctions tests that query functions match struct fields.
 func TestQueryFunctions(t *testing.T) {
-	t.Parallel()
-
 	// Ensure we're using real detection, not forced features
 	t.Cleanup(ResetDetection)
 
@@ -64,8 +60,6 @@ func TestQueryFunctions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			if tt.got != tt.expected {
 				t.Errorf("%s() = %v, want %v", tt.name, tt.got, tt.expected)
 			}
@@ -75,12 +69,8 @@ func TestQueryFunctions(t *testing.T) {
 
 // TestForcedFeatures tests that SetForcedFeatures overrides detection.
 func TestForcedFeatures(t *testing.T) {
-	t.Parallel()
-
 	// Test SSE2-only system
 	t.Run("SSE2Only", func(t *testing.T) {
-		t.Parallel()
-
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -116,8 +106,6 @@ func TestForcedFeatures(t *testing.T) {
 
 	// Test AVX2 system
 	t.Run("AVX2System", func(t *testing.T) {
-		t.Parallel()
-
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -161,8 +149,6 @@ func TestForcedFeatures(t *testing.T) {
 
 	// Test ARM NEON system
 	t.Run("NEONSystem", func(t *testing.T) {
-		t.Parallel()
-
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -186,8 +172,6 @@ func TestForcedFeatures(t *testing.T) {
 
 	// Test ForceGeneric flag
 	t.Run("ForceGeneric", func(t *testing.T) {
-		t.Parallel()
-
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -209,8 +193,6 @@ func TestForcedFeatures(t *testing.T) {
 
 // TestResetDetection tests that ResetDetection clears forced features.
 func TestResetDetection(t *testing.T) {
-	t.Parallel()
-
 	// Set forced features
 	SetForcedFeatures(Features{
 		HasAVX2:      true,
@@ -249,8 +231,6 @@ func TestResetDetection(t *testing.T) {
 
 // TestConcurrentDetection tests thread-safety of sync.Once caching.
 func TestConcurrentDetection(t *testing.T) {
-	t.Parallel()
-
 	// Reset to ensure we're testing the caching mechanism
 	ResetDetection()
 	defer ResetDetection()
@@ -284,8 +264,6 @@ func TestConcurrentDetection(t *testing.T) {
 
 // TestDetectionCaching verifies that detection only runs once.
 func TestDetectionCaching(t *testing.T) {
-	t.Parallel()
-
 	// Reset to start fresh
 	ResetDetection()
 	defer ResetDetection()
@@ -309,8 +287,6 @@ func TestDetectionCaching(t *testing.T) {
 
 // TestFeaturesStructFields verifies the Features struct has expected fields.
 func TestFeaturesStructFields(t *testing.T) {
-	t.Parallel()
-
 	features := Features{
 		HasSSE2:      true,
 		HasSSE3:      true,

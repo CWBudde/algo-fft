@@ -1,40 +1,40 @@
-//go:build amd64 && fft_asm
+//go:build amd64 && fft_asm && !purego
 
 #include "textflag.h"
 
-TEXT ·forwardAVX2Complex64Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+TEXT ·forwardAVX2Complex64Asm(SB), NOSPLIT|NOFRAME, $0-120
 	XORL AX, AX
 	RET
 
-TEXT ·inverseAVX2Complex64Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+TEXT ·inverseAVX2Complex64Asm(SB), NOSPLIT|NOFRAME, $0-120
 	XORL AX, AX
 	RET
 
-TEXT ·forwardSSE2Complex64Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+TEXT ·forwardSSE2Complex64Asm(SB), NOSPLIT|NOFRAME, $0-120
 	XORL AX, AX
 	RET
 
-TEXT ·inverseSSE2Complex64Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+TEXT ·inverseSSE2Complex64Asm(SB), NOSPLIT|NOFRAME, $0-120
 	XORL AX, AX
 	RET
 
-TEXT ·forwardAVX2Complex128Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+TEXT ·forwardAVX2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-120
 	XORL AX, AX
 	RET
 
-TEXT ·inverseAVX2Complex128Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+TEXT ·inverseAVX2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-120
 	XORL AX, AX
 	RET
 
-TEXT ·forwardSSE2Complex128Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+TEXT ·forwardSSE2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-120
 	XORL AX, AX
 	RET
 
-TEXT ·inverseSSE2Complex128Asm(SB), NOSPLIT|NOFRAME|ABIInternal, $0-120
+TEXT ·inverseSSE2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-120
 	XORL AX, AX
 	RET
 
-TEXT ·asmCopyComplex64(SB), NOSPLIT|NOFRAME|ABIInternal, $0-16
+TEXT ·asmCopyComplex64(SB), NOSPLIT|NOFRAME, $0-16
 	MOVQ (BX), CX
 	MOVQ CX, (AX)
 	RET
@@ -42,7 +42,7 @@ TEXT ·asmCopyComplex64(SB), NOSPLIT|NOFRAME|ABIInternal, $0-16
 DATA ·half32+0(SB)/4, $0x3f000000
 GLOBL ·half32(SB), RODATA|NOPTR, $4
 
-TEXT ·asmForward2Complex64(SB), NOSPLIT|NOFRAME|ABIInternal, $0-16
+TEXT ·asmForward2Complex64(SB), NOSPLIT|NOFRAME, $0-16
 	MOVSS (BX), X0
 	MOVSS 4(BX), X1
 	MOVSS 8(BX), X2
@@ -67,7 +67,7 @@ TEXT ·asmForward2Complex64(SB), NOSPLIT|NOFRAME|ABIInternal, $0-16
 	MOVL $1, AX
 	RET
 
-TEXT ·asmInverse2Complex64(SB), NOSPLIT|NOFRAME|ABIInternal, $0-16
+TEXT ·asmInverse2Complex64(SB), NOSPLIT|NOFRAME, $0-16
 	MOVSS (BX), X0
 	MOVSS 4(BX), X1
 	MOVSS 8(BX), X2

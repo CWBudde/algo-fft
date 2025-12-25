@@ -43,6 +43,8 @@ func TestComputeChirpSequence(t *testing.T) {
 }
 
 func validateChirp[T Complex](t *testing.T, chirp []T, n int) {
+	t.Helper()
+
 	// Check w_0 = 1
 	if cmplx.Abs(complex128(chirp[0])-1) > 1e-6 {
 		t.Errorf("w_0 should be 1, got %v", chirp[0])
@@ -95,7 +97,8 @@ func TestBluesteinHelper(t *testing.T) {
 	twiddles := ComputeTwiddleFactors[complex128](m)
 	bitrev := ComputeBitReversalIndices(m)
 
-	filter := ComputeBluesteinFilter(n, m, chirp, twiddles, bitrev)
+	scratch := make([]complex128, m)
+	filter := ComputeBluesteinFilter(n, m, chirp, twiddles, bitrev, scratch)
 	if len(filter) != m {
 		t.Errorf("Filter length mismatch: got %d, want %d", len(filter), m)
 	}
@@ -106,7 +109,6 @@ func TestBluesteinHelper(t *testing.T) {
 	x[2] = 3
 
 	dst := make([]complex128, m)
-	scratch := make([]complex128, m)
 
 	BluesteinConvolution(dst, x, filter, twiddles, scratch, bitrev)
 

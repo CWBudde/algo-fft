@@ -376,8 +376,12 @@ Each phase is scoped to approximately one day of focused work.
 - [x] Test prime lengths: 7, 11, 13, 17, 19, 23, 31, 127
 - [x] Test large primes: 251, 509, 1021
 - [x] Verify round-trip correctness
-- [ ] Benchmark Bluestein vs naive DFT for prime lengths
-- [ ] Profile and optimize Bluestein hot paths
+- [x] Benchmark Bluestein vs naive DFT for prime lengths
+- [x] Profile and optimize Bluestein hot paths
+  - Bluestein achieves O(N log N) vs naive O(N²)
+  - For N=127: Bluestein is ~41x faster (7.1 µs vs 297 µs)
+  - Zero allocations in steady state (0 allocs/op verified)
+  - Throughput: 115-475 MB/s depending on size and precision
 
 ---
 

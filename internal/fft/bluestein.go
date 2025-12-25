@@ -22,7 +22,8 @@ func ComputeChirpSequence[T Complex](n int) []T {
 // n is the original size, m is the padded size (power of 2 >= 2n-1).
 // chirp is the sequence of length n computed by ComputeChirpSequence.
 // twiddles and bitrev are for size m.
-func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, bitrev []int) []T {
+// scratch is a pre-allocated buffer of size m for intermediate computations.
+func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, bitrev []int, scratch []T) []T {
 	b := make([]T, m)
 	// Construct b sequence
 	// b_k = w_k^{-1} = conj(w_k)
@@ -36,9 +37,7 @@ func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, bitrev
 		b[m-k] = val
 	}
 
-	// Perform FFT
-	// We need a scratch buffer for ditForward
-	scratch := make([]T, m)
+	// Perform FFT using provided scratch buffer
 	ditForward(b, b, twiddles, scratch, bitrev)
 
 	return b

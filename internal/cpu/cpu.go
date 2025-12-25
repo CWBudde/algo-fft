@@ -45,6 +45,10 @@ var (
 	// detectOnce ensures feature detection runs exactly once, thread-safely.
 	detectOnce sync.Once
 
+	// detectMutex serializes access to detectOnce/detectedFeatures so ResetDetection
+	// can safely clear the cache even when tests run in parallel.
+	detectMutex sync.Mutex
+
 	// forcedFeatures allows overriding actual hardware detection for testing.
 	// When non-nil, DetectFeatures() returns this value instead of real detection.
 	forcedFeatures *Features
@@ -70,11 +74,14 @@ func DetectFeatures() Features {
 		return *forced
 	}
 
+	detectMutex.Lock()
 	detectOnce.Do(func() {
 		detectedFeatures = detectFeaturesImpl()
 	})
+	features := detectedFeatures
+	detectMutex.Unlock()
 
-	return detectedFeatures
+	return features
 }
 
 // HasSSE2 returns true if the CPU supports SSE2 instructions.
@@ -152,9 +159,8 @@ func ResetDetection() {
 
 	forcedMutex.Unlock()
 
-	// Reset the sync.Once to allow re-detection
-	// Note: This creates a race if called concurrently with DetectFeatures(),
-	// but that's acceptable for a testing-only function.
+	detectMutex.Lock()
 	detectOnce = sync.Once{}
 	detectedFeatures = Features{}
+	detectMutex.Unlock()
 }

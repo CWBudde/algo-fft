@@ -349,8 +349,9 @@ func NewPlan[T Complex](n int) (*Plan[T], error) {
 		bluesteinTwiddle = fft.ComputeTwiddleFactors[T](bluesteinM)
 		bluesteinBitrev = fft.ComputeBitReversalIndices(bluesteinM)
 
-		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, bluesteinBitrev)
-		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, bluesteinBitrev)
+		// Compute filters using the pre-allocated scratch buffer
+		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, bluesteinBitrev, bluesteinScratch)
+		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, bluesteinBitrev, bluesteinScratch)
 	} else {
 		// Standard allocation
 		switch any(zero).(type) {

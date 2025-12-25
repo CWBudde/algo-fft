@@ -14,7 +14,10 @@ func (p *Plan[T]) bluesteinForward(dst, src []T) error {
 		p.scratch[i] = zero
 	}
 
-	fft.BluesteinConvolution(p.scratch, p.scratch, p.bluesteinFilter, p.bluesteinTwiddle, p.bluesteinScratch, p.bluesteinBitrev)
+	fft.BluesteinConvolution(
+		p.scratch, p.scratch, p.bluesteinFilter,
+		p.bluesteinTwiddle, p.bluesteinScratch, p.bluesteinBitrev,
+	)
 
 	for i := range p.n {
 		dst[i] = p.scratch[i] * p.bluesteinChirp[i]
@@ -33,7 +36,10 @@ func (p *Plan[T]) bluesteinInverse(dst, src []T) error {
 		p.scratch[i] = zero
 	}
 
-	fft.BluesteinConvolution(p.scratch, p.scratch, p.bluesteinFilterInv, p.bluesteinTwiddle, p.bluesteinScratch, p.bluesteinBitrev)
+	fft.BluesteinConvolution(
+		p.scratch, p.scratch, p.bluesteinFilterInv,
+		p.bluesteinTwiddle, p.bluesteinScratch, p.bluesteinBitrev,
+	)
 
 	var scale T
 

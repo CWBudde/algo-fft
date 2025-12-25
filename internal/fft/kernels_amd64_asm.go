@@ -1,4 +1,4 @@
-//go:build amd64 && fft_asm
+//go:build amd64 && fft_asm && !purego
 
 package fft
 
@@ -29,15 +29,15 @@ func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 	auto := autoKernelComplex128(KernelAuto)
 	if features.HasAVX2 && !features.ForceGeneric {
 		return Kernels[complex128]{
-			Forward: fallbackKernel(forwardAVX2Complex128Asm, auto.Forward),
-			Inverse: fallbackKernel(inverseAVX2Complex128Asm, auto.Inverse),
+			Forward: fallbackKernel(forwardAVX2Complex128, auto.Forward),
+			Inverse: fallbackKernel(inverseAVX2Complex128, auto.Inverse),
 		}
 	}
 
 	if features.HasSSE2 && !features.ForceGeneric {
 		return Kernels[complex128]{
-			Forward: fallbackKernel(forwardSSE2Complex128Asm, auto.Forward),
-			Inverse: fallbackKernel(inverseSSE2Complex128Asm, auto.Inverse),
+			Forward: fallbackKernel(forwardSSE2Complex128, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE2Complex128, auto.Inverse),
 		}
 	}
 
@@ -67,15 +67,15 @@ func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelS
 	auto := autoKernelComplex128(strategy)
 	if features.HasAVX2 && !features.ForceGeneric {
 		return Kernels[complex128]{
-			Forward: fallbackKernel(forwardAVX2Complex128Asm, auto.Forward),
-			Inverse: fallbackKernel(inverseAVX2Complex128Asm, auto.Inverse),
+			Forward: fallbackKernel(forwardAVX2Complex128, auto.Forward),
+			Inverse: fallbackKernel(inverseAVX2Complex128, auto.Inverse),
 		}
 	}
 
 	if features.HasSSE2 && !features.ForceGeneric {
 		return Kernels[complex128]{
-			Forward: fallbackKernel(forwardSSE2Complex128Asm, auto.Forward),
-			Inverse: fallbackKernel(inverseSSE2Complex128Asm, auto.Inverse),
+			Forward: fallbackKernel(forwardSSE2Complex128, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE2Complex128, auto.Inverse),
 		}
 	}
 

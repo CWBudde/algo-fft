@@ -1,4 +1,4 @@
-//go:build arm64 && fft_asm
+//go:build arm64 && fft_asm && !purego
 
 package fft
 
