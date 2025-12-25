@@ -201,13 +201,13 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 		t.Run(fmt.Sprintf("N=%d", n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanReal(n)
-			if err != nil {
-				t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
-			}
-
 			t.Run("noise", func(t *testing.T) {
 				t.Parallel()
+
+				plan, err := NewPlanReal(n)
+				if err != nil {
+					t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+				}
 
 				rng := rand.New(rand.NewSource(1))
 				src := make([]float32, n)
@@ -221,6 +221,11 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 			t.Run("tones", func(t *testing.T) {
 				t.Parallel()
 
+				plan, err := NewPlanReal(n)
+				if err != nil {
+					t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+				}
+
 				src := make([]float32, n)
 				for i := range src {
 					angle1 := 2 * math.Pi * 3 * float64(i) / float64(n)
@@ -233,6 +238,11 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 
 			t.Run("chirp", func(t *testing.T) {
 				t.Parallel()
+
+				plan, err := NewPlanReal(n)
+				if err != nil {
+					t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+				}
 
 				const f0 = 1.0
 				const f1 = 8.0
