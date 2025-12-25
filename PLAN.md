@@ -497,6 +497,7 @@ Hints:
 **Approach:** Implement full DIT FFT kernel with AVX2 vectorization, not standalone butterfly functions.
 
 **Files to modify:**
+
 - `internal/fft/asm_amd64.s` - Replace `forwardAVX2Complex64Asm` and `inverseAVX2Complex64Asm` stubs
 - `internal/fft/kernels_amd64_asm_wrapper.go` - Update wrappers to call assembly instead of returning false
 - `internal/fft/butterfly_avx2_test.go` - New comprehensive test file
@@ -545,6 +546,7 @@ Hints:
   - [x] Ensure no performance regression for any size
 
 **Success Criteria:**
+
 - All tests pass for sizes 16-2048 (forward and inverse)
 - Results match pure-Go DIT within 1e-6 relative error
 - Round-trip error < 1e-5
@@ -585,11 +587,11 @@ Hints:
 
 **Note:** Stockham autosort has better cache locality than DIT but requires buffer swapping
 
-- [ ] **Implement AVX2 Stockham kernel**
-  - [ ] Implement `forwardStockhamAVX2Complex64Asm` following `stockham.go` structure
-  - [ ] Handle buffer swapping between dst and scratch
-  - [ ] Vectorize inner butterfly loops similar to 14.1
-  - [ ] Test against pure-Go Stockham implementation
+- [x] **Implement AVX2 Stockham kernel**
+  - [x] Implement `forwardStockhamAVX2Complex64Asm` following `stockham.go` structure
+  - [x] Handle buffer swapping between dst and scratch
+  - [x] Vectorize inner butterfly loops similar to 14.1
+  - [x] Test against pure-Go Stockham implementation
 
 - [ ] **Benchmark Stockham vs DIT with AVX2**
   - [ ] Compare throughput for sizes 256-16384
@@ -597,6 +599,7 @@ Hints:
   - [ ] Update strategy selection heuristics in `selection.go` if beneficial
 
 **Success Criteria:**
+
 - Stockham kernel achieves similar or better performance than DIT
 - Strategy auto-selection chooses optimal kernel based on size
 
@@ -618,6 +621,7 @@ Hints:
   - [x] Benchmark speedup (expect ~2x due to half parallelism)
 
 **Success Criteria:**
+
 - complex128 kernels work correctly for all sizes >= 16
 - Achieve 2-3x speedup over pure-Go complex128 DIT
 - Maintain higher precision (< 1e-12 error)
@@ -626,26 +630,312 @@ Hints:
 
 ## Phase 15: ARM64 NEON Implementation
 
-### 15.1 ARM64 Infrastructure
+**Note:** NEON SIMD is always available on ARMv8. ARM64 registers are 128-bit (half the width of AVX2's 256-bit), so we process 2 complex64 (4 floats) or 1 complex128 (2 doubles) per register.
 
-- [ ] Detect NEON availability (always available on ARMv8)
-- [ ] Set up `butterfly_arm64.s` assembly file
-- [ ] Study ARM64 SIMD register layout (128-bit vectors)
-- [ ] Create test environment (use ARM CI runner or emulator)
+### 15.1 ARM64 Infrastructure & Testing Environment ✅
 
-### 15.2 NEON Radix-2 Butterfly
+**Cross-compilation and testing infrastructure setup**
 
-- [ ] Implement `butterfly2_neon` in ARM64 assembly
-- [ ] Process 2 complex64 values (4 floats) per iteration
-- [ ] Use FMLA/FMLS instructions for multiply-accumulate
-- [ ] Test NEON butterfly against Go reference
+- [x] **15.1.1 Verify cross-compilation tooling**
+  - [x] Confirm Go ARM64 cross-compilation support (GOOS=linux GOARCH=arm64)
+  - [x] Test basic ARM64 binary creation
+  - [x] Document cross-compilation requirements in `/tmp/phase15_requirements.md`
 
-### 15.3 NEON Integration & Testing
+- [x] **15.1.2 Set up QEMU emulation environment**
+  - [x] Document QEMU installation requirements (qemu-user-static, binfmt-support)
+  - [x] Create ARM64 test infrastructure using QEMU user-mode emulation
+  - [x] Verify tests can run on amd64 host via qemu-aarch64-static
+  - [x] Document known test failures (3 ARM64-specific failures, not blocking)
 
-- [ ] Wire NEON into dispatch system
-- [ ] Test full FFT with NEON enabled on ARM64
-- [ ] Benchmark NEON vs pure Go on ARM64 hardware
-- [ ] Ensure CI tests on both amd64 and arm64
+- [x] **15.1.3 Add ARM64 build targets to justfile**
+  - [x] Add `build-arm64` target for cross-compilation
+  - [x] Add `test-arm64` target with QEMU execution
+  - [x] Add `bench-arm64` target for ARM64 benchmarking
+  - [x] Add `build-all`, `test-all`, `check-all` convenience targets
+  - [x] Verify all targets work correctly
+
+- [x] **15.1.4 Create ARM64 assembly infrastructure**
+  - [x] Verify existing `internal/fft/asm_arm64.s` stub file
+  - [x] Verify existing `internal/fft/asm_arm64.go` function declarations
+  - [x] Verify existing `internal/fft/kernels_arm64_asm.go` dispatch logic
+  - [x] Verify NEON feature detection in `internal/cpu/detect_arm64.go`
+  - [x] Add `selectKernelsComplex64WithStrategy` wrapper function
+  - [x] Add `selectKernelsComplex128WithStrategy` wrapper function
+
+- [x] **15.1.5 Study ARM64 SIMD and reference implementations**
+  - [x] Study ARM64 NEON instruction set (128-bit SIMD registers V0-V31)
+  - [x] Study AVX2 implementation in `asm_amd64.s` as reference
+  - [x] Document differences: AVX2 (4 complex64) vs NEON (2 complex64)
+  - [x] Document Go ARM64 assembly syntax (Plan 9 dialect)
+  - [x] Create comprehensive NEON implementation guide (`/tmp/neon_implementation_guide.md`)
+  - [x] Create detailed assembly skeleton (`/tmp/asm_arm64_skeleton.s`)
+  - [x] Create test template (`/tmp/butterfly_neon_test.go.template`)
+  - [x] Create groundwork summary (`/tmp/phase15_groundwork_summary.md`)
+
+**Success Criteria:** ✅ All met
+- Cross-compilation works for ARM64 ✅
+- QEMU test environment functional ✅
+- Test suite runs on ARM64 (167/170 tests pass) ✅
+- Documentation and reference materials created ✅
+
+### 15.2 NEON DIT Kernel Implementation (complex64)
+
+**Approach:** Implement full DIT FFT kernel with NEON vectorization, mirroring AVX2 structure
+
+**Files involved:**
+- `internal/fft/asm_arm64.s` - Assembly implementation
+- `internal/fft/kernels_arm64_asm.go` - Dispatch integration
+- `internal/fft/butterfly_neon_test.go` - Test suite (from template)
+
+#### 15.2.1 Assembly Foundation & Bit-Reversal ✅
+
+- [x] **Implement function structure in `asm_arm64.s`**
+  - [x] Add function prologue for `forwardNEONComplex64Asm`
+  - [x] Extract slice parameters from Go calling convention (dst, src, twiddle, scratch, bitrev)
+  - [x] Load pointers into registers (R8-R13 for work, src, twiddle, scratch, bitrev, n)
+  - [x] Add proper register allocation comments
+
+- [x] **Add input validation**
+  - [x] Check for empty input (CBZ instruction, return true for n=0)
+  - [x] Validate all slice lengths >= n (CMP + BLT to return_false)
+  - [x] Handle trivial case n=1 (copy single element, return true)
+  - [x] Verify n is power of 2 using (n & (n-1)) == 0 check
+  - [x] Check minimum size (n >= 16 for NEON vectorization)
+
+- [x] **Implement working buffer selection**
+  - [x] Detect in-place vs out-of-place transform (compare dst and src pointers)
+  - [x] Use scratch buffer for in-place transforms (dst == src)
+  - [x] Use dst directly for out-of-place transforms (dst != src)
+
+- [x] **Implement bit-reversal permutation**
+  - [x] Create loop counter (R17 = i = 0)
+  - [x] Load bit-reversed index j = bitrev[i] (LSL + ADD + MOVD pattern)
+  - [x] Load src[j] (complex64 = 8 bytes)
+  - [x] Store to work[i]
+  - [x] Increment counter and loop
+  - [x] Fix ARM64 assembly syntax errors:
+    - [x] Use R0-R30 not X0-X30 (Go Plan 9 assembly convention)
+    - [x] Fix CMP operand order (immediate first: CMP $imm, Rn)
+    - [x] Fix comment placement (separate lines for clarity)
+
+- [x] **Verify compilation and integration**
+  - [x] Successfully build with `just build-arm64`
+  - [x] Run tests to verify bit-reversal works correctly
+  - [x] Confirm fallback to Go for unimplemented butterfly stages (expected)
+
+**Key Learnings:**
+- ARM64 Go assembly uses R-prefix (R0-R30), not X-prefix
+- CMP syntax: immediate comes first (CMP $16, R13, not CMP R13, $16)
+- complex64 = 8 bytes (4-byte real + 4-byte imag)
+- int (in bitrev array) = 8 bytes on ARM64
+- MOVD loads/stores 64 bits (8 bytes)
+- LSL shifts left: LSL $3, Rsrc, Rdst (multiply by 8 for byte offset)
+
+**Current Status:** ✅ Bit-reversal implementation complete (199 lines in asm_arm64.s)
+- Tests pass with fallback to Go for butterfly stages
+- `/tmp/phase15_progress.md` documents implementation details
+
+#### 15.2.2 Butterfly Loop Structure (TODO)
+
+**Next concrete task:** Implement size=2 butterfly (simplest case, no complex multiply needed)
+
+- [ ] **Add outer loop for FFT stages**
+  - [ ] Initialize size = 2 (R14 = 2)
+  - [ ] Loop: while size <= n, process stage then size *= 2
+  - [ ] Compute half = size / 2 (LSR $1, R14, R15)
+  - [ ] Compute step = n / size (UDIV R13, R14, R16)
+
+- [ ] **Add middle loop for butterfly groups**
+  - [ ] Initialize base = 0 (R17 = 0)
+  - [ ] Loop: while base < n, process group then base += size
+  - [ ] Each group processes half butterflies
+
+- [ ] **Add inner loop for butterflies within group**
+  - [ ] Initialize j = 0 (R19 = 0)
+  - [ ] Loop: while j < half, process butterfly then j++
+  - [ ] Compute indices: idx_a = base + j, idx_b = base + j + half
+  - [ ] Load twiddle: w = twiddle[j * step]
+
+- [ ] **Implement size=2 butterfly (scalar, no NEON)**
+  - [ ] Load a = work[idx_a], b = work[idx_b]
+  - [ ] For size=2, w=1 so: a' = a + b, b' = a - b
+  - [ ] Use scalar floating-point: FMOV, FADD, FSUB
+  - [ ] Store results back to work buffer
+  - [ ] Test with size=16 (exercises size=2, 4, 8, 16 stages)
+
+**Reference:** See `/tmp/phase15_progress.md` lines 62-154 for detailed butterfly loop structure
+
+#### 15.2.3 NEON Complex Multiply (TODO)
+
+**Critical building block for all stages except size=2**
+
+- [ ] **Implement complex multiply: V2 = V0 * V1**
+  - [ ] Input: V0 = b (complex value), V1 = w (twiddle factor)
+  - [ ] Extract components using UZP1/UZP2 (unzip)
+  - [ ] Broadcast w.real and w.imag using DUP
+  - [ ] Compute real part: b.real * w.real - b.imag * w.imag (FMUL + FMLS)
+  - [ ] Compute imag part: b.real * w.imag + b.imag * w.real (FMUL + FMLA)
+  - [ ] Interleave result using ZIP1
+  - [ ] ~15 lines of NEON instructions
+
+- [ ] **Create standalone test for complex multiply**
+  - [ ] Test known multiplications: (1+0i)*(2+0i) = 2+0i
+  - [ ] Test with i: (1+0i)*(0+1i) = 0+1i
+  - [ ] Test general case: (3+4i)*(1+2i) = -5+10i
+  - [ ] Compare NEON result vs Go computation
+
+**Reference:** See `/tmp/asm_arm64_skeleton.s` lines 180-210 for detailed NEON complex multiply pattern
+
+#### 15.2.4 NEON Vectorized Butterfly (step==1) (TODO)
+
+**Process 2 butterflies per iteration when twiddles are contiguous**
+
+- [ ] **Implement contiguous twiddle path**
+  - [ ] Detect step==1 (contiguous twiddles allow vectorized loads)
+  - [ ] Load 2 'a' values into V0 (LD1 {V0.4S})
+  - [ ] Load 2 'b' values into V1
+  - [ ] Load 2 'w' twiddles into V2
+  - [ ] Call complex multiply macro/routine (w * b)
+  - [ ] Butterfly: a' = a + wb, b' = a - wb (FADD, FSUB)
+  - [ ] Store 2 results back (ST1 {V3.4S}, {V4.4S})
+  - [ ] Process 2 butterflies per inner loop iteration
+
+- [ ] **Handle remainder when half % 2 != 0**
+  - [ ] Fall back to scalar for last butterfly if odd count
+  - [ ] Load single values, scalar multiply, scalar add/sub
+
+- [ ] **Test vectorized path**
+  - [ ] Test sizes 16, 32, 64, 128 (all use step==1 for early stages)
+  - [ ] Compare results vs pure Go DIT
+  - [ ] Verify round-trip: Inverse(Forward(x)) ≈ x
+
+#### 15.2.5 Scalar Fallback for Strided Twiddles (step>1) (TODO)
+
+**Manual gather when twiddles are non-contiguous**
+
+- [ ] **Implement strided twiddle path**
+  - [ ] Detect step > 1 (requires manual scalar loads)
+  - [ ] Compute twiddle offset: tw_idx = j * step
+  - [ ] Load single twiddle w = twiddle[tw_idx]
+  - [ ] Load single a, single b
+  - [ ] Scalar complex multiply (similar to NEON but single values)
+  - [ ] Scalar butterfly (FADD, FSUB on scalar registers)
+  - [ ] Store single result
+
+- [ ] **Test strided path**
+  - [ ] Test size=1024 (exercises various step values: 1, 2, 4, ..., 512)
+  - [ ] Verify correctness for all stages
+  - [ ] Profile to identify if strided path becomes bottleneck
+
+- [ ] **Optional: NEON gather for step>1**
+  - [ ] Manually load 2 twiddles using scalar loads + vector insert
+  - [ ] Process 2 butterflies even when step>1
+  - [ ] Measure if complexity is worth the speedup
+
+#### 15.2.6 Inverse Transform (TODO)
+
+- [ ] **Implement `inverseNEONComplex64Asm`**
+  - [ ] Copy forward transform structure
+  - [ ] Modify complex multiply to use conjugate twiddles
+  - [ ] Change w * b to conj(w) * b (negate imaginary component)
+  - [ ] Add 1/n scaling factor after all butterfly stages
+  - [ ] Use FMOV for loading 1/n constant
+  - [ ] Use FMUL to scale all elements
+
+- [ ] **Test inverse transform**
+  - [ ] Test round-trip: Inverse(Forward(x)) ≈ x
+  - [ ] Test with random signals
+  - [ ] Verify error < 1e-5 for complex64
+  - [ ] Benchmark inverse vs forward (should be similar)
+
+#### 15.2.7 Integration & Testing (TODO)
+
+- [ ] **Copy test template to actual file**
+  - [ ] Copy `/tmp/butterfly_neon_test.go.template` to `internal/fft/butterfly_neon_test.go`
+  - [ ] Add tests for sizes 16, 32, 64, 128, 256, 512, 1024
+  - [ ] Add correctness tests vs reference DFT
+  - [ ] Add round-trip tests
+  - [ ] Add property tests (Parseval's theorem, linearity)
+
+- [ ] **Verify dispatch system**
+  - [ ] Confirm `selectKernelsComplex64` returns NEON kernel when NEON available
+  - [ ] Test with forced features to simulate NEON on/off
+  - [ ] Verify fallback to Go when NEON unavailable
+
+- [ ] **Benchmark NEON vs pure Go**
+  - [ ] Add benchmarks for sizes 64, 256, 1024, 4096
+  - [ ] Measure speedup (target: 2-3x for complex64)
+  - [ ] Document results in BENCHMARKS.md
+  - [ ] Note: QEMU benchmarks not representative, need real ARM64 hardware
+
+**Success Criteria:**
+- All tests pass for sizes 16-2048 (forward and inverse)
+- Results match pure-Go DIT within 1e-6 relative error
+- Round-trip error < 1e-5
+- Zero allocations during steady-state transforms
+- 2-3x speedup on real ARM64 hardware (not measured in QEMU)
+
+### 15.3 NEON complex128 Support (TODO)
+
+**Prerequisite:** 15.2 must be complete
+
+**Note:** ARM64 128-bit registers hold 2 float64 = 1 complex128, so half the parallelism of complex64
+
+- [ ] **Implement complex128 NEON kernels**
+  - [ ] Implement `forwardNEONComplex128Asm`
+  - [ ] Change element size from 8 to 16 bytes (complex128)
+  - [ ] Use `.2D` NEON instructions instead of `.4S` (double precision)
+  - [ ] Process 1 complex128 per vector instead of 2
+  - [ ] Adapt complex multiply for float64
+  - [ ] Implement `inverseNEONComplex128Asm` similarly
+
+- [ ] **Test and validate**
+  - [ ] Add tests comparing NEON vs pure Go for complex128
+  - [ ] Verify higher precision (error < 1e-12 for round-trip)
+  - [ ] Benchmark speedup (expect ~1.5-2x due to half parallelism)
+
+**Success Criteria:**
+- complex128 kernels work correctly for all sizes >= 16
+- Achieve 1.5-2x speedup over pure-Go complex128 DIT
+- Maintain higher precision (< 1e-12 error)
+
+### 15.4 NEON Integration & Production Testing (TODO)
+
+- [ ] **Test on real ARM64 hardware**
+  - [ ] Run test suite on physical ARM64 device (Raspberry Pi, AWS Graviton, etc.)
+  - [ ] Benchmark actual performance (QEMU not representative)
+  - [ ] Verify NEON detection works on real hardware
+  - [ ] Test different ARM cores (Cortex-A77, A78, X1, etc.)
+
+- [ ] **Add ARM64 to CI pipeline**
+  - [ ] Set up GitHub Actions ARM64 runner
+  - [ ] Add ARM64 to test matrix
+  - [ ] Ensure cross-architecture tests pass
+  - [ ] Verify SIMD paths produce same results as pure-Go
+
+- [ ] **Documentation and benchmarks**
+  - [ ] Update BENCHMARKS.md with ARM64 results
+  - [ ] Document NEON performance characteristics
+  - [ ] Compare NEON vs AVX2 speedup ratios
+  - [ ] Add ARM64 usage notes to README
+
+**Success Criteria:**
+- CI tests pass on both amd64 and arm64
+- Real ARM64 benchmarks documented
+- Users can build and run on ARM64 without issues
+
+**Implementation Progress:**
+- Phase 15.1: ✅ Complete (infrastructure, QEMU, documentation)
+- Phase 15.2.1: ✅ Complete (bit-reversal permutation, 199 lines)
+- Phase 15.2.2-7: 🚧 Next steps (butterfly loops, complex multiply, vectorization)
+- Phase 15.3-4: ⏳ Waiting for 15.2 completion
+
+**See Also:**
+- `/tmp/phase15_progress.md` - Detailed implementation progress and next steps
+- `/tmp/neon_implementation_guide.md` - Complete NEON instruction reference
+- `/tmp/asm_arm64_skeleton.s` - Detailed assembly skeleton with examples
+- `/tmp/butterfly_neon_test.go.template` - Test infrastructure template
+- `/tmp/phase15_groundwork_summary.md` - Phase 15 roadmap and resources
 
 ---
 

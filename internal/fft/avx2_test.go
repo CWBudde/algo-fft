@@ -3,6 +3,7 @@
 package fft
 
 import (
+	"fmt"
 	"math"
 	"math/cmplx"
 	"math/rand/v2"
@@ -839,6 +840,63 @@ func BenchmarkAVX2Inverse(b *testing.B) {
 			b.SetBytes(int64(n * 8))
 
 			for b.Loop() {
+				avx2Inverse(dst, src, twiddle, scratch, bitrev)
+			}
+		})
+	}
+}
+
+// 14.3: AVX2 Stockham Benchmarks (forward/inverse)
+func BenchmarkAVX2StockhamForward(b *testing.B) {
+	avx2Forward, _, avx2Available := getAVX2StockhamKernels()
+	if !avx2Available {
+		b.Skip("AVX2 not available on this system")
+	}
+
+	sizes := []int{256, 512, 1024, 2048, 4096, 8192, 16384}
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("N=%d", n), func(b *testing.B) {
+			src := generateRandomComplex64(n, 0xDEAD0000+uint64(n))
+			twiddle, bitrev, scratch := prepareFFTData(n)
+			dst := make([]complex64, n)
+
+			if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+				b.Skip("AVX2 Stockham forward not implemented")
+			}
+
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 8))
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				avx2Forward(dst, src, twiddle, scratch, bitrev)
+			}
+		})
+	}
+}
+
+func BenchmarkAVX2StockhamInverse(b *testing.B) {
+	_, avx2Inverse, avx2Available := getAVX2StockhamKernels()
+	if !avx2Available {
+		b.Skip("AVX2 not available on this system")
+	}
+
+	sizes := []int{256, 512, 1024, 2048, 4096, 8192, 16384}
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("N=%d", n), func(b *testing.B) {
+			src := generateRandomComplex64(n, 0xBEEF0000+uint64(n))
+			twiddle, bitrev, scratch := prepareFFTData(n)
+			dst := make([]complex64, n)
+
+			if !avx2Inverse(dst, src, twiddle, scratch, bitrev) {
+				b.Skip("AVX2 Stockham inverse not implemented")
+			}
+
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 8))
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
 				avx2Inverse(dst, src, twiddle, scratch, bitrev)
 			}
 		})

@@ -33,3 +33,14 @@ func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 		Inverse: stubKernel[complex128],
 	}
 }
+
+func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
+	// For NEON assembly, ignore strategy for now and use same logic as selectKernelsComplex64
+	// Strategy selection (DIT vs Stockham) will be handled in pure-Go fallback
+	return selectKernelsComplex64(features)
+}
+
+func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
+	// For NEON assembly, ignore strategy for now and use same logic as selectKernelsComplex128
+	return selectKernelsComplex128(features)
+}
