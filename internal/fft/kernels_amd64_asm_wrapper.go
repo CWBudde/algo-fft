@@ -21,21 +21,11 @@ func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 }
 
 func forwardAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
-	return false
+	return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
-	return false
+	return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {

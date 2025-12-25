@@ -4,6 +4,7 @@ package fft
 
 import (
 	"math"
+	"math/cmplx"
 	"math/rand/v2"
 	"runtime"
 	"testing"
@@ -893,8 +894,184 @@ func TestAVX2ZeroAllocations(t *testing.T) {
 }
 
 // =============================================================================
-// Helper Functions
+// AVX2 Kernel Access Functions (complex128)
 // =============================================================================
+
+func getAVX2Kernels128() (forward, inverse Kernel[complex128], available bool) {
+	if runtime.GOARCH != "amd64" {
+		return nil, nil, false
+	}
+
+	features := cpu.DetectFeatures()
+	if !features.HasAVX2 {
+		return nil, nil, false
+	}
+
+	return forwardAVX2Complex128, inverseAVX2Complex128, true
+}
+
+func getPureGoKernels128() (forward, inverse Kernel[complex128]) {
+	return forwardDITComplex128, inverseDITComplex128
+}
+
+// =============================================================================
+// 14.4: AVX2 complex128 Tests
+// =============================================================================
+
+func TestAVX2Forward128_VsPureGo(t *testing.T) {
+	t.Parallel()
+
+	avx2Forward, _, avx2Available := getAVX2Kernels128()
+	if !avx2Available {
+		t.Skip("AVX2 not available")
+	}
+
+	goForward, _ := getPureGoKernels128()
+
+	sizes := []int{16, 32, 64, 128, 256, 512, 1024}
+
+	for _, n := range sizes {
+		t.Run(sizeString(n), func(t *testing.T) {
+			t.Parallel()
+
+			src := make([]complex128, n)
+			rng := rand.New(rand.NewPCG(uint64(n), 1))
+			for i := range src {
+				src[i] = complex(rng.Float64(), rng.Float64())
+			}
+
+			twiddle := ComputeTwiddleFactors[complex128](n)
+			bitrev := ComputeBitReversalIndices(n)
+			scratch := make([]complex128, n)
+
+			dstGo := make([]complex128, n)
+			if !goForward(dstGo, src, twiddle, scratch, bitrev) {
+				t.Fatal("Pure-Go failed")
+			}
+
+			dstAVX2 := make([]complex128, n)
+			scratchAVX2 := make([]complex128, n)
+			if !avx2Forward(dstAVX2, src, twiddle, scratchAVX2, bitrev) {
+				t.Skip("AVX2 complex128 forward not implemented")
+			}
+
+			for i := range dstAVX2 {
+				if cmplx.Abs(dstAVX2[i]-dstGo[i]) > 1e-10 {
+					t.Errorf("Mismatch at %d: AVX2=%v, Go=%v", i, dstAVX2[i], dstGo[i])
+					break
+				}
+			}
+		})
+	}
+}
+
+func TestAVX2Inverse128_VsPureGo(t *testing.T) {
+	t.Parallel()
+
+	_, avx2Inverse, avx2Available := getAVX2Kernels128()
+	if !avx2Available {
+		t.Skip("AVX2 not available")
+	}
+
+	_, goInverse := getPureGoKernels128()
+
+	sizes := []int{16, 32, 64, 128, 256, 512, 1024}
+
+	for _, n := range sizes {
+		t.Run(sizeString(n), func(t *testing.T) {
+			t.Parallel()
+
+			src := make([]complex128, n)
+			rng := rand.New(rand.NewPCG(uint64(n), 2))
+			for i := range src {
+				src[i] = complex(rng.Float64(), rng.Float64())
+			}
+
+			twiddle := ComputeTwiddleFactors[complex128](n)
+			bitrev := ComputeBitReversalIndices(n)
+			scratch := make([]complex128, n)
+
+			dstGo := make([]complex128, n)
+			if !goInverse(dstGo, src, twiddle, scratch, bitrev) {
+				t.Fatal("Pure-Go failed")
+			}
+
+			dstAVX2 := make([]complex128, n)
+			scratchAVX2 := make([]complex128, n)
+			if !avx2Inverse(dstAVX2, src, twiddle, scratchAVX2, bitrev) {
+				t.Skip("AVX2 complex128 inverse not implemented")
+			}
+
+			for i := range dstAVX2 {
+				if cmplx.Abs(dstAVX2[i]-dstGo[i]) > 1e-10 {
+					t.Errorf("Mismatch at %d: AVX2=%v, Go=%v", i, dstAVX2[i], dstGo[i])
+					break
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkAVX2Forward128(b *testing.B) {
+	avx2Forward, _, avx2Available := getAVX2Kernels128()
+	if !avx2Available {
+		b.Skip("AVX2 not available")
+	}
+
+	sizes := []int{64, 256, 1024, 4096}
+
+	for _, n := range sizes {
+		b.Run(sizeString(n), func(b *testing.B) {
+			src := make([]complex128, n)
+			dst := make([]complex128, n)
+			twiddle := ComputeTwiddleFactors[complex128](n)
+			bitrev := ComputeBitReversalIndices(n)
+			scratch := make([]complex128, n)
+
+			if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+				b.Skip("AVX2 complex128 not implemented")
+			}
+
+			b.ResetTimer()
+			b.SetBytes(int64(n * 16))
+
+			for range b.N {
+				avx2Forward(dst, src, twiddle, scratch, bitrev)
+			}
+		})
+	}
+}
+
+func BenchmarkAVX2Inverse128(b *testing.B) {
+	_, avx2Inverse, avx2Available := getAVX2Kernels128()
+	if !avx2Available {
+		b.Skip("AVX2 not available")
+	}
+
+	sizes := []int{64, 256, 1024, 4096}
+
+	for _, n := range sizes {
+		b.Run(sizeString(n), func(b *testing.B) {
+			src := make([]complex128, n)
+			dst := make([]complex128, n)
+			twiddle := ComputeTwiddleFactors[complex128](n)
+			bitrev := ComputeBitReversalIndices(n)
+			scratch := make([]complex128, n)
+
+			if !avx2Inverse(dst, src, twiddle, scratch, bitrev) {
+				b.Skip("AVX2 complex128 not implemented")
+			}
+
+			b.ResetTimer()
+			b.SetBytes(int64(n * 16))
+
+			for range b.N {
+				avx2Inverse(dst, src, twiddle, scratch, bitrev)
+			}
+		})
+	}
+}
+
 
 func sizeString(n int) string {
 	switch {

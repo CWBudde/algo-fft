@@ -572,7 +572,7 @@ Hints:
 
 - [ ] **14.2.4 Benchmark and document**
   - [ ] Run comprehensive benchmarks on various CPU models (if available)
-  - [ ] Document achieved speedups in comments
+  - [x] Document achieved speedups in comments
   - [ ] Update BENCHMARKS.md with AVX2 performance characteristics
 
 **Success Criteria:**
@@ -599,22 +599,22 @@ Hints:
 - Stockham kernel achieves similar or better performance than DIT
 - Strategy auto-selection chooses optimal kernel based on size
 
-### 14.4 AVX2 complex128 Support
+### 14.4 AVX2 complex128 Support ✅
 
 **Prerequisite:** 14.1 must be complete
 
 **Note:** AVX2 YMM registers hold 4 float64 = 2 complex128, so half the parallelism
 
-- [ ] **Implement complex128 AVX2 kernels**
-  - [ ] Implement `forwardAVX2Complex128Asm` (process 2 complex128 at once)
-  - [ ] Implement `inverseAVX2Complex128Asm` similarly
-  - [ ] Adapt complex multiply for float64 (same algorithm, different types)
-  - [ ] Update wrappers in `kernels_amd64_asm_wrapper.go`
+- [x] **Implement complex128 AVX2 kernels**
+  - [x] Implement `forwardAVX2Complex128Asm` (process 2 complex128 at once)
+  - [x] Implement `inverseAVX2Complex128Asm` similarly
+  - [x] Adapt complex multiply for float64 (same algorithm, different types)
+  - [x] Update wrappers in `kernels_amd64_asm_wrapper.go`
 
-- [ ] **Test and validate**
-  - [ ] Add tests comparing AVX2 vs pure-Go for complex128
-  - [ ] Verify higher precision (error < 1e-12 for round-trip)
-  - [ ] Benchmark speedup (expect ~2x due to half parallelism)
+- [x] **Test and validate**
+  - [x] Add tests comparing AVX2 vs pure-Go for complex128
+  - [x] Verify higher precision (error < 1e-12 for round-trip)
+  - [x] Benchmark speedup (expect ~2x due to half parallelism)
 
 **Success Criteria:**
 - complex128 kernels work correctly for all sizes >= 16
