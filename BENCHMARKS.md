@@ -91,14 +91,35 @@ scripts/bench_md.sh benchmarks/baseline.txt > /tmp/benchmarks.md
 ## AVX2 Performance (Phase 14.2)
 
 Build with `-tags fft_asm` to enable AVX2 optimizations on amd64.
-These results compare the baseline Pure Go implementation with the AVX2 optimized version (including FMA and unrolling).
+These results compare the baseline Pure Go implementation with the AVX2 optimized version.
 
-| Benchmark | Size | Pure Go (MB/s) | AVX2 (MB/s) | Speedup |
-|---|---|---|---|---|
-| Forward | 64 | ~1016 | ~2835 | 2.8x |
-| Forward | 256 | ~782 | ~2594 | 3.3x |
-| Forward | 1024 | ~637 | ~2558 | 4.0x |
-| Forward | 4096 | ~467 | ~2251 | 4.8x |
-| Forward | 16384 | ~326 | ~1680 | 5.1x |
-| Inverse | 4096 | ~340 | ~1974 | 5.8x |
+**Date**: 2025-12-25
+**CPU**: 12th Gen Intel(R) Core(TM) i7-1255U
+
+### complex64 Forward FFT
+
+| Size  | Pure Go (ns) | Pure Go (MB/s) | AVX2 (ns) | AVX2 (MB/s) | Speedup  |
+| ----: | -----------: | -------------: | --------: | ----------: | -------: |
+| 64    | 602          | 850            | 185       | 2763        | **3.3x** |
+| 256   | 2988         | 685            | 770       | 2660        | **3.9x** |
+| 1024  | 14550        | 563            | 3228      | 2537        | **4.5x** |
+| 4096  | 69113        | 474            | 14505     | 2259        | **4.8x** |
+| 16384 | 336675       | 389            | 75015     | 1747        | **4.5x** |
+
+### complex128 Forward FFT (AVX2)
+
+| Size | AVX2 (ns) | AVX2 (MB/s) |
+| ---: | --------: | ----------: |
+| 64   | 229       | 4477        |
+| 256  | 1020      | 4018        |
+| 1024 | 4511      | 3632        |
+| 4096 | 22795     | 2875        |
+
+### Key Optimizations Applied
+
+1. **SIMD Vectorization**: Process 4 complex64 or 2 complex128 per iteration using YMM registers
+2. **FMA Instructions**: `VFMADDSUB231PS/PD` for fused multiply-add in butterfly computation
+3. **2x Loop Unrolling**: Process 8 butterflies in strided path to reduce loop overhead
+4. **Manual Twiddle Gathering**: Use scalar loads + pack for strided twiddle access
+5. **Zero Allocations**: All transforms are allocation-free after plan creation
 

@@ -1452,20 +1452,25 @@ avx2_butt_128:
 	// YMM layout for 2 complex128 values:
 	//   [b0.r, b0.i, b1.r, b1.i] (each is 64-bit float64)
 	//
-	// VMOVDDUP: duplicate low 64-bit double in each 128-bit lane
-	//   [w0.r, w0.r, w1.r, w1.r]
-	// VPERMILPD $0xF (1111b): swap within each 128-bit lane
-	//   [w0.i, w0.i, w1.i, w1.i]
+	// Complex multiply t = w * b:
+	//   t.real = w.r * b.r - w.i * b.i
+	//   t.imag = w.r * b.i + w.i * b.r
+	//
+	// YMM layout for 2 complex128: [w0.r, w0.i, w1.r, w1.i]
+	// VMOVDDUP duplicates low 64-bit in each 128-bit lane: [w0.r, w0.r, w1.r, w1.r]
+	// To get [w0.i, w0.i, w1.i, w1.i], swap then duplicate:
+	VMOVDDUP Y2, Y3          // Y3 = [w0.r, w0.r, w1.r, w1.r]
+	VPERMILPD $0x5, Y2, Y4   // Y4 = [w0.i, w0.r, w1.i, w1.r] (swap within lanes)
+	VMOVDDUP Y4, Y4          // Y4 = [w0.i, w0.i, w1.i, w1.i] (duplicate low)
 
-	VMOVDDUP Y2, Y3          // Y3 = [w.r, w.r, ...] broadcast
-	VPERMILPD $0xF, Y2, Y4   // Y4 = [w.i, w.i, ...] (swap and broadcast high)
+	// Swap b components for cross-multiplication
+	VPERMILPD $0x5, Y1, Y6   // Y6 = [b0.i, b0.r, b1.i, b1.r]
+	VMULPD Y4, Y6, Y6        // Y6 = [w.i*b.i, w.i*b.r, ...]
 
-	// Swap b components: VPERMILPD $0x5 (0101b) swaps within lanes
-	VPERMILPD $0x5, Y1, Y6   // Y6 = [b.i, b.r, b.i, b.r]
-	VMULPD Y4, Y6, Y6        // Y6 = [b.i*w.i, b.r*w.i, ...]
-
-	// FMA: Y6 = Y1 * Y3 -/+ Y6
-	// VFMADDSUB231PD: even positions (real) subtract, odd positions (imag) add
+	// FMA: Y6 = Y1 * Y3 ± Y6
+	// VFMADDSUB231PD: even lanes subtract, odd lanes add
+	//   pos0: b.r*w.r - w.i*b.i = t.real
+	//   pos1: b.i*w.r + w.i*b.r = t.imag
 	VFMADDSUB231PD Y3, Y1, Y6  // Y6 = t = w * b
 
 	// Butterfly
@@ -1510,13 +1515,19 @@ scalar_loop_128:
 	// -----------------------------------------------------------------------
 	// XMM Complex128 Multiply: t = w * b
 	// -----------------------------------------------------------------------
-	// VMOVDDUP: duplicate low 64-bit to both positions
-	// VPERMILPD $1: swap the two 64-bit halves
+	// For t = w * b:
+	//   t.real = w.r * b.r - w.i * b.i
+	//   t.imag = w.r * b.i + w.i * b.r
+	//
+	// XMM layout: [val.r, val.i] (64-bit doubles)
+	// VMOVDDUP broadcasts LOW 64-bit to both positions: [w.r, w.r]
+	// To get [w.i, w.i], first swap then MOVDDUP:
 	VMOVDDUP X2, X3          // X3 = [w.r, w.r]
-	VPERMILPD $1, X2, X4     // X4 = [w.i, w.i] (swap gives [w.i, w.r], but only w.i matters)
+	VPERMILPD $1, X2, X4     // X4 = [w.i, w.r] (swap halves)
+	VMOVDDUP X4, X4          // X4 = [w.i, w.i] (broadcast low = w.i)
 	VPERMILPD $1, X1, X6     // X6 = [b.i, b.r]
-	VMULPD X4, X6, X6        // X6 = [b.i*w.i, b.r*w.i]
-	VFMADDSUB231PD X3, X1, X6  // X6 = t
+	VMULPD X4, X6, X6        // X6 = [w.i*b.i, w.i*b.r]
+	VFMADDSUB231PD X3, X1, X6  // X6 = t = [b.r*w.r - w.i*b.i, b.i*w.r + w.i*b.r]
 
 	VADDPD X6, X0, X3        // a'
 	VSUBPD X6, X0, X4        // b'
@@ -1555,14 +1566,16 @@ done_128:
 	JE   return_true_128        // If R8 == dst, result already in place
 
 	// Copy back from scratch buffer to dst
-	// Each complex128 is 16 bytes, so stride by CX*16
-	XORQ CX, CX
+	// Each complex128 is 16 bytes; use byte offset since scale 16 isn't valid
+	XORQ CX, CX                 // CX = byte offset = 0
+	MOVQ R13, DX
+	SHLQ $4, DX                 // DX = n * 16 = end byte offset
 copy_loop_128:
-	CMPQ CX, R13                // for i := 0; i < n; i++
+	CMPQ CX, DX                 // for offset := 0; offset < n*16; offset += 16
 	JGE  return_true_128
-	MOVUPS (R8)(CX*16), X0      // Load complex128 from working buffer
-	MOVUPS X0, (AX)(CX*16)      // Store to dst
-	INCQ CX
+	MOVUPS (R8)(CX*1), X0       // Load complex128 from working buffer
+	MOVUPS X0, (AX)(CX*1)       // Store to dst
+	ADDQ $16, CX                // offset += 16
 	JMP  copy_loop_128
 
 return_true_128:
@@ -1667,14 +1680,18 @@ inv_use_dst_128:
 
 inv_bitrev_128:
 	// Apply bit-reversal permutation: dst[i] = src[bitrev[i]]
-	XORQ CX, CX
+	// Use byte offsets since scale 16 is not valid in Go assembler
+	XORQ CX, CX                 // CX = i = 0
+	XORQ SI, SI                 // SI = dst byte offset = 0
 inv_bitrev_loop_128:
 	CMPQ CX, R13
 	JGE  inv_bitrev_done_128
 	MOVQ (R12)(CX*8), DX        // DX = bitrev[i] (8 bytes per int)
-	MOVUPS (R9)(DX*16), X0      // Load src[bitrev[i]] (16 bytes)
-	MOVUPS X0, (R8)(CX*16)      // Store to dst[i]
-	INCQ CX
+	SHLQ $4, DX                 // DX = bitrev[i] * 16 (byte offset)
+	MOVUPS (R9)(DX*1), X0       // Load src[bitrev[i]] (16 bytes)
+	MOVUPS X0, (R8)(SI*1)       // Store to dst[i]
+	INCQ CX                     // i++
+	ADDQ $16, SI                // dst offset += 16
 	JMP  inv_bitrev_loop_128
 
 // ===========================================================================
@@ -1817,8 +1834,11 @@ inv_avx2_stride_loop_128:
 // ---------------------------------------------------------------------------
 inv_avx2_butt_128:
 	// t = conj(w) * b using VFMSUBADD for conjugate multiply
+	//   t.real = w.r * b.r + w.i * b.i  (note: + instead of -)
+	//   t.imag = w.r * b.i - w.i * b.r  (note: - instead of +)
 	VMOVDDUP Y2, Y3             // Y3 = [w0.r, w0.r, w1.r, w1.r] (broadcast reals)
-	VPERMILPD $0xF, Y2, Y4      // Y4 = [w0.i, w0.i, w1.i, w1.i] (broadcast imags)
+	VPERMILPD $0x5, Y2, Y4      // Y4 = [w0.i, w0.r, w1.i, w1.r] (swap within lanes)
+	VMOVDDUP Y4, Y4             // Y4 = [w0.i, w0.i, w1.i, w1.i] (broadcast low = imag)
 	VPERMILPD $0x5, Y1, Y6      // Y6 = [b0.i, b0.r, b1.i, b1.r] (swap pairs)
 	VMULPD Y4, Y6, Y6           // Y6 = [w.i*b.i, w.i*b.r, ...]
 	VFMSUBADD231PD Y3, Y1, Y6   // Y6 = conj(w) * b (conjugate complex multiply)
@@ -1868,9 +1888,12 @@ inv_scalar_loop_128:
 	MOVUPD (R10)(AX*1), X2      // X2 = w
 
 	// Scalar conjugate complex multiply: t = conj(w) * b
+	//   t.real = w.r * b.r + w.i * b.i
+	//   t.imag = w.r * b.i - w.i * b.r
 	// Same algorithm as AVX2, but with XMM (single complex128)
 	VMOVDDUP X2, X3             // X3 = [w.r, w.r] (broadcast real)
-	VPERMILPD $1, X2, X4        // X4 = [w.i, w.i] (broadcast imag), mask=1 for 128-bit
+	VPERMILPD $1, X2, X4        // X4 = [w.i, w.r] (swap halves)
+	VMOVDDUP X4, X4             // X4 = [w.i, w.i] (broadcast low = imag)
 	VPERMILPD $1, X1, X6        // X6 = [b.i, b.r] (swap)
 	VMULPD X4, X6, X6           // X6 = [w.i*b.i, w.i*b.r]
 	VFMSUBADD231PD X3, X1, X6   // X6 = conj(w) * b
@@ -1911,13 +1934,16 @@ inv_done_128:
 	JE   inv_scale_128          // If R8 == dst, skip copy
 
 	// Copy from scratch buffer to dst
-	XORQ CX, CX
+	// Use byte offsets since scale 16 is not valid in Go assembler
+	XORQ CX, CX                 // CX = byte offset = 0
+	MOVQ R13, DX
+	SHLQ $4, DX                 // DX = n * 16 = end byte offset
 inv_copy_128:
-	CMPQ CX, R13
+	CMPQ CX, DX                 // for offset := 0; offset < n*16; offset += 16
 	JGE  inv_scale_128
-	MOVUPS (R8)(CX*16), X0      // Load complex128
-	MOVUPS X0, (AX)(CX*16)      // Store to dst
-	INCQ CX
+	MOVUPS (R8)(CX*1), X0       // Load complex128
+	MOVUPS X0, (AX)(CX*1)       // Store to dst
+	ADDQ $16, CX                // offset += 16
 	JMP  inv_copy_128
 
 // ===========================================================================
@@ -1934,28 +1960,31 @@ inv_scale_128:
 	DIVSD X0, X1                // X1 = 1.0 / n (scalar scale factor)
 	VBROADCASTSD X1, Y1         // Y1 = [scale, scale, scale, scale]
 
-	XORQ CX, CX                 // i = 0
+	// Use byte offsets since scale 16 is not valid in Go assembler
+	XORQ CX, CX                 // CX = byte offset = 0
+	MOVQ R13, DX
+	SHLQ $4, DX                 // DX = n * 16 = end byte offset
 inv_scale_loop_128:
-	// AVX2 path: process 2 complex128 (4 doubles) at a time
-	MOVQ R13, AX
-	SUBQ CX, AX                 // remaining = n - i
-	CMPQ AX, $2
-	JL   inv_scale_rem_128      // Fewer than 2: scalar path
+	// AVX2 path: process 2 complex128 (32 bytes) at a time
+	MOVQ DX, AX
+	SUBQ CX, AX                 // remaining bytes = n*16 - offset
+	CMPQ AX, $32
+	JL   inv_scale_rem_128      // Fewer than 32 bytes: scalar path
 
-	VMOVUPD (R8)(CX*16), Y0     // Load 2 complex128
+	VMOVUPD (R8)(CX*1), Y0      // Load 2 complex128
 	VMULPD Y1, Y0, Y0           // Scale both real and imag by 1/n
-	VMOVUPD Y0, (R8)(CX*16)     // Store scaled values
-	ADDQ $2, CX                 // i += 2
+	VMOVUPD Y0, (R8)(CX*1)      // Store scaled values
+	ADDQ $32, CX                // offset += 32 (2 complex128)
 	JMP inv_scale_loop_128
 
 inv_scale_rem_128:
 	// Scalar remainder: process one complex128 at a time
-	CMPQ CX, R13
+	CMPQ CX, DX
 	JGE  inv_ret_true_128
-	MOVUPD (R8)(CX*16), X0      // Load single complex128
+	MOVUPD (R8)(CX*1), X0       // Load single complex128
 	VMULPD X1, X0, X0           // Scale (X1 low 128-bit has [scale, scale])
-	MOVUPD X0, (R8)(CX*16)      // Store
-	INCQ CX
+	MOVUPD X0, (R8)(CX*1)       // Store
+	ADDQ $16, CX                // offset += 16
 	JMP inv_scale_rem_128
 
 inv_ret_true_128:
