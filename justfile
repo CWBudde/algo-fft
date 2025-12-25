@@ -34,5 +34,42 @@ clean:
 # Run all checks (test, lint, coverage)
 check: test lint cover
 
+# Cross-compile for ARM64
+build-arm64:
+    GOOS=linux GOARCH=arm64 go build -v ./...
+
+# Run tests on ARM64 using QEMU (requires qemu-user-static)
+test-arm64:
+    #!/usr/bin/env bash
+    if ! command -v qemu-aarch64-static &> /dev/null; then
+        echo "Error: qemu-aarch64-static not found"
+        echo "Install with: sudo apt-get install qemu-user-static binfmt-support"
+        exit 1
+    fi
+    GOOS=linux GOARCH=arm64 go test -exec="qemu-aarch64-static" -v -count=1 ./...
+
+# Run benchmarks on ARM64 using QEMU (NOTE: performance not representative, correctness only)
+bench-arm64:
+    #!/usr/bin/env bash
+    if ! command -v qemu-aarch64-static &> /dev/null; then
+        echo "Error: qemu-aarch64-static not found"
+        echo "Install with: sudo apt-get install qemu-user-static binfmt-support"
+        exit 1
+    fi
+    @echo "NOTE: QEMU benchmarks are for correctness validation only, not performance measurement"
+    GOOS=linux GOARCH=arm64 go test -exec="qemu-aarch64-static" -bench=. -benchmem -run=^$ ./...
+
+# Build for both amd64 and arm64
+build-all: build build-arm64
+    @echo "Built for amd64 and arm64"
+
+# Test on both amd64 and arm64
+test-all: test test-arm64
+    @echo "Tests passed on both architectures"
+
+# Run all checks on both architectures
+check-all: check test-arm64
+    @echo "All checks passed on amd64 and arm64"
+
 # Default target
 default: build

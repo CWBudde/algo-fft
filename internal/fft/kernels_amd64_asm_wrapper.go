@@ -12,6 +12,16 @@ func inverseAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 	return inverseAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
+func forwardAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	// TODO: Replace with true Stockham AVX2 kernel.
+	return forwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	// TODO: Replace with true Stockham AVX2 kernel.
+	return inverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
 func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return forwardAVX2Complex64(dst, src, twiddle, scratch, bitrev)
 }
@@ -25,6 +35,16 @@ func forwardAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 }
 
 func inverseAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func forwardAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	// TODO: Replace with true Stockham AVX2 kernel.
+	return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	// TODO: Replace with true Stockham AVX2 kernel.
 	return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 

@@ -701,6 +701,305 @@ return_false:
 	RET
 
 // ===========================================================================
+// forwardAVX2StockhamComplex64Asm - Forward FFT for complex64 (Stockham path)
+// ===========================================================================
+TEXT ·forwardAVX2StockhamComplex64Asm(SB), NOSPLIT, $0-121
+	// -----------------------------------------------------------------------
+	// PHASE 1: Load parameters and validate inputs
+	// -----------------------------------------------------------------------
+	MOVQ dst+0(FP), R8       // R8  = dst pointer
+	MOVQ src+24(FP), R9      // R9  = src pointer
+	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
+	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
+	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer (unused)
+	MOVQ src+32(FP), R13     // R13 = n = len(src)
+
+	// Empty input is valid (no-op)
+	TESTQ R13, R13
+	JZ    stockham_return_true
+
+	// Validate all slice lengths are >= n
+	MOVQ dst+8(FP), AX
+	CMPQ AX, R13
+	JL   stockham_return_false
+
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, R13
+	JL   stockham_return_false
+
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, R13
+	JL   stockham_return_false
+
+	MOVQ bitrev+104(FP), AX
+	CMPQ AX, R13
+	JL   stockham_return_false
+
+	// Trivial case: n=1, just copy
+	CMPQ R13, $1
+	JNE  stockham_check_power
+	MOVQ (R9), AX
+	MOVQ AX, (R8)
+	JMP  stockham_return_true
+
+stockham_check_power:
+	// Verify n is power of 2
+	MOVQ R13, AX
+	LEAQ -1(AX), BX
+	TESTQ AX, BX
+	JNZ  stockham_return_false
+
+	// Minimum size for AVX2 vectorization
+	CMPQ R13, $16
+	JL   stockham_return_false
+
+	// -----------------------------------------------------------------------
+	// PHASE 2: Select buffers (Stockham uses ping-pong)
+	// -----------------------------------------------------------------------
+	MOVQ R9, SI               // SI = in (src)
+	MOVQ R8, DI               // DI = out (dst)
+	CMPQ R8, R9
+	JNE  stockham_out_ready
+	MOVQ R11, DI              // In-place: first out = scratch
+
+stockham_out_ready:
+	// m starts at n and halves each stage
+	MOVQ R13, R14             // R14 = m
+
+stockham_stage_loop:
+	CMPQ R14, $1
+	JLE  stockham_done
+
+	// step = n / m
+	MOVQ R13, AX
+	XORQ DX, DX
+	DIVQ R14
+	MOVQ AX, BX               // BX = step (also group count)
+
+	XORQ CX, CX               // k = 0
+
+stockham_k_loop:
+	CMPQ CX, BX
+	JGE  stockham_stage_done
+
+	// half = m / 2
+	MOVQ R14, R15
+	SHRQ $1, R15
+
+	// baseElem = k * m
+	MOVQ CX, RAX
+	IMULQ R14, RAX
+
+	// outBaseElem = k * half
+	MOVQ CX, RDX
+	IMULQ R15, RDX
+
+	// ptrA = in + baseElem*8
+	LEAQ (SI)(RAX*8), RAX
+
+	// ptrB = ptrA + half*8
+	MOVQ R15, R9
+	SHLQ $3, R9
+	MOVQ RAX, RBP
+	ADDQ R9, RBP
+
+	// ptrOut0 = out + outBaseElem*8
+	LEAQ (DI)(RDX*8), R9
+
+	// ptrOut1 = ptrOut0 + (n/2)*8 = n*4 bytes
+	MOVQ R13, R12
+	SHLQ $2, R12
+	ADDQ R9, R12
+
+	// remaining = half
+	MOVQ R15, RDX
+
+	// Fast path for contiguous twiddles (step == 1)
+	CMPQ BX, $1
+	JNE  stockham_scalar_strided
+
+	// twiddle offset for contiguous path
+	XORQ R11, R11
+	CMPQ RDX, $4
+	JL   stockham_scalar_contig
+
+stockham_vec_loop:
+	CMPQ RDX, $4
+	JL   stockham_scalar_contig
+
+	VMOVUPS (RAX), Y0         // a
+	VMOVUPS (RBP), Y1         // b
+	VMOVUPS (R10)(R11*1), Y2  // twiddle
+
+	VADDPS Y1, Y0, Y3         // sum = a + b
+	VSUBPS Y1, Y0, Y4         // diff = a - b
+
+	VMOVSLDUP Y2, Y5          // w.r
+	VMOVSHDUP Y2, Y6          // w.i
+	VSHUFPS $0xB1, Y4, Y4, Y7 // diff swapped
+	VMULPS Y6, Y7, Y7
+	VFMADDSUB231PS Y5, Y4, Y7 // t = diff * w
+
+	VMOVUPS Y3, (R9)          // out0 = sum
+	VMOVUPS Y7, (R12)         // out1 = diff * w
+
+	ADDQ $32, RAX
+	ADDQ $32, RBP
+	ADDQ $32, R9
+	ADDQ $32, R12
+	ADDQ $32, R11
+	SUBQ $4, RDX
+	JMP  stockham_vec_loop
+
+stockham_scalar_contig:
+	MOVQ $8, R15              // stride bytes for step==1
+	JMP  stockham_scalar_core
+
+stockham_scalar_strided:
+	MOVQ BX, R15
+	SHLQ $3, R15              // stride bytes = step * 8
+	XORQ R11, R11             // twiddle offset bytes
+
+	CMPQ RDX, $4
+	JL   stockham_scalar_core
+
+stockham_strided_vec_loop:
+	CMPQ RDX, $4
+	JL   stockham_scalar_core
+
+	VMOVUPS (RAX), Y0         // a
+	VMOVUPS (RBP), Y1         // b
+
+	// Gather 4 strided twiddles using running offset
+	VMOVSD (R10)(R11*1), X2
+	ADDQ R15, R11
+	VMOVSD (R10)(R11*1), X3
+	ADDQ R15, R11
+	VMOVSD (R10)(R11*1), X4
+	ADDQ R15, R11
+	VMOVSD (R10)(R11*1), X5
+	ADDQ R15, R11             // advance to next block
+	VPUNPCKLQDQ X3, X2, X2
+	VPUNPCKLQDQ X5, X4, X4
+	VINSERTF128 $1, X4, Y2, Y2
+
+	VADDPS Y1, Y0, Y3         // sum = a + b
+	VSUBPS Y1, Y0, Y4         // diff = a - b
+
+	VMOVSLDUP Y2, Y5          // w.r
+	VMOVSHDUP Y2, Y6          // w.i
+	VSHUFPS $0xB1, Y4, Y4, Y7 // diff swapped
+	VMULPS Y6, Y7, Y7
+	VFMADDSUB231PS Y5, Y4, Y7 // t = diff * w
+
+	VMOVUPS Y3, (R9)          // out0 = sum
+	VMOVUPS Y7, (R12)         // out1 = diff * w
+
+	ADDQ $32, RAX
+	ADDQ $32, RBP
+	ADDQ $32, R9
+	ADDQ $32, R12
+	SUBQ $4, RDX
+	JMP  stockham_strided_vec_loop
+
+stockham_scalar_core:
+	CMPQ RDX, $0
+	JLE  stockham_k_done
+
+stockham_scalar_loop:
+	MOVSS (RAX), X0
+	MOVSS 4(RAX), X1
+	MOVSS (RBP), X2
+	MOVSS 4(RBP), X3
+
+	// sum = a + b
+	MOVSS X0, X4
+	ADDSS X2, X4
+	MOVSS X1, X5
+	ADDSS X3, X5
+	MOVSS X4, (R9)
+	MOVSS X5, 4(R9)
+
+	// diff = a - b
+	MOVSS X0, X6
+	SUBSS X2, X6
+	MOVSS X1, X7
+	SUBSS X3, X7
+
+	// twiddle (strided)
+	MOVSS (R10)(R11*1), X8
+	MOVSS 4(R10)(R11*1), X9
+
+	// t = diff * w
+	MOVSS X6, X10
+	MULSS X8, X10
+	MOVSS X7, X11
+	MULSS X9, X11
+	SUBSS X11, X10
+
+	MOVSS X7, X12
+	MULSS X8, X12
+	MOVSS X6, X13
+	MULSS X9, X13
+	ADDSS X13, X12
+
+	MOVSS X10, (R12)
+	MOVSS X12, 4(R12)
+
+	ADDQ $8, RAX
+	ADDQ $8, RBP
+	ADDQ $8, R9
+	ADDQ $8, R12
+	ADDQ R15, R11
+	DECQ RDX
+	JNZ  stockham_scalar_loop
+
+stockham_k_done:
+	INCQ CX
+	JMP  stockham_k_loop
+
+stockham_stage_done:
+	// Swap in/out buffers
+	MOVQ DI, SI
+	MOVQ dst+0(FP), AX
+	CMPQ DI, AX
+	JE   stockham_out_to_scratch
+	MOVQ AX, DI
+	JMP  stockham_stage_next
+
+stockham_out_to_scratch:
+	MOVQ scratch+72(FP), DI
+
+stockham_stage_next:
+	SHRQ $1, R14
+	JMP  stockham_stage_loop
+
+stockham_done:
+	VZEROUPPER
+	MOVQ dst+0(FP), AX
+	CMPQ SI, AX
+	JE   stockham_return_true
+
+	XORQ CX, CX
+
+stockham_copy_loop:
+	CMPQ CX, R13
+	JGE  stockham_return_true
+	MOVQ (SI)(CX*8), DX
+	MOVQ DX, (AX)(CX*8)
+	INCQ CX
+	JMP  stockham_copy_loop
+
+stockham_return_true:
+	VZEROUPPER
+	MOVB $1, ret+120(FP)
+	RET
+
+stockham_return_false:
+	MOVB $0, ret+120(FP)
+	RET
+
+// ===========================================================================
 // inverseAVX2Complex64Asm - Inverse FFT for complex64 using AVX2/FMA
 // ===========================================================================
 // Performs inverse DFT: x[n] = (1/N) * Σ X[k] * exp(+2πi*n*k/N)
@@ -1232,6 +1531,325 @@ inv_return_true:
 
 inv_return_false:
 	// Failure: fall back to pure Go
+	MOVB $0, ret+120(FP)
+	RET
+
+// ===========================================================================
+// inverseAVX2StockhamComplex64Asm - Inverse FFT for complex64 (Stockham path)
+// ===========================================================================
+TEXT ·inverseAVX2StockhamComplex64Asm(SB), NOSPLIT, $0-121
+	// -----------------------------------------------------------------------
+	// PHASE 1: Load parameters and validate inputs
+	// -----------------------------------------------------------------------
+	MOVQ dst+0(FP), R8       // R8  = dst pointer
+	MOVQ src+24(FP), R9      // R9  = src pointer
+	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
+	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
+	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer (unused)
+	MOVQ src+32(FP), R13     // R13 = n = len(src)
+
+	// Empty input is valid (no-op)
+	TESTQ R13, R13
+	JZ    inv_stockham_return_true
+
+	// Validate all slice lengths are >= n
+	MOVQ dst+8(FP), AX
+	CMPQ AX, R13
+	JL   inv_stockham_return_false
+
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, R13
+	JL   inv_stockham_return_false
+
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, R13
+	JL   inv_stockham_return_false
+
+	MOVQ bitrev+104(FP), AX
+	CMPQ AX, R13
+	JL   inv_stockham_return_false
+
+	// Trivial case: n=1, just copy
+	CMPQ R13, $1
+	JNE  inv_stockham_check_power
+	MOVQ (R9), AX
+	MOVQ AX, (R8)
+	JMP  inv_stockham_return_true
+
+inv_stockham_check_power:
+	// Verify n is power of 2
+	MOVQ R13, AX
+	LEAQ -1(AX), BX
+	TESTQ AX, BX
+	JNZ  inv_stockham_return_false
+
+	// Minimum size for AVX2 vectorization
+	CMPQ R13, $16
+	JL   inv_stockham_return_false
+
+	// -----------------------------------------------------------------------
+	// PHASE 2: Select buffers (Stockham uses ping-pong)
+	// -----------------------------------------------------------------------
+	MOVQ R9, SI               // SI = in (src)
+	MOVQ R8, DI               // DI = out (dst)
+	CMPQ R8, R9
+	JNE  inv_stockham_out_ready
+	MOVQ R11, DI              // In-place: first out = scratch
+
+inv_stockham_out_ready:
+	// m starts at n and halves each stage
+	MOVQ R13, R14             // R14 = m
+
+inv_stockham_stage_loop:
+	CMPQ R14, $1
+	JLE  inv_stockham_done
+
+	// step = n / m
+	MOVQ R13, AX
+	XORQ DX, DX
+	DIVQ R14
+	MOVQ AX, BX               // BX = step (also group count)
+
+	XORQ CX, CX               // k = 0
+
+inv_stockham_k_loop:
+	CMPQ CX, BX
+	JGE  inv_stockham_stage_done
+
+	// half = m / 2
+	MOVQ R14, R15
+	SHRQ $1, R15
+
+	// baseElem = k * m
+	MOVQ CX, RAX
+	IMULQ R14, RAX
+
+	// outBaseElem = k * half
+	MOVQ CX, RDX
+	IMULQ R15, RDX
+
+	// ptrA = in + baseElem*8
+	LEAQ (SI)(RAX*8), RAX
+
+	// ptrB = ptrA + half*8
+	MOVQ R15, R9
+	SHLQ $3, R9
+	MOVQ RAX, RBP
+	ADDQ R9, RBP
+
+	// ptrOut0 = out + outBaseElem*8
+	LEAQ (DI)(RDX*8), R9
+
+	// ptrOut1 = ptrOut0 + (n/2)*8 = n*4 bytes
+	MOVQ R13, R12
+	SHLQ $2, R12
+	ADDQ R9, R12
+
+	// remaining = half
+	MOVQ R15, RDX
+
+	// Fast path for contiguous twiddles (step == 1)
+	CMPQ BX, $1
+	JNE  inv_stockham_scalar_strided
+
+	// twiddle offset for contiguous path
+	XORQ R11, R11
+	CMPQ RDX, $4
+	JL   inv_stockham_scalar_contig
+
+inv_stockham_vec_loop:
+	CMPQ RDX, $4
+	JL   inv_stockham_scalar_contig
+
+	VMOVUPS (RAX), Y0         // a
+	VMOVUPS (RBP), Y1         // b
+	VMOVUPS (R10)(R11*1), Y2  // twiddle
+
+	VADDPS Y1, Y0, Y3         // sum = a + b
+	VSUBPS Y1, Y0, Y4         // diff = a - b
+
+	// Conjugate multiply: diff * conj(w)
+	VMOVSLDUP Y2, Y5          // w.r
+	VMOVSHDUP Y2, Y6          // w.i
+	VSHUFPS $0xB1, Y4, Y4, Y7 // diff swapped
+	VMULPS Y6, Y7, Y7
+	VFMSUBADD231PS Y5, Y4, Y7 // t = diff * conj(w)
+
+	VMOVUPS Y3, (R9)          // out0 = sum
+	VMOVUPS Y7, (R12)         // out1 = diff * conj(w)
+
+	ADDQ $32, RAX
+	ADDQ $32, RBP
+	ADDQ $32, R9
+	ADDQ $32, R12
+	ADDQ $32, R11
+	SUBQ $4, RDX
+	JMP  inv_stockham_vec_loop
+
+inv_stockham_scalar_contig:
+	MOVQ $8, R15              // stride bytes for step==1
+	JMP  inv_stockham_scalar_core
+
+inv_stockham_scalar_strided:
+	MOVQ BX, R15
+	SHLQ $3, R15              // stride bytes = step * 8
+	XORQ R11, R11             // twiddle offset bytes
+
+	CMPQ RDX, $4
+	JL   inv_stockham_scalar_core
+
+inv_stockham_strided_vec_loop:
+	CMPQ RDX, $4
+	JL   inv_stockham_scalar_core
+
+	VMOVUPS (RAX), Y0         // a
+	VMOVUPS (RBP), Y1         // b
+
+	// Gather 4 strided twiddles using running offset
+	VMOVSD (R10)(R11*1), X2
+	ADDQ R15, R11
+	VMOVSD (R10)(R11*1), X3
+	ADDQ R15, R11
+	VMOVSD (R10)(R11*1), X4
+	ADDQ R15, R11
+	VMOVSD (R10)(R11*1), X5
+	ADDQ R15, R11             // advance to next block
+	VPUNPCKLQDQ X3, X2, X2
+	VPUNPCKLQDQ X5, X4, X4
+	VINSERTF128 $1, X4, Y2, Y2
+
+	VADDPS Y1, Y0, Y3         // sum = a + b
+	VSUBPS Y1, Y0, Y4         // diff = a - b
+
+	// Conjugate multiply: diff * conj(w)
+	VMOVSLDUP Y2, Y5          // w.r
+	VMOVSHDUP Y2, Y6          // w.i
+	VSHUFPS $0xB1, Y4, Y4, Y7 // diff swapped
+	VMULPS Y6, Y7, Y7
+	VFMSUBADD231PS Y5, Y4, Y7 // t = diff * conj(w)
+
+	VMOVUPS Y3, (R9)          // out0 = sum
+	VMOVUPS Y7, (R12)         // out1 = diff * conj(w)
+
+	ADDQ $32, RAX
+	ADDQ $32, RBP
+	ADDQ $32, R9
+	ADDQ $32, R12
+	SUBQ $4, RDX
+	JMP  inv_stockham_strided_vec_loop
+
+inv_stockham_scalar_core:
+	CMPQ RDX, $0
+	JLE  inv_stockham_k_done
+
+inv_stockham_scalar_loop:
+	MOVSS (RAX), X0
+	MOVSS 4(RAX), X1
+	MOVSS (RBP), X2
+	MOVSS 4(RBP), X3
+
+	// sum = a + b
+	MOVSS X0, X4
+	ADDSS X2, X4
+	MOVSS X1, X5
+	ADDSS X3, X5
+	MOVSS X4, (R9)
+	MOVSS X5, 4(R9)
+
+	// diff = a - b
+	MOVSS X0, X6
+	SUBSS X2, X6
+	MOVSS X1, X7
+	SUBSS X3, X7
+
+	// twiddle (conjugate, strided)
+	MOVSS (R10)(R11*1), X8
+	MOVSS 4(R10)(R11*1), X9
+
+	// t = diff * conj(w)
+	MOVSS X6, X10
+	MULSS X8, X10
+	MOVSS X7, X11
+	MULSS X9, X11
+	ADDSS X11, X10
+
+	MOVSS X7, X12
+	MULSS X8, X12
+	MOVSS X6, X13
+	MULSS X9, X13
+	SUBSS X13, X12
+
+	MOVSS X10, (R12)
+	MOVSS X12, 4(R12)
+
+	ADDQ $8, RAX
+	ADDQ $8, RBP
+	ADDQ $8, R9
+	ADDQ $8, R12
+	ADDQ R15, R11
+	DECQ RDX
+	JNZ  inv_stockham_scalar_loop
+
+inv_stockham_k_done:
+	INCQ CX
+	JMP  inv_stockham_k_loop
+
+inv_stockham_stage_done:
+	// Swap in/out buffers
+	MOVQ DI, SI
+	MOVQ dst+0(FP), AX
+	CMPQ DI, AX
+	JE   inv_stockham_out_to_scratch
+	MOVQ AX, DI
+	JMP  inv_stockham_stage_next
+
+inv_stockham_out_to_scratch:
+	MOVQ scratch+72(FP), DI
+
+inv_stockham_stage_next:
+	SHRQ $1, R14
+	JMP  inv_stockham_stage_loop
+
+inv_stockham_done:
+	VZEROUPPER
+	MOVQ dst+0(FP), AX
+	CMPQ SI, AX
+	JE   inv_stockham_scale
+
+	XORQ CX, CX
+
+inv_stockham_copy_loop:
+	CMPQ CX, R13
+	JGE  inv_stockham_scale
+	MOVQ (SI)(CX*8), DX
+	MOVQ DX, (AX)(CX*8)
+	INCQ CX
+	JMP  inv_stockham_copy_loop
+
+inv_stockham_scale:
+	// scale by 1/n
+	CVTSQ2SS R13, X0
+	MOVSS    ·one32(SB), X1
+	DIVSS    X0, X1
+	SHUFPS   $0x00, X1, X1
+
+	XORQ CX, CX
+
+inv_stockham_scale_loop:
+	CMPQ CX, R13
+	JGE  inv_stockham_return_true
+	MOVSD (AX)(CX*8), X0
+	MULPS X1, X0
+	MOVSD X0, (AX)(CX*8)
+	INCQ CX
+	JMP  inv_stockham_scale_loop
+
+inv_stockham_return_true:
+	VZEROUPPER
+	MOVB $1, ret+120(FP)
+	RET
+
+inv_stockham_return_false:
 	MOVB $0, ret+120(FP)
 	RET
 

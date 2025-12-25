@@ -126,6 +126,20 @@ func getAVX2Kernels() (forward, inverse Kernel[complex64], available bool) {
 	return forwardAVX2Complex64, inverseAVX2Complex64, true
 }
 
+// getAVX2StockhamKernels returns the AVX2 Stockham kernels if available.
+func getAVX2StockhamKernels() (forward, inverse Kernel[complex64], available bool) {
+	if runtime.GOARCH != "amd64" {
+		return nil, nil, false
+	}
+
+	features := cpu.DetectFeatures()
+	if !features.HasAVX2 {
+		return nil, nil, false
+	}
+
+	return forwardAVX2StockhamComplex64, inverseAVX2StockhamComplex64, true
+}
+
 // getPureGoKernels returns the pure-Go DIT kernels for comparison.
 func getPureGoKernels() (forward, inverse Kernel[complex64]) {
 	return forwardDITComplex64, inverseDITComplex64
@@ -243,6 +257,69 @@ func TestAVX2Inverse_VsPureGo(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// 14.3: AVX2 Stockham vs Pure-Go Stockham Tests
+func TestAVX2StockhamForward_VsPureGo(t *testing.T) {
+	avx2Forward, _, avx2Available := getAVX2StockhamKernels()
+	if !avx2Available {
+		t.Skip("AVX2 not available on this system")
+	}
+
+	sizes := []int{16, 32, 64, 128, 256, 1024}
+	relTol := float32(1e-4)
+
+	for _, n := range sizes {
+		src := generateRandomComplex64(n, 0xABCDEF01+uint64(n))
+		twiddle, bitrev, scratch := prepareFFTData(n)
+
+		dstAVX2 := make([]complex64, n)
+		dstGo := make([]complex64, n)
+
+		handled := avx2Forward(dstAVX2, src, twiddle, scratch, bitrev)
+		if !handled {
+			t.Skip("AVX2 Stockham forward not implemented")
+		}
+
+		if !forwardStockhamComplex64(dstGo, src, twiddle, scratch, bitrev) {
+			t.Fatal("pure-Go Stockham forward failed")
+		}
+
+		if !complexSliceEqual(dstAVX2, dstGo, relTol) {
+			t.Errorf("AVX2 Stockham forward differs from pure-Go (n=%d)", n)
+		}
+	}
+}
+
+func TestAVX2StockhamInverse_VsPureGo(t *testing.T) {
+	_, avx2Inverse, avx2Available := getAVX2StockhamKernels()
+	if !avx2Available {
+		t.Skip("AVX2 not available on this system")
+	}
+
+	sizes := []int{16, 32, 64, 128, 256, 1024}
+	relTol := float32(1e-4)
+
+	for _, n := range sizes {
+		src := generateRandomComplex64(n, 0x12345678+uint64(n))
+		twiddle, bitrev, scratch := prepareFFTData(n)
+
+		dstAVX2 := make([]complex64, n)
+		dstGo := make([]complex64, n)
+
+		handled := avx2Inverse(dstAVX2, src, twiddle, scratch, bitrev)
+		if !handled {
+			t.Skip("AVX2 Stockham inverse not implemented")
+		}
+
+		if !inverseStockhamComplex64(dstGo, src, twiddle, scratch, bitrev) {
+			t.Fatal("pure-Go Stockham inverse failed")
+		}
+
+		if !complexSliceEqual(dstAVX2, dstGo, relTol) {
+			t.Errorf("AVX2 Stockham inverse differs from pure-Go (n=%d)", n)
+		}
 	}
 }
 
@@ -1071,7 +1148,6 @@ func BenchmarkAVX2Inverse128(b *testing.B) {
 		})
 	}
 }
-
 
 func sizeString(n int) string {
 	switch {
