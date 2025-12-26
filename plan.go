@@ -22,6 +22,9 @@ type Plan[T Complex] struct {
 	// This enables zero-allocation transforms after Plan creation.
 	scratch []T
 
+	// stridedScratch is a pre-allocated buffer for strided transforms.
+	stridedScratch []T
+
 	// bitrev contains precomputed bit-reversal permutation indices.
 	// bitrev[i] contains the bit-reversed index for position i.
 	bitrev []int
@@ -47,8 +50,9 @@ type Plan[T Complex] struct {
 	kernelStrategy fft.KernelStrategy
 
 	// backing buffers keep aligned slices alive for GC.
-	twiddleBacking []byte
-	scratchBacking []byte
+	twiddleBacking        []byte
+	scratchBacking        []byte
+	stridedScratchBacking []byte
 
 	// pool is the buffer pool this Plan was allocated from (nil if not pooled).
 	pool *fft.BufferPool
@@ -298,6 +302,8 @@ func NewPlanT[T Complex](n int) (*Plan[T], error) {
 		twiddleBacking []byte
 		scratch        []T
 		scratchBacking []byte
+		stridedScratch []T
+		stridedBacking []byte
 
 		// Bluestein specific
 		bluesteinM              int
@@ -322,6 +328,10 @@ func NewPlanT[T Complex](n int) (*Plan[T], error) {
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
+			stridedAligned, stridedRaw := fft.AllocAlignedComplex64(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+
 			bsAligned, bsRaw := fft.AllocAlignedComplex64(scratchSize)
 			bluesteinScratch = any(bsAligned).([]T)
 			bluesteinScratchBacking = bsRaw
@@ -330,11 +340,16 @@ func NewPlanT[T Complex](n int) (*Plan[T], error) {
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
+			stridedAligned, stridedRaw := fft.AllocAlignedComplex128(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+
 			bsAligned, bsRaw := fft.AllocAlignedComplex128(scratchSize)
 			bluesteinScratch = any(bsAligned).([]T)
 			bluesteinScratchBacking = bsRaw
 		default:
 			scratch = make([]T, scratchSize)
+			stridedScratch = make([]T, n)
 			bluesteinScratch = make([]T, scratchSize)
 		}
 
@@ -365,6 +380,10 @@ func NewPlanT[T Complex](n int) (*Plan[T], error) {
 			scratchAligned, scratchRaw := fft.AllocAlignedComplex64(n)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := fft.AllocAlignedComplex64(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
 		case complex128:
 			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex128(n)
 			tmp := fft.ComputeTwiddleFactors[complex128](n)
@@ -375,9 +394,14 @@ func NewPlanT[T Complex](n int) (*Plan[T], error) {
 			scratchAligned, scratchRaw := fft.AllocAlignedComplex128(n)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := fft.AllocAlignedComplex128(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
 		default:
 			twiddle = fft.ComputeTwiddleFactors[T](n)
 			scratch = make([]T, n)
+			stridedScratch = make([]T, n)
 		}
 	}
 
@@ -385,12 +409,14 @@ func NewPlanT[T Complex](n int) (*Plan[T], error) {
 		n:                       n,
 		twiddle:                 twiddle,
 		scratch:                 scratch,
+		stridedScratch:          stridedScratch,
 		bitrev:                  planBitReversal(n),
 		forwardKernel:           kernels.Forward,
 		inverseKernel:           kernels.Inverse,
 		kernelStrategy:          strategy,
 		twiddleBacking:          twiddleBacking,
 		scratchBacking:          scratchBacking,
+		stridedScratchBacking:   stridedBacking,
 		bluesteinM:              bluesteinM,
 		bluesteinChirp:          bluesteinChirp,
 		bluesteinChirpInv:       bluesteinChirpInv,
@@ -461,6 +487,8 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 		twiddleBacking []byte
 		scratch        []T
 		scratchBacking []byte
+		stridedScratch []T
+		stridedBacking []byte
 	)
 
 	switch any(zero).(type) {
@@ -474,6 +502,10 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 		scratchAligned, scratchRaw := pool.GetComplex64(n)
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
+
+		stridedAligned, stridedRaw := pool.GetComplex64(n)
+		stridedScratch = any(stridedAligned).([]T)
+		stridedBacking = stridedRaw
 	case complex128:
 		twiddleAligned, twiddleRaw := pool.GetComplex128(n)
 		tmp := fft.ComputeTwiddleFactors[complex128](n)
@@ -484,9 +516,14 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 		scratchAligned, scratchRaw := pool.GetComplex128(n)
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
+
+		stridedAligned, stridedRaw := pool.GetComplex128(n)
+		stridedScratch = any(stridedAligned).([]T)
+		stridedBacking = stridedRaw
 	default:
 		twiddle = fft.ComputeTwiddleFactors[T](n)
 		scratch = make([]T, n)
+		stridedScratch = make([]T, n)
 	}
 
 	var bitrev []int
@@ -497,16 +534,18 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 	}
 
 	p := &Plan[T]{
-		n:              n,
-		twiddle:        twiddle,
-		scratch:        scratch,
-		bitrev:         bitrev,
-		forwardKernel:  kernels.Forward,
-		inverseKernel:  kernels.Inverse,
-		kernelStrategy: strategy,
-		twiddleBacking: twiddleBacking,
-		scratchBacking: scratchBacking,
-		pool:           pool,
+		n:                     n,
+		twiddle:               twiddle,
+		scratch:               scratch,
+		stridedScratch:        stridedScratch,
+		bitrev:                bitrev,
+		forwardKernel:         kernels.Forward,
+		inverseKernel:         kernels.Inverse,
+		kernelStrategy:        strategy,
+		twiddleBacking:        twiddleBacking,
+		scratchBacking:        scratchBacking,
+		stridedScratchBacking: stridedBacking,
+		pool:                  pool,
 	}
 
 	p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
@@ -522,6 +561,7 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 func (p *Plan[T]) Reset() {
 	// Clear scratch buffer
 	clear(p.scratch)
+	clear(p.stridedScratch)
 }
 
 // Close releases pooled resources back to the buffer pool.
@@ -546,6 +586,10 @@ func (p *Plan[T]) Close() {
 		if p.scratchBacking != nil {
 			p.pool.PutComplex64(p.n, any(p.scratch).([]complex64), p.scratchBacking)
 		}
+
+		if p.stridedScratchBacking != nil {
+			p.pool.PutComplex64(p.n, any(p.stridedScratch).([]complex64), p.stridedScratchBacking)
+		}
 	case complex128:
 		if p.twiddleBacking != nil {
 			p.pool.PutComplex128(p.n, any(p.twiddle).([]complex128), p.twiddleBacking)
@@ -553,6 +597,10 @@ func (p *Plan[T]) Close() {
 
 		if p.scratchBacking != nil {
 			p.pool.PutComplex128(p.n, any(p.scratch).([]complex128), p.scratchBacking)
+		}
+
+		if p.stridedScratchBacking != nil {
+			p.pool.PutComplex128(p.n, any(p.stridedScratch).([]complex128), p.stridedScratchBacking)
 		}
 	}
 
