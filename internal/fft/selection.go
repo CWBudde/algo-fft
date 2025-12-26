@@ -72,6 +72,10 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 	}
 
 	if strategy != KernelAuto {
+		if !isSquareSize(n) && (strategy == KernelSixStep || strategy == KernelEightStep) {
+			return fallbackKernelStrategy(n)
+		}
+
 		return strategy
 	}
 
@@ -98,6 +102,23 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 		}
 	}
 
+	if n <= ditAutoThreshold {
+		return KernelDIT
+	}
+
+	return KernelStockham
+}
+
+func isSquareSize(n int) bool {
+	if n <= 0 {
+		return false
+	}
+
+	root := intSqrt(n)
+	return root*root == n
+}
+
+func fallbackKernelStrategy(n int) KernelStrategy {
 	if n <= ditAutoThreshold {
 		return KernelDIT
 	}
