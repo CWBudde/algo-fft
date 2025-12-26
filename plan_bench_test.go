@@ -8,6 +8,7 @@ import (
 )
 
 // Forward FFT benchmarks for various sizes.
+func BenchmarkPlanForward_8(b *testing.B)     { benchmarkPlanForward(b, 8) }
 func BenchmarkPlanForward_16(b *testing.B)    { benchmarkPlanForward(b, 16) }
 func BenchmarkPlanForward_64(b *testing.B)    { benchmarkPlanForward(b, 64) }
 func BenchmarkPlanForward_256(b *testing.B)   { benchmarkPlanForward(b, 256) }
@@ -17,6 +18,7 @@ func BenchmarkPlanForward_16384(b *testing.B) { benchmarkPlanForward(b, 16384) }
 func BenchmarkPlanForward_65536(b *testing.B) { benchmarkPlanForward(b, 65536) }
 
 // Inverse FFT benchmarks for various sizes.
+func BenchmarkPlanInverse_8(b *testing.B)     { benchmarkPlanInverse(b, 8) }
 func BenchmarkPlanInverse_16(b *testing.B)    { benchmarkPlanInverse(b, 16) }
 func BenchmarkPlanInverse_64(b *testing.B)    { benchmarkPlanInverse(b, 64) }
 func BenchmarkPlanInverse_256(b *testing.B)   { benchmarkPlanInverse(b, 256) }

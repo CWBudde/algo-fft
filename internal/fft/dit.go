@@ -1,6 +1,14 @@
 package fft
 
 func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	if len(src) == 8 {
+		return forwardDIT8Complex64(dst, src, twiddle, scratch, bitrev)
+	}
+
+	if len(src) == 16 {
+		return forwardDIT16Complex64(dst, src, twiddle, scratch, bitrev)
+	}
+
 	if forwardRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
 		return true
 	}
@@ -9,6 +17,14 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 }
 
 func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	if len(src) == 8 {
+		return inverseDIT8Complex64(dst, src, twiddle, scratch, bitrev)
+	}
+
+	if len(src) == 16 {
+		return inverseDIT16Complex64(dst, src, twiddle, scratch, bitrev)
+	}
+
 	if inverseRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
 		return true
 	}
@@ -17,6 +33,14 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 }
 
 func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	if len(src) == 8 {
+		return forwardDIT8Complex128(dst, src, twiddle, scratch, bitrev)
+	}
+
+	if len(src) == 16 {
+		return forwardDIT16Complex128(dst, src, twiddle, scratch, bitrev)
+	}
+
 	if forwardRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
 		return true
 	}
@@ -25,6 +49,14 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 }
 
 func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	if len(src) == 8 {
+		return inverseDIT8Complex128(dst, src, twiddle, scratch, bitrev)
+	}
+
+	if len(src) == 16 {
+		return inverseDIT16Complex128(dst, src, twiddle, scratch, bitrev)
+	}
+
 	if inverseRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
 		return true
 	}
