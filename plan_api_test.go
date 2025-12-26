@@ -10,7 +10,7 @@ import (
 func TestInverseInPlace(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](16)
+	plan, err := NewPlanT[complex64](16)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestInverseInPlace(t *testing.T) {
 func TestInverseInPlace_Complex128(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex128](32)
+	plan, err := NewPlanT[complex128](32)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestInverseInPlace_Complex128(t *testing.T) {
 func TestInverseInPlace_NilSlice(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](8)
+	plan, err := NewPlanT[complex64](8)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestInverseInPlace_NilSlice(t *testing.T) {
 func TestInverseInPlace_LengthMismatch(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](8)
+	plan, err := NewPlanT[complex64](8)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestKernelStrategy(t *testing.T) {
 			// Set desired strategy
 			SetKernelStrategy(tt.strategy)
 
-			plan, err := NewPlan[complex64](tt.size)
+			plan, err := NewPlanT[complex64](tt.size)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", tt.size, err)
 			}
@@ -192,7 +192,7 @@ func TestRecordBenchmarkDecision(t *testing.T) {
 	RecordBenchmarkDecision(512, KernelStockham)
 
 	// Create a plan for size 512
-	plan, err := NewPlan[complex64](512)
+	plan, err := NewPlanT[complex64](512)
 	if err != nil {
 		t.Fatalf("NewPlan(512) failed: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestRecordBenchmarkDecision(t *testing.T) {
 func TestTransform(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](16)
+	plan, err := NewPlanT[complex64](16)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -273,7 +273,7 @@ func TestString_AllStrategies(t *testing.T) {
 
 			SetKernelStrategy(tt.strategy)
 
-			plan, err := NewPlan[complex64](tt.size)
+			plan, err := NewPlanT[complex64](tt.size)
 			if err != nil {
 				t.Fatalf("NewPlan failed: %v", err)
 			}
@@ -325,7 +325,7 @@ func TestItoa(t *testing.T) {
 		t.Run(tt.expected, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan[complex64](tt.size)
+			plan, err := NewPlanT[complex64](tt.size)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", tt.size, err)
 			}
@@ -354,7 +354,7 @@ func TestItoa(t *testing.T) {
 func TestPlan_ConcurrentUse(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](128)
+	plan, err := NewPlanT[complex64](128)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -398,7 +398,7 @@ func TestPlan_ConcurrentUse(t *testing.T) {
 func TestClone_Concurrent(t *testing.T) {
 	t.Parallel()
 
-	original, err := NewPlan[complex64](256)
+	original, err := NewPlanT[complex64](256)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}

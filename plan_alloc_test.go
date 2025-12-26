@@ -6,7 +6,7 @@ import "testing"
 func TestPlanTransformsNoAllocsComplex64(t *testing.T) {
 	const n = 1024
 
-	plan, err := NewPlan[complex64](n)
+	plan, err := NewPlanT[complex64](n)
 	if err != nil {
 		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 	}
@@ -36,7 +36,7 @@ func TestPlanTransformsNoAllocsComplex64(t *testing.T) {
 func TestPlanTransformsNoAllocsComplex128(t *testing.T) {
 	const n = 1024
 
-	plan, err := NewPlan[complex128](n)
+	plan, err := NewPlanT[complex128](n)
 	if err != nil {
 		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 	}

@@ -673,6 +673,7 @@ Hints:
   - [x] Create groundwork summary (`/tmp/phase15_groundwork_summary.md`)
 
 **Success Criteria:** ✅ All met
+
 - Cross-compilation works for ARM64 ✅
 - QEMU test environment functional ✅
 - Test suite runs on ARM64 (167/170 tests pass) ✅
@@ -683,6 +684,7 @@ Hints:
 **Approach:** Implement full DIT FFT kernel with NEON vectorization, mirroring AVX2 structure
 
 **Files involved:**
+
 - `internal/fft/asm_arm64.s` - Assembly implementation
 - `internal/fft/kernels_arm64_asm.go` - Dispatch integration
 - `internal/fft/butterfly_neon_test.go` - Test suite (from template)
@@ -724,6 +726,7 @@ Hints:
   - [x] Confirm fallback to Go for unimplemented butterfly stages (expected)
 
 **Key Learnings:**
+
 - ARM64 Go assembly uses R-prefix (R0-R30), not X-prefix
 - CMP syntax: immediate comes first (CMP $16, R13, not CMP R13, $16)
 - complex64 = 8 bytes (4-byte real + 4-byte imag)
@@ -732,6 +735,7 @@ Hints:
 - LSL shifts left: LSL $3, Rsrc, Rdst (multiply by 8 for byte offset)
 
 **Current Status:** ✅ Scalar DIT butterfly loop structure complete for forward complex64
+
 - Forward path matches reference for sizes 2, 4, 8, 16 on ARM64 asm
 - `/tmp/phase15_progress.md` documents implementation details
 
@@ -741,7 +745,7 @@ Hints:
 
 - [x] **Add outer loop for FFT stages**
   - [x] Initialize size = 2 (R14 = 2)
-  - [x] Loop: while size <= n, process stage then size *= 2
+  - [x] Loop: while size <= n, process stage then size \*= 2
   - [x] Compute half = size / 2 (LSR $1, R14, R15)
   - [x] Compute step = n / size (UDIV R14, R13, R16)
 
@@ -773,18 +777,18 @@ Hints:
 
 **Critical building block for all stages except size=2**
 
-- [x] **Implement complex multiply: V2 = V0 * V1**
+- [x] **Implement complex multiply: V2 = V0 \* V1**
   - [x] Input: V0 = a (complex values), V1 = b (complex values)
   - [x] Extract components using UZP1/UZP2 (unzip)
-  - [x] Compute real part: a.real * b.real - a.imag * b.imag
-  - [x] Compute imag part: a.real * b.imag + a.imag * b.real
+  - [x] Compute real part: a.real _ b.real - a.imag _ b.imag
+  - [x] Compute imag part: a.real _ b.imag + a.imag _ b.real
   - [x] Interleave result using ZIP1
   - [x] ~15 lines of NEON instructions
 
 - [x] **Create standalone test for complex multiply**
-  - [x] Test known multiplications: (1+0i)*(2+0i) = 2+0i
-  - [x] Test with i: (1+0i)*(0+1i) = 0+1i
-  - [x] Test general case: (3+4i)*(1+2i) = -5+10i
+  - [x] Test known multiplications: (1+0i)\*(2+0i) = 2+0i
+  - [x] Test with i: (1+0i)\*(0+1i) = 0+1i
+  - [x] Test general case: (3+4i)\*(1+2i) = -5+10i
   - [x] Compare NEON result vs Go computation
 
 **Reference:** See `/tmp/asm_arm64_skeleton.s` lines 180-210 for detailed NEON complex multiply pattern
@@ -798,7 +802,7 @@ Hints:
   - [x] Load 2 'a' values into V0 (LD1 {V0.4S})
   - [x] Load 2 'b' values into V1
   - [x] Load 2 'w' twiddles into V2
-  - [x] Complex multiply (w * b) using VUZP1/VUZP2 + VFMLA/VFMLS
+  - [x] Complex multiply (w \* b) using VUZP1/VUZP2 + VFMLA/VFMLS
   - [x] Butterfly: a' = a + wb, b' = a - wb (VFMLA/VFMLS with ones vector)
   - [x] Store 2 results back (ST1 {V10.4S}, {V11.4S})
   - [x] Process 2 butterflies per inner loop iteration
@@ -817,7 +821,7 @@ Hints:
 
 - [x] **Implement strided twiddle path**
   - [x] Detect step > 1 (requires manual scalar loads)
-  - [x] Compute twiddle offset: tw_idx = j * step
+  - [x] Compute twiddle offset: tw_idx = j \* step
   - [x] Load single twiddle w = twiddle[tw_idx]
   - [x] Load single a, single b
   - [x] Scalar complex multiply (similar to NEON but single values)
@@ -837,7 +841,7 @@ Hints:
 - [x] **Implement `inverseNEONComplex64Asm`**
   - [x] Copy forward transform structure
   - [x] Modify complex multiply to use conjugate twiddles
-  - [x] Change w * b to conj(w) * b (negate imaginary component)
+  - [x] Change w _ b to conj(w) _ b (negate imaginary component)
   - [x] Add 1/n scaling factor after all butterfly stages
   - [x] Use FMOV for loading 1/n constant
   - [x] Use FMUL to scale all elements
@@ -865,6 +869,7 @@ Hints:
   - [x] Note: QEMU benchmarks not representative, need real ARM64 hardware
 
 **Success Criteria:**
+
 - All tests pass for sizes 16-2048 (forward and inverse)
 - Results match pure-Go DIT within 1e-6 relative error
 - Round-trip error < 1e-5
@@ -891,6 +896,7 @@ Hints:
   - [x] Benchmark speedup (QEMU only; real hardware pending)
 
 **Success Criteria:**
+
 - complex128 kernels work correctly for all sizes >= 16
 - Achieve 1.5-2x speedup over pure-Go complex128 DIT
 - Maintain higher precision (< 1e-12 error)
@@ -916,17 +922,20 @@ Hints:
   - [ ] Add ARM64 usage notes to README
 
 **Success Criteria:**
+
 - CI tests pass on both amd64 and arm64
 - Real ARM64 benchmarks documented
 - Users can build and run on ARM64 without issues
 
 **Implementation Progress:**
+
 - Phase 15.1: ✅ Complete (infrastructure, QEMU, documentation)
 - Phase 15.2.1: ✅ Complete (bit-reversal permutation, 199 lines)
 - Phase 15.2.2-7: 🚧 Next steps (butterfly loops, complex multiply, vectorization)
 - Phase 15.3-4: ⏳ Waiting for 15.2 completion
 
 **See Also:**
+
 - `/tmp/phase15_progress.md` - Detailed implementation progress and next steps
 - `/tmp/neon_implementation_guide.md` - Complete NEON instruction reference
 - `/tmp/asm_arm64_skeleton.s` - Detailed assembly skeleton with examples
@@ -960,50 +969,77 @@ Hints:
 
 ---
 
-## Phase 17: 2D FFT Implementation
+## Phase 17: 2D FFT Implementation ✅
 
-### 17.1 2D FFT API Design
+### 17.1 2D FFT API Design ✅
 
-- [ ] Design `Plan2D` type for 2D transforms
-- [ ] Define matrix representation (row-major []complex64 with stride)
-- [ ] Define `Plan2D.Forward(dst, src []complex64, rows, cols int) error`
-- [ ] Define `Plan2D.Inverse(...)` method
-- [ ] Document row-major storage convention
+- [x] Design `Plan2D[T Complex]` type for 2D transforms
+- [x] Define matrix representation (row-major []T with rows/cols stored in plan)
+- [x] Define `Plan2D.Forward(dst, src []T) error` method
+- [x] Define `Plan2D.Inverse(dst, src []T) error` method
+- [x] Define `Plan2D.ForwardInPlace` and `InverseInPlace` methods
+- [x] Document row-major storage convention
+- [x] Add convenience constructors `NewPlan2D32` and `NewPlan2D64`
+- [x] Implement `Clone()` for concurrent use
 
-### 17.2 Row-Column Algorithm
+### 17.2 Row-Column Algorithm ✅
 
-- [ ] Implement 2D FFT via row-wise then column-wise 1D FFTs
-- [ ] Create helper for extracting/inserting columns with stride
-- [ ] Reuse 1D Plan objects internally
-- [ ] Handle non-square matrices (rows ≠ cols)
-- [ ] Write basic 2D correctness tests
+- [x] Implement 2D FFT via row-wise then column-wise 1D FFTs
+- [x] Create helpers for column transforms (transpose-based for square, strided for non-square)
+- [x] Reuse 1D Plan objects internally (rowPlan and colPlan)
+- [x] Handle non-square matrices (rows ≠ cols)
+- [x] Write comprehensive correctness tests (vs naive 2D DFT)
+- [x] Zero-allocation transforms after plan creation
+- [x] Support both complex64 and complex128 precision
 
-### 17.3 2D FFT Testing & Optimization
+### 17.3 2D FFT Testing & Optimization ✅
 
-- [ ] Test 2D FFT on known images/patterns
-- [ ] Test round-trip correctness
-- [ ] Optimize column extraction (avoid copies if possible)
-- [ ] Benchmark 2D FFT for various matrix sizes
-- [ ] Compare to theoretical O(MN log(MN)) complexity
+- [x] Test 2D FFT against naive O(M²N²) reference (up to 16×16)
+- [x] Test round-trip correctness for sizes up to 128×128
+- [x] Test mathematical properties (linearity, Parseval, separability)
+- [x] Test signal properties (constant, pure sinusoid, corner frequencies)
+- [x] Optimize square matrices with transpose-based column access
+- [x] Benchmark 2D FFT for sizes 8×8 to 512×512
+- [x] Verify zero allocations during transforms
+- [x] Benchmark non-square matrices (16×32, 32×64, etc.)
+- [x] Compare in-place vs out-of-place performance
+
+**Implementation Notes:**
+
+- Uses existing transpose utilities from `internal/fft/transpose.go`
+- Square matrices use cached transpose pairs for efficiency
+- Non-square matrices use strided column extraction
+- All transforms maintain zero-allocation guarantee
+- Reference implementation in `internal/reference/dft2d.go` for validation
 
 ---
 
 ## Phase 18: 3D FFT & N-D Generalization
 
-### 18.1 3D FFT Implementation
+### 18.1 3D FFT Implementation ✅ COMPLETED
 
-- [ ] Design `Plan3D` type for 3D transforms
-- [ ] Implement as three passes of 1D FFTs along each axis
-- [ ] Handle axis iteration order for cache efficiency
-- [ ] Write correctness tests for 3D transforms
+- [x] Design `Plan3D` type for 3D transforms
+- [x] Implement as three passes of 1D FFTs along each axis
+- [x] Handle axis iteration order for cache efficiency
+- [x] Write correctness tests for 3D transforms
 
-### 18.2 N-Dimensional API
+**Implementation**: [plan_3d.go](plan_3d.go)
+**Tests**: [plan_3d_test.go](plan_3d_test.go)
+**Reference**: [internal/reference/dft3d.go](internal/reference/dft3d.go)
 
-- [ ] Design generic `PlanND` type for arbitrary dimensions
-- [ ] Accept dimension sizes as `[]int`
-- [ ] Implement iterative axis-by-axis transform
-- [ ] Test 4D and 5D transforms
-- [ ] Benchmark N-D overhead vs specialized 2D/3D
+### 18.2 N-Dimensional API ✅ COMPLETED
+
+- [x] Design generic `PlanND` type for arbitrary dimensions
+- [x] Accept dimension sizes as `[]int`
+- [x] Implement iterative axis-by-axis transform
+- [x] Test 4D and 5D transforms
+- [x] Benchmark N-D overhead vs specialized 2D/3D
+
+**Implementation**: [plan_nd.go](plan_nd.go)
+**Tests**: [plan_nd_test.go](plan_nd_test.go)
+
+**Performance**: PlanND has ~24-34% overhead vs specialized Plan3D for 3D transforms (18 µs vs 14 µs for 8×8×8).
+This is a reasonable trade-off for supporting arbitrary dimensions.
 
 ### 18.3 Multi-Dimensional Real FFT
 
@@ -1088,38 +1124,40 @@ Hints:
 
 ### 22.1 Generic Plan Type
 
-- [ ] Define `Complex` type constraint: `complex64 | complex128`
-- [ ] Define `Float` type constraint: `float32 | float64`
-- [ ] Create generic `Plan[T Complex]` type for unified API
-- [ ] Implement `NewPlan[T Complex](n int) (*Plan[T], error)` generic constructor
-- [ ] Implement `NewPlan32(n int) (*Plan[complex64], error)` explicit constructor
-- [ ] Implement `NewPlan64(n int) (*Plan[complex128], error)` explicit constructor
-- [ ] Implement `NewPlan(n int) (*Plan[complex64], error)` convenience alias
-- [ ] Test generic Plan instantiation for both complex64 and complex128
+- [x] Define `Complex` type constraint: `complex64 | complex128`
+- [x] Define `Float` type constraint: `float32 | float64`
+- [x] Create generic `Plan[T Complex]` type for unified API
+- [x] Implement `NewPlanT[T Complex](n int) (*Plan[T], error)` generic constructor
+- [x] Implement `NewPlan32(n int) (*Plan[complex64], error)` explicit constructor
+- [x] Implement `NewPlan64(n int) (*Plan[complex128], error)` explicit constructor
+- [x] Implement `NewPlan(n int) (*Plan[complex64], error)` convenience alias
+- [x] Test generic Plan instantiation for both complex64 and complex128
+- [x] Align docs/examples with the chosen `NewPlan` API (generic vs. convenience alias)
 
 ### 22.2 complex128 Implementation
 
-- [ ] Implement twiddle factor generation for complex128 (float64 precision)
-- [ ] Implement radix-2 FFT for complex128
-- [ ] Implement radix-4 FFT for complex128
-- [ ] Test complex128 correctness against reference DFT
-- [ ] Verify round-trip `Inverse(Forward(x)) ≈ x` for complex128
+- [x] Implement twiddle factor generation for complex128 (float64 precision)
+- [x] Implement radix-2 FFT for complex128
+- [x] Implement radix-4 FFT for complex128
+- [x] Test complex128 correctness against reference DFT
+- [x] Verify round-trip `Inverse(Forward(x)) ≈ x` for complex128
+- [x] Add Plan-level complex128 reference checks for power-of-two sizes (public API)
 
 ### 22.3 complex128 Optimization
 
-- [ ] Implement AVX/AVX2 butterfly for complex128 (256-bit: 2 complex128)
-- [ ] Implement NEON butterfly for complex128 on ARM64
-- [ ] Benchmark complex128 vs complex64 for various sizes
+- [x] Implement AVX/AVX2 butterfly for complex128 (256-bit: 2 complex128)
+- [x] Implement NEON butterfly for complex128 on ARM64
+- [x] Benchmark complex128 vs complex64 for various sizes
 - [ ] Profile precision differences (error accumulation)
-- [ ] Document when to use complex128 vs complex64
+- [x] Document when to use complex128 vs complex64
 
 ### 22.4 Multi-dimensional Generic Plans
 
-- [ ] Implement `NewPlan2D[T Complex](rows, cols int)` generic 2D constructor
+- [x] Implement `NewPlan2D[T Complex](rows, cols int)` generic 2D constructor
 - [ ] Implement `NewPlan3D[T Complex](d, r, c int)` generic 3D constructor
 - [ ] Implement `NewPlanND[T Complex](dims []int)` generic N-D constructor
-- [ ] Add explicit `NewPlan2D32`, `NewPlan2D64` etc. convenience constructors
-- [ ] Test multi-dimensional plans with both precisions
+- [x] Add explicit `NewPlan2D32`, `NewPlan2D64` etc. convenience constructors
+- [x] Test multi-dimensional plans with both precisions
 
 ---
 

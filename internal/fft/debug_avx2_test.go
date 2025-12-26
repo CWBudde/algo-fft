@@ -16,9 +16,9 @@ func TestDebugAVX2_RandomInput(t *testing.T) {
 	src := make([]complex64, n)
 	for i := 0; i < n; i++ {
 		seed = seed*6364136223846793005 + 1442695040888963407
-		re := float32(seed>>32) / float32(1<<32) * 2 - 1
+		re := float32(seed>>32)/float32(1<<32)*2 - 1
 		seed = seed*6364136223846793005 + 1442695040888963407
-		im := float32(seed>>32) / float32(1<<32) * 2 - 1
+		im := float32(seed>>32)/float32(1<<32)*2 - 1
 		src[i] = complex(re, im)
 	}
 
@@ -55,7 +55,7 @@ func TestDebugAVX2_RandomInput(t *testing.T) {
 		if mag < 1e-10 {
 			mag = 1
 		}
-		relErr := float32(math.Sqrt(float64(real(diff)*real(diff) + imag(diff)*imag(diff)))) / mag
+		relErr := float32(math.Sqrt(float64(real(diff)*real(diff)+imag(diff)*imag(diff)))) / mag
 		if relErr > maxRelErr {
 			maxRelErr = relErr
 		}
@@ -166,9 +166,9 @@ func TestDebugAVX2_StageByStage(t *testing.T) {
 	src := make([]complex64, n)
 	for i := 0; i < n; i++ {
 		seed = seed*6364136223846793005 + 1442695040888963407
-		re := float32(seed>>32) / float32(1<<32) * 2 - 1
+		re := float32(seed>>32)/float32(1<<32)*2 - 1
 		seed = seed*6364136223846793005 + 1442695040888963407
-		im := float32(seed>>32) / float32(1<<32) * 2 - 1
+		im := float32(seed>>32)/float32(1<<32)*2 - 1
 		src[i] = complex(re, im)
 	}
 

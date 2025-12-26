@@ -8,38 +8,38 @@ import (
 	"github.com/MeKo-Christian/algoforge/internal/cpu"
 )
 
-func BenchmarkNEONForward_64(b *testing.B)    { benchmarkNEONForward(b, 64) }
-func BenchmarkNEONForward_256(b *testing.B)   { benchmarkNEONForward(b, 256) }
-func BenchmarkNEONForward_1024(b *testing.B)  { benchmarkNEONForward(b, 1024) }
-func BenchmarkNEONForward_4096(b *testing.B)  { benchmarkNEONForward(b, 4096) }
-func BenchmarkGoForward_64(b *testing.B)      { benchmarkGoForward(b, 64) }
-func BenchmarkGoForward_256(b *testing.B)     { benchmarkGoForward(b, 256) }
-func BenchmarkGoForward_1024(b *testing.B)    { benchmarkGoForward(b, 1024) }
-func BenchmarkGoForward_4096(b *testing.B)    { benchmarkGoForward(b, 4096) }
-func BenchmarkNEONInverse_64(b *testing.B)    { benchmarkNEONInverse(b, 64) }
-func BenchmarkNEONInverse_256(b *testing.B)   { benchmarkNEONInverse(b, 256) }
-func BenchmarkNEONInverse_1024(b *testing.B)  { benchmarkNEONInverse(b, 1024) }
-func BenchmarkNEONInverse_4096(b *testing.B)  { benchmarkNEONInverse(b, 4096) }
-func BenchmarkGoInverse_64(b *testing.B)      { benchmarkGoInverse(b, 64) }
-func BenchmarkGoInverse_256(b *testing.B)     { benchmarkGoInverse(b, 256) }
-func BenchmarkGoInverse_1024(b *testing.B)    { benchmarkGoInverse(b, 1024) }
-func BenchmarkGoInverse_4096(b *testing.B)    { benchmarkGoInverse(b, 4096) }
-func BenchmarkNEONForward128_64(b *testing.B)    { benchmarkNEONForward128(b, 64) }
-func BenchmarkNEONForward128_256(b *testing.B)   { benchmarkNEONForward128(b, 256) }
-func BenchmarkNEONForward128_1024(b *testing.B)  { benchmarkNEONForward128(b, 1024) }
-func BenchmarkNEONForward128_4096(b *testing.B)  { benchmarkNEONForward128(b, 4096) }
-func BenchmarkGoForward128_64(b *testing.B)      { benchmarkGoForward128(b, 64) }
-func BenchmarkGoForward128_256(b *testing.B)     { benchmarkGoForward128(b, 256) }
-func BenchmarkGoForward128_1024(b *testing.B)    { benchmarkGoForward128(b, 1024) }
-func BenchmarkGoForward128_4096(b *testing.B)    { benchmarkGoForward128(b, 4096) }
-func BenchmarkNEONInverse128_64(b *testing.B)    { benchmarkNEONInverse128(b, 64) }
-func BenchmarkNEONInverse128_256(b *testing.B)   { benchmarkNEONInverse128(b, 256) }
-func BenchmarkNEONInverse128_1024(b *testing.B)  { benchmarkNEONInverse128(b, 1024) }
-func BenchmarkNEONInverse128_4096(b *testing.B)  { benchmarkNEONInverse128(b, 4096) }
-func BenchmarkGoInverse128_64(b *testing.B)      { benchmarkGoInverse128(b, 64) }
-func BenchmarkGoInverse128_256(b *testing.B)     { benchmarkGoInverse128(b, 256) }
-func BenchmarkGoInverse128_1024(b *testing.B)    { benchmarkGoInverse128(b, 1024) }
-func BenchmarkGoInverse128_4096(b *testing.B)    { benchmarkGoInverse128(b, 4096) }
+func BenchmarkNEONForward_64(b *testing.B)      { benchmarkNEONForward(b, 64) }
+func BenchmarkNEONForward_256(b *testing.B)     { benchmarkNEONForward(b, 256) }
+func BenchmarkNEONForward_1024(b *testing.B)    { benchmarkNEONForward(b, 1024) }
+func BenchmarkNEONForward_4096(b *testing.B)    { benchmarkNEONForward(b, 4096) }
+func BenchmarkGoForward_64(b *testing.B)        { benchmarkGoForward(b, 64) }
+func BenchmarkGoForward_256(b *testing.B)       { benchmarkGoForward(b, 256) }
+func BenchmarkGoForward_1024(b *testing.B)      { benchmarkGoForward(b, 1024) }
+func BenchmarkGoForward_4096(b *testing.B)      { benchmarkGoForward(b, 4096) }
+func BenchmarkNEONInverse_64(b *testing.B)      { benchmarkNEONInverse(b, 64) }
+func BenchmarkNEONInverse_256(b *testing.B)     { benchmarkNEONInverse(b, 256) }
+func BenchmarkNEONInverse_1024(b *testing.B)    { benchmarkNEONInverse(b, 1024) }
+func BenchmarkNEONInverse_4096(b *testing.B)    { benchmarkNEONInverse(b, 4096) }
+func BenchmarkGoInverse_64(b *testing.B)        { benchmarkGoInverse(b, 64) }
+func BenchmarkGoInverse_256(b *testing.B)       { benchmarkGoInverse(b, 256) }
+func BenchmarkGoInverse_1024(b *testing.B)      { benchmarkGoInverse(b, 1024) }
+func BenchmarkGoInverse_4096(b *testing.B)      { benchmarkGoInverse(b, 4096) }
+func BenchmarkNEONForward128_64(b *testing.B)   { benchmarkNEONForward128(b, 64) }
+func BenchmarkNEONForward128_256(b *testing.B)  { benchmarkNEONForward128(b, 256) }
+func BenchmarkNEONForward128_1024(b *testing.B) { benchmarkNEONForward128(b, 1024) }
+func BenchmarkNEONForward128_4096(b *testing.B) { benchmarkNEONForward128(b, 4096) }
+func BenchmarkGoForward128_64(b *testing.B)     { benchmarkGoForward128(b, 64) }
+func BenchmarkGoForward128_256(b *testing.B)    { benchmarkGoForward128(b, 256) }
+func BenchmarkGoForward128_1024(b *testing.B)   { benchmarkGoForward128(b, 1024) }
+func BenchmarkGoForward128_4096(b *testing.B)   { benchmarkGoForward128(b, 4096) }
+func BenchmarkNEONInverse128_64(b *testing.B)   { benchmarkNEONInverse128(b, 64) }
+func BenchmarkNEONInverse128_256(b *testing.B)  { benchmarkNEONInverse128(b, 256) }
+func BenchmarkNEONInverse128_1024(b *testing.B) { benchmarkNEONInverse128(b, 1024) }
+func BenchmarkNEONInverse128_4096(b *testing.B) { benchmarkNEONInverse128(b, 4096) }
+func BenchmarkGoInverse128_64(b *testing.B)     { benchmarkGoInverse128(b, 64) }
+func BenchmarkGoInverse128_256(b *testing.B)    { benchmarkGoInverse128(b, 256) }
+func BenchmarkGoInverse128_1024(b *testing.B)   { benchmarkGoInverse128(b, 1024) }
+func BenchmarkGoInverse128_4096(b *testing.B)   { benchmarkGoInverse128(b, 4096) }
 
 func benchmarkNEONForward(b *testing.B, n int) {
 	benchmarkKernelForward(b, n, cpu.Features{

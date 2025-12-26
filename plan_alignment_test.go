@@ -10,7 +10,7 @@ import (
 func TestPlanAlignmentComplex64(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](1024)
+	plan, err := NewPlanT[complex64](1024)
 	if err != nil {
 		t.Fatalf("NewPlan(1024) returned error: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestPlanAlignmentComplex64(t *testing.T) {
 func TestPlanAlignmentComplex128(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex128](1024)
+	plan, err := NewPlanT[complex128](1024)
 	if err != nil {
 		t.Fatalf("NewPlan(1024) returned error: %v", err)
 	}

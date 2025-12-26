@@ -10,7 +10,7 @@ func TestDITScalingRoundTrip(t *testing.T) {
 	SetKernelStrategy(KernelDIT)
 	t.Cleanup(func() { SetKernelStrategy(prev) })
 
-	plan, err := NewPlan[complex64](16)
+	plan, err := NewPlanT[complex64](16)
 	if err != nil {
 		t.Fatalf("NewPlan(16) returned error: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestDITScalingRoundTrip(t *testing.T) {
 func TestOutOfPlaceDoesNotModifySource(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](16)
+	plan, err := NewPlanT[complex64](16)
 	if err != nil {
 		t.Fatalf("NewPlan(16) returned error: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestOutOfPlaceDoesNotModifySource(t *testing.T) {
 func TestInPlaceMatchesOutOfPlace(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](32)
+	plan, err := NewPlanT[complex64](32)
 	if err != nil {
 		t.Fatalf("NewPlan(32) returned error: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestInPlaceMatchesOutOfPlace(t *testing.T) {
 func TestTransformForwardInverse(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](16)
+	plan, err := NewPlanT[complex64](16)
 	if err != nil {
 		t.Fatalf("NewPlan(16) returned error: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestRoundTripSizes(t *testing.T) {
 
 	sizes := []int{16, 32, 64, 128, 256, 512, 1024}
 	for _, n := range sizes {
-		plan, err := NewPlan[complex64](n)
+		plan, err := NewPlanT[complex64](n)
 		if err != nil {
 			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 		}

@@ -13,7 +13,7 @@ func TestNewPlan_Bluestein_EdgeCases(t *testing.T) {
 	t.Run("N=1", func(t *testing.T) {
 		t.Parallel()
 
-		plan, err := NewPlan[complex64](1)
+		plan, err := NewPlanT[complex64](1)
 		if err != nil {
 			t.Fatalf("NewPlan(1) failed: %v", err)
 		}
@@ -44,7 +44,7 @@ func TestNewPlan_Bluestein_EdgeCases(t *testing.T) {
 		t.Parallel()
 
 		// N=2 is power of 2, but test it doesn't break if forced to Bluestein
-		plan, err := NewPlan[complex64](2)
+		plan, err := NewPlanT[complex64](2)
 		if err != nil {
 			t.Fatalf("NewPlan(2) failed: %v", err)
 		}
@@ -78,7 +78,7 @@ func TestNewPlan_Bluestein(t *testing.T) {
 		t.Run("complex64_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan[complex64](n)
+			plan, err := NewPlanT[complex64](n)
 			if err != nil {
 				t.Errorf("NewPlan(%d) error: %v", n, err)
 				return
@@ -95,7 +95,7 @@ func TestNewPlan_Bluestein(t *testing.T) {
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan[complex128](n)
+			plan, err := NewPlanT[complex128](n)
 			if err != nil {
 				t.Errorf("NewPlan(%d) error: %v", n, err)
 				return
@@ -121,7 +121,7 @@ func TestBluestein_RoundTrip(t *testing.T) {
 	t.Run("complex64", func(t *testing.T) {
 		t.Parallel()
 
-		plan, err := NewPlan[complex64](n)
+		plan, err := NewPlanT[complex64](n)
 		if err != nil {
 			t.Fatalf("NewPlan(%d) failed: %v", n, err)
 		}
@@ -152,7 +152,7 @@ func TestBluestein_RoundTrip(t *testing.T) {
 	t.Run("complex128", func(t *testing.T) {
 		t.Parallel()
 
-		plan, err := NewPlan[complex128](n)
+		plan, err := NewPlanT[complex128](n)
 		if err != nil {
 			t.Fatalf("NewPlan(%d) failed: %v", n, err)
 		}
@@ -190,7 +190,7 @@ func TestBluestein_LargePrimes(t *testing.T) {
 		t.Run(itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan[complex64](n)
+			plan, err := NewPlanT[complex64](n)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}
@@ -233,7 +233,7 @@ func TestBluestein_MatchesReference(t *testing.T) {
 		t.Run("complex64_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan[complex64](n)
+			plan, err := NewPlanT[complex64](n)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}
@@ -267,7 +267,7 @@ func TestBluestein_MatchesReference(t *testing.T) {
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan[complex128](n)
+			plan, err := NewPlanT[complex128](n)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}
@@ -308,7 +308,7 @@ func TestBluestein_InverseMatchesReference(t *testing.T) {
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan[complex128](n)
+			plan, err := NewPlanT[complex128](n)
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}
@@ -346,7 +346,7 @@ func BenchmarkBluesteinVsNaive(b *testing.B) {
 
 	for _, n := range primes {
 		b.Run("Bluestein_"+itoa(n), func(b *testing.B) {
-			plan, err := NewPlan[complex64](n)
+			plan, err := NewPlanT[complex64](n)
 			if err != nil {
 				b.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}
@@ -390,7 +390,7 @@ func BenchmarkBluesteinForward(b *testing.B) {
 
 	for _, n := range primes {
 		b.Run("complex64_"+itoa(n), func(b *testing.B) {
-			plan, err := NewPlan[complex64](n)
+			plan, err := NewPlanT[complex64](n)
 			if err != nil {
 				b.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}
@@ -412,7 +412,7 @@ func BenchmarkBluesteinForward(b *testing.B) {
 		})
 
 		b.Run("complex128_"+itoa(n), func(b *testing.B) {
-			plan, err := NewPlan[complex128](n)
+			plan, err := NewPlanT[complex128](n)
 			if err != nil {
 				b.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}
@@ -441,7 +441,7 @@ func BenchmarkBluesteinInverse(b *testing.B) {
 
 	for _, n := range primes {
 		b.Run("complex64_"+itoa(n), func(b *testing.B) {
-			plan, err := NewPlan[complex64](n)
+			plan, err := NewPlanT[complex64](n)
 			if err != nil {
 				b.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}
@@ -463,7 +463,7 @@ func BenchmarkBluesteinInverse(b *testing.B) {
 		})
 
 		b.Run("complex128_"+itoa(n), func(b *testing.B) {
-			plan, err := NewPlan[complex128](n)
+			plan, err := NewPlanT[complex128](n)
 			if err != nil {
 				b.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}
@@ -492,7 +492,7 @@ func BenchmarkBluesteinRoundTrip(b *testing.B) {
 
 	for _, n := range primes {
 		b.Run(itoa(n), func(b *testing.B) {
-			plan, err := NewPlan[complex64](n)
+			plan, err := NewPlanT[complex64](n)
 			if err != nil {
 				b.Fatalf("NewPlan(%d) failed: %v", n, err)
 			}

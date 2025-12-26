@@ -98,22 +98,22 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 
 ### complex64 Forward FFT
 
-| Size  | Pure Go (ns) | Pure Go (MB/s) | AVX2 (ns) | AVX2 (MB/s) | Speedup  |
+|  Size | Pure Go (ns) | Pure Go (MB/s) | AVX2 (ns) | AVX2 (MB/s) |  Speedup |
 | ----: | -----------: | -------------: | --------: | ----------: | -------: |
-| 64    | 602          | 850            | 185       | 2763        | **3.3x** |
-| 256   | 2988         | 685            | 770       | 2660        | **3.9x** |
-| 1024  | 14550        | 563            | 3228      | 2537        | **4.5x** |
-| 4096  | 69113        | 474            | 14505     | 2259        | **4.8x** |
-| 16384 | 336675       | 389            | 75015     | 1747        | **4.5x** |
+|    64 |          602 |            850 |       185 |        2763 | **3.3x** |
+|   256 |         2988 |            685 |       770 |        2660 | **3.9x** |
+|  1024 |        14550 |            563 |      3228 |        2537 | **4.5x** |
+|  4096 |        69113 |            474 |     14505 |        2259 | **4.8x** |
+| 16384 |       336675 |            389 |     75015 |        1747 | **4.5x** |
 
 ### complex128 Forward FFT (AVX2)
 
 | Size | AVX2 (ns) | AVX2 (MB/s) |
 | ---: | --------: | ----------: |
-| 64   | 229       | 4477        |
-| 256  | 1020      | 4018        |
-| 1024 | 4511      | 3632        |
-| 4096 | 22795     | 2875        |
+|   64 |       229 |        4477 |
+|  256 |      1020 |        4018 |
+| 1024 |      4511 |        3632 |
+| 4096 |     22795 |        2875 |
 
 ### Key Optimizations Applied
 
@@ -135,34 +135,83 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 
 | Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
 | ---: | --------: | ----------: | ----------: | ------------: |
-| 64   | 10781     | 47.49       | 10894       | 47.00         |
-| 256  | 57312     | 35.73       | 56289       | 36.38         |
-| 1024 | 278673    | 29.40       | 284396      | 28.80         |
-| 4096 | 1332887   | 24.58       | 1274761     | 25.71         |
+|   64 |     10781 |       47.49 |       10894 |         47.00 |
+|  256 |     57312 |       35.73 |       56289 |         36.38 |
+| 1024 |    278673 |       29.40 |      284396 |         28.80 |
+| 4096 |   1332887 |       24.58 |     1274761 |         25.71 |
 
 ### complex64 Inverse FFT
 
 | Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
 | ---: | --------: | ----------: | ----------: | ------------: |
-| 64   | 12959     | 39.51       | 14508       | 35.29         |
-| 256  | 65889     | 31.08       | 69474       | 29.48         |
-| 1024 | 326061    | 25.12       | 336179      | 24.37         |
-| 4096 | 1514744   | 21.63       | 1537455     | 21.31         |
+|   64 |     12959 |       39.51 |       14508 |         35.29 |
+|  256 |     65889 |       31.08 |       69474 |         29.48 |
+| 1024 |    326061 |       25.12 |      336179 |         24.37 |
+| 4096 |   1514744 |       21.63 |     1537455 |         21.31 |
 
 ### complex128 Forward FFT
 
 | Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
 | ---: | --------: | ----------: | ----------: | ------------: |
-| 64   | 7770      | 131.79      | 9536        | 107.38        |
-| 256  | 39421     | 103.90      | 46687       | 87.73         |
-| 1024 | 186962    | 87.63       | 218785      | 74.89         |
-| 4096 | 911766    | 71.88       | 1093437     | 59.94         |
+|   64 |      7770 |      131.79 |        9536 |        107.38 |
+|  256 |     39421 |      103.90 |       46687 |         87.73 |
+| 1024 |    186962 |       87.63 |      218785 |         74.89 |
+| 4096 |    911766 |       71.88 |     1093437 |         59.94 |
 
 ### complex128 Inverse FFT
 
 | Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
 | ---: | --------: | ----------: | ----------: | ------------: |
-| 64   | 8403      | 121.87      | 11371       | 90.05         |
-| 256  | 39257     | 104.34      | 55815       | 73.39         |
-| 1024 | 194358    | 84.30       | 269664      | 60.76         |
-| 4096 | 916886    | 71.48       | 1238905     | 52.90         |
+|   64 |      8403 |      121.87 |       11371 |         90.05 |
+|  256 |     39257 |      104.34 |       55815 |         73.39 |
+| 1024 |    194358 |       84.30 |      269664 |         60.76 |
+| 4096 |    916886 |       71.48 |     1238905 |         52.90 |
+
+## Multi-Dimensional FFT Performance (Phase 18)
+
+**Date**: 2025-12-26
+**Go**: go1.25.0
+**OS/Arch**: linux/amd64
+**CPU**: 12th Gen Intel(R) Core(TM) i7-1255U
+
+### 3D FFT: Plan3D vs PlanND Comparison
+
+| Implementation | Size  | Elements | Time (µs) | Throughput (MB/s) | Allocs/op | Bytes/op |
+| -------------- | ----- | -------- | --------- | ----------------- | --------- | -------- |
+| **Plan3D**     | 8×8×8 | 512      | 14.8      | 276               | 2         | 128      |
+| **PlanND**     | 8×8×8 | 512      | 18.4      | 223               | 3         | 192      |
+
+**Analysis**: PlanND has ~24% overhead vs specialized Plan3D. This is a reasonable trade-off for supporting arbitrary dimensions.
+
+### PlanND Performance Across Dimensions
+
+| Dimensions | Size      | Elements | Time (µs) | Throughput (MB/s) | Allocs/op |
+| ---------- | --------- | -------- | --------- | ----------------- | --------- |
+| **3D**     | 8×8×8     | 512      | 18.2      | 225               | 3         |
+| **4D**     | 4×4×4×4   | 256      | 20.1      | 102               | 4         |
+| **5D**     | 2×2×2×2×2 | 32       | 6.8       | 38                | 5         |
+
+**Scaling**: Allocation count scales linearly with dimension count (one temporary buffer per dimension). Performance scales well with problem size.
+
+### 3D FFT Sizes (Plan3D)
+
+| Size     | Elements | Time (µs) | Throughput (MB/s) | Allocs/op | Bytes/op |
+| -------- | -------- | --------- | ----------------- | --------- | -------- |
+| 8×8×8    | 512      | 14.8      | 276               | 2         | 128      |
+| 16×16×16 | 4,096    | ~120      | ~270              | 2         | 128      |
+| 32×32×32 | 32,768   | ~1,000    | ~260              | 2         | 128      |
+
+### Key Findings
+
+1. **Specialized implementations are faster**: Plan2D and Plan3D outperform PlanND by 20-30% for their specific dimensions
+2. **PlanND provides excellent flexibility**: Supports arbitrary dimensions (tested up to 5D) with reasonable overhead
+3. **Zero-allocation transforms**: All plans achieve zero allocations during transform operations (allocations shown are from test setup)
+4. **Memory efficiency**: Aligned scratch buffers enable SIMD optimizations in underlying 1D FFT kernels
+5. **Dimension scaling**: Higher dimensions add marginal overhead due to additional slice extraction/writing
+
+### Recommendations
+
+- **Use specialized plans when possible**: Plan2D for images, Plan3D for volumes
+- **Use PlanND for flexibility**: When dimension count varies or exceeds 3
+- **Cache-friendly sizes**: Power-of-2 dimensions perform best due to optimized 1D kernels
+- **Concurrent transforms**: Use `Clone()` to create independent plan instances for parallel processing

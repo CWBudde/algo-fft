@@ -1,0 +1,628 @@
+package algoforge
+
+import (
+	"math"
+	"math/cmplx"
+	"math/rand/v2"
+	"testing"
+
+	"github.com/MeKo-Christian/algoforge/internal/reference"
+)
+
+// Test helpers
+
+func generateRandom2DSignal(rows, cols int, seed uint64) []complex64 {
+	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF)) //nolint:gosec
+	signal := make([]complex64, rows*cols)
+	for i := range signal {
+		re := float32(rng.Float64()*20 - 10)
+		im := float32(rng.Float64()*20 - 10)
+		signal[i] = complex(re, im)
+	}
+	return signal
+}
+
+func generateRandom2DSignal128(rows, cols int, seed uint64) []complex128 {
+	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF)) //nolint:gosec
+	signal := make([]complex128, rows*cols)
+	for i := range signal {
+		re := rng.Float64()*20 - 10
+		im := rng.Float64()*20 - 10
+		signal[i] = complex(re, im)
+	}
+	return signal
+}
+
+// Test Plan2D creation
+
+func TestNewPlan2D_ValidDimensions(t *testing.T) {
+	testCases := []struct {
+		rows, cols int
+		name       string
+	}{
+		{1, 1, "1x1"},
+		{2, 2, "2x2_square"},
+		{4, 4, "4x4_square"},
+		{8, 8, "8x8_square"},
+		{4, 8, "4x8_nonsquare"},
+		{8, 4, "8x4_nonsquare"},
+		{16, 32, "16x32_large_nonsquare"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan, err := NewPlan2D[complex64](tc.rows, tc.cols)
+			if err != nil {
+				t.Fatalf("NewPlan2D(%d, %d) failed: %v", tc.rows, tc.cols, err)
+			}
+			if plan.Rows() != tc.rows {
+				t.Errorf("Rows() = %d, want %d", plan.Rows(), tc.rows)
+			}
+			if plan.Cols() != tc.cols {
+				t.Errorf("Cols() = %d, want %d", plan.Cols(), tc.cols)
+			}
+			if plan.Len() != tc.rows*tc.cols {
+				t.Errorf("Len() = %d, want %d", plan.Len(), tc.rows*tc.cols)
+			}
+		})
+	}
+}
+
+func TestNewPlan2D_InvalidDimensions(t *testing.T) {
+	testCases := []struct {
+		rows, cols int
+		name       string
+	}{
+		{0, 0, "zero_zero"},
+		{0, 4, "zero_rows"},
+		{4, 0, "zero_cols"},
+		{-1, 4, "negative_rows"},
+		{4, -1, "negative_cols"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewPlan2D[complex64](tc.rows, tc.cols)
+			if err != ErrInvalidLength {
+				t.Errorf("NewPlan2D(%d, %d) = %v, want ErrInvalidLength", tc.rows, tc.cols, err)
+			}
+		})
+	}
+}
+
+func TestNewPlan2D32_64(t *testing.T) {
+	t.Run("NewPlan2D32", func(t *testing.T) {
+		plan, err := NewPlan2D32(4, 4)
+		if err != nil {
+			t.Fatalf("NewPlan2D32 failed: %v", err)
+		}
+		if plan.Rows() != 4 || plan.Cols() != 4 {
+			t.Errorf("Dimensions mismatch")
+		}
+	})
+
+	t.Run("NewPlan2D64", func(t *testing.T) {
+		plan, err := NewPlan2D64(4, 4)
+		if err != nil {
+			t.Fatalf("NewPlan2D64 failed: %v", err)
+		}
+		if plan.Rows() != 4 || plan.Cols() != 4 {
+			t.Errorf("Dimensions mismatch")
+		}
+	})
+}
+
+// Test validation
+
+func TestPlan2D_NilSlices(t *testing.T) {
+	plan, err := NewPlan2D[complex64](4, 4)
+	if err != nil {
+		t.Fatalf("NewPlan2D failed: %v", err)
+	}
+
+	validData := make([]complex64, 16)
+
+	t.Run("nil_dst", func(t *testing.T) {
+		err := plan.Forward(nil, validData)
+		if err != ErrNilSlice {
+			t.Errorf("Forward(nil, validData) = %v, want ErrNilSlice", err)
+		}
+	})
+
+	t.Run("nil_src", func(t *testing.T) {
+		err := plan.Forward(validData, nil)
+		if err != ErrNilSlice {
+			t.Errorf("Forward(validData, nil) = %v, want ErrNilSlice", err)
+		}
+	})
+}
+
+func TestPlan2D_LengthMismatch(t *testing.T) {
+	plan, err := NewPlan2D[complex64](4, 4)
+	if err != nil {
+		t.Fatalf("NewPlan2D failed: %v", err)
+	}
+
+	validData := make([]complex64, 16)
+	wrongData := make([]complex64, 10)
+
+	t.Run("wrong_dst_length", func(t *testing.T) {
+		err := plan.Forward(wrongData, validData)
+		if err != ErrLengthMismatch {
+			t.Errorf("Forward with wrong dst length = %v, want ErrLengthMismatch", err)
+		}
+	})
+
+	t.Run("wrong_src_length", func(t *testing.T) {
+		err := plan.Forward(validData, wrongData)
+		if err != ErrLengthMismatch {
+			t.Errorf("Forward with wrong src length = %v, want ErrLengthMismatch", err)
+		}
+	})
+}
+
+// Test correctness against reference implementation
+
+func TestPlan2D_ForwardMatchesReference(t *testing.T) {
+	testCases := []struct {
+		rows, cols int
+		name       string
+	}{
+		{2, 2, "2x2"},
+		{4, 4, "4x4"},
+		{8, 8, "8x8"},
+		{16, 16, "16x16"},
+		{4, 8, "4x8_nonsquare"},
+		{8, 4, "8x4_nonsquare"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan, err := NewPlan2D[complex64](tc.rows, tc.cols)
+			if err != nil {
+				t.Fatalf("NewPlan2D failed: %v", err)
+			}
+
+			src := generateRandom2DSignal(tc.rows, tc.cols, 12345)
+			dst := make([]complex64, tc.rows*tc.cols)
+
+			// Compute with Plan2D
+			if err := plan.Forward(dst, src); err != nil {
+				t.Fatalf("Forward failed: %v", err)
+			}
+
+			// Compute with reference
+			want := reference.NaiveDFT2D(src, tc.rows, tc.cols)
+
+			// Compare results
+			tol := 1e-3
+			for i := range dst {
+				row, col := i/tc.cols, i%tc.cols
+				assertApproxComplex64Tolf(t, dst[i], want[i], tol, "[%d,%d]", row, col)
+			}
+		})
+	}
+}
+
+func TestPlan2D_InverseMatchesReference(t *testing.T) {
+	testCases := []struct {
+		rows, cols int
+		name       string
+	}{
+		{2, 2, "2x2"},
+		{4, 4, "4x4"},
+		{8, 8, "8x8"},
+		{16, 16, "16x16"},
+		{4, 8, "4x8_nonsquare"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan, err := NewPlan2D[complex64](tc.rows, tc.cols)
+			if err != nil {
+				t.Fatalf("NewPlan2D failed: %v", err)
+			}
+
+			src := generateRandom2DSignal(tc.rows, tc.cols, 54321)
+			dst := make([]complex64, tc.rows*tc.cols)
+
+			// Compute with Plan2D
+			if err := plan.Inverse(dst, src); err != nil {
+				t.Fatalf("Inverse failed: %v", err)
+			}
+
+			// Compute with reference
+			want := reference.NaiveIDFT2D(src, tc.rows, tc.cols)
+
+			// Compare results
+			tol := 1e-3
+			for i := range dst {
+				row, col := i/tc.cols, i%tc.cols
+				assertApproxComplex64Tolf(t, dst[i], want[i], tol, "[%d,%d]", row, col)
+			}
+		})
+	}
+}
+
+func TestPlan2D_ForwardMatchesReference128(t *testing.T) {
+	testCases := []struct {
+		rows, cols int
+		name       string
+	}{
+		{4, 4, "4x4"},
+		{8, 8, "8x8"},
+		{4, 8, "4x8_nonsquare"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan, err := NewPlan2D[complex128](tc.rows, tc.cols)
+			if err != nil {
+				t.Fatalf("NewPlan2D failed: %v", err)
+			}
+
+			src := generateRandom2DSignal128(tc.rows, tc.cols, 12345)
+			dst := make([]complex128, tc.rows*tc.cols)
+
+			if err := plan.Forward(dst, src); err != nil {
+				t.Fatalf("Forward failed: %v", err)
+			}
+
+			want := reference.NaiveDFT2D128(src, tc.rows, tc.cols)
+
+			tol := 1e-10
+			for i := range dst {
+				row, col := i/tc.cols, i%tc.cols
+				assertApproxComplex128Tolf(t, dst[i], want[i], tol, "[%d,%d]", row, col)
+			}
+		})
+	}
+}
+
+// Test round-trip: Inverse(Forward(x)) ≈ x
+
+func TestPlan2D_RoundTrip(t *testing.T) {
+	testCases := []struct {
+		rows, cols int
+		name       string
+	}{
+		{8, 8, "8x8"},
+		{16, 16, "16x16"},
+		{32, 32, "32x32"},
+		{64, 64, "64x64"},
+		{8, 16, "8x16_nonsquare"},
+		{16, 32, "16x32_nonsquare"},
+		{32, 64, "32x64_nonsquare"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan, err := NewPlan2D[complex64](tc.rows, tc.cols)
+			if err != nil {
+				t.Fatalf("NewPlan2D failed: %v", err)
+			}
+
+			original := generateRandom2DSignal(tc.rows, tc.cols, 99999)
+			freq := make([]complex64, tc.rows*tc.cols)
+			roundTrip := make([]complex64, tc.rows*tc.cols)
+
+			// Forward
+			if err := plan.Forward(freq, original); err != nil {
+				t.Fatalf("Forward failed: %v", err)
+			}
+
+			// Inverse
+			if err := plan.Inverse(roundTrip, freq); err != nil {
+				t.Fatalf("Inverse failed: %v", err)
+			}
+
+			// Verify round-trip
+			tol := 1e-3
+			for i := range original {
+				row, col := i/tc.cols, i%tc.cols
+				assertApproxComplex64Tolf(t, roundTrip[i], original[i], tol, "[%d,%d]", row, col)
+			}
+		})
+	}
+}
+
+func TestPlan2D_RoundTrip128(t *testing.T) {
+	testCases := []struct {
+		rows, cols int
+		name       string
+	}{
+		{8, 8, "8x8"},
+		{16, 16, "16x16"},
+		{32, 32, "32x32"},
+		{8, 16, "8x16_nonsquare"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan, err := NewPlan2D[complex128](tc.rows, tc.cols)
+			if err != nil {
+				t.Fatalf("NewPlan2D failed: %v", err)
+			}
+
+			original := generateRandom2DSignal128(tc.rows, tc.cols, 99999)
+			freq := make([]complex128, tc.rows*tc.cols)
+			roundTrip := make([]complex128, tc.rows*tc.cols)
+
+			if err := plan.Forward(freq, original); err != nil {
+				t.Fatalf("Forward failed: %v", err)
+			}
+
+			if err := plan.Inverse(roundTrip, freq); err != nil {
+				t.Fatalf("Inverse failed: %v", err)
+			}
+
+			tol := 1e-10
+			for i := range original {
+				row, col := i/tc.cols, i%tc.cols
+				assertApproxComplex128Tolf(t, roundTrip[i], original[i], tol, "[%d,%d]", row, col)
+			}
+		})
+	}
+}
+
+func TestPlan2D_InPlaceMatchesOutOfPlace(t *testing.T) {
+	rows, cols := 8, 8
+	plan, err := NewPlan2D[complex64](rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlan2D failed: %v", err)
+	}
+
+	src := generateRandom2DSignal(rows, cols, 77777)
+
+	// Out-of-place
+	outOfPlace := make([]complex64, rows*cols)
+	if err := plan.Forward(outOfPlace, src); err != nil {
+		t.Fatalf("Out-of-place Forward failed: %v", err)
+	}
+
+	// In-place
+	inPlace := append([]complex64(nil), src...)
+	if err := plan.ForwardInPlace(inPlace); err != nil {
+		t.Fatalf("In-place Forward failed: %v", err)
+	}
+
+	// Compare
+	tol := 1e-6
+	for i := range outOfPlace {
+		assertApproxComplex64Tolf(t, inPlace[i], outOfPlace[i], tol, "[%d]", i)
+	}
+}
+
+// Test mathematical properties
+
+func TestPlan2D_Linearity(t *testing.T) {
+	rows, cols := 8, 8
+	plan, err := NewPlan2D[complex64](rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlan2D failed: %v", err)
+	}
+
+	signalX := generateRandom2DSignal(rows, cols, 111)
+	signalY := generateRandom2DSignal(rows, cols, 222)
+
+	coeffA := complex64(complex(2.5, 0.5))
+	coeffB := complex64(complex(-1.3, 0.7))
+
+	// Compute aX + bY
+	combined := make([]complex64, rows*cols)
+	for i := range combined {
+		combined[i] = coeffA*signalX[i] + coeffB*signalY[i]
+	}
+
+	// FFT(aX + bY)
+	fftCombined := make([]complex64, rows*cols)
+	if err := plan.Forward(fftCombined, combined); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	// a·FFT(X) + b·FFT(Y)
+	fftX := make([]complex64, rows*cols)
+	fftY := make([]complex64, rows*cols)
+	plan.Forward(fftX, signalX)
+	plan.Forward(fftY, signalY)
+
+	expected := make([]complex64, rows*cols)
+	for i := range expected {
+		expected[i] = coeffA*fftX[i] + coeffB*fftY[i]
+	}
+
+	// Verify linearity
+	tol := 1e-2
+	for i := range fftCombined {
+		assertApproxComplex64Tolf(t, fftCombined[i], expected[i], tol, "[%d]", i)
+	}
+}
+
+func TestPlan2D_Parseval(t *testing.T) {
+	rows, cols := 8, 8
+	plan, err := NewPlan2D[complex64](rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlan2D failed: %v", err)
+	}
+
+	signal := generateRandom2DSignal(rows, cols, 54321)
+
+	// Time-domain energy
+	var timeEnergy float64
+	for _, v := range signal {
+		mag := cmplx.Abs(complex128(v))
+		timeEnergy += mag * mag
+	}
+
+	// Frequency-domain energy
+	freq := make([]complex64, rows*cols)
+	plan.Forward(freq, signal)
+
+	var freqEnergy float64
+	for _, v := range freq {
+		mag := cmplx.Abs(complex128(v))
+		freqEnergy += mag * mag
+	}
+
+	// Normalization: (1/MN)
+	freqEnergy /= float64(rows * cols)
+
+	// Check Parseval's theorem
+	tolerance := 1e-1
+	if math.Abs(timeEnergy-freqEnergy) > tolerance {
+		t.Errorf("Parseval's theorem failed: time=%f, freq=%f", timeEnergy, freqEnergy)
+	}
+}
+
+func TestPlan2D_Separability(t *testing.T) {
+	rows, cols := 4, 4
+	plan, err := NewPlan2D[complex64](rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlan2D failed: %v", err)
+	}
+
+	signal := generateRandom2DSignal(rows, cols, 88888)
+
+	// Direct 2D FFT
+	direct := make([]complex64, rows*cols)
+	plan.Forward(direct, signal)
+
+	// Separable: row-wise then column-wise
+	rowPlan, _ := NewPlanT[complex64](cols)
+	colPlan, _ := NewPlanT[complex64](rows)
+
+	temp := append([]complex64(nil), signal...)
+
+	// Transform rows
+	for row := 0; row < rows; row++ {
+		rowData := temp[row*cols : (row+1)*cols]
+		rowPlan.InPlace(rowData)
+	}
+
+	// Transform columns
+	separable := make([]complex64, rows*cols)
+	copy(separable, temp)
+
+	colData := make([]complex64, rows)
+	for col := 0; col < cols; col++ {
+		for row := 0; row < rows; row++ {
+			colData[row] = temp[row*cols+col]
+		}
+		colPlan.InPlace(colData)
+		for row := 0; row < rows; row++ {
+			separable[row*cols+col] = colData[row]
+		}
+	}
+
+	// Verify
+	tol := 1e-3
+	for i := range direct {
+		assertApproxComplex64Tolf(t, separable[i], direct[i], tol, "[%d]", i)
+	}
+}
+
+// Test signal properties
+
+func TestPlan2D_ConstantSignal(t *testing.T) {
+	rows, cols := 8, 8
+	plan, err := NewPlan2D[complex64](rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlan2D failed: %v", err)
+	}
+
+	signal := make([]complex64, rows*cols)
+	for i := range signal {
+		signal[i] = complex(1.0, 0.0)
+	}
+
+	freq := make([]complex64, rows*cols)
+	plan.Forward(freq, signal)
+
+	// DC component should be rows*cols
+	expectedDC := complex(float32(rows*cols), 0)
+	tol := 1e-4
+	assertApproxComplex64Tolf(t, freq[0], expectedDC, tol, "DC")
+
+	// All other bins should be near zero
+	for i := 1; i < rows*cols; i++ {
+		mag := cmplx.Abs(complex128(freq[i]))
+		if mag > 1e-4 {
+			row, col := i/cols, i%cols
+			t.Errorf("Non-DC bin [%d,%d]: mag=%v, want near zero", row, col, mag)
+		}
+	}
+}
+
+func TestPlan2D_PureSinusoid2D(t *testing.T) {
+	rows, cols := 8, 8
+	kx, ky := 2, 3
+
+	plan, err := NewPlan2D[complex64](rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlan2D failed: %v", err)
+	}
+
+	signal := make([]complex64, rows*cols)
+	for m := 0; m < rows; m++ {
+		for n := 0; n < cols; n++ {
+			phaseRow := 2.0 * math.Pi * float64(kx*m) / float64(rows)
+			phaseCol := 2.0 * math.Pi * float64(ky*n) / float64(cols)
+			phase := phaseRow + phaseCol
+			signal[m*cols+n] = complex64(complex(math.Cos(phase), math.Sin(phase)))
+		}
+	}
+
+	freq := make([]complex64, rows*cols)
+	plan.Forward(freq, signal)
+
+	// Peak at [kx, ky]
+	peakIdx := kx*cols + ky
+	expectedPeak := complex(float32(rows*cols), 0)
+	tol := 1e-2
+	assertApproxComplex64Tolf(t, freq[peakIdx], expectedPeak, tol, "[%d,%d]", kx, ky)
+
+	// Other bins near zero
+	for i := range freq {
+		if i != peakIdx {
+			mag := cmplx.Abs(complex128(freq[i]))
+			if mag > 2e-2 {
+				row, col := i/cols, i%cols
+				t.Errorf("Non-peak bin [%d,%d]: mag=%v, want near zero", row, col, mag)
+			}
+		}
+	}
+}
+
+// Test Clone
+
+func TestPlan2D_Clone(t *testing.T) {
+	rows, cols := 8, 8
+	original, err := NewPlan2D[complex64](rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlan2D failed: %v", err)
+	}
+
+	clone := original.Clone()
+
+	// Verify dimensions match
+	if clone.Rows() != original.Rows() {
+		t.Errorf("Clone Rows mismatch")
+	}
+	if clone.Cols() != original.Cols() {
+		t.Errorf("Clone Cols mismatch")
+	}
+
+	// Verify independent operation
+	signal := generateRandom2DSignal(rows, cols, 11111)
+	freq1 := make([]complex64, rows*cols)
+	freq2 := make([]complex64, rows*cols)
+
+	original.Forward(freq1, signal)
+	clone.Forward(freq2, signal)
+
+	// Results should match
+	tol := 1e-6
+	for i := range freq1 {
+		assertApproxComplex64Tolf(t, freq2[i], freq1[i], tol, "[%d]", i)
+	}
+}

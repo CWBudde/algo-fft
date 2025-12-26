@@ -262,7 +262,7 @@ func (p *Plan[T]) validateSlices(dst, src []T) error {
 	return nil
 }
 
-// NewPlan creates a new FFT plan for the given size using the generic type T.
+// NewPlanT creates a new FFT plan for the given size using the generic type T.
 // The size n can be any positive integer.
 // Power-of-2 sizes are most efficient.
 // Highly composite sizes (factors 2, 3, 5) use mixed-radix algorithms.
@@ -270,9 +270,9 @@ func (p *Plan[T]) validateSlices(dst, src []T) error {
 //
 // Example:
 //
-//	plan, err := NewPlan[complex64](1024)
-//	plan128, err := NewPlan[complex128](1024)
-func NewPlan[T Complex](n int) (*Plan[T], error) {
+//	plan, err := NewPlanT[complex64](1024)
+//	plan128, err := NewPlanT[complex128](1024)
+func NewPlanT[T Complex](n int) (*Plan[T], error) {
 	if n < 1 {
 		return nil, ErrInvalidLength
 	}
@@ -411,16 +411,22 @@ func NewPlan[T Complex](n int) (*Plan[T], error) {
 	return p, nil
 }
 
+// NewPlan creates a new single-precision (complex64) FFT plan.
+// This is equivalent to NewPlan32(n).
+func NewPlan(n int) (*Plan[complex64], error) {
+	return NewPlan32(n)
+}
+
 // NewPlan32 creates a new single-precision (complex64) FFT plan.
-// This is equivalent to NewPlan[complex64](n).
+// This is equivalent to NewPlanT[complex64](n).
 func NewPlan32(n int) (*Plan[complex64], error) {
-	return NewPlan[complex64](n)
+	return NewPlanT[complex64](n)
 }
 
 // NewPlan64 creates a new double-precision (complex128) FFT plan.
-// This is equivalent to NewPlan[complex128](n).
+// This is equivalent to NewPlanT[complex128](n).
 func NewPlan64(n int) (*Plan[complex128], error) {
-	return NewPlan[complex128](n)
+	return NewPlanT[complex128](n)
 }
 
 // NewPlanPooled creates a new FFT plan using pooled buffer allocations.

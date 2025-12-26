@@ -11,7 +11,7 @@
 **Public API (`/`)**: The root package `algoforge` exposes the user-facing API:
 
 - `Plan[T Complex]`: Generic FFT plan supporting complex64 and complex128
-- `NewPlan[T]()`, `NewPlan32()`, `NewPlan64()`: Plan constructors
+- `NewPlanT[T]()`, `NewPlan()`, `NewPlan32()`, `NewPlan64()`: Plan constructors
 - `Plan.Forward()`, `Plan.Inverse()`: Transform methods
 - Error types and validation
 
@@ -165,7 +165,7 @@ Set globally via `SetKernelStrategy()` or override per-size via `RecordBenchmark
 After plan creation, transforms perform zero allocations:
 
 - Twiddle factors precomputed and stored in Plan
-- Scratch buffers pre-allocated during `NewPlan()`
+- Scratch buffers pre-allocated during plan creation (`NewPlanT`/`NewPlan32`/`NewPlan64`)
 - Bit-reversal indices precomputed
 - Packed twiddle tables for SIMD kernels prepared upfront
 

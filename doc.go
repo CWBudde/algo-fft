@@ -14,8 +14,8 @@
 //
 // Generic constructor (recommended for type-safe code):
 //
-//	plan, err := algoforge.NewPlan[complex64](1024)
-//	plan128, err := algoforge.NewPlan[complex128](1024)
+//	plan, err := algoforge.NewPlanT[complex64](1024)
+//	plan128, err := algoforge.NewPlanT[complex128](1024)
 //
 // Explicit precision constructors:
 //
@@ -67,7 +67,7 @@
 //
 // Or using the generic constructor:
 //
-//	plan, err := algoforge.NewPlan[complex128](1024)
+//	plan, err := algoforge.NewPlanT[complex128](1024)
 //
 // Use complex128 when:
 //   - Accumulating many transforms (error compounds less)
@@ -108,24 +108,39 @@
 //
 // # 2D FFT
 //
-// For image processing and 2D signal analysis:
+// For image processing and 2D signal analysis, use Plan2D:
 //
-//	plan2D, err := algoforge.NewPlan2D(256, 256) // rows, cols
+//	// Create a 256×256 2D FFT plan (complex64 precision)
+//	plan2D, err := algoforge.NewPlan2D[complex64](256, 256) // rows, cols
 //	if err != nil {
 //		log.Fatal(err)
 //	}
 //
-//	// Data stored in row-major order: data[row*cols + col]
+//	// Data stored in row-major order: matrix[row*cols + col]
 //	input := make([]complex64, 256*256)
 //	output := make([]complex64, 256*256)
 //
+//	// Perform 2D forward transform
 //	if err := plan2D.Forward(output, input); err != nil {
 //		log.Fatal(err)
 //	}
 //
+//	// Inverse transform
+//	recovered := make([]complex64, 256*256)
+//	plan2D.Inverse(recovered, output)
+//
+// Convenience constructors for type inference:
+//
+//	plan32, _ := algoforge.NewPlan2D32(256, 256)     // complex64
+//	plan64, _ := algoforge.NewPlan2D64(256, 256)     // complex128
+//
 // Non-square matrices are fully supported:
 //
-//	planRect, err := algoforge.NewPlan2D(128, 512) // 128 rows, 512 cols
+//	planRect, err := algoforge.NewPlan2D[complex64](128, 512) // 128 rows, 512 cols
+//
+// The 2D FFT uses row-column decomposition: rows are transformed first,
+// then columns. Square matrices use an optimized transpose-based algorithm
+// for better cache locality. All transforms are zero-allocation after plan creation.
 //
 // # 3D FFT
 //

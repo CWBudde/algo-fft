@@ -106,123 +106,126 @@ func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelS
 	return auto
 }
 
-// TODO: Replace these with assembly-backed kernels.
 func forwardAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	return forwardDITComplex64(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	return inverseDITComplex64(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	return forwardStockhamComplex64(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	return inverseStockhamComplex64(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	switch resolveKernelStrategy(len(src), KernelAuto) {
+	case KernelDIT:
+		return forwardDITComplex64(dst, src, twiddle, scratch, bitrev)
+	case KernelStockham:
+		return forwardStockhamComplex64(dst, src, twiddle, scratch, bitrev)
+	default:
+		return false
+	}
 }
 
 func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	switch resolveKernelStrategy(len(src), KernelAuto) {
+	case KernelDIT:
+		return inverseDITComplex64(dst, src, twiddle, scratch, bitrev)
+	case KernelStockham:
+		return inverseStockhamComplex64(dst, src, twiddle, scratch, bitrev)
+	default:
+		return false
+	}
 }
 
 func forwardAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	return forwardDITComplex128(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	return inverseDITComplex128(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	return forwardStockhamComplex128(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	return inverseStockhamComplex128(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	switch resolveKernelStrategy(len(src), KernelAuto) {
+	case KernelDIT:
+		return forwardDITComplex128(dst, src, twiddle, scratch, bitrev)
+	case KernelStockham:
+		return forwardStockhamComplex128(dst, src, twiddle, scratch, bitrev)
+	default:
+		return false
+	}
 }
 
 func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
+	if !isPowerOf2(len(src)) {
+		return false
+	}
 
-	return false
+	switch resolveKernelStrategy(len(src), KernelAuto) {
+	case KernelDIT:
+		return inverseDITComplex128(dst, src, twiddle, scratch, bitrev)
+	case KernelStockham:
+		return inverseStockhamComplex128(dst, src, twiddle, scratch, bitrev)
+	default:
+		return false
+	}
 }

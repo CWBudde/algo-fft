@@ -55,7 +55,7 @@ func BenchmarkPlanReusePatterns_1024(b *testing.B) {
 func benchmarkPlanForward(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlan[complex64](fftSize)
+	plan, err := NewPlanT[complex64](fftSize)
 	if err != nil {
 		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
 	}
@@ -82,7 +82,7 @@ func benchmarkPlanForward(b *testing.B, fftSize int) {
 func benchmarkPlanForwardMemStats(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlan[complex64](fftSize)
+	plan, err := NewPlanT[complex64](fftSize)
 	if err != nil {
 		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
 	}
@@ -122,7 +122,7 @@ func benchmarkPlanForwardMemStats(b *testing.B, fftSize int) {
 func benchmarkPlanForwardAllocBuffers(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlan[complex64](fftSize)
+	plan, err := NewPlanT[complex64](fftSize)
 	if err != nil {
 		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
 	}
@@ -162,7 +162,7 @@ func benchmarkPlanForwardNewPlanEachIter(b *testing.B, fftSize int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		plan, err := NewPlan[complex64](fftSize)
+		plan, err := NewPlanT[complex64](fftSize)
 		if err != nil {
 			b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
 		}
@@ -182,7 +182,7 @@ func benchmarkPlanForwardNewPlanEachIter(b *testing.B, fftSize int) {
 func benchmarkPlanInverse(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlan[complex64](fftSize)
+	plan, err := NewPlanT[complex64](fftSize)
 	if err != nil {
 		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
 	}
@@ -219,7 +219,7 @@ func benchmarkNewPlan(b *testing.B, fftSize int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		plan, err := NewPlan[complex64](fftSize)
+		plan, err := NewPlanT[complex64](fftSize)
 		if err != nil {
 			b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
 		}

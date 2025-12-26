@@ -91,7 +91,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 	for _, strategy := range strategies {
 		algoforge.SetKernelStrategy(strategy)
 
-		plan, err := algoforge.NewPlan[complex64](n)
+		plan, err := algoforge.NewPlanT[complex64](n)
 		if err != nil {
 			continue
 		}

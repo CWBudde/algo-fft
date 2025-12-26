@@ -86,7 +86,7 @@ func TestPlanPooled_BufferReuse(t *testing.T) {
 func TestPlan_Reset(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](64)
+	plan, err := NewPlanT[complex64](64)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestPlan_Reset(t *testing.T) {
 func TestPlan_Close_NonPooled(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](64)
+	plan, err := NewPlanT[complex64](64)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestPlanPooled_InvalidLength(t *testing.T) {
 func TestPlan_String_Complex64(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](256)
+	plan, err := NewPlanT[complex64](256)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestPlan_String_Complex64(t *testing.T) {
 func TestPlan_String_Complex128(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex128](512)
+	plan, err := NewPlanT[complex128](512)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestPlan_String_Pooled(t *testing.T) {
 func TestPlan_Clone(t *testing.T) {
 	t.Parallel()
 
-	original, err := NewPlan[complex64](256)
+	original, err := NewPlanT[complex64](256)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -247,7 +247,7 @@ func TestPlan_Clone(t *testing.T) {
 func TestPlan_Clone_Independent(t *testing.T) {
 	t.Parallel()
 
-	original, err := NewPlan[complex64](64)
+	original, err := NewPlanT[complex64](64)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestPlan_Clone_Independent(t *testing.T) {
 func TestPlan_Clone_Complex128(t *testing.T) {
 	t.Parallel()
 
-	original, err := NewPlan[complex128](128)
+	original, err := NewPlanT[complex128](128)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -325,7 +325,7 @@ func BenchmarkPooledVsRegular(b *testing.B) {
 			b.ReportAllocs()
 
 			for b.Loop() {
-				_, _ = NewPlan[complex64](size)
+				_, _ = NewPlanT[complex64](size)
 			}
 		})
 	}

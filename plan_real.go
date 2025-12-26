@@ -26,7 +26,7 @@ func NewPlanReal(n int) (*PlanReal, error) {
 		return nil, ErrInvalidLength
 	}
 
-	plan, err := NewPlan[complex64](n / 2)
+	plan, err := NewPlanT[complex64](n / 2)
 	if err != nil {
 		return nil, err
 	}

@@ -13,7 +13,7 @@ func FuzzRoundTripComplex64(f *testing.F) {
 			return
 		}
 
-		plan, err := NewPlan[complex64](n)
+		plan, err := NewPlanT[complex64](n)
 		if err != nil {
 			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 		}
@@ -50,7 +50,7 @@ func FuzzDeterministicForward(f *testing.F) {
 			return
 		}
 
-		plan, err := NewPlan[complex64](n)
+		plan, err := NewPlanT[complex64](n)
 		if err != nil {
 			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 		}
@@ -88,7 +88,7 @@ func FuzzNoPanicValidInput(f *testing.F) {
 			return
 		}
 
-		plan, err := NewPlan[complex64](n)
+		plan, err := NewPlanT[complex64](n)
 		if err != nil {
 			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 		}

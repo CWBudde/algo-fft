@@ -418,7 +418,7 @@ func BenchmarkPlanRealForward(b *testing.B) {
 		})
 
 		b.Run(fmt.Sprintf("Complex_N=%d", n), func(b *testing.B) {
-			plan, err := NewPlan[complex64](n)
+			plan, err := NewPlanT[complex64](n)
 			if err != nil {
 				b.Fatalf("NewPlan(%d) returned error: %v", n, err)
 			}

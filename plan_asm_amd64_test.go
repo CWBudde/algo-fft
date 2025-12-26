@@ -7,7 +7,7 @@ import "testing"
 func TestForwardInverse_Size2_AsmRequired(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlan[complex64](2)
+	plan, err := NewPlanT[complex64](2)
 	if err != nil {
 		t.Fatalf("NewPlan(2) returned error: %v", err)
 	}
