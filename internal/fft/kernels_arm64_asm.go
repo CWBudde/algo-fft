@@ -21,17 +21,15 @@ func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 }
 
 func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
+	auto := autoKernelComplex128(KernelAuto)
 	if features.HasNEON && !features.ForceGeneric {
 		return Kernels[complex128]{
-			Forward: forwardNEONComplex128Asm,
-			Inverse: inverseNEONComplex128Asm,
+			Forward: fallbackKernel(forwardNEONComplex128Asm, auto.Forward),
+			Inverse: fallbackKernel(inverseNEONComplex128Asm, auto.Inverse),
 		}
 	}
 
-	return Kernels[complex128]{
-		Forward: stubKernel[complex128],
-		Inverse: stubKernel[complex128],
-	}
+	return auto
 }
 
 func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
@@ -41,6 +39,13 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 }
 
 func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
-	// For NEON assembly, ignore strategy for now and use same logic as selectKernelsComplex128
-	return selectKernelsComplex128(features)
+	auto := autoKernelComplex128(strategy)
+	if features.HasNEON && !features.ForceGeneric {
+		return Kernels[complex128]{
+			Forward: fallbackKernel(forwardNEONComplex128Asm, auto.Forward),
+			Inverse: fallbackKernel(inverseNEONComplex128Asm, auto.Inverse),
+		}
+	}
+
+	return auto
 }

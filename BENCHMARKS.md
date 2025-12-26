@@ -123,3 +123,46 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 4. **Manual Twiddle Gathering**: Use scalar loads + pack for strided twiddle access
 5. **Zero Allocations**: All transforms are allocation-free after plan creation
 
+## ARM64 NEON vs Go (QEMU)
+
+**Date**: 2025-12-25  
+**Go**: go1.25.0  
+**OS/Arch**: linux/arm64 (QEMU)  
+**CPU**: ARMv8 Processor rev 0 (v8l)  
+**Note**: QEMU results are not representative of real ARM64 hardware.
+
+### complex64 Forward FFT
+
+| Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
+| ---: | --------: | ----------: | ----------: | ------------: |
+| 64   | 10781     | 47.49       | 10894       | 47.00         |
+| 256  | 57312     | 35.73       | 56289       | 36.38         |
+| 1024 | 278673    | 29.40       | 284396      | 28.80         |
+| 4096 | 1332887   | 24.58       | 1274761     | 25.71         |
+
+### complex64 Inverse FFT
+
+| Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
+| ---: | --------: | ----------: | ----------: | ------------: |
+| 64   | 12959     | 39.51       | 14508       | 35.29         |
+| 256  | 65889     | 31.08       | 69474       | 29.48         |
+| 1024 | 326061    | 25.12       | 336179      | 24.37         |
+| 4096 | 1514744   | 21.63       | 1537455     | 21.31         |
+
+### complex128 Forward FFT
+
+| Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
+| ---: | --------: | ----------: | ----------: | ------------: |
+| 64   | 7770      | 131.79      | 9536        | 107.38        |
+| 256  | 39421     | 103.90      | 46687       | 87.73         |
+| 1024 | 186962    | 87.63       | 218785      | 74.89         |
+| 4096 | 911766    | 71.88       | 1093437     | 59.94         |
+
+### complex128 Inverse FFT
+
+| Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
+| ---: | --------: | ----------: | ----------: | ------------: |
+| 64   | 8403      | 121.87      | 11371       | 90.05         |
+| 256  | 39257     | 104.34      | 55815       | 73.39         |
+| 1024 | 194358    | 84.30       | 269664      | 60.76         |
+| 4096 | 916886    | 71.48       | 1238905     | 52.90         |
