@@ -330,7 +330,7 @@ func TestPlanReal3D_InvalidSizes(t *testing.T) {
 		{-1, 4, 4, true},
 		{4, -1, 4, true},
 		{4, 4, -1, true},
-		{4, 4, 7, true},  // Odd width (invalid for real FFT)
+		{4, 4, 7, true}, // Odd width (invalid for real FFT)
 		{4, 4, 0, true},
 		{4, 4, 4, false}, // Valid
 	}

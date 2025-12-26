@@ -1,5 +1,7 @@
 package algoforge
 
+import "github.com/MeKo-Christian/algoforge/internal/fft"
+
 // ForwardStrided computes the forward FFT on strided input/output data.
 //
 // The stride parameter specifies the distance between consecutive elements.
@@ -39,6 +41,18 @@ func (p *Plan[T]) transformStrided(dst, src []T, stride int, inverse bool) error
 		}
 
 		return p.Forward(dst[:p.n], src[:p.n])
+	}
+
+	if fft.IsPowerOfTwo(p.n) && p.kernelStrategy != fft.KernelBluestein && !sameSliceStrided(dst, src) {
+		if inverse {
+			if fft.InverseStridedDIT(dst, src, p.twiddle, p.bitrev, stride, p.n) {
+				return nil
+			}
+		} else {
+			if fft.ForwardStridedDIT(dst, src, p.twiddle, p.bitrev, stride, p.n) {
+				return nil
+			}
+		}
 	}
 
 	buffer := p.stridedScratch[:p.n]
@@ -96,4 +110,12 @@ func (p *Plan[T]) validateStridedSlices(dst, src []T, stride int) error {
 	}
 
 	return nil
+}
+
+func sameSliceStrided[T any](a, b []T) bool {
+	if len(a) == 0 || len(b) == 0 {
+		return false
+	}
+
+	return &a[0] == &b[0]
 }

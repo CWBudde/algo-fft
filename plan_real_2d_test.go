@@ -335,7 +335,7 @@ func TestPlanReal2D_InvalidSizes(t *testing.T) {
 		{0, 0, true},
 		{-1, 8, true},
 		{8, -1, true},
-		{8, 7, true},  // Odd cols (invalid for real FFT)
+		{8, 7, true}, // Odd cols (invalid for real FFT)
 		{8, 0, true},
 		{8, 8, false}, // Valid
 	}

@@ -31,10 +31,9 @@ func RealDFT3D(input []float32, depth, height, width int) []complex64 {
 					for h := 0; h < height; h++ {
 						for w := 0; w < width; w++ {
 							val := float64(input[d*height*width+h*width+w])
-							angle := -2 * math.Pi * (
-								float64(kd*d)/float64(depth) +
-									float64(kh*h)/float64(height) +
-									float64(kw*w)/float64(width))
+							angle := -2 * math.Pi * (float64(kd*d)/float64(depth) +
+								float64(kh*h)/float64(height) +
+								float64(kw*w)/float64(width))
 							twiddle := cmplx.Exp(complex(0, angle))
 							sum += complex(val, 0) * twiddle
 						}
@@ -74,10 +73,9 @@ func RealIDFT3D(spectrum []complex64, depth, height, width int) []float32 {
 					for kh := 0; kh < height; kh++ {
 						for kw := 0; kw < halfWidth; kw++ {
 							val := complex128(spectrum[kd*height*halfWidth+kh*halfWidth+kw])
-							angle := 2 * math.Pi * (
-								float64(kd*d)/float64(depth) +
-									float64(kh*h)/float64(height) +
-									float64(kw*w)/float64(width))
+							angle := 2 * math.Pi * (float64(kd*d)/float64(depth) +
+								float64(kh*h)/float64(height) +
+								float64(kw*w)/float64(width))
 							twiddle := cmplx.Exp(complex(0, angle))
 							sum += val * twiddle
 						}
@@ -94,10 +92,9 @@ func RealIDFT3D(spectrum []complex64, depth, height, width int) []float32 {
 							mirrorKH := (height - kh) % height
 							val := complex128(spectrum[mirrorKD*height*halfWidth+mirrorKH*halfWidth+mirrorKW])
 							valConj := complex(real(val), -imag(val))
-							angle := 2 * math.Pi * (
-								float64(kd*d)/float64(depth) +
-									float64(kh*h)/float64(height) +
-									float64(kw*w)/float64(width))
+							angle := 2 * math.Pi * (float64(kd*d)/float64(depth) +
+								float64(kh*h)/float64(height) +
+								float64(kw*w)/float64(width))
 							twiddle := cmplx.Exp(complex(0, angle))
 							sum += valConj * twiddle
 						}

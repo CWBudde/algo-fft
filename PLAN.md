@@ -1094,17 +1094,17 @@ This is a reasonable trade-off for supporting arbitrary dimensions.
 
 ### 20.1 Strided Input/Output
 
-- [ ] Add stride parameters to transform methods
-- [ ] Implement `Plan.ForwardStrided(dst, src []complex64, stride int) error`
-- [ ] Handle non-contiguous memory access
-- [ ] Test with matrix column transforms (stride = num_cols)
+- [x] Add stride parameters to transform methods
+- [x] Implement `Plan.ForwardStrided(dst, src []complex64, stride int) error`
+- [x] Handle non-contiguous memory access
+- [x] Test with matrix column transforms (stride = num_cols)
 
 ### 20.2 Zero-Copy Column FFT
 
-- [ ] Optimize column transforms to avoid copying
-- [ ] Use strided access directly in butterfly operations
-- [ ] Benchmark strided vs copy-based column FFT
-- [ ] Document when strided is faster vs copying
+- [x] Optimize column transforms to avoid copying
+- [x] Use strided access directly in butterfly operations
+- [x] Benchmark strided vs copy-based column FFT
+- [x] Document when strided is faster vs copying
 
 ---
 

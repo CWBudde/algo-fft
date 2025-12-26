@@ -19,13 +19,13 @@ import (
 // - Compact output: row-major D×H×(W/2+1) complex64 array
 // - Full output: row-major D×H×W complex64 array (with redundant conjugate pairs)
 type PlanReal3D struct {
-	depth, height, width int             // Input dimensions (D×H×W real values)
-	halfWidth            int             // W/2+1 (compact spectrum width)
-	widthPlan            *PlanReal       // Real FFT for width (size W → W/2+1)
+	depth, height, width int                // Input dimensions (D×H×W real values)
+	halfWidth            int                // W/2+1 (compact spectrum width)
+	widthPlan            *PlanReal          // Real FFT for width (size W → W/2+1)
 	heightPlans          []*Plan[complex64] // Complex FFT for height (one per width column)
 	depthPlans           []*Plan[complex64] // Complex FFT for depth (one per height×width position)
-	scratchCompact       []complex64     // Working buffer (D×H×(W/2+1))
-	scratchFull          []complex64     // Full spectrum buffer (D×H×W) for ForwardFull
+	scratchCompact       []complex64        // Working buffer (D×H×(W/2+1))
+	scratchFull          []complex64        // Full spectrum buffer (D×H×W) for ForwardFull
 
 	// backing keeps aligned buffers alive for GC
 	scratchCompactBacking []byte

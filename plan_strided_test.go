@@ -12,6 +12,7 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 	for i := range src {
 		src[i] = complex(float32(i+1), float32(i)*0.25)
 	}
+	srcCopy := append([]complex64(nil), src...)
 
 	dst := make([]complex64, len(src))
 	stride := 4
@@ -33,6 +34,12 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 
 	for i := 0; i < plan.Len(); i++ {
 		assertApproxComplex64(t, dst[col+i*stride], want[i], 1e-4, "col[%d]", i)
+	}
+
+	for i := range src {
+		if src[i] != srcCopy[i] {
+			t.Fatalf("src mutated at %d: got %v want %v", i, src[i], srcCopy[i])
+		}
 	}
 }
 

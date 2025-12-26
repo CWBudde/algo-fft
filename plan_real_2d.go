@@ -19,12 +19,12 @@ import (
 // - Compact output: row-major M×(N/2+1) complex64 array
 // - Full output: row-major M×N complex64 array (with redundant conjugate pairs)
 type PlanReal2D struct {
-	rows, cols     int             // Input dimensions (M×N real values)
-	halfCols       int             // N/2+1 (compact spectrum width)
-	rowPlan        *PlanReal       // Real FFT for rows (size N → N/2+1)
+	rows, cols     int                // Input dimensions (M×N real values)
+	halfCols       int                // N/2+1 (compact spectrum width)
+	rowPlan        *PlanReal          // Real FFT for rows (size N → N/2+1)
 	colPlans       []*Plan[complex64] // Complex FFT for each column (size M)
-	scratchCompact []complex64     // Working buffer (M×(N/2+1))
-	scratchFull    []complex64     // Full spectrum buffer (M×N) for ForwardFull
+	scratchCompact []complex64        // Working buffer (M×(N/2+1))
+	scratchFull    []complex64        // Full spectrum buffer (M×N) for ForwardFull
 
 	// backing keeps aligned buffers alive for GC
 	scratchCompactBacking []byte

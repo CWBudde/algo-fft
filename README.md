@@ -106,6 +106,21 @@ The real FFT returns the non-redundant half-spectrum with length N/2+1.
 For real inputs, the spectrum is conjugate-symmetric:
 `X[k] = conj(X[N-k])` for `k = 1..N/2-1`.
 
+### Strided Transforms
+
+```go
+// Transform a column in a row-major matrix.
+cols := 256
+stride := cols
+col := 7
+err = plan.ForwardStrided(dst[col:], src[col:], stride)
+```
+
+Strided transforms operate directly on non-contiguous data for power-of-two sizes,
+which is typically faster than copying when stride is moderate. For very large
+strides or cache-unfriendly layouts, explicitly copying to a contiguous buffer
+can be faster.
+
 ### Batch Processing
 
 ```go
