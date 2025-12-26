@@ -197,7 +197,6 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 
 	sizes := []int{32, 128}
 	for _, n := range sizes {
-		n := n
 		t.Run(fmt.Sprintf("N=%d", n), func(t *testing.T) {
 			t.Parallel()
 
@@ -210,6 +209,7 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 				}
 
 				rng := rand.New(rand.NewSource(1))
+
 				src := make([]float32, n)
 				for i := range src {
 					src[i] = float32(rng.Float64()*2 - 1)
@@ -244,11 +244,14 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 					t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
 				}
 
-				const f0 = 1.0
-				const f1 = 8.0
+				const (
+					f0 = 1.0
+					f1 = 8.0
+				)
 
 				src := make([]float32, n)
 				phase := 0.0
+
 				for i := range src {
 					tp := float64(i) / float64(n-1)
 					freq := f0 + (f1-f0)*tp
@@ -346,11 +349,13 @@ func TestPlanRealErrors(t *testing.T) {
 
 		plan, _ := NewPlanReal(16)
 
-		if err := plan.Forward(nil, make([]float32, 16)); !errors.Is(err, ErrNilSlice) {
+		err := plan.Forward(nil, make([]float32, 16))
+		if !errors.Is(err, ErrNilSlice) {
 			t.Errorf("expected ErrNilSlice for nil dst, got %v", err)
 		}
 
-		if err := plan.Forward(make([]complex64, 9), nil); !errors.Is(err, ErrNilSlice) {
+		err = plan.Forward(make([]complex64, 9), nil)
+		if !errors.Is(err, ErrNilSlice) {
 			t.Errorf("expected ErrNilSlice for nil src, got %v", err)
 		}
 	})
@@ -360,11 +365,13 @@ func TestPlanRealErrors(t *testing.T) {
 
 		plan, _ := NewPlanReal(16)
 
-		if err := plan.Forward(make([]complex64, 8), make([]float32, 16)); !errors.Is(err, ErrLengthMismatch) {
+		err := plan.Forward(make([]complex64, 8), make([]float32, 16))
+		if !errors.Is(err, ErrLengthMismatch) {
 			t.Errorf("expected ErrLengthMismatch for wrong dst len, got %v", err)
 		}
 
-		if err := plan.Forward(make([]complex64, 9), make([]float32, 8)); !errors.Is(err, ErrLengthMismatch) {
+		err = plan.Forward(make([]complex64, 9), make([]float32, 8))
+		if !errors.Is(err, ErrLengthMismatch) {
 			t.Errorf("expected ErrLengthMismatch for wrong src len, got %v", err)
 		}
 	})
@@ -374,12 +381,14 @@ func assertPlanRealRoundTrip(t *testing.T, plan *PlanReal, src []float32, tol fl
 	t.Helper()
 
 	freq := make([]complex64, plan.SpectrumLen())
-	if err := plan.Forward(freq, src); err != nil {
+	err := plan.Forward(freq, src)
+	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
 	out := make([]float32, plan.Len())
-	if err := plan.Inverse(out, freq); err != nil {
+	err = plan.Inverse(out, freq)
+	if err != nil {
 		t.Fatalf("Inverse returned error: %v", err)
 	}
 

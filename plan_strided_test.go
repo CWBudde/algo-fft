@@ -1,6 +1,9 @@
 package algoforge
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestPlanForwardStrided_Complex64(t *testing.T) {
 	plan, err := NewPlan32(4)
@@ -12,6 +15,7 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 	for i := range src {
 		src[i] = complex(float32(i+1), float32(i)*0.25)
 	}
+
 	srcCopy := append([]complex64(nil), src...)
 
 	dst := make([]complex64, len(src))
@@ -45,6 +49,7 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 
 func TestPlanInverseStrided_Complex128(t *testing.T) {
 	const n = 8
+
 	plan, err := NewPlan64(n)
 	if err != nil {
 		t.Fatalf("NewPlan64 failed: %v", err)
@@ -64,7 +69,8 @@ func TestPlanInverseStrided_Complex128(t *testing.T) {
 	total := 1 + (n-1)*stride
 	src := make([]complex128, total)
 	dst := make([]complex128, total)
-	for i := 0; i < n; i++ {
+
+	for i := range n {
 		src[i*stride] = freq[i]
 	}
 
@@ -72,7 +78,7 @@ func TestPlanInverseStrided_Complex128(t *testing.T) {
 		t.Fatalf("InverseStrided failed: %v", err)
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		assertApproxComplex128(t, dst[i*stride], time[i], 1e-10, "idx[%d]", i)
 	}
 }
@@ -84,12 +90,12 @@ func TestPlanStrided_Errors(t *testing.T) {
 	}
 
 	data := make([]complex64, 4)
-	if err := plan.ForwardStrided(data, data, 0); err != ErrInvalidStride {
+	if err := plan.ForwardStrided(data, data, 0); !errors.Is(err, ErrInvalidStride) {
 		t.Fatalf("expected ErrInvalidStride, got %v", err)
 	}
 
 	short := make([]complex64, 5)
-	if err := plan.ForwardStrided(short, short, 2); err != ErrLengthMismatch {
+	if err := plan.ForwardStrided(short, short, 2); !errors.Is(err, ErrLengthMismatch) {
 		t.Fatalf("expected ErrLengthMismatch, got %v", err)
 	}
 }

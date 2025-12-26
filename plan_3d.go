@@ -58,10 +58,13 @@ func NewPlan3D[T Complex](depth, height, width int) (*Plan3D[T], error) {
 	}
 
 	// Allocate scratch buffer (aligned for SIMD)
-	var scratch []T
-	var scratchBacking []byte
+	var (
+		scratch        []T
+		scratchBacking []byte
+	)
 
 	totalSize := depth * height * width
+
 	switch any(scratch).(type) {
 	case []complex64:
 		s, b := fft.AllocAlignedComplex64(totalSize)
@@ -120,10 +123,12 @@ func (p *Plan3D[T]) Len() int {
 // String returns a human-readable description of the Plan3D for debugging.
 func (p *Plan3D[T]) String() string {
 	var zero T
+
 	typeName := "complex64"
 	if _, ok := any(zero).(complex128); ok {
 		typeName = "complex128"
 	}
+
 	return fmt.Sprintf("Plan3D[%s](%dx%dx%d)", typeName, p.depth, p.height, p.width)
 }
 
@@ -138,7 +143,8 @@ func (p *Plan3D[T]) String() string {
 //
 //	x[d,h,w] * exp(-2πi*(kd*d/depth + kh*h/height + kw*w/width))
 func (p *Plan3D[T]) Forward(dst, src []T) error {
-	if err := p.validate(dst, src); err != nil {
+	err := p.validate(dst, src)
+	if err != nil {
 		return err
 	}
 
@@ -171,7 +177,8 @@ func (p *Plan3D[T]) Forward(dst, src []T) error {
 //
 //	X[kd,kh,kw] * exp(2πi*(kd*d/depth + kh*h/height + kw*w/width))
 func (p *Plan3D[T]) Inverse(dst, src []T) error {
-	if err := p.validate(dst, src); err != nil {
+	err := p.validate(dst, src)
+	if err != nil {
 		return err
 	}
 
@@ -214,10 +221,13 @@ func (p *Plan3D[T]) InverseInPlace(data []T) error {
 // This allows multiple goroutines to perform transforms concurrently.
 func (p *Plan3D[T]) Clone() *Plan3D[T] {
 	// Allocate new scratch buffer
-	var scratch []T
-	var scratchBacking []byte
+	var (
+		scratch        []T
+		scratchBacking []byte
+	)
 
 	totalSize := p.depth * p.height * p.width
+
 	switch any(scratch).(type) {
 	case []complex64:
 		s, b := fft.AllocAlignedComplex64(totalSize)
@@ -263,9 +273,10 @@ func (p *Plan3D[T]) validate(dst, src []T) error {
 // transformWidth transforms along the width dimension (innermost).
 // Each row of width elements is transformed in-place.
 func (p *Plan3D[T]) transformWidth(forward bool) {
-	for d := 0; d < p.depth; d++ {
-		for h := 0; h < p.height; h++ {
+	for d := range p.depth {
+		for h := range p.height {
 			offset := d*p.height*p.width + h*p.width
+
 			rowData := p.scratch[offset : offset+p.width]
 			if forward {
 				_ = p.widthPlan.InPlace(rowData)
@@ -281,10 +292,10 @@ func (p *Plan3D[T]) transformWidth(forward bool) {
 func (p *Plan3D[T]) transformHeight(forward bool) {
 	colData := make([]T, p.height)
 
-	for d := 0; d < p.depth; d++ {
-		for w := 0; w < p.width; w++ {
+	for d := range p.depth {
+		for w := range p.width {
 			// Extract column along height
-			for h := 0; h < p.height; h++ {
+			for h := range p.height {
 				colData[h] = p.scratch[d*p.height*p.width+h*p.width+w]
 			}
 
@@ -296,7 +307,7 @@ func (p *Plan3D[T]) transformHeight(forward bool) {
 			}
 
 			// Write back
-			for h := 0; h < p.height; h++ {
+			for h := range p.height {
 				p.scratch[d*p.height*p.width+h*p.width+w] = colData[h]
 			}
 		}
@@ -308,10 +319,10 @@ func (p *Plan3D[T]) transformHeight(forward bool) {
 func (p *Plan3D[T]) transformDepth(forward bool) {
 	depthData := make([]T, p.depth)
 
-	for h := 0; h < p.height; h++ {
-		for w := 0; w < p.width; w++ {
+	for h := range p.height {
+		for w := range p.width {
 			// Extract slice along depth
-			for d := 0; d < p.depth; d++ {
+			for d := range p.depth {
 				depthData[d] = p.scratch[d*p.height*p.width+h*p.width+w]
 			}
 
@@ -323,7 +334,7 @@ func (p *Plan3D[T]) transformDepth(forward bool) {
 			}
 
 			// Write back
-			for d := 0; d < p.depth; d++ {
+			for d := range p.depth {
 				p.scratch[d*p.height*p.width+h*p.width+w] = depthData[d]
 			}
 		}

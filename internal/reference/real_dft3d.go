@@ -22,14 +22,14 @@ func RealDFT3D(input []float32, depth, height, width int) []complex64 {
 	halfWidth := width/2 + 1
 	output := make([]complex64, depth*height*halfWidth)
 
-	for kd := 0; kd < depth; kd++ {
-		for kh := 0; kh < height; kh++ {
-			for kw := 0; kw < halfWidth; kw++ {
+	for kd := range depth {
+		for kh := range height {
+			for kw := range halfWidth {
 				var sum complex128
 
-				for d := 0; d < depth; d++ {
-					for h := 0; h < height; h++ {
-						for w := 0; w < width; w++ {
+				for d := range depth {
+					for h := range height {
+						for w := range width {
 							val := float64(input[d*height*width+h*width+w])
 							angle := -2 * math.Pi * (float64(kd*d)/float64(depth) +
 								float64(kh*h)/float64(height) +
@@ -53,7 +53,7 @@ func RealDFT3D(input []float32, depth, height, width int) []complex64 {
 // Input: D×H×(W/2+1) row-major array of complex64 (compact half-spectrum)
 // Output: D×H×W row-major array of float32
 //
-// Formula: x[d,h,w] = (1/(D*H*W)) * Σ X[kd,kh,kw] * exp(2πi*(...)) + conjugate terms
+// Formula: x[d,h,w] = (1/(D*H*W)) * Σ X[kd,kh,kw] * exp(2πi*(...)) + conjugate terms.
 func RealIDFT3D(spectrum []complex64, depth, height, width int) []float32 {
 	if len(spectrum) != depth*height*(width/2+1) {
 		panic("RealIDFT3D: spectrum length mismatch")
@@ -63,15 +63,15 @@ func RealIDFT3D(spectrum []complex64, depth, height, width int) []float32 {
 	output := make([]float32, depth*height*width)
 	scale := 1.0 / float64(depth*height*width)
 
-	for d := 0; d < depth; d++ {
-		for h := 0; h < height; h++ {
-			for w := 0; w < width; w++ {
+	for d := range depth {
+		for h := range height {
+			for w := range width {
 				var sum complex128
 
 				// Sum over positive frequencies (stored in spectrum)
-				for kd := 0; kd < depth; kd++ {
-					for kh := 0; kh < height; kh++ {
-						for kw := 0; kw < halfWidth; kw++ {
+				for kd := range depth {
+					for kh := range height {
+						for kw := range halfWidth {
 							val := complex128(spectrum[kd*height*halfWidth+kh*halfWidth+kw])
 							angle := 2 * math.Pi * (float64(kd*d)/float64(depth) +
 								float64(kh*h)/float64(height) +
@@ -83,8 +83,8 @@ func RealIDFT3D(spectrum []complex64, depth, height, width int) []float32 {
 				}
 
 				// Add conjugate terms for negative frequencies (kw > W/2)
-				for kd := 0; kd < depth; kd++ {
-					for kh := 0; kh < height; kh++ {
+				for kd := range depth {
+					for kh := range height {
 						for kw := halfWidth; kw < width; kw++ {
 							// X[kd, kh, W-kw] = conj(X[-kd, -kh, kw])
 							mirrorKW := width - kw

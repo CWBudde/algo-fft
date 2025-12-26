@@ -1,0 +1,33 @@
+name: test-format
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install treefmt
+        run: |
+          curl -sSfL https://github.com/numtide/treefmt/releases/latest/download/treefmt-x86_64-unknown-linux-musl -o treefmt
+          chmod +x treefmt
+          sudo mv treefmt /usr/local/bin/
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install formatters
+        run: |
+          go install mvdan.cc/gofumpt@latest
+          go install github.com/daixiang0/gci@latest
+
+      - name: Check formatting
+        run: treefmt . --allow-missing-formatter --fail-on-change

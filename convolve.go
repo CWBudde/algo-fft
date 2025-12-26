@@ -23,6 +23,7 @@ func Convolve(dst, a, b []complex64) error {
 
 	aPadded := make([]complex64, convLen)
 	bPadded := make([]complex64, convLen)
+
 	copy(aPadded, a)
 	copy(bPadded, b)
 
@@ -32,6 +33,7 @@ func Convolve(dst, a, b []complex64) error {
 	if err := plan.Forward(aFreq, aPadded); err != nil {
 		return err
 	}
+
 	if err := plan.Forward(bFreq, bPadded); err != nil {
 		return err
 	}
@@ -46,5 +48,6 @@ func Convolve(dst, a, b []complex64) error {
 	}
 
 	copy(dst, time)
+
 	return nil
 }

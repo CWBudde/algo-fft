@@ -77,12 +77,14 @@ func TestPlanRealTransformsNoAllocs(t *testing.T) {
 	}
 
 	freq := make([]complex64, plan.SpectrumLen())
+
 	err = plan.Forward(freq, src)
 	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
 	}
 
 	out := make([]float32, n)
+
 	assertNoAllocs(t, "Forward", func() error {
 		return plan.Forward(freq, src)
 	})

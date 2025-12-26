@@ -36,7 +36,7 @@ func BenchmarkPlanReal2D_Forward(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(len(input) * 4)) // 4 bytes per float32
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = plan.Forward(spectrum, input)
 			}
 		})
@@ -73,7 +73,7 @@ func BenchmarkPlanReal2D_ForwardFull(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(len(input) * 4))
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = plan.ForwardFull(spectrum, input)
 			}
 		})
@@ -111,7 +111,7 @@ func BenchmarkPlanReal2D_Inverse(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(len(output) * 4))
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = plan.Inverse(output, spectrum)
 			}
 		})
@@ -149,7 +149,7 @@ func BenchmarkPlanReal2D_RoundTrip(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(len(input) * 4))
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = plan.Forward(spectrum, input)
 				_ = plan.Inverse(output, spectrum)
 			}
@@ -185,7 +185,7 @@ func BenchmarkPlanReal2D_NonSquare(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(len(input) * 4))
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = plan.Forward(spectrum, input)
 			}
 		})

@@ -1,6 +1,7 @@
 package algoforge
 
 import (
+	"errors"
 	"math"
 	"math/rand/v2"
 	"testing"
@@ -12,23 +13,27 @@ import (
 
 func generateRandom3DComplex64(depth, height, width int, seed uint64) []complex64 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xCAFEBABE)) //nolint:gosec // Intentionally non-crypto for reproducible tests
+
 	data := make([]complex64, depth*height*width)
 	for i := range data {
 		re := float32(rng.Float64()*20 - 10)
 		im := float32(rng.Float64()*20 - 10)
 		data[i] = complex(re, im)
 	}
+
 	return data
 }
 
 func generateRandom3DComplex128(depth, height, width int, seed uint64) []complex128 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xCAFEBABE)) //nolint:gosec // Intentionally non-crypto for reproducible tests
+
 	data := make([]complex128, depth*height*width)
 	for i := range data {
 		re := rng.Float64()*20 - 10
 		im := rng.Float64()*20 - 10
 		data[i] = complex(re, im)
 	}
+
 	return data
 }
 
@@ -36,13 +41,16 @@ func complex3D64NearlyEqual(a, b []complex64, tol float64) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
 	for i := range a {
 		diff := a[i] - b[i]
+
 		mag := math.Sqrt(float64(real(diff)*real(diff) + imag(diff)*imag(diff)))
 		if mag > tol {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -50,13 +58,16 @@ func complex3D128NearlyEqual(a, b []complex128, tol float64) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
 	for i := range a {
 		diff := a[i] - b[i]
+
 		mag := math.Sqrt(real(diff)*real(diff) + imag(diff)*imag(diff))
 		if mag > tol {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -83,6 +94,7 @@ func TestNewPlan3D(t *testing.T) {
 				if err == nil {
 					t.Errorf("Expected error for dimensions %dx%dx%d, got nil", tc.depth, tc.height, tc.width)
 				}
+
 				return
 			}
 
@@ -94,12 +106,15 @@ func TestNewPlan3D(t *testing.T) {
 			if plan.Depth() != tc.depth {
 				t.Errorf("Depth: got %d, want %d", plan.Depth(), tc.depth)
 			}
+
 			if plan.Height() != tc.height {
 				t.Errorf("Height: got %d, want %d", plan.Height(), tc.height)
 			}
+
 			if plan.Width() != tc.width {
 				t.Errorf("Width: got %d, want %d", plan.Width(), tc.width)
 			}
+
 			if plan.Len() != tc.depth*tc.height*tc.width {
 				t.Errorf("Len: got %d, want %d", plan.Len(), tc.depth*tc.height*tc.width)
 			}
@@ -150,9 +165,11 @@ func TestPlan3D_RoundTrip_Complex64(t *testing.T) {
 				count := 0
 				for i := 0; i < len(original) && count < 5; i++ {
 					diff := roundTrip[i] - original[i]
+
 					mag := math.Sqrt(float64(real(diff)*real(diff) + imag(diff)*imag(diff)))
 					if mag > tolerance {
 						t.Errorf("  [%d]: got %v, want %v (diff: %v)", i, roundTrip[i], original[i], mag)
+
 						count++
 					}
 				}
@@ -234,12 +251,15 @@ func TestPlan3D_VsReference_Complex64(t *testing.T) {
 			tolerance := 1e-2
 			if !complex3D64NearlyEqual(fast, naive, tolerance) {
 				t.Errorf("FFT result differs from reference for %dx%dx%d", tc.depth, tc.height, tc.width)
+
 				count := 0
 				for i := 0; i < len(fast) && count < 5; i++ {
 					diff := fast[i] - naive[i]
+
 					mag := math.Sqrt(float64(real(diff)*real(diff) + imag(diff)*imag(diff)))
 					if mag > tolerance {
 						t.Errorf("  [%d]: fast=%v, naive=%v (diff: %v)", i, fast[i], naive[i], mag)
+
 						count++
 					}
 				}
@@ -322,18 +342,20 @@ func TestPlan3D_ErrorHandling(t *testing.T) {
 	wrongSize := make([]complex64, 10)
 
 	// Nil slices
-	if err := plan.Forward(nil, validData); err != ErrNilSlice {
+	if err := plan.Forward(nil, validData); !errors.Is(err, ErrNilSlice) {
 		t.Errorf("Expected ErrNilSlice for nil dst, got %v", err)
 	}
-	if err := plan.Forward(validData, nil); err != ErrNilSlice {
+
+	if err := plan.Forward(validData, nil); !errors.Is(err, ErrNilSlice) {
 		t.Errorf("Expected ErrNilSlice for nil src, got %v", err)
 	}
 
 	// Wrong length
-	if err := plan.Forward(wrongSize, validData); err != ErrLengthMismatch {
+	if err := plan.Forward(wrongSize, validData); !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("Expected ErrLengthMismatch for wrong dst size, got %v", err)
 	}
-	if err := plan.Forward(validData, wrongSize); err != ErrLengthMismatch {
+
+	if err := plan.Forward(validData, wrongSize); !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("Expected ErrLengthMismatch for wrong src size, got %v", err)
 	}
 }
@@ -351,9 +373,11 @@ func TestPlan3D_Clone(t *testing.T) {
 	if clone.Depth() != original.Depth() {
 		t.Errorf("Clone depth mismatch")
 	}
+
 	if clone.Height() != original.Height() {
 		t.Errorf("Clone height mismatch")
 	}
+
 	if clone.Width() != original.Width() {
 		t.Errorf("Clone width mismatch")
 	}
@@ -369,11 +393,13 @@ func TestPlan3D_Clone(t *testing.T) {
 
 	go func() {
 		_ = original.Forward(out1, data1)
+
 		done <- true
 	}()
 
 	go func() {
 		_ = clone.Forward(out2, data2)
+
 		done <- true
 	}()
 
@@ -390,12 +416,14 @@ func TestPlan3D_Clone(t *testing.T) {
 
 func TestPlan3D_String(t *testing.T) {
 	plan32, _ := NewPlan3D32(8, 16, 32)
+
 	str32 := plan32.String()
 	if str32 != "Plan3D[complex64](8x16x32)" {
 		t.Errorf("String mismatch for complex64: got %q", str32)
 	}
 
 	plan64, _ := NewPlan3D64(4, 8, 16)
+
 	str64 := plan64.String()
 	if str64 != "Plan3D[complex128](4x8x16)" {
 		t.Errorf("String mismatch for complex128: got %q", str64)
@@ -413,7 +441,7 @@ func BenchmarkPlan3D_Forward_8x8x8(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(signal) * 8)) // 8 bytes per complex64
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(freq, signal)
 	}
 }
@@ -427,7 +455,7 @@ func BenchmarkPlan3D_Forward_16x16x16(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(signal) * 8))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(freq, signal)
 	}
 }
@@ -441,7 +469,7 @@ func BenchmarkPlan3D_Forward_32x32x32(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(signal) * 8))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(freq, signal)
 	}
 }
@@ -455,7 +483,7 @@ func BenchmarkPlan3D_RoundTrip_16x16x16(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(freq, signal)
 		_ = plan.Inverse(recovered, freq)
 	}

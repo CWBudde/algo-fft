@@ -102,7 +102,8 @@ func (p *PlanReal) Forward(dst []complex64, src []float32) error {
 
 // ForwardNormalized computes the real-to-complex FFT and scales the result by 1/N.
 func (p *PlanReal) ForwardNormalized(dst []complex64, src []float32) error {
-	if err := p.Forward(dst, src); err != nil {
+	err := p.Forward(dst, src)
+	if err != nil {
 		return err
 	}
 
@@ -114,7 +115,8 @@ func (p *PlanReal) ForwardNormalized(dst []complex64, src []float32) error {
 
 // ForwardUnitary computes the real-to-complex FFT and scales the result by 1/sqrt(N).
 func (p *PlanReal) ForwardUnitary(dst []complex64, src []float32) error {
-	if err := p.Forward(dst, src); err != nil {
+	err := p.Forward(dst, src)
+	if err != nil {
 		return err
 	}
 
@@ -169,7 +171,8 @@ func (p *PlanReal) Inverse(dst []float32, src []complex64) error {
 		}
 	}
 
-	if err := p.plan.Inverse(p.buf, p.buf); err != nil {
+	err := p.plan.Inverse(p.buf, p.buf)
+	if err != nil {
 		return err
 	}
 

@@ -362,6 +362,7 @@ func BenchmarkBluesteinVsNaive(b *testing.B) {
 			b.SetBytes(int64(n * 8)) // complex64 = 8 bytes
 
 			b.ResetTimer()
+
 			for range b.N {
 				_ = plan.Forward(dst, src)
 			}
@@ -377,6 +378,7 @@ func BenchmarkBluesteinVsNaive(b *testing.B) {
 			b.SetBytes(int64(n * 8))
 
 			b.ResetTimer()
+
 			for range b.N {
 				_ = reference.NaiveDFT(src)
 			}
@@ -406,6 +408,7 @@ func BenchmarkBluesteinForward(b *testing.B) {
 			b.SetBytes(int64(n * 8))
 
 			b.ResetTimer()
+
 			for range b.N {
 				_ = plan.Forward(dst, src)
 			}
@@ -428,6 +431,7 @@ func BenchmarkBluesteinForward(b *testing.B) {
 			b.SetBytes(int64(n * 16))
 
 			b.ResetTimer()
+
 			for range b.N {
 				_ = plan.Forward(dst, src)
 			}
@@ -457,6 +461,7 @@ func BenchmarkBluesteinInverse(b *testing.B) {
 			b.SetBytes(int64(n * 8))
 
 			b.ResetTimer()
+
 			for range b.N {
 				_ = plan.Inverse(dst, freq)
 			}
@@ -479,6 +484,7 @@ func BenchmarkBluesteinInverse(b *testing.B) {
 			b.SetBytes(int64(n * 16))
 
 			b.ResetTimer()
+
 			for range b.N {
 				_ = plan.Inverse(dst, freq)
 			}
@@ -509,6 +515,7 @@ func BenchmarkBluesteinRoundTrip(b *testing.B) {
 			b.SetBytes(int64(n * 8 * 2)) // 2 transforms
 
 			b.ResetTimer()
+
 			for range b.N {
 				_ = plan.Forward(freq, src)
 				_ = plan.Inverse(dst, freq)

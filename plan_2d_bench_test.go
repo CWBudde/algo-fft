@@ -8,6 +8,7 @@ import (
 
 func benchmarkPlan2DForward(b *testing.B, rows, cols int) {
 	b.Helper()
+
 	plan, err := NewPlan2D[complex64](rows, cols)
 	if err != nil {
 		b.Fatalf("NewPlan2D failed: %v", err)
@@ -20,13 +21,14 @@ func benchmarkPlan2DForward(b *testing.B, rows, cols int) {
 	b.SetBytes(int64(rows * cols * 8)) // complex64 = 8 bytes
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(dst, src)
 	}
 }
 
 func benchmarkPlan2DInverse(b *testing.B, rows, cols int) {
 	b.Helper()
+
 	plan, err := NewPlan2D[complex64](rows, cols)
 	if err != nil {
 		b.Fatalf("NewPlan2D failed: %v", err)
@@ -39,13 +41,14 @@ func benchmarkPlan2DInverse(b *testing.B, rows, cols int) {
 	b.SetBytes(int64(rows * cols * 8))
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Inverse(dst, src)
 	}
 }
 
 func benchmarkPlan2DInPlace(b *testing.B, rows, cols int) {
 	b.Helper()
+
 	plan, err := NewPlan2D[complex64](rows, cols)
 	if err != nil {
 		b.Fatalf("NewPlan2D failed: %v", err)
@@ -57,7 +60,7 @@ func benchmarkPlan2DInPlace(b *testing.B, rows, cols int) {
 	b.SetBytes(int64(rows * cols * 8))
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.ForwardInPlace(data)
 	}
 }
@@ -167,7 +170,7 @@ func BenchmarkPlan2D_ReusePatterns_64x64(b *testing.B) {
 		b.SetBytes(int64(64 * 64 * 8))
 		b.ResetTimer()
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			dst := make([]complex64, 64*64)
 			_ = plan.Forward(dst, src)
 		}
@@ -181,7 +184,7 @@ func BenchmarkPlan2D_ReusePatterns_64x64(b *testing.B) {
 		b.SetBytes(int64(64 * 64 * 8))
 		b.ResetTimer()
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			plan, _ := NewPlan2D[complex64](64, 64)
 			_ = plan.Forward(dst, src)
 		}
@@ -203,7 +206,7 @@ func BenchmarkPlan2D_Forward_64x64_Complex128(b *testing.B) {
 	b.SetBytes(int64(64 * 64 * 16)) // complex128 = 16 bytes
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(dst, src)
 	}
 }

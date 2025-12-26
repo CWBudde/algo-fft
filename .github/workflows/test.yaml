@@ -20,5 +20,8 @@ jobs:
   test-lint:
     uses: ./.github/workflows/test-lint.yaml
 
+  test-format:
+    uses: ./.github/workflows/test-format.yaml
+
   test-bench:
     uses: ./.github/workflows/test-bench.yaml

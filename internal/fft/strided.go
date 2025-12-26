@@ -26,7 +26,7 @@ func ditForwardStrided[T Complex](dst, src, twiddle []T, bitrev []int, stride, n
 		return false
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		dst[i*stride] = src[bitrev[i]*stride]
 	}
 
@@ -36,8 +36,9 @@ func ditForwardStrided[T Complex](dst, src, twiddle []T, bitrev []int, stride, n
 
 		for base := 0; base < n; base += size {
 			index1 := base * stride
+
 			index2 := (base + half) * stride
-			for j := 0; j < half; j++ {
+			for j := range half {
 				tw := twiddle[j*step]
 				a, b := butterfly2(dst[index1], dst[index2], tw)
 				dst[index1] = a
@@ -65,7 +66,7 @@ func ditInverseStrided[T Complex](dst, src, twiddle []T, bitrev []int, stride, n
 		return false
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		dst[i*stride] = src[bitrev[i]*stride]
 	}
 
@@ -75,8 +76,9 @@ func ditInverseStrided[T Complex](dst, src, twiddle []T, bitrev []int, stride, n
 
 		for base := 0; base < n; base += size {
 			index1 := base * stride
+
 			index2 := (base + half) * stride
-			for j := 0; j < half; j++ {
+			for j := range half {
 				tw := conj(twiddle[j*step])
 				a, b := butterfly2(dst[index1], dst[index2], tw)
 				dst[index1] = a
@@ -88,7 +90,7 @@ func ditInverseStrided[T Complex](dst, src, twiddle []T, bitrev []int, stride, n
 	}
 
 	scale := complexFromFloat64[T](1.0/float64(n), 0)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		dst[i*stride] *= scale
 	}
 

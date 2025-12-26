@@ -17,7 +17,7 @@ import (
 // Data layout:
 // - Input (real): row-major D×H×W float32 array
 // - Compact output: row-major D×H×(W/2+1) complex64 array
-// - Full output: row-major D×H×W complex64 array (with redundant conjugate pairs)
+// - Full output: row-major D×H×W complex64 array (with redundant conjugate pairs).
 type PlanReal3D struct {
 	depth, height, width int                // Input dimensions (D×H×W real values)
 	halfWidth            int                // W/2+1 (compact spectrum width)
@@ -63,6 +63,7 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		heightPlans[i] = plan
 	}
 
@@ -73,6 +74,7 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		depthPlans[i] = plan
 	}
 
@@ -155,15 +157,16 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 	}
 
 	// Step 1: Real FFT along width (innermost dimension)
-	for d := 0; d < p.depth; d++ {
-		for h := 0; h < p.height; h++ {
+	for d := range p.depth {
+		for h := range p.height {
 			srcOffset := d*p.height*p.width + h*p.width
 			dstOffset := d*p.height*p.halfWidth + h*p.halfWidth
 
 			srcRow := src[srcOffset : srcOffset+p.width]
 			dstRow := p.scratchCompact[dstOffset : dstOffset+p.halfWidth]
 
-			if err := p.widthPlan.Forward(dstRow, srcRow); err != nil {
+			err := p.widthPlan.Forward(dstRow, srcRow)
+			if err != nil {
 				return err
 			}
 		}
@@ -172,20 +175,21 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 	// Step 2: Complex FFT along height (middle dimension)
 	heightData := make([]complex64, p.height)
 
-	for d := 0; d < p.depth; d++ {
-		for w := 0; w < p.halfWidth; w++ {
+	for d := range p.depth {
+		for w := range p.halfWidth {
 			// Extract column along height
-			for h := 0; h < p.height; h++ {
+			for h := range p.height {
 				heightData[h] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
 			// Transform column
-			if err := p.heightPlans[w].InPlace(heightData); err != nil {
+			err := p.heightPlans[w].InPlace(heightData)
+			if err != nil {
 				return err
 			}
 
 			// Write back
-			for h := 0; h < p.height; h++ {
+			for h := range p.height {
 				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = heightData[h]
 			}
 		}
@@ -194,21 +198,22 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 	// Step 3: Complex FFT along depth (outermost dimension)
 	depthData := make([]complex64, p.depth)
 
-	for h := 0; h < p.height; h++ {
-		for w := 0; w < p.halfWidth; w++ {
+	for h := range p.height {
+		for w := range p.halfWidth {
 			// Extract slice along depth
-			for d := 0; d < p.depth; d++ {
+			for d := range p.depth {
 				depthData[d] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
 			// Transform depth slice
 			planIdx := h*p.halfWidth + w
-			if err := p.depthPlans[planIdx].InPlace(depthData); err != nil {
+			err := p.depthPlans[planIdx].InPlace(depthData)
+			if err != nil {
 				return err
 			}
 
 			// Write back
-			for d := 0; d < p.depth; d++ {
+			for d := range p.depth {
 				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = depthData[d]
 			}
 		}
@@ -247,16 +252,17 @@ func (p *PlanReal3D) ForwardFull(dst []complex64, src []float32) error {
 	}
 
 	// First compute compact spectrum
-	if err := p.Forward(p.scratchCompact, src); err != nil {
+	err := p.Forward(p.scratchCompact, src)
+	if err != nil {
 		return err
 	}
 
 	// Expand to full spectrum using conjugate symmetry
 	// For 3D real FFT: X[kd, kh, w-kw] = conj(X[kd, kh, kw]) for kw = 1..w/2-1
-	for d := 0; d < p.depth; d++ {
-		for h := 0; h < p.height; h++ {
+	for d := range p.depth {
+		for h := range p.height {
 			// Copy half-spectrum to output
-			for w := 0; w < p.halfWidth; w++ {
+			for w := range p.halfWidth {
 				dst[d*p.height*p.width+h*p.width+w] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
@@ -304,21 +310,22 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 	// Step 1: Complex IFFT along depth (outermost dimension)
 	depthData := make([]complex64, p.depth)
 
-	for h := 0; h < p.height; h++ {
-		for w := 0; w < p.halfWidth; w++ {
+	for h := range p.height {
+		for w := range p.halfWidth {
 			// Extract slice along depth
-			for d := 0; d < p.depth; d++ {
+			for d := range p.depth {
 				depthData[d] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
 			// Inverse transform depth slice
 			planIdx := h*p.halfWidth + w
-			if err := p.depthPlans[planIdx].InverseInPlace(depthData); err != nil {
+			err := p.depthPlans[planIdx].InverseInPlace(depthData)
+			if err != nil {
 				return err
 			}
 
 			// Write back
-			for d := 0; d < p.depth; d++ {
+			for d := range p.depth {
 				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = depthData[d]
 			}
 		}
@@ -327,35 +334,37 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 	// Step 2: Complex IFFT along height (middle dimension)
 	heightData := make([]complex64, p.height)
 
-	for d := 0; d < p.depth; d++ {
-		for w := 0; w < p.halfWidth; w++ {
+	for d := range p.depth {
+		for w := range p.halfWidth {
 			// Extract column along height
-			for h := 0; h < p.height; h++ {
+			for h := range p.height {
 				heightData[h] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
 			// Inverse transform column
-			if err := p.heightPlans[w].InverseInPlace(heightData); err != nil {
+			err := p.heightPlans[w].InverseInPlace(heightData)
+			if err != nil {
 				return err
 			}
 
 			// Write back
-			for h := 0; h < p.height; h++ {
+			for h := range p.height {
 				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = heightData[h]
 			}
 		}
 	}
 
 	// Step 3: Real IFFT along width (innermost dimension)
-	for d := 0; d < p.depth; d++ {
-		for h := 0; h < p.height; h++ {
+	for d := range p.depth {
+		for h := range p.height {
 			srcOffset := d*p.height*p.halfWidth + h*p.halfWidth
 			dstOffset := d*p.height*p.width + h*p.width
 
 			srcRow := p.scratchCompact[srcOffset : srcOffset+p.halfWidth]
 			dstRow := dst[dstOffset : dstOffset+p.width]
 
-			if err := p.widthPlan.Inverse(dstRow, srcRow); err != nil {
+			err := p.widthPlan.Inverse(dstRow, srcRow)
+			if err != nil {
 				return err
 			}
 		}
@@ -391,9 +400,9 @@ func (p *PlanReal3D) InverseFull(dst []float32, src []complex64) error {
 	}
 
 	// Extract compact half-spectrum from full spectrum
-	for d := 0; d < p.depth; d++ {
-		for h := 0; h < p.height; h++ {
-			for w := 0; w < p.halfWidth; w++ {
+	for d := range p.depth {
+		for h := range p.height {
+			for w := range p.halfWidth {
 				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = src[d*p.height*p.width+h*p.width+w]
 			}
 		}

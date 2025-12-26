@@ -24,15 +24,15 @@ func NaiveDFT3D(src []complex64, depth, height, width int) []complex64 {
 	dst := make([]complex64, depth*height*width)
 
 	// For each output frequency bin (kd, kh, kw)
-	for kd := 0; kd < depth; kd++ {
-		for kh := 0; kh < height; kh++ {
-			for kw := 0; kw < width; kw++ {
+	for kd := range depth {
+		for kh := range height {
+			for kw := range width {
 				var sum complex128 // Use higher precision for accumulation
 
 				// Sum over all input samples (d, h, w)
-				for d := 0; d < depth; d++ {
-					for h := 0; h < height; h++ {
-						for w := 0; w < width; w++ {
+				for d := range depth {
+					for h := range height {
+						for w := range width {
 							// Compute phase: -2π*(kd*d/depth + kh*h/height + kw*w/width)
 							phaseDepth := -2.0 * math.Pi * float64(kd*d) / float64(depth)
 							phaseHeight := -2.0 * math.Pi * float64(kh*h) / float64(height)
@@ -67,14 +67,14 @@ func NaiveDFT3D128(src []complex128, depth, height, width int) []complex128 {
 
 	dst := make([]complex128, depth*height*width)
 
-	for kd := 0; kd < depth; kd++ {
-		for kh := 0; kh < height; kh++ {
-			for kw := 0; kw < width; kw++ {
+	for kd := range depth {
+		for kh := range height {
+			for kw := range width {
 				var sum complex128
 
-				for d := 0; d < depth; d++ {
-					for h := 0; h < height; h++ {
-						for w := 0; w < width; w++ {
+				for d := range depth {
+					for h := range height {
+						for w := range width {
 							phaseDepth := -2.0 * math.Pi * float64(kd*d) / float64(depth)
 							phaseHeight := -2.0 * math.Pi * float64(kh*h) / float64(height)
 							phaseWidth := -2.0 * math.Pi * float64(kw*w) / float64(width)
@@ -111,14 +111,14 @@ func NaiveIDFT3D(src []complex64, depth, height, width int) []complex64 {
 	dst := make([]complex64, depth*height*width)
 	scale := 1.0 / float64(depth*height*width) // Normalization factor
 
-	for d := 0; d < depth; d++ {
-		for h := 0; h < height; h++ {
-			for w := 0; w < width; w++ {
+	for d := range depth {
+		for h := range height {
+			for w := range width {
 				var sum complex128
 
-				for kd := 0; kd < depth; kd++ {
-					for kh := 0; kh < height; kh++ {
-						for kw := 0; kw < width; kw++ {
+				for kd := range depth {
+					for kh := range height {
+						for kw := range width {
 							// Positive phase for inverse: +2π*(kd*d/depth + kh*h/height + kw*w/width)
 							phaseDepth := 2.0 * math.Pi * float64(kd*d) / float64(depth)
 							phaseHeight := 2.0 * math.Pi * float64(kh*h) / float64(height)
@@ -151,14 +151,14 @@ func NaiveIDFT3D128(src []complex128, depth, height, width int) []complex128 {
 	dst := make([]complex128, depth*height*width)
 	scale := 1.0 / float64(depth*height*width)
 
-	for d := 0; d < depth; d++ {
-		for h := 0; h < height; h++ {
-			for w := 0; w < width; w++ {
+	for d := range depth {
+		for h := range height {
+			for w := range width {
 				var sum complex128
 
-				for kd := 0; kd < depth; kd++ {
-					for kh := 0; kh < height; kh++ {
-						for kw := 0; kw < width; kw++ {
+				for kd := range depth {
+					for kh := range height {
+						for kw := range width {
 							phaseDepth := 2.0 * math.Pi * float64(kd*d) / float64(depth)
 							phaseHeight := 2.0 * math.Pi * float64(kh*h) / float64(height)
 							phaseWidth := 2.0 * math.Pi * float64(kw*w) / float64(width)

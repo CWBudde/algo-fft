@@ -17,7 +17,7 @@ import (
 // Data layout:
 // - Input (real): row-major M×N float32 array
 // - Compact output: row-major M×(N/2+1) complex64 array
-// - Full output: row-major M×N complex64 array (with redundant conjugate pairs)
+// - Full output: row-major M×N complex64 array (with redundant conjugate pairs).
 type PlanReal2D struct {
 	rows, cols     int                // Input dimensions (M×N real values)
 	halfCols       int                // N/2+1 (compact spectrum width)
@@ -62,6 +62,7 @@ func NewPlanReal2D(rows, cols int) (*PlanReal2D, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		colPlans[i] = plan
 	}
 
@@ -133,11 +134,12 @@ func (p *PlanReal2D) Forward(dst []complex64, src []float32) error {
 	}
 
 	// Step 1: Real FFT on each row (float32 input → complex64 half-spectrum)
-	for row := 0; row < p.rows; row++ {
+	for row := range p.rows {
 		srcRow := src[row*p.cols : (row+1)*p.cols]
 		dstRow := p.scratchCompact[row*p.halfCols : (row+1)*p.halfCols]
 
-		if err := p.rowPlan.Forward(dstRow, srcRow); err != nil {
+		err := p.rowPlan.Forward(dstRow, srcRow)
+		if err != nil {
 			return err
 		}
 	}
@@ -145,19 +147,20 @@ func (p *PlanReal2D) Forward(dst []complex64, src []float32) error {
 	// Step 2: Complex FFT on each column of the half-spectrum
 	colData := make([]complex64, p.rows)
 
-	for col := 0; col < p.halfCols; col++ {
+	for col := range p.halfCols {
 		// Extract column
-		for row := 0; row < p.rows; row++ {
+		for row := range p.rows {
 			colData[row] = p.scratchCompact[row*p.halfCols+col]
 		}
 
 		// Transform column
-		if err := p.colPlans[col].InPlace(colData); err != nil {
+		err := p.colPlans[col].InPlace(colData)
+		if err != nil {
 			return err
 		}
 
 		// Write back
-		for row := 0; row < p.rows; row++ {
+		for row := range p.rows {
 			p.scratchCompact[row*p.halfCols+col] = colData[row]
 		}
 	}
@@ -192,15 +195,16 @@ func (p *PlanReal2D) ForwardFull(dst []complex64, src []float32) error {
 	}
 
 	// First compute compact spectrum
-	if err := p.Forward(p.scratchCompact, src); err != nil {
+	err := p.Forward(p.scratchCompact, src)
+	if err != nil {
 		return err
 	}
 
 	// Expand to full spectrum using conjugate symmetry
 	// For 2D real FFT: X[k, n-l] = conj(X[k, l]) for l = 1..n/2-1
-	for row := 0; row < p.rows; row++ {
+	for row := range p.rows {
 		// Copy half-spectrum to output
-		for col := 0; col < p.halfCols; col++ {
+		for col := range p.halfCols {
 			dst[row*p.cols+col] = p.scratchCompact[row*p.halfCols+col]
 		}
 
@@ -243,29 +247,31 @@ func (p *PlanReal2D) Inverse(dst []float32, src []complex64) error {
 	// Step 1: Complex IFFT on each column
 	colData := make([]complex64, p.rows)
 
-	for col := 0; col < p.halfCols; col++ {
+	for col := range p.halfCols {
 		// Extract column
-		for row := 0; row < p.rows; row++ {
+		for row := range p.rows {
 			colData[row] = p.scratchCompact[row*p.halfCols+col]
 		}
 
 		// Inverse transform column
-		if err := p.colPlans[col].InverseInPlace(colData); err != nil {
+		err := p.colPlans[col].InverseInPlace(colData)
+		if err != nil {
 			return err
 		}
 
 		// Write back
-		for row := 0; row < p.rows; row++ {
+		for row := range p.rows {
 			p.scratchCompact[row*p.halfCols+col] = colData[row]
 		}
 	}
 
 	// Step 2: Real IFFT on each row (complex64 half-spectrum → float32)
-	for row := 0; row < p.rows; row++ {
+	for row := range p.rows {
 		srcRow := p.scratchCompact[row*p.halfCols : (row+1)*p.halfCols]
 		dstRow := dst[row*p.cols : (row+1)*p.cols]
 
-		if err := p.rowPlan.Inverse(dstRow, srcRow); err != nil {
+		err := p.rowPlan.Inverse(dstRow, srcRow)
+		if err != nil {
 			return err
 		}
 	}
@@ -297,8 +303,8 @@ func (p *PlanReal2D) InverseFull(dst []float32, src []complex64) error {
 	}
 
 	// Extract compact half-spectrum from full spectrum
-	for row := 0; row < p.rows; row++ {
-		for col := 0; col < p.halfCols; col++ {
+	for row := range p.rows {
+		for col := range p.halfCols {
 			p.scratchCompact[row*p.halfCols+col] = src[row*p.cols+col]
 		}
 	}

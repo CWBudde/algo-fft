@@ -1,6 +1,7 @@
 package algoforge
 
 import (
+	"errors"
 	"math/rand"
 	"testing"
 )
@@ -11,7 +12,8 @@ func TestConvolveBasic(t *testing.T) {
 	want := []complex64{4 + 0i, 13 + 0i, 22 + 0i, 15 + 0i}
 
 	got := make([]complex64, len(a)+len(b)-1)
-	if err := Convolve(got, a, b); err != nil {
+	err := Convolve(got, a, b)
+	if err != nil {
 		t.Fatalf("Convolve() returned error: %v", err)
 	}
 
@@ -28,6 +30,7 @@ func TestConvolveRandomMatchesNaive(t *testing.T) {
 	for i := range a {
 		a[i] = complex(rng.Float32()*2-1, rng.Float32()*2-1)
 	}
+
 	for i := range b {
 		b[i] = complex(rng.Float32()*2-1, rng.Float32()*2-1)
 	}
@@ -35,7 +38,8 @@ func TestConvolveRandomMatchesNaive(t *testing.T) {
 	want := naiveConvolveComplex64(a, b)
 	got := make([]complex64, len(want))
 
-	if err := Convolve(got, a, b); err != nil {
+	err := Convolve(got, a, b)
+	if err != nil {
 		t.Fatalf("Convolve() returned error: %v", err)
 	}
 
@@ -45,22 +49,33 @@ func TestConvolveRandomMatchesNaive(t *testing.T) {
 }
 
 func TestConvolveErrors(t *testing.T) {
-	if err := Convolve(nil, []complex64{1}, []complex64{1}); err != ErrNilSlice {
+	err := Convolve(nil, []complex64{1}, []complex64{1})
+	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("Convolve(nil, a, b) = %v, want ErrNilSlice", err)
 	}
-	if err := Convolve([]complex64{1}, nil, []complex64{1}); err != ErrNilSlice {
+	err = Convolve([]complex64{1}, nil, []complex64{1})
+
+	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("Convolve(dst, nil, b) = %v, want ErrNilSlice", err)
 	}
-	if err := Convolve([]complex64{1}, []complex64{1}, nil); err != ErrNilSlice {
+	err = Convolve([]complex64{1}, []complex64{1}, nil)
+
+	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("Convolve(dst, a, nil) = %v, want ErrNilSlice", err)
 	}
-	if err := Convolve([]complex64{}, []complex64{}, []complex64{1}); err != ErrInvalidLength {
+	err = Convolve([]complex64{}, []complex64{}, []complex64{1})
+
+	if !errors.Is(err, ErrInvalidLength) {
 		t.Fatalf("Convolve(dst, empty, b) = %v, want ErrInvalidLength", err)
 	}
-	if err := Convolve([]complex64{}, []complex64{1}, []complex64{}); err != ErrInvalidLength {
+	err = Convolve([]complex64{}, []complex64{1}, []complex64{})
+
+	if !errors.Is(err, ErrInvalidLength) {
 		t.Fatalf("Convolve(dst, a, empty) = %v, want ErrInvalidLength", err)
 	}
-	if err := Convolve([]complex64{0}, []complex64{1, 2}, []complex64{3, 4}); err != ErrLengthMismatch {
+	err = Convolve([]complex64{0}, []complex64{1, 2}, []complex64{3, 4})
+
+	if !errors.Is(err, ErrLengthMismatch) {
 		t.Fatalf("Convolve(dst, a, b) = %v, want ErrLengthMismatch", err)
 	}
 }

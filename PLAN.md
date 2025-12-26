@@ -1187,8 +1187,8 @@ This is a reasonable trade-off for supporting arbitrary dimensions.
 
 ### 23.2 WASM SIMD Exploration
 
-- [ ] Research WASM SIMD instruction availability
-- [ ] Evaluate Go's WASM SIMD support status
+- [x] Research WASM SIMD instruction availability
+- [x] Evaluate Go's WASM SIMD support status
 - [ ] Prototype WASM SIMD butterfly (if supported)
 - [ ] Benchmark WASM performance vs native
 

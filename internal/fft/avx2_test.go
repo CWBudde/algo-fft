@@ -66,6 +66,7 @@ func generateRandomComplex64(n int, seed uint64) []complex64 {
 func generateImpulse(n int) []complex64 {
 	result := make([]complex64, n)
 	result[0] = 1
+
 	return result
 }
 
@@ -75,6 +76,7 @@ func generateDC(n int, value complex64) []complex64 {
 	for i := range result {
 		result[i] = value
 	}
+
 	return result
 }
 
@@ -85,6 +87,7 @@ func generateCosine(n int, freqBin int) []complex64 {
 		angle := 2 * math.Pi * float64(freqBin) * float64(i) / float64(n)
 		result[i] = complex(float32(math.Cos(angle)), 0)
 	}
+
 	return result
 }
 
@@ -95,6 +98,7 @@ func computeEnergy(x []complex64) float64 {
 		re, im := float64(real(v)), float64(imag(v))
 		energy += re*re + im*im
 	}
+
 	return energy
 }
 
@@ -103,6 +107,7 @@ func prepareFFTData(n int) ([]complex64, []int, []complex64) {
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
+
 	return twiddle, bitrev, scratch
 }
 
@@ -191,9 +196,11 @@ func TestAVX2Forward_VsPureGo(t *testing.T) {
 			const relTol = 1e-5
 			if !complexSliceEqual(dstAVX2, dstGo, relTol) {
 				t.Errorf("AVX2 forward result differs from pure-Go")
+
 				for i := range dstAVX2 {
 					if !complexNearEqual(dstAVX2[i], dstGo[i], relTol) {
 						t.Errorf("  [%d]: AVX2=%v, Go=%v", i, dstAVX2[i], dstGo[i])
+
 						if i >= 5 {
 							t.Errorf("  ... (more differences)")
 							break
@@ -247,9 +254,11 @@ func TestAVX2Inverse_VsPureGo(t *testing.T) {
 			const relTol = 2e-5
 			if !complexSliceEqual(dstAVX2, dstGo, relTol) {
 				t.Errorf("AVX2 inverse result differs from pure-Go")
+
 				for i := range dstAVX2 {
 					if !complexNearEqual(dstAVX2[i], dstGo[i], relTol) {
 						t.Errorf("  [%d]: AVX2=%v, Go=%v", i, dstAVX2[i], dstGo[i])
+
 						if i >= 5 {
 							t.Errorf("  ... (more differences)")
 							break
@@ -261,7 +270,7 @@ func TestAVX2Inverse_VsPureGo(t *testing.T) {
 	}
 }
 
-// 14.3: AVX2 Stockham vs Pure-Go Stockham Tests
+// 14.3: AVX2 Stockham vs Pure-Go Stockham Tests.
 func TestAVX2StockhamForward_VsPureGo(t *testing.T) {
 	avx2Forward, _, avx2Available := getAVX2StockhamKernels()
 	if !avx2Available {
@@ -394,9 +403,11 @@ func reportDifferences(t *testing.T, got, want []complex64, relTol float32) {
 	t.Helper()
 
 	count := 0
+
 	for i := range got {
 		if !complexNearEqual(got[i], want[i], relTol) {
 			t.Errorf("  [%d]: got=%v, want=%v", i, got[i], want[i])
+
 			count++
 			if count >= 5 {
 				t.Errorf("  ... (more differences)")
@@ -435,6 +446,7 @@ func TestAVX2RoundTrip(t *testing.T) {
 
 			// Inverse transform
 			recovered := make([]complex64, n)
+
 			scratch2 := make([]complex64, n)
 			if !avx2Inverse(recovered, freq, twiddle, scratch2, bitrev) {
 				t.Skip("AVX2 inverse kernel not yet implemented")
@@ -444,9 +456,11 @@ func TestAVX2RoundTrip(t *testing.T) {
 			const relTol = 1e-5
 			if !complexSliceEqual(recovered, original, relTol) {
 				t.Errorf("Round-trip failed: IFFT(FFT(x)) != x")
+
 				for i := range recovered {
 					if !complexNearEqual(recovered[i], original[i], relTol) {
 						t.Errorf("  [%d]: original=%v, recovered=%v", i, original[i], recovered[i])
+
 						if i >= 5 {
 							t.Errorf("  ... (more differences)")
 							break
@@ -535,12 +549,14 @@ func TestAVX2Linearity(t *testing.T) {
 
 			// Compute a*FFT(x) + b*FFT(y)
 			fftX := make([]complex64, n)
+
 			scratch2 := make([]complex64, n)
 			if !avx2Forward(fftX, x, twiddle, scratch2, bitrev) {
 				t.Skip("AVX2 kernel not yet implemented")
 			}
 
 			fftY := make([]complex64, n)
+
 			scratch3 := make([]complex64, n)
 			if !avx2Forward(fftY, y, twiddle, scratch3, bitrev) {
 				t.Skip("AVX2 kernel not yet implemented")
@@ -630,6 +646,7 @@ func TestAVX2EdgeCases(t *testing.T) {
 
 		// FFT of constant should have DC component = n * value, rest zero
 		expectedDC := complex(float32(n), 0) * dcValue
+
 		const tol float32 = 1e-5
 
 		if !complexNearEqual(dst[0], expectedDC, tol) {
@@ -658,6 +675,7 @@ func TestAVX2EdgeCases(t *testing.T) {
 
 		// FFT of cos(2πk*t/N) should have peaks at bins k and N-k
 		const tol float32 = 1e-4
+
 		expectedMag := float32(n) / 2
 
 		// Check positive frequency bin
@@ -669,6 +687,7 @@ func TestAVX2EdgeCases(t *testing.T) {
 
 		// Check negative frequency bin (conjugate symmetry)
 		negBin := n - freqBin
+
 		gotMagNeg := float32(math.Sqrt(float64(real(dst[negBin])*real(dst[negBin]) +
 			imag(dst[negBin])*imag(dst[negBin]))))
 		if math.Abs(float64(gotMagNeg-expectedMag)) > float64(tol*expectedMag) {
@@ -721,6 +740,7 @@ func TestAVX2EdgeCases(t *testing.T) {
 
 		// Inverse
 		recovered := make([]complex64, n)
+
 		scratch2 := make([]complex64, n)
 		if !avx2Inverse(recovered, freq, twiddle, scratch2, bitrev) {
 			t.Skip("AVX2 inverse not yet implemented")
@@ -846,7 +866,7 @@ func BenchmarkAVX2Inverse(b *testing.B) {
 	}
 }
 
-// 14.3: AVX2 Stockham Benchmarks (forward/inverse)
+// 14.3: AVX2 Stockham Benchmarks (forward/inverse).
 func BenchmarkAVX2StockhamForward(b *testing.B) {
 	avx2Forward, _, avx2Available := getAVX2StockhamKernels()
 	if !avx2Available {
@@ -868,7 +888,7 @@ func BenchmarkAVX2StockhamForward(b *testing.B) {
 			b.SetBytes(int64(n * 8))
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				avx2Forward(dst, src, twiddle, scratch, bitrev)
 			}
 		})
@@ -896,7 +916,7 @@ func BenchmarkAVX2StockhamInverse(b *testing.B) {
 			b.SetBytes(int64(n * 8))
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				avx2Inverse(dst, src, twiddle, scratch, bitrev)
 			}
 		})
@@ -960,6 +980,7 @@ func BenchmarkAVX2VsPureGo(b *testing.B) {
 
 			b.Run("PureGo", func(b *testing.B) {
 				b.SetBytes(int64(n * 8))
+
 				for b.Loop() {
 					goForward(dst, src, twiddle, scratch, bitrev)
 				}
@@ -971,11 +992,13 @@ func BenchmarkAVX2VsPureGo(b *testing.B) {
 					b.Run("AVX2", func(b *testing.B) {
 						b.Skip("AVX2 kernel not yet implemented")
 					})
+
 					return
 				}
 
 				b.Run("AVX2", func(b *testing.B) {
 					b.SetBytes(int64(n * 8))
+
 					for b.Loop() {
 						avx2Forward(dst, src, twiddle, scratch, bitrev)
 					}
@@ -1070,6 +1093,7 @@ func TestAVX2Forward128_VsPureGo(t *testing.T) {
 			t.Parallel()
 
 			src := make([]complex128, n)
+
 			rng := rand.New(rand.NewPCG(uint64(n), 1))
 			for i := range src {
 				src[i] = complex(rng.Float64(), rng.Float64())
@@ -1085,6 +1109,7 @@ func TestAVX2Forward128_VsPureGo(t *testing.T) {
 			}
 
 			dstAVX2 := make([]complex128, n)
+
 			scratchAVX2 := make([]complex128, n)
 			if !avx2Forward(dstAVX2, src, twiddle, scratchAVX2, bitrev) {
 				t.Skip("AVX2 complex128 forward not implemented")
@@ -1117,6 +1142,7 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 			t.Parallel()
 
 			src := make([]complex128, n)
+
 			rng := rand.New(rand.NewPCG(uint64(n), 2))
 			for i := range src {
 				src[i] = complex(rng.Float64(), rng.Float64())
@@ -1132,6 +1158,7 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 			}
 
 			dstAVX2 := make([]complex128, n)
+
 			scratchAVX2 := make([]complex128, n)
 			if !avx2Inverse(dstAVX2, src, twiddle, scratchAVX2, bitrev) {
 				t.Skip("AVX2 complex128 inverse not implemented")

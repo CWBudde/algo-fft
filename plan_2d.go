@@ -54,10 +54,13 @@ func NewPlan2D[T Complex](rows, cols int) (*Plan2D[T], error) {
 	}
 
 	// Allocate scratch buffer (aligned for SIMD)
-	var scratch []T
-	var scratchBacking []byte
+	var (
+		scratch        []T
+		scratchBacking []byte
+	)
 
 	totalSize := rows * cols
+
 	switch any(scratch).(type) {
 	case []complex64:
 		s, b := fft.AllocAlignedComplex64(totalSize)
@@ -116,10 +119,12 @@ func (p *Plan2D[T]) Len() int {
 // String returns a human-readable description of the Plan2D for debugging.
 func (p *Plan2D[T]) String() string {
 	var zero T
+
 	typeName := "complex64"
 	if _, ok := any(zero).(complex128); ok {
 		typeName = "complex128"
 	}
+
 	return fmt.Sprintf("Plan2D[%s](%dx%d)", typeName, p.rows, p.cols)
 }
 
@@ -130,9 +135,10 @@ func (p *Plan2D[T]) String() string {
 //
 // Supports in-place operation (dst == src).
 //
-// Formula: X[k,l] = Σ(m=0..rows-1) Σ(n=0..cols-1) x[m,n] * exp(-2πi*(km/rows + ln/cols))
+// Formula: X[k,l] = Σ(m=0..rows-1) Σ(n=0..cols-1) x[m,n] * exp(-2πi*(km/rows + ln/cols)).
 func (p *Plan2D[T]) Forward(dst, src []T) error {
-	if err := p.validate(dst, src); err != nil {
+	err := p.validate(dst, src)
+	if err != nil {
 		return err
 	}
 
@@ -140,9 +146,10 @@ func (p *Plan2D[T]) Forward(dst, src []T) error {
 	copy(p.scratch, src)
 
 	// Transform rows
-	for row := 0; row < p.rows; row++ {
+	for row := range p.rows {
 		rowData := p.scratch[row*p.cols : (row+1)*p.cols]
-		if err := p.rowPlan.InPlace(rowData); err != nil {
+		err := p.rowPlan.InPlace(rowData)
+		if err != nil {
 			return err
 		}
 	}
@@ -169,9 +176,10 @@ func (p *Plan2D[T]) Forward(dst, src []T) error {
 //
 // Supports in-place operation (dst == src).
 //
-// Formula: x[m,n] = (1/(rows*cols)) * Σ(k=0..rows-1) Σ(l=0..cols-1) X[k,l] * exp(2πi*(km/rows + ln/cols))
+// Formula: x[m,n] = (1/(rows*cols)) * Σ(k=0..rows-1) Σ(l=0..cols-1) X[k,l] * exp(2πi*(km/rows + ln/cols)).
 func (p *Plan2D[T]) Inverse(dst, src []T) error {
-	if err := p.validate(dst, src); err != nil {
+	err := p.validate(dst, src)
+	if err != nil {
 		return err
 	}
 
@@ -179,9 +187,10 @@ func (p *Plan2D[T]) Inverse(dst, src []T) error {
 	copy(p.scratch, src)
 
 	// Transform rows (inverse)
-	for row := 0; row < p.rows; row++ {
+	for row := range p.rows {
 		rowData := p.scratch[row*p.cols : (row+1)*p.cols]
-		if err := p.rowPlan.InverseInPlace(rowData); err != nil {
+		err := p.rowPlan.InverseInPlace(rowData)
+		if err != nil {
 			return err
 		}
 	}
@@ -222,10 +231,13 @@ func (p *Plan2D[T]) InverseInPlace(data []T) error {
 // This allows multiple goroutines to perform transforms concurrently.
 func (p *Plan2D[T]) Clone() *Plan2D[T] {
 	// Allocate new scratch buffer
-	var scratch []T
-	var scratchBacking []byte
+	var (
+		scratch        []T
+		scratchBacking []byte
+	)
 
 	totalSize := p.rows * p.cols
+
 	switch any(scratch).(type) {
 	case []complex64:
 		s, b := fft.AllocAlignedComplex64(totalSize)
@@ -274,7 +286,7 @@ func (p *Plan2D[T]) transformColumnsViaTranspose(forward bool) {
 	fft.ApplyTransposePairs(p.scratch, p.transposePairs)
 
 	// Transform each column (now a row)
-	for row := 0; row < p.rows; row++ {
+	for row := range p.rows {
 		rowData := p.scratch[row*p.cols : (row+1)*p.cols]
 		if forward {
 			_ = p.colPlan.InPlace(rowData)
@@ -291,9 +303,9 @@ func (p *Plan2D[T]) transformColumnsViaTranspose(forward bool) {
 func (p *Plan2D[T]) transformColumnsStrided(forward bool) {
 	colData := make([]T, p.rows)
 
-	for col := 0; col < p.cols; col++ {
+	for col := range p.cols {
 		// Extract column
-		for row := 0; row < p.rows; row++ {
+		for row := range p.rows {
 			colData[row] = p.scratch[row*p.cols+col]
 		}
 
@@ -305,7 +317,7 @@ func (p *Plan2D[T]) transformColumnsStrided(forward bool) {
 		}
 
 		// Write back
-		for row := 0; row < p.rows; row++ {
+		for row := range p.rows {
 			p.scratch[row*p.cols+col] = colData[row]
 		}
 	}

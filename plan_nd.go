@@ -45,10 +45,12 @@ func NewPlanND[T Complex](dims []int) (*PlanND[T], error) {
 
 	// Validate all dimensions
 	totalSize := 1
+
 	for i, d := range dims {
 		if d <= 0 {
 			return nil, fmt.Errorf("dimension %d has invalid size %d: %w", i, d, ErrInvalidLength)
 		}
+
 		totalSize *= d
 	}
 
@@ -63,12 +65,15 @@ func NewPlanND[T Complex](dims []int) (*PlanND[T], error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create plan for dimension %d (size %d): %w", i, size, err)
 		}
+
 		plans[i] = plan
 	}
 
 	// Allocate scratch buffer (aligned for SIMD)
-	var scratch []T
-	var scratchBacking []byte
+	var (
+		scratch        []T
+		scratchBacking []byte
+	)
 
 	switch any(scratch).(type) {
 	case []complex64:
@@ -83,6 +88,7 @@ func NewPlanND[T Complex](dims []int) (*PlanND[T], error) {
 
 	// Pre-compute strides for efficient indexing
 	strides := make([]int, len(dims))
+
 	stride := 1
 	for i := len(dims) - 1; i >= 0; i-- {
 		strides[i] = stride
@@ -114,6 +120,7 @@ func NewPlanND64(dims []int) (*PlanND[complex128], error) {
 func (p *PlanND[T]) Dims() []int {
 	result := make([]int, len(p.dims))
 	copy(result, p.dims)
+
 	return result
 }
 
@@ -128,22 +135,26 @@ func (p *PlanND[T]) Len() int {
 	for _, d := range p.dims {
 		total *= d
 	}
+
 	return total
 }
 
 // String returns a human-readable description of the PlanND for debugging.
 func (p *PlanND[T]) String() string {
 	var zero T
+
 	typeName := "complex64"
 	if _, ok := any(zero).(complex128); ok {
 		typeName = "complex128"
 	}
 
 	dimsStr := ""
+
 	for i, d := range p.dims {
 		if i > 0 {
 			dimsStr += "x"
 		}
+
 		dimsStr += itoa(d)
 	}
 
@@ -157,7 +168,8 @@ func (p *PlanND[T]) String() string {
 //
 // Supports in-place operation (dst == src).
 func (p *PlanND[T]) Forward(dst, src []T) error {
-	if err := p.validate(dst, src); err != nil {
+	err := p.validate(dst, src)
+	if err != nil {
 		return err
 	}
 
@@ -166,7 +178,8 @@ func (p *PlanND[T]) Forward(dst, src []T) error {
 
 	// Transform along each dimension sequentially
 	for dim := len(p.dims) - 1; dim >= 0; dim-- {
-		if err := p.transformDimension(dim, true); err != nil {
+		err := p.transformDimension(dim, true)
+		if err != nil {
 			return err
 		}
 	}
@@ -184,7 +197,8 @@ func (p *PlanND[T]) Forward(dst, src []T) error {
 //
 // Supports in-place operation (dst == src).
 func (p *PlanND[T]) Inverse(dst, src []T) error {
-	if err := p.validate(dst, src); err != nil {
+	err := p.validate(dst, src)
+	if err != nil {
 		return err
 	}
 
@@ -193,7 +207,8 @@ func (p *PlanND[T]) Inverse(dst, src []T) error {
 
 	// Transform along each dimension sequentially
 	for dim := len(p.dims) - 1; dim >= 0; dim-- {
-		if err := p.transformDimension(dim, false); err != nil {
+		err := p.transformDimension(dim, false)
+		if err != nil {
 			return err
 		}
 	}
@@ -225,10 +240,13 @@ func (p *PlanND[T]) InverseInPlace(data []T) error {
 // This allows multiple goroutines to perform transforms concurrently.
 func (p *PlanND[T]) Clone() *PlanND[T] {
 	// Allocate new scratch buffer
-	var scratch []T
-	var scratchBacking []byte
+	var (
+		scratch        []T
+		scratchBacking []byte
+	)
 
 	totalSize := p.Len()
+
 	switch any(scratch).(type) {
 	case []complex64:
 		s, b := fft.AllocAlignedComplex64(totalSize)
@@ -294,7 +312,7 @@ func (p *PlanND[T]) transformDimension(dim int, forward bool) error {
 	totalSlices := p.Len() / dimSize
 
 	// Iterate through all slices along this dimension
-	for sliceIdx := 0; sliceIdx < totalSlices; sliceIdx++ {
+	for sliceIdx := range totalSlices {
 		// Extract slice
 		p.extractSlice(sliceData, sliceIdx, dim)
 
@@ -327,7 +345,7 @@ func (p *PlanND[T]) extractSlice(dst []T, sliceIdx, dim int) {
 	baseOffset := p.sliceIndexToOffset(sliceIdx, dim)
 
 	// Extract elements along the dimension
-	for i := 0; i < dimSize; i++ {
+	for i := range dimSize {
 		offset := baseOffset + i*dimStride
 		dst[i] = p.scratch[offset]
 	}
@@ -342,7 +360,7 @@ func (p *PlanND[T]) writeSlice(src []T, sliceIdx, dim int) {
 	baseOffset := p.sliceIndexToOffset(sliceIdx, dim)
 
 	// Write elements along the dimension
-	for i := 0; i < dimSize; i++ {
+	for i := range dimSize {
 		offset := baseOffset + i*dimStride
 		p.scratch[offset] = src[i]
 	}
@@ -353,7 +371,7 @@ func (p *PlanND[T]) writeSlice(src []T, sliceIdx, dim int) {
 func (p *PlanND[T]) sliceIndexToOffset(sliceIdx, dim int) int {
 	// Build array of "reduced" dimensions (all dims except the transform dimension)
 	reducedDims := make([]int, 0, len(p.dims)-1)
-	for d := 0; d < len(p.dims); d++ {
+	for d := range len(p.dims) {
 		if d != dim {
 			reducedDims = append(reducedDims, p.dims[d])
 		}
@@ -361,6 +379,7 @@ func (p *PlanND[T]) sliceIndexToOffset(sliceIdx, dim int) int {
 
 	// Convert linear sliceIdx to coordinates in reduced space
 	coords := make([]int, len(reducedDims))
+
 	remaining := sliceIdx
 	for i := len(reducedDims) - 1; i >= 0; i-- {
 		coords[i] = remaining % reducedDims[i]
@@ -370,11 +389,13 @@ func (p *PlanND[T]) sliceIndexToOffset(sliceIdx, dim int) int {
 	// Map reduced coordinates back to full coordinates and compute offset
 	offset := 0
 	reducedIdx := 0
-	for d := 0; d < len(p.dims); d++ {
+
+	for d := range len(p.dims) {
 		if d == dim {
 			// This dimension is set to 0 (first element along transform axis)
 			continue
 		}
+
 		offset += coords[reducedIdx] * p.strides[d]
 		reducedIdx++
 	}

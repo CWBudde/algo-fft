@@ -1,6 +1,7 @@
 package algoforge
 
 import (
+	"errors"
 	"math"
 	"math/cmplx"
 	"math/rand/v2"
@@ -13,23 +14,27 @@ import (
 
 func generateRandom2DSignal(rows, cols int, seed uint64) []complex64 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF)) //nolint:gosec
+
 	signal := make([]complex64, rows*cols)
 	for i := range signal {
 		re := float32(rng.Float64()*20 - 10)
 		im := float32(rng.Float64()*20 - 10)
 		signal[i] = complex(re, im)
 	}
+
 	return signal
 }
 
 func generateRandom2DSignal128(rows, cols int, seed uint64) []complex128 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF)) //nolint:gosec
+
 	signal := make([]complex128, rows*cols)
 	for i := range signal {
 		re := rng.Float64()*20 - 10
 		im := rng.Float64()*20 - 10
 		signal[i] = complex(re, im)
 	}
+
 	return signal
 }
 
@@ -55,12 +60,15 @@ func TestNewPlan2D_ValidDimensions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewPlan2D(%d, %d) failed: %v", tc.rows, tc.cols, err)
 			}
+
 			if plan.Rows() != tc.rows {
 				t.Errorf("Rows() = %d, want %d", plan.Rows(), tc.rows)
 			}
+
 			if plan.Cols() != tc.cols {
 				t.Errorf("Cols() = %d, want %d", plan.Cols(), tc.cols)
 			}
+
 			if plan.Len() != tc.rows*tc.cols {
 				t.Errorf("Len() = %d, want %d", plan.Len(), tc.rows*tc.cols)
 			}
@@ -83,7 +91,7 @@ func TestNewPlan2D_InvalidDimensions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := NewPlan2D[complex64](tc.rows, tc.cols)
-			if err != ErrInvalidLength {
+			if !errors.Is(err, ErrInvalidLength) {
 				t.Errorf("NewPlan2D(%d, %d) = %v, want ErrInvalidLength", tc.rows, tc.cols, err)
 			}
 		})
@@ -96,6 +104,7 @@ func TestNewPlan2D32_64(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewPlan2D32 failed: %v", err)
 		}
+
 		if plan.Rows() != 4 || plan.Cols() != 4 {
 			t.Errorf("Dimensions mismatch")
 		}
@@ -106,6 +115,7 @@ func TestNewPlan2D32_64(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewPlan2D64 failed: %v", err)
 		}
+
 		if plan.Rows() != 4 || plan.Cols() != 4 {
 			t.Errorf("Dimensions mismatch")
 		}
@@ -124,14 +134,14 @@ func TestPlan2D_NilSlices(t *testing.T) {
 
 	t.Run("nil_dst", func(t *testing.T) {
 		err := plan.Forward(nil, validData)
-		if err != ErrNilSlice {
+		if !errors.Is(err, ErrNilSlice) {
 			t.Errorf("Forward(nil, validData) = %v, want ErrNilSlice", err)
 		}
 	})
 
 	t.Run("nil_src", func(t *testing.T) {
 		err := plan.Forward(validData, nil)
-		if err != ErrNilSlice {
+		if !errors.Is(err, ErrNilSlice) {
 			t.Errorf("Forward(validData, nil) = %v, want ErrNilSlice", err)
 		}
 	})
@@ -148,14 +158,14 @@ func TestPlan2D_LengthMismatch(t *testing.T) {
 
 	t.Run("wrong_dst_length", func(t *testing.T) {
 		err := plan.Forward(wrongData, validData)
-		if err != ErrLengthMismatch {
+		if !errors.Is(err, ErrLengthMismatch) {
 			t.Errorf("Forward with wrong dst length = %v, want ErrLengthMismatch", err)
 		}
 	})
 
 	t.Run("wrong_src_length", func(t *testing.T) {
 		err := plan.Forward(validData, wrongData)
-		if err != ErrLengthMismatch {
+		if !errors.Is(err, ErrLengthMismatch) {
 			t.Errorf("Forward with wrong src length = %v, want ErrLengthMismatch", err)
 		}
 	})
@@ -196,6 +206,7 @@ func TestPlan2D_ForwardMatchesReference(t *testing.T) {
 
 			// Compare results
 			tol := 1e-3
+
 			for i := range dst {
 				row, col := i/tc.cols, i%tc.cols
 				assertApproxComplex64Tolf(t, dst[i], want[i], tol, "[%d,%d]", row, col)
@@ -236,6 +247,7 @@ func TestPlan2D_InverseMatchesReference(t *testing.T) {
 
 			// Compare results
 			tol := 1e-3
+
 			for i := range dst {
 				row, col := i/tc.cols, i%tc.cols
 				assertApproxComplex64Tolf(t, dst[i], want[i], tol, "[%d,%d]", row, col)
@@ -271,6 +283,7 @@ func TestPlan2D_ForwardMatchesReference128(t *testing.T) {
 			want := reference.NaiveDFT2D128(src, tc.rows, tc.cols)
 
 			tol := 1e-10
+
 			for i := range dst {
 				row, col := i/tc.cols, i%tc.cols
 				assertApproxComplex128Tolf(t, dst[i], want[i], tol, "[%d,%d]", row, col)
@@ -318,6 +331,7 @@ func TestPlan2D_RoundTrip(t *testing.T) {
 
 			// Verify round-trip
 			tol := 1e-3
+
 			for i := range original {
 				row, col := i/tc.cols, i%tc.cols
 				assertApproxComplex64Tolf(t, roundTrip[i], original[i], tol, "[%d,%d]", row, col)
@@ -357,6 +371,7 @@ func TestPlan2D_RoundTrip128(t *testing.T) {
 			}
 
 			tol := 1e-10
+
 			for i := range original {
 				row, col := i/tc.cols, i%tc.cols
 				assertApproxComplex128Tolf(t, roundTrip[i], original[i], tol, "[%d,%d]", row, col)
@@ -367,6 +382,7 @@ func TestPlan2D_RoundTrip128(t *testing.T) {
 
 func TestPlan2D_InPlaceMatchesOutOfPlace(t *testing.T) {
 	rows, cols := 8, 8
+
 	plan, err := NewPlan2D[complex64](rows, cols)
 	if err != nil {
 		t.Fatalf("NewPlan2D failed: %v", err)
@@ -397,6 +413,7 @@ func TestPlan2D_InPlaceMatchesOutOfPlace(t *testing.T) {
 
 func TestPlan2D_Linearity(t *testing.T) {
 	rows, cols := 8, 8
+
 	plan, err := NewPlan2D[complex64](rows, cols)
 	if err != nil {
 		t.Fatalf("NewPlan2D failed: %v", err)
@@ -423,6 +440,7 @@ func TestPlan2D_Linearity(t *testing.T) {
 	// a·FFT(X) + b·FFT(Y)
 	fftX := make([]complex64, rows*cols)
 	fftY := make([]complex64, rows*cols)
+
 	plan.Forward(fftX, signalX)
 	plan.Forward(fftY, signalY)
 
@@ -440,6 +458,7 @@ func TestPlan2D_Linearity(t *testing.T) {
 
 func TestPlan2D_Parseval(t *testing.T) {
 	rows, cols := 8, 8
+
 	plan, err := NewPlan2D[complex64](rows, cols)
 	if err != nil {
 		t.Fatalf("NewPlan2D failed: %v", err)
@@ -449,6 +468,7 @@ func TestPlan2D_Parseval(t *testing.T) {
 
 	// Time-domain energy
 	var timeEnergy float64
+
 	for _, v := range signal {
 		mag := cmplx.Abs(complex128(v))
 		timeEnergy += mag * mag
@@ -459,6 +479,7 @@ func TestPlan2D_Parseval(t *testing.T) {
 	plan.Forward(freq, signal)
 
 	var freqEnergy float64
+
 	for _, v := range freq {
 		mag := cmplx.Abs(complex128(v))
 		freqEnergy += mag * mag
@@ -476,6 +497,7 @@ func TestPlan2D_Parseval(t *testing.T) {
 
 func TestPlan2D_Separability(t *testing.T) {
 	rows, cols := 4, 4
+
 	plan, err := NewPlan2D[complex64](rows, cols)
 	if err != nil {
 		t.Fatalf("NewPlan2D failed: %v", err)
@@ -494,7 +516,7 @@ func TestPlan2D_Separability(t *testing.T) {
 	temp := append([]complex64(nil), signal...)
 
 	// Transform rows
-	for row := 0; row < rows; row++ {
+	for row := range rows {
 		rowData := temp[row*cols : (row+1)*cols]
 		rowPlan.InPlace(rowData)
 	}
@@ -504,12 +526,14 @@ func TestPlan2D_Separability(t *testing.T) {
 	copy(separable, temp)
 
 	colData := make([]complex64, rows)
-	for col := 0; col < cols; col++ {
-		for row := 0; row < rows; row++ {
+	for col := range cols {
+		for row := range rows {
 			colData[row] = temp[row*cols+col]
 		}
+
 		colPlan.InPlace(colData)
-		for row := 0; row < rows; row++ {
+
+		for row := range rows {
 			separable[row*cols+col] = colData[row]
 		}
 	}
@@ -525,6 +549,7 @@ func TestPlan2D_Separability(t *testing.T) {
 
 func TestPlan2D_ConstantSignal(t *testing.T) {
 	rows, cols := 8, 8
+
 	plan, err := NewPlan2D[complex64](rows, cols)
 	if err != nil {
 		t.Fatalf("NewPlan2D failed: %v", err)
@@ -563,8 +588,8 @@ func TestPlan2D_PureSinusoid2D(t *testing.T) {
 	}
 
 	signal := make([]complex64, rows*cols)
-	for m := 0; m < rows; m++ {
-		for n := 0; n < cols; n++ {
+	for m := range rows {
+		for n := range cols {
 			phaseRow := 2.0 * math.Pi * float64(kx*m) / float64(rows)
 			phaseCol := 2.0 * math.Pi * float64(ky*n) / float64(cols)
 			phase := phaseRow + phaseCol
@@ -597,6 +622,7 @@ func TestPlan2D_PureSinusoid2D(t *testing.T) {
 
 func TestPlan2D_Clone(t *testing.T) {
 	rows, cols := 8, 8
+
 	original, err := NewPlan2D[complex64](rows, cols)
 	if err != nil {
 		t.Fatalf("NewPlan2D failed: %v", err)
@@ -608,6 +634,7 @@ func TestPlan2D_Clone(t *testing.T) {
 	if clone.Rows() != original.Rows() {
 		t.Errorf("Clone Rows mismatch")
 	}
+
 	if clone.Cols() != original.Cols() {
 		t.Errorf("Clone Cols mismatch")
 	}

@@ -1,6 +1,7 @@
 package algoforge
 
 import (
+	"errors"
 	"math"
 	"math/rand"
 	"testing"
@@ -12,7 +13,8 @@ func TestConvolveRealBasic(t *testing.T) {
 	want := []float32{4, 13, 22, 15}
 
 	got := make([]float32, len(a)+len(b)-1)
-	if err := ConvolveReal(got, a, b); err != nil {
+	err := ConvolveReal(got, a, b)
+	if err != nil {
 		t.Fatalf("ConvolveReal() returned error: %v", err)
 	}
 
@@ -35,7 +37,8 @@ func TestConvolveRealGaussianKernel(t *testing.T) {
 	want := naiveConvolveReal(signal, kernel)
 
 	got := make([]float32, len(want))
-	if err := ConvolveReal(got, signal, kernel); err != nil {
+	err := ConvolveReal(got, signal, kernel)
+	if err != nil {
 		t.Fatalf("ConvolveReal() returned error: %v", err)
 	}
 
@@ -54,6 +57,7 @@ func TestConvolveRealRandomMatchesNaive(t *testing.T) {
 	for i := range a {
 		a[i] = rng.Float32()*2 - 1
 	}
+
 	for i := range b {
 		b[i] = rng.Float32()*2 - 1
 	}
@@ -61,7 +65,8 @@ func TestConvolveRealRandomMatchesNaive(t *testing.T) {
 	want := naiveConvolveReal(a, b)
 	got := make([]float32, len(want))
 
-	if err := ConvolveReal(got, a, b); err != nil {
+	err := ConvolveReal(got, a, b)
+	if err != nil {
 		t.Fatalf("ConvolveReal() returned error: %v", err)
 	}
 
@@ -73,22 +78,33 @@ func TestConvolveRealRandomMatchesNaive(t *testing.T) {
 }
 
 func TestConvolveRealErrors(t *testing.T) {
-	if err := ConvolveReal(nil, []float32{1}, []float32{1}); err != ErrNilSlice {
+	err := ConvolveReal(nil, []float32{1}, []float32{1})
+	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("ConvolveReal(nil, a, b) = %v, want ErrNilSlice", err)
 	}
-	if err := ConvolveReal([]float32{1}, nil, []float32{1}); err != ErrNilSlice {
+
+	err = ConvolveReal([]float32{1}, nil, []float32{1})
+	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("ConvolveReal(dst, nil, b) = %v, want ErrNilSlice", err)
 	}
-	if err := ConvolveReal([]float32{1}, []float32{1}, nil); err != ErrNilSlice {
+
+	err = ConvolveReal([]float32{1}, []float32{1}, nil)
+	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("ConvolveReal(dst, a, nil) = %v, want ErrNilSlice", err)
 	}
-	if err := ConvolveReal([]float32{}, []float32{}, []float32{1}); err != ErrInvalidLength {
+
+	err = ConvolveReal([]float32{}, []float32{}, []float32{1})
+	if !errors.Is(err, ErrInvalidLength) {
 		t.Fatalf("ConvolveReal(dst, empty, b) = %v, want ErrInvalidLength", err)
 	}
-	if err := ConvolveReal([]float32{}, []float32{1}, []float32{}); err != ErrInvalidLength {
+
+	err = ConvolveReal([]float32{}, []float32{1}, []float32{})
+	if !errors.Is(err, ErrInvalidLength) {
 		t.Fatalf("ConvolveReal(dst, a, empty) = %v, want ErrInvalidLength", err)
 	}
-	if err := ConvolveReal([]float32{0}, []float32{1, 2}, []float32{3, 4}); err != ErrLengthMismatch {
+
+	err = ConvolveReal([]float32{0}, []float32{1, 2}, []float32{3, 4})
+	if !errors.Is(err, ErrLengthMismatch) {
 		t.Fatalf("ConvolveReal(dst, a, b) = %v, want ErrLengthMismatch", err)
 	}
 }

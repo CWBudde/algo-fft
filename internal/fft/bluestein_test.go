@@ -98,6 +98,7 @@ func TestBluesteinHelper(t *testing.T) {
 	bitrev := ComputeBitReversalIndices(m)
 
 	scratch := make([]complex128, m)
+
 	filter := ComputeBluesteinFilter(n, m, chirp, twiddles, bitrev, scratch)
 	if len(filter) != m {
 		t.Errorf("Filter length mismatch: got %d, want %d", len(filter), m)

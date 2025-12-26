@@ -15,6 +15,7 @@ func benchmarkConvolveReal(b *testing.B, aLen, bLen int) {
 	for i := range a {
 		a[i] = float32(i%17) - 8
 	}
+
 	for i := range bData {
 		bData[i] = float32(i%9) - 4
 	}
@@ -27,7 +28,8 @@ func benchmarkConvolveReal(b *testing.B, aLen, bLen int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if err := ConvolveReal(dst, a, bData); err != nil {
+		err := ConvolveReal(dst, a, bData)
+		if err != nil {
 			b.Fatalf("ConvolveReal() returned error: %v", err)
 		}
 	}

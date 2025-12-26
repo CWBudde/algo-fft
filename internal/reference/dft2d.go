@@ -23,13 +23,13 @@ func NaiveDFT2D(src []complex64, rows, cols int) []complex64 {
 	dst := make([]complex64, rows*cols)
 
 	// For each output frequency bin (k, l)
-	for k := 0; k < rows; k++ {
-		for l := 0; l < cols; l++ {
+	for k := range rows {
+		for l := range cols {
 			var sum complex128 // Use higher precision for accumulation
 
 			// Sum over all input samples (m, n)
-			for m := 0; m < rows; m++ {
-				for n := 0; n < cols; n++ {
+			for m := range rows {
+				for n := range cols {
 					// Compute phase: -2π*(km/rows + ln/cols)
 					phaseRow := -2.0 * math.Pi * float64(k*m) / float64(rows)
 					phaseCol := -2.0 * math.Pi * float64(l*n) / float64(cols)
@@ -61,12 +61,12 @@ func NaiveDFT2D128(src []complex128, rows, cols int) []complex128 {
 
 	dst := make([]complex128, rows*cols)
 
-	for k := 0; k < rows; k++ {
-		for l := 0; l < cols; l++ {
+	for k := range rows {
+		for l := range cols {
 			var sum complex128
 
-			for m := 0; m < rows; m++ {
-				for n := 0; n < cols; n++ {
+			for m := range rows {
+				for n := range cols {
 					phaseRow := -2.0 * math.Pi * float64(k*m) / float64(rows)
 					phaseCol := -2.0 * math.Pi * float64(l*n) / float64(cols)
 					phase := phaseRow + phaseCol
@@ -98,12 +98,12 @@ func NaiveIDFT2D(src []complex64, rows, cols int) []complex64 {
 	dst := make([]complex64, rows*cols)
 	scale := 1.0 / float64(rows*cols) // Normalization factor
 
-	for m := 0; m < rows; m++ {
-		for n := 0; n < cols; n++ {
+	for m := range rows {
+		for n := range cols {
 			var sum complex128
 
-			for k := 0; k < rows; k++ {
-				for l := 0; l < cols; l++ {
+			for k := range rows {
+				for l := range cols {
 					// Positive phase for inverse: +2π*(km/rows + ln/cols)
 					phaseRow := 2.0 * math.Pi * float64(k*m) / float64(rows)
 					phaseCol := 2.0 * math.Pi * float64(l*n) / float64(cols)
@@ -133,12 +133,12 @@ func NaiveIDFT2D128(src []complex128, rows, cols int) []complex128 {
 	dst := make([]complex128, rows*cols)
 	scale := 1.0 / float64(rows*cols)
 
-	for m := 0; m < rows; m++ {
-		for n := 0; n < cols; n++ {
+	for m := range rows {
+		for n := range cols {
 			var sum complex128
 
-			for k := 0; k < rows; k++ {
-				for l := 0; l < cols; l++ {
+			for k := range rows {
+				for l := range cols {
 					phaseRow := 2.0 * math.Pi * float64(k*m) / float64(rows)
 					phaseCol := 2.0 * math.Pi * float64(l*n) / float64(cols)
 					phase := phaseRow + phaseCol

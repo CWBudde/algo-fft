@@ -44,6 +44,7 @@ func TestPlanReal3D_BasicSizes(t *testing.T) {
 
 			// Compare results
 			maxError := float32(0)
+
 			for i := range spectrum {
 				diff := cabsf32(spectrum[i] - reference[i])
 				if diff > maxError {
@@ -98,6 +99,7 @@ func TestPlanReal3D_RoundTrip(t *testing.T) {
 
 			// Compare input and output
 			maxError := float32(0)
+
 			for i := range input {
 				diff := absf32(output[i] - input[i])
 				if diff > maxError {
@@ -140,10 +142,12 @@ func TestPlanReal3D_ForwardFull(t *testing.T) {
 
 	// Verify compact spectrum matches first half of full spectrum
 	halfWidth := 4/2 + 1
-	for d := 0; d < 4; d++ {
-		for h := 0; h < 4; h++ {
-			for w := 0; w < halfWidth; w++ {
+
+	for d := range 4 {
+		for h := range 4 {
+			for w := range halfWidth {
 				compact := spectrumCompact[d*4*halfWidth+h*halfWidth+w]
+
 				full := spectrumFull[d*4*4+h*4+w]
 				if cabsf32(compact-full) > 1e-5 {
 					t.Errorf("Compact/Full mismatch at [%d,%d,%d]: compact=%v, full=%v", d, h, w, compact, full)
@@ -180,6 +184,7 @@ func TestPlanReal3D_InverseFull(t *testing.T) {
 
 	// Compare input and output
 	maxError := float32(0)
+
 	for i := range input {
 		diff := absf32(output[i] - input[i])
 		if diff > maxError {
@@ -213,6 +218,7 @@ func TestPlanReal3D_ConstantSignal(t *testing.T) {
 
 	// DC component should be 64 (sum of all 64 ones)
 	dc := spectrum[0]
+
 	expectedDC := complex64(64.0)
 	if cabsf32(dc-expectedDC) > 1e-4 {
 		t.Errorf("DC component mismatch: got %v, want %v", dc, expectedDC)
@@ -236,6 +242,7 @@ func TestPlanReal3D_Linearity(t *testing.T) {
 	// Generate two random signals
 	x := make([]float32, 4*4*4)
 	y := make([]float32, 4*4*4)
+
 	for i := range x {
 		x[i] = rand.Float32()*2 - 1
 		y[i] = rand.Float32()*2 - 1
@@ -246,10 +253,12 @@ func TestPlanReal3D_Linearity(t *testing.T) {
 
 	// Compute FFT(x) and FFT(y)
 	fftX := make([]complex64, plan.SpectrumLen())
+
 	fftY := make([]complex64, plan.SpectrumLen())
 	if err := plan.Forward(fftX, x); err != nil {
 		t.Fatalf("Forward(x) failed: %v", err)
 	}
+
 	if err := plan.Forward(fftY, y); err != nil {
 		t.Fatalf("Forward(y) failed: %v", err)
 	}
@@ -274,6 +283,7 @@ func TestPlanReal3D_Linearity(t *testing.T) {
 
 	// Compare
 	maxError := float32(0)
+
 	for i := range fftCombined {
 		diff := cabsf32(fftCombined[i] - linearCombination[i])
 		if diff > maxError {
@@ -298,6 +308,7 @@ func TestPlanReal3D_Clone(t *testing.T) {
 
 	input1 := make([]float32, 4*4*4)
 	input2 := make([]float32, 4*4*4)
+
 	for i := range input1 {
 		input1[i] = rand.Float32()
 		input2[i] = rand.Float32()
@@ -340,13 +351,14 @@ func TestPlanReal3D_InvalidSizes(t *testing.T) {
 		if tc.shouldFail && err == nil {
 			t.Errorf("NewPlanReal3D(%d, %d, %d) should fail but didn't", tc.depth, tc.height, tc.width)
 		}
+
 		if !tc.shouldFail && err != nil {
 			t.Errorf("NewPlanReal3D(%d, %d, %d) failed unexpectedly: %v", tc.depth, tc.height, tc.width, err)
 		}
 	}
 }
 
-// Helper function for 3D size formatting
+// Helper function for 3D size formatting.
 func sprintf3d(d, h, w int) string {
 	return itoa(d) + "x" + itoa(h) + "x" + itoa(w)
 }

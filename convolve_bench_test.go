@@ -15,6 +15,7 @@ func benchmarkConvolve(b *testing.B, aLen, bLen int) {
 	for i := range a {
 		a[i] = complex(float32(i%13)-6, float32(i%7)-3)
 	}
+
 	for i := range bData {
 		bData[i] = complex(float32(i%11)-5, float32(i%5)-2)
 	}
@@ -27,7 +28,8 @@ func benchmarkConvolve(b *testing.B, aLen, bLen int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if err := Convolve(dst, a, bData); err != nil {
+		err := Convolve(dst, a, bData)
+		if err != nil {
 			b.Fatalf("Convolve() returned error: %v", err)
 		}
 	}

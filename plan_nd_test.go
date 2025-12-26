@@ -1,6 +1,7 @@
 package algoforge
 
 import (
+	"errors"
 	"math"
 	"math/rand/v2"
 	"testing"
@@ -15,12 +16,14 @@ func generateRandomNDComplex64(dims []int, seed uint64) []complex64 {
 	}
 
 	rng := rand.New(rand.NewPCG(seed, seed^0xABCDEF01)) //nolint:gosec
+
 	data := make([]complex64, size)
 	for i := range data {
 		re := float32(rng.Float64()*20 - 10)
 		im := float32(rng.Float64()*20 - 10)
 		data[i] = complex(re, im)
 	}
+
 	return data
 }
 
@@ -31,12 +34,14 @@ func generateRandomNDComplex128(dims []int, seed uint64) []complex128 {
 	}
 
 	rng := rand.New(rand.NewPCG(seed, seed^0xABCDEF01)) //nolint:gosec
+
 	data := make([]complex128, size)
 	for i := range data {
 		re := rng.Float64()*20 - 10
 		im := rng.Float64()*20 - 10
 		data[i] = complex(re, im)
 	}
+
 	return data
 }
 
@@ -44,13 +49,16 @@ func complexND64NearlyEqual(a, b []complex64, tol float64) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
 	for i := range a {
 		diff := a[i] - b[i]
+
 		mag := math.Sqrt(float64(real(diff)*real(diff) + imag(diff)*imag(diff)))
 		if mag > tol {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -58,13 +66,16 @@ func complexND128NearlyEqual(a, b []complex128, tol float64) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
 	for i := range a {
 		diff := a[i] - b[i]
+
 		mag := math.Sqrt(real(diff)*real(diff) + imag(diff)*imag(diff))
 		if mag > tol {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -93,6 +104,7 @@ func TestNewPlanND(t *testing.T) {
 				if err == nil {
 					t.Errorf("Expected error for dims %v, got nil", tc.dims)
 				}
+
 				return
 			}
 
@@ -109,6 +121,7 @@ func TestNewPlanND(t *testing.T) {
 			if len(dims) != len(tc.dims) {
 				t.Errorf("Dims length mismatch")
 			}
+
 			for i := range dims {
 				if dims[i] != tc.dims[i] {
 					t.Errorf("Dims[%d]: got %d, want %d", i, dims[i], tc.dims[i])
@@ -119,6 +132,7 @@ func TestNewPlanND(t *testing.T) {
 			for _, d := range tc.dims {
 				expectedLen *= d
 			}
+
 			if plan.Len() != expectedLen {
 				t.Errorf("Len: got %d, want %d", plan.Len(), expectedLen)
 			}
@@ -311,12 +325,15 @@ func TestPlanND_MatchesPlan3D(t *testing.T) {
 	tolerance := 1e-5
 	if !complexND64NearlyEqual(out3D, outND, tolerance) {
 		t.Errorf("PlanND results differ from Plan3D")
+
 		count := 0
 		for i := 0; i < len(out3D) && count < 5; i++ {
 			diff := out3D[i] - outND[i]
+
 			mag := math.Sqrt(float64(real(diff)*real(diff) + imag(diff)*imag(diff)))
 			if mag > tolerance {
 				t.Errorf("  [%d]: Plan3D=%v, PlanND=%v (diff: %v)", i, out3D[i], outND[i], mag)
+
 				count++
 			}
 		}
@@ -365,18 +382,20 @@ func TestPlanND_ErrorHandling(t *testing.T) {
 	wrongSize := make([]complex64, 10)
 
 	// Nil slices
-	if err := plan.Forward(nil, validData); err != ErrNilSlice {
+	if err := plan.Forward(nil, validData); !errors.Is(err, ErrNilSlice) {
 		t.Errorf("Expected ErrNilSlice for nil dst, got %v", err)
 	}
-	if err := plan.Forward(validData, nil); err != ErrNilSlice {
+
+	if err := plan.Forward(validData, nil); !errors.Is(err, ErrNilSlice) {
 		t.Errorf("Expected ErrNilSlice for nil src, got %v", err)
 	}
 
 	// Wrong length
-	if err := plan.Forward(wrongSize, validData); err != ErrLengthMismatch {
+	if err := plan.Forward(wrongSize, validData); !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("Expected ErrLengthMismatch for wrong dst size, got %v", err)
 	}
-	if err := plan.Forward(validData, wrongSize); err != ErrLengthMismatch {
+
+	if err := plan.Forward(validData, wrongSize); !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("Expected ErrLengthMismatch for wrong src size, got %v", err)
 	}
 }
@@ -408,11 +427,13 @@ func TestPlanND_Clone(t *testing.T) {
 
 	go func() {
 		_ = original.Forward(out1, data1)
+
 		done <- true
 	}()
 
 	go func() {
 		_ = clone.Forward(out2, data2)
+
 		done <- true
 	}()
 
@@ -429,18 +450,21 @@ func TestPlanND_Clone(t *testing.T) {
 
 func TestPlanND_String(t *testing.T) {
 	plan3D, _ := NewPlanND32([]int{8, 16, 32})
+
 	str3D := plan3D.String()
 	if str3D != "PlanND[complex64](8x16x32)" {
 		t.Errorf("String mismatch for 3D: got %q", str3D)
 	}
 
 	plan4D, _ := NewPlanND32([]int{2, 4, 8, 16})
+
 	str4D := plan4D.String()
 	if str4D != "PlanND[complex64](2x4x8x16)" {
 		t.Errorf("String mismatch for 4D: got %q", str4D)
 	}
 
 	plan64, _ := NewPlanND64([]int{4, 8})
+
 	str64 := plan64.String()
 	if str64 != "PlanND[complex128](4x8)" {
 		t.Errorf("String mismatch for complex128: got %q", str64)
@@ -459,7 +483,7 @@ func BenchmarkPlanND_3D_8x8x8(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(signal) * 8))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(freq, signal)
 	}
 }
@@ -474,7 +498,7 @@ func BenchmarkPlanND_4D_4x4x4x4(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(signal) * 8))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(freq, signal)
 	}
 }
@@ -489,7 +513,7 @@ func BenchmarkPlanND_5D_2x2x2x2x2(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(signal) * 8))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(freq, signal)
 	}
 }
@@ -505,7 +529,7 @@ func BenchmarkPlan3D_8x8x8(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(signal) * 8))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(freq, signal)
 	}
 }
@@ -519,7 +543,7 @@ func BenchmarkPlanND_vs_Plan3D_8x8x8(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(signal) * 8))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = plan.Forward(freq, signal)
 	}
 }

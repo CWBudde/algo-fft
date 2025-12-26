@@ -30,6 +30,7 @@ func ConvolveReal(dst, a, b []float32) error {
 
 	aPadded := make([]float32, fftLen)
 	bPadded := make([]float32, fftLen)
+
 	copy(aPadded, a)
 	copy(bPadded, b)
 
@@ -39,6 +40,7 @@ func ConvolveReal(dst, a, b []float32) error {
 	if err := plan.Forward(aFreq, aPadded); err != nil {
 		return err
 	}
+
 	if err := plan.Forward(bFreq, bPadded); err != nil {
 		return err
 	}
@@ -53,5 +55,6 @@ func ConvolveReal(dst, a, b []float32) error {
 	}
 
 	copy(dst, time[:convLen])
+
 	return nil
 }

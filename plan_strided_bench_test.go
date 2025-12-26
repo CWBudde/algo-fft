@@ -22,6 +22,7 @@ func benchForwardStrided(b *testing.B, useCopy bool) {
 		}
 
 		total := n * cols
+
 		data := make([]complex64, total)
 		for i := range data {
 			data[i] = complex(float32(i%97), float32(i%31))
@@ -44,21 +45,23 @@ func benchForwardStrided(b *testing.B, useCopy bool) {
 			b.SetBytes(int64(n * 8))
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if useCopy {
-					for j := 0; j < n; j++ {
+					for j := range n {
 						tmp[j] = srcSlice[j*stride]
 					}
 
-					if err := plan.Forward(tmp, tmp); err != nil {
+					err := plan.Forward(tmp, tmp)
+					if err != nil {
 						b.Fatalf("Forward failed: %v", err)
 					}
 
-					for j := 0; j < n; j++ {
+					for j := range n {
 						dstSlice[j*stride] = tmp[j]
 					}
 				} else {
-					if err := plan.ForwardStrided(dstSlice, srcSlice, stride); err != nil {
+					err := plan.ForwardStrided(dstSlice, srcSlice, stride)
+					if err != nil {
 						b.Fatalf("ForwardStrided failed: %v", err)
 					}
 				}

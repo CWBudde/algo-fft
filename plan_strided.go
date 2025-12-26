@@ -56,21 +56,23 @@ func (p *Plan[T]) transformStrided(dst, src []T, stride int, inverse bool) error
 	}
 
 	buffer := p.stridedScratch[:p.n]
-	for i := 0; i < p.n; i++ {
+	for i := range p.n {
 		buffer[i] = src[i*stride]
 	}
 
 	if inverse {
-		if err := p.Inverse(buffer, buffer); err != nil {
+		err := p.Inverse(buffer, buffer)
+		if err != nil {
 			return err
 		}
 	} else {
-		if err := p.Forward(buffer, buffer); err != nil {
+		err := p.Forward(buffer, buffer)
+		if err != nil {
 			return err
 		}
 	}
 
-	for i := 0; i < p.n; i++ {
+	for i := range p.n {
 		dst[i*stride] = buffer[i]
 	}
 
@@ -99,6 +101,7 @@ func (p *Plan[T]) validateStridedSlices(dst, src []T, stride int) error {
 	}
 
 	maxInt := int(^uint(0) >> 1)
+
 	maxIndex := p.n - 1
 	if maxIndex > (maxInt-1)/stride {
 		return ErrInvalidStride

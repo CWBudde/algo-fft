@@ -78,7 +78,9 @@ func DetectFeatures() Features {
 	detectOnce.Do(func() {
 		detectedFeatures = detectFeaturesImpl()
 	})
+
 	features := detectedFeatures
+
 	detectMutex.Unlock()
 
 	return features
@@ -160,7 +162,9 @@ func ResetDetection() {
 	forcedMutex.Unlock()
 
 	detectMutex.Lock()
+
 	detectOnce = sync.Once{}
 	detectedFeatures = Features{}
+
 	detectMutex.Unlock()
 }

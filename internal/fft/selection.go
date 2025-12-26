@@ -115,6 +115,7 @@ func isSquareSize(n int) bool {
 	}
 
 	root := intSqrt(n)
+
 	return root*root == n
 }
 

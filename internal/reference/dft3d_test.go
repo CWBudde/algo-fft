@@ -12,11 +12,13 @@ func complex3DNearlyEqual(a, b []complex64, depth, height, width int, tol float6
 	if len(a) != depth*height*width || len(b) != depth*height*width {
 		return false
 	}
+
 	for i := range a {
 		if absComplex64(a[i]-b[i]) > tol {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -24,33 +26,39 @@ func complex3D128NearlyEqual(a, b []complex128, depth, height, width int, tol fl
 	if len(a) != depth*height*width || len(b) != depth*height*width {
 		return false
 	}
+
 	for i := range a {
 		if absComplex128(a[i]-b[i]) > tol {
 			return false
 		}
 	}
+
 	return true
 }
 
 func generateRandom3DSignal(depth, height, width int, seed uint64) []complex64 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF)) //nolint:gosec // Intentionally non-crypto for reproducible tests
+
 	signal := make([]complex64, depth*height*width)
 	for i := range signal {
 		re := float32(rng.Float64()*20 - 10) // Range: [-10, 10]
 		im := float32(rng.Float64()*20 - 10)
 		signal[i] = complex(re, im)
 	}
+
 	return signal
 }
 
 func generateRandom3DSignal128(depth, height, width int, seed uint64) []complex128 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF)) //nolint:gosec // Intentionally non-crypto for reproducible tests
+
 	signal := make([]complex128, depth*height*width)
 	for i := range signal {
 		re := rng.Float64()*20 - 10
 		im := rng.Float64()*20 - 10
 		signal[i] = complex(re, im)
 	}
+
 	return signal
 }
 
@@ -79,6 +87,7 @@ func TestNaiveDFT3D_RoundTrip(t *testing.T) {
 			// Verify round-trip recovers original
 			if !complex3DNearlyEqual(roundTrip, original, tc.depth, tc.height, tc.width, 1e-3) {
 				t.Errorf("Round-trip failed for %dx%dx%d volume", tc.depth, tc.height, tc.width)
+
 				totalElements := tc.depth * tc.height * tc.width
 				for i := 0; i < totalElements && i < 10; i++ {
 					if absComplex64(roundTrip[i]-original[i]) > 1e-3 {
@@ -113,6 +122,7 @@ func TestNaiveDFT3D128_RoundTrip(t *testing.T) {
 
 			if !complex3D128NearlyEqual(roundTrip, original, tc.depth, tc.height, tc.width, 1e-10) {
 				t.Errorf("Round-trip failed for %dx%dx%d volume", tc.depth, tc.height, tc.width)
+
 				totalElements := tc.depth * tc.height * tc.width
 				for i := 0; i < totalElements && i < 10; i++ {
 					if absComplex128(roundTrip[i]-original[i]) > 1e-10 {
@@ -149,6 +159,7 @@ func TestNaiveDFT3D_Linearity(t *testing.T) {
 	// a·DFT(X) + b·DFT(Y)
 	dftX := NaiveDFT3D(signalX, depth, height, width)
 	dftY := NaiveDFT3D(signalY, depth, height, width)
+
 	expected := make([]complex64, depth*height*width)
 	for i := range expected {
 		expected[i] = coeffA*dftX[i] + coeffB*dftY[i]
@@ -157,6 +168,7 @@ func TestNaiveDFT3D_Linearity(t *testing.T) {
 	// Verify linearity
 	if !complex3DNearlyEqual(dftCombined, expected, depth, height, width, 1e-2) {
 		t.Errorf("Linearity property failed")
+
 		for i := 0; i < depth*height*width && i < 10; i++ {
 			if absComplex64(dftCombined[i]-expected[i]) > 1e-2 {
 				d := i / (height * width)
@@ -176,6 +188,7 @@ func TestNaiveDFT3D_Parseval(t *testing.T) {
 
 	// Compute time-domain energy
 	var timeEnergy float64
+
 	for _, v := range signal {
 		mag := absComplex64(v)
 		timeEnergy += mag * mag
@@ -183,7 +196,9 @@ func TestNaiveDFT3D_Parseval(t *testing.T) {
 
 	// Compute frequency-domain energy
 	freq := NaiveDFT3D(signal, depth, height, width)
+
 	var freqEnergy float64
+
 	for _, v := range freq {
 		mag := absComplex64(v)
 		freqEnergy += mag * mag
@@ -203,6 +218,7 @@ func TestNaiveDFT3D_Parseval(t *testing.T) {
 
 func TestNaiveDFT3D_ConstantSignal(t *testing.T) {
 	depth, height, width := 4, 4, 4
+
 	signal := make([]complex64, depth*height*width)
 	for i := range signal {
 		signal[i] = complex(1.0, 0.0) // Constant signal
@@ -234,9 +250,9 @@ func TestNaiveDFT3D_PureSinusoid(t *testing.T) {
 	kd, kh, kw := 2, 3, 1 // Frequency indices
 
 	signal := make([]complex64, depth*height*width)
-	for d := 0; d < depth; d++ {
-		for h := 0; h < height; h++ {
-			for w := 0; w < width; w++ {
+	for d := range depth {
+		for h := range height {
+			for w := range width {
 				// exp(2πi*(kd*d/depth + kh*h/height + kw*w/width))
 				phaseDepth := 2.0 * math.Pi * float64(kd*d) / float64(depth)
 				phaseHeight := 2.0 * math.Pi * float64(kh*h) / float64(height)
@@ -258,7 +274,7 @@ func TestNaiveDFT3D_PureSinusoid(t *testing.T) {
 	}
 
 	// All other bins should be near zero
-	for i := 0; i < depth*height*width; i++ {
+	for i := range depth * height * width {
 		if i != peakIdx && absComplex64(freq[i]) > 1e-1 {
 			d := i / (height * width)
 			h := (i / width) % height
@@ -282,8 +298,8 @@ func TestNaiveDFT3D_Separability(t *testing.T) {
 	copy(temp, signal)
 
 	// Apply 1D DFT along width (last dimension)
-	for d := 0; d < depth; d++ {
-		for h := 0; h < height; h++ {
+	for d := range depth {
+		for h := range height {
 			rowData := temp[d*height*width+h*width : d*height*width+(h+1)*width]
 			rowFreq := NaiveDFT(rowData)
 			copy(rowData, rowFreq)
@@ -291,11 +307,11 @@ func TestNaiveDFT3D_Separability(t *testing.T) {
 	}
 
 	// Apply 1D DFT along height (middle dimension)
-	for d := 0; d < depth; d++ {
-		for w := 0; w < width; w++ {
+	for d := range depth {
+		for w := range width {
 			// Extract column
 			colData := make([]complex64, height)
-			for h := 0; h < height; h++ {
+			for h := range height {
 				colData[h] = temp[d*height*width+h*width+w]
 			}
 
@@ -303,7 +319,7 @@ func TestNaiveDFT3D_Separability(t *testing.T) {
 			colFreq := NaiveDFT(colData)
 
 			// Write back
-			for h := 0; h < height; h++ {
+			for h := range height {
 				temp[d*height*width+h*width+w] = colFreq[h]
 			}
 		}
@@ -311,11 +327,11 @@ func TestNaiveDFT3D_Separability(t *testing.T) {
 
 	// Apply 1D DFT along depth (first dimension)
 	separable := make([]complex64, depth*height*width)
-	for h := 0; h < height; h++ {
-		for w := 0; w < width; w++ {
+	for h := range height {
+		for w := range width {
 			// Extract depth slice
 			depthData := make([]complex64, depth)
-			for d := 0; d < depth; d++ {
+			for d := range depth {
 				depthData[d] = temp[d*height*width+h*width+w]
 			}
 
@@ -323,7 +339,7 @@ func TestNaiveDFT3D_Separability(t *testing.T) {
 			depthFreq := NaiveDFT(depthData)
 
 			// Write back
-			for d := 0; d < depth; d++ {
+			for d := range depth {
 				separable[d*height*width+h*width+w] = depthFreq[d]
 			}
 		}
@@ -332,6 +348,7 @@ func TestNaiveDFT3D_Separability(t *testing.T) {
 	// Verify separability
 	if !complex3DNearlyEqual(direct, separable, depth, height, width, 1e-2) {
 		t.Errorf("Separability failed")
+
 		for i := 0; i < depth*height*width && i < 10; i++ {
 			if absComplex64(direct[i]-separable[i]) > 1e-2 {
 				d := i / (height * width)
@@ -347,24 +364,30 @@ func TestNaiveDFT3D_Separability(t *testing.T) {
 
 func BenchmarkNaiveDFT3D_4x4x4(b *testing.B) {
 	signal := generateRandom3DSignal(4, 4, 4, 111)
+
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		_ = NaiveDFT3D(signal, 4, 4, 4)
 	}
 }
 
 func BenchmarkNaiveDFT3D_8x8x8(b *testing.B) {
 	signal := generateRandom3DSignal(8, 8, 8, 111)
+
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		_ = NaiveDFT3D(signal, 8, 8, 8)
 	}
 }
 
 func BenchmarkNaiveDFT3D_16x16x16(b *testing.B) {
 	signal := generateRandom3DSignal(16, 16, 16, 111)
+
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		_ = NaiveDFT3D(signal, 16, 16, 16)
 	}
 }

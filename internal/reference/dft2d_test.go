@@ -12,11 +12,13 @@ func complex2DNearlyEqual(a, b []complex64, rows, cols int, tol float64) bool {
 	if len(a) != rows*cols || len(b) != rows*cols {
 		return false
 	}
+
 	for i := range a {
 		if absComplex64(a[i]-b[i]) > tol {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -24,33 +26,39 @@ func complex2D128NearlyEqual(a, b []complex128, rows, cols int, tol float64) boo
 	if len(a) != rows*cols || len(b) != rows*cols {
 		return false
 	}
+
 	for i := range a {
 		if absComplex128(a[i]-b[i]) > tol {
 			return false
 		}
 	}
+
 	return true
 }
 
 func generateRandom2DSignal(rows, cols int, seed uint64) []complex64 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF)) //nolint:gosec // Intentionally non-crypto for reproducible tests
+
 	signal := make([]complex64, rows*cols)
 	for i := range signal {
 		re := float32(rng.Float64()*20 - 10) // Range: [-10, 10]
 		im := float32(rng.Float64()*20 - 10)
 		signal[i] = complex(re, im)
 	}
+
 	return signal
 }
 
 func generateRandom2DSignal128(rows, cols int, seed uint64) []complex128 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF)) //nolint:gosec // Intentionally non-crypto for reproducible tests
+
 	signal := make([]complex128, rows*cols)
 	for i := range signal {
 		re := rng.Float64()*20 - 10
 		im := rng.Float64()*20 - 10
 		signal[i] = complex(re, im)
 	}
+
 	return signal
 }
 
@@ -79,6 +87,7 @@ func TestNaiveDFT2D_RoundTrip(t *testing.T) {
 			// Verify round-trip recovers original
 			if !complex2DNearlyEqual(roundTrip, original, tc.rows, tc.cols, 1e-4) {
 				t.Errorf("Round-trip failed for %dx%d matrix", tc.rows, tc.cols)
+
 				for i := 0; i < tc.rows*tc.cols && i < 10; i++ {
 					if absComplex64(roundTrip[i]-original[i]) > 1e-4 {
 						t.Errorf("  [%d]: got %v, want %v", i, roundTrip[i], original[i])
@@ -109,6 +118,7 @@ func TestNaiveDFT2D128_RoundTrip(t *testing.T) {
 
 			if !complex2D128NearlyEqual(roundTrip, original, tc.rows, tc.cols, 1e-12) {
 				t.Errorf("Round-trip failed for %dx%d matrix", tc.rows, tc.cols)
+
 				for i := 0; i < tc.rows*tc.cols && i < 10; i++ {
 					if absComplex128(roundTrip[i]-original[i]) > 1e-12 {
 						t.Errorf("  [%d]: got %v, want %v", i, roundTrip[i], original[i])
@@ -141,6 +151,7 @@ func TestNaiveDFT2D_Linearity(t *testing.T) {
 	// a·DFT(X) + b·DFT(Y)
 	dftX := NaiveDFT2D(signalX, rows, cols)
 	dftY := NaiveDFT2D(signalY, rows, cols)
+
 	expected := make([]complex64, rows*cols)
 	for i := range expected {
 		expected[i] = coeffA*dftX[i] + coeffB*dftY[i]
@@ -149,6 +160,7 @@ func TestNaiveDFT2D_Linearity(t *testing.T) {
 	// Verify linearity
 	if !complex2DNearlyEqual(dftCombined, expected, rows, cols, 1e-3) {
 		t.Errorf("Linearity property failed")
+
 		for i := 0; i < rows*cols && i < 10; i++ {
 			if absComplex64(dftCombined[i]-expected[i]) > 1e-3 {
 				t.Errorf("  [%d]: got %v, want %v", i, dftCombined[i], expected[i])
@@ -165,6 +177,7 @@ func TestNaiveDFT2D_Parseval(t *testing.T) {
 
 	// Compute time-domain energy
 	var timeEnergy float64
+
 	for _, v := range signal {
 		mag := absComplex64(v)
 		timeEnergy += mag * mag
@@ -172,7 +185,9 @@ func TestNaiveDFT2D_Parseval(t *testing.T) {
 
 	// Compute frequency-domain energy
 	freq := NaiveDFT2D(signal, rows, cols)
+
 	var freqEnergy float64
+
 	for _, v := range freq {
 		mag := absComplex64(v)
 		freqEnergy += mag * mag
@@ -192,6 +207,7 @@ func TestNaiveDFT2D_Parseval(t *testing.T) {
 
 func TestNaiveDFT2D_ConstantSignal(t *testing.T) {
 	rows, cols := 4, 4
+
 	signal := make([]complex64, rows*cols)
 	for i := range signal {
 		signal[i] = complex(1.0, 0.0) // Constant signal
@@ -221,8 +237,8 @@ func TestNaiveDFT2D_PureSinusoid(t *testing.T) {
 	kx, ky := 2, 3 // Frequency indices
 
 	signal := make([]complex64, rows*cols)
-	for m := 0; m < rows; m++ {
-		for n := 0; n < cols; n++ {
+	for m := range rows {
+		for n := range cols {
 			// exp(2πi*(kx*m/rows + ky*n/cols))
 			phaseRow := 2.0 * math.Pi * float64(kx*m) / float64(rows)
 			phaseCol := 2.0 * math.Pi * float64(ky*n) / float64(cols)
@@ -242,7 +258,7 @@ func TestNaiveDFT2D_PureSinusoid(t *testing.T) {
 	}
 
 	// All other bins should be near zero
-	for i := 0; i < rows*cols; i++ {
+	for i := range rows * cols {
 		if i != peakIdx && absComplex64(freq[i]) > 1e-2 {
 			row, col := i/cols, i%cols
 			t.Errorf("Non-peak bin [%d,%d]: got %v, want near zero", row, col, freq[i])
@@ -264,7 +280,7 @@ func TestNaiveDFT2D_Separability(t *testing.T) {
 	copy(temp, signal)
 
 	// Apply 1D DFT to each row
-	for row := 0; row < rows; row++ {
+	for row := range rows {
 		rowData := temp[row*cols : (row+1)*cols]
 		rowFreq := NaiveDFT(rowData)
 		copy(rowData, rowFreq)
@@ -272,10 +288,10 @@ func TestNaiveDFT2D_Separability(t *testing.T) {
 
 	// Apply 1D DFT to each column
 	separable := make([]complex64, rows*cols)
-	for col := 0; col < cols; col++ {
+	for col := range cols {
 		// Extract column
 		colData := make([]complex64, rows)
-		for row := 0; row < rows; row++ {
+		for row := range rows {
 			colData[row] = temp[row*cols+col]
 		}
 
@@ -283,7 +299,7 @@ func TestNaiveDFT2D_Separability(t *testing.T) {
 		colFreq := NaiveDFT(colData)
 
 		// Write back
-		for row := 0; row < rows; row++ {
+		for row := range rows {
 			separable[row*cols+col] = colFreq[row]
 		}
 	}
@@ -291,6 +307,7 @@ func TestNaiveDFT2D_Separability(t *testing.T) {
 	// Verify separability
 	if !complex2DNearlyEqual(direct, separable, rows, cols, 1e-3) {
 		t.Errorf("Separability failed")
+
 		for i := 0; i < rows*cols && i < 10; i++ {
 			if absComplex64(direct[i]-separable[i]) > 1e-3 {
 				row, col := i/cols, i%cols
@@ -304,24 +321,30 @@ func TestNaiveDFT2D_Separability(t *testing.T) {
 
 func BenchmarkNaiveDFT2D_4x4(b *testing.B) {
 	signal := generateRandom2DSignal(4, 4, 111)
+
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		_ = NaiveDFT2D(signal, 4, 4)
 	}
 }
 
 func BenchmarkNaiveDFT2D_8x8(b *testing.B) {
 	signal := generateRandom2DSignal(8, 8, 111)
+
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		_ = NaiveDFT2D(signal, 8, 8)
 	}
 }
 
 func BenchmarkNaiveDFT2D_16x16(b *testing.B) {
 	signal := generateRandom2DSignal(16, 16, 111)
+
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		_ = NaiveDFT2D(signal, 16, 16)
 	}
 }
