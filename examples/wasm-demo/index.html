@@ -36,6 +36,15 @@
           </select>
         </div>
         <div class="control">
+          <label for="gridSize">2D grid</label>
+          <select id="gridSize">
+            <option value="32">32 × 32</option>
+            <option value="64" selected>64 × 64</option>
+            <option value="96">96 × 96</option>
+            <option value="128">128 × 128</option>
+          </select>
+        </div>
+        <div class="control">
           <label for="freqA">Tone A</label>
           <input id="freqA" type="range" min="1" max="64" value="6" />
           <span class="value" data-value="freqA">6</span>
@@ -75,6 +84,13 @@
           <p>Magnitude of the FFT bins.</p>
         </div>
         <canvas id="spectrum" width="800" height="240"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h2>2D Frequency Map</h2>
+          <p>FFT of a generated spatial texture.</p>
+        </div>
+        <canvas id="grid" width="800" height="320"></canvas>
       </div>
     </section>
 

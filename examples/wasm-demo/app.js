@@ -2,7 +2,9 @@
   const statusEl = document.getElementById("status");
   const waveCanvas = document.getElementById("wave");
   const spectrumCanvas = document.getElementById("spectrum");
+  const gridCanvas = document.getElementById("grid");
   const sizeSelect = document.getElementById("size");
+  const gridSizeSelect = document.getElementById("gridSize");
   const freqAInput = document.getElementById("freqA");
   const freqBInput = document.getElementById("freqB");
   const noiseInput = document.getElementById("noise");
@@ -18,6 +20,7 @@
 
   const state = {
     n: Number(sizeSelect.value),
+    gridSize: Number(gridSizeSelect.value),
     freqA: Number(freqAInput.value),
     freqB: Number(freqBInput.value),
     noise: Number(noiseInput.value),
@@ -30,6 +33,9 @@
   let audioSource = null;
   let audioGain = null;
   let wasmReady = false;
+  let gridOffscreen = null;
+  let gridOffscreenCtx = null;
+  let gridOffscreenSize = 0;
 
   const dpr = window.devicePixelRatio || 1;
   function resizeCanvas(canvas) {
@@ -96,11 +102,80 @@
     }
   }
 
+  function palette(t) {
+    const stops = [
+      { t: 0, r: 22, g: 20, b: 26 },
+      { t: 0.45, r: 12, g: 123, b: 110 },
+      { t: 0.7, r: 211, g: 107, b: 52 },
+      { t: 1, r: 246, g: 206, b: 140 },
+    ];
+    for (let i = 1; i < stops.length; i += 1) {
+      const prev = stops[i - 1];
+      const next = stops[i];
+      if (t <= next.t) {
+        const span = (t - prev.t) / (next.t - prev.t || 1);
+        return {
+          r: Math.round(prev.r + (next.r - prev.r) * span),
+          g: Math.round(prev.g + (next.g - prev.g) * span),
+          b: Math.round(prev.b + (next.b - prev.b) * span),
+        };
+      }
+    }
+    return { r: 246, g: 206, b: 140 };
+  }
+
+  function drawGridSpectrum(mags, size) {
+    if (!mags || !size) return;
+    const ctx = gridCanvas.getContext("2d");
+
+    if (!gridOffscreen || gridOffscreenSize !== size) {
+      gridOffscreen = document.createElement("canvas");
+      gridOffscreen.width = size;
+      gridOffscreen.height = size;
+      gridOffscreenCtx = gridOffscreen.getContext("2d");
+      gridOffscreenSize = size;
+    }
+
+    const logMags = new Float32Array(mags.length);
+    let maxLog = -Infinity;
+    for (let i = 0; i < mags.length; i += 1) {
+      const value = Math.log10(mags[i] + 1e-6);
+      logMags[i] = value;
+      if (value > maxLog) maxLog = value;
+    }
+    if (!Number.isFinite(maxLog) || maxLog <= 0) {
+      maxLog = 1;
+    }
+
+    const image = gridOffscreenCtx.createImageData(size, size);
+    const half = Math.floor(size / 2);
+    for (let y = 0; y < size; y += 1) {
+      const srcY = (y + half) % size;
+      for (let x = 0; x < size; x += 1) {
+        const srcX = (x + half) % size;
+        const srcIndex = srcY * size + srcX;
+        const value = Math.max(0, logMags[srcIndex] / maxLog);
+        const color = palette(value);
+        const idx = (y * size + x) * 4;
+        image.data[idx] = color.r;
+        image.data[idx + 1] = color.g;
+        image.data[idx + 2] = color.b;
+        image.data[idx + 3] = 255;
+      }
+    }
+
+    gridOffscreenCtx.putImageData(image, 0, 0);
+    ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(gridOffscreen, 0, 0, gridCanvas.width, gridCanvas.height);
+  }
+
   function computeFrame() {
     if (!wasmReady || typeof window.algoforgeFFT !== "function") return;
 
     const result = window.algoforgeFFT({
       n: state.n,
+      gridSize: state.gridSize,
       freqA: state.freqA,
       freqB: state.freqB,
       noise: state.noise,
@@ -114,6 +189,7 @@
 
     drawWave(result.signal);
     drawSpectrum(result.spectrum);
+    drawGridSpectrum(result.gridSpectrum, result.gridSize);
 
     if (state.playing) {
       updateAudio(result.signal);
@@ -189,6 +265,7 @@
 
   function handleInput() {
     state.n = Number(sizeSelect.value);
+    state.gridSize = Number(gridSizeSelect.value);
     state.freqA = Number(freqAInput.value);
     state.freqB = Number(freqBInput.value);
     state.noise = Number(noiseInput.value);
@@ -218,14 +295,17 @@
   function boot() {
     resizeCanvas(waveCanvas);
     resizeCanvas(spectrumCanvas);
+    resizeCanvas(gridCanvas);
 
     window.addEventListener("resize", () => {
       resizeCanvas(waveCanvas);
       resizeCanvas(spectrumCanvas);
+      resizeCanvas(gridCanvas);
       computeFrame();
     });
 
     sizeSelect.addEventListener("change", handleInput);
+    gridSizeSelect.addEventListener("change", handleInput);
     freqAInput.addEventListener("input", handleInput);
     freqBInput.addEventListener("input", handleInput);
     noiseInput.addEventListener("input", handleInput);

@@ -2,6 +2,12 @@
 
 A production-ready FFT (Fast Fourier Transform) library for Go, designed for high performance, numerical accuracy, and flexibility.
 
+## Try It Online
+
+Experience algoforge in your browser: **[Interactive FFT Demo](https://meko-christian.github.io/algoforge/)**
+
+The demo runs the library compiled to WebAssembly, allowing you to visualize FFT transforms in real-time.
+
 ## Features
 
 - **Core FFT Algorithms**
