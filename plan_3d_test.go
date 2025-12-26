@@ -74,6 +74,8 @@ func complex3D128NearlyEqual(a, b []complex128, tol float64) bool {
 // Test Plan3D creation
 
 func TestNewPlan3D(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		depth, height, width int
 		expectError          bool
@@ -89,6 +91,8 @@ func TestNewPlan3D(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan3D[complex64](tc.depth, tc.height, tc.width)
 			if tc.expectError {
 				if err == nil {
@@ -125,6 +129,8 @@ func TestNewPlan3D(t *testing.T) {
 // Test round-trip: IFFT(FFT(x)) ≈ x
 
 func TestPlan3D_RoundTrip_Complex64(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		depth, height, width int
 		name                 string
@@ -138,6 +144,8 @@ func TestPlan3D_RoundTrip_Complex64(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan3D32(tc.depth, tc.height, tc.width)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
@@ -179,6 +187,8 @@ func TestPlan3D_RoundTrip_Complex64(t *testing.T) {
 }
 
 func TestPlan3D_RoundTrip_Complex128(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		depth, height, width int
 		name                 string
@@ -191,6 +201,8 @@ func TestPlan3D_RoundTrip_Complex128(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan3D64(tc.depth, tc.height, tc.width)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
@@ -219,6 +231,8 @@ func TestPlan3D_RoundTrip_Complex128(t *testing.T) {
 // Test against reference naive DFT
 
 func TestPlan3D_VsReference_Complex64(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		depth, height, width int
 		name                 string
@@ -231,6 +245,8 @@ func TestPlan3D_VsReference_Complex64(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan3D32(tc.depth, tc.height, tc.width)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
@@ -269,6 +285,8 @@ func TestPlan3D_VsReference_Complex64(t *testing.T) {
 }
 
 func TestPlan3D_VsReference_Complex128(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		depth, height, width int
 		name                 string
@@ -280,6 +298,8 @@ func TestPlan3D_VsReference_Complex128(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan3D64(tc.depth, tc.height, tc.width)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
@@ -305,6 +325,8 @@ func TestPlan3D_VsReference_Complex128(t *testing.T) {
 // Test in-place operations
 
 func TestPlan3D_InPlace(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlan3D32(8, 8, 8)
 	if err != nil {
 		t.Fatalf("Failed to create plan: %v", err)
@@ -333,6 +355,8 @@ func TestPlan3D_InPlace(t *testing.T) {
 // Test error handling
 
 func TestPlan3D_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlan3D32(8, 8, 8)
 	if err != nil {
 		t.Fatalf("Failed to create plan: %v", err)
@@ -363,6 +387,8 @@ func TestPlan3D_ErrorHandling(t *testing.T) {
 // Test Clone
 
 func TestPlan3D_Clone(t *testing.T) {
+	t.Parallel()
+
 	original, err := NewPlan3D32(8, 8, 8)
 	if err != nil {
 		t.Fatalf("Failed to create plan: %v", err)
@@ -415,6 +441,8 @@ func TestPlan3D_Clone(t *testing.T) {
 // Test String representation
 
 func TestPlan3D_String(t *testing.T) {
+	t.Parallel()
+
 	plan32, _ := NewPlan3D32(8, 16, 32)
 
 	str32 := plan32.String()

@@ -42,22 +42,34 @@ func stockhamForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bo
 		outIsDst = false
 	}
 
+	in = in[:n]
+	out = out[:n]
+	twiddle = twiddle[:n]
+
 	stages := log2(n)
+	halfN := n >> 1
+
 	for s := range stages {
 		m := 1 << (stages - s)
 		half := m >> 1
 
 		step := n / m
-		for k := range n / m {
+
+		kLimit := n / m
+		for k := range kLimit {
 			base := k * m
 
 			outBase := k * half
+			inBlock := in[base : base+m]
+			outLo := out[outBase : outBase+half]
+
+			outHi := out[outBase+halfN : outBase+halfN+half]
 			for j := range half {
-				a := in[base+j]
-				b := in[base+j+half]
+				a := inBlock[j]
+				b := inBlock[j+half]
 				tw := twiddle[j*step]
-				out[outBase+j] = a + b
-				out[outBase+j+n/2] = (a - b) * tw
+				outLo[j] = a + b
+				outHi[j] = (a - b) * tw
 			}
 		}
 
@@ -71,6 +83,8 @@ func stockhamForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bo
 			out = dst
 			outIsDst = true
 		}
+
+		out = out[:n]
 	}
 
 	if !inIsDst {
@@ -106,22 +120,34 @@ func stockhamInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bo
 		outIsDst = false
 	}
 
+	in = in[:n]
+	out = out[:n]
+	twiddle = twiddle[:n]
+
 	stages := log2(n)
+	halfN := n >> 1
+
 	for s := range stages {
 		m := 1 << (stages - s)
 		half := m >> 1
 
 		step := n / m
-		for k := range n / m {
+
+		kLimit := n / m
+		for k := range kLimit {
 			base := k * m
 
 			outBase := k * half
+			inBlock := in[base : base+m]
+			outLo := out[outBase : outBase+half]
+
+			outHi := out[outBase+halfN : outBase+halfN+half]
 			for j := range half {
-				a := in[base+j]
-				b := in[base+j+half]
+				a := inBlock[j]
+				b := inBlock[j+half]
 				tw := conj(twiddle[j*step])
-				out[outBase+j] = a + b
-				out[outBase+j+n/2] = (a - b) * tw
+				outLo[j] = a + b
+				outHi[j] = (a - b) * tw
 			}
 		}
 
@@ -135,6 +161,8 @@ func stockhamInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bo
 			out = dst
 			outIsDst = true
 		}
+
+		out = out[:n]
 	}
 
 	if !inIsDst {

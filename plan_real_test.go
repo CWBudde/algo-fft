@@ -381,12 +381,14 @@ func assertPlanRealRoundTrip(t *testing.T, plan *PlanReal, src []float32, tol fl
 	t.Helper()
 
 	freq := make([]complex64, plan.SpectrumLen())
+
 	err := plan.Forward(freq, src)
 	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
 	out := make([]float32, plan.Len())
+
 	err = plan.Inverse(out, freq)
 	if err != nil {
 		t.Fatalf("Inverse returned error: %v", err)

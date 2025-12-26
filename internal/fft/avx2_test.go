@@ -272,6 +272,8 @@ func TestAVX2Inverse_VsPureGo(t *testing.T) {
 
 // 14.3: AVX2 Stockham vs Pure-Go Stockham Tests.
 func TestAVX2StockhamForward_VsPureGo(t *testing.T) {
+	t.Parallel()
+
 	avx2Forward, _, avx2Available := getAVX2StockhamKernels()
 	if !avx2Available {
 		t.Skip("AVX2 not available on this system")
@@ -303,6 +305,8 @@ func TestAVX2StockhamForward_VsPureGo(t *testing.T) {
 }
 
 func TestAVX2StockhamInverse_VsPureGo(t *testing.T) {
+	t.Parallel()
+
 	_, avx2Inverse, avx2Available := getAVX2StockhamKernels()
 	if !avx2Available {
 		t.Skip("AVX2 not available on this system")
@@ -1013,6 +1017,8 @@ func BenchmarkAVX2VsPureGo(b *testing.B) {
 // =============================================================================
 
 func TestAVX2ZeroAllocations(t *testing.T) {
+	t.Parallel()
+
 	avx2Forward, avx2Inverse, avx2Available := getAVX2Kernels()
 	if !avx2Available {
 		t.Skip("AVX2 not available on this system")

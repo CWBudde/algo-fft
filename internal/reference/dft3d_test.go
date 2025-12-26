@@ -65,6 +65,8 @@ func generateRandom3DSignal128(depth, height, width int, seed uint64) []complex1
 // Test round-trip: IDFT(DFT(x)) ≈ x
 
 func TestNaiveDFT3D_RoundTrip(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		depth, height, width int
 		name                 string
@@ -78,6 +80,8 @@ func TestNaiveDFT3D_RoundTrip(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			original := generateRandom3DSignal(tc.depth, tc.height, tc.width, 12345)
 
 			// Forward then inverse
@@ -103,6 +107,8 @@ func TestNaiveDFT3D_RoundTrip(t *testing.T) {
 }
 
 func TestNaiveDFT3D128_RoundTrip(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		depth, height, width int
 		name                 string
@@ -115,6 +121,8 @@ func TestNaiveDFT3D128_RoundTrip(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			original := generateRandom3DSignal128(tc.depth, tc.height, tc.width, 12345)
 
 			freq := NaiveDFT3D128(original, tc.depth, tc.height, tc.width)
@@ -140,6 +148,8 @@ func TestNaiveDFT3D128_RoundTrip(t *testing.T) {
 // Test 3D linearity: DFT(aX + bY) = a·DFT(X) + b·DFT(Y)
 
 func TestNaiveDFT3D_Linearity(t *testing.T) {
+	t.Parallel()
+
 	depth, height, width := 4, 4, 4
 	signalX := generateRandom3DSignal(depth, height, width, 111)
 	signalY := generateRandom3DSignal(depth, height, width, 222)
@@ -183,6 +193,8 @@ func TestNaiveDFT3D_Linearity(t *testing.T) {
 // Test 3D Parseval's theorem: Σ|x[d,h,w]|² = (1/(D*H*W))·Σ|X[kd,kh,kw]|²
 
 func TestNaiveDFT3D_Parseval(t *testing.T) {
+	t.Parallel()
+
 	depth, height, width := 8, 8, 8
 	signal := generateRandom3DSignal(depth, height, width, 54321)
 
@@ -217,6 +229,8 @@ func TestNaiveDFT3D_Parseval(t *testing.T) {
 // Test known signal: constant (DC only)
 
 func TestNaiveDFT3D_ConstantSignal(t *testing.T) {
+	t.Parallel()
+
 	depth, height, width := 4, 4, 4
 
 	signal := make([]complex64, depth*height*width)
@@ -246,6 +260,8 @@ func TestNaiveDFT3D_ConstantSignal(t *testing.T) {
 // Test 3D pure sinusoid: single frequency (kd, kh, kw)
 
 func TestNaiveDFT3D_PureSinusoid(t *testing.T) {
+	t.Parallel()
+
 	depth, height, width := 8, 8, 8
 	kd, kh, kw := 2, 3, 1 // Frequency indices
 
@@ -287,6 +303,8 @@ func TestNaiveDFT3D_PureSinusoid(t *testing.T) {
 // Test separability: 3D DFT = DFT_depth(DFT_height(DFT_width(X)))
 
 func TestNaiveDFT3D_Separability(t *testing.T) {
+	t.Parallel()
+
 	depth, height, width := 4, 4, 4
 	signal := generateRandom3DSignal(depth, height, width, 99999)
 

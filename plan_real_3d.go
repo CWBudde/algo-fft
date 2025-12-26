@@ -207,6 +207,7 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 
 			// Transform depth slice
 			planIdx := h*p.halfWidth + w
+
 			err := p.depthPlans[planIdx].InPlace(depthData)
 			if err != nil {
 				return err
@@ -319,6 +320,7 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 
 			// Inverse transform depth slice
 			planIdx := h*p.halfWidth + w
+
 			err := p.depthPlans[planIdx].InverseInPlace(depthData)
 			if err != nil {
 				return err

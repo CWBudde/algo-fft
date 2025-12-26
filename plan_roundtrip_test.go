@@ -3,6 +3,8 @@ package algoforge
 import "testing"
 
 func TestDITScalingRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	prev := GetKernelStrategy()
 
 	SetKernelStrategy(KernelDIT)

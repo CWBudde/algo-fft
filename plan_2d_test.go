@@ -41,6 +41,8 @@ func generateRandom2DSignal128(rows, cols int, seed uint64) []complex128 {
 // Test Plan2D creation
 
 func TestNewPlan2D_ValidDimensions(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		name       string
@@ -56,6 +58,8 @@ func TestNewPlan2D_ValidDimensions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan2D[complex64](tc.rows, tc.cols)
 			if err != nil {
 				t.Fatalf("NewPlan2D(%d, %d) failed: %v", tc.rows, tc.cols, err)
@@ -77,6 +81,8 @@ func TestNewPlan2D_ValidDimensions(t *testing.T) {
 }
 
 func TestNewPlan2D_InvalidDimensions(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		name       string
@@ -90,6 +96,8 @@ func TestNewPlan2D_InvalidDimensions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			_, err := NewPlan2D[complex64](tc.rows, tc.cols)
 			if !errors.Is(err, ErrInvalidLength) {
 				t.Errorf("NewPlan2D(%d, %d) = %v, want ErrInvalidLength", tc.rows, tc.cols, err)
@@ -99,7 +107,11 @@ func TestNewPlan2D_InvalidDimensions(t *testing.T) {
 }
 
 func TestNewPlan2D32_64(t *testing.T) {
+	t.Parallel()
+
 	t.Run("NewPlan2D32", func(t *testing.T) {
+		t.Parallel()
+
 		plan, err := NewPlan2D32(4, 4)
 		if err != nil {
 			t.Fatalf("NewPlan2D32 failed: %v", err)
@@ -111,6 +123,8 @@ func TestNewPlan2D32_64(t *testing.T) {
 	})
 
 	t.Run("NewPlan2D64", func(t *testing.T) {
+		t.Parallel()
+
 		plan, err := NewPlan2D64(4, 4)
 		if err != nil {
 			t.Fatalf("NewPlan2D64 failed: %v", err)
@@ -125,6 +139,8 @@ func TestNewPlan2D32_64(t *testing.T) {
 // Test validation
 
 func TestPlan2D_NilSlices(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlan2D[complex64](4, 4)
 	if err != nil {
 		t.Fatalf("NewPlan2D failed: %v", err)
@@ -133,6 +149,8 @@ func TestPlan2D_NilSlices(t *testing.T) {
 	validData := make([]complex64, 16)
 
 	t.Run("nil_dst", func(t *testing.T) {
+		t.Parallel()
+
 		err := plan.Forward(nil, validData)
 		if !errors.Is(err, ErrNilSlice) {
 			t.Errorf("Forward(nil, validData) = %v, want ErrNilSlice", err)
@@ -140,6 +158,8 @@ func TestPlan2D_NilSlices(t *testing.T) {
 	})
 
 	t.Run("nil_src", func(t *testing.T) {
+		t.Parallel()
+
 		err := plan.Forward(validData, nil)
 		if !errors.Is(err, ErrNilSlice) {
 			t.Errorf("Forward(validData, nil) = %v, want ErrNilSlice", err)
@@ -148,6 +168,8 @@ func TestPlan2D_NilSlices(t *testing.T) {
 }
 
 func TestPlan2D_LengthMismatch(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlan2D[complex64](4, 4)
 	if err != nil {
 		t.Fatalf("NewPlan2D failed: %v", err)
@@ -157,6 +179,8 @@ func TestPlan2D_LengthMismatch(t *testing.T) {
 	wrongData := make([]complex64, 10)
 
 	t.Run("wrong_dst_length", func(t *testing.T) {
+		t.Parallel()
+
 		err := plan.Forward(wrongData, validData)
 		if !errors.Is(err, ErrLengthMismatch) {
 			t.Errorf("Forward with wrong dst length = %v, want ErrLengthMismatch", err)
@@ -164,6 +188,8 @@ func TestPlan2D_LengthMismatch(t *testing.T) {
 	})
 
 	t.Run("wrong_src_length", func(t *testing.T) {
+		t.Parallel()
+
 		err := plan.Forward(validData, wrongData)
 		if !errors.Is(err, ErrLengthMismatch) {
 			t.Errorf("Forward with wrong src length = %v, want ErrLengthMismatch", err)
@@ -174,6 +200,8 @@ func TestPlan2D_LengthMismatch(t *testing.T) {
 // Test correctness against reference implementation
 
 func TestPlan2D_ForwardMatchesReference(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		name       string
@@ -188,6 +216,8 @@ func TestPlan2D_ForwardMatchesReference(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan2D[complex64](tc.rows, tc.cols)
 			if err != nil {
 				t.Fatalf("NewPlan2D failed: %v", err)
@@ -216,6 +246,8 @@ func TestPlan2D_ForwardMatchesReference(t *testing.T) {
 }
 
 func TestPlan2D_InverseMatchesReference(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		name       string
@@ -229,6 +261,8 @@ func TestPlan2D_InverseMatchesReference(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan2D[complex64](tc.rows, tc.cols)
 			if err != nil {
 				t.Fatalf("NewPlan2D failed: %v", err)
@@ -257,6 +291,8 @@ func TestPlan2D_InverseMatchesReference(t *testing.T) {
 }
 
 func TestPlan2D_ForwardMatchesReference128(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		name       string
@@ -268,6 +304,8 @@ func TestPlan2D_ForwardMatchesReference128(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan2D[complex128](tc.rows, tc.cols)
 			if err != nil {
 				t.Fatalf("NewPlan2D failed: %v", err)
@@ -295,6 +333,8 @@ func TestPlan2D_ForwardMatchesReference128(t *testing.T) {
 // Test round-trip: Inverse(Forward(x)) ≈ x
 
 func TestPlan2D_RoundTrip(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		name       string
@@ -310,6 +350,8 @@ func TestPlan2D_RoundTrip(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan2D[complex64](tc.rows, tc.cols)
 			if err != nil {
 				t.Fatalf("NewPlan2D failed: %v", err)
@@ -341,6 +383,8 @@ func TestPlan2D_RoundTrip(t *testing.T) {
 }
 
 func TestPlan2D_RoundTrip128(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		name       string
@@ -353,6 +397,8 @@ func TestPlan2D_RoundTrip128(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlan2D[complex128](tc.rows, tc.cols)
 			if err != nil {
 				t.Fatalf("NewPlan2D failed: %v", err)
@@ -381,6 +427,8 @@ func TestPlan2D_RoundTrip128(t *testing.T) {
 }
 
 func TestPlan2D_InPlaceMatchesOutOfPlace(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 8, 8
 
 	plan, err := NewPlan2D[complex64](rows, cols)
@@ -412,6 +460,8 @@ func TestPlan2D_InPlaceMatchesOutOfPlace(t *testing.T) {
 // Test mathematical properties
 
 func TestPlan2D_Linearity(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 8, 8
 
 	plan, err := NewPlan2D[complex64](rows, cols)
@@ -457,6 +507,8 @@ func TestPlan2D_Linearity(t *testing.T) {
 }
 
 func TestPlan2D_Parseval(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 8, 8
 
 	plan, err := NewPlan2D[complex64](rows, cols)
@@ -496,6 +548,8 @@ func TestPlan2D_Parseval(t *testing.T) {
 }
 
 func TestPlan2D_Separability(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 4, 4
 
 	plan, err := NewPlan2D[complex64](rows, cols)
@@ -548,6 +602,8 @@ func TestPlan2D_Separability(t *testing.T) {
 // Test signal properties
 
 func TestPlan2D_ConstantSignal(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 8, 8
 
 	plan, err := NewPlan2D[complex64](rows, cols)
@@ -579,6 +635,8 @@ func TestPlan2D_ConstantSignal(t *testing.T) {
 }
 
 func TestPlan2D_PureSinusoid2D(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 8, 8
 	kx, ky := 2, 3
 
@@ -621,6 +679,8 @@ func TestPlan2D_PureSinusoid2D(t *testing.T) {
 // Test Clone
 
 func TestPlan2D_Clone(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 8, 8
 
 	original, err := NewPlan2D[complex64](rows, cols)

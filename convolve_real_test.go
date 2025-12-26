@@ -8,11 +8,14 @@ import (
 )
 
 func TestConvolveRealBasic(t *testing.T) {
+	t.Parallel()
+
 	a := []float32{1, 2, 3}
 	b := []float32{4, 5}
 	want := []float32{4, 13, 22, 15}
 
 	got := make([]float32, len(a)+len(b)-1)
+
 	err := ConvolveReal(got, a, b)
 	if err != nil {
 		t.Fatalf("ConvolveReal() returned error: %v", err)
@@ -26,6 +29,8 @@ func TestConvolveRealBasic(t *testing.T) {
 }
 
 func TestConvolveRealGaussianKernel(t *testing.T) {
+	t.Parallel()
+
 	signal := make([]float32, 32)
 	for i := range signal {
 		if i >= 8 && i < 24 {
@@ -37,6 +42,7 @@ func TestConvolveRealGaussianKernel(t *testing.T) {
 	want := naiveConvolveReal(signal, kernel)
 
 	got := make([]float32, len(want))
+
 	err := ConvolveReal(got, signal, kernel)
 	if err != nil {
 		t.Fatalf("ConvolveReal() returned error: %v", err)
@@ -50,6 +56,8 @@ func TestConvolveRealGaussianKernel(t *testing.T) {
 }
 
 func TestConvolveRealRandomMatchesNaive(t *testing.T) {
+	t.Parallel()
+
 	rng := rand.New(rand.NewSource(2))
 	a := make([]float32, 9)
 	b := make([]float32, 6)
@@ -78,6 +86,8 @@ func TestConvolveRealRandomMatchesNaive(t *testing.T) {
 }
 
 func TestConvolveRealErrors(t *testing.T) {
+	t.Parallel()
+
 	err := ConvolveReal(nil, []float32{1}, []float32{1})
 	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("ConvolveReal(nil, a, b) = %v, want ErrNilSlice", err)

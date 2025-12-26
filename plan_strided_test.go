@@ -6,6 +6,8 @@ import (
 )
 
 func TestPlanForwardStrided_Complex64(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlan32(4)
 	if err != nil {
 		t.Fatalf("NewPlan32 failed: %v", err)
@@ -48,6 +50,8 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 }
 
 func TestPlanInverseStrided_Complex128(t *testing.T) {
+	t.Parallel()
+
 	const n = 8
 
 	plan, err := NewPlan64(n)
@@ -84,6 +88,8 @@ func TestPlanInverseStrided_Complex128(t *testing.T) {
 }
 
 func TestPlanStrided_Errors(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlan32(4)
 	if err != nil {
 		t.Fatalf("NewPlan32 failed: %v", err)

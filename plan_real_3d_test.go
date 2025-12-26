@@ -9,6 +9,8 @@ import (
 
 // TestPlanReal3D_BasicSizes tests 3D real FFT correctness for small sizes against naive DFT.
 func TestPlanReal3D_BasicSizes(t *testing.T) {
+	t.Parallel()
+
 	sizes := []struct {
 		depth, height, width int
 	}{
@@ -22,6 +24,8 @@ func TestPlanReal3D_BasicSizes(t *testing.T) {
 
 	for _, size := range sizes {
 		t.Run(sprintf3d(size.depth, size.height, size.width), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanReal3D(size.depth, size.height, size.width)
 			if err != nil {
 				t.Fatalf("NewPlanReal3D failed: %v", err)
@@ -62,6 +66,8 @@ func TestPlanReal3D_BasicSizes(t *testing.T) {
 
 // TestPlanReal3D_RoundTrip tests that Inverse(Forward(x)) ≈ x.
 func TestPlanReal3D_RoundTrip(t *testing.T) {
+	t.Parallel()
+
 	sizes := []struct {
 		depth, height, width int
 	}{
@@ -74,6 +80,8 @@ func TestPlanReal3D_RoundTrip(t *testing.T) {
 
 	for _, size := range sizes {
 		t.Run(sprintf3d(size.depth, size.height, size.width), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanReal3D(size.depth, size.height, size.width)
 			if err != nil {
 				t.Fatalf("NewPlanReal3D failed: %v", err)
@@ -117,6 +125,8 @@ func TestPlanReal3D_RoundTrip(t *testing.T) {
 
 // TestPlanReal3D_ForwardFull tests the full-spectrum output variant.
 func TestPlanReal3D_ForwardFull(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlanReal3D(4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
@@ -159,6 +169,8 @@ func TestPlanReal3D_ForwardFull(t *testing.T) {
 
 // TestPlanReal3D_InverseFull tests inverse from full spectrum.
 func TestPlanReal3D_InverseFull(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlanReal3D(4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
@@ -200,6 +212,8 @@ func TestPlanReal3D_InverseFull(t *testing.T) {
 
 // TestPlanReal3D_ConstantSignal tests DC component for a constant signal.
 func TestPlanReal3D_ConstantSignal(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlanReal3D(4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
@@ -234,6 +248,8 @@ func TestPlanReal3D_ConstantSignal(t *testing.T) {
 
 // TestPlanReal3D_Linearity tests FFT(a*x + b*y) = a*FFT(x) + b*FFT(y).
 func TestPlanReal3D_Linearity(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlanReal3D(4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
@@ -299,6 +315,8 @@ func TestPlanReal3D_Linearity(t *testing.T) {
 
 // TestPlanReal3D_Clone tests that cloned plans work independently.
 func TestPlanReal3D_Clone(t *testing.T) {
+	t.Parallel()
+
 	plan1, err := NewPlanReal3D(4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
@@ -333,6 +351,8 @@ func TestPlanReal3D_Clone(t *testing.T) {
 
 // TestPlanReal3D_InvalidSizes tests error handling for invalid sizes.
 func TestPlanReal3D_InvalidSizes(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		depth, height, width int
 		shouldFail           bool

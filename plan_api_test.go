@@ -99,6 +99,8 @@ func TestInverseInPlace_LengthMismatch(t *testing.T) {
 
 // TestKernelStrategy tests the KernelStrategy method.
 func TestKernelStrategy(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		size     int
@@ -114,6 +116,7 @@ func TestKernelStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Save and restore global strategy
 			oldStrategy := GetKernelStrategy()
 			defer SetKernelStrategy(oldStrategy)
@@ -149,6 +152,7 @@ func TestKernelStrategy(t *testing.T) {
 
 // TestSetGetKernelStrategy tests global strategy get/set.
 func TestSetGetKernelStrategy(t *testing.T) {
+	t.Parallel()
 	// Save original strategy
 	original := GetKernelStrategy()
 	defer SetKernelStrategy(original)
@@ -173,6 +177,7 @@ func TestSetGetKernelStrategy(t *testing.T) {
 
 // TestRecordBenchmarkDecision tests per-size strategy recording.
 func TestRecordBenchmarkDecision(t *testing.T) {
+	t.Parallel()
 	// Save and restore global strategy
 	oldStrategy := GetKernelStrategy()
 	defer SetKernelStrategy(oldStrategy)
@@ -240,6 +245,7 @@ func TestTransform(t *testing.T) {
 
 // TestString_AllStrategies tests String method with different strategies.
 func TestString_AllStrategies(t *testing.T) {
+	t.Parallel()
 	// Save and restore
 	oldStrategy := GetKernelStrategy()
 
@@ -259,6 +265,7 @@ func TestString_AllStrategies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expectedName, func(t *testing.T) {
+			t.Parallel()
 			SetKernelStrategy(tt.strategy)
 
 			plan, err := NewPlanT[complex64](tt.size)

@@ -65,6 +65,8 @@ func generateRandom2DSignal128(rows, cols int, seed uint64) []complex128 {
 // Test round-trip: IDFT(DFT(x)) ≈ x
 
 func TestNaiveDFT2D_RoundTrip(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		name       string
@@ -78,6 +80,8 @@ func TestNaiveDFT2D_RoundTrip(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			original := generateRandom2DSignal(tc.rows, tc.cols, 12345)
 
 			// Forward then inverse
@@ -99,6 +103,8 @@ func TestNaiveDFT2D_RoundTrip(t *testing.T) {
 }
 
 func TestNaiveDFT2D128_RoundTrip(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		name       string
@@ -111,6 +117,8 @@ func TestNaiveDFT2D128_RoundTrip(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			original := generateRandom2DSignal128(tc.rows, tc.cols, 12345)
 
 			freq := NaiveDFT2D128(original, tc.rows, tc.cols)
@@ -132,6 +140,8 @@ func TestNaiveDFT2D128_RoundTrip(t *testing.T) {
 // Test 2D linearity: DFT(aX + bY) = a·DFT(X) + b·DFT(Y)
 
 func TestNaiveDFT2D_Linearity(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 4, 4
 	signalX := generateRandom2DSignal(rows, cols, 111)
 	signalY := generateRandom2DSignal(rows, cols, 222)
@@ -172,6 +182,8 @@ func TestNaiveDFT2D_Linearity(t *testing.T) {
 // Test 2D Parseval's theorem: Σ|x[m,n]|² = (1/MN)·Σ|X[k,l]|²
 
 func TestNaiveDFT2D_Parseval(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 8, 8
 	signal := generateRandom2DSignal(rows, cols, 54321)
 
@@ -206,6 +218,8 @@ func TestNaiveDFT2D_Parseval(t *testing.T) {
 // Test known signal: constant (DC only)
 
 func TestNaiveDFT2D_ConstantSignal(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 4, 4
 
 	signal := make([]complex64, rows*cols)
@@ -233,6 +247,8 @@ func TestNaiveDFT2D_ConstantSignal(t *testing.T) {
 // Test 2D pure sinusoid: single frequency (kx, ky)
 
 func TestNaiveDFT2D_PureSinusoid(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 8, 8
 	kx, ky := 2, 3 // Frequency indices
 
@@ -269,6 +285,8 @@ func TestNaiveDFT2D_PureSinusoid(t *testing.T) {
 // Test separability: 2D DFT = DFT_cols(DFT_rows(X))
 
 func TestNaiveDFT2D_Separability(t *testing.T) {
+	t.Parallel()
+
 	rows, cols := 4, 4
 	signal := generateRandom2DSignal(rows, cols, 99999)
 

@@ -148,6 +148,7 @@ func (p *Plan2D[T]) Forward(dst, src []T) error {
 	// Transform rows
 	for row := range p.rows {
 		rowData := p.scratch[row*p.cols : (row+1)*p.cols]
+
 		err := p.rowPlan.InPlace(rowData)
 		if err != nil {
 			return err
@@ -189,6 +190,7 @@ func (p *Plan2D[T]) Inverse(dst, src []T) error {
 	// Transform rows (inverse)
 	for row := range p.rows {
 		rowData := p.scratch[row*p.cols : (row+1)*p.cols]
+
 		err := p.rowPlan.InverseInPlace(rowData)
 		if err != nil {
 			return err

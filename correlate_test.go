@@ -8,6 +8,8 @@ import (
 )
 
 func TestCrossCorrelateMatchesNaive(t *testing.T) {
+	t.Parallel()
+
 	rng := rand.New(rand.NewSource(3))
 	a := make([]complex64, 6)
 	b := make([]complex64, 4)
@@ -34,6 +36,8 @@ func TestCrossCorrelateMatchesNaive(t *testing.T) {
 }
 
 func TestAutoCorrelateZeroLagEnergy(t *testing.T) {
+	t.Parallel()
+
 	a := []complex64{1 + 2i, -3 + 0.5i, 2 - 1i}
 	dst := make([]complex64, 2*len(a)-1)
 
@@ -58,30 +62,37 @@ func TestAutoCorrelateZeroLagEnergy(t *testing.T) {
 }
 
 func TestCrossCorrelateErrors(t *testing.T) {
+	t.Parallel()
+
 	err := CrossCorrelate(nil, []complex64{1}, []complex64{1})
 	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("CrossCorrelate(nil, a, b) = %v, want ErrNilSlice", err)
 	}
+
 	err = CrossCorrelate([]complex64{1}, nil, []complex64{1})
 
 	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("CrossCorrelate(dst, nil, b) = %v, want ErrNilSlice", err)
 	}
+
 	err = CrossCorrelate([]complex64{1}, []complex64{1}, nil)
 
 	if !errors.Is(err, ErrNilSlice) {
 		t.Fatalf("CrossCorrelate(dst, a, nil) = %v, want ErrNilSlice", err)
 	}
+
 	err = CrossCorrelate([]complex64{}, []complex64{}, []complex64{1})
 
 	if !errors.Is(err, ErrInvalidLength) {
 		t.Fatalf("CrossCorrelate(dst, empty, b) = %v, want ErrInvalidLength", err)
 	}
+
 	err = CrossCorrelate([]complex64{}, []complex64{1}, []complex64{})
 
 	if !errors.Is(err, ErrInvalidLength) {
 		t.Fatalf("CrossCorrelate(dst, a, empty) = %v, want ErrInvalidLength", err)
 	}
+
 	err = CrossCorrelate([]complex64{0}, []complex64{1, 2}, []complex64{3, 4})
 
 	if !errors.Is(err, ErrLengthMismatch) {
@@ -90,6 +101,8 @@ func TestCrossCorrelateErrors(t *testing.T) {
 }
 
 func TestCorrelateAlias(t *testing.T) {
+	t.Parallel()
+
 	a := []complex64{1 + 0i, 2 + 1i}
 	b := []complex64{3 - 1i}
 
@@ -115,7 +128,7 @@ func naiveCrossCorrelate(a, b []complex64) []complex64 {
 	for lag := -(len(b) - 1); lag <= len(a)-1; lag++ {
 		var sum complex64
 
-		for n := range len(a) {
+		for n := range a {
 			m := n - lag
 			if m < 0 || m >= len(b) {
 				continue

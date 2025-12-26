@@ -10,6 +10,8 @@ import (
 
 // TestPlanReal2D_BasicSizes tests 2D real FFT correctness for small sizes against naive DFT.
 func TestPlanReal2D_BasicSizes(t *testing.T) {
+	t.Parallel()
+
 	sizes := []struct {
 		rows, cols int
 	}{
@@ -23,6 +25,8 @@ func TestPlanReal2D_BasicSizes(t *testing.T) {
 
 	for _, size := range sizes {
 		t.Run(sprintf("%dx%d", size.rows, size.cols), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanReal2D(size.rows, size.cols)
 			if err != nil {
 				t.Fatalf("NewPlanReal2D failed: %v", err)
@@ -63,6 +67,8 @@ func TestPlanReal2D_BasicSizes(t *testing.T) {
 
 // TestPlanReal2D_RoundTrip tests that Inverse(Forward(x)) ≈ x.
 func TestPlanReal2D_RoundTrip(t *testing.T) {
+	t.Parallel()
+
 	sizes := []struct {
 		rows, cols int
 	}{
@@ -77,6 +83,8 @@ func TestPlanReal2D_RoundTrip(t *testing.T) {
 
 	for _, size := range sizes {
 		t.Run(sprintf("%dx%d", size.rows, size.cols), func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanReal2D(size.rows, size.cols)
 			if err != nil {
 				t.Fatalf("NewPlanReal2D failed: %v", err)
@@ -120,6 +128,8 @@ func TestPlanReal2D_RoundTrip(t *testing.T) {
 
 // TestPlanReal2D_ForwardFull tests the full-spectrum output variant.
 func TestPlanReal2D_ForwardFull(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlanReal2D(8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
@@ -164,6 +174,8 @@ func TestPlanReal2D_ForwardFull(t *testing.T) {
 
 // TestPlanReal2D_InverseFull tests inverse from full spectrum.
 func TestPlanReal2D_InverseFull(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlanReal2D(8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
@@ -205,6 +217,8 @@ func TestPlanReal2D_InverseFull(t *testing.T) {
 
 // TestPlanReal2D_ConstantSignal tests DC component for a constant signal.
 func TestPlanReal2D_ConstantSignal(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlanReal2D(8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
@@ -239,6 +253,8 @@ func TestPlanReal2D_ConstantSignal(t *testing.T) {
 
 // TestPlanReal2D_Linearity tests FFT(a*x + b*y) = a*FFT(x) + b*FFT(y).
 func TestPlanReal2D_Linearity(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlanReal2D(8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
@@ -304,6 +320,8 @@ func TestPlanReal2D_Linearity(t *testing.T) {
 
 // TestPlanReal2D_Clone tests that cloned plans work independently.
 func TestPlanReal2D_Clone(t *testing.T) {
+	t.Parallel()
+
 	plan1, err := NewPlanReal2D(8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
@@ -338,6 +356,8 @@ func TestPlanReal2D_Clone(t *testing.T) {
 
 // TestPlanReal2D_InvalidSizes tests error handling for invalid sizes.
 func TestPlanReal2D_InvalidSizes(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		rows, cols int
 		shouldFail bool

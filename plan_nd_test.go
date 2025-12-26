@@ -82,6 +82,8 @@ func complexND128NearlyEqual(a, b []complex128, tol float64) bool {
 // Test PlanND creation
 
 func TestNewPlanND(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		dims        []int
 		expectError bool
@@ -99,6 +101,8 @@ func TestNewPlanND(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanND[complex64](tc.dims)
 			if tc.expectError {
 				if err == nil {
@@ -143,6 +147,8 @@ func TestNewPlanND(t *testing.T) {
 // Test round-trip: IFFT(FFT(x)) ≈ x for various dimensions
 
 func TestPlanND_RoundTrip_3D(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		dims []int
 		name string
@@ -155,6 +161,8 @@ func TestPlanND_RoundTrip_3D(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanND32(tc.dims)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
@@ -181,6 +189,8 @@ func TestPlanND_RoundTrip_3D(t *testing.T) {
 }
 
 func TestPlanND_RoundTrip_4D(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		dims []int
 		name string
@@ -193,6 +203,8 @@ func TestPlanND_RoundTrip_4D(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanND32(tc.dims)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
@@ -219,6 +231,8 @@ func TestPlanND_RoundTrip_4D(t *testing.T) {
 }
 
 func TestPlanND_RoundTrip_5D(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		dims []int
 		name string
@@ -230,6 +244,8 @@ func TestPlanND_RoundTrip_5D(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanND32(tc.dims)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
@@ -256,6 +272,8 @@ func TestPlanND_RoundTrip_5D(t *testing.T) {
 }
 
 func TestPlanND_RoundTrip_Complex128(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		dims []int
 		name string
@@ -267,6 +285,8 @@ func TestPlanND_RoundTrip_Complex128(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanND64(tc.dims)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
@@ -295,6 +315,8 @@ func TestPlanND_RoundTrip_Complex128(t *testing.T) {
 // Test that PlanND matches specialized Plan3D for 3D case
 
 func TestPlanND_MatchesPlan3D(t *testing.T) {
+	t.Parallel()
+
 	dims := []int{8, 16, 32}
 
 	plan3D, err := NewPlan3D32(dims[0], dims[1], dims[2])
@@ -343,6 +365,8 @@ func TestPlanND_MatchesPlan3D(t *testing.T) {
 // Test in-place operations
 
 func TestPlanND_InPlace(t *testing.T) {
+	t.Parallel()
+
 	dims := []int{4, 8, 16}
 
 	plan, err := NewPlanND32(dims)
@@ -373,6 +397,8 @@ func TestPlanND_InPlace(t *testing.T) {
 // Test error handling
 
 func TestPlanND_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
 	plan, err := NewPlanND32([]int{8, 8, 8})
 	if err != nil {
 		t.Fatalf("Failed to create plan: %v", err)
@@ -403,6 +429,8 @@ func TestPlanND_ErrorHandling(t *testing.T) {
 // Test Clone
 
 func TestPlanND_Clone(t *testing.T) {
+	t.Parallel()
+
 	dims := []int{4, 4, 4}
 
 	original, err := NewPlanND32(dims)
@@ -449,6 +477,8 @@ func TestPlanND_Clone(t *testing.T) {
 // Test String representation
 
 func TestPlanND_String(t *testing.T) {
+	t.Parallel()
+
 	plan3D, _ := NewPlanND32([]int{8, 16, 32})
 
 	str3D := plan3D.String()
