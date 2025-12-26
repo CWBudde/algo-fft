@@ -9,6 +9,7 @@ func forwardDIT8Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -77,6 +78,7 @@ func inverseDIT8Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -153,6 +155,7 @@ func forwardDIT8Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -221,6 +224,7 @@ func inverseDIT8Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -297,6 +301,7 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -419,6 +424,7 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -553,6 +559,7 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -675,6 +682,7 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -801,26 +809,29 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 }
 
 func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	const n = 64
-	const half = 32
+	const (
+		n    = 64
+		half = 32
+	)
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
 		return false
 	}
 
 	var bitrev32 [half]int
-	for i := 0; i < half; i++ {
-		bitrev32[i] = bitrev[i] >> 1
+	for i := range half {
+		bitrev32[i] = reverseBits(i, 5)
 	}
 
 	var twiddle32 [half]complex64
-	for i := 0; i < half; i++ {
+	for i := range half {
 		twiddle32[i] = twiddle[i*2]
 	}
 
 	evenSrc := scratch[:half]
+
 	oddSrc := scratch[half:n]
-	for i := 0; i < half; i++ {
+	for i := range half {
 		base := i * 2
 		evenSrc[i] = src[base]
 		oddSrc[i] = src[base+1]
@@ -829,11 +840,12 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	if !forwardDIT32Complex64(dst[:half], evenSrc, twiddle32[:], oddSrc, bitrev32[:]) {
 		return false
 	}
+
 	if !forwardDIT32Complex64(dst[half:n], oddSrc, twiddle32[:], evenSrc, bitrev32[:]) {
 		return false
 	}
 
-	for k := 0; k < half; k++ {
+	for k := range half {
 		t := twiddle[k] * dst[half+k]
 		u := dst[k]
 		dst[k] = u + t
@@ -844,26 +856,29 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 }
 
 func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	const n = 64
-	const half = 32
+	const (
+		n    = 64
+		half = 32
+	)
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
 		return false
 	}
 
 	var bitrev32 [half]int
-	for i := 0; i < half; i++ {
-		bitrev32[i] = bitrev[i] >> 1
+	for i := range half {
+		bitrev32[i] = reverseBits(i, 5)
 	}
 
 	var twiddle32 [half]complex64
-	for i := 0; i < half; i++ {
+	for i := range half {
 		twiddle32[i] = twiddle[i*2]
 	}
 
 	evenSrc := scratch[:half]
+
 	oddSrc := scratch[half:n]
-	for i := 0; i < half; i++ {
+	for i := range half {
 		base := i * 2
 		evenSrc[i] = src[base]
 		oddSrc[i] = src[base+1]
@@ -872,11 +887,12 @@ func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	if !inverseDIT32Complex64(dst[:half], evenSrc, twiddle32[:], oddSrc, bitrev32[:]) {
 		return false
 	}
+
 	if !inverseDIT32Complex64(dst[half:n], oddSrc, twiddle32[:], evenSrc, bitrev32[:]) {
 		return false
 	}
 
-	for k := 0; k < half; k++ {
+	for k := range half {
 		tw := twiddle[k]
 		tw = complex(real(tw), -imag(tw))
 		t := tw * dst[half+k]
@@ -894,26 +910,29 @@ func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 }
 
 func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	const n = 64
-	const half = 32
+	const (
+		n    = 64
+		half = 32
+	)
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
 		return false
 	}
 
 	var bitrev32 [half]int
-	for i := 0; i < half; i++ {
-		bitrev32[i] = bitrev[i] >> 1
+	for i := range half {
+		bitrev32[i] = reverseBits(i, 5)
 	}
 
 	var twiddle32 [half]complex128
-	for i := 0; i < half; i++ {
+	for i := range half {
 		twiddle32[i] = twiddle[i*2]
 	}
 
 	evenSrc := scratch[:half]
+
 	oddSrc := scratch[half:n]
-	for i := 0; i < half; i++ {
+	for i := range half {
 		base := i * 2
 		evenSrc[i] = src[base]
 		oddSrc[i] = src[base+1]
@@ -922,11 +941,12 @@ func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	if !forwardDIT32Complex128(dst[:half], evenSrc, twiddle32[:], oddSrc, bitrev32[:]) {
 		return false
 	}
+
 	if !forwardDIT32Complex128(dst[half:n], oddSrc, twiddle32[:], evenSrc, bitrev32[:]) {
 		return false
 	}
 
-	for k := 0; k < half; k++ {
+	for k := range half {
 		t := twiddle[k] * dst[half+k]
 		u := dst[k]
 		dst[k] = u + t
@@ -937,26 +957,29 @@ func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 }
 
 func inverseDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	const n = 64
-	const half = 32
+	const (
+		n    = 64
+		half = 32
+	)
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
 		return false
 	}
 
 	var bitrev32 [half]int
-	for i := 0; i < half; i++ {
-		bitrev32[i] = bitrev[i] >> 1
+	for i := range half {
+		bitrev32[i] = reverseBits(i, 5)
 	}
 
 	var twiddle32 [half]complex128
-	for i := 0; i < half; i++ {
+	for i := range half {
 		twiddle32[i] = twiddle[i*2]
 	}
 
 	evenSrc := scratch[:half]
+
 	oddSrc := scratch[half:n]
-	for i := 0; i < half; i++ {
+	for i := range half {
 		base := i * 2
 		evenSrc[i] = src[base]
 		oddSrc[i] = src[base+1]
@@ -965,11 +988,12 @@ func inverseDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	if !inverseDIT32Complex128(dst[:half], evenSrc, twiddle32[:], oddSrc, bitrev32[:]) {
 		return false
 	}
+
 	if !inverseDIT32Complex128(dst[half:n], oddSrc, twiddle32[:], evenSrc, bitrev32[:]) {
 		return false
 	}
 
-	for k := 0; k < half; k++ {
+	for k := range half {
 		tw := twiddle[k]
 		tw = complex(real(tw), -imag(tw))
 		t := tw * dst[half+k]
@@ -986,6 +1010,388 @@ func inverseDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	return true
 }
 
+func forwardDIT128Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	const n = 128
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+		return false
+	}
+
+	work := dst
+	workIsDst := true
+
+	if sameSlice(dst, src) {
+		work = scratch
+		workIsDst = false
+	}
+
+	work = work[:n]
+	src = src[:n]
+	twiddle = twiddle[:n]
+	bitrev = bitrev[:n]
+
+	for i := range n {
+		work[i] = src[bitrev[i]]
+	}
+
+	for base := 0; base < n; base += 2 {
+		a := work[base]
+		b := work[base+1]
+		work[base] = a + b
+		work[base+1] = a - b
+	}
+
+	for base := 0; base < n; base += 4 {
+		for j := range 2 {
+			tw := twiddle[j*32]
+			a, b := butterfly2(work[base+j], work[base+j+2], tw)
+			work[base+j] = a
+			work[base+j+2] = b
+		}
+	}
+
+	for base := 0; base < n; base += 8 {
+		for j := range 4 {
+			tw := twiddle[j*16]
+			a, b := butterfly2(work[base+j], work[base+j+4], tw)
+			work[base+j] = a
+			work[base+j+4] = b
+		}
+	}
+
+	for base := 0; base < n; base += 16 {
+		for j := range 8 {
+			tw := twiddle[j*8]
+			a, b := butterfly2(work[base+j], work[base+j+8], tw)
+			work[base+j] = a
+			work[base+j+8] = b
+		}
+	}
+
+	for base := 0; base < n; base += 32 {
+		for j := range 16 {
+			tw := twiddle[j*4]
+			a, b := butterfly2(work[base+j], work[base+j+16], tw)
+			work[base+j] = a
+			work[base+j+16] = b
+		}
+	}
+
+	for base := 0; base < n; base += 64 {
+		for j := range 32 {
+			tw := twiddle[j*2]
+			a, b := butterfly2(work[base+j], work[base+j+32], tw)
+			work[base+j] = a
+			work[base+j+32] = b
+		}
+	}
+
+	for j := range 64 {
+		tw := twiddle[j]
+		a, b := butterfly2(work[j], work[j+64], tw)
+		work[j] = a
+		work[j+64] = b
+	}
+
+	if !workIsDst {
+		copy(dst, work)
+	}
+
+	return true
+}
+
+func inverseDIT128Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	const n = 128
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+		return false
+	}
+
+	work := dst
+	workIsDst := true
+
+	if sameSlice(dst, src) {
+		work = scratch
+		workIsDst = false
+	}
+
+	work = work[:n]
+	src = src[:n]
+	twiddle = twiddle[:n]
+	bitrev = bitrev[:n]
+
+	for i := range n {
+		work[i] = src[bitrev[i]]
+	}
+
+	for base := 0; base < n; base += 2 {
+		a := work[base]
+		b := work[base+1]
+		work[base] = a + b
+		work[base+1] = a - b
+	}
+
+	for base := 0; base < n; base += 4 {
+		for j := range 2 {
+			tw := twiddle[j*32]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+2], tw)
+			work[base+j] = a
+			work[base+j+2] = b
+		}
+	}
+
+	for base := 0; base < n; base += 8 {
+		for j := range 4 {
+			tw := twiddle[j*16]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+4], tw)
+			work[base+j] = a
+			work[base+j+4] = b
+		}
+	}
+
+	for base := 0; base < n; base += 16 {
+		for j := range 8 {
+			tw := twiddle[j*8]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+8], tw)
+			work[base+j] = a
+			work[base+j+8] = b
+		}
+	}
+
+	for base := 0; base < n; base += 32 {
+		for j := range 16 {
+			tw := twiddle[j*4]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+16], tw)
+			work[base+j] = a
+			work[base+j+16] = b
+		}
+	}
+
+	for base := 0; base < n; base += 64 {
+		for j := range 32 {
+			tw := twiddle[j*2]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+32], tw)
+			work[base+j] = a
+			work[base+j+32] = b
+		}
+	}
+
+	for j := range 64 {
+		tw := twiddle[j]
+		tw = complex(real(tw), -imag(tw))
+		a, b := butterfly2(work[j], work[j+64], tw)
+		work[j] = a
+		work[j+64] = b
+	}
+
+	if !workIsDst {
+		copy(dst, work)
+	}
+
+	scale := complex(float32(1.0/float64(n)), 0)
+	for i := range dst[:n] {
+		dst[i] *= scale
+	}
+
+	return true
+}
+
+func forwardDIT128Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	const n = 128
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+		return false
+	}
+
+	work := dst
+	workIsDst := true
+
+	if sameSlice(dst, src) {
+		work = scratch
+		workIsDst = false
+	}
+
+	work = work[:n]
+	src = src[:n]
+	twiddle = twiddle[:n]
+	bitrev = bitrev[:n]
+
+	for i := range n {
+		work[i] = src[bitrev[i]]
+	}
+
+	for base := 0; base < n; base += 2 {
+		a := work[base]
+		b := work[base+1]
+		work[base] = a + b
+		work[base+1] = a - b
+	}
+
+	for base := 0; base < n; base += 4 {
+		for j := range 2 {
+			tw := twiddle[j*32]
+			a, b := butterfly2(work[base+j], work[base+j+2], tw)
+			work[base+j] = a
+			work[base+j+2] = b
+		}
+	}
+
+	for base := 0; base < n; base += 8 {
+		for j := range 4 {
+			tw := twiddle[j*16]
+			a, b := butterfly2(work[base+j], work[base+j+4], tw)
+			work[base+j] = a
+			work[base+j+4] = b
+		}
+	}
+
+	for base := 0; base < n; base += 16 {
+		for j := range 8 {
+			tw := twiddle[j*8]
+			a, b := butterfly2(work[base+j], work[base+j+8], tw)
+			work[base+j] = a
+			work[base+j+8] = b
+		}
+	}
+
+	for base := 0; base < n; base += 32 {
+		for j := range 16 {
+			tw := twiddle[j*4]
+			a, b := butterfly2(work[base+j], work[base+j+16], tw)
+			work[base+j] = a
+			work[base+j+16] = b
+		}
+	}
+
+	for base := 0; base < n; base += 64 {
+		for j := range 32 {
+			tw := twiddle[j*2]
+			a, b := butterfly2(work[base+j], work[base+j+32], tw)
+			work[base+j] = a
+			work[base+j+32] = b
+		}
+	}
+
+	for j := range 64 {
+		tw := twiddle[j]
+		a, b := butterfly2(work[j], work[j+64], tw)
+		work[j] = a
+		work[j+64] = b
+	}
+
+	if !workIsDst {
+		copy(dst, work)
+	}
+
+	return true
+}
+
+func inverseDIT128Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	const n = 128
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+		return false
+	}
+
+	work := dst
+	workIsDst := true
+
+	if sameSlice(dst, src) {
+		work = scratch
+		workIsDst = false
+	}
+
+	work = work[:n]
+	src = src[:n]
+	twiddle = twiddle[:n]
+	bitrev = bitrev[:n]
+
+	for i := range n {
+		work[i] = src[bitrev[i]]
+	}
+
+	for base := 0; base < n; base += 2 {
+		a := work[base]
+		b := work[base+1]
+		work[base] = a + b
+		work[base+1] = a - b
+	}
+
+	for base := 0; base < n; base += 4 {
+		for j := range 2 {
+			tw := twiddle[j*32]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+2], tw)
+			work[base+j] = a
+			work[base+j+2] = b
+		}
+	}
+
+	for base := 0; base < n; base += 8 {
+		for j := range 4 {
+			tw := twiddle[j*16]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+4], tw)
+			work[base+j] = a
+			work[base+j+4] = b
+		}
+	}
+
+	for base := 0; base < n; base += 16 {
+		for j := range 8 {
+			tw := twiddle[j*8]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+8], tw)
+			work[base+j] = a
+			work[base+j+8] = b
+		}
+	}
+
+	for base := 0; base < n; base += 32 {
+		for j := range 16 {
+			tw := twiddle[j*4]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+16], tw)
+			work[base+j] = a
+			work[base+j+16] = b
+		}
+	}
+
+	for base := 0; base < n; base += 64 {
+		for j := range 32 {
+			tw := twiddle[j*2]
+			tw = complex(real(tw), -imag(tw))
+			a, b := butterfly2(work[base+j], work[base+j+32], tw)
+			work[base+j] = a
+			work[base+j+32] = b
+		}
+	}
+
+	for j := range 64 {
+		tw := twiddle[j]
+		tw = complex(real(tw), -imag(tw))
+		a, b := butterfly2(work[j], work[j+64], tw)
+		work[j] = a
+		work[j+64] = b
+	}
+
+	if !workIsDst {
+		copy(dst, work)
+	}
+
+	scale := complex(1.0/float64(n), 0)
+	for i := range dst[:n] {
+		dst[i] *= scale
+	}
+
+	return true
+}
+
 func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 32
 
@@ -995,6 +1401,7 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -1239,6 +1646,7 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -1503,6 +1911,7 @@ func forwardDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
@@ -1747,6 +2156,7 @@ func inverseDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 
 	work := dst
 	workIsDst := true
+
 	if sameSlice(dst, src) {
 		work = scratch
 		workIsDst = false

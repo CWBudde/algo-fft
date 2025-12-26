@@ -10,6 +10,8 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		return forwardDIT32Complex64(dst, src, twiddle, scratch, bitrev)
 	case 64:
 		return forwardDIT64Complex64(dst, src, twiddle, scratch, bitrev)
+	case 128:
+		return forwardDIT128Complex64(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if forwardRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
@@ -29,6 +31,8 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		return inverseDIT32Complex64(dst, src, twiddle, scratch, bitrev)
 	case 64:
 		return inverseDIT64Complex64(dst, src, twiddle, scratch, bitrev)
+	case 128:
+		return inverseDIT128Complex64(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if inverseRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
@@ -48,6 +52,8 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		return forwardDIT32Complex128(dst, src, twiddle, scratch, bitrev)
 	case 64:
 		return forwardDIT64Complex128(dst, src, twiddle, scratch, bitrev)
+	case 128:
+		return forwardDIT128Complex128(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if forwardRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
@@ -67,6 +73,8 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		return inverseDIT32Complex128(dst, src, twiddle, scratch, bitrev)
 	case 64:
 		return inverseDIT64Complex128(dst, src, twiddle, scratch, bitrev)
+	case 128:
+		return inverseDIT128Complex128(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if inverseRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
@@ -219,7 +227,7 @@ func ditInverseComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		work[i] = src[bitrev[i]]
 	}
 
@@ -229,7 +237,8 @@ func ditInverseComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		step := n / size
 		for base := 0; base < n; base += size {
 			block := work[base : base+size]
-			for j := 0; j < half; j++ {
+
+			for j := range half {
 				tw := twiddle[j*step]
 				tw = complex(real(tw), -imag(tw))
 				a, b := butterfly2(block[j], block[j+half], tw)
@@ -279,7 +288,7 @@ func ditInverseComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		work[i] = src[bitrev[i]]
 	}
 
@@ -289,7 +298,8 @@ func ditInverseComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		step := n / size
 		for base := 0; base < n; base += size {
 			block := work[base : base+size]
-			for j := 0; j < half; j++ {
+
+			for j := range half {
 				tw := twiddle[j*step]
 				tw = complex(real(tw), -imag(tw))
 				a, b := butterfly2(block[j], block[j+half], tw)
