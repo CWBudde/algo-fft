@@ -5,7 +5,7 @@ func forwardStockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 }
 
 func inverseStockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return stockhamInverse[complex64](dst, src, twiddle, scratch, bitrev)
+	return stockhamInverseComplex64(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardStockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
@@ -13,7 +13,7 @@ func forwardStockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev [
 }
 
 func inverseStockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return stockhamInverse[complex128](dst, src, twiddle, scratch, bitrev)
+	return stockhamInverseComplex128(dst, src, twiddle, scratch, bitrev)
 }
 
 func stockhamForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
@@ -170,6 +170,166 @@ func stockhamInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bo
 	}
 
 	scale := complexFromFloat64[T](1.0/float64(n), 0)
+	for i := range dst {
+		dst[i] *= scale
+	}
+
+	return true
+}
+
+func stockhamInverseComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	n := len(src)
+	if n == 0 {
+		return true
+	}
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+		return false
+	}
+
+	if n == 1 {
+		dst[0] = src[0]
+		return true
+	}
+
+	in := src
+	out := dst
+	same := sameSlice(dst, src)
+	inIsDst := same
+	outIsDst := true
+
+	if same {
+		out = scratch
+		outIsDst = false
+	}
+
+	in = in[:n]
+	out = out[:n]
+	twiddle = twiddle[:n]
+
+	stages := log2(n)
+	halfN := n >> 1
+	for s := 0; s < stages; s++ {
+		m := 1 << (stages - s)
+		half := m >> 1
+
+		step := n / m
+		kLimit := n / m
+		for k := 0; k < kLimit; k++ {
+			base := k * m
+
+			outBase := k * half
+			inBlock := in[base : base+m]
+			outLo := out[outBase : outBase+half]
+			outHi := out[outBase+halfN : outBase+halfN+half]
+			for j := 0; j < half; j++ {
+				a := inBlock[j]
+				b := inBlock[j+half]
+				tw := twiddle[j*step]
+				tw = complex(real(tw), -imag(tw))
+				outLo[j] = a + b
+				outHi[j] = (a - b) * tw
+			}
+		}
+
+		in = out
+
+		inIsDst = outIsDst
+		if outIsDst {
+			out = scratch
+			outIsDst = false
+		} else {
+			out = dst
+			outIsDst = true
+		}
+		out = out[:n]
+	}
+
+	if !inIsDst {
+		copy(dst, in)
+	}
+
+	scale := complex(float32(1.0/float64(n)), 0)
+	for i := range dst {
+		dst[i] *= scale
+	}
+
+	return true
+}
+
+func stockhamInverseComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	n := len(src)
+	if n == 0 {
+		return true
+	}
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+		return false
+	}
+
+	if n == 1 {
+		dst[0] = src[0]
+		return true
+	}
+
+	in := src
+	out := dst
+	same := sameSlice(dst, src)
+	inIsDst := same
+	outIsDst := true
+
+	if same {
+		out = scratch
+		outIsDst = false
+	}
+
+	in = in[:n]
+	out = out[:n]
+	twiddle = twiddle[:n]
+
+	stages := log2(n)
+	halfN := n >> 1
+	for s := 0; s < stages; s++ {
+		m := 1 << (stages - s)
+		half := m >> 1
+
+		step := n / m
+		kLimit := n / m
+		for k := 0; k < kLimit; k++ {
+			base := k * m
+
+			outBase := k * half
+			inBlock := in[base : base+m]
+			outLo := out[outBase : outBase+half]
+			outHi := out[outBase+halfN : outBase+halfN+half]
+			for j := 0; j < half; j++ {
+				a := inBlock[j]
+				b := inBlock[j+half]
+				tw := twiddle[j*step]
+				tw = complex(real(tw), -imag(tw))
+				outLo[j] = a + b
+				outHi[j] = (a - b) * tw
+			}
+		}
+
+		in = out
+
+		inIsDst = outIsDst
+		if outIsDst {
+			out = scratch
+			outIsDst = false
+		} else {
+			out = dst
+			outIsDst = true
+		}
+		out = out[:n]
+	}
+
+	if !inIsDst {
+		copy(dst, in)
+	}
+
+	scale := complex(1.0/float64(n), 0)
 	for i := range dst {
 		dst[i] *= scale
 	}

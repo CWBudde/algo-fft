@@ -13,7 +13,7 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		return true
 	}
 
-	return ditInverse[complex64](dst, src, twiddle, scratch, bitrev)
+	return ditInverseComplex64(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
@@ -29,7 +29,7 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		return true
 	}
 
-	return ditInverse[complex128](dst, src, twiddle, scratch, bitrev)
+	return ditInverseComplex128(dst, src, twiddle, scratch, bitrev)
 }
 
 func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
@@ -140,6 +140,126 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	}
 
 	scale := complexFromFloat64[T](1.0/float64(n), 0)
+	for i := range dst {
+		dst[i] *= scale
+	}
+
+	return true
+}
+
+func ditInverseComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	n := len(src)
+	if n == 0 {
+		return true
+	}
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+		return false
+	}
+
+	if n == 1 {
+		dst[0] = src[0]
+		return true
+	}
+
+	work := dst
+	workIsDst := true
+
+	if sameSlice(dst, src) {
+		work = scratch
+		workIsDst = false
+	}
+
+	work = work[:n]
+	src = src[:n]
+	twiddle = twiddle[:n]
+	bitrev = bitrev[:n]
+
+	for i := 0; i < n; i++ {
+		work[i] = src[bitrev[i]]
+	}
+
+	for size := 2; size <= n; size <<= 1 {
+		half := size >> 1
+
+		step := n / size
+		for base := 0; base < n; base += size {
+			block := work[base : base+size]
+			for j := 0; j < half; j++ {
+				tw := twiddle[j*step]
+				tw = complex(real(tw), -imag(tw))
+				a, b := butterfly2(block[j], block[j+half], tw)
+				block[j] = a
+				block[j+half] = b
+			}
+		}
+	}
+
+	if !workIsDst {
+		copy(dst, work)
+	}
+
+	scale := complex(float32(1.0/float64(n)), 0)
+	for i := range dst {
+		dst[i] *= scale
+	}
+
+	return true
+}
+
+func ditInverseComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	n := len(src)
+	if n == 0 {
+		return true
+	}
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+		return false
+	}
+
+	if n == 1 {
+		dst[0] = src[0]
+		return true
+	}
+
+	work := dst
+	workIsDst := true
+
+	if sameSlice(dst, src) {
+		work = scratch
+		workIsDst = false
+	}
+
+	work = work[:n]
+	src = src[:n]
+	twiddle = twiddle[:n]
+	bitrev = bitrev[:n]
+
+	for i := 0; i < n; i++ {
+		work[i] = src[bitrev[i]]
+	}
+
+	for size := 2; size <= n; size <<= 1 {
+		half := size >> 1
+
+		step := n / size
+		for base := 0; base < n; base += size {
+			block := work[base : base+size]
+			for j := 0; j < half; j++ {
+				tw := twiddle[j*step]
+				tw = complex(real(tw), -imag(tw))
+				a, b := butterfly2(block[j], block[j+half], tw)
+				block[j] = a
+				block[j+half] = b
+			}
+		}
+	}
+
+	if !workIsDst {
+		copy(dst, work)
+	}
+
+	scale := complex(1.0/float64(n), 0)
 	for i := range dst {
 		dst[i] *= scale
 	}
