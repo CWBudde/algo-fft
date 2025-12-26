@@ -1,0 +1,220 @@
+:root {
+  --bg: #f6f2e8;
+  --ink: #1e1a12;
+  --muted: #6c6151;
+  --accent: #0c7b6e;
+  --accent-strong: #0a5c52;
+  --accent-warm: #d36b34;
+  --card: #fffaf1;
+  --stroke: #d7cbb6;
+  --shadow: 0 24px 60px rgba(28, 19, 6, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top, #fefaf1 0%, #f6f2e8 45%, #efe6d6 100%),
+    repeating-linear-gradient(135deg, rgba(12, 123, 110, 0.05) 0 12px, transparent 12px 24px);
+}
+
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+}
+
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 32px 36px;
+  border: 1px solid var(--stroke);
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  animation: rise 600ms ease-out;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+.hero h1 {
+  font-family: "Fraunces", "Georgia", serif;
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  margin: 0 0 12px;
+}
+
+.lede {
+  max-width: 520px;
+  font-size: 1rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.status {
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: rgba(12, 123, 110, 0.12);
+  color: var(--accent-strong);
+  border: 1px solid rgba(12, 123, 110, 0.25);
+}
+
+.panel {
+  margin: 32px 0;
+  padding: 24px 28px;
+  border-radius: 20px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: var(--shadow);
+  animation: rise 700ms ease-out;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.control label {
+  font-weight: 600;
+}
+
+.control input[type="range"] {
+  accent-color: var(--accent);
+}
+
+.control select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: white;
+  font-family: inherit;
+}
+
+.control .value {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-weight: 600;
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 10px 24px rgba(12, 123, 110, 0.3);
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(12, 123, 110, 0.35);
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--accent-strong);
+  border: 1px solid var(--accent);
+  box-shadow: none;
+}
+
+.viz {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  padding: 20px 24px 28px;
+  border-radius: 20px;
+  border: 1px solid var(--stroke);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  animation: rise 800ms ease-out;
+}
+
+.card-header h2 {
+  margin: 0 0 4px;
+  font-family: "Fraunces", "Georgia", serif;
+}
+
+.card-header p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(12, 123, 110, 0.2);
+  background: linear-gradient(130deg, rgba(12, 123, 110, 0.07), rgba(211, 107, 52, 0.05));
+}
+
+.footer {
+  margin-top: 32px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 720px) {
+  .hero {
+    padding: 24px;
+  }
+
+  .panel {
+    padding: 20px;
+  }
+}

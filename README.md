@@ -157,6 +157,45 @@ The library includes comprehensive test coverage:
 - Fuzz tests for robustness
 - Cross-validation with reference DFT implementation
 
+### WebAssembly
+
+Build and run WASM tests in Node.js:
+
+```bash
+just build-wasm
+just test-wasm
+```
+
+Run WASM tests for a specific package:
+
+```bash
+just test-wasm-pkg ./internal/fft
+```
+
+The WASM test runner uses a minimal Node.js environment to avoid the
+argv+env size limit in `wasm_exec.js`.
+
+WASM demo (browser):
+
+```bash
+just build-wasm-demo
+python3 -m http.server 8080 --directory dist
+```
+
+See `examples/wasm-demo/README.md` for details.
+
+For a browser smoke test, build a WASM test binary and serve it with the Go
+runtime JavaScript:
+
+```bash
+GOOS=js GOARCH=wasm go test -c -o test.wasm .
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" .
+cp "$(go env GOROOT)/misc/wasm/wasm_exec.html" .
+python3 -m http.server 8080
+```
+
+Then open `http://localhost:8080/wasm_exec.html` and click "Run".
+
 ### Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to algoforge.

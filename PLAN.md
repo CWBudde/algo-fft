@@ -1168,8 +1168,8 @@ This is a reasonable trade-off for supporting arbitrary dimensions.
 ### 22.4 Multi-dimensional Generic Plans
 
 - [x] Implement `NewPlan2D[T Complex](rows, cols int)` generic 2D constructor
-- [ ] Implement `NewPlan3D[T Complex](d, r, c int)` generic 3D constructor
-- [ ] Implement `NewPlanND[T Complex](dims []int)` generic N-D constructor
+- [x] Implement `NewPlan3D[T Complex](d, r, c int)` generic 3D constructor
+- [x] Implement `NewPlanND[T Complex](dims []int)` generic N-D constructor
 - [x] Add explicit `NewPlan2D32`, `NewPlan2D64` etc. convenience constructors
 - [x] Test multi-dimensional plans with both precisions
 
@@ -1179,11 +1179,11 @@ This is a reasonable trade-off for supporting arbitrary dimensions.
 
 ### 23.1 WASM Build & Test
 
-- [ ] Add WASM build target to Makefile/justfile
-- [ ] Create WASM-specific tests
-- [ ] Test in Node.js environment
+- [x] Add WASM build target to justfile
+- [x] Create WASM-specific tests
+- [x] Test in Node.js environment
 - [ ] Test in browser environment (via wasm_exec.js)
-- [ ] Document WASM usage
+- [x] Document WASM usage
 
 ### 23.2 WASM SIMD Exploration
 
@@ -1194,10 +1194,10 @@ This is a reasonable trade-off for supporting arbitrary dimensions.
 
 ### 23.3 WASM Examples
 
-- [ ] Create browser-based FFT demo
-- [ ] Create audio visualization example
-- [ ] Document WASM-specific considerations
-- [ ] Add WASM example to repository
+- [x] Create browser-based FFT demo
+- [x] Create audio visualization example
+- [x] Document WASM-specific considerations
+- [x] Add WASM example to repository
 
 ---
 

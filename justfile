@@ -38,6 +38,22 @@ check: test lint cover
 build-arm64:
     GOOS=linux GOARCH=arm64 go build -v ./...
 
+# Build WebAssembly target (js/wasm)
+build-wasm:
+    GOOS=js GOARCH=wasm go build -v ./...
+
+# Run WebAssembly tests in Node.js
+test-wasm:
+    GOOS=js GOARCH=wasm go test -exec="$(pwd)/scripts/wasm_exec_node_env.sh" -v -count=1 ./...
+
+# Run WebAssembly tests for a single package
+test-wasm-pkg pkg:
+    GOOS=js GOARCH=wasm go test -exec="$(pwd)/scripts/wasm_exec_node_env.sh" -v -count=1 {{pkg}}
+
+# Build the WebAssembly demo into ./dist
+build-wasm-demo:
+    ./scripts/build-wasm-demo.sh
+
 # Run tests on ARM64 using QEMU (requires qemu-user-static)
 test-arm64:
     #!/usr/bin/env bash

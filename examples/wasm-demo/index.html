@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>algoforge WASM FFT Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">algoforge / wasm</p>
+        <h1>FFT Signal Lab</h1>
+        <p class="lede">
+          Shape a synthetic audio mix, then watch the spectrum snap into place.
+          The FFT runs inside Go on WebAssembly.
+        </p>
+      </div>
+      <div class="status" id="status">Initializing WASM…</div>
+    </header>
+
+    <section class="panel">
+      <div class="controls">
+        <div class="control">
+          <label for="size">FFT size</label>
+          <select id="size">
+            <option value="256">256</option>
+            <option value="512">512</option>
+            <option value="1024" selected>1024</option>
+            <option value="2048">2048</option>
+            <option value="4096">4096</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="freqA">Tone A</label>
+          <input id="freqA" type="range" min="1" max="64" value="6" />
+          <span class="value" data-value="freqA">6</span>
+        </div>
+        <div class="control">
+          <label for="freqB">Tone B</label>
+          <input id="freqB" type="range" min="4" max="128" value="20" />
+          <span class="value" data-value="freqB">20</span>
+        </div>
+        <div class="control">
+          <label for="noise">Noise</label>
+          <input id="noise" type="range" min="0" max="0.4" step="0.01" value="0.08" />
+          <span class="value" data-value="noise">0.08</span>
+        </div>
+        <div class="control toggle">
+          <label for="animate">Animate phase</label>
+          <input id="animate" type="checkbox" checked />
+        </div>
+      </div>
+      <div class="actions">
+        <button id="play">Play loop</button>
+        <button id="randomize" class="ghost">Randomize</button>
+      </div>
+    </section>
+
+    <section class="viz">
+      <div class="card">
+        <div class="card-header">
+          <h2>Waveform</h2>
+          <p>Time domain snapshot.</p>
+        </div>
+        <canvas id="wave" width="800" height="240"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h2>Spectrum</h2>
+          <p>Magnitude of the FFT bins.</p>
+        </div>
+        <canvas id="spectrum" width="800" height="240"></canvas>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>Built with algoforge / Go 1.25 / WebAssembly.</p>
+    </footer>
+  </div>
+
+  <script src="wasm_exec.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
