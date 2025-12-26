@@ -1,16 +1,15 @@
 package fft
 
 func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if len(src) == 8 {
+	switch len(src) {
+	case 8:
 		return forwardDIT8Complex64(dst, src, twiddle, scratch, bitrev)
-	}
-
-	if len(src) == 16 {
+	case 16:
 		return forwardDIT16Complex64(dst, src, twiddle, scratch, bitrev)
-	}
-
-	if len(src) == 32 {
+	case 32:
 		return forwardDIT32Complex64(dst, src, twiddle, scratch, bitrev)
+	case 64:
+		return forwardDIT64Complex64(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if forwardRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
@@ -21,16 +20,15 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 }
 
 func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if len(src) == 8 {
+	switch len(src) {
+	case 8:
 		return inverseDIT8Complex64(dst, src, twiddle, scratch, bitrev)
-	}
-
-	if len(src) == 16 {
+	case 16:
 		return inverseDIT16Complex64(dst, src, twiddle, scratch, bitrev)
-	}
-
-	if len(src) == 32 {
+	case 32:
 		return inverseDIT32Complex64(dst, src, twiddle, scratch, bitrev)
+	case 64:
+		return inverseDIT64Complex64(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if inverseRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
@@ -41,16 +39,15 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 }
 
 func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if len(src) == 8 {
+	switch len(src) {
+	case 8:
 		return forwardDIT8Complex128(dst, src, twiddle, scratch, bitrev)
-	}
-
-	if len(src) == 16 {
+	case 16:
 		return forwardDIT16Complex128(dst, src, twiddle, scratch, bitrev)
-	}
-
-	if len(src) == 32 {
+	case 32:
 		return forwardDIT32Complex128(dst, src, twiddle, scratch, bitrev)
+	case 64:
+		return forwardDIT64Complex128(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if forwardRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
@@ -61,16 +58,15 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 }
 
 func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if len(src) == 8 {
+	switch len(src) {
+	case 8:
 		return inverseDIT8Complex128(dst, src, twiddle, scratch, bitrev)
-	}
-
-	if len(src) == 16 {
+	case 16:
 		return inverseDIT16Complex128(dst, src, twiddle, scratch, bitrev)
-	}
-
-	if len(src) == 32 {
+	case 32:
 		return inverseDIT32Complex128(dst, src, twiddle, scratch, bitrev)
+	case 64:
+		return inverseDIT64Complex128(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if inverseRadix4Complex128(dst, src, twiddle, scratch, bitrev) {

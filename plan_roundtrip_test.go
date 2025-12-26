@@ -121,7 +121,7 @@ func TestTransformForwardInverse(t *testing.T) {
 func TestRoundTripSizes(t *testing.T) {
 	t.Parallel()
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024}
+	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024}
 	for _, n := range sizes {
 		plan, err := NewPlanT[complex64](n)
 		if err != nil {
@@ -145,6 +145,37 @@ func TestRoundTripSizes(t *testing.T) {
 
 		for i := range src {
 			assertApproxComplex64(t, out[i], src[i], 1e-3, "n=%d out[%d]", n, i)
+		}
+	}
+}
+
+func TestRoundTripSizesComplex128(t *testing.T) {
+	t.Parallel()
+
+	sizes := []int{8, 16, 32}
+	for _, n := range sizes {
+		plan, err := NewPlanT[complex128](n)
+		if err != nil {
+			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		}
+
+		src := make([]complex128, n)
+		for i := range src {
+			src[i] = complex(float64(i+1), float64(-i))
+		}
+
+		freq := make([]complex128, n)
+		if err := plan.Forward(freq, src); err != nil {
+			t.Fatalf("Forward(%d) returned error: %v", n, err)
+		}
+
+		out := make([]complex128, n)
+		if err := plan.Inverse(out, freq); err != nil {
+			t.Fatalf("Inverse(%d) returned error: %v", n, err)
+		}
+
+		for i := range src {
+			assertApproxComplex128(t, out[i], src[i], 1e-10, "n=%d out[%d]", n, i)
 		}
 	}
 }
