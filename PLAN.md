@@ -1112,25 +1112,25 @@ This is a reasonable trade-off for supporting arbitrary dimensions.
 
 ### 21.1 Convolution via FFT
 
-- [ ] Implement `Convolve(dst, a, b []complex64) error` in `convolve.go`
-- [ ] Use FFT-multiply-IFFT algorithm
-- [ ] Handle different input lengths (zero-pad to sum of lengths - 1)
-- [ ] Test against naive O(n²) convolution
-- [ ] Benchmark for various input sizes
+- [x] Implement `Convolve(dst, a, b []complex64) error` in `convolve.go`
+- [x] Use FFT-multiply-IFFT algorithm
+- [x] Handle different input lengths (zero-pad to sum of lengths - 1)
+- [x] Test against naive O(n²) convolution
+- [x] Benchmark for various input sizes
 
 ### 21.2 Real Convolution
 
-- [ ] Implement `ConvolveReal(dst, a, b []float32) error`
-- [ ] Optimize using real FFT
-- [ ] Test with known filter kernels (e.g., Gaussian blur)
-- [ ] Benchmark real convolution performance
+- [x] Implement `ConvolveReal(dst, a, b []float32) error`
+- [x] Optimize using real FFT
+- [x] Test with known filter kernels (e.g., Gaussian blur)
+- [x] Benchmark real convolution performance
 
 ### 21.3 Correlation API
 
-- [ ] Implement `Correlate(dst, a, b []complex64) error`
-- [ ] Implement `CrossCorrelate` and `AutoCorrelate` variants
-- [ ] Test correlation properties
-- [ ] Document relationship to convolution
+- [x] Implement `Correlate(dst, a, b []complex64) error`
+- [x] Implement `CrossCorrelate` and `AutoCorrelate` variants
+- [x] Test correlation properties
+- [x] Document relationship to convolution
 
 ---
 
