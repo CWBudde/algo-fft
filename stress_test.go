@@ -50,7 +50,7 @@ func runStressTest(t *testing.T, n int, duration time.Duration) {
 		if err != nil {
 			t.Fatalf("Forward failed at iteration %d: %v", iterations, err)
 		}
-		err := plan.Inverse(src, dst)
+		err = plan.Inverse(src, dst)
 		if err != nil {
 			t.Fatalf("Inverse failed at iteration %d: %v", iterations, err)
 		}

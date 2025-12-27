@@ -57,7 +57,7 @@ func testSharedPlan(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 				}
 
 				// Inverse transform
-				err := plan.Inverse(src, dst)
+				err = plan.Inverse(src, dst)
 				if err != nil {
 					errors <- fmt.Errorf("goroutine %d iteration %d Inverse: %w", goroutineID, iter, err)
 					return
