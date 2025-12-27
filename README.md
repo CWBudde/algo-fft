@@ -32,9 +32,11 @@ The demo runs the library compiled to WebAssembly, allowing you to visualize FFT
   - Both complex64 and complex128 precision
 
 - **Performance**
+  - Zero-dispatch codelets for common sizes (8, 16, 32, 64, 128)
   - SIMD acceleration (AVX2 on amd64, NEON on ARM64)
   - Zero-allocation transforms with pre-allocated Plans
   - CPU feature detection and runtime dispatch
+  - Wisdom system for caching optimal planning decisions
   - Comprehensive benchmarking infrastructure
 
 ## Installation
@@ -134,11 +136,58 @@ can be faster.
 err = plan.ForwardBatch(dst, src, count, stride)
 ```
 
+### Wisdom System (Plan Caching)
+
+The wisdom system caches optimal planning decisions for reuse across program runs:
+
+```go
+import "github.com/MeKo-Christian/algoforge"
+
+// Plans are automatically optimized using built-in wisdom
+
+// Export wisdom to a file for reuse
+err := algoforge.ExportWisdom("fft_wisdom.txt")
+if err != nil {
+    // handle error
+}
+
+// Import wisdom in a future run
+err = algoforge.ImportWisdom("fft_wisdom.txt")
+if err != nil {
+    // handle error
+}
+
+// Embed wisdom in your binary
+const embeddedWisdom = `64:0:3:dit64_avx2:1234567890
+128:0:3:dit128_avx2:1234567890`
+err = algoforge.ImportWisdomFromString(embeddedWisdom)
+```
+
+The wisdom format is text-based and portable across platforms with the same CPU features. Each line contains:
+
+- FFT size
+- Precision (0=complex64, 1=complex128)
+- CPU feature bitmask
+- Algorithm name
+- Timestamp
+
+Benefits:
+
+- Skip planning overhead on subsequent runs
+- Consistent algorithm selection across program restarts
+- Portable wisdom files for deployment
+
 ## Performance Characteristics
 
 - **Time Complexity**: O(n log n) for power-of-2 sizes
 - **Memory**: Single Plan object with pre-allocated workspace
 - **Allocations**: Zero steady-state allocations during transforms
+- **Codelets**: Sizes 8, 16, 32, 64, 128 use zero-dispatch codelets for maximum performance
+  - Size 8: ~30 ns/op
+  - Size 16: ~58 ns/op
+  - Size 32: ~198 ns/op
+  - Size 64: ~490 ns/op
+  - Size 128: ~1028 ns/op
 
 For detailed performance numbers, see [BENCHMARKS.md](BENCHMARKS.md).
 

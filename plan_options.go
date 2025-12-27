@@ -17,9 +17,9 @@ const (
 type WorkspacePolicy uint8
 
 const (
-	WorkspaceAuto WorkspacePolicy = iota // Not yet implemented
-	WorkspacePooled                       // Not yet implemented
-	WorkspaceExternal                     // Not yet implemented
+	WorkspaceAuto     WorkspacePolicy = iota // Not yet implemented
+	WorkspacePooled                          // Not yet implemented
+	WorkspaceExternal                        // Not yet implemented
 )
 
 // PlanOptions controls planning decisions and execution layout.
