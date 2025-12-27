@@ -17,6 +17,9 @@ jobs:
   test-unit:
     uses: ./.github/workflows/test-unit.yaml
 
+  test-arch:
+    uses: ./.github/workflows/test-arch.yaml
+
   test-lint:
     uses: ./.github/workflows/test-lint.yaml
 
