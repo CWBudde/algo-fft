@@ -122,7 +122,6 @@ func HasCodelet[T Complex](n int, features cpu.Features) bool {
 	return registry.Lookup(n, features) != nil
 }
 
-
 // CPUFeatureMask returns a bitmask of CPU features relevant for planning.
 func CPUFeatureMask(hasSSE2, hasAVX2, hasAVX512, hasNEON bool) uint64 {
 	var mask uint64

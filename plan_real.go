@@ -18,9 +18,9 @@ type PlanReal struct {
 	n    int
 	half int
 
-	plan   *Plan[complex64]
-	weight []complex64
-	buf    []complex64
+	plan    *Plan[complex64]
+	weight  []complex64
+	buf     []complex64
 	options PlanOptions
 }
 
@@ -59,11 +59,11 @@ func newPlanRealWithFeatures(n int, features cpu.Features, opts PlanOptions) (*P
 	}
 
 	return &PlanReal{
-		n:      n,
-		half:   n / 2,
-		plan:   plan,
-		weight: weight,
-		buf:    make([]complex64, n/2),
+		n:       n,
+		half:    n / 2,
+		plan:    plan,
+		weight:  weight,
+		buf:     make([]complex64, n/2),
 		options: opts,
 	}, nil
 }

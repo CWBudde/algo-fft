@@ -247,6 +247,49 @@
 //		log.Fatal(err)
 //	}
 //
+// # Wisdom System
+//
+// The wisdom system caches optimal planning decisions for reuse across program runs,
+// eliminating redundant planning overhead and ensuring consistent algorithm selection.
+//
+// Wisdom is stored in a text-based format and can be:
+//   - Exported to files for persistence
+//   - Imported from files for fast startup
+//   - Embedded in binaries as string literals
+//
+// Basic wisdom usage:
+//
+//	// Plans automatically use wisdom (if available)
+//	plan, err := algoforge.NewPlan(1024)
+//
+//	// Export wisdom to a file
+//	if err := algoforge.ExportWisdom("fft_wisdom.txt"); err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	// Import wisdom in a future run
+//	if err := algoforge.ImportWisdom("fft_wisdom.txt"); err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	// Or embed wisdom in your binary
+//	const wisdom = `64:0:3:dit64_avx2:1234567890
+//	128:0:3:dit128_avx2:1234567890`
+//	if err := algoforge.ImportWisdomFromString(wisdom); err != nil {
+//		log.Fatal(err)
+//	}
+//
+// The wisdom format is portable across platforms with the same CPU features.
+// Each line contains: size:precision:features:algorithm:timestamp
+//
+// Wisdom management:
+//
+//	// Clear all wisdom entries
+//	algoforge.ClearWisdom()
+//
+//	// Check how many wisdom entries are loaded
+//	count := algoforge.WisdomLen()
+//
 // # Transform Types Summary
 //
 // The library supports several transform types:
@@ -266,10 +309,21 @@
 // # Performance
 //
 // The library achieves high performance through:
+//   - Zero-dispatch codelets for common sizes (8, 16, 32, 64, 128)
 //   - Zero-allocation transforms with pre-allocated Plans
 //   - SIMD optimization (AVX2 on amd64, NEON on ARM64)
 //   - CPU feature detection and runtime dispatch
+//   - Wisdom system for caching optimal planning decisions
 //   - Cache-efficient memory access patterns
+//
+// Codelet performance (typical benchmarks on modern CPUs):
+//   - Size 8: ~30 ns/op, 2089 MB/s
+//   - Size 16: ~58 ns/op, 2210 MB/s
+//   - Size 32: ~198 ns/op, 1292 MB/s
+//   - Size 64: ~490 ns/op, 1045 MB/s
+//   - Size 128: ~1028 ns/op, 996 MB/s
+//
+// All transforms (including codelets) maintain zero allocations during execution.
 //
 // Plans are safe for concurrent use (read-only during transforms).
 //

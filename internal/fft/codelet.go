@@ -43,13 +43,13 @@ func (s SIMDLevel) String() string {
 
 // CodeletEntry describes a registered codelet for a specific size.
 type CodeletEntry[T Complex] struct {
-	Size      int              // FFT size this codelet handles
-	Forward   CodeletFunc[T]   // Forward transform (nil if not available)
-	Inverse   CodeletFunc[T]   // Inverse transform (nil if not available)
-	Algorithm KernelStrategy   // DIT, Stockham, etc.
-	SIMDLevel SIMDLevel        // Required CPU features
-	Signature string           // Human-readable name: "dit8_avx2"
-	Priority  int              // Higher priority = preferred (for same SIMD level)
+	Size      int            // FFT size this codelet handles
+	Forward   CodeletFunc[T] // Forward transform (nil if not available)
+	Inverse   CodeletFunc[T] // Inverse transform (nil if not available)
+	Algorithm KernelStrategy // DIT, Stockham, etc.
+	SIMDLevel SIMDLevel      // Required CPU features
+	Signature string         // Human-readable name: "dit8_avx2"
+	Priority  int            // Higher priority = preferred (for same SIMD level)
 }
 
 // CodeletRegistry provides size-indexed codelet lookup.
