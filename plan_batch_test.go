@@ -306,7 +306,8 @@ func TestPlanBatch_InPlace(t *testing.T) {
 
 // TestPlanBatch_ZeroAllocations verifies no allocations during batch transforms.
 func TestPlanBatch_ZeroAllocations(t *testing.T) {
-	t.Parallel()
+	// Note: t.Parallel() cannot be used here because testing.AllocsPerRun
+	// panics when called during a parallel test.
 	n := 64
 	count := 10
 
