@@ -1017,7 +1017,6 @@ func BenchmarkAVX2VsPureGo(b *testing.B) {
 // =============================================================================
 
 func TestAVX2ZeroAllocations(t *testing.T) {
-	t.Parallel()
 	avx2Forward, avx2Inverse, avx2Available := getAVX2Kernels()
 	if !avx2Available {
 		t.Skip("AVX2 not available on this system")
