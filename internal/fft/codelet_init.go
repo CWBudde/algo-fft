@@ -1,5 +1,7 @@
 package fft
 
+import "fmt"
+
 // This file registers all built-in codelets with the global registries.
 // Registration happens at init time so codelets are available when plans are created.
 
@@ -13,118 +15,56 @@ func init() {
 
 // registerDITCodelets64 registers all complex64 DIT codelets.
 func registerDITCodelets64() {
-	// Size 8
-	Registry64.Register(CodeletEntry[complex64]{
-		Size:      8,
-		Forward:   wrapCodelet64(forwardDIT8Complex64),
-		Inverse:   wrapCodelet64(inverseDIT8Complex64),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit8_generic",
-		Priority:  0,
-	})
+	type funcs struct {
+		forward KernelFunc64
+		inverse KernelFunc64
+	}
+	codeletFuncs := map[int]funcs{
+		8:   {forwardDIT8Complex64, inverseDIT8Complex64},
+		16:  {forwardDIT16Complex64, inverseDIT16Complex64},
+		32:  {forwardDIT32Complex64, inverseDIT32Complex64},
+		64:  {forwardDIT64Complex64, inverseDIT64Complex64},
+		128: {forwardDIT128Complex64, inverseDIT128Complex64},
+	}
 
-	// Size 16
-	Registry64.Register(CodeletEntry[complex64]{
-		Size:      16,
-		Forward:   wrapCodelet64(forwardDIT16Complex64),
-		Inverse:   wrapCodelet64(inverseDIT16Complex64),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit16_generic",
-		Priority:  0,
-	})
-
-	// Size 32
-	Registry64.Register(CodeletEntry[complex64]{
-		Size:      32,
-		Forward:   wrapCodelet64(forwardDIT32Complex64),
-		Inverse:   wrapCodelet64(inverseDIT32Complex64),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit32_generic",
-		Priority:  0,
-	})
-
-	// Size 64
-	Registry64.Register(CodeletEntry[complex64]{
-		Size:      64,
-		Forward:   wrapCodelet64(forwardDIT64Complex64),
-		Inverse:   wrapCodelet64(inverseDIT64Complex64),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit64_generic",
-		Priority:  0,
-	})
-
-	// Size 128
-	Registry64.Register(CodeletEntry[complex64]{
-		Size:      128,
-		Forward:   wrapCodelet64(forwardDIT128Complex64),
-		Inverse:   wrapCodelet64(inverseDIT128Complex64),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit128_generic",
-		Priority:  0,
-	})
+	for size, f := range codeletFuncs {
+		Registry64.Register(CodeletEntry[complex64]{
+			Size:      size,
+			Forward:   wrapCodelet64(f.forward),
+			Inverse:   wrapCodelet64(f.inverse),
+			Algorithm: KernelDIT,
+			SIMDLevel: SIMDNone,
+			Signature: fmt.Sprintf("dit%d_generic", size),
+			Priority:  0,
+		})
+	}
 }
 
 // registerDITCodelets128 registers all complex128 DIT codelets.
 func registerDITCodelets128() {
-	// Size 8
-	Registry128.Register(CodeletEntry[complex128]{
-		Size:      8,
-		Forward:   wrapCodelet128(forwardDIT8Complex128),
-		Inverse:   wrapCodelet128(inverseDIT8Complex128),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit8_generic",
-		Priority:  0,
-	})
+	type funcs struct {
+		forward KernelFunc128
+		inverse KernelFunc128
+	}
+	codeletFuncs := map[int]funcs{
+		8:   {forwardDIT8Complex128, inverseDIT8Complex128},
+		16:  {forwardDIT16Complex128, inverseDIT16Complex128},
+		32:  {forwardDIT32Complex128, inverseDIT32Complex128},
+		64:  {forwardDIT64Complex128, inverseDIT64Complex128},
+		128: {forwardDIT128Complex128, inverseDIT128Complex128},
+	}
 
-	// Size 16
-	Registry128.Register(CodeletEntry[complex128]{
-		Size:      16,
-		Forward:   wrapCodelet128(forwardDIT16Complex128),
-		Inverse:   wrapCodelet128(inverseDIT16Complex128),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit16_generic",
-		Priority:  0,
-	})
-
-	// Size 32
-	Registry128.Register(CodeletEntry[complex128]{
-		Size:      32,
-		Forward:   wrapCodelet128(forwardDIT32Complex128),
-		Inverse:   wrapCodelet128(inverseDIT32Complex128),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit32_generic",
-		Priority:  0,
-	})
-
-	// Size 64
-	Registry128.Register(CodeletEntry[complex128]{
-		Size:      64,
-		Forward:   wrapCodelet128(forwardDIT64Complex128),
-		Inverse:   wrapCodelet128(inverseDIT64Complex128),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit64_generic",
-		Priority:  0,
-	})
-
-	// Size 128
-	Registry128.Register(CodeletEntry[complex128]{
-		Size:      128,
-		Forward:   wrapCodelet128(forwardDIT128Complex128),
-		Inverse:   wrapCodelet128(inverseDIT128Complex128),
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
-		Signature: "dit128_generic",
-		Priority:  0,
-	})
+	for size, f := range codeletFuncs {
+		Registry128.Register(CodeletEntry[complex128]{
+			Size:      size,
+			Forward:   wrapCodelet128(f.forward),
+			Inverse:   wrapCodelet128(f.inverse),
+			Algorithm: KernelDIT,
+			SIMDLevel: SIMDNone,
+			Signature: fmt.Sprintf("dit%d_generic", size),
+			Priority:  0,
+		})
+	}
 }
 
 // KernelFunc64 is the signature of existing complex64 kernels that return bool.

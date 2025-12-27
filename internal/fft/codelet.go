@@ -1,6 +1,7 @@
 package fft
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/MeKo-Christian/algoforge/internal/cpu"
@@ -77,12 +78,12 @@ func (r *CodeletRegistry[T]) Register(entry CodeletEntry[T]) {
 	entries = append(entries, entry)
 
 	// Sort by SIMD level (higher = better) then priority
-	for i := len(entries) - 1; i > 0; i-- {
-		if entries[i].SIMDLevel > entries[i-1].SIMDLevel ||
-			(entries[i].SIMDLevel == entries[i-1].SIMDLevel && entries[i].Priority > entries[i-1].Priority) {
-			entries[i], entries[i-1] = entries[i-1], entries[i]
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].SIMDLevel != entries[j].SIMDLevel {
+			return entries[i].SIMDLevel > entries[j].SIMDLevel
 		}
-	}
+		return entries[i].Priority > entries[j].Priority
+	})
 
 	r.codelets[entry.Size] = entries
 }

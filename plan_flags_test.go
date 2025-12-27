@@ -81,10 +81,13 @@ func TestPlanCodeletPath(t *testing.T) {
 			t.Errorf("size %d: Forward failed: %v", size, err)
 		}
 
-		// FFT of impulse should be all ones
+		// FFT of impulse should be all ones (1+0i)
 		for i, v := range dst {
 			if real(v) < 0.99 || real(v) > 1.01 {
 				t.Errorf("size %d: dst[%d] = %v, expected ~1+0i", size, i, v)
+			}
+			if imag(v) < -0.01 || imag(v) > 0.01 {
+				t.Errorf("size %d: dst[%d] = %v, imaginary part should be ~0", size, i, v)
 			}
 		}
 
@@ -97,14 +100,20 @@ func TestPlanCodeletPath(t *testing.T) {
 			t.Errorf("size %d: Inverse failed: %v", size, err)
 		}
 
-		// IFFT should recover impulse
+		// IFFT should recover impulse (1+0i at index 0, ~0 elsewhere)
 		if real(dst[0]) < 0.99 || real(dst[0]) > 1.01 {
 			t.Errorf("size %d: dst[0] = %v, expected ~1+0i", size, dst[0])
+		}
+		if imag(dst[0]) < -0.01 || imag(dst[0]) > 0.01 {
+			t.Errorf("size %d: dst[0] = %v, imaginary part should be ~0", size, dst[0])
 		}
 
 		for i := 1; i < size; i++ {
 			if real(dst[i]) > 0.01 || real(dst[i]) < -0.01 {
 				t.Errorf("size %d: dst[%d] = %v, expected ~0", size, i, dst[i])
+			}
+			if imag(dst[i]) > 0.01 || imag(dst[i]) < -0.01 {
+				t.Errorf("size %d: dst[%d] = %v, imaginary part should be ~0", size, i, dst[i])
 			}
 		}
 	}

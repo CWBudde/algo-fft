@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -75,11 +76,30 @@ func (w *Wisdom) Len() int {
 
 // Export writes the wisdom cache to a writer in a portable text format.
 // Format: one entry per line as "size:precision:features:algorithm:timestamp"
+// Entries are sorted by size, precision, and CPU features for deterministic output.
 func (w *Wisdom) Export(writer io.Writer) error {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
+	// Collect entries into a slice for sorting
+	entries := make([]WisdomEntry, 0, len(w.entries))
 	for _, entry := range w.entries {
+		entries = append(entries, entry)
+	}
+
+	// Sort by size, then precision, then CPU features for deterministic output
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Key.Size != entries[j].Key.Size {
+			return entries[i].Key.Size < entries[j].Key.Size
+		}
+		if entries[i].Key.Precision != entries[j].Key.Precision {
+			return entries[i].Key.Precision < entries[j].Key.Precision
+		}
+		return entries[i].Key.CPUFeatures < entries[j].Key.CPUFeatures
+	})
+
+	// Write sorted entries
+	for _, entry := range entries {
 		line := fmt.Sprintf("%d:%d:%d:%s:%d\n",
 			entry.Key.Size,
 			entry.Key.Precision,

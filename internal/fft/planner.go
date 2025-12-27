@@ -63,6 +63,8 @@ func EstimatePlan[T Complex](n int, features cpu.Features) PlanEstimate[T] {
 		algorithmName = "sixstep"
 	case KernelEightStep:
 		algorithmName = "eightstep"
+	case KernelBluestein:
+		algorithmName = "bluestein"
 	}
 
 	return PlanEstimate[T]{

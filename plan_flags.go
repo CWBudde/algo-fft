@@ -11,30 +11,29 @@ import (
 type PlanFlags uint32
 
 const (
-	// FlagEstimate uses heuristics to select kernels (fast, default).
-	FlagEstimate PlanFlags = 0
-
 	// FlagUseWisdom checks the wisdom cache before planning.
 	FlagUseWisdom PlanFlags = 1 << 0
 
 	// FlagSaveWisdom stores the planning decision in the wisdom cache.
 	FlagSaveWisdom PlanFlags = 1 << 1
 
-	// FlagDefaultPlanning is the default set of flags for NewPlan.
-	// It uses estimation and wisdom for optimal performance.
-	FlagDefaultPlanning = FlagEstimate | FlagUseWisdom | FlagSaveWisdom
+	// FlagDefaultPlanning is the recommended set of flags for most use cases.
+	// It enables wisdom cache lookup and storage for optimal performance.
+	// To disable wisdom, use 0 (zero value) or construct flags manually.
+	FlagDefaultPlanning = FlagUseWisdom | FlagSaveWisdom
 )
 
 // NewPlanWithFlags creates a new FFT plan with explicit control over planning behavior.
 //
 // Flags control how the kernel selection is performed:
-//   - FlagEstimate: Use heuristics (fast, default)
+//   - 0 (zero): Use heuristics only, no wisdom cache (fast planning)
 //   - FlagUseWisdom: Check wisdom cache before planning
 //   - FlagSaveWisdom: Store decision in wisdom cache
+//   - FlagDefaultPlanning: Recommended combination (FlagUseWisdom | FlagSaveWisdom)
 //
 // Example:
 //
-//	plan, err := NewPlanWithFlags[complex64](1024, FlagUseWisdom | FlagSaveWisdom)
+//	plan, err := NewPlanWithFlags[complex64](1024, FlagDefaultPlanning)
 func NewPlanWithFlags[T Complex](n int, flags PlanFlags) (*Plan[T], error) {
 	if n < 1 {
 		return nil, ErrInvalidLength
@@ -65,6 +64,26 @@ func NewPlanWithFlags[T Complex](n int, flags PlanFlags) (*Plan[T], error) {
 				estimate.InverseCodelet = entry.Inverse
 				estimate.Algorithm = entry.Signature
 				estimate.Strategy = entry.Algorithm
+			} else {
+				// Wisdom might point to a fallback kernel strategy.
+				// Apply it over the default estimate.
+				switch wisdomEntry.Algorithm {
+				case "dit_fallback":
+					estimate.Strategy = fft.KernelDIT
+					estimate.Algorithm = "dit_fallback"
+				case "stockham":
+					estimate.Strategy = fft.KernelStockham
+					estimate.Algorithm = "stockham"
+				case "sixstep":
+					estimate.Strategy = fft.KernelSixStep
+					estimate.Algorithm = "sixstep"
+				case "eightstep":
+					estimate.Strategy = fft.KernelEightStep
+					estimate.Algorithm = "eightstep"
+				case "bluestein":
+					estimate.Strategy = fft.KernelBluestein
+					estimate.Algorithm = "bluestein"
+				}
 			}
 		}
 	}
@@ -88,6 +107,120 @@ func NewPlanWithFlags[T Complex](n int, flags PlanFlags) (*Plan[T], error) {
 	return plan, nil
 }
 
+// planBuffers holds allocated buffers for a plan.
+type planBuffers[T Complex] struct {
+	twiddle        []T
+	twiddleBacking []byte
+	scratch        []T
+	scratchBacking []byte
+	stridedScratch []T
+	stridedBacking []byte
+}
+
+// bluesteinBuffers holds Bluestein-specific buffers.
+type bluesteinBuffers[T Complex] struct {
+	m              int
+	chirp          []T
+	chirpInv       []T
+	filter         []T
+	filterInv      []T
+	twiddle        []T
+	bitrev         []int
+	scratch        []T
+	scratchBacking []byte
+}
+
+// allocateStandardBuffers allocates buffers for standard power-of-two FFTs.
+func allocateStandardBuffers[T Complex](n int) planBuffers[T] {
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		twiddleAligned, twiddleRaw := fft.AllocAlignedComplex64(n)
+		tmp := fft.ComputeTwiddleFactors[complex64](n)
+		copy(twiddleAligned, tmp)
+
+		scratchAligned, scratchRaw := fft.AllocAlignedComplex64(n)
+		stridedAligned, stridedRaw := fft.AllocAlignedComplex64(n)
+
+		return planBuffers[T]{
+			twiddle:        any(twiddleAligned).([]T),
+			twiddleBacking: twiddleRaw,
+			scratch:        any(scratchAligned).([]T),
+			scratchBacking: scratchRaw,
+			stridedScratch: any(stridedAligned).([]T),
+			stridedBacking: stridedRaw,
+		}
+	case complex128:
+		twiddleAligned, twiddleRaw := fft.AllocAlignedComplex128(n)
+		tmp := fft.ComputeTwiddleFactors[complex128](n)
+		copy(twiddleAligned, tmp)
+
+		scratchAligned, scratchRaw := fft.AllocAlignedComplex128(n)
+		stridedAligned, stridedRaw := fft.AllocAlignedComplex128(n)
+
+		return planBuffers[T]{
+			twiddle:        any(twiddleAligned).([]T),
+			twiddleBacking: twiddleRaw,
+			scratch:        any(scratchAligned).([]T),
+			scratchBacking: scratchRaw,
+			stridedScratch: any(stridedAligned).([]T),
+			stridedBacking: stridedRaw,
+		}
+	default:
+		return planBuffers[T]{
+			twiddle:        fft.ComputeTwiddleFactors[T](n),
+			scratch:        make([]T, n),
+			stridedScratch: make([]T, n),
+		}
+	}
+}
+
+// allocateBluesteinBuffers allocates buffers for Bluestein's algorithm.
+func allocateBluesteinBuffers[T Complex](n int) bluesteinBuffers[T] {
+	m := fft.NextPowerOfTwo(2*n - 1)
+
+	var zero T
+	var bluesteinScratch []T
+	var bluesteinScratchBacking []byte
+
+	switch any(zero).(type) {
+	case complex64:
+		bsAligned, bsRaw := fft.AllocAlignedComplex64(m)
+		bluesteinScratch = any(bsAligned).([]T)
+		bluesteinScratchBacking = bsRaw
+	case complex128:
+		bsAligned, bsRaw := fft.AllocAlignedComplex128(m)
+		bluesteinScratch = any(bsAligned).([]T)
+		bluesteinScratchBacking = bsRaw
+	default:
+		bluesteinScratch = make([]T, m)
+	}
+
+	chirp := fft.ComputeChirpSequence[T](n)
+	chirpInv := make([]T, n)
+	for i, v := range chirp {
+		chirpInv[i] = fft.ConjugateOf(v)
+	}
+
+	twiddle := fft.ComputeTwiddleFactors[T](m)
+	bitrev := fft.ComputeBitReversalIndices(m)
+
+	filter := fft.ComputeBluesteinFilter(n, m, chirp, twiddle, bitrev, bluesteinScratch)
+	filterInv := fft.ComputeBluesteinFilter(n, m, chirpInv, twiddle, bitrev, bluesteinScratch)
+
+	return bluesteinBuffers[T]{
+		m:              m,
+		chirp:          chirp,
+		chirpInv:       chirpInv,
+		filter:         filter,
+		filterInv:      filterInv,
+		twiddle:        twiddle,
+		bitrev:         bitrev,
+		scratch:        bluesteinScratch,
+		scratchBacking: bluesteinScratchBacking,
+	}
+}
+
 // createPlanWithEstimate creates a plan using the given estimate.
 // This is an internal helper that encapsulates the common plan creation logic.
 func createPlanWithEstimate[T Complex](n int, features cpu.Features, estimate fft.PlanEstimate[T]) (*Plan[T], error) {
@@ -97,116 +230,23 @@ func createPlanWithEstimate[T Complex](n int, features cpu.Features, estimate ff
 	// Get fallback kernels
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
-	var (
-		zero           T
-		twiddle        []T
-		twiddleBacking []byte
-		scratch        []T
-		scratchBacking []byte
-		stridedScratch []T
-		stridedBacking []byte
-
-		// Bluestein specific
-		bluesteinM              int
-		bluesteinChirp          []T
-		bluesteinChirpInv       []T
-		bluesteinFilter         []T
-		bluesteinFilterInv      []T
-		bluesteinTwiddle        []T
-		bluesteinBitrev         []int
-		bluesteinScratch        []T
-		bluesteinScratchBacking []byte
-	)
+	var buffers planBuffers[T]
+	var bluestein bluesteinBuffers[T]
 
 	if useBluestein {
-		bluesteinM = fft.NextPowerOfTwo(2*n - 1)
-		scratchSize := bluesteinM
-
-		switch any(zero).(type) {
-		case complex64:
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex64(scratchSize)
-			scratch = any(scratchAligned).([]T)
-			scratchBacking = scratchRaw
-
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex64(n)
-			stridedScratch = any(stridedAligned).([]T)
-			stridedBacking = stridedRaw
-
-			bsAligned, bsRaw := fft.AllocAlignedComplex64(scratchSize)
-			bluesteinScratch = any(bsAligned).([]T)
-			bluesteinScratchBacking = bsRaw
-		case complex128:
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex128(scratchSize)
-			scratch = any(scratchAligned).([]T)
-			scratchBacking = scratchRaw
-
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex128(n)
-			stridedScratch = any(stridedAligned).([]T)
-			stridedBacking = stridedRaw
-
-			bsAligned, bsRaw := fft.AllocAlignedComplex128(scratchSize)
-			bluesteinScratch = any(bsAligned).([]T)
-			bluesteinScratchBacking = bsRaw
-		default:
-			scratch = make([]T, scratchSize)
-			stridedScratch = make([]T, n)
-			bluesteinScratch = make([]T, scratchSize)
-		}
-
-		bluesteinChirp = fft.ComputeChirpSequence[T](n)
-
-		bluesteinChirpInv = make([]T, n)
-		for i, v := range bluesteinChirp {
-			bluesteinChirpInv[i] = fft.ConjugateOf(v)
-		}
-
-		bluesteinTwiddle = fft.ComputeTwiddleFactors[T](bluesteinM)
-		bluesteinBitrev = fft.ComputeBitReversalIndices(bluesteinM)
-
-		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, bluesteinBitrev, bluesteinScratch)
-		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, bluesteinBitrev, bluesteinScratch)
+		bluestein = allocateBluesteinBuffers[T](n)
+		// For Bluestein, use the scratch buffers from the Bluestein allocation
+		buffers.scratch = bluestein.scratch
+		buffers.scratchBacking = bluestein.scratchBacking
 	} else {
-		switch any(zero).(type) {
-		case complex64:
-			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex64(n)
-			tmp := fft.ComputeTwiddleFactors[complex64](n)
-			copy(twiddleAligned, tmp)
-			twiddle = any(twiddleAligned).([]T)
-			twiddleBacking = twiddleRaw
-
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex64(n)
-			scratch = any(scratchAligned).([]T)
-			scratchBacking = scratchRaw
-
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex64(n)
-			stridedScratch = any(stridedAligned).([]T)
-			stridedBacking = stridedRaw
-		case complex128:
-			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex128(n)
-			tmp := fft.ComputeTwiddleFactors[complex128](n)
-			copy(twiddleAligned, tmp)
-			twiddle = any(twiddleAligned).([]T)
-			twiddleBacking = twiddleRaw
-
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex128(n)
-			scratch = any(scratchAligned).([]T)
-			scratchBacking = scratchRaw
-
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex128(n)
-			stridedScratch = any(stridedAligned).([]T)
-			stridedBacking = stridedRaw
-		default:
-			twiddle = fft.ComputeTwiddleFactors[T](n)
-			scratch = make([]T, n)
-			stridedScratch = make([]T, n)
-		}
+		buffers = allocateStandardBuffers[T](n)
 	}
 
 	p := &Plan[T]{
 		n:                       n,
-		twiddle:                 twiddle,
-		scratch:                 scratch,
-		stridedScratch:          stridedScratch,
+		twiddle:                 buffers.twiddle,
+		scratch:                 buffers.scratch,
+		stridedScratch:          buffers.stridedScratch,
 		bitrev:                  planBitReversal(n),
 		forwardCodelet:          estimate.ForwardCodelet,
 		inverseCodelet:          estimate.InverseCodelet,
@@ -214,18 +254,18 @@ func createPlanWithEstimate[T Complex](n int, features cpu.Features, estimate ff
 		inverseKernel:           kernels.Inverse,
 		kernelStrategy:          strategy,
 		algorithm:               estimate.Algorithm,
-		twiddleBacking:          twiddleBacking,
-		scratchBacking:          scratchBacking,
-		stridedScratchBacking:   stridedBacking,
-		bluesteinM:              bluesteinM,
-		bluesteinChirp:          bluesteinChirp,
-		bluesteinChirpInv:       bluesteinChirpInv,
-		bluesteinFilter:         bluesteinFilter,
-		bluesteinFilterInv:      bluesteinFilterInv,
-		bluesteinTwiddle:        bluesteinTwiddle,
-		bluesteinBitrev:         bluesteinBitrev,
-		bluesteinScratch:        bluesteinScratch,
-		bluesteinScratchBacking: bluesteinScratchBacking,
+		twiddleBacking:          buffers.twiddleBacking,
+		scratchBacking:          buffers.scratchBacking,
+		stridedScratchBacking:   buffers.stridedBacking,
+		bluesteinM:              bluestein.m,
+		bluesteinChirp:          bluestein.chirp,
+		bluesteinChirpInv:       bluestein.chirpInv,
+		bluesteinFilter:         bluestein.filter,
+		bluesteinFilterInv:      bluestein.filterInv,
+		bluesteinTwiddle:        bluestein.twiddle,
+		bluesteinBitrev:         bluestein.bitrev,
+		bluesteinScratch:        bluestein.scratch,
+		bluesteinScratchBacking: bluestein.scratchBacking,
 	}
 
 	if !useBluestein {

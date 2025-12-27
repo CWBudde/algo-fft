@@ -187,9 +187,12 @@ func TestCodeletFunctional(t *testing.T) {
 
 		entry.Inverse(dst, src, twiddle, scratch, bitrev)
 
-		// IFFT should give impulse at index 0
+		// IFFT should give impulse at index 0 (~1+0i)
 		if real(dst[0]) < 0.99 || real(dst[0]) > 1.01 {
 			t.Errorf("dst[0] = %v, expected ~1+0i", dst[0])
+		}
+		if imag(dst[0]) < -0.01 || imag(dst[0]) > 0.01 {
+			t.Errorf("dst[0] = %v, imaginary part should be ~0", dst[0])
 		}
 
 		for i := 1; i < 8; i++ {
