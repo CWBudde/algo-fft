@@ -104,6 +104,12 @@ func (p *Plan[T]) KernelStrategy() KernelStrategy {
 	return p.kernelStrategy
 }
 
+// Algorithm returns the name of the bound kernel or codelet (e.g., "dit8_generic").
+// Returns empty string if no specific algorithm is bound.
+func (p *Plan[T]) Algorithm() string {
+	return p.algorithm
+}
+
 // String returns a human-readable description of the Plan for debugging.
 // The format is: "Plan[type](size, strategy)" where type is "complex64" or "complex128".
 func (p *Plan[T]) String() string {
@@ -313,7 +319,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	}
 
 	// Unified codelet/wisdom/heuristic selection
-	estimate := fft.EstimatePlan[T](n, features, opts.Wisdom)
+	estimate := fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
 
 	useBluestein := estimate.Strategy == fft.KernelBluestein
 	strategy := estimate.Strategy
@@ -505,15 +511,31 @@ func NewPlanPooled[T Complex](n int) (*Plan[T], error) {
 	return NewPlanFromPool[T](n, fft.DefaultPool)
 }
 
+// NewPlanPooledWithOptions creates a new FFT plan using pooled buffers and planner options.
+func NewPlanPooledWithOptions[T Complex](n int, opts PlanOptions) (*Plan[T], error) {
+	return NewPlanFromPoolWithOptions[T](n, fft.DefaultPool, opts)
+}
+
 // NewPlanFromPool creates a new FFT plan using buffers from the specified pool.
 // This allows custom pool management for advanced use cases.
 func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
+	return NewPlanFromPoolWithOptions[T](n, pool, PlanOptions{})
+}
+
+// NewPlanFromPoolWithOptions creates a new FFT plan using buffers from the specified pool and planner options.
+func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts PlanOptions) (*Plan[T], error) {
 	if n < 1 || (!fft.IsPowerOfTwo(n) && !fft.IsHighlyComposite(n)) {
 		return nil, ErrInvalidLength
 	}
 
+	opts = normalizePlanOptions(opts)
 	features := cpu.DetectFeatures()
-	strategy := fft.ResolveKernelStrategy(n)
+	estimate := fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+	strategy := estimate.Strategy
+	if strategy == fft.KernelBluestein {
+		return nil, ErrNotImplemented
+	}
+
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
 	var (
@@ -574,6 +596,9 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 		scratch:               scratch,
 		stridedScratch:        stridedScratch,
 		bitrev:                bitrev,
+		forwardCodelet:        estimate.ForwardCodelet,
+		inverseCodelet:        estimate.InverseCodelet,
+		algorithm:             estimate.Algorithm,
 		forwardKernel:         kernels.Forward,
 		inverseKernel:         kernels.Inverse,
 		kernelStrategy:        strategy,
@@ -582,8 +607,11 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 		stridedScratchBacking: stridedBacking,
 		pool:                  pool,
 		meta: PlanMeta{
-			Planner:  PlannerEstimate,
+			Planner:  opts.Planner,
 			Strategy: strategy,
+			Batch:    opts.Batch,
+			Stride:   opts.Stride,
+			InPlace:  opts.InPlace,
 		},
 	}
 

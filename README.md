@@ -1,6 +1,10 @@
 # algoforge - High-Performance Go FFT Library
 
-A production-ready FFT (Fast Fourier Transform) library for Go, designed for high performance, numerical accuracy, and flexibility.
+[![Tests](https://github.com/MeKo-Christian/algoforge/actions/workflows/test.yaml/badge.svg)](https://github.com/MeKo-Christian/algoforge/actions/workflows/test.yaml)
+[![codecov](https://codecov.io/gh/MeKo-Christian/algoforge/branch/main/graph/badge.svg)](https://codecov.io/gh/MeKo-Christian/algoforge)
+[![Go Reference](https://pkg.go.dev/badge/github.com/MeKo-Christian/algoforge.svg)](https://pkg.go.dev/github.com/MeKo-Christian/algoforge)
+
+A new FFT (Fast Fourier Transform) library for Go, designed for high performance, numerical accuracy, and flexibility.
 
 ## Try It Online
 

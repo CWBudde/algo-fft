@@ -150,6 +150,76 @@ func TestKernelStrategy(t *testing.T) {
 	}
 }
 
+func TestNewPlanWithOptions_ForcedStrategyOverridesCodelet(t *testing.T) {
+	t.Parallel()
+
+	plan, err := NewPlanWithOptions[complex64](8, PlanOptions{Strategy: KernelStockham})
+	if err != nil {
+		t.Fatalf("NewPlanWithOptions failed: %v", err)
+	}
+
+	if got := plan.KernelStrategy(); got != KernelStockham {
+		t.Fatalf("KernelStrategy() = %v, want %v", got, KernelStockham)
+	}
+
+	if algo := plan.Algorithm(); algo == "dit8_generic" {
+		t.Fatalf("Algorithm() = %q, expected non-codelet when strategy forced", algo)
+	}
+}
+
+func TestNewPlanWithOptions_ForcedStrategyOverridesCodelet128(t *testing.T) {
+	t.Parallel()
+
+	plan, err := NewPlanWithOptions[complex128](8, PlanOptions{Strategy: KernelStockham})
+	if err != nil {
+		t.Fatalf("NewPlanWithOptions failed: %v", err)
+	}
+
+	if got := plan.KernelStrategy(); got != KernelStockham {
+		t.Fatalf("KernelStrategy() = %v, want %v", got, KernelStockham)
+	}
+
+	if algo := plan.Algorithm(); algo == "dit8_generic" {
+		t.Fatalf("Algorithm() = %q, expected non-codelet when strategy forced", algo)
+	}
+}
+
+func TestNewPlanFromPool_ForcedStrategyOverridesCodelet(t *testing.T) {
+	t.Parallel()
+
+	pooled, err := NewPlanPooledWithOptions[complex64](8, PlanOptions{Strategy: KernelStockham})
+	if err != nil {
+		t.Fatalf("NewPlanPooledWithOptions failed: %v", err)
+	}
+	defer pooled.Close()
+
+	if got := pooled.KernelStrategy(); got != KernelStockham {
+		t.Fatalf("KernelStrategy() = %v, want %v", got, KernelStockham)
+	}
+
+	if algo := pooled.Algorithm(); algo == "dit8_generic" {
+		t.Fatalf("Algorithm() = %q, expected non-codelet when strategy forced", algo)
+	}
+}
+
+func TestNewPlanFromPool_ForcedStrategyOverridesCodelet128(t *testing.T) {
+	t.Parallel()
+
+	pooled, err := NewPlanPooledWithOptions[complex128](8, PlanOptions{Strategy: KernelStockham})
+	if err != nil {
+		t.Fatalf("NewPlanPooledWithOptions failed: %v", err)
+	}
+	defer pooled.Close()
+
+	if got := pooled.KernelStrategy(); got != KernelStockham {
+		t.Fatalf("KernelStrategy() = %v, want %v", got, KernelStockham)
+	}
+
+	if algo := pooled.Algorithm(); algo == "dit8_generic" {
+		t.Fatalf("Algorithm() = %q, expected non-codelet when strategy forced", algo)
+	}
+}
+
 // TestSetGetKernelStrategy tests global strategy get/set.
 func TestSetGetKernelStrategy(t *testing.T) {
 	t.Parallel()

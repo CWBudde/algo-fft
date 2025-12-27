@@ -36,8 +36,11 @@ type PlanEstimate[T Complex] struct {
 // The returned PlanEstimate contains either:
 //   - Direct codelet bindings (zero dispatch) if a codelet is registered for the size
 //   - Empty codelet fields and just Strategy if no codelet (caller uses fallback kernels)
-func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore) PlanEstimate[T] {
+func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, forcedStrategy KernelStrategy) PlanEstimate[T] {
 	strategy := ResolveKernelStrategy(n)
+	if forcedStrategy != KernelAuto {
+		strategy = forcedStrategy
+	}
 
 	// For Bluestein, there are no codelets
 	if !IsPowerOfTwo(n) && !IsHighlyComposite(n) {
@@ -52,6 +55,9 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore) P
 	if registry != nil {
 		entry := registry.Lookup(n, features)
 		if entry != nil {
+			if forcedStrategy != KernelAuto && entry.Algorithm != forcedStrategy {
+				goto wisdomFallback
+			}
 			return PlanEstimate[T]{
 				ForwardCodelet: entry.Forward,
 				InverseCodelet: entry.Inverse,
@@ -61,6 +67,7 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore) P
 		}
 	}
 
+wisdomFallback:
 	// 2. Try wisdom cache (if provided)
 	if wisdom != nil {
 		var precision uint8
@@ -78,6 +85,9 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore) P
 			// Wisdom provides algorithm name, try to bind specific codelet by signature
 			if registry != nil {
 				if codelet := registry.LookupBySignature(n, algorithm); codelet != nil {
+					if forcedStrategy != KernelAuto && codelet.Algorithm != forcedStrategy {
+						goto strategyFallback
+					}
 					return PlanEstimate[T]{
 						ForwardCodelet: codelet.Forward,
 						InverseCodelet: codelet.Inverse,
@@ -100,9 +110,14 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore) P
 			case "bluestein":
 				strategy = KernelBluestein
 			}
+
+			if forcedStrategy != KernelAuto && strategy != forcedStrategy {
+				strategy = forcedStrategy
+			}
 		}
 	}
 
+strategyFallback:
 	// 3. Fall back to heuristic kernel selection
 	algorithmName := strategyToAlgorithmName(strategy)
 
