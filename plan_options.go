@@ -3,12 +3,32 @@ package algoforge
 import "time"
 
 // PlannerMode controls how much work the planner does to choose kernels.
+//
+// The planner modes form a hierarchy of increasing thoroughness:
+//   - PlannerEstimate: Use heuristics only (fast, no benchmarking)
+//   - PlannerMeasure: Quick benchmark testing DIT and Stockham strategies
+//   - PlannerPatient: Moderate benchmark including SixStep
+//   - PlannerExhaustive: Thorough benchmark testing all strategies
+//
+// When using PlannerMeasure or higher with a WisdomStore, the planner
+// automatically records benchmark results for future plan creations.
 type PlannerMode uint8
 
 const (
+	// PlannerEstimate uses heuristics to select the kernel strategy.
+	// This is the fastest mode and suitable for most use cases.
 	PlannerEstimate PlannerMode = iota
+
+	// PlannerMeasure runs quick micro-benchmarks (warmup=3, iters=10)
+	// testing DIT and Stockham strategies to find the faster one.
 	PlannerMeasure
+
+	// PlannerPatient runs moderate micro-benchmarks (warmup=5, iters=50)
+	// testing DIT, Stockham, and SixStep strategies.
 	PlannerPatient
+
+	// PlannerExhaustive runs thorough micro-benchmarks (warmup=10, iters=100)
+	// testing all available strategies including EightStep.
 	PlannerExhaustive
 )
 
@@ -24,14 +44,35 @@ const (
 
 // PlanOptions controls planning decisions and execution layout.
 type PlanOptions struct {
-	Planner   PlannerMode
-	Strategy  KernelStrategy
-	Radices   []int
-	Batch     int
-	Stride    int
-	InPlace   bool
-	Wisdom    WisdomStore     // Not yet implemented - reserved for future wisdom/caching feature
-	Workspace WorkspacePolicy // Not yet implemented - reserved for future workspace management
+	// Planner controls how much work the planner does to choose kernels.
+	// Default is PlannerEstimate (heuristics only, no benchmarking).
+	Planner PlannerMode
+
+	// Strategy forces a specific kernel strategy. Use KernelAuto (default)
+	// to let the planner choose based on size and benchmarks.
+	Strategy KernelStrategy
+
+	// Radices hints at which radices to prefer for mixed-radix FFT.
+	Radices []int
+
+	// Batch specifies the number of transforms to execute in a batch.
+	Batch int
+
+	// Stride specifies the stride between consecutive elements.
+	Stride int
+
+	// InPlace enables in-place transforms when possible.
+	InPlace bool
+
+	// Wisdom provides a cache for storing and retrieving optimal kernel choices.
+	// When using PlannerMeasure or higher, benchmark results are automatically
+	// stored to this cache. When creating plans, cached decisions are used
+	// to skip benchmarking for previously-measured sizes.
+	Wisdom WisdomStore
+
+	// Workspace controls how executors manage scratch space.
+	// Note: This feature is not yet implemented.
+	Workspace WorkspacePolicy
 }
 
 // WisdomStore persists planner decisions for reuse.
