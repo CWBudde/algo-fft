@@ -3,6 +3,7 @@ package algoforge
 import (
 	"fmt"
 
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
 	"github.com/MeKo-Christian/algoforge/internal/fft"
 )
 
@@ -21,6 +22,7 @@ type PlanND[T Complex] struct {
 	plans   []*Plan[T] // 1D plans for each dimension
 	scratch []T        // Working buffer (size = product of all dims)
 	strides []int      // Pre-computed strides for each dimension
+	options PlanOptions
 
 	// backing keeps aligned scratch buffer alive for GC
 	scratchBacking []byte
@@ -39,9 +41,17 @@ type PlanND[T Complex] struct {
 //
 // For concurrent use, create separate plans via Clone() for each goroutine.
 func NewPlanND[T Complex](dims []int) (*PlanND[T], error) {
+	return NewPlanNDWithOptions[T](dims, PlanOptions{})
+}
+
+// NewPlanNDWithOptions creates a new N-dimensional FFT plan with explicit planner options.
+func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], error) {
 	if len(dims) == 0 {
 		return nil, ErrInvalidLength
 	}
+
+	opts = normalizePlanOptions(opts)
+	features := cpu.DetectFeatures()
 
 	// Validate all dimensions
 	totalSize := 1
@@ -58,10 +68,15 @@ func NewPlanND[T Complex](dims []int) (*PlanND[T], error) {
 	dimsCopy := make([]int, len(dims))
 	copy(dimsCopy, dims)
 
+	childOpts := opts
+	childOpts.Batch = 0
+	childOpts.Stride = 0
+	childOpts.InPlace = false
+
 	// Create 1D plans for each dimension
 	plans := make([]*Plan[T], len(dims))
 	for i, size := range dimsCopy {
-		plan, err := NewPlanT[T](size)
+		plan, err := newPlanWithFeatures[T](size, features, childOpts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create plan for dimension %d (size %d): %w", i, size, err)
 		}
@@ -101,19 +116,20 @@ func NewPlanND[T Complex](dims []int) (*PlanND[T], error) {
 		scratch:        scratch,
 		strides:        strides,
 		scratchBacking: scratchBacking,
+		options:        opts,
 	}, nil
 }
 
 // NewPlanND32 creates a new N-dimensional FFT plan using complex64 precision.
 // This is a convenience wrapper for NewPlanND[complex64].
 func NewPlanND32(dims []int) (*PlanND[complex64], error) {
-	return NewPlanND[complex64](dims)
+	return NewPlanNDWithOptions[complex64](dims, PlanOptions{})
 }
 
 // NewPlanND64 creates a new N-dimensional FFT plan using complex128 precision.
 // This is a convenience wrapper for NewPlanND[complex128].
 func NewPlanND64(dims []int) (*PlanND[complex128], error) {
-	return NewPlanND[complex128](dims)
+	return NewPlanNDWithOptions[complex128](dims, PlanOptions{})
 }
 
 // Dims returns a copy of the dimension sizes.
@@ -168,24 +184,27 @@ func (p *PlanND[T]) String() string {
 //
 // Supports in-place operation (dst == src).
 func (p *PlanND[T]) Forward(dst, src []T) error {
-	err := p.validate(dst, src)
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	batch, stride, err := resolveBatchStride(p.Len(), p.options)
 	if err != nil {
 		return err
 	}
 
-	// Copy src to scratch for working
-	copy(p.scratch, src)
+	for b := 0; b < batch; b++ {
+		srcOff := b * stride
+		dstOff := b * stride
+		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
+			return ErrLengthMismatch
+		}
 
-	// Transform along each dimension sequentially
-	for dim := len(p.dims) - 1; dim >= 0; dim-- {
-		err := p.transformDimension(dim, true)
+		err = p.forwardSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
 		if err != nil {
 			return err
 		}
 	}
-
-	// Copy result to dst
-	copy(dst, p.scratch)
 
 	return nil
 }
@@ -197,24 +216,27 @@ func (p *PlanND[T]) Forward(dst, src []T) error {
 //
 // Supports in-place operation (dst == src).
 func (p *PlanND[T]) Inverse(dst, src []T) error {
-	err := p.validate(dst, src)
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	batch, stride, err := resolveBatchStride(p.Len(), p.options)
 	if err != nil {
 		return err
 	}
 
-	// Copy src to scratch for working
-	copy(p.scratch, src)
+	for b := 0; b < batch; b++ {
+		srcOff := b * stride
+		dstOff := b * stride
+		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
+			return ErrLengthMismatch
+		}
 
-	// Transform along each dimension sequentially
-	for dim := len(p.dims) - 1; dim >= 0; dim-- {
-		err := p.transformDimension(dim, false)
+		err = p.inverseSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
 		if err != nil {
 			return err
 		}
 	}
-
-	// Copy result to dst
-	copy(dst, p.scratch)
 
 	return nil
 }
@@ -277,6 +299,7 @@ func (p *PlanND[T]) Clone() *PlanND[T] {
 		scratch:        scratch,
 		strides:        strides,
 		scratchBacking: scratchBacking,
+		options:        p.options,
 	}
 }
 
@@ -301,7 +324,7 @@ func (p *PlanND[T]) validate(dst, src []T) error {
 
 // transformDimension applies 1D FFT along the specified dimension.
 // This extracts slices along the dimension, transforms them, and writes back.
-func (p *PlanND[T]) transformDimension(dim int, forward bool) error {
+func (p *PlanND[T]) transformDimension(data []T, dim int, forward bool) error {
 	dimSize := p.dims[dim]
 	plan := p.plans[dim]
 
@@ -314,7 +337,7 @@ func (p *PlanND[T]) transformDimension(dim int, forward bool) error {
 	// Iterate through all slices along this dimension
 	for sliceIdx := range totalSlices {
 		// Extract slice
-		p.extractSlice(sliceData, sliceIdx, dim)
+		p.extractSlice(data, sliceData, sliceIdx, dim)
 
 		// Transform slice
 		var err error
@@ -329,7 +352,7 @@ func (p *PlanND[T]) transformDimension(dim int, forward bool) error {
 		}
 
 		// Write back
-		p.writeSlice(sliceData, sliceIdx, dim)
+		p.writeSlice(data, sliceData, sliceIdx, dim)
 	}
 
 	return nil
@@ -337,7 +360,7 @@ func (p *PlanND[T]) transformDimension(dim int, forward bool) error {
 
 // extractSlice extracts a 1D slice along the specified dimension.
 // sliceIdx identifies which slice (0 to totalSlices-1).
-func (p *PlanND[T]) extractSlice(dst []T, sliceIdx, dim int) {
+func (p *PlanND[T]) extractSlice(data, dst []T, sliceIdx, dim int) {
 	dimSize := p.dims[dim]
 	dimStride := p.strides[dim]
 
@@ -347,12 +370,12 @@ func (p *PlanND[T]) extractSlice(dst []T, sliceIdx, dim int) {
 	// Extract elements along the dimension
 	for i := range dimSize {
 		offset := baseOffset + i*dimStride
-		dst[i] = p.scratch[offset]
+		dst[i] = data[offset]
 	}
 }
 
 // writeSlice writes a 1D slice back along the specified dimension.
-func (p *PlanND[T]) writeSlice(src []T, sliceIdx, dim int) {
+func (p *PlanND[T]) writeSlice(data, src []T, sliceIdx, dim int) {
 	dimSize := p.dims[dim]
 	dimStride := p.strides[dim]
 
@@ -362,8 +385,50 @@ func (p *PlanND[T]) writeSlice(src []T, sliceIdx, dim int) {
 	// Write elements along the dimension
 	for i := range dimSize {
 		offset := baseOffset + i*dimStride
-		p.scratch[offset] = src[i]
+		data[offset] = src[i]
 	}
+}
+
+func (p *PlanND[T]) forwardSingle(dst, src []T) error {
+	err := p.validate(dst, src)
+	if err != nil {
+		return err
+	}
+
+	work := p.scratch
+	copy(work, src)
+
+	for dim := len(p.dims) - 1; dim >= 0; dim-- {
+		err = p.transformDimension(work, dim, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	copy(dst, work)
+
+	return nil
+}
+
+func (p *PlanND[T]) inverseSingle(dst, src []T) error {
+	err := p.validate(dst, src)
+	if err != nil {
+		return err
+	}
+
+	work := p.scratch
+	copy(work, src)
+
+	for dim := len(p.dims) - 1; dim >= 0; dim-- {
+		err = p.transformDimension(work, dim, false)
+		if err != nil {
+			return err
+		}
+	}
+
+	copy(dst, work)
+
+	return nil
 }
 
 // sliceIndexToOffset converts a linear slice index to the base offset in scratch buffer.

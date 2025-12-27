@@ -48,6 +48,7 @@ type Plan[T Complex] struct {
 	forwardKernel  fft.Kernel[T]
 	inverseKernel  fft.Kernel[T]
 	kernelStrategy fft.KernelStrategy
+	meta           PlanMeta
 
 	// backing buffers keep aligned slices alive for GC.
 	twiddleBacking        []byte
@@ -277,18 +278,25 @@ func (p *Plan[T]) validateSlices(dst, src []T) error {
 //	plan, err := NewPlanT[complex64](1024)
 //	plan128, err := NewPlanT[complex128](1024)
 func NewPlanT[T Complex](n int) (*Plan[T], error) {
+	return newPlanWithFeatures[T](n, cpu.DetectFeatures(), PlanOptions{})
+}
+
+// NewPlanWithOptions creates a new FFT plan with explicit planner options.
+func NewPlanWithOptions[T Complex](n int, opts PlanOptions) (*Plan[T], error) {
+	return newPlanWithFeatures[T](n, cpu.DetectFeatures(), normalizePlanOptions(opts))
+}
+
+func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptions) (*Plan[T], error) {
 	if n < 1 {
 		return nil, ErrInvalidLength
 	}
-
-	features := cpu.DetectFeatures()
 
 	useBluestein := false
 
 	var strategy fft.KernelStrategy
 
 	if fft.IsPowerOfTwo(n) || fft.IsHighlyComposite(n) {
-		strategy = fft.ResolveKernelStrategy(n)
+		strategy = fft.ResolveKernelStrategyWithDefault(n, opts.Strategy)
 	} else {
 		useBluestein = true
 		strategy = fft.KernelBluestein
@@ -426,6 +434,13 @@ func NewPlanT[T Complex](n int) (*Plan[T], error) {
 		bluesteinBitrev:         bluesteinBitrev,
 		bluesteinScratch:        bluesteinScratch,
 		bluesteinScratchBacking: bluesteinScratchBacking,
+		meta: PlanMeta{
+			Planner:  opts.Planner,
+			Strategy: strategy,
+			Batch:    opts.Batch,
+			Stride:   opts.Stride,
+			InPlace:  opts.InPlace,
+		},
 	}
 
 	if !useBluestein {
@@ -546,6 +561,10 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 		scratchBacking:        scratchBacking,
 		stridedScratchBacking: stridedBacking,
 		pool:                  pool,
+		meta: PlanMeta{
+			Planner:  PlannerEstimate,
+			Strategy: strategy,
+		},
 	}
 
 	p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
@@ -679,6 +698,7 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		forwardKernel:   p.forwardKernel,
 		inverseKernel:   p.inverseKernel,
 		kernelStrategy:  p.kernelStrategy,
+		meta:            p.meta,
 		twiddleBacking:  p.twiddleBacking, // Shared reference (keeps original alive)
 		scratchBacking:  scratchBacking,   // New allocation
 		pool:            nil,              // Clones are never pooled

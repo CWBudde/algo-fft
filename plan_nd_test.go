@@ -312,6 +312,54 @@ func TestPlanND_RoundTrip_Complex128(t *testing.T) {
 	}
 }
 
+func TestPlanND_BatchStrideRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	dims := []int{2, 3, 4}
+	size := 1
+	for _, d := range dims {
+		size *= d
+	}
+
+	const (
+		batch  = 2
+		stride = 32
+	)
+
+	plan, err := NewPlanNDWithOptions[complex64](dims, PlanOptions{
+		Batch:  batch,
+		Stride: stride,
+	})
+	if err != nil {
+		t.Fatalf("NewPlanNDWithOptions failed: %v", err)
+	}
+
+	src := make([]complex64, batch*stride)
+	dst := make([]complex64, batch*stride)
+	roundTrip := make([]complex64, batch*stride)
+
+	for b := 0; b < batch; b++ {
+		signal := generateRandomNDComplex64(dims, uint64(300+b))
+		copy(src[b*stride:b*stride+size], signal)
+	}
+
+	if err := plan.Forward(dst, src); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	if err := plan.Inverse(roundTrip, dst); err != nil {
+		t.Fatalf("Inverse failed: %v", err)
+	}
+
+	for b := 0; b < batch; b++ {
+		orig := src[b*stride : b*stride+size]
+		got := roundTrip[b*stride : b*stride+size]
+		if !complexND64NearlyEqual(got, orig, 1e-3) {
+			t.Fatalf("batch %d round-trip mismatch", b)
+		}
+	}
+}
+
 // Test that PlanND matches specialized Plan3D for 3D case
 
 func TestPlanND_MatchesPlan3D(t *testing.T) {

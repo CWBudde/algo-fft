@@ -34,6 +34,54 @@ func TestPlanRealForwardImpulse(t *testing.T) {
 	}
 }
 
+func TestPlanReal_BatchStrideRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	const (
+		n      = 16
+		batch  = 2
+		stride = n + 5
+	)
+
+	plan, err := NewPlanRealWithOptions(n, PlanOptions{
+		Batch:  batch,
+		Stride: stride,
+	})
+	if err != nil {
+		t.Fatalf("NewPlanRealWithOptions failed: %v", err)
+	}
+
+	src := make([]float32, batch*stride)
+	dst := make([]complex64, batch*stride)
+	roundTrip := make([]float32, batch*stride)
+
+	rng := rand.New(rand.NewSource(42))
+	for b := 0; b < batch; b++ {
+		base := b * stride
+		for i := 0; i < n; i++ {
+			src[base+i] = float32(rng.Float64()*2 - 1)
+		}
+	}
+
+	if err := plan.Forward(dst, src); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	if err := plan.Inverse(roundTrip, dst); err != nil {
+		t.Fatalf("Inverse failed: %v", err)
+	}
+
+	const tol = 1e-3
+	for b := 0; b < batch; b++ {
+		base := b * stride
+		for i := 0; i < n; i++ {
+			if math.Abs(float64(roundTrip[base+i]-src[base+i])) > tol {
+				t.Fatalf("batch %d idx %d mismatch: got %v want %v", b, i, roundTrip[base+i], src[base+i])
+			}
+		}
+	}
+}
+
 func TestPlanRealForwardConstant(t *testing.T) {
 	t.Parallel()
 

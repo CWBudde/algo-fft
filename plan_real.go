@@ -1,6 +1,10 @@
 package algoforge
 
-import "math"
+import (
+	"math"
+
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
+)
 
 // PlanReal is a pre-computed real FFT plan for float32 input.
 // The forward transform returns the non-redundant half-spectrum with length N/2+1.
@@ -17,16 +21,31 @@ type PlanReal struct {
 	plan   *Plan[complex64]
 	weight []complex64
 	buf    []complex64
+	options PlanOptions
 }
 
 // NewPlanReal creates a new real FFT plan for length n.
 // Currently, only even lengths are supported by the real FFT pack method.
 func NewPlanReal(n int) (*PlanReal, error) {
+	return NewPlanRealWithOptions(n, PlanOptions{})
+}
+
+// NewPlanRealWithOptions creates a new real FFT plan with explicit planner options.
+func NewPlanRealWithOptions(n int, opts PlanOptions) (*PlanReal, error) {
+	return newPlanRealWithFeatures(n, cpu.DetectFeatures(), normalizePlanOptions(opts))
+}
+
+func newPlanRealWithFeatures(n int, features cpu.Features, opts PlanOptions) (*PlanReal, error) {
 	if n < 2 || n%2 != 0 {
 		return nil, ErrInvalidLength
 	}
 
-	plan, err := NewPlanT[complex64](n / 2)
+	childOpts := opts
+	childOpts.Batch = 0
+	childOpts.Stride = 0
+	childOpts.InPlace = false
+
+	plan, err := newPlanWithFeatures[complex64](n/2, features, childOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +64,7 @@ func NewPlanReal(n int) (*PlanReal, error) {
 		plan:   plan,
 		weight: weight,
 		buf:    make([]complex64, n/2),
+		options: opts,
 	}, nil
 }
 
@@ -61,6 +81,36 @@ func (p *PlanReal) SpectrumLen() int {
 // Forward computes the real-to-complex FFT.
 // dst must have length N/2+1 and src must have length N.
 func (p *PlanReal) Forward(dst []complex64, src []float32) error {
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	if p.options.Batch <= 1 && p.options.Stride <= 0 {
+		return p.forwardSingle(dst, src)
+	}
+
+	batch, strideIn, strideOut, err := resolveBatchStrideReal(p.n, p.half+1, p.options)
+	if err != nil {
+		return err
+	}
+
+	for b := 0; b < batch; b++ {
+		srcOff := b * strideIn
+		dstOff := b * strideOut
+		if srcOff+p.n > len(src) || dstOff+p.half+1 > len(dst) {
+			return ErrLengthMismatch
+		}
+
+		err = p.forwardSingle(dst[dstOff:dstOff+p.half+1], src[srcOff:srcOff+p.n])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *PlanReal) forwardSingle(dst []complex64, src []float32) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
@@ -129,6 +179,36 @@ func (p *PlanReal) ForwardUnitary(dst []complex64, src []float32) error {
 // Inverse computes the complex-to-real inverse FFT.
 // dst must have length N and src must have length N/2+1.
 func (p *PlanReal) Inverse(dst []float32, src []complex64) error {
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	if p.options.Batch <= 1 && p.options.Stride <= 0 {
+		return p.inverseSingle(dst, src)
+	}
+
+	batch, strideIn, strideOut, err := resolveBatchStrideReal(p.n, p.half+1, p.options)
+	if err != nil {
+		return err
+	}
+
+	for b := 0; b < batch; b++ {
+		dstOff := b * strideIn
+		srcOff := b * strideOut
+		if dstOff+p.n > len(dst) || srcOff+p.half+1 > len(src) {
+			return ErrLengthMismatch
+		}
+
+		err = p.inverseSingle(dst[dstOff:dstOff+p.n], src[srcOff:srcOff+p.half+1])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *PlanReal) inverseSingle(dst []float32, src []complex64) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
