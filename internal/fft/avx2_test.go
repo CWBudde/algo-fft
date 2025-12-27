@@ -1399,6 +1399,166 @@ func BenchmarkAVX2Size16_VsGeneric(b *testing.B) {
 	})
 }
 
+// 14.5.3: Size-Specific AVX2 Size-32 Kernel Tests
+// =============================================================================
+
+// TestAVX2Size32_VsReference tests the size-32 specific kernel against the
+// reference naive DFT implementation.
+func TestAVX2Size32_VsReference(t *testing.T) {
+	t.Parallel()
+
+	avx2Forward, _, avx2Available := getAVX2Kernels()
+	if !avx2Available {
+		t.Skip("AVX2 not available on this system")
+	}
+
+	const n = 32
+	src := generateRandomComplex64(n, 32345)
+	twiddle, bitrev, scratch := prepareFFTData(n)
+
+	// Compute reference using naive DFT (complex64 version)
+	dstRef := reference.NaiveDFT(src)
+
+	// Compute with AVX2 (this will use the size-32 kernel via dispatch)
+	dst := make([]complex64, n)
+	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+
+	if !ok {
+		t.Skip("AVX2 kernel not implemented (returned false)")
+	}
+
+	// Compare with reference
+	const relTol float32 = 1e-5
+	for i := range dst {
+		if !complexNearEqual(dst[i], dstRef[i], relTol) {
+			t.Errorf("[%d] AVX2 kernel = %v, reference = %v", i, dst[i], dstRef[i])
+		}
+	}
+}
+
+// TestAVX2Size32_VsGenericAVX2 tests the size-32 kernel against the generic AVX2 kernel.
+func TestAVX2Size32_VsGenericAVX2(t *testing.T) {
+	t.Parallel()
+
+	avx2Forward, _, avx2Available := getAVX2Kernels()
+	if !avx2Available {
+		t.Skip("AVX2 not available on this system")
+	}
+
+	goForward, _ := getPureGoKernels()
+
+	const n = 32
+	src := generateRandomComplex64(n, 65432)
+	twiddle, bitrev, scratch := prepareFFTData(n)
+
+	// Compute with pure Go as ground truth
+	dstGo := make([]complex64, n)
+	scratchGo := make([]complex64, n)
+	if !goForward(dstGo, src, twiddle, scratchGo, bitrev) {
+		t.Fatal("Pure Go kernel failed")
+	}
+
+	// Compute with AVX2 (which dispatches to size-32 kernel)
+	dst := make([]complex64, n)
+	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+	if !ok {
+		t.Skip("AVX2 kernel not implemented (returned false)")
+	}
+
+	// Compare results
+	const relTol float32 = 1e-5
+	if !complexSliceEqual(dst, dstGo, relTol) {
+		for i := range dst {
+			if !complexNearEqual(dst[i], dstGo[i], relTol) {
+				t.Errorf("[%d] AVX2 = %v, Go = %v", i, dst[i], dstGo[i])
+			}
+		}
+	}
+}
+
+// TestAVX2Size32_RoundTrip tests that Forward -> Inverse recovers the original signal.
+func TestAVX2Size32_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	avx2Forward, avx2Inverse, avx2Available := getAVX2Kernels()
+	if !avx2Available {
+		t.Skip("AVX2 not available on this system")
+	}
+
+	const n = 32
+	src := generateRandomComplex64(n, 111222)
+	twiddle, bitrev, scratch := prepareFFTData(n)
+
+	// Forward with AVX2
+	freq := make([]complex64, n)
+	okFwd := avx2Forward(freq, src, twiddle, scratch, bitrev)
+	if !okFwd {
+		t.Skip("AVX2 forward kernel not implemented")
+	}
+
+	// Inverse with AVX2
+	recovered := make([]complex64, n)
+	scratchInv := make([]complex64, n)
+	okInv := avx2Inverse(recovered, freq, twiddle, scratchInv, bitrev)
+	if !okInv {
+		t.Skip("AVX2 inverse not available")
+	}
+
+	// Compare recovered to original (note: inverse FFT scales by 1/n internally)
+	const relTol float32 = 1e-5
+	if !complexSliceEqual(recovered, src, relTol) {
+		maxErr := float32(0)
+		for i := range recovered {
+			diff := recovered[i] - src[i]
+			err := float32(real(diff)*real(diff) + imag(diff)*imag(diff))
+			if err > maxErr {
+				maxErr = err
+			}
+		}
+		t.Errorf("Round-trip error: max squared diff = %e (tolerance = %e)", maxErr, relTol*relTol)
+	}
+}
+
+// BenchmarkAVX2Size32_VsGeneric benchmarks the size-32 kernel vs generic AVX2.
+func BenchmarkAVX2Size32_VsGeneric(b *testing.B) {
+	avx2Forward, _, avx2Available := getAVX2Kernels()
+	if !avx2Available {
+		b.Skip("AVX2 not available")
+	}
+
+	goForward, _ := getPureGoKernels()
+
+	const n = 32
+	src := make([]complex64, n)
+	for i := range src {
+		src[i] = complex(float32(i)/float32(n), float32(i%4)/4)
+	}
+	twiddle, bitrev, scratch := prepareFFTData(n)
+	dst := make([]complex64, n)
+
+	b.Run("AVX2", func(b *testing.B) {
+		if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+			b.Skip("AVX2 kernel not implemented")
+		}
+		b.ResetTimer()
+		b.SetBytes(int64(n * 8))
+		for range b.N {
+			avx2Forward(dst, src, twiddle, scratch, bitrev)
+		}
+	})
+
+	b.Run("PureGo", func(b *testing.B) {
+		if !goForward(dst, src, twiddle, scratch, bitrev) {
+			b.Skip("Pure Go kernel failed")
+		}
+		b.ResetTimer()
+		b.SetBytes(int64(n * 8))
+		for range b.N {
+			goForward(dst, src, twiddle, scratch, bitrev)
+		}
+	})
+}
+
 func sizeString(n int) string {
 	switch {
 	case n >= 1024*1024:
