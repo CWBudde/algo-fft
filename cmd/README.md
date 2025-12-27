@@ -27,6 +27,7 @@ go run ./cmd/measure_correctness/main.go
 ## Why Separate Modules?
 
 These tools use their own `go.mod` files with `replace` directives to:
+
 - Keep the main module dependency-free from benchmarking libraries
 - Allow independent versioning of tools
 - Maintain clean production dependencies
