@@ -330,7 +330,8 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 			u := weightC64[k]
 			oneMinusU := complex64(1) - u
 			det := complex64(1) - 2*u
-			invDet := complex64(1) / det
+			// det is on the unit circle, so 1/det == conj(det)
+			invDet := complex(real(det), -imag(det))
 
 			a := (xk*oneMinusU - xmkc*u) * invDet
 			b := (oneMinusU*xmkc - u*xk) * invDet
@@ -362,7 +363,8 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 			u := weightC128[k]
 			oneMinusU := complex128(1) - u
 			det := complex128(1) - 2*u
-			invDet := complex128(1) / det
+			// det is on the unit circle, so 1/det == conj(det)
+			invDet := complex(real(det), -imag(det))
 
 			a := (xk*oneMinusU - xmkc*u) * invDet
 			b := (oneMinusU*xmkc - u*xk) * invDet
