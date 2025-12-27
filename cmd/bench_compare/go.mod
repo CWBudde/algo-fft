@@ -1,4 +1,4 @@
-module github.com/MeKo-Christian/algo-fft/cmd/bench_compare
+module github.com/MeKo-Christian/algofft/cmd/bench_compare
 
 go 1.25.0
 

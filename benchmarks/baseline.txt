@@ -40,10 +40,10 @@ BenchmarkNewPlan_1024-12                                         	   24093	     
 BenchmarkNewPlan_65536-12                                        	     271	   4480630 ns/op	 8299029 B/op	      98 allocs/op
 PASS
 ok  	github.com/MeKo-Christian/algofft	46.138s
-?   	github.com/MeKo-Christian/algo-fft/cmd/benchkernels	[no test files]
+?   	github.com/MeKo-Christian/algofft/cmd/benchkernels	[no test files]
 goos: linux
 goarch: amd64
-pkg: github.com/MeKo-Christian/algo-fft/internal/fft
+pkg: github.com/MeKo-Christian/algofft/internal/fft
 cpu: 12th Gen Intel(R) Core(TM) i7-1255U
 BenchmarkComputeTwiddleFactors64_16-12           	 4070497	       276.9 ns/op	     128 B/op	       1 allocs/op
 BenchmarkComputeTwiddleFactors64_256-12          	  244293	      4329 ns/op	    2048 B/op	       1 allocs/op
@@ -69,6 +69,6 @@ BenchmarkBaseTwiddleLookup_Radix4_65536-12       	    6740	    157334 ns/op	    
 BenchmarkBaseTwiddleLookup_Radix8_65536-12       	   16686	     72736 ns/op	       0 B/op	       0 allocs/op
 BenchmarkBaseTwiddleLookup_Radix16_65536-12      	    7590	    177567 ns/op	       0 B/op	       0 allocs/op
 PASS
-ok  	github.com/MeKo-Christian/algo-fft/internal/fft	27.918s
+ok  	github.com/MeKo-Christian/algofft/internal/fft	27.918s
 PASS
-ok  	github.com/MeKo-Christian/algo-fft/internal/reference	0.002s
+ok  	github.com/MeKo-Christian/algofft/internal/reference	0.002s
