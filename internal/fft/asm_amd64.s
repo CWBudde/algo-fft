@@ -797,7 +797,7 @@ stockham_k_loop:
 	// ptrB = ptrA + half*8
 	MOVQ R15, AX
 	SHLQ $3, AX              // AX = half * 8
-	LEAQ (BP)(AX*1), DI      // DI = ptrB = ptrA + half*8
+	ADDQ BP, AX              // AX = ptrB = ptrA + half*8
 
 	// outBaseElem = k * half
 	MOVQ CX, DX
@@ -805,8 +805,7 @@ stockham_k_loop:
 
 	// ptrOut0 = out + outBaseElem*8
 	SHLQ $3, DX              // DX = outBaseElem * 8
-	MOVQ dst+0(FP), R9       // Reload dst pointer
-	LEAQ (R9)(DX*1), R9      // R9 = ptrOut0
+	LEAQ (DI)(DX*1), R9      // R9 = ptrOut0 (DI = current output buffer)
 
 	// ptrOut1 = ptrOut0 + (n/2)*8
 	MOVQ R13, R12
@@ -829,8 +828,8 @@ stockham_vec_loop:
 	CMPQ DX, $4
 	JL   stockham_scalar_contig
 
-	VMOVUPS (BP), Y0         // a
-	VMOVUPS (DI), Y1         // b
+	VMOVUPS (BP), Y0         // a (ptrA)
+	VMOVUPS (AX), Y1         // b (ptrB)
 	VMOVUPS (R10)(R11*1), Y2  // twiddle
 
 	VADDPS Y1, Y0, Y3         // sum = a + b
@@ -846,7 +845,7 @@ stockham_vec_loop:
 	VMOVUPS Y7, (R12)         // out1 = diff * w
 
 	ADDQ $32, BP
-	ADDQ $32, DI
+	ADDQ $32, AX
 	ADDQ $32, R9
 	ADDQ $32, R12
 	ADDQ $32, R11
@@ -869,8 +868,8 @@ stockham_strided_vec_loop:
 	CMPQ DX, $4
 	JL   stockham_scalar_core
 
-	VMOVUPS (BP), Y0         // a
-	VMOVUPS (DI), Y1         // b
+	VMOVUPS (BP), Y0         // a (ptrA)
+	VMOVUPS (AX), Y1         // b (ptrB)
 
 	// Gather 4 strided twiddles using running offset
 	VMOVSD (R10)(R11*1), X2
@@ -898,7 +897,7 @@ stockham_strided_vec_loop:
 	VMOVUPS Y7, (R12)         // out1 = diff * w
 
 	ADDQ $32, BP
-	ADDQ $32, DI
+	ADDQ $32, AX
 	ADDQ $32, R9
 	ADDQ $32, R12
 	SUBQ $4, DX
@@ -909,10 +908,10 @@ stockham_scalar_core:
 	JLE  stockham_k_done
 
 stockham_scalar_loop:
-	MOVSS (BP), X0
-	MOVSS 4(BP), X1
-	MOVSS (DI), X2
-	MOVSS 4(DI), X3
+	MOVSS (BP), X0           // a.r (ptrA)
+	MOVSS 4(BP), X1          // a.i
+	MOVSS (AX), X2           // b.r (ptrB)
+	MOVSS 4(AX), X3          // b.i
 
 	// sum = a + b
 	MOVSS X0, X4
@@ -949,7 +948,7 @@ stockham_scalar_loop:
 	MOVSS X12, 4(R12)
 
 	ADDQ $8, BP
-	ADDQ $8, DI
+	ADDQ $8, AX
 	ADDQ $8, R9
 	ADDQ $8, R12
 	ADDQ R15, R11
@@ -1633,7 +1632,7 @@ inv_stockham_k_loop:
 	// ptrB = ptrA + half*8
 	MOVQ R15, AX
 	SHLQ $3, AX              // AX = half * 8
-	LEAQ (BP)(AX*1), DI      // DI = ptrB = ptrA + half*8
+	ADDQ BP, AX              // AX = ptrB = ptrA + half*8
 
 	// outBaseElem = k * half
 	MOVQ CX, DX
@@ -1641,8 +1640,7 @@ inv_stockham_k_loop:
 
 	// ptrOut0 = out + outBaseElem*8
 	SHLQ $3, DX              // DX = outBaseElem * 8
-	MOVQ dst+0(FP), R9       // Reload dst pointer
-	LEAQ (R9)(DX*1), R9      // R9 = ptrOut0
+	LEAQ (DI)(DX*1), R9      // R9 = ptrOut0 (DI = current output buffer)
 
 	// ptrOut1 = ptrOut0 + (n/2)*8
 	MOVQ R13, R12
@@ -1665,8 +1663,8 @@ inv_stockham_vec_loop:
 	CMPQ DX, $4
 	JL   inv_stockham_scalar_contig
 
-	VMOVUPS (BP), Y0         // a
-	VMOVUPS (DI), Y1         // b
+	VMOVUPS (BP), Y0         // a (ptrA)
+	VMOVUPS (AX), Y1         // b (ptrB)
 	VMOVUPS (R10)(R11*1), Y2  // twiddle
 
 	VADDPS Y1, Y0, Y3         // sum = a + b
@@ -1683,7 +1681,7 @@ inv_stockham_vec_loop:
 	VMOVUPS Y7, (R12)         // out1 = diff * conj(w)
 
 	ADDQ $32, BP
-	ADDQ $32, DI
+	ADDQ $32, AX
 	ADDQ $32, R9
 	ADDQ $32, R12
 	ADDQ $32, R11
@@ -1706,8 +1704,8 @@ inv_stockham_strided_vec_loop:
 	CMPQ DX, $4
 	JL   inv_stockham_scalar_core
 
-	VMOVUPS (BP), Y0         // a
-	VMOVUPS (DI), Y1         // b
+	VMOVUPS (BP), Y0         // a (ptrA)
+	VMOVUPS (AX), Y1         // b (ptrB)
 
 	// Gather 4 strided twiddles using running offset
 	VMOVSD (R10)(R11*1), X2
@@ -1736,7 +1734,7 @@ inv_stockham_strided_vec_loop:
 	VMOVUPS Y7, (R12)         // out1 = diff * conj(w)
 
 	ADDQ $32, BP
-	ADDQ $32, DI
+	ADDQ $32, AX
 	ADDQ $32, R9
 	ADDQ $32, R12
 	SUBQ $4, DX
@@ -1747,10 +1745,10 @@ inv_stockham_scalar_core:
 	JLE  inv_stockham_k_done
 
 inv_stockham_scalar_loop:
-	MOVSS (BP), X0
-	MOVSS 4(BP), X1
-	MOVSS (DI), X2
-	MOVSS 4(DI), X3
+	MOVSS (BP), X0           // a.r (ptrA)
+	MOVSS 4(BP), X1          // a.i
+	MOVSS (AX), X2           // b.r (ptrB)
+	MOVSS 4(AX), X3          // b.i
 
 	// sum = a + b
 	MOVSS X0, X4
@@ -1787,7 +1785,7 @@ inv_stockham_scalar_loop:
 	MOVSS X12, 4(R12)
 
 	ADDQ $8, BP
-	ADDQ $8, DI
+	ADDQ $8, AX
 	ADDQ $8, R9
 	ADDQ $8, R12
 	ADDQ R15, R11
