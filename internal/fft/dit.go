@@ -14,6 +14,8 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		return forwardDIT128Complex64(dst, src, twiddle, scratch, bitrev)
 	case 256:
 		return forwardDIT256Complex64(dst, src, twiddle, scratch, bitrev)
+	case 512:
+		return forwardDIT512Complex64(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if forwardRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
@@ -37,6 +39,8 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		return inverseDIT128Complex64(dst, src, twiddle, scratch, bitrev)
 	case 256:
 		return inverseDIT256Complex64(dst, src, twiddle, scratch, bitrev)
+	case 512:
+		return inverseDIT512Complex64(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if inverseRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
@@ -60,6 +64,8 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		return forwardDIT128Complex128(dst, src, twiddle, scratch, bitrev)
 	case 256:
 		return forwardDIT256Complex128(dst, src, twiddle, scratch, bitrev)
+	case 512:
+		return forwardDIT512Complex128(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if forwardRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
@@ -83,6 +89,8 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		return inverseDIT128Complex128(dst, src, twiddle, scratch, bitrev)
 	case 256:
 		return inverseDIT256Complex128(dst, src, twiddle, scratch, bitrev)
+	case 512:
+		return inverseDIT512Complex128(dst, src, twiddle, scratch, bitrev)
 	}
 
 	if inverseRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
