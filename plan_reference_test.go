@@ -3,7 +3,7 @@ package algofft
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algofft/internal/reference"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 func TestForwardMatchesReferenceSmall(t *testing.T) {

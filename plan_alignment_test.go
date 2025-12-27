@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/MeKo-Christian/algofft/internal/fft"
+	"github.com/MeKo-Christian/algo-fft/internal/fft"
 )
 
 func TestPlanAlignmentComplex64(t *testing.T) {

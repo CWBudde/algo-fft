@@ -3,7 +3,7 @@ package algofft
 import (
 	"math"
 
-	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
 
 // PlanReal is a pre-computed real FFT plan for float32 input.

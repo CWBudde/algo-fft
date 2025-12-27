@@ -7,7 +7,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
 
 func generateRandomComplex64_386(n int, seed uint64) []complex64 {

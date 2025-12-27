@@ -4,7 +4,7 @@ import (
 	"math/cmplx"
 	"testing"
 
-	"github.com/MeKo-Christian/algofft/internal/reference"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 func TestNewPlan_Bluestein_EdgeCases(t *testing.T) {

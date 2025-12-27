@@ -9,7 +9,7 @@ import (
 	"sync"
 	"syscall/js"
 
-	"github.com/MeKo-Christian/algofft"
+	"github.com/MeKo-Christian/algo-fft"
 )
 
 var (

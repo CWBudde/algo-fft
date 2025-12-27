@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
 
 // TestSIMDVsGeneric verifies that SIMD-optimized implementations produce

@@ -1,8 +1,8 @@
 package algofft
 
 import (
-	"github.com/MeKo-Christian/algofft/internal/cpu"
-	"github.com/MeKo-Christian/algofft/internal/fft"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/fft"
 )
 
 // Plan is a pre-computed FFT plan for a specific size and precision.

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/MeKo-Christian/algofft//internal/reference"
-	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft//internal/reference"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
 
 func TestNEONComplex64_CorrectnessVsReference(t *testing.T) {

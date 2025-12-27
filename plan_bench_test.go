@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/MeKo-Christian/algofft/internal/reference"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 // Forward FFT benchmarks for various sizes.

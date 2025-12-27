@@ -4,7 +4,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
 
 // CodeletFunc is a kernel function for a specific fixed size.

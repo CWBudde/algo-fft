@@ -3,7 +3,7 @@ package fft
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
 
 func TestCodeletRegistryLookup(t *testing.T) {

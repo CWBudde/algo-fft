@@ -1,7 +1,7 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
 
 // Kernel reports whether it handled the transform.

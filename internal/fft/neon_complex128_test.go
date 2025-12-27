@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/MeKo-Christian/algofft/internal/reference"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 func TestNEONComplex128_AsmPath(t *testing.T) {

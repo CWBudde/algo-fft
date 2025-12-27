@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MeKo-Christian/algofft"
-	"github.com/MeKo-Christian/algofft/internal/cpu"
-	"github.com/MeKo-Christian/algofft/internal/fft"
+	"github.com/MeKo-Christian/algo-fft"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/fft"
 )
 
 const modeInverse = "inverse"

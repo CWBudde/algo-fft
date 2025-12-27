@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/MeKo-Christian/algofft"
+	"github.com/MeKo-Christian/algo-fft"
 )
 
 func main() {

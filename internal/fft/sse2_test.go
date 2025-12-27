@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
 
 // getSSE2Kernels returns the SSE2 kernels if available.
