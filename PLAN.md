@@ -626,6 +626,66 @@ Hints:
 - Achieve 2-3x speedup over pure-Go complex128 DIT
 - Maintain higher precision (< 1e-12 error)
 
+### 14.5 Size-Specific Fully Unrolled AVX2 Kernels
+
+**Motivation:** Combine the benefits of size-specific unrolling (like `dit_small.go`) with SIMD vectorization for maximum performance on critical sizes.
+
+**Prerequisite:** 14.1 and 14.4 must be complete
+
+**Approach:** Create fully unrolled AVX2 kernels for common small sizes (16, 32, 64, 128) that eliminate all loop overhead and hardcode stage counts.
+
+- [ ] **14.5.1 Design size-specific dispatch mechanism**
+  - [ ] Add dispatch layer in `kernels_amd64_asm.go` that routes by size
+  - [ ] Define function signatures for size-specific kernels
+  - [ ] Create fallback chain: size-specific SIMD → generic SIMD → pure-Go
+  - [ ] Add benchmarks to measure improvement vs generic AVX2
+
+- [ ] **14.5.2 Implement AVX2 Size-16 kernel (complex64)**
+  - [ ] Create `forwardAVX2Size16Complex64Asm` in `asm_amd64.s`
+  - [ ] Fully unroll 4 FFT stages (size=2, 4, 8, 16)
+  - [ ] Hardcode bit-reversal indices (no loop)
+  - [ ] Hardcode twiddle indices for each stage
+  - [ ] Vectorize butterflies using AVX2 (4 complex64 per YMM)
+  - [ ] Test correctness vs reference and generic AVX2
+  - [ ] Benchmark speedup (expect 10-20% over generic AVX2)
+
+- [ ] **14.5.3 Implement AVX2 Size-32 kernel (complex64)**
+  - [ ] Create `forwardAVX2Size32Complex64Asm`
+  - [ ] Fully unroll 5 FFT stages
+  - [ ] Optimize for L1 cache locality (all data fits in 256 bytes)
+  - [ ] Test and benchmark
+
+- [ ] **14.5.4 Implement AVX2 Size-64 kernel (complex64)**
+  - [ ] Create `forwardAVX2Size64Complex64Asm`
+  - [ ] Fully unroll 6 FFT stages
+  - [ ] Consider radix-4 decomposition to limit code size
+  - [ ] Test and benchmark
+
+- [ ] **14.5.5 Implement AVX2 Size-128 kernel (complex64)**
+  - [ ] Create `forwardAVX2Size128Complex64Asm`
+  - [ ] Fully unroll 7 FFT stages or use radix-4
+  - [ ] Balance code size (~500-1000 lines) vs performance
+  - [ ] Test and benchmark
+
+- [ ] **14.5.6 Add inverse transform variants**
+  - [ ] Implement inverse versions for sizes 16, 32, 64, 128
+  - [ ] Conjugate twiddles and add 1/n scaling
+  - [ ] Test round-trip accuracy
+
+- [ ] **14.5.7 Add complex128 size-specific kernels (optional)**
+  - [ ] Implement for sizes 16, 32 (higher priority, smaller code)
+  - [ ] AVX2 processes 2 complex128, so expect ~2x speedup vs pure-Go
+  - [ ] Test and benchmark
+
+**Success Criteria:**
+
+- Size-specific kernels achieve 5-20% speedup over generic AVX2 for sizes 16-128
+- All tests pass with correctness matching generic implementation
+- Code size remains manageable (<1000 lines per size)
+- Dispatch system correctly routes to size-specific kernels when available
+
+**Estimated Effort:** 3-5 days (comparable to `dit_small.go` development)
+
 ---
 
 ## Phase 15: ARM64 NEON Implementation
@@ -942,6 +1002,79 @@ Hints:
 - `/tmp/butterfly_neon_test.go.template` - Test infrastructure template
 - `/tmp/phase15_groundwork_summary.md` - Phase 15 roadmap and resources
 
+### 15.5 Size-Specific Fully Unrolled NEON Kernels
+
+**Motivation:** Mirror the AVX2 size-specific optimization (Phase 14.5) for ARM64 platforms, achieving maximum performance on critical sizes.
+
+**Prerequisite:** 15.2 and 15.3 must be complete
+
+**Approach:** Create fully unrolled NEON kernels for common small sizes (16, 32, 64, 128) that eliminate all loop overhead and hardcode stage counts.
+
+- [ ] **15.5.1 Design size-specific dispatch mechanism**
+  - [ ] Add dispatch layer in `kernels_arm64_asm.go` that routes by size
+  - [ ] Define function signatures for size-specific kernels
+  - [ ] Create fallback chain: size-specific NEON → generic NEON → pure-Go
+  - [ ] Add benchmarks to measure improvement vs generic NEON
+
+- [ ] **15.5.2 Implement NEON Size-16 kernel (complex64)**
+  - [ ] Create `forwardNEONSize16Complex64Asm` in `asm_arm64.s`
+  - [ ] Fully unroll 4 FFT stages (size=2, 4, 8, 16)
+  - [ ] Hardcode bit-reversal indices (no loop)
+  - [ ] Hardcode twiddle indices for each stage
+  - [ ] Vectorize butterflies using NEON (2 complex64 per 128-bit register)
+  - [ ] Test correctness vs reference and generic NEON
+  - [ ] Benchmark speedup (expect 10-20% over generic NEON)
+
+- [ ] **15.5.3 Implement NEON Size-32 kernel (complex64)**
+  - [ ] Create `forwardNEONSize32Complex64Asm`
+  - [ ] Fully unroll 5 FFT stages
+  - [ ] Optimize for ARM L1 cache locality
+  - [ ] Test and benchmark on real ARM64 hardware
+
+- [ ] **15.5.4 Implement NEON Size-64 kernel (complex64)**
+  - [ ] Create `forwardNEONSize64Complex64Asm`
+  - [ ] Fully unroll 6 FFT stages
+  - [ ] Consider radix-4 decomposition to limit code size
+  - [ ] Test and benchmark
+
+- [ ] **15.5.5 Implement NEON Size-128 kernel (complex64)**
+  - [ ] Create `forwardNEONSize128Complex64Asm`
+  - [ ] Fully unroll 7 FFT stages or use radix-4
+  - [ ] Balance code size (~500-1000 lines) vs performance
+  - [ ] Test and benchmark
+
+- [ ] **15.5.6 Add inverse transform variants**
+  - [ ] Implement inverse versions for sizes 16, 32, 64, 128
+  - [ ] Conjugate twiddles and add 1/n scaling
+  - [ ] Test round-trip accuracy
+
+- [ ] **15.5.7 Add complex128 size-specific kernels (optional)**
+  - [ ] Implement for sizes 16, 32 (higher priority)
+  - [ ] NEON processes 1 complex128 per register (128-bit = 2 float64)
+  - [ ] Test and benchmark on ARM64
+
+- [ ] **15.5.8 Cross-architecture validation**
+  - [ ] Ensure NEON size-specific kernels produce identical results to AVX2 equivalents
+  - [ ] Compare performance characteristics across architectures
+  - [ ] Document ARM-specific optimizations vs x86
+
+**Success Criteria:**
+
+- Size-specific kernels achieve 5-20% speedup over generic NEON for sizes 16-128
+- All tests pass with correctness matching generic implementation
+- Results are bit-identical to AVX2 size-specific kernels (when compared on same precision)
+- Code size remains manageable (<1000 lines per size)
+- Dispatch system correctly routes to size-specific kernels when available
+
+**Estimated Effort:** 3-5 days (comparable to AVX2 size-specific kernels, Phase 14.5)
+
+**Architecture Notes:**
+
+- NEON 128-bit registers (vs AVX2 256-bit) means processing 2 complex64 instead of 4
+- Expect slightly different unrolling patterns due to register width
+- ARM cores may have different cache characteristics than x86
+- Test on multiple ARM cores (Cortex-A series, Apple Silicon, Graviton) for validation
+
 ---
 
 ## Phase 16: Performance Optimization Pass
@@ -1235,24 +1368,24 @@ This is a reasonable trade-off for supporting arbitrary dimensions.
 
 ### 25.1 Cross-Architecture Testing
 
-- [ ] Set up CI matrix for amd64, arm64, 386
-- [ ] Add WASM to CI test matrix
-- [ ] Test pure-Go fallback on all architectures
-- [ ] Verify SIMD paths produce same results as pure-Go
+- [x] Set up CI matrix for amd64, arm64, 386 (`.github/workflows/test-arch.yaml`)
+- [x] Add WASM to CI test matrix (included in test-arch workflow)
+- [x] Test pure-Go fallback on all architectures (SIMD verification tests)
+- [x] Verify SIMD paths produce same results as pure-Go (`internal/fft/simd_verify_test.go`)
 
 ### 25.2 Numerical Precision Testing
 
-- [ ] Create precision analysis tests
-- [ ] Compare complex64 vs complex128 error accumulation
-- [ ] Test precision for very large FFT sizes
-- [ ] Document precision guarantees
+- [x] Create precision analysis tests (`precision_test.go` - Parseval, error accumulation, known signals)
+- [x] Compare complex64 vs complex128 error accumulation (comparative precision tests)
+- [x] Test precision for very large FFT sizes (up to 262144 tested)
+- [x] Document precision guarantees (`PRECISION.md`)
 
 ### 25.3 Stress Testing
 
-- [ ] Create long-running stress tests
-- [ ] Test memory stability over millions of transforms
-- [ ] Test concurrent usage patterns
-- [ ] Profile for memory leaks
+- [x] Create long-running stress tests (`stress_test.go` - configurable duration via env var)
+- [x] Test memory stability over millions of transforms (1M iteration test with memory sampling)
+- [x] Test concurrent usage patterns (`concurrent_test.go` - shared plans, pooled plans, mixed operations)
+- [x] Profile for memory leaks (`scripts/profile_memory.sh` with automated analysis)
 
 ---
 

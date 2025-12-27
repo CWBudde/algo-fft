@@ -91,5 +91,32 @@ test-all: test test-arm64
 check-all: check test-arm64
     @echo "All checks passed on amd64 and arm64"
 
+# Run SIMD verification tests
+test-simd-verify:
+    go test -v -run=TestSIMD ./internal/fft
+    go test -v -run=TestAVX2 ./internal/fft
+    go test -v -run=TestNEON ./internal/fft
+
+# Run architecture-specific tests locally
+test-arch:
+    @echo "Running architecture-specific tests..."
+    go test -v -count=1 ./...
+    @echo "Verifying SIMD implementations..."
+    $(MAKE) test-simd-verify
+
+# Run stress tests (long-running, skip in short mode)
+test-stress:
+    go test -v -timeout=30m -run=Stress ./...
+
+# Profile memory usage
+profile-mem:
+    go test -run=Stress -memprofile=mem.prof -timeout=30m ./...
+    go tool pprof -http=:8080 mem.prof
+
+# Profile CPU usage
+profile-cpu:
+    go test -run=Bench -cpuprofile=cpu.prof -bench=. ./...
+    go tool pprof -http=:8080 cpu.prof
+
 # Default target
 default: build
