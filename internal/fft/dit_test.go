@@ -6,10 +6,10 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
-func TestDITSmallForwardMatchesReferenceComplex64(t *testing.T) {
+func TestDITForwardMatchesReferenceComplex64(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{8, 16, 32, 64, 128} {
+	for _, n := range []int{8, 16, 32, 64, 128, 256} {
 		src := randomComplex64(n, 0xD17D17+uint64(n))
 		dst := make([]complex64, n)
 		scratch := make([]complex64, n)
@@ -25,10 +25,10 @@ func TestDITSmallForwardMatchesReferenceComplex64(t *testing.T) {
 	}
 }
 
-func TestDITSmallInverseMatchesReferenceComplex64(t *testing.T) {
+func TestDITInverseMatchesReferenceComplex64(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{8, 16, 32, 64, 128} {
+	for _, n := range []int{8, 16, 32, 64, 128, 256} {
 		src := randomComplex64(n, 0x1A2B3C+uint64(n))
 		fwd := make([]complex64, n)
 		dst := make([]complex64, n)
@@ -49,10 +49,10 @@ func TestDITSmallInverseMatchesReferenceComplex64(t *testing.T) {
 	}
 }
 
-func TestDITSmallForwardMatchesReferenceComplex128(t *testing.T) {
+func TestDITForwardMatchesReferenceComplex128(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{8, 16, 32, 64, 128} {
+	for _, n := range []int{8, 16, 32, 64, 128, 256} {
 		src := randomComplex128(n, 0xC0FFEE+uint64(n))
 		dst := make([]complex128, n)
 		scratch := make([]complex128, n)
@@ -68,10 +68,10 @@ func TestDITSmallForwardMatchesReferenceComplex128(t *testing.T) {
 	}
 }
 
-func TestDITSmallInverseMatchesReferenceComplex128(t *testing.T) {
+func TestDITInverseMatchesReferenceComplex128(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{8, 16, 32, 64, 128} {
+	for _, n := range []int{8, 16, 32, 64, 128, 256} {
 		src := randomComplex128(n, 0xF00DBA+uint64(n))
 		fwd := make([]complex128, n)
 		dst := make([]complex128, n)

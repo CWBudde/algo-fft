@@ -6,14 +6,10 @@
 //
 // This file provides SSE2-based scalar butterflies for complex64 DIT FFTs.
 // It targets 32-bit x86 with SSE2 support (GOARCH=386).
+//
 // =====================================================================
 
 #include "textflag.h"
-
-DATA ·half32(SB)/4, $0x3F000000 // 0.5f
-GLOBL ·half32(SB), RODATA, $4
-DATA ·one32(SB)/4, $0x3F800000 // 1.0f
-GLOBL ·one32(SB), RODATA, $4
 
 // func forwardSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 TEXT ·forwardSSE2Complex64Asm(SB), NOSPLIT, $36-61
