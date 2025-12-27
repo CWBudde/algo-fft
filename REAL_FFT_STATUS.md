@@ -206,6 +206,7 @@ The current `float32` real FFT is **production-ready** with:
 3. **Benchmark your use case** - use `just bench` to measure performance
 
 Would you like me to:
+
 - Show you example code for your specific use case?
 - Help implement the generic float64 support?
 - Explain any other part of the dispatch system?

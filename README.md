@@ -132,6 +132,7 @@ For real inputs, the spectrum is conjugate-symmetric:
 `X[k] = conj(X[N-k])` for `k = 1..N/2-1`.
 
 **Precision comparison:**
+
 - `float32` → `complex64`: ~7 decimal digits, round-trip error < 1e-6
 - `float64` → `complex128`: ~15 decimal digits, round-trip error < 1e-12
 

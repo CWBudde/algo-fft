@@ -1270,3 +1270,74 @@ i128_return_false:
 	MOVD $0, R0
 	MOVB R0, ret+120(FP)
 	RET
+
+// ===========================================================================
+// Size-Specific NEON Kernels (Stubs)
+// ===========================================================================
+//
+// These are placeholder stubs that return false to trigger fallback to the
+// generic NEON kernels. They will be replaced with fully unrolled size-specific
+// implementations in subsequent phases (15.5.2-5).
+//
+// Architecture notes for future implementation:
+// - NEON 128-bit registers hold 2 complex64 (vs AVX2's 4 complex64)
+// - Size-16: 4 stages, 8 butterflies, 32 complex multiplies
+// - Size-32: 5 stages, 16 butterflies, 80 complex multiplies
+// - Size-64: 6 stages, 32 butterflies, 192 complex multiplies
+// - Size-128: 7 stages, 64 butterflies, 448 complex multiplies
+
+// ===========================================================================
+// Forward Size-Specific Kernels (complex64)
+// ===========================================================================
+
+// forwardNEONSize16Complex64Asm - Size-16 forward FFT (stub)
+TEXT ·forwardNEONSize16Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+// forwardNEONSize32Complex64Asm - Size-32 forward FFT (stub)
+TEXT ·forwardNEONSize32Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+// forwardNEONSize64Complex64Asm - Size-64 forward FFT (stub)
+TEXT ·forwardNEONSize64Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+// forwardNEONSize128Complex64Asm - Size-128 forward FFT (stub)
+TEXT ·forwardNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+// ===========================================================================
+// Inverse Size-Specific Kernels (complex64)
+// ===========================================================================
+
+// inverseNEONSize16Complex64Asm - Size-16 inverse FFT (stub)
+TEXT ·inverseNEONSize16Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+// inverseNEONSize32Complex64Asm - Size-32 inverse FFT (stub)
+TEXT ·inverseNEONSize32Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+// inverseNEONSize64Complex64Asm - Size-64 inverse FFT (stub)
+TEXT ·inverseNEONSize64Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+// inverseNEONSize128Complex64Asm - Size-128 inverse FFT (stub)
+TEXT ·inverseNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET

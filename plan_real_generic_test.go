@@ -103,7 +103,7 @@ func TestPlanReal64_vsFloat32_Precision(t *testing.T) {
 	input32 := make([]float32, n)
 	input64 := make([]float64, n)
 	for i := range n {
-		val := math.Sin(2*math.Pi*float64(i)/float64(n)*17) // 17 cycles
+		val := math.Sin(2 * math.Pi * float64(i) / float64(n) * 17) // 17 cycles
 		input32[i] = float32(val)
 		input64[i] = val
 	}

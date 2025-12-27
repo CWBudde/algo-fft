@@ -13,11 +13,13 @@
 ### 1. Generic Type System
 
 **Files created:**
+
 - `plan_real_generic.go` - Generic `PlanRealT[F Float, C Complex]` type
 - `plan_real_constructors.go` - Convenience constructors
 - `plan_real_generic_test.go` - Comprehensive test suite
 
 **Type constraint:**
+
 ```go
 type Float interface {
     float32 | float64
@@ -27,6 +29,7 @@ type Float interface {
 ### 2. API Surface
 
 **New constructors:**
+
 ```go
 // Generic (type-safe)
 NewPlanRealT[F Float, C Complex](n int) (*PlanRealT[F, C], error)
@@ -42,6 +45,7 @@ NewPlanReal64WithOptions(n int, opts PlanOptions)
 ```
 
 **Backward compatibility:**
+
 - Existing `NewPlanReal(n)` continues to work (unchanged)
 - Old `PlanReal` type remains for compatibility
 - Zero breaking changes
@@ -49,16 +53,19 @@ NewPlanReal64WithOptions(n int, opts PlanOptions)
 ### 3. Implementation Details
 
 **Pack/Unpack Method:**
+
 - Treats N real samples as N/2 complex values
 - Performs N/2 complex FFT (reuses existing complex FFT infrastructure)
 - Unpacks to N/2+1 half-spectrum bins (exploits conjugate symmetry)
 
 **Type dispatch:**
+
 - Generic code compiled separately for each type instantiation
 - No runtime overhead (monomorphic instantiation)
 - Type-specific weight computation at full precision
 
 **Precision:**
+
 - `float32`: Weights computed at float64 then downcast
 - `float64`: Weights computed at full float64 precision
 - Tighter tolerances for float64 (1e-12 vs 1e-4 for spectrum validation)
@@ -106,11 +113,13 @@ NewPlanReal64WithOptions(n int, opts PlanOptions)
 ### 5. Documentation
 
 **Updated files:**
+
 - `README.md` - Added float64 examples and precision comparison
 - `PLAN.md` - Marked Phase 11.4 complete with results
 - `examples/real_fft_float64/main.go` - Working example
 
 **Example output:**
+
 ```
 Created plan: size=4096, spectrum length=2049
 
@@ -132,20 +141,24 @@ Precision comparison:
 ## Performance Characteristics
 
 ### Memory Allocation
+
 - **Plan creation:** ~O(N) for twiddles, weights, scratch buffers
 - **Transform execution:** 0 allocations (verified)
 
 ### Computational Complexity
+
 - **Forward:** O(N log N/2) = O(N log N)
 - **Inverse:** O(N log N/2) = O(N log N)
 - **Space:** O(N) auxiliary memory (pre-allocated)
 
 ### SIMD Acceleration
+
 - Reuses existing complex FFT kernels
 - On AVX2: 4 complex64 or 2 complex128 per YMM register
 - On NEON: 2 complex64 or 1 complex128 per 128-bit register
 
 ### Expected Throughput (4096 samples, AVX2)
+
 - float32: ~400-500 MB/s
 - float64: ~200-300 MB/s (half the SIMD width)
 
@@ -187,12 +200,14 @@ plan, err := algofft.NewPlanRealT[float64, complex128](4096)
 ### Choosing Precision
 
 **Use float32 when:**
+
 - Performance is critical
 - Memory is limited
 - ~7 decimal digits is sufficient
 - Audio processing at standard sample rates
 
 **Use float64 when:**
+
 - Numerical accuracy is paramount
 - Scientific computing
 - High-precision measurements
@@ -331,6 +346,7 @@ The dramatic precision improvement comes from:
 **Phase 11.4 is complete and production-ready!** 🎉
 
 The generic Real FFT API provides:
+
 - ✅ Full float64 precision support
 - ✅ 100% backward compatibility
 - ✅ Zero runtime overhead
