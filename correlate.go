@@ -1,4 +1,4 @@
-package algoforge
+package algofft
 
 // Correlate computes the full cross-correlation of a and b.
 // The dst slice must have length len(a)+len(b)-1.

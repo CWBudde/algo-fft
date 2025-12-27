@@ -1,6 +1,6 @@
 # internal/asm
 
-This directory contains **assembly infrastructure** and contribution guidelines for `algoforge`.
+This directory contains **assembly infrastructure** and contribution guidelines for `algofft`.
 
 ## Build tags
 

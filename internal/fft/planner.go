@@ -1,7 +1,7 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algoforge/internal/cpu"
+	"github.com/MeKo-Christian/algofft/internal/cpu"
 )
 
 // WisdomStore interface for dependency injection from root package.

@@ -3,7 +3,7 @@ package fft
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algoforge/internal/reference"
+	"github.com/MeKo-Christian/algofft/internal/reference"
 )
 
 func TestRadix3ForwardMatchesReferenceComplex64(t *testing.T) {

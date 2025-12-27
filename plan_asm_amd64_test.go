@@ -1,6 +1,6 @@
 //go:build amd64 && fft_asm
 
-package algoforge
+package algofft
 
 import "testing"
 

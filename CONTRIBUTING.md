@@ -1,6 +1,6 @@
-# Contributing to algoforge
+# Contributing to algofft
 
-We welcome contributions to the algoforge project! This document provides guidelines for contributing.
+We welcome contributions to the algofft project! This document provides guidelines for contributing.
 
 ## Code of Conduct
 
@@ -131,4 +131,4 @@ When implementing FFT algorithms:
 - Start a discussion for feature requests
 - Reference existing documentation when possible
 
-Thank you for contributing to algoforge!
+Thank you for contributing to algofft!

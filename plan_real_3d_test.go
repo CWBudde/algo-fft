@@ -1,10 +1,10 @@
-package algoforge
+package algofft
 
 import (
 	"math/rand"
 	"testing"
 
-	"github.com/MeKo-Christian/algoforge/internal/reference"
+	"github.com/MeKo-Christian/algofft/internal/reference"
 )
 
 // TestPlanReal3D_BasicSizes tests 3D real FFT correctness for small sizes against naive DFT.

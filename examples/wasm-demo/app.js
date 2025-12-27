@@ -46,7 +46,8 @@
 
   function updateValue(key, value) {
     if (!valueByKey[key]) return;
-    valueByKey[key].textContent = typeof value === "number" ? value.toString() : value;
+    valueByKey[key].textContent =
+      typeof value === "number" ? value.toString() : value;
   }
 
   function setStatus(text, ok = true) {
@@ -171,16 +172,18 @@
   }
 
   function computeFrame() {
-    if (!wasmReady || typeof window.algoforgeFFT !== "function") return;
+    if (!wasmReady || typeof window.algo - fftFFT !== "function") return;
 
-    const result = window.algoforgeFFT({
-      n: state.n,
-      gridSize: state.gridSize,
-      freqA: state.freqA,
-      freqB: state.freqB,
-      noise: state.noise,
-      phase: state.phase,
-    });
+    const result =
+      window.algo -
+      fftFFT({
+        n: state.n,
+        gridSize: state.gridSize,
+        freqA: state.freqA,
+        freqB: state.freqB,
+        noise: state.noise,
+        phase: state.phase,
+      });
 
     if (result && result.error) {
       setStatus(result.error, false);
@@ -249,7 +252,8 @@
   }
 
   function randomize() {
-    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const rand = (min, max) =>
+      Math.floor(Math.random() * (max - min + 1)) + min;
     state.freqA = rand(2, 24);
     state.freqB = rand(18, 96);
     state.noise = Math.round((Math.random() * 0.25 + 0.02) * 100) / 100;
@@ -287,8 +291,11 @@
     }
 
     const go = new Go();
-    const response = await fetch("algoforge.wasm");
-    const result = await WebAssembly.instantiateStreaming(response, go.importObject);
+    const response = await fetch("algofft.wasm");
+    const result = await WebAssembly.instantiateStreaming(
+      response,
+      go.importObject
+    );
     go.run(result.instance);
   }
 

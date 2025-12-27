@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MeKo-Christian/algoforge/internal/cpu"
+	"github.com/MeKo-Christian/algofft/internal/cpu"
 )
 
 // mockWisdomRecorder records wisdom entries for testing.

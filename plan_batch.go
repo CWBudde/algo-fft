@@ -1,4 +1,4 @@
-package algoforge
+package algofft
 
 func resolveBatchStride(size int, opts PlanOptions) (int, int, error) {
 	batch := opts.Batch

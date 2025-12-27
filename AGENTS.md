@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-**algoforge** is a high-performance FFT (Fast Fourier Transform) library for Go, targeting production-ready performance with SIMD acceleration, zero-allocation transforms, and support for both complex64 and complex128 precision.
+**algofft** is a high-performance FFT (Fast Fourier Transform) library for Go, targeting production-ready performance with SIMD acceleration, zero-allocation transforms, and support for both complex64 and complex128 precision.
 
 **Current Status**: Early development (pre-v1.0). API may change before stable release.
 
 ## Project Structure & Module Organization
 
-**Public API (`/`)**: The root package `algoforge` exposes the user-facing API:
+**Public API (`/`)**: The root package `algofft` exposes the user-facing API:
 
 - `Plan[T Complex]`: Generic FFT plan supporting complex64 and complex128
 - `NewPlanT[T]()`, `NewPlan()`, `NewPlan32()`, `NewPlan64()`: Plan constructors

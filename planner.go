@@ -1,6 +1,6 @@
-package algoforge
+package algofft
 
-import "github.com/MeKo-Christian/algoforge/internal/cpu"
+import "github.com/MeKo-Christian/algofft/internal/cpu"
 
 // Planner builds plans with explicit options.
 type Planner struct {

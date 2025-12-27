@@ -1,10 +1,10 @@
-package algoforge
+package algofft
 
 import (
 	"fmt"
 
-	"github.com/MeKo-Christian/algoforge/internal/cpu"
-	"github.com/MeKo-Christian/algoforge/internal/fft"
+	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algofft/internal/fft"
 )
 
 // Plan3D is a pre-computed 3D FFT plan for a specific volume size and precision.

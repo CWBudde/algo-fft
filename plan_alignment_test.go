@@ -1,10 +1,10 @@
-package algoforge
+package algofft
 
 import (
 	"testing"
 	"unsafe"
 
-	"github.com/MeKo-Christian/algoforge/internal/fft"
+	"github.com/MeKo-Christian/algofft/internal/fft"
 )
 
 func TestPlanAlignmentComplex64(t *testing.T) {

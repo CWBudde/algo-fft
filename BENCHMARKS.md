@@ -1,6 +1,6 @@
 # Benchmarks
 
-This file tracks baseline benchmark results for `algoforge`. Results are
+This file tracks baseline benchmark results for `algofft`. Results are
 hardware- and Go-version-specific.
 
 ## How to Update

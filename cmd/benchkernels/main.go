@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MeKo-Christian/algoforge"
-	"github.com/MeKo-Christian/algoforge/internal/cpu"
-	"github.com/MeKo-Christian/algoforge/internal/fft"
+	"github.com/MeKo-Christian/algofft"
+	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algofft/internal/fft"
 )
 
 const modeInverse = "inverse"
 
 type benchResult struct {
 	size     int
-	strategy algoforge.KernelStrategy
+	strategy algofft.KernelStrategy
 	nsPerOp  float64
 }
 
@@ -42,8 +42,8 @@ func main() {
 
 	rnd := rand.New(rand.NewSource(*seed))
 
-	algoforge.SetKernelStrategy(algoforge.KernelAuto)
-	defer algoforge.SetKernelStrategy(algoforge.KernelAuto)
+	algofft.SetKernelStrategy(algofft.KernelAuto)
+	defer algofft.SetKernelStrategy(algofft.KernelAuto)
 
 	fmt.Printf("iters=%d warmup=%d\n", *iters, *warmup)
 	fmt.Printf("%8s  %10s  %12s  %12s\n", "size", "mode", "kernel", "ns/op")
@@ -73,7 +73,7 @@ func main() {
 				bestResults = append(bestResults, best)
 
 				if *emit {
-					fmt.Printf("algoforge.RecordBenchmarkDecision(%d, algoforge.%s)\n", n, strategyConst(best.strategy))
+					fmt.Printf("algofft.RecordBenchmarkDecision(%d, algofft.%s)\n", n, strategyConst(best.strategy))
 				}
 			}
 		}
@@ -99,19 +99,19 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 	dst := make([]complex64, n)
 	freq := make([]complex64, n)
 
-	strategies := []algoforge.KernelStrategy{
-		algoforge.KernelDIT,
-		algoforge.KernelStockham,
-		algoforge.KernelSixStep,
-		algoforge.KernelEightStep,
+	strategies := []algofft.KernelStrategy{
+		algofft.KernelDIT,
+		algofft.KernelStockham,
+		algofft.KernelSixStep,
+		algofft.KernelEightStep,
 	}
 
 	results := make([]benchResult, 0, len(strategies))
 
 	for _, strategy := range strategies {
-		algoforge.SetKernelStrategy(strategy)
+		algofft.SetKernelStrategy(strategy)
 
-		plan, err := algoforge.NewPlanT[complex64](n)
+		plan, err := algofft.NewPlanT[complex64](n)
 		if err != nil {
 			continue
 		}
@@ -161,12 +161,12 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 		})
 	}
 
-	algoforge.SetKernelStrategy(algoforge.KernelAuto)
+	algofft.SetKernelStrategy(algofft.KernelAuto)
 
 	return results
 }
 
-func runPlanMode(plan *algoforge.Plan[complex64], dst, src, freq []complex64, mode string) error {
+func runPlanMode(plan *algofft.Plan[complex64], dst, src, freq []complex64, mode string) error {
 	switch mode {
 	case modeInverse:
 		return plan.Inverse(dst, freq)
@@ -216,30 +216,30 @@ func parseSizes(list string) []int {
 	return out
 }
 
-func strategyName(strategy algoforge.KernelStrategy) string {
+func strategyName(strategy algofft.KernelStrategy) string {
 	switch strategy {
-	case algoforge.KernelDIT:
+	case algofft.KernelDIT:
 		return "DIT"
-	case algoforge.KernelStockham:
+	case algofft.KernelStockham:
 		return "Stockham"
-	case algoforge.KernelSixStep:
+	case algofft.KernelSixStep:
 		return "SixStep"
-	case algoforge.KernelEightStep:
+	case algofft.KernelEightStep:
 		return "EightStep"
 	default:
 		return "Auto"
 	}
 }
 
-func strategyConst(strategy algoforge.KernelStrategy) string {
+func strategyConst(strategy algofft.KernelStrategy) string {
 	switch strategy {
-	case algoforge.KernelDIT:
+	case algofft.KernelDIT:
 		return "KernelDIT"
-	case algoforge.KernelStockham:
+	case algofft.KernelStockham:
 		return "KernelStockham"
-	case algoforge.KernelSixStep:
+	case algofft.KernelSixStep:
 		return "KernelSixStep"
-	case algoforge.KernelEightStep:
+	case algofft.KernelEightStep:
 		return "KernelEightStep"
 	default:
 		return "KernelAuto"
@@ -270,20 +270,20 @@ func exportWisdom(filename string, results []benchResult) error {
 		wisdom.Store(entry)
 	}
 
-	// Use internal wisdom directly since algoforge.Wisdom is a type alias
-	return algoforge.ExportWisdomTo(filename, wisdom)
+	// Use internal wisdom directly since algofft.Wisdom is a type alias
+	return algofft.ExportWisdomTo(filename, wisdom)
 }
 
 // strategyToAlgorithmName converts strategy to the algorithm name used in wisdom files.
-func strategyToAlgorithmName(strategy algoforge.KernelStrategy) string {
+func strategyToAlgorithmName(strategy algofft.KernelStrategy) string {
 	switch strategy {
-	case algoforge.KernelDIT:
+	case algofft.KernelDIT:
 		return "dit_fallback"
-	case algoforge.KernelStockham:
+	case algofft.KernelStockham:
 		return "stockham"
-	case algoforge.KernelSixStep:
+	case algofft.KernelSixStep:
 		return "sixstep"
-	case algoforge.KernelEightStep:
+	case algofft.KernelEightStep:
 		return "eightstep"
 	default:
 		return "unknown"

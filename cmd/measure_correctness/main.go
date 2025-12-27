@@ -5,8 +5,8 @@ import (
 	"math/cmplx"
 	"math/rand"
 
-	"github.com/MeKo-Christian/algoforge"
-	"github.com/MeKo-Christian/algoforge/internal/reference"
+	"github.com/MeKo-Christian/algofft"
+	"github.com/MeKo-Christian/algofft/internal/reference"
 )
 
 func main() {
@@ -28,7 +28,7 @@ func main() {
 }
 
 func measureMaxError32(n, trials int) float64 {
-	plan, err := algoforge.NewPlan(n)
+	plan, err := algofft.NewPlan(n)
 	if err != nil {
 		panic(err)
 	}
@@ -43,7 +43,7 @@ func measureMaxError32(n, trials int) float64 {
 			src[i] = complex(rng.Float32()*2-1, rng.Float32()*2-1)
 		}
 
-		// Compute FFT using algoforge
+		// Compute FFT using algofft
 		got := make([]complex64, n)
 		if err := plan.Forward(got, src); err != nil {
 			panic(err)
@@ -70,7 +70,7 @@ func measureMaxError32(n, trials int) float64 {
 }
 
 func measureMaxError64(n, trials int) float64 {
-	plan, err := algoforge.NewPlan64(n)
+	plan, err := algofft.NewPlan64(n)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +85,7 @@ func measureMaxError64(n, trials int) float64 {
 			src[i] = complex(rng.Float64()*2-1, rng.Float64()*2-1)
 		}
 
-		// Compute FFT using algoforge
+		// Compute FFT using algofft
 		got := make([]complex128, n)
 		if err := plan.Forward(got, src); err != nil {
 			panic(err)

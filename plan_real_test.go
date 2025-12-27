@@ -1,4 +1,4 @@
-package algoforge
+package algofft
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/MeKo-Christian/algoforge/internal/reference"
+	"github.com/MeKo-Christian/algofft/internal/reference"
 )
 
 func TestPlanRealForwardImpulse(t *testing.T) {

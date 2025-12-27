@@ -1,9 +1,9 @@
-package algoforge
+package algofft
 
 import (
 	"fmt"
 
-	"github.com/MeKo-Christian/algoforge/internal/fft"
+	"github.com/MeKo-Christian/algofft/internal/fft"
 )
 
 // PlanReal3D is a pre-computed 3D real FFT plan for float32 input volumes.

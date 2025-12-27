@@ -1,9 +1,9 @@
-package algoforge
+package algofft
 
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algoforge/internal/reference"
+	"github.com/MeKo-Christian/algofft/internal/reference"
 )
 
 func TestForwardMatchesReferenceSmall(t *testing.T) {

@@ -6,7 +6,7 @@ This directory contains standalone tools for benchmarking and testing. Each tool
 
 ### bench_compare
 
-Compares algoforge FFT performance against gonum's implementation.
+Compares algofft FFT performance against gonum's implementation.
 
 ```bash
 go run ./cmd/bench_compare/main.go

@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/MeKo-Christian/algoforge/internal/cpu"
+	"github.com/MeKo-Christian/algofft/internal/cpu"
 )
 
 // TestSelectKernels tests the generic kernel selection.

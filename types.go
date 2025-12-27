@@ -1,4 +1,4 @@
-package algoforge
+package algofft
 
 // Complex is a type constraint for complex number types supported by the FFT.
 type Complex interface {

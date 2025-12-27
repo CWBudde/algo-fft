@@ -9,22 +9,22 @@ import (
 	"sync"
 	"syscall/js"
 
-	"github.com/MeKo-Christian/algoforge"
+	"github.com/MeKo-Christian/algofft"
 )
 
 var (
 	planMu    sync.Mutex
-	planCache = map[int]*algoforge.Plan[complex64]{}
+	planCache = map[int]*algofft.Plan[complex64]{}
 	plan2DMu  sync.Mutex
-	plan2D    = map[int]*algoforge.Plan2D[complex64]{}
+	plan2D    = map[int]*algofft.Plan2D[complex64]{}
 	fftFunc   js.Func
 )
 
 func main() {
 	fftFunc = js.FuncOf(jsFFT)
-	js.Global().Set("algoforgeFFT", fftFunc)
+	js.Global().Set("algofftFFT", fftFunc)
 
-	js.Global().Set("algoforgeFFTInfo", js.ValueOf(map[string]any{
+	js.Global().Set("algofftFFTInfo", js.ValueOf(map[string]any{
 		"version": "wasm-demo",
 	}))
 
@@ -124,7 +124,7 @@ func jsFFT(this js.Value, args []js.Value) any {
 	return result
 }
 
-func getPlan(n int) (*algoforge.Plan[complex64], error) {
+func getPlan(n int) (*algofft.Plan[complex64], error) {
 	planMu.Lock()
 	defer planMu.Unlock()
 
@@ -132,7 +132,7 @@ func getPlan(n int) (*algoforge.Plan[complex64], error) {
 		return plan, nil
 	}
 
-	plan, err := algoforge.NewPlan32(n)
+	plan, err := algofft.NewPlan32(n)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func computeGridSpectrum(freqA, freqB, noise, phase float64, size int) ([]float6
 	return mags, nil
 }
 
-func getPlan2D(size int) (*algoforge.Plan2D[complex64], error) {
+func getPlan2D(size int) (*algofft.Plan2D[complex64], error) {
 	plan2DMu.Lock()
 	defer plan2DMu.Unlock()
 
@@ -184,7 +184,7 @@ func getPlan2D(size int) (*algoforge.Plan2D[complex64], error) {
 		return plan, nil
 	}
 
-	plan, err := algoforge.NewPlan2D32(size, size)
+	plan, err := algofft.NewPlan2D32(size, size)
 	if err != nil {
 		return nil, err
 	}

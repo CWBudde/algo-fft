@@ -1,10 +1,10 @@
-package algoforge
+package algofft
 
 import (
 	"fmt"
 
-	"github.com/MeKo-Christian/algoforge/internal/cpu"
-	"github.com/MeKo-Christian/algoforge/internal/fft"
+	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algofft/internal/fft"
 )
 
 // PlanReal2D is a pre-computed 2D real FFT plan for float32 input matrices.

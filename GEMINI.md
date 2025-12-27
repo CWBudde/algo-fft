@@ -1,8 +1,8 @@
-# algoforge Context
+# algofft Context
 
 ## Project Overview
 
-**algoforge** is a high-performance, production-ready Fast Fourier Transform (FFT) library for Go. It aims to provide a comprehensive suite of FFT algorithms with a focus on correctness, speed (via SIMD optimizations), and flexibility.
+**algofft** is a high-performance, production-ready Fast Fourier Transform (FFT) library for Go. It aims to provide a comprehensive suite of FFT algorithms with a focus on correctness, speed (via SIMD optimizations), and flexibility.
 
 **Key Features:**
 
@@ -18,7 +18,7 @@
 
 ## Architecture
 
-- **Public API (`algoforge` package):** Defines the `Plan[T]` structure and user-facing methods (`NewPlan`, `Forward`, `Inverse`, `NewPlanReal`, `NewPlan2D`, etc.).
+- **Public API (`algofft` package):** Defines the `Plan[T]` structure and user-facing methods (`NewPlan`, `Forward`, `Inverse`, `NewPlanReal`, `NewPlan2D`, etc.).
 - **Internal Implementation (`internal/fft`):** Contains the core logic, including:
   - `fft.go`: Twiddle factor computation, bit reversal.
   - `dit.go`, `stockham.go`: Specific FFT kernels.

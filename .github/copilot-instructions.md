@@ -1,6 +1,6 @@
-# algoforge AI Coding Instructions
+# algofft AI Coding Instructions
 
-You are an expert Go developer working on `algoforge`, a high-performance FFT library.
+You are an expert Go developer working on `algofft`, a high-performance FFT library.
 
 ## Big Picture Architecture
 

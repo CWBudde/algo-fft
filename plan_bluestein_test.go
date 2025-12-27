@@ -1,10 +1,10 @@
-package algoforge
+package algofft
 
 import (
 	"math/cmplx"
 	"testing"
 
-	"github.com/MeKo-Christian/algoforge/internal/reference"
+	"github.com/MeKo-Christian/algofft/internal/reference"
 )
 
 func TestNewPlan_Bluestein_EdgeCases(t *testing.T) {

@@ -1,4 +1,4 @@
-package algoforge
+package algofft
 
 // Executor runs transforms with its own workspace.
 // Executors are safe for concurrent use as long as each goroutine

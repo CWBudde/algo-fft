@@ -1,12 +1,12 @@
-# algoforge WASM Demo
+# algofft WASM Demo
 
 This demo renders a synthetic audio waveform and its FFT spectrum using
-algoforge running in WebAssembly.
+algofft running in WebAssembly.
 
 ## Build
 
 ```bash
-GOOS=js GOARCH=wasm go build -o algoforge.wasm .
+GOOS=js GOARCH=wasm go build -o algofft.wasm .
 cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" .
 ```
 

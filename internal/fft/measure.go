@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/MeKo-Christian/algoforge/internal/cpu"
+	"github.com/MeKo-Christian/algofft/internal/cpu"
 )
 
 // PlannerMode controls how much work the planner does to choose kernels.

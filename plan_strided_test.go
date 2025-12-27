@@ -1,4 +1,4 @@
-package algoforge
+package algofft
 
 import (
 	"errors"

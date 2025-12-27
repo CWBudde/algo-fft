@@ -1,8 +1,8 @@
-// Package algoforge provides high-performance Fast Fourier Transform (FFT) implementations.
+// Package algofft provides high-performance Fast Fourier Transform (FFT) implementations.
 //
 // # Overview
 //
-// algoforge is a production-ready FFT library for Go with focus on:
+// algofft is a production-ready FFT library for Go with focus on:
 //   - Correctness through comprehensive testing
 //   - Performance via SIMD optimization across architectures
 //   - Flexibility supporting various transform types and data layouts
@@ -14,23 +14,23 @@
 //
 // Generic constructor (recommended for type-safe code):
 //
-//	plan, err := algoforge.NewPlanT[complex64](1024)
-//	plan128, err := algoforge.NewPlanT[complex128](1024)
+//	plan, err := algofft.NewPlanT[complex64](1024)
+//	plan128, err := algofft.NewPlanT[complex128](1024)
 //
 // Explicit precision constructors:
 //
-//	plan32, err := algoforge.NewPlan32(1024)   // complex64 (single precision)
-//	plan64, err := algoforge.NewPlan64(1024)   // complex128 (double precision)
+//	plan32, err := algofft.NewPlan32(1024)   // complex64 (single precision)
+//	plan64, err := algofft.NewPlan64(1024)   // complex128 (double precision)
 //
 // Convenience alias (defaults to complex64 for best performance):
 //
-//	plan, err := algoforge.NewPlan(1024)  // equivalent to NewPlan32
+//	plan, err := algofft.NewPlan(1024)  // equivalent to NewPlan32
 //
 // # Basic Usage (1D FFT)
 //
 // Create a plan for a specific FFT size, then reuse it for multiple transforms:
 //
-//	plan, err := algoforge.NewPlan(1024)
+//	plan, err := algofft.NewPlan(1024)
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -53,7 +53,7 @@
 //
 // For applications requiring higher precision:
 //
-//	plan64, err := algoforge.NewPlan64(1024)
+//	plan64, err := algofft.NewPlan64(1024)
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -67,7 +67,7 @@
 //
 // Or using the generic constructor:
 //
-//	plan, err := algoforge.NewPlanT[complex128](1024)
+//	plan, err := algofft.NewPlanT[complex128](1024)
 //
 // Use complex128 when:
 //   - Accumulating many transforms (error compounds less)
@@ -78,7 +78,7 @@
 //
 // For real-valued input signals, use PlanReal for ~2x performance improvement:
 //
-//	planReal, err := algoforge.NewPlanReal(1024)
+//	planReal, err := algofft.NewPlanReal(1024)
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -111,7 +111,7 @@
 // For image processing and 2D signal analysis, use Plan2D:
 //
 //	// Create a 256×256 2D FFT plan (complex64 precision)
-//	plan2D, err := algoforge.NewPlan2D[complex64](256, 256) // rows, cols
+//	plan2D, err := algofft.NewPlan2D[complex64](256, 256) // rows, cols
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -131,12 +131,12 @@
 //
 // Convenience constructors for type inference:
 //
-//	plan32, _ := algoforge.NewPlan2D32(256, 256)     // complex64
-//	plan64, _ := algoforge.NewPlan2D64(256, 256)     // complex128
+//	plan32, _ := algofft.NewPlan2D32(256, 256)     // complex64
+//	plan64, _ := algofft.NewPlan2D64(256, 256)     // complex128
 //
 // Non-square matrices are fully supported:
 //
-//	planRect, err := algoforge.NewPlan2D[complex64](128, 512) // 128 rows, 512 cols
+//	planRect, err := algofft.NewPlan2D[complex64](128, 512) // 128 rows, 512 cols
 //
 // The 2D FFT uses row-column decomposition: rows are transformed first,
 // then columns. Square matrices use an optimized transpose-based algorithm
@@ -146,7 +146,7 @@
 //
 // For volumetric data (medical imaging, fluid dynamics):
 //
-//	plan3D, err := algoforge.NewPlan3D(64, 64, 64) // depth, rows, cols
+//	plan3D, err := algofft.NewPlan3D(64, 64, 64) // depth, rows, cols
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -164,7 +164,7 @@
 // For arbitrary dimensions (4D, 5D, etc.):
 //
 //	dims := []int{8, 16, 32, 64} // 4D: 8x16x32x64
-//	planND, err := algoforge.NewPlanND(dims)
+//	planND, err := algofft.NewPlanND(dims)
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -181,7 +181,7 @@
 //
 // Process multiple signals of the same length efficiently:
 //
-//	plan, _ := algoforge.NewPlan(256)
+//	plan, _ := algofft.NewPlan(256)
 //
 //	// 100 signals, each 256 samples, stored sequentially
 //	count := 100
@@ -199,7 +199,7 @@
 //
 // Transform non-contiguous data (e.g., matrix columns):
 //
-//	plan, _ := algoforge.NewPlan(128)
+//	plan, _ := algofft.NewPlan(128)
 //
 //	// 128x256 matrix in row-major order
 //	matrix := make([]complex64, 128*256)
@@ -219,7 +219,7 @@
 //	b := make([]complex64, 500)
 //	result := make([]complex64, len(a)+len(b)-1) // 1499 samples
 //
-//	if err := algoforge.Convolve(result, a, b); err != nil {
+//	if err := algofft.Convolve(result, a, b); err != nil {
 //		log.Fatal(err)
 //	}
 //
@@ -229,7 +229,7 @@
 //	kernel := make([]float32, 441)    // 10ms filter kernel
 //	filtered := make([]float32, len(signal)+len(kernel)-1)
 //
-//	if err := algoforge.ConvolveReal(filtered, signal, kernel); err != nil {
+//	if err := algofft.ConvolveReal(filtered, signal, kernel); err != nil {
 //		log.Fatal(err)
 //	}
 //
@@ -238,12 +238,12 @@
 // Cross-correlation and auto-correlation:
 //
 //	// Cross-correlate two signals (find where b occurs in a)
-//	if err := algoforge.Correlate(result, a, b); err != nil {
+//	if err := algofft.Correlate(result, a, b); err != nil {
 //		log.Fatal(err)
 //	}
 //
 //	// Auto-correlation (find periodicity in a signal)
-//	if err := algoforge.AutoCorrelate(result, signal); err != nil {
+//	if err := algofft.AutoCorrelate(result, signal); err != nil {
 //		log.Fatal(err)
 //	}
 //
@@ -260,22 +260,22 @@
 // Basic wisdom usage:
 //
 //	// Plans automatically use wisdom (if available)
-//	plan, err := algoforge.NewPlan(1024)
+//	plan, err := algofft.NewPlan(1024)
 //
 //	// Export wisdom to a file
-//	if err := algoforge.ExportWisdom("fft_wisdom.txt"); err != nil {
+//	if err := algofft.ExportWisdom("fft_wisdom.txt"); err != nil {
 //		log.Fatal(err)
 //	}
 //
 //	// Import wisdom in a future run
-//	if err := algoforge.ImportWisdom("fft_wisdom.txt"); err != nil {
+//	if err := algofft.ImportWisdom("fft_wisdom.txt"); err != nil {
 //		log.Fatal(err)
 //	}
 //
 //	// Or embed wisdom in your binary
 //	const wisdom = `64:0:3:dit64_avx2:1234567890
 //	128:0:3:dit128_avx2:1234567890`
-//	if err := algoforge.ImportWisdomFromString(wisdom); err != nil {
+//	if err := algofft.ImportWisdomFromString(wisdom); err != nil {
 //		log.Fatal(err)
 //	}
 //
@@ -285,10 +285,10 @@
 // Wisdom management:
 //
 //	// Clear all wisdom entries
-//	algoforge.ClearWisdom()
+//	algofft.ClearWisdom()
 //
 //	// Check how many wisdom entries are loaded
-//	count := algoforge.WisdomLen()
+//	count := algofft.WisdomLen()
 //
 // # Transform Types Summary
 //
@@ -359,4 +359,4 @@
 //   - examples/audio/: Audio spectrum analysis
 //   - examples/image/: 2D FFT for image processing
 //   - examples/benchmark/: Performance comparison tool
-package algoforge
+package algofft

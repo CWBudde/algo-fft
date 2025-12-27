@@ -1,4 +1,4 @@
-package algoforge
+package algofft
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/MeKo-Christian/algoforge/internal/reference"
+	"github.com/MeKo-Christian/algofft/internal/reference"
 )
 
 // Test helpers

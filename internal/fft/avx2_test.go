@@ -10,8 +10,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/MeKo-Christian/algoforge/internal/cpu"
-	"github.com/MeKo-Christian/algoforge/internal/reference"
+	"github.com/MeKo-Christian/algofft/internal/cpu"
+	"github.com/MeKo-Christian/algofft/internal/reference"
 )
 
 // =============================================================================

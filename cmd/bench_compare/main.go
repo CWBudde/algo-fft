@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/MeKo-Christian/algoforge"
+	"github.com/MeKo-Christian/algofft"
 	"gonum.org/v1/gonum/dsp/fourier"
 )
 
@@ -12,10 +12,10 @@ func main() {
 	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096}
 	iterations := 10000
 
-	fmt.Println("algoforge vs gonum FFT Performance Comparison")
+	fmt.Println("algofft vs gonum FFT Performance Comparison")
 	fmt.Println("==============================================")
 	fmt.Println()
-	fmt.Printf("%-10s %-15s %-15s %-10s\n", "Size", "algoforge", "gonum", "Speedup")
+	fmt.Printf("%-10s %-15s %-15s %-10s\n", "Size", "algofft", "gonum", "Speedup")
 	fmt.Println("----------------------------------------------------------")
 
 	for _, n := range sizes {
@@ -27,20 +27,20 @@ func main() {
 			iters = 100
 		}
 
-		algoforgeTime := benchmarkAlgoforge(n, iters)
+		algofftTime := benchmarkAlgoforge(n, iters)
 		gonumTime := benchmarkGonum(n, iters)
-		speedup := float64(gonumTime) / float64(algoforgeTime)
+		speedup := float64(gonumTime) / float64(algofftTime)
 
 		fmt.Printf("%-10d %-15s %-15s %.2fx\n",
 			n,
-			formatDuration(algoforgeTime),
+			formatDuration(algofftTime),
 			formatDuration(gonumTime),
 			speedup)
 	}
 }
 
 func benchmarkAlgoforge(n, iterations int) time.Duration {
-	plan, err := algoforge.NewPlan(n)
+	plan, err := algofft.NewPlan(n)
 	if err != nil {
 		panic(err)
 	}

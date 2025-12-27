@@ -3,7 +3,7 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algoforge/internal/cpu"
+	"github.com/MeKo-Christian/algofft/internal/cpu"
 )
 
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {

@@ -1,4 +1,4 @@
-package algoforge
+package algofft
 
 // Convolve computes the linear convolution of a and b using FFTs.
 // The dst slice must have length len(a)+len(b)-1.

@@ -1,10 +1,10 @@
-package algoforge
+package algofft
 
 import (
 	"runtime"
 	"testing"
 
-	"github.com/MeKo-Christian/algoforge/internal/reference"
+	"github.com/MeKo-Christian/algofft/internal/reference"
 )
 
 // Forward FFT benchmarks for various sizes.

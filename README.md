@@ -1,14 +1,14 @@
-# algoforge - High-Performance Go FFT Library
+# algofft - High-Performance Go FFT Library
 
-[![Tests](https://github.com/MeKo-Christian/algoforge/actions/workflows/test.yaml/badge.svg)](https://github.com/MeKo-Christian/algoforge/actions/workflows/test.yaml)
-[![codecov](https://codecov.io/gh/MeKo-Christian/algoforge/branch/main/graph/badge.svg)](https://codecov.io/gh/MeKo-Christian/algoforge)
-[![Go Reference](https://pkg.go.dev/badge/github.com/MeKo-Christian/algoforge.svg)](https://pkg.go.dev/github.com/MeKo-Christian/algoforge)
+[![Tests](https://github.com/MeKo-Christian/algo-fft/actions/workflows/test.yaml/badge.svg)](https://github.com/MeKo-Christian/algo-fft/actions/workflows/test.yaml)
+[![codecov](https://codecov.io/gh/MeKo-Christian/algo-fft/branch/main/graph/badge.svg)](https://codecov.io/gh/MeKo-Christian/algofft)
+[![Go Reference](https://pkg.go.dev/badge/github.com/MeKo-Christian/algofft.svg)](https://pkg.go.dev/github.com/MeKo-Christian/algofft)
 
 A new FFT (Fast Fourier Transform) library for Go, designed for high performance, numerical accuracy, and flexibility.
 
 ## Try It Online
 
-Experience algoforge in your browser: **[Interactive FFT Demo](https://meko-christian.github.io/algoforge/)**
+Experience algofft in your browser: **[Interactive FFT Demo](https://meko-christian.github.io/algo-fft/)**
 
 The demo runs the library compiled to WebAssembly, allowing you to visualize FFT transforms in real-time.
 
@@ -46,7 +46,7 @@ The demo runs the library compiled to WebAssembly, allowing you to visualize FFT
 ## Installation
 
 ```bash
-go get github.com/MeKo-Christian/algoforge
+go get github.com/MeKo-Christian/algofft
 ```
 
 ## Quick Start
@@ -56,12 +56,12 @@ package main
 
 import (
     "fmt"
-    "github.com/MeKo-Christian/algoforge"
+    "github.com/MeKo-Christian/algofft"
 )
 
 func main() {
     // Create a plan for FFT of length 8
-    plan, err := algoforge.NewPlan(8)
+    plan, err := algofft.NewPlan(8)
     if err != nil {
         panic(err)
     }
@@ -87,7 +87,7 @@ func main() {
 
 ```go
 // Create a plan
-plan, err := algoforge.NewPlan(n)
+plan, err := algofft.NewPlan(n)
 
 // Forward FFT (out-of-place)
 err = plan.Forward(dst, src)
@@ -104,7 +104,7 @@ err = plan.InverseInPlace(data)
 
 ```go
 // Real-to-complex forward transform
-planReal, err := algoforge.NewPlanReal(n)
+planReal, err := algofft.NewPlanReal(n)
 if err != nil {
     // handle error
 }
@@ -145,18 +145,18 @@ err = plan.ForwardBatch(dst, src, count, stride)
 The wisdom system caches optimal planning decisions for reuse across program runs:
 
 ```go
-import "github.com/MeKo-Christian/algoforge"
+import "github.com/MeKo-Christian/algofft"
 
 // Plans are automatically optimized using built-in wisdom
 
 // Export wisdom to a file for reuse
-err := algoforge.ExportWisdom("fft_wisdom.txt")
+err := algofft.ExportWisdom("fft_wisdom.txt")
 if err != nil {
     // handle error
 }
 
 // Import wisdom in a future run
-err = algoforge.ImportWisdom("fft_wisdom.txt")
+err = algofft.ImportWisdom("fft_wisdom.txt")
 if err != nil {
     // handle error
 }
@@ -164,7 +164,7 @@ if err != nil {
 // Embed wisdom in your binary
 const embeddedWisdom = `64:0:3:dit64_avx2:1234567890
 128:0:3:dit128_avx2:1234567890`
-err = algoforge.ImportWisdomFromString(embeddedWisdom)
+err = algofft.ImportWisdomFromString(embeddedWisdom)
 ```
 
 The wisdom format is text-based and portable across platforms with the same CPU features. Each line contains:
@@ -195,28 +195,28 @@ Benefits:
 
 For detailed performance numbers, see [BENCHMARKS.md](BENCHMARKS.md).
 
-### Performance Comparison: algoforge vs gonum
+### Performance Comparison: algofft vs gonum
 
 The table below shows performance comparison with gonum's FFT implementation for power-of-2 sizes:
 
-| Size | algoforge | gonum     | Speedup |
-| ---- | --------- | --------- | ------- |
-| 8    | 30 ns     | 516 ns    | 17.2x   |
-| 16   | 75 ns     | 994 ns    | 13.3x   |
-| 32   | 207 ns    | 766 ns    | 3.7x    |
-| 64   | 436 ns    | 1.55 µs   | 3.6x    |
-| 128  | 976 ns    | 5.73 µs   | 5.9x    |
-| 256  | 2.98 µs   | 10.11 µs  | 3.4x    |
-| 512  | 5.70 µs   | 17.00 µs  | 3.0x    |
-| 1024 | 14.71 µs  | 38.28 µs  | 2.6x    |
-| 2048 | 30.68 µs  | 93.93 µs  | 3.1x    |
-| 4096 | 95.84 µs  | 310.53 µs | 3.2x    |
+| Size | algofft  | gonum     | Speedup |
+| ---- | -------- | --------- | ------- |
+| 8    | 30 ns    | 516 ns    | 17.2x   |
+| 16   | 75 ns    | 994 ns    | 13.3x   |
+| 32   | 207 ns   | 766 ns    | 3.7x    |
+| 64   | 436 ns   | 1.55 µs   | 3.6x    |
+| 128  | 976 ns   | 5.73 µs   | 5.9x    |
+| 256  | 2.98 µs  | 10.11 µs  | 3.4x    |
+| 512  | 5.70 µs  | 17.00 µs  | 3.0x    |
+| 1024 | 14.71 µs | 38.28 µs  | 2.6x    |
+| 2048 | 30.68 µs | 93.93 µs  | 3.1x    |
+| 4096 | 95.84 µs | 310.53 µs | 3.2x    |
 
 _Benchmarked on Linux/amd64 with AVX2 acceleration_
 
 ## Correctness
 
-algoforge is validated against a reference O(n²) DFT implementation for mathematical correctness. The table below shows maximum relative error across 100 random test vectors per size:
+algofft is validated against a reference O(n²) DFT implementation for mathematical correctness. The table below shows maximum relative error across 100 random test vectors per size:
 
 | Size | complex64 Max Error | complex128 Max Error |
 | ---- | ------------------- | -------------------- |
@@ -294,7 +294,7 @@ Then open `http://localhost:8080/wasm_exec.html` and click "Run".
 
 ### Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to algoforge.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to algofft.
 
 ## Supported Platforms
 

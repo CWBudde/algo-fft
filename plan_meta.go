@@ -1,4 +1,4 @@
-package algoforge
+package algofft
 
 // PlanMeta captures planner decisions for introspection.
 type PlanMeta struct {

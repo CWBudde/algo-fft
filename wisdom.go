@@ -1,10 +1,10 @@
-package algoforge
+package algofft
 
 import (
 	"os"
 	"strings"
 
-	"github.com/MeKo-Christian/algoforge/internal/fft"
+	"github.com/MeKo-Christian/algofft/internal/fft"
 )
 
 // ImportWisdom loads wisdom data from a file.

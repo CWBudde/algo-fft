@@ -1,4 +1,4 @@
-module github.com/MeKo-Christian/algoforge
+module github.com/MeKo-Christian/algofft
 
 go 1.25.0
 

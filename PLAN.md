@@ -1,6 +1,6 @@
-# PLAN.md - algoforge Implementation Roadmap
+# PLAN.md - algofft Implementation Roadmap
 
-A detailed, task-by-task implementation plan for building the **algoforge** Go FFT library.
+A detailed, task-by-task implementation plan for building the **algofft** Go FFT library.
 Each phase is scoped to approximately one day of focused work.
 
 ---
@@ -9,7 +9,7 @@ Each phase is scoped to approximately one day of focused work.
 
 ### 1.1 Repository Initialization
 
-- [x] Initialize Go module (`go mod init github.com/MeKo-Christian/algoforge`)
+- [x] Initialize Go module (`go mod init github.com/MeKo-Christian/algofft`)
 - [x] Create initial directory structure:
   - [x] `/` - root with main package files
   - [x] `/internal/` - internal implementation details
@@ -268,7 +268,7 @@ Each phase is scoped to approximately one day of focused work.
 ### 7.1 Code Organization Refactor
 
 - [x] Move FFT implementation to `internal/fft/` package
-- [x] Create clean separation: `algoforge` (public) → `internal/fft` (implementation)
+- [x] Create clean separation: `algofft` (public) → `internal/fft` (implementation)
 - [x] Define internal interfaces for algorithm strategies
 - [x] Ensure all internal functions are unexported
 - [x] Update imports and fix any circular dependencies
@@ -296,7 +296,7 @@ Each phase is scoped to approximately one day of focused work.
 - [x] Implement `Plan.Clone()` if useful
   - Note: Creates independent copy with own scratch buffer; shares immutable data
 - [x] Review error messages for clarity
-  - Note: All errors prefixed with "algoforge:" and include descriptive text
+  - Note: All errors prefixed with "algofft:" and include descriptive text
 
 ---
 
