@@ -22,6 +22,10 @@ lint-fix:
 fmt:
     treefmt . --allow-missing-formatter
 
+# Check if code is formatted
+fmt-check:
+    treefmt --allow-missing-formatter --fail-on-change
+
 # Generate coverage report
 cover:
     go test -coverprofile=coverage.txt -covermode=atomic ./...

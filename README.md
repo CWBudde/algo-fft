@@ -195,6 +195,43 @@ Benefits:
 
 For detailed performance numbers, see [BENCHMARKS.md](BENCHMARKS.md).
 
+### Performance Comparison: algoforge vs gonum
+
+The table below shows performance comparison with gonum's FFT implementation for power-of-2 sizes:
+
+| Size | algoforge | gonum     | Speedup |
+| ---- | --------- | --------- | ------- |
+| 8    | 30 ns     | 516 ns    | 17.2x   |
+| 16   | 75 ns     | 994 ns    | 13.3x   |
+| 32   | 207 ns    | 766 ns    | 3.7x    |
+| 64   | 436 ns    | 1.55 µs   | 3.6x    |
+| 128  | 976 ns    | 5.73 µs   | 5.9x    |
+| 256  | 2.98 µs   | 10.11 µs  | 3.4x    |
+| 512  | 5.70 µs   | 17.00 µs  | 3.0x    |
+| 1024 | 14.71 µs  | 38.28 µs  | 2.6x    |
+| 2048 | 30.68 µs  | 93.93 µs  | 3.1x    |
+| 4096 | 95.84 µs  | 310.53 µs | 3.2x    |
+
+_Benchmarked on Linux/amd64 with AVX2 acceleration_
+
+## Correctness
+
+algoforge is validated against a reference O(n²) DFT implementation for mathematical correctness. The table below shows maximum relative error across 100 random test vectors per size:
+
+| Size | complex64 Max Error | complex128 Max Error |
+| ---- | ------------------- | -------------------- |
+| 8    | 5.34e-07            | 2.12e-14             |
+| 16   | 1.68e-06            | 1.31e-13             |
+| 32   | 6.98e-06            | 5.09e-13             |
+| 64   | 4.86e-06            | 4.63e-13             |
+| 128  | 3.54e-05            | 1.26e-11             |
+| 256  | 3.83e-05            | 8.32e-12             |
+| 512  | 2.27e-05            | 8.54e-12             |
+| 1024 | 2.63e-05            | 9.90e-11             |
+| 2048 | 5.60e-05            | 4.49e-10             |
+
+Errors are well within expected numerical precision limits for IEEE 754 floating-point arithmetic with accumulated rounding errors across O(n log n) operations.
+
 ## Development
 
 ### Building
