@@ -3,6 +3,7 @@ package algoforge
 import (
 	"fmt"
 
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
 	"github.com/MeKo-Christian/algoforge/internal/fft"
 )
 
@@ -25,6 +26,7 @@ type PlanReal2D struct {
 	colPlans       []*Plan[complex64] // Complex FFT for each column (size M)
 	scratchCompact []complex64        // Working buffer (M×(N/2+1))
 	scratchFull    []complex64        // Full spectrum buffer (M×N) for ForwardFull
+	options        PlanOptions
 
 	// backing keeps aligned buffers alive for GC
 	scratchCompactBacking []byte
@@ -39,6 +41,11 @@ type PlanReal2D struct {
 //
 // For concurrent use, create separate plans via Clone() for each goroutine.
 func NewPlanReal2D(rows, cols int) (*PlanReal2D, error) {
+	return NewPlanReal2DWithOptions(rows, cols, PlanOptions{})
+}
+
+// NewPlanReal2DWithOptions creates a new 2D real FFT plan with explicit planner options.
+func NewPlanReal2DWithOptions(rows, cols int, opts PlanOptions) (*PlanReal2D, error) {
 	if rows <= 0 || cols <= 0 {
 		return nil, ErrInvalidLength
 	}
@@ -47,8 +54,16 @@ func NewPlanReal2D(rows, cols int) (*PlanReal2D, error) {
 		return nil, ErrInvalidLength // Real FFT requires even N
 	}
 
+	opts = normalizePlanOptions(opts)
+	features := cpu.DetectFeatures()
+
+	childOpts := opts
+	childOpts.Batch = 0
+	childOpts.Stride = 0
+	childOpts.InPlace = false
+
 	// Create 1D real plan for rows
-	rowPlan, err := NewPlanReal(cols)
+	rowPlan, err := newPlanRealWithFeatures(cols, features, childOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +73,7 @@ func NewPlanReal2D(rows, cols int) (*PlanReal2D, error) {
 	// Create complex plans for columns (one for each column in compact spectrum)
 	colPlans := make([]*Plan[complex64], halfCols)
 	for i := range colPlans {
-		plan, err := NewPlanT[complex64](rows)
+		plan, err := newPlanWithFeatures[complex64](rows, features, childOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -83,6 +98,7 @@ func NewPlanReal2D(rows, cols int) (*PlanReal2D, error) {
 		scratchFull:           scratchFull,
 		scratchCompactBacking: scratchCompactBacking,
 		scratchFullBacking:    scratchFullBacking,
+		options:               opts,
 	}, nil
 }
 
@@ -121,6 +137,36 @@ func (p *PlanReal2D) String() string {
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 func (p *PlanReal2D) Forward(dst []complex64, src []float32) error {
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	if p.options.Batch <= 1 && p.options.Stride <= 0 {
+		return p.forwardSingle(dst, src)
+	}
+
+	batch, strideIn, strideOut, err := resolveBatchStrideReal(p.rows*p.cols, p.rows*p.halfCols, p.options)
+	if err != nil {
+		return err
+	}
+
+	for b := 0; b < batch; b++ {
+		srcOff := b * strideIn
+		dstOff := b * strideOut
+		if srcOff+p.rows*p.cols > len(src) || dstOff+p.rows*p.halfCols > len(dst) {
+			return ErrLengthMismatch
+		}
+
+		err = p.forwardSingle(dst[dstOff:dstOff+p.rows*p.halfCols], src[srcOff:srcOff+p.rows*p.cols])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *PlanReal2D) forwardSingle(dst []complex64, src []float32) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
@@ -229,6 +275,36 @@ func (p *PlanReal2D) ForwardFull(dst []complex64, src []float32) error {
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 func (p *PlanReal2D) Inverse(dst []float32, src []complex64) error {
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	if p.options.Batch <= 1 && p.options.Stride <= 0 {
+		return p.inverseSingle(dst, src)
+	}
+
+	batch, strideIn, strideOut, err := resolveBatchStrideReal(p.rows*p.cols, p.rows*p.halfCols, p.options)
+	if err != nil {
+		return err
+	}
+
+	for b := 0; b < batch; b++ {
+		dstOff := b * strideIn
+		srcOff := b * strideOut
+		if dstOff+p.rows*p.cols > len(dst) || srcOff+p.rows*p.halfCols > len(src) {
+			return ErrLengthMismatch
+		}
+
+		err = p.inverseSingle(dst[dstOff:dstOff+p.rows*p.cols], src[srcOff:srcOff+p.rows*p.halfCols])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *PlanReal2D) inverseSingle(dst []float32, src []complex64) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}

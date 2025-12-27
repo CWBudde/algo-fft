@@ -65,6 +65,55 @@ func TestPlanReal2D_BasicSizes(t *testing.T) {
 	}
 }
 
+func TestPlanReal2D_BatchStrideRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	const (
+		rows   = 4
+		cols   = 6
+		batch  = 2
+		stride = rows*cols + 5
+	)
+
+	plan, err := NewPlanReal2DWithOptions(rows, cols, PlanOptions{
+		Batch:  batch,
+		Stride: stride,
+	})
+	if err != nil {
+		t.Fatalf("NewPlanReal2DWithOptions failed: %v", err)
+	}
+
+	src := make([]float32, batch*stride)
+	freq := make([]complex64, batch*stride)
+	roundTrip := make([]float32, batch*stride)
+
+	rng := rand.New(rand.NewSource(77))
+	for b := 0; b < batch; b++ {
+		base := b * stride
+		for i := 0; i < rows*cols; i++ {
+			src[base+i] = float32(rng.Float64()*2 - 1)
+		}
+	}
+
+	if err := plan.Forward(freq, src); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	if err := plan.Inverse(roundTrip, freq); err != nil {
+		t.Fatalf("Inverse failed: %v", err)
+	}
+
+	const tol = 1e-3
+	for b := 0; b < batch; b++ {
+		base := b * stride
+		for i := 0; i < rows*cols; i++ {
+			if math.Abs(float64(roundTrip[base+i]-src[base+i])) > tol {
+				t.Fatalf("batch %d idx %d mismatch: got %v want %v", b, i, roundTrip[base+i], src[base+i])
+			}
+		}
+	}
+}
+
 // TestPlanReal2D_RoundTrip tests that Inverse(Forward(x)) ≈ x.
 func TestPlanReal2D_RoundTrip(t *testing.T) {
 	t.Parallel()

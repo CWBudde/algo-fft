@@ -3,6 +3,7 @@ package algoforge
 import (
 	"fmt"
 
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
 	"github.com/MeKo-Christian/algoforge/internal/fft"
 )
 
@@ -21,6 +22,7 @@ type Plan2D[T Complex] struct {
 	rowPlan    *Plan[T] // Plan for transforming rows (size=cols)
 	colPlan    *Plan[T] // Plan for transforming columns (size=rows)
 	scratch    []T      // Working buffer (size=rows*cols)
+	options    PlanOptions
 
 	// Transpose support for square matrices
 	transposePairs []fft.TransposePair
@@ -38,17 +40,30 @@ type Plan2D[T Complex] struct {
 //
 // For concurrent use, create separate plans via Clone() for each goroutine.
 func NewPlan2D[T Complex](rows, cols int) (*Plan2D[T], error) {
+	return NewPlan2DWithOptions[T](rows, cols, PlanOptions{})
+}
+
+// NewPlan2DWithOptions creates a new 2D FFT plan with explicit planner options.
+func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[T], error) {
 	if rows <= 0 || cols <= 0 {
 		return nil, ErrInvalidLength
 	}
 
+	opts = normalizePlanOptions(opts)
+	features := cpu.DetectFeatures()
+
+	childOpts := opts
+	childOpts.Batch = 0
+	childOpts.Stride = 0
+	childOpts.InPlace = false
+
 	// Create 1D plans for rows and columns
-	rowPlan, err := NewPlanT[T](cols)
+	rowPlan, err := newPlanWithFeatures[T](cols, features, childOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	colPlan, err := NewPlanT[T](rows)
+	colPlan, err := newPlanWithFeatures[T](rows, features, childOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +94,7 @@ func NewPlan2D[T Complex](rows, cols int) (*Plan2D[T], error) {
 		colPlan:        colPlan,
 		scratch:        scratch,
 		scratchBacking: scratchBacking,
+		options:        opts,
 	}
 
 	// Pre-compute transpose pairs for square matrices (optimization)
@@ -92,13 +108,13 @@ func NewPlan2D[T Complex](rows, cols int) (*Plan2D[T], error) {
 // NewPlan2D32 creates a new 2D FFT plan using complex64 precision.
 // This is a convenience wrapper for NewPlan2D[complex64].
 func NewPlan2D32(rows, cols int) (*Plan2D[complex64], error) {
-	return NewPlan2D[complex64](rows, cols)
+	return NewPlan2DWithOptions[complex64](rows, cols, PlanOptions{})
 }
 
 // NewPlan2D64 creates a new 2D FFT plan using complex128 precision.
 // This is a convenience wrapper for NewPlan2D[complex128].
 func NewPlan2D64(rows, cols int) (*Plan2D[complex128], error) {
-	return NewPlan2D[complex128](rows, cols)
+	return NewPlan2DWithOptions[complex128](rows, cols, PlanOptions{})
 }
 
 // Rows returns the number of rows in the matrix.
@@ -137,35 +153,27 @@ func (p *Plan2D[T]) String() string {
 //
 // Formula: X[k,l] = Σ(m=0..rows-1) Σ(n=0..cols-1) x[m,n] * exp(-2πi*(km/rows + ln/cols)).
 func (p *Plan2D[T]) Forward(dst, src []T) error {
-	err := p.validate(dst, src)
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	batch, stride, err := resolveBatchStride(p.Len(), p.options)
 	if err != nil {
 		return err
 	}
 
-	// Copy src to scratch for working
-	copy(p.scratch, src)
+	for b := 0; b < batch; b++ {
+		srcOff := b * stride
+		dstOff := b * stride
+		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
+			return ErrLengthMismatch
+		}
 
-	// Transform rows
-	for row := range p.rows {
-		rowData := p.scratch[row*p.cols : (row+1)*p.cols]
-
-		err := p.rowPlan.InPlace(rowData)
+		err = p.forwardSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
 		if err != nil {
 			return err
 		}
 	}
-
-	// Transform columns
-	if p.rows == p.cols {
-		// Square matrix: use transpose optimization
-		p.transformColumnsViaTranspose(true)
-	} else {
-		// Non-square: use strided column extraction
-		p.transformColumnsStrided(true)
-	}
-
-	// Copy result to dst
-	copy(dst, p.scratch)
 
 	return nil
 }
@@ -179,35 +187,27 @@ func (p *Plan2D[T]) Forward(dst, src []T) error {
 //
 // Formula: x[m,n] = (1/(rows*cols)) * Σ(k=0..rows-1) Σ(l=0..cols-1) X[k,l] * exp(2πi*(km/rows + ln/cols)).
 func (p *Plan2D[T]) Inverse(dst, src []T) error {
-	err := p.validate(dst, src)
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	batch, stride, err := resolveBatchStride(p.Len(), p.options)
 	if err != nil {
 		return err
 	}
 
-	// Copy src to scratch for working
-	copy(p.scratch, src)
+	for b := 0; b < batch; b++ {
+		srcOff := b * stride
+		dstOff := b * stride
+		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
+			return ErrLengthMismatch
+		}
 
-	// Transform rows (inverse)
-	for row := range p.rows {
-		rowData := p.scratch[row*p.cols : (row+1)*p.cols]
-
-		err := p.rowPlan.InverseInPlace(rowData)
+		err = p.inverseSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
 		if err != nil {
 			return err
 		}
 	}
-
-	// Transform columns (inverse)
-	if p.rows == p.cols {
-		// Square matrix: use transpose optimization
-		p.transformColumnsViaTranspose(false)
-	} else {
-		// Non-square: use strided column extraction
-		p.transformColumnsStrided(false)
-	}
-
-	// Copy result to dst
-	copy(dst, p.scratch)
 
 	return nil
 }
@@ -259,6 +259,7 @@ func (p *Plan2D[T]) Clone() *Plan2D[T] {
 		scratch:        scratch,
 		scratchBacking: scratchBacking,
 		transposePairs: p.transposePairs, // Shared (immutable)
+		options:        p.options,
 	}
 }
 
@@ -283,13 +284,13 @@ func (p *Plan2D[T]) validate(dst, src []T) error {
 
 // transformColumnsViaTranspose transforms columns using transpose for square matrices.
 // This is more cache-friendly than strided access.
-func (p *Plan2D[T]) transformColumnsViaTranspose(forward bool) {
+func (p *Plan2D[T]) transformColumnsViaTranspose(data []T, forward bool) {
 	// Transpose: columns become rows
-	fft.ApplyTransposePairs(p.scratch, p.transposePairs)
+	fft.ApplyTransposePairs(data, p.transposePairs)
 
 	// Transform each column (now a row)
 	for row := range p.rows {
-		rowData := p.scratch[row*p.cols : (row+1)*p.cols]
+		rowData := data[row*p.cols : (row+1)*p.cols]
 		if forward {
 			_ = p.colPlan.InPlace(rowData)
 		} else {
@@ -298,17 +299,17 @@ func (p *Plan2D[T]) transformColumnsViaTranspose(forward bool) {
 	}
 
 	// Transpose back
-	fft.ApplyTransposePairs(p.scratch, p.transposePairs)
+	fft.ApplyTransposePairs(data, p.transposePairs)
 }
 
 // transformColumnsStrided transforms columns using strided access for non-square matrices.
-func (p *Plan2D[T]) transformColumnsStrided(forward bool) {
+func (p *Plan2D[T]) transformColumnsStrided(data []T, forward bool) {
 	colData := make([]T, p.rows)
 
 	for col := range p.cols {
 		// Extract column
 		for row := range p.rows {
-			colData[row] = p.scratch[row*p.cols+col]
+			colData[row] = data[row*p.cols+col]
 		}
 
 		// Transform column
@@ -320,7 +321,69 @@ func (p *Plan2D[T]) transformColumnsStrided(forward bool) {
 
 		// Write back
 		for row := range p.rows {
-			p.scratch[row*p.cols+col] = colData[row]
+			data[row*p.cols+col] = colData[row]
 		}
 	}
+}
+
+func (p *Plan2D[T]) forwardSingle(dst, src []T) error {
+	err := p.validate(dst, src)
+	if err != nil {
+		return err
+	}
+
+	work := p.scratch
+	copy(work, src)
+
+	// Transform rows
+	for row := range p.rows {
+		rowData := work[row*p.cols : (row+1)*p.cols]
+
+		err := p.rowPlan.InPlace(rowData)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Transform columns
+	if p.rows == p.cols {
+		p.transformColumnsViaTranspose(work, true)
+	} else {
+		p.transformColumnsStrided(work, true)
+	}
+
+	copy(dst, work)
+
+	return nil
+}
+
+func (p *Plan2D[T]) inverseSingle(dst, src []T) error {
+	err := p.validate(dst, src)
+	if err != nil {
+		return err
+	}
+
+	work := p.scratch
+	copy(work, src)
+
+	// Transform rows (inverse)
+	for row := range p.rows {
+		rowData := work[row*p.cols : (row+1)*p.cols]
+
+		err := p.rowPlan.InverseInPlace(rowData)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Transform columns (inverse)
+	if p.rows == p.cols {
+		p.transformColumnsViaTranspose(work, false)
+	} else {
+		p.transformColumnsStrided(work, false)
+	}
+
+	copy(dst, work)
+
+	return nil
 }

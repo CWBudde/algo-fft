@@ -65,6 +65,11 @@ func ResolveKernelStrategy(n int) KernelStrategy {
 	return resolveKernelStrategy(n, KernelAuto)
 }
 
+// ResolveKernelStrategyWithDefault resolves using the provided default when auto is selected.
+func ResolveKernelStrategyWithDefault(n int, defaultStrategy KernelStrategy) KernelStrategy {
+	return resolveKernelStrategy(n, defaultStrategy)
+}
+
 func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy {
 	strategy := defaultStrategy
 	if strategy == KernelAuto {
