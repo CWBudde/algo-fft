@@ -191,6 +191,7 @@ func TestCodeletFunctional(t *testing.T) {
 		if real(dst[0]) < 0.99 || real(dst[0]) > 1.01 {
 			t.Errorf("dst[0] = %v, expected ~1+0i", dst[0])
 		}
+
 		if imag(dst[0]) < -0.01 || imag(dst[0]) > 0.01 {
 			t.Errorf("dst[0] = %v, imaginary part should be ~0", dst[0])
 		}

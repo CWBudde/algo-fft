@@ -167,8 +167,9 @@ func (p *Plan2D[T]) Forward(dst, src []T) error {
 		return err
 	}
 
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		srcOff := b * stride
+
 		dstOff := b * stride
 		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
 			return ErrLengthMismatch
@@ -201,8 +202,9 @@ func (p *Plan2D[T]) Inverse(dst, src []T) error {
 		return err
 	}
 
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		srcOff := b * stride
+
 		dstOff := b * stride
 		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
 			return ErrLengthMismatch

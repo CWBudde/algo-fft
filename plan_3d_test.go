@@ -307,7 +307,7 @@ func TestPlan3D_BatchStrideForward(t *testing.T) {
 	dst := make([]complex64, batch*stride)
 
 	signals := make([][]complex64, batch)
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		signal := generateRandom3DComplex64(depth, height, width, uint64(200+b))
 		signals[b] = signal
 		copy(src[b*stride:b*stride+depth*height*width], signal)
@@ -318,8 +318,10 @@ func TestPlan3D_BatchStrideForward(t *testing.T) {
 	}
 
 	tol := 1e-3
-	for b := 0; b < batch; b++ {
+
+	for b := range batch {
 		want := reference.NaiveDFT3D(signals[b], depth, height, width)
+
 		got := dst[b*stride : b*stride+depth*height*width]
 		if !complex3D64NearlyEqual(got, want, tol) {
 			t.Fatalf("batch %d result differs from reference", b)

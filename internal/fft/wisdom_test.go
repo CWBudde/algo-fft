@@ -101,7 +101,8 @@ func TestWisdomExportImport(t *testing.T) {
 
 	// Export
 	var buf bytes.Buffer
-	if err := w.Export(&buf); err != nil {
+	err := w.Export(&buf)
+	if err != nil {
 		t.Fatalf("export failed: %v", err)
 	}
 
@@ -112,7 +113,8 @@ func TestWisdomExportImport(t *testing.T) {
 
 	// Import into new wisdom
 	w2 := NewWisdom()
-	if err := w2.Import(strings.NewReader(exported)); err != nil {
+	err = w2.Import(strings.NewReader(exported))
+	if err != nil {
 		t.Fatalf("import failed: %v", err)
 	}
 
@@ -144,7 +146,8 @@ func TestWisdomImportComments(t *testing.T) {
 16:1:3:dit16_avx2:1700000000
 `
 
-	if err := w.Import(strings.NewReader(data)); err != nil {
+	err := w.Import(strings.NewReader(data))
+	if err != nil {
 		t.Fatalf("import with comments failed: %v", err)
 	}
 
@@ -168,6 +171,7 @@ func TestWisdomImportInvalid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := NewWisdom()
+
 			err := w.Import(strings.NewReader(tt.data))
 			if err == nil {
 				t.Error("expected error, got nil")

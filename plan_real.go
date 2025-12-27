@@ -94,8 +94,9 @@ func (p *PlanReal) Forward(dst []complex64, src []float32) error {
 		return err
 	}
 
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		srcOff := b * strideIn
+
 		dstOff := b * strideOut
 		if srcOff+p.n > len(src) || dstOff+p.half+1 > len(dst) {
 			return ErrLengthMismatch
@@ -192,8 +193,9 @@ func (p *PlanReal) Inverse(dst []float32, src []complex64) error {
 		return err
 	}
 
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		dstOff := b * strideIn
+
 		srcOff := b * strideOut
 		if dstOff+p.n > len(dst) || srcOff+p.half+1 > len(src) {
 			return ErrLengthMismatch

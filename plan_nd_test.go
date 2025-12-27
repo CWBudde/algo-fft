@@ -316,6 +316,7 @@ func TestPlanND_BatchStrideRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	dims := []int{2, 3, 4}
+
 	size := 1
 	for _, d := range dims {
 		size *= d
@@ -338,7 +339,7 @@ func TestPlanND_BatchStrideRoundTrip(t *testing.T) {
 	dst := make([]complex64, batch*stride)
 	roundTrip := make([]complex64, batch*stride)
 
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		signal := generateRandomNDComplex64(dims, uint64(300+b))
 		copy(src[b*stride:b*stride+size], signal)
 	}
@@ -351,8 +352,9 @@ func TestPlanND_BatchStrideRoundTrip(t *testing.T) {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		orig := src[b*stride : b*stride+size]
+
 		got := roundTrip[b*stride : b*stride+size]
 		if !complexND64NearlyEqual(got, orig, 1e-3) {
 			t.Fatalf("batch %d round-trip mismatch", b)

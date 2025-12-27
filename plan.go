@@ -531,6 +531,7 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	opts = normalizePlanOptions(opts)
 	features := cpu.DetectFeatures()
 	estimate := fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+
 	strategy := estimate.Strategy
 	if strategy == fft.KernelBluestein {
 		return nil, ErrNotImplemented

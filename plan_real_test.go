@@ -56,9 +56,10 @@ func TestPlanReal_BatchStrideRoundTrip(t *testing.T) {
 	roundTrip := make([]float32, batch*stride)
 
 	rng := rand.New(rand.NewSource(42))
-	for b := 0; b < batch; b++ {
+
+	for b := range batch {
 		base := b * stride
-		for i := 0; i < n; i++ {
+		for i := range n {
 			src[base+i] = float32(rng.Float64()*2 - 1)
 		}
 	}
@@ -72,9 +73,10 @@ func TestPlanReal_BatchStrideRoundTrip(t *testing.T) {
 	}
 
 	const tol = 1e-3
-	for b := 0; b < batch; b++ {
+
+	for b := range batch {
 		base := b * stride
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if math.Abs(float64(roundTrip[base+i]-src[base+i])) > tol {
 				t.Fatalf("batch %d idx %d mismatch: got %v want %v", b, i, roundTrip[base+i], src[base+i])
 			}

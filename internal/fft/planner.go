@@ -58,6 +58,7 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, f
 			if forcedStrategy != KernelAuto && entry.Algorithm != forcedStrategy {
 				goto wisdomFallback
 			}
+
 			return PlanEstimate[T]{
 				ForwardCodelet: entry.Forward,
 				InverseCodelet: entry.Inverse,
@@ -70,8 +71,11 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, f
 wisdomFallback:
 	// 2. Try wisdom cache (if provided)
 	if wisdom != nil {
-		var precision uint8
-		var zero T
+		var (
+			precision uint8
+			zero      T
+		)
+
 		switch any(zero).(type) {
 		case complex64:
 			precision = 0
@@ -88,6 +92,7 @@ wisdomFallback:
 					if forcedStrategy != KernelAuto && codelet.Algorithm != forcedStrategy {
 						goto strategyFallback
 					}
+
 					return PlanEstimate[T]{
 						ForwardCodelet: codelet.Forward,
 						InverseCodelet: codelet.Inverse,

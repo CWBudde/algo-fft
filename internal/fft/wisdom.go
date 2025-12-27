@@ -109,9 +109,11 @@ func (w *Wisdom) Export(writer io.Writer) error {
 		if entries[i].Key.Size != entries[j].Key.Size {
 			return entries[i].Key.Size < entries[j].Key.Size
 		}
+
 		if entries[i].Key.Precision != entries[j].Key.Precision {
 			return entries[i].Key.Precision < entries[j].Key.Precision
 		}
+
 		return entries[i].Key.CPUFeatures < entries[j].Key.CPUFeatures
 	})
 

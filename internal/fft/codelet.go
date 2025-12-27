@@ -82,6 +82,7 @@ func (r *CodeletRegistry[T]) Register(entry CodeletEntry[T]) {
 		if entries[i].SIMDLevel != entries[j].SIMDLevel {
 			return entries[i].SIMDLevel > entries[j].SIMDLevel
 		}
+
 		return entries[i].Priority > entries[j].Priority
 	})
 

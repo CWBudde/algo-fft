@@ -19,6 +19,7 @@ func registerDITCodelets64() {
 		forward KernelFunc64
 		inverse KernelFunc64
 	}
+
 	codeletFuncs := map[int]funcs{
 		8:   {forwardDIT8Complex64, inverseDIT8Complex64},
 		16:  {forwardDIT16Complex64, inverseDIT16Complex64},
@@ -46,6 +47,7 @@ func registerDITCodelets128() {
 		forward KernelFunc128
 		inverse KernelFunc128
 	}
+
 	codeletFuncs := map[int]funcs{
 		8:   {forwardDIT8Complex128, inverseDIT8Complex128},
 		16:  {forwardDIT16Complex128, inverseDIT16Complex128},

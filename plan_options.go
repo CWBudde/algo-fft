@@ -95,6 +95,7 @@ func normalizePlanOptions(opts PlanOptions) PlanOptions {
 				validRadices = append(validRadices, r)
 			}
 		}
+
 		if len(validRadices) == 0 {
 			opts.Radices = nil
 		} else {

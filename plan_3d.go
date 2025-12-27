@@ -97,6 +97,7 @@ func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions)
 	if depth > height {
 		dimScratchSize = depth
 	}
+
 	dimScratch := make([]T, dimScratchSize)
 
 	return &Plan3D[T]{
@@ -177,8 +178,9 @@ func (p *Plan3D[T]) Forward(dst, src []T) error {
 		return err
 	}
 
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		srcOff := b * stride
+
 		dstOff := b * stride
 		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
 			return ErrLengthMismatch
@@ -213,8 +215,9 @@ func (p *Plan3D[T]) Inverse(dst, src []T) error {
 		return err
 	}
 
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		srcOff := b * stride
+
 		dstOff := b * stride
 		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
 			return ErrLengthMismatch
@@ -273,6 +276,7 @@ func (p *Plan3D[T]) Clone() *Plan3D[T] {
 	if p.depth > p.height {
 		dimScratchSize = p.depth
 	}
+
 	dimScratch := make([]T, dimScratchSize)
 
 	return &Plan3D[T]{

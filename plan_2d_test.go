@@ -312,7 +312,7 @@ func TestPlan2D_BatchStrideForward(t *testing.T) {
 	dst := make([]complex64, batch*stride)
 
 	signals := make([][]complex64, batch)
-	for b := 0; b < batch; b++ {
+	for b := range batch {
 		signal := generateRandom2DSignal(rows, cols, uint64(100+b))
 		signals[b] = signal
 		copy(src[b*stride:b*stride+rows*cols], signal)
@@ -323,8 +323,10 @@ func TestPlan2D_BatchStrideForward(t *testing.T) {
 	}
 
 	tol := 1e-3
-	for b := 0; b < batch; b++ {
+
+	for b := range batch {
 		want := reference.NaiveDFT2D(signals[b], rows, cols)
+
 		got := dst[b*stride : b*stride+rows*cols]
 		for i := range got {
 			row, col := i/cols, i%cols
