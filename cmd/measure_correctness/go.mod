@@ -1,4 +1,4 @@
-module github.com/MeKo-Christian/algo-fft/cmd/measure_correctness
+module github.com/MeKo-Christian/algofft/cmd/measure_correctness
 
 go 1.25.0
 

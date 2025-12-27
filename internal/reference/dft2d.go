@@ -13,7 +13,7 @@ import (
 // Formula: X[k,l] = Σ(m=0..rows-1) Σ(n=0..cols-1) x[m,n] * exp(-2πi*(km/rows + ln/cols))
 //
 // This function is intended for testing correctness of optimized implementations.
-// For production use, use the optimized Plan2D from the algofft package.
+// For production use, use the optimized Plan2D from the algo-fft package.
 func NaiveDFT2D(src []complex64, rows, cols int) []complex64 {
 	if len(src) != rows*cols {
 		panic("dft2d: input length must equal rows*cols")

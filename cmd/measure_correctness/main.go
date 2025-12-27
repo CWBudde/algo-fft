@@ -43,7 +43,7 @@ func measureMaxError32(n, trials int) float64 {
 			src[i] = complex(rng.Float32()*2-1, rng.Float32()*2-1)
 		}
 
-		// Compute FFT using algofft
+		// Compute FFT using algo-fft
 		got := make([]complex64, n)
 		if err := plan.Forward(got, src); err != nil {
 			panic(err)
@@ -85,7 +85,7 @@ func measureMaxError64(n, trials int) float64 {
 			src[i] = complex(rng.Float64()*2-1, rng.Float64()*2-1)
 		}
 
-		// Compute FFT using algofft
+		// Compute FFT using algo-fft
 		got := make([]complex128, n)
 		if err := plan.Forward(got, src); err != nil {
 			panic(err)

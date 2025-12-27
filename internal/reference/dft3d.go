@@ -14,7 +14,7 @@ import (
 //	x[d,h,w] * exp(-2πi*(kd*d/depth + kh*h/height + kw*w/width))
 //
 // This function is intended for testing correctness of optimized implementations.
-// For production use, use the optimized Plan3D from the algofft package.
+// For production use, use the optimized Plan3D from the algo-fft package.
 func NaiveDFT3D(src []complex64, depth, height, width int) []complex64 {
 	if len(src) != depth*height*width {
 		panic("dft3d: input length must equal depth*height*width")

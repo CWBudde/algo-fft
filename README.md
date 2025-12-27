@@ -1,14 +1,14 @@
-# algofft - High-Performance Go FFT Library
+# algo-fft - High-Performance Go FFT Library
 
-[![Tests](https://github.com/MeKo-Christian/algo-fft/actions/workflows/test.yaml/badge.svg)](https://github.com/MeKo-Christian/algo-fft/actions/workflows/test.yaml)
-[![codecov](https://codecov.io/gh/MeKo-Christian/algo-fft/branch/main/graph/badge.svg)](https://codecov.io/gh/MeKo-Christian/algofft)
-[![Go Reference](https://pkg.go.dev/badge/github.com/MeKo-Christian/algofft.svg)](https://pkg.go.dev/github.com/MeKo-Christian/algofft)
+[![Tests](https://github.com/MeKo-Christian/algofft/actions/workflows/test.yaml/badge.svg)](https://github.com/MeKo-Christian/algo-fft/actions/workflows/test.yaml)
+[![codecov](https://codecov.io/gh/MeKo-Christian/algo-fft/branch/main/graph/badge.svg)](https://codecov.io/gh/MeKo-Christian/algo-fft)
+[![Go Reference](https://pkg.go.dev/badge/github.com/MeKo-Christian/algofft.svg)](https://pkg.go.dev/github.com/MeKo-Christian/algo-fft)
 
 A new FFT (Fast Fourier Transform) library for Go, designed for high performance, numerical accuracy, and flexibility.
 
 ## Try It Online
 
-Experience algofft in your browser: **[Interactive FFT Demo](https://meko-christian.github.io/algo-fft/)**
+Experience algo-fft in your browser: **[Interactive FFT Demo](https://meko-christian.github.io/algo-fft/)**
 
 The demo runs the library compiled to WebAssembly, allowing you to visualize FFT transforms in real-time.
 
