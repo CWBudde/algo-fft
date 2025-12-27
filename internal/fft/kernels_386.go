@@ -1,10 +1,8 @@
-//go:build !amd64 && !arm64 && !386
+//go:build 386 && (!fft_asm || purego)
 
 package fft
 
-import (
-	"github.com/MeKo-Christian/algofft/internal/cpu"
-)
+import "github.com/MeKo-Christian/algofft/internal/cpu"
 
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	_ = features

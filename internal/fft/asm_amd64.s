@@ -845,8 +845,8 @@ stockham_vec_loop:
 	VMOVUPS Y3, (R9)          // out0 = sum
 	VMOVUPS Y7, (R12)         // out1 = diff * w
 
-	ADDQ $32, AX
 	ADDQ $32, BP
+	ADDQ $32, DI
 	ADDQ $32, R9
 	ADDQ $32, R12
 	ADDQ $32, R11
@@ -897,8 +897,8 @@ stockham_strided_vec_loop:
 	VMOVUPS Y3, (R9)          // out0 = sum
 	VMOVUPS Y7, (R12)         // out1 = diff * w
 
-	ADDQ $32, AX
 	ADDQ $32, BP
+	ADDQ $32, DI
 	ADDQ $32, R9
 	ADDQ $32, R12
 	SUBQ $4, DX
@@ -909,10 +909,10 @@ stockham_scalar_core:
 	JLE  stockham_k_done
 
 stockham_scalar_loop:
-	MOVSS (AX), X0
-	MOVSS 4(AX), X1
-	MOVSS (BP), X2
-	MOVSS 4(BP), X3
+	MOVSS (BP), X0
+	MOVSS 4(BP), X1
+	MOVSS (DI), X2
+	MOVSS 4(DI), X3
 
 	// sum = a + b
 	MOVSS X0, X4
@@ -948,8 +948,8 @@ stockham_scalar_loop:
 	MOVSS X10, (R12)
 	MOVSS X12, 4(R12)
 
-	ADDQ $8, AX
 	ADDQ $8, BP
+	ADDQ $8, DI
 	ADDQ $8, R9
 	ADDQ $8, R12
 	ADDQ R15, R11
@@ -1682,8 +1682,8 @@ inv_stockham_vec_loop:
 	VMOVUPS Y3, (R9)          // out0 = sum
 	VMOVUPS Y7, (R12)         // out1 = diff * conj(w)
 
-	ADDQ $32, AX
 	ADDQ $32, BP
+	ADDQ $32, DI
 	ADDQ $32, R9
 	ADDQ $32, R12
 	ADDQ $32, R11
@@ -1735,8 +1735,8 @@ inv_stockham_strided_vec_loop:
 	VMOVUPS Y3, (R9)          // out0 = sum
 	VMOVUPS Y7, (R12)         // out1 = diff * conj(w)
 
-	ADDQ $32, AX
 	ADDQ $32, BP
+	ADDQ $32, DI
 	ADDQ $32, R9
 	ADDQ $32, R12
 	SUBQ $4, DX
@@ -1747,10 +1747,10 @@ inv_stockham_scalar_core:
 	JLE  inv_stockham_k_done
 
 inv_stockham_scalar_loop:
-	MOVSS (AX), X0
-	MOVSS 4(AX), X1
-	MOVSS (BP), X2
-	MOVSS 4(BP), X3
+	MOVSS (BP), X0
+	MOVSS 4(BP), X1
+	MOVSS (DI), X2
+	MOVSS 4(DI), X3
 
 	// sum = a + b
 	MOVSS X0, X4
@@ -1786,8 +1786,8 @@ inv_stockham_scalar_loop:
 	MOVSS X10, (R12)
 	MOVSS X12, 4(R12)
 
-	ADDQ $8, AX
 	ADDQ $8, BP
+	ADDQ $8, DI
 	ADDQ $8, R9
 	ADDQ $8, R12
 	ADDQ R15, R11

@@ -783,10 +783,10 @@ Hints:
 
 - [ ] **14.6.2 Fix Stockham runtime issues**
   - [x] Build with `-tags=fft_asm` successfully ✅
-  - [ ] Fix segfault in `inverseAVX2StockhamComplex64Asm` at line 1668
-  - [ ] Verify Stockham transforms match generic AVX2
+  - [x] Fix segfault in `inverseAVX2StockhamComplex64Asm` at line 1668 ✅
+  - [ ] Fix correctness: Stockham transforms differ from pure-Go
   - [ ] Run full test suite with `fft_asm` tag
-  - **Current Issue:** Segfault in inverse transform (nil pointer dereference at 0x40)
+  - **Current Issue:** Fixed segfault (wrong register assignments from refactoring). Still investigating correctness mismatch.
   - [ ] Benchmark Stockham vs DIT performance
 
 **Priority:** HIGH (blocks Phase 14.5.2+ benchmarking)
