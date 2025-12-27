@@ -10,12 +10,14 @@ import (
 // TestConcurrentSharedPlan tests concurrent use of a shared Plan with separate buffers.
 // This is the recommended pattern for concurrent FFT transforms.
 func TestConcurrentSharedPlan(t *testing.T) {
+	t.Parallel()
 	goroutineCounts := []int{2, 4, 8, 16}
 	sizes := []int{256, 1024, 4096}
 
 	for _, n := range sizes {
 		for _, numGoroutines := range goroutineCounts {
 			t.Run(fmt.Sprintf("size_%d_goroutines_%d", n, numGoroutines), func(t *testing.T) {
+				t.Parallel()
 				testSharedPlan(t, n, numGoroutines, 100)
 			})
 		}
@@ -23,6 +25,7 @@ func TestConcurrentSharedPlan(t *testing.T) {
 }
 
 func testSharedPlan(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
+	t.Helper()
 	// Create shared plan
 	plan, err := NewPlan(n)
 	if err != nil {
@@ -80,17 +83,20 @@ func testSharedPlan(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 
 // TestConcurrentPooledPlans tests concurrent creation of pooled plans.
 func TestConcurrentPooledPlans(t *testing.T) {
+	t.Parallel()
 	goroutineCounts := []int{4, 8, 16}
 	n := 1024
 
 	for _, numGoroutines := range goroutineCounts {
 		t.Run(fmt.Sprintf("goroutines_%d", numGoroutines), func(t *testing.T) {
+			t.Parallel()
 			testConcurrentPooled(t, n, numGoroutines, 100)
 		})
 	}
 }
 
 func testConcurrentPooled(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
+	t.Helper()
 	var wg sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
@@ -137,17 +143,20 @@ func testConcurrentPooled(t *testing.T, n, numGoroutines, itersPerGoroutine int)
 
 // TestConcurrentPlanCreation tests concurrent creation of multiple plans.
 func TestConcurrentPlanCreation(t *testing.T) {
+	t.Parallel()
 	goroutineCounts := []int{4, 8, 16}
 	sizes := []int{256, 1024}
 
 	for _, numGoroutines := range goroutineCounts {
 		t.Run(fmt.Sprintf("goroutines_%d", numGoroutines), func(t *testing.T) {
+			t.Parallel()
 			testConcurrentCreation(t, sizes, numGoroutines)
 		})
 	}
 }
 
 func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
+	t.Helper()
 	var wg sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
@@ -195,6 +204,7 @@ func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
 
 // TestConcurrentMixedOperations tests mixed Forward/Inverse operations concurrently.
 func TestConcurrentMixedOperations(t *testing.T) {
+	t.Parallel()
 	n := 1024
 	numGoroutines := 8
 	itersPerGoroutine := 100
@@ -325,6 +335,7 @@ func TestConcurrentDifferentPrecisions(t *testing.T) {
 
 // TestConcurrentStress runs a high-concurrency stress test.
 func TestConcurrentStress(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping concurrent stress test in short mode")
 	}

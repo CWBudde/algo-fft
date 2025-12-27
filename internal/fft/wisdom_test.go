@@ -8,6 +8,7 @@ import (
 )
 
 func TestWisdomStoreAndLookup(t *testing.T) {
+	t.Parallel()
 	w := NewWisdom()
 
 	key := WisdomKey{Size: 1024, Precision: PrecisionComplex64, CPUFeatures: 0x3}
@@ -41,6 +42,7 @@ func TestWisdomStoreAndLookup(t *testing.T) {
 }
 
 func TestWisdomLen(t *testing.T) {
+	t.Parallel()
 	w := NewWisdom()
 
 	if w.Len() != 0 {
@@ -69,6 +71,7 @@ func TestWisdomLen(t *testing.T) {
 }
 
 func TestWisdomClear(t *testing.T) {
+	t.Parallel()
 	w := NewWisdom()
 
 	w.Store(WisdomEntry{
@@ -85,6 +88,7 @@ func TestWisdomClear(t *testing.T) {
 }
 
 func TestWisdomExportImport(t *testing.T) {
+	t.Parallel()
 	w := NewWisdom()
 
 	now := time.Now().Truncate(time.Second) // Truncate for comparison
@@ -139,6 +143,7 @@ func TestWisdomExportImport(t *testing.T) {
 }
 
 func TestWisdomImportComments(t *testing.T) {
+	t.Parallel()
 	w := NewWisdom()
 
 	data := `# This is a comment
@@ -159,6 +164,7 @@ func TestWisdomImportComments(t *testing.T) {
 }
 
 func TestWisdomImportInvalid(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data string
@@ -172,6 +178,7 @@ func TestWisdomImportInvalid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			w := NewWisdom()
 
 			err := w.Import(strings.NewReader(tt.data))
@@ -183,6 +190,7 @@ func TestWisdomImportInvalid(t *testing.T) {
 }
 
 func TestMakeWisdomKey(t *testing.T) {
+	t.Parallel()
 	key64 := MakeWisdomKey[complex64](1024, true, true, false, false)
 	if key64.Precision != PrecisionComplex64 {
 		t.Errorf("expected precision %d, got %d", PrecisionComplex64, key64.Precision)
@@ -199,6 +207,7 @@ func TestMakeWisdomKey(t *testing.T) {
 }
 
 func TestCPUFeatureMask(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		sse2, avx2, avx512, neon bool
 		expected                 uint64

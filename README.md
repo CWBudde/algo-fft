@@ -103,20 +103,37 @@ err = plan.InverseInPlace(data)
 ### Real FFT
 
 ```go
-// Real-to-complex forward transform
-planReal, err := algofft.NewPlanReal(n)
+// Float32 precision (single-precision)
+planReal32, err := algofft.NewPlanReal32(n)  // or NewPlanReal(n) for backward compatibility
 if err != nil {
     // handle error
 }
-err = planReal.Forward(complexDst, realSrc)
 
-// Complex-to-real inverse transform
-err = planReal.Inverse(realDst, complexSrc)
+input32 := make([]float32, n)
+output32 := make([]complex64, n/2+1)  // Half-spectrum: N/2+1 bins
+err = planReal32.Forward(output32, input32)
+
+// Float64 precision (double-precision) - for high-precision applications
+planReal64, err := algofft.NewPlanReal64(n)
+if err != nil {
+    // handle error
+}
+
+input64 := make([]float64, n)
+output64 := make([]complex128, n/2+1)  // Half-spectrum: N/2+1 bins
+err = planReal64.Forward(output64, input64)
+
+// Generic API (type-safe)
+plan, err := algofft.NewPlanRealT[float64, complex128](n)
 ```
 
 The real FFT returns the non-redundant half-spectrum with length N/2+1.
 For real inputs, the spectrum is conjugate-symmetric:
 `X[k] = conj(X[N-k])` for `k = 1..N/2-1`.
+
+**Precision comparison:**
+- `float32` → `complex64`: ~7 decimal digits, round-trip error < 1e-6
+- `float64` → `complex128`: ~15 decimal digits, round-trip error < 1e-12
 
 ### Strided Transforms
 

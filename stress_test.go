@@ -13,6 +13,7 @@ import (
 // TestStressLongRunning performs continuous FFT transforms for an extended period.
 // This test is skipped in short mode and controlled via STRESS_DURATION env var.
 func TestStressLongRunning(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping long-running stress test in short mode")
 	}
@@ -23,12 +24,14 @@ func TestStressLongRunning(t *testing.T) {
 	sizes := []int{256, 1024, 4096}
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
+			t.Parallel()
 			runStressTest(t, n, duration)
 		})
 	}
 }
 
 func runStressTest(t *testing.T, n int, duration time.Duration) {
+	t.Helper()
 	plan, err := NewPlan(n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
@@ -64,6 +67,7 @@ func runStressTest(t *testing.T, n int, duration time.Duration) {
 
 // TestStressMemoryStability performs millions of transforms and tracks memory usage.
 func TestStressMemoryStability(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping memory stress test in short mode")
 	}
@@ -76,6 +80,7 @@ func TestStressMemoryStability(t *testing.T) {
 	sizes := []int{256, 1024, 4096}
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
+			t.Parallel()
 			testMemoryStability(t, n, totalIterations, sampleInterval)
 		})
 	}
@@ -144,6 +149,7 @@ func testMemoryStability(t *testing.T, n, totalIters, sampleInterval int) {
 
 // TestStressRandomSizes tests with random FFT sizes.
 func TestStressRandomSizes(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping random size stress test in short mode")
 	}
@@ -188,6 +194,7 @@ func TestStressRandomSizes(t *testing.T) {
 
 // TestStressPlanPooled tests pooled plan creation under stress.
 func TestStressPlanPooled(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping plan pool stress test in short mode")
 	}
@@ -198,12 +205,14 @@ func TestStressPlanPooled(t *testing.T) {
 
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
+			t.Parallel()
 			testPlanPooledStress(t, n, iterations)
 		})
 	}
 }
 
 func testPlanPooledStress(t *testing.T, n, iters int) {
+	t.Helper()
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 
@@ -251,6 +260,7 @@ func testPlanPooledStress(t *testing.T, n, iters int) {
 
 // TestStressPrecisionSwitching tests switching between complex64 and complex128.
 func TestStressPrecisionSwitching(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping precision switching stress test in short mode")
 	}

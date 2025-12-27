@@ -11,12 +11,14 @@ import (
 // TestPrecisionErrorAccumulation tests error accumulation over repeated FFT/IFFT cycles.
 // This verifies that errors don't compound excessively with multiple transforms.
 func TestPrecisionErrorAccumulation(t *testing.T) {
+	t.Parallel()
 	sizes := []int{256, 1024, 4096}
 	cycles := []int{10, 100, 1000}
 
 	for _, n := range sizes {
 		for _, numCycles := range cycles {
 			t.Run(fmt.Sprintf("size_%d_cycles_%d", n, numCycles), func(t *testing.T) {
+				t.Parallel()
 				testErrorAccumulation64(t, n, numCycles)
 			})
 		}
@@ -24,6 +26,7 @@ func TestPrecisionErrorAccumulation(t *testing.T) {
 }
 
 func testErrorAccumulation64(t *testing.T, n, numCycles int) {
+	t.Helper()
 	// Generate random input
 	original := make([]complex64, n)
 	for i := range original {
@@ -86,10 +89,12 @@ func testErrorAccumulation64(t *testing.T, n, numCycles int) {
 // TestPrecisionParseval verifies Parseval's theorem: energy is conserved in FFT.
 // For a signal x and its FFT X: sum(|x|²) = sum(|X|²) / N.
 func TestPrecisionParseval(t *testing.T) {
+	t.Parallel()
 	sizes := []int{256, 1024, 4096, 16384}
 
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
+			t.Parallel()
 			testParseval64(t, n)
 			testParseval128(t, n)
 		})
@@ -97,6 +102,7 @@ func TestPrecisionParseval(t *testing.T) {
 }
 
 func testParseval64(t *testing.T, n int) {
+	t.Helper()
 	// Generate random input
 	data := make([]complex64, n)
 
@@ -137,6 +143,7 @@ func testParseval64(t *testing.T, n int) {
 }
 
 func testParseval128(t *testing.T, n int) {
+	t.Helper()
 	// Generate random input
 	data := make([]complex128, n)
 
@@ -178,10 +185,12 @@ func testParseval128(t *testing.T, n int) {
 
 // TestPrecisionComplex64VsComplex128 compares precision between complex64 and complex128.
 func TestPrecisionComplex64VsComplex128(t *testing.T) {
+	t.Parallel()
 	sizes := []int{256, 1024, 4096, 16384, 65536}
 
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
+			t.Parallel()
 			testPrecisionComparison(t, n)
 		})
 	}
@@ -249,6 +258,7 @@ func testPrecisionComparison(t *testing.T, n int) {
 
 // TestPrecisionLargeFFT tests precision for very large FFT sizes.
 func TestPrecisionLargeFFT(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping large FFT test in short mode")
 	}
@@ -257,6 +267,7 @@ func TestPrecisionLargeFFT(t *testing.T) {
 
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
+			t.Parallel()
 			testLargePrecision(t, n)
 		})
 	}
@@ -330,13 +341,14 @@ func testLargePrecision(t *testing.T, n int) {
 
 // TestPrecisionKnownSignals tests FFT of signals with known analytical results.
 func TestPrecisionKnownSignals(t *testing.T) {
-	t.Run("sine_wave", testSineWavePrecision)
-	t.Run("cosine_wave", testCosineWavePrecision)
-	t.Run("impulse", testImpulsePrecision)
-	t.Run("white_noise", testWhiteNoisePrecision)
+	t.Run("sine_wave", func(t *testing.T) { t.Parallel(); testSineWavePrecision(t) })
+	t.Run("cosine_wave", func(t *testing.T) { t.Parallel(); testCosineWavePrecision(t) })
+	t.Run("impulse", func(t *testing.T) { t.Parallel(); testImpulsePrecision(t) })
+	t.Run("white_noise", func(t *testing.T) { t.Parallel(); testWhiteNoisePrecision(t) })
 }
 
 func testSineWavePrecision(t *testing.T) {
+	t.Helper()
 	n := 1024
 	freq := 10 // 10 cycles in n samples
 
@@ -381,6 +393,7 @@ func testSineWavePrecision(t *testing.T) {
 }
 
 func testCosineWavePrecision(t *testing.T) {
+	t.Helper()
 	n := 1024
 	freq := 10
 
@@ -422,6 +435,7 @@ func testCosineWavePrecision(t *testing.T) {
 }
 
 func testImpulsePrecision(t *testing.T) {
+	t.Helper()
 	n := 512
 
 	// Impulse at position 0
@@ -459,6 +473,7 @@ func testImpulsePrecision(t *testing.T) {
 }
 
 func testWhiteNoisePrecision(t *testing.T) {
+	t.Helper()
 	n := 2048
 
 	// Generate white noise

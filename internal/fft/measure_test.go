@@ -27,6 +27,7 @@ func (m *mockWisdomRecorder) Store(entry WisdomEntry) {
 }
 
 func TestSelectStrategiesToTest(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		mode     PlannerMode
@@ -61,6 +62,7 @@ func TestSelectStrategiesToTest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := selectStrategiesToTest(tt.mode, tt.n)
 			if len(got) != len(tt.expected) {
 				t.Errorf("selectStrategiesToTest(%v, %d) = %v, want %v", tt.mode, tt.n, got, tt.expected)
@@ -77,6 +79,7 @@ func TestSelectStrategiesToTest(t *testing.T) {
 }
 
 func TestGetMeasureConfig(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		mode           PlannerMode
 		expectedWarmup int
@@ -101,6 +104,7 @@ func TestGetMeasureConfig(t *testing.T) {
 }
 
 func TestBenchmarkStrategy(t *testing.T) {
+	t.Parallel()
 	features := cpu.DetectFeatures()
 
 	tests := []struct {
@@ -116,6 +120,7 @@ func TestBenchmarkStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			config := measureConfig{warmup: 1, iters: 3}
 			elapsed := benchmarkStrategy[complex64](tt.n, features, tt.strategy, config)
 
@@ -128,6 +133,7 @@ func TestBenchmarkStrategy(t *testing.T) {
 }
 
 func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
+	t.Parallel()
 	features := cpu.DetectFeatures()
 	recorder := &mockWisdomRecorder{}
 
@@ -175,6 +181,7 @@ func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
 }
 
 func TestMeasureAndSelect_ForcedStrategy(t *testing.T) {
+	t.Parallel()
 	features := cpu.DetectFeatures()
 	recorder := &mockWisdomRecorder{}
 
@@ -199,6 +206,7 @@ func TestMeasureAndSelect_ForcedStrategy(t *testing.T) {
 }
 
 func TestMeasureAndSelect_NilWisdom(t *testing.T) {
+	t.Parallel()
 	features := cpu.DetectFeatures()
 
 	// Should not panic with nil wisdom recorder
@@ -217,6 +225,7 @@ func TestMeasureAndSelect_NilWisdom(t *testing.T) {
 }
 
 func TestMeasureAndSelect_Complex128(t *testing.T) {
+	t.Parallel()
 	features := cpu.DetectFeatures()
 	recorder := &mockWisdomRecorder{}
 
@@ -243,12 +252,14 @@ func TestMeasureAndSelect_Complex128(t *testing.T) {
 }
 
 func TestMeasureAndSelect_AllModes(t *testing.T) {
+	t.Parallel()
 	features := cpu.DetectFeatures()
 
 	modes := []PlannerMode{PlannerMeasure, PlannerPatient, PlannerExhaustive}
 
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
+			t.Parallel()
 			recorder := &mockWisdomRecorder{}
 			estimate := MeasureAndSelect[complex64](
 				512,
@@ -286,6 +297,7 @@ func (m PlannerMode) String() string {
 }
 
 func TestWisdomEntry_Timestamp(t *testing.T) {
+	t.Parallel()
 	before := time.Now()
 
 	features := cpu.DetectFeatures()
