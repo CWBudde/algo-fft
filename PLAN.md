@@ -19,7 +19,7 @@
 
 ### 14.5 Size-Specific Fully Unrolled AVX2 Kernels
 
-**Status**: Dispatch mechanism complete (14.5.1 ✅), Size-16 kernel implemented (14.5.2 ✅)
+**Status**: Dispatch mechanism complete (14.5.1 ✅), Size-16 kernel implemented (14.5.2 ✅), Size-32 kernel implemented (14.5.3 ✅)
 
 **Motivation**: Combine size-specific unrolling with SIMD for maximum performance on critical sizes (16, 32, 64, 128).
 
@@ -33,14 +33,18 @@
 - [x] Hardcode twiddle indices for each stage
 - [x] Vectorize butterflies using AVX2 (4 complex64 per YMM register)
 - [x] Test correctness vs reference and generic AVX2
-- [x] Benchmark speedup: **~17% speedup** over pure Go (47ns vs 57ns @ i7-1255U)
+- [x] Benchmark speedup: **2.1x faster** than pure Go, **88% faster** than generic AVX2 (25ns vs 48ns vs 53ns @ i7-1255U)
 
-#### 14.5.3 Implement AVX2 Size-32 kernel (complex64)
+#### 14.5.3 Implement AVX2 Size-32 kernel (complex64) ✅
 
-- [ ] Create `forwardAVX2Size32Complex64Asm`
-- [ ] Fully unroll 5 FFT stages
-- [ ] Optimize for L1 cache locality (all data fits in 256 bytes)
-- [ ] Test and benchmark
+**File**: `internal/fft/asm_amd64.s`
+
+- [x] Create `forwardAVX2Size32Complex64Asm`
+- [x] Fully unroll 5 FFT stages (size=2, 4, 8, 16, 32)
+- [x] Hardcode bit-reversal indices: `[0,16,8,24,4,20,12,28,2,18,10,26,6,22,14,30,1,17,9,25,5,21,13,29,3,19,11,27,7,23,15,31]`
+- [x] Optimize for L1 cache locality (all data fits in 256 bytes)
+- [x] Test correctness vs reference and generic AVX2
+- [x] Benchmark speedup: **2.5x faster** than generic AVX2 (70ns vs 180ns @ i7-1255U)
 
 #### 14.5.4 Implement AVX2 Size-64 kernel (complex64)
 
@@ -150,18 +154,22 @@ go test -tags=fft_asm -v -run TestAVX2MatchesPureGo ./internal/fft/
 - [x] Create fallback chain: size-specific NEON → generic NEON → pure-Go
 - [x] Add benchmarks in `kernels_arm64_size_specific_bench_test.go`
 
-#### 15.5.2 Implement NEON kernels for sizes 16
+#### 15.5.2 Implement NEON Size-16 kernel (complex64) ✅
 
-- [ ] Create `forwardNEONSize16Complex64Asm` in `asm_arm64.s`
-- [ ] Fully unroll all FFT stages
-- [ ] Hardcode bit-reversal and twiddle indices
-- [ ] Vectorize using NEON (2 complex64 per 128-bit register)
-- [ ] Test and benchmark
+**File**: `internal/fft/asm_arm64.s`
 
-**Architecture notes**:
+- [x] Create `forwardNEONSize16Complex64Asm`
+- [x] Fully unroll 4 FFT stages (size=2, 4, 8, 16)
+- [x] Hardcode bit-reversal indices: `[0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]`
+- [x] Hardcode twiddle indices for each stage
+- [x] Vectorize butterflies using NEON (2 complex64 per 128-bit register)
+- [x] Test correctness vs reference and generic NEON - PASS
 
-- NEON 128-bit (2 complex64) vs AVX2 256-bit (4 complex64)
-- Expect different unrolling patterns due to register width
+**Implementation notes**:
+
+- Go ARM64 assembler lacks VFADD/VFSUB; used VFMLA/VFMLS with ones vector
+- QEMU benchmarks not representative; real hardware needed (see 15.4)
+- All correctness tests pass under QEMU emulation
 
 #### 15.5.3-5 Implement NEON kernels for sizes 16, 32, 64, 128
 
