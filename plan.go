@@ -45,6 +45,13 @@ type Plan[T Complex] struct {
 	bluesteinScratch        []T   // Size M (extra scratch for Bluestein)
 	bluesteinScratchBacking []byte
 
+	// Zero-dispatch codelet bindings (nil = use fallback kernel)
+	forwardCodelet fft.CodeletFunc[T]
+	inverseCodelet fft.CodeletFunc[T]
+
+	// algorithm describes which implementation is bound (e.g., "dit64_generic", "stockham")
+	algorithm string
+
 	forwardKernel  fft.Kernel[T]
 	inverseKernel  fft.Kernel[T]
 	kernelStrategy fft.KernelStrategy
@@ -189,6 +196,13 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		return p.bluesteinForward(dst, src)
 	}
 
+	// Zero-dispatch codelet path (highest priority)
+	if p.forwardCodelet != nil {
+		p.forwardCodelet(dst, src, p.twiddle, p.scratch, p.bitrev)
+		return nil
+	}
+
+	// Fallback kernel dispatch
 	if p.forwardKernel != nil && p.forwardKernel(dst, src, p.twiddle, p.scratch, p.bitrev) {
 		return nil
 	}
@@ -217,6 +231,13 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 		return p.bluesteinInverse(dst, src)
 	}
 
+	// Zero-dispatch codelet path (highest priority)
+	if p.inverseCodelet != nil {
+		p.inverseCodelet(dst, src, p.twiddle, p.scratch, p.bitrev)
+		return nil
+	}
+
+	// Fallback kernel dispatch
 	if p.inverseKernel != nil && p.inverseKernel(dst, src, p.twiddle, p.scratch, p.bitrev) {
 		return nil
 	}
@@ -291,17 +312,13 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		return nil, ErrInvalidLength
 	}
 
-	useBluestein := false
+	// Unified codelet/wisdom/heuristic selection
+	estimate := fft.EstimatePlan[T](n, features, opts.Wisdom)
 
-	var strategy fft.KernelStrategy
+	useBluestein := estimate.Strategy == fft.KernelBluestein
+	strategy := estimate.Strategy
 
-	if fft.IsPowerOfTwo(n) || fft.IsHighlyComposite(n) {
-		strategy = fft.ResolveKernelStrategyWithDefault(n, opts.Strategy)
-	} else {
-		useBluestein = true
-		strategy = fft.KernelBluestein
-	}
-
+	// Get fallback kernels (used when no codelet is available)
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
 	var (
@@ -419,6 +436,9 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		scratch:                 scratch,
 		stridedScratch:          stridedScratch,
 		bitrev:                  planBitReversal(n),
+		forwardCodelet:          estimate.ForwardCodelet,
+		inverseCodelet:          estimate.InverseCodelet,
+		algorithm:               estimate.Algorithm,
 		forwardKernel:           kernels.Forward,
 		inverseKernel:           kernels.Inverse,
 		kernelStrategy:          strategy,
@@ -695,6 +715,9 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		packedTwiddle4:  p.packedTwiddle4,  // Shared (immutable)
 		packedTwiddle8:  p.packedTwiddle8,  // Shared (immutable)
 		packedTwiddle16: p.packedTwiddle16, // Shared (immutable)
+		forwardCodelet:  p.forwardCodelet,  // Shared (function pointer)
+		inverseCodelet:  p.inverseCodelet,  // Shared (function pointer)
+		algorithm:       p.algorithm,       // Shared (immutable string)
 		forwardKernel:   p.forwardKernel,
 		inverseKernel:   p.inverseKernel,
 		kernelStrategy:  p.kernelStrategy,
