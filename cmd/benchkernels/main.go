@@ -81,7 +81,8 @@ func main() {
 
 	// Export wisdom if requested
 	if *wisdomFile != "" {
-		if err := exportWisdom(*wisdomFile, bestResults); err != nil {
+		err := exportWisdom(*wisdomFile, bestResults)
+		if err != nil {
 			fmt.Printf("error exporting wisdom: %v\n", err)
 			return
 		}

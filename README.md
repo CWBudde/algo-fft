@@ -137,8 +137,16 @@ can be faster.
 
 ```go
 // Process multiple FFTs efficiently
-err = plan.ForwardBatch(dst, src, count, stride)
+plan, _ := algofft.NewPlan(1024)
+count := 16
+src := make([]complex64, 1024*count)
+dst := make([]complex64, 1024*count)
+
+// All FFTs stored sequentially: [FFT0, FFT1, FFT2, ...]
+err := plan.ForwardBatch(dst, src, count)
 ```
+
+Batch processing uses an interleaved/sequential memory layout where FFT `i` occupies `data[i*n:(i+1)*n]`. This layout is cache-friendly and maintains zero allocations during transforms.
 
 ### Wisdom System (Plan Caching)
 

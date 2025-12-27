@@ -1199,19 +1199,19 @@ This is a reasonable trade-off for supporting arbitrary dimensions.
 
 ## Phase 19: Batch Processing
 
-### 19.1 Batch FFT API
+### 19.1 Batch FFT API ✅
 
-- [ ] Design batch API: `Plan.ForwardBatch(dst, src []complex64, count, stride int) error`
-- [ ] Support interleaved (stride=n) and sequential (stride=1) layouts
-- [ ] Document memory layout expectations
-- [ ] Write basic batch correctness tests
+- [x] Design batch API: `Plan.ForwardBatch(dst, src []complex64, count int) error`
+- [x] Support interleaved (sequential) layout (stride=n)
+- [x] Document memory layout expectations
+- [x] Write basic batch correctness tests
 
-### 19.2 Batch Implementation
+### 19.2 Batch Implementation ✅
 
-- [ ] Implement simple loop-based batching
-- [ ] Ensure each FFT in batch uses same Plan
-- [ ] Test batch results match individual FFT calls
-- [ ] Benchmark batch vs individual calls
+- [x] Implement simple loop-based batching
+- [x] Ensure each FFT in batch uses same Plan
+- [x] Test batch results match individual FFT calls
+- [x] Benchmark batch vs individual calls
 
 ### 19.3 Parallel Batch Processing
 

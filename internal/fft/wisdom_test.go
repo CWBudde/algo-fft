@@ -101,6 +101,7 @@ func TestWisdomExportImport(t *testing.T) {
 
 	// Export
 	var buf bytes.Buffer
+
 	err := w.Export(&buf)
 	if err != nil {
 		t.Fatalf("export failed: %v", err)
@@ -113,6 +114,7 @@ func TestWisdomExportImport(t *testing.T) {
 
 	// Import into new wisdom
 	w2 := NewWisdom()
+
 	err = w2.Import(strings.NewReader(exported))
 	if err != nil {
 		t.Fatalf("import failed: %v", err)

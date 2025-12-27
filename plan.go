@@ -302,6 +302,86 @@ func (p *Plan[T]) Transform(dst, src []T, inverse bool) error {
 	return p.Forward(dst, src)
 }
 
+// ForwardBatch computes count forward FFTs on sequential data.
+//
+// The data layout is interleaved/sequential:
+//   - FFT 0: src[0:n] → dst[0:n]
+//   - FFT 1: src[n:2n] → dst[n:2n]
+//   - FFT i: src[i*n:(i+1)*n] → dst[i*n:(i+1)*n]
+//
+// dst and src must have length >= count * Plan.Len().
+// dst and src may point to the same slice for in-place batch operation.
+//
+// Returns ErrNilSlice if dst or src is nil.
+// Returns ErrInvalidLength if count < 1.
+// Returns ErrLengthMismatch if slice lengths are insufficient.
+func (p *Plan[T]) ForwardBatch(dst, src []T, count int) error {
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	if count < 1 {
+		return ErrInvalidLength
+	}
+
+	required := count * p.n
+	if len(dst) < required || len(src) < required {
+		return ErrLengthMismatch
+	}
+
+	for i := range count {
+		start := i * p.n
+
+		end := start + p.n
+		err := p.Forward(dst[start:end], src[start:end])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// InverseBatch computes count inverse FFTs on sequential data.
+//
+// The data layout is interleaved/sequential:
+//   - FFT 0: src[0:n] → dst[0:n]
+//   - FFT 1: src[n:2n] → dst[n:2n]
+//   - FFT i: src[i*n:(i+1)*n] → dst[i*n:(i+1)*n]
+//
+// dst and src must have length >= count * Plan.Len().
+// dst and src may point to the same slice for in-place batch operation.
+//
+// Returns ErrNilSlice if dst or src is nil.
+// Returns ErrInvalidLength if count < 1.
+// Returns ErrLengthMismatch if slice lengths are insufficient.
+func (p *Plan[T]) InverseBatch(dst, src []T, count int) error {
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	if count < 1 {
+		return ErrInvalidLength
+	}
+
+	required := count * p.n
+	if len(dst) < required || len(src) < required {
+		return ErrLengthMismatch
+	}
+
+	for i := range count {
+		start := i * p.n
+
+		end := start + p.n
+		err := p.Inverse(dst[start:end], src[start:end])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // validateSlices checks that dst and src are valid for this Plan.
 func (p *Plan[T]) validateSlices(dst, src []T) error {
 	if dst == nil || src == nil {

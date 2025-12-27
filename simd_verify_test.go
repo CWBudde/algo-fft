@@ -40,6 +40,7 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 
 	// Test with SIMD enabled
 	cpu.ResetDetection()
+
 	plan, err := NewPlan(n)
 	if err != nil {
 		t.Fatalf("failed to create SIMD plan: %v", err)
@@ -69,8 +70,10 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 
 	// Compare
 	var maxRelErr float32
+
 	for i := range simdOut {
 		diff := cmplx64abs(simdOut[i] - genericOut[i])
+
 		maxMag := math.Max(float64(cmplx64abs(simdOut[i])), float64(cmplx64abs(genericOut[i])))
 		if maxMag > 1e-10 {
 			relErr := float32(float64(diff) / maxMag)
@@ -92,6 +95,7 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	}
 
 	cpu.ResetDetection()
+
 	plan, err := NewPlan64(n)
 	if err != nil {
 		t.Fatalf("failed to create SIMD plan: %v", err)
@@ -119,8 +123,10 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	}
 
 	var maxRelErr float64
+
 	for i := range simdOut {
 		diff := cmplx.Abs(simdOut[i] - genericOut[i])
+
 		maxMag := math.Max(cmplx.Abs(simdOut[i]), cmplx.Abs(genericOut[i]))
 		if maxMag > 1e-14 {
 			relErr := diff / maxMag

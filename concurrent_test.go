@@ -30,10 +30,12 @@ func testSharedPlan(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 	}
 
 	var wg sync.WaitGroup
+
 	errors := make(chan error, numGoroutines)
 
-	for g := 0; g < numGoroutines; g++ {
+	for g := range numGoroutines {
 		wg.Add(1)
+
 		go func(goroutineID int) {
 			defer wg.Done()
 
@@ -46,15 +48,17 @@ func testSharedPlan(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 				src[i] = complex(float32(goroutineID)+rand.Float32(), rand.Float32())
 			}
 
-			for iter := 0; iter < itersPerGoroutine; iter++ {
+			for iter := range itersPerGoroutine {
 				// Forward transform
-				if err := plan.Forward(dst, src); err != nil {
+				err := plan.Forward(dst, src)
+				if err != nil {
 					errors <- fmt.Errorf("goroutine %d iteration %d Forward: %w", goroutineID, iter, err)
 					return
 				}
 
 				// Inverse transform
-				if err := plan.Inverse(src, dst); err != nil {
+				err := plan.Inverse(src, dst)
+				if err != nil {
 					errors <- fmt.Errorf("goroutine %d iteration %d Inverse: %w", goroutineID, iter, err)
 					return
 				}
@@ -88,10 +92,12 @@ func TestConcurrentPooledPlans(t *testing.T) {
 
 func testConcurrentPooled(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 	var wg sync.WaitGroup
+
 	errors := make(chan error, numGoroutines)
 
-	for g := 0; g < numGoroutines; g++ {
+	for g := range numGoroutines {
 		wg.Add(1)
+
 		go func(goroutineID int) {
 			defer wg.Done()
 
@@ -102,7 +108,7 @@ func testConcurrentPooled(t *testing.T, n, numGoroutines, itersPerGoroutine int)
 				src[i] = complex(rand.Float32(), rand.Float32())
 			}
 
-			for iter := 0; iter < itersPerGoroutine; iter++ {
+			for iter := range itersPerGoroutine {
 				// Create pooled plan
 				plan, err := NewPlanPooled[complex64](n)
 				if err != nil {
@@ -143,10 +149,12 @@ func TestConcurrentPlanCreation(t *testing.T) {
 
 func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
 	var wg sync.WaitGroup
+
 	errors := make(chan error, numGoroutines)
 
-	for g := 0; g < numGoroutines; g++ {
+	for g := range numGoroutines {
 		wg.Add(1)
+
 		go func(goroutineID int) {
 			defer wg.Done()
 
@@ -161,6 +169,7 @@ func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
 				// Perform a transform to verify the plan works
 				src := make([]complex64, n)
 				dst := make([]complex64, n)
+
 				for i := range src {
 					src[i] = complex(rand.Float32(), rand.Float32())
 				}
@@ -196,10 +205,12 @@ func TestConcurrentMixedOperations(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
+
 	errors := make(chan error, numGoroutines)
 
-	for g := 0; g < numGoroutines; g++ {
+	for g := range numGoroutines {
 		wg.Add(1)
+
 		go func(goroutineID int) {
 			defer wg.Done()
 
@@ -210,15 +221,17 @@ func TestConcurrentMixedOperations(t *testing.T) {
 				src[i] = complex(rand.Float32(), rand.Float32())
 			}
 
-			for iter := 0; iter < itersPerGoroutine; iter++ {
+			for iter := range itersPerGoroutine {
 				// Randomly choose Forward or Inverse
 				if iter%2 == 0 {
-					if err := plan.Forward(dst, src); err != nil {
+					err := plan.Forward(dst, src)
+					if err != nil {
 						errors <- fmt.Errorf("goroutine %d Forward: %w", goroutineID, err)
 						return
 					}
 				} else {
-					if err := plan.Inverse(dst, src); err != nil {
+					err := plan.Inverse(dst, src)
+					if err != nil {
 						errors <- fmt.Errorf("goroutine %d Inverse: %w", goroutineID, err)
 						return
 					}
@@ -254,10 +267,12 @@ func TestConcurrentDifferentPrecisions(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
+
 	errors := make(chan error, numGoroutines)
 
-	for g := 0; g < numGoroutines; g++ {
+	for g := range numGoroutines {
 		wg.Add(1)
+
 		go func(goroutineID int) {
 			defer wg.Done()
 
@@ -266,12 +281,14 @@ func TestConcurrentDifferentPrecisions(t *testing.T) {
 				// Use complex64
 				src := make([]complex64, n)
 				dst := make([]complex64, n)
+
 				for i := range src {
 					src[i] = complex(rand.Float32(), rand.Float32())
 				}
 
-				for iter := 0; iter < itersPerGoroutine; iter++ {
-					if err := plan64.Forward(dst, src); err != nil {
+				for range itersPerGoroutine {
+					err := plan64.Forward(dst, src)
+					if err != nil {
 						errors <- fmt.Errorf("goroutine %d complex64: %w", goroutineID, err)
 						return
 					}
@@ -280,12 +297,14 @@ func TestConcurrentDifferentPrecisions(t *testing.T) {
 				// Use complex128
 				src := make([]complex128, n)
 				dst := make([]complex128, n)
+
 				for i := range src {
 					src[i] = complex(rand.Float64(), rand.Float64())
 				}
 
-				for iter := 0; iter < itersPerGoroutine; iter++ {
-					if err := plan128.Forward(dst, src); err != nil {
+				for range itersPerGoroutine {
+					err := plan128.Forward(dst, src)
+					if err != nil {
 						errors <- fmt.Errorf("goroutine %d complex128: %w", goroutineID, err)
 						return
 					}
@@ -320,10 +339,12 @@ func TestConcurrentStress(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
+
 	errors := make(chan error, numGoroutines)
 
-	for g := 0; g < numGoroutines; g++ {
+	for g := range numGoroutines {
 		wg.Add(1)
+
 		go func(goroutineID int) {
 			defer wg.Done()
 
@@ -334,8 +355,9 @@ func TestConcurrentStress(t *testing.T) {
 				src[i] = complex(rand.Float32(), rand.Float32())
 			}
 
-			for iter := 0; iter < itersPerGoroutine; iter++ {
-				if err := plan.Forward(dst, src); err != nil {
+			for iter := range itersPerGoroutine {
+				err := plan.Forward(dst, src)
+				if err != nil {
 					errors <- fmt.Errorf("goroutine %d iteration %d: %w", goroutineID, iter, err)
 					return
 				}

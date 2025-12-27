@@ -39,27 +39,33 @@ func testErrorAccumulation64(t *testing.T, n, numCycles int) {
 	// Copy for repeated transforms
 	data := make([]complex64, n)
 	temp := make([]complex64, n)
+
 	copy(data, original)
 
 	// Perform repeated Forward->Inverse cycles
-	for cycle := 0; cycle < numCycles; cycle++ {
-		if err := plan.Forward(temp, data); err != nil {
+	for range numCycles {
+		err := plan.Forward(temp, data)
+		if err != nil {
 			t.Fatalf("Forward failed: %v", err)
 		}
-		if err := plan.Inverse(data, temp); err != nil {
+		err := plan.Inverse(data, temp)
+		if err != nil {
 			t.Fatalf("Inverse failed: %v", err)
 		}
 	}
 
 	// Measure error
 	var maxError, sumError float64
+
 	for i := range original {
 		diff := cmplx64abs(data[i] - original[i])
+
 		sumError += float64(diff)
 		if float64(diff) > maxError {
 			maxError = float64(diff)
 		}
 	}
+
 	avgError := sumError / float64(n)
 
 	// Expected error bounds (rough heuristics)
@@ -69,6 +75,7 @@ func testErrorAccumulation64(t *testing.T, n, numCycles int) {
 	if maxError > expectedMaxError {
 		t.Errorf("Max error %e exceeds expected bound %e after %d cycles", maxError, expectedMaxError, numCycles)
 	}
+
 	if avgError > expectedAvgError {
 		t.Errorf("Avg error %e exceeds expected bound %e after %d cycles", avgError, expectedAvgError, numCycles)
 	}
@@ -77,7 +84,7 @@ func testErrorAccumulation64(t *testing.T, n, numCycles int) {
 }
 
 // TestPrecisionParseval verifies Parseval's theorem: energy is conserved in FFT.
-// For a signal x and its FFT X: sum(|x|²) = sum(|X|²) / N
+// For a signal x and its FFT X: sum(|x|²) = sum(|X|²) / N.
 func TestPrecisionParseval(t *testing.T) {
 	sizes := []int{256, 1024, 4096, 16384}
 
@@ -92,7 +99,9 @@ func TestPrecisionParseval(t *testing.T) {
 func testParseval64(t *testing.T, n int) {
 	// Generate random input
 	data := make([]complex64, n)
+
 	var inputEnergy float64
+
 	for i := range data {
 		data[i] = complex(rand.Float32()*2-1, rand.Float32()*2-1)
 		inputEnergy += float64(cmplx64abs(data[i]) * cmplx64abs(data[i]))
@@ -103,6 +112,7 @@ func testParseval64(t *testing.T, n int) {
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
+
 	output := make([]complex64, n)
 	if err := plan.Forward(output, data); err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -113,6 +123,7 @@ func testParseval64(t *testing.T, n int) {
 	for i := range output {
 		outputEnergy += float64(cmplx64abs(output[i]) * cmplx64abs(output[i]))
 	}
+
 	outputEnergy /= float64(n) // Parseval: divide by N
 
 	// Check energy conservation
@@ -128,7 +139,9 @@ func testParseval64(t *testing.T, n int) {
 func testParseval128(t *testing.T, n int) {
 	// Generate random input
 	data := make([]complex128, n)
+
 	var inputEnergy float64
+
 	for i := range data {
 		data[i] = complex(rand.Float64()*2-1, rand.Float64()*2-1)
 		inputEnergy += cmplx.Abs(data[i]) * cmplx.Abs(data[i])
@@ -139,6 +152,7 @@ func testParseval128(t *testing.T, n int) {
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
+
 	output := make([]complex128, n)
 	if err := plan.Forward(output, data); err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -149,6 +163,7 @@ func testParseval128(t *testing.T, n int) {
 	for i := range output {
 		outputEnergy += cmplx.Abs(output[i]) * cmplx.Abs(output[i])
 	}
+
 	outputEnergy /= float64(n) // Parseval: divide by N
 
 	// Check energy conservation
@@ -189,6 +204,7 @@ func testPrecisionComparison(t *testing.T, n int) {
 	if err != nil {
 		t.Fatalf("failed to create complex64 plan: %v", err)
 	}
+
 	output64 := make([]complex64, n)
 	if err := plan64.Forward(output64, input64); err != nil {
 		t.Fatalf("Forward complex64 failed: %v", err)
@@ -198,6 +214,7 @@ func testPrecisionComparison(t *testing.T, n int) {
 	if err != nil {
 		t.Fatalf("failed to create complex128 plan: %v", err)
 	}
+
 	output128 := make([]complex128, n)
 	if err := plan128.Forward(output128, input128); err != nil {
 		t.Fatalf("Forward complex128 failed: %v", err)
@@ -205,6 +222,7 @@ func testPrecisionComparison(t *testing.T, n int) {
 
 	// Compare results
 	var maxAbsDiff, maxRelDiff float64
+
 	for i := range output64 {
 		diff := cmplx.Abs(complex128(output64[i]) - output128[i])
 		if diff > maxAbsDiff {
@@ -254,6 +272,7 @@ func testLargePrecision(t *testing.T, n int) {
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
+
 	output := make([]complex128, n)
 	if err := plan.Forward(output, data); err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -261,12 +280,14 @@ func testLargePrecision(t *testing.T, n int) {
 
 	// Check that all elements are approximately 1.0
 	var maxError float64
+
 	expected := complex(1.0, 0.0)
 	for i, val := range output {
 		err := cmplx.Abs(val - expected)
 		if err > maxError {
 			maxError = err
 		}
+
 		if i < 10 && err > 1e-10 {
 			t.Logf("data[%d] = %v, expected %v, error = %e", i, val, expected, err)
 		}
@@ -284,7 +305,9 @@ func testLargePrecision(t *testing.T, n int) {
 	if err := plan.Inverse(roundtrip, output); err != nil {
 		t.Fatalf("Inverse failed: %v", err)
 	}
+
 	data = roundtrip
+
 	impulseError := cmplx.Abs(data[0] - complex(1.0, 0.0))
 	if impulseError > 1e-10 {
 		t.Errorf("Round-trip error at impulse position: %e", impulseError)
@@ -292,6 +315,7 @@ func testLargePrecision(t *testing.T, n int) {
 
 	// Check other positions are near zero
 	var maxNoiseError float64
+
 	for i := 1; i < n; i++ {
 		err := cmplx.Abs(data[i])
 		if err > maxNoiseError {
@@ -328,6 +352,7 @@ func testSineWavePrecision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
+
 	output := make([]complex128, n)
 	if err := plan.Forward(output, data); err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -371,6 +396,7 @@ func testCosineWavePrecision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
+
 	output := make([]complex128, n)
 	if err := plan.Forward(output, data); err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -407,6 +433,7 @@ func testImpulsePrecision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
+
 	output := make([]complex128, n)
 	if err := plan.Forward(output, data); err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -414,11 +441,13 @@ func testImpulsePrecision(t *testing.T) {
 
 	// FFT of impulse should be constant (all values = 1.0)
 	var maxError float64
+
 	for i, val := range output {
 		err := cmplx.Abs(val - complex(1.0, 0.0))
 		if err > maxError {
 			maxError = err
 		}
+
 		if i < 5 {
 			t.Logf("data[%d] = %v, error = %e", i, val, err)
 		}
@@ -456,6 +485,7 @@ func testWhiteNoisePrecision(t *testing.T) {
 
 	// Check reconstruction
 	var maxError float64
+
 	for i := range roundtrip {
 		err := cmplx.Abs(roundtrip[i] - original[i])
 		if err > maxError {
@@ -470,7 +500,7 @@ func testWhiteNoisePrecision(t *testing.T) {
 	t.Logf("White noise round-trip: max error = %e", maxError)
 }
 
-// cmplx64abs returns the absolute value of a complex64
+// cmplx64abs returns the absolute value of a complex64.
 func cmplx64abs(c complex64) float32 {
 	r, i := real(c), imag(c)
 	return float32(math.Sqrt(float64(r*r + i*i)))

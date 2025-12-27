@@ -24,10 +24,10 @@ Numerical errors in FFT implementations come from several sources:
 
 For a size-N FFT with well-conditioned input:
 
-| Precision   | Single Transform | Round-trip (Forward + Inverse) |
-|-------------|------------------|--------------------------------|
-| complex64   | ~10⁻⁶ relative   | ~10⁻⁵ relative                 |
-| complex128  | ~10⁻¹⁴ relative  | ~10⁻¹³ relative                |
+| Precision  | Single Transform | Round-trip (Forward + Inverse) |
+| ---------- | ---------------- | ------------------------------ |
+| complex64  | ~10⁻⁶ relative   | ~10⁻⁵ relative                 |
+| complex128 | ~10⁻¹⁴ relative  | ~10⁻¹³ relative                |
 
 These bounds scale roughly as `ε × log₂(N)` where `ε` is machine epsilon.
 
@@ -44,10 +44,10 @@ This is tested in `precision_test.go::TestPrecisionParseval`.
 
 Repeated forward/inverse cycles accumulate error linearly with the number of cycles:
 
-| Precision   | 10 cycles  | 100 cycles | 1000 cycles |
-|-------------|------------|------------|-------------|
-| complex64   | ~10⁻⁵      | ~10⁻⁴      | ~10⁻³       |
-| complex128  | ~10⁻¹³     | ~10⁻¹²     | ~10⁻¹¹      |
+| Precision  | 10 cycles | 100 cycles | 1000 cycles |
+| ---------- | --------- | ---------- | ----------- |
+| complex64  | ~10⁻⁵     | ~10⁻⁴      | ~10⁻³       |
+| complex128 | ~10⁻¹³    | ~10⁻¹²     | ~10⁻¹¹      |
 
 **Recommendation**: For applications requiring repeated transforms (e.g., iterative solvers), use complex128 or periodically reinitialize from high-precision reference data.
 
@@ -57,11 +57,11 @@ Precision degrades slightly with FFT size due to increased accumulation depth:
 
 ### complex64 Recommended Maximum Sizes
 
-| Application | Max Size | Rationale |
-|-------------|----------|-----------|
-| Signal processing (audio/video) | 65536 | Perceptual tolerance masks errors |
-| Real-time applications | 16384 | Low latency + acceptable accuracy |
-| Scientific computing | 4096 | Higher precision requirements |
+| Application                     | Max Size | Rationale                         |
+| ------------------------------- | -------- | --------------------------------- |
+| Signal processing (audio/video) | 65536    | Perceptual tolerance masks errors |
+| Real-time applications          | 16384    | Low latency + acceptable accuracy |
+| Scientific computing            | 4096     | Higher precision requirements     |
 
 ### complex128 Maximum Sizes
 
@@ -74,6 +74,7 @@ Precision degrades slightly with FFT size due to increased accumulation depth:
 ### When to Use complex64
 
 ✅ **Good for:**
+
 - Real-time audio/video processing
 - Embedded systems with limited memory
 - Applications where performance is critical
@@ -83,6 +84,7 @@ Precision degrades slightly with FFT size due to increased accumulation depth:
 ### When to Use complex128
 
 ✅ **Good for:**
+
 - Scientific computing requiring high accuracy
 - Iterative algorithms (solvers, optimization)
 - Very large FFT sizes (> 65536)
@@ -92,12 +94,12 @@ Precision degrades slightly with FFT size due to increased accumulation depth:
 
 ### Performance vs Precision Trade-off
 
-| Metric | complex64 | complex128 | Ratio |
-|--------|-----------|------------|-------|
-| Memory per sample | 8 bytes | 16 bytes | 2× |
-| Cache efficiency | Better | Worse | ~1.5× faster |
-| SIMD throughput (AVX2) | 4 elements | 2 elements | 2× |
-| Precision | 10⁻⁶ | 10⁻¹⁴ | 10⁸× |
+| Metric                 | complex64  | complex128 | Ratio        |
+| ---------------------- | ---------- | ---------- | ------------ |
+| Memory per sample      | 8 bytes    | 16 bytes   | 2×           |
+| Cache efficiency       | Better     | Worse      | ~1.5× faster |
+| SIMD throughput (AVX2) | 4 elements | 2 elements | 2×           |
+| Precision              | 10⁻⁶       | 10⁻¹⁴      | 10⁸×         |
 
 **Typical performance**: complex64 is 1.5-2× faster than complex128 on modern CPUs with SIMD.
 
@@ -126,14 +128,17 @@ Precision degrades slightly with FFT size due to increased accumulation depth:
 The library has been validated against analytical FFT results:
 
 ### Impulse (δ[0])
+
 - **Expected**: FFT = [1, 1, 1, ..., 1]
 - **Observed**: Max error < 10⁻¹² (complex128)
 
 ### Sine Wave (sin(2πft))
+
 - **Expected**: Peaks at ±frequency bins
 - **Observed**: Peak magnitude error < 0.1% of expected value
 
 ### Cosine Wave (cos(2πft))
+
 - **Expected**: Real-valued peaks at ±frequency bins
 - **Observed**: Imaginary component < 10⁻¹⁰ × real component
 
@@ -171,16 +176,16 @@ If input contains both very large and very small values (e.g., 10¹⁰ and 10⁻
 
 ## Recommendations Summary
 
-| Use Case | Recommended Precision | Max Size | Notes |
-|----------|----------------------|----------|-------|
-| Audio processing | complex64 | 65536 | Perceptual tolerance |
-| Video/Image processing | complex64 | 16384 | Real-time performance |
-| Radar/Sonar | complex128 | 262144 | High dynamic range |
-| Scientific simulations | complex128 | 524288 | Accuracy critical |
-| Machine learning (inference) | complex64 | 4096 | Speed matters |
-| Machine learning (training) | complex128 | 16384 | Stability important |
-| Embedded systems | complex64 | 4096 | Memory constrained |
-| Financial calculations | complex128 | Any | Regulatory requirements |
+| Use Case                     | Recommended Precision | Max Size | Notes                   |
+| ---------------------------- | --------------------- | -------- | ----------------------- |
+| Audio processing             | complex64             | 65536    | Perceptual tolerance    |
+| Video/Image processing       | complex64             | 16384    | Real-time performance   |
+| Radar/Sonar                  | complex128            | 262144   | High dynamic range      |
+| Scientific simulations       | complex128            | 524288   | Accuracy critical       |
+| Machine learning (inference) | complex64             | 4096     | Speed matters           |
+| Machine learning (training)  | complex128            | 16384    | Stability important     |
+| Embedded systems             | complex64             | 4096     | Memory constrained      |
+| Financial calculations       | complex128            | Any      | Regulatory requirements |
 
 ## Benchmarking Precision
 
@@ -213,7 +218,7 @@ See `precision_test.go` for more comprehensive examples.
 - IEEE 754 Standard for Floating-Point Arithmetic
 - Numerical Recipes in C (Chapter 12: Fast Fourier Transform)
 - FFTW documentation on precision and accuracy
-- *What Every Computer Scientist Should Know About Floating-Point Arithmetic* (Goldberg, 1991)
+- _What Every Computer Scientist Should Know About Floating-Point Arithmetic_ (Goldberg, 1991)
 
 ## Updates
 

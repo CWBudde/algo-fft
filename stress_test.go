@@ -46,12 +46,15 @@ func runStressTest(t *testing.T, n int, duration time.Duration) {
 	iterations := 0
 
 	for time.Since(start) < duration {
-		if err := plan.Forward(dst, src); err != nil {
+		err := plan.Forward(dst, src)
+		if err != nil {
 			t.Fatalf("Forward failed at iteration %d: %v", iterations, err)
 		}
-		if err := plan.Inverse(src, dst); err != nil {
+		err := plan.Inverse(src, dst)
+		if err != nil {
 			t.Fatalf("Inverse failed at iteration %d: %v", iterations, err)
 		}
+
 		iterations++
 	}
 
@@ -65,8 +68,10 @@ func TestStressMemoryStability(t *testing.T) {
 		t.Skip("skipping memory stress test in short mode")
 	}
 
-	const totalIterations = 1_000_000
-	const sampleInterval = 10_000
+	const (
+		totalIterations = 1_000_000
+		sampleInterval  = 10_000
+	)
 
 	sizes := []int{256, 1024, 4096}
 	for _, n := range sizes {
@@ -90,13 +95,16 @@ func testMemoryStability(t *testing.T, n, totalIters, sampleInterval int) {
 		src[i] = complex(rand.Float32(), rand.Float32())
 	}
 
-	var memStats runtime.MemStats
-	var initialAlloc, maxAlloc uint64
+	var (
+		memStats               runtime.MemStats
+		initialAlloc, maxAlloc uint64
+	)
 
 	start := time.Now()
 
-	for i := 0; i < totalIters; i++ {
-		if err := plan.Forward(dst, src); err != nil {
+	for i := range totalIters {
+		err := plan.Forward(dst, src)
+		if err != nil {
 			t.Fatalf("Forward failed at iteration %d: %v", i, err)
 		}
 
@@ -134,7 +142,7 @@ func testMemoryStability(t *testing.T, n, totalIters, sampleInterval int) {
 		initialAlloc/1024, maxAlloc/1024, memStats.Alloc/1024)
 }
 
-// TestStressRandomSizes tests with random FFT sizes
+// TestStressRandomSizes tests with random FFT sizes.
 func TestStressRandomSizes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping random size stress test in short mode")
@@ -159,6 +167,7 @@ func TestStressRandomSizes(t *testing.T) {
 
 		src := make([]complex64, n)
 		dst := make([]complex64, n)
+
 		for i := range src {
 			src[i] = complex(rand.Float32(), rand.Float32())
 		}
@@ -177,13 +186,14 @@ func TestStressRandomSizes(t *testing.T) {
 	t.Logf("Completed %d random-size transforms in %v", iterations, duration)
 }
 
-// TestStressPlanPooled tests pooled plan creation under stress
+// TestStressPlanPooled tests pooled plan creation under stress.
 func TestStressPlanPooled(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping plan pool stress test in short mode")
 	}
 
 	const iterations = 10000
+
 	sizes := []int{256, 1024, 4096}
 
 	for _, n := range sizes {
@@ -207,7 +217,7 @@ func testPlanPooledStress(t *testing.T, n, iters int) {
 
 	start := time.Now()
 
-	for i := 0; i < iters; i++ {
+	for i := range iters {
 		// Create pooled plan
 		plan, err := NewPlanPooled[complex64](n)
 		if err != nil {
@@ -223,6 +233,7 @@ func testPlanPooledStress(t *testing.T, n, iters int) {
 		// Check memory every 1000 iterations
 		if i > 0 && i%1000 == 0 {
 			runtime.ReadMemStats(&memStats)
+
 			growth := float64(memStats.Alloc-initialAlloc) / float64(initialAlloc)
 			if growth > 1.0 { // Allow 100% growth for pooling overhead
 				t.Errorf("Pool memory growth at iteration %d: %.2f%%", i, growth*100)
@@ -238,7 +249,7 @@ func testPlanPooledStress(t *testing.T, n, iters int) {
 	t.Logf("Memory: initial=%d KB, final=%d KB", initialAlloc/1024, memStats.Alloc/1024)
 }
 
-// TestStressPrecisionSwitching tests switching between complex64 and complex128
+// TestStressPrecisionSwitching tests switching between complex64 and complex128.
 func TestStressPrecisionSwitching(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping precision switching stress test in short mode")
@@ -275,21 +286,24 @@ func TestStressPrecisionSwitching(t *testing.T) {
 	for time.Since(start) < duration {
 		// Alternate between precisions
 		if iterations%2 == 0 {
-			if err := plan32.Forward(dst32, src32); err != nil {
+			err := plan32.Forward(dst32, src32)
+			if err != nil {
 				t.Fatalf("complex64 Forward failed: %v", err)
 			}
 		} else {
-			if err := plan64.Forward(dst64, src64); err != nil {
+			err := plan64.Forward(dst64, src64)
+			if err != nil {
 				t.Fatalf("complex128 Forward failed: %v", err)
 			}
 		}
+
 		iterations++
 	}
 
 	t.Logf("Completed %d precision-switching transforms in %v", iterations, duration)
 }
 
-// getStressDuration returns the stress test duration from env var or default
+// getStressDuration returns the stress test duration from env var or default.
 func getStressDuration() time.Duration {
 	envDuration := os.Getenv("STRESS_DURATION")
 	if envDuration == "" {
