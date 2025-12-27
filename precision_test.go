@@ -48,7 +48,7 @@ func testErrorAccumulation64(t *testing.T, n, numCycles int) {
 		if err != nil {
 			t.Fatalf("Forward failed: %v", err)
 		}
-		err := plan.Inverse(data, temp)
+		err = plan.Inverse(data, temp)
 		if err != nil {
 			t.Fatalf("Inverse failed: %v", err)
 		}
