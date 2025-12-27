@@ -45,9 +45,17 @@ type Plan[T Complex] struct {
 	bluesteinScratch        []T   // Size M (extra scratch for Bluestein)
 	bluesteinScratchBacking []byte
 
+	// Direct codelet binding - zero dispatch for registered sizes
+	forwardCodelet fft.CodeletFunc[T]
+	inverseCodelet fft.CodeletFunc[T]
+
+	// Fallback kernels for sizes without codelets
 	forwardKernel  fft.Kernel[T]
 	inverseKernel  fft.Kernel[T]
 	kernelStrategy fft.KernelStrategy
+
+	// algorithm describes which kernel/codelet is bound (e.g., "dit64_generic")
+	algorithm string
 
 	// backing buffers keep aligned slices alive for GC.
 	twiddleBacking        []byte
@@ -94,6 +102,12 @@ func (p *Plan[T]) Len() int {
 // KernelStrategy reports the strategy chosen when the plan was created.
 func (p *Plan[T]) KernelStrategy() KernelStrategy {
 	return p.kernelStrategy
+}
+
+// Algorithm returns the name of the bound kernel or codelet (e.g., "dit64_generic").
+// Returns empty string if no specific algorithm is bound.
+func (p *Plan[T]) Algorithm() string {
+	return p.algorithm
 }
 
 // String returns a human-readable description of the Plan for debugging.
@@ -188,6 +202,13 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		return p.bluesteinForward(dst, src)
 	}
 
+	// Zero-dispatch path: directly bound codelet (no runtime checks)
+	if p.forwardCodelet != nil {
+		p.forwardCodelet(dst, src, p.twiddle, p.scratch, p.bitrev)
+		return nil
+	}
+
+	// Fallback path: traditional kernel dispatch
 	if p.forwardKernel != nil && p.forwardKernel(dst, src, p.twiddle, p.scratch, p.bitrev) {
 		return nil
 	}
@@ -216,6 +237,13 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 		return p.bluesteinInverse(dst, src)
 	}
 
+	// Zero-dispatch path: directly bound codelet (no runtime checks)
+	if p.inverseCodelet != nil {
+		p.inverseCodelet(dst, src, p.twiddle, p.scratch, p.bitrev)
+		return nil
+	}
+
+	// Fallback path: traditional kernel dispatch
 	if p.inverseKernel != nil && p.inverseKernel(dst, src, p.twiddle, p.scratch, p.bitrev) {
 		return nil
 	}
@@ -283,17 +311,13 @@ func NewPlanT[T Complex](n int) (*Plan[T], error) {
 
 	features := cpu.DetectFeatures()
 
-	useBluestein := false
+	// Try to find a codelet for this size (zero-dispatch path)
+	estimate := fft.EstimatePlan[T](n, features)
 
-	var strategy fft.KernelStrategy
+	useBluestein := estimate.Strategy == fft.KernelBluestein
+	strategy := estimate.Strategy
 
-	if fft.IsPowerOfTwo(n) || fft.IsHighlyComposite(n) {
-		strategy = fft.ResolveKernelStrategy(n)
-	} else {
-		useBluestein = true
-		strategy = fft.KernelBluestein
-	}
-
+	// Get fallback kernels (used when no codelet is available)
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
 	var (
@@ -411,9 +435,12 @@ func NewPlanT[T Complex](n int) (*Plan[T], error) {
 		scratch:                 scratch,
 		stridedScratch:          stridedScratch,
 		bitrev:                  planBitReversal(n),
+		forwardCodelet:          estimate.ForwardCodelet,
+		inverseCodelet:          estimate.InverseCodelet,
 		forwardKernel:           kernels.Forward,
 		inverseKernel:           kernels.Inverse,
 		kernelStrategy:          strategy,
+		algorithm:               estimate.Algorithm,
 		twiddleBacking:          twiddleBacking,
 		scratchBacking:          scratchBacking,
 		stridedScratchBacking:   stridedBacking,
@@ -478,7 +505,12 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 	}
 
 	features := cpu.DetectFeatures()
-	strategy := fft.ResolveKernelStrategy(n)
+
+	// Try to find a codelet for this size (zero-dispatch path)
+	estimate := fft.EstimatePlan[T](n, features)
+	strategy := estimate.Strategy
+
+	// Get fallback kernels (used when no codelet is available)
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
 	var (
@@ -539,9 +571,12 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 		scratch:               scratch,
 		stridedScratch:        stridedScratch,
 		bitrev:                bitrev,
+		forwardCodelet:        estimate.ForwardCodelet,
+		inverseCodelet:        estimate.InverseCodelet,
 		forwardKernel:         kernels.Forward,
 		inverseKernel:         kernels.Inverse,
 		kernelStrategy:        strategy,
+		algorithm:             estimate.Algorithm,
 		twiddleBacking:        twiddleBacking,
 		scratchBacking:        scratchBacking,
 		stridedScratchBacking: stridedBacking,
@@ -676,9 +711,12 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		packedTwiddle4:  p.packedTwiddle4,  // Shared (immutable)
 		packedTwiddle8:  p.packedTwiddle8,  // Shared (immutable)
 		packedTwiddle16: p.packedTwiddle16, // Shared (immutable)
+		forwardCodelet:  p.forwardCodelet,  // Shared (function pointer)
+		inverseCodelet:  p.inverseCodelet,  // Shared (function pointer)
 		forwardKernel:   p.forwardKernel,
 		inverseKernel:   p.inverseKernel,
 		kernelStrategy:  p.kernelStrategy,
+		algorithm:       p.algorithm,
 		twiddleBacking:  p.twiddleBacking, // Shared reference (keeps original alive)
 		scratchBacking:  scratchBacking,   // New allocation
 		pool:            nil,              // Clones are never pooled
