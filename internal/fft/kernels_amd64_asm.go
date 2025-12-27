@@ -9,15 +9,10 @@ import (
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	auto := autoKernelComplex64(KernelAuto)
 	if features.HasAVX2 && !features.ForceGeneric {
+		sizeSpecific := avx2SizeSpecificOrGenericComplex64(KernelAuto)
 		return Kernels[complex64]{
-			Forward: fallbackKernel(
-				avx2KernelComplex64(KernelAuto, forwardAVX2Complex64, forwardAVX2StockhamComplex64),
-				auto.Forward,
-			),
-			Inverse: fallbackKernel(
-				avx2KernelComplex64(KernelAuto, inverseAVX2Complex64, inverseAVX2StockhamComplex64),
-				auto.Inverse,
-			),
+			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
+			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
 		}
 	}
 
@@ -59,15 +54,10 @@ func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
 	auto := autoKernelComplex64(strategy)
 	if features.HasAVX2 && !features.ForceGeneric {
+		sizeSpecific := avx2SizeSpecificOrGenericComplex64(strategy)
 		return Kernels[complex64]{
-			Forward: fallbackKernel(
-				avx2KernelComplex64(strategy, forwardAVX2Complex64, forwardAVX2StockhamComplex64),
-				auto.Forward,
-			),
-			Inverse: fallbackKernel(
-				avx2KernelComplex64(strategy, inverseAVX2Complex64, inverseAVX2StockhamComplex64),
-				auto.Inverse,
-			),
+			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
+			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
 		}
 	}
 

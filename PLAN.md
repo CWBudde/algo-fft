@@ -634,11 +634,14 @@ Hints:
 
 **Approach:** Create fully unrolled AVX2 kernels for common small sizes (16, 32, 64, 128) that eliminate all loop overhead and hardcode stage counts.
 
-- [ ] **14.5.1 Design size-specific dispatch mechanism**
-  - [ ] Add dispatch layer in `kernels_amd64_asm.go` that routes by size
-  - [ ] Define function signatures for size-specific kernels
-  - [ ] Create fallback chain: size-specific SIMD → generic SIMD → pure-Go
-  - [ ] Add benchmarks to measure improvement vs generic AVX2
+- [x] **14.5.1 Design size-specific dispatch mechanism** ✅
+  - [x] Add dispatch layer in `kernels_amd64_size_specific.go` that routes by size
+  - [x] Define function signatures for size-specific kernels in `asm_amd64.go`
+  - [x] Create fallback chain: size-specific SIMD → generic SIMD → pure-Go
+  - [x] Add benchmarks to measure improvement vs generic AVX2
+  - [x] Add assembly stubs in `asm_amd64.s` (return false to trigger fallback)
+  - [x] Update `selectKernelsComplex64` to use new dispatch
+  - [x] Design document: `docs/plans/2025-01-27-avx2-size-specific-dispatch-design.md`
 
 - [ ] **14.5.2 Implement AVX2 Size-16 kernel (complex64)**
   - [ ] Create `forwardAVX2Size16Complex64Asm` in `asm_amd64.s`

@@ -2748,3 +2748,54 @@ TEXT ·asmInverse2Complex64(SB), NOSPLIT|NOFRAME, $0-16
 
 	MOVL $1, AX                 // Return success
 	RET
+
+// ===========================================================================
+// Size-Specific AVX2 Kernels - Stubs (Phase 14.5.1)
+// ===========================================================================
+// These are stub implementations that return false, causing fallback to
+// generic AVX2 implementations. Actual unrolled kernels will be added in
+// phases 14.5.2-14.5.5.
+//
+// Function signature: func(dst, src, twiddle, scratch []T, bitrev []int) bool
+// Return: false (0) to trigger fallback to generic implementation
+// ===========================================================================
+
+// Forward transform, size 16, complex64
+TEXT ·forwardAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
+	MOVB $0, ret+120(FP)        // Return false
+	RET
+
+// Forward transform, size 32, complex64
+TEXT ·forwardAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
+	MOVB $0, ret+120(FP)        // Return false
+	RET
+
+// Forward transform, size 64, complex64
+TEXT ·forwardAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
+	MOVB $0, ret+120(FP)        // Return false
+	RET
+
+// Forward transform, size 128, complex64
+TEXT ·forwardAVX2Size128Complex64Asm(SB), NOSPLIT, $0-121
+	MOVB $0, ret+120(FP)        // Return false
+	RET
+
+// Inverse transform, size 16, complex64
+TEXT ·inverseAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
+	MOVB $0, ret+120(FP)        // Return false
+	RET
+
+// Inverse transform, size 32, complex64
+TEXT ·inverseAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
+	MOVB $0, ret+120(FP)        // Return false
+	RET
+
+// Inverse transform, size 64, complex64
+TEXT ·inverseAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
+	MOVB $0, ret+120(FP)        // Return false
+	RET
+
+// Inverse transform, size 128, complex64
+TEXT ·inverseAVX2Size128Complex64Asm(SB), NOSPLIT, $0-121
+	MOVB $0, ret+120(FP)        // Return false
+	RET
