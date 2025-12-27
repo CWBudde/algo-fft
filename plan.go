@@ -94,6 +94,27 @@ func RecordBenchmarkDecision(n int, strategy KernelStrategy) {
 	fft.RecordBenchmarkDecision(n, strategy)
 }
 
+// wisdomAdapter adapts the public WisdomStore interface to the internal WisdomRecorder.
+type wisdomAdapter struct {
+	store WisdomStore
+}
+
+func (a wisdomAdapter) LookupWisdom(size int, precision uint8, cpuFeatures uint64) (string, bool) {
+	return a.store.LookupWisdom(size, precision, cpuFeatures)
+}
+
+func (a wisdomAdapter) Store(entry fft.WisdomEntry) {
+	a.store.Store(WisdomEntry{
+		Key: WisdomKey{
+			Size:        entry.Key.Size,
+			Precision:   entry.Key.Precision,
+			CPUFeatures: entry.Key.CPUFeatures,
+		},
+		Algorithm: entry.Algorithm,
+		Timestamp: entry.Timestamp,
+	})
+}
+
 // Len returns the FFT length (number of complex samples) for this Plan.
 func (p *Plan[T]) Len() int {
 	return p.n
@@ -318,8 +339,28 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		return nil, ErrInvalidLength
 	}
 
-	// Unified codelet/wisdom/heuristic selection
-	estimate := fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+	// Choose planning strategy based on mode
+	var estimate fft.PlanEstimate[T]
+
+	switch opts.Planner {
+	case PlannerMeasure, PlannerPatient, PlannerExhaustive:
+		// Run micro-benchmarks to find the best strategy
+		var recorder fft.WisdomRecorder
+		if opts.Wisdom != nil {
+			recorder = wisdomAdapter{opts.Wisdom}
+		}
+
+		estimate = fft.MeasureAndSelect[T](
+			n,
+			features,
+			fft.PlannerMode(opts.Planner),
+			recorder,
+			opts.Strategy,
+		)
+	default:
+		// PlannerEstimate: use heuristics only (fast path)
+		estimate = fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+	}
 
 	useBluestein := estimate.Strategy == fft.KernelBluestein
 	strategy := estimate.Strategy

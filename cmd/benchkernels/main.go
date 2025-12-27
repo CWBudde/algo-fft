@@ -10,23 +10,27 @@ import (
 	"time"
 
 	"github.com/MeKo-Christian/algoforge"
+	"github.com/MeKo-Christian/algoforge/internal/cpu"
+	"github.com/MeKo-Christian/algoforge/internal/fft"
 )
 
 const modeInverse = "inverse"
 
 type benchResult struct {
+	size     int
 	strategy algoforge.KernelStrategy
 	nsPerOp  float64
 }
 
 func main() {
 	var (
-		sizeList = flag.String("sizes", "1024,4096,16384,65536", "comma-separated sizes")
-		iters    = flag.Int("iters", 50, "benchmark iterations")
-		warmup   = flag.Int("warmup", 5, "warmup iterations")
-		emit     = flag.Bool("emit", false, "emit RecordBenchmarkDecision lines")
-		mode     = flag.String("mode", "forward", "benchmark mode: forward, inverse, roundtrip, all")
-		seed     = flag.Int64("seed", 1, "rng seed")
+		sizeList   = flag.String("sizes", "1024,4096,16384,65536", "comma-separated sizes")
+		iters      = flag.Int("iters", 50, "benchmark iterations")
+		warmup     = flag.Int("warmup", 5, "warmup iterations")
+		emit       = flag.Bool("emit", false, "emit RecordBenchmarkDecision lines")
+		wisdomFile = flag.String("wisdom", "", "export wisdom to file (portable format)")
+		mode       = flag.String("mode", "forward", "benchmark mode: forward, inverse, roundtrip, all")
+		seed       = flag.Int64("seed", 1, "rng seed")
 	)
 	flag.Parse()
 
@@ -43,6 +47,9 @@ func main() {
 
 	fmt.Printf("iters=%d warmup=%d\n", *iters, *warmup)
 	fmt.Printf("%8s  %10s  %12s  %12s\n", "size", "mode", "kernel", "ns/op")
+
+	// Collect best results for wisdom export
+	var bestResults []benchResult
 
 	for _, n := range sizes {
 		modes := resolveModes(*mode)
@@ -62,11 +69,24 @@ func main() {
 
 			if runMode == "forward" {
 				best := results[0]
+				best.size = n
+				bestResults = append(bestResults, best)
+
 				if *emit {
 					fmt.Printf("algoforge.RecordBenchmarkDecision(%d, algoforge.%s)\n", n, strategyConst(best.strategy))
 				}
 			}
 		}
+	}
+
+	// Export wisdom if requested
+	if *wisdomFile != "" {
+		if err := exportWisdom(*wisdomFile, bestResults); err != nil {
+			fmt.Printf("error exporting wisdom: %v\n", err)
+			return
+		}
+
+		fmt.Printf("\nWisdom exported to: %s\n", *wisdomFile)
 	}
 }
 
@@ -223,5 +243,49 @@ func strategyConst(strategy algoforge.KernelStrategy) string {
 		return "KernelEightStep"
 	default:
 		return "KernelAuto"
+	}
+}
+
+// exportWisdom writes benchmark results to a wisdom file.
+func exportWisdom(filename string, results []benchResult) error {
+	wisdom := fft.NewWisdom()
+	features := cpu.DetectFeatures()
+	cpuMask := fft.CPUFeatureMask(
+		features.HasSSE2,
+		features.HasAVX2,
+		features.HasAVX512,
+		features.HasNEON,
+	)
+
+	for _, res := range results {
+		entry := fft.WisdomEntry{
+			Key: fft.WisdomKey{
+				Size:        res.size,
+				Precision:   fft.PrecisionComplex64, // benchkernels uses complex64
+				CPUFeatures: cpuMask,
+			},
+			Algorithm: strategyToAlgorithmName(res.strategy),
+			Timestamp: time.Now(),
+		}
+		wisdom.Store(entry)
+	}
+
+	// Use internal wisdom directly since algoforge.Wisdom is a type alias
+	return algoforge.ExportWisdomTo(filename, wisdom)
+}
+
+// strategyToAlgorithmName converts strategy to the algorithm name used in wisdom files.
+func strategyToAlgorithmName(strategy algoforge.KernelStrategy) string {
+	switch strategy {
+	case algoforge.KernelDIT:
+		return "dit_fallback"
+	case algoforge.KernelStockham:
+		return "stockham"
+	case algoforge.KernelSixStep:
+		return "sixstep"
+	case algoforge.KernelEightStep:
+		return "eightstep"
+	default:
+		return "unknown"
 	}
 }

@@ -23,6 +23,12 @@ func ImportWisdom(filename string) error {
 // ExportWisdom saves the current wisdom cache to a file.
 // The file can be loaded later with ImportWisdom.
 func ExportWisdom(filename string) error {
+	return ExportWisdomTo(filename, (*Wisdom)(fft.DefaultWisdom))
+}
+
+// ExportWisdomTo saves a specific wisdom cache to a file.
+// This is useful for exporting benchmark results from custom wisdom instances.
+func ExportWisdomTo(filename string, wisdom *Wisdom) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -30,7 +36,17 @@ func ExportWisdom(filename string) error {
 
 	defer f.Close()
 
-	return fft.DefaultWisdom.Export(f)
+	return (*fft.Wisdom)(wisdom).Export(f)
+}
+
+// Wisdom is a type alias for the internal wisdom cache.
+// It provides the WisdomStore interface for storing and retrieving
+// optimal kernel choices.
+type Wisdom = fft.Wisdom
+
+// NewWisdom creates a new empty wisdom cache.
+func NewWisdom() *Wisdom {
+	return fft.NewWisdom()
 }
 
 // ImportWisdomFromString loads wisdom data from a string.
