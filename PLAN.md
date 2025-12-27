@@ -466,6 +466,7 @@ Each phase is scoped to approximately one day of focused work.
 - Generic dispatch adds <5% overhead vs current monomorphic implementation ✅ (0% overhead)
 
 **Actual Results:**
+
 - Round-trip error: float32 = 4.2e-7, float64 = 1.2e-15 (341 million times better!)
 - Zero allocations confirmed for both precisions
 - Backward compatible: all existing tests pass
@@ -764,30 +765,29 @@ Hints:
 
 **Impact:**
 
-- Cannot build with `-tags=fft_asm`
-- Cannot benchmark size-specific kernels (Phase 14.5.2+)
-- Stockham algorithm unavailable when assembly is enabled
-- Does not affect default builds (no `fft_asm` tag)
+- ✅ **FIXED:** Can now build with `-tags=fft_asm` (compilation works)
+- ✅ Can benchmark size-specific kernels (Phase 14.5 dispatch works correctly)
+- ⚠️ Stockham inverse has runtime segfault (forward not fully tested)
+- ✅ Does not affect default builds (no `fft_asm` tag)
+- ✅ Phase 14.5.1 size-specific dispatch fully functional
 
-**Required Fix:**
+**Fix Progress:**
 
-- [ ] **14.6.1 Rewrite Stockham assembly with correct register names**
-  - [ ] Replace `RAX` with valid register (e.g., `R10`, `AX + temp`)
-  - [ ] Replace `RBP` with valid register (e.g., `BP`, `R11`)
-  - [ ] Replace `RDX` with valid register (e.g., `DX`, `R12`)
-  - [ ] Fix all `LEAQ` instructions to avoid register conflicts
-  - [ ] Update both forward and inverse implementations
+- [x] **14.6.1 Rewrite Stockham assembly with correct register names** ✅
+  - [x] Replace `RAX` with valid register (e.g., `R10`, `AX + temp`)
+  - [x] Replace `RBP` with valid register (e.g., `BP`, `R11`)
+  - [x] Replace `RDX` with valid register (e.g., `DX`, `R12`)
+  - [x] Fix all `LEAQ` instructions to avoid register conflicts
+  - [x] Update both forward and inverse implementations
+  - **Status:** Compilation now works with `-tags=fft_asm` ✅
 
-- [ ] **14.6.2 Test Stockham assembly fix**
-  - [ ] Build with `-tags=fft_asm` successfully
+- [ ] **14.6.2 Fix Stockham runtime issues**
+  - [x] Build with `-tags=fft_asm` successfully ✅
+  - [ ] Fix segfault in `inverseAVX2StockhamComplex64Asm` at line 1668
   - [ ] Verify Stockham transforms match generic AVX2
   - [ ] Run full test suite with `fft_asm` tag
+  - **Current Issue:** Segfault in inverse transform (nil pointer dereference at 0x40)
   - [ ] Benchmark Stockham vs DIT performance
-
-- [ ] **14.6.3 Alternative: Remove fft_asm from Stockham (temporary workaround)**
-  - [ ] Change build tags to exclude Stockham from `fft_asm` builds
-  - [ ] Document that Stockham is pure-Go only for now
-  - [ ] Add TODO to implement proper Stockham assembly
 
 **Priority:** HIGH (blocks Phase 14.5.2+ benchmarking)
 
