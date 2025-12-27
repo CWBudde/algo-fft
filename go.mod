@@ -1,4 +1,4 @@
-module github.com/MeKo-Christian/algofft
+module github.com/MeKo-Christian/algo-fft
 
 go 1.25.0
 
