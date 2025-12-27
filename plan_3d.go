@@ -24,6 +24,7 @@ type Plan3D[T Complex] struct {
 	heightPlan           *Plan[T] // Plan for transforming along height (size=height)
 	depthPlan            *Plan[T] // Plan for transforming along depth (size=depth)
 	scratch              []T      // Working buffer (size=depth*height*width)
+	dimScratch           []T      // Dimension scratch buffer for strided transforms (size=max(height,depth))
 	options              PlanOptions
 
 	// backing keeps aligned scratch buffer alive for GC
@@ -91,6 +92,13 @@ func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions)
 		scratchBacking = b
 	}
 
+	// Allocate dimension scratch buffer for strided transforms
+	dimScratchSize := height
+	if depth > height {
+		dimScratchSize = depth
+	}
+	dimScratch := make([]T, dimScratchSize)
+
 	return &Plan3D[T]{
 		depth:          depth,
 		height:         height,
@@ -99,6 +107,7 @@ func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions)
 		heightPlan:     heightPlan,
 		depthPlan:      depthPlan,
 		scratch:        scratch,
+		dimScratch:     dimScratch,
 		scratchBacking: scratchBacking,
 		options:        opts,
 	}, nil
@@ -259,6 +268,13 @@ func (p *Plan3D[T]) Clone() *Plan3D[T] {
 		scratchBacking = b
 	}
 
+	// Allocate dimension scratch buffer for strided transforms
+	dimScratchSize := p.height
+	if p.depth > p.height {
+		dimScratchSize = p.depth
+	}
+	dimScratch := make([]T, dimScratchSize)
+
 	return &Plan3D[T]{
 		depth:          p.depth,
 		height:         p.height,
@@ -267,6 +283,7 @@ func (p *Plan3D[T]) Clone() *Plan3D[T] {
 		heightPlan:     p.heightPlan.Clone(),
 		depthPlan:      p.depthPlan.Clone(),
 		scratch:        scratch,
+		dimScratch:     dimScratch,
 		scratchBacking: scratchBacking,
 		options:        p.options,
 	}
@@ -311,7 +328,7 @@ func (p *Plan3D[T]) transformWidth(data []T, forward bool) {
 // transformHeight transforms along the height dimension (middle).
 // For each depth slice, columns along height are extracted, transformed, and written back.
 func (p *Plan3D[T]) transformHeight(data []T, forward bool) {
-	colData := make([]T, p.height)
+	colData := p.dimScratch[:p.height]
 
 	for d := range p.depth {
 		for w := range p.width {
@@ -338,7 +355,7 @@ func (p *Plan3D[T]) transformHeight(data []T, forward bool) {
 // transformDepth transforms along the depth dimension (outermost).
 // For each (height, width) position, a slice along depth is extracted, transformed, and written back.
 func (p *Plan3D[T]) transformDepth(data []T, forward bool) {
-	depthData := make([]T, p.depth)
+	depthData := p.dimScratch[:p.depth]
 
 	for h := range p.height {
 		for w := range p.width {

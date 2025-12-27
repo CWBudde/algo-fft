@@ -22,6 +22,7 @@ type Plan2D[T Complex] struct {
 	rowPlan    *Plan[T] // Plan for transforming rows (size=cols)
 	colPlan    *Plan[T] // Plan for transforming columns (size=rows)
 	scratch    []T      // Working buffer (size=rows*cols)
+	colScratch []T      // Column scratch buffer for strided transforms (size=rows)
 	options    PlanOptions
 
 	// Transpose support for square matrices
@@ -87,12 +88,16 @@ func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[
 		scratchBacking = b
 	}
 
+	// Allocate column scratch buffer for strided transforms
+	colScratch := make([]T, rows)
+
 	p := &Plan2D[T]{
 		rows:           rows,
 		cols:           cols,
 		rowPlan:        rowPlan,
 		colPlan:        colPlan,
 		scratch:        scratch,
+		colScratch:     colScratch,
 		scratchBacking: scratchBacking,
 		options:        opts,
 	}
@@ -251,12 +256,16 @@ func (p *Plan2D[T]) Clone() *Plan2D[T] {
 		scratchBacking = b
 	}
 
+	// Allocate column scratch buffer for strided transforms
+	colScratch := make([]T, p.rows)
+
 	return &Plan2D[T]{
 		rows:           p.rows,
 		cols:           p.cols,
 		rowPlan:        p.rowPlan.Clone(),
 		colPlan:        p.colPlan.Clone(),
 		scratch:        scratch,
+		colScratch:     colScratch,
 		scratchBacking: scratchBacking,
 		transposePairs: p.transposePairs, // Shared (immutable)
 		options:        p.options,
@@ -304,7 +313,7 @@ func (p *Plan2D[T]) transformColumnsViaTranspose(data []T, forward bool) {
 
 // transformColumnsStrided transforms columns using strided access for non-square matrices.
 func (p *Plan2D[T]) transformColumnsStrided(data []T, forward bool) {
-	colData := make([]T, p.rows)
+	colData := p.colScratch
 
 	for col := range p.cols {
 		// Extract column

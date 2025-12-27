@@ -17,6 +17,8 @@ func NewPlanner(opts PlanOptions) *Planner {
 }
 
 // Plan1D builds a 1D plan for size n using the planner's options.
+// Note: This is a standalone function (not a method) because Go does not allow
+// type parameters on methods. Use Plan1D32 or Plan1D64 for method-style calls.
 func Plan1D[T Complex](p *Planner, n int) (*Plan[T], error) {
 	return newPlanWithFeatures[T](n, p.features, p.opts)
 }
