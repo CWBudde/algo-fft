@@ -17,56 +17,71 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 
 	br := bitrev[:n]
 	s := src[:n]
-	x0 := s[br[0]]
-	x1 := s[br[1]]
-	x2 := s[br[2]]
-	x3 := s[br[3]]
-	x4 := s[br[4]]
-	x5 := s[br[5]]
-	x6 := s[br[6]]
-	x7 := s[br[7]]
-	x8 := s[br[8]]
-	x9 := s[br[9]]
-	x10 := s[br[10]]
-	x11 := s[br[11]]
-	x12 := s[br[12]]
-	x13 := s[br[13]]
-	x14 := s[br[14]]
-	x15 := s[br[15]]
-	x16 := s[br[16]]
-	x17 := s[br[17]]
-	x18 := s[br[18]]
-	x19 := s[br[19]]
-	x20 := s[br[20]]
-	x21 := s[br[21]]
-	x22 := s[br[22]]
-	x23 := s[br[23]]
-	x24 := s[br[24]]
-	x25 := s[br[25]]
-	x26 := s[br[26]]
-	x27 := s[br[27]]
-	x28 := s[br[28]]
-	x29 := s[br[29]]
-	x30 := s[br[30]]
-	x31 := s[br[31]]
 
 	// Stage 1 (size 2)
+	x0 := s[br[0]]
+	x1 := s[br[1]]
 	a0, a1 := x0+x1, x0-x1
-	a2, a3 := x2+x3, x2-x3
-	a4, a5 := x4+x5, x4-x5
-	a6, a7 := x6+x7, x6-x7
-	a8, a9 := x8+x9, x8-x9
-	a10, a11 := x10+x11, x10-x11
-	a12, a13 := x12+x13, x12-x13
-	a14, a15 := x14+x15, x14-x15
-	a16, a17 := x16+x17, x16-x17
-	a18, a19 := x18+x19, x18-x19
-	a20, a21 := x20+x21, x20-x21
-	a22, a23 := x22+x23, x22-x23
-	a24, a25 := x24+x25, x24-x25
-	a26, a27 := x26+x27, x26-x27
-	a28, a29 := x28+x29, x28-x29
-	a30, a31 := x30+x31, x30-x31
+
+	x0 = s[br[2]]
+	x1 = s[br[3]]
+	a2, a3 := x0+x1, x0-x1
+
+	x0 = s[br[4]]
+	x1 = s[br[5]]
+	a4, a5 := x0+x1, x0-x1
+
+	x0 = s[br[6]]
+	x1 = s[br[7]]
+	a6, a7 := x0+x1, x0-x1
+
+	x0 = s[br[8]]
+	x1 = s[br[9]]
+	a8, a9 := x0+x1, x0-x1
+
+	x0 = s[br[10]]
+	x1 = s[br[11]]
+	a10, a11 := x0+x1, x0-x1
+
+	x0 = s[br[12]]
+	x1 = s[br[13]]
+	a12, a13 := x0+x1, x0-x1
+
+	x0 = s[br[14]]
+	x1 = s[br[15]]
+	a14, a15 := x0+x1, x0-x1
+
+	x0 = s[br[16]]
+	x1 = s[br[17]]
+	a16, a17 := x0+x1, x0-x1
+
+	x0 = s[br[18]]
+	x1 = s[br[19]]
+	a18, a19 := x0+x1, x0-x1
+
+	x0 = s[br[20]]
+	x1 = s[br[21]]
+	a20, a21 := x0+x1, x0-x1
+
+	x0 = s[br[22]]
+	x1 = s[br[23]]
+	a22, a23 := x0+x1, x0-x1
+
+	x0 = s[br[24]]
+	x1 = s[br[25]]
+	a24, a25 := x0+x1, x0-x1
+
+	x0 = s[br[26]]
+	x1 = s[br[27]]
+	a26, a27 := x0+x1, x0-x1
+
+	x0 = s[br[28]]
+	x1 = s[br[29]]
+	a28, a29 := x0+x1, x0-x1
+
+	x0 = s[br[30]]
+	x1 = s[br[31]]
+	a30, a31 := x0+x1, x0-x1
 
 	// Stage 2 (size 4)
 	w8 := twiddle[8]
