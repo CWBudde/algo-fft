@@ -42,8 +42,8 @@ func TestAVX2Size256Radix4MatchesGoImplementation(t *testing.T) {
 	dstGo := make([]complex64, n)
 	scratchGo := make([]complex64, n)
 
-	if !forwardDIT256Radix4OptimizedComplex64(dstGo, src, twiddle, scratchGo, bitrev) {
-		t.Fatalf("forwardDIT256Radix4OptimizedComplex64 failed")
+	if !forwardDIT256Radix4Complex64(dstGo, src, twiddle, scratchGo, bitrev) {
+		t.Fatalf("forwardDIT256Radix4Complex64 failed")
 	}
 
 	// Both should produce identical results
