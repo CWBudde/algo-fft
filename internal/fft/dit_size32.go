@@ -1,5 +1,9 @@
 package fft
 
+// forwardDIT32Complex64 computes a 32-point forward FFT using the
+// Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex64 data.
+// This implementation is fully unrolled for maximum performance.
+// Returns false if any slice is too small.
 func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 32
 
@@ -7,12 +11,14 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 		return false
 	}
 
+	// Bounds hint for compiler optimization
 	br := bitrev[:n]
 	s := src[:n]
 	w1, w2, w3, w4, w5, w6, w7, w8 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7], twiddle[8]
 	w9, w10, w11, w12, w13, w14, w15 := twiddle[9], twiddle[10], twiddle[11], twiddle[12], twiddle[13], twiddle[14], twiddle[15]
 
-	// Stage 1 (size 2) - with interleaved loads
+	// Stage 1: 16 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[br[0]]
 	x1 := s[br[1]]
 	a0, a1 := x0+x1, x0-x1
@@ -62,7 +68,7 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	x1 = s[br[31]]
 	a30, a31 := x0+x1, x0-x1
 
-	// Stage 2 (size 4)
+	// Stage 2: 8 radix-2 butterflies, stride=4
 	b0, b2 := a0+a2, a0-a2
 	t := w8 * a3
 	b1, b3 := a1+t, a1-t
@@ -88,7 +94,7 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w8 * a31
 	b29, b31 := a29+t, a29-t
 
-	// Stage 3 (size 8)
+	// Stage 3: 4 radix-2 butterflies, stride=8
 	c0, c4 := b0+b4, b0-b4
 	t = w4 * b5
 	c1, c5 := b1+t, b1-t
@@ -118,7 +124,7 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w12 * b31
 	c27, c31 := b27+t, b27-t
 
-	// Stage 4 (size 16)
+	// Stage 4: 2 radix-2 butterflies, stride=16
 	d0, d8 := c0+c8, c0-c8
 	t = w2 * c9
 	d1, d9 := c1+t, c1-t
@@ -150,7 +156,8 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w14 * c31
 	d23, d31 := c23+t, c23-t
 
-	// Stage 5 (size 32) - write directly to output
+	// Stage 5: 1 radix-2 butterfly, stride=32 (full array)
+	// Write directly to output or scratch buffer to avoid aliasing.
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
@@ -188,6 +195,7 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w15 * d31
 	work[15], work[31] = d15+t, d15-t
 
+	// Copy result back if we used scratch buffer
 	if &work[0] != &dst[0] {
 		copy(dst, work)
 	}
@@ -195,6 +203,11 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	return true
 }
 
+// inverseDIT32Complex64 computes a 32-point inverse FFT using the
+// Decimation-in-Time (DIT) algorithm for complex64 data.
+// Uses conjugated twiddle factors (negated imaginary parts) and applies
+// 1/N scaling at the end. Fully unrolled for maximum performance.
+// Returns false if any slice is too small.
 func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 32
 
@@ -202,8 +215,11 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 		return false
 	}
 
+	// Bounds hint for compiler optimization
 	br := bitrev[:n]
 	s := src[:n]
+
+	// Conjugate twiddles for inverse transform
 	w1, w2, w3, w4, w5, w6, w7, w8 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7], twiddle[8]
 	w9, w10, w11, w12, w13, w14, w15 := twiddle[9], twiddle[10], twiddle[11], twiddle[12], twiddle[13], twiddle[14], twiddle[15]
 	w1 = complex(real(w1), -imag(w1))
@@ -222,7 +238,8 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	w14 = complex(real(w14), -imag(w14))
 	w15 = complex(real(w15), -imag(w15))
 
-	// Stage 1 (size 2) - with interleaved loads
+	// Stage 1: 16 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[br[0]]
 	x1 := s[br[1]]
 	a0, a1 := x0+x1, x0-x1
@@ -272,7 +289,7 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	x1 = s[br[31]]
 	a30, a31 := x0+x1, x0-x1
 
-	// Stage 2 (size 4)
+	// Stage 2: 8 radix-2 butterflies, stride=4
 	b0, b2 := a0+a2, a0-a2
 	t := w8 * a3
 	b1, b3 := a1+t, a1-t
@@ -298,7 +315,7 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w8 * a31
 	b29, b31 := a29+t, a29-t
 
-	// Stage 3 (size 8)
+	// Stage 3: 4 radix-2 butterflies, stride=8
 	c0, c4 := b0+b4, b0-b4
 	t = w4 * b5
 	c1, c5 := b1+t, b1-t
@@ -328,7 +345,7 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w12 * b31
 	c27, c31 := b27+t, b27-t
 
-	// Stage 4 (size 16)
+	// Stage 4: 2 radix-2 butterflies, stride=16
 	d0, d8 := c0+c8, c0-c8
 	t = w2 * c9
 	d1, d9 := c1+t, c1-t
@@ -360,7 +377,8 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w14 * c31
 	d23, d31 := c23+t, c23-t
 
-	// Stage 5 (size 32) - write directly to output
+	// Stage 5: 1 radix-2 butterfly, stride=32 (full array)
+	// Write directly to output or scratch buffer to avoid aliasing.
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
@@ -398,10 +416,12 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w15 * d31
 	work[15], work[31] = d15+t, d15-t
 
+	// Copy result back if we used scratch buffer
 	if &work[0] != &dst[0] {
 		copy(dst, work)
 	}
 
+	// Apply 1/N scaling for inverse transform
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
 		dst[i] *= scale

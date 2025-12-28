@@ -17,6 +17,10 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 
 	br := bitrev[:n]
 	s := src[:n]
+	w1, w2, w3, w4, w5, w6, w7, w8 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7], twiddle[8]
+	w9, w10, w11, w12, w13, w14, w15, w16 := twiddle[9], twiddle[10], twiddle[11], twiddle[12], twiddle[13], twiddle[14], twiddle[15], twiddle[16]
+	w17, w18, w19, w20, w21, w22, w23, w24 := twiddle[17], twiddle[18], twiddle[19], twiddle[20], twiddle[21], twiddle[22], twiddle[23], twiddle[24]
+	w25, w26, w27, w28, w29, w30, w31 := twiddle[25], twiddle[26], twiddle[27], twiddle[28], twiddle[29], twiddle[30], twiddle[31]
 
 	// Stage 1 (size 2) - 32 butterflies
 	x0 := s[br[0]]
@@ -147,62 +151,57 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	x1 = s[br[63]]
 	a62, a63 := x0+x1, x0-x1
 
-	// Stage 2 (size 4) - twiddle[16] for odd elements
-	w16 := twiddle[16]
-	var t complex64
-	t = w16 * a3
+	// Stage 2 (size 4)
+	b0, b2 := a0+a2, a0-a2
+	t := w16 * a3
 	b1, b3 := a1+t, a1-t
+	b4, b6 := a4+a6, a4-a6
 	t = w16 * a7
 	b5, b7 := a5+t, a5-t
+	b8, b10 := a8+a10, a8-a10
 	t = w16 * a11
 	b9, b11 := a9+t, a9-t
+	b12, b14 := a12+a14, a12-a14
 	t = w16 * a15
 	b13, b15 := a13+t, a13-t
+	b16, b18 := a16+a18, a16-a18
 	t = w16 * a19
 	b17, b19 := a17+t, a17-t
+	b20, b22 := a20+a22, a20-a22
 	t = w16 * a23
 	b21, b23 := a21+t, a21-t
+	b24, b26 := a24+a26, a24-a26
 	t = w16 * a27
 	b25, b27 := a25+t, a25-t
+	b28, b30 := a28+a30, a28-a30
 	t = w16 * a31
 	b29, b31 := a29+t, a29-t
+	b32, b34 := a32+a34, a32-a34
 	t = w16 * a35
 	b33, b35 := a33+t, a33-t
+	b36, b38 := a36+a38, a36-a38
 	t = w16 * a39
 	b37, b39 := a37+t, a37-t
+	b40, b42 := a40+a42, a40-a42
 	t = w16 * a43
 	b41, b43 := a41+t, a41-t
+	b44, b46 := a44+a46, a44-a46
 	t = w16 * a47
 	b45, b47 := a45+t, a45-t
+	b48, b50 := a48+a50, a48-a50
 	t = w16 * a51
 	b49, b51 := a49+t, a49-t
+	b52, b54 := a52+a54, a52-a54
 	t = w16 * a55
 	b53, b55 := a53+t, a53-t
+	b56, b58 := a56+a58, a56-a58
 	t = w16 * a59
 	b57, b59 := a57+t, a57-t
+	b60, b62 := a60+a62, a60-a62
 	t = w16 * a63
 	b61, b63 := a61+t, a61-t
 
-	b0, b2 := a0+a2, a0-a2
-	b4, b6 := a4+a6, a4-a6
-	b8, b10 := a8+a10, a8-a10
-	b12, b14 := a12+a14, a12-a14
-	b16, b18 := a16+a18, a16-a18
-	b20, b22 := a20+a22, a20-a22
-	b24, b26 := a24+a26, a24-a26
-	b28, b30 := a28+a30, a28-a30
-	b32, b34 := a32+a34, a32-a34
-	b36, b38 := a36+a38, a36-a38
-	b40, b42 := a40+a42, a40-a42
-	b44, b46 := a44+a46, a44-a46
-	b48, b50 := a48+a50, a48-a50
-	b52, b54 := a52+a54, a52-a54
-	b56, b58 := a56+a58, a56-a58
-	b60, b62 := a60+a62, a60-a62
-
-	// Stage 3 (size 8) - twiddles at 8, 16, 24
-	w8 := twiddle[8]
-	w24 := twiddle[24]
+	// Stage 3 (size 8)
 	c0, c4 := b0+b4, b0-b4
 	t = w8 * b5
 	c1, c5 := b1+t, b1-t
@@ -260,11 +259,7 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w24 * b63
 	c59, c63 := b59+t, b59-t
 
-	// Stage 4 (size 16) - twiddles at 4, 8, 12, 16, 20, 24, 28
-	w4 := twiddle[4]
-	w12 := twiddle[12]
-	w20 := twiddle[20]
-	w28 := twiddle[28]
+	// Stage 4 (size 16)
 	d0, d8 := c0+c8, c0-c8
 	t = w4 * c9
 	d1, d9 := c1+t, c1-t
@@ -326,15 +321,7 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w28 * c63
 	d55, d63 := c55+t, c55-t
 
-	// Stage 5 (size 32) - twiddles at 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30
-	w2 := twiddle[2]
-	w6 := twiddle[6]
-	w10 := twiddle[10]
-	w14 := twiddle[14]
-	w18 := twiddle[18]
-	w22 := twiddle[22]
-	w26 := twiddle[26]
-	w30 := twiddle[30]
+	// Stage 5 (size 32)
 	e0, e16 := d0+d16, d0-d16
 	t = w2 * d17
 	e1, e17 := d1+t, d1-t
@@ -398,24 +385,7 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w30 * d63
 	e47, e63 := d47+t, d47-t
 
-	// Stage 6 (size 64) - twiddles at 1, 2, ..., 31
-	w1 := twiddle[1]
-	w3 := twiddle[3]
-	w5 := twiddle[5]
-	w7 := twiddle[7]
-	w9 := twiddle[9]
-	w11 := twiddle[11]
-	w13 := twiddle[13]
-	w15 := twiddle[15]
-	w17 := twiddle[17]
-	w19 := twiddle[19]
-	w21 := twiddle[21]
-	w23 := twiddle[23]
-	w25 := twiddle[25]
-	w27 := twiddle[27]
-	w29 := twiddle[29]
-	w31 := twiddle[31]
-
+	// Stage 6 (size 64)
 	work = work[:n]
 	work[0], work[32] = e0+e32, e0-e32
 	t = w1 * e33

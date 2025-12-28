@@ -1,5 +1,9 @@
 package fft
 
+// forwardDIT512Complex64 computes a 512-point forward FFT using the
+// Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex64 data.
+// The algorithm performs 9 stages of butterfly operations (log2(512) = 9).
+// Returns false if any slice is too small.
 func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 512
 
@@ -7,6 +11,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		return false
 	}
 
+	// Use scratch buffer for in-place transforms to avoid aliasing issues
 	work := dst
 	workIsDst := true
 
@@ -15,15 +20,18 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		workIsDst = false
 	}
 
+	// Bounds hint for compiler optimization
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
+	// Bit-reversal permutation: reorder input for DIT algorithm
 	for i := range n {
 		work[i] = src[bitrev[i]]
 	}
 
+	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	for base := 0; base < n; base += 2 {
 		a := work[base]
 		b := work[base+1]
@@ -31,6 +39,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		work[base+1] = a - b
 	}
 
+	// Stage 2: 128 radix-2 butterflies, stride=4
 	for base := 0; base < n; base += 4 {
 		for j := range 2 {
 			tw := twiddle[j*128]
@@ -40,6 +49,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 3: 64 radix-2 butterflies, stride=8
 	for base := 0; base < n; base += 8 {
 		for j := range 4 {
 			tw := twiddle[j*64]
@@ -49,6 +59,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 4: 32 radix-2 butterflies, stride=16
 	for base := 0; base < n; base += 16 {
 		for j := range 8 {
 			tw := twiddle[j*32]
@@ -58,6 +69,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 5: 16 radix-2 butterflies, stride=32
 	for base := 0; base < n; base += 32 {
 		for j := range 16 {
 			tw := twiddle[j*16]
@@ -67,6 +79,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 6: 8 radix-2 butterflies, stride=64
 	for base := 0; base < n; base += 64 {
 		for j := range 32 {
 			tw := twiddle[j*8]
@@ -76,6 +89,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 7: 4 radix-2 butterflies, stride=128
 	for base := 0; base < n; base += 128 {
 		for j := range 64 {
 			tw := twiddle[j*4]
@@ -85,6 +99,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 8: 2 radix-2 butterflies, stride=256
 	for base := 0; base < n; base += 256 {
 		for j := range 128 {
 			tw := twiddle[j*2]
@@ -94,6 +109,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 9: 1 radix-2 butterfly, stride=512 (full array)
 	for j := range 256 {
 		tw := twiddle[j]
 		a, b := butterfly2(work[j], work[j+256], tw)
@@ -101,6 +117,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		work[j+256] = b
 	}
 
+	// Copy result back if we used scratch buffer
 	if !workIsDst {
 		copy(dst, work)
 	}
@@ -108,6 +125,10 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	return true
 }
 
+// inverseDIT512Complex64 computes a 512-point inverse FFT using the
+// Decimation-in-Time (DIT) algorithm for complex64 data.
+// Uses conjugated twiddle factors (negated imaginary parts) and applies
+// 1/N scaling at the end. Returns false if any slice is too small.
 func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 512
 
@@ -115,6 +136,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		return false
 	}
 
+	// Use scratch buffer for in-place transforms to avoid aliasing issues
 	work := dst
 	workIsDst := true
 
@@ -123,15 +145,18 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		workIsDst = false
 	}
 
+	// Bounds hint for compiler optimization
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
+	// Bit-reversal permutation: reorder input for DIT algorithm
 	for i := range n {
 		work[i] = src[bitrev[i]]
 	}
 
+	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	for base := 0; base < n; base += 2 {
 		a := work[base]
 		b := work[base+1]
@@ -139,6 +164,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		work[base+1] = a - b
 	}
 
+	// Stage 2: 128 radix-2 butterflies, stride=4
 	for base := 0; base < n; base += 4 {
 		for j := range 2 {
 			tw := twiddle[j*128]
@@ -149,6 +175,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 3: 64 radix-2 butterflies, stride=8
 	for base := 0; base < n; base += 8 {
 		for j := range 4 {
 			tw := twiddle[j*64]
@@ -159,6 +186,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 4: 32 radix-2 butterflies, stride=16
 	for base := 0; base < n; base += 16 {
 		for j := range 8 {
 			tw := twiddle[j*32]
@@ -169,6 +197,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 5: 16 radix-2 butterflies, stride=32
 	for base := 0; base < n; base += 32 {
 		for j := range 16 {
 			tw := twiddle[j*16]
@@ -179,6 +208,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 6: 8 radix-2 butterflies, stride=64
 	for base := 0; base < n; base += 64 {
 		for j := range 32 {
 			tw := twiddle[j*8]
@@ -189,6 +219,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 7: 4 radix-2 butterflies, stride=128
 	for base := 0; base < n; base += 128 {
 		for j := range 64 {
 			tw := twiddle[j*4]
@@ -199,6 +230,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 8: 2 radix-2 butterflies, stride=256
 	for base := 0; base < n; base += 256 {
 		for j := range 128 {
 			tw := twiddle[j*2]
@@ -209,6 +241,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		}
 	}
 
+	// Stage 9: 1 radix-2 butterfly, stride=512 (full array)
 	for j := range 256 {
 		tw := twiddle[j]
 		tw = complex(real(tw), -imag(tw))
@@ -217,10 +250,12 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 		work[j+256] = b
 	}
 
+	// Copy result back if we used scratch buffer
 	if !workIsDst {
 		copy(dst, work)
 	}
 
+	// Apply 1/N scaling for inverse transform
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
 		dst[i] *= scale
@@ -229,6 +264,10 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	return true
 }
 
+// forwardDIT512Complex128 computes a 512-point forward FFT using the
+// Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex128 data.
+// The algorithm performs 9 stages of butterfly operations (log2(512) = 9).
+// Returns false if any slice is too small.
 func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 512
 
@@ -236,6 +275,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		return false
 	}
 
+	// Use scratch buffer for in-place transforms to avoid aliasing issues
 	work := dst
 	workIsDst := true
 
@@ -244,15 +284,18 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		workIsDst = false
 	}
 
+	// Bounds hint for compiler optimization
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
+	// Bit-reversal permutation: reorder input for DIT algorithm
 	for i := range n {
 		work[i] = src[bitrev[i]]
 	}
 
+	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	for base := 0; base < n; base += 2 {
 		a := work[base]
 		b := work[base+1]
@@ -260,6 +303,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		work[base+1] = a - b
 	}
 
+	// Stage 2: 128 radix-2 butterflies, stride=4
 	for base := 0; base < n; base += 4 {
 		for j := range 2 {
 			tw := twiddle[j*128]
@@ -269,6 +313,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 3: 64 radix-2 butterflies, stride=8
 	for base := 0; base < n; base += 8 {
 		for j := range 4 {
 			tw := twiddle[j*64]
@@ -278,6 +323,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 4: 32 radix-2 butterflies, stride=16
 	for base := 0; base < n; base += 16 {
 		for j := range 8 {
 			tw := twiddle[j*32]
@@ -287,6 +333,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 5: 16 radix-2 butterflies, stride=32
 	for base := 0; base < n; base += 32 {
 		for j := range 16 {
 			tw := twiddle[j*16]
@@ -296,6 +343,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 6: 8 radix-2 butterflies, stride=64
 	for base := 0; base < n; base += 64 {
 		for j := range 32 {
 			tw := twiddle[j*8]
@@ -305,6 +353,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 7: 4 radix-2 butterflies, stride=128
 	for base := 0; base < n; base += 128 {
 		for j := range 64 {
 			tw := twiddle[j*4]
@@ -314,6 +363,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 8: 2 radix-2 butterflies, stride=256
 	for base := 0; base < n; base += 256 {
 		for j := range 128 {
 			tw := twiddle[j*2]
@@ -323,6 +373,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 9: 1 radix-2 butterfly, stride=512 (full array)
 	for j := range 256 {
 		tw := twiddle[j]
 		a, b := butterfly2(work[j], work[j+256], tw)
@@ -330,6 +381,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		work[j+256] = b
 	}
 
+	// Copy result back if we used scratch buffer
 	if !workIsDst {
 		copy(dst, work)
 	}
@@ -337,6 +389,10 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 	return true
 }
 
+// inverseDIT512Complex128 computes a 512-point inverse FFT using the
+// Decimation-in-Time (DIT) algorithm for complex128 data.
+// Uses conjugated twiddle factors (negated imaginary parts) and applies
+// 1/N scaling at the end. Returns false if any slice is too small.
 func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 512
 
@@ -344,6 +400,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		return false
 	}
 
+	// Use scratch buffer for in-place transforms to avoid aliasing issues
 	work := dst
 	workIsDst := true
 
@@ -352,15 +409,18 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		workIsDst = false
 	}
 
+	// Bounds hint for compiler optimization
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
+	// Bit-reversal permutation: reorder input for DIT algorithm
 	for i := range n {
 		work[i] = src[bitrev[i]]
 	}
 
+	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	for base := 0; base < n; base += 2 {
 		a := work[base]
 		b := work[base+1]
@@ -368,6 +428,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		work[base+1] = a - b
 	}
 
+	// Stage 2: 128 radix-2 butterflies, stride=4
 	for base := 0; base < n; base += 4 {
 		for j := range 2 {
 			tw := twiddle[j*128]
@@ -378,6 +439,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 3: 64 radix-2 butterflies, stride=8
 	for base := 0; base < n; base += 8 {
 		for j := range 4 {
 			tw := twiddle[j*64]
@@ -388,6 +450,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 4: 32 radix-2 butterflies, stride=16
 	for base := 0; base < n; base += 16 {
 		for j := range 8 {
 			tw := twiddle[j*32]
@@ -398,6 +461,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 5: 16 radix-2 butterflies, stride=32
 	for base := 0; base < n; base += 32 {
 		for j := range 16 {
 			tw := twiddle[j*16]
@@ -408,6 +472,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 6: 8 radix-2 butterflies, stride=64
 	for base := 0; base < n; base += 64 {
 		for j := range 32 {
 			tw := twiddle[j*8]
@@ -418,6 +483,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 7: 4 radix-2 butterflies, stride=128
 	for base := 0; base < n; base += 128 {
 		for j := range 64 {
 			tw := twiddle[j*4]
@@ -428,6 +494,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 8: 2 radix-2 butterflies, stride=256
 	for base := 0; base < n; base += 256 {
 		for j := range 128 {
 			tw := twiddle[j*2]
@@ -438,6 +505,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		}
 	}
 
+	// Stage 9: 1 radix-2 butterfly, stride=512 (full array)
 	for j := range 256 {
 		tw := twiddle[j]
 		tw = complex(real(tw), -imag(tw))
@@ -446,10 +514,12 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 		work[j+256] = b
 	}
 
+	// Copy result back if we used scratch buffer
 	if !workIsDst {
 		copy(dst, work)
 	}
 
+	// Apply 1/N scaling for inverse transform
 	scale := complex(1.0/float64(n), 0)
 	for i := range dst[:n] {
 		dst[i] *= scale
