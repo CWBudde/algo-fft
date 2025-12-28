@@ -3,7 +3,7 @@
 package fft
 
 // avx2SizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific
-// AVX2 implementations for common sizes (16, 32, 64, 128), falling back to the
+// AVX2 implementations for common sizes (8, 16, 32, 64, 128), falling back to the
 // generic AVX2 kernel for other sizes or if the size-specific kernel fails.
 func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[complex64] {
 	return func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -20,6 +20,12 @@ func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 
 		// DIT strategy: try size-specific, fall back to generic AVX2
 		switch n {
+		case 8:
+			if forwardAVX2Size8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
 		case 16:
 			if forwardAVX2Size16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 				return true
@@ -68,6 +74,12 @@ func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 
 		// DIT strategy: try size-specific, fall back to generic AVX2
 		switch n {
+		case 8:
+			if inverseAVX2Size8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
 		case 16:
 			if inverseAVX2Size16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 				return true

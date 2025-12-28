@@ -10,7 +10,7 @@
 //   - Using hardcoded twiddle factor indices
 //   - Optimal register allocation for each size
 //
-// Sizes implemented: 16, 32, 64 (stubs), 128 (stubs)
+// Sizes implemented: 8, 16, 32, 64, 128
 //
 // See asm_amd64_avx2_generic.s for algorithm documentation.
 //
@@ -19,7 +19,436 @@
 #include "textflag.h"
 
 // ===========================================================================
-// Size-Specific AVX2 Kernels - Stubs (Phase 14.5.1)
+// SIZE 8 KERNELS
+// ===========================================================================
+// 8-point FFT: 3 stages, 8 complex64 values = 64 bytes = 2 YMM registers
+//
+// Bit-reversal for n=8: [0, 4, 2, 6, 1, 5, 3, 7]
+//
+// Stage 1 (size=2): 4 butterflies with pairs (0,1), (2,3), (4,5), (6,7)
+//                   All use twiddle[0] = 1+0i (identity)
+// Stage 2 (size=4): 2 groups of 2 butterflies
+//                   j=0: twiddle[0], j=1: twiddle[2]
+// Stage 3 (size=8): 1 group of 4 butterflies
+//                   j=0: twiddle[0], j=1: twiddle[1], j=2: twiddle[2], j=3: twiddle[3]
+// ===========================================================================
+
+// Forward transform, size 8, complex64
+// Fully unrolled 3-stage FFT with AVX2 vectorization
+TEXT ·forwardAVX2Size8Complex64Asm(SB), NOSPLIT, $0-121
+	// Load parameters
+	MOVQ dst+0(FP), R8       // R8  = dst pointer
+	MOVQ src+24(FP), R9      // R9  = src pointer
+	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
+	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
+	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
+	MOVQ src+32(FP), R13     // R13 = n (should be 8)
+
+	// Verify n == 8
+	CMPQ R13, $8
+	JNE  size8_fwd_return_false
+
+	// Validate all slice lengths >= 8
+	MOVQ dst+8(FP), AX
+	CMPQ AX, $8
+	JL   size8_fwd_return_false
+
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, $8
+	JL   size8_fwd_return_false
+
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, $8
+	JL   size8_fwd_return_false
+
+	MOVQ bitrev+104(FP), AX
+	CMPQ AX, $8
+	JL   size8_fwd_return_false
+
+	// Select working buffer: if dst == src, use scratch
+	CMPQ R8, R9
+	JNE  size8_fwd_use_dst
+	MOVQ R11, R8             // In-place: use scratch as work buffer
+	JMP  size8_fwd_bitrev
+
+size8_fwd_use_dst:
+	// Out-of-place: use dst as work buffer
+
+size8_fwd_bitrev:
+	// =======================================================================
+	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// =======================================================================
+	// For size 8: bitrev = [0, 4, 2, 6, 1, 5, 3, 7]
+	// Each complex64 is 8 bytes
+
+	// Load all 8 elements with bit-reversal
+	MOVQ (R12), DX           // bitrev[0]
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, (R8)            // work[0]
+
+	MOVQ 8(R12), DX          // bitrev[1]
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 8(R8)           // work[1]
+
+	MOVQ 16(R12), DX         // bitrev[2]
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 16(R8)          // work[2]
+
+	MOVQ 24(R12), DX         // bitrev[3]
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 24(R8)          // work[3]
+
+	MOVQ 32(R12), DX         // bitrev[4]
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 32(R8)          // work[4]
+
+	MOVQ 40(R12), DX         // bitrev[5]
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 40(R8)          // work[5]
+
+	MOVQ 48(R12), DX         // bitrev[6]
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 48(R8)          // work[6]
+
+	MOVQ 56(R12), DX         // bitrev[7]
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 56(R8)          // work[7]
+
+	// =======================================================================
+	// Load all data into YMM registers
+	// =======================================================================
+	// Y0 = [work[0], work[1], work[2], work[3]] = [x0, x1, x2, x3]
+	// Y1 = [work[4], work[5], work[6], work[7]] = [x4, x5, x6, x7]
+	VMOVUPS (R8), Y0
+	VMOVUPS 32(R8), Y1
+
+	// =======================================================================
+	// STAGE 1: size=2, half=1, step=4 (n/size = 8/2 = 4)
+	// =======================================================================
+	// Butterflies on adjacent pairs: (x0,x1), (x2,x3), (x4,x5), (x6,x7)
+	// All use twiddle[0] = 1+0i, so t = b * 1 = b
+	// Result: a' = a + b, b' = a - b
+	//
+	// Y0 = [x0, x1, x2, x3] -> [x0+x1, x0-x1, x2+x3, x2-x3] = [a0, a1, a2, a3]
+	// Y1 = [x4, x5, x6, x7] -> [x4+x5, x4-x5, x6+x7, x6-x7] = [a4, a5, a6, a7]
+
+	// For Y0: swap adjacent complex64 elements, add/sub, blend
+	// VPERMILPD swaps pairs of 64-bit elements within each 128-bit lane
+	// Y0 = [c0, c1, c2, c3] -> Y4 = [c1, c0, c3, c2]
+	VPERMILPD $0x05, Y0, Y4
+	VADDPS Y4, Y0, Y5        // Y5 = [c0+c1, c1+c0, c2+c3, c3+c2]
+	VSUBPS Y0, Y4, Y6        // Y6 = [c1-c0, c0-c1, c3-c2, c2-c3] (reversed order!)
+	// Blend at 64-bit (complex64) granularity
+	// VBLENDPD $0x0A = 0b1010: positions 1,3 from Y6, positions 0,2 from Y5
+	// Y5 = [c0+c1, c1+c0, c2+c3, c3+c2]
+	// Y6 = [c1-c0, c0-c1, c3-c2, c2-c3]
+	// Result: [c0+c1, c0-c1, c2+c3, c2-c3] as required
+	VBLENDPD $0x0A, Y6, Y5, Y0
+
+	// For Y1: same operation
+	VPERMILPD $0x05, Y1, Y4
+	VADDPS Y4, Y1, Y5
+	VSUBPS Y1, Y4, Y6
+	VBLENDPD $0x0A, Y6, Y5, Y1
+
+	// =======================================================================
+	// STAGE 2: size=4, half=2, step=2 (n/size = 8/4 = 2)
+	// =======================================================================
+	// After stage 1:
+	//   Y0 = [a0, a1, a2, a3]
+	//   Y1 = [a4, a5, a6, a7]
+	//
+	// Butterflies: (a0,a2) with tw[0], (a1,a3) with tw[2]
+	//              (a4,a6) with tw[0], (a5,a7) with tw[2]
+	//
+	// tw[0] = 1+0i (identity)
+	// tw[2] = cos(-π/2) + i*sin(-π/2) = 0 - i = (0, -1)
+	//
+	// For j=0: t = tw[0] * a2 = a2, so b0 = a0+a2, b2 = a0-a2
+	// For j=1: t = tw[2] * a3, so b1 = a1+t, b3 = a1-t
+
+	// Load twiddle factors: tw[0] and tw[2]
+	// tw[0] at offset 0, tw[2] at offset 16 (each complex64 is 8 bytes)
+	VMOVSD (R10), X4         // X4 = tw[0] = (1, 0)
+	VMOVSD 16(R10), X5       // X5 = tw[2] = (0, -1)
+	VPUNPCKLQDQ X5, X4, X4   // X4 = [tw[0], tw[2]]
+	VINSERTF128 $1, X4, Y4, Y4  // Y4 = [tw[0], tw[2], tw[0], tw[2]]
+
+	// Reorganize Y0: need to pair (a0,a2) and (a1,a3)
+	// Y0 = [a0, a1, a2, a3]
+	// We need: a_low = [a0, a1, a0, a1], a_high = [a2, a3, a2, a3]
+	VPERM2F128 $0x00, Y0, Y0, Y5  // Y5 = [a0, a1, a0, a1]
+	VPERM2F128 $0x11, Y0, Y0, Y6  // Y6 = [a2, a3, a2, a3]
+
+	// Complex multiply: t = tw * a_high
+	VMOVSLDUP Y4, Y7         // Y7 = [tw.r, tw.r, ...]
+	VMOVSHDUP Y4, Y8         // Y8 = [tw.i, tw.i, ...]
+	VSHUFPS $0xB1, Y6, Y6, Y9  // Y9 = [a.i, a.r, ...] (swap real/imag)
+	VMULPS Y8, Y9, Y9        // Y9 = [a.i*tw.i, a.r*tw.i, ...]
+	VFMADDSUB231PS Y7, Y6, Y9  // Y9 = t = tw * a_high
+
+	// Butterfly: a' = a_low + t, b' = a_low - t
+	VADDPS Y9, Y5, Y7        // Y7 = a_low + t
+	VSUBPS Y9, Y5, Y8        // Y8 = a_low - t
+
+	// Recombine: Y0 = [a'0, a'1, b'0, b'1] = [b0, b1, b2, b3]
+	VINSERTF128 $1, X8, Y7, Y0
+
+	// Same for Y1 = [a4, a5, a6, a7]
+	VPERM2F128 $0x00, Y1, Y1, Y5
+	VPERM2F128 $0x11, Y1, Y1, Y6
+	VMOVSLDUP Y4, Y7
+	VMOVSHDUP Y4, Y8
+	VSHUFPS $0xB1, Y6, Y6, Y9
+	VMULPS Y8, Y9, Y9
+	VFMADDSUB231PS Y7, Y6, Y9
+	VADDPS Y9, Y5, Y7
+	VSUBPS Y9, Y5, Y8
+	VINSERTF128 $1, X8, Y7, Y1
+
+	// =======================================================================
+	// STAGE 3: size=8, half=4, step=1 (n/size = 8/8 = 1)
+	// =======================================================================
+	// After stage 2:
+	//   Y0 = [b0, b1, b2, b3]
+	//   Y1 = [b4, b5, b6, b7]
+	//
+	// Butterflies: (b0,b4) with tw[0], (b1,b5) with tw[1],
+	//              (b2,b6) with tw[2], (b3,b7) with tw[3]
+	//
+	// tw[0] = 1+0i, tw[1] = (√2/2, -√2/2), tw[2] = (0,-1), tw[3] = (-√2/2, -√2/2)
+
+	// Load twiddle factors for stage 3: tw[0], tw[1], tw[2], tw[3]
+	VMOVUPS (R10), Y4        // Y4 = [tw[0], tw[1], tw[2], tw[3]]
+
+	// Complex multiply: t = tw * Y1 (b4, b5, b6, b7)
+	VMOVSLDUP Y4, Y7         // broadcast real parts
+	VMOVSHDUP Y4, Y8         // broadcast imag parts
+	VSHUFPS $0xB1, Y1, Y1, Y9  // swap real/imag of Y1
+	VMULPS Y8, Y9, Y9        // [b.i*tw.i, b.r*tw.i, ...]
+	VFMADDSUB231PS Y7, Y1, Y9  // Y9 = t = tw * Y1
+
+	// Butterfly: c = Y0 + t, c' = Y0 - t
+	VADDPS Y9, Y0, Y2        // Y2 = [c0, c1, c2, c3]
+	VSUBPS Y9, Y0, Y3        // Y3 = [c4, c5, c6, c7]
+
+	// =======================================================================
+	// Store results
+	// =======================================================================
+	// Check if we need to copy back to dst (if we used scratch)
+	MOVQ dst+0(FP), R9
+	CMPQ R8, R9
+	JE   size8_fwd_store_direct
+
+	// We used scratch, store to dst
+	VMOVUPS Y2, (R9)
+	VMOVUPS Y3, 32(R9)
+	JMP size8_fwd_done
+
+size8_fwd_store_direct:
+	// We used dst directly
+	VMOVUPS Y2, (R8)
+	VMOVUPS Y3, 32(R8)
+
+size8_fwd_done:
+	VZEROUPPER
+	MOVB $1, ret+120(FP)
+	RET
+
+size8_fwd_return_false:
+	MOVB $0, ret+120(FP)
+	RET
+
+// ===========================================================================
+// Inverse transform, size 8, complex64
+// ===========================================================================
+// Same as forward but with conjugated twiddle factors and 1/n scaling
+TEXT ·inverseAVX2Size8Complex64Asm(SB), NOSPLIT, $0-121
+	// Load parameters
+	MOVQ dst+0(FP), R8       // R8  = dst pointer
+	MOVQ src+24(FP), R9      // R9  = src pointer
+	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
+	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
+	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
+	MOVQ src+32(FP), R13     // R13 = n (should be 8)
+
+	// Verify n == 8
+	CMPQ R13, $8
+	JNE  size8_inv_return_false
+
+	// Validate all slice lengths >= 8
+	MOVQ dst+8(FP), AX
+	CMPQ AX, $8
+	JL   size8_inv_return_false
+
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, $8
+	JL   size8_inv_return_false
+
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, $8
+	JL   size8_inv_return_false
+
+	MOVQ bitrev+104(FP), AX
+	CMPQ AX, $8
+	JL   size8_inv_return_false
+
+	// Select working buffer
+	CMPQ R8, R9
+	JNE  size8_inv_use_dst
+	MOVQ R11, R8
+	JMP  size8_inv_bitrev
+
+size8_inv_use_dst:
+
+size8_inv_bitrev:
+	// Bit-reversal permutation
+	MOVQ (R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, (R8)
+
+	MOVQ 8(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 8(R8)
+
+	MOVQ 16(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 16(R8)
+
+	MOVQ 24(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 24(R8)
+
+	MOVQ 32(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 32(R8)
+
+	MOVQ 40(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 40(R8)
+
+	MOVQ 48(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 48(R8)
+
+	MOVQ 56(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 56(R8)
+
+	// Load data
+	VMOVUPS (R8), Y0
+	VMOVUPS 32(R8), Y1
+
+	// =======================================================================
+	// STAGE 1: size=2 (same as forward - twiddle[0] = 1+0i, conj has no effect)
+	// =======================================================================
+	VPERMILPD $0x05, Y0, Y4
+	VADDPS Y4, Y0, Y5
+	VSUBPS Y0, Y4, Y6        // Reversed: Y4-Y0 to get correct sign
+	VBLENDPD $0x0A, Y6, Y5, Y0
+
+	VPERMILPD $0x05, Y1, Y4
+	VADDPS Y4, Y1, Y5
+	VSUBPS Y1, Y4, Y6        // Reversed: Y4-Y1 to get correct sign
+	VBLENDPD $0x0A, Y6, Y5, Y1
+
+	// =======================================================================
+	// STAGE 2: size=4 - use conjugated twiddles
+	// =======================================================================
+	// For inverse: conj(tw) means negate imaginary part
+	// tw[0] = (1, 0) -> conj = (1, 0)
+	// tw[2] = (0, -1) -> conj = (0, 1)
+
+	// Create conjugation mask: [0, 0x80000000, 0, 0x80000000, ...]
+	// This negates the imaginary parts when XORed with complex values.
+	// Use VPCMPEQD to create all-ones, then shift to get sign bits in odd positions.
+	VPCMPEQD Y14, Y14, Y14   // Y14 = all 1s
+	VPSLLD $31, Y14, Y14     // Y14 = [0x80000000, ...] (sign bit in each 32-bit lane)
+	VPSLLQ $32, Y14, Y14     // Shift left by 32 bits in each 64-bit lane: [0, sign, 0, sign, ...]
+
+	// Load twiddle factors and conjugate
+	VMOVSD (R10), X4         // tw[0]
+	VMOVSD 16(R10), X5       // tw[2]
+	VPUNPCKLQDQ X5, X4, X4
+	VINSERTF128 $1, X4, Y4, Y4  // Y4 = [tw[0], tw[2], tw[0], tw[2]]
+	VXORPS Y14, Y4, Y4       // Y4 = conjugated twiddles
+
+	// Process Y0
+	VPERM2F128 $0x00, Y0, Y0, Y5
+	VPERM2F128 $0x11, Y0, Y0, Y6
+	VMOVSLDUP Y4, Y7
+	VMOVSHDUP Y4, Y8
+	VSHUFPS $0xB1, Y6, Y6, Y9
+	VMULPS Y8, Y9, Y9
+	VFMADDSUB231PS Y7, Y6, Y9
+	VADDPS Y9, Y5, Y7
+	VSUBPS Y9, Y5, Y8
+	VINSERTF128 $1, X8, Y7, Y0
+
+	// Process Y1
+	VPERM2F128 $0x00, Y1, Y1, Y5
+	VPERM2F128 $0x11, Y1, Y1, Y6
+	VMOVSLDUP Y4, Y7
+	VMOVSHDUP Y4, Y8
+	VSHUFPS $0xB1, Y6, Y6, Y9
+	VMULPS Y8, Y9, Y9
+	VFMADDSUB231PS Y7, Y6, Y9
+	VADDPS Y9, Y5, Y7
+	VSUBPS Y9, Y5, Y8
+	VINSERTF128 $1, X8, Y7, Y1
+
+	// =======================================================================
+	// STAGE 3: size=8 - use conjugated twiddles
+	// =======================================================================
+	VMOVUPS (R10), Y4        // Y4 = [tw[0], tw[1], tw[2], tw[3]]
+	VXORPS Y14, Y4, Y4       // conjugate
+
+	// Complex multiply: t = conj(tw) * Y1
+	VMOVSLDUP Y4, Y7
+	VMOVSHDUP Y4, Y8
+	VSHUFPS $0xB1, Y1, Y1, Y9
+	VMULPS Y8, Y9, Y9
+	VFMADDSUB231PS Y7, Y1, Y9
+
+	// Butterfly
+	VADDPS Y9, Y0, Y2
+	VSUBPS Y9, Y0, Y3
+
+	// =======================================================================
+	// Apply 1/n scaling (1/8 = 0.125)
+	// =======================================================================
+	MOVL $0x3E000000, AX     // 0.125f in IEEE-754
+	MOVD AX, X4
+	VBROADCASTSS X4, Y4      // Y4 = [0.125, 0.125, ...]
+	VMULPS Y4, Y2, Y2
+	VMULPS Y4, Y3, Y3
+
+	// =======================================================================
+	// Store results
+	// =======================================================================
+	MOVQ dst+0(FP), R9
+	CMPQ R8, R9
+	JE   size8_inv_store_direct
+
+	VMOVUPS Y2, (R9)
+	VMOVUPS Y3, 32(R9)
+	JMP size8_inv_done
+
+size8_inv_store_direct:
+	VMOVUPS Y2, (R8)
+	VMOVUPS Y3, 32(R8)
+
+size8_inv_done:
+	VZEROUPPER
+	MOVB $1, ret+120(FP)
+	RET
+
+size8_inv_return_false:
+	MOVB $0, ret+120(FP)
+	RET
+
+// ===========================================================================
+// SIZE 16 AND LARGER KERNELS
 // ===========================================================================
 // These are stub implementations that return false, causing fallback to
 // generic AVX2 implementations. Actual unrolled kernels will be added in
