@@ -50,6 +50,9 @@ func asmInverse2Complex64(dst, src *complex64) bool
 // Size-specific AVX2 kernels (forward, complex64)
 //
 //go:noescape
+func forwardAVX2Size8Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
 func forwardAVX2Size16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
@@ -63,6 +66,9 @@ func forwardAVX2Size128Complex64Asm(dst, src, twiddle, scratch []complex64, bitr
 
 // Size-specific AVX2 kernels (inverse, complex64)
 //
+//go:noescape
+func inverseAVX2Size8Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
 //go:noescape
 func inverseAVX2Size16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
