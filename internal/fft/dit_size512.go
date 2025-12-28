@@ -26,15 +26,11 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
-	// Bit-reversal permutation: reorder input for DIT algorithm
-	for i := range n {
-		work[i] = src[bitrev[i]]
-	}
-
 	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
 	for base := 0; base < n; base += 2 {
-		a := work[base]
-		b := work[base+1]
+		a := src[bitrev[base]]
+		b := src[bitrev[base+1]]
 		work[base] = a + b
 		work[base+1] = a - b
 	}
@@ -151,15 +147,11 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
-	// Bit-reversal permutation: reorder input for DIT algorithm
-	for i := range n {
-		work[i] = src[bitrev[i]]
-	}
-
 	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
 	for base := 0; base < n; base += 2 {
-		a := work[base]
-		b := work[base+1]
+		a := src[bitrev[base]]
+		b := src[bitrev[base+1]]
 		work[base] = a + b
 		work[base+1] = a - b
 	}
@@ -290,15 +282,11 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
-	// Bit-reversal permutation: reorder input for DIT algorithm
-	for i := range n {
-		work[i] = src[bitrev[i]]
-	}
-
 	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
 	for base := 0; base < n; base += 2 {
-		a := work[base]
-		b := work[base+1]
+		a := src[bitrev[base]]
+		b := src[bitrev[base+1]]
 		work[base] = a + b
 		work[base+1] = a - b
 	}
@@ -415,15 +403,11 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 	twiddle = twiddle[:n]
 	bitrev = bitrev[:n]
 
-	// Bit-reversal permutation: reorder input for DIT algorithm
-	for i := range n {
-		work[i] = src[bitrev[i]]
-	}
-
 	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
 	for base := 0; base < n; base += 2 {
-		a := work[base]
-		b := work[base+1]
+		a := src[bitrev[base]]
+		b := src[bitrev[base+1]]
 		work[base] = a + b
 		work[base+1] = a - b
 	}

@@ -1,5 +1,9 @@
 package fft
 
+// forwardDIT16Complex64 computes a 16-point forward FFT using the
+// Decimation-in-Time (DIT) algorithm for complex64 data.
+// Fully unrolled for maximum performance.
+// Returns false if any slice is too small.
 func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 16
 
@@ -7,11 +11,15 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 		return false
 	}
 
+	// Bounds hint for compiler optimization
 	br := bitrev[:n]
 	s := src[:n]
+
+	// Pre-load twiddle factors
 	w1, w2, w3, w4, w5, w6, w7 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7]
 
-	// Stage 1 (size 2) - with interleaved loads
+	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[br[0]]
 	x1 := s[br[1]]
 	a0, a1 := x0+x1, x0-x1
@@ -37,7 +45,7 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	x1 = s[br[15]]
 	a14, a15 := x0+x1, x0-x1
 
-	// Stage 2 (size 4)
+	// Stage 2: 4 radix-2 butterflies, stride=4
 	b0, b2 := a0+a2, a0-a2
 	t := w4 * a3
 	b1, b3 := a1+t, a1-t
@@ -51,7 +59,7 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w4 * a15
 	b13, b15 := a13+t, a13-t
 
-	// Stage 3 (size 8)
+	// Stage 3: 2 radix-2 butterflies, stride=8
 	c0, c4 := b0+b4, b0-b4
 	t = w2 * b5
 	c1, c5 := b1+t, b1-t
@@ -67,8 +75,8 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w6 * b15
 	c11, c15 := b11+t, b11-t
 
-	// Stage 4 (size 16) - write directly to output
-	// Use scratch if dst and src overlap
+	// Stage 4: 1 radix-2 butterfly, stride=16 (full array)
+	// Write directly to output or scratch buffer to avoid aliasing.
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
@@ -90,6 +98,7 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w7 * c15
 	work[7], work[15] = c7+t, c7-t
 
+	// Copy result back if we used scratch buffer
 	if &work[0] != &dst[0] {
 		copy(dst, work)
 	}
@@ -97,6 +106,11 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	return true
 }
 
+// inverseDIT16Complex64 computes a 16-point inverse FFT using the
+// Decimation-in-Time (DIT) algorithm for complex64 data.
+// Uses conjugated twiddle factors (negated imaginary parts) and applies
+// 1/N scaling at the end. Fully unrolled for maximum performance.
+// Returns false if any slice is too small.
 func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 16
 
@@ -104,8 +118,11 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 		return false
 	}
 
+	// Bounds hint for compiler optimization
 	br := bitrev[:n]
 	s := src[:n]
+
+	// Conjugate twiddles for inverse transform
 	w1, w2, w3, w4, w5, w6, w7 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7]
 	w1 = complex(real(w1), -imag(w1))
 	w2 = complex(real(w2), -imag(w2))
@@ -115,7 +132,8 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	w6 = complex(real(w6), -imag(w6))
 	w7 = complex(real(w7), -imag(w7))
 
-	// Stage 1 (size 2) - with interleaved loads
+	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[br[0]]
 	x1 := s[br[1]]
 	a0, a1 := x0+x1, x0-x1
@@ -141,7 +159,7 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	x1 = s[br[15]]
 	a14, a15 := x0+x1, x0-x1
 
-	// Stage 2 (size 4)
+	// Stage 2: 4 radix-2 butterflies, stride=4
 	b0, b2 := a0+a2, a0-a2
 	t := w4 * a3
 	b1, b3 := a1+t, a1-t
@@ -155,7 +173,7 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w4 * a15
 	b13, b15 := a13+t, a13-t
 
-	// Stage 3 (size 8)
+	// Stage 3: 2 radix-2 butterflies, stride=8
 	c0, c4 := b0+b4, b0-b4
 	t = w2 * b5
 	c1, c5 := b1+t, b1-t
@@ -171,8 +189,8 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w6 * b15
 	c11, c15 := b11+t, b11-t
 
-	// Stage 4 (size 16) - write directly to output
-	// Use scratch if dst and src overlap
+	// Stage 4: 1 radix-2 butterfly, stride=16 (full array)
+	// Write directly to output or scratch buffer to avoid aliasing.
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
@@ -194,10 +212,12 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	t = w7 * c15
 	work[7], work[15] = c7+t, c7-t
 
+	// Copy result back if we used scratch buffer
 	if &work[0] != &dst[0] {
 		copy(dst, work)
 	}
 
+	// Apply 1/N scaling for inverse transform
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
 		dst[i] *= scale
@@ -206,6 +226,10 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	return true
 }
 
+// forwardDIT16Complex128 computes a 16-point forward FFT using the
+// Decimation-in-Time (DIT) algorithm for complex128 data.
+// Fully unrolled for maximum performance.
+// Returns false if any slice is too small.
 func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 16
 
@@ -213,11 +237,15 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 		return false
 	}
 
+	// Bounds hint for compiler optimization
 	br := bitrev[:n]
 	s := src[:n]
+
+	// Pre-load twiddle factors
 	w1, w2, w3, w4, w5, w6, w7 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7]
 
-	// Stage 1 (size 2) - with interleaved loads
+	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[br[0]]
 	x1 := s[br[1]]
 	a0, a1 := x0+x1, x0-x1
@@ -243,7 +271,7 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	x1 = s[br[15]]
 	a14, a15 := x0+x1, x0-x1
 
-	// Stage 2 (size 4)
+	// Stage 2: 4 radix-2 butterflies, stride=4
 	b0, b2 := a0+a2, a0-a2
 	t := w4 * a3
 	b1, b3 := a1+t, a1-t
@@ -257,7 +285,7 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	t = w4 * a15
 	b13, b15 := a13+t, a13-t
 
-	// Stage 3 (size 8)
+	// Stage 3: 2 radix-2 butterflies, stride=8
 	c0, c4 := b0+b4, b0-b4
 	t = w2 * b5
 	c1, c5 := b1+t, b1-t
@@ -273,8 +301,8 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	t = w6 * b15
 	c11, c15 := b11+t, b11-t
 
-	// Stage 4 (size 16) - write directly to output
-	// Use scratch if dst and src overlap
+	// Stage 4: 1 radix-2 butterfly, stride=16 (full array)
+	// Write directly to output or scratch buffer to avoid aliasing.
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
@@ -296,6 +324,7 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	t = w7 * c15
 	work[7], work[15] = c7+t, c7-t
 
+	// Copy result back if we used scratch buffer
 	if &work[0] != &dst[0] {
 		copy(dst, work)
 	}
@@ -303,6 +332,11 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	return true
 }
 
+// inverseDIT16Complex128 computes a 16-point inverse FFT using the
+// Decimation-in-Time (DIT) algorithm for complex128 data.
+// Uses conjugated twiddle factors (negated imaginary parts) and applies
+// 1/N scaling at the end. Fully unrolled for maximum performance.
+// Returns false if any slice is too small.
 func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 16
 
@@ -310,8 +344,11 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 		return false
 	}
 
+	// Bounds hint for compiler optimization
 	br := bitrev[:n]
 	s := src[:n]
+
+	// Conjugate twiddles for inverse transform
 	w1, w2, w3, w4, w5, w6, w7 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7]
 	w1 = complex(real(w1), -imag(w1))
 	w2 = complex(real(w2), -imag(w2))
@@ -321,7 +358,8 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	w6 = complex(real(w6), -imag(w6))
 	w7 = complex(real(w7), -imag(w7))
 
-	// Stage 1 (size 2) - with interleaved loads
+	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[br[0]]
 	x1 := s[br[1]]
 	a0, a1 := x0+x1, x0-x1
@@ -347,7 +385,7 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	x1 = s[br[15]]
 	a14, a15 := x0+x1, x0-x1
 
-	// Stage 2 (size 4)
+	// Stage 2: 4 radix-2 butterflies, stride=4
 	b0, b2 := a0+a2, a0-a2
 	t := w4 * a3
 	b1, b3 := a1+t, a1-t
@@ -361,7 +399,7 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	t = w4 * a15
 	b13, b15 := a13+t, a13-t
 
-	// Stage 3 (size 8)
+	// Stage 3: 2 radix-2 butterflies, stride=8
 	c0, c4 := b0+b4, b0-b4
 	t = w2 * b5
 	c1, c5 := b1+t, b1-t
@@ -377,8 +415,8 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	t = w6 * b15
 	c11, c15 := b11+t, b11-t
 
-	// Stage 4 (size 16) - write directly to output
-	// Use scratch if dst and src overlap
+	// Stage 4: 1 radix-2 butterfly, stride=16 (full array)
+	// Write directly to output or scratch buffer to avoid aliasing.
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
@@ -400,10 +438,12 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	t = w7 * c15
 	work[7], work[15] = c7+t, c7-t
 
+	// Copy result back if we used scratch buffer
 	if &work[0] != &dst[0] {
 		copy(dst, work)
 	}
 
+	// Apply 1/N scaling for inverse transform
 	scale := complex(1.0/float64(n), 0)
 	for i := range dst[:n] {
 		dst[i] *= scale
