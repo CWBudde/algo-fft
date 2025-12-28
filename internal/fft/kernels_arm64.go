@@ -55,7 +55,7 @@ func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelS
 }
 
 func forwardNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !isPowerOf2(len(src)) {
+	if !IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -63,7 +63,7 @@ func forwardNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 }
 
 func inverseNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !isPowerOf2(len(src)) {
+	if !IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -71,7 +71,7 @@ func inverseNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 }
 
 func forwardNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !isPowerOf2(len(src)) {
+	if !IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -79,7 +79,7 @@ func forwardNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int
 }
 
 func inverseNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !isPowerOf2(len(src)) {
+	if !IsPowerOf2(len(src)) {
 		return false
 	}
 

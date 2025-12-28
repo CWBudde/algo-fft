@@ -2,40 +2,6 @@ package fft
 
 import "testing"
 
-func TestIsPowerOfTwo(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		n    int
-		want bool
-	}{
-		{0, false},
-		{1, true},
-		{2, true},
-		{3, false},
-		{4, true},
-		{5, false},
-		{6, false},
-		{7, false},
-		{8, true},
-		{15, false},
-		{16, true},
-		{17, false},
-		{256, true},
-		{1024, true},
-		{1000, false},
-		{-1, false},
-		{-2, false},
-	}
-
-	for _, tt := range tests {
-		got := IsPowerOfTwo(tt.n)
-		if got != tt.want {
-			t.Errorf("IsPowerOfTwo(%d) = %v, want %v", tt.n, got, tt.want)
-		}
-	}
-}
-
 func TestLog2(t *testing.T) {
 	t.Parallel()
 

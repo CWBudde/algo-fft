@@ -170,11 +170,3 @@ func reverseBase4(x, digits int) int {
 
 	return result
 }
-
-func isPowerOf4(n int) bool {
-	if !isPowerOf2(n) {
-		return false
-	}
-
-	return log2(n)%2 == 0
-}

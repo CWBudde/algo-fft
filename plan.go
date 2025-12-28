@@ -195,7 +195,7 @@ func itoa(n int) string {
 }
 
 func planBitReversal(n int) []int {
-	if !fft.IsPowerOfTwo(n) {
+	if !fft.IsPowerOf2(n) {
 		return nil
 	}
 
@@ -645,7 +645,7 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 
 // NewPlanFromPoolWithOptions creates a new FFT plan using buffers from the specified pool and planner options.
 func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts PlanOptions) (*Plan[T], error) {
-	if n < 1 || (!fft.IsPowerOfTwo(n) && !fft.IsHighlyComposite(n)) {
+	if n < 1 || (!fft.IsPowerOf2(n) && !fft.IsHighlyComposite(n)) {
 		return nil, ErrInvalidLength
 	}
 
@@ -706,7 +706,7 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	}
 
 	var bitrev []int
-	if fft.IsPowerOfTwo(n) {
+	if fft.IsPowerOf2(n) {
 		bitrev = pool.GetIntSlice(n)
 		computed := fft.ComputeBitReversalIndices(n)
 		copy(bitrev, computed)

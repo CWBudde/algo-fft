@@ -199,15 +199,3 @@ func logBase5(n int) int {
 
 	return result
 }
-
-func isPowerOf5(n int) bool {
-	if n < 1 {
-		return false
-	}
-
-	for n%5 == 0 {
-		n /= 5
-	}
-
-	return n == 1
-}

@@ -34,33 +34,6 @@ func TestFactorize(t *testing.T) {
 	}
 }
 
-func TestNextPowerOfTwo(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		n    int
-		want int
-	}{
-		{n: -5, want: 1},
-		{n: 0, want: 1},
-		{n: 1, want: 1},
-		{n: 2, want: 2},
-		{n: 3, want: 4},
-		{n: 4, want: 4},
-		{n: 5, want: 8},
-		{n: 17, want: 32},
-		{n: 1024, want: 1024},
-		{n: 1025, want: 2048},
-	}
-
-	for _, tt := range tests {
-		got := NextPowerOfTwo(tt.n)
-		if got != tt.want {
-			t.Errorf("NextPowerOfTwo(%d) = %d, want %d", tt.n, got, tt.want)
-		}
-	}
-}
-
 func TestIsHighlyComposite(t *testing.T) {
 	t.Parallel()
 

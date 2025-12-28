@@ -60,7 +60,7 @@ func getMeasureConfig(mode PlannerMode) measureConfig {
 // selectStrategiesToTest returns the strategies to benchmark based on planner mode.
 func selectStrategiesToTest(mode PlannerMode, n int) []KernelStrategy {
 	// For non-power-of-two sizes, only Bluestein is available
-	if !IsPowerOfTwo(n) && !IsHighlyComposite(n) {
+	if !IsPowerOf2(n) && !IsHighlyComposite(n) {
 		return []KernelStrategy{KernelBluestein}
 	}
 

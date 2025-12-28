@@ -1,7 +1,5 @@
 package fft
 
-import "math/bits"
-
 func factorize(n int) []int {
 	if n <= 1 {
 		return nil
@@ -26,33 +24,6 @@ func factorize(n int) []int {
 	}
 
 	return factors
-}
-
-func isPowerOf2(n int) bool {
-	return n > 0 && (n&(n-1)) == 0
-}
-
-func NextPowerOfTwo(n int) int {
-	if n <= 1 {
-		return 1
-	}
-
-	if isPowerOf2(n) {
-		return n
-	}
-
-	x := uint(n - 1)
-	x |= x >> 1
-	x |= x >> 2
-	x |= x >> 4
-	x |= x >> 8
-
-	x |= x >> 16
-	if bits.UintSize == 64 {
-		x |= x >> 32
-	}
-
-	return int(x + 1)
 }
 
 func isHighlyComposite(n int) bool {
