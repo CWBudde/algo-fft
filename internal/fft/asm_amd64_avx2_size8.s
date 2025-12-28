@@ -261,6 +261,12 @@ size8_fwd_return_false:
 // Inverse transform, size 8, complex64
 // ===========================================================================
 // Same as forward but with conjugated twiddle factors and 1/n scaling
+//
+// Optimization notes:
+// - Stage 1 uses identity twiddle (1+0i), so conjugation has no effect
+// - Conjugation is done by negating imaginary parts via VFMSUBADD instead
+//   of explicit XOR with sign mask, avoiding the mask setup overhead
+// - Twiddle factor real/imag splits are hoisted and reused across Y0/Y1
 TEXT ·inverseAVX2Size8Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
@@ -342,71 +348,82 @@ size8_inv_bitrev:
 	// =======================================================================
 	VPERMILPD $0x05, Y0, Y4
 	VADDPS Y4, Y0, Y5
-	VSUBPS Y0, Y4, Y6        // Reversed: Y4-Y0 to get correct sign
+	VSUBPS Y0, Y4, Y6
 	VBLENDPD $0x0A, Y6, Y5, Y0
 
 	VPERMILPD $0x05, Y1, Y4
 	VADDPS Y4, Y1, Y5
-	VSUBPS Y1, Y4, Y6        // Reversed: Y4-Y1 to get correct sign
+	VSUBPS Y1, Y4, Y6
 	VBLENDPD $0x0A, Y6, Y5, Y1
 
 	// =======================================================================
-	// STAGE 2: size=4 - use conjugated twiddles
+	// STAGE 2: size=4 - use conjugated twiddles via VFMSUBADD
 	// =======================================================================
 	// For inverse: conj(tw) means negate imaginary part
-	// tw[0] = (1, 0) -> conj = (1, 0)
-	// tw[2] = (0, -1) -> conj = (0, 1)
+	// Instead of XOR with sign mask, use VFMSUBADD which computes:
+	//   result[even] = a[even] - b[even]  (real: r*r - (-i*i) = r*r + i*i... wait, need different approach)
+	//
+	// Actually, for conjugate multiply: conj(tw) * z = (tr, -ti) * (zr, zi)
+	//   real = tr*zr - (-ti)*zi = tr*zr + ti*zi
+	//   imag = tr*zi + (-ti)*zr = tr*zi - ti*zr
+	//
+	// Using VFMSUBADD231PS: dst = a*b +/- dst (alternating sub/add at even/odd positions)
+	// For complex64 with [real, imag, real, imag, ...]:
+	//   VMULPS:     [zi*ti, zr*ti, ...]
+	//   VFMSUBADD:  [tr*zr - zi*ti, tr*zi + zr*ti, ...] <- this is conj(tw)*z when we negate ti!
+	//
+	// But we can't negate just ti easily. Let's use a different approach:
+	// Regular complex multiply: tw * z
+	//   real = tr*zr - ti*zi
+	//   imag = tr*zi + ti*zr
+	// Conjugate multiply: conj(tw) * z
+	//   real = tr*zr + ti*zi  (add instead of sub)
+	//   imag = tr*zi - ti*zr  (sub instead of add)
+	//
+	// VFMADDSUB gives: even=a*b-c, odd=a*b+c -> [tr*zr - zi*ti, tr*zi + zr*ti]
+	// VFMSUBADD gives: even=a*b+c, odd=a*b-c -> [tr*zr + zi*ti, tr*zi - zr*ti] = conj multiply!
 
-	// Create conjugation mask: [0, 0x80000000, 0, 0x80000000, ...]
-	// This negates the imaginary parts when XORed with complex values.
-	// Use VPCMPEQD to create all-ones, then shift to get sign bits in odd positions.
-	VPCMPEQD Y14, Y14, Y14   // Y14 = all 1s
-	VPSLLD $31, Y14, Y14     // Y14 = [0x80000000, ...] (sign bit in each 32-bit lane)
-	VPSLLQ $32, Y14, Y14     // Shift left by 32 bits in each 64-bit lane: [0, sign, 0, sign, ...]
-
-	// Load twiddle factors and conjugate
+	// Load twiddle factors for stage 2
 	VMOVSD (R10), X4         // tw[0]
 	VMOVSD 16(R10), X5       // tw[2]
 	VPUNPCKLQDQ X5, X4, X4
 	VINSERTF128 $1, X4, Y4, Y4  // Y4 = [tw[0], tw[2], tw[0], tw[2]]
-	VXORPS Y14, Y4, Y4       // Y4 = conjugated twiddles
+
+	// Split twiddle into real and imag parts (reused for Y0 and Y1)
+	VMOVSLDUP Y4, Y10        // Y10 = [tr, tr, ...] (broadcast real parts)
+	VMOVSHDUP Y4, Y11        // Y11 = [ti, ti, ...] (broadcast imag parts)
 
 	// Process Y0
-	VPERM2F128 $0x00, Y0, Y0, Y5
-	VPERM2F128 $0x11, Y0, Y0, Y6
-	VMOVSLDUP Y4, Y7
-	VMOVSHDUP Y4, Y8
-	VSHUFPS $0xB1, Y6, Y6, Y9
-	VMULPS Y8, Y9, Y9
-	VFMADDSUB231PS Y7, Y6, Y9
-	VADDPS Y9, Y5, Y7
-	VSUBPS Y9, Y5, Y8
-	VINSERTF128 $1, X8, Y7, Y0
+	VPERM2F128 $0x00, Y0, Y0, Y5  // Y5 = [a0, a1, a0, a1]
+	VPERM2F128 $0x11, Y0, Y0, Y6  // Y6 = [a2, a3, a2, a3]
+	VSHUFPS $0xB1, Y6, Y6, Y9     // Y9 = [ai, ar, ...] (swap real/imag)
+	VMULPS Y11, Y9, Y9            // Y9 = [ai*ti, ar*ti, ...]
+	VFMSUBADD231PS Y10, Y6, Y9    // Y9 = [tr*ar + ai*ti, tr*ai - ar*ti] = conj(tw)*a
+	VADDPS Y9, Y5, Y7             // Y7 = a_low + t
+	VSUBPS Y9, Y5, Y8             // Y8 = a_low - t
+	VINSERTF128 $1, X8, Y7, Y0    // Y0 = [result_low, result_high]
 
-	// Process Y1
+	// Process Y1 (reuse Y10, Y11)
 	VPERM2F128 $0x00, Y1, Y1, Y5
 	VPERM2F128 $0x11, Y1, Y1, Y6
-	VMOVSLDUP Y4, Y7
-	VMOVSHDUP Y4, Y8
 	VSHUFPS $0xB1, Y6, Y6, Y9
-	VMULPS Y8, Y9, Y9
-	VFMADDSUB231PS Y7, Y6, Y9
+	VMULPS Y11, Y9, Y9
+	VFMSUBADD231PS Y10, Y6, Y9
 	VADDPS Y9, Y5, Y7
 	VSUBPS Y9, Y5, Y8
 	VINSERTF128 $1, X8, Y7, Y1
 
 	// =======================================================================
-	// STAGE 3: size=8 - use conjugated twiddles
+	// STAGE 3: size=8 - use conjugated twiddles via VFMSUBADD
 	// =======================================================================
 	VMOVUPS (R10), Y4        // Y4 = [tw[0], tw[1], tw[2], tw[3]]
-	VXORPS Y14, Y4, Y4       // conjugate
 
-	// Complex multiply: t = conj(tw) * Y1
-	VMOVSLDUP Y4, Y7
-	VMOVSHDUP Y4, Y8
-	VSHUFPS $0xB1, Y1, Y1, Y9
-	VMULPS Y8, Y9, Y9
-	VFMADDSUB231PS Y7, Y1, Y9
+	// Complex multiply with conjugated twiddles using VFMSUBADD
+	VMOVSLDUP Y4, Y10        // broadcast real parts
+	VMOVSHDUP Y4, Y11        // broadcast imag parts
+	VSHUFPS $0xB1, Y1, Y1, Y9  // swap real/imag of Y1
+	VMULPS Y11, Y9, Y9       // [bi*ti, br*ti, ...]
+	VFMSUBADD231PS Y10, Y1, Y9  // Y9 = conj(tw) * Y1
 
 	// Butterfly
 	VADDPS Y9, Y0, Y2
