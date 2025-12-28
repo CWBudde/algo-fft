@@ -1915,29 +1915,24 @@ func TestAVX2Size256Radix2_RoundTrip(t *testing.T) {
 	}
 }
 
-// BenchmarkAVX2Size256_Comprehensive compares all size-256 FFT implementations:
-// AVX2 (radix-2 and radix-4), pure-Go DIT, and radix-4 variants.
-func BenchmarkAVX2Size256_Comprehensive(b *testing.B) {
+// BenchmarkAVX2Size256_VsGeneric benchmarks the size-256 kernel vs generic AVX2.
+func BenchmarkAVX2Size256_VsGeneric(b *testing.B) {
+	avx2Forward, _, avx2Available := getAVX2Kernels()
+	if !avx2Available {
+		b.Skip("AVX2 not available")
+	}
+
+	goForward, _ := getPureGoKernels()
+
 	const n = 256
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i)/float32(n), float32(i%4)/4)
 	}
+	twiddle, bitrev, scratch := prepareFFTData(n)
 	dst := make([]complex64, n)
-	scratch := make([]complex64, n)
 
-	// Radix-2 setup
-	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
-
-	// Radix-4 setup
-	bitrevRadix4 := ComputeBitReversalIndicesRadix4(n)
-
-	b.Run("AVX2_Radix2", func(b *testing.B) {
-		avx2Forward, _, avx2Available := getAVX2Kernels()
-		if !avx2Available {
-			b.Skip("AVX2 not available")
-		}
+	b.Run("AVX2", func(b *testing.B) {
 		if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
 			b.Skip("AVX2 kernel not implemented")
 		}
@@ -1949,20 +1944,7 @@ func BenchmarkAVX2Size256_Comprehensive(b *testing.B) {
 		}
 	})
 
-	b.Run("AVX2_Radix4", func(b *testing.B) {
-		if !forwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevRadix4) {
-			b.Skip("AVX2 radix-4 assembly not available")
-		}
-		b.ReportAllocs()
-		b.SetBytes(int64(n * 8))
-		b.ResetTimer()
-		for range b.N {
-			forwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevRadix4)
-		}
-	})
-
-	b.Run("PureGo_DIT", func(b *testing.B) {
-		goForward, _ := getPureGoKernels()
+	b.Run("PureGo", func(b *testing.B) {
 		if !goForward(dst, src, twiddle, scratch, bitrev) {
 			b.Skip("Pure Go kernel failed")
 		}
@@ -1971,30 +1953,6 @@ func BenchmarkAVX2Size256_Comprehensive(b *testing.B) {
 		b.ResetTimer()
 		for range b.N {
 			goForward(dst, src, twiddle, scratch, bitrev)
-		}
-	})
-
-	b.Run("PureGo_Radix4", func(b *testing.B) {
-		if !forwardDIT256Radix4Complex64(dst, src, twiddle, scratch, bitrevRadix4) {
-			b.Skip("Pure Go radix-4 failed")
-		}
-		b.ReportAllocs()
-		b.SetBytes(int64(n * 8))
-		b.ResetTimer()
-		for range b.N {
-			forwardDIT256Radix4Complex64(dst, src, twiddle, scratch, bitrevRadix4)
-		}
-	})
-
-	b.Run("PureGo_Radix4_Optimized", func(b *testing.B) {
-		if !forwardDIT256Radix4OptimizedComplex64(dst, src, twiddle, scratch, bitrevRadix4) {
-			b.Skip("Pure Go optimized radix-4 failed")
-		}
-		b.ReportAllocs()
-		b.SetBytes(int64(n * 8))
-		b.ResetTimer()
-		for range b.N {
-			forwardDIT256Radix4OptimizedComplex64(dst, src, twiddle, scratch, bitrevRadix4)
 		}
 	})
 }
