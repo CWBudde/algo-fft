@@ -674,7 +674,554 @@ size32_return_false:
 // ===========================================================================
 // Inverse transform, size 32, complex64
 // ===========================================================================
-// Stub implementation - returns false to fall back to generic implementation
+// Fully unrolled 5-stage inverse FFT with AVX2 vectorization
+//
+// This kernel implements a complete radix-2 DIT inverse FFT for exactly 32 complex64 values.
+// The only difference from forward transform is using conjugated twiddle factors,
+// achieved by using VFMSUBADD231PS instead of VFMADDSUB231PS for complex multiplication.
+//
 TEXT ·inverseAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
-	MOVB $0, ret+120(FP)        // Return false
+	// Load parameters
+	MOVQ dst+0(FP), R8       // R8  = dst pointer
+	MOVQ src+24(FP), R9      // R9  = src pointer
+	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
+	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
+	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
+	MOVQ src+32(FP), R13     // R13 = n (should be 32)
+
+	// Verify n == 32
+	CMPQ R13, $32
+	JNE  size32_inv_return_false
+
+	// Validate all slice lengths >= 32
+	MOVQ dst+8(FP), AX
+	CMPQ AX, $32
+	JL   size32_inv_return_false
+
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, $32
+	JL   size32_inv_return_false
+
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, $32
+	JL   size32_inv_return_false
+
+	MOVQ bitrev+104(FP), AX
+	CMPQ AX, $32
+	JL   size32_inv_return_false
+
+	// Select working buffer
+	CMPQ R8, R9
+	JNE  size32_inv_use_dst
+
+	// In-place: use scratch
+	MOVQ R11, R8
+	JMP  size32_inv_bitrev
+
+size32_inv_use_dst:
+	// Out-of-place: use dst
+
+size32_inv_bitrev:
+	// =======================================================================
+	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// =======================================================================
+	// Group 0: indices 0-3
+	MOVQ (R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, (R8)
+
+	MOVQ 8(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 8(R8)
+
+	MOVQ 16(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 16(R8)
+
+	MOVQ 24(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 24(R8)
+
+	// Group 1: indices 4-7
+	MOVQ 32(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 32(R8)
+
+	MOVQ 40(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 40(R8)
+
+	MOVQ 48(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 48(R8)
+
+	MOVQ 56(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 56(R8)
+
+	// Group 2: indices 8-11
+	MOVQ 64(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 64(R8)
+
+	MOVQ 72(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 72(R8)
+
+	MOVQ 80(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 80(R8)
+
+	MOVQ 88(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 88(R8)
+
+	// Group 3: indices 12-15
+	MOVQ 96(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 96(R8)
+
+	MOVQ 104(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 104(R8)
+
+	MOVQ 112(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 112(R8)
+
+	MOVQ 120(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 120(R8)
+
+	// Group 4: indices 16-19
+	MOVQ 128(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 128(R8)
+
+	MOVQ 136(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 136(R8)
+
+	MOVQ 144(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 144(R8)
+
+	MOVQ 152(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 152(R8)
+
+	// Group 5: indices 20-23
+	MOVQ 160(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 160(R8)
+
+	MOVQ 168(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 168(R8)
+
+	MOVQ 176(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 176(R8)
+
+	MOVQ 184(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 184(R8)
+
+	// Group 6: indices 24-27
+	MOVQ 192(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 192(R8)
+
+	MOVQ 200(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 200(R8)
+
+	MOVQ 208(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 208(R8)
+
+	MOVQ 216(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 216(R8)
+
+	// Group 7: indices 28-31
+	MOVQ 224(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 224(R8)
+
+	MOVQ 232(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 232(R8)
+
+	MOVQ 240(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 240(R8)
+
+	MOVQ 248(R12), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, 248(R8)
+
+	// =======================================================================
+	// STAGE 1: size=2, half=1, step=16 (same as forward - tw[0]=1+0i)
+	// =======================================================================
+	// Conjugation has no effect on identity twiddle
+
+	VMOVUPS (R8), Y0
+	VMOVUPS 32(R8), Y1
+	VMOVUPS 64(R8), Y2
+	VMOVUPS 96(R8), Y3
+	VMOVUPS 128(R8), Y4
+	VMOVUPS 160(R8), Y5
+	VMOVUPS 192(R8), Y6
+	VMOVUPS 224(R8), Y7
+
+	// Process 16 pairs using identity twiddle (w[0] = 1+0i)
+	// Y0: pairs (w0,w1), (w2,w3)
+	VPERMILPD $0x05, Y0, Y8
+	VADDPS Y8, Y0, Y9
+	VSUBPS Y8, Y0, Y10
+	VBLENDPS $0xAA, Y10, Y9, Y0
+
+	// Y1: pairs (w4,w5), (w6,w7)
+	VPERMILPD $0x05, Y1, Y8
+	VADDPS Y8, Y1, Y9
+	VSUBPS Y8, Y1, Y10
+	VBLENDPS $0xAA, Y10, Y9, Y1
+
+	// Y2: pairs (w8,w9), (w10,w11)
+	VPERMILPD $0x05, Y2, Y8
+	VADDPS Y8, Y2, Y9
+	VSUBPS Y8, Y2, Y10
+	VBLENDPS $0xAA, Y10, Y9, Y2
+
+	// Y3: pairs (w12,w13), (w14,w15)
+	VPERMILPD $0x05, Y3, Y8
+	VADDPS Y8, Y3, Y9
+	VSUBPS Y8, Y3, Y10
+	VBLENDPS $0xAA, Y10, Y9, Y3
+
+	// Y4: pairs (w16,w17), (w18,w19)
+	VPERMILPD $0x05, Y4, Y8
+	VADDPS Y8, Y4, Y9
+	VSUBPS Y8, Y4, Y10
+	VBLENDPS $0xAA, Y10, Y9, Y4
+
+	// Y5: pairs (w20,w21), (w22,w23)
+	VPERMILPD $0x05, Y5, Y8
+	VADDPS Y8, Y5, Y9
+	VSUBPS Y8, Y5, Y10
+	VBLENDPS $0xAA, Y10, Y9, Y5
+
+	// Y6: pairs (w24,w25), (w26,w27)
+	VPERMILPD $0x05, Y6, Y8
+	VADDPS Y8, Y6, Y9
+	VSUBPS Y8, Y6, Y10
+	VBLENDPS $0xAA, Y10, Y9, Y6
+
+	// Y7: pairs (w28,w29), (w30,w31)
+	VPERMILPD $0x05, Y7, Y8
+	VADDPS Y8, Y7, Y9
+	VSUBPS Y8, Y7, Y10
+	VBLENDPS $0xAA, Y10, Y9, Y7
+
+	// =======================================================================
+	// STAGE 2: size=4 - use conjugated twiddles via VFMSUBADD
+	// =======================================================================
+	// VFMSUBADD gives: even=a*b+c, odd=a*b-c -> conjugate multiply result
+
+	// Load twiddle factors for stage 2
+	VMOVSD (R10), X8         // twiddle[0]
+	VMOVSD 64(R10), X9       // twiddle[8]
+	VPUNPCKLQDQ X9, X8, X8
+	VINSERTF128 $1, X8, Y8, Y8   // Y8 = [tw0, tw8, tw0, tw8]
+
+	// Pre-split twiddle (reused for all 8 registers)
+	VMOVSLDUP Y8, Y14        // Y14 = [w.r, w.r, ...]
+	VMOVSHDUP Y8, Y15        // Y15 = [w.i, w.i, ...]
+
+	// Y0
+	VPERM2F128 $0x00, Y0, Y0, Y9
+	VPERM2F128 $0x11, Y0, Y0, Y10
+	VSHUFPS $0xB1, Y10, Y10, Y11
+	VMULPS Y15, Y11, Y11
+	VFMSUBADD231PS Y14, Y10, Y11  // Conjugate multiply
+	VADDPS Y11, Y9, Y12
+	VSUBPS Y11, Y9, Y13
+	VINSERTF128 $1, X13, Y12, Y0
+
+	// Y1
+	VPERM2F128 $0x00, Y1, Y1, Y9
+	VPERM2F128 $0x11, Y1, Y1, Y10
+	VSHUFPS $0xB1, Y10, Y10, Y11
+	VMULPS Y15, Y11, Y11
+	VFMSUBADD231PS Y14, Y10, Y11
+	VADDPS Y11, Y9, Y12
+	VSUBPS Y11, Y9, Y13
+	VINSERTF128 $1, X13, Y12, Y1
+
+	// Y2
+	VPERM2F128 $0x00, Y2, Y2, Y9
+	VPERM2F128 $0x11, Y2, Y2, Y10
+	VSHUFPS $0xB1, Y10, Y10, Y11
+	VMULPS Y15, Y11, Y11
+	VFMSUBADD231PS Y14, Y10, Y11
+	VADDPS Y11, Y9, Y12
+	VSUBPS Y11, Y9, Y13
+	VINSERTF128 $1, X13, Y12, Y2
+
+	// Y3
+	VPERM2F128 $0x00, Y3, Y3, Y9
+	VPERM2F128 $0x11, Y3, Y3, Y10
+	VSHUFPS $0xB1, Y10, Y10, Y11
+	VMULPS Y15, Y11, Y11
+	VFMSUBADD231PS Y14, Y10, Y11
+	VADDPS Y11, Y9, Y12
+	VSUBPS Y11, Y9, Y13
+	VINSERTF128 $1, X13, Y12, Y3
+
+	// Y4
+	VPERM2F128 $0x00, Y4, Y4, Y9
+	VPERM2F128 $0x11, Y4, Y4, Y10
+	VSHUFPS $0xB1, Y10, Y10, Y11
+	VMULPS Y15, Y11, Y11
+	VFMSUBADD231PS Y14, Y10, Y11
+	VADDPS Y11, Y9, Y12
+	VSUBPS Y11, Y9, Y13
+	VINSERTF128 $1, X13, Y12, Y4
+
+	// Y5
+	VPERM2F128 $0x00, Y5, Y5, Y9
+	VPERM2F128 $0x11, Y5, Y5, Y10
+	VSHUFPS $0xB1, Y10, Y10, Y11
+	VMULPS Y15, Y11, Y11
+	VFMSUBADD231PS Y14, Y10, Y11
+	VADDPS Y11, Y9, Y12
+	VSUBPS Y11, Y9, Y13
+	VINSERTF128 $1, X13, Y12, Y5
+
+	// Y6
+	VPERM2F128 $0x00, Y6, Y6, Y9
+	VPERM2F128 $0x11, Y6, Y6, Y10
+	VSHUFPS $0xB1, Y10, Y10, Y11
+	VMULPS Y15, Y11, Y11
+	VFMSUBADD231PS Y14, Y10, Y11
+	VADDPS Y11, Y9, Y12
+	VSUBPS Y11, Y9, Y13
+	VINSERTF128 $1, X13, Y12, Y6
+
+	// Y7
+	VPERM2F128 $0x00, Y7, Y7, Y9
+	VPERM2F128 $0x11, Y7, Y7, Y10
+	VSHUFPS $0xB1, Y10, Y10, Y11
+	VMULPS Y15, Y11, Y11
+	VFMSUBADD231PS Y14, Y10, Y11
+	VADDPS Y11, Y9, Y12
+	VSUBPS Y11, Y9, Y13
+	VINSERTF128 $1, X13, Y12, Y7
+
+	// =======================================================================
+	// STAGE 3: size=8 - use conjugated twiddles via VFMSUBADD
+	// =======================================================================
+
+	// Load twiddle factors for stage 3
+	VMOVSD (R10), X8         // twiddle[0]
+	VMOVSD 32(R10), X9       // twiddle[4]
+	VPUNPCKLQDQ X9, X8, X8
+	VMOVSD 64(R10), X9       // twiddle[8]
+	VMOVSD 96(R10), X10      // twiddle[12]
+	VPUNPCKLQDQ X10, X9, X9
+	VINSERTF128 $1, X9, Y8, Y8   // Y8 = [tw0, tw4, tw8, tw12]
+
+	// Pre-split twiddle
+	VMOVSLDUP Y8, Y14
+	VMOVSHDUP Y8, Y15
+
+	// Group 1: Y0 with Y1 using conjugated twiddles
+	VSHUFPS $0xB1, Y1, Y1, Y9
+	VMULPS Y15, Y9, Y9
+	VFMSUBADD231PS Y14, Y1, Y9  // Conjugate multiply
+
+	VADDPS Y9, Y0, Y10       // Y10 = new indices 0-3
+	VSUBPS Y9, Y0, Y11       // Y11 = new indices 4-7
+
+	// Group 2: Y2 with Y3
+	VSHUFPS $0xB1, Y3, Y3, Y9
+	VMULPS Y15, Y9, Y9
+	VFMSUBADD231PS Y14, Y3, Y9
+
+	VADDPS Y9, Y2, Y12       // Y12 = new indices 8-11
+	VSUBPS Y9, Y2, Y13       // Y13 = new indices 12-15
+
+	// Group 3: Y4 with Y5
+	VSHUFPS $0xB1, Y5, Y5, Y9
+	VMULPS Y15, Y9, Y9
+	VFMSUBADD231PS Y14, Y5, Y9
+
+	VADDPS Y9, Y4, Y0        // Y0 = new indices 16-19
+	VSUBPS Y9, Y4, Y1        // Y1 = new indices 20-23
+
+	// Group 4: Y6 with Y7
+	VSHUFPS $0xB1, Y7, Y7, Y9
+	VMULPS Y15, Y9, Y9
+	VFMSUBADD231PS Y14, Y7, Y9
+
+	VADDPS Y9, Y6, Y2        // Y2 = new indices 24-27
+	VSUBPS Y9, Y6, Y3        // Y3 = new indices 28-31
+
+	// Move results to correct registers
+	// Y10->Y0, Y11->Y1, Y12->Y2, Y13->Y3 are already in Y0-Y3
+	VMOVAPS Y10, Y4          // Y4 = indices 0-3
+	VMOVAPS Y11, Y5          // Y5 = indices 4-7
+	VMOVAPS Y12, Y6          // Y6 = indices 8-11
+	VMOVAPS Y13, Y7          // Y7 = indices 12-15
+	// Y0-Y3 already have indices 16-31
+
+	// =======================================================================
+	// STAGE 4: size=16 - use conjugated twiddles via VFMSUBADD
+	// =======================================================================
+
+	// Load twiddle factors for stage 4
+	VMOVUPS (R10), Y8        // Y8 = [tw0, tw1, tw2, tw3]
+	VMOVUPS 32(R10), Y9      // Y9 = [tw4, tw5, tw6, tw7]
+
+	// Group 1: Y4 (indices 0-3) with Y6 (indices 8-11) using Y8 (tw0-3)
+	VMOVSLDUP Y8, Y10
+	VMOVSHDUP Y8, Y11
+	VSHUFPS $0xB1, Y6, Y6, Y12
+	VMULPS Y11, Y12, Y12
+	VFMSUBADD231PS Y10, Y6, Y12  // Conjugate multiply
+
+	VADDPS Y12, Y4, Y13      // Y13 = new indices 0-3
+	VSUBPS Y12, Y4, Y14      // Y14 = new indices 8-11
+
+	// Group 2: Y5 (indices 4-7) with Y7 (indices 12-15) using Y9 (tw4-7)
+	VMOVSLDUP Y9, Y10
+	VMOVSHDUP Y9, Y11
+	VSHUFPS $0xB1, Y7, Y7, Y12
+	VMULPS Y11, Y12, Y12
+	VFMSUBADD231PS Y10, Y7, Y12
+
+	VADDPS Y12, Y5, Y15      // Y15 = new indices 4-7
+	VSUBPS Y12, Y5, Y6       // Y6 = new indices 12-15
+
+	// Group 3: Y0 (indices 16-19) with Y2 (indices 24-27) using Y8 (tw0-3)
+	VMOVSLDUP Y8, Y10
+	VMOVSHDUP Y8, Y11
+	VSHUFPS $0xB1, Y2, Y2, Y12
+	VMULPS Y11, Y12, Y12
+	VFMSUBADD231PS Y10, Y2, Y12
+
+	VADDPS Y12, Y0, Y4       // Y4 = new indices 16-19
+	VSUBPS Y12, Y0, Y7       // Y7 = new indices 24-27
+
+	// Group 4: Y1 (indices 20-23) with Y3 (indices 28-31) using Y9 (tw4-7)
+	VMOVSLDUP Y9, Y10
+	VMOVSHDUP Y9, Y11
+	VSHUFPS $0xB1, Y3, Y3, Y12
+	VMULPS Y11, Y12, Y12
+	VFMSUBADD231PS Y10, Y3, Y12
+
+	VADDPS Y12, Y1, Y5       // Y5 = new indices 20-23
+	VSUBPS Y12, Y1, Y3       // Y3 = new indices 28-31
+
+	// Reorder: Y13->Y0, Y15->Y1, Y14->Y2, Y6->Y6 (already correct)
+	VMOVAPS Y13, Y0          // Y0 = indices 0-3
+	VMOVAPS Y15, Y1          // Y1 = indices 4-7
+	VMOVAPS Y14, Y2          // Y2 = indices 8-11
+	// Y3 = indices 28-31 (already correct)
+	// Y4 = indices 16-19 (already correct)
+	// Y5 = indices 20-23 (already correct)
+	// Y6 = indices 12-15 (already correct)
+	// Y7 = indices 24-27 (already correct)
+
+	// =======================================================================
+	// STAGE 5: size=32 - use conjugated twiddles via VFMSUBADD
+	// =======================================================================
+
+	// Load twiddle factors for stage 5
+	VMOVUPS (R10), Y8        // Y8 = [tw0, tw1, tw2, tw3]
+	VMOVUPS 32(R10), Y9      // Y9 = [tw4, tw5, tw6, tw7]
+	VMOVUPS 64(R10), Y10     // Y10 = [tw8, tw9, tw10, tw11]
+	VMOVUPS 96(R10), Y11     // Y11 = [tw12, tw13, tw14, tw15]
+
+	// Group 1: Y0 (indices 0-3) with Y4 (indices 16-19) using Y8 (tw0-3)
+	VMOVSLDUP Y8, Y12
+	VMOVSHDUP Y8, Y13
+	VSHUFPS $0xB1, Y4, Y4, Y14
+	VMULPS Y13, Y14, Y14
+	VFMSUBADD231PS Y12, Y4, Y14  // Conjugate multiply
+
+	VADDPS Y14, Y0, Y15      // Y15 = a' (new indices 0-3)
+	VSUBPS Y14, Y0, Y4       // Y4 = b' (new indices 16-19)
+	VMOVUPS Y15, (R8)        // Store new 0-3 in dst
+	VMOVUPS Y4, 128(R8)      // Store new 16-19 in dst
+
+	// Group 2: Y1 (indices 4-7) with Y5 (indices 20-23) using Y9 (tw4-7)
+	VMOVSLDUP Y9, Y12
+	VMOVSHDUP Y9, Y13
+	VSHUFPS $0xB1, Y5, Y5, Y14
+	VMULPS Y13, Y14, Y14
+	VFMSUBADD231PS Y12, Y5, Y14
+
+	VADDPS Y14, Y1, Y15      // Y15 = a' (new indices 4-7)
+	VSUBPS Y14, Y1, Y4       // Y4 = b' (new indices 20-23)
+	VMOVUPS Y15, 32(R8)      // Store new 4-7
+	VMOVUPS Y4, 160(R8)      // Store new 20-23
+
+	// Group 3: Y2 (indices 8-11) with Y6 (indices 24-27) using Y10 (tw8-11)
+	VMOVSLDUP Y10, Y12
+	VMOVSHDUP Y10, Y13
+	VSHUFPS $0xB1, Y6, Y6, Y14
+	VMULPS Y13, Y14, Y14
+	VFMSUBADD231PS Y12, Y6, Y14
+
+	VADDPS Y14, Y2, Y15      // Y15 = a' (new indices 8-11)
+	VSUBPS Y14, Y2, Y4       // Y4 = b' (new indices 24-27)
+	VMOVUPS Y15, 64(R8)      // Store new 8-11
+	VMOVUPS Y4, 192(R8)      // Store new 24-27
+
+	// Group 4: Y3 (indices 12-15) with Y7 (indices 28-31) using Y11 (tw12-15)
+	VMOVSLDUP Y11, Y12
+	VMOVSHDUP Y11, Y13
+	VSHUFPS $0xB1, Y7, Y7, Y14
+	VMULPS Y13, Y14, Y14
+	VFMSUBADD231PS Y12, Y7, Y14
+
+	VADDPS Y14, Y3, Y15      // Y15 = a' (new indices 12-15)
+	VSUBPS Y14, Y3, Y4       // Y4 = b' (new indices 28-31)
+	VMOVUPS Y15, 96(R8)      // Store new 12-15
+	VMOVUPS Y4, 224(R8)      // Store new 28-31
+
+	// =======================================================================
+	// Copy results to dst if we used scratch buffer
+	// =======================================================================
+	MOVQ dst+0(FP), R9       // R9 = dst pointer
+	CMPQ R8, R9
+	JE   size32_inv_done     // Already in dst
+
+	// Copy from scratch to dst
+	VMOVUPS (R8), Y0
+	VMOVUPS 32(R8), Y1
+	VMOVUPS 64(R8), Y2
+	VMOVUPS 96(R8), Y3
+	VMOVUPS 128(R8), Y4
+	VMOVUPS 160(R8), Y5
+	VMOVUPS 192(R8), Y6
+	VMOVUPS 224(R8), Y7
+	VMOVUPS Y0, (R9)
+	VMOVUPS Y1, 32(R9)
+	VMOVUPS Y2, 64(R9)
+	VMOVUPS Y3, 96(R9)
+	VMOVUPS Y4, 128(R9)
+	VMOVUPS Y5, 160(R9)
+	VMOVUPS Y6, 192(R9)
+	VMOVUPS Y7, 224(R9)
+
+size32_inv_done:
+	VZEROUPPER
+	MOVB $1, ret+120(FP)     // Return true (success)
+	RET
+
+size32_inv_return_false:
+	MOVB $0, ret+120(FP)
 	RET
