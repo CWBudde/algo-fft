@@ -43,7 +43,7 @@ func (p *Plan[T]) transformStrided(dst, src []T, stride int, inverse bool) error
 		return p.Forward(dst[:p.n], src[:p.n])
 	}
 
-	if fft.IsPowerOfTwo(p.n) && p.kernelStrategy != fft.KernelBluestein && !sameSliceStrided(dst, src) {
+	if fft.IsPowerOf2(p.n) && p.kernelStrategy != fft.KernelBluestein && !sameSliceStrided(dst, src) {
 		if inverse {
 			if fft.InverseStridedDIT(dst, src, p.twiddle, p.bitrev, stride, p.n) {
 				return nil

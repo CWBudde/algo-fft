@@ -359,7 +359,6 @@ func BenchmarkDIT256_Radix4_Complex64(b *testing.B) {
 	}
 }
 
-
 func BenchmarkDIT512_Specialized_Complex64(b *testing.B) {
 	const n = 512
 	src := make([]complex64, n)

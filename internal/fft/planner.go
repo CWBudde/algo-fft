@@ -43,7 +43,7 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, f
 	}
 
 	// For Bluestein, there are no codelets
-	if !IsPowerOfTwo(n) && !IsHighlyComposite(n) {
+	if !IsPowerOf2(n) && !IsHighlyComposite(n) {
 		return PlanEstimate[T]{
 			Strategy:  KernelBluestein,
 			Algorithm: "bluestein",

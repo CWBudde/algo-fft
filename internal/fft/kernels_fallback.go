@@ -19,7 +19,7 @@ func fallbackKernel[T Complex](primary, fallback Kernel[T]) Kernel[T] {
 func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 	return Kernels[complex64]{
 		Forward: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-			if !isPowerOf2(len(src)) {
+			if !IsPowerOf2(len(src)) {
 				if isHighlyComposite(len(src)) {
 					return forwardMixedRadixComplex64(dst, src, twiddle, scratch, bitrev)
 				}
@@ -41,7 +41,7 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 			}
 		},
 		Inverse: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-			if !isPowerOf2(len(src)) {
+			if !IsPowerOf2(len(src)) {
 				if isHighlyComposite(len(src)) {
 					return inverseMixedRadixComplex64(dst, src, twiddle, scratch, bitrev)
 				}
@@ -68,7 +68,7 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 	return Kernels[complex128]{
 		Forward: func(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-			if !isPowerOf2(len(src)) {
+			if !IsPowerOf2(len(src)) {
 				if isHighlyComposite(len(src)) {
 					return forwardMixedRadixComplex128(dst, src, twiddle, scratch, bitrev)
 				}
@@ -90,7 +90,7 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 			}
 		},
 		Inverse: func(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-			if !isPowerOf2(len(src)) {
+			if !IsPowerOf2(len(src)) {
 				if isHighlyComposite(len(src)) {
 					return inverseMixedRadixComplex128(dst, src, twiddle, scratch, bitrev)
 				}

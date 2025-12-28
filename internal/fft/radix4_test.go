@@ -122,7 +122,7 @@ func benchmarkForwardKernel(b *testing.B, n int, kernel func(dst, src, twiddle, 
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := ComputeBitReversalIndices(n)
 
-	if !isPowerOf2(n) {
+	if !IsPowerOf2(n) {
 		b.Fatalf("benchmark expects power-of-two length, got %d", n)
 	}
 

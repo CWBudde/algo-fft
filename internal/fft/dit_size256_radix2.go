@@ -28,10 +28,10 @@ func forwardDIT256Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	br := bitrev[:n]
 
 	// Pre-load frequently used twiddle factors
-	w64 := tw[64]  // Stage 2: j=1
-	w32 := tw[32]  // Stage 3: j=1
-	w96 := tw[96]  // Stage 3: j=3
-	w16 := tw[16]  // Stage 4
+	w64 := tw[64] // Stage 2: j=1
+	w32 := tw[32] // Stage 3: j=1
+	w96 := tw[96] // Stage 3: j=3
+	w16 := tw[16] // Stage 4
 	w48 := tw[48]
 	w80 := tw[80]
 	w112 := tw[112]

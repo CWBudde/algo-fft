@@ -7,11 +7,6 @@ type Complex interface {
 	complex64 | complex128
 }
 
-// IsPowerOfTwo reports whether n is a positive power of two.
-func IsPowerOfTwo(n int) bool {
-	return n > 0 && (n&(n-1)) == 0
-}
-
 // ComputeTwiddleFactors returns the precomputed twiddle factors (roots of unity)
 // for a size-n FFT: W_n^k = exp(-2πik/n) for k = 0..n-1.
 func ComputeTwiddleFactors[T Complex](n int) []T {
