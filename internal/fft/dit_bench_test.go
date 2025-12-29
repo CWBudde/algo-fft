@@ -3,17 +3,17 @@ package fft
 import "testing"
 
 type benchCase64 struct {
-	name   string
-	n      int
-	bitrev func(int) []int
+	name    string
+	n       int
+	bitrev  func(int) []int
 	forward func(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 	inverse func(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 }
 
 type benchCase128 struct {
-	name   string
-	n      int
-	bitrev func(int) []int
+	name    string
+	n       int
+	bitrev  func(int) []int
 	forward func(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 	inverse func(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 }

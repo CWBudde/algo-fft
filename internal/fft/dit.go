@@ -25,10 +25,15 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		return forwardDIT512Complex64(dst, src, twiddle, scratch, bitrev)
 	}
 
-	// Try mixed-radix-2/4 for ALL power-of-2 sizes (handles both even and odd log2)
-	// This will delegate to pure radix-4 for power-of-4 sizes (even log2)
-	if forwardMixedRadix24Complex64(dst, src, twiddle, scratch, bitrev) {
-		return true
+	n := len(src)
+	if isPowerOf4(n) {
+		if forwardRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
+			return true
+		}
+	} else if IsPowerOf2(n) {
+		if forwardMixedRadix24Complex64(dst, src, twiddle, scratch, bitrev) {
+			return true
+		}
 	}
 
 	return ditForward[complex64](dst, src, twiddle, scratch, bitrev)
@@ -53,10 +58,15 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		return inverseDIT512Complex64(dst, src, twiddle, scratch, bitrev)
 	}
 
-	// Try mixed-radix-2/4 for ALL power-of-2 sizes (handles both even and odd log2)
-	// This will delegate to pure radix-4 for power-of-4 sizes (even log2)
-	if inverseMixedRadix24Complex64(dst, src, twiddle, scratch, bitrev) {
-		return true
+	n := len(src)
+	if isPowerOf4(n) {
+		if inverseRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
+			return true
+		}
+	} else if IsPowerOf2(n) {
+		if inverseMixedRadix24Complex64(dst, src, twiddle, scratch, bitrev) {
+			return true
+		}
 	}
 
 	return ditInverseComplex64(dst, src, twiddle, scratch, bitrev)

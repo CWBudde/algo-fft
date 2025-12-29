@@ -10,6 +10,7 @@ import (
 
 // TestDIT256Radix2ForwardMatchesReference tests radix-2 forward transform.
 func TestDIT256Radix2ForwardMatchesReference(t *testing.T) {
+	t.Parallel()
 	const n = 256
 
 	src := randomComplex64(n, 0xBAD14+n)
@@ -28,6 +29,7 @@ func TestDIT256Radix2ForwardMatchesReference(t *testing.T) {
 
 // TestDIT256Radix4ForwardMatchesReference tests radix-4 forward transform.
 func TestDIT256Radix4ForwardMatchesReference(t *testing.T) {
+	t.Parallel()
 	const n = 256
 
 	src := randomComplex64(n, 0xBAD14+n)
@@ -46,6 +48,7 @@ func TestDIT256Radix4ForwardMatchesReference(t *testing.T) {
 
 // TestDIT256Radix4MatchesRadix2 ensures radix-4 and radix-2 produce identical results.
 func TestDIT256Radix4MatchesRadix2(t *testing.T) {
+	t.Parallel()
 	const n = 256
 
 	src := randomComplex64(n, 0xFACE+n)
@@ -75,6 +78,7 @@ func TestDIT256Radix4MatchesRadix2(t *testing.T) {
 
 // TestDIT256Radix4InverseComplex64MatchesReference tests radix-4 inverse transform for complex64.
 func TestDIT256Radix4InverseComplex64MatchesReference(t *testing.T) {
+	t.Parallel()
 	const n = 256
 
 	src := randomComplex64(n, 0xDEAD+n)
@@ -93,6 +97,7 @@ func TestDIT256Radix4InverseComplex64MatchesReference(t *testing.T) {
 
 // TestDIT256Radix4RoundTripComplex64 tests forward then inverse with radix-4 for complex64.
 func TestDIT256Radix4RoundTripComplex64(t *testing.T) {
+	t.Parallel()
 	const n = 256
 
 	src := randomComplex64(n, 0xBEEF+n)
@@ -118,6 +123,7 @@ func TestDIT256Radix4RoundTripComplex64(t *testing.T) {
 
 // TestDIT256Radix4ForwardComplex128MatchesReference tests radix-4 forward transform for complex128.
 func TestDIT256Radix4ForwardComplex128MatchesReference(t *testing.T) {
+	t.Parallel()
 	const n = 256
 
 	src := randomComplex128(n, 0xCAFE+n)
@@ -136,6 +142,7 @@ func TestDIT256Radix4ForwardComplex128MatchesReference(t *testing.T) {
 
 // TestDIT256Radix4InverseComplex128MatchesReference tests radix-4 inverse transform for complex128.
 func TestDIT256Radix4InverseComplex128MatchesReference(t *testing.T) {
+	t.Parallel()
 	const n = 256
 
 	src := randomComplex128(n, 0xFEED+n)
@@ -154,6 +161,7 @@ func TestDIT256Radix4InverseComplex128MatchesReference(t *testing.T) {
 
 // TestDIT256Radix4RoundTripComplex128 tests forward then inverse with radix-4 for complex128.
 func TestDIT256Radix4RoundTripComplex128(t *testing.T) {
+	t.Parallel()
 	const n = 256
 
 	src := randomComplex128(n, 0xC0DE+n)
