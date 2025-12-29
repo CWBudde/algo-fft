@@ -28,44 +28,54 @@ func stockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwi
 		if !ok {
 			return false
 		}
+
 		src64, ok := any(src).([]complex64)
 		if !ok {
 			return false
 		}
+
 		tw64, ok := any(twiddle).([]complex64)
 		if !ok {
 			return false
 		}
+
 		scratch64, ok := any(scratch).([]complex64)
 		if !ok {
 			return false
 		}
+
 		packed64, ok := any(packed).(*PackedTwiddles[complex64])
 		if !ok {
 			return false
 		}
+
 		return stockhamPackedComplex64(dst64, src64, tw64, scratch64, packed64, inverse)
 	case complex128:
 		dst128, ok := any(dst).([]complex128)
 		if !ok {
 			return false
 		}
+
 		src128, ok := any(src).([]complex128)
 		if !ok {
 			return false
 		}
+
 		tw128, ok := any(twiddle).([]complex128)
 		if !ok {
 			return false
 		}
+
 		scratch128, ok := any(scratch).([]complex128)
 		if !ok {
 			return false
 		}
+
 		packed128, ok := any(packed).(*PackedTwiddles[complex128])
 		if !ok {
 			return false
 		}
+
 		return stockhamPackedComplex128(dst128, src128, tw128, scratch128, packed128, inverse)
 	default:
 		return false
@@ -99,6 +109,7 @@ func stockhamPackedComplex64(dst, src, twiddle, scratch []complex64, packed *Pac
 	for remaining%4 == 0 {
 		remaining /= 4
 	}
+
 	if remaining != 1 && remaining != 2 {
 		return false
 	}
@@ -125,6 +136,7 @@ func stockhamPackedComplex64(dst, src, twiddle, scratch []complex64, packed *Pac
 		}
 
 		in = out
+
 		inIsDst = outIsDst
 		if outIsDst {
 			out = scratch
@@ -133,6 +145,7 @@ func stockhamPackedComplex64(dst, src, twiddle, scratch []complex64, packed *Pac
 			out = dst
 			outIsDst = true
 		}
+
 		out = out[:n]
 
 		m = n / 2
@@ -150,6 +163,7 @@ func stockhamPackedComplex64(dst, src, twiddle, scratch []complex64, packed *Pac
 		}
 
 		in = out
+
 		inIsDst = outIsDst
 		if outIsDst {
 			out = scratch
@@ -158,6 +172,7 @@ func stockhamPackedComplex64(dst, src, twiddle, scratch []complex64, packed *Pac
 			out = dst
 			outIsDst = true
 		}
+
 		out = out[:n]
 
 		m /= 4
@@ -204,6 +219,7 @@ func stockhamPackedComplex128(dst, src, twiddle, scratch []complex128, packed *P
 	for remaining%4 == 0 {
 		remaining /= 4
 	}
+
 	if remaining != 1 && remaining != 2 {
 		return false
 	}
@@ -230,6 +246,7 @@ func stockhamPackedComplex128(dst, src, twiddle, scratch []complex128, packed *P
 		}
 
 		in = out
+
 		inIsDst = outIsDst
 		if outIsDst {
 			out = scratch
@@ -238,6 +255,7 @@ func stockhamPackedComplex128(dst, src, twiddle, scratch []complex128, packed *P
 			out = dst
 			outIsDst = true
 		}
+
 		out = out[:n]
 
 		m = n / 2
@@ -255,6 +273,7 @@ func stockhamPackedComplex128(dst, src, twiddle, scratch []complex128, packed *P
 		}
 
 		in = out
+
 		inIsDst = outIsDst
 		if outIsDst {
 			out = scratch
@@ -263,6 +282,7 @@ func stockhamPackedComplex128(dst, src, twiddle, scratch []complex128, packed *P
 			out = dst
 			outIsDst = true
 		}
+
 		out = out[:n]
 
 		m /= 4
@@ -298,14 +318,17 @@ func stockhamRadix2StageComplex64(in, out, twiddle []complex64, n, m int, invers
 		outBase := k * half
 		inBlock := in[base : base+m]
 		outLo := out[outBase : outBase+half]
+
 		outHi := out[outBase+halfN : outBase+halfN+half]
 		for j := range half {
 			a := inBlock[j]
 			b := inBlock[j+half]
+
 			tw := twiddle[j*step]
 			if inverse {
 				tw = complex(real(tw), -imag(tw))
 			}
+
 			outLo[j] = a + b
 			outHi[j] = (a - b) * tw
 		}
@@ -330,14 +353,17 @@ func stockhamRadix2StageComplex128(in, out, twiddle []complex128, n, m int, inve
 		outBase := k * half
 		inBlock := in[base : base+m]
 		outLo := out[outBase : outBase+half]
+
 		outHi := out[outBase+halfN : outBase+halfN+half]
 		for j := range half {
 			a := inBlock[j]
 			b := inBlock[j+half]
+
 			tw := twiddle[j*step]
 			if inverse {
 				tw = complex(real(tw), -imag(tw))
 			}
+
 			outLo[j] = a + b
 			outHi[j] = (a - b) * tw
 		}
@@ -366,19 +392,23 @@ func stockhamRadix4StageComplex64(in, out, packed []complex64, n, m, stageOffset
 		out3 := out[outBase+3*quarterN : outBase+3*quarterN+span]
 
 		for j := range span {
-			a := inBlock[j]
-			b := inBlock[j+span]
-			c := inBlock[j+2*span]
-			d := inBlock[j+3*span]
+			twOffset := stageOffset + j*3
+			w1 := packed[twOffset]
+			w2 := packed[twOffset+1]
+			w3 := packed[twOffset+2]
 
-			t0 := a + c
-			t1 := a - c
-			t2 := b + d
-			t3 := b - d
+			a0 := inBlock[j]
+			a1 := inBlock[j+span]
+			a2 := inBlock[j+2*span]
+			a3 := inBlock[j+3*span]
+
+			t0 := a0 + a2
+			t1 := a0 - a2
+			t2 := a1 + a3
+			t3 := a1 - a3
 
 			y0 := t0 + t2
 			y2 := t0 - t2
-
 			var y1, y3 complex64
 			if inverse {
 				y1 = t1 + complex(-imag(t3), real(t3))
@@ -386,16 +416,6 @@ func stockhamRadix4StageComplex64(in, out, packed []complex64, n, m, stageOffset
 			} else {
 				y1 = t1 + complex(imag(t3), -real(t3))
 				y3 = t1 + complex(-imag(t3), real(t3))
-			}
-
-			twOffset := stageOffset + j*3
-			w1 := packed[twOffset]
-			w2 := packed[twOffset+1]
-			w3 := packed[twOffset+2]
-			if inverse {
-				w1 = complex(real(w1), -imag(w1))
-				w2 = complex(real(w2), -imag(w2))
-				w3 = complex(real(w3), -imag(w3))
 			}
 
 			out0[j] = y0
@@ -428,19 +448,23 @@ func stockhamRadix4StageComplex128(in, out, packed []complex128, n, m, stageOffs
 		out3 := out[outBase+3*quarterN : outBase+3*quarterN+span]
 
 		for j := range span {
-			a := inBlock[j]
-			b := inBlock[j+span]
-			c := inBlock[j+2*span]
-			d := inBlock[j+3*span]
+			twOffset := stageOffset + j*3
+			w1 := packed[twOffset]
+			w2 := packed[twOffset+1]
+			w3 := packed[twOffset+2]
 
-			t0 := a + c
-			t1 := a - c
-			t2 := b + d
-			t3 := b - d
+			a0 := inBlock[j]
+			a1 := inBlock[j+span]
+			a2 := inBlock[j+2*span]
+			a3 := inBlock[j+3*span]
+
+			t0 := a0 + a2
+			t1 := a0 - a2
+			t2 := a1 + a3
+			t3 := a1 - a3
 
 			y0 := t0 + t2
 			y2 := t0 - t2
-
 			var y1, y3 complex128
 			if inverse {
 				y1 = t1 + complex(-imag(t3), real(t3))
@@ -448,16 +472,6 @@ func stockhamRadix4StageComplex128(in, out, packed []complex128, n, m, stageOffs
 			} else {
 				y1 = t1 + complex(imag(t3), -real(t3))
 				y3 = t1 + complex(-imag(t3), real(t3))
-			}
-
-			twOffset := stageOffset + j*3
-			w1 := packed[twOffset]
-			w2 := packed[twOffset+1]
-			w3 := packed[twOffset+2]
-			if inverse {
-				w1 = complex(real(w1), -imag(w1))
-				w2 = complex(real(w2), -imag(w2))
-				w3 = complex(real(w3), -imag(w3))
 			}
 
 			out0[j] = y0

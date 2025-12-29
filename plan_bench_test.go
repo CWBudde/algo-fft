@@ -15,6 +15,7 @@ func BenchmarkPlanForward_64(b *testing.B)    { benchmarkPlanForward(b, 64) }
 func BenchmarkPlanForward_128(b *testing.B)   { benchmarkPlanForward(b, 128) }
 func BenchmarkPlanForward_256(b *testing.B)   { benchmarkPlanForward(b, 256) }
 func BenchmarkPlanForward_1024(b *testing.B)  { benchmarkPlanForward(b, 1024) }
+func BenchmarkPlanForward_2048(b *testing.B)  { benchmarkPlanForward(b, 2048) }
 func BenchmarkPlanForward_4096(b *testing.B)  { benchmarkPlanForward(b, 4096) }
 func BenchmarkPlanForward_8192(b *testing.B)  { benchmarkPlanForward(b, 8192) }
 func BenchmarkPlanForward_16384(b *testing.B) { benchmarkPlanForward(b, 16384) }
@@ -22,8 +23,17 @@ func BenchmarkPlanForward_65536(b *testing.B) { benchmarkPlanForward(b, 65536) }
 func BenchmarkPlanForward_8192_DIT(b *testing.B) {
 	benchmarkPlanForwardWithOptions(b, 8192, PlanOptions{Strategy: KernelDIT})
 }
+
 func BenchmarkPlanForward_8192_Stockham(b *testing.B) {
 	benchmarkPlanForwardWithOptions(b, 8192, PlanOptions{Strategy: KernelStockham})
+}
+
+func BenchmarkPlanForward_2048_DIT(b *testing.B) {
+	benchmarkPlanForwardWithOptions(b, 2048, PlanOptions{Strategy: KernelDIT})
+}
+
+func BenchmarkPlanForward_2048_Stockham(b *testing.B) {
+	benchmarkPlanForwardWithOptions(b, 2048, PlanOptions{Strategy: KernelStockham})
 }
 
 // Inverse FFT benchmarks for various sizes.
@@ -34,6 +44,7 @@ func BenchmarkPlanInverse_64(b *testing.B)    { benchmarkPlanInverse(b, 64) }
 func BenchmarkPlanInverse_128(b *testing.B)   { benchmarkPlanInverse(b, 128) }
 func BenchmarkPlanInverse_256(b *testing.B)   { benchmarkPlanInverse(b, 256) }
 func BenchmarkPlanInverse_1024(b *testing.B)  { benchmarkPlanInverse(b, 1024) }
+func BenchmarkPlanInverse_2048(b *testing.B)  { benchmarkPlanInverse(b, 2048) }
 func BenchmarkPlanInverse_4096(b *testing.B)  { benchmarkPlanInverse(b, 4096) }
 func BenchmarkPlanInverse_8192(b *testing.B)  { benchmarkPlanInverse(b, 8192) }
 func BenchmarkPlanInverse_16384(b *testing.B) { benchmarkPlanInverse(b, 16384) }
@@ -41,8 +52,17 @@ func BenchmarkPlanInverse_65536(b *testing.B) { benchmarkPlanInverse(b, 65536) }
 func BenchmarkPlanInverse_8192_DIT(b *testing.B) {
 	benchmarkPlanInverseWithOptions(b, 8192, PlanOptions{Strategy: KernelDIT})
 }
+
 func BenchmarkPlanInverse_8192_Stockham(b *testing.B) {
 	benchmarkPlanInverseWithOptions(b, 8192, PlanOptions{Strategy: KernelStockham})
+}
+
+func BenchmarkPlanInverse_2048_DIT(b *testing.B) {
+	benchmarkPlanInverseWithOptions(b, 2048, PlanOptions{Strategy: KernelDIT})
+}
+
+func BenchmarkPlanInverse_2048_Stockham(b *testing.B) {
+	benchmarkPlanInverseWithOptions(b, 2048, PlanOptions{Strategy: KernelStockham})
 }
 
 // Plan creation benchmarks (additional sizes - 64, 1024, 65536 are in plan_test.go).

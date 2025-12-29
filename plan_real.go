@@ -43,7 +43,8 @@ func newPlanRealWithFeatures(n int, features cpu.Features, opts PlanOptions) (*P
 	childOpts := opts
 	childOpts.Batch = 0
 	childOpts.Stride = 0
-	childOpts.InPlace = false
+	// The real-FFT pack/unpack path uses the child complex plan in-place on p.buf.
+	childOpts.InPlace = true
 
 	plan, err := newPlanWithFeatures[complex64](n/2, features, childOpts)
 	if err != nil {

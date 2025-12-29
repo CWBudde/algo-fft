@@ -2,6 +2,8 @@ package algofft
 
 // Convolve computes the linear convolution of a and b using FFTs.
 // The dst slice must have length len(a)+len(b)-1.
+//
+//nolint:cyclop
 func Convolve(dst, a, b []complex64) error {
 	if dst == nil || a == nil || b == nil {
 		return ErrNilSlice
@@ -30,11 +32,13 @@ func Convolve(dst, a, b []complex64) error {
 	aFreq := make([]complex64, convLen)
 	bFreq := make([]complex64, convLen)
 
-	if err := plan.Forward(aFreq, aPadded); err != nil {
+	err = plan.Forward(aFreq, aPadded)
+	if err != nil {
 		return err
 	}
 
-	if err := plan.Forward(bFreq, bPadded); err != nil {
+	err = plan.Forward(bFreq, bPadded)
+	if err != nil {
 		return err
 	}
 
@@ -43,7 +47,8 @@ func Convolve(dst, a, b []complex64) error {
 	}
 
 	time := make([]complex64, convLen)
-	if err := plan.Inverse(time, aFreq); err != nil {
+	err = plan.Inverse(time, aFreq)
+	if err != nil {
 		return err
 	}
 

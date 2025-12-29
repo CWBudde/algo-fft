@@ -312,6 +312,8 @@ func TestDetectionCaching(t *testing.T) {
 }
 
 // TestFeaturesStructFields verifies the Features struct has expected fields.
+//
+//nolint:cyclop
 func TestFeaturesStructFields(t *testing.T) {
 	features := Features{
 		HasSSE2:      true,

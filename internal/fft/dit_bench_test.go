@@ -35,7 +35,7 @@ func BenchmarkDITGoComplex64(b *testing.B) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
+
 		b.Run(tc.name+"/Forward", func(b *testing.B) {
 			runBenchComplex64(b, tc.n, tc.bitrev, tc.forward)
 		})
@@ -62,7 +62,7 @@ func BenchmarkDITGoComplex128(b *testing.B) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
+
 		b.Run(tc.name+"/Forward", func(b *testing.B) {
 			runBenchComplex128(b, tc.n, tc.bitrev, tc.forward)
 		})

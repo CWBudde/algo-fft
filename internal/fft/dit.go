@@ -6,6 +6,7 @@ var (
 	bitrevSize64Radix4 = ComputeBitReversalIndicesRadix4(64)
 )
 
+//nolint:cyclop
 func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	switch len(src) {
 	case 8:
@@ -39,6 +40,7 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 	return ditForward[complex64](dst, src, twiddle, scratch, bitrev)
 }
 
+//nolint:cyclop
 func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	switch len(src) {
 	case 8:
@@ -124,6 +126,7 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 	return ditInverseComplex128(dst, src, twiddle, scratch, bitrev)
 }
 
+//nolint:cyclop
 func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	n := len(src)
 	if n == 0 {
@@ -179,6 +182,7 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	return true
 }
 
+//nolint:cyclop
 func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	n := len(src)
 	if n == 0 {
@@ -239,6 +243,7 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	return true
 }
 
+//nolint:cyclop
 func ditInverseComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	n := len(src)
 	if n == 0 {
@@ -300,6 +305,7 @@ func ditInverseComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 	return true
 }
 
+//nolint:cyclop
 func ditInverseComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	n := len(src)
 	if n == 0 {

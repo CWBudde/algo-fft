@@ -30,9 +30,10 @@ type Plan[T Complex] struct {
 	bitrev []int
 
 	// packedTwiddle* store prepacked twiddle tables for SIMD-friendly radices.
-	packedTwiddle4  *fft.PackedTwiddles[T]
-	packedTwiddle8  *fft.PackedTwiddles[T]
-	packedTwiddle16 *fft.PackedTwiddles[T]
+	packedTwiddle4    *fft.PackedTwiddles[T]
+	packedTwiddle4Inv *fft.PackedTwiddles[T]
+	packedTwiddle8    *fft.PackedTwiddles[T]
+	packedTwiddle16   *fft.PackedTwiddles[T]
 
 	// Bluestein specific fields (used only if kernelStrategy == KernelBluestein)
 	bluesteinM              int   // Padded size M >= 2N-1
@@ -277,7 +278,7 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 	}
 
 	if p.kernelStrategy == fft.KernelStockham && fft.StockhamPackedAvailable() {
-		if fft.InverseStockhamPacked(dst, src, p.twiddle, p.scratch, p.packedTwiddle4) {
+		if fft.InverseStockhamPacked(dst, src, p.twiddle, p.scratch, p.packedTwiddle4Inv) {
 			return nil
 		}
 	}
@@ -612,6 +613,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 
 	if !useBluestein {
 		p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
+		p.packedTwiddle4Inv = fft.ConjugatePackedTwiddles(p.packedTwiddle4)
 		p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
 		p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
 	}
@@ -758,6 +760,7 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	}
 
 	p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
+	p.packedTwiddle4Inv = fft.ConjugatePackedTwiddles(p.packedTwiddle4)
 	p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
 	p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
 
@@ -878,23 +881,24 @@ func (p *Plan[T]) Clone() *Plan[T] {
 	}
 
 	return &Plan[T]{
-		n:               p.n,
-		twiddle:         p.twiddle,         // Shared (immutable)
-		scratch:         scratch,           // New allocation
-		bitrev:          p.bitrev,          // Shared (immutable)
-		packedTwiddle4:  p.packedTwiddle4,  // Shared (immutable)
-		packedTwiddle8:  p.packedTwiddle8,  // Shared (immutable)
-		packedTwiddle16: p.packedTwiddle16, // Shared (immutable)
-		forwardCodelet:  p.forwardCodelet,  // Shared (function pointer)
-		inverseCodelet:  p.inverseCodelet,  // Shared (function pointer)
-		algorithm:       p.algorithm,       // Shared (immutable string)
-		forwardKernel:   p.forwardKernel,
-		inverseKernel:   p.inverseKernel,
-		kernelStrategy:  p.kernelStrategy,
-		meta:            p.meta,
-		twiddleBacking:  p.twiddleBacking, // Shared reference (keeps original alive)
-		scratchBacking:  scratchBacking,   // New allocation
-		pool:            nil,              // Clones are never pooled
+		n:                 p.n,
+		twiddle:           p.twiddle,           // Shared (immutable)
+		scratch:           scratch,             // New allocation
+		bitrev:            p.bitrev,            // Shared (immutable)
+		packedTwiddle4:    p.packedTwiddle4,    // Shared (immutable)
+		packedTwiddle4Inv: p.packedTwiddle4Inv, // Shared (immutable)
+		packedTwiddle8:    p.packedTwiddle8,    // Shared (immutable)
+		packedTwiddle16:   p.packedTwiddle16,   // Shared (immutable)
+		forwardCodelet:    p.forwardCodelet,    // Shared (function pointer)
+		inverseCodelet:    p.inverseCodelet,    // Shared (function pointer)
+		algorithm:         p.algorithm,         // Shared (immutable string)
+		forwardKernel:     p.forwardKernel,
+		inverseKernel:     p.inverseKernel,
+		kernelStrategy:    p.kernelStrategy,
+		meta:              p.meta,
+		twiddleBacking:    p.twiddleBacking, // Shared reference (keeps original alive)
+		scratchBacking:    scratchBacking,   // New allocation
+		pool:              nil,              // Clones are never pooled
 
 		// Bluestein fields
 		bluesteinM:              p.bluesteinM,

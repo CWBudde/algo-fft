@@ -7,6 +7,7 @@ import (
 	algofft "github.com/MeKo-Christian/algo-fft"
 )
 
+//nolint:cyclop
 func main() {
 	// Example: High-precision audio processing with float64
 	const sampleRate = 48000 // 48 kHz

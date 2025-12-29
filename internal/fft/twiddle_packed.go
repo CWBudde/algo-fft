@@ -46,3 +46,24 @@ func ComputePackedTwiddles[T Complex](n, radix int, twiddle []T) *PackedTwiddles
 
 	return packed
 }
+
+// ConjugatePackedTwiddles returns a copy of packed with conjugated values.
+func ConjugatePackedTwiddles[T Complex](packed *PackedTwiddles[T]) *PackedTwiddles[T] {
+	if packed == nil {
+		return nil
+	}
+
+	values := make([]T, len(packed.Values))
+	for i, v := range packed.Values {
+		values[i] = conj(v)
+	}
+
+	offsets := make([]int, len(packed.StageOffsets))
+	copy(offsets, packed.StageOffsets)
+
+	return &PackedTwiddles[T]{
+		Radix:        packed.Radix,
+		StageOffsets: offsets,
+		Values:       values,
+	}
+}

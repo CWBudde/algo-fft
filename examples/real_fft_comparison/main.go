@@ -7,6 +7,7 @@ import (
 	algofft "github.com/MeKo-Christian/algo-fft"
 )
 
+//nolint:cyclop
 func main() {
 	fmt.Println("algofft - Real FFT Precision Comparison")
 	fmt.Println("========================================")

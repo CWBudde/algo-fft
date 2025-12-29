@@ -4,6 +4,8 @@ import "github.com/MeKo-Christian/algo-fft/internal/fft"
 
 // ConvolveReal computes the linear convolution of a and b using real FFTs.
 // The dst slice must have length len(a)+len(b)-1.
+//
+//nolint:cyclop
 func ConvolveReal(dst, a, b []float32) error {
 	if dst == nil || a == nil || b == nil {
 		return ErrNilSlice
@@ -37,11 +39,13 @@ func ConvolveReal(dst, a, b []float32) error {
 	aFreq := make([]complex64, plan.SpectrumLen())
 	bFreq := make([]complex64, plan.SpectrumLen())
 
-	if err := plan.Forward(aFreq, aPadded); err != nil {
+	err = plan.Forward(aFreq, aPadded)
+	if err != nil {
 		return err
 	}
 
-	if err := plan.Forward(bFreq, bPadded); err != nil {
+	err = plan.Forward(bFreq, bPadded)
+	if err != nil {
 		return err
 	}
 
@@ -50,7 +54,8 @@ func ConvolveReal(dst, a, b []float32) error {
 	}
 
 	time := make([]float32, fftLen)
-	if err := plan.Inverse(time, aFreq); err != nil {
+	err = plan.Inverse(time, aFreq)
+	if err != nil {
 		return err
 	}
 

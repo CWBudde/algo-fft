@@ -15,12 +15,14 @@ func TestStockhamPackedForwardMatchesReferenceComplex64(t *testing.T) {
 	for _, n := range sizes {
 		src := randomComplex64(n, 0xA11CE+uint64(n))
 		twiddle := ComputeTwiddleFactors[complex64](n)
+
 		packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
 		if packed == nil {
 			t.Fatalf("ComputePackedTwiddles(%d) returned nil", n)
 		}
 
 		dst := make([]complex64, n)
+
 		scratch := make([]complex64, n)
 		if !ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
 			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
@@ -40,12 +42,14 @@ func TestStockhamPackedInverseMatchesReferenceComplex64(t *testing.T) {
 	for _, n := range sizes {
 		src := randomComplex64(n, 0xBADC0DE+uint64(n))
 		twiddle := ComputeTwiddleFactors[complex64](n)
-		packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
+
+		packed := ConjugatePackedTwiddles(ComputePackedTwiddles[complex64](n, 4, twiddle))
 		if packed == nil {
 			t.Fatalf("ComputePackedTwiddles(%d) returned nil", n)
 		}
 
 		dst := make([]complex64, n)
+
 		scratch := make([]complex64, n)
 		if !InverseStockhamPacked(dst, src, twiddle, scratch, packed) {
 			t.Fatalf("InverseStockhamPacked(%d) returned false", n)
@@ -65,12 +69,14 @@ func TestStockhamPackedForwardMatchesReferenceComplex128(t *testing.T) {
 	for _, n := range sizes {
 		src := randomComplex128(n, 0xC001D00D+uint64(n))
 		twiddle := ComputeTwiddleFactors[complex128](n)
+
 		packed := ComputePackedTwiddles[complex128](n, 4, twiddle)
 		if packed == nil {
 			t.Fatalf("ComputePackedTwiddles(%d) returned nil", n)
 		}
 
 		dst := make([]complex128, n)
+
 		scratch := make([]complex128, n)
 		if !ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
 			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
@@ -90,12 +96,14 @@ func TestStockhamPackedInverseMatchesReferenceComplex128(t *testing.T) {
 	for _, n := range sizes {
 		src := randomComplex128(n, 0xDEADBEEF+uint64(n))
 		twiddle := ComputeTwiddleFactors[complex128](n)
-		packed := ComputePackedTwiddles[complex128](n, 4, twiddle)
+
+		packed := ConjugatePackedTwiddles(ComputePackedTwiddles[complex128](n, 4, twiddle))
 		if packed == nil {
 			t.Fatalf("ComputePackedTwiddles(%d) returned nil", n)
 		}
 
 		dst := make([]complex128, n)
+
 		scratch := make([]complex128, n)
 		if !InverseStockhamPacked(dst, src, twiddle, scratch, packed) {
 			t.Fatalf("InverseStockhamPacked(%d) returned false", n)
@@ -115,6 +123,7 @@ func TestStockhamPackedMatchesStockhamComplex64(t *testing.T) {
 	for _, n := range sizes {
 		src := randomComplex64(n, 0xFEEDFACE+uint64(n))
 		twiddle := ComputeTwiddleFactors[complex64](n)
+
 		packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
 		if packed == nil {
 			t.Fatalf("ComputePackedTwiddles(%d) returned nil", n)
@@ -129,6 +138,7 @@ func TestStockhamPackedMatchesStockhamComplex64(t *testing.T) {
 		if !ForwardStockhamPacked(dstPacked, src, twiddle, scratch, packed) {
 			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
 		}
+
 		if !forwardStockhamComplex64(dstGo, src, twiddle, scratchGo, bitrev) {
 			t.Fatalf("forwardStockhamComplex64(%d) returned false", n)
 		}
@@ -146,6 +156,7 @@ func TestStockhamPackedMatchesStockhamComplex128(t *testing.T) {
 	for _, n := range sizes {
 		src := randomComplex128(n, 0xF00DBAAD+uint64(n))
 		twiddle := ComputeTwiddleFactors[complex128](n)
+
 		packed := ComputePackedTwiddles[complex128](n, 4, twiddle)
 		if packed == nil {
 			t.Fatalf("ComputePackedTwiddles(%d) returned nil", n)
@@ -160,6 +171,7 @@ func TestStockhamPackedMatchesStockhamComplex128(t *testing.T) {
 		if !ForwardStockhamPacked(dstPacked, src, twiddle, scratch, packed) {
 			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
 		}
+
 		if !forwardStockhamComplex128(dstGo, src, twiddle, scratchGo, bitrev) {
 			t.Fatalf("forwardStockhamComplex128(%d) returned false", n)
 		}
