@@ -23,6 +23,6 @@ func TestForward_Impulse_2048(t *testing.T) {
 	}
 
 	for i := range dst {
-		assertApproxComplex64(t, dst[i], 1, 1e-4, "dst[%d]", i)
+		assertApproxComplex64f(t, dst[i], 1, 1e-4, "dst[%d]", i)
 	}
 }

@@ -50,7 +50,6 @@ func complexNearEqual(a, b complex64, relTol float32) bool {
 
 // generateRandomComplex64 creates a slice of random complex64 values.
 func generateRandomComplex64(n int, seed uint64) []complex64 {
-	//nolint:gosec
 	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF))
 	result := make([]complex64, n)
 
@@ -1113,7 +1112,6 @@ func TestAVX2Forward128_VsPureGo(t *testing.T) {
 
 			src := make([]complex128, n)
 
-			//nolint:gosec
 			rng := rand.New(rand.NewPCG(uint64(uint(n)), 1))
 			for i := range src {
 				src[i] = complex(rng.Float64(), rng.Float64())
@@ -1163,7 +1161,6 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 
 			src := make([]complex128, n)
 
-			//nolint:gosec
 			rng := rand.New(rand.NewPCG(uint64(uint(n)), 2))
 			for i := range src {
 				src[i] = complex(rng.Float64(), rng.Float64())

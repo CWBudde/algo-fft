@@ -31,7 +31,7 @@ func TestDITScalingRoundTrip(t *testing.T) {
 	}
 
 	for i := range src {
-		assertApproxComplex64(t, out[i], src[i], 1e-4, "out[%d]", i)
+		assertApproxComplex64f(t, out[i], src[i], 1e-4, "out[%d]", i)
 	}
 }
 
@@ -86,7 +86,7 @@ func TestInPlaceMatchesOutOfPlace(t *testing.T) {
 	}
 
 	for i := range out {
-		assertApproxComplex64(t, inplace[i], out[i], 1e-4, "inplace[%d]", i)
+		assertApproxComplex64f(t, inplace[i], out[i], 1e-4, "inplace[%d]", i)
 	}
 }
 
@@ -114,7 +114,7 @@ func TestTransformForwardInverse(t *testing.T) {
 	}
 
 	for i := range src {
-		assertApproxComplex64(t, out[i], src[i], 1e-4, "out[%d]", i)
+		assertApproxComplex64f(t, out[i], src[i], 1e-4, "out[%d]", i)
 	}
 }
 
@@ -144,7 +144,7 @@ func TestRoundTripSizes(t *testing.T) {
 		}
 
 		for i := range src {
-			assertApproxComplex64(t, out[i], src[i], 1e-3, "n=%d out[%d]", n, i)
+			assertApproxComplex64f(t, out[i], src[i], 1e-3, "n=%d out[%d]", n, i)
 		}
 	}
 }
@@ -175,7 +175,7 @@ func TestRoundTripSizesComplex128(t *testing.T) {
 		}
 
 		for i := range src {
-			assertApproxComplex128(t, out[i], src[i], 1e-10, "n=%d out[%d]", n, i)
+			assertApproxComplex128f(t, out[i], src[i], 1e-10, "n=%d out[%d]", n, i)
 		}
 	}
 }

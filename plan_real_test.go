@@ -30,7 +30,7 @@ func TestPlanRealForwardImpulse(t *testing.T) {
 	}
 
 	for k := range dst {
-		assertApproxComplex64(t, dst[k], complex(1, 0), 1e-5, "dst[%d]", k)
+		assertApproxComplex64f(t, dst[k], complex(1, 0), 1e-5, "dst[%d]", k)
 	}
 }
 
@@ -108,10 +108,10 @@ func TestPlanRealForwardConstant(t *testing.T) {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
-	assertApproxComplex64(t, dst[0], complex(float32(n*value), 0), 1e-4, "dst[0]")
+	assertApproxComplex64f(t, dst[0], complex(float32(n*value), 0), 1e-4, "dst[0]")
 
 	for k := 1; k < len(dst); k++ {
-		assertApproxComplex64(t, dst[k], 0, 1e-4, "dst[%d]", k)
+		assertApproxComplex64f(t, dst[k], 0, 1e-4, "dst[%d]", k)
 	}
 }
 
@@ -145,7 +145,7 @@ func TestPlanRealForwardCosine(t *testing.T) {
 	for i := range dst {
 		got := dst[i]
 		if i == k {
-			assertApproxComplex64(t, got, complex(target, 0), 1e-4, "dst[%d]", i)
+			assertApproxComplex64f(t, got, complex(target, 0), 1e-4, "dst[%d]", i)
 			continue
 		}
 
@@ -184,7 +184,7 @@ func TestPlanRealForwardMatchesReference(t *testing.T) {
 	ref := reference.NaiveDFT(complexSrc)
 
 	for k := range dst {
-		assertApproxComplex64(t, dst[k], ref[k], 1e-4, "dst[%d]", k)
+		assertApproxComplex64f(t, dst[k], ref[k], 1e-4, "dst[%d]", k)
 	}
 }
 
@@ -335,8 +335,8 @@ func TestPlanRealEdgeCases(t *testing.T) {
 		}
 
 		// DC = sum = 3, Nyquist = difference = -1
-		assertApproxComplex64(t, dst[0], complex(float32(3), 0), 1e-5, "dst[0]")
-		assertApproxComplex64(t, dst[1], complex(float32(-1), 0), 1e-5, "dst[1]")
+		assertApproxComplex64f(t, dst[0], complex(float32(3), 0), 1e-5, "dst[0]")
+		assertApproxComplex64f(t, dst[1], complex(float32(-1), 0), 1e-5, "dst[1]")
 	})
 
 	t.Run("n=4096", func(t *testing.T) {
@@ -360,7 +360,7 @@ func TestPlanRealEdgeCases(t *testing.T) {
 
 		// Impulse should give flat spectrum
 		for k := range dst {
-			assertApproxComplex64(t, dst[k], complex(float32(1), 0), 1e-4, "dst[%d]", k)
+			assertApproxComplex64f(t, dst[k], complex(float32(1), 0), 1e-4, "dst[%d]", k)
 		}
 	})
 }

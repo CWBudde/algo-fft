@@ -39,7 +39,7 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 	}
 
 	for i := 0; i < plan.Len(); i++ {
-		assertApproxComplex64(t, dst[col+i*stride], want[i], 1e-4, "col[%d]", i)
+		assertApproxComplex64f(t, dst[col+i*stride], want[i], 1e-4, "col[%d]", i)
 	}
 
 	for i := range src {
@@ -83,7 +83,7 @@ func TestPlanInverseStrided_Complex128(t *testing.T) {
 	}
 
 	for i := range n {
-		assertApproxComplex128(t, dst[i*stride], time[i], 1e-10, "idx[%d]", i)
+		assertApproxComplex128f(t, dst[i*stride], time[i], 1e-10, "idx[%d]", i)
 	}
 }
 
