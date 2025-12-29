@@ -67,8 +67,15 @@ func main() {
 		{64, "complex64", "radix-2", "none", "go"},
 		{64, "complex128", "radix-2", "none", "go"},
 
+		// Size 64 - Pure Go (radix-4)
+		{64, "complex64", "radix-4", "none", "go"},
+		{64, "complex128", "radix-4", "none", "go"},
+
 		// Size 64 - AVX2 Assembly (radix-2)
 		{64, "complex64", "radix-2", "avx2", "asm"},
+
+		// Size 64 - AVX2 Assembly (radix-4)
+		{64, "complex64", "radix-4", "avx2", "asm"},
 
 		// Size 128 - Pure Go (radix-2)
 		{128, "complex64", "radix-2", "none", "go"},

@@ -42,7 +42,7 @@ func BenchmarkDIT8_AVX2_Complex64(b *testing.B) {
 	b.SetBytes(int64(n * 8))
 
 	for range b.N {
-		forwardAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		forwardAVX2Size8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev)
 	}
 }
 
@@ -63,7 +63,7 @@ func BenchmarkDIT8_InverseAVX2_Complex64(b *testing.B) {
 	b.SetBytes(int64(n * 8))
 
 	for range b.N {
-		inverseAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		inverseAVX2Size8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev)
 	}
 }
 
@@ -148,5 +148,47 @@ func BenchmarkDIT16_InverseAVX2_Complex64(b *testing.B) {
 
 	for range b.N {
 		inverseAVX2Size16Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	}
+}
+
+func BenchmarkDIT64_Radix4_ForwardAVX2_Complex64(b *testing.B) {
+	const n = 64
+	src := make([]complex64, n)
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	for i := range src {
+		src[i] = complex(float32(i), float32(-i))
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.SetBytes(int64(n * 8))
+
+	for range b.N {
+		forwardAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	}
+}
+
+func BenchmarkDIT64_Radix4_InverseAVX2_Complex64(b *testing.B) {
+	const n = 64
+	src := make([]complex64, n)
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	for i := range src {
+		src[i] = complex(float32(i), float32(-i))
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.SetBytes(int64(n * 8))
+
+	for range b.N {
+		inverseAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
 	}
 }

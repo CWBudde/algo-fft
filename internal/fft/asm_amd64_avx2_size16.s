@@ -190,29 +190,32 @@ size16_bitrev:
 	// Then add/sub
 
 	// Y0: [w0, w1, w2, w3] -> pairs (w0,w1), (w2,w3)
+	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
+	// VPERMILPD swaps 64-bit elements (complex64 pairs) within 128-bit lanes
 	VPERMILPD $0x05, Y0, Y4  // Y4 = [w1, w0, w3, w2] (swap within 128-bit lanes)
 	VADDPS Y4, Y0, Y5        // Y5 = [w0+w1, w1+w0, w2+w3, w3+w2]
-	VSUBPS Y4, Y0, Y6        // Y6 = [w0-w1, w1-w0, w2-w3, w3-w2]
-	// Now blend: take even positions from Y5, odd from Y6
-	VBLENDPS $0xAA, Y6, Y5, Y0  // Y0 = [w0+w1, w0-w1, w2+w3, w2-w3]
+	VSUBPS Y0, Y4, Y6        // Y6 = [w1-w0, w0-w1, w3-w2, w2-w3] (note: Y4-Y0, not Y0-Y4!)
+	// VBLENDPD operates at 64-bit granularity (per complex64 number)
+	// $0x0A = 0b1010: positions 1,3 from Y6, positions 0,2 from Y5
+	VBLENDPD $0x0A, Y6, Y5, Y0  // Y0 = [w0+w1, w0-w1, w2+w3, w2-w3]
 
 	// Same for Y1: pairs (w4,w5), (w6,w7)
 	VPERMILPD $0x05, Y1, Y4
 	VADDPS Y4, Y1, Y5
-	VSUBPS Y4, Y1, Y6
-	VBLENDPS $0xAA, Y6, Y5, Y1
+	VSUBPS Y1, Y4, Y6
+	VBLENDPD $0x0A, Y6, Y5, Y1
 
 	// Same for Y2: pairs (w8,w9), (w10,w11)
 	VPERMILPD $0x05, Y2, Y4
 	VADDPS Y4, Y2, Y5
-	VSUBPS Y4, Y2, Y6
-	VBLENDPS $0xAA, Y6, Y5, Y2
+	VSUBPS Y2, Y4, Y6
+	VBLENDPD $0x0A, Y6, Y5, Y2
 
 	// Same for Y3: pairs (w12,w13), (w14,w15)
 	VPERMILPD $0x05, Y3, Y4
 	VADDPS Y4, Y3, Y5
-	VSUBPS Y4, Y3, Y6
-	VBLENDPS $0xAA, Y6, Y5, Y3
+	VSUBPS Y3, Y4, Y6
+	VBLENDPD $0x0A, Y6, Y5, Y3
 
 	// =======================================================================
 	// STAGE 2: size=4, half=2, step=4
@@ -522,28 +525,29 @@ size16_inv_bitrev:
 	VMOVUPS 96(R8), Y3
 
 	// Y0: pairs (w0,w1), (w2,w3)
+	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
 	VPERMILPD $0x05, Y0, Y4
 	VADDPS Y4, Y0, Y5
-	VSUBPS Y4, Y0, Y6
-	VBLENDPS $0xAA, Y6, Y5, Y0
+	VSUBPS Y0, Y4, Y6        // Y4-Y0, not Y0-Y4!
+	VBLENDPD $0x0A, Y6, Y5, Y0  // 64-bit blend, not 32-bit!
 
 	// Y1: pairs (w4,w5), (w6,w7)
 	VPERMILPD $0x05, Y1, Y4
 	VADDPS Y4, Y1, Y5
-	VSUBPS Y4, Y1, Y6
-	VBLENDPS $0xAA, Y6, Y5, Y1
+	VSUBPS Y1, Y4, Y6
+	VBLENDPD $0x0A, Y6, Y5, Y1
 
 	// Y2: pairs (w8,w9), (w10,w11)
 	VPERMILPD $0x05, Y2, Y4
 	VADDPS Y4, Y2, Y5
-	VSUBPS Y4, Y2, Y6
-	VBLENDPS $0xAA, Y6, Y5, Y2
+	VSUBPS Y2, Y4, Y6
+	VBLENDPD $0x0A, Y6, Y5, Y2
 
 	// Y3: pairs (w12,w13), (w14,w15)
 	VPERMILPD $0x05, Y3, Y4
 	VADDPS Y4, Y3, Y5
-	VSUBPS Y4, Y3, Y6
-	VBLENDPS $0xAA, Y6, Y5, Y3
+	VSUBPS Y3, Y4, Y6
+	VBLENDPD $0x0A, Y6, Y5, Y3
 
 	// =======================================================================
 	// STAGE 2: size=4 - use conjugated twiddles via VFMSUBADD
@@ -686,5 +690,515 @@ size16_inv_bitrev:
 	RET
 
 size16_inv_return_false:
+	MOVB $0, ret+120(FP)
+	RET
+
+// ===========================================================================
+// Forward transform, size 16, complex128
+// ===========================================================================
+// Size-specific entrypoint for n==16 that uses the same ABI slice layout as the
+// generic AVX2 kernels. This implementation uses scalar XMM operations for
+// correctness and simplicity.
+TEXT ·forwardAVX2Size16Complex128Asm(SB), NOSPLIT, $0-121
+	// Load parameters
+	MOVQ dst+0(FP), R8       // dst pointer
+	MOVQ src+24(FP), R9      // src pointer
+	MOVQ twiddle+48(FP), R10 // twiddle pointer
+	MOVQ scratch+72(FP), R11 // scratch pointer
+	MOVQ bitrev+96(FP), R12  // bitrev pointer
+	MOVQ src+32(FP), R13     // n (should be 16)
+
+	CMPQ R13, $16
+	JNE  size16_128_return_false
+
+	// Validate all slice lengths >= 16
+	MOVQ dst+8(FP), AX
+	CMPQ AX, $16
+	JL   size16_128_return_false
+
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, $16
+	JL   size16_128_return_false
+
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, $16
+	JL   size16_128_return_false
+
+	MOVQ bitrev+104(FP), AX
+	CMPQ AX, $16
+	JL   size16_128_return_false
+
+	// Select working buffer
+	CMPQ R8, R9
+	JNE  size16_128_use_dst
+	MOVQ R11, R8             // In-place: use scratch as work
+
+size16_128_use_dst:
+	// -----------------------------------------------------------------------
+	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// -----------------------------------------------------------------------
+	XORQ CX, CX
+
+size16_128_bitrev_loop:
+	CMPQ CX, $16
+	JGE  size16_128_stage1
+
+	MOVQ (R12)(CX*8), DX     // DX = bitrev[i]
+	MOVQ DX, SI
+	SHLQ $4, SI              // SI = DX * 16 (bytes)
+	MOVUPD (R9)(SI*1), X0
+	MOVQ CX, SI
+	SHLQ $4, SI              // SI = i * 16
+	MOVUPD X0, (R8)(SI*1)
+	INCQ CX
+	JMP  size16_128_bitrev_loop
+
+size16_128_stage1:
+	// -----------------------------------------------------------------------
+	// Stage 1: size=2, half=1, step=8, twiddle[0]=1 => t=b
+	// -----------------------------------------------------------------------
+	XORQ CX, CX              // base
+
+size16_128_stage1_base:
+	CMPQ CX, $16
+	JGE  size16_128_stage2
+
+	// a index = base, b index = base+1
+	MOVQ CX, SI
+	SHLQ $4, SI
+	MOVQ CX, DI
+	INCQ DI
+	SHLQ $4, DI
+	MOVUPD (R8)(SI*1), X0    // a
+	MOVUPD (R8)(DI*1), X1    // b
+	VADDPD X1, X0, X2
+	VSUBPD X1, X0, X3
+	MOVUPD X2, (R8)(SI*1)
+	MOVUPD X3, (R8)(DI*1)
+
+	ADDQ $2, CX
+	JMP  size16_128_stage1_base
+
+size16_128_stage2:
+	// -----------------------------------------------------------------------
+	// Stage 2: size=4, half=2, step=4
+	// -----------------------------------------------------------------------
+	MOVQ $4, BX              // step
+	XORQ CX, CX              // base
+
+size16_128_stage2_base:
+	CMPQ CX, $16
+	JGE  size16_128_stage3
+
+	XORQ DX, DX              // j
+
+size16_128_stage2_j:
+	CMPQ DX, $2
+	JGE  size16_128_stage2_next
+
+	// Offsets (bytes)
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $4, SI
+	MOVQ CX, DI
+	ADDQ DX, DI
+	ADDQ $2, DI              // +half
+	SHLQ $4, DI
+
+	MOVUPD (R8)(SI*1), X0    // a
+	MOVUPD (R8)(DI*1), X1    // b
+
+	// Load twiddle w = twiddle[j*step]
+	MOVQ DX, AX
+	IMULQ BX, AX
+	SHLQ $4, AX
+	MOVUPD (R10)(AX*1), X2
+
+	// t = w * b
+	VMOVDDUP X2, X3          // [w.r, w.r]
+	VPERMILPD $1, X2, X4     // [w.i, w.r]
+	VMOVDDUP X4, X4          // [w.i, w.i]
+	VPERMILPD $1, X1, X6     // [b.i, b.r]
+	VMULPD X4, X6, X6        // [w.i*b.i, w.i*b.r]
+	VFMADDSUB231PD X3, X1, X6  // X6 = w*b
+
+	VADDPD X6, X0, X7
+	VSUBPD X6, X0, X8
+	MOVUPD X7, (R8)(SI*1)
+	MOVUPD X8, (R8)(DI*1)
+
+	INCQ DX
+	JMP  size16_128_stage2_j
+
+size16_128_stage2_next:
+	ADDQ $4, CX
+	JMP  size16_128_stage2_base
+
+size16_128_stage3:
+	// -----------------------------------------------------------------------
+	// Stage 3: size=8, half=4, step=2
+	// -----------------------------------------------------------------------
+	MOVQ $2, BX              // step
+	XORQ CX, CX              // base
+
+size16_128_stage3_base:
+	CMPQ CX, $16
+	JGE  size16_128_stage4
+
+	XORQ DX, DX
+
+size16_128_stage3_j:
+	CMPQ DX, $4
+	JGE  size16_128_stage3_next
+
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $4, SI
+	MOVQ CX, DI
+	ADDQ DX, DI
+	ADDQ $4, DI
+	SHLQ $4, DI
+
+	MOVUPD (R8)(SI*1), X0
+	MOVUPD (R8)(DI*1), X1
+
+	MOVQ DX, AX
+	IMULQ BX, AX
+	SHLQ $4, AX
+	MOVUPD (R10)(AX*1), X2
+
+	VMOVDDUP X2, X3
+	VPERMILPD $1, X2, X4
+	VMOVDDUP X4, X4
+	VPERMILPD $1, X1, X6
+	VMULPD X4, X6, X6
+	VFMADDSUB231PD X3, X1, X6
+
+	VADDPD X6, X0, X7
+	VSUBPD X6, X0, X8
+	MOVUPD X7, (R8)(SI*1)
+	MOVUPD X8, (R8)(DI*1)
+
+	INCQ DX
+	JMP  size16_128_stage3_j
+
+size16_128_stage3_next:
+	ADDQ $8, CX
+	JMP  size16_128_stage3_base
+
+size16_128_stage4:
+	// -----------------------------------------------------------------------
+	// Stage 4: size=16, half=8, step=1
+	// -----------------------------------------------------------------------
+	MOVQ $1, BX              // step
+	XORQ CX, CX              // base=0 only
+	XORQ DX, DX              // j
+
+size16_128_stage4_j:
+	CMPQ DX, $8
+	JGE  size16_128_finalize
+
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $4, SI
+	MOVQ CX, DI
+	ADDQ DX, DI
+	ADDQ $8, DI
+	SHLQ $4, DI
+
+	MOVUPD (R8)(SI*1), X0
+	MOVUPD (R8)(DI*1), X1
+
+	MOVQ DX, AX              // j*step (step=1)
+	SHLQ $4, AX
+	MOVUPD (R10)(AX*1), X2
+
+	VMOVDDUP X2, X3
+	VPERMILPD $1, X2, X4
+	VMOVDDUP X4, X4
+	VPERMILPD $1, X1, X6
+	VMULPD X4, X6, X6
+	VFMADDSUB231PD X3, X1, X6
+
+	VADDPD X6, X0, X7
+	VSUBPD X6, X0, X8
+	MOVUPD X7, (R8)(SI*1)
+	MOVUPD X8, (R8)(DI*1)
+
+	INCQ DX
+	JMP  size16_128_stage4_j
+
+size16_128_finalize:
+	// Copy results to dst if needed
+	MOVQ dst+0(FP), R9
+	CMPQ R8, R9
+	JE   size16_128_done
+
+	XORQ CX, CX
+size16_128_copy_loop:
+	VMOVUPS (R8)(CX*1), Y0
+	VMOVUPS Y0, (R9)(CX*1)
+	ADDQ $32, CX
+	CMPQ CX, $256
+	JL   size16_128_copy_loop
+
+size16_128_done:
+	VZEROUPPER
+	MOVB $1, ret+120(FP)
+	RET
+
+size16_128_return_false:
+	VZEROUPPER
+	MOVB $0, ret+120(FP)
+	RET
+
+// ===========================================================================
+// Inverse transform, size 16, complex128
+// ===========================================================================
+TEXT ·inverseAVX2Size16Complex128Asm(SB), NOSPLIT, $0-121
+	// Load parameters
+	MOVQ dst+0(FP), R8
+	MOVQ src+24(FP), R9
+	MOVQ twiddle+48(FP), R10
+	MOVQ scratch+72(FP), R11
+	MOVQ bitrev+96(FP), R12
+	MOVQ src+32(FP), R13
+
+	CMPQ R13, $16
+	JNE  size16_inv_128_return_false
+
+	// Validate all slice lengths >= 16
+	MOVQ dst+8(FP), AX
+	CMPQ AX, $16
+	JL   size16_inv_128_return_false
+
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, $16
+	JL   size16_inv_128_return_false
+
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, $16
+	JL   size16_inv_128_return_false
+
+	MOVQ bitrev+104(FP), AX
+	CMPQ AX, $16
+	JL   size16_inv_128_return_false
+
+	// Select working buffer
+	CMPQ R8, R9
+	JNE  size16_inv_128_use_dst
+	MOVQ R11, R8
+
+size16_inv_128_use_dst:
+	// Bit-reversal permutation
+	XORQ CX, CX
+
+size16_inv_128_bitrev_loop:
+	CMPQ CX, $16
+	JGE  size16_inv_128_stage1
+	MOVQ (R12)(CX*8), DX
+	MOVQ DX, SI
+	SHLQ $4, SI
+	MOVUPD (R9)(SI*1), X0
+	MOVQ CX, SI
+	SHLQ $4, SI
+	MOVUPD X0, (R8)(SI*1)
+	INCQ CX
+	JMP  size16_inv_128_bitrev_loop
+
+size16_inv_128_stage1:
+	// Stage 1: size=2, half=1, step=8 (twiddle[0]=1)
+	XORQ CX, CX
+
+size16_inv_128_stage1_base:
+	CMPQ CX, $16
+	JGE  size16_inv_128_stage2
+	MOVQ CX, SI
+	SHLQ $4, SI
+	MOVQ CX, DI
+	INCQ DI
+	SHLQ $4, DI
+	MOVUPD (R8)(SI*1), X0
+	MOVUPD (R8)(DI*1), X1
+	VADDPD X1, X0, X2
+	VSUBPD X1, X0, X3
+	MOVUPD X2, (R8)(SI*1)
+	MOVUPD X3, (R8)(DI*1)
+	ADDQ $2, CX
+	JMP  size16_inv_128_stage1_base
+
+size16_inv_128_stage2:
+	MOVQ $4, BX
+	XORQ CX, CX
+
+size16_inv_128_stage2_base:
+	CMPQ CX, $16
+	JGE  size16_inv_128_stage3
+	XORQ DX, DX
+
+size16_inv_128_stage2_j:
+	CMPQ DX, $2
+	JGE  size16_inv_128_stage2_next
+
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $4, SI
+	MOVQ CX, DI
+	ADDQ DX, DI
+	ADDQ $2, DI
+	SHLQ $4, DI
+
+	MOVUPD (R8)(SI*1), X0
+	MOVUPD (R8)(DI*1), X1
+
+	MOVQ DX, AX
+	IMULQ BX, AX
+	SHLQ $4, AX
+	MOVUPD (R10)(AX*1), X2
+
+	VMOVDDUP X2, X3
+	VPERMILPD $1, X2, X4
+	VMOVDDUP X4, X4
+	VPERMILPD $1, X1, X6
+	VMULPD X4, X6, X6
+	VFMSUBADD231PD X3, X1, X6  // conj(w) * b
+
+	VADDPD X6, X0, X7
+	VSUBPD X6, X0, X8
+	MOVUPD X7, (R8)(SI*1)
+	MOVUPD X8, (R8)(DI*1)
+
+	INCQ DX
+	JMP  size16_inv_128_stage2_j
+
+size16_inv_128_stage2_next:
+	ADDQ $4, CX
+	JMP  size16_inv_128_stage2_base
+
+size16_inv_128_stage3:
+	MOVQ $2, BX
+	XORQ CX, CX
+
+size16_inv_128_stage3_base:
+	CMPQ CX, $16
+	JGE  size16_inv_128_stage4
+	XORQ DX, DX
+
+size16_inv_128_stage3_j:
+	CMPQ DX, $4
+	JGE  size16_inv_128_stage3_next
+
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $4, SI
+	MOVQ CX, DI
+	ADDQ DX, DI
+	ADDQ $4, DI
+	SHLQ $4, DI
+
+	MOVUPD (R8)(SI*1), X0
+	MOVUPD (R8)(DI*1), X1
+
+	MOVQ DX, AX
+	IMULQ BX, AX
+	SHLQ $4, AX
+	MOVUPD (R10)(AX*1), X2
+
+	VMOVDDUP X2, X3
+	VPERMILPD $1, X2, X4
+	VMOVDDUP X4, X4
+	VPERMILPD $1, X1, X6
+	VMULPD X4, X6, X6
+	VFMSUBADD231PD X3, X1, X6
+
+	VADDPD X6, X0, X7
+	VSUBPD X6, X0, X8
+	MOVUPD X7, (R8)(SI*1)
+	MOVUPD X8, (R8)(DI*1)
+
+	INCQ DX
+	JMP  size16_inv_128_stage3_j
+
+size16_inv_128_stage3_next:
+	ADDQ $8, CX
+	JMP  size16_inv_128_stage3_base
+
+size16_inv_128_stage4:
+	MOVQ $1, BX
+	XORQ CX, CX
+	XORQ DX, DX
+
+size16_inv_128_stage4_j:
+	CMPQ DX, $8
+	JGE  size16_inv_128_scale
+
+	MOVQ CX, SI
+	ADDQ DX, SI
+	SHLQ $4, SI
+	MOVQ CX, DI
+	ADDQ DX, DI
+	ADDQ $8, DI
+	SHLQ $4, DI
+
+	MOVUPD (R8)(SI*1), X0
+	MOVUPD (R8)(DI*1), X1
+
+	MOVQ DX, AX
+	SHLQ $4, AX
+	MOVUPD (R10)(AX*1), X2
+
+	VMOVDDUP X2, X3
+	VPERMILPD $1, X2, X4
+	VMOVDDUP X4, X4
+	VPERMILPD $1, X1, X6
+	VMULPD X4, X6, X6
+	VFMSUBADD231PD X3, X1, X6
+
+	VADDPD X6, X0, X7
+	VSUBPD X6, X0, X8
+	MOVUPD X7, (R8)(SI*1)
+	MOVUPD X8, (R8)(DI*1)
+
+	INCQ DX
+	JMP  size16_inv_128_stage4_j
+
+size16_inv_128_scale:
+	// Apply 1/n scaling (1/16)
+	MOVQ $0x3fb0000000000000, AX
+	VMOVQ AX, X9
+	VMOVDDUP X9, X9
+
+	XORQ CX, CX
+size16_inv_128_scale_loop:
+	CMPQ CX, $16
+	JGE  size16_inv_128_finalize
+	MOVQ CX, SI
+	SHLQ $4, SI
+	MOVUPD (R8)(SI*1), X0
+	VMULPD X9, X0, X0
+	MOVUPD X0, (R8)(SI*1)
+	INCQ CX
+	JMP  size16_inv_128_scale_loop
+
+size16_inv_128_finalize:
+	MOVQ dst+0(FP), R9
+	CMPQ R8, R9
+	JE   size16_inv_128_done
+
+	XORQ CX, CX
+size16_inv_128_copy_loop:
+	VMOVUPS (R8)(CX*1), Y0
+	VMOVUPS Y0, (R9)(CX*1)
+	ADDQ $32, CX
+	CMPQ CX, $256
+	JL   size16_inv_128_copy_loop
+
+size16_inv_128_done:
+	VZEROUPPER
+	MOVB $1, ret+120(FP)
+	RET
+
+size16_inv_128_return_false:
+	VZEROUPPER
 	MOVB $0, ret+120(FP)
 	RET

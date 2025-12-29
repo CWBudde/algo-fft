@@ -1,7 +1,10 @@
 package fft
 
-// Pre-computed radix-4 bit-reversal indices for size 16
-var bitrevSize16Radix4 = ComputeBitReversalIndicesRadix4(16)
+// Pre-computed radix-4 bit-reversal indices for size 16/64
+var (
+	bitrevSize16Radix4 = ComputeBitReversalIndicesRadix4(16)
+	bitrevSize64Radix4 = ComputeBitReversalIndicesRadix4(64)
+)
 
 func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	switch len(src) {
@@ -13,7 +16,7 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 	case 32:
 		return forwardDIT32Complex64(dst, src, twiddle, scratch, bitrev)
 	case 64:
-		return forwardDIT64Complex64(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT64Radix4Complex64(dst, src, twiddle, scratch, bitrevSize64Radix4)
 	case 128:
 		return forwardDIT128Complex64(dst, src, twiddle, scratch, bitrev)
 	case 256:
@@ -39,7 +42,7 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 	case 32:
 		return inverseDIT32Complex64(dst, src, twiddle, scratch, bitrev)
 	case 64:
-		return inverseDIT64Complex64(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT64Radix4Complex64(dst, src, twiddle, scratch, bitrevSize64Radix4)
 	case 128:
 		return inverseDIT128Complex64(dst, src, twiddle, scratch, bitrev)
 	case 256:
@@ -65,7 +68,7 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 	case 32:
 		return forwardDIT32Complex128(dst, src, twiddle, scratch, bitrev)
 	case 64:
-		return forwardDIT64Complex128(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT64Radix4Complex128(dst, src, twiddle, scratch, bitrevSize64Radix4)
 	case 128:
 		return forwardDIT128Complex128(dst, src, twiddle, scratch, bitrev)
 	case 256:
@@ -91,7 +94,7 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 	case 32:
 		return inverseDIT32Complex128(dst, src, twiddle, scratch, bitrev)
 	case 64:
-		return inverseDIT64Complex128(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT64Radix4Complex128(dst, src, twiddle, scratch, bitrevSize64Radix4)
 	case 128:
 		return inverseDIT128Complex128(dst, src, twiddle, scratch, bitrev)
 	case 256:

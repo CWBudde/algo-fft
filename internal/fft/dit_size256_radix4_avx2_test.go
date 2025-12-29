@@ -49,3 +49,41 @@ func TestAVX2Size256Radix4MatchesGoImplementation(t *testing.T) {
 	// Both should produce identical results
 	assertComplex64SliceClose(t, dstAVX2, dstGo, n)
 }
+
+func TestAVX2Size256Radix4InverseMatchesReference(t *testing.T) {
+	const n = 256
+	src := randomComplex64(n, 0xFEEDFACE)
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	if !inverseAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		t.Fatalf("inverseAVX2Size256Radix4Complex64Asm failed")
+	}
+
+	want := reference.NaiveIDFT(src)
+	assertComplex64SliceClose(t, dst, want, n)
+}
+
+func TestAVX2Size256Radix4InverseMatchesGoImplementation(t *testing.T) {
+	const n = 256
+	src := randomComplex64(n, 0xBADC0DE)
+
+	dstAVX2 := make([]complex64, n)
+	scratchAVX2 := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	if !inverseAVX2Size256Radix4Complex64Asm(dstAVX2, src, twiddle, scratchAVX2, bitrev) {
+		t.Fatalf("inverseAVX2Size256Radix4Complex64Asm failed")
+	}
+
+	dstGo := make([]complex64, n)
+	scratchGo := make([]complex64, n)
+	if !inverseDIT256Radix4Complex64(dstGo, src, twiddle, scratchGo, bitrev) {
+		t.Fatalf("inverseDIT256Radix4Complex64 failed")
+	}
+
+	assertComplex64SliceClose(t, dstAVX2, dstGo, n)
+}

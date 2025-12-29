@@ -37,7 +37,19 @@ func registerDITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix2_generic",
-		Priority:   20, // Higher priority - default choice
+		Priority:   20,
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
+	// Size 8: Radix-8 variant (single butterfly)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       8,
+		Forward:    wrapCodelet64(forwardDIT8Radix8Complex64),
+		Inverse:    wrapCodelet64(inverseDIT8Radix8Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit8_radix8_generic",
+		Priority:   30, // Highest priority among generic size-8 codelets
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
@@ -101,6 +113,18 @@ func registerDITCodelets64() {
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
+	// Size 64: Radix-4 variant
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       64,
+		Forward:    wrapCodelet64(forwardDIT64Radix4Complex64),
+		Inverse:    wrapCodelet64(inverseDIT64Radix4Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit64_radix4_generic",
+		Priority:   20, // Higher priority (expected faster)
+		BitrevFunc: ComputeBitReversalIndicesRadix4,
+	})
+
 	// Size 128: Radix-2 only
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
@@ -160,7 +184,19 @@ func registerDITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix2_generic",
-		Priority:   20, // Higher priority - default choice
+		Priority:   20,
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
+	// Size 8: Radix-8 variant (single butterfly)
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       8,
+		Forward:    wrapCodelet128(forwardDIT8Radix8Complex128),
+		Inverse:    wrapCodelet128(inverseDIT8Radix8Complex128),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit8_radix8_generic",
+		Priority:   30, // Highest priority among generic size-8 codelets
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
@@ -222,6 +258,18 @@ func registerDITCodelets128() {
 		Signature:  "dit64_radix2_generic",
 		Priority:   0,
 		BitrevFunc: ComputeBitReversalIndices,
+	})
+
+	// Size 64: Radix-4 variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       64,
+		Forward:    wrapCodelet128(forwardDIT64Radix4Complex128),
+		Inverse:    wrapCodelet128(inverseDIT64Radix4Complex128),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit64_radix4_generic",
+		Priority:   20, // Higher priority (expected faster)
+		BitrevFunc: ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 128: Radix-2 only

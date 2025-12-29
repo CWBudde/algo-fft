@@ -256,52 +256,53 @@ size32_bitrev:
 	// We want: [a0+b0, a0-b0, a1+b1, a1-b1]
 
 	// Y0: [w0, w1, w2, w3] -> pairs (w0,w1), (w2,w3)
+	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
 	VPERMILPD $0x05, Y0, Y8  // Y8 = [w1, w0, w3, w2] (swap within 128-bit lanes)
 	VADDPS Y8, Y0, Y9        // Y9 = [w0+w1, w1+w0, w2+w3, w3+w2]
-	VSUBPS Y8, Y0, Y10       // Y10 = [w0-w1, w1-w0, w2-w3, w3-w2]
-	VBLENDPS $0xAA, Y10, Y9, Y0  // Y0 = [w0+w1, w0-w1, w2+w3, w2-w3]
+	VSUBPS Y0, Y8, Y10       // Y10 = [w1-w0, w0-w1, w3-w2, w2-w3] (Y8-Y0, not Y0-Y8!)
+	VBLENDPD $0x0A, Y10, Y9, Y0  // 64-bit blend: Y0 = [w0+w1, w0-w1, w2+w3, w2-w3]
 
 	// Same for Y1
 	VPERMILPD $0x05, Y1, Y8
 	VADDPS Y8, Y1, Y9
-	VSUBPS Y8, Y1, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y1
+	VSUBPS Y1, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y1
 
 	// Same for Y2
 	VPERMILPD $0x05, Y2, Y8
 	VADDPS Y8, Y2, Y9
-	VSUBPS Y8, Y2, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y2
+	VSUBPS Y2, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y2
 
 	// Same for Y3
 	VPERMILPD $0x05, Y3, Y8
 	VADDPS Y8, Y3, Y9
-	VSUBPS Y8, Y3, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y3
+	VSUBPS Y3, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y3
 
 	// Same for Y4
 	VPERMILPD $0x05, Y4, Y8
 	VADDPS Y8, Y4, Y9
-	VSUBPS Y8, Y4, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y4
+	VSUBPS Y4, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y4
 
 	// Same for Y5
 	VPERMILPD $0x05, Y5, Y8
 	VADDPS Y8, Y5, Y9
-	VSUBPS Y8, Y5, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y5
+	VSUBPS Y5, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y5
 
 	// Same for Y6
 	VPERMILPD $0x05, Y6, Y8
 	VADDPS Y8, Y6, Y9
-	VSUBPS Y8, Y6, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y6
+	VSUBPS Y6, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y6
 
 	// Same for Y7
 	VPERMILPD $0x05, Y7, Y8
 	VADDPS Y8, Y7, Y9
-	VSUBPS Y8, Y7, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y7
+	VSUBPS Y7, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y7
 
 	// =======================================================================
 	// STAGE 2: size=4, half=2, step=8
@@ -876,53 +877,54 @@ size32_inv_bitrev:
 	VMOVUPS 224(R8), Y7
 
 	// Process 16 pairs using identity twiddle (w[0] = 1+0i)
+	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
 	// Y0: pairs (w0,w1), (w2,w3)
 	VPERMILPD $0x05, Y0, Y8
 	VADDPS Y8, Y0, Y9
-	VSUBPS Y8, Y0, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y0
+	VSUBPS Y0, Y8, Y10       // Y8-Y0, not Y0-Y8!
+	VBLENDPD $0x0A, Y10, Y9, Y0  // 64-bit blend
 
 	// Y1: pairs (w4,w5), (w6,w7)
 	VPERMILPD $0x05, Y1, Y8
 	VADDPS Y8, Y1, Y9
-	VSUBPS Y8, Y1, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y1
+	VSUBPS Y1, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y1
 
 	// Y2: pairs (w8,w9), (w10,w11)
 	VPERMILPD $0x05, Y2, Y8
 	VADDPS Y8, Y2, Y9
-	VSUBPS Y8, Y2, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y2
+	VSUBPS Y2, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y2
 
 	// Y3: pairs (w12,w13), (w14,w15)
 	VPERMILPD $0x05, Y3, Y8
 	VADDPS Y8, Y3, Y9
-	VSUBPS Y8, Y3, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y3
+	VSUBPS Y3, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y3
 
 	// Y4: pairs (w16,w17), (w18,w19)
 	VPERMILPD $0x05, Y4, Y8
 	VADDPS Y8, Y4, Y9
-	VSUBPS Y8, Y4, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y4
+	VSUBPS Y4, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y4
 
 	// Y5: pairs (w20,w21), (w22,w23)
 	VPERMILPD $0x05, Y5, Y8
 	VADDPS Y8, Y5, Y9
-	VSUBPS Y8, Y5, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y5
+	VSUBPS Y5, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y5
 
 	// Y6: pairs (w24,w25), (w26,w27)
 	VPERMILPD $0x05, Y6, Y8
 	VADDPS Y8, Y6, Y9
-	VSUBPS Y8, Y6, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y6
+	VSUBPS Y6, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y6
 
 	// Y7: pairs (w28,w29), (w30,w31)
 	VPERMILPD $0x05, Y7, Y8
 	VADDPS Y8, Y7, Y9
-	VSUBPS Y8, Y7, Y10
-	VBLENDPS $0xAA, Y10, Y9, Y7
+	VSUBPS Y7, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y7
 
 	// =======================================================================
 	// STAGE 2: size=4 - use conjugated twiddles via VFMSUBADD
@@ -1193,13 +1195,9 @@ size32_inv_bitrev:
 	VMOVUPS Y4, 224(R8)      // Store new 28-31
 
 	// =======================================================================
-	// Copy results to dst if we used scratch buffer
+	// Apply 1/n scaling (1/32 = 0.03125)
 	// =======================================================================
-	MOVQ dst+0(FP), R9       // R9 = dst pointer
-	CMPQ R8, R9
-	JE   size32_inv_done     // Already in dst
-
-	// Copy from scratch to dst
+	// Load all 8 registers from work buffer
 	VMOVUPS (R8), Y0
 	VMOVUPS 32(R8), Y1
 	VMOVUPS 64(R8), Y2
@@ -1208,6 +1206,26 @@ size32_inv_bitrev:
 	VMOVUPS 160(R8), Y5
 	VMOVUPS 192(R8), Y6
 	VMOVUPS 224(R8), Y7
+
+	// Create scale factor: 1/32 = 0.03125 = 0x3D000000 in IEEE-754
+	MOVL $0x3D000000, AX     // 0.03125f in IEEE-754
+	MOVD AX, X8
+	VBROADCASTSS X8, Y8      // Y8 = [0.03125, 0.03125, ...]
+
+	// Scale all registers
+	VMULPS Y8, Y0, Y0
+	VMULPS Y8, Y1, Y1
+	VMULPS Y8, Y2, Y2
+	VMULPS Y8, Y3, Y3
+	VMULPS Y8, Y4, Y4
+	VMULPS Y8, Y5, Y5
+	VMULPS Y8, Y6, Y6
+	VMULPS Y8, Y7, Y7
+
+	// =======================================================================
+	// Store results to dst
+	// =======================================================================
+	MOVQ dst+0(FP), R9       // R9 = dst pointer
 	VMOVUPS Y0, (R9)
 	VMOVUPS Y1, 32(R9)
 	VMOVUPS Y2, 64(R9)
