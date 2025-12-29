@@ -70,12 +70,101 @@ func TestDIT256Radix4MatchesRadix2(t *testing.T) {
 	assertComplex64SliceClose(t, dst4, dst2, n)
 }
 
-// TestDIT256Radix4InverseMatchesReference is a placeholder for inverse radix-4
-func TestDIT256Radix4InverseMatchesReference(t *testing.T) {
-	t.Skip("Inverse radix-4 implementation not yet created")
+// TestDIT256Radix4InverseComplex64MatchesReference tests radix-4 inverse transform for complex64
+func TestDIT256Radix4InverseComplex64MatchesReference(t *testing.T) {
+	const n = 256
+	src := randomComplex64(n, 0xDEAD+n)
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	if !inverseDIT256Radix4Complex64(dst, src, twiddle, scratch, bitrev) {
+		t.Fatalf("inverseDIT256Radix4Complex64 failed")
+	}
+
+	want := reference.NaiveIDFT(src)
+	assertComplex64SliceClose(t, dst, want, n)
 }
 
-// TestDIT256Radix4RoundTrip is a placeholder for radix-4 round-trip test
-func TestDIT256Radix4RoundTrip(t *testing.T) {
-	t.Skip("Inverse radix-4 implementation not yet created")
+// TestDIT256Radix4RoundTripComplex64 tests forward then inverse with radix-4 for complex64
+func TestDIT256Radix4RoundTripComplex64(t *testing.T) {
+	const n = 256
+	src := randomComplex64(n, 0xBEEF+n)
+	fwd := make([]complex64, n)
+	inv := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	// Forward transform
+	if !forwardDIT256Radix4Complex64(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatalf("forwardDIT256Radix4Complex64 failed")
+	}
+
+	// Inverse transform
+	if !inverseDIT256Radix4Complex64(inv, fwd, twiddle, scratch, bitrev) {
+		t.Fatalf("inverseDIT256Radix4Complex64 failed")
+	}
+
+	// Should recover original
+	assertComplex64SliceClose(t, inv, src, n)
+}
+
+// TestDIT256Radix4ForwardComplex128MatchesReference tests radix-4 forward transform for complex128
+func TestDIT256Radix4ForwardComplex128MatchesReference(t *testing.T) {
+	const n = 256
+	src := randomComplex128(n, 0xCAFE+n)
+	dst := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	if !forwardDIT256Radix4Complex128(dst, src, twiddle, scratch, bitrev) {
+		t.Fatalf("forwardDIT256Radix4Complex128 failed")
+	}
+
+	want := reference.NaiveDFT128(src)
+	assertComplex128SliceClose(t, dst, want, n)
+}
+
+// TestDIT256Radix4InverseComplex128MatchesReference tests radix-4 inverse transform for complex128
+func TestDIT256Radix4InverseComplex128MatchesReference(t *testing.T) {
+	const n = 256
+	src := randomComplex128(n, 0xFEED+n)
+	dst := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	if !inverseDIT256Radix4Complex128(dst, src, twiddle, scratch, bitrev) {
+		t.Fatalf("inverseDIT256Radix4Complex128 failed")
+	}
+
+	want := reference.NaiveIDFT128(src)
+	assertComplex128SliceClose(t, dst, want, n)
+}
+
+// TestDIT256Radix4RoundTripComplex128 tests forward then inverse with radix-4 for complex128
+func TestDIT256Radix4RoundTripComplex128(t *testing.T) {
+	const n = 256
+	src := randomComplex128(n, 0xC0DE+n)
+	fwd := make([]complex128, n)
+	inv := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	// Forward transform
+	if !forwardDIT256Radix4Complex128(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatalf("forwardDIT256Radix4Complex128 failed")
+	}
+
+	// Inverse transform
+	if !inverseDIT256Radix4Complex128(inv, fwd, twiddle, scratch, bitrev) {
+		t.Fatalf("inverseDIT256Radix4Complex128 failed")
+	}
+
+	// Should recover original
+	assertComplex128SliceClose(t, inv, src, n)
 }
