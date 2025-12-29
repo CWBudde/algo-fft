@@ -21,7 +21,8 @@ func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 		// DIT strategy: try size-specific, fall back to generic AVX2
 		switch n {
 		case 8:
-			if forwardAVX2Size8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			// Default to radix-2 for now; radix-4 can be selected via benchmarks
+			if forwardAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 				return true
 			}
 			return forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
@@ -81,7 +82,8 @@ func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 		// DIT strategy: try size-specific, fall back to generic AVX2
 		switch n {
 		case 8:
-			if inverseAVX2Size8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			// Default to radix-2 for now; radix-4 can be selected via benchmarks
+			if inverseAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 				return true
 			}
 			return inverseAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)

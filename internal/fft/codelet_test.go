@@ -13,8 +13,8 @@ func TestCodeletRegistryLookup(t *testing.T) {
 		t.Parallel()
 		features := cpu.Features{HasSSE2: true}
 
-		// Should find codelets for sizes 8, 16, 32, 64, 128
-		sizes := []int{8, 16, 32, 64, 128}
+		// Should find codelets for sizes 4, 8, 16, 32, 64, 128, 256
+		sizes := []int{4, 8, 16, 32, 64, 128, 256}
 		for _, size := range sizes {
 			entry := Registry64.Lookup(size, features)
 			if entry == nil {
@@ -45,7 +45,7 @@ func TestCodeletRegistryLookup(t *testing.T) {
 		t.Parallel()
 		features := cpu.Features{HasSSE2: true}
 
-		sizes := []int{8, 16, 32, 64, 128}
+		sizes := []int{4, 8, 16, 32, 64, 128, 256}
 		for _, size := range sizes {
 			entry := Registry128.Lookup(size, features)
 			if entry == nil {
@@ -65,7 +65,7 @@ func TestCodeletRegistryNoMatch(t *testing.T) {
 	features := cpu.Features{HasSSE2: true}
 
 	// Sizes without codelets should return nil
-	noCodeletSizes := []int{2, 4, 256, 512, 1024}
+	noCodeletSizes := []int{2, 512, 1024}
 	for _, size := range noCodeletSizes {
 		entry := Registry64.Lookup(size, features)
 		if entry != nil {
@@ -77,12 +77,12 @@ func TestCodeletRegistryNoMatch(t *testing.T) {
 func TestCodeletRegistrySizes(t *testing.T) {
 	t.Parallel()
 	sizes := Registry64.Sizes()
-	if len(sizes) != 5 {
-		t.Errorf("expected 5 registered sizes, got %d", len(sizes))
+	if len(sizes) != 7 {
+		t.Errorf("expected 7 registered sizes, got %d", len(sizes))
 	}
 
 	// Check that all expected sizes are present
-	expected := map[int]bool{8: true, 16: true, 32: true, 64: true, 128: true}
+	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true}
 	for _, size := range sizes {
 		if !expected[size] {
 			t.Errorf("unexpected size %d in registry", size)
@@ -92,17 +92,18 @@ func TestCodeletRegistrySizes(t *testing.T) {
 
 func TestCodeletRegistryLookupBySignature(t *testing.T) {
 	t.Parallel()
-	entry := Registry64.LookupBySignature(64, "dit64_generic")
+	// Updated signature format: dit{size}_radix{radix}_{simd}
+	entry := Registry64.LookupBySignature(64, "dit64_radix2_generic")
 	if entry == nil {
-		t.Fatal("expected to find dit64_generic, got nil")
+		t.Fatal("expected to find dit64_radix2_generic, got nil")
 	}
 
 	if entry.Size != 64 {
 		t.Errorf("expected size 64, got %d", entry.Size)
 	}
 
-	if entry.Signature != "dit64_generic" {
-		t.Errorf("expected signature dit64_generic, got %s", entry.Signature)
+	if entry.Signature != "dit64_radix2_generic" {
+		t.Errorf("expected signature dit64_radix2_generic, got %s", entry.Signature)
 	}
 
 	// Non-existent signature

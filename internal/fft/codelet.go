@@ -41,15 +41,20 @@ func (s SIMDLevel) String() string {
 	}
 }
 
+// BitrevFunc generates bit-reversal indices for a given size.
+// Returns nil if no bit-reversal is needed (e.g., size 4 radix-4).
+type BitrevFunc func(n int) []int
+
 // CodeletEntry describes a registered codelet for a specific size.
 type CodeletEntry[T Complex] struct {
-	Size      int            // FFT size this codelet handles
-	Forward   CodeletFunc[T] // Forward transform (nil if not available)
-	Inverse   CodeletFunc[T] // Inverse transform (nil if not available)
-	Algorithm KernelStrategy // DIT, Stockham, etc.
-	SIMDLevel SIMDLevel      // Required CPU features
-	Signature string         // Human-readable name: "dit8_avx2"
-	Priority  int            // Higher priority = preferred (for same SIMD level)
+	Size       int            // FFT size this codelet handles
+	Forward    CodeletFunc[T] // Forward transform (nil if not available)
+	Inverse    CodeletFunc[T] // Inverse transform (nil if not available)
+	Algorithm  KernelStrategy // DIT, Stockham, etc.
+	SIMDLevel  SIMDLevel      // Required CPU features
+	Signature  string         // Human-readable name: "dit8_avx2"
+	Priority   int            // Higher priority = preferred (for same SIMD level)
+	BitrevFunc BitrevFunc     // Bit-reversal generator (nil = no bit-reversal needed)
 }
 
 // CodeletRegistry provides size-indexed codelet lookup.

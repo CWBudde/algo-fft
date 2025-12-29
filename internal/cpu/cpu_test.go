@@ -37,8 +37,10 @@ func TestDetectFeatures(t *testing.T) {
 }
 
 // TestQueryFunctions tests that query functions match struct fields.
+//
+//nolint:paralleltest // modifies global state via ResetDetection()
 func TestQueryFunctions(t *testing.T) {
-	t.Parallel()
+	// Note: Not parallel - modifies global state via ResetDetection()
 
 	// Ensure we're using real detection, not forced features
 	t.Cleanup(ResetDetection)
@@ -64,8 +66,6 @@ func TestQueryFunctions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			if tt.got != tt.expected {
 				t.Errorf("%s() = %v, want %v", tt.name, tt.got, tt.expected)
 			}
@@ -74,13 +74,14 @@ func TestQueryFunctions(t *testing.T) {
 }
 
 // TestForcedFeatures tests that SetForcedFeatures overrides detection.
+//
+//nolint:paralleltest // subtests modify global state via SetForcedFeatures()
 func TestForcedFeatures(t *testing.T) {
-	t.Parallel()
+	// Note: Not parallel - subtests modify global state via SetForcedFeatures()
 
 	// Test SSE2-only system
+	//nolint:paralleltest // modifies global state
 	t.Run("SSE2Only", func(t *testing.T) {
-		t.Parallel()
-
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -115,9 +116,8 @@ func TestForcedFeatures(t *testing.T) {
 	})
 
 	// Test AVX2 system
+	//nolint:paralleltest // modifies global state
 	t.Run("AVX2System", func(t *testing.T) {
-		t.Parallel()
-
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -160,9 +160,8 @@ func TestForcedFeatures(t *testing.T) {
 	})
 
 	// Test ARM NEON system
+	//nolint:paralleltest // modifies global state
 	t.Run("NEONSystem", func(t *testing.T) {
-		t.Parallel()
-
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -185,9 +184,8 @@ func TestForcedFeatures(t *testing.T) {
 	})
 
 	// Test ForceGeneric flag
+	//nolint:paralleltest // modifies global state
 	t.Run("ForceGeneric", func(t *testing.T) {
-		t.Parallel()
-
 		defer ResetDetection()
 
 		SetForcedFeatures(Features{
@@ -208,8 +206,10 @@ func TestForcedFeatures(t *testing.T) {
 }
 
 // TestResetDetection tests that ResetDetection clears forced features.
+//
+//nolint:paralleltest // modifies global state via SetForcedFeatures() and ResetDetection()
 func TestResetDetection(t *testing.T) {
-	t.Parallel()
+	// Note: Not parallel - modifies global state via SetForcedFeatures() and ResetDetection()
 
 	// Set forced features
 	SetForcedFeatures(Features{
@@ -248,8 +248,10 @@ func TestResetDetection(t *testing.T) {
 }
 
 // TestConcurrentDetection tests thread-safety of sync.Once caching.
+//
+//nolint:paralleltest // modifies global state via ResetDetection()
 func TestConcurrentDetection(t *testing.T) {
-	t.Parallel()
+	// Note: Not parallel - modifies global state via ResetDetection()
 
 	// Reset to ensure we're testing the caching mechanism
 	ResetDetection()
@@ -283,8 +285,10 @@ func TestConcurrentDetection(t *testing.T) {
 }
 
 // TestDetectionCaching verifies that detection only runs once.
+//
+//nolint:paralleltest // modifies global state via ResetDetection()
 func TestDetectionCaching(t *testing.T) {
-	t.Parallel()
+	// Note: Not parallel - modifies global state via ResetDetection()
 
 	// Reset to start fresh
 	ResetDetection()
