@@ -160,6 +160,42 @@ func registerDITCodelets64() {
 		Priority:   20, // Higher priority (potentially faster)
 		BitrevFunc: ComputeBitReversalIndicesRadix4,
 	})
+
+	// Size 512: Radix-2 only
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       512,
+		Forward:    wrapCodelet64(forwardDIT512Complex64),
+		Inverse:    wrapCodelet64(inverseDIT512Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit512_radix2_generic",
+		Priority:   0,
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
+	// Size 2048: Mixed-radix-2/4 variant (odd log2, faster than pure radix-2)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       2048,
+		Forward:    wrapCodelet64(forwardMixedRadix24Complex64),
+		Inverse:    wrapCodelet64(inverseMixedRadix24Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit2048_mixedradix24_generic",
+		Priority:   20,
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
+	// Size 8192: Mixed-radix-2/4 variant (odd log2, faster than pure radix-2)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       8192,
+		Forward:    wrapCodelet64(forwardMixedRadix24Complex64),
+		Inverse:    wrapCodelet64(inverseMixedRadix24Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit8192_mixedradix24_generic",
+		Priority:   20,
+		BitrevFunc: ComputeBitReversalIndices,
+	})
 }
 
 // registerDITCodelets128 registers all complex128 DIT codelets with multiple radix variants.
@@ -306,6 +342,18 @@ func registerDITCodelets128() {
 		Signature:  "dit256_radix4_generic",
 		Priority:   20, // Higher priority (potentially faster)
 		BitrevFunc: ComputeBitReversalIndicesRadix4,
+	})
+
+	// Size 512: Radix-2 only
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       512,
+		Forward:    wrapCodelet128(forwardDIT512Complex128),
+		Inverse:    wrapCodelet128(inverseDIT512Complex128),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit512_radix2_generic",
+		Priority:   0,
+		BitrevFunc: ComputeBitReversalIndices,
 	})
 }
 

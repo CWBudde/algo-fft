@@ -59,6 +59,7 @@ func TestDIT4Radix4Complex64(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Test forward transform
 			dst := make([]complex64, n)
 			src := make([]complex64, n)
@@ -153,6 +154,7 @@ func TestDIT4Radix4Complex128(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dst := make([]complex128, n)
 			src := make([]complex128, n)
 			copy(src, tt.input)
@@ -192,6 +194,7 @@ func TestDIT4Radix4Complex128(t *testing.T) {
 
 // TestDIT4Radix4InPlace tests in-place transforms.
 func TestDIT4Radix4InPlace(t *testing.T) {
+	t.Parallel()
 	const n = 4
 
 	twiddle := make([]complex64, n)

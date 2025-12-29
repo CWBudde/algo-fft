@@ -26,6 +26,7 @@
 **Motivation**: Current radix-4 implementation only works for power-of-4 sizes (4, 16, 64, 256, 1024...). Sizes with odd log2 (8, 32, 128, 512, 2048, 8192) fall back to slower radix-2. Mixed-radix-2/4 uses ONE radix-2 stage followed by radix-4 stages, reducing total stages by 40-45%.
 
 **Example**: Size 512 (2^9):
+
 - Current: 9 radix-2 stages
 - Mixed-radix: 1 radix-2 stage + 4 radix-4 stages = 5 total stages
 - Expected speedup: **30-40%**
@@ -44,12 +45,14 @@
 - [ ] Benchmark against current implementation
 
 **Algorithm**:
+
 1. Apply standard DIT bit-reversal permutation
 2. Stage 1: ONE radix-2 stage (256 butterflies for size 512)
 3. Stages 2+: Pure radix-4 stages (reuse existing butterfly4Forward/Inverse)
 4. No new twiddle computation needed (reuse existing tables)
 
 **Success Criteria**:
+
 - All tests pass for sizes 8, 32, 128, 512, 2048, 8192
 - 30-40% speedup measured via benchstat
 - Zero allocations after plan creation
@@ -59,11 +62,13 @@
 **Motivation**: Generic Stockham has loop overhead for large sizes. Size-specific implementations with fully unrolled stages reduce overhead by 15-25%.
 
 **Files to create**:
+
 - `internal/fft/stockham_size512.go` (~600 lines: complex64/128 × forward/inverse)
 - `internal/fft/stockham_size1024.go` (~800 lines)
 - `internal/fft/stockham_size2048.go` (~1000 lines)
 
 **Tasks**:
+
 - [ ] Implement `forwardStockham512Complex64()` (9 fully unrolled stages)
 - [ ] Implement `inverseStockham512Complex64()` (conjugated twiddles, scaling)
 - [ ] Implement `forwardStockham512Complex128()`
@@ -73,11 +78,13 @@
 - [ ] Test and benchmark
 
 **Pattern** (from `dit_size512.go`):
+
 - Stockham alternates between two buffers (no bit-reversal)
 - Each stage: read from `in`, write to `out`, swap pointers
 - Final result might be in scratch - copy if needed
 
 **Success Criteria**:
+
 - 15-25% additional speedup over mixed-radix-2/4
 - All correctness tests pass
 
@@ -113,6 +120,7 @@
 - [ ] Test precision and performance
 
 **Overall Success Criteria**:
+
 - Size 512: 2.5-3x faster than baseline
 - Size 1024: 2.7-3.2x faster than baseline
 - Size 2048: 2.4-2.8x faster than baseline

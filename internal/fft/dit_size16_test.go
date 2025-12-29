@@ -17,6 +17,7 @@ const (
 // TestDIT16Radix2ForwardComplex64MatchesReference verifies the radix-2 forward transform
 // against a naive DFT reference implementation for complex64.
 func TestDIT16Radix2ForwardComplex64MatchesReference(t *testing.T) {
+	t.Parallel()
 	data := make([]complex64, testSize16)
 	for i := range data {
 		data[i] = complex(float32(i), float32(i*2))
@@ -46,6 +47,7 @@ func TestDIT16Radix2ForwardComplex64MatchesReference(t *testing.T) {
 // TestDIT16Radix2InverseComplex64MatchesReference verifies the radix-2 inverse transform
 // against a naive IDFT reference implementation for complex64.
 func TestDIT16Radix2InverseComplex64MatchesReference(t *testing.T) {
+	t.Parallel()
 	data := make([]complex64, testSize16)
 	for i := range data {
 		data[i] = complex(float32(i+1), float32(i*3))
@@ -74,6 +76,7 @@ func TestDIT16Radix2InverseComplex64MatchesReference(t *testing.T) {
 
 // TestDIT16Radix2RoundTripComplex64 verifies that Forward(Inverse(x)) ≈ x for radix-2.
 func TestDIT16Radix2RoundTripComplex64(t *testing.T) {
+	t.Parallel()
 	data := make([]complex64, testSize16)
 	for i := range data {
 		data[i] = complex(float32(i), float32(i*2))
@@ -108,6 +111,7 @@ func TestDIT16Radix2RoundTripComplex64(t *testing.T) {
 // TestDIT16Radix4ForwardComplex64MatchesReference verifies the radix-4 forward transform
 // against a naive DFT reference implementation for complex64.
 func TestDIT16Radix4ForwardComplex64MatchesReference(t *testing.T) {
+	t.Parallel()
 	data := make([]complex64, testSize16)
 	for i := range data {
 		data[i] = complex(float32(i), float32(i*2))
@@ -137,6 +141,7 @@ func TestDIT16Radix4ForwardComplex64MatchesReference(t *testing.T) {
 // TestDIT16Radix4InverseComplex64MatchesReference verifies the radix-4 inverse transform
 // against a naive IDFT reference implementation for complex64.
 func TestDIT16Radix4InverseComplex64MatchesReference(t *testing.T) {
+	t.Parallel()
 	data := make([]complex64, testSize16)
 	for i := range data {
 		data[i] = complex(float32(i+1), float32(i*3))
@@ -165,6 +170,7 @@ func TestDIT16Radix4InverseComplex64MatchesReference(t *testing.T) {
 
 // TestDIT16Radix4RoundTripComplex64 verifies that Forward(Inverse(x)) ≈ x for radix-4.
 func TestDIT16Radix4RoundTripComplex64(t *testing.T) {
+	t.Parallel()
 	data := make([]complex64, testSize16)
 	for i := range data {
 		data[i] = complex(float32(i), float32(i*2))
@@ -198,6 +204,7 @@ func TestDIT16Radix4RoundTripComplex64(t *testing.T) {
 
 // TestDIT16CompareRadix2AndRadix4 verifies that radix-2 and radix-4 produce identical results.
 func TestDIT16CompareRadix2AndRadix4(t *testing.T) {
+	t.Parallel()
 	data := make([]complex64, testSize16)
 	for i := range data {
 		data[i] = complex(float32(math.Cos(float64(i))), float32(math.Sin(float64(i))))
@@ -232,6 +239,7 @@ func TestDIT16CompareRadix2AndRadix4(t *testing.T) {
 // TestDIT16Radix2ForwardComplex128MatchesReference verifies the radix-2 forward transform
 // against a naive DFT reference implementation for complex128.
 func TestDIT16Radix2ForwardComplex128MatchesReference(t *testing.T) {
+	t.Parallel()
 	data := make([]complex128, testSize16)
 	for i := range data {
 		data[i] = complex(float64(i), float64(i*2))
@@ -261,6 +269,7 @@ func TestDIT16Radix2ForwardComplex128MatchesReference(t *testing.T) {
 // TestDIT16Radix2InverseComplex128MatchesReference verifies the radix-2 inverse transform
 // against a naive IDFT reference implementation for complex128.
 func TestDIT16Radix2InverseComplex128MatchesReference(t *testing.T) {
+	t.Parallel()
 	data := make([]complex128, testSize16)
 	for i := range data {
 		data[i] = complex(float64(i+1), float64(i*3))
@@ -290,6 +299,7 @@ func TestDIT16Radix2InverseComplex128MatchesReference(t *testing.T) {
 // TestDIT16Radix4ForwardComplex128MatchesReference verifies the radix-4 forward transform
 // against a naive DFT reference implementation for complex128.
 func TestDIT16Radix4ForwardComplex128MatchesReference(t *testing.T) {
+	t.Parallel()
 	data := make([]complex128, testSize16)
 	for i := range data {
 		data[i] = complex(float64(i), float64(i*2))
@@ -319,6 +329,7 @@ func TestDIT16Radix4ForwardComplex128MatchesReference(t *testing.T) {
 // TestDIT16Radix4InverseComplex128MatchesReference verifies the radix-4 inverse transform
 // against a naive IDFT reference implementation for complex128.
 func TestDIT16Radix4InverseComplex128MatchesReference(t *testing.T) {
+	t.Parallel()
 	data := make([]complex128, testSize16)
 	for i := range data {
 		data[i] = complex(float64(i+1), float64(i*3))

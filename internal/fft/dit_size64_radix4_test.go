@@ -9,6 +9,7 @@ import (
 // Tests for size-64 radix-4 FFT implementations
 
 func TestDIT64Radix4ForwardMatchesReference(t *testing.T) {
+	t.Parallel()
 	const n = 64
 
 	src := randomComplex64(n, 0xD164+n)
@@ -26,6 +27,7 @@ func TestDIT64Radix4ForwardMatchesReference(t *testing.T) {
 }
 
 func TestDIT64Radix4MatchesRadix2(t *testing.T) {
+	t.Parallel()
 	const n = 64
 
 	src := randomComplex64(n, 0xD164+0x10+n)
@@ -51,6 +53,7 @@ func TestDIT64Radix4MatchesRadix2(t *testing.T) {
 }
 
 func TestDIT64Radix4InverseComplex64MatchesReference(t *testing.T) {
+	t.Parallel()
 	const n = 64
 
 	src := randomComplex64(n, 0xD164+0x20+n)
@@ -68,6 +71,7 @@ func TestDIT64Radix4InverseComplex64MatchesReference(t *testing.T) {
 }
 
 func TestDIT64Radix4RoundTripComplex64(t *testing.T) {
+	t.Parallel()
 	const n = 64
 
 	src := randomComplex64(n, 0xD164+0x30+n)
@@ -89,6 +93,7 @@ func TestDIT64Radix4RoundTripComplex64(t *testing.T) {
 }
 
 func TestDIT64Radix4ForwardComplex128MatchesReference(t *testing.T) {
+	t.Parallel()
 	const n = 64
 
 	src := randomComplex128(n, 0xD164+0x40+n)
@@ -106,6 +111,7 @@ func TestDIT64Radix4ForwardComplex128MatchesReference(t *testing.T) {
 }
 
 func TestDIT64Radix4InverseComplex128MatchesReference(t *testing.T) {
+	t.Parallel()
 	const n = 64
 
 	src := randomComplex128(n, 0xD164+0x50+n)
@@ -123,6 +129,7 @@ func TestDIT64Radix4InverseComplex128MatchesReference(t *testing.T) {
 }
 
 func TestDIT64Radix4RoundTripComplex128(t *testing.T) {
+	t.Parallel()
 	const n = 64
 
 	src := randomComplex128(n, 0xD164+0x60+n)

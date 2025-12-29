@@ -29,14 +29,14 @@ func ExportWisdom(filename string) error {
 // ExportWisdomTo saves a specific wisdom cache to a file.
 // This is useful for exporting benchmark results from custom wisdom instances.
 func ExportWisdomTo(filename string, wisdom *Wisdom) error {
-	f, err := os.Create(filename)
+	file, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 
-	defer f.Close()
+	defer file.Close()
 
-	return (*fft.Wisdom)(wisdom).Export(f)
+	return (*fft.Wisdom)(wisdom).Export(file)
 }
 
 // Wisdom is a type alias for the internal wisdom cache.
