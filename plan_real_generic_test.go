@@ -10,10 +10,12 @@ import (
 
 // TestPlanReal64_Correctness tests float64 real FFT correctness against naive DFT.
 func TestPlanReal64_Correctness(t *testing.T) {
+	t.Parallel()
 	sizes := []int{16, 32, 64, 128, 256}
 
 	for _, n := range sizes {
 		t.Run("Size"+itoa(n), func(t *testing.T) {
+			t.Parallel()
 			plan, err := NewPlanReal64(n)
 			if err != nil {
 				t.Fatalf("NewPlanReal64(%d) failed: %v", n, err)
@@ -48,10 +50,12 @@ func TestPlanReal64_Correctness(t *testing.T) {
 
 // TestPlanReal64_RoundTrip tests float64 inverse correctness.
 func TestPlanReal64_RoundTrip(t *testing.T) {
+	t.Parallel()
 	sizes := []int{16, 32, 64, 128, 256, 1024}
 
 	for _, n := range sizes {
 		t.Run("Size"+itoa(n), func(t *testing.T) {
+			t.Parallel()
 			plan, err := NewPlanReal64(n)
 			if err != nil {
 				t.Fatalf("NewPlanReal64(%d) failed: %v", n, err)
@@ -251,6 +255,7 @@ func TestPlanReal64_ConjugateSymmetry(t *testing.T) {
 
 // TestPlanReal64_DCandNyquist verifies DC and Nyquist are purely real.
 func TestPlanReal64_DCandNyquist(t *testing.T) {
+	t.Parallel()
 	n := 128
 
 	plan, err := NewPlanReal64(n)
@@ -284,6 +289,7 @@ func TestPlanReal64_DCandNyquist(t *testing.T) {
 
 // TestPlanReal64_Normalized tests normalized forward transform.
 func TestPlanReal64_Normalized(t *testing.T) {
+	t.Parallel()
 	n := 64
 
 	plan, err := NewPlanReal64(n)
@@ -321,7 +327,10 @@ func TestPlanReal64_Normalized(t *testing.T) {
 }
 
 // TestPlanReal64_ZeroAlloc verifies zero allocations during transform.
+//nolint:paralleltest
 func TestPlanReal64_ZeroAlloc(t *testing.T) {
+	// Note: t.Parallel() cannot be used here because testing.AllocsPerRun
+	// panics when called during a parallel test.
 	n := 256
 
 	plan, err := NewPlanReal64(n)

@@ -3,6 +3,7 @@ package fft
 import "testing"
 
 func TestIsPowerOf2(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int
 		want bool
@@ -39,6 +40,7 @@ func TestIsPowerOf2(t *testing.T) {
 }
 
 func TestNextPowerOfTwo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int
 		want int
@@ -76,6 +78,7 @@ func TestNextPowerOfTwo(t *testing.T) {
 }
 
 func TestIsPowerOf(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int
 		base int
@@ -110,6 +113,7 @@ func TestIsPowerOf(t *testing.T) {
 }
 
 func TestIsPowerOf3(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int
 		want bool
@@ -137,6 +141,7 @@ func TestIsPowerOf3(t *testing.T) {
 }
 
 func TestIsPowerOf4(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int
 		want bool
@@ -166,6 +171,7 @@ func TestIsPowerOf4(t *testing.T) {
 }
 
 func TestIsPowerOf5(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int
 		want bool

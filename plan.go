@@ -235,6 +235,12 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		return nil
 	}
 
+	if p.kernelStrategy == fft.KernelStockham && fft.StockhamPackedAvailable() {
+		if fft.ForwardStockhamPacked(dst, src, p.twiddle, p.scratch, p.packedTwiddle4) {
+			return nil
+		}
+	}
+
 	// Fallback kernel dispatch
 	if p.forwardKernel != nil && p.forwardKernel(dst, src, p.twiddle, p.scratch, p.bitrev) {
 		return nil
@@ -268,6 +274,12 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 	if p.inverseCodelet != nil {
 		p.inverseCodelet(dst, src, p.twiddle, p.scratch, p.bitrev)
 		return nil
+	}
+
+	if p.kernelStrategy == fft.KernelStockham && fft.StockhamPackedAvailable() {
+		if fft.InverseStockhamPacked(dst, src, p.twiddle, p.scratch, p.packedTwiddle4) {
+			return nil
+		}
 	}
 
 	// Fallback kernel dispatch

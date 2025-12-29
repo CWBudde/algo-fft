@@ -40,6 +40,10 @@ benchstat.txt
 
 # Cache
 .gocache
+.gomodcache
 
 # Agents
 .claude
+
+# Profiler
+*.pprof

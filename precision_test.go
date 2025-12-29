@@ -346,6 +346,7 @@ func testLargePrecision(t *testing.T, n int) {
 
 // TestPrecisionKnownSignals tests FFT of signals with known analytical results.
 func TestPrecisionKnownSignals(t *testing.T) {
+	t.Parallel()
 	t.Run("sine_wave", func(t *testing.T) { t.Parallel(); testSineWavePrecision(t) })
 	t.Run("cosine_wave", func(t *testing.T) { t.Parallel(); testCosineWavePrecision(t) })
 	t.Run("impulse", func(t *testing.T) { t.Parallel(); testImpulsePrecision(t) })

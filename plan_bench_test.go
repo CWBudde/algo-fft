@@ -16,8 +16,15 @@ func BenchmarkPlanForward_128(b *testing.B)   { benchmarkPlanForward(b, 128) }
 func BenchmarkPlanForward_256(b *testing.B)   { benchmarkPlanForward(b, 256) }
 func BenchmarkPlanForward_1024(b *testing.B)  { benchmarkPlanForward(b, 1024) }
 func BenchmarkPlanForward_4096(b *testing.B)  { benchmarkPlanForward(b, 4096) }
+func BenchmarkPlanForward_8192(b *testing.B)  { benchmarkPlanForward(b, 8192) }
 func BenchmarkPlanForward_16384(b *testing.B) { benchmarkPlanForward(b, 16384) }
 func BenchmarkPlanForward_65536(b *testing.B) { benchmarkPlanForward(b, 65536) }
+func BenchmarkPlanForward_8192_DIT(b *testing.B) {
+	benchmarkPlanForwardWithOptions(b, 8192, PlanOptions{Strategy: KernelDIT})
+}
+func BenchmarkPlanForward_8192_Stockham(b *testing.B) {
+	benchmarkPlanForwardWithOptions(b, 8192, PlanOptions{Strategy: KernelStockham})
+}
 
 // Inverse FFT benchmarks for various sizes.
 func BenchmarkPlanInverse_8(b *testing.B)     { benchmarkPlanInverse(b, 8) }
@@ -28,8 +35,15 @@ func BenchmarkPlanInverse_128(b *testing.B)   { benchmarkPlanInverse(b, 128) }
 func BenchmarkPlanInverse_256(b *testing.B)   { benchmarkPlanInverse(b, 256) }
 func BenchmarkPlanInverse_1024(b *testing.B)  { benchmarkPlanInverse(b, 1024) }
 func BenchmarkPlanInverse_4096(b *testing.B)  { benchmarkPlanInverse(b, 4096) }
+func BenchmarkPlanInverse_8192(b *testing.B)  { benchmarkPlanInverse(b, 8192) }
 func BenchmarkPlanInverse_16384(b *testing.B) { benchmarkPlanInverse(b, 16384) }
 func BenchmarkPlanInverse_65536(b *testing.B) { benchmarkPlanInverse(b, 65536) }
+func BenchmarkPlanInverse_8192_DIT(b *testing.B) {
+	benchmarkPlanInverseWithOptions(b, 8192, PlanOptions{Strategy: KernelDIT})
+}
+func BenchmarkPlanInverse_8192_Stockham(b *testing.B) {
+	benchmarkPlanInverseWithOptions(b, 8192, PlanOptions{Strategy: KernelStockham})
+}
 
 // Plan creation benchmarks (additional sizes - 64, 1024, 65536 are in plan_test.go).
 func BenchmarkNewPlan_16(b *testing.B)    { benchmarkNewPlan(b, 16) }
@@ -64,6 +78,33 @@ func benchmarkPlanForward(b *testing.B, fftSize int) {
 	plan, err := NewPlanT[complex64](fftSize)
 	if err != nil {
 		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+	}
+
+	src := make([]complex64, fftSize)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	dst := make([]complex64, fftSize)
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 8)) // 8 bytes per complex64 for throughput calculation
+	b.ResetTimer()
+
+	for b.Loop() {
+		fwdErr := plan.Forward(dst, src)
+		if fwdErr != nil {
+			b.Fatalf("Forward() returned error: %v", fwdErr)
+		}
+	}
+}
+
+func benchmarkPlanForwardWithOptions(b *testing.B, fftSize int, opts PlanOptions) {
+	b.Helper()
+
+	plan, err := NewPlanWithOptions[complex64](fftSize, opts)
+	if err != nil {
+		b.Fatalf("NewPlanWithOptions(%d) returned error: %v", fftSize, err)
 	}
 
 	src := make([]complex64, fftSize)
@@ -213,6 +254,33 @@ func benchmarkPlanInverse(b *testing.B, fftSize int) {
 
 	for b.Loop() {
 		invErr := plan.Inverse(dst, freq)
+		if invErr != nil {
+			b.Fatalf("Inverse() returned error: %v", invErr)
+		}
+	}
+}
+
+func benchmarkPlanInverseWithOptions(b *testing.B, fftSize int, opts PlanOptions) {
+	b.Helper()
+
+	plan, err := NewPlanWithOptions[complex64](fftSize, opts)
+	if err != nil {
+		b.Fatalf("NewPlanWithOptions(%d) returned error: %v", fftSize, err)
+	}
+
+	src := make([]complex64, fftSize)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	dst := make([]complex64, fftSize)
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 8)) // 8 bytes per complex64 for throughput calculation
+	b.ResetTimer()
+
+	for b.Loop() {
+		invErr := plan.Inverse(dst, src)
 		if invErr != nil {
 			b.Fatalf("Inverse() returned error: %v", invErr)
 		}
