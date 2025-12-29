@@ -194,11 +194,17 @@ func itoa(n int) string {
 	return string(buf[i:])
 }
 
-func planBitReversal(n int) []int {
+func planBitReversal[T Complex](n int, estimate fft.PlanEstimate[T]) []int {
 	if !fft.IsPowerOf2(n) {
 		return nil
 	}
 
+	// Use codelet-specific bit-reversal if available
+	if estimate.BitrevFunc != nil {
+		return estimate.BitrevFunc(n)
+	}
+
+	// Fallback to radix-2 binary reversal for kernels without codelets
 	return fft.ComputeBitReversalIndices(n)
 }
 
@@ -562,7 +568,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		twiddle:                 twiddle,
 		scratch:                 scratch,
 		stridedScratch:          stridedScratch,
-		bitrev:                  planBitReversal(n),
+		bitrev:                  planBitReversal(n, estimate),
 		forwardCodelet:          estimate.ForwardCodelet,
 		inverseCodelet:          estimate.InverseCodelet,
 		algorithm:               estimate.Algorithm,

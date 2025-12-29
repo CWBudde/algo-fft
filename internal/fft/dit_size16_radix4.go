@@ -17,66 +17,174 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 	s := src[:n]
 	tw := twiddle[:n]
 
-	// Stage 1: 4 radix-4 butterflies with fused bit-reversal
-	// No twiddle multiplies (all W^0 = 1)
+	// Stage 1: 4 radix-4 butterflies with fused bit-reversal (FULLY UNROLLED)
 	var stage1 [16]complex64
 
-	for base := 0; base < n; base += 4 {
-		// Load with bit-reversal
-		a0 := s[br[base]]
-		a1 := s[br[base+1]]
-		a2 := s[br[base+2]]
-		a3 := s[br[base+3]]
+	// Butterfly 0: indices 0,1,2,3
+	{
+		a0 := s[br[0]]
+		a1 := s[br[1]]
+		a2 := s[br[2]]
+		a3 := s[br[3]]
 
-		// Inline radix-4 butterfly
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
-		// mulNegI(t3) = complex(imag(t3), -real(t3))
-		stage1[base+1] = t1 + complex(imag(t3), -real(t3))
-		// mulI(t3) = complex(-imag(t3), real(t3))
-		stage1[base+3] = t1 + complex(-imag(t3), real(t3))
+		stage1[0] = t0 + t2
+		stage1[2] = t0 - t2
+		stage1[1] = t1 + complex(imag(t3), -real(t3))
+		stage1[3] = t1 + complex(-imag(t3), real(t3))
 	}
 
-	// Stage 2: 1 group × 4 butterflies
-	// Write directly to output or scratch to avoid aliasing
+	// Butterfly 1: indices 4,5,6,7
+	{
+		a0 := s[br[4]]
+		a1 := s[br[5]]
+		a2 := s[br[6]]
+		a3 := s[br[7]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[4] = t0 + t2
+		stage1[6] = t0 - t2
+		stage1[5] = t1 + complex(imag(t3), -real(t3))
+		stage1[7] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 2: indices 8,9,10,11
+	{
+		a0 := s[br[8]]
+		a1 := s[br[9]]
+		a2 := s[br[10]]
+		a3 := s[br[11]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[8] = t0 + t2
+		stage1[10] = t0 - t2
+		stage1[9] = t1 + complex(imag(t3), -real(t3))
+		stage1[11] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 3: indices 12,13,14,15
+	{
+		a0 := s[br[12]]
+		a1 := s[br[13]]
+		a2 := s[br[14]]
+		a3 := s[br[15]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[12] = t0 + t2
+		stage1[14] = t0 - t2
+		stage1[13] = t1 + complex(imag(t3), -real(t3))
+		stage1[15] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Stage 2: 4 radix-4 butterflies (FULLY UNROLLED)
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
 	work = work[:n]
 
-	// For j=0..3, we process 4 butterflies
-	// Each butterfly combines indices: j, j+4, j+8, j+12
-	// With twiddle factors: W^(0*j), W^(1*j), W^(2*j), W^(3*j)
-	for j := range 4 {
-		w1 := tw[j]
-		w2 := tw[2*j]
-		w3 := tw[3*j]
+	// Butterfly 0: j=0, indices 0,4,8,12 with twiddles W^0, W^0, W^0, W^0
+	{
+		w1 := tw[0]
+		w2 := tw[0]
+		w3 := tw[0]
 
-		idx0 := j
-		idx1 := j + 4
-		idx2 := j + 8
-		idx3 := j + 12
-
-		a0 := stage1[idx0]
-		a1 := w1 * stage1[idx1]
-		a2 := w2 * stage1[idx2]
-		a3 := w3 * stage1[idx3]
+		a0 := stage1[0]
+		a1 := w1 * stage1[4]
+		a2 := w2 * stage1[8]
+		a3 := w3 * stage1[12]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		work[idx0] = t0 + t2
-		work[idx2] = t0 - t2
-		work[idx1] = t1 + complex(imag(t3), -real(t3))
-		work[idx3] = t1 + complex(-imag(t3), real(t3))
+		work[0] = t0 + t2
+		work[8] = t0 - t2
+		work[4] = t1 + complex(imag(t3), -real(t3))
+		work[12] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 1: j=1, indices 1,5,9,13 with twiddles W^1, W^2, W^3
+	{
+		w1 := tw[1]
+		w2 := tw[2]
+		w3 := tw[3]
+
+		a0 := stage1[1]
+		a1 := w1 * stage1[5]
+		a2 := w2 * stage1[9]
+		a3 := w3 * stage1[13]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[1] = t0 + t2
+		work[9] = t0 - t2
+		work[5] = t1 + complex(imag(t3), -real(t3))
+		work[13] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 2: j=2, indices 2,6,10,14 with twiddles W^2, W^4, W^6
+	{
+		w1 := tw[2]
+		w2 := tw[4]
+		w3 := tw[6]
+
+		a0 := stage1[2]
+		a1 := w1 * stage1[6]
+		a2 := w2 * stage1[10]
+		a3 := w3 * stage1[14]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[2] = t0 + t2
+		work[10] = t0 - t2
+		work[6] = t1 + complex(imag(t3), -real(t3))
+		work[14] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 3: j=3, indices 3,7,11,15 with twiddles W^3, W^6, W^9
+	{
+		w1 := tw[3]
+		w2 := tw[6]
+		w3 := tw[9]
+
+		a0 := stage1[3]
+		a1 := w1 * stage1[7]
+		a2 := w2 * stage1[11]
+		a3 := w3 * stage1[15]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[3] = t0 + t2
+		work[11] = t0 - t2
+		work[7] = t1 + complex(imag(t3), -real(t3))
+		work[15] = t1 + complex(-imag(t3), real(t3))
 	}
 
 	// Copy result back if we used scratch buffer
@@ -104,62 +212,175 @@ func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 	s := src[:n]
 	tw := twiddle[:n]
 
-	// Stage 1: 4 radix-4 butterflies with fused bit-reversal
-	// No twiddle multiplies (all W^0 = 1)
+	// Stage 1: 4 radix-4 butterflies with fused bit-reversal (FULLY UNROLLED)
 	var stage1 [16]complex64
 
-	for base := 0; base < n; base += 4 {
-		// Load with bit-reversal
-		a0 := s[br[base]]
-		a1 := s[br[base+1]]
-		a2 := s[br[base+2]]
-		a3 := s[br[base+3]]
+	// Butterfly 0: indices 0,1,2,3
+	{
+		a0 := s[br[0]]
+		a1 := s[br[1]]
+		a2 := s[br[2]]
+		a3 := s[br[3]]
 
-		// Inline radix-4 butterfly
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
+		stage1[0] = t0 + t2
+		stage1[2] = t0 - t2
 		// For inverse: mulI instead of mulNegI
-		stage1[base+1] = t1 + complex(-imag(t3), real(t3))
-		stage1[base+3] = t1 + complex(imag(t3), -real(t3))
+		stage1[1] = t1 + complex(-imag(t3), real(t3))
+		stage1[3] = t1 + complex(imag(t3), -real(t3))
 	}
 
-	// Stage 2: 1 group × 4 butterflies with conjugated twiddles
+	// Butterfly 1: indices 4,5,6,7
+	{
+		a0 := s[br[4]]
+		a1 := s[br[5]]
+		a2 := s[br[6]]
+		a3 := s[br[7]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[4] = t0 + t2
+		stage1[6] = t0 - t2
+		stage1[5] = t1 + complex(-imag(t3), real(t3))
+		stage1[7] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 2: indices 8,9,10,11
+	{
+		a0 := s[br[8]]
+		a1 := s[br[9]]
+		a2 := s[br[10]]
+		a3 := s[br[11]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[8] = t0 + t2
+		stage1[10] = t0 - t2
+		stage1[9] = t1 + complex(-imag(t3), real(t3))
+		stage1[11] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 3: indices 12,13,14,15
+	{
+		a0 := s[br[12]]
+		a1 := s[br[13]]
+		a2 := s[br[14]]
+		a3 := s[br[15]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[12] = t0 + t2
+		stage1[14] = t0 - t2
+		stage1[13] = t1 + complex(-imag(t3), real(t3))
+		stage1[15] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Stage 2: 4 radix-4 butterflies with conjugated twiddles (FULLY UNROLLED)
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
 	work = work[:n]
 
-	// For j=0..3, process 4 butterflies with conjugated twiddles
-	for j := range 4 {
-		w1 := complex(real(tw[j]), -imag(tw[j]))
-		w2 := complex(real(tw[2*j]), -imag(tw[2*j]))
-		w3 := complex(real(tw[3*j]), -imag(tw[3*j]))
+	// Butterfly 0: j=0, indices 0,4,8,12
+	{
+		w1 := complex(real(tw[0]), -imag(tw[0]))
+		w2 := complex(real(tw[0]), -imag(tw[0]))
+		w3 := complex(real(tw[0]), -imag(tw[0]))
 
-		idx0 := j
-		idx1 := j + 4
-		idx2 := j + 8
-		idx3 := j + 12
-
-		a0 := stage1[idx0]
-		a1 := w1 * stage1[idx1]
-		a2 := w2 * stage1[idx2]
-		a3 := w3 * stage1[idx3]
+		a0 := stage1[0]
+		a1 := w1 * stage1[4]
+		a2 := w2 * stage1[8]
+		a3 := w3 * stage1[12]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		work[idx0] = t0 + t2
-		work[idx2] = t0 - t2
-		work[idx1] = t1 + complex(-imag(t3), real(t3))
-		work[idx3] = t1 + complex(imag(t3), -real(t3))
+		work[0] = t0 + t2
+		work[8] = t0 - t2
+		work[4] = t1 + complex(-imag(t3), real(t3))
+		work[12] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 1: j=1, indices 1,5,9,13
+	{
+		w1 := complex(real(tw[1]), -imag(tw[1]))
+		w2 := complex(real(tw[2]), -imag(tw[2]))
+		w3 := complex(real(tw[3]), -imag(tw[3]))
+
+		a0 := stage1[1]
+		a1 := w1 * stage1[5]
+		a2 := w2 * stage1[9]
+		a3 := w3 * stage1[13]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[1] = t0 + t2
+		work[9] = t0 - t2
+		work[5] = t1 + complex(-imag(t3), real(t3))
+		work[13] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 2: j=2, indices 2,6,10,14
+	{
+		w1 := complex(real(tw[2]), -imag(tw[2]))
+		w2 := complex(real(tw[4]), -imag(tw[4]))
+		w3 := complex(real(tw[6]), -imag(tw[6]))
+
+		a0 := stage1[2]
+		a1 := w1 * stage1[6]
+		a2 := w2 * stage1[10]
+		a3 := w3 * stage1[14]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[2] = t0 + t2
+		work[10] = t0 - t2
+		work[6] = t1 + complex(-imag(t3), real(t3))
+		work[14] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 3: j=3, indices 3,7,11,15
+	{
+		w1 := complex(real(tw[3]), -imag(tw[3]))
+		w2 := complex(real(tw[6]), -imag(tw[6]))
+		w3 := complex(real(tw[9]), -imag(tw[9]))
+
+		a0 := stage1[3]
+		a1 := w1 * stage1[7]
+		a2 := w2 * stage1[11]
+		a3 := w3 * stage1[15]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[3] = t0 + t2
+		work[11] = t0 - t2
+		work[7] = t1 + complex(-imag(t3), real(t3))
+		work[15] = t1 + complex(imag(t3), -real(t3))
 	}
 
 	// Copy result back if we used scratch buffer
@@ -193,60 +414,174 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 	s := src[:n]
 	tw := twiddle[:n]
 
-	// Stage 1: 4 radix-4 butterflies with fused bit-reversal
+	// Stage 1: 4 radix-4 butterflies with fused bit-reversal (FULLY UNROLLED)
 	var stage1 [16]complex128
 
-	for base := 0; base < n; base += 4 {
-		// Load with bit-reversal
-		a0 := s[br[base]]
-		a1 := s[br[base+1]]
-		a2 := s[br[base+2]]
-		a3 := s[br[base+3]]
+	// Butterfly 0: indices 0,1,2,3
+	{
+		a0 := s[br[0]]
+		a1 := s[br[1]]
+		a2 := s[br[2]]
+		a3 := s[br[3]]
 
-		// Inline radix-4 butterfly
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
-		stage1[base+1] = t1 + complex(imag(t3), -real(t3))
-		stage1[base+3] = t1 + complex(-imag(t3), real(t3))
+		stage1[0] = t0 + t2
+		stage1[2] = t0 - t2
+		stage1[1] = t1 + complex(imag(t3), -real(t3))
+		stage1[3] = t1 + complex(-imag(t3), real(t3))
 	}
 
-	// Stage 2: 1 group × 4 butterflies
+	// Butterfly 1: indices 4,5,6,7
+	{
+		a0 := s[br[4]]
+		a1 := s[br[5]]
+		a2 := s[br[6]]
+		a3 := s[br[7]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[4] = t0 + t2
+		stage1[6] = t0 - t2
+		stage1[5] = t1 + complex(imag(t3), -real(t3))
+		stage1[7] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 2: indices 8,9,10,11
+	{
+		a0 := s[br[8]]
+		a1 := s[br[9]]
+		a2 := s[br[10]]
+		a3 := s[br[11]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[8] = t0 + t2
+		stage1[10] = t0 - t2
+		stage1[9] = t1 + complex(imag(t3), -real(t3))
+		stage1[11] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 3: indices 12,13,14,15
+	{
+		a0 := s[br[12]]
+		a1 := s[br[13]]
+		a2 := s[br[14]]
+		a3 := s[br[15]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[12] = t0 + t2
+		stage1[14] = t0 - t2
+		stage1[13] = t1 + complex(imag(t3), -real(t3))
+		stage1[15] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Stage 2: 4 radix-4 butterflies (FULLY UNROLLED)
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
 	work = work[:n]
 
-	// For j=0..3, we process 4 butterflies
-	for j := range 4 {
-		w1 := tw[j]
-		w2 := tw[2*j]
-		w3 := tw[3*j]
+	// Butterfly 0: j=0, indices 0,4,8,12
+	{
+		w1 := tw[0]
+		w2 := tw[0]
+		w3 := tw[0]
 
-		idx0 := j
-		idx1 := j + 4
-		idx2 := j + 8
-		idx3 := j + 12
-
-		a0 := stage1[idx0]
-		a1 := w1 * stage1[idx1]
-		a2 := w2 * stage1[idx2]
-		a3 := w3 * stage1[idx3]
+		a0 := stage1[0]
+		a1 := w1 * stage1[4]
+		a2 := w2 * stage1[8]
+		a3 := w3 * stage1[12]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		work[idx0] = t0 + t2
-		work[idx2] = t0 - t2
-		work[idx1] = t1 + complex(imag(t3), -real(t3))
-		work[idx3] = t1 + complex(-imag(t3), real(t3))
+		work[0] = t0 + t2
+		work[8] = t0 - t2
+		work[4] = t1 + complex(imag(t3), -real(t3))
+		work[12] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 1: j=1, indices 1,5,9,13
+	{
+		w1 := tw[1]
+		w2 := tw[2]
+		w3 := tw[3]
+
+		a0 := stage1[1]
+		a1 := w1 * stage1[5]
+		a2 := w2 * stage1[9]
+		a3 := w3 * stage1[13]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[1] = t0 + t2
+		work[9] = t0 - t2
+		work[5] = t1 + complex(imag(t3), -real(t3))
+		work[13] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 2: j=2, indices 2,6,10,14
+	{
+		w1 := tw[2]
+		w2 := tw[4]
+		w3 := tw[6]
+
+		a0 := stage1[2]
+		a1 := w1 * stage1[6]
+		a2 := w2 * stage1[10]
+		a3 := w3 * stage1[14]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[2] = t0 + t2
+		work[10] = t0 - t2
+		work[6] = t1 + complex(imag(t3), -real(t3))
+		work[14] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Butterfly 3: j=3, indices 3,7,11,15
+	{
+		w1 := tw[3]
+		w2 := tw[6]
+		w3 := tw[9]
+
+		a0 := stage1[3]
+		a1 := w1 * stage1[7]
+		a2 := w2 * stage1[11]
+		a3 := w3 * stage1[15]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[3] = t0 + t2
+		work[11] = t0 - t2
+		work[7] = t1 + complex(imag(t3), -real(t3))
+		work[15] = t1 + complex(-imag(t3), real(t3))
 	}
 
 	// Copy result back if we used scratch buffer
@@ -274,61 +609,174 @@ func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 	s := src[:n]
 	tw := twiddle[:n]
 
-	// Stage 1: 4 radix-4 butterflies with fused bit-reversal
+	// Stage 1: 4 radix-4 butterflies with fused bit-reversal (FULLY UNROLLED)
 	var stage1 [16]complex128
 
-	for base := 0; base < n; base += 4 {
-		// Load with bit-reversal
-		a0 := s[br[base]]
-		a1 := s[br[base+1]]
-		a2 := s[br[base+2]]
-		a3 := s[br[base+3]]
+	// Butterfly 0: indices 0,1,2,3
+	{
+		a0 := s[br[0]]
+		a1 := s[br[1]]
+		a2 := s[br[2]]
+		a3 := s[br[3]]
 
-		// Inline radix-4 butterfly
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
-		// For inverse: mulI instead of mulNegI
-		stage1[base+1] = t1 + complex(-imag(t3), real(t3))
-		stage1[base+3] = t1 + complex(imag(t3), -real(t3))
+		stage1[0] = t0 + t2
+		stage1[2] = t0 - t2
+		stage1[1] = t1 + complex(-imag(t3), real(t3))
+		stage1[3] = t1 + complex(imag(t3), -real(t3))
 	}
 
-	// Stage 2: 1 group × 4 butterflies with conjugated twiddles
+	// Butterfly 1: indices 4,5,6,7
+	{
+		a0 := s[br[4]]
+		a1 := s[br[5]]
+		a2 := s[br[6]]
+		a3 := s[br[7]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[4] = t0 + t2
+		stage1[6] = t0 - t2
+		stage1[5] = t1 + complex(-imag(t3), real(t3))
+		stage1[7] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 2: indices 8,9,10,11
+	{
+		a0 := s[br[8]]
+		a1 := s[br[9]]
+		a2 := s[br[10]]
+		a3 := s[br[11]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[8] = t0 + t2
+		stage1[10] = t0 - t2
+		stage1[9] = t1 + complex(-imag(t3), real(t3))
+		stage1[11] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 3: indices 12,13,14,15
+	{
+		a0 := s[br[12]]
+		a1 := s[br[13]]
+		a2 := s[br[14]]
+		a3 := s[br[15]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		stage1[12] = t0 + t2
+		stage1[14] = t0 - t2
+		stage1[13] = t1 + complex(-imag(t3), real(t3))
+		stage1[15] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Stage 2: 4 radix-4 butterflies with conjugated twiddles (FULLY UNROLLED)
 	work := dst
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
 	work = work[:n]
 
-	// For j=0..3, process 4 butterflies with conjugated twiddles
-	for j := range 4 {
-		w1 := complex(real(tw[j]), -imag(tw[j]))
-		w2 := complex(real(tw[2*j]), -imag(tw[2*j]))
-		w3 := complex(real(tw[3*j]), -imag(tw[3*j]))
+	// Butterfly 0: j=0, indices 0,4,8,12
+	{
+		w1 := complex(real(tw[0]), -imag(tw[0]))
+		w2 := complex(real(tw[0]), -imag(tw[0]))
+		w3 := complex(real(tw[0]), -imag(tw[0]))
 
-		idx0 := j
-		idx1 := j + 4
-		idx2 := j + 8
-		idx3 := j + 12
-
-		a0 := stage1[idx0]
-		a1 := w1 * stage1[idx1]
-		a2 := w2 * stage1[idx2]
-		a3 := w3 * stage1[idx3]
+		a0 := stage1[0]
+		a1 := w1 * stage1[4]
+		a2 := w2 * stage1[8]
+		a3 := w3 * stage1[12]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		work[idx0] = t0 + t2
-		work[idx2] = t0 - t2
-		work[idx1] = t1 + complex(-imag(t3), real(t3))
-		work[idx3] = t1 + complex(imag(t3), -real(t3))
+		work[0] = t0 + t2
+		work[8] = t0 - t2
+		work[4] = t1 + complex(-imag(t3), real(t3))
+		work[12] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 1: j=1, indices 1,5,9,13
+	{
+		w1 := complex(real(tw[1]), -imag(tw[1]))
+		w2 := complex(real(tw[2]), -imag(tw[2]))
+		w3 := complex(real(tw[3]), -imag(tw[3]))
+
+		a0 := stage1[1]
+		a1 := w1 * stage1[5]
+		a2 := w2 * stage1[9]
+		a3 := w3 * stage1[13]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[1] = t0 + t2
+		work[9] = t0 - t2
+		work[5] = t1 + complex(-imag(t3), real(t3))
+		work[13] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 2: j=2, indices 2,6,10,14
+	{
+		w1 := complex(real(tw[2]), -imag(tw[2]))
+		w2 := complex(real(tw[4]), -imag(tw[4]))
+		w3 := complex(real(tw[6]), -imag(tw[6]))
+
+		a0 := stage1[2]
+		a1 := w1 * stage1[6]
+		a2 := w2 * stage1[10]
+		a3 := w3 * stage1[14]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[2] = t0 + t2
+		work[10] = t0 - t2
+		work[6] = t1 + complex(-imag(t3), real(t3))
+		work[14] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Butterfly 3: j=3, indices 3,7,11,15
+	{
+		w1 := complex(real(tw[3]), -imag(tw[3]))
+		w2 := complex(real(tw[6]), -imag(tw[6]))
+		w3 := complex(real(tw[9]), -imag(tw[9]))
+
+		a0 := stage1[3]
+		a1 := w1 * stage1[7]
+		a2 := w2 * stage1[11]
+		a3 := w3 * stage1[15]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		work[3] = t0 + t2
+		work[11] = t0 - t2
+		work[7] = t1 + complex(-imag(t3), real(t3))
+		work[15] = t1 + complex(imag(t3), -real(t3))
 	}
 
 	// Copy result back if we used scratch buffer

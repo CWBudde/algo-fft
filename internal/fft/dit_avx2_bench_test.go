@@ -42,7 +42,7 @@ func BenchmarkDIT8_AVX2_Complex64(b *testing.B) {
 	b.SetBytes(int64(n * 8))
 
 	for range b.N {
-		forwardAVX2Size8Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		forwardAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 	}
 }
 
@@ -63,7 +63,7 @@ func BenchmarkDIT8_InverseAVX2_Complex64(b *testing.B) {
 	b.SetBytes(int64(n * 8))
 
 	for range b.N {
-		inverseAVX2Size8Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		inverseAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 	}
 }
 
