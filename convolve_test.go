@@ -21,7 +21,7 @@ func TestConvolveBasic(t *testing.T) {
 	}
 
 	for i := range want {
-		assertApproxComplex64(t, got[i], want[i], 1e-4, "got[%d]", i)
+		assertApproxComplex64f(t, got[i], want[i], 1e-4, "got[%d]", i)
 	}
 }
 
@@ -49,7 +49,7 @@ func TestConvolveRandomMatchesNaive(t *testing.T) {
 	}
 
 	for i := range want {
-		assertApproxComplex64(t, got[i], want[i], 1e-3, "got[%d]", i)
+		assertApproxComplex64f(t, got[i], want[i], 1e-3, "got[%d]", i)
 	}
 }
 

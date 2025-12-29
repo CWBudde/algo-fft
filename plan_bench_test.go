@@ -179,9 +179,7 @@ func benchmarkPlanForwardMemStats(b *testing.B, fftSize int) {
 	b.StopTimer()
 	runtime.ReadMemStats(&after)
 
-	//nolint:gosec
 	allocBytes := int64(after.TotalAlloc - before.TotalAlloc)
-	//nolint:gosec
 	allocs := int64(after.Mallocs - before.Mallocs)
 
 	b.ReportMetric(float64(allocBytes)/float64(b.N), "bytes/op")

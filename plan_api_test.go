@@ -34,7 +34,7 @@ func TestInverseInPlace(t *testing.T) {
 
 	// Verify round-trip accuracy
 	for i := range src {
-		assertApproxComplex64(t, freq[i], src[i], 1e-4, "freq[%d]", i)
+		assertApproxComplex64f(t, freq[i], src[i], 1e-4, "freq[%d]", i)
 	}
 }
 
@@ -65,7 +65,7 @@ func TestInverseInPlace_Complex128(t *testing.T) {
 
 	// Verify round-trip accuracy
 	for i := range src {
-		assertApproxComplex128(t, freq[i], src[i], 1e-10, "freq[%d]", i)
+		assertApproxComplex128f(t, freq[i], src[i], 1e-10, "freq[%d]", i)
 	}
 }
 
@@ -309,7 +309,7 @@ func TestTransform(t *testing.T) {
 
 	// Verify round-trip
 	for i := range src {
-		assertApproxComplex64(t, dstInv[i], src[i], 1e-4, "dstInv[%d]", i)
+		assertApproxComplex64f(t, dstInv[i], src[i], 1e-4, "dstInv[%d]", i)
 	}
 }
 
