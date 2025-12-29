@@ -7,7 +7,9 @@ import (
 )
 
 const (
-	radix5Tol64  = 1e-4
+	//nolint:unused
+	radix5Tol64 = 1e-4
+	//nolint:unused
 	radix5Tol128 = 1e-10
 )
 

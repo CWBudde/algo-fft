@@ -75,7 +75,7 @@ func TestQueryFunctions(t *testing.T) {
 
 // TestForcedFeatures tests that SetForcedFeatures overrides detection.
 //
-//nolint:paralleltest // subtests modify global state via SetForcedFeatures()
+//nolint:paralleltest,gocognit // subtests modify global state via SetForcedFeatures()
 func TestForcedFeatures(t *testing.T) {
 	// Note: Not parallel - subtests modify global state via SetForcedFeatures()
 
@@ -313,7 +313,7 @@ func TestDetectionCaching(t *testing.T) {
 
 // TestFeaturesStructFields verifies the Features struct has expected fields.
 //
-//nolint:cyclop
+//nolint:cyclop,paralleltest
 func TestFeaturesStructFields(t *testing.T) {
 	features := Features{
 		HasSSE2:      true,

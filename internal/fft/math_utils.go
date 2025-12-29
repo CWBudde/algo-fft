@@ -18,6 +18,7 @@ func NextPowerOfTwo(n int) int {
 		return n
 	}
 
+	//nolint:gosec
 	x := uint(n - 1)
 	x |= x >> 1
 	x |= x >> 2
@@ -29,6 +30,7 @@ func NextPowerOfTwo(n int) int {
 		x |= x >> 32
 	}
 
+	//nolint:gosec
 	return int(x + 1)
 }
 

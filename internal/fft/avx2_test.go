@@ -50,6 +50,7 @@ func complexNearEqual(a, b complex64, relTol float32) bool {
 
 // generateRandomComplex64 creates a slice of random complex64 values.
 func generateRandomComplex64(n int, seed uint64) []complex64 {
+	//nolint:gosec
 	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF))
 	result := make([]complex64, n)
 
@@ -117,8 +118,11 @@ func prepareFFTData(n int) ([]complex64, []int, []complex64) {
 
 // getAVX2Kernels returns the AVX2 kernels if available, or nil otherwise.
 // This directly tests the AVX2 path, bypassing fallback mechanisms.
+//
+//nolint:nonamedreturns
 func getAVX2Kernels() (forward, inverse Kernel[complex64], available bool) {
-	if runtime.GOARCH != "amd64" {
+	const archAMD64 = "amd64"
+	if runtime.GOARCH != archAMD64 {
 		return nil, nil, false
 	}
 
@@ -133,8 +137,11 @@ func getAVX2Kernels() (forward, inverse Kernel[complex64], available bool) {
 }
 
 // getAVX2StockhamKernels returns the AVX2 Stockham kernels if available.
+//
+//nolint:nonamedreturns
 func getAVX2StockhamKernels() (forward, inverse Kernel[complex64], available bool) {
-	if runtime.GOARCH != "amd64" {
+	const archAMD64 = "amd64"
+	if runtime.GOARCH != archAMD64 {
 		return nil, nil, false
 	}
 
@@ -147,6 +154,8 @@ func getAVX2StockhamKernels() (forward, inverse Kernel[complex64], available boo
 }
 
 // getPureGoKernels returns the pure-Go DIT kernels for comparison.
+//
+//nolint:nonamedreturns
 func getPureGoKernels() (forward, inverse Kernel[complex64]) {
 	return forwardDITComplex64, inverseDITComplex64
 }
@@ -171,7 +180,7 @@ func TestAVX2Forward_VsPureGo(t *testing.T) {
 		t.Run(sizeString(n), func(t *testing.T) {
 			t.Parallel()
 
-			src := generateRandomComplex64(n, uint64(n))
+			src := generateRandomComplex64(n, uint64(uint(n)))
 			twiddle, bitrev, scratch := prepareFFTData(n)
 
 			// Compute with pure-Go (ground truth for this test)
@@ -229,7 +238,7 @@ func TestAVX2Inverse_VsPureGo(t *testing.T) {
 			t.Parallel()
 
 			// Use frequency-domain data as input
-			src := generateRandomComplex64(n, uint64(n)+1000)
+			src := generateRandomComplex64(n, uint64(uint(n))+1000)
 			twiddle, bitrev, scratch := prepareFFTData(n)
 
 			// Compute with pure-Go
@@ -283,7 +292,7 @@ func TestAVX2StockhamForward_VsPureGo(t *testing.T) {
 	relTol := float32(1e-4)
 
 	for _, n := range sizes {
-		src := generateRandomComplex64(n, 0xABCDEF01+uint64(n))
+		src := generateRandomComplex64(n, 0xABCDEF01+uint64(uint(n)))
 		twiddle, bitrev, scratch := prepareFFTData(n)
 
 		dstAVX2 := make([]complex64, n)
@@ -586,6 +595,7 @@ func TestAVX2Linearity(t *testing.T) {
 // 14.1.1: Edge Case Tests
 // =============================================================================
 
+//nolint:gocognit
 func TestAVX2EdgeCases(t *testing.T) {
 	t.Parallel()
 
@@ -1061,8 +1071,10 @@ func TestAVX2ZeroAllocations(t *testing.T) {
 // AVX2 Kernel Access Functions (complex128)
 // =============================================================================
 
+//nolint:nonamedreturns
 func getAVX2Kernels128() (forward, inverse Kernel[complex128], available bool) {
-	if runtime.GOARCH != "amd64" {
+	const archAMD64 = "amd64"
+	if runtime.GOARCH != archAMD64 {
 		return nil, nil, false
 	}
 
@@ -1074,6 +1086,7 @@ func getAVX2Kernels128() (forward, inverse Kernel[complex128], available bool) {
 	return forwardAVX2Complex128, inverseAVX2Complex128, true
 }
 
+//nolint:nonamedreturns
 func getPureGoKernels128() (forward, inverse Kernel[complex128]) {
 	return forwardDITComplex128, inverseDITComplex128
 }
@@ -1100,7 +1113,8 @@ func TestAVX2Forward128_VsPureGo(t *testing.T) {
 
 			src := make([]complex128, n)
 
-			rng := rand.New(rand.NewPCG(uint64(n), 1))
+			//nolint:gosec
+			rng := rand.New(rand.NewPCG(uint64(uint(n)), 1))
 			for i := range src {
 				src[i] = complex(rng.Float64(), rng.Float64())
 			}
@@ -1149,7 +1163,8 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 
 			src := make([]complex128, n)
 
-			rng := rand.New(rand.NewPCG(uint64(n), 2))
+			//nolint:gosec
+			rng := rand.New(rand.NewPCG(uint64(uint(n)), 2))
 			for i := range src {
 				src[i] = complex(rng.Float64(), rng.Float64())
 			}

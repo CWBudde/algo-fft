@@ -169,6 +169,11 @@ func avx2SizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 				return true
 			}
 			return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+		case 32:
+			if forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 		default:
 			return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 		}
@@ -192,6 +197,11 @@ func avx2SizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kern
 				return true
 			}
 			if inverseAVX2Size16Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+		case 32:
+			if inverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch, bitrev) {
 				return true
 			}
 			return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)

@@ -1,6 +1,8 @@
 package fft
 
 // Pre-computed radix-4 bit-reversal indices for size 16/64.
+//
+//nolint:gochecknoglobals
 var (
 	bitrevSize16Radix4 = ComputeBitReversalIndicesRadix4(16)
 	bitrevSize64Radix4 = ComputeBitReversalIndicesRadix4(64)

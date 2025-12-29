@@ -317,7 +317,7 @@ func TestForward_Impulse(t *testing.T) {
 	}
 
 	for i := range dst {
-		assertApproxComplex64(t, dst[i], 1, 1e-4, "dst[%d]", i)
+		assertApproxComplex64f(t, dst[i], 1, 1e-4, "dst[%d]", i)
 	}
 }
 
@@ -349,7 +349,7 @@ func TestForwardInverse_RoundTrip(t *testing.T) {
 	}
 
 	for i := range src {
-		assertApproxComplex64(t, roundTrip[i], src[i], 1e-4, "roundTrip[%d]", i)
+		assertApproxComplex64f(t, roundTrip[i], src[i], 1e-4, "roundTrip[%d]", i)
 	}
 }
 
@@ -377,7 +377,7 @@ func TestForwardInverse_Size2(t *testing.T) {
 	}
 
 	for i := range src {
-		assertApproxComplex64(t, roundTrip[i], src[i], 1e-4, "roundTrip[%d]", i)
+		assertApproxComplex64f(t, roundTrip[i], src[i], 1e-4, "roundTrip[%d]", i)
 	}
 }
 
@@ -409,11 +409,11 @@ func TestForwardInverse_RoundTrip128(t *testing.T) {
 	}
 
 	for i := range src {
-		assertApproxComplex128(t, roundTrip[i], src[i], 1e-10, "roundTrip[%d]", i)
+		assertApproxComplex128f(t, roundTrip[i], src[i], 1e-10, "roundTrip[%d]", i)
 	}
 }
 
-func assertApproxComplex64(t *testing.T, got, want complex64, tol float64, format string, args ...any) {
+func assertApproxComplex64f(t *testing.T, got, want complex64, tol float64, format string, args ...any) {
 	t.Helper()
 
 	if cmplx.Abs(complex128(got-want)) > tol {
@@ -421,7 +421,7 @@ func assertApproxComplex64(t *testing.T, got, want complex64, tol float64, forma
 	}
 }
 
-func assertApproxComplex128(t *testing.T, got, want complex128, tol float64, format string, args ...any) {
+func assertApproxComplex128f(t *testing.T, got, want complex128, tol float64, format string, args ...any) {
 	t.Helper()
 
 	if cmplx.Abs(got-want) > tol {

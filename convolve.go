@@ -47,6 +47,7 @@ func Convolve(dst, a, b []complex64) error {
 	}
 
 	time := make([]complex64, convLen)
+
 	err = plan.Inverse(time, aFreq)
 	if err != nil {
 		return err

@@ -2,6 +2,7 @@ package fft
 
 import "sync"
 
+//nolint:gochecknoglobals
 var transposeCache struct {
 	sync.RWMutex
 

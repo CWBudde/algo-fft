@@ -54,6 +54,8 @@ func RealDFT3D(input []float32, depth, height, width int) []complex64 {
 // Output: D×H×W row-major array of float32
 //
 // Formula: x[d,h,w] = (1/(D*H*W)) * Σ X[kd,kh,kw] * exp(2πi*(...)) + conjugate terms.
+//
+//nolint:gocognit
 func RealIDFT3D(spectrum []complex64, depth, height, width int) []float32 {
 	if len(spectrum) != depth*height*(width/2+1) {
 		panic("RealIDFT3D: spectrum length mismatch")

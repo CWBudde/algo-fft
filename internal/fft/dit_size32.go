@@ -209,6 +209,8 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 32
 
@@ -643,6 +645,8 @@ func forwardDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 32
 

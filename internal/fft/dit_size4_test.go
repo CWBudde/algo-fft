@@ -110,6 +110,8 @@ func TestDIT4Radix4Complex64(t *testing.T) {
 }
 
 // TestDIT4Radix4Complex128 tests the 4-point radix-4 FFT for complex128.
+//
+//nolint:funlen
 func TestDIT4Radix4Complex128(t *testing.T) {
 	const n = 4
 

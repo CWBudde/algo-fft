@@ -242,6 +242,7 @@ func TestPlanRealForwardConjugateSymmetry(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestPlanRealRoundTripSignals(t *testing.T) {
 	t.Parallel()
 

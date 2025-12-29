@@ -3,6 +3,7 @@ package fft
 // This file registers all built-in codelets with the global registries.
 // Registration happens at init time so codelets are available when plans are created.
 
+//nolint:gochecknoinits
 func init() {
 	// Register complex64 DIT codelets
 	registerDITCodelets64()

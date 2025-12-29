@@ -154,6 +154,7 @@ func TestSIMDLevelString(t *testing.T) {
 	}
 }
 
+//nolint:gocognit
 func TestCodeletFunctional(t *testing.T) {
 	// Test that codelets produce correct results
 	features := cpu.Features{HasSSE2: true}

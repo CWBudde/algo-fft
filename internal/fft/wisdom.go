@@ -52,6 +52,8 @@ func (w *Wisdom) Lookup(key WisdomKey) (WisdomEntry, bool) {
 
 // LookupWisdom returns the algorithm name for a given FFT configuration.
 // This method provides a simplified interface for the planner.
+//
+//nolint:nonamedreturns
 func (w *Wisdom) LookupWisdom(size int, precision uint8, cpuFeatures uint64) (algorithm string, found bool) {
 	key := WisdomKey{
 		Size:        size,
@@ -197,6 +199,8 @@ func parseWisdomLine(line string) (WisdomEntry, error) {
 }
 
 // DefaultWisdom is the global wisdom cache used by default planning.
+//
+//nolint:gochecknoglobals
 var DefaultWisdom = NewWisdom()
 
 // PrecisionComplex64 is the precision value for complex64.

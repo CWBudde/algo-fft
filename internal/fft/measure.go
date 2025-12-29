@@ -133,39 +133,45 @@ func MeasureAndSelect[T Complex](
 	best := results[0]
 
 	// Record to wisdom if recorder is provided
-	if wisdom != nil {
-		var (
-			precision uint8
-			zero      T
-		)
-
-		switch any(zero).(type) {
-		case complex64:
-			precision = PrecisionComplex64
-		case complex128:
-			precision = PrecisionComplex128
-		}
-
-		cpuMask := CPUFeatureMask(
-			features.HasSSE2,
-			features.HasAVX2,
-			features.HasAVX512,
-			features.HasNEON,
-		)
-
-		entry := WisdomEntry{
-			Key: WisdomKey{
-				Size:        n,
-				Precision:   precision,
-				CPUFeatures: cpuMask,
-			},
-			Algorithm: best.Algorithm,
-			Timestamp: time.Now(),
-		}
-		wisdom.Store(entry)
-	}
+	recordToWisdom[T](n, features, wisdom, best.Algorithm)
 
 	return estimateWithStrategy[T](n, features, best.Strategy)
+}
+
+func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecorder, algorithm string) {
+	if wisdom == nil {
+		return
+	}
+
+	var (
+		precision uint8
+		zero      T
+	)
+
+	switch any(zero).(type) {
+	case complex64:
+		precision = PrecisionComplex64
+	case complex128:
+		precision = PrecisionComplex128
+	}
+
+	cpuMask := CPUFeatureMask(
+		features.HasSSE2,
+		features.HasAVX2,
+		features.HasAVX512,
+		features.HasNEON,
+	)
+
+	entry := WisdomEntry{
+		Key: WisdomKey{
+			Size:        n,
+			Precision:   precision,
+			CPUFeatures: cpuMask,
+		},
+		Algorithm: algorithm,
+		Timestamp: time.Now(),
+	}
+	wisdom.Store(entry)
 }
 
 // benchmarkStrategy runs a micro-benchmark for a single strategy.

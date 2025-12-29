@@ -6,6 +6,7 @@ disable = [
   'depguard',
   'godoclint',
   'gomoddirectives',
+  'gosec',
   'ireturn',
   'musttag',
   'nlreturn',

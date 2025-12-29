@@ -140,6 +140,8 @@ func (p *PlanReal3D) String() string {
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
+//
+//nolint:gocognit
 func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
@@ -289,6 +291,8 @@ func (p *PlanReal3D) ForwardFull(dst []complex64, src []float32) error {
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
+//
+//nolint:gocognit
 func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice

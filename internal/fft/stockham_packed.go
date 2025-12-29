@@ -409,6 +409,7 @@ func stockhamRadix4StageComplex64(in, out, packed []complex64, n, m, stageOffset
 
 			y0 := t0 + t2
 			y2 := t0 - t2
+
 			var y1, y3 complex64
 			if inverse {
 				y1 = t1 + complex(-imag(t3), real(t3))
@@ -465,6 +466,7 @@ func stockhamRadix4StageComplex128(in, out, packed []complex128, n, m, stageOffs
 
 			y0 := t0 + t2
 			y2 := t0 - t2
+
 			var y1, y3 complex128
 			if inverse {
 				y1 = t1 + complex(-imag(t3), real(t3))

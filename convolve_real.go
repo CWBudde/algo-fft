@@ -54,6 +54,7 @@ func ConvolveReal(dst, a, b []float32) error {
 	}
 
 	time := make([]float32, fftLen)
+
 	err = plan.Inverse(time, aFreq)
 	if err != nil {
 		return err

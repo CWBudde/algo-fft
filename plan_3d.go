@@ -44,6 +44,8 @@ func NewPlan3D[T Complex](depth, height, width int) (*Plan3D[T], error) {
 }
 
 // NewPlan3DWithOptions creates a new 3D FFT plan with explicit planner options.
+//
+//nolint:funlen
 func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions) (*Plan3D[T], error) {
 	if depth <= 0 || height <= 0 || width <= 0 {
 		return nil, ErrInvalidLength

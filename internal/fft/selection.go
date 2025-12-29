@@ -17,8 +17,10 @@ const (
 	KernelBluestein
 )
 
+//nolint:gochecknoglobals
 var kernelStrategy uint32 = uint32(KernelAuto)
 
+//nolint:gochecknoglobals
 var (
 	benchMu        sync.RWMutex
 	benchDecisions = make(map[int]KernelStrategy)

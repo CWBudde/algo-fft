@@ -372,9 +372,9 @@ func TestPlanReal64_ZeroAlloc(t *testing.T) {
 
 // Helper functions
 
-func complexify64(real []float64) []complex128 {
-	result := make([]complex128, len(real))
-	for i, v := range real {
+func complexify64(realData []float64) []complex128 {
+	result := make([]complex128, len(realData))
+	for i, v := range realData {
 		result[i] = complex(v, 0)
 	}
 

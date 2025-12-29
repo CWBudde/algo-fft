@@ -2,11 +2,13 @@ package fft
 
 import "math"
 
+//nolint:gochecknoglobals
 var (
 	radix5Twiddles64  [4]complex64
 	radix5Twiddles128 [4]complex128
 )
 
+//nolint:gochecknoinits
 func init() {
 	for k := 1; k <= 4; k++ {
 		angle := -2 * math.Pi * float64(k) / 5

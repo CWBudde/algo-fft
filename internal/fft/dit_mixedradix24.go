@@ -18,7 +18,7 @@ package fft
 //
 // Returns false if any slice is too small or if size is not power-of-2.
 //
-//nolint:cyclop
+
 func forwardMixedRadix24Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	// NOTE: The previous mixed-radix-2/4 implementation for odd log2 sizes was
 	// incorrect and produced wrong results (e.g., impulse DC bin doubled for n=2048).
@@ -45,7 +45,7 @@ func forwardMixedRadix24Complex64(dst, src, twiddle, scratch []complex64, bitrev
 //
 // Returns false if any slice is too small or if size is not power-of-2.
 //
-//nolint:cyclop
+
 func inverseMixedRadix24Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	// See forwardMixedRadix24Complex64: delegate to the proven radix-2 inverse.
 	return ditInverseComplex64(dst, src, twiddle, scratch, bitrev)

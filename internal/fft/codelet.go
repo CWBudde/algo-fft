@@ -164,6 +164,8 @@ func cpuSupports(features cpu.Features, level SIMDLevel) bool {
 }
 
 // Global codelet registries, populated at init time.
+//
+//nolint:gochecknoglobals
 var (
 	Registry64  = NewCodeletRegistry[complex64]()
 	Registry128 = NewCodeletRegistry[complex128]()

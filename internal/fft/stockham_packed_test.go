@@ -7,6 +7,8 @@ import (
 )
 
 func TestStockhamPackedForwardMatchesReferenceComplex64(t *testing.T) {
+	t.Parallel()
+
 	if !StockhamPackedAvailable() {
 		t.Skip("packed stockham disabled in this build")
 	}
@@ -34,6 +36,8 @@ func TestStockhamPackedForwardMatchesReferenceComplex64(t *testing.T) {
 }
 
 func TestStockhamPackedInverseMatchesReferenceComplex64(t *testing.T) {
+	t.Parallel()
+
 	if !StockhamPackedAvailable() {
 		t.Skip("packed stockham disabled in this build")
 	}
@@ -61,6 +65,8 @@ func TestStockhamPackedInverseMatchesReferenceComplex64(t *testing.T) {
 }
 
 func TestStockhamPackedForwardMatchesReferenceComplex128(t *testing.T) {
+	t.Parallel()
+
 	if !StockhamPackedAvailable() {
 		t.Skip("packed stockham disabled in this build")
 	}
@@ -88,6 +94,8 @@ func TestStockhamPackedForwardMatchesReferenceComplex128(t *testing.T) {
 }
 
 func TestStockhamPackedInverseMatchesReferenceComplex128(t *testing.T) {
+	t.Parallel()
+
 	if !StockhamPackedAvailable() {
 		t.Skip("packed stockham disabled in this build")
 	}
@@ -115,6 +123,8 @@ func TestStockhamPackedInverseMatchesReferenceComplex128(t *testing.T) {
 }
 
 func TestStockhamPackedMatchesStockhamComplex64(t *testing.T) {
+	t.Parallel()
+
 	if !StockhamPackedAvailable() {
 		t.Skip("packed stockham disabled in this build")
 	}
@@ -148,6 +158,8 @@ func TestStockhamPackedMatchesStockhamComplex64(t *testing.T) {
 }
 
 func TestStockhamPackedMatchesStockhamComplex128(t *testing.T) {
+	t.Parallel()
+
 	if !StockhamPackedAvailable() {
 		t.Skip("packed stockham disabled in this build")
 	}

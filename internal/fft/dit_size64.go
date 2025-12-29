@@ -1,5 +1,6 @@
 package fft
 
+//nolint:funlen
 func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 64
 
@@ -458,6 +459,7 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	return true
 }
 
+//nolint:funlen
 func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 64
 
@@ -980,6 +982,7 @@ func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	return true
 }
 
+//nolint:funlen
 func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 64
 
@@ -1437,6 +1440,7 @@ func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	return true
 }
 
+//nolint:funlen
 func inverseDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 64
 

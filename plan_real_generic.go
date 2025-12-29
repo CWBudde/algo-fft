@@ -286,6 +286,7 @@ func (p *PlanRealT[F, C]) Inverse(dst []F, src []C) error {
 	return nil
 }
 
+//nolint:gocognit
 func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice

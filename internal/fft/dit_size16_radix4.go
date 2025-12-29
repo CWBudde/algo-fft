@@ -201,6 +201,8 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 16
 
@@ -600,6 +602,8 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 // Uses conjugated twiddle factors and applies 1/N scaling at the end.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 16
 

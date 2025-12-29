@@ -464,6 +464,7 @@ func equalComplex64Slices(a, b []complex64) bool {
 	return true
 }
 
+//nolint:unparam
 func sprintf(format string, args ...interface{}) string {
 	// Simple sprintf implementation to avoid importing fmt
 	// Only handles %d and %dx%d patterns used in tests
@@ -471,6 +472,7 @@ func sprintf(format string, args ...interface{}) string {
 	argIdx := 0
 
 	for i := 0; i < len(format); i++ {
+		//nolint:nestif
 		if format[i] == '%' && i+1 < len(format) {
 			if format[i+1] == 'd' {
 				if argIdx < len(args) {

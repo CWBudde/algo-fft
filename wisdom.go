@@ -23,7 +23,7 @@ func ImportWisdom(filename string) error {
 // ExportWisdom saves the current wisdom cache to a file.
 // The file can be loaded later with ImportWisdom.
 func ExportWisdom(filename string) error {
-	return ExportWisdomTo(filename, (*Wisdom)(fft.DefaultWisdom))
+	return ExportWisdomTo(filename, fft.DefaultWisdom)
 }
 
 // ExportWisdomTo saves a specific wisdom cache to a file.
@@ -36,7 +36,7 @@ func ExportWisdomTo(filename string, wisdom *Wisdom) error {
 
 	defer file.Close()
 
-	return (*fft.Wisdom)(wisdom).Export(file)
+	return wisdom.Export(file)
 }
 
 // Wisdom is a type alias for the internal wisdom cache.

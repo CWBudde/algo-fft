@@ -38,6 +38,7 @@ type Features struct {
 	Architecture string // runtime.GOARCH (e.g., "amd64", "arm64")
 }
 
+//nolint:gochecknoglobals
 var (
 	// detectedFeatures holds the cached CPU features detected on this system.
 	detectedFeatures Features

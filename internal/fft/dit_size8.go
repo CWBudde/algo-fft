@@ -70,6 +70,8 @@ func forwardDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 8
 
@@ -210,6 +212,8 @@ func forwardDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128, bitrev
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 8
 
@@ -400,6 +404,8 @@ func forwardDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 // Uses conjugated twiddle factors and applies 1/N scaling at the end.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 8
 
@@ -583,6 +589,8 @@ func forwardDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 // Uses conjugated twiddle factors and applies 1/N scaling at the end.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 8
 
@@ -744,6 +752,8 @@ func forwardDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 // radix-8 butterfly for complex64 data. Uses conjugated twiddle factors and
 // applies 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 8
 
@@ -883,6 +893,8 @@ func forwardDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128, bitrev
 // radix-8 butterfly for complex128 data. Uses conjugated twiddle factors and
 // applies 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
+//
+//nolint:funlen
 func inverseDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 8
 

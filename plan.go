@@ -682,50 +682,7 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
-	var (
-		zero           T
-		twiddle        []T
-		twiddleBacking []byte
-		scratch        []T
-		scratchBacking []byte
-		stridedScratch []T
-		stridedBacking []byte
-	)
-
-	switch any(zero).(type) {
-	case complex64:
-		twiddleAligned, twiddleRaw := pool.GetComplex64(n)
-		tmp := fft.ComputeTwiddleFactors[complex64](n)
-		copy(twiddleAligned, tmp)
-		twiddle = any(twiddleAligned).([]T)
-		twiddleBacking = twiddleRaw
-
-		scratchAligned, scratchRaw := pool.GetComplex64(n)
-		scratch = any(scratchAligned).([]T)
-		scratchBacking = scratchRaw
-
-		stridedAligned, stridedRaw := pool.GetComplex64(n)
-		stridedScratch = any(stridedAligned).([]T)
-		stridedBacking = stridedRaw
-	case complex128:
-		twiddleAligned, twiddleRaw := pool.GetComplex128(n)
-		tmp := fft.ComputeTwiddleFactors[complex128](n)
-		copy(twiddleAligned, tmp)
-		twiddle = any(twiddleAligned).([]T)
-		twiddleBacking = twiddleRaw
-
-		scratchAligned, scratchRaw := pool.GetComplex128(n)
-		scratch = any(scratchAligned).([]T)
-		scratchBacking = scratchRaw
-
-		stridedAligned, stridedRaw := pool.GetComplex128(n)
-		stridedScratch = any(stridedAligned).([]T)
-		stridedBacking = stridedRaw
-	default:
-		twiddle = fft.ComputeTwiddleFactors[T](n)
-		scratch = make([]T, n)
-		stridedScratch = make([]T, n)
-	}
+	twiddle, scratch, stridedScratch, twiddleBacking, scratchBacking, stridedBacking := getBuffersFromPool[T](n, pool)
 
 	var bitrev []int
 	if fft.IsPowerOf2(n) {
@@ -765,6 +722,45 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
 
 	return p, nil
+}
+
+func getBuffersFromPool[T Complex](n int, pool *fft.BufferPool) (twiddle, scratch, stridedScratch []T, twiddleBacking, scratchBacking, stridedBacking []byte) {
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		twiddleAligned, twiddleRaw := pool.GetComplex64(n)
+		tmp := fft.ComputeTwiddleFactors[complex64](n)
+		copy(twiddleAligned, tmp)
+		twiddle = any(twiddleAligned).([]T)
+		twiddleBacking = twiddleRaw
+
+		scratchAligned, scratchRaw := pool.GetComplex64(n)
+		scratch = any(scratchAligned).([]T)
+		scratchBacking = scratchRaw
+
+		stridedAligned, stridedRaw := pool.GetComplex64(n)
+		stridedScratch = any(stridedAligned).([]T)
+		stridedBacking = stridedRaw
+	case complex128:
+		twiddleAligned, twiddleRaw := pool.GetComplex128(n)
+		tmp := fft.ComputeTwiddleFactors[complex128](n)
+		copy(twiddleAligned, tmp)
+		twiddle = any(twiddleAligned).([]T)
+		twiddleBacking = twiddleRaw
+
+		scratchAligned, scratchRaw := pool.GetComplex128(n)
+		scratch = any(scratchAligned).([]T)
+		scratchBacking = scratchRaw
+
+		stridedAligned, stridedRaw := pool.GetComplex128(n)
+		stridedScratch = any(stridedAligned).([]T)
+		stridedBacking = stridedRaw
+	default:
+		twiddle = fft.ComputeTwiddleFactors[T](n)
+		scratch = make([]T, n)
+		stridedScratch = make([]T, n)
+	}
+	return
 }
 
 // Reset clears the scratch buffer and resets internal state.

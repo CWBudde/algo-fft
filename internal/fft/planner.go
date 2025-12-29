@@ -39,6 +39,8 @@ type PlanEstimate[T Complex] struct {
 // The returned PlanEstimate contains either:
 //   - Direct codelet bindings (zero dispatch) if a codelet is registered for the size
 //   - Empty codelet fields and just Strategy if no codelet (caller uses fallback kernels)
+//
+//nolint:gocognit
 func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, forcedStrategy KernelStrategy) PlanEstimate[T] {
 	strategy := ResolveKernelStrategy(n)
 	if forcedStrategy != KernelAuto {

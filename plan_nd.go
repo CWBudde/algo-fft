@@ -45,6 +45,8 @@ func NewPlanND[T Complex](dims []int) (*PlanND[T], error) {
 }
 
 // NewPlanNDWithOptions creates a new N-dimensional FFT plan with explicit planner options.
+//
+//nolint:funlen
 func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], error) {
 	if len(dims) == 0 {
 		return nil, ErrInvalidLength

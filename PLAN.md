@@ -133,7 +133,7 @@
 
 ### 14.5 Size-Specific Fully Unrolled AVX2 Kernels
 
-**Status**: Dispatch mechanism complete (14.5.1 ✅), Size-16 kernel implemented (14.5.2 ✅), Size-32 kernel implemented (14.5.3 ✅)
+**Status**: Dispatch mechanism complete (14.5.1 ✅), Size-16 kernel implemented (14.5.2 ✅), Size-32 kernel implemented (14.5.3 ✅), Size-64 kernel implemented (14.5.4 ✅)
 
 **Motivation**: Combine size-specific unrolling with SIMD for maximum performance on critical sizes (16, 32, 64, 128).
 
@@ -160,12 +160,12 @@
 - [x] Test correctness vs reference and generic AVX2
 - [x] Benchmark speedup: **2.5x faster** than generic AVX2 (70ns vs 180ns @ i7-1255U)
 
-#### 14.5.4 Implement AVX2 Size-64 kernel (complex64)
+#### 14.5.4 Implement AVX2 Size-64 kernel (complex64) ✅
 
-- [ ] Create `forwardAVX2Size64Complex64Asm`
-- [ ] Fully unroll 6 FFT stages
-- [ ] Consider radix-4 decomposition to limit code size
-- [ ] Test and benchmark
+- [x] Create `forwardAVX2Size64Complex64Asm`
+- [x] Fully unroll 6 FFT stages
+- [x] Consider radix-4 decomposition to limit code size
+- [x] Test and benchmark
 
 #### 14.5.5 Implement AVX2 Size-128 kernel (complex64)
 
@@ -182,9 +182,11 @@
 
 #### 14.5.7 Add complex128 size-specific kernels (optional)
 
-- [ ] Implement for sizes 16, 32 (higher priority, smaller code)
+- [x] Implement for size 16 (higher priority, smaller code)
+- [x] Implement for size 32
 - [ ] AVX2 processes 2 complex128, so expect ~2x speedup vs pure-Go
-- [ ] Test and benchmark
+- [x] Test
+- [ ] Benchmark
 
 **Success Criteria**:
 
