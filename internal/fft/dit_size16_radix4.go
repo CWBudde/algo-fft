@@ -97,9 +97,10 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
-	// Butterfly 0: j=0, indices 0,4,8,12 with twiddles W^0, W^0, W^0, W^0
+	// Butterfly 0: j=0, indices 0,4,8,12 with twiddles W^0, W^0
 	{
 		w1 := tw[0]
 		w2 := tw[0]
@@ -293,6 +294,7 @@ func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	// Butterfly 0: j=0, indices 0,4,8,12
@@ -494,6 +496,7 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	// Butterfly 0: j=0, indices 0,4,8,12
@@ -689,6 +692,7 @@ func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	// Butterfly 0: j=0, indices 0,4,8,12

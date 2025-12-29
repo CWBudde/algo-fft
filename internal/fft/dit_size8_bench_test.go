@@ -4,6 +4,7 @@ import "testing"
 
 func BenchmarkDIT8_Forward_Complex64(b *testing.B) {
 	const n = 8
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -25,6 +26,7 @@ func BenchmarkDIT8_Forward_Complex64(b *testing.B) {
 
 func BenchmarkDIT8_Inverse_Complex64(b *testing.B) {
 	const n = 8
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -46,6 +48,7 @@ func BenchmarkDIT8_Inverse_Complex64(b *testing.B) {
 
 func BenchmarkDIT8_Forward_Complex128(b *testing.B) {
 	const n = 8
+
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -67,6 +70,7 @@ func BenchmarkDIT8_Forward_Complex128(b *testing.B) {
 
 func BenchmarkDIT8_Inverse_Complex128(b *testing.B) {
 	const n = 8
+
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)

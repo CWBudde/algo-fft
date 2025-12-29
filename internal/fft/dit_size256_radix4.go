@@ -7,7 +7,7 @@ package fft
 // 2. Pointer comparison instead of sameSlice()
 // 3. Fully inlined complex arithmetic (no function calls)
 // 4. Pre-loaded twiddle factors for Stage 2
-// 5. Minimized temporary variables
+// 5. Minimized temporary variables.
 func forwardDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 256
 
@@ -130,7 +130,7 @@ func forwardDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev
 	var stage3 [256]complex64
 
 	for base := 0; base < n; base += 64 {
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			w1 := tw[j*4]
 			w2 := tw[2*j*4]
 			w3 := tw[3*j*4]
@@ -163,6 +163,7 @@ func forwardDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 64 {
@@ -320,7 +321,7 @@ func inverseDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev
 	var stage3 [256]complex64
 
 	for base := 0; base < n; base += 64 {
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			w1 := complex(real(tw[j*4]), -imag(tw[j*4]))
 			w2 := complex(real(tw[2*j*4]), -imag(tw[2*j*4]))
 			w3 := complex(real(tw[3*j*4]), -imag(tw[3*j*4]))
@@ -352,6 +353,7 @@ func inverseDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 64 {
@@ -513,7 +515,7 @@ func forwardDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128, bitr
 	var stage3 [256]complex128
 
 	for base := 0; base < n; base += 64 {
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			w1 := tw[j*4]
 			w2 := tw[2*j*4]
 			w3 := tw[3*j*4]
@@ -545,6 +547,7 @@ func forwardDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128, bitr
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 64 {
@@ -701,7 +704,7 @@ func inverseDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128, bitr
 	var stage3 [256]complex128
 
 	for base := 0; base < n; base += 64 {
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			w1 := complex(real(tw[j*4]), -imag(tw[j*4]))
 			w2 := complex(real(tw[2*j*4]), -imag(tw[2*j*4]))
 			w3 := complex(real(tw[3*j*4]), -imag(tw[3*j*4]))
@@ -733,6 +736,7 @@ func inverseDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128, bitr
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 64 {
@@ -776,13 +780,14 @@ func inverseDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128, bitr
 }
 
 // bitReversalRadix4 performs base-4 bit-reversal for radix-4 FFT
-// For a value with 'digits' base-4 digits, reverse the digit order
+// For a value with 'digits' base-4 digits, reverse the digit order.
 func bitReversalRadix4(x, digits int) int {
 	result := 0
 	for range digits {
 		result = (result << 2) | (x & 0x3) // Extract 2 bits and shift result
 		x >>= 2
 	}
+
 	return result
 }
 
@@ -795,11 +800,13 @@ func ComputeBitReversalIndicesRadix4(n int) []int {
 
 	// Calculate number of base-4 digits
 	digits := 0
+
 	temp := n
 	for temp > 1 {
 		if temp&0x3 != 0 {
 			return nil // Not a power of 4
 		}
+
 		digits++
 		temp >>= 2
 	}
@@ -808,5 +815,6 @@ func ComputeBitReversalIndicesRadix4(n int) []int {
 	for i := range n {
 		indices[i] = bitReversalRadix4(i, digits)
 	}
+
 	return indices
 }

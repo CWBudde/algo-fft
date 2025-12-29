@@ -10,6 +10,7 @@ import (
 
 func TestDIT64Radix4ForwardMatchesReference(t *testing.T) {
 	const n = 64
+
 	src := randomComplex64(n, 0xD164+n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -26,6 +27,7 @@ func TestDIT64Radix4ForwardMatchesReference(t *testing.T) {
 
 func TestDIT64Radix4MatchesRadix2(t *testing.T) {
 	const n = 64
+
 	src := randomComplex64(n, 0xD164+0x10+n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
@@ -50,6 +52,7 @@ func TestDIT64Radix4MatchesRadix2(t *testing.T) {
 
 func TestDIT64Radix4InverseComplex64MatchesReference(t *testing.T) {
 	const n = 64
+
 	src := randomComplex64(n, 0xD164+0x20+n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -66,6 +69,7 @@ func TestDIT64Radix4InverseComplex64MatchesReference(t *testing.T) {
 
 func TestDIT64Radix4RoundTripComplex64(t *testing.T) {
 	const n = 64
+
 	src := randomComplex64(n, 0xD164+0x30+n)
 	fwd := make([]complex64, n)
 	inv := make([]complex64, n)
@@ -76,6 +80,7 @@ func TestDIT64Radix4RoundTripComplex64(t *testing.T) {
 	if !forwardDIT64Radix4Complex64(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatalf("forwardDIT64Radix4Complex64 failed")
 	}
+
 	if !inverseDIT64Radix4Complex64(inv, fwd, twiddle, scratch, bitrev) {
 		t.Fatalf("inverseDIT64Radix4Complex64 failed")
 	}
@@ -85,6 +90,7 @@ func TestDIT64Radix4RoundTripComplex64(t *testing.T) {
 
 func TestDIT64Radix4ForwardComplex128MatchesReference(t *testing.T) {
 	const n = 64
+
 	src := randomComplex128(n, 0xD164+0x40+n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -101,6 +107,7 @@ func TestDIT64Radix4ForwardComplex128MatchesReference(t *testing.T) {
 
 func TestDIT64Radix4InverseComplex128MatchesReference(t *testing.T) {
 	const n = 64
+
 	src := randomComplex128(n, 0xD164+0x50+n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -117,6 +124,7 @@ func TestDIT64Radix4InverseComplex128MatchesReference(t *testing.T) {
 
 func TestDIT64Radix4RoundTripComplex128(t *testing.T) {
 	const n = 64
+
 	src := randomComplex128(n, 0xD164+0x60+n)
 	fwd := make([]complex128, n)
 	inv := make([]complex128, n)
@@ -127,6 +135,7 @@ func TestDIT64Radix4RoundTripComplex128(t *testing.T) {
 	if !forwardDIT64Radix4Complex128(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatalf("forwardDIT64Radix4Complex128 failed")
 	}
+
 	if !inverseDIT64Radix4Complex128(inv, fwd, twiddle, scratch, bitrev) {
 		t.Fatalf("inverseDIT64Radix4Complex128 failed")
 	}

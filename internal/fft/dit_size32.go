@@ -162,6 +162,7 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[16] = d0+d16, d0-d16
 	t = w1 * d17
@@ -383,6 +384,7 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[16] = d0+d16, d0-d16
 	t = w1 * d17
@@ -594,6 +596,7 @@ func forwardDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[16] = d0+d16, d0-d16
 	t = w1 * d17
@@ -815,6 +818,7 @@ func inverseDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[16] = d0+d16, d0-d16
 	t = w1 * d17

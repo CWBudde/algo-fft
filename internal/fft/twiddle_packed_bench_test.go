@@ -52,6 +52,7 @@ func BenchmarkBaseTwiddleLookup_Radix16_65536(b *testing.B) {
 
 func benchmarkPackedTwiddleLookup[T Complex](b *testing.B, n, radix int) {
 	b.Helper()
+
 	twiddle := ComputeTwiddleFactors[T](n)
 
 	packed := ComputePackedTwiddles[T](n, radix, twiddle)
@@ -75,6 +76,7 @@ func benchmarkPackedTwiddleLookup[T Complex](b *testing.B, n, radix int) {
 
 func benchmarkBaseTwiddleLookup[T Complex](b *testing.B, n, radix int) {
 	b.Helper()
+
 	twiddle := ComputeTwiddleFactors[T](n)
 
 	total := 0

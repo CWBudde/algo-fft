@@ -94,6 +94,7 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 
 func testSIMDvsGeneric128(t *testing.T, n int) {
 	t.Helper()
+
 	input := make([]complex128, n)
 	for i := range input {
 		input[i] = complex(float64(i)*0.1, float64(n-i)*0.1)

@@ -8,7 +8,7 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
-// TestPlanReal64_Correctness tests float64 real FFT correctness against naive DFT
+// TestPlanReal64_Correctness tests float64 real FFT correctness against naive DFT.
 func TestPlanReal64_Correctness(t *testing.T) {
 	sizes := []int{16, 32, 64, 128, 256}
 
@@ -24,6 +24,7 @@ func TestPlanReal64_Correctness(t *testing.T) {
 			input[0] = 1.0
 
 			output := make([]complex128, plan.SpectrumLen())
+
 			err = plan.Forward(output, input)
 			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
@@ -45,7 +46,7 @@ func TestPlanReal64_Correctness(t *testing.T) {
 	}
 }
 
-// TestPlanReal64_RoundTrip tests float64 inverse correctness
+// TestPlanReal64_RoundTrip tests float64 inverse correctness.
 func TestPlanReal64_RoundTrip(t *testing.T) {
 	sizes := []int{16, 32, 64, 128, 256, 1024}
 
@@ -65,6 +66,7 @@ func TestPlanReal64_RoundTrip(t *testing.T) {
 
 			// Forward transform
 			spectrum := make([]complex128, plan.SpectrumLen())
+
 			err = plan.Forward(spectrum, input)
 			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
@@ -72,6 +74,7 @@ func TestPlanReal64_RoundTrip(t *testing.T) {
 
 			// Inverse transform
 			recovered := make([]float64, n)
+
 			err = plan.Inverse(recovered, spectrum)
 			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
@@ -79,6 +82,7 @@ func TestPlanReal64_RoundTrip(t *testing.T) {
 
 			// Check round-trip error
 			maxErr := 0.0
+
 			for i := range input {
 				err := math.Abs(recovered[i] - input[i])
 				if err > maxErr {
@@ -95,12 +99,13 @@ func TestPlanReal64_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestPlanReal64_vsFloat32_Precision compares error accumulation
+// TestPlanReal64_vsFloat32_Precision compares error accumulation.
 func TestPlanReal64_vsFloat32_Precision(t *testing.T) {
 	n := 1024
 
 	// Create test signal
 	input32 := make([]float32, n)
+
 	input64 := make([]float64, n)
 	for i := range n {
 		val := math.Sin(2 * math.Pi * float64(i) / float64(n) * 17) // 17 cycles
@@ -115,12 +120,14 @@ func TestPlanReal64_vsFloat32_Precision(t *testing.T) {
 	}
 
 	spectrum32 := make([]complex64, plan32.SpectrumLen())
+
 	err = plan32.Forward(spectrum32, input32)
 	if err != nil {
 		t.Fatalf("Forward32 failed: %v", err)
 	}
 
 	recovered32 := make([]float32, n)
+
 	err = plan32.Inverse(recovered32, spectrum32)
 	if err != nil {
 		t.Fatalf("Inverse32 failed: %v", err)
@@ -133,12 +140,14 @@ func TestPlanReal64_vsFloat32_Precision(t *testing.T) {
 	}
 
 	spectrum64 := make([]complex128, plan64.SpectrumLen())
+
 	err = plan64.Forward(spectrum64, input64)
 	if err != nil {
 		t.Fatalf("Forward64 failed: %v", err)
 	}
 
 	recovered64 := make([]float64, n)
+
 	err = plan64.Inverse(recovered64, spectrum64)
 	if err != nil {
 		t.Fatalf("Inverse64 failed: %v", err)
@@ -146,6 +155,7 @@ func TestPlanReal64_vsFloat32_Precision(t *testing.T) {
 
 	// Measure round-trip errors
 	maxErr32 := float32(0.0)
+
 	for i := range n {
 		err := abs32(recovered32[i] - input32[i])
 		if err > maxErr32 {
@@ -154,6 +164,7 @@ func TestPlanReal64_vsFloat32_Precision(t *testing.T) {
 	}
 
 	maxErr64 := 0.0
+
 	for i := range n {
 		err := math.Abs(recovered64[i] - input64[i])
 		if err > maxErr64 {
@@ -179,9 +190,10 @@ func TestPlanReal64_vsFloat32_Precision(t *testing.T) {
 	}
 }
 
-// TestPlanReal64_ConjugateSymmetry verifies output has conjugate symmetry
+// TestPlanReal64_ConjugateSymmetry verifies output has conjugate symmetry.
 func TestPlanReal64_ConjugateSymmetry(t *testing.T) {
 	n := 256
+
 	plan, err := NewPlanReal64(n)
 	if err != nil {
 		t.Fatalf("NewPlanReal64 failed: %v", err)
@@ -195,6 +207,7 @@ func TestPlanReal64_ConjugateSymmetry(t *testing.T) {
 
 	// Get half-spectrum
 	halfSpectrum := make([]complex128, plan.SpectrumLen())
+
 	err = plan.Forward(halfSpectrum, input)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -212,6 +225,7 @@ func TestPlanReal64_ConjugateSymmetry(t *testing.T) {
 	}
 
 	fullSpectrum := make([]complex128, n)
+
 	err = planComplex.Forward(fullSpectrum, inputComplex)
 	if err != nil {
 		t.Fatalf("Complex Forward failed: %v", err)
@@ -235,9 +249,10 @@ func TestPlanReal64_ConjugateSymmetry(t *testing.T) {
 	}
 }
 
-// TestPlanReal64_DCandNyquist verifies DC and Nyquist are purely real
+// TestPlanReal64_DCandNyquist verifies DC and Nyquist are purely real.
 func TestPlanReal64_DCandNyquist(t *testing.T) {
 	n := 128
+
 	plan, err := NewPlanReal64(n)
 	if err != nil {
 		t.Fatalf("NewPlanReal64 failed: %v", err)
@@ -250,6 +265,7 @@ func TestPlanReal64_DCandNyquist(t *testing.T) {
 	}
 
 	output := make([]complex128, plan.SpectrumLen())
+
 	err = plan.Forward(output, input)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -266,9 +282,10 @@ func TestPlanReal64_DCandNyquist(t *testing.T) {
 	}
 }
 
-// TestPlanReal64_Normalized tests normalized forward transform
+// TestPlanReal64_Normalized tests normalized forward transform.
 func TestPlanReal64_Normalized(t *testing.T) {
 	n := 64
+
 	plan, err := NewPlanReal64(n)
 	if err != nil {
 		t.Fatalf("NewPlanReal64 failed: %v", err)
@@ -280,12 +297,14 @@ func TestPlanReal64_Normalized(t *testing.T) {
 	}
 
 	outputNormal := make([]complex128, plan.SpectrumLen())
+
 	err = plan.Forward(outputNormal, input)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
 	outputNormalized := make([]complex128, plan.SpectrumLen())
+
 	err = plan.ForwardNormalized(outputNormalized, input)
 	if err != nil {
 		t.Fatalf("ForwardNormalized failed: %v", err)
@@ -301,9 +320,10 @@ func TestPlanReal64_Normalized(t *testing.T) {
 	}
 }
 
-// TestPlanReal64_ZeroAlloc verifies zero allocations during transform
+// TestPlanReal64_ZeroAlloc verifies zero allocations during transform.
 func TestPlanReal64_ZeroAlloc(t *testing.T) {
 	n := 256
+
 	plan, err := NewPlanReal64(n)
 	if err != nil {
 		t.Fatalf("NewPlanReal64 failed: %v", err)

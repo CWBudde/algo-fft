@@ -11,6 +11,7 @@ import (
 func TestPlanForwardBatch_Correctness(t *testing.T) {
 	t.Run("count=1_matches_single", func(t *testing.T) {
 		t.Parallel()
+
 		n := 16
 
 		plan, err := NewPlan(n)
@@ -46,6 +47,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 
 	t.Run("count=4_size=16", func(t *testing.T) {
 		t.Parallel()
+
 		n := 16
 		count := 4
 
@@ -74,6 +76,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 
 			// Compute expected result
 			expected := make([]complex64, n)
+
 			err := plan.Forward(expected, srcSlice)
 			if err != nil {
 				t.Fatal(err)
@@ -90,6 +93,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 
 	t.Run("complex128", func(t *testing.T) {
 		t.Parallel()
+
 		n := 32
 		count := 2
 
@@ -115,6 +119,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 			dstSlice := batchDst[batch*n : (batch+1)*n]
 
 			expected := make([]complex128, n)
+
 			err := plan.Forward(expected, srcSlice)
 			if err != nil {
 				t.Fatal(err)
@@ -134,6 +139,7 @@ func TestPlanInverseBatch_Correctness(t *testing.T) {
 	t.Parallel()
 	t.Run("roundtrip", func(t *testing.T) {
 		t.Parallel()
+
 		n := 64
 		count := 3
 
@@ -171,6 +177,7 @@ func TestPlanInverseBatch_Correctness(t *testing.T) {
 // TestPlanBatch_Errors verifies error handling.
 func TestPlanBatch_Errors(t *testing.T) {
 	t.Parallel()
+
 	n := 16
 
 	plan, err := NewPlan(n)
@@ -180,7 +187,9 @@ func TestPlanBatch_Errors(t *testing.T) {
 
 	t.Run("nil_dst", func(t *testing.T) {
 		t.Parallel()
+
 		src := make([]complex64, n*2)
+
 		err := plan.ForwardBatch(nil, src, 2)
 		if !errors.Is(err, ErrNilSlice) {
 			t.Errorf("got %v, want ErrNilSlice", err)
@@ -189,7 +198,9 @@ func TestPlanBatch_Errors(t *testing.T) {
 
 	t.Run("nil_src", func(t *testing.T) {
 		t.Parallel()
+
 		dst := make([]complex64, n*2)
+
 		err := plan.ForwardBatch(dst, nil, 2)
 		if !errors.Is(err, ErrNilSlice) {
 			t.Errorf("got %v, want ErrNilSlice", err)
@@ -198,9 +209,11 @@ func TestPlanBatch_Errors(t *testing.T) {
 
 	t.Run("count_zero", func(t *testing.T) {
 		t.Parallel()
+
 		src := make([]complex64, n)
 
 		dst := make([]complex64, n)
+
 		err := plan.ForwardBatch(dst, src, 0)
 		if !errors.Is(err, ErrInvalidLength) {
 			t.Errorf("got %v, want ErrInvalidLength", err)
@@ -209,9 +222,11 @@ func TestPlanBatch_Errors(t *testing.T) {
 
 	t.Run("count_negative", func(t *testing.T) {
 		t.Parallel()
+
 		src := make([]complex64, n)
 
 		dst := make([]complex64, n)
+
 		err := plan.ForwardBatch(dst, src, -1)
 		if !errors.Is(err, ErrInvalidLength) {
 			t.Errorf("got %v, want ErrInvalidLength", err)
@@ -220,9 +235,11 @@ func TestPlanBatch_Errors(t *testing.T) {
 
 	t.Run("dst_too_small", func(t *testing.T) {
 		t.Parallel()
+
 		src := make([]complex64, n*4)
 
 		dst := make([]complex64, n*3) // Too small for count=4
+
 		err := plan.ForwardBatch(dst, src, 4)
 		if !errors.Is(err, ErrLengthMismatch) {
 			t.Errorf("got %v, want ErrLengthMismatch", err)
@@ -231,9 +248,11 @@ func TestPlanBatch_Errors(t *testing.T) {
 
 	t.Run("src_too_small", func(t *testing.T) {
 		t.Parallel()
+
 		src := make([]complex64, n*3) // Too small for count=4
 
 		dst := make([]complex64, n*4)
+
 		err := plan.ForwardBatch(dst, src, 4)
 		if !errors.Is(err, ErrLengthMismatch) {
 			t.Errorf("got %v, want ErrLengthMismatch", err)
@@ -243,7 +262,9 @@ func TestPlanBatch_Errors(t *testing.T) {
 	// Same tests for InverseBatch
 	t.Run("inverse_nil_dst", func(t *testing.T) {
 		t.Parallel()
+
 		src := make([]complex64, n*2)
+
 		err := plan.InverseBatch(nil, src, 2)
 		if !errors.Is(err, ErrNilSlice) {
 			t.Errorf("got %v, want ErrNilSlice", err)
@@ -252,9 +273,11 @@ func TestPlanBatch_Errors(t *testing.T) {
 
 	t.Run("inverse_count_zero", func(t *testing.T) {
 		t.Parallel()
+
 		src := make([]complex64, n)
 
 		dst := make([]complex64, n)
+
 		err := plan.InverseBatch(dst, src, 0)
 		if !errors.Is(err, ErrInvalidLength) {
 			t.Errorf("got %v, want ErrInvalidLength", err)
@@ -265,6 +288,7 @@ func TestPlanBatch_Errors(t *testing.T) {
 // TestPlanBatch_InPlace verifies in-place batch transforms.
 func TestPlanBatch_InPlace(t *testing.T) {
 	t.Parallel()
+
 	n := 32
 	count := 4
 
@@ -346,6 +370,7 @@ func TestPlanBatch_ZeroAllocations(t *testing.T) {
 // TestPlanBatch_LargeBatch verifies correctness with large batch counts.
 func TestPlanBatch_LargeBatch(t *testing.T) {
 	t.Parallel()
+
 	n := 256
 	count := 100
 
@@ -376,6 +401,7 @@ func TestPlanBatch_LargeBatch(t *testing.T) {
 		dstSlice := batchDst[batch*n : (batch+1)*n]
 
 		expected := make([]complex64, n)
+
 		err := plan.Forward(expected, srcSlice)
 		if err != nil {
 			t.Fatal(err)

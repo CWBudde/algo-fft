@@ -4,6 +4,7 @@ import "testing"
 
 func BenchmarkDIT8_Specialized_Complex64(b *testing.B) {
 	const n = 8
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -25,6 +26,7 @@ func BenchmarkDIT8_Specialized_Complex64(b *testing.B) {
 
 func BenchmarkDIT8_Generic_Complex64(b *testing.B) {
 	const n = 8
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -46,6 +48,7 @@ func BenchmarkDIT8_Generic_Complex64(b *testing.B) {
 
 func BenchmarkDIT8_Specialized_Complex128(b *testing.B) {
 	const n = 8
+
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -67,6 +70,7 @@ func BenchmarkDIT8_Specialized_Complex128(b *testing.B) {
 
 func BenchmarkDIT8_Generic_Complex128(b *testing.B) {
 	const n = 8
+
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -88,6 +92,7 @@ func BenchmarkDIT8_Generic_Complex128(b *testing.B) {
 
 func BenchmarkDIT16_Specialized_Complex64(b *testing.B) {
 	const n = 16
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -109,6 +114,7 @@ func BenchmarkDIT16_Specialized_Complex64(b *testing.B) {
 
 func BenchmarkDIT16_Generic_Complex64(b *testing.B) {
 	const n = 16
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -130,6 +136,7 @@ func BenchmarkDIT16_Generic_Complex64(b *testing.B) {
 
 func BenchmarkDIT16_Specialized_Complex128(b *testing.B) {
 	const n = 16
+
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -151,6 +158,7 @@ func BenchmarkDIT16_Specialized_Complex128(b *testing.B) {
 
 func BenchmarkDIT16_Generic_Complex128(b *testing.B) {
 	const n = 16
+
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -172,6 +180,7 @@ func BenchmarkDIT16_Generic_Complex128(b *testing.B) {
 
 func BenchmarkDIT32_Specialized_Complex64(b *testing.B) {
 	const n = 32
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -193,6 +202,7 @@ func BenchmarkDIT32_Specialized_Complex64(b *testing.B) {
 
 func BenchmarkDIT32_Generic_Complex64(b *testing.B) {
 	const n = 32
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -214,6 +224,7 @@ func BenchmarkDIT32_Generic_Complex64(b *testing.B) {
 
 func BenchmarkDIT32_Specialized_Complex128(b *testing.B) {
 	const n = 32
+
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -235,6 +246,7 @@ func BenchmarkDIT32_Specialized_Complex128(b *testing.B) {
 
 func BenchmarkDIT32_Generic_Complex128(b *testing.B) {
 	const n = 32
+
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -256,6 +268,7 @@ func BenchmarkDIT32_Generic_Complex128(b *testing.B) {
 
 func BenchmarkDIT64_Specialized_Complex64(b *testing.B) {
 	const n = 64
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -277,6 +290,7 @@ func BenchmarkDIT64_Specialized_Complex64(b *testing.B) {
 
 func BenchmarkDIT64_Generic_Complex64(b *testing.B) {
 	const n = 64
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -298,6 +312,7 @@ func BenchmarkDIT64_Generic_Complex64(b *testing.B) {
 
 func BenchmarkDIT256_Specialized_Complex64(b *testing.B) {
 	const n = 256
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -319,6 +334,7 @@ func BenchmarkDIT256_Specialized_Complex64(b *testing.B) {
 
 func BenchmarkDIT256_Generic_Complex64(b *testing.B) {
 	const n = 256
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -340,6 +356,7 @@ func BenchmarkDIT256_Generic_Complex64(b *testing.B) {
 
 func BenchmarkDIT256_Radix4_Complex64(b *testing.B) {
 	const n = 256
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -361,6 +378,7 @@ func BenchmarkDIT256_Radix4_Complex64(b *testing.B) {
 
 func BenchmarkDIT512_Specialized_Complex64(b *testing.B) {
 	const n = 512
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -382,6 +400,7 @@ func BenchmarkDIT512_Specialized_Complex64(b *testing.B) {
 
 func BenchmarkDIT512_Generic_Complex64(b *testing.B) {
 	const n = 512
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -405,6 +424,7 @@ func BenchmarkDIT512_Generic_Complex64(b *testing.B) {
 
 func BenchmarkDIT16Radix2ForwardComplex64(b *testing.B) {
 	const n = 16
+
 	src := randomComplex64(n, 0xDEADBEEF)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -422,6 +442,7 @@ func BenchmarkDIT16Radix2ForwardComplex64(b *testing.B) {
 
 func BenchmarkDIT16Radix4ForwardComplex64(b *testing.B) {
 	const n = 16
+
 	src := randomComplex64(n, 0xDEADBEEF)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -439,6 +460,7 @@ func BenchmarkDIT16Radix4ForwardComplex64(b *testing.B) {
 
 func BenchmarkDIT16Radix2InverseComplex64(b *testing.B) {
 	const n = 16
+
 	src := randomComplex64(n, 0xCAFEBABE)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -456,6 +478,7 @@ func BenchmarkDIT16Radix2InverseComplex64(b *testing.B) {
 
 func BenchmarkDIT16Radix4InverseComplex64(b *testing.B) {
 	const n = 16
+
 	src := randomComplex64(n, 0xCAFEBABE)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -473,6 +496,7 @@ func BenchmarkDIT16Radix4InverseComplex64(b *testing.B) {
 
 func BenchmarkDIT16Radix2ForwardComplex128(b *testing.B) {
 	const n = 16
+
 	src := randomComplex128(n, 0xDEADBEEF)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -490,6 +514,7 @@ func BenchmarkDIT16Radix2ForwardComplex128(b *testing.B) {
 
 func BenchmarkDIT16Radix4ForwardComplex128(b *testing.B) {
 	const n = 16
+
 	src := randomComplex128(n, 0xDEADBEEF)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -507,6 +532,7 @@ func BenchmarkDIT16Radix4ForwardComplex128(b *testing.B) {
 
 func BenchmarkDIT16Radix2InverseComplex128(b *testing.B) {
 	const n = 16
+
 	src := randomComplex128(n, 0xCAFEBABE)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -524,6 +550,7 @@ func BenchmarkDIT16Radix2InverseComplex128(b *testing.B) {
 
 func BenchmarkDIT16Radix4InverseComplex128(b *testing.B) {
 	const n = 16
+
 	src := randomComplex128(n, 0xCAFEBABE)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -543,6 +570,7 @@ func BenchmarkDIT16Radix4InverseComplex128(b *testing.B) {
 
 func BenchmarkDIT256Radix2ForwardComplex64(b *testing.B) {
 	const n = 256
+
 	src := randomComplex64(n, 0x1234)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -560,6 +588,7 @@ func BenchmarkDIT256Radix2ForwardComplex64(b *testing.B) {
 
 func BenchmarkDIT256Radix4ForwardComplex64(b *testing.B) {
 	const n = 256
+
 	src := randomComplex64(n, 0x1234)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -577,6 +606,7 @@ func BenchmarkDIT256Radix4ForwardComplex64(b *testing.B) {
 
 func BenchmarkDIT256Radix2InverseComplex64(b *testing.B) {
 	const n = 256
+
 	src := randomComplex64(n, 0x5678)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -594,6 +624,7 @@ func BenchmarkDIT256Radix2InverseComplex64(b *testing.B) {
 
 func BenchmarkDIT256Radix4InverseComplex64(b *testing.B) {
 	const n = 256
+
 	src := randomComplex64(n, 0x5678)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -611,6 +642,7 @@ func BenchmarkDIT256Radix4InverseComplex64(b *testing.B) {
 
 func BenchmarkDIT256Radix2ForwardComplex128(b *testing.B) {
 	const n = 256
+
 	src := randomComplex128(n, 0x9ABC)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -628,6 +660,7 @@ func BenchmarkDIT256Radix2ForwardComplex128(b *testing.B) {
 
 func BenchmarkDIT256Radix4ForwardComplex128(b *testing.B) {
 	const n = 256
+
 	src := randomComplex128(n, 0x9ABC)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -645,6 +678,7 @@ func BenchmarkDIT256Radix4ForwardComplex128(b *testing.B) {
 
 func BenchmarkDIT256Radix2InverseComplex128(b *testing.B) {
 	const n = 256
+
 	src := randomComplex128(n, 0xDEF0)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -662,6 +696,7 @@ func BenchmarkDIT256Radix2InverseComplex128(b *testing.B) {
 
 func BenchmarkDIT256Radix4InverseComplex128(b *testing.B) {
 	const n = 256
+
 	src := randomComplex128(n, 0xDEF0)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)

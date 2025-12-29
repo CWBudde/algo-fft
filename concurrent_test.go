@@ -11,6 +11,7 @@ import (
 // This is the recommended pattern for concurrent FFT transforms.
 func TestConcurrentSharedPlan(t *testing.T) {
 	t.Parallel()
+
 	goroutineCounts := []int{2, 4, 8, 16}
 	sizes := []int{256, 1024, 4096}
 
@@ -84,6 +85,7 @@ func testSharedPlan(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 // TestConcurrentPooledPlans tests concurrent creation of pooled plans.
 func TestConcurrentPooledPlans(t *testing.T) {
 	t.Parallel()
+
 	goroutineCounts := []int{4, 8, 16}
 	n := 1024
 
@@ -97,6 +99,7 @@ func TestConcurrentPooledPlans(t *testing.T) {
 
 func testConcurrentPooled(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 	t.Helper()
+
 	var wg sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
@@ -144,6 +147,7 @@ func testConcurrentPooled(t *testing.T, n, numGoroutines, itersPerGoroutine int)
 // TestConcurrentPlanCreation tests concurrent creation of multiple plans.
 func TestConcurrentPlanCreation(t *testing.T) {
 	t.Parallel()
+
 	goroutineCounts := []int{4, 8, 16}
 	sizes := []int{256, 1024}
 
@@ -157,6 +161,7 @@ func TestConcurrentPlanCreation(t *testing.T) {
 
 func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
 	t.Helper()
+
 	var wg sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
@@ -205,6 +210,7 @@ func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
 // TestConcurrentMixedOperations tests mixed Forward/Inverse operations concurrently.
 func TestConcurrentMixedOperations(t *testing.T) {
 	t.Parallel()
+
 	n := 1024
 	numGoroutines := 8
 	itersPerGoroutine := 100
@@ -336,6 +342,7 @@ func TestConcurrentDifferentPrecisions(t *testing.T) {
 // TestConcurrentStress runs a high-concurrency stress test.
 func TestConcurrentStress(t *testing.T) {
 	t.Parallel()
+
 	if testing.Short() {
 		t.Skip("skipping concurrent stress test in short mode")
 	}

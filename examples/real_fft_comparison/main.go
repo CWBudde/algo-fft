@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/MeKo-Christian/algo-fft"
+	algofft "github.com/MeKo-Christian/algo-fft"
 )
 
 func main() {
@@ -29,18 +29,21 @@ func main() {
 	}
 
 	spectrum32 := make([]complex64, plan32.SpectrumLen())
+
 	err = plan32.Forward(spectrum32, input32)
 	if err != nil {
 		panic(err)
 	}
 
 	recovered32 := make([]float32, n)
+
 	err = plan32.Inverse(recovered32, spectrum32)
 	if err != nil {
 		panic(err)
 	}
 
 	error32 := computeError32(input32, recovered32)
+
 	fmt.Printf("  Precision: ~7 decimal digits\n")
 	fmt.Printf("  Round-trip error: %.6e\n", error32)
 	fmt.Printf("  Memory: spectrum uses %.1f KB\n", float64(len(spectrum32)*8)/1024)
@@ -61,18 +64,21 @@ func main() {
 	}
 
 	spectrum64 := make([]complex128, plan64.SpectrumLen())
+
 	err = plan64.Forward(spectrum64, input64)
 	if err != nil {
 		panic(err)
 	}
 
 	recovered64 := make([]float64, n)
+
 	err = plan64.Inverse(recovered64, spectrum64)
 	if err != nil {
 		panic(err)
 	}
 
 	error64 := computeError64(input64, recovered64)
+
 	fmt.Printf("  Precision: ~15 decimal digits\n")
 	fmt.Printf("  Round-trip error: %.15e\n", error64)
 	fmt.Printf("  Memory: spectrum uses %.1f KB\n", float64(len(spectrum64)*16)/1024)
@@ -89,6 +95,7 @@ func main() {
 	}
 
 	spectrumGeneric := make([]complex128, planGeneric.SpectrumLen())
+
 	err = planGeneric.Forward(spectrumGeneric, input64)
 	if err != nil {
 		panic(err)
@@ -119,23 +126,27 @@ func main() {
 
 func computeError32(a, b []float32) float32 {
 	maxErr := float32(0.0)
+
 	for i := range a {
 		err := abs32(a[i] - b[i])
 		if err > maxErr {
 			maxErr = err
 		}
 	}
+
 	return maxErr
 }
 
 func computeError64(a, b []float64) float64 {
 	maxErr := 0.0
+
 	for i := range a {
 		err := math.Abs(a[i] - b[i])
 		if err > maxErr {
 			maxErr = err
 		}
 	}
+
 	return maxErr
 }
 
@@ -143,5 +154,6 @@ func abs32(x float32) float32 {
 	if x < 0 {
 		return -x
 	}
+
 	return x
 }

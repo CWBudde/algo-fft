@@ -150,12 +150,14 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 	switch any(zero).(type) {
 	case complex64:
 		srcF32 := any(src).([]float32)
+
 		bufC64 := any(p.buf).([]complex64)
 		for i := range p.half {
 			bufC64[i] = complex(srcF32[2*i], srcF32[2*i+1])
 		}
 	case complex128:
 		srcF64 := any(src).([]float64)
+
 		bufC128 := any(p.buf).([]complex128)
 		for i := range p.half {
 			bufC128[i] = complex(srcF64[2*i], srcF64[2*i+1])
@@ -170,6 +172,7 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 
 	// Extract DC and Nyquist bins
 	y0 := p.buf[0]
+
 	switch any(zero).(type) {
 	case complex64:
 		y0C64 := any(y0).(complex64)
@@ -195,6 +198,7 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 	case complex64:
 		bufC64 := any(p.buf).([]complex64)
 		dstC64 := any(dst).([]complex64)
+
 		weightC64 := any(p.weight).([]complex64)
 		for k := 1; k < p.half; k++ {
 			a := bufC64[k]
@@ -207,6 +211,7 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 	case complex128:
 		bufC128 := any(p.buf).([]complex128)
 		dstC128 := any(dst).([]complex128)
+
 		weightC128 := any(p.weight).([]complex128)
 		for k := 1; k < p.half; k++ {
 			a := bufC128[k]
@@ -291,7 +296,9 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 
 	// Validate DC and Nyquist are real (imaginary parts near zero)
 	var zero C
+
 	spectrumEps := 1e-4
+
 	switch any(zero).(type) {
 	case complex64:
 		srcC64 := any(src).([]complex64)
@@ -300,6 +307,7 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 		}
 	case complex128:
 		srcC128 := any(src).([]complex128)
+
 		spectrumEps = 1e-12 // Tighter tolerance for float64
 		if math.Abs(imag(srcC128[0])) > spectrumEps || math.Abs(imag(srcC128[p.half])) > spectrumEps {
 			return ErrInvalidSpectrum
@@ -387,6 +395,7 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 	case complex64:
 		bufC64 := any(p.buf).([]complex64)
 		dstF32 := any(dst).([]float32)
+
 		for i := range p.half {
 			v := bufC64[i]
 			dstF32[2*i] = real(v)
@@ -395,6 +404,7 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 	case complex128:
 		bufC128 := any(p.buf).([]complex128)
 		dstF64 := any(dst).([]float64)
+
 		for i := range p.half {
 			v := bufC128[i]
 			dstF64[2*i] = real(v)
@@ -414,12 +424,14 @@ func scaleSpectrumGeneric[C Complex](dst []C, scale float64) {
 	switch any(zero).(type) {
 	case complex64:
 		dstC64 := any(dst).([]complex64)
+
 		factor := complex(float32(scale), 0)
 		for i := range dstC64 {
 			dstC64[i] *= factor
 		}
 	case complex128:
 		dstC128 := any(dst).([]complex128)
+
 		factor := complex(scale, 0)
 		for i := range dstC128 {
 			dstC128[i] *= factor

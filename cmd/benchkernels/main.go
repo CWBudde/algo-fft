@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MeKo-Christian/algo-fft"
+	algofft "github.com/MeKo-Christian/algo-fft"
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/fft"
 )

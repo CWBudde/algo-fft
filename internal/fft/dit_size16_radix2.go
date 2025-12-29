@@ -81,6 +81,7 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[8] = c0+c8, c0-c8
 	t = w1 * c9
@@ -195,6 +196,7 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[8] = c0+c8, c0-c8
 	t = w1 * c9
@@ -307,6 +309,7 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[8] = c0+c8, c0-c8
 	t = w1 * c9
@@ -421,6 +424,7 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[8] = c0+c8, c0-c8
 	t = w1 * c9

@@ -47,6 +47,7 @@ func forwardDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[4] = b0+b4, b0-b4
 	t = w1 * b5
@@ -115,6 +116,7 @@ func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[4] = b0+b4, b0-b4
 	t = w1 * b5
@@ -185,6 +187,7 @@ func forwardDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[4] = b0+b4, b0-b4
 	t = w1 * b5
@@ -253,6 +256,7 @@ func inverseDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 	work[0], work[4] = b0+b4, b0-b4
 	t = w1 * b5
@@ -365,6 +369,7 @@ func forwardDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = a0 + a4 // w^0 = 1
@@ -455,6 +460,7 @@ func inverseDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = a0 + a4
@@ -546,6 +552,7 @@ func forwardDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = a0 + a4
@@ -635,6 +642,7 @@ func inverseDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = a0 + a4
@@ -707,6 +715,7 @@ func forwardDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = e0 + o0
@@ -775,6 +784,7 @@ func inverseDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = e0 + o0
@@ -844,6 +854,7 @@ func forwardDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = e0 + o0
@@ -912,6 +923,7 @@ func inverseDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = e0 + o0

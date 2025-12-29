@@ -18,6 +18,7 @@ func forwardDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 
 	// Stage 1: 16 radix-4 butterflies with fused bit-reversal
 	var stage1 [64]complex64
+
 	for base := 0; base < n; base += 4 {
 		a0 := s[br[base]]
 		a1 := s[br[base+1]]
@@ -37,8 +38,9 @@ func forwardDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 
 	// Stage 2: 4 groups × 4 butterflies each
 	var stage2 [64]complex64
+
 	for base := 0; base < n; base += 16 {
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			idx0 := base + j
 			idx1 := idx0 + 4
 			idx2 := idx1 + 4
@@ -70,9 +72,10 @@ func forwardDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		idx0 := j
 		idx1 := j + 16
 		idx2 := j + 32
@@ -124,6 +127,7 @@ func inverseDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 
 	// Stage 1: 16 radix-4 butterflies with fused bit-reversal
 	var stage1 [64]complex64
+
 	for base := 0; base < n; base += 4 {
 		a0 := s[br[base]]
 		a1 := s[br[base+1]]
@@ -143,8 +147,9 @@ func inverseDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 
 	// Stage 2: 4 groups × 4 butterflies each with conjugated twiddles
 	var stage2 [64]complex64
+
 	for base := 0; base < n; base += 16 {
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			idx0 := base + j
 			idx1 := idx0 + 4
 			idx2 := idx1 + 4
@@ -176,9 +181,10 @@ func inverseDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		idx0 := j
 		idx1 := j + 16
 		idx2 := j + 32
@@ -236,6 +242,7 @@ func forwardDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 
 	// Stage 1: 16 radix-4 butterflies with fused bit-reversal
 	var stage1 [64]complex128
+
 	for base := 0; base < n; base += 4 {
 		a0 := s[br[base]]
 		a1 := s[br[base+1]]
@@ -255,8 +262,9 @@ func forwardDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 
 	// Stage 2: 4 groups × 4 butterflies each
 	var stage2 [64]complex128
+
 	for base := 0; base < n; base += 16 {
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			idx0 := base + j
 			idx1 := idx0 + 4
 			idx2 := idx1 + 4
@@ -288,9 +296,10 @@ func forwardDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		idx0 := j
 		idx1 := j + 16
 		idx2 := j + 32
@@ -342,6 +351,7 @@ func inverseDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 
 	// Stage 1: 16 radix-4 butterflies with fused bit-reversal
 	var stage1 [64]complex128
+
 	for base := 0; base < n; base += 4 {
 		a0 := s[br[base]]
 		a1 := s[br[base+1]]
@@ -361,8 +371,9 @@ func inverseDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 
 	// Stage 2: 4 groups × 4 butterflies each with conjugated twiddles
 	var stage2 [64]complex128
+
 	for base := 0; base < n; base += 16 {
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			idx0 := base + j
 			idx1 := idx0 + 4
 			idx2 := idx1 + 4
@@ -394,9 +405,10 @@ func inverseDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		idx0 := j
 		idx1 := j + 16
 		idx2 := j + 32

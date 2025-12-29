@@ -8,9 +8,10 @@ import (
 
 // Tests for size-256 FFT implementations (both radix-2 and radix-4)
 
-// TestDIT256Radix2ForwardMatchesReference tests radix-2 forward transform
+// TestDIT256Radix2ForwardMatchesReference tests radix-2 forward transform.
 func TestDIT256Radix2ForwardMatchesReference(t *testing.T) {
 	const n = 256
+
 	src := randomComplex64(n, 0xBAD14+n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -25,9 +26,10 @@ func TestDIT256Radix2ForwardMatchesReference(t *testing.T) {
 	assertComplex64SliceClose(t, dst, want, n)
 }
 
-// TestDIT256Radix4ForwardMatchesReference tests radix-4 forward transform
+// TestDIT256Radix4ForwardMatchesReference tests radix-4 forward transform.
 func TestDIT256Radix4ForwardMatchesReference(t *testing.T) {
 	const n = 256
+
 	src := randomComplex64(n, 0xBAD14+n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -42,9 +44,10 @@ func TestDIT256Radix4ForwardMatchesReference(t *testing.T) {
 	assertComplex64SliceClose(t, dst, want, n)
 }
 
-// TestDIT256Radix4MatchesRadix2 ensures radix-4 and radix-2 produce identical results
+// TestDIT256Radix4MatchesRadix2 ensures radix-4 and radix-2 produce identical results.
 func TestDIT256Radix4MatchesRadix2(t *testing.T) {
 	const n = 256
+
 	src := randomComplex64(n, 0xFACE+n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
@@ -70,9 +73,10 @@ func TestDIT256Radix4MatchesRadix2(t *testing.T) {
 	assertComplex64SliceClose(t, dst4, dst2, n)
 }
 
-// TestDIT256Radix4InverseComplex64MatchesReference tests radix-4 inverse transform for complex64
+// TestDIT256Radix4InverseComplex64MatchesReference tests radix-4 inverse transform for complex64.
 func TestDIT256Radix4InverseComplex64MatchesReference(t *testing.T) {
 	const n = 256
+
 	src := randomComplex64(n, 0xDEAD+n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -87,9 +91,10 @@ func TestDIT256Radix4InverseComplex64MatchesReference(t *testing.T) {
 	assertComplex64SliceClose(t, dst, want, n)
 }
 
-// TestDIT256Radix4RoundTripComplex64 tests forward then inverse with radix-4 for complex64
+// TestDIT256Radix4RoundTripComplex64 tests forward then inverse with radix-4 for complex64.
 func TestDIT256Radix4RoundTripComplex64(t *testing.T) {
 	const n = 256
+
 	src := randomComplex64(n, 0xBEEF+n)
 	fwd := make([]complex64, n)
 	inv := make([]complex64, n)
@@ -111,9 +116,10 @@ func TestDIT256Radix4RoundTripComplex64(t *testing.T) {
 	assertComplex64SliceClose(t, inv, src, n)
 }
 
-// TestDIT256Radix4ForwardComplex128MatchesReference tests radix-4 forward transform for complex128
+// TestDIT256Radix4ForwardComplex128MatchesReference tests radix-4 forward transform for complex128.
 func TestDIT256Radix4ForwardComplex128MatchesReference(t *testing.T) {
 	const n = 256
+
 	src := randomComplex128(n, 0xCAFE+n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -128,9 +134,10 @@ func TestDIT256Radix4ForwardComplex128MatchesReference(t *testing.T) {
 	assertComplex128SliceClose(t, dst, want, n)
 }
 
-// TestDIT256Radix4InverseComplex128MatchesReference tests radix-4 inverse transform for complex128
+// TestDIT256Radix4InverseComplex128MatchesReference tests radix-4 inverse transform for complex128.
 func TestDIT256Radix4InverseComplex128MatchesReference(t *testing.T) {
 	const n = 256
+
 	src := randomComplex128(n, 0xFEED+n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -145,9 +152,10 @@ func TestDIT256Radix4InverseComplex128MatchesReference(t *testing.T) {
 	assertComplex128SliceClose(t, dst, want, n)
 }
 
-// TestDIT256Radix4RoundTripComplex128 tests forward then inverse with radix-4 for complex128
+// TestDIT256Radix4RoundTripComplex128 tests forward then inverse with radix-4 for complex128.
 func TestDIT256Radix4RoundTripComplex128(t *testing.T) {
 	const n = 256
+
 	src := randomComplex128(n, 0xC0DE+n)
 	fwd := make([]complex128, n)
 	inv := make([]complex128, n)

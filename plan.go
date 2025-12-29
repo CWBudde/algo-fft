@@ -339,6 +339,7 @@ func (p *Plan[T]) ForwardBatch(dst, src []T, count int) error {
 		start := i * p.n
 
 		end := start + p.n
+
 		err := p.Forward(dst[start:end], src[start:end])
 		if err != nil {
 			return err
@@ -379,6 +380,7 @@ func (p *Plan[T]) InverseBatch(dst, src []T, count int) error {
 		start := i * p.n
 
 		end := start + p.n
+
 		err := p.Inverse(dst[start:end], src[start:end])
 		if err != nil {
 			return err

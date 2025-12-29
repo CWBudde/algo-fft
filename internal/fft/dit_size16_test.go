@@ -78,6 +78,7 @@ func TestDIT16Radix2RoundTripComplex64(t *testing.T) {
 	for i := range data {
 		data[i] = complex(float32(i), float32(i*2))
 	}
+
 	original := make([]complex64, testSize16)
 	copy(original, data)
 
@@ -168,6 +169,7 @@ func TestDIT16Radix4RoundTripComplex64(t *testing.T) {
 	for i := range data {
 		data[i] = complex(float32(i), float32(i*2))
 	}
+
 	original := make([]complex64, testSize16)
 	copy(original, data)
 
@@ -205,6 +207,7 @@ func TestDIT16CompareRadix2AndRadix4(t *testing.T) {
 	dst2 := make([]complex64, testSize16)
 	twiddle := ComputeTwiddleFactors[complex64](testSize16)
 	scratch := make([]complex64, testSize16)
+
 	bitrev2 := ComputeBitReversalIndices(testSize16)
 	if !forwardDIT16Complex64(dst2, data, twiddle, scratch, bitrev2) {
 		t.Fatal("forwardDIT16Complex64 (radix-2) failed")
@@ -212,6 +215,7 @@ func TestDIT16CompareRadix2AndRadix4(t *testing.T) {
 
 	// Radix-4 forward
 	dst4 := make([]complex64, testSize16)
+
 	bitrev4 := ComputeBitReversalIndicesRadix4(testSize16)
 	if !forwardDIT16Radix4Complex64(dst4, data, twiddle, scratch, bitrev4) {
 		t.Fatal("forwardDIT16Radix4Complex64 (radix-4) failed")

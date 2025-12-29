@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/MeKo-Christian/algo-fft"
+	algofft "github.com/MeKo-Christian/algo-fft"
 )
 
 func main() {
 	// Example: High-precision audio processing with float64
 	const sampleRate = 48000 // 48 kHz
+
 	const fftSize = 4096
 
 	fmt.Println("algofft - High-Precision Real FFT Example (float64)")
@@ -28,6 +29,7 @@ func main() {
 	// Generate a test signal: 440 Hz sine wave (A4 musical note)
 	input := make([]float64, fftSize)
 	freq := 440.0 // Hz
+
 	for i := range input {
 		t := float64(i) / float64(sampleRate)
 		input[i] = math.Sin(2 * math.Pi * freq * t)
@@ -35,6 +37,7 @@ func main() {
 
 	// Perform forward FFT
 	spectrum := make([]complex128, plan.SpectrumLen())
+
 	err = plan.Forward(spectrum, input)
 	if err != nil {
 		panic(err)
@@ -43,6 +46,7 @@ func main() {
 	// Find the peak frequency
 	maxMagnitude := 0.0
 	peakBin := 0
+
 	for k, value := range spectrum {
 		magnitude := math.Sqrt(real(value)*real(value) + imag(value)*imag(value))
 		if magnitude > maxMagnitude {
@@ -59,6 +63,7 @@ func main() {
 
 	// Perform inverse FFT to reconstruct signal
 	recovered := make([]float64, fftSize)
+
 	err = plan.Inverse(recovered, spectrum)
 	if err != nil {
 		panic(err)
@@ -66,6 +71,7 @@ func main() {
 
 	// Measure round-trip error
 	maxError := 0.0
+
 	for i := range input {
 		err := math.Abs(recovered[i] - input[i])
 		if err > maxError {
@@ -80,6 +86,7 @@ func main() {
 
 	// Compare with float32 precision
 	plan32, _ := algofft.NewPlanReal32(fftSize)
+
 	input32 := make([]float32, fftSize)
 	for i := range input {
 		input32[i] = float32(input[i])
@@ -92,6 +99,7 @@ func main() {
 	_ = plan32.Inverse(recovered32, spectrum32)
 
 	maxError32 := float32(0.0)
+
 	for i := range input32 {
 		err := abs32(recovered32[i] - input32[i])
 		if err > maxError32 {
@@ -109,5 +117,6 @@ func abs32(x float32) float32 {
 	if x < 0 {
 		return -x
 	}
+
 	return x
 }

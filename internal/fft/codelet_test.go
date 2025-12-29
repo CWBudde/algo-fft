@@ -11,6 +11,7 @@ func TestCodeletRegistryLookup(t *testing.T) {
 	// Test complex64 registry
 	t.Run("complex64", func(t *testing.T) {
 		t.Parallel()
+
 		features := cpu.Features{HasSSE2: true}
 
 		// Should find codelets for sizes 4, 8, 16, 32, 64, 128, 256
@@ -43,6 +44,7 @@ func TestCodeletRegistryLookup(t *testing.T) {
 	// Test complex128 registry
 	t.Run("complex128", func(t *testing.T) {
 		t.Parallel()
+
 		features := cpu.Features{HasSSE2: true}
 
 		sizes := []int{4, 8, 16, 32, 64, 128, 256}
@@ -62,6 +64,7 @@ func TestCodeletRegistryLookup(t *testing.T) {
 
 func TestCodeletRegistryNoMatch(t *testing.T) {
 	t.Parallel()
+
 	features := cpu.Features{HasSSE2: true}
 
 	// Sizes without codelets should return nil
@@ -76,6 +79,7 @@ func TestCodeletRegistryNoMatch(t *testing.T) {
 
 func TestCodeletRegistrySizes(t *testing.T) {
 	t.Parallel()
+
 	sizes := Registry64.Sizes()
 	if len(sizes) != 7 {
 		t.Errorf("expected 7 registered sizes, got %d", len(sizes))
@@ -115,6 +119,7 @@ func TestCodeletRegistryLookupBySignature(t *testing.T) {
 
 func TestGetRegistry(t *testing.T) {
 	t.Parallel()
+
 	reg64 := GetRegistry[complex64]()
 	if reg64 != Registry64 {
 		t.Error("GetRegistry[complex64]() should return Registry64")
@@ -128,6 +133,7 @@ func TestGetRegistry(t *testing.T) {
 
 func TestSIMDLevelString(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		level    SIMDLevel
 		expected string
@@ -154,6 +160,7 @@ func TestCodeletFunctional(t *testing.T) {
 
 	t.Run("forward_8", func(t *testing.T) {
 		t.Parallel()
+
 		entry := Registry64.Lookup(8, features)
 		if entry == nil {
 			t.Skip("no codelet for size 8")
@@ -180,6 +187,7 @@ func TestCodeletFunctional(t *testing.T) {
 
 	t.Run("inverse_8", func(t *testing.T) {
 		t.Parallel()
+
 		entry := Registry64.Lookup(8, features)
 		if entry == nil {
 			t.Skip("no codelet for size 8")

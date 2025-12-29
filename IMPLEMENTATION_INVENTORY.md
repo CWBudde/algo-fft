@@ -93,14 +93,14 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 64
 
-| Type       | Algorithm | SIMD | Source | Status | Files                     |
-| ---------- | --------- | ---- | ------ | ------ | ------------------------- |
-| complex64  | radix-2   | none | Go     | ✓      | `dit_size64.go`           |
-| complex64  | radix-2   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size64.s` |
+| Type       | Algorithm | SIMD | Source | Status | Files                            |
+| ---------- | --------- | ---- | ------ | ------ | -------------------------------- |
+| complex64  | radix-2   | none | Go     | ✓      | `dit_size64.go`                  |
+| complex64  | radix-2   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size64.s`        |
 | complex64  | radix-4   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size64_radix4.s` |
-| complex64  | radix-4   | none | Go     | ✓      | `dit_size64_radix4.go`    |
-| complex128 | radix-2   | none | Go     | ✓      | `dit_size64.go`           |
-| complex128 | radix-4   | none | Go     | ✓      | `dit_size64_radix4.go`    |
+| complex64  | radix-4   | none | Go     | ✓      | `dit_size64_radix4.go`           |
+| complex128 | radix-2   | none | Go     | ✓      | `dit_size64.go`                  |
+| complex128 | radix-4   | none | Go     | ✓      | `dit_size64_radix4.go`           |
 
 **Notes:**
 

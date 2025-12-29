@@ -12,6 +12,7 @@ import (
 // This verifies that errors don't compound excessively with multiple transforms.
 func TestPrecisionErrorAccumulation(t *testing.T) {
 	t.Parallel()
+
 	sizes := []int{256, 1024, 4096}
 	cycles := []int{10, 100, 1000}
 
@@ -51,6 +52,7 @@ func testErrorAccumulation64(t *testing.T, n, numCycles int) {
 		if err != nil {
 			t.Fatalf("Forward failed: %v", err)
 		}
+
 		err = plan.Inverse(data, temp)
 		if err != nil {
 			t.Fatalf("Inverse failed: %v", err)
@@ -90,6 +92,7 @@ func testErrorAccumulation64(t *testing.T, n, numCycles int) {
 // For a signal x and its FFT X: sum(|x|²) = sum(|X|²) / N.
 func TestPrecisionParseval(t *testing.T) {
 	t.Parallel()
+
 	sizes := []int{256, 1024, 4096, 16384}
 
 	for _, n := range sizes {
@@ -186,6 +189,7 @@ func testParseval128(t *testing.T, n int) {
 // TestPrecisionComplex64VsComplex128 compares precision between complex64 and complex128.
 func TestPrecisionComplex64VsComplex128(t *testing.T) {
 	t.Parallel()
+
 	sizes := []int{256, 1024, 4096, 16384, 65536}
 
 	for _, n := range sizes {
@@ -259,6 +263,7 @@ func testPrecisionComparison(t *testing.T, n int) {
 // TestPrecisionLargeFFT tests precision for very large FFT sizes.
 func TestPrecisionLargeFFT(t *testing.T) {
 	t.Parallel()
+
 	if testing.Short() {
 		t.Skip("skipping large FFT test in short mode")
 	}
@@ -349,6 +354,7 @@ func TestPrecisionKnownSignals(t *testing.T) {
 
 func testSineWavePrecision(t *testing.T) {
 	t.Helper()
+
 	n := 1024
 	freq := 10 // 10 cycles in n samples
 
@@ -394,6 +400,7 @@ func testSineWavePrecision(t *testing.T) {
 
 func testCosineWavePrecision(t *testing.T) {
 	t.Helper()
+
 	n := 1024
 	freq := 10
 
@@ -436,6 +443,7 @@ func testCosineWavePrecision(t *testing.T) {
 
 func testImpulsePrecision(t *testing.T) {
 	t.Helper()
+
 	n := 512
 
 	// Impulse at position 0
@@ -474,6 +482,7 @@ func testImpulsePrecision(t *testing.T) {
 
 func testWhiteNoisePrecision(t *testing.T) {
 	t.Helper()
+
 	n := 2048
 
 	// Generate white noise

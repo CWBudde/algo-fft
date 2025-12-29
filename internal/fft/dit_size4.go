@@ -44,6 +44,7 @@ func forwardDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = t0 + t2
@@ -87,6 +88,7 @@ func inverseDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = t0 + t2
@@ -133,6 +135,7 @@ func forwardDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = t0 + t2
@@ -172,6 +175,7 @@ func inverseDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	work[0] = t0 + t2
