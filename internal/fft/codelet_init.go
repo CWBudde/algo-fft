@@ -102,6 +102,18 @@ func registerDITCodelets64() {
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
+	// Size 32: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       32,
+		Forward:    wrapCodelet64(forwardDIT32MixedRadix24Complex64),
+		Inverse:    wrapCodelet64(inverseDIT32MixedRadix24Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit32_mixed24_generic",
+		Priority:   15, // Higher than base radix-2, lower than potential radix-8
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
 	// Size 64: Radix-2 only
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
@@ -282,6 +294,18 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_radix2_generic",
 		Priority:   0,
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
+	// Size 32: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       32,
+		Forward:    wrapCodelet128(forwardDIT32MixedRadix24Complex128),
+		Inverse:    wrapCodelet128(inverseDIT32MixedRadix24Complex128),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit32_mixed24_generic",
+		Priority:   15, // Higher than base radix-2, lower than potential radix-8
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
