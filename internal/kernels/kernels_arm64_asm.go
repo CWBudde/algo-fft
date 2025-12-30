@@ -1,6 +1,6 @@
 //go:build arm64 && fft_asm && !purego
 
-package fft
+package kernels
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
