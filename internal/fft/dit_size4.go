@@ -9,7 +9,10 @@ package fft
 func forwardDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 4
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
+		return false
+	}
+	if len(bitrev) > 0 && len(bitrev) < n {
 		return false
 	}
 
@@ -67,7 +70,10 @@ func forwardDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 func inverseDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 4
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
+		return false
+	}
+	if len(bitrev) > 0 && len(bitrev) < n {
 		return false
 	}
 
@@ -116,7 +122,10 @@ func inverseDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 func forwardDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 4
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
+		return false
+	}
+	if len(bitrev) > 0 && len(bitrev) < n {
 		return false
 	}
 
@@ -156,7 +165,10 @@ func forwardDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 func inverseDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	const n = 4
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
+		return false
+	}
+	if len(bitrev) > 0 && len(bitrev) < n {
 		return false
 	}
 

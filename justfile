@@ -102,7 +102,7 @@ test-arch:
     @echo "Running architecture-specific tests..."
     go test -v -count=1 ./...
     @echo "Verifying SIMD implementations..."
-    $(MAKE) test-simd-verify
+    just test-simd-verify
 
 # Run stress tests (long-running, skip in short mode)
 test-stress:

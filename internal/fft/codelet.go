@@ -145,6 +145,42 @@ func (r *CodeletRegistry[T]) Sizes() []int {
 	return sizes
 }
 
+// GetAvailableSizes returns all sizes with registered codelets that are
+// compatible with the given CPU features. The returned slice is sorted in ascending order.
+func (r *CodeletRegistry[T]) GetAvailableSizes(features cpu.Features) []int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	sizes := make([]int, 0, len(r.codelets))
+	for size := range r.codelets {
+		// Check if there's a codelet compatible with CPU features
+		if r.lookupUnlocked(size, features) != nil {
+			sizes = append(sizes, size)
+		}
+	}
+
+	sort.Ints(sizes)
+	return sizes
+}
+
+// lookupUnlocked is an internal version of Lookup without locking.
+// Caller must hold r.mu (read or write lock).
+func (r *CodeletRegistry[T]) lookupUnlocked(size int, features cpu.Features) *CodeletEntry[T] {
+	entries := r.codelets[size]
+	if len(entries) == 0 {
+		return nil
+	}
+
+	// Find the best codelet that the CPU supports
+	for i := range entries {
+		if cpuSupports(features, entries[i].SIMDLevel) {
+			return &entries[i]
+		}
+	}
+
+	return nil
+}
+
 // cpuSupports checks if the CPU features support the given SIMD level.
 func cpuSupports(features cpu.Features, level SIMDLevel) bool {
 	switch level {

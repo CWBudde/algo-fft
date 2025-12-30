@@ -15,6 +15,7 @@ const (
 	KernelSixStep
 	KernelEightStep
 	KernelBluestein
+	KernelRecursive // Recursive decomposition with codelet leaves
 )
 
 //nolint:gochecknoglobals

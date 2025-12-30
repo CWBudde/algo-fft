@@ -36,6 +36,27 @@ func BenchmarkPlanForward_2048_Stockham(b *testing.B) {
 	benchmarkPlanForwardWithOptions(b, 2048, PlanOptions{Strategy: KernelStockham})
 }
 
+// Recursive FFT benchmarks
+func BenchmarkPlanForward_1024_Recursive(b *testing.B) {
+	benchmarkPlanForwardWithOptions(b, 1024, PlanOptions{Strategy: KernelRecursive})
+}
+
+func BenchmarkPlanForward_2048_Recursive(b *testing.B) {
+	benchmarkPlanForwardWithOptions(b, 2048, PlanOptions{Strategy: KernelRecursive})
+}
+
+func BenchmarkPlanForward_4096_Recursive(b *testing.B) {
+	benchmarkPlanForwardWithOptions(b, 4096, PlanOptions{Strategy: KernelRecursive})
+}
+
+func BenchmarkPlanForward_8192_Recursive(b *testing.B) {
+	benchmarkPlanForwardWithOptions(b, 8192, PlanOptions{Strategy: KernelRecursive})
+}
+
+func BenchmarkPlanForward_16384_Recursive(b *testing.B) {
+	benchmarkPlanForwardWithOptions(b, 16384, PlanOptions{Strategy: KernelRecursive})
+}
+
 // Inverse FFT benchmarks for various sizes.
 func BenchmarkPlanInverse_8(b *testing.B)     { benchmarkPlanInverse(b, 8) }
 func BenchmarkPlanInverse_16(b *testing.B)    { benchmarkPlanInverse(b, 16) }
@@ -63,6 +84,27 @@ func BenchmarkPlanInverse_2048_DIT(b *testing.B) {
 
 func BenchmarkPlanInverse_2048_Stockham(b *testing.B) {
 	benchmarkPlanInverseWithOptions(b, 2048, PlanOptions{Strategy: KernelStockham})
+}
+
+// Recursive inverse FFT benchmarks
+func BenchmarkPlanInverse_1024_Recursive(b *testing.B) {
+	benchmarkPlanInverseWithOptions(b, 1024, PlanOptions{Strategy: KernelRecursive})
+}
+
+func BenchmarkPlanInverse_2048_Recursive(b *testing.B) {
+	benchmarkPlanInverseWithOptions(b, 2048, PlanOptions{Strategy: KernelRecursive})
+}
+
+func BenchmarkPlanInverse_4096_Recursive(b *testing.B) {
+	benchmarkPlanInverseWithOptions(b, 4096, PlanOptions{Strategy: KernelRecursive})
+}
+
+func BenchmarkPlanInverse_8192_Recursive(b *testing.B) {
+	benchmarkPlanInverseWithOptions(b, 8192, PlanOptions{Strategy: KernelRecursive})
+}
+
+func BenchmarkPlanInverse_16384_Recursive(b *testing.B) {
+	benchmarkPlanInverseWithOptions(b, 16384, PlanOptions{Strategy: KernelRecursive})
 }
 
 // Plan creation benchmarks (additional sizes - 64, 1024, 65536 are in plan_test.go).
