@@ -1,4 +1,4 @@
-package fft
+package transform
 
 // ScratchSizeRecursive returns the scratch size required for a recursive strategy.
 // The size accounts for holding all sub-results plus the maximum scratch needed

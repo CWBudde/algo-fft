@@ -1,6 +1,9 @@
 package fft
 
-import "github.com/MeKo-Christian/algo-fft/internal/kernels"
+import (
+	"github.com/MeKo-Christian/algo-fft/internal/kernels"
+	"github.com/MeKo-Christian/algo-fft/internal/transform"
+)
 
 // Re-export kernel types from internal/kernels
 type (
@@ -10,7 +13,7 @@ type (
 	CodeletFunc[T Complex]     = kernels.CodeletFunc[T]
 	CodeletRegistry[T Complex] = kernels.CodeletRegistry[T]
 	CodeletEntry[T Complex]    = kernels.CodeletEntry[T]
-	PackedTwiddles[T Complex]  = kernels.PackedTwiddles[T]
+	PackedTwiddles[T Complex]  = transform.PackedTwiddles[T]
 	BitrevFunc                 = kernels.BitrevFunc
 	SIMDLevel                  = kernels.SIMDLevel
 )
@@ -24,7 +27,7 @@ var (
 	inverseStockhamComplex128 = kernels.InverseStockhamComplex128
 
 	// Packed Stockham kernels
-	StockhamPackedAvailable = kernels.StockhamPackedAvailable
+	StockhamPackedAvailable = transform.StockhamPackedAvailable
 
 	// Registries (direct pointers, not double pointers)
 	Registry64  = kernels.Registry64
@@ -158,21 +161,7 @@ func butterfly2[T Complex](a, b, w T) (T, T) {
 	return kernels.Butterfly2(a, b, w)
 }
 
-func ForwardStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T]) bool {
-	return kernels.ForwardStockhamPacked(dst, src, twiddle, scratch, packed)
-}
-
-func InverseStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T]) bool {
-	return kernels.InverseStockhamPacked(dst, src, twiddle, scratch, packed)
-}
-
-func ComputePackedTwiddles[T Complex](n, radix int, twiddle []T) *PackedTwiddles[T] {
-	return kernels.ComputePackedTwiddles(n, radix, twiddle)
-}
-
-func ConjugatePackedTwiddles[T Complex](packed *PackedTwiddles[T]) *PackedTwiddles[T] {
-	return kernels.ConjugatePackedTwiddles(packed)
-}
+// These functions are re-exported in transform_exports.go
 
 // Re-export SIMD level constants
 const (

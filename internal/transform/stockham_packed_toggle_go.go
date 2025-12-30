@@ -1,5 +1,5 @@
 //go:build !fft_asm
 
-package kernels
+package transform
 
 const stockhamPackedEnabled = true

@@ -1,7 +1,7 @@
-package kernels
-
+package transform
 
 // StockhamPackedAvailable reports whether packed Stockham is enabled in this build.
+// The stockhamPackedEnabled constant is defined in stockham_packed_toggle_*.go files.
 func StockhamPackedAvailable() bool {
 	return stockhamPackedEnabled
 }

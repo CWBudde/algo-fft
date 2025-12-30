@@ -1,6 +1,8 @@
-package fft
+package transform
 
-import "github.com/MeKo-Christian/algo-fft/internal/cpu"
+import (
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+)
 
 // recursive.go implements the recursive FFT algorithm using decomposition strategies.
 

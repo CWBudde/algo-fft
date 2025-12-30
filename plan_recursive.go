@@ -3,6 +3,7 @@ package algofft
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	"github.com/MeKo-Christian/algo-fft/internal/transform"
 )
 
 // recursiveForward computes the forward FFT using recursive decomposition.
@@ -23,7 +24,7 @@ func (p *Plan[T]) recursiveForward(dst, src []T) error {
 		twiddle64 := any(p.twiddle).([]complex64)
 		scratch64 := any(p.scratch).([]complex64)
 
-		fft.RecursiveForward(dst64, src64, p.decompStrategy, twiddle64, scratch64, registry, features)
+		transform.RecursiveForward(dst64, src64, p.decompStrategy, twiddle64, scratch64, registry, features)
 
 		return nil
 	case complex128:
@@ -33,7 +34,7 @@ func (p *Plan[T]) recursiveForward(dst, src []T) error {
 		twiddle128 := any(p.twiddle).([]complex128)
 		scratch128 := any(p.scratch).([]complex128)
 
-		fft.RecursiveForward(dst128, src128, p.decompStrategy, twiddle128, scratch128, registry, features)
+		transform.RecursiveForward(dst128, src128, p.decompStrategy, twiddle128, scratch128, registry, features)
 
 		return nil
 	default:
@@ -59,7 +60,7 @@ func (p *Plan[T]) recursiveInverse(dst, src []T) error {
 		twiddle64 := any(p.twiddle).([]complex64)
 		scratch64 := any(p.scratch).([]complex64)
 
-		fft.RecursiveInverse(dst64, src64, p.decompStrategy, twiddle64, scratch64, registry, features)
+		transform.RecursiveInverse(dst64, src64, p.decompStrategy, twiddle64, scratch64, registry, features)
 
 		return nil
 	case complex128:
@@ -69,7 +70,7 @@ func (p *Plan[T]) recursiveInverse(dst, src []T) error {
 		twiddle128 := any(p.twiddle).([]complex128)
 		scratch128 := any(p.scratch).([]complex128)
 
-		fft.RecursiveInverse(dst128, src128, p.decompStrategy, twiddle128, scratch128, registry, features)
+		transform.RecursiveInverse(dst128, src128, p.decompStrategy, twiddle128, scratch128, registry, features)
 
 		return nil
 	default:

@@ -1,4 +1,4 @@
-package kernels
+package transform
 
 // PackedTwiddles stores twiddle factors packed by radix and stage.
 // StageOffsets marks the starting index in Values for each stage.
