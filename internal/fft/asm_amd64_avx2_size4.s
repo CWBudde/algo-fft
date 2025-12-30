@@ -59,9 +59,7 @@ TEXT ·forwardAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $4
 	JL   size4_r4_fwd_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $4
-	JL   size4_r4_fwd_return_false
+	// bitrev is unused for size-4 radix-4; allow nil/empty.
 
 	// Select working buffer: if dst == src, use scratch
 	CMPQ R8, R9
@@ -244,9 +242,7 @@ TEXT ·inverseAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $4
 	JL   size4_r4_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $4
-	JL   size4_r4_inv_return_false
+	// bitrev is unused for size-4 radix-4; allow nil/empty.
 
 	// Select working buffer
 	CMPQ R8, R9
