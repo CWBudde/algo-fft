@@ -1,11 +1,14 @@
 package fft
 
-import "math"
+import (
+	"math"
 
-// Complex is a type constraint for complex number types supported by the FFT internals.
-type Complex interface {
-	complex64 | complex128
-}
+	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
+)
+
+// Complex is a type alias for the complex number constraint.
+// The canonical definition is in internal/fftypes.
+type Complex = fftypes.Complex
 
 // ComputeTwiddleFactors returns the precomputed twiddle factors (roots of unity)
 // for a size-n FFT: W_n^k = exp(-2πik/n) for k = 0..n-1.

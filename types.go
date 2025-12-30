@@ -1,11 +1,11 @@
 package algofft
 
+import "github.com/MeKo-Christian/algo-fft/internal/fftypes"
+
 // Complex is a type constraint for complex number types supported by the FFT.
-type Complex interface {
-	complex64 | complex128
-}
+// The canonical definition is in internal/fftypes.
+type Complex = fftypes.Complex
 
 // Float is a type constraint for floating-point types used in real FFT operations.
-type Float interface {
-	float32 | float64
-}
+// The canonical definition is in internal/fftypes.
+type Float = fftypes.Float
