@@ -9,14 +9,15 @@ import "math"
 // This is the classic Cooley-Tukey radix-2 decimation-in-time combine step.
 //
 // Algorithm:
-//   For k = 0 to N/2-1:
-//     t = twiddle[k] * sub1[k]     // Twiddle multiplication
-//     dst[k]     = sub0[k] + t      // Even output (butterfly add)
-//     dst[k+N/2] = sub0[k] - t      // Odd output (butterfly subtract)
+//
+//	For k = 0 to N/2-1:
+//	  t = twiddle[k] * sub1[k]     // Twiddle multiplication
+//	  dst[k]     = sub0[k] + t      // Even output (butterfly add)
+//	  dst[k+N/2] = sub0[k] - t      // Odd output (butterfly subtract)
 func combineRadix2[T Complex](
-	dst []T,        // Output buffer (size N)
+	dst []T, // Output buffer (size N)
 	sub0, sub1 []T, // Two N/2 sub-results
-	twiddle []T,    // Twiddle factors W^k for k=0..N/2-1
+	twiddle []T, // Twiddle factors W^k for k=0..N/2-1
 ) {
 	half := len(sub0)
 	for k := 0; k < half; k++ {
@@ -30,20 +31,21 @@ func combineRadix2[T Complex](
 // This is the radix-4 decimation-in-time combine step.
 //
 // Algorithm (DIT radix-4 butterfly):
-//   For k = 0 to N/4-1:
-//     t1 = W^k     * sub1[k]
-//     t2 = W^(2k)  * sub2[k]
-//     t3 = W^(3k)  * sub3[k]
 //
-//     dst[k + 0*N/4] = sub0[k] + t1 + t2 + t3        // Output bin 0
-//     dst[k + 1*N/4] = sub0[k] - i*t1 - t2 + i*t3    // Output bin 1
-//     dst[k + 2*N/4] = sub0[k] - t1 + t2 - t3        // Output bin 2
-//     dst[k + 3*N/4] = sub0[k] + i*t1 - t2 - i*t3    // Output bin 3
+//	For k = 0 to N/4-1:
+//	  t1 = W^k     * sub1[k]
+//	  t2 = W^(2k)  * sub2[k]
+//	  t3 = W^(3k)  * sub3[k]
+//
+//	  dst[k + 0*N/4] = sub0[k] + t1 + t2 + t3        // Output bin 0
+//	  dst[k + 1*N/4] = sub0[k] - i*t1 - t2 + i*t3    // Output bin 1
+//	  dst[k + 2*N/4] = sub0[k] - t1 + t2 - t3        // Output bin 2
+//	  dst[k + 3*N/4] = sub0[k] + i*t1 - t2 - i*t3    // Output bin 3
 //
 // Note: W^(2k) and W^(3k) are precomputed and passed as twiddle2, twiddle3.
 func combineRadix4[T Complex](
-	dst []T,                       // Output buffer (size N)
-	sub0, sub1, sub2, sub3 []T,    // Four N/4 sub-results
+	dst []T, // Output buffer (size N)
+	sub0, sub1, sub2, sub3 []T, // Four N/4 sub-results
 	twiddle1, twiddle2, twiddle3 []T, // Twiddle factors W^k, W^(2k), W^(3k)
 ) {
 	quarter := len(sub0)
@@ -70,8 +72,8 @@ func combineRadix4[T Complex](
 // combineRadix8 combines eight N/8-point FFTs into an N-point FFT.
 // This is the radix-8 decimation-in-time combine step.
 func combineRadix8[T Complex](
-	dst []T,     // Output buffer (size N)
-	subs [][]T,  // Eight N/8 sub-results (subs[0] to subs[7])
+	dst []T, // Output buffer (size N)
+	subs [][]T, // Eight N/8 sub-results (subs[0] to subs[7])
 	twiddles [][]T, // Twiddle factors: twiddles[r][k] = W^(r*k) for r=0..7
 ) {
 	eighth := len(subs[0])
@@ -102,8 +104,8 @@ func combineRadix8[T Complex](
 // combineGeneral combines an arbitrary number of sub-FFTs.
 // This is a fallback for unusual radix values.
 func combineGeneral[T Complex](
-	dst []T,       // Output buffer (size N)
-	subs [][]T,    // Radix sub-results (each of size N/radix)
+	dst []T, // Output buffer (size N)
+	subs [][]T, // Radix sub-results (each of size N/radix)
 	twiddles [][]T, // Twiddle factors: twiddles[r][k] = W^(r*k)
 	radix int,
 ) {

@@ -146,10 +146,10 @@ func TestCodeletCount(t *testing.T) {
 	cacheSize := 32768
 
 	tests := []struct {
-		size         int
-		minCodelets  int
-		maxCodelets  int
-		description  string
+		size        int
+		minCodelets int
+		maxCodelets int
+		description string
 	}{
 		{512, 1, 1, "Single codelet"},
 		{1024, 2, 4, "2-4 codelets (depends on split)"},
@@ -207,10 +207,10 @@ func TestFindFactors(t *testing.T) {
 		want    []int
 		wantLen int
 	}{
-		{8, []int{4, 2}, 2},       // Excludes 8 itself
-		{16, []int{8, 4, 2}, 3},    // Excludes 16 itself
-		{1024, nil, 9},             // 2, 4, 8, ..., 512 (9 factors, excludes 1024)
-		{7, []int{2}, 1},           // Non-power-of-2, fallback to radix-2
+		{8, []int{4, 2}, 2},     // Excludes 8 itself
+		{16, []int{8, 4, 2}, 3}, // Excludes 16 itself
+		{1024, nil, 9},          // 2, 4, 8, ..., 512 (9 factors, excludes 1024)
+		{7, []int{2}, 1},        // Non-power-of-2, fallback to radix-2
 	}
 
 	for _, tt := range tests {
@@ -261,11 +261,11 @@ func TestScoreStrategy(t *testing.T) {
 	cacheSize := 32768 // 32 KB L1
 
 	tests := []struct {
-		name   string
-		radix  int
-		subSize int
+		name            string
+		radix           int
+		subSize         int
 		expectHighScore bool
-		reason string
+		reason          string
 	}{
 		{"Codelet sub-problem", 4, 256, true, "Sub-size 256 is a codelet"},
 		{"Fits in cache", 8, 1024, true, "1024 * 16 bytes = 16KB < 32KB"},

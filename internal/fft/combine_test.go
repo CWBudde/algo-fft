@@ -23,12 +23,12 @@ func TestCombineRadix2(t *testing.T) {
 			sub0: []complex64{complex(1, 0), complex(1, 0)}, // DFT([1, 1]) = [2, 0]
 			sub1: []complex64{complex(1, 0), complex(1, 0)}, // DFT([1, 1]) = [2, 0]
 			twiddle: []complex64{
-				complex(1, 0),               // W^0 = 1
-				complex(0, -1),              // W^1 = -i for N=4
+				complex(1, 0),  // W^0 = 1
+				complex(0, -1), // W^1 = -i for N=4
 			},
 			expected: []complex64{
-				complex(3, 0),  // sub0[0] + W^0 * sub1[0] = 1 + 1*1 = 2 (but these are already FFTs of [1,1])
-				complex(1, 0),  // sub0[1] + W^1 * sub1[1] = 1 + (-i)*1
+				complex(3, 0), // sub0[0] + W^0 * sub1[0] = 1 + 1*1 = 2 (but these are already FFTs of [1,1])
+				complex(1, 0), // sub0[1] + W^1 * sub1[1] = 1 + (-i)*1
 			},
 		},
 	}

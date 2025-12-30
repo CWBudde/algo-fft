@@ -6,12 +6,12 @@ import (
 
 // DecomposeStrategy describes how to split an FFT recursively.
 type DecomposeStrategy struct {
-	Size        int                 // Total FFT size
-	SplitFactor int                 // Radix (2, 4, 8, or composite like 32)
-	SubSize     int                 // Size of each sub-FFT
-	NumSubs     int                 // Number of sub-FFTs (equal to SplitFactor)
-	UseCodelet  bool                // True if this size has a codelet
-	Recursive   *DecomposeStrategy  // Strategy for sub-problems (nil if codelet)
+	Size        int                // Total FFT size
+	SplitFactor int                // Radix (2, 4, 8, or composite like 32)
+	SubSize     int                // Size of each sub-FFT
+	NumSubs     int                // Number of sub-FFTs (equal to SplitFactor)
+	UseCodelet  bool               // True if this size has a codelet
+	Recursive   *DecomposeStrategy // Strategy for sub-problems (nil if codelet)
 }
 
 // PlanDecomposition finds the optimal split strategy for an FFT of size n.
