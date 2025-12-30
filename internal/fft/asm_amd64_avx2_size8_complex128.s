@@ -16,6 +16,7 @@
 TEXT ·forwardAVX2Size8Radix2Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
+	MOVQ R8, R14             // R14 = original dst pointer (for in-place safety)
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
@@ -158,14 +159,14 @@ size8_128_fwd_use_dst:
 	VSUBPD X6, X3, X15       // z7
 	
 	// Store results
-	MOVUPD X8, (R8)
-	MOVUPD X9, 16(R8)
-	MOVUPD X10, 32(R8)
-	MOVUPD X11, 48(R8)
-	MOVUPD X4, 64(R8)
-	MOVUPD X13, 80(R8)
-	MOVUPD X14, 96(R8)
-	MOVUPD X15, 112(R8)
+	MOVUPD X8, (R14)
+	MOVUPD X9, 16(R14)
+	MOVUPD X10, 32(R14)
+	MOVUPD X11, 48(R14)
+	MOVUPD X4, 64(R14)
+	MOVUPD X13, 80(R14)
+	MOVUPD X14, 96(R14)
+	MOVUPD X15, 112(R14)
 
 	VZEROUPPER
 	MOVB $1, ret+120(FP)
@@ -181,6 +182,7 @@ size8_128_fwd_return_false:
 TEXT ·inverseAVX2Size8Radix2Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
+	MOVQ R8, R14             // R14 = original dst pointer (for in-place safety)
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
@@ -330,14 +332,14 @@ size8_128_inv_use_dst:
 	VMULPD X0, X15, X15
 
 	// Store results
-	MOVUPD X8, (R8)
-	MOVUPD X9, 16(R8)
-	MOVUPD X10, 32(R8)
-	MOVUPD X11, 48(R8)
-	MOVUPD X12, 64(R8)
-	MOVUPD X13, 80(R8)
-	MOVUPD X14, 96(R8)
-	MOVUPD X15, 112(R8)
+	MOVUPD X8, (R14)
+	MOVUPD X9, 16(R14)
+	MOVUPD X10, 32(R14)
+	MOVUPD X11, 48(R14)
+	MOVUPD X12, 64(R14)
+	MOVUPD X13, 80(R14)
+	MOVUPD X14, 96(R14)
+	MOVUPD X15, 112(R14)
 
 	VZEROUPPER
 	MOVB $1, ret+120(FP)
