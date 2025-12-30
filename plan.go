@@ -58,6 +58,9 @@ type Plan[T Complex] struct {
 	kernelStrategy fft.KernelStrategy
 	meta           PlanMeta
 
+	// Recursive decomposition strategy (nil if using existing kernel path)
+	decompStrategy *fft.DecomposeStrategy
+
 	// backing buffers keep aligned slices alive for GC.
 	twiddleBacking        []byte
 	scratchBacking        []byte
@@ -77,6 +80,7 @@ const (
 	KernelSixStep   = fft.KernelSixStep
 	KernelEightStep = fft.KernelEightStep
 	KernelBluestein = fft.KernelBluestein
+	KernelRecursive = fft.KernelRecursive // Recursive decomposition with codelet leaves
 )
 
 // SetKernelStrategy overrides the global kernel selection strategy.
@@ -230,6 +234,10 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		return p.bluesteinForward(dst, src)
 	}
 
+	if p.kernelStrategy == fft.KernelRecursive {
+		return p.recursiveForward(dst, src)
+	}
+
 	// Zero-dispatch codelet path (highest priority)
 	if p.forwardCodelet != nil {
 		p.forwardCodelet(dst, src, p.twiddle, p.scratch, p.bitrev)
@@ -269,6 +277,10 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 
 	if p.kernelStrategy == fft.KernelBluestein {
 		return p.bluesteinInverse(dst, src)
+	}
+
+	if p.kernelStrategy == fft.KernelRecursive {
+		return p.recursiveInverse(dst, src)
 	}
 
 	// Zero-dispatch codelet path (highest priority)
@@ -464,6 +476,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	}
 
 	useBluestein := estimate.Strategy == fft.KernelBluestein
+	useRecursive := estimate.Strategy == fft.KernelRecursive
 	strategy := estimate.Strategy
 
 	// Get fallback kernels (used when no codelet is available)
@@ -488,6 +501,9 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		bluesteinBitrev         []int
 		bluesteinScratch        []T
 		bluesteinScratchBacking []byte
+
+		// Recursive decomposition specific
+		decompStrategy *fft.DecomposeStrategy
 	)
 
 	if useBluestein {
@@ -540,6 +556,52 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		// Compute filters using the pre-allocated scratch buffer
 		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, bluesteinBitrev, bluesteinScratch)
 		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, bluesteinBitrev, bluesteinScratch)
+	} else if useRecursive {
+		// Recursive decomposition: plan decomposition and generate specialized twiddles
+		codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
+		cacheSize := 32768 // L1 cache size estimate
+		decompStrategy = fft.PlanDecomposition(n, codeletSizes, cacheSize)
+
+		// Generate twiddles for recursive decomposition
+		var twiddleSize int
+		switch any(zero).(type) {
+		case complex64:
+			tmpTwiddle := fft.TwiddleFactorsRecursive[complex64](decompStrategy)
+			twiddleSize = len(tmpTwiddle)
+			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex64(twiddleSize)
+			copy(twiddleAligned, tmpTwiddle)
+			twiddle = any(twiddleAligned).([]T)
+			twiddleBacking = twiddleRaw
+
+			scratchSize := fft.ScratchSizeRecursive(decompStrategy)
+			scratchAligned, scratchRaw := fft.AllocAlignedComplex64(scratchSize)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := fft.AllocAlignedComplex64(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+		case complex128:
+			tmpTwiddle := fft.TwiddleFactorsRecursive[complex128](decompStrategy)
+			twiddleSize = len(tmpTwiddle)
+			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex128(twiddleSize)
+			copy(twiddleAligned, tmpTwiddle)
+			twiddle = any(twiddleAligned).([]T)
+			twiddleBacking = twiddleRaw
+
+			scratchSize := fft.ScratchSizeRecursive(decompStrategy)
+			scratchAligned, scratchRaw := fft.AllocAlignedComplex128(scratchSize)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := fft.AllocAlignedComplex128(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+		default:
+			twiddle = fft.TwiddleFactorsRecursive[T](decompStrategy)
+			scratch = make([]T, fft.ScratchSizeRecursive(decompStrategy))
+			stridedScratch = make([]T, n)
+		}
 	} else {
 		// Standard allocation
 		switch any(zero).(type) {
@@ -590,6 +652,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		forwardKernel:           kernels.Forward,
 		inverseKernel:           kernels.Inverse,
 		kernelStrategy:          strategy,
+		decompStrategy:          decompStrategy,
 		twiddleBacking:          twiddleBacking,
 		scratchBacking:          scratchBacking,
 		stridedScratchBacking:   stridedBacking,
