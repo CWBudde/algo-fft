@@ -383,3 +383,78 @@ func DITForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 func DITInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	return ditInverse(dst, src, twiddle, scratch, bitrev)
 }
+
+// Precision-specific exports
+var (
+	ForwardDITComplex64  = forwardDITComplex64
+	InverseDITComplex64  = inverseDITComplex64
+	ForwardDITComplex128 = forwardDITComplex128
+	InverseDITComplex128 = inverseDITComplex128
+)
+
+// Butterfly2 performs a radix-2 butterfly operation
+func Butterfly2[T Complex](a, b, w T) (T, T) {
+	return butterfly2(a, b, w)
+}
+
+// Size-specific DIT exports for benchmarks and tests
+var (
+	// Size 4
+	ForwardDIT4Radix4Complex64  = forwardDIT4Radix4Complex64
+	InverseDIT4Radix4Complex64  = inverseDIT4Radix4Complex64
+	// Size 8
+	ForwardDIT8Radix2Complex64  = forwardDIT8Radix2Complex64
+	InverseDIT8Radix2Complex64  = inverseDIT8Radix2Complex64
+	ForwardDIT8Radix4Complex64  = forwardDIT8Radix4Complex64
+	InverseDIT8Radix4Complex64  = inverseDIT8Radix4Complex64
+	// Size 16
+	ForwardDIT16Complex64       = forwardDIT16Complex64
+	InverseDIT16Complex64       = inverseDIT16Complex64
+	ForwardDIT16Radix4Complex64 = forwardDIT16Radix4Complex64
+	InverseDIT16Radix4Complex64 = inverseDIT16Radix4Complex64
+	// Size 32
+	ForwardDIT32Complex64       = forwardDIT32Complex64
+	InverseDIT32Complex64       = inverseDIT32Complex64
+	// Size 64
+	ForwardDIT64Complex64       = forwardDIT64Complex64
+	InverseDIT64Complex64       = inverseDIT64Complex64
+	ForwardDIT64Radix4Complex64 = forwardDIT64Radix4Complex64
+	InverseDIT64Radix4Complex64 = inverseDIT64Radix4Complex64
+	// Size 128
+	ForwardDIT128Complex64      = forwardDIT128Complex64
+	InverseDIT128Complex64      = inverseDIT128Complex64
+	// Size 256
+	ForwardDIT256Complex64       = forwardDIT256Complex64
+	InverseDIT256Complex64       = inverseDIT256Complex64
+	ForwardDIT256Radix4Complex64 = forwardDIT256Radix4Complex64
+	InverseDIT256Radix4Complex64 = inverseDIT256Radix4Complex64
+	// Size 512
+	ForwardDIT512Complex64      = forwardDIT512Complex64
+	InverseDIT512Complex64      = inverseDIT512Complex64
+
+	// Complex128 variants
+	ForwardDIT4Radix4Complex128  = forwardDIT4Radix4Complex128
+	InverseDIT4Radix4Complex128  = inverseDIT4Radix4Complex128
+	ForwardDIT8Radix2Complex128  = forwardDIT8Radix2Complex128
+	InverseDIT8Radix2Complex128  = inverseDIT8Radix2Complex128
+	ForwardDIT8Radix4Complex128  = forwardDIT8Radix4Complex128
+	InverseDIT8Radix4Complex128  = inverseDIT8Radix4Complex128
+	ForwardDIT16Complex128       = forwardDIT16Complex128
+	InverseDIT16Complex128       = inverseDIT16Complex128
+	ForwardDIT16Radix4Complex128 = forwardDIT16Radix4Complex128
+	InverseDIT16Radix4Complex128 = inverseDIT16Radix4Complex128
+	ForwardDIT32Complex128       = forwardDIT32Complex128
+	InverseDIT32Complex128       = inverseDIT32Complex128
+	ForwardDIT64Complex128       = forwardDIT64Complex128
+	InverseDIT64Complex128       = inverseDIT64Complex128
+	ForwardDIT64Radix4Complex128 = forwardDIT64Radix4Complex128
+	InverseDIT64Radix4Complex128 = inverseDIT64Radix4Complex128
+	ForwardDIT128Complex128      = forwardDIT128Complex128
+	InverseDIT128Complex128      = inverseDIT128Complex128
+	ForwardDIT256Complex128       = forwardDIT256Complex128
+	InverseDIT256Complex128       = inverseDIT256Complex128
+	ForwardDIT256Radix4Complex128 = forwardDIT256Radix4Complex128
+	InverseDIT256Radix4Complex128 = inverseDIT256Radix4Complex128
+	ForwardDIT512Complex128      = forwardDIT512Complex128
+	InverseDIT512Complex128      = inverseDIT512Complex128
+)

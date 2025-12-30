@@ -163,6 +163,15 @@ func butterfly5Inverse[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
 	return y0, y1, y2, y3, y4
 }
 
+// Public exports for internal/fft
+func Butterfly5Forward[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
+	return butterfly5Forward(a0, a1, a2, a3, a4)
+}
+
+func Butterfly5Inverse[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
+	return butterfly5Inverse(a0, a1, a2, a3, a4)
+}
+
 func radix5Twiddles[T Complex]() (T, T, T, T) {
 	var zero T
 	switch any(zero).(type) {
