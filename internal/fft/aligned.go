@@ -1,45 +1,12 @@
 package fft
 
-import "unsafe"
+import m "github.com/MeKo-Christian/algo-fft/internal/math"
 
-// AlignmentBytes defines the byte alignment for SIMD-friendly buffers.
-const AlignmentBytes = 64
+// Re-export from internal/math
+const AlignmentBytes = m.AlignmentBytes
 
-// AllocAlignedComplex64 allocates a complex64 slice aligned to AlignmentBytes.
-// The returned raw slice must be kept alive to avoid GC reclaiming the backing memory.
-func AllocAlignedComplex64(n int) ([]complex64, []byte) {
-	if n <= 0 {
-		return nil, nil
-	}
-
-	size := n * int(unsafe.Sizeof(complex64(0)))
-	raw := make([]byte, size+AlignmentBytes-1)
-	base := uintptr(unsafe.Pointer(&raw[0]))
-	aligned := alignPtr(base, AlignmentBytes)
-	offset := int(aligned - base)
-	data := unsafe.Slice((*complex64)(unsafe.Pointer(&raw[offset])), n)
-
-	return data, raw
-}
-
-// AllocAlignedComplex128 allocates a complex128 slice aligned to AlignmentBytes.
-// The returned raw slice must be kept alive to avoid GC reclaiming the backing memory.
-func AllocAlignedComplex128(n int) ([]complex128, []byte) {
-	if n <= 0 {
-		return nil, nil
-	}
-
-	size := n * int(unsafe.Sizeof(complex128(0)))
-	raw := make([]byte, size+AlignmentBytes-1)
-	base := uintptr(unsafe.Pointer(&raw[0]))
-	aligned := alignPtr(base, AlignmentBytes)
-	offset := int(aligned - base)
-	data := unsafe.Slice((*complex128)(unsafe.Pointer(&raw[offset])), n)
-
-	return data, raw
-}
-
-func alignPtr(ptr uintptr, alignment int) uintptr {
-	mask := uintptr(alignment - 1)
-	return (ptr + mask) & ^mask
-}
+var (
+	AllocAlignedComplex64 = m.AllocAlignedComplex64
+	AllocAlignedComplex128 = m.AllocAlignedComplex128
+	alignPtr              = m.AlignPtr
+)
