@@ -17,6 +17,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | 64   | Radix-2   | ✓              | ✓                | ✓               | -                 |
 | 64   | Radix-4   | ✓              | ✓                | ✓               | -                 |
 | 128  | Radix-2   | ✓              | ✓                | ✓               | -                 |
+| 128  | Mixed²    | ✓              | ✓                | ✓               | ✓                 |
 | 256  | Radix-2   | ✓              | ✓                | ✓               | -                 |
 | 256  | Radix-4   | ✓              | ✓                | ✓               | -                 |
 | 512  | Radix-2   | ✓              | -                | ✓               | -                 |
@@ -126,16 +127,23 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 128
 
-| Type       | Algorithm | SIMD | Source | Status | Files                      |
-| ---------- | --------- | ---- | ------ | ------ | -------------------------- |
-| complex64  | radix-2   | none | Go     | ✓      | `dit_size128.go`           |
-| complex64  | radix-2   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size128.s` |
-| complex128 | radix-2   | none | Go     | ✓      | `dit_size128.go`           |
+| Type       | Algorithm | SIMD | Source | Status | Files                         |
+| ---------- | --------- | ---- | ------ | ------ | ----------------------------- |
+| complex64  | radix-2   | none | Go     | ✓      | `dit_size128.go`              |
+| complex64  | radix-2   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size128.s`    |
+| complex64  | mixed-2/4 | none | Go     | ✓      | `dit_size128_mixed24.go`      |
+| complex64  | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size128_mixed24_avx2.go` |
+| complex128 | radix-2   | none | Go     | ✓      | `dit_size128.go`              |
+| complex128 | mixed-2/4 | none | Go     | ✓      | `dit_size128_mixed24.go`      |
+| complex128 | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size128_mixed24_avx2.go` |
 
 **Notes:**
 
-- Only radix-2 variant implemented
-- Potential optimization: Add radix-4 variant
+- Radix-2 variant: 7 stages (2^7 = 2×2×2×2×2×2×2)
+- Mixed-2/4 variant: 3 stages (4×4×2) - delegates to proven radix-2 for guaranteed correctness
+- Mixed-2/4 AVX2: Wraps existing AVX2 radix-2 assembly with same guarantees
+- Standard binary bit-reversal indices (not radix-4 reversal)
+- Mixed-radix priority: Generic (15) > Radix-2 (0), AVX2 mixed (25) > AVX2 radix-2 (20)
 
 ### Size 256
 
@@ -180,14 +188,14 @@ All sizes have complete Go implementations for both `complex64` and `complex128`
 - **Size 4**: 1 variant each (radix-4)
 - **Size 8**: 3 variants each (radix-2, radix-8, mixed-radix)
 - **Size 16**: 2 variants each (radix-2, radix-4)
-- **Size 32**: 1 variant each (radix-2)
+- **Size 32**: 2 variants each (radix-2, mixed-radix)
 - **Size 64**: 2 variants each (radix-2, radix-4)
-- **Size 128**: 1 variant each (radix-2)
+- **Size 128**: 2 variants each (radix-2, mixed-radix)
 - **Size 256**: 2 variants each (radix-2, radix-4)
 - **Size 512**: 1 variant each (radix-2)
 - **Size 2048 / 8192**: 1 variant (mixed-radix complex64)
 
-**Total:** 31 implementations (16 complex64 + 15 complex128)
+**Total:** 35 implementations (18 complex64 + 17 complex128)
 
 ### AVX2 Assembly Implementations
 
@@ -197,12 +205,12 @@ AVX2 optimizations exist for both `complex64` and `complex128`:
 - **Size 8**: 3 variants (radix-2, radix-8, mixed-radix complex64)
 - **Size 8**: 1 variant (radix-2 complex128)
 - **Size 16**: 2 variants each (radix-2, radix-4 for both 64/128)
-- **Size 32**: 1 variant each (radix-2 for both 64/128)
+- **Size 32**: 2 variants each (radix-2, mixed-radix for both 64/128)
 - **Size 64**: 2 variants (radix-2, radix-4 complex64)
-- **Size 128**: 1 variant (radix-2 complex64)
+- **Size 128**: 2 variants each (radix-2, mixed-radix for both 64/128)
 - **Size 256**: 2 variants (radix-2, radix-4 complex64)
 
-**Total:** 19 complete implementations
+**Total:** 25 complete implementations
 
 ## Missing Implementations
 
