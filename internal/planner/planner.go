@@ -1,4 +1,4 @@
-package fft
+package planner
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
@@ -147,45 +147,4 @@ func HasCodelet[T Complex](n int, features cpu.Features) bool {
 	}
 
 	return registry.Lookup(n, features) != nil
-}
-
-// CPUFeatureMask returns a bitmask of CPU features relevant for planning.
-func CPUFeatureMask(hasSSE2, hasAVX2, hasAVX512, hasNEON bool) uint64 {
-	var mask uint64
-
-	if hasSSE2 {
-		mask |= 1 << 0
-	}
-
-	if hasAVX2 {
-		mask |= 1 << 1
-	}
-
-	if hasAVX512 {
-		mask |= 1 << 2
-	}
-
-	if hasNEON {
-		mask |= 1 << 3
-	}
-
-	return mask
-}
-
-// strategyToAlgorithmName converts a kernel strategy to an algorithm name.
-func strategyToAlgorithmName(strategy KernelStrategy) string {
-	switch strategy {
-	case KernelDIT:
-		return "dit_fallback"
-	case KernelStockham:
-		return "stockham"
-	case KernelSixStep:
-		return "sixstep"
-	case KernelEightStep:
-		return "eightstep"
-	case KernelBluestein:
-		return "bluestein"
-	default:
-		return "unknown"
-	}
 }

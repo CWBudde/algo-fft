@@ -1,26 +1,12 @@
-package fft
+package planner
 
 import (
+	"math"
 	"sync"
 	"sync/atomic"
-
-	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
 )
 
-// KernelStrategy is a type alias for the kernel selection strategy.
-// The canonical definition is in internal/fftypes.
-type KernelStrategy = fftypes.KernelStrategy
-
-// Kernel strategy constants - aliases for backward compatibility.
-const (
-	KernelAuto      = fftypes.KernelAuto
-	KernelDIT       = fftypes.KernelDIT
-	KernelStockham  = fftypes.KernelStockham
-	KernelSixStep   = fftypes.KernelSixStep
-	KernelEightStep = fftypes.KernelEightStep
-	KernelBluestein = fftypes.KernelBluestein
-	KernelRecursive = fftypes.KernelRecursive
-)
+const ditAutoThreshold = 1024
 
 //nolint:gochecknoglobals
 var kernelStrategy uint32 = uint32(KernelAuto)
@@ -137,4 +123,22 @@ func fallbackKernelStrategy(n int) KernelStrategy {
 	}
 
 	return KernelStockham
+}
+
+// intSqrt computes the integer square root of n.
+func intSqrt(n int) int {
+	if n <= 0 {
+		return 0
+	}
+
+	root := int(math.Sqrt(float64(n)))
+
+	// Handle rounding errors
+	if root*root > n {
+		root--
+	} else if (root+1)*(root+1) <= n {
+		root++
+	}
+
+	return root
 }
