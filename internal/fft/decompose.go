@@ -47,6 +47,7 @@ func PlanDecomposition(n int, codeletSizes []int, cacheSize int) *DecomposeStrat
 	// Score each factorization based on cache fit, codelet availability,
 	// radix size, and SIMD width
 	bestScore := -1
+
 	var bestStrategy *DecomposeStrategy
 
 	for _, radix := range factors {
@@ -129,13 +130,14 @@ func min(a, b int) int {
 	if a < b {
 		return a
 	}
+
 	return b
 }
 
 // findFactors returns all divisors of n that are power-of-2, EXCLUDING n itself.
 // Returns them in descending order (largest first).
 //
-// For example, findFactors(8192) returns [4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2]
+// For example, findFactors(8192) returns [4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2].
 func findFactors(n int) []int {
 	if !IsPowerOf2(n) {
 		return []int{2} // Fallback to radix-2 for non-power-of-2
@@ -151,6 +153,7 @@ func findFactors(n int) []int {
 
 	// Return in descending order (prefer larger splits)
 	sort.Sort(sort.Reverse(sort.IntSlice(factors)))
+
 	return factors
 }
 
@@ -166,6 +169,7 @@ func (s *DecomposeStrategy) Depth() int {
 	if s.UseCodelet || s.Recursive == nil {
 		return 1
 	}
+
 	return 1 + s.Recursive.Depth()
 }
 
@@ -174,9 +178,11 @@ func (s *DecomposeStrategy) CodeletCount() int {
 	if s.UseCodelet {
 		return 1
 	}
+
 	if s.Recursive == nil {
 		return 0
 	}
+
 	return s.NumSubs * s.Recursive.CodeletCount()
 }
 
@@ -185,5 +191,6 @@ func (s *DecomposeStrategy) String() string {
 	if s.UseCodelet {
 		return "Codelet"
 	}
+
 	return "Split-" + string(rune('0'+s.SplitFactor))
 }

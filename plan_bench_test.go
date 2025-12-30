@@ -36,7 +36,7 @@ func BenchmarkPlanForward_2048_Stockham(b *testing.B) {
 	benchmarkPlanForwardWithOptions(b, 2048, PlanOptions{Strategy: KernelStockham})
 }
 
-// Recursive FFT benchmarks
+// Recursive FFT benchmarks.
 func BenchmarkPlanForward_1024_Recursive(b *testing.B) {
 	benchmarkPlanForwardWithOptions(b, 1024, PlanOptions{Strategy: KernelRecursive})
 }
@@ -86,7 +86,7 @@ func BenchmarkPlanInverse_2048_Stockham(b *testing.B) {
 	benchmarkPlanInverseWithOptions(b, 2048, PlanOptions{Strategy: KernelStockham})
 }
 
-// Recursive inverse FFT benchmarks
+// Recursive inverse FFT benchmarks.
 func BenchmarkPlanInverse_1024_Recursive(b *testing.B) {
 	benchmarkPlanInverseWithOptions(b, 1024, PlanOptions{Strategy: KernelRecursive})
 }

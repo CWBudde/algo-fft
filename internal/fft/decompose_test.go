@@ -87,15 +87,18 @@ func checkLeaves(t *testing.T, s *DecomposeStrategy, codeletSizes []int) {
 	if s.UseCodelet {
 		// Verify this size is actually in codeletSizes
 		found := false
+
 		for _, size := range codeletSizes {
 			if size == s.Size {
 				found = true
 				break
 			}
 		}
+
 		if !found {
 			t.Errorf("Leaf node size %d is not in codeletSizes %v", s.Size, codeletSizes)
 		}
+
 		return
 	}
 
@@ -168,6 +171,7 @@ func TestCodeletCount(t *testing.T) {
 			t.Logf("  UseCodelet: %v", strategy.UseCodelet)
 			t.Logf("  SplitFactor: %d", strategy.SplitFactor)
 			t.Logf("  SubSize: %d", strategy.SubSize)
+
 			if strategy.Recursive != nil {
 				t.Logf("  Recursive != nil: UseCodelet=%v, Size=%d",
 					strategy.Recursive.UseCodelet, strategy.Recursive.Size)
@@ -186,6 +190,7 @@ func TestCodeletCount(t *testing.T) {
 			// (This is a property of Cooley-Tukey decomposition)
 			if !strategy.UseCodelet && strategy.Recursive != nil {
 				expectedWork := tt.size
+
 				actualWork := count * strategy.Recursive.Size
 				if actualWork != expectedWork {
 					t.Logf("Note: Work calculation needs adjustment. Expected %d, got %d",
@@ -227,6 +232,7 @@ func TestFindFactors(t *testing.T) {
 				if len(factors) != len(tt.want) {
 					t.Fatalf("findFactors(%d) = %v, want %v", tt.n, factors, tt.want)
 				}
+
 				for i := range factors {
 					if factors[i] != tt.want[i] {
 						t.Errorf("factors[%d] = %d, want %d", i, factors[i], tt.want[i])

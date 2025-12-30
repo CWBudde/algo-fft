@@ -46,6 +46,7 @@ func recursiveForwardWithTwiddle[T Complex](
 	// Base case: use codelet
 	if strategy.UseCodelet {
 		twiddleSlice := twiddle[twiddleOffset : twiddleOffset+n]
+
 		codelet := registry.Lookup(n, features)
 		if codelet != nil {
 			// Call the codelet's forward function
@@ -53,11 +54,14 @@ func recursiveForwardWithTwiddle[T Complex](
 			if codelet.BitrevFunc != nil {
 				bitrev = codelet.BitrevFunc(n)
 			}
+
 			codelet.Forward(dst, src, twiddleSlice, scratch, bitrev)
+
 			return twiddleOffset + n
 		}
 		// Fallback to generic DIT if codelet missing (should not happen if registry is correct)
 		ditForward(dst, src, twiddleSlice, scratch, ComputeBitReversalIndices(n))
+
 		return twiddleOffset + n
 	}
 
@@ -68,16 +72,17 @@ func recursiveForwardWithTwiddle[T Complex](
 	// Allocate sub-result buffers from scratch space
 	// Layout: [sub0 | sub1 | ... | subN | remaining scratch]
 	subResults := make([][]T, radix)
-	for i := 0; i < radix; i++ {
+	for i := range radix {
 		subResults[i] = scratch[i*subSize : (i+1)*subSize]
 	}
+
 	remainingScratch := scratch[radix*subSize:]
 	subScratchSize := ScratchSizeRecursive(strategy.Recursive)
 	subScratch := remainingScratch[:subScratchSize]
 
 	// Allocate sub-input buffers (temporary, could optimize with in-place decimation)
 	subInputs := make([][]T, radix)
-	for i := 0; i < radix; i++ {
+	for i := range radix {
 		subInputs[i] = make([]T, subSize)
 	}
 
@@ -85,8 +90,8 @@ func recursiveForwardWithTwiddle[T Complex](
 	// For radix-2: even/odd indices
 	// For radix-4: indices mod 4
 	// General: indices mod radix
-	for i := 0; i < radix; i++ {
-		for j := 0; j < subSize; j++ {
+	for i := range radix {
+		for j := range subSize {
 			subInputs[i][j] = src[i+j*radix]
 		}
 	}
@@ -96,7 +101,7 @@ func recursiveForwardWithTwiddle[T Complex](
 	twiddleOffset += blockSize
 
 	// Recursively compute sub-FFTs
-	for i := 0; i < radix; i++ {
+	for i := range radix {
 		twiddleOffset = recursiveForwardWithTwiddle(
 			subResults[i],
 			subInputs[i],
@@ -170,17 +175,21 @@ func recursiveInverseWithTwiddle[T Complex](
 	// Base case: use codelet
 	if strategy.UseCodelet {
 		twiddleSlice := twiddle[twiddleOffset : twiddleOffset+n]
+
 		codelet := registry.Lookup(n, features)
 		if codelet != nil {
 			var bitrev []int
 			if codelet.BitrevFunc != nil {
 				bitrev = codelet.BitrevFunc(n)
 			}
+
 			codelet.Inverse(dst, src, twiddleSlice, scratch, bitrev)
+
 			return twiddleOffset + n
 		}
 		// Fallback
 		ditInverse(dst, src, twiddleSlice, scratch, ComputeBitReversalIndices(n))
+
 		return twiddleOffset + n
 	}
 
@@ -189,21 +198,22 @@ func recursiveInverseWithTwiddle[T Complex](
 	subSize := strategy.SubSize
 
 	subResults := make([][]T, radix)
-	for i := 0; i < radix; i++ {
+	for i := range radix {
 		subResults[i] = scratch[i*subSize : (i+1)*subSize]
 	}
+
 	remainingScratch := scratch[radix*subSize:]
 	subScratchSize := ScratchSizeRecursive(strategy.Recursive)
 	subScratch := remainingScratch[:subScratchSize]
 
 	subInputs := make([][]T, radix)
-	for i := 0; i < radix; i++ {
+	for i := range radix {
 		subInputs[i] = make([]T, subSize)
 	}
 
 	// Decimate input
-	for i := 0; i < radix; i++ {
-		for j := 0; j < subSize; j++ {
+	for i := range radix {
+		for j := range subSize {
 			subInputs[i][j] = src[i+j*radix]
 		}
 	}
@@ -213,7 +223,7 @@ func recursiveInverseWithTwiddle[T Complex](
 	twiddleOffset += blockSize
 
 	// Recursively compute sub-IFFTs
-	for i := 0; i < radix; i++ {
+	for i := range radix {
 		twiddleOffset = recursiveInverseWithTwiddle(
 			subResults[i],
 			subInputs[i],
@@ -245,6 +255,7 @@ func recursiveInverseWithTwiddle[T Complex](
 	}
 
 	scaleComplexSlice(dst, 1.0/float64(radix))
+
 	return twiddleOffset
 }
 
@@ -253,21 +264,25 @@ func recursiveInverseWithTwiddle[T Complex](
 
 func generateCombineTwiddles[T Complex](n, radix int) []T {
 	subSize := n / radix
+
 	twiddles := make([]T, subSize)
-	for k := 0; k < subSize; k++ {
+	for k := range subSize {
 		angle := -2.0 * 3.14159265358979323846 * float64(k) / float64(n)
 		twiddles[k] = makeComplex[T](angle)
 	}
+
 	return twiddles
 }
 
 func generateCombineTwiddlesInverse[T Complex](n, radix int) []T {
 	subSize := n / radix
+
 	twiddles := make([]T, subSize)
-	for k := 0; k < subSize; k++ {
+	for k := range subSize {
 		angle := 2.0 * 3.14159265358979323846 * float64(k) / float64(n) // Note: positive for inverse
 		twiddles[k] = makeComplex[T](angle)
 	}
+
 	return twiddles
 }
 
@@ -277,7 +292,7 @@ func generateRadix4Twiddles[T Complex](n int) ([]T, []T, []T) {
 	tw2 := make([]T, quarter)
 	tw3 := make([]T, quarter)
 
-	for k := 0; k < quarter; k++ {
+	for k := range quarter {
 		angle1 := -2.0 * 3.14159265358979323846 * float64(k) / float64(n)
 		angle2 := -2.0 * 3.14159265358979323846 * float64(2*k) / float64(n)
 		angle3 := -2.0 * 3.14159265358979323846 * float64(3*k) / float64(n)
@@ -296,7 +311,7 @@ func generateRadix4TwiddlesInverse[T Complex](n int) ([]T, []T, []T) {
 	tw2 := make([]T, quarter)
 	tw3 := make([]T, quarter)
 
-	for k := 0; k < quarter; k++ {
+	for k := range quarter {
 		angle1 := 2.0 * 3.14159265358979323846 * float64(k) / float64(n)
 		angle2 := 2.0 * 3.14159265358979323846 * float64(2*k) / float64(n)
 		angle3 := 2.0 * 3.14159265358979323846 * float64(3*k) / float64(n)
@@ -314,13 +329,13 @@ func generateRadix8Twiddles[T Complex](n int) [][]T {
 	twiddles := make([][]T, 8)
 
 	twiddles[0] = make([]T, eighth)
-	for k := 0; k < eighth; k++ {
+	for k := range eighth {
 		twiddles[0][k] = makeComplex[T](0) // W^0 = 1
 	}
 
 	for r := 1; r < 8; r++ {
 		twiddles[r] = make([]T, eighth)
-		for k := 0; k < eighth; k++ {
+		for k := range eighth {
 			angle := -2.0 * 3.14159265358979323846 * float64(r*k) / float64(n)
 			twiddles[r][k] = makeComplex[T](angle)
 		}
@@ -334,13 +349,13 @@ func generateGeneralTwiddles[T Complex](n, radix int) [][]T {
 	twiddles := make([][]T, radix)
 
 	twiddles[0] = make([]T, subSize)
-	for k := 0; k < subSize; k++ {
+	for k := range subSize {
 		twiddles[0][k] = makeComplex[T](0) // W^0 = 1
 	}
 
 	for r := 1; r < radix; r++ {
 		twiddles[r] = make([]T, subSize)
-		for k := 0; k < subSize; k++ {
+		for k := range subSize {
 			angle := -2.0 * 3.14159265358979323846 * float64(r*k) / float64(n)
 			twiddles[r][k] = makeComplex[T](angle)
 		}
@@ -354,13 +369,13 @@ func generateGeneralTwiddlesInverse[T Complex](n, radix int) [][]T {
 	twiddles := make([][]T, radix)
 
 	twiddles[0] = make([]T, subSize)
-	for k := 0; k < subSize; k++ {
+	for k := range subSize {
 		twiddles[0][k] = makeComplex[T](0) // W^0 = 1
 	}
 
 	for r := 1; r < radix; r++ {
 		twiddles[r] = make([]T, subSize)
-		for k := 0; k < subSize; k++ {
+		for k := range subSize {
 			angle := 2.0 * 3.14159265358979323846 * float64(r*k) / float64(n)
 			twiddles[r][k] = makeComplex[T](angle)
 		}
@@ -371,16 +386,17 @@ func generateGeneralTwiddlesInverse[T Complex](n, radix int) [][]T {
 
 func splitTwiddleBlock[T Complex](block []T, radix, subSize int) [][]T {
 	twiddles := make([][]T, radix)
-	for r := 0; r < radix; r++ {
+	for r := range radix {
 		start := r * subSize
 		twiddles[r] = block[start : start+subSize]
 	}
+
 	return twiddles
 }
 
 func combineRadix2Conj[T Complex](dst []T, sub0, sub1 []T, twiddle []T) {
 	half := len(sub0)
-	for k := 0; k < half; k++ {
+	for k := range half {
 		t := conj(twiddle[k]) * sub1[k]
 		dst[k] = sub0[k] + t
 		dst[k+half] = sub0[k] - t
@@ -394,7 +410,7 @@ func combineRadix4Conj[T Complex](
 ) {
 	quarter := len(sub0)
 
-	for k := 0; k < quarter; k++ {
+	for k := range quarter {
 		t1 := conj(twiddle1[k]) * sub1[k]
 		t2 := conj(twiddle2[k]) * sub2[k]
 		t3 := conj(twiddle3[k]) * sub3[k]
@@ -416,20 +432,23 @@ func combineRadix4Conj[T Complex](
 func combineRadix8Conj[T Complex](dst []T, subs [][]T, twiddles [][]T) {
 	eighth := len(subs[0])
 
-	for k := 0; k < eighth; k++ {
+	for k := range eighth {
 		t := make([]T, 8)
+
 		t[0] = subs[0][k]
 		for r := 1; r < 8; r++ {
 			t[r] = conj(twiddles[r][k]) * subs[r][k]
 		}
 
-		for bin := 0; bin < 8; bin++ {
+		for bin := range 8 {
 			sum := T(0)
-			for r := 0; r < 8; r++ {
+
+			for r := range 8 {
 				angle := 2.0 * 3.14159265358979323846 * float64(bin*r) / 8.0
 				w := T(complex(cos64(angle), sin64(angle)))
 				sum += w * t[r]
 			}
+
 			dst[k+bin*eighth] = sum
 		}
 	}
@@ -438,20 +457,23 @@ func combineRadix8Conj[T Complex](dst []T, subs [][]T, twiddles [][]T) {
 func combineGeneralConj[T Complex](dst []T, subs [][]T, twiddles [][]T, radix int) {
 	subSize := len(subs[0])
 
-	for k := 0; k < subSize; k++ {
+	for k := range subSize {
 		t := make([]T, radix)
+
 		t[0] = subs[0][k]
 		for r := 1; r < radix; r++ {
 			t[r] = conj(twiddles[r][k]) * subs[r][k]
 		}
 
-		for bin := 0; bin < radix; bin++ {
+		for bin := range radix {
 			sum := T(0)
-			for r := 0; r < radix; r++ {
+
+			for r := range radix {
 				angle := 2.0 * 3.14159265358979323846 * float64(bin*r) / float64(radix)
 				w := T(complex(cos64(angle), sin64(angle)))
 				sum += w * t[r]
 			}
+
 			dst[k+bin*subSize] = sum
 		}
 	}

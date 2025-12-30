@@ -24,6 +24,7 @@ func (p *Plan[T]) recursiveForward(dst, src []T) error {
 		scratch64 := any(p.scratch).([]complex64)
 
 		fft.RecursiveForward(dst64, src64, p.decompStrategy, twiddle64, scratch64, registry, features)
+
 		return nil
 	case complex128:
 		registry := fft.Registry128
@@ -33,6 +34,7 @@ func (p *Plan[T]) recursiveForward(dst, src []T) error {
 		scratch128 := any(p.scratch).([]complex128)
 
 		fft.RecursiveForward(dst128, src128, p.decompStrategy, twiddle128, scratch128, registry, features)
+
 		return nil
 	default:
 		return ErrNotImplemented
@@ -58,6 +60,7 @@ func (p *Plan[T]) recursiveInverse(dst, src []T) error {
 		scratch64 := any(p.scratch).([]complex64)
 
 		fft.RecursiveInverse(dst64, src64, p.decompStrategy, twiddle64, scratch64, registry, features)
+
 		return nil
 	case complex128:
 		registry := fft.Registry128
@@ -67,6 +70,7 @@ func (p *Plan[T]) recursiveInverse(dst, src []T) error {
 		scratch128 := any(p.scratch).([]complex128)
 
 		fft.RecursiveInverse(dst128, src128, p.decompStrategy, twiddle128, scratch128, registry, features)
+
 		return nil
 	default:
 		return ErrNotImplemented

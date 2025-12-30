@@ -160,6 +160,7 @@ func (r *CodeletRegistry[T]) GetAvailableSizes(features cpu.Features) []int {
 	}
 
 	sort.Ints(sizes)
+
 	return sizes
 }
 

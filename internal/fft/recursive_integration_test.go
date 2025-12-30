@@ -50,7 +50,8 @@ func TestRecursiveFFTCorrectness(t *testing.T) {
 			expected := reference.NaiveDFT(input)
 
 			// Compare results
-			if err := compareComplexSlices(output, expected, 1e-5); err != nil {
+			err := compareComplexSlices(output, expected, 1e-5)
+			if err != nil {
 				t.Errorf("Size %d forward FFT mismatch: %v", size, err)
 				t.Logf("Strategy: SplitFactor=%d, SubSize=%d, Depth=%d, Codelets=%d",
 					strategy.SplitFactor, strategy.SubSize, strategy.Depth(), strategy.CodeletCount())
@@ -95,7 +96,8 @@ func TestRecursiveIFFTCorrectness(t *testing.T) {
 			recursiveInverse(inverse, forward, strategy, twiddle, scratch, Registry64, features)
 
 			// Should recover original input
-			if err := compareComplexSlices(inverse, input, 3e-3); err != nil {
+			err := compareComplexSlices(inverse, input, 3e-3)
+			if err != nil {
 				maxDiff, maxIndex := maxDiffComplex64(inverse, input)
 				t.Errorf("Size %d round-trip mismatch: %v (max diff=%v at index %d)", size, err, maxDiff, maxIndex)
 			}
@@ -141,6 +143,7 @@ func TestRecursiveFFTParsevalTheorem(t *testing.T) {
 	// Parseval's theorem (unnormalized FFT): Σ|x[n]|² = (1/N) * Σ|X[k]|²
 	// Allow 1% relative error
 	expectedFreqEnergy := timeEnergy * float32(size)
+
 	relError := math.Abs(float64(freqEnergy-expectedFreqEnergy)) / float64(expectedFreqEnergy)
 	if relError > 0.01 {
 		t.Errorf("Parseval's theorem violated: time energy = %v, freq energy = %v (expected %v), rel error = %v",
@@ -162,6 +165,7 @@ func TestRecursiveFFTLinearity(t *testing.T) {
 	// Generate two input signals
 	x := make([]complex64, size)
 	y := make([]complex64, size)
+
 	for i := range x {
 		x[i] = complex(float32(i), 0)
 		y[i] = complex(0, float32(i))
@@ -198,13 +202,16 @@ func TestRecursiveFFTLinearity(t *testing.T) {
 	recursiveForward(actual, combined, strategy, twiddle, scratch, Registry64, features)
 
 	// Should match
-	if err := compareComplexSlicesRel(actual, expected, 5e-2, 1e-7); err != nil {
+	err := compareComplexSlicesRel(actual, expected, 5e-2, 1e-7)
+	if err != nil {
 		maxDiff, maxIndex := maxDiffComplex64(actual, expected)
 		rel := float32(0)
+
 		den := cmplx64Abs(expected[maxIndex])
 		if den > 0 {
 			rel = maxDiff / den
 		}
+
 		t.Errorf("Linearity test failed: %v (max diff=%v at index %d, rel=%v)", err, maxDiff, maxIndex, rel)
 	}
 }
@@ -278,7 +285,8 @@ func TestRecursiveFFTSmallSizes(t *testing.T) {
 
 			// Compare against reference
 			expected := reference.NaiveDFT(input)
-			if err := compareComplexSlices(output, expected, 1e-5); err != nil {
+			err := compareComplexSlices(output, expected, 1e-5)
+			if err != nil {
 				t.Errorf("Size %d FFT mismatch: %v", size, err)
 			}
 		})
@@ -291,6 +299,7 @@ func formatSize(n int) string {
 	if n >= 1024 {
 		return formatInt(n/1024) + "K"
 	}
+
 	return formatInt(n)
 }
 
@@ -298,6 +307,7 @@ func formatInt(n int) string {
 	if n < 10 {
 		return string(rune('0' + n))
 	}
+
 	return string(rune('0'+n/10)) + string(rune('0'+n%10))
 }
 
@@ -334,18 +344,21 @@ func (e *compareError) Error() string {
 	if e.index > 0 {
 		return e.msg + " at index " + formatInt(e.index)
 	}
+
 	return e.msg
 }
 
 func cmplx64Abs(x complex64) float32 {
 	r := real(x)
 	i := imag(x)
+
 	return float32(math.Sqrt(float64(r*r + i*i)))
 }
 
 func cmplx128Abs(x complex128) float64 {
 	r := real(x)
 	i := imag(x)
+
 	return math.Sqrt(r*r + i*i)
 }
 
@@ -356,20 +369,24 @@ func naiveDFTComplex128(input []complex128) []complex128 {
 	}
 
 	output := make([]complex128, n)
-	for k := 0; k < n; k++ {
+	for k := range n {
 		var sum complex128
-		for t := 0; t < n; t++ {
+
+		for t := range n {
 			angle := -2.0 * math.Pi * float64(t*k) / float64(n)
 			w := complex(math.Cos(angle), math.Sin(angle))
 			sum += input[t] * w
 		}
+
 		output[k] = sum
 	}
+
 	return output
 }
 
 func maxDiffComplex64(a, b []complex64) (float32, int) {
 	maxDiff := float32(0)
+
 	maxIndex := 0
 	if len(a) < len(b) {
 		maxIndex = len(a) - 1
@@ -396,6 +413,7 @@ func compareComplexSlicesRel(a, b []complex64, absTol, relTol float32) error {
 		if diff <= absTol {
 			continue
 		}
+
 		den := cmplx64Abs(b[i])
 		if den == 0 || diff > relTol*den {
 			return &compareError{
