@@ -4,15 +4,7 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
 
-// Kernel reports whether it handled the transform.
-// It returns false when no implementation is available.
-type Kernel[T Complex] func(dst, src, twiddle, scratch []T, bitrev []int) bool
-
-// Kernels groups forward and inverse kernels for a given precision.
-type Kernels[T Complex] struct {
-	Forward Kernel[T]
-	Inverse Kernel[T]
-}
+// Kernel and Kernels types are now imported from internal/kernels via kernels.go
 
 // SelectKernels returns the best available kernels for the detected features.
 // Currently returns stubs until optimized kernels are implemented.
