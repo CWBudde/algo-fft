@@ -13,5 +13,6 @@ func ScratchSizeRecursive(strategy *DecomposeStrategy) int {
 	}
 
 	subScratch := ScratchSizeRecursive(strategy.Recursive)
+
 	return strategy.SplitFactor*strategy.SubSize + subScratch
 }

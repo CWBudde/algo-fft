@@ -47,6 +47,7 @@ func fillTwiddles[T Complex](buffer []T, strategy *DecomposeStrategy, offset int
 	if strategy.UseCodelet || strategy.Recursive == nil {
 		twiddles := ComputeTwiddleFactors[T](n)
 		copy(buffer[offset:], twiddles)
+
 		return offset + len(twiddles)
 	}
 
@@ -55,8 +56,8 @@ func fillTwiddles[T Complex](buffer []T, strategy *DecomposeStrategy, offset int
 
 	// Generate combine twiddles for this level
 	// W_N^(r*k) for r = 0..radix-1, k = 0..subSize-1
-	for r := 0; r < radix; r++ {
-		for k := 0; k < subSize; k++ {
+	for r := range radix {
+		for k := range subSize {
 			angle := -2.0 * math.Pi * float64(r*k) / float64(n)
 			buffer[offset] = makeComplexFromAngle[T](angle)
 			offset++
@@ -64,7 +65,7 @@ func fillTwiddles[T Complex](buffer []T, strategy *DecomposeStrategy, offset int
 	}
 
 	// Recursively fill sub-twiddles
-	for i := 0; i < strategy.NumSubs; i++ {
+	for range strategy.NumSubs {
 		offset = fillTwiddles(buffer, strategy.Recursive, offset)
 	}
 
@@ -77,7 +78,7 @@ func generateTwiddleFactors[T Complex](n int) []T {
 	half := n / 2
 	twiddles := make([]T, half)
 
-	for k := 0; k < half; k++ {
+	for k := range half {
 		angle := -2.0 * math.Pi * float64(k) / float64(n)
 		twiddles[k] = makeComplexFromAngle[T](angle)
 	}

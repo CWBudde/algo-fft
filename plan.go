@@ -564,6 +564,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 
 		// Generate twiddles for recursive decomposition
 		var twiddleSize int
+
 		switch any(zero).(type) {
 		case complex64:
 			tmpTwiddle := fft.TwiddleFactorsRecursive[complex64](decompStrategy)
@@ -823,7 +824,8 @@ func getBuffersFromPool[T Complex](n int, pool *fft.BufferPool) (twiddle, scratc
 		scratch = make([]T, n)
 		stridedScratch = make([]T, n)
 	}
-	return
+
+	return twiddle, scratch, stridedScratch, twiddleBacking, scratchBacking, stridedBacking
 }
 
 // Reset clears the scratch buffer and resets internal state.

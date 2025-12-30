@@ -64,7 +64,7 @@ func TestCombineRadix4(t *testing.T) {
 	twiddle2 := make([]complex64, quarter)
 	twiddle3 := make([]complex64, quarter)
 
-	for k := 0; k < quarter; k++ {
+	for k := range quarter {
 		angle1 := -2.0 * math.Pi * float64(k) / float64(n)
 		angle2 := -2.0 * math.Pi * float64(2*k) / float64(n)
 		angle3 := -2.0 * math.Pi * float64(3*k) / float64(n)
@@ -271,17 +271,17 @@ func TestCombineGeneral(t *testing.T) {
 	n := radix * subSize // = 6
 
 	subResults := make([][]complex64, radix)
-	for i := 0; i < radix; i++ {
+	for i := range radix {
 		subResults[i] = make([]complex64, subSize)
-		for j := 0; j < subSize; j++ {
+		for j := range subSize {
 			subResults[i][j] = complex(float32(i+1), 0) // [1, 1], [2, 2], [3, 3]
 		}
 	}
 
 	twiddles := make([][]complex64, radix)
-	for r := 0; r < radix; r++ {
+	for r := range radix {
 		twiddles[r] = make([]complex64, subSize)
-		for k := 0; k < subSize; k++ {
+		for k := range subSize {
 			angle := -2.0 * math.Pi * float64(r*k) / float64(n)
 			twiddles[r][k] = complex(float32(math.Cos(angle)), float32(math.Sin(angle)))
 		}
@@ -294,6 +294,7 @@ func TestCombineGeneral(t *testing.T) {
 
 	// Basic sanity check: output should not be all zeros
 	allZero := true
+
 	for _, v := range dst {
 		if v != 0 {
 			allZero = false

@@ -20,7 +20,7 @@ func combineRadix2[T Complex](
 	twiddle []T, // Twiddle factors W^k for k=0..N/2-1
 ) {
 	half := len(sub0)
-	for k := 0; k < half; k++ {
+	for k := range half {
 		t := twiddle[k] * sub1[k] // Twiddle multiplication
 		dst[k] = sub0[k] + t      // Even output
 		dst[k+half] = sub0[k] - t // Odd output
@@ -50,7 +50,7 @@ func combineRadix4[T Complex](
 ) {
 	quarter := len(sub0)
 
-	for k := 0; k < quarter; k++ {
+	for k := range quarter {
 		t1 := twiddle1[k] * sub1[k]
 		t2 := twiddle2[k] * sub2[k]
 		t3 := twiddle3[k] * sub3[k]
@@ -78,9 +78,10 @@ func combineRadix8[T Complex](
 ) {
 	eighth := len(subs[0])
 
-	for k := 0; k < eighth; k++ {
+	for k := range eighth {
 		// Apply twiddle factors
 		t := make([]T, 8)
+
 		t[0] = subs[0][k] // W^0 = 1, no multiplication needed
 		for r := 1; r < 8; r++ {
 			t[r] = twiddles[r][k] * subs[r][k]
@@ -88,14 +89,16 @@ func combineRadix8[T Complex](
 
 		// Radix-8 butterfly (can be optimized further with radix-2 + radix-4 decomposition)
 		// For now, use direct DFT formula for radix-8
-		for bin := 0; bin < 8; bin++ {
+		for bin := range 8 {
 			sum := T(0)
-			for r := 0; r < 8; r++ {
+
+			for r := range 8 {
 				// W_8^(bin*r) rotation
 				angle := -2.0 * 3.14159265358979323846 * float64(bin*r) / 8.0
 				w := T(complex(cos64(angle), sin64(angle)))
 				sum += w * t[r]
 			}
+
 			dst[k+bin*eighth] = sum
 		}
 	}
@@ -111,29 +114,32 @@ func combineGeneral[T Complex](
 ) {
 	subSize := len(subs[0])
 
-	for k := 0; k < subSize; k++ {
+	for k := range subSize {
 		// Apply twiddle factors
 		t := make([]T, radix)
+
 		t[0] = subs[0][k]
 		for r := 1; r < radix; r++ {
 			t[r] = twiddles[r][k] * subs[r][k]
 		}
 
 		// General DFT for this radix
-		for bin := 0; bin < radix; bin++ {
+		for bin := range radix {
 			sum := T(0)
-			for r := 0; r < radix; r++ {
+
+			for r := range radix {
 				angle := -2.0 * 3.14159265358979323846 * float64(bin*r) / float64(radix)
 				w := T(complex(cos64(angle), sin64(angle)))
 				sum += w * t[r]
 			}
+
 			dst[k+bin*subSize] = sum
 		}
 	}
 }
 
 // multiplyByI multiplies a complex number by i (90° rotation).
-// i * (a + bi) = -b + ai
+// i * (a + bi) = -b + ai.
 func multiplyByI[T Complex](x T) T {
 	// Multiply by i: rotate 90 degrees counterclockwise
 	// This is equivalent to: x * complex(0, 1)
@@ -149,7 +155,7 @@ func multiplyByI[T Complex](x T) T {
 }
 
 // multiplyByNegI multiplies a complex number by -i (-90° rotation).
-// -i * (a + bi) = b - ai
+// -i * (a + bi) = b - ai.
 func multiplyByNegI[T Complex](x T) T {
 	// Multiply by -i: rotate 90 degrees clockwise
 	// This is equivalent to: x * complex(0, -1)

@@ -12,6 +12,7 @@ func forwardDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
+
 	if len(bitrev) > 0 && len(bitrev) < n {
 		return false
 	}
@@ -73,6 +74,7 @@ func inverseDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
+
 	if len(bitrev) > 0 && len(bitrev) < n {
 		return false
 	}
@@ -125,6 +127,7 @@ func forwardDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
+
 	if len(bitrev) > 0 && len(bitrev) < n {
 		return false
 	}
@@ -168,6 +171,7 @@ func inverseDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
+
 	if len(bitrev) > 0 && len(bitrev) < n {
 		return false
 	}
