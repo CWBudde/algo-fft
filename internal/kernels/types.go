@@ -29,6 +29,11 @@ var (
 	log2                      = math.Log2
 )
 
+// ComputeTwiddleFactors is a wrapper for the generic math function
+func ComputeTwiddleFactors[T Complex](n int) []T {
+	return math.ComputeTwiddleFactors[T](n)
+}
+
 // Kernel reports whether it handled the transform.
 // It returns false when no implementation is available.
 type Kernel[T Complex] func(dst, src, twiddle, scratch []T, bitrev []int) bool
