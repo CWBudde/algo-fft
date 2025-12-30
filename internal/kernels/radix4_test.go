@@ -1,8 +1,6 @@
 package kernels
 
 import (
-	"math/cmplx"
-	"math/rand/v2"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
@@ -28,7 +26,7 @@ func TestRadix4ForwardMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT(src)
-		assertComplex64SliceClose(t, dst, want, n)
+		assertComplex64Close(t, dst, want, radix4Tol64)
 	}
 }
 
@@ -52,7 +50,7 @@ func TestRadix4InverseMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT(fwd)
-		assertComplex64SliceClose(t, dst, want, n)
+		assertComplex64Close(t, dst, want, radix4Tol64)
 	}
 }
 
@@ -71,7 +69,7 @@ func TestRadix4ForwardMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT128(src)
-		assertComplex128SliceClose(t, dst, want, n)
+		assertComplex128Close(t, dst, want, radix4Tol128)
 	}
 }
 
@@ -95,7 +93,7 @@ func TestRadix4InverseMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT128(fwd)
-		assertComplex128SliceClose(t, dst, want, n)
+		assertComplex128Close(t, dst, want, radix4Tol128)
 	}
 }
 
@@ -133,60 +131,6 @@ func benchmarkForwardKernel(b *testing.B, n int, kernel func(dst, src, twiddle, 
 	for range b.N {
 		if !kernel(dst, src, twiddle, scratch, bitrev) {
 			b.Fatalf("kernel failed for n=%d", n)
-		}
-	}
-}
-
-func randomComplex64(n int, seed uint64) []complex64 {
-	rng := rand.New(rand.NewPCG(seed, seed^0x5A5A5A5A)) //nolint:gosec // Deterministic test data
-
-	out := make([]complex64, n)
-	for i := range out {
-		re := float32(rng.Float64()*2 - 1)
-		im := float32(rng.Float64()*2 - 1)
-		out[i] = complex(re, im)
-	}
-
-	return out
-}
-
-func randomComplex128(n int, seed uint64) []complex128 {
-	rng := rand.New(rand.NewPCG(seed, seed^0xA5A5A5A5)) //nolint:gosec // Deterministic test data
-
-	out := make([]complex128, n)
-	for i := range out {
-		re := rng.Float64()*2 - 1
-		im := rng.Float64()*2 - 1
-		out[i] = complex(re, im)
-	}
-
-	return out
-}
-
-func assertComplex64SliceClose(t *testing.T, got, want []complex64, n int) {
-	t.Helper()
-
-	if len(got) != len(want) {
-		t.Fatalf("length mismatch: got %d, want %d", len(got), len(want))
-	}
-
-	for i := range got {
-		if cmplx.Abs(complex128(got[i]-want[i])) > radix4Tol64 {
-			t.Fatalf("n=%d index=%d got=%v want=%v", n, i, got[i], want[i])
-		}
-	}
-}
-
-func assertComplex128SliceClose(t *testing.T, got, want []complex128, n int) {
-	t.Helper()
-
-	if len(got) != len(want) {
-		t.Fatalf("length mismatch: got %d, want %d", len(got), len(want))
-	}
-
-	for i := range got {
-		if cmplx.Abs(got[i]-want[i]) > radix4Tol128 {
-			t.Fatalf("n=%d index=%d got=%v want=%v", n, i, got[i], want[i])
 		}
 	}
 }

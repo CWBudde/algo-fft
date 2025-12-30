@@ -31,7 +31,7 @@ func TestStockhamPackedForwardMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT(src)
-		assertComplex64SliceClose(t, dst, want, n)
+		assertComplex64Close(t, dst, want, 1e-4)
 	}
 }
 
@@ -60,7 +60,7 @@ func TestStockhamPackedInverseMatchesReferenceComplex64(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT(src)
-		assertComplex64SliceClose(t, dst, want, n)
+		assertComplex64Close(t, dst, want, 1e-4)
 	}
 }
 
@@ -89,7 +89,7 @@ func TestStockhamPackedForwardMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveDFT128(src)
-		assertComplex128SliceClose(t, dst, want, n)
+		assertComplex128Close(t, dst, want, 1e-10)
 	}
 }
 
@@ -118,7 +118,7 @@ func TestStockhamPackedInverseMatchesReferenceComplex128(t *testing.T) {
 		}
 
 		want := reference.NaiveIDFT128(src)
-		assertComplex128SliceClose(t, dst, want, n)
+		assertComplex128Close(t, dst, want, 1e-10)
 	}
 }
 
@@ -153,7 +153,7 @@ func TestStockhamPackedMatchesStockhamComplex64(t *testing.T) {
 			t.Fatalf("forwardStockhamComplex64(%d) returned false", n)
 		}
 
-		assertComplex64SliceClose(t, dstPacked, dstGo, n)
+		assertComplex64Close(t, dstPacked, dstGo, 1e-4)
 	}
 }
 
@@ -188,6 +188,6 @@ func TestStockhamPackedMatchesStockhamComplex128(t *testing.T) {
 			t.Fatalf("forwardStockhamComplex128(%d) returned false", n)
 		}
 
-		assertComplex128SliceClose(t, dstPacked, dstGo, n)
+		assertComplex128Close(t, dstPacked, dstGo, 1e-10)
 	}
 }
