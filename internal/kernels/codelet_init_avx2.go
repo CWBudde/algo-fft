@@ -46,18 +46,6 @@ func registerAVX2DITCodelets64() {
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
-	// Size 32: Mixed-radix-2/4 AVX2 variant
-	Registry64.Register(CodeletEntry[complex64]{
-		Size:       32,
-		Forward:    wrapCodelet64(forwardDIT32MixedRadix24Complex64AVX2),
-		Inverse:    wrapCodelet64(inverseDIT32MixedRadix24Complex64AVX2),
-		Algorithm:  KernelDIT,
-		SIMDLevel:  SIMDAVX2,
-		Signature:  "dit32_mixed24_avx2",
-		Priority:   25, // Higher than radix-2 to prefer mixed radix
-		BitrevFunc: ComputeBitReversalIndices,
-	})
-
 	// Size 64: Radix-2 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
@@ -91,18 +79,6 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit128_radix2_avx2",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
-	})
-
-	// Size 128: Mixed-radix-2/4 AVX2 variant
-	Registry64.Register(CodeletEntry[complex64]{
-		Size:       128,
-		Forward:    wrapCodelet64(forwardDIT128MixedRadix24Complex64AVX2),
-		Inverse:    wrapCodelet64(inverseDIT128MixedRadix24Complex64AVX2),
-		Algorithm:  KernelDIT,
-		SIMDLevel:  SIMDAVX2,
-		Signature:  "dit128_mixed24_avx2",
-		Priority:   25, // Higher than radix-2 to prefer mixed radix
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
@@ -181,27 +157,4 @@ func registerAVX2DITCodelets128() {
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
-	// Size 32: Mixed-radix-2/4 AVX2 variant
-	Registry128.Register(CodeletEntry[complex128]{
-		Size:       32,
-		Forward:    wrapCodelet128(forwardDIT32MixedRadix24Complex128AVX2),
-		Inverse:    wrapCodelet128(inverseDIT32MixedRadix24Complex128AVX2),
-		Algorithm:  KernelDIT,
-		SIMDLevel:  SIMDAVX2,
-		Signature:  "dit32_mixed24_avx2",
-		Priority:   25, // Higher than radix-2 to prefer mixed radix
-		BitrevFunc: ComputeBitReversalIndices,
-	})
-
-	// Size 128: Mixed-radix-2/4 AVX2 variant
-	Registry128.Register(CodeletEntry[complex128]{
-		Size:       128,
-		Forward:    wrapCodelet128(forwardDIT128MixedRadix24Complex128AVX2),
-		Inverse:    wrapCodelet128(inverseDIT128MixedRadix24Complex128AVX2),
-		Algorithm:  KernelDIT,
-		SIMDLevel:  SIMDAVX2,
-		Signature:  "dit128_mixed24_avx2",
-		Priority:   25, // Higher than radix-2 to prefer mixed radix
-		BitrevFunc: ComputeBitReversalIndices,
-	})
 }
