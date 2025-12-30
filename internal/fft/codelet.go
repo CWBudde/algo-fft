@@ -5,45 +5,29 @@ import (
 	"sync"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
 )
 
-// CodeletFunc is a kernel function for a specific fixed size.
-// Unlike Kernel[T], codelets have a hardcoded size and perform no runtime checks.
-// The caller guarantees that all slices have the required length.
-type CodeletFunc[T Complex] func(dst, src, twiddle, scratch []T, bitrev []int)
+// CodeletFunc is a type alias for the codelet function signature.
+// The canonical definition is in internal/fftypes.
+type CodeletFunc[T Complex] = fftypes.CodeletFunc[T]
 
-// SIMDLevel describes the minimum required CPU features for a codelet.
-type SIMDLevel uint8
+// SIMDLevel is a type alias for SIMD feature levels.
+// The canonical definition is in internal/fftypes.
+type SIMDLevel = fftypes.SIMDLevel
 
+// SIMD level constants - aliases for backward compatibility.
 const (
-	SIMDNone   SIMDLevel = iota // Pure Go implementation
-	SIMDSSE2                    // Requires SSE2 (x86_64 baseline)
-	SIMDAVX2                    // Requires AVX2
-	SIMDAVX512                  // Requires AVX-512
-	SIMDNEON                    // Requires ARM NEON
+	SIMDNone   = fftypes.SIMDNone
+	SIMDSSE2   = fftypes.SIMDSSE2
+	SIMDAVX2   = fftypes.SIMDAVX2
+	SIMDAVX512 = fftypes.SIMDAVX512
+	SIMDNEON   = fftypes.SIMDNEON
 )
 
-// String returns a human-readable name for the SIMD level.
-func (s SIMDLevel) String() string {
-	switch s {
-	case SIMDNone:
-		return "generic"
-	case SIMDSSE2:
-		return "sse2"
-	case SIMDAVX2:
-		return "avx2"
-	case SIMDAVX512:
-		return "avx512"
-	case SIMDNEON:
-		return "neon"
-	default:
-		return "unknown"
-	}
-}
-
-// BitrevFunc generates bit-reversal indices for a given size.
-// Returns nil if no bit-reversal is needed (e.g., size 4 radix-4).
-type BitrevFunc func(n int) []int
+// BitrevFunc is a type alias for bit-reversal function signature.
+// The canonical definition is in internal/fftypes.
+type BitrevFunc = fftypes.BitrevFunc
 
 // CodeletEntry describes a registered codelet for a specific size.
 type CodeletEntry[T Complex] struct {

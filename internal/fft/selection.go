@@ -3,19 +3,23 @@ package fft
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
 )
 
-// KernelStrategy controls how plans choose between DIT, Stockham, and step kernels.
-type KernelStrategy uint32
+// KernelStrategy is a type alias for the kernel selection strategy.
+// The canonical definition is in internal/fftypes.
+type KernelStrategy = fftypes.KernelStrategy
 
+// Kernel strategy constants - aliases for backward compatibility.
 const (
-	KernelAuto KernelStrategy = iota
-	KernelDIT
-	KernelStockham
-	KernelSixStep
-	KernelEightStep
-	KernelBluestein
-	KernelRecursive // Recursive decomposition with codelet leaves
+	KernelAuto      = fftypes.KernelAuto
+	KernelDIT       = fftypes.KernelDIT
+	KernelStockham  = fftypes.KernelStockham
+	KernelSixStep   = fftypes.KernelSixStep
+	KernelEightStep = fftypes.KernelEightStep
+	KernelBluestein = fftypes.KernelBluestein
+	KernelRecursive = fftypes.KernelRecursive
 )
 
 //nolint:gochecknoglobals
