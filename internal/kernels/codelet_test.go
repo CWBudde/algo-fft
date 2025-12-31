@@ -14,8 +14,8 @@ func TestCodeletRegistryLookup(t *testing.T) {
 
 		features := cpu.Features{HasSSE2: true}
 
-		// Should find codelets for sizes 4, 8, 16, 32, 64, 128, 256, 512, 2048, 8192
-		sizes := []int{4, 8, 16, 32, 64, 128, 256, 512, 2048, 8192}
+		// Should find codelets for sizes 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192
+		sizes := []int{4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192}
 		for _, size := range sizes {
 			entry := Registry64.Lookup(size, features)
 			if entry == nil {
@@ -68,7 +68,7 @@ func TestCodeletRegistryNoMatch(t *testing.T) {
 	features := cpu.Features{HasSSE2: true}
 
 	// Sizes without codelets should return nil
-	noCodeletSizes := []int{2, 1024}
+	noCodeletSizes := []int{2}
 	for _, size := range noCodeletSizes {
 		entry := Registry64.Lookup(size, features)
 		if entry != nil {
@@ -81,12 +81,12 @@ func TestCodeletRegistrySizes(t *testing.T) {
 	t.Parallel()
 
 	sizes := Registry64.Sizes()
-	if len(sizes) != 10 {
-		t.Errorf("expected 10 registered sizes, got %d", len(sizes))
+	if len(sizes) != 12 {
+		t.Errorf("expected 12 registered sizes, got %d", len(sizes))
 	}
 
 	// Check that all expected sizes are present
-	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true, 512: true, 2048: true, 8192: true}
+	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true, 512: true, 1024: true, 2048: true, 4096: true, 8192: true}
 	for _, size := range sizes {
 		if !expected[size] {
 			t.Errorf("unexpected size %d in registry", size)

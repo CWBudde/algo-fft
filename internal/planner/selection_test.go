@@ -6,9 +6,9 @@ import (
 )
 
 // TestSetGetKernelStrategy tests setting and getting kernel strategy.
+//
+//nolint:paralleltest
 func TestSetGetKernelStrategy(t *testing.T) {
-	t.Parallel()
-
 	originalStrategy := GetKernelStrategy()
 	defer SetKernelStrategy(originalStrategy)
 
@@ -33,9 +33,9 @@ func TestSetGetKernelStrategy(t *testing.T) {
 }
 
 // TestResolveKernelStrategyAutoThreshold tests the threshold behavior for auto strategy.
+//
+//nolint:paralleltest
 func TestResolveKernelStrategyAutoThreshold(t *testing.T) {
-	t.Parallel()
-
 	originalStrategy := GetKernelStrategy()
 	defer SetKernelStrategy(originalStrategy)
 
@@ -57,9 +57,9 @@ func TestResolveKernelStrategyAutoThreshold(t *testing.T) {
 }
 
 // TestResolveKernelStrategyForced tests resolution with forced strategy.
+//
+//nolint:paralleltest
 func TestResolveKernelStrategyForced(t *testing.T) {
-	t.Parallel()
-
 	originalStrategy := GetKernelStrategy()
 	defer SetKernelStrategy(originalStrategy)
 
@@ -78,9 +78,9 @@ func TestResolveKernelStrategyForced(t *testing.T) {
 }
 
 // TestResolveKernelStrategyWithDefault tests resolution with default strategy.
+//
+//nolint:paralleltest
 func TestResolveKernelStrategyWithDefault(t *testing.T) {
-	t.Parallel()
-
 	originalStrategy := GetKernelStrategy()
 	defer SetKernelStrategy(originalStrategy)
 
@@ -93,9 +93,9 @@ func TestResolveKernelStrategyWithDefault(t *testing.T) {
 }
 
 // TestRecordBenchmarkDecision tests recording and retrieving benchmark decisions.
+//
+//nolint:paralleltest
 func TestRecordBenchmarkDecision(t *testing.T) {
-	t.Parallel()
-
 	originalDecisions := benchDecisions
 	defer func() {
 		benchMu.Lock()
@@ -124,9 +124,9 @@ func TestRecordBenchmarkDecision(t *testing.T) {
 }
 
 // TestRecordBenchmarkDecisionInvalid tests that invalid decisions are ignored.
+//
+//nolint:paralleltest
 func TestRecordBenchmarkDecisionInvalid(t *testing.T) {
-	t.Parallel()
-
 	originalDecisions := benchDecisions
 	defer func() {
 		benchMu.Lock()
@@ -144,7 +144,7 @@ func TestRecordBenchmarkDecisionInvalid(t *testing.T) {
 	SetKernelStrategy(KernelAuto)
 
 	// Record invalid decisions (should be ignored)
-	RecordBenchmarkDecision(-1, KernelDIT)       // Negative size
+	RecordBenchmarkDecision(-1, KernelDIT)        // Negative size
 	RecordBenchmarkDecision(512, KernelBluestein) // Invalid strategy
 
 	benchMu.RLock()
@@ -157,9 +157,9 @@ func TestRecordBenchmarkDecisionInvalid(t *testing.T) {
 }
 
 // TestRecordBenchmarkDecisionZeroSize tests that zero size is ignored.
+//
+//nolint:paralleltest
 func TestRecordBenchmarkDecisionZeroSize(t *testing.T) {
-	t.Parallel()
-
 	originalDecisions := benchDecisions
 	defer func() {
 		benchMu.Lock()
@@ -231,7 +231,7 @@ func TestIsSquareSize(t *testing.T) {
 		{10, false},
 		{15, false},
 		{17, false},
-		{1024, true},  // 32 * 32
+		{1024, true},    // 32 * 32
 		{1048576, true}, // 1024 * 1024
 	}
 
@@ -267,9 +267,9 @@ func TestFallbackKernelStrategy(t *testing.T) {
 }
 
 // TestSixStepEightStepSquareSizes tests strategy selection for square sizes.
+//
+//nolint:paralleltest
 func TestSixStepEightStepSquareSizes(t *testing.T) {
-	t.Parallel()
-
 	originalStrategy := GetKernelStrategy()
 	originalDecisions := benchDecisions
 	defer func() {
@@ -305,9 +305,9 @@ func TestSixStepEightStepSquareSizes(t *testing.T) {
 }
 
 // TestForcedSixStepOnNonSquare tests that six/eight-step forced on non-square falls back.
+//
+//nolint:paralleltest
 func TestForcedSixStepOnNonSquare(t *testing.T) {
-	t.Parallel()
-
 	originalStrategy := GetKernelStrategy()
 	defer SetKernelStrategy(originalStrategy)
 
@@ -328,9 +328,9 @@ func TestForcedSixStepOnNonSquare(t *testing.T) {
 }
 
 // TestConcurrentBenchmarkDecisions tests concurrent recording of benchmark decisions.
+//
+//nolint:paralleltest
 func TestConcurrentBenchmarkDecisions(t *testing.T) {
-	t.Parallel()
-
 	originalDecisions := benchDecisions
 	defer func() {
 		benchMu.Lock()
@@ -369,9 +369,9 @@ func TestConcurrentBenchmarkDecisions(t *testing.T) {
 }
 
 // TestConcurrentKernelStrategy tests concurrent access to kernel strategy.
+//
+//nolint:paralleltest
 func TestConcurrentKernelStrategy(t *testing.T) {
-	t.Parallel()
-
 	originalStrategy := GetKernelStrategy()
 	defer SetKernelStrategy(originalStrategy)
 

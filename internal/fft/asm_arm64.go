@@ -17,30 +17,28 @@ func forwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []
 //go:noescape
 func inverseNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
-// Size-specific NEON kernels (forward, complex64)
+// Size-specific NEON kernels (radix/mixed, complex64)
 //
 //go:noescape
-func forwardNEONSize16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func forwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func forwardNEONSize32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func inverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func forwardNEONSize64Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func forwardNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func forwardNEONSize128Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-
-// Size-specific NEON kernels (inverse, complex64)
-//
-//go:noescape
-func inverseNEONSize16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func inverseNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func inverseNEONSize32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func forwardNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func inverseNEONSize64Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func inverseNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func inverseNEONSize128Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func forwardNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
+func inverseNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool

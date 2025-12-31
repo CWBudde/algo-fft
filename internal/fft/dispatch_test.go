@@ -151,9 +151,9 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 	})
 
 	// Test AVX2 system
+	//
+	//nolint:paralleltest
 	t.Run("AVX2System", func(t *testing.T) {
-		t.Parallel()
-
 		defer cpu.ResetDetection()
 
 		cpu.SetForcedFeatures(cpu.Features{
@@ -173,9 +173,9 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 	})
 
 	// Test ForceGeneric flag disables SIMD
+	//
+	//nolint:paralleltest
 	t.Run("ForceGeneric", func(t *testing.T) {
-		t.Parallel()
-
 		defer cpu.ResetDetection()
 
 		cpu.SetForcedFeatures(cpu.Features{
@@ -197,9 +197,9 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 	})
 
 	// Test ARM NEON system
+	//
+	//nolint:paralleltest
 	t.Run("NEONSystem", func(t *testing.T) {
-		t.Parallel()
-
 		defer cpu.ResetDetection()
 
 		cpu.SetForcedFeatures(cpu.Features{

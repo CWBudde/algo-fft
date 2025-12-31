@@ -617,11 +617,6 @@ neon16_return_false:
 	MOVB R0, ret+120(FP)
 	RET
 
-// forwardNEONSize32Complex64Asm - Size-32 forward FFT (stub)
-TEXT ·forwardNEONSize32Complex64Asm(SB), NOSPLIT, $0-121
-	MOVD $0, R0
-	MOVB R0, ret+120(FP)
-	RET
 
 // forwardNEONSize64Complex64Asm - Size-64 forward FFT (stub)
 TEXT ·forwardNEONSize64Complex64Asm(SB), NOSPLIT, $0-121
@@ -629,11 +624,6 @@ TEXT ·forwardNEONSize64Complex64Asm(SB), NOSPLIT, $0-121
 	MOVB R0, ret+120(FP)
 	RET
 
-// forwardNEONSize128Complex64Asm - Size-128 forward FFT (stub)
-TEXT ·forwardNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
-	MOVD $0, R0
-	MOVB R0, ret+120(FP)
-	RET
 
 // ===========================================================================
 // Inverse Size-Specific Kernels (complex64)
@@ -645,20 +635,9 @@ TEXT ·inverseNEONSize16Complex64Asm(SB), NOSPLIT, $0-121
 	MOVB R0, ret+120(FP)
 	RET
 
-// inverseNEONSize32Complex64Asm - Size-32 inverse FFT (stub)
-TEXT ·inverseNEONSize32Complex64Asm(SB), NOSPLIT, $0-121
-	MOVD $0, R0
-	MOVB R0, ret+120(FP)
-	RET
 
 // inverseNEONSize64Complex64Asm - Size-64 inverse FFT (stub)
 TEXT ·inverseNEONSize64Complex64Asm(SB), NOSPLIT, $0-121
-	MOVD $0, R0
-	MOVB R0, ret+120(FP)
-	RET
-
-// inverseNEONSize128Complex64Asm - Size-128 inverse FFT (stub)
-TEXT ·inverseNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
 	MOVD $0, R0
 	MOVB R0, ret+120(FP)
 	RET

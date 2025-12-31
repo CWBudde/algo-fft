@@ -15,212 +15,417 @@
 
 ---
 
-## Phase 14.8: Large FFT Size Optimizations (512, 1024, 2048)
+## Phase 14: FFT Size Optimizations (Target: Sizes 4-16384)
 
 **Status**: In Progress
-
-**Goal**: Optimize large FFT sizes through mixed-radix-2/4 algorithm, size-specific loop unrolling, and AVX2 assembly extension targeting **2.5-3x performance improvement** for sizes 512, 1024, 2048.
-
-### 14.8.1 Mixed-Radix-2/4 DIT Implementation ⚙️ IN PROGRESS
-
-**Motivation**: Current radix-4 implementation only works for power-of-4 sizes (4, 16, 64, 256, 1024...). Sizes with odd log2 (8, 32, 128, 512, 2048, 8192) fall back to slower radix-2. Mixed-radix-2/4 uses ONE radix-2 stage followed by radix-4 stages, reducing total stages by 40-45%.
-
-**Example**: Size 512 (2^9):
-
-- Current: 9 radix-2 stages
-- Mixed-radix: 1 radix-2 stage + 4 radix-4 stages = 5 total stages
-- Expected speedup: **30-40%**
-
-**File**: `internal/fft/dit_mixedradix24.go`
-
-- [x] Implement `forwardMixedRadix24Complex64()` (DIT with 1 radix-2 + N radix-4 stages) ✅
-- [x] Implement `inverseMixedRadix24Complex64()` (conjugated twiddles, 1/n scaling) ✅
-- [ ] Implement `forwardMixedRadix24Complex128()`
-- [ ] Implement `inverseMixedRadix24Complex128()`
-- [x] Update dispatch in `internal/fft/dit.go` for `forwardDITComplex64()` ✅
-- [x] Update dispatch in `internal/fft/dit.go` for `inverseDITComplex64()` ✅
-- [ ] Update dispatch in `internal/fft/dit.go` for complex128 functions
-- [x] Correctness verified: Round-trip tests for sizes 8-8192 all pass with <1μs error ✅
-- [ ] Add comprehensive tests: correctness vs reference DFT, round-trip for all sizes, property tests
-- [ ] Benchmark against current implementation
-
-**Algorithm**:
-
-1. Apply standard DIT bit-reversal permutation
-2. Stage 1: ONE radix-2 stage (256 butterflies for size 512)
-3. Stages 2+: Pure radix-4 stages (reuse existing butterfly4Forward/Inverse)
-4. No new twiddle computation needed (reuse existing tables)
-
-**Success Criteria**:
-
-- All tests pass for sizes 8, 32, 128, 512, 2048, 8192
-- 30-40% speedup measured via benchstat
-- Zero allocations after plan creation
-
-### 14.8.2 Stockham Size-Specific Loop Unrolling
-
-**Motivation**: Generic Stockham has loop overhead for large sizes. Size-specific implementations with fully unrolled stages reduce overhead by 15-25%.
-
-**Files to create**:
-
-- `internal/fft/stockham_size512.go` (~600 lines: complex64/128 × forward/inverse)
-- `internal/fft/stockham_size1024.go` (~800 lines)
-- `internal/fft/stockham_size2048.go` (~1000 lines)
-
-**Tasks**:
-
-- [ ] Implement `forwardStockham512Complex64()` (9 fully unrolled stages)
-- [ ] Implement `inverseStockham512Complex64()` (conjugated twiddles, scaling)
-- [ ] Implement `forwardStockham512Complex128()`
-- [ ] Implement `inverseStockham512Complex128()`
-- [ ] Repeat for sizes 1024 (10 stages) and 2048 (11 stages)
-- [ ] Update dispatch in `internal/fft/stockham.go`
-- [ ] Test and benchmark
-
-**Pattern** (from `dit_size512.go`):
-
-- Stockham alternates between two buffers (no bit-reversal)
-- Each stage: read from `in`, write to `out`, swap pointers
-- Final result might be in scratch - copy if needed
-
-**Success Criteria**:
-
-- 15-25% additional speedup over mixed-radix-2/4
-- All correctness tests pass
-
-### 14.8.3 AVX2 Assembly for Size 512 (Mixed-Radix)
-
-**File**: `internal/fft/asm_amd64_avx2_size512_mixedradix.s`
-
-- [ ] Implement AVX2 size-512 forward transform (mixed-radix-2/4)
-  - Stage 1: 256 radix-2 butterflies using AVX2 (with bit-reversal fusion)
-  - Stages 2-5: Radix-4 stages using existing AVX2 radix-4 patterns
-- [ ] Implement inverse transform
-- [ ] Add function declarations in `kernels_amd64_asm.go`
-- [ ] Update dispatch in `kernels_amd64.go`
-- [ ] Test correctness vs pure-Go implementation
-- [ ] Benchmark speedup
-
-**Expected**: 1.8-2.2x speedup over optimized pure-Go
-
-### 14.8.4 AVX2 Assembly for Size 1024 (Pure Radix-4)
-
-**File**: `internal/fft/asm_amd64_avx2_size1024_radix4.s`
-
-- [ ] Implement AVX2 size-1024 forward transform (5 radix-4 stages)
-- [ ] Implement inverse transform
-- [ ] Update kernel dispatch
-- [ ] Test and benchmark
-
-**Expected**: 2.0-2.5x speedup over optimized pure-Go
-
-### 14.8.5 Complex128 Variants
-
-- [ ] Implement complex128 versions of all optimizations
-- [ ] Test precision and performance
-
-**Overall Success Criteria**:
-
-- Size 512: 2.5-3x faster than baseline
-- Size 1024: 2.7-3.2x faster than baseline
-- Size 2048: 2.4-2.8x faster than baseline
-- All correctness tests pass
-- Zero regressions in other sizes
+**Priority**: complex64 first, then complex128
+**Target**: Blazingly fast FFTs for sizes up to 16K
 
 ---
 
-## Phase 14: AVX2 SIMD (AMD64) - Remaining Work
+### Current Implementation Status
 
-### 14.5 Size-Specific Fully Unrolled AVX2 Kernels
+Based on `docs/IMPLEMENTATION_INVENTORY.md`:
 
-**Status**: Dispatch mechanism complete (14.5.1 ✅), Size-16 kernel implemented (14.5.2 ✅), Size-32 kernel implemented (14.5.3 ✅), Size-64 kernel implemented (14.5.4 ✅)
+| Size  | Go complex64 | AVX2 complex64 | Go complex128 | AVX2 complex128 |
+|-------|--------------|----------------|---------------|-----------------|
+| 4     | ✅ radix-4   | ✅ radix-4     | ✅ radix-4    | ❌              |
+| 8     | ✅ r2/r8/mix | ✅ r2/r8/mix¹  | ✅ r2/r8/mix  | ✅ radix-2      |
+| 16    | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ✅ r2/r4        |
+| 32    | ✅ r2/mix24  | ✅ r2/mix24    | ✅ r2/mix24   | ✅ r2/mix24     |
+| 64    | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ❌              |
+| 128   | ✅ r2/mix24  | ✅ r2/mix24    | ✅ r2/mix24   | ❌ (Go wrap)    |
+| 256   | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ❌              |
+| 512   | ✅ radix-2   | ❌ generic     | ✅ radix-2    | ❌              |
+| 1024  | ❌ generic   | ❌ generic     | ❌ generic    | ❌              |
+| 2048  | ✅ mix24     | ❌ generic     | ❌            | ❌              |
+| 4096  | ❌ generic   | ❌ generic     | ❌ generic    | ❌              |
+| 8192  | ✅ mix24     | ❌ generic     | ❌            | ❌              |
+| 16384 | ❌ generic   | ❌ generic     | ❌ generic    | ❌              |
 
-**Motivation**: Combine size-specific unrolling with SIMD for maximum performance on critical sizes (16, 32, 64, 128).
+**Legend**: r2=radix-2, r4=radix-4, r8=radix-8, mix=mixed-radix, mix24=mixed-radix-2/4
+¹ Size-8 AVX2 exists but disabled (slower than Go radix-8)
 
-#### 14.5.2 Implement AVX2 Size-16 kernel (complex64) ✅
+---
 
-**File**: `internal/fft/asm_amd64.s`
+### 14.1 Pure Go Size-Specific Kernels (complex64)
 
-- [x] Create `forwardAVX2Size16Complex64Asm`
-- [x] Fully unroll 4 FFT stages (size=2, 4, 8, 16)
-- [x] Hardcode bit-reversal indices (no loop): `[0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]`
-- [x] Hardcode twiddle indices for each stage
-- [x] Vectorize butterflies using AVX2 (4 complex64 per YMM register)
-- [x] Test correctness vs reference and generic AVX2
-- [x] Benchmark speedup: **2.1x faster** than pure Go, **88% faster** than generic AVX2 (25ns vs 48ns vs 53ns @ i7-1255U)
+**Goal**: Complete coverage for all sizes up to 16K with optimal algorithm choice.
 
-#### 14.5.3 Implement AVX2 Size-32 kernel (complex64) ✅
+#### 14.1.1 Size 512 - Mixed-Radix-2/4 Optimization ❌ BLOCKED
 
-**File**: `internal/fft/asm_amd64.s`
+**Current**: radix-2 only (9 stages)
+**Target**: mixed-radix-2/4 (1 r2 + 4 r4 = 5 stages, ~40% faster)
+**Status**: Blocked - Algorithm incompatibility
 
-- [x] Create `forwardAVX2Size32Complex64Asm`
-- [x] Fully unroll 5 FFT stages (size=2, 4, 8, 16, 32)
-- [x] Hardcode bit-reversal indices: `[0,16,8,24,4,20,12,28,2,18,10,26,6,22,14,30,1,17,9,25,5,21,13,29,3,19,11,27,7,23,15,31]`
-- [x] Optimize for L1 cache locality (all data fits in 256 bytes)
-- [x] Test correctness vs reference and generic AVX2
-- [x] Benchmark speedup: **2.5x faster** than generic AVX2 (70ns vs 180ns @ i7-1255U)
+**Root Cause Analysis (2024-12-31):**
 
-#### 14.5.4 Implement AVX2 Size-64 kernel (complex64) ✅
+The mixed-radix-2/4 DIT approach is fundamentally flawed for odd log₂ sizes:
 
-- [x] Create `forwardAVX2Size64Complex64Asm`
-- [x] Fully unroll 6 FFT stages
-- [x] Consider radix-4 decomposition to limit code size
-- [x] Test and benchmark
+1. After radix-2 Stage 1 with standard bit-reversal, data follows a **radix-2 decomposition pattern** (pairs)
+2. Standard radix-4 butterfly expects inputs in a **radix-4 decomposition pattern** (groups of 4)
+3. These patterns are incompatible - the twiddle factor relationships differ
 
-#### 14.5.5 Implement AVX2 Size-128 kernel (complex64)
+**Evidence:**
 
-- [ ] Create `forwardAVX2Size128Complex64Asm`
-- [ ] Fully unroll 7 FFT stages or use radix-4
-- [ ] Balance code size (~500-1000 lines) vs performance
-- [ ] Test and benchmark
+- Pure radix-2 stages 2-3 combine elements with stride 4, then stride 8
+- Radix-4 butterfly combines 4 elements at once with different twiddle relationships
+- Testing confirmed: odd output indices (Y[1,3,5,7]) correct, even indices (Y[2,4,6]) wrong
+- This matches the existing `forwardMixedRadix24Complex64()` which also delegates to radix-2
 
-#### 14.5.6 Add inverse transform variants
+**Possible Solutions (not yet implemented):**
 
-- [ ] Implement inverse versions for sizes 16, 32, 64, 128
-- [ ] Conjugate twiddles and add 1/n scaling
-- [ ] Test round-trip accuracy
+1. **Custom bit-reversal**: Design a hybrid bit-reversal for mixed-radix
+2. **DIF approach**: Decimation-in-Frequency might handle mixed-radix better
+3. **Split-radix**: Use a different decomposition (radix-2/4 split-radix algorithm)
+4. **Keep radix-2**: Current 9-stage radix-2 is correct and reasonably fast
 
-#### 14.5.7 Add complex128 size-specific kernels (optional)
+**Decision**: Keep current radix-2 implementation for size 512. The 9-stage approach is correct and the complexity of proper mixed-radix is not justified for marginal gains.
 
-- [x] Implement for size 16 (higher priority, smaller code)
-- [x] Implement for size 32
-- [ ] AVX2 processes 2 complex128, so expect ~2x speedup vs pure-Go
-- [x] Test
+- [x] Investigated mixed-radix-2/4 feasibility ✅
+- [x] Identified root cause: bit-reversal/decomposition incompatibility ✅
+- [x] Documented findings ✅
+- [ ] ~~Create `dit_size512_mixed24.go`~~ (blocked)
+- [ ] ~~Implement mixed-radix kernels~~ (blocked)
+- [x] Keep using proven radix-2 implementation ✅
+
+#### 14.1.2 Size 1024 - Pure Radix-4 ✅ COMPLETE
+
+**Current**: generic Stockham fallback
+**Target**: size-specific radix-4 (5 stages)
+
+- [x] Create `dit_size1024_radix4.go` ✅
+- [x] Implement `forwardDIT1024Radix4Complex64()` ✅
+- [x] Implement `inverseDIT1024Radix4Complex64()` ✅
+- [x] Implement `forwardDIT1024Radix4Complex128()` ✅
+- [x] Implement `inverseDIT1024Radix4Complex128()` ✅
+- [x] Uses existing `ComputeBitReversalIndicesRadix4()` ✅
+- [x] Register in `codelet_init.go` with priority 15 ✅
+- [x] All tests passing (6/6 tests) ✅
+- [ ] Benchmark vs generic Stockham
+
+#### 14.1.3 Size 2048 - Verify Mixed-Radix-2/4
+
+**Current**: `dit_mixedradix24.go` handles this
+**Status**: Verify working correctly
+
+- [ ] Confirm `forwardMixedRadix24Complex64()` handles size 2048
+- [ ] Confirm `inverseMixedRadix24Complex64()` handles size 2048
+- [ ] Benchmark current performance
+- [ ] Consider size-specific unrolled variant if needed
+
+#### 14.1.4 Size 4096 - Pure Radix-4 ✅ COMPLETE
+
+**Current**: size-specific radix-4 (6 stages)
+**Status**: Fully implemented and tested
+
+- [x] Create `dit_size4096_radix4.go` ✅
+- [x] Implement `forwardDIT4096Radix4Complex64()` ✅
+- [x] Implement `inverseDIT4096Radix4Complex64()` ✅
+- [x] Implement `forwardDIT4096Radix4Complex128()` ✅
+- [x] Implement `inverseDIT4096Radix4Complex128()` ✅
+- [x] Uses existing `ComputeBitReversalIndicesRadix4()` ✅
+- [x] Register in `codelet_init.go` with priority 15 ✅
+- [x] All tests passing (6/6 tests) ✅
+- [ ] Benchmark vs generic Stockham
+
+#### 14.1.5 Size 8192 - Verify Mixed-Radix-2/4
+
+**Current**: `dit_mixedradix24.go` handles this
+**Status**: Verify working correctly
+
+- [ ] Confirm mixed-radix-2/4 handles size 8192 (1 r2 + 6 r4 = 7 stages)
+- [ ] Benchmark current performance
+- [ ] Consider size-specific unrolled variant if needed
+
+#### 14.1.6 Size 16384 - Pure Radix-4 ✅ COMPLETE
+
+**Current**: size-specific radix-4 (7 stages)
+**Status**: Fully implemented and tested
+
+- [x] Create `dit_size16384_radix4.go` ✅
+- [x] Implement `forwardDIT16384Radix4Complex64()` ✅
+- [x] Implement `inverseDIT16384Radix4Complex64()` ✅
+- [x] Implement `forwardDIT16384Radix4Complex128()` ✅
+- [x] Implement `inverseDIT16384Radix4Complex128()` ✅
+- [x] Uses existing `ComputeBitReversalIndicesRadix4()` ✅
+- [x] Register in `codelet_init.go` with priority 15 ✅
+- [x] All tests passing (6/6 tests) ✅
+- [ ] Benchmark vs generic Stockham
+
+---
+
+### 14.2 AVX2 Assembly - Size-Specific Kernels (complex64)
+
+**Goal**: AVX2 acceleration for all sizes up to 16K.
+
+#### 14.2.1 Size 512 - AVX2 Mixed-Radix-2/4
+
+**File**: `internal/kernels/asm/asm_amd64_avx2_size512_mixed24.s`
+
+- [ ] Implement `forwardAVX2Size512Mixed24Complex64Asm`
+  - Stage 1: 256 radix-2 butterflies (AVX2 vectorized)
+  - Stages 2-5: Radix-4 stages (reuse patterns from size-64/256)
+- [ ] Implement `inverseAVX2Size512Mixed24Complex64Asm`
+- [ ] Add declarations in `kernels_amd64_asm.go`
+- [ ] Register in `codelet_init_avx2.go` with priority 25
+- [ ] Test correctness vs pure-Go
+- [ ] Benchmark (expect 1.8-2.2x over Go)
+
+#### 14.2.2 Size 1024 - AVX2 Pure Radix-4
+
+**File**: `internal/kernels/asm/asm_amd64_avx2_size1024_radix4.s`
+
+- [ ] Implement `forwardAVX2Size1024Radix4Complex64Asm`
+  - 5 fully unrolled radix-4 stages
+  - Hardcoded radix-4 bit-reversal
+- [ ] Implement `inverseAVX2Size1024Radix4Complex64Asm`
+- [ ] Add declarations and register
+- [ ] Test and benchmark (expect 2.0-2.5x over Go)
+
+#### 14.2.3 Size 2048 - AVX2 Mixed-Radix-2/4
+
+**File**: `internal/kernels/asm/asm_amd64_avx2_size2048_mixed24.s`
+
+- [ ] Implement `forwardAVX2Size2048Mixed24Complex64Asm`
+  - 1 radix-2 stage + 5 radix-4 stages
+- [ ] Implement inverse
+- [ ] Register and test
 - [ ] Benchmark
 
-**Success Criteria**:
+#### 14.2.4 Size 4096 - AVX2 Pure Radix-4
 
-- 5-20% speedup over generic AVX2 for sizes 16-128
-- All tests pass, code size <1000 lines per kernel
+**File**: `internal/kernels/asm/asm_amd64_avx2_size4096_radix4.s`
+
+- [ ] Implement `forwardAVX2Size4096Radix4Complex64Asm`
+  - 6 radix-4 stages
+- [ ] Implement inverse
+- [ ] Register and test
+- [ ] Benchmark
+
+#### 14.2.5 Size 8192 - AVX2 Mixed-Radix-2/4
+
+**File**: `internal/kernels/asm/asm_amd64_avx2_size8192_mixed24.s`
+
+- [ ] Implement `forwardAVX2Size8192Mixed24Complex64Asm`
+  - 1 radix-2 stage + 6 radix-4 stages
+- [ ] Implement inverse
+- [ ] Register and test
+- [ ] Benchmark
+
+#### 14.2.6 Size 16384 - AVX2 Pure Radix-4
+
+**File**: `internal/kernels/asm/asm_amd64_avx2_size16384_radix4.s`
+
+- [ ] Implement `forwardAVX2Size16384Radix4Complex64Asm`
+  - 7 radix-4 stages
+- [ ] Implement inverse
+- [ ] Register and test
+- [ ] Benchmark
 
 ---
 
-### 14.6 Fix Stockham AVX2 Correctness
+### 14.3 Complete Existing AVX2 Gaps (complex64)
+
+**Goal**: Fill gaps in existing small-size AVX2 implementations.
+
+#### 14.3.1 Size 4 - Verify Complete
+
+- [x] Forward AVX2 radix-4 ✅
+- [ ] Verify inverse AVX2 exists and works
+- [ ] Test round-trip accuracy
+
+#### 14.3.2 Size 8 - Re-evaluate AVX2 Performance
+
+**Current**: AVX2 disabled because Go radix-8 is faster
+
+- [ ] Benchmark AVX2 vs Go radix-8 on modern CPUs
+- [ ] If AVX2 can be improved, optimize assembly
+- [ ] Otherwise, document decision to prefer Go
+
+#### 14.3.3 Size 64 - Verify Radix-4 AVX2
+
+- [x] Forward radix-4 AVX2 ✅
+- [ ] Verify inverse radix-4 AVX2 exists
+- [ ] Test round-trip accuracy
+
+#### 14.3.4 Size 128 - Add Radix-4 AVX2 Variant
+
+**Current**: Only radix-2 and mixed-2/4 (wrapper)
+
+- [ ] Create `asm_amd64_avx2_size128_radix4.s`
+- [ ] Implement radix-4 variant (4 stages vs 7 for radix-2)
+- [ ] Compare performance vs mixed-2/4 wrapper
+- [ ] Register best performer
+
+#### 14.3.5 Size 256 - Verify Complete
+
+- [x] Forward radix-2 AVX2 ✅
+- [x] Forward radix-4 AVX2 ✅
+- [ ] Verify inverse variants exist
+- [ ] Test round-trip accuracy
+
+---
+
+### 14.4 Fix AVX2 Stockham Correctness
 
 **Status**: Compiles ✅, segfault fixed ✅, **produces wrong results** ⚠️
+**Priority**: HIGH (blocks Stockham AVX2 usage)
 
-**Location**: `internal/fft/asm_amd64.s` lines 789-854 (forward), ~1625-1690 (inverse)
-
-#### 14.6.2 Fix Stockham runtime correctness
+**Location**: `internal/kernels/asm/asm_amd64.s`
 
 - [ ] Debug why Stockham transforms differ from pure-Go
   - [ ] Add debug logging to identify which stage diverges
   - [ ] Compare intermediate buffer states step by step
   - [ ] Check buffer swap logic (dst ↔ scratch)
+- [ ] Fix identified bugs
 - [ ] Run full test suite with `-tags=fft_asm`
-- [ ] Benchmark Stockham vs DIT with AVX2
+- [ ] Benchmark Stockham AVX2 vs DIT AVX2
 
 **Debugging approach**:
 
 ```bash
-# Build with fft_asm tag
 go test -tags=fft_asm -v -run TestStockham ./internal/fft/
-
-# Compare output
 go test -tags=fft_asm -v -run TestAVX2MatchesPureGo ./internal/fft/
 ```
 
-**Priority**: HIGH (blocks accurate Stockham benchmarking)
+---
+
+### 14.5 Pure Go Size-Specific Kernels (complex128)
+
+**Goal**: Match complex64 coverage for complex128.
+**Priority**: After complex64 is complete.
+
+#### 14.5.1 Size 512 - Mixed-Radix-2/4
+
+- [ ] Implement `forwardDIT512Mixed24Complex128()`
+- [ ] Implement `inverseDIT512Mixed24Complex128()`
+- [ ] Test and benchmark
+
+#### 14.5.2 Size 1024 - Pure Radix-4
+
+- [ ] Implement `forwardDIT1024Radix4Complex128()`
+- [ ] Implement `inverseDIT1024Radix4Complex128()`
+- [ ] Test and benchmark
+
+#### 14.5.3 Size 2048 - Mixed-Radix-2/4
+
+- [ ] Implement `forwardMixedRadix24Complex128()` in `dit_mixedradix24.go`
+- [ ] Implement `inverseMixedRadix24Complex128()`
+- [ ] Update dispatch for complex128
+- [ ] Test and benchmark
+
+#### 14.5.4 Size 4096 - Pure Radix-4
+
+- [ ] Implement `forwardDIT4096Radix4Complex128()`
+- [ ] Implement `inverseDIT4096Radix4Complex128()`
+- [ ] Test and benchmark
+
+#### 14.5.5 Size 8192 - Mixed-Radix-2/4
+
+- [ ] Ensure complex128 support in `dit_mixedradix24.go`
+- [ ] Test and benchmark
+
+#### 14.5.6 Size 16384 - Pure Radix-4
+
+- [ ] Implement `forwardDIT16384Radix4Complex128()`
+- [ ] Implement `inverseDIT16384Radix4Complex128()`
+- [ ] Test and benchmark
+
+---
+
+### 14.6 AVX2 Assembly (complex128)
+
+**Goal**: AVX2 acceleration for complex128 (2 values per YMM register).
+**Priority**: After complex64 AVX2 is complete.
+
+#### 14.6.1 Complete Small Sizes
+
+**Current gaps**: Sizes 4, 64, 128, 256 missing complex128 AVX2
+
+- [ ] Size 4: Create `asm_amd64_avx2_size4_complex128.s`
+- [ ] Size 64: Create `asm_amd64_avx2_size64_complex128.s` (radix-2 and radix-4)
+- [ ] Size 128: Create `asm_amd64_avx2_size128_complex128.s`
+- [ ] Size 256: Create `asm_amd64_avx2_size256_complex128.s`
+- [ ] Register all in `codelet_init_avx2.go`
+
+#### 14.6.2 Large Sizes (512-16384)
+
+- [ ] Size 512: `asm_amd64_avx2_size512_complex128.s`
+- [ ] Size 1024: `asm_amd64_avx2_size1024_complex128.s`
+- [ ] Size 2048: `asm_amd64_avx2_size2048_complex128.s`
+- [ ] Size 4096: `asm_amd64_avx2_size4096_complex128.s`
+- [ ] Size 8192: `asm_amd64_avx2_size8192_complex128.s`
+- [ ] Size 16384: `asm_amd64_avx2_size16384_complex128.s`
+
+---
+
+### 14.7 Stockham Optimizations (Optional)
+
+**Goal**: Size-specific Stockham for cache-sensitive workloads.
+**Priority**: LOW (DIT with proper SIMD likely sufficient)
+
+#### 14.7.1 Evaluate Stockham vs DIT Performance
+
+- [ ] Benchmark generic Stockham vs optimized DIT for sizes 512-16384
+- [ ] Identify if Stockham provides benefit for any size range
+- [ ] Document findings
+
+#### 14.7.2 Size-Specific Stockham (if beneficial)
+
+Only if 14.7.1 shows benefit:
+
+- [ ] `stockham_size512.go`
+- [ ] `stockham_size1024.go`
+- [ ] `stockham_size2048.go`
+
+---
+
+### 14.8 Testing & Benchmarking
+
+#### 14.8.1 Comprehensive Test Suite
+
+- [ ] Correctness tests for all new kernels vs reference DFT
+- [ ] Round-trip tests (Forward → Inverse ≈ identity)
+- [ ] Property tests (Parseval, linearity, shift theorems)
+- [ ] Cross-validation: AVX2 vs pure-Go for each size
+- [ ] Edge case tests (DC component, Nyquist, pure tones)
+
+#### 14.8.2 Performance Benchmarks
+
+- [ ] Create `benchmarks/phase14_results.txt`
+- [ ] Benchmark all sizes 4-16384 for:
+  - Pure Go baseline
+  - Optimized Go (radix-4/mixed-radix)
+  - AVX2 assembly
+- [ ] Use `benchstat` for statistical comparison
+- [ ] Document speedup ratios
+
+#### 14.8.3 Update Documentation
+
+- [ ] Update `docs/IMPLEMENTATION_INVENTORY.md` with new implementations
+- [ ] Update `BENCHMARKS.md` with performance data
+- [ ] Add performance notes to README
+
+---
+
+### Success Criteria
+
+**Phase 14 Complete When**:
+
+1. **complex64 Go**: All sizes 4-16384 have optimal algorithm (radix-4 or mixed-2/4)
+2. **complex64 AVX2**: All sizes 4-16384 have size-specific AVX2 kernels
+3. **complex128 Go**: All sizes 4-16384 have optimal algorithm
+4. **complex128 AVX2**: Key sizes (8, 16, 32, 64, 128, 256) have AVX2
+5. **Performance**: 2-3x speedup over baseline for all sizes
+6. **Correctness**: All tests pass, round-trip error < 1e-6 (complex64) / 1e-14 (complex128)
+7. **Documentation**: IMPLEMENTATION_INVENTORY.md fully updated
+
+**Stretch Goals**:
+
+- Size 8 AVX2 faster than Go radix-8
+- Stockham AVX2 working correctly
+- complex128 AVX2 for sizes 512-16384
 
 ---
 
