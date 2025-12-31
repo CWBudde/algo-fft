@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
 )
 
 // PlanReal2D is a pre-computed 2D real FFT plan for float32 input matrices.
@@ -85,8 +85,8 @@ func NewPlanReal2DWithOptions(rows, cols int, opts PlanOptions) (*PlanReal2D, er
 	compactSize := rows * halfCols
 	fullSize := rows * cols
 
-	scratchCompact, scratchCompactBacking := fft.AllocAlignedComplex64(compactSize)
-	scratchFull, scratchFullBacking := fft.AllocAlignedComplex64(fullSize)
+	scratchCompact, scratchCompactBacking := mem.AllocAlignedComplex64(compactSize)
+	scratchFull, scratchFullBacking := mem.AllocAlignedComplex64(fullSize)
 
 	return &PlanReal2D{
 		rows:                  rows,
@@ -403,8 +403,8 @@ func (p *PlanReal2D) Clone() *PlanReal2D {
 	compactSize := p.rows * p.halfCols
 	fullSize := p.rows * p.cols
 
-	scratchCompact, scratchCompactBacking := fft.AllocAlignedComplex64(compactSize)
-	scratchFull, scratchFullBacking := fft.AllocAlignedComplex64(fullSize)
+	scratchCompact, scratchCompactBacking := mem.AllocAlignedComplex64(compactSize)
+	scratchFull, scratchFullBacking := mem.AllocAlignedComplex64(fullSize)
 
 	// Clone column plans
 	colPlans := make([]*Plan[complex64], p.halfCols)

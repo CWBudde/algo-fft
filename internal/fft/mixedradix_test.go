@@ -108,7 +108,7 @@ func benchmarkMixedRadixKernel(b *testing.B, n int, kernel func(dst, src, twiddl
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := make([]int, n)
 
-	if !isHighlyComposite(n) {
+	if !m.IsHighlyComposite(n) {
 		b.Fatalf("benchmark expects mixed-radix length, got %d", n)
 	}
 

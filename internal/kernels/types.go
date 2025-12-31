@@ -1,6 +1,8 @@
 package kernels
 
 import (
+	"math/bits"
+
 	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
 	"github.com/MeKo-Christian/algo-fft/internal/math"
 )
@@ -26,8 +28,12 @@ var (
 	isPowerOf3                = math.IsPowerOf3
 	isPowerOf4                = math.IsPowerOf4
 	isPowerOf5                = math.IsPowerOf5
-	log2                      = math.Log2
 )
+
+// log2 returns the base-2 logarithm of n using bits.Len() for efficiency.
+func log2(n int) int {
+	return bits.Len(uint(n)) - 1
+}
 
 // ComputeTwiddleFactors is a wrapper for the generic math function
 func ComputeTwiddleFactors[T Complex](n int) []T {

@@ -27,11 +27,6 @@ func Factorize(n int) []int {
 	return factors
 }
 
-// factorize is a private alias for Factorize.
-func factorize(n int) []int {
-	return Factorize(n)
-}
-
 // IsHighlyComposite reports whether n only contains 2, 3, or 5 factors.
 func IsHighlyComposite(n int) bool {
 	if n <= 0 {
@@ -45,9 +40,4 @@ func IsHighlyComposite(n int) bool {
 	}
 
 	return true
-}
-
-// isHighlyComposite is a private alias for IsHighlyComposite.
-func isHighlyComposite(n int) bool {
-	return IsHighlyComposite(n)
 }

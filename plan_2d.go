@@ -5,6 +5,7 @@ import (
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
 )
 
 // Plan2D is a pre-computed 2D FFT plan for a specific matrix size and precision.
@@ -79,11 +80,11 @@ func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[
 
 	switch any(scratch).(type) {
 	case []complex64:
-		s, b := fft.AllocAlignedComplex64(totalSize)
+		s, b := mem.AllocAlignedComplex64(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	case []complex128:
-		s, b := fft.AllocAlignedComplex128(totalSize)
+		s, b := mem.AllocAlignedComplex128(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	}
@@ -249,11 +250,11 @@ func (p *Plan2D[T]) Clone() *Plan2D[T] {
 
 	switch any(scratch).(type) {
 	case []complex64:
-		s, b := fft.AllocAlignedComplex64(totalSize)
+		s, b := mem.AllocAlignedComplex64(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	case []complex128:
-		s, b := fft.AllocAlignedComplex128(totalSize)
+		s, b := mem.AllocAlignedComplex128(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	}

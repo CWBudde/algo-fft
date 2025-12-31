@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
 )
 
 func TestPlanAlignmentComplex64(t *testing.T) {
@@ -35,7 +35,7 @@ func checkAlignment(t *testing.T, ptr unsafe.Pointer) {
 	t.Helper()
 
 	addr := uintptr(ptr)
-	if addr%fft.AlignmentBytes != 0 {
-		t.Fatalf("pointer alignment = %d, want multiple of %d", addr%fft.AlignmentBytes, fft.AlignmentBytes)
+	if addr%mem.AlignmentBytes != 0 {
+		t.Fatalf("pointer alignment = %d, want multiple of %d", addr%mem.AlignmentBytes, mem.AlignmentBytes)
 	}
 }

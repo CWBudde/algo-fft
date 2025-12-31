@@ -46,19 +46,9 @@ func IsPowerOf(n, base int) bool {
 	return n == 1
 }
 
-// isPowerOf is a private alias for IsPowerOf.
-func isPowerOf(n, base int) bool {
-	return IsPowerOf(n, base)
-}
-
 // IsPowerOf3 reports whether n is a positive power of three (3^k for some k >= 0).
 func IsPowerOf3(n int) bool {
 	return IsPowerOf(n, 3)
-}
-
-// isPowerOf3 is a private alias for IsPowerOf3.
-func isPowerOf3(n int) bool {
-	return IsPowerOf3(n)
 }
 
 // IsPowerOf4 reports whether n is a positive power of four (4^k for some k >= 0).
@@ -68,20 +58,10 @@ func IsPowerOf4(n int) bool {
 		return false
 	}
 
-	return Log2(n)%2 == 0
-}
-
-// isPowerOf4 is a private alias for IsPowerOf4.
-func isPowerOf4(n int) bool {
-	return IsPowerOf4(n)
+	return (bits.Len(uint(n))-1)%2 == 0
 }
 
 // IsPowerOf5 reports whether n is a positive power of five (5^k for some k >= 0).
 func IsPowerOf5(n int) bool {
 	return IsPowerOf(n, 5)
-}
-
-// isPowerOf5 is a private alias for IsPowerOf5.
-func isPowerOf5(n int) bool {
-	return IsPowerOf5(n)
 }

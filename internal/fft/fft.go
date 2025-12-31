@@ -1,6 +1,8 @@
 package fft
 
 import (
+	"math/bits"
+
 	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
 )
@@ -35,8 +37,10 @@ func complexFromFloat64[T Complex](re, im float64) T {
 	return m.ComplexFromFloat64[T](re, im)
 }
 
-// log2 returns the base-2 logarithm (private wrapper).
-var log2 = m.Log2
+// log2 returns the base-2 logarithm (private helper).
+func log2(n int) int {
+	return bits.Len(uint(n)) - 1
+}
 
 // reverseBits reverses bits (private wrapper).
 var reverseBits = m.ReverseBits

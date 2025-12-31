@@ -1,4 +1,4 @@
-package fft
+package math
 
 import (
 	"reflect"
@@ -27,9 +27,9 @@ func TestFactorize(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := factorize(tt.n)
+		got := Factorize(tt.n)
 		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("factorize(%d) = %v, want %v", tt.n, got, tt.want)
+			t.Errorf("Factorize(%d) = %v, want %v", tt.n, got, tt.want)
 		}
 	}
 }
@@ -64,9 +64,9 @@ func TestIsHighlyComposite(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := isHighlyComposite(tt.n)
+		got := IsHighlyComposite(tt.n)
 		if got != tt.want {
-			t.Errorf("isHighlyComposite(%d) = %v, want %v", tt.n, got, tt.want)
+			t.Errorf("IsHighlyComposite(%d) = %v, want %v", tt.n, got, tt.want)
 		}
 	}
 }

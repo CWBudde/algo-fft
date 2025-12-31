@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
 )
 
 // PlanND is a pre-computed N-dimensional FFT plan for arbitrary dimensions.
@@ -94,11 +94,11 @@ func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], 
 
 	switch any(scratch).(type) {
 	case []complex64:
-		s, b := fft.AllocAlignedComplex64(totalSize)
+		s, b := mem.AllocAlignedComplex64(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	case []complex128:
-		s, b := fft.AllocAlignedComplex128(totalSize)
+		s, b := mem.AllocAlignedComplex128(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	}
@@ -275,11 +275,11 @@ func (p *PlanND[T]) Clone() *PlanND[T] {
 
 	switch any(scratch).(type) {
 	case []complex64:
-		s, b := fft.AllocAlignedComplex64(totalSize)
+		s, b := mem.AllocAlignedComplex64(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	case []complex128:
-		s, b := fft.AllocAlignedComplex128(totalSize)
+		s, b := mem.AllocAlignedComplex128(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	}

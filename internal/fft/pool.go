@@ -1,6 +1,10 @@
 package fft
 
-import "sync"
+import (
+	"sync"
+
+	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
+)
 
 // BufferPool provides pooled allocations for FFT buffers to reduce GC pressure
 // when creating and destroying many Plans with the same size.
@@ -101,7 +105,7 @@ func (p *BufferPool) getOrCreatePool64(n int) *sync.Pool {
 
 	pool := &sync.Pool{
 		New: func() any {
-			data, backing := AllocAlignedComplex64(n)
+			data, backing := mem.AllocAlignedComplex64(n)
 			return &alignedBuffer64{data: data, backing: backing}
 		},
 	}
@@ -118,7 +122,7 @@ func (p *BufferPool) getOrCreatePool128(n int) *sync.Pool {
 
 	pool := &sync.Pool{
 		New: func() any {
-			data, backing := AllocAlignedComplex128(n)
+			data, backing := mem.AllocAlignedComplex128(n)
 			return &alignedBuffer128{data: data, backing: backing}
 		},
 	}

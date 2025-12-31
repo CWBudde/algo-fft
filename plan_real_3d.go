@@ -3,7 +3,7 @@ package algofft
 import (
 	"fmt"
 
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
 )
 
 // PlanReal3D is a pre-computed 3D real FFT plan for float32 input volumes.
@@ -82,8 +82,8 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 	compactSize := depth * height * halfWidth
 	fullSize := depth * height * width
 
-	scratchCompact, scratchCompactBacking := fft.AllocAlignedComplex64(compactSize)
-	scratchFull, scratchFullBacking := fft.AllocAlignedComplex64(fullSize)
+	scratchCompact, scratchCompactBacking := mem.AllocAlignedComplex64(compactSize)
+	scratchFull, scratchFullBacking := mem.AllocAlignedComplex64(fullSize)
 
 	return &PlanReal3D{
 		depth:                 depth,
@@ -430,8 +430,8 @@ func (p *PlanReal3D) Clone() *PlanReal3D {
 	compactSize := p.depth * p.height * p.halfWidth
 	fullSize := p.depth * p.height * p.width
 
-	scratchCompact, scratchCompactBacking := fft.AllocAlignedComplex64(compactSize)
-	scratchFull, scratchFullBacking := fft.AllocAlignedComplex64(fullSize)
+	scratchCompact, scratchCompactBacking := mem.AllocAlignedComplex64(compactSize)
+	scratchFull, scratchFullBacking := mem.AllocAlignedComplex64(fullSize)
 
 	// Clone height plans
 	heightPlans := make([]*Plan[complex64], p.halfWidth)

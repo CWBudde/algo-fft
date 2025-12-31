@@ -1,4 +1,4 @@
-package math
+package memory
 
 import "unsafe"
 
@@ -15,7 +15,7 @@ func AllocAlignedComplex64(n int) ([]complex64, []byte) {
 	size := n * int(unsafe.Sizeof(complex64(0)))
 	raw := make([]byte, size+AlignmentBytes-1)
 	base := uintptr(unsafe.Pointer(&raw[0]))
-	aligned := alignPtr(base, AlignmentBytes)
+	aligned := AlignPtr(base, AlignmentBytes)
 	offset := int(aligned - base)
 	data := unsafe.Slice((*complex64)(unsafe.Pointer(&raw[offset])), n)
 
@@ -32,7 +32,7 @@ func AllocAlignedComplex128(n int) ([]complex128, []byte) {
 	size := n * int(unsafe.Sizeof(complex128(0)))
 	raw := make([]byte, size+AlignmentBytes-1)
 	base := uintptr(unsafe.Pointer(&raw[0]))
-	aligned := alignPtr(base, AlignmentBytes)
+	aligned := AlignPtr(base, AlignmentBytes)
 	offset := int(aligned - base)
 	data := unsafe.Slice((*complex128)(unsafe.Pointer(&raw[offset])), n)
 
@@ -43,9 +43,4 @@ func AllocAlignedComplex128(n int) ([]complex128, []byte) {
 func AlignPtr(ptr uintptr, alignment int) uintptr {
 	mask := uintptr(alignment - 1)
 	return (ptr + mask) & ^mask
-}
-
-// alignPtr is a private alias.
-func alignPtr(ptr uintptr, alignment int) uintptr {
-	return AlignPtr(ptr, alignment)
 }

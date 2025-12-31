@@ -10,7 +10,7 @@ func ComputeBitReversalIndices(n int) []int {
 	}
 
 	bitrev := make([]int, n)
-	nbits := Log2(n)
+	nbits := bits.Len(uint(n)) - 1
 
 	for i := range n {
 		bitrev[i] = ReverseBits(i, nbits)
@@ -19,15 +19,11 @@ func ComputeBitReversalIndices(n int) []int {
 	return bitrev
 }
 
-// Log2 returns the base-2 logarithm of n (assuming n is a power of 2).
-// Uses bits.Len() for efficiency.
-func Log2(n int) int {
-	return bits.Len(uint(n)) - 1
-}
-
-// log2 is a private alias for Log2.
+// log2 returns the base-2 logarithm of n (assuming n is a power of 2).
+// Uses bits.Len() for efficiency. This is internal to the math package
+// and should not be exported. Other packages should use bits.Len() directly.
 func log2(n int) int {
-	return Log2(n)
+	return bits.Len(uint(n)) - 1
 }
 
 // ReverseBits reverses the lower 'nbits' bits of x using hardware bit reversal.
@@ -42,9 +38,4 @@ func ReverseBits(x, nbits int) int {
 	masked := uint64(x) & mask
 	reversed := bits.Reverse64(masked)
 	return int(reversed >> uint(64-nbits))
-}
-
-// reverseBits is a private alias for ReverseBits.
-func reverseBits(x, bits int) int {
-	return ReverseBits(x, bits)
 }

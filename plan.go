@@ -4,6 +4,7 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/fft"
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
 )
 
 // Plan is a pre-computed FFT plan for a specific size and precision.
@@ -514,27 +515,27 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		// Alloc scratch (size M)
 		switch any(zero).(type) {
 		case complex64:
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex64(scratchSize)
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex64(n)
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
 			stridedScratch = any(stridedAligned).([]T)
 			stridedBacking = stridedRaw
 
-			bsAligned, bsRaw := fft.AllocAlignedComplex64(scratchSize)
+			bsAligned, bsRaw := mem.AllocAlignedComplex64(scratchSize)
 			bluesteinScratch = any(bsAligned).([]T)
 			bluesteinScratchBacking = bsRaw
 		case complex128:
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex128(scratchSize)
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex128(n)
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
 			stridedScratch = any(stridedAligned).([]T)
 			stridedBacking = stridedRaw
 
-			bsAligned, bsRaw := fft.AllocAlignedComplex128(scratchSize)
+			bsAligned, bsRaw := mem.AllocAlignedComplex128(scratchSize)
 			bluesteinScratch = any(bsAligned).([]T)
 			bluesteinScratchBacking = bsRaw
 		default:
@@ -570,33 +571,33 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		case complex64:
 			tmpTwiddle := fft.TwiddleFactorsRecursive[complex64](decompStrategy)
 			twiddleSize = len(tmpTwiddle)
-			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex64(twiddleSize)
+			twiddleAligned, twiddleRaw := mem.AllocAlignedComplex64(twiddleSize)
 			copy(twiddleAligned, tmpTwiddle)
 			twiddle = any(twiddleAligned).([]T)
 			twiddleBacking = twiddleRaw
 
 			scratchSize := fft.ScratchSizeRecursive(decompStrategy)
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex64(scratchSize)
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex64(n)
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
 			stridedScratch = any(stridedAligned).([]T)
 			stridedBacking = stridedRaw
 		case complex128:
 			tmpTwiddle := fft.TwiddleFactorsRecursive[complex128](decompStrategy)
 			twiddleSize = len(tmpTwiddle)
-			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex128(twiddleSize)
+			twiddleAligned, twiddleRaw := mem.AllocAlignedComplex128(twiddleSize)
 			copy(twiddleAligned, tmpTwiddle)
 			twiddle = any(twiddleAligned).([]T)
 			twiddleBacking = twiddleRaw
 
 			scratchSize := fft.ScratchSizeRecursive(decompStrategy)
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex128(scratchSize)
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex128(n)
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
 			stridedScratch = any(stridedAligned).([]T)
 			stridedBacking = stridedRaw
 		default:
@@ -608,31 +609,31 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		// Standard allocation
 		switch any(zero).(type) {
 		case complex64:
-			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex64(n)
+			twiddleAligned, twiddleRaw := mem.AllocAlignedComplex64(n)
 			tmp := fft.ComputeTwiddleFactors[complex64](n)
 			copy(twiddleAligned, tmp)
 			twiddle = any(twiddleAligned).([]T)
 			twiddleBacking = twiddleRaw
 
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex64(n)
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(n)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex64(n)
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
 			stridedScratch = any(stridedAligned).([]T)
 			stridedBacking = stridedRaw
 		case complex128:
-			twiddleAligned, twiddleRaw := fft.AllocAlignedComplex128(n)
+			twiddleAligned, twiddleRaw := mem.AllocAlignedComplex128(n)
 			tmp := fft.ComputeTwiddleFactors[complex128](n)
 			copy(twiddleAligned, tmp)
 			twiddle = any(twiddleAligned).([]T)
 			twiddleBacking = twiddleRaw
 
-			scratchAligned, scratchRaw := fft.AllocAlignedComplex128(n)
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(n)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
-			stridedAligned, stridedRaw := fft.AllocAlignedComplex128(n)
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
 			stridedScratch = any(stridedAligned).([]T)
 			stridedBacking = stridedRaw
 		default:
@@ -732,7 +733,7 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 
 // NewPlanFromPoolWithOptions creates a new FFT plan using buffers from the specified pool and planner options.
 func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts PlanOptions) (*Plan[T], error) {
-	if n < 1 || (!m.IsPowerOf2(n) && !fft.IsHighlyComposite(n)) {
+	if n < 1 || (!m.IsPowerOf2(n) && !m.IsHighlyComposite(n)) {
 		return nil, ErrInvalidLength
 	}
 
@@ -916,22 +917,22 @@ func (p *Plan[T]) Clone() *Plan[T] {
 
 	switch any(zero).(type) {
 	case complex64:
-		scratchAligned, scratchRaw := fft.AllocAlignedComplex64(scratchSize)
+		scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
 
 		if p.kernelStrategy == fft.KernelBluestein {
-			bsAligned, bsRaw := fft.AllocAlignedComplex64(p.bluesteinM)
+			bsAligned, bsRaw := mem.AllocAlignedComplex64(p.bluesteinM)
 			bluesteinScratch = any(bsAligned).([]T)
 			bluesteinScratchBacking = bsRaw
 		}
 	case complex128:
-		scratchAligned, scratchRaw := fft.AllocAlignedComplex128(scratchSize)
+		scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
 
 		if p.kernelStrategy == fft.KernelBluestein {
-			bsAligned, bsRaw := fft.AllocAlignedComplex128(p.bluesteinM)
+			bsAligned, bsRaw := mem.AllocAlignedComplex128(p.bluesteinM)
 			bluesteinScratch = any(bsAligned).([]T)
 			bluesteinScratchBacking = bsRaw
 		}

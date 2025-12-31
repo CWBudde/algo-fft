@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
 )
 
 // Plan3D is a pre-computed 3D FFT plan for a specific volume size and precision.
@@ -85,11 +85,11 @@ func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions)
 
 	switch any(scratch).(type) {
 	case []complex64:
-		s, b := fft.AllocAlignedComplex64(totalSize)
+		s, b := mem.AllocAlignedComplex64(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	case []complex128:
-		s, b := fft.AllocAlignedComplex128(totalSize)
+		s, b := mem.AllocAlignedComplex128(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	}
@@ -264,11 +264,11 @@ func (p *Plan3D[T]) Clone() *Plan3D[T] {
 
 	switch any(scratch).(type) {
 	case []complex64:
-		s, b := fft.AllocAlignedComplex64(totalSize)
+		s, b := mem.AllocAlignedComplex64(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	case []complex128:
-		s, b := fft.AllocAlignedComplex128(totalSize)
+		s, b := mem.AllocAlignedComplex128(totalSize)
 		scratch = any(s).([]T)
 		scratchBacking = b
 	}
