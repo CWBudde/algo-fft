@@ -7,6 +7,7 @@
 **Architecture:** The implementation adds size-specific SSE2 assembly kernels following the proven pattern from size-16. Size-64 uses 3 stages of radix-4 butterflies (vs 6 stages of radix-2). SSE2 provides 128-bit operations, using scalar-style SIMD with complex64 pairs. The kernels support both in-place and out-of-place transforms with scratch buffer support.
 
 **Tech Stack:**
+
 - AMD64 assembly (SSE2 instruction set)
 - Go 1.21+ with build tags (`amd64 && fft_asm && !purego`)
 - TextFLAG assembler directives
@@ -17,6 +18,7 @@
 ### Task 1: Create SSE2 Size-64 Radix-4 Assembly Forward Kernel
 
 **Files:**
+
 - Create: `internal/kernels/asm/asm_amd64_sse2_size64_radix4.s`
 
 **Step 1: Write the assembly file with forward transform**
@@ -442,6 +444,7 @@ Expected: No assembly errors, successful build
 ### Task 2: Create SSE2 Size-64 Radix-4 Assembly Inverse Kernel
 
 **Files:**
+
 - Modify: `internal/kernels/asm/asm_amd64_sse2_size64_radix4.s` (append)
 
 **Step 1: Add inverse transform to assembly file**
@@ -865,6 +868,7 @@ Expected: Both forward and inverse assemble successfully
 ### Task 3: Add Assembly Function Declarations
 
 **Files:**
+
 - Modify: `internal/kernels/asm/asm_amd64_decl.go`
 
 **Step 1: Add declarations for SSE2 size-64 kernels**
@@ -893,6 +897,7 @@ Expected: Build succeeds with no declaration errors
 ### Task 4: Add Assembly Export Wrappers
 
 **Files:**
+
 - Modify: `internal/kernels/asm/kernels_amd64_exports.go`
 
 **Step 1: Add export wrappers**
@@ -919,6 +924,7 @@ Expected: Build succeeds
 ### Task 5: Add SSE2 Kernel Registration
 
 **Files:**
+
 - Modify: `internal/kernels/codelet_init_sse2.go`
 
 **Step 1: Update SSE2 registration**
@@ -963,6 +969,7 @@ Expected: Build succeeds
 ### Task 6: Create Unit Tests for SSE2 Size-64 Kernel
 
 **Files:**
+
 - Create: `internal/kernels/sse2_size64_test.go`
 
 **Step 1: Write comprehensive test file**
@@ -1111,16 +1118,19 @@ Expected: All tests pass
 ### Task 7: Update Documentation
 
 **Files:**
+
 - Modify: `docs/IMPLEMENTATION_INVENTORY.md`
 
 **Step 1: Update Size 64 Complex64 entry in quick reference grid**
 
 Change line 20 from:
+
 ```
 | 64    | Radix-4   | ✓   | ✓    | -    | ✓    |
 ```
 
 To:
+
 ```
 | 64    | Radix-4   | ✓   | ✓    | ✓    | ✓    |
 ```
@@ -1151,11 +1161,13 @@ Replace the "Size 64" section (starting around line 148) with:
 **Step 3: Update AVX2 coverage summary**
 
 In the "AVX2 Assembly Implementations" section, find the Size 64 line and change from:
+
 ```
 - **Size 64**: 2 variants (radix-2, radix-4 complex64)
 ```
 
 To:
+
 ```
 - **Size 64**: 2 variants (radix-2, radix-4 complex64) + SSE2 fallback
 ```
@@ -1170,6 +1182,7 @@ Expected: No errors
 ### Task 8: Integration Test
 
 **Files:**
+
 - Modify: `internal/kernels/sse2_size64_test.go`
 
 **Step 1: Add kernel selection integration test**
@@ -1219,6 +1232,7 @@ Expected: All tests pass
 ### Task 9: Build and Verify No Regressions
 
 **Files:**
+
 - No file changes
 
 **Step 1: Full build with all tests**
@@ -1236,6 +1250,7 @@ Expected: No panics, benchmarks show SSE2 as viable alternative to AVX2
 ### Task 10: Commit All Changes
 
 **Files:**
+
 - All changes from Tasks 1-8
 
 **Step 1: Stage all changes**
@@ -1285,6 +1300,7 @@ This plan implements SSE2 optimization for size-64 complex64 FFT:
 
 **Estimated effort**: 6-8 hours total
 **Critical success criteria**:
+
 - All unit tests pass
 - Round-trip FFT(IFFT(x)) = x within floating-point error
 - No regressions in existing kernel tests

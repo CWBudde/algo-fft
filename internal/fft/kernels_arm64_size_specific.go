@@ -17,26 +17,26 @@ func neonSizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 		}
 
-	// DIT strategy: try size-specific, fall back to generic NEON
-	switch n {
-	case 4:
-		if forwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+		// DIT strategy: try size-specific, fall back to generic NEON
+		switch n {
+		case 4:
+			if forwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
-	case 8:
-		// Prefer radix-8; fall back to radix-2/mixed-radix.
-		if forwardNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		if forwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		if forwardNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+		case 8:
+			// Prefer radix-8; fall back to radix-2/mixed-radix.
+			if forwardNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			if forwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			if forwardNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 16:
 			if forwardNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize16Radix4) {
@@ -47,14 +47,14 @@ func neonSizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			}
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
-	case 32:
-		if forwardNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize32Mixed24) {
-			return true
-		}
-		if forwardNEONSize32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+		case 32:
+			if forwardNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize32Mixed24) {
+				return true
+			}
+			if forwardNEONSize32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 64:
 			if forwardNEONSize64Complex64Asm(dst, src, twiddle, scratch, bitrev) {
@@ -65,20 +65,23 @@ func neonSizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			}
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
-	case 128:
-		if forwardNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize128Mixed24) {
-			return true
-		}
-		if forwardNEONSize128Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
-
-		case 256:
-			if forwardNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		case 128:
+			if forwardNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize128Mixed24) {
+				return true
+			}
+			if forwardNEONSize128Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 				return true
 			}
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+
+	case 256:
+		if forwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize256Radix4) {
+			return true
+		}
+		if forwardNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			return true
+		}
+		return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		default:
 			// For other sizes, use generic NEON
@@ -100,26 +103,26 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 		}
 
-	// DIT strategy: try size-specific, fall back to generic NEON
-	switch n {
-	case 4:
-		if inverseNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+		// DIT strategy: try size-specific, fall back to generic NEON
+		switch n {
+		case 4:
+			if inverseNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
-	case 8:
-		// Prefer radix-8; fall back to radix-2/mixed-radix.
-		if inverseNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		if inverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		if inverseNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+		case 8:
+			// Prefer radix-8; fall back to radix-2/mixed-radix.
+			if inverseNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			if inverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			if inverseNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 16:
 			if inverseNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize16Radix4) {
@@ -130,14 +133,14 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			}
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
-	case 32:
-		if inverseNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize32Mixed24) {
-			return true
-		}
-		if inverseNEONSize32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+		case 32:
+			if inverseNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize32Mixed24) {
+				return true
+			}
+			if inverseNEONSize32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 64:
 			if inverseNEONSize64Complex64Asm(dst, src, twiddle, scratch, bitrev) {
@@ -148,20 +151,23 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			}
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
-	case 128:
-		if inverseNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize128Mixed24) {
-			return true
-		}
-		if inverseNEONSize128Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			return true
-		}
-		return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
-
-		case 256:
-			if inverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		case 128:
+			if inverseNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize128Mixed24) {
+				return true
+			}
+			if inverseNEONSize128Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 				return true
 			}
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+
+	case 256:
+		if inverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize256Radix4) {
+			return true
+		}
+		if inverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			return true
+		}
+		return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		default:
 			// For other sizes, use generic NEON

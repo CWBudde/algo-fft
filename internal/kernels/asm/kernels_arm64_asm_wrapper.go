@@ -125,3 +125,11 @@ func ForwardNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64
 func InverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return inverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
+
+func ForwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return forwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func InverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return inverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}

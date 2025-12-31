@@ -128,6 +128,14 @@ func inverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64
 	return kasm.InverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
+func forwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.ForwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.InverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
 func forwardNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	return forwardDIT4Radix4Complex128(dst, src, twiddle, scratch, bitrev)
 }

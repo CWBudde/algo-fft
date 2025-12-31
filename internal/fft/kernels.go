@@ -52,32 +52,32 @@ var (
 	inverseDITComplex128 = kernels.InverseDITComplex128
 
 	// Size-specific exports for benchmarks/tests
-	ComputeBitReversalIndicesRadix4 = kernels.ComputeBitReversalIndicesRadix4
+	ComputeBitReversalIndicesRadix4  = kernels.ComputeBitReversalIndicesRadix4
 	ComputeBitReversalIndicesMixed24 = kernels.ComputeBitReversalIndicesMixed24
-	forwardDIT4Radix4Complex64      = kernels.ForwardDIT4Radix4Complex64
-	inverseDIT4Radix4Complex64      = kernels.InverseDIT4Radix4Complex64
-	forwardDIT8Radix2Complex64      = kernels.ForwardDIT8Radix2Complex64
-	inverseDIT8Radix2Complex64      = kernels.InverseDIT8Radix2Complex64
-	forwardDIT8Radix4Complex64      = kernels.ForwardDIT8Radix4Complex64
-	inverseDIT8Radix4Complex64      = kernels.InverseDIT8Radix4Complex64
-	forwardDIT16Complex64           = kernels.ForwardDIT16Complex64
-	inverseDIT16Complex64           = kernels.InverseDIT16Complex64
-	forwardDIT16Radix4Complex64     = kernels.ForwardDIT16Radix4Complex64
-	inverseDIT16Radix4Complex64     = kernels.InverseDIT16Radix4Complex64
-	forwardDIT32Complex64           = kernels.ForwardDIT32Complex64
-	inverseDIT32Complex64           = kernels.InverseDIT32Complex64
-	forwardDIT64Complex64           = kernels.ForwardDIT64Complex64
-	inverseDIT64Complex64           = kernels.InverseDIT64Complex64
-	forwardDIT64Radix4Complex64     = kernels.ForwardDIT64Radix4Complex64
-	inverseDIT64Radix4Complex64     = kernels.InverseDIT64Radix4Complex64
-	forwardDIT128Complex64          = kernels.ForwardDIT128Complex64
-	inverseDIT128Complex64          = kernels.InverseDIT128Complex64
-	forwardDIT256Complex64          = kernels.ForwardDIT256Complex64
-	inverseDIT256Complex64          = kernels.InverseDIT256Complex64
-	forwardDIT256Radix4Complex64    = kernels.ForwardDIT256Radix4Complex64
-	inverseDIT256Radix4Complex64    = kernels.InverseDIT256Radix4Complex64
-	forwardDIT512Complex64          = kernels.ForwardDIT512Complex64
-	inverseDIT512Complex64          = kernels.InverseDIT512Complex64
+	forwardDIT4Radix4Complex64       = kernels.ForwardDIT4Radix4Complex64
+	inverseDIT4Radix4Complex64       = kernels.InverseDIT4Radix4Complex64
+	forwardDIT8Radix2Complex64       = kernels.ForwardDIT8Radix2Complex64
+	inverseDIT8Radix2Complex64       = kernels.InverseDIT8Radix2Complex64
+	forwardDIT8Radix4Complex64       = kernels.ForwardDIT8Radix4Complex64
+	inverseDIT8Radix4Complex64       = kernels.InverseDIT8Radix4Complex64
+	forwardDIT16Complex64            = kernels.ForwardDIT16Complex64
+	inverseDIT16Complex64            = kernels.InverseDIT16Complex64
+	forwardDIT16Radix4Complex64      = kernels.ForwardDIT16Radix4Complex64
+	inverseDIT16Radix4Complex64      = kernels.InverseDIT16Radix4Complex64
+	forwardDIT32Complex64            = kernels.ForwardDIT32Complex64
+	inverseDIT32Complex64            = kernels.InverseDIT32Complex64
+	forwardDIT64Complex64            = kernels.ForwardDIT64Complex64
+	inverseDIT64Complex64            = kernels.InverseDIT64Complex64
+	forwardDIT64Radix4Complex64      = kernels.ForwardDIT64Radix4Complex64
+	inverseDIT64Radix4Complex64      = kernels.InverseDIT64Radix4Complex64
+	forwardDIT128Complex64           = kernels.ForwardDIT128Complex64
+	inverseDIT128Complex64           = kernels.InverseDIT128Complex64
+	forwardDIT256Complex64           = kernels.ForwardDIT256Complex64
+	inverseDIT256Complex64           = kernels.InverseDIT256Complex64
+	forwardDIT256Radix4Complex64     = kernels.ForwardDIT256Radix4Complex64
+	inverseDIT256Radix4Complex64     = kernels.InverseDIT256Radix4Complex64
+	forwardDIT512Complex64           = kernels.ForwardDIT512Complex64
+	inverseDIT512Complex64           = kernels.InverseDIT512Complex64
 
 	// Complex128 variants
 	forwardDIT4Radix4Complex128   = kernels.ForwardDIT4Radix4Complex128
