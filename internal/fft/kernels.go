@@ -53,6 +53,7 @@ var (
 
 	// Size-specific exports for benchmarks/tests
 	ComputeBitReversalIndicesRadix4 = kernels.ComputeBitReversalIndicesRadix4
+	ComputeBitReversalIndicesMixed24 = kernels.ComputeBitReversalIndicesMixed24
 	forwardDIT4Radix4Complex64      = kernels.ForwardDIT4Radix4Complex64
 	inverseDIT4Radix4Complex64      = kernels.InverseDIT4Radix4Complex64
 	forwardDIT8Radix2Complex64      = kernels.ForwardDIT8Radix2Complex64
