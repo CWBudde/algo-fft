@@ -35,7 +35,7 @@ func TestAVX2DITForwardComplex64(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			src := randomComplex64(tc.n, 0xAVX2+uint64(tc.n))
+			src := randomComplex64(tc.n, 0xDEADBEEF+uint64(tc.n))
 			dst := make([]complex64, tc.n)
 			scratch := make([]complex64, tc.n)
 			twiddle := ComputeTwiddleFactors[complex64](tc.n)
