@@ -21,7 +21,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | 128   | Radix-2   | ✓   | ✓    | -    | ✓    |
 | 128   | Mixed²    | ✓   | ✓    | -    | ✓    |
 | 256   | Radix-2   | ✓   | ✓    | -    | ✓    |
-| 256   | Radix-4   | ✓   | ✓    | -    | -    |
+| 256   | Radix-4   | ✓   | ✓    | -    | ✓    |
 | 512   | Radix-2   | ✓   | ✓    | -    | ✓    |
 | 512   | Mixed⁴    | ✓   | -    | -    | -    |
 | 1024  | Radix-4   | ✓   | -    | -    | -    |
