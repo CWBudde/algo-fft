@@ -252,7 +252,7 @@ neon32r2_inv_inner_loop:
 	ADD  R10, R3, R3
 	FMOVS 0(R3), F0
 	FMOVS 4(R3), F1
-	FNEG  F1, F1
+	FNEGS  F1, F1
 
 	LSL  $3, R1, R4
 	ADD  R8, R4, R4

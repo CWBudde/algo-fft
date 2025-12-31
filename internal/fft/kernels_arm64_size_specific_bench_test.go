@@ -70,7 +70,7 @@ func BenchmarkNEONSizeSpecific_vs_Generic_128(b *testing.B) {
 	benchmarkNEONSizeSpecificVsGeneric(b, 128)
 }
 
-// Benchmark size 256 (should use generic NEON, not size-specific)
+// Benchmark size 256
 func BenchmarkNEONSizeSpecific_vs_Generic_256(b *testing.B) {
 	benchmarkNEONSizeSpecificVsGeneric(b, 256)
 }

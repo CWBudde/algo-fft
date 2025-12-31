@@ -1,16 +1,13 @@
 //go:build arm64 && fft_asm && !purego
 
 // ===========================================================================
-// NEON Size-128 Radix-2 FFT Kernels for ARM64
+// NEON Size-64 Radix-2 FFT Kernels for ARM64
 // ===========================================================================
 
 #include "textflag.h"
 
-DATA ·neonInv128+0(SB)/4, $0x3c000000 // 1/128
-GLOBL ·neonInv128(SB), RODATA, $4
-
-// Forward transform, size 128, complex64, radix-2
-TEXT ·forwardNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
+// Forward transform, size 64, complex64, radix-2
+TEXT ·forwardNEONSize64Complex64Asm(SB), NOSPLIT, $0-121
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
@@ -18,37 +15,37 @@ TEXT ·forwardNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
 	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
-	CMP  $128, R13
-	BNE  neon128r2_return_false
+	CMP  $64, R13
+	BNE  neon64r2_return_false
 
 	MOVD dst+8(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_return_false
+	CMP  $64, R0
+	BLT  neon64r2_return_false
 
 	MOVD twiddle+56(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_return_false
+	CMP  $64, R0
+	BLT  neon64r2_return_false
 
 	MOVD scratch+80(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_return_false
+	CMP  $64, R0
+	BLT  neon64r2_return_false
 
 	MOVD bitrev+104(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_return_false
+	CMP  $64, R0
+	BLT  neon64r2_return_false
 
 	MOVD R8, R20
 	CMP  R8, R9
-	BNE  neon128r2_use_dst
+	BNE  neon64r2_use_dst
 	MOVD R11, R8
 
-neon128r2_use_dst:
+neon64r2_use_dst:
 	// Bit-reversal permutation
 	MOVD $0, R0
 
-neon128r2_bitrev_loop:
-	CMP  $128, R0
-	BGE  neon128r2_stage
+neon64r2_bitrev_loop:
+	CMP  $64, R0
+	BGE  neon64r2_stage
 
 	LSL  $3, R0, R1
 	ADD  R12, R1, R1
@@ -63,32 +60,32 @@ neon128r2_bitrev_loop:
 	MOVD R4, (R3)
 
 	ADD  $1, R0, R0
-	B    neon128r2_bitrev_loop
+	B    neon64r2_bitrev_loop
 
-neon128r2_stage:
-	MOVD $2, R14
+neon64r2_stage:
+	MOVD $2, R14               // size
 
-neon128r2_size_loop:
-	CMP  $128, R14
-	BGT  neon128r2_done
+neon64r2_size_loop:
+	CMP  $64, R14
+	BGT  neon64r2_done
 
-	LSR  $1, R14, R15
-	UDIV R14, R13, R16
+	LSR  $1, R14, R15          // half
+	UDIV R14, R13, R16         // step = n/size
 
-	MOVD $0, R17
+	MOVD $0, R17               // base
 
-neon128r2_base_loop:
+neon64r2_base_loop:
 	CMP  R13, R17
-	BGE  neon128r2_next_size
+	BGE  neon64r2_next_size
 
-	MOVD $0, R0
+	MOVD $0, R0                // j
 
-neon128r2_inner_loop:
+neon64r2_inner_loop:
 	CMP  R15, R0
-	BGE  neon128r2_next_base
+	BGE  neon64r2_next_base
 
-	ADD  R17, R0, R1
-	ADD  R1, R15, R2
+	ADD  R17, R0, R1           // idx_a
+	ADD  R1, R15, R2           // idx_b
 
 	MUL  R0, R16, R3
 	LSL  $3, R3, R3
@@ -106,6 +103,7 @@ neon128r2_inner_loop:
 	FMOVS 0(R4), F4
 	FMOVS 4(R4), F5
 
+	// wb = w * b
 	FMULS F0, F4, F6
 	FMULS F1, F5, F7
 	FSUBS F7, F6, F6
@@ -129,44 +127,44 @@ neon128r2_inner_loop:
 	FMOVS F12, 4(R4)
 
 	ADD  $1, R0, R0
-	B    neon128r2_inner_loop
+	B    neon64r2_inner_loop
 
-neon128r2_next_base:
+neon64r2_next_base:
 	ADD  R14, R17, R17
-	B    neon128r2_base_loop
+	B    neon64r2_base_loop
 
-neon128r2_next_size:
+neon64r2_next_size:
 	LSL  $1, R14, R14
-	B    neon128r2_size_loop
+	B    neon64r2_size_loop
 
-neon128r2_done:
+neon64r2_done:
 	CMP  R8, R20
-	BEQ  neon128r2_return_true
+	BEQ  neon64r2_return_true
 
 	MOVD $0, R0
-neon128r2_copy_loop:
-	CMP  $128, R0
-	BGE  neon128r2_return_true
+neon64r2_copy_loop:
+	CMP  $64, R0
+	BGE  neon64r2_return_true
 	LSL  $3, R0, R1
 	ADD  R8, R1, R1
 	MOVD (R1), R2
 	ADD  R20, R1, R3
 	MOVD R2, (R3)
 	ADD  $1, R0, R0
-	B    neon128r2_copy_loop
+	B    neon64r2_copy_loop
 
-neon128r2_return_true:
+neon64r2_return_true:
 	MOVD $1, R0
 	MOVB R0, ret+120(FP)
 	RET
 
-neon128r2_return_false:
+neon64r2_return_false:
 	MOVD $0, R0
 	MOVB R0, ret+120(FP)
 	RET
 
-// Inverse transform, size 128, complex64, radix-2
-TEXT ·inverseNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
+// Inverse transform, size 64, complex64, radix-2
+TEXT ·inverseNEONSize64Complex64Asm(SB), NOSPLIT, $0-121
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
@@ -174,37 +172,37 @@ TEXT ·inverseNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
 	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
-	CMP  $128, R13
-	BNE  neon128r2_inv_return_false
+	CMP  $64, R13
+	BNE  neon64r2_inv_return_false
 
 	MOVD dst+8(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_inv_return_false
+	CMP  $64, R0
+	BLT  neon64r2_inv_return_false
 
 	MOVD twiddle+56(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_inv_return_false
+	CMP  $64, R0
+	BLT  neon64r2_inv_return_false
 
 	MOVD scratch+80(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_inv_return_false
+	CMP  $64, R0
+	BLT  neon64r2_inv_return_false
 
 	MOVD bitrev+104(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_inv_return_false
+	CMP  $64, R0
+	BLT  neon64r2_inv_return_false
 
 	MOVD R8, R20
 	CMP  R8, R9
-	BNE  neon128r2_inv_use_dst
+	BNE  neon64r2_inv_use_dst
 	MOVD R11, R8
 
-neon128r2_inv_use_dst:
+neon64r2_inv_use_dst:
 	// Bit-reversal permutation
 	MOVD $0, R0
 
-neon128r2_inv_bitrev_loop:
-	CMP  $128, R0
-	BGE  neon128r2_inv_stage
+neon64r2_inv_bitrev_loop:
+	CMP  $64, R0
+	BGE  neon64r2_inv_stage
 
 	LSL  $3, R0, R1
 	ADD  R12, R1, R1
@@ -219,32 +217,32 @@ neon128r2_inv_bitrev_loop:
 	MOVD R4, (R3)
 
 	ADD  $1, R0, R0
-	B    neon128r2_inv_bitrev_loop
+	B    neon64r2_inv_bitrev_loop
 
-neon128r2_inv_stage:
-	MOVD $2, R14
+neon64r2_inv_stage:
+	MOVD $2, R14               // size
 
-neon128r2_inv_size_loop:
-	CMP  $128, R14
-	BGT  neon128r2_inv_done
+neon64r2_inv_size_loop:
+	CMP  $64, R14
+	BGT  neon64r2_inv_done
 
-	LSR  $1, R14, R15
-	UDIV R14, R13, R16
+	LSR  $1, R14, R15          // half
+	UDIV R14, R13, R16         // step = n/size
 
-	MOVD $0, R17
+	MOVD $0, R17               // base
 
-neon128r2_inv_base_loop:
+neon64r2_inv_base_loop:
 	CMP  R13, R17
-	BGE  neon128r2_inv_next_size
+	BGE  neon64r2_inv_next_size
 
-	MOVD $0, R0
+	MOVD $0, R0                // j
 
-neon128r2_inv_inner_loop:
+neon64r2_inv_inner_loop:
 	CMP  R15, R0
-	BGE  neon128r2_inv_next_base
+	BGE  neon64r2_inv_next_base
 
-	ADD  R17, R0, R1
-	ADD  R1, R15, R2
+	ADD  R17, R0, R1           // idx_a
+	ADD  R1, R15, R2           // idx_b
 
 	MUL  R0, R16, R3
 	LSL  $3, R3, R3
@@ -263,6 +261,7 @@ neon128r2_inv_inner_loop:
 	FMOVS 0(R4), F4
 	FMOVS 4(R4), F5
 
+	// wb = w * b
 	FMULS F0, F4, F6
 	FMULS F1, F5, F7
 	FSUBS F7, F6, F6
@@ -286,40 +285,40 @@ neon128r2_inv_inner_loop:
 	FMOVS F12, 4(R4)
 
 	ADD  $1, R0, R0
-	B    neon128r2_inv_inner_loop
+	B    neon64r2_inv_inner_loop
 
-neon128r2_inv_next_base:
+neon64r2_inv_next_base:
 	ADD  R14, R17, R17
-	B    neon128r2_inv_base_loop
+	B    neon64r2_inv_base_loop
 
-neon128r2_inv_next_size:
+neon64r2_inv_next_size:
 	LSL  $1, R14, R14
-	B    neon128r2_inv_size_loop
+	B    neon64r2_inv_size_loop
 
-neon128r2_inv_done:
+neon64r2_inv_done:
 	CMP  R8, R20
-	BEQ  neon128r2_inv_scale
+	BEQ  neon64r2_inv_scale
 
 	MOVD $0, R0
-neon128r2_inv_copy_loop:
-	CMP  $128, R0
-	BGE  neon128r2_inv_scale
+neon64r2_inv_copy_loop:
+	CMP  $64, R0
+	BGE  neon64r2_inv_scale
 	LSL  $3, R0, R1
 	ADD  R8, R1, R1
 	MOVD (R1), R2
 	ADD  R20, R1, R3
 	MOVD R2, (R3)
 	ADD  $1, R0, R0
-	B    neon128r2_inv_copy_loop
+	B    neon64r2_inv_copy_loop
 
-neon128r2_inv_scale:
-	MOVD $·neonInv128(SB), R1
+neon64r2_inv_scale:
+	MOVD $·neonInv64(SB), R1
 	FMOVS (R1), F0
 	MOVD $0, R0
 
-neon128r2_inv_scale_loop:
-	CMP  $128, R0
-	BGE  neon128r2_inv_return_true
+neon64r2_inv_scale_loop:
+	CMP  $64, R0
+	BGE  neon64r2_inv_return_true
 	LSL  $3, R0, R1
 	ADD  R20, R1, R1
 	FMOVS 0(R1), F2
@@ -329,14 +328,14 @@ neon128r2_inv_scale_loop:
 	FMOVS F2, 0(R1)
 	FMOVS F3, 4(R1)
 	ADD  $1, R0, R0
-	B    neon128r2_inv_scale_loop
+	B    neon64r2_inv_scale_loop
 
-neon128r2_inv_return_true:
+neon64r2_inv_return_true:
 	MOVD $1, R0
 	MOVB R0, ret+120(FP)
 	RET
 
-neon128r2_inv_return_false:
+neon64r2_inv_return_false:
 	MOVD $0, R0
 	MOVB R0, ret+120(FP)
 	RET

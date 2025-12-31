@@ -51,7 +51,7 @@ func TestRealDFT2D_OutputShape(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
+		name       string
 		rows, cols int
 	}{
 		{"2×4", 2, 4},
@@ -84,7 +84,7 @@ func TestRealDFT2D_RoundTrip(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
+		name       string
 		rows, cols int
 	}{
 		{"2×4", 2, 4},
@@ -281,9 +281,9 @@ func TestRealIDFT2D_RoundTrip(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
+		name       string
 		rows, cols int
-		inputFunc func(int) float32
+		inputFunc  func(int) float32
 	}{
 		{"Zeros", 3, 4, func(i int) float32 { return 0 }},
 		{"Ones", 2, 6, func(i int) float32 { return 1 }},

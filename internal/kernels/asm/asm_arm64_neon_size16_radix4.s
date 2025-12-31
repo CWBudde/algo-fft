@@ -123,14 +123,14 @@ neon16r4_stage1_loop:
 
 	// (-i) * t3 => (t3.imag, -t3.real)
 	FMOVS F15, F20
-	FNEG  F14, F21
+	FNEGS  F14, F21
 
 	// b1 = t1 + (-i)*t3
 	FADDS F20, F10, F22
 	FADDS F21, F11, F23
 
 	// i * t3 => (-t3.imag, t3.real)
-	FNEG  F15, F24
+	FNEGS  F15, F24
 	FMOVS F14, F25
 
 	// b3 = t1 + i*t3
@@ -161,7 +161,7 @@ neon16r4_stage2_loop:
 	BGE  neon16r4_done
 
 	// idx0=j, idx1=j+4, idx2=j+8, idx3=j+12
-	ADD  R0, R0, R1            // R1 = j
+	MOVD R0, R1                // R1 = j
 	ADD  $4, R1, R2            // R2 = j+4
 	ADD  $8, R1, R3            // R3 = j+8
 	ADD  $12, R1, R4           // R4 = j+12
@@ -173,12 +173,14 @@ neon16r4_stage2_loop:
 	FMOVS 4(R5), F1
 
 	LSL  $1, R1, R6
+	ADD  R6, R1, R7
 	LSL  $3, R6, R6
 	ADD  R10, R6, R6
 	FMOVS 0(R6), F2
 	FMOVS 4(R6), F3
 
-	ADD  R6, R5, R7            // R7 = &tw[3j]
+	LSL  $3, R7, R7
+	ADD  R10, R7, R7            // R7 = &tw[3j]
 	FMOVS 0(R7), F4
 	FMOVS 4(R7), F5
 
@@ -256,14 +258,14 @@ neon16r4_stage2_loop:
 
 	// (-i) * t3
 	FMOVS F21, F26
-	FNEG  F20, F27
+	FNEGS  F20, F27
 
 	// b1 = t1 + (-i)*t3
 	FADDS F26, F16, F28
 	FADDS F27, F17, F29
 
 	// i * t3
-	FNEG  F21, F30
+	FNEGS  F21, F30
 	FMOVS F20, F31
 
 	// b3 = t1 + i*t3
@@ -414,13 +416,13 @@ neon16r4_inv_stage1_loop:
 	FSUBS F12, F8, F18
 	FSUBS F13, F9, F19
 
-	FMOVS F15, F20
-	FNEG  F14, F21
+	FNEGS F15, F20
+	FMOVS F14, F21
 	FADDS F20, F10, F22
 	FADDS F21, F11, F23
 
-	FNEG  F15, F24
-	FMOVS F14, F25
+	FMOVS F15, F24
+	FNEGS F14, F25
 	FADDS F24, F10, F26
 	FADDS F25, F11, F27
 
@@ -444,7 +446,7 @@ neon16r4_inv_stage2_loop:
 	CMP  $4, R0
 	BGE  neon16r4_inv_done
 
-	ADD  R0, R0, R1
+	MOVD R0, R1
 	ADD  $4, R1, R2
 	ADD  $8, R1, R3
 	ADD  $12, R1, R4
@@ -453,19 +455,21 @@ neon16r4_inv_stage2_loop:
 	ADD  R10, R5, R5
 	FMOVS 0(R5), F0
 	FMOVS 4(R5), F1
-	FNEG  F1, F1
+	FNEGS  F1, F1
 
 	LSL  $1, R1, R6
+	ADD  R6, R1, R7
 	LSL  $3, R6, R6
 	ADD  R10, R6, R6
 	FMOVS 0(R6), F2
 	FMOVS 4(R6), F3
-	FNEG  F3, F3
+	FNEGS  F3, F3
 
-	ADD  R6, R5, R7
+	LSL  $3, R7, R7
+	ADD  R10, R7, R7
 	FMOVS 0(R7), F4
 	FMOVS 4(R7), F5
-	FNEG  F5, F5
+	FNEGS  F5, F5
 
 	LSL  $3, R1, R5
 	ADD  R8, R5, R5
@@ -532,13 +536,13 @@ neon16r4_inv_stage2_loop:
 	FSUBS F18, F14, F24
 	FSUBS F19, F15, F25
 
-	FMOVS F21, F26
-	FNEG  F20, F27
+	FNEGS F21, F26
+	FMOVS F20, F27
 	FADDS F26, F16, F28
 	FADDS F27, F17, F29
 
-	FNEG  F21, F30
-	FMOVS F20, F31
+	FMOVS F21, F30
+	FNEGS F20, F31
 	FADDS F30, F16, F20
 	FADDS F31, F17, F21
 

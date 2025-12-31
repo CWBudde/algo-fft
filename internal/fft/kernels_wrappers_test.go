@@ -132,7 +132,7 @@ func TestComputeChirpSequence(t *testing.T) {
 
 // TestComputeBluesteinFilter tests Bluestein filter computation
 func TestComputeBluesteinFilter(t *testing.T) {
-	n := 7 // Non-power-of-2 size
+	n := 7  // Non-power-of-2 size
 	m := 16 // Next power of 2 >= 2n-1
 
 	chirp := ComputeChirpSequence[complex64](n)
@@ -160,7 +160,7 @@ func TestComputeBluesteinFilter(t *testing.T) {
 
 // TestBluesteinConvolution tests Bluestein convolution
 func TestBluesteinConvolution(t *testing.T) {
-	n := 7 // Non-power-of-2 size
+	n := 7  // Non-power-of-2 size
 	m := 16 // Next power of 2 >= 2n-1
 
 	x := make([]complex64, m)

@@ -4,25 +4,29 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ## Quick Reference Grid
 
-| Size | Algorithm | Complex64 (Go) | Complex64 (AVX2) | Complex128 (Go) | Complex128 (AVX2) |
-| ---- | --------- | -------------- | ---------------- | --------------- | ----------------- |
-| 4    | Radix-4   | ✓              | ✓                | ✓               | -                 |
-| 8    | Radix-2   | ✓              | ✓                | ✓               | ✓                 |
-| 8    | Radix-8   | ✓              | ✓                | ✓               | ✓                 |
-| 8    | Mixed¹    | ✓              | ✓                | ✓               | -                 |
-| 16   | Radix-2   | ✓              | ✓                | ✓               | ✓                 |
-| 16   | Radix-4   | ✓              | ✓                | ✓               | ✓                 |
-| 32   | Radix-2   | ✓              | ✓                | ✓               | ✓                 |
-| 32   | Mixed²    | ✓              | ✓                | ✓               | ✓                 |
-| 64   | Radix-2   | ✓              | ✓                | ✓               | -                 |
-| 64   | Radix-4   | ✓              | ✓                | ✓               | -                 |
-| 128  | Radix-2   | ✓              | ✓                | ✓               | -                 |
-| 128  | Mixed²    | ✓              | ✓                | ✓               | ✓                 |
-| 256  | Radix-2   | ✓              | ✓                | ✓               | -                 |
-| 256  | Radix-4   | ✓              | ✓                | ✓               | -                 |
-| 512  | Radix-2   | ✓              | -                | ✓               | -                 |
-| 2048 | Mixed³    | ✓              | -                | -               | -                 |
-| 8192 | Mixed³    | ✓              | -                | -               | -                 |
+| Size  | Algorithm | Complex64 (Go) | Complex64 (AVX2) | Complex128 (Go) | Complex128 (AVX2) |
+| ----- | --------- | -------------- | ---------------- | --------------- | ----------------- |
+| 4     | Radix-4   | ✓              | ✓                | ✓               | -                 |
+| 8     | Radix-2   | ✓              | ✓                | ✓               | ✓                 |
+| 8     | Radix-8   | ✓              | ✓                | ✓               | ✓                 |
+| 8     | Mixed¹    | ✓              | ✓                | ✓               | -                 |
+| 16    | Radix-2   | ✓              | ✓                | ✓               | ✓                 |
+| 16    | Radix-4   | ✓              | ✓                | ✓               | ✓                 |
+| 32    | Radix-2   | ✓              | ✓                | ✓               | ✓                 |
+| 32    | Mixed²    | ✓              | ✓                | ✓               | ✓                 |
+| 64    | Radix-2   | ✓              | ✓                | ✓               | -                 |
+| 64    | Radix-4   | ✓              | ✓                | ✓               | -                 |
+| 128   | Radix-2   | ✓              | ✓                | ✓               | -                 |
+| 128   | Mixed²    | ✓              | ✓                | ✓               | ✓                 |
+| 256   | Radix-2   | ✓              | ✓                | ✓               | -                 |
+| 256   | Radix-4   | ✓              | ✓                | ✓               | -                 |
+| 512   | Radix-2   | ✓              | -                | ✓               | -                 |
+| 512   | Mixed⁴    | ✓              | -                | ✓               | -                 |
+| 1024  | Radix-4   | ✓              | -                | ✓               | -                 |
+| 2048  | Mixed⁴    | ✓              | -                | ✓               | -                 |
+| 4096  | Radix-4   | ✓              | -                | ✓               | -                 |
+| 8192  | Mixed⁴    | ✓              | -                | ✓               | -                 |
+| 16384 | Radix-4   | ✓              | -                | ✓               | -                 |
 
 **Legend:**
 
@@ -31,7 +35,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 - \- = Not implemented
 - ¹ Mixed = 1x radix-4 + 1x radix-2 stage
 - ² Mixed = 2x radix-4 + 1x radix-2 stages (delegates to proven radix-2 for correctness)
-- ³ Mixed = 1x radix-2 + N radix-4 stages (currently delegates to radix-2)
+- ⁴ Mixed = N radix-4 stages + 1x radix-2 final stage (for sizes 2×4ᵏ)
 
 ## Detailed Breakdown
 
@@ -164,26 +168,83 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 512
 
-| Type       | Algorithm | SIMD | Source | Status | Files            |
-| ---------- | --------- | ---- | ------ | ------ | ---------------- |
-| complex64  | radix-2   | none | Go     | ✓      | `dit_size512.go` |
-| complex128 | radix-2   | none | Go     | ✓      | `dit_size512.go` |
-
-### Size 2048 / 8192
-
-| Type      | Algorithm | SIMD | Source | Status | Files                 |
-| --------- | --------- | ---- | ------ | ------ | --------------------- |
-| complex64 | mixed³    | none | Go     | ✓      | `dit_mixedradix24.go` |
+| Type       | Algorithm | SIMD | Source | Status | Files                       |
+| ---------- | --------- | ---- | ------ | ------ | --------------------------- |
+| complex64  | radix-2   | none | Go     | ✓      | `dit_size512.go`            |
+| complex64  | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go`    |
+| complex128 | radix-2   | none | Go     | ✓      | `dit_size512.go`            |
+| complex128 | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go`    |
 
 **Notes:**
 
-- ³ Mixed = 1x radix-2 + N radix-4 stages (currently delegates to radix-2 for correctness)
+- Mixed⁴ variant: 4 radix-4 stages + 1 radix-2 stage (5 total vs 9 for pure radix-2)
+- Uses `ComputeBitReversalIndicesMixed24()` for mixed-radix bit-reversal
+
+### Size 1024
+
+| Type       | Algorithm | SIMD | Source | Status | Files                    |
+| ---------- | --------- | ---- | ------ | ------ | ------------------------ |
+| complex64  | radix-4   | none | Go     | ✓      | `dit_size1024_radix4.go` |
+| complex128 | radix-4   | none | Go     | ✓      | `dit_size1024_radix4.go` |
+
+**Notes:**
+
+- Pure radix-4: 5 stages (4⁵ = 1024)
+- Uses `ComputeBitReversalIndicesRadix4()` for radix-4 bit-reversal
+
+### Size 2048
+
+| Type       | Algorithm | SIMD | Source | Status | Files                      |
+| ---------- | --------- | ---- | ------ | ------ | -------------------------- |
+| complex64  | mixed⁴    | none | Go     | ✓      | `dit_size2048_mixed24.go`  |
+| complex128 | mixed⁴    | none | Go     | ✓      | `dit_size2048_mixed24.go`  |
+
+**Notes:**
+
+- Mixed⁴ variant: 5 radix-4 stages + 1 radix-2 stage (6 total vs 11 for pure radix-2)
+- Uses `ComputeBitReversalIndicesMixed24()` for mixed-radix bit-reversal
+
+### Size 4096
+
+| Type       | Algorithm | SIMD | Source | Status | Files                    |
+| ---------- | --------- | ---- | ------ | ------ | ------------------------ |
+| complex64  | radix-4   | none | Go     | ✓      | `dit_size4096_radix4.go` |
+| complex128 | radix-4   | none | Go     | ✓      | `dit_size4096_radix4.go` |
+
+**Notes:**
+
+- Pure radix-4: 6 stages (4⁶ = 4096)
+- Uses `ComputeBitReversalIndicesRadix4()` for radix-4 bit-reversal
+
+### Size 8192
+
+| Type       | Algorithm | SIMD | Source | Status | Files                      |
+| ---------- | --------- | ---- | ------ | ------ | -------------------------- |
+| complex64  | mixed⁴    | none | Go     | ✓      | `dit_size8192_mixed24.go`  |
+| complex128 | mixed⁴    | none | Go     | ✓      | `dit_size8192_mixed24.go`  |
+
+**Notes:**
+
+- Mixed⁴ variant: 6 radix-4 stages + 1 radix-2 stage (7 total vs 13 for pure radix-2)
+- Uses `ComputeBitReversalIndicesMixed24()` for mixed-radix bit-reversal
+
+### Size 16384
+
+| Type       | Algorithm | SIMD | Source | Status | Files                      |
+| ---------- | --------- | ---- | ------ | ------ | -------------------------- |
+| complex64  | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go`  |
+| complex128 | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go`  |
+
+**Notes:**
+
+- Pure radix-4: 7 stages (4⁷ = 16384)
+- Uses `ComputeBitReversalIndicesRadix4()` for radix-4 bit-reversal
 
 ## Coverage Summary
 
 ### Pure Go Implementations
 
-All sizes have complete Go implementations for both `complex64` and `complex128` (except for very large mixed-radix sizes):
+All sizes have complete Go implementations for both `complex64` and `complex128`:
 
 - **Size 4**: 1 variant each (radix-4)
 - **Size 8**: 3 variants each (radix-2, radix-8, mixed-radix)
@@ -192,10 +253,14 @@ All sizes have complete Go implementations for both `complex64` and `complex128`
 - **Size 64**: 2 variants each (radix-2, radix-4)
 - **Size 128**: 2 variants each (radix-2, mixed-radix)
 - **Size 256**: 2 variants each (radix-2, radix-4)
-- **Size 512**: 1 variant each (radix-2)
-- **Size 2048 / 8192**: 1 variant (mixed-radix complex64)
+- **Size 512**: 2 variants each (radix-2, mixed⁴)
+- **Size 1024**: 1 variant each (radix-4)
+- **Size 2048**: 1 variant each (mixed⁴)
+- **Size 4096**: 1 variant each (radix-4)
+- **Size 8192**: 1 variant each (mixed⁴)
+- **Size 16384**: 1 variant each (radix-4)
 
-**Total:** 35 implementations (18 complex64 + 17 complex128)
+**Total:** 48 implementations (24 complex64 + 24 complex128)
 
 ### AVX2 Assembly Implementations
 
@@ -221,8 +286,8 @@ AVX2 optimizations exist for both `complex64` and `complex128`:
    - Larger sizes fall back to generic kernels or pure Go
 
 2. **Size 512+ AVX2**
-   - No size-specific assembly for 512, 1024, etc.
-   - These use the generic AVX2 kernel
+   - No size-specific assembly for 512, 1024, 2048, 4096, 8192, 16384
+   - These use Pure Go implementations (optimized radix-4 or mixed⁴)
 
 ### Potential Optimizations
 
@@ -292,5 +357,5 @@ All implementations are validated against:
 
 ---
 
-_Generated: 2025-12-30_
+_Generated: 2025-12-31_
 _See: `internal/fft/inventory_check.go` for automated inventory generation_

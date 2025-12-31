@@ -28,7 +28,7 @@
 Based on `docs/IMPLEMENTATION_INVENTORY.md`:
 
 | Size  | Go complex64 | AVX2 complex64 | Go complex128 | AVX2 complex128 |
-|-------|--------------|----------------|---------------|-----------------|
+| ----- | ------------ | -------------- | ------------- | --------------- |
 | 4     | ✅ radix-4   | ✅ radix-4     | ✅ radix-4    | ❌              |
 | 8     | ✅ r2/r8/mix | ✅ r2/r8/mix¹  | ✅ r2/r8/mix  | ✅ radix-2      |
 | 16    | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ✅ r2/r4        |
@@ -36,12 +36,12 @@ Based on `docs/IMPLEMENTATION_INVENTORY.md`:
 | 64    | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ❌              |
 | 128   | ✅ r2/mix24  | ✅ r2/mix24    | ✅ r2/mix24   | ❌ (Go wrap)    |
 | 256   | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ❌              |
-| 512   | ✅ radix-2   | ❌ generic     | ✅ radix-2    | ❌              |
-| 1024  | ❌ generic   | ❌ generic     | ❌ generic    | ❌              |
-| 2048  | ✅ mix24     | ❌ generic     | ❌            | ❌              |
-| 4096  | ❌ generic   | ❌ generic     | ❌ generic    | ❌              |
-| 8192  | ✅ mix24     | ❌ generic     | ❌            | ❌              |
-| 16384 | ❌ generic   | ❌ generic     | ❌ generic    | ❌              |
+| 512   | ✅ mix24     | ❌ generic     | ✅ mix24      | ❌              |
+| 1024  | ✅ radix-4   | ❌ generic     | ✅ radix-4    | ❌              |
+| 2048  | ✅ mix24     | ❌ generic     | ✅ mix24      | ❌              |
+| 4096  | ✅ radix-4   | ❌ generic     | ✅ radix-4    | ❌              |
+| 8192  | ✅ mix24     | ❌ generic     | ✅ mix24      | ❌              |
+| 16384 | ✅ radix-4   | ❌ generic     | ✅ radix-4    | ❌              |
 
 **Legend**: r2=radix-2, r4=radix-4, r8=radix-8, mix=mixed-radix, mix24=mixed-radix-2/4
 ¹ Size-8 AVX2 exists but disabled (slower than Go radix-8)
@@ -52,42 +52,34 @@ Based on `docs/IMPLEMENTATION_INVENTORY.md`:
 
 **Goal**: Complete coverage for all sizes up to 16K with optimal algorithm choice.
 
-#### 14.1.1 Size 512 - Mixed-Radix-2/4 Optimization ❌ BLOCKED
+#### 14.1.1 Size 512 - Mixed-Radix-2/4 Optimization ✅ COMPLETE
 
 **Current**: radix-2 only (9 stages)
-**Target**: mixed-radix-2/4 (1 r2 + 4 r4 = 5 stages, ~40% faster)
-**Status**: Blocked - Algorithm incompatibility
+**Target**: mixed-radix-2/4 (4 r4 + 1 r2 = 5 stages, ~40% faster)
+**Status**: Complete
 
-**Root Cause Analysis (2024-12-31):**
+**Implementation (2024-12-31):**
 
-The mixed-radix-2/4 DIT approach is fundamentally flawed for odd log₂ sizes:
+Successfully implemented mixed-radix-2/4 for size 512 = 2 × 4⁴:
 
-1. After radix-2 Stage 1 with standard bit-reversal, data follows a **radix-2 decomposition pattern** (pairs)
-2. Standard radix-4 butterfly expects inputs in a **radix-4 decomposition pattern** (groups of 4)
-3. These patterns are incompatible - the twiddle factor relationships differ
+1. **Algorithm structure**: 4 radix-4 stages FIRST, then 1 radix-2 stage LAST
+2. **Mixed-radix bit-reversal**: Custom `ComputeBitReversalIndicesMixed24()` function
+   - Interprets index as 1 binary digit (MSB) + 4 quaternary digits
+   - Reverses quaternary part, keeps binary bit in LSB position
+3. **Stage structure**:
+   - Stage 1: 128 radix-4 butterflies (groups of 4)
+   - Stage 2: 32 radix-4 groups × 4 butterflies
+   - Stage 3: 8 radix-4 groups × 16 butterflies
+   - Stage 4: 2 radix-4 groups × 64 butterflies
+   - Stage 5: 1 radix-2 stage (combines two 256-point halves)
 
-**Evidence:**
-
-- Pure radix-2 stages 2-3 combine elements with stride 4, then stride 8
-- Radix-4 butterfly combines 4 elements at once with different twiddle relationships
-- Testing confirmed: odd output indices (Y[1,3,5,7]) correct, even indices (Y[2,4,6]) wrong
-- This matches the existing `forwardMixedRadix24Complex64()` which also delegates to radix-2
-
-**Possible Solutions (not yet implemented):**
-
-1. **Custom bit-reversal**: Design a hybrid bit-reversal for mixed-radix
-2. **DIF approach**: Decimation-in-Frequency might handle mixed-radix better
-3. **Split-radix**: Use a different decomposition (radix-2/4 split-radix algorithm)
-4. **Keep radix-2**: Current 9-stage radix-2 is correct and reasonably fast
-
-**Decision**: Keep current radix-2 implementation for size 512. The 9-stage approach is correct and the complexity of proper mixed-radix is not justified for marginal gains.
-
-- [x] Investigated mixed-radix-2/4 feasibility ✅
-- [x] Identified root cause: bit-reversal/decomposition incompatibility ✅
-- [x] Documented findings ✅
-- [ ] ~~Create `dit_size512_mixed24.go`~~ (blocked)
-- [ ] ~~Implement mixed-radix kernels~~ (blocked)
-- [x] Keep using proven radix-2 implementation ✅
+- [x] Create `dit_size512_mixed24.go` ✅
+- [x] Create `ComputeBitReversalIndicesMixed24()` for mixed-radix ✅
+- [x] Implement `forwardDIT512Mixed24Complex64()` ✅
+- [x] Implement `inverseDIT512Mixed24Complex64()` ✅
+- [x] Implement `forwardDIT512Mixed24Complex128()` ✅
+- [x] Implement `inverseDIT512Mixed24Complex128()` ✅
+- [x] Tests passing ✅
 
 #### 14.1.2 Size 1024 - Pure Radix-4 ✅ COMPLETE
 
@@ -104,15 +96,26 @@ The mixed-radix-2/4 DIT approach is fundamentally flawed for odd log₂ sizes:
 - [x] All tests passing (6/6 tests) ✅
 - [ ] Benchmark vs generic Stockham
 
-#### 14.1.3 Size 2048 - Verify Mixed-Radix-2/4
+#### 14.1.3 Size 2048 - Mixed-Radix-2/4 ✅ COMPLETE
 
-**Current**: `dit_mixedradix24.go` handles this
-**Status**: Verify working correctly
+**Current**: Size-specific mixed-radix-2/4 (5 r4 + 1 r2 = 6 stages)
+**Status**: Fully implemented and tested
 
-- [ ] Confirm `forwardMixedRadix24Complex64()` handles size 2048
-- [ ] Confirm `inverseMixedRadix24Complex64()` handles size 2048
-- [ ] Benchmark current performance
-- [ ] Consider size-specific unrolled variant if needed
+**Implementation (2024-12-31):**
+
+For 2048 = 2 × 4⁵, uses same algorithm structure as size 512:
+
+- Stages 1-5: radix-4 butterflies (512, 128, 32, 8, 2 groups)
+- Stage 6: radix-2 final stage (combines two 1024-point halves)
+
+- [x] Create `dit_size2048_mixed24.go` ✅
+- [x] Uses `ComputeBitReversalIndicesMixed24()` from size 512 ✅
+- [x] Implement `forwardDIT2048Mixed24Complex64()` ✅
+- [x] Implement `inverseDIT2048Mixed24Complex64()` ✅
+- [x] Implement `forwardDIT2048Mixed24Complex128()` ✅
+- [x] Implement `inverseDIT2048Mixed24Complex128()` ✅
+- [x] All tests passing (6/6 tests) ✅
+- [ ] Benchmark vs generic Stockham
 
 #### 14.1.4 Size 4096 - Pure Radix-4 ✅ COMPLETE
 
@@ -129,14 +132,26 @@ The mixed-radix-2/4 DIT approach is fundamentally flawed for odd log₂ sizes:
 - [x] All tests passing (6/6 tests) ✅
 - [ ] Benchmark vs generic Stockham
 
-#### 14.1.5 Size 8192 - Verify Mixed-Radix-2/4
+#### 14.1.5 Size 8192 - Mixed-Radix-2/4 ✅ COMPLETE
 
-**Current**: `dit_mixedradix24.go` handles this
-**Status**: Verify working correctly
+**Current**: Size-specific mixed-radix-2/4 (6 r4 + 1 r2 = 7 stages)
+**Status**: Fully implemented and tested
 
-- [ ] Confirm mixed-radix-2/4 handles size 8192 (1 r2 + 6 r4 = 7 stages)
-- [ ] Benchmark current performance
-- [ ] Consider size-specific unrolled variant if needed
+**Implementation (2024-12-31):**
+
+For 8192 = 2 × 4⁶, uses same algorithm structure as sizes 512 and 2048:
+
+- Stages 1-6: radix-4 butterflies (2048, 512, 128, 32, 8, 2 groups)
+- Stage 7: radix-2 final stage (combines two 4096-point halves)
+
+- [x] Create `dit_size8192_mixed24.go` ✅
+- [x] Uses `ComputeBitReversalIndicesMixed24()` from size 512 ✅
+- [x] Implement `forwardDIT8192Mixed24Complex64()` ✅
+- [x] Implement `inverseDIT8192Mixed24Complex64()` ✅
+- [x] Implement `forwardDIT8192Mixed24Complex128()` ✅
+- [x] Implement `inverseDIT8192Mixed24Complex128()` ✅
+- [x] All tests passing (6/6 tests) ✅
+- [ ] Benchmark vs generic Stockham
 
 #### 14.1.6 Size 16384 - Pure Radix-4 ✅ COMPLETE
 

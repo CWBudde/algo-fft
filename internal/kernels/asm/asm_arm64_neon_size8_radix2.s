@@ -162,7 +162,7 @@ neon8r2_stage3_loop:
 	CMP  $4, R0
 	BGE  neon8r2_done
 
-	ADD  R0, R0, R1             // idx0
+	MOVD R0, R1                 // idx0
 	ADD  $4, R1, R2             // idx1
 
 	LSL  $3, R0, R3
@@ -337,7 +337,7 @@ neon8r2_inv_stage2_inner:
 	ADD  R10, R4, R4
 	FMOVS 0(R4), F0
 	FMOVS 4(R4), F1
-	FNEG  F1, F1
+	FNEGS  F1, F1
 
 	LSL  $3, R2, R4
 	ADD  R8, R4, R4
@@ -386,14 +386,14 @@ neon8r2_inv_stage3_loop:
 	CMP  $4, R0
 	BGE  neon8r2_inv_done
 
-	ADD  R0, R0, R1
+	MOVD R0, R1
 	ADD  $4, R1, R2
 
 	LSL  $3, R0, R3
 	ADD  R10, R3, R3
 	FMOVS 0(R3), F0
 	FMOVS 4(R3), F1
-	FNEG  F1, F1
+	FNEGS  F1, F1
 
 	LSL  $3, R1, R3
 	ADD  R8, R3, R3

@@ -88,9 +88,9 @@ func TestEstimatePlanNonPowerOf2(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name             string
-		size             int
-		expectBluestein  bool
+		name            string
+		size            int
+		expectBluestein bool
 	}{
 		{"Size 1000 (highly composite)", 1000, false}, // 2³ × 5³ - not bluestein
 		{"Size 1500 (highly composite)", 1500, false}, // 2² × 3 × 5³ - not bluestein

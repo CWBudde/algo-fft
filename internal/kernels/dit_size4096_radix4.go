@@ -56,10 +56,10 @@ func forwardDIT4096Radix4Complex64(dst, src, twiddle, scratch []complex64, bitre
 		step int
 		next *[4096]complex64
 	}{
-		{16, 256, &stage2},   // Stage 2: 256 groups × 4 butterflies
-		{64, 64, &stage3},    // Stage 3: 64 groups × 16 butterflies
-		{256, 16, &stage4},   // Stage 4: 16 groups × 64 butterflies
-		{1024, 4, &stage5},   // Stage 5: 4 groups × 256 butterflies
+		{16, 256, &stage2}, // Stage 2: 256 groups × 4 butterflies
+		{64, 64, &stage3},  // Stage 3: 64 groups × 16 butterflies
+		{256, 16, &stage4}, // Stage 4: 16 groups × 64 butterflies
+		{1024, 4, &stage5}, // Stage 5: 4 groups × 256 butterflies
 	}
 
 	for _, st := range stages {

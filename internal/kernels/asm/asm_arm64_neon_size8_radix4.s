@@ -99,11 +99,11 @@ neon8r4_stage1:
 	FSUBS F21, F17, F27
 
 	FMOVS F23, F28            // (-i) * t3
-	FNEG  F22, F29
+	FNEGS  F22, F29
 	FADDS F28, F18, F30       // a1
 	FADDS F29, F19, F31
 
-	FNEG  F23, F6             // i * t3
+	FNEGS  F23, F6             // i * t3
 	FMOVS F22, F7
 	FADDS F6, F18, F4         // a3
 	FADDS F7, F19, F5
@@ -125,11 +125,11 @@ neon8r4_stage1:
 	FSUBS F21, F17, F9
 
 	FMOVS F23, F10
-	FNEG  F22, F11
+	FNEGS  F22, F11
 	FADDS F10, F18, F12       // a5
 	FADDS F11, F19, F13
 
-	FNEG  F23, F14
+	FNEGS  F23, F14
 	FMOVS F22, F15
 	FADDS F14, F18, F16       // a7
 	FADDS F15, F19, F17
@@ -353,11 +353,11 @@ neon8r4_inv_stage1:
 	FSUBS F21, F17, F27
 
 	FMOVS F23, F28
-	FNEG  F22, F29
+	FNEGS  F22, F29
 	FADDS F28, F18, F30
 	FADDS F29, F19, F31
 
-	FNEG  F23, F6
+	FNEGS  F23, F6
 	FMOVS F22, F7
 	FADDS F6, F18, F4
 	FADDS F7, F19, F5
@@ -378,11 +378,11 @@ neon8r4_inv_stage1:
 	FSUBS F21, F17, F9
 
 	FMOVS F23, F10
-	FNEG  F22, F11
+	FNEGS  F22, F11
 	FADDS F10, F18, F12
 	FADDS F11, F19, F13
 
-	FNEG  F23, F14
+	FNEGS  F23, F14
 	FMOVS F22, F15
 	FADDS F14, F18, F16
 	FADDS F15, F19, F17
@@ -407,13 +407,13 @@ neon8r4_inv_stage1:
 	// Stage 2: radix-2 butterflies with conjugated twiddles
 	FMOVS 8(R10), F18
 	FMOVS 12(R10), F19
-	FNEG  F19, F19
+	FNEGS  F19, F19
 	FMOVS 16(R10), F20
 	FMOVS 20(R10), F21
-	FNEG  F21, F21
+	FNEGS  F21, F21
 	FMOVS 24(R10), F22
 	FMOVS 28(R10), F23
-	FNEG  F23, F23
+	FNEGS  F23, F23
 
 	// a0,a4
 	FMOVS 0(R8), F0
