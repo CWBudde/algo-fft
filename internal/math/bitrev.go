@@ -19,13 +19,6 @@ func ComputeBitReversalIndices(n int) []int {
 	return bitrev
 }
 
-// log2 returns the base-2 logarithm of n (assuming n is a power of 2).
-// Uses bits.Len() for efficiency. This is internal to the math package
-// and should not be exported. Other packages should use bits.Len() directly.
-func log2(n int) int {
-	return bits.Len(uint(n)) - 1
-}
-
 // ReverseBits reverses the lower 'nbits' bits of x using hardware bit reversal.
 // Example: ReverseBits(6, 3) = ReverseBits(0b110, 3) = 0b011 = 3.
 func ReverseBits(x, nbits int) int {
