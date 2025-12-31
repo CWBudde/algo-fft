@@ -1,5 +1,7 @@
 package math
 
+import "math/bits"
+
 // ComputeBitReversalIndices returns the bit-reversal permutation indices
 // for a size-n radix-2 FFT.
 func ComputeBitReversalIndices(n int) []int {
@@ -8,25 +10,19 @@ func ComputeBitReversalIndices(n int) []int {
 	}
 
 	bitrev := make([]int, n)
-	bits := Log2(n)
+	nbits := Log2(n)
 
 	for i := range n {
-		bitrev[i] = ReverseBits(i, bits)
+		bitrev[i] = ReverseBits(i, nbits)
 	}
 
 	return bitrev
 }
 
 // Log2 returns the base-2 logarithm of n (assuming n is a power of 2).
+// Uses bits.Len() for efficiency.
 func Log2(n int) int {
-	result := 0
-
-	for n > 1 {
-		n >>= 1
-		result++
-	}
-
-	return result
+	return bits.Len(uint(n)) - 1
 }
 
 // log2 is a private alias for Log2.
@@ -34,16 +30,18 @@ func log2(n int) int {
 	return Log2(n)
 }
 
-// ReverseBits reverses the lower 'bits' bits of x.
+// ReverseBits reverses the lower 'nbits' bits of x using hardware bit reversal.
 // Example: ReverseBits(6, 3) = ReverseBits(0b110, 3) = 0b011 = 3.
-func ReverseBits(x, bits int) int {
-	result := 0
-	for range bits {
-		result = (result << 1) | (x & 1)
-		x >>= 1
+func ReverseBits(x, nbits int) int {
+	if nbits <= 0 {
+		return 0
 	}
-
-	return result
+	// Mask to keep only the lower nbits bits, then reverse using hardware instruction,
+	// then shift right to position the reversed bits at the lower end.
+	mask := uint64((1 << uint(nbits)) - 1)
+	masked := uint64(x) & mask
+	reversed := bits.Reverse64(masked)
+	return int(reversed >> uint(64-nbits))
 }
 
 // reverseBits is a private alias for ReverseBits.

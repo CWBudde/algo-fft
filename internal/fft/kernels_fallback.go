@@ -1,6 +1,9 @@
 package fft
 
-import m "github.com/MeKo-Christian/algo-fft/internal/math"
+import (
+	"github.com/MeKo-Christian/algo-fft/internal/kernels"
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
+)
 
 const ditAutoThreshold = 1024
 
@@ -35,9 +38,9 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 			case KernelStockham:
 				return forwardStockhamComplex64(dst, src, twiddle, scratch, bitrev)
 			case KernelSixStep:
-				return forwardSixStepComplex64(dst, src, twiddle, scratch, bitrev)
+				return kernels.ForwardSixStepComplex64(dst, src, twiddle, scratch, bitrev)
 			case KernelEightStep:
-				return forwardEightStepComplex64(dst, src, twiddle, scratch, bitrev)
+				return kernels.ForwardEightStepComplex64(dst, src, twiddle, scratch, bitrev)
 			default:
 				return forwardStockhamComplex64(dst, src, twiddle, scratch, bitrev)
 			}
@@ -57,9 +60,9 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 			case KernelStockham:
 				return inverseStockhamComplex64(dst, src, twiddle, scratch, bitrev)
 			case KernelSixStep:
-				return inverseSixStepComplex64(dst, src, twiddle, scratch, bitrev)
+				return kernels.InverseSixStepComplex64(dst, src, twiddle, scratch, bitrev)
 			case KernelEightStep:
-				return inverseEightStepComplex64(dst, src, twiddle, scratch, bitrev)
+				return kernels.InverseEightStepComplex64(dst, src, twiddle, scratch, bitrev)
 			default:
 				return inverseStockhamComplex64(dst, src, twiddle, scratch, bitrev)
 			}
@@ -84,9 +87,9 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 			case KernelStockham:
 				return forwardStockhamComplex128(dst, src, twiddle, scratch, bitrev)
 			case KernelSixStep:
-				return forwardSixStepComplex128(dst, src, twiddle, scratch, bitrev)
+				return kernels.ForwardSixStepComplex128(dst, src, twiddle, scratch, bitrev)
 			case KernelEightStep:
-				return forwardEightStepComplex128(dst, src, twiddle, scratch, bitrev)
+				return kernels.ForwardEightStepComplex128(dst, src, twiddle, scratch, bitrev)
 			default:
 				return forwardStockhamComplex128(dst, src, twiddle, scratch, bitrev)
 			}
@@ -106,9 +109,9 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 			case KernelStockham:
 				return inverseStockhamComplex128(dst, src, twiddle, scratch, bitrev)
 			case KernelSixStep:
-				return inverseSixStepComplex128(dst, src, twiddle, scratch, bitrev)
+				return kernels.InverseSixStepComplex128(dst, src, twiddle, scratch, bitrev)
 			case KernelEightStep:
-				return inverseEightStepComplex128(dst, src, twiddle, scratch, bitrev)
+				return kernels.InverseEightStepComplex128(dst, src, twiddle, scratch, bitrev)
 			default:
 				return inverseStockhamComplex128(dst, src, twiddle, scratch, bitrev)
 			}

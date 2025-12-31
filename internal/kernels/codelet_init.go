@@ -1,6 +1,5 @@
 package kernels
 
-
 // This file registers all built-in codelets with the global registries.
 // Registration happens at init time so codelets are available when plans are created.
 

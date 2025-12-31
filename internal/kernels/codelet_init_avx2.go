@@ -156,5 +156,4 @@ func registerAVX2DITCodelets128() {
 		Priority:   20,
 		BitrevFunc: ComputeBitReversalIndices,
 	})
-
 }

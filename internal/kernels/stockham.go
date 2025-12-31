@@ -353,7 +353,6 @@ func sameSlice[T any](a, b []T) bool {
 	return &a[0] == &b[0]
 }
 
-
 // Public exports for internal/fft re-export
 var (
 	ForwardStockhamComplex64  = forwardStockhamComplex64

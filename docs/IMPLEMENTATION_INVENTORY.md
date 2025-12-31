@@ -91,16 +91,16 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 32
 
-| Type       | Algorithm | SIMD | Source | Status | Files                                  |
-| ---------- | --------- | ---- | ------ | ------ | -------------------------------------- |
-| complex64  | radix-2   | none | Go     | ✓      | `dit_size32.go`                        |
-| complex64  | radix-2   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size32.s`              |
-| complex64  | mixed-2/4 | none | Go     | ✓      | `dit_size32_mixed24.go`                |
-| complex64  | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size32_mixed24_avx2.go`           |
-| complex128 | radix-2   | none | Go     | ✓      | `dit_size32.go`                        |
-| complex128 | radix-2   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size32_complex128.s`   |
-| complex128 | mixed-2/4 | none | Go     | ✓      | `dit_size32_mixed24.go`                |
-| complex128 | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size32_mixed24_avx2.go`           |
+| Type       | Algorithm | SIMD | Source | Status | Files                                |
+| ---------- | --------- | ---- | ------ | ------ | ------------------------------------ |
+| complex64  | radix-2   | none | Go     | ✓      | `dit_size32.go`                      |
+| complex64  | radix-2   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size32.s`            |
+| complex64  | mixed-2/4 | none | Go     | ✓      | `dit_size32_mixed24.go`              |
+| complex64  | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size32_mixed24_avx2.go`         |
+| complex128 | radix-2   | none | Go     | ✓      | `dit_size32.go`                      |
+| complex128 | radix-2   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size32_complex128.s` |
+| complex128 | mixed-2/4 | none | Go     | ✓      | `dit_size32_mixed24.go`              |
+| complex128 | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size32_mixed24_avx2.go`         |
 
 **Notes:**
 
