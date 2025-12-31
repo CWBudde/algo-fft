@@ -1,4 +1,4 @@
-//go:build 386 && fft_asm && !purego
+//go:build 386 && fft_asm && !purego && asm_dispatch
 
 package asm
 

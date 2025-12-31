@@ -4,29 +4,57 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ## Quick Reference Grid
 
-| Size  | Algorithm | Complex64 (Go) | Complex64 (AVX2) | Complex128 (Go) | Complex128 (AVX2) |
-| ----- | --------- | -------------- | ---------------- | --------------- | ----------------- |
-| 4     | Radix-4   | ✓              | ✓                | ✓               | -                 |
-| 8     | Radix-2   | ✓              | ✓                | ✓               | ✓                 |
-| 8     | Radix-8   | ✓              | ✓                | ✓               | ✓                 |
-| 8     | Mixed¹    | ✓              | ✓                | ✓               | -                 |
-| 16    | Radix-2   | ✓              | ✓                | ✓               | ✓                 |
-| 16    | Radix-4   | ✓              | ✓                | ✓               | ✓                 |
-| 32    | Radix-2   | ✓              | ✓                | ✓               | ✓                 |
-| 32    | Mixed²    | ✓              | ✓                | ✓               | ✓                 |
-| 64    | Radix-2   | ✓              | ✓                | ✓               | -                 |
-| 64    | Radix-4   | ✓              | ✓                | ✓               | -                 |
-| 128   | Radix-2   | ✓              | ✓                | ✓               | -                 |
-| 128   | Mixed²    | ✓              | ✓                | ✓               | ✓                 |
-| 256   | Radix-2   | ✓              | ✓                | ✓               | -                 |
-| 256   | Radix-4   | ✓              | ✓                | ✓               | -                 |
-| 512   | Radix-2   | ✓              | -                | ✓               | -                 |
-| 512   | Mixed⁴    | ✓              | -                | ✓               | -                 |
-| 1024  | Radix-4   | ✓              | -                | ✓               | -                 |
-| 2048  | Mixed⁴    | ✓              | -                | ✓               | -                 |
-| 4096  | Radix-4   | ✓              | -                | ✓               | -                 |
-| 8192  | Mixed⁴    | ✓              | -                | ✓               | -                 |
-| 16384 | Radix-4   | ✓              | -                | ✓               | -                 |
+### Complex64
+
+| Size  | Algorithm | Go  | AVX2 | NEON |
+| ----- | --------- | --- | ---- | ---- |
+| 4     | Radix-4   | ✓   | ✓    | -    |
+| 8     | Radix-2   | ✓   | ✓    | ✓    |
+| 8     | Radix-8   | ✓   | ✓    | -    |
+| 8     | Mixed¹    | ✓   | ✓    | ✓    |
+| 16    | Radix-2   | ✓   | ✓    | ✓    |
+| 16    | Radix-4   | ✓   | ✓    | ✓    |
+| 32    | Radix-2   | ✓   | ✓    | ✓    |
+| 32    | Mixed²    | ✓   | ✓    | -    |
+| 64    | Radix-2   | ✓   | ✓    | ✓    |
+| 64    | Radix-4   | ✓   | ✓    | ✓    |
+| 128   | Radix-2   | ✓   | ✓    | ✓    |
+| 128   | Mixed²    | ✓   | ✓    | -    |
+| 256   | Radix-2   | ✓   | ✓    | ✓    |
+| 256   | Radix-4   | ✓   | ✓    | -    |
+| 512   | Radix-2   | ✓   | -    | -    |
+| 512   | Mixed⁴    | ✓   | -    | -    |
+| 1024  | Radix-4   | ✓   | -    | -    |
+| 2048  | Mixed⁴    | ✓   | -    | -    |
+| 4096  | Radix-4   | ✓   | -    | -    |
+| 8192  | Mixed⁴    | ✓   | -    | -    |
+| 16384 | Radix-4   | ✓   | -    | -    |
+
+### Complex128
+
+| Size  | Algorithm | Go  | AVX2 | NEON |
+| ----- | --------- | --- | ---- | ---- |
+| 4     | Radix-4   | ✓   | -    | -    |
+| 8     | Radix-2   | ✓   | ✓    | -    |
+| 8     | Radix-8   | ✓   | ✓    | -    |
+| 8     | Mixed¹    | ✓   | -    | -    |
+| 16    | Radix-2   | ✓   | ✓    | -    |
+| 16    | Radix-4   | ✓   | ✓    | -    |
+| 32    | Radix-2   | ✓   | ✓    | -    |
+| 32    | Mixed²    | ✓   | ✓    | -    |
+| 64    | Radix-2   | ✓   | -    | -    |
+| 64    | Radix-4   | ✓   | -    | -    |
+| 128   | Radix-2   | ✓   | -    | -    |
+| 128   | Mixed²    | ✓   | ✓    | -    |
+| 256   | Radix-2   | ✓   | -    | -    |
+| 256   | Radix-4   | ✓   | -    | -    |
+| 512   | Radix-2   | ✓   | -    | -    |
+| 512   | Mixed⁴    | ✓   | -    | -    |
+| 1024  | Radix-4   | ✓   | -    | -    |
+| 2048  | Mixed⁴    | ✓   | -    | -    |
+| 4096  | Radix-4   | ✓   | -    | -    |
+| 8192  | Mixed⁴    | ✓   | -    | -    |
+| 16384 | Radix-4   | ✓   | -    | -    |
 
 **Legend:**
 
@@ -168,12 +196,12 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 512
 
-| Type       | Algorithm | SIMD | Source | Status | Files                       |
-| ---------- | --------- | ---- | ------ | ------ | --------------------------- |
-| complex64  | radix-2   | none | Go     | ✓      | `dit_size512.go`            |
-| complex64  | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go`    |
-| complex128 | radix-2   | none | Go     | ✓      | `dit_size512.go`            |
-| complex128 | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go`    |
+| Type       | Algorithm | SIMD | Source | Status | Files                    |
+| ---------- | --------- | ---- | ------ | ------ | ------------------------ |
+| complex64  | radix-2   | none | Go     | ✓      | `dit_size512.go`         |
+| complex64  | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go` |
+| complex128 | radix-2   | none | Go     | ✓      | `dit_size512.go`         |
+| complex128 | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go` |
 
 **Notes:**
 
@@ -194,10 +222,10 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 2048
 
-| Type       | Algorithm | SIMD | Source | Status | Files                      |
-| ---------- | --------- | ---- | ------ | ------ | -------------------------- |
-| complex64  | mixed⁴    | none | Go     | ✓      | `dit_size2048_mixed24.go`  |
-| complex128 | mixed⁴    | none | Go     | ✓      | `dit_size2048_mixed24.go`  |
+| Type       | Algorithm | SIMD | Source | Status | Files                     |
+| ---------- | --------- | ---- | ------ | ------ | ------------------------- |
+| complex64  | mixed⁴    | none | Go     | ✓      | `dit_size2048_mixed24.go` |
+| complex128 | mixed⁴    | none | Go     | ✓      | `dit_size2048_mixed24.go` |
 
 **Notes:**
 
@@ -218,10 +246,10 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 8192
 
-| Type       | Algorithm | SIMD | Source | Status | Files                      |
-| ---------- | --------- | ---- | ------ | ------ | -------------------------- |
-| complex64  | mixed⁴    | none | Go     | ✓      | `dit_size8192_mixed24.go`  |
-| complex128 | mixed⁴    | none | Go     | ✓      | `dit_size8192_mixed24.go`  |
+| Type       | Algorithm | SIMD | Source | Status | Files                     |
+| ---------- | --------- | ---- | ------ | ------ | ------------------------- |
+| complex64  | mixed⁴    | none | Go     | ✓      | `dit_size8192_mixed24.go` |
+| complex128 | mixed⁴    | none | Go     | ✓      | `dit_size8192_mixed24.go` |
 
 **Notes:**
 
@@ -230,10 +258,10 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 16384
 
-| Type       | Algorithm | SIMD | Source | Status | Files                      |
-| ---------- | --------- | ---- | ------ | ------ | -------------------------- |
-| complex64  | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go`  |
-| complex128 | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go`  |
+| Type       | Algorithm | SIMD | Source | Status | Files                     |
+| ---------- | --------- | ---- | ------ | ------ | ------------------------- |
+| complex64  | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go` |
+| complex128 | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go` |
 
 **Notes:**
 

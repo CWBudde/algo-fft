@@ -1,4 +1,4 @@
-//go:build arm64 && fft_asm && !purego
+//go:build arm64 && fft_asm && !purego && asm_dispatch
 
 package asm
 
