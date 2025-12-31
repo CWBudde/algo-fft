@@ -113,3 +113,12 @@ func forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128, bit
 func inverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	return kasm.InverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
+
+// SSE2 size-specific kernels
+func forwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.ForwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.InverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}

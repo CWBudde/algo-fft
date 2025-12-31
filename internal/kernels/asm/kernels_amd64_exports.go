@@ -42,6 +42,14 @@ func InverseSSE2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []
 	return inverseSSE2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
+func ForwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return forwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func InverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return inverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
 func ForwardAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return forwardAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }

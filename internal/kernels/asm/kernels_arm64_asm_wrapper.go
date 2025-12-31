@@ -22,12 +22,28 @@ func InverseNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []
 	return inverseNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
+func ForwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return forwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func InverseNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return inverseNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
 func ForwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return forwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func InverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return inverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func ForwardNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return forwardNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func InverseNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return inverseNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func ForwardNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
