@@ -6,55 +6,55 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Complex64
 
-| Size  | Algorithm | Go  | AVX2 | NEON |
-| ----- | --------- | --- | ---- | ---- |
-| 4     | Radix-4   | ✓   | ✓    | -    |
-| 8     | Radix-2   | ✓   | ✓    | ✓    |
-| 8     | Radix-8   | ✓   | ✓    | -    |
-| 8     | Mixed¹    | ✓   | ✓    | ✓    |
-| 16    | Radix-2   | ✓   | ✓    | ✓    |
-| 16    | Radix-4   | ✓   | ✓    | ✓    |
-| 32    | Radix-2   | ✓   | ✓    | ✓    |
-| 32    | Mixed²    | ✓   | ✓    | -    |
-| 64    | Radix-2   | ✓   | ✓    | ✓    |
-| 64    | Radix-4   | ✓   | ✓    | ✓    |
-| 128   | Radix-2   | ✓   | ✓    | ✓    |
-| 128   | Mixed²    | ✓   | ✓    | -    |
-| 256   | Radix-2   | ✓   | ✓    | ✓    |
-| 256   | Radix-4   | ✓   | ✓    | -    |
-| 512   | Radix-2   | ✓   | -    | -    |
-| 512   | Mixed⁴    | ✓   | -    | -    |
-| 1024  | Radix-4   | ✓   | -    | -    |
-| 2048  | Mixed⁴    | ✓   | -    | -    |
-| 4096  | Radix-4   | ✓   | -    | -    |
-| 8192  | Mixed⁴    | ✓   | -    | -    |
-| 16384 | Radix-4   | ✓   | -    | -    |
+| Size  | Algorithm | Go  | AVX2 | SSE2 | NEON |
+| ----- | --------- | --- | ---- | ---- | ---- |
+| 4     | Radix-4   | ✓   | ✓    | -    | -    |
+| 8     | Radix-2   | ✓   | ✓    | -    | ✓    |
+| 8     | Radix-8   | ✓   | ✓    | -    | -    |
+| 8     | Mixed¹    | ✓   | ✓    | -    | ✓    |
+| 16    | Radix-2   | ✓   | ✓    | -    | ✓    |
+| 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    |
+| 32    | Radix-2   | ✓   | ✓    | -    | ✓    |
+| 32    | Mixed²    | ✓   | ✓    | -    | -    |
+| 64    | Radix-2   | ✓   | ✓    | -    | ✓    |
+| 64    | Radix-4   | ✓   | ✓    | -    | ✓    |
+| 128   | Radix-2   | ✓   | ✓    | -    | ✓    |
+| 128   | Mixed²    | ✓   | ✓    | -    | -    |
+| 256   | Radix-2   | ✓   | ✓    | -    | ✓    |
+| 256   | Radix-4   | ✓   | ✓    | -    | -    |
+| 512   | Radix-2   | ✓   | ✓    | -    | -    |
+| 512   | Mixed⁴    | ✓   | -    | -    | -    |
+| 1024  | Radix-4   | ✓   | -    | -    | -    |
+| 2048  | Mixed⁴    | ✓   | -    | -    | -    |
+| 4096  | Radix-4   | ✓   | -    | -    | -    |
+| 8192  | Mixed⁴    | ✓   | -    | -    | -    |
+| 16384 | Radix-4   | ✓   | -    | -    | -    |
 
 ### Complex128
 
-| Size  | Algorithm | Go  | AVX2 | NEON |
-| ----- | --------- | --- | ---- | ---- |
-| 4     | Radix-4   | ✓   | -    | -    |
-| 8     | Radix-2   | ✓   | ✓    | -    |
-| 8     | Radix-8   | ✓   | ✓    | -    |
-| 8     | Mixed¹    | ✓   | -    | -    |
-| 16    | Radix-2   | ✓   | ✓    | -    |
-| 16    | Radix-4   | ✓   | ✓    | -    |
-| 32    | Radix-2   | ✓   | ✓    | -    |
-| 32    | Mixed²    | ✓   | ✓    | -    |
-| 64    | Radix-2   | ✓   | -    | -    |
-| 64    | Radix-4   | ✓   | -    | -    |
-| 128   | Radix-2   | ✓   | -    | -    |
-| 128   | Mixed²    | ✓   | ✓    | -    |
-| 256   | Radix-2   | ✓   | -    | -    |
-| 256   | Radix-4   | ✓   | -    | -    |
-| 512   | Radix-2   | ✓   | -    | -    |
-| 512   | Mixed⁴    | ✓   | -    | -    |
-| 1024  | Radix-4   | ✓   | -    | -    |
-| 2048  | Mixed⁴    | ✓   | -    | -    |
-| 4096  | Radix-4   | ✓   | -    | -    |
-| 8192  | Mixed⁴    | ✓   | -    | -    |
-| 16384 | Radix-4   | ✓   | -    | -    |
+| Size  | Algorithm | Go  | AVX2 | SSE2 | NEON |
+| ----- | --------- | --- | ---- | ---- | ---- |
+| 4     | Radix-4   | ✓   | -    | -    | -    |
+| 8     | Radix-2   | ✓   | ✓    | -    | -    |
+| 8     | Radix-8   | ✓   | ✓    | -    | -    |
+| 8     | Mixed¹    | ✓   | -    | -    | -    |
+| 16    | Radix-2   | ✓   | ✓    | -    | -    |
+| 16    | Radix-4   | ✓   | ✓    | -    | -    |
+| 32    | Radix-2   | ✓   | ✓    | -    | -    |
+| 32    | Mixed²    | ✓   | ✓    | -    | -    |
+| 64    | Radix-2   | ✓   | -    | -    | -    |
+| 64    | Radix-4   | ✓   | -    | -    | -    |
+| 128   | Radix-2   | ✓   | -    | -    | -    |
+| 128   | Mixed²    | ✓   | ✓    | -    | -    |
+| 256   | Radix-2   | ✓   | -    | -    | -    |
+| 256   | Radix-4   | ✓   | -    | -    | -    |
+| 512   | Radix-2   | ✓   | -    | -    | -    |
+| 512   | Mixed⁴    | ✓   | -    | -    | -    |
+| 1024  | Radix-4   | ✓   | -    | -    | -    |
+| 2048  | Mixed⁴    | ✓   | -    | -    | -    |
+| 4096  | Radix-4   | ✓   | -    | -    | -    |
+| 8192  | Mixed⁴    | ✓   | -    | -    | -    |
+| 16384 | Radix-4   | ✓   | -    | -    | -    |
 
 **Legend:**
 
@@ -74,11 +74,14 @@ This document provides a comprehensive overview of all specialized FFT implement
 | complex64  | radix-4   | none | Go     | ✓      | `dit_size4.go`           |
 | complex64  | radix-4   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size4.s` |
 | complex128 | radix-4   | none | Go     | ✓      | `dit_size4.go`           |
+| complex128 | radix-4   | AVX2 | Wrap   | ✓      | `asm_amd64.go`           |
+| complex128 | radix-4   | NEON | Wrap   | ✓      | `asm_arm64.go`           |
 
 **Notes:**
 
 - No bit-reversal needed (size is power of 4)
-- AVX2 uses scalar-style SIMD pattern
+- AVX2 uses scalar-style SIMD pattern (complex64 has assembly, complex128 wraps pure Go)
+- NEON complex128 implementation wraps pure Go implementation
 
 ### Size 8
 
@@ -199,6 +202,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | Type       | Algorithm | SIMD | Source | Status | Files                    |
 | ---------- | --------- | ---- | ------ | ------ | ------------------------ |
 | complex64  | radix-2   | none | Go     | ✓      | `dit_size512.go`         |
+| complex64  | radix-2   | AVX2 | Wrap   | ✓      | `asm_amd64_avx2_size512_radix2.s` |
 | complex64  | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go` |
 | complex128 | radix-2   | none | Go     | ✓      | `dit_size512.go`         |
 | complex128 | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go` |
@@ -207,6 +211,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 - Mixed⁴ variant: 4 radix-4 stages + 1 radix-2 stage (5 total vs 9 for pure radix-2)
 - Uses `ComputeBitReversalIndicesMixed24()` for mixed-radix bit-reversal
+- AVX2 size-512 radix-2 wrapper delegates to the generic AVX2 kernel
 
 ### Size 1024
 
@@ -294,7 +299,7 @@ All sizes have complete Go implementations for both `complex64` and `complex128`
 
 AVX2 optimizations exist for both `complex64` and `complex128`:
 
-- **Size 4**: 1 variant (radix-4 complex64)
+- **Size 4**: 2 variants (radix-4 complex64 assembly, radix-4 complex128 wrapper)
 - **Size 8**: 3 variants (radix-2, radix-8, mixed-radix complex64)
 - **Size 8**: 1 variant (radix-2 complex128)
 - **Size 16**: 2 variants each (radix-2, radix-4 for both 64/128)
@@ -302,8 +307,9 @@ AVX2 optimizations exist for both `complex64` and `complex128`:
 - **Size 64**: 2 variants (radix-2, radix-4 complex64)
 - **Size 128**: 2 variants each (radix-2, mixed-radix for both 64/128)
 - **Size 256**: 2 variants (radix-2, radix-4 complex64)
+- **Size 512**: 1 variant (radix-2 complex64 wrapper)
 
-**Total:** 25 complete implementations
+**Total:** 27 complete implementations
 
 ## Missing Implementations
 
@@ -314,8 +320,8 @@ AVX2 optimizations exist for both `complex64` and `complex128`:
    - Larger sizes fall back to generic kernels or pure Go
 
 2. **Size 512+ AVX2**
-   - No size-specific assembly for 512, 1024, 2048, 4096, 8192, 16384
-   - These use Pure Go implementations (optimized radix-4 or mixed⁴)
+   - Size 512 has a radix-2 AVX2 wrapper (delegates to generic AVX2)
+   - Sizes 1024, 2048, 4096, 8192, 16384 use Pure Go implementations
 
 ### Potential Optimizations
 

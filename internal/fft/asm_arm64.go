@@ -24,12 +24,28 @@ func inverseNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []
 	return kasm.InverseNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
+func forwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.ForwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.InverseNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
 func forwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return kasm.ForwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return kasm.InverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func forwardNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.ForwardNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.InverseNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -94,4 +110,12 @@ func forwardNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64
 
 func inverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return kasm.InverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func forwardNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return forwardDIT4Radix4Complex128(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return inverseDIT4Radix4Complex128(dst, src, twiddle, scratch, bitrev)
 }

@@ -1,0 +1,401 @@
+//go:build arm64 && fft_asm && !purego
+
+// ===========================================================================
+// NEON Size-8 Radix-8 FFT Kernels for ARM64
+// ===========================================================================
+
+#include "textflag.h"
+
+// Forward transform, size 8, radix-8 (no bit-reversal needed).
+TEXT ·forwardNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD dst+0(FP), R8
+	MOVD src+24(FP), R9
+	MOVD twiddle+48(FP), R10
+	MOVD scratch+72(FP), R11
+	MOVD bitrev+96(FP), R12
+	MOVD src+32(FP), R13
+
+	CMP  $8, R13
+	BNE  neon8r8_return_false
+
+	MOVD dst+8(FP), R0
+	CMP  $8, R0
+	BLT  neon8r8_return_false
+
+	MOVD twiddle+56(FP), R0
+	CMP  $8, R0
+	BLT  neon8r8_return_false
+
+	MOVD scratch+80(FP), R0
+	CMP  $8, R0
+	BLT  neon8r8_return_false
+
+	MOVD bitrev+104(FP), R0
+	CBZ  R0, neon8r8_bitrev_ok
+	CMP  $8, R0
+	BLT  neon8r8_return_false
+
+neon8r8_bitrev_ok:
+	MOVD R8, R20
+	CMP  R8, R9
+	BNE  neon8r8_use_dst
+	MOVD R11, R8
+
+neon8r8_use_dst:
+	FMOVS 0(R9), F0
+	FMOVS 4(R9), F1
+	FMOVS 8(R9), F2
+	FMOVS 12(R9), F3
+	FMOVS 16(R9), F4
+	FMOVS 20(R9), F5
+	FMOVS 24(R9), F6
+	FMOVS 28(R9), F7
+	FMOVS 32(R9), F8
+	FMOVS 36(R9), F9
+	FMOVS 40(R9), F10
+	FMOVS 44(R9), F11
+	FMOVS 48(R9), F12
+	FMOVS 52(R9), F13
+	FMOVS 56(R9), F14
+	FMOVS 60(R9), F15
+
+	FSUBS F8, F0, F16
+	FSUBS F9, F1, F17
+	FADDS F8, F0, F0
+	FADDS F9, F1, F1
+
+	FSUBS F12, F4, F18
+	FSUBS F13, F5, F19
+	FADDS F12, F4, F4
+	FADDS F13, F5, F5
+
+	FSUBS F10, F2, F20
+	FSUBS F11, F3, F21
+	FADDS F10, F2, F2
+	FADDS F11, F3, F3
+
+	FSUBS F14, F6, F22
+	FSUBS F15, F7, F23
+	FADDS F14, F6, F6
+	FADDS F15, F7, F7
+
+	FADDS F4, F0, F8
+	FADDS F5, F1, F9
+	FSUBS F4, F0, F10
+	FSUBS F5, F1, F11
+
+	FADDS F19, F16, F12
+	FNEGS F18, F14
+	FADDS F14, F17, F13
+
+	FNEGS F19, F15
+	FADDS F15, F16, F14
+	FADDS F18, F17, F15
+
+	FADDS F6, F2, F0
+	FADDS F7, F3, F1
+	FSUBS F6, F2, F16
+	FSUBS F7, F3, F17
+
+	FADDS F23, F20, F2
+	FNEGS F22, F3
+	FADDS F3, F21, F3
+
+	FNEGS F23, F4
+	FADDS F4, F20, F4
+	FADDS F22, F21, F5
+
+	FMOVS 8(R10), F18
+	FMOVS 12(R10), F19
+	FMOVS 16(R10), F20
+	FMOVS 20(R10), F21
+	FMOVS 24(R10), F22
+	FMOVS 28(R10), F23
+
+	FMULS F18, F2, F24
+	FMULS F19, F3, F25
+	FSUBS F25, F24, F24
+	FMULS F18, F3, F25
+	FMULS F19, F2, F26
+	FADDS F26, F25, F25
+	FADDS F24, F12, F26
+	FADDS F25, F13, F27
+	FSUBS F24, F12, F28
+	FSUBS F25, F13, F29
+
+	FMULS F20, F16, F24
+	FMULS F21, F17, F25
+	FSUBS F25, F24, F24
+	FMULS F20, F17, F25
+	FMULS F21, F16, F30
+	FADDS F30, F25, F25
+	FADDS F24, F10, F30
+	FADDS F25, F11, F31
+	FSUBS F24, F10, F12
+	FSUBS F25, F11, F13
+
+	FMULS F22, F4, F24
+	FMULS F23, F5, F25
+	FSUBS F25, F24, F24
+	FMULS F22, F5, F25
+	FMULS F23, F4, F16
+	FADDS F16, F25, F25
+	FADDS F24, F14, F18
+	FADDS F25, F15, F19
+	FSUBS F24, F14, F20
+	FSUBS F25, F15, F21
+
+	FADDS F0, F8, F2
+	FADDS F1, F9, F3
+	FSUBS F0, F8, F4
+	FSUBS F1, F9, F5
+
+	FMOVS F2, 0(R8)
+	FMOVS F3, 4(R8)
+	FMOVS F26, 8(R8)
+	FMOVS F27, 12(R8)
+	FMOVS F30, 16(R8)
+	FMOVS F31, 20(R8)
+	FMOVS F18, 24(R8)
+	FMOVS F19, 28(R8)
+	FMOVS F4, 32(R8)
+	FMOVS F5, 36(R8)
+	FMOVS F28, 40(R8)
+	FMOVS F29, 44(R8)
+	FMOVS F12, 48(R8)
+	FMOVS F13, 52(R8)
+	FMOVS F20, 56(R8)
+	FMOVS F21, 60(R8)
+
+	CMP  R8, R20
+	BEQ  neon8r8_return_true
+
+	MOVD $0, R0
+neon8r8_copy_loop:
+	CMP  $8, R0
+	BGE  neon8r8_return_true
+	LSL  $3, R0, R1
+	ADD  R8, R1, R1
+	MOVD (R1), R2
+	ADD  R20, R1, R3
+	MOVD R2, (R3)
+	ADD  $1, R0, R0
+	B    neon8r8_copy_loop
+
+neon8r8_return_true:
+	MOVD $1, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+neon8r8_return_false:
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+// Inverse transform, size 8, radix-8 (no bit-reversal needed).
+TEXT ·inverseNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-121
+	MOVD dst+0(FP), R8
+	MOVD src+24(FP), R9
+	MOVD twiddle+48(FP), R10
+	MOVD scratch+72(FP), R11
+	MOVD bitrev+96(FP), R12
+	MOVD src+32(FP), R13
+
+	CMP  $8, R13
+	BNE  neon8r8_inv_return_false
+
+	MOVD dst+8(FP), R0
+	CMP  $8, R0
+	BLT  neon8r8_inv_return_false
+
+	MOVD twiddle+56(FP), R0
+	CMP  $8, R0
+	BLT  neon8r8_inv_return_false
+
+	MOVD scratch+80(FP), R0
+	CMP  $8, R0
+	BLT  neon8r8_inv_return_false
+
+	MOVD bitrev+104(FP), R0
+	CBZ  R0, neon8r8_inv_bitrev_ok
+	CMP  $8, R0
+	BLT  neon8r8_inv_return_false
+
+neon8r8_inv_bitrev_ok:
+	MOVD R8, R20
+	CMP  R8, R9
+	BNE  neon8r8_inv_use_dst
+	MOVD R11, R8
+
+neon8r8_inv_use_dst:
+	FMOVS 0(R9), F0
+	FMOVS 4(R9), F1
+	FMOVS 8(R9), F2
+	FMOVS 12(R9), F3
+	FMOVS 16(R9), F4
+	FMOVS 20(R9), F5
+	FMOVS 24(R9), F6
+	FMOVS 28(R9), F7
+	FMOVS 32(R9), F8
+	FMOVS 36(R9), F9
+	FMOVS 40(R9), F10
+	FMOVS 44(R9), F11
+	FMOVS 48(R9), F12
+	FMOVS 52(R9), F13
+	FMOVS 56(R9), F14
+	FMOVS 60(R9), F15
+
+	FSUBS F8, F0, F16
+	FSUBS F9, F1, F17
+	FADDS F8, F0, F0
+	FADDS F9, F1, F1
+
+	FSUBS F12, F4, F18
+	FSUBS F13, F5, F19
+	FADDS F12, F4, F4
+	FADDS F13, F5, F5
+
+	FSUBS F10, F2, F20
+	FSUBS F11, F3, F21
+	FADDS F10, F2, F2
+	FADDS F11, F3, F3
+
+	FSUBS F14, F6, F22
+	FSUBS F15, F7, F23
+	FADDS F14, F6, F6
+	FADDS F15, F7, F7
+
+	FADDS F4, F0, F8
+	FADDS F5, F1, F9
+	FSUBS F4, F0, F10
+	FSUBS F5, F1, F11
+
+	FNEGS F19, F14
+	FADDS F14, F16, F12
+	FADDS F18, F17, F13
+
+	FADDS F19, F16, F14
+	FNEGS F18, F15
+	FADDS F15, F17, F15
+
+	FADDS F6, F2, F0
+	FADDS F7, F3, F1
+	FSUBS F6, F2, F16
+	FSUBS F7, F3, F17
+
+	FNEGS F23, F3
+	FADDS F3, F20, F2
+	FADDS F22, F21, F3
+
+	FADDS F23, F20, F4
+	FNEGS F22, F5
+	FADDS F5, F21, F5
+
+	FMOVS 8(R10), F18
+	FMOVS 12(R10), F19
+	FMOVS 16(R10), F20
+	FMOVS 20(R10), F21
+	FMOVS 24(R10), F22
+	FMOVS 28(R10), F23
+	FNEGS F19, F19
+	FNEGS F21, F21
+	FNEGS F23, F23
+
+	FMULS F18, F2, F24
+	FMULS F19, F3, F25
+	FSUBS F25, F24, F24
+	FMULS F18, F3, F25
+	FMULS F19, F2, F26
+	FADDS F26, F25, F25
+	FADDS F24, F12, F26
+	FADDS F25, F13, F27
+	FSUBS F24, F12, F28
+	FSUBS F25, F13, F29
+
+	FMULS F20, F16, F24
+	FMULS F21, F17, F25
+	FSUBS F25, F24, F24
+	FMULS F20, F17, F25
+	FMULS F21, F16, F30
+	FADDS F30, F25, F25
+	FADDS F24, F10, F30
+	FADDS F25, F11, F31
+	FSUBS F24, F10, F12
+	FSUBS F25, F11, F13
+
+	FMULS F22, F4, F24
+	FMULS F23, F5, F25
+	FSUBS F25, F24, F24
+	FMULS F22, F5, F25
+	FMULS F23, F4, F16
+	FADDS F16, F25, F25
+	FADDS F24, F14, F18
+	FADDS F25, F15, F19
+	FSUBS F24, F14, F20
+	FSUBS F25, F15, F21
+
+	FADDS F0, F8, F2
+	FADDS F1, F9, F3
+	FSUBS F0, F8, F4
+	FSUBS F1, F9, F5
+
+	FMOVS F2, 0(R8)
+	FMOVS F3, 4(R8)
+	FMOVS F26, 8(R8)
+	FMOVS F27, 12(R8)
+	FMOVS F30, 16(R8)
+	FMOVS F31, 20(R8)
+	FMOVS F18, 24(R8)
+	FMOVS F19, 28(R8)
+	FMOVS F4, 32(R8)
+	FMOVS F5, 36(R8)
+	FMOVS F28, 40(R8)
+	FMOVS F29, 44(R8)
+	FMOVS F12, 48(R8)
+	FMOVS F13, 52(R8)
+	FMOVS F20, 56(R8)
+	FMOVS F21, 60(R8)
+
+	CMP  R8, R20
+	BEQ  neon8r8_inv_scale
+
+	MOVD $0, R0
+neon8r8_inv_copy_loop:
+	CMP  $8, R0
+	BGE  neon8r8_inv_scale
+	LSL  $3, R0, R1
+	ADD  R8, R1, R1
+	MOVD (R1), R2
+	ADD  R20, R1, R3
+	MOVD R2, (R3)
+	ADD  $1, R0, R0
+	B    neon8r8_inv_copy_loop
+
+neon8r8_inv_scale:
+	MOVD $·neonInv8(SB), R1
+	FMOVS (R1), F0
+	MOVD $0, R0
+
+neon8r8_inv_scale_loop:
+	CMP  $8, R0
+	BGE  neon8r8_inv_return_true
+	LSL  $3, R0, R1
+	ADD  R20, R1, R1
+	FMOVS 0(R1), F2
+	FMOVS 4(R1), F3
+	FMULS F0, F2, F2
+	FMULS F0, F3, F3
+	FMOVS F2, 0(R1)
+	FMOVS F3, 4(R1)
+	ADD  $1, R0, R0
+	B    neon8r8_inv_scale_loop
+
+neon8r8_inv_return_true:
+	MOVD $1, R0
+	MOVB R0, ret+120(FP)
+	RET
+
+neon8r8_inv_return_false:
+	MOVD $0, R0
+	MOVB R0, ret+120(FP)
+	RET

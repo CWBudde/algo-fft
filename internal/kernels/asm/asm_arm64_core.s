@@ -31,6 +31,9 @@ GLOBL ·neonOne64(SB), RODATA, $8
 DATA ·neonInv8+0(SB)/4, $0x3e000000
 GLOBL ·neonInv8(SB), RODATA, $4
 
+DATA ·neonInv4+0(SB)/4, $0x3e800000
+GLOBL ·neonInv4(SB), RODATA, $4
+
 // ===========================================================================
 // func neonComplexMul2Asm(dst, a, b *complex64)
 // a and b each point to 2 complex64 values (4 float32 lanes).
