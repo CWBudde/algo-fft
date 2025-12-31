@@ -1,4 +1,4 @@
-package fft
+package kernels
 
 import "testing"
 
@@ -17,13 +17,13 @@ func TestEightStepForwardInverse(t *testing.T) {
 	bitrev := ComputeBitReversalIndices(n)
 
 	dst := make([]complex64, n)
-	if !forwardEightStepComplex64(dst, src, twiddle, scratch, bitrev) {
-		t.Fatalf("forwardEightStepComplex64 returned false")
+	if !ForwardEightStepComplex64(dst, src, twiddle, scratch, bitrev) {
+		t.Fatalf("ForwardEightStepComplex64 returned false")
 	}
 
 	roundTrip := make([]complex64, n)
-	if !inverseEightStepComplex64(roundTrip, dst, twiddle, scratch, bitrev) {
-		t.Fatalf("inverseEightStepComplex64 returned false")
+	if !InverseEightStepComplex64(roundTrip, dst, twiddle, scratch, bitrev) {
+		t.Fatalf("InverseEightStepComplex64 returned false")
 	}
 
 	for i := range src {

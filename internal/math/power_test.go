@@ -1,4 +1,4 @@
-package fft
+package math
 
 import "testing"
 
@@ -108,9 +108,9 @@ func TestIsPowerOf(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := isPowerOf(tt.n, tt.base)
+		got := IsPowerOf(tt.n, tt.base)
 		if got != tt.want {
-			t.Errorf("isPowerOf(%d, %d) = %v, want %v", tt.n, tt.base, got, tt.want)
+			t.Errorf("IsPowerOf(%d, %d) = %v, want %v", tt.n, tt.base, got, tt.want)
 		}
 	}
 }
@@ -137,9 +137,9 @@ func TestIsPowerOf3(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := isPowerOf3(tt.n)
+		got := IsPowerOf3(tt.n)
 		if got != tt.want {
-			t.Errorf("isPowerOf3(%d) = %v, want %v", tt.n, got, tt.want)
+			t.Errorf("IsPowerOf3(%d) = %v, want %v", tt.n, got, tt.want)
 		}
 	}
 }
@@ -168,9 +168,9 @@ func TestIsPowerOf4(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := isPowerOf4(tt.n)
+		got := IsPowerOf4(tt.n)
 		if got != tt.want {
-			t.Errorf("isPowerOf4(%d) = %v, want %v", tt.n, got, tt.want)
+			t.Errorf("IsPowerOf4(%d) = %v, want %v", tt.n, got, tt.want)
 		}
 	}
 }
@@ -197,9 +197,9 @@ func TestIsPowerOf5(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := isPowerOf5(tt.n)
+		got := IsPowerOf5(tt.n)
 		if got != tt.want {
-			t.Errorf("isPowerOf5(%d) = %v, want %v", tt.n, got, tt.want)
+			t.Errorf("IsPowerOf5(%d) = %v, want %v", tt.n, got, tt.want)
 		}
 	}
 }

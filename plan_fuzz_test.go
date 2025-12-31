@@ -3,7 +3,7 @@ package algofft
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func FuzzRoundTripComplex64(f *testing.F) {
@@ -12,7 +12,7 @@ func FuzzRoundTripComplex64(f *testing.F) {
 	f.Add([]byte{9, 10, 11, 12, 13, 14, 15, 16})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		n := fft.NextPowerOfTwo(len(data))
+		n := m.NextPowerOfTwo(len(data))
 		if n == 0 || n > 1024 {
 			return
 		}
@@ -49,7 +49,7 @@ func FuzzDeterministicForward(f *testing.F) {
 	f.Add([]byte{1, 2, 3, 4, 5, 6, 7, 8})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		n := fft.NextPowerOfTwo(len(data))
+		n := m.NextPowerOfTwo(len(data))
 		if n == 0 || n > 1024 {
 			return
 		}
@@ -87,7 +87,7 @@ func FuzzNoPanicValidInput(f *testing.F) {
 	f.Add([]byte{1, 2, 3, 4, 5, 6, 7, 8})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		n := fft.NextPowerOfTwo(len(data))
+		n := m.NextPowerOfTwo(len(data))
 		if n == 0 || n > 1024 {
 			return
 		}
@@ -114,7 +114,7 @@ func FuzzRoundTripReal(f *testing.F) {
 	f.Add([]byte{9, 10, 11, 12, 13, 14, 15, 16})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		n := fft.NextPowerOfTwo(len(data))
+		n := m.NextPowerOfTwo(len(data))
 		if n < 2 || n > 1024 || n%2 != 0 {
 			return
 		}
