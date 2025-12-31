@@ -11,6 +11,10 @@ func init() {
 	// Register complex128 DIT codelets
 	registerDITCodelets128()
 
+	// Register NEON codelets (conditional on build tags)
+	registerNEONDITCodelets64()
+	registerNEONDITCodelets128()
+
 	// Register SSE2 codelets (conditional on build tags)
 	registerSSE2DITCodelets64()
 	registerSSE2DITCodelets128()

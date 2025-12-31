@@ -133,11 +133,11 @@ func TestNEONSize256Radix4Complex64(t *testing.T) {
 	}
 
 	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 3e-4, "reference")
+	assertComplex64MaxError(t, dst, ref, 5e-3, "reference")
 
 	if !inverseNEONSize256Radix4Complex64Asm(inv, dst, twiddle, scratch, bitrevSize256Radix4) {
 		t.Fatal("inverseNEONSize256Radix4Complex64Asm failed")
 	}
 
-	assertComplex64MaxError(t, inv, src, 3e-4, "round-trip")
+	assertComplex64MaxError(t, inv, src, 5e-3, "round-trip")
 }

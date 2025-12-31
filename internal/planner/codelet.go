@@ -168,6 +168,13 @@ func (r *CodeletRegistry[T]) lookupUnlocked(size int, features cpu.Features) *Co
 
 // cpuSupports checks if the CPU features support the given SIMD level.
 func cpuSupports(features cpu.Features, level SIMDLevel) bool {
+	// ForceGeneric is a testing/debugging knob to disable *all* SIMD. It must
+	// also apply to codelet selection; otherwise codelets can still pick SIMD
+	// even when asm-dispatch selection is forced to generic.
+	if features.ForceGeneric && level != SIMDNone {
+		return false
+	}
+
 	switch level {
 	case SIMDNone:
 		return true
