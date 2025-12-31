@@ -4,6 +4,7 @@ import "math"
 
 // ComputeTwiddleFactors returns the precomputed twiddle factors (roots of unity)
 // for a size-n FFT: W_n^k = exp(-2πik/n) for k = 0..n-1.
+// This uses direct sin/cos computation for maximum accuracy.
 func ComputeTwiddleFactors[T Complex](n int) []T {
 	if n <= 0 {
 		return nil
@@ -12,9 +13,8 @@ func ComputeTwiddleFactors[T Complex](n int) []T {
 	twiddle := make([]T, n)
 	for k := range n {
 		angle := -2.0 * math.Pi * float64(k) / float64(n)
-		re := math.Cos(angle)
-		im := math.Sin(angle)
-		twiddle[k] = complexFromFloat64[T](re, im)
+		sin, cos := math.Sincos(angle)
+		twiddle[k] = ComplexFromFloat64[T](cos, sin)
 	}
 
 	return twiddle
@@ -36,41 +36,15 @@ func ComplexFromFloat64[T Complex](re, im float64) T {
 	}
 }
 
-// complexFromFloat64 is a private copy for backward compatibility.
-func complexFromFloat64[T Complex](re, im float64) T {
-	var zero T
-
-	switch any(zero).(type) {
-	case complex64:
-		result, _ := any(complex(float32(re), float32(im))).(T)
-		return result
-	case complex128:
-		result, _ := any(complex(re, im)).(T)
-		return result
-	default:
-		panic("unsupported complex type")
-	}
-}
-
 // Conj returns the complex conjugate of val.
 func Conj[T Complex](val T) T {
 	switch v := any(val).(type) {
 	case complex64:
-		return any(complex(real(v), -imag(v))).(T)
+		result, _ := any(complex(real(v), -imag(v))).(T)
+		return result
 	case complex128:
-		return any(complex(real(v), -imag(v))).(T)
-	default:
-		panic("unsupported complex type")
-	}
-}
-
-// conj is a private wrapper for internal use.
-func conj[T Complex](val T) T {
-	switch v := any(val).(type) {
-	case complex64:
-		return any(complex(real(v), -imag(v))).(T)
-	case complex128:
-		return any(complex(real(v), -imag(v))).(T)
+		result, _ := any(complex(real(v), -imag(v))).(T)
+		return result
 	default:
 		panic("unsupported complex type")
 	}

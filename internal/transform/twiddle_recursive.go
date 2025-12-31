@@ -88,13 +88,14 @@ func generateTwiddleFactors[T Complex](n int) []T {
 
 // makeComplexFromAngle creates a complex number e^(iθ) = cos(θ) + i·sin(θ).
 func makeComplexFromAngle[T Complex](angle float64) T {
+	sin, cos := math.Sincos(angle)
 	var zero T
 	switch any(zero).(type) {
 	case complex64:
-		c := complex(float32(math.Cos(angle)), float32(math.Sin(angle)))
+		c := complex(float32(cos), float32(sin))
 		return any(complex64(c)).(T)
 	case complex128:
-		c := complex(math.Cos(angle), math.Sin(angle))
+		c := complex(cos, sin)
 		return any(complex128(c)).(T)
 	default:
 		panic("unsupported complex type")
