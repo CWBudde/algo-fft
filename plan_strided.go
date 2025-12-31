@@ -1,6 +1,9 @@
 package algofft
 
-import "github.com/MeKo-Christian/algo-fft/internal/fft"
+import (
+	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
+)
 
 // ForwardStrided computes the forward FFT on strided input/output data.
 //
@@ -44,7 +47,7 @@ func (p *Plan[T]) transformStrided(dst, src []T, stride int, inverse bool) error
 	}
 
 	//nolint:nestif
-	if fft.IsPowerOf2(p.n) && p.kernelStrategy != fft.KernelBluestein && !sameSliceStrided(dst, src) {
+	if m.IsPowerOf2(p.n) && p.kernelStrategy != fft.KernelBluestein && !sameSliceStrided(dst, src) {
 		if inverse {
 			if fft.InverseStridedDIT(dst, src, p.twiddle, p.bitrev, stride, p.n) {
 				return nil

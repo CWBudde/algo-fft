@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 // PlannerMode controls how much work the planner does to choose kernels.
@@ -60,7 +61,7 @@ func getMeasureConfig(mode PlannerMode) measureConfig {
 // selectStrategiesToTest returns the strategies to benchmark based on planner mode.
 func selectStrategiesToTest(mode PlannerMode, n int) []KernelStrategy {
 	// For non-power-of-two sizes, only Bluestein is available
-	if !IsPowerOf2(n) && !IsHighlyComposite(n) {
+	if !m.IsPowerOf2(n) && !IsHighlyComposite(n) {
 		return []KernelStrategy{KernelBluestein}
 	}
 

@@ -4,6 +4,7 @@ package fft
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
@@ -107,7 +108,7 @@ func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelS
 }
 
 func forwardAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -115,7 +116,7 @@ func forwardAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 }
 
 func inverseAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -123,7 +124,7 @@ func inverseAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 }
 
 func forwardAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -131,7 +132,7 @@ func forwardAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev
 }
 
 func inverseAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -139,7 +140,7 @@ func inverseAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev
 }
 
 func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -154,7 +155,7 @@ func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 }
 
 func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -169,7 +170,7 @@ func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 }
 
 func forwardAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -177,7 +178,7 @@ func forwardAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 }
 
 func inverseAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -185,7 +186,7 @@ func inverseAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 }
 
 func forwardAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -193,7 +194,7 @@ func forwardAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitr
 }
 
 func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -201,7 +202,7 @@ func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitr
 }
 
 func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -216,7 +217,7 @@ func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 }
 
 func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 

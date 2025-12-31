@@ -3,6 +3,7 @@ package algofft
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 // Plan is a pre-computed FFT plan for a specific size and precision.
@@ -200,7 +201,7 @@ func itoa(n int) string {
 }
 
 func planBitReversal[T Complex](n int, estimate fft.PlanEstimate[T]) []int {
-	if !fft.IsPowerOf2(n) {
+	if !m.IsPowerOf2(n) {
 		return nil
 	}
 
@@ -507,7 +508,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	)
 
 	if useBluestein {
-		bluesteinM = fft.NextPowerOfTwo(2*n - 1)
+		bluesteinM = m.NextPowerOfTwo(2*n - 1)
 		scratchSize := bluesteinM
 
 		// Alloc scratch (size M)
@@ -731,7 +732,7 @@ func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
 
 // NewPlanFromPoolWithOptions creates a new FFT plan using buffers from the specified pool and planner options.
 func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts PlanOptions) (*Plan[T], error) {
-	if n < 1 || (!fft.IsPowerOf2(n) && !fft.IsHighlyComposite(n)) {
+	if n < 1 || (!m.IsPowerOf2(n) && !fft.IsHighlyComposite(n)) {
 		return nil, ErrInvalidLength
 	}
 
@@ -749,7 +750,7 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	twiddle, scratch, stridedScratch, twiddleBacking, scratchBacking, stridedBacking := getBuffersFromPool[T](n, pool)
 
 	var bitrev []int
-	if fft.IsPowerOf2(n) {
+	if m.IsPowerOf2(n) {
 		bitrev = pool.GetIntSlice(n)
 		computed := fft.ComputeBitReversalIndices(n)
 		copy(bitrev, computed)

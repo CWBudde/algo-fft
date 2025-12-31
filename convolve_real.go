@@ -1,6 +1,6 @@
 package algofft
 
-import "github.com/MeKo-Christian/algo-fft/internal/fft"
+import m "github.com/MeKo-Christian/algo-fft/internal/math"
 
 // ConvolveReal computes the linear convolution of a and b using real FFTs.
 // The dst slice must have length len(a)+len(b)-1.
@@ -20,7 +20,7 @@ func ConvolveReal(dst, a, b []float32) error {
 		return ErrLengthMismatch
 	}
 
-	fftLen := fft.NextPowerOfTwo(convLen)
+	fftLen := m.NextPowerOfTwo(convLen)
 	if fftLen < 2 {
 		fftLen = 2
 	}

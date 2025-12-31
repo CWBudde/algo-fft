@@ -3,6 +3,7 @@ package fft
 import (
 	"testing"
 
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -137,7 +138,7 @@ func benchmarkMixedRadixPaddedKernel(b *testing.B, n, padded int, kernel func(ds
 	twiddle := ComputeTwiddleFactors[complex64](padded)
 	bitrev := ComputeBitReversalIndices(padded)
 
-	if !IsPowerOf2(padded) {
+	if !m.IsPowerOf2(padded) {
 		b.Fatalf("padded length must be power of two, got %d", padded)
 	}
 

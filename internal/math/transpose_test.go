@@ -1,4 +1,4 @@
-package fft
+package math
 
 import "testing"
 

@@ -4,6 +4,7 @@ package fft
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
@@ -55,7 +56,7 @@ func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelS
 }
 
 func forwardNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -63,7 +64,7 @@ func forwardNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 }
 
 func inverseNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -71,7 +72,7 @@ func inverseNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 }
 
 func forwardNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
@@ -79,7 +80,7 @@ func forwardNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int
 }
 
 func inverseNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if !IsPowerOf2(len(src)) {
+	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
