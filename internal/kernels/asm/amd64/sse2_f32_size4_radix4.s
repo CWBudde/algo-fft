@@ -23,9 +23,6 @@
 
 #include "textflag.h"
 
-DATA ·sse2ScaleQuarterPS+0(SB)/4, $0x3e800000 // 0.25f
-GLOBL ·sse2ScaleQuarterPS(SB), RODATA|NOPTR, $4
-
 // ===========================================================================
 // Forward transform, size 4, complex64, radix-4
 // ===========================================================================
@@ -76,7 +73,7 @@ TEXT ·forwardSSE2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// t3NegI = swap(t3) with sign toggle on high lane -> (im, -re)
 	MOVAPS X7, X8
 	SHUFPS $0xB1, X8, X8
-	MOVUPS ·sse2MaskNegHiPS(SB), X9
+	MOVUPS ·maskNegHiPS(SB), X9
 	XORPS X9, X8
 
 	// y0, y2
@@ -153,7 +150,7 @@ TEXT ·inverseSSE2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// t3PosI = swap(t3) with sign toggle on low lane -> (-im, re)
 	MOVAPS X7, X8
 	SHUFPS $0xB1, X8, X8
-	MOVUPS ·sse2MaskNegLoPS(SB), X9
+	MOVUPS ·maskNegLoPS(SB), X9
 	XORPS X9, X8
 
 	// y0, y2
@@ -169,7 +166,7 @@ TEXT ·inverseSSE2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 
 	// Scale by 1/4
 	XORPS X15, X15
-	MOVSS ·sse2ScaleQuarterPS(SB), X15
+	MOVSS ·quarter32(SB), X15
 	SHUFPS $0, X15, X15
 	MULPS X15, X9
 	MULPS X15, X11

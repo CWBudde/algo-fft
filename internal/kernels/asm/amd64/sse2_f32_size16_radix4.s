@@ -93,13 +93,13 @@ size16_r4_sse2_stage1_loop:
 	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X8
 	SHUFPS $0xB1, X8, X8
-	MOVUPS ·sse2MaskNegHiPS(SB), X9
+	MOVUPS ·maskNegHiPS(SB), X9
 	XORPS X9, X8
 
 	// i*t3 = (-im, re)
 	MOVAPS X7, X11
 	SHUFPS $0xB1, X11, X11
-	MOVUPS ·sse2MaskNegLoPS(SB), X9
+	MOVUPS ·maskNegLoPS(SB), X9
 	XORPS X9, X11
 
 	// Final butterfly outputs

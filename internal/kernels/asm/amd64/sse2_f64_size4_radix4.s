@@ -27,16 +27,13 @@
 
 #include "textflag.h"
 
-DATA ·sse2MaskSignLoPD+0(SB)/8, $0x8000000000000000
-DATA ·sse2MaskSignLoPD+8(SB)/8, $0x0000000000000000
-GLOBL ·sse2MaskSignLoPD(SB), RODATA|NOPTR, $16
+DATA ·maskNegLoPD+0(SB)/8, $0x8000000000000000
+DATA ·maskNegLoPD+8(SB)/8, $0x0000000000000000
+GLOBL ·maskNegLoPD(SB), RODATA|NOPTR, $16
 
-DATA ·sse2MaskSignHiPD+0(SB)/8, $0x0000000000000000
-DATA ·sse2MaskSignHiPD+8(SB)/8, $0x8000000000000000
-GLOBL ·sse2MaskSignHiPD(SB), RODATA|NOPTR, $16
-
-DATA ·sse2ScaleQuarterPD+0(SB)/8, $0x3fd0000000000000 // 0.25
-GLOBL ·sse2ScaleQuarterPD(SB), RODATA|NOPTR, $8
+DATA ·maskNegHiPD+0(SB)/8, $0x0000000000000000
+DATA ·maskNegHiPD+8(SB)/8, $0x8000000000000000
+GLOBL ·maskNegHiPD(SB), RODATA|NOPTR, $16
 
 // ===========================================================================
 // Forward transform, size 4, complex128, radix-4
@@ -88,7 +85,7 @@ TEXT ·forwardSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	// t3NegI = swap(t3) with sign toggle on high lane -> (im, -re)
 	MOVAPD X7, X8
 	SHUFPD $1, X8, X8
-	XORPD ·sse2MaskSignHiPD(SB), X8
+	XORPD ·maskNegHiPD(SB), X8
 
 	// y0, y2
 	MOVAPD X4, X9
@@ -164,7 +161,7 @@ TEXT ·inverseSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	// t3PosI = swap(t3) with sign toggle on low lane -> (-im, re)
 	MOVAPD X7, X8
 	SHUFPD $1, X8, X8
-	XORPD ·sse2MaskSignLoPD(SB), X8
+	XORPD ·maskNegLoPD(SB), X8
 
 	// y0, y2
 	MOVAPD X4, X9
@@ -178,7 +175,7 @@ TEXT ·inverseSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	SUBPD X8, X12
 
 	// Scale by 1/4
-	MOVSD ·sse2ScaleQuarterPD(SB), X15
+	MOVSD ·quarter64(SB), X15
 	SHUFPD $0, X15, X15
 	MULPD X15, X9
 	MULPD X15, X11

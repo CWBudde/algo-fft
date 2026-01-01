@@ -579,7 +579,7 @@ size32_inv_128_stage5_j:
 
 size32_inv_128_scale:
 	// Apply 1/n scaling (1/32)
-	MOVQ $0x3fa0000000000000, AX
+	MOVQ ·thirtySecond64(SB), AX
 	VMOVQ AX, X9
 	VMOVDDUP X9, X9
 

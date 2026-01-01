@@ -95,13 +95,13 @@ size128_sse2_r4_stage1_loop:
 	// (-i)*t3 = (im, -re) for y1
 	MOVAPS X7, X8
 	SHUFPS $0xB1, X8, X8     // swap re/im
-	MOVUPS ·sse2MaskNegHiPS(SB), X9
+	MOVUPS ·maskNegHiPS(SB), X9
 	XORPS X9, X8             // negate high float
 
 	// i*t3 = (-im, re) for y3
 	MOVAPS X7, X11
 	SHUFPS $0xB1, X11, X11
-	MOVUPS ·sse2MaskNegLoPS(SB), X9
+	MOVUPS ·maskNegLoPS(SB), X9
 	XORPS X9, X11            // negate low float
 
 	// Final outputs
@@ -222,13 +222,13 @@ size128_sse2_r4_stage2_inner:
 	// (-i)*t3
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	MOVUPS ·maskNegHiPS(SB), X15
 	XORPS X15, X14
 
 	// i*t3
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	MOVUPS ·maskNegLoPS(SB), X15
 	XORPS X15, X12
 
 	// Outputs
@@ -352,12 +352,12 @@ size128_sse2_r4_stage3_inner:
 
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	MOVUPS ·maskNegHiPS(SB), X15
 	XORPS X15, X14
 
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	MOVUPS ·maskNegLoPS(SB), X15
 	XORPS X15, X12
 
 	MOVAPS X4, X0
@@ -529,13 +529,13 @@ size128_sse2_r4_inv_stage1_loop:
 	// i*t3 for y1
 	MOVAPS X7, X11
 	SHUFPS $0xB1, X11, X11
-	MOVUPS ·sse2MaskNegLoPS(SB), X10
+	MOVUPS ·maskNegLoPS(SB), X10
 	XORPS X10, X11
 
 	// (-i)*t3 for y3
 	MOVAPS X7, X8
 	SHUFPS $0xB1, X8, X8
-	MOVUPS ·sse2MaskNegHiPS(SB), X9
+	MOVUPS ·maskNegHiPS(SB), X9
 	XORPS X9, X8
 
 	MOVAPS X4, X0
@@ -657,12 +657,12 @@ size128_sse2_r4_inv_stage2_inner:
 
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	MOVUPS ·maskNegLoPS(SB), X15
 	XORPS X15, X12
 
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	MOVUPS ·maskNegHiPS(SB), X15
 	XORPS X15, X14
 
 	MOVAPS X4, X0
@@ -787,12 +787,12 @@ size128_sse2_r4_inv_stage3_inner:
 
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	MOVUPS ·maskNegLoPS(SB), X15
 	XORPS X15, X12
 
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	MOVUPS ·maskNegHiPS(SB), X15
 	XORPS X15, X14
 
 	MOVAPS X4, X0

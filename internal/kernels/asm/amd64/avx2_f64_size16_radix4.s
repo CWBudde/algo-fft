@@ -6,18 +6,6 @@
 
 #include "textflag.h"
 
-// Lane-wise sign masks for complex128 XMM ([re, im])
-
-// Lane-wise sign masks for complex128 XMM ([re, im])
-// Used to implement i*z and (-i)*z via lane swap + sign toggle.
-DATA ·maskSignLoPD+0(SB)/8, $0x8000000000000000
-DATA ·maskSignLoPD+8(SB)/8, $0x0000000000000000
-GLOBL ·maskSignLoPD(SB), RODATA|NOPTR, $16
-
-DATA ·maskSignHiPD+0(SB)/8, $0x0000000000000000
-DATA ·maskSignHiPD+8(SB)/8, $0x8000000000000000
-GLOBL ·maskSignHiPD(SB), RODATA|NOPTR, $16
-
 // Forward transform, size 16, complex64, radix-4 variant
 TEXT ·forwardAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-121
 TEXT ·forwardAVX2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-121
@@ -101,11 +89,11 @@ size16_r4_128_stage1_loop:
 
 	// (-i)*t3: (im, -re) = swap(t3) with sign toggle on high lane
 	VSHUFPD $0x1, X7, X7, X8
-	VXORPD ·maskSignHiPD(SB), X8, X8
+	VXORPD ·maskNegHiPD(SB), X8, X8
 
 	// i*t3: (-im, re) = swap(t3) with sign toggle on low lane
 	VSHUFPD $0x1, X7, X7, X11
-	VXORPD ·maskSignLoPD(SB), X11, X11
+	VXORPD ·maskNegLoPD(SB), X11, X11
 
 	VADDPD X6, X4, X0
 	VADDPD X8, X5, X1
@@ -202,11 +190,11 @@ size16_r4_128_stage2_loop:
 
 	// (-i)*t3
 	VSHUFPD $0x1, X7, X7, X14
-	VXORPD ·maskSignHiPD(SB), X14, X14
+	VXORPD ·maskNegHiPD(SB), X14, X14
 
 	// i*t3
 	VSHUFPD $0x1, X7, X7, X12
-	VXORPD ·maskSignLoPD(SB), X12, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
 
 	VADDPD X6, X4, X0
 	VADDPD X14, X5, X1
@@ -334,11 +322,11 @@ size16_r4_inv_128_stage1_loop:
 
 	// (-i)*t3
 	VSHUFPD $0x1, X7, X7, X8
-	VXORPD ·maskSignHiPD(SB), X8, X8
+	VXORPD ·maskNegHiPD(SB), X8, X8
 
 	// i*t3
 	VSHUFPD $0x1, X7, X7, X11
-	VXORPD ·maskSignLoPD(SB), X11, X11
+	VXORPD ·maskNegLoPD(SB), X11, X11
 
 	VADDPD X6, X4, X0
 	VADDPD X11, X5, X1
@@ -434,11 +422,11 @@ size16_r4_inv_128_stage2_loop:
 
 	// (-i)*t3
 	VSHUFPD $0x1, X7, X7, X14
-	VXORPD ·maskSignHiPD(SB), X14, X14
+	VXORPD ·maskNegHiPD(SB), X14, X14
 
 	// i*t3
 	VSHUFPD $0x1, X7, X7, X12
-	VXORPD ·maskSignLoPD(SB), X12, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
 
 	VADDPD X6, X4, X0
 	VADDPD X12, X5, X1
@@ -466,7 +454,7 @@ size16_r4_inv_128_scale:
 	// ==================================================================
 	// Apply 1/N scaling for inverse transform (1/16)
 	// ==================================================================
-	MOVQ $0x3fb0000000000000, AX // float64(1.0/16.0)
+	MOVQ ·sixteenth64(SB), AX // float64(1.0/16.0)
 	VMOVQ AX, X8
 	VMOVDDUP X8, X8              // X8 = [s, s]
 

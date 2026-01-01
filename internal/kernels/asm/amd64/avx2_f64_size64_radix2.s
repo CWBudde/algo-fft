@@ -681,7 +681,7 @@ size64_inv_128_r2_stage6_j:
 
 size64_inv_128_r2_scale:
 	// Apply 1/n scaling (1/64 = 0.015625)
-	MOVQ $0x3f90000000000000, AX  // 1/64 in float64
+	MOVQ ·sixtyFourth64(SB), AX  // 1/64 in float64
 	VMOVQ AX, X9
 	VMOVDDUP X9, X9
 
@@ -828,7 +828,7 @@ r4_64_128_stage1_loop:
 	// Compute -i*t3: swap re/im, negate new imaginary
 	// For forward: -i*z = (z.im, -z.re)
 	VPERMILPD $1, X7, X8     // [t3.im, t3.re]
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X10
 	VXORPD X11, X11, X11
 	VUNPCKLPD X10, X11, X10  // [0, signbit] for -i multiplication
@@ -962,7 +962,7 @@ r4_64_128_stage2_inner:
 
 	// -i*t3
 	VPERMILPD $1, X7, X8
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X10
 	VXORPD X11, X11, X11
 	VUNPCKLPD X10, X11, X10
@@ -1091,7 +1091,7 @@ r4_64_128_stage3_loop:
 
 	// -i*t3
 	VPERMILPD $1, X7, X8
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X10
 	VXORPD X11, X11, X11
 	VUNPCKLPD X10, X11, X10
@@ -1247,7 +1247,7 @@ r4_64_128_inv_stage1_loop:
 	// For inverse: i*t3 for y1, -i*t3 for y3 (opposite of forward)
 	// i*t3: swap and negate real
 	VPERMILPD $1, X7, X8
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X10
 	VXORPD X11, X11, X11
 	VUNPCKLPD X11, X10, X12  // [signbit, 0] for i multiplication
@@ -1374,7 +1374,7 @@ r4_64_128_inv_stage2_inner:
 
 	// i*t3
 	VPERMILPD $1, X7, X8
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X10
 	VXORPD X11, X11, X11
 	VUNPCKLPD X11, X10, X12
@@ -1498,7 +1498,7 @@ r4_64_128_inv_stage3_loop:
 
 	// i*t3
 	VPERMILPD $1, X7, X8
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X10
 	VXORPD X11, X11, X11
 	VUNPCKLPD X11, X10, X12
@@ -1539,7 +1539,7 @@ r4_64_128_inv_stage3_loop:
 
 r4_64_128_inv_scale:
 	// Apply 1/64 scaling
-	MOVQ $0x3f90000000000000, AX
+	MOVQ ·sixtyFourth64(SB), AX
 	VMOVQ AX, X9
 	VMOVDDUP X9, X9
 

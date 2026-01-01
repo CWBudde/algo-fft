@@ -27,9 +27,6 @@
 
 #include "textflag.h"
 
-DATA ·scaleQuarterPD+0(SB)/8, $0x3fd0000000000000 // 0.25
-GLOBL ·scaleQuarterPD(SB), RODATA|NOPTR, $8
-
 // ===========================================================================
 // Forward transform, size 4, complex128, radix-4
 // ===========================================================================
@@ -78,7 +75,7 @@ TEXT ·forwardAVX2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 
 	// t3NegI = swap(t3) with sign toggle on high lane -> (im, -re)
 	VPERMILPD $1, X7, X8
-	VXORPD ·maskSignHiPD(SB), X8, X8
+	VXORPD ·maskNegHiPD(SB), X8, X8
 
 	// y0, y2
 	VADDPD X6, X4, X9
@@ -146,7 +143,7 @@ TEXT ·inverseAVX2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 
 	// t3PosI = swap(t3) with sign toggle on low lane -> (-im, re)
 	VPERMILPD $1, X7, X8
-	VXORPD ·maskSignLoPD(SB), X8, X8
+	VXORPD ·maskNegLoPD(SB), X8, X8
 
 	// y0, y2
 	VADDPD X6, X4, X9
@@ -156,7 +153,7 @@ TEXT ·inverseAVX2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	VSUBPD X8, X5, X12
 
 	// Scale by 1/4
-	MOVSD ·scaleQuarterPD(SB), X15
+	MOVSD ·quarter64(SB), X15
 	VMOVDDUP X15, X15
 	VMULPD X15, X9, X9
 	VMULPD X15, X11, X11

@@ -88,7 +88,7 @@ size8_r8_fwd_use_dst:
 	VUNPCKHPD X3, X2, X7     // X7 = [a5, a7]
 
 	// Build mask for multiply by -i: [0, sign, 0, sign]
-	MOVL $0x80000000, AX
+	MOVL ·signbit32(SB), AX
 	MOVD AX, X9
 	VBROADCASTSS X9, X9
 	VXORPD X0, X0, X0
@@ -236,7 +236,7 @@ size8_r8_inv_use_dst:
 	VUNPCKHPD X3, X2, X7
 
 	// Build mask for multiply by +i: [sign, 0, sign, 0]
-	MOVL $0x80000000, AX
+	MOVL ·signbit32(SB), AX
 	MOVD AX, X9
 	VBROADCASTSS X9, X9
 	VXORPD X0, X0, X0
@@ -307,7 +307,7 @@ size8_r8_inv_use_dst:
 	VINSERTF128 $1, X14, Y1, Y1
 
 	// Apply 1/8 scaling
-	MOVL $0x3E000000, AX
+	MOVL ·eighth32(SB), AX
 	MOVD AX, X2
 	VBROADCASTSS X2, Y2
 	VMULPS Y2, Y0, Y0

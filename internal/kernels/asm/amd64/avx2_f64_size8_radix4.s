@@ -11,7 +11,7 @@
 #include "textflag.h"
 
 // ===========================================================================
-// Forward transform, size 8, complex128, radix-2 variant
+// Forward transform, size 8, complex128, radix-4 (mixed-radix) variant
 // ===========================================================================
 TEXT ·forwardAVX2Size8Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
@@ -87,7 +87,7 @@ size8_128_r4_fwd_use_dst:
 	// Butterfly 2: [x1, x3, x5, x7] -> [a4, a5, a6, a7]
 
 	// Build sign mask for multiply by -i: [0, signbit]
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X15
 	VPERMILPD $1, X15, X14   // X14 = [signbit, 0] for +i
 	                         // X15 = [0, signbit] for -i
@@ -293,7 +293,7 @@ size8_128_r4_inv_use_dst:
 	MOVUPD (R9)(DX*1), X7
 
 	// Build sign masks
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X15
 	VPERMILPD $1, X15, X14   // X14 = [signbit, 0] for +i
 	                         // X15 = [0, signbit] for -i
@@ -396,7 +396,7 @@ size8_128_r4_inv_use_dst:
 	VSUBPD X2, X3, X15       // y7
 
 	// Apply 1/8 scaling
-	MOVQ $0x3fc0000000000000, AX  // 0.125
+	MOVQ ·eighth64(SB), AX  // 0.125
 	VMOVQ AX, X0
 	VMOVDDUP X0, X0
 	VMULPD X0, X8, X8

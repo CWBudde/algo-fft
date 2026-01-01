@@ -1208,7 +1208,7 @@ size32_inv_bitrev:
 	VMOVUPS 224(R8), Y7
 
 	// Create scale factor: 1/32 = 0.03125 = 0x3D000000 in IEEE-754
-	MOVL $0x3D000000, AX     // 0.03125f in IEEE-754
+	MOVL ·thirtySecond32(SB), AX     // 0.03125f in IEEE-754
 	MOVD AX, X8
 	VBROADCASTSS X8, Y8      // Y8 = [0.03125, 0.03125, ...]
 

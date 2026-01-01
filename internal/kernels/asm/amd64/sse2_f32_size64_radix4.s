@@ -94,13 +94,13 @@ size64_r4_sse2_stage1_loop:
 	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X8
 	SHUFPS $0xB1, X8, X8
-	MOVUPS ·sse2MaskNegHiPS(SB), X9
+	MOVUPS ·maskNegHiPS(SB), X9
 	XORPS X9, X8
 
 	// i*t3 = (-im, re)
 	MOVAPS X7, X11
 	SHUFPS $0xB1, X11, X11
-	MOVUPS ·sse2MaskNegLoPS(SB), X9
+	MOVUPS ·maskNegLoPS(SB), X9
 	XORPS X9, X11
 
 	// Final butterfly outputs
@@ -219,13 +219,13 @@ size64_r4_sse2_stage2_loop:
 	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	MOVUPS ·maskNegHiPS(SB), X15
 	XORPS X15, X14
 
 	// i*t3 = (-im, re)
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	MOVUPS ·maskNegLoPS(SB), X15
 	XORPS X15, X12
 
 	// Final outputs
@@ -337,13 +337,13 @@ size64_r4_sse2_stage3_loop:
 	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	MOVUPS ·maskNegHiPS(SB), X15
 	XORPS X15, X14
 
 	// i*t3 = (-im, re)
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	MOVUPS ·maskNegLoPS(SB), X15
 	XORPS X15, X12
 
 	// Final outputs
@@ -461,13 +461,13 @@ size64_r4_sse2_inv_stage1_loop:
 	// i*t3 (inverse uses i instead of -i)
 	MOVAPS X7, X11
 	SHUFPS $0xB1, X11, X11
-	MOVUPS ·sse2MaskNegLoPS(SB), X10
+	MOVUPS ·maskNegLoPS(SB), X10
 	XORPS X10, X11
 
 	// (-i)*t3 (inverse uses -i instead of i)
 	MOVAPS X7, X8
 	SHUFPS $0xB1, X8, X8
-	MOVUPS ·sse2MaskNegHiPS(SB), X9
+	MOVUPS ·maskNegHiPS(SB), X9
 	XORPS X9, X8
 
 	MOVAPS X4, X0
@@ -591,13 +591,13 @@ size64_r4_sse2_inv_stage2_loop:
 	// i*t3 = (-im, re)
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	MOVUPS ·maskNegLoPS(SB), X15
 	XORPS X15, X12
 
 	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	MOVUPS ·maskNegHiPS(SB), X15
 	XORPS X15, X14
 
 	MOVAPS X4, X0
@@ -713,13 +713,13 @@ size64_r4_sse2_inv_stage3_loop:
 	// i*t3 = (-im, re)
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	MOVUPS ·maskNegLoPS(SB), X15
 	XORPS X15, X12
 
 	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	MOVUPS ·maskNegHiPS(SB), X15
 	XORPS X15, X14
 
 	MOVAPS X4, X0

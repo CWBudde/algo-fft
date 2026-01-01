@@ -319,7 +319,7 @@ size8_128_inv_use_dst:
 	VSUBPD X6, X3, X15
 	
 	// Apply 1/8 scaling
-	MOVQ $0x3fc0000000000000, AX // 1/8 = 0.125
+	MOVQ ·eighth64(SB), AX // 1/8 = 0.125
 	VMOVQ AX, X0
 	VMOVDDUP X0, X0
 	VMULPD X0, X8, X8
@@ -348,8 +348,3 @@ size8_128_inv_use_dst:
 size8_128_inv_return_false:
 	MOVB $0, ret+120(FP)
 	RET
-
-// ===========================================================================
-// Forward transform, size 8, complex128, radix-8 variant
-// Single radix-8 butterfly without bit-reversal.
-// ===========================================================================

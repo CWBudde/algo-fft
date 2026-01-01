@@ -11,7 +11,8 @@
 #include "textflag.h"
 
 // ===========================================================================
-// Forward transform, size 8, complex128, radix-2 variant
+// Forward transform, size 8, complex128, radix-8 variant
+// Single radix-8 butterfly without bit-reversal.
 // ===========================================================================
 TEXT ·forwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
@@ -46,7 +47,7 @@ TEXT ·forwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	// Build sign masks
 	// X14 = maskNegLo = [signbit, 0]
 	// X15 = maskNegHi = [0, signbit]
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X14
 	VPERMILPD $1, X14, X15
 
@@ -188,7 +189,7 @@ TEXT ·inverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	JL   size8_128_r8_inv_return_false
 
 	// Build sign masks
-	MOVQ $0x8000000000000000, AX
+	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X14            // maskNegLo = [signbit, 0]
 	VPERMILPD $1, X14, X15   // maskNegHi = [0, signbit]
 
@@ -278,7 +279,7 @@ TEXT ·inverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	VSUBPD X2, X3, X15
 
 	// Apply 1/8 scaling for inverse FFT
-	MOVQ $0x3fc0000000000000, AX  // 0.125 = 1/8
+	MOVQ ·eighth64(SB), AX  // 0.125 = 1/8
 	VMOVQ AX, X0
 	VMOVDDUP X0, X0
 	VMULPD X0, X8, X8

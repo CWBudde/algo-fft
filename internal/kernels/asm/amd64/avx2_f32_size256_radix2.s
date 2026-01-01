@@ -953,7 +953,7 @@ size256_r2_inv_stage8_loop:
 	// =======================================================================
 	// scale = 1/256 = 0.00390625
 	// Broadcast scale factor to all 8 float32 positions in Y8
-	MOVL $0x3B800000, AX         // IEEE 754 representation of 1/256 = 0.00390625
+	MOVL ·twoFiftySixth32(SB), AX         // IEEE 754 representation of 1/256 = 0.00390625
 	MOVD AX, X8
 	VBROADCASTSS X8, Y8          // Y8 = [scale, scale, scale, scale, scale, scale, scale, scale]
 

@@ -812,21 +812,13 @@ inv_ret_false_128:
 	RET
 
 // ===========================================================================
-// CONSTANTS: Floating-point literals for assembly use
-// ===========================================================================
-// Go assembly requires constants to be defined in DATA directives with
-// explicit IEEE 754 bit patterns. These are referenced via symbol names.
-// ===========================================================================
-
-// one64: Double-precision 1.0 for complex128 inverse scaling
-DATA ·one64+0(SB)/8, $0x3ff0000000000000 // 1.0 (IEEE 754 double)
-GLOBL ·one64(SB), RODATA|NOPTR, $8
-
-// ===========================================================================
 // SSE2 STUBS: Fallback triggers for non-AVX2 systems
 // ===========================================================================
 // These functions immediately return false, signaling the Go runtime to use
 // the pure-Go implementation. They exist to satisfy the function declarations
 // in the Go wrapper but provide no actual implementation.
+//
+// Note: Constants like one64, half64 are defined in core.s and shared across
+// all AMD64 assembly implementations.
 // ===========================================================================
 

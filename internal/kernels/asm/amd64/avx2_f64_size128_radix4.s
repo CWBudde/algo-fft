@@ -777,7 +777,7 @@ size128_inv_128_r2_stage7_j:
 
 size128_inv_128_r2_scale:
 	// Apply 1/n scaling (1/128 = 0.0078125)
-	MOVQ $0x3f80000000000000, AX  // 1/128 in float64
+	MOVQ ·oneTwentyEighth64(SB), AX  // 1/128 in float64
 	VMOVQ AX, X9
 	VMOVDDUP X9, X9
 

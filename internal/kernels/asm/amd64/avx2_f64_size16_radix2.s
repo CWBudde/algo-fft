@@ -480,7 +480,7 @@ size16_inv_128_stage4_j:
 
 size16_inv_128_scale:
 	// Apply 1/n scaling (1/16)
-	MOVQ $0x3fb0000000000000, AX
+	MOVQ ·sixteenth64(SB), AX
 	VMOVQ AX, X9
 	VMOVDDUP X9, X9
 

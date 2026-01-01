@@ -151,7 +151,7 @@ size8_r4_fwd_bitrev:
 
 	// Multiply t3 by -i: (r,i) -> (i,-r)
 	VSHUFPS $0xB1, X15, X15, X15  // X15 = [i, r] (swap)
-	MOVL $0x80000000, AX
+	MOVL ·signbit32(SB), AX
 	MOVD AX, X10
 	VBROADCASTSS X10, X10
 	VXORPD X11, X11, X11
@@ -194,7 +194,7 @@ size8_r4_fwd_bitrev:
 
 	// Multiply t3 by -i
 	VSHUFPS $0xB1, X1, X1, X1  // X1 = [i, r]
-	MOVL $0x80000000, AX
+	MOVL ·signbit32(SB), AX
 	MOVD AX, X4
 	VBROADCASTSS X4, X4
 	VXORPD X5, X5, X5
@@ -380,7 +380,7 @@ size8_r4_inv_bitrev:
 
 	// Multiply t3 by +i: (r,i) -> (-i,r) for inverse
 	VSHUFPS $0xB1, X15, X15, X15  // swap
-	MOVL $0x80000000, AX
+	MOVL ·signbit32(SB), AX
 	MOVD AX, X10
 	VBROADCASTSS X10, X10
 	VXORPD X11, X11, X11
@@ -416,7 +416,7 @@ size8_r4_inv_bitrev:
 
 	// Multiply by +i for inverse
 	VSHUFPS $0xB1, X1, X1, X1
-	MOVL $0x80000000, AX
+	MOVL ·signbit32(SB), AX
 	MOVD AX, X4
 	VBROADCASTSS X4, X4
 	VXORPD X5, X5, X5
@@ -464,7 +464,7 @@ size8_r4_inv_bitrev:
 	VINSERTF128 $1, X3, Y1, Y1
 
 	// Apply 1/8 scaling
-	MOVL $0x3E000000, AX       // 0.125f
+	MOVL ·eighth32(SB), AX       // 0.125f
 	MOVD AX, X2
 	VBROADCASTSS X2, Y2
 	VMULPS Y2, Y0, Y0
