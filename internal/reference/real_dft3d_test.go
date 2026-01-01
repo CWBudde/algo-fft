@@ -127,6 +127,7 @@ func TestRealDFT3D_DC(t *testing.T) {
 	t.Parallel()
 
 	depth, height, width := 2, 3, 4
+
 	input := make([]float32, depth*height*width)
 	for i := range input {
 		input[i] = 1.0 // All ones
@@ -151,6 +152,7 @@ func TestRealDFT3D_OutputProperties(t *testing.T) {
 	t.Parallel()
 
 	depth, height, width := 2, 3, 8
+
 	input := make([]float32, depth*height*width)
 	for i := range input {
 		input[i] = float32(i) * 0.5
@@ -176,6 +178,7 @@ func TestRealIDFT3D_PanicOnMismatch(t *testing.T) {
 
 	// Spectrum has wrong size
 	spectrum := make([]complex64, 20) // Wrong size for 2×3×8 inverse
+
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("RealIDFT3D should panic on spectrum length mismatch")
@@ -191,6 +194,7 @@ func TestRealDFT3D_PanicOnMismatch(t *testing.T) {
 
 	// Input has wrong size
 	input := make([]float32, 20) // Wrong size for 2×3×8
+
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("RealDFT3D should panic on input length mismatch")
@@ -208,6 +212,7 @@ func TestRealDFT3D_Linearity(t *testing.T) {
 
 	// Create two input signals
 	x := make([]float32, depth*height*width)
+
 	y := make([]float32, depth*height*width)
 	for i := range x {
 		x[i] = float32(i) * 0.5
@@ -220,6 +225,7 @@ func TestRealDFT3D_Linearity(t *testing.T) {
 
 	// Compute combined signal
 	a, b := float32(2.0), float32(3.0)
+
 	combined := make([]float32, depth*height*width)
 	for i := range x {
 		combined[i] = a*x[i] + b*y[i]
@@ -229,7 +235,7 @@ func TestRealDFT3D_Linearity(t *testing.T) {
 	dftCombined := RealDFT3D(combined, depth, height, width)
 
 	halfWidth := width/2 + 1
-	for i := 0; i < depth*height*halfWidth; i++ {
+	for i := range depth * height * halfWidth {
 		aComplex := complex(float64(a), 0)
 		bComplex := complex(float64(b), 0)
 		expected := complex64(aComplex*complex128(dftX[i]) + bComplex*complex128(dftY[i]))
@@ -258,6 +264,7 @@ func TestRealDFT3D_EvenOddWidths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			depth, height := 2, 3
+
 			input := make([]float32, depth*height*tt.width)
 			for i := range input {
 				input[i] = float32(i) * 0.5
@@ -314,6 +321,7 @@ func TestRealDFT3D_Parseval(t *testing.T) {
 	t.Parallel()
 
 	depth, height, width := 2, 3, 4
+
 	input := make([]float32, depth*height*width)
 	for i := range input {
 		input[i] = float32(i) * 0.5
@@ -339,10 +347,12 @@ func TestRealDFT3D_Parseval(t *testing.T) {
 				if kw > 0 && kw < width/2 {
 					mag *= 2
 				}
+
 				energyFreq += float64(mag)
 			}
 		}
 	}
+
 	energyFreq /= float64(depth * height * width)
 
 	if math.Abs(energyTime-energyFreq) > 1e-2 {
@@ -355,6 +365,7 @@ func TestRealDFT3D_Scaling(t *testing.T) {
 	t.Parallel()
 
 	depth, height, width := 2, 2, 4
+
 	input := make([]float32, depth*height*width)
 	for i := range input {
 		input[i] = float32(i) * 0.5
@@ -371,7 +382,7 @@ func TestRealDFT3D_Scaling(t *testing.T) {
 
 	// Output should also double
 	halfWidth := width/2 + 1
-	for i := 0; i < depth*height*halfWidth; i++ {
+	for i := range depth * height * halfWidth {
 		realDiff := math.Abs(float64(real(result2[i]) - 2*real(result1[i])))
 		imagDiff := math.Abs(float64(imag(result2[i]) - 2*imag(result1[i])))
 

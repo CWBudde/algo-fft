@@ -11,7 +11,7 @@ const (
 	stockhamTol128 = 1e-10
 )
 
-// TestStockhamForwardComplex64 tests the Stockham forward kernel
+// TestStockhamForwardComplex64 tests the Stockham forward kernel.
 func TestStockhamForwardComplex64(t *testing.T) {
 	t.Parallel()
 
@@ -36,7 +36,7 @@ func TestStockhamForwardComplex64(t *testing.T) {
 	}
 }
 
-// TestStockhamInverseComplex64 tests the Stockham inverse kernel
+// TestStockhamInverseComplex64 tests the Stockham inverse kernel.
 func TestStockhamInverseComplex64(t *testing.T) {
 	t.Parallel()
 
@@ -66,7 +66,7 @@ func TestStockhamInverseComplex64(t *testing.T) {
 	}
 }
 
-// TestStockhamForwardComplex128 tests the Stockham forward kernel (complex128)
+// TestStockhamForwardComplex128 tests the Stockham forward kernel (complex128).
 func TestStockhamForwardComplex128(t *testing.T) {
 	t.Parallel()
 
@@ -91,7 +91,7 @@ func TestStockhamForwardComplex128(t *testing.T) {
 	}
 }
 
-// TestStockhamInverseComplex128 tests the Stockham inverse kernel (complex128)
+// TestStockhamInverseComplex128 tests the Stockham inverse kernel (complex128).
 func TestStockhamInverseComplex128(t *testing.T) {
 	t.Parallel()
 

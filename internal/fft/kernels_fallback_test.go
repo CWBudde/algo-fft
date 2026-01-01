@@ -8,9 +8,10 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/planner"
 )
 
-// TestFallbackKernel tests the fallback kernel chaining logic
+// TestFallbackKernel tests the fallback kernel chaining logic.
 func TestFallbackKernel(t *testing.T) {
 	n := 8
+
 	input := make([]complex64, n)
 	for i := range input {
 		input[i] = complex(float32(i), 0)
@@ -33,6 +34,7 @@ func TestFallbackKernel(t *testing.T) {
 
 	// Test fallback kernel
 	kernel := fallbackKernel(failingPrimary, workingFallback)
+
 	ok := kernel(output, input, twiddle, scratch, bitrev)
 	if !ok {
 		t.Fatal("fallbackKernel should have used fallback when primary fails")
@@ -44,9 +46,10 @@ func TestFallbackKernel(t *testing.T) {
 	}
 }
 
-// TestFallbackKernel_NilPrimary tests fallback when primary is nil
+// TestFallbackKernel_NilPrimary tests fallback when primary is nil.
 func TestFallbackKernel_NilPrimary(t *testing.T) {
 	n := 8
+
 	input := make([]complex64, n)
 	for i := range input {
 		input[i] = complex(float32(i), 0)
@@ -63,13 +66,14 @@ func TestFallbackKernel_NilPrimary(t *testing.T) {
 
 	// Nil primary should return fallback directly
 	kernel := fallbackKernel[complex64](nil, workingFallback)
+
 	ok := kernel(output, input, twiddle, scratch, bitrev)
 	if !ok {
 		t.Fatal("fallbackKernel should use fallback when primary is nil")
 	}
 }
 
-// TestAutoKernelComplex64_PowerOf2 tests auto kernel for power-of-2 sizes
+// TestAutoKernelComplex64_PowerOf2 tests auto kernel for power-of-2 sizes.
 func TestAutoKernelComplex64_PowerOf2(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -115,7 +119,7 @@ func TestAutoKernelComplex64_PowerOf2(t *testing.T) {
 	}
 }
 
-// TestAutoKernelComplex64_MixedRadix tests auto kernel for mixed-radix sizes
+// TestAutoKernelComplex64_MixedRadix tests auto kernel for mixed-radix sizes.
 func TestAutoKernelComplex64_MixedRadix(t *testing.T) {
 	// Highly composite numbers (not power of 2)
 	sizes := []int{6, 12, 18, 24, 36}
@@ -149,7 +153,7 @@ func TestAutoKernelComplex64_MixedRadix(t *testing.T) {
 	}
 }
 
-// TestAutoKernelComplex64_NonComposite tests auto kernel for non-composite sizes
+// TestAutoKernelComplex64_NonComposite tests auto kernel for non-composite sizes.
 func TestAutoKernelComplex64_NonComposite(t *testing.T) {
 	// Prime numbers and non-highly-composite non-power-of-2 sizes
 	sizes := []int{7, 11, 13, 17}
@@ -182,7 +186,7 @@ func TestAutoKernelComplex64_NonComposite(t *testing.T) {
 	}
 }
 
-// TestAutoKernelComplex128 tests auto kernel for complex128
+// TestAutoKernelComplex128 tests auto kernel for complex128.
 func TestAutoKernelComplex128(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -225,7 +229,7 @@ func TestAutoKernelComplex128(t *testing.T) {
 	}
 }
 
-// TestAutoKernelComplex128_NonComposite tests complex128 auto kernel for non-composite sizes
+// TestAutoKernelComplex128_NonComposite tests complex128 auto kernel for non-composite sizes.
 func TestAutoKernelComplex128_NonComposite(t *testing.T) {
 	size := 7 // Prime number
 
@@ -253,7 +257,7 @@ func TestAutoKernelComplex128_NonComposite(t *testing.T) {
 	}
 }
 
-// TestAutoKernel_StrategySelection tests that the correct algorithm is selected
+// TestAutoKernel_StrategySelection tests that the correct algorithm is selected.
 func TestAutoKernel_StrategySelection(t *testing.T) {
 	// Save and restore CPU features
 	originalFeatures := cpu.DetectFeatures()

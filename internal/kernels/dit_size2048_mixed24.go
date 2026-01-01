@@ -1,7 +1,5 @@
 package kernels
 
-//nolint:dupl // FFT kernels are intentionally unrolled for performance
-
 // forwardDIT2048Mixed24Complex64 computes a 2048-point forward FFT using
 // mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex64 data.
 //
@@ -174,6 +172,7 @@ func forwardDIT2048Mixed24Complex64(dst, src, twiddle, scratch []complex64, bitr
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 1024 {
@@ -356,6 +355,7 @@ func inverseDIT2048Mixed24Complex64(dst, src, twiddle, scratch []complex64, bitr
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 1024 {
@@ -541,6 +541,7 @@ func forwardDIT2048Mixed24Complex128(dst, src, twiddle, scratch []complex128, bi
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 1024 {
@@ -721,6 +722,7 @@ func inverseDIT2048Mixed24Complex128(dst, src, twiddle, scratch []complex128, bi
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 1024 {

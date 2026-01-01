@@ -11,7 +11,7 @@ const (
 	ditTol128 = 1e-10
 )
 
-// TestDITForwardComplex64 tests the generic DIT forward kernel
+// TestDITForwardComplex64 tests the generic DIT forward kernel.
 func TestDITForwardComplex64(t *testing.T) {
 	t.Parallel()
 
@@ -36,7 +36,7 @@ func TestDITForwardComplex64(t *testing.T) {
 	}
 }
 
-// TestDITInverseComplex64 tests the generic DIT inverse kernel
+// TestDITInverseComplex64 tests the generic DIT inverse kernel.
 func TestDITInverseComplex64(t *testing.T) {
 	t.Parallel()
 
@@ -66,7 +66,7 @@ func TestDITInverseComplex64(t *testing.T) {
 	}
 }
 
-// TestDITForwardComplex128 tests the generic DIT forward kernel (complex128)
+// TestDITForwardComplex128 tests the generic DIT forward kernel (complex128).
 func TestDITForwardComplex128(t *testing.T) {
 	t.Parallel()
 
@@ -91,7 +91,7 @@ func TestDITForwardComplex128(t *testing.T) {
 	}
 }
 
-// TestDITInverseComplex128 tests the generic DIT inverse kernel (complex128)
+// TestDITInverseComplex128 tests the generic DIT inverse kernel (complex128).
 func TestDITInverseComplex128(t *testing.T) {
 	t.Parallel()
 

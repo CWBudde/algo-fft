@@ -127,6 +127,7 @@ func TestRealDFT2D_DC(t *testing.T) {
 	t.Parallel()
 
 	rows, cols := 3, 4
+
 	input := make([]float32, rows*cols)
 	for i := range input {
 		input[i] = 1.0 // All ones
@@ -151,6 +152,7 @@ func TestRealDFT2D_RealInputSymmetry(t *testing.T) {
 	t.Parallel()
 
 	rows, cols := 2, 4
+
 	input := make([]float32, rows*cols)
 	for i := range input {
 		input[i] = float32(i) * 0.5
@@ -177,6 +179,7 @@ func TestRealIDFT2D_PanicOnMismatch(t *testing.T) {
 
 	// Spectrum has wrong size
 	spectrum := make([]complex64, 12) // Wrong size for 3×8 inverse
+
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("RealIDFT2D should panic on spectrum length mismatch")
@@ -192,6 +195,7 @@ func TestRealDFT2D_PanicOnMismatch(t *testing.T) {
 
 	// Input has wrong size
 	input := make([]float32, 10) // Wrong size for 3×8
+
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("RealDFT2D should panic on input length mismatch")
@@ -209,6 +213,7 @@ func TestRealDFT2D_Linearity(t *testing.T) {
 
 	// Create two input signals
 	x := make([]float32, rows*cols)
+
 	y := make([]float32, rows*cols)
 	for i := range x {
 		x[i] = float32(i) * 0.5
@@ -221,6 +226,7 @@ func TestRealDFT2D_Linearity(t *testing.T) {
 
 	// Compute combined signal
 	a, b := float32(2.0), float32(3.0)
+
 	combined := make([]float32, rows*cols)
 	for i := range x {
 		combined[i] = a*x[i] + b*y[i]
@@ -230,7 +236,7 @@ func TestRealDFT2D_Linearity(t *testing.T) {
 	dftCombined := RealDFT2D(combined, rows, cols)
 
 	halfCols := cols/2 + 1
-	for i := 0; i < rows*halfCols; i++ {
+	for i := range rows * halfCols {
 		aComplex := complex(float64(a), 0)
 		bComplex := complex(float64(b), 0)
 		expected := complex64(aComplex*complex128(dftX[i]) + bComplex*complex128(dftY[i]))
@@ -259,6 +265,7 @@ func TestRealDFT2D_EvenCols(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rows := 3
+
 			input := make([]float32, rows*tt.cols)
 			for i := range input {
 				input[i] = float32(i) * 0.5
@@ -315,6 +322,7 @@ func TestRealDFT2D_Parseval(t *testing.T) {
 	t.Parallel()
 
 	rows, cols := 3, 4
+
 	input := make([]float32, rows*cols)
 	for i := range input {
 		input[i] = float32(i) * 0.5
@@ -339,9 +347,11 @@ func TestRealDFT2D_Parseval(t *testing.T) {
 			if l > 0 && l < cols/2 {
 				mag *= 2
 			}
+
 			energyFreq += float64(mag)
 		}
 	}
+
 	energyFreq /= float64(rows * cols)
 
 	if math.Abs(energyTime-energyFreq) > 1e-2 {

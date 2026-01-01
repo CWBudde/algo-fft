@@ -228,6 +228,7 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 	}
 
 	expected := reference.NaiveDFT(input)
+
 	err := compareComplexSlices(output, expected, 1e-5)
 	if err != nil {
 		t.Errorf("manual combine mismatch: %v", err)
@@ -250,6 +251,7 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 
 	recursiveOutput := make([]complex64, size)
 	recursiveForward(recursiveOutput, input, strategy, twiddle, make([]complex64, ScratchSizeRecursive(strategy)), Registry64, features)
+
 	err = compareComplexSlices(recursiveOutput, output, 1e-6)
 	if err != nil {
 		t.Errorf("recursive output mismatch vs manual combine: %v", err)

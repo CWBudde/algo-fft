@@ -10,7 +10,7 @@ type Complex = fftypes.Complex
 // The canonical definition is in internal/fftypes.
 type KernelStrategy = fftypes.KernelStrategy
 
-// Strategy constants
+// Strategy constants.
 const (
 	KernelAuto      = fftypes.KernelAuto
 	KernelDIT       = fftypes.KernelDIT

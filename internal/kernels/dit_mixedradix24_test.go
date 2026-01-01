@@ -10,11 +10,12 @@ const (
 	mixedRadix24Tol64 = 1e-4
 )
 
-// TestForwardMixedRadix24Complex64 tests the mixed-radix-2/4 forward kernel
+// TestForwardMixedRadix24Complex64 tests the mixed-radix-2/4 forward kernel.
 func TestForwardMixedRadix24Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 32
+
 	src := randomComplex64(n, 0xDEADBEEF)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -29,11 +30,12 @@ func TestForwardMixedRadix24Complex64(t *testing.T) {
 	assertComplex64Close(t, dst, want, mixedRadix24Tol64)
 }
 
-// TestInverseMixedRadix24Complex64 tests the mixed-radix-2/4 inverse kernel
+// TestInverseMixedRadix24Complex64 tests the mixed-radix-2/4 inverse kernel.
 func TestInverseMixedRadix24Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 32
+
 	src := randomComplex64(n, 0xCAFEBABE)
 	fwd := make([]complex64, n)
 	dst := make([]complex64, n)

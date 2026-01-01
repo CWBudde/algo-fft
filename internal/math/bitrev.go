@@ -30,5 +30,6 @@ func ReverseBits(x, nbits int) int {
 	mask := uint64((1 << uint(nbits)) - 1)
 	masked := uint64(x) & mask
 	reversed := bits.Reverse64(masked)
+
 	return int(reversed >> uint(64-nbits))
 }

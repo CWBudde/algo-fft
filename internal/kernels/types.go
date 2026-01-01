@@ -13,7 +13,7 @@ type Complex = fftypes.Complex
 // KernelStrategy is a type alias for the kernel strategy enum.
 type KernelStrategy = fftypes.KernelStrategy
 
-// Strategy constants
+// Strategy constants.
 const (
 	KernelAuto      = fftypes.KernelAuto
 	KernelDIT       = fftypes.KernelDIT
@@ -21,7 +21,7 @@ const (
 	KernelBluestein = fftypes.KernelBluestein
 )
 
-// Re-export math utilities used by kernels
+// Re-export math utilities used by kernels.
 var (
 	ComputeBitReversalIndices = math.ComputeBitReversalIndices
 	IsPowerOf2                = math.IsPowerOf2
@@ -35,7 +35,7 @@ func log2(n int) int {
 	return bits.Len(uint(n)) - 1
 }
 
-// ComputeTwiddleFactors is a wrapper for the generic math function
+// ComputeTwiddleFactors is a wrapper for the generic math function.
 func ComputeTwiddleFactors[T Complex](n int) []T {
 	return math.ComputeTwiddleFactors[T](n)
 }

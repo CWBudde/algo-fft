@@ -7,14 +7,14 @@ import (
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
-// TestForwardStridedDIT_Complex64 tests forward strided DIT FFT with complex64
+// TestForwardStridedDIT_Complex64 tests forward strided DIT FFT with complex64.
 func TestForwardStridedDIT_Complex64(t *testing.T) {
 	n := 8
 	stride := 2
 
 	// Create input data with stride
 	input := make([]complex64, n*stride)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		input[i*stride] = complex(float32(i), 0)
 	}
 
@@ -38,7 +38,7 @@ func TestForwardStridedDIT_Complex64(t *testing.T) {
 	}
 }
 
-// TestInverseStridedDIT_Complex64 tests inverse strided DIT FFT with complex64
+// TestInverseStridedDIT_Complex64 tests inverse strided DIT FFT with complex64.
 func TestInverseStridedDIT_Complex64(t *testing.T) {
 	n := 8
 	stride := 2
@@ -67,14 +67,14 @@ func TestInverseStridedDIT_Complex64(t *testing.T) {
 	}
 }
 
-// TestStridedDIT_RoundTrip tests that inverse(forward(x)) = x
+// TestStridedDIT_RoundTrip tests that inverse(forward(x)) = x.
 func TestStridedDIT_RoundTrip(t *testing.T) {
 	n := 16
 	stride := 3
 
 	// Create input data
 	input := make([]complex64, n*stride)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		input[i*stride] = complex(float32(i), float32(i*2))
 	}
 
@@ -84,6 +84,7 @@ func TestStridedDIT_RoundTrip(t *testing.T) {
 
 	// Forward transform
 	freq := make([]complex64, n*stride)
+
 	ok := ForwardStridedDIT(freq, input, twiddle, bitrev, stride, n)
 	if !ok {
 		t.Fatal("ForwardStridedDIT failed")
@@ -91,17 +92,19 @@ func TestStridedDIT_RoundTrip(t *testing.T) {
 
 	// Inverse transform
 	output := make([]complex64, n*stride)
+
 	ok = InverseStridedDIT(output, freq, twiddle, bitrev, stride, n)
 	if !ok {
 		t.Fatal("InverseStridedDIT failed")
 	}
 
 	// Verify round-trip
-	for i := 0; i < n; i++ {
+	for i := range n {
 		diff := math.Abs(float64(real(output[i*stride]) - real(input[i*stride])))
 		if diff > 1e-4 {
 			t.Errorf("Element %d real mismatch: got %v, want %v", i, output[i*stride], input[i*stride])
 		}
+
 		diff = math.Abs(float64(imag(output[i*stride]) - imag(input[i*stride])))
 		if diff > 1e-4 {
 			t.Errorf("Element %d imag mismatch: got %v, want %v", i, output[i*stride], input[i*stride])
@@ -109,7 +112,7 @@ func TestStridedDIT_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestStridedDIT_ErrorHandling tests error conditions
+// TestStridedDIT_ErrorHandling tests error conditions.
 func TestStridedDIT_ErrorHandling(t *testing.T) {
 	n := 8
 	stride := 2

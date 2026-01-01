@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// randomComplex64 generates deterministic random complex64 test data
+// randomComplex64 generates deterministic random complex64 test data.
 func randomComplex64(n int, seed uint64) []complex64 {
 	rng := rand.New(rand.NewPCG(seed, seed^0x5A5A5A5A)) //nolint:gosec // Deterministic test data
 
@@ -20,7 +20,7 @@ func randomComplex64(n int, seed uint64) []complex64 {
 	return out
 }
 
-// randomComplex128 generates deterministic random complex128 test data
+// randomComplex128 generates deterministic random complex128 test data.
 func randomComplex128(n int, seed uint64) []complex128 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xA5A5A5A5)) //nolint:gosec // Deterministic test data
 
@@ -34,7 +34,7 @@ func randomComplex128(n int, seed uint64) []complex128 {
 	return out
 }
 
-// assertComplex64Close checks that got and want are close within tolerance
+// assertComplex64Close checks that got and want are close within tolerance.
 func assertComplex64Close(t *testing.T, got, want []complex64, tol float64) {
 	t.Helper()
 
@@ -50,7 +50,7 @@ func assertComplex64Close(t *testing.T, got, want []complex64, tol float64) {
 	}
 }
 
-// assertComplex128Close checks that got and want are close within tolerance
+// assertComplex128Close checks that got and want are close within tolerance.
 func assertComplex128Close(t *testing.T, got, want []complex128, tol float64) {
 	t.Helper()
 

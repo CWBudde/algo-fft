@@ -2,7 +2,7 @@ package kernels
 
 import "testing"
 
-// benchCase64 defines a benchmark case for complex64 kernels
+// benchCase64 defines a benchmark case for complex64 kernels.
 type benchCase64 struct {
 	name    string
 	n       int
@@ -11,7 +11,7 @@ type benchCase64 struct {
 	inverse func(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 }
 
-// benchCase128 defines a benchmark case for complex128 kernels
+// benchCase128 defines a benchmark case for complex128 kernels.
 type benchCase128 struct {
 	name    string
 	n       int
@@ -20,7 +20,7 @@ type benchCase128 struct {
 	inverse func(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 }
 
-// BenchmarkDITComplex64 benchmarks all Go DIT kernels for complex64
+// BenchmarkDITComplex64 benchmarks all Go DIT kernels for complex64.
 func BenchmarkDITComplex64(b *testing.B) {
 	cases := []benchCase64{
 		{"Size4/Radix4", 4, ComputeBitReversalIndicesRadix4, forwardDIT4Radix4Complex64, inverseDIT4Radix4Complex64},
@@ -47,7 +47,7 @@ func BenchmarkDITComplex64(b *testing.B) {
 	}
 }
 
-// BenchmarkDITComplex128 benchmarks all Go DIT kernels for complex128
+// BenchmarkDITComplex128 benchmarks all Go DIT kernels for complex128.
 func BenchmarkDITComplex128(b *testing.B) {
 	cases := []benchCase128{
 		{"Size4/Radix4", 4, ComputeBitReversalIndicesRadix4, forwardDIT4Radix4Complex128, inverseDIT4Radix4Complex128},

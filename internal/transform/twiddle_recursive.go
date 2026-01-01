@@ -89,6 +89,7 @@ func generateTwiddleFactors[T Complex](n int) []T {
 // makeComplexFromAngle creates a complex number e^(iθ) = cos(θ) + i·sin(θ).
 func makeComplexFromAngle[T Complex](angle float64) T {
 	sin, cos := math.Sincos(angle)
+
 	var zero T
 	switch any(zero).(type) {
 	case complex64:

@@ -27,6 +27,7 @@ func TestComputeTwiddleFactors(t *testing.T) {
 		if len(twiddle) != 1 {
 			t.Fatalf("len = %d, want 1", len(twiddle))
 		}
+
 		if twiddle[0] != 1 {
 			t.Errorf("twiddle[0] = %v, want 1", twiddle[0])
 		}
@@ -44,6 +45,7 @@ func TestComputeTwiddleFactors(t *testing.T) {
 		if !approxEqual64(twiddle[0], 1+0i, eps) {
 			t.Errorf("twiddle[0] = %v, want 1", twiddle[0])
 		}
+
 		if !approxEqual64(twiddle[1], -1+0i, eps) {
 			t.Errorf("twiddle[1] = %v, want -1", twiddle[1])
 		}
@@ -58,6 +60,7 @@ func TestComputeTwiddleFactors(t *testing.T) {
 		}
 
 		const eps = 1e-6
+
 		expected := []complex64{1 + 0i, 0 - 1i, -1 + 0i, 0 + 1i}
 		for i, exp := range expected {
 			if !approxEqual64(twiddle[i], exp, eps) {
@@ -102,6 +105,7 @@ func TestComputeTwiddleFactorsComplex128(t *testing.T) {
 		}
 
 		const eps = 1e-14
+
 		expected := []complex128{1 + 0i, 0 - 1i, -1 + 0i, 0 + 1i}
 		for i, exp := range expected {
 			if !approxEqual128(twiddle[i], exp, eps) {
@@ -140,6 +144,7 @@ func TestComputeTwiddleFactorsProperties(t *testing.T) {
 			// Property 4: W_n^(n/2) should be -1 (for even n)
 			if n >= 2 {
 				halfN := n / 2
+
 				expected := complex128(-1 + 0i)
 				if !approxEqual128(twiddle[halfN], expected, eps) {
 					t.Errorf("twiddle[%d] = %v, want -1", halfN, twiddle[halfN])
@@ -167,6 +172,7 @@ func TestComplexFromFloat64(t *testing.T) {
 		result := ComplexFromFloat64[complex64](re, im)
 
 		const eps = 1e-6
+
 		expected := complex64(complex(float32(re), float32(im)))
 		if !approxEqual64(result, expected, eps) {
 			t.Errorf("ComplexFromFloat64[complex64](%v, %v) = %v, want %v",
@@ -179,6 +185,7 @@ func TestComplexFromFloat64(t *testing.T) {
 		result := ComplexFromFloat64[complex128](re, im)
 
 		const eps = 1e-14
+
 		expected := complex(re, im)
 		if !approxEqual128(result, expected, eps) {
 			t.Errorf("ComplexFromFloat64[complex128](%v, %v) = %v, want %v",
@@ -260,6 +267,7 @@ func TestConj(t *testing.T) {
 	t.Run("double conjugate", func(t *testing.T) {
 		// Property: Conj(Conj(z)) = z
 		val := complex64(3 + 4i)
+
 		result := Conj(Conj(val))
 		if result != val {
 			t.Errorf("Conj(Conj(%v)) = %v, want %v", val, result, val)
@@ -272,6 +280,7 @@ func TestConjugateOf(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		input := complex64(3 + 4i)
 		expected := complex64(3 - 4i)
+
 		result := ConjugateOf(input)
 		if result != expected {
 			t.Errorf("ConjugateOf(%v) = %v, want %v", input, result, expected)
@@ -281,6 +290,7 @@ func TestConjugateOf(t *testing.T) {
 	t.Run("matches Conj", func(t *testing.T) {
 		input := complex128(1.5 + 2.5i)
 		resultConj := Conj(input)
+
 		resultConjugateOf := ConjugateOf(input)
 		if resultConj != resultConjugateOf {
 			t.Errorf("Conj(%v) = %v, ConjugateOf(%v) = %v, should be equal",
@@ -298,6 +308,7 @@ func TestTwiddleFactorSymmetry(t *testing.T) {
 			twiddle := ComputeTwiddleFactors[complex128](n)
 
 			const eps = 1e-14
+
 			for k := 1; k < n/2; k++ {
 				wk := twiddle[k]
 				wnk := twiddle[n-k]
@@ -324,11 +335,12 @@ func approxEqual128(a, b complex128, eps float64) bool {
 		math.Abs(imag(a)-imag(b)) < eps
 }
 
-// formatSizeTwiddle is a local copy to avoid redeclaration with bitrev_test.go
+// formatSizeTwiddle is a local copy to avoid redeclaration with bitrev_test.go.
 func formatSizeTwiddle(n int) string {
 	if n < 1000 {
 		return formatIntTwiddle(n)
 	}
+
 	return formatIntTwiddle(n/1000) + "k"
 }
 
@@ -336,6 +348,7 @@ func formatIntTwiddle(n int) string {
 	if n < 10 {
 		return string(rune('0' + n))
 	}
+
 	if n < 100 {
 		return string(rune('0'+n/10)) + string(rune('0'+n%10))
 	}
@@ -343,6 +356,7 @@ func formatIntTwiddle(n int) string {
 	hundreds := n / 100
 	tens := (n % 100) / 10
 	ones := n % 10
+
 	return string(rune('0'+hundreds)) + string(rune('0'+tens)) + string(rune('0'+ones))
 }
 
@@ -354,14 +368,16 @@ func BenchmarkComputeTwiddleFactors(b *testing.B) {
 	for _, size := range sizes {
 		b.Run("complex64/"+formatSizeTwiddle(size), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+
+			for range b.N {
 				_ = ComputeTwiddleFactors[complex64](size)
 			}
 		})
 
 		b.Run("complex128/"+formatSizeTwiddle(size), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+
+			for range b.N {
 				_ = ComputeTwiddleFactors[complex128](size)
 			}
 		})
@@ -371,14 +387,16 @@ func BenchmarkComputeTwiddleFactors(b *testing.B) {
 func BenchmarkComplexFromFloat64(b *testing.B) {
 	b.Run("complex64", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+
+		for range b.N {
 			_ = ComplexFromFloat64[complex64](3.14, 2.71)
 		}
 	})
 
 	b.Run("complex128", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+
+		for range b.N {
 			_ = ComplexFromFloat64[complex128](3.14, 2.71)
 		}
 	})
@@ -387,16 +405,20 @@ func BenchmarkComplexFromFloat64(b *testing.B) {
 func BenchmarkConj(b *testing.B) {
 	b.Run("complex64", func(b *testing.B) {
 		val := complex64(3 + 4i)
+
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+
+		for range b.N {
 			_ = Conj(val)
 		}
 	})
 
 	b.Run("complex128", func(b *testing.B) {
 		val := complex128(3 + 4i)
+
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+
+		for range b.N {
 			_ = Conj(val)
 		}
 	})

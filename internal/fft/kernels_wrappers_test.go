@@ -7,9 +7,10 @@ import (
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
-// TestDITForward tests the ditForward generic wrapper
+// TestDITForward tests the ditForward generic wrapper.
 func TestDITForward(t *testing.T) {
 	n := 8
+
 	input := make([]complex64, n)
 	for i := range input {
 		input[i] = complex(float32(i), 0)
@@ -32,7 +33,7 @@ func TestDITForward(t *testing.T) {
 	}
 }
 
-// TestDITInverse tests the ditInverse generic wrapper
+// TestDITInverse tests the ditInverse generic wrapper.
 func TestDITInverse(t *testing.T) {
 	n := 8
 	freq := make([]complex64, n)
@@ -55,9 +56,10 @@ func TestDITInverse(t *testing.T) {
 	}
 }
 
-// TestStockhamForward tests the stockhamForward generic wrapper
+// TestStockhamForward tests the stockhamForward generic wrapper.
 func TestStockhamForward(t *testing.T) {
 	n := 16
+
 	input := make([]complex64, n)
 	for i := range input {
 		input[i] = complex(float32(i), 0)
@@ -80,7 +82,7 @@ func TestStockhamForward(t *testing.T) {
 	}
 }
 
-// TestStockhamInverse tests the stockhamInverse generic wrapper
+// TestStockhamInverse tests the stockhamInverse generic wrapper.
 func TestStockhamInverse(t *testing.T) {
 	n := 16
 	freq := make([]complex64, n)
@@ -103,7 +105,7 @@ func TestStockhamInverse(t *testing.T) {
 	}
 }
 
-// TestComputeChirpSequence tests chirp sequence computation for Bluestein's algorithm
+// TestComputeChirpSequence tests chirp sequence computation for Bluestein's algorithm.
 func TestComputeChirpSequence(t *testing.T) {
 	n := 7 // Non-power-of-2 size
 
@@ -117,6 +119,7 @@ func TestComputeChirpSequence(t *testing.T) {
 	if diff := math.Abs(float64(real(chirp[0]) - 1.0)); diff > 1e-6 {
 		t.Errorf("chirp[0] real = %v, want 1.0", real(chirp[0]))
 	}
+
 	if diff := math.Abs(float64(imag(chirp[0]))); diff > 1e-6 {
 		t.Errorf("chirp[0] imag = %v, want 0.0", imag(chirp[0]))
 	}
@@ -130,7 +133,7 @@ func TestComputeChirpSequence(t *testing.T) {
 	}
 }
 
-// TestComputeBluesteinFilter tests Bluestein filter computation
+// TestComputeBluesteinFilter tests Bluestein filter computation.
 func TestComputeBluesteinFilter(t *testing.T) {
 	n := 7  // Non-power-of-2 size
 	m := 16 // Next power of 2 >= 2n-1
@@ -147,24 +150,26 @@ func TestComputeBluesteinFilter(t *testing.T) {
 
 	// Filter should be non-zero
 	hasNonZero := false
+
 	for _, f := range filter {
 		if real(f) != 0 || imag(f) != 0 {
 			hasNonZero = true
 			break
 		}
 	}
+
 	if !hasNonZero {
 		t.Error("filter is all zeros")
 	}
 }
 
-// TestBluesteinConvolution tests Bluestein convolution
+// TestBluesteinConvolution tests Bluestein convolution.
 func TestBluesteinConvolution(t *testing.T) {
 	n := 7  // Non-power-of-2 size
 	m := 16 // Next power of 2 >= 2n-1
 
 	x := make([]complex64, m)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		x[i] = complex(float32(i), 0)
 	}
 
@@ -180,18 +185,20 @@ func TestBluesteinConvolution(t *testing.T) {
 
 	// Result should be non-zero
 	hasNonZero := false
-	for i := 0; i < n; i++ {
+
+	for i := range n {
 		if real(dst[i]) != 0 || imag(dst[i]) != 0 {
 			hasNonZero = true
 			break
 		}
 	}
+
 	if !hasNonZero {
 		t.Error("convolution result is all zeros")
 	}
 }
 
-// TestButterfly2 tests the butterfly2 wrapper
+// TestButterfly2 tests the butterfly2 wrapper.
 func TestButterfly2(t *testing.T) {
 	a := complex64(complex(1, 2))
 	b := complex64(complex(3, 4))
@@ -207,12 +214,15 @@ func TestButterfly2(t *testing.T) {
 	if diff := math.Abs(float64(real(x) - real(expectedX))); diff > 1e-4 {
 		t.Errorf("butterfly2 x real mismatch: got %v, want %v", x, expectedX)
 	}
+
 	if diff := math.Abs(float64(imag(x) - imag(expectedX))); diff > 1e-4 {
 		t.Errorf("butterfly2 x imag mismatch: got %v, want %v", x, expectedX)
 	}
+
 	if diff := math.Abs(float64(real(y) - real(expectedY))); diff > 1e-4 {
 		t.Errorf("butterfly2 y real mismatch: got %v, want %v", y, expectedY)
 	}
+
 	if diff := math.Abs(float64(imag(y) - imag(expectedY))); diff > 1e-4 {
 		t.Errorf("butterfly2 y imag mismatch: got %v, want %v", y, expectedY)
 	}

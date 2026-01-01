@@ -8,7 +8,6 @@ import (
 
 // Shared test helper functions used across multiple test files
 
-//nolint:unparam
 func assertApproxComplex128Tolf(t *testing.T, got, want complex128, tol float64, format string, args ...any) {
 	t.Helper()
 

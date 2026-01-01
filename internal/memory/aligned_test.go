@@ -264,7 +264,7 @@ func BenchmarkAllocAlignedComplex64(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(size * 8)) // complex64 is 8 bytes
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_, _ = AllocAlignedComplex64(size)
 			}
 		})
@@ -279,7 +279,7 @@ func BenchmarkAllocAlignedComplex128(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(size * 16)) // complex128 is 16 bytes
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_, _ = AllocAlignedComplex128(size)
 			}
 		})
@@ -293,7 +293,7 @@ func BenchmarkAlignPtr(b *testing.B) {
 	for _, align := range alignments {
 		b.Run(strconv.Itoa(align), func(b *testing.B) {
 			ptr := uintptr(12345)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = AlignPtr(ptr, align)
 			}
 		})

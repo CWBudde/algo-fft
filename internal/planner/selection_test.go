@@ -23,6 +23,7 @@ func TestSetGetKernelStrategy(t *testing.T) {
 	for _, strategy := range tests {
 		t.Run("strategy", func(t *testing.T) {
 			SetKernelStrategy(strategy)
+
 			got := GetKernelStrategy()
 			if got != strategy {
 				t.Errorf("SetKernelStrategy(%v); GetKernelStrategy() = %v, want %v",
@@ -97,14 +98,19 @@ func TestResolveKernelStrategyWithDefault(t *testing.T) {
 //nolint:paralleltest
 func TestRecordBenchmarkDecision(t *testing.T) {
 	originalDecisions := benchDecisions
+
 	defer func() {
 		benchMu.Lock()
+
 		benchDecisions = originalDecisions
+
 		benchMu.Unlock()
 	}()
 
 	benchMu.Lock()
+
 	benchDecisions = make(map[int]KernelStrategy)
+
 	benchMu.Unlock()
 
 	originalStrategy := GetKernelStrategy()
@@ -128,14 +134,19 @@ func TestRecordBenchmarkDecision(t *testing.T) {
 //nolint:paralleltest
 func TestRecordBenchmarkDecisionInvalid(t *testing.T) {
 	originalDecisions := benchDecisions
+
 	defer func() {
 		benchMu.Lock()
+
 		benchDecisions = originalDecisions
+
 		benchMu.Unlock()
 	}()
 
 	benchMu.Lock()
+
 	benchDecisions = make(map[int]KernelStrategy)
+
 	benchMu.Unlock()
 
 	originalStrategy := GetKernelStrategy()
@@ -148,7 +159,9 @@ func TestRecordBenchmarkDecisionInvalid(t *testing.T) {
 	RecordBenchmarkDecision(512, KernelBluestein) // Invalid strategy
 
 	benchMu.RLock()
+
 	count := len(benchDecisions)
+
 	benchMu.RUnlock()
 
 	if count != 0 {
@@ -161,20 +174,27 @@ func TestRecordBenchmarkDecisionInvalid(t *testing.T) {
 //nolint:paralleltest
 func TestRecordBenchmarkDecisionZeroSize(t *testing.T) {
 	originalDecisions := benchDecisions
+
 	defer func() {
 		benchMu.Lock()
+
 		benchDecisions = originalDecisions
+
 		benchMu.Unlock()
 	}()
 
 	benchMu.Lock()
+
 	benchDecisions = make(map[int]KernelStrategy)
+
 	benchMu.Unlock()
 
 	RecordBenchmarkDecision(0, KernelDIT)
 
 	benchMu.RLock()
+
 	count := len(benchDecisions)
+
 	benchMu.RUnlock()
 
 	if count != 0 {
@@ -272,16 +292,21 @@ func TestFallbackKernelStrategy(t *testing.T) {
 func TestSixStepEightStepSquareSizes(t *testing.T) {
 	originalStrategy := GetKernelStrategy()
 	originalDecisions := benchDecisions
+
 	defer func() {
 		SetKernelStrategy(originalStrategy)
 		benchMu.Lock()
+
 		benchDecisions = originalDecisions
+
 		benchMu.Unlock()
 	}()
 
 	SetKernelStrategy(KernelAuto)
 	benchMu.Lock()
+
 	benchDecisions = make(map[int]KernelStrategy)
+
 	benchMu.Unlock()
 
 	tests := []struct {
@@ -332,14 +357,19 @@ func TestForcedSixStepOnNonSquare(t *testing.T) {
 //nolint:paralleltest
 func TestConcurrentBenchmarkDecisions(t *testing.T) {
 	originalDecisions := benchDecisions
+
 	defer func() {
 		benchMu.Lock()
+
 		benchDecisions = originalDecisions
+
 		benchMu.Unlock()
 	}()
 
 	benchMu.Lock()
+
 	benchDecisions = make(map[int]KernelStrategy)
+
 	benchMu.Unlock()
 
 	originalStrategy := GetKernelStrategy()
@@ -348,12 +378,15 @@ func TestConcurrentBenchmarkDecisions(t *testing.T) {
 	SetKernelStrategy(KernelAuto)
 
 	var wg sync.WaitGroup
+
 	strategies := []KernelStrategy{KernelDIT, KernelStockham}
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		wg.Add(1)
+
 		go func(size int, strategy KernelStrategy) {
 			defer wg.Done()
+
 			RecordBenchmarkDecision(size, strategy)
 		}(256+i, strategies[i%2])
 	}
@@ -362,9 +395,11 @@ func TestConcurrentBenchmarkDecisions(t *testing.T) {
 
 	// Verify all decisions were recorded
 	benchMu.RLock()
+
 	if len(benchDecisions) != 100 {
 		t.Errorf("Expected 100 decisions recorded, got %d", len(benchDecisions))
 	}
+
 	benchMu.RUnlock()
 }
 
@@ -376,15 +411,19 @@ func TestConcurrentKernelStrategy(t *testing.T) {
 	defer SetKernelStrategy(originalStrategy)
 
 	var wg sync.WaitGroup
+
 	const goroutines = 100
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		wg.Add(1)
+
 		go func(idx int) {
 			defer wg.Done()
+
 			strategies := []KernelStrategy{KernelDIT, KernelStockham, KernelAuto}
 			strategy := strategies[idx%len(strategies)]
 			SetKernelStrategy(strategy)
+
 			_ = GetKernelStrategy()
 		}(i)
 	}

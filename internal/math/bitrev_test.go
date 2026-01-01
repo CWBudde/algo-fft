@@ -64,8 +64,9 @@ func TestReverseBitsSymmetry(t *testing.T) {
 	// Property: reversing twice should return the original value
 	for nbits := 1; nbits <= 16; nbits++ {
 		maxVal := 1 << uint(nbits)
-		for x := 0; x < maxVal; x++ {
+		for x := range maxVal {
 			reversed := ReverseBits(x, nbits)
+
 			doubleReversed := ReverseBits(reversed, nbits)
 			if doubleReversed != x {
 				t.Errorf("ReverseBits(ReverseBits(%d, %d), %d) = %d, want %d",
@@ -100,6 +101,7 @@ func TestComputeBitReversalIndices(t *testing.T) {
 				t.Fatalf("ComputeBitReversalIndices(%d) returned length %d, want %d",
 					tt.n, len(got), len(tt.expect))
 			}
+
 			for i := range got {
 				if got[i] != tt.expect[i] {
 					t.Errorf("ComputeBitReversalIndices(%d)[%d] = %d, want %d",
@@ -135,6 +137,7 @@ func TestComputeBitReversalIndicesProperties(t *testing.T) {
 				if seen[idx] {
 					t.Errorf("duplicate index %d at position %d", idx, i)
 				}
+
 				seen[idx] = true
 			}
 
@@ -150,7 +153,7 @@ func TestComputeBitReversalIndicesProperties(t *testing.T) {
 
 			// Property 6: Applying permutation twice should give identity
 			// i.e., indices[indices[i]] == i for all i
-			for i := 0; i < n; i++ {
+			for i := range n {
 				if indices[indices[i]] != i {
 					t.Errorf("indices[indices[%d]] = %d, want %d (not a symmetric permutation)",
 						i, indices[indices[i]], i)
@@ -194,6 +197,7 @@ func formatSize(n int) string {
 	if n < 1000 {
 		return formatInt(n)
 	}
+
 	return formatInt(n/1000) + "k"
 }
 
@@ -201,6 +205,7 @@ func formatInt(n int) string {
 	if n < 10 {
 		return string(rune('0' + n))
 	}
+
 	return string(rune('0'+n/10)) + string(rune('0'+n%10))
 }
 
@@ -208,8 +213,10 @@ func formatInt(n int) string {
 
 func BenchmarkReverseBits(b *testing.B) {
 	nbits := 10
+
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for i := range b.N {
 		ReverseBits(i&1023, nbits)
 	}
 }
@@ -220,7 +227,8 @@ func BenchmarkComputeBitReversalIndices(b *testing.B) {
 	for _, size := range sizes {
 		b.Run(formatSize(size), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+
+			for range b.N {
 				_ = ComputeBitReversalIndices(size)
 			}
 		})

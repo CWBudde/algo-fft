@@ -16,6 +16,7 @@ func TestForwardDIT8192Mixed24Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 8192
+
 	src := randomComplex64(n, 0xDEADBEEF)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -35,6 +36,7 @@ func TestInverseDIT8192Mixed24Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 8192
+
 	src := randomComplex64(n, 0xCAFEBABE)
 	fwd := make([]complex64, n)
 	dst := make([]complex64, n)
@@ -59,6 +61,7 @@ func TestRoundTripDIT8192Mixed24Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 8192
+
 	src := randomComplex64(n, 0xFEEDFACE)
 	fwd := make([]complex64, n)
 	dst := make([]complex64, n)
@@ -82,6 +85,7 @@ func TestForwardDIT8192Mixed24Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 8192
+
 	src := randomComplex128(n, 0xBEEFCAFE)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -101,6 +105,7 @@ func TestInverseDIT8192Mixed24Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 8192
+
 	src := randomComplex128(n, 0xDEADCAFE)
 	fwd := make([]complex128, n)
 	dst := make([]complex128, n)
@@ -125,6 +130,7 @@ func TestRoundTripDIT8192Mixed24Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 8192
+
 	src := randomComplex128(n, 0xCAFED00D)
 	fwd := make([]complex128, n)
 	dst := make([]complex128, n)

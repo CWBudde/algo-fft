@@ -5,7 +5,7 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/transform"
 )
 
-// Re-export kernel types from internal/kernels
+// Re-export kernel types from internal/kernels.
 type (
 	Kernel[T Complex]          = kernels.Kernel[T]
 	Kernels[T Complex]         = kernels.Kernels[T]
@@ -18,18 +18,18 @@ type (
 	SIMDLevel                  = kernels.SIMDLevel
 )
 
-// Re-export kernel functions
+// Re-export kernel functions.
 var (
-	// Stockham kernels
+	// Stockham kernels.
 	forwardStockhamComplex64  = kernels.ForwardStockhamComplex64
 	inverseStockhamComplex64  = kernels.InverseStockhamComplex64
 	forwardStockhamComplex128 = kernels.ForwardStockhamComplex128
 	inverseStockhamComplex128 = kernels.InverseStockhamComplex128
 
-	// Packed Stockham kernels
+	// Packed Stockham kernels.
 	StockhamPackedAvailable = transform.StockhamPackedAvailable
 
-	// Registries (direct pointers, not double pointers)
+	// Registries (direct pointers, not double pointers).
 	Registry64  = kernels.Registry64
 	Registry128 = kernels.Registry128
 )
@@ -44,14 +44,14 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	return kernels.DITInverse(dst, src, twiddle, scratch, bitrev)
 }
 
-// Precision-specific DIT kernel wrappers
+// Precision-specific DIT kernel wrappers.
 var (
 	forwardDITComplex64  = kernels.ForwardDITComplex64
 	inverseDITComplex64  = kernels.InverseDITComplex64
 	forwardDITComplex128 = kernels.ForwardDITComplex128
 	inverseDITComplex128 = kernels.InverseDITComplex128
 
-	// Size-specific exports for benchmarks/tests
+	// Size-specific exports for benchmarks/tests.
 	ComputeBitReversalIndicesRadix4  = kernels.ComputeBitReversalIndicesRadix4
 	ComputeBitReversalIndicesMixed24 = kernels.ComputeBitReversalIndicesMixed24
 	forwardDIT4Radix4Complex64       = kernels.ForwardDIT4Radix4Complex64
@@ -79,7 +79,7 @@ var (
 	forwardDIT512Complex64           = kernels.ForwardDIT512Complex64
 	inverseDIT512Complex64           = kernels.InverseDIT512Complex64
 
-	// Complex128 variants
+	// Complex128 variants.
 	forwardDIT4Radix4Complex128   = kernels.ForwardDIT4Radix4Complex128
 	inverseDIT4Radix4Complex128   = kernels.InverseDIT4Radix4Complex128
 	forwardDIT8Radix2Complex128   = kernels.ForwardDIT8Radix2Complex128
@@ -164,7 +164,7 @@ func butterfly2[T Complex](a, b, w T) (T, T) {
 
 // These functions are re-exported in transform_exports.go
 
-// Re-export SIMD level constants
+// Re-export SIMD level constants.
 const (
 	SIMDNone   = kernels.SIMDNone
 	SIMDSSE2   = kernels.SIMDSSE2

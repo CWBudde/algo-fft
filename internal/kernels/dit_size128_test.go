@@ -11,11 +11,12 @@ const (
 	size128Tol128 = 1e-10
 )
 
-// TestForwardDIT128Complex64 tests the size-128 forward kernel
+// TestForwardDIT128Complex64 tests the size-128 forward kernel.
 func TestForwardDIT128Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 128
+
 	src := randomComplex64(n, 0xDEADBEEF)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -30,11 +31,12 @@ func TestForwardDIT128Complex64(t *testing.T) {
 	assertComplex64Close(t, dst, want, size128Tol64)
 }
 
-// TestInverseDIT128Complex64 tests the size-128 inverse kernel
+// TestInverseDIT128Complex64 tests the size-128 inverse kernel.
 func TestInverseDIT128Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 128
+
 	src := randomComplex64(n, 0xCAFEBABE)
 	fwd := make([]complex64, n)
 	dst := make([]complex64, n)
@@ -54,11 +56,12 @@ func TestInverseDIT128Complex64(t *testing.T) {
 	assertComplex64Close(t, dst, want, size128Tol64)
 }
 
-// TestForwardDIT128Complex128 tests the size-128 forward kernel (complex128)
+// TestForwardDIT128Complex128 tests the size-128 forward kernel (complex128).
 func TestForwardDIT128Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 128
+
 	src := randomComplex128(n, 0xBEEFCAFE)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -73,11 +76,12 @@ func TestForwardDIT128Complex128(t *testing.T) {
 	assertComplex128Close(t, dst, want, size128Tol128)
 }
 
-// TestInverseDIT128Complex128 tests the size-128 inverse kernel (complex128)
+// TestInverseDIT128Complex128 tests the size-128 inverse kernel (complex128).
 func TestInverseDIT128Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 128
+
 	src := randomComplex128(n, 0xFEEDFACE)
 	fwd := make([]complex128, n)
 	dst := make([]complex128, n)

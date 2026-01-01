@@ -9,7 +9,7 @@ package kernels
 // 2. Pointer comparison for aliasing detection
 // 3. Fully inlined complex arithmetic
 // 4. Stack-allocated stage buffers
-// 5. Pre-loaded twiddle factors
+// 5. Pre-loaded twiddle factors.
 func forwardDIT1024Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 1024
 
@@ -491,9 +491,12 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128, bit
 
 	// Stages 2-5 using loop (same pattern as complex64 but not unrolled)
 	current := stage1[:]
-	var stage2 [1024]complex128
-	var stage3 [1024]complex128
-	var stage4 [1024]complex128
+
+	var (
+		stage2 [1024]complex128
+		stage3 [1024]complex128
+		stage4 [1024]complex128
+	)
 
 	stageConfigs := []struct {
 		size    int
@@ -508,7 +511,7 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128, bit
 
 	for _, cfg := range stageConfigs {
 		for base := 0; base < n; base += cfg.size {
-			for j := 0; j < cfg.quarter; j++ {
+			for j := range cfg.quarter {
 				w1 := tw[j*cfg.step]
 				w2 := tw[2*j*cfg.step]
 				w3 := tw[3*j*cfg.step]
@@ -534,6 +537,7 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128, bit
 				cfg.next[idx3] = t1 + complex(-imag(t3), real(t3))
 			}
 		}
+
 		current = cfg.next
 	}
 
@@ -617,9 +621,12 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128, bit
 
 	// Stages 2-5 with conjugated twiddles
 	current := stage1[:]
-	var stage2 [1024]complex128
-	var stage3 [1024]complex128
-	var stage4 [1024]complex128
+
+	var (
+		stage2 [1024]complex128
+		stage3 [1024]complex128
+		stage4 [1024]complex128
+	)
 
 	stageConfigs := []struct {
 		size    int
@@ -634,7 +641,7 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128, bit
 
 	for _, cfg := range stageConfigs {
 		for base := 0; base < n; base += cfg.size {
-			for j := 0; j < cfg.quarter; j++ {
+			for j := range cfg.quarter {
 				w1 := complex(real(tw[j*cfg.step]), -imag(tw[j*cfg.step]))
 				w2 := complex(real(tw[2*j*cfg.step]), -imag(tw[2*j*cfg.step]))
 				w3 := complex(real(tw[3*j*cfg.step]), -imag(tw[3*j*cfg.step]))
@@ -660,6 +667,7 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128, bit
 				cfg.next[idx3] = t1 + complex(imag(t3), -real(t3))
 			}
 		}
+
 		current = cfg.next
 	}
 

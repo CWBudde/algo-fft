@@ -11,7 +11,7 @@ package kernels
 // For n=2048 (2 * 4^5): 1 binary digit + 5 quaternary digits
 // For n=8192 (2 * 4^6): 1 binary digit + 6 quaternary digits
 //
-// The reversal swaps: binary_bit | quat[k-1] ... quat[0] → quat[0] ... quat[k-1] | binary_bit
+// The reversal swaps: binary_bit | quat[k-1] ... quat[0] → quat[0] ... quat[k-1] | binary_bit.
 func ComputeBitReversalIndicesMixed24(n int) []int {
 	if n <= 0 {
 		return nil
@@ -29,11 +29,13 @@ func ComputeBitReversalIndicesMixed24(n int) []int {
 
 	// Count quaternary digits
 	quatDigits := 0
+
 	temp := m
 	for temp > 1 {
 		if temp%4 != 0 {
 			return nil // Not a power of 4
 		}
+
 		quatDigits++
 		temp /= 4
 	}
@@ -49,6 +51,7 @@ func ComputeBitReversalIndicesMixed24(n int) []int {
 
 		// Reverse the quaternary digits
 		revQuat := 0
+
 		q := quatIndex
 		for range quatDigits {
 			revQuat = (revQuat << 2) | (q & 0x3)
@@ -206,6 +209,7 @@ func forwardDIT512Mixed24Complex64(dst, src, twiddle, scratch []complex64, bitre
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 256 {
@@ -357,6 +361,7 @@ func inverseDIT512Mixed24Complex64(dst, src, twiddle, scratch []complex64, bitre
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 256 {
@@ -511,6 +516,7 @@ func forwardDIT512Mixed24Complex128(dst, src, twiddle, scratch []complex128, bit
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 256 {
@@ -660,6 +666,7 @@ func inverseDIT512Mixed24Complex128(dst, src, twiddle, scratch []complex128, bit
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 256 {

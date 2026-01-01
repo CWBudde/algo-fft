@@ -17,6 +17,7 @@ func TestForwardDIT4096Radix4Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 4096
+
 	src := randomComplex64(n, 0xDEADBEEF)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -31,11 +32,12 @@ func TestForwardDIT4096Radix4Complex64(t *testing.T) {
 	assertComplex64Close(t, dst, want, size4096Tol64)
 }
 
-// TestInverseDIT4096Radix4Complex64 tests the size-4096 inverse radix-4 kernel
+// TestInverseDIT4096Radix4Complex64 tests the size-4096 inverse radix-4 kernel.
 func TestInverseDIT4096Radix4Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 4096
+
 	src := randomComplex64(n, 0xCAFEBABE)
 	fwd := make([]complex64, n)
 	dst := make([]complex64, n)
@@ -55,11 +57,12 @@ func TestInverseDIT4096Radix4Complex64(t *testing.T) {
 	assertComplex64Close(t, dst, want, size4096Tol64)
 }
 
-// TestRoundTripDIT4096Radix4Complex64 tests forward then inverse returns original
+// TestRoundTripDIT4096Radix4Complex64 tests forward then inverse returns original.
 func TestRoundTripDIT4096Radix4Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 4096
+
 	src := randomComplex64(n, 0xBADC0FFE)
 	fwd := make([]complex64, n)
 	dst := make([]complex64, n)
@@ -78,11 +81,12 @@ func TestRoundTripDIT4096Radix4Complex64(t *testing.T) {
 	assertComplex64Close(t, dst, src, size4096Tol64)
 }
 
-// TestForwardDIT4096Radix4Complex128 tests the size-4096 forward radix-4 kernel (complex128)
+// TestForwardDIT4096Radix4Complex128 tests the size-4096 forward radix-4 kernel (complex128).
 func TestForwardDIT4096Radix4Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 4096
+
 	src := randomComplex128(n, 0xBEEFCAFE)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -97,11 +101,12 @@ func TestForwardDIT4096Radix4Complex128(t *testing.T) {
 	assertComplex128Close(t, dst, want, size4096Tol128)
 }
 
-// TestInverseDIT4096Radix4Complex128 tests the size-4096 inverse radix-4 kernel (complex128)
+// TestInverseDIT4096Radix4Complex128 tests the size-4096 inverse radix-4 kernel (complex128).
 func TestInverseDIT4096Radix4Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 4096
+
 	src := randomComplex128(n, 0xFEEDFACE)
 	fwd := make([]complex128, n)
 	dst := make([]complex128, n)
@@ -121,11 +126,12 @@ func TestInverseDIT4096Radix4Complex128(t *testing.T) {
 	assertComplex128Close(t, dst, want, size4096Tol128)
 }
 
-// TestRoundTripDIT4096Radix4Complex128 tests forward then inverse returns original (complex128)
+// TestRoundTripDIT4096Radix4Complex128 tests forward then inverse returns original (complex128).
 func TestRoundTripDIT4096Radix4Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 4096
+
 	src := randomComplex128(n, 0xC0FFEE42)
 	fwd := make([]complex128, n)
 	dst := make([]complex128, n)

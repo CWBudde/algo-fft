@@ -10,7 +10,7 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/planner"
 )
 
-// TestSelectKernelsComplex64_SSE2Only tests SSE2 path without AVX2
+// TestSelectKernelsComplex64_SSE2Only tests SSE2 path without AVX2.
 func TestSelectKernelsComplex64_SSE2Only(t *testing.T) {
 	// Save and restore CPU features
 	originalFeatures := cpu.DetectFeatures()
@@ -23,6 +23,7 @@ func TestSelectKernelsComplex64_SSE2Only(t *testing.T) {
 
 	// Test forward
 	n := 16
+
 	input := make([]complex64, n)
 	for i := range input {
 		input[i] = complex(float32(i), 0)
@@ -45,7 +46,7 @@ func TestSelectKernelsComplex64_SSE2Only(t *testing.T) {
 	}
 }
 
-// TestSelectKernelsComplex128_SSE2Only tests SSE2 path without AVX2 for complex128
+// TestSelectKernelsComplex128_SSE2Only tests SSE2 path without AVX2 for complex128.
 func TestSelectKernelsComplex128_SSE2Only(t *testing.T) {
 	originalFeatures := cpu.DetectFeatures()
 	defer cpu.SetForcedFeatures(originalFeatures)
@@ -55,6 +56,7 @@ func TestSelectKernelsComplex128_SSE2Only(t *testing.T) {
 	kernels := selectKernelsComplex128(cpu.DetectFeatures())
 
 	n := 16
+
 	input := make([]complex128, n)
 	for i := range input {
 		input[i] = complex(float64(i), 0)
@@ -76,7 +78,7 @@ func TestSelectKernelsComplex128_SSE2Only(t *testing.T) {
 	}
 }
 
-// TestSelectKernelsWithStrategy_SSE2 tests strategy selection with SSE2
+// TestSelectKernelsWithStrategy_SSE2 tests strategy selection with SSE2.
 func TestSelectKernelsWithStrategy_SSE2(t *testing.T) {
 	originalFeatures := cpu.DetectFeatures()
 	defer cpu.SetForcedFeatures(originalFeatures)
@@ -97,6 +99,7 @@ func TestSelectKernelsWithStrategy_SSE2(t *testing.T) {
 			kernels := selectKernelsComplex64WithStrategy(cpu.DetectFeatures(), tt.strategy)
 
 			n := 32
+
 			input := make([]complex64, n)
 			for i := range input {
 				input[i] = complex(float32(i%8), 0)
@@ -120,7 +123,7 @@ func TestSelectKernelsWithStrategy_SSE2(t *testing.T) {
 	}
 }
 
-// TestForwardSSE2Complex64 tests SSE2 complex64 forward kernel directly
+// TestForwardSSE2Complex64 tests SSE2 complex64 forward kernel directly.
 func TestForwardSSE2Complex64(t *testing.T) {
 	tests := []struct {
 		name string
@@ -156,7 +159,7 @@ func TestForwardSSE2Complex64(t *testing.T) {
 	}
 }
 
-// TestInverseSSE2Complex64 tests SSE2 complex64 inverse kernel directly
+// TestInverseSSE2Complex64 tests SSE2 complex64 inverse kernel directly.
 func TestInverseSSE2Complex64(t *testing.T) {
 	tests := []struct {
 		name string
@@ -189,7 +192,7 @@ func TestInverseSSE2Complex64(t *testing.T) {
 	}
 }
 
-// TestForwardSSE2Complex128 tests SSE2 complex128 forward kernel
+// TestForwardSSE2Complex128 tests SSE2 complex128 forward kernel.
 func TestForwardSSE2Complex128(t *testing.T) {
 	sizes := []int{16, 512, 2048}
 
@@ -213,7 +216,7 @@ func TestForwardSSE2Complex128(t *testing.T) {
 	}
 }
 
-// TestInverseSSE2Complex128 tests SSE2 complex128 inverse kernel
+// TestInverseSSE2Complex128 tests SSE2 complex128 inverse kernel.
 func TestInverseSSE2Complex128(t *testing.T) {
 	sizes := []int{16, 512, 2048}
 
@@ -235,7 +238,7 @@ func TestInverseSSE2Complex128(t *testing.T) {
 	}
 }
 
-// TestSSE2Kernels_NonPowerOf2 tests SSE2 kernels reject non-power-of-2 sizes
+// TestSSE2Kernels_NonPowerOf2 tests SSE2 kernels reject non-power-of-2 sizes.
 func TestSSE2Kernels_NonPowerOf2(t *testing.T) {
 	size := 7 // Prime number
 
@@ -268,7 +271,7 @@ func TestSSE2Kernels_NonPowerOf2(t *testing.T) {
 	}
 }
 
-// TestAVX2Kernels_NonPowerOf2 tests AVX2 kernels reject non-power-of-2 sizes
+// TestAVX2Kernels_NonPowerOf2 tests AVX2 kernels reject non-power-of-2 sizes.
 func TestAVX2Kernels_NonPowerOf2(t *testing.T) {
 	size := 7
 
@@ -318,7 +321,7 @@ func TestAVX2Kernels_NonPowerOf2(t *testing.T) {
 	}
 }
 
-// TestSelectKernelsComplex128WithStrategy_SSE2 tests complex128 strategy selection with SSE2
+// TestSelectKernelsComplex128WithStrategy_SSE2 tests complex128 strategy selection with SSE2.
 func TestSelectKernelsComplex128WithStrategy_SSE2(t *testing.T) {
 	originalFeatures := cpu.DetectFeatures()
 	defer cpu.SetForcedFeatures(originalFeatures)
@@ -336,6 +339,7 @@ func TestSelectKernelsComplex128WithStrategy_SSE2(t *testing.T) {
 			kernels := selectKernelsComplex128WithStrategy(cpu.DetectFeatures(), strategy)
 
 			n := 32
+
 			input := make([]complex128, n)
 			for i := range input {
 				input[i] = complex(float64(i%8), 0)

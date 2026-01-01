@@ -8,7 +8,7 @@ package kernels
 // 1. Fused bit-reversal with Stage 1
 // 2. Pointer comparison for aliasing detection
 // 3. Stack-allocated stage buffers
-// 4. Fully inlined complex arithmetic
+// 4. Fully inlined complex arithmetic.
 func forwardDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 16384
 
@@ -46,11 +46,14 @@ func forwardDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64, bitr
 
 	// Stages 2-6: Process with stack buffers
 	current := stage1[:]
-	var stage2 [16384]complex64
-	var stage3 [16384]complex64
-	var stage4 [16384]complex64
-	var stage5 [16384]complex64
-	var stage6 [16384]complex64
+
+	var (
+		stage2 [16384]complex64
+		stage3 [16384]complex64
+		stage4 [16384]complex64
+		stage5 [16384]complex64
+		stage6 [16384]complex64
+	)
 
 	stages := []struct {
 		size int
@@ -67,7 +70,7 @@ func forwardDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64, bitr
 	for _, st := range stages {
 		quarter := st.size / 4
 		for base := 0; base < n; base += st.size {
-			for j := 0; j < quarter; j++ {
+			for j := range quarter {
 				w1 := tw[j*st.step]
 				w2 := tw[2*j*st.step]
 				w3 := tw[3*j*st.step]
@@ -93,6 +96,7 @@ func forwardDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64, bitr
 				st.next[idx3] = t1 + complex(-imag(t3), real(t3))
 			}
 		}
+
 		current = st.next[:]
 	}
 
@@ -103,7 +107,7 @@ func forwardDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64, bitr
 	}
 
 	quarter := 4096
-	for j := 0; j < quarter; j++ {
+	for j := range quarter {
 		w1 := tw[j]
 		w2 := tw[2*j]
 		w3 := tw[3*j]
@@ -172,11 +176,14 @@ func inverseDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64, bitr
 
 	// Stages 2-6: Process with conjugated twiddles
 	current := stage1[:]
-	var stage2 [16384]complex64
-	var stage3 [16384]complex64
-	var stage4 [16384]complex64
-	var stage5 [16384]complex64
-	var stage6 [16384]complex64
+
+	var (
+		stage2 [16384]complex64
+		stage3 [16384]complex64
+		stage4 [16384]complex64
+		stage5 [16384]complex64
+		stage6 [16384]complex64
+	)
 
 	stages := []struct {
 		size int
@@ -193,7 +200,7 @@ func inverseDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64, bitr
 	for _, st := range stages {
 		quarter := st.size / 4
 		for base := 0; base < n; base += st.size {
-			for j := 0; j < quarter; j++ {
+			for j := range quarter {
 				w1 := complex(real(tw[j*st.step]), -imag(tw[j*st.step]))
 				w2 := complex(real(tw[2*j*st.step]), -imag(tw[2*j*st.step]))
 				w3 := complex(real(tw[3*j*st.step]), -imag(tw[3*j*st.step]))
@@ -219,6 +226,7 @@ func inverseDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64, bitr
 				st.next[idx3] = t1 + complex(imag(t3), -real(t3))
 			}
 		}
+
 		current = st.next[:]
 	}
 
@@ -229,8 +237,9 @@ func inverseDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64, bitr
 	}
 
 	scale := complex64(1.0 / n)
+
 	quarter := 4096
-	for j := 0; j < quarter; j++ {
+	for j := range quarter {
 		w1 := complex(real(tw[j]), -imag(tw[j]))
 		w2 := complex(real(tw[2*j]), -imag(tw[2*j]))
 		w3 := complex(real(tw[3*j]), -imag(tw[3*j]))
@@ -298,11 +307,14 @@ func forwardDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 
 	// Stages 2-6
 	current := stage1[:]
-	var stage2 [16384]complex128
-	var stage3 [16384]complex128
-	var stage4 [16384]complex128
-	var stage5 [16384]complex128
-	var stage6 [16384]complex128
+
+	var (
+		stage2 [16384]complex128
+		stage3 [16384]complex128
+		stage4 [16384]complex128
+		stage5 [16384]complex128
+		stage6 [16384]complex128
+	)
 
 	stages := []struct {
 		size int
@@ -319,7 +331,7 @@ func forwardDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	for _, st := range stages {
 		quarter := st.size / 4
 		for base := 0; base < n; base += st.size {
-			for j := 0; j < quarter; j++ {
+			for j := range quarter {
 				w1 := tw[j*st.step]
 				w2 := tw[2*j*st.step]
 				w3 := tw[3*j*st.step]
@@ -345,6 +357,7 @@ func forwardDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 				st.next[idx3] = t1 + complex(-imag(t3), real(t3))
 			}
 		}
+
 		current = st.next[:]
 	}
 
@@ -355,7 +368,7 @@ func forwardDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	}
 
 	quarter := 4096
-	for j := 0; j < quarter; j++ {
+	for j := range quarter {
 		w1 := tw[j]
 		w2 := tw[2*j]
 		w3 := tw[3*j]
@@ -423,11 +436,14 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 
 	// Stages 2-6 with conjugated twiddles
 	current := stage1[:]
-	var stage2 [16384]complex128
-	var stage3 [16384]complex128
-	var stage4 [16384]complex128
-	var stage5 [16384]complex128
-	var stage6 [16384]complex128
+
+	var (
+		stage2 [16384]complex128
+		stage3 [16384]complex128
+		stage4 [16384]complex128
+		stage5 [16384]complex128
+		stage6 [16384]complex128
+	)
 
 	stages := []struct {
 		size int
@@ -444,7 +460,7 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	for _, st := range stages {
 		quarter := st.size / 4
 		for base := 0; base < n; base += st.size {
-			for j := 0; j < quarter; j++ {
+			for j := range quarter {
 				w1 := complex(real(tw[j*st.step]), -imag(tw[j*st.step]))
 				w2 := complex(real(tw[2*j*st.step]), -imag(tw[2*j*st.step]))
 				w3 := complex(real(tw[3*j*st.step]), -imag(tw[3*j*st.step]))
@@ -470,6 +486,7 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 				st.next[idx3] = t1 + complex(imag(t3), -real(t3))
 			}
 		}
+
 		current = st.next[:]
 	}
 
@@ -480,8 +497,9 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	}
 
 	scale := complex128(1.0 / n)
+
 	quarter := 4096
-	for j := 0; j < quarter; j++ {
+	for j := range quarter {
 		w1 := complex(real(tw[j]), -imag(tw[j]))
 		w2 := complex(real(tw[2*j]), -imag(tw[2*j]))
 		w3 := complex(real(tw[3*j]), -imag(tw[3*j]))

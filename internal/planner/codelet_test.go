@@ -155,36 +155,43 @@ func TestCodeletRegistryPreferHigherSIMD(t *testing.T) {
 	if found == nil {
 		t.Fatal("expected to find codelet")
 	}
+
 	if found.Signature != "dit32_avx512" {
 		t.Errorf("expected avx512 variant, got %q", found.Signature)
 	}
 
 	// With only AVX2 CPU, should get avx2
 	features.HasAVX512 = false
+
 	found = registry.Lookup(32, features)
 	if found == nil {
 		t.Fatal("expected to find codelet")
 	}
+
 	if found.Signature != "dit32_avx2" {
 		t.Errorf("expected avx2 variant, got %q", found.Signature)
 	}
 
 	// With only SSE2 CPU, should get sse2
 	features.HasAVX2 = false
+
 	found = registry.Lookup(32, features)
 	if found == nil {
 		t.Fatal("expected to find codelet")
 	}
+
 	if found.Signature != "dit32_sse2" {
 		t.Errorf("expected sse2 variant, got %q", found.Signature)
 	}
 
 	// With no SIMD, should get generic
 	features.HasSSE2 = false
+
 	found = registry.Lookup(32, features)
 	if found == nil {
 		t.Fatal("expected to find codelet")
 	}
+
 	if found.Signature != "dit32_generic" {
 		t.Errorf("expected generic variant, got %q", found.Signature)
 	}
@@ -345,6 +352,7 @@ func TestCodeletRegistryGetAvailableSizes(t *testing.T) {
 
 	// With AVX2, should get all three
 	features.HasAVX2 = true
+
 	got = registry.GetAvailableSizes(features)
 	if len(got) != 3 {
 		t.Errorf("expected 3 available sizes with AVX2, got %d: %v", len(got), got)
@@ -393,14 +401,17 @@ func TestCodeletRegistryConcurrent(t *testing.T) {
 	registry := NewCodeletRegistry[complex64]()
 
 	var wg sync.WaitGroup
+
 	const goroutines = 10
 
 	// Concurrent registration
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		wg.Add(1)
+
 		go func(idx int) {
 			defer wg.Done()
-			for j := 0; j < 10; j++ {
+
+			for j := range 10 {
 				size := 16 + idx*100 + j
 				registry.Register(CodeletEntry[complex64]{
 					Size:      size,

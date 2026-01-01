@@ -374,7 +374,7 @@ func butterfly2[T Complex](a, b, w T) (T, T) {
 	return a + t, a - t
 }
 
-// Public exports for internal/fft re-export
+// Public exports for internal/fft re-export.
 func DITForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	return ditForward(dst, src, twiddle, scratch, bitrev)
 }
@@ -383,7 +383,7 @@ func DITInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	return ditInverse(dst, src, twiddle, scratch, bitrev)
 }
 
-// Precision-specific exports
+// Precision-specific exports.
 var (
 	ForwardDITComplex64  = forwardDITComplex64
 	InverseDITComplex64  = inverseDITComplex64
@@ -391,47 +391,47 @@ var (
 	InverseDITComplex128 = inverseDITComplex128
 )
 
-// Butterfly2 performs a radix-2 butterfly operation
+// Butterfly2 performs a radix-2 butterfly operation.
 func Butterfly2[T Complex](a, b, w T) (T, T) {
 	return butterfly2(a, b, w)
 }
 
-// Size-specific DIT exports for benchmarks and tests
+// Size-specific DIT exports for benchmarks and tests.
 var (
-	// Size 4
+	// Size 4.
 	ForwardDIT4Radix4Complex64 = forwardDIT4Radix4Complex64
 	InverseDIT4Radix4Complex64 = inverseDIT4Radix4Complex64
-	// Size 8
+	// Size 8.
 	ForwardDIT8Radix2Complex64 = forwardDIT8Radix2Complex64
 	InverseDIT8Radix2Complex64 = inverseDIT8Radix2Complex64
 	ForwardDIT8Radix4Complex64 = forwardDIT8Radix4Complex64
 	InverseDIT8Radix4Complex64 = inverseDIT8Radix4Complex64
-	// Size 16
+	// Size 16.
 	ForwardDIT16Complex64       = forwardDIT16Complex64
 	InverseDIT16Complex64       = inverseDIT16Complex64
 	ForwardDIT16Radix4Complex64 = forwardDIT16Radix4Complex64
 	InverseDIT16Radix4Complex64 = inverseDIT16Radix4Complex64
-	// Size 32
+	// Size 32.
 	ForwardDIT32Complex64 = forwardDIT32Complex64
 	InverseDIT32Complex64 = inverseDIT32Complex64
-	// Size 64
+	// Size 64.
 	ForwardDIT64Complex64       = forwardDIT64Complex64
 	InverseDIT64Complex64       = inverseDIT64Complex64
 	ForwardDIT64Radix4Complex64 = forwardDIT64Radix4Complex64
 	InverseDIT64Radix4Complex64 = inverseDIT64Radix4Complex64
-	// Size 128
+	// Size 128.
 	ForwardDIT128Complex64 = forwardDIT128Complex64
 	InverseDIT128Complex64 = inverseDIT128Complex64
-	// Size 256
+	// Size 256.
 	ForwardDIT256Complex64       = forwardDIT256Complex64
 	InverseDIT256Complex64       = inverseDIT256Complex64
 	ForwardDIT256Radix4Complex64 = forwardDIT256Radix4Complex64
 	InverseDIT256Radix4Complex64 = inverseDIT256Radix4Complex64
-	// Size 512
+	// Size 512.
 	ForwardDIT512Complex64 = forwardDIT512Complex64
 	InverseDIT512Complex64 = inverseDIT512Complex64
 
-	// Complex128 variants
+	// Complex128 variants.
 	ForwardDIT4Radix4Complex128   = forwardDIT4Radix4Complex128
 	InverseDIT4Radix4Complex128   = inverseDIT4Radix4Complex128
 	ForwardDIT8Radix2Complex128   = forwardDIT8Radix2Complex128

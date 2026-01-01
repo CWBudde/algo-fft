@@ -47,6 +47,7 @@ func TestAutoCorrelate128ZeroLagEnergy(t *testing.T) {
 	}
 
 	var energy float64
+
 	for _, v := range a {
 		vr := real(v)
 		vi := imag(v)
@@ -54,6 +55,7 @@ func TestAutoCorrelate128ZeroLagEnergy(t *testing.T) {
 	}
 
 	zeroLag := dst[len(a)-1]
+
 	diff := math.Abs(real(zeroLag) - energy)
 	if diff > 1e-11 || math.Abs(imag(zeroLag)) > 1e-11 {
 		t.Fatalf("zero lag=%v want %v (diff=%v)", zeroLag, energy, diff)

@@ -139,7 +139,7 @@ func butterfly4Inverse[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
 	return y0, y1, y2, y3
 }
 
-// Public exports for internal/fft
+// Public exports for internal/fft.
 func Butterfly4Forward[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
 	return butterfly4Forward(a0, a1, a2, a3)
 }

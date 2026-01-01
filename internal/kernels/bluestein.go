@@ -6,7 +6,7 @@ import (
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
-// Helper wrappers from internal/math
+// Helper wrappers from internal/math.
 func complexFromFloat64[T Complex](re, im float64) T {
 	return m.ComplexFromFloat64[T](re, im)
 }

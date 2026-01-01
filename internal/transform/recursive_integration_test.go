@@ -285,6 +285,7 @@ func TestRecursiveFFTSmallSizes(t *testing.T) {
 
 			// Compare against reference
 			expected := reference.NaiveDFT(input)
+
 			err := compareComplexSlices(output, expected, 1e-5)
 			if err != nil {
 				t.Errorf("Size %d FFT mismatch: %v", size, err)

@@ -10,7 +10,7 @@ import (
 // KernelStrategy is a type alias from the planner package.
 type KernelStrategy = planner.KernelStrategy
 
-// Kernel strategy constants
+// Kernel strategy constants.
 const (
 	KernelAuto      = planner.KernelAuto
 	KernelDIT       = planner.KernelDIT
@@ -40,7 +40,7 @@ func NewWisdom() *Wisdom {
 // DefaultWisdom is the global wisdom cache.
 var DefaultWisdom = planner.DefaultWisdom
 
-// Precision constants
+// Precision constants.
 const (
 	PrecisionComplex64  = planner.PrecisionComplex64
 	PrecisionComplex128 = planner.PrecisionComplex128

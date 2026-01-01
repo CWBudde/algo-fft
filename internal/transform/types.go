@@ -9,19 +9,19 @@ import (
 // Complex is a type alias for the complex number constraint.
 type Complex = fftypes.Complex
 
-// CodeletRegistry and related types from kernels
+// CodeletRegistry and related types from kernels.
 type (
 	CodeletRegistry[T Complex] = kernels.CodeletRegistry[T]
 	CodeletEntry[T Complex]    = kernels.CodeletEntry[T]
 )
 
-// Re-export registries for tests
+// Re-export registries for tests.
 var (
 	Registry64  = kernels.Registry64
 	Registry128 = kernels.Registry128
 )
 
-// Helper functions from math package
+// Helper functions from math package.
 func ComputeTwiddleFactors[T Complex](n int) []T {
 	return m.ComputeTwiddleFactors[T](n)
 }
@@ -32,7 +32,7 @@ func conj[T Complex](val T) T {
 	return m.Conj[T](val)
 }
 
-// Helper functions from kernels package
+// Helper functions from kernels package.
 func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	return kernels.DITForward(dst, src, twiddle, scratch, bitrev)
 }
@@ -51,7 +51,7 @@ func IsPowerOf2(n int) bool {
 
 // stockhamPackedEnabled is defined in stockham_packed_toggle_*.go files
 
-// Helper functions for tests
+// Helper functions for tests.
 var (
 	forwardStockhamComplex64  = kernels.ForwardStockhamComplex64
 	inverseStockhamComplex64  = kernels.InverseStockhamComplex64

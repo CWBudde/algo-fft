@@ -25,6 +25,7 @@ func TestComputeTwiddleFactorsPhasor(t *testing.T) {
 		if len(result) != 1 {
 			t.Fatalf("len = %d, want 1", len(result))
 		}
+
 		if result[0] != 1 {
 			t.Errorf("twiddle[0] = %v, want 1", result[0])
 		}
@@ -92,10 +93,13 @@ func TestPhasorMagnitude(t *testing.T) {
 			twiddle64 := ComputeTwiddleFactorsPhasor[complex64](n)
 			twiddle128 := ComputeTwiddleFactorsPhasor[complex128](n)
 
-			const eps64 = 1e-5
-			const eps128 = 1e-13
+			const (
+				eps64  = 1e-5
+				eps128 = 1e-13
+			)
 
 			// All twiddle factors should have magnitude 1 (roots of unity)
+
 			for k, w := range twiddle64 {
 				mag := cmplx.Abs(complex128(w))
 				if math.Abs(mag-1.0) > eps64 {
@@ -122,6 +126,7 @@ func TestPhasorSymmetry(t *testing.T) {
 			twiddle := ComputeTwiddleFactorsPhasor[complex128](n)
 
 			const eps = 1e-13
+
 			for k := 1; k < n/2; k++ {
 				wk := twiddle[k]
 				wnk := twiddle[n-k]
@@ -151,8 +156,11 @@ func TestPhasorVsDirect(t *testing.T) {
 
 			// complex128 tolerance: block size 1024 should keep error < 1e-12
 			const eps = 1e-12
-			var maxError float64
-			var maxErrorIdx int
+
+			var (
+				maxError    float64
+				maxErrorIdx int
+			)
 
 			for k := range direct {
 				diff := cmplx.Abs(direct[k] - phasor[k])
@@ -184,8 +192,11 @@ func TestPhasorVsDirectComplex64(t *testing.T) {
 
 			// complex64 tolerance: block size 64 should keep error < 1e-5
 			const eps = 1e-5
-			var maxError float64
-			var maxErrorIdx int
+
+			var (
+				maxError    float64
+				maxErrorIdx int
+			)
 
 			for k := range direct {
 				diff := cmplx.Abs(complex128(direct[k]) - complex128(phasor[k]))
@@ -216,13 +227,17 @@ func TestPhasorLargeSizes(t *testing.T) {
 
 			// Check magnitude for all elements
 			const eps = 1e-12
+
 			var maxMagError float64
+
 			for k, w := range twiddle128 {
 				mag := cmplx.Abs(w)
+
 				magError := math.Abs(mag - 1.0)
 				if magError > maxMagError {
 					maxMagError = magError
 				}
+
 				if magError > eps {
 					t.Errorf("complex128[%d] magnitude error = %v (>%v)", k, magError, eps)
 					break
@@ -233,6 +248,7 @@ func TestPhasorLargeSizes(t *testing.T) {
 			if twiddle128[0] != 1+0i {
 				t.Errorf("W_0 = %v, want 1+0i", twiddle128[0])
 			}
+
 			if twiddle128[n/2] != -1+0i {
 				t.Errorf("W_%d = %v, want -1+0i", n/2, twiddle128[n/2])
 			}
@@ -251,6 +267,7 @@ func formatSizePhasor(n int) string {
 	if n >= 1000 {
 		return formatIntPhasor(n/1000) + "k"
 	}
+
 	return formatIntPhasor(n)
 }
 
@@ -258,12 +275,15 @@ func formatIntPhasor(n int) string {
 	if n < 10 {
 		return string(rune('0' + n))
 	}
+
 	if n < 100 {
 		return string(rune('0'+n/10)) + string(rune('0'+n%10))
 	}
+
 	hundreds := n / 100
 	tens := (n % 100) / 10
 	ones := n % 10
+
 	return string(rune('0'+hundreds)) + string(rune('0'+tens)) + string(rune('0'+ones))
 }
 
@@ -275,14 +295,16 @@ func BenchmarkComputeTwiddleFactorsPhasor(b *testing.B) {
 	for _, size := range sizes {
 		b.Run("complex64/"+formatSizePhasor(size), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+
+			for range b.N {
 				_ = ComputeTwiddleFactorsPhasor[complex64](size)
 			}
 		})
 
 		b.Run("complex128/"+formatSizePhasor(size), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+
+			for range b.N {
 				_ = ComputeTwiddleFactorsPhasor[complex128](size)
 			}
 		})
@@ -295,14 +317,16 @@ func BenchmarkTwiddleDirectVsPhasor(b *testing.B) {
 	for _, size := range sizes {
 		b.Run("Direct/complex128/"+formatSizePhasor(size), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+
+			for range b.N {
 				_ = ComputeTwiddleFactors[complex128](size)
 			}
 		})
 
 		b.Run("Phasor/complex128/"+formatSizePhasor(size), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+
+			for range b.N {
 				_ = ComputeTwiddleFactorsPhasor[complex128](size)
 			}
 		})

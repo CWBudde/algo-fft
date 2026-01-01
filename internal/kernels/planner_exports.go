@@ -12,7 +12,7 @@ type CodeletFunc[T Complex] = planner.CodeletFunc[T]
 // SIMDLevel is a type alias from the planner package.
 type SIMDLevel = planner.SIMDLevel
 
-// SIMD level constants
+// SIMD level constants.
 const (
 	SIMDNone   = planner.SIMDNone
 	SIMDSSE2   = planner.SIMDSSE2
@@ -40,7 +40,7 @@ func GetRegistry[T Complex]() *CodeletRegistry[T] {
 	return planner.GetRegistry[T]()
 }
 
-// Global registries
+// Global registries.
 var (
 	Registry64  = planner.Registry64
 	Registry128 = planner.Registry128

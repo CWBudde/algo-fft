@@ -353,7 +353,7 @@ func sameSlice[T any](a, b []T) bool {
 	return &a[0] == &b[0]
 }
 
-// Public exports for internal/fft re-export
+// Public exports for internal/fft re-export.
 var (
 	ForwardStockhamComplex64  = forwardStockhamComplex64
 	InverseStockhamComplex64  = inverseStockhamComplex64
@@ -361,17 +361,17 @@ var (
 	InverseStockhamComplex128 = inverseStockhamComplex128
 )
 
-// SameSlice is exported for use by internal/fft
+// SameSlice is exported for use by internal/fft.
 func SameSlice[T any](a, b []T) bool {
 	return sameSlice(a, b)
 }
 
-// StockhamForward wraps the generic stockhamForward
+// StockhamForward wraps the generic stockhamForward.
 func StockhamForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	return stockhamForward(dst, src, twiddle, scratch, bitrev)
 }
 
-// StockhamInverse wraps stockhamInverseComplex64/128
+// StockhamInverse wraps stockhamInverseComplex64/128.
 func StockhamInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	var zero T
 	switch any(zero).(type) {
