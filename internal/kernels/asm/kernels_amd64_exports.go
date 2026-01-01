@@ -42,6 +42,14 @@ func InverseSSE2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []
 	return inverseSSE2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
+func ForwardSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return forwardSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func InverseSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return inverseSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
 func ForwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return forwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
@@ -160,14 +168,6 @@ func ForwardAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64
 
 func InverseAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return inverseAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
-}
-
-func ForwardAVX2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardAVX2Size4Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
-}
-
-func InverseAVX2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseAVX2Size4Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func ForwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {

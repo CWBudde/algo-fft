@@ -32,7 +32,16 @@ func registerSSE2DITCodelets64() {
 }
 
 // registerSSE2DITCodelets128 registers SSE2-optimized complex128 DIT codelets.
-// Currently no size-specific SSE2 implementations for complex128.
 func registerSSE2DITCodelets128() {
-	// No size-specific SSE2 codelets for complex128 yet
+	// Size 4: Radix-4 SSE2 variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       4,
+		Forward:    wrapCodelet128(forwardSSE2Size4Radix4Complex128Asm),
+		Inverse:    wrapCodelet128(inverseSSE2Size4Radix4Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDSSE2,
+		Signature:  "dit4_radix4_sse2",
+		Priority:   5, // Lower priority - scalar ops may not beat generic
+		BitrevFunc: nil,
+	})
 }
