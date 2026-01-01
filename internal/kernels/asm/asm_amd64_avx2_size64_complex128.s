@@ -1108,25 +1108,25 @@ r4_64_128_stage3_loop:
 	VSUBPD X6, X4, X2
 	VADDPD X9, X5, X3
 
-	// Store
+	// Store (order: idx0=j, idx2=j+32, idx1=j+16, idx3=j+48)
 	MOVQ DX, SI
 	SHLQ $4, SI
-	MOVUPD X0, (R8)(SI*1)
-
-	MOVQ DX, SI
-	ADDQ $16, SI
-	SHLQ $4, SI
-	MOVUPD X1, (R8)(SI*1)
+	MOVUPD X0, (R8)(SI*1)      // work[j] = y0
 
 	MOVQ DX, SI
 	ADDQ $32, SI
 	SHLQ $4, SI
-	MOVUPD X2, (R8)(SI*1)
+	MOVUPD X2, (R8)(SI*1)      // work[j+32] = y2
+
+	MOVQ DX, SI
+	ADDQ $16, SI
+	SHLQ $4, SI
+	MOVUPD X1, (R8)(SI*1)      // work[j+16] = y1
 
 	MOVQ DX, SI
 	ADDQ $48, SI
 	SHLQ $4, SI
-	MOVUPD X3, (R8)(SI*1)
+	MOVUPD X3, (R8)(SI*1)      // work[j+48] = y3
 
 	INCQ DX
 	JMP  r4_64_128_stage3_loop
@@ -1514,24 +1514,25 @@ r4_64_128_inv_stage3_loop:
 	VSUBPD X6, X4, X2
 	VADDPD X9, X5, X3
 
+	// Store (order: idx0=j, idx2=j+32, idx1=j+16, idx3=j+48)
 	MOVQ DX, SI
 	SHLQ $4, SI
-	MOVUPD X0, (R8)(SI*1)
-
-	MOVQ DX, SI
-	ADDQ $16, SI
-	SHLQ $4, SI
-	MOVUPD X1, (R8)(SI*1)
+	MOVUPD X0, (R8)(SI*1)      // work[j] = y0
 
 	MOVQ DX, SI
 	ADDQ $32, SI
 	SHLQ $4, SI
-	MOVUPD X2, (R8)(SI*1)
+	MOVUPD X2, (R8)(SI*1)      // work[j+32] = y2
+
+	MOVQ DX, SI
+	ADDQ $16, SI
+	SHLQ $4, SI
+	MOVUPD X1, (R8)(SI*1)      // work[j+16] = y1
 
 	MOVQ DX, SI
 	ADDQ $48, SI
 	SHLQ $4, SI
-	MOVUPD X3, (R8)(SI*1)
+	MOVUPD X3, (R8)(SI*1)      // work[j+48] = y3
 
 	INCQ DX
 	JMP  r4_64_128_inv_stage3_loop
