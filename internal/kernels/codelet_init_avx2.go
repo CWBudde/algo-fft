@@ -181,4 +181,52 @@ func registerAVX2DITCodelets128() {
 		Priority:   20,
 		BitrevFunc: ComputeBitReversalIndices,
 	})
+
+	// Size 64: Radix-2 AVX2 variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       64,
+		Forward:    wrapCodelet128(forwardAVX2Size64Radix2Complex128Asm),
+		Inverse:    wrapCodelet128(inverseAVX2Size64Radix2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit64_radix2_avx2",
+		Priority:   15,
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
+	// Size 64: Radix-4 AVX2 variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       64,
+		Forward:    wrapCodelet128(forwardAVX2Size64Radix4Complex128Asm),
+		Inverse:    wrapCodelet128(inverseAVX2Size64Radix4Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit64_radix4_avx2",
+		Priority:   25, // Prefer radix-4 for size 64
+		BitrevFunc: ComputeBitReversalIndicesRadix4,
+	})
+
+	// Size 128: Radix-2 AVX2 variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       128,
+		Forward:    wrapCodelet128(forwardAVX2Size128Radix2Complex128Asm),
+		Inverse:    wrapCodelet128(inverseAVX2Size128Radix2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit128_radix2_avx2",
+		Priority:   20,
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
+	// Size 256: Radix-2 AVX2 variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       256,
+		Forward:    wrapCodelet128(forwardAVX2Size256Radix2Complex128Asm),
+		Inverse:    wrapCodelet128(inverseAVX2Size256Radix2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit256_radix2_avx2",
+		Priority:   20,
+		BitrevFunc: ComputeBitReversalIndices,
+	})
 }

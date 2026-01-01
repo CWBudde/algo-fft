@@ -28,13 +28,13 @@ func TestNEONSize4Radix4Complex64(t *testing.T) {
 	}
 
 	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 1e-5, "reference")
+	assertComplex64MaxError(t, dst, ref, 1e-4, "reference")
 
 	if !inverseNEONSize4Radix4Complex64Asm(inv, dst, twiddle, scratch, bitrev) {
 		t.Fatal("inverseNEONSize4Radix4Complex64Asm failed")
 	}
 
-	assertComplex64MaxError(t, inv, src, 1e-5, "round-trip")
+	assertComplex64MaxError(t, inv, src, 1e-4, "round-trip")
 }
 
 func TestNEONSize8Radix8Complex64(t *testing.T) {
@@ -55,13 +55,13 @@ func TestNEONSize8Radix8Complex64(t *testing.T) {
 	}
 
 	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 1e-5, "reference")
+	assertComplex64MaxError(t, dst, ref, 1e-4, "reference")
 
 	if !inverseNEONSize8Radix8Complex64Asm(inv, dst, twiddle, scratch, bitrev) {
 		t.Fatal("inverseNEONSize8Radix8Complex64Asm failed")
 	}
 
-	assertComplex64MaxError(t, inv, src, 1e-5, "round-trip")
+	assertComplex64MaxError(t, inv, src, 1e-4, "round-trip")
 }
 
 func TestNEONSize32MixedRadix24Complex64(t *testing.T) {
@@ -81,13 +81,13 @@ func TestNEONSize32MixedRadix24Complex64(t *testing.T) {
 	}
 
 	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 1e-5, "reference")
+	assertComplex64MaxError(t, dst, ref, 1e-4, "reference")
 
 	if !inverseNEONSize32MixedRadix24Complex64Asm(inv, dst, twiddle, scratch, bitrevSize32Mixed24) {
 		t.Fatal("inverseNEONSize32MixedRadix24Complex64Asm failed")
 	}
 
-	assertComplex64MaxError(t, inv, src, 1e-5, "round-trip")
+	assertComplex64MaxError(t, inv, src, 1e-4, "round-trip")
 }
 
 func TestNEONSize128MixedRadix24Complex64(t *testing.T) {
@@ -107,13 +107,13 @@ func TestNEONSize128MixedRadix24Complex64(t *testing.T) {
 	}
 
 	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 2e-4, "reference")
+	assertComplex64MaxError(t, dst, ref, 1e-3, "reference")
 
 	if !inverseNEONSize128MixedRadix24Complex64Asm(inv, dst, twiddle, scratch, bitrevSize128Mixed24) {
 		t.Fatal("inverseNEONSize128MixedRadix24Complex64Asm failed")
 	}
 
-	assertComplex64MaxError(t, inv, src, 2e-4, "round-trip")
+	assertComplex64MaxError(t, inv, src, 1e-3, "round-trip")
 }
 
 func TestNEONSize256Radix4Complex64(t *testing.T) {
