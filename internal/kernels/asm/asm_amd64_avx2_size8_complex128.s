@@ -617,8 +617,8 @@ TEXT ·inverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	VADDPD X2, X3, X11
 	VSUBPD X2, X3, X15
 
-	// Apply 1/8 scaling
-	MOVQ $0x3fc0000000000000, AX // 0.125
+	// Apply 1/8 scaling for inverse FFT
+	MOVQ $0x3fc0000000000000, AX  // 0.125 = 1/8
 	VMOVQ AX, X0
 	VMOVDDUP X0, X0
 	VMULPD X0, X8, X8
