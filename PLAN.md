@@ -174,6 +174,56 @@ For 8192 = 2 × 4⁶, uses same algorithm structure as sizes 512 and 2048:
 
 **Goal**: AVX2 acceleration for all sizes up to 16K.
 
+#### 14.2.0 Size-Specific Dispatch Infrastructure ⚠️ IN PROGRESS
+
+**Status**: Partially implemented, needs completion
+**Design Doc**: `docs/plans/2025-01-27-avx2-size-specific-dispatch-design.md` (to be deleted after integration)
+
+**Goal**: Build a size-specific dispatch mechanism that routes FFT transforms to optimized kernels based on transform size, with graceful fallback chains.
+
+**Architecture**:
+
+```text
+User → Plan.Forward/Inverse → selectKernelsComplex64
+  → avx2SizeSpecificOrGenericComplex64 (NEW wrapper)
+    → Size-specific AVX2 (16, 32, 64, 128, 512, 1024, etc.)
+      → Generic AVX2 (fallback)
+        → Pure-Go DIT (final fallback)
+```
+
+**Files**:
+
+- `internal/kernels/asm/amd64/dispatch.go` ✅ (partially implemented, needs `avx2SizeSpecificOrGenericComplex64`)
+- `internal/kernels/asm/amd64/size_specific.go` ❌ (needs creation)
+- `internal/kernels/asm/amd64/decl.go` ⚠️ (needs size-specific function declarations)
+
+**Tasks**:
+
+- [ ] Create `size_specific.go` with wrapper functions:
+  - [ ] `avx2SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex64]`
+  - [ ] `avx2SizeSpecificOrGenericComplex128(strategy KernelStrategy) Kernels[complex128]`
+- [ ] Implement size-dispatch logic with switch on `len(src)`:
+  - For sizes 16, 32, 64, 128: try size-specific, fallback to generic AVX2
+  - For sizes 512, 1024, 2048, 4096, 8192, 16384: try size-specific, fallback to generic AVX2
+  - For other sizes: use generic AVX2 directly
+- [ ] Add assembly stub declarations in `decl.go` (initially return false to enable fallback)
+- [ ] Update `dispatch.go` integration (already references the functions ✅)
+- [ ] Add tests verifying dispatch routes correctly
+- [ ] Document fallback chain behavior
+
+**Current State**:
+
+- ✅ `dispatch.go` calls `avx2SizeSpecificOrGenericComplex64()`
+- ❌ Function not implemented (build fails with "undefined")
+- ⚠️ Some size-specific kernels exist (size 4, 16, 64, 256) but not integrated into dispatch
+
+**Success Criteria**:
+
+- [ ] Code compiles with `-tags=fft_asm,asm_dispatch`
+- [ ] All existing tests pass with dispatch mechanism
+- [ ] Benchmarks show no performance regression vs current direct calls
+- [ ] Size-specific kernels can be added incrementally without breaking builds
+
 #### 14.2.1 Size 512 - AVX2 Mixed-Radix-2/4
 
 **File**: `internal/kernels/asm/amd64/avx2_size512_mixed24.s`
