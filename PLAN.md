@@ -176,20 +176,20 @@ For 8192 = 2 × 4⁶, uses same algorithm structure as sizes 512 and 2048:
 
 #### 14.2.1 Size 512 - AVX2 Mixed-Radix-2/4
 
-**File**: `internal/kernels/asm/asm_amd64_avx2_size512_mixed24.s`
+**File**: `internal/kernels/asm/amd64/avx2_size512_mixed24.s`
 
 - [ ] Implement `forwardAVX2Size512Mixed24Complex64Asm`
   - Stage 1: 256 radix-2 butterflies (AVX2 vectorized)
   - Stages 2-5: Radix-4 stages (reuse patterns from size-64/256)
 - [ ] Implement `inverseAVX2Size512Mixed24Complex64Asm`
-- [ ] Add declarations in `kernels_amd64_asm.go`
+- [ ] Add declarations in `amd64/dispatch.go`
 - [ ] Register in `codelet_init_avx2.go` with priority 25
 - [ ] Test correctness vs pure-Go
 - [ ] Benchmark (expect 1.8-2.2x over Go)
 
 #### 14.2.2 Size 1024 - AVX2 Pure Radix-4
 
-**File**: `internal/kernels/asm/asm_amd64_avx2_size1024_radix4.s`
+**File**: `internal/kernels/asm/amd64/avx2_size1024_radix4.s`
 
 - [ ] Implement `forwardAVX2Size1024Radix4Complex64Asm`
   - 5 fully unrolled radix-4 stages
@@ -200,7 +200,7 @@ For 8192 = 2 × 4⁶, uses same algorithm structure as sizes 512 and 2048:
 
 #### 14.2.3 Size 2048 - AVX2 Mixed-Radix-2/4
 
-**File**: `internal/kernels/asm/asm_amd64_avx2_size2048_mixed24.s`
+**File**: `internal/kernels/asm/amd64/avx2_size2048_mixed24.s`
 
 - [ ] Implement `forwardAVX2Size2048Mixed24Complex64Asm`
   - 1 radix-2 stage + 5 radix-4 stages
@@ -210,7 +210,7 @@ For 8192 = 2 × 4⁶, uses same algorithm structure as sizes 512 and 2048:
 
 #### 14.2.4 Size 4096 - AVX2 Pure Radix-4
 
-**File**: `internal/kernels/asm/asm_amd64_avx2_size4096_radix4.s`
+**File**: `internal/kernels/asm/amd64/avx2_size4096_radix4.s`
 
 - [ ] Implement `forwardAVX2Size4096Radix4Complex64Asm`
   - 6 radix-4 stages
@@ -220,7 +220,7 @@ For 8192 = 2 × 4⁶, uses same algorithm structure as sizes 512 and 2048:
 
 #### 14.2.5 Size 8192 - AVX2 Mixed-Radix-2/4
 
-**File**: `internal/kernels/asm/asm_amd64_avx2_size8192_mixed24.s`
+**File**: `internal/kernels/asm/amd64/avx2_size8192_mixed24.s`
 
 - [ ] Implement `forwardAVX2Size8192Mixed24Complex64Asm`
   - 1 radix-2 stage + 6 radix-4 stages
@@ -230,7 +230,7 @@ For 8192 = 2 × 4⁶, uses same algorithm structure as sizes 512 and 2048:
 
 #### 14.2.6 Size 16384 - AVX2 Pure Radix-4
 
-**File**: `internal/kernels/asm/asm_amd64_avx2_size16384_radix4.s`
+**File**: `internal/kernels/asm/amd64/avx2_size16384_radix4.s`
 
 - [ ] Implement `forwardAVX2Size16384Radix4Complex64Asm`
   - 7 radix-4 stages
@@ -287,7 +287,7 @@ For 8192 = 2 × 4⁶, uses same algorithm structure as sizes 512 and 2048:
 **Status**: Compiles ✅, segfault fixed ✅, **produces wrong results** ⚠️
 **Priority**: HIGH (blocks Stockham AVX2 usage)
 
-**Location**: `internal/kernels/asm/asm_amd64.s`
+**Location**: `internal/kernels/asm/amd64/` (AVX2 assembly files)
 
 - [ ] Debug why Stockham transforms differ from pure-Go
   - [ ] Add debug logging to identify which stage diverges

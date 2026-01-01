@@ -1,6 +1,6 @@
 //go:build amd64 && fft_asm && !purego
 
-package asm
+package amd64
 
 func ForwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)

@@ -3,7 +3,7 @@
 package fft
 
 import (
-	kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm"
+	kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm/amd64"
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 

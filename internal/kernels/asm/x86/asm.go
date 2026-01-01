@@ -1,6 +1,6 @@
 //go:build 386 && fft_asm && !purego && asm_dispatch
 
-package asm
+package x86
 
 import "github.com/MeKo-Christian/algo-fft/internal/cpu"
 
