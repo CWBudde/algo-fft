@@ -145,6 +145,19 @@ func registerAVX2DITCodelets128() {
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
+	// Size 8: Radix-4 (Mixed-radix) AVX2 variant
+	// Uses 1 radix-4 stage + 1 radix-2 stage (2 stages total)
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       8,
+		Forward:    wrapCodelet128(forwardAVX2Size8Radix4Complex128Asm),
+		Inverse:    wrapCodelet128(inverseAVX2Size8Radix4Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit8_radix4_avx2",
+		Priority:   11, // Above radix-2 AVX2, below Go radix-8
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
 	// Size 16: Radix-2 AVX2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16,
