@@ -12,10 +12,6 @@ func inverseNEONComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []in
 	return kasm.InverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
-func neonComplexMul2Asm(dst, a, b *complex64) {
-	kasm.NeonComplexMul2Asm(dst, a, b)
-}
-
 func forwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	return kasm.ForwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
 }

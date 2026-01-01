@@ -1,5 +1,7 @@
 package algofft
 
+import "github.com/MeKo-Christian/algo-fft/internal/fft"
+
 // Convolve computes the linear convolution of a and b using FFTs.
 // The dst slice must have length len(a)+len(b)-1.
 //
@@ -42,9 +44,7 @@ func Convolve(dst, a, b []complex64) error {
 		return err
 	}
 
-	for i := range aFreq {
-		aFreq[i] *= bFreq[i]
-	}
+	fft.ComplexMulArrayInPlaceComplex64(aFreq, bFreq)
 
 	time := make([]complex64, convLen)
 
@@ -100,9 +100,7 @@ func Convolve128(dst, a, b []complex128) error {
 		return err
 	}
 
-	for i := range aFreq {
-		aFreq[i] *= bFreq[i]
-	}
+	fft.ComplexMulArrayInPlaceComplex128(aFreq, bFreq)
 
 	time := make([]complex128, convLen)
 

@@ -11,9 +11,6 @@ func ForwardNEONComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []in
 func InverseNEONComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func NeonComplexMul2Asm(dst, a, b *complex64)
-
-//go:noescape
 func ForwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
 //go:noescape
