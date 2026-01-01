@@ -1,6 +1,6 @@
 //go:build arm64 && fft_asm && !purego
 
-package asm
+package arm64
 
 // NOTE: These are Go declarations for ARM64 assembly routines implemented in the *.s files in this directory.
 

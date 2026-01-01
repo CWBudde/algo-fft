@@ -19,7 +19,7 @@
 
 **Files:**
 
-- Create: `internal/kernels/asm/asm_amd64_sse2_size64_radix4.s`
+- Create: `internal/kernels/asm/amd64/sse2_size64_radix4.s`
 
 **Step 1: Write the assembly file with forward transform**
 
@@ -445,7 +445,7 @@ Expected: No assembly errors, successful build
 
 **Files:**
 
-- Modify: `internal/kernels/asm/asm_amd64_sse2_size64_radix4.s` (append)
+- Modify: `internal/kernels/asm/amd64/sse2_size64_radix4.s` (append)
 
 **Step 1: Add inverse transform to assembly file**
 
@@ -869,7 +869,7 @@ Expected: Both forward and inverse assemble successfully
 
 **Files:**
 
-- Modify: `internal/kernels/asm/asm_amd64_decl.go`
+- Modify: `internal/kernels/asm/amd64/decl.go`
 
 **Step 1: Add declarations for SSE2 size-64 kernels**
 
@@ -898,7 +898,7 @@ Expected: Build succeeds with no declaration errors
 
 **Files:**
 
-- Modify: `internal/kernels/asm/kernels_amd64_exports.go`
+- Modify: `internal/kernels/asm/amd64/exports.go`
 
 **Step 1: Add export wrappers**
 
@@ -1256,9 +1256,9 @@ Expected: No panics, benchmarks show SSE2 as viable alternative to AVX2
 **Step 1: Stage all changes**
 
 ```bash
-git add internal/kernels/asm/asm_amd64_sse2_size64_radix4.s \
-        internal/kernels/asm/asm_amd64_decl.go \
-        internal/kernels/asm/kernels_amd64_exports.go \
+git add internal/kernels/asm/amd64/sse2_size64_radix4.s \
+        internal/kernels/asm/amd64/decl.go \
+        internal/kernels/asm/amd64/exports.go \
         internal/kernels/codelet_init_sse2.go \
         internal/kernels/sse2_size64_test.go \
         docs/IMPLEMENTATION_INVENTORY.md

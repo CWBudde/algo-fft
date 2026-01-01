@@ -1,6 +1,6 @@
 //go:build amd64 && fft_asm && !purego && asm_dispatch
 
-package asm
+package amd64
 
 func forwardAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	// Try AVX2 assembly kernel (requires n >= 16, power of 2)

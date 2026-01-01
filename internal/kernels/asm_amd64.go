@@ -2,7 +2,7 @@
 
 package kernels
 
-import kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm"
+import kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm/amd64"
 
 func forwardAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return forwardDIT4Radix4Complex64(dst, src, twiddle, scratch, bitrev)

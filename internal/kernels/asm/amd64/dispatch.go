@@ -1,6 +1,6 @@
 //go:build amd64 && fft_asm && !purego && asm_dispatch
 
-package asm
+package amd64
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"

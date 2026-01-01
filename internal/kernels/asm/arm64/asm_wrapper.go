@@ -1,6 +1,6 @@
 //go:build arm64 && fft_asm && !purego
 
-package asm
+package arm64
 
 func ForwardNEONComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)

@@ -2,7 +2,7 @@
 
 package kernels
 
-import kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm"
+import kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm/arm64"
 
 // ---- complex64 NEON size-specific wrappers ----
 
