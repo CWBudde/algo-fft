@@ -34,7 +34,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 | Size  | Algorithm | Go  | AVX2 | SSE2 | NEON |
 | ----- | --------- | --- | ---- | ---- | ---- |
-| 4     | Radix-4   | ✓   | ✓    | -    | -    |
+| 4     | Radix-4   | ✓   | ✓    | ✓    | -    |
 | 8     | Radix-2   | ✓   | ✓    | -    | -    |
 | 8     | Radix-8   | ✓   | ✓    | -    | -    |
 | 8     | Mixed¹    | ✓   | -    | -    | -    |
@@ -76,12 +76,14 @@ This document provides a comprehensive overview of all specialized FFT implement
 | complex64  | radix-4   | NEON | Asm    | ✓      | `asm_arm64_neon_size4_radix4.s` |
 | complex128 | radix-4   | none | Go     | ✓      | `dit_size4.go`                  |
 | complex128 | radix-4   | AVX2 | Asm    | ✓      | `asm_amd64_avx2_size4_complex128.s` |
+| complex128 | radix-4   | SSE2 | Asm    | ✓      | `asm_amd64_sse2_size4_complex128.s` |
 | complex128 | radix-4   | NEON | Wrap   | ✓      | `asm_arm64.go`                  |
 
 **Notes:**
 
 - No bit-reversal needed (size is power of 4)
 - AVX2 uses scalar-style SIMD pattern (complex64 and complex128 have assembly)
+- SSE2 complex128 uses a scalar-style radix-4 kernel for size 4
 - NEON complex128 implementation wraps pure Go implementation
 
 ### Size 8
