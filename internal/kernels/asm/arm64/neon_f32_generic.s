@@ -48,7 +48,7 @@
 //   bitrev_base+96(FP), bitrev_len+104(FP), bitrev_cap+112(FP)
 //   return: bool (R0)
 //
-TEXT ·forwardNEONComplex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONComplex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -435,7 +435,7 @@ return_false:
 // ===========================================================================
 // inverseNEONComplex64Asm - Inverse FFT for complex64 using NEON
 // ===========================================================================
-TEXT ·inverseNEONComplex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONComplex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------

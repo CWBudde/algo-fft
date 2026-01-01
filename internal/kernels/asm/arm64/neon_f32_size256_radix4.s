@@ -18,7 +18,7 @@ DATA ·neonInv256Radix4+0(SB)/4, $0x3b800000 // 1/256
 GLOBL ·neonInv256Radix4(SB), RODATA, $4
 
 // Forward transform, size 256, complex64, radix-4 variant
-TEXT ·forwardNEONSize256Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize256Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
@@ -572,7 +572,7 @@ neon256r4_return_false:
 	RET
 
 // Inverse transform, size 256, complex64, radix-4 variant
-TEXT ·inverseNEONSize256Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize256Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9

@@ -33,7 +33,7 @@
 
 #include "textflag.h"
 
-TEXT ·forwardNEONComplex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONComplex128Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -232,7 +232,7 @@ f128_return_false:
 // inverseNEONComplex128Asm - Inverse FFT for complex128 using NEON
 // ===========================================================================
 
-TEXT ·inverseNEONComplex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONComplex128Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------

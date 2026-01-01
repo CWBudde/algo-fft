@@ -7,7 +7,7 @@
 #include "textflag.h"
 
 // Forward transform, size 128, mixed radix (radix-4, radix-4, radix-4, radix-2).
-TEXT ·forwardNEONSize128MixedRadix24Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize128MixedRadix24Complex64Asm(SB), NOSPLIT, $0-121
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
@@ -464,7 +464,7 @@ neon128m24_return_false:
 	RET
 
 // Inverse transform, size 128, mixed radix (radix-4, radix-4, radix-4, radix-2).
-TEXT ·inverseNEONSize128MixedRadix24Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize128MixedRadix24Complex64Asm(SB), NOSPLIT, $0-121
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10

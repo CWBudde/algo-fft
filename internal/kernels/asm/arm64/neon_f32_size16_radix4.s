@@ -16,7 +16,7 @@ DATA ·neonInv16+0(SB)/4, $0x3d800000 // 1/16
 GLOBL ·neonInv16(SB), RODATA, $4
 
 // Forward transform, size 16, complex64, radix-4 variant
-TEXT ·forwardNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVD dst+0(FP), R8           // R8  = dst pointer
 	MOVD src+24(FP), R9          // R9  = src pointer
@@ -324,7 +324,7 @@ neon16r4_return_false:
 	RET
 
 // Inverse transform, size 16, complex64, radix-4 variant
-TEXT ·inverseNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
