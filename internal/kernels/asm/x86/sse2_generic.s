@@ -12,7 +12,7 @@
 #include "textflag.h"
 
 // func forwardSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-TEXT ·forwardSSE2Complex64Asm(SB), NOSPLIT, $36-61
+TEXT ·ForwardSSE2Complex64Asm(SB), NOSPLIT, $36-61
 	// ----------------------------------------------------------------
 	// Load parameters and validate inputs
 	// ----------------------------------------------------------------
@@ -298,7 +298,7 @@ sse2_return_false:
 	RET
 
 // func inverseSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-TEXT ·inverseSSE2Complex64Asm(SB), NOSPLIT, $36-61
+TEXT ·InverseSSE2Complex64Asm(SB), NOSPLIT, $36-61
 	// ----------------------------------------------------------------
 	// Load parameters and validate inputs
 	// ----------------------------------------------------------------

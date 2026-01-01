@@ -2,14 +2,13 @@
 
 package fft
 
-// Assembly constants (defined in asm_386.s)
-var (
-	half32 float32 // 0.5f for scaling
-	one32  float32 // 1.0f for scaling
-)
+import kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm/x86"
 
-//go:noescape
-func forwardSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+// Wrapper functions that call the x86 assembly implementations
+func forwardSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.ForwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
 
-//go:noescape
-func inverseSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func inverseSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.InverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}

@@ -1,4 +1,4 @@
-//go:build amd64 && fft_asm && \!purego
+//go:build amd64 && fft_asm && !purego
 
 // ===========================================================================
 // AVX2 Size-16 Radix-4 FFT Kernels for AMD64 (complex128)

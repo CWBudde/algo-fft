@@ -7,7 +7,7 @@
 #include "textflag.h"
 
 // Forward transform, size 8, radix-8 (no bit-reversal needed).
-TEXT ·forwardNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
@@ -193,7 +193,7 @@ neon8r8_return_false:
 	RET
 
 // Inverse transform, size 8, radix-8 (no bit-reversal needed).
-TEXT ·inverseNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
