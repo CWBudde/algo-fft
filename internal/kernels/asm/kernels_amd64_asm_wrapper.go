@@ -21,10 +21,16 @@ func inverseAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev
 }
 
 func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	if len(src) == 4 {
+		return forwardSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	}
 	return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	if len(src) == 4 {
+		return inverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	}
 	return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 

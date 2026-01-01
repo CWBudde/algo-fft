@@ -40,6 +40,14 @@ func forwardSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128
 //go:noescape
 func inverseSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
+// Size-specific SSE2 kernels (complex64, size 4)
+//
+//go:noescape
+func forwardSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
+func inverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
 // Size-specific SSE2 kernels (forward, complex64)
 //
 //go:noescape

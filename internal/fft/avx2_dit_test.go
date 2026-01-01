@@ -22,6 +22,7 @@ func TestAVX2DITForwardComplex64(t *testing.T) {
 		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix2Complex64Asm},
 		// Size 8 is not a pure radix-4 length, so radix-4 bitrev is invalid.
 		{"Size8/Radix4", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix4Complex64Asm},
+		{"Size8/Radix8", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix8Complex64Asm},
 		{"Size16/Radix2", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex64Asm},
 		{"Size16/Radix4", 16, ComputeBitReversalIndicesRadix4, forwardAVX2Size16Radix4Complex64Asm},
 		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex64Asm},
@@ -68,6 +69,7 @@ func TestAVX2DITInverseComplex64(t *testing.T) {
 		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix2Complex64Asm, inverseAVX2Size8Radix2Complex64Asm},
 		// Size 8 is not a pure radix-4 length, so radix-4 bitrev is invalid.
 		{"Size8/Radix4", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix4Complex64Asm, inverseAVX2Size8Radix4Complex64Asm},
+		{"Size8/Radix8", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix8Complex64Asm, inverseAVX2Size8Radix8Complex64Asm},
 		{"Size16/Radix2", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex64Asm, inverseAVX2Size16Complex64Asm},
 		{"Size16/Radix4", 16, ComputeBitReversalIndicesRadix4, forwardAVX2Size16Radix4Complex64Asm, inverseAVX2Size16Radix4Complex64Asm},
 		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex64Asm, inverseAVX2Size32Complex64Asm},
@@ -204,6 +206,7 @@ func BenchmarkAVX2DITComplex64(b *testing.B) {
 		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix2Complex64Asm},
 		// Size 8 is not a pure radix-4 length, so radix-4 bitrev is invalid.
 		{"Size8/Radix4", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix4Complex64Asm},
+		{"Size8/Radix8", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix8Complex64Asm},
 		{"Size16/Radix2", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex64Asm},
 		{"Size16/Radix4", 16, ComputeBitReversalIndicesRadix4, forwardAVX2Size16Radix4Complex64Asm},
 		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex64Asm},

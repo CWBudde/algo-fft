@@ -25,17 +25,17 @@
 
 ### Current Implementation Status
 
-Based on `docs/IMPLEMENTATION_INVENTORY.md`:
+Based on `docs/IMPLEMENTATION_INVENTORY.md` (updated 2026-01-01):
 
 | Size  | Go complex64 | AVX2 complex64 | Go complex128 | AVX2 complex128 |
 | ----- | ------------ | -------------- | ------------- | --------------- |
-| 4     | ✅ radix-4   | ✅ radix-4     | ✅ radix-4    | ❌              |
-| 8     | ✅ r2/r8/mix | ✅ r2/r8/mix¹  | ✅ r2/r8/mix  | ✅ radix-2      |
+| 4     | ✅ radix-4   | ✅ radix-4     | ✅ radix-4    | ✅ radix-4      |
+| 8     | ✅ r2/r8/mix | ✅ r2/r8/mix¹  | ✅ r2/r8/mix  | ✅ r2/mix       |
 | 16    | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ✅ r2/r4        |
 | 32    | ✅ r2/mix24  | ✅ r2/mix24    | ✅ r2/mix24   | ✅ r2/mix24     |
-| 64    | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ❌              |
-| 128   | ✅ r2/mix24  | ✅ r2/mix24    | ✅ r2/mix24   | ❌ (Go wrap)    |
-| 256   | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ❌              |
+| 64    | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ✅ r2/r4        |
+| 128   | ✅ r2/mix24  | ✅ r2/mix24    | ✅ r2/mix24   | ✅ r2/mix24     |
+| 256   | ✅ r2/r4     | ✅ r2/r4       | ✅ r2/r4      | ✅ radix-2      |
 | 512   | ✅ mix24     | ❌ generic     | ✅ mix24      | ❌              |
 | 1024  | ✅ radix-4   | ❌ generic     | ✅ radix-4    | ❌              |
 | 2048  | ✅ mix24     | ❌ generic     | ✅ mix24      | ❌              |
@@ -306,63 +306,65 @@ go test -tags=fft_asm -v -run TestAVX2MatchesPureGo ./internal/fft/
 
 ---
 
-### 14.5 Pure Go Size-Specific Kernels (complex128)
+### 14.5 Pure Go Size-Specific Kernels (complex128) ✅ COMPLETE
 
 **Goal**: Match complex64 coverage for complex128.
-**Priority**: After complex64 is complete.
+**Status**: All sizes 512-16384 implemented (2024-12-31)
 
-#### 14.5.1 Size 512 - Mixed-Radix-2/4
+#### 14.5.1 Size 512 - Mixed-Radix-2/4 ✅
 
-- [ ] Implement `forwardDIT512Mixed24Complex128()`
-- [ ] Implement `inverseDIT512Mixed24Complex128()`
-- [ ] Test and benchmark
+- [x] Implement `forwardDIT512Mixed24Complex128()` ✅
+- [x] Implement `inverseDIT512Mixed24Complex128()` ✅
+- [x] Test and benchmark ✅
 
-#### 14.5.2 Size 1024 - Pure Radix-4
+#### 14.5.2 Size 1024 - Pure Radix-4 ✅
 
-- [ ] Implement `forwardDIT1024Radix4Complex128()`
-- [ ] Implement `inverseDIT1024Radix4Complex128()`
-- [ ] Test and benchmark
+- [x] Implement `forwardDIT1024Radix4Complex128()` ✅
+- [x] Implement `inverseDIT1024Radix4Complex128()` ✅
+- [x] Test and benchmark ✅
 
-#### 14.5.3 Size 2048 - Mixed-Radix-2/4
+#### 14.5.3 Size 2048 - Mixed-Radix-2/4 ✅
 
-- [ ] Implement `forwardMixedRadix24Complex128()` in `dit_mixedradix24.go`
-- [ ] Implement `inverseMixedRadix24Complex128()`
-- [ ] Update dispatch for complex128
-- [ ] Test and benchmark
+- [x] Implement `forwardDIT2048Mixed24Complex128()` ✅
+- [x] Implement `inverseDIT2048Mixed24Complex128()` ✅
+- [x] Test and benchmark ✅
 
-#### 14.5.4 Size 4096 - Pure Radix-4
+#### 14.5.4 Size 4096 - Pure Radix-4 ✅
 
-- [ ] Implement `forwardDIT4096Radix4Complex128()`
-- [ ] Implement `inverseDIT4096Radix4Complex128()`
-- [ ] Test and benchmark
+- [x] Implement `forwardDIT4096Radix4Complex128()` ✅
+- [x] Implement `inverseDIT4096Radix4Complex128()` ✅
+- [x] Test and benchmark ✅
 
-#### 14.5.5 Size 8192 - Mixed-Radix-2/4
+#### 14.5.5 Size 8192 - Mixed-Radix-2/4 ✅
 
-- [ ] Ensure complex128 support in `dit_mixedradix24.go`
-- [ ] Test and benchmark
+- [x] Implement `forwardDIT8192Mixed24Complex128()` ✅
+- [x] Implement `inverseDIT8192Mixed24Complex128()` ✅
+- [x] Test and benchmark ✅
 
-#### 14.5.6 Size 16384 - Pure Radix-4
+#### 14.5.6 Size 16384 - Pure Radix-4 ✅
 
-- [ ] Implement `forwardDIT16384Radix4Complex128()`
-- [ ] Implement `inverseDIT16384Radix4Complex128()`
-- [ ] Test and benchmark
+- [x] Implement `forwardDIT16384Radix4Complex128()` ✅
+- [x] Implement `inverseDIT16384Radix4Complex128()` ✅
+- [x] Test and benchmark ✅
 
 ---
 
 ### 14.6 AVX2 Assembly (complex128)
 
 **Goal**: AVX2 acceleration for complex128 (2 values per YMM register).
-**Priority**: After complex64 AVX2 is complete.
+**Status**: Small sizes (4-256) complete, large sizes pending
 
-#### 14.6.1 Complete Small Sizes
+#### 14.6.1 Complete Small Sizes ✅ COMPLETE
 
-**Current gaps**: Sizes 4, 64, 128, 256 missing complex128 AVX2
+**Implementation (2026-01-01)**:
 
-- [ ] Size 4: Create `asm_amd64_avx2_size4_complex128.s`
-- [ ] Size 64: Create `asm_amd64_avx2_size64_complex128.s` (radix-2 and radix-4)
-- [ ] Size 128: Create `asm_amd64_avx2_size128_complex128.s`
-- [ ] Size 256: Create `asm_amd64_avx2_size256_complex128.s`
-- [ ] Register all in `codelet_init_avx2.go`
+- [x] Size 4: `asm_amd64_avx2_size4_complex128.s` (radix-4) ✅
+- [x] Size 8: `asm_amd64_avx2_size8_complex128.s` (radix-2, mixed-radix) ✅
+- [x] Size 64: `asm_amd64_avx2_size64_complex128.s` (radix-2 and radix-4) ✅
+- [x] Size 128: `asm_amd64_avx2_size128_complex128.s` (radix-2) ✅
+- [x] Size 256: `asm_amd64_avx2_size256_complex128.s` (radix-2) ✅
+- [x] Register all in `codelet_init_avx2.go` ✅
+- [x] All 1D kernel tests passing ✅
 
 #### 14.6.2 Large Sizes (512-16384)
 

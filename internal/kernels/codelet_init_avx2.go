@@ -19,8 +19,17 @@ func registerAVX2DITCodelets64() {
 		BitrevFunc: nil,
 	})
 
-	// Size 8: AVX2 variants are currently slower than the Go radix-8 codelet,
-	// so we skip registration until tuned.
+	// Size 8: Radix-8 AVX2 variant (single-stage butterfly)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       8,
+		Forward:    wrapCodelet64(forwardAVX2Size8Radix8Complex64Asm),
+		Inverse:    wrapCodelet64(inverseAVX2Size8Radix8Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit8_radix8_avx2",
+		Priority:   9, // Keep below Go radix-8 unless proven faster
+		BitrevFunc: ComputeBitReversalIndices,
+	})
 
 	// Size 16: Radix-2 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{

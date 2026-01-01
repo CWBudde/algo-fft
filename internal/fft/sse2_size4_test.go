@@ -33,3 +33,29 @@ func TestSSE2Size4Radix4Complex128(t *testing.T) {
 	wantInv := reference.NaiveIDFT128(fwd)
 	assertComplex128SliceClose(t, dst, wantInv, n)
 }
+
+func TestSSE2Size4Radix4Complex64(t *testing.T) {
+	t.Parallel()
+
+	const n = 4
+	src := randomComplex64(n, 0xFEED)
+	fwd := make([]complex64, n)
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	if !forwardSSE2Size4Radix4Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("forwardSSE2Size4Radix4Complex64Asm failed")
+	}
+
+	if !inverseSSE2Size4Radix4Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("inverseSSE2Size4Radix4Complex64Asm failed")
+	}
+
+	wantFwd := reference.NaiveDFT(src)
+	assertComplex64SliceClose(t, fwd, wantFwd, n)
+
+	wantInv := reference.NaiveIDFT(fwd)
+	assertComplex64SliceClose(t, dst, wantInv, n)
+}
