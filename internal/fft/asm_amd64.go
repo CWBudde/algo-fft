@@ -2,7 +2,10 @@
 
 package fft
 
-import kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm"
+import (
+	kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm"
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
+)
 
 func forwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return kasm.ForwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
@@ -241,17 +244,45 @@ func inverseAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 }
 
 func forwardAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	if !m.IsPowerOf2(len(src)) {
+		return false
+	}
 	return forwardStockhamComplex128(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	if !m.IsPowerOf2(len(src)) {
+		return false
+	}
 	return inverseStockhamComplex128(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardSSE2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	if !m.IsPowerOf2(len(src)) {
+		return false
+	}
+
+	switch resolveKernelStrategy(len(src), KernelAuto) {
+	case KernelDIT:
+		return forwardDITComplex128(dst, src, twiddle, scratch, bitrev)
+	case KernelStockham:
+		return forwardStockhamComplex128(dst, src, twiddle, scratch, bitrev)
+	default:
+		return false
+	}
 }
 
 func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseSSE2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	if !m.IsPowerOf2(len(src)) {
+		return false
+	}
+
+	switch resolveKernelStrategy(len(src), KernelAuto) {
+	case KernelDIT:
+		return inverseDITComplex128(dst, src, twiddle, scratch, bitrev)
+	case KernelStockham:
+		return inverseStockhamComplex128(dst, src, twiddle, scratch, bitrev)
+	default:
+		return false
+	}
 }

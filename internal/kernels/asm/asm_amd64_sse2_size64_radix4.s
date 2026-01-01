@@ -91,23 +91,17 @@ size64_r4_sse2_stage1_loop:
 	MOVAPS X1, X7
 	SUBPS X3, X7       // t3 = a1 - a3
 
-	// (-i)*t3: swap real/imag and negate real
-	SHUFPS $0xB1, X7, X7   // swap re/im
-	XORPS X9, X9
+	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X8
-	SUBPS X8, X9           // negate
-	SHUFPS $0x44, X8, X9   // blend: keep negated real, original imag
-	SHUFPS $0x0E, X8, X9   // final blend for (-i)*t3
-	MOVAPS X9, X8          // X8 = (-i)*t3
+	SHUFPS $0xB1, X8, X8
+	MOVUPS ·sse2MaskNegHiPS(SB), X9
+	XORPS X9, X8
 
-	// i*t3: swap real/imag and negate imag
+	// i*t3 = (-im, re)
 	MOVAPS X7, X11
-	SHUFPS $0xB1, X11, X11 // swap re/imag
-	XORPS X10, X10
-	MOVAPS X11, X12
-	SUBPS X12, X10         // negate
-	SHUFPS $0xEE, X10, X11 // blend: original real, negated imag
-	MOVAPS X11, X11        // X11 = i*t3
+	SHUFPS $0xB1, X11, X11
+	MOVUPS ·sse2MaskNegLoPS(SB), X9
+	XORPS X9, X11
 
 	// Final butterfly outputs
 	MOVAPS X4, X0
@@ -175,9 +169,9 @@ size64_r4_sse2_stage2_loop:
 
 	// Complex multiply a1*w1 (SSE2: no FMA, use separate mul/add)
 	MOVAPS X8, X11
-	SHUFPS $0xA0, X11, X11  // broadcast real part
+	SHUFPS $0x00, X11, X11  // broadcast real part
 	MOVAPS X8, X12
-	SHUFPS $0xF5, X12, X12  // broadcast imag part
+	SHUFPS $0x55, X12, X12  // broadcast imag part
 	MOVAPS X1, X13
 	SHUFPS $0xB1, X13, X13  // swap components
 	MULPS X12, X13
@@ -188,9 +182,9 @@ size64_r4_sse2_stage2_loop:
 
 	// Complex multiply a2*w2
 	MOVAPS X9, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X9, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	MOVAPS X2, X13
 	SHUFPS $0xB1, X13, X13
 	MULPS X12, X13
@@ -201,9 +195,9 @@ size64_r4_sse2_stage2_loop:
 
 	// Complex multiply a3*w3
 	MOVAPS X10, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X10, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	MOVAPS X3, X13
 	SHUFPS $0xB1, X13, X13
 	MULPS X12, X13
@@ -222,23 +216,17 @@ size64_r4_sse2_stage2_loop:
 	MOVAPS X1, X7
 	SUBPS X3, X7
 
-	// (-i)*t3
+	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	XORPS X15, X15
-	MOVAPS X14, X11
-	SUBPS X11, X15
-	SHUFPS $0x44, X11, X15
-	SHUFPS $0x0E, X11, X15
-	MOVAPS X15, X14
+	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	XORPS X15, X14
 
-	// i*t3
+	// i*t3 = (-im, re)
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	XORPS X15, X15
-	MOVAPS X12, X11
-	SUBPS X11, X15
-	SHUFPS $0xEE, X15, X12
+	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	XORPS X15, X12
 
 	// Final outputs
 	MOVAPS X4, X0
@@ -299,9 +287,9 @@ size64_r4_sse2_stage3_loop:
 
 	// Complex multiply a1*w1
 	MOVAPS X8, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X8, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	MOVAPS X1, X13
 	SHUFPS $0xB1, X13, X13
 	MULPS X12, X13
@@ -312,9 +300,9 @@ size64_r4_sse2_stage3_loop:
 
 	// Complex multiply a2*w2
 	MOVAPS X9, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X9, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	MOVAPS X2, X13
 	SHUFPS $0xB1, X13, X13
 	MULPS X12, X13
@@ -325,9 +313,9 @@ size64_r4_sse2_stage3_loop:
 
 	// Complex multiply a3*w3
 	MOVAPS X10, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X10, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	MOVAPS X3, X13
 	SHUFPS $0xB1, X13, X13
 	MULPS X12, X13
@@ -346,23 +334,17 @@ size64_r4_sse2_stage3_loop:
 	MOVAPS X1, X7
 	SUBPS X3, X7
 
-	// (-i)*t3
+	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	XORPS X15, X15
-	MOVAPS X14, X11
-	SUBPS X11, X15
-	SHUFPS $0x44, X11, X15
-	SHUFPS $0x0E, X11, X15
-	MOVAPS X15, X14
+	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	XORPS X15, X14
 
-	// i*t3
+	// i*t3 = (-im, re)
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	XORPS X15, X15
-	MOVAPS X12, X11
-	SUBPS X11, X15
-	SHUFPS $0xEE, X15, X12
+	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	XORPS X15, X12
 
 	// Final outputs
 	MOVAPS X4, X0
@@ -479,19 +461,14 @@ size64_r4_sse2_inv_stage1_loop:
 	// i*t3 (inverse uses i instead of -i)
 	MOVAPS X7, X11
 	SHUFPS $0xB1, X11, X11
-	XORPS X10, X10
-	MOVAPS X11, X12
-	SUBPS X12, X10
-	SHUFPS $0xEE, X10, X11
+	MOVUPS ·sse2MaskNegLoPS(SB), X10
+	XORPS X10, X11
 
 	// (-i)*t3 (inverse uses -i instead of i)
-	SHUFPS $0xB1, X7, X7
-	XORPS X9, X9
 	MOVAPS X7, X8
-	SUBPS X8, X9
-	SHUFPS $0x44, X8, X9
-	SHUFPS $0x0E, X8, X9
-	MOVAPS X9, X8
+	SHUFPS $0xB1, X8, X8
+	MOVUPS ·sse2MaskNegHiPS(SB), X9
+	XORPS X9, X8
 
 	MOVAPS X4, X0
 	ADDPS X6, X0
@@ -557,9 +534,9 @@ size64_r4_sse2_inv_stage2_loop:
 	// Complex multiply (conjugate twiddles for inverse)
 	// Conjugate by negating imaginary part
 	MOVAPS X8, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X8, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	XORPS X13, X13
 	SUBPS X12, X13
 	MOVAPS X13, X12
@@ -572,9 +549,9 @@ size64_r4_sse2_inv_stage2_loop:
 	MOVAPS X4, X1
 
 	MOVAPS X9, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X9, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	XORPS X13, X13
 	SUBPS X12, X13
 	MOVAPS X13, X12
@@ -587,9 +564,9 @@ size64_r4_sse2_inv_stage2_loop:
 	MOVAPS X4, X2
 
 	MOVAPS X10, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X10, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	XORPS X13, X13
 	SUBPS X12, X13
 	MOVAPS X13, X12
@@ -611,23 +588,17 @@ size64_r4_sse2_inv_stage2_loop:
 	MOVAPS X1, X7
 	SUBPS X3, X7
 
-	// i*t3
+	// i*t3 = (-im, re)
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	XORPS X15, X15
-	MOVAPS X12, X11
-	SUBPS X11, X15
-	SHUFPS $0xEE, X15, X12
+	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	XORPS X15, X12
 
-	// (-i)*t3
+	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	XORPS X15, X15
-	MOVAPS X14, X11
-	SUBPS X11, X15
-	SHUFPS $0x44, X11, X15
-	SHUFPS $0x0E, X11, X15
-	MOVAPS X15, X14
+	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	XORPS X15, X14
 
 	MOVAPS X4, X0
 	ADDPS X6, X0
@@ -685,9 +656,9 @@ size64_r4_sse2_inv_stage3_loop:
 
 	// Complex multiply (conjugate twiddles)
 	MOVAPS X8, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X8, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	XORPS X13, X13
 	SUBPS X12, X13
 	MOVAPS X13, X12
@@ -700,9 +671,9 @@ size64_r4_sse2_inv_stage3_loop:
 	MOVAPS X4, X1
 
 	MOVAPS X9, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X9, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	XORPS X13, X13
 	SUBPS X12, X13
 	MOVAPS X13, X12
@@ -715,9 +686,9 @@ size64_r4_sse2_inv_stage3_loop:
 	MOVAPS X4, X2
 
 	MOVAPS X10, X11
-	SHUFPS $0xA0, X11, X11
+	SHUFPS $0x00, X11, X11
 	MOVAPS X10, X12
-	SHUFPS $0xF5, X12, X12
+	SHUFPS $0x55, X12, X12
 	XORPS X13, X13
 	SUBPS X12, X13
 	MOVAPS X13, X12
@@ -739,23 +710,17 @@ size64_r4_sse2_inv_stage3_loop:
 	MOVAPS X1, X7
 	SUBPS X3, X7
 
-	// i*t3
+	// i*t3 = (-im, re)
 	MOVAPS X7, X12
 	SHUFPS $0xB1, X12, X12
-	XORPS X15, X15
-	MOVAPS X12, X11
-	SUBPS X11, X15
-	SHUFPS $0xEE, X15, X12
+	MOVUPS ·sse2MaskNegLoPS(SB), X15
+	XORPS X15, X12
 
-	// (-i)*t3
+	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X14
 	SHUFPS $0xB1, X14, X14
-	XORPS X15, X15
-	MOVAPS X14, X11
-	SUBPS X11, X15
-	SHUFPS $0x44, X11, X15
-	SHUFPS $0x0E, X11, X15
-	MOVAPS X15, X14
+	MOVUPS ·sse2MaskNegHiPS(SB), X15
+	XORPS X15, X14
 
 	MOVAPS X4, X0
 	ADDPS X6, X0
