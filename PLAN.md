@@ -332,6 +332,42 @@ User → Plan.Forward/Inverse → selectKernelsComplex64
 
 ---
 
+### 14.3A SSE2 Fallback Kernels (complex64) ✅ COMPLETE
+
+**Goal**: Provide SSE2-optimized kernels for systems without AVX2 support.
+**Status**: Implemented for sizes 4, 16, 64, 128 (2024-12-31)
+**Design Doc**: `docs/plans/2025-12-31-sse2-size64-radix4-implementation.md` (completed)
+
+SSE2 provides ~50-70% of AVX2 performance on older systems. These kernels ensure SIMD acceleration is available on all x86-64 CPUs (SSE2 is baseline requirement).
+
+#### Completed Implementations
+
+- [x] **Size 4**: Radix-4 SSE2 kernel ✅
+  - File: `internal/kernels/asm/amd64/sse2_size4_radix4.s`
+  - Priority: 5 (lower than generic due to scalar-style ops)
+
+- [x] **Size 16**: Radix-4 SSE2 kernel ✅
+  - File: `internal/kernels/asm/amd64/sse2_size16_radix4.s`
+  - Priority: 18 (between generic 15 and AVX2 20-25)
+
+- [x] **Size 64**: Radix-4 SSE2 kernel ✅
+  - File: `internal/kernels/asm/amd64/sse2_size64_radix4.s`
+  - 3 radix-4 stages, 776 lines of assembly
+  - Forward and inverse transforms with in-place support
+  - Comprehensive tests passing (forward, inverse, round-trip)
+  - Priority: 18
+
+- [x] **Size 128**: Mixed radix-2/4 SSE2 kernel ✅
+  - File: `internal/kernels/asm/amd64/sse2_size128_radix4.s`
+  - 3 radix-4 stages + 1 radix-2 stage
+  - Priority: 18
+
+**Registration**: All kernels registered in `codelet_init_sse2.go` with automatic selection on SSE2-capable systems.
+
+**Testing**: Full test coverage in `sse2_size64_test.go` and similar test files.
+
+---
+
 ### 14.4 Fix AVX2 Stockham Correctness
 
 **Status**: Compiles ✅, segfault fixed ✅, **produces wrong results** ⚠️

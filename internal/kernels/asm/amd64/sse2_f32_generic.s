@@ -1,13 +1,19 @@
 //go:build amd64 && fft_asm && !purego
 
 // ===========================================================================
-// SSE2-optimized FFT Assembly for AMD64
+// SSE2-optimized FFT Assembly for AMD64 (complex64/float32)
 // ===========================================================================
 //
-// This file implements FFT transforms using SSE2 instructions as a fallback
-// for systems without AVX2 support. SSE2 is available on all x86-64 CPUs.
+// This file implements FFT transforms using SSE2 instructions for complex64
+// (single-precision) data types as a fallback for systems without AVX2 support.
+// SSE2 is available on all x86-64 CPUs.
 //
-// See asm_amd64_avx2_generic.s for algorithm documentation.
+// SIMD STRATEGY
+// -------------
+// - complex64:  Process 2 butterflies per iteration using XMM (128-bit) registers
+//               Each complex64 = 8 bytes, so XMM holds 2 complex numbers
+//
+// See avx2_f32_generic.s for detailed algorithm documentation.
 //
 // ===========================================================================
 
@@ -698,10 +704,3 @@ inv_sse2_return_false:
 //   - Minimum size: n >= 8 (vs n >= 16 for complex64)
 // ===========================================================================
 
-TEXT ·forwardSSE2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-121
-	MOVB $0, ret+120(FP)        // Return false (use Go fallback)
-	RET
-
-TEXT ·inverseSSE2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-121
-	MOVB $0, ret+120(FP)        // Return false (use Go fallback)
-	RET

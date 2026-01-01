@@ -5,6 +5,7 @@ package kernels
 import (
 	"testing"
 
+	amd64 "github.com/MeKo-Christian/algo-fft/internal/kernels/asm/amd64"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -19,8 +20,8 @@ func TestForwardSSE2Size64Radix4Complex64(t *testing.T) {
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := ComputeBitReversalIndicesRadix4(n)
 
-	if !forwardSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardSSE2Size64Radix4Complex64Asm failed")
+	if !amd64.ForwardSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		t.Fatal("ForwardSSE2Size64Radix4Complex64Asm failed")
 	}
 
 	want := reference.NaiveDFT(src)
@@ -39,12 +40,12 @@ func TestInverseSSE2Size64Radix4Complex64(t *testing.T) {
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := ComputeBitReversalIndicesRadix4(n)
 
-	if !forwardSSE2Size64Radix4Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardSSE2Size64Radix4Complex64Asm failed")
+	if !amd64.ForwardSSE2Size64Radix4Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("ForwardSSE2Size64Radix4Complex64Asm failed")
 	}
 
-	if !inverseSSE2Size64Radix4Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
-		t.Fatal("inverseSSE2Size64Radix4Complex64Asm failed")
+	if !amd64.InverseSSE2Size64Radix4Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("InverseSSE2Size64Radix4Complex64Asm failed")
 	}
 
 	want := reference.NaiveIDFT(fwd)
@@ -64,12 +65,12 @@ func TestRoundTripSSE2Size64Radix4Complex64(t *testing.T) {
 	bitrev := ComputeBitReversalIndicesRadix4(n)
 
 	// Forward transform
-	if !forwardSSE2Size64Radix4Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size64Radix4Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forward transform failed")
 	}
 
 	// Inverse transform
-	if !inverseSSE2Size64Radix4Complex64Asm(inv, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseSSE2Size64Radix4Complex64Asm(inv, fwd, twiddle, scratch, bitrev) {
 		t.Fatal("inverse transform failed")
 	}
 
