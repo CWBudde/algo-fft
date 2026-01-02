@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
@@ -21,7 +22,7 @@ func TestForwardDIT2048Mixed24Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesMixed24(n) // Mixed-radix bit-reversal
+	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n) // Mixed-radix bit-reversal
 
 	if !forwardDIT2048Mixed24Complex64(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT2048Mixed24Complex64 failed")
@@ -42,7 +43,7 @@ func TestInverseDIT2048Mixed24Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesMixed24(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
 	if !forwardDIT2048Mixed24Complex64(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT2048Mixed24Complex64 failed")
@@ -67,7 +68,7 @@ func TestRoundTripDIT2048Mixed24Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesMixed24(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
 	if !forwardDIT2048Mixed24Complex64(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT2048Mixed24Complex64 failed")
@@ -90,7 +91,7 @@ func TestForwardDIT2048Mixed24Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndicesMixed24(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
 	if !forwardDIT2048Mixed24Complex128(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT2048Mixed24Complex128 failed")
@@ -111,7 +112,7 @@ func TestInverseDIT2048Mixed24Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndicesMixed24(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
 	if !forwardDIT2048Mixed24Complex128(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT2048Mixed24Complex128 failed")
@@ -136,7 +137,7 @@ func TestRoundTripDIT2048Mixed24Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndicesMixed24(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
 	if !forwardDIT2048Mixed24Complex128(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT2048Mixed24Complex128 failed")

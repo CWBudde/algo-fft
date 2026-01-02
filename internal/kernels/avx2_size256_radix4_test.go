@@ -3,6 +3,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
@@ -18,7 +19,7 @@ func TestForwardAVX2Size256Radix4Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	if !amd64.ForwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("ForwardAVX2Size256Radix4Complex64Asm failed")
@@ -38,7 +39,7 @@ func TestInverseAVX2Size256Radix4Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	fwdRef := reference.NaiveDFT(src)
 	for i := range fwdRef {
@@ -63,7 +64,7 @@ func TestRoundTripAVX2Size256Radix4Complex64(t *testing.T) {
 	inv := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	if !amd64.ForwardAVX2Size256Radix4Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("ForwardAVX2Size256Radix4Complex64Asm failed")

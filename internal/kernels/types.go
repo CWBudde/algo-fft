@@ -4,7 +4,7 @@ import (
 	"math/bits"
 
 	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
-	"github.com/MeKo-Christian/algo-fft/internal/math"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 // Complex is a type alias for the complex number constraint.
@@ -23,11 +23,10 @@ const (
 
 // Re-export math utilities used by kernels.
 var (
-	ComputeBitReversalIndices = math.ComputeBitReversalIndices
-	IsPowerOf2                = math.IsPowerOf2
-	isPowerOf3                = math.IsPowerOf3
-	isPowerOf4                = math.IsPowerOf4
-	isPowerOf5                = math.IsPowerOf5
+	IsPowerOf2 = mathpkg.IsPowerOf2
+	isPowerOf3 = mathpkg.IsPowerOf3
+	isPowerOf4 = mathpkg.IsPowerOf4
+	isPowerOf5 = mathpkg.IsPowerOf5
 )
 
 // log2 returns the base-2 logarithm of n using bits.Len() for efficiency.
@@ -37,7 +36,7 @@ func log2(n int) int {
 
 // ComputeTwiddleFactors is a wrapper for the generic math function.
 func ComputeTwiddleFactors[T Complex](n int) []T {
-	return math.ComputeTwiddleFactors[T](n)
+	return mathpkg.ComputeTwiddleFactors[T](n)
 }
 
 // Kernel reports whether it handled the transform.

@@ -2,7 +2,10 @@
 
 package kernels
 
-import arm64 "github.com/MeKo-Christian/algo-fft/internal/asm/arm64"
+import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	arm64 "github.com/MeKo-Christian/algo-fft/internal/asm/arm64"
+)
 
 // registerNEONDITCodelets64 registers NEON-optimized complex64 DIT codelets.
 func registerNEONDITCodelets64() {
@@ -27,7 +30,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit8_radix2_neon",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
@@ -37,7 +40,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit8_radix4_neon",
 		Priority:   25,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
@@ -47,7 +50,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit8_radix8_neon",
 		Priority:   30,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 16: radix-4 NEON beats radix-2 NEON
@@ -59,7 +62,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit16_radix2_neon",
 		Priority:   22,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
@@ -69,7 +72,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit16_radix4_neon",
 		Priority:   28,
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 32: mixed-24 preferred over radix-2
@@ -81,7 +84,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit32_radix2_neon",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
@@ -91,7 +94,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit32_mixed24_neon",
 		Priority:   24,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: radix-4 NEON beats radix-2 NEON
@@ -103,7 +106,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit64_radix2_neon",
 		Priority:   22,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
@@ -113,7 +116,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit64_radix4_neon",
 		Priority:   28,
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 128: mixed-24 preferred over radix-2
@@ -125,7 +128,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit128_radix2_neon",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
@@ -135,7 +138,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit128_mixed24_neon",
 		Priority:   24,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 256: radix-2 NEON variant
@@ -147,7 +150,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit256_radix2_neon",
 		Priority:   18,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 512: generic NEON radix-2 kernel
@@ -159,7 +162,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit512_radix2_neon",
 		Priority:   1,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 1024: generic NEON radix-2 kernel
@@ -171,7 +174,7 @@ func registerNEONDITCodelets64() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit1024_radix2_neon",
 		Priority:   1,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 }
 
@@ -189,7 +192,7 @@ func registerNEONDITCodelets128() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit32_radix2_neon",
 		Priority:   1,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
@@ -199,7 +202,7 @@ func registerNEONDITCodelets128() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit64_radix2_neon",
 		Priority:   1,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       128,
@@ -209,7 +212,7 @@ func registerNEONDITCodelets128() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit128_radix2_neon",
 		Priority:   1,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       256,
@@ -219,7 +222,7 @@ func registerNEONDITCodelets128() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit256_radix2_neon",
 		Priority:   1,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       512,
@@ -229,6 +232,6 @@ func registerNEONDITCodelets128() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit512_radix2_neon",
 		Priority:   1,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 }

@@ -1,6 +1,9 @@
 package kernels
 
-import "testing"
+import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"testing"
+)
 
 func TestEightStepForwardInverse(t *testing.T) {
 	t.Parallel()
@@ -14,7 +17,7 @@ func TestEightStepForwardInverse(t *testing.T) {
 
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := ComputeBitReversalIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	dst := make([]complex64, n)
 	if !ForwardEightStepComplex64(dst, src, twiddle, scratch, bitrev) {

@@ -1,6 +1,9 @@
 package kernels
 
-import "testing"
+import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"testing"
+)
 
 // benchCase64 defines a benchmark case for complex64 kernels.
 type benchCase64 struct {
@@ -23,18 +26,18 @@ type benchCase128 struct {
 // BenchmarkDITComplex64 benchmarks all Go DIT kernels for complex64.
 func BenchmarkDITComplex64(b *testing.B) {
 	cases := []benchCase64{
-		{"Size4/Radix4", 4, ComputeBitReversalIndicesRadix4, forwardDIT4Radix4Complex64, inverseDIT4Radix4Complex64},
-		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardDIT8Radix2Complex64, inverseDIT8Radix2Complex64},
-		{"Size8/Radix4", 8, ComputeBitReversalIndices, forwardDIT8Radix4Complex64, inverseDIT8Radix4Complex64},
-		{"Size16/Radix2", 16, ComputeBitReversalIndices, forwardDIT16Complex64, inverseDIT16Complex64},
-		{"Size16/Radix4", 16, ComputeBitReversalIndicesRadix4, forwardDIT16Radix4Complex64, inverseDIT16Radix4Complex64},
-		{"Size32", 32, ComputeBitReversalIndices, forwardDIT32Complex64, inverseDIT32Complex64},
-		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardDIT64Complex64, inverseDIT64Complex64},
-		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardDIT64Radix4Complex64, inverseDIT64Radix4Complex64},
-		{"Size128", 128, ComputeBitReversalIndices, forwardDIT128Complex64, inverseDIT128Complex64},
-		{"Size256/Radix2", 256, ComputeBitReversalIndices, forwardDIT256Complex64, inverseDIT256Complex64},
-		{"Size256/Radix4", 256, ComputeBitReversalIndicesRadix4, forwardDIT256Radix4Complex64, inverseDIT256Radix4Complex64},
-		{"Size512", 512, ComputeBitReversalIndices, forwardDIT512Complex64, inverseDIT512Complex64},
+		{"Size4/Radix4", 4, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT4Radix4Complex64, inverseDIT4Radix4Complex64},
+		{"Size8/Radix2", 8, mathpkg.ComputeBitReversalIndices, forwardDIT8Radix2Complex64, inverseDIT8Radix2Complex64},
+		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndices, forwardDIT8Radix4Complex64, inverseDIT8Radix4Complex64},
+		{"Size16/Radix2", 16, mathpkg.ComputeBitReversalIndices, forwardDIT16Complex64, inverseDIT16Complex64},
+		{"Size16/Radix4", 16, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT16Radix4Complex64, inverseDIT16Radix4Complex64},
+		{"Size32", 32, mathpkg.ComputeBitReversalIndices, forwardDIT32Complex64, inverseDIT32Complex64},
+		{"Size64/Radix2", 64, mathpkg.ComputeBitReversalIndices, forwardDIT64Complex64, inverseDIT64Complex64},
+		{"Size64/Radix4", 64, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT64Radix4Complex64, inverseDIT64Radix4Complex64},
+		{"Size128", 128, mathpkg.ComputeBitReversalIndices, forwardDIT128Complex64, inverseDIT128Complex64},
+		{"Size256/Radix2", 256, mathpkg.ComputeBitReversalIndices, forwardDIT256Complex64, inverseDIT256Complex64},
+		{"Size256/Radix4", 256, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT256Radix4Complex64, inverseDIT256Radix4Complex64},
+		{"Size512", 512, mathpkg.ComputeBitReversalIndices, forwardDIT512Complex64, inverseDIT512Complex64},
 	}
 
 	for _, tc := range cases {
@@ -50,18 +53,18 @@ func BenchmarkDITComplex64(b *testing.B) {
 // BenchmarkDITComplex128 benchmarks all Go DIT kernels for complex128.
 func BenchmarkDITComplex128(b *testing.B) {
 	cases := []benchCase128{
-		{"Size4/Radix4", 4, ComputeBitReversalIndicesRadix4, forwardDIT4Radix4Complex128, inverseDIT4Radix4Complex128},
-		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardDIT8Radix2Complex128, inverseDIT8Radix2Complex128},
-		{"Size8/Radix4", 8, ComputeBitReversalIndices, forwardDIT8Radix4Complex128, inverseDIT8Radix4Complex128},
-		{"Size16/Radix2", 16, ComputeBitReversalIndices, forwardDIT16Complex128, inverseDIT16Complex128},
-		{"Size16/Radix4", 16, ComputeBitReversalIndicesRadix4, forwardDIT16Radix4Complex128, inverseDIT16Radix4Complex128},
-		{"Size32", 32, ComputeBitReversalIndices, forwardDIT32Complex128, inverseDIT32Complex128},
-		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardDIT64Complex128, inverseDIT64Complex128},
-		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardDIT64Radix4Complex128, inverseDIT64Radix4Complex128},
-		{"Size128", 128, ComputeBitReversalIndices, forwardDIT128Complex128, inverseDIT128Complex128},
-		{"Size256/Radix2", 256, ComputeBitReversalIndices, forwardDIT256Complex128, inverseDIT256Complex128},
-		{"Size256/Radix4", 256, ComputeBitReversalIndicesRadix4, forwardDIT256Radix4Complex128, inverseDIT256Radix4Complex128},
-		{"Size512", 512, ComputeBitReversalIndices, forwardDIT512Complex128, inverseDIT512Complex128},
+		{"Size4/Radix4", 4, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT4Radix4Complex128, inverseDIT4Radix4Complex128},
+		{"Size8/Radix2", 8, mathpkg.ComputeBitReversalIndices, forwardDIT8Radix2Complex128, inverseDIT8Radix2Complex128},
+		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndices, forwardDIT8Radix4Complex128, inverseDIT8Radix4Complex128},
+		{"Size16/Radix2", 16, mathpkg.ComputeBitReversalIndices, forwardDIT16Complex128, inverseDIT16Complex128},
+		{"Size16/Radix4", 16, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT16Radix4Complex128, inverseDIT16Radix4Complex128},
+		{"Size32", 32, mathpkg.ComputeBitReversalIndices, forwardDIT32Complex128, inverseDIT32Complex128},
+		{"Size64/Radix2", 64, mathpkg.ComputeBitReversalIndices, forwardDIT64Complex128, inverseDIT64Complex128},
+		{"Size64/Radix4", 64, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT64Radix4Complex128, inverseDIT64Radix4Complex128},
+		{"Size128", 128, mathpkg.ComputeBitReversalIndices, forwardDIT128Complex128, inverseDIT128Complex128},
+		{"Size256/Radix2", 256, mathpkg.ComputeBitReversalIndices, forwardDIT256Complex128, inverseDIT256Complex128},
+		{"Size256/Radix4", 256, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT256Radix4Complex128, inverseDIT256Radix4Complex128},
+		{"Size512", 512, mathpkg.ComputeBitReversalIndices, forwardDIT512Complex128, inverseDIT512Complex128},
 	}
 
 	for _, tc := range cases {

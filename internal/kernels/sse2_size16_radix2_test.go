@@ -3,6 +3,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
@@ -18,7 +19,7 @@ func TestForwardSSE2Size16Radix2Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n) // Standard bit reversal
+	bitrev := mathpkg.ComputeBitReversalIndices(n) // Standard bit reversal
 
 	if !amd64.ForwardSSE2Size16Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("ForwardSSE2Size16Radix2Complex64Asm failed")
@@ -38,7 +39,7 @@ func TestInverseSSE2Size16Radix2Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n) // Standard bit reversal
+	bitrev := mathpkg.ComputeBitReversalIndices(n) // Standard bit reversal
 
 	// Use reference forward to test inverse in isolation if possible,
 	// but using assembly forward is fine if verified above.
@@ -66,7 +67,7 @@ func TestRoundTripSSE2Size16Radix2Complex64(t *testing.T) {
 	inv := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n) // Standard bit reversal
+	bitrev := mathpkg.ComputeBitReversalIndices(n) // Standard bit reversal
 
 	// Forward transform
 	if !amd64.ForwardSSE2Size16Radix2Complex64Asm(fwd, src, twiddle, scratch, bitrev) {

@@ -1,5 +1,7 @@
 package kernels
 
+import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+
 // This file registers all built-in codelets with the global registries.
 // Registration happens at init time so codelets are available when plans are created.
 
@@ -47,7 +49,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix2_generic",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 8: Radix-8 variant (single butterfly)
@@ -59,7 +61,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
 		Priority:   30, // Highest priority among generic size-8 codelets
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2) - TODO: investigate correctness
@@ -71,7 +73,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_mixedradix_generic",
 		Priority:   10,                        // Lower priority until correctness verified
-		BitrevFunc: ComputeBitReversalIndices, // Still uses binary reversal (8 is not a power of 4)
+		BitrevFunc: mathpkg.ComputeBitReversalIndices, // Still uses binary reversal (8 is not a power of 4)
 	})
 
 	// Size 16: Radix-2 variant
@@ -83,7 +85,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix2_generic",
 		Priority:   10,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 16: Radix-4 variant (12-15% faster per benchmarks)
@@ -95,7 +97,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix4_generic",
 		Priority:   20, // Higher priority (empirically faster)
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 32: Radix-2 only
@@ -107,7 +109,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_radix2_generic",
 		Priority:   0,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 32: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
@@ -119,7 +121,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_mixed24_generic",
 		Priority:   15, // Higher than base radix-2, lower than potential radix-8
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-2 only
@@ -131,7 +133,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit64_radix2_generic",
 		Priority:   0,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-4 variant
@@ -143,7 +145,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit64_radix4_generic",
 		Priority:   20, // Higher priority (expected faster)
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 128: Radix-2 only
@@ -155,7 +157,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit128_radix2_generic",
 		Priority:   0,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 128: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
@@ -167,7 +169,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit128_mixed24_generic",
 		Priority:   15, // Higher than base radix-2, lower than potential radix-8
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 256: Radix-2 variant
@@ -179,7 +181,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix2_generic",
 		Priority:   10,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 256: Radix-4 variant
@@ -191,7 +193,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix4_generic",
 		Priority:   20, // Higher priority (potentially faster)
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 512: Radix-2 only
@@ -203,7 +205,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix2_generic",
 		Priority:   0,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 1024: Radix-4 variant (1024 = 4^5, 5 stages vs 10 for radix-2)
@@ -215,7 +217,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix4_generic",
 		Priority:   15,
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 2048: Mixed-radix-2/4 variant (odd log2, faster than pure radix-2)
@@ -227,7 +229,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit2048_mixedradix24_generic",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 4096: Radix-4 variant (4096 = 4^6, 6 stages vs 12 for radix-2)
@@ -239,7 +241,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4096_radix4_generic",
 		Priority:   15,
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 8192: Mixed-radix-2/4 variant (odd log2, faster than pure radix-2)
@@ -251,7 +253,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8192_mixedradix24_generic",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 16384: Radix-4 variant (16384 = 4^7, 7 stages vs 14 for radix-2)
@@ -263,7 +265,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16384_radix4_generic",
 		Priority:   15,
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 }
 
@@ -290,7 +292,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix2_generic",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 8: Radix-8 variant (single butterfly)
@@ -302,7 +304,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
 		Priority:   30, // Highest priority among generic size-8 codelets
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2) - TODO: investigate correctness
@@ -314,7 +316,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_mixedradix_generic",
 		Priority:   10,                        // Lower priority until correctness verified
-		BitrevFunc: ComputeBitReversalIndices, // Still uses binary reversal (8 is not a power of 4)
+		BitrevFunc: mathpkg.ComputeBitReversalIndices, // Still uses binary reversal (8 is not a power of 4)
 	})
 
 	// Size 16: Radix-2 variant
@@ -326,7 +328,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix2_generic",
 		Priority:   10,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 16: Radix-4 variant (12-15% faster per benchmarks)
@@ -338,7 +340,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix4_generic",
 		Priority:   20, // Higher priority (empirically faster)
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 32: Radix-2 only
@@ -350,7 +352,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_radix2_generic",
 		Priority:   0,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 32: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
@@ -362,7 +364,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_mixed24_generic",
 		Priority:   15, // Higher than base radix-2, lower than potential radix-8
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-2 only
@@ -374,7 +376,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit64_radix2_generic",
 		Priority:   0,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-4 variant
@@ -386,7 +388,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit64_radix4_generic",
 		Priority:   20, // Higher priority (expected faster)
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 128: Radix-2 only
@@ -398,7 +400,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit128_radix2_generic",
 		Priority:   0,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 128: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
@@ -410,7 +412,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit128_mixed24_generic",
 		Priority:   15, // Higher than base radix-2, lower than potential radix-8
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 256: Radix-2 variant
@@ -422,7 +424,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix2_generic",
 		Priority:   10,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 256: Radix-4 variant
@@ -434,7 +436,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix4_generic",
 		Priority:   20, // Higher priority (potentially faster)
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 512: Radix-2 only
@@ -446,7 +448,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix2_generic",
 		Priority:   0,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 1024: Radix-4 variant (1024 = 4^5, 5 stages vs 10 for radix-2)
@@ -458,7 +460,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix4_generic",
 		Priority:   15,
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 4096: Radix-4 variant (4096 = 4^6, 6 stages vs 12 for radix-2)
@@ -470,7 +472,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4096_radix4_generic",
 		Priority:   15,
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 16384: Radix-4 variant (16384 = 4^7, 7 stages vs 14 for radix-2)
@@ -482,7 +484,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16384_radix4_generic",
 		Priority:   15,
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 }
 

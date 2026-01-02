@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
@@ -14,7 +15,7 @@ func TestDIT8Radix4Complex64MatchesReference(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesMixed24(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
 	if !forwardDIT8Radix4Complex64(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT8Radix4Complex64 failed")
@@ -32,7 +33,7 @@ func TestDIT8Radix4Complex128MatchesReference(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndicesMixed24(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
 	if !forwardDIT8Radix4Complex128(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT8Radix4Complex128 failed")

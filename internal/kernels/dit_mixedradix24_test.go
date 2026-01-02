@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
@@ -20,7 +21,7 @@ func TestForwardMixedRadix24Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	if !forwardMixedRadix24Complex64(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardMixedRadix24Complex64 failed")
@@ -41,7 +42,7 @@ func TestInverseMixedRadix24Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	if !forwardMixedRadix24Complex64(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardMixedRadix24Complex64 failed")

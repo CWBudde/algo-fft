@@ -57,14 +57,14 @@ Sizes 512-16384 currently use pure Go mixed-radix or radix-4 implementations. AV
 
 #### 14.2.1 Size 512 - AVX2 Mixed-Radix-2/4
 
-- [ ] Create `internal/asm/amd64/avx2_f32_size512_mixed24.s`
-  - [ ] Implement `forwardAVX2Size512Mixed24Complex64` (4 radix-4 stages + 1 radix-2 stage)
-  - [ ] Implement `inverseAVX2Size512Mixed24Complex64` (with 1/512 scaling)
-  - [ ] Use mixed-radix bit-reversal pattern from Go implementation
-- [ ] Add Go declarations in `internal/asm/amd64/decl.go`
-- [ ] Register in `internal/kernels/codelet_init_avx2.go` with priority 25
-- [ ] Add correctness tests comparing AVX2 vs pure-Go output
-- [ ] Benchmark and document speedup ratio
+- [x] Create `internal/asm/amd64/avx2_f32_size512_mixed24.s`
+  - [x] Implement `forwardAVX2Size512Mixed24Complex64` (4 radix-4 stages + 1 radix-2 stage)
+  - [x] Implement `inverseAVX2Size512Mixed24Complex64` (with 1/512 scaling)
+  - [x] Use mixed-radix bit-reversal pattern from Go implementation
+- [x] Add Go declarations in `internal/asm/amd64/decl.go`
+- [x] Register in `internal/kernels/codelet_init_avx2.go` with priority 25
+- [x] Add correctness tests comparing AVX2 vs pure-Go output
+- [x] Benchmark and document speedup ratio
 
 #### 14.2.2 Size 1024 - AVX2 Pure Radix-4
 
@@ -113,33 +113,35 @@ Sizes 512-16384 currently use pure Go mixed-radix or radix-4 implementations. AV
 
 #### 14.3.1 Verify Inverse Transforms
 
-- [ ] Size 4: Test `inverseAVX2Size4Radix4Complex64` round-trip accuracy
-  - [ ] Run `Forward → Inverse` and verify `max|x - result| < 1e-6`
-  - [ ] Test with random inputs, DC component, Nyquist frequency
-- [ ] Size 64: Test `inverseAVX2Size64Radix4Complex64` round-trip accuracy
-- [ ] Size 256: Test `inverseAVX2Size256Radix4Complex64` round-trip accuracy
-- [ ] Add dedicated inverse transform test file if not present
+- [x] Size 4: Test `inverseAVX2Size4Radix4Complex64` round-trip accuracy
+  - [x] Run `Forward → Inverse` and verify `max|x - result| < 1e-6`
+  - [x] Test with random inputs, DC component, Nyquist frequency
+- [x] Size 64: Test `inverseAVX2Size64Radix4Complex64` round-trip accuracy
+- [x] Size 256: Test `inverseAVX2Size256Radix4Complex64` round-trip accuracy
+- [x] Add dedicated inverse transform test file if not present
 
 #### 14.3.2 Size 8 AVX2 Re-evaluation
 
-- [ ] Benchmark current Go radix-8 vs AVX2 radix-2 on modern CPUs (Zen4, Raptor Lake)
-- [ ] Profile to identify bottlenecks in AVX2 size-8 implementation
-- [ ] If AVX2 can be improved:
+- [x] Benchmark current Go radix-8 vs AVX2 radix-2 on modern CPUs (Zen4, Raptor Lake)
+- [x] Profile to identify bottlenecks in AVX2 size-8 implementation
+- [x] If AVX2 can be improved:
   - [ ] Optimize register allocation and instruction scheduling
   - [ ] Consider radix-8 AVX2 instead of radix-2
   - [ ] Re-benchmark and enable if faster
-- [ ] If Go remains faster:
-  - [ ] Document rationale in code comments
-  - [ ] Keep AVX2 disabled (priority 0)
+- [x] If Go remains faster:
+  - [x] Document rationale in code comments
+  - [x] Keep AVX2 disabled (priority 9, lower than SSE2)
+  - **Note**: SSE2 Size 8 Radix 8 fixed (fast). AVX2 Size 8 Radix 8 fixed (slow).
 
 #### 14.3.3 Size 128 Radix-4 AVX2
 
-- [ ] Create `internal/asm/amd64/avx2_f32_size128_radix4.s` (currently only radix-2/mixed exist)
-  - [ ] Implement `forwardAVX2Size128Radix4Complex64` (3.5 stages: 3 radix-4 + 1 radix-2)
-  - [ ] Implement `inverseAVX2Size128Radix4Complex64`
+- [x] Create `internal/asm/amd64/avx2_f32_size128_radix4.s` (currently only radix-2/mixed exist)
+  - [x] Implement `forwardAVX2Size128Radix4Complex64` (3.5 stages: 3 radix-4 + 1 radix-2)
+  - [x] Implement `inverseAVX2Size128Radix4Complex64`
   - [ ] Use radix-4 bit-reversal for first 64 elements, binary for rest
 - [ ] Benchmark radix-4 vs current mixed-2/4 wrapper
 - [ ] Register higher-performing variant with higher priority
+- **Status**: Disabled. Implementation exists but failed correctness tests (bit-reversal/logic mismatch). Reverted to pure-Go fallback.
 
 ### 14.4 Fix AVX2 Stockham Correctness
 

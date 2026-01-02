@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
@@ -171,7 +172,7 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 8)
 		twiddle := ComputeTwiddleFactors[complex64](8)
 		scratch := make([]complex64, 8)
-		bitrev := ComputeBitReversalIndices(8)
+		bitrev := mathpkg.ComputeBitReversalIndices(8)
 
 		// Initialize with impulse
 		src[0] = 1
@@ -198,7 +199,7 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 8)
 		twiddle := ComputeTwiddleFactors[complex64](8)
 		scratch := make([]complex64, 8)
-		bitrev := ComputeBitReversalIndices(8)
+		bitrev := mathpkg.ComputeBitReversalIndices(8)
 
 		// Initialize with all ones (FFT of impulse)
 		for i := range src {
@@ -235,7 +236,7 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 512)
 		twiddle := ComputeTwiddleFactors[complex64](512)
 		scratch := make([]complex64, 512)
-		bitrev := ComputeBitReversalIndices(512)
+		bitrev := mathpkg.ComputeBitReversalIndices(512)
 
 		// Initialize with impulse
 		src[0] = 1
@@ -262,7 +263,7 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 512)
 		twiddle := ComputeTwiddleFactors[complex64](512)
 		scratch := make([]complex64, 512)
-		bitrev := ComputeBitReversalIndices(512)
+		bitrev := mathpkg.ComputeBitReversalIndices(512)
 
 		// Initialize with all ones (FFT of impulse)
 		for i := range src {

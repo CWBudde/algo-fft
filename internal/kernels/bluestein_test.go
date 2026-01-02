@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"math"
 	"math/cmplx"
 	"testing"
@@ -95,7 +96,7 @@ func TestBluesteinHelper(t *testing.T) {
 
 	chirp := ComputeChirpSequence[complex128](n)
 	twiddles := ComputeTwiddleFactors[complex128](m)
-	bitrev := ComputeBitReversalIndices(m)
+	bitrev := mathpkg.ComputeBitReversalIndices(m)
 
 	scratch := make([]complex128, m)
 

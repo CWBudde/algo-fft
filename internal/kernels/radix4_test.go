@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
@@ -19,7 +20,7 @@ func TestRadix4ForwardMatchesReferenceComplex64(t *testing.T) {
 		dst := make([]complex64, n)
 		scratch := make([]complex64, n)
 		twiddle := ComputeTwiddleFactors[complex64](n)
-		bitrev := ComputeBitReversalIndices(n)
+		bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 		if !forwardRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardRadix4Complex64 failed for n=%d", n)
@@ -39,7 +40,7 @@ func TestRadix4InverseMatchesReferenceComplex64(t *testing.T) {
 		dst := make([]complex64, n)
 		scratch := make([]complex64, n)
 		twiddle := ComputeTwiddleFactors[complex64](n)
-		bitrev := ComputeBitReversalIndices(n)
+		bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 		if !forwardRadix4Complex64(fwd, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardRadix4Complex64 failed for n=%d", n)
@@ -62,7 +63,7 @@ func TestRadix4ForwardMatchesReferenceComplex128(t *testing.T) {
 		dst := make([]complex128, n)
 		scratch := make([]complex128, n)
 		twiddle := ComputeTwiddleFactors[complex128](n)
-		bitrev := ComputeBitReversalIndices(n)
+		bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 		if !forwardRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardRadix4Complex128 failed for n=%d", n)
@@ -82,7 +83,7 @@ func TestRadix4InverseMatchesReferenceComplex128(t *testing.T) {
 		dst := make([]complex128, n)
 		scratch := make([]complex128, n)
 		twiddle := ComputeTwiddleFactors[complex128](n)
-		bitrev := ComputeBitReversalIndices(n)
+		bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 		if !forwardRadix4Complex128(fwd, src, twiddle, scratch, bitrev) {
 			t.Fatalf("forwardRadix4Complex128 failed for n=%d", n)
@@ -118,7 +119,7 @@ func benchmarkForwardKernel(b *testing.B, n int, kernel func(dst, src, twiddle, 
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	if !IsPowerOf2(n) {
 		b.Fatalf("benchmark expects power-of-two length, got %d", n)

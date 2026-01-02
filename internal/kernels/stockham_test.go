@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
@@ -24,7 +25,7 @@ func TestStockhamForwardComplex64(t *testing.T) {
 			dst := make([]complex64, n)
 			scratch := make([]complex64, n)
 			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := ComputeBitReversalIndices(n)
+			bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 			if !stockhamForward(dst, src, twiddle, scratch, bitrev) {
 				t.Fatalf("stockhamForward failed for n=%d", n)
@@ -50,7 +51,7 @@ func TestStockhamInverseComplex64(t *testing.T) {
 			dst := make([]complex64, n)
 			scratch := make([]complex64, n)
 			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := ComputeBitReversalIndices(n)
+			bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 			if !stockhamForward(fwd, src, twiddle, scratch, bitrev) {
 				t.Fatalf("stockhamForward failed for n=%d", n)
@@ -79,7 +80,7 @@ func TestStockhamForwardComplex128(t *testing.T) {
 			dst := make([]complex128, n)
 			scratch := make([]complex128, n)
 			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := ComputeBitReversalIndices(n)
+			bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 			if !stockhamForward(dst, src, twiddle, scratch, bitrev) {
 				t.Fatalf("stockhamForward failed for n=%d", n)
@@ -105,7 +106,7 @@ func TestStockhamInverseComplex128(t *testing.T) {
 			dst := make([]complex128, n)
 			scratch := make([]complex128, n)
 			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := ComputeBitReversalIndices(n)
+			bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 			if !stockhamForward(fwd, src, twiddle, scratch, bitrev) {
 				t.Fatalf("stockhamForward failed for n=%d", n)

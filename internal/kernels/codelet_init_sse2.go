@@ -2,7 +2,10 @@
 
 package kernels
 
-import amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+import (
+	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+)
 
 // registerSSE2DITCodelets64 registers SSE2-optimized complex64 DIT codelets.
 // These registrations are conditional on the asm build tag and amd64 architecture.
@@ -29,11 +32,10 @@ func registerSSE2DITCodelets64() {
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit8_radix2_sse2",
 		Priority:   18, // Between generic (15) and AVX2 (20-25)
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 8: Radix-8 SSE2 variant
-	// DISABLED: Failing tests (incorrect results). See sse2_size8_radix8_test.go.
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
 		Forward:    wrapCodelet64(amd64.ForwardSSE2Size8Radix8Complex64Asm),
@@ -41,8 +43,8 @@ func registerSSE2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit8_radix8_sse2",
-		Priority:   -1, // Disabled
-		BitrevFunc: ComputeBitReversalIndices,
+		Priority:   30, // Higher priority than radix-2 (18) and mixed-radix (??)
+		BitrevFunc: mathpkg.ComputeIdentityIndices,
 	})
 
 	// Size 16: Radix-2 SSE2 variant
@@ -54,7 +56,7 @@ func registerSSE2DITCodelets64() {
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit16_radix2_sse2",
 		Priority:   17, // Lower priority than radix-4 (18)
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 16: Radix-4 SSE2 variant
@@ -66,7 +68,7 @@ func registerSSE2DITCodelets64() {
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit16_radix4_sse2",
 		Priority:   18, // Between generic (15) and AVX2 (20-25)
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 64: Radix-4 SSE2 variant
@@ -78,7 +80,7 @@ func registerSSE2DITCodelets64() {
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit64_radix4_sse2",
 		Priority:   18, // Between generic (15) and AVX2 (20-25)
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 128: Mixed Radix-2/4 SSE2 variant (3 radix-4 + 1 radix-2 stages)
@@ -90,7 +92,7 @@ func registerSSE2DITCodelets64() {
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit128_radix4_sse2",
 		Priority:   18, // Between generic (15) and AVX2 (20-25)
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 }
 

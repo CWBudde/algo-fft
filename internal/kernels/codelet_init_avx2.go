@@ -2,7 +2,10 @@
 
 package kernels
 
-import amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+import (
+	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+)
 
 // registerAVX2DITCodelets64 registers AVX2-optimized complex64 DIT codelets.
 // These registrations are conditional on the asm build tag and amd64 architecture.
@@ -30,7 +33,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix8_avx2",
 		Priority:   9, // Keep below Go radix-8 unless proven faster
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeIdentityIndices,
 	})
 
 	// Size 16: Radix-2 AVX2 variant
@@ -42,7 +45,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit16_radix2_avx2",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 32: Radix-2 AVX2 variant
@@ -54,7 +57,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit32_radix2_avx2",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-2 AVX2 variant
@@ -66,7 +69,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix2_avx2",
 		Priority:   15,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-4 AVX2 variant
@@ -78,7 +81,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix4_avx2",
 		Priority:   25, // Prefer radix-4 for size 64
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 256: Radix-2 AVX2 variant
@@ -90,7 +93,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit256_radix2_avx2",
 		Priority:   15, // Lower than radix-4 variant
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 256: Radix-4 AVX2 variant
@@ -102,7 +105,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit256_radix4_avx2",
 		Priority:   20, // Higher priority - potentially faster
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 512: Radix-2 AVX2 variant
@@ -114,7 +117,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_radix2_avx2",
 		Priority:   10, // Baseline until a fully-unrolled kernel is available
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 512: Mixed-radix-2/4 variant
@@ -126,7 +129,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_mixed24_avx2",
 		Priority:   25,
-		BitrevFunc: ComputeBitReversalIndicesMixed24,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
 	})
 }
 
@@ -153,7 +156,7 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix2_avx2",
 		Priority:   25, // Good fallback after radix-8
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 8: Radix-4 (Mixed-radix) AVX2 variant
@@ -165,7 +168,7 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix4_avx2",
 		Priority:   11,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 16: Radix-2 AVX2 variant
@@ -177,7 +180,7 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit16_radix2_avx2",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 32: Radix-2 AVX2 variant
@@ -189,7 +192,7 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit32_radix2_avx2",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-2 AVX2 variant
@@ -201,7 +204,7 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix2_avx2",
 		Priority:   25,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-4 AVX2 variant
@@ -216,7 +219,7 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix4_avx2",
 		Priority:   100, // DEBUGGING: Force selection to identify bug
-		BitrevFunc: ComputeBitReversalIndicesRadix4,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
 	// Size 128: Radix-2 AVX2 variant
@@ -228,7 +231,7 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit128_radix2_avx2",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 256: Radix-2 AVX2 variant
@@ -240,7 +243,7 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit256_radix2_avx2",
 		Priority:   20,
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 512: Radix-2 AVX2 variant
@@ -252,7 +255,7 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_radix2_avx2",
 		Priority:   10, // Baseline until a fully-unrolled kernel is available
-		BitrevFunc: ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 512: Mixed-radix-2/4 AVX2 variant
@@ -264,6 +267,6 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_mixed24_avx2",
 		Priority:   25,
-		BitrevFunc: ComputeBitReversalIndicesMixed24,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
 	})
 }

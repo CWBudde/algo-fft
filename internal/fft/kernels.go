@@ -2,6 +2,7 @@ package fft
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/kernels"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/transform"
 )
 
@@ -52,8 +53,8 @@ var (
 	inverseDITComplex128 = kernels.InverseDITComplex128
 
 	// Size-specific exports for benchmarks/tests.
-	ComputeBitReversalIndicesRadix4  = kernels.ComputeBitReversalIndicesRadix4
-	ComputeBitReversalIndicesMixed24 = kernels.ComputeBitReversalIndicesMixed24
+	ComputeBitReversalIndicesRadix4  = mathpkg.ComputeBitReversalIndicesRadix4
+	ComputeBitReversalIndicesMixed24 = mathpkg.ComputeBitReversalIndicesMixed24
 	forwardDIT4Radix4Complex64       = kernels.ForwardDIT4Radix4Complex64
 	inverseDIT4Radix4Complex64       = kernels.InverseDIT4Radix4Complex64
 	forwardDIT8Radix2Complex64       = kernels.ForwardDIT8Radix2Complex64

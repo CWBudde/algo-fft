@@ -1,11 +1,13 @@
 package kernels
 
+import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+
 // Pre-computed radix-4 bit-reversal indices for size 16/64.
 //
 //nolint:gochecknoglobals
 var (
-	bitrevSize16Radix4 = ComputeBitReversalIndicesRadix4(16)
-	bitrevSize64Radix4 = ComputeBitReversalIndicesRadix4(64)
+	bitrevSize16Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(16)
+	bitrevSize64Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(64)
 )
 
 //nolint:cyclop

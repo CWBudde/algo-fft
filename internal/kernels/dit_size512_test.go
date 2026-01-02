@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
@@ -21,7 +22,7 @@ func TestForwardDIT512Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	if !forwardDIT512Complex64(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT512Complex64 failed")
@@ -42,7 +43,7 @@ func TestInverseDIT512Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	if !forwardDIT512Complex64(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT512Complex64 failed")
@@ -66,7 +67,7 @@ func TestForwardDIT512Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	if !forwardDIT512Complex128(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT512Complex128 failed")
@@ -87,7 +88,7 @@ func TestInverseDIT512Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	if !forwardDIT512Complex128(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT512Complex128 failed")

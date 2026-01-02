@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
@@ -22,7 +23,7 @@ func TestForwardDIT1024Radix4Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	if !forwardDIT1024Radix4Complex64(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT1024Radix4Complex64 failed")
@@ -43,7 +44,7 @@ func TestInverseDIT1024Radix4Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	if !forwardDIT1024Radix4Complex64(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT1024Radix4Complex64 failed")
@@ -68,7 +69,7 @@ func TestRoundTripDIT1024Radix4Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	if !forwardDIT1024Radix4Complex64(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT1024Radix4Complex64 failed")
@@ -91,7 +92,7 @@ func TestForwardDIT1024Radix4Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	if !forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT1024Radix4Complex128 failed")
@@ -112,7 +113,7 @@ func TestInverseDIT1024Radix4Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	if !forwardDIT1024Radix4Complex128(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT1024Radix4Complex128 failed")
@@ -137,7 +138,7 @@ func TestRoundTripDIT1024Radix4Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	if !forwardDIT1024Radix4Complex128(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forwardDIT1024Radix4Complex128 failed")
