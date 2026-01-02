@@ -2,7 +2,7 @@
 
 package fft
 
-import kasm "github.com/MeKo-Christian/algo-fft/internal/kernels/asm/x86"
+import kasm "github.com/MeKo-Christian/algo-fft/internal/asm/x86"
 
 // Wrapper functions that call the x86 assembly implementations
 func forwardSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {

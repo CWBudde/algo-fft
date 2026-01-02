@@ -5,7 +5,7 @@ package kernels
 import (
 	"testing"
 
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/kernels/asm/amd64"
+	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 

@@ -2,7 +2,7 @@
 
 package kernels
 
-import arm64 "github.com/MeKo-Christian/algo-fft/internal/kernels/asm/arm64"
+import arm64 "github.com/MeKo-Christian/algo-fft/internal/asm/arm64"
 
 // registerNEONDITCodelets64 registers NEON-optimized complex64 DIT codelets.
 func registerNEONDITCodelets64() {
