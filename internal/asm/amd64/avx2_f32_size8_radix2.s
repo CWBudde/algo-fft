@@ -461,17 +461,3 @@ size8_inv_done:
 size8_inv_return_false:
 	MOVB $0, ret+120(FP)
 	RET
-
-// ===========================================================================
-// SIZE 8 RADIX-4 KERNELS
-// ===========================================================================
-// 8-point FFT using mixed-radix: 1 radix-4 stage + 1 radix-2 stage
-//
-// This reduces from 3 radix-2 stages to 2 stages total, improving performance.
-//
-// Stage 1 (Radix-4): 2 radix-4 butterflies processing indices [0,2,4,6] and [1,3,5,7]
-// Stage 2 (Radix-2): 4 radix-2 butterflies combining results from stage 1
-// ===========================================================================
-
-// Forward transform, size 8, complex64, radix-4 variant
-// Mixed-radix FFT: 1 radix-4 stage + 1 radix-2 stage

@@ -48,6 +48,30 @@ func registerAVX2DITCodelets64() {
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
+	// Size 16: Radix-4 AVX2 variant
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       16,
+		Forward:    wrapCodelet64(amd64.ForwardAVX2Size16Radix4Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseAVX2Size16Radix4Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit16_radix4_avx2",
+		Priority:   30,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
+	})
+
+	// Size 16: Radix-16 AVX2 variant (4x4)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       16,
+		Forward:    wrapCodelet64(amd64.ForwardAVX2Size16Radix16Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseAVX2Size16Radix16Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit16_radix16_avx2",
+		Priority:   50, // Highest priority
+		BitrevFunc: mathpkg.ComputeIdentityIndices,
+	})
+
 	// Size 32: Radix-2 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,

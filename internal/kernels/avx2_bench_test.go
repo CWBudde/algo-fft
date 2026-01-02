@@ -16,7 +16,8 @@ func BenchmarkAVX2Complex64(b *testing.B) {
 		{"Size8/Radix2", 8, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size8Radix2Complex64Asm, amd64.InverseAVX2Size8Radix2Complex64Asm},
 		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size8Radix4Complex64Asm, amd64.InverseAVX2Size8Radix4Complex64Asm},
 		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, amd64.ForwardAVX2Size8Radix8Complex64Asm, amd64.InverseAVX2Size8Radix8Complex64Asm},
-		{"Size16/Radix2", 16, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size16Complex64Asm, amd64.InverseAVX2Size16Complex64Asm},
+		{"Size16/Radix4", 16, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardAVX2Size16Radix4Complex64Asm, amd64.InverseAVX2Size16Radix4Complex64Asm},
+		{"Size16/Radix16", 16, mathpkg.ComputeIdentityIndices, amd64.ForwardAVX2Size16Radix16Complex64Asm, amd64.InverseAVX2Size16Radix16Complex64Asm},
 		{"Size32/Radix2", 32, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size32Complex64Asm, amd64.InverseAVX2Size32Complex64Asm},
 		{"Size64/Radix2", 64, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size64Complex64Asm, amd64.InverseAVX2Size64Complex64Asm},
 		{"Size64/Radix4", 64, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardAVX2Size64Radix4Complex64Asm, amd64.InverseAVX2Size64Radix4Complex64Asm},
@@ -28,9 +29,15 @@ func BenchmarkAVX2Complex64(b *testing.B) {
 
 	for _, tc := range cases {
 		b.Run(tc.name+"/Forward", func(b *testing.B) {
+			if tc.forward == nil {
+				b.Skip("Not implemented")
+			}
 			runBenchComplex64(b, tc.n, tc.bitrev, tc.forward)
 		})
 		b.Run(tc.name+"/Inverse", func(b *testing.B) {
+			if tc.inverse == nil {
+				b.Skip("Not implemented")
+			}
 			runBenchComplex64(b, tc.n, tc.bitrev, tc.inverse)
 		})
 	}

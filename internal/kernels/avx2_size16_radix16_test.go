@@ -10,67 +10,68 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
-// TestForwardSSE2Size16Radix16Complex64 tests the SSE2 size-16 radix-16 forward kernel
-func TestForwardSSE2Size16Radix16Complex64(t *testing.T) {
+// TestForwardAVX2Size16Radix16Complex64 tests the AVX2 size-16 radix-16 forward kernel
+func TestForwardAVX2Size16Radix16Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 16
-	src := randomComplex64(n, 0xABCDEFFF)
+	src := randomComplex64(n, 0x11223344)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !amd64.ForwardSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-		t.Fatal("ForwardSSE2Size16Radix16Complex64Asm failed")
+	if !amd64.ForwardAVX2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		t.Fatal("ForwardAVX2Size16Radix16Complex64Asm failed")
 	}
 
 	want := reference.NaiveDFT(src)
 	assertComplex64Close(t, dst, want, 1e-6)
 }
 
-// TestInverseSSE2Size16Radix16Complex64 tests the SSE2 size-16 radix-16 inverse kernel
-func TestInverseSSE2Size16Radix16Complex64(t *testing.T) {
+// TestInverseAVX2Size16Radix16Complex64 tests the AVX2 size-16 radix-16 inverse kernel
+func TestInverseAVX2Size16Radix16Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 16
-	src := randomComplex64(n, 0x12345678)
+	src := randomComplex64(n, 0x55667788)
 	fwd := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := mathpkg.ComputeIdentityIndices(n)
 
+	// Use reference to get valid frequency domain input
 	fwdRef := reference.NaiveDFT(src)
 	for i := range fwdRef {
 		fwd[i] = complex64(fwdRef[i])
 	}
 
-	if !amd64.InverseSSE2Size16Radix16Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
-		t.Fatal("InverseSSE2Size16Radix16Complex64Asm failed")
+	if !amd64.InverseAVX2Size16Radix16Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("InverseAVX2Size16Radix16Complex64Asm failed")
 	}
 
 	want := reference.NaiveIDFT(fwdRef)
 	assertComplex64Close(t, dst, want, 1e-6)
 }
 
-// TestRoundTripSSE2Size16Radix16Complex64 tests forward-inverse round-trip
-func TestRoundTripSSE2Size16Radix16Complex64(t *testing.T) {
+// TestRoundTripAVX2Size16Radix16Complex64 tests forward-inverse round-trip
+func TestRoundTripAVX2Size16Radix16Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 16
-	src := randomComplex64(n, 0xDEADBEEF)
+	src := randomComplex64(n, 0x99AABBCC)
 	fwd := make([]complex64, n)
 	inv := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !amd64.ForwardSSE2Size16Radix16Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardAVX2Size16Radix16Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("forward failed")
 	}
 
-	if !amd64.InverseSSE2Size16Radix16Complex64Asm(inv, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseAVX2Size16Radix16Complex64Asm(inv, fwd, twiddle, scratch, bitrev) {
 		t.Fatal("inverse failed")
 	}
 

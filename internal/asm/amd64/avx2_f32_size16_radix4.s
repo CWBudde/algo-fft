@@ -428,5 +428,3 @@ size16_r4_inv_return_false:
 	VZEROUPPER
 	MOVB $0, ret+120(FP)
 	RET
-
-// Forward transform, size 16, complex128, radix-4 variant

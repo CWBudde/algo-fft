@@ -692,10 +692,3 @@ size16_inv_bitrev:
 size16_inv_return_false:
 	MOVB $0, ret+120(FP)
 	RET
-
-// ===========================================================================
-// Forward transform, size 16, complex128
-// ===========================================================================
-// Size-specific entrypoint for n==16 that uses the same ABI slice layout as the
-// generic AVX2 kernels. This implementation uses scalar XMM operations for
-// correctness and simplicity.

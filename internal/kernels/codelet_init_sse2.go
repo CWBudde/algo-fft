@@ -51,7 +51,7 @@ func registerSSE2DITCodelets64() {
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
 		Forward:    wrapCodelet64(amd64.ForwardSSE2Size16Radix16Complex64Asm),
-		Inverse:    nil, // Forward only for now
+		Inverse:    wrapCodelet64(amd64.InverseSSE2Size16Radix16Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit16_radix16_sse2",

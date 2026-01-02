@@ -480,6 +480,3 @@ size8_r4_inv_done:
 size8_r4_inv_return_false:
 	MOVB $0, ret+120(FP)
 	RET
-
-// Forward transform, size 8, complex64, radix-8 variant
-// Single radix-8 butterfly without bit-reversal.

@@ -18,7 +18,7 @@ func BenchmarkSSE2Complex64(b *testing.B) {
 		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, amd64.ForwardSSE2Size8Radix8Complex64Asm, amd64.InverseSSE2Size8Radix8Complex64Asm},
 		{"Size16/Radix2", 16, mathpkg.ComputeBitReversalIndices, amd64.ForwardSSE2Size16Radix2Complex64Asm, amd64.InverseSSE2Size16Radix2Complex64Asm},
 		{"Size16/Radix4", 16, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardSSE2Size16Radix4Complex64Asm, amd64.InverseSSE2Size16Radix4Complex64Asm},
-		{"Size16/Radix16", 16, mathpkg.ComputeIdentityIndices, amd64.ForwardSSE2Size16Radix16Complex64Asm, nil},
+		{"Size16/Radix16", 16, mathpkg.ComputeIdentityIndices, amd64.ForwardSSE2Size16Radix16Complex64Asm, amd64.InverseSSE2Size16Radix16Complex64Asm},
 		{"Size64/Radix4", 64, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardSSE2Size64Radix4Complex64Asm, amd64.InverseSSE2Size64Radix4Complex64Asm},
 		{"Size128/Radix4", 128, mathpkg.ComputeBitReversalIndices, amd64.ForwardSSE2Size128Radix4Complex64Asm, amd64.InverseSSE2Size128Radix4Complex64Asm},
 	}
