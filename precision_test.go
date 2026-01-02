@@ -187,14 +187,13 @@ func testParseval128(t *testing.T, n int) {
 }
 
 // TestPrecisionComplex64VsComplex128 compares precision between complex64 and complex128.
+//
+//nolint:paralleltest
 func TestPrecisionComplex64VsComplex128(t *testing.T) {
-	t.Parallel()
-
 	sizes := []int{256, 1024, 4096, 16384, 65536}
 
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
-			t.Parallel()
 			testPrecisionComparison(t, n)
 		})
 	}
