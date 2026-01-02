@@ -33,6 +33,7 @@ func registerSSE2DITCodelets64() {
 	})
 
 	// Size 8: Radix-8 SSE2 variant
+	// DISABLED: Failing tests (incorrect results). See sse2_size8_radix8_test.go.
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
 		Forward:    wrapCodelet64(amd64.ForwardSSE2Size8Radix8Complex64Asm),
@@ -40,7 +41,19 @@ func registerSSE2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit8_radix8_sse2",
-		Priority:   30, // Higher priority than radix-2 (18) and mixed-radix (??)
+		Priority:   -1, // Disabled
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
+	// Size 16: Radix-2 SSE2 variant
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       16,
+		Forward:    wrapCodelet64(amd64.ForwardSSE2Size16Radix2Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseSSE2Size16Radix2Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDSSE2,
+		Signature:  "dit16_radix2_sse2",
+		Priority:   17, // Lower priority than radix-4 (18)
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
