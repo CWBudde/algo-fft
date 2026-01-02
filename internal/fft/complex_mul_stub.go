@@ -1,8 +1,8 @@
-//go:build !amd64 && !arm64
+//go:build (!amd64 && !arm64) || purego || !asm
 
 package fft
 
-// SIMD stubs for platforms without optimized implementations.
+// SIMD stubs for platforms without optimized implementations or when assembly is disabled.
 // These always return false, causing fallback to generic implementations.
 
 func complexMulArrayComplex64SIMD(dst, a, b []complex64) bool {

@@ -36,26 +36,30 @@ func ComplexMulArrayInPlaceComplex128(dst, src []complex128) {
 
 // Generic (pure Go) implementations.
 
-func complexMulArrayComplex64Generic(dst, a, b []complex64) {
+func complexMulArrayGeneric[T Complex](dst, a, b []T) {
 	for i := range dst {
 		dst[i] = a[i] * b[i]
 	}
+}
+
+func complexMulArrayInPlaceGeneric[T Complex](dst, src []T) {
+	for i := range dst {
+		dst[i] *= src[i]
+	}
+}
+
+func complexMulArrayComplex64Generic(dst, a, b []complex64) {
+	complexMulArrayGeneric(dst, a, b)
 }
 
 func complexMulArrayComplex128Generic(dst, a, b []complex128) {
-	for i := range dst {
-		dst[i] = a[i] * b[i]
-	}
+	complexMulArrayGeneric(dst, a, b)
 }
 
 func complexMulArrayInPlaceComplex64Generic(dst, src []complex64) {
-	for i := range dst {
-		dst[i] *= src[i]
-	}
+	complexMulArrayInPlaceGeneric(dst, src)
 }
 
 func complexMulArrayInPlaceComplex128Generic(dst, src []complex128) {
-	for i := range dst {
-		dst[i] *= src[i]
-	}
+	complexMulArrayInPlaceGeneric(dst, src)
 }
