@@ -1,4 +1,4 @@
-//go:build !fft_asm
+//go:build !asm
 
 package transform
 

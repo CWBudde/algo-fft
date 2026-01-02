@@ -1,4 +1,4 @@
-//go:build amd64 && (!fft_asm || purego)
+//go:build amd64 && (!asm || purego)
 
 package fft
 

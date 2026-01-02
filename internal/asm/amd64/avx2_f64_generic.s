@@ -1,4 +1,4 @@
-//go:build amd64 && fft_asm && !purego
+//go:build amd64 && asm && !purego
 
 // ===========================================================================
 // AVX2/FMA-optimized FFT Assembly for AMD64 - complex128 (float64)

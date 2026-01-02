@@ -1,4 +1,4 @@
-//go:build arm64 && fft_asm && !purego
+//go:build arm64 && asm && !purego
 
 // ===========================================================================
 // NEON-optimized FFT Assembly for ARM64 (complex128/float64)

@@ -1,11 +1,11 @@
-//go:build amd64 && fft_asm && !purego
+//go:build amd64 && asm && !purego
 
 package kernels
 
 import amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
 
 // registerAVX2DITCodelets64 registers AVX2-optimized complex64 DIT codelets.
-// These registrations are conditional on the fft_asm build tag and amd64 architecture.
+// These registrations are conditional on the asm build tag and amd64 architecture.
 func registerAVX2DITCodelets64() {
 	// Size 4: Radix-4 AVX2 variant
 	// Note: This implementation exists but may not provide speedup over generic

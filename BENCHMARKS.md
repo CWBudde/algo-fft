@@ -90,7 +90,7 @@ scripts/bench_md.sh benchmarks/baseline.txt > /tmp/benchmarks.md
 
 ## AVX2 Performance (Phase 14.2)
 
-Build with `-tags fft_asm` to enable AVX2 optimizations on amd64.
+Build with `-tags asm` to enable AVX2 optimizations on amd64.
 These results compare the baseline Pure Go implementation with the AVX2 optimized version.
 
 **Date**: 2025-12-25

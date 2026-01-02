@@ -6,11 +6,11 @@ This directory contains **assembly infrastructure** and contribution guidelines 
 
 - `amd64`, `arm64`: architecture-specific builds.
 - `purego`: forces pure-Go builds and **disables any assembly**.
-- `fft_asm`: enables assembly-backed kernels in `internal/fft` (when available).
+- `asm`: enables assembly-backed kernels in `internal/fft` (when available).
 
 Notes:
 
-- `purego` is treated as an override. If you build with both `-tags=purego,fft_asm`, the `purego` path wins.
+- `purego` is treated as an override. If you build with both `-tags=purego,asm`, the `purego` path wins.
 
 ## `go:noescape` usage
 
