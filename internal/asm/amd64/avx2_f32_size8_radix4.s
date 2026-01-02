@@ -109,11 +109,11 @@ size8_r4_fwd_bitrev:
 	// =======================================================================
 	// Build masks for complex ops
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X16
-	VBROADCASTSS X16, X16
-	VXORPS X17, X17, X17
-	VBLENDPS $0x55, X16, X17, X18 // maskNegReal  (lanes 0,2)
-	VBLENDPS $0xAA, X16, X17, X19 // maskNegImag  (lanes 1,3)
+	MOVD AX, X8
+	VBROADCASTSS X8, X8
+	VXORPS X9, X9, X9
+	VBLENDPS $0xAA, X8, X9, X10 // maskNegImag  (lanes 1,3)
+	VBLENDPS $0x55, X8, X9, X11 // maskNegReal  (lanes 0,2)
 
 	// Load x0..x7 into X0..X7 (lower 64 bits)
 	VXORPS X0, X0, X0
@@ -134,84 +134,96 @@ size8_r4_fwd_bitrev:
 	MOVQ 56(R8), X7
 
 	// Radix-4 butterfly 1: [x0, x1, x2, x3]
-	VADDPS X2, X0, X8    // t0
-	VSUBPS X2, X0, X9    // t1
-	VADDPS X3, X1, X10   // t2
-	VSUBPS X3, X1, X11   // t3
+	VADDPS X2, X0, X12   // t0
+	VSUBPS X2, X0, X13   // t1
+	VADDPS X3, X1, X14   // t2
+	VSUBPS X3, X1, X15   // t3
 	// t3 * (-i)
-	VSHUFPS $0xB1, X11, X11, X12
-	VXORPS X19, X12, X12
-	VADDPS X10, X8, X13  // a0
-	VSUBPS X10, X8, X15  // a2
-	VADDPS X12, X9, X14  // a1
-	VSUBPS X12, X9, X16  // a3
+	VSHUFPS $0xB1, X15, X15, X15
+	VXORPS X10, X15, X15
+	VADDPS X14, X12, X0  // a0
+	VSUBPS X14, X12, X2  // a2
+	VADDPS X15, X13, X1  // a1
+	VSUBPS X15, X13, X3  // a3
 
 	// Radix-4 butterfly 2: [x4, x5, x6, x7]
-	VADDPS X6, X4, X8    // t0
-	VSUBPS X6, X4, X9    // t1
-	VADDPS X7, X5, X10   // t2
-	VSUBPS X7, X5, X11   // t3
+	VADDPS X6, X4, X12   // t0
+	VSUBPS X6, X4, X13   // t1
+	VADDPS X7, X5, X14   // t2
+	VSUBPS X7, X5, X15   // t3
 	// t3 * (-i)
-	VSHUFPS $0xB1, X11, X11, X12
-	VXORPS X19, X12, X12
-	VADDPS X10, X8, X4   // a4
-	VSUBPS X10, X8, X6   // a6
-	VADDPS X12, X9, X5   // a5
-	VSUBPS X12, X9, X7   // a7
+	VSHUFPS $0xB1, X15, X15, X15
+	VXORPS X10, X15, X15
+	VADDPS X14, X12, X4  // a4
+	VSUBPS X14, X12, X6  // a6
+	VADDPS X15, X13, X5  // a5
+	VSUBPS X15, X13, X7  // a7
 
 	// Stage 2: radix-2 with twiddles
 	// y0,y4
-	VADDPS X4, X13, X0   // y0
-	VSUBPS X4, X13, X1   // y4
+	VADDPS X4, X0, X12   // y0
+	VSUBPS X4, X0, X13   // y4
 
 	// w1 * a5
-	VXORPS X2, X2, X2
-	MOVQ 8(R10), X2      // w1
-	VSHUFPS $0x00, X2, X2, X8  // w1.r
-	VSHUFPS $0x55, X2, X2, X9  // w1.i
-	VSHUFPS $0xB1, X5, X5, X10 // a5 swapped
-	VMULPS X8, X5, X11
-	VMULPS X9, X10, X12
-	VXORPS X18, X12, X12
-	VADDPS X12, X11, X11       // w1*a5
-	VADDPS X11, X14, X2        // y1
-	VSUBPS X11, X14, X3        // y5
+	MOVQ 8(R10), X8
+	VSHUFPS $0x00, X8, X8, X9  // w1.r
+	VSHUFPS $0x55, X8, X8, X10 // w1.i
+	VSHUFPS $0xB1, X5, X5, X11 // a5 swapped
+	VMULPS X9, X5, X14
+	VMULPS X10, X11, X15
+	MOVL ·signbit32(SB), AX
+	MOVD AX, X9
+	VBROADCASTSS X9, X9
+	VXORPS X10, X10, X10
+	VBLENDPS $0x55, X9, X10, X9
+	VXORPS X9, X15, X15
+	VADDPS X15, X14, X14       // w1*a5
+	VADDPS X14, X1, X8         // y1
+	VSUBPS X14, X1, X9         // y5
 
 	// w2 * a6
-	VXORPS X12, X12, X12
-	MOVQ 16(R10), X12     // w2
-	VSHUFPS $0x00, X12, X12, X8
-	VSHUFPS $0x55, X12, X12, X9
-	VSHUFPS $0xB1, X6, X6, X10
-	VMULPS X8, X6, X11
-	VMULPS X9, X10, X12
-	VXORPS X18, X12, X12
-	VADDPS X12, X11, X11       // w2*a6
-	VADDPS X11, X15, X4        // y2
-	VSUBPS X11, X15, X5        // y6
+	MOVQ 16(R10), X10
+	VSHUFPS $0x00, X10, X10, X11
+	VSHUFPS $0x55, X10, X10, X14
+	VSHUFPS $0xB1, X6, X6, X15
+	VMULPS X11, X6, X10
+	VMULPS X14, X15, X11
+	MOVL ·signbit32(SB), AX
+	MOVD AX, X14
+	VBROADCASTSS X14, X14
+	VXORPS X15, X15, X15
+	VBLENDPS $0x55, X14, X15, X14
+	VXORPS X14, X11, X11
+	VADDPS X11, X10, X14       // w2*a6
+	VADDPS X14, X2, X10        // y2
+	VSUBPS X14, X2, X11        // y6
 
 	// w3 * a7
-	VXORPS X12, X12, X12
-	MOVQ 24(R10), X12     // w3
-	VSHUFPS $0x00, X12, X12, X8
-	VSHUFPS $0x55, X12, X12, X9
-	VSHUFPS $0xB1, X7, X7, X10
-	VMULPS X8, X7, X11
-	VMULPS X9, X10, X12
-	VXORPS X18, X12, X12
-	VADDPS X12, X11, X11       // w3*a7
-	VADDPS X11, X16, X6        // y3
-	VSUBPS X11, X16, X7        // y7
+	MOVQ 24(R10), X14
+	VSHUFPS $0x00, X14, X14, X15
+	VSHUFPS $0x55, X14, X14, X4
+	VSHUFPS $0xB1, X7, X7, X5
+	VMULPS X15, X7, X14
+	VMULPS X4, X5, X15
+	MOVL ·signbit32(SB), AX
+	MOVD AX, X4
+	VBROADCASTSS X4, X4
+	VXORPS X5, X5, X5
+	VBLENDPS $0x55, X4, X5, X4
+	VXORPS X4, X15, X15
+	VADDPS X15, X14, X14       // w3*a7
+	VADDPS X14, X3, X15        // y3
+	VSUBPS X14, X3, X4         // y7
 
 	// Store results to work buffer
-	MOVQ X0, (R8)
-	MOVQ X2, 8(R8)
-	MOVQ X4, 16(R8)
-	MOVQ X6, 24(R8)
-	MOVQ X1, 32(R8)
-	MOVQ X3, 40(R8)
-	MOVQ X5, 48(R8)
-	MOVQ X7, 56(R8)
+	MOVQ X12, (R8)
+	MOVQ X8, 8(R8)
+	MOVQ X10, 16(R8)
+	MOVQ X15, 24(R8)
+	MOVQ X13, 32(R8)
+	MOVQ X9, 40(R8)
+	MOVQ X11, 48(R8)
+	MOVQ X4, 56(R8)
 
 	MOVQ dst+0(FP), R9
 	CMPQ R8, R9

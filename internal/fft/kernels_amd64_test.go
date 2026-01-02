@@ -132,6 +132,7 @@ func TestSelectKernelsWithStrategy_SSE2(t *testing.T) {
 // TestForwardSSE2Complex64 tests SSE2 complex64 forward kernel directly.
 func TestForwardSSE2Complex64(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name string
 		size int
@@ -169,6 +170,7 @@ func TestForwardSSE2Complex64(t *testing.T) {
 // TestInverseSSE2Complex64 tests SSE2 complex64 inverse kernel directly.
 func TestInverseSSE2Complex64(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name string
 		size int

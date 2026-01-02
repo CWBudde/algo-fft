@@ -130,7 +130,7 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 
 	var (
 		maxRelErr   float64
-		firstBadIdx int = -1
+		firstBadIdx = -1
 	)
 
 	for i := range simdOut {
