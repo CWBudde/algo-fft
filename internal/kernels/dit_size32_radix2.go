@@ -1,6 +1,6 @@
 package kernels
 
-// forwardDIT32Complex64 computes a 32-point forward FFT using the
+// forwardDIT32Complex64 computes a 32-point radix-2 forward FFT using the
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex64 data.
 // This implementation is fully unrolled for maximum performance.
 // Returns false if any slice is too small.
@@ -204,7 +204,7 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	return true
 }
 
-// inverseDIT32Complex64 computes a 32-point inverse FFT using the
+// inverseDIT32Complex64 computes a 32-point radix-2 inverse FFT using the
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
@@ -434,7 +434,7 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	return true
 }
 
-// forwardDIT32Complex128 computes a 32-point forward FFT using the
+// forwardDIT32Complex128 computes a 32-point radix-2 forward FFT using the
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
@@ -640,7 +640,7 @@ func forwardDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	return true
 }
 
-// inverseDIT32Complex128 computes a 32-point inverse FFT using the
+// inverseDIT32Complex128 computes a 32-point radix-2 inverse FFT using the
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
