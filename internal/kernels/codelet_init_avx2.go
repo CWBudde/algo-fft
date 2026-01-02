@@ -255,6 +255,18 @@ func registerAVX2DITCodelets128() {
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
+	// Size 512: Radix-2 AVX2 variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       512,
+		Forward:    wrapCodelet128(amd64.ForwardAVX2Size512Radix2Complex128Asm),
+		Inverse:    wrapCodelet128(amd64.InverseAVX2Size512Radix2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit512_radix2_avx2",
+		Priority:   10, // Baseline until a fully-unrolled kernel is available
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
 	// Size 512: Mixed-radix-2/4 AVX2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       512,

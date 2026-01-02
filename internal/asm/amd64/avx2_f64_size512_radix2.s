@@ -1,0 +1,34 @@
+//go:build amd64 && asm && !purego
+
+// ===========================================================================
+// AVX2 Size-512 Radix-2 FFT Kernels for AMD64 (wrapper)
+// ===========================================================================
+//
+// These wrappers validate the expected size (512) and delegate to the generic
+// AVX2 radix-2 implementation for complex128.
+//
+// ===========================================================================
+
+#include "textflag.h"
+
+// Forward transform, size 512, complex128
+TEXT ·ForwardAVX2Size512Radix2Complex128Asm(SB), NOSPLIT, $0-121
+	MOVQ src+32(FP), AX
+	CMPQ AX, $512
+	JNE  size512_r2_128_forward_return_false
+	JMP  ·ForwardAVX2Complex128Asm(SB)
+
+size512_r2_128_forward_return_false:
+	MOVB $0, ret+120(FP)
+	RET
+
+// Inverse transform, size 512, complex128
+TEXT ·InverseAVX2Size512Radix2Complex128Asm(SB), NOSPLIT, $0-121
+	MOVQ src+32(FP), AX
+	CMPQ AX, $512
+	JNE  size512_r2_128_inverse_return_false
+	JMP  ·InverseAVX2Complex128Asm(SB)
+
+size512_r2_128_inverse_return_false:
+	MOVB $0, ret+120(FP)
+	RET

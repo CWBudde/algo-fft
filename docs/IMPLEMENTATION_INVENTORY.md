@@ -48,7 +48,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | 128   | Mixed²    | ✓   | ✓    | -    | -    |
 | 256   | Radix-2   | ✓   | ✓    | -    | ✓    |
 | 256   | Radix-4   | ✓   | -    | -    | -    |
-| 512   | Radix-2   | ✓   | -    | -    | ✓    |
+| 512   | Radix-2   | ✓   | ✓    | -    | ✓    |
 | 512   | Mixed⁴    | ✓   | ✓    | -    | -    |
 | 1024  | Radix-4   | ✓   | -    | -    | -    |
 | 2048  | Mixed⁴    | ✓   | -    | -    | -    |
@@ -240,6 +240,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | complex64  | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go`                       |
 | complex64  | mixed⁴    | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size512_mixed24.s`|
 | complex128 | radix-2   | none | Go     | ✓      | `dit_size512.go`                               |
+| complex128 | radix-2   | AVX2 | Wrap   | ✓      | `internal/asm/amd64/avx2_f64_size512_radix2.s` |
 | complex128 | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f64_generic.s`        |
 | complex128 | mixed⁴    | none | Go     | ✓      | `dit_size512_mixed24.go`                       |
 | complex128 | mixed⁴    | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f64_size512_mixed24.s`|
@@ -343,9 +344,9 @@ AVX2 optimizations exist for both `complex64` and `complex128`:
 - **Size 64**: 2 variants complex64 (radix-2, radix-4) + 2 variants complex128 (radix-2, radix-4) + SSE2 fallback
 - **Size 128**: 2 variants complex64 (radix-2, mixed-radix) + 2 variants complex128 (radix-2, mixed-radix)
 - **Size 256**: 2 variants complex64 (radix-2, radix-4) + 1 variant complex128 (radix-2)
-- **Size 512**: 3 variants (radix-2 complex64 wrapper, mixed⁴ complex64, mixed⁴ complex128)
+- **Size 512**: 4 variants (radix-2 complex64 wrapper, mixed⁴ complex64, radix-2 complex128 wrapper, mixed⁴ complex128)
 
-**Total:** 33 complete implementations
+**Total:** 34 complete implementations
 
 ## Missing Implementations
 

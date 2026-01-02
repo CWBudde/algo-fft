@@ -122,6 +122,7 @@ func TestAVX2DITForwardComplex128(t *testing.T) {
 		{"Size8/Radix8", 8, nil, forwardAVX2Size8Radix8Complex128Asm},
 		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm},
 		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm},
+		{"Size512/Radix2", 512, ComputeBitReversalIndices, forwardAVX2Size512Radix2Complex128Asm},
 		{"Size512/Mixed24", 512, ComputeBitReversalIndicesMixed24, forwardAVX2Size512Mixed24Complex128Asm},
 	}
 
@@ -166,6 +167,7 @@ func TestAVX2DITInverseComplex128(t *testing.T) {
 		{"Size8/Radix8", 8, nil, forwardAVX2Size8Radix8Complex128Asm, inverseAVX2Size8Radix8Complex128Asm},
 		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm, inverseAVX2Size16Complex128Asm},
 		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm, inverseAVX2Size32Complex128Asm},
+		{"Size512/Radix2", 512, ComputeBitReversalIndices, forwardAVX2Size512Radix2Complex128Asm, inverseAVX2Size512Radix2Complex128Asm},
 		{"Size512/Mixed24", 512, ComputeBitReversalIndicesMixed24, forwardAVX2Size512Mixed24Complex128Asm, inverseAVX2Size512Mixed24Complex128Asm},
 	}
 
@@ -259,6 +261,7 @@ func BenchmarkAVX2DITComplex128(b *testing.B) {
 		{"Size8/Radix8", 8, nil, forwardAVX2Size8Radix8Complex128Asm},
 		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm},
 		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm},
+		{"Size512/Radix2", 512, ComputeBitReversalIndices, forwardAVX2Size512Radix2Complex128Asm},
 		{"Size512/Mixed24", 512, ComputeBitReversalIndicesMixed24, forwardAVX2Size512Mixed24Complex128Asm},
 	}
 
