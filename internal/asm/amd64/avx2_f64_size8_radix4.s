@@ -115,6 +115,8 @@ size8_128_r4_fwd_use_dst:
 	// Stage 2: radix-2 with twiddles
 	VADDPD X4, X0, X11       // y0
 	VSUBPD X4, X0, X12       // y4
+	MOVUPD X11, (R8)
+	MOVUPD X12, 64(R8)
 
 	// w1 * a5
 	MOVUPD 16(R10), X8       // w1
@@ -128,6 +130,8 @@ size8_128_r4_fwd_use_dst:
 	VUNPCKLPD X14, X13, X13  // w1*a5
 	VADDPD X13, X1, X0       // y1
 	VSUBPD X13, X1, X1       // y5
+	MOVUPD X0, 16(R8)
+	MOVUPD X1, 80(R8)
 
 	// Save a2, a3 before overwriting
 	VMOVAPD X2, X10
@@ -145,6 +149,8 @@ size8_128_r4_fwd_use_dst:
 	VUNPCKLPD X14, X13, X13  // w2*a6
 	VADDPD X13, X10, X2      // y2
 	VSUBPD X13, X10, X3      // y6
+	MOVUPD X2, 32(R8)
+	MOVUPD X3, 96(R8)
 
 	// w3 * a7
 	MOVUPD 48(R10), X8       // w3
@@ -158,15 +164,7 @@ size8_128_r4_fwd_use_dst:
 	VUNPCKLPD X14, X13, X13  // w3*a7
 	VADDPD X13, X11, X4      // y3
 	VSUBPD X13, X11, X5      // y7
-
-	// Store results to work buffer
-	MOVUPD X11, (R8)
-	MOVUPD X0, 16(R8)
-	MOVUPD X2, 32(R8)
 	MOVUPD X4, 48(R8)
-	MOVUPD X12, 64(R8)
-	MOVUPD X1, 80(R8)
-	MOVUPD X3, 96(R8)
 	MOVUPD X5, 112(R8)
 
 	// Copy to dst if needed
@@ -190,6 +188,7 @@ size8_128_r4_fwd_use_dst:
 	MOVUPD 112(R8), X0
 	MOVUPD X0, 112(R14)
 
+size8_128_r4_fwd_done:
 	VZEROUPPER
 	MOVB $1, ret+120(FP)
 	RET
@@ -299,9 +298,21 @@ size8_128_r4_inv_use_dst:
 	VADDPD X4, X0, X11       // y0
 	VSUBPD X4, X0, X12       // y4
 
+	// Apply 1/8 scaling for y0/y4 and store
+	MOVQ ·eighth64(SB), AX
+	VMOVQ AX, X8
+	VMOVDDUP X8, X8
+	VMULPD X8, X11, X11
+	VMULPD X8, X12, X12
+	MOVUPD X11, (R8)
+	MOVUPD X12, 64(R8)
+
 	// conj(w1) * a5
 	MOVUPD 16(R10), X8
-	VXORPD X15, X8, X8
+	MOVQ ·signbit64(SB), AX
+	VMOVQ AX, X9
+	VPERMILPD $1, X9, X9
+	VXORPD X9, X8, X8
 	VPERMILPD $1, X8, X9
 	VMULPD X8, X5, X13
 	VMULPD X9, X5, X14
@@ -312,6 +323,13 @@ size8_128_r4_inv_use_dst:
 	VUNPCKLPD X14, X13, X13
 	VADDPD X13, X1, X0       // y1
 	VSUBPD X13, X1, X1       // y5
+	MOVQ ·eighth64(SB), AX
+	VMOVQ AX, X8
+	VMOVDDUP X8, X8
+	VMULPD X8, X0, X0
+	VMULPD X8, X1, X1
+	MOVUPD X0, 16(R8)
+	MOVUPD X1, 80(R8)
 
 	// Save a2, a3 before overwriting
 	VMOVAPD X2, X10
@@ -319,7 +337,10 @@ size8_128_r4_inv_use_dst:
 
 	// conj(w2) * a6
 	MOVUPD 32(R10), X8
-	VXORPD X15, X8, X8
+	MOVQ ·signbit64(SB), AX
+	VMOVQ AX, X9
+	VPERMILPD $1, X9, X9
+	VXORPD X9, X8, X8
 	VPERMILPD $1, X8, X9
 	VMULPD X8, X6, X13
 	VMULPD X9, X6, X14
@@ -330,10 +351,20 @@ size8_128_r4_inv_use_dst:
 	VUNPCKLPD X14, X13, X13
 	VADDPD X13, X10, X2      // y2
 	VSUBPD X13, X10, X3      // y6
+	MOVQ ·eighth64(SB), AX
+	VMOVQ AX, X8
+	VMOVDDUP X8, X8
+	VMULPD X8, X2, X2
+	VMULPD X8, X3, X3
+	MOVUPD X2, 32(R8)
+	MOVUPD X3, 96(R8)
 
 	// conj(w3) * a7
 	MOVUPD 48(R10), X8
-	VXORPD X15, X8, X8
+	MOVQ ·signbit64(SB), AX
+	VMOVQ AX, X9
+	VPERMILPD $1, X9, X9
+	VXORPD X9, X8, X8
 	VPERMILPD $1, X8, X9
 	VMULPD X8, X7, X13
 	VMULPD X9, X7, X14
@@ -344,28 +375,12 @@ size8_128_r4_inv_use_dst:
 	VUNPCKLPD X14, X13, X13
 	VADDPD X13, X11, X4      // y3
 	VSUBPD X13, X11, X5      // y7
-
-	// Apply 1/8 scaling
 	MOVQ ·eighth64(SB), AX
 	VMOVQ AX, X8
 	VMOVDDUP X8, X8
-	VMULPD X8, X11, X11
-	VMULPD X8, X0, X0
-	VMULPD X8, X2, X2
 	VMULPD X8, X4, X4
-	VMULPD X8, X12, X12
-	VMULPD X8, X1, X1
-	VMULPD X8, X3, X3
 	VMULPD X8, X5, X5
-
-	// Store results to work buffer
-	MOVUPD X11, (R8)
-	MOVUPD X0, 16(R8)
-	MOVUPD X2, 32(R8)
 	MOVUPD X4, 48(R8)
-	MOVUPD X12, 64(R8)
-	MOVUPD X1, 80(R8)
-	MOVUPD X3, 96(R8)
 	MOVUPD X5, 112(R8)
 
 	// Copy to dst if needed
@@ -389,6 +404,7 @@ size8_128_r4_inv_use_dst:
 	MOVUPD 112(R8), X0
 	MOVUPD X0, 112(R14)
 
+size8_128_r4_inv_done:
 	VZEROUPPER
 	MOVB $1, ret+120(FP)
 	RET
