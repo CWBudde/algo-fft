@@ -81,89 +81,50 @@ size8_128_r4_fwd_use_dst:
 	// Now: X0=x0, X1=x1, X2=x2, X3=x3, X4=x4, X5=x5, X6=x6, X7=x7
 
 	// =======================================================================
-	// STAGE 1: Two radix-4 butterflies
+	// STAGE 1: Two radix-4 butterflies (contiguous groups)
 	// =======================================================================
-	// Butterfly 1: [x0, x2, x4, x6] -> [a0, a1, a2, a3]
-	// Butterfly 2: [x1, x3, x5, x7] -> [a4, a5, a6, a7]
+	// Butterfly 1: [x0, x1, x2, x3] -> [a0, a1, a2, a3]
+	// Butterfly 2: [x4, x5, x6, x7] -> [a4, a5, a6, a7]
 
-	// Build sign mask for multiply by -i: [0, signbit]
+	// Build sign masks: X14 = [0, signbit] for -i, X15 = [signbit, 0] for +i
 	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X15
-	VPERMILPD $1, X15, X14   // X14 = [signbit, 0] for +i
-	                         // X15 = [0, signbit] for -i
+	VPERMILPD $1, X15, X14
 
-	// --- Radix-4 Butterfly 1: [x0, x2, x4, x6] ---
-	// t0 = x0 + x4, t1 = x0 - x4
-	VADDPD X4, X0, X8        // X8 = t0
-	VSUBPD X4, X0, X9        // X9 = t1
-	// t2 = x2 + x6, t3 = x2 - x6
-	VADDPD X6, X2, X10       // X10 = t2
-	VSUBPD X6, X2, X11       // X11 = t3
+	// --- Radix-4 Butterfly 1: [x0, x1, x2, x3] ---
+	VADDPD X2, X0, X8        // t0 = x0 + x2
+	VSUBPD X2, X0, X9        // t1 = x0 - x2
+	VADDPD X3, X1, X10       // t2 = x1 + x3
+	VSUBPD X3, X1, X11       // t3 = x1 - x3
 
-	// a0 = t0 + t2, a2 = t0 - t2
-	VADDPD X10, X8, X0       // X0 = a0
-	VSUBPD X10, X8, X2       // X2 = a2
+	VADDPD X10, X8, X0       // a0
+	VSUBPD X10, X8, X2       // a2
 
-	// Multiply t3 by -i: (r,i) -> (i,-r)
-	VPERMILPD $1, X11, X12   // X12 = [i, r] (swap)
-	VXORPD X15, X12, X12     // X12 = [i, -r] = t3*(-i)
-
-	// a1 = t1 + t3*(-i), a3 = t1 - t3*(-i)
-	VADDPD X12, X9, X1       // X1 = a1
-	VSUBPD X12, X9, X3       // X3 = a3
-
-	// --- Radix-4 Butterfly 2: [x1, x3, x5, x7] ---
-	// t0 = x1 + x5, t1 = x1 - x5
-	VADDPD X5, X1, X8        // Wait, X1 now holds a1, need to save it
-	// Oops - register conflict. Let me reorganize.
-	// Save a0,a1,a2,a3 to scratch first, then do butterfly 2
-	MOVUPD X0, (R8)          // work[0] = a0
-	MOVUPD X1, 16(R8)        // work[1] = a1
-	MOVUPD X2, 32(R8)        // work[2] = a2
-	MOVUPD X3, 48(R8)        // work[3] = a3
-
-	// Reload x1,x3,x5,x7 from original bit-reversed positions
-	MOVQ 8(R12), DX          // bitrev[1]
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X0    // x1
-	MOVQ 24(R12), DX         // bitrev[3]
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X2    // x3
-	MOVQ 40(R12), DX         // bitrev[5]
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X4    // x5
-	MOVQ 56(R12), DX         // bitrev[7]
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X6    // x7
-
-	// t0 = x1 + x5, t1 = x1 - x5
-	VADDPD X4, X0, X8        // X8 = t0
-	VSUBPD X4, X0, X9        // X9 = t1
-	// t2 = x3 + x7, t3 = x3 - x7
-	VADDPD X6, X2, X10       // X10 = t2
-	VSUBPD X6, X2, X11       // X11 = t3
-
-	// a4 = t0 + t2, a6 = t0 - t2
-	VADDPD X10, X8, X4       // X4 = a4
-	VSUBPD X10, X8, X6       // X6 = a6
-
-	// Multiply t3 by -i
 	VPERMILPD $1, X11, X12
-	VXORPD X15, X12, X12     // X12 = t3*(-i)
+	VXORPD X14, X12, X12     // t3 * (-i)
 
-	// a5 = t1 + t3*(-i), a7 = t1 - t3*(-i)
-	VADDPD X12, X9, X5       // X5 = a5
-	VSUBPD X12, X9, X7       // X7 = a7
+	VADDPD X12, X9, X1       // a1
+	VSUBPD X12, X9, X3       // a3
+
+	// --- Radix-4 Butterfly 2: [x4, x5, x6, x7] ---
+	VADDPD X6, X4, X8        // t0 = x4 + x6
+	VSUBPD X6, X4, X9        // t1 = x4 - x6
+	VADDPD X7, X5, X10       // t2 = x5 + x7
+	VSUBPD X7, X5, X11       // t3 = x5 - x7
+
+	VADDPD X10, X8, X4       // a4
+	VSUBPD X10, X8, X6       // a6
+
+	VPERMILPD $1, X11, X12
+	VXORPD X14, X12, X12     // t3 * (-i)
+
+	VADDPD X12, X9, X5       // a5
+	VSUBPD X12, X9, X7       // a7
 
 	// =======================================================================
 	// STAGE 2: Radix-2 butterflies with twiddle factors
 	// =======================================================================
 	// Combine: (a0,a4)*w0, (a1,a5)*w1, (a2,a6)*w2, (a3,a7)*w3
-	// Reload a0,a1,a2,a3 from work buffer
-	MOVUPD (R8), X0          // a0
-	MOVUPD 16(R8), X1        // a1
-	MOVUPD 32(R8), X2        // a2
-	MOVUPD 48(R8), X3        // a3
 
 	// Now: X0=a0, X1=a1, X2=a2, X3=a3, X4=a4, X5=a5, X6=a6, X7=a7
 
@@ -179,7 +140,7 @@ size8_128_r4_fwd_use_dst:
 	VMOVDDUP X10, X10        // X10 = [w1.i, w1.i]
 	VPERMILPD $1, X5, X0     // X0 = [a5.i, a5.r]
 	VMULPD X10, X0, X0       // X0 = [a5.i*w1.i, a5.r*w1.i]
-	VFMADDSUB231PD X11, X5, X0  // X0 = w1 * a5
+	VFMSUBADD231PD X11, X5, X0  // X0 = w1 * a5
 	VADDPD X0, X1, X9        // X9 = y1
 	VSUBPD X0, X1, X13       // X13 = y5
 
@@ -190,7 +151,7 @@ size8_128_r4_fwd_use_dst:
 	VMOVDDUP X10, X10
 	VPERMILPD $1, X6, X1
 	VMULPD X10, X1, X1
-	VFMADDSUB231PD X11, X6, X1  // X1 = w2 * a6
+	VFMSUBADD231PD X11, X6, X1  // X1 = w2 * a6
 	VADDPD X1, X2, X10       // X10 = y2
 	VSUBPD X1, X2, X14       // X14 = y6
 
@@ -201,7 +162,7 @@ size8_128_r4_fwd_use_dst:
 	VMOVDDUP X0, X0
 	VPERMILPD $1, X7, X2
 	VMULPD X0, X2, X2
-	VFMADDSUB231PD X11, X7, X2  // X2 = w3 * a7
+	VFMSUBADD231PD X11, X7, X2  // X2 = w3 * a7
 	VADDPD X2, X3, X11       // X11 = y3
 	VSUBPD X2, X3, X15       // X15 = y7
 
@@ -292,69 +253,40 @@ size8_128_r4_inv_use_dst:
 	SHLQ $4, DX
 	MOVUPD (R9)(DX*1), X7
 
-	// Build sign masks
+	// Build sign masks: X14 = [0, signbit] for -i, X15 = [signbit, 0] for +i
 	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X15
-	VPERMILPD $1, X15, X14   // X14 = [signbit, 0] for +i
-	                         // X15 = [0, signbit] for -i
+	VPERMILPD $1, X15, X14
 
-	// --- Radix-4 Butterfly 1: [x0, x2, x4, x6] with +i ---
-	VADDPD X4, X0, X8
-	VSUBPD X4, X0, X9
-	VADDPD X6, X2, X10
-	VSUBPD X6, X2, X11
+	// --- Radix-4 Butterfly 1: [x0, x1, x2, x3] with +i ---
+	VADDPD X2, X0, X8
+	VSUBPD X2, X0, X9
+	VADDPD X3, X1, X10
+	VSUBPD X3, X1, X11
 
 	VADDPD X10, X8, X0       // a0
 	VSUBPD X10, X8, X2       // a2
 
-	// Multiply t3 by +i: (r,i) -> (-i,r)
 	VPERMILPD $1, X11, X12
-	VXORPD X14, X12, X12     // X12 = [-i, r] = t3*(+i)
+	VXORPD X15, X12, X12     // t3*(+i)
 
 	VADDPD X12, X9, X1       // a1
 	VSUBPD X12, X9, X3       // a3
 
-	// Save a0,a1,a2,a3
-	MOVUPD X0, (R8)
-	MOVUPD X1, 16(R8)
-	MOVUPD X2, 32(R8)
-	MOVUPD X3, 48(R8)
-
-	// Reload x1,x3,x5,x7
-	MOVQ 8(R12), DX
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X0
-	MOVQ 24(R12), DX
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X2
-	MOVQ 40(R12), DX
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X4
-	MOVQ 56(R12), DX
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X6
-
-	// --- Radix-4 Butterfly 2: [x1, x3, x5, x7] with +i ---
-	VADDPD X4, X0, X8
-	VSUBPD X4, X0, X9
-	VADDPD X6, X2, X10
-	VSUBPD X6, X2, X11
+	// --- Radix-4 Butterfly 2: [x4, x5, x6, x7] with +i ---
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VADDPD X7, X5, X10
+	VSUBPD X7, X5, X11
 
 	VADDPD X10, X8, X4       // a4
 	VSUBPD X10, X8, X6       // a6
 
-	// Multiply t3 by +i
 	VPERMILPD $1, X11, X12
-	VXORPD X14, X12, X12
+	VXORPD X15, X12, X12
 
 	VADDPD X12, X9, X5       // a5
 	VSUBPD X12, X9, X7       // a7
-
-	// Reload a0,a1,a2,a3
-	MOVUPD (R8), X0
-	MOVUPD 16(R8), X1
-	MOVUPD 32(R8), X2
-	MOVUPD 48(R8), X3
 
 	// --- Stage 2: Radix-2 with conjugated twiddles (VFMSUBADD) ---
 
@@ -369,7 +301,7 @@ size8_128_r4_inv_use_dst:
 	VMOVDDUP X10, X10
 	VPERMILPD $1, X5, X0
 	VMULPD X10, X0, X0
-	VFMSUBADD231PD X11, X5, X0  // conj(w1) * a5
+	VFMADDSUB231PD X11, X5, X0  // conj(w1) * a5
 	VADDPD X0, X1, X9        // y1
 	VSUBPD X0, X1, X13       // y5
 
@@ -380,7 +312,7 @@ size8_128_r4_inv_use_dst:
 	VMOVDDUP X10, X10
 	VPERMILPD $1, X6, X1
 	VMULPD X10, X1, X1
-	VFMSUBADD231PD X11, X6, X1
+	VFMADDSUB231PD X11, X6, X1
 	VADDPD X1, X2, X10       // y2
 	VSUBPD X1, X2, X14       // y6
 
@@ -391,7 +323,7 @@ size8_128_r4_inv_use_dst:
 	VMOVDDUP X0, X0
 	VPERMILPD $1, X7, X2
 	VMULPD X0, X2, X2
-	VFMSUBADD231PD X11, X7, X2
+	VFMADDSUB231PD X11, X7, X2
 	VADDPD X2, X3, X11       // y3
 	VSUBPD X2, X3, X15       // y7
 

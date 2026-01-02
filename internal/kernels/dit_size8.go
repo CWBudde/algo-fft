@@ -326,39 +326,38 @@ func forwardDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	// Butterfly 1: indices [0, 2, 4, 6]
 	// Butterfly 2: indices [1, 3, 5, 7]
 
-	// Load bit-reversed inputs
+	// Load mixed-radix bit-reversed inputs (radix-4 groups, then radix-2)
 	x0 := s[br[0]]
-	x2 := s[br[2]]
-	x4 := s[br[4]]
-	x6 := s[br[6]]
-
 	x1 := s[br[1]]
+	x2 := s[br[2]]
 	x3 := s[br[3]]
+	x4 := s[br[4]]
 	x5 := s[br[5]]
+	x6 := s[br[6]]
 	x7 := s[br[7]]
 
-	// Radix-4 butterfly 1: [x0, x2, x4, x6]
+	// Radix-4 butterfly 1: [x0, x1, x2, x3]
 	// w^0, w^2, w^4, w^6 where w = e^(-2πi/8)
 	// w^0 = 1, w^2 = -i, w^4 = -1, w^6 = i
-	t0 := x0 + x4 // x0 + x4*w^0
-	t1 := x0 - x4 // x0 - x4*w^0
-	t2 := x2 + x6 // x2 + x6*w^0
-	t3 := x2 - x6 // x2 - x6*w^0
+	t0 := x0 + x2 // x0 + x2*w^0
+	t1 := x0 - x2 // x0 - x2*w^0
+	t2 := x1 + x3 // x1 + x3*w^0
+	t3 := x1 - x3 // x1 - x3*w^0
 
 	// Apply w^2 = -i to middle terms: multiply by -i means (r,i) -> (i,-r)
-	t3i := complex(-imag(t3), real(t3)) // t3 * (-i)
+	t3i := complex(imag(t3), -real(t3)) // t3 * (-i)
 
 	a0 := t0 + t2
 	a1 := t1 + t3i
 	a2 := t0 - t2
 	a3 := t1 - t3i
 
-	// Radix-4 butterfly 2: [x1, x3, x5, x7]
-	t0 = x1 + x5
-	t1 = x1 - x5
-	t2 = x3 + x7
-	t3 = x3 - x7
-	t3i = complex(-imag(t3), real(t3)) // t3 * (-i)
+	// Radix-4 butterfly 2: [x4, x5, x6, x7]
+	t0 = x4 + x6
+	t1 = x4 - x6
+	t2 = x5 + x7
+	t3 = x5 - x7
+	t3i = complex(imag(t3), -real(t3)) // t3 * (-i)
 
 	a4 := t0 + t2
 	a5 := t1 + t3i
@@ -423,26 +422,25 @@ func inverseDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	w2 = complex(real(w2), -imag(w2))
 	w3 = complex(real(w3), -imag(w3))
 
-	// Load bit-reversed inputs
+	// Load mixed-radix bit-reversed inputs (radix-4 groups, then radix-2)
 	x0 := s[br[0]]
-	x2 := s[br[2]]
-	x4 := s[br[4]]
-	x6 := s[br[6]]
-
 	x1 := s[br[1]]
+	x2 := s[br[2]]
 	x3 := s[br[3]]
+	x4 := s[br[4]]
 	x5 := s[br[5]]
+	x6 := s[br[6]]
 	x7 := s[br[7]]
 
 	// Radix-4 butterfly 1 with conjugated twiddles
 	// For inverse: w^2 = -i becomes conj(-i) = i
-	t0 := x0 + x4
-	t1 := x0 - x4
-	t2 := x2 + x6
-	t3 := x2 - x6
+	t0 := x0 + x2
+	t1 := x0 - x2
+	t2 := x1 + x3
+	t3 := x1 - x3
 
 	// Apply conj(w^2) = i to middle terms: multiply by i means (r,i) -> (-i,r)
-	t3i := complex(imag(t3), -real(t3)) // t3 * i
+	t3i := complex(-imag(t3), real(t3)) // t3 * i
 
 	a0 := t0 + t2
 	a1 := t1 + t3i
@@ -450,11 +448,11 @@ func inverseDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	a3 := t1 - t3i
 
 	// Radix-4 butterfly 2
-	t0 = x1 + x5
-	t1 = x1 - x5
-	t2 = x3 + x7
-	t3 = x3 - x7
-	t3i = complex(imag(t3), -real(t3)) // t3 * i
+	t0 = x4 + x6
+	t1 = x4 - x6
+	t2 = x5 + x7
+	t3 = x5 - x7
+	t3i = complex(-imag(t3), real(t3)) // t3 * i
 
 	a4 := t0 + t2
 	a5 := t1 + t3i
@@ -516,37 +514,36 @@ func forwardDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	// Pre-load twiddle factors
 	w1, w2, w3 := twiddle[1], twiddle[2], twiddle[3]
 
-	// Load bit-reversed inputs
+	// Load mixed-radix bit-reversed inputs (radix-4 groups, then radix-2)
 	x0 := s[br[0]]
-	x2 := s[br[2]]
-	x4 := s[br[4]]
-	x6 := s[br[6]]
-
 	x1 := s[br[1]]
+	x2 := s[br[2]]
 	x3 := s[br[3]]
+	x4 := s[br[4]]
 	x5 := s[br[5]]
+	x6 := s[br[6]]
 	x7 := s[br[7]]
 
-	// Radix-4 butterfly 1: [x0, x2, x4, x6]
-	t0 := x0 + x4
-	t1 := x0 - x4
-	t2 := x2 + x6
-	t3 := x2 - x6
+	// Radix-4 butterfly 1: [x0, x1, x2, x3]
+	t0 := x0 + x2
+	t1 := x0 - x2
+	t2 := x1 + x3
+	t3 := x1 - x3
 
 	// Apply w^2 = -i: multiply by -i means (r,i) -> (i,-r)
-	t3i := complex(-imag(t3), real(t3))
+	t3i := complex(imag(t3), -real(t3))
 
 	a0 := t0 + t2
 	a1 := t1 + t3i
 	a2 := t0 - t2
 	a3 := t1 - t3i
 
-	// Radix-4 butterfly 2: [x1, x3, x5, x7]
-	t0 = x1 + x5
-	t1 = x1 - x5
-	t2 = x3 + x7
-	t3 = x3 - x7
-	t3i = complex(-imag(t3), real(t3))
+	// Radix-4 butterfly 2: [x4, x5, x6, x7]
+	t0 = x4 + x6
+	t1 = x4 - x6
+	t2 = x5 + x7
+	t3 = x5 - x7
+	t3i = complex(imag(t3), -real(t3))
 
 	a4 := t0 + t2
 	a5 := t1 + t3i
@@ -608,25 +605,24 @@ func inverseDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	w2 = complex(real(w2), -imag(w2))
 	w3 = complex(real(w3), -imag(w3))
 
-	// Load bit-reversed inputs
+	// Load mixed-radix bit-reversed inputs (radix-4 groups, then radix-2)
 	x0 := s[br[0]]
-	x2 := s[br[2]]
-	x4 := s[br[4]]
-	x6 := s[br[6]]
-
 	x1 := s[br[1]]
+	x2 := s[br[2]]
 	x3 := s[br[3]]
+	x4 := s[br[4]]
 	x5 := s[br[5]]
+	x6 := s[br[6]]
 	x7 := s[br[7]]
 
 	// Radix-4 butterfly 1 with conjugated twiddles
-	t0 := x0 + x4
-	t1 := x0 - x4
-	t2 := x2 + x6
-	t3 := x2 - x6
+	t0 := x0 + x2
+	t1 := x0 - x2
+	t2 := x1 + x3
+	t3 := x1 - x3
 
 	// Apply conj(w^2) = i: multiply by i means (r,i) -> (-i,r)
-	t3i := complex(imag(t3), -real(t3))
+	t3i := complex(-imag(t3), real(t3))
 
 	a0 := t0 + t2
 	a1 := t1 + t3i
@@ -634,11 +630,11 @@ func inverseDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	a3 := t1 - t3i
 
 	// Radix-4 butterfly 2
-	t0 = x1 + x5
-	t1 = x1 - x5
-	t2 = x3 + x7
-	t3 = x3 - x7
-	t3i = complex(imag(t3), -real(t3))
+	t0 = x4 + x6
+	t1 = x4 - x6
+	t2 = x5 + x7
+	t3 = x5 - x7
+	t3i = complex(-imag(t3), real(t3))
 
 	a4 := t0 + t2
 	a5 := t1 + t3i

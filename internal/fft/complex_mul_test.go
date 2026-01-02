@@ -19,7 +19,7 @@ func TestComplexMulArrayComplex64(t *testing.T) {
 			name: "simple multiplication",
 			a:    []complex64{1 + 2i, 3 + 4i},
 			b:    []complex64{5 + 6i, 7 + 8i},
-			want: []complex64{(1+2i)*(5+6i), (3+4i)*(7+8i)}, // -7+16i, -11+52i
+			want: []complex64{(1 + 2i) * (5 + 6i), (3 + 4i) * (7 + 8i)}, // -7+16i, -11+52i
 		},
 		{
 			name: "identity multiplication",
@@ -37,7 +37,7 @@ func TestComplexMulArrayComplex64(t *testing.T) {
 			name: "single element",
 			a:    []complex64{2 + 3i},
 			b:    []complex64{4 + 5i},
-			want: []complex64{(2+3i)*(4+5i)}, // -7+22i
+			want: []complex64{(2 + 3i) * (4 + 5i)}, // -7+22i
 		},
 		{
 			name: "power of 2 length (8)",
@@ -73,7 +73,7 @@ func TestComplexMulArrayComplex128(t *testing.T) {
 			name: "simple multiplication",
 			a:    []complex128{1 + 2i, 3 + 4i},
 			b:    []complex128{5 + 6i, 7 + 8i},
-			want: []complex128{(1+2i)*(5+6i), (3+4i)*(7+8i)},
+			want: []complex128{(1 + 2i) * (5 + 6i), (3 + 4i) * (7 + 8i)},
 		},
 		{
 			name: "identity multiplication",
@@ -115,7 +115,7 @@ func TestComplexMulArrayInPlaceComplex64(t *testing.T) {
 			name: "simple in-place",
 			dst:  []complex64{1 + 2i, 3 + 4i},
 			src:  []complex64{5 + 6i, 7 + 8i},
-			want: []complex64{(1+2i)*(5+6i), (3+4i)*(7+8i)},
+			want: []complex64{(1 + 2i) * (5 + 6i), (3 + 4i) * (7 + 8i)},
 		},
 		{
 			name: "convolution-like length",
@@ -146,7 +146,7 @@ func TestComplexMulArrayInPlaceComplex64(t *testing.T) {
 func TestComplexMulArrayInPlaceComplex128(t *testing.T) {
 	dst := []complex128{1 + 2i, 3 + 4i}
 	src := []complex128{5 + 6i, 7 + 8i}
-	want := []complex128{(1+2i)*(5+6i), (3+4i)*(7+8i)}
+	want := []complex128{(1 + 2i) * (5 + 6i), (3 + 4i) * (7 + 8i)}
 
 	ComplexMulArrayInPlaceComplex128(dst, src)
 

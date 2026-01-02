@@ -2,6 +2,11 @@
 
 package fft
 
+// Precomputed mixed-radix bit-reversal indices for size 8 (2 * 4^1).
+//
+//nolint:gochecknoglobals
+var bitrevSize8Mixed24 = ComputeBitReversalIndicesMixed24(8)
+
 // avx2SizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific
 // AVX2 implementations for common sizes (8, 16, 32, 64, 128), falling back to the
 // generic AVX2 kernel for other sizes or if the size-specific kernel fails.
@@ -20,12 +25,12 @@ func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 
 		// DIT strategy: try size-specific, fall back to generic AVX2
 		switch n {
-		case 8:
-			if forwardAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-				return true
-			}
-			if forwardAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-				return true
+	case 8:
+		if forwardAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize8Mixed24) {
+			return true
+		}
+		if forwardAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			return true
 			}
 			return forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
@@ -95,12 +100,12 @@ func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 
 		// DIT strategy: try size-specific, fall back to generic AVX2
 		switch n {
-		case 8:
-			if inverseAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-				return true
-			}
-			if inverseAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-				return true
+	case 8:
+		if inverseAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize8Mixed24) {
+			return true
+		}
+		if inverseAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			return true
 			}
 			return inverseAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
@@ -182,12 +187,12 @@ func avx2SizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 				return true
 			}
 			return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
-		case 8:
-			if forwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev) {
-				return true
-			}
-			if forwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch, bitrev) {
-				return true
+	case 8:
+		if forwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch, bitrevSize8Mixed24) {
+			return true
+		}
+		if forwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+			return true
 			}
 			if forwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev) {
 				return true
@@ -229,12 +234,12 @@ func avx2SizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kern
 				return true
 			}
 			return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
-		case 8:
-			if inverseAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev) {
-				return true
-			}
-			if inverseAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch, bitrev) {
-				return true
+	case 8:
+		if inverseAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch, bitrevSize8Mixed24) {
+			return true
+		}
+		if inverseAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+			return true
 			}
 			if inverseAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev) {
 				return true
