@@ -203,6 +203,19 @@ func neonSizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 				return true
 			}
 			return forwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
+		case 16:
+			if forwardNEONSize16Radix4Complex128Asm(dst, src, twiddle, scratch, bitrevSize16Radix4) {
+				return true
+			}
+			if forwardNEONSize16Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return forwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
+		case 32:
+			if forwardNEONSize32Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return forwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
 		default:
 			return forwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
 		}
@@ -221,6 +234,19 @@ func neonSizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kern
 		switch n {
 		case 4:
 			if inverseNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
+		case 16:
+			if inverseNEONSize16Radix4Complex128Asm(dst, src, twiddle, scratch, bitrevSize16Radix4) {
+				return true
+			}
+			if inverseNEONSize16Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
+		case 32:
+			if inverseNEONSize32Complex128Asm(dst, src, twiddle, scratch, bitrev) {
 				return true
 			}
 			return inverseNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)

@@ -137,9 +137,33 @@ func inverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64
 }
 
 func forwardNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardDIT4Radix4Complex128(dst, src, twiddle, scratch, bitrev)
+	return kasm.ForwardNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseDIT4Radix4Complex128(dst, src, twiddle, scratch, bitrev)
+	return kasm.InverseNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func forwardNEONSize16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.ForwardNEONSize16Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseNEONSize16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.InverseNEONSize16Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func forwardNEONSize16Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.ForwardNEONSize16Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseNEONSize16Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.InverseNEONSize16Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func forwardNEONSize32Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.ForwardNEONSize32Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseNEONSize32Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.InverseNEONSize32Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
