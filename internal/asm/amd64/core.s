@@ -113,6 +113,9 @@ GLOBL ·oneTwentyEighth64(SB), RODATA|NOPTR, $8
 DATA ·twoFiftySixth64+0(SB)/8, $0x3f70000000000000 // 0.00390625 = 1/256
 GLOBL ·twoFiftySixth64(SB), RODATA|NOPTR, $8
 
+DATA ·fiveHundredTwelfth64+0(SB)/8, $0x3f60000000000000 // 0.001953125 = 1/512
+GLOBL ·fiveHundredTwelfth64(SB), RODATA|NOPTR, $8
+
 // ===========================================================================
 // CONSTANTS: Sign bit masks for complex number negation
 // ===========================================================================
