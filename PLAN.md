@@ -219,7 +219,7 @@ User → Plan.Forward/Inverse → selectKernelsComplex64
 
 **Success Criteria**:
 
-- [ ] Code compiles with `-tags=fft_asm,asm_dispatch`
+- [ ] Code compiles with `-tags=asm,asm_dispatch`
 - [ ] All existing tests pass with dispatch mechanism
 - [ ] Benchmarks show no performance regression vs current direct calls
 - [ ] Size-specific kernels can be added incrementally without breaking builds
@@ -380,14 +380,14 @@ SSE2 provides ~50-70% of AVX2 performance on older systems. These kernels ensure
   - [ ] Compare intermediate buffer states step by step
   - [ ] Check buffer swap logic (dst ↔ scratch)
 - [ ] Fix identified bugs
-- [ ] Run full test suite with `-tags=fft_asm`
+- [ ] Run full test suite with `-tags=asm`
 - [ ] Benchmark Stockham AVX2 vs DIT AVX2
 
 **Debugging approach**:
 
 ```bash
-go test -tags=fft_asm -v -run TestStockham ./internal/fft/
-go test -tags=fft_asm -v -run TestAVX2MatchesPureGo ./internal/fft/
+go test -tags=asm -v -run TestStockham ./internal/fft/
+go test -tags=asm -v -run TestAVX2MatchesPureGo ./internal/fft/
 ```
 
 ---

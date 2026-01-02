@@ -1809,7 +1809,7 @@ func formatNumber(n int) string {
 // =============================================================================
 // 14.5.5: Size-Specific AVX2 Size-256 Kernel Tests
 // =============================================================================
-// Note: These tests require fft_asm build tag to access assembly implementations
+// Note: These tests require asm build tag to access assembly implementations
 
 // TestAVX2Size256Radix2_VsReference tests the size-256 radix-2 kernel against
 // the reference naive DFT implementation.

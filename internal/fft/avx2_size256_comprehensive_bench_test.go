@@ -1,4 +1,4 @@
-//go:build amd64 && fft_asm && !purego
+//go:build amd64 && asm && !purego
 
 package fft
 
@@ -7,8 +7,8 @@ import "testing"
 // BenchmarkAVX2Size256_Comprehensive compares all size-256 FFT implementations:
 // AVX2 (radix-2 and radix-4), pure-Go DIT, and radix-4 variants.
 //
-// This benchmark requires the fft_asm build tag to access AVX2 assembly implementations.
-// Run with: go test -tags fft_asm -bench BenchmarkAVX2Size256_Comprehensive -benchmem
+// This benchmark requires the asm build tag to access AVX2 assembly implementations.
+// Run with: go test -tags asm -bench BenchmarkAVX2Size256_Comprehensive -benchmem
 //
 // Results typically show (on Intel 12th Gen i7-1255U):
 //   - AVX2_Radix2:             ~400 ns/op  (~5.1 GB/s)  - FASTEST

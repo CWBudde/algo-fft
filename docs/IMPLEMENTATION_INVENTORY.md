@@ -404,11 +404,11 @@ Priority determines which implementation is selected when multiple exist for the
 
 Assembly implementations require:
 
-- Build tag: `fft_asm`
+- Build tag: `asm`
 - Architecture: `amd64`
 - Excluded by: `purego`
 
-Build constraint: `//go:build amd64 && fft_asm && !purego`
+Build constraint: `//go:build amd64 && asm && !purego`
 
 ## Testing
 

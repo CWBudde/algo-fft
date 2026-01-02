@@ -1,4 +1,4 @@
-//go:build 386 && fft_asm && !purego
+//go:build 386 && asm && !purego
 
 // =====================================================================
 // SSE2-optimized FFT Assembly for 386

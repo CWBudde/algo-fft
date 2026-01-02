@@ -1,4 +1,4 @@
-//go:build amd64 && fft_asm
+//go:build amd64 && asm
 
 package kernels
 
