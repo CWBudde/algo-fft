@@ -4,14 +4,9 @@
 
 // ===========================================================================
 // Forward transform, size 32, complex64, radix-32 (4x8) variant
-// NOTE: This kernel is currently disabled (returns false) due to correctness issues.
-// Falls back to generic SSE2 implementation.
+// NOTE: This kernel was previously disabled due to correctness issues.
 // ===========================================================================
 TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
-	// Disabled - return false to use fallback
-	MOVB $0, ret+120(FP)
-	RET
-
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
@@ -76,7 +71,8 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	MOVAPS X11, X1
 	
 	// Row 2: W(32, 2*0), W(32, 2*1)
-	MOVUPS 16(R10), X8
+	MOVSD  0(R10), X8
+	MOVHPS 16(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -90,7 +86,8 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	MOVAPS X11, X2
 	
 	// Row 3: W(32, 3*0), W(32, 3*1)
-	MOVUPS 32(R10), X8
+	MOVSD  0(R10), X8
+	MOVHPS 24(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -135,7 +132,7 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	ADDPS  X8, X3
 
 	// Twiddles for col 2, 3
-	MOVUPS 48(R10), X8
+	MOVUPS 16(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -148,7 +145,8 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	ADDSUBPS X12, X11
 	MOVAPS X11, X1
 	
-	MOVUPS 64(R10), X8
+	MOVSD  32(R10), X8
+	MOVHPS 48(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -161,7 +159,8 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	ADDSUBPS X12, X11
 	MOVAPS X11, X2
 	
-	MOVUPS 80(R10), X8
+	MOVSD  48(R10), X8
+	MOVHPS 72(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -206,7 +205,7 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	ADDPS  X8, X3
 
 	// Twiddles for col 4, 5
-	MOVUPS 96(R10), X8
+	MOVUPS 32(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -219,7 +218,8 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	ADDSUBPS X12, X11
 	MOVAPS X11, X1
 	
-	MOVUPS 112(R10), X8
+	MOVSD  64(R10), X8
+	MOVHPS 80(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -232,7 +232,8 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	ADDSUBPS X12, X11
 	MOVAPS X11, X2
 	
-	MOVUPS 128(R10), X8
+	MOVSD  96(R10), X8
+	MOVHPS 120(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -277,7 +278,7 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	ADDPS  X8, X3
 
 	// Twiddles for col 6, 7
-	MOVUPS 144(R10), X8
+	MOVUPS 48(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -290,7 +291,8 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	ADDSUBPS X12, X11
 	MOVAPS X11, X1
 	
-	MOVUPS 160(R10), X8
+	MOVSD  96(R10), X8
+	MOVHPS 112(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -303,7 +305,8 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	ADDSUBPS X12, X11
 	MOVAPS X11, X2
 	
-	MOVUPS 176(R10), X8
+	MOVSD  144(R10), X8
+	MOVHPS 168(R10), X8
 	MOVAPS X8, X9
 	SHUFPS $0xA0, X9, X9
 	MOVAPS X8, X10
@@ -479,14 +482,6 @@ row_loop:
 	SHLQ $3, CX // AX * 8 bytes
 	ADDQ R8, CX
 	
-	MOVHPS X0, 32(CX) // Store second complex of X0 to dst[AX+4]
-	MOVSS  X0, 0(CX)  // Store first complex of X0 to dst[AX]
-	// Actually better:
-	MOVSS  X0, 0(CX)
-	SHUFPS $0x01, X0, X0 // Extract second complex? No, complex64 is 8 bytes.
-	// XMM = [re0, im0, re1, im1]
-	// Low 8 bytes = complex 0
-	// High 8 bytes = complex 1
 	MOVSD  X0, 0(CX)
 	MOVHPS X0, 32(CX)
 	
@@ -513,14 +508,9 @@ fwd_ret_false:
 
 // ===========================================================================
 // Inverse transform
-// NOTE: This kernel is currently disabled (returns false) due to correctness issues.
-// Falls back to generic SSE2 implementation.
+// NOTE: This kernel was previously disabled due to correctness issues.
 // ===========================================================================
 TEXT ·InverseSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
-	// Disabled - return false to use fallback
-	MOVB $0, ret+120(FP)
-	RET
-
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
@@ -578,12 +568,16 @@ col_inv_loop:
 	// Row 3: W(32, 3*col) -> offset = 3*col*8 = AX*48
 	MOVQ AX, CX
 	SHLQ $4, CX            // CX = AX * 16
-	MOVUPS (R10)(CX*1), X8 // Row 1 twiddles
-	MOVUPS (R10)(CX*2), X9 // Row 2 twiddles
+	MOVUPS (R10)(CX*1), X8 // Row 1 twiddles (W(2c), W(2c+1))
+	MOVQ CX, DX
+	SHLQ $1, DX            // DX = CX * 2 = AX * 32
+	MOVSD  (R10)(DX*1), X9 // Row 2 twiddles (W(4c), W(4c+2))
+	MOVHPS 16(R10)(DX*1), X9
 	MOVQ CX, DX
 	SHLQ $1, DX
 	ADDQ CX, DX            // DX = CX * 3 = AX * 48
-	MOVUPS (R10)(DX*1), X10 // Row 3 twiddles  
+	MOVSD  (R10)(DX*1), X10 // Row 3 twiddles (W(6c), W(6c+3))
+	MOVHPS 24(R10)(DX*1), X10
 	
 apply_tw:
 	// Conjugate twiddles
