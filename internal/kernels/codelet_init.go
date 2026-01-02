@@ -121,7 +121,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_mixed24_generic",
 		Priority:   15, // Higher than base radix-2, lower than potential radix-8
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
 	})
 
 	// Size 64: Radix-2 only
@@ -364,7 +364,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_mixed24_generic",
 		Priority:   15, // Higher than base radix-2, lower than potential radix-8
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
 	})
 
 	// Size 64: Radix-2 only
