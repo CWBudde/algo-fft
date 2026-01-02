@@ -32,6 +32,18 @@ func registerSSE2DITCodelets64() {
 		BitrevFunc: ComputeBitReversalIndices,
 	})
 
+	// Size 8: Radix-8 SSE2 variant
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       8,
+		Forward:    wrapCodelet64(amd64.ForwardSSE2Size8Radix8Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseSSE2Size8Radix8Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDSSE2,
+		Signature:  "dit8_radix8_sse2",
+		Priority:   30, // Higher priority than radix-2 (18) and mixed-radix (??)
+		BitrevFunc: ComputeBitReversalIndices,
+	})
+
 	// Size 16: Radix-4 SSE2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,

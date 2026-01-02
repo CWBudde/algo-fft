@@ -9,7 +9,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | Size  | Algorithm | Go  | AVX2 | SSE2 | NEON |
 | ----- | --------- | --- | ---- | ---- | ---- |
 | 4     | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 8     | Radix-2   | ✓   | ✓    | -    | ✓    |
+| 8     | Radix-2   | ✓   | ✓    | ✓    | ✓    |
 | 8     | Radix-8   | ✓   | ✓    | -    | ✓    |
 | 8     | Mixed¹    | ✓   | ✓    | ✓    | ✓    |
 | 16    | Radix-2   | ✓   | ✓    | -    | ✓    |

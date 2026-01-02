@@ -146,14 +146,14 @@ GLOBL ·signbit64(SB), RODATA|NOPTR, $8
 // Float32 lane negation masks (complex64)
 DATA ·maskNegLoPS+0(SB)/4, $0x80000000 // negate lane 0 (re)
 DATA ·maskNegLoPS+4(SB)/4, $0x00000000
-DATA ·maskNegLoPS+8(SB)/4, $0x00000000
+DATA ·maskNegLoPS+8(SB)/4, $0x80000000 // negate lane 2 (re)
 DATA ·maskNegLoPS+12(SB)/4, $0x00000000
 GLOBL ·maskNegLoPS(SB), RODATA|NOPTR, $16
 
 DATA ·maskNegHiPS+0(SB)/4, $0x00000000
 DATA ·maskNegHiPS+4(SB)/4, $0x80000000 // negate lane 1 (im)
 DATA ·maskNegHiPS+8(SB)/4, $0x00000000
-DATA ·maskNegHiPS+12(SB)/4, $0x00000000
+DATA ·maskNegHiPS+12(SB)/4, $0x80000000 // negate lane 3 (im)
 GLOBL ·maskNegHiPS(SB), RODATA|NOPTR, $16
 
 // Float64 lane negation masks (complex128)
