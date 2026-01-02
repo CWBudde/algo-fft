@@ -34,7 +34,7 @@
 
 #include "textflag.h"
 
-TEXT ·forwardAVX2Size256Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size256Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -468,7 +468,7 @@ r4_256_return_false:
 // ===========================================================================
 // Same as forward but uses conjugated twiddles (VFMSUBADD), +i for y1 and -i
 // for y3, and applies 1/256 scaling.
-TEXT ·inverseAVX2Size256Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size256Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer

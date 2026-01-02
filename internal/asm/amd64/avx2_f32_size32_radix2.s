@@ -41,7 +41,7 @@
 //   Y0-Y7: data registers for butterflies (32 complex64 = 8 YMM registers)
 //   Y8-Y13: twiddle and intermediate values
 //
-TEXT ·forwardAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -681,7 +681,7 @@ size32_return_false:
 // The only difference from forward transform is using conjugated twiddle factors,
 // achieved by using VFMSUBADD231PS instead of VFMADDSUB231PS for complex multiplication.
 //
-TEXT ·inverseAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer

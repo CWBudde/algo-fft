@@ -34,7 +34,7 @@
 // Uses looped structure for stages 5-8 to balance code size with performance.
 // Stages 1-4 are more unrolled for critical early stages.
 //
-TEXT ·forwardAVX2Size256Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size256Radix2Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -561,7 +561,7 @@ size256_r2_return_false:
 // ===========================================================================
 // Same as forward but uses conjugated twiddles via VFMSUBADD instead of VFMADDSUB
 //
-TEXT ·inverseAVX2Size256Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size256Radix2Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9

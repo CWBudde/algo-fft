@@ -13,22 +13,22 @@
 #include "textflag.h"
 
 // Forward transform, size 512, complex64
-TEXT ·forwardAVX2Size512Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size512Radix2Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+32(FP), AX
 	CMPQ AX, $512
 	JNE  size512_r2_forward_return_false
-	JMP  ·forwardAVX2Complex64Asm(SB)
+	JMP  ·ForwardAVX2Complex64Asm(SB)
 
 size512_r2_forward_return_false:
 	MOVB $0, ret+120(FP)
 	RET
 
 // Inverse transform, size 512, complex64
-TEXT ·inverseAVX2Size512Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size512Radix2Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+32(FP), AX
 	CMPQ AX, $512
 	JNE  size512_r2_inverse_return_false
-	JMP  ·inverseAVX2Complex64Asm(SB)
+	JMP  ·InverseAVX2Complex64Asm(SB)
 
 size512_r2_inverse_return_false:
 	MOVB $0, ret+120(FP)

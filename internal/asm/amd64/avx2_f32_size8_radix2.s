@@ -33,7 +33,7 @@
 
 // Forward transform, size 8, complex64, radix-2 variant
 // Fully unrolled 3-stage FFT with AVX2 vectorization
-TEXT ·forwardAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -267,7 +267,7 @@ size8_fwd_return_false:
 // - Conjugation is done by negating imaginary parts via VFMSUBADD instead
 //   of explicit XOR with sign mask, avoiding the mask setup overhead
 // - Twiddle factor real/imag splits are hoisted and reused across Y0/Y1
-TEXT ·inverseAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer

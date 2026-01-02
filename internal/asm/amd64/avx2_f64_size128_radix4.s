@@ -16,7 +16,7 @@
 // ===========================================================================
 // Forward transform, size 128, complex128, radix-2
 // ===========================================================================
-TEXT ·forwardAVX2Size128Radix2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size128Radix2Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // dst pointer
 	MOVQ src+24(FP), R9      // src pointer
@@ -424,7 +424,7 @@ size128_128_r2_return_false:
 // ===========================================================================
 // Inverse transform, size 128, complex128, radix-2
 // ===========================================================================
-TEXT ·inverseAVX2Size128Radix2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size128Radix2Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9

@@ -22,10 +22,10 @@
 
 #include "textflag.h"
 
-TEXT ·forwardSSE2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-121
+TEXT ·ForwardSSE2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-121
 	MOVB $0, ret+120(FP)        // Return false (use Go fallback)
 	RET
 
-TEXT ·inverseSSE2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-121
+TEXT ·InverseSSE2Complex128Asm(SB), NOSPLIT|NOFRAME, $0-121
 	MOVB $0, ret+120(FP)        // Return false (use Go fallback)
 	RET

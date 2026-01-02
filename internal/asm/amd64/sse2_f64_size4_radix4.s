@@ -27,18 +27,10 @@
 
 #include "textflag.h"
 
-DATA ·maskNegLoPD+0(SB)/8, $0x8000000000000000
-DATA ·maskNegLoPD+8(SB)/8, $0x0000000000000000
-GLOBL ·maskNegLoPD(SB), RODATA|NOPTR, $16
-
-DATA ·maskNegHiPD+0(SB)/8, $0x0000000000000000
-DATA ·maskNegHiPD+8(SB)/8, $0x8000000000000000
-GLOBL ·maskNegHiPD(SB), RODATA|NOPTR, $16
-
 // ===========================================================================
 // Forward transform, size 4, complex128, radix-4
 // ===========================================================================
-TEXT ·forwardSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ R8, R14             // R14 = original dst pointer
@@ -114,7 +106,7 @@ size4_sse2_128_fwd_return_false:
 // ===========================================================================
 // Inverse transform, size 4, complex128, radix-4
 // ===========================================================================
-TEXT ·inverseSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14             // R14 = original dst pointer

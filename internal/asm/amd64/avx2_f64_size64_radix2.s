@@ -17,7 +17,7 @@
 // ===========================================================================
 // Forward transform, size 64, complex128, radix-2
 // ===========================================================================
-TEXT ·forwardAVX2Size64Radix2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size64Radix2Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // dst pointer
 	MOVQ src+24(FP), R9      // src pointer
@@ -376,7 +376,7 @@ size64_128_r2_return_false:
 // ===========================================================================
 // Inverse transform, size 64, complex128, radix-2
 // ===========================================================================
-TEXT ·inverseAVX2Size64Radix2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size64Radix2Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
@@ -730,7 +730,7 @@ size64_inv_128_r2_return_false:
 //   Stage 3: 1 group x 16 butterflies
 //
 // ===========================================================================
-TEXT ·forwardAVX2Size64Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size64Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -1159,7 +1159,7 @@ r4_64_128_return_false:
 // ===========================================================================
 // Inverse transform, size 64, complex128, radix-4
 // ===========================================================================
-TEXT ·inverseAVX2Size64Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size64Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
