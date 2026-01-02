@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/cmplx"
 	"math/rand/v2"
+	"os"
 	"testing"
 )
 
@@ -75,4 +76,16 @@ func testName(op string, size int) string {
 // benchName creates a descriptive benchmark name.
 func benchName(op string, size int) string {
 	return fmt.Sprintf("%s_%d", op, size)
+}
+
+func skipNaiveReferenceIfSlow(t *testing.T, n int) {
+	t.Helper()
+
+	if testing.Short() {
+		t.Skip("skipping naive reference in -short mode")
+	}
+
+	if os.Getenv("ALGOFFT_QEMU") == "1" && n > 4096 {
+		t.Skip("skipping naive reference on QEMU for large sizes; run without ALGOFFT_QEMU for full coverage")
+	}
 }

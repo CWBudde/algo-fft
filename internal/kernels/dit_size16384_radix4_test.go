@@ -17,6 +17,7 @@ func TestForwardDIT16384Radix4Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 16384
+	skipNaiveReferenceIfSlow(t, n)
 
 	src := randomComplex64(n, 0xDEADBEEF)
 	dst := make([]complex64, n)
@@ -37,6 +38,7 @@ func TestInverseDIT16384Radix4Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 16384
+	skipNaiveReferenceIfSlow(t, n)
 
 	src := randomComplex64(n, 0xCAFEBABE)
 	fwd := make([]complex64, n)
@@ -86,6 +88,7 @@ func TestForwardDIT16384Radix4Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 16384
+	skipNaiveReferenceIfSlow(t, n)
 
 	src := randomComplex128(n, 0xBEEFCAFE)
 	dst := make([]complex128, n)
@@ -106,6 +109,7 @@ func TestInverseDIT16384Radix4Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 16384
+	skipNaiveReferenceIfSlow(t, n)
 
 	src := randomComplex128(n, 0xFEEDFACE)
 	fwd := make([]complex128, n)
