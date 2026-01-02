@@ -95,6 +95,9 @@ GLOBL ·oneTwentyEighth32(SB), RODATA|NOPTR, $4
 DATA ·twoFiftySixth32+0(SB)/4, $0x3b800000 // 0.00390625f = 1/256
 GLOBL ·twoFiftySixth32(SB), RODATA|NOPTR, $4
 
+DATA ·fiveHundredTwelfth32+0(SB)/4, $0x3b000000 // 0.001953125f = 1/512
+GLOBL ·fiveHundredTwelfth32(SB), RODATA|NOPTR, $4
+
 DATA ·sixteenth64+0(SB)/8, $0x3fb0000000000000    // 0.0625 = 1/16
 GLOBL ·sixteenth64(SB), RODATA|NOPTR, $8
 

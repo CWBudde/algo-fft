@@ -78,32 +78,36 @@ var (
 	inverseDIT256Radix4Complex64     = kernels.InverseDIT256Radix4Complex64
 	forwardDIT512Complex64           = kernels.ForwardDIT512Complex64
 	inverseDIT512Complex64           = kernels.InverseDIT512Complex64
+	forwardDIT512Mixed24Complex64    = kernels.ForwardDIT512Mixed24Complex64
+	inverseDIT512Mixed24Complex64    = kernels.InverseDIT512Mixed24Complex64
 
 	// Complex128 variants.
-	forwardDIT4Radix4Complex128   = kernels.ForwardDIT4Radix4Complex128
-	inverseDIT4Radix4Complex128   = kernels.InverseDIT4Radix4Complex128
-	forwardDIT8Radix2Complex128   = kernels.ForwardDIT8Radix2Complex128
-	inverseDIT8Radix2Complex128   = kernels.InverseDIT8Radix2Complex128
-	forwardDIT8Radix4Complex128   = kernels.ForwardDIT8Radix4Complex128
-	inverseDIT8Radix4Complex128   = kernels.InverseDIT8Radix4Complex128
-	forwardDIT16Complex128        = kernels.ForwardDIT16Complex128
-	inverseDIT16Complex128        = kernels.InverseDIT16Complex128
-	forwardDIT16Radix4Complex128  = kernels.ForwardDIT16Radix4Complex128
-	inverseDIT16Radix4Complex128  = kernels.InverseDIT16Radix4Complex128
-	forwardDIT32Complex128        = kernels.ForwardDIT32Complex128
-	inverseDIT32Complex128        = kernels.InverseDIT32Complex128
-	forwardDIT64Complex128        = kernels.ForwardDIT64Complex128
-	inverseDIT64Complex128        = kernels.InverseDIT64Complex128
-	forwardDIT64Radix4Complex128  = kernels.ForwardDIT64Radix4Complex128
-	inverseDIT64Radix4Complex128  = kernels.InverseDIT64Radix4Complex128
-	forwardDIT128Complex128       = kernels.ForwardDIT128Complex128
-	inverseDIT128Complex128       = kernels.InverseDIT128Complex128
-	forwardDIT256Complex128       = kernels.ForwardDIT256Complex128
-	inverseDIT256Complex128       = kernels.InverseDIT256Complex128
-	forwardDIT256Radix4Complex128 = kernels.ForwardDIT256Radix4Complex128
-	inverseDIT256Radix4Complex128 = kernels.InverseDIT256Radix4Complex128
-	forwardDIT512Complex128       = kernels.ForwardDIT512Complex128
-	inverseDIT512Complex128       = kernels.InverseDIT512Complex128
+	forwardDIT4Radix4Complex128    = kernels.ForwardDIT4Radix4Complex128
+	inverseDIT4Radix4Complex128    = kernels.InverseDIT4Radix4Complex128
+	forwardDIT8Radix2Complex128    = kernels.ForwardDIT8Radix2Complex128
+	inverseDIT8Radix2Complex128    = kernels.InverseDIT8Radix2Complex128
+	forwardDIT8Radix4Complex128    = kernels.ForwardDIT8Radix4Complex128
+	inverseDIT8Radix4Complex128    = kernels.InverseDIT8Radix4Complex128
+	forwardDIT16Complex128         = kernels.ForwardDIT16Complex128
+	inverseDIT16Complex128         = kernels.InverseDIT16Complex128
+	forwardDIT16Radix4Complex128   = kernels.ForwardDIT16Radix4Complex128
+	inverseDIT16Radix4Complex128   = kernels.InverseDIT16Radix4Complex128
+	forwardDIT32Complex128         = kernels.ForwardDIT32Complex128
+	inverseDIT32Complex128         = kernels.InverseDIT32Complex128
+	forwardDIT64Complex128         = kernels.ForwardDIT64Complex128
+	inverseDIT64Complex128         = kernels.InverseDIT64Complex128
+	forwardDIT64Radix4Complex128   = kernels.ForwardDIT64Radix4Complex128
+	inverseDIT64Radix4Complex128   = kernels.InverseDIT64Radix4Complex128
+	forwardDIT128Complex128        = kernels.ForwardDIT128Complex128
+	inverseDIT128Complex128        = kernels.InverseDIT128Complex128
+	forwardDIT256Complex128        = kernels.ForwardDIT256Complex128
+	inverseDIT256Complex128        = kernels.InverseDIT256Complex128
+	forwardDIT256Radix4Complex128  = kernels.ForwardDIT256Radix4Complex128
+	inverseDIT256Radix4Complex128  = kernels.InverseDIT256Radix4Complex128
+	forwardDIT512Complex128        = kernels.ForwardDIT512Complex128
+	inverseDIT512Complex128        = kernels.InverseDIT512Complex128
+	forwardDIT512Mixed24Complex128 = kernels.ForwardDIT512Mixed24Complex128
+	inverseDIT512Mixed24Complex128 = kernels.InverseDIT512Mixed24Complex128
 )
 
 func sameSlice[T any](a, b []T) bool {
