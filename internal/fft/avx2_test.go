@@ -130,9 +130,9 @@ func getAVX2Kernels() (forward, inverse Kernel[complex64], available bool) {
 		return nil, nil, false
 	}
 
-	// Use the same AVX2 size-specific dispatch heuristics as production kernels.
-	kernels := selectKernelsComplex64WithStrategy(features, KernelDIT)
-	return kernels.Forward, kernels.Inverse, true
+	// Return the raw AVX2 kernels (no fallback). This is important for tests that
+	// validate the AVX2 kernels reject unsupported sizes.
+	return forwardAVX2Complex64, inverseAVX2Complex64, true
 }
 
 // getAVX2StockhamKernels returns the AVX2 Stockham kernels if available.
@@ -1080,9 +1080,9 @@ func getAVX2Kernels128() (forward, inverse Kernel[complex128], available bool) {
 		return nil, nil, false
 	}
 
-	// Use the same AVX2 size-specific dispatch heuristics as production kernels.
-	kernels := selectKernelsComplex128WithStrategy(features, KernelDIT)
-	return kernels.Forward, kernels.Inverse, true
+	// Return the raw AVX2 kernels (no fallback). This is important for tests that
+	// validate the AVX2 kernels reject unsupported sizes.
+	return forwardAVX2Complex128, inverseAVX2Complex128, true
 }
 
 //nolint:nonamedreturns

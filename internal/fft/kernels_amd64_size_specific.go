@@ -2,6 +2,8 @@
 
 package fft
 
+import m "github.com/MeKo-Christian/algo-fft/internal/math"
+
 // Precomputed mixed-radix bit-reversal indices for size 8 (2 * 4^1).
 //
 //nolint:gochecknoglobals
@@ -14,6 +16,9 @@ var bitrevSize512Mixed24 = ComputeBitReversalIndicesMixed24(512)
 func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[complex64] {
 	return func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 		n := len(src)
+		if !m.IsPowerOf2(n) {
+			return false
+		}
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
 		resolved := resolveKernelStrategy(n, strategy)
@@ -92,6 +97,9 @@ func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kernel[complex64] {
 	return func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 		n := len(src)
+		if !m.IsPowerOf2(n) {
+			return false
+		}
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
 		resolved := resolveKernelStrategy(n, strategy)
@@ -180,6 +188,9 @@ func avx2SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex
 func avx2SizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[complex128] {
 	return func(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 		n := len(src)
+		if !m.IsPowerOf2(n) {
+			return false
+		}
 
 		resolved := resolveKernelStrategy(n, strategy)
 		if resolved != KernelDIT {
@@ -235,6 +246,9 @@ func avx2SizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 func avx2SizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kernel[complex128] {
 	return func(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 		n := len(src)
+		if !m.IsPowerOf2(n) {
+			return false
+		}
 
 		resolved := resolveKernelStrategy(n, strategy)
 		if resolved != KernelDIT {
