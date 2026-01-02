@@ -41,6 +41,19 @@ func BenchmarkSSE2Size32Comparison(b *testing.B) {
 		}
 	})
 
+	// SSE2 size-32 radix-32 kernel
+	b.Run("SSE2_Radix32", func(b *testing.B) {
+		if !forwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			b.Fatal("SSE2 radix-32 failed")
+		}
+		b.ReportAllocs()
+		b.SetBytes(int64(n * 8))
+		b.ResetTimer()
+		for b.Loop() {
+			forwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		}
+	})
+
 	// Pure Go for comparison
 	b.Run("PureGo", func(b *testing.B) {
 		goForward, _ := getPureGoKernels()
@@ -56,7 +69,7 @@ func BenchmarkSSE2Size32Comparison(b *testing.B) {
 	})
 
 	// AVX2 for comparison (this is the fastest)
-	b.Run("AVX2", func(b *testing.B) {
+	b.Run("AVX2_Generic", func(b *testing.B) {
 		if !forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 			b.Fatal("AVX2 failed")
 		}
@@ -65,6 +78,19 @@ func BenchmarkSSE2Size32Comparison(b *testing.B) {
 		b.ResetTimer()
 		for b.Loop() {
 			forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		}
+	})
+
+	// AVX2 size-32 radix-32 kernel (size-specific dispatch)
+	b.Run("AVX2_Radix32", func(b *testing.B) {
+		if !forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			b.Fatal("AVX2 radix-32 failed")
+		}
+		b.ReportAllocs()
+		b.SetBytes(int64(n * 8))
+		b.ResetTimer()
+		for b.Loop() {
+			forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch, bitrev)
 		}
 	})
 }
