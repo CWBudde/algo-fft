@@ -182,6 +182,131 @@ func avx2SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex
 	}
 }
 
+// sse2SizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific
+// SSE2 implementations for common sizes, falling back to the generic SSE2 kernel.
+func sse2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[complex64] {
+	return func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+		n := len(src)
+		if !m.IsPowerOf2(n) {
+			return false
+		}
+
+		resolved := resolveKernelStrategy(n, strategy)
+		if resolved != KernelDIT {
+			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		}
+
+		switch n {
+		case 8:
+			if forwardSSE2Size8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			if forwardSSE2Size8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize8Mixed24) {
+				return true
+			}
+			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 16:
+			if forwardSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 32:
+			if forwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 64:
+			if forwardSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize64Radix4) {
+				return true
+			}
+			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 128:
+			if forwardSSE2Size128Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize128Mixed24) {
+				return true
+			}
+			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 256:
+			if forwardSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize256Radix4) {
+				return true
+			}
+			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		default:
+			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		}
+	}
+}
+
+func sse2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kernel[complex64] {
+	return func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+		n := len(src)
+		if !m.IsPowerOf2(n) {
+			return false
+		}
+
+		resolved := resolveKernelStrategy(n, strategy)
+		if resolved != KernelDIT {
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		}
+
+		switch n {
+		case 8:
+			if inverseSSE2Size8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			if inverseSSE2Size8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize8Mixed24) {
+				return true
+			}
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 16:
+			if inverseSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 32:
+			if inverseSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 64:
+			if inverseSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize64Radix4) {
+				return true
+			}
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 128:
+			if inverseSSE2Size128Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize128Mixed24) {
+				return true
+			}
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		case 256:
+			if inverseSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize256Radix4) {
+				return true
+			}
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
+		default:
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		}
+	}
+}
+
+func sse2SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex64] {
+	return Kernels[complex64]{
+		Forward: sse2SizeSpecificOrGenericDITComplex64(strategy),
+		Inverse: sse2SizeSpecificOrGenericDITInverseComplex64(strategy),
+	}
+}
+
 // avx2SizeSpecificOrGenericDITComplex128 returns a kernel that tries size-specific
 // AVX2 implementations for sizes where we have asm complex128 code, falling back to
 // the generic AVX2 kernel otherwise.
