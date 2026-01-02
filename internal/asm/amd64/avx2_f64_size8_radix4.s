@@ -129,6 +129,10 @@ size8_128_r4_fwd_use_dst:
 	VADDPD X13, X1, X0       // y1
 	VSUBPD X13, X1, X1       // y5
 
+	// Save a2, a3 before overwriting
+	VMOVAPD X2, X10
+	VMOVAPD X3, X11
+
 	// w2 * a6
 	MOVUPD 32(R10), X8       // w2
 	VPERMILPD $1, X8, X9
@@ -139,8 +143,8 @@ size8_128_r4_fwd_use_dst:
 	VPERMILPD $1, X14, X15
 	VADDPD X15, X14, X14
 	VUNPCKLPD X14, X13, X13  // w2*a6
-	VADDPD X13, X2, X2       // y2
-	VSUBPD X13, X2, X3       // y6
+	VADDPD X13, X10, X2      // y2
+	VSUBPD X13, X10, X3      // y6
 
 	// w3 * a7
 	MOVUPD 48(R10), X8       // w3
@@ -152,8 +156,8 @@ size8_128_r4_fwd_use_dst:
 	VPERMILPD $1, X14, X15
 	VADDPD X15, X14, X14
 	VUNPCKLPD X14, X13, X13  // w3*a7
-	VADDPD X13, X3, X4       // y3
-	VSUBPD X13, X3, X5       // y7
+	VADDPD X13, X11, X4      // y3
+	VSUBPD X13, X11, X5      // y7
 
 	// Store results to work buffer
 	MOVUPD X11, (R8)
@@ -309,6 +313,10 @@ size8_128_r4_inv_use_dst:
 	VADDPD X13, X1, X0       // y1
 	VSUBPD X13, X1, X1       // y5
 
+	// Save a2, a3 before overwriting
+	VMOVAPD X2, X10
+	VMOVAPD X3, X11
+
 	// conj(w2) * a6
 	MOVUPD 32(R10), X8
 	VXORPD X15, X8, X8
@@ -320,8 +328,8 @@ size8_128_r4_inv_use_dst:
 	VPERMILPD $1, X14, X15
 	VADDPD X15, X14, X14
 	VUNPCKLPD X14, X13, X13
-	VADDPD X13, X2, X2       // y2
-	VSUBPD X13, X2, X3       // y6
+	VADDPD X13, X10, X2      // y2
+	VSUBPD X13, X10, X3      // y6
 
 	// conj(w3) * a7
 	MOVUPD 48(R10), X8
@@ -334,8 +342,8 @@ size8_128_r4_inv_use_dst:
 	VPERMILPD $1, X14, X15
 	VADDPD X15, X14, X14
 	VUNPCKLPD X14, X13, X13
-	VADDPD X13, X3, X4       // y3
-	VSUBPD X13, X3, X5       // y7
+	VADDPD X13, X11, X4      // y3
+	VSUBPD X13, X11, X5      // y7
 
 	// Apply 1/8 scaling
 	MOVQ ·eighth64(SB), AX
