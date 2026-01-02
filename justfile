@@ -66,7 +66,7 @@ test-arm64:
         echo "Install with: sudo apt-get install qemu-user-static binfmt-support"
         exit 1
     fi
-    GOOS=linux GOARCH=arm64 go test -exec="qemu-aarch64-static" -v -count=1 ./...
+    ALGOFFT_QEMU=1 GOOS=linux GOARCH=arm64 go test -exec="qemu-aarch64-static" -v -count=1 ./...
 
 # Run benchmarks on ARM64 using QEMU (NOTE: performance not representative, correctness only)
 bench-arm64:
