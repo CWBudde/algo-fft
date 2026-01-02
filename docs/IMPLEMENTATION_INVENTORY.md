@@ -10,7 +10,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | ----- | --------- | --- | ---- | ---- | ---- |
 | 4     | Radix-4   | ✓   | ✓    | ✓    | ✓    |
 | 8     | Radix-2   | ✓   | ✓    | ✓    | ✓    |
-| 8     | Radix-8   | ✓   | ✓    | -    | ✓    |
+| 8     | Radix-8   | ✓   | ✓    | ✓    | ✓    |
 | 8     | Mixed¹    | ✓   | ✓    | ✓    | ✓    |
 | 16    | Radix-2   | ✓   | ✓    | -    | ✓    |
 | 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    |
@@ -95,6 +95,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | complex64  | radix-2 (3 stages)  | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size8_radix2.s` |
 | complex64  | radix-8 (1 stage)   | none | Go     | ✓      | `dit_size8.go`                               |
 | complex64  | radix-8 (1 stage)   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size8_radix8.s` |
+| complex64  | radix-8 (1 stage)   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size8_radix8.s` |
 | complex64  | radix-8 (1 stage)   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size8_radix8.s` |
 | complex64  | mixed-radix (2 st.) | none | Go     | ✓      | `dit_size8.go`                               |
 | complex64  | mixed-radix (2 st.) | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size8_radix4.s` |
