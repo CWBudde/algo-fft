@@ -11,6 +11,8 @@ import (
 )
 
 // TestSelectKernelsComplex64_SSE2Only tests SSE2 path without AVX2.
+//
+//nolint:paralleltest // modifies global CPU feature state
 func TestSelectKernelsComplex64_SSE2Only(t *testing.T) {
 	// Save and restore CPU features
 	originalFeatures := cpu.DetectFeatures()
@@ -47,6 +49,8 @@ func TestSelectKernelsComplex64_SSE2Only(t *testing.T) {
 }
 
 // TestSelectKernelsComplex128_SSE2Only tests SSE2 path without AVX2 for complex128.
+//
+//nolint:paralleltest // modifies global CPU feature state
 func TestSelectKernelsComplex128_SSE2Only(t *testing.T) {
 	originalFeatures := cpu.DetectFeatures()
 	defer cpu.SetForcedFeatures(originalFeatures)
@@ -79,6 +83,8 @@ func TestSelectKernelsComplex128_SSE2Only(t *testing.T) {
 }
 
 // TestSelectKernelsWithStrategy_SSE2 tests strategy selection with SSE2.
+//
+//nolint:paralleltest // modifies global CPU feature state
 func TestSelectKernelsWithStrategy_SSE2(t *testing.T) {
 	originalFeatures := cpu.DetectFeatures()
 	defer cpu.SetForcedFeatures(originalFeatures)
@@ -125,6 +131,7 @@ func TestSelectKernelsWithStrategy_SSE2(t *testing.T) {
 
 // TestForwardSSE2Complex64 tests SSE2 complex64 forward kernel directly.
 func TestForwardSSE2Complex64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		size int
@@ -161,6 +168,7 @@ func TestForwardSSE2Complex64(t *testing.T) {
 
 // TestInverseSSE2Complex64 tests SSE2 complex64 inverse kernel directly.
 func TestInverseSSE2Complex64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		size int
@@ -194,6 +202,8 @@ func TestInverseSSE2Complex64(t *testing.T) {
 
 // TestForwardSSE2Complex128 tests SSE2 complex128 forward kernel.
 func TestForwardSSE2Complex128(t *testing.T) {
+	t.Parallel()
+
 	sizes := []int{16, 512, 2048}
 
 	for _, size := range sizes {
@@ -218,6 +228,8 @@ func TestForwardSSE2Complex128(t *testing.T) {
 
 // TestInverseSSE2Complex128 tests SSE2 complex128 inverse kernel.
 func TestInverseSSE2Complex128(t *testing.T) {
+	t.Parallel()
+
 	sizes := []int{16, 512, 2048}
 
 	for _, size := range sizes {
@@ -240,6 +252,8 @@ func TestInverseSSE2Complex128(t *testing.T) {
 
 // TestSSE2Kernels_NonPowerOf2 tests SSE2 kernels reject non-power-of-2 sizes.
 func TestSSE2Kernels_NonPowerOf2(t *testing.T) {
+	t.Parallel()
+
 	size := 7 // Prime number
 
 	input := make([]complex64, size)
@@ -273,6 +287,8 @@ func TestSSE2Kernels_NonPowerOf2(t *testing.T) {
 
 // TestAVX2Kernels_NonPowerOf2 tests AVX2 kernels reject non-power-of-2 sizes.
 func TestAVX2Kernels_NonPowerOf2(t *testing.T) {
+	t.Parallel()
+
 	size := 7
 
 	input := make([]complex64, size)
@@ -322,6 +338,8 @@ func TestAVX2Kernels_NonPowerOf2(t *testing.T) {
 }
 
 // TestSelectKernelsComplex128WithStrategy_SSE2 tests complex128 strategy selection with SSE2.
+//
+//nolint:paralleltest // modifies global CPU feature state
 func TestSelectKernelsComplex128WithStrategy_SSE2(t *testing.T) {
 	originalFeatures := cpu.DetectFeatures()
 	defer cpu.SetForcedFeatures(originalFeatures)

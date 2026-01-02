@@ -109,6 +109,8 @@ func TestPlanReal64_RoundTrip(t *testing.T) {
 
 // TestPlanReal64_vsFloat32_Precision compares error accumulation.
 func TestPlanReal64_vsFloat32_Precision(t *testing.T) {
+	t.Parallel()
+
 	n := 1024
 
 	// Create test signal
@@ -200,6 +202,8 @@ func TestPlanReal64_vsFloat32_Precision(t *testing.T) {
 
 // TestPlanReal64_ConjugateSymmetry verifies output has conjugate symmetry.
 func TestPlanReal64_ConjugateSymmetry(t *testing.T) {
+	t.Parallel()
+
 	n := 256
 
 	plan, err := NewPlanReal64(n)

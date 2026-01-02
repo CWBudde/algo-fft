@@ -9,6 +9,8 @@ import (
 
 // TestComplexMulArrayComplex64 tests element-wise complex multiplication for complex64.
 func TestComplexMulArrayComplex64(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		a    []complex64
@@ -63,6 +65,8 @@ func TestComplexMulArrayComplex64(t *testing.T) {
 
 // TestComplexMulArrayComplex128 tests element-wise complex multiplication for complex128.
 func TestComplexMulArrayComplex128(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		a    []complex128
@@ -105,6 +109,8 @@ func TestComplexMulArrayComplex128(t *testing.T) {
 
 // TestComplexMulArrayInPlaceComplex64 tests in-place element-wise multiplication.
 func TestComplexMulArrayInPlaceComplex64(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		dst  []complex64
@@ -144,6 +150,8 @@ func TestComplexMulArrayInPlaceComplex64(t *testing.T) {
 
 // TestComplexMulArrayInPlaceComplex128 tests in-place element-wise multiplication for complex128.
 func TestComplexMulArrayInPlaceComplex128(t *testing.T) {
+	t.Parallel()
+
 	dst := []complex128{1 + 2i, 3 + 4i}
 	src := []complex128{5 + 6i, 7 + 8i}
 	want := []complex128{(1 + 2i) * (5 + 6i), (3 + 4i) * (7 + 8i)}
@@ -159,6 +167,8 @@ func TestComplexMulArrayInPlaceComplex128(t *testing.T) {
 
 // TestComplexMulArrayLargeComplex64 tests larger arrays that would benefit from SIMD.
 func TestComplexMulArrayLargeComplex64(t *testing.T) {
+	t.Parallel()
+
 	sizes := []int{16, 32, 64, 128, 256, 512, 1024}
 
 	for _, n := range sizes {

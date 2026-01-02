@@ -268,7 +268,7 @@ func TestConcurrentMixedOperations(t *testing.T) {
 
 // TestConcurrentDifferentPrecisions tests concurrent use with both complex64 and complex128.
 //
-//nolint:gocognit
+//nolint:gocognit,paralleltest
 func TestConcurrentDifferentPrecisions(t *testing.T) {
 	n := 1024
 	numGoroutines := 8

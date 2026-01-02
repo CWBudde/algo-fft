@@ -9,6 +9,7 @@ import (
 
 // TestForwardStridedDIT_Complex64 tests forward strided DIT FFT with complex64.
 func TestForwardStridedDIT_Complex64(t *testing.T) {
+	t.Parallel()
 	n := 8
 	stride := 2
 
@@ -40,6 +41,7 @@ func TestForwardStridedDIT_Complex64(t *testing.T) {
 
 // TestInverseStridedDIT_Complex64 tests inverse strided DIT FFT with complex64.
 func TestInverseStridedDIT_Complex64(t *testing.T) {
+	t.Parallel()
 	n := 8
 	stride := 2
 
@@ -69,6 +71,7 @@ func TestInverseStridedDIT_Complex64(t *testing.T) {
 
 // TestStridedDIT_RoundTrip tests that inverse(forward(x)) = x.
 func TestStridedDIT_RoundTrip(t *testing.T) {
+	t.Parallel()
 	n := 16
 	stride := 3
 
@@ -114,6 +117,7 @@ func TestStridedDIT_RoundTrip(t *testing.T) {
 
 // TestStridedDIT_ErrorHandling tests error conditions.
 func TestStridedDIT_ErrorHandling(t *testing.T) {
+	t.Parallel()
 	n := 8
 	stride := 2
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)

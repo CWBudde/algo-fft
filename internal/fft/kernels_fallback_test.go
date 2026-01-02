@@ -10,6 +10,8 @@ import (
 
 // TestFallbackKernel tests the fallback kernel chaining logic.
 func TestFallbackKernel(t *testing.T) {
+	t.Parallel()
+
 	n := 8
 
 	input := make([]complex64, n)
@@ -48,6 +50,8 @@ func TestFallbackKernel(t *testing.T) {
 
 // TestFallbackKernel_NilPrimary tests fallback when primary is nil.
 func TestFallbackKernel_NilPrimary(t *testing.T) {
+	t.Parallel()
+
 	n := 8
 
 	input := make([]complex64, n)
@@ -75,6 +79,8 @@ func TestFallbackKernel_NilPrimary(t *testing.T) {
 
 // TestAutoKernelComplex64_PowerOf2 tests auto kernel for power-of-2 sizes.
 func TestAutoKernelComplex64_PowerOf2(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		size     int
@@ -121,6 +127,8 @@ func TestAutoKernelComplex64_PowerOf2(t *testing.T) {
 
 // TestAutoKernelComplex64_MixedRadix tests auto kernel for mixed-radix sizes.
 func TestAutoKernelComplex64_MixedRadix(t *testing.T) {
+	t.Parallel()
+
 	// Highly composite numbers (not power of 2)
 	sizes := []int{6, 12, 18, 24, 36}
 
@@ -155,6 +163,8 @@ func TestAutoKernelComplex64_MixedRadix(t *testing.T) {
 
 // TestAutoKernelComplex64_NonComposite tests auto kernel for non-composite sizes.
 func TestAutoKernelComplex64_NonComposite(t *testing.T) {
+	t.Parallel()
+
 	// Prime numbers and non-highly-composite non-power-of-2 sizes
 	sizes := []int{7, 11, 13, 17}
 
@@ -188,6 +198,8 @@ func TestAutoKernelComplex64_NonComposite(t *testing.T) {
 
 // TestAutoKernelComplex128 tests auto kernel for complex128.
 func TestAutoKernelComplex128(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		size     int
@@ -231,6 +243,8 @@ func TestAutoKernelComplex128(t *testing.T) {
 
 // TestAutoKernelComplex128_NonComposite tests complex128 auto kernel for non-composite sizes.
 func TestAutoKernelComplex128_NonComposite(t *testing.T) {
+	t.Parallel()
+
 	size := 7 // Prime number
 
 	input := make([]complex128, size)
@@ -258,6 +272,8 @@ func TestAutoKernelComplex128_NonComposite(t *testing.T) {
 }
 
 // TestAutoKernel_StrategySelection tests that the correct algorithm is selected.
+//
+//nolint:paralleltest // modifies global CPU feature state
 func TestAutoKernel_StrategySelection(t *testing.T) {
 	// Save and restore CPU features
 	originalFeatures := cpu.DetectFeatures()

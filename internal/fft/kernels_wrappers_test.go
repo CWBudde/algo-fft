@@ -9,6 +9,7 @@ import (
 
 // TestDITForward tests the ditForward generic wrapper.
 func TestDITForward(t *testing.T) {
+	t.Parallel()
 	n := 8
 
 	input := make([]complex64, n)
@@ -35,6 +36,7 @@ func TestDITForward(t *testing.T) {
 
 // TestDITInverse tests the ditInverse generic wrapper.
 func TestDITInverse(t *testing.T) {
+	t.Parallel()
 	n := 8
 	freq := make([]complex64, n)
 	freq[0] = complex64(complex(28, 0)) // Sum of 0..7
@@ -58,6 +60,7 @@ func TestDITInverse(t *testing.T) {
 
 // TestStockhamForward tests the stockhamForward generic wrapper.
 func TestStockhamForward(t *testing.T) {
+	t.Parallel()
 	n := 16
 
 	input := make([]complex64, n)
@@ -84,6 +87,7 @@ func TestStockhamForward(t *testing.T) {
 
 // TestStockhamInverse tests the stockhamInverse generic wrapper.
 func TestStockhamInverse(t *testing.T) {
+	t.Parallel()
 	n := 16
 	freq := make([]complex64, n)
 	freq[0] = complex64(complex(120, 0)) // Sum of 0..15
@@ -107,6 +111,7 @@ func TestStockhamInverse(t *testing.T) {
 
 // TestComputeChirpSequence tests chirp sequence computation for Bluestein's algorithm.
 func TestComputeChirpSequence(t *testing.T) {
+	t.Parallel()
 	n := 7 // Non-power-of-2 size
 
 	chirp := ComputeChirpSequence[complex64](n)
@@ -135,6 +140,7 @@ func TestComputeChirpSequence(t *testing.T) {
 
 // TestComputeBluesteinFilter tests Bluestein filter computation.
 func TestComputeBluesteinFilter(t *testing.T) {
+	t.Parallel()
 	n := 7  // Non-power-of-2 size
 	m := 16 // Next power of 2 >= 2n-1
 
@@ -165,6 +171,7 @@ func TestComputeBluesteinFilter(t *testing.T) {
 
 // TestBluesteinConvolution tests Bluestein convolution.
 func TestBluesteinConvolution(t *testing.T) {
+	t.Parallel()
 	n := 7  // Non-power-of-2 size
 	m := 16 // Next power of 2 >= 2n-1
 
@@ -200,6 +207,7 @@ func TestBluesteinConvolution(t *testing.T) {
 
 // TestButterfly2 tests the butterfly2 wrapper.
 func TestButterfly2(t *testing.T) {
+	t.Parallel()
 	a := complex64(complex(1, 2))
 	b := complex64(complex(3, 4))
 	w := complex64(complex(0.707, -0.707)) // exp(-i*pi/4)

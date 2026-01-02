@@ -105,138 +105,135 @@ size8_r4_fwd_bitrev:
 	MOVQ AX, 56(R8)
 
 	// =======================================================================
-	// Load all data into YMM registers
+	// Scalar-style mixed-radix computation (correctness-focused)
 	// =======================================================================
-	VMOVUPS (R8), Y0         // Y0 = [x0, x1, x2, x3]
-	VMOVUPS 32(R8), Y1       // Y1 = [x4, x5, x6, x7]
-
-	// =======================================================================
-	// STAGE 1: Radix-4 butterflies (mixed-radix groups)
-	// =======================================================================
-	// Process two radix-4 butterflies on contiguous groups:
-	// Butterfly 1: [x0, x1, x2, x3] -> [a0, a1, a2, a3]
-	// Butterfly 2: [x4, x5, x6, x7] -> [a4, a5, a6, a7]
-
-	// --- Radix-4 Butterfly 1: [x0, x1, x2, x3] ---
-	VEXTRACTF128 $0, Y0, X2   // X2 = [x0, x1]
-	VEXTRACTF128 $1, Y0, X3   // X3 = [x2, x3]
-
-	// Compute t0 = x0 + x2, t2 = x1 + x3, t1 = x0 - x2, t3 = x1 - x3
-	VADDPS X3, X2, X4         // X4 = [t0, t2]
-	VSUBPS X3, X2, X5         // X5 = [t1, t3]
-
-	// a0 = t0 + t2, a2 = t0 - t2
-	VMOVDDUP X4, X6           // X6 = [t0, t0]
-	VPERMILPD $0x3, X4, X7    // X7 = [t2, t2]
-	VADDPS X7, X6, X8         // X8 = [a0, a0]
-	VSUBPS X7, X6, X9         // X9 = [a2, a2]
-
-	// a1 = t1 + t3*(-i), a3 = t1 - t3*(-i)
-	VMOVDDUP X5, X10          // X10 = [t1, t1]
-	VPERMILPD $0x3, X5, X11   // X11 = [t3, t3]
-	VSHUFPS $0xB1, X11, X11, X11
+	// Build masks for complex ops
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X12
-	VBROADCASTSS X12, X12
-	VXORPD X13, X13, X13
-	VBLENDPS $0xAA, X12, X13, X12
-	VXORPS X12, X11, X11
-	VADDPS X11, X10, X14      // X14 = [a1, a1]
-	VSUBPS X11, X10, X15      // X15 = [a3, a3]
+	MOVD AX, X16
+	VBROADCASTSS X16, X16
+	VXORPS X17, X17, X17
+	VBLENDPS $0x55, X16, X17, X18 // maskNegReal  (lanes 0,2)
+	VBLENDPS $0xAA, X16, X17, X19 // maskNegImag  (lanes 1,3)
 
-	VUNPCKLPD X8, X14, X2     // X2 = [a0, a1]
-	VUNPCKLPD X9, X15, X3     // X3 = [a2, a3]
+	// Load x0..x7 into X0..X7 (lower 64 bits)
+	VXORPS X0, X0, X0
+	MOVQ (R8), X0
+	VXORPS X1, X1, X1
+	MOVQ 8(R8), X1
+	VXORPS X2, X2, X2
+	MOVQ 16(R8), X2
+	VXORPS X3, X3, X3
+	MOVQ 24(R8), X3
+	VXORPS X4, X4, X4
+	MOVQ 32(R8), X4
+	VXORPS X5, X5, X5
+	MOVQ 40(R8), X5
+	VXORPS X6, X6, X6
+	MOVQ 48(R8), X6
+	VXORPS X7, X7, X7
+	MOVQ 56(R8), X7
 
-	// --- Radix-4 Butterfly 2: [x4, x5, x6, x7] ---
-	VEXTRACTF128 $0, Y1, X4   // X4 = [x4, x5]
-	VEXTRACTF128 $1, Y1, X5   // X5 = [x6, x7]
+	// Radix-4 butterfly 1: [x0, x1, x2, x3]
+	VADDPS X2, X0, X8    // t0
+	VSUBPS X2, X0, X9    // t1
+	VADDPS X3, X1, X10   // t2
+	VSUBPS X3, X1, X11   // t3
+	// t3 * (-i)
+	VSHUFPS $0xB1, X11, X11, X12
+	VXORPS X19, X12, X12
+	VADDPS X10, X8, X13  // a0
+	VSUBPS X10, X8, X15  // a2
+	VADDPS X12, X9, X14  // a1
+	VSUBPS X12, X9, X16  // a3
 
-	// Compute t0 = x4 + x6, t2 = x5 + x7, t1 = x4 - x6, t3 = x5 - x7
-	VADDPS X5, X4, X6         // X6 = [t0, t2]
-	VSUBPS X5, X4, X7         // X7 = [t1, t3]
+	// Radix-4 butterfly 2: [x4, x5, x6, x7]
+	VADDPS X6, X4, X8    // t0
+	VSUBPS X6, X4, X9    // t1
+	VADDPS X7, X5, X10   // t2
+	VSUBPS X7, X5, X11   // t3
+	// t3 * (-i)
+	VSHUFPS $0xB1, X11, X11, X12
+	VXORPS X19, X12, X12
+	VADDPS X10, X8, X4   // a4
+	VSUBPS X10, X8, X6   // a6
+	VADDPS X12, X9, X5   // a5
+	VSUBPS X12, X9, X7   // a7
 
-	// a4 = t0 + t2, a6 = t0 - t2
-	VMOVDDUP X6, X8
-	VPERMILPD $0x3, X6, X9
-	VADDPS X9, X8, X10        // X10 = [a4, a4]
-	VSUBPS X9, X8, X11        // X11 = [a6, a6]
+	// Stage 2: radix-2 with twiddles
+	// y0,y4
+	VADDPS X4, X13, X0   // y0
+	VSUBPS X4, X13, X1   // y4
 
-	// a5 = t1 + t3*(-i), a7 = t1 - t3*(-i)
-	VMOVDDUP X7, X12
-	VPERMILPD $0x3, X7, X13
-	VSHUFPS $0xB1, X13, X13, X13
-	MOVL ·signbit32(SB), AX
-	MOVD AX, X14
-	VBROADCASTSS X14, X14
-	VXORPD X15, X15, X15
-	VBLENDPS $0xAA, X14, X15, X14
-	VXORPS X14, X13, X13
-	VADDPS X13, X12, X4       // X4 = [a5, a5]
-	VSUBPS X13, X12, X5       // X5 = [a7, a7]
+	// w1 * a5
+	VXORPS X2, X2, X2
+	MOVQ 8(R10), X2      // w1
+	VSHUFPS $0x00, X2, X2, X8  // w1.r
+	VSHUFPS $0x55, X2, X2, X9  // w1.i
+	VSHUFPS $0xB1, X5, X5, X10 // a5 swapped
+	VMULPS X8, X5, X11
+	VMULPS X9, X10, X12
+	VXORPS X18, X12, X12
+	VADDPS X12, X11, X11       // w1*a5
+	VADDPS X11, X14, X2        // y1
+	VSUBPS X11, X14, X3        // y5
 
-	VUNPCKLPD X10, X4, X6     // X6 = [a4, a5]
-	VUNPCKLPD X11, X5, X7     // X7 = [a6, a7]
+	// w2 * a6
+	VXORPS X12, X12, X12
+	MOVQ 16(R10), X12     // w2
+	VSHUFPS $0x00, X12, X12, X8
+	VSHUFPS $0x55, X12, X12, X9
+	VSHUFPS $0xB1, X6, X6, X10
+	VMULPS X8, X6, X11
+	VMULPS X9, X10, X12
+	VXORPS X18, X12, X12
+	VADDPS X12, X11, X11       // w2*a6
+	VADDPS X11, X15, X4        // y2
+	VSUBPS X11, X15, X5        // y6
 
-	// =======================================================================
-	// STAGE 2: Radix-2 butterflies with twiddle factors
-	// =======================================================================
-	// Combine outputs: (a0,a4) w^0, (a1,a5) w^1, (a2,a6) w^2, (a3,a7) w^3
-	// Now we have:
-	//   X2 = [a0, a1], X3 = [a2, a3]
-	//   X6 = [a4, a5], X7 = [a6, a7]
+	// w3 * a7
+	VXORPS X12, X12, X12
+	MOVQ 24(R10), X12     // w3
+	VSHUFPS $0x00, X12, X12, X8
+	VSHUFPS $0x55, X12, X12, X9
+	VSHUFPS $0xB1, X7, X7, X10
+	VMULPS X8, X7, X11
+	VMULPS X9, X10, X12
+	VXORPS X18, X12, X12
+	VADDPS X12, X11, X11       // w3*a7
+	VADDPS X11, X16, X6        // y3
+	VSUBPS X11, X16, X7        // y7
 
-	// Load twiddle factors: w1, w2, w3 (w0=1)
-	VMOVSD 8(R10), X8         // X8 = w1
-	VMOVSD 16(R10), X9        // X9 = w2
-	VMOVSD 24(R10), X10       // X10 = w3
+	// Store results to work buffer
+	MOVQ X0, (R8)
+	MOVQ X2, 8(R8)
+	MOVQ X4, 16(R8)
+	MOVQ X6, 24(R8)
+	MOVQ X1, 32(R8)
+	MOVQ X3, 40(R8)
+	MOVQ X5, 48(R8)
+	MOVQ X7, 56(R8)
 
-	// Build twiddle vector: [w0, w1] and [w2, w3]
-	VMOVSD (R10), X11         // X11 = w0 = 1
-	VPUNPCKLQDQ X8, X11, X11  // X11 = [w0, w1]
-	VPUNPCKLQDQ X10, X9, X12  // X12 = [w2, w3]
-
-	// Multiply [a4, a5] by [w0, w1]
-	VMOVSLDUP X11, X13        // X13 = [w.r, w.r, ...]
-	VMOVSHDUP X11, X14        // X14 = [w.i, w.i, ...]
-	VSHUFPS $0xB1, X6, X6, X15  // X15 = [a.i, a.r, ...]
-	VMULPS X14, X15, X15
-	VFMSUBADD231PS X13, X6, X15  // X15 = [w0*a4, w1*a5]
-
-	// Radix-2: y0 = a0 + w0*a4, y1 = a1 + w1*a5
-	//          y4 = a0 - w0*a4, y5 = a1 - w1*a5
-	VADDPS X15, X2, X0        // X0 = [y0, y1]
-	VSUBPS X15, X2, X1        // X1 = [y4, y5]
-
-	// Multiply [a6, a7] by [w2, w3]
-	VMOVSLDUP X12, X13
-	VMOVSHDUP X12, X14
-	VSHUFPS $0xB1, X7, X7, X15
-	VMULPS X14, X15, X15
-	VFMSUBADD231PS X13, X7, X15  // X15 = [w2*a6, w3*a7]
-
-	// Radix-2: y2 = a2 + w2*a6, y3 = a3 + w3*a7
-	//          y6 = a2 - w2*a6, y7 = a3 - w3*a7
-	VADDPS X15, X3, X2        // X2 = [y2, y3]
-	VSUBPS X15, X3, X3        // X3 = [y6, y7]
-
-	// Combine final results: Y0 = [y0, y1, y2, y3], Y1 = [y4, y5, y6, y7]
-	VINSERTF128 $0, X0, Y0, Y0
-	VINSERTF128 $1, X2, Y0, Y0
-	VINSERTF128 $0, X1, Y1, Y1
-	VINSERTF128 $1, X3, Y1, Y1
-
-size8_r4_fwd_store:
 	MOVQ dst+0(FP), R9
 	CMPQ R8, R9
-	JE   size8_r4_fwd_store_direct
+	JE   size8_r4_fwd_done
 
-	VMOVUPS Y0, (R9)
-	VMOVUPS Y1, 32(R9)
-	JMP size8_r4_fwd_done
-
-size8_r4_fwd_store_direct:
-	VMOVUPS Y0, (R8)
-	VMOVUPS Y1, 32(R8)
+	// Copy to dst
+	MOVQ (R8), AX
+	MOVQ AX, (R9)
+	MOVQ 8(R8), AX
+	MOVQ AX, 8(R9)
+	MOVQ 16(R8), AX
+	MOVQ AX, 16(R9)
+	MOVQ 24(R8), AX
+	MOVQ AX, 24(R9)
+	MOVQ 32(R8), AX
+	MOVQ AX, 32(R9)
+	MOVQ 40(R8), AX
+	MOVQ AX, 40(R9)
+	MOVQ 48(R8), AX
+	MOVQ AX, 48(R9)
+	MOVQ 56(R8), AX
+	MOVQ AX, 56(R9)
 
 size8_r4_fwd_done:
 	VZEROUPPER
@@ -322,117 +319,149 @@ size8_r4_inv_bitrev:
 	MOVQ AX, 56(R8)
 
 	// Load data
-	VMOVUPS (R8), Y0
-	VMOVUPS 32(R8), Y1
-
-	// STAGE 1: Radix-4 butterflies on contiguous groups (inverse, +i)
-	// --- Radix-4 Butterfly 1: [x0, x1, x2, x3] ---
-	VEXTRACTF128 $0, Y0, X2
-	VEXTRACTF128 $1, Y0, X3
-
-	VADDPS X3, X2, X4         // X4 = [t0, t2]
-	VSUBPS X3, X2, X5         // X5 = [t1, t3]
-
-	VMOVDDUP X4, X6
-	VPERMILPD $0x3, X4, X7
-	VADDPS X7, X6, X8         // X8 = [a0, a0]
-	VSUBPS X7, X6, X9         // X9 = [a2, a2]
-
-	VMOVDDUP X5, X10
-	VPERMILPD $0x3, X5, X11
-	VSHUFPS $0xB1, X11, X11, X11
+	// =======================================================================
+	// Scalar-style mixed-radix computation (inverse)
+	// =======================================================================
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X12
-	VBROADCASTSS X12, X12
-	VXORPD X13, X13, X13
-	VBLENDPS $0x55, X12, X13, X12
-	VXORPS X12, X11, X11
-	VADDPS X11, X10, X14      // X14 = [a1, a1]
-	VSUBPS X11, X10, X15      // X15 = [a3, a3]
+	MOVD AX, X16
+	VBROADCASTSS X16, X16
+	VXORPS X17, X17, X17
+	VBLENDPS $0x55, X16, X17, X18 // maskNegReal  (lanes 0,2)
+	VBLENDPS $0xAA, X16, X17, X19 // maskNegImag  (lanes 1,3)
 
-	VUNPCKLPD X8, X14, X2     // X2 = [a0, a1]
-	VUNPCKLPD X9, X15, X3     // X3 = [a2, a3]
+	// Load x0..x7
+	VXORPS X0, X0, X0
+	MOVQ (R8), X0
+	VXORPS X1, X1, X1
+	MOVQ 8(R8), X1
+	VXORPS X2, X2, X2
+	MOVQ 16(R8), X2
+	VXORPS X3, X3, X3
+	MOVQ 24(R8), X3
+	VXORPS X4, X4, X4
+	MOVQ 32(R8), X4
+	VXORPS X5, X5, X5
+	MOVQ 40(R8), X5
+	VXORPS X6, X6, X6
+	MOVQ 48(R8), X6
+	VXORPS X7, X7, X7
+	MOVQ 56(R8), X7
 
-	// --- Radix-4 Butterfly 2: [x4, x5, x6, x7] ---
-	VEXTRACTF128 $0, Y1, X4
-	VEXTRACTF128 $1, Y1, X5
+	// Radix-4 butterfly 1 (+i)
+	VADDPS X2, X0, X8
+	VSUBPS X2, X0, X9
+	VADDPS X3, X1, X10
+	VSUBPS X3, X1, X11
+	// t3 * (+i)
+	VSHUFPS $0xB1, X11, X11, X12
+	VXORPS X18, X12, X12
+	VADDPS X10, X8, X13  // a0
+	VSUBPS X10, X8, X15  // a2
+	VADDPS X12, X9, X14  // a1
+	VSUBPS X12, X9, X16  // a3
 
-	VADDPS X5, X4, X6         // X6 = [t0, t2]
-	VSUBPS X5, X4, X7         // X7 = [t1, t3]
+	// Radix-4 butterfly 2 (+i)
+	VADDPS X6, X4, X8
+	VSUBPS X6, X4, X9
+	VADDPS X7, X5, X10
+	VSUBPS X7, X5, X11
+	VSHUFPS $0xB1, X11, X11, X12
+	VXORPS X18, X12, X12
+	VADDPS X10, X8, X4   // a4
+	VSUBPS X10, X8, X6   // a6
+	VADDPS X12, X9, X5   // a5
+	VSUBPS X12, X9, X7   // a7
 
-	VMOVDDUP X6, X8
-	VPERMILPD $0x3, X6, X9
-	VADDPS X9, X8, X10        // X10 = [a4, a4]
-	VSUBPS X9, X8, X11        // X11 = [a6, a6]
+	// Stage 2 with conjugated twiddles
+	// y0,y4
+	VADDPS X4, X13, X0
+	VSUBPS X4, X13, X1
 
-	VMOVDDUP X7, X12
-	VPERMILPD $0x3, X7, X13
-	VSHUFPS $0xB1, X13, X13, X13
-	MOVL ·signbit32(SB), AX
-	MOVD AX, X14
-	VBROADCASTSS X14, X14
-	VXORPD X15, X15, X15
-	VBLENDPS $0x55, X14, X15, X14
-	VXORPS X14, X13, X13
-	VADDPS X13, X12, X4       // X4 = [a5, a5]
-	VSUBPS X13, X12, X5       // X5 = [a7, a7]
+	// conj(w1) * a5
+	VXORPS X2, X2, X2
+	MOVQ 8(R10), X2
+	VXORPS X19, X2, X2        // conjugate
+	VSHUFPS $0x00, X2, X2, X8
+	VSHUFPS $0x55, X2, X2, X9
+	VSHUFPS $0xB1, X5, X5, X10
+	VMULPS X8, X5, X11
+	VMULPS X9, X10, X12
+	VXORPS X18, X12, X12
+	VADDPS X12, X11, X11
+	VADDPS X11, X14, X2
+	VSUBPS X11, X14, X3
 
-	VUNPCKLPD X10, X4, X6     // X6 = [a4, a5]
-	VUNPCKLPD X11, X5, X7     // X7 = [a6, a7]
+	// conj(w2) * a6
+	VXORPS X12, X12, X12
+	MOVQ 16(R10), X12
+	VXORPS X19, X12, X12
+	VSHUFPS $0x00, X12, X12, X8
+	VSHUFPS $0x55, X12, X12, X9
+	VSHUFPS $0xB1, X6, X6, X10
+	VMULPS X8, X6, X11
+	VMULPS X9, X10, X12
+	VXORPS X18, X12, X12
+	VADDPS X12, X11, X11
+	VADDPS X11, X15, X4
+	VSUBPS X11, X15, X5
 
-	// --- Stage 2: Radix-2 with conjugated twiddles (use VFMSUBADD) ---
-	// Load twiddles
-	VMOVSD 8(R10), X8
-	VMOVSD 16(R10), X9
-	VMOVSD 24(R10), X10
-	VMOVSD (R10), X11
-	VPUNPCKLQDQ X8, X11, X11
-	VPUNPCKLQDQ X10, X9, X12
-
-	// Multiply with conjugated twiddles using VFMSUBADD
-	VMOVSLDUP X11, X13
-	VMOVSHDUP X11, X14
-	VSHUFPS $0xB1, X6, X6, X15
-	VMULPS X14, X15, X15
-	VFMADDSUB231PS X13, X6, X15  // conjugate multiply
-
-	VADDPS X15, X2, X0
-	VSUBPS X15, X2, X1
-
-	VMOVSLDUP X12, X13
-	VMOVSHDUP X12, X14
-	VSHUFPS $0xB1, X7, X7, X15
-	VMULPS X14, X15, X15
-	VFMADDSUB231PS X13, X7, X15  // conjugate multiply
-
-	VADDPS X15, X3, X2
-	VSUBPS X15, X3, X3
-
-	// Combine results
-	VINSERTF128 $0, X0, Y0, Y0
-	VINSERTF128 $1, X2, Y0, Y0
-	VINSERTF128 $0, X1, Y1, Y1
-	VINSERTF128 $1, X3, Y1, Y1
+	// conj(w3) * a7
+	VXORPS X12, X12, X12
+	MOVQ 24(R10), X12
+	VXORPS X19, X12, X12
+	VSHUFPS $0x00, X12, X12, X8
+	VSHUFPS $0x55, X12, X12, X9
+	VSHUFPS $0xB1, X7, X7, X10
+	VMULPS X8, X7, X11
+	VMULPS X9, X10, X12
+	VXORPS X18, X12, X12
+	VADDPS X12, X11, X11
+	VADDPS X11, X16, X6
+	VSUBPS X11, X16, X7
 
 	// Apply 1/8 scaling
-	MOVL ·eighth32(SB), AX       // 0.125f
-	MOVD AX, X2
-	VBROADCASTSS X2, Y2
-	VMULPS Y2, Y0, Y0
-	VMULPS Y2, Y1, Y1
+	MOVL ·eighth32(SB), AX
+	MOVD AX, X8
+	VBROADCASTSS X8, X8
+	VMULPS X8, X0, X0
+	VMULPS X8, X1, X1
+	VMULPS X8, X2, X2
+	VMULPS X8, X3, X3
+	VMULPS X8, X4, X4
+	VMULPS X8, X5, X5
+	VMULPS X8, X6, X6
+	VMULPS X8, X7, X7
 
-	// Store results
+	// Store results to work buffer
+	MOVQ X0, (R8)
+	MOVQ X2, 8(R8)
+	MOVQ X4, 16(R8)
+	MOVQ X6, 24(R8)
+	MOVQ X1, 32(R8)
+	MOVQ X3, 40(R8)
+	MOVQ X5, 48(R8)
+	MOVQ X7, 56(R8)
+
 	MOVQ dst+0(FP), R9
 	CMPQ R8, R9
-	JE   size8_r4_inv_store_direct
+	JE   size8_r4_inv_done
 
-	VMOVUPS Y0, (R9)
-	VMOVUPS Y1, 32(R9)
-	JMP size8_r4_inv_done
-
-size8_r4_inv_store_direct:
-	VMOVUPS Y0, (R8)
-	VMOVUPS Y1, 32(R8)
+	MOVQ (R8), AX
+	MOVQ AX, (R9)
+	MOVQ 8(R8), AX
+	MOVQ AX, 8(R9)
+	MOVQ 16(R8), AX
+	MOVQ AX, 16(R9)
+	MOVQ 24(R8), AX
+	MOVQ AX, 24(R9)
+	MOVQ 32(R8), AX
+	MOVQ AX, 32(R9)
+	MOVQ 40(R8), AX
+	MOVQ AX, 40(R9)
+	MOVQ 48(R8), AX
+	MOVQ AX, 48(R9)
+	MOVQ 56(R8), AX
+	MOVQ AX, 56(R9)
 
 size8_r4_inv_done:
 	VZEROUPPER

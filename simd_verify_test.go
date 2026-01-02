@@ -128,8 +128,10 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 		t.Fatalf("Generic Forward failed: %v", err)
 	}
 
-	var maxRelErr float64
-	var firstBadIdx int = -1
+	var (
+		maxRelErr   float64
+		firstBadIdx int = -1
+	)
 
 	for i := range simdOut {
 		diff := cmplx.Abs(simdOut[i] - genericOut[i])
@@ -140,6 +142,7 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 			if relErr > maxRelErr {
 				maxRelErr = relErr
 			}
+
 			if relErr > 1e-6 && firstBadIdx == -1 {
 				firstBadIdx = i
 			}
@@ -148,16 +151,20 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 
 	if maxRelErr > 1e-14 {
 		t.Errorf("SIMD vs Generic: max relative error %e exceeds 1e-14", maxRelErr)
+
 		if n == 64 && firstBadIdx >= 0 {
 			t.Logf("First bad index: %d", firstBadIdx)
+
 			badCount := 0
 			for i := 0; i < len(simdOut) && badCount < 20; i++ {
 				diff := cmplx.Abs(simdOut[i] - genericOut[i])
+
 				maxMag := math.Max(cmplx.Abs(simdOut[i]), cmplx.Abs(genericOut[i]))
 				if maxMag > 1e-14 {
 					relErr := diff / maxMag
 					if relErr > 1e-6 {
 						t.Logf("  BAD[%d] SIMD=%v Generic=%v (relErr=%.2e)", i, simdOut[i], genericOut[i], relErr)
+
 						badCount++
 					}
 				}
