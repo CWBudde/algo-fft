@@ -125,6 +125,54 @@ func TestNEONComplex128_VsGoDIT(t *testing.T) {
 	}
 }
 
+type neonKernel128 func(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+func runNEONRoundTripComplex128(t *testing.T, n int, forward, inverse neonKernel128, bitrev []int, tol float64) {
+	t.Helper()
+
+	src := make([]complex128, n)
+	for i := range src {
+		src[i] = complex(float64(i*3-7), float64(11-i*2))
+	}
+
+	dst := make([]complex128, n)
+	inv := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+	if bitrev == nil {
+		bitrev = ComputeBitReversalIndices(n)
+	}
+	scratch := make([]complex128, n)
+
+	if !forward(dst, src, twiddle, scratch, bitrev) {
+		t.Fatal("forward kernel failed")
+	}
+
+	ref := reference.NaiveDFT128(src)
+	assertComplex128MaxError(t, dst, ref, tol, "reference")
+
+	if !inverse(inv, dst, twiddle, scratch, bitrev) {
+		t.Fatal("inverse kernel failed")
+	}
+
+	assertComplex128MaxError(t, inv, src, tol, "round-trip")
+}
+
+func TestNEONSize4Radix4Complex128(t *testing.T) {
+	runNEONRoundTripComplex128(t, 4, forwardNEONSize4Radix4Complex128Asm, inverseNEONSize4Radix4Complex128Asm, nil, 1e-12)
+}
+
+func TestNEONSize8Radix2Complex128(t *testing.T) {
+	runNEONRoundTripComplex128(t, 8, forwardNEONSize8Radix2Complex128Asm, inverseNEONSize8Radix2Complex128Asm, nil, 1e-12)
+}
+
+func TestNEONSize16Radix4Complex128(t *testing.T) {
+	runNEONRoundTripComplex128(t, 16, forwardNEONSize16Radix4Complex128Asm, inverseNEONSize16Radix4Complex128Asm, bitrevSize16Radix4, 1e-12)
+}
+
+func TestNEONSize16Radix2Complex128(t *testing.T) {
+	runNEONRoundTripComplex128(t, 16, forwardNEONSize16Complex128Asm, inverseNEONSize16Complex128Asm, nil, 1e-12)
+}
+
 func assertComplex128MaxError(t *testing.T, got, want []complex128, tol float64, label string) {
 	t.Helper()
 

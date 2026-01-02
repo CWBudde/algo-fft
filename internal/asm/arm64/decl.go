@@ -111,6 +111,12 @@ func ForwardNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128
 func InverseNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
 //go:noescape
+func ForwardNEONSize8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+//go:noescape
+func InverseNEONSize8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+//go:noescape
 func ForwardNEONSize16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
 //go:noescape

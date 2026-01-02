@@ -8,37 +8,11 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
-func TestNEONSize4Radix4Complex64(t *testing.T) {
-	const n = 4
-	src := []complex64{
-		complex(1, -2),
-		complex(3, 4),
-		complex(-5, 6),
-		complex(7, -8),
-	}
+type neonKernel64 func(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
-	dst := make([]complex64, n)
-	inv := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
-	scratch := make([]complex64, n)
+func runNEONRoundTripComplex64(t *testing.T, n int, forward, inverse neonKernel64, bitrev []int, tol float32) {
+	t.Helper()
 
-	if !forwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardNEONSize4Radix4Complex64Asm failed")
-	}
-
-	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 1e-4, "reference")
-
-	if !inverseNEONSize4Radix4Complex64Asm(inv, dst, twiddle, scratch, bitrev) {
-		t.Fatal("inverseNEONSize4Radix4Complex64Asm failed")
-	}
-
-	assertComplex64MaxError(t, inv, src, 1e-4, "round-trip")
-}
-
-func TestNEONSize8Radix8Complex64(t *testing.T) {
-	const n = 8
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i*3-7), float32(11-i*2))
@@ -47,97 +21,77 @@ func TestNEONSize8Radix8Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	inv := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
+	if bitrev == nil {
+		bitrev = ComputeBitReversalIndices(n)
+	}
 	scratch := make([]complex64, n)
 
-	if !forwardNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardNEONSize8Radix8Complex64Asm failed")
+	if !forward(dst, src, twiddle, scratch, bitrev) {
+		t.Fatal("forward kernel failed")
 	}
 
 	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 1e-4, "reference")
+	assertComplex64MaxError(t, dst, ref, tol, "reference")
 
-	if !inverseNEONSize8Radix8Complex64Asm(inv, dst, twiddle, scratch, bitrev) {
-		t.Fatal("inverseNEONSize8Radix8Complex64Asm failed")
+	if !inverse(inv, dst, twiddle, scratch, bitrev) {
+		t.Fatal("inverse kernel failed")
 	}
 
-	assertComplex64MaxError(t, inv, src, 1e-4, "round-trip")
+	assertComplex64MaxError(t, inv, src, tol, "round-trip")
+}
+
+func TestNEONSize4Radix4Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 4, forwardNEONSize4Radix4Complex64Asm, inverseNEONSize4Radix4Complex64Asm, nil, 1e-4)
+}
+
+func TestNEONSize8Radix8Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 8, forwardNEONSize8Radix8Complex64Asm, inverseNEONSize8Radix8Complex64Asm, nil, 1e-4)
+}
+
+func TestNEONSize8Radix2Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 8, forwardNEONSize8Radix2Complex64Asm, inverseNEONSize8Radix2Complex64Asm, nil, 1e-4)
+}
+
+func TestNEONSize8Radix4Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 8, forwardNEONSize8Radix4Complex64Asm, inverseNEONSize8Radix4Complex64Asm, nil, 1e-4)
+}
+
+func TestNEONSize16Radix4Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 16, forwardNEONSize16Radix4Complex64Asm, inverseNEONSize16Radix4Complex64Asm, bitrevSize16Radix4, 1e-4)
+}
+
+func TestNEONSize16Radix2Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 16, forwardNEONSize16Complex64Asm, inverseNEONSize16Complex64Asm, nil, 1e-4)
+}
+
+func TestNEONSize32Radix2Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 32, forwardNEONSize32Complex64Asm, inverseNEONSize32Complex64Asm, nil, 1e-4)
 }
 
 func TestNEONSize32MixedRadix24Complex64(t *testing.T) {
-	const n = 32
-	src := make([]complex64, n)
-	for i := range src {
-		src[i] = complex(float32(i*2-9), float32(5-i))
-	}
+	runNEONRoundTripComplex64(t, 32, forwardNEONSize32MixedRadix24Complex64Asm, inverseNEONSize32MixedRadix24Complex64Asm, bitrevSize32Mixed24, 1e-4)
+}
 
-	dst := make([]complex64, n)
-	inv := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n)
+func TestNEONSize64Radix2Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 64, forwardNEONSize64Complex64Asm, inverseNEONSize64Complex64Asm, nil, 1e-3)
+}
 
-	if !forwardNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize32Mixed24) {
-		t.Fatal("forwardNEONSize32MixedRadix24Complex64Asm failed")
-	}
+func TestNEONSize64Radix4Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 64, forwardNEONSize64Radix4Complex64Asm, inverseNEONSize64Radix4Complex64Asm, bitrevSize64Radix4, 1e-3)
+}
 
-	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 1e-4, "reference")
-
-	if !inverseNEONSize32MixedRadix24Complex64Asm(inv, dst, twiddle, scratch, bitrevSize32Mixed24) {
-		t.Fatal("inverseNEONSize32MixedRadix24Complex64Asm failed")
-	}
-
-	assertComplex64MaxError(t, inv, src, 1e-4, "round-trip")
+func TestNEONSize128Radix2Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 128, forwardNEONSize128Complex64Asm, inverseNEONSize128Complex64Asm, nil, 1e-3)
 }
 
 func TestNEONSize128MixedRadix24Complex64(t *testing.T) {
-	const n = 128
-	src := make([]complex64, n)
-	for i := range src {
-		src[i] = complex(float32(i*3-11), float32(7-i*2))
-	}
+	runNEONRoundTripComplex64(t, 128, forwardNEONSize128MixedRadix24Complex64Asm, inverseNEONSize128MixedRadix24Complex64Asm, bitrevSize128Mixed24, 1e-3)
+}
 
-	dst := make([]complex64, n)
-	inv := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n)
-
-	if !forwardNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch, bitrevSize128Mixed24) {
-		t.Fatal("forwardNEONSize128MixedRadix24Complex64Asm failed")
-	}
-
-	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 1e-3, "reference")
-
-	if !inverseNEONSize128MixedRadix24Complex64Asm(inv, dst, twiddle, scratch, bitrevSize128Mixed24) {
-		t.Fatal("inverseNEONSize128MixedRadix24Complex64Asm failed")
-	}
-
-	assertComplex64MaxError(t, inv, src, 1e-3, "round-trip")
+func TestNEONSize256Radix2Complex64(t *testing.T) {
+	runNEONRoundTripComplex64(t, 256, forwardNEONSize256Radix2Complex64Asm, inverseNEONSize256Radix2Complex64Asm, nil, 5e-3)
 }
 
 func TestNEONSize256Radix4Complex64(t *testing.T) {
-	const n = 256
-	src := make([]complex64, n)
-	for i := range src {
-		src[i] = complex(float32(i*5-17), float32(13-i*3))
-	}
-
-	dst := make([]complex64, n)
-	inv := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n)
-
-	if !forwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize256Radix4) {
-		t.Fatal("forwardNEONSize256Radix4Complex64Asm failed")
-	}
-
-	ref := reference.NaiveDFT(src)
-	assertComplex64MaxError(t, dst, ref, 5e-3, "reference")
-
-	if !inverseNEONSize256Radix4Complex64Asm(inv, dst, twiddle, scratch, bitrevSize256Radix4) {
-		t.Fatal("inverseNEONSize256Radix4Complex64Asm failed")
-	}
-
-	assertComplex64MaxError(t, inv, src, 5e-3, "round-trip")
+	runNEONRoundTripComplex64(t, 256, forwardNEONSize256Radix4Complex64Asm, inverseNEONSize256Radix4Complex64Asm, bitrevSize256Radix4, 5e-3)
 }

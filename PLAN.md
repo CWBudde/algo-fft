@@ -260,17 +260,17 @@ Sizes 4, 8, 16, 32, 64, 128, 256 forward transforms implemented for complex64.
 
 For each existing forward NEON kernel, implement inverse:
 
-- [ ] Size 4: `inverseNEONSize4Radix4Complex64`
-  - [ ] Add to `internal/asm/arm64/neon_f32_size4_radix4.s`
-  - [ ] Conjugate twiddle factors (negate imaginary part)
-  - [ ] Add 1/4 scaling factor
-- [ ] Size 8: `inverseNEONSize8Radix2Complex64`, `inverseNEONSize8Radix8Complex64`
-- [ ] Size 16: `inverseNEONSize16Radix4Complex64`
-- [ ] Size 32: `inverseNEONSize32Radix2Complex64`, `inverseNEONSize32Mixed24Complex64`
-- [ ] Size 64: `inverseNEONSize64Radix4Complex64`
-- [ ] Size 128: `inverseNEONSize128Radix2Complex64`, `inverseNEONSize128Mixed24Complex64`
-- [ ] Size 256: `inverseNEONSize256Radix4Complex64`
-- [ ] Add round-trip tests for each size
+- [x] Size 4: `inverseNEONSize4Radix4Complex64`
+  - [x] Add to `internal/asm/arm64/neon_f32_size4_radix4.s`
+  - [x] Conjugate twiddle factors (negate imaginary part)
+  - [x] Add 1/4 scaling factor
+- [x] Size 8: `inverseNEONSize8Radix2Complex64`, `inverseNEONSize8Radix8Complex64`
+- [x] Size 16: `inverseNEONSize16Radix4Complex64`
+- [x] Size 32: `inverseNEONSize32Radix2Complex64`, `inverseNEONSize32Mixed24Complex64`
+- [x] Size 64: `inverseNEONSize64Radix4Complex64`
+- [x] Size 128: `inverseNEONSize128Radix2Complex64`, `inverseNEONSize128Mixed24Complex64`
+- [x] Size 256: `inverseNEONSize256Radix4Complex64`
+- [x] Add round-trip tests for each size
 
 #### 15.5.2 Size 512+ NEON Kernels
 
@@ -289,13 +289,13 @@ Evaluate benefit before implementing (may not be worthwhile due to cache effects
 
 NEON processes 1 complex128 per 128-bit register (half the throughput of complex64):
 
-- [ ] Evaluate if NEON complex128 provides benefit over pure-Go
-- [ ] If beneficial, implement for key sizes:
-  - [ ] Size 4: `forwardNEONSize4Radix4Complex128`
-  - [ ] Size 8: `forwardNEONSize8Radix2Complex128`
-  - [ ] Size 16: `forwardNEONSize16Radix4Complex128`
-- [ ] Add corresponding inverse transforms
-- [ ] Benchmark and document speedup
+- [x] Evaluate if NEON complex128 provides benefit over pure-Go
+- [x] If beneficial, implement for key sizes:
+  - [x] Size 4: `forwardNEONSize4Radix4Complex128`
+  - [x] Size 8: `forwardNEONSize8Radix2Complex128`
+  - [x] Size 16: `forwardNEONSize16Radix4Complex128`
+- [x] Add corresponding inverse transforms
+- [x] Benchmark and document speedup
 
 ---
 
