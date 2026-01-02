@@ -158,6 +158,12 @@ func ForwardAVX2Size512Mixed24Complex64Asm(dst, src, twiddle, scratch []complex6
 //go:noescape
 func InverseAVX2Size512Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
+//go:noescape
+func ForwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+//go:noescape
+func InverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
 // ============================================================================
 // Size-Specific FFT Kernels (Complex128)
 // ============================================================================
