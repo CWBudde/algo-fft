@@ -79,6 +79,9 @@ func ForwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64,
 func InverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
+func ForwardSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
 func ForwardSSE2Size16Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
