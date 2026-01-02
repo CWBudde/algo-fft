@@ -33,7 +33,7 @@
 
 // Forward transform, size 8, complex64, radix-2 variant
 // Fully unrolled 3-stage FFT with AVX2 vectorization
-TEXT ·forwardAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -281,7 +281,7 @@ size8_r4_fwd_return_false:
 
 // Inverse transform, size 8, complex64, radix-4 variant
 // Same as forward but with +i instead of -i for radix-4, conjugated twiddles, and 1/8 scaling
-TEXT ·inverseAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9

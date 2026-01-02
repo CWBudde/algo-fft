@@ -14,7 +14,7 @@
 // Forward transform, size 8, complex128, radix-8 variant
 // Single radix-8 butterfly without bit-reversal.
 // ===========================================================================
-TEXT ·forwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // dst
 	MOVQ src+24(FP), R9      // src
@@ -158,7 +158,7 @@ size8_128_r8_fwd_return_false:
 // Inverse transform, size 8, complex128, radix-8 variant
 // Uses conjugated twiddles (via VFMSUBADD) and applies 1/8 scaling.
 // ===========================================================================
-TEXT ·inverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9

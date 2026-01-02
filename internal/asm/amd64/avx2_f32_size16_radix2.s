@@ -40,7 +40,7 @@
 //   Y0-Y3: data registers for butterflies
 //   Y4-Y7: twiddle and intermediate values
 //
-TEXT ·forwardAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -400,7 +400,7 @@ size16_return_false:
 // - Twiddle factor real/imag splits are hoisted and reused
 // - 1/16 = 0.0625 scaling applied at the end
 //
-TEXT ·inverseAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer

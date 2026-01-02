@@ -33,7 +33,7 @@
 // ===========================================================================
 // Pure radix-4 implementation - no bit-reversal needed for size 4!
 // Input order for radix-4 is naturally: [0, 1, 2, 3]
-TEXT ·forwardAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -216,7 +216,7 @@ size4_r4_fwd_return_false:
 // Inverse transform, size 4, complex64, radix-4
 // ===========================================================================
 // Same as forward but with +i instead of -i, and 1/4 scaling at the end
-TEXT ·inverseAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9

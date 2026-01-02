@@ -77,7 +77,7 @@
 // XMM register (128 bits = 16 bytes):
 //   - Holds 1 complex128 value  (1 × 16 = 16 bytes)
 
-TEXT ·forwardAVX2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Complex128Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate
 	// -----------------------------------------------------------------------
@@ -430,7 +430,7 @@ return_false_128:
 //   R14 = size (current butterfly size, starts at 2)
 //   R15 = half_size = size/2
 // ===========================================================================
-TEXT ·inverseAVX2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Complex128Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Parameter loading from Go calling convention
 	// -----------------------------------------------------------------------

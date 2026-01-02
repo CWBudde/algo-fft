@@ -19,7 +19,7 @@
 
 #include "textflag.h"
 
-TEXT ·forwardSSE2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Complex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -344,7 +344,7 @@ sse2_return_false:
 // ===========================================================================
 // inverseSSE2Complex64Asm - Inverse FFT for complex64 using SSE2
 // ===========================================================================
-TEXT ·inverseSSE2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Complex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------

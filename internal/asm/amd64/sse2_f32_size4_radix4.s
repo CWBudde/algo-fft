@@ -26,7 +26,7 @@
 // ===========================================================================
 // Forward transform, size 4, complex64, radix-4
 // ===========================================================================
-TEXT ·forwardSSE2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ R8, R14             // R14 = original dst pointer
@@ -103,7 +103,7 @@ size4_sse2_64_fwd_return_false:
 // ===========================================================================
 // Inverse transform, size 4, complex64, radix-4
 // ===========================================================================
-TEXT ·inverseSSE2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14             // R14 = original dst pointer

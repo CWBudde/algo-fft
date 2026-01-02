@@ -116,7 +116,7 @@
 //
 // Returns: true if transform completed, false to fall back to Go
 // ===========================================================================
-TEXT ·forwardAVX2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -697,7 +697,7 @@ return_false:
 // ===========================================================================
 // forwardAVX2StockhamComplex64Asm - Forward FFT for complex64 (Stockham path)
 // ===========================================================================
-TEXT ·forwardAVX2StockhamComplex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2StockhamComplex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -1010,7 +1010,7 @@ stockham_return_false:
 // This is achieved by using VFMSUBADD instead of VFMADDSUB:
 //   VFMSUBADD: even lanes +, odd lanes - (opposite of VFMADDSUB)
 // ===========================================================================
-TEXT ·inverseAVX2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs (same as forward)
 	// -----------------------------------------------------------------------
@@ -1532,7 +1532,7 @@ inv_return_false:
 // ===========================================================================
 // inverseAVX2StockhamComplex64Asm - Inverse FFT for complex64 (Stockham path)
 // ===========================================================================
-TEXT ·inverseAVX2StockhamComplex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2StockhamComplex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------

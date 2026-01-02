@@ -15,7 +15,7 @@
 // ===========================================================================
 
 #include "textflag.h"
-TEXT ·forwardAVX2Size16Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size16Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // dst pointer
 	MOVQ src+24(FP), R9      // src pointer
@@ -271,7 +271,7 @@ size16_128_return_false:
 // ===========================================================================
 // Inverse transform, size 16, complex128
 // ===========================================================================
-TEXT ·inverseAVX2Size16Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size16Complex128Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9

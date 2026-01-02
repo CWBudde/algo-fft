@@ -36,7 +36,7 @@
 //   R12: bitrev pointer
 //   Data stored in memory (R8), processed in groups of 4 YMM registers
 //
-TEXT ·forwardAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -1254,7 +1254,7 @@ size64_return_false:
 // For inverse FFT butterfly: out[i] = in[i] + in[j], out[j] = (in[i] - in[j]) * conj(w)
 // Conjugate of twiddle is applied by negating the imaginary part during multiply.
 //
-TEXT ·inverseAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
