@@ -19,20 +19,17 @@
 // ===========================================================================
 // SIZE 8 KERNELS
 // ===========================================================================
-// 8-point FFT: 3 stages, 8 complex64 values = 64 bytes = 2 YMM registers
+// 8-point FFT: mixed-radix 4x2 (radix-4 stage, then radix-2), 8 complex64 values
+// = 64 bytes = 2 YMM registers
 //
 // Bit-reversal for n=8: [0, 4, 2, 6, 1, 5, 3, 7]
 //
-// Stage 1 (size=2): 4 butterflies with pairs (0,1), (2,3), (4,5), (6,7)
-//                   All use twiddle[0] = 1+0i (identity)
-// Stage 2 (size=4): 2 groups of 2 butterflies
-//                   j=0: twiddle[0], j=1: twiddle[2]
-// Stage 3 (size=8): 1 group of 4 butterflies
-//                   j=0: twiddle[0], j=1: twiddle[1], j=2: twiddle[2], j=3: twiddle[3]
+// Stage 1 (radix-4): 2 butterflies on indices [0,2,4,6] and [1,3,5,7]
+// Stage 2 (radix-2): 4 butterflies with twiddles w^0, w^1, w^2, w^3
 // ===========================================================================
 
-// Forward transform, size 8, complex64, radix-2 variant
-// Fully unrolled 3-stage FFT with AVX2 vectorization
+// Forward transform, size 8, complex64, radix-4 (mixed-radix) variant
+// Fully unrolled mixed-radix FFT with AVX2 vectorization
 TEXT ·ForwardAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
@@ -279,7 +276,7 @@ size8_r4_fwd_return_false:
 	MOVB $0, ret+120(FP)
 	RET
 
-// Inverse transform, size 8, complex64, radix-4 variant
+// Inverse transform, size 8, complex64, radix-4 (mixed-radix) variant
 // Same as forward but with +i instead of -i for radix-4, conjugated twiddles, and 1/8 scaling
 TEXT ·InverseAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters

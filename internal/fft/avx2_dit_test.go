@@ -118,6 +118,7 @@ func TestAVX2DITForwardComplex128(t *testing.T) {
 	}{
 		{"Size4/Radix4", 4, ComputeBitReversalIndicesRadix4, forwardAVX2Size4Radix4Complex128Asm},
 		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix2Complex128Asm},
+		{"Size8/Radix4", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix4Complex128Asm},
 		{"Size8/Radix8", 8, nil, forwardAVX2Size8Radix8Complex128Asm},
 		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm},
 		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm},
@@ -160,6 +161,7 @@ func TestAVX2DITInverseComplex128(t *testing.T) {
 	}{
 		{"Size4/Radix4", 4, ComputeBitReversalIndicesRadix4, forwardAVX2Size4Radix4Complex128Asm, inverseAVX2Size4Radix4Complex128Asm},
 		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix2Complex128Asm, inverseAVX2Size8Radix2Complex128Asm},
+		{"Size8/Radix4", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix4Complex128Asm, inverseAVX2Size8Radix4Complex128Asm},
 		{"Size8/Radix8", 8, nil, forwardAVX2Size8Radix8Complex128Asm, inverseAVX2Size8Radix8Complex128Asm},
 		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm, inverseAVX2Size16Complex128Asm},
 		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm, inverseAVX2Size32Complex128Asm},
