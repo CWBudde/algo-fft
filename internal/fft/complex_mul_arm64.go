@@ -1,4 +1,4 @@
-//go:build arm64
+//go:build arm64 && (!asm || purego)
 
 package fft
 
@@ -72,7 +72,7 @@ func complexMulArrayInPlaceComplex128SIMD(dst, src []complex128) bool {
 	return false
 }
 
-// NEON implementations (pure Go for now, can be replaced with assembly later).
+// NEON implementations (pure Go fallback).
 
 func complexMulArrayComplex64NEON(dst, a, b []complex64) {
 	n := len(dst)

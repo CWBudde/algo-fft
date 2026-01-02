@@ -101,3 +101,17 @@ func ForwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64
 
 //go:noescape
 func InverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+// Complex multiply helpers.
+
+//go:noescape
+func ComplexMulArrayComplex64NEONAsm(dst, a, b []complex64)
+
+//go:noescape
+func ComplexMulArrayInPlaceComplex64NEONAsm(dst, src []complex64)
+
+//go:noescape
+func ComplexMulArrayComplex128NEONAsm(dst, a, b []complex128)
+
+//go:noescape
+func ComplexMulArrayInPlaceComplex128NEONAsm(dst, src []complex128)
