@@ -85,6 +85,30 @@ func registerSSE2DITCodelets64() {
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
+	// Size 32: Radix-2 SSE2 variant
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       32,
+		Forward:    wrapCodelet64(amd64.ForwardSSE2Size32Radix2Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseSSE2Size32Radix2Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDSSE2,
+		Signature:  "dit32_radix2_sse2",
+		Priority:   17, // Lower priority than radix-32 (??)
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+	})
+
+	// Size 32: Mixed-radix-2/4 SSE2 variant
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       32,
+		Forward:    wrapCodelet64(amd64.ForwardSSE2Size32Mixed24Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseSSE2Size32Mixed24Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDSSE2,
+		Signature:  "dit32_mixed24_sse2",
+		Priority:   19, // Higher priority than radix-2 (17)
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
+	})
+
 	// Size 64: Radix-4 SSE2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,

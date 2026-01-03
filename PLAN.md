@@ -46,6 +46,40 @@ See `docs/IMPLEMENTATION_INVENTORY.md` for the authoritative inventory of all im
 
 ---
 
+## Phase 13.5: SSE2 Coverage (Up to Size 128)
+
+Target: fill SSE2 gaps up to size 128 using `docs/IMPLEMENTATION_INVENTORY.md` as source of truth.
+
+### 13.5.1 complex64 SSE2 Missing Kernels (<=128)
+
+- [x] Size 16: radix-2
+- [x] Size 32: radix-2
+- [x] Size 32: mixed-2/4
+- [ ] Size 64: radix-2
+- [ ] Size 128: radix-2
+- [x] Size 128: mixed-2/4
+
+### 13.5.2 complex128 SSE2 Missing Kernels (<=128)
+
+- [ ] Size 8: radix-2
+- [ ] Size 8: radix-8
+- [ ] Size 8: mixed-2/4
+- [ ] Size 16: radix-2
+- [ ] Size 16: radix-4
+- [ ] Size 32: radix-2
+- [ ] Size 32: mixed-2/4
+- [ ] Size 64: radix-2
+- [ ] Size 64: radix-4
+- [ ] Size 128: radix-2
+- [ ] Size 128: mixed-2/4
+
+### 13.5.3 SSE2 Test Coverage (<=128)
+
+- [ ] Add round-trip tests for all new SSE2 size-specific kernels
+- [ ] Add SSE2 vs Go DIT correctness tests (forward + inverse)
+
+---
+
 ## Phase 14: FFT Size Optimizations - Remaining Work
 
 ### 14.2 AVX2 Large Size Kernels (512-16384)
@@ -183,6 +217,7 @@ For each size, create assembly file in `internal/asm/amd64/`:
   - [ ] Optimized Go (radix-4/mixed-radix)
   - [ ] AVX2 assembly (`-tags=asm`)
   - [ ] SSE2 fallback (`-tags=asm` on non-AVX2 CPU or emulated)
+
 - [ ] Save results as `benchmarks/phase14_results/{arch}_{date}.txt`
 
 #### 14.8.2 Statistical Analysis
