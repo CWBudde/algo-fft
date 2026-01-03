@@ -61,17 +61,17 @@ Target: fill SSE2 gaps up to size 128 using `docs/IMPLEMENTATION_INVENTORY.md` a
 
 ### 13.5.2 complex128 SSE2 Missing Kernels (<=128)
 
-- [ ] Size 8: radix-2
-- [ ] Size 8: radix-8
-- [ ] Size 8: mixed-2/4
-- [ ] Size 16: radix-2
-- [ ] Size 16: radix-4
-- [ ] Size 32: radix-2
-- [ ] Size 32: mixed-2/4
-- [ ] Size 64: radix-2
-- [ ] Size 64: radix-4
-- [ ] Size 128: radix-2
-- [ ] Size 128: mixed-2/4
+- [x] Size 8: radix-2
+- [x] Size 8: radix-8
+- [x] Size 8: radix-4 (mixed-2/4)
+- [x] Size 16: radix-2
+- [x] Size 16: radix-4
+- [x] Size 32: radix-2
+- [x] Size 32: mixed-2/4
+- [x] Size 64: radix-2
+- [x] Size 64: radix-4
+- [x] Size 128: radix-2
+- [x] Size 128: mixed-2/4
 
 ### 13.5.3 SSE2 Test Coverage (<=128)
 

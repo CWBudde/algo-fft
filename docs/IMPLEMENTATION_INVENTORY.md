@@ -12,14 +12,14 @@ This document provides a comprehensive overview of all specialized FFT implement
 | 8     | Radix-2   | ✓   | ✓    | ✓    | ✓    |
 | 8     | Radix-8   | ✓   | ✓    | ✓    | ✓    |
 | 8     | Mixed¹    | ✓   | ✓    | ✓    | ✓    |
-| 16    | Radix-2   | ✓   | ✓    | -    | ✓    |
+| 16    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
 | 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 32    | Radix-2   | ✓   | ✓    | -    | ✓    |
-| 32    | Mixed²    | ✓   | ✓    | -    | ✓    |
-| 64    | Radix-2   | ✓   | ✓    | -    | ✓    |
+| 32    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
+| 32    | Mixed²    | ✓   | ✓    | ✓    | ✓    |
+| 64    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
 | 64    | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 128   | Radix-2   | ✓   | ✓    | -    | ✓    |
-| 128   | Mixed²    | ✓   | ✓    | -    | ✓    |
+| 128   | Radix-2   | ✓   | ✓    | ✓    | ✓    |
+| 128   | Mixed²    | ✓   | ✓    | ✓    | ✓    |
 | 256   | Radix-2   | ✓   | ✓    | -    | ✓    |
 | 256   | Radix-4   | ✓   | ✓    | ✓    | ✓    |
 | 512   | Radix-2   | ✓   | ✓    | -    | ✓    |
@@ -35,17 +35,17 @@ This document provides a comprehensive overview of all specialized FFT implement
 | Size  | Algorithm | Go  | AVX2 | SSE2 | NEON |
 | ----- | --------- | --- | ---- | ---- | ---- |
 | 4     | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 8     | Radix-2   | ✓   | ✓    | -    | -    |
-| 8     | Radix-8   | ✓   | ✓    | -    | -    |
-| 8     | Mixed¹    | ✓   | ✓    | -    | -    |
-| 16    | Radix-2   | ✓   | ✓    | -    | ✓    |
-| 16    | Radix-4   | ✓   | ✓    | -    | ✓    |
-| 32    | Radix-2   | ✓   | ✓    | -    | ✓    |
-| 32    | Mixed²    | ✓   | ✓    | -    | -    |
-| 64    | Radix-2   | ✓   | ✓    | -    | -    |
-| 64    | Radix-4   | ✓   | ✓    | -    | -    |
-| 128   | Radix-2   | ✓   | ✓    | -    | -    |
-| 128   | Mixed²    | ✓   | ✓    | -    | -    |
+| 8     | Radix-2   | ✓   | ✓    | ✓    | -    |
+| 8     | Radix-8   | ✓   | ✓    | ✓    | -    |
+| 8     | Mixed¹    | ✓   | ✓    | ✓    | -    |
+| 16    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
+| 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    |
+| 32    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
+| 32    | Mixed²    | ✓   | ✓    | ✓    | -    |
+| 64    | Radix-2   | ✓   | ✓    | ✓    | -    |
+| 64    | Radix-4   | ✓   | ✓    | ✓    | -    |
+| 128   | Radix-2   | ✓   | ✓    | ✓    | -    |
+| 128   | Mixed²    | ✓   | ✓    | ✓    | -    |
 | 256   | Radix-2   | ✓   | ✓    | -    | -    |
 | 256   | Radix-4   | ✓   | -    | -    | -    |
 | 512   | Radix-2   | ✓   | ✓    | -    | -    |
@@ -122,8 +122,10 @@ This document provides a comprehensive overview of all specialized FFT implement
 | ---------- | --------- | ---- | ------ | ------ | --------------------------------------------- |
 | complex64  | radix-2   | none | Go     | ✓      | `dit_size16_radix2.go`                        |
 | complex64  | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size16_radix2.s` |
+| complex64  | radix-2   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size16_radix2.s` |
 | complex64  | radix-4   | none | Go     | ✓      | `dit_size16_radix4.go`                        |
 | complex64  | radix-4   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size16_radix4.s` |
+| complex64  | radix-4   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size16_radix4.s` |
 | complex64  | radix-4   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size16_radix4.s` |
 | complex64  | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size16_radix2.s` |
 | complex128 | radix-2   | none | Go     | ✓      | `dit_size16_radix2.go`                        |
@@ -145,9 +147,11 @@ This document provides a comprehensive overview of all specialized FFT implement
 | ---------- | --------- | ---- | ------ | ------ | ---------------------------------------------- |
 | complex64  | radix-2   | none | Go     | ✓      | `dit_size32.go`                                |
 | complex64  | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size32_radix2.s`  |
+| complex64  | radix-2   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size32_radix2.s`  |
 | complex64  | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size32_radix2.s`  |
 | complex64  | mixed-2/4 | none | Go     | ✓      | `dit_size32_mixed24.go`                        |
 | complex64  | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size32_mixed24_avx2.go`                   |
+| complex64  | mixed-2/4 | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size32_mixed24.s` |
 | complex64  | mixed-2/4 | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size32_mixed24.s` |
 | complex128 | radix-2   | none | Go     | ✓      | `dit_size32.go`                                |
 | complex128 | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f64_size32_radix2.s`  |
@@ -170,6 +174,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | ---------- | --------- | ---- | ------ | ------ | --------------------------------------------- |
 | complex64  | radix-2   | none | Go     | ✓      | `dit_size64.go`                               |
 | complex64  | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size64_radix2.s` |
+| complex64  | radix-2   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size64_radix2.s` |
 | complex64  | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size64_radix2.s` |
 | complex64  | radix-4   | none | Go     | ✓      | `dit_size64_radix4.go`                        |
 | complex64  | radix-4   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size64_radix4.s` |
@@ -193,9 +198,11 @@ This document provides a comprehensive overview of all specialized FFT implement
 | ---------- | --------- | ---- | ------ | ------ | ----------------------------------------------- |
 | complex64  | radix-2   | none | Go     | ✓      | `dit_size128.go`                                |
 | complex64  | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size128_radix4.s`  |
+| complex64  | radix-2   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size128_radix2.s`  |
 | complex64  | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size128_radix2.s`  |
 | complex64  | mixed-2/4 | none | Go     | ✓      | `dit_size128_mixed24.go`                        |
 | complex64  | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size128_mixed24_avx2.go`                   |
+| complex64  | mixed-2/4 | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size128_radix4.s`  |
 | complex64  | mixed-2/4 | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size128_mixed24.s` |
 | complex128 | radix-2   | none | Go     | ✓      | `dit_size128.go`                                |
 | complex128 | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f64_size128_radix4.s`  |
@@ -361,12 +368,13 @@ SSE2 optimizations provide fallback for systems without AVX2:
 
 - **Size 4**: 1 variant (radix-4 complex128)
 - **Size 8**: 1 variant (mixed-radix complex64)
-- **Size 16**: 1 variant (radix-4 complex64)
-- **Size 64**: 1 variant (radix-4 complex64)
-- **Size 128**: 1 variant (radix-4 complex64)
+- **Size 16**: 2 variants (radix-2, radix-4 complex64)
+- **Size 32**: 2 variants (radix-2, mixed-radix complex64)
+- **Size 64**: 2 variants (radix-2, radix-4 complex64)
+- **Size 128**: 2 variants (radix-2, radix-4 complex64)
 - **Size 256**: 1 variant (radix-4 complex64)
 
-**Total:** 6 complete implementations
+**Total:** 11 complete implementations
 
 ## Missing Implementations
 
