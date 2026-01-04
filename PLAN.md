@@ -463,6 +463,209 @@ For each size, create assembly file in `internal/asm/amd64/`:
 - [ ] Size 8192: `avx2_f64_size8192_mixed24.s`
 - [ ] Size 16384: `avx2_f64_size16384_radix4.s`
 
+### 14.7 Higher-Radix Optimization Strategies
+
+**Status**: Not started
+**Priority**: Medium-High (could provide 1.3-2x speedup over radix-4 for larger sizes)
+
+For larger FFT sizes, higher radices reduce the number of stages (and thus memory passes), potentially improving cache utilization and throughput. Each radix-N stage reduces log₂(N) stages into one, at the cost of more complex butterfly operations.
+
+#### 14.7.1 Radix Decomposition Analysis
+
+| Size  | Radix-2   | Radix-4    | Radix-8   | Radix-16   | Optimal Decomposition      |
+| ----- | --------- | ---------- | --------- | ---------- | -------------------------- |
+| 256   | 8 stages  | 4 stages   | 2⅔ stages | 2 stages   | 16×16 (2 stages)           |
+| 512   | 9 stages  | 4.5 stages | 3 stages  | 2¼ stages  | 8×8×8 (3 radix-8) or 16×32 |
+| 1024  | 10 stages | 5 stages   | 3⅓ stages | 2.5 stages | 32×32 or 16×64             |
+| 2048  | 11 stages | 5.5 stages | 3⅔ stages | 2¾ stages  | 32×64 or 8×16×16           |
+| 4096  | 12 stages | 6 stages   | 4 stages  | 3 stages   | 64×64 or 16×16×16          |
+| 8192  | 13 stages | 6.5 stages | 4⅓ stages | 3¼ stages  | 64×128 or 16×32×16         |
+| 16384 | 14 stages | 7 stages   | 4⅔ stages | 3.5 stages | 128×128 or 16×16×64        |
+
+**Note**: "N×M" notation means a 2D Cooley-Tukey decomposition (N rows × M columns).
+
+#### 14.7.2 Size 256 - Radix-16 (2-Stage)
+
+**Rationale**: 256 = 16 × 16, can be computed as a 16×16 matrix with:
+
+1. Column FFT-16 (using existing radix-16 kernel)
+2. Twiddle multiplication
+3. Row FFT-16 (same kernel)
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size256_radix16.s`
+  - [ ] Implement as 16×16 matrix factorization
+  - [ ] Stage 1: 16 parallel FFT-16 on columns
+  - [ ] Twiddle: W₂₅₆^(row×col) multiplication
+  - [ ] Stage 2: 16 parallel FFT-16 on rows
+  - [ ] Final transposition to natural order
+- [ ] No bit-reversal needed (identity permutation for 4^k sizes)
+- [ ] Register with priority 30 (higher than radix-4 priority 25)
+- [ ] Benchmark: Target 1.3-1.5x speedup vs radix-4
+
+#### 14.7.3 Size 512 - Radix-8 (3-Stage)
+
+**Rationale**: 512 = 8 × 8 × 8, can be computed with 3 radix-8 stages.
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size512_radix8.s`
+  - [ ] Implement 3 radix-8 stages (vs 5 stages for mixed-2/4)
+  - [ ] Use radix-8 twiddle factors: W₅₁₂^k for k ∈ {0,1,2,3,4,5,6,7}×stride
+  - [ ] Radix-8 butterfly: 8-point DFT inline
+- [ ] Create radix-8 bit-reversal function `ComputeBitReversalIndicesRadix8(n int) []int`
+- [ ] Register with priority 30 (higher than mixed-2/4 priority 25)
+- [ ] Benchmark: Target 1.2-1.4x speedup vs mixed-2/4
+
+**Alternative**: 512 = 16 × 32 (2-stage mixed-radix-16/32)
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size512_radix16x32.s`
+  - [ ] Stage 1: 32 parallel FFT-16 on columns
+  - [ ] Twiddle multiplication
+  - [ ] Stage 2: 16 parallel FFT-32 on rows (using radix-32 kernel)
+
+#### 14.7.4 Size 1024 - Radix-16 (2.5-Stage) or 32×32
+
+**Rationale**: 1024 = 32 × 32 or 1024 = 16 × 64
+
+**Option A - 32×32 Matrix**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size1024_radix32x32.s`
+  - [ ] Stage 1: 32 parallel FFT-32 on columns
+  - [ ] Twiddle multiplication
+  - [ ] Stage 2: 32 parallel FFT-32 on rows
+- [ ] Requires radix-32 butterfly (existing size-32 radix-32 kernel can be reused)
+
+**Option B - 16×64 Matrix**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size1024_radix16x64.s`
+  - [ ] Stage 1: 64 parallel FFT-16 on columns
+  - [ ] Twiddle multiplication
+  - [ ] Stage 2: 16 parallel FFT-64 on rows
+
+- [ ] Benchmark both options vs current radix-4 (5 stages)
+- [ ] Register higher-performing variant with priority 30
+
+#### 14.7.5 Size 2048 - Higher-Radix Decompositions
+
+**Rationale**: 2048 = 2 × 1024 = 32 × 64 = 16 × 128 = 8 × 256
+
+**Option A - 32×64 Matrix**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size2048_radix32x64.s`
+  - [ ] Stage 1: 64 parallel FFT-32
+  - [ ] Twiddle multiplication
+  - [ ] Stage 2: 32 parallel FFT-64
+
+**Option B - 16×128 Matrix**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size2048_radix16x128.s`
+  - [ ] Stage 1: 128 parallel FFT-16
+  - [ ] Twiddle multiplication
+  - [ ] Stage 2: 16 parallel FFT-128
+
+**Option C - 8×16×16 (3D decomposition)**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size2048_radix8x16x16.s`
+  - [ ] Three-stage: FFT-8 → twiddle → FFT-16 → twiddle → FFT-16
+  - [ ] Only 3 stages instead of 5.5
+
+- [ ] Benchmark all options vs current mixed-2/4
+- [ ] Register best performer with priority 30
+
+#### 14.7.6 Size 4096 - Radix-16 (3-Stage) or 64×64
+
+**Rationale**: 4096 = 16³ = 64 × 64 = 256 × 16
+
+**Option A - 16×16×16 Cube (3-stage)**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size4096_radix16cubed.s`
+  - [ ] Stage 1: 256 parallel FFT-16
+  - [ ] Twiddle multiplication
+  - [ ] Stage 2: 256 parallel FFT-16
+  - [ ] Twiddle multiplication
+  - [ ] Stage 3: 256 parallel FFT-16
+  - [ ] 3 stages total (vs 6 for radix-4)
+
+**Option B - 64×64 Matrix**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size4096_radix64x64.s`
+  - [ ] Stage 1: 64 parallel FFT-64
+  - [ ] Twiddle multiplication
+  - [ ] Stage 2: 64 parallel FFT-64
+  - [ ] 2 stages total (optimal!)
+
+- [ ] Benchmark vs current radix-4 (6 stages)
+- [ ] Target 1.5-2x speedup with 64×64 decomposition
+
+#### 14.7.7 Size 8192 - Higher-Radix Decompositions
+
+**Rationale**: 8192 = 64 × 128 = 32 × 256 = 16 × 512
+
+**Recommended - 64×128 Matrix**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size8192_radix64x128.s`
+  - [ ] Stage 1: 128 parallel FFT-64
+  - [ ] Twiddle multiplication
+  - [ ] Stage 2: 64 parallel FFT-128
+  - [ ] 2 stages (vs 6.5 for mixed-2/4)
+
+**Alternative - 16×32×16 (3D)**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size8192_radix16x32x16.s`
+  - [ ] Three-stage decomposition
+
+- [ ] Benchmark vs current mixed-2/4
+- [ ] Target 2-3x speedup with 2-stage decomposition
+
+#### 14.7.8 Size 16384 - Radix-128 (2-Stage)
+
+**Rationale**: 16384 = 128 × 128 = 64 × 256 = 16 × 1024
+
+**Optimal - 128×128 Matrix**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size16384_radix128x128.s`
+  - [ ] Stage 1: 128 parallel FFT-128
+  - [ ] Twiddle multiplication
+  - [ ] Stage 2: 128 parallel FFT-128
+  - [ ] 2 stages only! (vs 7 for radix-4)
+
+**Alternative - 16×16×64 (3D)**:
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size16384_radix16x16x64.s`
+  - [ ] Three-stage: FFT-16 → twiddle → FFT-16 → twiddle → FFT-64
+  - [ ] 3 stages (vs 7 for radix-4)
+
+- [ ] Benchmark vs current radix-4 (7 stages)
+- [ ] Target 2-3x speedup with 2-stage decomposition
+
+#### 14.7.9 Cache-Oblivious Strategies
+
+For sizes that exceed L2 cache (typically 256KB-1MB), consider:
+
+**Blocking/Tiling**:
+
+- [ ] Implement cache-blocked variants for sizes ≥ 8192
+  - [ ] Divide FFT into cache-sized blocks
+  - [ ] Process blocks sequentially to maintain cache residency
+  - [ ] Trade extra passes for better cache utilization
+
+**SIMD-Aware Data Layout**:
+
+- [ ] Investigate SOA (Structure of Arrays) layout for complex data
+  - [ ] Separate real and imaginary arrays
+  - [ ] Better SIMD utilization (no interleave/deinterleave overhead)
+  - [ ] Requires API extension (breaking change, v2.0 consideration)
+
+#### 14.7.10 Implementation Priority Order
+
+Based on expected benefit/effort ratio:
+
+1. **Size 4096 - 64×64** (High impact, reuses FFT-64 kernel)
+2. **Size 1024 - 32×32** (Medium size, reuses FFT-32 kernel)
+3. **Size 256 - 16×16** (Reuses existing radix-16 kernel)
+4. **Size 16384 - 128×128** (Highest absolute benefit, requires FFT-128)
+5. **Size 8192 - 64×128** (Large benefit, requires FFT-128)
+6. **Size 512 - radix-8** (Smaller benefit, new radix-8 infrastructure)
+7. **Size 2048 - 32×64** (Medium benefit)
+
 ### 14.8 Testing & Benchmarking
 
 #### 14.8.1 Comprehensive Benchmark Suite
