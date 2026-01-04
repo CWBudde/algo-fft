@@ -95,14 +95,21 @@ GLOBL ·oneTwentyEighth32(SB), RODATA|NOPTR, $4
 DATA ·twoFiftySixth32+0(SB)/4, $0x3b800000 // 0.00390625f = 1/256
 GLOBL ·twoFiftySixth32(SB), RODATA|NOPTR, $4
 
+DATA ·fiveHundredTwelfth32+0(SB)/4, $0x3b000000 // 0.001953125f = 1/512
+GLOBL ·fiveHundredTwelfth32(SB), RODATA|NOPTR, $4
+
 DATA ·oneThousandTwentyFourth32+0(SB)/4, $0x3a800000 // 0.0009765625f = 1/1024
 GLOBL ·oneThousandTwentyFourth32(SB), RODATA|NOPTR, $4
+
+DATA ·twoThousandFortyEighth32+0(SB)/4, $0x3a000000 // 0.00048828125f = 1/2048
+GLOBL ·twoThousandFortyEighth32(SB), RODATA|NOPTR, $4
 
 DATA ·oneFourThousandNinetySixth32+0(SB)/4, $0x39800000 // 0.000244140625f = 1/4096
 GLOBL ·oneFourThousandNinetySixth32(SB), RODATA|NOPTR, $4
 
-DATA ·fiveHundredTwelfth32+0(SB)/4, $0x3b000000 // 0.001953125f = 1/512
-GLOBL ·fiveHundredTwelfth32(SB), RODATA|NOPTR, $4
+DATA ·eightThousandOneHundredThirtySecond32+0(SB)/4, $0x39000000 // 0.0001220703125f = 1/8192
+GLOBL ·eightThousandOneHundredThirtySecond32(SB), RODATA|NOPTR, $4
+
 
 DATA ·oneSixteenThousandThreeHundredEightyFourth32+0(SB)/4, $0x38800000 // 1/16384
 GLOBL ·oneSixteenThousandThreeHundredEightyFourth32(SB), RODATA|NOPTR, $4

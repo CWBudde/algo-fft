@@ -79,3 +79,8 @@ func BenchmarkAVX2SizeSpecific_vs_Generic_256(b *testing.B) {
 func BenchmarkAVX2SizeSpecific_vs_Generic_1024(b *testing.B) {
 	benchmarkSizeSpecificVsGeneric(b, 1024)
 }
+
+// Benchmark size 2048
+func BenchmarkAVX2SizeSpecific_vs_Generic_2048(b *testing.B) {
+	benchmarkSizeSpecificVsGeneric(b, 2048)
+}
