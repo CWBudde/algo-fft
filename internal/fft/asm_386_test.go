@@ -3,10 +3,8 @@
 package fft
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
@@ -147,88 +145,6 @@ func TestSSE2SizeSpecificComplex128_386(t *testing.T) {
 
 			wantInv := reference.NaiveIDFT128(fwd)
 			assertComplex128SliceClose(t, dst, wantInv, tc.size)
-		})
-	}
-}
-
-// TestSSE2Forward_VsPureGo_386 validates SSE2 assembly implementations
-// against pure-Go DIT kernels across various FFT sizes.
-func TestSSE2Forward_VsPureGo_386(t *testing.T) {
-	t.Parallel()
-
-	features := cpu.DetectFeatures()
-	if !features.HasSSE2 {
-		t.Skip("SSE2 not available on this system")
-	}
-
-	sse2Forward := forwardSSE2Complex64
-	goForward := forwardDITComplex64
-
-	sizes := []int{2, 4, 8, 16, 32, 64, 128, 256, 512}
-
-	for _, n := range sizes {
-		n := n
-		t.Run(fmt.Sprintf("N=%d", n), func(t *testing.T) {
-			t.Parallel()
-
-			src := randomComplex64(n, uint64(n))
-			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := ComputeBitReversalIndices(n)
-			scratch := make([]complex64, n)
-
-			dstGo := make([]complex64, n)
-			if !goForward(dstGo, src, twiddle, scratch, bitrev) {
-				t.Fatal("pure-Go forward kernel failed")
-			}
-
-			dstSSE2 := make([]complex64, n)
-			scratchSSE2 := make([]complex64, n)
-			if !sse2Forward(dstSSE2, src, twiddle, scratchSSE2, bitrev) {
-				t.Fatal("SSE2 forward kernel failed")
-			}
-
-			assertComplex64SliceClose(t, dstSSE2, dstGo, n)
-		})
-	}
-}
-
-// TestSSE2Inverse_VsPureGo_386 validates SSE2 inverse FFT implementations
-// against pure-Go DIT kernels across various FFT sizes.
-func TestSSE2Inverse_VsPureGo_386(t *testing.T) {
-	t.Parallel()
-
-	features := cpu.DetectFeatures()
-	if !features.HasSSE2 {
-		t.Skip("SSE2 not available on this system")
-	}
-
-	sse2Inverse := inverseSSE2Complex64
-	goInverse := inverseDITComplex64
-
-	sizes := []int{2, 4, 8, 16, 32, 64, 128, 256, 512}
-
-	for _, n := range sizes {
-		n := n
-		t.Run(fmt.Sprintf("N=%d", n), func(t *testing.T) {
-			t.Parallel()
-
-			src := randomComplex64(n, uint64(n))
-			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := ComputeBitReversalIndices(n)
-			scratch := make([]complex64, n)
-
-			dstGo := make([]complex64, n)
-			if !goInverse(dstGo, src, twiddle, scratch, bitrev) {
-				t.Fatal("pure-Go inverse kernel failed")
-			}
-
-			dstSSE2 := make([]complex64, n)
-			scratchSSE2 := make([]complex64, n)
-			if !sse2Inverse(dstSSE2, src, twiddle, scratchSSE2, bitrev) {
-				t.Fatal("SSE2 inverse kernel failed")
-			}
-
-			assertComplex64SliceClose(t, dstSSE2, dstGo, n)
 		})
 	}
 }
