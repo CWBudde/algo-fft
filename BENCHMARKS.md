@@ -93,7 +93,7 @@ scripts/bench_md.sh benchmarks/baseline.txt > /tmp/benchmarks.md
 Build with `-tags asm` to enable AVX2 optimizations on amd64.
 These results compare the baseline Pure Go implementation with the AVX2 optimized version.
 
-**Date**: 2025-12-25
+**Date**: 2026-01-04
 **CPU**: 12th Gen Intel(R) Core(TM) i7-1255U
 
 ### complex64 Forward FFT
@@ -102,7 +102,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 | ----: | -----------: | -------------: | --------: | ----------: | -------: |
 |    64 |          602 |            850 |       185 |        2763 | **3.3x** |
 |   256 |         2988 |            685 |       770 |        2660 | **3.9x** |
-|  1024 |        14550 |            563 |      3228 |        2537 | **4.5x** |
+|  1024 |         8154 |           1005 |      4059 |        2018 | **2.0x** |
 |  4096 |        69113 |            474 |     14505 |        2259 | **4.8x** |
 | 16384 |       336675 |            389 |     75015 |        1747 | **4.5x** |
 

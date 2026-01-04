@@ -191,37 +191,125 @@ Register optimized codelets for common highly-composite sizes:
 
 ---
 
-## Phase 13.5: SSE2 Coverage (Up to Size 128)
+## Phase 13: SSE2 Coverage (Sizes 256-1024)
 
-Target: fill SSE2 gaps up to size 128 using `docs/IMPLEMENTATION_INVENTORY.md` as source of truth.
+**Status**: Not started
+**Priority**: Medium (provides fallback for systems without AVX2)
 
-### 13.5.1 complex64 SSE2 Missing Kernels (<=128)
+Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2 have optimized paths. Reference: `docs/IMPLEMENTATION_INVENTORY.md`
 
-- [x] Size 16: radix-2
-- [x] Size 32: radix-2
-- [x] Size 32: mixed-2/4
-- [x] Size 64: radix-2
-- [x] Size 128: radix-2
-- [x] Size 128: mixed-2/4
+### 13.1 Size 256 SSE2 Kernels
 
-### 13.5.2 complex128 SSE2 Missing Kernels (<=128)
+#### 13.1.1 complex64 Size 256 (Already Complete)
 
-- [x] Size 8: radix-2
-- [x] Size 8: radix-8
-- [x] Size 8: radix-4 (mixed-2/4)
-- [x] Size 16: radix-2
-- [x] Size 16: radix-4
-- [x] Size 32: radix-2
-- [x] Size 32: mixed-2/4
-- [x] Size 64: radix-2
-- [x] Size 64: radix-4
-- [x] Size 128: radix-2
-- [x] Size 128: mixed-2/4
+- [x] Size 256: radix-4 SSE2 (exists: `internal/asm/amd64/sse2_f32_size256_radix4.s`)
 
-### 13.5.3 SSE2 Test Coverage (<=128)
+#### 13.1.2 complex128 Size 256 SSE2 Kernels
 
-- [x] Add round-trip tests for all new SSE2 size-specific kernels
-- [x] Add SSE2 vs Go DIT correctness tests (forward + inverse)
+- [ ] Implement Size 256 radix-2 SSE2 for complex128
+  - [ ] Create `internal/asm/amd64/sse2_f64_size256_radix2.s`
+  - [ ] Implement `ForwardSSE2Size256Radix2Complex128Asm` (8 stages)
+  - [ ] Implement `InverseSSE2Size256Radix2Complex128Asm` (with 1/256 scaling)
+  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size256_radix2.go`
+  - [ ] Register in codelet system with priority 10
+- [ ] Implement Size 256 radix-4 SSE2 for complex128
+  - [ ] Create `internal/asm/amd64/sse2_f64_size256_radix4.s`
+  - [ ] Implement `ForwardSSE2Size256Radix4Complex128Asm` (4 stages)
+  - [ ] Implement `InverseSSE2Size256Radix4Complex128Asm` (with 1/256 scaling)
+  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size256_radix4.go`
+  - [ ] Register in codelet system with priority 15
+
+#### 13.1.3 Size 256 Test Coverage
+
+- [ ] Add test file `internal/kernels/sse2_f64_size256_radix2_test.go`
+  - [ ] TestForwardSSE2Size256Radix2Complex128
+  - [ ] TestInverseSSE2Size256Radix2Complex128
+  - [ ] TestRoundTripSSE2Size256Radix2Complex128
+- [ ] Add test file `internal/kernels/sse2_f64_size256_radix4_test.go`
+  - [ ] TestForwardSSE2Size256Radix4Complex128
+  - [ ] TestInverseSSE2Size256Radix4Complex128
+  - [ ] TestRoundTripSSE2Size256Radix4Complex128
+
+### 13.2 Size 512 SSE2 Kernels
+
+#### 13.2.1 complex64 Size 512 SSE2 Kernels
+
+- [ ] Implement Size 512 radix-2 SSE2 for complex64
+  - [ ] Create `internal/asm/amd64/sse2_f32_size512_radix2.s`
+  - [ ] Implement `ForwardSSE2Size512Radix2Complex64Asm` (9 stages)
+  - [ ] Implement `InverseSSE2Size512Radix2Complex64Asm` (with 1/512 scaling)
+  - [ ] Add Go wrapper in `internal/kernels/sse2_f32_size512_radix2.go`
+  - [ ] Register in codelet system with priority 10
+- [ ] Implement Size 512 mixed-2/4 SSE2 for complex64
+  - [ ] Create `internal/asm/amd64/sse2_f32_size512_mixed24.s`
+  - [ ] Implement `ForwardSSE2Size512Mixed24Complex64Asm` (4 radix-4 + 1 radix-2 = 5 stages)
+  - [ ] Implement `InverseSSE2Size512Mixed24Complex64Asm` (with 1/512 scaling)
+  - [ ] Add Go wrapper in `internal/kernels/sse2_f32_size512_mixed24.go`
+  - [ ] Register in codelet system with priority 15
+
+#### 13.2.2 complex128 Size 512 SSE2 Kernels
+
+- [ ] Implement Size 512 radix-2 SSE2 for complex128
+  - [ ] Create `internal/asm/amd64/sse2_f64_size512_radix2.s`
+  - [ ] Implement `ForwardSSE2Size512Radix2Complex128Asm` (9 stages)
+  - [ ] Implement `InverseSSE2Size512Radix2Complex128Asm` (with 1/512 scaling)
+  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size512_radix2.go`
+  - [ ] Register in codelet system with priority 10
+- [ ] Implement Size 512 mixed-2/4 SSE2 for complex128
+  - [ ] Create `internal/asm/amd64/sse2_f64_size512_mixed24.s`
+  - [ ] Implement `ForwardSSE2Size512Mixed24Complex128Asm` (4 radix-4 + 1 radix-2 = 5 stages)
+  - [ ] Implement `InverseSSE2Size512Mixed24Complex128Asm` (with 1/512 scaling)
+  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size512_mixed24.go`
+  - [ ] Register in codelet system with priority 15
+
+#### 13.2.3 Size 512 Test Coverage
+
+- [ ] Add test files for complex64:
+  - [ ] `internal/kernels/sse2_size512_radix2_test.go` (Forward, Inverse, RoundTrip)
+  - [ ] `internal/kernels/sse2_size512_mixed24_test.go` (Forward, Inverse, RoundTrip)
+- [ ] Add test files for complex128:
+  - [ ] `internal/kernels/sse2_f64_size512_radix2_test.go` (Forward, Inverse, RoundTrip)
+  - [ ] `internal/kernels/sse2_f64_size512_mixed24_test.go` (Forward, Inverse, RoundTrip)
+
+### 13.3 Size 1024 SSE2 Kernels
+
+#### 13.3.1 complex64 Size 1024 SSE2 Kernels
+
+- [ ] Implement Size 1024 radix-4 SSE2 for complex64
+  - [ ] Create `internal/asm/amd64/sse2_f32_size1024_radix4.s`
+  - [ ] Implement `ForwardSSE2Size1024Radix4Complex64Asm` (5 radix-4 stages)
+  - [ ] Implement `InverseSSE2Size1024Radix4Complex64Asm` (with 1/1024 scaling)
+  - [ ] Use radix-4 bit-reversal pattern
+  - [ ] Add Go wrapper in `internal/kernels/sse2_f32_size1024_radix4.go`
+  - [ ] Register in codelet system with priority 15
+
+#### 13.3.2 complex128 Size 1024 SSE2 Kernels
+
+- [ ] Implement Size 1024 radix-4 SSE2 for complex128
+  - [ ] Create `internal/asm/amd64/sse2_f64_size1024_radix4.s`
+  - [ ] Implement `ForwardSSE2Size1024Radix4Complex128Asm` (5 radix-4 stages)
+  - [ ] Implement `InverseSSE2Size1024Radix4Complex128Asm` (with 1/1024 scaling)
+  - [ ] Use radix-4 bit-reversal pattern
+  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size1024_radix4.go`
+  - [ ] Register in codelet system with priority 15
+
+#### 13.3.3 Size 1024 Test Coverage
+
+- [ ] Add test file `internal/kernels/sse2_size1024_radix4_test.go`
+  - [ ] TestForwardSSE2Size1024Radix4Complex64
+  - [ ] TestInverseSSE2Size1024Radix4Complex64
+  - [ ] TestRoundTripSSE2Size1024Radix4Complex64
+- [ ] Add test file `internal/kernels/sse2_f64_size1024_radix4_test.go`
+  - [ ] TestForwardSSE2Size1024Radix4Complex128
+  - [ ] TestInverseSSE2Size1024Radix4Complex128
+  - [ ] TestRoundTripSSE2Size1024Radix4Complex128
+
+### 13.4 Performance Validation
+
+- [ ] Run benchmarks comparing SSE2 vs pure Go for all new kernels
+- [ ] Document performance improvements in benchmark results
+- [ ] Update `docs/IMPLEMENTATION_INVENTORY.md` with new SSE2 coverage
+- [ ] Verify SSE2 kernels are selected on systems without AVX2 support
 
 ---
 

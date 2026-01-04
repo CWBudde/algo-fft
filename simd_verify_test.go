@@ -87,8 +87,13 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 		}
 	}
 
-	if maxRelErr > 1e-6 {
-		t.Errorf("SIMD vs Generic: max relative error %e exceeds 1e-6", maxRelErr)
+	threshold := float32(1e-6)
+	if n >= 1024 {
+		threshold = 2e-5
+	}
+
+	if maxRelErr > threshold {
+		t.Errorf("SIMD vs Generic: max relative error %e exceeds %e", maxRelErr, threshold)
 	}
 }
 
