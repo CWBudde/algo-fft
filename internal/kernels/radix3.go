@@ -2,6 +2,28 @@ package kernels
 
 import "math"
 
+// Precomputed radix-3 butterfly constants.
+// These are used in the radix-3 DFT butterfly operations to avoid
+// recomputing them on every call.
+//
+// For forward transform:
+//   half = -0.5 + 0i
+//   coef = 0 - i*sqrt(3)/2
+//
+// For inverse transform:
+//   half = -0.5 + 0i  (same as forward)
+//   coef = 0 + i*sqrt(3)/2  (conjugate of forward)
+//
+//nolint:gochecknoglobals
+var (
+	radix3Half64       = complex64(-0.5 + 0i)
+	radix3CoefFwd64    = complex64(0 - 1i*complex(float32(math.Sqrt(3)/2), 0))
+	radix3CoefInv64    = complex64(0 + 1i*complex(float32(math.Sqrt(3)/2), 0))
+	radix3Half128      = complex128(-0.5 + 0i)
+	radix3CoefFwd128   = complex128(0 - 1i*complex(math.Sqrt(3)/2, 0))
+	radix3CoefInv128   = complex128(0 + 1i*complex(math.Sqrt(3)/2, 0))
+)
+
 func forwardRadix3Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	return radix3Forward[complex64](dst, src, twiddle, scratch, bitrev)
 }
@@ -108,12 +130,33 @@ func radix3Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, in
 	return true
 }
 
+// radix3Constants returns the precomputed radix-3 butterfly constants.
+// inverse=false returns forward transform constants (half, coefFwd).
+// inverse=true returns inverse transform constants (half, coefInv).
+func radix3Constants[T Complex](inverse bool) (T, T) {
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		if inverse {
+			return any(radix3Half64).(T), any(radix3CoefInv64).(T)
+		}
+		return any(radix3Half64).(T), any(radix3CoefFwd64).(T)
+	case complex128:
+		if inverse {
+			return any(radix3Half128).(T), any(radix3CoefInv128).(T)
+		}
+		return any(radix3Half128).(T), any(radix3CoefFwd128).(T)
+	default:
+		panic("unsupported complex type")
+	}
+}
+
 func butterfly3Forward[T Complex](a0, a1, a2 T) (T, T, T) {
 	t1 := a1 + a2
 	t2 := a1 - a2
 
-	half := complexFromFloat64[T](-0.5, 0)
-	coef := complexFromFloat64[T](0, -math.Sqrt(3)/2)
+	// Use precomputed constants instead of computing on every call
+	half, coef := radix3Constants[T](false)
 
 	y0 := a0 + t1
 	base := a0 + half*t1
@@ -127,8 +170,8 @@ func butterfly3Inverse[T Complex](a0, a1, a2 T) (T, T, T) {
 	t1 := a1 + a2
 	t2 := a1 - a2
 
-	half := complexFromFloat64[T](-0.5, 0)
-	coef := complexFromFloat64[T](0, math.Sqrt(3)/2)
+	// Use precomputed constants instead of computing on every call
+	half, coef := radix3Constants[T](true)
 
 	y0 := a0 + t1
 	base := a0 + half*t1

@@ -2,7 +2,7 @@
 
 ## Completed (Summary)
 
-**Phases 1-13**: Project setup, types, API, errors, twiddles, bit-reversal, radix-2/3/4/5 FFT, Stockham autosort, DIT, mixed-radix, Bluestein, six-step/eight-step large FFT, SIMD infrastructure, CPU detection
+**Phases 1-10**: Project setup, types, API, errors, twiddles, bit-reversal, radix-2/3/4/5 FFT, Stockham autosort, DIT, mixed-radix, Bluestein, six-step/eight-step large FFT, SIMD infrastructure, CPU detection
 
 **Real FFT**: Forward/inverse, generic float32/float64, 2D/3D real FFT with compact/full output
 
@@ -43,6 +43,145 @@ See `docs/IMPLEMENTATION_INVENTORY.md` for the authoritative inventory of all im
 - x86: `internal/asm/x86/` (files: `sse2_*.s`)
 
 **Kernel Registration**: `internal/kernels/codelet_init*.go`
+
+---
+
+## Phase 12: Mixed-Radix FFT Optimization
+
+**Status**: Not started
+**Priority**: High (affects all highly-composite non-power-of-2 sizes like 384, 768, 1536, etc.)
+
+Mixed-radix FFT handles sizes that factor into 2, 3, 4, 5 (e.g., 384 = 2⁷ × 3). Current implementation is pure Go with recursive decomposition. Profiling shows significant optimization opportunities.
+
+### 12.1 Profile Breakdown (Size 384)
+
+| Component             | Time | %                             | Location                         |
+| --------------------- | ---- | ----------------------------- | -------------------------------- |
+| `mixedRadixRecursive` | 68%  | Core recursive decomposition  | `internal/fft/mixedradix.go:111` |
+| `runtime.memmove`     | 14%  | Memory copying between stages | `internal/fft/mixedradix.go:224` |
+| `butterfly3Forward`   | 8%   | Radix-3 butterflies           | `internal/kernels/radix3.go:111` |
+| `butterfly4Forward`   | 8%   | Radix-4 butterflies           | `internal/kernels/radix4.go:114` |
+
+### 12.2 Quick Wins (No Assembly Required)
+
+#### 12.2.1 Precompute Radix Constants
+
+- [ ] Move radix-3 constants to package-level variables:
+
+  ```go
+  // Current: computed every call in butterfly3Forward
+  half := complexFromFloat64[T](-0.5, 0)
+  coef := complexFromFloat64[T](0, -math.Sqrt(3)/2)
+
+  // Proposed: package-level precomputed
+  var (
+      radix3Half32 = complex64(-0.5, 0)
+      radix3Coef32 = complex64(0, -float32(math.Sqrt(3)/2))
+  )
+  ```
+
+- [ ] Move radix-5 twiddles to package-level variables (currently in `radix5Twiddles()`)
+- [ ] Create type-specific butterfly functions to avoid generic overhead
+- [ ] Benchmark improvement (target: 5-10% reduction in butterfly time)
+
+#### 12.2.2 Eliminate Intermediate Memory Copies (14% overhead)
+
+- [ ] Implement ping-pong buffering in `mixedRadixRecursive`:
+  - [ ] Alternate between dst and scratch as working buffer
+  - [ ] Only copy on final stage if result isn't in dst
+  - [ ] Remove per-stage `copy(dst, scratch[:n])` at line 224
+- [ ] Benchmark improvement (target: reduce memmove from 14% to <2%)
+
+### 12.3 Medium Effort Optimizations
+
+#### 12.3.1 Iterative Mixed-Radix Implementation
+
+- [ ] Replace recursive `mixedRadixRecursive` with iterative version:
+  - [ ] Pre-compute stage schedule (radix sequence and twiddle strides)
+  - [ ] Process stages in a loop instead of recursion
+  - [ ] Eliminate function call overhead for small sub-transforms
+- [ ] Benefits:
+  - [ ] Reduced stack usage
+  - [ ] Better branch prediction
+  - [ ] More optimization opportunities for compiler
+- [ ] Benchmark improvement (target: 20-30% reduction in total time)
+
+#### 12.3.2 Specialized complex64 Versions
+
+- [ ] Create non-generic `butterfly3ForwardComplex64` in `internal/kernels/radix3.go`
+- [ ] Create non-generic `butterfly4ForwardComplex64` in `internal/kernels/radix4.go`
+- [ ] Create non-generic `butterfly5ForwardComplex64` in `internal/kernels/radix5.go`
+- [ ] Register as specialized paths in mixed-radix dispatcher
+- [ ] Benchmark improvement (target: 5-10% from avoiding generic instantiation overhead)
+
+### 12.4 High Effort Optimizations (SIMD)
+
+#### 12.4.1 AVX2 Mixed-Radix Butterflies
+
+- [ ] Create `internal/asm/amd64/avx2_f32_radix3.s`:
+  - [ ] `butterfly3ForwardAVX2Complex64(dst, src []complex64, twiddle complex64)`
+  - [ ] Process 4 radix-3 butterflies in parallel (8 complex64 → 12 complex64 intermediates)
+  - [ ] Use VFMADD instructions for twiddle multiplication
+- [ ] Create `internal/asm/amd64/avx2_f32_radix5.s`:
+  - [ ] `butterfly5ForwardAVX2Complex64`
+  - [ ] Process 2 radix-5 butterflies in parallel
+- [ ] Integrate with mixed-radix dispatcher
+- [ ] Benchmark improvement (target: 2-3x speedup over scalar Go)
+
+#### 12.4.2 Size-Specific Mixed-Radix Codelets
+
+Register optimized codelets for common highly-composite sizes:
+
+- [ ] Size 384 (2⁷ × 3):
+  - [ ] Create `internal/asm/amd64/avx2_f32_size384_mixed.s`
+  - [ ] Decompose as 128 × 3 (use AVX2 128-pt FFT + radix-3 twiddles)
+  - [ ] Register in `codelet_init_avx2.go` with priority 25
+- [ ] Size 768 (2⁸ × 3):
+  - [ ] Create `internal/asm/amd64/avx2_f32_size768_mixed.s`
+  - [ ] Decompose as 256 × 3
+- [ ] Size 1536 (2⁹ × 3):
+  - [ ] Create `internal/asm/amd64/avx2_f32_size1536_mixed.s`
+  - [ ] Decompose as 512 × 3
+- [ ] Size 1000 (2³ × 5³):
+  - [ ] Create `internal/asm/amd64/avx2_f32_size1000_mixed.s`
+  - [ ] Decompose as 8 × 125 or 125 × 8
+
+#### 12.4.3 Hybrid Power-of-2 Sub-transforms
+
+- [ ] For sizes like 384 = 128 × 3:
+  - [ ] Use existing AVX2 128-pt FFT for the power-of-2 component
+  - [ ] Apply radix-3 twiddle multiplication between sub-transforms
+  - [ ] Avoids writing new large assembly kernels
+- [ ] Implement in `internal/fft/mixedradix_simd.go`:
+  - [ ] Detect when sub-transform has AVX2 codelet available
+  - [ ] Call codelet instead of recursive mixed-radix
+- [ ] Benchmark improvement (target: match or approach power-of-2 performance)
+
+### 12.5 Testing & Benchmarking
+
+#### 12.5.1 Benchmark Suite
+
+- [x] Create `plan_bluestein_bench_test.go` with benchmarks for:
+  - [x] Size 384, 768, 1000, 1536, 3000 (forward/inverse)
+  - [x] Comparison vs nearest power-of-2 (e.g., 384 vs 512)
+  - [x] complex64 and complex128 variants
+- [ ] Add benchmarks to CI for regression tracking
+
+#### 12.5.2 Correctness Tests
+
+- [ ] Add round-trip tests for all optimized mixed-radix paths
+- [ ] Add tests comparing optimized vs baseline mixed-radix output
+- [ ] Add tests comparing mixed-radix vs Bluestein for same sizes (correctness check)
+
+#### 12.5.3 Performance Targets
+
+| Size | Current (μs) | Target (μs) | Speedup Goal |
+| ---- | ------------ | ----------- | ------------ |
+| 384  | ~10-18       | ~4-6        | 2-3x         |
+| 768  | ~18-26       | ~8-12       | 2x           |
+| 1000 | ~45-70       | ~15-25      | 3x           |
+| 1536 | ~50-70       | ~20-30      | 2.5x         |
+| 3000 | ~140-170     | ~50-70      | 2.5x         |
 
 ---
 
