@@ -135,6 +135,33 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int) int {
 	return count
 }
 
+// reverseMixedRadix computes the mixed-radix digit reversal of x
+// given radix factors in left-to-right order.
+//
+// This function reverses the mixed-radix representation of an index,
+// which is required to convert the implicit data reordering from the
+// recursive decomposition into an explicit pre-permutation step for
+// the iterative implementation.
+//
+// Example: n=12, radices=[3,2,2]
+//   x=1 → digits (0,0,1) in base (3,2,2) → reversed (1,0,0) → 6
+//   x=5 → digits (1,0,1) in base (3,2,2) → reversed (1,0,1) → 7
+func reverseMixedRadix(x int, radices []int, count int) int {
+	result := 0
+	span := 1
+
+	// Extract digits from least significant (rightmost) to most significant,
+	// building result from most significant to least (reversed)
+	for i := count - 1; i >= 0; i-- {
+		digit := x % radices[i]
+		x /= radices[i]
+		result += digit * span
+		span *= radices[i]
+	}
+
+	return result
+}
+
 // mixedRadixRecursivePingPongComplex64 is a specialized complex64 version that calls
 // type-specific butterfly functions to avoid generic overhead.
 func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride, step int, radices []int, twiddle []complex64, inverse bool) {

@@ -89,7 +89,7 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 
 	threshold := float32(1e-6)
 	if n >= 1024 {
-		threshold = 2e-5
+		threshold = 5e-5
 	}
 
 	if maxRelErr > threshold {

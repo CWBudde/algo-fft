@@ -354,11 +354,11 @@ Sizes 512-16384 currently use pure Go mixed-radix or radix-4 implementations. AV
 
 #### 14.2.4 Size 4096 - AVX2 Pure Radix-4
 
-- [ ] Create `internal/asm/amd64/avx2_f32_size4096_radix4.s`
-  - [ ] Implement `forwardAVX2Size4096Radix4Complex64` (6 radix-4 stages)
-  - [ ] Implement `inverseAVX2Size4096Radix4Complex64` (with 1/4096 scaling)
-- [ ] Add Go declarations and register with priority 25
-- [ ] Add correctness tests and benchmark
+- [x] Create `internal/asm/amd64/avx2_f32_size4096_radix4.s`
+  - [x] Implement `forwardAVX2Size4096Radix4Complex64` (6 radix-4 stages)
+  - [x] Implement `inverseAVX2Size4096Radix4Complex64` (with 1/4096 scaling)
+- [x] Add Go declarations and register with priority 25
+- [x] Add correctness tests and benchmark
 
 #### 14.2.5 Size 8192 - AVX2 Mixed-Radix-2/4
 
