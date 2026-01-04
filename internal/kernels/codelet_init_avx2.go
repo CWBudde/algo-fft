@@ -86,7 +86,6 @@ func registerAVX2DITCodelets64() {
 
 	// Size 32: Radix-2 AVX2 variant
 	// Uses 5-stage unrolled DIT with bit-reversal permutation
-	// BUG: Roundtrip test fails - disabled until fixed
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
 		Forward:    wrapCodelet64(amd64.ForwardAVX2Size32Complex64Asm),
@@ -94,12 +93,11 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit32_radix2_avx2",
-		Priority:   -1, // DISABLED: roundtrip test fails
+		Priority:   20, // Below radix-32 (25), above scalar radix-2 (17)
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-2 AVX2 variant
-	// BUG: Roundtrip test fails - disabled until fixed
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
 		Forward:    wrapCodelet64(amd64.ForwardAVX2Size64Complex64Asm),
@@ -107,7 +105,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix2_avx2",
-		Priority:   -1, // DISABLED: roundtrip test fails
+		Priority:   19, // Below radix-4 (25), above scalar radix-2 (17)
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 

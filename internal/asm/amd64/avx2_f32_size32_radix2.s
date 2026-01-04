@@ -474,26 +474,7 @@ size32_bitrev:
 
 	// Reorder: move results to Y0-Y7 in order
 	// Currently: Y12=0-3, Y13=4-7, Y0=8-11, Y1=12-15, Y2=16-19, Y3=20-23, Y4=24-27, Y5=28-31
-	VMOVAPS Y0, Y6           // Save 8-11 to Y6
-	VMOVAPS Y1, Y7           // Save 12-15 to Y7
-	VMOVAPS Y12, Y0          // Y0 = 0-3
-	VMOVAPS Y13, Y1          // Y1 = 4-7
-	VMOVAPS Y6, Y14          // Temp save
-	VMOVAPS Y7, Y15          // Temp save
-	VMOVAPS Y14, Y2          // Y2 = 8-11
-	VMOVAPS Y15, Y3          // Y3 = 12-15
-	// Y4=24-27, Y5=28-31 need swapping with Y2=16-19, Y3=20-23
-	// Wait, let's re-trace: after stage 3:
-	// Y12=0-3, Y13=4-7, Y0=8-11, Y1=12-15, Y2=16-19, Y3=20-23, Y4=24-27, Y5=28-31
-	// Need: Y0=0-3, Y1=4-7, Y2=8-11, Y3=12-15, Y4=16-19, Y5=20-23, Y6=24-27, Y7=28-31
-	// Correction - let me redo the reordering
-	VMOVAPS Y2, Y6           // Save 16-19 (was in Y2)
-	VMOVAPS Y3, Y7           // Save 20-23 (was in Y3)
-	VMOVAPS Y4, Y2           // Y2 = 24-27 - WRONG, should stay as Y6
-	VMOVAPS Y5, Y3           // Y3 = 28-31 - WRONG
-
-	// Let's restart the reordering more carefully
-	// Save current state first
+	// Use the work buffer to shuffle without clobbering registers.
 	VMOVUPS Y0, (R8)         // temp store 8-11
 	VMOVUPS Y1, 32(R8)       // temp store 12-15
 	VMOVUPS Y2, 64(R8)       // temp store 16-19
