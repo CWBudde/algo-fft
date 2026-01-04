@@ -114,11 +114,11 @@ Mixed-radix FFT handles sizes that factor into 2, 3, 4, 5 (e.g., 384 = 2⁷ × 3
 
 #### 12.3.2 Specialized complex64 Versions
 
-- [ ] Create non-generic `butterfly3ForwardComplex64` in `internal/kernels/radix3.go`
-- [ ] Create non-generic `butterfly4ForwardComplex64` in `internal/kernels/radix4.go`
-- [ ] Create non-generic `butterfly5ForwardComplex64` in `internal/kernels/radix5.go`
-- [ ] Register as specialized paths in mixed-radix dispatcher
-- [ ] Benchmark improvement (target: 5-10% from avoiding generic instantiation overhead)
+- [x] Create non-generic `butterfly3ForwardComplex64` in `internal/kernels/radix3.go`
+- [x] Create non-generic `butterfly4ForwardComplex64` in `internal/kernels/radix4.go`
+- [x] Create non-generic `butterfly5ForwardComplex64` in `internal/kernels/radix5.go`
+- [x] Register as specialized paths in mixed-radix dispatcher
+- [x] Benchmark improvement (target: 5-10% from avoiding generic instantiation overhead)
 
 ### 12.4 High Effort Optimizations (SIMD)
 
@@ -220,8 +220,8 @@ Target: fill SSE2 gaps up to size 128 using `docs/IMPLEMENTATION_INVENTORY.md` a
 
 ### 13.5.3 SSE2 Test Coverage (<=128)
 
-- [ ] Add round-trip tests for all new SSE2 size-specific kernels
-- [ ] Add SSE2 vs Go DIT correctness tests (forward + inverse)
+- [x] Add round-trip tests for all new SSE2 size-specific kernels
+- [x] Add SSE2 vs Go DIT correctness tests (forward + inverse)
 
 ---
 
