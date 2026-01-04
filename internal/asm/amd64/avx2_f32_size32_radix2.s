@@ -510,15 +510,27 @@ size32_bitrev:
 	VMOVUPS 160(R8), Y7      // Y7 = 28-31
 
 	// =======================================================================
-	// STAGE 4: size=16, half=8, step=2
+	// STAGE 4: size=16, half=8, step=2 - use non-conjugated twiddles via VFMADDSUB
 	// =======================================================================
-	// 2 groups of 8 butterflies:
-	//   Group 1: indices 0-7 with indices 8-15 using twiddle[0,2,4,6] (for 0-3, 4-7)
-	//   Group 2: indices 16-23 with indices 24-31 using twiddle[0,2,4,6]
-	// Twiddle factors for n=32 with step=2: twiddle[0], twiddle[2], twiddle[4], twiddle[6]
-	//                                       twiddle[0], twiddle[2], twiddle[4], twiddle[6]
+	// For n=32, Stage 4 implements size-16 sub-FFTs with step=2.
+	// Butterfly k pairs index k with k+8, using twiddle[2*k]:
+	//   k=0: tw[0],  k=1: tw[2],  k=2: tw[4],  k=3: tw[6]
+	//   k=4: tw[8],  k=5: tw[10], k=6: tw[12], k=7: tw[14]
+	//
+	// Data layout after Stage 3:
+	//   Y0 = indices 0-3,   Y1 = indices 4-7
+	//   Y2 = indices 8-11,  Y3 = indices 12-15
+	//   Y4 = indices 16-19, Y5 = indices 20-23
+	//   Y6 = indices 24-27, Y7 = indices 28-31
+	//
+	// Stage 4 butterflies:
+	//   Group 1: (0-3) ↔ (8-11)   using tw[0,2,4,6]
+	//   Group 2: (4-7) ↔ (12-15)  using tw[8,10,12,14]  ← KEY: different twiddles!
+	//   Group 3: (16-19) ↔ (24-27) using tw[0,2,4,6]
+	//   Group 4: (20-23) ↔ (28-31) using tw[8,10,12,14]
 
-	// Load twiddle factors for stage 4: [tw0, tw2, tw4, tw6]
+	// Load twiddle factors for stage 4:
+	// Y8 = [tw0, tw2, tw4, tw6] for groups 1 and 3 (positions 0-3 and 16-19)
 	VMOVSD (R10), X8         // twiddle[0]
 	VMOVSD 16(R10), X9       // twiddle[2]
 	VPUNPCKLQDQ X9, X8, X8   // X8 = [tw0, tw2]
@@ -527,7 +539,7 @@ size32_bitrev:
 	VPUNPCKLQDQ X10, X9, X9  // X9 = [tw4, tw6]
 	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [tw0, tw2, tw4, tw6]
 
-	// Group 1a: Y0 (indices 0-3) with Y2 (indices 8-11) using Y8 (tw0-3)
+	// Group 1: Y0 (indices 0-3) with Y2 (indices 8-11) using Y8 [tw0,tw2,tw4,tw6]
 	VMOVSLDUP Y8, Y9         // Y9 = [w.r broadcast]
 	VMOVSHDUP Y8, Y10        // Y10 = [w.i broadcast]
 	VSHUFPS $0xB1, Y2, Y2, Y11  // Y11 = b_swapped
@@ -537,21 +549,35 @@ size32_bitrev:
 	VADDPS Y11, Y0, Y12      // Y12 = a' (new indices 0-3)
 	VSUBPS Y11, Y0, Y13      // Y13 = b' (new indices 8-11)
 
-	// Group 1b: Y1 (indices 4-7) with Y3 (indices 12-15) using Y8 (tw0-3)
+	// Load twiddle factors for groups 2 and 4:
+	// Y14 = [tw8, tw10, tw12, tw14] for positions 4-7 and 20-23
+	VMOVSD 64(R10), X14      // twiddle[8]
+	VMOVSD 80(R10), X15      // twiddle[10]
+	VPUNPCKLQDQ X15, X14, X14  // X14 = [tw8, tw10]
+	VMOVSD 96(R10), X15      // twiddle[12]
+	VMOVSD 112(R10), X9      // twiddle[14] - reuse X9
+	VPUNPCKLQDQ X9, X15, X15   // X15 = [tw12, tw14]
+	VINSERTF128 $1, X15, Y14, Y14  // Y14 = [tw8, tw10, tw12, tw14]
+
+	// Group 2: Y1 (indices 4-7) with Y3 (indices 12-15) using Y14 [tw8,tw10,tw12,tw14]
+	VMOVSLDUP Y14, Y9        // Y9 = [w.r broadcast]
+	VMOVSHDUP Y14, Y10       // Y10 = [w.i broadcast]
 	VSHUFPS $0xB1, Y3, Y3, Y11
 	VMULPS Y10, Y11, Y11
 	VFMADDSUB231PS Y9, Y3, Y11
 
-	VADDPS Y11, Y1, Y14      // Y14 = a' (new indices 4-7)
-	VSUBPS Y11, Y1, Y15      // Y15 = b' (new indices 12-15)
+	VADDPS Y11, Y1, Y15      // Y15 = a' (new indices 4-7)
+	VSUBPS Y11, Y1, Y11      // Y11 = b' (new indices 12-15) - reuse Y11
 
-	// Move group 1 results
+	// Save group 1 and 2 results - reorder to Y0-Y3
 	VMOVAPS Y12, Y0          // Y0 = 0-3
-	VMOVAPS Y14, Y1          // Y1 = 4-7
+	VMOVAPS Y15, Y1          // Y1 = 4-7
 	VMOVAPS Y13, Y2          // Y2 = 8-11
-	VMOVAPS Y15, Y3          // Y3 = 12-15
+	VMOVAPS Y11, Y3          // Y3 = 12-15
 
-	// Group 2a: Y4 (indices 16-19) with Y6 (indices 24-27) using Y8
+	// Group 3: Y4 (indices 16-19) with Y6 (indices 24-27) using Y8 [tw0,tw2,tw4,tw6]
+	VMOVSLDUP Y8, Y9         // Y9 = [w.r broadcast]
+	VMOVSHDUP Y8, Y10        // Y10 = [w.i broadcast]
 	VSHUFPS $0xB1, Y6, Y6, Y11
 	VMULPS Y10, Y11, Y11
 	VFMADDSUB231PS Y9, Y6, Y11
@@ -559,19 +585,21 @@ size32_bitrev:
 	VADDPS Y11, Y4, Y12      // Y12 = a' (new indices 16-19)
 	VSUBPS Y11, Y4, Y13      // Y13 = b' (new indices 24-27)
 
-	// Group 2b: Y5 (indices 20-23) with Y7 (indices 28-31) using Y8
+	// Group 4: Y5 (indices 20-23) with Y7 (indices 28-31) using Y14 [tw8,tw10,tw12,tw14]
+	VMOVSLDUP Y14, Y9        // Y9 = [w.r broadcast]
+	VMOVSHDUP Y14, Y10       // Y10 = [w.i broadcast]
 	VSHUFPS $0xB1, Y7, Y7, Y11
 	VMULPS Y10, Y11, Y11
 	VFMADDSUB231PS Y9, Y7, Y11
 
-	VADDPS Y11, Y5, Y14      // Y14 = a' (new indices 20-23)
-	VSUBPS Y11, Y5, Y15      // Y15 = b' (new indices 28-31)
+	VADDPS Y11, Y5, Y15      // Y15 = a' (new indices 20-23)
+	VSUBPS Y11, Y5, Y11      // Y11 = b' (new indices 28-31) - reuse Y11
 
-	// Move group 2 results
+	// Save group 3 and 4 results - reorder to Y4-Y7
 	VMOVAPS Y12, Y4          // Y4 = 16-19
-	VMOVAPS Y14, Y5          // Y5 = 20-23
+	VMOVAPS Y15, Y5          // Y5 = 20-23
 	VMOVAPS Y13, Y6          // Y6 = 24-27
-	VMOVAPS Y15, Y7          // Y7 = 28-31
+	VMOVAPS Y11, Y7          // Y7 = 28-31
 
 	// =======================================================================
 	// STAGE 5: size=32, half=16, step=1
@@ -1079,26 +1107,57 @@ size32_inv_bitrev:
 	// Y0-Y3 already have indices 16-31
 
 	// =======================================================================
-	// STAGE 4: size=16 - use conjugated twiddles via VFMSUBADD
+	// STAGE 4: size=16, half=8, step=2 - use conjugated twiddles via VFMSUBADD
 	// =======================================================================
+	// For n=32, Stage 4 implements size-16 sub-FFTs with step=2.
+	// Butterfly k pairs index k with k+8, using twiddle[2*k]:
+	//   k=0: tw[0],  k=1: tw[2],  k=2: tw[4],  k=3: tw[6]
+	//   k=4: tw[8],  k=5: tw[10], k=6: tw[12], k=7: tw[14]
+	//
+	// Register layout after Stage 3:
+	//   Y4=indices[0-3], Y5=indices[4-7], Y6=indices[8-11], Y7=indices[12-15]
+	//   Y0=indices[16-19], Y1=indices[20-23], Y2=indices[24-27], Y3=indices[28-31]
+	//
+	// Butterfly pairs for first half (0-15):
+	//   Y4[0-3] with Y6[8-11] using [tw0, tw2, tw4, tw6]
+	//   Y5[4-7] with Y7[12-15] using [tw8, tw10, tw12, tw14]
+	//
+	// Butterfly pairs for second half (16-31):
+	//   Y0[16-19] with Y2[24-27] using [tw0, tw2, tw4, tw6]
+	//   Y1[20-23] with Y3[28-31] using [tw8, tw10, tw12, tw14]
 
-	// Load twiddle factors for stage 4
-	VMOVUPS (R10), Y8        // Y8 = [tw0, tw1, tw2, tw3]
-	VMOVUPS 32(R10), Y9      // Y9 = [tw4, tw5, tw6, tw7]
+	// Load twiddle factors for stage 4:
+	// Y8 = [tw0, tw2, tw4, tw6] for positions 0-3 and 16-19
+	VMOVSD (R10), X8         // twiddle[0]
+	VMOVSD 16(R10), X9       // twiddle[2]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [tw0, tw2]
+	VMOVSD 32(R10), X9       // twiddle[4]
+	VMOVSD 48(R10), X10      // twiddle[6]
+	VPUNPCKLQDQ X10, X9, X9  // X9 = [tw4, tw6]
+	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [tw0, tw2, tw4, tw6]
 
-	// Group 1: Y4 (indices 0-3) with Y6 (indices 8-11) using Y8 (tw0-3)
-	VMOVSLDUP Y8, Y10
-	VMOVSHDUP Y8, Y11
-	VSHUFPS $0xB1, Y6, Y6, Y12
-	VMULPS Y11, Y12, Y12
-	VFMSUBADD231PS Y10, Y6, Y12  // Conjugate multiply
+	// Y9 = [tw8, tw10, tw12, tw14] for positions 4-7 and 20-23
+	VMOVSD 64(R10), X9       // twiddle[8]
+	VMOVSD 80(R10), X10      // twiddle[10]
+	VPUNPCKLQDQ X10, X9, X9  // X9 = [tw8, tw10]
+	VMOVSD 96(R10), X10      // twiddle[12]
+	VMOVSD 112(R10), X11     // twiddle[14]
+	VPUNPCKLQDQ X11, X10, X10  // X10 = [tw12, tw14]
+	VINSERTF128 $1, X10, Y9, Y9  // Y9 = [tw8, tw10, tw12, tw14]
+
+	// Group 1: Y4 (indices 0-3) with Y6 (indices 8-11) using Y8 (tw0,tw2,tw4,tw6)
+	VMOVSLDUP Y8, Y10        // Y10 = [w.r broadcast]
+	VMOVSHDUP Y8, Y11        // Y11 = [w.i broadcast]
+	VSHUFPS $0xB1, Y6, Y6, Y12  // Y12 = b_swapped
+	VMULPS Y11, Y12, Y12     // Y12 = b_swap * w.i
+	VFMSUBADD231PS Y10, Y6, Y12  // Y12 = conj(w) * b
 
 	VADDPS Y12, Y4, Y13      // Y13 = new indices 0-3
 	VSUBPS Y12, Y4, Y14      // Y14 = new indices 8-11
 
-	// Group 2: Y5 (indices 4-7) with Y7 (indices 12-15) using Y9 (tw4-7)
-	VMOVSLDUP Y9, Y10
-	VMOVSHDUP Y9, Y11
+	// Group 2: Y5 (indices 4-7) with Y7 (indices 12-15) using Y9 (tw8,tw10,tw12,tw14)
+	VMOVSLDUP Y9, Y10        // Y10 = [w.r broadcast]
+	VMOVSHDUP Y9, Y11        // Y11 = [w.i broadcast]
 	VSHUFPS $0xB1, Y7, Y7, Y12
 	VMULPS Y11, Y12, Y12
 	VFMSUBADD231PS Y10, Y7, Y12
@@ -1106,7 +1165,7 @@ size32_inv_bitrev:
 	VADDPS Y12, Y5, Y15      // Y15 = new indices 4-7
 	VSUBPS Y12, Y5, Y6       // Y6 = new indices 12-15
 
-	// Group 3: Y0 (indices 16-19) with Y2 (indices 24-27) using Y8 (tw0-3)
+	// Group 3: Y0 (indices 16-19) with Y2 (indices 24-27) using Y8 (tw0,tw2,tw4,tw6)
 	VMOVSLDUP Y8, Y10
 	VMOVSHDUP Y8, Y11
 	VSHUFPS $0xB1, Y2, Y2, Y12
@@ -1116,7 +1175,7 @@ size32_inv_bitrev:
 	VADDPS Y12, Y0, Y4       // Y4 = new indices 16-19
 	VSUBPS Y12, Y0, Y7       // Y7 = new indices 24-27
 
-	// Group 4: Y1 (indices 20-23) with Y3 (indices 28-31) using Y9 (tw4-7)
+	// Group 4: Y1 (indices 20-23) with Y3 (indices 28-31) using Y9 (tw8,tw10,tw12,tw14)
 	VMOVSLDUP Y9, Y10
 	VMOVSHDUP Y9, Y11
 	VSHUFPS $0xB1, Y3, Y3, Y12
@@ -1126,15 +1185,21 @@ size32_inv_bitrev:
 	VADDPS Y12, Y1, Y5       // Y5 = new indices 20-23
 	VSUBPS Y12, Y1, Y3       // Y3 = new indices 28-31
 
-	// Reorder: Y13->Y0, Y15->Y1, Y14->Y2, Y6->Y6 (already correct)
+	// Reorder results to sequential registers
+	// Current: Y13=0-3, Y15=4-7, Y14=8-11, Y6=12-15, Y4=16-19, Y5=20-23, Y7=24-27, Y3=28-31
+	// Need:    Y0=0-3, Y1=4-7, Y2=8-11, Y3=12-15, Y4=16-19, Y5=20-23, Y6=24-27, Y7=28-31
+	VMOVAPS Y3, Y8           // Save Y3 (28-31) temporarily
+	VMOVAPS Y6, Y3           // Y3 = indices 12-15 (from Y6)
+	VMOVAPS Y7, Y6           // Y6 = indices 24-27 (from Y7)
+	VMOVAPS Y8, Y7           // Y7 = indices 28-31 (from saved Y3)
 	VMOVAPS Y13, Y0          // Y0 = indices 0-3
 	VMOVAPS Y15, Y1          // Y1 = indices 4-7
 	VMOVAPS Y14, Y2          // Y2 = indices 8-11
-	// Y3 = indices 28-31 (already correct)
+	// Y3 = indices 12-15 (set above)
 	// Y4 = indices 16-19 (already correct)
 	// Y5 = indices 20-23 (already correct)
-	// Y6 = indices 12-15 (already correct)
-	// Y7 = indices 24-27 (already correct)
+	// Y6 = indices 24-27 (set above)
+	// Y7 = indices 28-31 (set above)
 
 	// =======================================================================
 	// STAGE 5: size=32 - use conjugated twiddles via VFMSUBADD

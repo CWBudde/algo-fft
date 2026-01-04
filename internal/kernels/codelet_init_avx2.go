@@ -73,9 +73,6 @@ func registerAVX2DITCodelets64() {
 	})
 
 	// Size 32: Radix-2 AVX2 variant
-	// TODO: This kernel has a bug in the inverse transform - twiddle indexing
-	// in Stage 4 doesn't match the SSE2 pattern (needs tw8-14 for positions 4-7).
-	// Priority lowered to -1 to disable until fixed.
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
 		Forward:    wrapCodelet64(amd64.ForwardAVX2Size32Complex64Asm),
@@ -83,7 +80,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit32_radix2_avx2",
-		Priority:   -1, // Disabled: inverse transform twiddle bug
+		Priority:   20, // Re-enabled after fixing Stage 4 twiddle indexing
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 

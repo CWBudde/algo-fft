@@ -134,7 +134,6 @@ func registerSSE2DITCodelets64() {
 	})
 
 	// Size 128: Mixed Radix-2/4 SSE2 variant (3 radix-4 + 1 radix-2 stages)
-	// TODO: This kernel still has bugs. Keeping disabled.
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
 		Forward:    wrapCodelet64(amd64.ForwardSSE2Size128Radix4Complex64Asm),
@@ -142,8 +141,8 @@ func registerSSE2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit128_radix4_sse2",
-		Priority:   -1, // Disabled: complex bugs in radix-4 inverse
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		Priority:   17,
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
 	})
 
 	// Size 128: Radix-2 SSE2 variant
