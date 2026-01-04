@@ -866,16 +866,17 @@ size128_sse2_r4_inv_scale:
 	// ==================================================================
 	// Apply 1/N scaling (1/128 = 0.0078125)
 	// ==================================================================
+	// Use 128-bit operations to process 2 complex64 at a time
 	MOVSS $0.0078125, X15     // 1/128
-	SHUFPS $0x00, X15, X15    // broadcast
+	SHUFPS $0x00, X15, X15    // broadcast to all 4 floats
 	XORQ CX, CX
 
 size128_sse2_r4_inv_scale_loop:
-	MOVSD (R8)(CX*8), X0
+	MOVUPS (R8)(CX*1), X0     // Load 2 complex64 (16 bytes)
 	MULPS X15, X0
-	MOVSD X0, (R8)(CX*8)
-	INCQ CX
-	CMPQ CX, $128
+	MOVUPS X0, (R8)(CX*1)     // Store 2 complex64
+	ADDQ $16, CX
+	CMPQ CX, $1024            // 128 * 8 bytes = 1024
 	JL   size128_sse2_r4_inv_scale_loop
 
 	// Copy to dst if needed
