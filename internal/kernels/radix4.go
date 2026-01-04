@@ -111,35 +111,134 @@ func radix4Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, in
 	return true
 }
 
-func butterfly4Forward[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
+// Type-specific butterfly functions to avoid generic overhead
+
+func butterfly4ForwardComplex64(a0, a1, a2, a3 complex64) (complex64, complex64, complex64, complex64) {
 	t0 := a0 + a2
 	t1 := a0 - a2
 	t2 := a1 + a3
 	t3 := a1 - a3
 
+	// Multiply by -i: -i*z = -i*(x+iy) = y - ix
+	t3NegI := complex(imag(t3), -real(t3))
+	// Multiply by i: i*z = i*(x+iy) = -y + ix
+	t3I := complex(-imag(t3), real(t3))
+
 	y0 := t0 + t2
 	y2 := t0 - t2
-	y1 := t1 + mulNegI(t3)
-	y3 := t1 + mulI(t3)
+	y1 := t1 + t3NegI
+	y3 := t1 + t3I
 
 	return y0, y1, y2, y3
+}
+
+func butterfly4InverseComplex64(a0, a1, a2, a3 complex64) (complex64, complex64, complex64, complex64) {
+	t0 := a0 + a2
+	t1 := a0 - a2
+	t2 := a1 + a3
+	t3 := a1 - a3
+
+	// Multiply by i: i*z = i*(x+iy) = -y + ix
+	t3I := complex(-imag(t3), real(t3))
+	// Multiply by -i: -i*z = -i*(x+iy) = y - ix
+	t3NegI := complex(imag(t3), -real(t3))
+
+	y0 := t0 + t2
+	y2 := t0 - t2
+	y1 := t1 + t3I
+	y3 := t1 + t3NegI
+
+	return y0, y1, y2, y3
+}
+
+func butterfly4ForwardComplex128(a0, a1, a2, a3 complex128) (complex128, complex128, complex128, complex128) {
+	t0 := a0 + a2
+	t1 := a0 - a2
+	t2 := a1 + a3
+	t3 := a1 - a3
+
+	// Multiply by -i: -i*z = -i*(x+iy) = y - ix
+	t3NegI := complex(imag(t3), -real(t3))
+	// Multiply by i: i*z = i*(x+iy) = -y + ix
+	t3I := complex(-imag(t3), real(t3))
+
+	y0 := t0 + t2
+	y2 := t0 - t2
+	y1 := t1 + t3NegI
+	y3 := t1 + t3I
+
+	return y0, y1, y2, y3
+}
+
+func butterfly4InverseComplex128(a0, a1, a2, a3 complex128) (complex128, complex128, complex128, complex128) {
+	t0 := a0 + a2
+	t1 := a0 - a2
+	t2 := a1 + a3
+	t3 := a1 - a3
+
+	// Multiply by i: i*z = i*(x+iy) = -y + ix
+	t3I := complex(-imag(t3), real(t3))
+	// Multiply by -i: -i*z = -i*(x+iy) = y - ix
+	t3NegI := complex(imag(t3), -real(t3))
+
+	y0 := t0 + t2
+	y2 := t0 - t2
+	y1 := t1 + t3I
+	y3 := t1 + t3NegI
+
+	return y0, y1, y2, y3
+}
+
+// Generic wrapper that dispatches to type-specific implementations
+func butterfly4Forward[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		y0, y1, y2, y3 := butterfly4ForwardComplex64(
+			any(a0).(complex64),
+			any(a1).(complex64),
+			any(a2).(complex64),
+			any(a3).(complex64),
+		)
+		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T)
+	case complex128:
+		y0, y1, y2, y3 := butterfly4ForwardComplex128(
+			any(a0).(complex128),
+			any(a1).(complex128),
+			any(a2).(complex128),
+			any(a3).(complex128),
+		)
+		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T)
+	default:
+		panic("unsupported complex type")
+	}
 }
 
 func butterfly4Inverse[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
-	t0 := a0 + a2
-	t1 := a0 - a2
-	t2 := a1 + a3
-	t3 := a1 - a3
-
-	y0 := t0 + t2
-	y2 := t0 - t2
-	y1 := t1 + mulI(t3)
-	y3 := t1 + mulNegI(t3)
-
-	return y0, y1, y2, y3
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		y0, y1, y2, y3 := butterfly4InverseComplex64(
+			any(a0).(complex64),
+			any(a1).(complex64),
+			any(a2).(complex64),
+			any(a3).(complex64),
+		)
+		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T)
+	case complex128:
+		y0, y1, y2, y3 := butterfly4InverseComplex128(
+			any(a0).(complex128),
+			any(a1).(complex128),
+			any(a2).(complex128),
+			any(a3).(complex128),
+		)
+		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T)
+	default:
+		panic("unsupported complex type")
+	}
 }
 
-// Public exports for internal/fft.
+// Public exports for internal/fft - generic wrappers.
 func Butterfly4Forward[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
 	return butterfly4Forward(a0, a1, a2, a3)
 }
@@ -148,6 +247,34 @@ func Butterfly4Inverse[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
 	return butterfly4Inverse(a0, a1, a2, a3)
 }
 
+// Public exports for internal/fft - type-specific functions for direct calls.
+func Butterfly4ForwardComplex64(a0, a1, a2, a3 complex64) (complex64, complex64, complex64, complex64) {
+	return butterfly4ForwardComplex64(a0, a1, a2, a3)
+}
+
+func Butterfly4InverseComplex64(a0, a1, a2, a3 complex64) (complex64, complex64, complex64, complex64) {
+	return butterfly4InverseComplex64(a0, a1, a2, a3)
+}
+
+func Butterfly4ForwardComplex128(a0, a1, a2, a3 complex128) (complex128, complex128, complex128, complex128) {
+	return butterfly4ForwardComplex128(a0, a1, a2, a3)
+}
+
+func Butterfly4InverseComplex128(a0, a1, a2, a3 complex128) (complex128, complex128, complex128, complex128) {
+	return butterfly4InverseComplex128(a0, a1, a2, a3)
+}
+
+func reverseBase4(x, digits int) int {
+	result := 0
+	for range digits {
+		result = (result << 2) | (x & 0x3)
+		x >>= 2
+	}
+
+	return result
+}
+
+// Helper functions for multiplication by i and -i (used by other kernels).
 func mulI[T Complex](value T) T {
 	switch v := any(value).(type) {
 	case complex64:
@@ -168,14 +295,4 @@ func mulNegI[T Complex](value T) T {
 	default:
 		panic("unsupported complex type")
 	}
-}
-
-func reverseBase4(x, digits int) int {
-	result := 0
-	for range digits {
-		result = (result << 2) | (x & 0x3)
-		x >>= 2
-	}
-
-	return result
 }

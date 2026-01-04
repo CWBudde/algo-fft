@@ -1,5 +1,7 @@
 package fft
 
+import "github.com/MeKo-Christian/algo-fft/internal/kernels"
+
 const mixedRadixMaxStages = 64
 
 func forwardMixedRadixComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -60,7 +62,23 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 
 	// Ping-pong buffering: recursively alternate between buffers to eliminate
 	// intermediate copies. Only copy at the end if result isn't already in dst.
-	mixedRadixRecursivePingPong(work, src, scratch, n, 1, 1, radices[:stageCount], twiddle, inverse)
+	// Use type-specific implementation to avoid generic overhead
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		mixedRadixRecursivePingPongComplex64(
+			any(work).([]complex64),
+			any(src).([]complex64),
+			any(scratch).([]complex64),
+			n, 1, 1, radices[:stageCount],
+			any(twiddle).([]complex64),
+			inverse,
+		)
+	case complex128:
+		mixedRadixRecursivePingPong(work, src, scratch, n, 1, 1, radices[:stageCount], twiddle, inverse)
+	default:
+		return false
+	}
 
 	if !workIsDst {
 		copy(dst, work)
@@ -108,6 +126,136 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int) int {
 	}
 
 	return count
+}
+
+// mixedRadixRecursivePingPongComplex64 is a specialized complex64 version that calls
+// type-specific butterfly functions to avoid generic overhead.
+func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride, step int, radices []int, twiddle []complex64, inverse bool) {
+	if n == 1 {
+		dst[0] = src[0]
+		return
+	}
+
+	radix := radices[0]
+	span := n / radix
+	nextRadices := radices[1:]
+
+	// Recursively process sub-transforms
+	for j := range radix {
+		if len(nextRadices) == 0 {
+			dst[j*span] = src[j*stride]
+		} else {
+			mixedRadixRecursivePingPongComplex64(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
+		}
+	}
+
+	// Determine where the recursive calls wrote their data
+	var input []complex64
+	if len(nextRadices) == 0 {
+		input = dst
+	} else {
+		input = work
+	}
+
+	// Apply radix-r butterfly with type-specific functions
+	for k := range span {
+		switch radix {
+		case 2:
+			w1 := twiddle[k*step]
+			if inverse {
+				w1 = conj(w1)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+
+			dst[k] = a0 + a1
+			dst[span+k] = a0 - a1
+		case 3:
+			w1 := twiddle[k*step]
+			w2 := twiddle[2*k*step]
+
+			if inverse {
+				w1 = conj(w1)
+				w2 = conj(w2)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+			a2 := w2 * input[2*span+k]
+
+			var y0, y1, y2 complex64
+			if inverse {
+				y0, y1, y2 = kernels.Butterfly3InverseComplex64(a0, a1, a2)
+			} else {
+				y0, y1, y2 = kernels.Butterfly3ForwardComplex64(a0, a1, a2)
+			}
+
+			dst[k] = y0
+			dst[span+k] = y1
+			dst[2*span+k] = y2
+		case 4:
+			w1 := twiddle[k*step]
+			w2 := twiddle[2*k*step]
+			w3 := twiddle[3*k*step]
+
+			if inverse {
+				w1 = conj(w1)
+				w2 = conj(w2)
+				w3 = conj(w3)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+			a2 := w2 * input[2*span+k]
+			a3 := w3 * input[3*span+k]
+
+			var y0, y1, y2, y3 complex64
+			if inverse {
+				y0, y1, y2, y3 = kernels.Butterfly4InverseComplex64(a0, a1, a2, a3)
+			} else {
+				y0, y1, y2, y3 = kernels.Butterfly4ForwardComplex64(a0, a1, a2, a3)
+			}
+
+			dst[k] = y0
+			dst[span+k] = y1
+			dst[2*span+k] = y2
+			dst[3*span+k] = y3
+		case 5:
+			w1 := twiddle[k*step]
+			w2 := twiddle[2*k*step]
+			w3 := twiddle[3*k*step]
+			w4 := twiddle[4*k*step]
+
+			if inverse {
+				w1 = conj(w1)
+				w2 = conj(w2)
+				w3 = conj(w3)
+				w4 = conj(w4)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+			a2 := w2 * input[2*span+k]
+			a3 := w3 * input[3*span+k]
+			a4 := w4 * input[4*span+k]
+
+			var y0, y1, y2, y3, y4 complex64
+			if inverse {
+				y0, y1, y2, y3, y4 = kernels.Butterfly5InverseComplex64(a0, a1, a2, a3, a4)
+			} else {
+				y0, y1, y2, y3, y4 = kernels.Butterfly5ForwardComplex64(a0, a1, a2, a3, a4)
+			}
+
+			dst[k] = y0
+			dst[span+k] = y1
+			dst[2*span+k] = y2
+			dst[3*span+k] = y3
+			dst[4*span+k] = y4
+		default:
+			return
+		}
+	}
 }
 
 // mixedRadixRecursivePingPong implements mixed-radix FFT with ping-pong buffering
