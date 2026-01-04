@@ -7,21 +7,23 @@ import "math"
 // recomputing them on every call.
 //
 // For forward transform:
-//   half = -0.5 + 0i
-//   coef = 0 - i*sqrt(3)/2
+//
+//	half = -0.5 + 0i
+//	coef = 0 - i*sqrt(3)/2
 //
 // For inverse transform:
-//   half = -0.5 + 0i  (same as forward)
-//   coef = 0 + i*sqrt(3)/2  (conjugate of forward)
+//
+//	half = -0.5 + 0i  (same as forward)
+//	coef = 0 + i*sqrt(3)/2  (conjugate of forward)
 //
 //nolint:gochecknoglobals
 var (
-	radix3Half64       = complex64(-0.5 + 0i)
-	radix3CoefFwd64    = complex64(0 - 1i*complex(float32(math.Sqrt(3)/2), 0))
-	radix3CoefInv64    = complex64(0 + 1i*complex(float32(math.Sqrt(3)/2), 0))
-	radix3Half128      = complex128(-0.5 + 0i)
-	radix3CoefFwd128   = complex128(0 - 1i*complex(math.Sqrt(3)/2, 0))
-	radix3CoefInv128   = complex128(0 + 1i*complex(math.Sqrt(3)/2, 0))
+	radix3Half64     = complex64(-0.5 + 0i)
+	radix3CoefFwd64  = complex64(0 - 1i*complex(float32(math.Sqrt(3)/2), 0))
+	radix3CoefInv64  = complex64(0 + 1i*complex(float32(math.Sqrt(3)/2), 0))
+	radix3Half128    = complex128(-0.5 + 0i)
+	radix3CoefFwd128 = complex128(0 - 1i*complex(math.Sqrt(3)/2, 0))
+	radix3CoefInv128 = complex128(0 + 1i*complex(math.Sqrt(3)/2, 0))
 )
 
 func forwardRadix3Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -151,43 +153,125 @@ func radix3Constants[T Complex](inverse bool) (T, T) {
 	}
 }
 
-func butterfly3Forward[T Complex](a0, a1, a2 T) (T, T, T) {
+// Type-specific butterfly functions to avoid generic overhead
+
+func butterfly3ForwardComplex64(a0, a1, a2 complex64) (complex64, complex64, complex64) {
 	t1 := a1 + a2
 	t2 := a1 - a2
 
-	// Use precomputed constants instead of computing on every call
-	half, coef := radix3Constants[T](false)
-
 	y0 := a0 + t1
-	base := a0 + half*t1
-	y1 := base + coef*t2
-	y2 := base - coef*t2
+	base := a0 + radix3Half64*t1
+	y1 := base + radix3CoefFwd64*t2
+	y2 := base - radix3CoefFwd64*t2
 
 	return y0, y1, y2
+}
+
+func butterfly3InverseComplex64(a0, a1, a2 complex64) (complex64, complex64, complex64) {
+	t1 := a1 + a2
+	t2 := a1 - a2
+
+	y0 := a0 + t1
+	base := a0 + radix3Half64*t1
+	y1 := base + radix3CoefInv64*t2
+	y2 := base - radix3CoefInv64*t2
+
+	return y0, y1, y2
+}
+
+func butterfly3ForwardComplex128(a0, a1, a2 complex128) (complex128, complex128, complex128) {
+	t1 := a1 + a2
+	t2 := a1 - a2
+
+	y0 := a0 + t1
+	base := a0 + radix3Half128*t1
+	y1 := base + radix3CoefFwd128*t2
+	y2 := base - radix3CoefFwd128*t2
+
+	return y0, y1, y2
+}
+
+func butterfly3InverseComplex128(a0, a1, a2 complex128) (complex128, complex128, complex128) {
+	t1 := a1 + a2
+	t2 := a1 - a2
+
+	y0 := a0 + t1
+	base := a0 + radix3Half128*t1
+	y1 := base + radix3CoefInv128*t2
+	y2 := base - radix3CoefInv128*t2
+
+	return y0, y1, y2
+}
+
+// Generic wrapper that dispatches to type-specific implementations
+func butterfly3Forward[T Complex](a0, a1, a2 T) (T, T, T) {
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		y0, y1, y2 := butterfly3ForwardComplex64(
+			any(a0).(complex64),
+			any(a1).(complex64),
+			any(a2).(complex64),
+		)
+		return any(y0).(T), any(y1).(T), any(y2).(T)
+	case complex128:
+		y0, y1, y2 := butterfly3ForwardComplex128(
+			any(a0).(complex128),
+			any(a1).(complex128),
+			any(a2).(complex128),
+		)
+		return any(y0).(T), any(y1).(T), any(y2).(T)
+	default:
+		panic("unsupported complex type")
+	}
 }
 
 func butterfly3Inverse[T Complex](a0, a1, a2 T) (T, T, T) {
-	t1 := a1 + a2
-	t2 := a1 - a2
-
-	// Use precomputed constants instead of computing on every call
-	half, coef := radix3Constants[T](true)
-
-	y0 := a0 + t1
-	base := a0 + half*t1
-	y1 := base + coef*t2
-	y2 := base - coef*t2
-
-	return y0, y1, y2
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		y0, y1, y2 := butterfly3InverseComplex64(
+			any(a0).(complex64),
+			any(a1).(complex64),
+			any(a2).(complex64),
+		)
+		return any(y0).(T), any(y1).(T), any(y2).(T)
+	case complex128:
+		y0, y1, y2 := butterfly3InverseComplex128(
+			any(a0).(complex128),
+			any(a1).(complex128),
+			any(a2).(complex128),
+		)
+		return any(y0).(T), any(y1).(T), any(y2).(T)
+	default:
+		panic("unsupported complex type")
+	}
 }
 
-// Public exports for internal/fft.
+// Public exports for internal/fft - generic wrappers.
 func Butterfly3Forward[T Complex](a0, a1, a2 T) (T, T, T) {
 	return butterfly3Forward(a0, a1, a2)
 }
 
 func Butterfly3Inverse[T Complex](a0, a1, a2 T) (T, T, T) {
 	return butterfly3Inverse(a0, a1, a2)
+}
+
+// Public exports for internal/fft - type-specific functions for direct calls.
+func Butterfly3ForwardComplex64(a0, a1, a2 complex64) (complex64, complex64, complex64) {
+	return butterfly3ForwardComplex64(a0, a1, a2)
+}
+
+func Butterfly3InverseComplex64(a0, a1, a2 complex64) (complex64, complex64, complex64) {
+	return butterfly3InverseComplex64(a0, a1, a2)
+}
+
+func Butterfly3ForwardComplex128(a0, a1, a2 complex128) (complex128, complex128, complex128) {
+	return butterfly3ForwardComplex128(a0, a1, a2)
+}
+
+func Butterfly3InverseComplex128(a0, a1, a2 complex128) (complex128, complex128, complex128) {
+	return butterfly3InverseComplex128(a0, a1, a2)
 }
 
 func reverseBase3(x, digits int) int {

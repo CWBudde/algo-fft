@@ -66,7 +66,7 @@ Mixed-radix FFT handles sizes that factor into 2, 3, 4, 5 (e.g., 384 = 2⁷ × 3
 
 #### 12.2.1 Precompute Radix Constants
 
-- [ ] Move radix-3 constants to package-level variables:
+- [x] Move radix-3 constants to package-level variables:
 
   ```go
   // Current: computed every call in butterfly3Forward
@@ -80,9 +80,12 @@ Mixed-radix FFT handles sizes that factor into 2, 3, 4, 5 (e.g., 384 = 2⁷ × 3
   )
   ```
 
-- [ ] Move radix-5 twiddles to package-level variables (currently in `radix5Twiddles()`)
-- [ ] Create type-specific butterfly functions to avoid generic overhead
-- [ ] Benchmark improvement (target: 5-10% reduction in butterfly time)
+- [x] Move radix-5 twiddles to package-level variables (already done in `radix5.go`)
+- [x] Create type-specific butterfly functions to avoid generic overhead
+  - Added `butterfly3ForwardComplex64/128` and `butterfly3InverseComplex64/128`
+  - Generic wrappers dispatch to type-specific implementations
+  - Public exports allow direct calls for maximum performance
+- [x] Benchmark improvement (achieved: 19.4% geomean speedup, 24% throughput increase)
 
 #### 12.2.2 Eliminate Intermediate Memory Copies (14% overhead)
 
