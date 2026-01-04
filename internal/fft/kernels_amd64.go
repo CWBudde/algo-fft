@@ -5,6 +5,7 @@ package fft
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
 )
 
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
@@ -144,7 +145,7 @@ func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 		return false
 	}
 
-	switch resolveKernelStrategy(len(src), KernelAuto) {
+	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
 	case KernelDIT:
 		return forwardDITComplex64(dst, src, twiddle, scratch, bitrev)
 	case KernelStockham:
@@ -159,7 +160,7 @@ func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 		return false
 	}
 
-	switch resolveKernelStrategy(len(src), KernelAuto) {
+	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
 	case KernelDIT:
 		return inverseDITComplex64(dst, src, twiddle, scratch, bitrev)
 	case KernelStockham:
@@ -206,7 +207,7 @@ func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 		return false
 	}
 
-	switch resolveKernelStrategy(len(src), KernelAuto) {
+	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
 	case KernelDIT:
 		return forwardDITComplex128(dst, src, twiddle, scratch, bitrev)
 	case KernelStockham:
@@ -221,7 +222,7 @@ func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 		return false
 	}
 
-	switch resolveKernelStrategy(len(src), KernelAuto) {
+	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
 	case KernelDIT:
 		return inverseDITComplex128(dst, src, twiddle, scratch, bitrev)
 	case KernelStockham:

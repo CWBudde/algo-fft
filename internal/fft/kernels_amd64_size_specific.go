@@ -2,7 +2,10 @@
 
 package fft
 
-import m "github.com/MeKo-Christian/algo-fft/internal/math"
+import (
+	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
+)
 
 // avx2SizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific
 // AVX2 implementations for common sizes (8, 16, 32, 64, 128), falling back to the
@@ -15,7 +18,7 @@ func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 		}
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			// For non-DIT strategies, use the existing strategy-based dispatch
 			return avx2KernelComplex64(strategy, forwardAVX2Complex64, forwardAVX2StockhamComplex64)(
@@ -96,7 +99,7 @@ func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 		}
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			// For non-DIT strategies, use the existing strategy-based dispatch
 			return avx2KernelComplex64(strategy, inverseAVX2Complex64, inverseAVX2StockhamComplex64)(
@@ -185,7 +188,7 @@ func sse2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			return false
 		}
 
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 		}
@@ -255,7 +258,7 @@ func sse2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			return false
 		}
 
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 		}
@@ -335,7 +338,7 @@ func avx2SizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 			return false
 		}
 
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			return avx2KernelComplex128(strategy, forwardAVX2Complex128, forwardAVX2StockhamComplex128)(
 				dst, src, twiddle, scratch, bitrev,
@@ -393,7 +396,7 @@ func avx2SizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kern
 			return false
 		}
 
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			return avx2KernelComplex128(strategy, inverseAVX2Complex128, inverseAVX2StockhamComplex128)(
 				dst, src, twiddle, scratch, bitrev,

@@ -1,6 +1,35 @@
 package kernels
 
-import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+import (
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
+)
+
+// Type aliases for planner codelet types.
+type (
+	CodeletEntry[T Complex] = planner.CodeletEntry[T]
+	CodeletFunc[T Complex]  = planner.CodeletFunc[T]
+	SIMDLevel               = planner.SIMDLevel
+)
+
+// Re-export planner registries and SIMD constants.
+var (
+	Registry64  = planner.Registry64
+	Registry128 = planner.Registry128
+)
+
+const (
+	SIMDNone   = planner.SIMDNone
+	SIMDSSE2   = planner.SIMDSSE2
+	SIMDAVX2   = planner.SIMDAVX2
+	SIMDAVX512 = planner.SIMDAVX512
+	SIMDNEON   = planner.SIMDNEON
+)
+
+// GetRegistry returns the appropriate registry for type T.
+func GetRegistry[T Complex]() *planner.CodeletRegistry[T] {
+	return planner.GetRegistry[T]()
+}
 
 // This file registers all built-in codelets with the global registries.
 // Registration happens at init time so codelets are available when plans are created.

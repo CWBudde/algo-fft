@@ -3,20 +3,21 @@ package fft
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/kernels"
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
 	"github.com/MeKo-Christian/algo-fft/internal/transform"
 )
 
-// Re-export kernel types from internal/kernels.
+// Re-export kernel types from internal/kernels and internal/planner.
 type (
 	Kernel[T Complex]          = kernels.Kernel[T]
 	Kernels[T Complex]         = kernels.Kernels[T]
 	RadixKernel[T Complex]     = kernels.RadixKernel[T]
-	CodeletFunc[T Complex]     = kernels.CodeletFunc[T]
-	CodeletRegistry[T Complex] = kernels.CodeletRegistry[T]
-	CodeletEntry[T Complex]    = kernels.CodeletEntry[T]
+	CodeletFunc[T Complex]     = planner.CodeletFunc[T]
+	CodeletRegistry[T Complex] = planner.CodeletRegistry[T]
+	CodeletEntry[T Complex]    = planner.CodeletEntry[T]
 	PackedTwiddles[T Complex]  = transform.PackedTwiddles[T]
-	BitrevFunc                 = kernels.BitrevFunc
-	SIMDLevel                  = kernels.SIMDLevel
+	BitrevFunc                 = planner.BitrevFunc
+	SIMDLevel                  = planner.SIMDLevel
 )
 
 // Re-export kernel functions.
@@ -31,8 +32,8 @@ var (
 	StockhamPackedAvailable = transform.StockhamPackedAvailable
 
 	// Registries (direct pointers, not double pointers).
-	Registry64  = kernels.Registry64
-	Registry128 = kernels.Registry128
+	Registry64  = planner.Registry64
+	Registry128 = planner.Registry128
 )
 
 // Wrapper functions for generic functions
@@ -136,7 +137,7 @@ func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T, bitr
 }
 
 func GetRegistry[T Complex]() *CodeletRegistry[T] {
-	return kernels.GetRegistry[T]()
+	return planner.GetRegistry[T]()
 }
 
 func butterfly3Forward[T Complex](a0, a1, a2 T) (T, T, T) {
@@ -171,9 +172,9 @@ func butterfly2[T Complex](a, b, w T) (T, T) {
 
 // Re-export SIMD level constants.
 const (
-	SIMDNone   = kernels.SIMDNone
-	SIMDSSE2   = kernels.SIMDSSE2
-	SIMDAVX2   = kernels.SIMDAVX2
-	SIMDAVX512 = kernels.SIMDAVX512
-	SIMDNEON   = kernels.SIMDNEON
+	SIMDNone   = planner.SIMDNone
+	SIMDSSE2   = planner.SIMDSSE2
+	SIMDAVX2   = planner.SIMDAVX2
+	SIMDAVX512 = planner.SIMDAVX512
+	SIMDNEON   = planner.SIMDNEON
 )

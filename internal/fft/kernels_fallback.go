@@ -3,6 +3,7 @@ package fft
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/kernels"
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
 )
 
 const ditAutoThreshold = 1024
@@ -32,7 +33,7 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 				return false
 			}
 
-			switch resolveKernelStrategy(len(src), strategy) {
+			switch planner.ResolveKernelStrategyWithDefault(len(src), strategy) {
 			case KernelDIT:
 				return forwardDITComplex64(dst, src, twiddle, scratch, bitrev)
 			case KernelStockham:
@@ -54,7 +55,7 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 				return false
 			}
 
-			switch resolveKernelStrategy(len(src), strategy) {
+			switch planner.ResolveKernelStrategyWithDefault(len(src), strategy) {
 			case KernelDIT:
 				return inverseDITComplex64(dst, src, twiddle, scratch, bitrev)
 			case KernelStockham:
@@ -81,7 +82,7 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 				return false
 			}
 
-			switch resolveKernelStrategy(len(src), strategy) {
+			switch planner.ResolveKernelStrategyWithDefault(len(src), strategy) {
 			case KernelDIT:
 				return forwardDITComplex128(dst, src, twiddle, scratch, bitrev)
 			case KernelStockham:
@@ -103,7 +104,7 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 				return false
 			}
 
-			switch resolveKernelStrategy(len(src), strategy) {
+			switch planner.ResolveKernelStrategyWithDefault(len(src), strategy) {
 			case KernelDIT:
 				return inverseDITComplex128(dst, src, twiddle, scratch, bitrev)
 			case KernelStockham:
