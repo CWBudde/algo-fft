@@ -474,6 +474,23 @@ r4_1024_stage5_loop:
 	JMP  r4_1024_stage5_loop
 
 r4_1024_done:
+	// Copy results to dst if needed
+	MOVQ dst+0(FP), R9
+	CMPQ R8, R9
+	JE   r4_1024_ret
+
+	XORQ CX, CX
+
+r4_1024_copy_loop:
+	VMOVUPS (R8)(CX*1), Y0
+	VMOVUPS 32(R8)(CX*1), Y1
+	VMOVUPS Y0, (R9)(CX*1)
+	VMOVUPS Y1, 32(R9)(CX*1)
+	ADDQ $64, CX
+	CMPQ CX, $8192
+	JL   r4_1024_copy_loop
+
+r4_1024_ret:
 	VZEROUPPER
 	MOVB $1, ret+120(FP)
 	RET
