@@ -102,15 +102,38 @@ Mixed-radix FFT handles sizes that factor into 2, 3, 4, 5 (e.g., 384 = 2⁷ × 3
 
 #### 12.3.1 Iterative Mixed-Radix Implementation
 
-- [ ] Replace recursive `mixedRadixRecursive` with iterative version:
-  - [ ] Pre-compute stage schedule (radix sequence and twiddle strides)
-  - [ ] Process stages in a loop instead of recursion
-  - [ ] Eliminate function call overhead for small sub-transforms
-- [ ] Benefits:
-  - [ ] Reduced stack usage
-  - [ ] Better branch prediction
-  - [ ] More optimization opportunities for compiler
-- [ ] Benchmark improvement (target: 20-30% reduction in total time)
+**Status: DEFERRED** - Implementation attempted but correctness issues identified.
+
+**Work Completed:**
+
+- [x] Analyzed recursive decomposition data flow pattern
+- [x] Implemented `mixedRadixPermutation` helper for input reordering
+- [x] Implemented stage schedule precomputation
+- [x] Created iterative butterfly processing loops (complex64/128)
+- [x] Added ping-pong buffer management
+
+**Challenges Identified:**
+
+1. **Complex Data Flow**: The recursive decomposition has a depth-first access pattern that doesn't map cleanly to simple pre-permutation + sequential stages
+2. **Permutation Mismatch**: While the permutation `[0,3,1,4,2,5]` for n=6 is mathematically correct, the stage processing order and buffer management don't produce matching results
+3. **Stage Ordering**: Tried both forward and reverse stage processing - both failed tests
+4. **Architectural Mismatch**: After 3+ fix attempts, root cause appears to be fundamental approach rather than implementation bugs
+
+**Code Location**: Disabled iterative functions in `internal/fft/mixedradix.go` (lines 576-917) - kept for future reference
+
+**Future Approaches to Consider:**
+
+- Four-step FFT algorithm (better cache behavior, clearer iterative structure)
+- Bluestein algorithm with iterative radix-2 FFT
+- Deeper analysis of recursive data flow to derive correct iterative mapping
+- Alternative: Keep recursive version (already has ping-pong optimization, zero-copy)
+
+**Performance Note**: Original target of 20-30% improvement may have been overly optimistic. The recursive version with ping-pong buffering is already well-optimized. Main benefits of iterative would be:
+
+- O(1) vs O(log n) stack usage (minimal impact for n < 10^6)
+- Elimination of function call overhead (likely < 10% impact)
+
+**Recommendation**: Defer this task until alternative iterative algorithms are researched or keep recursive version as-is.
 
 #### 12.3.2 Specialized complex64 Versions
 

@@ -60,9 +60,8 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 		workIsDst = false
 	}
 
-	// Ping-pong buffering: recursively alternate between buffers to eliminate
-	// intermediate copies. Only copy at the end if result isn't already in dst.
-	// Use type-specific implementation to avoid generic overhead
+	// Use recursive ping-pong implementation (iterative version WIP - see below)
+	// Type-specific implementation to avoid generic overhead.
 	var zero T
 	switch any(zero).(type) {
 	case complex64:
@@ -135,28 +134,36 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int) int {
 	return count
 }
 
-// reverseMixedRadix computes the mixed-radix digit reversal of x
-// given radix factors in left-to-right order.
+// mixedRadixPermutation computes the data reordering index for the iterative
+// mixed-radix FFT decomposition.
 //
-// This function reverses the mixed-radix representation of an index,
-// which is required to convert the implicit data reordering from the
-// recursive decomposition into an explicit pre-permutation step for
-// the iterative implementation.
+// This function maps input index x to its position in the decomposed data layout.
+// The decomposition pattern matches the recursive algorithm's implicit reordering:
+// for each stage, data is grouped by extracting digits in the mixed-radix
+// representation and using them as offsets with decreasing strides.
 //
-// Example: n=12, radices=[3,2,2]
-//   x=1 → digits (0,0,1) in base (3,2,2) → reversed (1,0,0) → 6
-//   x=5 → digits (1,0,1) in base (3,2,2) → reversed (1,0,1) → 7
-func reverseMixedRadix(x int, radices []int, count int) int {
-	result := 0
-	span := 1
+// Example: n=6, radices=[3,2]
+//
+//	x=1 → digits (d0=1, d1=0) → result = 1*2 + 0*1 = 2
+//	x=3 → digits (d0=0, d1=1) → result = 0*2 + 1*1 = 1
+//	Permutation: [0,2,4,1,3,5]
+func mixedRadixPermutation(x, n int, radices []int, count int) int {
+	// Extract digits in forward order: d[i] = (x / prod(radices[0..i-1])) % radices[i]
+	var digits [mixedRadixMaxStages]int
+	temp := x
+	for i := 0; i < count; i++ {
+		digits[i] = temp % radices[i]
+		temp /= radices[i]
+	}
 
-	// Extract digits from least significant (rightmost) to most significant,
-	// building result from most significant to least (reversed)
-	for i := count - 1; i >= 0; i-- {
-		digit := x % radices[i]
-		x /= radices[i]
-		result += digit * span
-		span *= radices[i]
+	// Calculate result: sum of d[i] * span[i]
+	// where span[i] = n / (radices[0] * radices[1] * ... * radices[i])
+	result := 0
+	product := 1
+	for i := 0; i < count; i++ {
+		product *= radices[i]
+		span := n / product
+		result += digits[i] * span
 	}
 
 	return result
@@ -564,5 +571,402 @@ func mixedRadixRecursivePingPong[T Complex](dst, src, work []T, n, stride, step 
 		default:
 			return
 		}
+	}
+}
+
+// ==============================================================================
+// WORK IN PROGRESS: Iterative Mixed-Radix Implementation
+// ==============================================================================
+//
+// The functions below implement an iterative alternative to the recursive
+// mixed-radix FFT. They are currently DISABLED due to correctness issues.
+//
+// Status: The permutation logic and stage processing are implemented but tests
+// fail, indicating the data flow pattern doesn't match the recursive version.
+//
+// Challenges identified:
+// 1. The recursive decomposition has a complex depth-first data access pattern
+// 2. Simple pre-permutation + sequential stage processing doesn't capture this
+// 3. Buffer management and stage ordering need more investigation
+//
+// Future work: Consider alternative iterative algorithms (four-step, Bluestein)
+// or deeper analysis of the recursive data flow to find correct mapping.
+// ==============================================================================
+
+// mixedRadixIterativeComplex64 implements mixed-radix FFT using an iterative
+// approach instead of recursion, eliminating function call overhead and reducing
+// stack usage from O(log n) to O(1).
+//
+// This implementation achieves the same result as the recursive version by:
+//  1. Pre-permuting the input data using mixed-radix decomposition pattern
+//  2. Processing butterfly stages sequentially with explicit loops
+//  3. Using ping-pong buffering to eliminate intermediate copies
+//
+// Parameters match the recursive version for drop-in replacement.
+//
+// NOTE: Currently disabled - see WIP comment above.
+func mixedRadixIterativeComplex64(dst, src, scratch []complex64, n int, radices []int, twiddle []complex64, inverse bool) {
+	stageCount := len(radices)
+
+	// Stage metadata structure
+	type stage struct {
+		radix int
+		span  int
+		step  int
+	}
+
+	// Precompute stage schedule
+	var stages [mixedRadixMaxStages]stage
+	stride := 1
+	step := n
+
+	for i := range stageCount {
+		radix := radices[i]
+		stages[i].radix = radix
+		stages[i].span = n / (stride * radix)
+		step /= radix
+		stages[i].step = step
+		stride *= radix
+	}
+
+	// Pre-permute input data using mixed-radix decomposition pattern
+	for i := range n {
+		j := mixedRadixPermutation(i, n, radices, stageCount)
+		dst[j] = src[i]
+	}
+
+	// Set up ping-pong buffers
+	inputBuf := dst
+	outputBuf := scratch
+
+	// Iterative butterfly stages
+	// Process stages in REVERSE order to match recursive decomposition
+	// (recursive version applies butterflies from innermost to outermost radix)
+	for stageIdx := stageCount - 1; stageIdx >= 0; stageIdx-- {
+		s := stages[stageIdx]
+		radix := s.radix
+		span := s.span
+		step := s.step
+		groupCount := n / (span * radix)
+
+		// Radix-specific dispatch with separate loops per radix for performance
+		switch radix {
+		case 2:
+			// Radix-2 butterfly loop
+			for group := 0; group < groupCount; group++ {
+				baseIdx := group * span * 2
+				for k := 0; k < span; k++ {
+					idx := baseIdx + k
+					w1 := twiddle[k*step]
+					if inverse {
+						w1 = conj(w1)
+					}
+
+					a0 := inputBuf[idx]
+					a1 := w1 * inputBuf[idx+span]
+
+					outputBuf[idx] = a0 + a1
+					outputBuf[idx+span] = a0 - a1
+				}
+			}
+
+		case 3:
+			// Radix-3 butterfly loop
+			for group := 0; group < groupCount; group++ {
+				baseIdx := group * span * 3
+				for k := 0; k < span; k++ {
+					idx := baseIdx + k
+					w1 := twiddle[k*step]
+					w2 := twiddle[2*k*step]
+					if inverse {
+						w1 = conj(w1)
+						w2 = conj(w2)
+					}
+
+					a0 := inputBuf[idx]
+					a1 := w1 * inputBuf[idx+span]
+					a2 := w2 * inputBuf[idx+2*span]
+
+					var y0, y1, y2 complex64
+					if inverse {
+						y0, y1, y2 = kernels.Butterfly3InverseComplex64(a0, a1, a2)
+					} else {
+						y0, y1, y2 = kernels.Butterfly3ForwardComplex64(a0, a1, a2)
+					}
+
+					outputBuf[idx] = y0
+					outputBuf[idx+span] = y1
+					outputBuf[idx+2*span] = y2
+				}
+			}
+
+		case 4:
+			// Radix-4 butterfly loop
+			for group := 0; group < groupCount; group++ {
+				baseIdx := group * span * 4
+				for k := 0; k < span; k++ {
+					idx := baseIdx + k
+					w1 := twiddle[k*step]
+					w2 := twiddle[2*k*step]
+					w3 := twiddle[3*k*step]
+					if inverse {
+						w1 = conj(w1)
+						w2 = conj(w2)
+						w3 = conj(w3)
+					}
+
+					a0 := inputBuf[idx]
+					a1 := w1 * inputBuf[idx+span]
+					a2 := w2 * inputBuf[idx+2*span]
+					a3 := w3 * inputBuf[idx+3*span]
+
+					var y0, y1, y2, y3 complex64
+					if inverse {
+						y0, y1, y2, y3 = kernels.Butterfly4InverseComplex64(a0, a1, a2, a3)
+					} else {
+						y0, y1, y2, y3 = kernels.Butterfly4ForwardComplex64(a0, a1, a2, a3)
+					}
+
+					outputBuf[idx] = y0
+					outputBuf[idx+span] = y1
+					outputBuf[idx+2*span] = y2
+					outputBuf[idx+3*span] = y3
+				}
+			}
+
+		case 5:
+			// Radix-5 butterfly loop
+			for group := 0; group < groupCount; group++ {
+				baseIdx := group * span * 5
+				for k := 0; k < span; k++ {
+					idx := baseIdx + k
+					w1 := twiddle[k*step]
+					w2 := twiddle[2*k*step]
+					w3 := twiddle[3*k*step]
+					w4 := twiddle[4*k*step]
+					if inverse {
+						w1 = conj(w1)
+						w2 = conj(w2)
+						w3 = conj(w3)
+						w4 = conj(w4)
+					}
+
+					a0 := inputBuf[idx]
+					a1 := w1 * inputBuf[idx+span]
+					a2 := w2 * inputBuf[idx+2*span]
+					a3 := w3 * inputBuf[idx+3*span]
+					a4 := w4 * inputBuf[idx+4*span]
+
+					var y0, y1, y2, y3, y4 complex64
+					if inverse {
+						y0, y1, y2, y3, y4 = kernels.Butterfly5InverseComplex64(a0, a1, a2, a3, a4)
+					} else {
+						y0, y1, y2, y3, y4 = kernels.Butterfly5ForwardComplex64(a0, a1, a2, a3, a4)
+					}
+
+					outputBuf[idx] = y0
+					outputBuf[idx+span] = y1
+					outputBuf[idx+2*span] = y2
+					outputBuf[idx+3*span] = y3
+					outputBuf[idx+4*span] = y4
+				}
+			}
+		}
+
+		// Swap buffers for next stage
+		inputBuf, outputBuf = outputBuf, inputBuf
+	}
+
+	// After stageCount swaps:
+	//   - even stageCount: result in dst
+	//   - odd stageCount: result in scratch
+	if stageCount%2 == 1 {
+		copy(dst, scratch[:n])
+	}
+}
+
+// mixedRadixIterativeComplex128 implements mixed-radix FFT using an iterative
+// approach instead of recursion, eliminating function call overhead and reducing
+// stack usage from O(log n) to O(1).
+//
+// This is the complex128 version of mixedRadixIterativeComplex64.
+// See mixedRadixIterativeComplex64 for implementation details.
+func mixedRadixIterativeComplex128(dst, src, scratch []complex128, n int, radices []int, twiddle []complex128, inverse bool) {
+	stageCount := len(radices)
+
+	// Stage metadata structure
+	type stage struct {
+		radix int
+		span  int
+		step  int
+	}
+
+	// Precompute stage schedule
+	var stages [mixedRadixMaxStages]stage
+	stride := 1
+	step := n
+
+	for i := 0; i < stageCount; i++ {
+		radix := radices[i]
+		stages[i].radix = radix
+		stages[i].span = n / (stride * radix)
+		step /= radix
+		stages[i].step = step
+		stride *= radix
+	}
+
+	// Pre-permute input data using mixed-radix decomposition pattern
+	for i := 0; i < n; i++ {
+		j := mixedRadixPermutation(i, n, radices, stageCount)
+		dst[j] = src[i]
+	}
+
+	// Set up ping-pong buffers
+	inputBuf := dst
+	outputBuf := scratch
+
+	// Iterative butterfly stages
+	// Process stages in REVERSE order to match recursive decomposition
+	// (recursive version applies butterflies from innermost to outermost radix)
+	for stageIdx := stageCount - 1; stageIdx >= 0; stageIdx-- {
+		s := stages[stageIdx]
+		radix := s.radix
+		span := s.span
+		step := s.step
+		groupCount := n / (span * radix)
+
+		// Radix-specific dispatch with separate loops per radix for performance
+		switch radix {
+		case 2:
+			// Radix-2 butterfly loop
+			for group := 0; group < groupCount; group++ {
+				baseIdx := group * span * 2
+				for k := 0; k < span; k++ {
+					idx := baseIdx + k
+					w1 := twiddle[k*step]
+					if inverse {
+						w1 = conj(w1)
+					}
+
+					a0 := inputBuf[idx]
+					a1 := w1 * inputBuf[idx+span]
+
+					outputBuf[idx] = a0 + a1
+					outputBuf[idx+span] = a0 - a1
+				}
+			}
+
+		case 3:
+			// Radix-3 butterfly loop
+			for group := 0; group < groupCount; group++ {
+				baseIdx := group * span * 3
+				for k := 0; k < span; k++ {
+					idx := baseIdx + k
+					w1 := twiddle[k*step]
+					w2 := twiddle[2*k*step]
+					if inverse {
+						w1 = conj(w1)
+						w2 = conj(w2)
+					}
+
+					a0 := inputBuf[idx]
+					a1 := w1 * inputBuf[idx+span]
+					a2 := w2 * inputBuf[idx+2*span]
+
+					var y0, y1, y2 complex128
+					if inverse {
+						y0, y1, y2 = kernels.Butterfly3InverseComplex128(a0, a1, a2)
+					} else {
+						y0, y1, y2 = kernels.Butterfly3ForwardComplex128(a0, a1, a2)
+					}
+
+					outputBuf[idx] = y0
+					outputBuf[idx+span] = y1
+					outputBuf[idx+2*span] = y2
+				}
+			}
+
+		case 4:
+			// Radix-4 butterfly loop
+			for group := 0; group < groupCount; group++ {
+				baseIdx := group * span * 4
+				for k := 0; k < span; k++ {
+					idx := baseIdx + k
+					w1 := twiddle[k*step]
+					w2 := twiddle[2*k*step]
+					w3 := twiddle[3*k*step]
+					if inverse {
+						w1 = conj(w1)
+						w2 = conj(w2)
+						w3 = conj(w3)
+					}
+
+					a0 := inputBuf[idx]
+					a1 := w1 * inputBuf[idx+span]
+					a2 := w2 * inputBuf[idx+2*span]
+					a3 := w3 * inputBuf[idx+3*span]
+
+					var y0, y1, y2, y3 complex128
+					if inverse {
+						y0, y1, y2, y3 = kernels.Butterfly4InverseComplex128(a0, a1, a2, a3)
+					} else {
+						y0, y1, y2, y3 = kernels.Butterfly4ForwardComplex128(a0, a1, a2, a3)
+					}
+
+					outputBuf[idx] = y0
+					outputBuf[idx+span] = y1
+					outputBuf[idx+2*span] = y2
+					outputBuf[idx+3*span] = y3
+				}
+			}
+
+		case 5:
+			// Radix-5 butterfly loop
+			for group := 0; group < groupCount; group++ {
+				baseIdx := group * span * 5
+				for k := 0; k < span; k++ {
+					idx := baseIdx + k
+					w1 := twiddle[k*step]
+					w2 := twiddle[2*k*step]
+					w3 := twiddle[3*k*step]
+					w4 := twiddle[4*k*step]
+					if inverse {
+						w1 = conj(w1)
+						w2 = conj(w2)
+						w3 = conj(w3)
+						w4 = conj(w4)
+					}
+
+					a0 := inputBuf[idx]
+					a1 := w1 * inputBuf[idx+span]
+					a2 := w2 * inputBuf[idx+2*span]
+					a3 := w3 * inputBuf[idx+3*span]
+					a4 := w4 * inputBuf[idx+4*span]
+
+					var y0, y1, y2, y3, y4 complex128
+					if inverse {
+						y0, y1, y2, y3, y4 = kernels.Butterfly5InverseComplex128(a0, a1, a2, a3, a4)
+					} else {
+						y0, y1, y2, y3, y4 = kernels.Butterfly5ForwardComplex128(a0, a1, a2, a3, a4)
+					}
+
+					outputBuf[idx] = y0
+					outputBuf[idx+span] = y1
+					outputBuf[idx+2*span] = y2
+					outputBuf[idx+3*span] = y3
+					outputBuf[idx+4*span] = y4
+				}
+			}
+		}
+
+		// Swap buffers for next stage
+		inputBuf, outputBuf = outputBuf, inputBuf
+	}
+
+	// After stageCount swaps:
+	//   - even stageCount: result in dst
+	//   - odd stageCount: result in scratch
+	if stageCount%2 == 1 {
+		copy(dst, scratch[:n])
 	}
 }
