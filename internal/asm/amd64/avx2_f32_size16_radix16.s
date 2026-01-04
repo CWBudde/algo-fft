@@ -367,32 +367,32 @@ TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	// =======================================================================
 	// STEP 4: Matrix Transposition
 	// =======================================================================
-	VUNPCKLPD Y1, Y0, Y4
-	VUNPCKHPD Y1, Y0, Y5
-	VUNPCKLPD Y3, Y2, Y6
-	VUNPCKHPD Y3, Y2, Y7
-	VPERM2F128 $0x20, Y6, Y4, Y0
-	VPERM2F128 $0x20, Y7, Y5, Y1
-	VPERM2F128 $0x31, Y6, Y4, Y2
-	VPERM2F128 $0x31, Y7, Y5, Y3
+	VUNPCKLPD Y1, Y0, Y4          // Y4 = (y00, y10, y02, y12)
+	VUNPCKHPD Y1, Y0, Y5          // Y5 = (y01, y11, y03, y13)
+	VUNPCKLPD Y3, Y2, Y6          // Y6 = (y20, y30, y22, y32)
+	VUNPCKHPD Y3, Y2, Y7          // Y7 = (y21, y31, y23, y33)
+	VPERM2F128 $0x20, Y6, Y4, Y0  // Y0 = (y00, y10, y20, y30) -> elements 0, 1, 2, 3
+	VPERM2F128 $0x20, Y7, Y5, Y1  // Y1 = (y01, y11, y21, y31) -> elements 4, 5, 6, 7
+	VPERM2F128 $0x31, Y6, Y4, Y2  // Y2 = (y02, y12, y22, y32) -> elements 8, 9, 10, 11
+	VPERM2F128 $0x31, Y7, Y5, Y3  // Y3 = (y03, y13, y23, y33) -> elements 12, 13, 14, 15
 
 	// =======================================================================
 	// STEP 5: Scaling (1/16)
 	// =======================================================================
 	VMOVSS ·sixteenth32(SB), X15  // Load 1/16 constant
 	VBROADCASTSS X15, Y15         // Broadcast to all elements
-	VMULPS Y15, Y0, Y0
-	VMULPS Y15, Y1, Y1
-	VMULPS Y15, Y2, Y2
-	VMULPS Y15, Y3, Y3
+	VMULPS Y15, Y0, Y0            // Scale Y0 by 1/16
+	VMULPS Y15, Y1, Y1            // Scale Y1 by 1/16
+	VMULPS Y15, Y2, Y2            // Scale Y2 by 1/16
+	VMULPS Y15, Y3, Y3            // Scale Y3 by 1/16
 
 	// =======================================================================
 	// STEP 6: Store Results and Return
 	// =======================================================================
-	VMOVUPS Y0, 0(R8)
-	VMOVUPS Y1, 32(R8)
-	VMOVUPS Y2, 64(R8)
-	VMOVUPS Y3, 96(R8)
+	VMOVUPS Y0, 0(R8)             // Store matrix Row 0
+	VMOVUPS Y1, 32(R8)            // Store matrix Row 1
+	VMOVUPS Y2, 64(R8)            // Store matrix Row 2
+	VMOVUPS Y3, 96(R8)            // Store matrix Row 3
 
 	VZEROUPPER
 	MOVB $1, ret+120(FP)

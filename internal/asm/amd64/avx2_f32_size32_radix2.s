@@ -51,36 +51,36 @@ TEXT ·ForwardAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+32(FP), R13     // R13 = n (should be 32)
 
 	// Verify n == 32
-	CMPQ R13, $32
-	JNE  size32_return_false
+	CMPQ R13, $32            // Check size == 32
+	JNE  size32_return_false // Abort if not exactly 32
 
 	// Validate all slice lengths >= 32
-	MOVQ dst+8(FP), AX
+	MOVQ dst+8(FP), AX       // Get dst length
+	CMPQ AX, $32             // Verify length >= 32
+	JL   size32_return_false
+
+	MOVQ twiddle+56(FP), AX  // Get twiddle length
 	CMPQ AX, $32
 	JL   size32_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ scratch+80(FP), AX  // Get scratch length
 	CMPQ AX, $32
 	JL   size32_return_false
 
-	MOVQ scratch+80(FP), AX
-	CMPQ AX, $32
-	JL   size32_return_false
-
-	MOVQ bitrev+104(FP), AX
+	MOVQ bitrev+104(FP), AX  // Get bitrev length
 	CMPQ AX, $32
 	JL   size32_return_false
 
 	// Select working buffer
-	CMPQ R8, R9
-	JNE  size32_use_dst
+	CMPQ R8, R9              // Compare dst and src pointers
+	JNE  size32_use_dst      // If different, use dst for out-of-place transform
 
-	// In-place: use scratch
-	MOVQ R11, R8
+	// In-place: use scratch buffer to avoid overwriting input
+	MOVQ R11, R8             // R8 = R11 (scratch buffer)
 	JMP  size32_bitrev
 
 size32_use_dst:
-	// Out-of-place: use dst
+	// Out-of-place: R8 already points to dst
 
 size32_bitrev:
 	// =======================================================================
@@ -91,141 +91,141 @@ size32_bitrev:
 	// We use precomputed indices from the bitrev slice for correctness.
 	// Unrolled into 8 groups of 4 for efficiency.
 
-	// Group 0: indices 0-3
-	MOVQ (R12), DX           // bitrev[0]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)            // work[0]
+	// Group 0: indices 0-3 (offset 0-24 bytes, each complex64 is 8 bytes)
+	MOVQ (R12), DX           // DX = bitrev[0] (source index for work[0])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[0]] (load complex64 from source)
+	MOVQ AX, (R8)            // work[0] = src[bitrev[0]]
 
-	MOVQ 8(R12), DX          // bitrev[1]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 8(R8)           // work[1]
+	MOVQ 8(R12), DX          // DX = bitrev[1] (source index for work[1])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[1]]
+	MOVQ AX, 8(R8)           // work[1] = src[bitrev[1]]
 
-	MOVQ 16(R12), DX         // bitrev[2]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 16(R8)          // work[2]
+	MOVQ 16(R12), DX         // DX = bitrev[2] (source index for work[2])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[2]]
+	MOVQ AX, 16(R8)          // work[2] = src[bitrev[2]]
 
-	MOVQ 24(R12), DX         // bitrev[3]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 24(R8)          // work[3]
+	MOVQ 24(R12), DX         // DX = bitrev[3] (source index for work[3])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[3]]
+	MOVQ AX, 24(R8)          // work[3] = src[bitrev[3]]
 
-	// Group 1: indices 4-7
-	MOVQ 32(R12), DX         // bitrev[4]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 32(R8)          // work[4]
+	// Group 1: indices 4-7 (offset 32-56 bytes)
+	MOVQ 32(R12), DX         // DX = bitrev[4]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[4]]
+	MOVQ AX, 32(R8)          // work[4] = src[bitrev[4]]
 
-	MOVQ 40(R12), DX         // bitrev[5]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 40(R8)          // work[5]
+	MOVQ 40(R12), DX         // DX = bitrev[5]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[5]]
+	MOVQ AX, 40(R8)          // work[5] = src[bitrev[5]]
 
-	MOVQ 48(R12), DX         // bitrev[6]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 48(R8)          // work[6]
+	MOVQ 48(R12), DX         // DX = bitrev[6]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[6]]
+	MOVQ AX, 48(R8)          // work[6] = src[bitrev[6]]
 
-	MOVQ 56(R12), DX         // bitrev[7]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 56(R8)          // work[7]
+	MOVQ 56(R12), DX         // DX = bitrev[7]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[7]]
+	MOVQ AX, 56(R8)          // work[7] = src[bitrev[7]]
 
-	// Group 2: indices 8-11
-	MOVQ 64(R12), DX         // bitrev[8]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 64(R8)          // work[8]
+	// Group 2: indices 8-11 (offset 64-88 bytes)
+	MOVQ 64(R12), DX         // DX = bitrev[8]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[8]]
+	MOVQ AX, 64(R8)          // work[8] = src[bitrev[8]]
 
-	MOVQ 72(R12), DX         // bitrev[9]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 72(R8)          // work[9]
+	MOVQ 72(R12), DX         // DX = bitrev[9]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[9]]
+	MOVQ AX, 72(R8)          // work[9] = src[bitrev[9]]
 
-	MOVQ 80(R12), DX         // bitrev[10]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 80(R8)          // work[10]
+	MOVQ 80(R12), DX         // DX = bitrev[10]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[10]]
+	MOVQ AX, 80(R8)          // work[10] = src[bitrev[10]]
 
-	MOVQ 88(R12), DX         // bitrev[11]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 88(R8)          // work[11]
+	MOVQ 88(R12), DX         // DX = bitrev[11]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[11]]
+	MOVQ AX, 88(R8)          // work[11] = src[bitrev[11]]
 
-	// Group 3: indices 12-15
-	MOVQ 96(R12), DX         // bitrev[12]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 96(R8)          // work[12]
+	// Group 3: indices 12-15 (offset 96-120 bytes)
+	MOVQ 96(R12), DX         // DX = bitrev[12]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[12]]
+	MOVQ AX, 96(R8)          // work[12] = src[bitrev[12]]
 
-	MOVQ 104(R12), DX        // bitrev[13]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 104(R8)         // work[13]
+	MOVQ 104(R12), DX        // DX = bitrev[13]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[13]]
+	MOVQ AX, 104(R8)         // work[13] = src[bitrev[13]]
 
-	MOVQ 112(R12), DX        // bitrev[14]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 112(R8)         // work[14]
+	MOVQ 112(R12), DX        // DX = bitrev[14]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[14]]
+	MOVQ AX, 112(R8)         // work[14] = src[bitrev[14]]
 
-	MOVQ 120(R12), DX        // bitrev[15]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 120(R8)         // work[15]
+	MOVQ 120(R12), DX        // DX = bitrev[15]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[15]]
+	MOVQ AX, 120(R8)         // work[15] = src[bitrev[15]]
 
-	// Group 4: indices 16-19
-	MOVQ 128(R12), DX        // bitrev[16]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 128(R8)         // work[16]
+	// Group 4: indices 16-19 (offset 128-152 bytes)
+	MOVQ 128(R12), DX        // DX = bitrev[16]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[16]]
+	MOVQ AX, 128(R8)         // work[16] = src[bitrev[16]]
 
-	MOVQ 136(R12), DX        // bitrev[17]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 136(R8)         // work[17]
+	MOVQ 136(R12), DX        // DX = bitrev[17]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[17]]
+	MOVQ AX, 136(R8)         // work[17] = src[bitrev[17]]
 
-	MOVQ 144(R12), DX        // bitrev[18]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 144(R8)         // work[18]
+	MOVQ 144(R12), DX        // DX = bitrev[18]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[18]]
+	MOVQ AX, 144(R8)         // work[18] = src[bitrev[18]]
 
-	MOVQ 152(R12), DX        // bitrev[19]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 152(R8)         // work[19]
+	MOVQ 152(R12), DX        // DX = bitrev[19]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[19]]
+	MOVQ AX, 152(R8)         // work[19] = src[bitrev[19]]
 
-	// Group 5: indices 20-23
-	MOVQ 160(R12), DX        // bitrev[20]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 160(R8)         // work[20]
+	// Group 5: indices 20-23 (offset 160-184 bytes)
+	MOVQ 160(R12), DX        // DX = bitrev[20]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[20]]
+	MOVQ AX, 160(R8)         // work[20] = src[bitrev[20]]
 
-	MOVQ 168(R12), DX        // bitrev[21]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 168(R8)         // work[21]
+	MOVQ 168(R12), DX        // DX = bitrev[21]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[21]]
+	MOVQ AX, 168(R8)         // work[21] = src[bitrev[21]]
 
-	MOVQ 176(R12), DX        // bitrev[22]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 176(R8)         // work[22]
+	MOVQ 176(R12), DX        // DX = bitrev[22]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[22]]
+	MOVQ AX, 176(R8)         // work[22] = src[bitrev[22]]
 
-	MOVQ 184(R12), DX        // bitrev[23]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 184(R8)         // work[23]
+	MOVQ 184(R12), DX        // DX = bitrev[23]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[23]]
+	MOVQ AX, 184(R8)         // work[23] = src[bitrev[23]]
 
-	// Group 6: indices 24-27
-	MOVQ 192(R12), DX        // bitrev[24]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 192(R8)         // work[24]
+	// Group 6: indices 24-27 (offset 192-216 bytes)
+	MOVQ 192(R12), DX        // DX = bitrev[24]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[24]]
+	MOVQ AX, 192(R8)         // work[24] = src[bitrev[24]]
 
-	MOVQ 200(R12), DX        // bitrev[25]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 200(R8)         // work[25]
+	MOVQ 200(R12), DX        // DX = bitrev[25]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[25]]
+	MOVQ AX, 200(R8)         // work[25] = src[bitrev[25]]
 
-	MOVQ 208(R12), DX        // bitrev[26]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 208(R8)         // work[26]
+	MOVQ 208(R12), DX        // DX = bitrev[26]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[26]]
+	MOVQ AX, 208(R8)         // work[26] = src[bitrev[26]]
 
-	MOVQ 216(R12), DX        // bitrev[27]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 216(R8)         // work[27]
+	MOVQ 216(R12), DX        // DX = bitrev[27]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[27]]
+	MOVQ AX, 216(R8)         // work[27] = src[bitrev[27]]
 
-	// Group 7: indices 28-31
-	MOVQ 224(R12), DX        // bitrev[28]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 224(R8)         // work[28]
+	// Group 7: indices 28-31 (offset 224-248 bytes)
+	MOVQ 224(R12), DX        // DX = bitrev[28]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[28]]
+	MOVQ AX, 224(R8)         // work[28] = src[bitrev[28]]
 
-	MOVQ 232(R12), DX        // bitrev[29]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 232(R8)         // work[29]
+	MOVQ 232(R12), DX        // DX = bitrev[29]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[29]]
+	MOVQ AX, 232(R8)         // work[29] = src[bitrev[29]]
 
-	MOVQ 240(R12), DX        // bitrev[30]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 240(R8)         // work[30]
+	MOVQ 240(R12), DX        // DX = bitrev[30]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[30]]
+	MOVQ AX, 240(R8)         // work[30] = src[bitrev[30]]
 
-	MOVQ 248(R12), DX        // bitrev[31]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 248(R8)         // work[31]
+	MOVQ 248(R12), DX        // DX = bitrev[31]
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[31]]
+	MOVQ AX, 248(R8)         // work[31] = src[bitrev[31]]
 
 	// =======================================================================
 	// STAGE 1: size=2, half=1, step=16
@@ -239,14 +239,14 @@ size32_bitrev:
 	// Y1 = [work[4], work[5], work[6], work[7]]
 	// ...
 	// Y7 = [work[28], work[29], work[30], work[31]]
-	VMOVUPS (R8), Y0
-	VMOVUPS 32(R8), Y1
-	VMOVUPS 64(R8), Y2
-	VMOVUPS 96(R8), Y3
-	VMOVUPS 128(R8), Y4
-	VMOVUPS 160(R8), Y5
-	VMOVUPS 192(R8), Y6
-	VMOVUPS 224(R8), Y7
+	VMOVUPS (R8), Y0         // Y0 = [work[0:4]]
+	VMOVUPS 32(R8), Y1       // Y1 = [work[4:8]]
+	VMOVUPS 64(R8), Y2       // Y2 = [work[8:12]]
+	VMOVUPS 96(R8), Y3       // Y3 = [work[12:16]]
+	VMOVUPS 128(R8), Y4      // Y4 = [work[16:20]]
+	VMOVUPS 160(R8), Y5      // Y5 = [work[20:24]]
+	VMOVUPS 192(R8), Y6      // Y6 = [work[24:28]]
+	VMOVUPS 224(R8), Y7      // Y7 = [work[28:32]]
 
 	// Stage 1: Butterflies on adjacent pairs within each 128-bit lane
 	// For size=2 FFT: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
@@ -259,46 +259,46 @@ size32_bitrev:
 	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
 	VPERMILPD $0x05, Y0, Y8  // Y8 = [w1, w0, w3, w2] (swap within 128-bit lanes)
 	VADDPS Y8, Y0, Y9        // Y9 = [w0+w1, w1+w0, w2+w3, w3+w2]
-	VSUBPS Y0, Y8, Y10       // Y10 = [w1-w0, w0-w1, w3-w2, w2-w3] (Y8-Y0, not Y0-Y8!)
-	VBLENDPD $0x0A, Y10, Y9, Y0  // 64-bit blend: Y0 = [w0+w1, w0-w1, w2+w3, w2-w3]
+	VSUBPS Y0, Y8, Y10       // Y10 = [w1-w0, w0-w1, w3-w2, w2-w3] (Y8-Y0)
+	VBLENDPD $0x0A, Y10, Y9, Y0  // Y0 = [w0+w1, w0-w1, w2+w3, w2-w3]
 
-	// Same for Y1
+	// Same for Y1: Butterfly pairs (w4,w5) and (w6,w7)
 	VPERMILPD $0x05, Y1, Y8
 	VADDPS Y8, Y1, Y9
 	VSUBPS Y1, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y1
 
-	// Same for Y2
+	// Same for Y2: Butterfly pairs (w8,w9) and (w10,w11)
 	VPERMILPD $0x05, Y2, Y8
 	VADDPS Y8, Y2, Y9
 	VSUBPS Y2, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y2
 
-	// Same for Y3
+	// Same for Y3: Butterfly pairs (w12,w13) and (w14,w15)
 	VPERMILPD $0x05, Y3, Y8
 	VADDPS Y8, Y3, Y9
 	VSUBPS Y3, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y3
 
-	// Same for Y4
+	// Same for Y4: Butterfly pairs (w16,w17) and (w18,w19)
 	VPERMILPD $0x05, Y4, Y8
 	VADDPS Y8, Y4, Y9
 	VSUBPS Y4, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y4
 
-	// Same for Y5
+	// Same for Y5: Butterfly pairs (w20,w21) and (w22,w23)
 	VPERMILPD $0x05, Y5, Y8
 	VADDPS Y8, Y5, Y9
 	VSUBPS Y5, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y5
 
-	// Same for Y6
+	// Same for Y6: Butterfly pairs (w24,w25) and (w26,w27)
 	VPERMILPD $0x05, Y6, Y8
 	VADDPS Y8, Y6, Y9
 	VSUBPS Y6, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y6
 
-	// Same for Y7
+	// Same for Y7: Butterfly pairs (w28,w29) and (w30,w31)
 	VPERMILPD $0x05, Y7, Y8
 	VADDPS Y8, Y7, Y9
 	VSUBPS Y7, Y8, Y10
@@ -339,89 +339,89 @@ size32_bitrev:
 	// Recombine: Y0 = [a'0, a'1, b'0, b'1]
 	VINSERTF128 $1, X12, Y11, Y0
 
-	// Same for Y1
-	VPERM2F128 $0x00, Y1, Y1, Y9
-	VPERM2F128 $0x11, Y1, Y1, Y10
-	VMOVSLDUP Y8, Y11
-	VMOVSHDUP Y8, Y12
-	VSHUFPS $0xB1, Y10, Y10, Y13
-	VMULPS Y12, Y13, Y13
-	VFMADDSUB231PS Y11, Y10, Y13
-	VADDPS Y13, Y9, Y11
-	VSUBPS Y13, Y9, Y12
-	VINSERTF128 $1, X12, Y11, Y1
+	// Same for Y1: Apply stage 2 twiddle to Y1 = [d4, d5, d6, d7]
+	VPERM2F128 $0x00, Y1, Y1, Y9      // Y9 = [d4, d5, d4, d5] (low lane duplicated)
+	VPERM2F128 $0x11, Y1, Y1, Y10     // Y10 = [d6, d7, d6, d7] (high lane duplicated)
+	VMOVSLDUP Y8, Y11                 // Y11 = [w.r, w.r, ...] (real parts of twiddles)
+	VMOVSHDUP Y8, Y12                 // Y12 = [w.i, w.i, ...] (imag parts of twiddles)
+	VSHUFPS $0xB1, Y10, Y10, Y13      // Y13 = b_swapped (swap element pairs)
+	VMULPS Y12, Y13, Y13              // Y13 = b_swapped * w.i
+	VFMADDSUB231PS Y11, Y10, Y13      // Y13 = t = w * b (complex multiply)
+	VADDPS Y13, Y9, Y11               // Y11 = a + t (butterfly add)
+	VSUBPS Y13, Y9, Y12               // Y12 = a - t (butterfly subtract)
+	VINSERTF128 $1, X12, Y11, Y1      // Y1 = [a'4, a'5, b'4, b'5]
 
-	// Same for Y2
-	VPERM2F128 $0x00, Y2, Y2, Y9
-	VPERM2F128 $0x11, Y2, Y2, Y10
-	VMOVSLDUP Y8, Y11
-	VMOVSHDUP Y8, Y12
-	VSHUFPS $0xB1, Y10, Y10, Y13
-	VMULPS Y12, Y13, Y13
-	VFMADDSUB231PS Y11, Y10, Y13
-	VADDPS Y13, Y9, Y11
-	VSUBPS Y13, Y9, Y12
-	VINSERTF128 $1, X12, Y11, Y2
+	// Same for Y2: Apply stage 2 twiddle to Y2 = [d8, d9, d10, d11]
+	VPERM2F128 $0x00, Y2, Y2, Y9      // Y9 = [d8, d9, d8, d9]
+	VPERM2F128 $0x11, Y2, Y2, Y10     // Y10 = [d10, d11, d10, d11]
+	VMOVSLDUP Y8, Y11                 // Y11 = real parts broadcast
+	VMOVSHDUP Y8, Y12                 // Y12 = imag parts broadcast
+	VSHUFPS $0xB1, Y10, Y10, Y13      // Y13 = b_swapped
+	VMULPS Y12, Y13, Y13              // Y13 = b_swapped * w.i
+	VFMADDSUB231PS Y11, Y10, Y13      // Y13 = t = w * b
+	VADDPS Y13, Y9, Y11               // Y11 = a + t
+	VSUBPS Y13, Y9, Y12               // Y12 = a - t
+	VINSERTF128 $1, X12, Y11, Y2      // Y2 = [a'8, a'9, b'8, b'9]
 
-	// Same for Y3
-	VPERM2F128 $0x00, Y3, Y3, Y9
-	VPERM2F128 $0x11, Y3, Y3, Y10
-	VMOVSLDUP Y8, Y11
-	VMOVSHDUP Y8, Y12
-	VSHUFPS $0xB1, Y10, Y10, Y13
-	VMULPS Y12, Y13, Y13
-	VFMADDSUB231PS Y11, Y10, Y13
-	VADDPS Y13, Y9, Y11
-	VSUBPS Y13, Y9, Y12
-	VINSERTF128 $1, X12, Y11, Y3
+	// Same for Y3: Apply stage 2 twiddle to Y3 = [d12, d13, d14, d15]
+	VPERM2F128 $0x00, Y3, Y3, Y9      // Y9 = [d12, d13, d12, d13]
+	VPERM2F128 $0x11, Y3, Y3, Y10     // Y10 = [d14, d15, d14, d15]
+	VMOVSLDUP Y8, Y11                 // Y11 = real parts broadcast
+	VMOVSHDUP Y8, Y12                 // Y12 = imag parts broadcast
+	VSHUFPS $0xB1, Y10, Y10, Y13      // Y13 = b_swapped
+	VMULPS Y12, Y13, Y13              // Y13 = b_swapped * w.i
+	VFMADDSUB231PS Y11, Y10, Y13      // Y13 = t = w * b
+	VADDPS Y13, Y9, Y11               // Y11 = a + t
+	VSUBPS Y13, Y9, Y12               // Y12 = a - t
+	VINSERTF128 $1, X12, Y11, Y3      // Y3 = [a'12, a'13, b'12, b'13]
 
-	// Same for Y4
-	VPERM2F128 $0x00, Y4, Y4, Y9
-	VPERM2F128 $0x11, Y4, Y4, Y10
-	VMOVSLDUP Y8, Y11
-	VMOVSHDUP Y8, Y12
-	VSHUFPS $0xB1, Y10, Y10, Y13
-	VMULPS Y12, Y13, Y13
-	VFMADDSUB231PS Y11, Y10, Y13
-	VADDPS Y13, Y9, Y11
-	VSUBPS Y13, Y9, Y12
-	VINSERTF128 $1, X12, Y11, Y4
+	// Same for Y4: Apply stage 2 twiddle to Y4 = [d16, d17, d18, d19]
+	VPERM2F128 $0x00, Y4, Y4, Y9      // Y9 = [d16, d17, d16, d17]
+	VPERM2F128 $0x11, Y4, Y4, Y10     // Y10 = [d18, d19, d18, d19]
+	VMOVSLDUP Y8, Y11                 // Y11 = real parts broadcast
+	VMOVSHDUP Y8, Y12                 // Y12 = imag parts broadcast
+	VSHUFPS $0xB1, Y10, Y10, Y13      // Y13 = b_swapped
+	VMULPS Y12, Y13, Y13              // Y13 = b_swapped * w.i
+	VFMADDSUB231PS Y11, Y10, Y13      // Y13 = t = w * b
+	VADDPS Y13, Y9, Y11               // Y11 = a + t
+	VSUBPS Y13, Y9, Y12               // Y12 = a - t
+	VINSERTF128 $1, X12, Y11, Y4      // Y4 = [a'16, a'17, b'16, b'17]
 
-	// Same for Y5
-	VPERM2F128 $0x00, Y5, Y5, Y9
-	VPERM2F128 $0x11, Y5, Y5, Y10
-	VMOVSLDUP Y8, Y11
-	VMOVSHDUP Y8, Y12
-	VSHUFPS $0xB1, Y10, Y10, Y13
-	VMULPS Y12, Y13, Y13
-	VFMADDSUB231PS Y11, Y10, Y13
-	VADDPS Y13, Y9, Y11
-	VSUBPS Y13, Y9, Y12
-	VINSERTF128 $1, X12, Y11, Y5
+	// Same for Y5: Apply stage 2 twiddle to Y5 = [d20, d21, d22, d23]
+	VPERM2F128 $0x00, Y5, Y5, Y9      // Y9 = [d20, d21, d20, d21]
+	VPERM2F128 $0x11, Y5, Y5, Y10     // Y10 = [d22, d23, d22, d23]
+	VMOVSLDUP Y8, Y11                 // Y11 = real parts broadcast
+	VMOVSHDUP Y8, Y12                 // Y12 = imag parts broadcast
+	VSHUFPS $0xB1, Y10, Y10, Y13      // Y13 = b_swapped
+	VMULPS Y12, Y13, Y13              // Y13 = b_swapped * w.i
+	VFMADDSUB231PS Y11, Y10, Y13      // Y13 = t = w * b
+	VADDPS Y13, Y9, Y11               // Y11 = a + t
+	VSUBPS Y13, Y9, Y12               // Y12 = a - t
+	VINSERTF128 $1, X12, Y11, Y5      // Y5 = [a'20, a'21, b'20, b'21]
 
-	// Same for Y6
-	VPERM2F128 $0x00, Y6, Y6, Y9
-	VPERM2F128 $0x11, Y6, Y6, Y10
-	VMOVSLDUP Y8, Y11
-	VMOVSHDUP Y8, Y12
-	VSHUFPS $0xB1, Y10, Y10, Y13
-	VMULPS Y12, Y13, Y13
-	VFMADDSUB231PS Y11, Y10, Y13
-	VADDPS Y13, Y9, Y11
-	VSUBPS Y13, Y9, Y12
-	VINSERTF128 $1, X12, Y11, Y6
+	// Same for Y6: Apply stage 2 twiddle to Y6 = [d24, d25, d26, d27]
+	VPERM2F128 $0x00, Y6, Y6, Y9      // Y9 = [d24, d25, d24, d25]
+	VPERM2F128 $0x11, Y6, Y6, Y10     // Y10 = [d26, d27, d26, d27]
+	VMOVSLDUP Y8, Y11                 // Y11 = real parts broadcast
+	VMOVSHDUP Y8, Y12                 // Y12 = imag parts broadcast
+	VSHUFPS $0xB1, Y10, Y10, Y13      // Y13 = b_swapped
+	VMULPS Y12, Y13, Y13              // Y13 = b_swapped * w.i
+	VFMADDSUB231PS Y11, Y10, Y13      // Y13 = t = w * b
+	VADDPS Y13, Y9, Y11               // Y11 = a + t
+	VSUBPS Y13, Y9, Y12               // Y12 = a - t
+	VINSERTF128 $1, X12, Y11, Y6      // Y6 = [a'24, a'25, b'24, b'25]
 
-	// Same for Y7
-	VPERM2F128 $0x00, Y7, Y7, Y9
-	VPERM2F128 $0x11, Y7, Y7, Y10
-	VMOVSLDUP Y8, Y11
-	VMOVSHDUP Y8, Y12
-	VSHUFPS $0xB1, Y10, Y10, Y13
-	VMULPS Y12, Y13, Y13
-	VFMADDSUB231PS Y11, Y10, Y13
-	VADDPS Y13, Y9, Y11
-	VSUBPS Y13, Y9, Y12
-	VINSERTF128 $1, X12, Y11, Y7
+	// Same for Y7: Apply stage 2 twiddle to Y7 = [d28, d29, d30, d31]
+	VPERM2F128 $0x00, Y7, Y7, Y9      // Y9 = [d28, d29, d28, d29]
+	VPERM2F128 $0x11, Y7, Y7, Y10     // Y10 = [d30, d31, d30, d31]
+	VMOVSLDUP Y8, Y11                 // Y11 = real parts broadcast
+	VMOVSHDUP Y8, Y12                 // Y12 = imag parts broadcast
+	VSHUFPS $0xB1, Y10, Y10, Y13      // Y13 = b_swapped
+	VMULPS Y12, Y13, Y13              // Y13 = b_swapped * w.i
+	VFMADDSUB231PS Y11, Y10, Y13      // Y13 = t = w * b
+	VADDPS Y13, Y9, Y11               // Y11 = a + t
+	VSUBPS Y13, Y9, Y12               // Y12 = a - t
+	VINSERTF128 $1, X12, Y11, Y7      // Y7 = [a'28, a'29, b'28, b'29]
 
 	// =======================================================================
 	// STAGE 3: size=8, half=4, step=4
@@ -612,73 +612,74 @@ size32_bitrev:
 	VMOVUPS Y15, 128(R8)     // Store new 16-19 in dst
 
 	// Group 2: Y1 (indices 4-7) with Y5 (indices 20-23) using Y9 (tw4-7)
-	VMOVSLDUP Y9, Y12
-	VMOVSHDUP Y9, Y13
-	VSHUFPS $0xB1, Y5, Y5, Y14
-	VMULPS Y13, Y14, Y14
-	VFMADDSUB231PS Y12, Y5, Y14
+	VMOVSLDUP Y9, Y12                 // Y12 = real parts of twiddles (tw4, tw5, tw6, tw7)
+	VMOVSHDUP Y9, Y13                 // Y13 = imag parts of twiddles
+	VSHUFPS $0xB1, Y5, Y5, Y14        // Y14 = Y5 swapped (b_swapped for Y5)
+	VMULPS Y13, Y14, Y14              // Y14 = b_swapped * tw.i
+	VFMADDSUB231PS Y12, Y5, Y14       // Y14 = t = tw * b (complex multiply)
 
-	VADDPS Y14, Y1, Y15      // Y15 = a' (new indices 4-7)
-	VSUBPS Y14, Y1, Y14      // Y14 = b' (new indices 20-23)
-	VMOVUPS Y15, 32(R8)      // Store new 4-7
-	VMOVUPS Y14, 160(R8)     // Store new 20-23
+	VADDPS Y14, Y1, Y15               // Y15 = a + t (butterfly add for Y1)
+	VSUBPS Y14, Y1, Y14               // Y14 = a - t (butterfly subtract for Y1)
+	VMOVUPS Y15, 32(R8)               // Store a' to indices 4-7
+	VMOVUPS Y14, 160(R8)              // Store b' to indices 20-23
 
 	// Group 3: Y2 (indices 8-11) with Y6 (indices 24-27) using Y10 (tw8-11)
-	VMOVSLDUP Y10, Y12
-	VMOVSHDUP Y10, Y13
-	VSHUFPS $0xB1, Y6, Y6, Y14
-	VMULPS Y13, Y14, Y14
-	VFMADDSUB231PS Y12, Y6, Y14
+	VMOVSLDUP Y10, Y12                // Y12 = real parts of twiddles (tw8, tw9, tw10, tw11)
+	VMOVSHDUP Y10, Y13                // Y13 = imag parts of twiddles
+	VSHUFPS $0xB1, Y6, Y6, Y14        // Y14 = Y6 swapped (b_swapped for Y6)
+	VMULPS Y13, Y14, Y14              // Y14 = b_swapped * tw.i
+	VFMADDSUB231PS Y12, Y6, Y14       // Y14 = t = tw * b (complex multiply)
 
-	VADDPS Y14, Y2, Y15      // Y15 = a' (new indices 8-11)
-	VSUBPS Y14, Y2, Y14      // Y14 = b' (new indices 24-27)
-	VMOVUPS Y15, 64(R8)      // Store new 8-11
-	VMOVUPS Y14, 192(R8)     // Store new 24-27
+	VADDPS Y14, Y2, Y15               // Y15 = a + t (butterfly add for Y2)
+	VSUBPS Y14, Y2, Y14               // Y14 = a - t (butterfly subtract for Y2)
+	VMOVUPS Y15, 64(R8)               // Store a' to indices 8-11
+	VMOVUPS Y14, 192(R8)              // Store b' to indices 24-27
 
 	// Group 4: Y3 (indices 12-15) with Y7 (indices 28-31) using Y11 (tw12-15)
-	VMOVSLDUP Y11, Y12
-	VMOVSHDUP Y11, Y13
-	VSHUFPS $0xB1, Y7, Y7, Y14
-	VMULPS Y13, Y14, Y14
-	VFMADDSUB231PS Y12, Y7, Y14
+	VMOVSLDUP Y11, Y12                // Y12 = real parts of twiddles (tw12, tw13, tw14, tw15)
+	VMOVSHDUP Y11, Y13                // Y13 = imag parts of twiddles
+	VSHUFPS $0xB1, Y7, Y7, Y14        // Y14 = Y7 swapped (b_swapped for Y7)
+	VMULPS Y13, Y14, Y14              // Y14 = b_swapped * tw.i
+	VFMADDSUB231PS Y12, Y7, Y14       // Y14 = t = tw * b (complex multiply)
 
-	VADDPS Y14, Y3, Y15      // Y15 = a' (new indices 12-15)
-	VSUBPS Y14, Y3, Y14      // Y14 = b' (new indices 28-31)
-	VMOVUPS Y15, 96(R8)      // Store new 12-15
-	VMOVUPS Y14, 224(R8)     // Store new 28-31
+	VADDPS Y14, Y3, Y15               // Y15 = a + t (butterfly add for Y3)
+	VSUBPS Y14, Y3, Y14               // Y14 = a - t (butterfly subtract for Y3)
+	VMOVUPS Y15, 96(R8)               // Store a' to indices 12-15
+	VMOVUPS Y14, 224(R8)              // Store b' to indices 28-31
 
 	// =======================================================================
 	// Copy results to dst if we used scratch buffer
 	// =======================================================================
 	MOVQ dst+0(FP), R9       // R9 = dst pointer
-	CMPQ R8, R9
-	JE   size32_done         // Already in dst
+	CMPQ R8, R9              // Compare working buffer and dst
+	JE   size32_done         // If same, already in dst
 
-	// Copy from scratch to dst
-	VMOVUPS (R8), Y0
-	VMOVUPS 32(R8), Y1
-	VMOVUPS 64(R8), Y2
-	VMOVUPS 96(R8), Y3
-	VMOVUPS 128(R8), Y4
-	VMOVUPS 160(R8), Y5
-	VMOVUPS 192(R8), Y6
-	VMOVUPS 224(R8), Y7
-	VMOVUPS Y0, (R9)
-	VMOVUPS Y1, 32(R9)
-	VMOVUPS Y2, 64(R9)
-	VMOVUPS Y3, 96(R9)
-	VMOVUPS Y4, 128(R9)
-	VMOVUPS Y5, 160(R9)
-	VMOVUPS Y6, 192(R9)
-	VMOVUPS Y7, 224(R9)
+	// Copy from scratch to dst (8 registers = 256 bytes total)
+	VMOVUPS (R8), Y0         // Load results from scratch[0:32] (elements 0-3)
+	VMOVUPS 32(R8), Y1       // Load scratch[32:64] (elements 4-7)
+	VMOVUPS 64(R8), Y2       // Load scratch[64:96] (elements 8-11)
+	VMOVUPS 96(R8), Y3       // Load scratch[96:128] (elements 12-15)
+	VMOVUPS 128(R8), Y4      // Load scratch[128:160] (elements 16-19)
+	VMOVUPS 160(R8), Y5      // Load scratch[160:192] (elements 20-23)
+	VMOVUPS 192(R8), Y6      // Load scratch[192:224] (elements 24-27)
+	VMOVUPS 224(R8), Y7      // Load scratch[224:256] (elements 28-31)
+	// Write to dst
+	VMOVUPS Y0, (R9)         // Store results to dst[0:32] (elements 0-3)
+	VMOVUPS Y1, 32(R9)       // Store to dst[32:64] (elements 4-7)
+	VMOVUPS Y2, 64(R9)       // Store to dst[64:96] (elements 8-11)
+	VMOVUPS Y3, 96(R9)       // Store to dst[96:128] (elements 12-15)
+	VMOVUPS Y4, 128(R9)      // Store to dst[128:160] (elements 16-19)
+	VMOVUPS Y5, 160(R9)      // Store to dst[160:192] (elements 20-23)
+	VMOVUPS Y6, 192(R9)      // Store to dst[192:224] (elements 24-27)
+	VMOVUPS Y7, 224(R9)      // Store to dst[224:256] (elements 28-31)
 
 size32_done:
-	VZEROUPPER
+	VZEROUPPER               // Clear SIMD state
 	MOVB $1, ret+120(FP)     // Return true (success)
 	RET
 
 size32_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+120(FP)     // Return false (validation failed)
 	RET
 
 // ===========================================================================
@@ -694,246 +695,249 @@ TEXT ·InverseAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
-	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
+	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer (conjugated for inverse)
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
 	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 32)
 
 	// Verify n == 32
-	CMPQ R13, $32
+	CMPQ R13, $32            // Check size == 32
 	JNE  size32_inv_return_false
 
 	// Validate all slice lengths >= 32
-	MOVQ dst+8(FP), AX
+	MOVQ dst+8(FP), AX       // Get dst length
 	CMPQ AX, $32
 	JL   size32_inv_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle+56(FP), AX  // Get twiddle length
 	CMPQ AX, $32
 	JL   size32_inv_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch+80(FP), AX  // Get scratch length
 	CMPQ AX, $32
 	JL   size32_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ bitrev+104(FP), AX  // Get bitrev length
 	CMPQ AX, $32
 	JL   size32_inv_return_false
 
 	// Select working buffer
-	CMPQ R8, R9
-	JNE  size32_inv_use_dst
+	CMPQ R8, R9              // Compare dst and src pointers
+	JNE  size32_inv_use_dst  // If different, use dst for out-of-place
 
-	// In-place: use scratch
-	MOVQ R11, R8
+	// In-place: use scratch buffer to avoid overwriting input
+	MOVQ R11, R8             // R8 = scratch buffer
 	JMP  size32_inv_bitrev
 
 size32_inv_use_dst:
-	// Out-of-place: use dst
+	// Out-of-place: R8 already points to dst
 
 size32_inv_bitrev:
 	// =======================================================================
 	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// R12 points to bitrev indices array, R9 points to src, R8 points to work
+	// Each bitrev[i] is an 8-byte offset (complex64 is 8 bytes)
+	// We load 32 elements total in 8 groups of 4
 	// =======================================================================
-	// Group 0: indices 0-3
-	MOVQ (R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)
+	// Group 0: indices 0-3 (offset 0-24 bytes from R12, work offsets 0-24 from R8)
+	MOVQ (R12), DX           // DX = bitrev[0] (source index for work[0])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[0]] (load complex64 from source)
+	MOVQ AX, (R8)            // work[0] = src[bitrev[0]]
 
-	MOVQ 8(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 8(R8)
+	MOVQ 8(R12), DX          // DX = bitrev[1] (source index for work[1])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[1]]
+	MOVQ AX, 8(R8)           // work[1] = src[bitrev[1]]
 
-	MOVQ 16(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 16(R8)
+	MOVQ 16(R12), DX         // DX = bitrev[2] (source index for work[2])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[2]]
+	MOVQ AX, 16(R8)          // work[2] = src[bitrev[2]]
 
-	MOVQ 24(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 24(R8)
+	MOVQ 24(R12), DX         // DX = bitrev[3] (source index for work[3])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[3]]
+	MOVQ AX, 24(R8)          // work[3] = src[bitrev[3]]
 
-	// Group 1: indices 4-7
-	MOVQ 32(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 32(R8)
+	// Group 1: indices 4-7 (offset 32-56 bytes from R12, work offsets 32-56 from R8)
+	MOVQ 32(R12), DX         // DX = bitrev[4] (source index for work[4])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[4]]
+	MOVQ AX, 32(R8)          // work[4] = src[bitrev[4]]
 
-	MOVQ 40(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 40(R8)
+	MOVQ 40(R12), DX         // DX = bitrev[5] (source index for work[5])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[5]]
+	MOVQ AX, 40(R8)          // work[5] = src[bitrev[5]]
 
-	MOVQ 48(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 48(R8)
+	MOVQ 48(R12), DX         // DX = bitrev[6] (source index for work[6])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[6]]
+	MOVQ AX, 48(R8)          // work[6] = src[bitrev[6]]
 
-	MOVQ 56(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 56(R8)
+	MOVQ 56(R12), DX         // DX = bitrev[7] (source index for work[7])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[7]]
+	MOVQ AX, 56(R8)          // work[7] = src[bitrev[7]]
 
-	// Group 2: indices 8-11
-	MOVQ 64(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 64(R8)
+	// Group 2: indices 8-11 (offset 64-88 bytes from R12, work offsets 64-88 from R8)
+	MOVQ 64(R12), DX         // DX = bitrev[8] (source index for work[8])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[8]]
+	MOVQ AX, 64(R8)          // work[8] = src[bitrev[8]]
 
-	MOVQ 72(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 72(R8)
+	MOVQ 72(R12), DX         // DX = bitrev[9] (source index for work[9])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[9]]
+	MOVQ AX, 72(R8)          // work[9] = src[bitrev[9]]
 
-	MOVQ 80(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 80(R8)
+	MOVQ 80(R12), DX         // DX = bitrev[10] (source index for work[10])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[10]]
+	MOVQ AX, 80(R8)          // work[10] = src[bitrev[10]]
 
-	MOVQ 88(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 88(R8)
+	MOVQ 88(R12), DX         // DX = bitrev[11] (source index for work[11])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[11]]
+	MOVQ AX, 88(R8)          // work[11] = src[bitrev[11]]
 
-	// Group 3: indices 12-15
-	MOVQ 96(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 96(R8)
+	// Group 3: indices 12-15 (offset 96-120 bytes from R12, work offsets 96-120 from R8)
+	MOVQ 96(R12), DX         // DX = bitrev[12] (source index for work[12])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[12]]
+	MOVQ AX, 96(R8)          // work[12] = src[bitrev[12]]
 
-	MOVQ 104(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 104(R8)
+	MOVQ 104(R12), DX        // DX = bitrev[13] (source index for work[13])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[13]]
+	MOVQ AX, 104(R8)         // work[13] = src[bitrev[13]]
 
-	MOVQ 112(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 112(R8)
+	MOVQ 112(R12), DX        // DX = bitrev[14] (source index for work[14])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[14]]
+	MOVQ AX, 112(R8)         // work[14] = src[bitrev[14]]
 
-	MOVQ 120(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 120(R8)
+	MOVQ 120(R12), DX        // DX = bitrev[15] (source index for work[15])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[15]]
+	MOVQ AX, 120(R8)         // work[15] = src[bitrev[15]]
 
-	// Group 4: indices 16-19
-	MOVQ 128(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 128(R8)
+	// Group 4: indices 16-19 (offset 128-152 bytes from R12, work offsets 128-152 from R8)
+	MOVQ 128(R12), DX        // DX = bitrev[16] (source index for work[16])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[16]]
+	MOVQ AX, 128(R8)         // work[16] = src[bitrev[16]]
 
-	MOVQ 136(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 136(R8)
+	MOVQ 136(R12), DX        // DX = bitrev[17] (source index for work[17])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[17]]
+	MOVQ AX, 136(R8)         // work[17] = src[bitrev[17]]
 
-	MOVQ 144(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 144(R8)
+	MOVQ 144(R12), DX        // DX = bitrev[18] (source index for work[18])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[18]]
+	MOVQ AX, 144(R8)         // work[18] = src[bitrev[18]]
 
-	MOVQ 152(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 152(R8)
+	MOVQ 152(R12), DX        // DX = bitrev[19] (source index for work[19])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[19]]
+	MOVQ AX, 152(R8)         // work[19] = src[bitrev[19]]
 
-	// Group 5: indices 20-23
-	MOVQ 160(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 160(R8)
+	// Group 5: indices 20-23 (offset 160-184 bytes from R12, work offsets 160-184 from R8)
+	MOVQ 160(R12), DX        // DX = bitrev[20] (source index for work[20])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[20]]
+	MOVQ AX, 160(R8)         // work[20] = src[bitrev[20]]
 
-	MOVQ 168(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 168(R8)
+	MOVQ 168(R12), DX        // DX = bitrev[21] (source index for work[21])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[21]]
+	MOVQ AX, 168(R8)         // work[21] = src[bitrev[21]]
 
-	MOVQ 176(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 176(R8)
+	MOVQ 176(R12), DX        // DX = bitrev[22] (source index for work[22])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[22]]
+	MOVQ AX, 176(R8)         // work[22] = src[bitrev[22]]
 
-	MOVQ 184(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 184(R8)
+	MOVQ 184(R12), DX        // DX = bitrev[23] (source index for work[23])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[23]]
+	MOVQ AX, 184(R8)         // work[23] = src[bitrev[23]]
 
-	// Group 6: indices 24-27
-	MOVQ 192(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 192(R8)
+	// Group 6: indices 24-27 (offset 192-216 bytes from R12, work offsets 192-216 from R8)
+	MOVQ 192(R12), DX        // DX = bitrev[24] (source index for work[24])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[24]]
+	MOVQ AX, 192(R8)         // work[24] = src[bitrev[24]]
 
-	MOVQ 200(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 200(R8)
+	MOVQ 200(R12), DX        // DX = bitrev[25] (source index for work[25])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[25]]
+	MOVQ AX, 200(R8)         // work[25] = src[bitrev[25]]
 
-	MOVQ 208(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 208(R8)
+	MOVQ 208(R12), DX        // DX = bitrev[26] (source index for work[26])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[26]]
+	MOVQ AX, 208(R8)         // work[26] = src[bitrev[26]]
 
-	MOVQ 216(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 216(R8)
+	MOVQ 216(R12), DX        // DX = bitrev[27] (source index for work[27])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[27]]
+	MOVQ AX, 216(R8)         // work[27] = src[bitrev[27]]
 
-	// Group 7: indices 28-31
-	MOVQ 224(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 224(R8)
+	// Group 7: indices 28-31 (offset 224-248 bytes from R12, work offsets 224-248 from R8)
+	MOVQ 224(R12), DX        // DX = bitrev[28] (source index for work[28])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[28]]
+	MOVQ AX, 224(R8)         // work[28] = src[bitrev[28]]
 
-	MOVQ 232(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 232(R8)
+	MOVQ 232(R12), DX        // DX = bitrev[29] (source index for work[29])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[29]]
+	MOVQ AX, 232(R8)         // work[29] = src[bitrev[29]]
 
-	MOVQ 240(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 240(R8)
+	MOVQ 240(R12), DX        // DX = bitrev[30] (source index for work[30])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[30]]
+	MOVQ AX, 240(R8)         // work[30] = src[bitrev[30]]
 
-	MOVQ 248(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 248(R8)
+	MOVQ 248(R12), DX        // DX = bitrev[31] (source index for work[31])
+	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[31]]
+	MOVQ AX, 248(R8)         // work[31] = src[bitrev[31]]
 
 	// =======================================================================
 	// STAGE 1: size=2, half=1, step=16 (same as forward - tw[0]=1+0i)
 	// =======================================================================
 	// Conjugation has no effect on identity twiddle
 
-	VMOVUPS (R8), Y0
-	VMOVUPS 32(R8), Y1
-	VMOVUPS 64(R8), Y2
-	VMOVUPS 96(R8), Y3
-	VMOVUPS 128(R8), Y4
-	VMOVUPS 160(R8), Y5
-	VMOVUPS 192(R8), Y6
-	VMOVUPS 224(R8), Y7
+	VMOVUPS (R8), Y0          // Load elements 0-3 (work[0-3]) into Y0
+	VMOVUPS 32(R8), Y1        // Load elements 4-7 (work[4-7]) into Y1
+	VMOVUPS 64(R8), Y2        // Load elements 8-11 (work[8-11]) into Y2
+	VMOVUPS 96(R8), Y3        // Load elements 12-15 (work[12-15]) into Y3
+	VMOVUPS 128(R8), Y4       // Load elements 16-19 (work[16-19]) into Y4
+	VMOVUPS 160(R8), Y5       // Load elements 20-23 (work[20-23]) into Y5
+	VMOVUPS 192(R8), Y6       // Load elements 24-27 (work[24-27]) into Y6
+	VMOVUPS 224(R8), Y7       // Load elements 28-31 (work[28-31]) into Y7
 
 	// Process 16 pairs using identity twiddle (w[0] = 1+0i)
 	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
 	// Y0: pairs (w0,w1), (w2,w3)
-	VPERMILPD $0x05, Y0, Y8
-	VADDPS Y8, Y0, Y9
-	VSUBPS Y0, Y8, Y10       // Y8-Y0, not Y0-Y8!
-	VBLENDPD $0x0A, Y10, Y9, Y0  // 64-bit blend
+	VPERMILPD $0x05, Y0, Y8  // Swap elements within 64-bit lanes: (a.r,a.i,b.r,b.i) -> (a.i,a.r,b.i,b.r)
+	VADDPS Y8, Y0, Y9        // Y9 = Y0 + Y8 (element-wise add: butterfly add)
+	VSUBPS Y0, Y8, Y10       // Y8-Y0, not Y0-Y8! (element-wise sub: butterfly subtract)
+	VBLENDPD $0x0A, Y10, Y9, Y0  // 64-bit blend: select alternating 64-bit values to recombine butterfly results
 
 	// Y1: pairs (w4,w5), (w6,w7)
-	VPERMILPD $0x05, Y1, Y8
-	VADDPS Y8, Y1, Y9
-	VSUBPS Y1, Y8, Y10
-	VBLENDPD $0x0A, Y10, Y9, Y1
+	VPERMILPD $0x05, Y1, Y8  // Swap elements within 64-bit lanes
+	VADDPS Y8, Y1, Y9        // Butterfly add: (Y1 + swapped Y1)
+	VSUBPS Y1, Y8, Y10       // Butterfly subtract: (swapped Y1 - Y1)
+	VBLENDPD $0x0A, Y10, Y9, Y1  // Blend to recombine butterfly results
 
 	// Y2: pairs (w8,w9), (w10,w11)
-	VPERMILPD $0x05, Y2, Y8
-	VADDPS Y8, Y2, Y9
-	VSUBPS Y2, Y8, Y10
-	VBLENDPD $0x0A, Y10, Y9, Y2
+	VPERMILPD $0x05, Y2, Y8  // Swap elements within 64-bit lanes
+	VADDPS Y8, Y2, Y9        // Butterfly add
+	VSUBPS Y2, Y8, Y10       // Butterfly subtract
+	VBLENDPD $0x0A, Y10, Y9, Y2  // Blend to recombine results
 
 	// Y3: pairs (w12,w13), (w14,w15)
-	VPERMILPD $0x05, Y3, Y8
-	VADDPS Y8, Y3, Y9
-	VSUBPS Y3, Y8, Y10
-	VBLENDPD $0x0A, Y10, Y9, Y3
+	VPERMILPD $0x05, Y3, Y8  // Swap elements within 64-bit lanes
+	VADDPS Y8, Y3, Y9        // Butterfly add
+	VSUBPS Y3, Y8, Y10       // Butterfly subtract
+	VBLENDPD $0x0A, Y10, Y9, Y3  // Blend to recombine results
 
 	// Y4: pairs (w16,w17), (w18,w19)
-	VPERMILPD $0x05, Y4, Y8
-	VADDPS Y8, Y4, Y9
-	VSUBPS Y4, Y8, Y10
-	VBLENDPD $0x0A, Y10, Y9, Y4
+	VPERMILPD $0x05, Y4, Y8  // Swap elements within 64-bit lanes
+	VADDPS Y8, Y4, Y9        // Butterfly add
+	VSUBPS Y4, Y8, Y10       // Butterfly subtract
+	VBLENDPD $0x0A, Y10, Y9, Y4  // Blend to recombine results
 
 	// Y5: pairs (w20,w21), (w22,w23)
-	VPERMILPD $0x05, Y5, Y8
-	VADDPS Y8, Y5, Y9
-	VSUBPS Y5, Y8, Y10
-	VBLENDPD $0x0A, Y10, Y9, Y5
+	VPERMILPD $0x05, Y5, Y8  // Swap elements within 64-bit lanes
+	VADDPS Y8, Y5, Y9        // Butterfly add
+	VSUBPS Y5, Y8, Y10       // Butterfly subtract
+	VBLENDPD $0x0A, Y10, Y9, Y5  // Blend to recombine results
 
 	// Y6: pairs (w24,w25), (w26,w27)
-	VPERMILPD $0x05, Y6, Y8
-	VADDPS Y8, Y6, Y9
-	VSUBPS Y6, Y8, Y10
-	VBLENDPD $0x0A, Y10, Y9, Y6
+	VPERMILPD $0x05, Y6, Y8  // Swap elements within 64-bit lanes
+	VADDPS Y8, Y6, Y9        // Butterfly add
+	VSUBPS Y6, Y8, Y10       // Butterfly subtract
+	VBLENDPD $0x0A, Y10, Y9, Y6  // Blend to recombine results
 
 	// Y7: pairs (w28,w29), (w30,w31)
-	VPERMILPD $0x05, Y7, Y8
-	VADDPS Y8, Y7, Y9
-	VSUBPS Y7, Y8, Y10
-	VBLENDPD $0x0A, Y10, Y9, Y7
+	VPERMILPD $0x05, Y7, Y8  // Swap elements within 64-bit lanes
+	VADDPS Y8, Y7, Y9        // Butterfly add
+	VSUBPS Y7, Y8, Y10       // Butterfly subtract
+	VBLENDPD $0x0A, Y10, Y9, Y7  // Blend to recombine results
 
 	// =======================================================================
 	// STAGE 2: size=4 - use conjugated twiddles via VFMSUBADD
@@ -941,94 +945,94 @@ size32_inv_bitrev:
 	// VFMSUBADD gives: even=a*b+c, odd=a*b-c -> conjugate multiply result
 
 	// Load twiddle factors for stage 2
-	VMOVSD (R10), X8         // twiddle[0]
-	VMOVSD 64(R10), X9       // twiddle[8]
-	VPUNPCKLQDQ X9, X8, X8
-	VINSERTF128 $1, X8, Y8, Y8   // Y8 = [tw0, tw8, tw0, tw8]
+	VMOVSD (R10), X8         // twiddle[0]: Load tw0 (real+imag pair) into low 64 bits of X8
+	VMOVSD 64(R10), X9       // twiddle[8]: Load tw8 (real+imag pair) into low 64 bits of X9
+	VPUNPCKLQDQ X9, X8, X8   // Unpack: X8 = [tw8.r, tw8.i, tw0.r, tw0.i]
+	VINSERTF128 $1, X8, Y8, Y8   // Y8 = [tw0, tw8, tw0, tw8] (replicate pattern across 256-bit register)
 
 	// Pre-split twiddle (reused for all 8 registers)
-	VMOVSLDUP Y8, Y14        // Y14 = [w.r, w.r, ...]
-	VMOVSHDUP Y8, Y15        // Y15 = [w.i, w.i, ...]
+	VMOVSLDUP Y8, Y14        // Y14 = [w.r, w.r, ...] (broadcast real parts to all lanes)
+	VMOVSHDUP Y8, Y15        // Y15 = [w.i, w.i, ...] (broadcast imaginary parts to all lanes)
 
-	// Y0
-	VPERM2F128 $0x00, Y0, Y0, Y9
-	VPERM2F128 $0x11, Y0, Y0, Y10
-	VSHUFPS $0xB1, Y10, Y10, Y11
-	VMULPS Y15, Y11, Y11
+	// Y0: Process elements 0-3 (d0-d3)
+	VPERM2F128 $0x00, Y0, Y0, Y9  // Y9 = low 128-bit lanes (d0-d1)
+	VPERM2F128 $0x11, Y0, Y0, Y10 // Y10 = high 128-bit lanes (d2-d3)
+	VSHUFPS $0xB1, Y10, Y10, Y11  // Y11: swap elements in Y10 for complex multiply (d2.i,d2.r,d3.i,d3.r)
+	VMULPS Y15, Y11, Y11          // Y11 *= imaginary parts (Y15 = [w.i, w.i, ...])
+	VFMSUBADD231PS Y14, Y10, Y11  // Conjugate multiply: Y11 = Y10*Y14 ± Y11 (complex conjugate multiply)
+	VADDPS Y11, Y9, Y12           // Y12 = Y9 + Y11 (butterfly add: upper + twiddle*lower)
+	VSUBPS Y11, Y9, Y13           // Y13 = Y9 - Y11 (butterfly subtract: upper - twiddle*lower)
+	VINSERTF128 $1, X13, Y12, Y0  // Y0 = [Y12_low128, Y13_low128] (recombine butterfly results)
+
+	// Y1: Process elements 4-7 (d4-d7)
+	VPERM2F128 $0x00, Y1, Y1, Y9  // Y9 = low 128-bit lanes (d4-d5)
+	VPERM2F128 $0x11, Y1, Y1, Y10 // Y10 = high 128-bit lanes (d6-d7)
+	VSHUFPS $0xB1, Y10, Y10, Y11  // Swap elements in Y10 for complex multiply
+	VMULPS Y15, Y11, Y11          // Multiply by imaginary parts
+	VFMSUBADD231PS Y14, Y10, Y11  // Conjugate multiply with real parts
+	VADDPS Y11, Y9, Y12           // Butterfly add
+	VSUBPS Y11, Y9, Y13           // Butterfly subtract
+	VINSERTF128 $1, X13, Y12, Y1  // Recombine butterfly results
+
+	// Y2: Process elements 8-11 (d8-d11)
+	VPERM2F128 $0x00, Y2, Y2, Y9  // Y9 = low 128-bit lanes
+	VPERM2F128 $0x11, Y2, Y2, Y10 // Y10 = high 128-bit lanes
+	VSHUFPS $0xB1, Y10, Y10, Y11  // Swap elements for complex multiply
+	VMULPS Y15, Y11, Y11          // Multiply by imaginary parts
 	VFMSUBADD231PS Y14, Y10, Y11  // Conjugate multiply
-	VADDPS Y11, Y9, Y12
-	VSUBPS Y11, Y9, Y13
-	VINSERTF128 $1, X13, Y12, Y0
+	VADDPS Y11, Y9, Y12           // Butterfly add
+	VSUBPS Y11, Y9, Y13           // Butterfly subtract
+	VINSERTF128 $1, X13, Y12, Y2  // Recombine results
 
-	// Y1
-	VPERM2F128 $0x00, Y1, Y1, Y9
-	VPERM2F128 $0x11, Y1, Y1, Y10
-	VSHUFPS $0xB1, Y10, Y10, Y11
-	VMULPS Y15, Y11, Y11
-	VFMSUBADD231PS Y14, Y10, Y11
-	VADDPS Y11, Y9, Y12
-	VSUBPS Y11, Y9, Y13
-	VINSERTF128 $1, X13, Y12, Y1
+	// Y3: Process elements 12-15 (d12-d15)
+	VPERM2F128 $0x00, Y3, Y3, Y9  // Y9 = low 128-bit lanes
+	VPERM2F128 $0x11, Y3, Y3, Y10 // Y10 = high 128-bit lanes
+	VSHUFPS $0xB1, Y10, Y10, Y11  // Swap elements for complex multiply
+	VMULPS Y15, Y11, Y11          // Multiply by imaginary parts
+	VFMSUBADD231PS Y14, Y10, Y11  // Conjugate multiply
+	VADDPS Y11, Y9, Y12           // Butterfly add
+	VSUBPS Y11, Y9, Y13           // Butterfly subtract
+	VINSERTF128 $1, X13, Y12, Y3  // Recombine results
 
-	// Y2
-	VPERM2F128 $0x00, Y2, Y2, Y9
-	VPERM2F128 $0x11, Y2, Y2, Y10
-	VSHUFPS $0xB1, Y10, Y10, Y11
-	VMULPS Y15, Y11, Y11
-	VFMSUBADD231PS Y14, Y10, Y11
-	VADDPS Y11, Y9, Y12
-	VSUBPS Y11, Y9, Y13
-	VINSERTF128 $1, X13, Y12, Y2
+	// Y4: Process elements 16-19 (d16-d19)
+	VPERM2F128 $0x00, Y4, Y4, Y9  // Y9 = low 128-bit lanes
+	VPERM2F128 $0x11, Y4, Y4, Y10 // Y10 = high 128-bit lanes
+	VSHUFPS $0xB1, Y10, Y10, Y11  // Swap elements for complex multiply
+	VMULPS Y15, Y11, Y11          // Multiply by imaginary parts
+	VFMSUBADD231PS Y14, Y10, Y11  // Conjugate multiply
+	VADDPS Y11, Y9, Y12           // Butterfly add
+	VSUBPS Y11, Y9, Y13           // Butterfly subtract
+	VINSERTF128 $1, X13, Y12, Y4  // Recombine results
 
-	// Y3
-	VPERM2F128 $0x00, Y3, Y3, Y9
-	VPERM2F128 $0x11, Y3, Y3, Y10
-	VSHUFPS $0xB1, Y10, Y10, Y11
-	VMULPS Y15, Y11, Y11
-	VFMSUBADD231PS Y14, Y10, Y11
-	VADDPS Y11, Y9, Y12
-	VSUBPS Y11, Y9, Y13
-	VINSERTF128 $1, X13, Y12, Y3
+	// Y5: Process elements 20-23 (d20-d23)
+	VPERM2F128 $0x00, Y5, Y5, Y9  // Y9 = low 128-bit lanes
+	VPERM2F128 $0x11, Y5, Y5, Y10 // Y10 = high 128-bit lanes
+	VSHUFPS $0xB1, Y10, Y10, Y11  // Swap elements for complex multiply
+	VMULPS Y15, Y11, Y11          // Multiply by imaginary parts
+	VFMSUBADD231PS Y14, Y10, Y11  // Conjugate multiply
+	VADDPS Y11, Y9, Y12           // Butterfly add
+	VSUBPS Y11, Y9, Y13           // Butterfly subtract
+	VINSERTF128 $1, X13, Y12, Y5  // Recombine results
 
-	// Y4
-	VPERM2F128 $0x00, Y4, Y4, Y9
-	VPERM2F128 $0x11, Y4, Y4, Y10
-	VSHUFPS $0xB1, Y10, Y10, Y11
-	VMULPS Y15, Y11, Y11
-	VFMSUBADD231PS Y14, Y10, Y11
-	VADDPS Y11, Y9, Y12
-	VSUBPS Y11, Y9, Y13
-	VINSERTF128 $1, X13, Y12, Y4
+	// Y6: Process elements 24-27 (d24-d27)
+	VPERM2F128 $0x00, Y6, Y6, Y9  // Y9 = low 128-bit lanes
+	VPERM2F128 $0x11, Y6, Y6, Y10 // Y10 = high 128-bit lanes
+	VSHUFPS $0xB1, Y10, Y10, Y11  // Swap elements for complex multiply
+	VMULPS Y15, Y11, Y11          // Multiply by imaginary parts
+	VFMSUBADD231PS Y14, Y10, Y11  // Conjugate multiply
+	VADDPS Y11, Y9, Y12           // Butterfly add
+	VSUBPS Y11, Y9, Y13           // Butterfly subtract
+	VINSERTF128 $1, X13, Y12, Y6  // Recombine results
 
-	// Y5
-	VPERM2F128 $0x00, Y5, Y5, Y9
-	VPERM2F128 $0x11, Y5, Y5, Y10
-	VSHUFPS $0xB1, Y10, Y10, Y11
-	VMULPS Y15, Y11, Y11
-	VFMSUBADD231PS Y14, Y10, Y11
-	VADDPS Y11, Y9, Y12
-	VSUBPS Y11, Y9, Y13
-	VINSERTF128 $1, X13, Y12, Y5
-
-	// Y6
-	VPERM2F128 $0x00, Y6, Y6, Y9
-	VPERM2F128 $0x11, Y6, Y6, Y10
-	VSHUFPS $0xB1, Y10, Y10, Y11
-	VMULPS Y15, Y11, Y11
-	VFMSUBADD231PS Y14, Y10, Y11
-	VADDPS Y11, Y9, Y12
-	VSUBPS Y11, Y9, Y13
-	VINSERTF128 $1, X13, Y12, Y6
-
-	// Y7
-	VPERM2F128 $0x00, Y7, Y7, Y9
-	VPERM2F128 $0x11, Y7, Y7, Y10
-	VSHUFPS $0xB1, Y10, Y10, Y11
-	VMULPS Y15, Y11, Y11
-	VFMSUBADD231PS Y14, Y10, Y11
-	VADDPS Y11, Y9, Y12
-	VSUBPS Y11, Y9, Y13
-	VINSERTF128 $1, X13, Y12, Y7
+	// Y7: Process elements 28-31 (d28-d31)
+	VPERM2F128 $0x00, Y7, Y7, Y9  // Y9 = low 128-bit lanes
+	VPERM2F128 $0x11, Y7, Y7, Y10 // Y10 = high 128-bit lanes
+	VSHUFPS $0xB1, Y10, Y10, Y11  // Swap elements for complex multiply
+	VMULPS Y15, Y11, Y11          // Multiply by imaginary parts
+	VFMSUBADD231PS Y14, Y10, Y11  // Conjugate multiply
+	VADDPS Y11, Y9, Y12           // Butterfly add
+	VSUBPS Y11, Y9, Y13           // Butterfly subtract
+	VINSERTF128 $1, X13, Y12, Y7  // Recombine results
 
 	// =======================================================================
 	// STAGE 3: size=8 - use conjugated twiddles via VFMSUBADD
@@ -1241,10 +1245,10 @@ size32_inv_bitrev:
 	VMOVUPS Y4, 224(R8)      // Store new 28-31
 
 	// =======================================================================
-	// Apply 1/n scaling (1/32 = 0.03125)
+	// Apply 1/n scaling (1/32 = 0.03125) for inverse normalization
 	// =======================================================================
 	// Load all 8 registers from work buffer
-	VMOVUPS (R8), Y0
+	VMOVUPS (R8), Y0         // Load stage 5 results from working buffer
 	VMOVUPS 32(R8), Y1
 	VMOVUPS 64(R8), Y2
 	VMOVUPS 96(R8), Y3
@@ -1254,25 +1258,25 @@ size32_inv_bitrev:
 	VMOVUPS 224(R8), Y7
 
 	// Create scale factor: 1/32 = 0.03125 = 0x3D000000 in IEEE-754
-	MOVL ·thirtySecond32(SB), AX     // 0.03125f in IEEE-754
-	MOVD AX, X8
-	VBROADCASTSS X8, Y8      // Y8 = [0.03125, 0.03125, ...]
+	MOVL ·thirtySecond32(SB), AX     // Load 0.03125 constant
+	MOVD AX, X8              // Move to X8
+	VBROADCASTSS X8, Y8      // Y8 = [0.03125, 0.03125, ...] (broadcast to all 8 elements)
 
-	// Scale all registers
-	VMULPS Y8, Y0, Y0
-	VMULPS Y8, Y1, Y1
-	VMULPS Y8, Y2, Y2
-	VMULPS Y8, Y3, Y3
-	VMULPS Y8, Y4, Y4
-	VMULPS Y8, Y5, Y5
-	VMULPS Y8, Y6, Y6
-	VMULPS Y8, Y7, Y7
+	// Scale all 8 registers by 1/32
+	VMULPS Y8, Y0, Y0        // Y0 *= 1/32
+	VMULPS Y8, Y1, Y1        // Y1 *= 1/32
+	VMULPS Y8, Y2, Y2        // Y2 *= 1/32
+	VMULPS Y8, Y3, Y3        // Y3 *= 1/32
+	VMULPS Y8, Y4, Y4        // Y4 *= 1/32
+	VMULPS Y8, Y5, Y5        // Y5 *= 1/32
+	VMULPS Y8, Y6, Y6        // Y6 *= 1/32
+	VMULPS Y8, Y7, Y7        // Y7 *= 1/32
 
 	// =======================================================================
 	// Store results to dst
 	// =======================================================================
 	MOVQ dst+0(FP), R9       // R9 = dst pointer
-	VMOVUPS Y0, (R9)
+	VMOVUPS Y0, (R9)         // Store scaled results to dst[0:32]
 	VMOVUPS Y1, 32(R9)
 	VMOVUPS Y2, 64(R9)
 	VMOVUPS Y3, 96(R9)
@@ -1282,10 +1286,10 @@ size32_inv_bitrev:
 	VMOVUPS Y7, 224(R9)
 
 size32_inv_done:
-	VZEROUPPER
+	VZEROUPPER               // Clear SIMD state
 	MOVB $1, ret+120(FP)     // Return true (success)
 	RET
 
 size32_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+120(FP)     // Return false (validation failed)
 	RET
