@@ -207,6 +207,194 @@ func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex12
 	}
 }
 
+// TestInPlaceAllCodelets64 tests that every registered complex64 codelet works
+// correctly when dst == src (in-place operation).
+func TestInPlaceAllCodelets64(t *testing.T) {
+	sizes := Registry64.Sizes()
+	features := cpu.DetectFeatures()
+
+	for _, size := range sizes {
+		entries := Registry64.GetAllForSize(size)
+		for _, entry := range entries {
+			// Skip disabled codelets (negative priority)
+			if entry.Priority < 0 {
+				continue
+			}
+
+			// Skip codelets that require unsupported CPU features
+			if !cpuSupportsLevel(features, entry.SIMDLevel) {
+				continue
+			}
+
+			t.Run(fmt.Sprintf("size%d/%s", size, entry.Signature), func(t *testing.T) {
+				testInPlaceCodelet64(t, &entry)
+			})
+		}
+	}
+}
+
+// TestInPlaceAllCodelets128 tests that every registered complex128 codelet works
+// correctly when dst == src (in-place operation).
+func TestInPlaceAllCodelets128(t *testing.T) {
+	sizes := Registry128.Sizes()
+	features := cpu.DetectFeatures()
+
+	for _, size := range sizes {
+		entries := Registry128.GetAllForSize(size)
+		for _, entry := range entries {
+			// Skip disabled codelets (negative priority)
+			if entry.Priority < 0 {
+				continue
+			}
+
+			// Skip codelets that require unsupported CPU features
+			if !cpuSupportsLevel(features, entry.SIMDLevel) {
+				continue
+			}
+
+			t.Run(fmt.Sprintf("size%d/%s", size, entry.Signature), func(t *testing.T) {
+				testInPlaceCodelet128(t, &entry)
+			})
+		}
+	}
+}
+
+func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) {
+	t.Helper()
+	size := entry.Size
+
+	// Prepare buffers
+	original := make([]complex64, size)
+	outOfPlace := make([]complex64, size)
+	inPlace := make([]complex64, size)
+	twiddle := ComputeTwiddleFactors[complex64](size)
+	scratch := make([]complex64, size)
+
+	// Compute bit-reversal indices
+	var bitrev []int
+	if entry.BitrevFunc != nil {
+		bitrev = entry.BitrevFunc(size)
+	}
+
+	// Initialize with deterministic random-like pattern
+	for i := range original {
+		original[i] = complex(float32(i%7-3), float32(i%5-2))
+	}
+
+	// Out-of-place forward transform
+	copy(outOfPlace, original)
+	entry.Forward(outOfPlace, original, twiddle, scratch, bitrev)
+
+	// In-place forward transform (dst == src)
+	copy(inPlace, original)
+	entry.Forward(inPlace, inPlace, twiddle, scratch, bitrev)
+
+	// Compare in-place vs out-of-place
+	maxErr := float64(0)
+	for i := 0; i < size; i++ {
+		err := cmplx.Abs(complex128(inPlace[i] - outOfPlace[i]))
+		if err > maxErr {
+			maxErr = err
+		}
+	}
+
+	// In-place should match out-of-place exactly (or very close)
+	tol := 1e-6
+	if maxErr > tol {
+		t.Errorf("forward in-place differs from out-of-place: max error %v exceeds %v", maxErr, tol)
+	}
+
+	// Also test inverse in-place
+	freqOOP := make([]complex64, size)
+	copy(freqOOP, outOfPlace)
+	resultOOP := make([]complex64, size)
+	entry.Inverse(resultOOP, freqOOP, twiddle, scratch, bitrev)
+
+	freqIP := make([]complex64, size)
+	copy(freqIP, outOfPlace)
+	entry.Inverse(freqIP, freqIP, twiddle, scratch, bitrev)
+
+	maxErr = 0
+	for i := 0; i < size; i++ {
+		err := cmplx.Abs(complex128(freqIP[i] - resultOOP[i]))
+		if err > maxErr {
+			maxErr = err
+		}
+	}
+
+	if maxErr > tol {
+		t.Errorf("inverse in-place differs from out-of-place: max error %v exceeds %v", maxErr, tol)
+	}
+}
+
+func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]) {
+	t.Helper()
+	size := entry.Size
+
+	// Prepare buffers
+	original := make([]complex128, size)
+	outOfPlace := make([]complex128, size)
+	inPlace := make([]complex128, size)
+	twiddle := ComputeTwiddleFactors[complex128](size)
+	scratch := make([]complex128, size)
+
+	// Compute bit-reversal indices
+	var bitrev []int
+	if entry.BitrevFunc != nil {
+		bitrev = entry.BitrevFunc(size)
+	}
+
+	// Initialize with deterministic random-like pattern
+	for i := range original {
+		original[i] = complex(float64(i%7-3), float64(i%5-2))
+	}
+
+	// Out-of-place forward transform
+	copy(outOfPlace, original)
+	entry.Forward(outOfPlace, original, twiddle, scratch, bitrev)
+
+	// In-place forward transform (dst == src)
+	copy(inPlace, original)
+	entry.Forward(inPlace, inPlace, twiddle, scratch, bitrev)
+
+	// Compare in-place vs out-of-place
+	maxErr := float64(0)
+	for i := 0; i < size; i++ {
+		err := cmplx.Abs(inPlace[i] - outOfPlace[i])
+		if err > maxErr {
+			maxErr = err
+		}
+	}
+
+	// In-place should match out-of-place exactly (or very close)
+	tol := 1e-12
+	if maxErr > tol {
+		t.Errorf("forward in-place differs from out-of-place: max error %v exceeds %v", maxErr, tol)
+	}
+
+	// Also test inverse in-place
+	freqOOP := make([]complex128, size)
+	copy(freqOOP, outOfPlace)
+	resultOOP := make([]complex128, size)
+	entry.Inverse(resultOOP, freqOOP, twiddle, scratch, bitrev)
+
+	freqIP := make([]complex128, size)
+	copy(freqIP, outOfPlace)
+	entry.Inverse(freqIP, freqIP, twiddle, scratch, bitrev)
+
+	maxErr = 0
+	for i := 0; i < size; i++ {
+		err := cmplx.Abs(freqIP[i] - resultOOP[i])
+		if err > maxErr {
+			maxErr = err
+		}
+	}
+
+	if maxErr > tol {
+		t.Errorf("inverse in-place differs from out-of-place: max error %v exceeds %v", maxErr, tol)
+	}
+}
+
 // cpuSupportsLevel checks if the current CPU supports the required SIMD level.
 func cpuSupportsLevel(features cpu.Features, level planner.SIMDLevel) bool {
 	switch level {

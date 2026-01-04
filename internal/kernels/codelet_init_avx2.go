@@ -193,6 +193,20 @@ func registerAVX2DITCodelets64() {
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
+	// Size 4096: Six-step (64×64) AVX2 variant
+	// Uses the six-step algorithm with AVX2-optimized 64-point sub-FFTs
+	// ~30-40% faster than radix-4 due to better cache utilization
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       4096,
+		Forward:    wrapCodelet64(forwardDIT4096SixStepAVX2Complex64),
+		Inverse:    wrapCodelet64(inverseDIT4096SixStepAVX2Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit4096_sixstep_avx2",
+		Priority:   35, // Higher priority than radix-4 (25)
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
+	})
+
 	// Size 16384: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16384,
