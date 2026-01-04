@@ -72,7 +72,20 @@ func registerAVX2DITCodelets64() {
 		BitrevFunc: mathpkg.ComputeIdentityIndices,
 	})
 
+	// Size 32: Radix-32 AVX2 variant (4x8 factorization, no bit-reversal needed)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       32,
+		Forward:    wrapCodelet64(amd64.ForwardAVX2Size32Radix32Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseAVX2Size32Radix32Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit32_radix32_avx2",
+		Priority:   25, // Higher than radix-2 variants
+		BitrevFunc: mathpkg.ComputeIdentityIndices,
+	})
+
 	// Size 32: Radix-2 AVX2 variant
+	// Uses 5-stage unrolled DIT with bit-reversal permutation
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
 		Forward:    wrapCodelet64(amd64.ForwardAVX2Size32Complex64Asm),
@@ -80,7 +93,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit32_radix2_avx2",
-		Priority:   20, // Re-enabled after fixing Stage 4 twiddle indexing
+		Priority:   20, // Standard priority for radix-2
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
