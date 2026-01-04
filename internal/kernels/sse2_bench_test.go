@@ -23,18 +23,18 @@ func BenchmarkSSE2Complex64(b *testing.B) {
 		{"Size128/Radix4", 128, mathpkg.ComputeBitReversalIndicesMixed24, amd64.ForwardSSE2Size128Radix4Complex64Asm, amd64.InverseSSE2Size128Radix4Complex64Asm},
 	}
 
-	for _, tc := range cases {
-		b.Run(tc.name+"/Forward", func(b *testing.B) {
-			if tc.forward == nil {
+	for _, testCase := range cases {
+		b.Run(testCase.name+"/Forward", func(b *testing.B) {
+			if testCase.forward == nil {
 				b.Skip("Not implemented")
 			}
-			runBenchComplex64(b, tc.n, tc.bitrev, tc.forward)
+			runBenchComplex64(b, testCase.n, testCase.bitrev, testCase.forward)
 		})
-		b.Run(tc.name+"/Inverse", func(b *testing.B) {
-			if tc.inverse == nil {
+		b.Run(testCase.name+"/Inverse", func(b *testing.B) {
+			if testCase.inverse == nil {
 				b.Skip("Not implemented")
 			}
-			runBenchComplex64(b, tc.n, tc.bitrev, tc.inverse)
+			runBenchComplex64(b, testCase.n, testCase.bitrev, testCase.inverse)
 		})
 	}
 }
