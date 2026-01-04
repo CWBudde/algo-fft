@@ -145,6 +145,7 @@ func TestNewPlan_BitReversalIndices(t *testing.T) {
 	t.Parallel()
 
 	const n = 8
+
 	plan, err := NewPlanT[complex64](n)
 	if err != nil {
 		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
@@ -161,19 +162,23 @@ func TestNewPlan_BitReversalIndices(t *testing.T) {
 
 	// Check it's a valid permutation (each value 0..n-1 appears exactly once)
 	seen := make(map[int]bool)
+
 	for i, v := range plan.bitrev {
 		if v < 0 || v >= n {
 			t.Errorf("bitrev[%d] = %d, out of range [0, %d)", i, v, n)
 		}
+
 		if seen[v] {
 			t.Errorf("bitrev[%d] = %d is a duplicate", i, v)
 		}
+
 		seen[v] = true
 	}
 
 	// Check involution property: bitrev[bitrev[i]] == i
 	for i := range plan.bitrev {
 		j := plan.bitrev[i]
+
 		k := plan.bitrev[j]
 		if k != i {
 			t.Errorf("bitrev[bitrev[%d]] = %d, want %d (involution property)", i, k, i)

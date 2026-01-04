@@ -10,12 +10,14 @@ func forwardDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, b
 
 	work := dst[:n]
 	workIsDst := true
+
 	if &dst[0] == &src[0] {
 		work = scratch[:n]
 		workIsDst = false
 	}
 
 	br := bitrev[:n]
+
 	s := src[:n]
 	for i := range n {
 		work[i] = s[br[i]]
@@ -209,12 +211,14 @@ func inverseDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, b
 
 	work := dst[:n]
 	workIsDst := true
+
 	if &dst[0] == &src[0] {
 		work = scratch[:n]
 		workIsDst = false
 	}
 
 	br := bitrev[:n]
+
 	s := src[:n]
 	for i := range n {
 		work[i] = s[br[i]]
@@ -413,12 +417,14 @@ func forwardDIT32MixedRadix24Complex128(dst, src, twiddle, scratch []complex128,
 
 	work := dst[:n]
 	workIsDst := true
+
 	if &dst[0] == &src[0] {
 		work = scratch[:n]
 		workIsDst = false
 	}
 
 	br := bitrev[:n]
+
 	s := src[:n]
 	for i := range n {
 		work[i] = s[br[i]]
@@ -612,12 +618,14 @@ func inverseDIT32MixedRadix24Complex128(dst, src, twiddle, scratch []complex128,
 
 	work := dst[:n]
 	workIsDst := true
+
 	if &dst[0] == &src[0] {
 		work = scratch[:n]
 		workIsDst = false
 	}
 
 	br := bitrev[:n]
+
 	s := src[:n]
 	for i := range n {
 		work[i] = s[br[i]]

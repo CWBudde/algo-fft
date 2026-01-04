@@ -16,7 +16,7 @@ type (
 	WisdomKey      = planner.WisdomKey
 )
 
-// Generic type alias for PlanEstimate
+// Generic type alias for PlanEstimate.
 type PlanEstimate[T Complex] = planner.PlanEstimate[T]
 
 // Re-export precision constants from planner.

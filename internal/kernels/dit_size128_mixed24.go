@@ -30,6 +30,7 @@ func ComputeBitReversalIndicesMixed128(n int) []int {
 	for i := range n {
 		// 1. Standard binary reverse
 		r := 0
+
 		x := i
 		for range bits {
 			r = (r << 1) | (x & 1)

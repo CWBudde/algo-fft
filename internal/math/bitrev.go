@@ -26,15 +26,18 @@ func ComputePermutationIndices(n int, radix int) []int {
 		for i := range n {
 			indices[i] = i
 		}
+
 		return indices
 
 	case 2:
 		// Bit-reversal (radix-2) - uses hardware bit reversal
 		bitrev := make([]int, n)
+
 		nbits := bits.Len(uint(n)) - 1
 		for i := range n {
 			bitrev[i] = ReverseBits(i, nbits)
 		}
+
 		return bitrev
 
 	case 4:
@@ -42,6 +45,7 @@ func ComputePermutationIndices(n int, radix int) []int {
 		if n&(n-1) != 0 {
 			return nil // Not a power of 2
 		}
+
 		return computeDigitReversal(n, 4)
 
 	case -24: // Special marker for mixed radix-2/4
@@ -63,11 +67,13 @@ func computeDigitReversal(n int, radix int) []int {
 
 	// Calculate number of digits needed
 	digits := 0
+
 	temp := n
 	for temp > 1 {
 		if temp%radix != 0 {
 			return nil // Not a power of radix
 		}
+
 		digits++
 		temp /= radix
 	}
@@ -113,11 +119,13 @@ func computeMixedRadix24(n int) []int {
 		if temp%4 != 0 {
 			return nil
 		}
+
 		temp /= 4
 	}
 
 	// Count quaternary digits
 	quatDigits := 0
+
 	temp = m
 	for temp > 1 {
 		quatDigits++
@@ -134,6 +142,7 @@ func computeMixedRadix24(n int) []int {
 
 		// Reverse the quaternary digits
 		revQuat := 0
+
 		q := quatIndex
 		for range quatDigits {
 			revQuat = (revQuat << 2) | (q & 0x3)
