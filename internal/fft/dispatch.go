@@ -2,7 +2,9 @@ package fft
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/MeKo-Christian/algo-fft/internal/transform"
 )
 
 // Type aliases for planner types used in the fft package.
@@ -52,6 +54,69 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, s
 
 func HasCodelet[T Complex](n int, features cpu.Features) bool {
 	return planner.HasCodelet[T](n, features)
+}
+
+// Re-export transform types for backward compatibility.
+type DecomposeStrategy = transform.DecomposeStrategy
+
+// Re-export transform functions (wrappers for generic functions).
+// Note: PlanDecomposition is non-generic so can be assigned directly.
+var PlanDecomposition = transform.PlanDecomposition
+
+func TwiddleFactorsRecursive[T Complex](strategy *DecomposeStrategy) []T {
+	return transform.TwiddleFactorsRecursive[T](strategy)
+}
+
+var ScratchSizeRecursive = transform.ScratchSizeRecursive
+
+func RecursiveForward[T Complex](
+	dst, src []T,
+	strategy *DecomposeStrategy,
+	twiddle []T,
+	scratch []T,
+	registry *CodeletRegistry[T],
+	features cpu.Features,
+) {
+	transform.RecursiveForward(dst, src, strategy, twiddle, scratch, registry, features)
+}
+
+func RecursiveInverse[T Complex](
+	dst, src []T,
+	strategy *DecomposeStrategy,
+	twiddle []T,
+	scratch []T,
+	registry *CodeletRegistry[T],
+	features cpu.Features,
+) {
+	transform.RecursiveInverse(dst, src, strategy, twiddle, scratch, registry, features)
+}
+
+// Re-export PackedTwiddles functions (already aliased in kernels.go).
+func ComputePackedTwiddles[T Complex](n, radix int, twiddle []T) *PackedTwiddles[T] {
+	return transform.ComputePackedTwiddles[T](n, radix, twiddle)
+}
+
+func ConjugatePackedTwiddles[T Complex](packed *PackedTwiddles[T]) *PackedTwiddles[T] {
+	return transform.ConjugatePackedTwiddles[T](packed)
+}
+
+func ForwardStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T]) bool {
+	return transform.ForwardStockhamPacked[T](dst, src, twiddle, scratch, packed)
+}
+
+func InverseStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T]) bool {
+	return transform.InverseStockhamPacked[T](dst, src, twiddle, scratch, packed)
+}
+
+// Re-export transpose types and functions from internal/math.
+type TransposePair = math.TransposePair
+
+func ComputeSquareTransposePairs(n int) []TransposePair {
+	return math.ComputeSquareTransposePairs(n)
+}
+
+func ApplyTransposePairs[T any](data []T, pairs []TransposePair) {
+	math.ApplyTransposePairs(data, pairs)
 }
 
 // Kernel and Kernels types are now imported from internal/kernels via kernels.go
