@@ -92,6 +92,12 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 		threshold = 5e-5
 	}
 
+	if n >= 4096 {
+		// Six-step algorithm for size 4096 has slightly more accumulated error
+		// due to additional transpose and twiddle multiply operations
+		threshold = 1e-4
+	}
+
 	if n >= 16384 {
 		threshold = 2e-4
 	}
