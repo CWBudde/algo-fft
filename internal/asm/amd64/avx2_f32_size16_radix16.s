@@ -122,52 +122,52 @@ TEXT ·ForwardAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	VPERM2F128 $0x20, Y9, Y8, Y0 // Y0 = Row 0 Final (y0, y1, y2, y3)
 
 	// --- Process Row 1 ---
-	VEXTRACTF128 $0x01, Y1, X4
-	VADDPS X4, X1, X5
-	VSUBPS X4, X1, X6
-	VPERMILPS $0x4E, X5, X7
-	VADDPS X7, X5, X8
-	VSUBPS X7, X5, X9
-	VPERMILPS $0x4E, X6, X10
-	VPERMILPS $0xB1, X10, X10
-	VXORPS X15, X10, X10
-	VSUBPS X10, X6, X12
-	VADDPS X10, X6, X13
-	VUNPCKLPD X12, X8, X8
-	VUNPCKLPD X13, X9, X9
-	VPERM2F128 $0x20, Y9, Y8, Y1 // Row 1 Final
+	VEXTRACTF128 $0x01, Y1, X4   // X4 = Lane 1 (x2, x3)
+	VADDPS X4, X1, X5            // X5 = Sum (x0+x2, x1+x3)
+	VSUBPS X4, X1, X6            // X6 = Diff (x0-x2, x1-x3)
+	VPERMILPS $0x4E, X5, X7      // X7 = Swap halves of S
+	VADDPS X7, X5, X8            // X8 = (y0, y0)
+	VSUBPS X7, X5, X9            // X9 = (y2, y2)
+	VPERMILPS $0x4E, X6, X10     // X10 = Swap halves of D
+	VPERMILPS $0xB1, X10, X10    // X10 = (Im, Re) for rotation
+	VXORPS X15, X10, X10         // X10 = i*D1
+	VSUBPS X10, X6, X12          // X12 = y1
+	VADDPS X10, X6, X13          // X13 = y3
+	VUNPCKLPD X12, X8, X8        // X8 = (y0, y1)
+	VUNPCKLPD X13, X9, X9        // X9 = (y2, y3)
+	VPERM2F128 $0x20, Y9, Y8, Y1 // Y1 = Row 1 Final (y0, y1, y2, y3)
 
 	// --- Process Row 2 ---
-	VEXTRACTF128 $0x01, Y2, X4
-	VADDPS X4, X2, X5
-	VSUBPS X4, X2, X6
-	VPERMILPS $0x4E, X5, X7
-	VADDPS X7, X5, X8
-	VSUBPS X7, X5, X9
-	VPERMILPS $0x4E, X6, X10
-	VPERMILPS $0xB1, X10, X10
-	VXORPS X15, X10, X10
-	VSUBPS X10, X6, X12
-	VADDPS X10, X6, X13
-	VUNPCKLPD X12, X8, X8
-	VUNPCKLPD X13, X9, X9
-	VPERM2F128 $0x20, Y9, Y8, Y2 // Row 2 Final
+	VEXTRACTF128 $0x01, Y2, X4   // X4 = Lane 1 (x2, x3)
+	VADDPS X4, X2, X5            // X5 = Sum (x0+x2, x1+x3)
+	VSUBPS X4, X2, X6            // X6 = Diff (x0-x2, x1-x3)
+	VPERMILPS $0x4E, X5, X7      // X7 = Swap halves of S
+	VADDPS X7, X5, X8            // X8 = (y0, y0)
+	VSUBPS X7, X5, X9            // X9 = (y2, y2)
+	VPERMILPS $0x4E, X6, X10     // X10 = Swap halves of D
+	VPERMILPS $0xB1, X10, X10    // X10 = (Im, Re) for rotation
+	VXORPS X15, X10, X10         // X10 = i*D1
+	VSUBPS X10, X6, X12          // X12 = y1
+	VADDPS X10, X6, X13          // X13 = y3
+	VUNPCKLPD X12, X8, X8        // X8 = (y0, y1)
+	VUNPCKLPD X13, X9, X9        // X9 = (y2, y3)
+	VPERM2F128 $0x20, Y9, Y8, Y2 // Y2 = Row 2 Final (y0, y1, y2, y3)
 
 	// --- Process Row 3 ---
-	VEXTRACTF128 $0x01, Y3, X4
-	VADDPS X4, X3, X5
-	VSUBPS X4, X3, X6
-	VPERMILPS $0x4E, X5, X7
-	VADDPS X7, X5, X8
-	VSUBPS X7, X5, X9
-	VPERMILPS $0x4E, X6, X10
-	VPERMILPS $0xB1, X10, X10
-	VXORPS X15, X10, X10
-	VSUBPS X10, X6, X12
-	VADDPS X10, X6, X13
-	VUNPCKLPD X12, X8, X8
-	VUNPCKLPD X13, X9, X9
-	VPERM2F128 $0x20, Y9, Y8, Y3 // Row 3 Final
+	VEXTRACTF128 $0x01, Y3, X4   // X4 = Lane 1 (x2, x3)
+	VADDPS X4, X3, X5            // X5 = Sum (x0+x2, x1+x3)
+	VSUBPS X4, X3, X6            // X6 = Diff (x0-x2, x1-x3)
+	VPERMILPS $0x4E, X5, X7      // X7 = Swap halves of S
+	VADDPS X7, X5, X8            // X8 = (y0, y0)
+	VSUBPS X7, X5, X9            // X9 = (y2, y2)
+	VPERMILPS $0x4E, X6, X10     // X10 = Swap halves of D
+	VPERMILPS $0xB1, X10, X10    // X10 = (Im, Re) for rotation
+	VXORPS X15, X10, X10         // X10 = i*D1
+	VSUBPS X10, X6, X12          // X12 = y1
+	VADDPS X10, X6, X13          // X13 = y3
+	VUNPCKLPD X12, X8, X8        // X8 = (y0, y1)
+	VUNPCKLPD X13, X9, X9        // X9 = (y2, y3)
+	VPERM2F128 $0x20, Y9, Y8, Y3 // Y3 = Row 3 Final (y0, y1, y2, y3)
 
 
 	// =======================================================================
@@ -220,10 +220,10 @@ TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	// =======================================================================
 	// STEP 0: Load 4x4 Matrix
 	// =======================================================================
-	VMOVUPS 0(R9), Y0            
-	VMOVUPS 32(R9), Y1           
-	VMOVUPS 64(R9), Y2           
-	VMOVUPS 96(R9), Y3           
+	VMOVUPS 0(R9), Y0             // Y0 = Row 0: elements [0, 1, 2, 3]
+	VMOVUPS 32(R9), Y1            // Y1 = Row 1: elements [4, 5, 6, 7]
+	VMOVUPS 64(R9), Y2            // Y2 = Row 2: elements [8, 9, 10, 11]
+	VMOVUPS 96(R9), Y3            // Y3 = Row 3: elements [12, 13, 14, 15]
 
 	// =======================================================================
 	// STEP 1: Vertical IFFT4 (Column-wise transformation)
@@ -252,48 +252,48 @@ TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	VINSERTF128 $0x01, X15, Y15, Y15 // Broadcast conjugation mask
 
 	// --- Row 1 ---
-	VMOVUPS 0(R10), Y4           
-	VXORPS Y15, Y4, Y4           // Conjugate twiddles: W -> conj(W)
-	VPERMILPS $0xA0, Y4, Y5      // Re
-	VPERMILPS $0xF5, Y4, Y6      // Im
-	VMULPS Y5, Y1, Y7
-	VPERMILPS $0xB1, Y1, Y8
-	VMULPS Y6, Y8, Y8
-	VADDSUBPS Y8, Y7, Y1
+	VMOVUPS 0(R10), Y4            // Load contiguous twiddles W^0..W^3
+	VXORPS Y15, Y4, Y4            // Conjugate twiddles: W -> conj(W)
+	VPERMILPS $0xA0, Y4, Y5       // Y5 = Re(W)
+	VPERMILPS $0xF5, Y4, Y6       // Y6 = Im(W)
+	VMULPS Y5, Y1, Y7             // Y7 = Row1 * Re(W)
+	VPERMILPS $0xB1, Y1, Y8       // Y8 = Row1 swapped
+	VMULPS Y6, Y8, Y8             // Y8 = Row1_swapped * Im(W)
+	VADDSUBPS Y8, Y7, Y1          // Row 1 = (ac-bd, ad+bc)
 
 	// --- Row 2 ---
-	VMOVSD 0(R10), X4
-	VMOVSD 16(R10), X5
-	VUNPCKLPD X5, X4, X4
-	VMOVSD 32(R10), X5
-	VMOVSD 48(R10), X6
-	VUNPCKLPD X6, X5, X5
-	VINSERTF128 $0x01, X5, Y4, Y4
-	VXORPS Y15, Y4, Y4           // Conjugate
-	VPERMILPS $0xA0, Y4, Y5
-	VPERMILPS $0xF5, Y4, Y6
-	VMULPS Y5, Y2, Y7
-	VPERMILPS $0xB1, Y2, Y8
-	VMULPS Y6, Y8, Y8
-	VADDSUBPS Y8, Y7, Y2
+	VMOVSD 0(R10), X4             // Load W^0
+	VMOVSD 16(R10), X5            // Load W^2
+	VUNPCKLPD X5, X4, X4          // X4 = (W^0, W^2)
+	VMOVSD 32(R10), X5            // Load W^4
+	VMOVSD 48(R10), X6            // Load W^6
+	VUNPCKLPD X6, X5, X5          // X5 = (W^4, W^6)
+	VINSERTF128 $0x01, X5, Y4, Y4 // Y4 = (W^0, W^2, W^4, W^6)
+	VXORPS Y15, Y4, Y4            // Conjugate
+	VPERMILPS $0xA0, Y4, Y5       // Y5 = Re(W)
+	VPERMILPS $0xF5, Y4, Y6       // Y6 = Im(W)
+	VMULPS Y5, Y2, Y7             // Y7 = Row2 * Re(W)
+	VPERMILPS $0xB1, Y2, Y8       // Y8 = Row2 swapped
+	VMULPS Y6, Y8, Y8             // Y8 = Row2_swapped * Im(W)
+	VADDSUBPS Y8, Y7, Y2          // Row 2 = (ac-bd, ad+bc)
 
 	// --- Row 3 ---
-	VMOVSD 0(R10), X4
-	VMOVSD 24(R10), X5
-	VUNPCKLPD X5, X4, X4
-	VMOVSD 48(R10), X5
-	VMOVSD 8(R10), X6
-	VXORPS X7, X7, X7
-	VSUBPS X6, X7, X6            // -W^1
-	VUNPCKLPD X6, X5, X5
-	VINSERTF128 $0x01, X5, Y4, Y4
-	VXORPS Y15, Y4, Y4           // Conjugate
-	VPERMILPS $0xA0, Y4, Y5
-	VPERMILPS $0xF5, Y4, Y6
-	VMULPS Y5, Y3, Y7
-	VPERMILPS $0xB1, Y3, Y8
-	VMULPS Y6, Y8, Y8
-	VADDSUBPS Y8, Y7, Y3
+	VMOVSD 0(R10), X4             // Load W^0
+	VMOVSD 24(R10), X5            // Load W^3
+	VUNPCKLPD X5, X4, X4          // X4 = (W^0, W^3)
+	VMOVSD 48(R10), X5            // Load W^6
+	VMOVSD 8(R10), X6             // Load W^1
+	VXORPS X7, X7, X7             // Zero X7
+	VSUBPS X6, X7, X6             // X6 = -W^1 = W^9
+	VUNPCKLPD X6, X5, X5          // X5 = (W^6, W^9)
+	VINSERTF128 $0x01, X5, Y4, Y4 // Y4 = (W^0, W^3, W^6, W^9)
+	VXORPS Y15, Y4, Y4            // Conjugate
+	VPERMILPS $0xA0, Y4, Y5       // Y5 = Re(W)
+	VPERMILPS $0xF5, Y4, Y6       // Y6 = Im(W)
+	VMULPS Y5, Y3, Y7             // Y7 = Row3 * Re(W)
+	VPERMILPS $0xB1, Y3, Y8       // Y8 = Row3 swapped
+	VMULPS Y6, Y8, Y8             // Y8 = Row3_swapped * Im(W)
+	VADDSUBPS Y8, Y7, Y3          // Row 3 = (ac-bd, ad+bc)
 
 	// =======================================================================
 	// STEP 3: Horizontal IFFT4 (Transform within each YMM Row)
@@ -317,52 +317,52 @@ TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	VPERM2F128 $0x20, Y9, Y8, Y0 
 
 	// --- Row 1 ---
-	VEXTRACTF128 $0x01, Y1, X4
-	VADDPS X4, X1, X5
-	VSUBPS X4, X1, X6
-	VPERMILPS $0x4E, X5, X7
-	VADDPS X7, X5, X8
-	VSUBPS X7, X5, X9
-	VPERMILPS $0x4E, X6, X10
-	VPERMILPS $0xB1, X10, X10
-	VXORPS X15, X10, X10
-	VADDPS X10, X6, X12
-	VSUBPS X10, X6, X13
-	VUNPCKLPD X12, X8, X8
-	VUNPCKLPD X13, X9, X9
-	VPERM2F128 $0x20, Y9, Y8, Y1
+	VEXTRACTF128 $0x01, Y1, X4   // X4 = Lane 1 (x2, x3)
+	VADDPS X4, X1, X5            // X5 = Sum (x0+x2, x1+x3)
+	VSUBPS X4, X1, X6            // X6 = Diff (x0-x2, x1-x3)
+	VPERMILPS $0x4E, X5, X7      // X7 = Swap halves of S
+	VADDPS X7, X5, X8            // X8 = (y0, y0)
+	VSUBPS X7, X5, X9            // X9 = (y2, y2)
+	VPERMILPS $0x4E, X6, X10     // X10 = Swap halves of D
+	VPERMILPS $0xB1, X10, X10    // X10 = (Im, Re) for rotation
+	VXORPS X15, X10, X10         // X10 = +i*D1
+	VADDPS X10, X6, X12          // y1 = D0 + i*D1
+	VSUBPS X10, X6, X13          // y3 = D0 - i*D1
+	VUNPCKLPD X12, X8, X8        // X8 = (y0, y1)
+	VUNPCKLPD X13, X9, X9        // X9 = (y2, y3)
+	VPERM2F128 $0x20, Y9, Y8, Y1 // Y1 = Row 1 Final (y0, y1, y2, y3)
 
 	// --- Row 2 ---
-	VEXTRACTF128 $0x01, Y2, X4
-	VADDPS X4, X2, X5
-	VSUBPS X4, X2, X6
-	VPERMILPS $0x4E, X5, X7
-	VADDPS X7, X5, X8
-	VSUBPS X7, X5, X9
-	VPERMILPS $0x4E, X6, X10
-	VPERMILPS $0xB1, X10, X10
-	VXORPS X15, X10, X10
-	VADDPS X10, X6, X12
-	VSUBPS X10, X6, X13
-	VUNPCKLPD X12, X8, X8
-	VUNPCKLPD X13, X9, X9
-	VPERM2F128 $0x20, Y9, Y8, Y2
+	VEXTRACTF128 $0x01, Y2, X4   // X4 = Lane 1 (x2, x3)
+	VADDPS X4, X2, X5            // X5 = Sum (x0+x2, x1+x3)
+	VSUBPS X4, X2, X6            // X6 = Diff (x0-x2, x1-x3)
+	VPERMILPS $0x4E, X5, X7      // X7 = Swap halves of S
+	VADDPS X7, X5, X8            // X8 = (y0, y0)
+	VSUBPS X7, X5, X9            // X9 = (y2, y2)
+	VPERMILPS $0x4E, X6, X10     // X10 = Swap halves of D
+	VPERMILPS $0xB1, X10, X10    // X10 = (Im, Re) for rotation
+	VXORPS X15, X10, X10         // X10 = +i*D1
+	VADDPS X10, X6, X12          // y1 = D0 + i*D1
+	VSUBPS X10, X6, X13          // y3 = D0 - i*D1
+	VUNPCKLPD X12, X8, X8        // X8 = (y0, y1)
+	VUNPCKLPD X13, X9, X9        // X9 = (y2, y3)
+	VPERM2F128 $0x20, Y9, Y8, Y2 // Y2 = Row 2 Final (y0, y1, y2, y3)
 
 	// --- Row 3 ---
-	VEXTRACTF128 $0x01, Y3, X4
-	VADDPS X4, X3, X5
-	VSUBPS X4, X3, X6
-	VPERMILPS $0x4E, X5, X7
-	VADDPS X7, X5, X8
-	VSUBPS X7, X5, X9
-	VPERMILPS $0x4E, X6, X10
-	VPERMILPS $0xB1, X10, X10
-	VXORPS X15, X10, X10
-	VADDPS X10, X6, X12
-	VSUBPS X10, X6, X13
-	VUNPCKLPD X12, X8, X8
-	VUNPCKLPD X13, X9, X9
-	VPERM2F128 $0x20, Y9, Y8, Y3
+	VEXTRACTF128 $0x01, Y3, X4   // X4 = Lane 1 (x2, x3)
+	VADDPS X4, X3, X5            // X5 = Sum (x0+x2, x1+x3)
+	VSUBPS X4, X3, X6            // X6 = Diff (x0-x2, x1-x3)
+	VPERMILPS $0x4E, X5, X7      // X7 = Swap halves of S
+	VADDPS X7, X5, X8            // X8 = (y0, y0)
+	VSUBPS X7, X5, X9            // X9 = (y2, y2)
+	VPERMILPS $0x4E, X6, X10     // X10 = Swap halves of D
+	VPERMILPS $0xB1, X10, X10    // X10 = (Im, Re) for rotation
+	VXORPS X15, X10, X10         // X10 = +i*D1
+	VADDPS X10, X6, X12          // y1 = D0 + i*D1
+	VSUBPS X10, X6, X13          // y3 = D0 - i*D1
+	VUNPCKLPD X12, X8, X8        // X8 = (y0, y1)
+	VUNPCKLPD X13, X9, X9        // X9 = (y2, y3)
+	VPERM2F128 $0x20, Y9, Y8, Y3 // Y3 = Row 3 Final (y0, y1, y2, y3)
 
 	// =======================================================================
 	// STEP 4: Matrix Transposition
