@@ -200,7 +200,7 @@ func registerAVX2DITCodelets128() {
 	})
 
 	// Size 8: Radix-4 (Mixed-radix) AVX2 variant
-	// BUG: Roundtrip test fails - disabled until fixed
+	// Uses mixed-radix algorithm: radix-4 stage followed by radix-2 stage
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
 		Forward:    wrapCodelet128(amd64.ForwardAVX2Size8Radix4Complex128Asm),
@@ -208,8 +208,8 @@ func registerAVX2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix4_avx2",
-		Priority:   -1, // DISABLED: roundtrip test fails
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		Priority:   30, // Preferred over radix-8 and radix-2
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
 	})
 
 	// Size 16: Radix-2 AVX2 variant
