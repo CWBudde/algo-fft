@@ -238,6 +238,22 @@ func forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128, bit
 	return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
+func forwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.ForwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.InverseAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func forwardAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.ForwardAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+func inverseAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	return kasm.InverseAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+}
+
 func inverseAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }

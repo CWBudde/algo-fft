@@ -122,6 +122,8 @@ just test      # Run all tests
 just bench     # Verify no performance regressions (optional but recommended)
 ```
 
+**NEVER revert uncommitted changes you didn't create** — they cannot be recovered and discarding them is data loss.
+
 ## Commit & Pull Request Guidelines
 
 - Commit history is minimal; follow `CONTRIBUTING.md` style:

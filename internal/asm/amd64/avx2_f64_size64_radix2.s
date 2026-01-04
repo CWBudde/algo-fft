@@ -838,7 +838,8 @@ r4_64_128_stage1_loop:
 	// For forward: i*z = (-z.im, z.re)
 	VPERMILPD $1, X7, X9     // [t3.im, t3.re]
 	VXORPD X12, X12, X12
-	VUNPCKLPD X12, X10, X12  // [signbit, 0] for i multiplication
+	VMOVQ AX, X10
+	VUNPCKLPD X11, X10, X12  // [signbit, 0] for i multiplication
 	VXORPD X12, X9, X9       // [-t3.im, t3.re] = i*t3
 
 	VADDPD X6, X4, X0        // y0 = t0 + t2
@@ -971,7 +972,8 @@ r4_64_128_stage2_inner:
 	// i*t3
 	VPERMILPD $1, X7, X9
 	VXORPD X12, X12, X12
-	VUNPCKLPD X12, X10, X12
+	VMOVQ AX, X10
+	VUNPCKLPD X11, X10, X12
 	VXORPD X12, X9, X9
 
 	VADDPD X6, X4, X0        // y0
@@ -1100,7 +1102,8 @@ r4_64_128_stage3_loop:
 	// i*t3
 	VPERMILPD $1, X7, X9
 	VXORPD X12, X12, X12
-	VUNPCKLPD X12, X10, X12
+	VMOVQ AX, X10
+	VUNPCKLPD X11, X10, X12
 	VXORPD X12, X9, X9
 
 	VADDPD X6, X4, X0
