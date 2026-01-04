@@ -46,8 +46,18 @@ func (p *Plan[T]) transformStrided(dst, src []T, stride int, inverse bool) error
 		return p.Forward(dst[:p.n], src[:p.n])
 	}
 
+	// Use optimized strided DIT only if:
+	// - Size is power of 2
+	// - Not using Bluestein's algorithm
+	// - dst != src (not in-place)
+	// - The bitrev is standard radix-2 (strided DIT requires radix-2 bit-reversal)
+	canUseStridedDIT := m.IsPowerOf2(p.n) &&
+		p.kernelStrategy != fft.KernelBluestein &&
+		!sameSliceStrided(dst, src) &&
+		isRadix2BitRev(p.bitrev, p.n)
+
 	//nolint:nestif
-	if m.IsPowerOf2(p.n) && p.kernelStrategy != fft.KernelBluestein && !sameSliceStrided(dst, src) {
+	if canUseStridedDIT {
 		if inverse {
 			if fft.InverseStridedDIT(dst, src, p.twiddle, p.bitrev, stride, p.n) {
 				return nil
@@ -125,4 +135,17 @@ func sameSliceStrided[T any](a, b []T) bool {
 	}
 
 	return &a[0] == &b[0]
+}
+
+// isRadix2BitRev checks if bitrev is standard radix-2 bit-reversal.
+// For radix-2, bitrev[1] == n/2 (the bit-reversal of index 1).
+// This is used to skip the strided DIT optimization when the Plan
+// uses a non-radix-2 codelet (e.g., radix-4 or mixed-radix).
+func isRadix2BitRev(bitrev []int, n int) bool {
+	if n < 2 || len(bitrev) < 2 {
+		return false
+	}
+	// For standard radix-2 bit-reversal, index 1 maps to n/2
+	// e.g., for n=8: bitrev = [0, 4, 2, 6, 1, 5, 3, 7], so bitrev[1] = 4 = 8/2
+	return bitrev[1] == n/2
 }

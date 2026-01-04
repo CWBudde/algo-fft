@@ -230,6 +230,7 @@ Generic implementations are instantiated for both precisions, with type-specific
 - Use `go:noescape` pragma for performance-critical functions
 - Remember Plan9/Go asm uses src, dst operand order (opposite of Intel’s dst, src)
 - Subtractions like VSUBPS b, a, dst → dst = a - b
+- add comments after instructions for clarity
 
 ### Error Handling
 
