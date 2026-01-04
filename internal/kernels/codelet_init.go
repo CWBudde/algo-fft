@@ -93,7 +93,8 @@ func registerDITCodelets64() {
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
-	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2) - TODO: investigate correctness
+	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2)
+	// BUG: Roundtrip test fails - disabled until fixed
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
 		Forward:    wrapCodelet64(forwardDIT8Radix4Complex64),
@@ -101,7 +102,7 @@ func registerDITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_mixedradix_generic",
-		Priority:   10,                        // Lower priority until correctness verified
+		Priority:   -1,                        // DISABLED: roundtrip test fails
 		BitrevFunc: mathpkg.ComputeBitReversalIndices, // Still uses binary reversal (8 is not a power of 4)
 	})
 
@@ -336,7 +337,8 @@ func registerDITCodelets128() {
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
-	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2) - TODO: investigate correctness
+	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2)
+	// BUG: Roundtrip test fails - disabled until fixed
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
 		Forward:    wrapCodelet128(forwardDIT8Radix4Complex128),
@@ -344,7 +346,7 @@ func registerDITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_mixedradix_generic",
-		Priority:   10,                        // Lower priority until correctness verified
+		Priority:   -1,                        // DISABLED: roundtrip test fails
 		BitrevFunc: mathpkg.ComputeBitReversalIndices, // Still uses binary reversal (8 is not a power of 4)
 	})
 

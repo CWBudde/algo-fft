@@ -74,6 +74,7 @@ func registerSSE2DITCodelets64() {
 	})
 
 	// Size 16: Radix-4 SSE2 variant
+	// BUG: Roundtrip test fails - disabled until fixed
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
 		Forward:    wrapCodelet64(amd64.ForwardSSE2Size16Radix4Complex64Asm),
@@ -81,7 +82,7 @@ func registerSSE2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit16_radix4_sse2",
-		Priority:   18, // Between generic (15) and AVX2 (20-25)
+		Priority:   -1, // DISABLED: roundtrip test fails
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 

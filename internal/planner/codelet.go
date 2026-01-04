@@ -134,6 +134,24 @@ func (r *CodeletRegistry[T]) Sizes() []int {
 	return sizes
 }
 
+// GetAllForSize returns all registered codelets for a given size, regardless of CPU features.
+// This is useful for testing all variants of a codelet.
+func (r *CodeletRegistry[T]) GetAllForSize(size int) []CodeletEntry[T] {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	entries := r.codelets[size]
+	if len(entries) == 0 {
+		return nil
+	}
+
+	// Return a copy to avoid data races
+	result := make([]CodeletEntry[T], len(entries))
+	copy(result, entries)
+
+	return result
+}
+
 // GetAvailableSizes returns all sizes with registered codelets that are
 // compatible with the given CPU features. The returned slice is sorted in ascending order.
 func (r *CodeletRegistry[T]) GetAvailableSizes(features cpu.Features) []int {

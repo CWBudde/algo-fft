@@ -1,0 +1,226 @@
+//go:build amd64 && asm && !purego
+
+package kernels
+
+import (
+	"fmt"
+	"math/cmplx"
+	"testing"
+
+	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
+)
+
+// TestRoundTripAllCodelets64 tests that every registered complex64 codelet passes
+// the forward -> inverse roundtrip test. This ensures all radix variants work correctly.
+func TestRoundTripAllCodelets64(t *testing.T) {
+	sizes := Registry64.Sizes()
+	features := cpu.DetectFeatures()
+
+	for _, size := range sizes {
+		entries := Registry64.GetAllForSize(size)
+		for _, entry := range entries {
+			// Skip disabled codelets (negative priority)
+			if entry.Priority < 0 {
+				continue
+			}
+
+			// Skip codelets that require unsupported CPU features
+			if !cpuSupportsLevel(features, entry.SIMDLevel) {
+				continue
+			}
+
+			t.Run(fmt.Sprintf("size%d/%s", size, entry.Signature), func(t *testing.T) {
+				testRoundTripCodelet64(t, &entry)
+			})
+		}
+	}
+}
+
+// TestRoundTripAllCodelets128 tests that every registered complex128 codelet passes
+// the forward -> inverse roundtrip test.
+func TestRoundTripAllCodelets128(t *testing.T) {
+	sizes := Registry128.Sizes()
+	features := cpu.DetectFeatures()
+
+	for _, size := range sizes {
+		entries := Registry128.GetAllForSize(size)
+		for _, entry := range entries {
+			// Skip disabled codelets (negative priority)
+			if entry.Priority < 0 {
+				continue
+			}
+
+			// Skip codelets that require unsupported CPU features
+			if !cpuSupportsLevel(features, entry.SIMDLevel) {
+				continue
+			}
+
+			t.Run(fmt.Sprintf("size%d/%s", size, entry.Signature), func(t *testing.T) {
+				testRoundTripCodelet128(t, &entry)
+			})
+		}
+	}
+}
+
+func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) {
+	t.Helper()
+	size := entry.Size
+
+	// Prepare buffers
+	original := make([]complex64, size)
+	src := make([]complex64, size)
+	freq := make([]complex64, size)
+	roundtrip := make([]complex64, size)
+	twiddle := ComputeTwiddleFactors[complex64](size)
+	scratch := make([]complex64, size)
+
+	// Compute bit-reversal indices
+	var bitrev []int
+	if entry.BitrevFunc != nil {
+		bitrev = entry.BitrevFunc(size)
+	}
+
+	// Initialize with test pattern: impulse at various positions
+	testPatterns := []struct {
+		name string
+		init func([]complex64)
+	}{
+		{"impulse_0", func(data []complex64) {
+			clear(data)
+			data[0] = 1
+		}},
+		{"impulse_mid", func(data []complex64) {
+			clear(data)
+			data[size/2] = 1
+		}},
+		{"random", func(data []complex64) {
+			for i := range data {
+				data[i] = complex(float32(i%7-3), float32(i%5-2))
+			}
+		}},
+	}
+
+	for _, pattern := range testPatterns {
+		pattern.init(original)
+		copy(src, original)
+
+		// Forward transform
+		entry.Forward(freq, src, twiddle, scratch, bitrev)
+
+		// Inverse transform
+		entry.Inverse(roundtrip, freq, twiddle, scratch, bitrev)
+
+		// Compare roundtrip with original
+		maxErr := float64(0)
+		for i := 0; i < size; i++ {
+			err := cmplx.Abs(complex128(roundtrip[i] - original[i]))
+			if err > maxErr {
+				maxErr = err
+			}
+		}
+
+		// Tolerance scales with size due to accumulated floating-point errors
+		tol := 1e-4 * float64(size) / 8
+		if tol < 1e-4 {
+			tol = 1e-4
+		}
+		if tol > 0.1 {
+			tol = 0.1
+		}
+
+		if maxErr > tol {
+			t.Errorf("%s: max roundtrip error %v exceeds tolerance %v", pattern.name, maxErr, tol)
+		}
+	}
+}
+
+func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]) {
+	t.Helper()
+	size := entry.Size
+
+	// Prepare buffers
+	original := make([]complex128, size)
+	src := make([]complex128, size)
+	freq := make([]complex128, size)
+	roundtrip := make([]complex128, size)
+	twiddle := ComputeTwiddleFactors[complex128](size)
+	scratch := make([]complex128, size)
+
+	// Compute bit-reversal indices
+	var bitrev []int
+	if entry.BitrevFunc != nil {
+		bitrev = entry.BitrevFunc(size)
+	}
+
+	// Initialize with test pattern: impulse at various positions
+	testPatterns := []struct {
+		name string
+		init func([]complex128)
+	}{
+		{"impulse_0", func(data []complex128) {
+			clear(data)
+			data[0] = 1
+		}},
+		{"impulse_mid", func(data []complex128) {
+			clear(data)
+			data[size/2] = 1
+		}},
+		{"random", func(data []complex128) {
+			for i := range data {
+				data[i] = complex(float64(i%7-3), float64(i%5-2))
+			}
+		}},
+	}
+
+	for _, pattern := range testPatterns {
+		pattern.init(original)
+		copy(src, original)
+
+		// Forward transform
+		entry.Forward(freq, src, twiddle, scratch, bitrev)
+
+		// Inverse transform
+		entry.Inverse(roundtrip, freq, twiddle, scratch, bitrev)
+
+		// Compare roundtrip with original
+		maxErr := float64(0)
+		for i := 0; i < size; i++ {
+			err := cmplx.Abs(roundtrip[i] - original[i])
+			if err > maxErr {
+				maxErr = err
+			}
+		}
+
+		// Tolerance for complex128 is tighter due to higher precision
+		tol := 1e-10 * float64(size) / 8
+		if tol < 1e-10 {
+			tol = 1e-10
+		}
+		if tol > 1e-6 {
+			tol = 1e-6
+		}
+
+		if maxErr > tol {
+			t.Errorf("%s: max roundtrip error %v exceeds tolerance %v", pattern.name, maxErr, tol)
+		}
+	}
+}
+
+// cpuSupportsLevel checks if the current CPU supports the required SIMD level.
+func cpuSupportsLevel(features cpu.Features, level planner.SIMDLevel) bool {
+	switch level {
+	case planner.SIMDNone:
+		return true
+	case planner.SIMDSSE2:
+		return features.HasSSE2
+	case planner.SIMDAVX2:
+		return features.HasAVX2
+	case planner.SIMDAVX512:
+		return features.HasAVX512
+	case planner.SIMDNEON:
+		return features.HasNEON
+	default:
+		return false
+	}
+}
