@@ -97,6 +97,7 @@ func (r *CodeletRegistry[T]) Lookup(size int, features cpu.Features) *CodeletEnt
 		if entries[i].Priority < 0 {
 			continue
 		}
+
 		if cpuSupports(features, entries[i].SIMDLevel) {
 			return &entries[i]
 		}

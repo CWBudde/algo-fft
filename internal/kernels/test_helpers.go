@@ -46,6 +46,7 @@ func assertComplex64SliceClose(t *testing.T, got, want []complex64, n int) {
 	if tol < 1e-4 {
 		tol = 1e-4
 	}
+
 	if tol > 0.1 {
 		tol = 0.1
 	}

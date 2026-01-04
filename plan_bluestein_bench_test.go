@@ -13,28 +13,28 @@ import (
 // Size 1536 = 2^9 × 3, internal FFT size = 4096 (NextPowerOfTwo(2*1536-1) = 4096)
 // Size 3000, internal FFT size = 8192 (NextPowerOfTwo(2*3000-1) = 8192)
 
-// Forward Bluestein benchmarks
+// Forward Bluestein benchmarks.
 func BenchmarkBluestein_Forward_384(b *testing.B)  { benchmarkBluesteinForward(b, 384) }
 func BenchmarkBluestein_Forward_768(b *testing.B)  { benchmarkBluesteinForward(b, 768) }
 func BenchmarkBluestein_Forward_1000(b *testing.B) { benchmarkBluesteinForward(b, 1000) }
 func BenchmarkBluestein_Forward_1536(b *testing.B) { benchmarkBluesteinForward(b, 1536) }
 func BenchmarkBluestein_Forward_3000(b *testing.B) { benchmarkBluesteinForward(b, 3000) }
 
-// Inverse Bluestein benchmarks
+// Inverse Bluestein benchmarks.
 func BenchmarkBluestein_Inverse_384(b *testing.B)  { benchmarkBluesteinInverse(b, 384) }
 func BenchmarkBluestein_Inverse_768(b *testing.B)  { benchmarkBluesteinInverse(b, 768) }
 func BenchmarkBluestein_Inverse_1000(b *testing.B) { benchmarkBluesteinInverse(b, 1000) }
 func BenchmarkBluestein_Inverse_1536(b *testing.B) { benchmarkBluesteinInverse(b, 1536) }
 func BenchmarkBluestein_Inverse_3000(b *testing.B) { benchmarkBluesteinInverse(b, 3000) }
 
-// Plan creation benchmarks for Bluestein sizes
+// Plan creation benchmarks for Bluestein sizes.
 func BenchmarkBluestein_NewPlan_384(b *testing.B)  { benchmarkBluesteinNewPlan(b, 384) }
 func BenchmarkBluestein_NewPlan_768(b *testing.B)  { benchmarkBluesteinNewPlan(b, 768) }
 func BenchmarkBluestein_NewPlan_1000(b *testing.B) { benchmarkBluesteinNewPlan(b, 1000) }
 func BenchmarkBluestein_NewPlan_1536(b *testing.B) { benchmarkBluesteinNewPlan(b, 1536) }
 func BenchmarkBluestein_NewPlan_3000(b *testing.B) { benchmarkBluesteinNewPlan(b, 3000) }
 
-// Complex128 benchmarks (higher precision)
+// Complex128 benchmarks (higher precision).
 func BenchmarkBluestein_Forward_384_Complex128(b *testing.B)  { benchmarkBluesteinForward128(b, 384) }
 func BenchmarkBluestein_Forward_1000_Complex128(b *testing.B) { benchmarkBluesteinForward128(b, 1000) }
 func BenchmarkBluestein_Forward_3000_Complex128(b *testing.B) { benchmarkBluesteinForward128(b, 3000) }
