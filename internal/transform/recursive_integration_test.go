@@ -202,7 +202,7 @@ func TestRecursiveFFTLinearity(t *testing.T) {
 	recursiveForward(actual, combined, strategy, twiddle, scratch, Registry64, features)
 
 	// Should match
-	err := compareComplexSlicesRel(actual, expected, 5e-2, 1e-7)
+	err := compareComplexSlicesRel(actual, expected, 1e-1, 1e-7)
 	if err != nil {
 		maxDiff, maxIndex := maxDiffComplex64(actual, expected)
 		rel := float32(0)

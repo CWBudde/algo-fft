@@ -204,6 +204,12 @@ func ForwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64
 func InverseAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
+func ForwardAVX2Size256Radix16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
+func InverseAVX2Size256Radix16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
 func ForwardAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
@@ -250,6 +256,59 @@ func ForwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex
 
 //go:noescape
 func InverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+// ============================================================================
+// Matrix Transpose Operations (for Six-Step FFT)
+// ============================================================================
+
+// Transpose64x64Complex64AVX2Asm transposes a 64×64 matrix of complex64 values.
+// Uses AVX2 8×8 block processing for efficient cache utilization.
+//
+//go:noescape
+func Transpose64x64Complex64AVX2Asm(dst, src []complex64) bool
+
+// TransposeTwiddle64x64Complex64AVX2Asm performs fused transpose + twiddle multiply:
+//
+//	dst[i,j] = src[j,i] * twiddle[(i*j) % 4096]
+//
+// Used in forward six-step FFT (steps 3-4 fused).
+//
+//go:noescape
+func TransposeTwiddle64x64Complex64AVX2Asm(dst, src, twiddle []complex64) bool
+
+// TransposeTwiddleConj64x64Complex64AVX2Asm performs fused transpose + conjugate twiddle:
+//
+//	dst[i,j] = src[j,i] * conj(twiddle[(i*j) % 4096])
+//
+// Used in inverse six-step FFT (steps 3-4 fused).
+//
+//go:noescape
+func TransposeTwiddleConj64x64Complex64AVX2Asm(dst, src, twiddle []complex64) bool
+
+// Transpose128x128Complex64AVX2Asm transposes a 128×128 matrix of complex64 values.
+// Uses AVX2 4×4 block processing for efficient cache utilization.
+// Used in size-16384 six-step FFT.
+//
+//go:noescape
+func Transpose128x128Complex64AVX2Asm(dst, src []complex64) bool
+
+// TransposeTwiddle128x128Complex64AVX2Asm performs fused transpose + twiddle multiply:
+//
+//	dst[i,j] = src[j,i] * twiddle[(i*j) % 16384]
+//
+// Used in forward six-step FFT for size 16384 (steps 3-4 fused).
+//
+//go:noescape
+func TransposeTwiddle128x128Complex64AVX2Asm(dst, src, twiddle []complex64) bool
+
+// TransposeTwiddleConj128x128Complex64AVX2Asm performs fused transpose + conjugate twiddle:
+//
+//	dst[i,j] = src[j,i] * conj(twiddle[(i*j) % 16384])
+//
+// Used in inverse six-step FFT for size 16384 (steps 3-4 fused).
+//
+//go:noescape
+func TransposeTwiddleConj128x128Complex64AVX2Asm(dst, src, twiddle []complex64) bool
 
 // ============================================================================
 // Size-Specific FFT Kernels (Complex128)
