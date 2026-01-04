@@ -89,11 +89,14 @@ Mixed-radix FFT handles sizes that factor into 2, 3, 4, 5 (e.g., 384 = 2⁷ × 3
 
 #### 12.2.2 Eliminate Intermediate Memory Copies (14% overhead)
 
-- [ ] Implement ping-pong buffering in `mixedRadixRecursive`:
-  - [ ] Alternate between dst and scratch as working buffer
-  - [ ] Only copy on final stage if result isn't in dst
-  - [ ] Remove per-stage `copy(dst, scratch[:n])` at line 224
-- [ ] Benchmark improvement (target: reduce memmove from 14% to <2%)
+- [x] Implement ping-pong buffering in `mixedRadixRecursive`:
+  - [x] Created `mixedRadixRecursivePingPong` that alternates between dst and work buffers
+  - [x] Buffers swap at each recursion level, eliminating intermediate copies
+  - [x] Only copy at the end if result isn't already in the destination buffer
+  - [x] Removed per-stage `copy(dst, scratch[:n])` that was at line 224
+- [x] Benchmark improvement (achieved: memmove overhead reduced from 14% to <1%, completely eliminated from profile top results)
+  - Bluestein FFT-384 throughput increased by ~20% (260-285 MB/s → 296-337 MB/s)
+  - `runtime.memmove` no longer appears in CPU profile top functions
 
 ### 12.3 Medium Effort Optimizations
 
