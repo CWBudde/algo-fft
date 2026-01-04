@@ -132,27 +132,6 @@ func radix3Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, in
 	return true
 }
 
-// radix3Constants returns the precomputed radix-3 butterfly constants.
-// inverse=false returns forward transform constants (half, coefFwd).
-// inverse=true returns inverse transform constants (half, coefInv).
-func radix3Constants[T Complex](inverse bool) (T, T) {
-	var zero T
-	switch any(zero).(type) {
-	case complex64:
-		if inverse {
-			return any(radix3Half64).(T), any(radix3CoefInv64).(T)
-		}
-		return any(radix3Half64).(T), any(radix3CoefFwd64).(T)
-	case complex128:
-		if inverse {
-			return any(radix3Half128).(T), any(radix3CoefInv128).(T)
-		}
-		return any(radix3Half128).(T), any(radix3CoefFwd128).(T)
-	default:
-		panic("unsupported complex type")
-	}
-}
-
 // Type-specific butterfly functions to avoid generic overhead
 
 func butterfly3ForwardComplex64(a0, a1, a2 complex64) (complex64, complex64, complex64) {
