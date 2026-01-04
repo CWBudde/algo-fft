@@ -134,6 +134,8 @@ func registerSSE2DITCodelets64() {
 	})
 
 	// Size 128: Mixed Radix-2/4 SSE2 variant (3 radix-4 + 1 radix-2 stages)
+	// TODO: This kernel has a bug causing incorrect inverse transforms.
+	// Priority lowered to -1 to disable until fixed.
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
 		Forward:    wrapCodelet64(amd64.ForwardSSE2Size128Radix4Complex64Asm),
@@ -141,7 +143,7 @@ func registerSSE2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit128_radix4_sse2",
-		Priority:   18, // Between generic (15) and AVX2 (20-25)
+		Priority:   -1, // Disabled: roundtrip test fails
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
@@ -257,6 +259,8 @@ func registerSSE2DITCodelets128() {
 	})
 
 	// Size 64: Radix-2 SSE2 variant
+	// TODO: This kernel has a bug causing incorrect inverse transforms.
+	// Priority lowered to -1 to disable until fixed.
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
 		Forward:    wrapCodelet128(amd64.ForwardSSE2Size64Radix2Complex128Asm),
@@ -264,11 +268,13 @@ func registerSSE2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit64_radix2_sse2",
-		Priority:   17,
+		Priority:   -1, // Disabled: roundtrip test fails
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-4 SSE2 variant
+	// TODO: This kernel has a bug causing incorrect inverse transforms.
+	// Priority lowered to -1 to disable until fixed.
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
 		Forward:    wrapCodelet128(amd64.ForwardSSE2Size64Radix4Complex128Asm),
@@ -276,7 +282,7 @@ func registerSSE2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit64_radix4_sse2",
-		Priority:   18,
+		Priority:   -1, // Disabled: roundtrip test fails
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 

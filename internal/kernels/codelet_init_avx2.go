@@ -73,6 +73,8 @@ func registerAVX2DITCodelets64() {
 	})
 
 	// Size 32: Radix-2 AVX2 variant
+	// TODO: This kernel has a bug causing incorrect inverse transforms.
+	// Priority lowered to -1 to disable until fixed.
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
 		Forward:    wrapCodelet64(amd64.ForwardAVX2Size32Complex64Asm),
@@ -80,7 +82,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit32_radix2_avx2",
-		Priority:   20,
+		Priority:   -1, // Disabled: roundtrip test fails
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
@@ -220,6 +222,8 @@ func registerAVX2DITCodelets128() {
 	})
 
 	// Size 64: Radix-2 AVX2 variant
+	// TODO: This kernel has a bug causing incorrect inverse transforms.
+	// Priority lowered to -1 to disable until fixed.
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
 		Forward:    wrapCodelet128(amd64.ForwardAVX2Size64Radix2Complex128Asm),
@@ -227,14 +231,13 @@ func registerAVX2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix2_avx2",
-		Priority:   25,
+		Priority:   -1, // Disabled: roundtrip test fails
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 64: Radix-4 AVX2 variant
-	// TEMPORARILY RE-ENABLED FOR DEBUGGING: AVX2 assembly produces incorrect results.
-	// 64 = 4^3 is a valid radix-4 decomposition, but the assembly implementation has bugs.
-	// Priority set to 100 to force selection for debugging.
+	// TODO: This kernel has a bug causing incorrect inverse transforms.
+	// Priority lowered to -1 to disable until fixed.
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
 		Forward:    wrapCodelet128(amd64.ForwardAVX2Size64Radix4Complex128Asm),
@@ -242,7 +245,7 @@ func registerAVX2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix4_avx2",
-		Priority:   100, // DEBUGGING: Force selection to identify bug
+		Priority:   -1, // Disabled: roundtrip test fails
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 

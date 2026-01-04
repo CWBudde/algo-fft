@@ -81,6 +81,7 @@ func (r *CodeletRegistry[T]) Register(entry CodeletEntry[T]) {
 // Lookup finds the best codelet for a given size and CPU features.
 // Returns nil if no codelet is available for the size.
 // The lookup prefers higher SIMD levels that the CPU supports.
+// Codelets with negative priority are skipped (disabled codelets).
 func (r *CodeletRegistry[T]) Lookup(size int, features cpu.Features) *CodeletEntry[T] {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -92,6 +93,10 @@ func (r *CodeletRegistry[T]) Lookup(size int, features cpu.Features) *CodeletEnt
 
 	// Find the best codelet that the CPU supports
 	for i := range entries {
+		// Skip disabled codelets (negative priority)
+		if entries[i].Priority < 0 {
+			continue
+		}
 		if cpuSupports(features, entries[i].SIMDLevel) {
 			return &entries[i]
 		}
