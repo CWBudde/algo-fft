@@ -28,7 +28,7 @@ func BenchmarkDITComplex64(b *testing.B) {
 	cases := []benchCase64{
 		{"Size4/Radix4", 4, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT4Radix4Complex64, inverseDIT4Radix4Complex64},
 		{"Size8/Radix2", 8, mathpkg.ComputeBitReversalIndices, forwardDIT8Radix2Complex64, inverseDIT8Radix2Complex64},
-		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndices, forwardDIT8Radix4Complex64, inverseDIT8Radix4Complex64},
+		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndicesMixed24, forwardDIT8Radix4Complex64, inverseDIT8Radix4Complex64},
 		{"Size16/Radix2", 16, mathpkg.ComputeBitReversalIndices, forwardDIT16Complex64, inverseDIT16Complex64},
 		{"Size16/Radix4", 16, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT16Radix4Complex64, inverseDIT16Radix4Complex64},
 		{"Size32/Radix2", 32, mathpkg.ComputeBitReversalIndices, forwardDIT32Complex64, inverseDIT32Complex64},
@@ -56,7 +56,7 @@ func BenchmarkDITComplex128(b *testing.B) {
 	cases := []benchCase128{
 		{"Size4/Radix4", 4, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT4Radix4Complex128, inverseDIT4Radix4Complex128},
 		{"Size8/Radix2", 8, mathpkg.ComputeBitReversalIndices, forwardDIT8Radix2Complex128, inverseDIT8Radix2Complex128},
-		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndices, forwardDIT8Radix4Complex128, inverseDIT8Radix4Complex128},
+		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndicesMixed24, forwardDIT8Radix4Complex128, inverseDIT8Radix4Complex128},
 		{"Size16/Radix2", 16, mathpkg.ComputeBitReversalIndices, forwardDIT16Complex128, inverseDIT16Complex128},
 		{"Size16/Radix4", 16, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT16Radix4Complex128, inverseDIT16Radix4Complex128},
 		{"Size32/Radix2", 32, mathpkg.ComputeBitReversalIndices, forwardDIT32Complex128, inverseDIT32Complex128},
