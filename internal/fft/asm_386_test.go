@@ -54,7 +54,7 @@ func TestSSE2SizeSpecificComplex64_386(t *testing.T) {
 			dst := make([]complex64, tc.size)
 			scratch := make([]complex64, tc.size)
 			twiddle := ComputeTwiddleFactors[complex64](tc.size)
-			
+
 			var bitrev []int
 			if tc.radix == 4 {
 				bitrev = math.ComputeBitReversalIndicesRadix4(tc.size)
@@ -124,7 +124,7 @@ func TestSSE2SizeSpecificComplex128_386(t *testing.T) {
 			dst := make([]complex128, tc.size)
 			scratch := make([]complex128, tc.size)
 			twiddle := ComputeTwiddleFactors[complex128](tc.size)
-			
+
 			var bitrev []int
 			if tc.radix == 4 {
 				bitrev = math.ComputeBitReversalIndicesRadix4(tc.size)

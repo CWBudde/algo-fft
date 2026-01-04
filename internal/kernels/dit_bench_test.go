@@ -1,8 +1,9 @@
 package kernels
 
 import (
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
+
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 // benchCase64 defines a benchmark case for complex64 kernels.

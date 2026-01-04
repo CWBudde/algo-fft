@@ -59,8 +59,6 @@ func registerSSE2DITCodelets64() {
 		BitrevFunc: mathpkg.ComputeIdentityIndices,
 	})
 
-
-
 	// Size 16: Radix-2 SSE2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,

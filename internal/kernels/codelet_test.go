@@ -1,10 +1,10 @@
 package kernels
 
 import (
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func TestCodeletRegistryLookup(t *testing.T) {

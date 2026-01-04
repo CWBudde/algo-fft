@@ -457,18 +457,19 @@ All implementations are validated against:
 
 Support for 32-bit x86 architecture is provided via SSE2 assembly kernels. These kernels are optimized to work within the 8-register limit of the x86 architecture (XMM0-XMM7).
 
-| Size | Type       | Algorithm | SIMD | Status | Files                                        |
-| ---- | ---------- | --------- | ---- | ------ | -------------------------------------------- |
-| 2    | complex64  | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size2_radix2.s`   |
-| 2    | complex128 | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size2_radix2.s`   |
-| 4    | complex64  | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size4_radix4.s`   |
-| 4    | complex128 | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size4_radix4.s`   |
-| 8    | complex64  | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size8_radix2.s`   |
-| 8    | complex128 | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size8_radix2.s`   |
-| 16   | complex64  | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size16_radix4.s`  |
-| 16   | complex128 | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size16_radix4.s`  |
+| Size | Type       | Algorithm | SIMD | Status | Files                                       |
+| ---- | ---------- | --------- | ---- | ------ | ------------------------------------------- |
+| 2    | complex64  | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size2_radix2.s`  |
+| 2    | complex128 | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size2_radix2.s`  |
+| 4    | complex64  | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size4_radix4.s`  |
+| 4    | complex128 | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size4_radix4.s`  |
+| 8    | complex64  | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size8_radix2.s`  |
+| 8    | complex128 | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size8_radix2.s`  |
+| 16   | complex64  | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size16_radix4.s` |
+| 16   | complex128 | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size16_radix4.s` |
 
 **Notes:**
+
 - Kernels manage register pressure by utilizing stack spills where necessary (especially for size 16 complex128).
 - Address calculations for strides > 8 bytes (complex128) are handled manually to avoid 386 addressing mode limitations.
 

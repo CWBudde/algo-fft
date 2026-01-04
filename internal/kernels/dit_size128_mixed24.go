@@ -4,16 +4,18 @@ package kernels
 // the AVX2 size-128 kernel.
 //
 // The AVX2 size-128 kernel expects inputs in a specific order:
-//   work[0] = x(0)
-//   work[1] = x(32)
-//   work[2] = x(64)
-//   work[3] = x(96)
+//
+//	work[0] = x(0)
+//	work[1] = x(32)
+//	work[2] = x(64)
+//	work[3] = x(96)
 //
 // Standard binary reversal gives:
-//   0 -> 0
-//   1 -> 64
-//   2 -> 32
-//   3 -> 96
+//
+//	0 -> 0
+//	1 -> 64
+//	2 -> 32
+//	3 -> 96
 //
 // To match the kernel's expectation, we need to swap indices 1 and 2.
 // This corresponds to swapping Bit 5 and Bit 6 of the bit-reversed value.
@@ -38,10 +40,10 @@ func ComputeBitReversalIndicesMixed128(n int) []int {
 		// These are the two MSBs for 7-bit number (bits 0..6)
 		b5 := (r >> 5) & 1
 		b6 := (r >> 6) & 1
-		
+
 		// Clear bits 5 and 6
 		r &= ^(1<<5 | 1<<6)
-		
+
 		// Set swapped
 		r |= (b5 << 6) | (b6 << 5)
 

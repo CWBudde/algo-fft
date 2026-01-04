@@ -3,10 +3,10 @@
 package kernels
 
 import (
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
 
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 

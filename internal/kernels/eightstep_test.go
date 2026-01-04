@@ -1,8 +1,9 @@
 package kernels
 
 import (
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"testing"
+
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func TestEightStepForwardInverse(t *testing.T) {

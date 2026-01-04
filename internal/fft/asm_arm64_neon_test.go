@@ -77,8 +77,8 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 			tol:        1e-4,
 		},
 		{
-			name: "Size32_MixedRadix24",
-			size: 32,
+			name:       "Size32_MixedRadix24",
+			size:       32,
 			forward:    forwardNEONSize32MixedRadix24Complex64Asm,
 			inverse:    inverseNEONSize32MixedRadix24Complex64Asm,
 			bitrevFunc: ComputeBitReversalIndicesMixed24,

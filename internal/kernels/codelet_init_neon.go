@@ -3,8 +3,8 @@
 package kernels
 
 import (
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	arm64 "github.com/MeKo-Christian/algo-fft/internal/asm/arm64"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 // registerNEONDITCodelets64 registers NEON-optimized complex64 DIT codelets.

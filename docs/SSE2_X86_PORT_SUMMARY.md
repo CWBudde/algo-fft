@@ -7,6 +7,7 @@ Successfully ported SSE2 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/3
 ## Files Created/Modified
 
 ### 1. Documentation
+
 - **`docs/PORTING_AMD64_TO_X86.md`** - Comprehensive porting guide
   - Detailed architecture differences (registers, ABI, stack offsets)
   - Step-by-step porting process with examples
@@ -15,6 +16,7 @@ Successfully ported SSE2 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/3
   - Build/test commands for x86
 
 ### 2. Assembly Implementation
+
 - **`internal/asm/x86/sse2_f32_size8_radix2.s`** - Ported SSE2 kernels
   - `ForwardSSE2Size8Radix2Complex64Asm` - Forward FFT
   - `InverseSSE2Size8Radix2Complex64Asm` - Inverse FFT with 1/8 scaling
@@ -23,6 +25,7 @@ Successfully ported SSE2 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/3
   - Proper x86 ABI with 12-byte slice descriptors
 
 ### 3. Constants and Data
+
 - **`internal/asm/x86/core.s`** - Updated with required constants
   - Added scaling factors: `eighth32`, `sixteenth32`, `thirtySecond32`, etc.
   - Added sign masks: `signbit32`
@@ -30,12 +33,14 @@ Successfully ported SSE2 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/3
   - All constants properly aligned and marked `RODATA|NOPTR`
 
 ### 4. Go Declarations
+
 - **`internal/asm/x86/decl.go`** - Updated function declarations
   - Added `ForwardSSE2Size8Radix2Complex64Asm`
   - Added `InverseSSE2Size8Radix2Complex64Asm`
   - Proper `//go:noescape` pragmas for performance
 
 ### 5. Tests
+
 - **`internal/kernels/sse2_f32_size8_radix2_386_test.go`** - Comprehensive tests
   - `TestForwardSSE2Size8Radix2Complex64_386` - Correctness test vs reference
   - `TestInverseSSE2Size8Radix2Complex64_386` - Correctness test vs reference
@@ -46,16 +51,18 @@ Successfully ported SSE2 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/3
 ## Key Porting Changes
 
 ### Register Mapping
-| AMD64 | x86/386 | Usage |
-|-------|---------|-------|
-| R8, R14 | DI | Destination pointer |
-| R9 | SI | Source pointer |
-| R10 | BX | Twiddle factors |
-| R11 | DX | Scratch buffer |
-| R12 | BP | Bit-reversal indices |
-| R13 | AX/Stack | Length (n) |
+
+| AMD64   | x86/386  | Usage                |
+| ------- | -------- | -------------------- |
+| R8, R14 | DI       | Destination pointer  |
+| R9      | SI       | Source pointer       |
+| R10     | BX       | Twiddle factors      |
+| R11     | DX       | Scratch buffer       |
+| R12     | BP       | Bit-reversal indices |
+| R13     | AX/Stack | Length (n)           |
 
 ### Stack Frame Adjustments
+
 ```assembly
 # AMD64
 TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
@@ -63,10 +70,12 @@ TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
 # x86
 TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $36-61
 ```
+
 - Frame size reduced from 121 to 61 bytes (5 slices × 12 bytes + 1 bool)
 - Added 36 bytes local stack for register spills
 
 ### Offset Calculations
+
 ```assembly
 # AMD64 offsets (24-byte slices)
 dst+0(FP)      src+24(FP)     twiddle+48(FP)
@@ -78,6 +87,7 @@ scratch+36(FP) bitrev+48(FP)  ret+60(FP)
 ```
 
 ### Pointer Operations
+
 ```assembly
 # AMD64: 64-bit pointers
 MOVQ dst+0(FP), R8
@@ -91,6 +101,7 @@ SHLL $3, CX              # complex64 = 8 bytes
 ## SSE2 Instructions - Unchanged!
 
 Good news: SSE2 instructions work identically on both architectures:
+
 - `MOVSD`, `MOVAPS`, `MOVUPS` - Same
 - `ADDPS`, `SUBPS`, `MULPS` - Same
 - `SHUFPS`, `XORPS`, `ADDSUBPS` - Same
@@ -99,16 +110,19 @@ Good news: SSE2 instructions work identically on both architectures:
 ## Testing
 
 ### Build for x86
+
 ```bash
 GOARCH=386 go build -tags=asm ./...
 ```
 
 ### Run Tests
+
 ```bash
 GOARCH=386 go test -v -tags=asm ./internal/kernels -run ".*386"
 ```
 
 ### Run Benchmarks
+
 ```bash
 GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
 ```
@@ -128,6 +142,7 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
 ## Next Steps
 
 ### Immediate (Priority 1)
+
 1. Port size-16 radix-2 kernels
    - Similar complexity to size-8
    - High usage frequency
@@ -136,6 +151,7 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
 3. Verify tests pass on actual 386 hardware/VM
 
 ### Short-term (Priority 2)
+
 4. Port size-4 radix-4 kernels
    - Smallest kernel, good validation
 5. Port size-64 kernels
@@ -144,6 +160,7 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
    - Larger, less common
 
 ### Long-term (Priority 3)
+
 7. Consider radix-4 and radix-8 variants
    - Only if benchmarks show significant benefit over radix-2
 8. Consider complex128 support for x86
@@ -151,6 +168,7 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
    - More complex due to larger data size
 
 ### Optional
+
 9. Profile performance on actual 386 hardware
 10. Document performance characteristics
 11. Add to CI/CD if 386 builds are supported
@@ -158,7 +176,7 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
 ## Architecture Support Matrix (After This Port)
 
 | Size | Radix | AMD64 SSE2 | x86 SSE2 | ARM64 NEON |
-|------|-------|------------|----------|------------|
+| ---- | ----- | ---------- | -------- | ---------- |
 | 4    | R4    | ✓          | -        | ✓          |
 | 8    | R2    | ✓          | **✓**    | ✓          |
 | 8    | R4    | ✓          | -        | -          |
@@ -173,12 +191,14 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
 ## Lessons Learned
 
 ### What Worked Well
+
 1. **SSE2 compatibility** - Instructions work identically, reducing porting complexity
 2. **Stack-based approach** - Using stack for register spills is straightforward
 3. **Existing test infrastructure** - Reference implementations made validation easy
 4. **Documentation** - Creating porting guide first helped catch issues early
 
 ### Challenges Encountered
+
 1. **Register pressure** - x86 has only 8 general-purpose registers vs 16 on AMD64
    - Solution: Aggressive use of stack for temporary storage
 2. **Offset calculation** - Easy to miss the 24→12 byte slice descriptor change
@@ -187,6 +207,7 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
    - Solution: Added `_386` suffix to all labels
 
 ### Recommendations for Future Ports
+
 1. **Start simple** - Port smallest/simplest kernels first (size-4, size-8)
 2. **Validate early** - Test each port immediately, don't batch them
 3. **Reuse patterns** - This size-8 implementation serves as template for others
@@ -203,6 +224,7 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
 ## Maintenance Notes
 
 ### When Adding New Kernels
+
 1. Follow the pattern in `sse2_f32_size8_radix2.s`
 2. Update `x86/decl.go` with new function declarations
 3. Add required constants to `x86/core.s` if needed
@@ -210,14 +232,17 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
 5. Run full test suite with `GOARCH=386`
 
 ### When Modifying Existing AMD64 Kernels
+
 1. Consider if x86 port needs same changes
 2. Keep implementations in sync when possible
 3. Document any intentional divergence
 
 ### Build Tags
+
 Always use: `//go:build 386 && asm && !purego`
 
 This ensures kernels only build for:
+
 - 32-bit x86 architecture (`386`)
 - When assembly is enabled (`asm`)
 - Not in pure-Go mode (`!purego`)

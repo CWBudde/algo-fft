@@ -1,10 +1,11 @@
 package kernels
 
 import (
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"math"
 	"math/cmplx"
 	"testing"
+
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func TestComputeChirpSequence(t *testing.T) {
