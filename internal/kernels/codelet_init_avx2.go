@@ -175,7 +175,6 @@ func registerAVX2DITCodelets64() {
 // registerAVX2DITCodelets128 registers AVX2-optimized complex128 DIT codelets.
 func registerAVX2DITCodelets128() {
 	// Size 8: Radix-8 AVX2 variant (single-stage butterfly)
-	// BUG: Roundtrip test fails - disabled until fixed
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
 		Forward:    wrapCodelet128(amd64.ForwardAVX2Size8Radix8Complex128Asm),
@@ -183,8 +182,8 @@ func registerAVX2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix8_avx2",
-		Priority:   -1, // DISABLED: roundtrip test fails
-		BitrevFunc: nil,
+		Priority:   9, // Keep below generic radix-8 until proven faster
+		BitrevFunc: mathpkg.ComputeIdentityIndices,
 	})
 
 	// Size 8: Radix-2 AVX2 variant
