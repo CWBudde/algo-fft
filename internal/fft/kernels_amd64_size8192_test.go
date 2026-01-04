@@ -41,7 +41,7 @@ func TestAVX2Size8192Mixed24(t *testing.T) {
 
 	// Test Inverse
 	kernelInv := avx2SizeSpecificOrGenericDITInverseComplex64(KernelDIT)
-	
+
 	// Inverse input (use result of forward)
 	dstInv := make([]complex64, n)
 	okInv := kernelInv(dstInv, dst, twiddle, scratch, bitrev)

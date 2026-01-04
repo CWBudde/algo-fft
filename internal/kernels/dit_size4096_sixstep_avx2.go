@@ -17,10 +17,12 @@ var bitrev64Radix4 = [64]int{
 }
 
 // forwardDIT4096SixStepAVX2Complex64 computes a 4096-point forward FFT using the
-// six-step (64×64 matrix) algorithm with AVX2-accelerated 64-point sub-FFTs.
+// six-step (64×64 matrix) algorithm with AVX2-accelerated operations.
 //
-// This leverages the existing ForwardAVX2Size64Radix4Complex64Asm kernel for
-// each row FFT, providing SIMD acceleration for the sub-transforms.
+// This implementation uses:
+// - AVX2 assembly for transpose operations (Steps 1, 6)
+// - AVX2 assembly for fused transpose+twiddle (Steps 3+4)
+// - Existing ForwardAVX2Size64Radix4Complex64Asm kernel for row FFTs (Steps 2, 5)
 func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const (
 		n = 4096
@@ -34,11 +36,9 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 	// Work buffer
 	work := scratch[:n]
 
-	// Step 1: Transpose (src viewed as 64×64 matrix, transposed into work)
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
-			work[i*m+j] = src[j*m+i]
-		}
+	// Step 1: Transpose src → work (AVX2 accelerated)
+	if !amd64.Transpose64x64Complex64AVX2Asm(work, src) {
+		return false
 	}
 
 	// Precompute row twiddles for size-64 FFT (stride by 64 to get W_64^k from W_4096^(k*64))
@@ -57,13 +57,10 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 		}
 	}
 
-	// Steps 3+4 fused: Transpose and twiddle multiply in one pass
+	// Steps 3+4 fused: Transpose and twiddle multiply (AVX2 accelerated)
 	// dst[i*m+j] = work[j*m+i] * W_4096^(i*j)
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
-			idx := (i * j) % n
-			dst[i*m+j] = work[j*m+i] * twiddle[idx]
-		}
+	if !amd64.TransposeTwiddle64x64Complex64AVX2Asm(dst, work, twiddle) {
+		return false
 	}
 
 	// Step 5: Row FFTs using AVX2 (64 FFTs of size 64)
@@ -74,11 +71,9 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 		}
 	}
 
-	// Step 6: Final transpose (dst -> work -> dst)
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
-			work[i*m+j] = dst[j*m+i]
-		}
+	// Step 6: Final transpose dst → work → dst (AVX2 accelerated)
+	if !amd64.Transpose64x64Complex64AVX2Asm(work, dst) {
+		return false
 	}
 
 	copy(dst[:n], work)
@@ -87,7 +82,7 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 }
 
 // inverseDIT4096SixStepAVX2Complex64 computes a 4096-point inverse FFT using the
-// six-step (64×64 matrix) algorithm with AVX2-accelerated 64-point sub-IFFTs.
+// six-step (64×64 matrix) algorithm with AVX2-accelerated operations.
 func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const (
 		n = 4096
@@ -100,11 +95,9 @@ func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 
 	work := scratch[:n]
 
-	// Step 1: Transpose
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
-			work[i*m+j] = src[j*m+i]
-		}
+	// Step 1: Transpose src → work (AVX2 accelerated)
+	if !amd64.Transpose64x64Complex64AVX2Asm(work, src) {
+		return false
 	}
 
 	// Precompute row twiddles
@@ -123,14 +116,10 @@ func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 		}
 	}
 
-	// Steps 3+4 fused: Transpose and conjugate twiddle multiply in one pass
+	// Steps 3+4 fused: Transpose and conjugate twiddle multiply (AVX2 accelerated)
 	// dst[i*m+j] = work[j*m+i] * conj(W_4096^(i*j))
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
-			idx := (i * j) % n
-			tw := twiddle[idx]
-			dst[i*m+j] = work[j*m+i] * complex(real(tw), -imag(tw))
-		}
+	if !amd64.TransposeTwiddleConj64x64Complex64AVX2Asm(dst, work, twiddle) {
+		return false
 	}
 
 	// Step 5: Row IFFTs using AVX2
@@ -141,11 +130,9 @@ func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 		}
 	}
 
-	// Step 6: Final transpose
-	for i := 0; i < m; i++ {
-		for j := 0; j < m; j++ {
-			work[i*m+j] = dst[j*m+i]
-		}
+	// Step 6: Final transpose dst → work → dst (AVX2 accelerated)
+	if !amd64.Transpose64x64Complex64AVX2Asm(work, dst) {
+		return false
 	}
 
 	copy(dst[:n], work)
