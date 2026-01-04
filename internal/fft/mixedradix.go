@@ -75,7 +75,14 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 			inverse,
 		)
 	case complex128:
-		mixedRadixRecursivePingPong(work, src, scratch, n, 1, 1, radices[:stageCount], twiddle, inverse)
+		mixedRadixRecursivePingPongComplex128(
+			any(work).([]complex128),
+			any(src).([]complex128),
+			any(scratch).([]complex128),
+			n, 1, 1, radices[:stageCount],
+			any(twiddle).([]complex128),
+			inverse,
+		)
 	default:
 		return false
 	}
@@ -245,6 +252,136 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 				y0, y1, y2, y3, y4 = kernels.Butterfly5InverseComplex64(a0, a1, a2, a3, a4)
 			} else {
 				y0, y1, y2, y3, y4 = kernels.Butterfly5ForwardComplex64(a0, a1, a2, a3, a4)
+			}
+
+			dst[k] = y0
+			dst[span+k] = y1
+			dst[2*span+k] = y2
+			dst[3*span+k] = y3
+			dst[4*span+k] = y4
+		default:
+			return
+		}
+	}
+}
+
+// mixedRadixRecursivePingPongComplex128 is a specialized complex128 version that calls
+// type-specific butterfly functions to avoid generic overhead.
+func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, stride, step int, radices []int, twiddle []complex128, inverse bool) {
+	if n == 1 {
+		dst[0] = src[0]
+		return
+	}
+
+	radix := radices[0]
+	span := n / radix
+	nextRadices := radices[1:]
+
+	// Recursively process sub-transforms
+	for j := range radix {
+		if len(nextRadices) == 0 {
+			dst[j*span] = src[j*stride]
+		} else {
+			mixedRadixRecursivePingPongComplex128(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
+		}
+	}
+
+	// Determine where the recursive calls wrote their data
+	var input []complex128
+	if len(nextRadices) == 0 {
+		input = dst
+	} else {
+		input = work
+	}
+
+	// Apply radix-r butterfly with type-specific functions
+	for k := range span {
+		switch radix {
+		case 2:
+			w1 := twiddle[k*step]
+			if inverse {
+				w1 = conj(w1)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+
+			dst[k] = a0 + a1
+			dst[span+k] = a0 - a1
+		case 3:
+			w1 := twiddle[k*step]
+			w2 := twiddle[2*k*step]
+
+			if inverse {
+				w1 = conj(w1)
+				w2 = conj(w2)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+			a2 := w2 * input[2*span+k]
+
+			var y0, y1, y2 complex128
+			if inverse {
+				y0, y1, y2 = kernels.Butterfly3InverseComplex128(a0, a1, a2)
+			} else {
+				y0, y1, y2 = kernels.Butterfly3ForwardComplex128(a0, a1, a2)
+			}
+
+			dst[k] = y0
+			dst[span+k] = y1
+			dst[2*span+k] = y2
+		case 4:
+			w1 := twiddle[k*step]
+			w2 := twiddle[2*k*step]
+			w3 := twiddle[3*k*step]
+
+			if inverse {
+				w1 = conj(w1)
+				w2 = conj(w2)
+				w3 = conj(w3)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+			a2 := w2 * input[2*span+k]
+			a3 := w3 * input[3*span+k]
+
+			var y0, y1, y2, y3 complex128
+			if inverse {
+				y0, y1, y2, y3 = kernels.Butterfly4InverseComplex128(a0, a1, a2, a3)
+			} else {
+				y0, y1, y2, y3 = kernels.Butterfly4ForwardComplex128(a0, a1, a2, a3)
+			}
+
+			dst[k] = y0
+			dst[span+k] = y1
+			dst[2*span+k] = y2
+			dst[3*span+k] = y3
+		case 5:
+			w1 := twiddle[k*step]
+			w2 := twiddle[2*k*step]
+			w3 := twiddle[3*k*step]
+			w4 := twiddle[4*k*step]
+
+			if inverse {
+				w1 = conj(w1)
+				w2 = conj(w2)
+				w3 = conj(w3)
+				w4 = conj(w4)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+			a2 := w2 * input[2*span+k]
+			a3 := w3 * input[3*span+k]
+			a4 := w4 * input[4*span+k]
+
+			var y0, y1, y2, y3, y4 complex128
+			if inverse {
+				y0, y1, y2, y3, y4 = kernels.Butterfly5InverseComplex128(a0, a1, a2, a3, a4)
+			} else {
+				y0, y1, y2, y3, y4 = kernels.Butterfly5ForwardComplex128(a0, a1, a2, a3, a4)
 			}
 
 			dst[k] = y0
