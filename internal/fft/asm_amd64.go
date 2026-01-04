@@ -5,6 +5,7 @@ package fft
 import (
 	kasm "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
 )
 
 func forwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -516,7 +517,7 @@ func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 		return false
 	}
 
-	switch resolveKernelStrategy(len(src), KernelAuto) {
+	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
 	case KernelDIT:
 		return forwardDITComplex128(dst, src, twiddle, scratch, bitrev)
 	case KernelStockham:
@@ -531,7 +532,7 @@ func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 		return false
 	}
 
-	switch resolveKernelStrategy(len(src), KernelAuto) {
+	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
 	case KernelDIT:
 		return inverseDITComplex128(dst, src, twiddle, scratch, bitrev)
 	case KernelStockham:

@@ -2,7 +2,57 @@ package fft
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
 )
+
+// Type aliases for planner types used in the fft package.
+type (
+	KernelStrategy = planner.KernelStrategy
+	Wisdom         = planner.Wisdom
+	WisdomEntry    = planner.WisdomEntry
+	WisdomStore    = planner.WisdomStore
+	WisdomKey      = planner.WisdomKey
+)
+
+// Generic type alias for PlanEstimate
+type PlanEstimate[T Complex] = planner.PlanEstimate[T]
+
+// Re-export precision constants from planner.
+const (
+	PrecisionComplex64  = planner.PrecisionComplex64
+	PrecisionComplex128 = planner.PrecisionComplex128
+)
+
+// Re-export kernel strategy constants from planner.
+const (
+	KernelAuto      = planner.KernelAuto
+	KernelDIT       = planner.KernelDIT
+	KernelStockham  = planner.KernelStockham
+	KernelSixStep   = planner.KernelSixStep
+	KernelEightStep = planner.KernelEightStep
+	KernelBluestein = planner.KernelBluestein
+	KernelRecursive = planner.KernelRecursive
+)
+
+// Re-export functions and variables from planner.
+var (
+	SetKernelStrategy       = planner.SetKernelStrategy
+	GetKernelStrategy       = planner.GetKernelStrategy
+	RecordBenchmarkDecision = planner.RecordBenchmarkDecision
+	ResolveKernelStrategy   = planner.ResolveKernelStrategy
+	DefaultWisdom           = planner.DefaultWisdom
+	NewWisdom               = planner.NewWisdom
+	CPUFeatureMask          = planner.CPUFeatureMask
+)
+
+// Wrapper functions for generic planner functions.
+func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, strategy KernelStrategy) PlanEstimate[T] {
+	return planner.EstimatePlan[T](n, features, wisdom, strategy)
+}
+
+func HasCodelet[T Complex](n int, features cpu.Features) bool {
+	return planner.HasCodelet[T](n, features)
+}
 
 // Kernel and Kernels types are now imported from internal/kernels via kernels.go
 

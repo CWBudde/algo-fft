@@ -4,21 +4,22 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
 	"github.com/MeKo-Christian/algo-fft/internal/kernels"
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
 )
 
 // Complex is a type alias for the complex number constraint.
 type Complex = fftypes.Complex
 
-// CodeletRegistry and related types from kernels.
+// CodeletRegistry and related types from planner (via kernels).
 type (
-	CodeletRegistry[T Complex] = kernels.CodeletRegistry[T]
-	CodeletEntry[T Complex]    = kernels.CodeletEntry[T]
+	CodeletRegistry[T Complex] = planner.CodeletRegistry[T]
+	CodeletEntry[T Complex]    = planner.CodeletEntry[T]
 )
 
 // Re-export registries for tests.
 var (
-	Registry64  = kernels.Registry64
-	Registry128 = kernels.Registry128
+	Registry64  = planner.Registry64
+	Registry128 = planner.Registry128
 )
 
 // Helper functions from math package.

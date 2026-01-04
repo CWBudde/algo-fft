@@ -50,8 +50,9 @@ func CPUFeatureMask(hasSSE2, hasAVX2, hasAVX512, hasNEON bool) uint64 {
 	return mask
 }
 
-// strategyToAlgorithmName converts a kernel strategy to an algorithm name.
-func strategyToAlgorithmName(strategy KernelStrategy) string {
+// StrategyToAlgorithmName converts a kernel strategy to an algorithm name.
+// This is used for wisdom cache entries and debugging output.
+func StrategyToAlgorithmName(strategy KernelStrategy) string {
 	switch strategy {
 	case KernelDIT:
 		return "dit_fallback"

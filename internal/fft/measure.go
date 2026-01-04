@@ -7,6 +7,7 @@ import (
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
 )
 
 // PlannerMode controls how much work the planner does to choose kernels.
@@ -115,7 +116,7 @@ func MeasureAndSelect[T Complex](
 		if elapsed > 0 {
 			results = append(results, MeasureResult{
 				Strategy:  strategy,
-				Algorithm: strategyToAlgorithmName(strategy),
+				Algorithm: planner.StrategyToAlgorithmName(strategy),
 				NsPerOp:   float64(elapsed.Nanoseconds()) / float64(config.iters),
 			})
 		}
@@ -248,6 +249,6 @@ func estimateWithStrategy[T Complex](
 		ForwardCodelet: nil,
 		InverseCodelet: nil,
 		Strategy:       strategy,
-		Algorithm:      strategyToAlgorithmName(strategy),
+		Algorithm:      planner.StrategyToAlgorithmName(strategy),
 	}
 }

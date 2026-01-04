@@ -131,7 +131,7 @@ wisdomFallback:
 
 strategyFallback:
 	// 3. Fall back to heuristic kernel selection
-	algorithmName := strategyToAlgorithmName(strategy)
+	algorithmName := StrategyToAlgorithmName(strategy)
 
 	return PlanEstimate[T]{
 		Strategy:  strategy,

@@ -2,6 +2,10 @@
 
 package fft
 
+import (
+	"github.com/MeKo-Christian/algo-fft/internal/planner"
+)
+
 // neonSizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific
 // NEON implementations for common sizes (4, 8, 16, 32, 64, 128), falling back to the
 // generic NEON kernel for other sizes or if the size-specific kernel fails.
@@ -10,7 +14,7 @@ func neonSizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 		n := len(src)
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			// For non-DIT strategies, use generic NEON
 			// (NEON Stockham not yet implemented for ARM64)
@@ -97,7 +101,7 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 		n := len(src)
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			// For non-DIT strategies, use generic NEON
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
@@ -192,7 +196,7 @@ func neonSizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 	return func(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 		n := len(src)
 
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			return forwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
 		}
@@ -231,7 +235,7 @@ func neonSizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kern
 	return func(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 		n := len(src)
 
-		resolved := resolveKernelStrategy(n, strategy)
+		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
 			return inverseNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
 		}
