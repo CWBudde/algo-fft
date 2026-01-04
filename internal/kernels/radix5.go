@@ -197,7 +197,7 @@ func butterfly5InverseComplex128(a0, a1, a2, a3, a4 complex128) (complex128, com
 	return y0, y1, y2, y3, y4
 }
 
-// Generic wrapper that dispatches to type-specific implementations
+// Generic wrapper that dispatches to type-specific implementations.
 func butterfly5Forward[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
 	var zero T
 	switch any(zero).(type) {
@@ -209,6 +209,7 @@ func butterfly5Forward[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
 			any(a3).(complex64),
 			any(a4).(complex64),
 		)
+
 		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T), any(y4).(T)
 	case complex128:
 		y0, y1, y2, y3, y4 := butterfly5ForwardComplex128(
@@ -218,6 +219,7 @@ func butterfly5Forward[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
 			any(a3).(complex128),
 			any(a4).(complex128),
 		)
+
 		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T), any(y4).(T)
 	default:
 		panic("unsupported complex type")
@@ -235,6 +237,7 @@ func butterfly5Inverse[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
 			any(a3).(complex64),
 			any(a4).(complex64),
 		)
+
 		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T), any(y4).(T)
 	case complex128:
 		y0, y1, y2, y3, y4 := butterfly5InverseComplex128(
@@ -244,6 +247,7 @@ func butterfly5Inverse[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
 			any(a3).(complex128),
 			any(a4).(complex128),
 		)
+
 		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T), any(y4).(T)
 	default:
 		panic("unsupported complex type")

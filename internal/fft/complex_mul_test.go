@@ -49,14 +49,14 @@ func TestComplexMulArrayComplex64(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			dst := make([]complex64, len(tc.a))
-			ComplexMulArrayComplex64(dst, tc.a, tc.b)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			dst := make([]complex64, len(testCase.a))
+			ComplexMulArrayComplex64(dst, testCase.a, testCase.b)
 
 			for i := range dst {
-				if !complexNear64(dst[i], tc.want[i], 1e-5) {
-					t.Errorf("dst[%d] = %v, want %v", i, dst[i], tc.want[i])
+				if !complexNear64(dst[i], testCase.want[i], 1e-5) {
+					t.Errorf("dst[%d] = %v, want %v", i, dst[i], testCase.want[i])
 				}
 			}
 		})
@@ -93,14 +93,14 @@ func TestComplexMulArrayComplex128(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			dst := make([]complex128, len(tc.a))
-			ComplexMulArrayComplex128(dst, tc.a, tc.b)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			dst := make([]complex128, len(testCase.a))
+			ComplexMulArrayComplex128(dst, testCase.a, testCase.b)
 
 			for i := range dst {
-				if !complexNear128(dst[i], tc.want[i], 1e-10) {
-					t.Errorf("dst[%d] = %v, want %v", i, dst[i], tc.want[i])
+				if !complexNear128(dst[i], testCase.want[i], 1e-10) {
+					t.Errorf("dst[%d] = %v, want %v", i, dst[i], testCase.want[i])
 				}
 			}
 		})
@@ -131,17 +131,17 @@ func TestComplexMulArrayInPlaceComplex64(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			// Copy dst since it will be modified in-place
-			dst := make([]complex64, len(tc.dst))
-			copy(dst, tc.dst)
+			dst := make([]complex64, len(testCase.dst))
+			copy(dst, testCase.dst)
 
-			ComplexMulArrayInPlaceComplex64(dst, tc.src)
+			ComplexMulArrayInPlaceComplex64(dst, testCase.src)
 
 			for i := range dst {
-				if !complexNear64(dst[i], tc.want[i], 1e-5) {
-					t.Errorf("dst[%d] = %v, want %v", i, dst[i], tc.want[i])
+				if !complexNear64(dst[i], testCase.want[i], 1e-5) {
+					t.Errorf("dst[%d] = %v, want %v", i, dst[i], testCase.want[i])
 				}
 			}
 		})

@@ -91,6 +91,7 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	if n >= 1024 {
 		threshold = 5e-5
 	}
+
 	if n >= 16384 {
 		threshold = 2e-4
 	}

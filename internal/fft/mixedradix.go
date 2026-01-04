@@ -150,8 +150,9 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int) int {
 func mixedRadixPermutation(x, n int, radices []int, count int) int {
 	// Extract digits in forward order: d[i] = (x / prod(radices[0..i-1])) % radices[i]
 	var digits [mixedRadixMaxStages]int
+
 	temp := x
-	for i := 0; i < count; i++ {
+	for i := range count {
 		digits[i] = temp % radices[i]
 		temp /= radices[i]
 	}
@@ -159,8 +160,9 @@ func mixedRadixPermutation(x, n int, radices []int, count int) int {
 	// Calculate result: sum of d[i] * span[i]
 	// where span[i] = n / (radices[0] * radices[1] * ... * radices[i])
 	result := 0
+
 	product := 1
-	for i := 0; i < count; i++ {
+	for i := range count {
 		product *= radices[i]
 		span := n / product
 		result += digits[i] * span
@@ -617,6 +619,7 @@ func mixedRadixIterativeComplex64(dst, src, scratch []complex64, n int, radices 
 
 	// Precompute stage schedule
 	var stages [mixedRadixMaxStages]stage
+
 	stride := 1
 	step := n
 
@@ -653,10 +656,11 @@ func mixedRadixIterativeComplex64(dst, src, scratch []complex64, n int, radices 
 		switch radix {
 		case 2:
 			// Radix-2 butterfly loop
-			for group := 0; group < groupCount; group++ {
+			for group := range groupCount {
 				baseIdx := group * span * 2
-				for k := 0; k < span; k++ {
+				for k := range span {
 					idx := baseIdx + k
+
 					w1 := twiddle[k*step]
 					if inverse {
 						w1 = conj(w1)
@@ -672,12 +676,13 @@ func mixedRadixIterativeComplex64(dst, src, scratch []complex64, n int, radices 
 
 		case 3:
 			// Radix-3 butterfly loop
-			for group := 0; group < groupCount; group++ {
+			for group := range groupCount {
 				baseIdx := group * span * 3
-				for k := 0; k < span; k++ {
+				for k := range span {
 					idx := baseIdx + k
 					w1 := twiddle[k*step]
 					w2 := twiddle[2*k*step]
+
 					if inverse {
 						w1 = conj(w1)
 						w2 = conj(w2)
@@ -702,13 +707,14 @@ func mixedRadixIterativeComplex64(dst, src, scratch []complex64, n int, radices 
 
 		case 4:
 			// Radix-4 butterfly loop
-			for group := 0; group < groupCount; group++ {
+			for group := range groupCount {
 				baseIdx := group * span * 4
-				for k := 0; k < span; k++ {
+				for k := range span {
 					idx := baseIdx + k
 					w1 := twiddle[k*step]
 					w2 := twiddle[2*k*step]
 					w3 := twiddle[3*k*step]
+
 					if inverse {
 						w1 = conj(w1)
 						w2 = conj(w2)
@@ -736,14 +742,15 @@ func mixedRadixIterativeComplex64(dst, src, scratch []complex64, n int, radices 
 
 		case 5:
 			// Radix-5 butterfly loop
-			for group := 0; group < groupCount; group++ {
+			for group := range groupCount {
 				baseIdx := group * span * 5
-				for k := 0; k < span; k++ {
+				for k := range span {
 					idx := baseIdx + k
 					w1 := twiddle[k*step]
 					w2 := twiddle[2*k*step]
 					w3 := twiddle[3*k*step]
 					w4 := twiddle[4*k*step]
+
 					if inverse {
 						w1 = conj(w1)
 						w2 = conj(w2)
@@ -803,10 +810,11 @@ func mixedRadixIterativeComplex128(dst, src, scratch []complex128, n int, radice
 
 	// Precompute stage schedule
 	var stages [mixedRadixMaxStages]stage
+
 	stride := 1
 	step := n
 
-	for i := 0; i < stageCount; i++ {
+	for i := range stageCount {
 		radix := radices[i]
 		stages[i].radix = radix
 		stages[i].span = n / (stride * radix)
@@ -816,7 +824,7 @@ func mixedRadixIterativeComplex128(dst, src, scratch []complex128, n int, radice
 	}
 
 	// Pre-permute input data using mixed-radix decomposition pattern
-	for i := 0; i < n; i++ {
+	for i := range n {
 		j := mixedRadixPermutation(i, n, radices, stageCount)
 		dst[j] = src[i]
 	}
@@ -839,10 +847,11 @@ func mixedRadixIterativeComplex128(dst, src, scratch []complex128, n int, radice
 		switch radix {
 		case 2:
 			// Radix-2 butterfly loop
-			for group := 0; group < groupCount; group++ {
+			for group := range groupCount {
 				baseIdx := group * span * 2
-				for k := 0; k < span; k++ {
+				for k := range span {
 					idx := baseIdx + k
+
 					w1 := twiddle[k*step]
 					if inverse {
 						w1 = conj(w1)
@@ -858,12 +867,13 @@ func mixedRadixIterativeComplex128(dst, src, scratch []complex128, n int, radice
 
 		case 3:
 			// Radix-3 butterfly loop
-			for group := 0; group < groupCount; group++ {
+			for group := range groupCount {
 				baseIdx := group * span * 3
-				for k := 0; k < span; k++ {
+				for k := range span {
 					idx := baseIdx + k
 					w1 := twiddle[k*step]
 					w2 := twiddle[2*k*step]
+
 					if inverse {
 						w1 = conj(w1)
 						w2 = conj(w2)
@@ -888,13 +898,14 @@ func mixedRadixIterativeComplex128(dst, src, scratch []complex128, n int, radice
 
 		case 4:
 			// Radix-4 butterfly loop
-			for group := 0; group < groupCount; group++ {
+			for group := range groupCount {
 				baseIdx := group * span * 4
-				for k := 0; k < span; k++ {
+				for k := range span {
 					idx := baseIdx + k
 					w1 := twiddle[k*step]
 					w2 := twiddle[2*k*step]
 					w3 := twiddle[3*k*step]
+
 					if inverse {
 						w1 = conj(w1)
 						w2 = conj(w2)
@@ -922,14 +933,15 @@ func mixedRadixIterativeComplex128(dst, src, scratch []complex128, n int, radice
 
 		case 5:
 			// Radix-5 butterfly loop
-			for group := 0; group < groupCount; group++ {
+			for group := range groupCount {
 				baseIdx := group * span * 5
-				for k := 0; k < span; k++ {
+				for k := range span {
 					idx := baseIdx + k
 					w1 := twiddle[k*step]
 					w2 := twiddle[2*k*step]
 					w3 := twiddle[3*k*step]
 					w4 := twiddle[4*k*step]
+
 					if inverse {
 						w1 = conj(w1)
 						w2 = conj(w2)

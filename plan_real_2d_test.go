@@ -421,14 +421,14 @@ func TestPlanReal2D_InvalidSizes(t *testing.T) {
 		{8, 8, false}, // Valid
 	}
 
-	for _, tc := range testCases {
-		_, err := NewPlanReal2D(tc.rows, tc.cols)
-		if tc.shouldFail && err == nil {
-			t.Errorf("NewPlanReal2D(%d, %d) should fail but didn't", tc.rows, tc.cols)
+	for _, testCase := range testCases {
+		_, err := NewPlanReal2D(testCase.rows, testCase.cols)
+		if testCase.shouldFail && err == nil {
+			t.Errorf("NewPlanReal2D(%d, %d) should fail but didn't", testCase.rows, testCase.cols)
 		}
 
-		if !tc.shouldFail && err != nil {
-			t.Errorf("NewPlanReal2D(%d, %d) failed unexpectedly: %v", tc.rows, tc.cols, err)
+		if !testCase.shouldFail && err != nil {
+			t.Errorf("NewPlanReal2D(%d, %d) failed unexpectedly: %v", testCase.rows, testCase.cols, err)
 		}
 	}
 }

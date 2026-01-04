@@ -42,12 +42,12 @@ func BenchmarkDITComplex64(b *testing.B) {
 		{"Size512", 512, mathpkg.ComputeBitReversalIndices, forwardDIT512Complex64, inverseDIT512Complex64},
 	}
 
-	for _, tc := range cases {
-		b.Run(tc.name+"/Forward", func(b *testing.B) {
-			runBenchComplex64(b, tc.n, tc.bitrev, tc.forward)
+	for _, testCase := range cases {
+		b.Run(testCase.name+"/Forward", func(b *testing.B) {
+			runBenchComplex64(b, testCase.n, testCase.bitrev, testCase.forward)
 		})
-		b.Run(tc.name+"/Inverse", func(b *testing.B) {
-			runBenchComplex64(b, tc.n, tc.bitrev, tc.inverse)
+		b.Run(testCase.name+"/Inverse", func(b *testing.B) {
+			runBenchComplex64(b, testCase.n, testCase.bitrev, testCase.inverse)
 		})
 	}
 }
@@ -70,12 +70,12 @@ func BenchmarkDITComplex128(b *testing.B) {
 		{"Size512", 512, mathpkg.ComputeBitReversalIndices, forwardDIT512Complex128, inverseDIT512Complex128},
 	}
 
-	for _, tc := range cases {
-		b.Run(tc.name+"/Forward", func(b *testing.B) {
-			runBenchComplex128(b, tc.n, tc.bitrev, tc.forward)
+	for _, testCase := range cases {
+		b.Run(testCase.name+"/Forward", func(b *testing.B) {
+			runBenchComplex128(b, testCase.n, testCase.bitrev, testCase.forward)
 		})
-		b.Run(tc.name+"/Inverse", func(b *testing.B) {
-			runBenchComplex128(b, tc.n, tc.bitrev, tc.inverse)
+		b.Run(testCase.name+"/Inverse", func(b *testing.B) {
+			runBenchComplex128(b, testCase.n, testCase.bitrev, testCase.inverse)
 		})
 	}
 }

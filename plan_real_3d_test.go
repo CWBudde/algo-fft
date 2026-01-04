@@ -366,14 +366,14 @@ func TestPlanReal3D_InvalidSizes(t *testing.T) {
 		{4, 4, 4, false}, // Valid
 	}
 
-	for _, tc := range testCases {
-		_, err := NewPlanReal3D(tc.depth, tc.height, tc.width)
-		if tc.shouldFail && err == nil {
-			t.Errorf("NewPlanReal3D(%d, %d, %d) should fail but didn't", tc.depth, tc.height, tc.width)
+	for _, testCase := range testCases {
+		_, err := NewPlanReal3D(testCase.depth, testCase.height, testCase.width)
+		if testCase.shouldFail && err == nil {
+			t.Errorf("NewPlanReal3D(%d, %d, %d) should fail but didn't", testCase.depth, testCase.height, testCase.width)
 		}
 
-		if !tc.shouldFail && err != nil {
-			t.Errorf("NewPlanReal3D(%d, %d, %d) failed unexpectedly: %v", tc.depth, tc.height, tc.width, err)
+		if !testCase.shouldFail && err != nil {
+			t.Errorf("NewPlanReal3D(%d, %d, %d) failed unexpectedly: %v", testCase.depth, testCase.height, testCase.width, err)
 		}
 	}
 }

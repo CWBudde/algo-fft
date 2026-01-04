@@ -78,21 +78,21 @@ func TestNaiveDFT2D_RoundTrip(t *testing.T) {
 		{8, 4, "8x4_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			original := generateRandom2DSignal(tc.rows, tc.cols, 12345)
+			original := generateRandom2DSignal(testCase.rows, testCase.cols, 12345)
 
 			// Forward then inverse
-			freq := NaiveDFT2D(original, tc.rows, tc.cols)
-			roundTrip := NaiveIDFT2D(freq, tc.rows, tc.cols)
+			freq := NaiveDFT2D(original, testCase.rows, testCase.cols)
+			roundTrip := NaiveIDFT2D(freq, testCase.rows, testCase.cols)
 
 			// Verify round-trip recovers original
-			if !complex2DNearlyEqual(roundTrip, original, tc.rows, tc.cols, 1e-4) {
-				t.Errorf("Round-trip failed for %dx%d matrix", tc.rows, tc.cols)
+			if !complex2DNearlyEqual(roundTrip, original, testCase.rows, testCase.cols, 1e-4) {
+				t.Errorf("Round-trip failed for %dx%d matrix", testCase.rows, testCase.cols)
 
-				for i := 0; i < tc.rows*tc.cols && i < 10; i++ {
+				for i := 0; i < testCase.rows*testCase.cols && i < 10; i++ {
 					if absComplex64(roundTrip[i]-original[i]) > 1e-4 {
 						t.Errorf("  [%d]: got %v, want %v", i, roundTrip[i], original[i])
 					}
@@ -115,19 +115,19 @@ func TestNaiveDFT2D128_RoundTrip(t *testing.T) {
 		{4, 8, "4x8_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			original := generateRandom2DSignal128(tc.rows, tc.cols, 12345)
+			original := generateRandom2DSignal128(testCase.rows, testCase.cols, 12345)
 
-			freq := NaiveDFT2D128(original, tc.rows, tc.cols)
-			roundTrip := NaiveIDFT2D128(freq, tc.rows, tc.cols)
+			freq := NaiveDFT2D128(original, testCase.rows, testCase.cols)
+			roundTrip := NaiveIDFT2D128(freq, testCase.rows, testCase.cols)
 
-			if !complex2D128NearlyEqual(roundTrip, original, tc.rows, tc.cols, 1e-12) {
-				t.Errorf("Round-trip failed for %dx%d matrix", tc.rows, tc.cols)
+			if !complex2D128NearlyEqual(roundTrip, original, testCase.rows, testCase.cols, 1e-12) {
+				t.Errorf("Round-trip failed for %dx%d matrix", testCase.rows, testCase.cols)
 
-				for i := 0; i < tc.rows*tc.cols && i < 10; i++ {
+				for i := 0; i < testCase.rows*testCase.cols && i < 10; i++ {
 					if absComplex128(roundTrip[i]-original[i]) > 1e-12 {
 						t.Errorf("  [%d]: got %v, want %v", i, roundTrip[i], original[i])
 					}

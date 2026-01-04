@@ -78,26 +78,26 @@ func TestNaiveDFT3D_RoundTrip(t *testing.T) {
 		{4, 2, 8, "4x2x8_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			original := generateRandom3DSignal(tc.depth, tc.height, tc.width, 12345)
+			original := generateRandom3DSignal(testCase.depth, testCase.height, testCase.width, 12345)
 
 			// Forward then inverse
-			freq := NaiveDFT3D(original, tc.depth, tc.height, tc.width)
-			roundTrip := NaiveIDFT3D(freq, tc.depth, tc.height, tc.width)
+			freq := NaiveDFT3D(original, testCase.depth, testCase.height, testCase.width)
+			roundTrip := NaiveIDFT3D(freq, testCase.depth, testCase.height, testCase.width)
 
 			// Verify round-trip recovers original
-			if !complex3DNearlyEqual(roundTrip, original, tc.depth, tc.height, tc.width, 1e-3) {
-				t.Errorf("Round-trip failed for %dx%dx%d volume", tc.depth, tc.height, tc.width)
+			if !complex3DNearlyEqual(roundTrip, original, testCase.depth, testCase.height, testCase.width, 1e-3) {
+				t.Errorf("Round-trip failed for %dx%dx%d volume", testCase.depth, testCase.height, testCase.width)
 
-				totalElements := tc.depth * tc.height * tc.width
+				totalElements := testCase.depth * testCase.height * testCase.width
 				for i := 0; i < totalElements && i < 10; i++ {
 					if absComplex64(roundTrip[i]-original[i]) > 1e-3 {
-						d := i / (tc.height * tc.width)
-						h := (i / tc.width) % tc.height
-						w := i % tc.width
+						d := i / (testCase.height * testCase.width)
+						h := (i / testCase.width) % testCase.height
+						w := i % testCase.width
 						t.Errorf("  [%d,%d,%d]: got %v, want %v", d, h, w, roundTrip[i], original[i])
 					}
 				}
@@ -119,24 +119,24 @@ func TestNaiveDFT3D128_RoundTrip(t *testing.T) {
 		{2, 4, 8, "2x4x8_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			original := generateRandom3DSignal128(tc.depth, tc.height, tc.width, 12345)
+			original := generateRandom3DSignal128(testCase.depth, testCase.height, testCase.width, 12345)
 
-			freq := NaiveDFT3D128(original, tc.depth, tc.height, tc.width)
-			roundTrip := NaiveIDFT3D128(freq, tc.depth, tc.height, tc.width)
+			freq := NaiveDFT3D128(original, testCase.depth, testCase.height, testCase.width)
+			roundTrip := NaiveIDFT3D128(freq, testCase.depth, testCase.height, testCase.width)
 
-			if !complex3D128NearlyEqual(roundTrip, original, tc.depth, tc.height, tc.width, 1e-10) {
-				t.Errorf("Round-trip failed for %dx%dx%d volume", tc.depth, tc.height, tc.width)
+			if !complex3D128NearlyEqual(roundTrip, original, testCase.depth, testCase.height, testCase.width, 1e-10) {
+				t.Errorf("Round-trip failed for %dx%dx%d volume", testCase.depth, testCase.height, testCase.width)
 
-				totalElements := tc.depth * tc.height * tc.width
+				totalElements := testCase.depth * testCase.height * testCase.width
 				for i := 0; i < totalElements && i < 10; i++ {
 					if absComplex128(roundTrip[i]-original[i]) > 1e-10 {
-						d := i / (tc.height * tc.width)
-						h := (i / tc.width) % tc.height
-						w := i % tc.width
+						d := i / (testCase.height * testCase.width)
+						h := (i / testCase.width) % testCase.height
+						w := i % testCase.width
 						t.Errorf("  [%d,%d,%d]: got %v, want %v", d, h, w, roundTrip[i], original[i])
 					}
 				}

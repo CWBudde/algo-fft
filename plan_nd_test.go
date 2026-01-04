@@ -99,14 +99,14 @@ func TestNewPlanND(t *testing.T) {
 		{[]int{16, 16}, false, "valid_2D"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanND[complex64](tc.dims)
-			if tc.expectError {
+			plan, err := NewPlanND[complex64](testCase.dims)
+			if testCase.expectError {
 				if err == nil {
-					t.Errorf("Expected error for dims %v, got nil", tc.dims)
+					t.Errorf("Expected error for dims %v, got nil", testCase.dims)
 				}
 
 				return
@@ -117,23 +117,23 @@ func TestNewPlanND(t *testing.T) {
 				return
 			}
 
-			if plan.NDims() != len(tc.dims) {
-				t.Errorf("NDims: got %d, want %d", plan.NDims(), len(tc.dims))
+			if plan.NDims() != len(testCase.dims) {
+				t.Errorf("NDims: got %d, want %d", plan.NDims(), len(testCase.dims))
 			}
 
 			dims := plan.Dims()
-			if len(dims) != len(tc.dims) {
+			if len(dims) != len(testCase.dims) {
 				t.Errorf("Dims length mismatch")
 			}
 
 			for i := range dims {
-				if dims[i] != tc.dims[i] {
-					t.Errorf("Dims[%d]: got %d, want %d", i, dims[i], tc.dims[i])
+				if dims[i] != testCase.dims[i] {
+					t.Errorf("Dims[%d]: got %d, want %d", i, dims[i], testCase.dims[i])
 				}
 			}
 
 			expectedLen := 1
-			for _, d := range tc.dims {
+			for _, d := range testCase.dims {
 				expectedLen *= d
 			}
 
@@ -159,16 +159,16 @@ func TestPlanND_RoundTrip_3D(t *testing.T) {
 		{[]int{4, 8, 16}, "4x8x16_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanND32(tc.dims)
+			plan, err := NewPlanND32(testCase.dims)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
 			}
 
-			original := generateRandomNDComplex64(tc.dims, 12345)
+			original := generateRandomNDComplex64(testCase.dims, 12345)
 			freq := make([]complex64, len(original))
 			roundTrip := make([]complex64, len(original))
 
@@ -182,7 +182,7 @@ func TestPlanND_RoundTrip_3D(t *testing.T) {
 
 			tolerance := 1e-3
 			if !complexND64NearlyEqual(roundTrip, original, tolerance) {
-				t.Errorf("Round-trip failed for dims %v", tc.dims)
+				t.Errorf("Round-trip failed for dims %v", testCase.dims)
 			}
 		})
 	}
@@ -201,16 +201,16 @@ func TestPlanND_RoundTrip_4D(t *testing.T) {
 		{[]int{2, 4, 8, 16}, "2x4x8x16_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanND32(tc.dims)
+			plan, err := NewPlanND32(testCase.dims)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
 			}
 
-			original := generateRandomNDComplex64(tc.dims, 54321)
+			original := generateRandomNDComplex64(testCase.dims, 54321)
 			freq := make([]complex64, len(original))
 			roundTrip := make([]complex64, len(original))
 
@@ -224,7 +224,7 @@ func TestPlanND_RoundTrip_4D(t *testing.T) {
 
 			tolerance := 1e-3
 			if !complexND64NearlyEqual(roundTrip, original, tolerance) {
-				t.Errorf("Round-trip failed for dims %v", tc.dims)
+				t.Errorf("Round-trip failed for dims %v", testCase.dims)
 			}
 		})
 	}
@@ -242,16 +242,16 @@ func TestPlanND_RoundTrip_5D(t *testing.T) {
 		{[]int{2, 2, 4, 4, 8}, "2x2x4x4x8_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanND32(tc.dims)
+			plan, err := NewPlanND32(testCase.dims)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
 			}
 
-			original := generateRandomNDComplex64(tc.dims, 11111)
+			original := generateRandomNDComplex64(testCase.dims, 11111)
 			freq := make([]complex64, len(original))
 			roundTrip := make([]complex64, len(original))
 
@@ -265,7 +265,7 @@ func TestPlanND_RoundTrip_5D(t *testing.T) {
 
 			tolerance := 1e-2
 			if !complexND64NearlyEqual(roundTrip, original, tolerance) {
-				t.Errorf("Round-trip failed for dims %v", tc.dims)
+				t.Errorf("Round-trip failed for dims %v", testCase.dims)
 			}
 		})
 	}
@@ -283,16 +283,16 @@ func TestPlanND_RoundTrip_Complex128(t *testing.T) {
 		{[]int{2, 2, 2, 2, 2}, "5D_2x2x2x2x2"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanND64(tc.dims)
+			plan, err := NewPlanND64(testCase.dims)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
 			}
 
-			original := generateRandomNDComplex128(tc.dims, 98765)
+			original := generateRandomNDComplex128(testCase.dims, 98765)
 			freq := make([]complex128, len(original))
 			roundTrip := make([]complex128, len(original))
 
@@ -306,7 +306,7 @@ func TestPlanND_RoundTrip_Complex128(t *testing.T) {
 
 			tolerance := 1e-10
 			if !complexND128NearlyEqual(roundTrip, original, tolerance) {
-				t.Errorf("Round-trip failed for dims %v", tc.dims)
+				t.Errorf("Round-trip failed for dims %v", testCase.dims)
 			}
 		})
 	}

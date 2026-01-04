@@ -89,14 +89,14 @@ func TestNewPlan3D(t *testing.T) {
 		{-1, 8, 8, true, "invalid_negative_depth"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan3D[complex64](tc.depth, tc.height, tc.width)
-			if tc.expectError {
+			plan, err := NewPlan3D[complex64](testCase.depth, testCase.height, testCase.width)
+			if testCase.expectError {
 				if err == nil {
-					t.Errorf("Expected error for dimensions %dx%dx%d, got nil", tc.depth, tc.height, tc.width)
+					t.Errorf("Expected error for dimensions %dx%dx%d, got nil", testCase.depth, testCase.height, testCase.width)
 				}
 
 				return
@@ -107,20 +107,20 @@ func TestNewPlan3D(t *testing.T) {
 				return
 			}
 
-			if plan.Depth() != tc.depth {
-				t.Errorf("Depth: got %d, want %d", plan.Depth(), tc.depth)
+			if plan.Depth() != testCase.depth {
+				t.Errorf("Depth: got %d, want %d", plan.Depth(), testCase.depth)
 			}
 
-			if plan.Height() != tc.height {
-				t.Errorf("Height: got %d, want %d", plan.Height(), tc.height)
+			if plan.Height() != testCase.height {
+				t.Errorf("Height: got %d, want %d", plan.Height(), testCase.height)
 			}
 
-			if plan.Width() != tc.width {
-				t.Errorf("Width: got %d, want %d", plan.Width(), tc.width)
+			if plan.Width() != testCase.width {
+				t.Errorf("Width: got %d, want %d", plan.Width(), testCase.width)
 			}
 
-			if plan.Len() != tc.depth*tc.height*tc.width {
-				t.Errorf("Len: got %d, want %d", plan.Len(), tc.depth*tc.height*tc.width)
+			if plan.Len() != testCase.depth*testCase.height*testCase.width {
+				t.Errorf("Len: got %d, want %d", plan.Len(), testCase.depth*testCase.height*testCase.width)
 			}
 		})
 	}
@@ -142,16 +142,16 @@ func TestPlan3D_RoundTrip_Complex64(t *testing.T) {
 		{4, 8, 16, "4x8x16_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan3D32(tc.depth, tc.height, tc.width)
+			plan, err := NewPlan3D32(testCase.depth, testCase.height, testCase.width)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
 			}
 
-			original := generateRandom3DComplex64(tc.depth, tc.height, tc.width, 98765)
+			original := generateRandom3DComplex64(testCase.depth, testCase.height, testCase.width, 98765)
 			freq := make([]complex64, len(original))
 			roundTrip := make([]complex64, len(original))
 
@@ -168,7 +168,7 @@ func TestPlan3D_RoundTrip_Complex64(t *testing.T) {
 			// Verify round-trip
 			tolerance := 1e-3
 			if !complex3D64NearlyEqual(roundTrip, original, tolerance) {
-				t.Errorf("Round-trip failed for %dx%dx%d", tc.depth, tc.height, tc.width)
+				t.Errorf("Round-trip failed for %dx%dx%d", testCase.depth, testCase.height, testCase.width)
 				// Show first few mismatches
 				count := 0
 				for i := 0; i < len(original) && count < 5; i++ {
@@ -199,16 +199,16 @@ func TestPlan3D_RoundTrip_Complex128(t *testing.T) {
 		{4, 8, 16, "4x8x16_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan3D64(tc.depth, tc.height, tc.width)
+			plan, err := NewPlan3D64(testCase.depth, testCase.height, testCase.width)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
 			}
 
-			original := generateRandom3DComplex128(tc.depth, tc.height, tc.width, 98765)
+			original := generateRandom3DComplex128(testCase.depth, testCase.height, testCase.width, 98765)
 			freq := make([]complex128, len(original))
 			roundTrip := make([]complex128, len(original))
 
@@ -222,7 +222,7 @@ func TestPlan3D_RoundTrip_Complex128(t *testing.T) {
 
 			tolerance := 1e-10
 			if !complex3D128NearlyEqual(roundTrip, original, tolerance) {
-				t.Errorf("Round-trip failed for %dx%dx%d", tc.depth, tc.height, tc.width)
+				t.Errorf("Round-trip failed for %dx%dx%d", testCase.depth, testCase.height, testCase.width)
 			}
 		})
 	}
@@ -243,16 +243,16 @@ func TestPlan3D_VsReference_Complex64(t *testing.T) {
 		{4, 8, 16, "4x8x16_nonsquare"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan3D32(tc.depth, tc.height, tc.width)
+			plan, err := NewPlan3D32(testCase.depth, testCase.height, testCase.width)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
 			}
 
-			signal := generateRandom3DComplex64(tc.depth, tc.height, tc.width, 11111)
+			signal := generateRandom3DComplex64(testCase.depth, testCase.height, testCase.width, 11111)
 
 			// Optimized FFT
 			fast := make([]complex64, len(signal))
@@ -261,12 +261,12 @@ func TestPlan3D_VsReference_Complex64(t *testing.T) {
 			}
 
 			// Reference naive DFT
-			naive := reference.NaiveDFT3D(signal, tc.depth, tc.height, tc.width)
+			naive := reference.NaiveDFT3D(signal, testCase.depth, testCase.height, testCase.width)
 
 			// Compare
 			tolerance := 1e-2
 			if !complex3D64NearlyEqual(fast, naive, tolerance) {
-				t.Errorf("FFT result differs from reference for %dx%dx%d", tc.depth, tc.height, tc.width)
+				t.Errorf("FFT result differs from reference for %dx%dx%d", testCase.depth, testCase.height, testCase.width)
 
 				count := 0
 				for i := 0; i < len(fast) && count < 5; i++ {
@@ -341,27 +341,27 @@ func TestPlan3D_VsReference_Complex128(t *testing.T) {
 		{8, 8, 8, "8x8x8"},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlan3D64(tc.depth, tc.height, tc.width)
+			plan, err := NewPlan3D64(testCase.depth, testCase.height, testCase.width)
 			if err != nil {
 				t.Fatalf("Failed to create plan: %v", err)
 			}
 
-			signal := generateRandom3DComplex128(tc.depth, tc.height, tc.width, 11111)
+			signal := generateRandom3DComplex128(testCase.depth, testCase.height, testCase.width, 11111)
 
 			fast := make([]complex128, len(signal))
 			if err := plan.Forward(fast, signal); err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
-			naive := reference.NaiveDFT3D128(signal, tc.depth, tc.height, tc.width)
+			naive := reference.NaiveDFT3D128(signal, testCase.depth, testCase.height, testCase.width)
 
 			tolerance := 1e-9
 			if !complex3D128NearlyEqual(fast, naive, tolerance) {
-				t.Errorf("FFT result differs from reference for %dx%dx%d", tc.depth, tc.height, tc.width)
+				t.Errorf("FFT result differs from reference for %dx%dx%d", testCase.depth, testCase.height, testCase.width)
 			}
 		})
 	}
