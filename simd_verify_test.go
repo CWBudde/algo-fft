@@ -20,7 +20,7 @@ func TestSIMDVsGeneric(t *testing.T) {
 		t.Skipf("SIMD verification only on amd64/arm64, got %s", arch)
 	}
 
-	sizes := []int{64, 256, 1024, 4096}
+	sizes := []int{64, 256, 1024, 4096, 16384}
 
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d_complex64", n), func(t *testing.T) {
@@ -90,6 +90,9 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	threshold := float32(1e-6)
 	if n >= 1024 {
 		threshold = 5e-5
+	}
+	if n >= 16384 {
+		threshold = 2e-4
 	}
 
 	if maxRelErr > threshold {
