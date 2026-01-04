@@ -92,15 +92,20 @@ size16_r4_sse2_stage1_loop:
 
 	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X8
-	SHUFPS $0xB1, X8, X8
-	MOVUPS ·maskNegHiPS(SB), X9
-	XORPS X9, X8
+	SHUFPS $0xB1, X8, X8       // Swap: (re,im) → (im,re)
+	XORPS X9, X9               // Zero X9
+	MOVAPS X8, X10
+	SUBPS X10, X9              // X9 = (0,0) - (im,re) = (-im,-re)
+	MOVSS X8, X9               // X9 = (im,-re) - copy low float from X8
+	MOVAPS X9, X8              // X8 = (im,-re)
 
 	// i*t3 = (-im, re)
 	MOVAPS X7, X11
-	SHUFPS $0xB1, X11, X11
-	MOVUPS ·maskNegLoPS(SB), X9
-	XORPS X9, X11
+	SHUFPS $0xB1, X11, X11     // Swap: (re,im) → (im,re)
+	XORPS X9, X9               // Zero X9
+	MOVAPS X11, X10
+	SUBPS X10, X9              // X9 = (0,0) - (im,re) = (-im,-re)
+	MOVSS X9, X11              // X11 = (-im,re) - copy low float from X9
 
 	// Final butterfly outputs
 	MOVAPS X4, X0
@@ -198,23 +203,22 @@ size16_r4_sse2_stage2_loop:
 	MOVAPS X1, X7
 	SUBPS X3, X7
 
-	// (-i)*t3
+	// (-i)*t3 = (im, -re)
 	MOVAPS X7, X14
-	SHUFPS $0xB1, X14, X14
-	XORPS X15, X15
+	SHUFPS $0xB1, X14, X14     // Swap: (re,im) → (im,re)
+	XORPS X15, X15             // Zero X15
 	MOVAPS X14, X11
-	SUBPS X11, X15
-	SHUFPS $0x44, X11, X15
-	SHUFPS $0x0E, X11, X15
-	MOVAPS X15, X14
+	SUBPS X11, X15             // X15 = (0,0) - (im,re) = (-im,-re)
+	MOVSS X14, X15             // X15 = (im,-re) - copy low float from X14
+	MOVAPS X15, X14            // X14 = (im,-re)
 
-	// i*t3
+	// i*t3 = (-im, re)
 	MOVAPS X7, X12
-	SHUFPS $0xB1, X12, X12
-	XORPS X15, X15
+	SHUFPS $0xB1, X12, X12     // Swap: (re,im) → (im,re)
+	XORPS X15, X15             // Zero X15 (reuse)
 	MOVAPS X12, X11
-	SUBPS X11, X15
-	SHUFPS $0xEE, X15, X12
+	SUBPS X11, X15             // X15 = (0,0) - (im,re) = (-im,-re)
+	MOVSS X15, X12             // X12 = (-im,re) - copy low float from X15
 
 	// Final outputs
 	MOVAPS X4, X0
@@ -328,22 +332,22 @@ size16_r4_sse2_inv_stage1_loop:
 	MOVAPS X1, X7
 	SUBPS X3, X7
 
-	// i*t3 (inverse uses i instead of -i)
+	// i*t3 = (-im, re) - inverse uses i instead of -i
 	MOVAPS X7, X11
-	SHUFPS $0xB1, X11, X11
-	XORPS X10, X10
+	SHUFPS $0xB1, X11, X11     // Swap: (re,im) → (im,re)
+	XORPS X10, X10             // Zero X10
 	MOVAPS X11, X12
-	SUBPS X12, X10
-	SHUFPS $0xEE, X10, X11
+	SUBPS X12, X10             // X10 = (0,0) - (im,re) = (-im,-re)
+	MOVSS X10, X11             // X11 = (-im,re) - copy low float from X10
 
-	// (-i)*t3 (inverse uses -i instead of i)
-	SHUFPS $0xB1, X7, X7
-	XORPS X9, X9
+	// (-i)*t3 = (im, -re) - inverse uses -i instead of i
 	MOVAPS X7, X8
-	SUBPS X8, X9
-	SHUFPS $0x44, X8, X9
-	SHUFPS $0x0E, X8, X9
-	MOVAPS X9, X8
+	SHUFPS $0xB1, X8, X8       // Swap: (re,im) → (im,re)
+	XORPS X9, X9               // Zero X9
+	MOVAPS X8, X12
+	SUBPS X12, X9              // X9 = (0,0) - (im,re) = (-im,-re)
+	MOVSS X8, X9               // X9 = (im,-re) - copy low float from X8
+	MOVAPS X9, X8              // X8 = (im,-re)
 
 	MOVAPS X4, X0
 	ADDPS X6, X0
@@ -445,23 +449,22 @@ size16_r4_sse2_inv_stage2_loop:
 	MOVAPS X1, X7
 	SUBPS X3, X7
 
-	// i*t3
+	// i*t3 = (-im, re) - inverse uses i
 	MOVAPS X7, X12
-	SHUFPS $0xB1, X12, X12
-	XORPS X15, X15
+	SHUFPS $0xB1, X12, X12     // Swap: (re,im) → (im,re)
+	XORPS X15, X15             // Zero X15
 	MOVAPS X12, X11
-	SUBPS X11, X15
-	SHUFPS $0xEE, X15, X12
+	SUBPS X11, X15             // X15 = (0,0) - (im,re) = (-im,-re)
+	MOVSS X15, X12             // X12 = (-im,re) - copy low float from X15
 
-	// (-i)*t3
+	// (-i)*t3 = (im, -re) - inverse uses -i
 	MOVAPS X7, X14
-	SHUFPS $0xB1, X14, X14
-	XORPS X15, X15
+	SHUFPS $0xB1, X14, X14     // Swap: (re,im) → (im,re)
+	XORPS X15, X15             // Zero X15 (reuse)
 	MOVAPS X14, X11
-	SUBPS X11, X15
-	SHUFPS $0x44, X11, X15
-	SHUFPS $0x0E, X11, X15
-	MOVAPS X15, X14
+	SUBPS X11, X15             // X15 = (0,0) - (im,re) = (-im,-re)
+	MOVSS X14, X15             // X15 = (im,-re) - copy low float from X14
+	MOVAPS X15, X14            // X14 = (im,-re)
 
 	MOVAPS X4, X0
 	ADDPS X6, X0

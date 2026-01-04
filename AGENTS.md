@@ -228,6 +228,8 @@ Generic implementations are instantiated for both precisions, with type-specific
 - Always provide a pure-Go fallback in `kernels_generic.go` or `kernels_fallback.go`
 - Test that assembly and Go implementations produce identical results
 - Use `go:noescape` pragma for performance-critical functions
+- Remember Plan9/Go asm uses src, dst operand order (opposite of Intel’s dst, src)
+- Subtractions like VSUBPS b, a, dst → dst = a - b
 
 ### Error Handling
 
