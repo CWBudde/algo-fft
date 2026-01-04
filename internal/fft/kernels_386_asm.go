@@ -19,8 +19,14 @@ func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 }
 
 func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
-	// No complex128 SSE2 implementation for 386 yet, use pure Go
-	return autoKernelComplex128(KernelAuto)
+	auto := autoKernelComplex128(KernelAuto)
+	if features.HasSSE2 && !features.ForceGeneric {
+		return Kernels[complex128]{
+			Forward: fallbackKernel(forwardSSE2Complex128, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE2Complex128, auto.Inverse),
+		}
+	}
+	return auto
 }
 
 func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
@@ -35,16 +41,72 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 }
 
 func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
-	// No complex128 SSE2 implementation for 386 yet, use pure Go
-	return autoKernelComplex128(strategy)
+	auto := autoKernelComplex128(strategy)
+	if features.HasSSE2 && !features.ForceGeneric {
+		return Kernels[complex128]{
+			Forward: fallbackKernel(forwardSSE2Complex128, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE2Complex128, auto.Inverse),
+		}
+	}
+	return auto
 }
 
 // SSE2 wrapper functions for complex64 (delegate to asm_386.go imports)
 
 func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	switch len(src) {
+	case 2:
+		return forwardSSE2Size2Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	case 4:
+		return forwardSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	case 8:
+		return forwardSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	case 16:
+		return forwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	}
 	return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	switch len(src) {
+	case 2:
+		return inverseSSE2Size2Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	case 4:
+		return inverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	case 8:
+		return inverseSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	case 16:
+		return inverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	}
 	return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+}
+
+// SSE2 wrapper functions for complex128
+
+func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	switch len(src) {
+	case 2:
+		return forwardSSE2Size2Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	case 4:
+		return forwardSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	case 8:
+		return forwardSSE2Size8Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	case 16:
+		return forwardSSE2Size16Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	}
+	return false // No generic SSE2 complex128 kernel yet
+}
+
+func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+	switch len(src) {
+	case 2:
+		return inverseSSE2Size2Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	case 4:
+		return inverseSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	case 8:
+		return inverseSSE2Size8Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	case 16:
+		return inverseSSE2Size16Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	}
+	return false
 }

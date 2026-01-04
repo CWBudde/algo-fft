@@ -1,0 +1,61 @@
+//go:build 386 && asm && !purego
+
+package fft
+
+import (
+	"testing"
+
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
+)
+
+func TestSSE2Size16Radix4Complex64_386(t *testing.T) {
+	t.Parallel()
+
+	const n = 16
+	src := randomComplex64(n, 0xBEEF)
+	fwd := make([]complex64, n)
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	if !forwardSSE2Size16Radix4Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("forwardSSE2Size16Radix4Complex64Asm failed")
+	}
+
+	if !inverseSSE2Size16Radix4Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("inverseSSE2Size16Radix4Complex64Asm failed")
+	}
+
+	wantFwd := reference.NaiveDFT(src)
+	assertComplex64SliceClose(t, fwd, wantFwd, n)
+
+	wantInv := reference.NaiveIDFT(fwd)
+	assertComplex64SliceClose(t, dst, wantInv, n)
+}
+
+func TestSSE2Size16Radix4Complex128_386(t *testing.T) {
+	t.Parallel()
+
+	const n = 16
+	src := randomComplex128(n, 0xBEEF)
+	fwd := make([]complex128, n)
+	dst := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+	bitrev := ComputeBitReversalIndicesRadix4(n)
+
+	if !forwardSSE2Size16Radix4Complex128Asm(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("forwardSSE2Size16Radix4Complex128Asm failed")
+	}
+
+	if !inverseSSE2Size16Radix4Complex128Asm(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("inverseSSE2Size16Radix4Complex128Asm failed")
+	}
+
+	wantFwd := reference.NaiveDFT128(src)
+	assertComplex128SliceClose(t, fwd, wantFwd, n)
+
+	wantInv := reference.NaiveIDFT128(fwd)
+	assertComplex128SliceClose(t, dst, wantInv, n)
+}
