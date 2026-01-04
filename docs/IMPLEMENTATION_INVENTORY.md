@@ -6,55 +6,55 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Complex64
 
-| Size  | Algorithm | Go  | AVX2 | SSE2 | NEON |
-| ----- | --------- | --- | ---- | ---- | ---- |
-| 4     | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 8     | Radix-2   | ✓   | ✓    | ✓    | ✓    |
-| 8     | Radix-8   | ✓   | ✓    | ✓    | ✓    |
-| 8     | Mixed¹    | ✓   | ✓    | ✓    | ✓    |
-| 16    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
-| 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 32    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
-| 32    | Mixed²    | ✓   | ✓    | ✓    | ✓    |
-| 64    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
-| 64    | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 128   | Radix-2   | ✓   | ✓    | ✓    | ✓    |
-| 128   | Mixed²    | ✓   | ✓    | ✓    | ✓    |
-| 256   | Radix-2   | ✓   | ✓    | -    | ✓    |
-| 256   | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 512   | Radix-2   | ✓   | ✓    | -    | ✓    |
-| 512   | Mixed⁴    | ✓   | ✓    | -    | -    |
-| 1024  | Radix-4   | ✓   | -    | -    | -    |
-| 2048  | Mixed⁴    | ✓   | -    | -    | -    |
-| 4096  | Radix-4   | ✓   | -    | -    | -    |
-| 8192  | Mixed⁴    | ✓   | -    | -    | -    |
-| 16384 | Radix-4   | ✓   | -    | -    | -    |
+| Size  | Algorithm | Go  | AVX2 | SSE2 | NEON | x86  |
+| ----- | --------- | --- | ---- | ---- | ---- | ---- |
+| 4     | Radix-4   | ✓   | ✓    | ✓    | ✓    | SSE2 |
+| 8     | Radix-2   | ✓   | ✓    | ✓    | ✓    | SSE2 |
+| 8     | Radix-8   | ✓   | ✓    | ✓    | ✓    | -    |
+| 8     | Mixed¹    | ✓   | ✓    | ✓    | ✓    | -    |
+| 16    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
+| 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    | SSE2 |
+| 32    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
+| 32    | Mixed²    | ✓   | ✓    | ✓    | ✓    | -    |
+| 64    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
+| 64    | Radix-4   | ✓   | ✓    | ✓    | ✓    | -    |
+| 128   | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
+| 128   | Mixed²    | ✓   | ✓    | ✓    | ✓    | -    |
+| 256   | Radix-2   | ✓   | ✓    | -    | ✓    | -    |
+| 256   | Radix-4   | ✓   | ✓    | ✓    | ✓    | -    |
+| 512   | Radix-2   | ✓   | ✓    | -    | ✓    | -    |
+| 512   | Mixed⁴    | ✓   | ✓    | -    | -    | -    |
+| 1024  | Radix-4   | ✓   | -    | -    | -    | -    |
+| 2048  | Mixed⁴    | ✓   | -    | -    | -    | -    |
+| 4096  | Radix-4   | ✓   | -    | -    | -    | -    |
+| 8192  | Mixed⁴    | ✓   | -    | -    | -    | -    |
+| 16384 | Radix-4   | ✓   | -    | -    | -    | -    |
 
 ### Complex128
 
-| Size  | Algorithm | Go  | AVX2 | SSE2 | NEON |
-| ----- | --------- | --- | ---- | ---- | ---- |
-| 4     | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 8     | Radix-2   | ✓   | ✓    | ✓    | -    |
-| 8     | Radix-8   | ✓   | ✓    | ✓    | -    |
-| 8     | Mixed¹    | ✓   | ✓    | ✓    | -    |
-| 16    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
-| 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    |
-| 32    | Radix-2   | ✓   | ✓    | ✓    | ✓    |
-| 32    | Mixed²    | ✓   | ✓    | ✓    | -    |
-| 64    | Radix-2   | ✓   | ✓    | ✓    | -    |
-| 64    | Radix-4   | ✓   | ✓    | ✓    | -    |
-| 128   | Radix-2   | ✓   | ✓    | ✓    | -    |
-| 128   | Mixed²    | ✓   | ✓    | ✓    | -    |
-| 256   | Radix-2   | ✓   | ✓    | -    | -    |
-| 256   | Radix-4   | ✓   | -    | -    | -    |
-| 512   | Radix-2   | ✓   | ✓    | -    | -    |
-| 512   | Mixed⁴    | ✓   | ✓    | -    | -    |
-| 1024  | Radix-4   | ✓   | -    | -    | -    |
-| 2048  | Mixed⁴    | ✓   | -    | -    | -    |
-| 4096  | Radix-4   | ✓   | -    | -    | -    |
-| 8192  | Mixed⁴    | ✓   | -    | -    | -    |
-| 16384 | Radix-4   | ✓   | -    | -    | -    |
+| Size  | Algorithm | Go  | AVX2 | SSE2 | NEON | x86  |
+| ----- | --------- | --- | ---- | ---- | ---- | ---- |
+| 4     | Radix-4   | ✓   | ✓    | ✓    | ✓    | SSE2 |
+| 8     | Radix-2   | ✓   | ✓    | ✓    | -    | SSE2 |
+| 8     | Radix-8   | ✓   | ✓    | ✓    | -    | -    |
+| 8     | Mixed¹    | ✓   | ✓    | ✓    | -    | -    |
+| 16    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
+| 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    | SSE2 |
+| 32    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
+| 32    | Mixed²    | ✓   | ✓    | ✓    | -    | -    |
+| 64    | Radix-2   | ✓   | ✓    | ✓    | -    | -    |
+| 64    | Radix-4   | ✓   | ✓    | ✓    | -    | -    |
+| 128   | Radix-2   | ✓   | ✓    | ✓    | -    | -    |
+| 128   | Mixed²    | ✓   | ✓    | ✓    | -    | -    |
+| 256   | Radix-2   | ✓   | ✓    | -    | -    | -    |
+| 256   | Radix-4   | ✓   | -    | -    | -    | -    |
+| 512   | Radix-2   | ✓   | ✓    | -    | -    | -    |
+| 512   | Mixed⁴    | ✓   | ✓    | -    | -    | -    |
+| 1024  | Radix-4   | ✓   | -    | -    | -    | -    |
+| 2048  | Mixed⁴    | ✓   | -    | -    | -    | -    |
+| 4096  | Radix-4   | ✓   | -    | -    | -    | -    |
+| 8192  | Mixed⁴    | ✓   | -    | -    | -    | -    |
+| 16384 | Radix-4   | ✓   | -    | -    | -    | -    |
 
 **Legend:**
 
@@ -453,7 +453,26 @@ All implementations are validated against:
 - Property tests: Parseval's theorem, linearity, shift theorems
 - Cross-validation: Assembly vs Pure Go
 
+## x86 (32-bit) Implementation Details
+
+Support for 32-bit x86 architecture is provided via SSE2 assembly kernels. These kernels are optimized to work within the 8-register limit of the x86 architecture (XMM0-XMM7).
+
+| Size | Type       | Algorithm | SIMD | Status | Files                                        |
+| ---- | ---------- | --------- | ---- | ------ | -------------------------------------------- |
+| 2    | complex64  | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size2_radix2.s`   |
+| 2    | complex128 | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size2_radix2.s`   |
+| 4    | complex64  | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size4_radix4.s`   |
+| 4    | complex128 | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size4_radix4.s`   |
+| 8    | complex64  | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size8_radix2.s`   |
+| 8    | complex128 | Radix-2   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size8_radix2.s`   |
+| 16   | complex64  | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f32_size16_radix4.s`  |
+| 16   | complex128 | Radix-4   | SSE2 | ✓      | `internal/asm/x86/sse2_f64_size16_radix4.s`  |
+
+**Notes:**
+- Kernels manage register pressure by utilizing stack spills where necessary (especially for size 16 complex128).
+- Address calculations for strides > 8 bytes (complex128) are handled manually to avoid 386 addressing mode limitations.
+
 ---
 
-_Generated: 2026-01-02_
+_Generated: 2026-01-03_
 _See: `internal/fft/inventory_check.go` for automated inventory generation_

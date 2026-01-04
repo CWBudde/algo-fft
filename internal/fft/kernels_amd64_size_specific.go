@@ -4,12 +4,6 @@ package fft
 
 import m "github.com/MeKo-Christian/algo-fft/internal/math"
 
-// Precomputed mixed-radix bit-reversal indices for size 8 (2 * 4^1).
-//
-//nolint:gochecknoglobals
-var bitrevSize8Mixed24 = ComputeBitReversalIndicesMixed24(8)
-var bitrevSize512Mixed24 = ComputeBitReversalIndicesMixed24(512)
-
 // avx2SizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific
 // AVX2 implementations for common sizes (8, 16, 32, 64, 128), falling back to the
 // generic AVX2 kernel for other sizes or if the size-specific kernel fails.
@@ -225,7 +219,7 @@ func sse2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 64:
-			if forwardSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevRadix4) {
+			if forwardSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize64Radix4) {
 				return true
 			}
 			if forwardSSE2Size64Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
@@ -295,7 +289,7 @@ func sse2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 64:
-			if inverseSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevRadix4) {
+			if inverseSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize64Radix4) {
 				return true
 			}
 			if inverseSSE2Size64Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
@@ -303,13 +297,15 @@ func sse2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			}
 			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
-		        case 128:
-		            if inverseSSE2Size128Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-		                return true
-		            }
-		            if inverseSSE2Size128Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-		                return true
-		            }
+		case 128:
+			if inverseSSE2Size128Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			if inverseSSE2Size128Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+				return true
+			}
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+
 		case 256:
 			if inverseSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize256Radix4) {
 				return true
