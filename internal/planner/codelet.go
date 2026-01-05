@@ -135,6 +135,13 @@ func (r *CodeletRegistry[T]) Sizes() []int {
 	return sizes
 }
 
+// Has returns true if there are any registered codelets for the given size.
+func (r *CodeletRegistry[T]) Has(size int) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.codelets[size]) > 0
+}
+
 // GetAllForSize returns all registered codelets for a given size, regardless of CPU features.
 // This is useful for testing all variants of a codelet.
 func (r *CodeletRegistry[T]) GetAllForSize(size int) []CodeletEntry[T] {
