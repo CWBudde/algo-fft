@@ -32,8 +32,7 @@ func TestButterfly5ForwardAVX2Complex64(t *testing.T) {
 	want4 := make([]complex64, 2)
 
 	for i := range 2 {
-		want0[i], want1[i], want2[i], want3[i], want4[i] =
-			butterfly5ForwardComplex64(a0[i], a1[i], a2[i], a3[i], a4[i])
+		want0[i], want1[i], want2[i], want3[i], want4[i] = butterfly5ForwardComplex64(a0[i], a1[i], a2[i], a3[i], a4[i])
 	}
 
 	assertComplex64Close(t, y0, want0, 1e-5)
@@ -106,8 +105,7 @@ func TestButterfly5InverseAVX2Complex64(t *testing.T) {
 	want4 := make([]complex64, 2)
 
 	for i := range 2 {
-		want0[i], want1[i], want2[i], want3[i], want4[i] =
-			butterfly5InverseComplex64(a0[i], a1[i], a2[i], a3[i], a4[i])
+		want0[i], want1[i], want2[i], want3[i], want4[i] = butterfly5InverseComplex64(a0[i], a1[i], a2[i], a3[i], a4[i])
 	}
 
 	assertComplex64Close(t, y0, want0, 1e-5)

@@ -11,11 +11,12 @@ import (
 // 128×3 decomposition (radix-3 first, then 128-point FFTs).
 //
 // Algorithm derivation for N = 384 = 128 × 3:
-//   Index mapping: n = n1 + n2*128, k = k1*3 + k2
-//   where n1,k1 ∈ [0,127] and n2,k2 ∈ [0,2]
 //
-//   X[k1*3 + k2] = Σ_{n1} (Y[n1,k2] * W_384^(n1*k2)) * W_128^(n1*k1)
-//   where Y[n1,k2] = Σ_{n2} x[n1 + n2*128] * W_3^(n2*k2)
+//	Index mapping: n = n1 + n2*128, k = k1*3 + k2
+//	where n1,k1 ∈ [0,127] and n2,k2 ∈ [0,2]
+//
+//	X[k1*3 + k2] = Σ_{n1} (Y[n1,k2] * W_384^(n1*k2)) * W_128^(n1*k1)
+//	where Y[n1,k2] = Σ_{n2} x[n1 + n2*128] * W_3^(n2*k2)
 //
 // Steps:
 //  1. Compute 128 radix-3 DFTs on columns of 128×3 view (stride-128 access)
@@ -159,4 +160,3 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 
 	return true
 }
-
