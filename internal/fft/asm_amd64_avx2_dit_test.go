@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 // TestAVX2DITForwardComplex64 tests all AVX2 forward kernels for complex64
@@ -24,7 +25,7 @@ func TestAVX2DITForwardComplex64(t *testing.T) {
 		{"Size8/Radix8", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix8Complex64Asm},
 		{"Size16/Radix2", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex64Asm},
 		{"Size16/Radix4", 16, ComputeBitReversalIndicesRadix4, forwardAVX2Size16Radix4Complex64Asm},
-		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex64Asm},
+		{"Size32", 32, mathpkg.ComputeIdentityIndices, forwardAVX2Size32Complex64Asm},
 		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardAVX2Size64Complex64Asm},
 		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardAVX2Size64Radix4Complex64Asm},
 		{"Size128", 128, ComputeBitReversalIndices, forwardAVX2Size128Complex64Asm},
@@ -71,7 +72,7 @@ func TestAVX2DITInverseComplex64(t *testing.T) {
 		{"Size8/Radix8", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix8Complex64Asm, inverseAVX2Size8Radix8Complex64Asm},
 		{"Size16/Radix2", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex64Asm, inverseAVX2Size16Complex64Asm},
 		{"Size16/Radix4", 16, ComputeBitReversalIndicesRadix4, forwardAVX2Size16Radix4Complex64Asm, inverseAVX2Size16Radix4Complex64Asm},
-		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex64Asm, inverseAVX2Size32Complex64Asm},
+		{"Size32", 32, mathpkg.ComputeIdentityIndices, forwardAVX2Size32Complex64Asm, inverseAVX2Size32Complex64Asm},
 		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardAVX2Size64Complex64Asm, inverseAVX2Size64Complex64Asm},
 		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardAVX2Size64Radix4Complex64Asm, inverseAVX2Size64Radix4Complex64Asm},
 		{"Size128", 128, ComputeBitReversalIndices, forwardAVX2Size128Complex64Asm, inverseAVX2Size128Complex64Asm},
@@ -121,7 +122,7 @@ func TestAVX2DITForwardComplex128(t *testing.T) {
 		{"Size8/Radix4", 8, ComputeBitReversalIndicesMixed24, forwardAVX2Size8Radix4Complex128Asm},
 		{"Size8/Radix8", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix8Complex128Asm},
 		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm},
-		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm},
+		{"Size32", 32, mathpkg.ComputeIdentityIndices, forwardAVX2Size32Complex128Asm},
 		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardAVX2Size64Radix2Complex128Asm},
 		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardAVX2Size64Radix4Complex128Asm},
 		{"Size512/Radix2", 512, ComputeBitReversalIndices, forwardAVX2Size512Radix2Complex128Asm},
@@ -168,7 +169,7 @@ func TestAVX2DITInverseComplex128(t *testing.T) {
 		{"Size8/Radix4", 8, ComputeBitReversalIndicesMixed24, forwardAVX2Size8Radix4Complex128Asm, inverseAVX2Size8Radix4Complex128Asm},
 		{"Size8/Radix8", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix8Complex128Asm, inverseAVX2Size8Radix8Complex128Asm},
 		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm, inverseAVX2Size16Complex128Asm},
-		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm, inverseAVX2Size32Complex128Asm},
+		{"Size32", 32, mathpkg.ComputeIdentityIndices, forwardAVX2Size32Complex128Asm, inverseAVX2Size32Complex128Asm},
 		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardAVX2Size64Radix2Complex128Asm, inverseAVX2Size64Radix2Complex128Asm},
 		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardAVX2Size64Radix4Complex128Asm, inverseAVX2Size64Radix4Complex128Asm},
 		{"Size512/Radix2", 512, ComputeBitReversalIndices, forwardAVX2Size512Radix2Complex128Asm, inverseAVX2Size512Radix2Complex128Asm},

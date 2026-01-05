@@ -17,20 +17,38 @@ TEXT ·ForwardAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer (not used)
-	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer (identity expected)
+	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer
 	MOVQ src+32(FP), R13         // R13 = Length of source slice
 
 	// --- Input Validation ---
 	CMPQ R13, $16                // Verify length is exactly 16
 	JNE  fwd_ret_false           // Return false if validation fails
 
+	// Select working input buffer (avoid clobber on in-place)
+	MOVQ R8, R14
+	CMPQ R8, R9
+	JNE  fwd_use_dst
+	MOVQ R11, R14
+
+fwd_use_dst:
+	// Bit-reversal permutation into working buffer
+	XORQ CX, CX
+
+fwd_bitrev_loop:
+	MOVQ (R12)(CX*8), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, (R14)(CX*8)
+	INCQ CX
+	CMPQ CX, $16
+	JL   fwd_bitrev_loop
+
 	// =======================================================================
 	// STEP 0: Load 4x4 Matrix into YMM Registers
 	// =======================================================================
-	VMOVUPS 0(R9), Y0            // Y0 = Row 0: elements [0, 1, 2, 3]
-	VMOVUPS 32(R9), Y1           // Y1 = Row 1: elements [4, 5, 6, 7]
-	VMOVUPS 64(R9), Y2           // Y2 = Row 2: elements [8, 9, 10, 11]
-	VMOVUPS 96(R9), Y3           // Y3 = Row 3: elements [12, 13, 14, 15]
+	VMOVUPS 0(R14), Y0           // Y0 = Row 0: elements [0, 1, 2, 3]
+	VMOVUPS 32(R14), Y1          // Y1 = Row 1: elements [4, 5, 6, 7]
+	VMOVUPS 64(R14), Y2          // Y2 = Row 2: elements [8, 9, 10, 11]
+	VMOVUPS 96(R14), Y3          // Y3 = Row 3: elements [12, 13, 14, 15]
 
 
 	// =======================================================================
@@ -217,13 +235,31 @@ TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ R13, $16                // Verify length is 16
 	JNE  inv_ret_false
 
+	// Select working input buffer (avoid clobber on in-place)
+	MOVQ R8, R14
+	CMPQ R8, R9
+	JNE  inv_use_dst
+	MOVQ R11, R14
+
+inv_use_dst:
+	// Bit-reversal permutation into working buffer
+	XORQ CX, CX
+
+inv_bitrev_loop:
+	MOVQ (R12)(CX*8), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, (R14)(CX*8)
+	INCQ CX
+	CMPQ CX, $16
+	JL   inv_bitrev_loop
+
 	// =======================================================================
 	// STEP 0: Load 4x4 Matrix
 	// =======================================================================
-	VMOVUPS 0(R9), Y0             // Y0 = Row 0: elements [0, 1, 2, 3]
-	VMOVUPS 32(R9), Y1            // Y1 = Row 1: elements [4, 5, 6, 7]
-	VMOVUPS 64(R9), Y2            // Y2 = Row 2: elements [8, 9, 10, 11]
-	VMOVUPS 96(R9), Y3            // Y3 = Row 3: elements [12, 13, 14, 15]
+	VMOVUPS 0(R14), Y0            // Y0 = Row 0: elements [0, 1, 2, 3]
+	VMOVUPS 32(R14), Y1           // Y1 = Row 1: elements [4, 5, 6, 7]
+	VMOVUPS 64(R14), Y2           // Y2 = Row 2: elements [8, 9, 10, 11]
+	VMOVUPS 96(R14), Y3           // Y3 = Row 3: elements [12, 13, 14, 15]
 
 	// =======================================================================
 	// STEP 1: Vertical IFFT4 (Column-wise transformation)
@@ -401,5 +437,3 @@ TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 inv_ret_false:
 	MOVB $0, ret+120(FP)
 	RET
-
-

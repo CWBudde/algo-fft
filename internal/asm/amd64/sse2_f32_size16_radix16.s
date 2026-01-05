@@ -16,14 +16,32 @@ TEXT ·ForwardSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ R13, $16
 	JNE  fwd_ret_false
 
-	MOVUPS 0(R9), X0
-	MOVUPS 16(R9), X1
-	MOVUPS 32(R9), X2
-	MOVUPS 48(R9), X3
-	MOVUPS 64(R9), X4
-	MOVUPS 80(R9), X5
-	MOVUPS 96(R9), X6
-	MOVUPS 112(R9), X7
+	// Select working input buffer (avoid clobber on in-place)
+	MOVQ R8, R14
+	CMPQ R8, R9
+	JNE  fwd_use_dst
+	MOVQ R11, R14
+
+fwd_use_dst:
+	// Bit-reversal permutation into working buffer
+	XORQ CX, CX
+
+fwd_bitrev_loop:
+	MOVQ (R12)(CX*8), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, (R14)(CX*8)
+	INCQ CX
+	CMPQ CX, $16
+	JL   fwd_bitrev_loop
+
+	MOVUPS 0(R14), X0
+	MOVUPS 16(R14), X1
+	MOVUPS 32(R14), X2
+	MOVUPS 48(R14), X3
+	MOVUPS 64(R14), X4
+	MOVUPS 80(R14), X5
+	MOVUPS 96(R14), X6
+	MOVUPS 112(R14), X7
 
 	// Step 1: Column FFTs
 	MOVAPS X0, X8
@@ -306,14 +324,32 @@ TEXT ·InverseSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ R13, $16
 	JNE  inv_ret_false
 
-	MOVUPS 0(R9), X0
-	MOVUPS 16(R9), X1
-	MOVUPS 32(R9), X2
-	MOVUPS 48(R9), X3
-	MOVUPS 64(R9), X4
-	MOVUPS 80(R9), X5
-	MOVUPS 96(R9), X6
-	MOVUPS 112(R9), X7
+	// Select working input buffer (avoid clobber on in-place)
+	MOVQ R8, R14
+	CMPQ R8, R9
+	JNE  inv_use_dst
+	MOVQ R11, R14
+
+inv_use_dst:
+	// Bit-reversal permutation into working buffer
+	XORQ CX, CX
+
+inv_bitrev_loop:
+	MOVQ (R12)(CX*8), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, (R14)(CX*8)
+	INCQ CX
+	CMPQ CX, $16
+	JL   inv_bitrev_loop
+
+	MOVUPS 0(R14), X0
+	MOVUPS 16(R14), X1
+	MOVUPS 32(R14), X2
+	MOVUPS 48(R14), X3
+	MOVUPS 64(R14), X4
+	MOVUPS 80(R14), X5
+	MOVUPS 96(R14), X6
+	MOVUPS 112(R14), X7
 
 	// Step 1: Vertical IFFT4
 	MOVAPS X0, X8
@@ -578,5 +614,3 @@ TEXT ·InverseSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 inv_ret_false:
 	MOVB $0, ret+120(FP)
 	RET
-
-

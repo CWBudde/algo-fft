@@ -21,7 +21,7 @@ TEXT ·ForwardAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-121
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer (W_256)
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer (size 256)
-	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer (identity expected)
+	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer
 	MOVQ src+32(FP), R13         // R13 = Length of source slice
 
 	// --- Input Validation ---
@@ -69,11 +69,11 @@ transpose_in_row_loop:
 
 transpose_in_col_loop:
 	MOVQ CX, AX                  // AX = row
-	SHLQ $7, AX                  // AX = row * 128
-	MOVQ DX, BX                  // BX = col
-	SHLQ $3, BX                  // BX = col * 8
-	LEAQ (R9)(AX*1), SI          // SI = src + row*128
-	MOVQ (SI)(BX*1), R14         // R14 = src[row*16+col]
+	SHLQ $4, AX                  // AX = row * 16
+	ADDQ DX, AX                  // AX = row*16 + col
+	MOVQ (R12)(AX*8), BX         // BX = bitrev[row*16+col]
+	SHLQ $3, BX                  // BX = index * 8
+	MOVQ (R9)(BX*1), R14         // R14 = src[bitrev[row*16+col]]
 
 	MOVQ DX, AX                  // AX = col
 	SHLQ $7, AX                  // AX = col * 128
@@ -514,7 +514,7 @@ TEXT ·InverseAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-121
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer (W_256)
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer (size 256)
-	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer (identity expected)
+	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer
 	MOVQ src+32(FP), R13         // R13 = Length of source slice
 
 	// --- Input Validation ---
@@ -563,11 +563,11 @@ inv_transpose_in_row_loop:
 
 inv_transpose_in_col_loop:
 	MOVQ CX, AX                  // AX = row
-	SHLQ $7, AX                  // AX = row * 128
-	MOVQ DX, BX                  // BX = col
-	SHLQ $3, BX                  // BX = col * 8
-	LEAQ (R9)(AX*1), SI          // SI = src + row*128
-	VMOVSD (SI)(BX*1), X0        // X0 = src[row*16+col]
+	SHLQ $4, AX                  // AX = row * 16
+	ADDQ DX, AX                  // AX = row*16 + col
+	MOVQ (R12)(AX*8), BX         // BX = bitrev[row*16+col]
+	SHLQ $3, BX                  // BX = index * 8
+	VMOVSD (R9)(BX*1), X0        // X0 = src[bitrev[row*16+col]]
 	VXORPS X15, X0, X0           // X0 = conjugated input
 
 	MOVQ DX, AX                  // AX = col

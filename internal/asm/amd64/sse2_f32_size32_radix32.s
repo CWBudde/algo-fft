@@ -17,6 +17,26 @@ TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ R13, $32
 	JNE  fwd_ret_false
 
+	// Select working input buffer (avoid clobber on in-place)
+	MOVQ R8, R14
+	CMPQ R8, R9
+	JNE  size32_r32_fwd_use_dst
+	MOVQ R11, R14
+
+size32_r32_fwd_use_dst:
+	// Bit-reversal permutation into working buffer
+	XORQ CX, CX
+
+size32_r32_fwd_bitrev_loop:
+	MOVQ (R12)(CX*8), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, (R14)(CX*8)
+	INCQ CX
+	CMPQ CX, $32
+	JL   size32_r32_fwd_bitrev_loop
+
+	MOVQ R14, R9
+
 	// Use R11 (scratch) for intermediate storage if needed, but we can do it in registers
 	// if we process 2 columns at a time.
 	// Matrix 4x8: Row 0 (0..7), Row 1 (8..15), Row 2 (16..23), Row 3 (24..31)
@@ -520,6 +540,26 @@ TEXT ·InverseSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
 
 	CMPQ R13, $32
 	JNE  inv_ret_false
+
+	// Select working input buffer (avoid clobber on in-place)
+	MOVQ R8, R14
+	CMPQ R8, R9
+	JNE  size32_r32_inv_use_dst
+	MOVQ R11, R14
+
+size32_r32_inv_use_dst:
+	// Bit-reversal permutation into working buffer
+	XORQ CX, CX
+
+size32_r32_inv_bitrev_loop:
+	MOVQ (R12)(CX*8), DX
+	MOVQ (R9)(DX*8), AX
+	MOVQ AX, (R14)(CX*8)
+	INCQ CX
+	CMPQ CX, $32
+	JL   size32_r32_inv_bitrev_loop
+
+	MOVQ R14, R9
 
 	MOVUPS ·maskNegLoPS(SB), X15
 	MOVUPS ·maskNegHiPS(SB), X14

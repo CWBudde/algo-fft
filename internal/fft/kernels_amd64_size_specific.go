@@ -41,13 +41,13 @@ func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			if forwardAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize16Radix4) {
 				return true
 			}
-			if forwardAVX2Size16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			if forwardAVX2Size16Complex64Asm(dst, src, twiddle, scratch, bitrevSize16Identity) {
 				return true
 			}
 			return forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 32:
-			if forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			if forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch, bitrevSize32Identity) {
 				return true
 			}
 			return forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
@@ -134,13 +134,13 @@ func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			if inverseAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevSize16Radix4) {
 				return true
 			}
-			if inverseAVX2Size16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			if inverseAVX2Size16Complex64Asm(dst, src, twiddle, scratch, bitrevSize16Identity) {
 				return true
 			}
 			return inverseAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 32:
-			if inverseAVX2Size32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			if inverseAVX2Size32Complex64Asm(dst, src, twiddle, scratch, bitrevSize32Identity) {
 				return true
 			}
 			return inverseAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
@@ -228,13 +228,13 @@ func sse2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 16:
-			if forwardSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			if forwardSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrevSize16Identity) {
 				return true
 			}
 			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 32:
-			if forwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			if forwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrevSize32Identity) {
 				return true
 			}
 			if forwardSSE2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch, bitrev) {
@@ -298,13 +298,13 @@ func sse2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 16:
-			if inverseSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			if inverseSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrevSize16Identity) {
 				return true
 			}
 			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 
 		case 32:
-			if inverseSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+			if inverseSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrevSize32Identity) {
 				return true
 			}
 			if inverseSSE2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch, bitrev) {

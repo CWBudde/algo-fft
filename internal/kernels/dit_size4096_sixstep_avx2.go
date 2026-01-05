@@ -36,8 +36,13 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 	// Work buffer
 	work := scratch[:n]
 
-	// Step 1: Transpose src → work (AVX2 accelerated)
-	if !amd64.Transpose64x64Complex64AVX2Asm(work, src) {
+	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
+	for i := 0; i < n; i++ {
+		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+	}
+
+	// Step 1: Transpose work → dst (AVX2 accelerated)
+	if !amd64.Transpose64x64Complex64AVX2Asm(dst, work) {
 		return false
 	}
 
@@ -51,7 +56,7 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 
 	// Step 2: Row FFTs using AVX2 (64 FFTs of size 64)
 	for r := 0; r < m; r++ {
-		row := work[r*m : (r+1)*m]
+		row := dst[r*m : (r+1)*m]
 		if !amd64.ForwardAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev64Radix4[:]) {
 			return false
 		}
@@ -59,24 +64,22 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 
 	// Steps 3+4 fused: Transpose and twiddle multiply (AVX2 accelerated)
 	// dst[i*m+j] = work[j*m+i] * W_4096^(i*j)
-	if !amd64.TransposeTwiddle64x64Complex64AVX2Asm(dst, work, twiddle) {
+	if !amd64.TransposeTwiddle64x64Complex64AVX2Asm(work, dst, twiddle) {
 		return false
 	}
 
 	// Step 5: Row FFTs using AVX2 (64 FFTs of size 64)
 	for r := 0; r < m; r++ {
-		row := dst[r*m : (r+1)*m]
+		row := work[r*m : (r+1)*m]
 		if !amd64.ForwardAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev64Radix4[:]) {
 			return false
 		}
 	}
 
-	// Step 6: Final transpose dst → work → dst (AVX2 accelerated)
-	if !amd64.Transpose64x64Complex64AVX2Asm(work, dst) {
+	// Step 6: Final transpose work → dst (AVX2 accelerated)
+	if !amd64.Transpose64x64Complex64AVX2Asm(dst, work) {
 		return false
 	}
-
-	copy(dst[:n], work)
 
 	return true
 }
@@ -95,8 +98,13 @@ func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 
 	work := scratch[:n]
 
-	// Step 1: Transpose src → work (AVX2 accelerated)
-	if !amd64.Transpose64x64Complex64AVX2Asm(work, src) {
+	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
+	for i := 0; i < n; i++ {
+		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+	}
+
+	// Step 1: Transpose work → dst (AVX2 accelerated)
+	if !amd64.Transpose64x64Complex64AVX2Asm(dst, work) {
 		return false
 	}
 
@@ -110,7 +118,7 @@ func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 
 	// Step 2: Row IFFTs using AVX2
 	for r := 0; r < m; r++ {
-		row := work[r*m : (r+1)*m]
+		row := dst[r*m : (r+1)*m]
 		if !amd64.InverseAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev64Radix4[:]) {
 			return false
 		}
@@ -118,24 +126,22 @@ func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 
 	// Steps 3+4 fused: Transpose and conjugate twiddle multiply (AVX2 accelerated)
 	// dst[i*m+j] = work[j*m+i] * conj(W_4096^(i*j))
-	if !amd64.TransposeTwiddleConj64x64Complex64AVX2Asm(dst, work, twiddle) {
+	if !amd64.TransposeTwiddleConj64x64Complex64AVX2Asm(work, dst, twiddle) {
 		return false
 	}
 
 	// Step 5: Row IFFTs using AVX2
 	for r := 0; r < m; r++ {
-		row := dst[r*m : (r+1)*m]
+		row := work[r*m : (r+1)*m]
 		if !amd64.InverseAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev64Radix4[:]) {
 			return false
 		}
 	}
 
-	// Step 6: Final transpose dst → work → dst (AVX2 accelerated)
-	if !amd64.Transpose64x64Complex64AVX2Asm(work, dst) {
+	// Step 6: Final transpose work → dst (AVX2 accelerated)
+	if !amd64.Transpose64x64Complex64AVX2Asm(dst, work) {
 		return false
 	}
-
-	copy(dst[:n], work)
 
 	return true
 }

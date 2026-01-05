@@ -4,6 +4,7 @@ package kernels
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 // Precomputed bit-reversal indices for size 128 (radix-2).
@@ -19,6 +20,8 @@ var bitrev128 = [128]int{
 	3, 67, 35, 99, 19, 83, 51, 115, 11, 75, 43, 107, 27, 91, 59, 123,
 	7, 71, 39, 103, 23, 87, 55, 119, 15, 79, 47, 111, 31, 95, 63, 127,
 }
+
+var bitrev16384 = mathpkg.ComputeBitReversalIndices(16384)
 
 // forwardDIT16384SixStepAVX2Complex64 computes a 16384-point forward FFT using the
 // six-step (128×128 matrix) algorithm with AVX2-accelerated operations.
@@ -40,8 +43,13 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 	// Work buffer
 	work := scratch[:n]
 
-	// Step 1: Transpose src -> work (AVX2 accelerated)
-	if !amd64.Transpose128x128Complex64AVX2Asm(work, src) {
+	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-2 order)
+	for i := 0; i < n; i++ {
+		work[bitrev16384[i]] = src[bitrev[i]]
+	}
+
+	// Step 1: Transpose work -> dst (AVX2 accelerated)
+	if !amd64.Transpose128x128Complex64AVX2Asm(dst, work) {
 		return false
 	}
 
@@ -57,7 +65,7 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 	// Note: We use ForwardAVX2Complex64Asm (generic DIT) instead of ForwardAVX2Size128Complex64Asm
 	// (radix-4 variant) because the radix-4 implementation has different output ordering.
 	for r := 0; r < m; r++ {
-		row := work[r*m : (r+1)*m]
+		row := dst[r*m : (r+1)*m]
 		if !amd64.ForwardAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev128[:]) {
 			return false
 		}
@@ -65,24 +73,22 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 
 	// Steps 3+4 fused: Transpose and twiddle multiply (AVX2 accelerated)
 	// dst[i*m+j] = work[j*m+i] * W_16384^(i*j)
-	if !amd64.TransposeTwiddle128x128Complex64AVX2Asm(dst, work, twiddle) {
+	if !amd64.TransposeTwiddle128x128Complex64AVX2Asm(work, dst, twiddle) {
 		return false
 	}
 
 	// Step 5: Row FFTs using generic AVX2 DIT (128 FFTs of size 128)
 	for r := 0; r < m; r++ {
-		row := dst[r*m : (r+1)*m]
+		row := work[r*m : (r+1)*m]
 		if !amd64.ForwardAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev128[:]) {
 			return false
 		}
 	}
 
-	// Step 6: Final transpose dst -> work -> dst (AVX2 accelerated)
-	if !amd64.Transpose128x128Complex64AVX2Asm(work, dst) {
+	// Step 6: Final transpose work -> dst (AVX2 accelerated)
+	if !amd64.Transpose128x128Complex64AVX2Asm(dst, work) {
 		return false
 	}
-
-	copy(dst[:n], work)
 
 	return true
 }
@@ -101,8 +107,13 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 
 	work := scratch[:n]
 
-	// Step 1: Transpose src -> work (AVX2 accelerated)
-	if !amd64.Transpose128x128Complex64AVX2Asm(work, src) {
+	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-2 order)
+	for i := 0; i < n; i++ {
+		work[bitrev16384[i]] = src[bitrev[i]]
+	}
+
+	// Step 1: Transpose work -> dst (AVX2 accelerated)
+	if !amd64.Transpose128x128Complex64AVX2Asm(dst, work) {
 		return false
 	}
 
@@ -116,7 +127,7 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 
 	// Step 2: Row IFFTs using generic AVX2 DIT
 	for r := 0; r < m; r++ {
-		row := work[r*m : (r+1)*m]
+		row := dst[r*m : (r+1)*m]
 		if !amd64.InverseAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev128[:]) {
 			return false
 		}
@@ -124,24 +135,22 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 
 	// Steps 3+4 fused: Transpose and conjugate twiddle multiply (AVX2 accelerated)
 	// dst[i*m+j] = work[j*m+i] * conj(W_16384^(i*j))
-	if !amd64.TransposeTwiddleConj128x128Complex64AVX2Asm(dst, work, twiddle) {
+	if !amd64.TransposeTwiddleConj128x128Complex64AVX2Asm(work, dst, twiddle) {
 		return false
 	}
 
 	// Step 5: Row IFFTs using generic AVX2 DIT
 	for r := 0; r < m; r++ {
-		row := dst[r*m : (r+1)*m]
+		row := work[r*m : (r+1)*m]
 		if !amd64.InverseAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev128[:]) {
 			return false
 		}
 	}
 
-	// Step 6: Final transpose dst -> work -> dst (AVX2 accelerated)
-	if !amd64.Transpose128x128Complex64AVX2Asm(work, dst) {
+	// Step 6: Final transpose work -> dst (AVX2 accelerated)
+	if !amd64.Transpose128x128Complex64AVX2Asm(dst, work) {
 		return false
 	}
-
-	copy(dst[:n], work)
 
 	return true
 }

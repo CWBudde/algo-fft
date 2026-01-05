@@ -4,6 +4,8 @@ import (
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
+var bitrev4096Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(4096)
+
 // forwardDIT4096SixStepComplex64 computes a 4096-point forward FFT using the
 // six-step (64×64 matrix) algorithm for complex64 data.
 //
@@ -30,10 +32,15 @@ func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 	// Work buffer
 	work := scratch[:n]
 
-	// Step 1: Transpose (src viewed as 64×64 matrix, transposed into work)
+	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
+	for i := 0; i < n; i++ {
+		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+	}
+
+	// Step 1: Transpose (work viewed as 64×64 matrix, transposed into dst)
 	for i := range m {
 		for j := range m {
-			work[i*m+j] = src[j*m+i]
+			dst[i*m+j] = work[j*m+i]
 		}
 	}
 
@@ -47,43 +54,41 @@ func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 	rowScratch := make([]complex64, m)
 
 	for r := range m {
-		row := work[r*m : (r+1)*m]
-		if !forwardDIT64Radix4Complex64(row, row, rowTwiddle, rowScratch, rowBitrev) {
-			return false
-		}
-	}
-
-	// Step 3: Transpose (work -> dst viewed as transpose)
-	for i := range m {
-		for j := range m {
-			dst[i*m+j] = work[j*m+i]
-		}
-	}
-
-	// Step 4: Twiddle multiply: dst[i*m+j] *= W_4096^(i*j)
-	for i := range m {
-		for j := range m {
-			idx := i * j // W_4096^(i*j), indices 0..3969
-			dst[i*m+j] *= twiddle[idx%n]
-		}
-	}
-
-	// Step 5: Row FFTs (64 FFTs of size 64)
-	for r := range m {
 		row := dst[r*m : (r+1)*m]
 		if !forwardDIT64Radix4Complex64(row, row, rowTwiddle, rowScratch, rowBitrev) {
 			return false
 		}
 	}
 
-	// Step 6: Final transpose (dst -> work -> dst)
+	// Step 3: Transpose (dst -> work viewed as transpose)
 	for i := range m {
 		for j := range m {
 			work[i*m+j] = dst[j*m+i]
 		}
 	}
 
-	copy(dst[:n], work)
+	// Step 4: Twiddle multiply: work[i*m+j] *= W_4096^(i*j)
+	for i := range m {
+		for j := range m {
+			idx := i * j // W_4096^(i*j), indices 0..3969
+			work[i*m+j] *= twiddle[idx%n]
+		}
+	}
+
+	// Step 5: Row FFTs (64 FFTs of size 64)
+	for r := range m {
+		row := work[r*m : (r+1)*m]
+		if !forwardDIT64Radix4Complex64(row, row, rowTwiddle, rowScratch, rowBitrev) {
+			return false
+		}
+	}
+
+	// Step 6: Final transpose (work -> dst)
+	for i := range m {
+		for j := range m {
+			dst[i*m+j] = work[j*m+i]
+		}
+	}
 
 	return true
 }
@@ -103,10 +108,15 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 	// Work buffer
 	work := scratch[:n]
 
-	// Step 1: Transpose (src viewed as 64×64 matrix, transposed into work)
+	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
+	for i := 0; i < n; i++ {
+		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+	}
+
+	// Step 1: Transpose (work viewed as 64×64 matrix, transposed into dst)
 	for i := range m {
 		for j := range m {
-			work[i*m+j] = src[j*m+i]
+			dst[i*m+j] = work[j*m+i]
 		}
 	}
 
@@ -120,47 +130,47 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 	rowScratch := make([]complex64, m)
 
 	for r := range m {
-		row := work[r*m : (r+1)*m]
-		if !inverseDIT64Radix4Complex64NoScale(row, row, rowTwiddle, rowScratch, rowBitrev) {
-			return false
-		}
-	}
-
-	// Step 3: Transpose (work -> dst viewed as transpose)
-	for i := range m {
-		for j := range m {
-			dst[i*m+j] = work[j*m+i]
-		}
-	}
-
-	// Step 4: Conjugate twiddle multiply: dst[i*m+j] *= conj(W_4096^(i*j))
-	for i := range m {
-		for j := range m {
-			idx := i * j
-			tw := twiddle[idx%n]
-			dst[i*m+j] *= complex(real(tw), -imag(tw)) // Conjugate
-		}
-	}
-
-	// Step 5: Row IFFTs (64 IFFTs of size 64)
-	for r := range m {
 		row := dst[r*m : (r+1)*m]
 		if !inverseDIT64Radix4Complex64NoScale(row, row, rowTwiddle, rowScratch, rowBitrev) {
 			return false
 		}
 	}
 
-	// Step 6: Final transpose (dst -> work -> dst)
+	// Step 3: Transpose (dst -> work viewed as transpose)
 	for i := range m {
 		for j := range m {
 			work[i*m+j] = dst[j*m+i]
 		}
 	}
 
+	// Step 4: Conjugate twiddle multiply: work[i*m+j] *= conj(W_4096^(i*j))
+	for i := range m {
+		for j := range m {
+			idx := i * j
+			tw := twiddle[idx%n]
+			work[i*m+j] *= complex(real(tw), -imag(tw)) // Conjugate
+		}
+	}
+
+	// Step 5: Row IFFTs (64 IFFTs of size 64)
+	for r := range m {
+		row := work[r*m : (r+1)*m]
+		if !inverseDIT64Radix4Complex64NoScale(row, row, rowTwiddle, rowScratch, rowBitrev) {
+			return false
+		}
+	}
+
+	// Step 6: Final transpose (work -> dst)
+	for i := range m {
+		for j := range m {
+			dst[i*m+j] = work[j*m+i]
+		}
+	}
+
 	// Apply 1/N scaling and copy back
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range n {
-		dst[i] = work[i] * scale
+		dst[i] = dst[i] * scale
 	}
 
 	return true
@@ -285,10 +295,15 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 
 	work := scratch[:n]
 
+	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
+	for i := 0; i < n; i++ {
+		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+	}
+
 	// Step 1: Transpose
 	for i := range m {
 		for j := range m {
-			work[i*m+j] = src[j*m+i]
+			dst[i*m+j] = work[j*m+i]
 		}
 	}
 
@@ -302,7 +317,7 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	rowScratch := make([]complex128, m)
 
 	for r := range m {
-		row := work[r*m : (r+1)*m]
+		row := dst[r*m : (r+1)*m]
 		if !forwardDIT64Radix4Complex128(row, row, rowTwiddle, rowScratch, rowBitrev) {
 			return false
 		}
@@ -311,7 +326,7 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	// Step 3: Transpose
 	for i := range m {
 		for j := range m {
-			dst[i*m+j] = work[j*m+i]
+			work[i*m+j] = dst[j*m+i]
 		}
 	}
 
@@ -319,13 +334,13 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	for i := range m {
 		for j := range m {
 			idx := i * j
-			dst[i*m+j] *= twiddle[idx%n]
+			work[i*m+j] *= twiddle[idx%n]
 		}
 	}
 
 	// Step 5: Row FFTs
 	for r := range m {
-		row := dst[r*m : (r+1)*m]
+		row := work[r*m : (r+1)*m]
 		if !forwardDIT64Radix4Complex128(row, row, rowTwiddle, rowScratch, rowBitrev) {
 			return false
 		}
@@ -334,11 +349,9 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	// Step 6: Final transpose
 	for i := range m {
 		for j := range m {
-			work[i*m+j] = dst[j*m+i]
+			dst[i*m+j] = work[j*m+i]
 		}
 	}
-
-	copy(dst[:n], work)
 
 	return true
 }
@@ -357,10 +370,15 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 
 	work := scratch[:n]
 
+	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
+	for i := 0; i < n; i++ {
+		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+	}
+
 	// Step 1: Transpose
 	for i := range m {
 		for j := range m {
-			work[i*m+j] = src[j*m+i]
+			dst[i*m+j] = work[j*m+i]
 		}
 	}
 
@@ -374,7 +392,7 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	rowScratch := make([]complex128, m)
 
 	for r := range m {
-		row := work[r*m : (r+1)*m]
+		row := dst[r*m : (r+1)*m]
 		if !inverseDIT64Radix4Complex128NoScale(row, row, rowTwiddle, rowScratch, rowBitrev) {
 			return false
 		}
@@ -383,7 +401,7 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	// Step 3: Transpose
 	for i := range m {
 		for j := range m {
-			dst[i*m+j] = work[j*m+i]
+			work[i*m+j] = dst[j*m+i]
 		}
 	}
 
@@ -392,13 +410,13 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 		for j := range m {
 			idx := i * j
 			tw := twiddle[idx%n]
-			dst[i*m+j] *= complex(real(tw), -imag(tw))
+			work[i*m+j] *= complex(real(tw), -imag(tw))
 		}
 	}
 
 	// Step 5: Row IFFTs
 	for r := range m {
-		row := dst[r*m : (r+1)*m]
+		row := work[r*m : (r+1)*m]
 		if !inverseDIT64Radix4Complex128NoScale(row, row, rowTwiddle, rowScratch, rowBitrev) {
 			return false
 		}
@@ -408,12 +426,12 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	scale := complex(1.0/float64(n), 0)
 	for i := range m {
 		for j := range m {
-			work[i*m+j] = dst[j*m+i]
+			dst[i*m+j] = work[j*m+i]
 		}
 	}
 
 	for i := range n {
-		dst[i] = work[i] * scale
+		dst[i] = dst[i] * scale
 	}
 
 	return true
