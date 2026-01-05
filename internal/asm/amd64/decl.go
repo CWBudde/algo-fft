@@ -507,3 +507,19 @@ func Butterfly3ForwardAVX2Complex64(y0, y1, y2, a0, a1, a2 []complex64)
 //
 //go:noescape
 func Butterfly3InverseAVX2Complex64(y0, y1, y2, a0, a1, a2 []complex64)
+
+// ============================================================================
+// Radix-5 FFT Butterfly Operations
+// ============================================================================
+
+// Butterfly5ForwardAVX2Complex64 processes 2 radix-5 forward butterflies in parallel.
+// Each input slice must have length >= 2.
+//
+//go:noescape
+func Butterfly5ForwardAVX2Complex64(y0, y1, y2, y3, y4, a0, a1, a2, a3, a4 []complex64)
+
+// Butterfly5InverseAVX2Complex64 processes 2 radix-5 inverse butterflies in parallel.
+// Each input slice must have length >= 2.
+//
+//go:noescape
+func Butterfly5InverseAVX2Complex64(y0, y1, y2, y3, y4, a0, a1, a2, a3, a4 []complex64)

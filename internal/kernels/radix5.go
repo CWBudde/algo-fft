@@ -20,11 +20,11 @@ func init() {
 }
 
 func forwardRadix5Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return radix5Forward[complex64](dst, src, twiddle, scratch, bitrev)
+	return radix5TransformComplex64(dst, src, twiddle, scratch, bitrev, false)
 }
 
 func inverseRadix5Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return radix5Inverse[complex64](dst, src, twiddle, scratch, bitrev)
+	return radix5TransformComplex64(dst, src, twiddle, scratch, bitrev, true)
 }
 
 func forwardRadix5Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
