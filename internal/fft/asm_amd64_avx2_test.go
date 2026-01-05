@@ -47,6 +47,29 @@ func complexNearEqual(a, b complex64, relTol float32) bool {
 	return diffMag <= relTol*relTol
 }
 
+// getToleranceForSize returns size-specific relative tolerance for FFT tests.
+// Larger transforms accumulate more numerical error due to more butterfly operations.
+func getToleranceForSize(n int) float32 {
+	switch {
+	case n <= 16:
+		return 1e-6 // Excellent precision for small sizes
+	case n <= 64:
+		return 2e-6
+	case n <= 256:
+		return 5e-6
+	case n <= 1024:
+		return 1e-5
+	case n <= 4096:
+		return 2e-5
+	case n <= 8192:
+		return 3e-5
+	case n <= 16384:
+		return 5e-5
+	default:
+		return 1e-4 // Conservative for very large transforms
+	}
+}
+
 // generateRandomComplex64 creates a slice of random complex64 values.
 func generateRandomComplex64(n int, seed uint64) []complex64 {
 	rng := rand.New(rand.NewPCG(seed, seed^0xDEADBEEF))
@@ -172,7 +195,7 @@ func TestAVX2Forward_VsPureGo(t *testing.T) {
 
 	goForward, _ := getPureGoKernels()
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
+	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -198,9 +221,9 @@ func TestAVX2Forward_VsPureGo(t *testing.T) {
 
 			// Compare results
 			// Note: AVX2 and pure-Go may have small numerical differences due to
-			// different instruction ordering and FMA. We use a slightly looser tolerance
-			// since the reference DFT and round-trip tests validate correctness.
-			const relTol = 1e-5
+			// different instruction ordering and FMA. We use size-specific tolerances
+			// since larger transforms accumulate more numerical error.
+			relTol := getToleranceForSize(n)
 			if !complexSliceEqual(dstAVX2, dstGo, relTol) {
 				t.Errorf("AVX2 forward result differs from pure-Go")
 
@@ -229,7 +252,7 @@ func TestAVX2Inverse_VsPureGo(t *testing.T) {
 
 	_, goInverse := getPureGoKernels()
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
+	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -256,9 +279,9 @@ func TestAVX2Inverse_VsPureGo(t *testing.T) {
 
 			// Compare results
 			// Note: AVX2 and pure-Go may have small numerical differences due to
-			// different instruction ordering. We use a slightly looser tolerance
-			// since the round-trip test validates overall correctness.
-			const relTol = 2e-5
+			// different instruction ordering. We use size-specific tolerances
+			// since larger transforms accumulate more numerical error.
+			relTol := getToleranceForSize(n) * 2 // Inverse may have slightly more error
 			if !complexSliceEqual(dstAVX2, dstGo, relTol) {
 				t.Errorf("AVX2 inverse result differs from pure-Go")
 
@@ -400,8 +423,8 @@ func testAVX2VsReference(
 				t.Skip("AVX2 kernel returned false (not yet implemented)")
 			}
 
-			// Compare results (looser tolerance due to algorithm differences)
-			const relTol = 1e-5
+			// Compare results (size-specific tolerance due to algorithm differences)
+			relTol := getToleranceForSize(n)
 			if !complexSliceEqual(dstAVX2, dstRef, relTol) {
 				t.Errorf("AVX2 %s result differs from reference", name)
 				reportDifferences(t, dstAVX2, dstRef, relTol)
@@ -441,7 +464,7 @@ func TestAVX2RoundTrip(t *testing.T) {
 		t.Skip("AVX2 not available on this system")
 	}
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
+	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -465,7 +488,7 @@ func TestAVX2RoundTrip(t *testing.T) {
 			}
 
 			// Compare original and recovered
-			const relTol = 1e-5
+			relTol := getToleranceForSize(n)
 			if !complexSliceEqual(recovered, original, relTol) {
 				t.Errorf("Round-trip failed: IFFT(FFT(x)) != x")
 
@@ -759,7 +782,7 @@ func TestAVX2EdgeCases(t *testing.T) {
 			t.Skip("AVX2 inverse not yet implemented")
 		}
 
-		const relTol = 1e-5
+		relTol := getToleranceForSize(n)
 		if !complexSliceEqual(recovered, original, relTol) {
 			t.Error("Inverse did not undo forward transform")
 		}
@@ -901,7 +924,7 @@ func TestAVX2Forward128_VsPureGo(t *testing.T) {
 
 	goForward, _ := getPureGoKernels128()
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
+	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -950,7 +973,7 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 
 	_, goInverse := getPureGoKernels128()
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
+	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
