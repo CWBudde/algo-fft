@@ -146,7 +146,7 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 	}
 
 	// Step 4: Compute 128 radix-3 inverse column butterflies
-	// Output directly to dst in natural order
+	// Output directly to dst in natural order (128×3 layout)
 	scale := complex64(complex(1.0/3.0, 0)) // Additional scaling (128-pt IFFT did 1/128)
 	for n1 := range stride {
 		a0 := work[n1]
@@ -156,6 +156,106 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 		dst[n1] = y0 * scale
 		dst[n1+stride] = y1 * scale
 		dst[n1+2*stride] = y2 * scale
+	}
+
+	return true
+}
+
+// forwardDIT384MixedComplex128 computes a 384-point forward FFT (complex128).
+func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	const n = 384
+	const stride = 128
+
+	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n {
+		return false
+	}
+
+	// Step 1: Compute 128 radix-3 column DFTs
+	copy(scratch, src)
+	amd64.Radix3Butterflies384ForwardComplex128Asm(scratch)
+
+	// Step 2: Apply twiddle factors
+	amd64.ApplyTwiddle384Complex128Asm(scratch, twiddle)
+
+	// Prepare for 128-point sub-FFTs
+	twiddle128 := mathpkg.ComputeTwiddleFactors[complex128](stride)
+	bitrev128 := mathpkg.ComputeBitReversalIndices(stride) // Radix-2 bitrev for Size128Radix2
+	subScratch := make([]complex128, stride)
+	fftOut := make([]complex128, n)
+
+	// Step 3: Compute 3 independent 128-point FFTs
+	for k2 := range 3 {
+		rowStart := k2 * stride
+		if !amd64.ForwardAVX2Size128Radix2Complex128Asm(
+			fftOut[rowStart:rowStart+stride],
+			scratch[rowStart:rowStart+stride],
+			twiddle128, subScratch, bitrev128,
+		) {
+			return false
+		}
+	}
+
+	// Step 4: Interleave output
+	for k1 := range stride {
+		for k2 := range 3 {
+			dst[k1*3+k2] = fftOut[k2*stride+k1]
+		}
+	}
+
+	return true
+}
+
+// inverseDIT384MixedComplex128 computes a 384-point inverse FFT (complex128).
+func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	const n = 384
+	const stride = 128
+
+	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n {
+		return false
+	}
+
+	work := scratch
+	ifftIn := make([]complex128, n)
+
+	// Step 1: De-interleave input
+	for k1 := range stride {
+		for k2 := range 3 {
+			ifftIn[k2*stride+k1] = src[k1*3+k2]
+		}
+	}
+
+	// Prepare for 128-point sub-IFFTs
+	twiddle128 := mathpkg.ComputeTwiddleFactors[complex128](stride)
+	bitrev128 := mathpkg.ComputeBitReversalIndices(stride)
+	subScratch := make([]complex128, stride)
+
+	// Step 2: Compute 3 independent 128-point IFFTs
+	for k2 := range 3 {
+		rowStart := k2 * stride
+		if !amd64.InverseAVX2Size128Radix2Complex128Asm(
+			work[rowStart:rowStart+stride],
+			ifftIn[rowStart:rowStart+stride],
+			twiddle128, subScratch, bitrev128,
+		) {
+			return false
+		}
+	}
+
+	// Step 3: Apply conjugate twiddle factors
+	for n1 := range stride {
+		work[stride+n1] *= mathpkg.Conj(twiddle[n1])
+	}
+	for n1 := range stride {
+		work[2*stride+n1] *= mathpkg.Conj(twiddle[2*n1])
+	}
+
+	// Step 4: Compute 128 radix-3 inverse column butterflies
+	amd64.Radix3Butterflies384InverseComplex128Asm(work)
+
+	// Scale and copy to dst
+	scale := complex128(complex(1.0/3.0, 0))
+	for i := range n {
+		dst[i] = work[i] * scale
 	}
 
 	return true
