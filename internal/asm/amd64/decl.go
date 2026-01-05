@@ -481,3 +481,29 @@ func ComplexMulArrayComplex128AVX2Asm(dst, a, b []complex128)
 
 //go:noescape
 func ComplexMulArrayInPlaceComplex128AVX2Asm(dst, src []complex128)
+
+// ============================================================================
+// Radix-3 FFT Butterfly Operations
+// ============================================================================
+
+// Butterfly3ForwardAVX2Complex64 processes 4 radix-3 forward butterflies in parallel.
+// Each input slice must have length >= 4 (representing 4 complex64 values).
+// The function computes:
+//
+//	for i in 0..3:
+//	  t1 = a1[i] + a2[i]
+//	  t2 = a1[i] - a2[i]
+//	  y0[i] = a0[i] + t1
+//	  base = a0[i] + (-0.5)*t1
+//	  y1[i] = base + (0 - i*sqrt(3)/2)*t2
+//	  y2[i] = base - (0 - i*sqrt(3)/2)*t2
+//
+//go:noescape
+func Butterfly3ForwardAVX2Complex64(y0, y1, y2, a0, a1, a2 []complex64)
+
+// Butterfly3InverseAVX2Complex64 processes 4 radix-3 inverse butterflies in parallel.
+// Each input slice must have length >= 4.
+// Uses the conjugate coefficient: 0 + i*sqrt(3)/2
+//
+//go:noescape
+func Butterfly3InverseAVX2Complex64(y0, y1, y2, a0, a1, a2 []complex64)
