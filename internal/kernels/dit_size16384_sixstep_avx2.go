@@ -29,7 +29,7 @@ var bitrev16384 = mathpkg.ComputeBitReversalIndices(16384)
 // This implementation uses:
 // - AVX2 assembly for transpose operations (Steps 1, 6)
 // - AVX2 assembly for fused transpose+twiddle (Steps 3+4)
-// - Existing ForwardAVX2Size128Complex64Asm kernel for row FFTs (Steps 2, 5)
+// - Existing ForwardAVX2Size128Mixed24Complex64Asm kernel for row FFTs (Steps 2, 5)
 func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const (
 		n = 16384
@@ -62,8 +62,8 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 	var rowScratch [128]complex64
 
 	// Step 2: Row FFTs using generic AVX2 DIT (128 FFTs of size 128)
-	// Note: We use ForwardAVX2Complex64Asm (generic DIT) instead of ForwardAVX2Size128Complex64Asm
-	// (radix-4 variant) because the radix-4 implementation has different output ordering.
+	// Note: We use ForwardAVX2Complex64Asm (generic DIT) instead of ForwardAVX2Size128Mixed24Complex64Asm
+	// (mixed-radix 2×4 variant) because the mixed-radix implementation has different output ordering.
 	for r := 0; r < m; r++ {
 		row := dst[r*m : (r+1)*m]
 		if !amd64.ForwardAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev128[:]) {
