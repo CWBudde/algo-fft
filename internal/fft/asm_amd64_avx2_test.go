@@ -172,7 +172,7 @@ func TestAVX2Forward_VsPureGo(t *testing.T) {
 
 	goForward, _ := getPureGoKernels()
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048}
+	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -229,7 +229,7 @@ func TestAVX2Inverse_VsPureGo(t *testing.T) {
 
 	_, goInverse := getPureGoKernels()
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048}
+	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -286,7 +286,7 @@ func TestAVX2StockhamForward_VsPureGo(t *testing.T) {
 		t.Skip("AVX2 not available on this system")
 	}
 
-	sizes := []int{16, 32, 64, 128, 256, 1024}
+	sizes := []int{16, 32, 64, 128, 256, 1024, 2048, 8192}
 	relTol := float32(1e-4)
 
 	for _, n := range sizes {
@@ -319,7 +319,7 @@ func TestAVX2StockhamInverse_VsPureGo(t *testing.T) {
 		t.Skip("AVX2 not available on this system")
 	}
 
-	sizes := []int{16, 32, 64, 128, 256, 1024}
+	sizes := []int{16, 32, 64, 128, 256, 1024, 2048, 8192}
 	relTol := float32(1e-4)
 
 	for _, n := range sizes {
@@ -357,7 +357,8 @@ func TestAVX2VsReferenceDFT(t *testing.T) {
 	}
 
 	// Smaller sizes due to O(n²) complexity of reference DFT
-	sizes := []int{16, 32, 64, 128, 256}
+	// Sizes 2048 and 8192 excluded due to high computational cost and numerical precision issues
+	sizes := []int{16, 32, 64, 128, 256, 512, 1024}
 
 	t.Run("Forward", func(t *testing.T) {
 		t.Parallel()
@@ -440,7 +441,7 @@ func TestAVX2RoundTrip(t *testing.T) {
 		t.Skip("AVX2 not available on this system")
 	}
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048}
+	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -495,7 +496,7 @@ func TestAVX2Parseval(t *testing.T) {
 		t.Skip("AVX2 not available on this system")
 	}
 
-	sizes := []int{16, 64, 256, 1024}
+	sizes := []int{16, 64, 256, 1024, 2048, 8192}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -534,7 +535,7 @@ func TestAVX2Linearity(t *testing.T) {
 		t.Skip("AVX2 not available on this system")
 	}
 
-	sizes := []int{16, 64, 256}
+	sizes := []int{16, 64, 256, 1024, 2048, 8192}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -900,7 +901,7 @@ func TestAVX2Forward128_VsPureGo(t *testing.T) {
 
 	goForward, _ := getPureGoKernels128()
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024}
+	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -949,7 +950,7 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 
 	_, goInverse := getPureGoKernels128()
 
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024}
+	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 8192}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
