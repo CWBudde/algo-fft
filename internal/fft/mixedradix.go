@@ -28,6 +28,20 @@ func mixedRadixInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) 
 	return mixedRadixTransform(dst, src, twiddle, scratch, bitrev, true)
 }
 
+// Recursion hooks for SIMD acceleration.
+// By default, these point to the pure Go implementations.
+// SIMD-optimized files (like mixedradix_avx2.go) can override these in init().
+var (
+	recursiveStep64  func(dst, src, work []complex64, n, stride, step int, radices []int, twiddle []complex64, inverse bool)
+	recursiveStep128 func(dst, src, work []complex128, n, stride, step int, radices []int, twiddle []complex128, inverse bool)
+)
+
+//nolint:gochecknoinits
+func init() {
+	recursiveStep64 = mixedRadixRecursivePingPongComplex64
+	recursiveStep128 = mixedRadixRecursivePingPongComplex128
+}
+
 func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, inverse bool) bool {
 	_ = bitrev
 
@@ -60,12 +74,11 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 		workIsDst = false
 	}
 
-	// Use recursive ping-pong implementation (iterative version WIP - see below)
-	// Type-specific implementation to avoid generic overhead.
+	// Call through recursion hooks.
 	var zero T
 	switch any(zero).(type) {
 	case complex64:
-		mixedRadixRecursivePingPongComplex64(
+		recursiveStep64(
 			any(work).([]complex64),
 			any(src).([]complex64),
 			any(scratch).([]complex64),
@@ -74,7 +87,7 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 			inverse,
 		)
 	case complex128:
-		mixedRadixRecursivePingPongComplex128(
+		recursiveStep128(
 			any(work).([]complex128),
 			any(src).([]complex128),
 			any(scratch).([]complex128),
@@ -107,7 +120,41 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int) int {
 
 	count := 0
 
+	// Registry-aware scheduling:
+	// If we have a registered codelet for the current size 'n', use it directly!
+	// This prevents breaking down large sizes (e.g., 256, 512) into small radices
+	// when we have highly optimized AVX2 kernels for them.
+	//
+	// We only check Registry64 because the schedule is shared for both types,
+	// and we assume if a kernel exists for complex64, it likely exists for complex128
+	// or the fallback is acceptable. Most optimization work targets both.
+	//
+	// Note: We skip this check for very small sizes (<= 5) as they are handled
+	// by the switch statement anyway, and looking them up might be slower.
+	if n > 5 {
+		// Use a lightweight check if possible. For now, Registry.Get() is fast enough.
+		// We verify if *any* codelet exists, not just AVX2, because even a generic
+		// codelet for size N might be faster than recursive decomposition.
+		// However, we primarily want this for SIMD.
+		//
+		// CAUTION: This creates a dependency on 'kernels' package.
+		// Ensure 'kernels' is imported.
+		if kernels.Registry64.Has(n) {
+			radices[count] = n
+			return count + 1
+		}
+	}
+
 	for n > 1 {
+		// Check again at each step: if the remaining size 'n' has a kernel, use it.
+		// e.g., 768 = 3 * 256. First loop picks 3. Second loop sees 256.
+		// Instead of 256 -> 4*4*4*4, we want 256 directly.
+		if n > 5 && kernels.Registry64.Has(n) {
+			radices[count] = n
+			count++
+			return count
+		}
+
 		switch {
 		case n%5 == 0:
 			radices[count] = 5
@@ -188,7 +235,7 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 		if len(nextRadices) == 0 {
 			dst[j*span] = src[j*stride]
 		} else {
-			mixedRadixRecursivePingPongComplex64(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
+			recursiveStep64(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
 		}
 	}
 
@@ -318,7 +365,7 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 		if len(nextRadices) == 0 {
 			dst[j*span] = src[j*stride]
 		} else {
-			mixedRadixRecursivePingPongComplex128(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
+			recursiveStep128(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
 		}
 	}
 
