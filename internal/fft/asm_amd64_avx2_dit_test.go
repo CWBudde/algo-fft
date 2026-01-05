@@ -5,8 +5,8 @@ package fft
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 // TestAVX2DITForwardComplex64 tests all AVX2 forward kernels for complex64

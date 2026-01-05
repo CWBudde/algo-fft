@@ -89,7 +89,7 @@ func registerDITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
-		Priority:   30, // Highest priority among generic size-8 codelets
+		Priority:   30,                             // Highest priority among generic size-8 codelets
 		BitrevFunc: mathpkg.ComputeIdentityIndices, // Radix-8 uses natural order
 	})
 
@@ -332,7 +332,7 @@ func registerDITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
-		Priority:   30, // Highest priority among generic size-8 codelets
+		Priority:   30,                             // Highest priority among generic size-8 codelets
 		BitrevFunc: mathpkg.ComputeIdentityIndices, // Radix-8 uses natural order
 	})
 
