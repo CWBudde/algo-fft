@@ -27,11 +27,11 @@ var (
 )
 
 func forwardRadix3Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return radix3Forward[complex64](dst, src, twiddle, scratch, bitrev)
+	return radix3TransformComplex64(dst, src, twiddle, scratch, bitrev, false)
 }
 
 func inverseRadix3Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return radix3Inverse[complex64](dst, src, twiddle, scratch, bitrev)
+	return radix3TransformComplex64(dst, src, twiddle, scratch, bitrev, true)
 }
 
 func forwardRadix3Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {

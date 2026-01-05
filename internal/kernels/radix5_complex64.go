@@ -168,7 +168,7 @@ func radix5TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 	}
 
 	if inverse {
-		scale := complex64(1.0 / float32(n))
+		scale := complex(float32(1.0/float32(n)), 0)
 		for i := range dst {
 			dst[i] *= scale
 		}
