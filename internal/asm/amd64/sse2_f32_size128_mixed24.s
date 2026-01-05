@@ -1,13 +1,13 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// SSE2 Size-128 Radix-4 FFT Kernels for AMD64 (complex64)
+// SSE2 Size-128 Mixed-Radix (2×4) FFT Kernels for AMD64 (complex64)
 // ===========================================================================
 //
-// Size 128 = 2 x 4^3, implemented as:
+// Size 128 = 2 × 4³, implemented as mixed-radix decomposition:
 //   Stage 1: 32 radix-4 butterflies, stride=4, twiddle=1 (no multiply)
-//   Stage 2: 8 groups x 4 butterflies, stride=16
-//   Stage 3: 2 groups x 16 butterflies, stride=64
+//   Stage 2: 8 groups × 4 butterflies, stride=16
+//   Stage 3: 2 groups × 16 butterflies, stride=64
 //   Stage 4: 32 radix-2 butterflies, stride=128
 //
 // SSE2 version: No FMA, uses ADDSUBPS for complex multiply.
@@ -16,8 +16,8 @@
 
 #include "textflag.h"
 
-// Forward transform, size 128, complex64, radix-4 (SSE2)
-TEXT ·ForwardSSE2Size128Radix4Complex64Asm(SB), NOSPLIT, $0-121
+// Forward transform, size 128, complex64, mixed-radix 2×4 (SSE2)
+TEXT ·ForwardSSE2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -452,9 +452,9 @@ size128_sse2_r4_return_false:
 	RET
 
 // ===========================================================================
-// Inverse transform, size 128, complex64, radix-4 (SSE2)
+// Inverse transform, size 128, complex64, mixed-radix 2×4 (SSE2)
 // ===========================================================================
-TEXT ·InverseSSE2Size128Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
