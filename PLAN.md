@@ -162,10 +162,10 @@ Mixed-radix FFT handles sizes that factor into 2, 3, 4, 5 (e.g., 384 = 2⁷ × 3
 
 Register optimized codelets for common highly-composite sizes:
 
-- [ ] Size 384 (2⁷ × 3):
-  - [ ] Create `internal/asm/amd64/avx2_f32_size384_mixed.s`
-  - [ ] Decompose as 128 × 3 (use AVX2 128-pt FFT + radix-3 twiddles)
-  - [ ] Register in `codelet_init_avx2.go` with priority 25
+- [x] Size 384 (2⁷ × 3):
+  - [x] Create `internal/asm/amd64/avx2_f32_size384_mixed.s`
+  - [x] Decompose as 128 × 3 (use AVX2 128-pt FFT + radix-3 twiddles)
+  - [x] Register in `codelet_init_avx2.go` with priority 25
 - [ ] Size 768 (2⁸ × 3):
   - [ ] Create `internal/asm/amd64/avx2_f32_size768_mixed.s`
   - [ ] Decompose as 256 × 3
@@ -178,14 +178,14 @@ Register optimized codelets for common highly-composite sizes:
 
 #### 12.4.3 Hybrid Power-of-2 Sub-transforms
 
-- [ ] For sizes like 384 = 128 × 3:
-  - [ ] Use existing AVX2 128-pt FFT for the power-of-2 component
-  - [ ] Apply radix-3 twiddle multiplication between sub-transforms
-  - [ ] Avoids writing new large assembly kernels
-- [ ] Implement in `internal/fft/mixedradix_simd.go`:
-  - [ ] Detect when sub-transform has AVX2 codelet available
-  - [ ] Call codelet instead of recursive mixed-radix
-- [ ] Benchmark improvement (target: match or approach power-of-2 performance)
+- [x] For sizes like 384 = 128 × 3:
+  - [x] Use existing AVX2 128-pt FFT for the power-of-2 component
+  - [x] Apply radix-3 twiddle multiplication between sub-transforms
+  - [x] Avoids writing new large assembly kernels
+- [x] Implement in `internal/fft/mixedradix_simd.go`: (Implemented in `internal/kernels/dit_size384_mixed.go`)
+  - [x] Detect when sub-transform has AVX2 codelet available
+  - [x] Call codelet instead of recursive mixed-radix
+- [x] Benchmark improvement (target: match or approach power-of-2 performance)
 
 ### 12.5 Testing & Benchmarking
 
@@ -217,7 +217,7 @@ Register optimized codelets for common highly-composite sizes:
 
 ## Phase 13: SSE2 Coverage (Sizes 256-1024)
 
-**Status**: Not started
+**Status**: In Progress
 **Priority**: Medium (provides fallback for systems without AVX2)
 
 Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2 have optimized paths. Reference: `docs/IMPLEMENTATION_INVENTORY.md`
@@ -230,12 +230,12 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 
 #### 13.1.2 complex128 Size 256 SSE2 Kernels
 
-- [ ] Implement Size 256 radix-2 SSE2 for complex128
-  - [ ] Create `internal/asm/amd64/sse2_f64_size256_radix2.s`
-  - [ ] Implement `ForwardSSE2Size256Radix2Complex128Asm` (8 stages)
-  - [ ] Implement `InverseSSE2Size256Radix2Complex128Asm` (with 1/256 scaling)
-  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size256_radix2.go`
-  - [ ] Register in codelet system with priority 10
+- [x] Implement Size 256 radix-2 SSE2 for complex128
+  - [x] Create `internal/asm/amd64/sse2_f64_size256_radix2.s`
+  - [x] Implement `ForwardSSE2Size256Radix2Complex128Asm` (8 stages)
+  - [x] Implement `InverseSSE2Size256Radix2Complex128Asm` (with 1/256 scaling)
+  - [x] Add Go wrapper in `internal/kernels/sse2_f64_size256_radix2.go`
+  - [x] Register in codelet system with priority 10
 - [ ] Implement Size 256 radix-4 SSE2 for complex128
   - [ ] Create `internal/asm/amd64/sse2_f64_size256_radix4.s`
   - [ ] Implement `ForwardSSE2Size256Radix4Complex128Asm` (4 stages)
@@ -341,64 +341,28 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 
 ### 14.2 AVX2 Large Size Kernels (512-16384)
 
-**Status**: Not started
+**Status**: In Progress
 **Priority**: Medium (Pure Go implementations exist and perform well)
 
 Sizes 512-16384 currently use pure Go mixed-radix or radix-4 implementations. AVX2 acceleration could provide 1.5-2x additional speedup.
 
 #### 14.2.1 Size 512 - AVX2 Mixed-Radix-2/4
-
-- [x] Create `internal/asm/amd64/avx2_f32_size512_mixed24.s`
-  - [x] Implement `forwardAVX2Size512Mixed24Complex64` (4 radix-4 stages + 1 radix-2 stage)
-  - [x] Implement `inverseAVX2Size512Mixed24Complex64` (with 1/512 scaling)
-  - [x] Use mixed-radix bit-reversal pattern from Go implementation
-- [x] Add Go declarations in `internal/asm/amd64/decl.go`
-- [x] Register in `internal/kernels/codelet_init_avx2.go` with priority 25
-- [x] Add correctness tests comparing AVX2 vs pure-Go output
-- [x] Benchmark and document speedup ratio
-
-#### 14.2.2 Size 1024 - AVX2 Pure Radix-4
-
-- [x] Create `internal/asm/amd64/avx2_f32_size1024_radix4.s`
-  - [x] Implement `forwardAVX2Size1024Radix4Complex64` (5 radix-4 stages)
-  - [x] Implement `inverseAVX2Size1024Radix4Complex64` (with 1/1024 scaling)
-  - [x] Use radix-4 bit-reversal indices
-- [x] Add Go declarations in `internal/asm/amd64/decl.go`
-- [x] Register in `internal/kernels/codelet_init_avx2.go` with priority 25
-- [x] Add correctness tests comparing AVX2 vs pure-Go output
-- [x] Benchmark and document speedup ratio
-
-#### 14.2.3 Size 2048 - AVX2 Mixed-Radix-2/4
-
-- [x] Create `internal/asm/amd64/avx2_f32_size2048_mixed24.s`
-  - [x] Implement `forwardAVX2Size2048Mixed24Complex64` (5 radix-4 stages + 1 radix-2 stage)
-  - [x] Implement `inverseAVX2Size2048Mixed24Complex64` (with 1/2048 scaling)
-- [x] Add Go declarations and register with priority 25
-- [x] Add correctness tests and benchmark
-
-#### 14.2.4 Size 4096 - AVX2 Pure Radix-4
-
-- [x] Create `internal/asm/amd64/avx2_f32_size4096_radix4.s`
-  - [x] Implement `forwardAVX2Size4096Radix4Complex64` (6 radix-4 stages)
-  - [x] Implement `inverseAVX2Size4096Radix4Complex64` (with 1/4096 scaling)
-- [x] Add Go declarations and register with priority 25
-- [x] Add correctness tests and benchmark
-
+...
 #### 14.2.5 Size 8192 - AVX2 Mixed-Radix-2/4
 
-- [ ] Create `internal/asm/amd64/avx2_f32_size8192_mixed24.s`
-  - [ ] Implement `forwardAVX2Size8192Mixed24Complex64` (6 radix-4 stages + 1 radix-2 stage)
-  - [ ] Implement `inverseAVX2Size8192Mixed24Complex64` (with 1/8192 scaling)
-- [ ] Add Go declarations and register with priority 25
-- [ ] Add correctness tests and benchmark
+- [x] Create `internal/asm/amd64/avx2_f32_size8192_mixed24.s`
+  - [x] Implement `forwardAVX2Size8192Mixed24Complex64` (6 radix-4 stages + 1 radix-2 stage)
+  - [x] Implement `inverseAVX2Size8192Mixed24Complex64` (with 1/8192 scaling)
+- [x] Add Go declarations and register with priority 25
+- [x] Add correctness tests and benchmark
 
 #### 14.2.6 Size 16384 - AVX2 Pure Radix-4
 
-- [ ] Create `internal/asm/amd64/avx2_f32_size16384_radix4.s`
-  - [ ] Implement `forwardAVX2Size16384Radix4Complex64` (7 radix-4 stages)
-  - [ ] Implement `inverseAVX2Size16384Radix4Complex64` (with 1/16384 scaling)
-- [ ] Add Go declarations and register with priority 25
-- [ ] Add correctness tests and benchmark
+- [x] Create `internal/asm/amd64/avx2_f32_size16384_radix4.s`
+  - [x] Implement `forwardAVX2Size16384Radix4Complex64` (7 radix-4 stages)
+  - [x] Implement `inverseAVX2Size16384Radix4Complex64` (with 1/16384 scaling)
+- [x] Add Go declarations and register with priority 25
+- [x] Add correctness tests and benchmark
 
 ### 14.3 Complete Existing AVX2 Gaps
 
@@ -450,14 +414,14 @@ Sizes 512-16384 currently use pure Go mixed-radix or radix-4 implementations. AV
 
 ### 14.6.2 AVX2 complex128 Large Sizes (512-16384)
 
-**Status**: Not started
+**Status**: In Progress
 **Priority**: Low (complex128 use cases less common)
 
 For each size, create assembly file in `internal/asm/amd64/`:
 
-- [ ] Size 512: `avx2_f64_size512_mixed24.s`
-  - [ ] Forward and inverse transforms
-  - [ ] Register in `codelet_init_avx2.go`
+- [x] Size 512: `avx2_f64_size512_mixed24.s`
+  - [x] Forward and inverse transforms
+  - [x] Register in `codelet_init_avx2.go`
 - [ ] Size 1024: `avx2_f64_size1024_radix4.s`
 - [ ] Size 2048: `avx2_f64_size2048_mixed24.s`
 - [ ] Size 4096: `avx2_f64_size4096_radix4.s`
