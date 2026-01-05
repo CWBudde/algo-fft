@@ -562,3 +562,32 @@ func Radix3Butterflies384ForwardComplex64Asm(data []complex64)
 //
 //go:noescape
 func Radix3Butterflies384InverseComplex64Asm(data []complex64)
+
+// ForwardAVX2Size384MixedComplex128Asm validates parameters for size-384 FFT.
+// Returns true if the kernel can handle this size, false otherwise.
+//
+//go:noescape
+func ForwardAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+// InverseAVX2Size384MixedComplex128Asm validates parameters for size-384 IFFT.
+//
+//go:noescape
+func InverseAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+// ApplyTwiddle384Complex128Asm applies twiddle factors for 384-point mixed-radix FFT.
+// Multiplies data[128+k] by twiddle[k] and data[256+k] by twiddle[2*k] for k=0..127.
+//
+//go:noescape
+func ApplyTwiddle384Complex128Asm(data, twiddle []complex128)
+
+// Radix3Butterflies384ForwardComplex128Asm performs 128 radix-3 forward butterflies
+// across the three 128-element sub-arrays of a 384-element array.
+//
+//go:noescape
+func Radix3Butterflies384ForwardComplex128Asm(data []complex128)
+
+// Radix3Butterflies384InverseComplex128Asm performs 128 radix-3 inverse butterflies
+// across the three 128-element sub-arrays of a 384-element array.
+//
+//go:noescape
+func Radix3Butterflies384InverseComplex128Asm(data []complex128)
