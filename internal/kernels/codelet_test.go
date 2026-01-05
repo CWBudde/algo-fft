@@ -82,12 +82,12 @@ func TestCodeletRegistrySizes(t *testing.T) {
 	t.Parallel()
 
 	sizes := Registry64.Sizes()
-	if len(sizes) != 13 {
-		t.Errorf("expected 13 registered sizes, got %d", len(sizes))
+	if len(sizes) != 14 {
+		t.Errorf("expected 14 registered sizes, got %d", len(sizes))
 	}
 
 	// Check that all expected sizes are present
-	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true, 512: true, 1024: true, 2048: true, 4096: true, 8192: true, 16384: true}
+	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true, 384: true, 512: true, 1024: true, 2048: true, 4096: true, 8192: true, 16384: true}
 	for _, size := range sizes {
 		if !expected[size] {
 			t.Errorf("unexpected size %d in registry", size)

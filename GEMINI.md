@@ -54,6 +54,17 @@ The project uses standard Go tooling, augmented by `just` for task management.
   - Fuzz testing for robustness.
 - **Code Style:** Standard Go fmt, vetted by `golangci-lint`.
 
+### When Working with Assembly
+
+- Assembly kernels live in `kernels_*_asm.go` and `asm_*.go`
+- Use build tags for architecture-specific files: `//go:build amd64` etc.
+- Always provide a pure-Go fallback in `kernels_generic.go` or `kernels_fallback.go`
+- Test that assembly and Go implementations produce identical results
+- Use `go:noescape` pragma for performance-critical functions
+- Remember Plan9/Go asm uses src, dst operand order (opposite of Intel’s dst, src)
+- Subtractions like VSUBPS b, a, dst → dst = a - b
+- add comments after instructions for clarity
+
 ## Key Files
 
 - `PLAN.md`: Detailed implementation roadmap and status.

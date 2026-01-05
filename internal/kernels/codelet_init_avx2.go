@@ -181,6 +181,20 @@ func registerAVX2DITCodelets64() {
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
 	})
 
+	// Size 384: Mixed-radix (128×3) variant
+	// Decomposed as radix-3 + 128-point sub-FFTs
+	// BitrevFunc is nil because the composite algorithm handles permutation internally
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       384,
+		Forward:    wrapCodelet64(forwardDIT384MixedComplex64),
+		Inverse:    wrapCodelet64(inverseDIT384MixedComplex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit384_mixed_avx2",
+		Priority:   25,
+		BitrevFunc: nil, // Composite algorithm - no external bitrev needed
+	})
+
 	// Size 1024: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       1024,
