@@ -199,9 +199,9 @@ Register optimized codelets for common highly-composite sizes:
 
 #### 12.5.2 Correctness Tests
 
-- [ ] Add round-trip tests for all optimized mixed-radix paths
-- [ ] Add tests comparing optimized vs baseline mixed-radix output
-- [ ] Add tests comparing mixed-radix vs Bluestein for same sizes (correctness check)
+- [x] Add round-trip tests for all optimized mixed-radix paths
+- [x] Add tests comparing optimized vs baseline mixed-radix output
+- [x] Add tests comparing mixed-radix vs Bluestein for same sizes (correctness check)
 
 #### 12.5.3 Performance Targets
 

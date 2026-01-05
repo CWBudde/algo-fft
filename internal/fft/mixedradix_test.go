@@ -10,7 +10,7 @@ import (
 func TestMixedRadixForwardMatchesReferenceComplex64(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{6, 10, 12, 15, 20, 30, 60} {
+	for _, n := range []int{6, 10, 12, 15, 20, 30, 60, 384, 768, 1536} {
 		src := randomComplex64(n, 0xBADC0DE+uint64(n))
 		dst := make([]complex64, n)
 		scratch := make([]complex64, n)
@@ -29,7 +29,7 @@ func TestMixedRadixForwardMatchesReferenceComplex64(t *testing.T) {
 func TestMixedRadixInverseMatchesReferenceComplex64(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{6, 10, 12, 15, 20, 30, 60} {
+	for _, n := range []int{6, 10, 12, 15, 20, 30, 60, 384, 768, 1536} {
 		src := randomComplex64(n, 0xC0FFEE+uint64(n))
 		fwd := make([]complex64, n)
 		dst := make([]complex64, n)
@@ -53,7 +53,7 @@ func TestMixedRadixInverseMatchesReferenceComplex64(t *testing.T) {
 func TestMixedRadixForwardMatchesReferenceComplex128(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{6, 10, 12, 15, 20, 30, 60} {
+	for _, n := range []int{6, 10, 12, 15, 20, 30, 60, 384, 768, 1536} {
 		src := randomComplex128(n, 0xC001D00D+uint64(n))
 		dst := make([]complex128, n)
 		scratch := make([]complex128, n)
@@ -72,7 +72,7 @@ func TestMixedRadixForwardMatchesReferenceComplex128(t *testing.T) {
 func TestMixedRadixInverseMatchesReferenceComplex128(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{6, 10, 12, 15, 20, 30, 60} {
+	for _, n := range []int{6, 10, 12, 15, 20, 30, 60, 384, 768, 1536} {
 		src := randomComplex128(n, 0xF00DBAAD+uint64(n))
 		fwd := make([]complex128, n)
 		dst := make([]complex128, n)

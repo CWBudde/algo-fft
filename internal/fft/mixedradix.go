@@ -60,8 +60,20 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 	}
 
 	var radices [mixedRadixMaxStages]int
+	var hasCodelet func(int) bool
+	var zero T
 
-	stageCount := mixedRadixSchedule(n, &radices)
+	// Determine which registry to check based on type T
+	switch any(zero).(type) {
+	case complex64:
+		hasCodelet = kernels.Registry64.Has
+	case complex128:
+		hasCodelet = kernels.Registry128.Has
+	default:
+		hasCodelet = func(int) bool { return false }
+	}
+
+	stageCount := mixedRadixSchedule(n, &radices, hasCodelet)
 	if stageCount == 0 {
 		return false
 	}
@@ -75,7 +87,6 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 	}
 
 	// Call through recursion hooks.
-	var zero T
 	switch any(zero).(type) {
 	case complex64:
 		recursiveStep64(
@@ -113,7 +124,7 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 	return true
 }
 
-func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int) int {
+func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet func(int) bool) int {
 	if n < 2 {
 		return 0
 	}
@@ -125,31 +136,21 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int) int {
 	// This prevents breaking down large sizes (e.g., 256, 512) into small radices
 	// when we have highly optimized AVX2 kernels for them.
 	//
-	// We only check Registry64 because the schedule is shared for both types,
-	// and we assume if a kernel exists for complex64, it likely exists for complex128
-	// or the fallback is acceptable. Most optimization work targets both.
+	// We verify if *any* codelet exists, not just AVX2, because even a generic
+	// codelet for size N might be faster than recursive decomposition.
 	//
 	// Note: We skip this check for very small sizes (<= 5) as they are handled
 	// by the switch statement anyway, and looking them up might be slower.
-	if n > 5 {
-		// Use a lightweight check if possible. For now, Registry.Get() is fast enough.
-		// We verify if *any* codelet exists, not just AVX2, because even a generic
-		// codelet for size N might be faster than recursive decomposition.
-		// However, we primarily want this for SIMD.
-		//
-		// CAUTION: This creates a dependency on 'kernels' package.
-		// Ensure 'kernels' is imported.
-		if kernels.Registry64.Has(n) {
-			radices[count] = n
-			return count + 1
-		}
+	if n > 5 && hasCodelet(n) {
+		radices[count] = n
+		return count + 1
 	}
 
 	for n > 1 {
 		// Check again at each step: if the remaining size 'n' has a kernel, use it.
 		// e.g., 768 = 3 * 256. First loop picks 3. Second loop sees 256.
 		// Instead of 256 -> 4*4*4*4, we want 256 directly.
-		if n > 5 && kernels.Registry64.Has(n) {
+		if n > 5 && hasCodelet(n) {
 			radices[count] = n
 			count++
 			return count
