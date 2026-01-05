@@ -285,9 +285,14 @@ func forwardDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	s := src[:n]
 	tw := twiddle[:n]
 
-	// Stage 1: 4096 radix-4 butterflies with fused bit-reversal
-	var stage1 [16384]complex128
+	bufA := dst
+	bufB := scratch
+	if &dst[0] == &src[0] {
+		bufA = scratch
+		bufB = dst
+	}
 
+	// Stage 1: 4096 radix-4 butterflies with fused bit-reversal
 	for base := 0; base < n; base += 4 {
 		a0 := s[br[base]]
 		a1 := s[br[base+1]]
@@ -299,42 +304,28 @@ func forwardDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
-		stage1[base+1] = t1 + complex(imag(t3), -real(t3))
-		stage1[base+3] = t1 + complex(-imag(t3), real(t3))
+		bufA[base] = t0 + t2
+		bufA[base+2] = t0 - t2
+		bufA[base+1] = t1 + complex(imag(t3), -real(t3))
+		bufA[base+3] = t1 + complex(-imag(t3), real(t3))
 	}
 
 	// Stages 2-6
-	current := stage1[:]
+	current := bufA
+	next := bufB
 
-	var (
-		stage2 [16384]complex128
-		stage3 [16384]complex128
-		stage4 [16384]complex128
-		stage5 [16384]complex128
-		stage6 [16384]complex128
-	)
+	sizes := [...]int{16, 64, 256, 1024, 4096}
+	steps := [...]int{1024, 256, 64, 16, 4}
 
-	stages := []struct {
-		size int
-		step int
-		next *[16384]complex128
-	}{
-		{16, 1024, &stage2},
-		{64, 256, &stage3},
-		{256, 64, &stage4},
-		{1024, 16, &stage5},
-		{4096, 4, &stage6},
-	}
-
-	for _, st := range stages {
-		quarter := st.size / 4
-		for base := 0; base < n; base += st.size {
+	for stage := range sizes {
+		size := sizes[stage]
+		step := steps[stage]
+		quarter := size / 4
+		for base := 0; base < n; base += size {
 			for j := range quarter {
-				w1 := tw[j*st.step]
-				w2 := tw[2*j*st.step]
-				w3 := tw[3*j*st.step]
+				w1 := tw[j*step]
+				w2 := tw[2*j*step]
+				w3 := tw[3*j*step]
 
 				idx0 := base + j
 				idx1 := idx0 + quarter
@@ -351,14 +342,14 @@ func forwardDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 				t2 := a1 + a3
 				t3 := a1 - a3
 
-				st.next[idx0] = t0 + t2
-				st.next[idx2] = t0 - t2
-				st.next[idx1] = t1 + complex(imag(t3), -real(t3))
-				st.next[idx3] = t1 + complex(-imag(t3), real(t3))
+				next[idx0] = t0 + t2
+				next[idx2] = t0 - t2
+				next[idx1] = t1 + complex(imag(t3), -real(t3))
+				next[idx3] = t1 + complex(-imag(t3), real(t3))
 			}
 		}
 
-		current = st.next[:]
+		current, next = next, current
 	}
 
 	// Stage 7: final stage
@@ -414,9 +405,14 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	s := src[:n]
 	tw := twiddle[:n]
 
-	// Stage 1: 4096 radix-4 butterflies with fused bit-reversal
-	var stage1 [16384]complex128
+	bufA := dst
+	bufB := scratch
+	if &dst[0] == &src[0] {
+		bufA = scratch
+		bufB = dst
+	}
 
+	// Stage 1: 4096 radix-4 butterflies with fused bit-reversal
 	for base := 0; base < n; base += 4 {
 		a0 := s[br[base]]
 		a1 := s[br[base+1]]
@@ -428,42 +424,28 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
-		stage1[base+1] = t1 + complex(-imag(t3), real(t3))
-		stage1[base+3] = t1 + complex(imag(t3), -real(t3))
+		bufA[base] = t0 + t2
+		bufA[base+2] = t0 - t2
+		bufA[base+1] = t1 + complex(-imag(t3), real(t3))
+		bufA[base+3] = t1 + complex(imag(t3), -real(t3))
 	}
 
 	// Stages 2-6 with conjugated twiddles
-	current := stage1[:]
+	current := bufA
+	next := bufB
 
-	var (
-		stage2 [16384]complex128
-		stage3 [16384]complex128
-		stage4 [16384]complex128
-		stage5 [16384]complex128
-		stage6 [16384]complex128
-	)
+	sizes := [...]int{16, 64, 256, 1024, 4096}
+	steps := [...]int{1024, 256, 64, 16, 4}
 
-	stages := []struct {
-		size int
-		step int
-		next *[16384]complex128
-	}{
-		{16, 1024, &stage2},
-		{64, 256, &stage3},
-		{256, 64, &stage4},
-		{1024, 16, &stage5},
-		{4096, 4, &stage6},
-	}
-
-	for _, st := range stages {
-		quarter := st.size / 4
-		for base := 0; base < n; base += st.size {
+	for stage := range sizes {
+		size := sizes[stage]
+		step := steps[stage]
+		quarter := size / 4
+		for base := 0; base < n; base += size {
 			for j := range quarter {
-				w1 := complex(real(tw[j*st.step]), -imag(tw[j*st.step]))
-				w2 := complex(real(tw[2*j*st.step]), -imag(tw[2*j*st.step]))
-				w3 := complex(real(tw[3*j*st.step]), -imag(tw[3*j*st.step]))
+				w1 := complex(real(tw[j*step]), -imag(tw[j*step]))
+				w2 := complex(real(tw[2*j*step]), -imag(tw[2*j*step]))
+				w3 := complex(real(tw[3*j*step]), -imag(tw[3*j*step]))
 
 				idx0 := base + j
 				idx1 := idx0 + quarter
@@ -480,14 +462,14 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 				t2 := a1 + a3
 				t3 := a1 - a3
 
-				st.next[idx0] = t0 + t2
-				st.next[idx2] = t0 - t2
-				st.next[idx1] = t1 + complex(-imag(t3), real(t3))
-				st.next[idx3] = t1 + complex(imag(t3), -real(t3))
+				next[idx0] = t0 + t2
+				next[idx2] = t0 - t2
+				next[idx1] = t1 + complex(-imag(t3), real(t3))
+				next[idx3] = t1 + complex(imag(t3), -real(t3))
 			}
 		}
 
-		current = st.next[:]
+		current, next = next, current
 	}
 
 	// Stage 7: final stage with conjugated twiddles and normalization
