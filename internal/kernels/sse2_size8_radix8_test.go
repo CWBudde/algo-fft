@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -19,8 +19,8 @@ func TestForwardSSE2Size8Radix8Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	// Radix-8 kernel expects natural order input (identity permutation)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
+	// Radix-8 kernel expects natural order input
+	bitrev := math.ComputeIdentityIndices(n)
 
 	if !amd64.ForwardSSE2Size8Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("ForwardSSE2Size8Radix8Complex64Asm failed")
@@ -41,7 +41,7 @@ func TestInverseSSE2Size8Radix8Complex64(t *testing.T) {
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	// Radix-8 kernel expects natural order input
-	bitrev := mathpkg.ComputeIdentityIndices(n)
+	bitrev := math.ComputeIdentityIndices(n)
 
 	// Use reference forward to ensure valid input
 	fwdRef := reference.NaiveDFT(src)
@@ -67,7 +67,7 @@ func TestRoundTripSSE2Size8Radix8Complex64(t *testing.T) {
 	inv := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
+	bitrev := math.ComputeIdentityIndices(n)
 
 	// Forward transform
 	if !amd64.ForwardSSE2Size8Radix8Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
