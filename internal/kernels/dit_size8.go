@@ -693,8 +693,8 @@ func forwardDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	// Pre-load twiddle factors.
 	w1, w2, w3 := twiddle[1], twiddle[2], twiddle[3]
 
-	x0, x1, x2, x3 := s[0], s[1], s[2], s[3]
-	x4, x5, x6, x7 := s[4], s[5], s[6], s[7]
+	x0, x1, x2, x3 := s[bitrev[0]], s[bitrev[1]], s[bitrev[2]], s[bitrev[3]]
+	x4, x5, x6, x7 := s[bitrev[4]], s[bitrev[5]], s[bitrev[6]], s[bitrev[7]]
 
 	a0 := x0 + x4
 	a1 := x0 - x4
@@ -764,8 +764,8 @@ func inverseDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 	w2 = complex(real(w2), -imag(w2))
 	w3 = complex(real(w3), -imag(w3))
 
-	x0, x1, x2, x3 := s[0], s[1], s[2], s[3]
-	x4, x5, x6, x7 := s[4], s[5], s[6], s[7]
+	x0, x1, x2, x3 := s[bitrev[0]], s[bitrev[1]], s[bitrev[2]], s[bitrev[3]]
+	x4, x5, x6, x7 := s[bitrev[4]], s[bitrev[5]], s[bitrev[6]], s[bitrev[7]]
 
 	a0 := x0 + x4
 	a1 := x0 - x4
@@ -834,8 +834,8 @@ func forwardDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128, bitrev
 
 	w1, w2, w3 := twiddle[1], twiddle[2], twiddle[3]
 
-	x0, x1, x2, x3 := s[0], s[1], s[2], s[3]
-	x4, x5, x6, x7 := s[4], s[5], s[6], s[7]
+	x0, x1, x2, x3 := s[bitrev[0]], s[bitrev[1]], s[bitrev[2]], s[bitrev[3]]
+	x4, x5, x6, x7 := s[bitrev[4]], s[bitrev[5]], s[bitrev[6]], s[bitrev[7]]
 
 	a0 := x0 + x4
 	a1 := x0 - x4
@@ -905,8 +905,8 @@ func inverseDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	w2 = complex(real(w2), -imag(w2))
 	w3 = complex(real(w3), -imag(w3))
 
-	x0, x1, x2, x3 := s[0], s[1], s[2], s[3]
-	x4, x5, x6, x7 := s[4], s[5], s[6], s[7]
+	x0, x1, x2, x3 := s[bitrev[0]], s[bitrev[1]], s[bitrev[2]], s[bitrev[3]]
+	x4, x5, x6, x7 := s[bitrev[4]], s[bitrev[5]], s[bitrev[6]], s[bitrev[7]]
 
 	a0 := x0 + x4
 	a1 := x0 - x4

@@ -33,11 +33,43 @@ TEXT ·ForwardSSE2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ R11, R8
 
 fwd_use_dst:
-	// Load input
-	MOVUPS (R9), X0
-	MOVUPS 16(R9), X1
-	MOVUPS 32(R9), X2
-	MOVUPS 48(R9), X3
+	// Load input using bitrev indices (complex64 = 8 bytes each)
+	// Pack into X0-X3 format: X0=[x0,x1], X1=[x2,x3], X2=[x4,x5], X3=[x6,x7]
+	MOVQ 0(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X0   // x0 in low half
+
+	MOVQ 8(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X4   // x1
+	UNPCKLPD X4, X0         // X0 = [x0, x1]
+
+	MOVQ 16(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X1   // x2
+
+	MOVQ 24(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X4   // x3
+	UNPCKLPD X4, X1         // X1 = [x2, x3]
+
+	MOVQ 32(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X2   // x4
+
+	MOVQ 40(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X4   // x5
+	UNPCKLPD X4, X2         // X2 = [x4, x5]
+
+	MOVQ 48(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X3   // x6
+
+	MOVQ 56(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X4   // x7
+	UNPCKLPD X4, X3         // X3 = [x6, x7]
 
 	// Stage 1: Sum/Diff (Stride 4)
 	MOVAPS X0, X4
@@ -224,10 +256,43 @@ TEXT ·InverseSSE2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ R11, R8
 
 inv_use_dst:
-	MOVUPS (R9), X0
-	MOVUPS 16(R9), X1
-	MOVUPS 32(R9), X2
-	MOVUPS 48(R9), X3
+	// Load input using bitrev indices (complex64 = 8 bytes each)
+	// Pack into X0-X3 format: X0=[x0,x1], X1=[x2,x3], X2=[x4,x5], X3=[x6,x7]
+	MOVQ 0(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X0   // x0
+
+	MOVQ 8(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X4   // x1
+	UNPCKLPD X4, X0         // X0 = [x0, x1]
+
+	MOVQ 16(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X1   // x2
+
+	MOVQ 24(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X4   // x3
+	UNPCKLPD X4, X1         // X1 = [x2, x3]
+
+	MOVQ 32(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X2   // x4
+
+	MOVQ 40(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X4   // x5
+	UNPCKLPD X4, X2         // X2 = [x4, x5]
+
+	MOVQ 48(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X3   // x6
+
+	MOVQ 56(R12), AX
+	SHLQ $3, AX
+	MOVSD 0(R9)(AX*1), X4   // x7
+	UNPCKLPD X4, X3         // X3 = [x6, x7]
 
 	// Stage 1
 	MOVAPS X0, X4

@@ -51,15 +51,38 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	VMOVQ AX, X14
 	VPERMILPD $1, X14, X15
 
-	// Load input x0..x7 (complex128 = 16 bytes)
-	MOVUPD 0(R9), X0
-	MOVUPD 16(R9), X1
-	MOVUPD 32(R9), X2
-	MOVUPD 48(R9), X3
-	MOVUPD 64(R9), X4
-	MOVUPD 80(R9), X5
-	MOVUPD 96(R9), X6
-	MOVUPD 112(R9), X7
+	// Load input x0..x7 using bitrev indices (complex128 = 16 bytes)
+	MOVQ 0(R12), AX     // bitrev[0]
+	SHLQ $4, AX         // multiply by 16 (sizeof complex128)
+	MOVUPD 0(R9)(AX*1), X0
+
+	MOVQ 8(R12), AX     // bitrev[1]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X1
+
+	MOVQ 16(R12), AX     // bitrev[2]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X2
+
+	MOVQ 24(R12), AX     // bitrev[3]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X3
+
+	MOVQ 32(R12), AX     // bitrev[4]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X4
+
+	MOVQ 40(R12), AX     // bitrev[5]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X5
+
+	MOVQ 48(R12), AX     // bitrev[6]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X6
+
+	MOVQ 56(R12), AX     // bitrev[7]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X7
 
 	// a0..a7
 	VADDPD X4, X0, X8   // a0 = x0 + x4
@@ -193,15 +216,38 @@ TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	VMOVQ AX, X14            // maskNegLo = [signbit, 0]
 	VPERMILPD $1, X14, X15   // maskNegHi = [0, signbit]
 
-	// Load input x0..x7
-	MOVUPD 0(R9), X0
-	MOVUPD 16(R9), X1
-	MOVUPD 32(R9), X2
-	MOVUPD 48(R9), X3
-	MOVUPD 64(R9), X4
-	MOVUPD 80(R9), X5
-	MOVUPD 96(R9), X6
-	MOVUPD 112(R9), X7
+	// Load input x0..x7 using bitrev indices (complex128 = 16 bytes)
+	MOVQ 0(R12), AX     // bitrev[0]
+	SHLQ $4, AX         // multiply by 16 (sizeof complex128)
+	MOVUPD 0(R9)(AX*1), X0
+
+	MOVQ 8(R12), AX     // bitrev[1]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X1
+
+	MOVQ 16(R12), AX     // bitrev[2]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X2
+
+	MOVQ 24(R12), AX     // bitrev[3]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X3
+
+	MOVQ 32(R12), AX     // bitrev[4]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X4
+
+	MOVQ 40(R12), AX     // bitrev[5]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X5
+
+	MOVQ 48(R12), AX     // bitrev[6]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X6
+
+	MOVQ 56(R12), AX     // bitrev[7]
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X7
 
 	// a0..a7
 	VADDPD X4, X0, X8

@@ -90,7 +90,7 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
 		Priority:   30, // Highest priority among generic size-8 codelets
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeIdentityIndices, // Radix-8 uses natural order
 	})
 
 	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2)
@@ -333,7 +333,7 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
 		Priority:   30, // Highest priority among generic size-8 codelets
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		BitrevFunc: mathpkg.ComputeIdentityIndices, // Radix-8 uses natural order
 	})
 
 	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2)

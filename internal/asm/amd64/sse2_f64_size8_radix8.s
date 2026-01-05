@@ -23,15 +23,38 @@ TEXT ·ForwardSSE2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	MOVUPS ·maskNegLoPD(SB), X14
 	MOVUPS ·maskNegHiPD(SB), X15
 
-	// Load input x0..x7 (Natural order)
-	MOVUPD 0(R9), X0
-	MOVUPD 16(R9), X1
-	MOVUPD 32(R9), X2
-	MOVUPD 48(R9), X3
-	MOVUPD 64(R9), X4
-	MOVUPD 80(R9), X5
-	MOVUPD 96(R9), X6
-	MOVUPD 112(R9), X7
+	// Load input x0..x7 using bitrev indices (complex128 = 16 bytes)
+	MOVQ 0(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X0
+
+	MOVQ 8(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X1
+
+	MOVQ 16(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X2
+
+	MOVQ 24(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X3
+
+	MOVQ 32(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X4
+
+	MOVQ 40(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X5
+
+	MOVQ 48(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X6
+
+	MOVQ 56(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X7
 
 	// Stage 1: a0..a7
 	MOVAPD X0, X8; ADDPD X4, X0; SUBPD X4, X8 // X0=a0, X8=a1
@@ -104,15 +127,38 @@ TEXT ·InverseSSE2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	MOVUPS ·maskNegLoPD(SB), X14
 	MOVUPS ·maskNegHiPD(SB), X15
 
-	// Load input x0..x7
-	MOVUPD 0(R9), X0
-	MOVUPD 16(R9), X1
-	MOVUPD 32(R9), X2
-	MOVUPD 48(R9), X3
-	MOVUPD 64(R9), X4
-	MOVUPD 80(R9), X5
-	MOVUPD 96(R9), X6
-	MOVUPD 112(R9), X7
+	// Load input x0..x7 using bitrev indices (complex128 = 16 bytes)
+	MOVQ 0(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X0
+
+	MOVQ 8(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X1
+
+	MOVQ 16(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X2
+
+	MOVQ 24(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X3
+
+	MOVQ 32(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X4
+
+	MOVQ 40(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X5
+
+	MOVQ 48(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X6
+
+	MOVQ 56(R12), AX
+	SHLQ $4, AX
+	MOVUPD 0(R9)(AX*1), X7
 
 	// Stage 1
 	MOVAPD X0, X8; ADDPD X4, X0; SUBPD X4, X8 

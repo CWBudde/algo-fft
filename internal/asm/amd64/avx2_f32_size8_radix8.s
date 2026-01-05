@@ -69,23 +69,55 @@ TEXT ·ForwardAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ R11, R8
 
 size8_r8_fwd_use_dst:
-	// Load input
-	VMOVUPS (R9), Y0
-	VMOVUPS 32(R9), Y1
+	// Load input using bitrev indices (complex64 = 8 bytes each)
+	MOVQ 0(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X8   // x0
 
-	// a0..a7
-	VADDPS Y1, Y0, Y2        // Y2 = [a0, a4, a2, a6]
-	VSUBPS Y1, Y0, Y3        // Y3 = [a1, a5, a3, a7]
+	MOVQ 8(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X9   // x1
 
-	VEXTRACTF128 $0, Y2, X0  // X0 = [a0, a4]
-	VEXTRACTF128 $1, Y2, X1  // X1 = [a2, a6]
-	VEXTRACTF128 $0, Y3, X2  // X2 = [a1, a5]
-	VEXTRACTF128 $1, Y3, X3  // X3 = [a3, a7]
+	MOVQ 16(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X10  // x2
 
-	VUNPCKLPD X1, X0, X4     // X4 = [a0, a2]
-	VUNPCKLPD X3, X2, X5     // X5 = [a1, a3]
-	VUNPCKHPD X1, X0, X6     // X6 = [a4, a6]
-	VUNPCKHPD X3, X2, X7     // X7 = [a5, a7]
+	MOVQ 24(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X11  // x3
+
+	MOVQ 32(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X12  // x4
+
+	MOVQ 40(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X13  // x5
+
+	MOVQ 48(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X14  // x6
+
+	MOVQ 56(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X15  // x7
+
+	// Compute a0..a7 = Stage 1 butterflies
+	VADDPS X12, X8, X0   // a0 = x0 + x4
+	VSUBPS X12, X8, X1   // a1 = x0 - x4
+	VADDPS X14, X10, X2  // a2 = x2 + x6
+	VSUBPS X14, X10, X3  // a3 = x2 - x6
+	VADDPS X13, X9, X12  // a4 = x1 + x5
+	VSUBPS X13, X9, X13  // a5 = x1 - x5
+	VADDPS X15, X11, X14 // a6 = x3 + x7
+	VSUBPS X15, X11, X15 // a7 = x3 - x7
+
+	// Pack a0..a7 into the format the rest of the code expects
+	// X4 = [a0, a2], X5 = [a1, a3], X6 = [a4, a6], X7 = [a5, a7]
+	VUNPCKLPD X2, X0, X4     // X4 = [a0, a2]
+	VUNPCKLPD X3, X1, X5     // X5 = [a1, a3]
+	VUNPCKLPD X14, X12, X6   // X6 = [a4, a6]
+	VUNPCKLPD X15, X13, X7   // X7 = [a5, a7]
 
 	// Build mask for multiply by -i: [0, sign, 0, sign]
 	MOVL ·signbit32(SB), AX
@@ -217,23 +249,54 @@ TEXT ·InverseAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ R11, R8
 
 size8_r8_inv_use_dst:
-	// Load input
-	VMOVUPS (R9), Y0
-	VMOVUPS 32(R9), Y1
+	// Load input using bitrev indices (complex64 = 8 bytes each)
+	MOVQ 0(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X8   // x0
 
-	// a0..a7
-	VADDPS Y1, Y0, Y2
-	VSUBPS Y1, Y0, Y3
+	MOVQ 8(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X9   // x1
 
-	VEXTRACTF128 $0, Y2, X0
-	VEXTRACTF128 $1, Y2, X1
-	VEXTRACTF128 $0, Y3, X2
-	VEXTRACTF128 $1, Y3, X3
+	MOVQ 16(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X10  // x2
 
-	VUNPCKLPD X1, X0, X4
-	VUNPCKLPD X3, X2, X5
-	VUNPCKHPD X1, X0, X6
-	VUNPCKHPD X3, X2, X7
+	MOVQ 24(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X11  // x3
+
+	MOVQ 32(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X12  // x4
+
+	MOVQ 40(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X13  // x5
+
+	MOVQ 48(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X14  // x6
+
+	MOVQ 56(R12), AX
+	SHLQ $3, AX
+	VMOVSD 0(R9)(AX*1), X15  // x7
+
+	// Compute a0..a7 = Stage 1 butterflies
+	VADDPS X12, X8, X0   // a0 = x0 + x4
+	VSUBPS X12, X8, X1   // a1 = x0 - x4
+	VADDPS X14, X10, X2  // a2 = x2 + x6
+	VSUBPS X14, X10, X3  // a3 = x2 - x6
+	VADDPS X13, X9, X12  // a4 = x1 + x5
+	VSUBPS X13, X9, X13  // a5 = x1 - x5
+	VADDPS X15, X11, X14 // a6 = x3 + x7
+	VSUBPS X15, X11, X15 // a7 = x3 - x7
+
+	// Pack for next stages
+	VUNPCKLPD X2, X0, X4   // X4 = [a0, a2]
+	VUNPCKLPD X3, X1, X5   // X5 = [a1, a3]
+	VUNPCKLPD X14, X12, X6 // X6 = [a4, a6]
+	VUNPCKLPD X15, X13, X7 // X7 = [a5, a7]
 
 	// Build mask for multiply by +i: [sign, 0, sign, 0]
 	MOVL ·signbit32(SB), AX
