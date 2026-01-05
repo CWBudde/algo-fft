@@ -247,7 +247,7 @@ func TestForwardDIT384MixedComplex128_Impulse(t *testing.T) {
 func BenchmarkForwardDIT384MixedComplex64(b *testing.B) {
 	const n = 384
 
-	src := randomComplex64(n, 0xBENCHMARK)
+	src := randomComplex64(n, 0xBEEF384)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
@@ -266,7 +266,7 @@ func BenchmarkForwardDIT384MixedComplex64(b *testing.B) {
 func BenchmarkInverseDIT384MixedComplex64(b *testing.B) {
 	const n = 384
 
-	src := randomComplex64(n, 0xBENCHMARK)
+	src := randomComplex64(n, 0xBEEF384)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
@@ -285,7 +285,7 @@ func BenchmarkInverseDIT384MixedComplex64(b *testing.B) {
 func BenchmarkForwardDIT384MixedComplex128(b *testing.B) {
 	const n = 384
 
-	src := randomComplex128(n, 0xBENCHMARK)
+	src := randomComplex128(n, 0xBEEF384)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
@@ -304,7 +304,7 @@ func BenchmarkForwardDIT384MixedComplex128(b *testing.B) {
 func BenchmarkInverseDIT384MixedComplex128(b *testing.B) {
 	const n = 384
 
-	src := randomComplex128(n, 0xBENCHMARK)
+	src := randomComplex128(n, 0xBEEF384)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)

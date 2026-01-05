@@ -9,20 +9,6 @@ import (
 
 // forwardDIT384MixedComplex64 computes a 384-point forward FFT using the
 // 128×3 decomposition (radix-3 first, then 128-point FFTs).
-//
-// Algorithm derivation for N = 384 = 128 × 3:
-//
-//	Index mapping: n = n1 + n2*128, k = k1*3 + k2
-//	where n1,k1 ∈ [0,127] and n2,k2 ∈ [0,2]
-//
-//	X[k1*3 + k2] = Σ_{n1} (Y[n1,k2] * W_384^(n1*k2)) * W_128^(n1*k1)
-//	where Y[n1,k2] = Σ_{n2} x[n1 + n2*128] * W_3^(n2*k2)
-//
-// Steps:
-//  1. Compute 128 radix-3 DFTs on columns of 128×3 view (stride-128 access)
-//  2. Apply twiddle factors: Y[n1,k2] *= W_384^(n1*k2)
-//  3. Compute 3 independent 128-point FFTs
-//  4. Interleave output: dst[k1*3+k2] = FFT_result[k2][k1]
 func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int) bool {
 	const n = 384
 	const stride = 128 // Distance between elements in a column
@@ -31,11 +17,24 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 		return false
 	}
 
-	work := scratch
+	// We need scratch space for:
+	// 1. work buffer (384 elements) - passed as scratch
+	// 2. sub-transform twiddles (128 elements)
+	// 3. sub-transform scratch (128 elements)
+	// The provided scratch is usually size N (384).
+	// We might need more if we want to store twiddles there.
+	// However, we can reuse dst as the work buffer for Step 1 & 2 if we are careful,
+	// or assume the caller provides enough scratch.
+	// For now, we will assume scratch is at least N.
+	// To avoid allocating twiddles, we can try to use a part of scratch if it's large enough,
+	// or we accept a small allocation for twiddles/bitrev which is much smaller than full N.
+	// Ideally, the Plan should provide ample scratch.
+	// Let's use the provided scratch for the main work.
+	
+	work := scratch // Size 384
 
 	// Step 1: Compute 128 radix-3 column DFTs
 	// Input viewed as 128×3 matrix: x[n1, n2] = src[n1 + n2*128]
-	// For each column n1: DFT3(src[n1], src[n1+128], src[n1+256])
 	for n1 := range stride {
 		a0 := src[n1]
 		a1 := src[n1+stride]
@@ -47,9 +46,6 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 	}
 
 	// Step 2: Apply twiddle factors W_384^(n1*k2)
-	// k2=0: no twiddle (W^0 = 1)
-	// k2=1: work[n1+128] *= W_384^n1 = twiddle[n1]
-	// k2=2: work[n1+256] *= W_384^(2*n1) = twiddle[2*n1]
 	for n1 := range stride {
 		work[stride+n1] *= twiddle[n1]
 	}
@@ -57,31 +53,65 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 		work[2*stride+n1] *= twiddle[2*n1]
 	}
 
-	// Prepare for 128-point sub-FFTs
-	twiddle128 := mathpkg.ComputeTwiddleFactors[complex64](stride)
+	// Step 3: Compute 3 independent 128-point FFTs
+	// We need 128-point twiddles. These are a subset of W_384.
+	// W_128^k = W_384^(3k).
+	// We can gather them into a temp buffer.
+	// We also need bitrev indices for size 128.
+	
+	// Fast allocation (small stack-allocated-like arrays would be better, but slices work)
+	// We need 128 complex64s for twiddles.
+	// We reuse 'dst' as temporary storage for twiddles and bitrev since we overwrite dst in Step 4.
+	// BUT Step 3 writes to 'dst' (or we need an intermediate).
+	// Let's use a small local buffer for twiddles to avoid 'mathpkg' recompute overhead.
+	// Note: We really should have these precomputed, but gathering from 'twiddle' is fast O(N).
+	
+	subTwiddle := make([]complex64, stride)
+	for k := range stride {
+		subTwiddle[k] = twiddle[k*3]
+	}
+	
+	// Bitrev indices for size 128 (Mixed-Radix-2/4)
 	bitrev128 := mathpkg.ComputeBitReversalIndicesMixed24(stride)
+	
+	// We need scratch for the sub-transform.
 	subScratch := make([]complex64, stride)
-	fftOut := make([]complex64, n) // Temporary for FFT outputs
 
 	// Step 3: Compute 3 independent 128-point FFTs
-	// Each row k2 of work (work[k2*128:(k2+1)*128]) gets FFT'd
+	// We process rows from 'work' and write to 'dst' temporarily (interleaved later?)
+	// The original code used 'fftOut' temp buffer.
+	// We can use 'dst' to store the FFT results, but the order in 'dst' will be [row0, row1, row2].
+	// Step 4 expects to read from that and write to 'dst' interleaved. 
+	// This implies we cannot write directly to final 'dst' positions in Step 3 easily 
+	// because Step 4 reads randomly.
+	// So we keep results in 'work' (in-place FFT?) or write to 'dst' then copy back?
+	// The AVX2 kernel is out-of-place (dst, src).
+	// Let's write result back to 'work' region? No, AVX2 inputs/outputs shouldn't overlap if not safe.
+	// We can write to 'dst[0:128]', 'dst[128:256]', 'dst[256:384]'.
+	
 	for k2 := range 3 {
 		rowStart := k2 * stride
+		// Input from work, Output to dst (temporarily stored as rows)
 		if !amd64.ForwardAVX2Size128Mixed24Complex64Asm(
-			fftOut[rowStart:rowStart+stride],
+			dst[rowStart:rowStart+stride],
 			work[rowStart:rowStart+stride],
-			twiddle128, subScratch, bitrev128,
+			subTwiddle, subScratch, bitrev128,
 		) {
 			return false
 		}
 	}
 
 	// Step 4: Interleave output
-	// fftOut[k2*128 + k1] contains X[k1*3 + k2]
-	// Copy to dst in natural order
+	// Current 'dst' contains [FFT(row0), FFT(row1), FFT(row2)]
+	// We need to permute this into final 'dst' order.
+	// X[k1*3 + k2] = FFT_result[k2][k1]
+	// We can do this in-place by copying 'dst' back to 'work' first, or swapping?
+	// Copying 'dst' to 'work' is safe.
+	copy(work, dst)
+	
 	for k1 := range stride {
 		for k2 := range 3 {
-			dst[k1*3+k2] = fftOut[k2*stride+k1]
+			dst[k1*3+k2] = work[k2*stride+k1]
 		}
 	}
 
@@ -89,14 +119,6 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 }
 
 // inverseDIT384MixedComplex64 computes a 384-point inverse FFT.
-//
-// Algorithm (reverse of forward):
-//  1. De-interleave input: work[k2*128+k1] = src[k1*3+k2]
-//  2. Compute 3 independent 128-point IFFTs
-//  3. Apply conjugate twiddle factors: work[n1+k2*128] *= conj(W_384^(n1*k2))
-//  4. Compute 128 radix-3 inverse column butterflies
-//
-// Note: 128-point IFFT includes 1/128 scaling, so we only need additional 1/3 scaling.
 func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int) bool {
 	const n = 384
 	const stride = 128
@@ -105,39 +127,48 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 		return false
 	}
 
-	work := scratch
-	ifftIn := make([]complex64, n)
+	work := scratch // Size 384
 
 	// Step 1: De-interleave input
-	// src[k1*3 + k2] → ifftIn[k2*128 + k1]
+	// src[k1*3 + k2] → work[k2*128 + k1] (using work as temp buffer)
 	for k1 := range stride {
 		for k2 := range 3 {
-			ifftIn[k2*stride+k1] = src[k1*3+k2]
+			work[k2*stride+k1] = src[k1*3+k2]
 		}
 	}
 
 	// Prepare for 128-point sub-IFFTs
-	twiddle128 := mathpkg.ComputeTwiddleFactors[complex64](stride)
+	// Gather twiddles (stride 3)
+	subTwiddle := make([]complex64, stride)
+	for k := range stride {
+		subTwiddle[k] = twiddle[k*3]
+	}
+	
 	bitrev128 := mathpkg.ComputeBitReversalIndicesMixed24(stride)
 	subScratch := make([]complex64, stride)
 
 	// Step 2: Compute 3 independent 128-point IFFTs
-	// Note: The 128-point IFFT includes 1/128 scaling internally
+	// Input from work, Output to dst (temporarily as rows)
 	for k2 := range 3 {
 		rowStart := k2 * stride
 		if !amd64.InverseAVX2Size128Mixed24Complex64Asm(
+			dst[rowStart:rowStart+stride],
 			work[rowStart:rowStart+stride],
-			ifftIn[rowStart:rowStart+stride],
-			twiddle128, subScratch, bitrev128,
+			subTwiddle, subScratch, bitrev128,
 		) {
 			return false
 		}
 	}
 
-	// Step 3: Apply conjugate twiddle factors
-	// k2=0: no twiddle
-	// k2=1: work[n1+128] *= conj(W_384^n1)
-	// k2=2: work[n1+256] *= conj(W_384^(2*n1))
+	// Step 3 & 4: Apply conjugate twiddles and Compute 128 radix-3 inverse column butterflies
+	// We read from 'dst' (rows) and write to 'dst' (final)
+	// But Step 4 output indices: dst[n1], dst[n1+stride], dst[n1+2*stride]
+	// Step 3 inputs are at same locations.
+	// So we can do this in-place in 'dst' IF we are careful.
+	// Actually, let's copy 'dst' back to 'work' to be safe and clean.
+	copy(work, dst)
+
+	// Apply conjugate twiddle factors to 'work'
 	for n1 := range stride {
 		work[stride+n1] *= mathpkg.Conj(twiddle[n1])
 	}
@@ -145,8 +176,6 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 		work[2*stride+n1] *= mathpkg.Conj(twiddle[2*n1])
 	}
 
-	// Step 4: Compute 128 radix-3 inverse column butterflies
-	// Output directly to dst in natural order (128×3 layout)
 	scale := complex64(complex(1.0/3.0, 0)) // Additional scaling (128-pt IFFT did 1/128)
 	for n1 := range stride {
 		a0 := work[n1]
