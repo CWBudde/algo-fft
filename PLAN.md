@@ -346,8 +346,6 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 
 Sizes 512-16384 currently use pure Go mixed-radix or radix-4 implementations. AVX2 acceleration could provide 1.5-2x additional speedup.
 
-#### 14.2.1 Size 512 - AVX2 Mixed-Radix-2/4
-...
 #### 14.2.5 Size 8192 - AVX2 Mixed-Radix-2/4
 
 - [x] Create `internal/asm/amd64/avx2_f32_size8192_mixed24.s`
