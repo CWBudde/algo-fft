@@ -61,6 +61,7 @@ The project uses standard Go tooling, augmented by `just` for task management.
 - Always provide a pure-Go fallback in `kernels_generic.go` or `kernels_fallback.go`
 - Test that assembly and Go implementations produce identical results
 - Use `go:noescape` pragma for performance-critical functions
+- We want one line per instruction and preferably with a brief comment after the instruction
 - Remember Plan9/Go asm uses src, dst operand order (opposite of Intel’s dst, src)
 - Subtractions like VSUBPS b, a, dst → dst = a - b
 - add comments after instructions for clarity

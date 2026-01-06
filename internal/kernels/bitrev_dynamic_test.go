@@ -91,7 +91,7 @@ func testCodeletDynamicBitrev64(t *testing.T, size int, codelet CodeletEntry[com
 	t.Helper()
 
 	// Generate test input
-	input := randomComplex64(size, uint64(0xB17E0000+size))
+	input := randomComplex64(size, uint64(0xB17E0000)+uint64(size))
 
 	// Get normal bitrev for this codelet
 	normalBitrev := codelet.BitrevFunc(size)
@@ -161,7 +161,7 @@ func testCodeletDynamicBitrev128(t *testing.T, size int, codelet CodeletEntry[co
 	t.Helper()
 
 	// Generate test input
-	input := randomComplex128(size, uint64(0xB17E0000+size))
+	input := randomComplex128(size, uint64(0xB17E0000)+uint64(size))
 
 	// Get normal bitrev for this codelet
 	normalBitrev := codelet.BitrevFunc(size)

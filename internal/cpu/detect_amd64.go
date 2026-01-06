@@ -15,6 +15,7 @@ import (
 // SSE2 as it's part of the x86-64 baseline, so HasSSE2 is always true.
 func detectFeaturesImpl() Features {
 	return Features{
+		HasSSE:       true,
 		HasSSE2:      cpu.X86.HasSSE2,
 		HasSSE3:      cpu.X86.HasSSE3,
 		HasSSSE3:     cpu.X86.HasSSSE3,
