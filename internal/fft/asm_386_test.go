@@ -99,6 +99,7 @@ func TestSelectKernelsComplex64_SSEOnly_386(t *testing.T) {
 	const n = 32
 	src := randomComplex64(n, 0x4EED)
 	dst := make([]complex64, n)
+	inv := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := math.ComputeBitReversalIndices(n)
@@ -109,6 +110,15 @@ func TestSelectKernelsComplex64_SSEOnly_386(t *testing.T) {
 
 	want := reference.NaiveDFT(src)
 	assertComplex64SliceClose(t, dst, want, n)
+
+	if !kernels.Inverse(inv, dst, twiddle, scratch, bitrev) {
+		t.Fatal("SSE-only inverse kernel failed")
+	}
+
+	wantInv := reference.NaiveIDFT(want)
+	assertComplex64SliceClose(t, inv, wantInv, n)
+
+	assertComplex64SliceClose(t, inv, src, n)
 }
 
 func TestSSE2SizeSpecificComplex128_386(t *testing.T) {
