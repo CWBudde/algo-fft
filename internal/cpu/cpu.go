@@ -20,6 +20,7 @@ import (
 // control flags for testing and debugging.
 type Features struct {
 	// x86/amd64 SIMD features (detected via CPUID)
+	HasSSE    bool // Streaming SIMD Extensions (always true on amd64)
 	HasSSE2   bool // Streaming SIMD Extensions 2 (always true on amd64)
 	HasSSE3   bool // Streaming SIMD Extensions 3
 	HasSSSE3  bool // Supplemental Streaming SIMD Extensions 3
@@ -87,6 +88,12 @@ func DetectFeatures() Features {
 	return features
 }
 
+// HasSSE returns true if the CPU supports SSE instructions.
+// On amd64, this is always true as SSE is part of the architecture baseline.
+func HasSSE() bool {
+	return DetectFeatures().HasSSE
+}
+
 // HasSSE2 returns true if the CPU supports SSE2 instructions.
 // On amd64, this is always true as SSE2 is part of the architecture baseline.
 func HasSSE2() bool {
@@ -127,6 +134,23 @@ func HasAVX512() bool {
 // On ARMv8 (arm64), NEON is mandatory and this always returns true.
 func HasNEON() bool {
 	return DetectFeatures().HasNEON
+}
+
+// ForceSSEOnlyForTests forces feature detection to expose only SSE (not SSE2+).
+// This is intended to exercise SSE-only dispatch paths in tests.
+// Call ResetDetection() to restore normal detection.
+func ForceSSEOnlyForTests() {
+	f := DetectFeatures()
+	f.HasSSE = true
+	f.HasSSE2 = false
+	f.HasSSE3 = false
+	f.HasSSSE3 = false
+	f.HasSSE41 = false
+	f.HasAVX = false
+	f.HasAVX2 = false
+	f.HasAVX512 = false
+	f.ForceGeneric = false
+	SetForcedFeatures(f)
 }
 
 // SetForcedFeatures overrides CPU feature detection with the specified features.
