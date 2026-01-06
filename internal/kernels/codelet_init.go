@@ -225,6 +225,18 @@ func registerDITCodelets64() {
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
 
+	// Size 256: Radix-16 variant (16x16 decomposition)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       256,
+		Forward:    wrapCodelet64(forwardDIT256Radix16Complex64),
+		Inverse:    wrapCodelet64(inverseDIT256Radix16Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit256_radix16_generic",
+		Priority:   30, // Optimized pure-Go implementation (beating radix-4)
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+	})
+
 	// Size 512: Radix-2 only
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
@@ -466,6 +478,18 @@ func registerDITCodelets128() {
 		Signature:  "dit256_radix4_generic",
 		Priority:   20, // Higher priority (potentially faster)
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
+	})
+
+	// Size 256: Radix-16 variant (16x16 decomposition)
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       256,
+		Forward:    wrapCodelet128(forwardDIT256Radix16Complex128),
+		Inverse:    wrapCodelet128(inverseDIT256Radix16Complex128),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit256_radix16_generic",
+		Priority:   15, // Pure-Go implementation (currently slower than radix-4)
+		BitrevFunc: mathpkg.ComputeBitReversalIndices,
 	})
 
 	// Size 512: Radix-2 only

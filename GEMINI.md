@@ -54,6 +54,14 @@ The project uses standard Go tooling, augmented by `just` for task management.
   - Fuzz testing for robustness.
 - **Code Style:** Standard Go fmt, vetted by `golangci-lint`.
 
+### Prompt Adherence
+
+- If the user wants a certain feature to be done. Do this and never something else.
+- If something else makes more sense, explain why and ask for confirmation before proceeding.
+- This is especially important for code changes of existing code.
+- Never revert uncommented changes without asking the user first.
+- If a task turns out to be too complex, break it down into smaller steps and ask for confirmation before proceeding.
+
 ### When Working with Assembly
 
 - Assembly kernels live in `kernels_*_asm.go` and `asm_*.go`
