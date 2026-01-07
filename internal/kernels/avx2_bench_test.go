@@ -24,7 +24,7 @@ func BenchmarkAVX2Complex64(b *testing.B) {
 		{"Size256/Radix2", 256, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size256Radix2Complex64Asm, amd64.InverseAVX2Size256Radix2Complex64Asm},
 		{"Size256/Radix4", 256, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardAVX2Size256Radix4Complex64Asm, amd64.InverseAVX2Size256Radix4Complex64Asm},
 		{"Size512/Radix2", 512, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size512Radix2Complex64Asm, amd64.InverseAVX2Size512Radix2Complex64Asm},
-		{"Size512/Radix8", 512, func(n int) []int { return mathpkg.ComputePermutationIndices(n, 8) }, amd64.ForwardAVX2Size512Radix8Complex64Asm, amd64.InverseAVX2Size512Radix8Complex64Asm},
+		{"Size512/Radix8", 512, mathpkg.ComputeBitReversalIndicesRadix8, amd64.ForwardAVX2Size512Radix8Complex64Asm, amd64.InverseAVX2Size512Radix8Complex64Asm},
 		{"Size512/Mixed24", 512, mathpkg.ComputeBitReversalIndicesMixed24, amd64.ForwardAVX2Size512Mixed24Complex64Asm, amd64.InverseAVX2Size512Mixed24Complex64Asm},
 	}
 

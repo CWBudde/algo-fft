@@ -473,8 +473,8 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
   - [x] Implement 3 radix-8 stages (vs 5 stages for mixed-2/4)
   - [x] Use radix-8 twiddle factors: W₅₁₂^k for k ∈ {0,1,2,3,4,5,6,7}×stride
   - [x] Radix-8 butterfly: 8-point DFT inline
-- [ ] Create radix-8 bit-reversal function `ComputeBitReversalIndicesRadix8(n int) []int`
-- [ ] Register with priority 30 (higher than mixed-2/4 priority 25)
+- [x] Create radix-8 bit-reversal function `ComputeBitReversalIndicesRadix8(n int) []int`
+- [x] Register with priority 30 (higher than mixed-2/4 priority 25)
 - [x] Benchmark: Target 1.2-1.4x speedup vs mixed-2/4
 
 **Alternative**: 512 = 16 × 32 (2-stage mixed-radix-16/32)

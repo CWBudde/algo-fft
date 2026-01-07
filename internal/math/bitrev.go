@@ -175,6 +175,12 @@ func ComputeBitReversalIndicesRadix4(n int) []int {
 	return ComputePermutationIndices(n, 4)
 }
 
+// ComputeBitReversalIndicesRadix8 returns digit-reversal permutation for radix-8 FFT.
+// This is a convenience wrapper around ComputePermutationIndices(n, 8).
+func ComputeBitReversalIndicesRadix8(n int) []int {
+	return ComputePermutationIndices(n, 8)
+}
+
 // ComputeBitReversalIndicesMixed24 returns permutation for mixed radix-2/4 FFT.
 // This is a convenience wrapper around ComputePermutationIndices(n, -24).
 func ComputeBitReversalIndicesMixed24(n int) []int {

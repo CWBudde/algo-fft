@@ -190,7 +190,7 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_radix8_avx2",
 		Priority:   30, // Higher than mixed-2/4 (25)
-		BitrevFunc: func(n int) []int { return mathpkg.ComputePermutationIndices(n, 8) },
+		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix8,
 	})
 
 	// Size 384: Mixed-radix (128×3) variant

@@ -41,7 +41,7 @@ func BenchmarkDITComplex64(b *testing.B) {
 		{"Size256/Radix4", 256, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT256Radix4Complex64, inverseDIT256Radix4Complex64},
 		{"Size256/Radix16", 256, mathpkg.ComputeBitReversalIndices, forwardDIT256Radix16Complex64, inverseDIT256Radix16Complex64},
 		{"Size512", 512, mathpkg.ComputeBitReversalIndices, forwardDIT512Complex64, inverseDIT512Complex64},
-		{"Size512/Radix8", 512, func(n int) []int { return mathpkg.ComputePermutationIndices(n, 8) }, forwardDIT512Radix8Complex64, inverseDIT512Radix8Complex64},
+		{"Size512/Radix8", 512, mathpkg.ComputeBitReversalIndicesRadix8, forwardDIT512Radix8Complex64, inverseDIT512Radix8Complex64},
 	}
 
 	for _, testCase := range cases {
