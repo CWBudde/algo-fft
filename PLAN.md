@@ -479,10 +479,19 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 
 **Alternative**: 512 = 16 × 32 (2-stage mixed-radix-16/32)
 
+- [x] Pure Go optimized implementation: `internal/kernels/dit_size512_radix16x32.go`
+  - [x] Six-step FFT algorithm: n = 16*n2 + n1, k = 32*k1 + k2
+  - [x] Stage 1: 16 FFT-32s on columns using Cooley-Tukey decomposition (FFT-32 = 2×FFT-16 + twiddles)
+  - [x] Stage 2: 32 FFT-16s on rows using DIT fft16 with bit-reversed input
+  - [x] Algorithm validated: forward/inverse for complex64 and complex128
+  - [x] **Performance**: ~8% faster than radix-8 Go implementation (3908 ns/op vs 4245 ns/op forward)
+  - [x] Uses precomputed twiddle factors from 512-point table
+  - [x] Uses identity permutation (no bit-reversal on input)
 - [ ] Create `internal/asm/amd64/avx2_f32_size512_radix16x32.s`
-  - [ ] Stage 1: 32 parallel FFT-16 on columns
+  - [ ] Stage 1: 16 parallel FFT-32 on columns (using SIMD radix-32 butterflies)
   - [ ] Twiddle multiplication
-  - [ ] Stage 2: 16 parallel FFT-32 on rows (using radix-32 kernel)
+  - [ ] Stage 2: 32 parallel FFT-16 on rows (using SIMD radix-16 butterflies)
+  - [ ] Could be competitive with radix-8 AVX2 (2 stages vs 3 stages)
 
 #### 14.7.4 Size 1024 - Radix-16 (2.5-Stage) or 32×32
 

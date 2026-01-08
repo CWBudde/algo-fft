@@ -1,3 +1,5 @@
+//go:build amd64 && asm && !purego
+
 package kernels
 
 import (
