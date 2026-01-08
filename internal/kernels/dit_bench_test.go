@@ -42,6 +42,7 @@ func BenchmarkDITComplex64(b *testing.B) {
 		{"Size256/Radix16", 256, mathpkg.ComputeBitReversalIndices, forwardDIT256Radix16Complex64, inverseDIT256Radix16Complex64},
 		{"Size512", 512, mathpkg.ComputeBitReversalIndices, forwardDIT512Complex64, inverseDIT512Complex64},
 		{"Size512/Radix8", 512, mathpkg.ComputeBitReversalIndicesRadix8, forwardDIT512Radix8Complex64, inverseDIT512Radix8Complex64},
+		{"Size512/Radix16x32", 512, mathpkg.ComputeIdentityIndices, forwardDIT512Mixed16x32Complex64, inverseDIT512Mixed16x32Complex64},
 	}
 
 	for _, testCase := range cases {
@@ -71,6 +72,8 @@ func BenchmarkDITComplex128(b *testing.B) {
 		{"Size256/Radix4", 256, mathpkg.ComputeBitReversalIndicesRadix4, forwardDIT256Radix4Complex128, inverseDIT256Radix4Complex128},
 		{"Size256/Radix16", 256, mathpkg.ComputeBitReversalIndices, forwardDIT256Radix16Complex128, inverseDIT256Radix16Complex128},
 		{"Size512", 512, mathpkg.ComputeBitReversalIndices, forwardDIT512Complex128, inverseDIT512Complex128},
+		{"Size512/Radix8", 512, mathpkg.ComputeBitReversalIndicesRadix8, forwardDIT512Radix8Complex128, inverseDIT512Radix8Complex128},
+		{"Size512/Radix16x32", 512, mathpkg.ComputeIdentityIndices, forwardDIT512Mixed16x32Complex128, inverseDIT512Mixed16x32Complex128},
 	}
 
 	for _, testCase := range cases {
