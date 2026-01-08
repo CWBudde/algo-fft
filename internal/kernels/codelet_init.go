@@ -260,6 +260,16 @@ func registerDITCodelets64() {
 		Priority:   15,
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
 	})
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       1024,
+		Forward:    wrapCodelet64(forwardDIT1024Mixed32x32Complex64),
+		Inverse:    wrapCodelet64(inverseDIT1024Mixed32x32Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit1024_radix32x32_generic",
+		Priority:   30,
+		BitrevFunc: mathpkg.ComputeIdentityIndices,
+	})
 
 	// Size 2048: Mixed-radix-2/4 variant (odd log2, faster than pure radix-2)
 	Registry64.Register(CodeletEntry[complex64]{
@@ -514,6 +524,16 @@ func registerDITCodelets128() {
 		Signature:  "dit1024_radix4_generic",
 		Priority:   15,
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
+	})
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       1024,
+		Forward:    wrapCodelet128(forwardDIT1024Mixed32x32Complex128),
+		Inverse:    wrapCodelet128(inverseDIT1024Mixed32x32Complex128),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit1024_radix32x32_generic",
+		Priority:   30,
+		BitrevFunc: mathpkg.ComputeIdentityIndices,
 	})
 
 	// Size 4096: Radix-4 variant (4096 = 4^6, 6 stages vs 12 for radix-2)

@@ -487,7 +487,12 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
   - [x] **Performance**: ~8% faster than radix-8 Go implementation (3908 ns/op vs 4245 ns/op forward)
   - [x] Uses precomputed twiddle factors from 512-point table
   - [x] Uses identity permutation (no bit-reversal on input)
-- [ ] Create `internal/asm/amd64/avx2_f32_size512_radix16x32.s`
+- [x] Create `internal/asm/amd64/avx2_f32_size512_radix16x32.s` (stub implementation)
+  - [x] Add Go function declarations in `internal/asm/amd64/decl.go`
+  - [x] Add test file `internal/kernels/avx2_f32_size512_radix16x32_test.go`
+  - [x] Stub returns false to use Go fallback (full AVX2 implementation deferred)
+  - **Performance**: Go radix-16x32 achieves ~4821 ns/op (faster than Go radix-8 ~5147 ns/op)
+  - **Note**: AVX2 radix-8 achieves ~2052 ns/op - full AVX2 radix-16x32 could be competitive
   - [ ] Stage 1: 16 parallel FFT-32 on columns (using SIMD radix-32 butterflies)
   - [ ] Twiddle multiplication
   - [ ] Stage 2: 32 parallel FFT-16 on rows (using SIMD radix-16 butterflies)

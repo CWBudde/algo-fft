@@ -228,6 +228,12 @@ func ForwardAVX2Size512Radix8Complex64Asm(dst, src, twiddle, scratch []complex64
 func InverseAVX2Size512Radix8Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
+func ForwardAVX2Size512Radix16x32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
+func InverseAVX2Size512Radix16x32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
 func ForwardAVX2Size2048Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
