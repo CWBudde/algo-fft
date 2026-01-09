@@ -172,11 +172,9 @@
   }
 
   function computeFrame() {
-    if (!wasmReady || typeof window.algo - fftFFT !== "function") return;
+    if (!wasmReady || typeof window.algofftFFT !== "function") return;
 
-    const result =
-      window.algo -
-      fftFFT({
+    const result = window.algofftFFT({
         n: state.n,
         gridSize: state.gridSize,
         freqA: state.freqA,
