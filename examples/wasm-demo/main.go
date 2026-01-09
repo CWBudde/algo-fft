@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"sync"
 	"syscall/js"
+	"time"
 
 	"github.com/MeKo-Christian/algo-fft"
 )
@@ -18,17 +19,75 @@ var (
 	plan2DMu  sync.Mutex
 	plan2D    = map[int]*algofft.Plan2D[complex64]{}
 	fftFunc   js.Func
+	benchFunc js.Func
 )
 
 func main() {
 	fftFunc = js.FuncOf(jsFFT)
+	benchFunc = js.FuncOf(jsBenchmark)
 	js.Global().Set("algofftFFT", fftFunc)
+	js.Global().Set("algofftBenchmark", benchFunc)
 
 	js.Global().Set("algofftFFTInfo", js.ValueOf(map[string]any{
 		"version": "wasm-demo",
 	}))
 
 	select {}
+}
+
+func jsBenchmark(this js.Value, args []js.Value) any {
+	if len(args) == 0 || args[0].Type() != js.TypeObject {
+		return js.ValueOf(map[string]any{"error": "missing options object"})
+	}
+	opts := args[0]
+
+	// Get sizes from JS array
+	sizesVal := opts.Get("sizes")
+	if sizesVal.Type() != js.TypeObject { // Array is Object in JS types
+		return js.ValueOf(map[string]any{"error": "sizes must be an array"})
+	}
+	numSizes := sizesVal.Length()
+	sizes := make([]int, numSizes)
+	for i := 0; i < numSizes; i++ {
+		sizes[i] = sizesVal.Index(i).Int()
+	}
+
+	iterations := readInt(opts, "iterations", 100)
+	results := make([]any, 0, numSizes)
+
+	for _, n := range sizes {
+		plan, err := getPlan(n)
+		if err != nil {
+			results = append(results, map[string]any{
+				"size":  n,
+				"error": err.Error(),
+			})
+			continue
+		}
+
+		// Prepare buffers
+		src := make([]complex64, n)
+		dst := make([]complex64, n)
+		// Warmup
+		_ = plan.Forward(dst, src)
+
+		start := time.Now()
+		for i := 0; i < iterations; i++ {
+			_ = plan.Forward(dst, src)
+		}
+		duration := time.Since(start)
+
+		avgNs := float64(duration.Nanoseconds()) / float64(iterations)
+
+		results = append(results, map[string]any{
+			"size":        n,
+			"avgNs":       avgNs,
+			"totalTimeMs": float64(duration.Milliseconds()),
+			"iterations":  iterations,
+		})
+	}
+
+	return js.ValueOf(results)
 }
 
 func jsFFT(this js.Value, args []js.Value) any {

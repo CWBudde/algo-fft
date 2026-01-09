@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>algofft WASM Benchmark</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      .bench-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+        font-family: "Space Grotesk", sans-serif;
+      }
+      .bench-table th,
+      .bench-table td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(12, 123, 110, 0.15);
+      }
+      .bench-table th {
+        font-weight: 600;
+        color: #0c7b6e;
+      }
+      .bench-table td {
+        color: #1e1a12;
+      }
+      .bench-table tr:last-child td {
+        border-bottom: none;
+      }
+      .bench-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">algofft / wasm</p>
+          <h1>FFT Benchmark</h1>
+          <p class="lede">
+            Measure the performance of algofft running in your browser via
+            WebAssembly.
+          </p>
+        </div>
+        <div class="status" id="status">Initializing WASM…</div>
+      </header>
+
+      <section class="panel">
+        <div class="bench-controls">
+          <button id="run-bench">Run Benchmark</button>
+          <a href="index.html" class="ghost">Back to Signal Lab</a>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2>Results</h2>
+                <p>Average time per forward transform (complex64).</p>
+            </div>
+            <table class="bench-table">
+            <thead>
+                <tr>
+                <th>Size (N)</th>
+                <th>Avg Time (µs)</th>
+                <th>Throughput (Op/s)</th>
+                </tr>
+            </thead>
+            <tbody id="results-body">
+                <tr>
+                <td colspan="3" style="text-align: center; color: #666;">
+                    Click "Run Benchmark" to start.
+                </td>
+                </tr>
+            </tbody>
+            </table>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p>Built with algofft / Go 1.25 / WebAssembly.</p>
+      </footer>
+    </div>
+
+    <script src="wasm_exec.js"></script>
+    <script src="bench.js"></script>
+  </body>
+</html>
