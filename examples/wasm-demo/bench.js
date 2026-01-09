@@ -28,23 +28,30 @@
     return `${ops.toFixed(0)} /s`;
   }
 
+  function formatThroughput(size, ns) {
+    const bytesPerOp = size * 16; // 8 bytes input + 8 bytes output
+    const opsPerSec = 1e9 / ns;
+    const bytesPerSec = bytesPerOp * opsPerSec;
+    const mbPerSec = bytesPerSec / 1e6;
+    return `${mbPerSec.toFixed(2)} MB/s`;
+  }
+
   async function runBenchmark() {
     if (!wasmReady) return;
 
     runButton.disabled = true;
     runButton.textContent = "Running...";
-    resultsBody.innerHTML = `<tr><td colspan="3" style="text-align: center;">Running benchmark...</td></tr>`;
+    resultsBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Running benchmark...</td></tr>`;
 
     // Yield to UI to let it update
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     try {
         const sizes = [16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192];
-        const iterations = 2000;
         
         const results = window.algofftBenchmark({
             sizes: sizes,
-            iterations: iterations
+            minTime: 500
         });
 
         resultsBody.innerHTML = "";
@@ -52,7 +59,7 @@
         results.forEach(res => {
             if (res.error) {
                 const tr = document.createElement("tr");
-                tr.innerHTML = `<td colspan="3" style="color: #d36b34;">Error for N=${res.size}: ${res.error}</td>`;
+                tr.innerHTML = `<td colspan="4" style="color: #d36b34;">Error for N=${res.size}: ${res.error}</td>`;
                 resultsBody.appendChild(tr);
                 return;
             }
@@ -62,6 +69,7 @@
                 <td>${res.size}</td>
                 <td>${formatTime(res.avgNs)}</td>
                 <td>${formatOps(res.avgNs)}</td>
+                <td>${formatThroughput(res.size, res.avgNs)}</td>
             `;
             resultsBody.appendChild(tr);
         });
