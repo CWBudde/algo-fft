@@ -953,8 +953,7 @@ func TestAVX2Forward128_VsPureGo(t *testing.T) {
 
 	goForward, _ := getPureGoKernels128()
 
-	// TODO: Size 8 complex128 has algorithmic issues - needs separate investigation
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
+	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {
@@ -1004,8 +1003,7 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 
 	_, goInverse := getPureGoKernels128()
 
-	// TODO: Size 8 complex128 has algorithmic issues - needs separate investigation
-	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
+	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
 
 	for _, n := range sizes {
 		t.Run(sizeString(n), func(t *testing.T) {

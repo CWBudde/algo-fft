@@ -53,6 +53,7 @@ func jsBenchmark(this js.Value, args []js.Value) any {
 	}
 
 	iterations := readInt(opts, "iterations", 100)
+	minTime := readInt(opts, "minTime", 0)
 	results := make([]any, 0, numSizes)
 
 	for _, n := range sizes {
@@ -71,19 +72,61 @@ func jsBenchmark(this js.Value, args []js.Value) any {
 		// Warmup
 		_ = plan.Forward(dst, src)
 
-		start := time.Now()
-		for i := 0; i < iterations; i++ {
-			_ = plan.Forward(dst, src)
-		}
-		duration := time.Since(start)
+		var count int
+		var duration time.Duration
 
-		avgNs := float64(duration.Nanoseconds()) / float64(iterations)
+		if minTime > 0 {
+			// Adaptive
+			// 1. Estimate with a small number of iterations
+			startEstimate := time.Now()
+			estimateCount := 10
+			for i := 0; i < estimateCount; i++ {
+				_ = plan.Forward(dst, src)
+			}
+			estimateDur := time.Since(startEstimate)
+
+			// 2. Calculate target iterations
+			// If estimate is 0 (too fast), assume very fast and try a larger batch,
+			// or just default to a large number.
+			var targetCount int
+			if estimateDur <= 0 {
+				targetCount = 100000 // Fallback if timer resolution is poor
+			} else {
+				// extrapolate
+				targetCount = int(float64(minTime) * float64(time.Millisecond) / (float64(estimateDur) / float64(estimateCount)))
+			}
+
+			// Safety clamps
+			if targetCount < 10 {
+				targetCount = 10
+			}
+			// Optional: cap max iterations if needed, but minTime is the constraint.
+
+			// 3. Run benchmark
+			count = targetCount
+			start := time.Now()
+			for i := 0; i < count; i++ {
+				_ = plan.Forward(dst, src)
+			}
+			duration = time.Since(start)
+
+		} else {
+			// Fixed iterations
+			count = iterations
+			start := time.Now()
+			for i := 0; i < count; i++ {
+				_ = plan.Forward(dst, src)
+			}
+			duration = time.Since(start)
+		}
+
+		avgNs := float64(duration.Nanoseconds()) / float64(count)
 
 		results = append(results, map[string]any{
 			"size":        n,
 			"avgNs":       avgNs,
 			"totalTimeMs": float64(duration.Milliseconds()),
-			"iterations":  iterations,
+			"iterations":  count,
 		})
 	}
 
