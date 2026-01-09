@@ -39,8 +39,6 @@ type PlanEstimate[T Complex] struct {
 // The returned PlanEstimate contains either:
 //   - Direct codelet bindings (zero dispatch) if a codelet is registered for the size
 //   - Empty codelet fields and just Strategy if no codelet (caller uses fallback kernels)
-//
-//nolint:gocognit
 func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, forcedStrategy KernelStrategy) PlanEstimate[T] {
 	strategy := ResolveKernelStrategy(n)
 	if forcedStrategy != KernelAuto {
@@ -56,80 +54,19 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, f
 	}
 
 	// 1. Try codelet registry first (highest priority - zero dispatch)
-	registry := GetRegistry[T]()
-	if registry != nil {
-		entry := registry.Lookup(n, features)
-		if entry != nil {
-			if forcedStrategy != KernelAuto && entry.Algorithm != forcedStrategy {
-				goto wisdomFallback
-			}
-
-			return PlanEstimate[T]{
-				ForwardCodelet: entry.Forward,
-				InverseCodelet: entry.Inverse,
-				Algorithm:      entry.Signature,
-				Strategy:       entry.Algorithm,
-				BitrevFunc:     entry.BitrevFunc,
-			}
-		}
+	if est := tryRegistry[T](n, features, forcedStrategy); est != nil {
+		return *est
 	}
 
-wisdomFallback:
 	// 2. Try wisdom cache (if provided)
-	if wisdom != nil {
-		var (
-			precision uint8
-			zero      T
-		)
-
-		switch any(zero).(type) {
-		case complex64:
-			precision = 0
-		case complex128:
-			precision = 1
+	if est, wisStrat, found := resolveWisdom[T](n, features, wisdom, forcedStrategy); found {
+		if est != nil {
+			return *est
 		}
 
-		cpuFeatures := CPUFeatureMask(features.HasSSE2, features.HasAVX2, features.HasAVX512, features.HasNEON)
-
-		if algorithm, found := wisdom.LookupWisdom(n, precision, cpuFeatures); found {
-			// Wisdom provides algorithm name, try to bind specific codelet by signature
-			if registry != nil {
-				if codelet := registry.LookupBySignature(n, algorithm); codelet != nil {
-					if forcedStrategy != KernelAuto && codelet.Algorithm != forcedStrategy {
-						goto strategyFallback
-					}
-
-					return PlanEstimate[T]{
-						ForwardCodelet: codelet.Forward,
-						InverseCodelet: codelet.Inverse,
-						Algorithm:      codelet.Signature,
-						Strategy:       codelet.Algorithm,
-						BitrevFunc:     codelet.BitrevFunc,
-					}
-				}
-			}
-
-			// Wisdom algorithm doesn't match a codelet, apply as kernel strategy
-			switch algorithm {
-			case "dit_fallback":
-				strategy = KernelDIT
-			case "stockham":
-				strategy = KernelStockham
-			case "sixstep":
-				strategy = KernelSixStep
-			case "eightstep":
-				strategy = KernelEightStep
-			case "bluestein":
-				strategy = KernelBluestein
-			}
-
-			if forcedStrategy != KernelAuto && strategy != forcedStrategy {
-				strategy = forcedStrategy
-			}
-		}
+		strategy = wisStrat
 	}
 
-strategyFallback:
 	// 3. Fall back to heuristic kernel selection
 	algorithmName := StrategyToAlgorithmName(strategy)
 
@@ -137,6 +74,97 @@ strategyFallback:
 		Strategy:  strategy,
 		Algorithm: algorithmName,
 	}
+}
+
+func tryRegistry[T Complex](n int, features cpu.Features, forcedStrategy KernelStrategy) *PlanEstimate[T] {
+	registry := GetRegistry[T]()
+	if registry == nil {
+		return nil
+	}
+
+	entry := registry.Lookup(n, features)
+	if entry == nil {
+		return nil
+	}
+
+	if forcedStrategy != KernelAuto && entry.Algorithm != forcedStrategy {
+		return nil
+	}
+
+	return &PlanEstimate[T]{
+		ForwardCodelet: entry.Forward,
+		InverseCodelet: entry.Inverse,
+		Algorithm:      entry.Signature,
+		Strategy:       entry.Algorithm,
+		BitrevFunc:     entry.BitrevFunc,
+	}
+}
+
+func resolveWisdom[T Complex](n int, features cpu.Features, wisdom WisdomStore, forcedStrategy KernelStrategy) (*PlanEstimate[T], KernelStrategy, bool) {
+	if wisdom == nil {
+		return nil, KernelAuto, false
+	}
+
+	var (
+		precision uint8
+		zero      T
+	)
+
+	switch any(zero).(type) {
+	case complex64:
+		precision = 0
+	case complex128:
+		precision = 1
+	}
+
+	cpuFeatures := CPUFeatureMask(features.HasSSE2, features.HasAVX2, features.HasAVX512, features.HasNEON)
+
+	algorithm, found := wisdom.LookupWisdom(n, precision, cpuFeatures)
+	if !found {
+		return nil, KernelAuto, false
+	}
+
+	// Wisdom provides algorithm name, try to bind specific codelet by signature
+	registry := GetRegistry[T]()
+	if registry != nil {
+		if codelet := registry.LookupBySignature(n, algorithm); codelet != nil {
+			if forcedStrategy != KernelAuto && codelet.Algorithm != forcedStrategy {
+				return nil, KernelAuto, false
+			}
+
+			return &PlanEstimate[T]{
+				ForwardCodelet: codelet.Forward,
+				InverseCodelet: codelet.Inverse,
+				Algorithm:      codelet.Signature,
+				Strategy:       codelet.Algorithm,
+				BitrevFunc:     codelet.BitrevFunc,
+			}, KernelAuto, true
+		}
+	}
+
+	// Wisdom algorithm doesn't match a codelet, apply as kernel strategy
+	var strategy KernelStrategy
+
+	switch algorithm {
+	case "dit_fallback":
+		strategy = KernelDIT
+	case "stockham":
+		strategy = KernelStockham
+	case "sixstep":
+		strategy = KernelSixStep
+	case "eightstep":
+		strategy = KernelEightStep
+	case "bluestein":
+		strategy = KernelBluestein
+	default:
+		return nil, KernelAuto, false
+	}
+
+	if forcedStrategy != KernelAuto && strategy != forcedStrategy {
+		return nil, KernelAuto, false
+	}
+
+	return nil, strategy, true
 }
 
 // HasCodelet returns true if a codelet is available for the given size.
