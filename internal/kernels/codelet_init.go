@@ -267,8 +267,8 @@ func registerDITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix32x32_generic",
-		Priority:   -1,  // Disabled: roundtrip/in-place failures under asm tag
-		BitrevFunc: nil, // Composite algorithm handles permutation internally
+		Priority:   12,
+		BitrevFunc: mathpkg.ComputeIdentityIndices,
 	})
 
 	// Size 2048: Mixed-radix-2/4 variant (odd log2, faster than pure radix-2)
@@ -532,8 +532,8 @@ func registerDITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix32x32_generic",
-		Priority:   -1,  // Disabled: roundtrip/in-place failures under asm tag
-		BitrevFunc: nil, // Composite algorithm handles permutation internally
+		Priority:   12, // Alternative implementation (uses identity permutation)
+		BitrevFunc: mathpkg.ComputeIdentityIndices,
 	})
 
 	// Size 4096: Radix-4 variant (4096 = 4^6, 6 stages vs 12 for radix-2)

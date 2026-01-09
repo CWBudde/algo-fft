@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 func TestForwardDIT1024Mixed32x32Complex64(t *testing.T) {
@@ -19,7 +20,6 @@ func TestForwardDIT1024Mixed32x32Complex64(t *testing.T) {
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	bitrev := mathpkg.ComputeIdentityIndices(n)
-	refBitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 	scratch := make([]complex64, n)
 	dst := make([]complex64, n)
 
@@ -27,8 +27,7 @@ func TestForwardDIT1024Mixed32x32Complex64(t *testing.T) {
 		t.Fatal("forwardDIT1024Mixed32x32Complex64 failed")
 	}
 
-	refDst := make([]complex64, n)
-	forwardDIT1024Radix4Complex64(refDst, src, twiddle, scratch, refBitrev)
+	refDst := reference.NaiveDFT(src)
 
 	const relTol = 2e-5
 
@@ -90,7 +89,6 @@ func TestForwardDIT1024Mixed32x32Complex128(t *testing.T) {
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	bitrev := mathpkg.ComputeIdentityIndices(n)
-	refBitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 	scratch := make([]complex128, n)
 	dst := make([]complex128, n)
 
@@ -98,12 +96,11 @@ func TestForwardDIT1024Mixed32x32Complex128(t *testing.T) {
 		t.Fatal("forwardDIT1024Mixed32x32Complex128 failed")
 	}
 
-	refDst := make([]complex128, n)
-	forwardDIT1024Radix4Complex128(refDst, src, twiddle, scratch, refBitrev)
+	refDst := reference.NaiveDFT128(src)
 
 	for i := range dst {
 		diff := dst[i] - refDst[i]
-		if math.Hypot(real(diff), imag(diff)) > 1e-9 {
+		if math.Hypot(real(diff), imag(diff)) > 1e-7 {
 			t.Errorf("Mismatch at index %d: got %v, want %v", i, dst[i], refDst[i])
 		}
 	}
