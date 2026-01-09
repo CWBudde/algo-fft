@@ -2,7 +2,7 @@ package kernels
 
 // forwardDIT512Mixed16x32Complex64 is an optimized 16x32 mixed-radix DIT FFT for size-512.
 // Uses six-step FFT algorithm: n = 16*n2 + n1, k = 32*k1 + k2
-// Stage 1: 16 FFT-32s on columns, Stage 2: 32 FFT-16s on rows
+// Stage 1: 16 FFT-32s on columns, Stage 2: 32 FFT-16s on rows.
 func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	const n = 512
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
@@ -39,7 +39,7 @@ func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bi
 	// 32 = 2 * 16, so for each column we do:
 	// - Two FFT-16s on even and odd indexed elements
 	// - Combine with W_32 twiddle factors
-	for n1 := 0; n1 < 16; n1++ {
+	for n1 := range 16 {
 		// Load 32 elements from column n1 (stride 16)
 		// Even indices: n2 = 0, 2, 4, ..., 30 -> positions 0, 32, 64, ..., 480 -> 16*n2+n1
 		// Odd indices:  n2 = 1, 3, 5, ..., 31 -> positions 16, 48, 80, ..., 496 -> 16*n2+n1
@@ -170,7 +170,7 @@ func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bi
 	}
 
 	// Stage 2: 32 FFT-16s on rows using DIT fft16Complex64 (bit-reversed input -> natural output).
-	for k2 := 0; k2 < 32; k2++ {
+	for k2 := range 32 {
 		base := k2 * 16
 		// Load 16 inputs in bit-reversed order for DIT FFT-16
 		z0 := out[base+br16_0]
@@ -247,7 +247,7 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bi
 
 	// Stage 1: 32 IFFT-16s on rows using DIT ifft16 (bit-reversed input -> natural output).
 	// Input X[32*k1 + k2], output Y[k2, n1]
-	for k2 := 0; k2 < 32; k2++ {
+	for k2 := range 32 {
 		// Load 16 inputs from row k2 (stride 32) in bit-reversed order
 		z0 := s[32*br16_0+k2]
 		z1 := s[32*br16_1+k2]
@@ -292,7 +292,8 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bi
 	// Stage 2: 16 IFFT-32s on columns.
 	// IFFT-32 = 2 * IFFT-16 combined with conjugate W_32 twiddle factors.
 	const scale = float32(1.0 / 512.0)
-	for n1 := 0; n1 < 16; n1++ {
+
+	for n1 := range 16 {
 		// Load 32 elements from column n1 (stride 16)
 		// Even indices: k2 = 0, 2, 4, ..., 30
 		// Odd indices:  k2 = 1, 3, 5, ..., 31
@@ -457,7 +458,7 @@ func forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128, 
 
 	// Stage 1: 16 FFT-32s on columns using Cooley-Tukey decomposition.
 	// FFT-32 = 2 * FFT-16 with twiddle factors.
-	for n1 := 0; n1 < 16; n1++ {
+	for n1 := range 16 {
 		// Load even and odd indexed elements from column
 		e0 := s[16*0+n1]
 		e1 := s[16*2+n1]
@@ -567,7 +568,7 @@ func forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128, 
 	}
 
 	// Stage 2: 32 FFT-16s on rows
-	for k2 := 0; k2 < 32; k2++ {
+	for k2 := range 32 {
 		base := k2 * 16
 		z0 := out[base+br16_0]
 		z1 := out[base+br16_1]
@@ -640,7 +641,7 @@ func inverseDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128, 
 	)
 
 	// Stage 1: 32 IFFT-16s on rows
-	for k2 := 0; k2 < 32; k2++ {
+	for k2 := range 32 {
 		z0 := s[32*br16_0+k2]
 		z1 := s[32*br16_1+k2]
 		z2 := s[32*br16_2+k2]
@@ -681,7 +682,8 @@ func inverseDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128, 
 
 	// Stage 2: 16 IFFT-32s on columns using Cooley-Tukey decomposition
 	const scale = 1.0 / 512.0
-	for n1 := 0; n1 < 16; n1++ {
+
+	for n1 := range 16 {
 		e0 := out[16*0+n1]
 		e1 := out[16*2+n1]
 		e2 := out[16*4+n1]

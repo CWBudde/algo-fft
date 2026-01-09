@@ -74,11 +74,13 @@ func radix5TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 						w4b = conj(w4b)
 					}
 
-					var a0 [2]complex64
-					var a1 [2]complex64
-					var a2 [2]complex64
-					var a3 [2]complex64
-					var a4 [2]complex64
+					var (
+						a0 [2]complex64
+						a1 [2]complex64
+						a2 [2]complex64
+						a3 [2]complex64
+						a4 [2]complex64
+					)
 
 					a0[0] = work[idx0]
 					a0[1] = work[idx0b]
@@ -91,11 +93,13 @@ func radix5TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 					a4[0] = w4a * work[idx4]
 					a4[1] = w4b * work[idx4b]
 
-					var y0 [2]complex64
-					var y1 [2]complex64
-					var y2 [2]complex64
-					var y3 [2]complex64
-					var y4 [2]complex64
+					var (
+						y0 [2]complex64
+						y1 [2]complex64
+						y2 [2]complex64
+						y3 [2]complex64
+						y4 [2]complex64
+					)
 
 					if inverse {
 						butterfly5InverseAVX2Complex64Slices(

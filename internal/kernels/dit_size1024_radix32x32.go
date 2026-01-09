@@ -3,7 +3,7 @@ package kernels
 // stage1ForwardDIT1024Radix32x32Complex64 computes the 32 parallel FFT-32s on columns
 // for a 32x32 mixed-radix decomposition. Output is written to out in column-major order.
 func stage1ForwardDIT1024Radix32x32Complex64(out, src, tw []complex64) {
-	for n1 := 0; n1 < 32; n1++ {
+	for n1 := range 32 {
 		// Load 32 elements from column n1 (stride 32), split into even/odd indices.
 		e0 := src[32*0+n1]
 		e1 := src[32*2+n1]
@@ -116,7 +116,7 @@ func stage1ForwardDIT1024Radix32x32Complex64(out, src, tw []complex64) {
 // stage1ForwardDIT1024Radix32x32Complex128 computes the 32 parallel FFT-32s on columns
 // for a 32x32 mixed-radix decomposition. Output is written to out in column-major order.
 func stage1ForwardDIT1024Radix32x32Complex128(out, src, tw []complex128) {
-	for n1 := 0; n1 < 32; n1++ {
+	for n1 := range 32 {
 		// Load 32 elements from column n1 (stride 32), split into even/odd indices.
 		e0 := src[32*0+n1]
 		e1 := src[32*2+n1]
@@ -241,7 +241,7 @@ func forwardDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64, b
 	stage1ForwardDIT1024Radix32x32Complex64(out, s, tw)
 
 	// Stage 2: 32 FFT-32s on rows (k2 fixed, FFT over n1).
-	for k2 := 0; k2 < 32; k2++ {
+	for k2 := range 32 {
 		base := k2 * 32
 
 		e0 := out[base+0]
@@ -396,7 +396,7 @@ func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64, b
 	out := scratch[:n]
 
 	// Stage 1: 32 IFFT-32s on rows, then apply inter-stage twiddles.
-	for k2 := 0; k2 < 32; k2++ {
+	for k2 := range 32 {
 		z0 := s[32*0+k2]
 		z1 := s[32*1+k2]
 		z2 := s[32*2+k2]
@@ -533,7 +533,8 @@ func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64, b
 
 	// Stage 2: 32 IFFT-32s on columns, scale by 1/1024.
 	const scale = float32(1.0 / 1024.0)
-	for n1 := 0; n1 < 32; n1++ {
+
+	for n1 := range 32 {
 		e0 := out[32*0+n1]
 		e1 := out[32*2+n1]
 		e2 := out[32*4+n1]
@@ -689,7 +690,7 @@ func forwardDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128,
 	stage1ForwardDIT1024Radix32x32Complex128(out, s, tw)
 
 	// Stage 2: 32 FFT-32s on rows (k2 fixed, FFT over n1).
-	for k2 := 0; k2 < 32; k2++ {
+	for k2 := range 32 {
 		base := k2 * 32
 
 		e0 := out[base+0]
@@ -844,7 +845,7 @@ func inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128,
 	out := scratch[:n]
 
 	// Stage 1: 32 IFFT-32s on rows, then apply inter-stage twiddles.
-	for k2 := 0; k2 < 32; k2++ {
+	for k2 := range 32 {
 		z0 := s[32*0+k2]
 		z1 := s[32*1+k2]
 		z2 := s[32*2+k2]
@@ -981,7 +982,8 @@ func inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128,
 
 	// Stage 2: 32 IFFT-32s on columns, scale by 1/1024.
 	const scale = 1.0 / 1024.0
-	for n1 := 0; n1 < 32; n1++ {
+
+	for n1 := range 32 {
 		e0 := out[32*0+n1]
 		e1 := out[32*2+n1]
 		e2 := out[32*4+n1]

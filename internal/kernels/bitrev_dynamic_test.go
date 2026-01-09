@@ -26,8 +26,6 @@ func TestDynamicBitrevUsage_AllCodelets64(t *testing.T) {
 	for _, size := range sizes {
 		codelets := Registry64.GetAllForSize(size)
 		for _, codelet := range codelets {
-			codelet := codelet // capture
-
 			// Skip codelets that don't have a bitrev function (size 4)
 			if codelet.BitrevFunc == nil {
 				continue
@@ -61,8 +59,6 @@ func TestDynamicBitrevUsage_AllCodelets128(t *testing.T) {
 	for _, size := range sizes {
 		codelets := Registry128.GetAllForSize(size)
 		for _, codelet := range codelets {
-			codelet := codelet // capture
-
 			// Skip codelets that don't have a bitrev function (size 4)
 			if codelet.BitrevFunc == nil {
 				continue
@@ -130,6 +126,7 @@ func testCodeletDynamicBitrev64(t *testing.T, size int, codelet CodeletEntry[com
 	if tol < dynBitrevTol64 {
 		tol = dynBitrevTol64
 	}
+
 	if tol > 1e-2 {
 		tol = 1e-2
 	}
@@ -144,12 +141,14 @@ func testCodeletDynamicBitrev64(t *testing.T, size int, codelet CodeletEntry[com
 
 		// dst2 should NOT match dst (since we used wrong bitrev for the scrambled src)
 		matches := true
+
 		for i := range size {
 			if dst[i] != dst2[i] {
 				matches = false
 				break
 			}
 		}
+
 		if matches {
 			t.Errorf("Using different bitrev arrays produced identical results - codelet %s may not be using bitrev dynamically", codelet.Signature)
 		}
@@ -200,6 +199,7 @@ func testCodeletDynamicBitrev128(t *testing.T, size int, codelet CodeletEntry[co
 	if tol < dynBitrevTol128 {
 		tol = dynBitrevTol128
 	}
+
 	if tol > 1e-6 {
 		tol = 1e-6
 	}
@@ -213,12 +213,14 @@ func testCodeletDynamicBitrev128(t *testing.T, size int, codelet CodeletEntry[co
 		codelet.Forward(dst2, src, twiddle, scratch, normalBitrev)
 
 		matches := true
+
 		for i := range size {
 			if dst[i] != dst2[i] {
 				matches = false
 				break
 			}
 		}
+
 		if matches {
 			t.Errorf("Using different bitrev arrays produced identical results - codelet %s may not be using bitrev dynamically", codelet.Signature)
 		}
@@ -304,12 +306,14 @@ func TestDynamicBitrevUsage_Size16Radix4_Complex64(t *testing.T) {
 
 	// dst2 should NOT match expected (since we used wrong bitrev for the scrambled src)
 	matches := true
+
 	for i := range n {
 		if dst[i] != dst2[i] {
 			matches = false
 			break
 		}
 	}
+
 	if matches {
 		t.Error("Using different bitrev arrays produced identical results - kernel may not be using bitrev dynamically")
 	}
@@ -476,6 +480,7 @@ func TestDynamicBitrevUsage_IdentityBitrev(t *testing.T) {
 
 	// Results should differ (proving bitrev is actually used)
 	matches := true
+
 	for i := range n {
 		if dstCorrect[i] != dstIdentity[i] {
 			matches = false

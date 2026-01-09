@@ -8,7 +8,7 @@ import (
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
-// Helper aliases for brevity
+// Helper aliases for brevity.
 var ComputeBitReversalIndicesRadix4 = mathpkg.ComputeBitReversalIndicesRadix4
 
 func TestForwardDIT4096SixStep_Complex64(t *testing.T) {
@@ -38,9 +38,11 @@ func TestForwardDIT4096SixStep_Complex64(t *testing.T) {
 
 	// Compare results
 	maxErr := float32(0)
+
 	for i := range n {
 		re := real(dstSixStep[i]) - real(dstRadix4[i])
 		im := imag(dstSixStep[i]) - imag(dstRadix4[i])
+
 		err := float32(math.Sqrt(float64(re*re + im*im)))
 		if err > maxErr {
 			maxErr = err
@@ -83,9 +85,11 @@ func TestInverseDIT4096SixStep_Complex64(t *testing.T) {
 
 	// Compare results
 	maxErr := float32(0)
+
 	for i := range n {
 		re := real(dstSixStep[i]) - real(dstRadix4[i])
 		im := imag(dstSixStep[i]) - imag(dstRadix4[i])
+
 		err := float32(math.Sqrt(float64(re*re + im*im)))
 		if err > maxErr {
 			maxErr = err
@@ -127,9 +131,11 @@ func TestRoundTrip4096SixStep_Complex64(t *testing.T) {
 
 	// Verify round-trip
 	maxErr := float32(0)
+
 	for i := range n {
 		re := real(result[i]) - real(src[i])
 		im := imag(result[i]) - imag(src[i])
+
 		err := float32(math.Sqrt(float64(re*re + im*im)))
 		if err > maxErr {
 			maxErr = err
@@ -171,9 +177,11 @@ func TestForwardDIT4096SixStep_Complex128(t *testing.T) {
 
 	// Compare results
 	maxErr := 0.0
+
 	for i := range n {
 		re := real(dstSixStep[i]) - real(dstRadix4[i])
 		im := imag(dstSixStep[i]) - imag(dstRadix4[i])
+
 		err := math.Sqrt(re*re + im*im)
 		if err > maxErr {
 			maxErr = err
@@ -215,9 +223,11 @@ func TestRoundTrip4096SixStep_Complex128(t *testing.T) {
 
 	// Verify round-trip
 	maxErr := 0.0
+
 	for i := range n {
 		re := real(result[i]) - real(src[i])
 		im := imag(result[i]) - imag(src[i])
+
 		err := math.Sqrt(re*re + im*im)
 		if err > maxErr {
 			maxErr = err

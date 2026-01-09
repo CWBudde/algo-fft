@@ -9,6 +9,7 @@ import (
 
 func TestForwardDIT512Mixed16x32Complex64(t *testing.T) {
 	const n = 512
+
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i), float32(n-i))
@@ -30,6 +31,7 @@ func TestForwardDIT512Mixed16x32Complex64(t *testing.T) {
 
 	// Use relative tolerance for float32 (explicit DFT accumulates more FP error)
 	const relTol = 1e-5
+
 	for i := range dst {
 		diff := dst[i] - refDst[i]
 		errMag := math.Hypot(float64(real(diff)), float64(imag(diff)))
@@ -39,6 +41,7 @@ func TestForwardDIT512Mixed16x32Complex64(t *testing.T) {
 		if tol < 1e-3 {
 			tol = 1e-3
 		}
+
 		if errMag > tol {
 			t.Errorf("Mismatch at index %d: got %v, want %v (err=%v, tol=%v)", i, dst[i], refDst[i], errMag, tol)
 		}
@@ -47,6 +50,7 @@ func TestForwardDIT512Mixed16x32Complex64(t *testing.T) {
 
 func TestInverseDIT512Mixed16x32Complex64(t *testing.T) {
 	const n = 512
+
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i), float32(n-i))
@@ -59,6 +63,7 @@ func TestInverseDIT512Mixed16x32Complex64(t *testing.T) {
 	inv := make([]complex64, n)
 
 	forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch, bitrev)
+
 	if !inverseDIT512Mixed16x32Complex64(inv, fwd, twiddle, scratch, bitrev) {
 		t.Fatal("inverseDIT512Mixed16x32Complex64 failed")
 	}
@@ -73,6 +78,7 @@ func TestInverseDIT512Mixed16x32Complex64(t *testing.T) {
 
 func TestForwardDIT512Mixed16x32Complex128(t *testing.T) {
 	const n = 512
+
 	src := make([]complex128, n)
 	for i := range src {
 		src[i] = complex(float64(i), float64(n-i))
@@ -101,6 +107,7 @@ func TestForwardDIT512Mixed16x32Complex128(t *testing.T) {
 
 func TestInverseDIT512Mixed16x32Complex128(t *testing.T) {
 	const n = 512
+
 	src := make([]complex128, n)
 	for i := range src {
 		src[i] = complex(float64(i), float64(n-i))
@@ -113,6 +120,7 @@ func TestInverseDIT512Mixed16x32Complex128(t *testing.T) {
 	inv := make([]complex128, n)
 
 	forwardDIT512Mixed16x32Complex128(fwd, src, twiddle, scratch, bitrev)
+
 	if !inverseDIT512Mixed16x32Complex128(inv, fwd, twiddle, scratch, bitrev) {
 		t.Fatal("inverseDIT512Mixed16x32Complex128 failed")
 	}

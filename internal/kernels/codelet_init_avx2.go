@@ -237,7 +237,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_radix16x32_avx2",
-		Priority:   20, // Between mixed-2/4 (25) and radix-2 (10)
+		Priority:   20,  // Between mixed-2/4 (25) and radix-2 (10)
 		BitrevFunc: nil, // Kernel handles permutation internally (no external bitrev)
 	})
 

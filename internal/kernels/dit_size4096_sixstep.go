@@ -33,7 +33,7 @@ func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 	work := scratch[:n]
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		work[bitrev4096Radix4[i]] = src[bitrev[i]]
 	}
 
@@ -109,7 +109,7 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 	work := scratch[:n]
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		work[bitrev4096Radix4[i]] = src[bitrev[i]]
 	}
 
@@ -212,6 +212,7 @@ func inverseDIT64Radix4Complex64NoScale(dst, src, twiddle, scratch []complex64, 
 
 	// Stage 2: 4 groups × 4 butterflies
 	var stage2 [64]complex64
+
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := complex(real(tw[j*4]), -imag(tw[j*4]))
@@ -296,7 +297,7 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	work := scratch[:n]
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		work[bitrev4096Radix4[i]] = src[bitrev[i]]
 	}
 
@@ -371,7 +372,7 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	work := scratch[:n]
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		work[bitrev4096Radix4[i]] = src[bitrev[i]]
 	}
 
@@ -424,6 +425,7 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 
 	// Step 6: Final transpose with scaling
 	scale := complex(1.0/float64(n), 0)
+
 	for i := range m {
 		for j := range m {
 			dst[i*m+j] = work[j*m+i]
@@ -469,6 +471,7 @@ func inverseDIT64Radix4Complex128NoScale(dst, src, twiddle, scratch []complex128
 	}
 
 	var stage2 [64]complex128
+
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := complex(real(tw[j*4]), -imag(tw[j*4]))
