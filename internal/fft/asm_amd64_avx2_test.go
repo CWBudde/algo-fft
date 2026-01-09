@@ -842,8 +842,7 @@ func TestAVX2ReturnsFailureForInvalidSizes(t *testing.T) {
 			bitrev := ComputeBitReversalIndices(n)
 			scratch := make([]complex64, n)
 
-			handled := avx2Forward(dst, src, twiddle, scratch, bitrev)
-			if handled {
+			if avx2Forward(dst, src, twiddle, scratch, bitrev) {
 				// If it handles it, that's fine too (may use scalar path internally)
 				continue
 			}

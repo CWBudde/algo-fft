@@ -5,6 +5,8 @@ import (
 )
 
 func TestReverseBits(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		x      int
@@ -51,6 +53,8 @@ func TestReverseBits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := ReverseBits(tt.x, tt.nbits)
 			if got != tt.expect {
 				t.Errorf("ReverseBits(%#b, %d) = %#b, want %#b (decimal: got %d, want %d)",
@@ -61,6 +65,7 @@ func TestReverseBits(t *testing.T) {
 }
 
 func TestReverseBitsSymmetry(t *testing.T) {
+	t.Parallel()
 	// Property: reversing twice should return the original value
 	for nbits := 1; nbits <= 16; nbits++ {
 		maxVal := 1 << uint(nbits)
@@ -77,6 +82,8 @@ func TestReverseBitsSymmetry(t *testing.T) {
 }
 
 func TestComputeBitReversalIndices(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		n      int
@@ -96,6 +103,8 @@ func TestComputeBitReversalIndices(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := ComputeBitReversalIndices(tt.n)
 			if len(got) != len(tt.expect) {
 				t.Fatalf("ComputeBitReversalIndices(%d) returned length %d, want %d",

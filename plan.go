@@ -472,8 +472,11 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 			recorder,
 			opts.Strategy,
 		)
-	default:
+	case PlannerEstimate:
 		// PlannerEstimate: use heuristics only (fast path)
+		estimate = fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+	default:
+		// Fallback for any unknown planner modes
 		estimate = fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
 	}
 
@@ -516,27 +519,27 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		switch any(zero).(type) {
 		case complex64:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
-			scratch = any(scratchAligned).([]T)
+			scratch = any(scratchAligned).([]T) //nolint:forcetypeassert
 			scratchBacking = scratchRaw
 
 			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
-			stridedScratch = any(stridedAligned).([]T)
+			stridedScratch = any(stridedAligned).([]T) //nolint:forcetypeassert
 			stridedBacking = stridedRaw
 
 			bsAligned, bsRaw := mem.AllocAlignedComplex64(scratchSize)
-			bluesteinScratch = any(bsAligned).([]T)
+			bluesteinScratch = any(bsAligned).([]T) //nolint:forcetypeassert
 			bluesteinScratchBacking = bsRaw
 		case complex128:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
-			scratch = any(scratchAligned).([]T)
+			scratch = any(scratchAligned).([]T) //nolint:forcetypeassert
 			scratchBacking = scratchRaw
 
 			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
-			stridedScratch = any(stridedAligned).([]T)
+			stridedScratch = any(stridedAligned).([]T) //nolint:forcetypeassert
 			stridedBacking = stridedRaw
 
 			bsAligned, bsRaw := mem.AllocAlignedComplex128(scratchSize)
-			bluesteinScratch = any(bsAligned).([]T)
+			bluesteinScratch = any(bsAligned).([]T) //nolint:forcetypeassert
 			bluesteinScratchBacking = bsRaw
 		default:
 			scratch = make([]T, scratchSize)

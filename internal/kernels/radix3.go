@@ -193,7 +193,7 @@ func butterfly3Forward[T Complex](a0, a1, a2 T) (T, T, T) {
 			any(a2).(complex64),
 		)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T)
+		return any(y0).(T), any(y1).(T), any(y2).(T) //nolint:forcetypeassert
 	case complex128:
 		y0, y1, y2 := butterfly3ForwardComplex128(
 			any(a0).(complex128),
@@ -201,7 +201,7 @@ func butterfly3Forward[T Complex](a0, a1, a2 T) (T, T, T) {
 			any(a2).(complex128),
 		)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T)
+		return any(y0).(T), any(y1).(T), any(y2).(T) //nolint:forcetypeassert
 	default:
 		panic("unsupported complex type")
 	}
@@ -217,7 +217,7 @@ func butterfly3Inverse[T Complex](a0, a1, a2 T) (T, T, T) {
 			any(a2).(complex64),
 		)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T)
+		return any(y0).(T), any(y1).(T), any(y2).(T) //nolint:forcetypeassert
 	case complex128:
 		y0, y1, y2 := butterfly3InverseComplex128(
 			any(a0).(complex128),
@@ -225,7 +225,7 @@ func butterfly3Inverse[T Complex](a0, a1, a2 T) (T, T, T) {
 			any(a2).(complex128),
 		)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T)
+		return any(y0).(T), any(y1).(T), any(y2).(T) //nolint:forcetypeassert
 	default:
 		panic("unsupported complex type")
 	}

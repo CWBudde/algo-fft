@@ -536,8 +536,13 @@ func TestPlan2D_Linearity(t *testing.T) {
 	fftX := make([]complex64, rows*cols)
 	fftY := make([]complex64, rows*cols)
 
-	plan.Forward(fftX, signalX)
-	plan.Forward(fftY, signalY)
+	if err := plan.Forward(fftX, signalX); err != nil {
+		t.Fatalf("Forward X failed: %v", err)
+	}
+
+	if err := plan.Forward(fftY, signalY); err != nil {
+		t.Fatalf("Forward Y failed: %v", err)
+	}
 
 	expected := make([]complex64, rows*cols)
 	for i := range expected {
@@ -573,7 +578,9 @@ func TestPlan2D_Parseval(t *testing.T) {
 
 	// Frequency-domain energy
 	freq := make([]complex64, rows*cols)
-	plan.Forward(freq, signal)
+	if err := plan.Forward(freq, signal); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
 
 	var freqEnergy float64
 
@@ -606,7 +613,9 @@ func TestPlan2D_Separability(t *testing.T) {
 
 	// Direct 2D FFT
 	direct := make([]complex64, rows*cols)
-	plan.Forward(direct, signal)
+	if err := plan.Forward(direct, signal); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
 
 	// Separable: row-wise then column-wise
 	rowPlan, _ := NewPlanT[complex64](cols)
@@ -617,7 +626,11 @@ func TestPlan2D_Separability(t *testing.T) {
 	// Transform rows
 	for row := range rows {
 		rowData := temp[row*cols : (row+1)*cols]
-		rowPlan.InPlace(rowData)
+
+		err := rowPlan.InPlace(rowData)
+		if err != nil {
+			t.Fatalf("InPlace row %d failed: %v", row, err)
+		}
 	}
 
 	// Transform columns
@@ -630,7 +643,10 @@ func TestPlan2D_Separability(t *testing.T) {
 			colData[row] = temp[row*cols+col]
 		}
 
-		colPlan.InPlace(colData)
+		err := colPlan.InPlace(colData)
+		if err != nil {
+			t.Fatalf("InPlace col %d failed: %v", col, err)
+		}
 
 		for row := range rows {
 			separable[row*cols+col] = colData[row]
@@ -662,7 +678,9 @@ func TestPlan2D_ConstantSignal(t *testing.T) {
 	}
 
 	freq := make([]complex64, rows*cols)
-	plan.Forward(freq, signal)
+	if err := plan.Forward(freq, signal); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
 
 	// DC component should be rows*cols
 	expectedDC := complex(float32(rows*cols), 0)
@@ -701,7 +719,9 @@ func TestPlan2D_PureSinusoid2D(t *testing.T) {
 	}
 
 	freq := make([]complex64, rows*cols)
-	plan.Forward(freq, signal)
+	if err := plan.Forward(freq, signal); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
 
 	// Peak at [kx, ky]
 	peakIdx := kx*cols + ky
@@ -749,8 +769,13 @@ func TestPlan2D_Clone(t *testing.T) {
 	freq1 := make([]complex64, rows*cols)
 	freq2 := make([]complex64, rows*cols)
 
-	original.Forward(freq1, signal)
-	clone.Forward(freq2, signal)
+	if err := original.Forward(freq1, signal); err != nil {
+		t.Fatalf("original.Forward failed: %v", err)
+	}
+
+	if err := clone.Forward(freq2, signal); err != nil {
+		t.Fatalf("clone.Forward failed: %v", err)
+	}
 
 	// Results should match
 	tol := 1e-6

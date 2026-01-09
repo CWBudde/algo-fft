@@ -89,6 +89,8 @@ func BenchmarkDITComplex128(b *testing.B) {
 }
 
 func runBenchComplex64(b *testing.B, n int, bitrev func(int) []int, kernel func(dst, src, twiddle, scratch []complex64, bitrev []int) bool) {
+	b.Helper()
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -109,6 +111,8 @@ func runBenchComplex64(b *testing.B, n int, bitrev func(int) []int, kernel func(
 }
 
 func runBenchComplex128(b *testing.B, n int, bitrev func(int) []int, kernel func(dst, src, twiddle, scratch []complex128, bitrev []int) bool) {
+	b.Helper()
+
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)

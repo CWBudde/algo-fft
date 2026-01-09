@@ -51,6 +51,8 @@ func TestComplexMulArrayComplex64(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
 			dst := make([]complex64, len(testCase.a))
 			ComplexMulArrayComplex64(dst, testCase.a, testCase.b)
 
@@ -95,6 +97,8 @@ func TestComplexMulArrayComplex128(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
 			dst := make([]complex128, len(testCase.a))
 			ComplexMulArrayComplex128(dst, testCase.a, testCase.b)
 
@@ -133,6 +137,8 @@ func TestComplexMulArrayInPlaceComplex64(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
 			// Copy dst since it will be modified in-place
 			dst := make([]complex64, len(testCase.dst))
 			copy(dst, testCase.dst)
@@ -173,6 +179,8 @@ func TestComplexMulArrayLargeComplex64(t *testing.T) {
 
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
+			t.Parallel()
+
 			a := make([]complex64, n)
 			b := make([]complex64, n)
 			want := make([]complex64, n)

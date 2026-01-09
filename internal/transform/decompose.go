@@ -126,14 +126,6 @@ func scoreStrategy(radix, subSize int, codeletSizes []int, cacheSize int) int {
 	return score
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-
-	return b
-}
-
 // findFactors returns all divisors of n that are power-of-2, EXCLUDING n itself.
 // Returns them in descending order (largest first).
 //
