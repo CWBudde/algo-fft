@@ -1,9 +1,5 @@
 package kernels
 
-// bitrev8Mixed24 is the precomputed mixed-radix 2/4 permutation for N=8.
-// It corresponds to mathpkg.ComputeBitReversalIndicesMixed24(8).
-var bitrev8Mixed24 = [8]int{0, 2, 4, 6, 1, 3, 5, 7}
-
 // forwardDIT8Radix4Complex64 computes an 8-point forward FFT using a mixed-radix
 // approach: one radix-4 stage followed by one radix-2 stage for complex64 data.
 // Fully unrolled for maximum performance.
@@ -28,14 +24,14 @@ func forwardDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	// Butterfly 2: indices [1, 3, 5, 7]
 
 	// Load mixed-radix bit-reversed inputs (radix-4 groups, then radix-2)
-	x0 := s[bitrev8Mixed24[0]]
-	x1 := s[bitrev8Mixed24[1]]
-	x2 := s[bitrev8Mixed24[2]]
-	x3 := s[bitrev8Mixed24[3]]
-	x4 := s[bitrev8Mixed24[4]]
-	x5 := s[bitrev8Mixed24[5]]
-	x6 := s[bitrev8Mixed24[6]]
-	x7 := s[bitrev8Mixed24[7]]
+	x0 := s[0]
+	x1 := s[2]
+	x2 := s[4]
+	x3 := s[6]
+	x4 := s[1]
+	x5 := s[3]
+	x6 := s[5]
+	x7 := s[7]
 
 	// Radix-4 butterfly 1: [x0, x1, x2, x3]
 	// w^0, w^2, w^4, w^6 where w = e^(-2πi/8)
@@ -123,14 +119,14 @@ func inverseDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	w3 = complex(real(w3), -imag(w3))
 
 	// Load mixed-radix bit-reversed inputs (radix-4 groups, then radix-2)
-	x0 := s[bitrev8Mixed24[0]]
-	x1 := s[bitrev8Mixed24[1]]
-	x2 := s[bitrev8Mixed24[2]]
-	x3 := s[bitrev8Mixed24[3]]
-	x4 := s[bitrev8Mixed24[4]]
-	x5 := s[bitrev8Mixed24[5]]
-	x6 := s[bitrev8Mixed24[6]]
-	x7 := s[bitrev8Mixed24[7]]
+	x0 := s[0]
+	x1 := s[2]
+	x2 := s[4]
+	x3 := s[6]
+	x4 := s[1]
+	x5 := s[3]
+	x6 := s[5]
+	x7 := s[7]
 
 	// Radix-4 butterfly 1 with conjugated twiddles
 	// For inverse: w^2 = -i becomes conj(-i) = i
@@ -215,14 +211,14 @@ func forwardDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	w1, w2, w3 := twiddle[1], twiddle[2], twiddle[3]
 
 	// Load mixed-radix bit-reversed inputs (radix-4 groups, then radix-2)
-	x0 := s[bitrev8Mixed24[0]]
-	x1 := s[bitrev8Mixed24[1]]
-	x2 := s[bitrev8Mixed24[2]]
-	x3 := s[bitrev8Mixed24[3]]
-	x4 := s[bitrev8Mixed24[4]]
-	x5 := s[bitrev8Mixed24[5]]
-	x6 := s[bitrev8Mixed24[6]]
-	x7 := s[bitrev8Mixed24[7]]
+	x0 := s[0]
+	x1 := s[2]
+	x2 := s[4]
+	x3 := s[6]
+	x4 := s[1]
+	x5 := s[3]
+	x6 := s[5]
+	x7 := s[7]
 
 	// Radix-4 butterfly 1: [x0, x1, x2, x3]
 	t0 := x0 + x2
@@ -305,14 +301,14 @@ func inverseDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	w3 = complex(real(w3), -imag(w3))
 
 	// Load mixed-radix bit-reversed inputs (radix-4 groups, then radix-2)
-	x0 := s[bitrev8Mixed24[0]]
-	x1 := s[bitrev8Mixed24[1]]
-	x2 := s[bitrev8Mixed24[2]]
-	x3 := s[bitrev8Mixed24[3]]
-	x4 := s[bitrev8Mixed24[4]]
-	x5 := s[bitrev8Mixed24[5]]
-	x6 := s[bitrev8Mixed24[6]]
-	x7 := s[bitrev8Mixed24[7]]
+	x0 := s[0]
+	x1 := s[2]
+	x2 := s[4]
+	x3 := s[6]
+	x4 := s[1]
+	x5 := s[3]
+	x6 := s[5]
+	x7 := s[7]
 
 	// Radix-4 butterfly 1 with conjugated twiddles
 	t0 := x0 + x2

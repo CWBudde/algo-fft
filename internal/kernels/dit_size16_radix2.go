@@ -1,8 +1,5 @@
 package kernels
 
-// bitrev16Radix2 is the precomputed bit-reversal indices for N=16.
-var bitrev16Radix2 = [16]int{0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15}
-
 // forwardDIT16Radix2Complex64 computes a 16-point forward FFT using the
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 // Fully unrolled for maximum performance.
@@ -22,29 +19,29 @@ func forwardDIT16Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[bitrev16Radix2[0]]
-	x1 := s[bitrev16Radix2[1]]
+	x0 := s[0]
+	x1 := s[8]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[2]]
-	x1 = s[bitrev16Radix2[3]]
+	x0 = s[4]
+	x1 = s[12]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[4]]
-	x1 = s[bitrev16Radix2[5]]
+	x0 = s[2]
+	x1 = s[10]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[6]]
-	x1 = s[bitrev16Radix2[7]]
+	x0 = s[6]
+	x1 = s[14]
 	a6, a7 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[8]]
-	x1 = s[bitrev16Radix2[9]]
+	x0 = s[1]
+	x1 = s[9]
 	a8, a9 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[10]]
-	x1 = s[bitrev16Radix2[11]]
+	x0 = s[5]
+	x1 = s[13]
 	a10, a11 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[12]]
-	x1 = s[bitrev16Radix2[13]]
+	x0 = s[3]
+	x1 = s[11]
 	a12, a13 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[14]]
-	x1 = s[bitrev16Radix2[15]]
+	x0 = s[7]
+	x1 = s[15]
 	a14, a15 := x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
@@ -136,29 +133,29 @@ func inverseDIT16Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[bitrev16Radix2[0]]
-	x1 := s[bitrev16Radix2[1]]
+	x0 := s[0]
+	x1 := s[8]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[2]]
-	x1 = s[bitrev16Radix2[3]]
+	x0 = s[4]
+	x1 = s[12]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[4]]
-	x1 = s[bitrev16Radix2[5]]
+	x0 = s[2]
+	x1 = s[10]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[6]]
-	x1 = s[bitrev16Radix2[7]]
+	x0 = s[6]
+	x1 = s[14]
 	a6, a7 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[8]]
-	x1 = s[bitrev16Radix2[9]]
+	x0 = s[1]
+	x1 = s[9]
 	a8, a9 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[10]]
-	x1 = s[bitrev16Radix2[11]]
+	x0 = s[5]
+	x1 = s[13]
 	a10, a11 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[12]]
-	x1 = s[bitrev16Radix2[13]]
+	x0 = s[3]
+	x1 = s[11]
 	a12, a13 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[14]]
-	x1 = s[bitrev16Radix2[15]]
+	x0 = s[7]
+	x1 = s[15]
 	a14, a15 := x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
@@ -248,29 +245,29 @@ func forwardDIT16Radix2Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[bitrev16Radix2[0]]
-	x1 := s[bitrev16Radix2[1]]
+	x0 := s[0]
+	x1 := s[8]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[2]]
-	x1 = s[bitrev16Radix2[3]]
+	x0 = s[4]
+	x1 = s[12]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[4]]
-	x1 = s[bitrev16Radix2[5]]
+	x0 = s[2]
+	x1 = s[10]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[6]]
-	x1 = s[bitrev16Radix2[7]]
+	x0 = s[6]
+	x1 = s[14]
 	a6, a7 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[8]]
-	x1 = s[bitrev16Radix2[9]]
+	x0 = s[1]
+	x1 = s[9]
 	a8, a9 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[10]]
-	x1 = s[bitrev16Radix2[11]]
+	x0 = s[5]
+	x1 = s[13]
 	a10, a11 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[12]]
-	x1 = s[bitrev16Radix2[13]]
+	x0 = s[3]
+	x1 = s[11]
 	a12, a13 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[14]]
-	x1 = s[bitrev16Radix2[15]]
+	x0 = s[7]
+	x1 = s[15]
 	a14, a15 := x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
@@ -364,29 +361,29 @@ func inverseDIT16Radix2Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[bitrev16Radix2[0]]
-	x1 := s[bitrev16Radix2[1]]
+	x0 := s[0]
+	x1 := s[8]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[2]]
-	x1 = s[bitrev16Radix2[3]]
+	x0 = s[4]
+	x1 = s[12]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[4]]
-	x1 = s[bitrev16Radix2[5]]
+	x0 = s[2]
+	x1 = s[10]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[6]]
-	x1 = s[bitrev16Radix2[7]]
+	x0 = s[6]
+	x1 = s[14]
 	a6, a7 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[8]]
-	x1 = s[bitrev16Radix2[9]]
+	x0 = s[1]
+	x1 = s[9]
 	a8, a9 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[10]]
-	x1 = s[bitrev16Radix2[11]]
+	x0 = s[5]
+	x1 = s[13]
 	a10, a11 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[12]]
-	x1 = s[bitrev16Radix2[13]]
+	x0 = s[3]
+	x1 = s[11]
 	a12, a13 := x0+x1, x0-x1
-	x0 = s[bitrev16Radix2[14]]
-	x1 = s[bitrev16Radix2[15]]
+	x0 = s[7]
+	x1 = s[15]
 	a14, a15 := x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4

@@ -100,14 +100,15 @@ func inverseDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	e1 := a1 + complex(-imag(a3), real(a3))
 	e3 := a1 + complex(imag(a3), -real(a3))
 
-	a4 := x1 + x5
-	a5 := x1 - x5
-	a6 := x3 + x7
-	a7 := x3 - x7
-	o0 := a4 + a6
-	o2 := a4 - a6
-	o1 := a5 + complex(-imag(a7), real(a7))
-	o3 := a5 + complex(imag(a7), -real(a7))
+	a0 = x1 + x5
+	a1 = x1 - x5
+	a2 = x3 + x7
+	a3 = x3 - x7
+
+	o0 := a0 + a2
+	o2 := a0 - a2
+	o1 := a1 + complex(-imag(a3), real(a3))
+	o3 := a1 + complex(imag(a3), -real(a3))
 
 	work := dst
 	if &dst[0] == &src[0] {
@@ -164,20 +165,21 @@ func forwardDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128) bool {
 	a1 := x0 - x4
 	a2 := x2 + x6
 	a3 := x2 - x6
+
 	e0 := a0 + a2
 	e2 := a0 - a2
 	e1 := a1 + mulNegI(a3)
 	e3 := a1 + mulI(a3)
 
-	a4 := x1 + x5
-	a5 := x1 - x5
-	a6 := x3 + x7
-	a7 := x3 - x7
+	a0 = x1 + x5
+	a1 = x1 - x5
+	a2 = x3 + x7
+	a3 = x3 - x7
 
-	o0 := a4 + a6
-	o2 := a4 - a6
-	o1 := a5 + mulNegI(a7)
-	o3 := a5 + mulI(a7)
+	o0 := a0 + a2
+	o2 := a0 - a2
+	o1 := a1 + mulNegI(a3)
+	o3 := a1 + mulI(a3)
 
 	work := dst
 	if &dst[0] == &src[0] {
@@ -241,15 +243,15 @@ func inverseDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128) bool {
 	e1 := a1 + complex(-imag(a3), real(a3))
 	e3 := a1 + complex(imag(a3), -real(a3))
 
-	a4 := x1 + x5
-	a5 := x1 - x5
-	a6 := x3 + x7
-	a7 := x3 - x7
+	a0 = x1 + x5
+	a1 = x1 - x5
+	a2 = x3 + x7
+	a3 = x3 - x7
 
-	o0 := a4 + a6
-	o2 := a4 - a6
-	o1 := a5 + complex(-imag(a7), real(a7))
-	o3 := a5 + complex(imag(a7), -real(a7))
+	o0 := a0 + a2
+	o2 := a0 - a2
+	o1 := a1 + complex(-imag(a3), real(a3))
+	o3 := a1 + complex(imag(a3), -real(a3))
 
 	work := dst
 	if &dst[0] == &src[0] {

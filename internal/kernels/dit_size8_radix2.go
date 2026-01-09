@@ -1,8 +1,5 @@
 package kernels
 
-// bitrev8Radix2 is the precomputed bit-reversal indices for size 8 radix-2.
-var bitrev8Radix2 = [8]int{0, 4, 2, 6, 1, 5, 3, 7}
-
 // forwardDIT8Radix2Complex64 computes an 8-point forward FFT using the
 // Decimation-in-Time (DIT) algorithm with radix-2 stages for complex64 data.
 // Fully unrolled for maximum performance.
@@ -15,7 +12,6 @@ func forwardDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev8Radix2[:]
 	s := src[:n]
 
 	// Pre-load twiddle factors
@@ -23,17 +19,17 @@ func forwardDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Stage 1: 4 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[br[0]]
-	x1 := s[br[1]]
+	x0 := s[0]
+	x1 := s[4]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[br[2]]
-	x1 = s[br[3]]
+	x0 = s[2]
+	x1 = s[6]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[br[4]]
-	x1 = s[br[5]]
+	x0 = s[1]
+	x1 = s[5]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[br[6]]
-	x1 = s[br[7]]
+	x0 = s[3]
+	x1 = s[7]
 	a6, a7 := x0+x1, x0-x1
 
 	// Stage 2: 2 radix-2 butterflies, stride=4
@@ -83,7 +79,6 @@ func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev8Radix2[:]
 	s := src[:n]
 
 	// Conjugate twiddles for inverse transform
@@ -94,17 +89,17 @@ func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Stage 1: 4 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[br[0]]
-	x1 := s[br[1]]
+	x0 := s[0]
+	x1 := s[4]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[br[2]]
-	x1 = s[br[3]]
+	x0 = s[2]
+	x1 = s[6]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[br[4]]
-	x1 = s[br[5]]
+	x0 = s[1]
+	x1 = s[5]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[br[6]]
-	x1 = s[br[7]]
+	x0 = s[3]
+	x1 = s[7]
 	a6, a7 := x0+x1, x0-x1
 
 	// Stage 2: 2 radix-2 butterflies, stride=4
@@ -157,7 +152,6 @@ func forwardDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev8Radix2[:]
 	s := src[:n]
 
 	// Pre-load twiddle factors
@@ -165,17 +159,17 @@ func forwardDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 
 	// Stage 1: 4 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[br[0]]
-	x1 := s[br[1]]
+	x0 := s[0]
+	x1 := s[4]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[br[2]]
-	x1 = s[br[3]]
+	x0 = s[2]
+	x1 = s[6]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[br[4]]
-	x1 = s[br[5]]
+	x0 = s[1]
+	x1 = s[5]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[br[6]]
-	x1 = s[br[7]]
+	x0 = s[3]
+	x1 = s[7]
 	a6, a7 := x0+x1, x0-x1
 
 	// Stage 2: 2 radix-2 butterflies, stride=4
@@ -225,7 +219,6 @@ func inverseDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev8Radix2[:]
 	s := src[:n]
 
 	// Conjugate twiddles for inverse transform
@@ -236,17 +229,17 @@ func inverseDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 
 	// Stage 1: 4 radix-2 butterflies, stride=2, no twiddles (W^1 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[br[0]]
-	x1 := s[br[1]]
+	x0 := s[0]
+	x1 := s[4]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[br[2]]
-	x1 = s[br[3]]
+	x0 = s[2]
+	x1 = s[6]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[br[4]]
-	x1 = s[br[5]]
+	x0 = s[1]
+	x1 = s[5]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[br[6]]
-	x1 = s[br[7]]
+	x0 = s[3]
+	x1 = s[7]
 	a6, a7 := x0+x1, x0-x1
 
 	// Stage 2: 2 radix-2 butterflies, stride=4
