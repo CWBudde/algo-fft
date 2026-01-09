@@ -1,18 +1,21 @@
 package kernels
 
+// bitrev8Radix2 is the precomputed bit-reversal indices for size 8 radix-2.
+var bitrev8Radix2 = [8]int{0, 4, 2, 6, 1, 5, 3, 7}
+
 // forwardDIT8Radix2Complex64 computes an 8-point forward FFT using the
 // Decimation-in-Time (DIT) algorithm with radix-2 stages for complex64 data.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 8
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
+	br := bitrev8Radix2[:]
 	s := src[:n]
 
 	// Pre-load twiddle factors
@@ -72,15 +75,15 @@ func forwardDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 // Returns false if any slice is too small.
 //
 //nolint:funlen
-func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 8
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
+	br := bitrev8Radix2[:]
 	s := src[:n]
 
 	// Conjugate twiddles for inverse transform
@@ -146,15 +149,15 @@ func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64, bitrev [
 // Decimation-in-Time (DIT) algorithm with radix-2 stages for complex128 data.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 8
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
+	br := bitrev8Radix2[:]
 	s := src[:n]
 
 	// Pre-load twiddle factors
@@ -214,15 +217,15 @@ func forwardDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128, bitrev
 // Returns false if any slice is too small.
 //
 //nolint:funlen
-func inverseDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 8
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
+	br := bitrev8Radix2[:]
 	s := src[:n]
 
 	// Conjugate twiddles for inverse transform
@@ -231,7 +234,7 @@ func inverseDIT8Radix2Complex128(dst, src, twiddle, scratch []complex128, bitrev
 	w2 = complex(real(w2), -imag(w2))
 	w3 = complex(real(w3), -imag(w3))
 
-	// Stage 1: 4 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
+	// Stage 1: 4 radix-2 butterflies, stride=2, no twiddles (W^1 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[br[0]]
 	x1 := s[br[1]]

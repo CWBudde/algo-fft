@@ -1,18 +1,20 @@
 package kernels
 
-// forwardDIT16Complex64 computes a 16-point forward FFT using the
+// bitrev16Radix2 is the precomputed bit-reversal indices for N=16.
+var bitrev16Radix2 = [16]int{0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15}
+
+// forwardDIT16Radix2Complex64 computes a 16-point forward FFT using the
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT16Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 16
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
 	s := src[:n]
 
 	// Pre-load twiddle factors
@@ -20,29 +22,29 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[br[0]]
-	x1 := s[br[1]]
+	x0 := s[bitrev16Radix2[0]]
+	x1 := s[bitrev16Radix2[1]]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[br[2]]
-	x1 = s[br[3]]
+	x0 = s[bitrev16Radix2[2]]
+	x1 = s[bitrev16Radix2[3]]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[br[4]]
-	x1 = s[br[5]]
+	x0 = s[bitrev16Radix2[4]]
+	x1 = s[bitrev16Radix2[5]]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[br[6]]
-	x1 = s[br[7]]
+	x0 = s[bitrev16Radix2[6]]
+	x1 = s[bitrev16Radix2[7]]
 	a6, a7 := x0+x1, x0-x1
-	x0 = s[br[8]]
-	x1 = s[br[9]]
+	x0 = s[bitrev16Radix2[8]]
+	x1 = s[bitrev16Radix2[9]]
 	a8, a9 := x0+x1, x0-x1
-	x0 = s[br[10]]
-	x1 = s[br[11]]
+	x0 = s[bitrev16Radix2[10]]
+	x1 = s[bitrev16Radix2[11]]
 	a10, a11 := x0+x1, x0-x1
-	x0 = s[br[12]]
-	x1 = s[br[13]]
+	x0 = s[bitrev16Radix2[12]]
+	x1 = s[bitrev16Radix2[13]]
 	a12, a13 := x0+x1, x0-x1
-	x0 = s[br[14]]
-	x1 = s[br[15]]
+	x0 = s[bitrev16Radix2[14]]
+	x1 = s[bitrev16Radix2[15]]
 	a14, a15 := x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
@@ -107,20 +109,19 @@ func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	return true
 }
 
-// inverseDIT16Complex64 computes a 16-point inverse FFT using the
+// inverseDIT16Radix2Complex64 computes a 16-point inverse FFT using the
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT16Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 16
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
 	s := src[:n]
 
 	// Conjugate twiddles for inverse transform
@@ -135,29 +136,29 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[br[0]]
-	x1 := s[br[1]]
+	x0 := s[bitrev16Radix2[0]]
+	x1 := s[bitrev16Radix2[1]]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[br[2]]
-	x1 = s[br[3]]
+	x0 = s[bitrev16Radix2[2]]
+	x1 = s[bitrev16Radix2[3]]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[br[4]]
-	x1 = s[br[5]]
+	x0 = s[bitrev16Radix2[4]]
+	x1 = s[bitrev16Radix2[5]]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[br[6]]
-	x1 = s[br[7]]
+	x0 = s[bitrev16Radix2[6]]
+	x1 = s[bitrev16Radix2[7]]
 	a6, a7 := x0+x1, x0-x1
-	x0 = s[br[8]]
-	x1 = s[br[9]]
+	x0 = s[bitrev16Radix2[8]]
+	x1 = s[bitrev16Radix2[9]]
 	a8, a9 := x0+x1, x0-x1
-	x0 = s[br[10]]
-	x1 = s[br[11]]
+	x0 = s[bitrev16Radix2[10]]
+	x1 = s[bitrev16Radix2[11]]
 	a10, a11 := x0+x1, x0-x1
-	x0 = s[br[12]]
-	x1 = s[br[13]]
+	x0 = s[bitrev16Radix2[12]]
+	x1 = s[bitrev16Radix2[13]]
 	a12, a13 := x0+x1, x0-x1
-	x0 = s[br[14]]
-	x1 = s[br[15]]
+	x0 = s[bitrev16Radix2[14]]
+	x1 = s[bitrev16Radix2[15]]
 	a14, a15 := x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
@@ -228,19 +229,18 @@ func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 	return true
 }
 
-// forwardDIT16Complex128 computes a 16-point forward FFT using the
+// forwardDIT16Radix2Complex128 computes a 16-point forward FFT using the
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT16Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 16
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
 	s := src[:n]
 
 	// Pre-load twiddle factors
@@ -248,29 +248,29 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[br[0]]
-	x1 := s[br[1]]
+	x0 := s[bitrev16Radix2[0]]
+	x1 := s[bitrev16Radix2[1]]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[br[2]]
-	x1 = s[br[3]]
+	x0 = s[bitrev16Radix2[2]]
+	x1 = s[bitrev16Radix2[3]]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[br[4]]
-	x1 = s[br[5]]
+	x0 = s[bitrev16Radix2[4]]
+	x1 = s[bitrev16Radix2[5]]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[br[6]]
-	x1 = s[br[7]]
+	x0 = s[bitrev16Radix2[6]]
+	x1 = s[bitrev16Radix2[7]]
 	a6, a7 := x0+x1, x0-x1
-	x0 = s[br[8]]
-	x1 = s[br[9]]
+	x0 = s[bitrev16Radix2[8]]
+	x1 = s[bitrev16Radix2[9]]
 	a8, a9 := x0+x1, x0-x1
-	x0 = s[br[10]]
-	x1 = s[br[11]]
+	x0 = s[bitrev16Radix2[10]]
+	x1 = s[bitrev16Radix2[11]]
 	a10, a11 := x0+x1, x0-x1
-	x0 = s[br[12]]
-	x1 = s[br[13]]
+	x0 = s[bitrev16Radix2[12]]
+	x1 = s[bitrev16Radix2[13]]
 	a12, a13 := x0+x1, x0-x1
-	x0 = s[br[14]]
-	x1 = s[br[15]]
+	x0 = s[bitrev16Radix2[14]]
+	x1 = s[bitrev16Radix2[15]]
 	a14, a15 := x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
@@ -335,22 +335,21 @@ func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 	return true
 }
 
-// inverseDIT16Complex128 computes a 16-point inverse FFT using the
+// inverseDIT16Radix2Complex128 computes a 16-point inverse FFT using the
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
 //
 //nolint:funlen
-func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT16Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 16
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
 	s := src[:n]
 
 	// Conjugate twiddles for inverse transform
@@ -365,29 +364,29 @@ func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
-	x0 := s[br[0]]
-	x1 := s[br[1]]
+	x0 := s[bitrev16Radix2[0]]
+	x1 := s[bitrev16Radix2[1]]
 	a0, a1 := x0+x1, x0-x1
-	x0 = s[br[2]]
-	x1 = s[br[3]]
+	x0 = s[bitrev16Radix2[2]]
+	x1 = s[bitrev16Radix2[3]]
 	a2, a3 := x0+x1, x0-x1
-	x0 = s[br[4]]
-	x1 = s[br[5]]
+	x0 = s[bitrev16Radix2[4]]
+	x1 = s[bitrev16Radix2[5]]
 	a4, a5 := x0+x1, x0-x1
-	x0 = s[br[6]]
-	x1 = s[br[7]]
+	x0 = s[bitrev16Radix2[6]]
+	x1 = s[bitrev16Radix2[7]]
 	a6, a7 := x0+x1, x0-x1
-	x0 = s[br[8]]
-	x1 = s[br[9]]
+	x0 = s[bitrev16Radix2[8]]
+	x1 = s[bitrev16Radix2[9]]
 	a8, a9 := x0+x1, x0-x1
-	x0 = s[br[10]]
-	x1 = s[br[11]]
+	x0 = s[bitrev16Radix2[10]]
+	x1 = s[bitrev16Radix2[11]]
 	a10, a11 := x0+x1, x0-x1
-	x0 = s[br[12]]
-	x1 = s[br[13]]
+	x0 = s[bitrev16Radix2[12]]
+	x1 = s[bitrev16Radix2[13]]
 	a12, a13 := x0+x1, x0-x1
-	x0 = s[br[14]]
-	x1 = s[br[15]]
+	x0 = s[bitrev16Radix2[14]]
+	x1 = s[bitrev16Radix2[15]]
 	a14, a15 := x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4

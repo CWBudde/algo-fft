@@ -31,7 +31,7 @@ func TestDebugAVX2Size8Radix4(t *testing.T) {
 	// Test forward with Go reference
 	goFwd := make([]complex64, n)
 	goScratch := make([]complex64, n)
-	forwardDIT8Radix4Complex64(goFwd, src, twiddle, goScratch, bitrev)
+	forwardDIT8Radix4Complex64(goFwd, src, twiddle, goScratch)
 
 	// Test forward with AVX2
 	avxFwd := make([]complex64, n)
@@ -55,7 +55,7 @@ func TestDebugAVX2Size8Radix4(t *testing.T) {
 
 	// Test inverse with Go reference (using Go forward result)
 	goInv := make([]complex64, n)
-	inverseDIT8Radix4Complex64(goInv, goFwd, twiddle, goScratch, bitrev)
+	inverseDIT8Radix4Complex64(goInv, goFwd, twiddle, goScratch)
 
 	// Test inverse with AVX2 (using Go forward result for fair comparison)
 	avxInv := make([]complex64, n)
