@@ -132,7 +132,7 @@ body {
   flex-wrap: wrap;
 }
 
-button {
+button, .button {
   font-family: inherit;
   border: none;
   border-radius: 999px;
@@ -143,14 +143,19 @@ button {
   box-shadow: 0 10px 24px rgba(12, 123, 110, 0.3);
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease;
+  text-decoration: none;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.9rem;
 }
 
-button:hover {
+button:hover, .button:hover {
   transform: translateY(-2px);
   box-shadow: 0 14px 28px rgba(12, 123, 110, 0.35);
 }
 
-button.ghost {
+button.ghost, .button.ghost {
   background: transparent;
   color: var(--accent-strong);
   border: 1px solid var(--accent);
