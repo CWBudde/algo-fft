@@ -476,7 +476,7 @@ func sprintf(format string, args ...interface{}) string {
 		if format[i] == '%' && i+1 < len(format) {
 			if format[i+1] == 'd' {
 				if argIdx < len(args) {
-					result += itoa(args[argIdx].(int))
+					result += itoa(args[argIdx].(int)) //nolint:forcetypeassert
 					argIdx++
 				}
 

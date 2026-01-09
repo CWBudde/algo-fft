@@ -200,6 +200,7 @@ func TestPrecisionComplex64VsComplex128(t *testing.T) {
 }
 
 func testPrecisionComparison(t *testing.T, n int) {
+	t.Helper()
 	// Generate test signals: sine wave
 	input64 := make([]complex64, n)
 	input128 := make([]complex128, n)
@@ -278,6 +279,7 @@ func TestPrecisionLargeFFT(t *testing.T) {
 }
 
 func testLargePrecision(t *testing.T, n int) {
+	t.Helper()
 	// Generate simple signal: impulse at position 0
 	data := make([]complex128, n)
 	data[0] = complex(1.0, 0.0)

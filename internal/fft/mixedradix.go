@@ -93,20 +93,20 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 	switch any(zero).(type) {
 	case complex64:
 		recursiveStep64(
-			any(work).([]complex64),
-			any(src).([]complex64),
-			any(scratch).([]complex64),
+			any(work).([]complex64),    //nolint:forcetypeassert
+			any(src).([]complex64),     //nolint:forcetypeassert
+			any(scratch).([]complex64), //nolint:forcetypeassert
 			n, 1, 1, radices[:stageCount],
-			any(twiddle).([]complex64),
+			any(twiddle).([]complex64), //nolint:forcetypeassert
 			inverse,
 		)
 	case complex128:
 		recursiveStep128(
-			any(work).([]complex128),
-			any(src).([]complex128),
-			any(scratch).([]complex128),
+			any(work).([]complex128),    //nolint:forcetypeassert
+			any(src).([]complex128),     //nolint:forcetypeassert
+			any(scratch).([]complex128), //nolint:forcetypeassert
 			n, 1, 1, radices[:stageCount],
-			any(twiddle).([]complex128),
+			any(twiddle).([]complex128), //nolint:forcetypeassert
 			inverse,
 		)
 	default:

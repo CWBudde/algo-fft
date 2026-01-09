@@ -12,6 +12,8 @@ func BenchmarkPlanForwardStrided_Copy(b *testing.B) {
 
 //nolint:gocognit
 func benchForwardStrided(b *testing.B, useCopy bool) {
+	b.Helper()
+
 	sizes := []int{256, 1024, 4096}
 	cols := 256
 	col := 7

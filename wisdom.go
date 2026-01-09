@@ -1,6 +1,7 @@
 package algofft
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -12,12 +13,16 @@ import (
 func ImportWisdom(filename string) error {
 	f, err := os.Open(filename)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open wisdom file: %w", err)
 	}
 
 	defer f.Close()
 
-	return fft.DefaultWisdom.Import(f)
+	if err := fft.DefaultWisdom.Import(f); err != nil {
+		return fmt.Errorf("failed to import wisdom: %w", err)
+	}
+
+	return nil
 }
 
 // ExportWisdom saves the current wisdom cache to a file.
@@ -31,12 +36,16 @@ func ExportWisdom(filename string) error {
 func ExportWisdomTo(filename string, wisdom *Wisdom) error {
 	file, err := os.Create(filename)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create wisdom file: %w", err)
 	}
 
 	defer file.Close()
 
-	return wisdom.Export(file)
+	if err := wisdom.Export(file); err != nil {
+		return fmt.Errorf("failed to export wisdom: %w", err)
+	}
+
+	return nil
 }
 
 // Wisdom is a type alias for the internal wisdom cache.
@@ -52,7 +61,12 @@ func NewWisdom() *Wisdom {
 // ImportWisdomFromString loads wisdom data from a string.
 // This is useful for embedding wisdom data in compiled binaries.
 func ImportWisdomFromString(data string) error {
-	return fft.DefaultWisdom.Import(strings.NewReader(data))
+	err := fft.DefaultWisdom.Import(strings.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("failed to import wisdom from string: %w", err)
+	}
+
+	return nil
 }
 
 // ClearWisdom removes all entries from the wisdom cache.

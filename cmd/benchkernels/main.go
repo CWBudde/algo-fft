@@ -171,16 +171,30 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 func runPlanMode(plan *algofft.Plan[complex64], dst, src, freq []complex64, mode string) error {
 	switch mode {
 	case modeInverse:
-		return plan.Inverse(dst, freq)
+		err := plan.Inverse(dst, freq)
+		if err != nil {
+			return fmt.Errorf("plan inverse: %w", err)
+		}
+
+		return nil
 	case "roundtrip":
 		err := plan.Forward(freq, src)
 		if err != nil {
-			return err
+			return fmt.Errorf("plan forward: %w", err)
 		}
 
-		return plan.Inverse(dst, freq)
+		if err := plan.Inverse(dst, freq); err != nil {
+			return fmt.Errorf("plan inverse: %w", err)
+		}
+
+		return nil
 	default:
-		return plan.Forward(dst, src)
+		err := plan.Forward(dst, src)
+		if err != nil {
+			return fmt.Errorf("plan forward: %w", err)
+		}
+
+		return nil
 	}
 }
 
@@ -273,7 +287,12 @@ func exportWisdom(filename string, results []benchResult) error {
 	}
 
 	// Use internal wisdom directly since algofft.Wisdom is a type alias
-	return algofft.ExportWisdomTo(filename, wisdom)
+	err := algofft.ExportWisdomTo(filename, wisdom)
+	if err != nil {
+		return fmt.Errorf("export wisdom to %s: %w", filename, err)
+	}
+
+	return nil
 }
 
 // strategyToAlgorithmName converts strategy to the algorithm name used in wisdom files.
