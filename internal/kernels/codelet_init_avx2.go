@@ -44,7 +44,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix4_avx2",
-		Priority:   -1, // Disabled: roundtrip failures under asm tag (see PLAN.md)
+		Priority:   10, // Mixed-radix 4x2: efficient for size 8
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
 	})
 

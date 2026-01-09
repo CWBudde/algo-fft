@@ -58,6 +58,11 @@ test-wasm-pkg pkg:
 build-wasm-demo:
     ./scripts/build-wasm-demo.sh
 
+# Build and run the WebAssembly demo locally
+run-wasm-demo: build-wasm-demo
+    @echo "Starting demo server at http://localhost:8090"
+    python3 -m http.server -d dist 8090
+
 # Run tests on ARM64 using QEMU (requires qemu-user-static)
 test-arm64:
     #!/usr/bin/env bash

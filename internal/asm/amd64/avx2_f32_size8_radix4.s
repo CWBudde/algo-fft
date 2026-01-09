@@ -417,13 +417,25 @@ size8_r4_inv_bitrev:
 
 	// conj(w3) * a7
 	MOVQ 24(R10), X1
-	VXORPS X10, X1, X1
+	// Rebuild maskNegImag (X10 was clobbered by y2 at line 415)
+	MOVL ·signbit32(SB), AX
+	MOVD AX, X4
+	VBROADCASTSS X4, X4
+	VXORPS X5, X5, X5
+	VBLENDPS $0xAA, X4, X5, X4
+	VXORPS X4, X1, X1
 	VSHUFPS $0x00, X1, X1, X2
 	VSHUFPS $0x55, X1, X1, X6
 	VSHUFPS $0xB1, X7, X7, X1
 	VMULPS X2, X7, X4
 	VMULPS X6, X1, X5
-	VXORPS X11, X5, X5
+	// Rebuild maskNegReal (X11 was clobbered by y6 at line 416)
+	MOVL ·signbit32(SB), AX
+	MOVD AX, X6
+	VBROADCASTSS X6, X6
+	VXORPS X2, X2, X2
+	VBLENDPS $0x55, X6, X2, X6
+	VXORPS X6, X5, X5
 	VADDPS X5, X4, X14        // conj(w3)*a7
 	VADDPS X14, X3, X15       // y3
 	VSUBPS X14, X3, X4        // y7
