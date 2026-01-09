@@ -3,7 +3,6 @@ package kernels
 import (
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -22,10 +21,9 @@ func TestForwardDIT16Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT16Complex64(dst, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardDIT16Complex64 failed")
+	if !forwardDIT16Radix2Complex64(dst, src, twiddle, scratch) {
+		t.Fatal("forwardDIT16Radix2Complex64 failed")
 	}
 
 	want := reference.NaiveDFT(src)
@@ -43,14 +41,13 @@ func TestInverseDIT16Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT16Complex64(fwd, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardDIT16Complex64 failed")
+	if !forwardDIT16Radix2Complex64(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT16Radix2Complex64 failed")
 	}
 
-	if !inverseDIT16Complex64(dst, fwd, twiddle, scratch, bitrev) {
-		t.Fatal("inverseDIT16Complex64 failed")
+	if !inverseDIT16Radix2Complex64(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT16Radix2Complex64 failed")
 	}
 
 	want := reference.NaiveIDFT(fwd)
@@ -67,10 +64,9 @@ func TestForwardDIT16Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT16Complex128(dst, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardDIT16Complex128 failed")
+	if !forwardDIT16Radix2Complex128(dst, src, twiddle, scratch) {
+		t.Fatal("forwardDIT16Radix2Complex128 failed")
 	}
 
 	want := reference.NaiveDFT128(src)
@@ -88,14 +84,13 @@ func TestInverseDIT16Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT16Complex128(fwd, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardDIT16Complex128 failed")
+	if !forwardDIT16Radix2Complex128(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT16Radix2Complex128 failed")
 	}
 
-	if !inverseDIT16Complex128(dst, fwd, twiddle, scratch, bitrev) {
-		t.Fatal("inverseDIT16Complex128 failed")
+	if !inverseDIT16Radix2Complex128(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT16Radix2Complex128 failed")
 	}
 
 	want := reference.NaiveIDFT128(fwd)
@@ -113,14 +108,13 @@ func TestRoundTripDIT16Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT16Complex64(fwd, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardDIT16Complex64 failed")
+	if !forwardDIT16Radix2Complex64(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT16Radix2Complex64 failed")
 	}
 
-	if !inverseDIT16Complex64(dst, fwd, twiddle, scratch, bitrev) {
-		t.Fatal("inverseDIT16Complex64 failed")
+	if !inverseDIT16Radix2Complex64(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT16Radix2Complex64 failed")
 	}
 
 	assertComplex64Close(t, dst, src, size16Tol64)
@@ -137,14 +131,13 @@ func TestRoundTripDIT16Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT16Complex128(fwd, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardDIT16Complex128 failed")
+	if !forwardDIT16Radix2Complex128(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT16Radix2Complex128 failed")
 	}
 
-	if !inverseDIT16Complex128(dst, fwd, twiddle, scratch, bitrev) {
-		t.Fatal("inverseDIT16Complex128 failed")
+	if !inverseDIT16Radix2Complex128(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT16Radix2Complex128 failed")
 	}
 
 	assertComplex128Close(t, dst, src, size16Tol128)

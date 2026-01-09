@@ -245,152 +245,6 @@ func cpuSupportsCodelet(features cpu.Features, level SIMDLevel) bool {
 	}
 }
 
-// TestDynamicBitrevUsage_Size16Radix4_Complex64 verifies that the size-16 radix-4 kernel
-// dynamically uses the passed bitrev array rather than hardcoding indices.
-// This is essential for composing larger FFTs from smaller kernels (e.g., six-step algorithm).
-//
-// The test verifies kernels use br[i] to index into src, not hardcoded i values.
-// We pass a permuted input where the data at bitrev positions has been pre-arranged,
-// and verify the kernel produces the correct DFT result.
-func TestDynamicBitrevUsage_Size16Radix4_Complex64(t *testing.T) {
-	t.Parallel()
-
-	const n = 16
-
-	// Create random input
-	input1 := randomComplex64(n, 0xABCDEF01)
-
-	// Standard radix-4 bitrev for size 16
-	normalBitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
-
-	// Create a "scrambled" bitrev that's different from normal
-	// Swap pairs: [0,8,4,12,...] -> [8,0,12,4,...]
-	scrambledBitrev := make([]int, n)
-	for i := range n {
-		// Swap adjacent pairs in bitrev
-		if i%2 == 0 && i+1 < n {
-			scrambledBitrev[i] = normalBitrev[i+1]
-			scrambledBitrev[i+1] = normalBitrev[i]
-		}
-	}
-
-	// Build a source array that, when accessed with scrambledBitrev,
-	// produces the same logical sequence as input1 accessed with normalBitrev
-	src := make([]complex64, n)
-	for i := range n {
-		// src[scrambledBitrev[i]] should equal input1[normalBitrev[i]]
-		// So when kernel does src[br[i]] with scrambledBitrev, it gets input1[normalBitrev[i]]
-		src[scrambledBitrev[i]] = input1[normalBitrev[i]]
-	}
-
-	// Now FFT(src) with scrambledBitrev should equal FFT(input1) with normalBitrev
-	dst := make([]complex64, n)
-	scratch := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
-
-	if !forwardDIT16Radix4Complex64(dst, src, twiddle, scratch, scrambledBitrev) {
-		t.Fatal("forwardDIT16Radix4Complex64 with scrambled bitrev failed")
-	}
-
-	// Compute expected using naive DFT on input1
-	expected := reference.NaiveDFT(input1)
-
-	// Verify results match
-	assertComplex64Close(t, dst, expected, dynBitrevTol64)
-
-	// Additional check: using wrong bitrev should give different result
-	dst2 := make([]complex64, n)
-	if !forwardDIT16Radix4Complex64(dst2, src, twiddle, scratch, normalBitrev) {
-		t.Fatal("forwardDIT16Radix4Complex64 with normal bitrev failed")
-	}
-
-	// dst2 should NOT match expected (since we used wrong bitrev for the scrambled src)
-	matches := true
-
-	for i := range n {
-		if dst[i] != dst2[i] {
-			matches = false
-			break
-		}
-	}
-
-	if matches {
-		t.Error("Using different bitrev arrays produced identical results - kernel may not be using bitrev dynamically")
-	}
-}
-
-// TestDynamicBitrevUsage_Size16Radix4_Complex128 verifies dynamic bitrev usage for complex128.
-func TestDynamicBitrevUsage_Size16Radix4_Complex128(t *testing.T) {
-	t.Parallel()
-
-	const n = 16
-
-	input1 := randomComplex128(n, 0xABCDEF02)
-	normalBitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
-
-	// Create scrambled bitrev by swapping adjacent pairs
-	scrambledBitrev := make([]int, n)
-	for i := range n {
-		if i%2 == 0 && i+1 < n {
-			scrambledBitrev[i] = normalBitrev[i+1]
-			scrambledBitrev[i+1] = normalBitrev[i]
-		}
-	}
-
-	// Build source that produces same logical sequence when accessed with scrambledBitrev
-	src := make([]complex128, n)
-	for i := range n {
-		src[scrambledBitrev[i]] = input1[normalBitrev[i]]
-	}
-
-	dst := make([]complex128, n)
-	scratch := make([]complex128, n)
-	twiddle := ComputeTwiddleFactors[complex128](n)
-
-	if !forwardDIT16Radix4Complex128(dst, src, twiddle, scratch, scrambledBitrev) {
-		t.Fatal("forwardDIT16Radix4Complex128 with scrambled bitrev failed")
-	}
-
-	expected := reference.NaiveDFT128(input1)
-	assertComplex128Close(t, dst, expected, dynBitrevTol128)
-}
-
-// TestDynamicBitrevUsage_Size16Radix2_Complex64 verifies dynamic bitrev usage for radix-2.
-func TestDynamicBitrevUsage_Size16Radix2_Complex64(t *testing.T) {
-	t.Parallel()
-
-	const n = 16
-
-	input1 := randomComplex64(n, 0xABCDEF03)
-	normalBitrev := mathpkg.ComputeBitReversalIndices(n) // Radix-2
-
-	// Create scrambled bitrev by swapping adjacent pairs
-	scrambledBitrev := make([]int, n)
-	for i := range n {
-		if i%2 == 0 && i+1 < n {
-			scrambledBitrev[i] = normalBitrev[i+1]
-			scrambledBitrev[i+1] = normalBitrev[i]
-		}
-	}
-
-	// Build source that produces same logical sequence when accessed with scrambledBitrev
-	src := make([]complex64, n)
-	for i := range n {
-		src[scrambledBitrev[i]] = input1[normalBitrev[i]]
-	}
-
-	dst := make([]complex64, n)
-	scratch := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
-
-	if !forwardDIT16Complex64(dst, src, twiddle, scratch, scrambledBitrev) {
-		t.Fatal("forwardDIT16Complex64 with scrambled bitrev failed")
-	}
-
-	expected := reference.NaiveDFT(input1)
-	assertComplex64Close(t, dst, expected, dynBitrevTol64)
-}
-
 // TestDynamicBitrevUsage_Size64Radix4_Complex64 verifies dynamic bitrev usage for size-64.
 // Larger sizes are important to ensure the pattern holds beyond small test cases.
 func TestDynamicBitrevUsage_Size64Radix4_Complex64(t *testing.T) {
@@ -433,19 +287,20 @@ func TestDynamicBitrevUsage_Size64Radix4_Complex64(t *testing.T) {
 // TestDynamicBitrevUsage_ZeroOffset verifies that normal bitrev still works.
 // This is a sanity check that our scrambled test isn't passing for the wrong reasons.
 func TestDynamicBitrevUsage_ZeroOffset(t *testing.T) {
+	t.Skip("Size-16 radix-4 kernel now uses internalized bit-reversal (Phase 11)")
 	t.Parallel()
 
 	const n = 16
 
 	src := randomComplex64(n, 0xABCDEF05)
-	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
+	// bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
-	if !forwardDIT16Radix4Complex64(dst, src, twiddle, scratch, bitrev) {
-		t.Fatal("forwardDIT16Radix4Complex64 with normal bitrev failed")
+	if !forwardDIT16Radix4Complex64(dst, src, twiddle, scratch) {
+		t.Fatal("forwardDIT16Radix4Complex64 failed")
 	}
 
 	expected := reference.NaiveDFT(src)
@@ -455,27 +310,28 @@ func TestDynamicBitrevUsage_ZeroOffset(t *testing.T) {
 // TestDynamicBitrevUsage_IdentityBitrev tests that passing identity permutation [0,1,2,...]
 // produces different results than the correct bitrev, proving the kernel uses the array.
 func TestDynamicBitrevUsage_IdentityBitrev(t *testing.T) {
+	t.Skip("Size-16 radix-4 kernel now uses internalized bit-reversal (Phase 11)")
 	t.Parallel()
 
 	const n = 16
 
 	src := randomComplex64(n, 0xABCDEF06)
-	normalBitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
-	identityBitrev := mathpkg.ComputeIdentityIndices(n)
+	// normalBitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
+	// identityBitrev := mathpkg.ComputeIdentityIndices(n)
 
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
 	// FFT with correct bitrev
 	dstCorrect := make([]complex64, n)
-	if !forwardDIT16Radix4Complex64(dstCorrect, src, twiddle, scratch, normalBitrev) {
-		t.Fatal("forwardDIT16Radix4Complex64 with normal bitrev failed")
+	if !forwardDIT16Radix4Complex64(dstCorrect, src, twiddle, scratch) {
+		t.Fatal("forwardDIT16Radix4Complex64 failed")
 	}
 
 	// FFT with identity bitrev (wrong for radix-4)
 	dstIdentity := make([]complex64, n)
-	if !forwardDIT16Radix4Complex64(dstIdentity, src, twiddle, scratch, identityBitrev) {
-		t.Fatal("forwardDIT16Radix4Complex64 with identity bitrev failed")
+	if !forwardDIT16Radix4Complex64(dstIdentity, src, twiddle, scratch) {
+		t.Fatal("forwardDIT16Radix4Complex64 failed")
 	}
 
 	// Results should differ (proving bitrev is actually used)

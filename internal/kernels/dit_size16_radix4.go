@@ -1,19 +1,21 @@
 package kernels
 
+var bitrev16Radix4 = [16]int{0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15}
+
 // forwardDIT16Radix4Complex64 computes a 16-point forward FFT using the
 // radix-4 Decimation-in-Time (DIT) algorithm for complex64 data.
 // This uses 2 stages of radix-4 butterflies instead of 4 stages of radix-2.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 16
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrev16Radix4[:]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -203,15 +205,15 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 // Returns false if any slice is too small.
 //
 //nolint:funlen
-func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 16
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrev16Radix4[:]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -406,15 +408,15 @@ func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 // This uses 2 stages of radix-4 butterflies instead of 4 stages of radix-2.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 16
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrev16Radix4[:]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -604,15 +606,15 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 // Returns false if any slice is too small.
 //
 //nolint:funlen
-func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 16
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrev16Radix4[:]
 	s := src[:n]
 	tw := twiddle[:n]
 

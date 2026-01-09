@@ -20,7 +20,7 @@ func TestForwardSSESize4Radix4Complex64_386(t *testing.T) {
 	want := make([]complex64, n)
 	copy(want, src)
 	// Use the generic Go implementation as reference
-	forwardDIT4Radix4Complex64(want, want, twiddle, scratch, bitrev)
+	forwardDIT4Radix4Complex64(want, want, twiddle, scratch)
 
 	// Call the SSE assembly implementation
 	if !x86.ForwardSSESize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
@@ -41,7 +41,7 @@ func TestInverseSSESize4Radix4Complex64_386(t *testing.T) {
 	want := make([]complex64, n)
 	copy(want, src)
 	// Use the generic Go implementation as reference
-	inverseDIT4Radix4Complex64(want, want, twiddle, scratch, bitrev)
+	inverseDIT4Radix4Complex64(want, want, twiddle, scratch)
 
 	// Call the SSE assembly implementation
 	if !x86.InverseSSESize4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {

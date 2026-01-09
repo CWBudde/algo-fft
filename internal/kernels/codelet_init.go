@@ -67,77 +67,79 @@ func registerDITCodelets64() {
 	// Size 4: Only radix-4 (no bit-reversal needed)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4,
-		Forward:    wrapCodelet64(forwardDIT4Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT4Radix4Complex64),
+		Forward:    wrapCore64(forwardDIT4Radix4Complex64),
+		Inverse:    wrapCore64(inverseDIT4Radix4Complex64),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4_radix4_generic",
 		Priority:   0,
-		BitrevFunc: nil,        // No bit-reversal for size 4
+		BitrevFunc: nil,            // No bit-reversal for size 4
 		KernelType: KernelTypeCore, // Self-contained, no external bitrev
 	})
 
 	// Size 8: Radix-2 variant (default for now)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCodelet64(forwardDIT8Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT8Radix2Complex64),
+		Forward:    wrapCore64(forwardDIT8Radix2Complex64),
+		Inverse:    wrapCore64(inverseDIT8Radix2Complex64),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix2_generic",
 		Priority:   20,
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
-		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
+		BitrevFunc: nil,           // Internalized bit-reversal
+		KernelType: KernelTypeDIT, // Self-contained with internal permutation
 	})
 
 	// Size 8: Radix-8 variant (single butterfly)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCodelet64(forwardDIT8Radix8Complex64),
-		Inverse:    wrapCodelet64(inverseDIT8Radix8Complex64),
+		Forward:    wrapCore64(forwardDIT8Radix8Complex64),
+		Inverse:    wrapCore64(inverseDIT8Radix8Complex64),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
-		Priority:   30,                             // Highest priority among generic size-8 codelets
-		BitrevFunc: mathpkg.ComputeIdentityIndices, // Radix-8 uses natural order
-		KernelType: KernelTypeLegacy,               // Still uses bitrev array (identity), will migrate to Core later
+		Priority:   30,             // Highest priority among generic size-8 codelets
+		BitrevFunc: nil,            // Radix-8 on size 8 is identity; internalize it
+		KernelType: KernelTypeCore, // Self-contained, no external bitrev
 	})
 
 	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCodelet64(forwardDIT8Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT8Radix4Complex64),
+		Forward:    wrapCore64(forwardDIT8Radix4Complex64),
+		Inverse:    wrapCore64(inverseDIT8Radix4Complex64),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_mixedradix_generic",
 		Priority:   25, // Between radix-2 (20) and radix-8 (30)
-		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
-		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
+		BitrevFunc: nil,
+		KernelType: KernelTypeDIT, // Self-contained with internal permutation
 	})
 
 	// Size 16: Radix-2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCodelet64(forwardDIT16Complex64),
-		Inverse:    wrapCodelet64(inverseDIT16Complex64),
+		Forward:    wrapCore64(forwardDIT16Radix2Complex64),
+		Inverse:    wrapCore64(inverseDIT16Radix2Complex64),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix2_generic",
 		Priority:   10,
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		BitrevFunc: nil,
+		KernelType: KernelTypeDIT, // Self-contained
 	})
 
 	// Size 16: Radix-4 variant (12-15% faster per benchmarks)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCodelet64(forwardDIT16Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT16Radix4Complex64),
+		Forward:    wrapCore64(forwardDIT16Radix4Complex64),
+		Inverse:    wrapCore64(inverseDIT16Radix4Complex64),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix4_generic",
 		Priority:   20, // Higher priority (empirically faster)
-		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
+		BitrevFunc: nil,
+		KernelType: KernelTypeDIT, // Self-contained
 	})
 
 	// Size 32: Radix-2 only
@@ -336,8 +338,8 @@ func registerDITCodelets128() {
 	// Size 4: Only radix-4 (no bit-reversal needed)
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       4,
-		Forward:    wrapCodelet128(forwardDIT4Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT4Radix4Complex128),
+		Forward:    wrapCore128(forwardDIT4Radix4Complex128),
+		Inverse:    wrapCore128(inverseDIT4Radix4Complex128),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4_radix4_generic",
@@ -349,64 +351,66 @@ func registerDITCodelets128() {
 	// Size 8: Radix-2 variant (default for now)
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCodelet128(forwardDIT8Radix2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT8Radix2Complex128),
+		Forward:    wrapCore128(forwardDIT8Radix2Complex128),
+		Inverse:    wrapCore128(inverseDIT8Radix2Complex128),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix2_generic",
 		Priority:   20,
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
-		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
+		BitrevFunc: nil,           // Internalized bit-reversal
+		KernelType: KernelTypeDIT, // Self-contained
 	})
 
 	// Size 8: Radix-8 variant (single butterfly)
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCodelet128(forwardDIT8Radix8Complex128),
-		Inverse:    wrapCodelet128(inverseDIT8Radix8Complex128),
+		Forward:    wrapCore128(forwardDIT8Radix8Complex128),
+		Inverse:    wrapCore128(inverseDIT8Radix8Complex128),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
-		Priority:   30,                             // Highest priority among generic size-8 codelets
-		BitrevFunc: mathpkg.ComputeIdentityIndices, // Radix-8 uses natural order
-		KernelType: KernelTypeLegacy,               // Still uses bitrev array (identity), will migrate to Core later
+		Priority:   30,             // Highest priority
+		BitrevFunc: nil,            // Radix-8 on size 8 is identity; internalize it
+		KernelType: KernelTypeCore, // Self-contained
 	})
 
 	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2)
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCodelet128(forwardDIT8Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT8Radix4Complex128),
+		Forward:    wrapCore128(forwardDIT8Radix4Complex128),
+		Inverse:    wrapCore128(inverseDIT8Radix4Complex128),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_mixedradix_generic",
 		Priority:   25, // Between radix-2 (20) and radix-8 (30)
-		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
-		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
+		BitrevFunc: nil,
+		KernelType: KernelTypeDIT, // Self-contained with internal permutation
 	})
 
 	// Size 16: Radix-2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16,
-		Forward:    wrapCodelet128(forwardDIT16Complex128),
-		Inverse:    wrapCodelet128(inverseDIT16Complex128),
+		Forward:    wrapCore128(forwardDIT16Radix2Complex128),
+		Inverse:    wrapCore128(inverseDIT16Radix2Complex128),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix2_generic",
 		Priority:   10,
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		BitrevFunc: nil,
+		KernelType: KernelTypeDIT, // Self-contained
 	})
 
 	// Size 16: Radix-4 variant (12-15% faster per benchmarks)
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16,
-		Forward:    wrapCodelet128(forwardDIT16Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT16Radix4Complex128),
+		Forward:    wrapCore128(forwardDIT16Radix4Complex128),
+		Inverse:    wrapCore128(inverseDIT16Radix4Complex128),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix4_generic",
 		Priority:   20, // Higher priority (empirically faster)
-		BitrevFunc: mathpkg.ComputeBitReversalIndicesRadix4,
+		BitrevFunc: nil,
+		KernelType: KernelTypeDIT, // Self-contained
 	})
 
 	// Size 32: Radix-2 only
@@ -582,6 +586,12 @@ type KernelFunc64 func(dst, src, twiddle, scratch []complex64, bitrev []int) boo
 // KernelFunc128 is the signature of existing complex128 kernels that return bool.
 type KernelFunc128 func(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
+// CoreKernelFunc64 is the signature of refactored complex64 kernels without bitrev.
+type CoreKernelFunc64 func(dst, src, twiddle, scratch []complex64) bool
+
+// CoreKernelFunc128 is the signature of refactored complex128 kernels without bitrev.
+type CoreKernelFunc128 func(dst, src, twiddle, scratch []complex128) bool
+
 // wrapCodelet64 adapts a bool-returning kernel to the CodeletFunc signature.
 // The bool return is ignored because codelets trust their inputs are pre-validated.
 func wrapCodelet64(fn KernelFunc64) CodeletFunc[complex64] {
@@ -595,5 +605,19 @@ func wrapCodelet64(fn KernelFunc64) CodeletFunc[complex64] {
 func wrapCodelet128(fn KernelFunc128) CodeletFunc[complex128] {
 	return func(dst, src, twiddle, scratch []complex128, bitrev []int) {
 		fn(dst, src, twiddle, scratch, bitrev)
+	}
+}
+
+// wrapCore64 adapts a 4-parameter kernel to the legacy 5-parameter CodeletFunc signature.
+func wrapCore64(fn CoreKernelFunc64) CodeletFunc[complex64] {
+	return func(dst, src, twiddle, scratch []complex64, _ []int) {
+		fn(dst, src, twiddle, scratch)
+	}
+}
+
+// wrapCore128 adapts a 4-parameter kernel to the legacy 5-parameter CodeletFunc signature.
+func wrapCore128(fn CoreKernelFunc128) CodeletFunc[complex128] {
+	return func(dst, src, twiddle, scratch []complex128, _ []int) {
+		fn(dst, src, twiddle, scratch)
 	}
 }
