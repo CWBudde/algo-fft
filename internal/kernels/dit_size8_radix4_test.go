@@ -12,6 +12,7 @@ func TestForwardDIT8Radix4Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 8
+
 	src := randomComplex64(n, 0xABCDEF)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -31,6 +32,7 @@ func TestInverseDIT8Radix4Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 8
+
 	src := randomComplex64(n, 0xFEDCBA)
 	fwd := make([]complex64, n)
 	dst := make([]complex64, n)
@@ -55,6 +57,7 @@ func TestForwardDIT8Radix4Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 8
+
 	src := randomComplex128(n, 0x1234)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -74,6 +77,7 @@ func TestInverseDIT8Radix4Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 8
+
 	src := randomComplex128(n, 0x4321)
 	fwd := make([]complex128, n)
 	dst := make([]complex128, n)
