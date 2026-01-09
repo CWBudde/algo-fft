@@ -111,6 +111,8 @@ GLOBL const_signmask_full<>(SB), RODATA|NOPTR, $32
 //   4224-4351: FFT-16 workspace for odd elements (16 complex64 = 128 bytes)
 //   4352-4479: FFT-16 result E (16 complex64 = 128 bytes)
 //   4480-4607: FFT-16 result O (16 complex64 = 128 bytes)
+//   4608-4799: FFT-16 even spill (v0-v11, two-pass)
+//   4800-4991: FFT-16 odd spill (v0-v11, two-pass)
 //
 // Register allocation:
 //   R8  = dst pointer
@@ -204,7 +206,7 @@ fwd_stage1_col_loop:
 	VMOVSD 2304(SI), X9        // v9 = e[9]
 	VMOVSD 1280(SI), X10       // v10 = e[5]
 	VMOVSD 3328(SI), X11       // v11 = e[13]
-	// v12-v15 to stack (we'll load when needed)
+	// v12-v15 to stack (load into X12-X15 before stage 1)
 	VMOVSD 768(SI), X12        // v12 = e[3]
 	VMOVSD X12, 4192(R14)
 	VMOVSD 2816(SI), X12       // v13 = e[11]
@@ -252,208 +254,172 @@ fwd_stage1_col_loop:
 	VMOVSD X12, 4344(R14)
 
 	// ===== FFT-16 on even elements =====
-	// X0-X11 already contain v0-v11, v12-v15 at 4192, 4200, 4208, 4216
-
-	// ----- FFT-16 Stage 1: 8 radix-2 butterflies -----
-	// (v0,v1), (v2,v3), (v4,v5), (v6,v7), (v8,v9), (v10,v11), (v12,v13), (v14,v15)
-
-	VADDPS X1, X0, X12         // t = v0 + v1
-	VSUBPS X1, X0, X1          // v1 = v0 - v1
-	VMOVAPS X12, X0            // v0 = t
-
-	VADDPS X3, X2, X12
-	VSUBPS X3, X2, X3
-	VMOVAPS X12, X2
-
-	VADDPS X5, X4, X12
-	VSUBPS X5, X4, X5
-	VMOVAPS X12, X4
-
-	VADDPS X7, X6, X12
-	VSUBPS X7, X6, X7
-	VMOVAPS X12, X6
-
-	VADDPS X9, X8, X12
-	VSUBPS X9, X8, X9
-	VMOVAPS X12, X8
-
-	VADDPS X11, X10, X12
-	VSUBPS X11, X10, X11
-	VMOVAPS X12, X10
-
-	// v12, v13 butterfly (from memory)
+	// X0-X11 already contain v0-v11, load v12-v15 into X12-X15
 	VMOVSD 4192(R14), X12      // v12
 	VMOVSD 4200(R14), X13      // v13
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4192(R14)      // new v12
-	VMOVSD X13, 4200(R14)      // new v13
+	VMOVSD 4208(R14), X14      // v14
+	VMOVSD 4216(R14), X15      // v15
 
-	// v14, v15 butterfly (from memory)
-	VMOVSD 4208(R14), X12      // v14
-	VMOVSD 4216(R14), X13      // v15
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4208(R14)      // new v14
-	VMOVSD X13, 4216(R14)      // new v15
+	// ----- FFT-16 Stage 1/2/3 (two-pass: v8-v15, then v0-v7) -----
+	// Spill v0-v7 to free registers for v8-v15.
+	VMOVUPS X0, 4608(R14)      // spill v0 (re/im)
+	VMOVUPS X1, 4624(R14)      // spill v1 (re/im)
+	VMOVUPS X2, 4640(R14)      // spill v2 (re/im)
+	VMOVUPS X3, 4656(R14)      // spill v3 (re/im)
+	VMOVUPS X4, 4672(R14)      // spill v4 (re/im)
+	VMOVUPS X5, 4688(R14)      // spill v5 (re/im)
+	VMOVUPS X6, 4704(R14)      // spill v6 (re/im)
+	VMOVUPS X7, 4720(R14)      // spill v7 (re/im)
 
-	// ----- FFT-16 Stage 2: radix-4 with -i rotation -----
-	// Apply -i to v3, v7, v11, v15 (swap re/im, negate new imag)
-	// -i * (a+bi) = (b - ai) = (b, -a)
+	// Stage 1 (v8-v15).
+	VADDPS X9, X8, X0          // t = v8 + v9
+	VSUBPS X9, X8, X9          // v9 = v8 - v9
+	VMOVAPS X0, X8             // v8 = t
+	VADDPS X11, X10, X0        // t = v10 + v11
+	VSUBPS X11, X10, X11       // v11 = v10 - v11
+	VMOVAPS X0, X10            // v10 = t
+	VADDPS X13, X12, X0        // t = v12 + v13
+	VSUBPS X13, X12, X13       // v13 = v12 - v13
+	VMOVAPS X0, X12            // v12 = t
+	VADDPS X15, X14, X0        // t = v14 + v15
+	VSUBPS X15, X14, X15       // v15 = v14 - v15
+	VMOVAPS X0, X14            // v14 = t
 
-	// Load sign mask for -i rotation
-	VMOVUPS const_signmask_imag<>(SB), X15
+	// Stage 2 (v8-v15).
+	VMOVUPS const_signmask_imag<>(SB), X7 // -i signmask
+	VADDPS X10, X8, X0         // t = v8 + v10
+	VSUBPS X10, X8, X10        // v10 = v8 - v10
+	VMOVAPS X0, X8             // v8 = t
+	VSHUFPS $0xB1, X11, X11, X0 // shuffle v11
+	VXORPS X7, X0, X0          // -i * v11
+	VADDPS X0, X9, X1          // t = v9 + (-i*v11)
+	VSUBPS X0, X9, X11         // v11 = v9 - (-i*v11)
+	VMOVAPS X1, X9             // v9 = t
+	VADDPS X14, X12, X0        // t = v12 + v14
+	VSUBPS X14, X12, X14       // v14 = v12 - v14
+	VMOVAPS X0, X12            // v12 = t
+	VSHUFPS $0xB1, X15, X15, X0 // shuffle v15
+	VXORPS X7, X0, X0          // -i * v15
+	VADDPS X0, X13, X1         // t = v13 + (-i*v15)
+	VSUBPS X0, X13, X15        // v15 = v13 - (-i*v15)
+	VMOVAPS X1, X13            // v13 = t
 
-	// v0, v2 butterfly (no twiddle)
-	VADDPS X2, X0, X12
-	VSUBPS X2, X0, X2
-	VMOVAPS X12, X0
+	// Stage 3 (v8-v15).
+	VBROADCASTSS const_isq2<>(SB), X7 // isq2
+	VMOVUPS const_signmask_imag<>(SB), X6 // -i signmask
+	VADDPS X12, X8, X0         // t = v8 + v12
+	VSUBPS X12, X8, X12        // v12 = v8 - v12
+	VMOVAPS X0, X8             // v8 = t
+	VSHUFPS $0xB1, X13, X13, X0 // (im, re)
+	VADDPS X13, X0, X1         // (re+im, im+re)
+	VSUBPS X13, X0, X0         // (im-re, re-im)
+	VUNPCKLPS X0, X1, X0       // (re+im, im-re)
+	VMULPS X7, X0, X0          // isq2*(re+im, im-re)
+	VADDPS X0, X9, X1          // t = v9 + tw
+	VSUBPS X0, X9, X13         // v13 = v9 - tw
+	VMOVAPS X1, X9             // v9 = t
+	VSHUFPS $0xB1, X14, X14, X0 // (im, re)
+	VXORPS X6, X0, X0          // -i * v14
+	VADDPS X0, X10, X1         // t = v10 + (-i*v14)
+	VSUBPS X0, X10, X14        // v14 = v10 - (-i*v14)
+	VMOVAPS X1, X10            // v10 = t
+	VSHUFPS $0xB1, X15, X15, X0 // (im, re)
+	VSUBPS X15, X0, X1         // (im-re, re-im)
+	VADDPS X15, X0, X0         // (im+re, re+im)
+	VUNPCKLPS X0, X1, X0       // (im-re, im+re)
+	VMULPS X7, X0, X0          // isq2*(im-re, im+re)
+	VXORPS X6, X0, X0          // (isq2*(im-re), -isq2*(im+re))
+	VADDPS X0, X11, X1         // t = v11 + tw
+	VSUBPS X0, X11, X15        // v15 = v11 - tw
+	VMOVAPS X1, X11            // v11 = t
 
-	// v1, v3 with -i*v3
-	VSHUFPS $0xB1, X3, X3, X12 // swap re/im: (im, re)
-	VXORPS X15, X12, X12       // negate im: (im, -re) = -i * v3
-	VADDPS X12, X1, X13        // v1 + (-i)*v3
-	VSUBPS X12, X1, X3         // v1 - (-i)*v3 -> new v3
-	VMOVAPS X13, X1            // new v1
+	// Spill v8-v11 and restore v0-v7.
+	VMOVUPS X8, 4736(R14)      // spill v8 (re/im)
+	VMOVUPS X9, 4752(R14)      // spill v9 (re/im)
+	VMOVUPS X10, 4768(R14)     // spill v10 (re/im)
+	VMOVUPS X11, 4784(R14)     // spill v11 (re/im)
 
-	// v4, v6 butterfly
-	VADDPS X6, X4, X12
-	VSUBPS X6, X4, X6
-	VMOVAPS X12, X4
+	VMOVUPS 4608(R14), X0      // restore v0
+	VMOVUPS 4624(R14), X1      // restore v1
+	VMOVUPS 4640(R14), X2      // restore v2
+	VMOVUPS 4656(R14), X3      // restore v3
+	VMOVUPS 4672(R14), X4      // restore v4
+	VMOVUPS 4688(R14), X5      // restore v5
+	VMOVUPS 4704(R14), X6      // restore v6
+	VMOVUPS 4720(R14), X7      // restore v7
 
-	// v5, v7 with -i*v7
-	VSHUFPS $0xB1, X7, X7, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X5, X13
-	VSUBPS X12, X5, X7
-	VMOVAPS X13, X5
+	// Stage 1 (v0-v7).
+	VADDPS X1, X0, X8          // t = v0 + v1
+	VSUBPS X1, X0, X1          // v1 = v0 - v1
+	VMOVAPS X8, X0             // v0 = t
+	VADDPS X3, X2, X8          // t = v2 + v3
+	VSUBPS X3, X2, X3          // v3 = v2 - v3
+	VMOVAPS X8, X2             // v2 = t
+	VADDPS X5, X4, X8          // t = v4 + v5
+	VSUBPS X5, X4, X5          // v5 = v4 - v5
+	VMOVAPS X8, X4             // v4 = t
+	VADDPS X7, X6, X8          // t = v6 + v7
+	VSUBPS X7, X6, X7          // v7 = v6 - v7
+	VMOVAPS X8, X6             // v6 = t
 
-	// v8, v10 butterfly
-	VADDPS X10, X8, X12
-	VSUBPS X10, X8, X10
-	VMOVAPS X12, X8
+	// Stage 2 (v0-v7).
+	VMOVUPS const_signmask_imag<>(SB), X11 // -i signmask
+	VADDPS X2, X0, X8          // t = v0 + v2
+	VSUBPS X2, X0, X2          // v2 = v0 - v2
+	VMOVAPS X8, X0             // v0 = t
+	VSHUFPS $0xB1, X3, X3, X8  // shuffle v3
+	VXORPS X11, X8, X8         // -i * v3
+	VADDPS X8, X1, X9          // t = v1 + (-i*v3)
+	VSUBPS X8, X1, X3          // v3 = v1 - (-i*v3)
+	VMOVAPS X9, X1             // v1 = t
+	VADDPS X6, X4, X8          // t = v4 + v6
+	VSUBPS X6, X4, X6          // v6 = v4 - v6
+	VMOVAPS X8, X4             // v4 = t
+	VSHUFPS $0xB1, X7, X7, X8  // shuffle v7
+	VXORPS X11, X8, X8         // -i * v7
+	VADDPS X8, X5, X9          // t = v5 + (-i*v7)
+	VSUBPS X8, X5, X7          // v7 = v5 - (-i*v7)
+	VMOVAPS X9, X5             // v5 = t
 
-	// v9, v11 with -i*v11
-	VSHUFPS $0xB1, X11, X11, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X9, X13
-	VSUBPS X12, X9, X11
-	VMOVAPS X13, X9
+	// Stage 3 (v0-v7).
+	VBROADCASTSS const_isq2<>(SB), X11 // isq2
+	VMOVUPS const_signmask_imag<>(SB), X10 // -i signmask
+	VADDPS X4, X0, X8          // t = v0 + v4
+	VSUBPS X4, X0, X4          // v4 = v0 - v4
+	VMOVAPS X8, X0             // v0 = t
+	VSHUFPS $0xB1, X5, X5, X8  // (im, re)
+	VADDPS X5, X8, X9          // (re+im, im+re)
+	VSUBPS X5, X8, X8          // (im-re, re-im)
+	VUNPCKLPS X8, X9, X8       // (re+im, im-re)
+	VMULPS X11, X8, X8         // isq2*(re+im, im-re)
+	VADDPS X8, X1, X9          // t = v1 + tw
+	VSUBPS X8, X1, X5          // v5 = v1 - tw
+	VMOVAPS X9, X1             // v1 = t
+	VSHUFPS $0xB1, X6, X6, X8  // (im, re)
+	VXORPS X10, X8, X8         // -i * v6
+	VADDPS X8, X2, X9          // t = v2 + (-i*v6)
+	VSUBPS X8, X2, X6          // v6 = v2 - (-i*v6)
+	VMOVAPS X9, X2             // v2 = t
+	VSHUFPS $0xB1, X7, X7, X8  // (im, re)
+	VSUBPS X7, X8, X9          // (im-re, re-im)
+	VADDPS X7, X8, X8          // (im+re, re+im)
+	VUNPCKLPS X8, X9, X8       // (im-re, im+re)
+	VMULPS X11, X8, X8         // isq2*(im-re, im+re)
+	VXORPS X10, X8, X8         // (isq2*(im-re), -isq2*(im+re))
+	VADDPS X8, X3, X9          // t = v3 + tw
+	VSUBPS X8, X3, X7          // v7 = v3 - tw
+	VMOVAPS X9, X3             // v3 = t
 
-	// v12, v14 butterfly (from memory)
-	VMOVSD 4192(R14), X12      // v12
-	VMOVSD 4208(R14), X13      // v14
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4192(R14)      // new v12
-	VMOVSD X13, 4208(R14)      // new v14
+	// Restore v8-v11 and store v12-v15 for stage 4.
+	VMOVUPS 4736(R14), X8      // restore v8
+	VMOVUPS 4752(R14), X9      // restore v9
+	VMOVUPS 4768(R14), X10     // restore v10
+	VMOVUPS 4784(R14), X11     // restore v11
 
-	// v13, v15 with -i*v15 (from memory)
-	VMOVSD 4200(R14), X12      // v13
-	VMOVSD 4216(R14), X13      // v15
-	VSHUFPS $0xB1, X13, X13, X14
-	VXORPS X15, X14, X14       // -i * v15
-	VADDPS X14, X12, X13       // v13 + (-i)*v15
-	VSUBPS X14, X12, X12       // v13 - (-i)*v15 -> new v15
-	VMOVSD X13, 4200(R14)      // new v13
-	VMOVSD X12, 4216(R14)      // new v15
-
-	// ----- FFT-16 Stage 3: W_8 twiddles -----
-	// W_8^0 = 1, W_8^1 = isq2*(1-i), W_8^2 = -i, W_8^3 = isq2*(-1-i)
-	// Pairs: (v0,v4), (v1,v5), (v2,v6), (v3,v7)
-	//        (v8,v12), (v9,v13), (v10,v14), (v11,v15)
-
-	// Load isq2 constant
-	VBROADCASTSS const_isq2<>(SB), X15
-
-	// v0, v4: W_8^0 = 1 (no twiddle)
-	VADDPS X4, X0, X12
-	VSUBPS X4, X0, X4
-	VMOVAPS X12, X0
-
-	// v1, v5: W_8^1 = isq2*(1-i)
-	// (a+bi) * isq2*(1-i) = isq2*((a+b) + (b-a)i)
-	// t3.re = isq2*(re + im), t3.im = isq2*(im - re)
-	VSHUFPS $0xB1, X5, X5, X12 // X12 = (im, re)
-	VADDPS X5, X12, X13        // X13 = (re+im, im+re)
-	VSUBPS X5, X12, X12        // X12 = (im-re, re-im)
-	// We need (re+im, im-re). Use VUNPCKLPS to interleave low floats.
-	// X13[0] = re+im, X12[0] = im-re
-	// VUNPCKLPS X12, X13, result -> (X13[0], X12[0], X13[1], X12[1]) = (re+im, im-re, ...)
-	VUNPCKLPS X12, X13, X12    // X12 = (re+im, im-re, im+re, re-im)
-	VMULPS X15, X12, X12       // X12 = isq2 * (re+im, im-re, ...)
-	VADDPS X12, X1, X13
-	VSUBPS X12, X1, X5
-	VMOVAPS X13, X1
-
-	// v2, v6: W_8^2 = -i
-	VSHUFPS $0xB1, X6, X6, X12
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X12, X12
-	VADDPS X12, X2, X13
-	VSUBPS X12, X2, X6
-	VMOVAPS X13, X2
-
-	// v3, v7: W_8^3 = isq2*(-1-i)
-	// (a+bi) * isq2*(-1-i) = isq2*((b-a) + (-(a+b))i)
-	// t3.re = isq2*(im - re), t3.im = -isq2*(re + im) = -isq2*(im + re)
-	VSHUFPS $0xB1, X7, X7, X12 // X12 = (im, re)
-	VSUBPS X7, X12, X13        // X13 = (im-re, re-im), X13[0] = im-re ✓
-	VADDPS X7, X12, X12        // X12 = (im+re, re+im), X12[0] = im+re
-	// We need (im-re, -(im+re)). Use VUNPCKLPS then negate the im part.
-	VUNPCKLPS X12, X13, X12    // X12 = (im-re, im+re, ...)
-	VMULPS X15, X12, X12       // X12 = isq2*(im-re, im+re, ...)
-	// Negate just the imaginary component (position 1)
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X12, X12       // X12 = (isq2*(im-re), -isq2*(im+re), ...)
-	VADDPS X12, X3, X13
-	VSUBPS X12, X3, X7
-	VMOVAPS X13, X3
-
-	// v8, v12: W_8^0 = 1 (from memory for v12)
-	VMOVSD 4192(R14), X12      // v12
-	VADDPS X12, X8, X13
-	VSUBPS X12, X8, X12
-	VMOVAPS X13, X8
-	VMOVSD X12, 4192(R14)      // new v12
-
-	// v9, v13: W_8^1 = isq2*(1-i) (v13 from memory)
-	// t3.re = isq2*(re + im), t3.im = isq2*(im - re)
-	VMOVSD 4200(R14), X12      // v13 = (re, im)
-	VSHUFPS $0xB1, X12, X12, X13 // X13 = (im, re)
-	VADDPS X12, X13, X14       // X14 = (re+im, im+re)
-	VSUBPS X12, X13, X13       // X13 = (im-re, re-im)
-	VUNPCKLPS X13, X14, X13    // X13 = (re+im, im-re, ...)
-	VMULPS X15, X13, X13       // X13 = isq2 * (re+im, im-re, ...)
-	VADDPS X13, X9, X14
-	VSUBPS X13, X9, X13
-	VMOVAPS X14, X9
-	VMOVSD X13, 4200(R14)      // new v13
-
-	// v10, v14: W_8^2 = -i (v14 from memory)
-	VMOVSD 4208(R14), X12      // v14
-	VSHUFPS $0xB1, X12, X12, X13
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X13, X13
-	VADDPS X13, X10, X14
-	VSUBPS X13, X10, X13
-	VMOVAPS X14, X10
-	VMOVSD X13, 4208(R14)      // new v14
-
-	// v11, v15: W_8^3 = isq2*(-1-i) (v15 from memory)
-	// t3.re = isq2*(im - re), t3.im = -isq2*(im + re)
-	VMOVSD 4216(R14), X12      // v15 = (re, im)
-	VSHUFPS $0xB1, X12, X12, X13 // X13 = (im, re)
-	VSUBPS X12, X13, X14       // X14 = (im-re, re-im), X14[0] = im-re ✓
-	VADDPS X12, X13, X13       // X13 = (im+re, re+im), X13[0] = im+re
-	VUNPCKLPS X13, X14, X13    // X13 = (im-re, im+re, ...)
-	VMULPS X15, X13, X13       // X13 = isq2*(im-re, im+re, ...)
-	VMOVUPS const_signmask_imag<>(SB), X12
-	VXORPS X12, X13, X13       // X13 = (isq2*(im-re), -isq2*(im+re), ...)
-	VADDPS X13, X11, X14
-	VSUBPS X13, X11, X13
-	VMOVAPS X14, X11
-	VMOVSD X13, 4216(R14)      // new v15
+	VMOVSD X12, 4192(R14)      // v12 for stage 4
+	VMOVSD X13, 4200(R14)      // v13 for stage 4
+	VMOVSD X14, 4208(R14)      // v14 for stage 4
+	VMOVSD X15, 4216(R14)      // v15 for stage 4
 
 	// ----- FFT-16 Stage 4: W_16 twiddles -----
 	// Pairs: (v0,v8), (v1,v9), (v2,v10), (v3,v11), (v4,v12), (v5,v13), (v6,v14), (v7,v15)
@@ -646,7 +612,7 @@ fwd_stage1_col_loop:
 
 	// ===== FFT-16 on odd elements =====
 	// Odd elements already loaded to stack at 4224(R14) in bit-reversed order
-	// Load v0-v11 into X0-X11, v12-v15 stay at 4320, 4328, 4336, 4344
+	// Load v0-v11 into X0-X11; v12-v15 remain in stack until stage 1
 	VMOVSD 4224(R14), X0       // v0
 	VMOVSD 4232(R14), X1       // v1
 	VMOVSD 4240(R14), X2       // v2
@@ -661,177 +627,172 @@ fwd_stage1_col_loop:
 	VMOVSD 4312(R14), X11      // v11
 	// v12-v15 stay at 4320, 4328, 4336, 4344
 
-	// ----- FFT-16 Stage 1: 8 radix-2 butterflies -----
-	VADDPS X1, X0, X12
-	VSUBPS X1, X0, X1
-	VMOVAPS X12, X0
+	// Load v12-v15 into X12-X15 for the first pass.
+	VMOVSD 4320(R14), X12      // v12
+	VMOVSD 4328(R14), X13      // v13
+	VMOVSD 4336(R14), X14      // v14
+	VMOVSD 4344(R14), X15      // v15
 
-	VADDPS X3, X2, X12
-	VSUBPS X3, X2, X3
-	VMOVAPS X12, X2
+	// ----- FFT-16 Stage 1/2/3 (two-pass: v8-v15, then v0-v7) -----
+	// Spill v0-v7 to free registers for v8-v15.
+	VMOVUPS X0, 4800(R14)      // spill v0 (re/im)
+	VMOVUPS X1, 4816(R14)      // spill v1 (re/im)
+	VMOVUPS X2, 4832(R14)      // spill v2 (re/im)
+	VMOVUPS X3, 4848(R14)      // spill v3 (re/im)
+	VMOVUPS X4, 4864(R14)      // spill v4 (re/im)
+	VMOVUPS X5, 4880(R14)      // spill v5 (re/im)
+	VMOVUPS X6, 4896(R14)      // spill v6 (re/im)
+	VMOVUPS X7, 4912(R14)      // spill v7 (re/im)
 
-	VADDPS X5, X4, X12
-	VSUBPS X5, X4, X5
-	VMOVAPS X12, X4
+	// Stage 1 (v8-v15).
+	VADDPS X9, X8, X0          // t = v8 + v9
+	VSUBPS X9, X8, X9          // v9 = v8 - v9
+	VMOVAPS X0, X8             // v8 = t
+	VADDPS X11, X10, X0        // t = v10 + v11
+	VSUBPS X11, X10, X11       // v11 = v10 - v11
+	VMOVAPS X0, X10            // v10 = t
+	VADDPS X13, X12, X0        // t = v12 + v13
+	VSUBPS X13, X12, X13       // v13 = v12 - v13
+	VMOVAPS X0, X12            // v12 = t
+	VADDPS X15, X14, X0        // t = v14 + v15
+	VSUBPS X15, X14, X15       // v15 = v14 - v15
+	VMOVAPS X0, X14            // v14 = t
 
-	VADDPS X7, X6, X12
-	VSUBPS X7, X6, X7
-	VMOVAPS X12, X6
+	// Stage 2 (v8-v15).
+	VMOVUPS const_signmask_imag<>(SB), X7 // -i signmask
+	VADDPS X10, X8, X0         // t = v8 + v10
+	VSUBPS X10, X8, X10        // v10 = v8 - v10
+	VMOVAPS X0, X8             // v8 = t
+	VSHUFPS $0xB1, X11, X11, X0 // shuffle v11
+	VXORPS X7, X0, X0          // -i * v11
+	VADDPS X0, X9, X1          // t = v9 + (-i*v11)
+	VSUBPS X0, X9, X11         // v11 = v9 - (-i*v11)
+	VMOVAPS X1, X9             // v9 = t
+	VADDPS X14, X12, X0        // t = v12 + v14
+	VSUBPS X14, X12, X14       // v14 = v12 - v14
+	VMOVAPS X0, X12            // v12 = t
+	VSHUFPS $0xB1, X15, X15, X0 // shuffle v15
+	VXORPS X7, X0, X0          // -i * v15
+	VADDPS X0, X13, X1         // t = v13 + (-i*v15)
+	VSUBPS X0, X13, X15        // v15 = v13 - (-i*v15)
+	VMOVAPS X1, X13            // v13 = t
 
-	VADDPS X9, X8, X12
-	VSUBPS X9, X8, X9
-	VMOVAPS X12, X8
+	// Stage 3 (v8-v15).
+	VBROADCASTSS const_isq2<>(SB), X7 // isq2
+	VMOVUPS const_signmask_imag<>(SB), X6 // -i signmask
+	VADDPS X12, X8, X0         // t = v8 + v12
+	VSUBPS X12, X8, X12        // v12 = v8 - v12
+	VMOVAPS X0, X8             // v8 = t
+	VSHUFPS $0xB1, X13, X13, X0 // (im, re)
+	VADDPS X13, X0, X1         // (re+im, im+re)
+	VSUBPS X13, X0, X0         // (im-re, re-im)
+	VUNPCKLPS X0, X1, X0       // (re+im, im-re)
+	VMULPS X7, X0, X0          // isq2*(re+im, im-re)
+	VADDPS X0, X9, X1          // t = v9 + tw
+	VSUBPS X0, X9, X13         // v13 = v9 - tw
+	VMOVAPS X1, X9             // v9 = t
+	VSHUFPS $0xB1, X14, X14, X0 // (im, re)
+	VXORPS X6, X0, X0          // -i * v14
+	VADDPS X0, X10, X1         // t = v10 + (-i*v14)
+	VSUBPS X0, X10, X14        // v14 = v10 - (-i*v14)
+	VMOVAPS X1, X10            // v10 = t
+	VSHUFPS $0xB1, X15, X15, X0 // (im, re)
+	VSUBPS X15, X0, X1         // (im-re, re-im)
+	VADDPS X15, X0, X0         // (im+re, re+im)
+	VUNPCKLPS X0, X1, X0       // (im-re, im+re)
+	VMULPS X7, X0, X0          // isq2*(im-re, im+re)
+	VXORPS X6, X0, X0          // (isq2*(im-re), -isq2*(im+re))
+	VADDPS X0, X11, X1         // t = v11 + tw
+	VSUBPS X0, X11, X15        // v15 = v11 - tw
+	VMOVAPS X1, X11            // v11 = t
 
-	VADDPS X11, X10, X12
-	VSUBPS X11, X10, X11
-	VMOVAPS X12, X10
+	// Spill v8-v11 and restore v0-v7.
+	VMOVUPS X8, 4928(R14)      // spill v8 (re/im)
+	VMOVUPS X9, 4944(R14)      // spill v9 (re/im)
+	VMOVUPS X10, 4960(R14)     // spill v10 (re/im)
+	VMOVUPS X11, 4976(R14)     // spill v11 (re/im)
 
-	VMOVSD 4320(R14), X12
-	VMOVSD 4328(R14), X13
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4320(R14)
-	VMOVSD X13, 4328(R14)
+	VMOVUPS 4800(R14), X0      // restore v0
+	VMOVUPS 4816(R14), X1      // restore v1
+	VMOVUPS 4832(R14), X2      // restore v2
+	VMOVUPS 4848(R14), X3      // restore v3
+	VMOVUPS 4864(R14), X4      // restore v4
+	VMOVUPS 4880(R14), X5      // restore v5
+	VMOVUPS 4896(R14), X6      // restore v6
+	VMOVUPS 4912(R14), X7      // restore v7
 
-	VMOVSD 4336(R14), X12
-	VMOVSD 4344(R14), X13
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4336(R14)
-	VMOVSD X13, 4344(R14)
+	// Stage 1 (v0-v7).
+	VADDPS X1, X0, X8          // t = v0 + v1
+	VSUBPS X1, X0, X1          // v1 = v0 - v1
+	VMOVAPS X8, X0             // v0 = t
+	VADDPS X3, X2, X8          // t = v2 + v3
+	VSUBPS X3, X2, X3          // v3 = v2 - v3
+	VMOVAPS X8, X2             // v2 = t
+	VADDPS X5, X4, X8          // t = v4 + v5
+	VSUBPS X5, X4, X5          // v5 = v4 - v5
+	VMOVAPS X8, X4             // v4 = t
+	VADDPS X7, X6, X8          // t = v6 + v7
+	VSUBPS X7, X6, X7          // v7 = v6 - v7
+	VMOVAPS X8, X6             // v6 = t
 
-	// ----- FFT-16 Stage 2: radix-4 with -i rotation -----
-	VMOVUPS const_signmask_imag<>(SB), X15
+	// Stage 2 (v0-v7).
+	VMOVUPS const_signmask_imag<>(SB), X11 // -i signmask
+	VADDPS X2, X0, X8          // t = v0 + v2
+	VSUBPS X2, X0, X2          // v2 = v0 - v2
+	VMOVAPS X8, X0             // v0 = t
+	VSHUFPS $0xB1, X3, X3, X8  // shuffle v3
+	VXORPS X11, X8, X8         // -i * v3
+	VADDPS X8, X1, X9          // t = v1 + (-i*v3)
+	VSUBPS X8, X1, X3          // v3 = v1 - (-i*v3)
+	VMOVAPS X9, X1             // v1 = t
+	VADDPS X6, X4, X8          // t = v4 + v6
+	VSUBPS X6, X4, X6          // v6 = v4 - v6
+	VMOVAPS X8, X4             // v4 = t
+	VSHUFPS $0xB1, X7, X7, X8  // shuffle v7
+	VXORPS X11, X8, X8         // -i * v7
+	VADDPS X8, X5, X9          // t = v5 + (-i*v7)
+	VSUBPS X8, X5, X7          // v7 = v5 - (-i*v7)
+	VMOVAPS X9, X5             // v5 = t
 
-	VADDPS X2, X0, X12
-	VSUBPS X2, X0, X2
-	VMOVAPS X12, X0
+	// Stage 3 (v0-v7).
+	VBROADCASTSS const_isq2<>(SB), X11 // isq2
+	VMOVUPS const_signmask_imag<>(SB), X10 // -i signmask
+	VADDPS X4, X0, X8          // t = v0 + v4
+	VSUBPS X4, X0, X4          // v4 = v0 - v4
+	VMOVAPS X8, X0             // v0 = t
+	VSHUFPS $0xB1, X5, X5, X8  // (im, re)
+	VADDPS X5, X8, X9          // (re+im, im+re)
+	VSUBPS X5, X8, X8          // (im-re, re-im)
+	VUNPCKLPS X8, X9, X8       // (re+im, im-re)
+	VMULPS X11, X8, X8         // isq2*(re+im, im-re)
+	VADDPS X8, X1, X9          // t = v1 + tw
+	VSUBPS X8, X1, X5          // v5 = v1 - tw
+	VMOVAPS X9, X1             // v1 = t
+	VSHUFPS $0xB1, X6, X6, X8  // (im, re)
+	VXORPS X10, X8, X8         // -i * v6
+	VADDPS X8, X2, X9          // t = v2 + (-i*v6)
+	VSUBPS X8, X2, X6          // v6 = v2 - (-i*v6)
+	VMOVAPS X9, X2             // v2 = t
+	VSHUFPS $0xB1, X7, X7, X8  // (im, re)
+	VSUBPS X7, X8, X9          // (im-re, re-im)
+	VADDPS X7, X8, X8          // (im+re, re+im)
+	VUNPCKLPS X8, X9, X8       // (im-re, im+re)
+	VMULPS X11, X8, X8         // isq2*(im-re, im+re)
+	VXORPS X10, X8, X8         // (isq2*(im-re), -isq2*(im+re))
+	VADDPS X8, X3, X9          // t = v3 + tw
+	VSUBPS X8, X3, X7          // v7 = v3 - tw
+	VMOVAPS X9, X3             // v3 = t
 
-	VSHUFPS $0xB1, X3, X3, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X1, X13
-	VSUBPS X12, X1, X3
-	VMOVAPS X13, X1
+	// Restore v8-v11 and store v12-v15 for stage 4.
+	VMOVUPS 4928(R14), X8      // restore v8
+	VMOVUPS 4944(R14), X9      // restore v9
+	VMOVUPS 4960(R14), X10     // restore v10
+	VMOVUPS 4976(R14), X11     // restore v11
 
-	VADDPS X6, X4, X12
-	VSUBPS X6, X4, X6
-	VMOVAPS X12, X4
-
-	VSHUFPS $0xB1, X7, X7, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X5, X13
-	VSUBPS X12, X5, X7
-	VMOVAPS X13, X5
-
-	VADDPS X10, X8, X12
-	VSUBPS X10, X8, X10
-	VMOVAPS X12, X8
-
-	VSHUFPS $0xB1, X11, X11, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X9, X13
-	VSUBPS X12, X9, X11
-	VMOVAPS X13, X9
-
-	VMOVSD 4320(R14), X12
-	VMOVSD 4336(R14), X13
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4320(R14)
-	VMOVSD X13, 4336(R14)
-
-	VMOVSD 4328(R14), X12
-	VMOVSD 4344(R14), X13
-	VSHUFPS $0xB1, X13, X13, X14
-	VXORPS X15, X14, X14
-	VADDPS X14, X12, X13
-	VSUBPS X14, X12, X12
-	VMOVSD X13, 4328(R14)
-	VMOVSD X12, 4344(R14)
-
-	// ----- FFT-16 Stage 3: W_8 twiddles -----
-	VBROADCASTSS const_isq2<>(SB), X15
-
-	VADDPS X4, X0, X12
-	VSUBPS X4, X0, X4
-	VMOVAPS X12, X0
-
-	// v1, v5: W_8^1 = isq2*(1-i)
-	// t3.re = isq2*(re + im), t3.im = isq2*(im - re)
-	VSHUFPS $0xB1, X5, X5, X12 // X12 = (im, re)
-	VADDPS X5, X12, X13        // X13 = (re+im, im+re)
-	VSUBPS X5, X12, X12        // X12 = (im-re, re-im)
-	VUNPCKLPS X12, X13, X12    // X12 = (re+im, im-re, ...)
-	VMULPS X15, X12, X12       // X12 = isq2 * (re+im, im-re, ...)
-	VADDPS X12, X1, X13
-	VSUBPS X12, X1, X5
-	VMOVAPS X13, X1
-
-	// v2, v6: W_8^2 = -i
-	VSHUFPS $0xB1, X6, X6, X12
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X12, X12
-	VADDPS X12, X2, X13
-	VSUBPS X12, X2, X6
-	VMOVAPS X13, X2
-
-	// v3, v7: W_8^3 = isq2*(-1-i)
-	// t3.re = isq2*(im - re), t3.im = -isq2*(im + re)
-	VSHUFPS $0xB1, X7, X7, X12 // X12 = (im, re)
-	VSUBPS X7, X12, X13        // X13 = (im-re, re-im), X13[0] = im-re ✓
-	VADDPS X7, X12, X12        // X12 = (im+re, re+im), X12[0] = im+re
-	VUNPCKLPS X12, X13, X12    // X12 = (im-re, im+re, ...)
-	VMULPS X15, X12, X12       // X12 = isq2*(im-re, im+re, ...)
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X12, X12       // X12 = (isq2*(im-re), -isq2*(im+re), ...)
-	VADDPS X12, X3, X13
-	VSUBPS X12, X3, X7
-	VMOVAPS X13, X3
-
-	// v8, v12: W_8^0
-	VMOVSD 4320(R14), X12
-	VADDPS X12, X8, X13
-	VSUBPS X12, X8, X12
-	VMOVAPS X13, X8
-	VMOVSD X12, 4320(R14)
-
-	// v9, v13: W_8^1 = isq2*(1-i)
-	// t3.re = isq2*(re + im), t3.im = isq2*(im - re)
-	VMOVSD 4328(R14), X12      // v13 = (re, im)
-	VSHUFPS $0xB1, X12, X12, X13 // X13 = (im, re)
-	VADDPS X12, X13, X14       // X14 = (re+im, im+re)
-	VSUBPS X12, X13, X13       // X13 = (im-re, re-im)
-	VUNPCKLPS X13, X14, X13    // X13 = (re+im, im-re, ...)
-	VMULPS X15, X13, X13       // X13 = isq2 * (re+im, im-re, ...)
-	VADDPS X13, X9, X14
-	VSUBPS X13, X9, X13
-	VMOVAPS X14, X9
-	VMOVSD X13, 4328(R14)
-
-	// v10, v14: W_8^2
-	VMOVSD 4336(R14), X12
-	VSHUFPS $0xB1, X12, X12, X13
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X13, X13
-	VADDPS X13, X10, X14
-	VSUBPS X13, X10, X13
-	VMOVAPS X14, X10
-	VMOVSD X13, 4336(R14)
-
-	// v11, v15: W_8^3 = isq2*(-1-i)
-	// t3.re = isq2*(im - re), t3.im = -isq2*(im + re)
-	VMOVSD 4344(R14), X12      // v15 = (re, im)
-	VSHUFPS $0xB1, X12, X12, X13 // X13 = (im, re)
-	VSUBPS X12, X13, X14       // X14 = (im-re, re-im), X14[0] = im-re ✓
-	VADDPS X12, X13, X13       // X13 = (im+re, re+im), X13[0] = im+re
-	VUNPCKLPS X13, X14, X13    // X13 = (im-re, im+re, ...)
-	VMULPS X15, X13, X13       // X13 = isq2*(im-re, im+re, ...)
-	VMOVUPS const_signmask_imag<>(SB), X12
-	VXORPS X12, X13, X13       // X13 = (isq2*(im-re), -isq2*(im+re), ...)
-	VADDPS X13, X11, X14
-	VSUBPS X13, X11, X13
-	VMOVAPS X14, X11
-	VMOVSD X13, 4344(R14)
+	VMOVSD X12, 4320(R14)      // v12 for stage 4
+	VMOVSD X13, 4328(R14)      // v13 for stage 4
+	VMOVSD X14, 4336(R14)      // v14 for stage 4
+	VMOVSD X15, 4344(R14)      // v15 for stage 4
 
 	// ----- FFT-16 Stage 4: W_16 twiddles -----
 	VBROADCASTSS const_cos1<>(SB), X14
@@ -1577,208 +1538,172 @@ inv_stage1_col_loop:
 	VMOVSD X12, 4344(R14)
 
 	// ===== FFT-16 on even elements =====
-	// X0-X11 already contain v0-v11, v12-v15 at 4192, 4200, 4208, 4216
-
-	// ----- FFT-16 Stage 1: 8 radix-2 butterflies -----
-	// (v0,v1), (v2,v3), (v4,v5), (v6,v7), (v8,v9), (v10,v11), (v12,v13), (v14,v15)
-
-	VADDPS X1, X0, X12         // t = v0 + v1
-	VSUBPS X1, X0, X1          // v1 = v0 - v1
-	VMOVAPS X12, X0            // v0 = t
-
-	VADDPS X3, X2, X12
-	VSUBPS X3, X2, X3
-	VMOVAPS X12, X2
-
-	VADDPS X5, X4, X12
-	VSUBPS X5, X4, X5
-	VMOVAPS X12, X4
-
-	VADDPS X7, X6, X12
-	VSUBPS X7, X6, X7
-	VMOVAPS X12, X6
-
-	VADDPS X9, X8, X12
-	VSUBPS X9, X8, X9
-	VMOVAPS X12, X8
-
-	VADDPS X11, X10, X12
-	VSUBPS X11, X10, X11
-	VMOVAPS X12, X10
-
-	// v12, v13 butterfly (from memory)
+	// X0-X11 already contain v0-v11, load v12-v15 into X12-X15
 	VMOVSD 4192(R14), X12      // v12
 	VMOVSD 4200(R14), X13      // v13
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4192(R14)      // new v12
-	VMOVSD X13, 4200(R14)      // new v13
+	VMOVSD 4208(R14), X14      // v14
+	VMOVSD 4216(R14), X15      // v15
 
-	// v14, v15 butterfly (from memory)
-	VMOVSD 4208(R14), X12      // v14
-	VMOVSD 4216(R14), X13      // v15
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4208(R14)      // new v14
-	VMOVSD X13, 4216(R14)      // new v15
+	// ----- FFT-16 Stage 1/2/3 (two-pass: v8-v15, then v0-v7) -----
+	// Spill v0-v7 to free registers for v8-v15.
+	VMOVUPS X0, 4608(R14)      // spill v0 (re/im)
+	VMOVUPS X1, 4624(R14)      // spill v1 (re/im)
+	VMOVUPS X2, 4640(R14)      // spill v2 (re/im)
+	VMOVUPS X3, 4656(R14)      // spill v3 (re/im)
+	VMOVUPS X4, 4672(R14)      // spill v4 (re/im)
+	VMOVUPS X5, 4688(R14)      // spill v5 (re/im)
+	VMOVUPS X6, 4704(R14)      // spill v6 (re/im)
+	VMOVUPS X7, 4720(R14)      // spill v7 (re/im)
 
-	// ----- FFT-16 Stage 2: radix-4 with -i rotation -----
-	// Apply -i to v3, v7, v11, v15 (swap re/im, negate new imag)
-	// -i * (a+bi) = (b - ai) = (b, -a)
+	// Stage 1 (v8-v15).
+	VADDPS X9, X8, X0          // t = v8 + v9
+	VSUBPS X9, X8, X9          // v9 = v8 - v9
+	VMOVAPS X0, X8             // v8 = t
+	VADDPS X11, X10, X0        // t = v10 + v11
+	VSUBPS X11, X10, X11       // v11 = v10 - v11
+	VMOVAPS X0, X10            // v10 = t
+	VADDPS X13, X12, X0        // t = v12 + v13
+	VSUBPS X13, X12, X13       // v13 = v12 - v13
+	VMOVAPS X0, X12            // v12 = t
+	VADDPS X15, X14, X0        // t = v14 + v15
+	VSUBPS X15, X14, X15       // v15 = v14 - v15
+	VMOVAPS X0, X14            // v14 = t
 
-	// Load sign mask for -i rotation
-	VMOVUPS const_signmask_imag<>(SB), X15
+	// Stage 2 (v8-v15).
+	VMOVUPS const_signmask_imag<>(SB), X7 // -i signmask
+	VADDPS X10, X8, X0         // t = v8 + v10
+	VSUBPS X10, X8, X10        // v10 = v8 - v10
+	VMOVAPS X0, X8             // v8 = t
+	VSHUFPS $0xB1, X11, X11, X0 // shuffle v11
+	VXORPS X7, X0, X0          // -i * v11
+	VADDPS X0, X9, X1          // t = v9 + (-i*v11)
+	VSUBPS X0, X9, X11         // v11 = v9 - (-i*v11)
+	VMOVAPS X1, X9             // v9 = t
+	VADDPS X14, X12, X0        // t = v12 + v14
+	VSUBPS X14, X12, X14       // v14 = v12 - v14
+	VMOVAPS X0, X12            // v12 = t
+	VSHUFPS $0xB1, X15, X15, X0 // shuffle v15
+	VXORPS X7, X0, X0          // -i * v15
+	VADDPS X0, X13, X1         // t = v13 + (-i*v15)
+	VSUBPS X0, X13, X15        // v15 = v13 - (-i*v15)
+	VMOVAPS X1, X13            // v13 = t
 
-	// v0, v2 butterfly (no twiddle)
-	VADDPS X2, X0, X12
-	VSUBPS X2, X0, X2
-	VMOVAPS X12, X0
+	// Stage 3 (v8-v15).
+	VBROADCASTSS const_isq2<>(SB), X7 // isq2
+	VMOVUPS const_signmask_imag<>(SB), X6 // -i signmask
+	VADDPS X12, X8, X0         // t = v8 + v12
+	VSUBPS X12, X8, X12        // v12 = v8 - v12
+	VMOVAPS X0, X8             // v8 = t
+	VSHUFPS $0xB1, X13, X13, X0 // (im, re)
+	VADDPS X13, X0, X1         // (re+im, im+re)
+	VSUBPS X13, X0, X0         // (im-re, re-im)
+	VUNPCKLPS X0, X1, X0       // (re+im, im-re)
+	VMULPS X7, X0, X0          // isq2*(re+im, im-re)
+	VADDPS X0, X9, X1          // t = v9 + tw
+	VSUBPS X0, X9, X13         // v13 = v9 - tw
+	VMOVAPS X1, X9             // v9 = t
+	VSHUFPS $0xB1, X14, X14, X0 // (im, re)
+	VXORPS X6, X0, X0          // -i * v14
+	VADDPS X0, X10, X1         // t = v10 + (-i*v14)
+	VSUBPS X0, X10, X14        // v14 = v10 - (-i*v14)
+	VMOVAPS X1, X10            // v10 = t
+	VSHUFPS $0xB1, X15, X15, X0 // (im, re)
+	VSUBPS X15, X0, X1         // (im-re, re-im)
+	VADDPS X15, X0, X0         // (im+re, re+im)
+	VUNPCKLPS X0, X1, X0       // (im-re, im+re)
+	VMULPS X7, X0, X0          // isq2*(im-re, im+re)
+	VXORPS X6, X0, X0          // (isq2*(im-re), -isq2*(im+re))
+	VADDPS X0, X11, X1         // t = v11 + tw
+	VSUBPS X0, X11, X15        // v15 = v11 - tw
+	VMOVAPS X1, X11            // v11 = t
 
-	// v1, v3 with -i*v3
-	VSHUFPS $0xB1, X3, X3, X12 // swap re/im: (im, re)
-	VXORPS X15, X12, X12       // negate im: (im, -re) = -i * v3
-	VADDPS X12, X1, X13        // v1 + (-i)*v3
-	VSUBPS X12, X1, X3         // v1 - (-i)*v3 -> new v3
-	VMOVAPS X13, X1            // new v1
+	// Spill v8-v11 and restore v0-v7.
+	VMOVUPS X8, 4736(R14)      // spill v8 (re/im)
+	VMOVUPS X9, 4752(R14)      // spill v9 (re/im)
+	VMOVUPS X10, 4768(R14)     // spill v10 (re/im)
+	VMOVUPS X11, 4784(R14)     // spill v11 (re/im)
 
-	// v4, v6 butterfly
-	VADDPS X6, X4, X12
-	VSUBPS X6, X4, X6
-	VMOVAPS X12, X4
+	VMOVUPS 4608(R14), X0      // restore v0
+	VMOVUPS 4624(R14), X1      // restore v1
+	VMOVUPS 4640(R14), X2      // restore v2
+	VMOVUPS 4656(R14), X3      // restore v3
+	VMOVUPS 4672(R14), X4      // restore v4
+	VMOVUPS 4688(R14), X5      // restore v5
+	VMOVUPS 4704(R14), X6      // restore v6
+	VMOVUPS 4720(R14), X7      // restore v7
 
-	// v5, v7 with -i*v7
-	VSHUFPS $0xB1, X7, X7, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X5, X13
-	VSUBPS X12, X5, X7
-	VMOVAPS X13, X5
+	// Stage 1 (v0-v7).
+	VADDPS X1, X0, X8          // t = v0 + v1
+	VSUBPS X1, X0, X1          // v1 = v0 - v1
+	VMOVAPS X8, X0             // v0 = t
+	VADDPS X3, X2, X8          // t = v2 + v3
+	VSUBPS X3, X2, X3          // v3 = v2 - v3
+	VMOVAPS X8, X2             // v2 = t
+	VADDPS X5, X4, X8          // t = v4 + v5
+	VSUBPS X5, X4, X5          // v5 = v4 - v5
+	VMOVAPS X8, X4             // v4 = t
+	VADDPS X7, X6, X8          // t = v6 + v7
+	VSUBPS X7, X6, X7          // v7 = v6 - v7
+	VMOVAPS X8, X6             // v6 = t
 
-	// v8, v10 butterfly
-	VADDPS X10, X8, X12
-	VSUBPS X10, X8, X10
-	VMOVAPS X12, X8
+	// Stage 2 (v0-v7).
+	VMOVUPS const_signmask_imag<>(SB), X11 // -i signmask
+	VADDPS X2, X0, X8          // t = v0 + v2
+	VSUBPS X2, X0, X2          // v2 = v0 - v2
+	VMOVAPS X8, X0             // v0 = t
+	VSHUFPS $0xB1, X3, X3, X8  // shuffle v3
+	VXORPS X11, X8, X8         // -i * v3
+	VADDPS X8, X1, X9          // t = v1 + (-i*v3)
+	VSUBPS X8, X1, X3          // v3 = v1 - (-i*v3)
+	VMOVAPS X9, X1             // v1 = t
+	VADDPS X6, X4, X8          // t = v4 + v6
+	VSUBPS X6, X4, X6          // v6 = v4 - v6
+	VMOVAPS X8, X4             // v4 = t
+	VSHUFPS $0xB1, X7, X7, X8  // shuffle v7
+	VXORPS X11, X8, X8         // -i * v7
+	VADDPS X8, X5, X9          // t = v5 + (-i*v7)
+	VSUBPS X8, X5, X7          // v7 = v5 - (-i*v7)
+	VMOVAPS X9, X5             // v5 = t
 
-	// v9, v11 with -i*v11
-	VSHUFPS $0xB1, X11, X11, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X9, X13
-	VSUBPS X12, X9, X11
-	VMOVAPS X13, X9
+	// Stage 3 (v0-v7).
+	VBROADCASTSS const_isq2<>(SB), X11 // isq2
+	VMOVUPS const_signmask_imag<>(SB), X10 // -i signmask
+	VADDPS X4, X0, X8          // t = v0 + v4
+	VSUBPS X4, X0, X4          // v4 = v0 - v4
+	VMOVAPS X8, X0             // v0 = t
+	VSHUFPS $0xB1, X5, X5, X8  // (im, re)
+	VADDPS X5, X8, X9          // (re+im, im+re)
+	VSUBPS X5, X8, X8          // (im-re, re-im)
+	VUNPCKLPS X8, X9, X8       // (re+im, im-re)
+	VMULPS X11, X8, X8         // isq2*(re+im, im-re)
+	VADDPS X8, X1, X9          // t = v1 + tw
+	VSUBPS X8, X1, X5          // v5 = v1 - tw
+	VMOVAPS X9, X1             // v1 = t
+	VSHUFPS $0xB1, X6, X6, X8  // (im, re)
+	VXORPS X10, X8, X8         // -i * v6
+	VADDPS X8, X2, X9          // t = v2 + (-i*v6)
+	VSUBPS X8, X2, X6          // v6 = v2 - (-i*v6)
+	VMOVAPS X9, X2             // v2 = t
+	VSHUFPS $0xB1, X7, X7, X8  // (im, re)
+	VSUBPS X7, X8, X9          // (im-re, re-im)
+	VADDPS X7, X8, X8          // (im+re, re+im)
+	VUNPCKLPS X8, X9, X8       // (im-re, im+re)
+	VMULPS X11, X8, X8         // isq2*(im-re, im+re)
+	VXORPS X10, X8, X8         // (isq2*(im-re), -isq2*(im+re))
+	VADDPS X8, X3, X9          // t = v3 + tw
+	VSUBPS X8, X3, X7          // v7 = v3 - tw
+	VMOVAPS X9, X3             // v3 = t
 
-	// v12, v14 butterfly (from memory)
-	VMOVSD 4192(R14), X12      // v12
-	VMOVSD 4208(R14), X13      // v14
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4192(R14)      // new v12
-	VMOVSD X13, 4208(R14)      // new v14
+	// Restore v8-v11 and store v12-v15 for stage 4.
+	VMOVUPS 4736(R14), X8      // restore v8
+	VMOVUPS 4752(R14), X9      // restore v9
+	VMOVUPS 4768(R14), X10     // restore v10
+	VMOVUPS 4784(R14), X11     // restore v11
 
-	// v13, v15 with -i*v15 (from memory)
-	VMOVSD 4200(R14), X12      // v13
-	VMOVSD 4216(R14), X13      // v15
-	VSHUFPS $0xB1, X13, X13, X14
-	VXORPS X15, X14, X14       // -i * v15
-	VADDPS X14, X12, X13       // v13 + (-i)*v15
-	VSUBPS X14, X12, X12       // v13 - (-i)*v15 -> new v15
-	VMOVSD X13, 4200(R14)      // new v13
-	VMOVSD X12, 4216(R14)      // new v15
-
-	// ----- FFT-16 Stage 3: W_8 twiddles -----
-	// W_8^0 = 1, W_8^1 = isq2*(1-i), W_8^2 = -i, W_8^3 = isq2*(-1-i)
-	// Pairs: (v0,v4), (v1,v5), (v2,v6), (v3,v7)
-	//        (v8,v12), (v9,v13), (v10,v14), (v11,v15)
-
-	// Load isq2 constant
-	VBROADCASTSS const_isq2<>(SB), X15
-
-	// v0, v4: W_8^0 = 1 (no twiddle)
-	VADDPS X4, X0, X12
-	VSUBPS X4, X0, X4
-	VMOVAPS X12, X0
-
-	// v1, v5: W_8^1 = isq2*(1-i)
-	// (a+bi) * isq2*(1-i) = isq2*((a+b) + (b-a)i)
-	// t3.re = isq2*(re + im), t3.im = isq2*(im - re)
-	VSHUFPS $0xB1, X5, X5, X12 // X12 = (im, re)
-	VADDPS X5, X12, X13        // X13 = (re+im, im+re)
-	VSUBPS X5, X12, X12        // X12 = (im-re, re-im)
-	// We need (re+im, im-re). Use VUNPCKLPS to interleave low floats.
-	// X13[0] = re+im, X12[0] = im-re
-	// VUNPCKLPS X12, X13, result -> (X13[0], X12[0], X13[1], X12[1]) = (re+im, im-re, ...)
-	VUNPCKLPS X12, X13, X12    // X12 = (re+im, im-re, im+re, re-im)
-	VMULPS X15, X12, X12       // X12 = isq2 * (re+im, im-re, ...)
-	VADDPS X12, X1, X13
-	VSUBPS X12, X1, X5
-	VMOVAPS X13, X1
-
-	// v2, v6: W_8^2 = -i
-	VSHUFPS $0xB1, X6, X6, X12
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X12, X12
-	VADDPS X12, X2, X13
-	VSUBPS X12, X2, X6
-	VMOVAPS X13, X2
-
-	// v3, v7: W_8^3 = isq2*(-1-i)
-	// (a+bi) * isq2*(-1-i) = isq2*((b-a) + (-(a+b))i)
-	// t3.re = isq2*(im - re), t3.im = -isq2*(re + im) = -isq2*(im + re)
-	VSHUFPS $0xB1, X7, X7, X12 // X12 = (im, re)
-	VSUBPS X7, X12, X13        // X13 = (im-re, re-im), X13[0] = im-re ✓
-	VADDPS X7, X12, X12        // X12 = (im+re, re+im), X12[0] = im+re
-	// We need (im-re, -(im+re)). Use VUNPCKLPS then negate the im part.
-	VUNPCKLPS X12, X13, X12    // X12 = (im-re, im+re, ...)
-	VMULPS X15, X12, X12       // X12 = isq2*(im-re, im+re, ...)
-	// Negate just the imaginary component (position 1)
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X12, X12       // X12 = (isq2*(im-re), -isq2*(im+re), ...)
-	VADDPS X12, X3, X13
-	VSUBPS X12, X3, X7
-	VMOVAPS X13, X3
-
-	// v8, v12: W_8^0 = 1 (from memory for v12)
-	VMOVSD 4192(R14), X12      // v12
-	VADDPS X12, X8, X13
-	VSUBPS X12, X8, X12
-	VMOVAPS X13, X8
-	VMOVSD X12, 4192(R14)      // new v12
-
-	// v9, v13: W_8^1 = isq2*(1-i) (v13 from memory)
-	// t3.re = isq2*(re + im), t3.im = isq2*(im - re)
-	VMOVSD 4200(R14), X12      // v13 = (re, im)
-	VSHUFPS $0xB1, X12, X12, X13 // X13 = (im, re)
-	VADDPS X12, X13, X14       // X14 = (re+im, im+re)
-	VSUBPS X12, X13, X13       // X13 = (im-re, re-im)
-	VUNPCKLPS X13, X14, X13    // X13 = (re+im, im-re, ...)
-	VMULPS X15, X13, X13       // X13 = isq2 * (re+im, im-re, ...)
-	VADDPS X13, X9, X14
-	VSUBPS X13, X9, X13
-	VMOVAPS X14, X9
-	VMOVSD X13, 4200(R14)      // new v13
-
-	// v10, v14: W_8^2 = -i (v14 from memory)
-	VMOVSD 4208(R14), X12      // v14
-	VSHUFPS $0xB1, X12, X12, X13
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X13, X13
-	VADDPS X13, X10, X14
-	VSUBPS X13, X10, X13
-	VMOVAPS X14, X10
-	VMOVSD X13, 4208(R14)      // new v14
-
-	// v11, v15: W_8^3 = isq2*(-1-i) (v15 from memory)
-	// t3.re = isq2*(im - re), t3.im = -isq2*(im + re)
-	VMOVSD 4216(R14), X12      // v15 = (re, im)
-	VSHUFPS $0xB1, X12, X12, X13 // X13 = (im, re)
-	VSUBPS X12, X13, X14       // X14 = (im-re, re-im), X14[0] = im-re ✓
-	VADDPS X12, X13, X13       // X13 = (im+re, re+im), X13[0] = im+re
-	VUNPCKLPS X13, X14, X13    // X13 = (im-re, im+re, ...)
-	VMULPS X15, X13, X13       // X13 = isq2*(im-re, im+re, ...)
-	VMOVUPS const_signmask_imag<>(SB), X12
-	VXORPS X12, X13, X13       // X13 = (isq2*(im-re), -isq2*(im+re), ...)
-	VADDPS X13, X11, X14
-	VSUBPS X13, X11, X13
-	VMOVAPS X14, X11
-	VMOVSD X13, 4216(R14)      // new v15
+	VMOVSD X12, 4192(R14)      // v12 for stage 4
+	VMOVSD X13, 4200(R14)      // v13 for stage 4
+	VMOVSD X14, 4208(R14)      // v14 for stage 4
+	VMOVSD X15, 4216(R14)      // v15 for stage 4
 
 	// ----- FFT-16 Stage 4: W_16 twiddles -----
 	// Pairs: (v0,v8), (v1,v9), (v2,v10), (v3,v11), (v4,v12), (v5,v13), (v6,v14), (v7,v15)
@@ -1984,179 +1909,172 @@ inv_stage1_col_loop:
 	VMOVSD 4296(R14), X9       // v9
 	VMOVSD 4304(R14), X10      // v10
 	VMOVSD 4312(R14), X11      // v11
-	// v12-v15 stay at 4320, 4328, 4336, 4344
+	// Load v12-v15 into X12-X15 for the first pass.
+	VMOVSD 4320(R14), X12      // v12
+	VMOVSD 4328(R14), X13      // v13
+	VMOVSD 4336(R14), X14      // v14
+	VMOVSD 4344(R14), X15      // v15
 
-	// ----- FFT-16 Stage 1: 8 radix-2 butterflies -----
-	VADDPS X1, X0, X12
-	VSUBPS X1, X0, X1
-	VMOVAPS X12, X0
+	// ----- FFT-16 Stage 1/2/3 (two-pass: v8-v15, then v0-v7) -----
+	// Spill v0-v7 to free registers for v8-v15.
+	VMOVUPS X0, 4800(R14)      // spill v0 (re/im)
+	VMOVUPS X1, 4816(R14)      // spill v1 (re/im)
+	VMOVUPS X2, 4832(R14)      // spill v2 (re/im)
+	VMOVUPS X3, 4848(R14)      // spill v3 (re/im)
+	VMOVUPS X4, 4864(R14)      // spill v4 (re/im)
+	VMOVUPS X5, 4880(R14)      // spill v5 (re/im)
+	VMOVUPS X6, 4896(R14)      // spill v6 (re/im)
+	VMOVUPS X7, 4912(R14)      // spill v7 (re/im)
 
-	VADDPS X3, X2, X12
-	VSUBPS X3, X2, X3
-	VMOVAPS X12, X2
+	// Stage 1 (v8-v15).
+	VADDPS X9, X8, X0          // t = v8 + v9
+	VSUBPS X9, X8, X9          // v9 = v8 - v9
+	VMOVAPS X0, X8             // v8 = t
+	VADDPS X11, X10, X0        // t = v10 + v11
+	VSUBPS X11, X10, X11       // v11 = v10 - v11
+	VMOVAPS X0, X10            // v10 = t
+	VADDPS X13, X12, X0        // t = v12 + v13
+	VSUBPS X13, X12, X13       // v13 = v12 - v13
+	VMOVAPS X0, X12            // v12 = t
+	VADDPS X15, X14, X0        // t = v14 + v15
+	VSUBPS X15, X14, X15       // v15 = v14 - v15
+	VMOVAPS X0, X14            // v14 = t
 
-	VADDPS X5, X4, X12
-	VSUBPS X5, X4, X5
-	VMOVAPS X12, X4
+	// Stage 2 (v8-v15).
+	VMOVUPS const_signmask_imag<>(SB), X7 // -i signmask
+	VADDPS X10, X8, X0         // t = v8 + v10
+	VSUBPS X10, X8, X10        // v10 = v8 - v10
+	VMOVAPS X0, X8             // v8 = t
+	VSHUFPS $0xB1, X11, X11, X0 // shuffle v11
+	VXORPS X7, X0, X0          // -i * v11
+	VADDPS X0, X9, X1          // t = v9 + (-i*v11)
+	VSUBPS X0, X9, X11         // v11 = v9 - (-i*v11)
+	VMOVAPS X1, X9             // v9 = t
+	VADDPS X14, X12, X0        // t = v12 + v14
+	VSUBPS X14, X12, X14       // v14 = v12 - v14
+	VMOVAPS X0, X12            // v12 = t
+	VSHUFPS $0xB1, X15, X15, X0 // shuffle v15
+	VXORPS X7, X0, X0          // -i * v15
+	VADDPS X0, X13, X1         // t = v13 + (-i*v15)
+	VSUBPS X0, X13, X15        // v15 = v13 - (-i*v15)
+	VMOVAPS X1, X13            // v13 = t
 
-	VADDPS X7, X6, X12
-	VSUBPS X7, X6, X7
-	VMOVAPS X12, X6
+	// Stage 3 (v8-v15).
+	VBROADCASTSS const_isq2<>(SB), X7 // isq2
+	VMOVUPS const_signmask_imag<>(SB), X6 // -i signmask
+	VADDPS X12, X8, X0         // t = v8 + v12
+	VSUBPS X12, X8, X12        // v12 = v8 - v12
+	VMOVAPS X0, X8             // v8 = t
+	VSHUFPS $0xB1, X13, X13, X0 // (im, re)
+	VADDPS X13, X0, X1         // (re+im, im+re)
+	VSUBPS X13, X0, X0         // (im-re, re-im)
+	VUNPCKLPS X0, X1, X0       // (re+im, im-re)
+	VMULPS X7, X0, X0          // isq2*(re+im, im-re)
+	VADDPS X0, X9, X1          // t = v9 + tw
+	VSUBPS X0, X9, X13         // v13 = v9 - tw
+	VMOVAPS X1, X9             // v9 = t
+	VSHUFPS $0xB1, X14, X14, X0 // (im, re)
+	VXORPS X6, X0, X0          // -i * v14
+	VADDPS X0, X10, X1         // t = v10 + (-i*v14)
+	VSUBPS X0, X10, X14        // v14 = v10 - (-i*v14)
+	VMOVAPS X1, X10            // v10 = t
+	VSHUFPS $0xB1, X15, X15, X0 // (im, re)
+	VSUBPS X15, X0, X1         // (im-re, re-im)
+	VADDPS X15, X0, X0         // (im+re, re+im)
+	VUNPCKLPS X0, X1, X0       // (im-re, im+re)
+	VMULPS X7, X0, X0          // isq2*(im-re, im+re)
+	VXORPS X6, X0, X0          // (isq2*(im-re), -isq2*(im+re))
+	VADDPS X0, X11, X1         // t = v11 + tw
+	VSUBPS X0, X11, X15        // v15 = v11 - tw
+	VMOVAPS X1, X11            // v11 = t
 
-	VADDPS X9, X8, X12
-	VSUBPS X9, X8, X9
-	VMOVAPS X12, X8
+	// Spill v8-v11 and restore v0-v7.
+	VMOVUPS X8, 4928(R14)      // spill v8 (re/im)
+	VMOVUPS X9, 4944(R14)      // spill v9 (re/im)
+	VMOVUPS X10, 4960(R14)     // spill v10 (re/im)
+	VMOVUPS X11, 4976(R14)     // spill v11 (re/im)
 
-	VADDPS X11, X10, X12
-	VSUBPS X11, X10, X11
-	VMOVAPS X12, X10
+	VMOVUPS 4800(R14), X0      // restore v0
+	VMOVUPS 4816(R14), X1      // restore v1
+	VMOVUPS 4832(R14), X2      // restore v2
+	VMOVUPS 4848(R14), X3      // restore v3
+	VMOVUPS 4864(R14), X4      // restore v4
+	VMOVUPS 4880(R14), X5      // restore v5
+	VMOVUPS 4896(R14), X6      // restore v6
+	VMOVUPS 4912(R14), X7      // restore v7
 
-	VMOVSD 4320(R14), X12
-	VMOVSD 4328(R14), X13
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4320(R14)
-	VMOVSD X13, 4328(R14)
+	// Stage 1 (v0-v7).
+	VADDPS X1, X0, X8          // t = v0 + v1
+	VSUBPS X1, X0, X1          // v1 = v0 - v1
+	VMOVAPS X8, X0             // v0 = t
+	VADDPS X3, X2, X8          // t = v2 + v3
+	VSUBPS X3, X2, X3          // v3 = v2 - v3
+	VMOVAPS X8, X2             // v2 = t
+	VADDPS X5, X4, X8          // t = v4 + v5
+	VSUBPS X5, X4, X5          // v5 = v4 - v5
+	VMOVAPS X8, X4             // v4 = t
+	VADDPS X7, X6, X8          // t = v6 + v7
+	VSUBPS X7, X6, X7          // v7 = v6 - v7
+	VMOVAPS X8, X6             // v6 = t
 
-	VMOVSD 4336(R14), X12
-	VMOVSD 4344(R14), X13
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4336(R14)
-	VMOVSD X13, 4344(R14)
+	// Stage 2 (v0-v7).
+	VMOVUPS const_signmask_imag<>(SB), X11 // -i signmask
+	VADDPS X2, X0, X8          // t = v0 + v2
+	VSUBPS X2, X0, X2          // v2 = v0 - v2
+	VMOVAPS X8, X0             // v0 = t
+	VSHUFPS $0xB1, X3, X3, X8  // shuffle v3
+	VXORPS X11, X8, X8         // -i * v3
+	VADDPS X8, X1, X9          // t = v1 + (-i*v3)
+	VSUBPS X8, X1, X3          // v3 = v1 - (-i*v3)
+	VMOVAPS X9, X1             // v1 = t
+	VADDPS X6, X4, X8          // t = v4 + v6
+	VSUBPS X6, X4, X6          // v6 = v4 - v6
+	VMOVAPS X8, X4             // v4 = t
+	VSHUFPS $0xB1, X7, X7, X8  // shuffle v7
+	VXORPS X11, X8, X8         // -i * v7
+	VADDPS X8, X5, X9          // t = v5 + (-i*v7)
+	VSUBPS X8, X5, X7          // v7 = v5 - (-i*v7)
+	VMOVAPS X9, X5             // v5 = t
 
-	// ----- FFT-16 Stage 2: radix-4 with -i rotation -----
-	VMOVUPS const_signmask_imag<>(SB), X15
+	// Stage 3 (v0-v7).
+	VBROADCASTSS const_isq2<>(SB), X11 // isq2
+	VMOVUPS const_signmask_imag<>(SB), X10 // -i signmask
+	VADDPS X4, X0, X8          // t = v0 + v4
+	VSUBPS X4, X0, X4          // v4 = v0 - v4
+	VMOVAPS X8, X0             // v0 = t
+	VSHUFPS $0xB1, X5, X5, X8  // (im, re)
+	VADDPS X5, X8, X9          // (re+im, im+re)
+	VSUBPS X5, X8, X8          // (im-re, re-im)
+	VUNPCKLPS X8, X9, X8       // (re+im, im-re)
+	VMULPS X11, X8, X8         // isq2*(re+im, im-re)
+	VADDPS X8, X1, X9          // t = v1 + tw
+	VSUBPS X8, X1, X5          // v5 = v1 - tw
+	VMOVAPS X9, X1             // v1 = t
+	VSHUFPS $0xB1, X6, X6, X8  // (im, re)
+	VXORPS X10, X8, X8         // -i * v6
+	VADDPS X8, X2, X9          // t = v2 + (-i*v6)
+	VSUBPS X8, X2, X6          // v6 = v2 - (-i*v6)
+	VMOVAPS X9, X2             // v2 = t
+	VSHUFPS $0xB1, X7, X7, X8  // (im, re)
+	VSUBPS X7, X8, X9          // (im-re, re-im)
+	VADDPS X7, X8, X8          // (im+re, re+im)
+	VUNPCKLPS X8, X9, X8       // (im-re, im+re)
+	VMULPS X11, X8, X8         // isq2*(im-re, im+re)
+	VXORPS X10, X8, X8         // (isq2*(im-re), -isq2*(im+re))
+	VADDPS X8, X3, X9          // t = v3 + tw
+	VSUBPS X8, X3, X7          // v7 = v3 - tw
+	VMOVAPS X9, X3             // v3 = t
 
-	VADDPS X2, X0, X12
-	VSUBPS X2, X0, X2
-	VMOVAPS X12, X0
+	// Restore v8-v11 and store v12-v15 for stage 4.
+	VMOVUPS 4928(R14), X8      // restore v8
+	VMOVUPS 4944(R14), X9      // restore v9
+	VMOVUPS 4960(R14), X10     // restore v10
+	VMOVUPS 4976(R14), X11     // restore v11
 
-	VSHUFPS $0xB1, X3, X3, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X1, X13
-	VSUBPS X12, X1, X3
-	VMOVAPS X13, X1
-
-	VADDPS X6, X4, X12
-	VSUBPS X6, X4, X6
-	VMOVAPS X12, X4
-
-	VSHUFPS $0xB1, X7, X7, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X5, X13
-	VSUBPS X12, X5, X7
-	VMOVAPS X13, X5
-
-	VADDPS X10, X8, X12
-	VSUBPS X10, X8, X10
-	VMOVAPS X12, X8
-
-	VSHUFPS $0xB1, X11, X11, X12
-	VXORPS X15, X12, X12
-	VADDPS X12, X9, X13
-	VSUBPS X12, X9, X11
-	VMOVAPS X13, X9
-
-	VMOVSD 4320(R14), X12
-	VMOVSD 4336(R14), X13
-	VADDPS X13, X12, X14
-	VSUBPS X13, X12, X13
-	VMOVSD X14, 4320(R14)
-	VMOVSD X13, 4336(R14)
-
-	VMOVSD 4328(R14), X12
-	VMOVSD 4344(R14), X13
-	VSHUFPS $0xB1, X13, X13, X14
-	VXORPS X15, X14, X14
-	VADDPS X14, X12, X13
-	VSUBPS X14, X12, X12
-	VMOVSD X13, 4328(R14)
-	VMOVSD X12, 4344(R14)
-
-	// ----- FFT-16 Stage 3: W_8 twiddles -----
-	VBROADCASTSS const_isq2<>(SB), X15
-
-	VADDPS X4, X0, X12
-	VSUBPS X4, X0, X4
-	VMOVAPS X12, X0
-
-	// v1, v5: W_8^1 = isq2*(1-i)
-	// t3.re = isq2*(re + im), t3.im = isq2*(im - re)
-	VSHUFPS $0xB1, X5, X5, X12 // X12 = (im, re)
-	VADDPS X5, X12, X13        // X13 = (re+im, im+re)
-	VSUBPS X5, X12, X12        // X12 = (im-re, re-im)
-	VUNPCKLPS X12, X13, X12    // X12 = (re+im, im-re, ...)
-	VMULPS X15, X12, X12       // X12 = isq2 * (re+im, im-re, ...)
-	VADDPS X12, X1, X13
-	VSUBPS X12, X1, X5
-	VMOVAPS X13, X1
-
-	// v2, v6: W_8^2 = -i
-	VSHUFPS $0xB1, X6, X6, X12
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X12, X12
-	VADDPS X12, X2, X13
-	VSUBPS X12, X2, X6
-	VMOVAPS X13, X2
-
-	// v3, v7: W_8^3 = isq2*(-1-i)
-	// t3.re = isq2*(im - re), t3.im = -isq2*(im + re)
-	VSHUFPS $0xB1, X7, X7, X12 // X12 = (im, re)
-	VSUBPS X7, X12, X13        // X13 = (im-re, re-im), X13[0] = im-re ✓
-	VADDPS X7, X12, X12        // X12 = (im+re, re+im), X12[0] = im+re
-	VUNPCKLPS X12, X13, X12    // X12 = (im-re, im+re, ...)
-	VMULPS X15, X12, X12       // X12 = isq2*(im-re, im+re, ...)
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X12, X12       // X12 = (isq2*(im-re), -isq2*(im+re), ...)
-	VADDPS X12, X3, X13
-	VSUBPS X12, X3, X7
-	VMOVAPS X13, X3
-
-	// v8, v12: W_8^0
-	VMOVSD 4320(R14), X12
-	VADDPS X12, X8, X13
-	VSUBPS X12, X8, X12
-	VMOVAPS X13, X8
-	VMOVSD X12, 4320(R14)
-
-	// v9, v13: W_8^1 = isq2*(1-i)
-	// t3.re = isq2*(re + im), t3.im = isq2*(im - re)
-	VMOVSD 4328(R14), X12      // v13 = (re, im)
-	VSHUFPS $0xB1, X12, X12, X13 // X13 = (im, re)
-	VADDPS X12, X13, X14       // X14 = (re+im, im+re)
-	VSUBPS X12, X13, X13       // X13 = (im-re, re-im)
-	VUNPCKLPS X13, X14, X13    // X13 = (re+im, im-re, ...)
-	VMULPS X15, X13, X13       // X13 = isq2 * (re+im, im-re, ...)
-	VADDPS X13, X9, X14
-	VSUBPS X13, X9, X13
-	VMOVAPS X14, X9
-	VMOVSD X13, 4328(R14)
-
-	// v10, v14: W_8^2
-	VMOVSD 4336(R14), X12
-	VSHUFPS $0xB1, X12, X12, X13
-	VMOVUPS const_signmask_imag<>(SB), X14
-	VXORPS X14, X13, X13
-	VADDPS X13, X10, X14
-	VSUBPS X13, X10, X13
-	VMOVAPS X14, X10
-	VMOVSD X13, 4336(R14)
-
-	// v11, v15: W_8^3 = isq2*(-1-i)
-	// t3.re = isq2*(im - re), t3.im = -isq2*(im + re)
-	VMOVSD 4344(R14), X12      // v15 = (re, im)
-	VSHUFPS $0xB1, X12, X12, X13 // X13 = (im, re)
-	VSUBPS X12, X13, X14       // X14 = (im-re, re-im), X14[0] = im-re ✓
-	VADDPS X12, X13, X13       // X13 = (im+re, re+im), X13[0] = im+re
-	VUNPCKLPS X13, X14, X13    // X13 = (im-re, im+re, ...)
-	VMULPS X15, X13, X13       // X13 = isq2*(im-re, im+re, ...)
-	VMOVUPS const_signmask_imag<>(SB), X12
-	VXORPS X12, X13, X13       // X13 = (isq2*(im-re), -isq2*(im+re), ...)
-	VADDPS X13, X11, X14
-	VSUBPS X13, X11, X13
-	VMOVAPS X14, X11
-	VMOVSD X13, 4344(R14)
+	VMOVSD X12, 4320(R14)      // v12 for stage 4
+	VMOVSD X13, 4328(R14)      // v13 for stage 4
+	VMOVSD X14, 4336(R14)      // v14 for stage 4
+	VMOVSD X15, 4344(R14)      // v15 for stage 4
 
 	// ----- FFT-16 Stage 4: W_16 twiddles -----
 	VBROADCASTSS const_cos1<>(SB), X14
