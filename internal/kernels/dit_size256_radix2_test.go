@@ -101,3 +101,51 @@ func TestInverseDIT256Complex128(t *testing.T) {
 	want := reference.NaiveIDFT128(fwd)
 	assertComplex128Close(t, dst, want, size256Tol128)
 }
+
+// TestRoundTripDIT256Complex64 tests forward then inverse returns original.
+func TestRoundTripDIT256Complex64(t *testing.T) {
+	t.Parallel()
+
+	const n = 256
+
+	src := randomComplex64(n, 0xBADC0FFE)
+	fwd := make([]complex64, n)
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
+
+	if !forwardDIT256Complex64(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("forwardDIT256Complex64 failed")
+	}
+
+	if !inverseDIT256Complex64(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("inverseDIT256Complex64 failed")
+	}
+
+	assertComplex64Close(t, dst, src, size256Tol64)
+}
+
+// TestRoundTripDIT256Complex128 tests forward then inverse returns original (complex128).
+func TestRoundTripDIT256Complex128(t *testing.T) {
+	t.Parallel()
+
+	const n = 256
+
+	src := randomComplex128(n, 0xC0FFEE42)
+	fwd := make([]complex128, n)
+	dst := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
+
+	if !forwardDIT256Complex128(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("forwardDIT256Complex128 failed")
+	}
+
+	if !inverseDIT256Complex128(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("inverseDIT256Complex128 failed")
+	}
+
+	assertComplex128Close(t, dst, src, size256Tol128)
+}

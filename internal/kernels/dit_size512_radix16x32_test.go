@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 func TestForwardDIT512Mixed16x32Complex64(t *testing.T) {
@@ -51,6 +52,32 @@ func TestForwardDIT512Mixed16x32Complex64(t *testing.T) {
 }
 
 func TestInverseDIT512Mixed16x32Complex64(t *testing.T) {
+	t.Parallel()
+
+	const n = 512
+
+	src := randomComplex64(n, 0xCAFEBABE)
+	fwd := make([]complex64, n)
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := mathpkg.ComputeIdentityIndices(n)
+
+	if !forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("forwardDIT512Mixed16x32Complex64 failed")
+	}
+
+	if !inverseDIT512Mixed16x32Complex64(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("inverseDIT512Mixed16x32Complex64 failed")
+	}
+
+	want := reference.NaiveIDFT(fwd)
+	// Larger tolerance because 16x32 might have more accumulated error or the reference naive IDFT is precise
+	// but the kernel uses mixed radix. 1e-3 is generally safe for complex64 FFTs of this size.
+	assertComplex64Close(t, dst, want, 1e-3)
+}
+
+func TestRoundTripDIT512Mixed16x32Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 512
@@ -112,6 +139,30 @@ func TestForwardDIT512Mixed16x32Complex128(t *testing.T) {
 }
 
 func TestInverseDIT512Mixed16x32Complex128(t *testing.T) {
+	t.Parallel()
+
+	const n = 512
+
+	src := randomComplex128(n, 0xFEEDFACE)
+	fwd := make([]complex128, n)
+	dst := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+	bitrev := mathpkg.ComputeIdentityIndices(n)
+
+	if !forwardDIT512Mixed16x32Complex128(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("forwardDIT512Mixed16x32Complex128 failed")
+	}
+
+	if !inverseDIT512Mixed16x32Complex128(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("inverseDIT512Mixed16x32Complex128 failed")
+	}
+
+	want := reference.NaiveIDFT128(fwd)
+	assertComplex128Close(t, dst, want, 1e-9)
+}
+
+func TestRoundTripDIT512Mixed16x32Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 512

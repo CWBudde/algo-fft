@@ -52,6 +52,31 @@ func TestInverseDIT1024Mixed32x32Complex64(t *testing.T) {
 
 	const n = 1024
 
+	src := randomComplex64(n, 0xCAFEBABE)
+	fwd := make([]complex64, n)
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+	bitrev := mathpkg.ComputeIdentityIndices(n)
+
+	if !forwardDIT1024Mixed32x32Complex64(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("forwardDIT1024Mixed32x32Complex64 failed")
+	}
+
+	if !inverseDIT1024Mixed32x32Complex64(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("inverseDIT1024Mixed32x32Complex64 failed")
+	}
+
+	want := reference.NaiveIDFT(fwd)
+	// Using the same tolerance logic as in Forward
+	assertComplex64Close(t, dst, want, 2e-3)
+}
+
+func TestRoundTripDIT1024Mixed32x32Complex64(t *testing.T) {
+	t.Parallel()
+
+	const n = 1024
+
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i), float32(n-i))
@@ -107,6 +132,30 @@ func TestForwardDIT1024Mixed32x32Complex128(t *testing.T) {
 }
 
 func TestInverseDIT1024Mixed32x32Complex128(t *testing.T) {
+	t.Parallel()
+
+	const n = 1024
+
+	src := randomComplex128(n, 0xFEEDFACE)
+	fwd := make([]complex128, n)
+	dst := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+	bitrev := mathpkg.ComputeIdentityIndices(n)
+
+	if !forwardDIT1024Mixed32x32Complex128(fwd, src, twiddle, scratch, bitrev) {
+		t.Fatal("forwardDIT1024Mixed32x32Complex128 failed")
+	}
+
+	if !inverseDIT1024Mixed32x32Complex128(dst, fwd, twiddle, scratch, bitrev) {
+		t.Fatal("inverseDIT1024Mixed32x32Complex128 failed")
+	}
+
+	want := reference.NaiveIDFT128(fwd)
+	assertComplex128Close(t, dst, want, 1e-9)
+}
+
+func TestRoundTripDIT1024Mixed32x32Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 1024
