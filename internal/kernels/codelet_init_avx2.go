@@ -22,6 +22,7 @@ func registerAVX2DITCodelets64() {
 		Signature:  "dit4_radix4_avx2",
 		Priority:   5, // Lower priority - scalar ops may not beat generic
 		BitrevFunc: nil,
+		KernelType: KernelTypeCore, // Self-contained, no external bitrev
 	})
 
 	// Size 8: Radix-2 AVX2 variant
@@ -34,6 +35,7 @@ func registerAVX2DITCodelets64() {
 		Signature:  "dit8_radix2_avx2",
 		Priority:   7,
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 
 	// Size 8: Radix-4 (Mixed-radix) AVX2 variant
@@ -46,6 +48,7 @@ func registerAVX2DITCodelets64() {
 		Signature:  "dit8_radix4_avx2",
 		Priority:   10, // Mixed-radix 4x2: efficient for size 8
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 
 	// Size 8: Radix-8 AVX2 variant (single-stage butterfly)
@@ -58,6 +61,7 @@ func registerAVX2DITCodelets64() {
 		Signature:  "dit8_radix8_avx2",
 		Priority:   9, // Keep below Go radix-8 unless proven faster
 		BitrevFunc: mathpkg.ComputeIdentityIndices,
+		KernelType: KernelTypeLegacy, // Still uses bitrev array (identity), will migrate to Core later
 	})
 
 	// Size 16: Radix-2 AVX2 variant
@@ -370,6 +374,7 @@ func registerAVX2DITCodelets128() {
 		Signature:  "dit4_radix4_avx2",
 		Priority:   5,
 		BitrevFunc: nil,
+		KernelType: KernelTypeCore, // Self-contained, no external bitrev
 	})
 
 	// Size 8: Radix-8 AVX2 variant (single-stage butterfly)
@@ -382,6 +387,7 @@ func registerAVX2DITCodelets128() {
 		Signature:  "dit8_radix8_avx2",
 		Priority:   9, // Keep below generic radix-8 until proven faster
 		BitrevFunc: mathpkg.ComputeIdentityIndices,
+		KernelType: KernelTypeLegacy, // Still uses bitrev array (identity), will migrate to Core later
 	})
 
 	// Size 8: Radix-2 AVX2 variant
@@ -394,6 +400,7 @@ func registerAVX2DITCodelets128() {
 		Signature:  "dit8_radix2_avx2",
 		Priority:   25, // Good fallback after radix-8
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 
 	// Size 8: Radix-4 (Mixed-radix) AVX2 variant
@@ -407,6 +414,7 @@ func registerAVX2DITCodelets128() {
 		Signature:  "dit8_radix4_avx2",
 		Priority:   30, // Preferred over radix-8 and radix-2
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 
 	// Size 16: Radix-2 AVX2 variant

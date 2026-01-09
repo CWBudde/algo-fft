@@ -26,6 +26,13 @@ const (
 	SIMDNEON   = planner.SIMDNEON
 )
 
+// KernelType constants for codelet classification.
+const (
+	KernelTypeLegacy = planner.KernelTypeLegacy
+	KernelTypeCore   = planner.KernelTypeCore
+	KernelTypeDIT    = planner.KernelTypeDIT
+)
+
 // GetRegistry returns the appropriate registry for type T.
 func GetRegistry[T Complex]() *planner.CodeletRegistry[T] {
 	return planner.GetRegistry[T]()
@@ -66,7 +73,8 @@ func registerDITCodelets64() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4_radix4_generic",
 		Priority:   0,
-		BitrevFunc: nil, // No bit-reversal for size 4
+		BitrevFunc: nil,        // No bit-reversal for size 4
+		KernelType: KernelTypeCore, // Self-contained, no external bitrev
 	})
 
 	// Size 8: Radix-2 variant (default for now)
@@ -79,6 +87,7 @@ func registerDITCodelets64() {
 		Signature:  "dit8_radix2_generic",
 		Priority:   20,
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 
 	// Size 8: Radix-8 variant (single butterfly)
@@ -91,6 +100,7 @@ func registerDITCodelets64() {
 		Signature:  "dit8_radix8_generic",
 		Priority:   30,                             // Highest priority among generic size-8 codelets
 		BitrevFunc: mathpkg.ComputeIdentityIndices, // Radix-8 uses natural order
+		KernelType: KernelTypeLegacy,               // Still uses bitrev array (identity), will migrate to Core later
 	})
 
 	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2)
@@ -103,6 +113,7 @@ func registerDITCodelets64() {
 		Signature:  "dit8_mixedradix_generic",
 		Priority:   25, // Between radix-2 (20) and radix-8 (30)
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 
 	// Size 16: Radix-2 variant
@@ -331,7 +342,8 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4_radix4_generic",
 		Priority:   0,
-		BitrevFunc: nil, // No bit-reversal for size 4
+		BitrevFunc: nil,            // No bit-reversal for size 4
+		KernelType: KernelTypeCore, // Self-contained, no external bitrev
 	})
 
 	// Size 8: Radix-2 variant (default for now)
@@ -344,6 +356,7 @@ func registerDITCodelets128() {
 		Signature:  "dit8_radix2_generic",
 		Priority:   20,
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 
 	// Size 8: Radix-8 variant (single butterfly)
@@ -356,6 +369,7 @@ func registerDITCodelets128() {
 		Signature:  "dit8_radix8_generic",
 		Priority:   30,                             // Highest priority among generic size-8 codelets
 		BitrevFunc: mathpkg.ComputeIdentityIndices, // Radix-8 uses natural order
+		KernelType: KernelTypeLegacy,               // Still uses bitrev array (identity), will migrate to Core later
 	})
 
 	// Size 8: Mixed-radix variant (1x radix-4 + 1x radix-2)
@@ -368,6 +382,7 @@ func registerDITCodelets128() {
 		Signature:  "dit8_mixedradix_generic",
 		Priority:   25, // Between radix-2 (20) and radix-8 (30)
 		BitrevFunc: mathpkg.ComputeBitReversalIndicesMixed24,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 
 	// Size 16: Radix-2 variant

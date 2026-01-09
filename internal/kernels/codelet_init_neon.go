@@ -19,6 +19,7 @@ func registerNEONDITCodelets64() {
 		Signature:  "dit4_radix4_neon",
 		Priority:   10,
 		BitrevFunc: nil,
+		KernelType: KernelTypeCore, // Self-contained, no external bitrev
 	})
 
 	// Size 8: prefer radix-8 NEON, then radix-4, then radix-2
@@ -31,6 +32,7 @@ func registerNEONDITCodelets64() {
 		Signature:  "dit8_radix2_neon",
 		Priority:   20,
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
@@ -41,6 +43,7 @@ func registerNEONDITCodelets64() {
 		Signature:  "dit8_radix4_neon",
 		Priority:   25,
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
@@ -51,6 +54,7 @@ func registerNEONDITCodelets64() {
 		Signature:  "dit8_radix8_neon",
 		Priority:   30,
 		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		KernelType: KernelTypeLegacy, // Still needs external bitrev (will migrate to DIT later)
 	})
 
 	// Size 16: radix-4 NEON beats radix-2 NEON

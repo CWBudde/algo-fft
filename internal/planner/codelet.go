@@ -29,6 +29,21 @@ const (
 // The canonical definition is in internal/fftypes.
 type BitrevFunc = fftypes.BitrevFunc
 
+// KernelType is a type alias for kernel classification.
+// The canonical definition is in internal/fftypes.
+type KernelType = fftypes.KernelType
+
+// Kernel type constants - aliases for backward compatibility.
+const (
+	KernelTypeLegacy = fftypes.KernelTypeLegacy
+	KernelTypeCore   = fftypes.KernelTypeCore
+	KernelTypeDIT    = fftypes.KernelTypeDIT
+)
+
+// CoreCodeletFunc is a type alias for the new codelet function signature.
+// The canonical definition is in internal/fftypes.
+type CoreCodeletFunc[T Complex] = fftypes.CoreCodeletFunc[T]
+
 // CodeletEntry describes a registered codelet for a specific size.
 type CodeletEntry[T Complex] struct {
 	Size       int            // FFT size this codelet handles
@@ -39,6 +54,7 @@ type CodeletEntry[T Complex] struct {
 	Signature  string         // Human-readable name: "dit8_avx2"
 	Priority   int            // Higher priority = preferred (for same SIMD level)
 	BitrevFunc BitrevFunc     // Bit-reversal generator (nil = no bit-reversal needed)
+	KernelType KernelType     // How the kernel handles permutation (default: Legacy)
 }
 
 // CodeletRegistry provides size-indexed codelet lookup.

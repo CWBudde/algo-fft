@@ -52,8 +52,10 @@ func recursiveForwardWithTwiddle[T Complex](
 		codelet := registry.Lookup(n, features)
 		if codelet != nil {
 			// Call the codelet's forward function
+			// For Core/DIT kernel types, bitrev is handled internally (pass nil)
+			// For Legacy kernel types, generate bitrev from BitrevFunc
 			var bitrev []int
-			if codelet.BitrevFunc != nil {
+			if codelet.KernelType == KernelTypeLegacy && codelet.BitrevFunc != nil {
 				bitrev = codelet.BitrevFunc(n)
 			}
 
@@ -180,8 +182,10 @@ func recursiveInverseWithTwiddle[T Complex](
 
 		codelet := registry.Lookup(n, features)
 		if codelet != nil {
+			// For Core/DIT kernel types, bitrev is handled internally (pass nil)
+			// For Legacy kernel types, generate bitrev from BitrevFunc
 			var bitrev []int
-			if codelet.BitrevFunc != nil {
+			if codelet.KernelType == KernelTypeLegacy && codelet.BitrevFunc != nil {
 				bitrev = codelet.BitrevFunc(n)
 			}
 

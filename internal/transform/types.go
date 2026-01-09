@@ -16,6 +16,13 @@ type (
 	CodeletEntry[T Complex]    = planner.CodeletEntry[T]
 )
 
+// KernelType constants for codelet classification.
+const (
+	KernelTypeLegacy = planner.KernelTypeLegacy
+	KernelTypeCore   = planner.KernelTypeCore
+	KernelTypeDIT    = planner.KernelTypeDIT
+)
+
 // Re-export registries for tests.
 var (
 	Registry64  = planner.Registry64
