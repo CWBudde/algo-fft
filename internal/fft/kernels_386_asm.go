@@ -91,7 +91,7 @@ func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 		return forwardSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
 	case 8:
 		return forwardSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
-	// TODO(386): Re-enable size-16 radix-16 once x86 kernel is corrected.
+		// TODO(386): Re-enable size-16 radix-16 once x86 kernel is corrected.
 	}
 	return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
@@ -104,7 +104,7 @@ func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 		return inverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
 	case 8:
 		return inverseSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
-	// TODO(386): Re-enable size-16 radix-16 once x86 kernel is corrected.
+		// TODO(386): Re-enable size-16 radix-16 once x86 kernel is corrected.
 	}
 	return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }

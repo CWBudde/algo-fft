@@ -5,10 +5,10 @@ package kernels
 import (
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 func TestForwardAVX2Size512Radix16x32Complex64(t *testing.T) {
@@ -21,7 +21,7 @@ func TestForwardAVX2Size512Radix16x32Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)  // radix-16x32 uses identity permutation
+	bitrev := mathpkg.ComputeIdentityIndices(n) // radix-16x32 uses identity permutation
 
 	if !amd64.ForwardAVX2Size512Radix16x32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 		// AVX2 kernel not implemented, use Go fallback

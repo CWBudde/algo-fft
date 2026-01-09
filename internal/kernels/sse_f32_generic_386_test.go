@@ -37,7 +37,7 @@ func TestInverseSSEGenericComplex64_386(t *testing.T) {
 
 	// We need input in frequency domain for Inverse test to get back to time domain?
 	// Or just test IFFT(src) vs NaiveIDFT(src).
-	
+
 	if !x86.InverseSSEComplex64Asm(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("InverseSSEComplex64Asm failed")
 	}

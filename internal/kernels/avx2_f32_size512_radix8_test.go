@@ -5,10 +5,10 @@ package kernels
 import (
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 func TestForwardAVX2Size512Radix8Complex64(t *testing.T) {

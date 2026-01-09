@@ -19,7 +19,7 @@ func detectFeaturesImpl() Features {
 	maxEAX, _, _, _ := cpuid(0, 0)
 	if maxEAX >= 1 {
 		_, _, _, edx := cpuid(1, 0)
-		hasSSE = (edx&(1<<25)) != 0
+		hasSSE = (edx & (1 << 25)) != 0
 	}
 
 	return Features{

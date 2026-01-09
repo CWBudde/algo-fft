@@ -46,6 +46,24 @@ See `docs/IMPLEMENTATION_INVENTORY.md` for the authoritative inventory of all im
 
 ---
 
+## Known Issues (Disabled Codelets)
+
+- [ ] AVX2 size-8 radix-4 (`dit8_radix4_avx2`) fails roundtrip tests under `-tags=asm`; investigate inverse or twiddle usage.
+- [ ] AVX2 size-2048 mixed-2/4 (`dit2048_mixed24_avx2`) fails roundtrip tests; investigate stage-1 output and twiddle usage.
+- [ ] Generic size-1024 radix-32x32 (`dit1024_radix32x32_generic`) fails roundtrip/in-place tests; verify algorithm and permutation handling.
+
+---
+
+## Urgent Tasks
+
+- [ ] `internal/kernels/codelet_init_avx2.go`: re-enable `dit8_radix4_avx2` by fixing roundtrip failures (likely inverse/twiddle usage or bitrev expectations; note mixed-radix bitrev is `[0,2,4,6,1,3,5,7]`).
+- [ ] `internal/kernels/codelet_init_avx2.go`: re-enable `dit2048_mixed24_avx2` by fixing roundtrip failures; stage-1 debug output showed AVX2 scratch outputs were all zeros while Go produced non-zero, so focus on stage-1 load/bitrev/twiddle path.
+- [ ] `internal/kernels/codelet_init_avx2.go`: restore `dit512_radix16x32_avx2` `BitrevFunc` once kernel is verified to respect external bitrev (currently nil because dynamic bitrev test fails).
+- [ ] `internal/kernels/codelet_init_avx2.go`: verify size-256 radix-4 wrapper behavior/perf; current workaround copies scratch to dst for in-place forward because asm doesn't copy back.
+- [ ] `internal/kernels/codelet_init.go`: re-enable `dit1024_radix32x32_generic` by fixing roundtrip/in-place issues (composite permutation likely wrong; current codelet ignores external bitrev).
+
+---
+
 ## Phase 12: Mixed-Radix FFT Optimization
 
 **Status**: Not started
