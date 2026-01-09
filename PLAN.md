@@ -493,10 +493,10 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
   - [x] Stub returns false to use Go fallback (full AVX2 implementation deferred)
   - **Performance**: Go radix-16x32 achieves ~4821 ns/op (faster than Go radix-8 ~5147 ns/op)
   - **Note**: AVX2 radix-8 achieves ~2052 ns/op - full AVX2 radix-16x32 could be competitive
-  - [ ] Stage 1: 16 parallel FFT-32 on columns (using SIMD radix-32 butterflies)
-  - [ ] Twiddle multiplication
-  - [ ] Stage 2: 32 parallel FFT-16 on rows (using SIMD radix-16 butterflies)
-  - [ ] Could be competitive with radix-8 AVX2 (2 stages vs 3 stages)
+  - [x] Stage 1: 16 parallel FFT-32 on columns (using SIMD radix-32 butterflies)
+  - [x] Twiddle multiplication
+  - [x] Stage 2: 32 parallel FFT-16 on rows (using SIMD radix-16 butterflies)
+  - [x] Could be competitive with radix-8 AVX2 (2 stages vs 3 stages)
 
 #### 14.7.4 Size 1024 - Radix-16 (2.5-Stage) or 32×32
 
