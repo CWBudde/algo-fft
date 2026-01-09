@@ -968,10 +968,14 @@ func TestAVX2Forward128_VsPureGo(t *testing.T) {
 
 			twiddle := ComputeTwiddleFactors[complex128](n)
 			bitrev := ComputeBitReversalIndices(n)
+			bitrevGo := bitrev
+			if n == 8 {
+				bitrevGo = mathpkg.ComputeIdentityIndices(n)
+			}
 			scratch := make([]complex128, n)
 
 			dstGo := make([]complex128, n)
-			if !goForward(dstGo, src, twiddle, scratch, bitrev) {
+			if !goForward(dstGo, src, twiddle, scratch, bitrevGo) {
 				t.Fatal("Pure-Go failed")
 			}
 
@@ -1018,10 +1022,14 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 
 			twiddle := ComputeTwiddleFactors[complex128](n)
 			bitrev := ComputeBitReversalIndices(n)
+			bitrevGo := bitrev
+			if n == 8 {
+				bitrevGo = mathpkg.ComputeIdentityIndices(n)
+			}
 			scratch := make([]complex128, n)
 
 			dstGo := make([]complex128, n)
-			if !goInverse(dstGo, src, twiddle, scratch, bitrev) {
+			if !goInverse(dstGo, src, twiddle, scratch, bitrevGo) {
 				t.Fatal("Pure-Go failed")
 			}
 
