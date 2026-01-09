@@ -521,9 +521,6 @@ func forwardAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 	if !m.IsPowerOf2(n) {
 		return false
 	}
-	if n == 128 {
-		return forwardAVX2Size128Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
-	}
 	return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
@@ -531,9 +528,6 @@ func inverseAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int
 	n := len(src)
 	if !m.IsPowerOf2(n) {
 		return false
-	}
-	if n == 128 {
-		return inverseAVX2Size128Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 	}
 	return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }

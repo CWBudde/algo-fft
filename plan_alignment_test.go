@@ -16,7 +16,14 @@ func TestPlanAlignmentComplex64(t *testing.T) {
 	}
 
 	checkAlignment(t, unsafe.Pointer(&plan.twiddle[0]))
-	checkAlignment(t, unsafe.Pointer(&plan.scratch[0]))
+
+	if plan.scratch != nil {
+		checkAlignment(t, unsafe.Pointer(&plan.scratch[0]))
+	} else {
+		scratch, _, _, set := plan.getScratch()
+		checkAlignment(t, unsafe.Pointer(&scratch[0]))
+		plan.scratchPool.Put(set)
+	}
 }
 
 func TestPlanAlignmentComplex128(t *testing.T) {
@@ -28,7 +35,14 @@ func TestPlanAlignmentComplex128(t *testing.T) {
 	}
 
 	checkAlignment(t, unsafe.Pointer(&plan.twiddle[0]))
-	checkAlignment(t, unsafe.Pointer(&plan.scratch[0]))
+
+	if plan.scratch != nil {
+		checkAlignment(t, unsafe.Pointer(&plan.scratch[0]))
+	} else {
+		scratch, _, _, set := plan.getScratch()
+		checkAlignment(t, unsafe.Pointer(&scratch[0]))
+		plan.scratchPool.Put(set)
+	}
 }
 
 func checkAlignment(t *testing.T, ptr unsafe.Pointer) {

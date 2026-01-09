@@ -175,15 +175,9 @@ func TestNewPlan_BitReversalIndices(t *testing.T) {
 		seen[v] = true
 	}
 
-	// Check involution property: bitrev[bitrev[i]] == i
-	for i := range plan.bitrev {
-		j := plan.bitrev[i]
-
-		k := plan.bitrev[j]
-		if k != i {
-			t.Errorf("bitrev[bitrev[%d]] = %d, want %d (involution property)", i, k, i)
-		}
-	}
+	// Involution property (bitrev[bitrev[i]] == i) holds for radix-2/4/8
+	// but NOT for mixed-radix (e.g. size 8 mixed-radix-2/4 has cycle length 3).
+	// We verify valid permutation above, which is sufficient.
 }
 
 func TestNewPlan_BitReversalInvolution(t *testing.T) {

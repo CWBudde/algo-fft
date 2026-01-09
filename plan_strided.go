@@ -69,7 +69,12 @@ func (p *Plan[T]) transformStrided(dst, src []T, stride int, inverse bool) error
 		}
 	}
 
-	buffer := p.stridedScratch[:p.n]
+	_, stridedScratch, _, set := p.getScratch()
+	if set != nil {
+		defer p.scratchPool.Put(set)
+	}
+
+	buffer := stridedScratch[:p.n]
 	for i := range p.n {
 		buffer[i] = src[i*stride]
 	}

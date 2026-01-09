@@ -4,41 +4,41 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/fft"
 )
 
-func (p *Plan[T]) bluesteinForward(dst, src []T) error {
+func (p *Plan[T]) bluesteinForward(dst, src, scratch, bluesteinScratch []T) error {
 	for i := range p.n {
-		p.scratch[i] = src[i] * p.bluesteinChirp[i]
+		scratch[i] = src[i] * p.bluesteinChirp[i]
 	}
 
 	var zero T
 	for i := p.n; i < p.bluesteinM; i++ {
-		p.scratch[i] = zero
+		scratch[i] = zero
 	}
 
 	fft.BluesteinConvolution(
-		p.scratch, p.scratch, p.bluesteinFilter,
-		p.bluesteinTwiddle, p.bluesteinScratch, p.bluesteinBitrev,
+		scratch, scratch, p.bluesteinFilter,
+		p.bluesteinTwiddle, bluesteinScratch, p.bluesteinBitrev,
 	)
 
 	for i := range p.n {
-		dst[i] = p.scratch[i] * p.bluesteinChirp[i]
+		dst[i] = scratch[i] * p.bluesteinChirp[i]
 	}
 
 	return nil
 }
 
-func (p *Plan[T]) bluesteinInverse(dst, src []T) error {
+func (p *Plan[T]) bluesteinInverse(dst, src, scratch, bluesteinScratch []T) error {
 	for i := range p.n {
-		p.scratch[i] = src[i] * p.bluesteinChirpInv[i]
+		scratch[i] = src[i] * p.bluesteinChirpInv[i]
 	}
 
 	var zero T
 	for i := p.n; i < p.bluesteinM; i++ {
-		p.scratch[i] = zero
+		scratch[i] = zero
 	}
 
 	fft.BluesteinConvolution(
-		p.scratch, p.scratch, p.bluesteinFilterInv,
-		p.bluesteinTwiddle, p.bluesteinScratch, p.bluesteinBitrev,
+		scratch, scratch, p.bluesteinFilterInv,
+		p.bluesteinTwiddle, bluesteinScratch, p.bluesteinBitrev,
 	)
 
 	var scale T
@@ -51,7 +51,7 @@ func (p *Plan[T]) bluesteinInverse(dst, src []T) error {
 	}
 
 	for i := range p.n {
-		dst[i] = p.scratch[i] * p.bluesteinChirpInv[i] * scale
+		dst[i] = scratch[i] * p.bluesteinChirpInv[i] * scale
 	}
 
 	return nil

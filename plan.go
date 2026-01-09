@@ -1,6 +1,8 @@
 package algofft
 
 import (
+	"sync"
+
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/fft"
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
@@ -20,11 +22,11 @@ type Plan[T Complex] struct {
 	// For a size-n FFT: W_n^k = exp(-2πik/n) for k = 0..n-1
 	twiddle []T
 
-	// scratch is a pre-allocated buffer for intermediate computations.
-	// This enables zero-allocation transforms after Plan creation.
+	// scratch is an optional pre-allocated buffer for intermediate computations.
+	// If nil, scratch buffers are retrieved from scratchPool per call.
 	scratch []T
 
-	// stridedScratch is a pre-allocated buffer for strided transforms.
+	// stridedScratch is an optional pre-allocated buffer for strided transforms.
 	stridedScratch []T
 
 	// bitrev contains precomputed bit-reversal permutation indices.
@@ -70,6 +72,19 @@ type Plan[T Complex] struct {
 
 	// pool is the buffer pool this Plan was allocated from (nil if not pooled).
 	pool *fft.BufferPool
+
+	// scratchPool manages per-call scratch buffers for thread-safety.
+	// Used only when scratch field is nil.
+	scratchPool *sync.Pool
+}
+
+type scratchSet[T any] struct {
+	scratch                 []T
+	scratchBacking          []byte
+	stridedScratch          []T
+	stridedScratchBacking   []byte
+	bluesteinScratch        []T
+	bluesteinScratchBacking []byte
 }
 
 // KernelStrategy controls which FFT kernel a plan should use.
@@ -215,6 +230,14 @@ func planBitReversal[T Complex](n int, estimate fft.PlanEstimate[T]) []int {
 	return fft.ComputeBitReversalIndices(n)
 }
 
+func (p *Plan[T]) getScratch() ([]T, []T, []T, *scratchSet[T]) {
+	if p.scratch != nil {
+		return p.scratch, p.stridedScratch, p.bluesteinScratch, nil
+	}
+	s := p.scratchPool.Get().(*scratchSet[T])
+	return s.scratch, s.stridedScratch, s.bluesteinScratch, s
+}
+
 // Forward computes the forward (time-to-frequency) FFT.
 //
 // The transform is computed as:
@@ -232,28 +255,33 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		return err
 	}
 
+	scratch, _, bsScratch, set := p.getScratch()
+	if set != nil {
+		defer p.scratchPool.Put(set)
+	}
+
 	if p.kernelStrategy == fft.KernelBluestein {
-		return p.bluesteinForward(dst, src)
+		return p.bluesteinForward(dst, src, scratch, bsScratch)
 	}
 
 	if p.kernelStrategy == fft.KernelRecursive {
-		return p.recursiveForward(dst, src)
+		return p.recursiveForward(dst, src, scratch)
 	}
 
 	// Zero-dispatch codelet path (highest priority)
 	if p.forwardCodelet != nil {
-		p.forwardCodelet(dst, src, p.twiddle, p.scratch, p.bitrev)
+		p.forwardCodelet(dst, src, p.twiddle, scratch, p.bitrev)
 		return nil
 	}
 
 	if p.kernelStrategy == fft.KernelStockham && fft.StockhamPackedAvailable() {
-		if fft.ForwardStockhamPacked(dst, src, p.twiddle, p.scratch, p.packedTwiddle4) {
+		if fft.ForwardStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4) {
 			return nil
 		}
 	}
 
 	// Fallback kernel dispatch
-	if p.forwardKernel != nil && p.forwardKernel(dst, src, p.twiddle, p.scratch, p.bitrev) {
+	if p.forwardKernel != nil && p.forwardKernel(dst, src, p.twiddle, scratch, p.bitrev) {
 		return nil
 	}
 
@@ -277,28 +305,33 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 		return err
 	}
 
+	scratch, _, bsScratch, set := p.getScratch()
+	if set != nil {
+		defer p.scratchPool.Put(set)
+	}
+
 	if p.kernelStrategy == fft.KernelBluestein {
-		return p.bluesteinInverse(dst, src)
+		return p.bluesteinInverse(dst, src, scratch, bsScratch)
 	}
 
 	if p.kernelStrategy == fft.KernelRecursive {
-		return p.recursiveInverse(dst, src)
+		return p.recursiveInverse(dst, src, scratch)
 	}
 
 	// Zero-dispatch codelet path (highest priority)
 	if p.inverseCodelet != nil {
-		p.inverseCodelet(dst, src, p.twiddle, p.scratch, p.bitrev)
+		p.inverseCodelet(dst, src, p.twiddle, scratch, p.bitrev)
 		return nil
 	}
 
 	if p.kernelStrategy == fft.KernelStockham && fft.StockhamPackedAvailable() {
-		if fft.InverseStockhamPacked(dst, src, p.twiddle, p.scratch, p.packedTwiddle4Inv) {
+		if fft.InverseStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4Inv) {
 			return nil
 		}
 	}
 
 	// Fallback kernel dispatch
-	if p.inverseKernel != nil && p.inverseKernel(dst, src, p.twiddle, p.scratch, p.bitrev) {
+	if p.inverseKernel != nil && p.inverseKernel(dst, src, p.twiddle, scratch, p.bitrev) {
 		return nil
 	}
 
@@ -449,6 +482,110 @@ func NewPlanWithOptions[T Complex](n int, opts PlanOptions) (*Plan[T], error) {
 	return newPlanWithFeatures[T](n, cpu.DetectFeatures(), normalizePlanOptions(opts))
 }
 
+func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM int, decompStrategy *fft.DecomposeStrategy) *scratchSet[T] {
+	var (
+		zero                    T
+		scratch                 []T
+		scratchBacking          []byte
+		stridedScratch          []T
+		stridedBacking          []byte
+		bluesteinScratch        []T
+		bluesteinScratchBacking []byte
+	)
+
+	useBluestein := strategy == fft.KernelBluestein
+	useRecursive := strategy == fft.KernelRecursive
+
+	if useBluestein {
+		scratchSize := bluesteinM
+		switch any(zero).(type) {
+		case complex64:
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+
+			bsAligned, bsRaw := mem.AllocAlignedComplex64(scratchSize)
+			bluesteinScratch = any(bsAligned).([]T)
+			bluesteinScratchBacking = bsRaw
+		case complex128:
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+
+			bsAligned, bsRaw := mem.AllocAlignedComplex128(scratchSize)
+			bluesteinScratch = any(bsAligned).([]T)
+			bluesteinScratchBacking = bsRaw
+		default:
+			scratch = make([]T, scratchSize)
+			stridedScratch = make([]T, n)
+			bluesteinScratch = make([]T, scratchSize)
+		}
+	} else if useRecursive {
+		scratchSize := fft.ScratchSizeRecursive(decompStrategy)
+		switch any(zero).(type) {
+		case complex64:
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+		case complex128:
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+		default:
+			scratch = make([]T, scratchSize)
+			stridedScratch = make([]T, n)
+		}
+	} else {
+		// Standard
+		switch any(zero).(type) {
+		case complex64:
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(n)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+		case complex128:
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(n)
+			scratch = any(scratchAligned).([]T)
+			scratchBacking = scratchRaw
+
+			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
+			stridedScratch = any(stridedAligned).([]T)
+			stridedBacking = stridedRaw
+		default:
+			scratch = make([]T, n)
+			stridedScratch = make([]T, n)
+		}
+	}
+
+	return &scratchSet[T]{
+		scratch:                 scratch,
+		scratchBacking:          scratchBacking,
+		stridedScratch:          stridedScratch,
+		stridedScratchBacking:   stridedBacking,
+		bluesteinScratch:        bluesteinScratch,
+		bluesteinScratchBacking: bluesteinScratchBacking,
+	}
+}
+
 func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptions) (*Plan[T], error) {
 	if n < 1 {
 		return nil, ErrInvalidLength
@@ -491,62 +628,33 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		zero           T
 		twiddle        []T
 		twiddleBacking []byte
-		scratch        []T
-		scratchBacking []byte
-		stridedScratch []T
-		stridedBacking []byte
 
 		// Bluestein specific
-		bluesteinM              int
-		bluesteinChirp          []T
-		bluesteinChirpInv       []T
-		bluesteinFilter         []T
-		bluesteinFilterInv      []T
-		bluesteinTwiddle        []T
-		bluesteinBitrev         []int
-		bluesteinScratch        []T
-		bluesteinScratchBacking []byte
+		bluesteinM         int
+		bluesteinChirp     []T
+		bluesteinChirpInv  []T
+		bluesteinFilter    []T
+		bluesteinFilterInv []T
+		bluesteinTwiddle   []T
+		bluesteinBitrev    []int
 
 		// Recursive decomposition specific
 		decompStrategy *fft.DecomposeStrategy
 	)
 
+	// Pre-calculate configuration
 	if useBluestein {
 		bluesteinM = m.NextPowerOfTwo(2*n - 1)
-		scratchSize := bluesteinM
+	} else if useRecursive {
+		codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
+		cacheSize := 32768 // L1 cache size estimate
+		decompStrategy = fft.PlanDecomposition(n, codeletSizes, cacheSize)
+	}
 
-		// Alloc scratch (size M)
-		switch any(zero).(type) {
-		case complex64:
-			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
-			scratch = any(scratchAligned).([]T) //nolint:forcetypeassert
-			scratchBacking = scratchRaw
+	// Allocate initial scratch set for setup (Bluestein filter computation)
+	setupScratch := allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy)
 
-			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
-			stridedScratch = any(stridedAligned).([]T) //nolint:forcetypeassert
-			stridedBacking = stridedRaw
-
-			bsAligned, bsRaw := mem.AllocAlignedComplex64(scratchSize)
-			bluesteinScratch = any(bsAligned).([]T) //nolint:forcetypeassert
-			bluesteinScratchBacking = bsRaw
-		case complex128:
-			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
-			scratch = any(scratchAligned).([]T) //nolint:forcetypeassert
-			scratchBacking = scratchRaw
-
-			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
-			stridedScratch = any(stridedAligned).([]T) //nolint:forcetypeassert
-			stridedBacking = stridedRaw
-
-			bsAligned, bsRaw := mem.AllocAlignedComplex128(scratchSize)
-			bluesteinScratch = any(bsAligned).([]T) //nolint:forcetypeassert
-			bluesteinScratchBacking = bsRaw
-		default:
-			scratch = make([]T, scratchSize)
-			stridedScratch = make([]T, n)
-			bluesteinScratch = make([]T, scratchSize)
-		}
-
+	if useBluestein {
 		// Compute Bluestein tables
 		bluesteinChirp = fft.ComputeChirpSequence[T](n)
 
@@ -559,14 +667,9 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		bluesteinBitrev = fft.ComputeBitReversalIndices(bluesteinM)
 
 		// Compute filters using the pre-allocated scratch buffer
-		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, bluesteinBitrev, bluesteinScratch)
-		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, bluesteinBitrev, bluesteinScratch)
+		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, bluesteinBitrev, setupScratch.bluesteinScratch)
+		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, bluesteinBitrev, setupScratch.bluesteinScratch)
 	} else if useRecursive {
-		// Recursive decomposition: plan decomposition and generate specialized twiddles
-		codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
-		cacheSize := 32768 // L1 cache size estimate
-		decompStrategy = fft.PlanDecomposition(n, codeletSizes, cacheSize)
-
 		// Generate twiddles for recursive decomposition
 		var twiddleSize int
 
@@ -578,15 +681,6 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 			copy(twiddleAligned, tmpTwiddle)
 			twiddle = any(twiddleAligned).([]T)
 			twiddleBacking = twiddleRaw
-
-			scratchSize := fft.ScratchSizeRecursive(decompStrategy)
-			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
-			scratch = any(scratchAligned).([]T)
-			scratchBacking = scratchRaw
-
-			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
-			stridedScratch = any(stridedAligned).([]T)
-			stridedBacking = stridedRaw
 		case complex128:
 			tmpTwiddle := fft.TwiddleFactorsRecursive[complex128](decompStrategy)
 			twiddleSize = len(tmpTwiddle)
@@ -594,19 +688,8 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 			copy(twiddleAligned, tmpTwiddle)
 			twiddle = any(twiddleAligned).([]T)
 			twiddleBacking = twiddleRaw
-
-			scratchSize := fft.ScratchSizeRecursive(decompStrategy)
-			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
-			scratch = any(scratchAligned).([]T)
-			scratchBacking = scratchRaw
-
-			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
-			stridedScratch = any(stridedAligned).([]T)
-			stridedBacking = stridedRaw
 		default:
 			twiddle = fft.TwiddleFactorsRecursive[T](decompStrategy)
-			scratch = make([]T, fft.ScratchSizeRecursive(decompStrategy))
-			stridedScratch = make([]T, n)
 		}
 	} else {
 		// Standard allocation
@@ -617,60 +700,48 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 			copy(twiddleAligned, tmp)
 			twiddle = any(twiddleAligned).([]T)
 			twiddleBacking = twiddleRaw
-
-			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(n)
-			scratch = any(scratchAligned).([]T)
-			scratchBacking = scratchRaw
-
-			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
-			stridedScratch = any(stridedAligned).([]T)
-			stridedBacking = stridedRaw
 		case complex128:
 			twiddleAligned, twiddleRaw := mem.AllocAlignedComplex128(n)
 			tmp := fft.ComputeTwiddleFactors[complex128](n)
 			copy(twiddleAligned, tmp)
 			twiddle = any(twiddleAligned).([]T)
 			twiddleBacking = twiddleRaw
-
-			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(n)
-			scratch = any(scratchAligned).([]T)
-			scratchBacking = scratchRaw
-
-			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
-			stridedScratch = any(stridedAligned).([]T)
-			stridedBacking = stridedRaw
 		default:
 			twiddle = fft.ComputeTwiddleFactors[T](n)
-			scratch = make([]T, n)
-			stridedScratch = make([]T, n)
 		}
 	}
 
+	// Create pool and put the setup scratch into it
+	scratchPool := &sync.Pool{
+		New: func() any {
+			return allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy)
+		},
+	}
+	scratchPool.Put(setupScratch)
+
 	p := &Plan[T]{
-		n:                       n,
-		twiddle:                 twiddle,
-		scratch:                 scratch,
-		stridedScratch:          stridedScratch,
-		bitrev:                  planBitReversal(n, estimate),
-		forwardCodelet:          estimate.ForwardCodelet,
-		inverseCodelet:          estimate.InverseCodelet,
-		algorithm:               estimate.Algorithm,
-		forwardKernel:           kernels.Forward,
-		inverseKernel:           kernels.Inverse,
-		kernelStrategy:          strategy,
-		decompStrategy:          decompStrategy,
-		twiddleBacking:          twiddleBacking,
-		scratchBacking:          scratchBacking,
-		stridedScratchBacking:   stridedBacking,
-		bluesteinM:              bluesteinM,
-		bluesteinChirp:          bluesteinChirp,
-		bluesteinChirpInv:       bluesteinChirpInv,
-		bluesteinFilter:         bluesteinFilter,
-		bluesteinFilterInv:      bluesteinFilterInv,
-		bluesteinTwiddle:        bluesteinTwiddle,
-		bluesteinBitrev:         bluesteinBitrev,
-		bluesteinScratch:        bluesteinScratch,
-		bluesteinScratchBacking: bluesteinScratchBacking,
+		n:                 n,
+		twiddle:           twiddle,
+		scratch:           nil, // Use pool
+		stridedScratch:    nil, // Use pool
+		bitrev:            planBitReversal(n, estimate),
+		forwardCodelet:    estimate.ForwardCodelet,
+		inverseCodelet:    estimate.InverseCodelet,
+		algorithm:         estimate.Algorithm,
+		forwardKernel:     kernels.Forward,
+		inverseKernel:     kernels.Inverse,
+		kernelStrategy:    strategy,
+		decompStrategy:    decompStrategy,
+		twiddleBacking:    twiddleBacking,
+		scratchPool:       scratchPool,
+		bluesteinM:        bluesteinM,
+		bluesteinChirp:    bluesteinChirp,
+		bluesteinChirpInv: bluesteinChirpInv,
+		bluesteinFilter:   bluesteinFilter,
+		bluesteinFilterInv: bluesteinFilterInv,
+		bluesteinTwiddle:   bluesteinTwiddle,
+		bluesteinBitrev:    bluesteinBitrev,
+		bluesteinScratch:   nil, // Use pool
 		meta: PlanMeta{
 			Planner:  opts.Planner,
 			Strategy: strategy,
@@ -776,6 +847,7 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 		scratchBacking:        scratchBacking,
 		stridedScratchBacking: stridedBacking,
 		pool:                  pool,
+		scratchPool:           nil, // No internal pool for pooled plans
 		meta: PlanMeta{
 			Planner:  opts.Planner,
 			Strategy: strategy,
@@ -837,9 +909,14 @@ func getBuffersFromPool[T Complex](n int, pool *fft.BufferPool) (twiddle, scratc
 // This can be useful to ensure deterministic behavior or to clear sensitive data.
 // The Plan remains usable after Reset.
 func (p *Plan[T]) Reset() {
-	// Clear scratch buffer
-	clear(p.scratch)
-	clear(p.stridedScratch)
+	// Clear scratch buffer if it exists (pooled plans)
+	if p.scratch != nil {
+		clear(p.scratch)
+	}
+	if p.stridedScratch != nil {
+		clear(p.stridedScratch)
+	}
+	// For scratchPool, we don't clear as they are transient
 }
 
 // Close releases pooled resources back to the buffer pool.
@@ -909,6 +986,8 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		zero                    T
 		scratch                 []T
 		scratchBacking          []byte
+		stridedScratch          []T
+		stridedScratchBacking   []byte
 		bluesteinScratch        []T
 		bluesteinScratchBacking []byte
 	)
@@ -916,6 +995,8 @@ func (p *Plan[T]) Clone() *Plan[T] {
 	scratchSize := p.n
 	if p.kernelStrategy == fft.KernelBluestein {
 		scratchSize = p.bluesteinM
+	} else if p.kernelStrategy == fft.KernelRecursive {
+		scratchSize = fft.ScratchSizeRecursive(p.decompStrategy)
 	}
 
 	switch any(zero).(type) {
@@ -923,6 +1004,10 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
+
+		stridedAligned, stridedRaw := mem.AllocAlignedComplex64(p.n)
+		stridedScratch = any(stridedAligned).([]T)
+		stridedScratchBacking = stridedRaw
 
 		if p.kernelStrategy == fft.KernelBluestein {
 			bsAligned, bsRaw := mem.AllocAlignedComplex64(p.bluesteinM)
@@ -934,6 +1019,10 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
 
+		stridedAligned, stridedRaw := mem.AllocAlignedComplex128(p.n)
+		stridedScratch = any(stridedAligned).([]T)
+		stridedScratchBacking = stridedRaw
+
 		if p.kernelStrategy == fft.KernelBluestein {
 			bsAligned, bsRaw := mem.AllocAlignedComplex128(p.bluesteinM)
 			bluesteinScratch = any(bsAligned).([]T)
@@ -941,6 +1030,7 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		}
 	default:
 		scratch = make([]T, scratchSize)
+		stridedScratch = make([]T, p.n)
 		if p.kernelStrategy == fft.KernelBluestein {
 			bluesteinScratch = make([]T, p.bluesteinM)
 		}
@@ -949,7 +1039,8 @@ func (p *Plan[T]) Clone() *Plan[T] {
 	return &Plan[T]{
 		n:                 p.n,
 		twiddle:           p.twiddle,           // Shared (immutable)
-		scratch:           scratch,             // New allocation
+		scratch:           scratch,             // New allocation (FIXED)
+		stridedScratch:    stridedScratch,      // New allocation
 		bitrev:            p.bitrev,            // Shared (immutable)
 		packedTwiddle4:    p.packedTwiddle4,    // Shared (immutable)
 		packedTwiddle4Inv: p.packedTwiddle4Inv, // Shared (immutable)
@@ -961,10 +1052,13 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		forwardKernel:     p.forwardKernel,
 		inverseKernel:     p.inverseKernel,
 		kernelStrategy:    p.kernelStrategy,
+		decompStrategy:    p.decompStrategy,
 		meta:              p.meta,
 		twiddleBacking:    p.twiddleBacking, // Shared reference (keeps original alive)
 		scratchBacking:    scratchBacking,   // New allocation
+		stridedScratchBacking: stridedScratchBacking,
 		pool:              nil,              // Clones are never pooled
+		scratchPool:       nil,              // Clones have fixed scratch
 
 		// Bluestein fields
 		bluesteinM:              p.bluesteinM,
