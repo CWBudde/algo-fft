@@ -34,8 +34,7 @@ func forwardDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64, bitre
 		v15 := s[br[i+15]]
 
 		// Perform Size-16 FFT (Bit-Reversed Input -> Natural Output)
-		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 =
-			fft16Complex64(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
+		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex64(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		out[i] = v0
 		out[i+1] = v1
@@ -106,8 +105,7 @@ func forwardDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64, bitre
 		v15 := out[j+240] * tw[15*j]
 
 		// Perform Size-16 FFT
-		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 =
-			fft16Complex64(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
+		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex64(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		// Write to dst
 		dst[j] = v0
@@ -299,8 +297,7 @@ func inverseDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64, bitre
 		v14 := s[br[i+14]]
 		v15 := s[br[i+15]]
 
-		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 =
-			fft16Complex64Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
+		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex64Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		out[i] = v0
 		out[i+1] = v1
@@ -339,8 +336,7 @@ func inverseDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64, bitre
 		v14 := out[j+224] * complex(real(tw[(7*j)%256]), -imag(tw[(7*j)%256]))
 		v15 := out[j+240] * complex(real(tw[(15*j)%256]), -imag(tw[(15*j)%256]))
 
-		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 =
-			fft16Complex64Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
+		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex64Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		const scale = 1.0 / 256.0
 		dst[j] = v0 * scale
@@ -531,8 +527,7 @@ func forwardDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128, bit
 		v14 := s[br[i+14]]
 		v15 := s[br[i+15]]
 
-		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 =
-			fft16Complex128(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
+		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex128(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		out[i] = v0
 		out[i+1] = v1
@@ -571,8 +566,7 @@ func forwardDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128, bit
 		v14 := out[j+224] * tw[(7*j)%256]
 		v15 := out[j+240] * tw[(15*j)%256]
 
-		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 =
-			fft16Complex128(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
+		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex128(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		dst[j] = v0
 		dst[j+16] = v1
@@ -762,8 +756,7 @@ func inverseDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128, bit
 		v14 := s[br[i+14]]
 		v15 := s[br[i+15]]
 
-		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 =
-			fft16Complex128Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
+		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex128Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		out[i] = v0
 		out[i+1] = v1
@@ -802,8 +795,7 @@ func inverseDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128, bit
 		v14 := out[j+224] * complex(real(tw[(7*j)%256]), -imag(tw[(7*j)%256]))
 		v15 := out[j+240] * complex(real(tw[(15*j)%256]), -imag(tw[(15*j)%256]))
 
-		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 =
-			fft16Complex128Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
+		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex128Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		const scale = 1.0 / 256.0
 		dst[j] = v0 * scale

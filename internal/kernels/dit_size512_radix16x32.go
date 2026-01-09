@@ -191,8 +191,7 @@ func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bi
 		z15 := out[base+br16_15]
 
 		// Perform 16-point FFT (bit-reversed input -> natural output)
-		r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15 :=
-			fft16Complex64(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
+		r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15 := fft16Complex64(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
 
 		// Store to output: dst[32*k1 + k2] for k1 = 0..15
 		dst[32*0+k2] = r0
@@ -268,8 +267,7 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bi
 		z15 := s[32*br16_15+k2]
 
 		// Perform IFFT-16 (bit-reversed input -> natural output)
-		r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15 :=
-			fft16Complex64Inverse(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
+		r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15 := fft16Complex64Inverse(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
 
 		// Store with conjugate inter-stage twiddle W_512^{-k2*n1} = conj(tw[k2*n1])
 		base := k2 * 16
@@ -588,8 +586,7 @@ func forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128, 
 		z14 := out[base+br16_14]
 		z15 := out[base+br16_15]
 
-		r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15 :=
-			fft16Complex128(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
+		r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15 := fft16Complex128(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
 
 		dst[32*0+k2] = r0
 		dst[32*1+k2] = r1
@@ -661,8 +658,7 @@ func inverseDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128, 
 		z14 := s[32*br16_14+k2]
 		z15 := s[32*br16_15+k2]
 
-		r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15 :=
-			fft16Complex128Inverse(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
+		r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15 := fft16Complex128Inverse(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
 
 		base := k2 * 16
 		out[base+0] = r0 * conj(tw[k2*0])

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -151,6 +152,10 @@ func computeEnergy(x []complex64) float64 {
 func prepareFFTData(n int) ([]complex64, []int, []complex64) {
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := ComputeBitReversalIndices(n)
+	if n == 8 {
+		// Size-8 AVX2 path uses radix-8; it expects natural order input.
+		bitrev = mathpkg.ComputeIdentityIndices(n)
+	}
 	scratch := make([]complex64, n)
 
 	return twiddle, bitrev, scratch

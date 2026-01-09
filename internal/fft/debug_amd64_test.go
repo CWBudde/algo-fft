@@ -5,13 +5,14 @@ package fft
 import (
 	"fmt"
 	"testing"
+
 	"github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func TestDebugSize16Radix16_AMD64(t *testing.T) {
 	n := 16
 	src := make([]complex64, n)
-	src[1] = 1 
+	src[1] = 1
 
 	fwd := make([]complex64, n)
 	scratch := make([]complex64, n)

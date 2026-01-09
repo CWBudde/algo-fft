@@ -430,10 +430,8 @@ func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64, b
 		z30 := s[32*30+k2]
 		z31 := s[32*31+k2]
 
-		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 :=
-			fft16Complex64Inverse(z0, z16, z8, z24, z4, z20, z12, z28, z2, z18, z10, z26, z6, z22, z14, z30)
-		o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15 :=
-			fft16Complex64Inverse(z1, z17, z9, z25, z5, z21, z13, z29, z3, z19, z11, z27, z7, z23, z15, z31)
+		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 := fft16Complex64Inverse(z0, z16, z8, z24, z4, z20, z12, z28, z2, z18, z10, z26, z6, z22, z14, z30)
+		o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15 := fft16Complex64Inverse(z1, z17, z9, z25, z5, z21, z13, z29, z3, z19, z11, z27, z7, z23, z15, z31)
 
 		r0 := e0 + o0
 		r16 := e0 - o0
@@ -880,10 +878,8 @@ func inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128,
 		z30 := s[32*30+k2]
 		z31 := s[32*31+k2]
 
-		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 :=
-			fft16Complex128Inverse(z0, z16, z8, z24, z4, z20, z12, z28, z2, z18, z10, z26, z6, z22, z14, z30)
-		o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15 :=
-			fft16Complex128Inverse(z1, z17, z9, z25, z5, z21, z13, z29, z3, z19, z11, z27, z7, z23, z15, z31)
+		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 := fft16Complex128Inverse(z0, z16, z8, z24, z4, z20, z12, z28, z2, z18, z10, z26, z6, z22, z14, z30)
+		o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15 := fft16Complex128Inverse(z1, z17, z9, z25, z5, z21, z13, z29, z3, z19, z11, z27, z7, z23, z15, z31)
 
 		r0 := e0 + o0
 		r16 := e0 - o0

@@ -30,7 +30,7 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 	// or we accept a small allocation for twiddles/bitrev which is much smaller than full N.
 	// Ideally, the Plan should provide ample scratch.
 	// Let's use the provided scratch for the main work.
-	
+
 	work := scratch // Size 384
 
 	// Step 1: Compute 128 radix-3 column DFTs
@@ -58,22 +58,22 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 	// W_128^k = W_384^(3k).
 	// We can gather them into a temp buffer.
 	// We also need bitrev indices for size 128.
-	
+
 	// Fast allocation (small stack-allocated-like arrays would be better, but slices work)
 	// We need 128 complex64s for twiddles.
 	// We reuse 'dst' as temporary storage for twiddles and bitrev since we overwrite dst in Step 4.
 	// BUT Step 3 writes to 'dst' (or we need an intermediate).
 	// Let's use a small local buffer for twiddles to avoid 'mathpkg' recompute overhead.
 	// Note: We really should have these precomputed, but gathering from 'twiddle' is fast O(N).
-	
+
 	subTwiddle := make([]complex64, stride)
 	for k := range stride {
 		subTwiddle[k] = twiddle[k*3]
 	}
-	
+
 	// Bitrev indices for size 128 (Mixed-Radix-2/4)
 	bitrev128 := mathpkg.ComputeBitReversalIndicesMixed24(stride)
-	
+
 	// We need scratch for the sub-transform.
 	subScratch := make([]complex64, stride)
 
@@ -81,14 +81,14 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 	// We process rows from 'work' and write to 'dst' temporarily (interleaved later?)
 	// The original code used 'fftOut' temp buffer.
 	// We can use 'dst' to store the FFT results, but the order in 'dst' will be [row0, row1, row2].
-	// Step 4 expects to read from that and write to 'dst' interleaved. 
-	// This implies we cannot write directly to final 'dst' positions in Step 3 easily 
+	// Step 4 expects to read from that and write to 'dst' interleaved.
+	// This implies we cannot write directly to final 'dst' positions in Step 3 easily
 	// because Step 4 reads randomly.
 	// So we keep results in 'work' (in-place FFT?) or write to 'dst' then copy back?
 	// The AVX2 kernel is out-of-place (dst, src).
 	// Let's write result back to 'work' region? No, AVX2 inputs/outputs shouldn't overlap if not safe.
 	// We can write to 'dst[0:128]', 'dst[128:256]', 'dst[256:384]'.
-	
+
 	for k2 := range 3 {
 		rowStart := k2 * stride
 		// Input from work, Output to dst (temporarily stored as rows)
@@ -108,7 +108,7 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 	// We can do this in-place by copying 'dst' back to 'work' first, or swapping?
 	// Copying 'dst' to 'work' is safe.
 	copy(work, dst)
-	
+
 	for k1 := range stride {
 		for k2 := range 3 {
 			dst[k1*3+k2] = work[k2*stride+k1]
@@ -143,7 +143,7 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 	for k := range stride {
 		subTwiddle[k] = twiddle[k*3]
 	}
-	
+
 	bitrev128 := mathpkg.ComputeBitReversalIndicesMixed24(stride)
 	subScratch := make([]complex64, stride)
 

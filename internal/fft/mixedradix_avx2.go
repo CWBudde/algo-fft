@@ -21,7 +21,7 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 		features := cpu.DetectFeatures()
 		if entry := kernels.Registry64.Lookup(n, features); entry != nil && entry.SIMDLevel >= kernels.SIMDAVX2 {
 			// Found an AVX2 kernel for this sub-transform!
-			
+
 			// 1. Prepare Input
 			var inputBuf []complex64
 			if stride == 1 {
@@ -33,28 +33,28 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 					inputBuf[i] = src[i*stride]
 				}
 			}
-			
+
 			// 2. Prepare Twiddles
 			twiddleBuf := make([]complex64, n)
 			for i := range n {
 				twiddleBuf[i] = twiddle[i*step]
 			}
-			
+
 			// 3. Prepare Bitrev
 			var bitrev []int
 			if entry.BitrevFunc != nil {
 				bitrev = entry.BitrevFunc(n)
 			}
-			
+
 			// 4. Prepare Scratch for Kernel
 			kernelScratch := make([]complex64, n)
-			
+
 			// 5. Call Kernel
 			success := false
 			if inverse {
 				if entry.Inverse != nil {
 					entry.Inverse(dst[:n], inputBuf, twiddleBuf, kernelScratch, bitrev)
-					// Undo built-in scaling of the Inverse codelet (1/n) 
+					// Undo built-in scaling of the Inverse codelet (1/n)
 					scale := complex64(complex(float32(n), 0))
 					for i := range n {
 						dst[i] *= scale
@@ -67,7 +67,7 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 					success = true
 				}
 			}
-			
+
 			if success {
 				return
 			}
@@ -92,24 +92,24 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 					inputBuf[i] = src[i*stride]
 				}
 			}
-			
+
 			twiddleBuf := make([]complex128, n)
 			for i := range n {
 				twiddleBuf[i] = twiddle[i*step]
 			}
-			
+
 			var bitrev []int
 			if entry.BitrevFunc != nil {
 				bitrev = entry.BitrevFunc(n)
 			}
-			
+
 			kernelScratch := make([]complex128, n)
-			
+
 			success := false
 			if inverse {
 				if entry.Inverse != nil {
 					entry.Inverse(dst[:n], inputBuf, twiddleBuf, kernelScratch, bitrev)
-					// Undo built-in scaling of the Inverse codelet (1/n) 
+					// Undo built-in scaling of the Inverse codelet (1/n)
 					scale := complex128(complex(float64(n), 0))
 					for i := range n {
 						dst[i] *= scale
@@ -122,7 +122,7 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 					success = true
 				}
 			}
-			
+
 			if success {
 				return
 			}
