@@ -99,6 +99,7 @@ func TestInverseDIT256Radix16Complex128(t *testing.T) {
 
 func BenchmarkForwardDIT256Radix16Complex64(b *testing.B) {
 	const n = 256
+
 	src := randomComplex64(n, 0xDEADBEEF)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -106,21 +107,22 @@ func BenchmarkForwardDIT256Radix16Complex64(b *testing.B) {
 	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		forwardDIT256Radix16Complex64(dst, src, twiddle, scratch, bitrev)
 	}
 }
 
 func BenchmarkForwardDIT256Radix16Complex128(b *testing.B) {
 	const n = 256
+
 	src := randomComplex128(n, 0xDEADBEEF)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
 	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		forwardDIT256Radix16Complex128(dst, src, twiddle, scratch, bitrev)
 	}
 }

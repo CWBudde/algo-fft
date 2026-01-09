@@ -286,6 +286,7 @@ func forwardDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	tw := twiddle[:n]
 
 	bufA := dst
+
 	bufB := scratch
 	if &dst[0] == &src[0] {
 		bufA = scratch
@@ -320,6 +321,7 @@ func forwardDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	for stage := range sizes {
 		size := sizes[stage]
 		step := steps[stage]
+
 		quarter := size / 4
 		for base := 0; base < n; base += size {
 			for j := range quarter {
@@ -406,6 +408,7 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	tw := twiddle[:n]
 
 	bufA := dst
+
 	bufB := scratch
 	if &dst[0] == &src[0] {
 		bufA = scratch
@@ -440,6 +443,7 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128, bi
 	for stage := range sizes {
 		size := sizes[stage]
 		step := steps[stage]
+
 		quarter := size / 4
 		for base := 0; base < n; base += size {
 			for j := range quarter {

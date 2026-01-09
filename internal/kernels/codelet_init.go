@@ -267,7 +267,7 @@ func registerDITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix32x32_generic",
-		Priority:   -1, // Disabled: roundtrip/in-place failures under asm tag
+		Priority:   -1,  // Disabled: roundtrip/in-place failures under asm tag
 		BitrevFunc: nil, // Composite algorithm handles permutation internally
 	})
 
@@ -532,7 +532,7 @@ func registerDITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix32x32_generic",
-		Priority:   -1, // Disabled: roundtrip/in-place failures under asm tag
+		Priority:   -1,  // Disabled: roundtrip/in-place failures under asm tag
 		BitrevFunc: nil, // Composite algorithm handles permutation internally
 	})
 

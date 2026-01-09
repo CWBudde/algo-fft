@@ -122,6 +122,7 @@ func forwardDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 64 {
@@ -299,6 +300,7 @@ func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 64 {
@@ -476,6 +478,7 @@ func forwardDIT512Radix8Complex128(dst, src, twiddle, scratch []complex128, bitr
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 64 {
@@ -646,6 +649,7 @@ func inverseDIT512Radix8Complex128(dst, src, twiddle, scratch []complex128, bitr
 	if &dst[0] == &src[0] {
 		work = scratch
 	}
+
 	work = work[:n]
 
 	for j := range 64 {

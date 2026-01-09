@@ -46,14 +46,17 @@ func radix3TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 					idx1 := idx0 + third
 					idx2 := idx1 + third
 
-					var a0 [4]complex64
-					var a1 [4]complex64
-					var a2 [4]complex64
+					var (
+						a0 [4]complex64
+						a1 [4]complex64
+						a2 [4]complex64
+					)
 
-					for lane := 0; lane < 4; lane++ {
+					for lane := range 4 {
 						jj := j + lane
 						w1 := twiddle[jj*step]
 						w2 := twiddle[2*jj*step]
+
 						if inverse {
 							w1 = conj(w1)
 							w2 = conj(w2)
@@ -64,9 +67,11 @@ func radix3TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 						a2[lane] = w2 * work[idx2+lane]
 					}
 
-					var y0 [4]complex64
-					var y1 [4]complex64
-					var y2 [4]complex64
+					var (
+						y0 [4]complex64
+						y1 [4]complex64
+						y2 [4]complex64
+					)
 
 					if inverse {
 						butterfly3InverseAVX2Complex64Slices(y0[:], y1[:], y2[:], a0[:], a1[:], a2[:])
@@ -74,7 +79,7 @@ func radix3TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 						butterfly3ForwardAVX2Complex64Slices(y0[:], y1[:], y2[:], a0[:], a1[:], a2[:])
 					}
 
-					for lane := 0; lane < 4; lane++ {
+					for lane := range 4 {
 						work[idx0+lane] = y0[lane]
 						work[idx1+lane] = y1[lane]
 						work[idx2+lane] = y2[lane]

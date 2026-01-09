@@ -59,11 +59,14 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int
 		return true
 	}
 
-	var radices [mixedRadixMaxStages]int
-	var hasCodelet func(int) bool
-	var zero T
+	var (
+		radices    [mixedRadixMaxStages]int
+		hasCodelet func(int) bool
+		zero       T
+	)
 
 	// Determine which registry to check based on type T
+
 	switch any(zero).(type) {
 	case complex64:
 		hasCodelet = kernels.Registry64.Has
@@ -153,6 +156,7 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet fun
 		if n > 5 && hasCodelet(n) {
 			radices[count] = n
 			count++
+
 			return count
 		}
 

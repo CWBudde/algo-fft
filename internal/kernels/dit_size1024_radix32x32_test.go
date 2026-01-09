@@ -9,6 +9,7 @@ import (
 
 func TestForwardDIT1024Mixed32x32Complex64(t *testing.T) {
 	const n = 1024
+
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i), float32(n-i))
@@ -28,14 +29,17 @@ func TestForwardDIT1024Mixed32x32Complex64(t *testing.T) {
 	forwardDIT1024Radix4Complex64(refDst, src, twiddle, scratch, refBitrev)
 
 	const relTol = 2e-5
+
 	for i := range dst {
 		diff := dst[i] - refDst[i]
 		errMag := math.Hypot(float64(real(diff)), float64(imag(diff)))
 		refMag := math.Hypot(float64(real(refDst[i])), float64(imag(refDst[i])))
+
 		tol := relTol * refMag
 		if tol < 1e-3 {
 			tol = 1e-3
 		}
+
 		if errMag > tol {
 			t.Errorf("Mismatch at index %d: got %v, want %v (err=%v, tol=%v)", i, dst[i], refDst[i], errMag, tol)
 		}
@@ -44,6 +48,7 @@ func TestForwardDIT1024Mixed32x32Complex64(t *testing.T) {
 
 func TestInverseDIT1024Mixed32x32Complex64(t *testing.T) {
 	const n = 1024
+
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i), float32(n-i))
@@ -56,6 +61,7 @@ func TestInverseDIT1024Mixed32x32Complex64(t *testing.T) {
 	inv := make([]complex64, n)
 
 	forwardDIT1024Mixed32x32Complex64(fwd, src, twiddle, scratch, bitrev)
+
 	if !inverseDIT1024Mixed32x32Complex64(inv, fwd, twiddle, scratch, bitrev) {
 		t.Fatal("inverseDIT1024Mixed32x32Complex64 failed")
 	}
@@ -70,6 +76,7 @@ func TestInverseDIT1024Mixed32x32Complex64(t *testing.T) {
 
 func TestForwardDIT1024Mixed32x32Complex128(t *testing.T) {
 	const n = 1024
+
 	src := make([]complex128, n)
 	for i := range src {
 		src[i] = complex(float64(i), float64(n-i))
@@ -98,6 +105,7 @@ func TestForwardDIT1024Mixed32x32Complex128(t *testing.T) {
 
 func TestInverseDIT1024Mixed32x32Complex128(t *testing.T) {
 	const n = 1024
+
 	src := make([]complex128, n)
 	for i := range src {
 		src[i] = complex(float64(i), float64(n-i))
@@ -110,6 +118,7 @@ func TestInverseDIT1024Mixed32x32Complex128(t *testing.T) {
 	inv := make([]complex128, n)
 
 	forwardDIT1024Mixed32x32Complex128(fwd, src, twiddle, scratch, bitrev)
+
 	if !inverseDIT1024Mixed32x32Complex128(inv, fwd, twiddle, scratch, bitrev) {
 		t.Fatal("inverseDIT1024Mixed32x32Complex128 failed")
 	}
@@ -124,6 +133,7 @@ func TestInverseDIT1024Mixed32x32Complex128(t *testing.T) {
 
 func BenchmarkRadix32x32Forward_1024(b *testing.B) {
 	const n = 1024
+
 	src := randomComplex64(n, 0x1234+uint64(n))
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)

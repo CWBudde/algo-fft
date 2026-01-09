@@ -83,6 +83,7 @@ func TestCodeletRegistrySizes(t *testing.T) {
 
 	sizes := Registry64.Sizes()
 	has384 := false
+
 	for _, size := range sizes {
 		if size == 384 {
 			has384 = true
@@ -92,6 +93,7 @@ func TestCodeletRegistrySizes(t *testing.T) {
 
 	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true, 512: true, 1024: true, 2048: true, 4096: true, 8192: true, 16384: true}
 	expectedCount := 13
+
 	if has384 {
 		expected[384] = true
 		expectedCount = 14

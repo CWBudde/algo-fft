@@ -55,7 +55,7 @@ func forwardDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64, bitre
 	}
 
 	// Stage 2: 16 parallel Size-16 FFTs on rows.
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		// k=0: Col 0. W^0
 		v0 := out[j]
 
@@ -263,7 +263,9 @@ func fft16Complex64(
 
 	r0, r1, r2, r3, r4, r5, r6, r7 = v0, v1, v2, v3, v4, v5, v6, v7
 	r8, r9, r10, r11, r12, r13, r14, r15 = v8, v9, v10, v11, v12, v13, v14, v15
-	return
+
+	return r0, r1, r2, r3, r4, r5, r6, r7,
+		r8, r9, r10, r11, r12, r13, r14, r15
 }
 
 // inverseDIT256Radix16Complex64 is an optimized radix-16 DIT inverse FFT for size-256.
@@ -318,7 +320,7 @@ func inverseDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64, bitre
 	}
 
 	// Stage 2
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		v0 := out[j]
 		v1 := out[j+16] * complex(real(tw[(8*j)%256]), -imag(tw[(8*j)%256]))
 		v2 := out[j+32] * complex(real(tw[(4*j)%256]), -imag(tw[(4*j)%256]))
@@ -339,6 +341,7 @@ func inverseDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64, bitre
 		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex64Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		const scale = 1.0 / 256.0
+
 		dst[j] = v0 * scale
 		dst[j+16] = v1 * scale
 		dst[j+32] = v2 * scale
@@ -493,7 +496,9 @@ func fft16Complex64Inverse(
 
 	r0, r1, r2, r3, r4, r5, r6, r7 = v0, v1, v2, v3, v4, v5, v6, v7
 	r8, r9, r10, r11, r12, r13, r14, r15 = v8, v9, v10, v11, v12, v13, v14, v15
-	return
+
+	return r0, r1, r2, r3, r4, r5, r6, r7,
+		r8, r9, r10, r11, r12, r13, r14, r15
 }
 
 // forwardDIT256Radix16Complex128 is an optimized radix-16 DIT FFT for size-256 (complex128).
@@ -548,7 +553,7 @@ func forwardDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128, bit
 	}
 
 	// Stage 2
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		v0 := out[j]
 		v1 := out[j+16] * tw[(8*j)%256]
 		v2 := out[j+32] * tw[(4*j)%256]
@@ -722,7 +727,9 @@ func fft16Complex128(
 
 	r0, r1, r2, r3, r4, r5, r6, r7 = v0, v1, v2, v3, v4, v5, v6, v7
 	r8, r9, r10, r11, r12, r13, r14, r15 = v8, v9, v10, v11, v12, v13, v14, v15
-	return
+
+	return r0, r1, r2, r3, r4, r5, r6, r7,
+		r8, r9, r10, r11, r12, r13, r14, r15
 }
 
 // inverseDIT256Radix16Complex128 is an optimized radix-16 DIT inverse FFT for size-256 (complex128).
@@ -777,7 +784,7 @@ func inverseDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128, bit
 	}
 
 	// Stage 2
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		v0 := out[j]
 		v1 := out[j+16] * complex(real(tw[(8*j)%256]), -imag(tw[(8*j)%256]))
 		v2 := out[j+32] * complex(real(tw[(4*j)%256]), -imag(tw[(4*j)%256]))
@@ -798,6 +805,7 @@ func inverseDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128, bit
 		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex128Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		const scale = 1.0 / 256.0
+
 		dst[j] = v0 * scale
 		dst[j+16] = v1 * scale
 		dst[j+32] = v2 * scale
@@ -952,5 +960,7 @@ func fft16Complex128Inverse(
 
 	r0, r1, r2, r3, r4, r5, r6, r7 = v0, v1, v2, v3, v4, v5, v6, v7
 	r8, r9, r10, r11, r12, r13, r14, r15 = v8, v9, v10, v11, v12, v13, v14, v15
-	return
+
+	return r0, r1, r2, r3, r4, r5, r6, r7,
+		r8, r9, r10, r11, r12, r13, r14, r15
 }
