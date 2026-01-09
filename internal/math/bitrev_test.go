@@ -122,10 +122,14 @@ func TestComputeBitReversalIndices(t *testing.T) {
 }
 
 func TestComputeBitReversalIndicesProperties(t *testing.T) {
+	t.Parallel()
+
 	sizes := []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024}
 
 	for _, n := range sizes {
 		t.Run(formatSize(n), func(t *testing.T) {
+			t.Parallel()
+
 			indices := ComputeBitReversalIndices(n)
 
 			// Property 1: Length should equal n
@@ -173,12 +177,15 @@ func TestComputeBitReversalIndicesProperties(t *testing.T) {
 }
 
 func TestComputeBitReversalIndicesNonPowerOfTwo(t *testing.T) {
+	t.Parallel()
 	// Test that the function still works for non-power-of-2 sizes
 	// even though FFT typically uses power-of-2 sizes
 	sizes := []int{3, 5, 6, 7, 9, 10, 12, 15}
 
 	for _, n := range sizes {
 		t.Run(formatSize(n), func(t *testing.T) {
+			t.Parallel()
+
 			indices := ComputeBitReversalIndices(n)
 
 			// Should still return valid indices

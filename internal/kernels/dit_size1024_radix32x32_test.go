@@ -8,6 +8,8 @@ import (
 )
 
 func TestForwardDIT1024Mixed32x32Complex64(t *testing.T) {
+	t.Parallel()
+
 	const n = 1024
 
 	src := make([]complex64, n)
@@ -47,6 +49,8 @@ func TestForwardDIT1024Mixed32x32Complex64(t *testing.T) {
 }
 
 func TestInverseDIT1024Mixed32x32Complex64(t *testing.T) {
+	t.Parallel()
+
 	const n = 1024
 
 	src := make([]complex64, n)
@@ -75,6 +79,8 @@ func TestInverseDIT1024Mixed32x32Complex64(t *testing.T) {
 }
 
 func TestForwardDIT1024Mixed32x32Complex128(t *testing.T) {
+	t.Parallel()
+
 	const n = 1024
 
 	src := make([]complex128, n)
@@ -104,6 +110,8 @@ func TestForwardDIT1024Mixed32x32Complex128(t *testing.T) {
 }
 
 func TestInverseDIT1024Mixed32x32Complex128(t *testing.T) {
+	t.Parallel()
+
 	const n = 1024
 
 	src := make([]complex128, n)

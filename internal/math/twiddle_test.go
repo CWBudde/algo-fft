@@ -7,7 +7,9 @@ import (
 )
 
 func TestComputeTwiddleFactors(t *testing.T) {
+	t.Parallel()
 	t.Run("edge cases", func(t *testing.T) {
+		t.Parallel()
 		// Zero size
 		result := ComputeTwiddleFactors[complex64](0)
 		if result != nil {
@@ -22,6 +24,7 @@ func TestComputeTwiddleFactors(t *testing.T) {
 	})
 
 	t.Run("size 1", func(t *testing.T) {
+		t.Parallel()
 		// n=1: W_1^0 = exp(-2πi*0/1) = 1
 		twiddle := ComputeTwiddleFactors[complex64](1)
 		if len(twiddle) != 1 {
@@ -34,6 +37,7 @@ func TestComputeTwiddleFactors(t *testing.T) {
 	})
 
 	t.Run("size 2", func(t *testing.T) {
+		t.Parallel()
 		// n=2: W_2^k = exp(-2πik/2) for k=0,1
 		// W_2^0 = 1, W_2^1 = -1
 		twiddle := ComputeTwiddleFactors[complex64](2)
@@ -52,6 +56,7 @@ func TestComputeTwiddleFactors(t *testing.T) {
 	})
 
 	t.Run("size 4", func(t *testing.T) {
+		t.Parallel()
 		// n=4: W_4^k = exp(-2πik/4) for k=0,1,2,3
 		// W_4^0 = 1, W_4^1 = -i, W_4^2 = -1, W_4^3 = i
 		twiddle := ComputeTwiddleFactors[complex64](4)
@@ -70,6 +75,8 @@ func TestComputeTwiddleFactors(t *testing.T) {
 	})
 
 	t.Run("size 8", func(t *testing.T) {
+		t.Parallel()
+
 		twiddle := ComputeTwiddleFactors[complex64](8)
 		if len(twiddle) != 8 {
 			t.Fatalf("len = %d, want 8", len(twiddle))
@@ -98,7 +105,10 @@ func TestComputeTwiddleFactors(t *testing.T) {
 }
 
 func TestComputeTwiddleFactorsComplex128(t *testing.T) {
+	t.Parallel()
 	t.Run("size 4 complex128", func(t *testing.T) {
+		t.Parallel()
+
 		twiddle := ComputeTwiddleFactors[complex128](4)
 		if len(twiddle) != 4 {
 			t.Fatalf("len = %d, want 4", len(twiddle))
@@ -116,10 +126,14 @@ func TestComputeTwiddleFactorsComplex128(t *testing.T) {
 }
 
 func TestComputeTwiddleFactorsProperties(t *testing.T) {
+	t.Parallel()
+
 	sizes := []int{2, 4, 8, 16, 32, 64, 128, 256, 512, 1024}
 
 	for _, n := range sizes {
 		t.Run(formatSizeTwiddle(n), func(t *testing.T) {
+			t.Parallel()
+
 			twiddle := ComputeTwiddleFactors[complex128](n)
 
 			// Property 1: Length should equal n
@@ -167,7 +181,10 @@ func TestComputeTwiddleFactorsProperties(t *testing.T) {
 }
 
 func TestComplexFromFloat64(t *testing.T) {
+	t.Parallel()
 	t.Run("complex64", func(t *testing.T) {
+		t.Parallel()
+
 		re, im := 3.14, 2.71
 		result := ComplexFromFloat64[complex64](re, im)
 
@@ -181,6 +198,8 @@ func TestComplexFromFloat64(t *testing.T) {
 	})
 
 	t.Run("complex128", func(t *testing.T) {
+		t.Parallel()
+
 		re, im := 3.141592653589793, 2.718281828459045
 		result := ComplexFromFloat64[complex128](re, im)
 
@@ -194,6 +213,8 @@ func TestComplexFromFloat64(t *testing.T) {
 	})
 
 	t.Run("zero values", func(t *testing.T) {
+		t.Parallel()
+
 		result64 := ComplexFromFloat64[complex64](0, 0)
 		if result64 != 0 {
 			t.Errorf("ComplexFromFloat64[complex64](0, 0) = %v, want 0", result64)
@@ -206,6 +227,8 @@ func TestComplexFromFloat64(t *testing.T) {
 	})
 
 	t.Run("negative values", func(t *testing.T) {
+		t.Parallel()
+
 		result := ComplexFromFloat64[complex64](-1.5, -2.5)
 		expected := complex64(complex(float32(-1.5), float32(-2.5)))
 
@@ -218,7 +241,10 @@ func TestComplexFromFloat64(t *testing.T) {
 }
 
 func TestConj(t *testing.T) {
+	t.Parallel()
 	t.Run("complex64", func(t *testing.T) {
+		t.Parallel()
+
 		tests := []struct {
 			name     string
 			input    complex64
@@ -235,6 +261,8 @@ func TestConj(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
 				result := Conj(tt.input)
 				if result != tt.expected {
 					t.Errorf("Conj(%v) = %v, want %v", tt.input, result, tt.expected)
@@ -244,6 +272,8 @@ func TestConj(t *testing.T) {
 	})
 
 	t.Run("complex128", func(t *testing.T) {
+		t.Parallel()
+
 		tests := []struct {
 			name     string
 			input    complex128
@@ -256,6 +286,8 @@ func TestConj(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
 				result := Conj(tt.input)
 				if result != tt.expected {
 					t.Errorf("Conj(%v) = %v, want %v", tt.input, result, tt.expected)
@@ -265,6 +297,7 @@ func TestConj(t *testing.T) {
 	})
 
 	t.Run("double conjugate", func(t *testing.T) {
+		t.Parallel()
 		// Property: Conj(Conj(z)) = z
 		val := complex64(3 + 4i)
 
@@ -276,8 +309,11 @@ func TestConj(t *testing.T) {
 }
 
 func TestConjugateOf(t *testing.T) {
+	t.Parallel()
 	// ConjugateOf is just a wrapper for Conj
 	t.Run("basic", func(t *testing.T) {
+		t.Parallel()
+
 		input := complex64(3 + 4i)
 		expected := complex64(3 - 4i)
 
@@ -288,6 +324,8 @@ func TestConjugateOf(t *testing.T) {
 	})
 
 	t.Run("matches Conj", func(t *testing.T) {
+		t.Parallel()
+
 		input := complex128(1.5 + 2.5i)
 		resultConj := Conj(input)
 
@@ -300,11 +338,14 @@ func TestConjugateOf(t *testing.T) {
 }
 
 func TestTwiddleFactorSymmetry(t *testing.T) {
+	t.Parallel()
 	// Property: W_n^k and W_n^(n-k) are complex conjugates
 	sizes := []int{4, 8, 16, 32}
 
 	for _, n := range sizes {
 		t.Run(formatSizeTwiddle(n), func(t *testing.T) {
+			t.Parallel()
+
 			twiddle := ComputeTwiddleFactors[complex128](n)
 
 			const eps = 1e-14

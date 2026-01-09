@@ -144,6 +144,8 @@ func TestForwardSSE2Complex64(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			input := make([]complex64, tt.size)
 			for i := range input {
 				input[i] = complex(float32(i%16), 0)
@@ -181,6 +183,8 @@ func TestInverseSSE2Complex64(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			freq := make([]complex64, tt.size)
 			freq[0] = complex(float32(tt.size), 0)
 
@@ -210,6 +214,8 @@ func TestForwardSSE2Complex128(t *testing.T) {
 
 	for _, size := range sizes {
 		t.Run("Size_"+string(rune(size)), func(t *testing.T) {
+			t.Parallel()
+
 			input := make([]complex128, size)
 			for i := range input {
 				input[i] = complex(float64(i%16), 0)
@@ -236,6 +242,8 @@ func TestInverseSSE2Complex128(t *testing.T) {
 
 	for _, size := range sizes {
 		t.Run("Size_"+string(rune(size)), func(t *testing.T) {
+			t.Parallel()
+
 			freq := make([]complex128, size)
 			freq[0] = complex(float64(size), 0)
 

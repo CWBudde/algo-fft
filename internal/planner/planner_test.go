@@ -31,6 +31,8 @@ func TestEstimatePlanPowerOf2(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			estimate := EstimatePlan[complex64](tt.size, features, nil, KernelAuto)
 
 			// Verify the estimate is non-zero and has valid strategy
@@ -73,6 +75,8 @@ func TestEstimatePlanWithForcedStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			estimate := EstimatePlan[complex64](tt.size, features, nil, tt.forcedStrat)
 
 			if estimate.Strategy != tt.expectedStrat {
@@ -105,6 +109,8 @@ func TestEstimatePlanNonPowerOf2(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			estimate := EstimatePlan[complex64](tt.size, features, nil, KernelAuto)
 
 			if tt.expectBluestein {
