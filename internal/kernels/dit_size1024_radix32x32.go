@@ -397,41 +397,45 @@ func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64, b
 
 	// Stage 1: 32 IFFT-32s on rows, then apply inter-stage twiddles.
 	for k2 := range 32 {
+		// Load first 16 values for even FFT-16
 		z0 := s[32*0+k2]
-		z1 := s[32*1+k2]
-		z2 := s[32*2+k2]
-		z3 := s[32*3+k2]
+		z1 := s[32*16+k2]
+		z2 := s[32*8+k2]
+		z3 := s[32*24+k2]
 		z4 := s[32*4+k2]
-		z5 := s[32*5+k2]
-		z6 := s[32*6+k2]
-		z7 := s[32*7+k2]
-		z8 := s[32*8+k2]
-		z9 := s[32*9+k2]
+		z5 := s[32*20+k2]
+		z6 := s[32*12+k2]
+		z7 := s[32*28+k2]
+		z8 := s[32*2+k2]
+		z9 := s[32*18+k2]
 		z10 := s[32*10+k2]
-		z11 := s[32*11+k2]
-		z12 := s[32*12+k2]
-		z13 := s[32*13+k2]
+		z11 := s[32*26+k2]
+		z12 := s[32*6+k2]
+		z13 := s[32*22+k2]
 		z14 := s[32*14+k2]
-		z15 := s[32*15+k2]
-		z16 := s[32*16+k2]
-		z17 := s[32*17+k2]
-		z18 := s[32*18+k2]
-		z19 := s[32*19+k2]
-		z20 := s[32*20+k2]
-		z21 := s[32*21+k2]
-		z22 := s[32*22+k2]
-		z23 := s[32*23+k2]
-		z24 := s[32*24+k2]
-		z25 := s[32*25+k2]
-		z26 := s[32*26+k2]
-		z27 := s[32*27+k2]
-		z28 := s[32*28+k2]
-		z29 := s[32*29+k2]
-		z30 := s[32*30+k2]
-		z31 := s[32*31+k2]
+		z15 := s[32*30+k2]
 
-		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 := fft16Complex64Inverse(z0, z16, z8, z24, z4, z20, z12, z28, z2, z18, z10, z26, z6, z22, z14, z30)
-		o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15 := fft16Complex64Inverse(z1, z17, z9, z25, z5, z21, z13, z29, z3, z19, z11, z27, z7, z23, z15, z31)
+		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 := fft16Complex64Inverse(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
+
+		// Reuse variables for odd FFT-16
+		z0 = s[32*1+k2]
+		z1 = s[32*17+k2]
+		z2 = s[32*9+k2]
+		z3 = s[32*25+k2]
+		z4 = s[32*5+k2]
+		z5 = s[32*21+k2]
+		z6 = s[32*13+k2]
+		z7 = s[32*29+k2]
+		z8 = s[32*3+k2]
+		z9 = s[32*19+k2]
+		z10 = s[32*11+k2]
+		z11 = s[32*27+k2]
+		z12 = s[32*7+k2]
+		z13 = s[32*23+k2]
+		z14 = s[32*15+k2]
+		z15 = s[32*31+k2]
+
+		o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15 := fft16Complex64Inverse(z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14, z15)
 
 		r0 := e0 + o0
 		r16 := e0 - o0

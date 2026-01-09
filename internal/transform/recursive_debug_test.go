@@ -94,6 +94,8 @@ func TestRecursiveDebug_Size512(t *testing.T) {
 // TestRecursiveDebug_DITComparison - Test DIT codelet directly vs recursive call
 // TestRecursiveDebug_Size1024 - Minimal test to diagnose size-1024 recursive failure.
 func TestRecursiveDebug_Size1024(t *testing.T) {
+	t.Parallel()
+
 	size := 1024
 	codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
 	cacheSize := 32768

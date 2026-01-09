@@ -98,6 +98,8 @@ func TestAutoKernelComplex64_PowerOf2(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			input := make([]complex64, tt.size)
 			for i := range input {
 				input[i] = complex(float32(i%16), 0)
@@ -134,6 +136,8 @@ func TestAutoKernelComplex64_MixedRadix(t *testing.T) {
 
 	for _, size := range sizes {
 		t.Run("MixedRadix_"+string(rune(size)), func(t *testing.T) {
+			t.Parallel()
+
 			input := make([]complex64, size)
 			for i := range input {
 				input[i] = complex(float32(i), 0)
@@ -170,6 +174,8 @@ func TestAutoKernelComplex64_NonComposite(t *testing.T) {
 
 	for _, size := range sizes {
 		t.Run("NonComposite_"+string(rune(size)), func(t *testing.T) {
+			t.Parallel()
+
 			input := make([]complex64, size)
 			for i := range input {
 				input[i] = complex(float32(i), 0)
@@ -214,6 +220,8 @@ func TestAutoKernelComplex128(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			input := make([]complex128, tt.size)
 			for i := range input {
 				input[i] = complex(float64(i%16), 0)

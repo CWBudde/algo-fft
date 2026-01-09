@@ -61,6 +61,8 @@ func TestRealDFT3D_OutputShape(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			input := make([]float32, tt.depth*tt.height*tt.width)
 			for i := range input {
 				input[i] = float32(i) * 0.1
@@ -94,6 +96,7 @@ func TestRealDFT3D_RoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create test input
 			input := make([]float32, tt.depth*tt.height*tt.width)
 			for i := range input {
@@ -263,6 +266,8 @@ func TestRealDFT3D_EvenOddWidths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			depth, height := 2, 3
 
 			input := make([]float32, depth*height*tt.width)
@@ -299,6 +304,8 @@ func TestRealIDFT3D_RoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			input := make([]float32, tt.depth*tt.height*tt.width)
 			for i := range input {
 				input[i] = tt.inputFunc(i)

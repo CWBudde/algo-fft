@@ -7,7 +7,9 @@ import (
 )
 
 func TestComputeTwiddleFactorsPhasor(t *testing.T) {
+	t.Parallel()
 	t.Run("edge cases", func(t *testing.T) {
+		t.Parallel()
 		// Zero size
 		result := ComputeTwiddleFactorsPhasor[complex64](0)
 		if result != nil {
@@ -32,6 +34,7 @@ func TestComputeTwiddleFactorsPhasor(t *testing.T) {
 	})
 
 	t.Run("small sizes use direct", func(t *testing.T) {
+		t.Parallel()
 		// Below threshold, should produce same results as direct
 		for n := 2; n < PhasorThreshold; n++ {
 			direct := ComputeTwiddleFactors[complex128](n)
@@ -52,10 +55,14 @@ func TestComputeTwiddleFactorsPhasor(t *testing.T) {
 }
 
 func TestPhasorExactValues(t *testing.T) {
+	t.Parallel()
+
 	sizes := []int{32, 64, 128, 256, 512, 1024, 2048, 4096}
 
 	for _, n := range sizes {
 		t.Run(formatSizePhasor(n), func(t *testing.T) {
+			t.Parallel()
+
 			twiddle := ComputeTwiddleFactorsPhasor[complex128](n)
 
 			// W_0 = 1 (exact)
@@ -86,10 +93,14 @@ func TestPhasorExactValues(t *testing.T) {
 }
 
 func TestPhasorMagnitude(t *testing.T) {
+	t.Parallel()
+
 	sizes := []int{32, 64, 128, 256, 512, 1024, 4096, 8192}
 
 	for _, n := range sizes {
 		t.Run(formatSizePhasor(n), func(t *testing.T) {
+			t.Parallel()
+
 			twiddle64 := ComputeTwiddleFactorsPhasor[complex64](n)
 			twiddle128 := ComputeTwiddleFactorsPhasor[complex128](n)
 
@@ -118,11 +129,14 @@ func TestPhasorMagnitude(t *testing.T) {
 }
 
 func TestPhasorSymmetry(t *testing.T) {
+	t.Parallel()
 	// Property: W_n^k and W_n^(n-k) are complex conjugates
 	sizes := []int{32, 64, 128, 256, 512, 1024}
 
 	for _, n := range sizes {
 		t.Run(formatSizePhasor(n), func(t *testing.T) {
+			t.Parallel()
+
 			twiddle := ComputeTwiddleFactorsPhasor[complex128](n)
 
 			const eps = 1e-13
@@ -142,11 +156,14 @@ func TestPhasorSymmetry(t *testing.T) {
 }
 
 func TestPhasorVsDirect(t *testing.T) {
+	t.Parallel()
 	// Compare phasor results against direct computation
 	sizes := []int{32, 64, 128, 256, 512, 1024, 2048, 4096}
 
 	for _, n := range sizes {
 		t.Run(formatSizePhasor(n), func(t *testing.T) {
+			t.Parallel()
+
 			direct := ComputeTwiddleFactors[complex128](n)
 			phasor := ComputeTwiddleFactorsPhasor[complex128](n)
 
@@ -178,11 +195,14 @@ func TestPhasorVsDirect(t *testing.T) {
 }
 
 func TestPhasorVsDirectComplex64(t *testing.T) {
+	t.Parallel()
 	// Test complex64 separately with looser tolerance
 	sizes := []int{32, 64, 128, 256, 512, 1024, 2048, 4096}
 
 	for _, n := range sizes {
 		t.Run(formatSizePhasor(n), func(t *testing.T) {
+			t.Parallel()
+
 			direct := ComputeTwiddleFactors[complex64](n)
 			phasor := ComputeTwiddleFactorsPhasor[complex64](n)
 
@@ -214,6 +234,7 @@ func TestPhasorVsDirectComplex64(t *testing.T) {
 }
 
 func TestPhasorLargeSizes(t *testing.T) {
+	t.Parallel()
 	// Test with very large sizes to stress error accumulation
 	if testing.Short() {
 		t.Skip("skipping large size test in short mode")
@@ -223,6 +244,8 @@ func TestPhasorLargeSizes(t *testing.T) {
 
 	for _, n := range sizes {
 		t.Run(formatSizePhasor(n), func(t *testing.T) {
+			t.Parallel()
+
 			twiddle128 := ComputeTwiddleFactorsPhasor[complex128](n)
 
 			// Check magnitude for all elements
