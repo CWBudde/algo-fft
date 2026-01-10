@@ -112,12 +112,12 @@ func inverseNEONSize128Complex64Asm(dst, src, twiddle, scratch []complex64, bitr
 
 func forwardNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	// Fall back to the Go radix-2 DIT kernel for correctness.
-	return forwardDIT128Complex64(dst, src, twiddle, scratch, ComputeBitReversalIndices(128))
+	return forwardDIT128Complex64(dst, src, twiddle, scratch)
 }
 
 func inverseNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	// Fall back to the Go radix-2 DIT kernel for correctness.
-	return inverseDIT128Complex64(dst, src, twiddle, scratch, ComputeBitReversalIndices(128))
+	return inverseDIT128Complex64(dst, src, twiddle, scratch)
 }
 
 func forwardNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {

@@ -3,14 +3,14 @@ package kernels
 // forwardDIT512Radix8Complex64 computes a 512-point forward FFT using
 // pure radix-8 Decimation-in-Time (DIT) algorithm for complex64 data.
 // 512 = 8 * 8 * 8 (3 stages).
-func forwardDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 512
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize512Radix8
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -184,14 +184,14 @@ func forwardDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev
 
 // inverseDIT512Radix8Complex64 computes a 512-point inverse FFT using
 // pure radix-8 Decimation-in-Time (DIT) algorithm for complex64 data.
-func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 512
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize512Radix8
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -367,14 +367,14 @@ func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64, bitrev
 
 // forwardDIT512Radix8Complex128 computes a 512-point forward FFT using
 // pure radix-8 Decimation-in-Time (DIT) algorithm for complex128 data.
-func forwardDIT512Radix8Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT512Radix8Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 512
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize512Radix8
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -537,14 +537,14 @@ func forwardDIT512Radix8Complex128(dst, src, twiddle, scratch []complex128, bitr
 
 // inverseDIT512Radix8Complex128 computes a 512-point inverse FFT using
 // pure radix-8 Decimation-in-Time (DIT) algorithm for complex128 data.
-func inverseDIT512Radix8Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT512Radix8Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 512
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize512Radix8
 	s := src[:n]
 	tw := twiddle[:n]
 

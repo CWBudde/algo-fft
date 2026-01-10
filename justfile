@@ -38,6 +38,10 @@ clean:
 # Run all checks (test, lint, coverage)
 check: test lint cover
 
+# Build with asm
+build-amd64:
+    GOOS=linux GOARCH=amd64 go build -tags "amd" -v ./...
+
 # Cross-compile for ARM64
 build-arm64:
     GOOS=linux GOARCH=arm64 go build -v ./...

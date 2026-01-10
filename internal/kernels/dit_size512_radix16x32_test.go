@@ -4,7 +4,6 @@ import (
 	"math"
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -18,19 +17,17 @@ func TestForwardDIT512Mixed16x32Complex64(t *testing.T) {
 		src[i] = complex(float32(i), float32(n-i))
 	}
 
-	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n) // Mixed radix operates on natural-order input.
-	refBitrev := mathpkg.ComputeBitReversalIndices(n)
+	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 	dst := make([]complex64, n)
 
-	if !forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT512Mixed16x32Complex64 failed")
 	}
 
 	// Compare with reference (or another known good implementation)
 	refDst := make([]complex64, n)
-	forwardDIT512Complex64(refDst, src, twiddle, scratch, refBitrev)
+	forwardDIT512Complex64(refDst, src, twiddle, scratch)
 
 	// Use relative tolerance for float32 (explicit DFT accumulates more FP error)
 	const relTol = 1e-5
@@ -61,13 +58,12 @@ func TestInverseDIT512Mixed16x32Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT512Mixed16x32Complex64 failed")
 	}
 
-	if !inverseDIT512Mixed16x32Complex64(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT512Mixed16x32Complex64(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT512Mixed16x32Complex64 failed")
 	}
 
@@ -87,15 +83,14 @@ func TestRoundTripDIT512Mixed16x32Complex64(t *testing.T) {
 		src[i] = complex(float32(i), float32(n-i))
 	}
 
-	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n) // Mixed radix operates on natural-order input.
+	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 	fwd := make([]complex64, n)
 	inv := make([]complex64, n)
 
-	forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch, bitrev)
+	forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch)
 
-	if !inverseDIT512Mixed16x32Complex64(inv, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT512Mixed16x32Complex64(inv, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT512Mixed16x32Complex64 failed")
 	}
 
@@ -117,18 +112,16 @@ func TestForwardDIT512Mixed16x32Complex128(t *testing.T) {
 		src[i] = complex(float64(i), float64(n-i))
 	}
 
-	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n) // Mixed radix operates on natural-order input.
-	refBitrev := mathpkg.ComputeBitReversalIndices(n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 	dst := make([]complex128, n)
 
-	if !forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT512Mixed16x32Complex128 failed")
 	}
 
 	refDst := make([]complex128, n)
-	forwardDIT512Complex128(refDst, src, twiddle, scratch, refBitrev)
+	forwardDIT512Complex128(refDst, src, twiddle, scratch)
 
 	for i := range dst {
 		diff := dst[i] - refDst[i]
@@ -148,13 +141,12 @@ func TestInverseDIT512Mixed16x32Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT512Mixed16x32Complex128(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT512Mixed16x32Complex128(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT512Mixed16x32Complex128 failed")
 	}
 
-	if !inverseDIT512Mixed16x32Complex128(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT512Mixed16x32Complex128(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT512Mixed16x32Complex128 failed")
 	}
 
@@ -172,15 +164,14 @@ func TestRoundTripDIT512Mixed16x32Complex128(t *testing.T) {
 		src[i] = complex(float64(i), float64(n-i))
 	}
 
-	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 	fwd := make([]complex128, n)
 	inv := make([]complex128, n)
 
-	forwardDIT512Mixed16x32Complex128(fwd, src, twiddle, scratch, bitrev)
+	forwardDIT512Mixed16x32Complex128(fwd, src, twiddle, scratch)
 
-	if !inverseDIT512Mixed16x32Complex128(inv, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT512Mixed16x32Complex128(inv, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT512Mixed16x32Complex128 failed")
 	}
 

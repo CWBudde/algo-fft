@@ -5,10 +5,10 @@ package kernels
 // The algorithm performs 8 stages of butterfly operations (log2(256) = 8).
 // Optimized with partial loop unrolling and pre-loaded twiddle factors.
 // Returns false if any slice is too small.
-func forwardDIT256Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT256Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 256
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -25,7 +25,7 @@ func forwardDIT256Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	work = work[:n]
 	src = src[:n]
 	tw := twiddle[:n]
-	br := bitrev[:n]
+	br := bitrevSize256Radix2
 
 	// Pre-load frequently used twiddle factors
 	w64 := tw[64] // Stage 2: j=1
@@ -201,10 +201,10 @@ func forwardDIT256Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Optimized with partial loop unrolling.
 // Returns false if any slice is too small.
-func inverseDIT256Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT256Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 256
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -221,7 +221,7 @@ func inverseDIT256Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	work = work[:n]
 	src = src[:n]
 	tw := twiddle[:n]
-	br := bitrev[:n]
+	br := bitrevSize256Radix2
 
 	// Pre-load and conjugate frequently used twiddle factors
 	w64 := complex(real(tw[64]), -imag(tw[64]))
@@ -409,10 +409,10 @@ func inverseDIT256Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex128 data.
 // The algorithm performs 8 stages of butterfly operations (log2(256) = 8).
 // Returns false if any slice is too small.
-func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 256
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -429,7 +429,7 @@ func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	bitrev := bitrevSize256Radix2
 
 	// Stage 1: 128 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
@@ -520,10 +520,10 @@ func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Returns false if any slice is too small.
-func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 256
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -540,7 +540,7 @@ func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	bitrev := bitrevSize256Radix2
 
 	// Stage 1: 128 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.

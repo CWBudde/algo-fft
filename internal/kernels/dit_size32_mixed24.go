@@ -1,10 +1,17 @@
 package kernels
 
+import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+
+// bitrev32Mixed24 pre-computes mixed-radix bit-reversal indices for a 32-point FFT.
+//
+//nolint:gochecknoglobals
+var bitrev32Mixed24 = mathpkg.ComputeBitReversalIndicesMixed24(32)
+
 // forwardDIT32MixedRadix24Complex64 computes a size-32 FFT using a mixed
 // radix-4/4/2 decomposition (two radix-4 stages, then one radix-2 stage).
-func forwardDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 32
-	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -16,7 +23,7 @@ func forwardDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, b
 		workIsDst = false
 	}
 
-	br := bitrev[:n]
+	br := bitrev32Mixed24
 
 	s := src[:n]
 	for i := range n {
@@ -203,9 +210,9 @@ func forwardDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, b
 
 // inverseDIT32MixedRadix24Complex64 computes the inverse size-32 FFT using the
 // same radix-4/4/2 decomposition and applies 1/N scaling.
-func inverseDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 32
-	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -217,7 +224,7 @@ func inverseDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, b
 		workIsDst = false
 	}
 
-	br := bitrev[:n]
+	br := bitrev32Mixed24
 
 	s := src[:n]
 	for i := range n {
@@ -409,9 +416,9 @@ func inverseDIT32MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, b
 
 // forwardDIT32MixedRadix24Complex128 computes a size-32 FFT using a mixed
 // radix-4/4/2 decomposition (two radix-4 stages, then one radix-2 stage).
-func forwardDIT32MixedRadix24Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT32MixedRadix24Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 32
-	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -423,7 +430,7 @@ func forwardDIT32MixedRadix24Complex128(dst, src, twiddle, scratch []complex128,
 		workIsDst = false
 	}
 
-	br := bitrev[:n]
+	br := bitrev32Mixed24
 
 	s := src[:n]
 	for i := range n {
@@ -610,9 +617,9 @@ func forwardDIT32MixedRadix24Complex128(dst, src, twiddle, scratch []complex128,
 
 // inverseDIT32MixedRadix24Complex128 computes the inverse size-32 FFT using the
 // same radix-4/4/2 decomposition and applies 1/N scaling.
-func inverseDIT32MixedRadix24Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT32MixedRadix24Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 32
-	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -624,7 +631,7 @@ func inverseDIT32MixedRadix24Complex128(dst, src, twiddle, scratch []complex128,
 		workIsDst = false
 	}
 
-	br := bitrev[:n]
+	br := bitrev32Mixed24
 
 	s := src[:n]
 	for i := range n {

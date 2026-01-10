@@ -19,7 +19,7 @@ func TestForwardSSE2Size64Radix2Complex64(t *testing.T) {
 
 	want := make([]complex64, n)
 	copy(want, src)
-	forwardDIT64Complex64(want, want, twiddle, scratch, bitrev)
+	forwardDIT64Complex64(want, want, twiddle, scratch)
 
 	if !amd64.ForwardSSE2Size64Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("ForwardSSE2Size64Radix2Complex64Asm failed")

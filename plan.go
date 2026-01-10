@@ -720,24 +720,24 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	scratchPool.Put(setupScratch)
 
 	p := &Plan[T]{
-		n:                 n,
-		twiddle:           twiddle,
-		scratch:           nil, // Use pool
-		stridedScratch:    nil, // Use pool
-		bitrev:            planBitReversal(n, estimate),
-		forwardCodelet:    estimate.ForwardCodelet,
-		inverseCodelet:    estimate.InverseCodelet,
-		algorithm:         estimate.Algorithm,
-		forwardKernel:     kernels.Forward,
-		inverseKernel:     kernels.Inverse,
-		kernelStrategy:    strategy,
-		decompStrategy:    decompStrategy,
-		twiddleBacking:    twiddleBacking,
-		scratchPool:       scratchPool,
-		bluesteinM:        bluesteinM,
-		bluesteinChirp:    bluesteinChirp,
-		bluesteinChirpInv: bluesteinChirpInv,
-		bluesteinFilter:   bluesteinFilter,
+		n:                  n,
+		twiddle:            twiddle,
+		scratch:            nil, // Use pool
+		stridedScratch:     nil, // Use pool
+		bitrev:             planBitReversal(n, estimate),
+		forwardCodelet:     estimate.ForwardCodelet,
+		inverseCodelet:     estimate.InverseCodelet,
+		algorithm:          estimate.Algorithm,
+		forwardKernel:      kernels.Forward,
+		inverseKernel:      kernels.Inverse,
+		kernelStrategy:     strategy,
+		decompStrategy:     decompStrategy,
+		twiddleBacking:     twiddleBacking,
+		scratchPool:        scratchPool,
+		bluesteinM:         bluesteinM,
+		bluesteinChirp:     bluesteinChirp,
+		bluesteinChirpInv:  bluesteinChirpInv,
+		bluesteinFilter:    bluesteinFilter,
 		bluesteinFilterInv: bluesteinFilterInv,
 		bluesteinTwiddle:   bluesteinTwiddle,
 		bluesteinBitrev:    bluesteinBitrev,
@@ -1037,28 +1037,28 @@ func (p *Plan[T]) Clone() *Plan[T] {
 	}
 
 	return &Plan[T]{
-		n:                 p.n,
-		twiddle:           p.twiddle,           // Shared (immutable)
-		scratch:           scratch,             // New allocation (FIXED)
-		stridedScratch:    stridedScratch,      // New allocation
-		bitrev:            p.bitrev,            // Shared (immutable)
-		packedTwiddle4:    p.packedTwiddle4,    // Shared (immutable)
-		packedTwiddle4Inv: p.packedTwiddle4Inv, // Shared (immutable)
-		packedTwiddle8:    p.packedTwiddle8,    // Shared (immutable)
-		packedTwiddle16:   p.packedTwiddle16,   // Shared (immutable)
-		forwardCodelet:    p.forwardCodelet,    // Shared (function pointer)
-		inverseCodelet:    p.inverseCodelet,    // Shared (function pointer)
-		algorithm:         p.algorithm,         // Shared (immutable string)
-		forwardKernel:     p.forwardKernel,
-		inverseKernel:     p.inverseKernel,
-		kernelStrategy:    p.kernelStrategy,
-		decompStrategy:    p.decompStrategy,
-		meta:              p.meta,
-		twiddleBacking:    p.twiddleBacking, // Shared reference (keeps original alive)
-		scratchBacking:    scratchBacking,   // New allocation
+		n:                     p.n,
+		twiddle:               p.twiddle,           // Shared (immutable)
+		scratch:               scratch,             // New allocation (FIXED)
+		stridedScratch:        stridedScratch,      // New allocation
+		bitrev:                p.bitrev,            // Shared (immutable)
+		packedTwiddle4:        p.packedTwiddle4,    // Shared (immutable)
+		packedTwiddle4Inv:     p.packedTwiddle4Inv, // Shared (immutable)
+		packedTwiddle8:        p.packedTwiddle8,    // Shared (immutable)
+		packedTwiddle16:       p.packedTwiddle16,   // Shared (immutable)
+		forwardCodelet:        p.forwardCodelet,    // Shared (function pointer)
+		inverseCodelet:        p.inverseCodelet,    // Shared (function pointer)
+		algorithm:             p.algorithm,         // Shared (immutable string)
+		forwardKernel:         p.forwardKernel,
+		inverseKernel:         p.inverseKernel,
+		kernelStrategy:        p.kernelStrategy,
+		decompStrategy:        p.decompStrategy,
+		meta:                  p.meta,
+		twiddleBacking:        p.twiddleBacking, // Shared reference (keeps original alive)
+		scratchBacking:        scratchBacking,   // New allocation
 		stridedScratchBacking: stridedScratchBacking,
-		pool:              nil,              // Clones are never pooled
-		scratchPool:       nil,              // Clones have fixed scratch
+		pool:                  nil, // Clones are never pooled
+		scratchPool:           nil, // Clones have fixed scratch
 
 		// Bluestein fields
 		bluesteinM:              p.bluesteinM,

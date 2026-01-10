@@ -54,34 +54,39 @@ func ComputeBitReversalIndicesMixed128(n int) []int {
 	return indices
 }
 
+// bitrev128Mixed24 pre-computes bit-reversal indices for the size-128 mixed-2/4 kernel.
+//
+//nolint:gochecknoglobals
+var bitrev128Mixed24 = ComputeBitReversalIndicesMixed128(128)
+
 // forwardDIT128MixedRadix24Complex64 computes a 128-point forward FFT using
 // mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex64 data.
 //
 // For correctness, delegate to the proven radix-2 DIT implementation.
-func forwardDIT128MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return forwardDIT128Complex64(dst, src, twiddle, scratch, bitrev)
+func forwardDIT128MixedRadix24Complex64(dst, src, twiddle, scratch []complex64) bool {
+	return forwardDIT128Complex64(dst, src, twiddle, scratch)
 }
 
 // inverseDIT128MixedRadix24Complex64 computes a 128-point inverse FFT using
 // mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex64 data.
 //
 // For correctness, delegate to the proven radix-2 DIT implementation.
-func inverseDIT128MixedRadix24Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return inverseDIT128Complex64(dst, src, twiddle, scratch, bitrev)
+func inverseDIT128MixedRadix24Complex64(dst, src, twiddle, scratch []complex64) bool {
+	return inverseDIT128Complex64(dst, src, twiddle, scratch)
 }
 
 // forwardDIT128MixedRadix24Complex128 computes a 128-point forward FFT using
 // mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex128 data.
 //
 // For correctness, delegate to the proven radix-2 DIT implementation.
-func forwardDIT128MixedRadix24Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardDIT128Complex128(dst, src, twiddle, scratch, bitrev)
+func forwardDIT128MixedRadix24Complex128(dst, src, twiddle, scratch []complex128) bool {
+	return forwardDIT128Complex128(dst, src, twiddle, scratch)
 }
 
 // inverseDIT128MixedRadix24Complex128 computes a 128-point inverse FFT using
 // mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex128 data.
 //
 // For correctness, delegate to the proven radix-2 DIT implementation.
-func inverseDIT128MixedRadix24Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseDIT128Complex128(dst, src, twiddle, scratch, bitrev)
+func inverseDIT128MixedRadix24Complex128(dst, src, twiddle, scratch []complex128) bool {
+	return inverseDIT128Complex128(dst, src, twiddle, scratch)
 }

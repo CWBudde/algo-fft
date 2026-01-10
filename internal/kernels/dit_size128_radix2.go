@@ -1,13 +1,20 @@
 package kernels
 
+import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+
+// bitrev128Radix2 pre-computes bit-reversal indices for a 128-point radix-2 FFT.
+//
+//nolint:gochecknoglobals
+var bitrev128Radix2 = mathpkg.ComputeBitReversalIndices(128)
+
 // forwardDIT128Complex64 computes a 128-point forward FFT using the
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex64 data.
 // The algorithm performs 7 stages of butterfly operations (log2(128) = 7).
 // Returns false if any slice is too small.
-func forwardDIT128Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT128Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 128
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -24,13 +31,12 @@ func forwardDIT128Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
 
 	// Stage 1: 64 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
 	for base := 0; base < n; base += 2 {
-		a := src[bitrev[base]]
-		b := src[bitrev[base+1]]
+		a := src[bitrev128Radix2[base]]
+		b := src[bitrev128Radix2[base+1]]
 		work[base] = a + b
 		work[base+1] = a - b
 	}
@@ -105,10 +111,10 @@ func forwardDIT128Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Returns false if any slice is too small.
-func inverseDIT128Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT128Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 128
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -123,13 +129,12 @@ func inverseDIT128Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
 
 	// Stage 1: 64 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
 	for base := 0; base < n; base += 2 {
-		a := src[bitrev[base]]
-		b := src[bitrev[base+1]]
+		a := src[bitrev128Radix2[base]]
+		b := src[bitrev128Radix2[base+1]]
 		work[base] = a + b
 		work[base+1] = a - b
 	}
@@ -215,10 +220,10 @@ func inverseDIT128Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex128 data.
 // The algorithm performs 7 stages of butterfly operations (log2(128) = 7).
 // Returns false if any slice is too small.
-func forwardDIT128Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT128Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 128
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -235,13 +240,12 @@ func forwardDIT128Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
 
 	// Stage 1: 64 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
 	for base := 0; base < n; base += 2 {
-		a := src[bitrev[base]]
-		b := src[bitrev[base+1]]
+		a := src[bitrev128Radix2[base]]
+		b := src[bitrev128Radix2[base+1]]
 		work[base] = a + b
 		work[base+1] = a - b
 	}
@@ -316,10 +320,10 @@ func forwardDIT128Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Returns false if any slice is too small.
-func inverseDIT128Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT128Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 128
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -336,13 +340,12 @@ func inverseDIT128Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
 
 	// Stage 1: 64 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
 	for base := 0; base < n; base += 2 {
-		a := src[bitrev[base]]
-		b := src[bitrev[base+1]]
+		a := src[bitrev128Radix2[base]]
+		b := src[bitrev128Radix2[base+1]]
 		work[base] = a + b
 		work[base+1] = a - b
 	}

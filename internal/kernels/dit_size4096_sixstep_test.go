@@ -19,7 +19,6 @@ func TestForwardDIT4096SixStep_Complex64(t *testing.T) {
 	dstRadix4 := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with test data
 	rng := rand.New(rand.NewSource(42))
@@ -28,11 +27,11 @@ func TestForwardDIT4096SixStep_Complex64(t *testing.T) {
 	}
 
 	// Run both implementations
-	if !forwardDIT4096SixStepComplex64(dstSixStep, src, twiddle, scratch, bitrev) {
+	if !forwardDIT4096SixStepComplex64(dstSixStep, src, twiddle, scratch) {
 		t.Fatal("forwardDIT4096SixStepComplex64 returned false")
 	}
 
-	if !forwardDIT4096Radix4Complex64(dstRadix4, src, twiddle, scratch, bitrev) {
+	if !forwardDIT4096Radix4Complex64(dstRadix4, src, twiddle, scratch) {
 		t.Fatal("forwardDIT4096Radix4Complex64 returned false")
 	}
 
@@ -66,7 +65,6 @@ func TestInverseDIT4096SixStep_Complex64(t *testing.T) {
 	dstRadix4 := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with test data
 	rng := rand.New(rand.NewSource(42))
@@ -75,11 +73,11 @@ func TestInverseDIT4096SixStep_Complex64(t *testing.T) {
 	}
 
 	// Run both implementations
-	if !inverseDIT4096SixStepComplex64(dstSixStep, src, twiddle, scratch, bitrev) {
+	if !inverseDIT4096SixStepComplex64(dstSixStep, src, twiddle, scratch) {
 		t.Fatal("inverseDIT4096SixStepComplex64 returned false")
 	}
 
-	if !inverseDIT4096Radix4Complex64(dstRadix4, src, twiddle, scratch, bitrev) {
+	if !inverseDIT4096Radix4Complex64(dstRadix4, src, twiddle, scratch) {
 		t.Fatal("inverseDIT4096Radix4Complex64 returned false")
 	}
 
@@ -112,7 +110,6 @@ func TestRoundTrip4096SixStep_Complex64(t *testing.T) {
 	result := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with test data
 	rng := rand.New(rand.NewSource(42))
@@ -121,11 +118,11 @@ func TestRoundTrip4096SixStep_Complex64(t *testing.T) {
 	}
 
 	// Forward then inverse
-	if !forwardDIT4096SixStepComplex64(freq, src, twiddle, scratch, bitrev) {
+	if !forwardDIT4096SixStepComplex64(freq, src, twiddle, scratch) {
 		t.Fatal("forward returned false")
 	}
 
-	if !inverseDIT4096SixStepComplex64(result, freq, twiddle, scratch, bitrev) {
+	if !inverseDIT4096SixStepComplex64(result, freq, twiddle, scratch) {
 		t.Fatal("inverse returned false")
 	}
 
@@ -158,7 +155,6 @@ func TestForwardDIT4096SixStep_Complex128(t *testing.T) {
 	dstRadix4 := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with test data
 	rng := rand.New(rand.NewSource(42))
@@ -167,11 +163,11 @@ func TestForwardDIT4096SixStep_Complex128(t *testing.T) {
 	}
 
 	// Run both implementations
-	if !forwardDIT4096SixStepComplex128(dstSixStep, src, twiddle, scratch, bitrev) {
+	if !forwardDIT4096SixStepComplex128(dstSixStep, src, twiddle, scratch) {
 		t.Fatal("forwardDIT4096SixStepComplex128 returned false")
 	}
 
-	if !forwardDIT4096Radix4Complex128(dstRadix4, src, twiddle, scratch, bitrev) {
+	if !forwardDIT4096Radix4Complex128(dstRadix4, src, twiddle, scratch) {
 		t.Fatal("forwardDIT4096Radix4Complex128 returned false")
 	}
 
@@ -204,7 +200,6 @@ func TestRoundTrip4096SixStep_Complex128(t *testing.T) {
 	result := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with test data
 	rng := rand.New(rand.NewSource(42))
@@ -213,11 +208,11 @@ func TestRoundTrip4096SixStep_Complex128(t *testing.T) {
 	}
 
 	// Forward then inverse
-	if !forwardDIT4096SixStepComplex128(freq, src, twiddle, scratch, bitrev) {
+	if !forwardDIT4096SixStepComplex128(freq, src, twiddle, scratch) {
 		t.Fatal("forward returned false")
 	}
 
-	if !inverseDIT4096SixStepComplex128(result, freq, twiddle, scratch, bitrev) {
+	if !inverseDIT4096SixStepComplex128(result, freq, twiddle, scratch) {
 		t.Fatal("inverse returned false")
 	}
 
@@ -249,7 +244,6 @@ func BenchmarkForwardDIT4096Radix4_Complex64(b *testing.B) {
 	dst := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -260,7 +254,7 @@ func BenchmarkForwardDIT4096Radix4_Complex64(b *testing.B) {
 	b.SetBytes(int64(n) * 8)
 
 	for b.Loop() {
-		forwardDIT4096Radix4Complex64(dst, src, twiddle, scratch, bitrev)
+		forwardDIT4096Radix4Complex64(dst, src, twiddle, scratch)
 	}
 }
 
@@ -271,7 +265,6 @@ func BenchmarkForwardDIT4096SixStep_Complex64(b *testing.B) {
 	dst := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := ComputeBitReversalIndicesRadix4(n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -282,6 +275,6 @@ func BenchmarkForwardDIT4096SixStep_Complex64(b *testing.B) {
 	b.SetBytes(int64(n) * 8)
 
 	for b.Loop() {
-		forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch, bitrev)
+		forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch)
 	}
 }

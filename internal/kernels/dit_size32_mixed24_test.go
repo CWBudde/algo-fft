@@ -3,7 +3,6 @@ package kernels
 import (
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -16,9 +15,8 @@ func TestForwardDIT32MixedRadix24Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
-	if !forwardDIT32MixedRadix24Complex64(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT32MixedRadix24Complex64(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT32MixedRadix24Complex64 failed")
 	}
 
@@ -36,13 +34,12 @@ func TestInverseDIT32MixedRadix24Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
-	if !forwardDIT32MixedRadix24Complex64(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT32MixedRadix24Complex64(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT32MixedRadix24Complex64 failed")
 	}
 
-	if !inverseDIT32MixedRadix24Complex64(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT32MixedRadix24Complex64(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT32MixedRadix24Complex64 failed")
 	}
 
@@ -59,9 +56,8 @@ func TestForwardDIT32MixedRadix24Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
-	if !forwardDIT32MixedRadix24Complex128(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT32MixedRadix24Complex128(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT32MixedRadix24Complex128 failed")
 	}
 
@@ -79,13 +75,12 @@ func TestInverseDIT32MixedRadix24Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
-	if !forwardDIT32MixedRadix24Complex128(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT32MixedRadix24Complex128(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT32MixedRadix24Complex128 failed")
 	}
 
-	if !inverseDIT32MixedRadix24Complex128(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT32MixedRadix24Complex128(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT32MixedRadix24Complex128 failed")
 	}
 
@@ -103,13 +98,12 @@ func TestRoundTripDIT32MixedRadix24Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
-	if !forwardDIT32MixedRadix24Complex64(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT32MixedRadix24Complex64(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT32MixedRadix24Complex64 failed")
 	}
 
-	if !inverseDIT32MixedRadix24Complex64(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT32MixedRadix24Complex64(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT32MixedRadix24Complex64 failed")
 	}
 
@@ -126,13 +120,12 @@ func TestRoundTripDIT32MixedRadix24Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 
-	if !forwardDIT32MixedRadix24Complex128(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT32MixedRadix24Complex128(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT32MixedRadix24Complex128 failed")
 	}
 
-	if !inverseDIT32MixedRadix24Complex128(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT32MixedRadix24Complex128(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT32MixedRadix24Complex128 failed")
 	}
 

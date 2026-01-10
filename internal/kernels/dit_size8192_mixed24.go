@@ -8,15 +8,15 @@ package kernels
 //   - Stage 7: radix-2 (final combination of two 4096-point halves)
 //
 // Expected speedup: ~40% over pure radix-2.
-func forwardDIT8192Mixed24Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT8192Mixed24Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 8192
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize8192Mixed24[:n]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -225,14 +225,14 @@ func forwardDIT8192Mixed24Complex64(dst, src, twiddle, scratch []complex64, bitr
 // mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex64 data.
 //
 // Uses conjugated twiddle factors and applies 1/N scaling.
-func inverseDIT8192Mixed24Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT8192Mixed24Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 8192
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize8192Mixed24[:n]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -443,14 +443,14 @@ func inverseDIT8192Mixed24Complex64(dst, src, twiddle, scratch []complex64, bitr
 
 // forwardDIT8192Mixed24Complex128 computes a 8192-point forward FFT using
 // mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex128 data.
-func forwardDIT8192Mixed24Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT8192Mixed24Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 8192
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize8192Mixed24[:n]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -654,14 +654,14 @@ func forwardDIT8192Mixed24Complex128(dst, src, twiddle, scratch []complex128, bi
 
 // inverseDIT8192Mixed24Complex128 computes a 8192-point inverse FFT using
 // mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex128 data.
-func inverseDIT8192Mixed24Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT8192Mixed24Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 8192
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize8192Mixed24[:n]
 	s := src[:n]
 	tw := twiddle[:n]
 
