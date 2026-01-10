@@ -16,13 +16,12 @@ DATA ·neonInv16F64+0(SB)/8, $0x3fb0000000000000 // 1/16
 GLOBL ·neonInv16F64(SB), RODATA, $8
 
 // Forward transform, size 16, complex128, radix-4 variant
-TEXT ·ForwardNEONSize16Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize16Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVD dst+0(FP), R8           // R8  = dst pointer
 	MOVD src+24(FP), R9          // R9  = src pointer
 	MOVD twiddle+48(FP), R10     // R10 = twiddle pointer
 	MOVD scratch+72(FP), R11     // R11 = scratch pointer
-	MOVD bitrev+96(FP), R12      // R12 = bitrev pointer
 	MOVD src+32(FP), R13         // R13 = n (should be 16)
 
 	// Verify n == 16
@@ -328,13 +327,12 @@ neon16r4f64_return_false:
 	RET
 
 // Inverse transform, size 16, complex128, radix-4 variant
-TEXT ·InverseNEONSize16Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize16Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $16, R13
