@@ -51,6 +51,10 @@ build-wasm:
     GOOS=js GOARCH=wasm go build -v ./...
 
 # Run WebAssembly tests in Node.js
+test-asm:
+    go test -tags "asm" -v -count=1 ./...
+
+# Run WebAssembly tests in Node.js
 test-wasm:
     GOOS=js GOARCH=wasm go test -exec="$(pwd)/scripts/wasm_exec_node_env.sh" -v -count=1 ./...
 

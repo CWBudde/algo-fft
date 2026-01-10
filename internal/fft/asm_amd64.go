@@ -49,11 +49,11 @@ func inverseSSE2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []
 }
 
 func forwardAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return forwardDIT4Radix4Complex64(dst, src, twiddle, scratch, bitrev)
+	return forwardDIT4Radix4Complex64(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return forwardDIT8Radix2Complex64(dst, src, twiddle, scratch, bitrev)
+	return forwardDIT8Radix2Complex64(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -72,7 +72,7 @@ func forwardAVX2Size16Complex64Asm(dst, src, twiddle, scratch []complex64, bitre
 }
 
 func forwardAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return forwardDIT16Radix4Complex64(dst, src, twiddle, scratch, bitrev)
+	return forwardDIT16Radix4Complex64(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -87,7 +87,7 @@ func forwardAVX2Size64Complex64Asm(dst, src, twiddle, scratch []complex64, bitre
 }
 
 func forwardAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return forwardDIT64Radix4Complex64(dst, src, twiddle, scratch, bitrev)
+	return forwardDIT64Radix4Complex64(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size128Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -99,7 +99,7 @@ func forwardAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64
 }
 
 func forwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return forwardDIT256Radix4Complex64(dst, src, twiddle, scratch, bitrev)
+	return forwardDIT256Radix4Complex64(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -119,11 +119,11 @@ func forwardAVX2Size8192Mixed24Complex64Asm(dst, src, twiddle, scratch []complex
 }
 
 func inverseAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return inverseDIT4Radix4Complex64(dst, src, twiddle, scratch, bitrev)
+	return inverseDIT4Radix4Complex64(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return inverseDIT8Radix2Complex64(dst, src, twiddle, scratch, bitrev)
+	return inverseDIT8Radix2Complex64(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -142,7 +142,7 @@ func inverseAVX2Size16Complex64Asm(dst, src, twiddle, scratch []complex64, bitre
 }
 
 func inverseAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return inverseDIT16Radix4Complex64(dst, src, twiddle, scratch, bitrev)
+	return inverseDIT16Radix4Complex64(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2Size32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -157,7 +157,7 @@ func inverseAVX2Size64Complex64Asm(dst, src, twiddle, scratch []complex64, bitre
 }
 
 func inverseAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return inverseDIT64Radix4Complex64(dst, src, twiddle, scratch, bitrev)
+	return inverseDIT64Radix4Complex64(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2Size128Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -169,7 +169,7 @@ func inverseAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64
 }
 
 func inverseAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return inverseDIT256Radix4Complex64(dst, src, twiddle, scratch, bitrev)
+	return inverseDIT256Radix4Complex64(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -205,19 +205,19 @@ func inverseAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex1
 }
 
 func forwardAVX2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardDIT4Radix4Complex128(dst, src, twiddle, scratch, bitrev)
+	return forwardDIT4Radix4Complex128(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseDIT4Radix4Complex128(dst, src, twiddle, scratch, bitrev)
+	return inverseDIT4Radix4Complex128(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardDIT8Radix2Complex128(dst, src, twiddle, scratch, bitrev)
+	return forwardDIT8Radix2Complex128(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseDIT8Radix2Complex128(dst, src, twiddle, scratch, bitrev)
+	return inverseDIT8Radix2Complex128(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
@@ -247,7 +247,7 @@ func forwardAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128, bit
 }
 
 func forwardAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardDIT16Radix4Complex128(dst, src, twiddle, scratch, bitrev)
+	return forwardDIT16Radix4Complex128(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
@@ -275,7 +275,7 @@ func inverseAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128, bit
 }
 
 func inverseAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseDIT16Radix4Complex128(dst, src, twiddle, scratch, bitrev)
+	return inverseDIT16Radix4Complex128(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {

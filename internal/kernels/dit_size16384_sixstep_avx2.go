@@ -4,7 +4,6 @@ package kernels
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 // Precomputed bit-reversal indices for size 128 (radix-2).

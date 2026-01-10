@@ -154,7 +154,7 @@ func benchmarkDITForward(b *testing.B, n int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if !forwardDITComplex64(dst, src, twiddle, scratch, bitrev) {
+		if !forwardDITComplex64(dst, src, twiddle, scratch) {
 			b.Fatalf("forwardDITComplex64 returned false for n=%d", n)
 		}
 	}
@@ -172,7 +172,7 @@ func benchmarkDITInverse(b *testing.B, n int) {
 	}
 	freq := make([]complex64, n)
 
-	if !forwardDITComplex64(freq, src, twiddle, scratch, bitrev) {
+	if !forwardDITComplex64(freq, src, twiddle, scratch) {
 		b.Fatalf("forwardDITComplex64 returned false for n=%d", n)
 	}
 
@@ -183,7 +183,7 @@ func benchmarkDITInverse(b *testing.B, n int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if !inverseDITComplex64(dst, freq, twiddle, scratch, bitrev) {
+		if !inverseDITComplex64(dst, freq, twiddle, scratch) {
 			b.Fatalf("inverseDITComplex64 returned false for n=%d", n)
 		}
 	}
@@ -211,7 +211,7 @@ func benchmarkKernelForward128(b *testing.B, n int, useNEON bool) {
 				b.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 		} else {
-			if !forwardDITComplex128(dst, src, twiddle, scratch, bitrev) {
+			if !forwardDITComplex128(dst, src, twiddle, scratch) {
 				b.Fatalf("forwardDITComplex128 returned false for n=%d", n)
 			}
 		}
@@ -230,7 +230,7 @@ func benchmarkKernelInverse128(b *testing.B, n int, useNEON bool) {
 	}
 	freq := make([]complex128, n)
 
-	if !forwardDITComplex128(freq, src, twiddle, scratch, bitrev) {
+	if !forwardDITComplex128(freq, src, twiddle, scratch) {
 		b.Fatalf("forwardDITComplex128 returned false for n=%d", n)
 	}
 
@@ -246,7 +246,7 @@ func benchmarkKernelInverse128(b *testing.B, n int, useNEON bool) {
 				b.Fatalf("inverseNEONComplex128Asm returned false for n=%d", n)
 			}
 		} else {
-			if !inverseDITComplex128(dst, freq, twiddle, scratch, bitrev) {
+			if !inverseDITComplex128(dst, freq, twiddle, scratch) {
 				b.Fatalf("inverseDITComplex128 returned false for n=%d", n)
 			}
 		}

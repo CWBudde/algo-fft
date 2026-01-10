@@ -60,7 +60,7 @@ func forwardNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 		return false
 	}
 
-	return forwardDITComplex64(dst, src, twiddle, scratch, bitrev)
+	return forwardDITComplex64(dst, src, twiddle, scratch)
 }
 
 func inverseNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -68,7 +68,7 @@ func inverseNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) 
 		return false
 	}
 
-	return inverseDITComplex64(dst, src, twiddle, scratch, bitrev)
+	return inverseDITComplex64(dst, src, twiddle, scratch)
 }
 
 func forwardNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
@@ -76,7 +76,7 @@ func forwardNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int
 		return false
 	}
 
-	return forwardDITComplex128(dst, src, twiddle, scratch, bitrev)
+	return forwardDITComplex128(dst, src, twiddle, scratch)
 }
 
 func inverseNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
@@ -84,5 +84,5 @@ func inverseNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int
 		return false
 	}
 
-	return inverseDITComplex128(dst, src, twiddle, scratch, bitrev)
+	return inverseDITComplex128(dst, src, twiddle, scratch)
 }

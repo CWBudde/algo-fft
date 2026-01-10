@@ -454,38 +454,38 @@ func BenchmarkAVX2Size256_Comprehensive(b *testing.B) {
 	})
 
 	b.Run("PureGo_DIT_Radix2", func(b *testing.B) {
-		if !forwardDIT256Complex64(dst, src, twiddle, scratch, bitrev) {
+		if !forwardDIT256Complex64(dst, src, twiddle, scratch) {
 			b.Skip("Pure Go DIT failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for range b.N {
-			forwardDIT256Complex64(dst, src, twiddle, scratch, bitrev)
+			forwardDIT256Complex64(dst, src, twiddle, scratch)
 		}
 	})
 
 	b.Run("PureGo_Radix4", func(b *testing.B) {
-		if !forwardDIT256Radix4Complex64(dst, src, twiddle, scratch, bitrevRadix4) {
+		if !forwardDIT256Radix4Complex64(dst, src, twiddle, scratch) {
 			b.Skip("Pure Go radix-4 failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for range b.N {
-			forwardDIT256Radix4Complex64(dst, src, twiddle, scratch, bitrevRadix4)
+			forwardDIT256Radix4Complex64(dst, src, twiddle, scratch)
 		}
 	})
 
 	b.Run("PureGo_Radix4_Optimized", func(b *testing.B) {
-		if !forwardDIT256Radix4Complex64(dst, src, twiddle, scratch, bitrevRadix4) {
+		if !forwardDIT256Radix4Complex64(dst, src, twiddle, scratch) {
 			b.Skip("Pure Go optimized radix-4 failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for range b.N {
-			forwardDIT256Radix4Complex64(dst, src, twiddle, scratch, bitrevRadix4)
+			forwardDIT256Radix4Complex64(dst, src, twiddle, scratch)
 		}
 	})
 }

@@ -9,7 +9,7 @@ import (
 
 // forwardDIT384MixedComplex64 computes a 384-point forward FFT using the
 // 128×3 decomposition (radix-3 first, then 128-point FFTs).
-func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int) bool {
+func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 384
 	const stride = 128 // Distance between elements in a column
 
@@ -119,7 +119,7 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 }
 
 // inverseDIT384MixedComplex64 computes a 384-point inverse FFT.
-func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int) bool {
+func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 384
 	const stride = 128
 
@@ -191,7 +191,7 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64, _ []int
 }
 
 // forwardDIT384MixedComplex128 computes a 384-point forward FFT (complex128).
-func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128, _ []int) bool {
+func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 384
 	const stride = 128
 
@@ -235,7 +235,7 @@ func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128, _ []i
 }
 
 // inverseDIT384MixedComplex128 computes a 384-point inverse FFT (complex128).
-func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128, _ []int) bool {
+func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 384
 	const stride = 128
 

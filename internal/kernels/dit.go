@@ -6,16 +6,27 @@ import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 //
 //nolint:gochecknoglobals
 var (
+	bitrevSize8Radix2     = mathpkg.ComputeBitReversalIndices(8)
+	bitrevSize8Radix4     = mathpkg.ComputeBitReversalIndicesMixed24(8)
+	bitrevSize16Radix2    = mathpkg.ComputeBitReversalIndices(16)
 	bitrevSize16Radix4    = mathpkg.ComputeBitReversalIndicesRadix4(16)
+	bitrevSize32Radix2    = mathpkg.ComputeBitReversalIndices(32)
+	bitrevSize64Radix2    = mathpkg.ComputeBitReversalIndices(64)
 	bitrevSize64Radix4    = mathpkg.ComputeBitReversalIndicesRadix4(64)
+	bitrevSize128Radix2   = mathpkg.ComputeBitReversalIndices(128)
+	bitrevSize128Radix4   = mathpkg.ComputeBitReversalIndicesRadix4(128)
 	bitrevSize256Radix2   = mathpkg.ComputeBitReversalIndices(256)
 	bitrevSize256Radix4   = mathpkg.ComputeBitReversalIndicesRadix4(256)
 	bitrevSize512Radix2   = mathpkg.ComputeBitReversalIndices(512)
 	bitrevSize512Radix8   = mathpkg.ComputeBitReversalIndicesRadix8(512)
 	bitrevSize512Mixed24  = mathpkg.ComputeBitReversalIndicesMixed24(512)
+	bitrevSize1024Radix2  = mathpkg.ComputeBitReversalIndices(1024)
 	bitrevSize1024Radix4  = mathpkg.ComputeBitReversalIndicesRadix4(1024)
+	bitrevSize2048Radix2  = mathpkg.ComputeBitReversalIndices(2048)
 	bitrevSize2048Mixed24 = mathpkg.ComputeBitReversalIndicesMixed24(2048)
+	bitrevSize4096Radix2  = mathpkg.ComputeBitReversalIndices(4096)
 	bitrevSize4096Radix4  = mathpkg.ComputeBitReversalIndicesRadix4(4096)
+	bitrevSize8192Radix2  = mathpkg.ComputeBitReversalIndices(8192)
 	bitrevSize8192Mixed24 = mathpkg.ComputeBitReversalIndicesMixed24(8192)
 	bitrevSize16384Radix2 = mathpkg.ComputeBitReversalIndices(16384)
 	bitrevSize16384Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(16384)
@@ -25,7 +36,7 @@ var (
 func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	switch len(src) {
 	case 8:
-		return forwardDIT8Complex64(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT8Complex64(dst, src, twiddle, scratch)
 	case 16:
 		// Use faster radix-4 implementation (12-15% faster than radix-2)
 		return forwardDIT16Radix4Complex64(dst, src, twiddle, scratch)
@@ -73,7 +84,7 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	switch len(src) {
 	case 8:
-		return inverseDIT8Complex64(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT8Complex64(dst, src, twiddle, scratch)
 	case 16:
 		// Use faster radix-4 implementation (12-15% faster than radix-2)
 		return inverseDIT16Radix4Complex64(dst, src, twiddle, scratch)
@@ -120,7 +131,7 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	switch len(src) {
 	case 8:
-		return forwardDIT8Complex128(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT8Complex128(dst, src, twiddle, scratch)
 	case 16:
 		// Use faster radix-4 implementation (12-15% faster than radix-2)
 		return forwardDIT16Radix4Complex128(dst, src, twiddle, scratch)
@@ -160,7 +171,7 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
 	switch len(src) {
 	case 8:
-		return inverseDIT8Complex128(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT8Complex128(dst, src, twiddle, scratch)
 	case 16:
 		// Use faster radix-4 implementation (12-15% faster than radix-2)
 		return inverseDIT16Radix4Complex128(dst, src, twiddle, scratch)
@@ -466,45 +477,45 @@ func Butterfly2[T Complex](a, b, w T) (T, T) {
 }
 
 // Internal wrappers for sizes that now handle bit-reversal internally.
-func forwardDIT8Complex64(dst, src, twiddle, scratch []complex64, _ []int) bool {
+func forwardDIT8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return forwardDIT8Radix8Complex64(dst, src, twiddle, scratch)
 }
 
-func inverseDIT8Complex64(dst, src, twiddle, scratch []complex64, _ []int) bool {
+func inverseDIT8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return inverseDIT8Radix8Complex64(dst, src, twiddle, scratch)
 }
 
-func forwardDIT8Complex128(dst, src, twiddle, scratch []complex128, _ []int) bool {
+func forwardDIT8Complex128(dst, src, twiddle, scratch []complex128) bool {
 	return forwardDIT8Radix8Complex128(dst, src, twiddle, scratch)
 }
 
-func inverseDIT8Complex128(dst, src, twiddle, scratch []complex128, _ []int) bool {
+func inverseDIT8Complex128(dst, src, twiddle, scratch []complex128) bool {
 	return inverseDIT8Radix8Complex128(dst, src, twiddle, scratch)
 }
 
-func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64, _ []int) bool {
+func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return forwardDIT16Radix4Complex64(dst, src, twiddle, scratch)
 }
 
-func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64, _ []int) bool {
+func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return inverseDIT16Radix4Complex64(dst, src, twiddle, scratch)
 }
 
-func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128, _ []int) bool {
+func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128) bool {
 	return forwardDIT16Radix4Complex128(dst, src, twiddle, scratch)
 }
 
-func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128, _ []int) bool {
+func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128) bool {
 	return inverseDIT16Radix4Complex128(dst, src, twiddle, scratch)
 }
 
 // Size-specific DIT exports for benchmarks and tests.
 var (
 	// Size 4.
-	ForwardDIT4Radix4Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	ForwardDIT4Radix4Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return forwardDIT4Radix4Complex64(dst, src, twiddle, scratch)
 	}
-	InverseDIT4Radix4Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	InverseDIT4Radix4Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return inverseDIT4Radix4Complex64(dst, src, twiddle, scratch)
 	}
 	// Size 8.
@@ -512,16 +523,16 @@ var (
 	InverseDIT8Complex64       = inverseDIT8Complex64
 	ForwardDIT8Radix8Complex64 = forwardDIT8Complex64
 	InverseDIT8Radix8Complex64 = inverseDIT8Complex64
-	ForwardDIT8Radix2Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	ForwardDIT8Radix2Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return forwardDIT8Radix2Complex64(dst, src, twiddle, scratch)
 	}
-	InverseDIT8Radix2Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	InverseDIT8Radix2Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return inverseDIT8Radix2Complex64(dst, src, twiddle, scratch)
 	}
-	ForwardDIT8Radix4Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	ForwardDIT8Radix4Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return forwardDIT8Radix4Complex64(dst, src, twiddle, scratch)
 	}
-	InverseDIT8Radix4Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	InverseDIT8Radix4Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return inverseDIT8Radix4Complex64(dst, src, twiddle, scratch)
 	}
 	// Size 16.
@@ -529,17 +540,17 @@ var (
 	InverseDIT16Complex64       = inverseDIT16Complex64
 	ForwardDIT16Radix4Complex64 = forwardDIT16Complex64
 	InverseDIT16Radix4Complex64 = inverseDIT16Complex64
-	ForwardDIT16Radix2Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	ForwardDIT16Radix2Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return forwardDIT16Radix2Complex64(dst, src, twiddle, scratch)
 	}
-	InverseDIT16Radix2Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	InverseDIT16Radix2Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return inverseDIT16Radix2Complex64(dst, src, twiddle, scratch)
 	}
 	// Size 32.
-	ForwardDIT32Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	ForwardDIT32Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return forwardDIT32Complex64(dst, src, twiddle, scratch)
 	}
-	InverseDIT32Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+	InverseDIT32Complex64 = func(dst, src, twiddle, scratch []complex64) bool {
 		return inverseDIT32Complex64(dst, src, twiddle, scratch)
 	}
 	// Size 64.
@@ -562,10 +573,10 @@ var (
 	InverseDIT512Mixed24Complex64 = inverseDIT512Mixed24Complex64
 
 	// Complex128 variants.
-	ForwardDIT4Radix4Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	ForwardDIT4Radix4Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return forwardDIT4Radix4Complex128(dst, src, twiddle, scratch)
 	}
-	InverseDIT4Radix4Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	InverseDIT4Radix4Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return inverseDIT4Radix4Complex128(dst, src, twiddle, scratch)
 	}
 	// Size 8.
@@ -573,16 +584,16 @@ var (
 	InverseDIT8Complex128       = inverseDIT8Complex128
 	ForwardDIT8Radix8Complex128 = forwardDIT8Complex128
 	InverseDIT8Radix8Complex128 = inverseDIT8Complex128
-	ForwardDIT8Radix2Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	ForwardDIT8Radix2Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return forwardDIT8Radix2Complex128(dst, src, twiddle, scratch)
 	}
-	InverseDIT8Radix2Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	InverseDIT8Radix2Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return inverseDIT8Radix2Complex128(dst, src, twiddle, scratch)
 	}
-	ForwardDIT8Radix4Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	ForwardDIT8Radix4Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return forwardDIT8Radix4Complex128(dst, src, twiddle, scratch)
 	}
-	InverseDIT8Radix4Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	InverseDIT8Radix4Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return inverseDIT8Radix4Complex128(dst, src, twiddle, scratch)
 	}
 	// Size 16.
@@ -590,16 +601,16 @@ var (
 	InverseDIT16Complex128       = inverseDIT16Complex128
 	ForwardDIT16Radix4Complex128 = forwardDIT16Complex128
 	InverseDIT16Radix4Complex128 = inverseDIT16Complex128
-	ForwardDIT16Radix2Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	ForwardDIT16Radix2Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return forwardDIT16Radix2Complex128(dst, src, twiddle, scratch)
 	}
-	InverseDIT16Radix2Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	InverseDIT16Radix2Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return inverseDIT16Radix2Complex128(dst, src, twiddle, scratch)
 	}
-	ForwardDIT32Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	ForwardDIT32Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return forwardDIT32Complex128(dst, src, twiddle, scratch)
 	}
-	InverseDIT32Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+	InverseDIT32Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return inverseDIT32Complex128(dst, src, twiddle, scratch)
 	}
 	ForwardDIT64Complex128         = forwardDIT64Complex128

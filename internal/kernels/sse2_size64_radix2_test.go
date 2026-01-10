@@ -38,7 +38,7 @@ func TestInverseSSE2Size64Radix2Complex64(t *testing.T) {
 
 	want := make([]complex64, n)
 	copy(want, src)
-	inverseDIT64Complex64(want, want, twiddle, scratch, bitrev)
+	inverseDIT64Complex64(want, want, twiddle, scratch)
 
 	if !amd64.InverseSSE2Size64Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("InverseSSE2Size64Radix2Complex64Asm failed")

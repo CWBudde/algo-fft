@@ -86,7 +86,7 @@ func TestNEONComplex64_VsGoDIT(t *testing.T) {
 
 			goResult := make([]complex64, n)
 
-			if !forwardDITComplex64(goResult, src, twiddle, scratch, bitrev) {
+			if !forwardDITComplex64(goResult, src, twiddle, scratch) {
 				t.Fatalf("forwardDITComplex64(%d) failed", n)
 			}
 
@@ -113,7 +113,7 @@ func TestNEONComplex64_Strided1024(t *testing.T) {
 		t.Fatalf("Forward kernel returned false for n=%d", n)
 	}
 
-	if !forwardDITComplex64(goResult, src, twiddle, scratch, bitrev) {
+	if !forwardDITComplex64(goResult, src, twiddle, scratch) {
 		t.Fatalf("forwardDITComplex64(%d) failed", n)
 	}
 
