@@ -15,13 +15,12 @@
 
 #include "textflag.h"
 
-TEXT ·ForwardAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-121
+TEXT ·ForwardAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-97
 	// --- Argument Loading ---
 	MOVQ dst+0(FP), R8           // R8 = Destination pointer
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer (W_256)
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer (size 256)
-	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer
 	MOVQ src+32(FP), R13         // R13 = Length of source slice
 
 	// --- Input Validation ---
@@ -37,10 +36,6 @@ TEXT ·ForwardAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-121
 	JL   fwd_ret_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, $256
-	JL   fwd_ret_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, $256
 	JL   fwd_ret_false
 
@@ -70,10 +65,9 @@ transpose_in_row_loop:
 transpose_in_col_loop:
 	MOVQ CX, AX                  // AX = row
 	SHLQ $4, AX                  // AX = row * 16
-	ADDQ DX, AX                  // AX = row*16 + col
-	MOVQ (R12)(AX*8), BX         // BX = bitrev[row*16+col]
-	SHLQ $3, BX                  // BX = index * 8
-	MOVQ (R9)(BX*1), R14         // R14 = src[bitrev[row*16+col]]
+	ADDQ DX, AX                  // AX = row*16 + col (source index)
+	SHLQ $3, AX                  // AX = (row*16 + col) * 8 (byte offset)
+	MOVQ (R9)(AX*1), R14         // R14 = src[row*16+col]
 
 	MOVQ DX, AX                  // AX = col
 	SHLQ $7, AX                  // AX = col * 128
@@ -501,20 +495,19 @@ fwd_final_copy_loop:
 	JL   fwd_final_copy_loop
 
 	VZEROUPPER                   // Reset SIMD state
-	MOVB $1, ret+120(FP)         // Signal success
+	MOVB $1, ret+96(FP)         // Signal success
 	RET
 
 fwd_ret_false:
-	MOVB $0, ret+120(FP)         // Signal failure
+	MOVB $0, ret+96(FP)         // Signal failure
 	RET
 
-TEXT ·InverseAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-121
+TEXT ·InverseAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-97
 	// --- Argument Loading ---
 	MOVQ dst+0(FP), R8           // R8 = Destination pointer
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer (W_256)
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer (size 256)
-	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer
 	MOVQ src+32(FP), R13         // R13 = Length of source slice
 
 	// --- Input Validation ---
@@ -530,10 +523,6 @@ TEXT ·InverseAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-121
 	JL   inv_ret_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, $256
-	JL   inv_ret_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, $256
 	JL   inv_ret_false
 
@@ -564,10 +553,9 @@ inv_transpose_in_row_loop:
 inv_transpose_in_col_loop:
 	MOVQ CX, AX                  // AX = row
 	SHLQ $4, AX                  // AX = row * 16
-	ADDQ DX, AX                  // AX = row*16 + col
-	MOVQ (R12)(AX*8), BX         // BX = bitrev[row*16+col]
-	SHLQ $3, BX                  // BX = index * 8
-	VMOVSD (R9)(BX*1), X0        // X0 = src[bitrev[row*16+col]]
+	ADDQ DX, AX                  // AX = row*16 + col (source index)
+	SHLQ $3, AX                  // AX = (row*16 + col) * 8 (byte offset)
+	VMOVSD (R9)(AX*1), X0        // X0 = src[row*16+col]
 	VXORPS X15, X0, X0           // X0 = conjugated input
 
 	MOVQ DX, AX                  // AX = col
@@ -1008,9 +996,9 @@ inv_scale_loop:
 	JL   inv_scale_loop
 
 	VZEROUPPER                   // Reset SIMD state
-	MOVB $1, ret+120(FP)         // Signal success
+	MOVB $1, ret+96(FP)         // Signal success
 	RET
 
 inv_ret_false:
-	MOVB $0, ret+120(FP)         // Signal failure
+	MOVB $0, ret+96(FP)         // Signal failure
 	RET

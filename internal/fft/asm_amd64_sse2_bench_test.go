@@ -206,27 +206,27 @@ func BenchmarkSSE2Size32Comparison(b *testing.B) {
 
 	// AVX2 for comparison (this is the fastest)
 	b.Run("AVX2_Generic", func(b *testing.B) {
-		if !forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		if !forwardAVX2Complex64Asm(dst, src, twiddle, scratch) {
 			b.Fatal("AVX2 failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for b.Loop() {
-			forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+			forwardAVX2Complex64Asm(dst, src, twiddle, scratch)
 		}
 	})
 
 	// AVX2 size-32 radix-32 kernel (size-specific dispatch)
 	b.Run("AVX2_Radix32", func(b *testing.B) {
-		if !forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		if !forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch) {
 			b.Fatal("AVX2 radix-32 failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for b.Loop() {
-			forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch, bitrev)
+			forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch)
 		}
 	})
 }

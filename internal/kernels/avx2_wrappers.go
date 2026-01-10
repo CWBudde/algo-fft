@@ -9,18 +9,17 @@ import amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
 // but does not copy results back to dst.
 func forwardAVX2Size256Radix4Complex64Safe(dst, src, twiddle, scratch []complex64) bool {
 	const n = 256
-	bitrev := bitrevSize256Radix4
 	if len(dst) < n || len(src) < n || len(scratch) < n {
-		return amd64.ForwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		return amd64.ForwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
 	}
 
 	if &dst[0] == &src[0] {
-		ok := amd64.ForwardAVX2Size256Radix4Complex64Asm(scratch, src, twiddle, scratch, bitrev)
+		ok := amd64.ForwardAVX2Size256Radix4Complex64Asm(scratch, src, twiddle, scratch)
 		if ok {
 			copy(dst[:n], scratch[:n])
 		}
 		return ok
 	}
 
-	return amd64.ForwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+	return amd64.ForwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
 }

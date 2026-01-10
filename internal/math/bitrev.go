@@ -46,7 +46,14 @@ func ComputePermutationIndices(n int, radix int) []int {
 			return nil // Not a power of 2
 		}
 
-		return computeDigitReversal(n, 4)
+		res := computeDigitReversal(n, 4)
+		if res == nil {
+			// Not a power of 4, but a power of 2 (e.g., 8, 32, 128, 512, ...)
+			// Handle as mixed radix-2/4: 2 * 4^k
+			return computeMixedRadix24(n)
+		}
+
+		return res
 
 	case -24: // Special marker for mixed radix-2/4
 		// Mixed radix: n = 2 * 4^k

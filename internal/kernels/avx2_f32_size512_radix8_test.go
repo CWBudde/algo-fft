@@ -7,7 +7,6 @@ import (
 
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -21,9 +20,8 @@ func TestForwardAVX2Size512Radix8Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputePermutationIndices(n, 8)
 
-	if !amd64.ForwardAVX2Size512Radix8Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardAVX2Size512Radix8Complex64Asm(dst, src, twiddle, scratch) {
 		t.Fatal("ForwardAVX2Size512Radix8Complex64Asm failed")
 	}
 
@@ -42,13 +40,12 @@ func TestInverseAVX2Size512Radix8Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputePermutationIndices(n, 8)
 
-	if !amd64.ForwardAVX2Size512Radix8Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardAVX2Size512Radix8Complex64Asm(fwd, src, twiddle, scratch) {
 		t.Fatal("ForwardAVX2Size512Radix8Complex64Asm failed")
 	}
 
-	if !amd64.InverseAVX2Size512Radix8Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseAVX2Size512Radix8Complex64Asm(dst, fwd, twiddle, scratch) {
 		t.Fatal("InverseAVX2Size512Radix8Complex64Asm failed")
 	}
 
@@ -67,13 +64,12 @@ func TestRoundTripAVX2Size512Radix8Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputePermutationIndices(n, 8)
 
-	if !amd64.ForwardAVX2Size512Radix8Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardAVX2Size512Radix8Complex64Asm(fwd, src, twiddle, scratch) {
 		t.Fatal("ForwardAVX2Size512Radix8Complex64Asm failed")
 	}
 
-	if !amd64.InverseAVX2Size512Radix8Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseAVX2Size512Radix8Complex64Asm(dst, fwd, twiddle, scratch) {
 		t.Fatal("InverseAVX2Size512Radix8Complex64Asm failed")
 	}
 

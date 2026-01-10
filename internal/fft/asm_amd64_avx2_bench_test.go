@@ -424,32 +424,28 @@ func BenchmarkAVX2Size256_Comprehensive(b *testing.B) {
 
 	// Radix-2 setup
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
-
-	// Radix-4 setup
-	bitrevRadix4 := ComputeBitReversalIndicesRadix4(n)
 
 	b.Run("AVX2_Radix2", func(b *testing.B) {
-		if !forwardAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		if !forwardAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch) {
 			b.Skip("AVX2 radix-2 assembly not available")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for range b.N {
-			forwardAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+			forwardAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch)
 		}
 	})
 
 	b.Run("AVX2_Radix4", func(b *testing.B) {
-		if !forwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevRadix4) {
+		if !forwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch) {
 			b.Skip("AVX2 radix-4 assembly not available")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for range b.N {
-			forwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch, bitrevRadix4)
+			forwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
 		}
 	})
 

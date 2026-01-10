@@ -67,8 +67,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x55667788,
 		roundTripSeed: 0x99AABBCC,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndices,
-		forwardKernel: amd64.ForwardAVX2Size16Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size16Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size16Radix2Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size16Radix2Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size16/Radix4",
@@ -151,8 +155,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x55667788,
 		roundTripSeed: 0x99AABBCC,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesRadix4, // Radix-4 expects bit-reversed order
-		forwardKernel: amd64.ForwardAVX2Size64Radix4Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size64Radix4Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size128/Mixed24",
@@ -163,8 +171,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x99AABBCC,
 		roundTripSeed: 0xDDEEFF00,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesMixed24,
-		forwardKernel: amd64.ForwardAVX2Size128Mixed24Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size128Mixed24Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size256/Radix2",
@@ -175,8 +187,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xAABBCCDD,
 		roundTripSeed: 0xEEFF0011,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndices,
-		forwardKernel: amd64.ForwardAVX2Size256Radix2Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size256Radix2Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size256/Radix4",
@@ -187,8 +203,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x55667788,
 		roundTripSeed: 0x99AABBCC,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesRadix4, // Radix-4 expects bit-reversed order
-		forwardKernel: amd64.ForwardAVX2Size256Radix4Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size256Radix4Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size256/Radix16",
@@ -199,8 +219,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xAABBCCDD,
 		roundTripSeed: 0xEEFF0011,
 		bitrevFunc:    mathpkg.ComputeIdentityIndices, // Radix-16 expects natural order
-		forwardKernel: amd64.ForwardAVX2Size256Radix16Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size256Radix16Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size256Radix16Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size256Radix16Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size512/Radix2",
@@ -223,8 +247,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xBBCCDDEE,
 		roundTripSeed: 0xFF001122,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesMixed24,
-		forwardKernel: amd64.ForwardAVX2Size512Mixed24Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size512Mixed24Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size512Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size512Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size1024/Radix4",
@@ -235,8 +263,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xCCDDEEFF,
 		roundTripSeed: 0x00112233,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesRadix4,
-		forwardKernel: amd64.ForwardAVX2Size1024Radix4Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size1024Radix4Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size1024Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size1024Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size2048/Mixed24",
@@ -247,8 +279,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xDDEEFF00,
 		roundTripSeed: 0x11223344,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesMixed24,
-		forwardKernel: amd64.ForwardAVX2Size2048Mixed24Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size2048Mixed24Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size2048Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size2048Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size4096/Radix4",
@@ -259,8 +295,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xEEFF0011,
 		roundTripSeed: 0x22334455,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesRadix4,
-		forwardKernel: amd64.ForwardAVX2Size4096Radix4Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size4096Radix4Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size4096Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size4096Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size8192/Mixed24",
@@ -271,8 +311,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xFF001122,
 		roundTripSeed: 0x33445566,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesMixed24,
-		forwardKernel: amd64.ForwardAVX2Size8192Mixed24Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size8192Mixed24Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size8192Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size8192Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size16384/Radix4",
@@ -283,8 +327,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x00112233,
 		roundTripSeed: 0x44556677,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesRadix4,
-		forwardKernel: amd64.ForwardAVX2Size16384Radix4Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size16384Radix4Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 }
 

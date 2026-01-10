@@ -17,13 +17,12 @@
 #include "textflag.h"
 
 // Forward transform, size 128, complex64, mixed-radix 2×4 (AVX2)
-TEXT ·ForwardAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 128)
 
 	// Verify n == 128
@@ -43,10 +42,6 @@ TEXT ·ForwardAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $128
 	JL   size128_r4_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $128
-	JL   size128_r4_return_false
-
 	// Select working buffer: use scratch for in-place, dst for out-of-place
 	CMPQ R8, R9
 	JNE  size128_r4_use_dst
@@ -57,6 +52,7 @@ size128_r4_use_dst:
 	// Bit-reversal permutation (copy src[bitrev[i]] -> work[i])
 	// Size 128 requires bit-reversal for mixed-radix ordering
 	// ==================================================================
+	LEAQ ·bitrev128_mixed(SB), R12
 	XORQ CX, CX              // CX = index 0..127
 
 size128_r4_bitrev_loop:
@@ -404,25 +400,24 @@ size128_r4_copy_loop:
 
 size128_r4_done_direct:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size128_r4_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 128, complex64, mixed-radix 2×4 (AVX2)
 // Inverse FFT: Forward FFT with conjugated twiddles + 1/N scaling
 // ===========================================================================
-TEXT ·InverseAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
-	// Load parameters: dst, src, twiddle, scratch, bitrev, n
+TEXT ·InverseAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+	// Load parameters: dst, src, twiddle, scratch, n
 	MOVQ dst+0(FP), R8       // R8 = dst slice data
 	MOVQ src+24(FP), R9      // R9 = src slice data
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle factors
 	MOVQ scratch+72(FP), R11 // R11 = scratch buffer
-	MOVQ bitrev+96(FP), R12  // R12 = bit-reversal indices
 	MOVQ src+32(FP), R13     // R13 = n (size)
 
 	// Validate n == 128
@@ -442,10 +437,6 @@ TEXT ·InverseAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $128
 	JL   size128_r4_inv_return_false
 
-	MOVQ bitrev+104(FP), AX  // bitrev len
-	CMPQ AX, $128
-	JL   size128_r4_inv_return_false
-
 	// Select working buffer: use dst if in-place, scratch if out-of-place
 	CMPQ R8, R9
 	JNE  size128_r4_inv_use_dst
@@ -453,6 +444,7 @@ TEXT ·InverseAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
 
 size128_r4_inv_use_dst:
 	// Bit-reversal permutation: rearrange input data for in-order output
+	LEAQ ·bitrev128_mixed(SB), R12
 	XORQ CX, CX              // CX = index 0..127
 
 size128_r4_inv_bitrev_loop:
@@ -808,10 +800,144 @@ size128_r4_inv_copy_loop:
 
 size128_r4_inv_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size128_r4_inv_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
+
+// ===========================================================================
+// DATA SECTION: Bit-reversal indices for size 128 mixed-2/4
+// ===========================================================================
+
+DATA ·bitrev128_mixed+0(SB)/8, $0
+DATA ·bitrev128_mixed+8(SB)/8, $32
+DATA ·bitrev128_mixed+16(SB)/8, $64
+DATA ·bitrev128_mixed+24(SB)/8, $96
+DATA ·bitrev128_mixed+32(SB)/8, $8
+DATA ·bitrev128_mixed+40(SB)/8, $40
+DATA ·bitrev128_mixed+48(SB)/8, $72
+DATA ·bitrev128_mixed+56(SB)/8, $104
+DATA ·bitrev128_mixed+64(SB)/8, $16
+DATA ·bitrev128_mixed+72(SB)/8, $48
+DATA ·bitrev128_mixed+80(SB)/8, $80
+DATA ·bitrev128_mixed+88(SB)/8, $112
+DATA ·bitrev128_mixed+96(SB)/8, $24
+DATA ·bitrev128_mixed+104(SB)/8, $56
+DATA ·bitrev128_mixed+112(SB)/8, $88
+DATA ·bitrev128_mixed+120(SB)/8, $120
+DATA ·bitrev128_mixed+128(SB)/8, $2
+DATA ·bitrev128_mixed+136(SB)/8, $34
+DATA ·bitrev128_mixed+144(SB)/8, $66
+DATA ·bitrev128_mixed+152(SB)/8, $98
+DATA ·bitrev128_mixed+160(SB)/8, $10
+DATA ·bitrev128_mixed+168(SB)/8, $42
+DATA ·bitrev128_mixed+176(SB)/8, $74
+DATA ·bitrev128_mixed+184(SB)/8, $106
+DATA ·bitrev128_mixed+192(SB)/8, $18
+DATA ·bitrev128_mixed+200(SB)/8, $50
+DATA ·bitrev128_mixed+208(SB)/8, $82
+DATA ·bitrev128_mixed+216(SB)/8, $114
+DATA ·bitrev128_mixed+224(SB)/8, $26
+DATA ·bitrev128_mixed+232(SB)/8, $58
+DATA ·bitrev128_mixed+240(SB)/8, $90
+DATA ·bitrev128_mixed+248(SB)/8, $122
+DATA ·bitrev128_mixed+256(SB)/8, $4
+DATA ·bitrev128_mixed+264(SB)/8, $36
+DATA ·bitrev128_mixed+272(SB)/8, $68
+DATA ·bitrev128_mixed+280(SB)/8, $100
+DATA ·bitrev128_mixed+288(SB)/8, $12
+DATA ·bitrev128_mixed+296(SB)/8, $44
+DATA ·bitrev128_mixed+304(SB)/8, $76
+DATA ·bitrev128_mixed+312(SB)/8, $108
+DATA ·bitrev128_mixed+320(SB)/8, $20
+DATA ·bitrev128_mixed+328(SB)/8, $52
+DATA ·bitrev128_mixed+336(SB)/8, $84
+DATA ·bitrev128_mixed+344(SB)/8, $116
+DATA ·bitrev128_mixed+352(SB)/8, $28
+DATA ·bitrev128_mixed+360(SB)/8, $60
+DATA ·bitrev128_mixed+368(SB)/8, $92
+DATA ·bitrev128_mixed+376(SB)/8, $124
+DATA ·bitrev128_mixed+384(SB)/8, $6
+DATA ·bitrev128_mixed+392(SB)/8, $38
+DATA ·bitrev128_mixed+400(SB)/8, $70
+DATA ·bitrev128_mixed+408(SB)/8, $102
+DATA ·bitrev128_mixed+416(SB)/8, $14
+DATA ·bitrev128_mixed+424(SB)/8, $46
+DATA ·bitrev128_mixed+432(SB)/8, $78
+DATA ·bitrev128_mixed+440(SB)/8, $110
+DATA ·bitrev128_mixed+448(SB)/8, $22
+DATA ·bitrev128_mixed+456(SB)/8, $54
+DATA ·bitrev128_mixed+464(SB)/8, $86
+DATA ·bitrev128_mixed+472(SB)/8, $118
+DATA ·bitrev128_mixed+480(SB)/8, $30
+DATA ·bitrev128_mixed+488(SB)/8, $62
+DATA ·bitrev128_mixed+496(SB)/8, $94
+DATA ·bitrev128_mixed+504(SB)/8, $126
+DATA ·bitrev128_mixed+512(SB)/8, $1
+DATA ·bitrev128_mixed+520(SB)/8, $33
+DATA ·bitrev128_mixed+528(SB)/8, $65
+DATA ·bitrev128_mixed+536(SB)/8, $97
+DATA ·bitrev128_mixed+544(SB)/8, $9
+DATA ·bitrev128_mixed+552(SB)/8, $41
+DATA ·bitrev128_mixed+560(SB)/8, $73
+DATA ·bitrev128_mixed+568(SB)/8, $105
+DATA ·bitrev128_mixed+576(SB)/8, $17
+DATA ·bitrev128_mixed+584(SB)/8, $49
+DATA ·bitrev128_mixed+592(SB)/8, $81
+DATA ·bitrev128_mixed+600(SB)/8, $113
+DATA ·bitrev128_mixed+608(SB)/8, $25
+DATA ·bitrev128_mixed+616(SB)/8, $57
+DATA ·bitrev128_mixed+624(SB)/8, $89
+DATA ·bitrev128_mixed+632(SB)/8, $121
+DATA ·bitrev128_mixed+640(SB)/8, $3
+DATA ·bitrev128_mixed+648(SB)/8, $35
+DATA ·bitrev128_mixed+656(SB)/8, $67
+DATA ·bitrev128_mixed+664(SB)/8, $99
+DATA ·bitrev128_mixed+672(SB)/8, $11
+DATA ·bitrev128_mixed+680(SB)/8, $43
+DATA ·bitrev128_mixed+688(SB)/8, $75
+DATA ·bitrev128_mixed+696(SB)/8, $107
+DATA ·bitrev128_mixed+704(SB)/8, $19
+DATA ·bitrev128_mixed+712(SB)/8, $51
+DATA ·bitrev128_mixed+720(SB)/8, $83
+DATA ·bitrev128_mixed+728(SB)/8, $115
+DATA ·bitrev128_mixed+736(SB)/8, $27
+DATA ·bitrev128_mixed+744(SB)/8, $59
+DATA ·bitrev128_mixed+752(SB)/8, $91
+DATA ·bitrev128_mixed+760(SB)/8, $123
+DATA ·bitrev128_mixed+768(SB)/8, $5
+DATA ·bitrev128_mixed+776(SB)/8, $37
+DATA ·bitrev128_mixed+784(SB)/8, $69
+DATA ·bitrev128_mixed+792(SB)/8, $101
+DATA ·bitrev128_mixed+800(SB)/8, $13
+DATA ·bitrev128_mixed+808(SB)/8, $45
+DATA ·bitrev128_mixed+816(SB)/8, $77
+DATA ·bitrev128_mixed+824(SB)/8, $109
+DATA ·bitrev128_mixed+832(SB)/8, $21
+DATA ·bitrev128_mixed+840(SB)/8, $53
+DATA ·bitrev128_mixed+848(SB)/8, $85
+DATA ·bitrev128_mixed+856(SB)/8, $117
+DATA ·bitrev128_mixed+864(SB)/8, $29
+DATA ·bitrev128_mixed+872(SB)/8, $61
+DATA ·bitrev128_mixed+880(SB)/8, $93
+DATA ·bitrev128_mixed+888(SB)/8, $125
+DATA ·bitrev128_mixed+896(SB)/8, $7
+DATA ·bitrev128_mixed+904(SB)/8, $39
+DATA ·bitrev128_mixed+912(SB)/8, $71
+DATA ·bitrev128_mixed+920(SB)/8, $103
+DATA ·bitrev128_mixed+928(SB)/8, $15
+DATA ·bitrev128_mixed+936(SB)/8, $47
+DATA ·bitrev128_mixed+944(SB)/8, $79
+DATA ·bitrev128_mixed+952(SB)/8, $111
+DATA ·bitrev128_mixed+960(SB)/8, $23
+DATA ·bitrev128_mixed+968(SB)/8, $55
+DATA ·bitrev128_mixed+976(SB)/8, $87
+DATA ·bitrev128_mixed+984(SB)/8, $119
+DATA ·bitrev128_mixed+992(SB)/8, $31
+DATA ·bitrev128_mixed+1000(SB)/8, $63
+DATA ·bitrev128_mixed+1008(SB)/8, $95
+DATA ·bitrev128_mixed+1016(SB)/8, $127
+GLOBL ·bitrev128_mixed(SB), RODATA, $1024

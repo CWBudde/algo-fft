@@ -111,17 +111,17 @@ func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelS
 func forwardAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
 	switch len(src) {
 	case 4:
-		return forwardAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		return forwardAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch)
 	case 8:
-		return forwardAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		return forwardAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch)
 	case 16:
-		return forwardAVX2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		return forwardAVX2Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
 	case 32:
-		return forwardAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		return forwardAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
 	case 64:
-		return forwardAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		return forwardAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
 	case 128:
-		return forwardAVX2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		return forwardAVX2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
 	case 256:
 		// Attempt to use highest priority codelet from registry for better performance
 		if entry, ok := Registry64.GetBest(len(src), SIMDAVX2, KernelDIT); ok {
