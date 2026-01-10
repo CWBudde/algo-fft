@@ -368,7 +368,7 @@ func TestNEONComplex128_VsGoDIT(t *testing.T) {
 				t.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 
-			if !forwardDITComplex128(goResult, src, twiddle, scratch, bitrev) {
+			if !forwardDITComplex128(goResult, src, twiddle, scratch) {
 				t.Fatalf("forwardDITComplex128(%d) failed", n)
 			}
 

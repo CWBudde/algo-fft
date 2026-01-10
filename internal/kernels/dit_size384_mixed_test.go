@@ -5,7 +5,6 @@ package kernels
 import (
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -24,9 +23,8 @@ func TestForwardDIT384MixedComplex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT384MixedComplex64(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT384MixedComplex64(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT384MixedComplex64 failed")
 	}
 
@@ -45,13 +43,12 @@ func TestInverseDIT384MixedComplex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT384MixedComplex64(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT384MixedComplex64(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT384MixedComplex64 failed")
 	}
 
-	if !inverseDIT384MixedComplex64(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT384MixedComplex64(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT384MixedComplex64 failed")
 	}
 
@@ -70,13 +67,12 @@ func TestRoundTripDIT384MixedComplex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT384MixedComplex64(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT384MixedComplex64(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT384MixedComplex64 failed")
 	}
 
-	if !inverseDIT384MixedComplex64(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT384MixedComplex64(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT384MixedComplex64 failed")
 	}
 
@@ -93,9 +89,8 @@ func TestForwardDIT384MixedComplex64_AllZeros(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT384MixedComplex64(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT384MixedComplex64(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT384MixedComplex64 failed")
 	}
 
@@ -118,9 +113,8 @@ func TestForwardDIT384MixedComplex64_Impulse(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT384MixedComplex64(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT384MixedComplex64(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT384MixedComplex64 failed")
 	}
 
@@ -142,9 +136,8 @@ func TestForwardDIT384MixedComplex64_SliceTooSmall(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if forwardDIT384MixedComplex64(dst, src, twiddle, scratch, bitrev) {
+	if forwardDIT384MixedComplex64(dst, src, twiddle, scratch) {
 		t.Error("forwardDIT384MixedComplex64 should return false for too-small src")
 	}
 }
@@ -159,9 +152,8 @@ func TestForwardDIT384MixedComplex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT384MixedComplex128(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT384MixedComplex128(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT384MixedComplex128 failed")
 	}
 
@@ -180,13 +172,12 @@ func TestInverseDIT384MixedComplex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT384MixedComplex128(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT384MixedComplex128(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT384MixedComplex128 failed")
 	}
 
-	if !inverseDIT384MixedComplex128(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT384MixedComplex128(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT384MixedComplex128 failed")
 	}
 
@@ -205,13 +196,12 @@ func TestRoundTripDIT384MixedComplex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT384MixedComplex128(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT384MixedComplex128(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT384MixedComplex128 failed")
 	}
 
-	if !inverseDIT384MixedComplex128(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT384MixedComplex128(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT384MixedComplex128 failed")
 	}
 
@@ -229,9 +219,8 @@ func TestForwardDIT384MixedComplex128_Impulse(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
-	if !forwardDIT384MixedComplex128(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT384MixedComplex128(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT384MixedComplex128 failed")
 	}
 
@@ -251,14 +240,13 @@ func BenchmarkForwardDIT384MixedComplex64(b *testing.B) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
 	b.ReportAllocs()
 	b.SetBytes(int64(n * 8)) // 8 bytes per complex64
 	b.ResetTimer()
 
 	for b.Loop() {
-		forwardDIT384MixedComplex64(dst, src, twiddle, scratch, bitrev)
+		forwardDIT384MixedComplex64(dst, src, twiddle, scratch)
 	}
 }
 
@@ -270,14 +258,13 @@ func BenchmarkInverseDIT384MixedComplex64(b *testing.B) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
 	b.ReportAllocs()
 	b.SetBytes(int64(n * 8))
 	b.ResetTimer()
 
 	for b.Loop() {
-		inverseDIT384MixedComplex64(dst, src, twiddle, scratch, bitrev)
+		inverseDIT384MixedComplex64(dst, src, twiddle, scratch)
 	}
 }
 
@@ -289,14 +276,13 @@ func BenchmarkForwardDIT384MixedComplex128(b *testing.B) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
 	b.ReportAllocs()
 	b.SetBytes(int64(n * 16)) // 16 bytes per complex128
 	b.ResetTimer()
 
 	for b.Loop() {
-		forwardDIT384MixedComplex128(dst, src, twiddle, scratch, bitrev)
+		forwardDIT384MixedComplex128(dst, src, twiddle, scratch)
 	}
 }
 
@@ -308,13 +294,12 @@ func BenchmarkInverseDIT384MixedComplex128(b *testing.B) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
 
 	b.ReportAllocs()
 	b.SetBytes(int64(n * 16))
 	b.ResetTimer()
 
 	for b.Loop() {
-		inverseDIT384MixedComplex128(dst, src, twiddle, scratch, bitrev)
+		inverseDIT384MixedComplex128(dst, src, twiddle, scratch)
 	}
 }

@@ -21,11 +21,11 @@ func TestForwardAVX2Size512Radix16x32Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n) // radix-16x32 uses identity permutation
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	if !amd64.ForwardAVX2Size512Radix16x32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 		// AVX2 kernel not implemented, use Go fallback
-		if !forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch, bitrev) {
+		if !forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch) {
 			t.Fatal("forwardDIT512Mixed16x32Complex64 failed")
 		}
 	}
@@ -45,18 +45,18 @@ func TestInverseAVX2Size512Radix16x32Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	// Forward transform
 	if !amd64.ForwardAVX2Size512Radix16x32Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
-		if !forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch, bitrev) {
+		if !forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch) {
 			t.Fatal("forwardDIT512Mixed16x32Complex64 failed")
 		}
 	}
 
 	// Inverse transform
 	if !amd64.InverseAVX2Size512Radix16x32Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
-		if !inverseDIT512Mixed16x32Complex64(dst, fwd, twiddle, scratch, bitrev) {
+		if !inverseDIT512Mixed16x32Complex64(dst, fwd, twiddle, scratch) {
 			t.Fatal("inverseDIT512Mixed16x32Complex64 failed")
 		}
 	}
@@ -76,18 +76,18 @@ func TestRoundTripAVX2Size512Radix16x32Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	// Forward transform
 	if !amd64.ForwardAVX2Size512Radix16x32Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
-		if !forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch, bitrev) {
+		if !forwardDIT512Mixed16x32Complex64(fwd, src, twiddle, scratch) {
 			t.Fatal("forwardDIT512Mixed16x32Complex64 failed")
 		}
 	}
 
 	// Inverse transform
 	if !amd64.InverseAVX2Size512Radix16x32Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
-		if !inverseDIT512Mixed16x32Complex64(dst, fwd, twiddle, scratch, bitrev) {
+		if !inverseDIT512Mixed16x32Complex64(dst, fwd, twiddle, scratch) {
 			t.Fatal("inverseDIT512Mixed16x32Complex64 failed")
 		}
 	}
@@ -105,13 +105,13 @@ func BenchmarkForwardAVX2Size512Radix16x32Complex64(b *testing.B) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	b.SetBytes(int64(n * 8))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if !amd64.ForwardAVX2Size512Radix16x32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch, bitrev)
+			forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch)
 		}
 	}
 }
@@ -126,13 +126,13 @@ func BenchmarkInverseAVX2Size512Radix16x32Complex64(b *testing.B) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeIdentityIndices(n)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	b.SetBytes(int64(n * 8))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if !amd64.InverseAVX2Size512Radix16x32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-			inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch, bitrev)
+			inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch)
 		}
 	}
 }

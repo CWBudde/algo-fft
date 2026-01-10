@@ -24,9 +24,8 @@ func TestInverse16384SixStepAVX2_Impulse(t *testing.T) {
 	dst := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch, bitrev) {
+	if !inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch) {
 		t.Fatal("inverseDIT16384SixStepAVX2Complex64 returned false")
 	}
 
@@ -51,15 +50,14 @@ func TestRoundTrip16384SixStepAVX2_Impulse(t *testing.T) {
 	result := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT16384SixStepAVX2Complex64(freq, src, twiddle, scratch, bitrev) {
+	if !forwardDIT16384SixStepAVX2Complex64(freq, src, twiddle, scratch) {
 		t.Fatal("forward returned false")
 	}
 
 	t.Logf("After forward (should be all 1): first 4 = %v %v %v %v", freq[0], freq[1], freq[2], freq[3])
 
-	if !inverseDIT16384SixStepAVX2Complex64(result, freq, twiddle, scratch, bitrev) {
+	if !inverseDIT16384SixStepAVX2Complex64(result, freq, twiddle, scratch) {
 		t.Fatal("inverse returned false")
 	}
 
@@ -92,9 +90,8 @@ func TestForwardDIT16384SixStepAVX2_Impulse(t *testing.T) {
 	dst := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT16384SixStepAVX2Complex64 returned false")
 	}
 
@@ -130,7 +127,6 @@ func TestForwardDIT16384SixStepAVX2_Complex64(t *testing.T) {
 	dstRadix4 := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	bitrevRadix4 := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with test data
@@ -140,7 +136,7 @@ func TestForwardDIT16384SixStepAVX2_Complex64(t *testing.T) {
 	}
 
 	// Run both implementations
-	if !forwardDIT16384SixStepAVX2Complex64(dstSixStep, src, twiddle, scratch, bitrev) {
+	if !forwardDIT16384SixStepAVX2Complex64(dstSixStep, src, twiddle, scratch) {
 		t.Fatal("forwardDIT16384SixStepAVX2Complex64 returned false")
 	}
 
@@ -177,7 +173,6 @@ func TestRoundTripDIT16384SixStepAVX2_Complex64(t *testing.T) {
 	result := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	// Fill with test data
 	rng := rand.New(rand.NewSource(42))
@@ -186,13 +181,13 @@ func TestRoundTripDIT16384SixStepAVX2_Complex64(t *testing.T) {
 	}
 
 	// Forward then inverse
-	if !forwardDIT16384SixStepAVX2Complex64(freq, src, twiddle, scratch, bitrev) {
+	if !forwardDIT16384SixStepAVX2Complex64(freq, src, twiddle, scratch) {
 		t.Fatal("forward returned false")
 	}
 
 	t.Logf("After forward: first few = %v %v %v", freq[0], freq[1], freq[2])
 
-	if !inverseDIT16384SixStepAVX2Complex64(result, freq, twiddle, scratch, bitrev) {
+	if !inverseDIT16384SixStepAVX2Complex64(result, freq, twiddle, scratch) {
 		t.Fatal("inverse returned false")
 	}
 
@@ -231,7 +226,6 @@ func TestForwardDIT16384SixStepAVX2_VsRadix4(t *testing.T) {
 	dstRadix4 := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	bitrevRadix4 := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with random data
@@ -241,7 +235,7 @@ func TestForwardDIT16384SixStepAVX2_VsRadix4(t *testing.T) {
 	}
 
 	// Run six-step
-	if !forwardDIT16384SixStepAVX2Complex64(dstSixStep, src, twiddle, scratch, bitrev) {
+	if !forwardDIT16384SixStepAVX2Complex64(dstSixStep, src, twiddle, scratch) {
 		t.Fatal("six-step forward returned false")
 	}
 
@@ -299,7 +293,6 @@ func TestSize128Kernel_RoundTrip(t *testing.T) {
 	result := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	// Random input
 	rng := rand.New(rand.NewSource(42))
@@ -308,6 +301,7 @@ func TestSize128Kernel_RoundTrip(t *testing.T) {
 	}
 
 	// Forward using generic DIT
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	if !amd64.ForwardAVX2Complex64Asm(freq, src, twiddle, scratch, bitrev) {
 		t.Fatal("forward returned false")
 	}
@@ -348,15 +342,14 @@ func TestSixStep16384_RoundTrip_SingleBin(t *testing.T) {
 	result := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	// Forward
-	if !forwardDIT16384SixStepAVX2Complex64(freq, src, twiddle, scratch, bitrev) {
+	if !forwardDIT16384SixStepAVX2Complex64(freq, src, twiddle, scratch) {
 		t.Fatal("forward returned false")
 	}
 
 	// Inverse
-	if !inverseDIT16384SixStepAVX2Complex64(result, freq, twiddle, scratch, bitrev) {
+	if !inverseDIT16384SixStepAVX2Complex64(result, freq, twiddle, scratch) {
 		t.Fatal("inverse returned false")
 	}
 
@@ -401,10 +394,9 @@ func TestSixStep16384_SingleFrequency(t *testing.T) {
 	dst := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	// Run our six-step
-	if !forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch) {
 		t.Fatal("forward returned false")
 	}
 
@@ -466,7 +458,6 @@ func TestForwardDIT4096SixStepAVX2_VsRadix4(t *testing.T) {
 	dstRadix4 := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	bitrevRadix4 := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with random data
@@ -476,7 +467,7 @@ func TestForwardDIT4096SixStepAVX2_VsRadix4(t *testing.T) {
 	}
 
 	// Run six-step
-	if !forwardDIT4096SixStepAVX2Complex64(dstSixStep, src, twiddle, scratch, bitrev) {
+	if !forwardDIT4096SixStepAVX2Complex64(dstSixStep, src, twiddle, scratch) {
 		t.Fatal("six-step forward returned false")
 	}
 
@@ -522,7 +513,6 @@ func TestInPlaceDIT16384SixStepAVX2_Complex64(t *testing.T) {
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	// Generate test data
 	rng := rand.New(rand.NewSource(42))
@@ -533,7 +523,7 @@ func TestInPlaceDIT16384SixStepAVX2_Complex64(t *testing.T) {
 
 	// Out-of-place reference
 	dstOOP := make([]complex64, n)
-	if !forwardDIT16384SixStepAVX2Complex64(dstOOP, src, twiddle, scratch, bitrev) {
+	if !forwardDIT16384SixStepAVX2Complex64(dstOOP, src, twiddle, scratch) {
 		t.Fatal("out-of-place forward returned false")
 	}
 
@@ -541,7 +531,7 @@ func TestInPlaceDIT16384SixStepAVX2_Complex64(t *testing.T) {
 	dstIP := make([]complex64, n)
 	copy(dstIP, src)
 	scratch2 := make([]complex64, n)
-	if !forwardDIT16384SixStepAVX2Complex64(dstIP, dstIP, twiddle, scratch2, bitrev) {
+	if !forwardDIT16384SixStepAVX2Complex64(dstIP, dstIP, twiddle, scratch2) {
 		t.Fatal("in-place forward returned false")
 	}
 
@@ -571,7 +561,6 @@ func BenchmarkForwardDIT16384SixStepAVX2_Complex64(b *testing.B) {
 	dst := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -582,7 +571,7 @@ func BenchmarkForwardDIT16384SixStepAVX2_Complex64(b *testing.B) {
 	b.SetBytes(int64(n) * 8)
 
 	for b.Loop() {
-		forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch, bitrev)
+		forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch)
 	}
 }
 
@@ -593,7 +582,6 @@ func BenchmarkForwardDIT16384Radix4AVX2_Complex64(b *testing.B) {
 	dst := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -602,6 +590,7 @@ func BenchmarkForwardDIT16384Radix4AVX2_Complex64(b *testing.B) {
 
 	b.ResetTimer()
 	b.SetBytes(int64(n) * 8)
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	for b.Loop() {
 		amd64.ForwardAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
