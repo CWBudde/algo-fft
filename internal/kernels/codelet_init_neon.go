@@ -11,8 +11,8 @@ func registerNEONDITCodelets64() {
 	// Size 4: Radix-4 NEON variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4,
-		Forward:    wrapCore64(wrapAsmDIT64(arm64.ForwardNEONSize4Radix4Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(arm64.InverseNEONSize4Radix4Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(arm64.ForwardNEONSize4Radix4Complex64Asm, bitrevSize4Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(arm64.InverseNEONSize4Radix4Complex64Asm, bitrevSize4Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit4_radix4_neon",
@@ -44,16 +44,17 @@ func registerNEONDITCodelets64() {
 		BitrevFunc: nil,
 		KernelType: KernelTypeDIT,
 	})
+	// Size 8: Radix-8 NEON variant (single-stage butterfly, identity permutation)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCore64(wrapAsmDIT64(arm64.ForwardNEONSize8Radix8Complex64Asm, bitrevSize8Radix2)),
-		Inverse:    wrapCore64(wrapAsmDIT64(arm64.InverseNEONSize8Radix8Complex64Asm, bitrevSize8Radix2)),
+		Forward:    wrapCore64(wrapAsmDIT64(arm64.ForwardNEONSize8Radix8Complex64Asm, bitrevSize8Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(arm64.InverseNEONSize8Radix8Complex64Asm, bitrevSize8Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit8_radix8_neon",
 		Priority:   30,
 		BitrevFunc: nil,
-		KernelType: KernelTypeDIT,
+		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
 	// Size 16: radix-4 NEON beats radix-2 NEON

@@ -59,9 +59,7 @@ TEXT ·ForwardAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $8
 	JL   size8_r8_fwd_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $8
-	JL   size8_r8_fwd_return_false
+	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
 
 	// Select working buffer
 	CMPQ R8, R9
@@ -69,38 +67,16 @@ TEXT ·ForwardAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ R11, R8
 
 size8_r8_fwd_use_dst:
-	// Load input using bitrev indices (complex64 = 8 bytes each)
-	MOVQ 0(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X8   // x0
-
-	MOVQ 8(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X9   // x1
-
-	MOVQ 16(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X10  // x2
-
-	MOVQ 24(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X11  // x3
-
-	MOVQ 32(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X12  // x4
-
-	MOVQ 40(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X13  // x5
-
-	MOVQ 48(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X14  // x6
-
-	MOVQ 56(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X15  // x7
+	// Load input in natural order (complex64 = 8 bytes each)
+	// Radix-8 on size-8 is a single butterfly with identity permutation
+	VMOVSD 0(R9), X8    // x0
+	VMOVSD 8(R9), X9    // x1
+	VMOVSD 16(R9), X10  // x2
+	VMOVSD 24(R9), X11  // x3
+	VMOVSD 32(R9), X12  // x4
+	VMOVSD 40(R9), X13  // x5
+	VMOVSD 48(R9), X14  // x6
+	VMOVSD 56(R9), X15  // x7
 
 	// Compute a0..a7 = Stage 1 butterflies
 	VADDPS X12, X8, X0   // a0 = x0 + x4
@@ -239,9 +215,7 @@ TEXT ·InverseAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $8
 	JL   size8_r8_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $8
-	JL   size8_r8_inv_return_false
+	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
 
 	// Select working buffer
 	CMPQ R8, R9
@@ -249,38 +223,16 @@ TEXT ·InverseAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ R11, R8
 
 size8_r8_inv_use_dst:
-	// Load input using bitrev indices (complex64 = 8 bytes each)
-	MOVQ 0(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X8   // x0
-
-	MOVQ 8(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X9   // x1
-
-	MOVQ 16(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X10  // x2
-
-	MOVQ 24(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X11  // x3
-
-	MOVQ 32(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X12  // x4
-
-	MOVQ 40(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X13  // x5
-
-	MOVQ 48(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X14  // x6
-
-	MOVQ 56(R12), AX
-	SHLQ $3, AX
-	VMOVSD 0(R9)(AX*1), X15  // x7
+	// Load input in natural order (complex64 = 8 bytes each)
+	// Radix-8 on size-8 is a single butterfly with identity permutation
+	VMOVSD 0(R9), X8    // x0
+	VMOVSD 8(R9), X9    // x1
+	VMOVSD 16(R9), X10  // x2
+	VMOVSD 24(R9), X11  // x3
+	VMOVSD 32(R9), X12  // x4
+	VMOVSD 40(R9), X13  // x5
+	VMOVSD 48(R9), X14  // x6
+	VMOVSD 56(R9), X15  // x7
 
 	// Compute a0..a7 = Stage 1 butterflies
 	VADDPS X12, X8, X0   // a0 = x0 + x4

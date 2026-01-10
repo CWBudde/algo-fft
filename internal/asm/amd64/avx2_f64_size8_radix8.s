@@ -40,9 +40,7 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $8
 	JL   size8_128_r8_fwd_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $8
-	JL   size8_128_r8_fwd_return_false
+	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
 
 	// Build sign masks
 	// X14 = maskNegLo = [signbit, 0]
@@ -51,38 +49,16 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	VMOVQ AX, X14
 	VPERMILPD $1, X14, X15
 
-	// Load input x0..x7 using bitrev indices (complex128 = 16 bytes)
-	MOVQ 0(R12), AX     // bitrev[0]
-	SHLQ $4, AX         // multiply by 16 (sizeof complex128)
-	MOVUPD 0(R9)(AX*1), X0
-
-	MOVQ 8(R12), AX     // bitrev[1]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X1
-
-	MOVQ 16(R12), AX     // bitrev[2]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X2
-
-	MOVQ 24(R12), AX     // bitrev[3]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X3
-
-	MOVQ 32(R12), AX     // bitrev[4]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X4
-
-	MOVQ 40(R12), AX     // bitrev[5]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X5
-
-	MOVQ 48(R12), AX     // bitrev[6]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X6
-
-	MOVQ 56(R12), AX     // bitrev[7]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X7
+	// Load input in natural order (complex128 = 16 bytes each)
+	// Radix-8 on size-8 is a single butterfly with identity permutation
+	MOVUPD 0(R9), X0    // x0
+	MOVUPD 16(R9), X1   // x1
+	MOVUPD 32(R9), X2   // x2
+	MOVUPD 48(R9), X3   // x3
+	MOVUPD 64(R9), X4   // x4
+	MOVUPD 80(R9), X5   // x5
+	MOVUPD 96(R9), X6   // x6
+	MOVUPD 112(R9), X7  // x7
 
 	// a0..a7
 	VADDPD X4, X0, X8   // a0 = x0 + x4
@@ -207,47 +183,23 @@ TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $8
 	JL   size8_128_r8_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $8
-	JL   size8_128_r8_inv_return_false
+	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
 
 	// Build sign masks
 	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X14            // maskNegLo = [signbit, 0]
 	VPERMILPD $1, X14, X15   // maskNegHi = [0, signbit]
 
-	// Load input x0..x7 using bitrev indices (complex128 = 16 bytes)
-	MOVQ 0(R12), AX     // bitrev[0]
-	SHLQ $4, AX         // multiply by 16 (sizeof complex128)
-	MOVUPD 0(R9)(AX*1), X0
-
-	MOVQ 8(R12), AX     // bitrev[1]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X1
-
-	MOVQ 16(R12), AX     // bitrev[2]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X2
-
-	MOVQ 24(R12), AX     // bitrev[3]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X3
-
-	MOVQ 32(R12), AX     // bitrev[4]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X4
-
-	MOVQ 40(R12), AX     // bitrev[5]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X5
-
-	MOVQ 48(R12), AX     // bitrev[6]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X6
-
-	MOVQ 56(R12), AX     // bitrev[7]
-	SHLQ $4, AX
-	MOVUPD 0(R9)(AX*1), X7
+	// Load input in natural order (complex128 = 16 bytes each)
+	// Radix-8 on size-8 is a single butterfly with identity permutation
+	MOVUPD 0(R9), X0    // x0
+	MOVUPD 16(R9), X1   // x1
+	MOVUPD 32(R9), X2   // x2
+	MOVUPD 48(R9), X3   // x3
+	MOVUPD 64(R9), X4   // x4
+	MOVUPD 80(R9), X5   // x5
+	MOVUPD 96(R9), X6   // x6
+	MOVUPD 112(R9), X7  // x7
 
 	// a0..a7
 	VADDPD X4, X0, X8

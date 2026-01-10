@@ -24,52 +24,32 @@ TEXT ·ForwardSSE2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ scratch+80(FP), AX
 	CMPQ AX, $8
 	JL   fwd_ret_false
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $8
-	JL   fwd_ret_false
+
+	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
 
 	CMPQ R8, R9
 	JNE  fwd_use_dst
 	MOVQ R11, R8
 
 fwd_use_dst:
-	// Load input using bitrev indices (complex64 = 8 bytes each)
+	// Load input in natural order (complex64 = 8 bytes each)
+	// Radix-8 on size-8 is a single butterfly with identity permutation
 	// Pack into X0-X3 format: X0=[x0,x1], X1=[x2,x3], X2=[x4,x5], X3=[x6,x7]
-	MOVQ 0(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X0   // x0 in low half
+	MOVSD 0(R9), X0      // x0 in low half
+	MOVSD 8(R9), X4      // x1
+	UNPCKLPD X4, X0      // X0 = [x0, x1]
 
-	MOVQ 8(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X4   // x1
-	UNPCKLPD X4, X0         // X0 = [x0, x1]
+	MOVSD 16(R9), X1     // x2
+	MOVSD 24(R9), X4     // x3
+	UNPCKLPD X4, X1      // X1 = [x2, x3]
 
-	MOVQ 16(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X1   // x2
+	MOVSD 32(R9), X2     // x4
+	MOVSD 40(R9), X4     // x5
+	UNPCKLPD X4, X2      // X2 = [x4, x5]
 
-	MOVQ 24(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X4   // x3
-	UNPCKLPD X4, X1         // X1 = [x2, x3]
-
-	MOVQ 32(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X2   // x4
-
-	MOVQ 40(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X4   // x5
-	UNPCKLPD X4, X2         // X2 = [x4, x5]
-
-	MOVQ 48(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X3   // x6
-
-	MOVQ 56(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X4   // x7
-	UNPCKLPD X4, X3         // X3 = [x6, x7]
+	MOVSD 48(R9), X3     // x6
+	MOVSD 56(R9), X4     // x7
+	UNPCKLPD X4, X3      // X3 = [x6, x7]
 
 	// Stage 1: Sum/Diff (Stride 4)
 	MOVAPS X0, X4
@@ -247,52 +227,32 @@ TEXT ·InverseSSE2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ scratch+80(FP), AX
 	CMPQ AX, $8
 	JL   inv_ret_false
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $8
-	JL   inv_ret_false
+
+	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
 
 	CMPQ R8, R9
 	JNE  inv_use_dst
 	MOVQ R11, R8
 
 inv_use_dst:
-	// Load input using bitrev indices (complex64 = 8 bytes each)
+	// Load input in natural order (complex64 = 8 bytes each)
+	// Radix-8 on size-8 is a single butterfly with identity permutation
 	// Pack into X0-X3 format: X0=[x0,x1], X1=[x2,x3], X2=[x4,x5], X3=[x6,x7]
-	MOVQ 0(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X0   // x0
+	MOVSD 0(R9), X0      // x0
+	MOVSD 8(R9), X4      // x1
+	UNPCKLPD X4, X0      // X0 = [x0, x1]
 
-	MOVQ 8(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X4   // x1
-	UNPCKLPD X4, X0         // X0 = [x0, x1]
+	MOVSD 16(R9), X1     // x2
+	MOVSD 24(R9), X4     // x3
+	UNPCKLPD X4, X1      // X1 = [x2, x3]
 
-	MOVQ 16(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X1   // x2
+	MOVSD 32(R9), X2     // x4
+	MOVSD 40(R9), X4     // x5
+	UNPCKLPD X4, X2      // X2 = [x4, x5]
 
-	MOVQ 24(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X4   // x3
-	UNPCKLPD X4, X1         // X1 = [x2, x3]
-
-	MOVQ 32(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X2   // x4
-
-	MOVQ 40(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X4   // x5
-	UNPCKLPD X4, X2         // X2 = [x4, x5]
-
-	MOVQ 48(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X3   // x6
-
-	MOVQ 56(R12), AX
-	SHLQ $3, AX
-	MOVSD 0(R9)(AX*1), X4   // x7
-	UNPCKLPD X4, X3         // X3 = [x6, x7]
+	MOVSD 48(R9), X3     // x6
+	MOVSD 56(R9), X4     // x7
+	UNPCKLPD X4, X3      // X3 = [x6, x7]
 
 	// Stage 1
 	MOVAPS X0, X4

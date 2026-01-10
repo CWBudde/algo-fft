@@ -44,6 +44,8 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 
 	// Test with SIMD enabled
 	cpu.ResetDetection()
+	f := cpu.DetectFeatures()
+	t.Logf("Detected features: AVX2=%v, SSE2=%v", f.HasAVX2, f.HasSSE2)
 
 	plan, err := NewPlan(n)
 	if err != nil {
@@ -71,6 +73,9 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	if err := planGeneric.Forward(genericOut, input); err != nil {
 		t.Fatalf("Generic Forward failed: %v", err)
 	}
+
+	t.Logf("SIMD Plan using algorithm: %s", plan.Algorithm())
+	t.Logf("Generic Plan using algorithm: %s", planGeneric.Algorithm())
 
 	// Compare
 	var maxRelErr float32

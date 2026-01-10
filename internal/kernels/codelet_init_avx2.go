@@ -14,8 +14,8 @@ func registerAVX2DITCodelets64() {
 	// due to scalar operations. Registered with low priority for benchmarking.
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size4Radix4Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size4Radix4Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size4Radix4Complex64Asm, bitrevSize4Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size4Radix4Complex64Asm, bitrevSize4Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit4_radix4_avx2",
@@ -50,17 +50,17 @@ func registerAVX2DITCodelets64() {
 		KernelType: KernelTypeDIT, // Self-contained via bridge
 	})
 
-	// Size 8: Radix-8 AVX2 variant (single-stage butterfly)
+	// Size 8: Radix-8 AVX2 variant (single-stage butterfly, identity permutation)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size8Radix8Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size8Radix8Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size8Radix8Complex64Asm, bitrevSize8Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size8Radix8Complex64Asm, bitrevSize8Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix8_avx2",
 		Priority:   9, // Keep below Go radix-8 unless proven faster
 		BitrevFunc: nil,
-		KernelType: KernelTypeDIT, // Self-contained via bridge
+		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
 	// Size 16: Radix-2 AVX2 variant
@@ -92,8 +92,8 @@ func registerAVX2DITCodelets64() {
 	// Size 16: Radix-16 AVX2 variant (4x4)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size16Radix16Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size16Radix16Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size16Radix16Complex64Asm, bitrevSize16Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size16Radix16Complex64Asm, bitrevSize16Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit16_radix16_avx2",
@@ -102,17 +102,17 @@ func registerAVX2DITCodelets64() {
 		KernelType: KernelTypeDIT,
 	})
 
-	// Size 32: Radix-32 AVX2 variant (4x8 factorization, no bit-reversal needed)
+	// Size 32: Radix-32 AVX2 variant (4x8 factorization, identity permutation)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size32Radix32Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size32Radix32Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size32Radix32Complex64Asm, bitrevSize32Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size32Radix32Complex64Asm, bitrevSize32Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit32_radix32_avx2",
 		Priority:   25, // Higher than radix-2 variants
 		BitrevFunc: nil,
-		KernelType: KernelTypeDIT,
+		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
 	// Size 32: Radix-2 AVX2 variant
@@ -189,7 +189,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit256_radix4_avx2",
-		Priority:   20, // Higher priority - potentially faster
+		Priority:   120, // Higher priority than generic
 		BitrevFunc: nil,
 		KernelType: KernelTypeDIT,
 	})
@@ -197,12 +197,12 @@ func registerAVX2DITCodelets64() {
 	// Size 256: Radix-16 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       256,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size256Radix16Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size256Radix16Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size256Radix16Complex64Asm, bitrevSize256Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size256Radix16Complex64Asm, bitrevSize256Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit256_radix16_avx2",
-		Priority:   30, // Highest priority (1.5x faster than radix-4)
+		Priority:   130, // Highest priority (1.5x faster than radix-4)
 		BitrevFunc: nil,
 		KernelType: KernelTypeDIT,
 	})
@@ -249,8 +249,8 @@ func registerAVX2DITCodelets64() {
 	// Size 512: Radix-16x32 AVX2 variant (six-step, identity permutation)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size512Radix16x32Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size512Radix16x32Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size512Radix16x32Complex64Asm, bitrevSize512Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size512Radix16x32Complex64Asm, bitrevSize512Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_radix16x32_avx2",
@@ -400,17 +400,17 @@ func registerAVX2DITCodelets128() {
 		KernelType: KernelTypeDIT, // Updated from Core to DIT consistent with 64-bit
 	})
 
-	// Size 8: Radix-8 AVX2 variant (single-stage butterfly)
+	// Size 8: Radix-8 AVX2 variant (single-stage butterfly, identity permutation)
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCore128(wrapAsmDIT128(amd64.ForwardAVX2Size8Radix8Complex128Asm, nil)),
-		Inverse:    wrapCore128(wrapAsmDIT128(amd64.InverseAVX2Size8Radix8Complex128Asm, nil)),
+		Forward:    wrapCore128(wrapAsmDIT128(amd64.ForwardAVX2Size8Radix8Complex128Asm, bitrevSize8Identity)),
+		Inverse:    wrapCore128(wrapAsmDIT128(amd64.InverseAVX2Size8Radix8Complex128Asm, bitrevSize8Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix8_avx2",
 		Priority:   9, // Keep below generic radix-8 until proven faster
 		BitrevFunc: nil,
-		KernelType: KernelTypeDIT,
+		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
 	// Size 8: Radix-2 AVX2 variant

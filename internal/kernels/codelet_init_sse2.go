@@ -13,8 +13,8 @@ func registerSSE2DITCodelets64() {
 	// Size 4: Radix-4 SSE2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardSSE2Size4Radix4Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseSSE2Size4Radix4Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardSSE2Size4Radix4Complex64Asm, bitrevSize4Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseSSE2Size4Radix4Complex64Asm, bitrevSize4Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit4_radix4_sse2",
@@ -36,24 +36,24 @@ func registerSSE2DITCodelets64() {
 		KernelType: KernelTypeDIT,
 	})
 
-	// Size 8: Radix-8 SSE2 variant
+	// Size 8: Radix-8 SSE2 variant (single-stage butterfly, identity permutation)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardSSE2Size8Radix8Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseSSE2Size8Radix8Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardSSE2Size8Radix8Complex64Asm, bitrevSize8Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseSSE2Size8Radix8Complex64Asm, bitrevSize8Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit8_radix8_sse2",
 		Priority:   30, // Higher priority than radix-2 (18) and mixed-radix (??)
 		BitrevFunc: nil,
-		KernelType: KernelTypeDIT,
+		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
 	// Size 16: Radix-16 SSE2 variant (4x4)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardSSE2Size16Radix16Complex64Asm, nil)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseSSE2Size16Radix16Complex64Asm, nil)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardSSE2Size16Radix16Complex64Asm, bitrevSize16Identity)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseSSE2Size16Radix16Complex64Asm, bitrevSize16Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit16_radix16_sse2",
@@ -173,8 +173,8 @@ func registerSSE2DITCodelets128() {
 	// Size 4: Radix-4 SSE2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       4,
-		Forward:    wrapCore128(wrapAsmDIT128(amd64.ForwardSSE2Size4Radix4Complex128Asm, nil)),
-		Inverse:    wrapCore128(wrapAsmDIT128(amd64.InverseSSE2Size4Radix4Complex128Asm, nil)),
+		Forward:    wrapCore128(wrapAsmDIT128(amd64.ForwardSSE2Size4Radix4Complex128Asm, bitrevSize4Identity)),
+		Inverse:    wrapCore128(wrapAsmDIT128(amd64.InverseSSE2Size4Radix4Complex128Asm, bitrevSize4Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit4_radix4_sse2",
@@ -196,17 +196,17 @@ func registerSSE2DITCodelets128() {
 		KernelType: KernelTypeDIT,
 	})
 
-	// Size 8: Radix-8 SSE2 variant
+	// Size 8: Radix-8 SSE2 variant (single-stage butterfly, identity permutation)
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCore128(wrapAsmDIT128(amd64.ForwardSSE2Size8Radix8Complex128Asm, nil)),
-		Inverse:    wrapCore128(wrapAsmDIT128(amd64.InverseSSE2Size8Radix8Complex128Asm, nil)),
+		Forward:    wrapCore128(wrapAsmDIT128(amd64.ForwardSSE2Size8Radix8Complex128Asm, bitrevSize8Identity)),
+		Inverse:    wrapCore128(wrapAsmDIT128(amd64.InverseSSE2Size8Radix8Complex128Asm, bitrevSize8Identity)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit8_radix8_sse2",
 		Priority:   30,
 		BitrevFunc: nil,
-		KernelType: KernelTypeDIT,
+		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
 	// Size 8: Radix-4 (Mixed-radix) SSE2 variant
