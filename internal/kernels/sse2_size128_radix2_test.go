@@ -19,7 +19,7 @@ func TestForwardSSE2Size128Radix2Complex64(t *testing.T) {
 
 	want := make([]complex64, n)
 	copy(want, src)
-	forwardDIT128Complex64(want, want, twiddle, scratch, bitrev)
+	forwardDIT128Complex64(want, want, twiddle, scratch)
 
 	if !amd64.ForwardSSE2Size128Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("ForwardSSE2Size128Radix2Complex64Asm failed")
@@ -38,7 +38,7 @@ func TestInverseSSE2Size128Radix2Complex64(t *testing.T) {
 
 	want := make([]complex64, n)
 	copy(want, src)
-	inverseDIT128Complex64(want, want, twiddle, scratch, bitrev)
+	inverseDIT128Complex64(want, want, twiddle, scratch)
 
 	if !amd64.InverseSSE2Size128Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
 		t.Fatal("InverseSSE2Size128Radix2Complex64Asm failed")

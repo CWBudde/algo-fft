@@ -3,9 +3,9 @@ package kernels
 // forwardDIT512Mixed16x32Complex64 is an optimized 16x32 mixed-radix DIT FFT for size-512.
 // Uses six-step FFT algorithm: n = 16*n2 + n1, k = 32*k1 + k2
 // Stage 1: 16 FFT-32s on columns, Stage 2: 32 FFT-16s on rows.
-func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 512
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -215,9 +215,9 @@ func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bi
 	return true
 }
 
-func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 512
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -426,9 +426,9 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64, bi
 	return true
 }
 
-func forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 512
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -610,9 +610,9 @@ func forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128, 
 	return true
 }
 
-func inverseDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 512
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 

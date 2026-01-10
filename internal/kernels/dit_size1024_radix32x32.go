@@ -3,43 +3,43 @@ package kernels
 // stage1ForwardDIT1024Radix32x32Complex64 computes the 32 parallel FFT-32s on columns
 // for a 32x32 mixed-radix decomposition. Output is written to out in column-major order.
 // Applies bit-reversal permutation when loading from src.
-func stage1ForwardDIT1024Radix32x32Complex64(out, src, tw []complex64, bitrev []int) {
+func stage1ForwardDIT1024Radix32x32Complex64(out, src, tw []complex64) {
 	for n1 := range 32 {
 		// Load 32 elements from column n1 (stride 32) using bit-reversal.
 		// For a 32x32 decomposition, bitrev should be identity or block-level permutation.
-		e0 := src[bitrev[32*0+n1]]
-		e1 := src[bitrev[32*2+n1]]
-		e2 := src[bitrev[32*4+n1]]
-		e3 := src[bitrev[32*6+n1]]
-		e4 := src[bitrev[32*8+n1]]
-		e5 := src[bitrev[32*10+n1]]
-		e6 := src[bitrev[32*12+n1]]
-		e7 := src[bitrev[32*14+n1]]
-		e8 := src[bitrev[32*16+n1]]
-		e9 := src[bitrev[32*18+n1]]
-		e10 := src[bitrev[32*20+n1]]
-		e11 := src[bitrev[32*22+n1]]
-		e12 := src[bitrev[32*24+n1]]
-		e13 := src[bitrev[32*26+n1]]
-		e14 := src[bitrev[32*28+n1]]
-		e15 := src[bitrev[32*30+n1]]
+		e0 := src[32*0+n1]
+		e1 := src[32*2+n1]
+		e2 := src[32*4+n1]
+		e3 := src[32*6+n1]
+		e4 := src[32*8+n1]
+		e5 := src[32*10+n1]
+		e6 := src[32*12+n1]
+		e7 := src[32*14+n1]
+		e8 := src[32*16+n1]
+		e9 := src[32*18+n1]
+		e10 := src[32*20+n1]
+		e11 := src[32*22+n1]
+		e12 := src[32*24+n1]
+		e13 := src[32*26+n1]
+		e14 := src[32*28+n1]
+		e15 := src[32*30+n1]
 
-		o0 := src[bitrev[32*1+n1]]
-		o1 := src[bitrev[32*3+n1]]
-		o2 := src[bitrev[32*5+n1]]
-		o3 := src[bitrev[32*7+n1]]
-		o4 := src[bitrev[32*9+n1]]
-		o5 := src[bitrev[32*11+n1]]
-		o6 := src[bitrev[32*13+n1]]
-		o7 := src[bitrev[32*15+n1]]
-		o8 := src[bitrev[32*17+n1]]
-		o9 := src[bitrev[32*19+n1]]
-		o10 := src[bitrev[32*21+n1]]
-		o11 := src[bitrev[32*23+n1]]
-		o12 := src[bitrev[32*25+n1]]
-		o13 := src[bitrev[32*27+n1]]
-		o14 := src[bitrev[32*29+n1]]
-		o15 := src[bitrev[32*31+n1]]
+		o0 := src[32*1+n1]
+		o1 := src[32*3+n1]
+		o2 := src[32*5+n1]
+		o3 := src[32*7+n1]
+		o4 := src[32*9+n1]
+		o5 := src[32*11+n1]
+		o6 := src[32*13+n1]
+		o7 := src[32*15+n1]
+		o8 := src[32*17+n1]
+		o9 := src[32*19+n1]
+		o10 := src[32*21+n1]
+		o11 := src[32*23+n1]
+		o12 := src[32*25+n1]
+		o13 := src[32*27+n1]
+		o14 := src[32*29+n1]
+		o15 := src[32*31+n1]
 
 		// FFT-16 on even elements (bit-reversed input).
 		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 = fft16Complex64(
@@ -118,43 +118,43 @@ func stage1ForwardDIT1024Radix32x32Complex64(out, src, tw []complex64, bitrev []
 // stage1ForwardDIT1024Radix32x32Complex128 computes the 32 parallel FFT-32s on columns
 // for a 32x32 mixed-radix decomposition. Output is written to out in column-major order.
 // Input is expected to be in bit-reversed order (already permuted).
-func stage1ForwardDIT1024Radix32x32Complex128(out, src, tw []complex128, bitrev []int) {
+func stage1ForwardDIT1024Radix32x32Complex128(out, src, tw []complex128) {
 	for n1 := range 32 {
 		// Load 32 elements from bit-reversed blocks, split into even/odd indices.
 		// bitrev permutes 32-element blocks, not individual elements within blocks.
-		e0 := src[bitrev[32*0+n1]]
-		e1 := src[bitrev[32*2+n1]]
-		e2 := src[bitrev[32*4+n1]]
-		e3 := src[bitrev[32*6+n1]]
-		e4 := src[bitrev[32*8+n1]]
-		e5 := src[bitrev[32*10+n1]]
-		e6 := src[bitrev[32*12+n1]]
-		e7 := src[bitrev[32*14+n1]]
-		e8 := src[bitrev[32*16+n1]]
-		e9 := src[bitrev[32*18+n1]]
-		e10 := src[bitrev[32*20+n1]]
-		e11 := src[bitrev[32*22+n1]]
-		e12 := src[bitrev[32*24+n1]]
-		e13 := src[bitrev[32*26+n1]]
-		e14 := src[bitrev[32*28+n1]]
-		e15 := src[bitrev[32*30+n1]]
+		e0 := src[32*0+n1]
+		e1 := src[32*2+n1]
+		e2 := src[32*4+n1]
+		e3 := src[32*6+n1]
+		e4 := src[32*8+n1]
+		e5 := src[32*10+n1]
+		e6 := src[32*12+n1]
+		e7 := src[32*14+n1]
+		e8 := src[32*16+n1]
+		e9 := src[32*18+n1]
+		e10 := src[32*20+n1]
+		e11 := src[32*22+n1]
+		e12 := src[32*24+n1]
+		e13 := src[32*26+n1]
+		e14 := src[32*28+n1]
+		e15 := src[32*30+n1]
 
-		o0 := src[bitrev[32*1+n1]]
-		o1 := src[bitrev[32*3+n1]]
-		o2 := src[bitrev[32*5+n1]]
-		o3 := src[bitrev[32*7+n1]]
-		o4 := src[bitrev[32*9+n1]]
-		o5 := src[bitrev[32*11+n1]]
-		o6 := src[bitrev[32*13+n1]]
-		o7 := src[bitrev[32*15+n1]]
-		o8 := src[bitrev[32*17+n1]]
-		o9 := src[bitrev[32*19+n1]]
-		o10 := src[bitrev[32*21+n1]]
-		o11 := src[bitrev[32*23+n1]]
-		o12 := src[bitrev[32*25+n1]]
-		o13 := src[bitrev[32*27+n1]]
-		o14 := src[bitrev[32*29+n1]]
-		o15 := src[bitrev[32*31+n1]]
+		o0 := src[32*1+n1]
+		o1 := src[32*3+n1]
+		o2 := src[32*5+n1]
+		o3 := src[32*7+n1]
+		o4 := src[32*9+n1]
+		o5 := src[32*11+n1]
+		o6 := src[32*13+n1]
+		o7 := src[32*15+n1]
+		o8 := src[32*17+n1]
+		o9 := src[32*19+n1]
+		o10 := src[32*21+n1]
+		o11 := src[32*23+n1]
+		o12 := src[32*25+n1]
+		o13 := src[32*27+n1]
+		o14 := src[32*29+n1]
+		o15 := src[32*31+n1]
 
 		// FFT-16 on even elements (bit-reversed input).
 		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 = fft16Complex128(
@@ -232,18 +232,17 @@ func stage1ForwardDIT1024Radix32x32Complex128(out, src, tw []complex128, bitrev 
 
 // forwardDIT1024Mixed32x32Complex64 computes a 1024-point forward FFT using a 32x32
 // mixed-radix decomposition: 32 FFT-32s on columns, twiddle multiply, then 32 FFT-32s on rows.
-func forwardDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 1024
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	tw := twiddle[:n]
 	work := scratch[:n]
-	br := bitrev[:n]
 
 	// Stage 1: 32 FFT-32s on columns, write transposed output to work
-	stage1ForwardDIT1024Radix32x32Complex64(work, src, tw, br)
+	stage1ForwardDIT1024Radix32x32Complex64(work, src, tw)
 
 	// Stage 2: 32 FFT-32s on rows (k2 fixed, FFT over n1).
 	for k2 := range 32 {
@@ -357,27 +356,26 @@ func forwardDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64, b
 
 // inverseDIT1024Mixed32x32Complex64 computes a 1024-point inverse FFT using a 32x32
 // mixed-radix decomposition with final 1/1024 scaling.
-func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 1024
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	s := src[:n]
 	tw := twiddle[:n]
 	work := scratch[:n]
-	br := bitrev[:n]
 
 	// Stage 1: 32 IFFT-32s on rows, then apply inter-stage twiddles.
 	// Apply bit-reversal when loading (loads bit-reversed 32-element blocks)
 	for k2 := range 32 {
 		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 := fft16Complex64Inverse(
-			s[br[32*0]+k2], s[br[32*16]+k2], s[br[32*8]+k2], s[br[32*24]+k2], s[br[32*4]+k2], s[br[32*20]+k2], s[br[32*12]+k2], s[br[32*28]+k2],
-			s[br[32*2]+k2], s[br[32*18]+k2], s[br[32*10]+k2], s[br[32*26]+k2], s[br[32*6]+k2], s[br[32*22]+k2], s[br[32*14]+k2], s[br[32*30]+k2])
+			s[32*0+k2], s[32*16+k2], s[32*8+k2], s[32*24+k2], s[32*4+k2], s[32*20+k2], s[32*12+k2], s[32*28+k2],
+			s[32*2+k2], s[32*18+k2], s[32*10+k2], s[32*26+k2], s[32*6+k2], s[32*22+k2], s[32*14+k2], s[32*30+k2])
 
 		o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15 := fft16Complex64Inverse(
-			s[br[32*1]+k2], s[br[32*17]+k2], s[br[32*9]+k2], s[br[32*25]+k2], s[br[32*5]+k2], s[br[32*21]+k2], s[br[32*13]+k2], s[br[32*29]+k2],
-			s[br[32*3]+k2], s[br[32*19]+k2], s[br[32*11]+k2], s[br[32*27]+k2], s[br[32*7]+k2], s[br[32*23]+k2], s[br[32*15]+k2], s[br[32*31]+k2])
+			s[32*1+k2], s[32*17+k2], s[32*9+k2], s[32*25+k2], s[32*5+k2], s[32*21+k2], s[32*13+k2], s[32*29+k2],
+			s[32*3+k2], s[32*19+k2], s[32*11+k2], s[32*27+k2], s[32*7+k2], s[32*23+k2], s[32*15+k2], s[32*31+k2])
 
 		r0 := e0 + o0
 		r16 := e0 - o0
@@ -593,18 +591,17 @@ func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64, b
 
 // forwardDIT1024Mixed32x32Complex128 computes a 1024-point forward FFT using a 32x32
 // mixed-radix decomposition: 32 FFT-32s on columns, twiddle multiply, then 32 FFT-32s on rows.
-func forwardDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 1024
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	tw := twiddle[:n]
 	work := scratch[:n]
-	br := bitrev[:n]
 
 	// Stage 1: 32 FFT-32s on columns, write transposed output to work
-	stage1ForwardDIT1024Radix32x32Complex128(work, src, tw, br)
+	stage1ForwardDIT1024Radix32x32Complex128(work, src, tw)
 
 	// Stage 2: 32 FFT-32s on rows (k2 fixed, FFT over n1).
 	for k2 := range 32 {
@@ -718,26 +715,25 @@ func forwardDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128,
 
 // inverseDIT1024Mixed32x32Complex128 computes a 1024-point inverse FFT using a 32x32
 // mixed-radix decomposition with final 1/1024 scaling.
-func inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 1024
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	s := src[:n]
 	tw := twiddle[:n]
 	work := scratch[:n]
-	br := bitrev[:n]
 
 	// Stage 1: 32 IFFT-32s on rows, then apply inter-stage twiddles.
 	// Apply bit-reversal when loading (loads bit-reversed 32-element blocks)
 	for k2 := range 32 {
 		e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15 := fft16Complex128Inverse(
-			s[br[32*0]+k2], s[br[32*16]+k2], s[br[32*8]+k2], s[br[32*24]+k2], s[br[32*4]+k2], s[br[32*20]+k2], s[br[32*12]+k2], s[br[32*28]+k2],
-			s[br[32*2]+k2], s[br[32*18]+k2], s[br[32*10]+k2], s[br[32*26]+k2], s[br[32*6]+k2], s[br[32*22]+k2], s[br[32*14]+k2], s[br[32*30]+k2])
+			s[32*0+k2], s[32*16+k2], s[32*8+k2], s[32*24+k2], s[32*4+k2], s[32*20+k2], s[32*12+k2], s[32*28+k2],
+			s[32*2+k2], s[32*18+k2], s[32*10+k2], s[32*26+k2], s[32*6+k2], s[32*22+k2], s[32*14+k2], s[32*30+k2])
 		o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15 := fft16Complex128Inverse(
-			s[br[32*1]+k2], s[br[32*17]+k2], s[br[32*9]+k2], s[br[32*25]+k2], s[br[32*5]+k2], s[br[32*21]+k2], s[br[32*13]+k2], s[br[32*29]+k2],
-			s[br[32*3]+k2], s[br[32*19]+k2], s[br[32*11]+k2], s[br[32*27]+k2], s[br[32*7]+k2], s[br[32*23]+k2], s[br[32*15]+k2], s[br[32*31]+k2])
+			s[32*1+k2], s[32*17+k2], s[32*9+k2], s[32*25+k2], s[32*5+k2], s[32*21+k2], s[32*13+k2], s[32*29+k2],
+			s[32*3+k2], s[32*19+k2], s[32*11+k2], s[32*27+k2], s[32*7+k2], s[32*23+k2], s[32*15+k2], s[32*31+k2])
 
 		r0 := e0 + o0
 		r16 := e0 - o0

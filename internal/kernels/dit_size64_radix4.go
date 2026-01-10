@@ -4,15 +4,15 @@ package kernels
 // radix-4 Decimation-in-Time (DIT) algorithm for complex64 data.
 // This uses 3 stages of radix-4 butterflies instead of 6 stages of radix-2.
 // Returns false if any slice is too small.
-func forwardDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize64Radix4[:n]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -113,15 +113,15 @@ func forwardDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 // radix-4 Decimation-in-Time (DIT) algorithm for complex64 data.
 // Uses conjugated twiddle factors and applies 1/N scaling at the end.
 // Returns false if any slice is too small.
-func inverseDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize64Radix4[:n]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -228,15 +228,15 @@ func inverseDIT64Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev 
 // radix-4 Decimation-in-Time (DIT) algorithm for complex128 data.
 // This uses 3 stages of radix-4 butterflies instead of 6 stages of radix-2.
 // Returns false if any slice is too small.
-func forwardDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize64Radix4[:n]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -337,15 +337,15 @@ func forwardDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128, bitre
 // radix-4 Decimation-in-Time (DIT) algorithm for complex128 data.
 // Uses conjugated twiddle factors and applies 1/N scaling at the end.
 // Returns false if any slice is too small.
-func inverseDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize64Radix4[:n]
 	s := src[:n]
 	tw := twiddle[:n]
 

@@ -23,13 +23,13 @@ var bitrev64Radix4 = [64]int{
 // - AVX2 assembly for transpose operations (Steps 1, 6)
 // - AVX2 assembly for fused transpose+twiddle (Steps 3+4)
 // - Existing ForwardAVX2Size64Radix4Complex64Asm kernel for row FFTs (Steps 2, 5)
-func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const (
 		n = 4096
 		m = 64 // sqrt(4096)
 	)
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -38,7 +38,7 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
 	for i := 0; i < n; i++ {
-		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+		work[i] = src[i]
 	}
 
 	// Step 1: Transpose work → dst (AVX2 accelerated)
@@ -86,13 +86,13 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 
 // inverseDIT4096SixStepAVX2Complex64 computes a 4096-point inverse FFT using the
 // six-step (64×64 matrix) algorithm with AVX2-accelerated operations.
-func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const (
 		n = 4096
 		m = 64
 	)
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -100,7 +100,7 @@ func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, 
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
 	for i := 0; i < n; i++ {
-		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+		work[i] = src[i]
 	}
 
 	// Step 1: Transpose work → dst (AVX2 accelerated)

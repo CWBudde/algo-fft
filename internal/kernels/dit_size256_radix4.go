@@ -8,15 +8,15 @@ package kernels
 // 3. Fully inlined complex arithmetic (no function calls)
 // 4. Pre-loaded twiddle factors for Stage 2
 // 5. Minimized temporary variables.
-func forwardDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 256
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize256Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -202,15 +202,15 @@ func forwardDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev
 
 // inverseDIT256Radix4Complex64 is the optimized radix-4 DIT inverse FFT
 // for size-256, using conjugated twiddle factors and 1/N scaling.
-func inverseDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 256
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize256Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -398,15 +398,15 @@ func inverseDIT256Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev
 
 // forwardDIT256Radix4Complex128 is the optimized radix-4 DIT FFT
 // for size-256 complex128 data, incorporating all known optimizations.
-func forwardDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 256
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize256Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -586,15 +586,15 @@ func forwardDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128, bitr
 
 // inverseDIT256Radix4Complex128 is the optimized radix-4 DIT inverse FFT
 // for size-256 complex128 data, using conjugated twiddle factors and 1/N scaling.
-func inverseDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT256Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 256
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize256Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 

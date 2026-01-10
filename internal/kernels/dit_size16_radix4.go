@@ -1,7 +1,5 @@
 package kernels
 
-var bitrev16Radix4 = [16]int{0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15}
-
 // forwardDIT16Radix4Complex64 computes a 16-point forward FFT using the
 // radix-4 Decimation-in-Time (DIT) algorithm for complex64 data.
 // This uses 2 stages of radix-4 butterflies instead of 4 stages of radix-2.
@@ -15,7 +13,6 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	// Bounds hints
-	br := bitrev16Radix4[:]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -24,10 +21,10 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Butterfly 0: indices 0,1,2,3
 	{
-		a0 := s[br[0]]
-		a1 := s[br[1]]
-		a2 := s[br[2]]
-		a3 := s[br[3]]
+		a0 := s[0]
+		a1 := s[4]
+		a2 := s[8]
+		a3 := s[12]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -42,10 +39,10 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Butterfly 1: indices 4,5,6,7
 	{
-		a0 := s[br[4]]
-		a1 := s[br[5]]
-		a2 := s[br[6]]
-		a3 := s[br[7]]
+		a0 := s[1]
+		a1 := s[5]
+		a2 := s[9]
+		a3 := s[13]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -60,10 +57,10 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Butterfly 2: indices 8,9,10,11
 	{
-		a0 := s[br[8]]
-		a1 := s[br[9]]
-		a2 := s[br[10]]
-		a3 := s[br[11]]
+		a0 := s[2]
+		a1 := s[6]
+		a2 := s[10]
+		a3 := s[14]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -78,10 +75,10 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Butterfly 3: indices 12,13,14,15
 	{
-		a0 := s[br[12]]
-		a1 := s[br[13]]
-		a2 := s[br[14]]
-		a3 := s[br[15]]
+		a0 := s[3]
+		a1 := s[7]
+		a2 := s[11]
+		a3 := s[15]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -213,7 +210,6 @@ func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	// Bounds hints
-	br := bitrev16Radix4[:]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -222,10 +218,10 @@ func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Butterfly 0: indices 0,1,2,3
 	{
-		a0 := s[br[0]]
-		a1 := s[br[1]]
-		a2 := s[br[2]]
-		a3 := s[br[3]]
+		a0 := s[0]
+		a1 := s[4]
+		a2 := s[8]
+		a3 := s[12]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -241,10 +237,10 @@ func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Butterfly 1: indices 4,5,6,7
 	{
-		a0 := s[br[4]]
-		a1 := s[br[5]]
-		a2 := s[br[6]]
-		a3 := s[br[7]]
+		a0 := s[1]
+		a1 := s[5]
+		a2 := s[9]
+		a3 := s[13]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -259,10 +255,10 @@ func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Butterfly 2: indices 8,9,10,11
 	{
-		a0 := s[br[8]]
-		a1 := s[br[9]]
-		a2 := s[br[10]]
-		a3 := s[br[11]]
+		a0 := s[2]
+		a1 := s[6]
+		a2 := s[10]
+		a3 := s[14]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -277,10 +273,10 @@ func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Butterfly 3: indices 12,13,14,15
 	{
-		a0 := s[br[12]]
-		a1 := s[br[13]]
-		a2 := s[br[14]]
-		a3 := s[br[15]]
+		a0 := s[3]
+		a1 := s[7]
+		a2 := s[11]
+		a3 := s[15]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -416,7 +412,6 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 	}
 
 	// Bounds hints
-	br := bitrev16Radix4[:]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -425,10 +420,10 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Butterfly 0: indices 0,1,2,3
 	{
-		a0 := s[br[0]]
-		a1 := s[br[1]]
-		a2 := s[br[2]]
-		a3 := s[br[3]]
+		a0 := s[0]
+		a1 := s[4]
+		a2 := s[8]
+		a3 := s[12]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -443,10 +438,10 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Butterfly 1: indices 4,5,6,7
 	{
-		a0 := s[br[4]]
-		a1 := s[br[5]]
-		a2 := s[br[6]]
-		a3 := s[br[7]]
+		a0 := s[1]
+		a1 := s[5]
+		a2 := s[9]
+		a3 := s[13]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -461,10 +456,10 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Butterfly 2: indices 8,9,10,11
 	{
-		a0 := s[br[8]]
-		a1 := s[br[9]]
-		a2 := s[br[10]]
-		a3 := s[br[11]]
+		a0 := s[2]
+		a1 := s[6]
+		a2 := s[10]
+		a3 := s[14]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -479,10 +474,10 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Butterfly 3: indices 12,13,14,15
 	{
-		a0 := s[br[12]]
-		a1 := s[br[13]]
-		a2 := s[br[14]]
-		a3 := s[br[15]]
+		a0 := s[3]
+		a1 := s[7]
+		a2 := s[11]
+		a3 := s[15]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -614,7 +609,6 @@ func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 	}
 
 	// Bounds hints
-	br := bitrev16Radix4[:]
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -623,10 +617,10 @@ func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Butterfly 0: indices 0,1,2,3
 	{
-		a0 := s[br[0]]
-		a1 := s[br[1]]
-		a2 := s[br[2]]
-		a3 := s[br[3]]
+		a0 := s[0]
+		a1 := s[4]
+		a2 := s[8]
+		a3 := s[12]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -641,10 +635,10 @@ func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Butterfly 1: indices 4,5,6,7
 	{
-		a0 := s[br[4]]
-		a1 := s[br[5]]
-		a2 := s[br[6]]
-		a3 := s[br[7]]
+		a0 := s[1]
+		a1 := s[5]
+		a2 := s[9]
+		a3 := s[13]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -659,10 +653,10 @@ func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Butterfly 2: indices 8,9,10,11
 	{
-		a0 := s[br[8]]
-		a1 := s[br[9]]
-		a2 := s[br[10]]
-		a3 := s[br[11]]
+		a0 := s[2]
+		a1 := s[6]
+		a2 := s[10]
+		a3 := s[14]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -677,10 +671,10 @@ func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Butterfly 3: indices 12,13,14,15
 	{
-		a0 := s[br[12]]
-		a1 := s[br[13]]
-		a2 := s[br[14]]
-		a3 := s[br[15]]
+		a0 := s[3]
+		a1 := s[7]
+		a2 := s[11]
+		a3 := s[15]
 
 		t0 := a0 + a2
 		t1 := a0 - a2

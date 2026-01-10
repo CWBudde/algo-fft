@@ -1,18 +1,25 @@
 package kernels
 
+import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+
+// bitrev32Radix2 pre-computes bit-reversal indices for a 32-point radix-2 FFT.
+//
+//nolint:gochecknoglobals
+var bitrev32Radix2 = mathpkg.ComputeBitReversalIndices(32)
+
 // forwardDIT32Complex64 computes a 32-point radix-2 forward FFT using the
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex64 data.
 // This implementation is fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 32
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
+	br := bitrev32Radix2
 	s := src[:n]
 	w1, w2, w3, w4, w5, w6, w7, w8 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7], twiddle[8]
 	w9, w10, w11, w12, w13, w14, w15 := twiddle[9], twiddle[10], twiddle[11], twiddle[12], twiddle[13], twiddle[14], twiddle[15]
@@ -211,15 +218,15 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 // Returns false if any slice is too small.
 //
 //nolint:funlen
-func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 32
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
+	br := bitrev32Radix2
 	s := src[:n]
 
 	// Conjugate twiddles for inverse transform
@@ -438,15 +445,15 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT32Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 32
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
+	br := bitrev32Radix2
 	s := src[:n]
 
 	// Pre-load twiddle factors
@@ -647,15 +654,15 @@ func forwardDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 // Returns false if any slice is too small.
 //
 //nolint:funlen
-func inverseDIT32Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT32Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 32
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hint for compiler optimization
-	br := bitrev[:n]
+	br := bitrev32Radix2
 	s := src[:n]
 
 	// Conjugate twiddles for inverse transform

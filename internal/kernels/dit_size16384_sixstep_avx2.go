@@ -21,8 +21,6 @@ var bitrev128 = [128]int{
 	7, 71, 39, 103, 23, 87, 55, 119, 15, 79, 47, 111, 31, 95, 63, 127,
 }
 
-var bitrev16384 = mathpkg.ComputeBitReversalIndices(16384)
-
 // forwardDIT16384SixStepAVX2Complex64 computes a 16384-point forward FFT using the
 // six-step (128×128 matrix) algorithm with AVX2-accelerated operations.
 //
@@ -30,13 +28,13 @@ var bitrev16384 = mathpkg.ComputeBitReversalIndices(16384)
 // - AVX2 assembly for transpose operations (Steps 1, 6)
 // - AVX2 assembly for fused transpose+twiddle (Steps 3+4)
 // - Existing ForwardAVX2Size128Mixed24Complex64Asm kernel for row FFTs (Steps 2, 5)
-func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const (
 		n = 16384
 		m = 128 // sqrt(16384)
 	)
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -45,7 +43,7 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-2 order)
 	for i := 0; i < n; i++ {
-		work[bitrev16384[i]] = src[bitrev[i]]
+		work[i] = src[i]
 	}
 
 	// Step 1: Transpose work -> dst (AVX2 accelerated)
@@ -95,13 +93,13 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 
 // inverseDIT16384SixStepAVX2Complex64 computes a 16384-point inverse FFT using the
 // six-step (128×128 matrix) algorithm with AVX2-accelerated operations.
-func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const (
 		n = 16384
 		m = 128
 	)
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -109,7 +107,7 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64,
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-2 order)
 	for i := 0; i < n; i++ {
-		work[bitrev16384[i]] = src[bitrev[i]]
+		work[i] = src[i]
 	}
 
 	// Step 1: Transpose work -> dst (AVX2 accelerated)

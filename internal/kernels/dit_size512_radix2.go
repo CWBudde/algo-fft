@@ -4,10 +4,10 @@ package kernels
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex64 data.
 // The algorithm performs 9 stages of butterfly operations (log2(512) = 9).
 // Returns false if any slice is too small.
-func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 512
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -24,7 +24,7 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	bitrev := bitrevSize512Radix2
 
 	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
@@ -125,10 +125,10 @@ func forwardDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Returns false if any slice is too small.
-func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 512
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -145,7 +145,7 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	bitrev := bitrevSize512Radix2
 
 	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
@@ -260,10 +260,10 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64, bitrev []int
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex128 data.
 // The algorithm performs 9 stages of butterfly operations (log2(512) = 9).
 // Returns false if any slice is too small.
-func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 512
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -280,7 +280,7 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	bitrev := bitrevSize512Radix2
 
 	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.
@@ -381,10 +381,10 @@ func forwardDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Returns false if any slice is too small.
-func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 512
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -401,7 +401,7 @@ func inverseDIT512Complex128(dst, src, twiddle, scratch []complex128, bitrev []i
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	bitrev := bitrevSize512Radix2
 
 	// Stage 1: 256 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Fuse bit-reversal permutation with stage 1 to save one full pass over work.

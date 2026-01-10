@@ -1,10 +1,17 @@
 package kernels
 
+import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+
+// bitrev64Radix2 pre-computes bit-reversal indices for a 64-point radix-2 FFT.
+//
+//nolint:gochecknoglobals
+var bitrev64Radix2 = mathpkg.ComputeBitReversalIndices(64)
+
 //nolint:funlen
-func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -16,7 +23,7 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 		workIsDst = false
 	}
 
-	br := bitrev[:n]
+	br := bitrev64Radix2[:n]
 	s := src[:n]
 	w1, w2, w3, w4, w5, w6, w7, w8 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7], twiddle[8]
 	w9, w10, w11, w12, w13, w14, w15, w16 := twiddle[9], twiddle[10], twiddle[11], twiddle[12], twiddle[13], twiddle[14], twiddle[15], twiddle[16]
@@ -460,10 +467,10 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 }
 
 //nolint:funlen
-func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -475,7 +482,7 @@ func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 		workIsDst = false
 	}
 
-	br := bitrev[:n]
+	br := bitrev64Radix2[:n]
 	s := src[:n]
 
 	// Load all 64 elements with bit-reversal
@@ -983,10 +990,10 @@ func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64, bitrev []int)
 }
 
 //nolint:funlen
-func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -998,7 +1005,7 @@ func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 		workIsDst = false
 	}
 
-	br := bitrev[:n]
+	br := bitrev64Radix2[:n]
 	s := src[:n]
 
 	// Load all 64 elements with bit-reversal
@@ -1441,10 +1448,10 @@ func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 }
 
 //nolint:funlen
-func inverseDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT64Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -1456,7 +1463,7 @@ func inverseDIT64Complex128(dst, src, twiddle, scratch []complex128, bitrev []in
 		workIsDst = false
 	}
 
-	br := bitrev[:n]
+	br := bitrev64Radix2[:n]
 	s := src[:n]
 
 	// Load all 64 elements with bit-reversal

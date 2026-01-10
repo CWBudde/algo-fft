@@ -1,11 +1,5 @@
 package kernels
 
-import (
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
-)
-
-var bitrev4096Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(4096)
-
 // forwardDIT4096SixStepComplex64 computes a 4096-point forward FFT using the
 // six-step (64×64 matrix) algorithm for complex64 data.
 //
@@ -19,13 +13,13 @@ var bitrev4096Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(4096)
 //
 // This reduces from 6 radix-4 stages to 2 sets of 3 radix-4 stages (FFT-64),
 // with better cache locality due to processing contiguous rows.
-func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64) bool {
 	const (
 		n = 4096
 		m = 64 // sqrt(4096)
 	)
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -34,7 +28,7 @@ func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
 	for i := range n {
-		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+		work[i] = src[i]
 	}
 
 	// Step 1: Transpose (work viewed as 64×64 matrix, transposed into dst)
@@ -50,12 +44,11 @@ func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 		rowTwiddle[k] = twiddle[k*m] // Stride by 64 to get W_64^k from W_4096^(k*64)
 	}
 
-	rowBitrev := mathpkg.ComputeBitReversalIndicesRadix4(m)
 	rowScratch := make([]complex64, m)
 
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !forwardDIT64Radix4Complex64(row, row, rowTwiddle, rowScratch, rowBitrev) {
+		if !forwardDIT64Radix4Complex64(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -78,7 +71,7 @@ func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 	// Step 5: Row FFTs (64 FFTs of size 64)
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !forwardDIT64Radix4Complex64(row, row, rowTwiddle, rowScratch, rowBitrev) {
+		if !forwardDIT64Radix4Complex64(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -95,13 +88,13 @@ func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 
 // inverseDIT4096SixStepComplex64 computes a 4096-point inverse FFT using the
 // six-step (64×64 matrix) algorithm for complex64 data.
-func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64) bool {
 	const (
 		n = 4096
 		m = 64 // sqrt(4096)
 	)
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -110,7 +103,7 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
 	for i := range n {
-		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+		work[i] = src[i]
 	}
 
 	// Step 1: Transpose (work viewed as 64×64 matrix, transposed into dst)
@@ -126,12 +119,11 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 		rowTwiddle[k] = twiddle[k*m] // Stride by 64
 	}
 
-	rowBitrev := mathpkg.ComputeBitReversalIndicesRadix4(m)
 	rowScratch := make([]complex64, m)
 
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !inverseDIT64Radix4Complex64NoScale(row, row, rowTwiddle, rowScratch, rowBitrev) {
+		if !inverseDIT64Radix4Complex64NoScale(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -155,7 +147,7 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 	// Step 5: Row IFFTs (64 IFFTs of size 64)
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !inverseDIT64Radix4Complex64NoScale(row, row, rowTwiddle, rowScratch, rowBitrev) {
+		if !inverseDIT64Radix4Complex64NoScale(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -178,14 +170,14 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64, bitr
 
 // inverseDIT64Radix4Complex64NoScale performs a 64-point inverse FFT without 1/N scaling.
 // This is needed for the six-step algorithm where scaling is applied once at the end.
-func inverseDIT64Radix4Complex64NoScale(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT64Radix4Complex64NoScale(dst, src, twiddle, scratch []complex64) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize64Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -284,13 +276,13 @@ func inverseDIT64Radix4Complex64NoScale(dst, src, twiddle, scratch []complex64, 
 
 // forwardDIT4096SixStepComplex128 computes a 4096-point forward FFT using the
 // six-step (64×64 matrix) algorithm for complex128 data.
-func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128) bool {
 	const (
 		n = 4096
 		m = 64
 	)
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -298,7 +290,7 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
 	for i := range n {
-		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+		work[i] = src[i]
 	}
 
 	// Step 1: Transpose
@@ -314,12 +306,11 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 		rowTwiddle[k] = twiddle[k*m]
 	}
 
-	rowBitrev := mathpkg.ComputeBitReversalIndicesRadix4(m)
 	rowScratch := make([]complex128, m)
 
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !forwardDIT64Radix4Complex128(row, row, rowTwiddle, rowScratch, rowBitrev) {
+		if !forwardDIT64Radix4Complex128(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -342,7 +333,7 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	// Step 5: Row FFTs
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !forwardDIT64Radix4Complex128(row, row, rowTwiddle, rowScratch, rowBitrev) {
+		if !forwardDIT64Radix4Complex128(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -359,13 +350,13 @@ func forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 
 // inverseDIT4096SixStepComplex128 computes a 4096-point inverse FFT using the
 // six-step (64×64 matrix) algorithm for complex128 data.
-func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128) bool {
 	const (
 		n = 4096
 		m = 64
 	)
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
@@ -373,7 +364,7 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 
 	// Step 0: Bit-reversal permutation into work (remap dynamic bitrev onto radix-4 order)
 	for i := range n {
-		work[bitrev4096Radix4[i]] = src[bitrev[i]]
+		work[i] = src[i]
 	}
 
 	// Step 1: Transpose
@@ -389,12 +380,11 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 		rowTwiddle[k] = twiddle[k*m]
 	}
 
-	rowBitrev := mathpkg.ComputeBitReversalIndicesRadix4(m)
 	rowScratch := make([]complex128, m)
 
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !inverseDIT64Radix4Complex128NoScale(row, row, rowTwiddle, rowScratch, rowBitrev) {
+		if !inverseDIT64Radix4Complex128NoScale(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -418,7 +408,7 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 	// Step 5: Row IFFTs
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !inverseDIT64Radix4Complex128NoScale(row, row, rowTwiddle, rowScratch, rowBitrev) {
+		if !inverseDIT64Radix4Complex128NoScale(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -440,14 +430,14 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128, bi
 }
 
 // inverseDIT64Radix4Complex128NoScale performs a 64-point inverse FFT without 1/N scaling.
-func inverseDIT64Radix4Complex128NoScale(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT64Radix4Complex128NoScale(dst, src, twiddle, scratch []complex128) bool {
 	const n = 64
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize64Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 

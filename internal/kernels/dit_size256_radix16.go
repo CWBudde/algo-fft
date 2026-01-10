@@ -2,13 +2,13 @@ package kernels
 
 // forwardDIT256Radix16Complex64 is an optimized radix-16 DIT FFT for size-256.
 // It decomposes the 256-point FFT into a 16x16 matrix (2 stages of radix-16).
-func forwardDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 256
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize256Radix2
 	s := src[:n]
 	tw := twiddle[:n]
 	out := scratch[:n]
@@ -269,13 +269,13 @@ func fft16Complex64(
 }
 
 // inverseDIT256Radix16Complex64 is an optimized radix-16 DIT inverse FFT for size-256.
-func inverseDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 256
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize256Radix2
 	s := src[:n]
 	tw := twiddle[:n]
 	out := scratch[:n]
@@ -502,13 +502,13 @@ func fft16Complex64Inverse(
 }
 
 // forwardDIT256Radix16Complex128 is an optimized radix-16 DIT FFT for size-256 (complex128).
-func forwardDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 256
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize256Radix2
 	s := src[:n]
 	tw := twiddle[:n]
 	out := scratch[:n]
@@ -733,13 +733,13 @@ func fft16Complex128(
 }
 
 // inverseDIT256Radix16Complex128 is an optimized radix-16 DIT inverse FFT for size-256 (complex128).
-func inverseDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 256
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrev[:n]
+	br := bitrevSize256Radix2
 	s := src[:n]
 	tw := twiddle[:n]
 	out := scratch[:n]

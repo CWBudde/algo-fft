@@ -3,7 +3,6 @@ package kernels
 import (
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -17,9 +16,8 @@ func TestForwardDIT256Radix16Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n) // Radix-16 uses binary bit-reversal
 
-	if !forwardDIT256Radix16Complex64(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT256Radix16Complex64(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT256Radix16Complex64 failed")
 	}
 
@@ -38,13 +36,12 @@ func TestInverseDIT256Radix16Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT256Radix16Complex64(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT256Radix16Complex64(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT256Radix16Complex64 failed")
 	}
 
-	if !inverseDIT256Radix16Complex64(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT256Radix16Complex64(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT256Radix16Complex64 failed")
 	}
 
@@ -62,9 +59,8 @@ func TestForwardDIT256Radix16Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT256Radix16Complex128(dst, src, twiddle, scratch, bitrev) {
+	if !forwardDIT256Radix16Complex128(dst, src, twiddle, scratch) {
 		t.Fatal("forwardDIT256Radix16Complex128 failed")
 	}
 
@@ -83,13 +79,12 @@ func TestInverseDIT256Radix16Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT256Radix16Complex128(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT256Radix16Complex128(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT256Radix16Complex128 failed")
 	}
 
-	if !inverseDIT256Radix16Complex128(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT256Radix16Complex128(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT256Radix16Complex128 failed")
 	}
 
@@ -108,13 +103,12 @@ func TestRoundTripDIT256Radix16Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT256Radix16Complex64(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT256Radix16Complex64(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT256Radix16Complex64 failed")
 	}
 
-	if !inverseDIT256Radix16Complex64(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT256Radix16Complex64(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT256Radix16Complex64 failed")
 	}
 
@@ -132,13 +126,12 @@ func TestRoundTripDIT256Radix16Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-	if !forwardDIT256Radix16Complex128(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardDIT256Radix16Complex128(fwd, src, twiddle, scratch) {
 		t.Fatal("forwardDIT256Radix16Complex128 failed")
 	}
 
-	if !inverseDIT256Radix16Complex128(dst, fwd, twiddle, scratch, bitrev) {
+	if !inverseDIT256Radix16Complex128(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseDIT256Radix16Complex128 failed")
 	}
 
@@ -152,12 +145,11 @@ func BenchmarkForwardDIT256Radix16Complex64(b *testing.B) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	b.ResetTimer()
 
 	for range b.N {
-		forwardDIT256Radix16Complex64(dst, src, twiddle, scratch, bitrev)
+		forwardDIT256Radix16Complex64(dst, src, twiddle, scratch)
 	}
 }
 
@@ -168,9 +160,8 @@ func BenchmarkForwardDIT256Radix16Complex128(b *testing.B) {
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	for b.Loop() {
-		forwardDIT256Radix16Complex128(dst, src, twiddle, scratch, bitrev)
+		forwardDIT256Radix16Complex128(dst, src, twiddle, scratch)
 	}
 }

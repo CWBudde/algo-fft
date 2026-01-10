@@ -2,12 +2,23 @@ package kernels
 
 import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 
-// Pre-computed radix-4 bit-reversal indices for size 16/64.
+// Pre-computed bit-reversal indices for multiple sizes/algorithms.
 //
 //nolint:gochecknoglobals
 var (
-	bitrevSize16Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(16)
-	bitrevSize64Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(64)
+	bitrevSize16Radix4    = mathpkg.ComputeBitReversalIndicesRadix4(16)
+	bitrevSize64Radix4    = mathpkg.ComputeBitReversalIndicesRadix4(64)
+	bitrevSize256Radix2   = mathpkg.ComputeBitReversalIndices(256)
+	bitrevSize256Radix4   = mathpkg.ComputeBitReversalIndicesRadix4(256)
+	bitrevSize512Radix2   = mathpkg.ComputeBitReversalIndices(512)
+	bitrevSize512Radix8   = mathpkg.ComputeBitReversalIndicesRadix8(512)
+	bitrevSize512Mixed24  = mathpkg.ComputeBitReversalIndicesMixed24(512)
+	bitrevSize1024Radix4  = mathpkg.ComputeBitReversalIndicesRadix4(1024)
+	bitrevSize2048Mixed24 = mathpkg.ComputeBitReversalIndicesMixed24(2048)
+	bitrevSize4096Radix4  = mathpkg.ComputeBitReversalIndicesRadix4(4096)
+	bitrevSize8192Mixed24 = mathpkg.ComputeBitReversalIndicesMixed24(8192)
+	bitrevSize16384Radix2 = mathpkg.ComputeBitReversalIndices(16384)
+	bitrevSize16384Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(16384)
 )
 
 //nolint:cyclop
@@ -19,15 +30,29 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		// Use faster radix-4 implementation (12-15% faster than radix-2)
 		return forwardDIT16Radix4Complex64(dst, src, twiddle, scratch)
 	case 32:
-		return forwardDIT32Complex64(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT32Complex64(dst, src, twiddle, scratch)
 	case 64:
-		return forwardDIT64Radix4Complex64(dst, src, twiddle, scratch, bitrevSize64Radix4)
+		return forwardDIT64Radix4Complex64(dst, src, twiddle, scratch)
 	case 128:
-		return forwardDIT128Complex64(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT128Complex64(dst, src, twiddle, scratch)
 	case 256:
-		return forwardDIT256Complex64(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT256Complex64(dst, src, twiddle, scratch)
 	case 512:
-		return forwardDIT512Complex64(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT512Complex64(dst, src, twiddle, scratch)
+	case 1024:
+		// Try radix-32x32 first (usually faster for large N)
+		if forwardDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch) {
+			return true
+		}
+		// Fallback to optimized radix-4
+		return forwardDIT1024Radix4Complex64(dst, src, twiddle, scratch)
+	case 2048:
+		return forwardDIT2048Mixed24Complex64(dst, src, twiddle, scratch)
+	case 4096:
+		if forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch) {
+			return true
+		}
+		return forwardDIT4096Radix4Complex64(dst, src, twiddle, scratch)
 	}
 
 	n := len(src)
@@ -53,15 +78,29 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 		// Use faster radix-4 implementation (12-15% faster than radix-2)
 		return inverseDIT16Radix4Complex64(dst, src, twiddle, scratch)
 	case 32:
-		return inverseDIT32Complex64(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT32Complex64(dst, src, twiddle, scratch)
 	case 64:
-		return inverseDIT64Radix4Complex64(dst, src, twiddle, scratch, bitrevSize64Radix4)
+		return inverseDIT64Radix4Complex64(dst, src, twiddle, scratch)
 	case 128:
-		return inverseDIT128Complex64(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT128Complex64(dst, src, twiddle, scratch)
 	case 256:
-		return inverseDIT256Complex64(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT256Complex64(dst, src, twiddle, scratch)
 	case 512:
-		return inverseDIT512Complex64(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT512Complex64(dst, src, twiddle, scratch)
+	case 1024:
+		// Try radix-32x32 first
+		if inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch) {
+			return true
+		}
+		// Fallback to optimized radix-4
+		return inverseDIT1024Radix4Complex64(dst, src, twiddle, scratch)
+	case 2048:
+		return inverseDIT2048Mixed24Complex64(dst, src, twiddle, scratch)
+	case 4096:
+		if inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch) {
+			return true
+		}
+		return inverseDIT4096Radix4Complex64(dst, src, twiddle, scratch)
 	}
 
 	n := len(src)
@@ -86,15 +125,29 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		// Use faster radix-4 implementation (12-15% faster than radix-2)
 		return forwardDIT16Radix4Complex128(dst, src, twiddle, scratch)
 	case 32:
-		return forwardDIT32Complex128(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT32Complex128(dst, src, twiddle, scratch)
 	case 64:
-		return forwardDIT64Radix4Complex128(dst, src, twiddle, scratch, bitrevSize64Radix4)
+		return forwardDIT64Radix4Complex128(dst, src, twiddle, scratch)
 	case 128:
-		return forwardDIT128Complex128(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT128Complex128(dst, src, twiddle, scratch)
 	case 256:
-		return forwardDIT256Complex128(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT256Complex128(dst, src, twiddle, scratch)
 	case 512:
-		return forwardDIT512Complex128(dst, src, twiddle, scratch, bitrev)
+		return forwardDIT512Complex128(dst, src, twiddle, scratch)
+	case 1024:
+		// Try radix-32x32 first
+		if forwardDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch) {
+			return true
+		}
+		// Fallback to optimized radix-4
+		return forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch)
+	case 2048:
+		return forwardDIT2048Mixed24Complex128(dst, src, twiddle, scratch)
+	case 4096:
+		if forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch) {
+			return true
+		}
+		return forwardDIT4096Radix4Complex128(dst, src, twiddle, scratch)
 	}
 
 	if forwardRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
@@ -112,15 +165,29 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		// Use faster radix-4 implementation (12-15% faster than radix-2)
 		return inverseDIT16Radix4Complex128(dst, src, twiddle, scratch)
 	case 32:
-		return inverseDIT32Complex128(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT32Complex128(dst, src, twiddle, scratch)
 	case 64:
-		return inverseDIT64Radix4Complex128(dst, src, twiddle, scratch, bitrevSize64Radix4)
+		return inverseDIT64Radix4Complex128(dst, src, twiddle, scratch)
 	case 128:
-		return inverseDIT128Complex128(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT128Complex128(dst, src, twiddle, scratch)
 	case 256:
-		return inverseDIT256Complex128(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT256Complex128(dst, src, twiddle, scratch)
 	case 512:
-		return inverseDIT512Complex128(dst, src, twiddle, scratch, bitrev)
+		return inverseDIT512Complex128(dst, src, twiddle, scratch)
+	case 1024:
+		// Try radix-32x32 first
+		if inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch) {
+			return true
+		}
+		// Fallback to optimized radix-4
+		return inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch)
+	case 2048:
+		return inverseDIT2048Mixed24Complex128(dst, src, twiddle, scratch)
+	case 4096:
+		if inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch) {
+			return true
+		}
+		return inverseDIT4096Radix4Complex128(dst, src, twiddle, scratch)
 	}
 
 	if inverseRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
@@ -469,8 +536,12 @@ var (
 		return inverseDIT16Radix2Complex64(dst, src, twiddle, scratch)
 	}
 	// Size 32.
-	ForwardDIT32Complex64 = forwardDIT32Complex64
-	InverseDIT32Complex64 = inverseDIT32Complex64
+	ForwardDIT32Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+		return forwardDIT32Complex64(dst, src, twiddle, scratch)
+	}
+	InverseDIT32Complex64 = func(dst, src, twiddle, scratch []complex64, _ []int) bool {
+		return inverseDIT32Complex64(dst, src, twiddle, scratch)
+	}
 	// Size 64.
 	ForwardDIT64Complex64       = forwardDIT64Complex64
 	InverseDIT64Complex64       = inverseDIT64Complex64
@@ -525,8 +596,12 @@ var (
 	InverseDIT16Radix2Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
 		return inverseDIT16Radix2Complex128(dst, src, twiddle, scratch)
 	}
-	ForwardDIT32Complex128         = forwardDIT32Complex128
-	InverseDIT32Complex128         = inverseDIT32Complex128
+	ForwardDIT32Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+		return forwardDIT32Complex128(dst, src, twiddle, scratch)
+	}
+	InverseDIT32Complex128 = func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+		return inverseDIT32Complex128(dst, src, twiddle, scratch)
+	}
 	ForwardDIT64Complex128         = forwardDIT64Complex128
 	InverseDIT64Complex128         = inverseDIT64Complex128
 	ForwardDIT64Radix4Complex128   = forwardDIT64Radix4Complex128

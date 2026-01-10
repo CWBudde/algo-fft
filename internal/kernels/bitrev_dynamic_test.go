@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -243,45 +242,6 @@ func cpuSupportsCodelet(features cpu.Features, level SIMDLevel) bool {
 	default:
 		return false
 	}
-}
-
-// TestDynamicBitrevUsage_Size64Radix4_Complex64 verifies dynamic bitrev usage for size-64.
-// Larger sizes are important to ensure the pattern holds beyond small test cases.
-func TestDynamicBitrevUsage_Size64Radix4_Complex64(t *testing.T) {
-	t.Parallel()
-
-	const n = 64
-
-	input1 := randomComplex64(n, 0xABCDEF04)
-	normalBitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
-
-	// Create scrambled bitrev by swapping adjacent pairs
-	scrambledBitrev := make([]int, n)
-	for i := range n {
-		if i%2 == 0 && i+1 < n {
-			scrambledBitrev[i] = normalBitrev[i+1]
-			scrambledBitrev[i+1] = normalBitrev[i]
-		}
-	}
-
-	// Build source that produces same logical sequence when accessed with scrambledBitrev
-	src := make([]complex64, n)
-	for i := range n {
-		src[scrambledBitrev[i]] = input1[normalBitrev[i]]
-	}
-
-	dst := make([]complex64, n)
-	scratch := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
-
-	if !forwardDIT64Radix4Complex64(dst, src, twiddle, scratch, scrambledBitrev) {
-		t.Fatal("forwardDIT64Radix4Complex64 with scrambled bitrev failed")
-	}
-
-	expected := reference.NaiveDFT(input1)
-
-	// Slightly higher tolerance for larger sizes
-	assertComplex64Close(t, dst, expected, 5e-4)
 }
 
 // TestDynamicBitrevUsage_ZeroOffset verifies that normal bitrev still works.

@@ -10,15 +10,15 @@ package kernels
 // 3. Fully inlined complex arithmetic
 // 4. Stack-allocated stage buffers
 // 5. Pre-loaded twiddle factors.
-func forwardDIT1024Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDIT1024Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 1024
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize1024Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -230,15 +230,15 @@ func forwardDIT1024Radix4Complex64(dst, src, twiddle, scratch []complex64, bitre
 
 // inverseDIT1024Radix4Complex64 computes a 1024-point inverse FFT using the
 // radix-4 Decimation-in-Time (DIT) algorithm for complex64 data.
-func inverseDIT1024Radix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDIT1024Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 1024
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize1024Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -455,15 +455,15 @@ func inverseDIT1024Radix4Complex64(dst, src, twiddle, scratch []complex64, bitre
 
 // forwardDIT1024Radix4Complex128 computes a 1024-point forward FFT using the
 // radix-4 Decimation-in-Time (DIT) algorithm for complex128 data.
-func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 1024
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize1024Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -585,15 +585,15 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128, bit
 
 // inverseDIT1024Radix4Complex128 computes a 1024-point inverse FFT using the
 // radix-4 Decimation-in-Time (DIT) algorithm for complex128 data.
-func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 1024
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n || len(src) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
 	// Bounds hints
-	br := bitrev[:n]
+	br := bitrevSize1024Radix4
 	s := src[:n]
 	tw := twiddle[:n]
 
