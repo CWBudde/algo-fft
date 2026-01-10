@@ -203,7 +203,6 @@ func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Prepare for 128-point sub-FFTs
 	twiddle128 := mathpkg.ComputeTwiddleFactors[complex128](stride)
-	bitrev128 := mathpkg.ComputeBitReversalIndices(stride) // Radix-2 bitrev for Size128Radix2
 	subScratch := make([]complex128, stride)
 	fftOut := make([]complex128, n)
 
@@ -213,7 +212,7 @@ func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 		if !amd64.ForwardAVX2Size128Radix2Complex128Asm(
 			fftOut[rowStart:rowStart+stride],
 			scratch[rowStart:rowStart+stride],
-			twiddle128, subScratch, bitrev128,
+			twiddle128, subScratch,
 		) {
 			return false
 		}
@@ -250,7 +249,6 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Prepare for 128-point sub-IFFTs
 	twiddle128 := mathpkg.ComputeTwiddleFactors[complex128](stride)
-	bitrev128 := mathpkg.ComputeBitReversalIndices(stride)
 	subScratch := make([]complex128, stride)
 
 	// Step 2: Compute 3 independent 128-point IFFTs
@@ -259,7 +257,7 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 		if !amd64.InverseAVX2Size128Radix2Complex128Asm(
 			work[rowStart:rowStart+stride],
 			ifftIn[rowStart:rowStart+stride],
-			twiddle128, subScratch, bitrev128,
+			twiddle128, subScratch,
 		) {
 			return false
 		}

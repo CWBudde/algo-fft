@@ -22,14 +22,13 @@
 // Forward Transform: Size 384, Complex128, Mixed-Radix 128×3 (AVX2)
 // ============================================================================
 //
-// func ForwardAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-TEXT ·ForwardAVX2Size384MixedComplex128Asm(SB), NOSPLIT, $0-121
+// func ForwardAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128) bool
+TEXT ·ForwardAVX2Size384MixedComplex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 384)
 
 	// Verify n == 384
@@ -49,30 +48,25 @@ TEXT ·ForwardAVX2Size384MixedComplex128Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $384
 	JL   size384_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $384
-	JL   size384_return_false
-
 	// Return true
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size384_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ============================================================================
 // Inverse Transform: Size 384, Complex128, Mixed-Radix 128×3 (AVX2)
 // ============================================================================
 //
-// func InverseAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-TEXT ·InverseAVX2Size384MixedComplex128Asm(SB), NOSPLIT, $0-121
+// func InverseAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128) bool
+TEXT ·InverseAVX2Size384MixedComplex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 384)
 
 	// Verify n == 384
@@ -92,16 +86,12 @@ TEXT ·InverseAVX2Size384MixedComplex128Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $384
 	JL   size384_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $384
-	JL   size384_inv_return_false
-
 	// Return true
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size384_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ============================================================================

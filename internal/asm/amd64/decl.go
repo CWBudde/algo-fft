@@ -9,10 +9,10 @@ package amd64
 // ============================================================================
 
 //go:noescape
-func ForwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func InverseAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseAVX2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
 func ForwardSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
@@ -168,10 +168,10 @@ func ForwardAVX2Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64
 func InverseAVX2Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func ForwardAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseAVX2Size32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func InverseAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
 func ForwardAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
@@ -264,10 +264,10 @@ func ForwardAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch []complex
 func InverseAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // ============================================================================
 // Matrix Transpose Operations (for Six-Step FFT)
@@ -415,52 +415,52 @@ func InverseSSE2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex1
 // --- AVX2 Kernels (Complex128) ---
 
 //go:noescape
-func ForwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
 func ForwardAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
@@ -469,16 +469,16 @@ func ForwardAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch []complex12
 func InverseAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
 //go:noescape
-func ForwardAVX2Size128Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size128Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size128Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size128Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func InverseAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // ============================================================================
 // Element-wise Operations
@@ -579,12 +579,12 @@ func Radix3Butterflies384InverseComplex64Asm(data []complex64)
 // Returns true if the kernel can handle this size, false otherwise.
 //
 //go:noescape
-func ForwardAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func ForwardAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // InverseAVX2Size384MixedComplex128Asm validates parameters for size-384 IFFT.
 //
 //go:noescape
-func InverseAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+func InverseAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // ApplyTwiddle384Complex128Asm applies twiddle factors for 384-point mixed-radix FFT.
 // Multiplies data[128+k] by twiddle[k] and data[256+k] by twiddle[2*k] for k=0..127.

@@ -15,14 +15,14 @@
 
 #include "textflag.h"
 
-TEXT ·ForwardAVX2Size512Mixed24Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size512Mixed24Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 512)
+	LEAQ ·bitrev512_m24(SB), R12
 
 	// Verify n == 512
 	CMPQ R13, $512
@@ -38,10 +38,6 @@ TEXT ·ForwardAVX2Size512Mixed24Complex128Asm(SB), NOSPLIT, $0-121
 	JL   m24_512_return_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, $512
-	JL   m24_512_return_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, $512
 	JL   m24_512_return_false
 
@@ -516,25 +512,25 @@ m24_512_forward_copy_loop:
 
 m24_512_forward_ret:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 m24_512_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 512, complex128, mixed-radix-2/4
 // ===========================================================================
-TEXT ·InverseAVX2Size512Mixed24Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size512Mixed24Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 512)
+	LEAQ ·bitrev512_m24(SB), R12
 
 	// Verify n == 512
 	CMPQ R13, $512
@@ -550,10 +546,6 @@ TEXT ·InverseAVX2Size512Mixed24Complex128Asm(SB), NOSPLIT, $0-121
 	JL   m24_512_inv_return_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, $512
-	JL   m24_512_inv_return_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, $512
 	JL   m24_512_inv_return_false
 
@@ -1038,10 +1030,10 @@ m24_512_inv_copy_loop:
 
 m24_512_inv_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 m24_512_inv_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

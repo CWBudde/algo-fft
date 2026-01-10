@@ -9,11 +9,11 @@ import (
 )
 
 func forwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	return kasm.ForwardAVX2Complex64Asm(dst, src, twiddle, scratch)
+	return kasm.ForwardAVX2Complex64Asm(dst, src, twiddle, scratch, nil)
 }
 
 func inverseAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	return kasm.InverseAVX2Complex64Asm(dst, src, twiddle, scratch)
+	return kasm.InverseAVX2Complex64Asm(dst, src, twiddle, scratch, nil)
 }
 
 func forwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
@@ -72,12 +72,16 @@ func forwardAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64)
 	return kasm.ForwardAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch)
 }
 
+func forwardAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.ForwardAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
+}
+
 func forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
 	return kasm.ForwardAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size64Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	return kasm.ForwardAVX2Complex64Asm(dst, src, twiddle, scratch)
+	return kasm.ForwardAVX2Complex64Asm(dst, src, twiddle, scratch, nil)
 }
 
 func forwardAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
@@ -169,6 +173,10 @@ func inverseAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64)
 	return inverseDIT16Radix4Complex64(dst, src, twiddle, scratch)
 }
 
+func inverseAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.InverseAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
+}
+
 func inverseAVX2Size32Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
 	if kasm.InverseAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch) {
 		return true
@@ -248,20 +256,20 @@ func inverseAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch []complex
 	return kasm.InverseAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.ForwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func forwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.InverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func inverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.ForwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func forwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.InverseAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func inverseAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
@@ -272,54 +280,48 @@ func inverseAVX2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128
 	return inverseDIT4Radix4Complex128(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardDIT8Radix2Complex128(dst, src, twiddle, scratch)
+func forwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseDIT8Radix2Complex128(dst, src, twiddle, scratch)
+func inverseAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.ForwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func forwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.InverseAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func inverseAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if bitrev == nil {
-		bitrev = m.ComputeIdentityIndices(8)
-	}
-	return kasm.ForwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func forwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	if bitrev == nil {
-		bitrev = m.ComputeIdentityIndices(8)
-	}
-	return kasm.InverseAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func inverseAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func forwardAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size16Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardDIT16Radix4Complex128(dst, src, twiddle, scratch)
+func forwardAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.ForwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func forwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.InverseAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func inverseAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch)
 }
 
 func forwardAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
@@ -330,16 +332,16 @@ func inverseAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch []complex12
 	return kasm.InverseAVX2Size64Radix4Complex128Asm(dst, src, twiddle, scratch, bitrev)
 }
 
-func inverseAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func inverseAVX2Size16Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size16Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseDIT16Radix4Complex128(dst, src, twiddle, scratch)
+func inverseAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func inverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
 }
 
 func forwardSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {

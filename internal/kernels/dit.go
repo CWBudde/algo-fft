@@ -15,6 +15,7 @@ var (
 	bitrevSize16Radix4    = mathpkg.ComputeBitReversalIndicesRadix4(16)
 	bitrevSize32Identity  = mathpkg.ComputeIdentityIndices(32)
 	bitrevSize32Radix2    = mathpkg.ComputeBitReversalIndices(32)
+	bitrevSize32Mixed24   = mathpkg.ComputeBitReversalIndicesMixed24(32)
 	bitrevSize64Radix2    = mathpkg.ComputeBitReversalIndices(64)
 	bitrevSize64Radix4    = mathpkg.ComputeBitReversalIndicesRadix4(64)
 	bitrevSize128Radix2   = mathpkg.ComputeBitReversalIndices(128)

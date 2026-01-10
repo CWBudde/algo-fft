@@ -25,7 +25,8 @@ func TestAVX2DITForwardComplex64(t *testing.T) {
 		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, forwardAVX2Size8Radix8Complex64Asm},
 		{"Size16/Radix2", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex64Asm},
 		{"Size16/Radix4", 16, ComputeBitReversalIndicesRadix4, forwardAVX2Size16Radix4Complex64Asm},
-		{"Size32", 32, mathpkg.ComputeIdentityIndices, forwardAVX2Size32Complex64Asm},
+		{"Size32/Radix2", 32, ComputeBitReversalIndices, forwardAVX2Size32Radix2Complex64Asm},
+		{"Size32/Radix32", 32, mathpkg.ComputeIdentityIndices, forwardAVX2Size32Complex64Asm},
 		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardAVX2Size64Complex64Asm},
 		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardAVX2Size64Radix4Complex64Asm},
 		{"Size128", 128, ComputeBitReversalIndices, forwardAVX2Size128Complex64Asm},
@@ -87,7 +88,8 @@ func TestAVX2DITInverseComplex64(t *testing.T) {
 		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, forwardAVX2Size8Radix8Complex64Asm, inverseAVX2Size8Radix8Complex64Asm},
 		{"Size16/Radix2", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex64Asm, inverseAVX2Size16Complex64Asm},
 		{"Size16/Radix4", 16, ComputeBitReversalIndicesRadix4, forwardAVX2Size16Radix4Complex64Asm, inverseAVX2Size16Radix4Complex64Asm},
-		{"Size32", 32, mathpkg.ComputeIdentityIndices, forwardAVX2Size32Complex64Asm, inverseAVX2Size32Complex64Asm},
+		{"Size32/Radix2", 32, ComputeBitReversalIndices, forwardAVX2Size32Radix2Complex64Asm, inverseAVX2Size32Radix2Complex64Asm},
+		{"Size32/Radix32", 32, mathpkg.ComputeIdentityIndices, forwardAVX2Size32Complex64Asm, inverseAVX2Size32Complex64Asm},
 		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardAVX2Size64Complex64Asm, inverseAVX2Size64Complex64Asm},
 		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardAVX2Size64Radix4Complex64Asm, inverseAVX2Size64Radix4Complex64Asm},
 		{"Size128", 128, ComputeBitReversalIndices, forwardAVX2Size128Complex64Asm, inverseAVX2Size128Complex64Asm},
@@ -160,15 +162,31 @@ func TestAVX2DITForwardComplex128(t *testing.T) {
 		forward func(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 	}{
 		{"Size4/Radix4", 4, ComputeBitReversalIndicesRadix4, forwardAVX2Size4Radix4Complex128Asm},
-		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix2Complex128Asm},
-		{"Size8/Radix4", 8, ComputeBitReversalIndicesMixed24, forwardAVX2Size8Radix4Complex128Asm},
-		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, forwardAVX2Size8Radix8Complex128Asm},
-		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm},
-		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm},
-		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardAVX2Size64Radix2Complex128Asm},
+		{"Size8/Radix2", 8, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size8/Radix4", 8, ComputeBitReversalIndicesMixed24, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size16", 16, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size16Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size32", 32, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size64/Radix2", 64, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}},
 		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardAVX2Size64Radix4Complex128Asm},
-		{"Size512/Radix2", 512, ComputeBitReversalIndices, forwardAVX2Size512Radix2Complex128Asm},
-		{"Size512/Mixed24", 512, ComputeBitReversalIndicesMixed24, forwardAVX2Size512Mixed24Complex128Asm},
+		{"Size512/Radix2", 512, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size512/Mixed24", 512, ComputeBitReversalIndicesMixed24, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch)
+		}},
 	}
 
 	for _, tc := range cases {
@@ -207,15 +225,47 @@ func TestAVX2DITInverseComplex128(t *testing.T) {
 		inverse func(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 	}{
 		{"Size4/Radix4", 4, ComputeBitReversalIndicesRadix4, forwardAVX2Size4Radix4Complex128Asm, inverseAVX2Size4Radix4Complex128Asm},
-		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix2Complex128Asm, inverseAVX2Size8Radix2Complex128Asm},
-		{"Size8/Radix4", 8, ComputeBitReversalIndicesMixed24, forwardAVX2Size8Radix4Complex128Asm, inverseAVX2Size8Radix4Complex128Asm},
-		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, forwardAVX2Size8Radix8Complex128Asm, inverseAVX2Size8Radix8Complex128Asm},
-		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm, inverseAVX2Size16Complex128Asm},
-		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm, inverseAVX2Size32Complex128Asm},
-		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardAVX2Size64Radix2Complex128Asm, inverseAVX2Size64Radix2Complex128Asm},
+		{"Size8/Radix2", 8, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return inverseAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size8/Radix4", 8, ComputeBitReversalIndicesMixed24, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch)
+		}, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return inverseAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch)
+		}, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return inverseAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size16", 16, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size16Complex128Asm(dst, src, twiddle, scratch)
+		}, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return inverseAVX2Size16Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size32", 32, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
+		}, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return inverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size64/Radix2", 64, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return inverseAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}},
 		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardAVX2Size64Radix4Complex128Asm, inverseAVX2Size64Radix4Complex128Asm},
-		{"Size512/Radix2", 512, ComputeBitReversalIndices, forwardAVX2Size512Radix2Complex128Asm, inverseAVX2Size512Radix2Complex128Asm},
-		{"Size512/Mixed24", 512, ComputeBitReversalIndicesMixed24, forwardAVX2Size512Mixed24Complex128Asm, inverseAVX2Size512Mixed24Complex128Asm},
+		{"Size512/Radix2", 512, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return inverseAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size512/Mixed24", 512, ComputeBitReversalIndicesMixed24, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch)
+		}, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return inverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch)
+		}},
 	}
 
 	for _, tc := range cases {
@@ -318,15 +368,31 @@ func BenchmarkAVX2DITComplex128(b *testing.B) {
 		forward func(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 	}{
 		{"Size4/Radix4", 4, ComputeBitReversalIndicesRadix4, forwardAVX2Size4Radix4Complex128Asm},
-		{"Size8/Radix2", 8, ComputeBitReversalIndices, forwardAVX2Size8Radix2Complex128Asm},
-		{"Size8/Radix4", 8, ComputeBitReversalIndicesMixed24, forwardAVX2Size8Radix4Complex128Asm},
-		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, forwardAVX2Size8Radix8Complex128Asm},
-		{"Size16", 16, ComputeBitReversalIndices, forwardAVX2Size16Complex128Asm},
-		{"Size32", 32, ComputeBitReversalIndices, forwardAVX2Size32Complex128Asm},
-		{"Size64/Radix2", 64, ComputeBitReversalIndices, forwardAVX2Size64Radix2Complex128Asm},
+		{"Size8/Radix2", 8, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size8Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size8/Radix4", 8, ComputeBitReversalIndicesMixed24, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size8Radix4Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size8Radix8Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size16", 16, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size16Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size32", 32, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size64/Radix2", 64, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}},
 		{"Size64/Radix4", 64, ComputeBitReversalIndicesRadix4, forwardAVX2Size64Radix4Complex128Asm},
-		{"Size512/Radix2", 512, ComputeBitReversalIndices, forwardAVX2Size512Radix2Complex128Asm},
-		{"Size512/Mixed24", 512, ComputeBitReversalIndicesMixed24, forwardAVX2Size512Mixed24Complex128Asm},
+		{"Size512/Radix2", 512, ComputeBitReversalIndices, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch)
+		}},
+		{"Size512/Mixed24", 512, ComputeBitReversalIndicesMixed24, func(dst, src, twiddle, scratch []complex128, _ []int) bool {
+			return forwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch)
+		}},
 	}
 
 	for _, tc := range cases {
