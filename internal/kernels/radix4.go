@@ -1,36 +1,36 @@
 package kernels
 
-func forwardRadix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return radix4Forward[complex64](dst, src, twiddle, scratch, bitrev)
+func forwardRadix4Complex64(dst, src, twiddle, scratch []complex64) bool {
+	return radix4Forward[complex64](dst, src, twiddle, scratch)
 }
 
-func inverseRadix4Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return radix4Inverse[complex64](dst, src, twiddle, scratch, bitrev)
+func inverseRadix4Complex64(dst, src, twiddle, scratch []complex64) bool {
+	return radix4Inverse[complex64](dst, src, twiddle, scratch)
 }
 
-func forwardRadix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return radix4Forward[complex128](dst, src, twiddle, scratch, bitrev)
+func forwardRadix4Complex128(dst, src, twiddle, scratch []complex128) bool {
+	return radix4Forward[complex128](dst, src, twiddle, scratch)
 }
 
-func inverseRadix4Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return radix4Inverse[complex128](dst, src, twiddle, scratch, bitrev)
+func inverseRadix4Complex128(dst, src, twiddle, scratch []complex128) bool {
+	return radix4Inverse[complex128](dst, src, twiddle, scratch)
 }
 
-func radix4Forward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return radix4Transform(dst, src, twiddle, scratch, bitrev, false)
+func radix4Forward[T Complex](dst, src, twiddle, scratch []T) bool {
+	return radix4Transform(dst, src, twiddle, scratch, false)
 }
 
-func radix4Inverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return radix4Transform(dst, src, twiddle, scratch, bitrev, true)
+func radix4Inverse[T Complex](dst, src, twiddle, scratch []T) bool {
+	return radix4Transform(dst, src, twiddle, scratch, true)
 }
 
-func radix4Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, inverse bool) bool {
+func radix4Transform[T Complex](dst, src, twiddle, scratch []T, inverse bool) bool {
 	n := len(src)
 	if n == 0 {
 		return true
 	}
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 

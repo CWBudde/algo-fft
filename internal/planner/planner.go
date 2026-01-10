@@ -25,9 +25,6 @@ type PlanEstimate[T Complex] struct {
 
 	// Strategy is the kernel strategy (DIT, Stockham, etc.)
 	Strategy KernelStrategy
-
-	// BitrevFunc is the bit-reversal generator for this codelet (nil if no bit-reversal needed)
-	BitrevFunc BitrevFunc
 }
 
 // EstimatePlan determines the best kernel/codelet for the given size.
@@ -96,7 +93,6 @@ func tryRegistry[T Complex](n int, features cpu.Features, forcedStrategy KernelS
 		InverseCodelet: entry.Inverse,
 		Algorithm:      entry.Signature,
 		Strategy:       entry.Algorithm,
-		BitrevFunc:     entry.BitrevFunc,
 	}
 }
 
@@ -137,7 +133,6 @@ func resolveWisdom[T Complex](n int, features cpu.Features, wisdom WisdomStore, 
 				InverseCodelet: codelet.Inverse,
 				Algorithm:      codelet.Signature,
 				Strategy:       codelet.Algorithm,
-				BitrevFunc:     codelet.BitrevFunc,
 			}, KernelAuto, true
 		}
 	}

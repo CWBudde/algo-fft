@@ -40,7 +40,7 @@ var (
 )
 
 //nolint:cyclop
-func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 	switch len(src) {
 	case 8:
 		return forwardDIT8Complex64(dst, src, twiddle, scratch)
@@ -75,20 +75,20 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 
 	n := len(src)
 	if isPowerOf4(n) {
-		if forwardRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
+		if forwardRadix4Complex64(dst, src, twiddle, scratch) {
 			return true
 		}
 	} else if IsPowerOf2(n) {
-		if forwardMixedRadix24Complex64(dst, src, twiddle, scratch, bitrev) {
+		if forwardMixedRadix24Complex64(dst, src, twiddle, scratch) {
 			return true
 		}
 	}
 
-	return ditForward[complex64](dst, src, twiddle, scratch, bitrev)
+	return ditForward[complex64](dst, src, twiddle, scratch)
 }
 
 //nolint:cyclop
-func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 	switch len(src) {
 	case 8:
 		return inverseDIT8Complex64(dst, src, twiddle, scratch)
@@ -123,19 +123,19 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 
 	n := len(src)
 	if isPowerOf4(n) {
-		if inverseRadix4Complex64(dst, src, twiddle, scratch, bitrev) {
+		if inverseRadix4Complex64(dst, src, twiddle, scratch) {
 			return true
 		}
 	} else if IsPowerOf2(n) {
-		if inverseMixedRadix24Complex64(dst, src, twiddle, scratch, bitrev) {
+		if inverseMixedRadix24Complex64(dst, src, twiddle, scratch) {
 			return true
 		}
 	}
 
-	return ditInverseComplex64(dst, src, twiddle, scratch, bitrev)
+	return ditInverseComplex64(dst, src, twiddle, scratch)
 }
 
-func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 	switch len(src) {
 	case 8:
 		return forwardDIT8Complex128(dst, src, twiddle, scratch)
@@ -168,14 +168,14 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		return forwardDIT4096Radix4Complex128(dst, src, twiddle, scratch)
 	}
 
-	if forwardRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
+	if forwardRadix4Complex128(dst, src, twiddle, scratch) {
 		return true
 	}
 
-	return ditForward[complex128](dst, src, twiddle, scratch, bitrev)
+	return ditForward[complex128](dst, src, twiddle, scratch)
 }
 
-func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 	switch len(src) {
 	case 8:
 		return inverseDIT8Complex128(dst, src, twiddle, scratch)
@@ -208,21 +208,21 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 		return inverseDIT4096Radix4Complex128(dst, src, twiddle, scratch)
 	}
 
-	if inverseRadix4Complex128(dst, src, twiddle, scratch, bitrev) {
+	if inverseRadix4Complex128(dst, src, twiddle, scratch) {
 		return true
 	}
 
-	return ditInverseComplex128(dst, src, twiddle, scratch, bitrev)
+	return ditInverseComplex128(dst, src, twiddle, scratch)
 }
 
 //nolint:cyclop
-func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	n := len(src)
 	if n == 0 {
 		return true
 	}
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -242,7 +242,9 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	
+	// Compute bit-reversal indices locally for fallback
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	for i := range n {
 		work[i] = src[bitrev[i]]
@@ -272,13 +274,13 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 }
 
 //nolint:cyclop
-func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+func ditInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 	n := len(src)
 	if n == 0 {
 		return true
 	}
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -298,7 +300,8 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	for i := range n {
 		work[i] = src[bitrev[i]]
@@ -333,13 +336,13 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 }
 
 //nolint:cyclop
-func ditInverseComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func ditInverseComplex64(dst, src, twiddle, scratch []complex64) bool {
 	n := len(src)
 	if n == 0 {
 		return true
 	}
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -359,7 +362,8 @@ func ditInverseComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	for i := range n {
 		work[i] = src[bitrev[i]]
@@ -395,13 +399,13 @@ func ditInverseComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) b
 }
 
 //nolint:cyclop
-func ditInverseComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func ditInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
 	n := len(src)
 	if n == 0 {
 		return true
 	}
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -421,7 +425,8 @@ func ditInverseComplex128(dst, src, twiddle, scratch []complex128, bitrev []int)
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	bitrev = bitrev[:n]
+	
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	for i := range n {
 		work[i] = src[bitrev[i]]
@@ -462,12 +467,12 @@ func butterfly2[T Complex](a, b, w T) (T, T) {
 }
 
 // Public exports for internal/fft re-export.
-func DITForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return ditForward(dst, src, twiddle, scratch, bitrev)
+func DITForward[T Complex](dst, src, twiddle, scratch []T) bool {
+	return ditForward(dst, src, twiddle, scratch)
 }
 
-func DITInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return ditInverse(dst, src, twiddle, scratch, bitrev)
+func DITInverse[T Complex](dst, src, twiddle, scratch []T) bool {
+	return ditInverse(dst, src, twiddle, scratch)
 }
 
 // Precision-specific exports.

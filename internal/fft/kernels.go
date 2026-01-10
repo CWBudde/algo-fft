@@ -16,7 +16,6 @@ type (
 	CodeletRegistry[T Complex] = planner.CodeletRegistry[T]
 	CodeletEntry[T Complex]    = planner.CodeletEntry[T]
 	PackedTwiddles[T Complex]  = transform.PackedTwiddles[T]
-	BitrevFunc                 = planner.BitrevFunc
 	SIMDLevel                  = planner.SIMDLevel
 )
 

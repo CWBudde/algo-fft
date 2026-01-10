@@ -41,7 +41,7 @@ func ComputeTwiddleFactors[T Complex](n int) []T {
 
 // Kernel reports whether it handled the transform.
 // It returns false when no implementation is available.
-type Kernel[T Complex] func(dst, src, twiddle, scratch []T, bitrev []int) bool
+type Kernel[T Complex] func(dst, src, twiddle, scratch []T) bool
 
 // Kernels groups forward and inverse kernels for a given precision.
 type Kernels[T Complex] struct {

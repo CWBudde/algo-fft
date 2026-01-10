@@ -79,10 +79,10 @@ func ForwardNEONSize64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64)
 func InverseNEONSize64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardNEONSize128Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func ForwardNEONSize128Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseNEONSize128Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func InverseNEONSize128Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
 func ForwardNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool

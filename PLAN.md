@@ -403,33 +403,33 @@ Update remaining assembly files + Go declarations:
 
 #### 11.16.1 AVX2 Go Wrappers
 
-- [ ] Update all AVX2 wrapper functions to not pass bitrev to assembly
-- [ ] Remove bitrev parameter from wrapper signatures
-- [ ] Files to update (each has forward/inverse for complex64/128):
-  - [ ] `avx2_f32_size4_radix4.go`
-  - [ ] `avx2_f32_size8_*.go` (multiple files)
-  - [ ] `avx2_f32_size16_*.go`
-  - [ ] `avx2_f32_size32_*.go`
-  - [ ] `avx2_f32_size64_*.go`
-  - [ ] `avx2_f32_size128_*.go`
-  - [ ] `avx2_f32_size256_*.go`
-  - [ ] `avx2_f32_size512_*.go`
-  - [ ] `avx2_f32_size1024_*.go`
-  - [ ] `avx2_f32_size2048_*.go`
-  - [ ] `avx2_f32_size4096_*.go`
-  - [ ] `avx2_f32_size8192_*.go`
-  - [ ] `avx2_f32_size16384_*.go`
-  - [ ] `avx2_f32_size384_*.go`
+- [x] Update all AVX2 wrapper functions to not pass bitrev to assembly
+- [x] Remove bitrev parameter from wrapper signatures
+- [x] Files to update (each has forward/inverse for complex64/128):
+  - [x] `avx2_f32_size4_radix4.go`
+  - [x] `avx2_f32_size8_*.go` (multiple files)
+  - [x] `avx2_f32_size16_*.go`
+  - [x] `avx2_f32_size32_*.go`
+  - [x] `avx2_f32_size64_*.go`
+  - [x] `avx2_f32_size128_*.go`
+  - [x] `avx2_f32_size256_*.go`
+  - [x] `avx2_f32_size512_*.go`
+  - [x] `avx2_f32_size1024_*.go`
+  - [x] `avx2_f32_size2048_*.go`
+  - [x] `avx2_f32_size4096_*.go`
+  - [x] `avx2_f32_size8192_*.go`
+  - [x] `avx2_f32_size16384_*.go`
+  - [x] `avx2_f32_size384_*.go`
 
 #### 11.16.2 SSE2 Go Wrappers
 
-- [ ] Update all SSE2 wrapper functions similarly
-- [ ] Files in `internal/kernels/sse2_*.go`
+- [x] Update all SSE2 wrapper functions similarly
+- [x] Files in `internal/kernels/sse2_*.go`
 
 #### 11.16.3 NEON Go Wrappers
 
-- [ ] Update all NEON wrapper functions similarly
-- [ ] Files in `internal/kernels/neon_*.go`
+- [x] Update all NEON wrapper functions similarly
+- [x] Files in `internal/kernels/neon_*.go`
 
 ---
 

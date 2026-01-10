@@ -41,12 +41,12 @@ func conj[T Complex](val T) T {
 }
 
 // Helper functions from kernels package.
-func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return kernels.DITForward(dst, src, twiddle, scratch, bitrev)
+func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
+	return kernels.DITForward(dst, src, twiddle, scratch)
 }
 
-func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return kernels.DITInverse(dst, src, twiddle, scratch, bitrev)
+func ditInverse[T Complex](dst, src, twiddle, scratch []T) bool {
+	return kernels.DITInverse(dst, src, twiddle, scratch)
 }
 
 func sameSlice[T any](a, b []T) bool {

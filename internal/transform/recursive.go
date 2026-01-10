@@ -52,19 +52,13 @@ func recursiveForwardWithTwiddle[T Complex](
 		codelet := registry.Lookup(n, features)
 		if codelet != nil {
 			// Call the codelet's forward function
-			// For Core/DIT kernel types, bitrev is handled internally (pass nil)
-			// For Legacy kernel types, generate bitrev from BitrevFunc
-			var bitrev []int
-			if codelet.KernelType == KernelTypeLegacy && codelet.BitrevFunc != nil {
-				bitrev = codelet.BitrevFunc(n)
-			}
-
-			codelet.Forward(dst, src, twiddleSlice, scratch, bitrev)
+			// Kernels are now self-contained and handle permutation internally
+			codelet.Forward(dst, src, twiddleSlice, scratch)
 
 			return twiddleOffset + n
 		}
 		// Fallback to generic DIT if codelet missing (should not happen if registry is correct)
-		ditForward(dst, src, twiddleSlice, scratch, ComputeBitReversalIndices(n))
+		ditForward(dst, src, twiddleSlice, scratch)
 
 		return twiddleOffset + n
 	}
@@ -182,19 +176,13 @@ func recursiveInverseWithTwiddle[T Complex](
 
 		codelet := registry.Lookup(n, features)
 		if codelet != nil {
-			// For Core/DIT kernel types, bitrev is handled internally (pass nil)
-			// For Legacy kernel types, generate bitrev from BitrevFunc
-			var bitrev []int
-			if codelet.KernelType == KernelTypeLegacy && codelet.BitrevFunc != nil {
-				bitrev = codelet.BitrevFunc(n)
-			}
-
-			codelet.Inverse(dst, src, twiddleSlice, scratch, bitrev)
+			// Kernels are now self-contained and handle permutation internally
+			codelet.Inverse(dst, src, twiddleSlice, scratch)
 
 			return twiddleOffset + n
 		}
 		// Fallback
-		ditInverse(dst, src, twiddleSlice, scratch, ComputeBitReversalIndices(n))
+		ditInverse(dst, src, twiddleSlice, scratch)
 
 		return twiddleOffset + n
 	}

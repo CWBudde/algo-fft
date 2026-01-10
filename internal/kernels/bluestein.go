@@ -34,9 +34,9 @@ func ComputeChirpSequence[T Complex](n int) []T {
 // ComputeBluesteinFilter computes the frequency-domain filter for Bluestein's algorithm.
 // n is the original size, m is the padded size (power of 2 >= 2n-1).
 // chirp is the sequence of length n computed by ComputeChirpSequence.
-// twiddles and bitrev are for size m.
+// twiddles are for size m.
 // scratch is a pre-allocated buffer of size m for intermediate computations.
-func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, bitrev []int, scratch []T) []T {
+func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, scratch []T) []T {
 	b := make([]T, m)
 	// Construct b sequence
 	// b_k = w_k^{-1} = conj(w_k)
@@ -51,7 +51,7 @@ func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, bitrev
 	}
 
 	// Perform FFT using provided scratch buffer
-	ditForward(b, b, twiddles, scratch, bitrev)
+	ditForward(b, b, twiddles, scratch)
 
 	return b
 }
@@ -60,12 +60,12 @@ func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, bitrev
 // dst is the output buffer of size m.
 // x is the input sequence of size m (padded with zeros).
 // filter is the frequency-domain filter (FFT of b) of size m.
-// twiddles and bitrev are for size m.
+// twiddles are for size m.
 // scratch is a scratch buffer of size m.
-func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T, bitrev []int) {
+func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T) {
 	// 1. FFT of x
 	// We use dst as the work buffer. If dst != x, ditForward handles the copy/transform.
-	ditForward(dst, x, twiddles, scratch, bitrev)
+	ditForward(dst, x, twiddles, scratch)
 
 	// 2. Multiply by filter
 	for i := range dst {
@@ -73,5 +73,5 @@ func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T, bitr
 	}
 
 	// 3. IFFT
-	ditInverse(dst, dst, twiddles, scratch, bitrev)
+	ditInverse(dst, dst, twiddles, scratch)
 }
