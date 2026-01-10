@@ -31,15 +31,14 @@
 //                   j=0: twiddle[0], j=1: twiddle[1], j=2: twiddle[2], j=3: twiddle[3]
 // ===========================================================================
 
-// Forward transform, size 8, complex64, radix-2 variant
-// Fully unrolled 3-stage FFT with AVX2 vectorization
-TEXT ·ForwardAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
+// Forward transform, size 8, complex64, radix-8 variant
+// Fully unrolled single radix-8 butterfly with AVX2 vectorization
+TEXT ·ForwardAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 8
@@ -59,7 +58,7 @@ TEXT ·ForwardAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $8
 	JL   size8_r8_fwd_return_false
 
-	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
+	// Note: Radix-8 on size-8 uses identity permutation (no bit-reversal needed)
 
 	// Select working buffer
 	CMPQ R8, R9
@@ -180,22 +179,21 @@ size8_r8_fwd_store_direct:
 
 size8_r8_fwd_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size8_r8_fwd_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 8, complex64, radix-8 variant
 // Uses conjugated twiddles and applies 1/8 scaling.
-TEXT ·InverseAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 8
@@ -342,9 +340,9 @@ size8_r8_inv_store_direct:
 
 size8_r8_inv_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size8_r8_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

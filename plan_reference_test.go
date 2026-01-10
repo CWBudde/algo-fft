@@ -9,7 +9,7 @@ import (
 func TestForwardMatchesReferenceSmall(t *testing.T) {
 	t.Parallel()
 
-	sizes := []int{256}
+	sizes := []int{2, 4, 8, 16, 32, 64, 128, 256}
 	for _, n := range sizes {
 		plan, err := NewPlanT[complex64](n)
 		if err != nil {

@@ -14,8 +14,8 @@ func registerAVX2DITCodelets64() {
 	// due to scalar operations. Registered with low priority for benchmarking.
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size4Radix4Complex64Asm, bitrevSize4Identity)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size4Radix4Complex64Asm, bitrevSize4Identity)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size4Radix4Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size4Radix4Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit4_radix4_avx2",
@@ -27,34 +27,34 @@ func registerAVX2DITCodelets64() {
 	// Size 8: Radix-2 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size8Radix2Complex64Asm, bitrevSize8Radix2)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size8Radix2Complex64Asm, bitrevSize8Radix2)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size8Radix2Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size8Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix2_avx2",
 		Priority:   7,
 		BitrevFunc: nil,
-		KernelType: KernelTypeDIT, // Self-contained via bridge
+		KernelType: KernelTypeDIT, // Self-contained with internalized bitrev
 	})
 
 	// Size 8: Radix-4 (Mixed-radix) AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size8Radix4Complex64Asm, bitrevSize8Radix4)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size8Radix4Complex64Asm, bitrevSize8Radix4)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size8Radix4Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size8Radix4Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix4_avx2",
 		Priority:   10, // Mixed-radix 4x2: efficient for size 8
 		BitrevFunc: nil,
-		KernelType: KernelTypeDIT, // Self-contained via bridge
+		KernelType: KernelTypeDIT, // Self-contained with internalized bitrev
 	})
 
 	// Size 8: Radix-8 AVX2 variant (single-stage butterfly, identity permutation)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size8Radix8Complex64Asm, bitrevSize8Identity)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size8Radix8Complex64Asm, bitrevSize8Identity)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size8Radix8Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size8Radix8Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix8_avx2",

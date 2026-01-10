@@ -33,13 +33,12 @@
 // ===========================================================================
 // Pure radix-4 implementation - no bit-reversal needed for size 4!
 // Input order for radix-4 is naturally: [0, 1, 2, 3]
-TEXT ·ForwardAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer (not used for size 4)
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer (not used for size 4)
 	MOVQ src+32(FP), R13     // R13 = n (should be 4)
 
 	// Verify n == 4
@@ -58,8 +57,6 @@ TEXT ·ForwardAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ scratch+80(FP), AX
 	CMPQ AX, $4
 	JL   size4_r4_fwd_return_false
-
-	// bitrev is unused for size-4 radix-4; allow nil/empty.
 
 	// Select working buffer: if dst == src, use scratch
 	CMPQ R8, R9
@@ -205,24 +202,23 @@ size4_r4_fwd_store_direct:
 
 size4_r4_fwd_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size4_r4_fwd_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 4, complex64, radix-4
 // ===========================================================================
 // Same as forward but with +i instead of -i, and 1/4 scaling at the end
-TEXT ·InverseAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 4
@@ -241,8 +237,6 @@ TEXT ·InverseAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ scratch+80(FP), AX
 	CMPQ AX, $4
 	JL   size4_r4_inv_return_false
-
-	// bitrev is unused for size-4 radix-4; allow nil/empty.
 
 	// Select working buffer
 	CMPQ R8, R9
@@ -319,9 +313,9 @@ size4_r4_inv_store_direct:
 
 size4_r4_inv_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size4_r4_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

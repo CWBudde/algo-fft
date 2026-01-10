@@ -30,13 +30,12 @@
 
 // Forward transform, size 8, complex64, radix-4 (mixed-radix) variant
 // Fully unrolled mixed-radix FFT with AVX2 vectorization
-TEXT ·ForwardAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 8)
 
 	// Verify n == 8
@@ -56,10 +55,6 @@ TEXT ·ForwardAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $8
 	JL   size8_r4_fwd_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $8
-	JL   size8_r4_fwd_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  size8_r4_fwd_use_dst
@@ -72,37 +67,30 @@ size8_r4_fwd_bitrev:
 	// =======================================================================
 	// Bit-reversal permutation: work[i] = src[bitrev[i]]
 	// =======================================================================
-	MOVQ (R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)
+	// Mixed-radix bit-reversal for n=8: [0, 2, 4, 6, 1, 3, 5, 7]
+	MOVQ (R9), AX            // src[0]
+	MOVQ AX, (R8)            // work[0] = src[0]
 
-	MOVQ 8(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 8(R8)
+	MOVQ 16(R9), AX          // src[2]
+	MOVQ AX, 8(R8)           // work[1] = src[2]
 
-	MOVQ 16(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 16(R8)
+	MOVQ 32(R9), AX          // src[4]
+	MOVQ AX, 16(R8)          // work[2] = src[4]
 
-	MOVQ 24(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 24(R8)
+	MOVQ 48(R9), AX          // src[6]
+	MOVQ AX, 24(R8)          // work[3] = src[6]
 
-	MOVQ 32(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 32(R8)
+	MOVQ 8(R9), AX           // src[1]
+	MOVQ AX, 32(R8)          // work[4] = src[1]
 
-	MOVQ 40(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 40(R8)
+	MOVQ 24(R9), AX          // src[3]
+	MOVQ AX, 40(R8)          // work[5] = src[3]
 
-	MOVQ 48(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 48(R8)
+	MOVQ 40(R9), AX          // src[5]
+	MOVQ AX, 48(R8)          // work[6] = src[5]
 
-	MOVQ 56(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 56(R8)
+	MOVQ 56(R9), AX          // src[7]
+	MOVQ AX, 56(R8)          // work[7] = src[7]
 
 	// =======================================================================
 	// Scalar-style mixed-radix computation (correctness-focused)
@@ -249,22 +237,21 @@ size8_r4_fwd_bitrev:
 
 size8_r4_fwd_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size8_r4_fwd_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 8, complex64, radix-4 (mixed-radix) variant
 // Same as forward but with +i instead of -i for radix-4, conjugated twiddles, and 1/8 scaling
-TEXT ·InverseAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 8
@@ -284,10 +271,6 @@ TEXT ·InverseAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $8
 	JL   size8_r4_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $8
-	JL   size8_r4_inv_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  size8_r4_inv_use_dst
@@ -297,38 +280,31 @@ TEXT ·InverseAVX2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
 size8_r4_inv_use_dst:
 
 size8_r4_inv_bitrev:
-	// Bit-reversal permutation
-	MOVQ (R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)
+	// Bit-reversal permutation with hardcoded indices
+	// Mixed-radix bit-reversal for n=8: [0, 2, 4, 6, 1, 3, 5, 7]
+	MOVQ (R9), AX            // src[0]
+	MOVQ AX, (R8)            // work[0] = src[0]
 
-	MOVQ 8(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 8(R8)
+	MOVQ 16(R9), AX          // src[2]
+	MOVQ AX, 8(R8)           // work[1] = src[2]
 
-	MOVQ 16(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 16(R8)
+	MOVQ 32(R9), AX          // src[4]
+	MOVQ AX, 16(R8)          // work[2] = src[4]
 
-	MOVQ 24(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 24(R8)
+	MOVQ 48(R9), AX          // src[6]
+	MOVQ AX, 24(R8)          // work[3] = src[6]
 
-	MOVQ 32(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 32(R8)
+	MOVQ 8(R9), AX           // src[1]
+	MOVQ AX, 32(R8)          // work[4] = src[1]
 
-	MOVQ 40(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 40(R8)
+	MOVQ 24(R9), AX          // src[3]
+	MOVQ AX, 40(R8)          // work[5] = src[3]
 
-	MOVQ 48(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 48(R8)
+	MOVQ 40(R9), AX          // src[5]
+	MOVQ AX, 48(R8)          // work[6] = src[5]
 
-	MOVQ 56(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 56(R8)
+	MOVQ 56(R9), AX          // src[7]
+	MOVQ AX, 56(R8)          // work[7] = src[7]
 
 	// Load data
 	// =======================================================================
@@ -486,9 +462,9 @@ size8_r4_inv_bitrev:
 
 size8_r4_inv_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size8_r4_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

@@ -12,10 +12,50 @@ import (
 // BenchmarkAVX2Complex64 benchmarks AVX2 kernels for complex64.
 func BenchmarkAVX2Complex64(b *testing.B) {
 	cases := []benchCase64{
-		{"Size4/Radix4", 4, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardAVX2Size4Radix4Complex64Asm, amd64.InverseAVX2Size4Radix4Complex64Asm},
-		{"Size8/Radix2", 8, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size8Radix2Complex64Asm, amd64.InverseAVX2Size8Radix2Complex64Asm},
-		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size8Radix4Complex64Asm, amd64.InverseAVX2Size8Radix4Complex64Asm},
-		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, amd64.ForwardAVX2Size8Radix8Complex64Asm, amd64.InverseAVX2Size8Radix8Complex64Asm},
+		{
+			"Size4/Radix4",
+			4,
+			mathpkg.ComputeBitReversalIndicesRadix4,
+			func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+				return amd64.ForwardAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch)
+			},
+			func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+				return amd64.InverseAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch)
+			},
+		},
+		{
+			"Size8/Radix2",
+			8,
+			mathpkg.ComputeBitReversalIndices,
+			func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+				return amd64.ForwardAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch)
+			},
+			func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+				return amd64.InverseAVX2Size8Radix2Complex64Asm(dst, src, twiddle, scratch)
+			},
+		},
+		{
+			"Size8/Radix4",
+			8,
+			mathpkg.ComputeBitReversalIndices,
+			func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+				return amd64.ForwardAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch)
+			},
+			func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+				return amd64.InverseAVX2Size8Radix4Complex64Asm(dst, src, twiddle, scratch)
+			},
+		},
+		{
+			"Size8/Radix8",
+			8,
+			mathpkg.ComputeIdentityIndices,
+			func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+				return amd64.ForwardAVX2Size8Radix8Complex64Asm(dst, src, twiddle, scratch)
+			},
+			func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+				return amd64.InverseAVX2Size8Radix8Complex64Asm(dst, src, twiddle, scratch)
+			},
+		},
 		{"Size16/Radix4", 16, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardAVX2Size16Radix4Complex64Asm, amd64.InverseAVX2Size16Radix4Complex64Asm},
 		{"Size16/Radix16", 16, mathpkg.ComputeIdentityIndices, amd64.ForwardAVX2Size16Radix16Complex64Asm, amd64.InverseAVX2Size16Radix16Complex64Asm},
 		{"Size32/Radix2", 32, mathpkg.ComputeBitReversalIndices, amd64.ForwardAVX2Size32Complex64Asm, amd64.InverseAVX2Size32Complex64Asm},

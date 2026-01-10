@@ -36,7 +36,7 @@ func TestDebugAVX2Size8Radix4(t *testing.T) {
 	// Test forward with AVX2
 	avxFwd := make([]complex64, n)
 	avxScratch := make([]complex64, n)
-	amd64.ForwardAVX2Size8Radix4Complex64Asm(avxFwd, src, twiddle, avxScratch, bitrev)
+	amd64.ForwardAVX2Size8Radix4Complex64Asm(avxFwd, src, twiddle, avxScratch)
 
 	t.Logf("\n=== Forward Transform ===")
 	t.Logf("Go:   %v", goFwd)
@@ -59,7 +59,7 @@ func TestDebugAVX2Size8Radix4(t *testing.T) {
 
 	// Test inverse with AVX2 (using Go forward result for fair comparison)
 	avxInv := make([]complex64, n)
-	amd64.InverseAVX2Size8Radix4Complex64Asm(avxInv, goFwd, twiddle, avxScratch, bitrev)
+	amd64.InverseAVX2Size8Radix4Complex64Asm(avxInv, goFwd, twiddle, avxScratch)
 
 	t.Logf("\n=== Inverse Transform (from same forward result) ===")
 	t.Logf("Go:   %v", goInv)

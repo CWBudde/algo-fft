@@ -171,45 +171,45 @@ This hybrid creates complexity and bugs. By committing to kernel-controlled perm
 
 ### 11.13 AVX2 Assembly Migration
 
-**Files**: All files in `internal/asm/amd64/avx2_*.s` and corresponding Go declarations
+**Overview**: Remove caller-supplied bitrev parameter from all AVX2 kernels. For identity permutations (size 8/16/32 radix-N), simply remove the parameter. For other sizes, hardcode bitrev indices in a data section within the assembly file.
 
-#### 11.13.1 Update Go Declarations (`internal/asm/amd64/decl.go`)
+**Pattern for each file**:
+1. Remove `bitrev+XX(FP)` parameter loading from function prologue
+2. For identity permutations: no data section needed
+3. For non-identity permutations: add hardcoded `DATA` section with bit-reversal indices and load from it
 
-- [ ] For each AVX2 function, create new signature without bitrev:
-  - [ ] Size 4: `ForwardAVX2Size4Radix4Complex64` (already ignores bitrev)
-  - [ ] Size 8: All radix variants
-  - [ ] Size 16: All radix variants
-  - [ ] Size 32: All radix variants
-  - [ ] Size 64: All radix variants
-  - [ ] Size 128: All radix variants
-  - [ ] Size 256: All radix variants
-  - [ ] Size 512: All radix variants
-  - [ ] Size 1024: All radix variants
-  - [ ] Size 2048: All radix variants
-  - [ ] Size 4096: All radix variants
-  - [ ] Size 8192: All radix variants
-  - [ ] Size 16384: All radix variants
-  - [ ] Size 384 (mixed): Both complex64 and complex128
+#### 11.13.1 Phase 1: Small Complex64 Files (Size 4-32) ✅ PARTIAL
 
-#### 11.13.2 Update AVX2 Assembly Files
+Completed (4 assembly files + Go declarations + registrations + tests):
 
-For each assembly file, the changes are:
+- [x] `avx2_f32_size4_radix4.s`: Removed bitrev parameter (already unused)
+- [x] `avx2_f32_size8_radix2.s`: Internalized bitrev [0,4,2,6,1,5,3,7]
+- [x] `avx2_f32_size8_radix4.s`: Internalized bitrev [0,2,4,6,1,3,5,7]
+- [x] `avx2_f32_size8_radix8.s`: Removed bitrev (identity permutation)
+- [x] Updated Go declarations in [decl.go:123-144](internal/asm/amd64/decl.go#L123-L144)
+- [x] Updated codelet registrations in [codelet_init_avx2.go](internal/kernels/codelet_init_avx2.go)
+- [x] Updated test/benchmark wrappers in [avx2_kernels_test.go](internal/kernels/avx2_kernels_test.go), [avx2_bench_test.go](internal/kernels/avx2_bench_test.go)
+- [x] Tests passing for size-4 and size-8 variants
 
-1. Remove `bitrev+XX(FP)` parameter loading
-2. Add hardcoded permutation data section
-3. Load from data section instead of parameter
+Remaining:
 
-- [ ] `avx2_f32_size4_radix4.s`: Remove bitrev (already unused)
-- [ ] `avx2_f32_size8_radix2.s`: Internalize bitrev
-- [ ] `avx2_f32_size8_radix4.s`: Internalize bitrev
-- [ ] `avx2_f32_size8_radix8.s`: Remove bitrev (identity)
 - [ ] `avx2_f32_size16_radix4.s`: Internalize bitrev
 - [ ] `avx2_f32_size16_radix16.s`: Remove bitrev (identity)
 - [ ] `avx2_f32_size32_radix32.s`: Remove bitrev (identity)
+
+#### 11.13.2 Phase 2: Medium Complex64 Files (Size 64-256)
+
+Update 8 assembly files + Go declarations:
+
 - [ ] `avx2_f32_size64_radix4.s`: Internalize bitrev
 - [ ] `avx2_f32_size128_mixed24.s`: Internalize bitrev
 - [ ] `avx2_f32_size256_radix4.s`: Internalize bitrev
 - [ ] `avx2_f32_size256_radix16.s`: Remove bitrev (identity)
+
+#### 11.13.3 Phase 3: Large Complex64 Files (Size 512+)
+
+Update 8 assembly files + Go declarations:
+
 - [ ] `avx2_f32_size512_radix8.s`: Internalize bitrev
 - [ ] `avx2_f32_size512_mixed24.s`: Internalize bitrev
 - [ ] `avx2_f32_size512_radix16x32.s`: Internalize bitrev
@@ -220,22 +220,32 @@ For each assembly file, the changes are:
 - [ ] `avx2_f32_size16384_radix4.s`: Internalize bitrev
 - [ ] `avx2_f32_size384_mixed.s`: Internalize bitrev
 
-#### 11.13.3 Update AVX2 complex128 Assembly Files
+#### 11.13.4 Phase 4: Complex128 Files (Size 8-32)
 
-- [ ] `avx2_f64_size8_*.s`: All radix variants
-- [ ] `avx2_f64_size16_*.s`: All radix variants
-- [ ] `avx2_f64_size32_*.s`: All radix variants
-- [ ] `avx2_f64_size64_*.s`: All radix variants
-- [ ] `avx2_f64_size128_*.s`: All radix variants
-- [ ] `avx2_f64_size256_*.s`: All radix variants
-- [ ] `avx2_f64_size512_*.s`: All radix variants
+Update 4 assembly files + Go declarations:
+
+- [ ] `avx2_f64_size8_radix2.s`: Internalize bitrev
+- [ ] `avx2_f64_size8_radix4.s`: Internalize bitrev
+- [ ] `avx2_f64_size8_radix8.s`: Remove bitrev (identity)
+- [ ] `avx2_f64_size16_radix2.s`: Internalize bitrev
+- [ ] `avx2_f64_size16_radix4.s`: Internalize bitrev
+- [ ] `avx2_f64_size32_radix2.s`: Internalize bitrev
+
+#### 11.13.5 Phase 5: Complex128 Files (Size 64+)
+
+Update remaining assembly files + Go declarations:
+
+- [ ] `avx2_f64_size64_radix2.s`: Internalize bitrev
+- [ ] `avx2_f64_size128_radix2.s`: Internalize bitrev
+- [ ] `avx2_f64_size256_radix2.s`: Internalize bitrev
+- [ ] `avx2_f64_size512_radix2.s`: Internalize bitrev
+- [ ] `avx2_f64_size512_mixed24.s`: Internalize bitrev
 - [ ] `avx2_f64_size384_mixed.s`: Internalize bitrev
 
-#### 11.13.4 Update AVX2 Codelet Registration (`codelet_init_avx2.go`) ✅ COMPLETE
+#### 11.13.6 Phase 6: Codelet Registration Update (`codelet_init_avx2.go`) ✅ COMPLETE
 
-- [ ] Update all AVX2 codelet entries:
-  - [ ] Set appropriate `KernelType`
-  - [ ] Remove `BitrevFunc` field or set to nil
+- [ ] All AVX2 codelet entries already have correct `KernelType` set
+- [ ] All `BitrevFunc` fields already set to nil
 - [ ] Run AVX2-specific tests: `go test -v -tags=asm ./internal/kernels/...`
 
 ---
