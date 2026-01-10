@@ -20,10 +20,10 @@ func BenchmarkAVX2Forward(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := generateRandomComplex64(n, uint64(n))
 			dst := make([]complex64, n)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			// Verify kernel works
-			if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+			if !avx2Forward(dst, src, twiddle, scratch) {
 				b.Skip("AVX2 kernel not yet implemented")
 			}
 
@@ -31,7 +31,7 @@ func BenchmarkAVX2Forward(b *testing.B) {
 			b.SetBytes(int64(n * 8)) // complex64 = 8 bytes
 
 			for b.Loop() {
-				avx2Forward(dst, src, twiddle, scratch, bitrev)
+				avx2Forward(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -50,9 +50,9 @@ func BenchmarkAVX2Inverse(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := generateRandomComplex64(n, uint64(n))
 			dst := make([]complex64, n)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
-			if !avx2Inverse(dst, src, twiddle, scratch, bitrev) {
+			if !avx2Inverse(dst, src, twiddle, scratch) {
 				b.Skip("AVX2 kernel not yet implemented")
 			}
 
@@ -60,7 +60,7 @@ func BenchmarkAVX2Inverse(b *testing.B) {
 			b.SetBytes(int64(n * 8))
 
 			for b.Loop() {
-				avx2Inverse(dst, src, twiddle, scratch, bitrev)
+				avx2Inverse(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -77,10 +77,10 @@ func BenchmarkAVX2StockhamForward(b *testing.B) {
 	for _, n := range sizes {
 		b.Run(fmt.Sprintf("N=%d", n), func(b *testing.B) {
 			src := generateRandomComplex64(n, 0xDEAD0000+uint64(n))
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 			dst := make([]complex64, n)
 
-			if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+			if !avx2Forward(dst, src, twiddle, scratch) {
 				b.Skip("AVX2 Stockham forward not implemented")
 			}
 
@@ -89,7 +89,7 @@ func BenchmarkAVX2StockhamForward(b *testing.B) {
 			b.ResetTimer()
 
 			for range b.N {
-				avx2Forward(dst, src, twiddle, scratch, bitrev)
+				avx2Forward(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -106,10 +106,10 @@ func BenchmarkAVX2StockhamInverse(b *testing.B) {
 	for _, n := range sizes {
 		b.Run(fmt.Sprintf("N=%d", n), func(b *testing.B) {
 			src := generateRandomComplex64(n, 0xBEEF0000+uint64(n))
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 			dst := make([]complex64, n)
 
-			if !avx2Inverse(dst, src, twiddle, scratch, bitrev) {
+			if !avx2Inverse(dst, src, twiddle, scratch) {
 				b.Skip("AVX2 Stockham inverse not implemented")
 			}
 
@@ -118,7 +118,7 @@ func BenchmarkAVX2StockhamInverse(b *testing.B) {
 			b.ResetTimer()
 
 			for range b.N {
-				avx2Inverse(dst, src, twiddle, scratch, bitrev)
+				avx2Inverse(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -134,13 +134,13 @@ func BenchmarkPureGoForward(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := generateRandomComplex64(n, uint64(n))
 			dst := make([]complex64, n)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			b.ResetTimer()
 			b.SetBytes(int64(n * 8))
 
 			for b.Loop() {
-				goForward(dst, src, twiddle, scratch, bitrev)
+				goForward(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -156,13 +156,13 @@ func BenchmarkPureGoInverse(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := generateRandomComplex64(n, uint64(n))
 			dst := make([]complex64, n)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			b.ResetTimer()
 			b.SetBytes(int64(n * 8))
 
 			for b.Loop() {
-				goInverse(dst, src, twiddle, scratch, bitrev)
+				goInverse(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -179,19 +179,19 @@ func BenchmarkAVX2VsPureGo(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := generateRandomComplex64(n, uint64(n))
 			dst := make([]complex64, n)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			b.Run("PureGo", func(b *testing.B) {
 				b.SetBytes(int64(n * 8))
 
 				for b.Loop() {
-					goForward(dst, src, twiddle, scratch, bitrev)
+					goForward(dst, src, twiddle, scratch)
 				}
 			})
 
 			if avx2Available {
 				// Test if AVX2 is implemented
-				if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+				if !avx2Forward(dst, src, twiddle, scratch) {
 					b.Run("AVX2", func(b *testing.B) {
 						b.Skip("AVX2 kernel not yet implemented")
 					})
@@ -203,7 +203,7 @@ func BenchmarkAVX2VsPureGo(b *testing.B) {
 					b.SetBytes(int64(n * 8))
 
 					for b.Loop() {
-						avx2Forward(dst, src, twiddle, scratch, bitrev)
+						avx2Forward(dst, src, twiddle, scratch)
 					}
 				})
 			}
@@ -224,11 +224,9 @@ func BenchmarkAVX2Forward128(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := make([]complex128, n)
 			dst := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := ComputeBitReversalIndices(n)
-			scratch := make([]complex128, n)
+			twiddle, scratch := prepareFFTData[complex128](n)
 
-			if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+			if !avx2Forward(dst, src, twiddle, scratch) {
 				b.Skip("AVX2 complex128 not implemented")
 			}
 
@@ -236,7 +234,7 @@ func BenchmarkAVX2Forward128(b *testing.B) {
 			b.SetBytes(int64(n * 16))
 
 			for range b.N {
-				avx2Forward(dst, src, twiddle, scratch, bitrev)
+				avx2Forward(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -255,11 +253,9 @@ func BenchmarkAVX2Inverse128(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := make([]complex128, n)
 			dst := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := ComputeBitReversalIndices(n)
-			scratch := make([]complex128, n)
+			twiddle, scratch := prepareFFTData[complex128](n)
 
-			if !avx2Inverse(dst, src, twiddle, scratch, bitrev) {
+			if !avx2Inverse(dst, src, twiddle, scratch) {
 				b.Skip("AVX2 complex128 not implemented")
 			}
 
@@ -267,7 +263,7 @@ func BenchmarkAVX2Inverse128(b *testing.B) {
 			b.SetBytes(int64(n * 16))
 
 			for range b.N {
-				avx2Inverse(dst, src, twiddle, scratch, bitrev)
+				avx2Inverse(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -289,11 +285,11 @@ func BenchmarkAVX2Size16_VsGeneric(b *testing.B) {
 		src[i] = complex(float32(i)/float32(n), float32(i%4)/4)
 	}
 
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 	dst := make([]complex64, n)
 
 	b.Run("AVX2", func(b *testing.B) {
-		if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+		if !avx2Forward(dst, src, twiddle, scratch) {
 			b.Skip("AVX2 kernel not implemented")
 		}
 
@@ -301,12 +297,12 @@ func BenchmarkAVX2Size16_VsGeneric(b *testing.B) {
 		b.SetBytes(int64(n * 8))
 
 		for range b.N {
-			avx2Forward(dst, src, twiddle, scratch, bitrev)
+			avx2Forward(dst, src, twiddle, scratch)
 		}
 	})
 
 	b.Run("PureGo", func(b *testing.B) {
-		if !goForward(dst, src, twiddle, scratch, bitrev) {
+		if !goForward(dst, src, twiddle, scratch) {
 			b.Skip("Pure Go kernel failed")
 		}
 
@@ -314,7 +310,7 @@ func BenchmarkAVX2Size16_VsGeneric(b *testing.B) {
 		b.SetBytes(int64(n * 8))
 
 		for range b.N {
-			goForward(dst, src, twiddle, scratch, bitrev)
+			goForward(dst, src, twiddle, scratch)
 		}
 	})
 }
@@ -335,11 +331,11 @@ func BenchmarkAVX2Size32_VsGeneric(b *testing.B) {
 		src[i] = complex(float32(i)/float32(n), float32(i%4)/4)
 	}
 
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 	dst := make([]complex64, n)
 
 	b.Run("AVX2", func(b *testing.B) {
-		if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+		if !avx2Forward(dst, src, twiddle, scratch) {
 			b.Skip("AVX2 kernel not implemented")
 		}
 
@@ -347,12 +343,12 @@ func BenchmarkAVX2Size32_VsGeneric(b *testing.B) {
 		b.SetBytes(int64(n * 8))
 
 		for range b.N {
-			avx2Forward(dst, src, twiddle, scratch, bitrev)
+			avx2Forward(dst, src, twiddle, scratch)
 		}
 	})
 
 	b.Run("PureGo", func(b *testing.B) {
-		if !goForward(dst, src, twiddle, scratch, bitrev) {
+		if !goForward(dst, src, twiddle, scratch) {
 			b.Skip("Pure Go kernel failed")
 		}
 
@@ -360,7 +356,7 @@ func BenchmarkAVX2Size32_VsGeneric(b *testing.B) {
 		b.SetBytes(int64(n * 8))
 
 		for range b.N {
-			goForward(dst, src, twiddle, scratch, bitrev)
+			goForward(dst, src, twiddle, scratch)
 		}
 	})
 }
@@ -381,11 +377,11 @@ func BenchmarkAVX2Size64_VsGeneric(b *testing.B) {
 		src[i] = complex(float32(i)/float32(n), float32(i%4)/4)
 	}
 
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 	dst := make([]complex64, n)
 
 	b.Run("AVX2", func(b *testing.B) {
-		if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+		if !avx2Forward(dst, src, twiddle, scratch) {
 			b.Skip("AVX2 kernel not implemented")
 		}
 
@@ -393,12 +389,12 @@ func BenchmarkAVX2Size64_VsGeneric(b *testing.B) {
 		b.SetBytes(int64(n * 8))
 
 		for range b.N {
-			avx2Forward(dst, src, twiddle, scratch, bitrev)
+			avx2Forward(dst, src, twiddle, scratch)
 		}
 	})
 
 	b.Run("PureGo", func(b *testing.B) {
-		if !goForward(dst, src, twiddle, scratch, bitrev) {
+		if !goForward(dst, src, twiddle, scratch) {
 			b.Skip("Pure Go kernel failed")
 		}
 
@@ -406,7 +402,7 @@ func BenchmarkAVX2Size64_VsGeneric(b *testing.B) {
 		b.SetBytes(int64(n * 8))
 
 		for range b.N {
-			goForward(dst, src, twiddle, scratch, bitrev)
+			goForward(dst, src, twiddle, scratch)
 		}
 	})
 }

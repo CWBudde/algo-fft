@@ -3,7 +3,6 @@ package kernels
 import (
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -25,9 +24,8 @@ func TestDITForwardComplex64(t *testing.T) {
 			dst := make([]complex64, n)
 			scratch := make([]complex64, n)
 			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-			if !ditForward(dst, src, twiddle, scratch, bitrev) {
+			if !ditForward(dst, src, twiddle, scratch) {
 				t.Fatalf("ditForward failed for n=%d", n)
 			}
 
@@ -51,13 +49,12 @@ func TestDITInverseComplex64(t *testing.T) {
 			dst := make([]complex64, n)
 			scratch := make([]complex64, n)
 			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-			if !ditForward(fwd, src, twiddle, scratch, bitrev) {
+			if !ditForward(fwd, src, twiddle, scratch) {
 				t.Fatalf("ditForward failed for n=%d", n)
 			}
 
-			if !ditInverse(dst, fwd, twiddle, scratch, bitrev) {
+			if !ditInverse(dst, fwd, twiddle, scratch) {
 				t.Fatalf("ditInverse failed for n=%d", n)
 			}
 
@@ -80,9 +77,8 @@ func TestDITForwardComplex128(t *testing.T) {
 			dst := make([]complex128, n)
 			scratch := make([]complex128, n)
 			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-			if !ditForward(dst, src, twiddle, scratch, bitrev) {
+			if !ditForward(dst, src, twiddle, scratch) {
 				t.Fatalf("ditForward failed for n=%d", n)
 			}
 
@@ -106,13 +102,12 @@ func TestDITInverseComplex128(t *testing.T) {
 			dst := make([]complex128, n)
 			scratch := make([]complex128, n)
 			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := mathpkg.ComputeBitReversalIndices(n)
 
-			if !ditForward(fwd, src, twiddle, scratch, bitrev) {
+			if !ditForward(fwd, src, twiddle, scratch) {
 				t.Fatalf("ditForward failed for n=%d", n)
 			}
 
-			if !ditInverse(dst, fwd, twiddle, scratch, bitrev) {
+			if !ditInverse(dst, fwd, twiddle, scratch) {
 				t.Fatalf("ditInverse failed for n=%d", n)
 			}
 

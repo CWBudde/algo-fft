@@ -1,5 +1,7 @@
 package kernels
 
+import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+
 func forwardStockhamComplex64(dst, src, twiddle, scratch []complex64) bool {
 	return stockhamForward[complex64](dst, src, twiddle, scratch)
 }
@@ -29,6 +31,10 @@ func stockhamForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	if n == 1 {
 		dst[0] = src[0]
 		return true
+	}
+
+	if !mathpkg.IsPowerOf2(n) {
+		return false
 	}
 
 	in := src
@@ -107,6 +113,10 @@ func stockhamInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 	if n == 1 {
 		dst[0] = src[0]
 		return true
+	}
+
+	if !mathpkg.IsPowerOf2(n) {
+		return false
 	}
 
 	in := src
@@ -190,6 +200,10 @@ func stockhamInverseComplex64(dst, src, twiddle, scratch []complex64) bool {
 	if n == 1 {
 		dst[0] = src[0]
 		return true
+	}
+
+	if !mathpkg.IsPowerOf2(n) {
+		return false
 	}
 
 	in := src
@@ -276,6 +290,10 @@ func stockhamInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
 		return true
 	}
 
+	if !mathpkg.IsPowerOf2(n) {
+		return false
+	}
+
 	in := src
 	out := dst
 	same := sameSlice(dst, src)
@@ -344,3 +362,29 @@ func stockhamInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
 
 	return true
 }
+
+// StockhamForward wraps the generic stockhamForward.
+func StockhamForward[T Complex](dst, src, twiddle, scratch []T) bool {
+	return stockhamForward(dst, src, twiddle, scratch)
+}
+
+// StockhamInverse wraps stockhamInverseComplex64/128.
+func StockhamInverse[T Complex](dst, src, twiddle, scratch []T) bool {
+	var zero T
+	switch any(zero).(type) {
+	case complex64:
+		return stockhamInverseComplex64(any(dst).([]complex64), any(src).([]complex64), any(twiddle).([]complex64), any(scratch).([]complex64))
+	case complex128:
+		return stockhamInverseComplex128(any(dst).([]complex128), any(src).([]complex128), any(twiddle).([]complex128), any(scratch).([]complex128))
+	default:
+		return false
+	}
+}
+
+// Precision-specific exports.
+var (
+	ForwardStockhamComplex64  = forwardStockhamComplex64
+	InverseStockhamComplex64  = inverseStockhamComplex64
+	ForwardStockhamComplex128 = forwardStockhamComplex128
+	InverseStockhamComplex128 = inverseStockhamComplex128
+)

@@ -41,16 +41,16 @@ func TestSSE2Forward_VsPureGo(t *testing.T) {
 			t.Parallel()
 
 			src := generateRandomComplex64(n, uint64(n))
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			dstGo := make([]complex64, n)
-			if !goForward(dstGo, src, twiddle, scratch, bitrev) {
+			if !goForward(dstGo, src, twiddle, scratch) {
 				t.Fatal("pure-Go forward kernel failed")
 			}
 
 			dstSSE2 := make([]complex64, n)
 			scratchSSE2 := make([]complex64, n)
-			if !sse2Forward(dstSSE2, src, twiddle, scratchSSE2, bitrev) {
+			if !sse2Forward(dstSSE2, src, twiddle, scratchSSE2) {
 				t.Fatal("SSE2 forward kernel failed")
 			}
 
@@ -79,16 +79,16 @@ func TestSSE2Inverse_VsPureGo(t *testing.T) {
 			t.Parallel()
 
 			src := generateRandomComplex64(n, uint64(n))
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			dstGo := make([]complex64, n)
-			if !goInverse(dstGo, src, twiddle, scratch, bitrev) {
+			if !goInverse(dstGo, src, twiddle, scratch) {
 				t.Fatal("pure-Go inverse kernel failed")
 			}
 
 			dstSSE2 := make([]complex64, n)
 			scratchSSE2 := make([]complex64, n)
-			if !sse2Inverse(dstSSE2, src, twiddle, scratchSSE2, bitrev) {
+			if !sse2Inverse(dstSSE2, src, twiddle, scratchSSE2) {
 				t.Fatal("SSE2 inverse kernel failed")
 			}
 

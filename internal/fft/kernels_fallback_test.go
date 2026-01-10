@@ -20,24 +20,23 @@ func TestFallbackKernel(t *testing.T) {
 	}
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
 	output := make([]complex64, n)
 
 	// Create a primary kernel that always fails
-	failingPrimary := func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	failingPrimary := func(dst, src, twiddle, scratch []complex64) bool {
 		return false
 	}
 
 	// Create a fallback kernel that works
-	workingFallback := func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-		return forwardDITComplex64(dst, src, twiddle, scratch, bitrev)
+	workingFallback := func(dst, src, twiddle, scratch []complex64) bool {
+		return forwardDITComplex64(dst, src, twiddle, scratch)
 	}
 
 	// Test fallback kernel
 	kernel := fallbackKernel(failingPrimary, workingFallback)
 
-	ok := kernel(output, input, twiddle, scratch, bitrev)
+	ok := kernel(output, input, twiddle, scratch)
 	if !ok {
 		t.Fatal("fallbackKernel should have used fallback when primary fails")
 	}
@@ -60,18 +59,17 @@ func TestFallbackKernel_NilPrimary(t *testing.T) {
 	}
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
 	output := make([]complex64, n)
 
-	workingFallback := func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-		return forwardDITComplex64(dst, src, twiddle, scratch, bitrev)
+	workingFallback := func(dst, src, twiddle, scratch []complex64) bool {
+		return forwardDITComplex64(dst, src, twiddle, scratch)
 	}
 
 	// Nil primary should return fallback directly
 	kernel := fallbackKernel[complex64](nil, workingFallback)
 
-	ok := kernel(output, input, twiddle, scratch, bitrev)
+	ok := kernel(output, input, twiddle, scratch)
 	if !ok {
 		t.Fatal("fallbackKernel should use fallback when primary is nil")
 	}
@@ -106,20 +104,19 @@ func TestAutoKernelComplex64_PowerOf2(t *testing.T) {
 			}
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tt.size)
-			bitrev := mathpkg.ComputeBitReversalIndices(tt.size)
 			scratch := make([]complex64, tt.size)
 			output := make([]complex64, tt.size)
 
 			kernels := autoKernelComplex64(tt.strategy)
 
 			// Test forward
-			ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+			ok := kernels.Forward(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("autoKernel forward failed for size %d with strategy %v", tt.size, tt.strategy)
 			}
 
 			// Test inverse
-			ok = kernels.Inverse(output, output, twiddle, scratch, bitrev)
+			ok = kernels.Inverse(output, output, twiddle, scratch)
 			if !ok {
 				t.Fatalf("autoKernel inverse failed for size %d with strategy %v", tt.size, tt.strategy)
 			}
@@ -144,20 +141,19 @@ func TestAutoKernelComplex64_MixedRadix(t *testing.T) {
 			}
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex64](size)
-			bitrev := mathpkg.ComputeBitReversalIndices(size)
 			scratch := make([]complex64, size*2)
 			output := make([]complex64, size)
 
 			kernels := autoKernelComplex64(planner.KernelAuto)
 
 			// Test forward
-			ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+			ok := kernels.Forward(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("autoKernel forward failed for mixed-radix size %d", size)
 			}
 
 			// Test inverse
-			ok = kernels.Inverse(output, output, twiddle, scratch, bitrev)
+			ok = kernels.Inverse(output, output, twiddle, scratch)
 			if !ok {
 				t.Fatalf("autoKernel inverse failed for mixed-radix size %d", size)
 			}
@@ -182,19 +178,18 @@ func TestAutoKernelComplex64_NonComposite(t *testing.T) {
 			}
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex64](size)
-			bitrev := mathpkg.ComputeBitReversalIndices(size)
 			scratch := make([]complex64, size*2)
 			output := make([]complex64, size)
 
 			kernels := autoKernelComplex64(planner.KernelAuto)
 
 			// Should fail for non-composite, non-power-of-2 sizes
-			ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+			ok := kernels.Forward(output, input, twiddle, scratch)
 			if ok {
 				t.Errorf("autoKernel should fail for non-composite size %d, but succeeded", size)
 			}
 
-			ok = kernels.Inverse(output, input, twiddle, scratch, bitrev)
+			ok = kernels.Inverse(output, input, twiddle, scratch)
 			if ok {
 				t.Errorf("autoKernel inverse should fail for non-composite size %d, but succeeded", size)
 			}
@@ -228,20 +223,19 @@ func TestAutoKernelComplex128(t *testing.T) {
 			}
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex128](tt.size)
-			bitrev := mathpkg.ComputeBitReversalIndices(tt.size)
 			scratch := make([]complex128, tt.size*2)
 			output := make([]complex128, tt.size)
 
 			kernels := autoKernelComplex128(tt.strategy)
 
 			// Test forward
-			ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+			ok := kernels.Forward(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("autoKernelComplex128 forward failed for size %d with strategy %v", tt.size, tt.strategy)
 			}
 
 			// Test inverse
-			ok = kernels.Inverse(output, output, twiddle, scratch, bitrev)
+			ok = kernels.Inverse(output, output, twiddle, scratch)
 			if !ok {
 				t.Fatalf("autoKernelComplex128 inverse failed for size %d with strategy %v", tt.size, tt.strategy)
 			}
@@ -261,19 +255,18 @@ func TestAutoKernelComplex128_NonComposite(t *testing.T) {
 	}
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex128](size)
-	bitrev := mathpkg.ComputeBitReversalIndices(size)
 	scratch := make([]complex128, size*2)
 	output := make([]complex128, size)
 
 	kernels := autoKernelComplex128(planner.KernelAuto)
 
 	// Should fail for prime size
-	ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+	ok := kernels.Forward(output, input, twiddle, scratch)
 	if ok {
 		t.Error("autoKernelComplex128 should fail for prime size 7, but succeeded")
 	}
 
-	ok = kernels.Inverse(output, input, twiddle, scratch, bitrev)
+	ok = kernels.Inverse(output, input, twiddle, scratch)
 	if ok {
 		t.Error("autoKernelComplex128 inverse should fail for prime size 7, but succeeded")
 	}
@@ -310,13 +303,12 @@ func TestAutoKernel_StrategySelection(t *testing.T) {
 			}
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tt.size)
-			bitrev := mathpkg.ComputeBitReversalIndices(tt.size)
 			scratch := make([]complex64, tt.size)
 			output := make([]complex64, tt.size)
 
 			kernels := autoKernelComplex64(tt.strategy)
 
-			ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+			ok := kernels.Forward(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("Forward failed for size %d with strategy %v", tt.size, tt.strategy)
 			}

@@ -7,32 +7,32 @@ import (
 )
 
 // ForwardSixStepComplex64 performs a forward six-step FFT on complex64 data.
-func ForwardSixStepComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return sixStepForward[complex64](dst, src, twiddle, scratch, bitrev)
+func ForwardSixStepComplex64(dst, src, twiddle, scratch []complex64) bool {
+	return sixStepForward[complex64](dst, src, twiddle, scratch)
 }
 
 // InverseSixStepComplex64 performs an inverse six-step FFT on complex64 data.
-func InverseSixStepComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return sixStepInverse[complex64](dst, src, twiddle, scratch, bitrev)
+func InverseSixStepComplex64(dst, src, twiddle, scratch []complex64) bool {
+	return sixStepInverse[complex64](dst, src, twiddle, scratch)
 }
 
 // ForwardSixStepComplex128 performs a forward six-step FFT on complex128 data.
-func ForwardSixStepComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return sixStepForward[complex128](dst, src, twiddle, scratch, bitrev)
+func ForwardSixStepComplex128(dst, src, twiddle, scratch []complex128) bool {
+	return sixStepForward[complex128](dst, src, twiddle, scratch)
 }
 
 // InverseSixStepComplex128 performs an inverse six-step FFT on complex128 data.
-func InverseSixStepComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return sixStepInverse[complex128](dst, src, twiddle, scratch, bitrev)
+func InverseSixStepComplex128(dst, src, twiddle, scratch []complex128) bool {
+	return sixStepInverse[complex128](dst, src, twiddle, scratch)
 }
 
-func sixStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+func sixStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	n := len(src)
 	if n == 0 {
 		return true
 	}
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -65,7 +65,7 @@ func sixStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 
 	for r := range m {
 		row := data[r*m : (r+1)*m]
-		if !stockhamForward(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
+		if !stockhamForward(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -80,7 +80,7 @@ func sixStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 
 	for r := range m {
 		row := data[r*m : (r+1)*m]
-		if !stockhamForward(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
+		if !stockhamForward(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -90,13 +90,13 @@ func sixStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 	return true
 }
 
-func sixStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+func sixStepInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 	n := len(src)
 	if n == 0 {
 		return true
 	}
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -129,7 +129,7 @@ func sixStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 
 	for r := range m {
 		row := data[r*m : (r+1)*m]
-		if !stockhamInverse(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
+		if !stockhamInverse(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
@@ -144,7 +144,7 @@ func sixStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) boo
 
 	for r := range m {
 		row := data[r*m : (r+1)*m]
-		if !stockhamInverse(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
+		if !stockhamInverse(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}

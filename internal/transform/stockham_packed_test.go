@@ -143,13 +143,12 @@ func TestStockhamPackedMatchesStockhamComplex64(t *testing.T) {
 		dstGo := make([]complex64, n)
 		scratch := make([]complex64, n)
 		scratchGo := make([]complex64, n)
-		bitrev := make([]int, n)
 
 		if !ForwardStockhamPacked(dstPacked, src, twiddle, scratch, packed) {
 			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
 		}
 
-		if !forwardStockhamComplex64(dstGo, src, twiddle, scratchGo, bitrev) {
+		if !forwardStockhamComplex64(dstGo, src, twiddle, scratchGo) {
 			t.Fatalf("forwardStockhamComplex64(%d) returned false", n)
 		}
 
@@ -178,13 +177,12 @@ func TestStockhamPackedMatchesStockhamComplex128(t *testing.T) {
 		dstGo := make([]complex128, n)
 		scratch := make([]complex128, n)
 		scratchGo := make([]complex128, n)
-		bitrev := make([]int, n)
 
 		if !ForwardStockhamPacked(dstPacked, src, twiddle, scratch, packed) {
 			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
 		}
 
-		if !forwardStockhamComplex128(dstGo, src, twiddle, scratchGo, bitrev) {
+		if !forwardStockhamComplex128(dstGo, src, twiddle, scratchGo) {
 			t.Fatalf("forwardStockhamComplex128(%d) returned false", n)
 		}
 

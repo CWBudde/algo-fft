@@ -32,17 +32,16 @@ func TestSelectKernelsComplex64_SSE2Only(t *testing.T) {
 	}
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
 	output := make([]complex64, n)
 
-	ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+	ok := kernels.Forward(output, input, twiddle, scratch)
 	if !ok {
 		t.Fatal("SSE2 forward kernel failed")
 	}
 
 	// Test inverse
-	ok = kernels.Inverse(output, output, twiddle, scratch, bitrev)
+	ok = kernels.Inverse(output, output, twiddle, scratch)
 	if !ok {
 		t.Fatal("SSE2 inverse kernel failed")
 	}
@@ -67,16 +66,15 @@ func TestSelectKernelsComplex128_SSE2Only(t *testing.T) {
 	}
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	scratch := make([]complex128, n)
 	output := make([]complex128, n)
 
-	ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+	ok := kernels.Forward(output, input, twiddle, scratch)
 	if !ok {
 		t.Fatal("SSE2 complex128 forward kernel failed")
 	}
 
-	ok = kernels.Inverse(output, output, twiddle, scratch, bitrev)
+	ok = kernels.Inverse(output, output, twiddle, scratch)
 	if !ok {
 		t.Fatal("SSE2 complex128 inverse kernel failed")
 	}
@@ -112,16 +110,15 @@ func TestSelectKernelsWithStrategy_SSE2(t *testing.T) {
 			}
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-			bitrev := mathpkg.ComputeBitReversalIndices(n)
 			scratch := make([]complex64, n)
 			output := make([]complex64, n)
 
-			ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+			ok := kernels.Forward(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("SSE2 forward failed with strategy %v", tt.strategy)
 			}
 
-			ok = kernels.Inverse(output, output, twiddle, scratch, bitrev)
+			ok = kernels.Inverse(output, output, twiddle, scratch)
 			if !ok {
 				t.Fatalf("SSE2 inverse failed with strategy %v", tt.strategy)
 			}
@@ -152,11 +149,10 @@ func TestForwardSSE2Complex64(t *testing.T) {
 			}
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tt.size)
-			bitrev := mathpkg.ComputeBitReversalIndices(tt.size)
 			scratch := make([]complex64, tt.size)
 			output := make([]complex64, tt.size)
 
-			ok := forwardSSE2Complex64(output, input, twiddle, scratch, bitrev)
+			ok := forwardSSE2Complex64(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("forwardSSE2Complex64 failed for size %d", tt.size)
 			}
@@ -189,11 +185,10 @@ func TestInverseSSE2Complex64(t *testing.T) {
 			freq[0] = complex(float32(tt.size), 0)
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tt.size)
-			bitrev := mathpkg.ComputeBitReversalIndices(tt.size)
 			scratch := make([]complex64, tt.size)
 			output := make([]complex64, tt.size)
 
-			ok := inverseSSE2Complex64(output, freq, twiddle, scratch, bitrev)
+			ok := inverseSSE2Complex64(output, freq, twiddle, scratch)
 			if !ok {
 				t.Fatalf("inverseSSE2Complex64 failed for size %d", tt.size)
 			}
@@ -222,11 +217,10 @@ func TestForwardSSE2Complex128(t *testing.T) {
 			}
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex128](size)
-			bitrev := mathpkg.ComputeBitReversalIndices(size)
 			scratch := make([]complex128, size)
 			output := make([]complex128, size)
 
-			ok := forwardSSE2Complex128(output, input, twiddle, scratch, bitrev)
+			ok := forwardSSE2Complex128(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("forwardSSE2Complex128 failed for size %d", size)
 			}
@@ -248,11 +242,10 @@ func TestInverseSSE2Complex128(t *testing.T) {
 			freq[0] = complex(float64(size), 0)
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex128](size)
-			bitrev := mathpkg.ComputeBitReversalIndices(size)
 			scratch := make([]complex128, size)
 			output := make([]complex128, size)
 
-			ok := inverseSSE2Complex128(output, freq, twiddle, scratch, bitrev)
+			ok := inverseSSE2Complex128(output, freq, twiddle, scratch)
 			if !ok {
 				t.Fatalf("inverseSSE2Complex128 failed for size %d", size)
 			}
@@ -268,16 +261,15 @@ func TestSSE2Kernels_NonPowerOf2(t *testing.T) {
 
 	input := make([]complex64, size)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](size)
-	bitrev := mathpkg.ComputeBitReversalIndices(size)
 	scratch := make([]complex64, size)
 	output := make([]complex64, size)
 
 	// All SSE2 kernels should reject non-power-of-2
-	if ok := forwardSSE2Complex64(output, input, twiddle, scratch, bitrev); ok {
+	if ok := forwardSSE2Complex64(output, input, twiddle, scratch); ok {
 		t.Error("forwardSSE2Complex64 should reject non-power-of-2 size")
 	}
 
-	if ok := inverseSSE2Complex64(output, input, twiddle, scratch, bitrev); ok {
+	if ok := inverseSSE2Complex64(output, input, twiddle, scratch); ok {
 		t.Error("inverseSSE2Complex64 should reject non-power-of-2 size")
 	}
 
@@ -286,11 +278,11 @@ func TestSSE2Kernels_NonPowerOf2(t *testing.T) {
 	twiddle128 := mathpkg.ComputeTwiddleFactors[complex128](size)
 	scratch128 := make([]complex128, size)
 
-	if ok := forwardSSE2Complex128(output128, input128, twiddle128, scratch128, bitrev); ok {
+	if ok := forwardSSE2Complex128(output128, input128, twiddle128, scratch128); ok {
 		t.Error("forwardSSE2Complex128 should reject non-power-of-2 size")
 	}
 
-	if ok := inverseSSE2Complex128(output128, input128, twiddle128, scratch128, bitrev); ok {
+	if ok := inverseSSE2Complex128(output128, input128, twiddle128, scratch128); ok {
 		t.Error("inverseSSE2Complex128 should reject non-power-of-2 size")
 	}
 }
@@ -303,24 +295,23 @@ func TestAVX2Kernels_NonPowerOf2(t *testing.T) {
 
 	input := make([]complex64, size)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](size)
-	bitrev := mathpkg.ComputeBitReversalIndices(size)
 	scratch := make([]complex64, size)
 	output := make([]complex64, size)
 
 	// AVX2 kernels should also reject non-power-of-2
-	if ok := forwardAVX2Complex64(output, input, twiddle, scratch, bitrev); ok {
+	if ok := forwardAVX2Complex64(output, input, twiddle, scratch); ok {
 		t.Error("forwardAVX2Complex64 should reject non-power-of-2 size")
 	}
 
-	if ok := inverseAVX2Complex64(output, input, twiddle, scratch, bitrev); ok {
+	if ok := inverseAVX2Complex64(output, input, twiddle, scratch); ok {
 		t.Error("inverseAVX2Complex64 should reject non-power-of-2 size")
 	}
 
-	if ok := forwardAVX2StockhamComplex64(output, input, twiddle, scratch, bitrev); ok {
+	if ok := forwardAVX2StockhamComplex64(output, input, twiddle, scratch); ok {
 		t.Error("forwardAVX2StockhamComplex64 should reject non-power-of-2 size")
 	}
 
-	if ok := inverseAVX2StockhamComplex64(output, input, twiddle, scratch, bitrev); ok {
+	if ok := inverseAVX2StockhamComplex64(output, input, twiddle, scratch); ok {
 		t.Error("inverseAVX2StockhamComplex64 should reject non-power-of-2 size")
 	}
 
@@ -330,19 +321,19 @@ func TestAVX2Kernels_NonPowerOf2(t *testing.T) {
 	twiddle128 := mathpkg.ComputeTwiddleFactors[complex128](size)
 	scratch128 := make([]complex128, size)
 
-	if ok := forwardAVX2Complex128(output128, input128, twiddle128, scratch128, bitrev); ok {
+	if ok := forwardAVX2Complex128(output128, input128, twiddle128, scratch128); ok {
 		t.Error("forwardAVX2Complex128 should reject non-power-of-2 size")
 	}
 
-	if ok := inverseAVX2Complex128(output128, input128, twiddle128, scratch128, bitrev); ok {
+	if ok := inverseAVX2Complex128(output128, input128, twiddle128, scratch128); ok {
 		t.Error("inverseAVX2Complex128 should reject non-power-of-2 size")
 	}
 
-	if ok := forwardAVX2StockhamComplex128(output128, input128, twiddle128, scratch128, bitrev); ok {
+	if ok := forwardAVX2StockhamComplex128(output128, input128, twiddle128, scratch128); ok {
 		t.Error("forwardAVX2StockhamComplex128 should reject non-power-of-2 size")
 	}
 
-	if ok := inverseAVX2StockhamComplex128(output128, input128, twiddle128, scratch128, bitrev); ok {
+	if ok := inverseAVX2StockhamComplex128(output128, input128, twiddle128, scratch128); ok {
 		t.Error("inverseAVX2StockhamComplex128 should reject non-power-of-2 size")
 	}
 }
@@ -374,16 +365,15 @@ func TestSelectKernelsComplex128WithStrategy_SSE2(t *testing.T) {
 			}
 
 			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
-			bitrev := mathpkg.ComputeBitReversalIndices(n)
 			scratch := make([]complex128, n)
 			output := make([]complex128, n)
 
-			ok := kernels.Forward(output, input, twiddle, scratch, bitrev)
+			ok := kernels.Forward(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("Forward failed with strategy %v", strategy)
 			}
 
-			ok = kernels.Inverse(output, output, twiddle, scratch, bitrev)
+			ok = kernels.Inverse(output, output, twiddle, scratch)
 			if !ok {
 				t.Fatalf("Inverse failed with strategy %v", strategy)
 			}

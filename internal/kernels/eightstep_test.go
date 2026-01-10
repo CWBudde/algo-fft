@@ -3,7 +3,7 @@ package kernels
 import (
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
 func TestEightStepForwardInverse(t *testing.T) {
@@ -17,22 +17,26 @@ func TestEightStepForwardInverse(t *testing.T) {
 	}
 
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
+	scratch := make([]complex64, n + intSqrt(n)*2)
 
 	dst := make([]complex64, n)
-	if !ForwardEightStepComplex64(dst, src, twiddle, scratch, bitrev) {
+	if !ForwardEightStepComplex64(dst, src, twiddle, scratch) {
 		t.Fatalf("ForwardEightStepComplex64 returned false")
 	}
 
+	want := reference.NaiveDFT(src)
+	assertComplex64Close(t, dst, want, 1e-4)
+
 	roundTrip := make([]complex64, n)
-	if !InverseEightStepComplex64(roundTrip, dst, twiddle, scratch, bitrev) {
+	if !InverseEightStepComplex64(roundTrip, dst, twiddle, scratch) {
 		t.Fatalf("InverseEightStepComplex64 returned false")
 	}
 
-	for i := range src {
-		if absDiffComplex64(roundTrip[i], src[i]) > 1e-4 {
-			t.Fatalf("roundTrip[%d] = %v, want %v", i, roundTrip[i], src[i])
-		}
-	}
+	// Verify round trip
+	// Note: Inverse does not scale, so we expect N * srcOriginal if we didn't scale manually.
+	// But `eightStepInverse` logic (in `eightstep.go`) does NOT scale?
+	// `eightStepInverse` calls `stockhamInverse`. `stockhamInverse` DOES scale.
+	// So `roundTrip` should be equal to `src`.
+	
+	assertComplex64Close(t, roundTrip, src, 1e-4)
 }

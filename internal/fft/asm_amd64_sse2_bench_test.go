@@ -17,9 +17,9 @@ func BenchmarkSSE2Forward(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := generateRandomComplex64(n, uint64(n))
 			dst := make([]complex64, n)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
-			if !sse2Forward(dst, src, twiddle, scratch, bitrev) {
+			if !sse2Forward(dst, src, twiddle, scratch) {
 				b.Skip("SSE2 kernel failed")
 			}
 
@@ -28,7 +28,7 @@ func BenchmarkSSE2Forward(b *testing.B) {
 			b.ResetTimer()
 
 			for b.Loop() {
-				sse2Forward(dst, src, twiddle, scratch, bitrev)
+				sse2Forward(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -47,9 +47,9 @@ func BenchmarkSSE2Inverse(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := generateRandomComplex64(n, uint64(n))
 			dst := make([]complex64, n)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
-			if !sse2Inverse(dst, src, twiddle, scratch, bitrev) {
+			if !sse2Inverse(dst, src, twiddle, scratch) {
 				b.Skip("SSE2 kernel failed")
 			}
 
@@ -58,7 +58,7 @@ func BenchmarkSSE2Inverse(b *testing.B) {
 			b.ResetTimer()
 
 			for b.Loop() {
-				sse2Inverse(dst, src, twiddle, scratch, bitrev)
+				sse2Inverse(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -79,18 +79,18 @@ func BenchmarkSSE2VsPureGo(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := generateRandomComplex64(n, uint64(n))
 			dst := make([]complex64, n)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			b.Run("PureGo", func(b *testing.B) {
 				b.ReportAllocs()
 				b.SetBytes(int64(n * 8))
 
 				for b.Loop() {
-					goForward(dst, src, twiddle, scratch, bitrev)
+					goForward(dst, src, twiddle, scratch)
 				}
 			})
 
-			if !sse2Forward(dst, src, twiddle, scratch, bitrev) {
+			if !sse2Forward(dst, src, twiddle, scratch) {
 				b.Run("SSE2", func(b *testing.B) {
 					b.Skip("SSE2 kernel failed")
 				})
@@ -103,7 +103,7 @@ func BenchmarkSSE2VsPureGo(b *testing.B) {
 				b.SetBytes(int64(n * 8))
 
 				for b.Loop() {
-					sse2Forward(dst, src, twiddle, scratch, bitrev)
+					sse2Forward(dst, src, twiddle, scratch)
 				}
 			})
 		})
@@ -123,9 +123,9 @@ func BenchmarkSSE2Sizes(b *testing.B) {
 		b.Run(sizeString(n), func(b *testing.B) {
 			src := generateRandomComplex64(n, uint64(n))
 			dst := make([]complex64, n)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
-			if !sse2Forward(dst, src, twiddle, scratch, bitrev) {
+			if !sse2Forward(dst, src, twiddle, scratch) {
 				b.Fatal("SSE2 kernel failed")
 			}
 
@@ -134,7 +134,7 @@ func BenchmarkSSE2Sizes(b *testing.B) {
 			b.ResetTimer()
 
 			for b.Loop() {
-				sse2Forward(dst, src, twiddle, scratch, bitrev)
+				sse2Forward(dst, src, twiddle, scratch)
 			}
 		})
 	}
@@ -145,7 +145,7 @@ func BenchmarkSSE2Size32Comparison(b *testing.B) {
 	const n = 32
 	src := generateRandomComplex64(n, 0xBEEF32)
 	dst := make([]complex64, n)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// SSE2 dispatch (which falls back to generic SSE2 for size 32)
 	b.Run("SSE2_Dispatch", func(b *testing.B) {
@@ -153,27 +153,27 @@ func BenchmarkSSE2Size32Comparison(b *testing.B) {
 		if !sse2Available {
 			b.Skip("SSE2 not available")
 		}
-		if !sse2Forward(dst, src, twiddle, scratch, bitrev) {
+		if !sse2Forward(dst, src, twiddle, scratch) {
 			b.Fatal("SSE2 dispatch failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for b.Loop() {
-			sse2Forward(dst, src, twiddle, scratch, bitrev)
+			sse2Forward(dst, src, twiddle, scratch)
 		}
 	})
 
 	// Generic SSE2 kernel directly
 	b.Run("SSE2_Generic", func(b *testing.B) {
-		if !forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		if !forwardSSE2Complex64Asm(dst, src, twiddle, scratch) {
 			b.Fatal("Generic SSE2 failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for b.Loop() {
-			forwardSSE2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+			forwardSSE2Complex64Asm(dst, src, twiddle, scratch)
 		}
 	})
 
@@ -193,14 +193,14 @@ func BenchmarkSSE2Size32Comparison(b *testing.B) {
 	// Pure Go for comparison
 	b.Run("PureGo", func(b *testing.B) {
 		goForward, _ := getPureGoKernels()
-		if !goForward(dst, src, twiddle, scratch, bitrev) {
+		if !goForward(dst, src, twiddle, scratch) {
 			b.Fatal("Pure Go failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for b.Loop() {
-			goForward(dst, src, twiddle, scratch, bitrev)
+			goForward(dst, src, twiddle, scratch)
 		}
 	})
 

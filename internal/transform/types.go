@@ -18,9 +18,8 @@ type (
 
 // KernelType constants for codelet classification.
 const (
-	KernelTypeLegacy = planner.KernelTypeLegacy
-	KernelTypeCore   = planner.KernelTypeCore
-	KernelTypeDIT    = planner.KernelTypeDIT
+	KernelTypeCore = planner.KernelTypeCore
+	KernelTypeDIT  = planner.KernelTypeDIT
 )
 
 // Re-export registries for tests.

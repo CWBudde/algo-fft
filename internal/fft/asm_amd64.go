@@ -16,35 +16,35 @@ func inverseAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
 	return kasm.InverseAVX2Complex64Asm(dst, src, twiddle, scratch, nil)
 }
 
-func forwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.ForwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, bitrev)
+func forwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.ForwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, m.ComputeBitReversalIndices(len(src)))
 }
 
-func inverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.InverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, bitrev)
+func inverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.InverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, m.ComputeBitReversalIndices(len(src)))
 }
 
-func forwardAVX2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.ForwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func forwardAVX2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Complex128Asm(dst, src, twiddle, scratch, m.ComputeBitReversalIndices(len(src)))
 }
 
-func inverseAVX2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.InverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+func inverseAVX2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Complex128Asm(dst, src, twiddle, scratch, m.ComputeBitReversalIndices(len(src)))
 }
 
-func forwardSSE2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardSSE2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return kasm.ForwardSSE2Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseSSE2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseSSE2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return kasm.InverseSSE2Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func forwardSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardSSE2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
 	return kasm.ForwardSSE2Complex64Asm(dst, src, twiddle, scratch)
 }
 
-func inverseSSE2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseSSE2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
 	return kasm.InverseSSE2Complex64Asm(dst, src, twiddle, scratch)
 }
 
@@ -536,103 +536,103 @@ func inverseSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64
 	return kasm.InverseSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardAVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 	return forwardAVX2Complex64Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseAVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 	return inverseAVX2Complex64Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
-	return forwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, bitrev)
+	return forwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseAVX2StockhamComplex64(dst, src, twiddle, scratch []complex64) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
-	return inverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, bitrev)
+	return inverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch)
 }
 
-func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
-	return sse2SizeSpecificOrGenericDITComplex64(KernelAuto)(dst, src, twiddle, scratch, bitrev)
+	return sse2SizeSpecificOrGenericDITComplex64(KernelAuto)(dst, src, twiddle, scratch)
 }
 
-func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
-	return sse2SizeSpecificOrGenericDITInverseComplex64(KernelAuto)(dst, src, twiddle, scratch, bitrev)
+	return sse2SizeSpecificOrGenericDITInverseComplex64(KernelAuto)(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardAVX2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	n := len(src)
 	if !m.IsPowerOf2(n) {
 		return false
 	}
-	return forwardAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	return forwardAVX2Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseAVX2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	n := len(src)
 	if !m.IsPowerOf2(n) {
 		return false
 	}
-	return inverseAVX2Complex128Asm(dst, src, twiddle, scratch, bitrev)
+	return inverseAVX2Complex128Asm(dst, src, twiddle, scratch)
 }
 
-func forwardAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
-	return forwardStockhamComplex128(dst, src, twiddle, scratch, bitrev)
+	return forwardStockhamComplex128(dst, src, twiddle, scratch)
 }
 
-func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
-	return inverseStockhamComplex128(dst, src, twiddle, scratch, bitrev)
+	return inverseStockhamComplex128(dst, src, twiddle, scratch)
 }
 
-func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
 	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
 	case KernelDIT:
-		return forwardDITComplex128(dst, src, twiddle, scratch, bitrev)
+		return forwardDITComplex128(dst, src, twiddle, scratch)
 	case KernelStockham:
-		return forwardStockhamComplex128(dst, src, twiddle, scratch, bitrev)
+		return forwardStockhamComplex128(dst, src, twiddle, scratch)
 	default:
 		return false
 	}
 }
 
-func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
 	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
 	case KernelDIT:
-		return inverseDITComplex128(dst, src, twiddle, scratch, bitrev)
+		return inverseDITComplex128(dst, src, twiddle, scratch)
 	case KernelStockham:
-		return inverseStockhamComplex128(dst, src, twiddle, scratch, bitrev)
+		return inverseStockhamComplex128(dst, src, twiddle, scratch)
 	default:
 		return false
 	}

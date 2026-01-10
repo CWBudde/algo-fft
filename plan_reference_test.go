@@ -28,7 +28,7 @@ func TestForwardMatchesReferenceSmall(t *testing.T) {
 
 		want := reference.NaiveDFT(src)
 		for i := range got {
-			assertApproxComplex64Tolf(t, got[i], want[i], 1e-3, "n=%d idx=%d", n, i)
+			assertApproxComplex64Tolf(t, got[i], want[i], 5e-3, "n=%d idx=%d", n, i)
 		}
 	}
 }

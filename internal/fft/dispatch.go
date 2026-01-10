@@ -186,12 +186,6 @@ func SelectKernelsWithStrategy[T Complex](features cpu.Features, strategy Kernel
 	}
 }
 
-func stubKernel[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	_ = dst
-	_ = src
-	_ = twiddle
-	_ = scratch
-	_ = bitrev
-
+func stubKernel[T Complex](dst, src, twiddle, scratch []T) bool {
 	return false
 }

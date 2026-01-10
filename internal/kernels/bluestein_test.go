@@ -4,8 +4,6 @@ import (
 	"math"
 	"math/cmplx"
 	"testing"
-
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func TestComputeChirpSequence(t *testing.T) {
@@ -97,11 +95,10 @@ func TestBluesteinHelper(t *testing.T) {
 
 	chirp := ComputeChirpSequence[complex128](n)
 	twiddles := ComputeTwiddleFactors[complex128](m)
-	bitrev := mathpkg.ComputeBitReversalIndices(m)
 
 	scratch := make([]complex128, m)
 
-	filter := ComputeBluesteinFilter(n, m, chirp, twiddles, bitrev, scratch)
+	filter := ComputeBluesteinFilter(n, m, chirp, twiddles, scratch)
 	if len(filter) != m {
 		t.Errorf("Filter length mismatch: got %d, want %d", len(filter), m)
 	}
@@ -113,7 +110,7 @@ func TestBluesteinHelper(t *testing.T) {
 
 	dst := make([]complex128, m)
 
-	BluesteinConvolution(dst, x, filter, twiddles, scratch, bitrev)
+	BluesteinConvolution(dst, x, filter, twiddles, scratch)
 
 	// Basic check: output should not be all zeros (unless inputs determine so, which they don't)
 	allZero := true

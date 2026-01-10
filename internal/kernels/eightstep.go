@@ -1,32 +1,36 @@
 package kernels
 
+import (
+	"github.com/MeKo-Christian/algo-fft/internal/math"
+)
+
 // ForwardEightStepComplex64 performs a forward eight-step FFT on complex64 data.
-func ForwardEightStepComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return eightStepForward[complex64](dst, src, twiddle, scratch, bitrev)
+func ForwardEightStepComplex64(dst, src, twiddle, scratch []complex64) bool {
+	return eightStepForward[complex64](dst, src, twiddle, scratch)
 }
 
 // InverseEightStepComplex64 performs an inverse eight-step FFT on complex64 data.
-func InverseEightStepComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return eightStepInverse[complex64](dst, src, twiddle, scratch, bitrev)
+func InverseEightStepComplex64(dst, src, twiddle, scratch []complex64) bool {
+	return eightStepInverse[complex64](dst, src, twiddle, scratch)
 }
 
 // ForwardEightStepComplex128 performs a forward eight-step FFT on complex128 data.
-func ForwardEightStepComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return eightStepForward[complex128](dst, src, twiddle, scratch, bitrev)
+func ForwardEightStepComplex128(dst, src, twiddle, scratch []complex128) bool {
+	return eightStepForward[complex128](dst, src, twiddle, scratch)
 }
 
 // InverseEightStepComplex128 performs an inverse eight-step FFT on complex128 data.
-func InverseEightStepComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return eightStepInverse[complex128](dst, src, twiddle, scratch, bitrev)
+func InverseEightStepComplex128(dst, src, twiddle, scratch []complex128) bool {
+	return eightStepInverse[complex128](dst, src, twiddle, scratch)
 }
 
-func eightStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+func eightStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	n := len(src)
 	if n == 0 {
 		return true
 	}
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -50,8 +54,9 @@ func eightStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 		copy(dst, src)
 	}
 
-	block := eightStepBlockSize(m)
-	transposeSquareBlocked(data, m, block)
+	// Use shared transpose logic for correctness
+	pairs := math.ComputeSquareTransposePairs(m)
+	math.ApplyTransposePairs(data, pairs)
 
 	rowTwiddle := scratch[:m]
 	rowScratch := scratch[m : 2*m]
@@ -59,12 +64,12 @@ func eightStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 
 	for r := range m {
 		row := data[r*m : (r+1)*m]
-		if !stockhamForward(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
+		if !stockhamForward(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
 
-	transposeSquareBlocked(data, m, block)
+	math.ApplyTransposePairs(data, pairs)
 
 	for i := range m {
 		for j := range m {
@@ -74,23 +79,23 @@ func eightStepForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 
 	for r := range m {
 		row := data[r*m : (r+1)*m]
-		if !stockhamForward(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
+		if !stockhamForward(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
 
-	transposeSquareBlocked(data, m, block)
+	math.ApplyTransposePairs(data, pairs)
 
 	return true
 }
 
-func eightStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+func eightStepInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 	n := len(src)
 	if n == 0 {
 		return true
 	}
 
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(bitrev) < n {
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
 		return false
 	}
 
@@ -114,8 +119,8 @@ func eightStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 		copy(dst, src)
 	}
 
-	block := eightStepBlockSize(m)
-	transposeSquareBlocked(data, m, block)
+	pairs := math.ComputeSquareTransposePairs(m)
+	math.ApplyTransposePairs(data, pairs)
 
 	rowTwiddle := scratch[:m]
 	rowScratch := scratch[m : 2*m]
@@ -123,12 +128,12 @@ func eightStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 
 	for r := range m {
 		row := data[r*m : (r+1)*m]
-		if !stockhamInverse(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
+		if !stockhamInverse(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
 
-	transposeSquareBlocked(data, m, block)
+	math.ApplyTransposePairs(data, pairs)
 
 	for i := range m {
 		for j := range m {
@@ -138,56 +143,12 @@ func eightStepInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) b
 
 	for r := range m {
 		row := data[r*m : (r+1)*m]
-		if !stockhamInverse(row, row, rowTwiddle, rowScratch, bitrev[:m]) {
+		if !stockhamInverse(row, row, rowTwiddle, rowScratch) {
 			return false
 		}
 	}
 
-	transposeSquareBlocked(data, m, block)
+	math.ApplyTransposePairs(data, pairs)
 
 	return true
-}
-
-func transposeSquareBlocked[T any](data []T, n, block int) {
-	if n <= 1 {
-		return
-	}
-
-	if block <= 0 || block > n {
-		block = n
-	}
-
-	for i := 0; i < n; i += block {
-		imax := i + block
-		if imax > n {
-			imax = n
-		}
-
-		for j := i + 1; j < n; j += block {
-			jmax := j + block
-			if jmax > n {
-				jmax = n
-			}
-
-			for r := i; r < imax; r++ {
-				for c := j; c < jmax; c++ {
-					a := r*n + c
-					b := c*n + r
-					data[a], data[b] = data[b], data[a]
-				}
-			}
-		}
-	}
-}
-
-func eightStepBlockSize(n int) int {
-	if n <= 32 {
-		return n
-	}
-
-	if n <= 64 {
-		return 32
-	}
-
-	return 64
 }

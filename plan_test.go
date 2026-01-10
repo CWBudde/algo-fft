@@ -141,64 +141,6 @@ func TestNewPlan_TwiddleFactorsPeriodicity(t *testing.T) {
 	}
 }
 
-func TestNewPlan_BitReversalIndices(t *testing.T) {
-	t.Parallel()
-
-	const n = 8
-
-	plan, err := NewPlanT[complex64](n)
-	if err != nil {
-		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
-	}
-
-	// Check that bitrev is a valid permutation of [0, n-1].
-	// The specific values depend on the algorithm used:
-	// - Radix-2 DIT: [0, 4, 2, 6, 1, 5, 3, 7] (classic bit-reversal)
-	// - Radix-8: [0, 1, 2, 3, 4, 5, 6, 7] (identity - no reordering needed)
-	// - Radix-4: digit-reversal permutation
-	if len(plan.bitrev) != n {
-		t.Fatalf("bitrev length = %d, want %d", len(plan.bitrev), n)
-	}
-
-	// Check it's a valid permutation (each value 0..n-1 appears exactly once)
-	seen := make(map[int]bool)
-
-	for i, v := range plan.bitrev {
-		if v < 0 || v >= n {
-			t.Errorf("bitrev[%d] = %d, out of range [0, %d)", i, v, n)
-		}
-
-		if seen[v] {
-			t.Errorf("bitrev[%d] = %d is a duplicate", i, v)
-		}
-
-		seen[v] = true
-	}
-
-	// Involution property (bitrev[bitrev[i]] == i) holds for radix-2/4/8
-	// but NOT for mixed-radix (e.g. size 8 mixed-radix-2/4 has cycle length 3).
-	// We verify valid permutation above, which is sufficient.
-}
-
-func TestNewPlan_BitReversalInvolution(t *testing.T) {
-	t.Parallel()
-
-	// Bit reversal applied twice should give identity
-	plan, err := NewPlanT[complex64](64)
-	if err != nil {
-		t.Fatalf("NewPlan(64) returned error: %v", err)
-	}
-
-	for i := range plan.bitrev {
-		j := plan.bitrev[i]
-		k := plan.bitrev[j]
-
-		if k != i {
-			t.Errorf("bitrev[bitrev[%d]] = %d, want %d (involution property)", i, k, i)
-		}
-	}
-}
-
 // Tests for Forward/Inverse methods and error handling
 
 func TestForward_NilSlice(t *testing.T) {

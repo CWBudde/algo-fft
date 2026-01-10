@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func TestCodeletRegistryLookup(t *testing.T) {
@@ -188,12 +187,11 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 8)
 		twiddle := ComputeTwiddleFactors[complex64](8)
 		scratch := make([]complex64, 8)
-		bitrev := mathpkg.ComputeBitReversalIndices(8)
 
 		// Initialize with impulse
 		src[0] = 1
 
-		entry.Forward(dst, src, twiddle, scratch, bitrev)
+		entry.Forward(dst, src, twiddle, scratch)
 
 		// FFT of impulse should be all ones
 		for i, v := range dst {
@@ -215,14 +213,13 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 8)
 		twiddle := ComputeTwiddleFactors[complex64](8)
 		scratch := make([]complex64, 8)
-		bitrev := mathpkg.ComputeBitReversalIndices(8)
 
 		// Initialize with all ones (FFT of impulse)
 		for i := range src {
 			src[i] = 1
 		}
 
-		entry.Inverse(dst, src, twiddle, scratch, bitrev)
+		entry.Inverse(dst, src, twiddle, scratch)
 
 		// IFFT should give impulse at index 0 (~1+0i)
 		if real(dst[0]) < 0.99 || real(dst[0]) > 1.01 {
@@ -252,12 +249,11 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 512)
 		twiddle := ComputeTwiddleFactors[complex64](512)
 		scratch := make([]complex64, 512)
-		bitrev := mathpkg.ComputeBitReversalIndices(512)
 
 		// Initialize with impulse
 		src[0] = 1
 
-		entry.Forward(dst, src, twiddle, scratch, bitrev)
+		entry.Forward(dst, src, twiddle, scratch)
 
 		// FFT of impulse should be all ones
 		for i, v := range dst {
@@ -279,14 +275,13 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 512)
 		twiddle := ComputeTwiddleFactors[complex64](512)
 		scratch := make([]complex64, 512)
-		bitrev := mathpkg.ComputeBitReversalIndices(512)
 
 		// Initialize with all ones (FFT of impulse)
 		for i := range src {
 			src[i] = 1
 		}
 
-		entry.Inverse(dst, src, twiddle, scratch, bitrev)
+		entry.Inverse(dst, src, twiddle, scratch)
 
 		// IFFT should give impulse at index 0 (~1+0i)
 		if real(dst[0]) < 0.99 || real(dst[0]) > 1.01 {

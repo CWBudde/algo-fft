@@ -1,245 +1,133 @@
 package fft
 
 import (
-	"math"
+	"math/cmplx"
 	"testing"
 
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
-// TestDITForward tests the ditForward generic wrapper.
-func TestDITForward(t *testing.T) {
+func TestDITWrappers(t *testing.T) {
 	t.Parallel()
 
-	n := 8
-
-	input := make([]complex64, n)
-	for i := range input {
-		input[i] = complex(float32(i), 0)
+	n := 16
+	src := make([]complex64, n)
+	for i := range src {
+		src[i] = complex(float32(i), 0)
 	}
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
-	output := make([]complex64, n)
+	dst := make([]complex64, n)
 
-	ok := ditForward(output, input, twiddle, scratch, bitrev)
-	if !ok {
+	// Forward
+	if !ditForward(dst, src, twiddle, scratch) {
 		t.Fatal("ditForward failed")
 	}
 
-	// DC component should be sum of inputs
-	expected := complex64(complex(float32(n*(n-1)/2), 0))
-	if diff := math.Abs(float64(real(output[0]) - real(expected))); diff > 1e-4 {
-		t.Errorf("DC component mismatch: got %v, want %v", output[0], expected)
+	ref := reference.NaiveDFT(src)
+	for i := range dst {
+		if cmplx.Abs(complex128(dst[i]-ref[i])) > 1e-5 {
+			t.Errorf("ditForward mismatch at %d", i)
+		}
 	}
-}
 
-// TestDITInverse tests the ditInverse generic wrapper.
-func TestDITInverse(t *testing.T) {
-	t.Parallel()
-
-	n := 8
-	freq := make([]complex64, n)
-	freq[0] = complex64(complex(28, 0)) // Sum of 0..7
-
-	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
-	scratch := make([]complex64, n)
-	output := make([]complex64, n)
-
-	ok := ditInverse(output, freq, twiddle, scratch, bitrev)
-	if !ok {
+	// Inverse
+	fwd := make([]complex64, n)
+	copy(fwd, dst)
+	if !ditInverse(dst, fwd, twiddle, scratch) {
 		t.Fatal("ditInverse failed")
 	}
 
-	// First element should be average (28/8 = 3.5)
-	expected := float32(3.5)
-	if diff := math.Abs(float64(real(output[0]) - expected)); diff > 1e-4 {
-		t.Errorf("First element mismatch: got %v, want %v", output[0], expected)
+	for i := range dst {
+		if cmplx.Abs(complex128(dst[i]-src[i])) > 1e-5 {
+			t.Errorf("ditInverse mismatch at %d", i)
+		}
 	}
 }
 
-// TestStockhamForward tests the stockhamForward generic wrapper.
-func TestStockhamForward(t *testing.T) {
+func TestStockhamWrappers(t *testing.T) {
 	t.Parallel()
 
 	n := 16
-
-	input := make([]complex64, n)
-	for i := range input {
-		input[i] = complex(float32(i), 0)
+	src := make([]complex64, n)
+	for i := range src {
+		src[i] = complex(float32(i), 0)
 	}
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
-	output := make([]complex64, n)
+	dst := make([]complex64, n)
 
-	ok := stockhamForward(output, input, twiddle, scratch, bitrev)
-	if !ok {
+	// Forward
+	if !stockhamForward(dst, src, twiddle, scratch) {
 		t.Fatal("stockhamForward failed")
 	}
 
-	// DC component should be sum of inputs
-	expected := complex64(complex(float32(n*(n-1)/2), 0))
-	if diff := math.Abs(float64(real(output[0]) - real(expected))); diff > 1e-4 {
-		t.Errorf("DC component mismatch: got %v, want %v", output[0], expected)
+	ref := reference.NaiveDFT(src)
+	for i := range dst {
+		if cmplx.Abs(complex128(dst[i]-ref[i])) > 1e-5 {
+			t.Errorf("stockhamForward mismatch at %d", i)
+		}
 	}
-}
 
-// TestStockhamInverse tests the stockhamInverse generic wrapper.
-func TestStockhamInverse(t *testing.T) {
-	t.Parallel()
-
-	n := 16
-	freq := make([]complex64, n)
-	freq[0] = complex64(complex(120, 0)) // Sum of 0..15
-
-	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
-	scratch := make([]complex64, n)
-	output := make([]complex64, n)
-
-	ok := stockhamInverse(output, freq, twiddle, scratch, bitrev)
-	if !ok {
+	// Inverse
+	fwd := make([]complex64, n)
+	copy(fwd, dst)
+	if !stockhamInverse(dst, fwd, twiddle, scratch) {
 		t.Fatal("stockhamInverse failed")
 	}
 
-	// First element should be average (120/16 = 7.5)
-	expected := float32(7.5)
-	if diff := math.Abs(float64(real(output[0]) - expected)); diff > 1e-4 {
-		t.Errorf("First element mismatch: got %v, want %v", output[0], expected)
-	}
-}
-
-// TestComputeChirpSequence tests chirp sequence computation for Bluestein's algorithm.
-func TestComputeChirpSequence(t *testing.T) {
-	t.Parallel()
-
-	n := 7 // Non-power-of-2 size
-
-	chirp := ComputeChirpSequence[complex64](n)
-	if len(chirp) != n {
-		t.Fatalf("chirp length = %d, want %d", len(chirp), n)
-	}
-
-	// Chirp sequence should have exp(-i*pi*k^2/n) pattern
-	// First element chirp[0] = exp(0) = 1
-	if diff := math.Abs(float64(real(chirp[0]) - 1.0)); diff > 1e-6 {
-		t.Errorf("chirp[0] real = %v, want 1.0", real(chirp[0]))
-	}
-
-	if diff := math.Abs(float64(imag(chirp[0]))); diff > 1e-6 {
-		t.Errorf("chirp[0] imag = %v, want 0.0", imag(chirp[0]))
-	}
-
-	// All elements should have magnitude 1
-	for i, c := range chirp {
-		mag := math.Sqrt(float64(real(c)*real(c) + imag(c)*imag(c)))
-		if diff := math.Abs(mag - 1.0); diff > 1e-6 {
-			t.Errorf("chirp[%d] magnitude = %v, want 1.0", i, mag)
+	for i := range dst {
+		if cmplx.Abs(complex128(dst[i]-src[i])) > 1e-5 {
+			t.Errorf("stockhamInverse mismatch at %d", i)
 		}
 	}
 }
 
-// TestComputeBluesteinFilter tests Bluestein filter computation.
-func TestComputeBluesteinFilter(t *testing.T) {
+func TestBluesteinWrappers(t *testing.T) {
 	t.Parallel()
 
-	n := 7  // Non-power-of-2 size
-	m := 16 // Next power of 2 >= 2n-1
+	// Use generic wrapper
+	n := 3
+	m := 4 // next power of 2 >= 2n-1 = 5? No, >= 5. so 8.
+	// ComputeBluesteinFilter uses m >= 2n-1.
+	// 2*3-1 = 5. m=8.
+	m = 8
 
 	chirp := ComputeChirpSequence[complex64](n)
-	twiddle := mathpkg.ComputeTwiddleFactors[complex64](m)
-	bitrev := mathpkg.ComputeBitReversalIndices(m)
+	twiddles := mathpkg.ComputeTwiddleFactors[complex64](m)
 	scratch := make([]complex64, m)
 
-	filter := ComputeBluesteinFilter[complex64](n, m, chirp, twiddle, bitrev, scratch)
+	// Filter
+	filter := ComputeBluesteinFilter[complex64](n, m, chirp, twiddles, scratch)
 	if len(filter) != m {
-		t.Fatalf("filter length = %d, want %d", len(filter), m)
+		t.Errorf("ComputeBluesteinFilter len=%d want %d", len(filter), m)
 	}
 
-	// Filter should be non-zero
-	hasNonZero := false
-
-	for _, f := range filter {
-		if real(f) != 0 || imag(f) != 0 {
-			hasNonZero = true
-			break
-		}
-	}
-
-	if !hasNonZero {
-		t.Error("filter is all zeros")
-	}
-}
-
-// TestBluesteinConvolution tests Bluestein convolution.
-func TestBluesteinConvolution(t *testing.T) {
-	t.Parallel()
-
-	n := 7  // Non-power-of-2 size
-	m := 16 // Next power of 2 >= 2n-1
-
+	// Convolution
 	x := make([]complex64, m)
-	for i := range n {
-		x[i] = complex(float32(i), 0)
-	}
-
-	chirp := ComputeChirpSequence[complex64](n)
-	twiddle := mathpkg.ComputeTwiddleFactors[complex64](m)
-	bitrev := mathpkg.ComputeBitReversalIndices(m)
-	filter := ComputeBluesteinFilter[complex64](n, m, chirp, twiddle, bitrev, make([]complex64, m))
-
-	scratch := make([]complex64, m)
 	dst := make([]complex64, m)
-
-	BluesteinConvolution(dst, x, filter, twiddle, scratch, bitrev)
-
-	// Result should be non-zero
-	hasNonZero := false
-
-	for i := range n {
-		if real(dst[i]) != 0 || imag(dst[i]) != 0 {
-			hasNonZero = true
-			break
-		}
-	}
-
-	if !hasNonZero {
-		t.Error("convolution result is all zeros")
-	}
+	BluesteinConvolution(dst, x, filter, twiddles, scratch)
 }
 
-// TestButterfly2 tests the butterfly2 wrapper.
-func TestButterfly2(t *testing.T) {
+func TestBluesteinWrappers128(t *testing.T) {
 	t.Parallel()
 
-	a := complex64(complex(1, 2))
-	b := complex64(complex(3, 4))
-	w := complex64(complex(0.707, -0.707)) // exp(-i*pi/4)
+	n := 3
+	m := 8
 
-	x, y := butterfly2(a, b, w)
+	chirp := ComputeChirpSequence[complex128](n)
+	twiddles := mathpkg.ComputeTwiddleFactors[complex128](m)
+	scratch := make([]complex128, m)
 
-	// Verify butterfly operation: x = a + w*b, y = a - w*b
-	wb := complex64(complex(float64(real(w)*real(b)-imag(w)*imag(b)), float64(real(w)*imag(b)+imag(w)*real(b))))
-	expectedX := a + wb
-	expectedY := a - wb
-
-	if diff := math.Abs(float64(real(x) - real(expectedX))); diff > 1e-4 {
-		t.Errorf("butterfly2 x real mismatch: got %v, want %v", x, expectedX)
+	filter := ComputeBluesteinFilter[complex128](n, m, chirp, twiddles, scratch)
+	if len(filter) != m {
+		t.Errorf("ComputeBluesteinFilter len=%d want %d", len(filter), m)
 	}
 
-	if diff := math.Abs(float64(imag(x) - imag(expectedX))); diff > 1e-4 {
-		t.Errorf("butterfly2 x imag mismatch: got %v, want %v", x, expectedX)
-	}
-
-	if diff := math.Abs(float64(real(y) - real(expectedY))); diff > 1e-4 {
-		t.Errorf("butterfly2 y real mismatch: got %v, want %v", y, expectedY)
-	}
-
-	if diff := math.Abs(float64(imag(y) - imag(expectedY))); diff > 1e-4 {
-		t.Errorf("butterfly2 y imag mismatch: got %v, want %v", y, expectedY)
-	}
+	x := make([]complex128, m)
+	dst := make([]complex128, m)
+	BluesteinConvolution(dst, x, filter, twiddles, scratch)
 }

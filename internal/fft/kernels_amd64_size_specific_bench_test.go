@@ -17,7 +17,7 @@ func benchmarkSizeSpecificVsGeneric(b *testing.B, n int) {
 	})
 
 	b.Run("GenericAVX2", func(b *testing.B) {
-		benchmarkKernel(b, n, func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+		benchmarkKernel(b, n, func(dst, src, twiddle, scratch []complex64) bool {
 			return forwardAVX2Complex64Asm(dst, src, twiddle, scratch)
 		})
 	})
@@ -32,7 +32,6 @@ func benchmarkKernel(b *testing.B, n int, kernel Kernel[complex64]) {
 	dst := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := ComputeBitReversalIndices(n)
 
 	// Initialize with random data
 	for i := range src {
@@ -44,7 +43,7 @@ func benchmarkKernel(b *testing.B, n int, kernel Kernel[complex64]) {
 
 	b.ResetTimer()
 	for range b.N {
-		if !kernel(dst, src, twiddle, scratch, bitrev) {
+		if !kernel(dst, src, twiddle, scratch) {
 			b.Fatal("kernel returned false")
 		}
 	}

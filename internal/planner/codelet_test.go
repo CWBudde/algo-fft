@@ -9,7 +9,7 @@ import (
 )
 
 // dummyCodelet is a dummy function for testing.
-func dummyCodelet[T Complex](dst, src, twiddle, scratch []T, bitrev []int) {}
+func dummyCodelet[T Complex](dst, src, twiddle, scratch []T) {}
 
 // TestCodeletRegistryRegisterAndLookup tests basic register and lookup operations.
 func TestCodeletRegistryRegisterAndLookup(t *testing.T) {

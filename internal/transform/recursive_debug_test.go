@@ -199,14 +199,9 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 
 		codelet := Registry64.Lookup(subSize, features)
 		if codelet != nil {
-			var bitrev []int
-			if codelet.BitrevFunc != nil {
-				bitrev = codelet.BitrevFunc(subSize)
-			}
-
-			codelet.Forward(subResults[i], subInput, subTwiddle, make([]complex64, subSize), bitrev)
+			codelet.Forward(subResults[i], subInput, subTwiddle, make([]complex64, subSize))
 		} else {
-			ditForward(subResults[i], subInput, subTwiddle, make([]complex64, subSize), ComputeBitReversalIndices(subSize))
+			ditForward(subResults[i], subInput, subTwiddle, make([]complex64, subSize))
 		}
 	}
 
@@ -272,9 +267,8 @@ func TestRecursiveDebug_DITComparison(t *testing.T) {
 	output1 := make([]complex64, size)
 	twiddle1 := ComputeTwiddleFactors[complex64](size)
 	scratch1 := make([]complex64, size)
-	bitrev := ComputeBitReversalIndices(size)
 
-	ditForward(output1, input, twiddle1, scratch1, bitrev)
+	ditForward(output1, input, twiddle1, scratch1)
 
 	t.Logf("DIT Direct: output[0] = %v", output1[0])
 
@@ -302,12 +296,7 @@ func TestRecursiveDebug_DITComparison(t *testing.T) {
 	twiddle2 := ComputeTwiddleFactors[complex64](size)
 	scratch2 := make([]complex64, size)
 
-	var bitrev2 []int
-	if codelet.BitrevFunc != nil {
-		bitrev2 = codelet.BitrevFunc(size)
-	}
-
-	codelet.Forward(output2, input, twiddle2, scratch2, bitrev2)
+	codelet.Forward(output2, input, twiddle2, scratch2)
 
 	t.Logf("Codelet call: output[0] = %v", output2[0])
 
@@ -363,13 +352,8 @@ func TestRecursiveDebug_InverseSize512(t *testing.T) {
 	twiddleDirect := ComputeTwiddleFactors[complex64](size)
 	scratch := make([]complex64, size)
 
-	var bitrev []int
-	if codelet.BitrevFunc != nil {
-		bitrev = codelet.BitrevFunc(size)
-	}
-
-	codelet.Forward(forwardCodelet, input, twiddleDirect, scratch, bitrev)
-	codelet.Inverse(inverseCodelet, forwardCodelet, twiddleDirect, scratch, bitrev)
+	codelet.Forward(forwardCodelet, input, twiddleDirect, scratch)
+	codelet.Inverse(inverseCodelet, forwardCodelet, twiddleDirect, scratch)
 
 	err = compareComplexSlices(inverseCodelet, input, 1e-3)
 	if err != nil {

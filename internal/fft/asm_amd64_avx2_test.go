@@ -1,4 +1,4 @@
-//go:build amd64
+//go:build amd64 && asm && !purego
 
 package fft
 
@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -148,19 +147,12 @@ func computeEnergy(x []complex64) float64 {
 	return energy
 }
 
-// prepareFFTData creates twiddle factors, bit-reversal indices, and scratch buffer.
-func prepareFFTData(n int) ([]complex64, []int, []complex64) {
-	twiddle := ComputeTwiddleFactors[complex64](n)
+// prepareFFTData creates twiddle factors and scratch buffer.
+func prepareFFTData[T Complex](n int) ([]T, []T) {
+	twiddle := ComputeTwiddleFactors[T](n)
+	scratch := make([]T, n)
 
-	bitrev := ComputeBitReversalIndices(n)
-	if n == 8 {
-		// Size-8 AVX2 path uses radix-8; it expects natural order input.
-		bitrev = mathpkg.ComputeIdentityIndices(n)
-	}
-
-	scratch := make([]complex64, n)
-
-	return twiddle, bitrev, scratch
+	return twiddle, scratch
 }
 
 // =============================================================================
@@ -232,18 +224,18 @@ func TestAVX2Forward_VsPureGo(t *testing.T) {
 			t.Parallel()
 
 			src := generateRandomComplex64(n, uint64(uint(n)))
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			// Compute with pure-Go (ground truth for this test)
 			dstGo := make([]complex64, n)
-			if !goForward(dstGo, src, twiddle, scratch, bitrev) {
+			if !goForward(dstGo, src, twiddle, scratch) {
 				t.Fatal("Pure-Go forward kernel failed")
 			}
 
 			// Compute with AVX2
 			dstAVX2 := make([]complex64, n)
 			scratchAVX2 := make([]complex64, n)
-			avx2Handled := avx2Forward(dstAVX2, src, twiddle, scratchAVX2, bitrev)
+			avx2Handled := avx2Forward(dstAVX2, src, twiddle, scratchAVX2)
 
 			if !avx2Handled {
 				t.Skip("AVX2 kernel returned false (not yet implemented)")
@@ -290,18 +282,18 @@ func TestAVX2Inverse_VsPureGo(t *testing.T) {
 
 			// Use frequency-domain data as input
 			src := generateRandomComplex64(n, uint64(uint(n))+1000)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			// Compute with pure-Go
 			dstGo := make([]complex64, n)
-			if !goInverse(dstGo, src, twiddle, scratch, bitrev) {
+			if !goInverse(dstGo, src, twiddle, scratch) {
 				t.Fatal("Pure-Go inverse kernel failed")
 			}
 
 			// Compute with AVX2
 			dstAVX2 := make([]complex64, n)
 			scratchAVX2 := make([]complex64, n)
-			avx2Handled := avx2Inverse(dstAVX2, src, twiddle, scratchAVX2, bitrev)
+			avx2Handled := avx2Inverse(dstAVX2, src, twiddle, scratchAVX2)
 
 			if !avx2Handled {
 				t.Skip("AVX2 kernel returned false (not yet implemented)")
@@ -344,17 +336,17 @@ func TestAVX2StockhamForward_VsPureGo(t *testing.T) {
 
 	for _, n := range sizes {
 		src := generateRandomComplex64(n, 0xABCDEF01+uint64(uint(n)))
-		twiddle, bitrev, scratch := prepareFFTData(n)
+		twiddle, scratch := prepareFFTData[complex64](n)
 
 		dstAVX2 := make([]complex64, n)
 		dstGo := make([]complex64, n)
 
-		handled := avx2Forward(dstAVX2, src, twiddle, scratch, bitrev)
+		handled := avx2Forward(dstAVX2, src, twiddle, scratch)
 		if !handled {
 			t.Skip("AVX2 Stockham forward not implemented")
 		}
 
-		if !forwardStockhamComplex64(dstGo, src, twiddle, scratch, bitrev) {
+		if !forwardStockhamComplex64(dstGo, src, twiddle, scratch) {
 			t.Fatal("pure-Go Stockham forward failed")
 		}
 
@@ -377,17 +369,17 @@ func TestAVX2StockhamInverse_VsPureGo(t *testing.T) {
 
 	for _, n := range sizes {
 		src := generateRandomComplex64(n, 0x12345678+uint64(n))
-		twiddle, bitrev, scratch := prepareFFTData(n)
+		twiddle, scratch := prepareFFTData[complex64](n)
 
 		dstAVX2 := make([]complex64, n)
 		dstGo := make([]complex64, n)
 
-		handled := avx2Inverse(dstAVX2, src, twiddle, scratch, bitrev)
+		handled := avx2Inverse(dstAVX2, src, twiddle, scratch)
 		if !handled {
 			t.Skip("AVX2 Stockham inverse not implemented")
 		}
 
-		if !inverseStockhamComplex64(dstGo, src, twiddle, scratch, bitrev) {
+		if !inverseStockhamComplex64(dstGo, src, twiddle, scratch) {
 			t.Fatal("pure-Go Stockham inverse failed")
 		}
 
@@ -440,14 +432,14 @@ func testAVX2VsReference(
 			t.Parallel()
 
 			src := generateRandomComplex64(n, uint64(n)+seedOffset)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			// Compute with reference DFT (ground truth)
 			dstRef := refKernel(src)
 
 			// Compute with AVX2
 			dstAVX2 := make([]complex64, n)
-			avx2Handled := avx2Kernel(dstAVX2, src, twiddle, scratch, bitrev)
+			avx2Handled := avx2Kernel(dstAVX2, src, twiddle, scratch)
 
 			if !avx2Handled {
 				t.Skip("AVX2 kernel returned false (not yet implemented)")
@@ -501,11 +493,11 @@ func TestAVX2RoundTrip(t *testing.T) {
 			t.Parallel()
 
 			original := generateRandomComplex64(n, uint64(n)+4000)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			// Forward transform
 			freq := make([]complex64, n)
-			if !avx2Forward(freq, original, twiddle, scratch, bitrev) {
+			if !avx2Forward(freq, original, twiddle, scratch) {
 				t.Skip("AVX2 forward kernel not yet implemented")
 			}
 
@@ -513,7 +505,7 @@ func TestAVX2RoundTrip(t *testing.T) {
 			recovered := make([]complex64, n)
 
 			scratch2 := make([]complex64, n)
-			if !avx2Inverse(recovered, freq, twiddle, scratch2, bitrev) {
+			if !avx2Inverse(recovered, freq, twiddle, scratch2) {
 				t.Skip("AVX2 inverse kernel not yet implemented")
 			}
 
@@ -556,14 +548,14 @@ func TestAVX2Parseval(t *testing.T) {
 			t.Parallel()
 
 			src := generateRandomComplex64(n, uint64(n)+5000)
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			// Compute time-domain energy
 			energyTime := computeEnergy(src)
 
 			// Compute frequency-domain result
 			freq := make([]complex64, n)
-			if !avx2Forward(freq, src, twiddle, scratch, bitrev) {
+			if !avx2Forward(freq, src, twiddle, scratch) {
 				t.Skip("AVX2 kernel not yet implemented")
 			}
 
@@ -599,7 +591,7 @@ func TestAVX2Linearity(t *testing.T) {
 			a := complex(float32(0.7), float32(0.3))
 			b := complex(float32(-0.4), float32(0.5))
 
-			twiddle, bitrev, scratch := prepareFFTData(n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
 			// Compute FFT(a*x + b*y)
 			combined := make([]complex64, n)
@@ -608,7 +600,7 @@ func TestAVX2Linearity(t *testing.T) {
 			}
 
 			fftCombined := make([]complex64, n)
-			if !avx2Forward(fftCombined, combined, twiddle, scratch, bitrev) {
+			if !avx2Forward(fftCombined, combined, twiddle, scratch) {
 				t.Skip("AVX2 kernel not yet implemented")
 			}
 
@@ -616,14 +608,14 @@ func TestAVX2Linearity(t *testing.T) {
 			fftX := make([]complex64, n)
 
 			scratch2 := make([]complex64, n)
-			if !avx2Forward(fftX, x, twiddle, scratch2, bitrev) {
+			if !avx2Forward(fftX, x, twiddle, scratch2) {
 				t.Skip("AVX2 kernel not yet implemented")
 			}
 
 			fftY := make([]complex64, n)
 
 			scratch3 := make([]complex64, n)
-			if !avx2Forward(fftY, y, twiddle, scratch3, bitrev) {
+			if !avx2Forward(fftY, y, twiddle, scratch3) {
 				t.Skip("AVX2 kernel not yet implemented")
 			}
 
@@ -661,10 +653,10 @@ func TestAVX2EdgeCases(t *testing.T) {
 
 		n := 64
 		src := make([]complex64, n) // all zeros
-		twiddle, bitrev, scratch := prepareFFTData(n)
+		twiddle, scratch := prepareFFTData[complex64](n)
 
 		dst := make([]complex64, n)
-		if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+		if !avx2Forward(dst, src, twiddle, scratch) {
 			t.Skip("AVX2 kernel not yet implemented")
 		}
 
@@ -681,10 +673,10 @@ func TestAVX2EdgeCases(t *testing.T) {
 
 		n := 64
 		src := generateImpulse(n)
-		twiddle, bitrev, scratch := prepareFFTData(n)
+		twiddle, scratch := prepareFFTData[complex64](n)
 
 		dst := make([]complex64, n)
-		if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+		if !avx2Forward(dst, src, twiddle, scratch) {
 			t.Skip("AVX2 kernel not yet implemented")
 		}
 
@@ -703,10 +695,10 @@ func TestAVX2EdgeCases(t *testing.T) {
 		n := 64
 		dcValue := complex(float32(3.5), float32(-2.1))
 		src := generateDC(n, dcValue)
-		twiddle, bitrev, scratch := prepareFFTData(n)
+		twiddle, scratch := prepareFFTData[complex64](n)
 
 		dst := make([]complex64, n)
-		if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+		if !avx2Forward(dst, src, twiddle, scratch) {
 			t.Skip("AVX2 kernel not yet implemented")
 		}
 
@@ -732,10 +724,10 @@ func TestAVX2EdgeCases(t *testing.T) {
 		n := 64
 		freqBin := 5
 		src := generateCosine(n, freqBin)
-		twiddle, bitrev, scratch := prepareFFTData(n)
+		twiddle, scratch := prepareFFTData[complex64](n)
 
 		dst := make([]complex64, n)
-		if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+		if !avx2Forward(dst, src, twiddle, scratch) {
 			t.Skip("AVX2 kernel not yet implemented")
 		}
 
@@ -780,10 +772,10 @@ func TestAVX2EdgeCases(t *testing.T) {
 		// AVX2 kernel should handle size 16 (minimum for vectorization)
 		n := 16
 		src := generateRandomComplex64(n, 12345)
-		twiddle, bitrev, scratch := prepareFFTData(n)
+		twiddle, scratch := prepareFFTData[complex64](n)
 
 		dst := make([]complex64, n)
-		handled := avx2Forward(dst, src, twiddle, scratch, bitrev)
+		handled := avx2Forward(dst, src, twiddle, scratch)
 
 		// Even if not fully implemented, should either return true or skip
 		if !handled {
@@ -796,11 +788,11 @@ func TestAVX2EdgeCases(t *testing.T) {
 
 		n := 128
 		original := generateRandomComplex64(n, 99999)
-		twiddle, bitrev, scratch := prepareFFTData(n)
+		twiddle, scratch := prepareFFTData[complex64](n)
 
 		// Forward
 		freq := make([]complex64, n)
-		if !avx2Forward(freq, original, twiddle, scratch, bitrev) {
+		if !avx2Forward(freq, original, twiddle, scratch) {
 			t.Skip("AVX2 forward not yet implemented")
 		}
 
@@ -808,7 +800,7 @@ func TestAVX2EdgeCases(t *testing.T) {
 		recovered := make([]complex64, n)
 
 		scratch2 := make([]complex64, n)
-		if !avx2Inverse(recovered, freq, twiddle, scratch2, bitrev) {
+		if !avx2Inverse(recovered, freq, twiddle, scratch2) {
 			t.Skip("AVX2 inverse not yet implemented")
 		}
 
@@ -838,11 +830,9 @@ func TestAVX2ReturnsFailureForInvalidSizes(t *testing.T) {
 		for _, n := range []int{1, 2, 4, 8} {
 			src := make([]complex64, n)
 			dst := make([]complex64, n)
-			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := ComputeBitReversalIndices(n)
-			scratch := make([]complex64, n)
+			twiddle, scratch := prepareFFTData[complex64](n)
 
-			if avx2Forward(dst, src, twiddle, scratch, bitrev) {
+			if avx2Forward(dst, src, twiddle, scratch) {
 				// If it handles it, that's fine too (may use scalar path internally)
 				continue
 			}
@@ -859,10 +849,9 @@ func TestAVX2ReturnsFailureForInvalidSizes(t *testing.T) {
 			src := make([]complex64, n)
 			dst := make([]complex64, n)
 			twiddle := make([]complex64, n)
-			bitrev := make([]int, n)
 			scratch := make([]complex64, n)
 
-			handled := avx2Forward(dst, src, twiddle, scratch, bitrev)
+			handled := avx2Forward(dst, src, twiddle, scratch)
 			if handled {
 				t.Errorf("AVX2 kernel should return false for non-power-of-2 size %d", n)
 			}
@@ -883,16 +872,16 @@ func TestAVX2ZeroAllocations(t *testing.T) { //nolint:paralleltest // AllocsPerR
 	n := 1024
 	src := generateRandomComplex64(n, 12345)
 	dst := make([]complex64, n)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Verify kernel works
-	if !avx2Forward(dst, src, twiddle, scratch, bitrev) {
+	if !avx2Forward(dst, src, twiddle, scratch) {
 		t.Skip("AVX2 forward kernel not yet implemented")
 	}
 
 	// Test forward allocations
 	allocs := testing.AllocsPerRun(100, func() {
-		avx2Forward(dst, src, twiddle, scratch, bitrev)
+		avx2Forward(dst, src, twiddle, scratch)
 	})
 
 	if allocs != 0 {
@@ -900,12 +889,12 @@ func TestAVX2ZeroAllocations(t *testing.T) { //nolint:paralleltest // AllocsPerR
 	}
 
 	// Test inverse allocations
-	if !avx2Inverse(dst, src, twiddle, scratch, bitrev) {
+	if !avx2Inverse(dst, src, twiddle, scratch) {
 		t.Skip("AVX2 inverse kernel not yet implemented")
 	}
 
 	allocs = testing.AllocsPerRun(100, func() {
-		avx2Inverse(dst, src, twiddle, scratch, bitrev)
+		avx2Inverse(dst, src, twiddle, scratch)
 	})
 
 	if allocs != 0 {
@@ -966,23 +955,17 @@ func TestAVX2Forward128_VsPureGo(t *testing.T) {
 				src[i] = complex(rng.Float64(), rng.Float64())
 			}
 
-			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := ComputeBitReversalIndices(n)
-			bitrevGo := bitrev
-			if n == 8 {
-				bitrevGo = mathpkg.ComputeIdentityIndices(n)
-			}
-			scratch := make([]complex128, n)
+			twiddle, scratch := prepareFFTData[complex128](n)
 
 			dstGo := make([]complex128, n)
-			if !goForward(dstGo, src, twiddle, scratch, bitrevGo) {
+			if !goForward(dstGo, src, twiddle, scratch) {
 				t.Fatal("Pure-Go failed")
 			}
 
 			dstAVX2 := make([]complex128, n)
 
 			scratchAVX2 := make([]complex128, n)
-			if !avx2Forward(dstAVX2, src, twiddle, scratchAVX2, bitrev) {
+			if !avx2Forward(dstAVX2, src, twiddle, scratchAVX2) {
 				t.Skip("AVX2 complex128 forward not implemented")
 			}
 
@@ -1020,23 +1003,17 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 				src[i] = complex(rng.Float64(), rng.Float64())
 			}
 
-			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := ComputeBitReversalIndices(n)
-			bitrevGo := bitrev
-			if n == 8 {
-				bitrevGo = mathpkg.ComputeIdentityIndices(n)
-			}
-			scratch := make([]complex128, n)
+			twiddle, scratch := prepareFFTData[complex128](n)
 
 			dstGo := make([]complex128, n)
-			if !goInverse(dstGo, src, twiddle, scratch, bitrevGo) {
+			if !goInverse(dstGo, src, twiddle, scratch) {
 				t.Fatal("Pure-Go failed")
 			}
 
 			dstAVX2 := make([]complex128, n)
 
 			scratchAVX2 := make([]complex128, n)
-			if !avx2Inverse(dstAVX2, src, twiddle, scratchAVX2, bitrev) {
+			if !avx2Inverse(dstAVX2, src, twiddle, scratchAVX2) {
 				t.Skip("AVX2 complex128 inverse not implemented")
 			}
 
@@ -1068,14 +1045,14 @@ func TestAVX2Size16_VsReference(t *testing.T) {
 	const n = 16
 
 	src := generateRandomComplex64(n, 12345)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Compute reference using naive DFT (complex64 version)
 	dstRef := reference.NaiveDFT(src)
 
 	// Compute with AVX2 (this will use the size-16 kernel via dispatch)
 	dst := make([]complex64, n)
-	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+	ok := avx2Forward(dst, src, twiddle, scratch)
 
 	if !ok {
 		t.Skip("AVX2 kernel not implemented (returned false)")
@@ -1104,20 +1081,20 @@ func TestAVX2Size16_VsGenericAVX2(t *testing.T) {
 	const n = 16
 
 	src := generateRandomComplex64(n, 54321)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Compute with pure Go as ground truth
 	dstGo := make([]complex64, n)
 
 	scratchGo := make([]complex64, n)
-	if !goForward(dstGo, src, twiddle, scratchGo, bitrev) {
+	if !goForward(dstGo, src, twiddle, scratchGo) {
 		t.Fatal("Pure Go kernel failed")
 	}
 
 	// Compute with AVX2 (which dispatches to size-16 kernel)
 	dst := make([]complex64, n)
 
-	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+	ok := avx2Forward(dst, src, twiddle, scratch)
 	if !ok {
 		t.Skip("AVX2 kernel not implemented (returned false)")
 	}
@@ -1145,12 +1122,12 @@ func TestAVX2Size16_RoundTrip(t *testing.T) {
 	const n = 16
 
 	src := generateRandomComplex64(n, 99999)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Forward with AVX2
 	freq := make([]complex64, n)
 
-	okFwd := avx2Forward(freq, src, twiddle, scratch, bitrev)
+	okFwd := avx2Forward(freq, src, twiddle, scratch)
 	if !okFwd {
 		t.Skip("AVX2 forward kernel not implemented")
 	}
@@ -1159,7 +1136,7 @@ func TestAVX2Size16_RoundTrip(t *testing.T) {
 	recovered := make([]complex64, n)
 	scratchInv := make([]complex64, n)
 
-	okInv := avx2Inverse(recovered, freq, twiddle, scratchInv, bitrev)
+	okInv := avx2Inverse(recovered, freq, twiddle, scratchInv)
 	if !okInv {
 		t.Skip("AVX2 inverse not available")
 	}
@@ -1198,14 +1175,14 @@ func TestAVX2Size32_VsReference(t *testing.T) {
 	const n = 32
 
 	src := generateRandomComplex64(n, 32345)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Compute reference using naive DFT (complex64 version)
 	dstRef := reference.NaiveDFT(src)
 
 	// Compute with AVX2 (this will use the size-32 kernel via dispatch)
 	dst := make([]complex64, n)
-	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+	ok := avx2Forward(dst, src, twiddle, scratch)
 
 	if !ok {
 		t.Skip("AVX2 kernel not implemented (returned false)")
@@ -1234,20 +1211,20 @@ func TestAVX2Size32_VsGenericAVX2(t *testing.T) {
 	const n = 32
 
 	src := generateRandomComplex64(n, 65432)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Compute with pure Go as ground truth
 	dstGo := make([]complex64, n)
 
 	scratchGo := make([]complex64, n)
-	if !goForward(dstGo, src, twiddle, scratchGo, bitrev) {
+	if !goForward(dstGo, src, twiddle, scratchGo) {
 		t.Fatal("Pure Go kernel failed")
 	}
 
 	// Compute with AVX2 (which dispatches to size-32 kernel)
 	dst := make([]complex64, n)
 
-	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+	ok := avx2Forward(dst, src, twiddle, scratch)
 	if !ok {
 		t.Skip("AVX2 kernel not implemented (returned false)")
 	}
@@ -1275,12 +1252,12 @@ func TestAVX2Size32_RoundTrip(t *testing.T) {
 	const n = 32
 
 	src := generateRandomComplex64(n, 111222)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Forward with AVX2
 	freq := make([]complex64, n)
 
-	okFwd := avx2Forward(freq, src, twiddle, scratch, bitrev)
+	okFwd := avx2Forward(freq, src, twiddle, scratch)
 	if !okFwd {
 		t.Skip("AVX2 forward kernel not implemented")
 	}
@@ -1289,7 +1266,7 @@ func TestAVX2Size32_RoundTrip(t *testing.T) {
 	recovered := make([]complex64, n)
 	scratchInv := make([]complex64, n)
 
-	okInv := avx2Inverse(recovered, freq, twiddle, scratchInv, bitrev)
+	okInv := avx2Inverse(recovered, freq, twiddle, scratchInv)
 	if !okInv {
 		t.Skip("AVX2 inverse not available")
 	}
@@ -1328,14 +1305,14 @@ func TestAVX2Size64_VsReference(t *testing.T) {
 	const n = 64
 
 	src := generateRandomComplex64(n, 64345)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Compute reference using naive DFT (complex64 version)
 	dstRef := reference.NaiveDFT(src)
 
 	// Compute with AVX2 (this will use the size-64 kernel via dispatch)
 	dst := make([]complex64, n)
-	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+	ok := avx2Forward(dst, src, twiddle, scratch)
 
 	if !ok {
 		t.Skip("AVX2 kernel not implemented (returned false)")
@@ -1364,20 +1341,20 @@ func TestAVX2Size64_VsGenericAVX2(t *testing.T) {
 	const n = 64
 
 	src := generateRandomComplex64(n, 76543)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Compute with pure Go as ground truth
 	dstGo := make([]complex64, n)
 
 	scratchGo := make([]complex64, n)
-	if !goForward(dstGo, src, twiddle, scratchGo, bitrev) {
+	if !goForward(dstGo, src, twiddle, scratchGo) {
 		t.Fatal("Pure Go kernel failed")
 	}
 
 	// Compute with AVX2 (which dispatches to size-64 kernel)
 	dst := make([]complex64, n)
 
-	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+	ok := avx2Forward(dst, src, twiddle, scratch)
 	if !ok {
 		t.Skip("AVX2 kernel not implemented (returned false)")
 	}
@@ -1405,12 +1382,12 @@ func TestAVX2Size64_RoundTrip(t *testing.T) {
 	const n = 64
 
 	src := generateRandomComplex64(n, 222333)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Forward with AVX2
 	freq := make([]complex64, n)
 
-	okFwd := avx2Forward(freq, src, twiddle, scratch, bitrev)
+	okFwd := avx2Forward(freq, src, twiddle, scratch)
 	if !okFwd {
 		t.Skip("AVX2 forward kernel not implemented")
 	}
@@ -1419,7 +1396,7 @@ func TestAVX2Size64_RoundTrip(t *testing.T) {
 	recovered := make([]complex64, n)
 	scratchInv := make([]complex64, n)
 
-	okInv := avx2Inverse(recovered, freq, twiddle, scratchInv, bitrev)
+	okInv := avx2Inverse(recovered, freq, twiddle, scratchInv)
 	if !okInv {
 		t.Skip("AVX2 inverse not available")
 	}
@@ -1487,14 +1464,14 @@ func TestAVX2Size256Radix2_VsReference(t *testing.T) {
 	const n = 256
 
 	src := generateRandomComplex64(n, 256345)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Compute reference using naive DFT
 	dstRef := reference.NaiveDFT(src)
 
 	// Compute with AVX2 (this will use the size-256 kernel via dispatch)
 	dst := make([]complex64, n)
-	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+	ok := avx2Forward(dst, src, twiddle, scratch)
 
 	if !ok {
 		t.Skip("AVX2 kernel not implemented (returned false)")
@@ -1524,20 +1501,20 @@ func TestAVX2Size256Radix2_VsGenericAVX2(t *testing.T) {
 	const n = 256
 
 	src := generateRandomComplex64(n, 87654)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Compute with pure Go as ground truth
 	dstGo := make([]complex64, n)
 
 	scratchGo := make([]complex64, n)
-	if !goForward(dstGo, src, twiddle, scratchGo, bitrev) {
+	if !goForward(dstGo, src, twiddle, scratchGo) {
 		t.Fatal("Pure Go kernel failed")
 	}
 
 	// Compute with AVX2 (which dispatches to size-256 kernel)
 	dst := make([]complex64, n)
 
-	ok := avx2Forward(dst, src, twiddle, scratch, bitrev)
+	ok := avx2Forward(dst, src, twiddle, scratch)
 	if !ok {
 		t.Skip("AVX2 kernel not implemented (returned false)")
 	}
@@ -1566,18 +1543,18 @@ func TestAVX2Size256Radix2Inverse_VsPureGo(t *testing.T) {
 	const n = 256
 
 	src := generateRandomComplex64(n, 98765)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Compute with pure Go
 	dstGo := make([]complex64, n)
-	if !goInverse(dstGo, src, twiddle, scratch, bitrev) {
+	if !goInverse(dstGo, src, twiddle, scratch) {
 		t.Fatal("Pure-Go inverse kernel failed")
 	}
 
 	// Compute with AVX2
 	dstAVX2 := make([]complex64, n)
 	scratchAVX2 := make([]complex64, n)
-	avx2Handled := avx2Inverse(dstAVX2, src, twiddle, scratchAVX2, bitrev)
+	avx2Handled := avx2Inverse(dstAVX2, src, twiddle, scratchAVX2)
 
 	if !avx2Handled {
 		t.Skip("AVX2 kernel returned false (not yet implemented)")
@@ -1612,12 +1589,12 @@ func TestAVX2Size256Radix2_RoundTrip(t *testing.T) {
 	const n = 256
 
 	src := generateRandomComplex64(n, 333444)
-	twiddle, bitrev, scratch := prepareFFTData(n)
+	twiddle, scratch := prepareFFTData[complex64](n)
 
 	// Forward with AVX2
 	freq := make([]complex64, n)
 
-	okFwd := avx2Forward(freq, src, twiddle, scratch, bitrev)
+	okFwd := avx2Forward(freq, src, twiddle, scratch)
 	if !okFwd {
 		t.Skip("AVX2 forward kernel not implemented")
 	}
@@ -1626,7 +1603,7 @@ func TestAVX2Size256Radix2_RoundTrip(t *testing.T) {
 	recovered := make([]complex64, n)
 	scratchInv := make([]complex64, n)
 
-	okInv := avx2Inverse(recovered, freq, twiddle, scratchInv, bitrev)
+	okInv := avx2Inverse(recovered, freq, twiddle, scratchInv)
 	if !okInv {
 		t.Skip("AVX2 inverse not available")
 	}

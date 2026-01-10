@@ -217,17 +217,7 @@ func itoa(n int) string {
 }
 
 func planBitReversal[T Complex](n int, estimate fft.PlanEstimate[T]) []int {
-	if !m.IsPowerOf2(n) {
-		return nil
-	}
-
-	// Use codelet-specific bit-reversal if available
-	if estimate.BitrevFunc != nil {
-		return estimate.BitrevFunc(n)
-	}
-
-	// Fallback to radix-2 binary reversal for kernels without codelets
-	return fft.ComputeBitReversalIndices(n)
+	return nil
 }
 
 func (p *Plan[T]) getScratch() ([]T, []T, []T, *scratchSet[T]) {
@@ -270,7 +260,7 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 
 	// Zero-dispatch codelet path (highest priority)
 	if p.forwardCodelet != nil {
-		p.forwardCodelet(dst, src, p.twiddle, scratch, p.bitrev)
+		p.forwardCodelet(dst, src, p.twiddle, scratch)
 		return nil
 	}
 
@@ -281,7 +271,7 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 	}
 
 	// Fallback kernel dispatch
-	if p.forwardKernel != nil && p.forwardKernel(dst, src, p.twiddle, scratch, p.bitrev) {
+	if p.forwardKernel != nil && p.forwardKernel(dst, src, p.twiddle, scratch) {
 		return nil
 	}
 
@@ -320,7 +310,7 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 
 	// Zero-dispatch codelet path (highest priority)
 	if p.inverseCodelet != nil {
-		p.inverseCodelet(dst, src, p.twiddle, scratch, p.bitrev)
+		p.inverseCodelet(dst, src, p.twiddle, scratch)
 		return nil
 	}
 
@@ -331,7 +321,7 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 	}
 
 	// Fallback kernel dispatch
-	if p.inverseKernel != nil && p.inverseKernel(dst, src, p.twiddle, scratch, p.bitrev) {
+	if p.inverseKernel != nil && p.inverseKernel(dst, src, p.twiddle, scratch) {
 		return nil
 	}
 
@@ -667,8 +657,8 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		bluesteinBitrev = fft.ComputeBitReversalIndices(bluesteinM)
 
 		// Compute filters using the pre-allocated scratch buffer
-		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, bluesteinBitrev, setupScratch.bluesteinScratch)
-		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, bluesteinBitrev, setupScratch.bluesteinScratch)
+		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, setupScratch.bluesteinScratch)
+		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, setupScratch.bluesteinScratch)
 	} else if useRecursive {
 		// Generate twiddles for recursive decomposition
 		var twiddleSize int

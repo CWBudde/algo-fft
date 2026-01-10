@@ -37,12 +37,12 @@ var (
 
 // Wrapper functions for generic functions
 
-func ditForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return kernels.DITForward(dst, src, twiddle, scratch, bitrev)
+func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
+	return kernels.DITForward(dst, src, twiddle, scratch)
 }
 
-func ditInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return kernels.DITInverse(dst, src, twiddle, scratch, bitrev)
+func ditInverse[T Complex](dst, src, twiddle, scratch []T) bool {
+	return kernels.DITInverse(dst, src, twiddle, scratch)
 }
 
 // Precision-specific DIT kernel wrappers.
@@ -115,24 +115,24 @@ func sameSlice[T any](a, b []T) bool {
 	return kernels.SameSlice(a, b)
 }
 
-func stockhamForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return kernels.StockhamForward(dst, src, twiddle, scratch, bitrev)
+func stockhamForward[T Complex](dst, src, twiddle, scratch []T) bool {
+	return kernels.StockhamForward(dst, src, twiddle, scratch)
 }
 
-func stockhamInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return kernels.StockhamInverse(dst, src, twiddle, scratch, bitrev)
+func stockhamInverse[T Complex](dst, src, twiddle, scratch []T) bool {
+	return kernels.StockhamInverse(dst, src, twiddle, scratch)
 }
 
 func ComputeChirpSequence[T Complex](n int) []T {
 	return kernels.ComputeChirpSequence[T](n)
 }
 
-func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, bitrev []int, scratch []T) []T {
-	return kernels.ComputeBluesteinFilter[T](n, m, chirp, twiddles, bitrev, scratch)
+func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, scratch []T) []T {
+	return kernels.ComputeBluesteinFilter[T](n, m, chirp, twiddles, scratch)
 }
 
-func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T, bitrev []int) {
-	kernels.BluesteinConvolution[T](dst, x, filter, twiddles, scratch, bitrev)
+func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T) {
+	kernels.BluesteinConvolution[T](dst, x, filter, twiddles, scratch)
 }
 
 func GetRegistry[T Complex]() *CodeletRegistry[T] {

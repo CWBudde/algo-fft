@@ -189,7 +189,6 @@ func benchmarkStrategy[T Complex](
 	dst := make([]T, n)
 	twiddle := ComputeTwiddleFactors[T](n)
 	scratch := make([]T, n)
-	bitrev := ComputeBitReversalIndices(n)
 
 	// Initialize source with simple pattern (avoids random number generation)
 	for i := range src {
@@ -201,7 +200,7 @@ func benchmarkStrategy[T Complex](
 
 	// Warmup: verify the kernel works and warm up CPU caches
 	for range config.warmup {
-		ok := kernels.Forward(dst, src, twiddle, scratch, bitrev)
+		ok := kernels.Forward(dst, src, twiddle, scratch)
 		if !ok {
 			return 0 // Strategy not implemented
 		}
@@ -214,7 +213,7 @@ func benchmarkStrategy[T Complex](
 	start := time.Now()
 
 	for range config.iters {
-		kernels.Forward(dst, src, twiddle, scratch, bitrev)
+		kernels.Forward(dst, src, twiddle, scratch)
 	}
 
 	return time.Since(start)

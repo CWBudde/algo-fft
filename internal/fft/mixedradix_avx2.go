@@ -40,20 +40,14 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 				twiddleBuf[i] = twiddle[i*step]
 			}
 
-			// 3. Prepare Bitrev
-			var bitrev []int
-			if entry.BitrevFunc != nil {
-				bitrev = entry.BitrevFunc(n)
-			}
-
-			// 4. Prepare Scratch for Kernel
+			// 3. Prepare Scratch for Kernel
 			kernelScratch := make([]complex64, n)
 
-			// 5. Call Kernel
+			// 4. Call Kernel
 			success := false
 			if inverse {
 				if entry.Inverse != nil {
-					entry.Inverse(dst[:n], inputBuf, twiddleBuf, kernelScratch, bitrev)
+					entry.Inverse(dst[:n], inputBuf, twiddleBuf, kernelScratch)
 					// Undo built-in scaling of the Inverse codelet (1/n)
 					scale := complex64(complex(float32(n), 0))
 					for i := range n {
@@ -63,7 +57,7 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 				}
 			} else {
 				if entry.Forward != nil {
-					entry.Forward(dst[:n], inputBuf, twiddleBuf, kernelScratch, bitrev)
+					entry.Forward(dst[:n], inputBuf, twiddleBuf, kernelScratch)
 					success = true
 				}
 			}
@@ -98,17 +92,12 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 				twiddleBuf[i] = twiddle[i*step]
 			}
 
-			var bitrev []int
-			if entry.BitrevFunc != nil {
-				bitrev = entry.BitrevFunc(n)
-			}
-
 			kernelScratch := make([]complex128, n)
 
 			success := false
 			if inverse {
 				if entry.Inverse != nil {
-					entry.Inverse(dst[:n], inputBuf, twiddleBuf, kernelScratch, bitrev)
+					entry.Inverse(dst[:n], inputBuf, twiddleBuf, kernelScratch)
 					// Undo built-in scaling of the Inverse codelet (1/n)
 					scale := complex128(complex(float64(n), 0))
 					for i := range n {
@@ -118,7 +107,7 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 				}
 			} else {
 				if entry.Forward != nil {
-					entry.Forward(dst[:n], inputBuf, twiddleBuf, kernelScratch, bitrev)
+					entry.Forward(dst[:n], inputBuf, twiddleBuf, kernelScratch)
 					success = true
 				}
 			}

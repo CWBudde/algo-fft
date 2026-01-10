@@ -13,124 +13,109 @@ import (
 // TestNEONSizeSpecificComplex64 validates size-specific NEON kernels against reference implementation.
 func TestNEONSizeSpecificComplex64(t *testing.T) {
 	tests := []struct {
-		name       string
-		size       int
-		forward    func([]complex64, []complex64, []complex64, []complex64, []int) bool
-		inverse    func([]complex64, []complex64, []complex64, []complex64, []int) bool
-		bitrevFunc func(int) []int
-		tol        float32
+		name    string
+		size    int
+		forward func([]complex64, []complex64, []complex64, []complex64) bool
+		inverse func([]complex64, []complex64, []complex64, []complex64) bool
+		tol     float32
 	}{
 		{
-			name:       "Size4_Radix4",
-			size:       4,
-			forward:    forwardNEONSize4Radix4Complex64Asm,
-			inverse:    inverseNEONSize4Radix4Complex64Asm,
-			bitrevFunc: nil,
-			tol:        1e-4,
+			name:    "Size4_Radix4",
+			size:    4,
+			forward: forwardNEONSize4Radix4Complex64Asm,
+			inverse: inverseNEONSize4Radix4Complex64Asm,
+			tol:     1e-4,
 		},
 		{
-			name:       "Size8_Radix8",
-			size:       8,
-			forward:    forwardNEONSize8Radix8Complex64Asm,
-			inverse:    inverseNEONSize8Radix8Complex64Asm,
-			bitrevFunc: nil,
-			tol:        1e-4,
+			name:    "Size8_Radix8",
+			size:    8,
+			forward: forwardNEONSize8Radix8Complex64Asm,
+			inverse: inverseNEONSize8Radix8Complex64Asm,
+			tol:     1e-4,
 		},
 		{
-			name:       "Size8_Radix2",
-			size:       8,
-			forward:    forwardNEONSize8Radix2Complex64Asm,
-			inverse:    inverseNEONSize8Radix2Complex64Asm,
-			bitrevFunc: nil,
-			tol:        1e-4,
+			name:    "Size8_Radix2",
+			size:    8,
+			forward: forwardNEONSize8Radix2Complex64Asm,
+			inverse: inverseNEONSize8Radix2Complex64Asm,
+			tol:     1e-4,
 		},
 		{
-			name:       "Size8_Radix4",
-			size:       8,
-			forward:    forwardNEONSize8Radix4Complex64Asm,
-			inverse:    inverseNEONSize8Radix4Complex64Asm,
-			bitrevFunc: nil,
-			tol:        1e-4,
+			name:    "Size8_Radix4",
+			size:    8,
+			forward: forwardNEONSize8Radix4Complex64Asm,
+			inverse: inverseNEONSize8Radix4Complex64Asm,
+			tol:     1e-4,
 		},
 		{
-			name:       "Size16_Radix4",
-			size:       16,
-			forward:    forwardNEONSize16Radix4Complex64Asm,
-			inverse:    inverseNEONSize16Radix4Complex64Asm,
-			bitrevFunc: ComputeBitReversalIndicesRadix4,
-			tol:        1e-4,
+			name:    "Size16_Radix4",
+			size:    16,
+			forward: forwardNEONSize16Radix4Complex64Asm,
+			inverse: inverseNEONSize16Radix4Complex64Asm,
+			tol:     1e-4,
 		},
 		{
-			name:       "Size16_Radix2",
-			size:       16,
-			forward:    forwardNEONSize16Complex64Asm,
-			inverse:    inverseNEONSize16Complex64Asm,
-			bitrevFunc: nil,
-			tol:        1e-4,
+			name:    "Size16_Radix2",
+			size:    16,
+			forward: forwardNEONSize16Complex64Asm,
+			inverse: inverseNEONSize16Complex64Asm,
+			tol:     1e-4,
 		},
 		{
-			name:       "Size32_Radix2",
-			size:       32,
-			forward:    forwardNEONSize32Complex64Asm,
-			inverse:    inverseNEONSize32Complex64Asm,
-			bitrevFunc: nil,
-			tol:        1e-4,
+			name:    "Size32_Radix2",
+			size:    32,
+			forward: forwardNEONSize32Complex64Asm,
+			inverse: inverseNEONSize32Complex64Asm,
+			tol:     1e-4,
 		},
 		{
-			name:       "Size32_MixedRadix24",
-			size:       32,
-			forward:    forwardNEONSize32MixedRadix24Complex64Asm,
-			inverse:    inverseNEONSize32MixedRadix24Complex64Asm,
-			bitrevFunc: ComputeBitReversalIndicesMixed24,
-			tol:        1e-4,
+			name:    "Size32_MixedRadix24",
+			size:    32,
+			forward: forwardNEONSize32MixedRadix24Complex64Asm,
+			inverse: inverseNEONSize32MixedRadix24Complex64Asm,
+			tol:     1e-4,
 		},
 		{
-			name:       "Size64_Radix2",
-			size:       64,
-			forward:    forwardNEONSize64Complex64Asm,
-			inverse:    inverseNEONSize64Complex64Asm,
-			bitrevFunc: nil,
-			tol:        1e-3,
+			name:    "Size64_Radix2",
+			size:    64,
+			forward: forwardNEONSize64Complex64Asm,
+			inverse: inverseNEONSize64Complex64Asm,
+			tol:     1e-3,
 		},
 		{
-			name:       "Size64_Radix4",
-			size:       64,
-			forward:    forwardNEONSize64Radix4Complex64Asm,
-			inverse:    inverseNEONSize64Radix4Complex64Asm,
-			bitrevFunc: ComputeBitReversalIndicesRadix4,
-			tol:        1e-3,
+			name:    "Size64_Radix4",
+			size:    64,
+			forward: forwardNEONSize64Radix4Complex64Asm,
+			inverse: inverseNEONSize64Radix4Complex64Asm,
+			tol:     1e-3,
 		},
 		{
-			name:       "Size128_Radix2",
-			size:       128,
-			forward:    forwardNEONSize128Complex64Asm,
-			inverse:    inverseNEONSize128Complex64Asm,
-			bitrevFunc: nil,
-			tol:        1e-3,
+			name:    "Size128_Radix2",
+			size:    128,
+			forward: forwardNEONSize128Complex64Asm,
+			inverse: inverseNEONSize128Complex64Asm,
+			tol:     1e-3,
 		},
 		{
-			name:       "Size128_MixedRadix24",
-			size:       128,
-			forward:    forwardNEONSize128MixedRadix24Complex64Asm,
-			inverse:    inverseNEONSize128MixedRadix24Complex64Asm,
-			bitrevFunc: ComputeBitReversalIndicesMixed24,
-			tol:        1e-3,
+			name:    "Size128_MixedRadix24",
+			size:    128,
+			forward: forwardNEONSize128MixedRadix24Complex64Asm,
+			inverse: inverseNEONSize128MixedRadix24Complex64Asm,
+			tol:     1e-3,
 		},
 		{
-			name:       "Size256_Radix2",
-			size:       256,
-			forward:    forwardNEONSize256Radix2Complex64Asm,
-			inverse:    inverseNEONSize256Radix2Complex64Asm,
-			bitrevFunc: nil,
-			tol:        5e-3,
+			name:    "Size256_Radix2",
+			size:    256,
+			forward: forwardNEONSize256Radix2Complex64Asm,
+			inverse: inverseNEONSize256Radix2Complex64Asm,
+			tol:     5e-3,
 		},
 		{
-			name:       "Size256_Radix4",
-			size:       256,
-			forward:    forwardNEONSize256Radix4Complex64Asm,
-			inverse:    inverseNEONSize256Radix4Complex64Asm,
-			bitrevFunc: ComputeBitReversalIndicesRadix4,
-			tol:        5e-3,
+			name:    "Size256_Radix4",
+			size:    256,
+			forward: forwardNEONSize256Radix4Complex64Asm,
+			inverse: inverseNEONSize256Radix4Complex64Asm,
+			tol:     5e-3,
 		},
 	}
 
@@ -146,18 +131,10 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 			dst := make([]complex64, tc.size)
 			inv := make([]complex64, tc.size)
 			twiddle := ComputeTwiddleFactors[complex64](tc.size)
-
-			var bitrev []int
-			if tc.bitrevFunc != nil {
-				bitrev = tc.bitrevFunc(tc.size)
-			} else {
-				bitrev = ComputeBitReversalIndices(tc.size)
-			}
-
 			scratch := make([]complex64, tc.size)
 
 			// Test forward transform vs reference
-			if !tc.forward(dst, src, twiddle, scratch, bitrev) {
+			if !tc.forward(dst, src, twiddle, scratch) {
 				t.Fatal("forward kernel failed")
 			}
 
@@ -165,7 +142,7 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 			assertComplex64MaxError(t, dst, ref, tc.tol, "reference")
 
 			// Test inverse transform and round-trip
-			if !tc.inverse(inv, dst, twiddle, scratch, bitrev) {
+			if !tc.inverse(inv, dst, twiddle, scratch) {
 				t.Fatal("inverse kernel failed")
 			}
 
@@ -177,44 +154,39 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 // TestNEONSizeSpecificComplex128 validates size-specific NEON kernels for complex128.
 func TestNEONSizeSpecificComplex128(t *testing.T) {
 	tests := []struct {
-		name       string
-		size       int
-		forward    func([]complex128, []complex128, []complex128, []complex128, []int) bool
-		inverse    func([]complex128, []complex128, []complex128, []complex128, []int) bool
-		bitrevFunc func(int) []int
-		tol        float64
+		name    string
+		size    int
+		forward func([]complex128, []complex128, []complex128, []complex128) bool
+		inverse func([]complex128, []complex128, []complex128, []complex128) bool
+		tol     float64
 	}{
 		{
-			name:       "Size4_Radix4",
-			size:       4,
-			forward:    forwardNEONSize4Radix4Complex128Asm,
-			inverse:    inverseNEONSize4Radix4Complex128Asm,
-			bitrevFunc: nil,
-			tol:        1e-12,
+			name:    "Size4_Radix4",
+			size:    4,
+			forward: forwardNEONSize4Radix4Complex128Asm,
+			inverse: inverseNEONSize4Radix4Complex128Asm,
+			tol:     1e-12,
 		},
 		{
-			name:       "Size8_Radix2",
-			size:       8,
-			forward:    forwardNEONSize8Radix2Complex128Asm,
-			inverse:    inverseNEONSize8Radix2Complex128Asm,
-			bitrevFunc: nil,
-			tol:        1e-12,
+			name:    "Size8_Radix2",
+			size:    8,
+			forward: forwardNEONSize8Radix2Complex128Asm,
+			inverse: inverseNEONSize8Radix2Complex128Asm,
+			tol:     1e-12,
 		},
 		{
-			name:       "Size16_Radix4",
-			size:       16,
-			forward:    forwardNEONSize16Radix4Complex128Asm,
-			inverse:    inverseNEONSize16Radix4Complex128Asm,
-			bitrevFunc: ComputeBitReversalIndicesRadix4,
-			tol:        1e-12,
+			name:    "Size16_Radix4",
+			size:    16,
+			forward: forwardNEONSize16Radix4Complex128Asm,
+			inverse: inverseNEONSize16Radix4Complex128Asm,
+			tol:     1e-12,
 		},
 		{
-			name:       "Size16_Radix2",
-			size:       16,
-			forward:    forwardNEONSize16Complex128Asm,
-			inverse:    inverseNEONSize16Complex128Asm,
-			bitrevFunc: nil,
-			tol:        1e-12,
+			name:    "Size16_Radix2",
+			size:    16,
+			forward: forwardNEONSize16Complex128Asm,
+			inverse: inverseNEONSize16Complex128Asm,
+			tol:     1e-12,
 		},
 	}
 
@@ -230,18 +202,10 @@ func TestNEONSizeSpecificComplex128(t *testing.T) {
 			dst := make([]complex128, tc.size)
 			inv := make([]complex128, tc.size)
 			twiddle := ComputeTwiddleFactors[complex128](tc.size)
-
-			var bitrev []int
-			if tc.bitrevFunc != nil {
-				bitrev = tc.bitrevFunc(tc.size)
-			} else {
-				bitrev = ComputeBitReversalIndices(tc.size)
-			}
-
 			scratch := make([]complex128, tc.size)
 
 			// Test forward transform vs reference
-			if !tc.forward(dst, src, twiddle, scratch, bitrev) {
+			if !tc.forward(dst, src, twiddle, scratch) {
 				t.Fatal("forward kernel failed")
 			}
 
@@ -249,7 +213,7 @@ func TestNEONSizeSpecificComplex128(t *testing.T) {
 			assertComplex128MaxError(t, dst, ref, tc.tol, "reference")
 
 			// Test inverse transform and round-trip
-			if !tc.inverse(inv, dst, twiddle, scratch, bitrev) {
+			if !tc.inverse(inv, dst, twiddle, scratch) {
 				t.Fatal("inverse kernel failed")
 			}
 
@@ -271,6 +235,13 @@ func TestNEONComplex128_AsmPath(t *testing.T) {
 
 			dst := make([]complex128, n)
 			twiddle := ComputeTwiddleFactors[complex128](n)
+			// Generic path still takes bitrev (internally used by wrapper or kasm)
+			// But wrapper signature changed to 4 params.
+			// Wait, I updated generic wrappers in asm_arm64.go to 5 params? NO.
+			// I updated them to 5 params in asm_arm64.go? Let me check what I wrote.
+			// I wrote: func forwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+			// So generic wrappers STILL take bitrev.
+			// So I should keep passing bitrev in THIS test function.
 			bitrev := ComputeBitReversalIndices(n)
 			scratch := make([]complex128, n)
 
@@ -368,6 +339,7 @@ func TestNEONComplex128_VsGoDIT(t *testing.T) {
 				t.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 
+			// forwardDITComplex128 now takes 4 args!
 			if !forwardDITComplex128(goResult, src, twiddle, scratch) {
 				t.Fatalf("forwardDITComplex128(%d) failed", n)
 			}

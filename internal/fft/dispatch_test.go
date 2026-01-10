@@ -91,10 +91,9 @@ func TestStubKernel(t *testing.T) {
 	src := make([]complex64, 8)
 	twiddle := make([]complex64, 8)
 	scratch := make([]complex64, 8)
-	bitrev := make([]int, 8)
 
 	// Stub kernel should return false (indicating it didn't handle the transform)
-	handled := stubKernel(dst, src, twiddle, scratch, bitrev)
+	handled := stubKernel(dst, src, twiddle, scratch)
 	if handled {
 		t.Error("stubKernel should return false")
 	}
@@ -223,7 +222,6 @@ func TestKernelsFunctional_Complex64(t *testing.T) {
 
 	n := 8
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
 
 	// Test forward kernel
@@ -231,7 +229,7 @@ func TestKernelsFunctional_Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	src[0] = 1 // impulse
 
-	if !kernels.Forward(dst, src, twiddle, scratch, bitrev) {
+	if !kernels.Forward(dst, src, twiddle, scratch) {
 		t.Fatal("Forward kernel returned false")
 	}
 
@@ -248,7 +246,7 @@ func TestKernelsFunctional_Complex64(t *testing.T) {
 
 	// Test inverse kernel
 	roundTrip := make([]complex64, n)
-	if !kernels.Inverse(roundTrip, dst, twiddle, scratch, bitrev) {
+	if !kernels.Inverse(roundTrip, dst, twiddle, scratch) {
 		t.Fatal("Inverse kernel returned false")
 	}
 
@@ -273,7 +271,6 @@ func TestKernelsFunctional_Complex128(t *testing.T) {
 
 	n := 16
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex128, n)
 
 	// Test forward kernel
@@ -281,7 +278,7 @@ func TestKernelsFunctional_Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	src[0] = 1 // impulse
 
-	if !kernels.Forward(dst, src, twiddle, scratch, bitrev) {
+	if !kernels.Forward(dst, src, twiddle, scratch) {
 		t.Fatal("Forward kernel returned false")
 	}
 
@@ -294,7 +291,7 @@ func TestKernelsFunctional_Complex128(t *testing.T) {
 
 	// Test inverse kernel
 	roundTrip := make([]complex128, n)
-	if !kernels.Inverse(roundTrip, dst, twiddle, scratch, bitrev) {
+	if !kernels.Inverse(roundTrip, dst, twiddle, scratch) {
 		t.Fatal("Inverse kernel returned false")
 	}
 

@@ -144,8 +144,8 @@ func registerNEONDITCodelets64() {
 	// Size 256: radix-2 NEON variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       256,
-		Forward:    wrapCodelet64(wrapAsmDIT64(arm64.ForwardNEONSize256Radix2Complex64Asm, bitrevSize256Radix2)),
-		Inverse:    wrapCodelet64(wrapAsmDIT64(arm64.InverseNEONSize256Radix2Complex64Asm, bitrevSize256Radix2)),
+		Forward:    wrapCodelet64(arm64.ForwardNEONSize256Radix2Complex64Asm),
+		Inverse:    wrapCodelet64(arm64.InverseNEONSize256Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit256_radix2_neon",

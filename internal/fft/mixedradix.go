@@ -4,28 +4,28 @@ import "github.com/MeKo-Christian/algo-fft/internal/kernels"
 
 const mixedRadixMaxStages = 64
 
-func forwardMixedRadixComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return mixedRadixForward[complex64](dst, src, twiddle, scratch, bitrev)
+func forwardMixedRadixComplex64(dst, src, twiddle, scratch []complex64) bool {
+	return mixedRadixForward[complex64](dst, src, twiddle, scratch)
 }
 
-func inverseMixedRadixComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return mixedRadixInverse[complex64](dst, src, twiddle, scratch, bitrev)
+func inverseMixedRadixComplex64(dst, src, twiddle, scratch []complex64) bool {
+	return mixedRadixInverse[complex64](dst, src, twiddle, scratch)
 }
 
-func forwardMixedRadixComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return mixedRadixForward[complex128](dst, src, twiddle, scratch, bitrev)
+func forwardMixedRadixComplex128(dst, src, twiddle, scratch []complex128) bool {
+	return mixedRadixForward[complex128](dst, src, twiddle, scratch)
 }
 
-func inverseMixedRadixComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return mixedRadixInverse[complex128](dst, src, twiddle, scratch, bitrev)
+func inverseMixedRadixComplex128(dst, src, twiddle, scratch []complex128) bool {
+	return mixedRadixInverse[complex128](dst, src, twiddle, scratch)
 }
 
-func mixedRadixForward[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return mixedRadixTransform(dst, src, twiddle, scratch, bitrev, false)
+func mixedRadixForward[T Complex](dst, src, twiddle, scratch []T) bool {
+	return mixedRadixTransform(dst, src, twiddle, scratch, false)
 }
 
-func mixedRadixInverse[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
-	return mixedRadixTransform(dst, src, twiddle, scratch, bitrev, true)
+func mixedRadixInverse[T Complex](dst, src, twiddle, scratch []T) bool {
+	return mixedRadixTransform(dst, src, twiddle, scratch, true)
 }
 
 // Recursion hooks for SIMD acceleration.
@@ -42,9 +42,7 @@ func init() {
 	recursiveStep128 = mixedRadixRecursivePingPongComplex128
 }
 
-func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, inverse bool) bool {
-	_ = bitrev
-
+func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, inverse bool) bool {
 	n := len(src)
 	if n == 0 {
 		return true

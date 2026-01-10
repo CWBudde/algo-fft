@@ -231,6 +231,10 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
 		return true
 	}
 
+	if !mathpkg.IsPowerOf2(n) {
+		return false
+	}
+
 	work := dst
 	workIsDst := true
 
@@ -287,6 +291,10 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 	if n == 1 {
 		dst[0] = src[0]
 		return true
+	}
+
+	if !mathpkg.IsPowerOf2(n) {
+		return false
 	}
 
 	work := dst
@@ -351,6 +359,10 @@ func ditInverseComplex64(dst, src, twiddle, scratch []complex64) bool {
 		return true
 	}
 
+	if !mathpkg.IsPowerOf2(n) {
+		return false
+	}
+
 	work := dst
 	workIsDst := true
 
@@ -412,6 +424,10 @@ func ditInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
 	if n == 1 {
 		dst[0] = src[0]
 		return true
+	}
+
+	if !mathpkg.IsPowerOf2(n) {
+		return false
 	}
 
 	work := dst
