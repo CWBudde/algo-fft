@@ -5,12 +5,11 @@
 // ===========================================================================
 // Forward transform, size 32, complex64, radix-32 (4x8) variant (AVX2 XMM)
 // ===========================================================================
-TEXT ·ForwardAVX2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -458,23 +457,22 @@ row_loop:
 	JL row_loop
 
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 fwd_ret_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 32, complex64, radix-32 (4x8) variant (AVX2 XMM)
 // ===========================================================================
-TEXT ·InverseAVX2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -735,10 +733,10 @@ row_inv_loop:
 	JL row_inv_loop
 
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_ret_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

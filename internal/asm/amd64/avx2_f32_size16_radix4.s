@@ -14,13 +14,12 @@
 #include "textflag.h"
 
 // Forward transform, size 16, complex64, radix-4 variant
-TEXT ·ForwardAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 16)
 
 	// Verify n == 16
@@ -40,10 +39,6 @@ TEXT ·ForwardAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $16
 	JL   size16_r4_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $16
-	JL   size16_r4_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  size16_r4_use_dst
@@ -52,16 +47,55 @@ TEXT ·ForwardAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-121
 size16_r4_use_dst:
 	// ==================================================================
 	// Bit-reversal permutation (base-4 bit-reversal)
+	// Radix-4 pattern: [0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15]
 	// ==================================================================
-	XORQ CX, CX
+	MOVQ (R9), AX            // src[0]
+	MOVQ AX, (R8)            // work[0] = src[0]
 
-size16_r4_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)(CX*8)
-	INCQ CX
-	CMPQ CX, $16
-	JL   size16_r4_bitrev_loop
+	MOVQ 32(R9), AX          // src[4]
+	MOVQ AX, 8(R8)           // work[1] = src[4]
+
+	MOVQ 64(R9), AX          // src[8]
+	MOVQ AX, 16(R8)          // work[2] = src[8]
+
+	MOVQ 96(R9), AX          // src[12]
+	MOVQ AX, 24(R8)          // work[3] = src[12]
+
+	MOVQ 8(R9), AX           // src[1]
+	MOVQ AX, 32(R8)          // work[4] = src[1]
+
+	MOVQ 40(R9), AX          // src[5]
+	MOVQ AX, 40(R8)          // work[5] = src[5]
+
+	MOVQ 72(R9), AX          // src[9]
+	MOVQ AX, 48(R8)          // work[6] = src[9]
+
+	MOVQ 104(R9), AX         // src[13]
+	MOVQ AX, 56(R8)          // work[7] = src[13]
+
+	MOVQ 16(R9), AX          // src[2]
+	MOVQ AX, 64(R8)          // work[8] = src[2]
+
+	MOVQ 48(R9), AX          // src[6]
+	MOVQ AX, 72(R8)          // work[9] = src[6]
+
+	MOVQ 80(R9), AX          // src[10]
+	MOVQ AX, 80(R8)          // work[10] = src[10]
+
+	MOVQ 112(R9), AX         // src[14]
+	MOVQ AX, 88(R8)          // work[11] = src[14]
+
+	MOVQ 24(R9), AX          // src[3]
+	MOVQ AX, 96(R8)          // work[12] = src[3]
+
+	MOVQ 56(R9), AX          // src[7]
+	MOVQ AX, 104(R8)         // work[13] = src[7]
+
+	MOVQ 88(R9), AX          // src[11]
+	MOVQ AX, 112(R8)         // work[14] = src[11]
+
+	MOVQ 120(R9), AX         // src[15]
+	MOVQ AX, 120(R8)         // work[15] = src[15]
 
 size16_r4_stage1:
 	// ==================================================================
@@ -205,22 +239,21 @@ size16_r4_copy_loop:
 
 size16_r4_done_direct:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size16_r4_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 16, complex64, radix-4 variant
-TEXT ·InverseAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 16
@@ -240,10 +273,6 @@ TEXT ·InverseAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $16
 	JL   size16_r4_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $16
-	JL   size16_r4_inv_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  size16_r4_inv_use_dst
@@ -252,16 +281,55 @@ TEXT ·InverseAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-121
 size16_r4_inv_use_dst:
 	// ==================================================================
 	// Bit-reversal permutation (base-4 bit-reversal)
+	// Radix-4 pattern: [0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15]
 	// ==================================================================
-	XORQ CX, CX
+	MOVQ (R9), AX            // src[0]
+	MOVQ AX, (R8)            // work[0] = src[0]
 
-size16_r4_inv_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)(CX*8)
-	INCQ CX
-	CMPQ CX, $16
-	JL   size16_r4_inv_bitrev_loop
+	MOVQ 32(R9), AX          // src[4]
+	MOVQ AX, 8(R8)           // work[1] = src[4]
+
+	MOVQ 64(R9), AX          // src[8]
+	MOVQ AX, 16(R8)          // work[2] = src[8]
+
+	MOVQ 96(R9), AX          // src[12]
+	MOVQ AX, 24(R8)          // work[3] = src[12]
+
+	MOVQ 8(R9), AX           // src[1]
+	MOVQ AX, 32(R8)          // work[4] = src[1]
+
+	MOVQ 40(R9), AX          // src[5]
+	MOVQ AX, 40(R8)          // work[5] = src[5]
+
+	MOVQ 72(R9), AX          // src[9]
+	MOVQ AX, 48(R8)          // work[6] = src[9]
+
+	MOVQ 104(R9), AX         // src[13]
+	MOVQ AX, 56(R8)          // work[7] = src[13]
+
+	MOVQ 16(R9), AX          // src[2]
+	MOVQ AX, 64(R8)          // work[8] = src[2]
+
+	MOVQ 48(R9), AX          // src[6]
+	MOVQ AX, 72(R8)          // work[9] = src[6]
+
+	MOVQ 80(R9), AX          // src[10]
+	MOVQ AX, 80(R8)          // work[10] = src[10]
+
+	MOVQ 112(R9), AX         // src[14]
+	MOVQ AX, 88(R8)          // work[11] = src[14]
+
+	MOVQ 24(R9), AX          // src[3]
+	MOVQ AX, 96(R8)          // work[12] = src[3]
+
+	MOVQ 56(R9), AX          // src[7]
+	MOVQ AX, 104(R8)         // work[13] = src[7]
+
+	MOVQ 88(R9), AX          // src[11]
+	MOVQ AX, 112(R8)         // work[14] = src[11]
+
+	MOVQ 120(R9), AX         // src[15]
+	MOVQ AX, 120(R8)         // work[15] = src[15]
 
 size16_r4_inv_stage1:
 	// ==================================================================
@@ -421,10 +489,10 @@ size16_r4_inv_copy_loop:
 
 size16_r4_inv_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size16_r4_inv_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

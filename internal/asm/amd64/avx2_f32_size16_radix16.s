@@ -11,13 +11,12 @@
 // 3. Horizontal FFT4: FFT4 applied within each YMM register (on rows).
 // 4. Matrix Transpose: Final 4x4 transposition to restore Natural Order.
 // ===========================================================================
-TEXT ·ForwardAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	// --- Argument Loading ---
 	MOVQ dst+0(FP), R8           // R8 = Destination pointer
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer (not used)
-	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer
 	MOVQ src+32(FP), R13         // R13 = Length of source slice
 
 	// --- Input Validation ---
@@ -31,24 +30,16 @@ TEXT ·ForwardAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ R11, R14
 
 fwd_use_dst:
-	// Bit-reversal permutation into working buffer
-	XORQ CX, CX
-
-fwd_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R14)(CX*8)
-	INCQ CX
-	CMPQ CX, $16
-	JL   fwd_bitrev_loop
+	// Note: Radix-16 on size-16 uses identity permutation (no bit-reversal needed)
+	// Load input in natural order directly from src (R9)
 
 	// =======================================================================
 	// STEP 0: Load 4x4 Matrix into YMM Registers
 	// =======================================================================
-	VMOVUPS 0(R14), Y0           // Y0 = Row 0: elements [0, 1, 2, 3]
-	VMOVUPS 32(R14), Y1          // Y1 = Row 1: elements [4, 5, 6, 7]
-	VMOVUPS 64(R14), Y2          // Y2 = Row 2: elements [8, 9, 10, 11]
-	VMOVUPS 96(R14), Y3          // Y3 = Row 3: elements [12, 13, 14, 15]
+	VMOVUPS 0(R9), Y0            // Y0 = Row 0: elements [0, 1, 2, 3]
+	VMOVUPS 32(R9), Y1           // Y1 = Row 1: elements [4, 5, 6, 7]
+	VMOVUPS 64(R9), Y2           // Y2 = Row 2: elements [8, 9, 10, 11]
+	VMOVUPS 96(R9), Y3           // Y3 = Row 3: elements [12, 13, 14, 15]
 
 
 	// =======================================================================
@@ -211,24 +202,23 @@ fwd_bitrev_loop:
 	VMOVUPS Y3, 96(R8)           // Store matrix Row 3
 
 	VZEROUPPER                   // Reset SIMD state
-	MOVB $1, ret+120(FP)         // Signal success
+	MOVB $1, ret+96(FP)          // Signal success
 	RET
 
 fwd_ret_false:
-	MOVB $0, ret+120(FP)         // Signal failure
+	MOVB $0, ret+96(FP)          // Signal failure
 	RET
 
 
 // ===========================================================================
 // Inverse transform, size 16, complex64, AVX2 radix-16 (4x4) variant
 // ===========================================================================
-TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	// --- Argument Loading ---
 	MOVQ dst+0(FP), R8           // R8 = Destination pointer
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer
-	MOVQ bitrev+96(FP), R12      // R12 = Bit-reversal pointer
 	MOVQ src+32(FP), R13         // R13 = Length
 
 	// --- Input Validation ---
@@ -242,24 +232,16 @@ TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ R11, R14
 
 inv_use_dst:
-	// Bit-reversal permutation into working buffer
-	XORQ CX, CX
-
-inv_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R14)(CX*8)
-	INCQ CX
-	CMPQ CX, $16
-	JL   inv_bitrev_loop
+	// Note: Radix-16 on size-16 uses identity permutation (no bit-reversal needed)
+	// Load input in natural order directly from src (R9)
 
 	// =======================================================================
 	// STEP 0: Load 4x4 Matrix
 	// =======================================================================
-	VMOVUPS 0(R14), Y0            // Y0 = Row 0: elements [0, 1, 2, 3]
-	VMOVUPS 32(R14), Y1           // Y1 = Row 1: elements [4, 5, 6, 7]
-	VMOVUPS 64(R14), Y2           // Y2 = Row 2: elements [8, 9, 10, 11]
-	VMOVUPS 96(R14), Y3           // Y3 = Row 3: elements [12, 13, 14, 15]
+	VMOVUPS 0(R9), Y0            // Y0 = Row 0: elements [0, 1, 2, 3]
+	VMOVUPS 32(R9), Y1           // Y1 = Row 1: elements [4, 5, 6, 7]
+	VMOVUPS 64(R9), Y2           // Y2 = Row 2: elements [8, 9, 10, 11]
+	VMOVUPS 96(R9), Y3           // Y3 = Row 3: elements [12, 13, 14, 15]
 
 	// =======================================================================
 	// STEP 1: Vertical IFFT4 (Column-wise transformation)
@@ -431,9 +413,9 @@ inv_bitrev_loop:
 	VMOVUPS Y3, 96(R8)            // Store matrix Row 3
 
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_ret_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

@@ -79,8 +79,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x66778899,
 		roundTripSeed: 0xAABBDDEE,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndicesRadix4,
-		forwardKernel: amd64.ForwardAVX2Size16Radix4Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size16Radix4Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size16/Radix16",
@@ -91,8 +95,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x55667788,
 		roundTripSeed: 0x99AABBCC,
 		bitrevFunc:    mathpkg.ComputeIdentityIndices, // Radix-16 expects natural order
-		forwardKernel: amd64.ForwardAVX2Size16Radix16Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size16Radix16Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size32/Radix2",
@@ -115,8 +123,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x778899AA,
 		roundTripSeed: 0xBBCCDDEE,
 		bitrevFunc:    mathpkg.ComputeIdentityIndices, // Radix-32 expects natural order
-		forwardKernel: amd64.ForwardAVX2Size32Radix32Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size32Radix32Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size64/Radix2",

@@ -174,11 +174,12 @@ This hybrid creates complexity and bugs. By committing to kernel-controlled perm
 **Overview**: Remove caller-supplied bitrev parameter from all AVX2 kernels. For identity permutations (size 8/16/32 radix-N), simply remove the parameter. For other sizes, hardcode bitrev indices in a data section within the assembly file.
 
 **Pattern for each file**:
+
 1. Remove `bitrev+XX(FP)` parameter loading from function prologue
 2. For identity permutations: no data section needed
 3. For non-identity permutations: add hardcoded `DATA` section with bit-reversal indices and load from it
 
-#### 11.13.1 Phase 1: Small Complex64 Files (Size 4-32) ✅ PARTIAL
+#### 11.13.1 Phase 1: Small Complex64 Files (Size 4-32) ✅ COMPLETE
 
 Completed (4 assembly files + Go declarations + registrations + tests):
 
@@ -190,12 +191,9 @@ Completed (4 assembly files + Go declarations + registrations + tests):
 - [x] Updated codelet registrations in [codelet_init_avx2.go](internal/kernels/codelet_init_avx2.go)
 - [x] Updated test/benchmark wrappers in [avx2_kernels_test.go](internal/kernels/avx2_kernels_test.go), [avx2_bench_test.go](internal/kernels/avx2_bench_test.go)
 - [x] Tests passing for size-4 and size-8 variants
-
-Remaining:
-
-- [ ] `avx2_f32_size16_radix4.s`: Internalize bitrev
-- [ ] `avx2_f32_size16_radix16.s`: Remove bitrev (identity)
-- [ ] `avx2_f32_size32_radix32.s`: Remove bitrev (identity)
+- [x] `avx2_f32_size16_radix4.s`: Internalize bitrev
+- [x] `avx2_f32_size16_radix16.s`: Remove bitrev (identity)
+- [x] `avx2_f32_size32_radix32.s`: Remove bitrev (identity)
 
 #### 11.13.2 Phase 2: Medium Complex64 Files (Size 64-256)
 
