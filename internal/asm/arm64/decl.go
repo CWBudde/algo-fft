@@ -5,16 +5,16 @@ package arm64
 // NOTE: These are Go declarations for ARM64 assembly routines implemented in the *.s files in this directory.
 
 //go:noescape
-func ForwardNEONComplex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardNEONComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func InverseNEONComplex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseNEONComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func ForwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128) bool
+func ForwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
 //go:noescape
-func InverseNEONComplex128Asm(dst, src, twiddle, scratch []complex128) bool
+func InverseNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
 // Size-specific complex64 NEON kernels.
 
