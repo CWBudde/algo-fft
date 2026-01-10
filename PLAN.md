@@ -89,8 +89,8 @@ This hybrid creates complexity and bugs. By committing to kernel-controlled perm
   ```go
   type CoreCodeletFunc[T Complex] func(dst, src, twiddle, scratch []T)
   ```
-- [ ] Add adapter functions to wrap old signatures during migration (deferred - not needed yet)
-- [ ] Create helper to convert between old and new signatures (deferred - not needed yet)
+- [x] Add adapter functions to wrap old signatures during migration (completed in `codelet_init.go`)
+- [x] Create helper to convert between old and new signatures (completed in `codelet_init.go`)
 
 #### 11.1.3 Update Transform Layer ✅
 
@@ -98,31 +98,17 @@ This hybrid creates complexity and bugs. By committing to kernel-controlled perm
   - [x] For `KernelTypeCore`/`KernelTypeDIT`: call kernel without generating bitrev
   - [x] For `KernelTypeLegacy` codelets: maintain current behavior (generate and pass bitrev)
 - [x] Added `KernelType` constants to `internal/transform/types.go`
-- [ ] Update `ScratchSizeRecursive` if scratch requirements change (deferred - not needed yet)
+- [x] Update `ScratchSizeRecursive` if scratch requirements change (completed in `internal/planner/planner.go`)
 
 ---
 
-### 11.2 Pure Go Kernel Migration - Size 4 (Partially Complete)
+### 11.2 Pure Go Kernel Migration - Size 4 ✅ COMPLETE
 
-**Files**: `dit_size4_radix4.go`
-**Current State**: Already ignores bitrev (single radix-4 butterfly)
+**Files**: `dit_size4_radix4.go` (ignores bitrev)
 
-**Registration Update** ✅
-
-- [x] Update codelet registration in `codelet_init.go` for size-4 entries: `KernelType: KernelTypeCore`
-- [x] Update codelet registration in `codelet_init_avx2.go` for size-4 entries: `KernelType: KernelTypeCore`
-- [x] Update codelet registration in `codelet_init_sse2.go` for size-4 entries: `KernelType: KernelTypeCore`
-- [x] Update codelet registration in `codelet_init_neon.go` for size-4 entries: `KernelType: KernelTypeCore`
-- [x] Run roundtrip tests: `go test -v -run TestRoundTrip ./...` ✅ PASS
-
-**Signature Changes** (deferred - kernels already work correctly)
-
-- [x] `dit_size4_radix4.go`: Remove bitrev parameter from function signatures
-  - [x] `forwardDIT4Radix4Complex64` → remove bitrev param
-  - [x] `inverseDIT4Radix4Complex64` → remove bitrev param
-  - [x] `forwardDIT4Radix4Complex128` → remove bitrev param
-  - [x] `inverseDIT4Radix4Complex128` → remove bitrev param
-- [x] Run tests: `go test -v -run TestDIT4 ./internal/kernels/...`
+- [x] Update codelet registration in all init files: `KernelType: KernelTypeCore`
+- [x] Remove bitrev parameter from all function signatures
+- [x] Run tests: `TestRoundTrip` & `TestDIT4` ✅ PASS
 
 ---
 
@@ -130,49 +116,11 @@ This hybrid creates complexity and bugs. By committing to kernel-controlled perm
 
 **Files**: `dit_size8_radix2.go`, `dit_size8_radix4.go`, `dit_size8_radix8.go`
 
-#### 11.3.4 Size 8 Codelet Registration Update ✅
-
-All size-8 registrations now have `KernelType` field set to `KernelTypeDIT` or `KernelTypeCore`.
-
-- [x] Update `codelet_init.go` for all size-8 entries: `KernelType: KernelTypeDIT` / `KernelTypeCore`
-- [x] Update `codelet_init_avx2.go` for all size-8 entries: `KernelType: KernelTypeLegacy`
-- [x] Update `codelet_init_sse2.go` for all size-8 entries: `KernelType: KernelTypeLegacy`
-- [x] Update `codelet_init_neon.go` for all size-8 entries: `KernelType: KernelTypeLegacy`
-- [x] Run roundtrip tests: `go test -v -run TestRoundTrip ./...` ✅ PASS
-
-#### 11.3.1 Size 8 Radix-8 (Identity Permutation) ✅ COMPLETE
-
-- [x] `dit_size8_radix8.go`: Internalize identity permutation
-  - [x] Remove `bitrev` parameter from `forwardDIT8Radix8Complex64`
-  - [x] Replace `s[bitrev[i]]` with `s[i]` (since bitrev was identity)
-  - [x] Remove `bitrev` parameter from `inverseDIT8Radix8Complex64`
-  - [x] Replace `s[bitrev[i]]` with `s[i]`
-  - [x] Remove `bitrev` parameter from `forwardDIT8Radix8Complex128`
-  - [x] Remove `bitrev` parameter from `inverseDIT8Radix8Complex128`
-- [x] Update wrapper functions `forwardDIT8Complex64/128`, `inverseDIT8Complex64/128`
-- [x] Update registration to `KernelType: KernelTypeCore`
-- [x] Run tests: `go test -v -run TestDIT8Radix8 ./internal/kernels/...` ✅ PASS
-
-#### 11.3.2 Size 8 Radix-2 (Standard Bit-Reversal) ✅ COMPLETE
-
-- [x] `dit_size8_radix2.go`: Internalize standard bit-reversal
-  - [x] Add package-level precomputed `var bitrev8Radix2 = [8]int{0,4,2,6,1,5,3,7}`
-  - [x] Remove `bitrev` parameter from `forwardDIT8Radix2Complex64`
-  - [x] Replace `src[bitrev[i]]` with `src[bitrev8Radix2[i]]`
-  - [x] Remove `bitrev` parameter from `inverseDIT8Radix2Complex64`
-  - [x] Remove `bitrev` parameter from `forwardDIT8Radix2Complex128`
-  - [x] Remove `bitrev` parameter from `inverseDIT8Radix2Complex128`
-- [x] Update registration to `KernelType: KernelTypeDIT`
-- [x] Run tests: `go test -v -run TestDIT8Radix2 ./internal/kernels/...` ✅ PASS
-
-#### 11.3.3 Size 8 Radix-4 (Mixed-24 Permutation) ✅ COMPLETE
-
-- [x] `dit_size8_radix4.go`: Internalize mixed-24 permutation
-  - [x] Add package-level precomputed `var bitrev8Mixed24 = [8]int{0, 2, 4, 6, 1, 3, 5, 7}`
-  - [x] Remove `bitrev` parameter from all 4 functions
-  - [x] Update internal indexing to use hardcoded permutation
-- [x] Update registration to `KernelType: KernelTypeDIT`
-- [x] Run tests: `go test -v -run TestDIT8Radix4 ./internal/kernels/...` ✅ PASS
+- [x] `dit_size8_radix2.go`: Internalize bit-reversal, update registration to `KernelTypeDIT`
+- [x] `dit_size8_radix4.go`: Internalize mixed-24 permutation, update registration to `KernelTypeDIT`
+- [x] `dit_size8_radix8.go`: Internalize identity permutation, update registration to `KernelTypeCore`
+- [x] Update all init files with appropriate `KernelType` values
+- [x] Run tests: `TestRoundTrip`, `TestDIT8Radix*` ✅ PASS
 
 ---
 
@@ -180,283 +128,44 @@ All size-8 registrations now have `KernelType` field set to `KernelTypeDIT` or `
 
 **Files**: `dit_size16_radix2.go`, `dit_size16_radix4.go`
 
-#### 11.4.1 Size 16 Radix-2 ✅ COMPLETE
-
 - [x] `dit_size16_radix2.go`: Internalize standard bit-reversal
-  - [x] Add `var bitrev16Radix2 = [16]int{0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15}`
-  - [x] Remove `bitrev` parameter from `forwardDIT16Complex64`
-  - [x] Remove `bitrev` parameter from `inverseDIT16Complex64`
-  - [x] Remove `bitrev` parameter from `forwardDIT16Complex128`
-  - [x] Remove `bitrev` parameter from `inverseDIT16Complex128`
-- [x] Run tests: `go test -v -run TestDIT16Radix2 ./internal/kernels/...` ✅ PASS
-
-#### 11.4.2 Size 16 Radix-4 ✅ COMPLETE
-
 - [x] `dit_size16_radix4.go`: Internalize radix-4 digit-reversal
-  - [x] Add `bitrev16Radix4` table
-  - [x] Remove `bitrev` parameter from `forwardDIT16Radix4Complex64`
-  - [x] Use `bitrev16Radix4` internally
-  - [x] Remove `bitrev` parameter from `inverseDIT16Radix4Complex64`
-  - [x] Remove `bitrev` parameter from complex128 variants
-- [x] Update registration to `KernelType: KernelTypeDIT`
-- [x] Run tests: `go test -v -run TestDIT16Radix4 ./internal/kernels/...` ✅ PASS
-
-- [ ] Run tests: `go test -v -run TestDIT16Radix4 ./internal/kernels/...`
-
-#### 11.4.3 Size 16 Codelet Registration Update ✅ COMPLETE
-
-- [x] Update `codelet_init.go` for all size-16 entries
-- [ ] Run full size-16 test suite
+- [x] Update all init files with `KernelType: KernelTypeDIT`
+- [x] Run tests: `TestDIT16*` ✅ PASS
 
 ---
 
-### 11.5 Pure Go Kernel Migration - Size 32 [COMPLETED]
+### 11.5–11.8 Pure Go Kernel Migration - Sizes 32, 64, 128, 256 ✅ COMPLETE
 
-**Files**: `dit_size32_radix2.go`, `dit_size32_mixed24.go`
-
-#### 11.5.1 Size 32 Radix-2 [COMPLETED]
-
-- [x] `dit_size32_radix2.go`: Internalize standard bit-reversal
-  - [x] Add `var bitrev32Radix2 = mathpkg.ComputeBitReversalIndices(32)`
-  - [x] Remove `bitrev` parameter from all 4 functions
-  - [x] Update internal indexing
-- [x] Run tests: `go test -v -run TestDIT32Radix2 ./internal/kernels/...`
-
-#### 11.5.2 Size 32 Mixed-24 [COMPLETED]
-
-- [x] `dit_size32_mixed24.go`: Internalize mixed-24 permutation
-  - [x] Add `var bitrev32Mixed24 = mathpkg.ComputeBitReversalIndicesMixed24(32)`
-  - [x] Remove `bitrev` parameter from all 4 functions
-- [x] Run tests: `go test -v -run TestDIT32Mixed24 ./internal/kernels/...`
-
-#### 11.5.3 Size 32 Codelet Registration Update [COMPLETED]
-
-- [x] Update `codelet_init.go` for all size-32 entries
-- [x] Run full size-32 test suite
+- [x] Size 32: `dit_size32_radix2.go`, `dit_size32_mixed24.go` — internalize permutations, update registrations
+- [x] Size 64: `dit_size64_radix2.go`, `dit_size64_radix4.go` — internalize permutations, update registrations
+- [x] Size 128: `dit_size128_radix2.go`, `dit_size128_mixed24.go` — internalize permutations, update registrations
+- [x] Size 256: `dit_size256_radix2.go`, `dit_size256_radix4.go`, `dit_size256_radix16.go` — internalize permutations, update registrations
+- [x] Update all init files with `KernelType` values
+- [x] Run tests: `TestDIT32*`, `TestDIT64*`, `TestDIT128*`, `TestDIT256*` ✅ PASS
 
 ---
 
-### 11.6 Pure Go Kernel Migration - Size 64 ✅
+### 11.9–11.11 Pure Go Kernel Migration - Large Sizes (512–16384) ✅ COMPLETE
 
-**Files**: `dit_size64_radix2.go`, `dit_size64_radix4.go`
-
-#### 11.6.1 Size 64 Radix-2 ✅ COMPLETE
-
-- [x] `dit_size64_radix2.go`: Internalize standard bit-reversal
-  - [x] Add precomputed permutation array
-  - [x] Remove `bitrev` parameter from all functions
-- [x] Run tests
-
-#### 11.6.2 Size 64 Radix-4 ✅ COMPLETE
-
-- [x] `dit_size64_radix4.go`: Internalize radix-4 digit-reversal
-  - [x] Verify `bitrevSize64Radix4` exists in `dit.go`
-  - [x] Remove `bitrev` parameter from all functions
-- [x] Run tests
-
-#### 11.6.3 Size 64 Codelet Registration Update ✅ COMPLETE
-
-- [x] Update `codelet_init.go` for all size-64 entries
+- [x] Size 512: `dit_size512_radix2.go`, `dit_size512_radix8.go`, `dit_size512_mixed24.go`, `dit_size512_radix16x32.go` — internalize permutations
+- [x] Size 1024: `dit_size1024_radix4.go`, `dit_size1024_radix32x32.go` — internalize permutations (complex logic in radix32x32)
+- [x] Size 2048–16384: `dit_size2048_mixed24.go`, `dit_size4096_radix4.go`, `dit_size4096_sixstep.go`, `dit_size8192_mixed24.go`, `dit_size16384_radix4.go` — internalize permutations
+- [x] Update all init files with `KernelType` values
+- [x] Run tests: `TestDIT512*`, `TestDIT1024*`, `TestDIT2048*`, `TestDIT4096*`, `TestDIT8192*`, `TestDIT16384*` ✅ PASS
 
 ---
 
-### 11.7 Pure Go Kernel Migration - Size 128 ✅
-
-**Files**: `dit_size128_radix2.go`, `dit_size128_mixed24.go`
-
-#### 11.7.1 Size 128 Radix-2 ✅ COMPLETE
-
-- [x] `dit_size128_radix2.go`: Internalize standard bit-reversal
-  - [x] Add precomputed permutation array
-  - [x] Remove `bitrev` parameter from all functions
-- [x] Run tests
-
-#### 11.7.2 Size 128 Mixed-24 ✅ COMPLETE
-
-- [x] `dit_size128_mixed24.go`: Internalize mixed-24 permutation
-  - [x] Add precomputed permutation array
-  - [x] Remove `bitrev` parameter from all functions
-- [x] Run tests
-
-#### 11.7.3 Size 128 Codelet Registration Update ✅ COMPLETE
-
-- [x] Update `codelet_init.go` for all size-128 entries
-
----
-
-### 11.8 Pure Go Kernel Migration - Size 256 ✅
-
-**Files**: `dit_size256_radix2.go`, `dit_size256_radix4.go`, `dit_size256_radix16.go`
-
-#### 11.8.1 Size 256 Radix-2 ✅ COMPLETE
-
-- [x] `dit_size256_radix2.go`: Internalize standard bit-reversal
-  - [x] Remove `bitrev` parameter from all functions
-- [x] Run tests
-
-#### 11.8.2 Size 256 Radix-4 ✅ COMPLETE
-
-- [x] `dit_size256_radix4.go`: Internalize radix-4 digit-reversal
-  - [x] Remove `bitrev` parameter from all functions
-- [x] Run tests
-
-#### 11.8.3 Size 256 Radix-16 ✅ COMPLETE
-
-- [x] `dit_size256_radix16.go`: Internalize identity permutation
-  - [x] Remove `bitrev` parameter from all functions
-- [x] Run tests
-
-#### 11.8.4 Size 256 Codelet Registration Update ✅ COMPLETE
-
-- [x] Update `codelet_init.go` for all size-256 entries
-
----
-
-### 11.9 Pure Go Kernel Migration - Size 512
-
-**Files**: `dit_size512_radix2.go`, `dit_size512_radix8.go`, `dit_size512_mixed24.go`, `dit_size512_radix16x32.go`
-
-#### 11.9.1 Size 512 Radix-2
-
-- [ ] `dit_size512_radix2.go`: Internalize standard bit-reversal
-  - [ ] Remove `bitrev` parameter from all functions
-- [ ] Run tests
-
-#### 11.9.2 Size 512 Radix-8
-
-- [ ] `dit_size512_radix8.go`: Internalize radix-8 permutation
-  - [ ] Remove `bitrev` parameter from all functions
-- [ ] Run tests
-
-#### 11.9.3 Size 512 Mixed-24
-
-- [ ] `dit_size512_mixed24.go`: Internalize mixed-24 permutation
-  - [ ] Remove `bitrev` parameter from all functions
-- [ ] Run tests
-
-#### 11.9.4 Size 512 Radix-16×32
-
-- [ ] `dit_size512_radix16x32.go`: Internalize permutation
-  - [ ] Remove `bitrev` parameter from all functions
-- [ ] Run tests
-
-#### 11.9.5 Size 512 Codelet Registration Update
-
-- [ ] Update `codelet_init.go` for all size-512 entries
-
----
-
-### 11.10 Pure Go Kernel Migration - Size 1024
-
-**Files**: `dit_size1024_radix4.go`, `dit_size1024_radix32x32.go`
-
-#### 11.10.1 Size 1024 Radix-4
-
-- [ ] `dit_size1024_radix4.go`: Internalize radix-4 digit-reversal
-  - [ ] Remove `bitrev` parameter from all functions
-- [ ] Run tests
-
-#### 11.10.2 Size 1024 Radix-32×32
-
-- [ ] `dit_size1024_radix32x32.go`: Internalize permutation
-  - [ ] Remove `bitrev` parameter from all functions
-  - [ ] Note: This file has complex internal permutation logic
-- [ ] Run tests
-
-#### 11.10.3 Size 1024 Codelet Registration Update
-
-- [ ] Update `codelet_init.go` for all size-1024 entries
-
----
-
-### 11.11 Pure Go Kernel Migration - Large Sizes (2048+)
-
-**Files**: `dit_size2048_mixed24.go`, `dit_size4096_radix4.go`, `dit_size4096_sixstep.go`, `dit_size8192_mixed24.go`, `dit_size16384_radix4.go`
-
-#### 11.11.1 Size 2048 Mixed-24
-
-- [ ] `dit_size2048_mixed24.go`: Internalize mixed-24 permutation
-  - [ ] Remove `bitrev` parameter from all functions
-- [ ] Run tests
-
-#### 11.11.2 Size 4096 Radix-4
-
-- [ ] `dit_size4096_radix4.go`: Internalize radix-4 digit-reversal
-  - [ ] Remove `bitrev` parameter from all functions
-- [ ] Run tests
-
-#### 11.11.3 Size 4096 Six-Step
-
-- [ ] `dit_size4096_sixstep.go`: Internalize permutation
-  - [ ] Already uses `bitrev4096Radix4` internally
-  - [ ] Remove external `bitrev` parameter
-  - [ ] Simplify remapping logic
-- [ ] Run tests
-
-#### 11.11.4 Size 8192 Mixed-24
-
-- [ ] `dit_size8192_mixed24.go`: Internalize mixed-24 permutation
-  - [ ] Remove `bitrev` parameter from all functions
-- [ ] Run tests
-
-#### 11.11.5 Size 16384 Radix-4
-
-- [ ] `dit_size16384_radix4.go`: Internalize radix-4 digit-reversal
-  - [ ] Remove `bitrev` parameter from all functions
-- [ ] Run tests
-
-#### 11.11.6 Large Size Codelet Registration Update
-
-- [ ] Update `codelet_init.go` for all large size entries
-
----
-
-### 11.12 Pure Go Kernel Migration - Generic/Fallback Kernels
+### 11.12 Pure Go Kernel Migration - Generic/Fallback Kernels ✅ COMPLETE
 
 **Files**: `dit.go`, `radix4.go`, `stockham.go`, `sixstep.go`, `eightstep.go`, `bluestein.go`
 
-#### 11.12.1 Generic DIT (`dit.go`)
-
-- [ ] `ditForward[T]`: Internalize bit-reversal
-  - [ ] Accept size, compute bitrev internally based on algorithm
-  - [ ] Remove `bitrev` parameter
-- [ ] `ditInverse[T]`: Same changes
-- [ ] `ditInverseComplex64`: Same changes
-- [ ] `ditInverseComplex128`: Same changes
-- [ ] Update `forwardDITComplex64/128` dispatch functions
-- [ ] Update `inverseDITComplex64/128` dispatch functions
-- [ ] Run tests
-
-#### 11.12.2 Generic Radix-4 (`radix4.go`)
-
-- [ ] Already computes `reverseBase4` internally - verify no external bitrev used
-- [ ] Remove `bitrev` parameter if present in signature
-- [ ] Run tests
-
-#### 11.12.3 Stockham Autosort (`stockham.go`)
-
-- [ ] Already ignores bitrev - remove parameter from signature
-- [ ] `stockhamForward[T]`: Remove `bitrev` parameter
-- [ ] `stockhamInverse[T]`: Remove `bitrev` parameter
-- [ ] Type-specific variants: Remove `bitrev` parameter
-- [ ] Run tests
-
-#### 11.12.4 Six-Step FFT (`sixstep.go`)
-
-- [ ] Analyze current bitrev usage (passes to row-wise calls)
-- [ ] Internalize or remove bitrev parameter
-- [ ] Run tests
-
-#### 11.12.5 Eight-Step FFT (`eightstep.go`)
-
-- [ ] Similar to six-step - analyze and update
-- [ ] Run tests
-
-#### 11.12.6 Bluestein FFT (`bluestein.go`)
-
-- [ ] Uses DIT internally - will automatically work after DIT migration
-- [ ] Remove `bitrev` from external interface if present
-- [ ] Run tests
+- [x] `dit.go`: Internalize bit-reversal computation, remove `bitrev` parameter from all functions
+- [x] `radix4.go`: Remove `bitrev` parameter if present; already computes internally
+- [x] `stockham.go`: Remove `bitrev` parameter from all functions (already ignores it)
+- [x] `sixstep.go`, `eightstep.go`: Internalize or remove `bitrev` parameter
+- [x] `bluestein.go`: Remove `bitrev` from external interface
+- [x] Run tests: `TestDIT*`, `TestStockham*`, `TestBluestein*` ✅ PASS
 
 ---
 
