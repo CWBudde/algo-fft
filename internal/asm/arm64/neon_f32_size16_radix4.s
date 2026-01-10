@@ -16,13 +16,12 @@ DATA ·neonInv16+0(SB)/4, $0x3d800000 // 1/16
 GLOBL ·neonInv16(SB), RODATA, $4
 
 // Forward transform, size 16, complex64, radix-4 variant
-TEXT ·ForwardNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVD dst+0(FP), R8           // R8  = dst pointer
 	MOVD src+24(FP), R9          // R9  = src pointer
 	MOVD twiddle+48(FP), R10     // R10 = twiddle pointer
 	MOVD scratch+72(FP), R11     // R11 = scratch pointer
-	MOVD bitrev+96(FP), R12      // R12 = bitrev pointer
 	MOVD src+32(FP), R13         // R13 = n (should be 16)
 
 	// Verify n == 16
@@ -42,9 +41,8 @@ TEXT ·ForwardNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $16, R0
 	BLT  neon16r4_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $16, R0
-	BLT  neon16r4_return_false
+	// Load static bit-reversal table
+	MOVD $bitrev_size16_radix4<>(SB), R12
 
 	// Preserve dst pointer
 	MOVD R8, R20
@@ -315,22 +313,21 @@ neon16r4_copy_loop:
 
 neon16r4_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon16r4_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 16, complex64, radix-4 variant
-TEXT ·InverseNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $16, R13
@@ -348,9 +345,8 @@ TEXT ·InverseNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $16, R0
 	BLT  neon16r4_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $16, R0
-	BLT  neon16r4_inv_return_false
+	// Load static bit-reversal table
+	MOVD $bitrev_size16_radix4<>(SB), R12
 
 	MOVD R8, R20
 
@@ -608,10 +604,31 @@ neon16r4_inv_scale_loop:
 
 neon16r4_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon16r4_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
+
+// Bit-reversal lookup table for size-16 radix-4
+// Pattern: [0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]
+DATA bitrev_size16_radix4<>+0x00(SB)/8, $0   // bitrev[0] = 0
+DATA bitrev_size16_radix4<>+0x08(SB)/8, $4   // bitrev[1] = 4
+DATA bitrev_size16_radix4<>+0x10(SB)/8, $8   // bitrev[2] = 8
+DATA bitrev_size16_radix4<>+0x18(SB)/8, $12  // bitrev[3] = 12
+DATA bitrev_size16_radix4<>+0x20(SB)/8, $1   // bitrev[4] = 1
+DATA bitrev_size16_radix4<>+0x28(SB)/8, $5   // bitrev[5] = 5
+DATA bitrev_size16_radix4<>+0x30(SB)/8, $9   // bitrev[6] = 9
+DATA bitrev_size16_radix4<>+0x38(SB)/8, $13  // bitrev[7] = 13
+DATA bitrev_size16_radix4<>+0x40(SB)/8, $2   // bitrev[8] = 2
+DATA bitrev_size16_radix4<>+0x48(SB)/8, $6   // bitrev[9] = 6
+DATA bitrev_size16_radix4<>+0x50(SB)/8, $10  // bitrev[10] = 10
+DATA bitrev_size16_radix4<>+0x58(SB)/8, $14  // bitrev[11] = 14
+DATA bitrev_size16_radix4<>+0x60(SB)/8, $3   // bitrev[12] = 3
+DATA bitrev_size16_radix4<>+0x68(SB)/8, $7   // bitrev[13] = 7
+DATA bitrev_size16_radix4<>+0x70(SB)/8, $11  // bitrev[14] = 11
+DATA bitrev_size16_radix4<>+0x78(SB)/8, $15  // bitrev[15] = 15
+
+GLOBL bitrev_size16_radix4<>(SB), RODATA, $128

@@ -7,12 +7,11 @@
 #include "textflag.h"
 
 // Forward transform, size 16, complex128, radix-2
-TEXT ·ForwardNEONSize16Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize16Complex128Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $16, R13
@@ -168,12 +167,11 @@ neon16r2f64_return_false:
 	RET
 
 // Inverse transform, size 16, complex128, radix-2
-TEXT ·InverseNEONSize16Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize16Complex128Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $16, R13

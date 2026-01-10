@@ -7,12 +7,11 @@
 #include "textflag.h"
 
 // Forward transform, size 4, radix-4 (no bit-reversal needed).
-TEXT ·ForwardNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $4, R13
@@ -30,12 +29,6 @@ TEXT ·ForwardNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $4, R0
 	BLT  neon4r4_return_false
 
-	MOVD bitrev+104(FP), R0
-	CBZ  R0, neon4r4_bitrev_ok
-	CMP  $4, R0
-	BLT  neon4r4_return_false
-
-neon4r4_bitrev_ok:
 	MOVD R8, R20
 	CMP  R8, R9
 	BNE  neon4r4_use_dst
@@ -99,21 +92,20 @@ neon4r4_copy_loop:
 
 neon4r4_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon4r4_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 4, radix-4 (no bit-reversal needed).
-TEXT ·InverseNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $4, R13
@@ -131,12 +123,6 @@ TEXT ·InverseNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $4, R0
 	BLT  neon4r4_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CBZ  R0, neon4r4_inv_bitrev_ok
-	CMP  $4, R0
-	BLT  neon4r4_inv_return_false
-
-neon4r4_inv_bitrev_ok:
 	MOVD R8, R20
 	CMP  R8, R9
 	BNE  neon4r4_inv_use_dst
@@ -219,10 +205,10 @@ neon4r4_inv_scale_loop:
 
 neon4r4_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon4r4_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET

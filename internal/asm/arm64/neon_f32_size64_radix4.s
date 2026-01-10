@@ -17,13 +17,12 @@ DATA ·neonInv64+0(SB)/4, $0x3c800000 // 1/64
 GLOBL ·neonInv64(SB), RODATA, $4
 
 // Forward transform, size 64, complex64, radix-4 variant
-TEXT ·ForwardNEONSize64Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize64Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $64, R13
@@ -41,9 +40,8 @@ TEXT ·ForwardNEONSize64Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $64, R0
 	BLT  neon64r4_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $64, R0
-	BLT  neon64r4_return_false
+	// Load static bit-reversal table
+	MOVD $bitrev_size64_radix4<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -425,22 +423,21 @@ neon64r4_copy_loop:
 
 neon64r4_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon64r4_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 64, complex64, radix-4 variant
-TEXT ·InverseNEONSize64Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize64Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $64, R13
@@ -458,9 +455,8 @@ TEXT ·InverseNEONSize64Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $64, R0
 	BLT  neon64r4_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $64, R0
-	BLT  neon64r4_inv_return_false
+	// Load static bit-reversal table
+	MOVD $bitrev_size64_radix4<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -860,10 +856,79 @@ neon64r4_inv_scale_loop:
 
 neon64r4_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon64r4_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
+
+// Bit-reversal lookup table for size-64 radix-4
+// Pattern: [0 16 32 48 4 20 36 52 8 24 40 56 12 28 44 60 1 17 33 49 5 21 37 53 9 25 41 57 13 29 45 61 2 18 34 50 6 22 38 54 10 26 42 58 14 30 46 62 3 19 35 51 7 23 39 55 11 27 43 59 15 31 47 63]
+DATA bitrev_size64_radix4<>+0x000(SB)/8, $0   // bitrev[0] = 0
+DATA bitrev_size64_radix4<>+0x008(SB)/8, $16  // bitrev[1] = 16
+DATA bitrev_size64_radix4<>+0x010(SB)/8, $32  // bitrev[2] = 32
+DATA bitrev_size64_radix4<>+0x018(SB)/8, $48  // bitrev[3] = 48
+DATA bitrev_size64_radix4<>+0x020(SB)/8, $4   // bitrev[4] = 4
+DATA bitrev_size64_radix4<>+0x028(SB)/8, $20  // bitrev[5] = 20
+DATA bitrev_size64_radix4<>+0x030(SB)/8, $36  // bitrev[6] = 36
+DATA bitrev_size64_radix4<>+0x038(SB)/8, $52  // bitrev[7] = 52
+DATA bitrev_size64_radix4<>+0x040(SB)/8, $8   // bitrev[8] = 8
+DATA bitrev_size64_radix4<>+0x048(SB)/8, $24  // bitrev[9] = 24
+DATA bitrev_size64_radix4<>+0x050(SB)/8, $40  // bitrev[10] = 40
+DATA bitrev_size64_radix4<>+0x058(SB)/8, $56  // bitrev[11] = 56
+DATA bitrev_size64_radix4<>+0x060(SB)/8, $12  // bitrev[12] = 12
+DATA bitrev_size64_radix4<>+0x068(SB)/8, $28  // bitrev[13] = 28
+DATA bitrev_size64_radix4<>+0x070(SB)/8, $44  // bitrev[14] = 44
+DATA bitrev_size64_radix4<>+0x078(SB)/8, $60  // bitrev[15] = 60
+DATA bitrev_size64_radix4<>+0x080(SB)/8, $1   // bitrev[16] = 1
+DATA bitrev_size64_radix4<>+0x088(SB)/8, $17  // bitrev[17] = 17
+DATA bitrev_size64_radix4<>+0x090(SB)/8, $33  // bitrev[18] = 33
+DATA bitrev_size64_radix4<>+0x098(SB)/8, $49  // bitrev[19] = 49
+DATA bitrev_size64_radix4<>+0x0a0(SB)/8, $5   // bitrev[20] = 5
+DATA bitrev_size64_radix4<>+0x0a8(SB)/8, $21  // bitrev[21] = 21
+DATA bitrev_size64_radix4<>+0x0b0(SB)/8, $37  // bitrev[22] = 37
+DATA bitrev_size64_radix4<>+0x0b8(SB)/8, $53  // bitrev[23] = 53
+DATA bitrev_size64_radix4<>+0x0c0(SB)/8, $9   // bitrev[24] = 9
+DATA bitrev_size64_radix4<>+0x0c8(SB)/8, $25  // bitrev[25] = 25
+DATA bitrev_size64_radix4<>+0x0d0(SB)/8, $41  // bitrev[26] = 41
+DATA bitrev_size64_radix4<>+0x0d8(SB)/8, $57  // bitrev[27] = 57
+DATA bitrev_size64_radix4<>+0x0e0(SB)/8, $13  // bitrev[28] = 13
+DATA bitrev_size64_radix4<>+0x0e8(SB)/8, $29  // bitrev[29] = 29
+DATA bitrev_size64_radix4<>+0x0f0(SB)/8, $45  // bitrev[30] = 45
+DATA bitrev_size64_radix4<>+0x0f8(SB)/8, $61  // bitrev[31] = 61
+DATA bitrev_size64_radix4<>+0x100(SB)/8, $2   // bitrev[32] = 2
+DATA bitrev_size64_radix4<>+0x108(SB)/8, $18  // bitrev[33] = 18
+DATA bitrev_size64_radix4<>+0x110(SB)/8, $34  // bitrev[34] = 34
+DATA bitrev_size64_radix4<>+0x118(SB)/8, $50  // bitrev[35] = 50
+DATA bitrev_size64_radix4<>+0x120(SB)/8, $6   // bitrev[36] = 6
+DATA bitrev_size64_radix4<>+0x128(SB)/8, $22  // bitrev[37] = 22
+DATA bitrev_size64_radix4<>+0x130(SB)/8, $38  // bitrev[38] = 38
+DATA bitrev_size64_radix4<>+0x138(SB)/8, $54  // bitrev[39] = 54
+DATA bitrev_size64_radix4<>+0x140(SB)/8, $10  // bitrev[40] = 10
+DATA bitrev_size64_radix4<>+0x148(SB)/8, $26  // bitrev[41] = 26
+DATA bitrev_size64_radix4<>+0x150(SB)/8, $42  // bitrev[42] = 42
+DATA bitrev_size64_radix4<>+0x158(SB)/8, $58  // bitrev[43] = 58
+DATA bitrev_size64_radix4<>+0x160(SB)/8, $14  // bitrev[44] = 14
+DATA bitrev_size64_radix4<>+0x168(SB)/8, $30  // bitrev[45] = 30
+DATA bitrev_size64_radix4<>+0x170(SB)/8, $46  // bitrev[46] = 46
+DATA bitrev_size64_radix4<>+0x178(SB)/8, $62  // bitrev[47] = 62
+DATA bitrev_size64_radix4<>+0x180(SB)/8, $3   // bitrev[48] = 3
+DATA bitrev_size64_radix4<>+0x188(SB)/8, $19  // bitrev[49] = 19
+DATA bitrev_size64_radix4<>+0x190(SB)/8, $35  // bitrev[50] = 35
+DATA bitrev_size64_radix4<>+0x198(SB)/8, $51  // bitrev[51] = 51
+DATA bitrev_size64_radix4<>+0x1a0(SB)/8, $7   // bitrev[52] = 7
+DATA bitrev_size64_radix4<>+0x1a8(SB)/8, $23  // bitrev[53] = 23
+DATA bitrev_size64_radix4<>+0x1b0(SB)/8, $39  // bitrev[54] = 39
+DATA bitrev_size64_radix4<>+0x1b8(SB)/8, $55  // bitrev[55] = 55
+DATA bitrev_size64_radix4<>+0x1c0(SB)/8, $11  // bitrev[56] = 11
+DATA bitrev_size64_radix4<>+0x1c8(SB)/8, $27  // bitrev[57] = 27
+DATA bitrev_size64_radix4<>+0x1d0(SB)/8, $43  // bitrev[58] = 43
+DATA bitrev_size64_radix4<>+0x1d8(SB)/8, $59  // bitrev[59] = 59
+DATA bitrev_size64_radix4<>+0x1e0(SB)/8, $15  // bitrev[60] = 15
+DATA bitrev_size64_radix4<>+0x1e8(SB)/8, $31  // bitrev[61] = 31
+DATA bitrev_size64_radix4<>+0x1f0(SB)/8, $47  // bitrev[62] = 47
+DATA bitrev_size64_radix4<>+0x1f8(SB)/8, $63  // bitrev[63] = 63
+
+GLOBL bitrev_size64_radix4<>(SB), RODATA, $512
