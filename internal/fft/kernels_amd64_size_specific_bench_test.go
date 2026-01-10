@@ -18,7 +18,7 @@ func benchmarkSizeSpecificVsGeneric(b *testing.B, n int) {
 
 	b.Run("GenericAVX2", func(b *testing.B) {
 		benchmarkKernel(b, n, func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-			return forwardAVX2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+			return forwardAVX2Complex64Asm(dst, src, twiddle, scratch)
 		})
 	})
 

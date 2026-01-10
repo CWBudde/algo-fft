@@ -57,7 +57,7 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) 
 	// Step 2: Row FFTs using AVX2 (64 FFTs of size 64)
 	for r := 0; r < m; r++ {
 		row := dst[r*m : (r+1)*m]
-		if !amd64.ForwardAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev64Radix4[:]) {
+		if !amd64.ForwardAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -71,7 +71,7 @@ func forwardDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) 
 	// Step 5: Row FFTs using AVX2 (64 FFTs of size 64)
 	for r := 0; r < m; r++ {
 		row := work[r*m : (r+1)*m]
-		if !amd64.ForwardAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev64Radix4[:]) {
+		if !amd64.ForwardAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -119,7 +119,7 @@ func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) 
 	// Step 2: Row IFFTs using AVX2
 	for r := 0; r < m; r++ {
 		row := dst[r*m : (r+1)*m]
-		if !amd64.InverseAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev64Radix4[:]) {
+		if !amd64.InverseAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -133,7 +133,7 @@ func inverseDIT4096SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) 
 	// Step 5: Row IFFTs using AVX2
 	for r := 0; r < m; r++ {
 		row := work[r*m : (r+1)*m]
-		if !amd64.InverseAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev64Radix4[:]) {
+		if !amd64.InverseAVX2Size64Radix4Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}

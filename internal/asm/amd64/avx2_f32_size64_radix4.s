@@ -14,13 +14,12 @@
 #include "textflag.h"
 
 // Forward transform, size 64, complex64, radix-4 variant
-TEXT ·ForwardAVX2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 64)
 
 	// Verify n == 64
@@ -40,10 +39,6 @@ TEXT ·ForwardAVX2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $64
 	JL   r4_64_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $64
-	JL   r4_64_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  r4_64_use_dst
@@ -53,6 +48,7 @@ r4_64_use_dst:
 	// ==================================================================
 	// Bit-reversal permutation (base-4 bit-reversal)
 	// ==================================================================
+	LEAQ ·bitrev64_r4(SB), R12
 	XORQ CX, CX
 
 r4_64_bitrev_loop:
@@ -298,24 +294,23 @@ r4_64_copy_loop:
 
 r4_64_done_direct:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 r4_64_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 64, complex64, radix-4
 // ===========================================================================
-TEXT ·InverseAVX2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 64)
 
 	// Verify n == 64
@@ -335,10 +330,6 @@ TEXT ·InverseAVX2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $64
 	JL   r4_64_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $64
-	JL   r4_64_inv_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  r4_64_inv_use_dst
@@ -348,6 +339,7 @@ r4_64_inv_use_dst:
 	// ==================================================================
 	// Bit-reversal permutation (base-4 bit-reversal)
 	// ==================================================================
+	LEAQ ·bitrev64_r4(SB), R12
 	XORQ CX, CX
 
 r4_64_inv_bitrev_loop:
@@ -610,10 +602,80 @@ r4_64_inv_copy_loop:
 
 r4_64_inv_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 r4_64_inv_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
+
+// ===========================================================================
+// DATA SECTION: Bit-reversal indices for size 64 radix-4
+// ===========================================================================
+
+DATA ·bitrev64_r4+0(SB)/8, $0
+DATA ·bitrev64_r4+8(SB)/8, $16
+DATA ·bitrev64_r4+16(SB)/8, $32
+DATA ·bitrev64_r4+24(SB)/8, $48
+DATA ·bitrev64_r4+32(SB)/8, $4
+DATA ·bitrev64_r4+40(SB)/8, $20
+DATA ·bitrev64_r4+48(SB)/8, $36
+DATA ·bitrev64_r4+56(SB)/8, $52
+DATA ·bitrev64_r4+64(SB)/8, $8
+DATA ·bitrev64_r4+72(SB)/8, $24
+DATA ·bitrev64_r4+80(SB)/8, $40
+DATA ·bitrev64_r4+88(SB)/8, $56
+DATA ·bitrev64_r4+96(SB)/8, $12
+DATA ·bitrev64_r4+104(SB)/8, $28
+DATA ·bitrev64_r4+112(SB)/8, $44
+DATA ·bitrev64_r4+120(SB)/8, $60
+DATA ·bitrev64_r4+128(SB)/8, $1
+DATA ·bitrev64_r4+136(SB)/8, $17
+DATA ·bitrev64_r4+144(SB)/8, $33
+DATA ·bitrev64_r4+152(SB)/8, $49
+DATA ·bitrev64_r4+160(SB)/8, $5
+DATA ·bitrev64_r4+168(SB)/8, $21
+DATA ·bitrev64_r4+176(SB)/8, $37
+DATA ·bitrev64_r4+184(SB)/8, $53
+DATA ·bitrev64_r4+192(SB)/8, $9
+DATA ·bitrev64_r4+200(SB)/8, $25
+DATA ·bitrev64_r4+208(SB)/8, $41
+DATA ·bitrev64_r4+216(SB)/8, $57
+DATA ·bitrev64_r4+224(SB)/8, $13
+DATA ·bitrev64_r4+232(SB)/8, $29
+DATA ·bitrev64_r4+240(SB)/8, $45
+DATA ·bitrev64_r4+248(SB)/8, $61
+DATA ·bitrev64_r4+256(SB)/8, $2
+DATA ·bitrev64_r4+264(SB)/8, $18
+DATA ·bitrev64_r4+272(SB)/8, $34
+DATA ·bitrev64_r4+280(SB)/8, $50
+DATA ·bitrev64_r4+288(SB)/8, $6
+DATA ·bitrev64_r4+296(SB)/8, $22
+DATA ·bitrev64_r4+304(SB)/8, $38
+DATA ·bitrev64_r4+312(SB)/8, $54
+DATA ·bitrev64_r4+320(SB)/8, $10
+DATA ·bitrev64_r4+328(SB)/8, $26
+DATA ·bitrev64_r4+336(SB)/8, $42
+DATA ·bitrev64_r4+344(SB)/8, $58
+DATA ·bitrev64_r4+352(SB)/8, $14
+DATA ·bitrev64_r4+360(SB)/8, $30
+DATA ·bitrev64_r4+368(SB)/8, $46
+DATA ·bitrev64_r4+376(SB)/8, $62
+DATA ·bitrev64_r4+384(SB)/8, $3
+DATA ·bitrev64_r4+392(SB)/8, $19
+DATA ·bitrev64_r4+400(SB)/8, $35
+DATA ·bitrev64_r4+408(SB)/8, $51
+DATA ·bitrev64_r4+416(SB)/8, $7
+DATA ·bitrev64_r4+424(SB)/8, $23
+DATA ·bitrev64_r4+432(SB)/8, $39
+DATA ·bitrev64_r4+440(SB)/8, $55
+DATA ·bitrev64_r4+448(SB)/8, $11
+DATA ·bitrev64_r4+456(SB)/8, $27
+DATA ·bitrev64_r4+464(SB)/8, $43
+DATA ·bitrev64_r4+472(SB)/8, $59
+DATA ·bitrev64_r4+480(SB)/8, $15
+DATA ·bitrev64_r4+488(SB)/8, $31
+DATA ·bitrev64_r4+496(SB)/8, $47
+DATA ·bitrev64_r4+504(SB)/8, $63
+GLOBL ·bitrev64_r4(SB), RODATA, $512

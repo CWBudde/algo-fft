@@ -58,15 +58,14 @@
 // Each []T in Go ABI is: ptr (8 bytes) + len (8 bytes) + cap (8 bytes) = 24 bytes
 //
 // Function signature:
-//   func forwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+//   func forwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 //
 // Stack frame layout (offsets from FP):
 //   dst:     FP+0   (ptr), FP+8   (len), FP+16  (cap)
 //   src:     FP+24  (ptr), FP+32  (len), FP+40  (cap)
 //   twiddle: FP+48  (ptr), FP+56  (len), FP+64  (cap)
 //   scratch: FP+72  (ptr), FP+80  (len), FP+88  (cap)
-//   bitrev:  FP+96  (ptr), FP+104 (len), FP+112 (cap)
-//   return:  FP+120 (bool, 1 byte)
+//   return:  FP+96 (bool, 1 byte)
 
 // ===========================================================================
 // Data Type Sizes
@@ -87,7 +86,7 @@
 //   R9:  src pointer (input data)
 //   R10: twiddle pointer (precomputed roots of unity)
 //   R11: scratch pointer / stride_bytes (reused in strided loops)
-//   R12: bitrev pointer / stride_bytes (reused in strided loops)
+//   R12: stride_bytes (reused in strided loops)
 //   R13: n (transform length, power of 2)
 //
 // Loop control:
@@ -112,11 +111,11 @@
 //   src     []complex64 - Input buffer  (len = n, defines transform size)
 //   twiddle []complex64 - Precomputed twiddle factors (len >= n)
 //   scratch []complex64 - Working buffer for in-place transforms (len >= n)
-//   bitrev  []int       - Bit-reversal permutation indices (len >= n)
+//   bitrev  (internal)  - Bit-reversal permutation computed on the fly
 //
 // Returns: true if transform completed, false to fall back to Go
 // ===========================================================================
-TEXT ·ForwardAVX2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Complex64Asm(SB), NOSPLIT, $0-97
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -124,7 +123,6 @@ TEXT ·ForwardAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n = len(src)
 
 	// Empty input is valid (no-op)
@@ -143,10 +141,6 @@ TEXT ·ForwardAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ scratch+80(FP), AX
 	CMPQ AX, R13
 	JL   return_false        // scratch too short
-
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, R13
-	JL   return_false        // bitrev too short
 
 	// Trivial case: n=1, just copy
 	CMPQ R13, $1
@@ -189,23 +183,41 @@ do_bit_reversal:
 	// -----------------------------------------------------------------------
 	// PHASE 3: Bit-reversal permutation
 	// -----------------------------------------------------------------------
-	// Reorder input using precomputed bit-reversed indices:
-	//   work[i] = src[bitrev[i]]  for i = 0..n-1
+	// Reorder input using computed bit-reversed indices:
+	//   work[i] = src[bitrev(i)]  for i = 0..n-1
 	//
 	// This puts data in "butterfly order" for the DIT algorithm.
 	// After this, elements that need to be combined in the first stage
 	// are adjacent in memory.
+	// Compute log2(n) for bit-reversal.
+	MOVQ R13, AX
+	BSRQ AX, R14             // R14 = log2(n)
+
 	XORQ CX, CX              // CX = i = 0
 
 bitrev_loop:
 	CMPQ CX, R13
 	JGE  bitrev_done
 
-	// Load bitrev[i] (int = 8 bytes on amd64)
-	MOVQ (R12)(CX*8), DX     // DX = bitrev[i]
+	// Compute bitrev(i) in BX.
+	MOVQ CX, DX              // DX = i (tmp)
+	XORQ BX, BX              // BX = rev = 0
+	MOVQ R14, R15            // R15 = bit count
 
-	// Load src[bitrev[i]] (complex64 = 8 bytes)
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[i]]
+bitrev_bits:
+	TESTQ R15, R15
+	JE   bitrev_bits_done
+	SHLQ $1, BX
+	MOVQ DX, SI
+	ANDQ $1, SI
+	ORQ  SI, BX
+	SHRQ $1, DX
+	DECQ R15
+	JMP  bitrev_bits
+
+bitrev_bits_done:
+	// Load src[bitrev(i)] (complex64 = 8 bytes)
+	MOVQ (R9)(BX*8), AX      // AX = src[bitrev(i)]
 
 	// Store to work[i]
 	MOVQ AX, (R8)(CX*8)      // work[i] = src[bitrev[i]]
@@ -686,12 +698,12 @@ copy_loop:
 return_true:
 	// Success: transform completed in assembly
 	VZEROUPPER                   // Ensure clean state
-	MOVB $1, ret+120(FP)         // Return true
+	MOVB $1, ret+96(FP)          // Return true
 	RET
 
 return_false:
 	// Failure: fall back to pure Go implementation
-	MOVB $0, ret+120(FP)         // Return false
+	MOVB $0, ret+96(FP)          // Return false
 	RET
 
 // ===========================================================================
@@ -1010,7 +1022,7 @@ stockham_return_false:
 // This is achieved by using VFMSUBADD instead of VFMADDSUB:
 //   VFMSUBADD: even lanes +, odd lanes - (opposite of VFMADDSUB)
 // ===========================================================================
-TEXT ·InverseAVX2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Complex64Asm(SB), NOSPLIT, $0-97
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs (same as forward)
 	// -----------------------------------------------------------------------
@@ -1018,7 +1030,6 @@ TEXT ·InverseAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n = len(src)
 
 	// Empty input is valid
@@ -1035,10 +1046,6 @@ TEXT ·InverseAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	JL   inv_return_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, R13
-	JL   inv_return_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, R13
 	JL   inv_return_false
 
@@ -1075,13 +1082,34 @@ inv_do_bit_reversal:
 	// -----------------------------------------------------------------------
 	// PHASE 3: Bit-reversal permutation
 	// -----------------------------------------------------------------------
+	// Compute log2(n) for bit-reversal.
+	MOVQ R13, AX
+	BSRQ AX, R14             // R14 = log2(n)
+
 	XORQ CX, CX
 
 inv_bitrev_loop:
 	CMPQ CX, R13
 	JGE  inv_bitrev_done
-	MOVQ (R12)(CX*8), DX     // DX = bitrev[i]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[i]]
+
+	// Compute bitrev(i) in BX.
+	MOVQ CX, DX              // DX = i (tmp)
+	XORQ BX, BX              // BX = rev = 0
+	MOVQ R14, R15            // R15 = bit count
+
+inv_bitrev_bits:
+	TESTQ R15, R15
+	JE   inv_bitrev_bits_done
+	SHLQ $1, BX
+	MOVQ DX, SI
+	ANDQ $1, SI
+	ORQ  SI, BX
+	SHRQ $1, DX
+	DECQ R15
+	JMP  inv_bitrev_bits
+
+inv_bitrev_bits_done:
+	MOVQ (R9)(BX*8), AX      // AX = src[bitrev(i)]
 	MOVQ AX, (R8)(CX*8)      // work[i] = src[bitrev[i]]
 	INCQ CX
 	JMP  inv_bitrev_loop
@@ -1521,12 +1549,12 @@ inv_scale_loop:
 inv_return_true:
 	// Success: inverse transform completed
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_return_false:
 	// Failure: fall back to pure Go
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
@@ -1848,9 +1876,3 @@ inv_stockham_return_true:
 inv_stockham_return_false:
 	MOVB $0, ret+120(FP)
 	RET
-
-// ===========================================================================
-// forwardSSE2Complex64Asm - Forward FFT for complex64 using SSE2
-// ===========================================================================
-// SSE2-only implementation of the radix-2 DIT FFT.
-// Vectorizes contiguous twiddle stages with 2-complex (XMM) butterflies.

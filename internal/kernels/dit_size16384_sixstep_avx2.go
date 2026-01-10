@@ -63,7 +63,7 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 	// (mixed-radix 2×4 variant) because the mixed-radix implementation has different output ordering.
 	for r := 0; r < m; r++ {
 		row := dst[r*m : (r+1)*m]
-		if !amd64.ForwardAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev128[:]) {
+		if !amd64.ForwardAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -77,7 +77,7 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 	// Step 5: Row FFTs using generic AVX2 DIT (128 FFTs of size 128)
 	for r := 0; r < m; r++ {
 		row := work[r*m : (r+1)*m]
-		if !amd64.ForwardAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev128[:]) {
+		if !amd64.ForwardAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -125,7 +125,7 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 	// Step 2: Row IFFTs using generic AVX2 DIT
 	for r := 0; r < m; r++ {
 		row := dst[r*m : (r+1)*m]
-		if !amd64.InverseAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev128[:]) {
+		if !amd64.InverseAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -139,7 +139,7 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 	// Step 5: Row IFFTs using generic AVX2 DIT
 	for r := 0; r < m; r++ {
 		row := work[r*m : (r+1)*m]
-		if !amd64.InverseAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:], bitrev128[:]) {
+		if !amd64.InverseAVX2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}

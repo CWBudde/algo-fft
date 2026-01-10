@@ -102,8 +102,7 @@ GLOBL const_signmask_full<>(SB), RODATA|NOPTR, $32
 //     src []complex64,      // 24(FP): ptr, 32(FP): len, 40(FP): cap
 //     twiddle []complex64,  // 48(FP): ptr, 56(FP): len, 64(FP): cap
 //     scratch []complex64,  // 72(FP): ptr, 80(FP): len, 88(FP): cap
-//     bitrev []int,         // 96(FP): ptr, 104(FP): len, 112(FP): cap
-// ) bool                    // 120(FP): return value
+// ) bool                    // 96(FP): return value
 //
 // Stack frame: 8192 bytes for intermediate storage
 //   0-4095:    Stage 1 output buffer (512 complex64 = 4096 bytes)
@@ -125,7 +124,7 @@ GLOBL const_signmask_full<>(SB), RODATA|NOPTR, $32
 //   R15 = temporary
 //
 // ===========================================================================
-TEXT ·ForwardAVX2Size512Radix16x32Complex64Asm(SB), $8192-121
+TEXT ·ForwardAVX2Size512Radix16x32Complex64Asm(SB), $8192-97
 	// ===== VALIDATION =====
 	MOVQ src+32(FP), AX
 	CMPQ AX, $512
@@ -1380,18 +1379,18 @@ fwd_stage2_row_loop:
 
 fwd_success:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 fwd_fail:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 512, complex64, radix-16x32
 // ===========================================================================
-TEXT ·InverseAVX2Size512Radix16x32Complex64Asm(SB), $8192-121
+TEXT ·InverseAVX2Size512Radix16x32Complex64Asm(SB), $8192-97
 	// ===== VALIDATION =====
 	MOVQ src+32(FP), AX
 	CMPQ AX, $512
@@ -2705,10 +2704,10 @@ inv_stage2_row_loop:
 
 inv_success:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_fail:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

@@ -127,7 +127,6 @@ func TestForwardDIT16384SixStepAVX2_Complex64(t *testing.T) {
 	dstRadix4 := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrevRadix4 := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with test data
 	rng := rand.New(rand.NewSource(42))
@@ -140,7 +139,7 @@ func TestForwardDIT16384SixStepAVX2_Complex64(t *testing.T) {
 		t.Fatal("forwardDIT16384SixStepAVX2Complex64 returned false")
 	}
 
-	if !amd64.ForwardAVX2Size16384Radix4Complex64Asm(dstRadix4, src, twiddle, scratch, bitrevRadix4) {
+	if !amd64.ForwardAVX2Size16384Radix4Complex64Asm(dstRadix4, src, twiddle, scratch) {
 		t.Fatal("ForwardAVX2Size16384Radix4Complex64Asm returned false")
 	}
 
@@ -226,7 +225,6 @@ func TestForwardDIT16384SixStepAVX2_VsRadix4(t *testing.T) {
 	dstRadix4 := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrevRadix4 := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with random data
 	rng := rand.New(rand.NewSource(42))
@@ -240,7 +238,7 @@ func TestForwardDIT16384SixStepAVX2_VsRadix4(t *testing.T) {
 	}
 
 	// Run radix-4
-	if !amd64.ForwardAVX2Size16384Radix4Complex64Asm(dstRadix4, src, twiddle, scratch, bitrevRadix4) {
+	if !amd64.ForwardAVX2Size16384Radix4Complex64Asm(dstRadix4, src, twiddle, scratch) {
 		t.Fatal("radix-4 forward returned false")
 	}
 
@@ -301,13 +299,12 @@ func TestSize128Kernel_RoundTrip(t *testing.T) {
 	}
 
 	// Forward using generic DIT
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
-	if !amd64.ForwardAVX2Complex64Asm(freq, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardAVX2Complex64Asm(freq, src, twiddle, scratch) {
 		t.Fatal("forward returned false")
 	}
 
 	// Inverse using generic DIT
-	if !amd64.InverseAVX2Complex64Asm(result, freq, twiddle, scratch, bitrev) {
+	if !amd64.InverseAVX2Complex64Asm(result, freq, twiddle, scratch) {
 		t.Fatal("inverse returned false")
 	}
 
@@ -458,7 +455,6 @@ func TestForwardDIT4096SixStepAVX2_VsRadix4(t *testing.T) {
 	dstRadix4 := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrevRadix4 := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	// Fill with random data
 	rng := rand.New(rand.NewSource(42))
@@ -472,7 +468,7 @@ func TestForwardDIT4096SixStepAVX2_VsRadix4(t *testing.T) {
 	}
 
 	// Run radix-4
-	if !amd64.ForwardAVX2Size4096Radix4Complex64Asm(dstRadix4, src, twiddle, scratch, bitrevRadix4) {
+	if !amd64.ForwardAVX2Size4096Radix4Complex64Asm(dstRadix4, src, twiddle, scratch) {
 		t.Fatal("radix-4 forward returned false")
 	}
 
@@ -590,9 +586,7 @@ func BenchmarkForwardDIT16384Radix4AVX2_Complex64(b *testing.B) {
 
 	b.ResetTimer()
 	b.SetBytes(int64(n) * 8)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
-
 	for b.Loop() {
-		amd64.ForwardAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		amd64.ForwardAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch)
 	}
 }

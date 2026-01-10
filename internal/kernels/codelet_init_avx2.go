@@ -66,8 +66,8 @@ func registerAVX2DITCodelets64() {
 	// Size 16: Radix-2 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size16Complex64Asm, bitrevSize16Radix2)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size16Complex64Asm, bitrevSize16Radix2)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size16Radix2Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size16Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit16_radix2_avx2",
@@ -145,8 +145,8 @@ func registerAVX2DITCodelets64() {
 	// Size 64: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size64Radix4Complex64Asm, bitrevSize64Radix4)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size64Radix4Complex64Asm, bitrevSize64Radix4)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size64Radix4Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size64Radix4Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix4_avx2",
@@ -158,8 +158,8 @@ func registerAVX2DITCodelets64() {
 	// Size 128: Mixed-radix-2/4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size128Mixed24Complex64Asm, bitrevSize128Radix4)), // Uses radix-4 bitrev for mixed-2/4 size 128
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size128Mixed24Complex64Asm, bitrevSize128Radix4)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size128Mixed24Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size128Mixed24Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit128_mixed24_avx2",
@@ -171,8 +171,8 @@ func registerAVX2DITCodelets64() {
 	// Size 256: Radix-2 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       256,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size256Radix2Complex64Asm, bitrevSize256Radix2)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size256Radix2Complex64Asm, bitrevSize256Radix2)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size256Radix2Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size256Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit256_radix2_avx2",
@@ -184,8 +184,8 @@ func registerAVX2DITCodelets64() {
 	// Size 256: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       256,
-		Forward:    wrapCore64(forwardAVX2Size256Radix4Complex64Safe),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size256Radix4Complex64Asm, bitrevSize256Radix4)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size256Radix4Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size256Radix4Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit256_radix4_avx2",
@@ -197,8 +197,8 @@ func registerAVX2DITCodelets64() {
 	// Size 256: Radix-16 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       256,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size256Radix16Complex64Asm, bitrevSize256Identity)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size256Radix16Complex64Asm, bitrevSize256Identity)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size256Radix16Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size256Radix16Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit256_radix16_avx2",
@@ -223,8 +223,8 @@ func registerAVX2DITCodelets64() {
 	// Size 512: Mixed-radix-2/4 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size512Mixed24Complex64Asm, bitrevSize512Mixed24)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size512Mixed24Complex64Asm, bitrevSize512Mixed24)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size512Mixed24Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size512Mixed24Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_mixed24_avx2",
@@ -236,8 +236,8 @@ func registerAVX2DITCodelets64() {
 	// Size 512: Radix-8 AVX2 variant (3-stage unrolled)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size512Radix8Complex64Asm, bitrevSize512Radix8)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size512Radix8Complex64Asm, bitrevSize512Radix8)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size512Radix8Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size512Radix8Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_radix8_avx2",
@@ -249,8 +249,8 @@ func registerAVX2DITCodelets64() {
 	// Size 512: Radix-16x32 AVX2 variant (six-step, identity permutation)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size512Radix16x32Complex64Asm, bitrevSize512Identity)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size512Radix16x32Complex64Asm, bitrevSize512Identity)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size512Radix16x32Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size512Radix16x32Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_radix16x32_avx2",
@@ -277,8 +277,8 @@ func registerAVX2DITCodelets64() {
 	// Size 2048: Mixed-radix-2/4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       2048,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size2048Mixed24Complex64Asm, bitrevSize2048Mixed24)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size2048Mixed24Complex64Asm, bitrevSize2048Mixed24)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size2048Mixed24Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size2048Mixed24Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit2048_mixed24_avx2",
@@ -290,8 +290,8 @@ func registerAVX2DITCodelets64() {
 	// Size 8192: Mixed-radix-2/4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8192,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size8192Mixed24Complex64Asm, bitrevSize8192Mixed24)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size8192Mixed24Complex64Asm, bitrevSize8192Mixed24)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size8192Mixed24Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size8192Mixed24Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8192_mixed24_avx2",
@@ -303,8 +303,8 @@ func registerAVX2DITCodelets64() {
 	// Size 1024: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       1024,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size1024Radix4Complex64Asm, bitrevSize1024Radix4)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size1024Radix4Complex64Asm, bitrevSize1024Radix4)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size1024Radix4Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size1024Radix4Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit1024_radix4_avx2",
@@ -316,8 +316,8 @@ func registerAVX2DITCodelets64() {
 	// Size 4096: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4096,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size4096Radix4Complex64Asm, bitrevSize4096Radix4)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size4096Radix4Complex64Asm, bitrevSize4096Radix4)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size4096Radix4Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size4096Radix4Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit4096_radix4_avx2",
@@ -344,8 +344,8 @@ func registerAVX2DITCodelets64() {
 	// Size 16384: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16384,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardAVX2Size16384Radix4Complex64Asm, bitrevSize16384Radix4)),
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseAVX2Size16384Radix4Complex64Asm, bitrevSize16384Radix4)),
+		Forward:    wrapCore64(amd64.ForwardAVX2Size16384Radix4Complex64Asm),
+		Inverse:    wrapCore64(amd64.InverseAVX2Size16384Radix4Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit16384_radix4_avx2",

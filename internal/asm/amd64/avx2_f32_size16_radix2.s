@@ -40,13 +40,12 @@
 //   Y0-Y3: data registers for butterflies
 //   Y4-Y7: twiddle and intermediate values
 //
-TEXT ·ForwardAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 16)
 
 	// Verify n == 16
@@ -66,10 +65,6 @@ TEXT ·ForwardAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $16
 	JL   size16_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $16
-	JL   size16_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  size16_use_dst
@@ -86,76 +81,47 @@ size16_bitrev:
 	// Bit-reversal permutation: work[i] = src[bitrev[i]]
 	// =======================================================================
 	// For size 16, bitrev = [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]
-	// We use precomputed indices from the bitrev slice for correctness.
-	// Unrolled into 4 groups of 4 for efficiency.
+	// Use fixed indices to internalize bit-reversal.
 
 	// Group 0: indices 0-3
-	MOVQ (R12), DX           // bitrev[0]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)            // work[0]
-
-	MOVQ 8(R12), DX          // bitrev[1]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 8(R8)           // work[1]
-
-	MOVQ 16(R12), DX         // bitrev[2]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 16(R8)          // work[2]
-
-	MOVQ 24(R12), DX         // bitrev[3]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 24(R8)          // work[3]
+	MOVQ 0(R9), AX
+	MOVQ AX, 0(R8)           // work[0] = src[0]
+	MOVQ 64(R9), AX
+	MOVQ AX, 8(R8)           // work[1] = src[8]
+	MOVQ 32(R9), AX
+	MOVQ AX, 16(R8)          // work[2] = src[4]
+	MOVQ 96(R9), AX
+	MOVQ AX, 24(R8)          // work[3] = src[12]
 
 	// Group 1: indices 4-7
-	MOVQ 32(R12), DX         // bitrev[4]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 32(R8)          // work[4]
-
-	MOVQ 40(R12), DX         // bitrev[5]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 40(R8)          // work[5]
-
-	MOVQ 48(R12), DX         // bitrev[6]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 48(R8)          // work[6]
-
-	MOVQ 56(R12), DX         // bitrev[7]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 56(R8)          // work[7]
+	MOVQ 16(R9), AX
+	MOVQ AX, 32(R8)          // work[4] = src[2]
+	MOVQ 80(R9), AX
+	MOVQ AX, 40(R8)          // work[5] = src[10]
+	MOVQ 48(R9), AX
+	MOVQ AX, 48(R8)          // work[6] = src[6]
+	MOVQ 112(R9), AX
+	MOVQ AX, 56(R8)          // work[7] = src[14]
 
 	// Group 2: indices 8-11
-	MOVQ 64(R12), DX         // bitrev[8]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 64(R8)          // work[8]
-
-	MOVQ 72(R12), DX         // bitrev[9]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 72(R8)          // work[9]
-
-	MOVQ 80(R12), DX         // bitrev[10]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 80(R8)          // work[10]
-
-	MOVQ 88(R12), DX         // bitrev[11]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 88(R8)          // work[11]
+	MOVQ 8(R9), AX
+	MOVQ AX, 64(R8)          // work[8] = src[1]
+	MOVQ 72(R9), AX
+	MOVQ AX, 72(R8)          // work[9] = src[9]
+	MOVQ 40(R9), AX
+	MOVQ AX, 80(R8)          // work[10] = src[5]
+	MOVQ 104(R9), AX
+	MOVQ AX, 88(R8)          // work[11] = src[13]
 
 	// Group 3: indices 12-15
-	MOVQ 96(R12), DX         // bitrev[12]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 96(R8)          // work[12]
-
-	MOVQ 104(R12), DX        // bitrev[13]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 104(R8)         // work[13]
-
-	MOVQ 112(R12), DX        // bitrev[14]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 112(R8)         // work[14]
-
-	MOVQ 120(R12), DX        // bitrev[15]
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 120(R8)         // work[15]
+	MOVQ 24(R9), AX
+	MOVQ AX, 96(R8)          // work[12] = src[3]
+	MOVQ 88(R9), AX
+	MOVQ AX, 104(R8)         // work[13] = src[11]
+	MOVQ 56(R9), AX
+	MOVQ AX, 112(R8)         // work[14] = src[7]
+	MOVQ 120(R9), AX
+	MOVQ AX, 120(R8)         // work[15] = src[15]
 
 	// =======================================================================
 	// STAGE 1: size=2, half=1, step=8
@@ -381,11 +347,11 @@ size16_bitrev:
 	VMOVUPS Y11, 96(R9)      // dst[12-15]
 
 	VZEROUPPER
-	MOVB $1, ret+120(FP)     // Return true (success)
+	MOVB $1, ret+96(FP)      // Return true (success)
 	RET
 
 size16_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
@@ -400,13 +366,12 @@ size16_return_false:
 // - Twiddle factor real/imag splits are hoisted and reused
 // - 1/16 = 0.0625 scaling applied at the end
 //
-TEXT ·InverseAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 16)
 
 	// Verify n == 16
@@ -426,10 +391,6 @@ TEXT ·InverseAVX2Size16Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $16
 	JL   size16_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $16
-	JL   size16_inv_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  size16_inv_use_dst
@@ -445,74 +406,48 @@ size16_inv_bitrev:
 	// =======================================================================
 	// Bit-reversal permutation: work[i] = src[bitrev[i]]
 	// =======================================================================
+	// For size 16, bitrev = [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]
+	// Use fixed indices to internalize bit-reversal.
 
 	// Group 0: indices 0-3
-	MOVQ (R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)
-
-	MOVQ 8(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 8(R8)
-
-	MOVQ 16(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 16(R8)
-
-	MOVQ 24(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 24(R8)
+	MOVQ 0(R9), AX
+	MOVQ AX, 0(R8)           // work[0] = src[0]
+	MOVQ 64(R9), AX
+	MOVQ AX, 8(R8)           // work[1] = src[8]
+	MOVQ 32(R9), AX
+	MOVQ AX, 16(R8)          // work[2] = src[4]
+	MOVQ 96(R9), AX
+	MOVQ AX, 24(R8)          // work[3] = src[12]
 
 	// Group 1: indices 4-7
-	MOVQ 32(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 32(R8)
-
-	MOVQ 40(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 40(R8)
-
-	MOVQ 48(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 48(R8)
-
-	MOVQ 56(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 56(R8)
+	MOVQ 16(R9), AX
+	MOVQ AX, 32(R8)          // work[4] = src[2]
+	MOVQ 80(R9), AX
+	MOVQ AX, 40(R8)          // work[5] = src[10]
+	MOVQ 48(R9), AX
+	MOVQ AX, 48(R8)          // work[6] = src[6]
+	MOVQ 112(R9), AX
+	MOVQ AX, 56(R8)          // work[7] = src[14]
 
 	// Group 2: indices 8-11
-	MOVQ 64(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 64(R8)
-
-	MOVQ 72(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 72(R8)
-
-	MOVQ 80(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 80(R8)
-
-	MOVQ 88(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 88(R8)
+	MOVQ 8(R9), AX
+	MOVQ AX, 64(R8)          // work[8] = src[1]
+	MOVQ 72(R9), AX
+	MOVQ AX, 72(R8)          // work[9] = src[9]
+	MOVQ 40(R9), AX
+	MOVQ AX, 80(R8)          // work[10] = src[5]
+	MOVQ 104(R9), AX
+	MOVQ AX, 88(R8)          // work[11] = src[13]
 
 	// Group 3: indices 12-15
-	MOVQ 96(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 96(R8)
-
-	MOVQ 104(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 104(R8)
-
-	MOVQ 112(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 112(R8)
-
-	MOVQ 120(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 120(R8)
+	MOVQ 24(R9), AX
+	MOVQ AX, 96(R8)          // work[12] = src[3]
+	MOVQ 88(R9), AX
+	MOVQ AX, 104(R8)         // work[13] = src[11]
+	MOVQ 56(R9), AX
+	MOVQ AX, 112(R8)         // work[14] = src[7]
+	MOVQ 120(R9), AX
+	MOVQ AX, 120(R8)         // work[15] = src[15]
 
 	// =======================================================================
 	// STAGE 1: size=2, half=1, step=8 (same as forward - tw[0]=1+0i)
@@ -686,9 +621,9 @@ size16_inv_bitrev:
 	VMOVUPS Y11, 96(R9)      // dst[12-15]
 
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size16_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

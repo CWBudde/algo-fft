@@ -57,7 +57,6 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	// We need 128-point twiddles. These are a subset of W_384.
 	// W_128^k = W_384^(3k).
 	// We can gather them into a temp buffer.
-	// We also need bitrev indices for size 128.
 
 	// Fast allocation (small stack-allocated-like arrays would be better, but slices work)
 	// We need 128 complex64s for twiddles.
@@ -70,9 +69,6 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	for k := range stride {
 		subTwiddle[k] = twiddle[k*3]
 	}
-
-	// Bitrev indices for size 128 (Mixed-Radix-2/4)
-	bitrev128 := mathpkg.ComputeBitReversalIndicesMixed24(stride)
 
 	// We need scratch for the sub-transform.
 	subScratch := make([]complex64, stride)
@@ -95,7 +91,7 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 		if !amd64.ForwardAVX2Size128Mixed24Complex64Asm(
 			dst[rowStart:rowStart+stride],
 			work[rowStart:rowStart+stride],
-			subTwiddle, subScratch, bitrev128,
+			subTwiddle, subScratch,
 		) {
 			return false
 		}
@@ -144,7 +140,6 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 		subTwiddle[k] = twiddle[k*3]
 	}
 
-	bitrev128 := mathpkg.ComputeBitReversalIndicesMixed24(stride)
 	subScratch := make([]complex64, stride)
 
 	// Step 2: Compute 3 independent 128-point IFFTs
@@ -154,7 +149,7 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 		if !amd64.InverseAVX2Size128Mixed24Complex64Asm(
 			dst[rowStart:rowStart+stride],
 			work[rowStart:rowStart+stride],
-			subTwiddle, subScratch, bitrev128,
+			subTwiddle, subScratch,
 		) {
 			return false
 		}
