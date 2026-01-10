@@ -5,12 +5,12 @@
 // ===========================================================================
 // Forward transform, size 8, complex64, radix-8 variant
 // ===========================================================================
-TEXT ·ForwardSSE2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size8Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
@@ -198,22 +198,22 @@ fwd_use_dst:
 	MOVUPS X0, 48(R14)
 
 fwd_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 fwd_ret_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform
 // ===========================================================================
-TEXT ·InverseSSE2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size8Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
@@ -398,9 +398,9 @@ inv_use_dst:
 	MOVUPS X0, 48(R14)
 
 inv_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_ret_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

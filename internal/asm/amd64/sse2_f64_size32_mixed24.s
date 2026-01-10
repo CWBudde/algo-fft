@@ -7,14 +7,14 @@
 #include "textflag.h"
 
 // Forward transform, size 32, complex128, mixed-radix
-TEXT ·ForwardSSE2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -122,20 +122,20 @@ m24_32_f64_fwd_copy:
 	MOVUPD (SI), X0; MOVUPD X0, (DI); ADDQ $16, SI; ADDQ $16, DI; DECQ CX; JNZ m24_32_f64_fwd_copy
 
 m24_32_f64_fwd_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 m24_32_f64_fwd_err:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 32, complex128, mixed-radix
-TEXT ·InverseSSE2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -245,8 +245,8 @@ m24_32_f64_inv_copy:
 	MOVUPD (SI), X0; MOVUPD X0, (DI); ADDQ $16, SI; ADDQ $16, DI; DECQ CX; JNZ m24_32_f64_inv_copy
 
 m24_32_f64_inv_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 m24_32_f64_inv_err:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

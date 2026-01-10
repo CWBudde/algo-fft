@@ -6,12 +6,12 @@
 // Forward transform, size 32, complex64, radix-32 (4x8) variant
 // NOTE: This kernel was previously disabled due to correctness issues.
 // ===========================================================================
-TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size32Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -518,11 +518,11 @@ row_loop:
 	CMPQ AX, $4
 	JL row_loop
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 fwd_ret_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 
@@ -530,12 +530,12 @@ fwd_ret_false:
 // Inverse transform
 // NOTE: This kernel was previously disabled due to correctness issues.
 // ===========================================================================
-TEXT ·InverseSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size32Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -821,9 +821,9 @@ row_inv_loop:
 	CMPQ AX, $4
 	JL row_inv_loop
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_ret_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

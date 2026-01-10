@@ -10,12 +10,11 @@ DATA ·neonInv128+0(SB)/4, $0x3c000000 // 1/128
 GLOBL ·neonInv128(SB), RODATA, $4
 
 // Forward transform, size 128, complex64, radix-2
-TEXT ·ForwardNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize128Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $128, R13
@@ -33,9 +32,7 @@ TEXT ·ForwardNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $128, R0
 	BLT  neon128r2_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_return_false
+	MOVD $bitrev_size128_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -157,21 +154,20 @@ neon128r2_copy_loop:
 
 neon128r2_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon128r2_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 128, complex64, radix-2
-TEXT ·InverseNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize128Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $128, R13
@@ -189,9 +185,7 @@ TEXT ·InverseNEONSize128Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $128, R0
 	BLT  neon128r2_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $128, R0
-	BLT  neon128r2_inv_return_false
+	MOVD $bitrev_size128_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9

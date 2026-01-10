@@ -7,13 +7,13 @@
 #include "textflag.h"
 
 // Forward transform, size 64, complex64, radix-2
-TEXT ·ForwardSSE2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size64Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $64
@@ -240,20 +240,20 @@ fwd_copy_loop:
 	JNZ fwd_copy_loop
 
 fwd_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 fwd_ret_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 64, complex64, radix-2
-TEXT ·InverseSSE2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size64Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $64
@@ -479,9 +479,9 @@ inv_copy_loop:
 	JNZ inv_copy_loop
 
 inv_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_ret_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

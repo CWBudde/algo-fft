@@ -24,8 +24,8 @@ func registerNEONDITCodelets64() {
 	// Size 8: prefer radix-8 NEON, then radix-4, then radix-2
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCore64(wrapAsmDIT64(arm64.ForwardNEONSize8Radix2Complex64Asm, bitrevSize8Radix2)),
-		Inverse:    wrapCore64(wrapAsmDIT64(arm64.InverseNEONSize8Radix2Complex64Asm, bitrevSize8Radix2)),
+		Forward:    wrapCore64(arm64.ForwardNEONSize8Radix2Complex64Asm),
+		Inverse:    wrapCore64(arm64.InverseNEONSize8Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit8_radix2_neon",
@@ -60,8 +60,8 @@ func registerNEONDITCodelets64() {
 	// Size 16: radix-4 NEON beats radix-2 NEON
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCore64(wrapAsmDIT64(arm64.ForwardNEONSize16Complex64Asm, bitrevSize16Radix2)),
-		Inverse:    wrapCore64(wrapAsmDIT64(arm64.InverseNEONSize16Complex64Asm, bitrevSize16Radix2)),
+		Forward:    wrapCore64(arm64.ForwardNEONSize16Radix2Complex64Asm),
+		Inverse:    wrapCore64(arm64.InverseNEONSize16Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit16_radix2_neon",
@@ -84,8 +84,8 @@ func registerNEONDITCodelets64() {
 	// Size 32: mixed-24 preferred over radix-2
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
-		Forward:    wrapCore64(wrapAsmDIT64(arm64.ForwardNEONSize32Complex64Asm, bitrevSize32Radix2)),
-		Inverse:    wrapCore64(wrapAsmDIT64(arm64.InverseNEONSize32Complex64Asm, bitrevSize32Radix2)),
+		Forward:    wrapCore64(arm64.ForwardNEONSize32Radix2Complex64Asm),
+		Inverse:    wrapCore64(arm64.InverseNEONSize32Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit32_radix2_neon",
@@ -108,8 +108,8 @@ func registerNEONDITCodelets64() {
 	// Size 64: radix-4 NEON beats radix-2 NEON
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
-		Forward:    wrapCore64(wrapAsmDIT64(arm64.ForwardNEONSize64Complex64Asm, bitrevSize64Radix2)),
-		Inverse:    wrapCore64(wrapAsmDIT64(arm64.InverseNEONSize64Complex64Asm, bitrevSize64Radix2)),
+		Forward:    wrapCore64(arm64.ForwardNEONSize64Radix2Complex64Asm),
+		Inverse:    wrapCore64(arm64.InverseNEONSize64Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit64_radix2_neon",

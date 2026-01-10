@@ -17,13 +17,13 @@
 #include "textflag.h"
 
 // Forward transform, size 128, complex64, mixed-radix 2×4 (SSE2)
-TEXT ·ForwardSSE2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
+	LEAQ ·bitrevSSE2Size128Mixed24(SB), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 128)
 
 	// Verify n == 128
@@ -43,7 +43,7 @@ TEXT ·ForwardSSE2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $128
 	JL   size128_sse2_r4_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ $128, AX
 	CMPQ AX, $128
 	JL   size128_sse2_r4_return_false
 
@@ -444,23 +444,23 @@ size128_sse2_r4_copy_loop:
 	JL   size128_sse2_r4_copy_loop
 
 size128_sse2_r4_done_direct:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size128_sse2_r4_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 128, complex64, mixed-radix 2×4 (SSE2)
 // ===========================================================================
-TEXT ·InverseSSE2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size128Mixed24(SB), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 128
@@ -480,7 +480,7 @@ TEXT ·InverseSSE2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $128
 	JL   size128_sse2_r4_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ $128, AX
 	CMPQ AX, $128
 	JL   size128_sse2_r4_inv_return_false
 
@@ -894,9 +894,9 @@ size128_sse2_r4_inv_copy_loop:
 	JL   size128_sse2_r4_inv_copy_loop
 
 size128_sse2_r4_inv_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size128_sse2_r4_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

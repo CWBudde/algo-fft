@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -19,9 +18,8 @@ func TestForwardSSE2Size16Radix2Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n) // Standard bit reversal
 
-	if !amd64.ForwardSSE2Size16Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size16Radix2Complex64Asm(dst, src, twiddle, scratch) {
 		t.Fatal("ForwardSSE2Size16Radix2Complex64Asm failed")
 	}
 
@@ -39,7 +37,6 @@ func TestInverseSSE2Size16Radix2Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n) // Standard bit reversal
 
 	// Use reference forward to test inverse in isolation if possible,
 	// but using assembly forward is fine if verified above.
@@ -49,7 +46,7 @@ func TestInverseSSE2Size16Radix2Complex64(t *testing.T) {
 		fwd[i] = complex64(fwdRef[i])
 	}
 
-	if !amd64.InverseSSE2Size16Radix2Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseSSE2Size16Radix2Complex64Asm(dst, fwd, twiddle, scratch) {
 		t.Fatal("InverseSSE2Size16Radix2Complex64Asm failed")
 	}
 
@@ -67,15 +64,14 @@ func TestRoundTripSSE2Size16Radix2Complex64(t *testing.T) {
 	inv := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n) // Standard bit reversal
 
 	// Forward transform
-	if !amd64.ForwardSSE2Size16Radix2Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size16Radix2Complex64Asm(fwd, src, twiddle, scratch) {
 		t.Fatal("forward transform failed")
 	}
 
 	// Inverse transform
-	if !amd64.InverseSSE2Size16Radix2Complex64Asm(inv, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseSSE2Size16Radix2Complex64Asm(inv, fwd, twiddle, scratch) {
 		t.Fatal("inverse transform failed")
 	}
 

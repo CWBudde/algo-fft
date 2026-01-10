@@ -14,14 +14,13 @@ func TestForwardSSE2Size8Radix2Complex128(t *testing.T) {
 	src := randomComplex128(n, 0x12345678)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	dst := make([]complex128, n)
 
 	want := make([]complex128, n)
 	copy(want, src)
 	forwardDIT8Radix2Complex128(want, want, twiddle, scratch)
 
-	if !amd64.ForwardSSE2Size8Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size8Radix2Complex128Asm(dst, src, twiddle, scratch) {
 		t.Fatal("ForwardSSE2Size8Radix2Complex128Asm failed")
 	}
 
@@ -33,14 +32,13 @@ func TestInverseSSE2Size8Radix2Complex128(t *testing.T) {
 	src := randomComplex128(n, 0x87654321)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	dst := make([]complex128, n)
 
 	want := make([]complex128, n)
 	copy(want, src)
 	inverseDIT8Radix2Complex128(want, want, twiddle, scratch)
 
-	if !amd64.InverseSSE2Size8Radix2Complex128Asm(dst, src, twiddle, scratch, bitrev) {
+	if !amd64.InverseSSE2Size8Radix2Complex128Asm(dst, src, twiddle, scratch) {
 		t.Fatal("InverseSSE2Size8Radix2Complex128Asm failed")
 	}
 
@@ -52,14 +50,13 @@ func TestRoundTripSSE2Size8Radix2Complex128(t *testing.T) {
 	src := randomComplex128(n, 0xABCDEF)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
 	fwd := make([]complex128, n)
 	inv := make([]complex128, n)
 
-	if !amd64.ForwardSSE2Size8Radix2Complex128Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size8Radix2Complex128Asm(fwd, src, twiddle, scratch) {
 		t.Fatal("Forward failed")
 	}
-	if !amd64.InverseSSE2Size8Radix2Complex128Asm(inv, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseSSE2Size8Radix2Complex128Asm(inv, fwd, twiddle, scratch) {
 		t.Fatal("Inverse failed")
 	}
 

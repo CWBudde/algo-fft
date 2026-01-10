@@ -10,12 +10,11 @@ DATA ·neonInv32+0(SB)/4, $0x3d000000 // 1/32
 GLOBL ·neonInv32(SB), RODATA, $4
 
 // Forward transform, size 32, complex64, radix-2
-TEXT ·ForwardNEONSize32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $32, R13
@@ -33,9 +32,7 @@ TEXT ·ForwardNEONSize32Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $32, R0
 	BLT  neon32r2_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $32, R0
-	BLT  neon32r2_return_false
+	MOVD $bitrev_size32_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -158,21 +155,20 @@ neon32r2_copy_loop:
 
 neon32r2_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon32r2_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 32, complex64, radix-2
-TEXT ·InverseNEONSize32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $32, R13
@@ -190,9 +186,7 @@ TEXT ·InverseNEONSize32Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $32, R0
 	BLT  neon32r2_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $32, R0
-	BLT  neon32r2_inv_return_false
+	MOVD $bitrev_size32_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -334,10 +328,49 @@ neon32r2_inv_scale_loop:
 
 neon32r2_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon32r2_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
+
+// ===========================================================================
+// Data Section
+// ===========================================================================
+
+// Bit-reversal permutation for size 32: [0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30, 1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31]
+DATA bitrev_size32_radix2<>+0x00(SB)/8, $0   // bitrev[0] = 0
+DATA bitrev_size32_radix2<>+0x08(SB)/8, $16  // bitrev[1] = 16
+DATA bitrev_size32_radix2<>+0x10(SB)/8, $8   // bitrev[2] = 8
+DATA bitrev_size32_radix2<>+0x18(SB)/8, $24  // bitrev[3] = 24
+DATA bitrev_size32_radix2<>+0x20(SB)/8, $4   // bitrev[4] = 4
+DATA bitrev_size32_radix2<>+0x28(SB)/8, $20  // bitrev[5] = 20
+DATA bitrev_size32_radix2<>+0x30(SB)/8, $12  // bitrev[6] = 12
+DATA bitrev_size32_radix2<>+0x38(SB)/8, $28  // bitrev[7] = 28
+DATA bitrev_size32_radix2<>+0x40(SB)/8, $2   // bitrev[8] = 2
+DATA bitrev_size32_radix2<>+0x48(SB)/8, $18  // bitrev[9] = 18
+DATA bitrev_size32_radix2<>+0x50(SB)/8, $10  // bitrev[10] = 10
+DATA bitrev_size32_radix2<>+0x58(SB)/8, $26  // bitrev[11] = 26
+DATA bitrev_size32_radix2<>+0x60(SB)/8, $6   // bitrev[12] = 6
+DATA bitrev_size32_radix2<>+0x68(SB)/8, $22  // bitrev[13] = 22
+DATA bitrev_size32_radix2<>+0x70(SB)/8, $14  // bitrev[14] = 14
+DATA bitrev_size32_radix2<>+0x78(SB)/8, $30  // bitrev[15] = 30
+DATA bitrev_size32_radix2<>+0x80(SB)/8, $1   // bitrev[16] = 1
+DATA bitrev_size32_radix2<>+0x88(SB)/8, $17  // bitrev[17] = 17
+DATA bitrev_size32_radix2<>+0x90(SB)/8, $9   // bitrev[18] = 9
+DATA bitrev_size32_radix2<>+0x98(SB)/8, $25  // bitrev[19] = 25
+DATA bitrev_size32_radix2<>+0xa0(SB)/8, $5   // bitrev[20] = 5
+DATA bitrev_size32_radix2<>+0xa8(SB)/8, $21  // bitrev[21] = 21
+DATA bitrev_size32_radix2<>+0xb0(SB)/8, $13  // bitrev[22] = 13
+DATA bitrev_size32_radix2<>+0xb8(SB)/8, $29  // bitrev[23] = 29
+DATA bitrev_size32_radix2<>+0xc0(SB)/8, $3   // bitrev[24] = 3
+DATA bitrev_size32_radix2<>+0xc8(SB)/8, $19  // bitrev[25] = 19
+DATA bitrev_size32_radix2<>+0xd0(SB)/8, $11  // bitrev[26] = 11
+DATA bitrev_size32_radix2<>+0xd8(SB)/8, $27  // bitrev[27] = 27
+DATA bitrev_size32_radix2<>+0xe0(SB)/8, $7   // bitrev[28] = 7
+DATA bitrev_size32_radix2<>+0xe8(SB)/8, $23  // bitrev[29] = 23
+DATA bitrev_size32_radix2<>+0xf0(SB)/8, $15  // bitrev[30] = 15
+DATA bitrev_size32_radix2<>+0xf8(SB)/8, $31  // bitrev[31] = 31
+GLOBL bitrev_size32_radix2<>(SB), RODATA, $256
