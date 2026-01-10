@@ -299,12 +299,12 @@ func TestSize128Kernel_RoundTrip(t *testing.T) {
 	}
 
 	// Forward using generic DIT
-	if !amd64.ForwardAVX2Complex64Asm(freq, src, twiddle, scratch) {
+	if !amd64.ForwardAVX2Complex64Asm(freq, src, twiddle, scratch, nil) {
 		t.Fatal("forward returned false")
 	}
 
 	// Inverse using generic DIT
-	if !amd64.InverseAVX2Complex64Asm(result, freq, twiddle, scratch) {
+	if !amd64.InverseAVX2Complex64Asm(result, freq, twiddle, scratch, nil) {
 		t.Fatal("inverse returned false")
 	}
 

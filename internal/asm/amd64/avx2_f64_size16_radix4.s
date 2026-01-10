@@ -7,13 +7,12 @@
 #include "textflag.h"
 
 // Forward transform, size 16, complex128, radix-4 variant
-TEXT ·ForwardAVX2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // dst pointer
 	MOVQ src+24(FP), R9      // src pointer
 	MOVQ twiddle+48(FP), R10 // twiddle pointer
 	MOVQ scratch+72(FP), R11 // scratch pointer
-	MOVQ bitrev+96(FP), R12  // bitrev pointer
 	MOVQ src+32(FP), R13     // n (should be 16)
 
 	CMPQ R13, $16
@@ -32,10 +31,6 @@ TEXT ·ForwardAVX2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $16
 	JL   size16_r4_128_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $16
-	JL   size16_r4_128_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  size16_r4_128_use_dst
@@ -45,22 +40,43 @@ size16_r4_128_use_dst:
 	// ==================================================================
 	// Bit-reversal permutation (base-4 bit-reversal)
 	// ==================================================================
-	XORQ CX, CX
+	// Radix-4 bit-reversal: [0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15]
+	// complex128 is 16 bytes
+	MOVUPD 0(R9), X0         // src[0]
+	MOVUPD X0, 0(R8)
+	MOVUPD 64(R9), X0        // src[4]
+	MOVUPD X0, 16(R8)
+	MOVUPD 128(R9), X0       // src[8]
+	MOVUPD X0, 32(R8)
+	MOVUPD 192(R9), X0       // src[12]
+	MOVUPD X0, 48(R8)
 
-size16_r4_128_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	// src[DX]
-	MOVQ DX, AX
-	SHLQ $1, AX
-	MOVUPD (R9)(AX*8), X0
-	// work[CX]
-	MOVQ CX, AX
-	SHLQ $1, AX
-	MOVUPD X0, (R8)(AX*8)
+	MOVUPD 16(R9), X0        // src[1]
+	MOVUPD X0, 64(R8)
+	MOVUPD 80(R9), X0        // src[5]
+	MOVUPD X0, 80(R8)
+	MOVUPD 144(R9), X0       // src[9]
+	MOVUPD X0, 96(R8)
+	MOVUPD 208(R9), X0       // src[13]
+	MOVUPD X0, 112(R8)
 
-	INCQ CX
-	CMPQ CX, $16
-	JL   size16_r4_128_bitrev_loop
+	MOVUPD 32(R9), X0        // src[2]
+	MOVUPD X0, 128(R8)
+	MOVUPD 96(R9), X0        // src[6]
+	MOVUPD X0, 144(R8)
+	MOVUPD 160(R9), X0       // src[10]
+	MOVUPD X0, 160(R8)
+	MOVUPD 224(R9), X0       // src[14]
+	MOVUPD X0, 176(R8)
+
+	MOVUPD 48(R9), X0        // src[3]
+	MOVUPD X0, 192(R8)
+	MOVUPD 112(R9), X0       // src[7]
+	MOVUPD X0, 208(R8)
+	MOVUPD 176(R9), X0       // src[11]
+	MOVUPD X0, 224(R8)
+	MOVUPD 240(R9), X0       // src[15]
+	MOVUPD X0, 240(R8)
 
 size16_r4_128_stage1:
 	// ==================================================================
@@ -234,22 +250,21 @@ size16_r4_128_copy_loop:
 
 size16_r4_128_done_direct:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size16_r4_128_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 16, complex128, radix-4 variant
-TEXT ·InverseAVX2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $16
@@ -268,10 +283,6 @@ TEXT ·InverseAVX2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $16
 	JL   size16_r4_inv_128_return_false
 
-	MOVQ bitrev+104(FP), AX
-	CMPQ AX, $16
-	JL   size16_r4_inv_128_return_false
-
 	// Select working buffer
 	CMPQ R8, R9
 	JNE  size16_r4_inv_128_use_dst
@@ -281,19 +292,43 @@ size16_r4_inv_128_use_dst:
 	// ==================================================================
 	// Bit-reversal permutation (base-4 bit-reversal)
 	// ==================================================================
-	XORQ CX, CX
+	// Radix-4 bit-reversal: [0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15]
+	// complex128 is 16 bytes
+	MOVUPD 0(R9), X0         // src[0]
+	MOVUPD X0, 0(R8)
+	MOVUPD 64(R9), X0        // src[4]
+	MOVUPD X0, 16(R8)
+	MOVUPD 128(R9), X0       // src[8]
+	MOVUPD X0, 32(R8)
+	MOVUPD 192(R9), X0       // src[12]
+	MOVUPD X0, 48(R8)
 
-size16_r4_inv_128_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVQ DX, AX
-	SHLQ $1, AX
-	MOVUPD (R9)(AX*8), X0
-	MOVQ CX, AX
-	SHLQ $1, AX
-	MOVUPD X0, (R8)(AX*8)
-	INCQ CX
-	CMPQ CX, $16
-	JL   size16_r4_inv_128_bitrev_loop
+	MOVUPD 16(R9), X0        // src[1]
+	MOVUPD X0, 64(R8)
+	MOVUPD 80(R9), X0        // src[5]
+	MOVUPD X0, 80(R8)
+	MOVUPD 144(R9), X0       // src[9]
+	MOVUPD X0, 96(R8)
+	MOVUPD 208(R9), X0       // src[13]
+	MOVUPD X0, 112(R8)
+
+	MOVUPD 32(R9), X0        // src[2]
+	MOVUPD X0, 128(R8)
+	MOVUPD 96(R9), X0        // src[6]
+	MOVUPD X0, 144(R8)
+	MOVUPD 160(R9), X0       // src[10]
+	MOVUPD X0, 160(R8)
+	MOVUPD 224(R9), X0       // src[14]
+	MOVUPD X0, 176(R8)
+
+	MOVUPD 48(R9), X0        // src[3]
+	MOVUPD X0, 192(R8)
+	MOVUPD 112(R9), X0       // src[7]
+	MOVUPD X0, 208(R8)
+	MOVUPD 176(R9), X0       // src[11]
+	MOVUPD X0, 224(R8)
+	MOVUPD 240(R9), X0       // src[15]
+	MOVUPD X0, 240(R8)
 
 size16_r4_inv_128_stage1:
 	// ==================================================================
@@ -489,10 +524,10 @@ size16_r4_inv_128_copy_loop:
 
 size16_r4_inv_128_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size16_r4_inv_128_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

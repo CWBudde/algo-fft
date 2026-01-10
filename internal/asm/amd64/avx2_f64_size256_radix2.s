@@ -17,13 +17,13 @@
 // ===========================================================================
 // Forward transform, size 256, complex128, radix-2
 // ===========================================================================
-TEXT ·ForwardAVX2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // dst pointer
 	MOVQ src+24(FP), R9      // src pointer
 	MOVQ twiddle+48(FP), R10 // twiddle pointer
 	MOVQ scratch+72(FP), R11 // scratch pointer
-	MOVQ bitrev+96(FP), R12  // bitrev pointer
+	LEAQ ·bitrev256_r2(SB), R12
 	MOVQ src+32(FP), R13     // n (should be 256)
 
 	CMPQ R13, $256
@@ -39,10 +39,6 @@ TEXT ·ForwardAVX2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-121
 	JL   size256_128_r2_return_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, $256
-	JL   size256_128_r2_return_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, $256
 	JL   size256_128_r2_return_false
 
@@ -448,23 +444,23 @@ size256_128_r2_copy_loop:
 
 size256_128_r2_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size256_128_r2_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 256, complex128, radix-2
 // ===========================================================================
-TEXT ·InverseAVX2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrev256_r2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $256
@@ -479,10 +475,6 @@ TEXT ·InverseAVX2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-121
 	JL   size256_inv_128_r2_return_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, $256
-	JL   size256_inv_128_r2_return_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, $256
 	JL   size256_inv_128_r2_return_false
 
@@ -887,10 +879,10 @@ size256_inv_128_r2_copy_loop:
 
 size256_inv_128_r2_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size256_inv_128_r2_return_false:
 	VZEROUPPER
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

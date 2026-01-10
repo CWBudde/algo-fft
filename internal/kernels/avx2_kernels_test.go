@@ -115,8 +115,12 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x778899AA,
 		roundTripSeed: 0xBBCCDDEE,
 		bitrevFunc:    mathpkg.ComputeBitReversalIndices,
-		forwardKernel: amd64.ForwardAVX2Size32Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size32Complex64Asm,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.ForwardAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+			return amd64.InverseAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
+		},
 	},
 	{
 		name:          "Size32/Radix32",

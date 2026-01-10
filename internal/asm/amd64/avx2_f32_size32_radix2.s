@@ -41,13 +41,12 @@
 //   Y0-Y7: data registers for butterflies (32 complex64 = 8 YMM registers)
 //   Y8-Y13: twiddle and intermediate values
 //
-TEXT ·ForwardAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 32)
 
 	// Verify n == 32
@@ -64,10 +63,6 @@ TEXT ·ForwardAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
 	JL   size32_return_false
 
 	MOVQ scratch+80(FP), AX  // Get scratch length
-	CMPQ AX, $32
-	JL   size32_return_false
-
-	MOVQ bitrev+104(FP), AX  // Get bitrev length
 	CMPQ AX, $32
 	JL   size32_return_false
 
@@ -88,144 +83,88 @@ size32_bitrev:
 	// =======================================================================
 	// For size 32, bitrev = [0,16,8,24,4,20,12,28,2,18,10,26,6,22,14,30,
 	//                        1,17,9,25,5,21,13,29,3,19,11,27,7,23,15,31]
-	// We use precomputed indices from the bitrev slice for correctness.
+	// Hardcoded bit-reversal indices (kernel handles own bit-reversal).
 	// Unrolled into 8 groups of 4 for efficiency.
 
-	// Group 0: indices 0-3 (offset 0-24 bytes, each complex64 is 8 bytes)
-	MOVQ (R12), DX           // DX = bitrev[0] (source index for work[0])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[0]] (load complex64 from source)
-	MOVQ AX, (R8)            // work[0] = src[bitrev[0]]
+	// Group 0: work[0..3] = src[bitrev[0..3]] = src[0,16,8,24]
+	MOVQ (R9), AX            // work[0] = src[0]
+	MOVQ AX, (R8)
+	MOVQ 128(R9), AX         // work[1] = src[16]
+	MOVQ AX, 8(R8)
+	MOVQ 64(R9), AX          // work[2] = src[8]
+	MOVQ AX, 16(R8)
+	MOVQ 192(R9), AX         // work[3] = src[24]
+	MOVQ AX, 24(R8)
 
-	MOVQ 8(R12), DX          // DX = bitrev[1] (source index for work[1])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[1]]
-	MOVQ AX, 8(R8)           // work[1] = src[bitrev[1]]
+	// Group 1: work[4..7] = src[bitrev[4..7]] = src[4,20,12,28]
+	MOVQ 32(R9), AX          // work[4] = src[4]
+	MOVQ AX, 32(R8)
+	MOVQ 160(R9), AX         // work[5] = src[20]
+	MOVQ AX, 40(R8)
+	MOVQ 96(R9), AX          // work[6] = src[12]
+	MOVQ AX, 48(R8)
+	MOVQ 224(R9), AX         // work[7] = src[28]
+	MOVQ AX, 56(R8)
 
-	MOVQ 16(R12), DX         // DX = bitrev[2] (source index for work[2])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[2]]
-	MOVQ AX, 16(R8)          // work[2] = src[bitrev[2]]
+	// Group 2: work[8..11] = src[bitrev[8..11]] = src[2,18,10,26]
+	MOVQ 16(R9), AX          // work[8] = src[2]
+	MOVQ AX, 64(R8)
+	MOVQ 144(R9), AX         // work[9] = src[18]
+	MOVQ AX, 72(R8)
+	MOVQ 80(R9), AX          // work[10] = src[10]
+	MOVQ AX, 80(R8)
+	MOVQ 208(R9), AX         // work[11] = src[26]
+	MOVQ AX, 88(R8)
 
-	MOVQ 24(R12), DX         // DX = bitrev[3] (source index for work[3])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[3]]
-	MOVQ AX, 24(R8)          // work[3] = src[bitrev[3]]
+	// Group 3: work[12..15] = src[bitrev[12..15]] = src[6,22,14,30]
+	MOVQ 48(R9), AX          // work[12] = src[6]
+	MOVQ AX, 96(R8)
+	MOVQ 176(R9), AX         // work[13] = src[22]
+	MOVQ AX, 104(R8)
+	MOVQ 112(R9), AX         // work[14] = src[14]
+	MOVQ AX, 112(R8)
+	MOVQ 240(R9), AX         // work[15] = src[30]
+	MOVQ AX, 120(R8)
 
-	// Group 1: indices 4-7 (offset 32-56 bytes)
-	MOVQ 32(R12), DX         // DX = bitrev[4]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[4]]
-	MOVQ AX, 32(R8)          // work[4] = src[bitrev[4]]
+	// Group 4: work[16..19] = src[bitrev[16..19]] = src[1,17,9,25]
+	MOVQ 8(R9), AX           // work[16] = src[1]
+	MOVQ AX, 128(R8)
+	MOVQ 136(R9), AX         // work[17] = src[17]
+	MOVQ AX, 136(R8)
+	MOVQ 72(R9), AX          // work[18] = src[9]
+	MOVQ AX, 144(R8)
+	MOVQ 200(R9), AX         // work[19] = src[25]
+	MOVQ AX, 152(R8)
 
-	MOVQ 40(R12), DX         // DX = bitrev[5]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[5]]
-	MOVQ AX, 40(R8)          // work[5] = src[bitrev[5]]
+	// Group 5: work[20..23] = src[bitrev[20..23]] = src[5,21,13,29]
+	MOVQ 40(R9), AX          // work[20] = src[5]
+	MOVQ AX, 160(R8)
+	MOVQ 168(R9), AX         // work[21] = src[21]
+	MOVQ AX, 168(R8)
+	MOVQ 104(R9), AX         // work[22] = src[13]
+	MOVQ AX, 176(R8)
+	MOVQ 232(R9), AX         // work[23] = src[29]
+	MOVQ AX, 184(R8)
 
-	MOVQ 48(R12), DX         // DX = bitrev[6]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[6]]
-	MOVQ AX, 48(R8)          // work[6] = src[bitrev[6]]
+	// Group 6: work[24..27] = src[bitrev[24..27]] = src[3,19,11,27]
+	MOVQ 24(R9), AX          // work[24] = src[3]
+	MOVQ AX, 192(R8)
+	MOVQ 152(R9), AX         // work[25] = src[19]
+	MOVQ AX, 200(R8)
+	MOVQ 88(R9), AX          // work[26] = src[11]
+	MOVQ AX, 208(R8)
+	MOVQ 216(R9), AX         // work[27] = src[27]
+	MOVQ AX, 216(R8)
 
-	MOVQ 56(R12), DX         // DX = bitrev[7]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[7]]
-	MOVQ AX, 56(R8)          // work[7] = src[bitrev[7]]
-
-	// Group 2: indices 8-11 (offset 64-88 bytes)
-	MOVQ 64(R12), DX         // DX = bitrev[8]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[8]]
-	MOVQ AX, 64(R8)          // work[8] = src[bitrev[8]]
-
-	MOVQ 72(R12), DX         // DX = bitrev[9]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[9]]
-	MOVQ AX, 72(R8)          // work[9] = src[bitrev[9]]
-
-	MOVQ 80(R12), DX         // DX = bitrev[10]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[10]]
-	MOVQ AX, 80(R8)          // work[10] = src[bitrev[10]]
-
-	MOVQ 88(R12), DX         // DX = bitrev[11]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[11]]
-	MOVQ AX, 88(R8)          // work[11] = src[bitrev[11]]
-
-	// Group 3: indices 12-15 (offset 96-120 bytes)
-	MOVQ 96(R12), DX         // DX = bitrev[12]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[12]]
-	MOVQ AX, 96(R8)          // work[12] = src[bitrev[12]]
-
-	MOVQ 104(R12), DX        // DX = bitrev[13]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[13]]
-	MOVQ AX, 104(R8)         // work[13] = src[bitrev[13]]
-
-	MOVQ 112(R12), DX        // DX = bitrev[14]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[14]]
-	MOVQ AX, 112(R8)         // work[14] = src[bitrev[14]]
-
-	MOVQ 120(R12), DX        // DX = bitrev[15]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[15]]
-	MOVQ AX, 120(R8)         // work[15] = src[bitrev[15]]
-
-	// Group 4: indices 16-19 (offset 128-152 bytes)
-	MOVQ 128(R12), DX        // DX = bitrev[16]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[16]]
-	MOVQ AX, 128(R8)         // work[16] = src[bitrev[16]]
-
-	MOVQ 136(R12), DX        // DX = bitrev[17]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[17]]
-	MOVQ AX, 136(R8)         // work[17] = src[bitrev[17]]
-
-	MOVQ 144(R12), DX        // DX = bitrev[18]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[18]]
-	MOVQ AX, 144(R8)         // work[18] = src[bitrev[18]]
-
-	MOVQ 152(R12), DX        // DX = bitrev[19]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[19]]
-	MOVQ AX, 152(R8)         // work[19] = src[bitrev[19]]
-
-	// Group 5: indices 20-23 (offset 160-184 bytes)
-	MOVQ 160(R12), DX        // DX = bitrev[20]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[20]]
-	MOVQ AX, 160(R8)         // work[20] = src[bitrev[20]]
-
-	MOVQ 168(R12), DX        // DX = bitrev[21]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[21]]
-	MOVQ AX, 168(R8)         // work[21] = src[bitrev[21]]
-
-	MOVQ 176(R12), DX        // DX = bitrev[22]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[22]]
-	MOVQ AX, 176(R8)         // work[22] = src[bitrev[22]]
-
-	MOVQ 184(R12), DX        // DX = bitrev[23]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[23]]
-	MOVQ AX, 184(R8)         // work[23] = src[bitrev[23]]
-
-	// Group 6: indices 24-27 (offset 192-216 bytes)
-	MOVQ 192(R12), DX        // DX = bitrev[24]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[24]]
-	MOVQ AX, 192(R8)         // work[24] = src[bitrev[24]]
-
-	MOVQ 200(R12), DX        // DX = bitrev[25]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[25]]
-	MOVQ AX, 200(R8)         // work[25] = src[bitrev[25]]
-
-	MOVQ 208(R12), DX        // DX = bitrev[26]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[26]]
-	MOVQ AX, 208(R8)         // work[26] = src[bitrev[26]]
-
-	MOVQ 216(R12), DX        // DX = bitrev[27]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[27]]
-	MOVQ AX, 216(R8)         // work[27] = src[bitrev[27]]
-
-	// Group 7: indices 28-31 (offset 224-248 bytes)
-	MOVQ 224(R12), DX        // DX = bitrev[28]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[28]]
-	MOVQ AX, 224(R8)         // work[28] = src[bitrev[28]]
-
-	MOVQ 232(R12), DX        // DX = bitrev[29]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[29]]
-	MOVQ AX, 232(R8)         // work[29] = src[bitrev[29]]
-
-	MOVQ 240(R12), DX        // DX = bitrev[30]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[30]]
-	MOVQ AX, 240(R8)         // work[30] = src[bitrev[30]]
-
-	MOVQ 248(R12), DX        // DX = bitrev[31]
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[31]]
-	MOVQ AX, 248(R8)         // work[31] = src[bitrev[31]]
+	// Group 7: work[28..31] = src[bitrev[28..31]] = src[7,23,15,31]
+	MOVQ 56(R9), AX          // work[28] = src[7]
+	MOVQ AX, 224(R8)
+	MOVQ 184(R9), AX         // work[29] = src[23]
+	MOVQ AX, 232(R8)
+	MOVQ 120(R9), AX         // work[30] = src[15]
+	MOVQ AX, 240(R8)
+	MOVQ 248(R9), AX         // work[31] = src[31]
+	MOVQ AX, 248(R8)
 
 	// =======================================================================
 	// STAGE 1: size=2, half=1, step=16
@@ -675,11 +614,11 @@ size32_bitrev:
 
 size32_done:
 	VZEROUPPER               // Clear SIMD state
-	MOVB $1, ret+120(FP)     // Return true (success)
+	MOVB $1, ret+96(FP)      // Return true (success)
 	RET
 
 size32_return_false:
-	MOVB $0, ret+120(FP)     // Return false (validation failed)
+	MOVB $0, ret+96(FP)      // Return false (validation failed)
 	RET
 
 // ===========================================================================
@@ -691,13 +630,12 @@ size32_return_false:
 // The only difference from forward transform is using conjugated twiddle factors,
 // achieved by using VFMSUBADD231PS instead of VFMADDSUB231PS for complex multiplication.
 //
-TEXT ·InverseAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer (conjugated for inverse)
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 32)
 
 	// Verify n == 32
@@ -717,10 +655,6 @@ TEXT ·InverseAVX2Size32Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $32
 	JL   size32_inv_return_false
 
-	MOVQ bitrev+104(FP), AX  // Get bitrev length
-	CMPQ AX, $32
-	JL   size32_inv_return_false
-
 	// Select working buffer
 	CMPQ R8, R9              // Compare dst and src pointers
 	JNE  size32_inv_use_dst  // If different, use dst for out-of-place
@@ -735,145 +669,91 @@ size32_inv_use_dst:
 size32_inv_bitrev:
 	// =======================================================================
 	// Bit-reversal permutation: work[i] = src[bitrev[i]]
-	// R12 points to bitrev indices array, R9 points to src, R8 points to work
-	// Each bitrev[i] is an 8-byte offset (complex64 is 8 bytes)
-	// We load 32 elements total in 8 groups of 4
 	// =======================================================================
-	// Group 0: indices 0-3 (offset 0-24 bytes from R12, work offsets 0-24 from R8)
-	MOVQ (R12), DX           // DX = bitrev[0] (source index for work[0])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[0]] (load complex64 from source)
-	MOVQ AX, (R8)            // work[0] = src[bitrev[0]]
+	// For size 32, bitrev = [0,16,8,24,4,20,12,28,2,18,10,26,6,22,14,30,
+	//                        1,17,9,25,5,21,13,29,3,19,11,27,7,23,15,31]
+	// Hardcoded bit-reversal indices (kernel handles own bit-reversal).
+	// Unrolled into 8 groups of 4 for efficiency.
 
-	MOVQ 8(R12), DX          // DX = bitrev[1] (source index for work[1])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[1]]
-	MOVQ AX, 8(R8)           // work[1] = src[bitrev[1]]
+	// Group 0: work[0..3] = src[bitrev[0..3]] = src[0,16,8,24]
+	MOVQ (R9), AX            // work[0] = src[0]
+	MOVQ AX, (R8)
+	MOVQ 128(R9), AX         // work[1] = src[16]
+	MOVQ AX, 8(R8)
+	MOVQ 64(R9), AX          // work[2] = src[8]
+	MOVQ AX, 16(R8)
+	MOVQ 192(R9), AX         // work[3] = src[24]
+	MOVQ AX, 24(R8)
 
-	MOVQ 16(R12), DX         // DX = bitrev[2] (source index for work[2])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[2]]
-	MOVQ AX, 16(R8)          // work[2] = src[bitrev[2]]
+	// Group 1: work[4..7] = src[bitrev[4..7]] = src[4,20,12,28]
+	MOVQ 32(R9), AX          // work[4] = src[4]
+	MOVQ AX, 32(R8)
+	MOVQ 160(R9), AX         // work[5] = src[20]
+	MOVQ AX, 40(R8)
+	MOVQ 96(R9), AX          // work[6] = src[12]
+	MOVQ AX, 48(R8)
+	MOVQ 224(R9), AX         // work[7] = src[28]
+	MOVQ AX, 56(R8)
 
-	MOVQ 24(R12), DX         // DX = bitrev[3] (source index for work[3])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[3]]
-	MOVQ AX, 24(R8)          // work[3] = src[bitrev[3]]
+	// Group 2: work[8..11] = src[bitrev[8..11]] = src[2,18,10,26]
+	MOVQ 16(R9), AX          // work[8] = src[2]
+	MOVQ AX, 64(R8)
+	MOVQ 144(R9), AX         // work[9] = src[18]
+	MOVQ AX, 72(R8)
+	MOVQ 80(R9), AX          // work[10] = src[10]
+	MOVQ AX, 80(R8)
+	MOVQ 208(R9), AX         // work[11] = src[26]
+	MOVQ AX, 88(R8)
 
-	// Group 1: indices 4-7 (offset 32-56 bytes from R12, work offsets 32-56 from R8)
-	MOVQ 32(R12), DX         // DX = bitrev[4] (source index for work[4])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[4]]
-	MOVQ AX, 32(R8)          // work[4] = src[bitrev[4]]
+	// Group 3: work[12..15] = src[bitrev[12..15]] = src[6,22,14,30]
+	MOVQ 48(R9), AX          // work[12] = src[6]
+	MOVQ AX, 96(R8)
+	MOVQ 176(R9), AX         // work[13] = src[22]
+	MOVQ AX, 104(R8)
+	MOVQ 112(R9), AX         // work[14] = src[14]
+	MOVQ AX, 112(R8)
+	MOVQ 240(R9), AX         // work[15] = src[30]
+	MOVQ AX, 120(R8)
 
-	MOVQ 40(R12), DX         // DX = bitrev[5] (source index for work[5])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[5]]
-	MOVQ AX, 40(R8)          // work[5] = src[bitrev[5]]
+	// Group 4: work[16..19] = src[bitrev[16..19]] = src[1,17,9,25]
+	MOVQ 8(R9), AX           // work[16] = src[1]
+	MOVQ AX, 128(R8)
+	MOVQ 136(R9), AX         // work[17] = src[17]
+	MOVQ AX, 136(R8)
+	MOVQ 72(R9), AX          // work[18] = src[9]
+	MOVQ AX, 144(R8)
+	MOVQ 200(R9), AX         // work[19] = src[25]
+	MOVQ AX, 152(R8)
 
-	MOVQ 48(R12), DX         // DX = bitrev[6] (source index for work[6])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[6]]
-	MOVQ AX, 48(R8)          // work[6] = src[bitrev[6]]
+	// Group 5: work[20..23] = src[bitrev[20..23]] = src[5,21,13,29]
+	MOVQ 40(R9), AX          // work[20] = src[5]
+	MOVQ AX, 160(R8)
+	MOVQ 168(R9), AX         // work[21] = src[21]
+	MOVQ AX, 168(R8)
+	MOVQ 104(R9), AX         // work[22] = src[13]
+	MOVQ AX, 176(R8)
+	MOVQ 232(R9), AX         // work[23] = src[29]
+	MOVQ AX, 184(R8)
 
-	MOVQ 56(R12), DX         // DX = bitrev[7] (source index for work[7])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[7]]
-	MOVQ AX, 56(R8)          // work[7] = src[bitrev[7]]
+	// Group 6: work[24..27] = src[bitrev[24..27]] = src[3,19,11,27]
+	MOVQ 24(R9), AX          // work[24] = src[3]
+	MOVQ AX, 192(R8)
+	MOVQ 152(R9), AX         // work[25] = src[19]
+	MOVQ AX, 200(R8)
+	MOVQ 88(R9), AX          // work[26] = src[11]
+	MOVQ AX, 208(R8)
+	MOVQ 216(R9), AX         // work[27] = src[27]
+	MOVQ AX, 216(R8)
 
-	// Group 2: indices 8-11 (offset 64-88 bytes from R12, work offsets 64-88 from R8)
-	MOVQ 64(R12), DX         // DX = bitrev[8] (source index for work[8])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[8]]
-	MOVQ AX, 64(R8)          // work[8] = src[bitrev[8]]
-
-	MOVQ 72(R12), DX         // DX = bitrev[9] (source index for work[9])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[9]]
-	MOVQ AX, 72(R8)          // work[9] = src[bitrev[9]]
-
-	MOVQ 80(R12), DX         // DX = bitrev[10] (source index for work[10])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[10]]
-	MOVQ AX, 80(R8)          // work[10] = src[bitrev[10]]
-
-	MOVQ 88(R12), DX         // DX = bitrev[11] (source index for work[11])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[11]]
-	MOVQ AX, 88(R8)          // work[11] = src[bitrev[11]]
-
-	// Group 3: indices 12-15 (offset 96-120 bytes from R12, work offsets 96-120 from R8)
-	MOVQ 96(R12), DX         // DX = bitrev[12] (source index for work[12])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[12]]
-	MOVQ AX, 96(R8)          // work[12] = src[bitrev[12]]
-
-	MOVQ 104(R12), DX        // DX = bitrev[13] (source index for work[13])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[13]]
-	MOVQ AX, 104(R8)         // work[13] = src[bitrev[13]]
-
-	MOVQ 112(R12), DX        // DX = bitrev[14] (source index for work[14])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[14]]
-	MOVQ AX, 112(R8)         // work[14] = src[bitrev[14]]
-
-	MOVQ 120(R12), DX        // DX = bitrev[15] (source index for work[15])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[15]]
-	MOVQ AX, 120(R8)         // work[15] = src[bitrev[15]]
-
-	// Group 4: indices 16-19 (offset 128-152 bytes from R12, work offsets 128-152 from R8)
-	MOVQ 128(R12), DX        // DX = bitrev[16] (source index for work[16])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[16]]
-	MOVQ AX, 128(R8)         // work[16] = src[bitrev[16]]
-
-	MOVQ 136(R12), DX        // DX = bitrev[17] (source index for work[17])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[17]]
-	MOVQ AX, 136(R8)         // work[17] = src[bitrev[17]]
-
-	MOVQ 144(R12), DX        // DX = bitrev[18] (source index for work[18])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[18]]
-	MOVQ AX, 144(R8)         // work[18] = src[bitrev[18]]
-
-	MOVQ 152(R12), DX        // DX = bitrev[19] (source index for work[19])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[19]]
-	MOVQ AX, 152(R8)         // work[19] = src[bitrev[19]]
-
-	// Group 5: indices 20-23 (offset 160-184 bytes from R12, work offsets 160-184 from R8)
-	MOVQ 160(R12), DX        // DX = bitrev[20] (source index for work[20])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[20]]
-	MOVQ AX, 160(R8)         // work[20] = src[bitrev[20]]
-
-	MOVQ 168(R12), DX        // DX = bitrev[21] (source index for work[21])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[21]]
-	MOVQ AX, 168(R8)         // work[21] = src[bitrev[21]]
-
-	MOVQ 176(R12), DX        // DX = bitrev[22] (source index for work[22])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[22]]
-	MOVQ AX, 176(R8)         // work[22] = src[bitrev[22]]
-
-	MOVQ 184(R12), DX        // DX = bitrev[23] (source index for work[23])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[23]]
-	MOVQ AX, 184(R8)         // work[23] = src[bitrev[23]]
-
-	// Group 6: indices 24-27 (offset 192-216 bytes from R12, work offsets 192-216 from R8)
-	MOVQ 192(R12), DX        // DX = bitrev[24] (source index for work[24])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[24]]
-	MOVQ AX, 192(R8)         // work[24] = src[bitrev[24]]
-
-	MOVQ 200(R12), DX        // DX = bitrev[25] (source index for work[25])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[25]]
-	MOVQ AX, 200(R8)         // work[25] = src[bitrev[25]]
-
-	MOVQ 208(R12), DX        // DX = bitrev[26] (source index for work[26])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[26]]
-	MOVQ AX, 208(R8)         // work[26] = src[bitrev[26]]
-
-	MOVQ 216(R12), DX        // DX = bitrev[27] (source index for work[27])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[27]]
-	MOVQ AX, 216(R8)         // work[27] = src[bitrev[27]]
-
-	// Group 7: indices 28-31 (offset 224-248 bytes from R12, work offsets 224-248 from R8)
-	MOVQ 224(R12), DX        // DX = bitrev[28] (source index for work[28])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[28]]
-	MOVQ AX, 224(R8)         // work[28] = src[bitrev[28]]
-
-	MOVQ 232(R12), DX        // DX = bitrev[29] (source index for work[29])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[29]]
-	MOVQ AX, 232(R8)         // work[29] = src[bitrev[29]]
-
-	MOVQ 240(R12), DX        // DX = bitrev[30] (source index for work[30])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[30]]
-	MOVQ AX, 240(R8)         // work[30] = src[bitrev[30]]
-
-	MOVQ 248(R12), DX        // DX = bitrev[31] (source index for work[31])
-	MOVQ (R9)(DX*8), AX      // AX = src[bitrev[31]]
-	MOVQ AX, 248(R8)         // work[31] = src[bitrev[31]]
+	// Group 7: work[28..31] = src[bitrev[28..31]] = src[7,23,15,31]
+	MOVQ 56(R9), AX          // work[28] = src[7]
+	MOVQ AX, 224(R8)
+	MOVQ 184(R9), AX         // work[29] = src[23]
+	MOVQ AX, 232(R8)
+	MOVQ 120(R9), AX         // work[30] = src[15]
+	MOVQ AX, 240(R8)
+	MOVQ 248(R9), AX         // work[31] = src[31]
+	MOVQ AX, 248(R8)
 
 	// =======================================================================
 	// STAGE 1: size=2, half=1, step=16 (same as forward - tw[0]=1+0i)
@@ -1287,9 +1167,9 @@ size32_inv_bitrev:
 
 size32_inv_done:
 	VZEROUPPER               // Clear SIMD state
-	MOVB $1, ret+120(FP)     // Return true (success)
+	MOVB $1, ret+96(FP)      // Return true (success)
 	RET
 
 size32_inv_return_false:
-	MOVB $0, ret+120(FP)     // Return false (validation failed)
+	MOVB $0, ret+96(FP)      // Return false (validation failed)
 	RET

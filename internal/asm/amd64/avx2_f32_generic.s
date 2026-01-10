@@ -58,14 +58,15 @@
 // Each []T in Go ABI is: ptr (8 bytes) + len (8 bytes) + cap (8 bytes) = 24 bytes
 //
 // Function signature:
-//   func forwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+//   func forwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 //
 // Stack frame layout (offsets from FP):
 //   dst:     FP+0   (ptr), FP+8   (len), FP+16  (cap)
 //   src:     FP+24  (ptr), FP+32  (len), FP+40  (cap)
 //   twiddle: FP+48  (ptr), FP+56  (len), FP+64  (cap)
 //   scratch: FP+72  (ptr), FP+80  (len), FP+88  (cap)
-//   return:  FP+96 (bool, 1 byte)
+//   bitrev:  FP+96  (ptr), FP+104 (len), FP+112 (cap)
+//   return:  FP+120 (bool, 1 byte)
 
 // ===========================================================================
 // Data Type Sizes
@@ -115,7 +116,7 @@
 //
 // Returns: true if transform completed, false to fall back to Go
 // ===========================================================================
-TEXT ·ForwardAVX2Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·ForwardAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -698,12 +699,12 @@ copy_loop:
 return_true:
 	// Success: transform completed in assembly
 	VZEROUPPER                   // Ensure clean state
-	MOVB $1, ret+96(FP)          // Return true
+	MOVB $1, ret+120(FP)         // Return true
 	RET
 
 return_false:
 	// Failure: fall back to pure Go implementation
-	MOVB $0, ret+96(FP)          // Return false
+	MOVB $0, ret+120(FP)         // Return false
 	RET
 
 // ===========================================================================
@@ -1022,7 +1023,7 @@ stockham_return_false:
 // This is achieved by using VFMSUBADD instead of VFMADDSUB:
 //   VFMSUBADD: even lanes +, odd lanes - (opposite of VFMADDSUB)
 // ===========================================================================
-TEXT ·InverseAVX2Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs (same as forward)
 	// -----------------------------------------------------------------------
@@ -1549,12 +1550,12 @@ inv_scale_loop:
 inv_return_true:
 	// Success: inverse transform completed
 	VZEROUPPER
-	MOVB $1, ret+96(FP)
+	MOVB $1, ret+120(FP)
 	RET
 
 inv_return_false:
 	// Failure: fall back to pure Go
-	MOVB $0, ret+96(FP)
+	MOVB $0, ret+120(FP)
 	RET
 
 // ===========================================================================

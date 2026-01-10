@@ -14,13 +14,12 @@
 // Forward transform, size 8, complex128, radix-8 variant
 // Single radix-8 butterfly without bit-reversal.
 // ===========================================================================
-TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // dst
 	MOVQ src+24(FP), R9      // src
 	MOVQ twiddle+48(FP), R10 // twiddle
 	MOVQ scratch+72(FP), R11 // scratch
-	MOVQ bitrev+96(FP), R12  // bitrev
 	MOVQ src+32(FP), R13     // n
 
 	// Verify n == 8
@@ -39,8 +38,6 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	MOVQ scratch+80(FP), AX
 	CMPQ AX, $8
 	JL   size8_128_r8_fwd_return_false
-
-	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
 
 	// Build sign masks
 	// X14 = maskNegLo = [signbit, 0]
@@ -146,24 +143,23 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	MOVUPD X15, 112(R8)
 
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size8_128_r8_fwd_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 8, complex128, radix-8 variant
 // Uses conjugated twiddles (via VFMSUBADD) and applies 1/8 scaling.
 // ===========================================================================
-TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 8
@@ -300,11 +296,11 @@ TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	MOVUPD X15, 112(R8)
 
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size8_128_r8_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================

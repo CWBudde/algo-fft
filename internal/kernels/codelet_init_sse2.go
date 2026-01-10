@@ -105,8 +105,8 @@ func registerSSE2DITCodelets64() {
 	// Size 32: Mixed-radix-2/4 SSE2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
-		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardSSE2Size32Mixed24Complex64Asm, bitrevSize32Radix2)), // Mixed 2/4 for size 32 is radix-2 reversal
-		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseSSE2Size32Mixed24Complex64Asm, bitrevSize32Radix2)),
+		Forward:    wrapCore64(wrapAsmDIT64(amd64.ForwardSSE2Size32Mixed24Complex64Asm, bitrevSize32Mixed24)),
+		Inverse:    wrapCore64(wrapAsmDIT64(amd64.InverseSSE2Size32Mixed24Complex64Asm, bitrevSize32Mixed24)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit32_mixed24_sse2",
@@ -264,8 +264,8 @@ func registerSSE2DITCodelets128() {
 	// Size 32: Mixed-radix-2/4 SSE2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       32,
-		Forward:    wrapCore128(wrapAsmDIT128(amd64.ForwardSSE2Size32Mixed24Complex128Asm, bitrevSize32Radix2)),
-		Inverse:    wrapCore128(wrapAsmDIT128(amd64.InverseSSE2Size32Mixed24Complex128Asm, bitrevSize32Radix2)),
+		Forward:    wrapCore128(wrapAsmDIT128(amd64.ForwardSSE2Size32Mixed24Complex128Asm, bitrevSize32Mixed24)),
+		Inverse:    wrapCore128(wrapAsmDIT128(amd64.InverseSSE2Size32Mixed24Complex128Asm, bitrevSize32Mixed24)),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit32_mixed24_sse2",

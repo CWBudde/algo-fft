@@ -222,23 +222,23 @@ Update 8 assembly files + Go declarations:
 
 Update 4 assembly files + Go declarations:
 
-- [ ] `avx2_f64_size8_radix2.s`: Internalize bitrev
-- [ ] `avx2_f64_size8_radix4.s`: Internalize bitrev
-- [ ] `avx2_f64_size8_radix8.s`: Remove bitrev (identity)
-- [ ] `avx2_f64_size16_radix2.s`: Internalize bitrev
-- [ ] `avx2_f64_size16_radix4.s`: Internalize bitrev
-- [ ] `avx2_f64_size32_radix2.s`: Internalize bitrev
+- [x] `avx2_f64_size8_radix2.s`: Internalize bitrev
+- [x] `avx2_f64_size8_radix4.s`: Internalize bitrev
+- [x] `avx2_f64_size8_radix8.s`: Remove bitrev (identity)
+- [x] `avx2_f64_size16_radix2.s`: Internalize bitrev
+- [x] `avx2_f64_size16_radix4.s`: Internalize bitrev
+- [x] `avx2_f64_size32_radix2.s`: Internalize bitrev
 
 #### 11.13.5 Phase 5: Complex128 Files (Size 64+)
 
 Update remaining assembly files + Go declarations:
 
-- [ ] `avx2_f64_size64_radix2.s`: Internalize bitrev
-- [ ] `avx2_f64_size128_radix2.s`: Internalize bitrev
-- [ ] `avx2_f64_size256_radix2.s`: Internalize bitrev
-- [ ] `avx2_f64_size512_radix2.s`: Internalize bitrev
-- [ ] `avx2_f64_size512_mixed24.s`: Internalize bitrev
-- [ ] `avx2_f64_size384_mixed.s`: Internalize bitrev
+- [x] `avx2_f64_size64_radix2.s`: Internalize bitrev
+- [x] `avx2_f64_size128_radix2.s`: Internalize bitrev
+- [x] `avx2_f64_size256_radix2.s`: Internalize bitrev
+- [x] `avx2_f64_size512_radix2.s`: Internalize bitrev
+- [x] `avx2_f64_size512_mixed24.s`: Internalize bitrev
+- [x] `avx2_f64_size384_mixed.s`: Internalize bitrev
 
 #### 11.13.6 Phase 6: Codelet Registration Update (`codelet_init_avx2.go`) ✅ COMPLETE
 
