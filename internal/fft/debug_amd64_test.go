@@ -5,8 +5,6 @@ package fft
 import (
 	"fmt"
 	"testing"
-
-	"github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func TestDebugSize16Radix16_AMD64(t *testing.T) {
@@ -17,9 +15,8 @@ func TestDebugSize16Radix16_AMD64(t *testing.T) {
 	fwd := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := math.ComputeIdentityIndices(n)
 
-	if !forwardSSE2Size16Radix16Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardSSE2Size16Radix16Complex64Asm(fwd, src, twiddle, scratch) {
 		t.Fatal("Forward failed")
 	}
 
@@ -30,7 +27,7 @@ func TestDebugSize16Radix16_AMD64(t *testing.T) {
 
 	// Test Inverse
 	roundTrip := make([]complex64, n)
-	if !inverseSSE2Size16Radix16Complex64Asm(roundTrip, fwd, twiddle, scratch, bitrev) {
+	if !inverseSSE2Size16Radix16Complex64Asm(roundTrip, fwd, twiddle, scratch) {
 		t.Fatal("Inverse failed")
 	}
 

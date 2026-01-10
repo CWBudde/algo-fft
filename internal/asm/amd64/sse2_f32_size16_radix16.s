@@ -5,12 +5,12 @@
 // ===========================================================================
 // Forward transform, size 16, complex64, radix-16 (4x4) variant
 // ===========================================================================
-TEXT ·ForwardSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size16Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $16
@@ -302,23 +302,23 @@ fwd_bitrev_loop:
 	UNPCKHPD X7, X8
 	MOVUPS X8, 112(R8)
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 fwd_ret_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 
 // ===========================================================================
 // Inverse transform
 // ===========================================================================
-TEXT ·InverseSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size16Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $16
@@ -608,9 +608,9 @@ inv_bitrev_loop:
 	MULPS  X15, X8
 	MOVUPS X8, 112(R8)
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_ret_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

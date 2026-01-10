@@ -179,14 +179,14 @@ func BenchmarkSSE2Size32Comparison(b *testing.B) {
 
 	// SSE2 size-32 radix-32 kernel
 	b.Run("SSE2_Radix32", func(b *testing.B) {
-		if !forwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		if !forwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch) {
 			b.Fatal("SSE2 radix-32 failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for b.Loop() {
-			forwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch, bitrev)
+			forwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
 		}
 	})
 

@@ -7,12 +7,11 @@
 #include "textflag.h"
 
 // Forward transform, size 16, complex64, radix-2
-TEXT ·ForwardNEONSize16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONSize16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $16, R13
@@ -30,9 +29,7 @@ TEXT ·ForwardNEONSize16Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $16, R0
 	BLT  neon16r2_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $16, R0
-	BLT  neon16r2_return_false
+	MOVD $bitrev_size16_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -155,21 +152,20 @@ neon16r2_copy_loop:
 
 neon16r2_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon16r2_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 16, complex64, radix-2
-TEXT ·InverseNEONSize16Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONSize16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
 	MOVD src+32(FP), R13
 
 	CMP  $16, R13
@@ -187,9 +183,7 @@ TEXT ·InverseNEONSize16Complex64Asm(SB), NOSPLIT, $0-121
 	CMP  $16, R0
 	BLT  neon16r2_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $16, R0
-	BLT  neon16r2_inv_return_false
+	MOVD $bitrev_size16_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -332,10 +326,33 @@ neon16r2_inv_scale_loop:
 
 neon16r2_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon16r2_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
+
+// ===========================================================================
+// Data Section
+// ===========================================================================
+
+// Bit-reversal permutation for size 16: [0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15]
+DATA bitrev_size16_radix2<>+0x00(SB)/8, $0   // bitrev[0] = 0
+DATA bitrev_size16_radix2<>+0x08(SB)/8, $8   // bitrev[1] = 8
+DATA bitrev_size16_radix2<>+0x10(SB)/8, $4   // bitrev[2] = 4
+DATA bitrev_size16_radix2<>+0x18(SB)/8, $12  // bitrev[3] = 12
+DATA bitrev_size16_radix2<>+0x20(SB)/8, $2   // bitrev[4] = 2
+DATA bitrev_size16_radix2<>+0x28(SB)/8, $10  // bitrev[5] = 10
+DATA bitrev_size16_radix2<>+0x30(SB)/8, $6   // bitrev[6] = 6
+DATA bitrev_size16_radix2<>+0x38(SB)/8, $14  // bitrev[7] = 14
+DATA bitrev_size16_radix2<>+0x40(SB)/8, $1   // bitrev[8] = 1
+DATA bitrev_size16_radix2<>+0x48(SB)/8, $9   // bitrev[9] = 9
+DATA bitrev_size16_radix2<>+0x50(SB)/8, $5   // bitrev[10] = 5
+DATA bitrev_size16_radix2<>+0x58(SB)/8, $13  // bitrev[11] = 13
+DATA bitrev_size16_radix2<>+0x60(SB)/8, $3   // bitrev[12] = 3
+DATA bitrev_size16_radix2<>+0x68(SB)/8, $11  // bitrev[13] = 11
+DATA bitrev_size16_radix2<>+0x70(SB)/8, $7   // bitrev[14] = 7
+DATA bitrev_size16_radix2<>+0x78(SB)/8, $15  // bitrev[15] = 15
+GLOBL bitrev_size16_radix2<>(SB), RODATA, $128

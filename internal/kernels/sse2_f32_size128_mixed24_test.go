@@ -15,10 +15,9 @@ func TestForwardSSE2Size128Mixed24Complex64(t *testing.T) {
 	src := randomComplex64(n, 0x1234ABCD)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 	dst := make([]complex64, n)
 
-	if !amd64.ForwardSSE2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch) {
 		t.Fatal("ForwardSSE2Size128Mixed24Complex64Asm failed")
 	}
 
@@ -31,10 +30,9 @@ func TestInverseSSE2Size128Mixed24Complex64(t *testing.T) {
 	src := randomComplex64(n, 0xDEADBEEF)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 	dst := make([]complex64, n)
 
-	if !amd64.InverseSSE2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+	if !amd64.InverseSSE2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch) {
 		t.Fatal("InverseSSE2Size128Mixed24Complex64Asm failed")
 	}
 
@@ -47,14 +45,13 @@ func TestRoundTripSSE2Size128Mixed24Complex64(t *testing.T) {
 	src := randomComplex64(n, 0xBEEF1234)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
 	fwd := make([]complex64, n)
 	inv := make([]complex64, n)
 
-	if !amd64.ForwardSSE2Size128Mixed24Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size128Mixed24Complex64Asm(fwd, src, twiddle, scratch) {
 		t.Fatal("Forward failed")
 	}
-	if !amd64.InverseSSE2Size128Mixed24Complex64Asm(inv, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseSSE2Size128Mixed24Complex64Asm(inv, fwd, twiddle, scratch) {
 		t.Fatal("Inverse failed")
 	}
 

@@ -17,13 +17,13 @@
 #include "textflag.h"
 
 // Forward transform, size 32, complex64, radix-2
-TEXT ·ForwardSSE2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
+	LEAQ ·bitrevSSE2Size32Radix2(SB), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 32)
 
 	// Verify n == 32
@@ -43,7 +43,7 @@ TEXT ·ForwardSSE2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $32
 	JL   size32_r2_sse2_fwd_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ $32, AX
 	CMPQ AX, $32
 	JL   size32_r2_sse2_fwd_return_false
 
@@ -801,21 +801,21 @@ size32_r2_sse2_fwd_stage4_loop:
 	MOVUPS X15, 240(R14)
 
 size32_r2_sse2_fwd_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size32_r2_sse2_fwd_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 32, complex64, radix-2
-TEXT ·InverseSSE2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size32Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 32
@@ -835,7 +835,7 @@ TEXT ·InverseSSE2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $32
 	JL   size32_r2_sse2_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ $32, AX
 	CMPQ AX, $32
 	JL   size32_r2_sse2_inv_return_false
 
@@ -1592,9 +1592,9 @@ size32_r2_sse2_inv_copy_loop:
 	JNZ size32_r2_sse2_inv_copy_loop
 
 size32_r2_sse2_inv_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size32_r2_sse2_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

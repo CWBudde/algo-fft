@@ -7,13 +7,13 @@
 #include "textflag.h"
 
 // Forward transform, size 8, complex128, radix-8
-TEXT ·ForwardSSE2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size8Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
@@ -86,19 +86,19 @@ TEXT ·ForwardSSE2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
 	MOVUPD X6, 48(R8)
 	MOVUPD X3, 112(R8)
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 size8_r8_fwd_err:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 8, complex128, radix-8
-TEXT ·InverseSSE2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size8Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
@@ -176,8 +176,8 @@ size8_r8_inv_scale_loop:
 	ADDQ $16, SI; ADDQ $16, DI
 	DECQ CX; JNZ size8_r8_inv_scale_loop
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 size8_r8_inv_err:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

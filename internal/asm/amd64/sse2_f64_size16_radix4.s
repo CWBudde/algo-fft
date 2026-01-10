@@ -7,14 +7,14 @@
 #include "textflag.h"
 
 // Forward transform, size 16, complex128, radix-4
-TEXT ·ForwardSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size16Radix4(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $16
@@ -119,20 +119,20 @@ size16_r4_fwd_copy:
 	MOVUPD (SI), X0; MOVUPD X0, (DI); ADDQ $16, SI; ADDQ $16, DI; DECQ CX; JNZ size16_r4_fwd_copy
 
 size16_r4_fwd_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 size16_r4_fwd_err:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 16, complex128, radix-4
-TEXT ·InverseSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size16Radix4(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $16
@@ -224,8 +224,8 @@ size16_r4_inv_stage2_loop:
 size16_r4_inv_scale_copy:
 	MOVUPD (SI), X0; MULPD X15, X0; MOVUPD X0, (DI); ADDQ $16, SI; ADDQ $16, DI; DECQ CX; JNZ size16_r4_inv_scale_copy
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 size16_r4_inv_err:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

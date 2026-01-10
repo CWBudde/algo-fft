@@ -31,14 +31,14 @@
 // ===========================================================================
 // Forward transform, size 8, complex64, radix-4 (mixed-radix) variant
 // ===========================================================================
-TEXT ·ForwardSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ R8, R14             // R14 = original dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
+	LEAQ ·bitrevSSE2Size8Mixed24(SB), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 8)
 
 	// Verify n == 8
@@ -58,7 +58,7 @@ TEXT ·ForwardSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $8
 	JL   size8_r4_sse2_fwd_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ $8, AX
 	CMPQ AX, $8
 	JL   size8_r4_sse2_fwd_return_false
 
@@ -275,11 +275,11 @@ size8_r4_sse2_fwd_use_dst:
 	MOVQ AX, 56(R14)
 
 size8_r4_sse2_fwd_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size8_r4_sse2_fwd_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
@@ -287,14 +287,14 @@ size8_r4_sse2_fwd_return_false:
 // ===========================================================================
 // Same as forward but with +i instead of -i for radix-4,
 // conjugated twiddles, and 1/8 scaling.
-TEXT ·InverseSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size8Mixed24(SB), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 8
@@ -314,7 +314,7 @@ TEXT ·InverseSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $8
 	JL   size8_r4_sse2_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ $8, AX
 	CMPQ AX, $8
 	JL   size8_r4_sse2_inv_return_false
 
@@ -541,9 +541,9 @@ size8_r4_sse2_inv_use_dst:
 	MOVQ AX, 56(R14)
 
 size8_r4_sse2_inv_done:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size8_r4_sse2_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

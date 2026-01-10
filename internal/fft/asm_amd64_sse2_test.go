@@ -105,9 +105,8 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 	tests := []struct {
 		name          string
 		size          int
-		forward       func([]complex64, []complex64, []complex64, []complex64, []int) bool
-		inverse       func([]complex64, []complex64, []complex64, []complex64, []int) bool
-		bitrevFunc    func(int) []int
+		forward       func([]complex64, []complex64, []complex64, []complex64) bool
+		inverse       func([]complex64, []complex64, []complex64, []complex64) bool
 		testRoundTrip bool
 		testInPlace   bool
 	}{
@@ -116,7 +115,6 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 			size:          4,
 			forward:       forwardSSE2Size4Radix4Complex64Asm,
 			inverse:       inverseSSE2Size4Radix4Complex64Asm,
-			bitrevFunc:    ComputeBitReversalIndicesRadix4,
 			testRoundTrip: false,
 			testInPlace:   false,
 		},
@@ -125,7 +123,6 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 			size:          8,
 			forward:       forwardSSE2Size8Radix4Complex64Asm,
 			inverse:       inverseSSE2Size8Radix4Complex64Asm,
-			bitrevFunc:    ComputeBitReversalIndicesMixed24,
 			testRoundTrip: true,
 			testInPlace:   true,
 		},
@@ -134,7 +131,6 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 			size:          256,
 			forward:       forwardSSE2Size256Radix4Complex64Asm,
 			inverse:       inverseSSE2Size256Radix4Complex64Asm,
-			bitrevFunc:    ComputeBitReversalIndicesRadix4,
 			testRoundTrip: true,
 			testInPlace:   true,
 		},
@@ -149,17 +145,16 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 			dst := make([]complex64, tc.size)
 			scratch := make([]complex64, tc.size)
 			twiddle := ComputeTwiddleFactors[complex64](tc.size)
-			bitrev := tc.bitrevFunc(tc.size)
 
 			// Test correctness vs reference
-			if !tc.forward(fwd, src, twiddle, scratch, bitrev) {
+			if !tc.forward(fwd, src, twiddle, scratch) {
 				t.Fatalf("Forward %s failed", tc.name)
 			}
 
 			wantFwd := reference.NaiveDFT(src)
 			assertComplex64SliceClose(t, fwd, wantFwd, tc.size)
 
-			if !tc.inverse(dst, fwd, twiddle, scratch, bitrev) {
+			if !tc.inverse(dst, fwd, twiddle, scratch) {
 				t.Fatalf("Inverse %s failed", tc.name)
 			}
 
@@ -169,10 +164,10 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 			// Test round-trip if enabled
 			if tc.testRoundTrip {
 				roundtrip := make([]complex64, tc.size)
-				if !tc.forward(fwd, src, twiddle, scratch, bitrev) {
+				if !tc.forward(fwd, src, twiddle, scratch) {
 					t.Fatal("Round-trip forward failed")
 				}
-				if !tc.inverse(roundtrip, fwd, twiddle, scratch, bitrev) {
+				if !tc.inverse(roundtrip, fwd, twiddle, scratch) {
 					t.Fatal("Round-trip inverse failed")
 				}
 				assertComplex64SliceClose(t, roundtrip, src, tc.size)
@@ -183,12 +178,12 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 				data := make([]complex64, tc.size)
 				copy(data, src)
 
-				if !tc.forward(data, data, twiddle, scratch, bitrev) {
+				if !tc.forward(data, data, twiddle, scratch) {
 					t.Fatal("In-place forward failed")
 				}
 				assertComplex64SliceClose(t, data, wantFwd, tc.size)
 
-				if !tc.inverse(data, data, twiddle, scratch, bitrev) {
+				if !tc.inverse(data, data, twiddle, scratch) {
 					t.Fatal("In-place inverse failed")
 				}
 				assertComplex64SliceClose(t, data, src, tc.size)
@@ -200,18 +195,16 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 // TestSSE2SizeSpecificComplex128 validates size-specific SSE2 kernels for complex128.
 func TestSSE2SizeSpecificComplex128(t *testing.T) {
 	tests := []struct {
-		name       string
-		size       int
-		forward    func([]complex128, []complex128, []complex128, []complex128, []int) bool
-		inverse    func([]complex128, []complex128, []complex128, []complex128, []int) bool
-		bitrevFunc func(int) []int
+		name    string
+		size    int
+		forward func([]complex128, []complex128, []complex128, []complex128) bool
+		inverse func([]complex128, []complex128, []complex128, []complex128) bool
 	}{
 		{
-			name:       "Size4_Radix4",
-			size:       4,
-			forward:    forwardSSE2Size4Radix4Complex128Asm,
-			inverse:    inverseSSE2Size4Radix4Complex128Asm,
-			bitrevFunc: ComputeBitReversalIndicesRadix4,
+			name:    "Size4_Radix4",
+			size:    4,
+			forward: forwardSSE2Size4Radix4Complex128Asm,
+			inverse: inverseSSE2Size4Radix4Complex128Asm,
 		},
 	}
 
@@ -224,16 +217,15 @@ func TestSSE2SizeSpecificComplex128(t *testing.T) {
 			dst := make([]complex128, tc.size)
 			scratch := make([]complex128, tc.size)
 			twiddle := ComputeTwiddleFactors[complex128](tc.size)
-			bitrev := tc.bitrevFunc(tc.size)
 
-			if !tc.forward(fwd, src, twiddle, scratch, bitrev) {
+			if !tc.forward(fwd, src, twiddle, scratch) {
 				t.Fatalf("Forward %s failed", tc.name)
 			}
 
 			wantFwd := reference.NaiveDFT128(src)
 			assertComplex128SliceClose(t, fwd, wantFwd, tc.size)
 
-			if !tc.inverse(dst, fwd, twiddle, scratch, bitrev) {
+			if !tc.inverse(dst, fwd, twiddle, scratch) {
 				t.Fatalf("Inverse %s failed", tc.name)
 			}
 

@@ -12,15 +12,15 @@ import (
 // BenchmarkSSE2Complex64 benchmarks SSE2 kernels for complex64.
 func BenchmarkSSE2Complex64(b *testing.B) {
 	cases := []benchCase64{
-		{"Size4/Radix4", 4, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardSSE2Size4Radix4Complex64Asm, amd64.InverseSSE2Size4Radix4Complex64Asm},
-		{"Size8/Radix2", 8, mathpkg.ComputeBitReversalIndices, amd64.ForwardSSE2Size8Radix2Complex64Asm, amd64.InverseSSE2Size8Radix2Complex64Asm},
-		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndices, amd64.ForwardSSE2Size8Radix4Complex64Asm, amd64.InverseSSE2Size8Radix4Complex64Asm},
-		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, amd64.ForwardSSE2Size8Radix8Complex64Asm, amd64.InverseSSE2Size8Radix8Complex64Asm},
-		{"Size16/Radix2", 16, mathpkg.ComputeBitReversalIndices, amd64.ForwardSSE2Size16Radix2Complex64Asm, amd64.InverseSSE2Size16Radix2Complex64Asm},
-		{"Size16/Radix4", 16, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardSSE2Size16Radix4Complex64Asm, amd64.InverseSSE2Size16Radix4Complex64Asm},
-		{"Size16/Radix16", 16, mathpkg.ComputeIdentityIndices, amd64.ForwardSSE2Size16Radix16Complex64Asm, amd64.InverseSSE2Size16Radix16Complex64Asm},
-		{"Size64/Radix4", 64, mathpkg.ComputeBitReversalIndicesRadix4, amd64.ForwardSSE2Size64Radix4Complex64Asm, amd64.InverseSSE2Size64Radix4Complex64Asm},
-		{"Size128/Mixed24", 128, mathpkg.ComputeBitReversalIndicesMixed24, amd64.ForwardSSE2Size128Mixed24Complex64Asm, amd64.InverseSSE2Size128Mixed24Complex64Asm},
+		{"Size4/Radix4", 4, mathpkg.ComputeBitReversalIndicesRadix4, wrapCoreBench64(amd64.ForwardSSE2Size4Radix4Complex64Asm), wrapCoreBench64(amd64.InverseSSE2Size4Radix4Complex64Asm)},
+		{"Size8/Radix2", 8, mathpkg.ComputeBitReversalIndices, wrapCoreBench64(amd64.ForwardSSE2Size8Radix2Complex64Asm), wrapCoreBench64(amd64.InverseSSE2Size8Radix2Complex64Asm)},
+		{"Size8/Radix4", 8, mathpkg.ComputeBitReversalIndices, wrapCoreBench64(amd64.ForwardSSE2Size8Radix4Complex64Asm), wrapCoreBench64(amd64.InverseSSE2Size8Radix4Complex64Asm)},
+		{"Size8/Radix8", 8, mathpkg.ComputeIdentityIndices, wrapCoreBench64(amd64.ForwardSSE2Size8Radix8Complex64Asm), wrapCoreBench64(amd64.InverseSSE2Size8Radix8Complex64Asm)},
+		{"Size16/Radix2", 16, mathpkg.ComputeBitReversalIndices, wrapCoreBench64(amd64.ForwardSSE2Size16Radix2Complex64Asm), wrapCoreBench64(amd64.InverseSSE2Size16Radix2Complex64Asm)},
+		{"Size16/Radix4", 16, mathpkg.ComputeBitReversalIndicesRadix4, wrapCoreBench64(amd64.ForwardSSE2Size16Radix4Complex64Asm), wrapCoreBench64(amd64.InverseSSE2Size16Radix4Complex64Asm)},
+		{"Size16/Radix16", 16, mathpkg.ComputeIdentityIndices, wrapCoreBench64(amd64.ForwardSSE2Size16Radix16Complex64Asm), wrapCoreBench64(amd64.InverseSSE2Size16Radix16Complex64Asm)},
+		{"Size64/Radix4", 64, mathpkg.ComputeBitReversalIndicesRadix4, wrapCoreBench64(amd64.ForwardSSE2Size64Radix4Complex64Asm), wrapCoreBench64(amd64.InverseSSE2Size64Radix4Complex64Asm)},
+		{"Size128/Mixed24", 128, mathpkg.ComputeBitReversalIndicesMixed24, wrapCoreBench64(amd64.ForwardSSE2Size128Mixed24Complex64Asm), wrapCoreBench64(amd64.InverseSSE2Size128Mixed24Complex64Asm)},
 	}
 
 	for _, testCase := range cases {

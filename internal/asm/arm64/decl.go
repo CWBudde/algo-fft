@@ -25,10 +25,10 @@ func ForwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, 
 func InverseNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func ForwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func ForwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func InverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
 func ForwardNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
@@ -49,16 +49,16 @@ func ForwardNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64,
 func InverseNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func ForwardNEONSize16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func ForwardNEONSize16Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseNEONSize16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func InverseNEONSize16Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardNEONSize32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func ForwardNEONSize32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseNEONSize32Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func InverseNEONSize32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
 func ForwardNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
@@ -73,10 +73,10 @@ func ForwardNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64,
 func InverseNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
 //go:noescape
-func ForwardNEONSize64Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func ForwardNEONSize64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseNEONSize64Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+func InverseNEONSize64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
 func ForwardNEONSize128Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool

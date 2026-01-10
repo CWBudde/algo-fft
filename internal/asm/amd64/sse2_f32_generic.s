@@ -19,7 +19,7 @@
 
 #include "textflag.h"
 
-TEXT ·ForwardSSE2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Complex64Asm(SB), NOSPLIT, $0-97
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -27,7 +27,6 @@ TEXT ·ForwardSSE2Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n = len(src)
 
 	// Empty input is valid (no-op)
@@ -44,10 +43,6 @@ TEXT ·ForwardSSE2Complex64Asm(SB), NOSPLIT, $0-121
 	JL   sse2_return_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, R13
-	JL   sse2_return_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, R13
 	JL   sse2_return_false
 
@@ -76,12 +71,39 @@ sse2_use_dst:
 	// -----------------------------------------------------------------------
 	// PHASE 3: Bit-reversal permutation
 	// -----------------------------------------------------------------------
+	// Compute nbits = log2(n)
+	MOVQ R13, R12
+	XORQ R15, R15
+
+sse2_bitrev_bits_loop:
+	CMPQ R12, $1
+	JLE  sse2_bitrev_bits_done
+	SHRQ $1, R12
+	INCQ R15
+	JMP  sse2_bitrev_bits_loop
+
+sse2_bitrev_bits_done:
 	XORQ CX, CX
 
 sse2_bitrev_loop:
 	CMPQ CX, R13
 	JGE  sse2_bitrev_done
-	MOVQ (R12)(CX*8), DX
+	MOVQ CX, AX
+	XORQ DX, DX
+	MOVQ R15, R14
+
+sse2_bitrev_inner:
+	TESTQ R14, R14
+	JZ    sse2_bitrev_inner_done
+	SHLQ $1, DX
+	MOVQ AX, BX
+	ANDQ $1, BX
+	ORQ BX, DX
+	SHRQ $1, AX
+	DECQ R14
+	JMP  sse2_bitrev_inner
+
+sse2_bitrev_inner_done:
 	MOVQ (R9)(DX*8), AX
 	MOVQ AX, (R8)(CX*8)
 	INCQ CX
@@ -334,17 +356,17 @@ sse2_copy_loop:
 	JMP  sse2_copy_loop
 
 sse2_return_true:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 sse2_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // inverseSSE2Complex64Asm - Inverse FFT for complex64 using SSE2
 // ===========================================================================
-TEXT ·InverseSSE2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Complex64Asm(SB), NOSPLIT, $0-97
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -352,7 +374,6 @@ TEXT ·InverseSSE2Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n = len(src)
 
 	// Empty input is valid (no-op)
@@ -369,10 +390,6 @@ TEXT ·InverseSSE2Complex64Asm(SB), NOSPLIT, $0-121
 	JL   inv_sse2_return_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, R13
-	JL   inv_sse2_return_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, R13
 	JL   inv_sse2_return_false
 
@@ -401,12 +418,39 @@ inv_sse2_use_dst:
 	// -----------------------------------------------------------------------
 	// PHASE 3: Bit-reversal permutation
 	// -----------------------------------------------------------------------
+	// Compute nbits = log2(n)
+	MOVQ R13, R12
+	XORQ R15, R15
+
+inv_sse2_bitrev_bits_loop:
+	CMPQ R12, $1
+	JLE  inv_sse2_bitrev_bits_done
+	SHRQ $1, R12
+	INCQ R15
+	JMP  inv_sse2_bitrev_bits_loop
+
+inv_sse2_bitrev_bits_done:
 	XORQ CX, CX
 
 inv_sse2_bitrev_loop:
 	CMPQ CX, R13
 	JGE  inv_sse2_bitrev_done
-	MOVQ (R12)(CX*8), DX
+	MOVQ CX, AX
+	XORQ DX, DX
+	MOVQ R15, R14
+
+inv_sse2_bitrev_inner:
+	TESTQ R14, R14
+	JZ    inv_sse2_bitrev_inner_done
+	SHLQ $1, DX
+	MOVQ AX, BX
+	ANDQ $1, BX
+	ORQ BX, DX
+	SHRQ $1, AX
+	DECQ R14
+	JMP  inv_sse2_bitrev_inner
+
+inv_sse2_bitrev_inner_done:
 	MOVQ (R9)(DX*8), AX
 	MOVQ AX, (R8)(CX*8)
 	INCQ CX
@@ -682,11 +726,11 @@ inv_sse2_scale_loop:
 	JMP  inv_sse2_scale_loop
 
 inv_sse2_return_true:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_sse2_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
@@ -703,4 +747,3 @@ inv_sse2_return_false:
 //   - Uses VMOVDDUP and VPERMILPD for component broadcast/shuffle
 //   - Minimum size: n >= 8 (vs n >= 16 for complex64)
 // ===========================================================================
-

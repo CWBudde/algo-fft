@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -19,9 +18,8 @@ func TestForwardSSE2Size64Radix4Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
-	if !amd64.ForwardSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch) {
 		t.Fatal("ForwardSSE2Size64Radix4Complex64Asm failed")
 	}
 
@@ -39,13 +37,12 @@ func TestInverseSSE2Size64Radix4Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
-	if !amd64.ForwardSSE2Size64Radix4Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size64Radix4Complex64Asm(fwd, src, twiddle, scratch) {
 		t.Fatal("ForwardSSE2Size64Radix4Complex64Asm failed")
 	}
 
-	if !amd64.InverseSSE2Size64Radix4Complex64Asm(dst, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseSSE2Size64Radix4Complex64Asm(dst, fwd, twiddle, scratch) {
 		t.Fatal("InverseSSE2Size64Radix4Complex64Asm failed")
 	}
 
@@ -63,15 +60,14 @@ func TestRoundTripSSE2Size64Radix4Complex64(t *testing.T) {
 	inv := make([]complex64, n)
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesRadix4(n)
 
 	// Forward transform
-	if !amd64.ForwardSSE2Size64Radix4Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !amd64.ForwardSSE2Size64Radix4Complex64Asm(fwd, src, twiddle, scratch) {
 		t.Fatal("forward transform failed")
 	}
 
 	// Inverse transform
-	if !amd64.InverseSSE2Size64Radix4Complex64Asm(inv, fwd, twiddle, scratch, bitrev) {
+	if !amd64.InverseSSE2Size64Radix4Complex64Asm(inv, fwd, twiddle, scratch) {
 		t.Fatal("inverse transform failed")
 	}
 

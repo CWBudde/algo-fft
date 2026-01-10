@@ -30,14 +30,14 @@
 // ===========================================================================
 // Forward transform, size 4, complex128, radix-4
 // ===========================================================================
-TEXT ·ForwardSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ R8, R14             // R14 = original dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer (unused)
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer (unused)
+	LEAQ ·bitrevSSE2Size4Identity(SB), R12  // R12 = bitrev pointer (unused)
 	MOVQ src+32(FP), R13     // R13 = n (should be 4)
 
 	// Verify n == 4
@@ -96,24 +96,24 @@ TEXT ·ForwardSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	MOVUPD X10, 32(R14)
 	MOVUPD X12, 48(R14)
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size4_sse2_128_fwd_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // Inverse transform, size 4, complex128, radix-4
 // ===========================================================================
-TEXT ·InverseSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14             // R14 = original dst pointer
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10 // unused
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12  // unused
+	LEAQ ·bitrevSSE2Size4Identity(SB), R12  // unused
 	MOVQ src+32(FP), R13
 
 	// Verify n == 4
@@ -180,9 +180,9 @@ TEXT ·InverseSSE2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-121
 	MOVUPD X10, 32(R14)
 	MOVUPD X12, 48(R14)
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size4_sse2_128_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

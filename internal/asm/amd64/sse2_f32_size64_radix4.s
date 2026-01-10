@@ -16,13 +16,13 @@
 #include "textflag.h"
 
 // Forward transform, size 64, complex64, radix-4 variant
-TEXT ·ForwardSSE2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
+	LEAQ ·bitrevSSE2Size64Radix4(SB), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 64)
 
 	// Verify n == 64
@@ -42,7 +42,7 @@ TEXT ·ForwardSSE2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $64
 	JL   size64_r4_sse2_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ $64, AX
 	CMPQ AX, $64
 	JL   size64_r4_sse2_return_false
 
@@ -380,21 +380,21 @@ size64_r4_sse2_copy_loop:
 	JL   size64_r4_sse2_copy_loop
 
 size64_r4_sse2_done_direct:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size64_r4_sse2_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 64, complex64, radix-4 variant
-TEXT ·InverseSSE2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size64Radix4(SB), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 64
@@ -414,7 +414,7 @@ TEXT ·InverseSSE2Size64Radix4Complex64Asm(SB), NOSPLIT, $0-121
 	CMPQ AX, $64
 	JL   size64_r4_sse2_inv_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ $64, AX
 	CMPQ AX, $64
 	JL   size64_r4_sse2_inv_return_false
 
@@ -768,9 +768,9 @@ size64_r4_sse2_inv_copy_loop:
 	JL   size64_r4_sse2_inv_copy_loop
 
 size64_r4_sse2_inv_done_direct:
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size64_r4_sse2_inv_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

@@ -240,11 +240,11 @@ Update remaining assembly files + Go declarations:
 - [x] `avx2_f64_size512_mixed24.s`: Internalize bitrev
 - [x] `avx2_f64_size384_mixed.s`: Internalize bitrev
 
-#### 11.13.6 Phase 6: Codelet Registration Update (`codelet_init_avx2.go`) ✅ COMPLETE
+#### 11.13.6 Phase 6: Codelet Registration Update (`codelet_init_avx2.go`)
 
-- [ ] All AVX2 codelet entries already have correct `KernelType` set
-- [ ] All `BitrevFunc` fields already set to nil
-- [ ] Run AVX2-specific tests: `go test -v -tags=asm ./internal/kernels/...`
+- [x] All AVX2 codelet entries already have correct `KernelType` set
+- [x] All `BitrevFunc` fields already set to nil
+- [x] Run AVX2-specific tests: `go test -v -tags=asm ./internal/kernels/...`
 
 ---
 
@@ -254,64 +254,146 @@ Update remaining assembly files + Go declarations:
 
 #### 11.14.1 Update Go Declarations
 
-- [ ] Update all SSE2 function declarations to remove bitrev parameter
+- [x] Update SSE2 size-specific function declarations to remove bitrev parameter
+- [x] Migrate generic SSE2 kernels (`sse2_f32_generic.s`, `sse2_f64_generic.s`)
 
 #### 11.14.2 Update SSE2 Assembly Files
 
-- [ ] `sse2_f32_size4_radix4.s`: Remove bitrev
-- [ ] `sse2_f32_size8_*.s`: All radix variants
-- [ ] `sse2_f32_size16_*.s`: All radix variants
-- [ ] `sse2_f32_size32_*.s`: All radix variants
-- [ ] `sse2_f32_size64_*.s`: All radix variants
-- [ ] `sse2_f32_size128_*.s`: All radix variants
-- [ ] `sse2_f32_size256_*.s`: All radix variants
+- [x] `sse2_f32_size4_radix4.s`: Remove bitrev
+- [x] `sse2_f32_size8_*.s`: All radix variants
+- [x] `sse2_f32_size16_*.s`: All radix variants
+- [x] `sse2_f32_size32_*.s`: All radix variants
+- [x] `sse2_f32_size64_*.s`: All radix variants
+- [x] `sse2_f32_size128_*.s`: All radix variants
+- [x] `sse2_f32_size256_*.s`: All radix variants
 
 #### 11.14.3 Update SSE2 complex128 Assembly Files
 
-- [ ] `sse2_f64_size4_radix4.s`: Remove bitrev
-- [ ] `sse2_f64_size8_*.s`: All radix variants
-- [ ] `sse2_f64_size16_*.s`: All radix variants
-- [ ] `sse2_f64_size32_*.s`: All radix variants
-- [ ] `sse2_f64_size64_*.s`: All radix variants
-- [ ] `sse2_f64_size128_*.s`: All radix variants
-- [ ] `sse2_f64_size256_*.s`: All radix variants
+- [x] `sse2_f64_size4_radix4.s`: Remove bitrev
+- [x] `sse2_f64_size8_*.s`: All radix variants
+- [x] `sse2_f64_size16_*.s`: All radix variants
+- [x] `sse2_f64_size32_*.s`: All radix variants
+- [x] `sse2_f64_size64_*.s`: All radix variants
+- [x] `sse2_f64_size128_*.s`: All radix variants
+- [x] `sse2_f64_size256_*.s`: All radix variants
 
 #### 11.14.4 Update SSE2 Codelet Registration (`codelet_init_sse2.go`) ✅ COMPLETE
 
-- [ ] Update all SSE2 codelet entries
-- [ ] Run SSE2-specific tests
+- [x] Update all SSE2 codelet entries
+- [x] Run SSE2-specific tests
 
 ---
 
-### 11.15 NEON Assembly Migration
+## 11.15 NEON Assembly Migration 🚧 IN PROGRESS
 
-**Files**: All files in `internal/asm/arm64/neon_*.s` and corresponding Go declarations
+**Status**: Size-8 Radix-2 Complex64 complete. Following same pattern as AVX2 migration.
 
-#### 11.15.1 Update Go Declarations (`internal/asm/arm64/decl.go`)
+**Migration Pattern** (ARM64-specific):
 
-- [ ] Update all NEON function declarations to remove bitrev parameter
+1. For each assembly file:
+   - Compute bit-reversal indices for the size/radix combination
+   - Add DATA section at end: `DATA bitrev_sizeN_radixR<>+0xXX(SB)/8, $value`
+   - Add GLOBL directive: `GLOBL bitrev_sizeN_radixR<>(SB), RODATA, $size_in_bytes`
+   - Update TEXT directive stack frame: `$0-121` → `$0-97` (remove 24-byte bitrev param)
+   - Remove bitrev parameter loading and validation
+   - Replace with: `MOVD $bitrev_sizeN_radixR<>(SB), R12`
+   - Update return offset: `ret+120(FP)` → `ret+96(FP)`
+2. Update `internal/asm/arm64/decl.go`: Remove bitrev param from function signature
+3. Update `internal/fft/asm_arm64.go`: Remove bitrev from assembly call (wrapper still accepts it)
+4. Update `internal/kernels/codelet_init_neon.go`: Change `wrapCore64(wrapAsmDIT64(..., bitrev))` → `wrapCore64(...)`
+5. Verify: `GOARCH=arm64 go build -tags=asm ./internal/asm/arm64 ./internal/kernels`
 
-#### 11.15.2 Update NEON Assembly Files
+#### 11.15.1 Size-Specific Radix-2 Kernels (Complex64) - Phase 3 from plan
 
-- [ ] `neon_f32_size4_radix4.s`: Remove bitrev
-- [ ] `neon_f32_size8_*.s`: All radix variants
-- [ ] `neon_f32_size16_*.s`: All radix variants
-- [ ] `neon_f32_size32_*.s`: All radix variants
-- [ ] `neon_f32_size64_*.s`: All radix variants
-- [ ] `neon_f32_size128_*.s`: All radix variants
-- [ ] `neon_f32_size256_*.s`: All radix variants
+- [x] **Size-8 Radix-2** (`neon_f32_size8_radix2.s`) ✅ COMPLETE
+  - [x] Assembly: Add bitrev data [0,4,2,6,1,5,3,7], remove param, update offsets
+  - [x] Go decl: `ForwardNEONSize8Radix2Complex64Asm`, `InverseNEONSize8Radix2Complex64Asm`
+  - [x] Go wrapper: `forwardNEONSize8Radix2Complex64Asm`, `inverseNEONSize8Radix2Complex64Asm`
+  - [x] Codelet registration: Direct `wrapCore64(arm64.Forward/InverseNEONSize8Radix2Complex64Asm)`
+  - [x] Verification: Build successful
 
-#### 11.15.3 Update NEON complex128 Assembly Files
+- [x] **Size-16 Radix-2** (`neon_f32_size16_radix2.s`) ✅ COMPLETE
+  - [x] Assembly: Add bitrev data [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15], remove param, update offsets
+  - [x] Go decl: `ForwardNEONSize16Radix2Complex64Asm`, `InverseNEONSize16Radix2Complex64Asm`
+  - [x] Go wrapper: `forwardNEONSize16Radix2Complex64Asm`, `inverseNEONSize16Radix2Complex64Asm`
+  - [x] Codelet registration: Direct `wrapCore64(arm64.Forward/InverseNEONSize16Radix2Complex64Asm)`
+  - [x] Verification: Build successful
 
-- [ ] `neon_f64_size4_radix4.s`: Remove bitrev
-- [ ] `neon_f64_size8_*.s`: All radix variants
-- [ ] `neon_f64_size16_*.s`: All radix variants
-- [ ] `neon_f64_size32_*.s`: All radix variants
+- [x] **Size-32 Radix-2** (`neon_f32_size32_radix2.s`) ✅ COMPLETE
+  - [x] Assembly: Add bitrev data [0,16,8,24,4,20,12,28,2,18,10,26,6,22,14,30,1,17,9,25,5,21,13,29,3,19,11,27,7,23,15,31], remove param, update offsets
+  - [x] Go decl: `ForwardNEONSize32Radix2Complex64Asm`, `InverseNEONSize32Radix2Complex64Asm`
+  - [x] Go wrapper: `forwardNEONSize32Radix2Complex64Asm`, `inverseNEONSize32Radix2Complex64Asm`
+  - [x] Codelet registration: Direct `wrapCore64(arm64.Forward/InverseNEONSize32Radix2Complex64Asm)`
+  - [x] Verification: Build successful
 
-#### 11.15.4 Update NEON Codelet Registration (`codelet_init_neon.go`)
+- [x] **Size-64 Radix-2** (`neon_f32_size64_radix2.s`)
+  - [x] Assembly: Added `bitrev_size64_radix2<>` DATA section (512 bytes, 64 entries), updated function signatures to `ForwardNEONSize64Radix2Complex64Asm` and `InverseNEONSize64Radix2Complex64Asm`, removed bitrev parameter, updated stack frame from `$0-121` to `$0-97`, updated return offsets from `ret+120(FP)` to `ret+96(FP)`, load static table with `MOVD $bitrev_size64_radix2<>(SB), R12`
+  - [x] Go decl: Updated to `ForwardNEONSize64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool` and `InverseNEONSize64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool`
+  - [x] Go wrapper: `forwardNEONSize64Radix2Complex64Asm`, `inverseNEONSize64Radix2Complex64Asm`
+  - [x] Codelet registration: Direct `wrapCore64(arm64.Forward/InverseNEONSize64Radix2Complex64Asm)`
+  - [x] Verification: Build successful
 
-- [ ] Update all NEON codelet entries
-- [ ] Run NEON-specific tests (via QEMU or native ARM64)
+- [ ] **Size-128 Radix-2** (`neon_f32_size128_radix2.s`)
+  - [ ] Assembly: Add bitrev data, remove param, update offsets
+  - [ ] Go decl: Update function signatures
+  - [ ] Go wrapper: Remove bitrev from assembly call
+  - [ ] Codelet registration: Use `wrapCore64` directly
+  - [ ] Verification: Build and test
+
+- [ ] **Size-256 Radix-2** (`neon_f32_size256_radix2.s`)
+  - [ ] Assembly: Add bitrev data, remove param, update offsets
+  - [ ] Go decl: Update function signatures
+  - [ ] Go wrapper: Remove bitrev from assembly call
+  - [ ] Codelet registration: Use `wrapCore64` directly
+  - [ ] Verification: Build and test
+
+#### 11.15.2 Size-Specific Radix-4 Kernels (Complex64) - Phase 4 from plan
+
+- [ ] **Size-4 Radix-4** (`neon_f32_size4_radix4.s`)
+- [ ] **Size-16 Radix-4** (`neon_f32_size16_radix4.s`) - Uses `bitrevSize16Radix4`
+- [ ] **Size-64 Radix-4** (`neon_f32_size64_radix4.s`) - Uses `bitrevSize64Radix4`
+- [ ] **Size-256 Radix-4** (`neon_f32_size256_radix4.s`) - Uses `bitrevSize256Radix4`
+
+#### 11.15.3 Other Complex64 Kernels
+
+- [ ] **Size-8 Radix-4** (`neon_f32_size8_radix4.s`)
+- [ ] **Size-8 Radix-8** (`neon_f32_size8_radix8.s`) - Phase 5: Uses identity permutation
+- [ ] **Size-32 Mixed-Radix-24** (`neon_f32_size32_mixed24.s`) - Phase 6: Uses `bitrevSize32Mixed24`
+- [ ] **Size-128 Mixed-Radix-24** (`neon_f32_size128_mixed24.s`) - Phase 6: Uses `bitrevSize128Mixed24`
+
+#### 11.15.4 Size-Specific Radix-2 Kernels (Complex128)
+
+- [ ] **Size-8 Radix-2** (`neon_f64_size8_radix2.s`)
+- [ ] **Size-16 Radix-2** (`neon_f64_size16_radix2.s`)
+- [ ] **Size-32 Radix-2** (`neon_f64_size32_radix2.s`)
+
+#### 11.15.5 Size-Specific Radix-4 Kernels (Complex128)
+
+- [ ] **Size-4 Radix-4** (`neon_f64_size4_radix4.s`)
+- [ ] **Size-16 Radix-4** (`neon_f64_size16_radix4.s`)
+
+#### 11.15.6 Cleanup and Optimization - Phase 7 from plan
+
+- [ ] Remove obsolete Go-side bitrev constants from `internal/fft/bitrev_radix4.go`
+  - [ ] `bitrevSize16Radix4`
+  - [ ] `bitrevSize64Radix4`
+  - [ ] `bitrevSize128Radix4` (if exists)
+  - [ ] `bitrevSize256Radix4`
+- [ ] Remove obsolete constants from `internal/fft/bitrev_mixed24.go`
+  - [ ] `bitrevSize8Mixed24` (if used)
+  - [ ] `bitrevSize32Mixed24`
+  - [ ] `bitrevSize128Mixed24`
+- [ ] Simplify dispatch logic in `internal/fft/kernels_arm64_size_specific.go`
+- [ ] Run full NEON test suite: `GOARCH=arm64 go test -v -tags=asm ./internal/fft`
+
+#### 11.15.7 Generic Kernels (SKIP)
+
+**Files NOT migrated** (support arbitrary sizes, must keep bitrev parameter):
+
+- `neon_f32_generic.s` - Generic complex64 fallback
+- `neon_f64_generic.s` - Generic complex128 fallback
+
+**Rationale**: These kernels handle arbitrary FFT sizes at runtime, so static bit-reversal data is not applicable.
 
 ---
 

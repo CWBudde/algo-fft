@@ -7,14 +7,14 @@
 #include "textflag.h"
 
 // Forward transform, size 8, complex128, radix-2
-TEXT ·ForwardSSE2Size8Radix2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE2Size8Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size8Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
@@ -86,20 +86,20 @@ fwd_use_dst:
 	MOVUPD X3, 48(R14)
 	MOVUPD X12, 112(R14)
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 fwd_err:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 8, complex128, radix-2
-TEXT ·InverseSSE2Size8Radix2Complex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseSSE2Size8Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ bitrev+96(FP), R12
+	LEAQ ·bitrevSSE2Size8Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
@@ -177,8 +177,8 @@ scale_loop:
 	ADDQ $16, SI; ADDQ $16, DI
 	DECQ CX; JNZ scale_loop
 
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 inv_err:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET

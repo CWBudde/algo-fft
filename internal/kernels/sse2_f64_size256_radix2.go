@@ -4,19 +4,19 @@ package kernels
 
 import (
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 func init() {
 	// Size 256: Radix-2 SSE2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       256,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size256Radix2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size256Radix2Complex128Asm),
+		Forward:    wrapCore128(amd64.ForwardSSE2Size256Radix2Complex128Asm),
+		Inverse:    wrapCore128(amd64.InverseSSE2Size256Radix2Complex128Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit256_radix2_sse2",
 		Priority:   10,
-		BitrevFunc: mathpkg.ComputeBitReversalIndices,
+		BitrevFunc: nil,
+		KernelType: KernelTypeDIT,
 	})
 }
