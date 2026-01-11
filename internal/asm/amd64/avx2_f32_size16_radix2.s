@@ -78,106 +78,69 @@ size16_use_dst:
 
 size16_bitrev:
 	// =======================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// Bit-reversal + STAGE 1 (fused, identity twiddles)
 	// =======================================================================
-	// For size 16, bitrev = [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]
-	// Use fixed indices to internalize bit-reversal.
+	// Load bit-reversed data directly into YMM registers and compute Stage 1
+	// butterflies in one pass. For size 16:
+	//   bitrev = [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]
+	// Stage 1 pairs adjacent elements: (0,1), (2,3), ... with twiddle[0]=1+0i
+	// Result: a' = a + b, b' = a - b (no complex multiply needed)
 
-	// Group 0: indices 0-3
-	MOVQ 0(R9), AX
-	MOVQ AX, 0(R8)           // work[0] = src[0]
-	MOVQ 64(R9), AX
-	MOVQ AX, 8(R8)           // work[1] = src[8]
-	MOVQ 32(R9), AX
-	MOVQ AX, 16(R8)          // work[2] = src[4]
-	MOVQ 96(R9), AX
-	MOVQ AX, 24(R8)          // work[3] = src[12]
+	// Y0: Load [src[0], src[8], src[4], src[12]] -> butterflies (0,8), (4,12)
+	VMOVSD 0(R9), X0         // X0 = src[0]
+	VMOVSD 64(R9), X4        // X4 = src[8]
+	VPUNPCKLQDQ X4, X0, X0   // X0 = [src[0], src[8]]
+	VMOVSD 32(R9), X5        // X5 = src[4]
+	VMOVSD 96(R9), X6        // X6 = src[12]
+	VPUNPCKLQDQ X6, X5, X5   // X5 = [src[4], src[12]]
+	VINSERTF128 $1, X5, Y0, Y0  // Y0 = [src[0], src[8], src[4], src[12]]
 
-	// Group 1: indices 4-7
-	MOVQ 16(R9), AX
-	MOVQ AX, 32(R8)          // work[4] = src[2]
-	MOVQ 80(R9), AX
-	MOVQ AX, 40(R8)          // work[5] = src[10]
-	MOVQ 48(R9), AX
-	MOVQ AX, 48(R8)          // work[6] = src[6]
-	MOVQ 112(R9), AX
-	MOVQ AX, 56(R8)          // work[7] = src[14]
+	// Stage 1 butterfly for Y0
+	VPERMILPD $0x05, Y0, Y4  // Y4 = [src[8], src[0], src[12], src[4]]
+	VADDPS Y4, Y0, Y5        // Y5 = [0+8, 8+0, 4+12, 12+4]
+	VSUBPS Y0, Y4, Y6        // Y6 = [8-0, 0-8, 12-4, 4-12]
+	VBLENDPD $0x0A, Y6, Y5, Y0  // Y0 = [0+8, 0-8, 4+12, 4-12]
 
-	// Group 2: indices 8-11
-	MOVQ 8(R9), AX
-	MOVQ AX, 64(R8)          // work[8] = src[1]
-	MOVQ 72(R9), AX
-	MOVQ AX, 72(R8)          // work[9] = src[9]
-	MOVQ 40(R9), AX
-	MOVQ AX, 80(R8)          // work[10] = src[5]
-	MOVQ 104(R9), AX
-	MOVQ AX, 88(R8)          // work[11] = src[13]
+	// Y1: Load [src[2], src[10], src[6], src[14]] -> butterflies (2,10), (6,14)
+	VMOVSD 16(R9), X1        // X1 = src[2]
+	VMOVSD 80(R9), X4        // X4 = src[10]
+	VPUNPCKLQDQ X4, X1, X1   // X1 = [src[2], src[10]]
+	VMOVSD 48(R9), X5        // X5 = src[6]
+	VMOVSD 112(R9), X6       // X6 = src[14]
+	VPUNPCKLQDQ X6, X5, X5   // X5 = [src[6], src[14]]
+	VINSERTF128 $1, X5, Y1, Y1  // Y1 = [src[2], src[10], src[6], src[14]]
 
-	// Group 3: indices 12-15
-	MOVQ 24(R9), AX
-	MOVQ AX, 96(R8)          // work[12] = src[3]
-	MOVQ 88(R9), AX
-	MOVQ AX, 104(R8)         // work[13] = src[11]
-	MOVQ 56(R9), AX
-	MOVQ AX, 112(R8)         // work[14] = src[7]
-	MOVQ 120(R9), AX
-	MOVQ AX, 120(R8)         // work[15] = src[15]
-
-	// =======================================================================
-	// STAGE 1: size=2, half=1, step=8
-	// =======================================================================
-	// 8 independent butterflies with pairs: (0,1), (2,3), (4,5), (6,7),
-	//                                       (8,9), (10,11), (12,13), (14,15)
-	// All use twiddle[0] = (1, 0) which is identity multiplication.
-	// So: a' = a + b, b' = a - b (no complex multiply needed)
-
-	// Load all 16 complex64 values into 4 YMM registers
-	// Y0 = [work[0], work[1], work[2], work[3]]
-	// Y1 = [work[4], work[5], work[6], work[7]]
-	// Y2 = [work[8], work[9], work[10], work[11]]
-	// Y3 = [work[12], work[13], work[14], work[15]]
-	VMOVUPS (R8), Y0
-	VMOVUPS 32(R8), Y1
-	VMOVUPS 64(R8), Y2
-	VMOVUPS 96(R8), Y3
-
-	// Stage 1: Butterflies on adjacent pairs within each 128-bit lane
-	// For size=2 FFT: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
-	// Using twiddle[0] = 1+0i means t = b * 1 = b
-	//
-	// We need to rearrange: take pairs (0,1), (2,3) etc and compute a+b, a-b
-	// VSHUFPD with imm=0b0101 swaps adjacent 64-bit elements in each 128-bit lane
-	// But for size-2 butterflies, we need a different approach:
-	//
-	// Y0 = [a0, b0, a1, b1] where a0=work[0], b0=work[1], a1=work[2], b1=work[3]
-	// We want: [a0+b0, a0-b0, a1+b1, a1-b1]
-	//
-	// Use VPERMILPD to create: [b0, a0, b1, a1]
-	// Then add/sub
-
-	// Y0: [w0, w1, w2, w3] -> pairs (w0,w1), (w2,w3)
-	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
-	// VPERMILPD swaps 64-bit elements (complex64 pairs) within 128-bit lanes
-	VPERMILPD $0x05, Y0, Y4  // Y4 = [w1, w0, w3, w2] (swap within 128-bit lanes)
-	VADDPS Y4, Y0, Y5        // Y5 = [w0+w1, w1+w0, w2+w3, w3+w2]
-	VSUBPS Y0, Y4, Y6        // Y6 = [w1-w0, w0-w1, w3-w2, w2-w3] (note: Y4-Y0, not Y0-Y4!)
-	// VBLENDPD operates at 64-bit granularity (per complex64 number)
-	// $0x0A = 0b1010: positions 1,3 from Y6, positions 0,2 from Y5
-	VBLENDPD $0x0A, Y6, Y5, Y0  // Y0 = [w0+w1, w0-w1, w2+w3, w2-w3]
-
-	// Same for Y1: pairs (w4,w5), (w6,w7)
+	// Stage 1 butterfly for Y1
 	VPERMILPD $0x05, Y1, Y4
 	VADDPS Y4, Y1, Y5
 	VSUBPS Y1, Y4, Y6
 	VBLENDPD $0x0A, Y6, Y5, Y1
 
-	// Same for Y2: pairs (w8,w9), (w10,w11)
+	// Y2: Load [src[1], src[9], src[5], src[13]] -> butterflies (1,9), (5,13)
+	VMOVSD 8(R9), X2         // X2 = src[1]
+	VMOVSD 72(R9), X4        // X4 = src[9]
+	VPUNPCKLQDQ X4, X2, X2   // X2 = [src[1], src[9]]
+	VMOVSD 40(R9), X5        // X5 = src[5]
+	VMOVSD 104(R9), X6       // X6 = src[13]
+	VPUNPCKLQDQ X6, X5, X5   // X5 = [src[5], src[13]]
+	VINSERTF128 $1, X5, Y2, Y2  // Y2 = [src[1], src[9], src[5], src[13]]
+
+	// Stage 1 butterfly for Y2
 	VPERMILPD $0x05, Y2, Y4
 	VADDPS Y4, Y2, Y5
 	VSUBPS Y2, Y4, Y6
 	VBLENDPD $0x0A, Y6, Y5, Y2
 
-	// Same for Y3: pairs (w12,w13), (w14,w15)
+	// Y3: Load [src[3], src[11], src[7], src[15]] -> butterflies (3,11), (7,15)
+	VMOVSD 24(R9), X3        // X3 = src[3]
+	VMOVSD 88(R9), X4        // X4 = src[11]
+	VPUNPCKLQDQ X4, X3, X3   // X3 = [src[3], src[11]]
+	VMOVSD 56(R9), X5        // X5 = src[7]
+	VMOVSD 120(R9), X6       // X6 = src[15]
+	VPUNPCKLQDQ X6, X5, X5   // X5 = [src[7], src[15]]
+	VINSERTF128 $1, X5, Y3, Y3  // Y3 = [src[3], src[11], src[7], src[15]]
+
+	// Stage 1 butterfly for Y3
 	VPERMILPD $0x05, Y3, Y4
 	VADDPS Y4, Y3, Y5
 	VSUBPS Y3, Y4, Y6
@@ -404,81 +367,66 @@ size16_inv_use_dst:
 
 size16_inv_bitrev:
 	// =======================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// Bit-reversal + STAGE 1 (fused, identity twiddles)
 	// =======================================================================
-	// For size 16, bitrev = [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]
-	// Use fixed indices to internalize bit-reversal.
+	// Load bit-reversed data directly into YMM registers and compute Stage 1
+	// butterflies in one pass. Conjugation has no effect on identity twiddle.
 
-	// Group 0: indices 0-3
-	MOVQ 0(R9), AX
-	MOVQ AX, 0(R8)           // work[0] = src[0]
-	MOVQ 64(R9), AX
-	MOVQ AX, 8(R8)           // work[1] = src[8]
-	MOVQ 32(R9), AX
-	MOVQ AX, 16(R8)          // work[2] = src[4]
-	MOVQ 96(R9), AX
-	MOVQ AX, 24(R8)          // work[3] = src[12]
+	// Y0: Load [src[0], src[8], src[4], src[12]] -> butterflies (0,8), (4,12)
+	VMOVSD 0(R9), X0
+	VMOVSD 64(R9), X4
+	VPUNPCKLQDQ X4, X0, X0
+	VMOVSD 32(R9), X5
+	VMOVSD 96(R9), X6
+	VPUNPCKLQDQ X6, X5, X5
+	VINSERTF128 $1, X5, Y0, Y0
 
-	// Group 1: indices 4-7
-	MOVQ 16(R9), AX
-	MOVQ AX, 32(R8)          // work[4] = src[2]
-	MOVQ 80(R9), AX
-	MOVQ AX, 40(R8)          // work[5] = src[10]
-	MOVQ 48(R9), AX
-	MOVQ AX, 48(R8)          // work[6] = src[6]
-	MOVQ 112(R9), AX
-	MOVQ AX, 56(R8)          // work[7] = src[14]
-
-	// Group 2: indices 8-11
-	MOVQ 8(R9), AX
-	MOVQ AX, 64(R8)          // work[8] = src[1]
-	MOVQ 72(R9), AX
-	MOVQ AX, 72(R8)          // work[9] = src[9]
-	MOVQ 40(R9), AX
-	MOVQ AX, 80(R8)          // work[10] = src[5]
-	MOVQ 104(R9), AX
-	MOVQ AX, 88(R8)          // work[11] = src[13]
-
-	// Group 3: indices 12-15
-	MOVQ 24(R9), AX
-	MOVQ AX, 96(R8)          // work[12] = src[3]
-	MOVQ 88(R9), AX
-	MOVQ AX, 104(R8)         // work[13] = src[11]
-	MOVQ 56(R9), AX
-	MOVQ AX, 112(R8)         // work[14] = src[7]
-	MOVQ 120(R9), AX
-	MOVQ AX, 120(R8)         // work[15] = src[15]
-
-	// =======================================================================
-	// STAGE 1: size=2, half=1, step=8 (same as forward - tw[0]=1+0i)
-	// =======================================================================
-	// Conjugation has no effect on identity twiddle
-
-	VMOVUPS (R8), Y0
-	VMOVUPS 32(R8), Y1
-	VMOVUPS 64(R8), Y2
-	VMOVUPS 96(R8), Y3
-
-	// Y0: pairs (w0,w1), (w2,w3)
-	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
+	// Stage 1 butterfly for Y0
 	VPERMILPD $0x05, Y0, Y4
 	VADDPS Y4, Y0, Y5
-	VSUBPS Y0, Y4, Y6        // Y4-Y0, not Y0-Y4!
-	VBLENDPD $0x0A, Y6, Y5, Y0  // 64-bit blend, not 32-bit!
+	VSUBPS Y0, Y4, Y6
+	VBLENDPD $0x0A, Y6, Y5, Y0
 
-	// Y1: pairs (w4,w5), (w6,w7)
+	// Y1: Load [src[2], src[10], src[6], src[14]] -> butterflies (2,10), (6,14)
+	VMOVSD 16(R9), X1
+	VMOVSD 80(R9), X4
+	VPUNPCKLQDQ X4, X1, X1
+	VMOVSD 48(R9), X5
+	VMOVSD 112(R9), X6
+	VPUNPCKLQDQ X6, X5, X5
+	VINSERTF128 $1, X5, Y1, Y1
+
+	// Stage 1 butterfly for Y1
 	VPERMILPD $0x05, Y1, Y4
 	VADDPS Y4, Y1, Y5
 	VSUBPS Y1, Y4, Y6
 	VBLENDPD $0x0A, Y6, Y5, Y1
 
-	// Y2: pairs (w8,w9), (w10,w11)
+	// Y2: Load [src[1], src[9], src[5], src[13]] -> butterflies (1,9), (5,13)
+	VMOVSD 8(R9), X2
+	VMOVSD 72(R9), X4
+	VPUNPCKLQDQ X4, X2, X2
+	VMOVSD 40(R9), X5
+	VMOVSD 104(R9), X6
+	VPUNPCKLQDQ X6, X5, X5
+	VINSERTF128 $1, X5, Y2, Y2
+
+	// Stage 1 butterfly for Y2
 	VPERMILPD $0x05, Y2, Y4
 	VADDPS Y4, Y2, Y5
 	VSUBPS Y2, Y4, Y6
 	VBLENDPD $0x0A, Y6, Y5, Y2
 
-	// Y3: pairs (w12,w13), (w14,w15)
+	// Y3: Load [src[3], src[11], src[7], src[15]] -> butterflies (3,11), (7,15)
+	VMOVSD 24(R9), X3
+	VMOVSD 88(R9), X4
+	VPUNPCKLQDQ X4, X3, X3
+	VMOVSD 56(R9), X5
+	VMOVSD 120(R9), X6
+	VPUNPCKLQDQ X6, X5, X5
+	VINSERTF128 $1, X5, Y3, Y3
+
+	// Stage 1 butterfly for Y3
 	VPERMILPD $0x05, Y3, Y4
 	VADDPS Y4, Y3, Y5
 	VSUBPS Y3, Y4, Y6

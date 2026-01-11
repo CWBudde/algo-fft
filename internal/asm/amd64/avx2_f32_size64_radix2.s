@@ -26,13 +26,13 @@
 //   R12: bitrev pointer
 //   Data stored in memory (R8), processed in groups of 4 YMM registers
 //
-TEXT ·ForwardAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardAVX2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
+	LEAQ ·bitrev64_r2(SB), R12 // R12 = internal bitrev table
 	MOVQ src+32(FP), R13     // R13 = n (should be 64)
 
 	// Verify n == 64
@@ -49,10 +49,6 @@ TEXT ·ForwardAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
 	JL   size64_return_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, $64
-	JL   size64_return_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, $64
 	JL   size64_return_false
 
@@ -1260,11 +1256,11 @@ size64_bitrev:
 
 size64_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 size64_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
 
 // Inverse transform, size 64, complex64
@@ -1274,13 +1270,13 @@ size64_return_false:
 // twiddle factors during each butterfly. Inputs are bit-reversed at the start,
 // and the output is scaled by 1/64.
 //
-TEXT ·InverseAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseAVX2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
+	LEAQ ·bitrev64_r2(SB), R12 // R12 = internal bitrev table
 	MOVQ src+32(FP), R13     // R13 = n (should be 64)
 
 	// Verify n == 64
@@ -1297,10 +1293,6 @@ TEXT ·InverseAVX2Size64Complex64Asm(SB), NOSPLIT, $0-121
 	JL   inv_size64_return_false
 
 	MOVQ scratch+80(FP), AX
-	CMPQ AX, $64
-	JL   inv_size64_return_false
-
-	MOVQ bitrev+104(FP), AX
 	CMPQ AX, $64
 	JL   inv_size64_return_false
 
@@ -2524,9 +2516,9 @@ inv_size64_scale_loop:
 
 inv_size64_done:
 	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	MOVB $1, ret+96(FP)
 	RET
 
 inv_size64_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+96(FP)
 	RET
