@@ -346,6 +346,9 @@ func TestAVX2KernelsForward(t *testing.T) {
 	for _, tc := range avx2TestCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			if testing.Short() && tc.size >= 8192 {
+				t.Skip("skipping large size in short mode")
+			}
 			t.Parallel()
 
 			src := randomComplex64(tc.size, tc.forwardSeed)
@@ -368,6 +371,9 @@ func TestAVX2KernelsInverse(t *testing.T) {
 	for _, tc := range avx2TestCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			if testing.Short() && tc.size >= 8192 {
+				t.Skip("skipping large size in short mode")
+			}
 			t.Parallel()
 
 			src := randomComplex64(tc.size, tc.inverseSeed)
@@ -397,6 +403,9 @@ func TestAVX2KernelsRoundTrip(t *testing.T) {
 	for _, tc := range avx2TestCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			if testing.Short() && tc.size >= 8192 {
+				t.Skip("skipping large size in short mode")
+			}
 			t.Parallel()
 
 			src := randomComplex64(tc.size, tc.roundTripSeed)
