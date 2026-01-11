@@ -46,85 +46,70 @@ TEXT ·ForwardAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 
 size16_r4_use_dst:
 	// ==================================================================
-	// Bit-reversal permutation (base-4 bit-reversal)
-	// Radix-4 pattern: [0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15]
+	// FUSED: Bit-reversal permutation + Stage 1 radix-4 butterflies
 	// ==================================================================
-	MOVQ (R9), AX            // src[0]
-	MOVQ AX, (R8)            // work[0] = src[0]
-
-	MOVQ 32(R9), AX          // src[4]
-	MOVQ AX, 8(R8)           // work[1] = src[4]
-
-	MOVQ 64(R9), AX          // src[8]
-	MOVQ AX, 16(R8)          // work[2] = src[8]
-
-	MOVQ 96(R9), AX          // src[12]
-	MOVQ AX, 24(R8)          // work[3] = src[12]
-
-	MOVQ 8(R9), AX           // src[1]
-	MOVQ AX, 32(R8)          // work[4] = src[1]
-
-	MOVQ 40(R9), AX          // src[5]
-	MOVQ AX, 40(R8)          // work[5] = src[5]
-
-	MOVQ 72(R9), AX          // src[9]
-	MOVQ AX, 48(R8)          // work[6] = src[9]
-
-	MOVQ 104(R9), AX         // src[13]
-	MOVQ AX, 56(R8)          // work[7] = src[13]
-
-	MOVQ 16(R9), AX          // src[2]
-	MOVQ AX, 64(R8)          // work[8] = src[2]
-
-	MOVQ 48(R9), AX          // src[6]
-	MOVQ AX, 72(R8)          // work[9] = src[6]
-
-	MOVQ 80(R9), AX          // src[10]
-	MOVQ AX, 80(R8)          // work[10] = src[10]
-
-	MOVQ 112(R9), AX         // src[14]
-	MOVQ AX, 88(R8)          // work[11] = src[14]
-
-	MOVQ 24(R9), AX          // src[3]
-	MOVQ AX, 96(R8)          // work[12] = src[3]
-
-	MOVQ 56(R9), AX          // src[7]
-	MOVQ AX, 104(R8)         // work[13] = src[7]
-
-	MOVQ 88(R9), AX          // src[11]
-	MOVQ AX, 112(R8)         // work[14] = src[11]
-
-	MOVQ 120(R9), AX         // src[15]
-	MOVQ AX, 120(R8)         // work[15] = src[15]
-
-size16_r4_stage1:
+	// Load directly from scattered source positions, perform butterfly,
+	// store once. Eliminates intermediate memory round-trip.
+	//
+	// Radix-4 bit-reversal pattern: [0,4,8,12, 1,5,9,13, 2,6,10,14, 3,7,11,15]
+	// Stage 1: 4 radix-4 butterflies with identity twiddles (w=1)
+	//
+	// TODO: Benchmark Option B - use YMM registers to process 2 groups
+	// simultaneously with more complex shuffles for potentially higher throughput.
 	// ==================================================================
-	// Stage 1: 4 radix-4 butterflies, stride=4
-	// ==================================================================
-	XORQ CX, CX
 
-size16_r4_stage1_loop:
-	CMPQ CX, $16
-	JGE  size16_r4_stage2
+	// -----------------------------------------------------------------------
+	// Group 0: src[0,4,8,12] → radix-4 butterfly → work[0..3]
+	// -----------------------------------------------------------------------
+	VMOVSD (R9), X0          // X0 = src[0]
+	VMOVSD 32(R9), X1        // X1 = src[4]  (4*8=32)
+	VMOVSD 64(R9), X2        // X2 = src[8]  (8*8=64)
+	VMOVSD 96(R9), X3        // X3 = src[12] (12*8=96)
 
-	LEAQ (R8)(CX*8), SI
-	VMOVSD (SI), X0
-	VMOVSD 8(SI), X1
-	VMOVSD 16(SI), X2
-	VMOVSD 24(SI), X3
+	VADDPS X0, X2, X4        // t0 = a0 + a2
+	VSUBPS X2, X0, X5        // t1 = a0 - a2
+	VADDPS X1, X3, X6        // t2 = a1 + a3
+	VSUBPS X3, X1, X7        // t3 = a1 - a3
+
+	// (-i)*t3 for forward FFT
+	VPERMILPS $0xB1, X7, X8  // swap re/im
+	VXORPS X9, X9, X9
+	VSUBPS X8, X9, X10       // negate
+	VBLENDPS $0x02, X10, X8, X8
+
+	// i*t3 for forward FFT
+	VPERMILPS $0xB1, X7, X11
+	VSUBPS X11, X9, X10
+	VBLENDPS $0x01, X10, X11, X11
+
+	VADDPS X4, X6, X0        // out[0] = t0 + t2
+	VADDPS X5, X8, X1        // out[1] = t1 + (-i)*t3
+	VSUBPS X6, X4, X2        // out[2] = t0 - t2
+	VADDPS X5, X11, X3       // out[3] = t1 + i*t3
+
+	VMOVSD X0, (R8)
+	VMOVSD X1, 8(R8)
+	VMOVSD X2, 16(R8)
+	VMOVSD X3, 24(R8)
+
+	// -----------------------------------------------------------------------
+	// Group 1: src[1,5,9,13] → radix-4 butterfly → work[4..7]
+	// -----------------------------------------------------------------------
+	VMOVSD 8(R9), X0         // X0 = src[1]  (1*8=8)
+	VMOVSD 40(R9), X1        // X1 = src[5]  (5*8=40)
+	VMOVSD 72(R9), X2        // X2 = src[9]  (9*8=72)
+	VMOVSD 104(R9), X3       // X3 = src[13] (13*8=104)
 
 	VADDPS X0, X2, X4
 	VSUBPS X2, X0, X5
 	VADDPS X1, X3, X6
 	VSUBPS X3, X1, X7
 
-	// (-i)*t3
 	VPERMILPS $0xB1, X7, X8
 	VXORPS X9, X9, X9
 	VSUBPS X8, X9, X10
 	VBLENDPS $0x02, X10, X8, X8
 
-	// i*t3
 	VPERMILPS $0xB1, X7, X11
 	VSUBPS X11, X9, X10
 	VBLENDPS $0x01, X10, X11, X11
@@ -134,13 +119,74 @@ size16_r4_stage1_loop:
 	VSUBPS X6, X4, X2
 	VADDPS X5, X11, X3
 
-	VMOVSD X0, (SI)
-	VMOVSD X1, 8(SI)
-	VMOVSD X2, 16(SI)
-	VMOVSD X3, 24(SI)
+	VMOVSD X0, 32(R8)
+	VMOVSD X1, 40(R8)
+	VMOVSD X2, 48(R8)
+	VMOVSD X3, 56(R8)
 
-	ADDQ $4, CX
-	JMP  size16_r4_stage1_loop
+	// -----------------------------------------------------------------------
+	// Group 2: src[2,6,10,14] → radix-4 butterfly → work[8..11]
+	// -----------------------------------------------------------------------
+	VMOVSD 16(R9), X0        // X0 = src[2]  (2*8=16)
+	VMOVSD 48(R9), X1        // X1 = src[6]  (6*8=48)
+	VMOVSD 80(R9), X2        // X2 = src[10] (10*8=80)
+	VMOVSD 112(R9), X3       // X3 = src[14] (14*8=112)
+
+	VADDPS X0, X2, X4
+	VSUBPS X2, X0, X5
+	VADDPS X1, X3, X6
+	VSUBPS X3, X1, X7
+
+	VPERMILPS $0xB1, X7, X8
+	VXORPS X9, X9, X9
+	VSUBPS X8, X9, X10
+	VBLENDPS $0x02, X10, X8, X8
+
+	VPERMILPS $0xB1, X7, X11
+	VSUBPS X11, X9, X10
+	VBLENDPS $0x01, X10, X11, X11
+
+	VADDPS X4, X6, X0
+	VADDPS X5, X8, X1
+	VSUBPS X6, X4, X2
+	VADDPS X5, X11, X3
+
+	VMOVSD X0, 64(R8)
+	VMOVSD X1, 72(R8)
+	VMOVSD X2, 80(R8)
+	VMOVSD X3, 88(R8)
+
+	// -----------------------------------------------------------------------
+	// Group 3: src[3,7,11,15] → radix-4 butterfly → work[12..15]
+	// -----------------------------------------------------------------------
+	VMOVSD 24(R9), X0        // X0 = src[3]  (3*8=24)
+	VMOVSD 56(R9), X1        // X1 = src[7]  (7*8=56)
+	VMOVSD 88(R9), X2        // X2 = src[11] (11*8=88)
+	VMOVSD 120(R9), X3       // X3 = src[15] (15*8=120)
+
+	VADDPS X0, X2, X4
+	VSUBPS X2, X0, X5
+	VADDPS X1, X3, X6
+	VSUBPS X3, X1, X7
+
+	VPERMILPS $0xB1, X7, X8
+	VXORPS X9, X9, X9
+	VSUBPS X8, X9, X10
+	VBLENDPS $0x02, X10, X8, X8
+
+	VPERMILPS $0xB1, X7, X11
+	VSUBPS X11, X9, X10
+	VBLENDPS $0x01, X10, X11, X11
+
+	VADDPS X4, X6, X0
+	VADDPS X5, X8, X1
+	VSUBPS X6, X4, X2
+	VADDPS X5, X11, X3
+
+	VMOVSD X0, 96(R8)
+	VMOVSD X1, 104(R8)
+	VMOVSD X2, 112(R8)
+	VMOVSD X3, 120(R8)
 
 size16_r4_stage2:
 	// ==================================================================
@@ -280,85 +326,71 @@ TEXT ·InverseAVX2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 
 size16_r4_inv_use_dst:
 	// ==================================================================
-	// Bit-reversal permutation (base-4 bit-reversal)
-	// Radix-4 pattern: [0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15]
+	// FUSED: Bit-reversal permutation + Stage 1 radix-4 butterflies
 	// ==================================================================
-	MOVQ (R9), AX            // src[0]
-	MOVQ AX, (R8)            // work[0] = src[0]
-
-	MOVQ 32(R9), AX          // src[4]
-	MOVQ AX, 8(R8)           // work[1] = src[4]
-
-	MOVQ 64(R9), AX          // src[8]
-	MOVQ AX, 16(R8)          // work[2] = src[8]
-
-	MOVQ 96(R9), AX          // src[12]
-	MOVQ AX, 24(R8)          // work[3] = src[12]
-
-	MOVQ 8(R9), AX           // src[1]
-	MOVQ AX, 32(R8)          // work[4] = src[1]
-
-	MOVQ 40(R9), AX          // src[5]
-	MOVQ AX, 40(R8)          // work[5] = src[5]
-
-	MOVQ 72(R9), AX          // src[9]
-	MOVQ AX, 48(R8)          // work[6] = src[9]
-
-	MOVQ 104(R9), AX         // src[13]
-	MOVQ AX, 56(R8)          // work[7] = src[13]
-
-	MOVQ 16(R9), AX          // src[2]
-	MOVQ AX, 64(R8)          // work[8] = src[2]
-
-	MOVQ 48(R9), AX          // src[6]
-	MOVQ AX, 72(R8)          // work[9] = src[6]
-
-	MOVQ 80(R9), AX          // src[10]
-	MOVQ AX, 80(R8)          // work[10] = src[10]
-
-	MOVQ 112(R9), AX         // src[14]
-	MOVQ AX, 88(R8)          // work[11] = src[14]
-
-	MOVQ 24(R9), AX          // src[3]
-	MOVQ AX, 96(R8)          // work[12] = src[3]
-
-	MOVQ 56(R9), AX          // src[7]
-	MOVQ AX, 104(R8)         // work[13] = src[7]
-
-	MOVQ 88(R9), AX          // src[11]
-	MOVQ AX, 112(R8)         // work[14] = src[11]
-
-	MOVQ 120(R9), AX         // src[15]
-	MOVQ AX, 120(R8)         // work[15] = src[15]
-
-size16_r4_inv_stage1:
+	// Load directly from scattered source positions, perform butterfly,
+	// store once. Eliminates intermediate memory round-trip.
+	//
+	// Radix-4 bit-reversal pattern: [0,4,8,12, 1,5,9,13, 2,6,10,14, 3,7,11,15]
+	// Stage 1: 4 radix-4 butterflies with identity twiddles (w=1)
+	// Inverse uses swapped i/-i multiplications compared to forward.
+	//
+	// TODO: Benchmark Option B - use YMM registers to process 2 groups
+	// simultaneously with more complex shuffles for potentially higher throughput.
 	// ==================================================================
-	// Stage 1: 4 radix-4 butterflies, stride=4
-	// ==================================================================
-	XORQ CX, CX
 
-size16_r4_inv_stage1_loop:
-	CMPQ CX, $16
-	JGE  size16_r4_inv_stage2
+	// -----------------------------------------------------------------------
+	// Group 0: src[0,4,8,12] → radix-4 butterfly → work[0..3]
+	// -----------------------------------------------------------------------
+	VMOVSD (R9), X0          // X0 = src[0]
+	VMOVSD 32(R9), X1        // X1 = src[4]  (4*8=32)
+	VMOVSD 64(R9), X2        // X2 = src[8]  (8*8=64)
+	VMOVSD 96(R9), X3        // X3 = src[12] (12*8=96)
 
-	LEAQ (R8)(CX*8), SI
-	VMOVSD (SI), X0
-	VMOVSD 8(SI), X1
-	VMOVSD 16(SI), X2
-	VMOVSD 24(SI), X3
+	VADDPS X0, X2, X4        // t0 = a0 + a2
+	VSUBPS X2, X0, X5        // t1 = a0 - a2
+	VADDPS X1, X3, X6        // t2 = a1 + a3
+	VSUBPS X3, X1, X7        // t3 = a1 - a3
+
+	// (-i)*t3 for inverse FFT (used in position 3)
+	VPERMILPS $0xB1, X7, X8  // swap re/im
+	VXORPS X9, X9, X9
+	VSUBPS X8, X9, X10       // negate
+	VBLENDPS $0x02, X10, X8, X8
+
+	// i*t3 for inverse FFT (used in position 1)
+	VPERMILPS $0xB1, X7, X11
+	VSUBPS X11, X9, X10
+	VBLENDPS $0x01, X10, X11, X11
+
+	VADDPS X4, X6, X0        // out[0] = t0 + t2
+	VADDPS X5, X11, X1       // out[1] = t1 + i*t3 (swapped for inverse)
+	VSUBPS X6, X4, X2        // out[2] = t0 - t2
+	VADDPS X5, X8, X3        // out[3] = t1 + (-i)*t3 (swapped for inverse)
+
+	VMOVSD X0, (R8)
+	VMOVSD X1, 8(R8)
+	VMOVSD X2, 16(R8)
+	VMOVSD X3, 24(R8)
+
+	// -----------------------------------------------------------------------
+	// Group 1: src[1,5,9,13] → radix-4 butterfly → work[4..7]
+	// -----------------------------------------------------------------------
+	VMOVSD 8(R9), X0         // X0 = src[1]  (1*8=8)
+	VMOVSD 40(R9), X1        // X1 = src[5]  (5*8=40)
+	VMOVSD 72(R9), X2        // X2 = src[9]  (9*8=72)
+	VMOVSD 104(R9), X3       // X3 = src[13] (13*8=104)
 
 	VADDPS X0, X2, X4
 	VSUBPS X2, X0, X5
 	VADDPS X1, X3, X6
 	VSUBPS X3, X1, X7
 
-	// (-i)*t3
 	VPERMILPS $0xB1, X7, X8
 	VXORPS X9, X9, X9
 	VSUBPS X8, X9, X10
 	VBLENDPS $0x02, X10, X8, X8
 
-	// i*t3
 	VPERMILPS $0xB1, X7, X11
 	VSUBPS X11, X9, X10
 	VBLENDPS $0x01, X10, X11, X11
@@ -368,13 +400,74 @@ size16_r4_inv_stage1_loop:
 	VSUBPS X6, X4, X2
 	VADDPS X5, X8, X3
 
-	VMOVSD X0, (SI)
-	VMOVSD X1, 8(SI)
-	VMOVSD X2, 16(SI)
-	VMOVSD X3, 24(SI)
+	VMOVSD X0, 32(R8)
+	VMOVSD X1, 40(R8)
+	VMOVSD X2, 48(R8)
+	VMOVSD X3, 56(R8)
 
-	ADDQ $4, CX
-	JMP  size16_r4_inv_stage1_loop
+	// -----------------------------------------------------------------------
+	// Group 2: src[2,6,10,14] → radix-4 butterfly → work[8..11]
+	// -----------------------------------------------------------------------
+	VMOVSD 16(R9), X0        // X0 = src[2]  (2*8=16)
+	VMOVSD 48(R9), X1        // X1 = src[6]  (6*8=48)
+	VMOVSD 80(R9), X2        // X2 = src[10] (10*8=80)
+	VMOVSD 112(R9), X3       // X3 = src[14] (14*8=112)
+
+	VADDPS X0, X2, X4
+	VSUBPS X2, X0, X5
+	VADDPS X1, X3, X6
+	VSUBPS X3, X1, X7
+
+	VPERMILPS $0xB1, X7, X8
+	VXORPS X9, X9, X9
+	VSUBPS X8, X9, X10
+	VBLENDPS $0x02, X10, X8, X8
+
+	VPERMILPS $0xB1, X7, X11
+	VSUBPS X11, X9, X10
+	VBLENDPS $0x01, X10, X11, X11
+
+	VADDPS X4, X6, X0
+	VADDPS X5, X11, X1
+	VSUBPS X6, X4, X2
+	VADDPS X5, X8, X3
+
+	VMOVSD X0, 64(R8)
+	VMOVSD X1, 72(R8)
+	VMOVSD X2, 80(R8)
+	VMOVSD X3, 88(R8)
+
+	// -----------------------------------------------------------------------
+	// Group 3: src[3,7,11,15] → radix-4 butterfly → work[12..15]
+	// -----------------------------------------------------------------------
+	VMOVSD 24(R9), X0        // X0 = src[3]  (3*8=24)
+	VMOVSD 56(R9), X1        // X1 = src[7]  (7*8=56)
+	VMOVSD 88(R9), X2        // X2 = src[11] (11*8=88)
+	VMOVSD 120(R9), X3       // X3 = src[15] (15*8=120)
+
+	VADDPS X0, X2, X4
+	VSUBPS X2, X0, X5
+	VADDPS X1, X3, X6
+	VSUBPS X3, X1, X7
+
+	VPERMILPS $0xB1, X7, X8
+	VXORPS X9, X9, X9
+	VSUBPS X8, X9, X10
+	VBLENDPS $0x02, X10, X8, X8
+
+	VPERMILPS $0xB1, X7, X11
+	VSUBPS X11, X9, X10
+	VBLENDPS $0x01, X10, X11, X11
+
+	VADDPS X4, X6, X0
+	VADDPS X5, X11, X1
+	VSUBPS X6, X4, X2
+	VADDPS X5, X8, X3
+
+	VMOVSD X0, 96(R8)
+	VMOVSD X1, 104(R8)
+	VMOVSD X2, 112(R8)
+	VMOVSD X3, 120(R8)
 
 size16_r4_inv_stage2:
 	// ==================================================================
