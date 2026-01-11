@@ -68,16 +68,12 @@ TEXT ·ForwardAVX2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 
 	// Select working buffer
 	CMPQ R8, R9              // Compare dst and src pointers
-	JNE  size32_use_dst      // If different, use dst for out-of-place transform
+	JNE  size32_fwd_start      // If different, use dst for out-of-place transform
 
 	// In-place: use scratch buffer to avoid overwriting input
 	MOVQ R11, R8             // R8 = R11 (scratch buffer)
-	JMP  size32_bitrev
 
-size32_use_dst:
-	// Out-of-place: R8 already points to dst
-
-size32_bitrev:
+size32_fwd_start:
 	// =======================================================================
 	// Bit-reversal + STAGE 1 (identity twiddles)
 	// =======================================================================
@@ -608,16 +604,12 @@ TEXT ·InverseAVX2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 
 	// Select working buffer
 	CMPQ R8, R9              // Compare dst and src pointers
-	JNE  size32_inv_use_dst  // If different, use dst for out-of-place
+	JNE  size32_inv_start  // If different, use dst for out-of-place
 
 	// In-place: use scratch buffer to avoid overwriting input
 	MOVQ R11, R8             // R8 = scratch buffer
-	JMP  size32_inv_bitrev
 
-size32_inv_use_dst:
-	// Out-of-place: R8 already points to dst
-
-size32_inv_bitrev:
+size32_inv_start:
 	// =======================================================================
 	// Bit-reversal + STAGE 1 (identity twiddles)
 	// =======================================================================
