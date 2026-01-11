@@ -19,7 +19,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit4_radix4_avx2",
-		Priority:   5, // Lower priority - scalar ops may not beat generic
+		Priority:   5,             // Lower priority - scalar ops may not beat generic
 		KernelType: KernelTypeDIT, // Self-contained, no external bitrev
 	})
 
@@ -43,7 +43,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix4_avx2",
-		Priority:   10, // Mixed-radix 4x2: efficient for size 8
+		Priority:   10,            // Mixed-radix 4x2: efficient for size 8
 		KernelType: KernelTypeDIT, // Self-contained with internalized bitrev
 	})
 
@@ -55,7 +55,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix8_avx2",
-		Priority:   9, // Keep below Go radix-8 unless proven faster
+		Priority:   9,              // Keep below Go radix-8 unless proven faster
 		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
@@ -103,12 +103,11 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit32_radix32_avx2",
-		Priority:   25, // Higher than radix-2 variants
+		Priority:   25,             // Higher than radix-2 variants
 		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
 	// Size 32: Radix-2 AVX2 variant
-	// Uses 5-stage unrolled DIT with bit-reversal permutation
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
 		Forward:    wrapCodelet64(amd64.ForwardAVX2Size32Radix2Complex64Asm),
@@ -123,8 +122,8 @@ func registerAVX2DITCodelets64() {
 	// Size 64: Radix-2 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
-		Forward:    wrapCodelet64(wrapAsmDIT64(amd64.ForwardAVX2Size64Complex64Asm, bitrevSize64Radix2)),
-		Inverse:    wrapCodelet64(wrapAsmDIT64(amd64.InverseAVX2Size64Complex64Asm, bitrevSize64Radix2)),
+		Forward:    wrapCodelet64(amd64.ForwardAVX2Size64Radix2Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseAVX2Size64Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix2_avx2",
@@ -195,8 +194,8 @@ func registerAVX2DITCodelets64() {
 	// Size 512: Radix-2 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCodelet64(wrapAsmDIT64(amd64.ForwardAVX2Size512Radix2Complex64Asm, bitrevSize512Radix2)),
-		Inverse:    wrapCodelet64(wrapAsmDIT64(amd64.InverseAVX2Size512Radix2Complex64Asm, bitrevSize512Radix2)),
+		Forward:    wrapCodelet64(amd64.ForwardAVX2Size512Radix2Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseAVX2Size512Radix2Complex64Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_radix2_avx2",
@@ -236,7 +235,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit512_radix16x32_avx2",
-		Priority:   20,  // Between mixed-2/4 (25) and radix-2 (10)
+		Priority:   20, // Between mixed-2/4 (25) and radix-2 (10)
 		KernelType: KernelTypeDIT,
 	})
 
@@ -379,7 +378,7 @@ func registerAVX2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit8_radix8_avx2",
-		Priority:   9, // Keep below generic radix-8 until proven faster
+		Priority:   9,              // Keep below generic radix-8 until proven faster
 		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
@@ -459,8 +458,8 @@ func registerAVX2DITCodelets128() {
 	// Size 64: Radix-4 AVX2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
-		Forward:    wrapCodelet128(wrapAsmDIT128(amd64.ForwardAVX2Size64Radix4Complex128Asm, bitrevSize64Radix4)),
-		Inverse:    wrapCodelet128(wrapAsmDIT128(amd64.InverseAVX2Size64Radix4Complex128Asm, bitrevSize64Radix4)),
+		Forward:    wrapCodelet128(amd64.ForwardAVX2Size64Radix4Complex128Asm),
+		Inverse:    wrapCodelet128(amd64.InverseAVX2Size64Radix4Complex128Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit64_radix4_avx2",

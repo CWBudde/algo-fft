@@ -1,11 +1,114 @@
 //go:build amd64 && asm && !purego
 
+// Package fft provides AVX2-optimized FFT benchmarks.
+// Tests are in asm_amd64_avx2_test.go.
 package fft
 
 import (
 	"fmt"
 	"testing"
 )
+
+// =============================================================================
+// Individual Kernel Benchmarks
+// =============================================================================
+
+// BenchmarkAVX2DITComplex64 benchmarks all AVX2 DIT kernels for complex64.
+func BenchmarkAVX2DITComplex64(b *testing.B) {
+	cases := []struct {
+		name    string
+		n       int
+		forward func(dst, src, twiddle, scratch []complex64) bool
+	}{
+		{"Size4/Radix4", 4, forwardAVX2Size4Radix4Complex64Asm},
+		{"Size8/Radix2", 8, forwardAVX2Size8Radix2Complex64Asm},
+		{"Size8/Radix4", 8, forwardAVX2Size8Radix4Complex64Asm},
+		{"Size8/Radix8", 8, forwardAVX2Size8Radix8Complex64Asm},
+		{"Size16/Radix2", 16, forwardAVX2Size16Radix2Complex64Asm},
+		{"Size16/Radix4", 16, forwardAVX2Size16Radix4Complex64Asm},
+		{"Size32/Radix2", 32, forwardAVX2Size32Radix2Complex64Asm},
+		{"Size32/Radix32", 32, forwardAVX2Size32Complex64Asm},
+		{"Size64/Radix2", 64, forwardAVX2Size64Radix2Complex64Asm},
+		{"Size64/Radix4", 64, forwardAVX2Size64Radix4Complex64Asm},
+		{"Size128", 128, forwardAVX2Size128Complex64Asm},
+		{"Size256/Radix2", 256, forwardAVX2Size256Radix2Complex64Asm},
+		{"Size256/Radix4", 256, forwardAVX2Size256Radix4Complex64Asm},
+		{"Size512/Mixed24", 512, forwardAVX2Size512Mixed24Complex64Asm},
+		{"Size512/Radix2", 512, forwardAVX2Size512Radix2Complex64Asm},
+		{"Size512/Radix8", 512, forwardAVX2Size512Radix8Complex64Asm},
+		{"Size512/Radix16x32", 512, forwardAVX2Size512Radix16x32Complex64Asm},
+		{"Size1024/Radix4", 1024, forwardAVX2Size1024Radix4Complex64Asm},
+		{"Size2048/Mixed24", 2048, forwardAVX2Size2048Mixed24Complex64Asm},
+		{"Size4096/Radix4", 4096, forwardAVX2Size4096Radix4Complex64Asm},
+		{"Size8192/Mixed24", 8192, forwardAVX2Size8192Mixed24Complex64Asm},
+	}
+
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			src := make([]complex64, tc.n)
+			dst := make([]complex64, tc.n)
+			scratch := make([]complex64, tc.n)
+			twiddle := ComputeTwiddleFactors[complex64](tc.n)
+
+			for i := range src {
+				src[i] = complex(float32(i), float32(-i))
+			}
+
+			b.ResetTimer()
+			b.ReportAllocs()
+			b.SetBytes(int64(tc.n * 8))
+
+			for b.Loop() {
+				tc.forward(dst, src, twiddle, scratch)
+			}
+		})
+	}
+}
+
+// BenchmarkAVX2DITComplex128 benchmarks all AVX2 DIT kernels for complex128.
+func BenchmarkAVX2DITComplex128(b *testing.B) {
+	cases := []struct {
+		name    string
+		n       int
+		forward func(dst, src, twiddle, scratch []complex128) bool
+	}{
+		{"Size4/Radix4", 4, forwardAVX2Size4Radix4Complex128Asm},
+		{"Size8/Radix2", 8, forwardAVX2Size8Radix2Complex128Asm},
+		{"Size8/Radix4", 8, forwardAVX2Size8Radix4Complex128Asm},
+		{"Size8/Radix8", 8, forwardAVX2Size8Radix8Complex128Asm},
+		{"Size16", 16, forwardAVX2Size16Complex128Asm},
+		{"Size32", 32, forwardAVX2Size32Complex128Asm},
+		{"Size64/Radix2", 64, forwardAVX2Size64Radix2Complex128Asm},
+		{"Size64/Radix4", 64, forwardAVX2Size64Radix4Complex128Asm},
+		{"Size512/Radix2", 512, forwardAVX2Size512Radix2Complex128Asm},
+		{"Size512/Mixed24", 512, forwardAVX2Size512Mixed24Complex128Asm},
+	}
+
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			src := make([]complex128, tc.n)
+			dst := make([]complex128, tc.n)
+			scratch := make([]complex128, tc.n)
+			twiddle := ComputeTwiddleFactors[complex128](tc.n)
+
+			for i := range src {
+				src[i] = complex(float64(i), float64(-i))
+			}
+
+			b.ResetTimer()
+			b.ReportAllocs()
+			b.SetBytes(int64(tc.n * 16))
+
+			for b.Loop() {
+				tc.forward(dst, src, twiddle, scratch)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// Dispatcher Benchmarks
+// =============================================================================
 
 // BenchmarkAVX2Forward benchmarks AVX2 forward transform across various sizes.
 func BenchmarkAVX2Forward(b *testing.B) {
@@ -28,7 +131,7 @@ func BenchmarkAVX2Forward(b *testing.B) {
 			}
 
 			b.ResetTimer()
-			b.SetBytes(int64(n * 8)) // complex64 = 8 bytes
+			b.SetBytes(int64(n * 8))
 
 			for b.Loop() {
 				avx2Forward(dst, src, twiddle, scratch)
@@ -65,6 +168,10 @@ func BenchmarkAVX2Inverse(b *testing.B) {
 		})
 	}
 }
+
+// =============================================================================
+// Stockham Benchmarks
+// =============================================================================
 
 // BenchmarkAVX2StockhamForward benchmarks AVX2 Stockham forward transform.
 func BenchmarkAVX2StockhamForward(b *testing.B) {
@@ -123,6 +230,10 @@ func BenchmarkAVX2StockhamInverse(b *testing.B) {
 		})
 	}
 }
+
+// =============================================================================
+// Pure-Go Comparison Benchmarks
+// =============================================================================
 
 // BenchmarkPureGoForward benchmarks pure-Go forward transform for comparison.
 func BenchmarkPureGoForward(b *testing.B) {
@@ -211,6 +322,10 @@ func BenchmarkAVX2VsPureGo(b *testing.B) {
 	}
 }
 
+// =============================================================================
+// Complex128 Benchmarks
+// =============================================================================
+
 // BenchmarkAVX2Forward128 benchmarks AVX2 complex128 forward transform.
 func BenchmarkAVX2Forward128(b *testing.B) {
 	avx2Forward, _, avx2Available := getAVX2Kernels128()
@@ -268,6 +383,10 @@ func BenchmarkAVX2Inverse128(b *testing.B) {
 		})
 	}
 }
+
+// =============================================================================
+// Size-Specific Comparison Benchmarks
+// =============================================================================
 
 // BenchmarkAVX2Size16_VsGeneric benchmarks the size-16 kernel vs generic AVX2.
 func BenchmarkAVX2Size16_VsGeneric(b *testing.B) {
@@ -418,7 +537,6 @@ func BenchmarkAVX2Size256_Comprehensive(b *testing.B) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 
-	// Radix-2 setup
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
 	b.Run("AVX2_Radix2", func(b *testing.B) {
@@ -460,18 +578,6 @@ func BenchmarkAVX2Size256_Comprehensive(b *testing.B) {
 	b.Run("PureGo_Radix4", func(b *testing.B) {
 		if !forwardDIT256Radix4Complex64(dst, src, twiddle, scratch) {
 			b.Skip("Pure Go radix-4 failed")
-		}
-		b.ReportAllocs()
-		b.SetBytes(int64(n * 8))
-		b.ResetTimer()
-		for range b.N {
-			forwardDIT256Radix4Complex64(dst, src, twiddle, scratch)
-		}
-	})
-
-	b.Run("PureGo_Radix4_Optimized", func(b *testing.B) {
-		if !forwardDIT256Radix4Complex64(dst, src, twiddle, scratch) {
-			b.Skip("Pure Go optimized radix-4 failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
