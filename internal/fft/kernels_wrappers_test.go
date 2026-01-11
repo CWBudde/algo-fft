@@ -12,6 +12,7 @@ func TestDITWrappers(t *testing.T) {
 	t.Parallel()
 
 	n := 16
+
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i), 0)
@@ -36,6 +37,7 @@ func TestDITWrappers(t *testing.T) {
 	// Inverse
 	fwd := make([]complex64, n)
 	copy(fwd, dst)
+
 	if !ditInverse(dst, fwd, twiddle, scratch) {
 		t.Fatal("ditInverse failed")
 	}
@@ -51,6 +53,7 @@ func TestStockhamWrappers(t *testing.T) {
 	t.Parallel()
 
 	n := 16
+
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i), 0)
@@ -75,6 +78,7 @@ func TestStockhamWrappers(t *testing.T) {
 	// Inverse
 	fwd := make([]complex64, n)
 	copy(fwd, dst)
+
 	if !stockhamInverse(dst, fwd, twiddle, scratch) {
 		t.Fatal("stockhamInverse failed")
 	}

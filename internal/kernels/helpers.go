@@ -6,9 +6,11 @@ func SameSlice[T any](a, b []T) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
 	if len(a) == 0 {
 		return true
 	}
+
 	return &a[0] == &b[0]
 }
 

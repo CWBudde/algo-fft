@@ -119,7 +119,8 @@ func benchmarkForwardKernel(b *testing.B, n int, kernel func(dst, src, twiddle, 
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		kernel(dst, src, twiddle, scratch)
 	}
 }

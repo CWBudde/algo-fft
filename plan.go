@@ -224,7 +224,9 @@ func (p *Plan[T]) getScratch() ([]T, []T, []T, *scratchSet[T]) {
 	if p.scratch != nil {
 		return p.scratch, p.stridedScratch, p.bluesteinScratch, nil
 	}
+
 	s := p.scratchPool.Get().(*scratchSet[T])
+
 	return s.scratch, s.stridedScratch, s.bluesteinScratch, s
 }
 
@@ -488,6 +490,7 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 
 	if useBluestein {
 		scratchSize := bluesteinM
+
 		switch any(zero).(type) {
 		case complex64:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
@@ -520,6 +523,7 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 		}
 	} else if useRecursive {
 		scratchSize := fft.ScratchSizeRecursive(decompStrategy)
+
 		switch any(zero).(type) {
 		case complex64:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
@@ -903,6 +907,7 @@ func (p *Plan[T]) Reset() {
 	if p.scratch != nil {
 		clear(p.scratch)
 	}
+
 	if p.stridedScratch != nil {
 		clear(p.stridedScratch)
 	}
@@ -983,9 +988,10 @@ func (p *Plan[T]) Clone() *Plan[T] {
 	)
 
 	scratchSize := p.n
-	if p.kernelStrategy == fft.KernelBluestein {
+	switch p.kernelStrategy {
+	case fft.KernelBluestein:
 		scratchSize = p.bluesteinM
-	} else if p.kernelStrategy == fft.KernelRecursive {
+	case fft.KernelRecursive:
 		scratchSize = fft.ScratchSizeRecursive(p.decompStrategy)
 	}
 
@@ -1020,6 +1026,7 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		}
 	default:
 		scratch = make([]T, scratchSize)
+
 		stridedScratch = make([]T, p.n)
 		if p.kernelStrategy == fft.KernelBluestein {
 			bluesteinScratch = make([]T, p.bluesteinM)
