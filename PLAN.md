@@ -340,19 +340,19 @@ Update remaining assembly files + Go declarations:
   - [x] Codelet registration: Direct `wrapCore64(arm64.Forward/InverseNEONSize128Radix2Complex64Asm)`
   - [x] Verification: Build successful
 
-- [ ] **Size-256 Radix-2** (`neon_f32_size256_radix2.s`)
-  - [ ] Assembly: Add bitrev data, remove param, update offsets
-  - [ ] Go decl: Update function signatures
-  - [ ] Go wrapper: Remove bitrev from assembly call
-  - [ ] Codelet registration: Use `wrapCore64` directly
-  - [ ] Verification: Build and test
+- [x] **Size-256 Radix-2** (`neon_f32_size256_radix2.s`)
+  - [x] Assembly: Add bitrev data, remove param, update offsets
+  - [x] Go decl: Update function signatures
+  - [x] Go wrapper: Remove bitrev from assembly call
+  - [x] Codelet registration: Use `wrapCodelet64` directly
+  - [x] Verification: Build and test
 
 #### 11.15.2 Size-Specific Radix-4 Kernels (Complex64) - Phase 4 from plan
 
-- [ ] **Size-4 Radix-4** (`neon_f32_size4_radix4.s`)
-- [ ] **Size-16 Radix-4** (`neon_f32_size16_radix4.s`) - Uses `bitrevSize16Radix4`
-- [ ] **Size-64 Radix-4** (`neon_f32_size64_radix4.s`) - Uses `bitrevSize64Radix4`
-- [ ] **Size-256 Radix-4** (`neon_f32_size256_radix4.s`) - Uses `bitrevSize256Radix4`
+- [x] **Size-4 Radix-4** (`neon_f32_size4_radix4.s`)
+- [x] **Size-16 Radix-4** (`neon_f32_size16_radix4.s`) - Uses embedded `bitrev_size16_radix4<>`
+- [x] **Size-64 Radix-4** (`neon_f32_size64_radix4.s`) - Uses embedded `bitrev_size64_radix4<>`
+- [x] **Size-256 Radix-4** (`neon_f32_size256_radix4.s`) - Uses embedded `bitrev_size256_radix4<>`
 
 #### 11.15.3 Other Complex64 Kernels
 

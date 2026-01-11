@@ -4,20 +4,20 @@ package fft
 
 import kasm "github.com/MeKo-Christian/algo-fft/internal/asm/arm64"
 
-func forwardNEONComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.ForwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+func forwardNEONComplex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.ForwardNEONComplex64Asm(dst, src, twiddle, scratch)
 }
 
-func inverseNEONComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.InverseNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+func inverseNEONComplex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.InverseNEONComplex64Asm(dst, src, twiddle, scratch)
 }
 
-func forwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.ForwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
+func forwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardNEONComplex128Asm(dst, src, twiddle, scratch)
 }
 
-func inverseNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
-	return kasm.InverseNEONComplex128Asm(dst, src, twiddle, scratch, bitrev)
+func inverseNEONComplex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseNEONComplex128Asm(dst, src, twiddle, scratch)
 }
 
 func forwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
@@ -61,14 +61,11 @@ func inverseNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64)
 }
 
 func forwardNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	// Size 64 Radix-4 requires bitrev (not migrated yet?)
-	// Codelet init uses wrapAsmDIT64 with bitrevSize64Radix4.
-	// So we need to generate it.
-	return kasm.ForwardNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch, ComputeBitReversalIndicesRadix4(64))
+	return kasm.ForwardNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func inverseNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	return kasm.InverseNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch, ComputeBitReversalIndicesRadix4(64))
+	return kasm.InverseNEONSize64Radix4Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func forwardNEONSize16Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
@@ -88,14 +85,11 @@ func inverseNEONSize32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64)
 }
 
 func forwardNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	// Fall back to the Go radix-2 DIT kernel for correctness.
-	// forwardDIT32Complex64 now takes 4 args.
-	return forwardDIT32Complex64(dst, src, twiddle, scratch)
+	return kasm.ForwardNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func inverseNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	// Fall back to the Go radix-2 DIT kernel for correctness.
-	return inverseDIT32Complex64(dst, src, twiddle, scratch)
+	return kasm.InverseNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func forwardNEONSize64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
@@ -115,13 +109,11 @@ func inverseNEONSize128Radix2Complex64Asm(dst, src, twiddle, scratch []complex64
 }
 
 func forwardNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	// Fall back to the Go radix-2 DIT kernel for correctness.
-	return forwardDIT128Complex64(dst, src, twiddle, scratch)
+	return kasm.ForwardNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func inverseNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	// Fall back to the Go radix-2 DIT kernel for correctness.
-	return inverseDIT128Complex64(dst, src, twiddle, scratch)
+	return kasm.InverseNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func forwardNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
@@ -133,13 +125,11 @@ func inverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64
 }
 
 func forwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	// Not migrated
-	return kasm.ForwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch, ComputeBitReversalIndicesRadix4(256))
+	return kasm.ForwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func inverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	// Not migrated
-	return kasm.InverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch, ComputeBitReversalIndicesRadix4(256))
+	return kasm.InverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func forwardNEONSize4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
@@ -175,11 +165,9 @@ func inverseNEONSize16Complex128Asm(dst, src, twiddle, scratch []complex128) boo
 }
 
 func forwardNEONSize32Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	// Not migrated? codelet_init_neon.go uses wrapAsmDIT128. So yes, not migrated.
-	return kasm.ForwardNEONSize32Complex128Asm(dst, src, twiddle, scratch, ComputeBitReversalIndices(32))
+	return kasm.ForwardNEONSize32Complex128Asm(dst, src, twiddle, scratch)
 }
 
 func inverseNEONSize32Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	// Not migrated
-	return kasm.InverseNEONSize32Complex128Asm(dst, src, twiddle, scratch, ComputeBitReversalIndices(32))
+	return kasm.InverseNEONSize32Complex128Asm(dst, src, twiddle, scratch)
 }

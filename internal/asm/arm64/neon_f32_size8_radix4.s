@@ -29,44 +29,35 @@ TEXT ·ForwardNEONSize8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $8, R0
 	BLT  neon8r4_return_false
 
+	MOVD $bitrev_size8_radix4<>(SB), R12
+
 	MOVD R8, R20
 	CMP  R8, R9
 	BNE  neon8r4_use_dst
 	MOVD R11, R8
 
 neon8r4_use_dst:
-	// Bit-reversal permutation (unrolled for pattern [0,2,4,6,1,3,5,7])
-	// dst[0] = src[0]
-	MOVD 0(R9), R0
-	MOVD R0, 0(R8)
+	// Bit-reversal permutation
+	MOVD $0, R0
 
-	// dst[1] = src[2]
-	MOVD 16(R9), R0
-	MOVD R0, 8(R8)
+neon8r4_bitrev_loop:
+	CMP  $8, R0
+	BGE  neon8r4_stage1
 
-	// dst[2] = src[4]
-	MOVD 32(R9), R0
-	MOVD R0, 16(R8)
+	LSL  $3, R0, R1
+	ADD  R12, R1, R1
+	MOVD (R1), R2
 
-	// dst[3] = src[6]
-	MOVD 48(R9), R0
-	MOVD R0, 24(R8)
+	LSL  $3, R2, R3
+	ADD  R9, R3, R3
+	MOVD (R3), R4
 
-	// dst[4] = src[1]
-	MOVD 8(R9), R0
-	MOVD R0, 32(R8)
+	LSL  $3, R0, R3
+	ADD  R8, R3, R3
+	MOVD R4, (R3)
 
-	// dst[5] = src[3]
-	MOVD 24(R9), R0
-	MOVD R0, 40(R8)
-
-	// dst[6] = src[5]
-	MOVD 40(R9), R0
-	MOVD R0, 48(R8)
-
-	// dst[7] = src[7]
-	MOVD 56(R9), R0
-	MOVD R0, 56(R8)
+	ADD  $1, R0, R0
+	B    neon8r4_bitrev_loop
 
 neon8r4_stage1:
 	// Load x0,x2,x4,x6 and x1,x3,x5,x7 from work
@@ -290,44 +281,35 @@ TEXT ·InverseNEONSize8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $8, R0
 	BLT  neon8r4_inv_return_false
 
+	MOVD $bitrev_size8_radix4<>(SB), R12
+
 	MOVD R8, R20
 	CMP  R8, R9
 	BNE  neon8r4_inv_use_dst
 	MOVD R11, R8
 
 neon8r4_inv_use_dst:
-	// Bit-reversal permutation (unrolled for pattern [0,2,4,6,1,3,5,7])
-	// dst[0] = src[0]
-	MOVD 0(R9), R0
-	MOVD R0, 0(R8)
+	// Bit-reversal permutation
+	MOVD $0, R0
 
-	// dst[1] = src[2]
-	MOVD 16(R9), R0
-	MOVD R0, 8(R8)
+neon8r4_inv_bitrev_loop:
+	CMP  $8, R0
+	BGE  neon8r4_inv_stage1
 
-	// dst[2] = src[4]
-	MOVD 32(R9), R0
-	MOVD R0, 16(R8)
+	LSL  $3, R0, R1
+	ADD  R12, R1, R1
+	MOVD (R1), R2
 
-	// dst[3] = src[6]
-	MOVD 48(R9), R0
-	MOVD R0, 24(R8)
+	LSL  $3, R2, R3
+	ADD  R9, R3, R3
+	MOVD (R3), R4
 
-	// dst[4] = src[1]
-	MOVD 8(R9), R0
-	MOVD R0, 32(R8)
+	LSL  $3, R0, R3
+	ADD  R8, R3, R3
+	MOVD R4, (R3)
 
-	// dst[5] = src[3]
-	MOVD 24(R9), R0
-	MOVD R0, 40(R8)
-
-	// dst[6] = src[5]
-	MOVD 40(R9), R0
-	MOVD R0, 48(R8)
-
-	// dst[7] = src[7]
-	MOVD 56(R9), R0
-	MOVD R0, 56(R8)
+	ADD  $1, R0, R0
+	B    neon8r4_inv_bitrev_loop
 
 neon8r4_inv_stage1:
 	// Stage 1: same as forward to produce a0..a7 into work
@@ -546,3 +528,14 @@ neon8r4_inv_return_false:
 	MOVD $0, R0
 	MOVB R0, ret+96(FP)
 	RET
+
+// Bit-reversal table for size 8 radix-4
+GLOBL bitrev_size8_radix4<>(SB), RODATA, $64
+DATA bitrev_size8_radix4<>+0(SB)/8, $0
+DATA bitrev_size8_radix4<>+8(SB)/8, $2
+DATA bitrev_size8_radix4<>+16(SB)/8, $4
+DATA bitrev_size8_radix4<>+24(SB)/8, $6
+DATA bitrev_size8_radix4<>+32(SB)/8, $1
+DATA bitrev_size8_radix4<>+40(SB)/8, $3
+DATA bitrev_size8_radix4<>+48(SB)/8, $5
+DATA bitrev_size8_radix4<>+56(SB)/8, $7

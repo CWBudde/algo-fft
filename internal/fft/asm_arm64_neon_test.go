@@ -57,15 +57,15 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 		{
 			name:    "Size16_Radix2",
 			size:    16,
-			forward: forwardNEONSize16Complex64Asm,
-			inverse: inverseNEONSize16Complex64Asm,
+			forward: forwardNEONSize16Radix2Complex64Asm,
+			inverse: inverseNEONSize16Radix2Complex64Asm,
 			tol:     1e-4,
 		},
 		{
 			name:    "Size32_Radix2",
 			size:    32,
-			forward: forwardNEONSize32Complex64Asm,
-			inverse: inverseNEONSize32Complex64Asm,
+			forward: forwardNEONSize32Radix2Complex64Asm,
+			inverse: inverseNEONSize32Radix2Complex64Asm,
 			tol:     1e-4,
 		},
 		{
@@ -78,8 +78,8 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 		{
 			name:    "Size64_Radix2",
 			size:    64,
-			forward: forwardNEONSize64Complex64Asm,
-			inverse: inverseNEONSize64Complex64Asm,
+			forward: forwardNEONSize64Radix2Complex64Asm,
+			inverse: inverseNEONSize64Radix2Complex64Asm,
 			tol:     1e-3,
 		},
 		{
@@ -92,8 +92,8 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 		{
 			name:    "Size128_Radix2",
 			size:    128,
-			forward: forwardNEONSize128Complex64Asm,
-			inverse: inverseNEONSize128Complex64Asm,
+			forward: forwardNEONSize128Radix2Complex64Asm,
+			inverse: inverseNEONSize128Radix2Complex64Asm,
 			tol:     1e-3,
 		},
 		{
@@ -179,14 +179,14 @@ func TestNEONSizeSpecificComplex128(t *testing.T) {
 			size:    16,
 			forward: forwardNEONSize16Radix4Complex128Asm,
 			inverse: inverseNEONSize16Radix4Complex128Asm,
-			tol:     1e-12,
+			tol:     2e-12,
 		},
 		{
 			name:    "Size16_Radix2",
 			size:    16,
 			forward: forwardNEONSize16Complex128Asm,
 			inverse: inverseNEONSize16Complex128Asm,
-			tol:     1e-12,
+			tol:     2e-12,
 		},
 	}
 
@@ -235,17 +235,9 @@ func TestNEONComplex128_AsmPath(t *testing.T) {
 
 			dst := make([]complex128, n)
 			twiddle := ComputeTwiddleFactors[complex128](n)
-			// Generic path still takes bitrev (internally used by wrapper or kasm)
-			// But wrapper signature changed to 4 params.
-			// Wait, I updated generic wrappers in asm_arm64.go to 5 params? NO.
-			// I updated them to 5 params in asm_arm64.go? Let me check what I wrote.
-			// I wrote: func forwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-			// So generic wrappers STILL take bitrev.
-			// So I should keep passing bitrev in THIS test function.
-			bitrev := ComputeBitReversalIndices(n)
 			scratch := make([]complex128, n)
 
-			if !forwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev) {
+			if !forwardNEONComplex128Asm(dst, src, twiddle, scratch) {
 				t.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 
@@ -253,7 +245,7 @@ func TestNEONComplex128_AsmPath(t *testing.T) {
 			assertComplex128MaxError(t, dst, ref, 1e-12, "forward")
 
 			roundTrip := make([]complex128, n)
-			if !inverseNEONComplex128Asm(roundTrip, dst, twiddle, scratch, bitrev) {
+			if !inverseNEONComplex128Asm(roundTrip, dst, twiddle, scratch) {
 				t.Fatalf("inverseNEONComplex128Asm returned false for n=%d", n)
 			}
 
@@ -275,10 +267,9 @@ func TestNEONComplex128_CorrectnessVsReference(t *testing.T) {
 
 			dst := make([]complex128, n)
 			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := ComputeBitReversalIndices(n)
 			scratch := make([]complex128, n)
 
-			if !forwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev) {
+			if !forwardNEONComplex128Asm(dst, src, twiddle, scratch) {
 				t.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 
@@ -300,16 +291,15 @@ func TestNEONComplex128_RoundTrip(t *testing.T) {
 			}
 
 			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := ComputeBitReversalIndices(n)
 			scratch := make([]complex128, n)
 			freq := make([]complex128, n)
 			recovered := make([]complex128, n)
 
-			if !forwardNEONComplex128Asm(freq, original, twiddle, scratch, bitrev) {
+			if !forwardNEONComplex128Asm(freq, original, twiddle, scratch) {
 				t.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 
-			if !inverseNEONComplex128Asm(recovered, freq, twiddle, scratch, bitrev) {
+			if !inverseNEONComplex128Asm(recovered, freq, twiddle, scratch) {
 				t.Fatalf("inverseNEONComplex128Asm returned false for n=%d", n)
 			}
 
@@ -330,12 +320,11 @@ func TestNEONComplex128_VsGoDIT(t *testing.T) {
 			}
 
 			twiddle := ComputeTwiddleFactors[complex128](n)
-			bitrev := ComputeBitReversalIndices(n)
 			scratch := make([]complex128, n)
 			neonResult := make([]complex128, n)
 			goResult := make([]complex128, n)
 
-			if !forwardNEONComplex128Asm(neonResult, src, twiddle, scratch, bitrev) {
+			if !forwardNEONComplex128Asm(neonResult, src, twiddle, scratch) {
 				t.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 

@@ -23,10 +23,9 @@ func TestNEONComplex64_CorrectnessVsReference(t *testing.T) {
 			kernels := SelectKernels[complex64](cpu.DetectFeatures())
 			neonResult := make([]complex64, n)
 			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := ComputeBitReversalIndices(n)
 			scratch := make([]complex64, n)
 
-			if !kernels.Forward(neonResult, src, twiddle, scratch, bitrev) {
+			if !kernels.Forward(neonResult, src, twiddle, scratch) {
 				t.Fatalf("Forward kernel returned false for n=%d", n)
 			}
 
@@ -48,15 +47,14 @@ func TestNEONComplex64_RoundTrip(t *testing.T) {
 			freq := make([]complex64, n)
 			recovered := make([]complex64, n)
 			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := ComputeBitReversalIndices(n)
 			scratch := make([]complex64, n)
 			kernels := SelectKernels[complex64](cpu.DetectFeatures())
 
-			if !kernels.Forward(freq, original, twiddle, scratch, bitrev) {
+			if !kernels.Forward(freq, original, twiddle, scratch) {
 				t.Fatalf("Forward kernel returned false for n=%d", n)
 			}
 
-			if !kernels.Inverse(recovered, freq, twiddle, scratch, bitrev) {
+			if !kernels.Inverse(recovered, freq, twiddle, scratch) {
 				t.Fatalf("Inverse kernel returned false for n=%d", n)
 			}
 
@@ -76,11 +74,10 @@ func TestNEONComplex64_VsGoDIT(t *testing.T) {
 
 			neonResult := make([]complex64, n)
 			twiddle := ComputeTwiddleFactors[complex64](n)
-			bitrev := ComputeBitReversalIndices(n)
 			scratch := make([]complex64, n)
 			kernels := SelectKernels[complex64](cpu.DetectFeatures())
 
-			if !kernels.Forward(neonResult, src, twiddle, scratch, bitrev) {
+			if !kernels.Forward(neonResult, src, twiddle, scratch) {
 				t.Fatalf("Forward kernel returned false for n=%d", n)
 			}
 
@@ -103,13 +100,12 @@ func TestNEONComplex64_Strided1024(t *testing.T) {
 	}
 
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
 	neonResult := make([]complex64, n)
 	goResult := make([]complex64, n)
 
 	kernels := SelectKernels[complex64](cpu.DetectFeatures())
-	if !kernels.Forward(neonResult, src, twiddle, scratch, bitrev) {
+	if !kernels.Forward(neonResult, src, twiddle, scratch) {
 		t.Fatalf("Forward kernel returned false for n=%d", n)
 	}
 

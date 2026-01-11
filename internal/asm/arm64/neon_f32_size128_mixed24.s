@@ -29,9 +29,7 @@ TEXT ·ForwardNEONSize128MixedRadix24Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $128, R0
 	BLT  neon128m24_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $128, R0
-	BLT  neon128m24_return_false
+	MOVD $bitrev_size128_mixed24<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -454,12 +452,12 @@ neon128m24_copy_loop:
 
 neon128m24_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon128m24_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 128, mixed radix (radix-4, radix-4, radix-4, radix-2).
@@ -485,9 +483,7 @@ TEXT ·InverseNEONSize128MixedRadix24Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $128, R0
 	BLT  neon128m24_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $128, R0
-	BLT  neon128m24_inv_return_false
+	MOVD $bitrev_size128_mixed24<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -936,10 +932,140 @@ neon128m24_inv_scale_loop:
 
 neon128m24_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon128m24_inv_return_false:
-	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
+
+// Bit-reversal table for size 128 mixed-radix 2/4
+GLOBL bitrev_size128_mixed24<>(SB), RODATA, $1024
+DATA bitrev_size128_mixed24<>+0(SB)/8, $0
+DATA bitrev_size128_mixed24<>+8(SB)/8, $32
+DATA bitrev_size128_mixed24<>+16(SB)/8, $64
+DATA bitrev_size128_mixed24<>+24(SB)/8, $96
+DATA bitrev_size128_mixed24<>+32(SB)/8, $8
+DATA bitrev_size128_mixed24<>+40(SB)/8, $40
+DATA bitrev_size128_mixed24<>+48(SB)/8, $72
+DATA bitrev_size128_mixed24<>+56(SB)/8, $104
+DATA bitrev_size128_mixed24<>+64(SB)/8, $16
+DATA bitrev_size128_mixed24<>+72(SB)/8, $48
+DATA bitrev_size128_mixed24<>+80(SB)/8, $80
+DATA bitrev_size128_mixed24<>+88(SB)/8, $112
+DATA bitrev_size128_mixed24<>+96(SB)/8, $24
+DATA bitrev_size128_mixed24<>+104(SB)/8, $56
+DATA bitrev_size128_mixed24<>+112(SB)/8, $88
+DATA bitrev_size128_mixed24<>+120(SB)/8, $120
+DATA bitrev_size128_mixed24<>+128(SB)/8, $2
+DATA bitrev_size128_mixed24<>+136(SB)/8, $34
+DATA bitrev_size128_mixed24<>+144(SB)/8, $66
+DATA bitrev_size128_mixed24<>+152(SB)/8, $98
+DATA bitrev_size128_mixed24<>+160(SB)/8, $10
+DATA bitrev_size128_mixed24<>+168(SB)/8, $42
+DATA bitrev_size128_mixed24<>+176(SB)/8, $74
+DATA bitrev_size128_mixed24<>+184(SB)/8, $106
+DATA bitrev_size128_mixed24<>+192(SB)/8, $18
+DATA bitrev_size128_mixed24<>+200(SB)/8, $50
+DATA bitrev_size128_mixed24<>+208(SB)/8, $82
+DATA bitrev_size128_mixed24<>+216(SB)/8, $114
+DATA bitrev_size128_mixed24<>+224(SB)/8, $26
+DATA bitrev_size128_mixed24<>+232(SB)/8, $58
+DATA bitrev_size128_mixed24<>+240(SB)/8, $90
+DATA bitrev_size128_mixed24<>+248(SB)/8, $122
+DATA bitrev_size128_mixed24<>+256(SB)/8, $4
+DATA bitrev_size128_mixed24<>+264(SB)/8, $36
+DATA bitrev_size128_mixed24<>+272(SB)/8, $68
+DATA bitrev_size128_mixed24<>+280(SB)/8, $100
+DATA bitrev_size128_mixed24<>+288(SB)/8, $12
+DATA bitrev_size128_mixed24<>+296(SB)/8, $44
+DATA bitrev_size128_mixed24<>+304(SB)/8, $76
+DATA bitrev_size128_mixed24<>+312(SB)/8, $108
+DATA bitrev_size128_mixed24<>+320(SB)/8, $20
+DATA bitrev_size128_mixed24<>+328(SB)/8, $52
+DATA bitrev_size128_mixed24<>+336(SB)/8, $84
+DATA bitrev_size128_mixed24<>+344(SB)/8, $116
+DATA bitrev_size128_mixed24<>+352(SB)/8, $28
+DATA bitrev_size128_mixed24<>+360(SB)/8, $60
+DATA bitrev_size128_mixed24<>+368(SB)/8, $92
+DATA bitrev_size128_mixed24<>+376(SB)/8, $124
+DATA bitrev_size128_mixed24<>+384(SB)/8, $6
+DATA bitrev_size128_mixed24<>+392(SB)/8, $38
+DATA bitrev_size128_mixed24<>+400(SB)/8, $70
+DATA bitrev_size128_mixed24<>+408(SB)/8, $102
+DATA bitrev_size128_mixed24<>+416(SB)/8, $14
+DATA bitrev_size128_mixed24<>+424(SB)/8, $46
+DATA bitrev_size128_mixed24<>+432(SB)/8, $78
+DATA bitrev_size128_mixed24<>+440(SB)/8, $110
+DATA bitrev_size128_mixed24<>+448(SB)/8, $22
+DATA bitrev_size128_mixed24<>+456(SB)/8, $54
+DATA bitrev_size128_mixed24<>+464(SB)/8, $86
+DATA bitrev_size128_mixed24<>+472(SB)/8, $118
+DATA bitrev_size128_mixed24<>+480(SB)/8, $30
+DATA bitrev_size128_mixed24<>+488(SB)/8, $62
+DATA bitrev_size128_mixed24<>+496(SB)/8, $94
+DATA bitrev_size128_mixed24<>+504(SB)/8, $126
+DATA bitrev_size128_mixed24<>+512(SB)/8, $1
+DATA bitrev_size128_mixed24<>+520(SB)/8, $33
+DATA bitrev_size128_mixed24<>+528(SB)/8, $65
+DATA bitrev_size128_mixed24<>+536(SB)/8, $97
+DATA bitrev_size128_mixed24<>+544(SB)/8, $9
+DATA bitrev_size128_mixed24<>+552(SB)/8, $41
+DATA bitrev_size128_mixed24<>+560(SB)/8, $73
+DATA bitrev_size128_mixed24<>+568(SB)/8, $105
+DATA bitrev_size128_mixed24<>+576(SB)/8, $17
+DATA bitrev_size128_mixed24<>+584(SB)/8, $49
+DATA bitrev_size128_mixed24<>+592(SB)/8, $81
+DATA bitrev_size128_mixed24<>+600(SB)/8, $113
+DATA bitrev_size128_mixed24<>+608(SB)/8, $25
+DATA bitrev_size128_mixed24<>+616(SB)/8, $57
+DATA bitrev_size128_mixed24<>+624(SB)/8, $89
+DATA bitrev_size128_mixed24<>+632(SB)/8, $121
+DATA bitrev_size128_mixed24<>+640(SB)/8, $3
+DATA bitrev_size128_mixed24<>+648(SB)/8, $35
+DATA bitrev_size128_mixed24<>+656(SB)/8, $67
+DATA bitrev_size128_mixed24<>+664(SB)/8, $99
+DATA bitrev_size128_mixed24<>+672(SB)/8, $11
+DATA bitrev_size128_mixed24<>+680(SB)/8, $43
+DATA bitrev_size128_mixed24<>+688(SB)/8, $75
+DATA bitrev_size128_mixed24<>+696(SB)/8, $107
+DATA bitrev_size128_mixed24<>+704(SB)/8, $19
+DATA bitrev_size128_mixed24<>+712(SB)/8, $51
+DATA bitrev_size128_mixed24<>+720(SB)/8, $83
+DATA bitrev_size128_mixed24<>+728(SB)/8, $115
+DATA bitrev_size128_mixed24<>+736(SB)/8, $27
+DATA bitrev_size128_mixed24<>+744(SB)/8, $59
+DATA bitrev_size128_mixed24<>+752(SB)/8, $91
+DATA bitrev_size128_mixed24<>+760(SB)/8, $123
+DATA bitrev_size128_mixed24<>+768(SB)/8, $5
+DATA bitrev_size128_mixed24<>+776(SB)/8, $37
+DATA bitrev_size128_mixed24<>+784(SB)/8, $69
+DATA bitrev_size128_mixed24<>+792(SB)/8, $101
+DATA bitrev_size128_mixed24<>+800(SB)/8, $13
+DATA bitrev_size128_mixed24<>+808(SB)/8, $45
+DATA bitrev_size128_mixed24<>+816(SB)/8, $77
+DATA bitrev_size128_mixed24<>+824(SB)/8, $109
+DATA bitrev_size128_mixed24<>+832(SB)/8, $21
+DATA bitrev_size128_mixed24<>+840(SB)/8, $53
+DATA bitrev_size128_mixed24<>+848(SB)/8, $85
+DATA bitrev_size128_mixed24<>+856(SB)/8, $117
+DATA bitrev_size128_mixed24<>+864(SB)/8, $29
+DATA bitrev_size128_mixed24<>+872(SB)/8, $61
+DATA bitrev_size128_mixed24<>+880(SB)/8, $93
+DATA bitrev_size128_mixed24<>+888(SB)/8, $125
+DATA bitrev_size128_mixed24<>+896(SB)/8, $7
+DATA bitrev_size128_mixed24<>+904(SB)/8, $39
+DATA bitrev_size128_mixed24<>+912(SB)/8, $71
+DATA bitrev_size128_mixed24<>+920(SB)/8, $103
+DATA bitrev_size128_mixed24<>+928(SB)/8, $15
+DATA bitrev_size128_mixed24<>+936(SB)/8, $47
+DATA bitrev_size128_mixed24<>+944(SB)/8, $79
+DATA bitrev_size128_mixed24<>+952(SB)/8, $111
+DATA bitrev_size128_mixed24<>+960(SB)/8, $23
+DATA bitrev_size128_mixed24<>+968(SB)/8, $55
+DATA bitrev_size128_mixed24<>+976(SB)/8, $87
+DATA bitrev_size128_mixed24<>+984(SB)/8, $119
+DATA bitrev_size128_mixed24<>+992(SB)/8, $31
+DATA bitrev_size128_mixed24<>+1000(SB)/8, $63
+DATA bitrev_size128_mixed24<>+1008(SB)/8, $95
+DATA bitrev_size128_mixed24<>+1016(SB)/8, $127

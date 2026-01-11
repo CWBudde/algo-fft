@@ -86,7 +86,6 @@ func benchmarkKernelForward(b *testing.B, n int, features cpu.Features) {
 
 	kernels := SelectKernels[complex64](cpu.DetectFeatures())
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
 	src := make([]complex64, n)
 	for i := range src {
@@ -99,7 +98,7 @@ func benchmarkKernelForward(b *testing.B, n int, features cpu.Features) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if !kernels.Forward(dst, src, twiddle, scratch, bitrev) {
+		if !kernels.Forward(dst, src, twiddle, scratch) {
 			b.Fatalf("Forward kernel returned false for n=%d", n)
 		}
 	}
@@ -112,7 +111,6 @@ func benchmarkKernelInverse(b *testing.B, n int, features cpu.Features) {
 
 	kernels := SelectKernels[complex64](cpu.DetectFeatures())
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
 	src := make([]complex64, n)
 	for i := range src {
@@ -120,7 +118,7 @@ func benchmarkKernelInverse(b *testing.B, n int, features cpu.Features) {
 	}
 	freq := make([]complex64, n)
 
-	if !kernels.Forward(freq, src, twiddle, scratch, bitrev) {
+	if !kernels.Forward(freq, src, twiddle, scratch) {
 		b.Fatalf("Forward kernel returned false for n=%d", n)
 	}
 
@@ -131,7 +129,7 @@ func benchmarkKernelInverse(b *testing.B, n int, features cpu.Features) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if !kernels.Inverse(dst, freq, twiddle, scratch, bitrev) {
+		if !kernels.Inverse(dst, freq, twiddle, scratch) {
 			b.Fatalf("Inverse kernel returned false for n=%d", n)
 		}
 	}
@@ -141,7 +139,6 @@ func benchmarkDITForward(b *testing.B, n int) {
 	b.Helper()
 
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
 	src := make([]complex64, n)
 	for i := range src {
@@ -164,7 +161,6 @@ func benchmarkDITInverse(b *testing.B, n int) {
 	b.Helper()
 
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex64, n)
 	src := make([]complex64, n)
 	for i := range src {
@@ -193,7 +189,6 @@ func benchmarkKernelForward128(b *testing.B, n int, useNEON bool) {
 	b.Helper()
 
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex128, n)
 	src := make([]complex128, n)
 	for i := range src {
@@ -207,7 +202,7 @@ func benchmarkKernelForward128(b *testing.B, n int, useNEON bool) {
 
 	for b.Loop() {
 		if useNEON {
-			if !forwardNEONComplex128Asm(dst, src, twiddle, scratch, bitrev) {
+			if !forwardNEONComplex128Asm(dst, src, twiddle, scratch) {
 				b.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 		} else {
@@ -222,7 +217,6 @@ func benchmarkKernelInverse128(b *testing.B, n int, useNEON bool) {
 	b.Helper()
 
 	twiddle := ComputeTwiddleFactors[complex128](n)
-	bitrev := ComputeBitReversalIndices(n)
 	scratch := make([]complex128, n)
 	src := make([]complex128, n)
 	for i := range src {
@@ -242,7 +236,7 @@ func benchmarkKernelInverse128(b *testing.B, n int, useNEON bool) {
 
 	for b.Loop() {
 		if useNEON {
-			if !inverseNEONComplex128Asm(dst, freq, twiddle, scratch, bitrev) {
+			if !inverseNEONComplex128Asm(dst, freq, twiddle, scratch) {
 				b.Fatalf("inverseNEONComplex128Asm returned false for n=%d", n)
 			}
 		} else {
