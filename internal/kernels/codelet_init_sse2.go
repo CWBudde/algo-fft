@@ -18,7 +18,7 @@ func registerSSE2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit4_radix4_sse2",
-		Priority:   5, // Lower priority - scalar ops may not beat generic
+		Priority:   5,             // Lower priority - scalar ops may not beat generic
 		KernelType: KernelTypeDIT, // Self-contained, no external bitrev
 	})
 
@@ -42,7 +42,7 @@ func registerSSE2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit8_radix8_sse2",
-		Priority:   30, // Higher priority than radix-2 (18) and mixed-radix (??)
+		Priority:   30,             // Higher priority than radix-2 (18) and mixed-radix (??)
 		KernelType: KernelTypeCore, // Identity permutation, no bitrev needed
 	})
 
@@ -166,7 +166,7 @@ func registerSSE2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit4_radix4_sse2",
-		Priority:   5, // Lower priority - scalar ops may not beat generic
+		Priority:   5,             // Lower priority - scalar ops may not beat generic
 		KernelType: KernelTypeDIT, // Self-contained, no external bitrev
 	})
 

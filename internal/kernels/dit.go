@@ -246,7 +246,7 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	
+
 	// Compute bit-reversal indices locally for fallback
 	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
@@ -308,7 +308,7 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	
+
 	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	for i := range n {
@@ -374,7 +374,7 @@ func ditInverseComplex64(dst, src, twiddle, scratch []complex64) bool {
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	
+
 	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	for i := range n {
@@ -441,7 +441,7 @@ func ditInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
 	work = work[:n]
 	src = src[:n]
 	twiddle = twiddle[:n]
-	
+
 	bitrev := mathpkg.ComputeBitReversalIndices(n)
 
 	for i := range n {
