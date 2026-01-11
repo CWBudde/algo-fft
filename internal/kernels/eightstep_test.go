@@ -17,7 +17,7 @@ func TestEightStepForwardInverse(t *testing.T) {
 	}
 
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n + intSqrt(n)*2)
+	scratch := make([]complex64, n+intSqrt(n)*2)
 
 	dst := make([]complex64, n)
 	if !ForwardEightStepComplex64(dst, src, twiddle, scratch) {
@@ -37,6 +37,6 @@ func TestEightStepForwardInverse(t *testing.T) {
 	// But `eightStepInverse` logic (in `eightstep.go`) does NOT scale?
 	// `eightStepInverse` calls `stockhamInverse`. `stockhamInverse` DOES scale.
 	// So `roundTrip` should be equal to `src`.
-	
+
 	assertComplex64Close(t, roundTrip, src, 1e-4)
 }
