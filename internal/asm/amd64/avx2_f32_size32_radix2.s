@@ -79,165 +79,116 @@ size32_use_dst:
 
 size32_bitrev:
 	// =======================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// Bit-reversal + STAGE 1 (identity twiddles)
 	// =======================================================================
 	// For size 32, bitrev = [0,16,8,24,4,20,12,28,2,18,10,26,6,22,14,30,
 	//                        1,17,9,25,5,21,13,29,3,19,11,27,7,23,15,31]
-	// Hardcoded bit-reversal indices (kernel handles own bit-reversal).
-	// Unrolled into 8 groups of 4 for efficiency.
-
-	// Group 0: work[0..3] = src[bitrev[0..3]] = src[0,16,8,24]
-	MOVQ (R9), AX            // work[0] = src[0]
-	MOVQ AX, (R8)
-	MOVQ 128(R9), AX         // work[1] = src[16]
-	MOVQ AX, 8(R8)
-	MOVQ 64(R9), AX          // work[2] = src[8]
-	MOVQ AX, 16(R8)
-	MOVQ 192(R9), AX         // work[3] = src[24]
-	MOVQ AX, 24(R8)
-
-	// Group 1: work[4..7] = src[bitrev[4..7]] = src[4,20,12,28]
-	MOVQ 32(R9), AX          // work[4] = src[4]
-	MOVQ AX, 32(R8)
-	MOVQ 160(R9), AX         // work[5] = src[20]
-	MOVQ AX, 40(R8)
-	MOVQ 96(R9), AX          // work[6] = src[12]
-	MOVQ AX, 48(R8)
-	MOVQ 224(R9), AX         // work[7] = src[28]
-	MOVQ AX, 56(R8)
-
-	// Group 2: work[8..11] = src[bitrev[8..11]] = src[2,18,10,26]
-	MOVQ 16(R9), AX          // work[8] = src[2]
-	MOVQ AX, 64(R8)
-	MOVQ 144(R9), AX         // work[9] = src[18]
-	MOVQ AX, 72(R8)
-	MOVQ 80(R9), AX          // work[10] = src[10]
-	MOVQ AX, 80(R8)
-	MOVQ 208(R9), AX         // work[11] = src[26]
-	MOVQ AX, 88(R8)
-
-	// Group 3: work[12..15] = src[bitrev[12..15]] = src[6,22,14,30]
-	MOVQ 48(R9), AX          // work[12] = src[6]
-	MOVQ AX, 96(R8)
-	MOVQ 176(R9), AX         // work[13] = src[22]
-	MOVQ AX, 104(R8)
-	MOVQ 112(R9), AX         // work[14] = src[14]
-	MOVQ AX, 112(R8)
-	MOVQ 240(R9), AX         // work[15] = src[30]
-	MOVQ AX, 120(R8)
-
-	// Group 4: work[16..19] = src[bitrev[16..19]] = src[1,17,9,25]
-	MOVQ 8(R9), AX           // work[16] = src[1]
-	MOVQ AX, 128(R8)
-	MOVQ 136(R9), AX         // work[17] = src[17]
-	MOVQ AX, 136(R8)
-	MOVQ 72(R9), AX          // work[18] = src[9]
-	MOVQ AX, 144(R8)
-	MOVQ 200(R9), AX         // work[19] = src[25]
-	MOVQ AX, 152(R8)
-
-	// Group 5: work[20..23] = src[bitrev[20..23]] = src[5,21,13,29]
-	MOVQ 40(R9), AX          // work[20] = src[5]
-	MOVQ AX, 160(R8)
-	MOVQ 168(R9), AX         // work[21] = src[21]
-	MOVQ AX, 168(R8)
-	MOVQ 104(R9), AX         // work[22] = src[13]
-	MOVQ AX, 176(R8)
-	MOVQ 232(R9), AX         // work[23] = src[29]
-	MOVQ AX, 184(R8)
-
-	// Group 6: work[24..27] = src[bitrev[24..27]] = src[3,19,11,27]
-	MOVQ 24(R9), AX          // work[24] = src[3]
-	MOVQ AX, 192(R8)
-	MOVQ 152(R9), AX         // work[25] = src[19]
-	MOVQ AX, 200(R8)
-	MOVQ 88(R9), AX          // work[26] = src[11]
-	MOVQ AX, 208(R8)
-	MOVQ 216(R9), AX         // work[27] = src[27]
-	MOVQ AX, 216(R8)
-
-	// Group 7: work[28..31] = src[bitrev[28..31]] = src[7,23,15,31]
-	MOVQ 56(R9), AX          // work[28] = src[7]
-	MOVQ AX, 224(R8)
-	MOVQ 184(R9), AX         // work[29] = src[23]
-	MOVQ AX, 232(R8)
-	MOVQ 120(R9), AX         // work[30] = src[15]
-	MOVQ AX, 240(R8)
-	MOVQ 248(R9), AX         // work[31] = src[31]
-	MOVQ AX, 248(R8)
-
-	// =======================================================================
-	// STAGE 1: size=2, half=1, step=16
-	// =======================================================================
-	// 16 independent butterflies with pairs: (0,1), (2,3), (4,5), ..., (30,31)
-	// All use twiddle[0] = (1, 0) which is identity multiplication.
+	// Load bit-reversed data directly into YMM registers and compute Stage 1
+	// butterflies immediately, avoiding intermediate memory stores.
+	//
+	// Stage 1 butterflies: pairs (0,1), (2,3), ... use identity twiddle (1+0i)
 	// So: a' = a + b, b' = a - b (no complex multiply needed)
 
-	// Load all 32 complex64 values into 8 YMM registers
-	// Y0 = [work[0], work[1], work[2], work[3]]
-	// Y1 = [work[4], work[5], work[6], work[7]]
-	// ...
-	// Y7 = [work[28], work[29], work[30], work[31]]
-	VMOVUPS (R8), Y0         // Y0 = [work[0:4]]
-	VMOVUPS 32(R8), Y1       // Y1 = [work[4:8]]
-	VMOVUPS 64(R8), Y2       // Y2 = [work[8:12]]
-	VMOVUPS 96(R8), Y3       // Y3 = [work[12:16]]
-	VMOVUPS 128(R8), Y4      // Y4 = [work[16:20]]
-	VMOVUPS 160(R8), Y5      // Y5 = [work[20:24]]
-	VMOVUPS 192(R8), Y6      // Y6 = [work[24:28]]
-	VMOVUPS 224(R8), Y7      // Y7 = [work[28:32]]
+	// --- Y0: Load [src[0], src[16], src[8], src[24]] and compute butterflies ---
+	// Pairs after bitrev: (src[0], src[16]) and (src[8], src[24])
+	VMOVSD (R9), X0          // X0 = src[0]
+	VMOVSD 128(R9), X8       // X8 = src[16]
+	VPUNPCKLQDQ X8, X0, X0   // X0 = [src[0], src[16]]
+	VMOVSD 64(R9), X8        // X8 = src[8]
+	VMOVSD 192(R9), X9       // X9 = src[24]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[8], src[24]]
+	VINSERTF128 $1, X8, Y0, Y0  // Y0 = [src[0], src[16], src[8], src[24]]
+	VPERMILPD $0x05, Y0, Y8  // Y8 = [src[16], src[0], src[24], src[8]]
+	VADDPS Y8, Y0, Y9        // Y9 = [s0+s16, s16+s0, s8+s24, s24+s8]
+	VSUBPS Y0, Y8, Y10       // Y10 = [s16-s0, s0-s16, s24-s8, s8-s24]
+	VBLENDPD $0x0A, Y10, Y9, Y0  // Y0 = [s0+s16, s0-s16, s8+s24, s8-s24]
 
-	// Stage 1: Butterflies on adjacent pairs within each 128-bit lane
-	// For size=2 FFT: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
-	// Using twiddle[0] = 1+0i means t = b * 1 = b
-	//
-	// Y0 = [a0, b0, a1, b1] where a0=work[0], b0=work[1], a1=work[2], b1=work[3]
-	// We want: [a0+b0, a0-b0, a1+b1, a1-b1]
-
-	// Y0: [w0, w1, w2, w3] -> pairs (w0,w1), (w2,w3)
-	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
-	VPERMILPD $0x05, Y0, Y8  // Y8 = [w1, w0, w3, w2] (swap within 128-bit lanes)
-	VADDPS Y8, Y0, Y9        // Y9 = [w0+w1, w1+w0, w2+w3, w3+w2]
-	VSUBPS Y0, Y8, Y10       // Y10 = [w1-w0, w0-w1, w3-w2, w2-w3] (Y8-Y0)
-	VBLENDPD $0x0A, Y10, Y9, Y0  // Y0 = [w0+w1, w0-w1, w2+w3, w2-w3]
-
-	// Same for Y1: Butterfly pairs (w4,w5) and (w6,w7)
+	// --- Y1: Load [src[4], src[20], src[12], src[28]] and compute butterflies ---
+	VMOVSD 32(R9), X1        // X1 = src[4]
+	VMOVSD 160(R9), X8       // X8 = src[20]
+	VPUNPCKLQDQ X8, X1, X1   // X1 = [src[4], src[20]]
+	VMOVSD 96(R9), X8        // X8 = src[12]
+	VMOVSD 224(R9), X9       // X9 = src[28]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[12], src[28]]
+	VINSERTF128 $1, X8, Y1, Y1  // Y1 = [src[4], src[20], src[12], src[28]]
 	VPERMILPD $0x05, Y1, Y8
 	VADDPS Y8, Y1, Y9
 	VSUBPS Y1, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y1
 
-	// Same for Y2: Butterfly pairs (w8,w9) and (w10,w11)
+	// --- Y2: Load [src[2], src[18], src[10], src[26]] and compute butterflies ---
+	VMOVSD 16(R9), X2        // X2 = src[2]
+	VMOVSD 144(R9), X8       // X8 = src[18]
+	VPUNPCKLQDQ X8, X2, X2   // X2 = [src[2], src[18]]
+	VMOVSD 80(R9), X8        // X8 = src[10]
+	VMOVSD 208(R9), X9       // X9 = src[26]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[10], src[26]]
+	VINSERTF128 $1, X8, Y2, Y2  // Y2 = [src[2], src[18], src[10], src[26]]
 	VPERMILPD $0x05, Y2, Y8
 	VADDPS Y8, Y2, Y9
 	VSUBPS Y2, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y2
 
-	// Same for Y3: Butterfly pairs (w12,w13) and (w14,w15)
+	// --- Y3: Load [src[6], src[22], src[14], src[30]] and compute butterflies ---
+	VMOVSD 48(R9), X3        // X3 = src[6]
+	VMOVSD 176(R9), X8       // X8 = src[22]
+	VPUNPCKLQDQ X8, X3, X3   // X3 = [src[6], src[22]]
+	VMOVSD 112(R9), X8       // X8 = src[14]
+	VMOVSD 240(R9), X9       // X9 = src[30]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[14], src[30]]
+	VINSERTF128 $1, X8, Y3, Y3  // Y3 = [src[6], src[22], src[14], src[30]]
 	VPERMILPD $0x05, Y3, Y8
 	VADDPS Y8, Y3, Y9
 	VSUBPS Y3, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y3
 
-	// Same for Y4: Butterfly pairs (w16,w17) and (w18,w19)
+	// --- Y4: Load [src[1], src[17], src[9], src[25]] and compute butterflies ---
+	VMOVSD 8(R9), X4         // X4 = src[1]
+	VMOVSD 136(R9), X8       // X8 = src[17]
+	VPUNPCKLQDQ X8, X4, X4   // X4 = [src[1], src[17]]
+	VMOVSD 72(R9), X8        // X8 = src[9]
+	VMOVSD 200(R9), X9       // X9 = src[25]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[9], src[25]]
+	VINSERTF128 $1, X8, Y4, Y4  // Y4 = [src[1], src[17], src[9], src[25]]
 	VPERMILPD $0x05, Y4, Y8
 	VADDPS Y8, Y4, Y9
 	VSUBPS Y4, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y4
 
-	// Same for Y5: Butterfly pairs (w20,w21) and (w22,w23)
+	// --- Y5: Load [src[5], src[21], src[13], src[29]] and compute butterflies ---
+	VMOVSD 40(R9), X5        // X5 = src[5]
+	VMOVSD 168(R9), X8       // X8 = src[21]
+	VPUNPCKLQDQ X8, X5, X5   // X5 = [src[5], src[21]]
+	VMOVSD 104(R9), X8       // X8 = src[13]
+	VMOVSD 232(R9), X9       // X9 = src[29]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[13], src[29]]
+	VINSERTF128 $1, X8, Y5, Y5  // Y5 = [src[5], src[21], src[13], src[29]]
 	VPERMILPD $0x05, Y5, Y8
 	VADDPS Y8, Y5, Y9
 	VSUBPS Y5, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y5
 
-	// Same for Y6: Butterfly pairs (w24,w25) and (w26,w27)
+	// --- Y6: Load [src[3], src[19], src[11], src[27]] and compute butterflies ---
+	VMOVSD 24(R9), X6        // X6 = src[3]
+	VMOVSD 152(R9), X8       // X8 = src[19]
+	VPUNPCKLQDQ X8, X6, X6   // X6 = [src[3], src[19]]
+	VMOVSD 88(R9), X8        // X8 = src[11]
+	VMOVSD 216(R9), X9       // X9 = src[27]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[11], src[27]]
+	VINSERTF128 $1, X8, Y6, Y6  // Y6 = [src[3], src[19], src[11], src[27]]
 	VPERMILPD $0x05, Y6, Y8
 	VADDPS Y8, Y6, Y9
 	VSUBPS Y6, Y8, Y10
 	VBLENDPD $0x0A, Y10, Y9, Y6
 
-	// Same for Y7: Butterfly pairs (w28,w29) and (w30,w31)
+	// --- Y7: Load [src[7], src[23], src[15], src[31]] and compute butterflies ---
+	VMOVSD 56(R9), X7        // X7 = src[7]
+	VMOVSD 184(R9), X8       // X8 = src[23]
+	VPUNPCKLQDQ X8, X7, X7   // X7 = [src[7], src[23]]
+	VMOVSD 120(R9), X8       // X8 = src[15]
+	VMOVSD 248(R9), X9       // X9 = src[31]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[15], src[31]]
+	VINSERTF128 $1, X8, Y7, Y7  // Y7 = [src[7], src[23], src[15], src[31]]
 	VPERMILPD $0x05, Y7, Y8
 	VADDPS Y8, Y7, Y9
 	VSUBPS Y7, Y8, Y10
@@ -668,156 +619,119 @@ size32_inv_use_dst:
 
 size32_inv_bitrev:
 	// =======================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// Bit-reversal + STAGE 1 (identity twiddles)
 	// =======================================================================
 	// For size 32, bitrev = [0,16,8,24,4,20,12,28,2,18,10,26,6,22,14,30,
 	//                        1,17,9,25,5,21,13,29,3,19,11,27,7,23,15,31]
-	// Hardcoded bit-reversal indices (kernel handles own bit-reversal).
-	// Unrolled into 8 groups of 4 for efficiency.
+	// Load bit-reversed data directly into YMM registers and compute Stage 1
+	// butterflies immediately, avoiding intermediate memory stores.
+	//
+	// Stage 1 butterflies: pairs (0,1), (2,3), ... use identity twiddle (1+0i)
+	// Conjugation has no effect on identity twiddle.
 
-	// Group 0: work[0..3] = src[bitrev[0..3]] = src[0,16,8,24]
-	MOVQ (R9), AX            // work[0] = src[0]
-	MOVQ AX, (R8)
-	MOVQ 128(R9), AX         // work[1] = src[16]
-	MOVQ AX, 8(R8)
-	MOVQ 64(R9), AX          // work[2] = src[8]
-	MOVQ AX, 16(R8)
-	MOVQ 192(R9), AX         // work[3] = src[24]
-	MOVQ AX, 24(R8)
+	// --- Y0: Load [src[0], src[16], src[8], src[24]] and compute butterflies ---
+	VMOVSD (R9), X0          // X0 = src[0]
+	VMOVSD 128(R9), X8       // X8 = src[16]
+	VPUNPCKLQDQ X8, X0, X0   // X0 = [src[0], src[16]]
+	VMOVSD 64(R9), X8        // X8 = src[8]
+	VMOVSD 192(R9), X9       // X9 = src[24]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[8], src[24]]
+	VINSERTF128 $1, X8, Y0, Y0  // Y0 = [src[0], src[16], src[8], src[24]]
+	VPERMILPD $0x05, Y0, Y8  // Y8 = [src[16], src[0], src[24], src[8]]
+	VADDPS Y8, Y0, Y9        // Y9 = [s0+s16, s16+s0, s8+s24, s24+s8]
+	VSUBPS Y0, Y8, Y10       // Y10 = [s16-s0, s0-s16, s24-s8, s8-s24]
+	VBLENDPD $0x0A, Y10, Y9, Y0  // Y0 = [s0+s16, s0-s16, s8+s24, s8-s24]
 
-	// Group 1: work[4..7] = src[bitrev[4..7]] = src[4,20,12,28]
-	MOVQ 32(R9), AX          // work[4] = src[4]
-	MOVQ AX, 32(R8)
-	MOVQ 160(R9), AX         // work[5] = src[20]
-	MOVQ AX, 40(R8)
-	MOVQ 96(R9), AX          // work[6] = src[12]
-	MOVQ AX, 48(R8)
-	MOVQ 224(R9), AX         // work[7] = src[28]
-	MOVQ AX, 56(R8)
+	// --- Y1: Load [src[4], src[20], src[12], src[28]] and compute butterflies ---
+	VMOVSD 32(R9), X1        // X1 = src[4]
+	VMOVSD 160(R9), X8       // X8 = src[20]
+	VPUNPCKLQDQ X8, X1, X1   // X1 = [src[4], src[20]]
+	VMOVSD 96(R9), X8        // X8 = src[12]
+	VMOVSD 224(R9), X9       // X9 = src[28]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[12], src[28]]
+	VINSERTF128 $1, X8, Y1, Y1  // Y1 = [src[4], src[20], src[12], src[28]]
+	VPERMILPD $0x05, Y1, Y8
+	VADDPS Y8, Y1, Y9
+	VSUBPS Y1, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y1
 
-	// Group 2: work[8..11] = src[bitrev[8..11]] = src[2,18,10,26]
-	MOVQ 16(R9), AX          // work[8] = src[2]
-	MOVQ AX, 64(R8)
-	MOVQ 144(R9), AX         // work[9] = src[18]
-	MOVQ AX, 72(R8)
-	MOVQ 80(R9), AX          // work[10] = src[10]
-	MOVQ AX, 80(R8)
-	MOVQ 208(R9), AX         // work[11] = src[26]
-	MOVQ AX, 88(R8)
+	// --- Y2: Load [src[2], src[18], src[10], src[26]] and compute butterflies ---
+	VMOVSD 16(R9), X2        // X2 = src[2]
+	VMOVSD 144(R9), X8       // X8 = src[18]
+	VPUNPCKLQDQ X8, X2, X2   // X2 = [src[2], src[18]]
+	VMOVSD 80(R9), X8        // X8 = src[10]
+	VMOVSD 208(R9), X9       // X9 = src[26]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[10], src[26]]
+	VINSERTF128 $1, X8, Y2, Y2  // Y2 = [src[2], src[18], src[10], src[26]]
+	VPERMILPD $0x05, Y2, Y8
+	VADDPS Y8, Y2, Y9
+	VSUBPS Y2, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y2
 
-	// Group 3: work[12..15] = src[bitrev[12..15]] = src[6,22,14,30]
-	MOVQ 48(R9), AX          // work[12] = src[6]
-	MOVQ AX, 96(R8)
-	MOVQ 176(R9), AX         // work[13] = src[22]
-	MOVQ AX, 104(R8)
-	MOVQ 112(R9), AX         // work[14] = src[14]
-	MOVQ AX, 112(R8)
-	MOVQ 240(R9), AX         // work[15] = src[30]
-	MOVQ AX, 120(R8)
+	// --- Y3: Load [src[6], src[22], src[14], src[30]] and compute butterflies ---
+	VMOVSD 48(R9), X3        // X3 = src[6]
+	VMOVSD 176(R9), X8       // X8 = src[22]
+	VPUNPCKLQDQ X8, X3, X3   // X3 = [src[6], src[22]]
+	VMOVSD 112(R9), X8       // X8 = src[14]
+	VMOVSD 240(R9), X9       // X9 = src[30]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[14], src[30]]
+	VINSERTF128 $1, X8, Y3, Y3  // Y3 = [src[6], src[22], src[14], src[30]]
+	VPERMILPD $0x05, Y3, Y8
+	VADDPS Y8, Y3, Y9
+	VSUBPS Y3, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y3
 
-	// Group 4: work[16..19] = src[bitrev[16..19]] = src[1,17,9,25]
-	MOVQ 8(R9), AX           // work[16] = src[1]
-	MOVQ AX, 128(R8)
-	MOVQ 136(R9), AX         // work[17] = src[17]
-	MOVQ AX, 136(R8)
-	MOVQ 72(R9), AX          // work[18] = src[9]
-	MOVQ AX, 144(R8)
-	MOVQ 200(R9), AX         // work[19] = src[25]
-	MOVQ AX, 152(R8)
+	// --- Y4: Load [src[1], src[17], src[9], src[25]] and compute butterflies ---
+	VMOVSD 8(R9), X4         // X4 = src[1]
+	VMOVSD 136(R9), X8       // X8 = src[17]
+	VPUNPCKLQDQ X8, X4, X4   // X4 = [src[1], src[17]]
+	VMOVSD 72(R9), X8        // X8 = src[9]
+	VMOVSD 200(R9), X9       // X9 = src[25]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[9], src[25]]
+	VINSERTF128 $1, X8, Y4, Y4  // Y4 = [src[1], src[17], src[9], src[25]]
+	VPERMILPD $0x05, Y4, Y8
+	VADDPS Y8, Y4, Y9
+	VSUBPS Y4, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y4
 
-	// Group 5: work[20..23] = src[bitrev[20..23]] = src[5,21,13,29]
-	MOVQ 40(R9), AX          // work[20] = src[5]
-	MOVQ AX, 160(R8)
-	MOVQ 168(R9), AX         // work[21] = src[21]
-	MOVQ AX, 168(R8)
-	MOVQ 104(R9), AX         // work[22] = src[13]
-	MOVQ AX, 176(R8)
-	MOVQ 232(R9), AX         // work[23] = src[29]
-	MOVQ AX, 184(R8)
+	// --- Y5: Load [src[5], src[21], src[13], src[29]] and compute butterflies ---
+	VMOVSD 40(R9), X5        // X5 = src[5]
+	VMOVSD 168(R9), X8       // X8 = src[21]
+	VPUNPCKLQDQ X8, X5, X5   // X5 = [src[5], src[21]]
+	VMOVSD 104(R9), X8       // X8 = src[13]
+	VMOVSD 232(R9), X9       // X9 = src[29]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[13], src[29]]
+	VINSERTF128 $1, X8, Y5, Y5  // Y5 = [src[5], src[21], src[13], src[29]]
+	VPERMILPD $0x05, Y5, Y8
+	VADDPS Y8, Y5, Y9
+	VSUBPS Y5, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y5
 
-	// Group 6: work[24..27] = src[bitrev[24..27]] = src[3,19,11,27]
-	MOVQ 24(R9), AX          // work[24] = src[3]
-	MOVQ AX, 192(R8)
-	MOVQ 152(R9), AX         // work[25] = src[19]
-	MOVQ AX, 200(R8)
-	MOVQ 88(R9), AX          // work[26] = src[11]
-	MOVQ AX, 208(R8)
-	MOVQ 216(R9), AX         // work[27] = src[27]
-	MOVQ AX, 216(R8)
+	// --- Y6: Load [src[3], src[19], src[11], src[27]] and compute butterflies ---
+	VMOVSD 24(R9), X6        // X6 = src[3]
+	VMOVSD 152(R9), X8       // X8 = src[19]
+	VPUNPCKLQDQ X8, X6, X6   // X6 = [src[3], src[19]]
+	VMOVSD 88(R9), X8        // X8 = src[11]
+	VMOVSD 216(R9), X9       // X9 = src[27]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[11], src[27]]
+	VINSERTF128 $1, X8, Y6, Y6  // Y6 = [src[3], src[19], src[11], src[27]]
+	VPERMILPD $0x05, Y6, Y8
+	VADDPS Y8, Y6, Y9
+	VSUBPS Y6, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y6
 
-	// Group 7: work[28..31] = src[bitrev[28..31]] = src[7,23,15,31]
-	MOVQ 56(R9), AX          // work[28] = src[7]
-	MOVQ AX, 224(R8)
-	MOVQ 184(R9), AX         // work[29] = src[23]
-	MOVQ AX, 232(R8)
-	MOVQ 120(R9), AX         // work[30] = src[15]
-	MOVQ AX, 240(R8)
-	MOVQ 248(R9), AX         // work[31] = src[31]
-	MOVQ AX, 248(R8)
-
-	// =======================================================================
-	// STAGE 1: size=2, half=1, step=16 (same as forward - tw[0]=1+0i)
-	// =======================================================================
-	// Conjugation has no effect on identity twiddle
-
-	VMOVUPS (R8), Y0          // Load elements 0-3 (work[0-3]) into Y0
-	VMOVUPS 32(R8), Y1        // Load elements 4-7 (work[4-7]) into Y1
-	VMOVUPS 64(R8), Y2        // Load elements 8-11 (work[8-11]) into Y2
-	VMOVUPS 96(R8), Y3        // Load elements 12-15 (work[12-15]) into Y3
-	VMOVUPS 128(R8), Y4       // Load elements 16-19 (work[16-19]) into Y4
-	VMOVUPS 160(R8), Y5       // Load elements 20-23 (work[20-23]) into Y5
-	VMOVUPS 192(R8), Y6       // Load elements 24-27 (work[24-27]) into Y6
-	VMOVUPS 224(R8), Y7       // Load elements 28-31 (work[28-31]) into Y7
-
-	// Process 16 pairs using identity twiddle (w[0] = 1+0i)
-	// For size-2 butterfly: out[0] = in[0] + in[1], out[1] = in[0] - in[1]
-	// Y0: pairs (w0,w1), (w2,w3)
-	VPERMILPD $0x05, Y0, Y8  // Swap elements within 64-bit lanes: (a.r,a.i,b.r,b.i) -> (a.i,a.r,b.i,b.r)
-	VADDPS Y8, Y0, Y9        // Y9 = Y0 + Y8 (element-wise add: butterfly add)
-	VSUBPS Y0, Y8, Y10       // Y8-Y0, not Y0-Y8! (element-wise sub: butterfly subtract)
-	VBLENDPD $0x0A, Y10, Y9, Y0  // 64-bit blend: select alternating 64-bit values to recombine butterfly results
-
-	// Y1: pairs (w4,w5), (w6,w7)
-	VPERMILPD $0x05, Y1, Y8  // Swap elements within 64-bit lanes
-	VADDPS Y8, Y1, Y9        // Butterfly add: (Y1 + swapped Y1)
-	VSUBPS Y1, Y8, Y10       // Butterfly subtract: (swapped Y1 - Y1)
-	VBLENDPD $0x0A, Y10, Y9, Y1  // Blend to recombine butterfly results
-
-	// Y2: pairs (w8,w9), (w10,w11)
-	VPERMILPD $0x05, Y2, Y8  // Swap elements within 64-bit lanes
-	VADDPS Y8, Y2, Y9        // Butterfly add
-	VSUBPS Y2, Y8, Y10       // Butterfly subtract
-	VBLENDPD $0x0A, Y10, Y9, Y2  // Blend to recombine results
-
-	// Y3: pairs (w12,w13), (w14,w15)
-	VPERMILPD $0x05, Y3, Y8  // Swap elements within 64-bit lanes
-	VADDPS Y8, Y3, Y9        // Butterfly add
-	VSUBPS Y3, Y8, Y10       // Butterfly subtract
-	VBLENDPD $0x0A, Y10, Y9, Y3  // Blend to recombine results
-
-	// Y4: pairs (w16,w17), (w18,w19)
-	VPERMILPD $0x05, Y4, Y8  // Swap elements within 64-bit lanes
-	VADDPS Y8, Y4, Y9        // Butterfly add
-	VSUBPS Y4, Y8, Y10       // Butterfly subtract
-	VBLENDPD $0x0A, Y10, Y9, Y4  // Blend to recombine results
-
-	// Y5: pairs (w20,w21), (w22,w23)
-	VPERMILPD $0x05, Y5, Y8  // Swap elements within 64-bit lanes
-	VADDPS Y8, Y5, Y9        // Butterfly add
-	VSUBPS Y5, Y8, Y10       // Butterfly subtract
-	VBLENDPD $0x0A, Y10, Y9, Y5  // Blend to recombine results
-
-	// Y6: pairs (w24,w25), (w26,w27)
-	VPERMILPD $0x05, Y6, Y8  // Swap elements within 64-bit lanes
-	VADDPS Y8, Y6, Y9        // Butterfly add
-	VSUBPS Y6, Y8, Y10       // Butterfly subtract
-	VBLENDPD $0x0A, Y10, Y9, Y6  // Blend to recombine results
-
-	// Y7: pairs (w28,w29), (w30,w31)
-	VPERMILPD $0x05, Y7, Y8  // Swap elements within 64-bit lanes
-	VADDPS Y8, Y7, Y9        // Butterfly add
-	VSUBPS Y7, Y8, Y10       // Butterfly subtract
-	VBLENDPD $0x0A, Y10, Y9, Y7  // Blend to recombine results
+	// --- Y7: Load [src[7], src[23], src[15], src[31]] and compute butterflies ---
+	VMOVSD 56(R9), X7        // X7 = src[7]
+	VMOVSD 184(R9), X8       // X8 = src[23]
+	VPUNPCKLQDQ X8, X7, X7   // X7 = [src[7], src[23]]
+	VMOVSD 120(R9), X8       // X8 = src[15]
+	VMOVSD 248(R9), X9       // X9 = src[31]
+	VPUNPCKLQDQ X9, X8, X8   // X8 = [src[15], src[31]]
+	VINSERTF128 $1, X8, Y7, Y7  // Y7 = [src[7], src[23], src[15], src[31]]
+	VPERMILPD $0x05, Y7, Y8
+	VADDPS Y8, Y7, Y9
+	VSUBPS Y7, Y8, Y10
+	VBLENDPD $0x0A, Y10, Y9, Y7
 
 	// =======================================================================
 	// STAGE 2: size=4 - use conjugated twiddles via VFMSUBADD

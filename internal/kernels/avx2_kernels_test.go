@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
@@ -153,10 +152,10 @@ var avx2TestCases = []avx2TestCase{
 			// If assembly takes bitrev, I must pass it.
 			// But here I'm removing bitrevFunc from test case.
 			// So I need to use wrapAsmDIT64 logic inside the lambda?
-			return amd64.ForwardAVX2Size64Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(64))
+			return amd64.ForwardAVX2Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size64Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(64))
+			return amd64.InverseAVX2Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -243,10 +242,10 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xBBCCDDEE,
 		roundTripSeed: 0xFF001122,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(512))
+			return amd64.ForwardAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(512))
+			return amd64.InverseAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
