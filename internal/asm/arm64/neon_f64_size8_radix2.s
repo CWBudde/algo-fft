@@ -32,9 +32,7 @@ TEXT ·ForwardNEONSize8Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	CMP  $8, R0
 	BLT  neon8r2f64_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $8, R0
-	BLT  neon8r2f64_return_false
+	MOVD $bitrev_size8_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -161,12 +159,12 @@ neon8r2f64_copy_loop:
 
 neon8r2f64_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon8r2f64_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 8, complex128, radix-2
@@ -192,9 +190,7 @@ TEXT ·InverseNEONSize8Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	CMP  $8, R0
 	BLT  neon8r2f64_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $8, R0
-	BLT  neon8r2f64_inv_return_false
+	MOVD $bitrev_size8_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -343,10 +339,21 @@ neon8r2f64_inv_scale_loop:
 
 neon8r2f64_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon8r2f64_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
+
+// Bit-reversal table for size 8 radix-2
+GLOBL bitrev_size8_radix2<>(SB), RODATA, $64
+DATA bitrev_size8_radix2<>+0(SB)/8, $0
+DATA bitrev_size8_radix2<>+8(SB)/8, $4
+DATA bitrev_size8_radix2<>+16(SB)/8, $2
+DATA bitrev_size8_radix2<>+24(SB)/8, $6
+DATA bitrev_size8_radix2<>+32(SB)/8, $1
+DATA bitrev_size8_radix2<>+40(SB)/8, $5
+DATA bitrev_size8_radix2<>+48(SB)/8, $3
+DATA bitrev_size8_radix2<>+56(SB)/8, $7

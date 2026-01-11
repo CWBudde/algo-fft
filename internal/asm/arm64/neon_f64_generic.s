@@ -33,7 +33,7 @@
 
 #include "textflag.h"
 
-TEXT ·ForwardNEONComplex128Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONComplex128Asm(SB), NOSPLIT, $0-97
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -41,7 +41,7 @@ TEXT ·ForwardNEONComplex128Asm(SB), NOSPLIT, $0-121
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
+	MOVD R11, R12
 	MOVD src+32(FP), R13
 
 	CBZ  R13, f128_return_true
@@ -55,10 +55,6 @@ TEXT ·ForwardNEONComplex128Asm(SB), NOSPLIT, $0-121
 	BLT  f128_return_false
 
 	MOVD scratch+80(FP), R0
-	CMP  R13, R0
-	BLT  f128_return_false
-
-	MOVD bitrev+104(FP), R0
 	CMP  R13, R0
 	BLT  f128_return_false
 
@@ -220,19 +216,19 @@ f128_copy_loop:
 
 f128_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 f128_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // ===========================================================================
 // inverseNEONComplex128Asm - Inverse FFT for complex128 using NEON
 // ===========================================================================
 
-TEXT ·InverseNEONComplex128Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONComplex128Asm(SB), NOSPLIT, $0-97
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -240,7 +236,7 @@ TEXT ·InverseNEONComplex128Asm(SB), NOSPLIT, $0-121
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD bitrev+96(FP), R12
+	MOVD R11, R12
 	MOVD src+32(FP), R13
 
 	CBZ  R13, i128_return_true
@@ -254,10 +250,6 @@ TEXT ·InverseNEONComplex128Asm(SB), NOSPLIT, $0-121
 	BLT  i128_return_false
 
 	MOVD scratch+80(FP), R0
-	CMP  R13, R0
-	BLT  i128_return_false
-
-	MOVD bitrev+104(FP), R0
 	CMP  R13, R0
 	BLT  i128_return_false
 
@@ -452,12 +444,12 @@ i128_scale_done:
 
 i128_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 i128_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // ===========================================================================

@@ -17,8 +17,8 @@ func benchmarkNEONSizeSpecificVsGeneric(b *testing.B, n int) {
 	})
 
 	b.Run("GenericNEON", func(b *testing.B) {
-		benchmarkNEONKernel(b, n, func(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-			return forwardNEONComplex64Asm(dst, src, twiddle, scratch, bitrev)
+		benchmarkNEONKernel(b, n, func(dst, src, twiddle, scratch []complex64) bool {
+			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
 		})
 	})
 
@@ -32,7 +32,6 @@ func benchmarkNEONKernel(b *testing.B, n int, kernel Kernel[complex64]) {
 	dst := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
-	bitrev := ComputeBitReversalIndices(n)
 
 	// Initialize with random data
 	for i := range src {
@@ -44,7 +43,7 @@ func benchmarkNEONKernel(b *testing.B, n int, kernel Kernel[complex64]) {
 
 	b.ResetTimer()
 	for range b.N {
-		if !kernel(dst, src, twiddle, scratch, bitrev) {
+		if !kernel(dst, src, twiddle, scratch) {
 			b.Fatal("kernel returned false")
 		}
 	}

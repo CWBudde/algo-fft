@@ -29,12 +29,6 @@ TEXT ·ForwardNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $8, R0
 	BLT  neon8r8_return_false
 
-	MOVD bitrev+104(FP), R0
-	CBZ  R0, neon8r8_bitrev_ok
-	CMP  $8, R0
-	BLT  neon8r8_return_false
-
-neon8r8_bitrev_ok:
 	MOVD R8, R20
 	CMP  R8, R9
 	BNE  neon8r8_use_dst
@@ -183,12 +177,13 @@ neon8r8_copy_loop:
 
 neon8r8_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon8r8_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVD $0, R0
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 8, radix-8 (no bit-reversal needed).
@@ -214,12 +209,6 @@ TEXT ·InverseNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $8, R0
 	BLT  neon8r8_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CBZ  R0, neon8r8_inv_bitrev_ok
-	CMP  $8, R0
-	BLT  neon8r8_inv_return_false
-
-neon8r8_inv_bitrev_ok:
 	MOVD R8, R20
 	CMP  R8, R9
 	BNE  neon8r8_inv_use_dst
@@ -390,10 +379,11 @@ neon8r8_inv_scale_loop:
 
 neon8r8_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon8r8_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVD $0, R0
+	MOVB R0, ret+96(FP)
 	RET

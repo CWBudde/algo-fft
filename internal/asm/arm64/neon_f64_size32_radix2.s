@@ -32,9 +32,7 @@ TEXT ·ForwardNEONSize32Complex128Asm(SB), NOSPLIT, $0-97
 	CMP  $32, R0
 	BLT  neon32r2f64_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $32, R0
-	BLT  neon32r2f64_return_false
+	MOVD $bitrev_size32_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -161,12 +159,12 @@ neon32r2f64_copy_loop:
 
 neon32r2f64_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon32r2f64_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 32, complex128, radix-2
@@ -192,9 +190,7 @@ TEXT ·InverseNEONSize32Complex128Asm(SB), NOSPLIT, $0-97
 	CMP  $32, R0
 	BLT  neon32r2f64_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $32, R0
-	BLT  neon32r2f64_inv_return_false
+	MOVD $bitrev_size32_radix2<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -341,10 +337,45 @@ neon32r2f64_inv_scale_loop:
 
 neon32r2f64_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon32r2f64_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
+
+// Bit-reversal table for size 32 radix-2
+GLOBL bitrev_size32_radix2<>(SB), RODATA, $256
+DATA bitrev_size32_radix2<>+0(SB)/8, $0
+DATA bitrev_size32_radix2<>+8(SB)/8, $16
+DATA bitrev_size32_radix2<>+16(SB)/8, $8
+DATA bitrev_size32_radix2<>+24(SB)/8, $24
+DATA bitrev_size32_radix2<>+32(SB)/8, $4
+DATA bitrev_size32_radix2<>+40(SB)/8, $20
+DATA bitrev_size32_radix2<>+48(SB)/8, $12
+DATA bitrev_size32_radix2<>+56(SB)/8, $28
+DATA bitrev_size32_radix2<>+64(SB)/8, $2
+DATA bitrev_size32_radix2<>+72(SB)/8, $18
+DATA bitrev_size32_radix2<>+80(SB)/8, $10
+DATA bitrev_size32_radix2<>+88(SB)/8, $26
+DATA bitrev_size32_radix2<>+96(SB)/8, $6
+DATA bitrev_size32_radix2<>+104(SB)/8, $22
+DATA bitrev_size32_radix2<>+112(SB)/8, $14
+DATA bitrev_size32_radix2<>+120(SB)/8, $30
+DATA bitrev_size32_radix2<>+128(SB)/8, $1
+DATA bitrev_size32_radix2<>+136(SB)/8, $17
+DATA bitrev_size32_radix2<>+144(SB)/8, $9
+DATA bitrev_size32_radix2<>+152(SB)/8, $25
+DATA bitrev_size32_radix2<>+160(SB)/8, $5
+DATA bitrev_size32_radix2<>+168(SB)/8, $21
+DATA bitrev_size32_radix2<>+176(SB)/8, $13
+DATA bitrev_size32_radix2<>+184(SB)/8, $29
+DATA bitrev_size32_radix2<>+192(SB)/8, $3
+DATA bitrev_size32_radix2<>+200(SB)/8, $19
+DATA bitrev_size32_radix2<>+208(SB)/8, $11
+DATA bitrev_size32_radix2<>+216(SB)/8, $27
+DATA bitrev_size32_radix2<>+224(SB)/8, $7
+DATA bitrev_size32_radix2<>+232(SB)/8, $23
+DATA bitrev_size32_radix2<>+240(SB)/8, $15
+DATA bitrev_size32_radix2<>+248(SB)/8, $31

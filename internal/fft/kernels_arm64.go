@@ -55,34 +55,34 @@ func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelS
 	return auto
 }
 
-func forwardNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func forwardNEONComplex64(dst, src, twiddle, scratch []complex64) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
-	return forwardDITComplex64(dst, src, twiddle, scratch, bitrev)
+	return forwardDITComplex64(dst, src, twiddle, scratch)
 }
 
-func inverseNEONComplex64(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+func inverseNEONComplex64(dst, src, twiddle, scratch []complex64) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
-	return inverseDITComplex64(dst, src, twiddle, scratch, bitrev)
+	return inverseDITComplex64(dst, src, twiddle, scratch)
 }
 
-func forwardNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func forwardNEONComplex128(dst, src, twiddle, scratch []complex128) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
-	return forwardDITComplex128(dst, src, twiddle, scratch, bitrev)
+	return forwardDITComplex128(dst, src, twiddle, scratch)
 }
 
-func inverseNEONComplex128(dst, src, twiddle, scratch []complex128, bitrev []int) bool {
+func inverseNEONComplex128(dst, src, twiddle, scratch []complex128) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
-	return inverseDITComplex128(dst, src, twiddle, scratch, bitrev)
+	return inverseDITComplex128(dst, src, twiddle, scratch)
 }

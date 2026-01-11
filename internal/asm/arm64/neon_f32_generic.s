@@ -48,7 +48,7 @@
 //   bitrev_base+96(FP), bitrev_len+104(FP), bitrev_cap+112(FP)
 //   return: bool (R0)
 //
-TEXT ·ForwardNEONComplex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardNEONComplex64Asm(SB), NOSPLIT, $0-97
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -60,8 +60,8 @@ TEXT ·ForwardNEONComplex64Asm(SB), NOSPLIT, $0-121
 	MOVD twiddle+48(FP), R10
 	// R11 = scratch pointer
 	MOVD scratch+72(FP), R11
-	// R12 = bitrev pointer
-	MOVD bitrev+96(FP), R12
+	// R12 = scratch pointer (reused for internal bitrev indexing if needed)
+	MOVD R11, R12
 	// R13 = n = len(src)
 	MOVD src+32(FP), R13
 
@@ -80,10 +80,6 @@ TEXT ·ForwardNEONComplex64Asm(SB), NOSPLIT, $0-121
 	MOVD scratch+80(FP), R0
 	CMP  R13, R0
 	BLT  return_false            // scratch too short
-
-	MOVD bitrev+104(FP), R0
-	CMP  R13, R0
-	BLT  return_false            // bitrev too short
 
 	// Trivial case: n=1, just copy
 	CMP  $1, R13
@@ -421,12 +417,12 @@ copy_loop:
 
 return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // ===========================================================================
@@ -435,7 +431,7 @@ return_false:
 // ===========================================================================
 // inverseNEONComplex64Asm - Inverse FFT for complex64 using NEON
 // ===========================================================================
-TEXT ·InverseNEONComplex64Asm(SB), NOSPLIT, $0-121
+TEXT ·InverseNEONComplex64Asm(SB), NOSPLIT, $0-97
 	// -----------------------------------------------------------------------
 	// PHASE 1: Load parameters and validate inputs
 	// -----------------------------------------------------------------------
@@ -447,8 +443,8 @@ TEXT ·InverseNEONComplex64Asm(SB), NOSPLIT, $0-121
 	MOVD twiddle+48(FP), R10
 	// R11 = scratch pointer
 	MOVD scratch+72(FP), R11
-	// R12 = bitrev pointer
-	MOVD bitrev+96(FP), R12
+	// R12 = scratch pointer
+	MOVD R11, R12
 	// R13 = n = len(src)
 	MOVD src+32(FP), R13
 
@@ -467,10 +463,6 @@ TEXT ·InverseNEONComplex64Asm(SB), NOSPLIT, $0-121
 	MOVD scratch+80(FP), R0
 	CMP  R13, R0
 	BLT  inv_return_false        // scratch too short
-
-	MOVD bitrev+104(FP), R0
-	CMP  R13, R0
-	BLT  inv_return_false        // bitrev too short
 
 	// Trivial case: n=1, just copy
 	CMP  $1, R13
@@ -787,12 +779,12 @@ inv_scale_done:
 
 inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // ===========================================================================

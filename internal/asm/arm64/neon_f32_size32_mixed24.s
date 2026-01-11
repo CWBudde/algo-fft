@@ -29,9 +29,7 @@ TEXT ·ForwardNEONSize32MixedRadix24Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $32, R0
 	BLT  neon32m24_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $32, R0
-	BLT  neon32m24_return_false
+	MOVD $bitrev_size32_mixed24<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -319,12 +317,12 @@ neon32m24_copy_loop:
 
 neon32m24_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon32m24_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 32, mixed radix (radix-4, radix-4, radix-2).
@@ -350,9 +348,7 @@ TEXT ·InverseNEONSize32MixedRadix24Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $32, R0
 	BLT  neon32m24_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $32, R0
-	BLT  neon32m24_inv_return_false
+	MOVD $bitrev_size32_mixed24<>(SB), R12
 
 	MOVD R8, R20
 	CMP  R8, R9
@@ -663,10 +659,44 @@ neon32m24_inv_scale_loop:
 
 neon32m24_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon32m24_inv_return_false:
-	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
+
+// Bit-reversal table for size 32 mixed-radix 2/4
+GLOBL bitrev_size32_mixed24<>(SB), RODATA, $256
+DATA bitrev_size32_mixed24<>+0(SB)/8, $0
+DATA bitrev_size32_mixed24<>+8(SB)/8, $8
+DATA bitrev_size32_mixed24<>+16(SB)/8, $16
+DATA bitrev_size32_mixed24<>+24(SB)/8, $24
+DATA bitrev_size32_mixed24<>+32(SB)/8, $2
+DATA bitrev_size32_mixed24<>+40(SB)/8, $10
+DATA bitrev_size32_mixed24<>+48(SB)/8, $18
+DATA bitrev_size32_mixed24<>+56(SB)/8, $26
+DATA bitrev_size32_mixed24<>+64(SB)/8, $4
+DATA bitrev_size32_mixed24<>+72(SB)/8, $12
+DATA bitrev_size32_mixed24<>+80(SB)/8, $20
+DATA bitrev_size32_mixed24<>+88(SB)/8, $28
+DATA bitrev_size32_mixed24<>+96(SB)/8, $6
+DATA bitrev_size32_mixed24<>+104(SB)/8, $14
+DATA bitrev_size32_mixed24<>+112(SB)/8, $22
+DATA bitrev_size32_mixed24<>+120(SB)/8, $30
+DATA bitrev_size32_mixed24<>+128(SB)/8, $1
+DATA bitrev_size32_mixed24<>+136(SB)/8, $9
+DATA bitrev_size32_mixed24<>+144(SB)/8, $17
+DATA bitrev_size32_mixed24<>+152(SB)/8, $25
+DATA bitrev_size32_mixed24<>+160(SB)/8, $3
+DATA bitrev_size32_mixed24<>+168(SB)/8, $11
+DATA bitrev_size32_mixed24<>+176(SB)/8, $19
+DATA bitrev_size32_mixed24<>+184(SB)/8, $27
+DATA bitrev_size32_mixed24<>+192(SB)/8, $5
+DATA bitrev_size32_mixed24<>+200(SB)/8, $13
+DATA bitrev_size32_mixed24<>+208(SB)/8, $21
+DATA bitrev_size32_mixed24<>+216(SB)/8, $29
+DATA bitrev_size32_mixed24<>+224(SB)/8, $7
+DATA bitrev_size32_mixed24<>+232(SB)/8, $15
+DATA bitrev_size32_mixed24<>+240(SB)/8, $23
+DATA bitrev_size32_mixed24<>+248(SB)/8, $31

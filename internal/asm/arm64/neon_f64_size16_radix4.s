@@ -41,9 +41,8 @@ TEXT ·ForwardNEONSize16Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	CMP  $16, R0
 	BLT  neon16r4f64_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $16, R0
-	BLT  neon16r4f64_return_false
+	// Load static bit-reversal table
+	MOVD $bitrev_size16_radix4<>(SB), R12
 
 	// Preserve dst pointer
 	MOVD R8, R20
@@ -318,12 +317,12 @@ neon16r4f64_copy_loop:
 
 neon16r4f64_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon16r4f64_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 16, complex128, radix-4 variant
@@ -350,9 +349,8 @@ TEXT ·InverseNEONSize16Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	CMP  $16, R0
 	BLT  neon16r4f64_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CMP  $16, R0
-	BLT  neon16r4f64_inv_return_false
+	// Load static bit-reversal table
+	MOVD $bitrev_size16_radix4<>(SB), R12
 
 	MOVD R8, R20
 
@@ -614,10 +612,29 @@ neon16r4f64_inv_scale_loop:
 
 neon16r4f64_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon16r4f64_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
+
+// Bit-reversal table for size 16 radix-4
+GLOBL bitrev_size16_radix4<>(SB), RODATA, $128
+DATA bitrev_size16_radix4<>+0(SB)/8, $0
+DATA bitrev_size16_radix4<>+8(SB)/8, $4
+DATA bitrev_size16_radix4<>+16(SB)/8, $8
+DATA bitrev_size16_radix4<>+24(SB)/8, $12
+DATA bitrev_size16_radix4<>+32(SB)/8, $1
+DATA bitrev_size16_radix4<>+40(SB)/8, $5
+DATA bitrev_size16_radix4<>+48(SB)/8, $9
+DATA bitrev_size16_radix4<>+56(SB)/8, $13
+DATA bitrev_size16_radix4<>+64(SB)/8, $2
+DATA bitrev_size16_radix4<>+72(SB)/8, $6
+DATA bitrev_size16_radix4<>+80(SB)/8, $10
+DATA bitrev_size16_radix4<>+88(SB)/8, $14
+DATA bitrev_size16_radix4<>+96(SB)/8, $3
+DATA bitrev_size16_radix4<>+104(SB)/8, $7
+DATA bitrev_size16_radix4<>+112(SB)/8, $11
+DATA bitrev_size16_radix4<>+120(SB)/8, $15
