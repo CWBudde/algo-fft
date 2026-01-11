@@ -58,79 +58,53 @@ TEXT ·ForwardAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	CMPQ AX, $8
 	JL   size8_fwd_return_false
 
-	// Select working buffer: if dst == src, use scratch
+	// Select work buffer: dst for out-of-place, scratch for in-place
 	CMPQ R8, R9
-	JNE  size8_fwd_use_dst
-	MOVQ R11, R8             // In-place: use scratch as work buffer
-	JMP  size8_fwd_bitrev
+	JNE  size8_fwd_start
+	MOVQ R11, R8
 
-size8_fwd_use_dst:
-	// Out-of-place: use dst as work buffer
-
-size8_fwd_bitrev:
+size8_fwd_start:
 	// =======================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// FUSED: Bit-reversal + STAGE 1 (identity twiddles)
 	// =======================================================================
-	// For size 8: bitrev = [0, 4, 2, 6, 1, 5, 3, 7]
-	// Each complex64 is 8 bytes, hardcoded indices internalized
+	// Load bit-reversed data [0,4,2,6,1,5,3,7] and compute Stage 1 butterflies
+	// Result: Y0 = [c0+c4, c0-c4, c2+c6, c2-c6], Y1 = [c1+c5, c1-c5, c3+c7, c3-c7]
 
-	// Load all 8 elements with hardcoded bit-reversal indices
-	MOVQ (R9), AX            // src[0]
-	MOVQ AX, (R8)            // work[0] = src[bitrev[0]] = src[0]
+	// Load first half: [c0, c4, c2, c6]
+	MOVQ (R9), AX            // src[0] = c0
+	MOVQ AX, (R8)            // work[0] = c0
 
-	MOVQ 32(R9), AX          // src[4]
-	MOVQ AX, 8(R8)           // work[1] = src[bitrev[1]] = src[4]
+	MOVQ 32(R9), AX          // src[4] = c4
+	MOVQ AX, 8(R8)           // work[1] = c4
 
-	MOVQ 16(R9), AX          // src[2]
-	MOVQ AX, 16(R8)          // work[2] = src[bitrev[2]] = src[2]
+	MOVQ 16(R9), AX          // src[2] = c2
+	MOVQ AX, 16(R8)          // work[2] = c2
 
-	MOVQ 48(R9), AX          // src[6]
-	MOVQ AX, 24(R8)          // work[3] = src[bitrev[3]] = src[6]
+	MOVQ 48(R9), AX          // src[6] = c6
+	MOVQ AX, 24(R8)          // work[3] = c6
 
-	MOVQ 8(R9), AX           // src[1]
-	MOVQ AX, 32(R8)          // work[4] = src[bitrev[4]] = src[1]
-
-	MOVQ 40(R9), AX          // src[5]
-	MOVQ AX, 40(R8)          // work[5] = src[bitrev[5]] = src[5]
-
-	MOVQ 24(R9), AX          // src[3]
-	MOVQ AX, 48(R8)          // work[6] = src[bitrev[6]] = src[3]
-
-	MOVQ 56(R9), AX          // src[7]
-	MOVQ AX, 56(R8)          // work[7] = src[bitrev[7]] = src[7]
-
-	// =======================================================================
-	// Load all data into YMM registers
-	// =======================================================================
-	// Y0 = [work[0], work[1], work[2], work[3]] = [x0, x1, x2, x3]
-	// Y1 = [work[4], work[5], work[6], work[7]] = [x4, x5, x6, x7]
+	// Compute Stage 1 butterflies for first half
 	VMOVUPS (R8), Y0
-	VMOVUPS 32(R8), Y1
-
-	// =======================================================================
-	// STAGE 1: size=2, half=1, step=4 (n/size = 8/2 = 4)
-	// =======================================================================
-	// Butterflies on adjacent pairs: (x0,x1), (x2,x3), (x4,x5), (x6,x7)
-	// All use twiddle[0] = 1+0i, so t = b * 1 = b
-	// Result: a' = a + b, b' = a - b
-	//
-	// Y0 = [x0, x1, x2, x3] -> [x0+x1, x0-x1, x2+x3, x2-x3] = [a0, a1, a2, a3]
-	// Y1 = [x4, x5, x6, x7] -> [x4+x5, x4-x5, x6+x7, x6-x7] = [a4, a5, a6, a7]
-
-	// For Y0: swap adjacent complex64 elements, add/sub, blend
-	// VPERMILPD swaps pairs of 64-bit elements within each 128-bit lane
-	// Y0 = [c0, c1, c2, c3] -> Y4 = [c1, c0, c3, c2]
 	VPERMILPD $0x05, Y0, Y4
-	VADDPS Y4, Y0, Y5        // Y5 = [c0+c1, c1+c0, c2+c3, c3+c2]
-	VSUBPS Y0, Y4, Y6        // Y6 = [c1-c0, c0-c1, c3-c2, c2-c3] (reversed order!)
-	// Blend at 64-bit (complex64) granularity
-	// VBLENDPD $0x0A = 0b1010: positions 1,3 from Y6, positions 0,2 from Y5
-	// Y5 = [c0+c1, c1+c0, c2+c3, c3+c2]
-	// Y6 = [c1-c0, c0-c1, c3-c2, c2-c3]
-	// Result: [c0+c1, c0-c1, c2+c3, c2-c3] as required
+	VADDPS Y4, Y0, Y5
+	VSUBPS Y0, Y4, Y6
 	VBLENDPD $0x0A, Y6, Y5, Y0
 
-	// For Y1: same operation
+	// Load second half: [c1, c5, c3, c7]
+	MOVQ 8(R9), AX           // src[1] = c1
+	MOVQ AX, 32(R8)          // work[4] = c1
+
+	MOVQ 40(R9), AX          // src[5] = c5
+	MOVQ AX, 40(R8)          // work[5] = c5
+
+	MOVQ 24(R9), AX          // src[3] = c3
+	MOVQ AX, 48(R8)          // work[6] = c3
+
+	MOVQ 56(R9), AX          // src[7] = c7
+	MOVQ AX, 56(R8)          // work[7] = c7
+
+	// Compute Stage 1 butterflies for second half
+	VMOVUPS 32(R8), Y1
 	VPERMILPD $0x05, Y1, Y4
 	VADDPS Y4, Y1, Y5
 	VSUBPS Y1, Y4, Y6
@@ -279,53 +253,52 @@ TEXT ·InverseAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	CMPQ AX, $8
 	JL   size8_inv_return_false
 
-	// Select working buffer
+	// Select work buffer: dst for out-of-place, scratch for in-place
 	CMPQ R8, R9
-	JNE  size8_inv_use_dst
+	JNE  size8_inv_start
 	MOVQ R11, R8
-	JMP  size8_inv_bitrev
 
-size8_inv_use_dst:
+size8_inv_start:
+	// =======================================================================
+	// FUSED: Bit-reversal + STAGE 1 (identity twiddles)
+	// =======================================================================
+	// Load bit-reversed data [0,4,2,6,1,5,3,7] and compute Stage 1 butterflies
 
-size8_inv_bitrev:
-	// Bit-reversal permutation with hardcoded indices
-	// bitrev = [0, 4, 2, 6, 1, 5, 3, 7]
-	MOVQ (R9), AX            // src[0]
-	MOVQ AX, (R8)            // work[0] = src[0]
+	// Load first half: [c0, c4, c2, c6]
+	MOVQ (R9), AX
+	MOVQ AX, (R8)
 
-	MOVQ 32(R9), AX          // src[4]
-	MOVQ AX, 8(R8)           // work[1] = src[4]
+	MOVQ 32(R9), AX
+	MOVQ AX, 8(R8)
 
-	MOVQ 16(R9), AX          // src[2]
-	MOVQ AX, 16(R8)          // work[2] = src[2]
+	MOVQ 16(R9), AX
+	MOVQ AX, 16(R8)
 
-	MOVQ 48(R9), AX          // src[6]
-	MOVQ AX, 24(R8)          // work[3] = src[6]
+	MOVQ 48(R9), AX
+	MOVQ AX, 24(R8)
 
-	MOVQ 8(R9), AX           // src[1]
-	MOVQ AX, 32(R8)          // work[4] = src[1]
-
-	MOVQ 40(R9), AX          // src[5]
-	MOVQ AX, 40(R8)          // work[5] = src[5]
-
-	MOVQ 24(R9), AX          // src[3]
-	MOVQ AX, 48(R8)          // work[6] = src[3]
-
-	MOVQ 56(R9), AX          // src[7]
-	MOVQ AX, 56(R8)          // work[7] = src[7]
-
-	// Load data
+	// Compute Stage 1 butterflies for first half
 	VMOVUPS (R8), Y0
-	VMOVUPS 32(R8), Y1
-
-	// =======================================================================
-	// STAGE 1: size=2 (same as forward - twiddle[0] = 1+0i, conj has no effect)
-	// =======================================================================
 	VPERMILPD $0x05, Y0, Y4
 	VADDPS Y4, Y0, Y5
 	VSUBPS Y0, Y4, Y6
 	VBLENDPD $0x0A, Y6, Y5, Y0
 
+	// Load second half: [c1, c5, c3, c7]
+	MOVQ 8(R9), AX
+	MOVQ AX, 32(R8)
+
+	MOVQ 40(R9), AX
+	MOVQ AX, 40(R8)
+
+	MOVQ 24(R9), AX
+	MOVQ AX, 48(R8)
+
+	MOVQ 56(R9), AX
+	MOVQ AX, 56(R8)
+
+	// Compute Stage 1 butterflies for second half
+	VMOVUPS 32(R8), Y1
 	VPERMILPD $0x05, Y1, Y4
 	VADDPS Y4, Y1, Y5
 	VSUBPS Y1, Y4, Y6

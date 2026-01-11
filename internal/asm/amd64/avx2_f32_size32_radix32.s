@@ -15,9 +15,6 @@ TEXT ·ForwardAVX2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-97
 	CMPQ R13, $32
 	JNE  fwd_ret_false
 
-	// Note: bitrev parameter ignored for radix-32 on size-32 (identity permutation)
-	// Radix-32 on size-32 uses natural input order (4×8 factorization)
-
 	VMOVUPS ·maskNegLoPS(SB), X15
 
 	// Column pairs 0 & 1
@@ -477,9 +474,6 @@ TEXT ·InverseAVX2Size32Radix32Complex64Asm(SB), NOSPLIT, $0-97
 
 	CMPQ R13, $32
 	JNE  inv_ret_false
-
-	// Note: bitrev parameter ignored for radix-32 on size-32 (identity permutation)
-	// Radix-32 on size-32 uses natural input order (4×8 factorization)
 
 	VMOVUPS ·maskNegLoPS(SB), X15
 	VMOVUPS ·maskNegHiPS(SB), X14
