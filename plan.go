@@ -350,6 +350,46 @@ func (p *Plan[T]) InverseInPlace(data []T) error {
 	return p.Inverse(data, data)
 }
 
+// ForwardUnsafe performs the forward FFT without any validation.
+// This is a zero-overhead path for latency-critical workloads.
+//
+// REQUIREMENTS (caller must guarantee):
+//   - dst and src are non-nil slices
+//   - len(dst) >= p.Len() and len(src) >= p.Len()
+//   - Plan has pre-allocated scratch (p.scratch != nil)
+//   - Plan has a bound codelet or kernel
+//
+// Violating these requirements causes undefined behavior or panic.
+// Use Forward() for the safe, validated path.
+func (p *Plan[T]) ForwardUnsafe(dst, src []T) {
+	if p.forwardCodelet != nil {
+		p.forwardCodelet(dst, src, p.twiddle, p.scratch)
+		return
+	}
+
+	p.forwardKernel(dst, src, p.twiddle, p.scratch)
+}
+
+// InverseUnsafe performs the inverse FFT without any validation.
+// This is a zero-overhead path for latency-critical workloads.
+//
+// REQUIREMENTS (caller must guarantee):
+//   - dst and src are non-nil slices
+//   - len(dst) >= p.Len() and len(src) >= p.Len()
+//   - Plan has pre-allocated scratch (p.scratch != nil)
+//   - Plan has a bound codelet or kernel
+//
+// Violating these requirements causes undefined behavior or panic.
+// Use Inverse() for the safe, validated path.
+func (p *Plan[T]) InverseUnsafe(dst, src []T) {
+	if p.inverseCodelet != nil {
+		p.inverseCodelet(dst, src, p.twiddle, p.scratch)
+		return
+	}
+
+	p.inverseKernel(dst, src, p.twiddle, p.scratch)
+}
+
 // Transform computes either forward or inverse FFT based on the inverse flag.
 // This is a convenience wrapper over Forward/Inverse.
 func (p *Plan[T]) Transform(dst, src []T, inverse bool) error {
