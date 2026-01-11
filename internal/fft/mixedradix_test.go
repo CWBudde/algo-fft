@@ -13,6 +13,7 @@ func TestMixedRadixComplex64(t *testing.T) {
 
 	// 12 = 4 * 3 (mixed radix)
 	n := 12
+
 	src := make([]complex64, n)
 	for i := range src {
 		src[i] = complex(float32(i), 0)
@@ -37,6 +38,7 @@ func TestMixedRadixComplex64(t *testing.T) {
 	// Inverse
 	fwd := make([]complex64, n)
 	copy(fwd, dst)
+
 	if !inverseMixedRadixComplex64(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseMixedRadixComplex64 failed")
 	}
@@ -52,6 +54,7 @@ func TestMixedRadixComplex128(t *testing.T) {
 	t.Parallel()
 
 	n := 12
+
 	src := make([]complex128, n)
 	for i := range src {
 		src[i] = complex(float64(i), 0)
@@ -76,6 +79,7 @@ func TestMixedRadixComplex128(t *testing.T) {
 	// Inverse
 	fwd := make([]complex128, n)
 	copy(fwd, dst)
+
 	if !inverseMixedRadixComplex128(dst, fwd, twiddle, scratch) {
 		t.Fatal("inverseMixedRadixComplex128 failed")
 	}

@@ -20,7 +20,7 @@ func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelS
 	return autoKernelComplex128(strategy)
 }
 
-// Fallback wrappers for tests when asm is disabled
+// Fallback wrappers for tests when asm is disabled.
 func forwardAVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return forwardDITComplex64(dst, src, twiddle, scratch)
 }

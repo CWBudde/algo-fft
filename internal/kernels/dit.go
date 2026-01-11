@@ -70,6 +70,7 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 		if forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch) {
 			return true
 		}
+
 		return forwardDIT4096Radix4Complex64(dst, src, twiddle, scratch)
 	}
 
@@ -118,6 +119,7 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 		if inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch) {
 			return true
 		}
+
 		return inverseDIT4096Radix4Complex64(dst, src, twiddle, scratch)
 	}
 
@@ -165,6 +167,7 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 		if forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch) {
 			return true
 		}
+
 		return forwardDIT4096Radix4Complex128(dst, src, twiddle, scratch)
 	}
 
@@ -205,6 +208,7 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 		if inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch) {
 			return true
 		}
+
 		return inverseDIT4096Radix4Complex128(dst, src, twiddle, scratch)
 	}
 

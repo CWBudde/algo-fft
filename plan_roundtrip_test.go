@@ -127,6 +127,7 @@ func TestRoundTripSizes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 		}
+
 		t.Logf("n=%d strategy=%v algorithm=%s", n, plan.kernelStrategy, plan.algorithm)
 
 		src := make([]complex64, n)

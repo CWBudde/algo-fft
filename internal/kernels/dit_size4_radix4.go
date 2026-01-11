@@ -39,6 +39,7 @@ func forwardDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	if inPlace {
 		copy(dst[:n], work)
 	}
+
 	return true
 }
 
@@ -73,6 +74,7 @@ func inverseDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Fold 1/N scaling (N=4) into the stores.
 	const s complex64 = 0.25
+
 	work[0] = (t0 + t2) * s
 	work[1] = (t1 + t3PosI) * s
 	work[2] = (t0 - t2) * s
@@ -81,6 +83,7 @@ func inverseDIT4Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	if inPlace {
 		copy(dst[:n], work)
 	}
+
 	return true
 }
 
@@ -155,6 +158,7 @@ func inverseDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 
 	// Fold 1/N scaling (N=4) into the stores.
 	const s complex128 = 0.25
+
 	work[0] = (t0 + t2) * s
 	work[1] = (t1 + t3PosI) * s
 	work[2] = (t0 - t2) * s
@@ -163,6 +167,7 @@ func inverseDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	if inPlace {
 		copy(dst[:n], work)
 	}
+
 	return true
 }
 
