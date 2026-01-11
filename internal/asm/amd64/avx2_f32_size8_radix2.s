@@ -65,50 +65,41 @@ TEXT ·ForwardAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 
 size8_fwd_start:
 	// =======================================================================
-	// FUSED: Bit-reversal + STAGE 1 (identity twiddles)
+	// Bit-reversal + STAGE 1 (identity twiddles)
 	// =======================================================================
-	// Load bit-reversed data [0,4,2,6,1,5,3,7] and compute Stage 1 butterflies
+	// Load bit-reversed data [0,4,2,6,1,5,3,7] directly into YMM registers
+	// and compute Stage 1 butterflies
 	// Result: Y0 = [c0+c4, c0-c4, c2+c6, c2-c6], Y1 = [c1+c5, c1-c5, c3+c7, c3-c7]
 
-	// Load first half: [c0, c4, c2, c6]
-	MOVQ (R9), AX            // src[0] = c0
-	MOVQ AX, (R8)            // work[0] = c0
-
-	MOVQ 32(R9), AX          // src[4] = c4
-	MOVQ AX, 8(R8)           // work[1] = c4
-
-	MOVQ 16(R9), AX          // src[2] = c2
-	MOVQ AX, 16(R8)          // work[2] = c2
-
-	MOVQ 48(R9), AX          // src[6] = c6
-	MOVQ AX, 24(R8)          // work[3] = c6
+	// Load first half: [c0, c4, c2, c6] directly into Y0
+	VMOVSD (R9), X0          // X0 lower = c0 (src[0])
+	VMOVSD 32(R9), X4        // X4 lower = c4 (src[4])
+	VPUNPCKLQDQ X4, X0, X0   // X0 = [c0, c4]
+	VMOVSD 16(R9), X5        // X5 lower = c2 (src[2])
+	VMOVSD 48(R9), X6        // X6 lower = c6 (src[6])
+	VPUNPCKLQDQ X6, X5, X5   // X5 = [c2, c6]
+	VINSERTF128 $1, X5, Y0, Y0  // Y0 = [c0, c4, c2, c6]
 
 	// Compute Stage 1 butterflies for first half
-	VMOVUPS (R8), Y0
-	VPERMILPD $0x05, Y0, Y4
-	VADDPS Y4, Y0, Y5
-	VSUBPS Y0, Y4, Y6
-	VBLENDPD $0x0A, Y6, Y5, Y0
+	VPERMILPD $0x05, Y0, Y4  // Y4 = [c4, c0, c6, c2]
+	VADDPS Y4, Y0, Y5        // Y5 = [c0+c4, c4+c0, c2+c6, c6+c2]
+	VSUBPS Y0, Y4, Y6        // Y6 = [c4-c0, c0-c4, c6-c2, c2-c6]
+	VBLENDPD $0x0A, Y6, Y5, Y0  // Y0 = [c0+c4, c0-c4, c2+c6, c2-c6]
 
-	// Load second half: [c1, c5, c3, c7]
-	MOVQ 8(R9), AX           // src[1] = c1
-	MOVQ AX, 32(R8)          // work[4] = c1
-
-	MOVQ 40(R9), AX          // src[5] = c5
-	MOVQ AX, 40(R8)          // work[5] = c5
-
-	MOVQ 24(R9), AX          // src[3] = c3
-	MOVQ AX, 48(R8)          // work[6] = c3
-
-	MOVQ 56(R9), AX          // src[7] = c7
-	MOVQ AX, 56(R8)          // work[7] = c7
+	// Load second half: [c1, c5, c3, c7] directly into Y1
+	VMOVSD 8(R9), X1         // X1 lower = c1 (src[1])
+	VMOVSD 40(R9), X4        // X4 lower = c5 (src[5])
+	VPUNPCKLQDQ X4, X1, X1   // X1 = [c1, c5]
+	VMOVSD 24(R9), X5        // X5 lower = c3 (src[3])
+	VMOVSD 56(R9), X6        // X6 lower = c7 (src[7])
+	VPUNPCKLQDQ X6, X5, X5   // X5 = [c3, c7]
+	VINSERTF128 $1, X5, Y1, Y1  // Y1 = [c1, c5, c3, c7]
 
 	// Compute Stage 1 butterflies for second half
-	VMOVUPS 32(R8), Y1
-	VPERMILPD $0x05, Y1, Y4
-	VADDPS Y4, Y1, Y5
-	VSUBPS Y1, Y4, Y6
-	VBLENDPD $0x0A, Y6, Y5, Y1
+	VPERMILPD $0x05, Y1, Y4  // Y4 = [c5, c1, c7, c3]
+	VADDPS Y4, Y1, Y5        // Y5 = [c1+c5, c5+c1, c3+c7, c7+c3]
+	VSUBPS Y1, Y4, Y6        // Y6 = [c5-c1, c1-c5, c7-c3, c3-c7]
+	VBLENDPD $0x0A, Y6, Y5, Y1  // Y1 = [c1+c5, c1-c5, c3+c7, c3-c7]
 
 	// =======================================================================
 	// STAGE 2: size=4, half=2, step=2 (n/size = 8/4 = 2)
@@ -260,49 +251,40 @@ TEXT ·InverseAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 
 size8_inv_start:
 	// =======================================================================
-	// FUSED: Bit-reversal + STAGE 1 (identity twiddles)
+	// Bit-reversal + STAGE 1 (identity twiddles)
 	// =======================================================================
-	// Load bit-reversed data [0,4,2,6,1,5,3,7] and compute Stage 1 butterflies
+	// Load bit-reversed data [0,4,2,6,1,5,3,7] directly into YMM registers
+	// and compute Stage 1 butterflies
 
-	// Load first half: [c0, c4, c2, c6]
-	MOVQ (R9), AX
-	MOVQ AX, (R8)
-
-	MOVQ 32(R9), AX
-	MOVQ AX, 8(R8)
-
-	MOVQ 16(R9), AX
-	MOVQ AX, 16(R8)
-
-	MOVQ 48(R9), AX
-	MOVQ AX, 24(R8)
+	// Load first half: [c0, c4, c2, c6] directly into Y0
+	VMOVSD (R9), X0          // X0 lower = c0 (src[0])
+	VMOVSD 32(R9), X4        // X4 lower = c4 (src[4])
+	VPUNPCKLQDQ X4, X0, X0   // X0 = [c0, c4]
+	VMOVSD 16(R9), X5        // X5 lower = c2 (src[2])
+	VMOVSD 48(R9), X6        // X6 lower = c6 (src[6])
+	VPUNPCKLQDQ X6, X5, X5   // X5 = [c2, c6]
+	VINSERTF128 $1, X5, Y0, Y0  // Y0 = [c0, c4, c2, c6]
 
 	// Compute Stage 1 butterflies for first half
-	VMOVUPS (R8), Y0
-	VPERMILPD $0x05, Y0, Y4
-	VADDPS Y4, Y0, Y5
-	VSUBPS Y0, Y4, Y6
-	VBLENDPD $0x0A, Y6, Y5, Y0
+	VPERMILPD $0x05, Y0, Y4  // Y4 = [c4, c0, c6, c2]
+	VADDPS Y4, Y0, Y5        // Y5 = [c0+c4, c4+c0, c2+c6, c6+c2]
+	VSUBPS Y0, Y4, Y6        // Y6 = [c4-c0, c0-c4, c6-c2, c2-c6]
+	VBLENDPD $0x0A, Y6, Y5, Y0  // Y0 = [c0+c4, c0-c4, c2+c6, c2-c6]
 
-	// Load second half: [c1, c5, c3, c7]
-	MOVQ 8(R9), AX
-	MOVQ AX, 32(R8)
-
-	MOVQ 40(R9), AX
-	MOVQ AX, 40(R8)
-
-	MOVQ 24(R9), AX
-	MOVQ AX, 48(R8)
-
-	MOVQ 56(R9), AX
-	MOVQ AX, 56(R8)
+	// Load second half: [c1, c5, c3, c7] directly into Y1
+	VMOVSD 8(R9), X1         // X1 lower = c1 (src[1])
+	VMOVSD 40(R9), X4        // X4 lower = c5 (src[5])
+	VPUNPCKLQDQ X4, X1, X1   // X1 = [c1, c5]
+	VMOVSD 24(R9), X5        // X5 lower = c3 (src[3])
+	VMOVSD 56(R9), X6        // X6 lower = c7 (src[7])
+	VPUNPCKLQDQ X6, X5, X5   // X5 = [c3, c7]
+	VINSERTF128 $1, X5, Y1, Y1  // Y1 = [c1, c5, c3, c7]
 
 	// Compute Stage 1 butterflies for second half
-	VMOVUPS 32(R8), Y1
-	VPERMILPD $0x05, Y1, Y4
-	VADDPS Y4, Y1, Y5
-	VSUBPS Y1, Y4, Y6
-	VBLENDPD $0x0A, Y6, Y5, Y1
+	VPERMILPD $0x05, Y1, Y4  // Y4 = [c5, c1, c7, c3]
+	VADDPS Y4, Y1, Y5        // Y5 = [c1+c5, c5+c1, c3+c7, c7+c3]
+	VSUBPS Y1, Y4, Y6        // Y6 = [c5-c1, c1-c5, c7-c3, c3-c7]
+	VBLENDPD $0x0A, Y6, Y5, Y1  // Y1 = [c1+c5, c1-c5, c3+c7, c3-c7]
 
 	// =======================================================================
 	// STAGE 2: size=4 - use conjugated twiddles via VFMSUBADD
