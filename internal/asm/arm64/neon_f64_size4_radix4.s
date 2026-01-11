@@ -32,12 +32,6 @@ TEXT ·ForwardNEONSize4Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	CMP  $4, R0
 	BLT  neon4r4f64_return_false
 
-	MOVD bitrev+104(FP), R0
-	CBZ  R0, neon4r4f64_bitrev_ok
-	CMP  $4, R0
-	BLT  neon4r4f64_return_false
-
-neon4r4f64_bitrev_ok:
 	MOVD R8, R20
 	CMP  R8, R9
 	BNE  neon4r4f64_use_dst
@@ -134,12 +128,6 @@ TEXT ·InverseNEONSize4Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	CMP  $4, R0
 	BLT  neon4r4f64_inv_return_false
 
-	MOVD bitrev+104(FP), R0
-	CBZ  R0, neon4r4f64_inv_bitrev_ok
-	CMP  $4, R0
-	BLT  neon4r4f64_inv_return_false
-
-neon4r4f64_inv_bitrev_ok:
 	MOVD R8, R20
 	CMP  R8, R9
 	BNE  neon4r4f64_inv_use_dst
