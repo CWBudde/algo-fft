@@ -32,7 +32,6 @@ TEXT ·ForwardAVX2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	LEAQ ·bitrev64_r2(SB), R12 // R12 = internal bitrev table
 	MOVQ src+32(FP), R13     // R13 = n (should be 64)
 
 	// Verify n == 64
@@ -1136,7 +1135,6 @@ TEXT ·InverseAVX2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	LEAQ ·bitrev64_r2(SB), R12 // R12 = internal bitrev table
 	MOVQ src+32(FP), R13     // R13 = n (should be 64)
 
 	// Verify n == 64

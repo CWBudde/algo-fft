@@ -24,15 +24,7 @@ TEXT ·ForwardSSE2Size128Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 fwd_use_dst:
-	// Bit-reversal
-	XORQ CX, CX
-fwd_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVSD (R9)(DX*8), X0
-	MOVSD X0, (R8)(CX*8)
-	INCQ CX
-	CMPQ CX, $128
-	JL   fwd_bitrev_loop
+	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
 	// Stage 1 & 2 (Combined) - 32 blocks of 4
 	MOVQ R8, SI
@@ -40,10 +32,15 @@ fwd_bitrev_loop:
 	MOVUPS ·maskNegHiPS(SB), X15
 
 fwd_stage12_loop:
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	// Stage 1
 	MOVAPS X0, X8
 	ADDPS  X1, X8
@@ -279,14 +276,7 @@ TEXT ·InverseSSE2Size128Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 inv_use_dst:
-	XORQ CX, CX
-inv_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVSD (R9)(DX*8), X0
-	MOVSD X0, (R8)(CX*8)
-	INCQ CX
-	CMPQ CX, $128
-	JL   inv_bitrev_loop
+	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
 	// Stage 1 & 2
 	MOVQ R8, SI
@@ -295,10 +285,15 @@ inv_bitrev_loop:
 	MOVUPS ·maskNegHiPS(SB), X14 // for conjugation
 
 inv_stage12_loop:
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	// Stage 1
 	MOVAPS X0, X8
 	ADDPS  X1, X8

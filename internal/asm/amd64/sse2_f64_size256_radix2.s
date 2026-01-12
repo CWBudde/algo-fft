@@ -27,19 +27,7 @@ TEXT ·ForwardSSE2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8       // Use scratch as temp dst if in-place
 
 fwd_use_dst:
-	// Bit-reversal permutation
-	XORQ CX, CX        // i = 0
-
-fwd_bitrev_loop:
-	MOVQ (R12)(CX*8), DX    // DX = bitrev[i]
-	SHLQ $4, DX             // DX *= 16 (sizeof complex128)
-	MOVUPD (R9)(DX*1), X0   // X0 = src[bitrev[i]]
-	MOVQ CX, AX             // AX = i
-	SHLQ $4, AX             // AX *= 16
-	MOVUPD X0, (R8)(AX*1)   // dst[i] = X0
-	INCQ CX                 // i++
-	CMPQ CX, $256           // i < 256
-	JL   fwd_bitrev_loop
+	// FUSED: Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
 	// Stage 1 & 2 (Combined) - 64 blocks of 4
 	MOVQ R8, SI             // SI = dst
@@ -399,19 +387,7 @@ TEXT ·InverseSSE2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 inv_use_dst:
-	// Bit-reversal
-	XORQ CX, CX
-
-inv_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X0
-	MOVQ CX, AX
-	SHLQ $4, AX
-	MOVUPD X0, (R8)(AX*1)
-	INCQ CX
-	CMPQ CX, $256
-	JL   inv_bitrev_loop
+	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
 	// Stage 1 & 2
 	MOVQ R8, SI
@@ -424,10 +400,19 @@ inv_bitrev_loop:
 	                             // Result (-b, a). Correct.
 
 inv_stage12_loop:
-	MOVUPD (SI), X0
-	MOVUPD 16(SI), X1
-	MOVUPD 32(SI), X2
-	MOVUPD 48(SI), X3
+	MOVQ (R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X0
+	MOVQ 8(R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X1
+	MOVQ 16(R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X2
+	MOVQ 24(R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X3
+	ADDQ $32, R12
 
 	// Stage 1
 	MOVAPD X0, X8
