@@ -14,7 +14,6 @@ TEXT ·ForwardSSE2Size128Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size128Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $128
@@ -25,42 +24,380 @@ TEXT ·ForwardSSE2Size128Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 fwd_use_dst:
-	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
+	// -----------------------------------------------------------------------
+	// FUSED: Bit-reversal permutation + Stage 1 (identity twiddles)
+	// Unrolled even half, executed twice (second pass uses +16 src, +1024 dst).
+	// -----------------------------------------------------------------------
+	MOVQ R8, R14 // save work base
+	MOVQ R9, R15 // save src base
+	XORQ BX, BX  // pass counter (even/odd)
 
-	// Stage 1 & 2 (Combined) - 32 blocks of 4
-	MOVQ R8, SI
-	MOVQ $32, CX
-	MOVUPS ·maskNegHiPD(SB), X15
+fwd_stage1_pass:
+	// (0,64) -> work[0], work[1]
+	MOVUPD 0(R9), X0         // src[0]
+	MOVUPD 1024(R9), X1      // src[64]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 0(R8)         // work[0]
+	MOVUPD X3, 16(R8)        // work[1]
 
-fwd_stage12_loop:
-	MOVUPD (SI), X0
-  MOVUPD 16(SI), X1
-  MOVUPD 32(SI), X2
-  MOVUPD 48(SI), X3
-	MOVAPD X0, X8
-  ADDPD X1, X0
-  SUBPD X1, X8
-	MOVAPD X2, X9
-  ADDPD X3, X2
-  SUBPD X3, X9
-	MOVAPD X0, X10
-  ADDPD X2, X0
-  SUBPD X2, X10
-	MOVAPD X9, X11
-  SHUFPD $1, X11, X11
-  XORPD X15, X11 // t = W3 * -i
-	MOVAPD X8, X12
-  ADDPD X11, X8
-  SUBPD X11, X12
-	MOVUPD X0, (SI)
-  MOVUPD X8, 16(SI)
-  MOVUPD X10, 32(SI)
-  MOVUPD X12, 48(SI)
-	ADDQ $64, SI
-	DECQ CX
-	JNZ  fwd_stage12_loop
+	// (32,96) -> work[2], work[3]
+	MOVUPD 512(R9), X0       // src[32]
+	MOVUPD 1536(R9), X1      // src[96]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 32(R8)        // work[2]
+	MOVUPD X3, 48(R8)        // work[3]
 
+	// (16,80) -> work[4], work[5]
+	MOVUPD 256(R9), X0       // src[16]
+	MOVUPD 1280(R9), X1      // src[80]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 64(R8)        // work[4]
+	MOVUPD X3, 80(R8)        // work[5]
+
+	// (48,112) -> work[6], work[7]
+	MOVUPD 768(R9), X0       // src[48]
+	MOVUPD 1792(R9), X1      // src[112]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 96(R8)        // work[6]
+	MOVUPD X3, 112(R8)       // work[7]
+
+	// (8,72) -> work[8], work[9]
+	MOVUPD 128(R9), X0       // src[8]
+	MOVUPD 1152(R9), X1      // src[72]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 128(R8)       // work[8]
+	MOVUPD X3, 144(R8)       // work[9]
+
+	// (40,104) -> work[10], work[11]
+	MOVUPD 640(R9), X0       // src[40]
+	MOVUPD 1664(R9), X1      // src[104]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 160(R8)       // work[10]
+	MOVUPD X3, 176(R8)       // work[11]
+
+	// (24,88) -> work[12], work[13]
+	MOVUPD 384(R9), X0       // src[24]
+	MOVUPD 1408(R9), X1      // src[88]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 192(R8)       // work[12]
+	MOVUPD X3, 208(R8)       // work[13]
+
+	// (56,120) -> work[14], work[15]
+	MOVUPD 896(R9), X0       // src[56]
+	MOVUPD 1920(R9), X1      // src[120]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 224(R8)       // work[14]
+	MOVUPD X3, 240(R8)       // work[15]
+
+	// (4,68) -> work[16], work[17]
+	MOVUPD 64(R9), X0        // src[4]
+	MOVUPD 1088(R9), X1      // src[68]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 256(R8)       // work[16]
+	MOVUPD X3, 272(R8)       // work[17]
+
+	// (36,100) -> work[18], work[19]
+	MOVUPD 576(R9), X0       // src[36]
+	MOVUPD 1600(R9), X1      // src[100]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 288(R8)       // work[18]
+	MOVUPD X3, 304(R8)       // work[19]
+
+	// (20,84) -> work[20], work[21]
+	MOVUPD 320(R9), X0       // src[20]
+	MOVUPD 1344(R9), X1      // src[84]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 320(R8)       // work[20]
+	MOVUPD X3, 336(R8)       // work[21]
+
+	// (52,116) -> work[22], work[23]
+	MOVUPD 832(R9), X0       // src[52]
+	MOVUPD 1856(R9), X1      // src[116]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 352(R8)       // work[22]
+	MOVUPD X3, 368(R8)       // work[23]
+
+	// (12,76) -> work[24], work[25]
+	MOVUPD 192(R9), X0       // src[12]
+	MOVUPD 1216(R9), X1      // src[76]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 384(R8)       // work[24]
+	MOVUPD X3, 400(R8)       // work[25]
+
+	// (44,108) -> work[26], work[27]
+	MOVUPD 704(R9), X0       // src[44]
+	MOVUPD 1728(R9), X1      // src[108]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 416(R8)       // work[26]
+	MOVUPD X3, 432(R8)       // work[27]
+
+	// (28,92) -> work[28], work[29]
+	MOVUPD 448(R9), X0       // src[28]
+	MOVUPD 1472(R9), X1      // src[92]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 448(R8)       // work[28]
+	MOVUPD X3, 464(R8)       // work[29]
+
+	// (60,124) -> work[30], work[31]
+	MOVUPD 960(R9), X0       // src[60]
+	MOVUPD 1984(R9), X1      // src[124]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 480(R8)       // work[30]
+	MOVUPD X3, 496(R8)       // work[31]
+
+	// (2,66) -> work[32], work[33]
+	MOVUPD 32(R9), X0        // src[2]
+	MOVUPD 1056(R9), X1      // src[66]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 512(R8)       // work[32]
+	MOVUPD X3, 528(R8)       // work[33]
+
+	// (34,98) -> work[34], work[35]
+	MOVUPD 544(R9), X0       // src[34]
+	MOVUPD 1568(R9), X1      // src[98]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 544(R8)       // work[34]
+	MOVUPD X3, 560(R8)       // work[35]
+
+	// (18,82) -> work[36], work[37]
+	MOVUPD 288(R9), X0       // src[18]
+	MOVUPD 1312(R9), X1      // src[82]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 576(R8)       // work[36]
+	MOVUPD X3, 592(R8)       // work[37]
+
+	// (50,114) -> work[38], work[39]
+	MOVUPD 800(R9), X0       // src[50]
+	MOVUPD 1824(R9), X1      // src[114]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 608(R8)       // work[38]
+	MOVUPD X3, 624(R8)       // work[39]
+
+	// (10,74) -> work[40], work[41]
+	MOVUPD 160(R9), X0       // src[10]
+	MOVUPD 1184(R9), X1      // src[74]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 640(R8)       // work[40]
+	MOVUPD X3, 656(R8)       // work[41]
+
+	// (42,106) -> work[42], work[43]
+	MOVUPD 672(R9), X0       // src[42]
+	MOVUPD 1696(R9), X1      // src[106]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 672(R8)       // work[42]
+	MOVUPD X3, 688(R8)       // work[43]
+
+	// (26,90) -> work[44], work[45]
+	MOVUPD 416(R9), X0       // src[26]
+	MOVUPD 1440(R9), X1      // src[90]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 704(R8)       // work[44]
+	MOVUPD X3, 720(R8)       // work[45]
+
+	// (58,122) -> work[46], work[47]
+	MOVUPD 928(R9), X0       // src[58]
+	MOVUPD 1952(R9), X1      // src[122]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 736(R8)       // work[46]
+	MOVUPD X3, 752(R8)       // work[47]
+
+	// (6,70) -> work[48], work[49]
+	MOVUPD 96(R9), X0        // src[6]
+	MOVUPD 1120(R9), X1      // src[70]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 768(R8)       // work[48]
+	MOVUPD X3, 784(R8)       // work[49]
+
+	// (38,102) -> work[50], work[51]
+	MOVUPD 608(R9), X0       // src[38]
+	MOVUPD 1632(R9), X1      // src[102]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 800(R8)       // work[50]
+	MOVUPD X3, 816(R8)       // work[51]
+
+	// (22,86) -> work[52], work[53]
+	MOVUPD 352(R9), X0       // src[22]
+	MOVUPD 1376(R9), X1      // src[86]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 832(R8)       // work[52]
+	MOVUPD X3, 848(R8)       // work[53]
+
+	// (54,118) -> work[54], work[55]
+	MOVUPD 864(R9), X0       // src[54]
+	MOVUPD 1888(R9), X1      // src[118]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 864(R8)       // work[54]
+	MOVUPD X3, 880(R8)       // work[55]
+
+	// (14,78) -> work[56], work[57]
+	MOVUPD 224(R9), X0       // src[14]
+	MOVUPD 1248(R9), X1      // src[78]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 896(R8)       // work[56]
+	MOVUPD X3, 912(R8)       // work[57]
+
+	// (46,110) -> work[58], work[59]
+	MOVUPD 736(R9), X0       // src[46]
+	MOVUPD 1760(R9), X1      // src[110]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 928(R8)       // work[58]
+	MOVUPD X3, 944(R8)       // work[59]
+
+	// (30,94) -> work[60], work[61]
+	MOVUPD 480(R9), X0       // src[30]
+	MOVUPD 1504(R9), X1      // src[94]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 960(R8)       // work[60]
+	MOVUPD X3, 976(R8)       // work[61]
+
+	// (62,126) -> work[62], work[63]
+	MOVUPD 992(R9), X0       // src[62]
+	MOVUPD 2016(R9), X1      // src[126]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 992(R8)       // work[62]
+	MOVUPD X3, 1008(R8)      // work[63]
+
+	INCQ BX                  // next pass
+	CMPQ BX, $2              // done after odd pass
+	JGE  fwd_stage1_done
+	LEAQ 1024(R14), R8       // work offset for odd half
+	LEAQ 16(R15), R9         // src offset for odd half
+	JMP  fwd_stage1_pass
+
+fwd_stage1_done:
+	MOVQ R14, R8             // restore work base
+
+	// Stage 2: dist 2 - 32 blocks of 4
+	MOVQ R8, SI              // work base
+	MOVQ $32, CX             // blocks
 	MOVUPS ·maskNegLoPD(SB), X14
+fwd_stage2_loop:
+	MOVQ $2, DX              // half=2
+fwd_stage2_inner:
+	MOVUPD (SI), X0          // a
+  MOVUPD 32(SI), X1        // b
+	MOVQ $2, AX              // k = 2 - DX
+  SUBQ DX, AX              // k (0..1)
+  SHLQ $5, AX              // k * 32
+  SHLQ $4, AX              // k * 32 * 16
+  MOVUPD (R10)(AX*1), X10  // twiddle[k*32]
+	MOVAPD X1, X2            // b
+  UNPCKLPD X2, X2          // b.re
+  MULPD X10, X2            // b.re * w
+	MOVAPD X1, X3            // b
+  UNPCKHPD X3, X3          // b.im
+  MOVAPD X10, X4           // w
+  SHUFPD $1, X4, X4        // swap
+  MULPD X3, X4             // b.im * w
+	XORPD X14, X4            // multiply by i
+  ADDPD X4, X2             // t = w * b
+	MOVAPD X0, X3            // a
+  ADDPD X2, X0             // a + t
+  SUBPD X2, X3             // a - t
+	MOVUPD X0, (SI)          // out a
+  MOVUPD X3, 32(SI)        // out b
+	ADDQ $16, SI             // next j
+  DECQ DX                  // next j
+  JNZ fwd_stage2_inner
+	ADDQ $32, SI             // next block
+  DECQ CX                  // next block
+  JNZ fwd_stage2_loop
 
 	// Stage 3: dist 4
 	MOVQ R8, SI
@@ -262,7 +599,6 @@ TEXT ·InverseSSE2Size128Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size128Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $128
@@ -273,43 +609,383 @@ TEXT ·InverseSSE2Size128Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 inv_use_dst:
-	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
+	// -----------------------------------------------------------------------
+	// FUSED: Bit-reversal permutation + Stage 1 (identity twiddles)
+	// Unrolled even half, executed twice (second pass uses +16 src, +1024 dst).
+	// -----------------------------------------------------------------------
+	MOVQ R8, R14 // save work base
+	MOVQ R9, R15 // save src base
+	XORQ BX, BX  // pass counter (even/odd)
 
-	// Stage 1 & 2
-	MOVQ R8, SI
-  MOVQ $32, CX
-	MOVUPS ·maskNegLoPD(SB), X15 // for i
+inv_stage1_pass:
+	// (0,64) -> work[0], work[1]
+	MOVUPD 0(R9), X0         // src[0]
+	MOVUPD 1024(R9), X1      // src[64]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 0(R8)         // work[0]
+	MOVUPD X3, 16(R8)        // work[1]
 
-inv_stage12_loop:
-	MOVUPD (SI), X0
-  MOVUPD 16(SI), X1
-  MOVUPD 32(SI), X2
-  MOVUPD 48(SI), X3
-	MOVAPD X0, X8
-  ADDPD X1, X0
-  SUBPD X1, X8
-	MOVAPD X2, X9
-  ADDPD X3, X2
-  SUBPD X3, X9
-	MOVAPD X0, X10
-  ADDPD X2, X0
-  SUBPD X2, X10
-	MOVAPD X9, X11
-  SHUFPD $1, X11, X11
-  XORPD X15, X11 // t = W3 * i
-	MOVAPD X8, X12
-  ADDPD X11, X8
-  SUBPD X11, X12
-	MOVUPD X0, (SI)
-  MOVUPD X8, 16(SI)
-  MOVUPD X10, 32(SI)
-  MOVUPD X12, 48(SI)
-	ADDQ $64, SI
-	DECQ CX
-	JNZ  inv_stage12_loop
+	// (32,96) -> work[2], work[3]
+	MOVUPD 512(R9), X0       // src[32]
+	MOVUPD 1536(R9), X1      // src[96]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 32(R8)        // work[2]
+	MOVUPD X3, 48(R8)        // work[3]
+
+	// (16,80) -> work[4], work[5]
+	MOVUPD 256(R9), X0       // src[16]
+	MOVUPD 1280(R9), X1      // src[80]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 64(R8)        // work[4]
+	MOVUPD X3, 80(R8)        // work[5]
+
+	// (48,112) -> work[6], work[7]
+	MOVUPD 768(R9), X0       // src[48]
+	MOVUPD 1792(R9), X1      // src[112]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 96(R8)        // work[6]
+	MOVUPD X3, 112(R8)       // work[7]
+
+	// (8,72) -> work[8], work[9]
+	MOVUPD 128(R9), X0       // src[8]
+	MOVUPD 1152(R9), X1      // src[72]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 128(R8)       // work[8]
+	MOVUPD X3, 144(R8)       // work[9]
+
+	// (40,104) -> work[10], work[11]
+	MOVUPD 640(R9), X0       // src[40]
+	MOVUPD 1664(R9), X1      // src[104]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 160(R8)       // work[10]
+	MOVUPD X3, 176(R8)       // work[11]
+
+	// (24,88) -> work[12], work[13]
+	MOVUPD 384(R9), X0       // src[24]
+	MOVUPD 1408(R9), X1      // src[88]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 192(R8)       // work[12]
+	MOVUPD X3, 208(R8)       // work[13]
+
+	// (56,120) -> work[14], work[15]
+	MOVUPD 896(R9), X0       // src[56]
+	MOVUPD 1920(R9), X1      // src[120]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 224(R8)       // work[14]
+	MOVUPD X3, 240(R8)       // work[15]
+
+	// (4,68) -> work[16], work[17]
+	MOVUPD 64(R9), X0        // src[4]
+	MOVUPD 1088(R9), X1      // src[68]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 256(R8)       // work[16]
+	MOVUPD X3, 272(R8)       // work[17]
+
+	// (36,100) -> work[18], work[19]
+	MOVUPD 576(R9), X0       // src[36]
+	MOVUPD 1600(R9), X1      // src[100]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 288(R8)       // work[18]
+	MOVUPD X3, 304(R8)       // work[19]
+
+	// (20,84) -> work[20], work[21]
+	MOVUPD 320(R9), X0       // src[20]
+	MOVUPD 1344(R9), X1      // src[84]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 320(R8)       // work[20]
+	MOVUPD X3, 336(R8)       // work[21]
+
+	// (52,116) -> work[22], work[23]
+	MOVUPD 832(R9), X0       // src[52]
+	MOVUPD 1856(R9), X1      // src[116]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 352(R8)       // work[22]
+	MOVUPD X3, 368(R8)       // work[23]
+
+	// (12,76) -> work[24], work[25]
+	MOVUPD 192(R9), X0       // src[12]
+	MOVUPD 1216(R9), X1      // src[76]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 384(R8)       // work[24]
+	MOVUPD X3, 400(R8)       // work[25]
+
+	// (44,108) -> work[26], work[27]
+	MOVUPD 704(R9), X0       // src[44]
+	MOVUPD 1728(R9), X1      // src[108]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 416(R8)       // work[26]
+	MOVUPD X3, 432(R8)       // work[27]
+
+	// (28,92) -> work[28], work[29]
+	MOVUPD 448(R9), X0       // src[28]
+	MOVUPD 1472(R9), X1      // src[92]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 448(R8)       // work[28]
+	MOVUPD X3, 464(R8)       // work[29]
+
+	// (60,124) -> work[30], work[31]
+	MOVUPD 960(R9), X0       // src[60]
+	MOVUPD 1984(R9), X1      // src[124]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 480(R8)       // work[30]
+	MOVUPD X3, 496(R8)       // work[31]
+
+	// (2,66) -> work[32], work[33]
+	MOVUPD 32(R9), X0        // src[2]
+	MOVUPD 1056(R9), X1      // src[66]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 512(R8)       // work[32]
+	MOVUPD X3, 528(R8)       // work[33]
+
+	// (34,98) -> work[34], work[35]
+	MOVUPD 544(R9), X0       // src[34]
+	MOVUPD 1568(R9), X1      // src[98]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 544(R8)       // work[34]
+	MOVUPD X3, 560(R8)       // work[35]
+
+	// (18,82) -> work[36], work[37]
+	MOVUPD 288(R9), X0       // src[18]
+	MOVUPD 1312(R9), X1      // src[82]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 576(R8)       // work[36]
+	MOVUPD X3, 592(R8)       // work[37]
+
+	// (50,114) -> work[38], work[39]
+	MOVUPD 800(R9), X0       // src[50]
+	MOVUPD 1824(R9), X1      // src[114]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 608(R8)       // work[38]
+	MOVUPD X3, 624(R8)       // work[39]
+
+	// (10,74) -> work[40], work[41]
+	MOVUPD 160(R9), X0       // src[10]
+	MOVUPD 1184(R9), X1      // src[74]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 640(R8)       // work[40]
+	MOVUPD X3, 656(R8)       // work[41]
+
+	// (42,106) -> work[42], work[43]
+	MOVUPD 672(R9), X0       // src[42]
+	MOVUPD 1696(R9), X1      // src[106]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 672(R8)       // work[42]
+	MOVUPD X3, 688(R8)       // work[43]
+
+	// (26,90) -> work[44], work[45]
+	MOVUPD 416(R9), X0       // src[26]
+	MOVUPD 1440(R9), X1      // src[90]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 704(R8)       // work[44]
+	MOVUPD X3, 720(R8)       // work[45]
+
+	// (58,122) -> work[46], work[47]
+	MOVUPD 928(R9), X0       // src[58]
+	MOVUPD 1952(R9), X1      // src[122]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 736(R8)       // work[46]
+	MOVUPD X3, 752(R8)       // work[47]
+
+	// (6,70) -> work[48], work[49]
+	MOVUPD 96(R9), X0        // src[6]
+	MOVUPD 1120(R9), X1      // src[70]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 768(R8)       // work[48]
+	MOVUPD X3, 784(R8)       // work[49]
+
+	// (38,102) -> work[50], work[51]
+	MOVUPD 608(R9), X0       // src[38]
+	MOVUPD 1632(R9), X1      // src[102]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 800(R8)       // work[50]
+	MOVUPD X3, 816(R8)       // work[51]
+
+	// (22,86) -> work[52], work[53]
+	MOVUPD 352(R9), X0       // src[22]
+	MOVUPD 1376(R9), X1      // src[86]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 832(R8)       // work[52]
+	MOVUPD X3, 848(R8)       // work[53]
+
+	// (54,118) -> work[54], work[55]
+	MOVUPD 864(R9), X0       // src[54]
+	MOVUPD 1888(R9), X1      // src[118]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 864(R8)       // work[54]
+	MOVUPD X3, 880(R8)       // work[55]
+
+	// (14,78) -> work[56], work[57]
+	MOVUPD 224(R9), X0       // src[14]
+	MOVUPD 1248(R9), X1      // src[78]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 896(R8)       // work[56]
+	MOVUPD X3, 912(R8)       // work[57]
+
+	// (46,110) -> work[58], work[59]
+	MOVUPD 736(R9), X0       // src[46]
+	MOVUPD 1760(R9), X1      // src[110]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 928(R8)       // work[58]
+	MOVUPD X3, 944(R8)       // work[59]
+
+	// (30,94) -> work[60], work[61]
+	MOVUPD 480(R9), X0       // src[30]
+	MOVUPD 1504(R9), X1      // src[94]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 960(R8)       // work[60]
+	MOVUPD X3, 976(R8)       // work[61]
+
+	// (62,126) -> work[62], work[63]
+	MOVUPD 992(R9), X0       // src[62]
+	MOVUPD 2016(R9), X1      // src[126]
+	MOVAPD X0, X2            // a
+	ADDPD X1, X2             // a + b
+	MOVAPD X0, X3            // a
+	SUBPD X1, X3             // a - b
+	MOVUPD X2, 992(R8)       // work[62]
+	MOVUPD X3, 1008(R8)      // work[63]
+
+	INCQ BX                  // next pass
+	CMPQ BX, $2              // done after odd pass
+	JGE  inv_stage1_done
+	LEAQ 1024(R14), R8       // work offset for odd half
+	LEAQ 16(R15), R9         // src offset for odd half
+	JMP  inv_stage1_pass
+
+inv_stage1_done:
+	MOVQ R14, R8             // restore work base
 
 	MOVUPS ·maskNegHiPD(SB), X14 // for conj
 	MOVUPS ·maskNegLoPD(SB), X13 // for i in complex mul
+
+	// Stage 2: dist 2 - 32 blocks of 4
+	MOVQ R8, SI              // work base
+	MOVQ $32, CX             // blocks
+inv_stage2_loop:
+	MOVQ $2, DX              // half=2
+inv_stage2_inner:
+	MOVUPD (SI), X0          // a
+  MOVUPD 32(SI), X1        // b
+	MOVQ $2, AX              // k = 2 - DX
+  SUBQ DX, AX              // k (0..1)
+  SHLQ $5, AX              // k * 32
+  SHLQ $4, AX              // k * 32 * 16
+  MOVUPD (R10)(AX*1), X10  // twiddle[k*32]
+  XORPD X14, X10           // conj(w)
+	MOVAPD X1, X2            // b
+  UNPCKLPD X2, X2          // b.re
+  MULPD X10, X2            // b.re * w
+	MOVAPD X1, X3            // b
+  UNPCKHPD X3, X3          // b.im
+  MOVAPD X10, X4           // w
+  SHUFPD $1, X4, X4        // swap
+  MULPD X3, X4             // b.im * w
+	XORPD X13, X4            // multiply by i
+  ADDPD X4, X2             // t = w * b
+	MOVAPD X0, X3            // a
+  ADDPD X2, X0             // a + t
+  SUBPD X2, X3             // a - t
+	MOVUPD X0, (SI)          // out a
+  MOVUPD X3, 32(SI)        // out b
+	ADDQ $16, SI             // next j
+  DECQ DX                  // next j
+  JNZ inv_stage2_inner
+	ADDQ $32, SI             // next block
+  DECQ CX                  // next block
+  JNZ inv_stage2_loop
 
 	// Stage 3
 	MOVQ R8, SI

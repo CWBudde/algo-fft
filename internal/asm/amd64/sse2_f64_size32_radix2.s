@@ -14,7 +14,6 @@ TEXT ·ForwardSSE2Size32Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size32Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -25,40 +24,140 @@ TEXT ·ForwardSSE2Size32Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 size32_sse2_128_fwd_use_dst:
-	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
+	// -----------------------------------------------------------------------
+	// FUSED: Bit-reversal permutation + Stage 1 (identity twiddles)
+	// Unrolled even half, executed twice (second pass uses +16 src, +256 dst).
+	// -----------------------------------------------------------------------
+	MOVQ R8, R14 // save work base
+	MOVQ R9, R15 // save src base
+	XORQ BX, BX  // pass counter (even/odd)
 
-	// Stage 1 & 2 (Combined) - 8 blocks of 4
+size32_sse2_128_fwd_stage1_pass:
+	// (0,16) -> work[0], work[1]
+	MOVUPD 0(R9), X0
+	MOVUPD 256(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 0(R8)
+	MOVUPD X3, 16(R8)
+
+	// (8,24) -> work[2], work[3]
+	MOVUPD 128(R9), X0
+	MOVUPD 384(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 32(R8)
+	MOVUPD X3, 48(R8)
+
+	// (4,20) -> work[4], work[5]
+	MOVUPD 64(R9), X0
+	MOVUPD 320(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 64(R8)
+	MOVUPD X3, 80(R8)
+
+	// (12,28) -> work[6], work[7]
+	MOVUPD 192(R9), X0
+	MOVUPD 448(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 96(R8)
+	MOVUPD X3, 112(R8)
+
+	// (2,18) -> work[8], work[9]
+	MOVUPD 32(R9), X0
+	MOVUPD 288(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 128(R8)
+	MOVUPD X3, 144(R8)
+
+	// (10,26) -> work[10], work[11]
+	MOVUPD 160(R9), X0
+	MOVUPD 416(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 160(R8)
+	MOVUPD X3, 176(R8)
+
+	// (6,22) -> work[12], work[13]
+	MOVUPD 96(R9), X0
+	MOVUPD 352(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 192(R8)
+	MOVUPD X3, 208(R8)
+
+	// (14,30) -> work[14], work[15]
+	MOVUPD 224(R9), X0
+	MOVUPD 480(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 224(R8)
+	MOVUPD X3, 240(R8)
+
+	INCQ BX
+	CMPQ BX, $2
+	JGE  size32_sse2_128_fwd_stage1_done
+	LEAQ 256(R14), R8 // work offset for odd half
+	LEAQ 16(R15), R9  // src offset for odd half
+	JMP  size32_sse2_128_fwd_stage1_pass
+
+size32_sse2_128_fwd_stage1_done:
+	MOVQ R14, R8 // restore work base
+
+	// Stage 2: dist 2 - 8 blocks of 4
 	MOVQ R8, SI
 	MOVQ $8, CX
-	MOVUPS ·maskNegHiPD(SB), X15
-
-size32_sse2_128_fwd_stage12_loop:
+	MOVUPS ·maskNegLoPD(SB), X14
+size32_sse2_128_fwd_stage2_loop:
+	MOVQ $2, DX
+size32_sse2_128_fwd_stage2_inner:
 	MOVUPD (SI), X0
-  MOVUPD 16(SI), X1
-  MOVUPD 32(SI), X2
-  MOVUPD 48(SI), X3
-	MOVAPD X0, X8
-  ADDPD X1, X0
-  SUBPD X1, X8
-	MOVAPD X2, X9
-  ADDPD X3, X2
-  SUBPD X3, X9
-	MOVAPD X0, X10
+  MOVUPD 32(SI), X1
+	MOVQ $2, AX
+  SUBQ DX, AX
+  SHLQ $3, AX
+  SHLQ $4, AX
+  MOVUPD (R10)(AX*1), X10 // k * 32/4 * 16 = k * 8 * 16
+	MOVAPD X1, X2
+  UNPCKLPD X2, X2
+  MULPD X10, X2
+	MOVAPD X1, X3
+  UNPCKHPD X3, X3
+  MOVAPD X10, X4
+  SHUFPD $1, X4, X4
+  MULPD X3, X4
+	XORPD X14, X4
+  ADDPD X4, X2
+	MOVAPD X0, X3
   ADDPD X2, X0
-  SUBPD X2, X10
-	MOVAPD X9, X11
-  SHUFPD $1, X11, X11
-  XORPD X15, X11 // t = W3 * -i
-	MOVAPD X8, X12
-  ADDPD X11, X8
-  SUBPD X11, X12
+  SUBPD X2, X3
 	MOVUPD X0, (SI)
-  MOVUPD X8, 16(SI)
-  MOVUPD X10, 32(SI)
-  MOVUPD X12, 48(SI)
-	ADDQ $64, SI
-	DECQ CX
-	JNZ  size32_sse2_128_fwd_stage12_loop
+  MOVUPD X3, 32(SI)
+	ADDQ $16, SI
+  DECQ DX
+  JNZ size32_sse2_128_fwd_stage2_inner
+	ADDQ $32, SI
+  DECQ CX
+  JNZ size32_sse2_128_fwd_stage2_loop
 
 	// Stage 3: dist 4 - 4 blocks of 8
 	MOVQ R8, SI
@@ -189,7 +288,6 @@ TEXT ·InverseSSE2Size32Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size32Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -200,43 +298,143 @@ TEXT ·InverseSSE2Size32Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 size32_sse2_128_inv_use_dst:
-	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
+	// -----------------------------------------------------------------------
+	// FUSED: Bit-reversal permutation + Stage 1 (identity twiddles)
+	// Unrolled even half, executed twice (second pass uses +16 src, +256 dst).
+	// -----------------------------------------------------------------------
+	MOVQ R8, R14 // save work base
+	MOVQ R9, R15 // save src base
+	XORQ BX, BX  // pass counter (even/odd)
 
-	// Stage 1 & 2
-	MOVQ R8, SI
-	MOVQ $8, CX
-	MOVUPS ·maskNegLoPD(SB), X15 // for i
+size32_sse2_128_inv_stage1_pass:
+	// (0,16) -> work[0], work[1]
+	MOVUPD 0(R9), X0
+	MOVUPD 256(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 0(R8)
+	MOVUPD X3, 16(R8)
 
-size32_sse2_128_inv_stage12_loop:
-	MOVUPD (SI), X0
-  MOVUPD 16(SI), X1
-  MOVUPD 32(SI), X2
-  MOVUPD 48(SI), X3
-	MOVAPD X0, X8
-  ADDPD X1, X0
-  SUBPD X1, X8
-	MOVAPD X2, X9
-  ADDPD X3, X2
-  SUBPD X3, X9
-	MOVAPD X0, X10
-  ADDPD X2, X0
-  SUBPD X2, X10
-	MOVAPD X9, X11
-  SHUFPD $1, X11, X11
-  XORPD X15, X11 // t = W3 * i
-	MOVAPD X8, X12
-  ADDPD X11, X8
-  SUBPD X11, X12
-	MOVUPD X0, (SI)
-  MOVUPD X8, 16(SI)
-  MOVUPD X10, 32(SI)
-  MOVUPD X12, 48(SI)
-	ADDQ $64, SI
-	DECQ CX
-	JNZ  size32_sse2_128_inv_stage12_loop
+	// (8,24) -> work[2], work[3]
+	MOVUPD 128(R9), X0
+	MOVUPD 384(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 32(R8)
+	MOVUPD X3, 48(R8)
+
+	// (4,20) -> work[4], work[5]
+	MOVUPD 64(R9), X0
+	MOVUPD 320(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 64(R8)
+	MOVUPD X3, 80(R8)
+
+	// (12,28) -> work[6], work[7]
+	MOVUPD 192(R9), X0
+	MOVUPD 448(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 96(R8)
+	MOVUPD X3, 112(R8)
+
+	// (2,18) -> work[8], work[9]
+	MOVUPD 32(R9), X0
+	MOVUPD 288(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 128(R8)
+	MOVUPD X3, 144(R8)
+
+	// (10,26) -> work[10], work[11]
+	MOVUPD 160(R9), X0
+	MOVUPD 416(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 160(R8)
+	MOVUPD X3, 176(R8)
+
+	// (6,22) -> work[12], work[13]
+	MOVUPD 96(R9), X0
+	MOVUPD 352(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 192(R8)
+	MOVUPD X3, 208(R8)
+
+	// (14,30) -> work[14], work[15]
+	MOVUPD 224(R9), X0
+	MOVUPD 480(R9), X1
+	MOVAPD X0, X2
+	ADDPD X1, X2
+	MOVAPD X0, X3
+	SUBPD X1, X3
+	MOVUPD X2, 224(R8)
+	MOVUPD X3, 240(R8)
+
+	INCQ BX
+	CMPQ BX, $2
+	JGE  size32_sse2_128_inv_stage1_done
+	LEAQ 256(R14), R8 // work offset for odd half
+	LEAQ 16(R15), R9  // src offset for odd half
+	JMP  size32_sse2_128_inv_stage1_pass
+
+size32_sse2_128_inv_stage1_done:
+	MOVQ R14, R8 // restore work base
 
 	MOVUPS ·maskNegHiPD(SB), X14 // for conj
 	MOVUPS ·maskNegLoPD(SB), X13 // for i in complex mul
+
+	// Stage 2: dist 2 - 8 blocks of 4
+	MOVQ R8, SI
+	MOVQ $8, CX
+size32_sse2_128_inv_stage2_loop:
+	MOVQ $2, DX
+size32_sse2_128_inv_stage2_inner:
+	MOVUPD (SI), X0
+  MOVUPD 32(SI), X1
+	MOVQ $2, AX
+  SUBQ DX, AX
+  SHLQ $3, AX
+  SHLQ $4, AX
+  MOVUPD (R10)(AX*1), X10
+  XORPD X14, X10
+	MOVAPD X1, X2
+  UNPCKLPD X2, X2
+  MULPD X10, X2
+	MOVAPD X1, X3
+  UNPCKHPD X3, X3
+  MOVAPD X10, X4
+  SHUFPD $1, X4, X4
+  MULPD X3, X4
+	XORPD X13, X4
+  ADDPD X4, X2
+	MOVAPD X0, X3
+  ADDPD X2, X0
+  SUBPD X2, X3
+	MOVUPD X0, (SI)
+  MOVUPD X3, 32(SI)
+	ADDQ $16, SI
+  DECQ DX
+  JNZ size32_sse2_128_inv_stage2_inner
+	ADDQ $32, SI
+  DECQ CX
+  JNZ size32_sse2_128_inv_stage2_loop
 
 	// Stage 3: dist 4
 	MOVQ R8, SI
