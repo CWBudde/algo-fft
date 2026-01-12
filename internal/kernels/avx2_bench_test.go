@@ -26,9 +26,9 @@ func BenchmarkAVX2Complex64(b *testing.B) {
 		{"Size256/Radix4", 256, amd64.ForwardAVX2Size256Radix4Complex64Asm, amd64.InverseAVX2Size256Radix4Complex64Asm},
 		{"Size256/Radix16", 256, amd64.ForwardAVX2Size256Radix16Complex64Asm, amd64.InverseAVX2Size256Radix16Complex64Asm},
 		{"Size512/Radix2", 512, amd64.ForwardAVX2Size512Radix2Complex64Asm, amd64.InverseAVX2Size512Radix2Complex64Asm},
-		{"Size512/Radix8", 512, amd64.ForwardAVX2Size512Radix8Complex64Asm, amd64.InverseAVX2Size512Radix8Complex64Asm},
+		{"Size512/Radix8", 512, forwardAVX2Size512Radix8Complex64, inverseAVX2Size512Radix8Complex64},
 		{"Size512/Mixed24", 512, amd64.ForwardAVX2Size512Mixed24Complex64Asm, amd64.InverseAVX2Size512Mixed24Complex64Asm},
-		{"Size512/Radix16x32", 512, amd64.ForwardAVX2Size512Radix16x32Complex64Asm, amd64.InverseAVX2Size512Radix16x32Complex64Asm},
+		{"Size512/Radix16x32", 512, forwardAVX2Size512Radix16x32Complex64, inverseAVX2Size512Radix16x32Complex64},
 	}
 
 	for _, tc := range cases {

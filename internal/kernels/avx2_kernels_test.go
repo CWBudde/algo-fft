@@ -264,6 +264,28 @@ var avx2TestCases = []avx2TestCase{
 		},
 	},
 	{
+		name:          "Size512/Radix8",
+		size:          512,
+		radix:         8,
+		tolerance:     1e-4,
+		forwardSeed:   0xDEADBEEF,
+		inverseSeed:   0xCAFEBEEF,
+		roundTripSeed: 0xFEEDFACE,
+		forwardKernel: forwardAVX2Size512Radix8Complex64,
+		inverseKernel: inverseAVX2Size512Radix8Complex64,
+	},
+	{
+		name:          "Size512/Radix16x32",
+		size:          512,
+		radix:         16, // actually 16x32
+		tolerance:     1e-4,
+		forwardSeed:   0xDEADBEEF,
+		inverseSeed:   0xCAFEBEEF,
+		roundTripSeed: 0xFEEDFACE,
+		forwardKernel: forwardAVX2Size512Radix16x32Complex64,
+		inverseKernel: inverseAVX2Size512Radix16x32Complex64,
+	},
+	{
 		name:          "Size1024/Radix4",
 		size:          1024,
 		radix:         4,
