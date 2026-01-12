@@ -57,30 +57,54 @@ w16_copy_loop:
 	// =======================================================================
 	// STEP 1: Transpose input (row-major) -> scratch (column-major)
 	// =======================================================================
-	XORQ CX, CX                  // CX = row
+	// Vectorized 16x16 transpose using 4x4 blocks (each element is complex64 = 8B).
+	// Operates on 4 rows x 4 cols at a time:
+	// - Load 4 contiguous complex64 from 4 rows (row-major src)
+	// - Transpose in registers (64-bit lanes)
+	// - Store 4 contiguous complex64 into 4 columns (col-major scratch)
+	XORQ CX, CX                  // CX = row block (0..3)
 
 transpose_in_row_loop:
-	XORQ DX, DX                  // DX = col
+	MOVQ CX, R12
+	SHLQ $9, R12                 // R12 = rowStartBytes = (rowBlock*4)*128 = rowBlock*512
+	MOVQ CX, R14
+	SHLQ $5, R14                 // R14 = rowOffScratchBytes = (rowBlock*4)*8 = rowBlock*32
+	XORQ DX, DX                  // DX = col block (0..3)
 
 transpose_in_col_loop:
-	MOVQ CX, AX                  // AX = row
-	SHLQ $4, AX                  // AX = row * 16
-	ADDQ DX, AX                  // AX = row*16 + col (source index)
-	SHLQ $3, AX                  // AX = (row*16 + col) * 8 (byte offset)
-	MOVQ (R9)(AX*1), R14         // R14 = src[row*16+col]
+	MOVQ DX, AX
+	SHLQ $5, AX                  // AX = colOffBytes = (colBlock*4)*8 = colBlock*32
+	LEAQ (R9)(R12*1), SI         // SI = src + rowStartBytes
+	LEAQ (SI)(AX*1), SI          // SI = src + rowStartBytes + colOffBytes
 
-	MOVQ DX, AX                  // AX = col
-	SHLQ $7, AX                  // AX = col * 128
-	MOVQ CX, BX                  // BX = row
-	SHLQ $3, BX                  // BX = row * 8
-	LEAQ (R11)(AX*1), DI         // DI = scratch + col*128
-	MOVQ R14, (DI)(BX*1)         // scratch[col*16+row] = src[row*16+col]
+	VMOVUPS 0(SI), Y0            // row r+0, cols c..c+3
+	VMOVUPS 128(SI), Y1          // row r+1, cols c..c+3
+	VMOVUPS 256(SI), Y2          // row r+2, cols c..c+3
+	VMOVUPS 384(SI), Y3          // row r+3, cols c..c+3
+
+	// 4x4 transpose on 64-bit lanes (complex64 elements)
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+
+	MOVQ DX, AX
+	SHLQ $9, AX                  // AX = colBlock*512
+	LEAQ (R11)(AX*1), DI         // DI = scratch + colBlock*512
+	VMOVUPS Y0, (DI)(R14*1)      // col c+0, rows r..r+3
+	VMOVUPS Y1, 128(DI)(R14*1)   // col c+1
+	VMOVUPS Y2, 256(DI)(R14*1)   // col c+2
+	VMOVUPS Y3, 384(DI)(R14*1)   // col c+3
 
 	INCQ DX
-	CMPQ DX, $16
+	CMPQ DX, $4
 	JL   transpose_in_col_loop
 	INCQ CX
-	CMPQ CX, $16
+	CMPQ CX, $4
 	JL   transpose_in_row_loop
 
 	// =======================================================================
@@ -271,31 +295,50 @@ stage1_twiddle_row_loop:
 	// =======================================================================
 	// STEP 4: Transpose scratch (column-major) -> dst (row-major)
 	// =======================================================================
-	XORQ CX, CX                  // CX = row
+	// Vectorized 16x16 transpose using 4x4 blocks.
+	XORQ CX, CX                  // CX = row block (0..3)
 
 transpose_out_row_loop:
-	XORQ DX, DX                  // DX = col
+	MOVQ CX, R12
+	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
+	MOVQ CX, R14
+	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
+	XORQ DX, DX                  // DX = col block (0..3)
 
 transpose_out_col_loop:
-	MOVQ DX, AX                  // AX = col
-	SHLQ $7, AX                  // AX = col * 128
-	MOVQ CX, BX                  // BX = row
-	SHLQ $3, BX                  // BX = row * 8
-	LEAQ (R11)(AX*1), SI         // SI = scratch + col*128
-	MOVQ (SI)(BX*1), R14         // R14 = scratch[col*16+row]
+	MOVQ DX, AX
+	SHLQ $9, AX                  // AX = colBlock*512
+	LEAQ (R11)(AX*1), SI         // SI = scratch + colBlock*512
 
-	MOVQ CX, AX                  // AX = row
-	SHLQ $7, AX                  // AX = row * 128
-	MOVQ DX, BX                  // BX = col
-	SHLQ $3, BX                  // BX = col * 8
-	LEAQ (R8)(AX*1), DI          // DI = dst + row*128
-	MOVQ R14, (DI)(BX*1)         // dst[row*16+col] = scratch[col*16+row]
+	VMOVUPS (SI)(R14*1), Y0      // col c+0, rows r..r+3
+	VMOVUPS 128(SI)(R14*1), Y1   // col c+1
+	VMOVUPS 256(SI)(R14*1), Y2   // col c+2
+	VMOVUPS 384(SI)(R14*1), Y3   // col c+3
+
+	// 4x4 transpose back to rows
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+
+	MOVQ DX, AX
+	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
+	LEAQ (R8)(R12*1), DI         // DI = dst + rowStartBytes
+	LEAQ (DI)(AX*1), DI          // DI = dst + rowStartBytes + colOffBytes
+	VMOVUPS Y0, 0(DI)
+	VMOVUPS Y1, 128(DI)
+	VMOVUPS Y2, 256(DI)
+	VMOVUPS Y3, 384(DI)
 
 	INCQ DX
-	CMPQ DX, $16
+	CMPQ DX, $4
 	JL   transpose_out_col_loop
 	INCQ CX
-	CMPQ CX, $16
+	CMPQ CX, $4
 	JL   transpose_out_row_loop
 
 	// =======================================================================
@@ -455,31 +498,49 @@ stage2_fft_loop:
 	// =======================================================================
 	// STEP 6: Final transposition to natural order (dst -> scratch)
 	// =======================================================================
-	XORQ CX, CX                  // CX = row
+	// Vectorized 16x16 transpose using 4x4 blocks.
+	XORQ CX, CX                  // CX = row block (0..3)
 
 fwd_final_transpose_row_loop:
-	XORQ DX, DX                  // DX = col
+	MOVQ CX, R12
+	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
+	MOVQ CX, R14
+	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
+	XORQ DX, DX                  // DX = col block (0..3)
 
 fwd_final_transpose_col_loop:
-	MOVQ CX, AX                  // AX = row
-	SHLQ $7, AX                  // AX = row * 128
-	MOVQ DX, BX                  // BX = col
-	SHLQ $3, BX                  // BX = col * 8
-	LEAQ (R8)(AX*1), SI          // SI = dst + row*128
-	MOVQ (SI)(BX*1), R14         // R14 = dst[row*16+col]
+	MOVQ DX, AX
+	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
+	LEAQ (R8)(R12*1), SI         // SI = dst + rowStartBytes
+	LEAQ (SI)(AX*1), SI          // SI = dst + rowStartBytes + colOffBytes
 
-	MOVQ DX, AX                  // AX = col
-	SHLQ $7, AX                  // AX = col * 128
-	MOVQ CX, BX                  // BX = row
-	SHLQ $3, BX                  // BX = row * 8
-	LEAQ (R11)(AX*1), DI         // DI = scratch + col*128
-	MOVQ R14, (DI)(BX*1)         // scratch[col*16+row] = dst[row*16+col]
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+
+	MOVQ DX, AX
+	SHLQ $9, AX                  // AX = colBlock*512
+	LEAQ (R11)(AX*1), DI         // DI = scratch + colBlock*512
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
 
 	INCQ DX
-	CMPQ DX, $16
+	CMPQ DX, $4
 	JL   fwd_final_transpose_col_loop
 	INCQ CX
-	CMPQ CX, $16
+	CMPQ CX, $4
 	JL   fwd_final_transpose_row_loop
 
 	// Copy scratch -> dst
@@ -544,32 +605,58 @@ inv_w16_copy_loop:
 	// =======================================================================
 	// STEP 1: Conjugate + transpose input (row-major) -> scratch (column-major)
 	// =======================================================================
-	VMOVUPS ·maskNegHiPS(SB), X15 // Mask for conjugation
-	XORQ CX, CX                  // CX = row
+	// Vectorized conjugate + transpose using 4x4 blocks.
+	// Conjugation is done by flipping the sign bit of the imaginary float32 lanes.
+	VXORPS Y12, Y12, Y12
+	VMOVUPS ·maskNegHiPS(SB), X12
+	VINSERTF128 $0x01, X12, Y12, Y12 // Y12 = conjugation mask in both lanes
+
+	XORQ CX, CX                  // CX = row block (0..3)
 
 inv_transpose_in_row_loop:
-	XORQ DX, DX                  // DX = col
+	MOVQ CX, R12
+	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
+	MOVQ CX, R14
+	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
+	XORQ DX, DX                  // DX = col block (0..3)
 
 inv_transpose_in_col_loop:
-	MOVQ CX, AX                  // AX = row
-	SHLQ $4, AX                  // AX = row * 16
-	ADDQ DX, AX                  // AX = row*16 + col (source index)
-	SHLQ $3, AX                  // AX = (row*16 + col) * 8 (byte offset)
-	VMOVSD (R9)(AX*1), X0        // X0 = src[row*16+col]
-	VXORPS X15, X0, X0           // X0 = conjugated input
+	MOVQ DX, AX
+	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
+	LEAQ (R9)(R12*1), SI         // SI = src + rowStartBytes
+	LEAQ (SI)(AX*1), SI          // SI = src + rowStartBytes + colOffBytes
 
-	MOVQ DX, AX                  // AX = col
-	SHLQ $7, AX                  // AX = col * 128
-	MOVQ CX, BX                  // BX = row
-	SHLQ $3, BX                  // BX = row * 8
-	LEAQ (R11)(AX*1), DI         // DI = scratch + col*128
-	VMOVSD X0, (DI)(BX*1)        // scratch[col*16+row] = conj(src[row*16+col])
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VXORPS Y12, Y0, Y0           // conjugate
+	VXORPS Y12, Y1, Y1
+	VXORPS Y12, Y2, Y2
+	VXORPS Y12, Y3, Y3
+
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+
+	MOVQ DX, AX
+	SHLQ $9, AX                  // AX = colBlock*512
+	LEAQ (R11)(AX*1), DI         // DI = scratch + colBlock*512
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
 
 	INCQ DX
-	CMPQ DX, $16
+	CMPQ DX, $4
 	JL   inv_transpose_in_col_loop
 	INCQ CX
-	CMPQ CX, $16
+	CMPQ CX, $4
 	JL   inv_transpose_in_row_loop
 
 	// =======================================================================
@@ -760,31 +847,49 @@ inv_stage1_twiddle_row_loop:
 	// =======================================================================
 	// STEP 4: Transpose scratch (column-major) -> dst (row-major)
 	// =======================================================================
-	XORQ CX, CX                  // CX = row
+	// Vectorized 16x16 transpose using 4x4 blocks.
+	XORQ CX, CX                  // CX = row block (0..3)
 
 inv_transpose_out_row_loop:
-	XORQ DX, DX                  // DX = col
+	MOVQ CX, R12
+	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
+	MOVQ CX, R14
+	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
+	XORQ DX, DX                  // DX = col block (0..3)
 
 inv_transpose_out_col_loop:
-	MOVQ DX, AX                  // AX = col
-	SHLQ $7, AX                  // AX = col * 128
-	MOVQ CX, BX                  // BX = row
-	SHLQ $3, BX                  // BX = row * 8
-	LEAQ (R11)(AX*1), SI         // SI = scratch + col*128
-	MOVQ (SI)(BX*1), R14         // R14 = scratch[col*16+row]
+	MOVQ DX, AX
+	SHLQ $9, AX                  // AX = colBlock*512
+	LEAQ (R11)(AX*1), SI         // SI = scratch + colBlock*512
 
-	MOVQ CX, AX                  // AX = row
-	SHLQ $7, AX                  // AX = row * 128
-	MOVQ DX, BX                  // BX = col
-	SHLQ $3, BX                  // BX = col * 8
-	LEAQ (R8)(AX*1), DI          // DI = dst + row*128
-	MOVQ R14, (DI)(BX*1)         // dst[row*16+col] = scratch[col*16+row]
+	VMOVUPS (SI)(R14*1), Y0
+	VMOVUPS 128(SI)(R14*1), Y1
+	VMOVUPS 256(SI)(R14*1), Y2
+	VMOVUPS 384(SI)(R14*1), Y3
+
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+
+	MOVQ DX, AX
+	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
+	LEAQ (R8)(R12*1), DI         // DI = dst + rowStartBytes
+	LEAQ (DI)(AX*1), DI          // DI = dst + rowStartBytes + colOffBytes
+	VMOVUPS Y0, 0(DI)
+	VMOVUPS Y1, 128(DI)
+	VMOVUPS Y2, 256(DI)
+	VMOVUPS Y3, 384(DI)
 
 	INCQ DX
-	CMPQ DX, $16
+	CMPQ DX, $4
 	JL   inv_transpose_out_col_loop
 	INCQ CX
-	CMPQ CX, $16
+	CMPQ CX, $4
 	JL   inv_transpose_out_row_loop
 
 	// =======================================================================
@@ -944,31 +1049,49 @@ inv_stage2_fft_loop:
 	// =======================================================================
 	// STEP 6: Final transposition to natural order (dst -> scratch)
 	// =======================================================================
-	XORQ CX, CX                  // CX = row
+	// Vectorized 16x16 transpose using 4x4 blocks.
+	XORQ CX, CX                  // CX = row block (0..3)
 
 inv_final_transpose_row_loop:
-	XORQ DX, DX                  // DX = col
+	MOVQ CX, R12
+	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
+	MOVQ CX, R14
+	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
+	XORQ DX, DX                  // DX = col block (0..3)
 
 inv_final_transpose_col_loop:
-	MOVQ CX, AX                  // AX = row
-	SHLQ $7, AX                  // AX = row * 128
-	MOVQ DX, BX                  // BX = col
-	SHLQ $3, BX                  // BX = col * 8
-	LEAQ (R8)(AX*1), SI          // SI = dst + row*128
-	MOVQ (SI)(BX*1), R14         // R14 = dst[row*16+col]
+	MOVQ DX, AX
+	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
+	LEAQ (R8)(R12*1), SI         // SI = dst + rowStartBytes
+	LEAQ (SI)(AX*1), SI          // SI = dst + rowStartBytes + colOffBytes
 
-	MOVQ DX, AX                  // AX = col
-	SHLQ $7, AX                  // AX = col * 128
-	MOVQ CX, BX                  // BX = row
-	SHLQ $3, BX                  // BX = row * 8
-	LEAQ (R11)(AX*1), DI         // DI = scratch + col*128
-	MOVQ R14, (DI)(BX*1)         // scratch[col*16+row] = dst[row*16+col]
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+
+	MOVQ DX, AX
+	SHLQ $9, AX                  // AX = colBlock*512
+	LEAQ (R11)(AX*1), DI         // DI = scratch + colBlock*512
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
 
 	INCQ DX
-	CMPQ DX, $16
+	CMPQ DX, $4
 	JL   inv_final_transpose_col_loop
 	INCQ CX
-	CMPQ CX, $16
+	CMPQ CX, $4
 	JL   inv_final_transpose_row_loop
 
 	// =======================================================================
@@ -977,6 +1100,7 @@ inv_final_transpose_col_loop:
 	MOVL ·twoFiftySixth32(SB), AX // 1/256 = 0.00390625
 	MOVD AX, X8
 	VBROADCASTSS X8, Y8         // Y8 = [scale,...]
+	VXORPS Y9, Y9, Y9
 	VMOVUPS ·maskNegHiPS(SB), X9 // Conjugation mask
 	VINSERTF128 $0x01, X9, Y9, Y9 // Broadcast mask to 256-bit Y9
 
