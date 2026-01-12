@@ -69,20 +69,13 @@ transpose_in_row_loop:
 	SHLQ $9, R12                 // R12 = rowStartBytes = (rowBlock*4)*128 = rowBlock*512
 	MOVQ CX, R14
 	SHLQ $5, R14                 // R14 = rowOffScratchBytes = (rowBlock*4)*8 = rowBlock*32
-	XORQ DX, DX                  // DX = col block (0..3)
-
-transpose_in_col_loop:
-	MOVQ DX, AX
-	SHLQ $5, AX                  // AX = colOffBytes = (colBlock*4)*8 = colBlock*32
-	LEAQ (R9)(R12*1), SI         // SI = src + rowStartBytes
-	LEAQ (SI)(AX*1), SI          // SI = src + rowStartBytes + colOffBytes
-
-	VMOVUPS 0(SI), Y0            // row r+0, cols c..c+3
-	VMOVUPS 128(SI), Y1          // row r+1, cols c..c+3
-	VMOVUPS 256(SI), Y2          // row r+2, cols c..c+3
-	VMOVUPS 384(SI), Y3          // row r+3, cols c..c+3
-
-	// 4x4 transpose on 64-bit lanes (complex64 elements)
+	// Unrolled colBlock loop (0..3)
+	// colBlock 0 (colOffBytes=0, scratch+0)
+	LEAQ (R9)(R12*1), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
 	VUNPCKLPD Y1, Y0, Y4
 	VUNPCKHPD Y1, Y0, Y5
 	VUNPCKLPD Y3, Y2, Y6
@@ -91,18 +84,74 @@ transpose_in_col_loop:
 	VPERM2F128 $0x20, Y7, Y5, Y1
 	VPERM2F128 $0x31, Y6, Y4, Y2
 	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 0(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
 
-	MOVQ DX, AX
-	SHLQ $9, AX                  // AX = colBlock*512
-	LEAQ (R11)(AX*1), DI         // DI = scratch + colBlock*512
-	VMOVUPS Y0, (DI)(R14*1)      // col c+0, rows r..r+3
-	VMOVUPS Y1, 128(DI)(R14*1)   // col c+1
-	VMOVUPS Y2, 256(DI)(R14*1)   // col c+2
-	VMOVUPS Y3, 384(DI)(R14*1)   // col c+3
+	// colBlock 1 (colOffBytes=32, scratch+512)
+	LEAQ (R9)(R12*1), SI
+	LEAQ 32(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 512(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
 
-	INCQ DX
-	CMPQ DX, $4
-	JL   transpose_in_col_loop
+	// colBlock 2 (colOffBytes=64, scratch+1024)
+	LEAQ (R9)(R12*1), SI
+	LEAQ 64(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 1024(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
+
+	// colBlock 3 (colOffBytes=96, scratch+1536)
+	LEAQ (R9)(R12*1), SI
+	LEAQ 96(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 1536(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
 	INCQ CX
 	CMPQ CX, $4
 	JL   transpose_in_row_loop
@@ -303,19 +352,13 @@ transpose_out_row_loop:
 	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
 	MOVQ CX, R14
 	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
-	XORQ DX, DX                  // DX = col block (0..3)
-
-transpose_out_col_loop:
-	MOVQ DX, AX
-	SHLQ $9, AX                  // AX = colBlock*512
-	LEAQ (R11)(AX*1), SI         // SI = scratch + colBlock*512
-
-	VMOVUPS (SI)(R14*1), Y0      // col c+0, rows r..r+3
-	VMOVUPS 128(SI)(R14*1), Y1   // col c+1
-	VMOVUPS 256(SI)(R14*1), Y2   // col c+2
-	VMOVUPS 384(SI)(R14*1), Y3   // col c+3
-
-	// 4x4 transpose back to rows
+	// Unrolled colBlock loop (0..3)
+	// colBlock 0 (scratch+0, colOffBytes=0)
+	LEAQ 0(R11), SI
+	VMOVUPS (SI)(R14*1), Y0
+	VMOVUPS 128(SI)(R14*1), Y1
+	VMOVUPS 256(SI)(R14*1), Y2
+	VMOVUPS 384(SI)(R14*1), Y3
 	VUNPCKLPD Y1, Y0, Y4
 	VUNPCKHPD Y1, Y0, Y5
 	VUNPCKLPD Y3, Y2, Y6
@@ -324,19 +367,74 @@ transpose_out_col_loop:
 	VPERM2F128 $0x20, Y7, Y5, Y1
 	VPERM2F128 $0x31, Y6, Y4, Y2
 	VPERM2F128 $0x31, Y7, Y5, Y3
-
-	MOVQ DX, AX
-	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
-	LEAQ (R8)(R12*1), DI         // DI = dst + rowStartBytes
-	LEAQ (DI)(AX*1), DI          // DI = dst + rowStartBytes + colOffBytes
+	LEAQ (R8)(R12*1), DI
 	VMOVUPS Y0, 0(DI)
 	VMOVUPS Y1, 128(DI)
 	VMOVUPS Y2, 256(DI)
 	VMOVUPS Y3, 384(DI)
 
-	INCQ DX
-	CMPQ DX, $4
-	JL   transpose_out_col_loop
+	// colBlock 1 (scratch+512, colOffBytes=32)
+	LEAQ 512(R11), SI
+	VMOVUPS (SI)(R14*1), Y0
+	VMOVUPS 128(SI)(R14*1), Y1
+	VMOVUPS 256(SI)(R14*1), Y2
+	VMOVUPS 384(SI)(R14*1), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ (R8)(R12*1), DI
+	LEAQ 32(DI), DI
+	VMOVUPS Y0, 0(DI)
+	VMOVUPS Y1, 128(DI)
+	VMOVUPS Y2, 256(DI)
+	VMOVUPS Y3, 384(DI)
+
+	// colBlock 2 (scratch+1024, colOffBytes=64)
+	LEAQ 1024(R11), SI
+	VMOVUPS (SI)(R14*1), Y0
+	VMOVUPS 128(SI)(R14*1), Y1
+	VMOVUPS 256(SI)(R14*1), Y2
+	VMOVUPS 384(SI)(R14*1), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ (R8)(R12*1), DI
+	LEAQ 64(DI), DI
+	VMOVUPS Y0, 0(DI)
+	VMOVUPS Y1, 128(DI)
+	VMOVUPS Y2, 256(DI)
+	VMOVUPS Y3, 384(DI)
+
+	// colBlock 3 (scratch+1536, colOffBytes=96)
+	LEAQ 1536(R11), SI
+	VMOVUPS (SI)(R14*1), Y0
+	VMOVUPS 128(SI)(R14*1), Y1
+	VMOVUPS 256(SI)(R14*1), Y2
+	VMOVUPS 384(SI)(R14*1), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ (R8)(R12*1), DI
+	LEAQ 96(DI), DI
+	VMOVUPS Y0, 0(DI)
+	VMOVUPS Y1, 128(DI)
+	VMOVUPS Y2, 256(DI)
+	VMOVUPS Y3, 384(DI)
 	INCQ CX
 	CMPQ CX, $4
 	JL   transpose_out_row_loop
@@ -506,19 +604,13 @@ fwd_final_transpose_row_loop:
 	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
 	MOVQ CX, R14
 	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
-	XORQ DX, DX                  // DX = col block (0..3)
-
-fwd_final_transpose_col_loop:
-	MOVQ DX, AX
-	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
-	LEAQ (R8)(R12*1), SI         // SI = dst + rowStartBytes
-	LEAQ (SI)(AX*1), SI          // SI = dst + rowStartBytes + colOffBytes
-
+	// Unrolled colBlock loop (0..3)
+	// colBlock 0 (colOffBytes=0, scratch+0)
+	LEAQ (R8)(R12*1), SI
 	VMOVUPS 0(SI), Y0
 	VMOVUPS 128(SI), Y1
 	VMOVUPS 256(SI), Y2
 	VMOVUPS 384(SI), Y3
-
 	VUNPCKLPD Y1, Y0, Y4
 	VUNPCKHPD Y1, Y0, Y5
 	VUNPCKLPD Y3, Y2, Y6
@@ -527,18 +619,74 @@ fwd_final_transpose_col_loop:
 	VPERM2F128 $0x20, Y7, Y5, Y1
 	VPERM2F128 $0x31, Y6, Y4, Y2
 	VPERM2F128 $0x31, Y7, Y5, Y3
-
-	MOVQ DX, AX
-	SHLQ $9, AX                  // AX = colBlock*512
-	LEAQ (R11)(AX*1), DI         // DI = scratch + colBlock*512
+	LEAQ 0(R11), DI
 	VMOVUPS Y0, (DI)(R14*1)
 	VMOVUPS Y1, 128(DI)(R14*1)
 	VMOVUPS Y2, 256(DI)(R14*1)
 	VMOVUPS Y3, 384(DI)(R14*1)
 
-	INCQ DX
-	CMPQ DX, $4
-	JL   fwd_final_transpose_col_loop
+	// colBlock 1 (colOffBytes=32, scratch+512)
+	LEAQ (R8)(R12*1), SI
+	LEAQ 32(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 512(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
+
+	// colBlock 2 (colOffBytes=64, scratch+1024)
+	LEAQ (R8)(R12*1), SI
+	LEAQ 64(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 1024(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
+
+	// colBlock 3 (colOffBytes=96, scratch+1536)
+	LEAQ (R8)(R12*1), SI
+	LEAQ 96(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 1536(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
 	INCQ CX
 	CMPQ CX, $4
 	JL   fwd_final_transpose_row_loop
@@ -618,14 +766,9 @@ inv_transpose_in_row_loop:
 	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
 	MOVQ CX, R14
 	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
-	XORQ DX, DX                  // DX = col block (0..3)
-
-inv_transpose_in_col_loop:
-	MOVQ DX, AX
-	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
-	LEAQ (R9)(R12*1), SI         // SI = src + rowStartBytes
-	LEAQ (SI)(AX*1), SI          // SI = src + rowStartBytes + colOffBytes
-
+	// Unrolled colBlock loop (0..3)
+	// colBlock 0 (colOffBytes=0, scratch+0)
+	LEAQ (R9)(R12*1), SI
 	VMOVUPS 0(SI), Y0
 	VMOVUPS 128(SI), Y1
 	VMOVUPS 256(SI), Y2
@@ -634,7 +777,6 @@ inv_transpose_in_col_loop:
 	VXORPS Y12, Y1, Y1
 	VXORPS Y12, Y2, Y2
 	VXORPS Y12, Y3, Y3
-
 	VUNPCKLPD Y1, Y0, Y4
 	VUNPCKHPD Y1, Y0, Y5
 	VUNPCKLPD Y3, Y2, Y6
@@ -643,18 +785,86 @@ inv_transpose_in_col_loop:
 	VPERM2F128 $0x20, Y7, Y5, Y1
 	VPERM2F128 $0x31, Y6, Y4, Y2
 	VPERM2F128 $0x31, Y7, Y5, Y3
-
-	MOVQ DX, AX
-	SHLQ $9, AX                  // AX = colBlock*512
-	LEAQ (R11)(AX*1), DI         // DI = scratch + colBlock*512
+	LEAQ 0(R11), DI
 	VMOVUPS Y0, (DI)(R14*1)
 	VMOVUPS Y1, 128(DI)(R14*1)
 	VMOVUPS Y2, 256(DI)(R14*1)
 	VMOVUPS Y3, 384(DI)(R14*1)
 
-	INCQ DX
-	CMPQ DX, $4
-	JL   inv_transpose_in_col_loop
+	// colBlock 1 (colOffBytes=32, scratch+512)
+	LEAQ (R9)(R12*1), SI
+	LEAQ 32(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VXORPS Y12, Y0, Y0           // conjugate
+	VXORPS Y12, Y1, Y1
+	VXORPS Y12, Y2, Y2
+	VXORPS Y12, Y3, Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 512(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
+
+	// colBlock 2 (colOffBytes=64, scratch+1024)
+	LEAQ (R9)(R12*1), SI
+	LEAQ 64(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VXORPS Y12, Y0, Y0           // conjugate
+	VXORPS Y12, Y1, Y1
+	VXORPS Y12, Y2, Y2
+	VXORPS Y12, Y3, Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 1024(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
+
+	// colBlock 3 (colOffBytes=96, scratch+1536)
+	LEAQ (R9)(R12*1), SI
+	LEAQ 96(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VXORPS Y12, Y0, Y0           // conjugate
+	VXORPS Y12, Y1, Y1
+	VXORPS Y12, Y2, Y2
+	VXORPS Y12, Y3, Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 1536(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
 	INCQ CX
 	CMPQ CX, $4
 	JL   inv_transpose_in_row_loop
@@ -855,18 +1065,13 @@ inv_transpose_out_row_loop:
 	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
 	MOVQ CX, R14
 	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
-	XORQ DX, DX                  // DX = col block (0..3)
-
-inv_transpose_out_col_loop:
-	MOVQ DX, AX
-	SHLQ $9, AX                  // AX = colBlock*512
-	LEAQ (R11)(AX*1), SI         // SI = scratch + colBlock*512
-
+	// Unrolled colBlock loop (0..3)
+	// colBlock 0 (scratch+0, colOffBytes=0)
+	LEAQ 0(R11), SI
 	VMOVUPS (SI)(R14*1), Y0
 	VMOVUPS 128(SI)(R14*1), Y1
 	VMOVUPS 256(SI)(R14*1), Y2
 	VMOVUPS 384(SI)(R14*1), Y3
-
 	VUNPCKLPD Y1, Y0, Y4
 	VUNPCKHPD Y1, Y0, Y5
 	VUNPCKLPD Y3, Y2, Y6
@@ -875,26 +1080,78 @@ inv_transpose_out_col_loop:
 	VPERM2F128 $0x20, Y7, Y5, Y1
 	VPERM2F128 $0x31, Y6, Y4, Y2
 	VPERM2F128 $0x31, Y7, Y5, Y3
-
-	MOVQ DX, AX
-	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
-	LEAQ (R8)(R12*1), DI         // DI = dst + rowStartBytes
-	LEAQ (DI)(AX*1), DI          // DI = dst + rowStartBytes + colOffBytes
+	LEAQ (R8)(R12*1), DI
 	VMOVUPS Y0, 0(DI)
 	VMOVUPS Y1, 128(DI)
 	VMOVUPS Y2, 256(DI)
 	VMOVUPS Y3, 384(DI)
 
-	INCQ DX
-	CMPQ DX, $4
-	JL   inv_transpose_out_col_loop
+	// colBlock 1 (scratch+512, colOffBytes=32)
+	LEAQ 512(R11), SI
+	VMOVUPS (SI)(R14*1), Y0
+	VMOVUPS 128(SI)(R14*1), Y1
+	VMOVUPS 256(SI)(R14*1), Y2
+	VMOVUPS 384(SI)(R14*1), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ (R8)(R12*1), DI
+	LEAQ 32(DI), DI
+	VMOVUPS Y0, 0(DI)
+	VMOVUPS Y1, 128(DI)
+	VMOVUPS Y2, 256(DI)
+	VMOVUPS Y3, 384(DI)
+
+	// colBlock 2 (scratch+1024, colOffBytes=64)
+	LEAQ 1024(R11), SI
+	VMOVUPS (SI)(R14*1), Y0
+	VMOVUPS 128(SI)(R14*1), Y1
+	VMOVUPS 256(SI)(R14*1), Y2
+	VMOVUPS 384(SI)(R14*1), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ (R8)(R12*1), DI
+	LEAQ 64(DI), DI
+	VMOVUPS Y0, 0(DI)
+	VMOVUPS Y1, 128(DI)
+	VMOVUPS Y2, 256(DI)
+	VMOVUPS Y3, 384(DI)
+
+	// colBlock 3 (scratch+1536, colOffBytes=96)
+	LEAQ 1536(R11), SI
+	VMOVUPS (SI)(R14*1), Y0
+	VMOVUPS 128(SI)(R14*1), Y1
+	VMOVUPS 256(SI)(R14*1), Y2
+	VMOVUPS 384(SI)(R14*1), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ (R8)(R12*1), DI
+	LEAQ 96(DI), DI
+	VMOVUPS Y0, 0(DI)
+	VMOVUPS Y1, 128(DI)
+	VMOVUPS Y2, 256(DI)
+	VMOVUPS Y3, 384(DI)
+
 	INCQ CX
 	CMPQ CX, $4
 	JL   inv_transpose_out_row_loop
-
-	// =======================================================================
-	// STEP 5: Stage 2 - FFT-16 on each row (contiguous blocks in dst)
-	// =======================================================================
 	XORQ CX, CX                  // CX = row index
 
 inv_stage2_fft_loop:
@@ -1057,19 +1314,13 @@ inv_final_transpose_row_loop:
 	SHLQ $9, R12                 // R12 = rowStartBytes = rowBlock*512
 	MOVQ CX, R14
 	SHLQ $5, R14                 // R14 = rowOffScratchBytes = rowBlock*32
-	XORQ DX, DX                  // DX = col block (0..3)
-
-inv_final_transpose_col_loop:
-	MOVQ DX, AX
-	SHLQ $5, AX                  // AX = colOffBytes = colBlock*32
-	LEAQ (R8)(R12*1), SI         // SI = dst + rowStartBytes
-	LEAQ (SI)(AX*1), SI          // SI = dst + rowStartBytes + colOffBytes
-
+	// Unrolled colBlock loop (0..3)
+	// colBlock 0 (colOffBytes=0, scratch+0)
+	LEAQ (R8)(R12*1), SI
 	VMOVUPS 0(SI), Y0
 	VMOVUPS 128(SI), Y1
 	VMOVUPS 256(SI), Y2
 	VMOVUPS 384(SI), Y3
-
 	VUNPCKLPD Y1, Y0, Y4
 	VUNPCKHPD Y1, Y0, Y5
 	VUNPCKLPD Y3, Y2, Y6
@@ -1078,25 +1329,78 @@ inv_final_transpose_col_loop:
 	VPERM2F128 $0x20, Y7, Y5, Y1
 	VPERM2F128 $0x31, Y6, Y4, Y2
 	VPERM2F128 $0x31, Y7, Y5, Y3
-
-	MOVQ DX, AX
-	SHLQ $9, AX                  // AX = colBlock*512
-	LEAQ (R11)(AX*1), DI         // DI = scratch + colBlock*512
+	LEAQ 0(R11), DI
 	VMOVUPS Y0, (DI)(R14*1)
 	VMOVUPS Y1, 128(DI)(R14*1)
 	VMOVUPS Y2, 256(DI)(R14*1)
 	VMOVUPS Y3, 384(DI)(R14*1)
 
-	INCQ DX
-	CMPQ DX, $4
-	JL   inv_final_transpose_col_loop
+	// colBlock 1 (colOffBytes=32, scratch+512)
+	LEAQ (R8)(R12*1), SI
+	LEAQ 32(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 512(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
+
+	// colBlock 2 (colOffBytes=64, scratch+1024)
+	LEAQ (R8)(R12*1), SI
+	LEAQ 64(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 1024(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
+
+	// colBlock 3 (colOffBytes=96, scratch+1536)
+	LEAQ (R8)(R12*1), SI
+	LEAQ 96(SI), SI
+	VMOVUPS 0(SI), Y0
+	VMOVUPS 128(SI), Y1
+	VMOVUPS 256(SI), Y2
+	VMOVUPS 384(SI), Y3
+	VUNPCKLPD Y1, Y0, Y4
+	VUNPCKHPD Y1, Y0, Y5
+	VUNPCKLPD Y3, Y2, Y6
+	VUNPCKHPD Y3, Y2, Y7
+	VPERM2F128 $0x20, Y6, Y4, Y0
+	VPERM2F128 $0x20, Y7, Y5, Y1
+	VPERM2F128 $0x31, Y6, Y4, Y2
+	VPERM2F128 $0x31, Y7, Y5, Y3
+	LEAQ 1536(R11), DI
+	VMOVUPS Y0, (DI)(R14*1)
+	VMOVUPS Y1, 128(DI)(R14*1)
+	VMOVUPS Y2, 256(DI)(R14*1)
+	VMOVUPS Y3, 384(DI)(R14*1)
+
 	INCQ CX
 	CMPQ CX, $4
 	JL   inv_final_transpose_row_loop
-
-	// =======================================================================
-	// STEP 7: Conjugate + scale by 1/256 (scratch -> dst)
-	// =======================================================================
 	MOVL ·twoFiftySixth32(SB), AX // 1/256 = 0.00390625
 	MOVD AX, X8
 	VBROADCASTSS X8, Y8         // Y8 = [scale,...]
