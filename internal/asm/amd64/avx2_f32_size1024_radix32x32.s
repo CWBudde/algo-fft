@@ -1,0 +1,1167 @@
+//go:build amd64 && asm && !purego
+
+// ===========================================================================
+// AVX2 Size-1024 Radix-32×32 FFT Kernel for AMD64 (complex64)
+// ===========================================================================
+//
+// Algorithm (matrix factorization, modeled after size-256 radix-16×16):
+// 1) Transpose src (32×32, row-major) into scratch (column-major) so each
+//    column is contiguous.
+// 2) Stage 1: 32 FFT-32s over columns (in-place in scratch)
+// 3) Twiddle multiply: scratch[col,row] *= W_1024^(row*col)
+// 4) Transpose back into dst (row-major)
+// 5) Stage 2: 32 FFT-32s over rows (in-place in dst)
+//
+// Notes:
+// - The 32-point sub-FFTs reuse the existing radix-32 AVX2 implementation.
+// - Transposes and twiddle multiply are currently scalar (correctness first);
+//   the heavy lifting (FFT-32) is AVX2.
+// ===========================================================================
+
+#include "textflag.h"
+
+// Stack frame layout (512 bytes):
+//   0..255   : local W_32 table (32 complex64)
+//   256..511 : local scratch for FFT-32 (32 complex64)
+
+TEXT ·ForwardAVX2Size1024Radix32x32Complex64Asm(SB), $512-97
+	// ===== VALIDATION =====
+	MOVQ src+32(FP), AX
+	CMPQ AX, $1024
+	JL   fwd1024_fail
+	MOVQ dst+8(FP), AX
+	CMPQ AX, $1024
+	JL   fwd1024_fail
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, $1024
+	JL   fwd1024_fail
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, $1024
+	JL   fwd1024_fail
+
+	// ===== SETUP =====
+	MOVQ dst+0(FP), R8          // R8 = dst
+	MOVQ src+24(FP), R9         // R9 = src
+	MOVQ twiddle+48(FP), R10    // R10 = W_1024
+	MOVQ scratch+72(FP), R11    // R11 = scratch (1024 complex64)
+	LEAQ 0(SP), R15             // R15 = local W_32 table
+	LEAQ 256(SP), R14           // R14 = local scratch32
+
+	// ===== Build W_32 from W_1024 (stride 32) =====
+	XORQ CX, CX
+fwd1024_w32_loop:
+	// W_32[k] = W_1024[k*32]
+	MOVQ CX, DX
+	SHLQ $8, DX                 // DX = k * 256 bytes
+	MOVQ (R10)(DX*1), AX
+	MOVQ AX, (R15)(CX*8)
+	INCQ CX
+	CMPQ CX, $32
+	JL   fwd1024_w32_loop
+
+	// =======================================================================
+	// STEP 1: Transpose src (row-major) -> scratch (column-major)
+	// scratch[col*32 + row] = src[row*32 + col]
+	// =======================================================================
+	XORQ CX, CX                  // row
+fwd1024_tr_in_row:
+	CMPQ CX, $32
+	JGE  fwd1024_stage1
+	MOVQ CX, SI
+	SHLQ $8, SI                 // SI = row * 256
+	MOVQ CX, DI
+	SHLQ $3, DI                 // DI = row * 8
+	XORQ DX, DX                 // col
+fwd1024_tr_in_col:
+	CMPQ DX, $32
+	JGE  fwd1024_tr_in_next_row
+	// srcPtr = src + row*256 + col*8
+	MOVQ DX, BX
+	SHLQ $3, BX                 // BX = col*8
+	LEAQ (R9)(SI*1), R12
+	ADDQ BX, R12
+	MOVQ (R12), AX
+	// dstPtr = scratch + col*256 + row*8
+	MOVQ DX, R13
+	SHLQ $8, R13                // col*256
+	LEAQ (R11)(R13*1), R12
+	ADDQ DI, R12
+	MOVQ AX, (R12)
+	INCQ DX
+	JMP  fwd1024_tr_in_col
+fwd1024_tr_in_next_row:
+	INCQ CX
+	JMP  fwd1024_tr_in_row
+
+	// =======================================================================
+	// STEP 2: Stage 1 - 32 FFT-32 on columns (contiguous in scratch)
+	// =======================================================================
+fwd1024_stage1:
+	XORQ CX, CX                  // col
+fwd1024_stage1_col_loop:
+	CMPQ CX, $32
+	JGE  fwd1024_twiddle
+	MOVQ CX, AX
+	SHLQ $8, AX                  // AX = col * 256
+	LEAQ (R11)(AX*1), R12        // R12 = &scratch[col*32]
+	MOVQ R12, R8                 // R8 = data
+	MOVQ R15, R10                // R10 = W_32
+	MOVQ R14, R11                // R11 = scratch32
+	CALL ·fft32ForwardInplaceRadix32Complex64AVX2(SB)
+	// restore base pointers
+	MOVQ dst+0(FP), R8
+	MOVQ twiddle+48(FP), R10
+	MOVQ scratch+72(FP), R11
+	INCQ CX
+	JMP  fwd1024_stage1_col_loop
+
+	// =======================================================================
+	// STEP 3: Twiddle multiply in scratch (column-major)
+	// scratch[col,row] *= W_1024^(row*col)
+	// =======================================================================
+fwd1024_twiddle:
+	XORQ CX, CX                  // col
+fwd1024_tw_col:
+	CMPQ CX, $32
+	JGE  fwd1024_tr_out
+	MOVQ CX, R12
+	SHLQ $8, R12                 // colBaseBytes = col*256
+	LEAQ (R11)(R12*1), R13       // R13 = &scratch[col*32]
+	XORQ DX, DX                  // row
+fwd1024_tw_row:
+	CMPQ DX, $32
+	JGE  fwd1024_tw_next_col
+	// xPtr = scratch + col*256 + row*8
+	MOVQ DX, BX
+	SHLQ $3, BX
+	LEAQ (R13)(BX*1), SI
+
+	// twIdx = row*col
+	MOVQ DX, AX
+	IMULQ CX, AX
+	SHLQ $3, AX                  // twIdx * 8
+	LEAQ (R10)(AX*1), DI         // twiddle pointer
+
+	// Load x = a+bi, w = c+di (float32)
+	MOVSS 0(SI), X0              // a
+	MOVSS 4(SI), X1              // b
+	MOVSS 0(DI), X2              // c
+	MOVSS 4(DI), X3              // d
+
+	// real = a*c - b*d
+	MOVSS X0, X4
+	MULSS X2, X4
+	MOVSS X1, X5
+	MULSS X3, X5
+	SUBSS X5, X4
+
+	// imag = a*d + b*c
+	MOVSS X0, X6
+	MULSS X3, X6
+	MOVSS X1, X7
+	MULSS X2, X7
+	ADDSS X7, X6
+
+	MOVSS X4, 0(SI)
+	MOVSS X6, 4(SI)
+
+	INCQ DX
+	JMP  fwd1024_tw_row
+fwd1024_tw_next_col:
+	INCQ CX
+	JMP  fwd1024_tw_col
+
+	// =======================================================================
+	// STEP 4: Transpose scratch (column-major) -> dst (row-major)
+	// dst[row*32 + col] = scratch[col*32 + row]
+	// =======================================================================
+fwd1024_tr_out:
+	XORQ CX, CX                  // row
+fwd1024_tr_out_row:
+	CMPQ CX, $32
+	JGE  fwd1024_stage2
+	MOVQ CX, SI
+	SHLQ $8, SI                 // row*256
+	MOVQ CX, DI
+	SHLQ $3, DI                 // row*8
+	XORQ DX, DX                 // col
+fwd1024_tr_out_col:
+	CMPQ DX, $32
+	JGE  fwd1024_tr_out_next_row
+	// srcPtr = scratch + col*256 + row*8
+	MOVQ DX, R12
+	SHLQ $8, R12
+	LEAQ (R11)(R12*1), R13
+	LEAQ (R13)(DI*1), R13
+	MOVQ (R13), AX
+	// dstPtr = dst + row*256 + col*8
+	MOVQ DX, BX
+	SHLQ $3, BX
+	LEAQ (R8)(SI*1), R12
+	ADDQ BX, R12
+	MOVQ AX, (R12)
+	INCQ DX
+	JMP  fwd1024_tr_out_col
+fwd1024_tr_out_next_row:
+	INCQ CX
+	JMP  fwd1024_tr_out_row
+
+	// =======================================================================
+	// STEP 5: Stage 2 - 32 FFT-32 on rows (contiguous in dst)
+	// =======================================================================
+fwd1024_stage2:
+	// Re-load W_32 pointer (R15) because R10 was repurposed during stage1.
+	LEAQ 0(SP), R15
+	XORQ CX, CX                  // row
+fwd1024_stage2_row_loop:
+	CMPQ CX, $32
+	JGE  fwd1024_ok
+	MOVQ CX, AX
+	SHLQ $8, AX                  // row * 256
+	LEAQ (R8)(AX*1), R12         // &dst[row*32]
+	MOVQ R12, R8                 // data
+	MOVQ R15, R10                // W_32
+	MOVQ R14, R11                // scratch32
+	CALL ·fft32ForwardInplaceRadix32Complex64AVX2(SB)
+	// restore base pointers
+	MOVQ dst+0(FP), R8
+	INCQ CX
+	JMP  fwd1024_stage2_row_loop
+
+fwd1024_ok:
+	VZEROUPPER
+	MOVB $1, ret+96(FP)
+	RET
+
+fwd1024_fail:
+	VZEROUPPER
+	MOVB $0, ret+96(FP)
+	RET
+
+TEXT ·InverseAVX2Size1024Radix32x32Complex64Asm(SB), $512-97
+	// ===== VALIDATION =====
+	MOVQ src+32(FP), AX
+	CMPQ AX, $1024
+	JL   inv1024_fail
+	MOVQ dst+8(FP), AX
+	CMPQ AX, $1024
+	JL   inv1024_fail
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, $1024
+	JL   inv1024_fail
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, $1024
+	JL   inv1024_fail
+
+	// ===== SETUP =====
+	MOVQ dst+0(FP), R8          // R8 = dst
+	MOVQ src+24(FP), R9         // R9 = src
+	MOVQ twiddle+48(FP), R10    // R10 = W_1024
+	MOVQ scratch+72(FP), R11    // R11 = scratch (1024 complex64)
+	LEAQ 0(SP), R15             // R15 = local W_32 table
+	LEAQ 256(SP), R14           // R14 = local scratch32
+
+	// ===== Build W_32 from W_1024 (stride 32) =====
+	XORQ CX, CX
+inv1024_w32_loop:
+	MOVQ CX, DX
+	SHLQ $8, DX                 // k * 256 bytes
+	MOVQ (R10)(DX*1), AX
+	MOVQ AX, (R15)(CX*8)
+	INCQ CX
+	CMPQ CX, $32
+	JL   inv1024_w32_loop
+
+	// =======================================================================
+	// Inverse kernel is the reverse of the forward pipeline:
+	//  1) Copy src -> dst
+	//  2) IFFT-32 on rows (undo final stage)
+	//  3) Transpose dst -> scratch (undo transpose-out)
+	//  4) Multiply by conj(W_1024^(row*col)) (undo twiddle)
+	//  5) IFFT-32 on columns (undo stage-1)
+	//  6) Transpose scratch -> dst
+	// =======================================================================
+
+	// STEP 1: Copy src -> dst
+	XORQ CX, CX
+inv1024_copy_loop:
+	CMPQ CX, $1024
+	JGE  inv1024_row_ifft
+	MOVQ (R9)(CX*8), AX
+	MOVQ AX, (R8)(CX*8)
+	INCQ CX
+	JMP  inv1024_copy_loop
+
+	// STEP 2: Row IFFT-32 on dst (in-place)
+inv1024_row_ifft:
+	LEAQ 0(SP), R15
+	XORQ CX, CX
+inv1024_row_ifft_loop:
+	CMPQ CX, $32
+	JGE  inv1024_tr_in
+	MOVQ CX, AX
+	SHLQ $8, AX
+	LEAQ (R8)(AX*1), R12
+	MOVQ R12, R8
+	MOVQ R15, R10
+	MOVQ R14, R11
+	CALL ·fft32InverseInplaceRadix32Complex64AVX2(SB)
+	MOVQ dst+0(FP), R8
+	MOVQ twiddle+48(FP), R10    // restore W_1024
+	MOVQ scratch+72(FP), R11
+	INCQ CX
+	JMP  inv1024_row_ifft_loop
+
+	// STEP 3: Transpose dst (row-major) -> scratch (column-major)
+inv1024_tr_in:
+	XORQ CX, CX                  // row
+inv1024_tr_in_row:
+	CMPQ CX, $32
+	JGE  inv1024_twiddle
+	MOVQ CX, SI
+	SHLQ $8, SI                 // row * 256
+	MOVQ CX, DI
+	SHLQ $3, DI                 // row * 8
+	XORQ DX, DX                 // col
+inv1024_tr_in_col:
+	CMPQ DX, $32
+	JGE  inv1024_tr_in_next_row
+	MOVQ DX, BX
+	SHLQ $3, BX                 // col*8
+	LEAQ (R8)(SI*1), R12
+	ADDQ BX, R12
+	MOVQ (R12), AX
+	MOVQ DX, R12
+	SHLQ $8, R12                // col*256
+	LEAQ (R11)(R12*1), R12
+	ADDQ DI, R12
+	MOVQ AX, (R12)
+	INCQ DX
+	JMP  inv1024_tr_in_col
+inv1024_tr_in_next_row:
+	INCQ CX
+	JMP  inv1024_tr_in_row
+
+	// STEP 4: Twiddle multiply (conjugated for inverse)
+inv1024_twiddle:
+	XORQ CX, CX
+inv1024_tw_col:
+	CMPQ CX, $32
+	JGE  inv1024_tr_out
+	MOVQ CX, R12
+	SHLQ $8, R12
+	LEAQ (R11)(R12*1), R13
+	XORQ DX, DX
+inv1024_tw_row:
+	CMPQ DX, $32
+	JGE  inv1024_tw_next_col
+	MOVQ DX, BX
+	SHLQ $3, BX
+	LEAQ (R13)(BX*1), SI
+
+	MOVQ DX, AX
+	IMULQ CX, AX
+	SHLQ $3, AX
+	LEAQ (R10)(AX*1), DI
+
+	MOVSS 0(SI), X0              // a
+	MOVSS 4(SI), X1              // b
+	MOVSS 0(DI), X2              // c
+	MOVSS 4(DI), X3              // d
+	XORPS X4, X4                  // X4 = 0
+	SUBSS X3, X4                  // X4 = -d
+	MOVSS X4, X3                  // d = -d (conjugate)
+
+	MOVSS X0, X4
+	MULSS X2, X4
+	MOVSS X1, X5
+	MULSS X3, X5
+	SUBSS X5, X4
+
+	MOVSS X0, X6
+	MULSS X3, X6
+	MOVSS X1, X7
+	MULSS X2, X7
+	ADDSS X7, X6
+
+	MOVSS X4, 0(SI)
+	MOVSS X6, 4(SI)
+
+	INCQ DX
+	JMP  inv1024_tw_row
+inv1024_tw_next_col:
+	INCQ CX
+	JMP  inv1024_tw_col
+
+	// STEP 5: Column IFFT-32 on scratch (in-place)
+	LEAQ 0(SP), R15
+	XORQ CX, CX
+inv1024_col_ifft_loop:
+	CMPQ CX, $32
+	JGE  inv1024_tr_out
+	MOVQ CX, AX
+	SHLQ $8, AX
+	LEAQ (R11)(AX*1), R12
+	MOVQ R12, R8
+	MOVQ R15, R10
+	MOVQ R14, R11
+	CALL ·fft32InverseInplaceRadix32Complex64AVX2(SB)
+	MOVQ dst+0(FP), R8
+	MOVQ twiddle+48(FP), R10    // restore W_1024
+	MOVQ scratch+72(FP), R11
+	INCQ CX
+	JMP  inv1024_col_ifft_loop
+
+	// STEP 6: Transpose scratch -> dst
+inv1024_tr_out:
+	XORQ CX, CX
+inv1024_tr_out_row:
+	CMPQ CX, $32
+	JGE  inv1024_ok
+	MOVQ CX, SI
+	SHLQ $8, SI
+	MOVQ CX, DI
+	SHLQ $3, DI
+	XORQ DX, DX
+inv1024_tr_out_col:
+	CMPQ DX, $32
+	JGE  inv1024_tr_out_next_row
+	MOVQ DX, R12
+	SHLQ $8, R12
+	LEAQ (R11)(R12*1), R13
+	LEAQ (R13)(DI*1), R13
+	MOVQ (R13), AX
+	MOVQ DX, BX
+	SHLQ $3, BX
+	LEAQ (R8)(SI*1), R12
+	ADDQ BX, R12
+	MOVQ AX, (R12)
+	INCQ DX
+	JMP  inv1024_tr_out_col
+inv1024_tr_out_next_row:
+	INCQ CX
+	JMP  inv1024_tr_out_row
+
+inv1024_ok:
+	VZEROUPPER
+	MOVB $1, ret+96(FP)
+	RET
+
+inv1024_fail:
+	VZEROUPPER
+	MOVB $0, ret+96(FP)
+	RET
+
+// ===========================================================================
+// Internal helpers: in-place FFT-32 / IFFT-32 (radix-32), AVX2
+// Contract:
+//   R8  = data pointer (32 complex64, in-place)
+//   R10 = twiddle pointer (W_32 table, 32 complex64)
+//   R11 = scratch pointer (32 complex64)
+// ===========================================================================
+
+// Forward: derived from ForwardAVX2Size32Radix32Complex64Asm, minus ABI+checks.
+TEXT ·fft32ForwardInplaceRadix32Complex64AVX2(SB), NOSPLIT, $0-0
+	MOVQ R8, R9 // src = dst (in-place)
+	VMOVUPS ·maskNegLoPS(SB), X15
+
+	// Column pairs 0 & 1
+	VMOVUPS 0(R9), X0
+	VMOVUPS 64(R9), X1
+	VMOVUPS 128(R9), X2
+	VMOVUPS 192(R9), X3
+
+	// FFT4 on Columns
+	VMOVAPS X0, X4
+	VADDPS  X2, X4, X4
+	VMOVAPS X1, X5
+	VADDPS  X3, X5, X5
+	VMOVAPS X0, X6
+	VSUBPS  X2, X6, X6
+	VMOVAPS X1, X7
+	VSUBPS  X3, X7, X7
+
+	VMOVAPS X4, X0
+	VADDPS  X5, X0, X0
+	VMOVAPS X4, X2
+	VSUBPS  X5, X2, X2
+
+	VMOVAPS X7, X8
+	VSHUFPS $0xB1, X8, X8, X8
+	VXORPS  X15, X8, X8
+
+	VMOVAPS X6, X1
+	VSUBPS  X8, X1, X1
+	VMOVAPS X6, X3
+	VADDPS  X8, X3, X3
+
+	// Twiddles for col 0, 1
+	VMOVUPS 0(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X1, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X1, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X1
+
+	// Row 2: W(32, 2*0), W(32, 2*1)
+	MOVSD  0(R10), X8
+	MOVHPS 16(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X2, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X2, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X2
+
+	// Row 3: W(32, 3*0), W(32, 3*1)
+	MOVSD  0(R10), X8
+	MOVHPS 24(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X3, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X3, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X3
+
+	VMOVUPS X0, 0(R11)
+	VMOVUPS X1, 64(R11)
+	VMOVUPS X2, 128(R11)
+	VMOVUPS X3, 192(R11)
+
+	// Column pairs 2 & 3
+	VMOVUPS 16(R9), X0
+	VMOVUPS 80(R9), X1
+	VMOVUPS 144(R9), X2
+	VMOVUPS 208(R9), X3
+
+	VMOVAPS X0, X4
+	VADDPS  X2, X4, X4
+	VMOVAPS X1, X5
+	VADDPS  X3, X5, X5
+	VMOVAPS X0, X6
+	VSUBPS  X2, X6, X6
+	VMOVAPS X1, X7
+	VSUBPS  X3, X7, X7
+	VMOVAPS X4, X0
+	VADDPS  X5, X0, X0
+	VMOVAPS X4, X2
+	VSUBPS  X5, X2, X2
+	VMOVAPS X7, X8
+	VSHUFPS $0xB1, X8, X8, X8
+	VXORPS  X15, X8, X8
+	VMOVAPS X6, X1
+	VSUBPS  X8, X1, X1
+	VMOVAPS X6, X3
+	VADDPS  X8, X3, X3
+
+	// Twiddles for col 2, 3
+	VMOVUPS 16(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X1, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X1, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X1
+
+	MOVSD  32(R10), X8
+	MOVHPS 48(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X2, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X2, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X2
+
+	MOVSD  48(R10), X8
+	MOVHPS 72(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X3, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X3, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X3
+
+	VMOVUPS X0, 16(R11)
+	VMOVUPS X1, 80(R11)
+	VMOVUPS X2, 144(R11)
+	VMOVUPS X3, 208(R11)
+
+	// Column pairs 4 & 5
+	VMOVUPS 32(R9), X0
+	VMOVUPS 96(R9), X1
+	VMOVUPS 160(R9), X2
+	VMOVUPS 224(R9), X3
+
+	VMOVAPS X0, X4
+	VADDPS  X2, X4, X4
+	VMOVAPS X1, X5
+	VADDPS  X3, X5, X5
+	VMOVAPS X0, X6
+	VSUBPS  X2, X6, X6
+	VMOVAPS X1, X7
+	VSUBPS  X3, X7, X7
+	VMOVAPS X4, X0
+	VADDPS  X5, X0, X0
+	VMOVAPS X4, X2
+	VSUBPS  X5, X2, X2
+	VMOVAPS X7, X8
+	VSHUFPS $0xB1, X8, X8, X8
+	VXORPS  X15, X8, X8
+	VMOVAPS X6, X1
+	VSUBPS  X8, X1, X1
+	VMOVAPS X6, X3
+	VADDPS  X8, X3, X3
+
+	// Twiddles for col 4, 5
+	VMOVUPS 32(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X1, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X1, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X1
+
+	MOVSD  64(R10), X8
+	MOVHPS 80(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X2, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X2, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X2
+
+	MOVSD  96(R10), X8
+	MOVHPS 120(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X3, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X3, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X3
+
+	VMOVUPS X0, 32(R11)
+	VMOVUPS X1, 96(R11)
+	VMOVUPS X2, 160(R11)
+	VMOVUPS X3, 224(R11)
+
+	// Column pairs 6 & 7
+	VMOVUPS 48(R9), X0
+	VMOVUPS 112(R9), X1
+	VMOVUPS 176(R9), X2
+	VMOVUPS 240(R9), X3
+
+	VMOVAPS X0, X4
+	VADDPS  X2, X4, X4
+	VMOVAPS X1, X5
+	VADDPS  X3, X5, X5
+	VMOVAPS X0, X6
+	VSUBPS  X2, X6, X6
+	VMOVAPS X1, X7
+	VSUBPS  X3, X7, X7
+	VMOVAPS X4, X0
+	VADDPS  X5, X0, X0
+	VMOVAPS X4, X2
+	VSUBPS  X5, X2, X2
+	VMOVAPS X7, X8
+	VSHUFPS $0xB1, X8, X8, X8
+	VXORPS  X15, X8, X8
+	VMOVAPS X6, X1
+	VSUBPS  X8, X1, X1
+	VMOVAPS X6, X3
+	VADDPS  X8, X3, X3
+
+	// Twiddles for col 6, 7
+	VMOVUPS 48(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X1, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X1, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X1
+
+	MOVSD  96(R10), X8
+	MOVHPS 112(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X2, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X2, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X2
+
+	MOVSD  144(R10), X8
+	MOVHPS 168(R10), X8
+	VMOVAPS X8, X9
+	VSHUFPS $0xA0, X9, X9, X9
+	VMOVAPS X8, X10
+	VSHUFPS $0xF5, X10, X10, X10
+	VMOVAPS X3, X11
+	VMULPS  X9, X11, X11
+	VMOVAPS X3, X12
+	VSHUFPS $0xB1, X12, X12, X12
+	VMULPS  X10, X12, X12
+	VADDSUBPS X12, X11, X11
+	VMOVAPS X11, X3
+
+	VMOVUPS X0, 48(R11)
+	VMOVUPS X1, 112(R11)
+	VMOVUPS X2, 176(R11)
+	VMOVUPS X3, 240(R11)
+
+	// Step 2: Row FFTs (Size 8)
+	VMOVUPS 0(R10), X0
+	VMOVUPS 32(R10), X1
+	VMOVUPS 64(R10), X2
+	VMOVUPS 96(R10), X3
+
+	VMOVAPS X0, X8
+	VUNPCKLPD X1, X8, X8
+	VMOVAPS X2, X9
+	VUNPCKLPD X3, X9, X9
+
+	MOVQ $0, AX
+fft32f_row_loop:
+	MOVQ AX, CX
+	SHLQ $6, CX
+	ADDQ R11, CX
+	VMOVUPS 0(CX), X0
+	VMOVUPS 16(CX), X1
+	VMOVUPS 32(CX), X2
+	VMOVUPS 48(CX), X3
+
+	// Stage 1: Sum/Diff (Stride 4)
+	VMOVAPS X0, X4
+	VADDPS  X2, X4, X4
+	VMOVAPS X1, X5
+	VADDPS  X3, X5, X5
+	VMOVAPS X0, X6
+	VSUBPS  X2, X6, X6
+	VMOVAPS X1, X7
+	VSUBPS  X3, X7, X7
+
+	// Unpack Sums
+	VMOVAPS X4, X10
+	VUNPCKLPD X5, X10, X10
+	VMOVAPS X4, X11
+	VUNPCKHPD X5, X11, X11
+
+	// Process Sums
+	VMOVAPS X10, X12
+	VSHUFPS $0x4E, X12, X12, X12
+	VMOVAPS X10, X0
+	VADDPS  X12, X0, X0
+	VMOVAPS X10, X1
+	VSUBPS  X12, X1, X1
+	VMOVAPS X11, X12
+	VSHUFPS $0x4E, X12, X12, X12
+	VMOVAPS X11, X2
+	VADDPS  X12, X2, X2
+	VMOVAPS X11, X3
+	VSUBPS  X12, X3, X3
+
+	// Unpack Diffs
+	VMOVAPS X6, X10
+	VUNPCKLPD X7, X10, X10
+	VMOVAPS X6, X11
+	VUNPCKHPD X7, X11, X11
+
+	// Process Diffs (Rotated -i)
+	VMOVAPS X10, X12
+	VSHUFPS $0x4E, X12, X12, X12
+	VMOVAPS X12, X13
+	VSHUFPS $0xB1, X13, X13, X13
+	VMOVUPS ·maskNegHiPS(SB), X15
+	VXORPS  X15, X13, X13
+	VMOVAPS X10, X4
+	VADDPS  X13, X4, X4
+	VMOVAPS X10, X5
+	VSUBPS  X13, X5, X5
+
+	VMOVAPS X11, X12
+	VSHUFPS $0x4E, X12, X12, X12
+	VMOVAPS X12, X13
+	VSHUFPS $0xB1, X13, X13, X13
+	VXORPS  X15, X13, X13
+	VMOVAPS X11, X6
+	VADDPS  X13, X6, X6
+	VMOVAPS X11, X7
+	VSUBPS  X13, X7, X7
+
+	// Pack
+	VMOVAPS X0, X10
+	VUNPCKLPD X4, X10, X10
+	VMOVAPS X1, X11
+	VUNPCKLPD X5, X11, X11
+	VMOVAPS X2, X12
+	VUNPCKLPD X6, X12, X12
+	VMOVAPS X3, X13
+	VUNPCKLPD X7, X13, X13
+
+	// Stage 4: Twiddle
+	VMOVAPS X8, X4
+	VSHUFPS $0xA0, X4, X4, X4
+	VMOVAPS X8, X5
+	VSHUFPS $0xF5, X5, X5, X5
+	VMOVAPS X12, X6
+	VMULPS  X4, X6, X6
+	VMOVAPS X12, X7
+	VSHUFPS $0xB1, X7, X7, X7
+	VMULPS  X5, X7, X7
+	VADDSUBPS X7, X6, X6
+	VMOVAPS X10, X0
+	VADDPS  X6, X0, X0
+	VMOVAPS X10, X2
+	VSUBPS  X6, X2, X2
+
+	VMOVAPS X9, X4
+	VSHUFPS $0xA0, X4, X4, X4
+	VMOVAPS X9, X5
+	VSHUFPS $0xF5, X5, X5, X5
+	VMOVAPS X13, X6
+	VMULPS  X4, X6, X6
+	VMOVAPS X13, X7
+	VSHUFPS $0xB1, X7, X7, X7
+	VMULPS  X5, X7, X7
+	VADDSUBPS X7, X6, X6
+	VMOVAPS X11, X1
+	VADDPS  X6, X1, X1
+	VMOVAPS X11, X3
+	VSUBPS  X6, X3, X3
+
+	// Store transposed to dst (in-place)
+	MOVQ AX, CX
+	SHLQ $3, CX
+	ADDQ R8, CX
+	MOVSD  X0, 0(CX)
+	MOVHPS X0, 32(CX)
+	MOVSD  X1, 64(CX)
+	MOVHPS X1, 96(CX)
+	MOVSD  X2, 128(CX)
+	MOVHPS X2, 160(CX)
+	MOVSD  X3, 192(CX)
+	MOVHPS X3, 224(CX)
+
+	INCQ AX
+	CMPQ AX, $4
+	JL fft32f_row_loop
+
+	VZEROUPPER
+	RET
+
+// Inverse helper: currently a stub (will be filled once forward helper is
+// completed end-to-end).
+TEXT ·fft32InverseInplaceRadix32Complex64AVX2(SB), NOSPLIT, $0-0
+	MOVQ R8, R9 // src = dst (in-place)
+	VMOVUPS ·maskNegLoPS(SB), X15
+	VMOVUPS ·maskNegHiPS(SB), X14
+
+	// Step 1: Column IFFTs (Size 4)
+	MOVQ $0, AX
+fft32i_col_inv_loop:
+	MOVQ AX, CX
+	SHLQ $4, CX
+	MOVQ CX, DX
+	ADDQ R9, CX
+	VMOVUPS 0(CX), X0
+	VMOVUPS 64(CX), X1
+	VMOVUPS 128(CX), X2
+	VMOVUPS 192(CX), X3
+
+	VMOVAPS X0, X4
+	VADDPS  X2, X4, X4
+	VMOVAPS X1, X5
+	VADDPS  X3, X5, X5
+	VMOVAPS X0, X6
+	VSUBPS  X2, X6, X6
+	VMOVAPS X1, X7
+	VSUBPS  X3, X7, X7
+
+	VMOVAPS X4, X0
+	VADDPS  X5, X0, X0
+	VMOVAPS X4, X2
+	VSUBPS  X5, X2, X2
+
+	VMOVAPS X7, X8
+	VSHUFPS $0xB1, X8, X8, X8
+	VXORPS  X15, X8, X8
+
+	VMOVAPS X6, X1
+	VADDPS  X8, X1, X1
+	VMOVAPS X6, X3
+	VSUBPS  X8, X3, X3
+
+	// Twiddles (Conjugated)
+	MOVQ AX, CX
+	SHLQ $4, CX
+	VMOVUPS (R10)(CX*1), X8
+	MOVQ CX, DX
+	SHLQ $1, DX
+	MOVSD  (R10)(DX*1), X9
+	MOVHPS 16(R10)(DX*1), X9
+	MOVQ CX, DX
+	SHLQ $1, DX
+	ADDQ CX, DX
+	MOVSD  (R10)(DX*1), X10
+	MOVHPS 24(R10)(DX*1), X10
+
+	VXORPS X14, X8, X8
+	VXORPS X14, X9, X9
+	VXORPS X14, X10, X10
+
+	// Apply X8 to X1
+	VMOVAPS X8, X11
+	VSHUFPS $0xA0, X11, X11, X11
+	VMOVAPS X8, X12
+	VSHUFPS $0xF5, X12, X12, X12
+	VMOVAPS X1, X4
+	VMULPS  X11, X4, X4
+	VMOVAPS X1, X5
+	VSHUFPS $0xB1, X5, X5, X5
+	VMULPS  X12, X5, X5
+	VADDSUBPS X5, X4, X4
+	VMOVAPS X4, X1
+
+	// Apply X9 to X2
+	VMOVAPS X9, X11
+	VSHUFPS $0xA0, X11, X11, X11
+	VMOVAPS X9, X12
+	VSHUFPS $0xF5, X12, X12, X12
+	VMOVAPS X2, X4
+	VMULPS  X11, X4, X4
+	VMOVAPS X2, X5
+	VSHUFPS $0xB1, X5, X5, X5
+	VMULPS  X12, X5, X5
+	VADDSUBPS X5, X4, X4
+	VMOVAPS X4, X2
+
+	// Apply X10 to X3
+	VMOVAPS X10, X11
+	VSHUFPS $0xA0, X11, X11, X11
+	VMOVAPS X10, X12
+	VSHUFPS $0xF5, X12, X12, X12
+	VMOVAPS X3, X4
+	VMULPS  X11, X4, X4
+	VMOVAPS X3, X5
+	VSHUFPS $0xB1, X5, X5, X5
+	VMULPS  X12, X5, X5
+	VADDSUBPS X5, X4, X4
+	VMOVAPS X4, X3
+
+	// Store to scratch
+	MOVQ AX, CX
+	SHLQ $4, CX
+	VMOVUPS X0, (R11)(CX*1)
+	ADDQ $64, CX
+	VMOVUPS X1, (R11)(CX*1)
+	ADDQ $64, CX
+	VMOVUPS X2, (R11)(CX*1)
+	ADDQ $64, CX
+	VMOVUPS X3, (R11)(CX*1)
+
+	INCQ AX
+	CMPQ AX, $4
+	JL fft32i_col_inv_loop
+
+	// Step 2: Row IFFTs (Size 8)
+	VMOVUPS 0(R10), X0
+	VMOVUPS 32(R10), X1
+	VMOVUPS 64(R10), X2
+	VMOVUPS 96(R10), X3
+	VMOVAPS X0, X8
+	VUNPCKLPD X1, X8, X8
+	VMOVAPS X2, X9
+	VUNPCKLPD X3, X9, X9
+	VXORPS  X14, X8, X8
+	VXORPS  X14, X9, X9
+
+	MOVQ $0, AX
+fft32i_row_inv_loop:
+	MOVQ AX, CX
+	SHLQ $6, CX
+	ADDQ R11, CX
+	VMOVUPS 0(CX), X0
+	VMOVUPS 16(CX), X1
+	VMOVUPS 32(CX), X2
+	VMOVUPS 48(CX), X3
+
+	// Stage 1
+	VMOVAPS X0, X4
+	VADDPS  X2, X4, X4
+	VMOVAPS X1, X5
+	VADDPS  X3, X5, X5
+	VMOVAPS X0, X6
+	VSUBPS  X2, X6, X6
+	VMOVAPS X1, X7
+	VSUBPS  X3, X7, X7
+
+	// Unpack Sums
+	VMOVAPS X4, X10
+	VUNPCKLPD X5, X10, X10
+	VMOVAPS X4, X11
+	VUNPCKHPD X5, X11, X11
+
+	// Process Sums
+	VMOVAPS X10, X12
+	VSHUFPS $0x4E, X12, X12, X12
+	VMOVAPS X10, X0
+	VADDPS  X12, X0, X0
+	VMOVAPS X10, X1
+	VSUBPS  X12, X1, X1
+	VMOVAPS X11, X12
+	VSHUFPS $0x4E, X12, X12, X12
+	VMOVAPS X11, X2
+	VADDPS  X12, X2, X2
+	VMOVAPS X11, X3
+	VSUBPS  X12, X3, X3
+
+	// Unpack Diffs
+	VMOVAPS X6, X10
+	VUNPCKLPD X7, X10, X10
+	VMOVAPS X6, X11
+	VUNPCKHPD X7, X11, X11
+
+	// Process Diffs (Rotated +i)
+	VMOVAPS X10, X12
+	VSHUFPS $0x4E, X12, X12, X12
+	VMOVAPS X12, X13
+	VSHUFPS $0xB1, X13, X13, X13
+	VMOVUPS ·maskNegLoPS(SB), X15
+	VXORPS  X15, X13, X13
+	VMOVAPS X10, X4
+	VADDPS  X13, X4, X4
+	VMOVAPS X10, X5
+	VSUBPS  X13, X5, X5
+
+	VMOVAPS X11, X12
+	VSHUFPS $0x4E, X12, X12, X12
+	VMOVAPS X12, X13
+	VSHUFPS $0xB1, X13, X13, X13
+	VXORPS  X15, X13, X13
+	VMOVAPS X11, X6
+	VADDPS  X13, X6, X6
+	VMOVAPS X11, X7
+	VSUBPS  X13, X7, X7
+
+	// Pack
+	VMOVAPS X0, X10
+	VUNPCKLPD X4, X10, X10
+	VMOVAPS X1, X11
+	VUNPCKLPD X5, X11, X11
+	VMOVAPS X2, X12
+	VUNPCKLPD X6, X12, X12
+	VMOVAPS X3, X13
+	VUNPCKLPD X7, X13, X13
+
+	// Stage 4: Twiddle
+	VMOVAPS X8, X4
+	VSHUFPS $0xA0, X4, X4, X4
+	VMOVAPS X8, X5
+	VSHUFPS $0xF5, X5, X5, X5
+	VMOVAPS X12, X6
+	VMULPS  X4, X6, X6
+	VMOVAPS X12, X7
+	VSHUFPS $0xB1, X7, X7, X7
+	VMULPS  X5, X7, X7
+	VADDSUBPS X7, X6, X6
+	VMOVAPS X10, X0
+	VADDPS  X6, X0, X0
+	VMOVAPS X10, X2
+	VSUBPS  X6, X2, X2
+
+	VMOVAPS X9, X4
+	VSHUFPS $0xA0, X4, X4, X4
+	VMOVAPS X9, X5
+	VSHUFPS $0xF5, X5, X5, X5
+	VMOVAPS X13, X6
+	VMULPS  X4, X6, X6
+	VMOVAPS X13, X7
+	VSHUFPS $0xB1, X7, X7, X7
+	VMULPS  X5, X7, X7
+	VADDSUBPS X7, X6, X6
+	VMOVAPS X11, X1
+	VADDPS  X6, X1, X1
+	VMOVAPS X11, X3
+	VSUBPS  X6, X3, X3
+
+	// Normalization (1/32)
+	VMOVSS  ·thirtySecond32(SB), X15
+	VSHUFPS $0x00, X15, X15, X15
+	VMULPS  X15, X0, X0
+	VMULPS  X15, X1, X1
+	VMULPS  X15, X2, X2
+	VMULPS  X15, X3, X3
+
+	// Store transposed (in-place)
+	MOVQ AX, CX
+	SHLQ $3, CX
+	ADDQ R8, CX
+	MOVSD  X0, 0(CX)
+	MOVHPS X0, 32(CX)
+	MOVSD  X1, 64(CX)
+	MOVHPS X1, 96(CX)
+	MOVSD  X2, 128(CX)
+	MOVHPS X2, 160(CX)
+	MOVSD  X3, 192(CX)
+	MOVHPS X3, 224(CX)
+
+	INCQ AX
+	CMPQ AX, $4
+	JL fft32i_row_inv_loop
+
+	VZEROUPPER
+	RET

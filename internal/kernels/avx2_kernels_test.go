@@ -301,6 +301,21 @@ var avx2TestCases = []avx2TestCase{
 		},
 	},
 	{
+		name:          "Size1024/Radix32x32",
+		size:          1024,
+		radix:         32, // actually 32x32
+		tolerance:     2e-5,
+		forwardSeed:   0x1122AABB,
+		inverseSeed:   0x3344CCDD,
+		roundTripSeed: 0x5566EEFF,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
+			return amd64.ForwardAVX2Size1024Radix32x32Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
+			return amd64.InverseAVX2Size1024Radix32x32Complex64Asm(dst, src, twiddle, scratch)
+		},
+	},
+	{
 		name:          "Size2048/Mixed24",
 		size:          2048,
 		radix:         -24,
