@@ -784,25 +784,25 @@ fwd_final_transpose_row_loop:
 	VMOVUPS Y3, 384(DI)(R14*1)
 
 	// colBlock 3 (colOffBytes=96, scratch+1536)
-	LEAQ (R8)(R12*1), SI
-	LEAQ 96(SI), SI
-	VMOVUPS 0(SI), Y0
-	VMOVUPS 128(SI), Y1
-	VMOVUPS 256(SI), Y2
-	VMOVUPS 384(SI), Y3
-	VUNPCKLPD Y1, Y0, Y4
-	VUNPCKHPD Y1, Y0, Y5
-	VUNPCKLPD Y3, Y2, Y6
-	VUNPCKHPD Y3, Y2, Y7
-	VPERM2F128 $0x20, Y6, Y4, Y0
-	VPERM2F128 $0x20, Y7, Y5, Y1
-	VPERM2F128 $0x31, Y6, Y4, Y2
-	VPERM2F128 $0x31, Y7, Y5, Y3
-	LEAQ 1536(R11), DI
-	VMOVUPS Y0, (DI)(R14*1)
-	VMOVUPS Y1, 128(DI)(R14*1)
-	VMOVUPS Y2, 256(DI)(R14*1)
-	VMOVUPS Y3, 384(DI)(R14*1)
+	LEAQ (R8)(R12*1), SI         // SI = dst + rowStartBytes
+	LEAQ 96(SI), SI              // SI = dst + rowStartBytes + colOffBytes(96)
+	VMOVUPS 0(SI), Y0            // Y0 = load 4 complex64 (dst rowBlock, cols 12..15)
+	VMOVUPS 128(SI), Y1          // Y1 = load next 4 complex64 (next row within block)
+	VMOVUPS 256(SI), Y2          // Y2 = load next 4 complex64
+	VMOVUPS 384(SI), Y3          // Y3 = load next 4 complex64
+	VUNPCKLPD Y1, Y0, Y4         // Y4 = interleave low lanes (prepare transpose)
+	VUNPCKHPD Y1, Y0, Y5         // Y5 = interleave high lanes (prepare transpose)
+	VUNPCKLPD Y3, Y2, Y6         // Y6 = interleave low lanes (prepare transpose)
+	VUNPCKHPD Y3, Y2, Y7         // Y7 = interleave high lanes (prepare transpose)
+	VPERM2F128 $0x20, Y6, Y4, Y0 // Y0 = transpose result row 0 of 4x4 block
+	VPERM2F128 $0x20, Y7, Y5, Y1 // Y1 = transpose result row 1 of 4x4 block
+	VPERM2F128 $0x31, Y6, Y4, Y2 // Y2 = transpose result row 2 of 4x4 block
+	VPERM2F128 $0x31, Y7, Y5, Y3 // Y3 = transpose result row 3 of 4x4 block
+	LEAQ 1536(R11), DI           // DI = scratch + 1536 (colBlock 3 base)
+	VMOVUPS Y0, (DI)(R14*1)      // store transposed row 0 into scratch (rowOffScratchBytes)
+	VMOVUPS Y1, 128(DI)(R14*1)   // store transposed row 1 into scratch
+	VMOVUPS Y2, 256(DI)(R14*1)   // store transposed row 2 into scratch
+	VMOVUPS Y3, 384(DI)(R14*1)   // store transposed row 3 into scratch
 	INCQ CX
 	CMPQ CX, $4
 	JL   fwd_final_transpose_row_loop
@@ -1629,34 +1629,34 @@ inv_final_transpose_row_loop:
 	VMOVUPS Y2, 256(DI)(R14*1)
 	VMOVUPS Y3, 384(DI)(R14*1)
 
-	INCQ CX
-	CMPQ CX, $4
-	JL   inv_final_transpose_row_loop
-	MOVL ·twoFiftySixth32(SB), AX // 1/256 = 0.00390625
-	MOVD AX, X8
-	VBROADCASTSS X8, Y8         // Y8 = [scale,...]
-	VXORPS Y9, Y9, Y9
-	VMOVUPS ·maskNegHiPS(SB), X9 // Conjugation mask
-	VINSERTF128 $0x01, X9, Y9, Y9 // Broadcast mask to 256-bit Y9
+	INCQ CX                       // CX++ (next rowBlock)
+	CMPQ CX, $4                   // rowBlock < 4?
+	JL   inv_final_transpose_row_loop // loop over rowBlock
+	MOVL ·twoFiftySixth32(SB), AX // AX = 1/256 as float32 bits (0.00390625)
+	MOVD AX, X8                   // X8 = scalar scale (float32 in low lane)
+	VBROADCASTSS X8, Y8           // Y8 = broadcast(scale) to all lanes
+	VXORPS Y9, Y9, Y9             // Y9 = 0 (prepare for mask broadcast)
+	VMOVUPS ·maskNegHiPS(SB), X9  // X9 = 128-bit conjugation sign-mask
+	VINSERTF128 $0x01, X9, Y9, Y9 // Y9 = 256-bit conjugation mask (both lanes)
 
 	// Unrolled scaling/conjugation: 2048 bytes total, 64 bytes per iteration => 32 iters
-	VMOVUPS 0(R11), Y0
-	VMOVUPS 32(R11), Y1
-	VXORPS Y9, Y0, Y0
-	VXORPS Y9, Y1, Y1
-	VMULPS Y8, Y0, Y0
-	VMULPS Y8, Y1, Y1
-	VMOVUPS Y0, 0(R8)
-	VMOVUPS Y1, 32(R8)
+	VMOVUPS 0(R11), Y0            // Y0 = load 8 floats (4 complex64) from scratch
+	VMOVUPS 32(R11), Y1           // Y1 = load next 8 floats from scratch
+	VXORPS Y9, Y0, Y0             // Y0 = conjugate (flip sign on imag lanes)
+	VXORPS Y9, Y1, Y1             // Y1 = conjugate (flip sign on imag lanes)
+	VMULPS Y8, Y0, Y0             // Y0 *= (1/256)
+	VMULPS Y8, Y1, Y1             // Y1 *= (1/256)
+	VMOVUPS Y0, 0(R8)             // store to dst
+	VMOVUPS Y1, 32(R8)            // store to dst
 
-	VMOVUPS 64(R11), Y0
-	VMOVUPS 96(R11), Y1
-	VXORPS Y9, Y0, Y0
-	VXORPS Y9, Y1, Y1
-	VMULPS Y8, Y0, Y0
-	VMULPS Y8, Y1, Y1
-	VMOVUPS Y0, 64(R8)
-	VMOVUPS Y1, 96(R8)
+	VMOVUPS 64(R11), Y0           // Y0 = load next 4 complex64 from scratch
+	VMOVUPS 96(R11), Y1           // Y1 = load next 4 complex64 from scratch
+	VXORPS Y9, Y0, Y0             // Y0 = conjugate
+	VXORPS Y9, Y1, Y1             // Y1 = conjugate
+	VMULPS Y8, Y0, Y0             // Y0 *= (1/256)
+	VMULPS Y8, Y1, Y1             // Y1 *= (1/256)
+	VMOVUPS Y0, 64(R8)            // store to dst
+	VMOVUPS Y1, 96(R8)            // store to dst
 
 	VMOVUPS 128(R11), Y0
 	VMOVUPS 160(R11), Y1
