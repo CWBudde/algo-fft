@@ -45,25 +45,18 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
   - [x] Create `internal/asm/amd64/sse2_f64_size256_radix2.s`
   - [x] Implement `ForwardSSE2Size256Radix2Complex128Asm` (8 stages)
   - [x] Implement `InverseSSE2Size256Radix2Complex128Asm` (with 1/256 scaling)
-  - [x] Add Go wrapper in `internal/kernels/sse2_f64_size256_radix2.go`
-  - [x] Register in codelet system with priority 10
-- [ ] Implement Size 256 radix-4 SSE2 for complex128
-  - [ ] Create `internal/asm/amd64/sse2_f64_size256_radix4.s`
-  - [ ] Implement `ForwardSSE2Size256Radix4Complex128Asm` (4 stages)
-  - [ ] Implement `InverseSSE2Size256Radix4Complex128Asm` (with 1/256 scaling)
-  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size256_radix4.go`
-  - [ ] Register in codelet system with priority 15
+  - [x] Register in codelet system (consolidated in `codelet_init_sse2.go`)
+- [x] Implement Size 256 radix-4 SSE2 for complex128
+  - [x] Create `internal/asm/amd64/sse2_f64_size256_radix4.s`
+  - [x] Implement `ForwardSSE2Size256Radix4Complex128Asm` (4 stages)
+  - [x] Implement `InverseSSE2Size256Radix4Complex128Asm` (with 1/256 scaling)
+  - [x] Register in codelet system (consolidated in `codelet_init_sse2.go`)
 
 #### 13.1.3 Size 256 Test Coverage
 
-- [ ] Add test file `internal/kernels/sse2_f64_size256_radix2_test.go`
-  - [ ] TestForwardSSE2Size256Radix2Complex128
-  - [ ] TestInverseSSE2Size256Radix2Complex128
-  - [ ] TestRoundTripSSE2Size256Radix2Complex128
-- [ ] Add test file `internal/kernels/sse2_f64_size256_radix4_test.go`
-  - [ ] TestForwardSSE2Size256Radix4Complex128
-  - [ ] TestInverseSSE2Size256Radix4Complex128
-  - [ ] TestRoundTripSSE2Size256Radix4Complex128
+- [x] Add test cases to unified `internal/kernels/sse2_kernels_test.go`
+  - [x] Test cases for complex64 (Radix 4)
+  - [x] Test cases for complex128 (Radix 2, Radix 4)
 
 ### 13.2 Size 512 SSE2 Kernels
 
@@ -99,12 +92,9 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 
 #### 13.2.3 Size 512 Test Coverage
 
-- [ ] Add test files for complex64:
-  - [ ] `internal/kernels/sse2_size512_radix2_test.go` (Forward, Inverse, RoundTrip)
-  - [ ] `internal/kernels/sse2_size512_mixed24_test.go` (Forward, Inverse, RoundTrip)
-- [ ] Add test files for complex128:
-  - [ ] `internal/kernels/sse2_f64_size512_radix2_test.go` (Forward, Inverse, RoundTrip)
-  - [ ] `internal/kernels/sse2_f64_size512_mixed24_test.go` (Forward, Inverse, RoundTrip)
+- [ ] Add test cases to unified `internal/kernels/sse2_kernels_test.go`
+  - [ ] Test cases for complex64 (Radix 2, Mixed 2/4)
+  - [ ] Test cases for complex128 (Radix 2, Mixed 2/4)
 
 ### 13.3 Size 1024 SSE2 Kernels
 
@@ -130,14 +120,9 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 
 #### 13.3.3 Size 1024 Test Coverage
 
-- [ ] Add test file `internal/kernels/sse2_size1024_radix4_test.go`
-  - [ ] TestForwardSSE2Size1024Radix4Complex64
-  - [ ] TestInverseSSE2Size1024Radix4Complex64
-  - [ ] TestRoundTripSSE2Size1024Radix4Complex64
-- [ ] Add test file `internal/kernels/sse2_f64_size1024_radix4_test.go`
-  - [ ] TestForwardSSE2Size1024Radix4Complex128
-  - [ ] TestInverseSSE2Size1024Radix4Complex128
-  - [ ] TestRoundTripSSE2Size1024Radix4Complex128
+- [ ] Add test cases to unified `internal/kernels/sse2_kernels_test.go`
+  - [ ] Test cases for complex64 (Radix 4)
+  - [ ] Test cases for complex128 (Radix 4)
 
 ### 13.4 Performance Validation
 
@@ -157,47 +142,7 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 
 Sizes 512-16384 currently use pure Go mixed-radix or radix-4 implementations. AVX2 acceleration could provide 1.5-2x additional speedup.
 
-#### 14.2.5 Size 8192 - AVX2 Mixed-Radix-2/4
-
-- [x] Create `internal/asm/amd64/avx2_f32_size8192_mixed24.s`
-  - [x] Implement `forwardAVX2Size8192Mixed24Complex64` (6 radix-4 stages + 1 radix-2 stage)
-  - [x] Implement `inverseAVX2Size8192Mixed24Complex64` (with 1/8192 scaling)
-- [x] Add Go declarations and register with priority 25
-- [x] Add correctness tests and benchmark
-
-#### 14.2.6 Size 16384 - AVX2 Pure Radix-4
-
-- [x] Create `internal/asm/amd64/avx2_f32_size16384_radix4.s`
-  - [x] Implement `forwardAVX2Size16384Radix4Complex64` (7 radix-4 stages)
-  - [x] Implement `inverseAVX2Size16384Radix4Complex64` (with 1/16384 scaling)
-- [x] Add Go declarations and register with priority 25
-- [x] Add correctness tests and benchmark
-
-### 14.3 Complete Existing AVX2 Gaps
-
-#### 14.3.1 Verify Inverse Transforms
-
-- [x] Size 4: Test `inverseAVX2Size4Radix4Complex64` round-trip accuracy
-  - [x] Run `Forward → Inverse` and verify `max|x - result| < 1e-6`
-  - [x] Test with random inputs, DC component, Nyquist frequency
-- [x] Size 64: Test `inverseAVX2Size64Radix4Complex64` round-trip accuracy
-- [x] Size 256: Test `inverseAVX2Size256Radix4Complex64` round-trip accuracy
-- [x] Add dedicated inverse transform test file if not present
-
-#### 14.3.2 Size 8 AVX2 Re-evaluation
-
-- [x] Benchmark current Go radix-8 vs AVX2 radix-2 on modern CPUs (Zen4, Raptor Lake)
-- [x] Profile to identify bottlenecks in AVX2 size-8 implementation
-- [x] If AVX2 can be improved:
-  - [ ] Optimize register allocation and instruction scheduling
-  - [ ] Consider radix-8 AVX2 instead of radix-2
-  - [ ] Re-benchmark and enable if faster
-- [x] If Go remains faster:
-  - [x] Document rationale in code comments
-  - [x] Keep AVX2 disabled (priority 9, lower than SSE2)
-  - **Note**: SSE2 Size 8 Radix 8 fixed (fast). AVX2 Size 8 Radix 8 fixed (slow).
-
-#### 14.3.3 Size 128 Radix-4 AVX2
+#### 14.3 Size 128 Radix-4 AVX2
 
 - [x] Create `internal/asm/amd64/avx2_f32_size128_radix4.s` (currently only radix-2/mixed exist)
   - [x] Implement `forwardAVX2Size128Radix4Complex64` (3.5 stages: 3 radix-4 + 1 radix-2)
@@ -300,7 +245,7 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
   - [x] Uses identity permutation (no bit-reversal on input)
 - [x] Create `internal/asm/amd64/avx2_f32_size512_radix16x32.s` (stub implementation)
   - [x] Add Go function declarations in `internal/asm/amd64/decl.go`
-  - [x] Add test file `internal/kernels/avx2_f32_size512_radix16x32_test.go`
+  - [x] Add test cases to unified `internal/kernels/avx2_kernels_test.go`
   - [x] Stub returns false to use Go fallback (full AVX2 implementation deferred)
   - **Performance**: Go radix-16x32 achieves ~4821 ns/op (faster than Go radix-8 ~5147 ns/op)
   - **Note**: AVX2 radix-8 achieves ~2052 ns/op - full AVX2 radix-16x32 could be competitive
