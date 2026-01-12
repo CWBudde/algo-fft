@@ -154,6 +154,18 @@ func registerSSE2DITCodelets64() {
 		Priority:   17,
 		KernelType: KernelTypeDIT,
 	})
+
+	// Size 512: Radix-2 SSE2 variant
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       512,
+		Forward:    wrapCodelet64(amd64.ForwardSSE2Size512Radix2Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseSSE2Size512Radix2Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDSSE2,
+		Signature:  "dit512_radix2_sse2",
+		Priority:   10,
+		KernelType: KernelTypeDIT,
+	})
 }
 
 // registerSSE2DITCodelets128 registers SSE2-optimized complex128 DIT codelets.
@@ -322,7 +334,19 @@ func registerSSE2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit256_radix4_sse2",
-		Priority:   12,
+		Priority:   15,
+		KernelType: KernelTypeDIT,
+	})
+
+	// Size 512: Radix-2 SSE2 variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       512,
+		Forward:    wrapCodelet128(amd64.ForwardSSE2Size512Radix2Complex128Asm),
+		Inverse:    wrapCodelet128(amd64.InverseSSE2Size512Radix2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDSSE2,
+		Signature:  "dit512_radix2_sse2",
+		Priority:   10,
 		KernelType: KernelTypeDIT,
 	})
 }

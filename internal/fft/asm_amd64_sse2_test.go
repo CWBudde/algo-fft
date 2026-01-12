@@ -134,6 +134,14 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 			testRoundTrip: true,
 			testInPlace:   true,
 		},
+		{
+			name:          "Size512_Radix2",
+			size:          512,
+			forward:       forwardSSE2Size512Radix2Complex64Asm,
+			inverse:       inverseSSE2Size512Radix2Complex64Asm,
+			testRoundTrip: true,
+			testInPlace:   true,
+		},
 	}
 
 	for _, tc := range tests {

@@ -275,6 +275,12 @@ func sse2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			}
 			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch)
 
+		case 512:
+			if forwardSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch) {
+				return true
+			}
+			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch)
+
 		default:
 			return forwardSSE2Complex64Asm(dst, src, twiddle, scratch)
 		}
@@ -341,6 +347,12 @@ func sse2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 
 		case 256:
 			if inverseSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch) {
+				return true
+			}
+			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch)
+
+		case 512:
+			if inverseSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			return inverseSSE2Complex64Asm(dst, src, twiddle, scratch)

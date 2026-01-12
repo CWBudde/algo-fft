@@ -62,12 +62,11 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 
 #### 13.2.1 complex64 Size 512 SSE2 Kernels
 
-- [ ] Implement Size 512 radix-2 SSE2 for complex64
-  - [ ] Create `internal/asm/amd64/sse2_f32_size512_radix2.s`
-  - [ ] Implement `ForwardSSE2Size512Radix2Complex64Asm` (9 stages)
-  - [ ] Implement `InverseSSE2Size512Radix2Complex64Asm` (with 1/512 scaling)
-  - [ ] Add Go wrapper in `internal/kernels/sse2_f32_size512_radix2.go`
-  - [ ] Register in codelet system with priority 10
+- [x] Implement Size 512 radix-2 SSE2 for complex64
+  - [x] Create `internal/asm/amd64/sse2_f32_size512_radix2.s`
+  - [x] Implement `ForwardSSE2Size512Radix2Complex64Asm` (9 stages)
+  - [x] Implement `InverseSSE2Size512Radix2Complex64Asm` (with 1/512 scaling)
+  - [x] Register in codelet system (consolidated in `codelet_init_sse2.go`)
 - [ ] Implement Size 512 mixed-2/4 SSE2 for complex64
   - [ ] Create `internal/asm/amd64/sse2_f32_size512_mixed24.s`
   - [ ] Implement `ForwardSSE2Size512Mixed24Complex64Asm` (4 radix-4 + 1 radix-2 = 5 stages)
@@ -77,12 +76,11 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 
 #### 13.2.2 complex128 Size 512 SSE2 Kernels
 
-- [ ] Implement Size 512 radix-2 SSE2 for complex128
-  - [ ] Create `internal/asm/amd64/sse2_f64_size512_radix2.s`
-  - [ ] Implement `ForwardSSE2Size512Radix2Complex128Asm` (9 stages)
-  - [ ] Implement `InverseSSE2Size512Radix2Complex128Asm` (with 1/512 scaling)
-  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size512_radix2.go`
-  - [ ] Register in codelet system with priority 10
+- [x] Implement Size 512 radix-2 SSE2 for complex128
+  - [x] Create `internal/asm/amd64/sse2_f64_size512_radix2.s`
+  - [x] Implement `ForwardSSE2Size512Radix2Complex128Asm` (9 stages)
+  - [x] Implement `InverseSSE2Size512Radix2Complex128Asm` (with 1/512 scaling)
+  - [x] Register in codelet system (consolidated in `codelet_init_sse2.go`)
 - [ ] Implement Size 512 mixed-2/4 SSE2 for complex128
   - [ ] Create `internal/asm/amd64/sse2_f64_size512_mixed24.s`
   - [ ] Implement `ForwardSSE2Size512Mixed24Complex128Asm` (4 radix-4 + 1 radix-2 = 5 stages)
@@ -93,8 +91,10 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 #### 13.2.3 Size 512 Test Coverage
 
 - [ ] Add test cases to unified `internal/kernels/sse2_kernels_test.go`
-  - [ ] Test cases for complex64 (Radix 2, Mixed 2/4)
-  - [ ] Test cases for complex128 (Radix 2, Mixed 2/4)
+  - [x] Test cases for complex64 (Radix 2)
+  - [ ] Test cases for complex64 (Mixed 2/4)
+  - [x] Test cases for complex128 (Radix 2)
+  - [ ] Test cases for complex128 (Mixed 2/4)
 
 ### 13.3 Size 1024 SSE2 Kernels
 
@@ -144,13 +144,15 @@ Sizes 512-16384 currently use pure Go mixed-radix or radix-4 implementations. AV
 
 #### 14.3 Size 128 Radix-4 AVX2
 
-- [x] Create `internal/asm/amd64/avx2_f32_size128_radix4.s` (currently only radix-2/mixed exist)
-  - [x] Implement `forwardAVX2Size128Radix4Complex64` (3.5 stages: 3 radix-4 + 1 radix-2)
-  - [x] Implement `inverseAVX2Size128Radix4Complex64`
+- [x] Create `internal/asm/amd64/avx2_f32_size128_radix4.s` (currently only
+      radix-2/mixed exist)
+  - [x] Implement `forwardAVX2Size128Radix4Complex64` (3.5 stages: 3 radix-4 + 1
+        radix-2)
   - [ ] Use radix-4 bit-reversal for first 64 elements, binary for rest
 - [ ] Benchmark radix-4 vs current mixed-2/4 wrapper
 - [ ] Register higher-performing variant with higher priority
-- **Status**: Disabled. Implementation exists but failed correctness tests (bit-reversal/logic mismatch). Reverted to pure-Go fallback.
+- **Status**: Enabled for size-128 row FFTs in AVX2 six-step (16384) path;
+  correctness covered by asm tests.
 
 ### 14.4 Fix AVX2 Stockham Correctness
 
@@ -211,15 +213,15 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 2. Twiddle multiplication
 3. Row FFT-16 (same kernel)
 
-- [ ] Create `internal/asm/amd64/avx2_f32_size256_radix16.s`
-  - [ ] Implement as 16×16 matrix factorization
-  - [ ] Stage 1: 16 parallel FFT-16 on columns
-  - [ ] Twiddle: W₂₅₆^(row×col) multiplication
-  - [ ] Stage 2: 16 parallel FFT-16 on rows
-  - [ ] Final transposition to natural order
-- [ ] No bit-reversal needed (identity permutation for 4^k sizes)
-- [ ] Register with priority 30 (higher than radix-4 priority 25)
-- [ ] Benchmark: Target 1.3-1.5x speedup vs radix-4
+- [x] Create `internal/asm/amd64/avx2_f32_size256_radix16.s`
+  - [x] Implement as 16×16 matrix factorization
+  - [x] Stage 1: 16 parallel FFT-16 on columns
+  - [x] Twiddle: W₂₅₆^(row×col) multiplication
+  - [x] Stage 2: 16 parallel FFT-16 on rows
+  - [x] Final transposition to natural order
+- [x] No bit-reversal needed (identity permutation for 4^k sizes)
+- [x] Register with priority 30 (higher than radix-4 priority 25)
+- [x] Benchmark: Target 1.3-1.5x speedup vs radix-4
 
 #### 14.7.3 Size 512 - Radix-8 (3-Stage)
 
