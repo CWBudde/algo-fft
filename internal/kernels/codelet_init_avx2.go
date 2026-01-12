@@ -289,6 +289,18 @@ func registerAVX2DITCodelets64() {
 		KernelType: KernelTypeDIT,
 	})
 
+	// Size 1024: Radix-32×32 AVX2 variant (two-stage matrix factorization)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       1024,
+		Forward:    wrapCodelet64(amd64.ForwardAVX2Size1024Radix32x32Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseAVX2Size1024Radix32x32Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit1024_radix32x32_avx2",
+		Priority:   30, // Prefer over radix-4 if correct + competitive
+		KernelType: KernelTypeDIT,
+	})
+
 	// Size 4096: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4096,
