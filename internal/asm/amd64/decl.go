@@ -123,6 +123,18 @@ func ForwardSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64
 //go:noescape
 func InverseSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
+//go:noescape
+func ForwardSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func InverseSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func ForwardSSE2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseSSE2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
 // --- AVX2 Kernels (Complex64) ---
 
 //go:noescape

@@ -217,6 +217,18 @@ var sse2TestCases64 = []sse2TestCase64{
 			return amd64.InverseSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
+	{
+		name:      "Size512/Radix2",
+		size:      512,
+		radix:     2,
+		tolerance: 1e-6,
+		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
+			return amd64.ForwardSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
+			return amd64.InverseSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
+		},
+	},
 }
 
 var sse2TestCases128 = []sse2TestCase128{
@@ -386,6 +398,18 @@ var sse2TestCases128 = []sse2TestCase128{
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex128) bool {
 			return amd64.InverseSSE2Size256Radix4Complex128Asm(dst, src, twiddle, scratch)
+		},
+	},
+	{
+		name:      "Size512/Radix2",
+		size:      512,
+		radix:     2,
+		tolerance: 1e-11,
+		forwardKernel: func(dst, src, twiddle, scratch []complex128) bool {
+			return amd64.ForwardSSE2Size512Radix2Complex128Asm(dst, src, twiddle, scratch)
+		},
+		inverseKernel: func(dst, src, twiddle, scratch []complex128) bool {
+			return amd64.InverseSSE2Size512Radix2Complex128Asm(dst, src, twiddle, scratch)
 		},
 	},
 }
