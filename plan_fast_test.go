@@ -405,4 +405,3 @@ func BenchmarkFastPlanReal32_vs_PlanRealT(b *testing.B) {
 		})
 	}
 }
-

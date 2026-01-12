@@ -53,19 +53,8 @@ TEXT ·ForwardSSE2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8             // In-place: use scratch
 
 size32_r2_sse2_fwd_use_dst:
-	// ==================================================================
-	// Bit-reversal permutation
-	// ==================================================================
-	XORQ CX, CX
-size32_r2_sse2_fwd_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVSD (R9)(DX*8), X0
-	MOVSD X0, (R8)(CX*8)
-	INCQ CX
-	CMPQ CX, $32
-	JL   size32_r2_sse2_fwd_bitrev_loop
+	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
-	// ==================================================================
 	// Stage 1 & 2 (Combined)
 	// Process 8 blocks of 4 elements.
 	// ==================================================================
@@ -74,10 +63,15 @@ size32_r2_sse2_fwd_bitrev_loop:
 	MOVUPS ·maskNegHiPS(SB), X15 // Negate High mask (for -i)
 
 size32_r2_sse2_fwd_stage12_loop:
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 
 	// Stage 1 (stride 1, w=1)
 	MOVAPS X0, X8
@@ -130,10 +124,15 @@ size32_r2_sse2_fwd_stage12_loop:
 	MOVQ $4, CX
 
 size32_r2_sse2_fwd_stage3_loop:
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	MOVSD 32(SI), X4
 	MOVSD 40(SI), X5
 	MOVSD 48(SI), X6
@@ -219,10 +218,15 @@ size32_r2_sse2_fwd_stage3_loop:
 
 size32_r2_sse2_fwd_stage4_loop:
 	// Part 1: k=0..3
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	MOVSD 64(SI), X4
 	MOVSD 72(SI), X5
 	MOVSD 80(SI), X6
@@ -401,10 +405,15 @@ size32_r2_sse2_fwd_stage4_loop:
 	MOVQ R8, SI
 
 	// Part 1: k=0..3
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	MOVSD 128(SI), X4
 	MOVSD 136(SI), X5
 	MOVSD 144(SI), X6
@@ -845,15 +854,7 @@ TEXT ·InverseSSE2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 size32_r2_sse2_inv_use_dst:
-	// Bit-reversal
-	XORQ CX, CX
-size32_r2_sse2_inv_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVSD (R9)(DX*8), X0
-	MOVSD X0, (R8)(CX*8)
-	INCQ CX
-	CMPQ CX, $32
-	JL   size32_r2_sse2_inv_bitrev_loop
+	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
 	// Stage 1 & 2 (Combined)
 	MOVQ R8, SI
@@ -861,10 +862,15 @@ size32_r2_sse2_inv_bitrev_loop:
 	MOVUPS ·maskNegLoPS(SB), X15 // Negate Low mask (for i)
 
 size32_r2_sse2_inv_stage12_loop:
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 
 	// Stage 1
 	MOVAPS X0, X8
@@ -914,10 +920,15 @@ size32_r2_sse2_inv_stage12_loop:
 	MOVUPS ·maskNegHiPS(SB), X15 // Load maskNegHiPS for conjugation
 
 size32_r2_sse2_inv_stage3_loop:
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	MOVSD 32(SI), X4
 	MOVSD 40(SI), X5
 	MOVSD 48(SI), X6
@@ -1002,10 +1013,15 @@ size32_r2_sse2_inv_stage3_loop:
 
 size32_r2_sse2_inv_stage4_loop:
 	// Part 1: k=0..3
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	MOVSD 64(SI), X4
 	MOVSD 72(SI), X5
 	MOVSD 80(SI), X6
@@ -1187,10 +1203,15 @@ size32_r2_sse2_inv_stage4_loop:
 	MOVQ R8, SI
 
 	// Part 1: k=0..3
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	MOVSD 128(SI), X4
 	MOVSD 136(SI), X5
 	MOVSD 144(SI), X6

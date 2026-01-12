@@ -58,19 +58,8 @@ TEXT ·ForwardSSE2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8             // In-place: use scratch
 
 size16_r2_sse2_fwd_use_dst:
-	// ==================================================================
-	// Bit-reversal permutation
-	// ==================================================================
-	XORQ CX, CX
-bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVSD (R9)(DX*8), X0
-	MOVSD X0, (R8)(CX*8)
-	INCQ CX
-	CMPQ CX, $16
-	JL   bitrev_loop
+	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
-	// ==================================================================
 	// Stage 1 & 2 (Combined)
 	// Process 4 elements at a time: (x0,x1,x2,x3), (x4,x5,x6,x7)...
 	// Stage 1 stride 1: (0,1), (2,3)
@@ -84,10 +73,15 @@ bitrev_loop:
 
 stage12_loop:
 	// Load 4 elements
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 
 	// --- Stage 1 (stride 1, w=1) ---
 	// Butterfly (X0, X1)
@@ -172,10 +166,15 @@ stage12_loop:
 
 stage3_loop:
 	// Load 8 elements: x0..x7 (relative to block)
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	MOVSD 32(SI), X4
 	MOVSD 40(SI), X5
 	MOVSD 48(SI), X6
@@ -522,15 +521,7 @@ TEXT ·InverseSSE2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 size16_r2_sse2_inv_use_dst:
-	// Bit-reversal
-	XORQ CX, CX
-inv_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVSD (R9)(DX*8), X0
-	MOVSD X0, (R8)(CX*8)
-	INCQ CX
-	CMPQ CX, $16
-	JL   inv_bitrev_loop
+	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
 	// Stage 1 & 2 (Combined)
 	MOVQ R8, SI
@@ -538,10 +529,15 @@ inv_bitrev_loop:
 	MOVUPS ·maskNegLoPS(SB), X15 // Negate Low mask (for i)
 
 inv_stage12_loop:
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 
 	// --- Stage 1 ---
 	MOVAPS X0, X8
@@ -595,10 +591,15 @@ inv_stage12_loop:
 	MOVUPS ·maskNegHiPS(SB), X15 // Load maskNegHiPS for conjugation
 
 inv_stage3_loop:
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	MOVSD 32(SI), X4
 	MOVSD 40(SI), X5
 	MOVSD 48(SI), X6
@@ -686,10 +687,15 @@ inv_stage3_loop:
 	MOVUPS ·maskNegHiPS(SB), X15 // Reload conjugate mask
 
 	// --- Part 1 (k=0..3) ---
-	MOVSD (SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 16(SI), X2
-	MOVSD 24(SI), X3
+	MOVQ (R12), DX
+	MOVSD (R9)(DX*8), X0
+	MOVQ 8(R12), DX
+	MOVSD (R9)(DX*8), X1
+	MOVQ 16(R12), DX
+	MOVSD (R9)(DX*8), X2
+	MOVQ 24(R12), DX
+	MOVSD (R9)(DX*8), X3
+	ADDQ $32, R12
 	MOVSD 64(SI), X4
 	MOVSD 72(SI), X5
 	MOVSD 80(SI), X6

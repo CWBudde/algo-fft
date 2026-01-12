@@ -25,18 +25,7 @@ TEXT ·ForwardSSE2Size16Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 size16_sse2_128_fwd_use_dst:
-	// Bit-reversal
-	XORQ CX, CX
-size16_sse2_128_fwd_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X0
-	MOVQ CX, AX
-	SHLQ $4, AX
-	MOVUPD X0, (R8)(AX*1)
-	INCQ CX
-	CMPQ CX, $16
-	JL   size16_sse2_128_fwd_bitrev_loop
+	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
 	// Stage 1 & 2 (Combined) - 4 blocks of 4
 	MOVQ R8, SI
@@ -44,10 +33,19 @@ size16_sse2_128_fwd_bitrev_loop:
 	MOVUPS ·maskNegHiPD(SB), X15
 
 size16_sse2_128_fwd_stage12_loop:
-	MOVUPD (SI), X0
-	MOVUPD 16(SI), X1
-	MOVUPD 32(SI), X2
-	MOVUPD 48(SI), X3
+	MOVQ (R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X0
+	MOVQ 8(R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X1
+	MOVQ 16(R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X2
+	MOVQ 24(R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X3
+	ADDQ $32, R12
 	// Stage 1
 	MOVAPD X0, X8; ADDPD X1, X0; SUBPD X1, X8
 	MOVAPD X2, X9; ADDPD X3, X2; SUBPD X3, X9
@@ -139,14 +137,7 @@ TEXT ·InverseSSE2Size16Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 size16_sse2_128_inv_use_dst:
-	// Bit-reversal
-	XORQ CX, CX
-size16_sse2_128_inv_bitrev_loop:
-	MOVQ (R12)(CX*8), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X0
-	MOVQ CX, AX; SHLQ $4, AX; MOVUPD X0, (R8)(AX*1)
-	INCQ CX
-	CMPQ CX, $16
-	JL   size16_sse2_128_inv_bitrev_loop
+	// Bit-reversal permutation + Stage 1 (load bitrev directly in Stage 1/2 loop)
 
 	// Stage 1 & 2
 	MOVQ R8, SI
@@ -154,10 +145,19 @@ size16_sse2_128_inv_bitrev_loop:
 	MOVUPS ·maskNegLoPD(SB), X15 // for i
 
 size16_sse2_128_inv_stage12_loop:
-	MOVUPD (SI), X0
-	MOVUPD 16(SI), X1
-	MOVUPD 32(SI), X2
-	MOVUPD 48(SI), X3
+	MOVQ (R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X0
+	MOVQ 8(R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X1
+	MOVQ 16(R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X2
+	MOVQ 24(R12), DX
+	SHLQ $4, DX
+	MOVUPD (R9)(DX*1), X3
+	ADDQ $32, R12
 	MOVAPD X0, X8; ADDPD X1, X0; SUBPD X1, X8
 	MOVAPD X2, X9; ADDPD X3, X2; SUBPD X3, X9
 	MOVAPD X0, X10; ADDPD X2, X0; SUBPD X2, X10
