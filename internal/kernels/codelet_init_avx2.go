@@ -410,8 +410,8 @@ func registerAVX2DITCodelets128() {
 	// Size 16: Radix-2 AVX2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16,
-		Forward:    wrapCodelet128(amd64.ForwardAVX2Size16Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseAVX2Size16Complex128Asm),
+		Forward:    wrapCodelet128(amd64.ForwardAVX2Size16Radix2Complex128Asm),
+		Inverse:    wrapCodelet128(amd64.InverseAVX2Size16Radix2Complex128Asm),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit16_radix2_avx2",
