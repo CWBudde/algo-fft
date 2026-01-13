@@ -1,7 +1,7 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// Size-1024 Radix-32×32 FFT Kernel (complex64) — correctness-first
+// Size-1024 Radix-32×32 FFT Kernel (complex64)
 // ===========================================================================
 //
 // This is a from-scratch, building-blocks implementation with minimal unrolling.
@@ -29,8 +29,10 @@
 //   W_32^p is loaded from the provided W_1024 table as W_1024^(p*32).
 //
 // Notes:
-// - Uses scalar SSE (MOVSS/ADDSS/MULSS/...) on float32 lanes.
-// - “AVX2” naming is for dispatch consistency; we still do VZEROUPPER.
+// - Column FFTs (forward stage 1) and column IFFTs (inverse stage 2) are
+//   vectorized by processing 4 columns at once using AVX2 YMM lanes.
+// - Row FFTs/IFFTs and irregular twiddle handling remain scalar for now.
+// - We still do VZEROUPPER.
 // ===========================================================================
 
 #include "textflag.h"
@@ -47,11 +49,15 @@ DATA ·bitrev32<>+24(SB)/8, $0x1f0f17071b0b1303
 GLOBL ·scale1024f32<>(SB), RODATA|NOPTR, $4
 DATA ·scale1024f32<>(SB)/4, $0x3a800000
 
+// float32 sign bit mask (0x80000000)
+GLOBL ·signMaskF32<>(SB), RODATA|NOPTR, $4
+DATA ·signMaskF32<>(SB)/4, $0x80000000
+
 // ---------------------------------------------------------------------------
 // ForwardAVX2Size1024Radix32x32Complex64Asm
 // Signature: func(dst, src, twiddle, scratch []complex64) bool
 // ---------------------------------------------------------------------------
-TEXT ·ForwardAVX2Size1024Radix32x32Complex64Asm(SB), NOSPLIT, $256-97
+TEXT ·ForwardAVX2Size1024Radix32x32Complex64Asm(SB), $1280-97
 	// ---- len checks ----
 	MOVQ src+32(FP), AX
 	CMPQ AX, $1024
@@ -71,18 +77,18 @@ TEXT ·ForwardAVX2Size1024Radix32x32Complex64Asm(SB), NOSPLIT, $256-97
 	MOVQ src+24(FP), R9      // src base
 	MOVQ twiddle+48(FP), R10 // twiddle base (W_1024)
 	MOVQ scratch+72(FP), R11 // work base
-	LEAQ 0(SP), R12          // local buf[32]complex64
+	LEAQ 0(SP), R12          // local bufV[32]YMM (4 columns packed)
 
 	// =====================================================================
 	// Stage 1: for each n1, FFT32 over n2 (column) then apply W_1024^(k2*n1)
 	// work[k2*32 + n1]
 	// =====================================================================
-	XORQ R13, R13 // n1=0
+	XORQ R13, R13 // n1=0 (processed in blocks of 4)
 fwd_stage1_n1_loop:
 	CMPQ R13, $32
 	JGE  fwd_stage2
 
-	// gather src[n2*32+n1] into buf in bit-reversed order over n2
+	// gather 4 columns src[n2*32+n1..n1+3] into bufV in bit-reversed order over n2
 	LEAQ ·bitrev32<>(SB), R15
 	XORQ AX, AX // i=0
 fwd_gather_col_loop:
@@ -93,65 +99,81 @@ fwd_gather_col_loop:
 	MOVQ R13, CX
 	SHLQ $3, CX               // n1*8
 	ADDQ CX, BX
-	MOVQ (R9)(BX*1), DX
-	MOVQ DX, (R12)(AX*8)
+	LEAQ (R9)(BX*1), SI
+	VMOVUPS (SI), Y0
+	MOVQ AX, DX
+	SHLQ $5, DX
+	VMOVUPS Y0, (R12)(DX*1)
 	INCQ AX
 	JMP  fwd_gather_col_loop
 
 fwd_do_fft_col:
-	XORQ BP, BP               // return selector 0
-	JMP  fwd_fft32
+	JMP  fwd_fft32x4
+fwd_fft32x4_return_col:
+
 fwd_fft32_return_col:
 
-	// apply inter-stage twiddle and store to work
+	// apply inter-stage twiddle and store 4 columns to work
 	XORQ R14, R14 // k2=0
 fwd_store_work_loop:
 	CMPQ R14, $32
 	JGE  fwd_stage1_next_n1
 
-	LEAQ (R12)(R14*8), SI
-	MOVSS 0(SI), X0
-	MOVSS 4(SI), X1
+	// Load packed FFT output for this k2: 4 complex64 lanes
+	MOVQ R14, DX
+	SHLQ $5, DX
+	VMOVUPS (R12)(DX*1), Y0
 
+	// Build packed twiddle vector [W(k2*(n1+0)), W(k2*(n1+1)), W(k2*(n1+2)), W(k2*(n1+3))]
+	// baseIdx = k2*n1
 	MOVQ R14, AX
 	IMULQ R13, AX
 	SHLQ $3, AX
-	LEAQ (R10)(AX*1), DI
-	MOVSS 0(DI), X2
-	MOVSS 4(DI), X3
+	LEAQ (R10)(AX*1), DI      // DI = &twiddle[baseIdx]
+	MOVQ R14, BX
+	SHLQ $3, BX               // strideBytes = k2*8
+	VMOVSD (DI), X8
+	LEAQ (DI)(BX*1), SI
+	VMOVSD (SI), X9
+	VPUNPCKLQDQ X9, X8, X8
+	LEAQ (SI)(BX*1), SI
+	VMOVSD (SI), X9
+	LEAQ (SI)(BX*1), SI
+	VMOVSD (SI), X10
+	VPUNPCKLQDQ X10, X9, X9
+	VINSERTF128 $0, X8, Y8, Y8
+	VINSERTF128 $1, X9, Y8, Y8
+	VMOVSLDUP Y8, Y9
+	VMOVSHDUP Y8, Y10
 
-	// (a+bi)*(c+di)
-	MOVSS X0, X4
-	MULSS X2, X4
-	MOVSS X1, X5
-	MULSS X3, X5
-	SUBSS X5, X4              // real
-	MOVSS X0, X6
-	MULSS X3, X6
-	MOVSS X1, X7
-	MULSS X2, X7
-	ADDSS X7, X6              // imag
+	// Y0 *= Y8 (complex multiply)
+	VMOVAPS Y0, Y1
+	VSHUFPS $0xB1, Y1, Y1, Y1
+	VMULPS Y10, Y1, Y1
+	VMULPS Y9, Y0, Y0
+	VADDSUBPS Y1, Y0, Y0
 
+	// Store to work[k2*32 + n1..n1+3]
 	MOVQ R14, AX
 	SHLQ $8, AX               // k2*256
-	MOVQ R13, BX
-	SHLQ $3, BX               // n1*8
-	ADDQ BX, AX
+	MOVQ R13, CX
+	SHLQ $3, CX               // n1*8
+	ADDQ CX, AX
 	LEAQ (R11)(AX*1), DI
-	MOVSS X4, 0(DI)
-	MOVSS X6, 4(DI)
+	VMOVUPS Y0, (DI)
 
 	INCQ R14
 	JMP  fwd_store_work_loop
 
 fwd_stage1_next_n1:
-	INCQ R13
+	ADDQ $4, R13
 	JMP  fwd_stage1_n1_loop
 
 	// =====================================================================
 	// Stage 2: for each k2, FFT32 over n1 (row) and store dst[k1*32+k2]
 	// =====================================================================
 fwd_stage2:
+	LEAQ 1024(SP), R12        // R12 = scalar buf base
 	XORQ R14, R14 // k2=0
 fwd_stage2_k2_loop:
 	CMPQ R14, $32
@@ -195,6 +217,208 @@ fwd_store_dst_loop:
 fwd_stage2_next_k2:
 	INCQ R14
 	JMP  fwd_stage2_k2_loop
+
+	// =======================================================================
+	// Local helper: iterative radix-2 DIT FFT-32 on bufV (forward), 4 columns packed
+	// Expects:
+	//   R12 = &bufV[0] (32 YMM values, each holds 4 complex64 lanes)
+	//   R10 = twiddle base (W_1024) where W_32^p == W_1024^(p*32)
+	// Returns to fwd_fft32x4_return_col
+	// =======================================================================
+
+fwd_fft32x4:
+	// Stage m=2 (tw=1)
+	XORQ AX, AX
+fwdx4_s1_kloop:
+	CMPQ AX, $32
+	JGE  fwdx4_s2
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 32(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	VMOVAPS Y0, Y2
+	VADDPS Y1, Y2, Y2
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y2, (SI)
+	VMOVUPS Y0, (DI)
+	ADDQ $2, AX
+	JMP  fwdx4_s1_kloop
+
+fwdx4_s2:
+	// Stage m=4: tw offset = j*2048 bytes (W_32^{j*8})
+	XORQ CX, CX
+fwdx4_s2_jloop:
+	CMPQ CX, $2
+	JGE  fwdx4_s3
+	CMPQ CX, $0
+	JEQ  fwdx4_s2_kloop_init
+	MOVQ CX, DX
+	SHLQ $11, DX
+	LEAQ (R10)(DX*1), R15
+	VBROADCASTSS 0(R15), Y8
+	VBROADCASTSS 4(R15), Y9
+
+fwdx4_s2_kloop_init:
+	MOVQ CX, AX
+fwdx4_s2_kloop:
+	CMPQ AX, $32
+	JGE  fwdx4_s2_nextj
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 64(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	CMPQ CX, $0
+	JEQ  fwdx4_s2_bfly
+	// Y1 *= (Y8 + i*Y9)
+	VMOVAPS Y1, Y2
+	VSHUFPS $0xB1, Y2, Y2, Y2
+	VMULPS Y9, Y2, Y2
+	VMULPS Y8, Y1, Y1
+	VADDSUBPS Y2, Y1, Y1
+fwdx4_s2_bfly:
+	VMOVAPS Y0, Y3
+	VADDPS Y1, Y3, Y3
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y3, (SI)
+	VMOVUPS Y0, (DI)
+	ADDQ $4, AX
+	JMP  fwdx4_s2_kloop
+fwdx4_s2_nextj:
+	INCQ CX
+	JMP  fwdx4_s2_jloop
+
+fwdx4_s3:
+	// Stage m=8: tw offset = j*1024 bytes (W_32^{j*4})
+	XORQ CX, CX
+fwdx4_s3_jloop:
+	CMPQ CX, $4
+	JGE  fwdx4_s4
+	CMPQ CX, $0
+	JEQ  fwdx4_s3_kloop_init
+	MOVQ CX, DX
+	SHLQ $10, DX
+	LEAQ (R10)(DX*1), R15
+	VBROADCASTSS 0(R15), Y8
+	VBROADCASTSS 4(R15), Y9
+
+fwdx4_s3_kloop_init:
+	MOVQ CX, AX
+fwdx4_s3_kloop:
+	CMPQ AX, $32
+	JGE  fwdx4_s3_nextj
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 128(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	CMPQ CX, $0
+	JEQ  fwdx4_s3_bfly
+	VMOVAPS Y1, Y2
+	VSHUFPS $0xB1, Y2, Y2, Y2
+	VMULPS Y9, Y2, Y2
+	VMULPS Y8, Y1, Y1
+	VADDSUBPS Y2, Y1, Y1
+fwdx4_s3_bfly:
+	VMOVAPS Y0, Y3
+	VADDPS Y1, Y3, Y3
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y3, (SI)
+	VMOVUPS Y0, (DI)
+	ADDQ $8, AX
+	JMP  fwdx4_s3_kloop
+fwdx4_s3_nextj:
+	INCQ CX
+	JMP  fwdx4_s3_jloop
+
+fwdx4_s4:
+	// Stage m=16: tw offset = j*512 bytes (W_32^{j*2})
+	XORQ CX, CX
+fwdx4_s4_jloop:
+	CMPQ CX, $8
+	JGE  fwdx4_s5
+	CMPQ CX, $0
+	JEQ  fwdx4_s4_kloop_init
+	MOVQ CX, DX
+	SHLQ $9, DX
+	LEAQ (R10)(DX*1), R15
+	VBROADCASTSS 0(R15), Y8
+	VBROADCASTSS 4(R15), Y9
+
+fwdx4_s4_kloop_init:
+	MOVQ CX, AX
+fwdx4_s4_kloop:
+	CMPQ AX, $32
+	JGE  fwdx4_s4_nextj
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 256(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	CMPQ CX, $0
+	JEQ  fwdx4_s4_bfly
+	VMOVAPS Y1, Y2
+	VSHUFPS $0xB1, Y2, Y2, Y2
+	VMULPS Y9, Y2, Y2
+	VMULPS Y8, Y1, Y1
+	VADDSUBPS Y2, Y1, Y1
+fwdx4_s4_bfly:
+	VMOVAPS Y0, Y3
+	VADDPS Y1, Y3, Y3
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y3, (SI)
+	VMOVUPS Y0, (DI)
+	ADDQ $16, AX
+	JMP  fwdx4_s4_kloop
+fwdx4_s4_nextj:
+	INCQ CX
+	JMP  fwdx4_s4_jloop
+
+fwdx4_s5:
+	// Stage m=32: tw offset = j*256 bytes (W_32^{j})
+	XORQ CX, CX
+fwdx4_s5_jloop:
+	CMPQ CX, $16
+	JGE  fwd_fft32x4_ret
+	CMPQ CX, $0
+	JEQ  fwdx4_s5_do
+	MOVQ CX, DX
+	SHLQ $8, DX
+	LEAQ (R10)(DX*1), R15
+	VBROADCASTSS 0(R15), Y8
+	VBROADCASTSS 4(R15), Y9
+
+fwdx4_s5_do:
+	MOVQ CX, AX
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 512(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	CMPQ CX, $0
+	JEQ  fwdx4_s5_bfly
+	VMOVAPS Y1, Y2
+	VSHUFPS $0xB1, Y2, Y2, Y2
+	VMULPS Y9, Y2, Y2
+	VMULPS Y8, Y1, Y1
+	VADDSUBPS Y2, Y1, Y1
+fwdx4_s5_bfly:
+	VMOVAPS Y0, Y3
+	VADDPS Y1, Y3, Y3
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y3, (SI)
+	VMOVUPS Y0, (DI)
+	INCQ CX
+	JMP  fwdx4_s5_jloop
+
+fwd_fft32x4_ret:
+	JMP  fwd_fft32x4_return_col
 
 	// =======================================================================
 	// Local helper: iterative radix-2 DIT FFT-32 on buf (forward)
@@ -431,7 +655,7 @@ fwd_fail:
 // InverseAVX2Size1024Radix32x32Complex64Asm
 // Signature: func(dst, src, twiddle, scratch []complex64) bool
 // ---------------------------------------------------------------------------
-TEXT ·InverseAVX2Size1024Radix32x32Complex64Asm(SB), NOSPLIT, $256-97
+TEXT ·InverseAVX2Size1024Radix32x32Complex64Asm(SB), $1280-97
 	// ---- len checks ----
 	MOVQ src+32(FP), AX
 	CMPQ AX, $1024
@@ -451,7 +675,7 @@ TEXT ·InverseAVX2Size1024Radix32x32Complex64Asm(SB), NOSPLIT, $256-97
 	MOVQ src+24(FP), R9      // src base (freq)
 	MOVQ twiddle+48(FP), R10 // twiddle base (W_1024)
 	MOVQ scratch+72(FP), R11 // work base
-	LEAQ 0(SP), R12          // local buf[32]complex64
+	LEAQ 0(SP), R12          // local bufV[32]YMM (4 columns packed)
 	MOVSS ·scale1024f32<>(SB), X14
 
 	// =====================================================================
@@ -464,6 +688,7 @@ inv_stage1_k2_loop:
 	JGE  inv_stage2
 
 	LEAQ ·bitrev32<>(SB), R15
+	LEAQ 1024(SP), R12        // scalar buf base
 	XORQ AX, AX // i=0
 inv_gather_row_loop:
 	CMPQ AX, $32
@@ -532,11 +757,13 @@ inv_stage1_next_k2:
 	// Stage 2: for each n1, IFFT32 over k2, scale by 1/1024, store dst[n2*32+n1]
 	// =====================================================================
 inv_stage2:
-	XORQ R13, R13 // n1=0
+	LEAQ 0(SP), R12           // bufV base
+	XORQ R13, R13 // n1=0 (processed in blocks of 4)
 inv_stage2_n1_loop:
 	CMPQ R13, $32
 	JGE  inv_ok
 
+	// gather 4 columns work[rev*32+n1..n1+3] into bufV
 	LEAQ ·bitrev32<>(SB), R15
 	XORQ AX, AX // i=0
 inv_gather_col_loop:
@@ -548,42 +775,246 @@ inv_gather_col_loop:
 	MOVQ R13, DX
 	SHLQ $3, DX               // n1*8
 	ADDQ DX, CX
-	MOVQ (R11)(CX*1), SI
-	MOVQ SI, (R12)(AX*8)
+	LEAQ (R11)(CX*1), SI
+	VMOVUPS (SI), Y0
+	MOVQ AX, DI
+	SHLQ $5, DI
+	VMOVUPS Y0, (R12)(DI*1)
 	INCQ AX
 	JMP  inv_gather_col_loop
 
 inv_do_ifft_col:
-	MOVQ $1, BP               // return selector 1
-	JMP  inv_fft32
+	JMP  inv_fft32x4
+inv_fft32x4_return_col:
+
 inv_fft32_return_col:
 
+	VBROADCASTSS ·scale1024f32<>(SB), Y15
 	XORQ R14, R14 // n2=0
 inv_store_dst_loop:
 	CMPQ R14, $32
 	JGE  inv_stage2_next_n1
 
-	LEAQ (R12)(R14*8), SI
-	MOVSS 0(SI), X0
-	MOVSS 4(SI), X1
-	MULSS X14, X0
-	MULSS X14, X1
-
+	MOVQ R14, DX
+	SHLQ $5, DX
+	VMOVUPS (R12)(DX*1), Y0
+	VMULPS Y15, Y0, Y0
 	MOVQ R14, AX
 	SHLQ $8, AX               // n2*256
 	MOVQ R13, BX
 	SHLQ $3, BX               // n1*8
 	ADDQ BX, AX
 	LEAQ (R8)(AX*1), DI
-	MOVSS X0, 0(DI)
-	MOVSS X1, 4(DI)
+	VMOVUPS Y0, (DI)
 
 	INCQ R14
 	JMP  inv_store_dst_loop
 
 inv_stage2_next_n1:
-	INCQ R13
+	ADDQ $4, R13
 	JMP  inv_stage2_n1_loop
+
+	// =======================================================================
+	// Local helper: iterative radix-2 DIT IFFT-32 on bufV (unscaled), 4 columns packed
+	// Expects:
+	//   R12 = &bufV[0]
+	//   R10 = twiddle base (W_1024)
+	// Returns to inv_fft32x4_return_col
+	// =======================================================================
+
+inv_fft32x4:
+	VBROADCASTSS ·signMaskF32<>(SB), Y14
+	// Stage m=2
+	XORQ AX, AX
+invx4_s1_kloop:
+	CMPQ AX, $32
+	JGE  invx4_s2
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 32(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	VMOVAPS Y0, Y2
+	VADDPS Y1, Y2, Y2
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y2, (SI)
+	VMOVUPS Y0, (DI)
+	ADDQ $2, AX
+	JMP  invx4_s1_kloop
+
+invx4_s2:
+	// Stage m=4 (conjugated twiddle: use imag = -d)
+	XORQ CX, CX
+invx4_s2_jloop:
+	CMPQ CX, $2
+	JGE  invx4_s3
+	CMPQ CX, $0
+	JEQ  invx4_s2_kloop_init
+	MOVQ CX, DX
+	SHLQ $11, DX
+	LEAQ (R10)(DX*1), R15
+	VBROADCASTSS 0(R15), Y8
+	VBROADCASTSS 4(R15), Y9
+	VXORPS Y14, Y9, Y9
+invx4_s2_kloop_init:
+	MOVQ CX, AX
+invx4_s2_kloop:
+	CMPQ AX, $32
+	JGE  invx4_s2_nextj
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 64(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	CMPQ CX, $0
+	JEQ  invx4_s2_bfly
+	VMOVAPS Y1, Y2
+	VSHUFPS $0xB1, Y2, Y2, Y2
+	VMULPS Y9, Y2, Y2
+	VMULPS Y8, Y1, Y1
+	VADDSUBPS Y2, Y1, Y1
+invx4_s2_bfly:
+	VMOVAPS Y0, Y3
+	VADDPS Y1, Y3, Y3
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y3, (SI)
+	VMOVUPS Y0, (DI)
+	ADDQ $4, AX
+	JMP  invx4_s2_kloop
+invx4_s2_nextj:
+	INCQ CX
+	JMP  invx4_s2_jloop
+
+invx4_s3:
+	// Stage m=8
+	XORQ CX, CX
+invx4_s3_jloop:
+	CMPQ CX, $4
+	JGE  invx4_s4
+	CMPQ CX, $0
+	JEQ  invx4_s3_kloop_init
+	MOVQ CX, DX
+	SHLQ $10, DX
+	LEAQ (R10)(DX*1), R15
+	VBROADCASTSS 0(R15), Y8
+	VBROADCASTSS 4(R15), Y9
+	VXORPS Y14, Y9, Y9
+invx4_s3_kloop_init:
+	MOVQ CX, AX
+invx4_s3_kloop:
+	CMPQ AX, $32
+	JGE  invx4_s3_nextj
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 128(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	CMPQ CX, $0
+	JEQ  invx4_s3_bfly
+	VMOVAPS Y1, Y2
+	VSHUFPS $0xB1, Y2, Y2, Y2
+	VMULPS Y9, Y2, Y2
+	VMULPS Y8, Y1, Y1
+	VADDSUBPS Y2, Y1, Y1
+invx4_s3_bfly:
+	VMOVAPS Y0, Y3
+	VADDPS Y1, Y3, Y3
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y3, (SI)
+	VMOVUPS Y0, (DI)
+	ADDQ $8, AX
+	JMP  invx4_s3_kloop
+invx4_s3_nextj:
+	INCQ CX
+	JMP  invx4_s3_jloop
+
+invx4_s4:
+	// Stage m=16
+	XORQ CX, CX
+invx4_s4_jloop:
+	CMPQ CX, $8
+	JGE  invx4_s5
+	CMPQ CX, $0
+	JEQ  invx4_s4_kloop_init
+	MOVQ CX, DX
+	SHLQ $9, DX
+	LEAQ (R10)(DX*1), R15
+	VBROADCASTSS 0(R15), Y8
+	VBROADCASTSS 4(R15), Y9
+	VXORPS Y14, Y9, Y9
+invx4_s4_kloop_init:
+	MOVQ CX, AX
+invx4_s4_kloop:
+	CMPQ AX, $32
+	JGE  invx4_s4_nextj
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 256(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	CMPQ CX, $0
+	JEQ  invx4_s4_bfly
+	VMOVAPS Y1, Y2
+	VSHUFPS $0xB1, Y2, Y2, Y2
+	VMULPS Y9, Y2, Y2
+	VMULPS Y8, Y1, Y1
+	VADDSUBPS Y2, Y1, Y1
+invx4_s4_bfly:
+	VMOVAPS Y0, Y3
+	VADDPS Y1, Y3, Y3
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y3, (SI)
+	VMOVUPS Y0, (DI)
+	ADDQ $16, AX
+	JMP  invx4_s4_kloop
+invx4_s4_nextj:
+	INCQ CX
+	JMP  invx4_s4_jloop
+
+invx4_s5:
+	// Stage m=32
+	XORQ CX, CX
+invx4_s5_jloop:
+	CMPQ CX, $16
+	JGE  inv_fft32x4_ret
+	CMPQ CX, $0
+	JEQ  invx4_s5_do
+	MOVQ CX, DX
+	SHLQ $8, DX
+	LEAQ (R10)(DX*1), R15
+	VBROADCASTSS 0(R15), Y8
+	VBROADCASTSS 4(R15), Y9
+	VXORPS Y14, Y9, Y9
+invx4_s5_do:
+	MOVQ CX, AX
+	MOVQ AX, DX
+	SHLQ $5, DX
+	LEAQ (R12)(DX*1), SI
+	LEAQ 512(SI), DI
+	VMOVUPS (SI), Y0
+	VMOVUPS (DI), Y1
+	CMPQ CX, $0
+	JEQ  invx4_s5_bfly
+	VMOVAPS Y1, Y2
+	VSHUFPS $0xB1, Y2, Y2, Y2
+	VMULPS Y9, Y2, Y2
+	VMULPS Y8, Y1, Y1
+	VADDSUBPS Y2, Y1, Y1
+invx4_s5_bfly:
+	VMOVAPS Y0, Y3
+	VADDPS Y1, Y3, Y3
+	VSUBPS Y1, Y0, Y0
+	VMOVUPS Y3, (SI)
+	VMOVUPS Y0, (DI)
+	INCQ CX
+	JMP  invx4_s5_jloop
+
+inv_fft32x4_ret:
+	JMP  inv_fft32x4_return_col
 
 	// =======================================================================
 	// Local helper: iterative radix-2 DIT IFFT-32 on buf (unscaled)
