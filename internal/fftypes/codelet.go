@@ -32,5 +32,10 @@ func (kt KernelType) String() string {
 // Unlike Kernel[T], codelets have a hardcoded size and perform no runtime checks.
 // The caller guarantees that all slices have the required length.
 //
+// Parameters:
+//   - dst, src: Input/output data (len >= codelet size)
+//   - twiddle: Codelet-specific twiddle data (may be standard twiddles or SIMD-friendly layout)
+//   - scratch: Working buffer for intermediate results
+//
 // Kernels using this signature handle permutation internally.
 type CodeletFunc[T Complex] func(dst, src, twiddle, scratch []T)

@@ -1,9 +1,11 @@
 package kernels
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/memory"
 )
 
 func TestCodeletRegistryLookup(t *testing.T) {
@@ -187,11 +189,13 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 8)
 		twiddle := ComputeTwiddleFactors[complex64](8)
 		scratch := make([]complex64, 8)
+		codeletTwiddle, twiddleBacking := prepareCodeletTwiddles64(8, twiddle, entry, false)
+		defer runtime.KeepAlive(twiddleBacking)
 
 		// Initialize with impulse
 		src[0] = 1
 
-		entry.Forward(dst, src, twiddle, scratch)
+		entry.Forward(dst, src, codeletTwiddle, scratch)
 
 		// FFT of impulse should be all ones
 		for i, v := range dst {
@@ -213,13 +217,15 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 8)
 		twiddle := ComputeTwiddleFactors[complex64](8)
 		scratch := make([]complex64, 8)
+		codeletTwiddle, twiddleBacking := prepareCodeletTwiddles64(8, twiddle, entry, true)
+		defer runtime.KeepAlive(twiddleBacking)
 
 		// Initialize with all ones (FFT of impulse)
 		for i := range src {
 			src[i] = 1
 		}
 
-		entry.Inverse(dst, src, twiddle, scratch)
+		entry.Inverse(dst, src, codeletTwiddle, scratch)
 
 		// IFFT should give impulse at index 0 (~1+0i)
 		if real(dst[0]) < 0.99 || real(dst[0]) > 1.01 {
@@ -249,11 +255,13 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 512)
 		twiddle := ComputeTwiddleFactors[complex64](512)
 		scratch := make([]complex64, 512)
+		codeletTwiddle, twiddleBacking := prepareCodeletTwiddles64(512, twiddle, entry, false)
+		defer runtime.KeepAlive(twiddleBacking)
 
 		// Initialize with impulse
 		src[0] = 1
 
-		entry.Forward(dst, src, twiddle, scratch)
+		entry.Forward(dst, src, codeletTwiddle, scratch)
 
 		// FFT of impulse should be all ones
 		for i, v := range dst {
@@ -275,13 +283,15 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 512)
 		twiddle := ComputeTwiddleFactors[complex64](512)
 		scratch := make([]complex64, 512)
+		codeletTwiddle, twiddleBacking := prepareCodeletTwiddles64(512, twiddle, entry, true)
+		defer runtime.KeepAlive(twiddleBacking)
 
 		// Initialize with all ones (FFT of impulse)
 		for i := range src {
 			src[i] = 1
 		}
 
-		entry.Inverse(dst, src, twiddle, scratch)
+		entry.Inverse(dst, src, codeletTwiddle, scratch)
 
 		// IFFT should give impulse at index 0 (~1+0i)
 		if real(dst[0]) < 0.99 || real(dst[0]) > 1.01 {
@@ -298,4 +308,19 @@ func TestCodeletFunctional(t *testing.T) {
 			}
 		}
 	})
+}
+
+func prepareCodeletTwiddles64(size int, base []complex64, entry *CodeletEntry[complex64], inverse bool) ([]complex64, []byte) {
+	if entry.TwiddleSize == nil || entry.PrepareTwiddle == nil {
+		return base, nil
+	}
+
+	twiddleLen := entry.TwiddleSize(size)
+	if twiddleLen <= 0 {
+		return base, nil
+	}
+
+	prepared, backing := memory.AllocAlignedComplex64(twiddleLen)
+	entry.PrepareTwiddle(size, inverse, prepared)
+	return prepared, backing
 }

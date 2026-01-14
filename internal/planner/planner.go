@@ -25,6 +25,10 @@ type PlanEstimate[T Complex] struct {
 
 	// Strategy is the kernel strategy (DIT, Stockham, etc.)
 	Strategy KernelStrategy
+
+	// Codelet twiddle preparation callbacks (nil if codelet uses standard twiddles)
+	TwiddleSize    TwiddleSizeFunc       // Returns element count for codelet twiddles
+	PrepareTwiddle PrepareTwiddleFunc[T] // Prepares twiddle layout for the codelet
 }
 
 // EstimatePlan determines the best kernel/codelet for the given size.
@@ -93,6 +97,8 @@ func tryRegistry[T Complex](n int, features cpu.Features, forcedStrategy KernelS
 		InverseCodelet: entry.Inverse,
 		Algorithm:      entry.Signature,
 		Strategy:       entry.Algorithm,
+		TwiddleSize:    entry.TwiddleSize,
+		PrepareTwiddle: entry.PrepareTwiddle,
 	}
 }
 
@@ -133,6 +139,8 @@ func resolveWisdom[T Complex](n int, features cpu.Features, wisdom WisdomStore, 
 				InverseCodelet: codelet.Inverse,
 				Algorithm:      codelet.Signature,
 				Strategy:       codelet.Algorithm,
+				TwiddleSize:    codelet.TwiddleSize,
+				PrepareTwiddle: codelet.PrepareTwiddle,
 			}, KernelAuto, true
 		}
 	}

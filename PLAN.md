@@ -24,6 +24,20 @@ See `docs/IMPLEMENTATION_INVENTORY.md` for full inventory. Assembly: `internal/a
 
 **Phase 12 ✅**: Mixed-radix optimization complete — ping-pong buffering (20% throughput gain), type-specific butterflies (19% speedup), AVX2 radix-3/5, size-384 codelet; iterative version deferred (recursive already optimal)
 
+### SIMD Params Preparation System ✅
+
+Infrastructure for SIMD-optimized codelet twiddle data. Enables codelets to receive pre-prepared twiddle layouts instead of computing twiddle indices at runtime.
+
+**API Changes:**
+- `CodeletFunc[T]` signature: uses twiddle-only buffers (supports SIMD-friendly layouts)
+- `CodeletEntry`: added `TwiddleSize` and `PrepareTwiddle` callbacks
+- `PlanEstimate`: carries extra-twiddle callbacks from registry to plan creation
+- `Plan[T]`/`FastPlan[T]`: store codelet twiddle buffers per direction
+
+**Benefits:** Eliminates runtime index computation, scalar loads, and register shuffles. Pre-broadcast twiddles enable ~50% fewer instructions in SIMD twiddle handling.
+
+**Files modified:** `internal/fftypes/codelet.go`, `internal/planner/codelet.go`, `internal/planner/planner.go`, `plan.go`, `plan_fast.go`, `internal/kernels/codelet_init.go`, test files
+
 ---
 
 ## Phase 13: SSE2 Coverage (Sizes 256-1024)

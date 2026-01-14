@@ -22,6 +22,10 @@ type Plan[T Complex] struct {
 	// For a size-n FFT: W_n^k = exp(-2πik/n) for k = 0..n-1
 	twiddle []T
 
+	// codeletTwiddle* hold codelet-specific twiddle layouts (may alias twiddle).
+	codeletTwiddleForward []T
+	codeletTwiddleInverse []T
+
 	// scratch is an optional pre-allocated buffer for intermediate computations.
 	// If nil, scratch buffers are retrieved from scratchPool per call.
 	scratch []T
@@ -66,9 +70,11 @@ type Plan[T Complex] struct {
 	decompStrategy *fft.DecomposeStrategy
 
 	// backing buffers keep aligned slices alive for GC.
-	twiddleBacking        []byte
-	scratchBacking        []byte
-	stridedScratchBacking []byte
+	twiddleBacking               []byte
+	codeletTwiddleForwardBacking []byte
+	codeletTwiddleInverseBacking []byte
+	scratchBacking               []byte
+	stridedScratchBacking        []byte
 
 	// pool is the buffer pool this Plan was allocated from (nil if not pooled).
 	pool *fft.BufferPool
@@ -220,6 +226,66 @@ func planBitReversal[T Complex](n int, estimate fft.PlanEstimate[T]) []int {
 	return nil
 }
 
+func prepareCodeletTwiddles[T Complex](
+	n int,
+	base []T,
+	estimate fft.PlanEstimate[T],
+) (forward, inverse []T, forwardBacking, inverseBacking []byte) {
+	forward = base
+	inverse = base
+
+	if estimate.TwiddleSize == nil || estimate.PrepareTwiddle == nil {
+		return forward, inverse, nil, nil
+	}
+
+	twiddleLen := estimate.TwiddleSize(n)
+	if twiddleLen <= 0 {
+		return forward, inverse, nil, nil
+	}
+
+	prepare := func(dst []T, inverse bool) {
+		estimate.PrepareTwiddle(n, inverse, dst)
+	}
+
+	var zero T
+
+	switch any(zero).(type) {
+	case complex64:
+		fwd, fwdBacking := mem.AllocAlignedComplex64(twiddleLen)
+		inv, invBacking := mem.AllocAlignedComplex64(twiddleLen)
+
+		prepare(any(fwd).([]T), false)
+		prepare(any(inv).([]T), true)
+
+		forward = any(fwd).([]T)
+		inverse = any(inv).([]T)
+		forwardBacking = fwdBacking
+		inverseBacking = invBacking
+	case complex128:
+		fwd, fwdBacking := mem.AllocAlignedComplex128(twiddleLen)
+		inv, invBacking := mem.AllocAlignedComplex128(twiddleLen)
+
+		prepare(any(fwd).([]T), false)
+		prepare(any(inv).([]T), true)
+
+		forward = any(fwd).([]T)
+		inverse = any(inv).([]T)
+		forwardBacking = fwdBacking
+		inverseBacking = invBacking
+	default:
+		fwd := make([]T, twiddleLen)
+		inv := make([]T, twiddleLen)
+
+		prepare(fwd, false)
+		prepare(inv, true)
+
+		forward = fwd
+		inverse = inv
+	}
+
+	return forward, inverse, forwardBacking, inverseBacking
+}
+
 func (p *Plan[T]) getScratch() ([]T, []T, []T, *scratchSet[T]) {
 	if p.scratch != nil {
 		return p.scratch, p.stridedScratch, p.bluesteinScratch, nil
@@ -262,7 +328,7 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 
 	// Zero-dispatch codelet path (highest priority)
 	if p.forwardCodelet != nil {
-		p.forwardCodelet(dst, src, p.twiddle, scratch)
+		p.forwardCodelet(dst, src, p.codeletTwiddleForward, scratch)
 		return nil
 	}
 
@@ -312,7 +378,7 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 
 	// Zero-dispatch codelet path (highest priority)
 	if p.inverseCodelet != nil {
-		p.inverseCodelet(dst, src, p.twiddle, scratch)
+		p.inverseCodelet(dst, src, p.codeletTwiddleInverse, scratch)
 		return nil
 	}
 
@@ -363,7 +429,7 @@ func (p *Plan[T]) InverseInPlace(data []T) error {
 // Use Forward() for the safe, validated path.
 func (p *Plan[T]) ForwardUnsafe(dst, src []T) {
 	if p.forwardCodelet != nil {
-		p.forwardCodelet(dst, src, p.twiddle, p.scratch)
+		p.forwardCodelet(dst, src, p.codeletTwiddleForward, p.scratch)
 		return
 	}
 
@@ -383,7 +449,7 @@ func (p *Plan[T]) ForwardUnsafe(dst, src []T) {
 // Use Inverse() for the safe, validated path.
 func (p *Plan[T]) InverseUnsafe(dst, src []T) {
 	if p.inverseCodelet != nil {
-		p.inverseCodelet(dst, src, p.twiddle, p.scratch)
+		p.inverseCodelet(dst, src, p.codeletTwiddleInverse, p.scratch)
 		return
 	}
 
@@ -754,28 +820,30 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	scratchPool.Put(setupScratch)
 
 	p := &Plan[T]{
-		n:                  n,
-		twiddle:            twiddle,
-		scratch:            nil, // Use pool
-		stridedScratch:     nil, // Use pool
-		bitrev:             planBitReversal(n, estimate),
-		forwardCodelet:     estimate.ForwardCodelet,
-		inverseCodelet:     estimate.InverseCodelet,
-		algorithm:          estimate.Algorithm,
-		forwardKernel:      kernels.Forward,
-		inverseKernel:      kernels.Inverse,
-		kernelStrategy:     strategy,
-		decompStrategy:     decompStrategy,
-		twiddleBacking:     twiddleBacking,
-		scratchPool:        scratchPool,
-		bluesteinM:         bluesteinM,
-		bluesteinChirp:     bluesteinChirp,
-		bluesteinChirpInv:  bluesteinChirpInv,
-		bluesteinFilter:    bluesteinFilter,
-		bluesteinFilterInv: bluesteinFilterInv,
-		bluesteinTwiddle:   bluesteinTwiddle,
-		bluesteinBitrev:    bluesteinBitrev,
-		bluesteinScratch:   nil, // Use pool
+		n:                     n,
+		twiddle:               twiddle,
+		codeletTwiddleForward: twiddle,
+		codeletTwiddleInverse: twiddle,
+		scratch:               nil, // Use pool
+		stridedScratch:        nil, // Use pool
+		bitrev:                planBitReversal(n, estimate),
+		forwardCodelet:        estimate.ForwardCodelet,
+		inverseCodelet:        estimate.InverseCodelet,
+		algorithm:             estimate.Algorithm,
+		forwardKernel:         kernels.Forward,
+		inverseKernel:         kernels.Inverse,
+		kernelStrategy:        strategy,
+		decompStrategy:        decompStrategy,
+		twiddleBacking:        twiddleBacking,
+		scratchPool:           scratchPool,
+		bluesteinM:            bluesteinM,
+		bluesteinChirp:        bluesteinChirp,
+		bluesteinChirpInv:     bluesteinChirpInv,
+		bluesteinFilter:       bluesteinFilter,
+		bluesteinFilterInv:    bluesteinFilterInv,
+		bluesteinTwiddle:      bluesteinTwiddle,
+		bluesteinBitrev:       bluesteinBitrev,
+		bluesteinScratch:      nil, // Use pool
 		meta: PlanMeta{
 			Planner:  opts.Planner,
 			Strategy: strategy,
@@ -791,6 +859,9 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
 		p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
 	}
+
+	p.codeletTwiddleForward, p.codeletTwiddleInverse, p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking =
+		prepareCodeletTwiddles(n, p.twiddle, estimate)
 
 	return p, nil
 }
@@ -868,6 +939,8 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	p := &Plan[T]{
 		n:                     n,
 		twiddle:               twiddle,
+		codeletTwiddleForward: twiddle,
+		codeletTwiddleInverse: twiddle,
 		scratch:               scratch,
 		stridedScratch:        stridedScratch,
 		bitrev:                bitrev,
@@ -895,6 +968,9 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	p.packedTwiddle4Inv = fft.ConjugatePackedTwiddles(p.packedTwiddle4)
 	p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
 	p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
+
+	p.codeletTwiddleForward, p.codeletTwiddleInverse, p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking =
+		prepareCodeletTwiddles(n, p.twiddle, estimate)
 
 	return p, nil
 }
@@ -1001,9 +1077,13 @@ func (p *Plan[T]) Close() {
 	// Clear references to prevent reuse after Close
 	p.pool = nil
 	p.twiddle = nil
+	p.codeletTwiddleForward = nil
+	p.codeletTwiddleInverse = nil
 	p.scratch = nil
 	p.bitrev = nil
 	p.twiddleBacking = nil
+	p.codeletTwiddleForwardBacking = nil
+	p.codeletTwiddleInverseBacking = nil
 	p.scratchBacking = nil
 }
 
@@ -1074,28 +1154,32 @@ func (p *Plan[T]) Clone() *Plan[T] {
 	}
 
 	return &Plan[T]{
-		n:                     p.n,
-		twiddle:               p.twiddle,           // Shared (immutable)
-		scratch:               scratch,             // New allocation (FIXED)
-		stridedScratch:        stridedScratch,      // New allocation
-		bitrev:                p.bitrev,            // Shared (immutable)
-		packedTwiddle4:        p.packedTwiddle4,    // Shared (immutable)
-		packedTwiddle4Inv:     p.packedTwiddle4Inv, // Shared (immutable)
-		packedTwiddle8:        p.packedTwiddle8,    // Shared (immutable)
-		packedTwiddle16:       p.packedTwiddle16,   // Shared (immutable)
-		forwardCodelet:        p.forwardCodelet,    // Shared (function pointer)
-		inverseCodelet:        p.inverseCodelet,    // Shared (function pointer)
-		algorithm:             p.algorithm,         // Shared (immutable string)
-		forwardKernel:         p.forwardKernel,
-		inverseKernel:         p.inverseKernel,
-		kernelStrategy:        p.kernelStrategy,
-		decompStrategy:        p.decompStrategy,
-		meta:                  p.meta,
-		twiddleBacking:        p.twiddleBacking, // Shared reference (keeps original alive)
-		scratchBacking:        scratchBacking,   // New allocation
-		stridedScratchBacking: stridedScratchBacking,
-		pool:                  nil, // Clones are never pooled
-		scratchPool:           nil, // Clones have fixed scratch
+		n:                            p.n,
+		twiddle:                      p.twiddle, // Shared (immutable)
+		codeletTwiddleForward:        p.codeletTwiddleForward,
+		codeletTwiddleInverse:        p.codeletTwiddleInverse,
+		scratch:                      scratch,             // New allocation (FIXED)
+		stridedScratch:               stridedScratch,      // New allocation
+		bitrev:                       p.bitrev,            // Shared (immutable)
+		packedTwiddle4:               p.packedTwiddle4,    // Shared (immutable)
+		packedTwiddle4Inv:            p.packedTwiddle4Inv, // Shared (immutable)
+		packedTwiddle8:               p.packedTwiddle8,    // Shared (immutable)
+		packedTwiddle16:              p.packedTwiddle16,   // Shared (immutable)
+		forwardCodelet:               p.forwardCodelet,    // Shared (function pointer)
+		inverseCodelet:               p.inverseCodelet,    // Shared (function pointer)
+		algorithm:                    p.algorithm,         // Shared (immutable string)
+		forwardKernel:                p.forwardKernel,
+		inverseKernel:                p.inverseKernel,
+		kernelStrategy:               p.kernelStrategy,
+		decompStrategy:               p.decompStrategy,
+		meta:                         p.meta,
+		twiddleBacking:               p.twiddleBacking, // Shared reference (keeps original alive)
+		codeletTwiddleForwardBacking: p.codeletTwiddleForwardBacking,
+		codeletTwiddleInverseBacking: p.codeletTwiddleInverseBacking,
+		scratchBacking:               scratchBacking, // New allocation
+		stridedScratchBacking:        stridedScratchBacking,
+		pool:                         nil, // Clones are never pooled
+		scratchPool:                  nil, // Clones have fixed scratch
 
 		// Bluestein fields
 		bluesteinM:              p.bluesteinM,
