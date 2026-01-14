@@ -257,6 +257,16 @@ func ForwardAVX2Size8192Mixed24Complex64Asm(dst, src, twiddle, scratch []complex
 //go:noescape
 func InverseAVX2Size8192Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
+// Params-enabled variants for size 8192: use pre-broadcast twiddle data for improved SIMD efficiency.
+// The twiddle slice contains pre-broadcast factors for stages 2-7, eliminating runtime
+// index computation and scalar-to-vector broadcasts in the hot loop.
+
+//go:noescape
+func ForwardAVX2Size8192Mixed24ParamsComplex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func InverseAVX2Size8192Mixed24ParamsComplex64Asm(dst, src, twiddle, scratch []complex64) bool
+
 //go:noescape
 func ForwardAVX2Size1024Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 

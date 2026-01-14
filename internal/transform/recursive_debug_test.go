@@ -198,11 +198,11 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 		offset += subSize
 
 		codelet := Registry64.Lookup(subSize, features)
-		if codelet != nil {
-			codelet.Forward(subResults[i], subInput, subTwiddle, make([]complex64, subSize))
-		} else {
-			ditForward(subResults[i], subInput, subTwiddle, make([]complex64, subSize))
-		}
+			if codelet != nil {
+				codelet.Forward(subResults[i], subInput, subTwiddle, make([]complex64, subSize))
+			} else {
+				ditForward(subResults[i], subInput, subTwiddle, make([]complex64, subSize))
+			}
 	}
 
 	output := make([]complex64, size)

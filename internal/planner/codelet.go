@@ -35,6 +35,15 @@ const (
 	KernelTypeDIT  = fftypes.KernelTypeDIT
 )
 
+// TwiddleSizeFunc returns the element count needed for codelet twiddles.
+// Returns 0 if the codelet uses standard twiddles.
+type TwiddleSizeFunc func(n int) int
+
+// PrepareTwiddleFunc fills codelet-specific twiddle data.
+// It receives the size, inverse flag, and destination slice.
+// The destination slice is owned by the Plan and persists for its lifetime.
+type PrepareTwiddleFunc[T Complex] func(n int, inverse bool, dst []T)
+
 // CodeletEntry describes a registered codelet for a specific size.
 type CodeletEntry[T Complex] struct {
 	Size       int            // FFT size this codelet handles
@@ -45,6 +54,10 @@ type CodeletEntry[T Complex] struct {
 	Signature  string         // Human-readable name: "dit8_avx2"
 	Priority   int            // Higher priority = preferred (for same SIMD level)
 	KernelType KernelType     // How the kernel handles permutation
+
+	// Codelet twiddle preparation (nil = use standard twiddle layout)
+	TwiddleSize    TwiddleSizeFunc       // Returns element count for codelet twiddles
+	PrepareTwiddle PrepareTwiddleFunc[T] // Prepares twiddle layout for the codelet
 }
 
 // CodeletRegistry provides size-indexed codelet lookup.

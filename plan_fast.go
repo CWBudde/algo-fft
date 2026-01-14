@@ -19,11 +19,15 @@ import (
 // Use NewFastPlan to create instances. Returns ErrNotImplemented if no
 // codelet is available for the requested size.
 type FastPlan[T Complex] struct {
-	n              int
-	twiddle        []T
-	scratch        []T
-	twiddleBacking []byte
-	scratchBacking []byte
+	n                     int
+	twiddle               []T
+	codeletTwiddleForward []T
+	codeletTwiddleInverse []T
+	scratch               []T
+	twiddleBacking        []byte
+	codeletTwiddleForwardBacking []byte
+	codeletTwiddleInverseBacking []byte
+	scratchBacking        []byte
 
 	forwardFunc fft.CodeletFunc[T]
 	inverseFunc fft.CodeletFunc[T]
@@ -82,15 +86,22 @@ func NewFastPlan[T Complex](n int) (*FastPlan[T], error) {
 		scratchBacking = scb
 	}
 
-	return &FastPlan[T]{
-		n:              n,
-		twiddle:        twiddle,
-		scratch:        scratch,
-		twiddleBacking: twiddleBacking,
-		scratchBacking: scratchBacking,
-		forwardFunc:    estimate.ForwardCodelet,
-		inverseFunc:    estimate.InverseCodelet,
-	}, nil
+	fp := &FastPlan[T]{
+		n:                     n,
+		twiddle:               twiddle,
+		codeletTwiddleForward: twiddle,
+		codeletTwiddleInverse: twiddle,
+		scratch:               scratch,
+		twiddleBacking:        twiddleBacking,
+		scratchBacking:        scratchBacking,
+		forwardFunc:           estimate.ForwardCodelet,
+		inverseFunc:           estimate.InverseCodelet,
+	}
+
+	fp.codeletTwiddleForward, fp.codeletTwiddleInverse, fp.codeletTwiddleForwardBacking, fp.codeletTwiddleInverseBacking =
+		prepareCodeletTwiddles(n, twiddle, estimate)
+
+	return fp, nil
 }
 
 // Len returns the FFT size.
@@ -101,23 +112,23 @@ func (fp *FastPlan[T]) Len() int {
 // Forward performs the forward FFT without validation.
 // Caller guarantees: len(dst) >= n, len(src) >= n, slices non-nil.
 func (fp *FastPlan[T]) Forward(dst, src []T) {
-	fp.forwardFunc(dst, src, fp.twiddle, fp.scratch)
+	fp.forwardFunc(dst, src, fp.codeletTwiddleForward, fp.scratch)
 }
 
 // Inverse performs the inverse FFT without validation.
 // Caller guarantees: len(dst) >= n, len(src) >= n, slices non-nil.
 func (fp *FastPlan[T]) Inverse(dst, src []T) {
-	fp.inverseFunc(dst, src, fp.twiddle, fp.scratch)
+	fp.inverseFunc(dst, src, fp.codeletTwiddleInverse, fp.scratch)
 }
 
 // InPlace performs the forward FFT in-place without validation.
 // Caller guarantees: len(data) >= n, slice non-nil.
 func (fp *FastPlan[T]) InPlace(data []T) {
-	fp.forwardFunc(data, data, fp.twiddle, fp.scratch)
+	fp.forwardFunc(data, data, fp.codeletTwiddleForward, fp.scratch)
 }
 
 // InverseInPlace performs the inverse FFT in-place without validation.
 // Caller guarantees: len(data) >= n, slice non-nil.
 func (fp *FastPlan[T]) InverseInPlace(data []T) {
-	fp.inverseFunc(data, data, fp.twiddle, fp.scratch)
+	fp.inverseFunc(data, data, fp.codeletTwiddleInverse, fp.scratch)
 }

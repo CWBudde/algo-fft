@@ -277,6 +277,24 @@ func registerAVX2DITCodelets64() {
 		KernelType: KernelTypeDIT,
 	})
 
+	// Size 8192: Mixed-radix-2/4 AVX2 with pre-broadcast twiddle data.
+	// Uses extra twiddle data for improved SIMD efficiency.
+	// Eliminates runtime index computation and scalar-to-vector broadcasts.
+	// Expected to show better speedup than size 64 due to larger twiddle
+	// index computation overhead in stages 2-7.
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:          8192,
+		Forward:       wrapCodelet64(amd64.ForwardAVX2Size8192Mixed24ParamsComplex64Asm),
+		Inverse:       wrapCodelet64(amd64.InverseAVX2Size8192Mixed24ParamsComplex64Asm),
+		Algorithm:     KernelDIT,
+		SIMDLevel:     SIMDAVX2,
+		Signature:     "dit8192_mixed24_params_avx2",
+		Priority:      30, // Higher than non-extra (25) - should be faster for large size
+		KernelType:    KernelTypeDIT,
+		TwiddleSize:    twiddleSize8192Mixed24AVX2,
+		PrepareTwiddle: prepareTwiddle8192Mixed24AVX2,
+	})
+
 	// Size 1024: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       1024,

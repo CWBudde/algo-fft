@@ -5,9 +5,11 @@ package kernels
 import (
 	"fmt"
 	"math/cmplx"
+	"runtime"
 	"testing"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/memory"
 	"github.com/MeKo-Christian/algo-fft/internal/planner"
 )
 
@@ -75,6 +77,8 @@ func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]
 	twiddle := ComputeTwiddleFactors[complex64](size)
 	scratch := make([]complex64, size)
 
+	twiddleForward, twiddleInverse, forwardBacking, inverseBacking := prepareCodeletTwiddles64(size, twiddle, entry)
+
 	// Initialize with test pattern: impulse at various positions
 	testPatterns := []struct {
 		name string
@@ -100,10 +104,10 @@ func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]
 		copy(src, original)
 
 		// Forward transform
-		entry.Forward(freq, src, twiddle, scratch)
+		entry.Forward(freq, src, twiddleForward, scratch)
 
 		// Inverse transform
-		entry.Inverse(roundtrip, freq, twiddle, scratch)
+		entry.Inverse(roundtrip, freq, twiddleInverse, scratch)
 
 		// Compare roundtrip with original
 		maxErr := float64(0)
@@ -127,6 +131,9 @@ func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]
 			t.Errorf("%s: max roundtrip error %v exceeds tolerance %v", pattern.name, maxErr, tol)
 		}
 	}
+
+	runtime.KeepAlive(forwardBacking)
+	runtime.KeepAlive(inverseBacking)
 }
 
 func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]) {
@@ -140,6 +147,8 @@ func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex12
 	roundtrip := make([]complex128, size)
 	twiddle := ComputeTwiddleFactors[complex128](size)
 	scratch := make([]complex128, size)
+
+	twiddleForward, twiddleInverse, forwardBacking, inverseBacking := prepareCodeletTwiddles128(size, twiddle, entry)
 
 	// Initialize with test pattern: impulse at various positions
 	testPatterns := []struct {
@@ -166,10 +175,10 @@ func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex12
 		copy(src, original)
 
 		// Forward transform
-		entry.Forward(freq, src, twiddle, scratch)
+		entry.Forward(freq, src, twiddleForward, scratch)
 
 		// Inverse transform
-		entry.Inverse(roundtrip, freq, twiddle, scratch)
+		entry.Inverse(roundtrip, freq, twiddleInverse, scratch)
 
 		// Compare roundtrip with original
 		maxErr := float64(0)
@@ -193,6 +202,9 @@ func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex12
 			t.Errorf("%s: max roundtrip error %v exceeds tolerance %v", pattern.name, maxErr, tol)
 		}
 	}
+
+	runtime.KeepAlive(forwardBacking)
+	runtime.KeepAlive(inverseBacking)
 }
 
 // TestInPlaceAllCodelets64 tests that every registered complex64 codelet works
@@ -258,6 +270,8 @@ func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) 
 	twiddle := ComputeTwiddleFactors[complex64](size)
 	scratch := make([]complex64, size)
 
+	twiddleForward, twiddleInverse, forwardBacking, inverseBacking := prepareCodeletTwiddles64(size, twiddle, entry)
+
 	// Initialize with deterministic random-like pattern
 	for i := range original {
 		original[i] = complex(float32(i%7-3), float32(i%5-2))
@@ -265,11 +279,11 @@ func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) 
 
 	// Out-of-place forward transform
 	copy(outOfPlace, original)
-	entry.Forward(outOfPlace, original, twiddle, scratch)
+	entry.Forward(outOfPlace, original, twiddleForward, scratch)
 
 	// In-place forward transform (dst == src)
 	copy(inPlace, original)
-	entry.Forward(inPlace, inPlace, twiddle, scratch)
+	entry.Forward(inPlace, inPlace, twiddleForward, scratch)
 
 	// Compare in-place vs out-of-place
 	maxErr := float64(0)
@@ -290,11 +304,11 @@ func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) 
 	freqOOP := make([]complex64, size)
 	copy(freqOOP, outOfPlace)
 	resultOOP := make([]complex64, size)
-	entry.Inverse(resultOOP, freqOOP, twiddle, scratch)
+	entry.Inverse(resultOOP, freqOOP, twiddleInverse, scratch)
 
 	freqIP := make([]complex64, size)
 	copy(freqIP, outOfPlace)
-	entry.Inverse(freqIP, freqIP, twiddle, scratch)
+	entry.Inverse(freqIP, freqIP, twiddleInverse, scratch)
 
 	maxErr = 0
 	for i := 0; i < size; i++ {
@@ -307,6 +321,9 @@ func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) 
 	if maxErr > tol {
 		t.Errorf("inverse in-place differs from out-of-place: max error %v exceeds %v", maxErr, tol)
 	}
+
+	runtime.KeepAlive(forwardBacking)
+	runtime.KeepAlive(inverseBacking)
 }
 
 func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]) {
@@ -320,6 +337,8 @@ func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]
 	twiddle := ComputeTwiddleFactors[complex128](size)
 	scratch := make([]complex128, size)
 
+	twiddleForward, twiddleInverse, forwardBacking, inverseBacking := prepareCodeletTwiddles128(size, twiddle, entry)
+
 	// Initialize with deterministic random-like pattern
 	for i := range original {
 		original[i] = complex(float64(i%7-3), float64(i%5-2))
@@ -327,11 +346,11 @@ func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]
 
 	// Out-of-place forward transform
 	copy(outOfPlace, original)
-	entry.Forward(outOfPlace, original, twiddle, scratch)
+	entry.Forward(outOfPlace, original, twiddleForward, scratch)
 
 	// In-place forward transform (dst == src)
 	copy(inPlace, original)
-	entry.Forward(inPlace, inPlace, twiddle, scratch)
+	entry.Forward(inPlace, inPlace, twiddleForward, scratch)
 
 	// Compare in-place vs out-of-place
 	maxErr := float64(0)
@@ -352,11 +371,11 @@ func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]
 	freqOOP := make([]complex128, size)
 	copy(freqOOP, outOfPlace)
 	resultOOP := make([]complex128, size)
-	entry.Inverse(resultOOP, freqOOP, twiddle, scratch)
+	entry.Inverse(resultOOP, freqOOP, twiddleInverse, scratch)
 
 	freqIP := make([]complex128, size)
 	copy(freqIP, outOfPlace)
-	entry.Inverse(freqIP, freqIP, twiddle, scratch)
+	entry.Inverse(freqIP, freqIP, twiddleInverse, scratch)
 
 	maxErr = 0
 	for i := 0; i < size; i++ {
@@ -369,6 +388,59 @@ func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]
 	if maxErr > tol {
 		t.Errorf("inverse in-place differs from out-of-place: max error %v exceeds %v", maxErr, tol)
 	}
+
+	runtime.KeepAlive(forwardBacking)
+	runtime.KeepAlive(inverseBacking)
+}
+
+func prepareCodeletTwiddles64(
+	size int,
+	base []complex64,
+	entry *planner.CodeletEntry[complex64],
+) (forward, inverse []complex64, forwardBacking, inverseBacking []byte) {
+	forward = base
+	inverse = base
+
+	if entry.TwiddleSize == nil || entry.PrepareTwiddle == nil {
+		return forward, inverse, nil, nil
+	}
+
+	twiddleLen := entry.TwiddleSize(size)
+	if twiddleLen <= 0 {
+		return forward, inverse, nil, nil
+	}
+
+	forward, forwardBacking = memory.AllocAlignedComplex64(twiddleLen)
+	inverse, inverseBacking = memory.AllocAlignedComplex64(twiddleLen)
+	entry.PrepareTwiddle(size, false, forward)
+	entry.PrepareTwiddle(size, true, inverse)
+
+	return forward, inverse, forwardBacking, inverseBacking
+}
+
+func prepareCodeletTwiddles128(
+	size int,
+	base []complex128,
+	entry *planner.CodeletEntry[complex128],
+) (forward, inverse []complex128, forwardBacking, inverseBacking []byte) {
+	forward = base
+	inverse = base
+
+	if entry.TwiddleSize == nil || entry.PrepareTwiddle == nil {
+		return forward, inverse, nil, nil
+	}
+
+	twiddleLen := entry.TwiddleSize(size)
+	if twiddleLen <= 0 {
+		return forward, inverse, nil, nil
+	}
+
+	forward, forwardBacking = memory.AllocAlignedComplex128(twiddleLen)
+	inverse, inverseBacking = memory.AllocAlignedComplex128(twiddleLen)
+	entry.PrepareTwiddle(size, false, forward)
+	entry.PrepareTwiddle(size, true, inverse)
+
+	return forward, inverse, forwardBacking, inverseBacking
 }
 
 // cpuSupportsLevel checks if the current CPU supports the required SIMD level.

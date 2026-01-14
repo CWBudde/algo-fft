@@ -5,6 +5,8 @@ package fft
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/kernels"
+	"github.com/MeKo-Christian/algo-fft/internal/memory"
+	"runtime"
 )
 
 func init() {
@@ -44,10 +46,22 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 			kernelScratch := make([]complex64, n)
 
 			// 4. Call Kernel
+			codeletTwiddle := twiddleBuf
+			var codeletTwiddleBacking []byte
+			if entry.TwiddleSize != nil && entry.PrepareTwiddle != nil {
+				twiddleLen := entry.TwiddleSize(n)
+				if twiddleLen > 0 {
+					prepared, preparedBacking := memory.AllocAlignedComplex64(twiddleLen)
+					entry.PrepareTwiddle(n, inverse, prepared)
+					codeletTwiddle = prepared
+					codeletTwiddleBacking = preparedBacking
+				}
+			}
+
 			success := false
 			if inverse {
 				if entry.Inverse != nil {
-					entry.Inverse(dst[:n], inputBuf, twiddleBuf, kernelScratch)
+					entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
 					// Undo built-in scaling of the Inverse codelet (1/n)
 					scale := complex64(complex(float32(n), 0))
 					for i := range n {
@@ -57,12 +71,13 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 				}
 			} else {
 				if entry.Forward != nil {
-					entry.Forward(dst[:n], inputBuf, twiddleBuf, kernelScratch)
+					entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
 					success = true
 				}
 			}
 
 			if success {
+				runtime.KeepAlive(codeletTwiddleBacking)
 				return
 			}
 		}
@@ -95,9 +110,21 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 			kernelScratch := make([]complex128, n)
 
 			success := false
+			codeletTwiddle := twiddleBuf
+			var codeletTwiddleBacking []byte
+			if entry.TwiddleSize != nil && entry.PrepareTwiddle != nil {
+				twiddleLen := entry.TwiddleSize(n)
+				if twiddleLen > 0 {
+					prepared, preparedBacking := memory.AllocAlignedComplex128(twiddleLen)
+					entry.PrepareTwiddle(n, inverse, prepared)
+					codeletTwiddle = prepared
+					codeletTwiddleBacking = preparedBacking
+				}
+			}
+
 			if inverse {
 				if entry.Inverse != nil {
-					entry.Inverse(dst[:n], inputBuf, twiddleBuf, kernelScratch)
+					entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
 					// Undo built-in scaling of the Inverse codelet (1/n)
 					scale := complex128(complex(float64(n), 0))
 					for i := range n {
@@ -107,12 +134,13 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 				}
 			} else {
 				if entry.Forward != nil {
-					entry.Forward(dst[:n], inputBuf, twiddleBuf, kernelScratch)
+					entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
 					success = true
 				}
 			}
 
 			if success {
+				runtime.KeepAlive(codeletTwiddleBacking)
 				return
 			}
 		}
