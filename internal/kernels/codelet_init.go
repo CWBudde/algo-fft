@@ -396,6 +396,18 @@ func registerDITCodelets64() {
 		Signature:  "dit16384_radix4_generic",
 		Priority:   15,
 	})
+
+	// Size 16384: Six-Step variant
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       16384,
+		Forward:    wrapCodelet64(forwardDIT16384SixStepComplex64),
+		Inverse:    wrapCodelet64(inverseDIT16384SixStepComplex64),
+		Algorithm:  KernelDIT,
+		KernelType: KernelTypeDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit16384_sixstep_generic",
+		Priority:   25,
+	})
 }
 
 // registerDITCodelets128 registers all complex128 DIT codelets with multiple radix variants.
@@ -732,6 +744,18 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16384_radix4_generic",
 		Priority:   15,
+	})
+
+	// Size 16384: Six-Step variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       16384,
+		Forward:    wrapCodelet128(forwardDIT16384SixStepComplex128),
+		Inverse:    wrapCodelet128(inverseDIT16384SixStepComplex128),
+		Algorithm:  KernelDIT,
+		KernelType: KernelTypeDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit16384_sixstep_generic",
+		Priority:   25,
 	})
 }
 

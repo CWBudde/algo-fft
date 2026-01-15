@@ -36,7 +36,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | 4096  | Six-step    | ✓   | ✓    | -    | -    | -    |
 | 8192  | Mixed-2/4   | ✓   | ✓    | -    | -    | -    |
 | 16384 | Radix-4     | ✓   | ✓    | -    | -    | -    |
-| 16384 | Six-step    | -   | ✓    | -    | -    | -    |
+| 16384 | Six-step    | ✓   | ✓    | -    | -    | -    |
 
 ### Complex128
 
@@ -70,7 +70,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | 4096  | Six-step    | ✓   | -    | -    | -    | -    |
 | 8192  | Mixed-2/4   | ✓   | -    | -    | -    | -    |
 | 16384 | Radix-4     | ✓   | -    | -    | -    | -    |
-| 16384 | Six-step    | -   | -    | -    | -    | -    |
+| 16384 | Six-step    | ✓   | -    | -    | -    | -    |
 
 **Legend:**
 
@@ -342,7 +342,9 @@ This document provides a comprehensive overview of all specialized FFT implement
 | Type       | Algorithm | SIMD | Source | Status | Files                     |
 | ---------- | --------- | ---- | ------ | ------ | ------------------------- |
 | complex64  | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go` |
+| complex64  | six-step  | none | Go     | ✓      | `dit_size16384_sixstep.go` |
 | complex128 | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go` |
+| complex128 | six-step  | none | Go     | ✓      | `dit_size16384_sixstep.go` |
 
 **Notes:**
 
@@ -367,9 +369,9 @@ All sizes have complete Go implementations for both `complex64` and `complex128`
 - **Size 2048**: 1 variant each (mixed⁴)
 - **Size 4096**: 1 variant each (radix-4)
 - **Size 8192**: 1 variant each (mixed⁴)
-- **Size 16384**: 1 variant each (radix-4)
+- **Size 16384**: 2 variants each (radix-4, six-step)
 
-**Total:** 48 implementations (24 complex64 + 24 complex128)
+**Total:** 50 implementations (25 complex64 + 25 complex128)
 
 ### AVX2 Assembly Implementations
 
