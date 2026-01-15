@@ -135,6 +135,18 @@ func registerDITCodelets64() {
 		KernelType: KernelTypeDIT,
 	})
 
+	// Size 16: Radix-16 variant (single stage)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       16,
+		Forward:    wrapCodelet64(forwardDIT16Radix16Complex64),
+		Inverse:    wrapCodelet64(inverseDIT16Radix16Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit16_radix16_generic",
+		Priority:   30,
+		KernelType: KernelTypeDIT,
+	})
+
 	// Size 32: Radix-2 only
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
@@ -445,6 +457,18 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix4_generic",
 		Priority:   20,
+		KernelType: KernelTypeDIT,
+	})
+
+	// Size 16: Radix-16 variant (single stage)
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       16,
+		Forward:    wrapCodelet128(forwardDIT16Radix16Complex128),
+		Inverse:    wrapCodelet128(inverseDIT16Radix16Complex128),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit16_radix16_generic",
+		Priority:   30,
 		KernelType: KernelTypeDIT,
 	})
 
