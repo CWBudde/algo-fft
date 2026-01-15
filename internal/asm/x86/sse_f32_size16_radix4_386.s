@@ -165,10 +165,11 @@ stage2_loop:
 	SUBPS  X1, X4        // X4 = (ac-bd, bc-ad) - need to fix imag
 	ADDPS  X1, X7        // X7 = (ac+bd, bc+ad) - need to fix real
 
-	// Combine: take low from X4 (real), high from X7 (imag)
-	SHUFPS $0x05, X4, X7 // X7 = (X4[1], X4[0], X7[1], X7[0])
-	SHUFPS $0xD8, X7, X7 // X7 = (ac-bd, bc+ad, ..., ...)
-	MOVAPS X7, X1
+	// Combine: real from X4[0], imag from X7[1]
+	MOVAPS X4, X1
+	MOVAPS X7, X2
+	SHUFPS $0x55, X2, X2 // X2 = (imag, imag)
+	UNPCKLPS X2, X1      // X1 = (real, imag, ..., ...)
 
 	// x2 * w2 -> X2
 	MOVSD 64(BX), X2
@@ -188,9 +189,10 @@ stage2_loop:
 	MOVAPS X7, X4
 	SUBPS  X2, X4
 	ADDPS  X2, X7
-	SHUFPS $0x05, X4, X7
-	SHUFPS $0xD8, X7, X7
-	MOVAPS X7, X2
+	MOVAPS X4, X2
+	MOVAPS X7, X5
+	SHUFPS $0x55, X5, X5
+	UNPCKLPS X5, X2
 
 	// x3 * w3 -> X3
 	MOVSD 96(BX), X3
@@ -210,9 +212,10 @@ stage2_loop:
 	MOVAPS X7, X4
 	SUBPS  X3, X4
 	ADDPS  X3, X7
-	SHUFPS $0x05, X4, X7
-	SHUFPS $0xD8, X7, X7
-	MOVAPS X7, X3
+	MOVAPS X4, X3
+	MOVAPS X7, X5
+	SHUFPS $0x55, X5, X5
+	UNPCKLPS X5, X3
 
 	// Butterfly on X0, X1, X2, X3
 	MOVAPS X0, X4
@@ -390,9 +393,10 @@ inv_stage2_loop:
 	MOVAPS X7, X4
 	SUBPS  X1, X4
 	ADDPS  X1, X7
-	SHUFPS $0x05, X4, X7
-	SHUFPS $0xD8, X7, X7
-	MOVAPS X7, X1
+	MOVAPS X4, X1
+	MOVAPS X7, X5
+	SHUFPS $0x55, X5, X5
+	UNPCKLPS X5, X1
 
 	// x2 * conj(w2) -> X2
 	MOVSD 64(BX), X2
@@ -413,9 +417,10 @@ inv_stage2_loop:
 	MOVAPS X7, X4
 	SUBPS  X2, X4
 	ADDPS  X2, X7
-	SHUFPS $0x05, X4, X7
-	SHUFPS $0xD8, X7, X7
-	MOVAPS X7, X2
+	MOVAPS X4, X2
+	MOVAPS X7, X5
+	SHUFPS $0x55, X5, X5
+	UNPCKLPS X5, X2
 
 	// x3 * conj(w3) -> X3
 	MOVSD 96(BX), X3
@@ -436,9 +441,10 @@ inv_stage2_loop:
 	MOVAPS X7, X4
 	SUBPS  X3, X4
 	ADDPS  X3, X7
-	SHUFPS $0x05, X4, X7
-	SHUFPS $0xD8, X7, X7
-	MOVAPS X7, X3
+	MOVAPS X4, X3
+	MOVAPS X7, X5
+	SHUFPS $0x55, X5, X5
+	UNPCKLPS X5, X3
 
 	// Butterfly
 	MOVAPS X0, X4

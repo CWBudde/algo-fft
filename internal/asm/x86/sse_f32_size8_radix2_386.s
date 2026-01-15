@@ -226,8 +226,7 @@ size8_sse_fwd_use_dst:
 	ADDPS  X2, X1            // X1 = (bc+ad, bc+ad) - imag
 
 	// Combine: (real, imag)
-	MOVLPS X7, X1            // X1 low = real, high = imag (wrong order)
-	SHUFPS $0x08, X1, X7     // X7 = (ac-bd, bc+ad)
+	UNPCKLPS X1, X7          // X7 = (real, imag, real, imag)
 
 	// Butterfly with result
 	MOVAPS X0, X2
@@ -263,8 +262,7 @@ size8_sse_fwd_use_dst:
 	SHUFPS $0xF5, X2, X2
 	ADDPS  X2, X1
 
-	MOVLPS X7, X1
-	SHUFPS $0x08, X1, X7
+	UNPCKLPS X1, X7
 
 	MOVAPS X0, X2
 	ADDPS  X7, X0
@@ -299,8 +297,7 @@ size8_sse_fwd_use_dst:
 	SHUFPS $0xF5, X2, X2
 	ADDPS  X2, X1
 
-	MOVLPS X7, X1
-	SHUFPS $0x08, X1, X7
+	UNPCKLPS X1, X7
 
 	MOVAPS X0, X2
 	ADDPS  X7, X0
@@ -520,8 +517,7 @@ size8_sse_inv_use_dst:
 	SHUFPS $0xF5, X2, X2
 	ADDPS  X2, X1
 
-	MOVLPS X7, X1
-	SHUFPS $0x08, X1, X7
+	UNPCKLPS X1, X7
 
 	MOVAPS X0, X2
 	ADDPS  X7, X0
@@ -560,8 +556,7 @@ size8_sse_inv_use_dst:
 	SHUFPS $0xF5, X2, X2
 	ADDPS  X2, X1
 
-	MOVLPS X7, X1
-	SHUFPS $0x08, X1, X7
+	UNPCKLPS X1, X7
 
 	MOVAPS X0, X2
 	ADDPS  X7, X0
@@ -599,8 +594,7 @@ size8_sse_inv_use_dst:
 	SHUFPS $0xF5, X2, X2
 	ADDPS  X2, X1
 
-	MOVLPS X7, X1
-	SHUFPS $0x08, X1, X7
+	UNPCKLPS X1, X7
 
 	MOVAPS X0, X2
 	ADDPS  X7, X0
