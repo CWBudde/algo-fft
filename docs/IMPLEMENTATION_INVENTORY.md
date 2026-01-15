@@ -6,64 +6,79 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Complex64
 
-| Size  | Algorithm | Go  | AVX2 | SSE2 | NEON | x86  |
-| ----- | --------- | --- | ---- | ---- | ---- | ---- |
-| 4     | Radix-4   | ✓   | ✓    | ✓    | ✓    | SSE2 |
-| 8     | Radix-2   | ✓   | ✓    | ✓    | ✓    | SSE2 |
-| 8     | Radix-8   | ✓   | ✓    | ✓    | ✓    | -    |
-| 8     | Mixed¹    | ✓   | ✓    | ✓    | ✓    | -    |
-| 16    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
-| 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    | SSE2 |
-| 32    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
-| 32    | Mixed²    | ✓   | ✓    | ✓    | ✓    | -    |
-| 64    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
-| 64    | Radix-4   | ✓   | ✓    | ✓    | ✓    | -    |
-| 128   | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
-| 128   | Mixed²    | ✓   | ✓    | ✓    | ✓    | -    |
-| 256   | Radix-2   | ✓   | ✓    | -    | ✓    | -    |
-| 256   | Radix-4   | ✓   | ✓    | ✓    | ✓    | -    |
-| 512   | Radix-2   | ✓   | ✓    | -    | ✓    | -    |
-| 512   | Mixed⁴    | ✓   | ✓    | -    | -    | -    |
-| 1024  | Radix-4   | ✓   | -    | -    | -    | -    |
-| 2048  | Mixed⁴    | ✓   | -    | -    | -    | -    |
-| 4096  | Radix-4   | ✓   | -    | -    | -    | -    |
-| 8192  | Mixed⁴    | ✓   | -    | -    | -    | -    |
-| 16384 | Radix-4   | ✓   | -    | -    | -    | -    |
+| Size  | Algorithm   | Go  | AVX2 | SSE2 | NEON | x86  |
+| ----- | ----------- | --- | ---- | ---- | ---- | ---- |
+| 4     | Radix-4     | ✓   | ✓    | ✓    | ✓    | SSE2 |
+| 8     | Radix-2     | ✓   | ✓    | ✓    | ✓    | SSE2 |
+| 8     | Radix-8     | ✓   | ✓    | ✓    | ✓    | -    |
+| 8     | Mixed-2/4   | ✓   | ✓    | -    | ✓    | -    |
+| 16    | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
+| 16    | Radix-4     | ✓   | ✓    | ✓    | ✓    | SSE2 |
+| 16    | Radix-16    | -   | ✓    | ✓    | -    | -    |
+| 32    | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
+| 32    | Mixed-2/4   | ✓   | -    | ✓    | ✓    | -    |
+| 32    | Radix-32    | -   | ✓    | -    | -    | -    |
+| 64    | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
+| 64    | Radix-4     | ✓   | ✓    | ✓    | ✓    | -    |
+| 128   | Radix-2     | ✓   | -    | ✓    | ✓    | -    |
+| 128   | Mixed-2/4   | ✓   | ✓    | ✓    | ✓    | -    |
+| 256   | Radix-2     | ✓   | ✓    | -    | ✓    | -    |
+| 256   | Radix-4     | ✓   | ✓    | -    | ✓    | -    |
+| 256   | Radix-16    | ✓   | ✓    | -    | -    | -    |
+| 512   | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
+| 512   | Mixed-2/4   | ✓   | ✓    | -    | -    | -    |
+| 512   | Radix-8     | ✓   | ✓    | -    | -    | -    |
+| 512   | Radix-16x32 | ✓   | ✓    | -    | -    | -    |
+| 1024  | Radix-4     | ✓   | ✓    | -    | -    | -    |
+| 1024  | Radix-32x32 | ✓   | ✓    | -    | -    | -    |
+| 2048  | Mixed-2/4   | ✓   | ⚠    | -    | -    | -    |
+| 4096  | Radix-4     | ✓   | ✓    | -    | -    | -    |
+| 4096  | Six-step    | ✓   | ✓    | -    | -    | -    |
+| 8192  | Mixed-2/4   | ✓   | ✓    | -    | -    | -    |
+| 16384 | Radix-4     | ✓   | ✓    | -    | -    | -    |
+| 16384 | Six-step    | -   | ✓    | -    | -    | -    |
 
 ### Complex128
 
-| Size  | Algorithm | Go  | AVX2 | SSE2 | NEON | x86  |
-| ----- | --------- | --- | ---- | ---- | ---- | ---- |
-| 4     | Radix-4   | ✓   | ✓    | ✓    | ✓    | SSE2 |
-| 8     | Radix-2   | ✓   | ✓    | ✓    | -    | SSE2 |
-| 8     | Radix-8   | ✓   | ✓    | ✓    | -    | -    |
-| 8     | Mixed¹    | ✓   | ✓    | ✓    | -    | -    |
-| 16    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
-| 16    | Radix-4   | ✓   | ✓    | ✓    | ✓    | SSE2 |
-| 32    | Radix-2   | ✓   | ✓    | ✓    | ✓    | -    |
-| 32    | Mixed²    | ✓   | ✓    | ✓    | -    | -    |
-| 64    | Radix-2   | ✓   | ✓    | ✓    | -    | -    |
-| 64    | Radix-4   | ✓   | ✓    | ✓    | -    | -    |
-| 128   | Radix-2   | ✓   | ✓    | ✓    | -    | -    |
-| 128   | Mixed²    | ✓   | ✓    | ✓    | -    | -    |
-| 256   | Radix-2   | ✓   | ✓    | -    | -    | -    |
-| 256   | Radix-4   | ✓   | -    | -    | -    | -    |
-| 512   | Radix-2   | ✓   | ✓    | -    | -    | -    |
-| 512   | Mixed⁴    | ✓   | ✓    | -    | -    | -    |
-| 1024  | Radix-4   | ✓   | -    | -    | -    | -    |
-| 2048  | Mixed⁴    | ✓   | -    | -    | -    | -    |
-| 4096  | Radix-4   | ✓   | -    | -    | -    | -    |
-| 8192  | Mixed⁴    | ✓   | -    | -    | -    | -    |
-| 16384 | Radix-4   | ✓   | -    | -    | -    | -    |
+| Size  | Algorithm   | Go  | AVX2 | SSE2 | NEON | x86  |
+| ----- | ----------- | --- | ---- | ---- | ---- | ---- |
+| 4     | Radix-4     | ✓   | ✓    | ✓    | -    | SSE2 |
+| 8     | Radix-2     | ✓   | ✓    | ✓    | -    | SSE2 |
+| 8     | Radix-8     | ✓   | ✓    | ✓    | -    | -    |
+| 8     | Mixed-2/4   | ✓   | ✓    | ✓    | -    | -    |
+| 16    | Radix-2     | ✓   | ✓    | ✓    | -    | -    |
+| 16    | Radix-4     | ✓   | ✓    | ✓    | -    | SSE2 |
+| 16    | Radix-16    | -   | -    | -    | -    | -    |
+| 32    | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
+| 32    | Mixed-2/4   | ✓   | -    | ✓    | -    | -    |
+| 64    | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
+| 64    | Radix-4     | ✓   | ✓    | ✓    | -    | -    |
+| 128   | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
+| 128   | Mixed-2/4   | ✓   | -    | ✓    | -    | -    |
+| 256   | Radix-2     | ✓   | ✓    | ✓    | -    | -    |
+| 256   | Radix-4     | ✓   | -    | ✓    | ✓    | -    |
+| 256   | Radix-16    | ✓   | -    | -    | -    | -    |
+| 512   | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
+| 512   | Mixed-2/4   | ✓   | ✓    | -    | -    | -    |
+| 512   | Radix-8     | ✓   | -    | -    | -    | -    |
+| 512   | Radix-16x32 | ✓   | -    | -    | -    | -    |
+| 1024  | Radix-4     | ✓   | -    | -    | -    | -    |
+| 1024  | Radix-32x32 | ✓   | -    | -    | -    | -    |
+| 2048  | Mixed-2/4   | ✓   | -    | -    | -    | -    |
+| 4096  | Radix-4     | ✓   | -    | -    | -    | -    |
+| 4096  | Six-step    | ✓   | -    | -    | -    | -    |
+| 8192  | Mixed-2/4   | ✓   | -    | -    | -    | -    |
+| 16384 | Radix-4     | ✓   | -    | -    | -    | -    |
+| 16384 | Six-step    | -   | -    | -    | -    | -    |
 
 **Legend:**
 
 - ✓ = Fully implemented (forward + inverse)
-- ⚠ = Partially implemented
+- ⚠ = Partially implemented or disabled
 - \- = Not implemented
-- ¹ Mixed = 1x radix-4 + 1x radix-2 stage
-- ² Mixed = 2x radix-4 + 1x radix-2 stages (delegates to proven radix-2 for correctness)
-- ⁴ Mixed = N radix-4 stages + 1x radix-2 final stage (for sizes 2×4ᵏ)
+- Mixed-2/4 = N radix-4 stages + 1x radix-2 final stage (for sizes 2×4ᵏ)
+- Radix-16x32 / Radix-32x32 = Two-stage matrix factorizations
+- Six-step = Cache-blocked FFT (matrix transpose + sub-FFTs)
 
 ## Detailed Breakdown
 
