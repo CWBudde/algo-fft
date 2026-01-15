@@ -24,7 +24,7 @@
 // ===========================================================================
 // Forward transform, size 8, complex64, radix-2 variant
 // ===========================================================================
-TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $96-61
+TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $96-61
 	// ----------------------------------------------------------------
 	// Stack layout:
 	//   SP+0..15:   original dst pointer
@@ -409,7 +409,7 @@ size8_r2_sse2_386_fwd_return_false:
 // ===========================================================================
 // Inverse transform, size 8, complex64, radix-2 variant
 // ===========================================================================
-TEXT ·InverseSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $96-61
+TEXT ·InverseSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $96-61
 	MOVL dst+0(FP), DI
 	MOVL DI, 0(SP)
 	MOVL src+12(FP), SI

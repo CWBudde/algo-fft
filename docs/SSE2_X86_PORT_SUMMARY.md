@@ -1,8 +1,8 @@
-# SSE2 x86 Port - Initial Implementation Summary
+# SSE2/SSE3 x86 Port - Initial Implementation Summary
 
 ## Overview
 
-Successfully ported SSE2 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/386 (32-bit) architecture as a template for future ports. This establishes the foundation and patterns for porting additional SSE2 kernels to 32-bit systems.
+Successfully ported SSE3 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/386 (32-bit) architecture as a template for future ports. This establishes the foundation and patterns for porting additional SSE2/SSE3 kernels to 32-bit systems.
 
 ## Files Created/Modified
 
@@ -17,9 +17,9 @@ Successfully ported SSE2 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/3
 
 ### 2. Assembly Implementation
 
-- **`internal/asm/x86/sse2_f32_size8_radix2.s`** - Ported SSE2 kernels
-  - `ForwardSSE2Size8Radix2Complex64Asm` - Forward FFT
-  - `InverseSSE2Size8Radix2Complex64Asm` - Inverse FFT with 1/8 scaling
+- **`internal/asm/x86/sse3_f32_size8_radix2.s`** - Ported SSE3 kernels (uses `ADDSUBPS`)
+  - `ForwardSSE3Size8Radix2Complex64Asm` - Forward FFT
+  - `InverseSSE3Size8Radix2Complex64Asm` - Inverse FFT with 1/8 scaling
   - Frame size: `$36-61` (36 bytes local stack, 61 bytes arguments)
   - Uses 32-bit registers (EAX, EBX, ECX, EDX, ESI, EDI, EBP)
   - Proper x86 ABI with 12-byte slice descriptors
@@ -35,18 +35,18 @@ Successfully ported SSE2 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/3
 ### 4. Go Declarations
 
 - **`internal/asm/x86/decl.go`** - Updated function declarations
-  - Added `ForwardSSE2Size8Radix2Complex64Asm`
-  - Added `InverseSSE2Size8Radix2Complex64Asm`
+  - Added `ForwardSSE3Size8Radix2Complex64Asm`
+  - Added `InverseSSE3Size8Radix2Complex64Asm`
   - Proper `//go:noescape` pragmas for performance
 
 ### 5. Tests
 
-- **`internal/kernels/sse2_f32_size8_radix2_386_test.go`** - Comprehensive tests
-  - `TestForwardSSE2Size8Radix2Complex64_386` - Correctness test vs reference
-  - `TestInverseSSE2Size8Radix2Complex64_386` - Correctness test vs reference
-  - `TestRoundTripSSE2Size8Radix2Complex64_386` - Round-trip test
-  - `BenchmarkForwardSSE2Size8Radix2Complex64_386` - Performance benchmark
-  - `BenchmarkInverseSSE2Size8Radix2Complex64_386` - Performance benchmark
+- **`internal/kernels/sse3_f32_size8_radix2_386_test.go`** - Comprehensive tests
+  - `TestForwardSSE3Size8Radix2Complex64_386` - Correctness test vs reference
+  - `TestInverseSSE3Size8Radix2Complex64_386` - Correctness test vs reference
+  - `TestRoundTripSSE3Size8Radix2Complex64_386` - Round-trip test
+  - `BenchmarkForwardSSE3Size8Radix2Complex64_386` - Performance benchmark
+  - `BenchmarkInverseSSE3Size8Radix2Complex64_386` - Performance benchmark
 
 ## Key Porting Changes
 
@@ -65,10 +65,10 @@ Successfully ported SSE2 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/3
 
 ```assembly
 # AMD64
-TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
 
 # x86
-TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $36-61
+TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $36-61
 ```
 
 - Frame size reduced from 121 to 61 bytes (5 slices × 12 bytes + 1 bool)
@@ -104,8 +104,10 @@ Good news: SSE2 instructions work identically on both architectures:
 
 - `MOVSD`, `MOVAPS`, `MOVUPS` - Same
 - `ADDPS`, `SUBPS`, `MULPS` - Same
-- `SHUFPS`, `XORPS`, `ADDSUBPS` - Same
+- `SHUFPS`, `XORPS` - Same
 - XMM0-XMM7 registers available (x86 has 8, AMD64 has 16)
+
+Note: `ADDSUBPS` is an SSE3 instruction. Any kernels that use it now require SSE3.
 
 ## Testing
 
@@ -216,7 +218,7 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
 
 ## References
 
-- Source implementation: `internal/asm/amd64/sse2_f32_size8_radix2.s`
+- Source implementation: `internal/asm/amd64/sse3_f32_size8_radix2.s`
 - Porting guide: `docs/PORTING_AMD64_TO_X86.md`
 - x86 package: `internal/asm/x86/`
 - Test patterns: `internal/kernels/*_386_test.go`
@@ -225,7 +227,7 @@ GOARCH=386 go test -bench=.*386 -benchmem -tags=asm ./internal/kernels
 
 ### When Adding New Kernels
 
-1. Follow the pattern in `sse2_f32_size8_radix2.s`
+1. Follow the pattern in `sse3_f32_size8_radix2.s`
 2. Update `x86/decl.go` with new function declarations
 3. Add required constants to `x86/core.s` if needed
 4. Create corresponding `*_386_test.go` file

@@ -36,7 +36,7 @@
 // ===========================================================================
 // Forward transform, size 16, complex64, radix-2 variant
 // ===========================================================================
-TEXT ·ForwardSSE2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·ForwardSSE3Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// ===== Parameter Loading =====
 	MOVQ dst+0(FP), R8       // R8  = dst slice data pointer
 	MOVQ src+24(FP), R9      // R9  = src slice data pointer
@@ -587,7 +587,7 @@ size16_r2_sse2_fwd_return_false:
 // ===========================================================================
 // Inverse transform, size 16, complex64, radix-2 variant
 // ===========================================================================
-TEXT ·InverseSSE2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseSSE3Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// ===== Parameter Loading =====
 	MOVQ dst+0(FP), R8       // R8  = dst slice data pointer
 	MOVQ src+24(FP), R9      // R9  = src slice data pointer

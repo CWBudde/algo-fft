@@ -10,7 +10,7 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
-// sse2TestCase64 defines a single SSE2 kernel test case for complex64
+// sse2TestCase64 defines a single SSE2/SSE3 kernel test case for complex64
 type sse2TestCase64 struct {
 	name          string
 	size          int
@@ -55,10 +55,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     2,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -67,10 +67,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     4,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size8Radix4Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size8Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size8Radix4Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size8Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -79,10 +79,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     8,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size8Radix8Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size8Radix8Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -91,10 +91,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     2,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size16Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size16Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size16Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size16Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -103,10 +103,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     4,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size16Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size16Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -115,10 +115,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     16,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -127,10 +127,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     2,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -139,10 +139,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     32,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -151,10 +151,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     -24,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size32Mixed24Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size32Mixed24Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -163,10 +163,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     2,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -175,10 +175,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     4,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -187,10 +187,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     2,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size128Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size128Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size128Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size128Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -199,10 +199,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     -24,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -211,10 +211,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     4,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -223,10 +223,10 @@ var sse2TestCases64 = []sse2TestCase64{
 		radix:     2,
 		tolerance: 1e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 }

@@ -5,7 +5,7 @@
 // ===========================================================================
 // Forward transform, size 16, complex64, radix-16 (4x4) variant
 // ===========================================================================
-TEXT ·ForwardSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·ForwardSSE3Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
@@ -319,7 +319,7 @@ fwd_ret_false:
 // ===========================================================================
 // Inverse transform
 // ===========================================================================
-TEXT ·InverseSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseSSE3Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10

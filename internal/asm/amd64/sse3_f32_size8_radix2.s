@@ -19,7 +19,7 @@
 // ===========================================================================
 // Forward transform, size 8, complex64, radix-2 variant
 // ===========================================================================
-TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ R8, R14             // R14 = original dst pointer
@@ -273,7 +273,7 @@ size8_r2_sse2_fwd_return_false:
 // ===========================================================================
 // Inverse transform, size 8, complex64, radix-2 variant
 // ===========================================================================
-TEXT ·InverseSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14

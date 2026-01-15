@@ -31,7 +31,7 @@
 // ===========================================================================
 // Forward transform, size 8, complex64, radix-4 (mixed-radix) variant
 // ===========================================================================
-TEXT ·ForwardSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·ForwardSSE3Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ R8, R14             // R14 = original dst pointer
@@ -251,7 +251,7 @@ size8_r4_sse2_fwd_return_false:
 // ===========================================================================
 // Same as forward but with +i instead of -i for radix-4,
 // conjugated twiddles, and 1/8 scaling.
-TEXT ·InverseSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseSSE3Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
