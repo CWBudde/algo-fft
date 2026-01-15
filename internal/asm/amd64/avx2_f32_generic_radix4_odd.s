@@ -133,6 +133,148 @@ fwd_r4m_stage_inner:
 	CMPQ DX, R11
 	JGE  fwd_r4m_stage_base_next
 
+	// Fast path for vectorized strided twiddles.
+	CMPQ R11, $4
+	JL   fwd_r4m_stage_scalar
+
+	MOVQ BX, R9
+	SHLQ $3, R9             // stride1_bytes
+
+	MOVQ DX, R15
+	IMULQ BX, R15
+	SHLQ $3, R15            // twiddle offset bytes (j*step*8)
+
+fwd_r4m_stepn_loop:
+	MOVQ R11, AX
+	SUBQ DX, AX
+	CMPQ AX, $4
+	JL   fwd_r4m_stage_scalar
+
+	// indices (element offsets)
+	MOVQ CX, SI
+	ADDQ DX, SI
+	MOVQ SI, DI
+	ADDQ R11, DI
+	MOVQ DI, BP
+	ADDQ R11, BP
+	MOVQ BP, AX
+	ADDQ R11, AX
+
+	VMOVUPS (R8)(SI*8), Y0
+	VMOVUPS (R8)(DI*8), Y1
+	VMOVUPS (R8)(BP*8), Y2
+	VMOVUPS (R8)(AX*8), Y3
+
+	// twiddle base offsets
+	MOVQ R15, DI
+	SHLQ $1, DI
+	MOVQ R15, BP
+	ADDQ DI, BP
+
+	// w1 = twiddle[j*step + i*step] for i=0..3
+	VMOVSD (R10)(R15*1), X4
+	ADDQ R9, R15
+	VMOVSD (R10)(R15*1), X5
+	ADDQ R9, R15
+	VMOVSD (R10)(R15*1), X6
+	ADDQ R9, R15
+	VMOVSD (R10)(R15*1), X7
+	ADDQ R9, R15            // advance to next block
+	VPUNPCKLQDQ X5, X4, X4
+	VPUNPCKLQDQ X7, X6, X6
+	VINSERTF128 $1, X6, Y4, Y4
+
+	// w2 = twiddle[2*j*step + i*2*step]
+	MOVQ R9, AX
+	SHLQ $1, AX             // stride2_bytes
+	VMOVSD (R10)(DI*1), X5
+	ADDQ AX, DI
+	VMOVSD (R10)(DI*1), X6
+	ADDQ AX, DI
+	VMOVSD (R10)(DI*1), X7
+	ADDQ AX, DI
+	VMOVSD (R10)(DI*1), X8
+	VPUNPCKLQDQ X6, X5, X5
+	VPUNPCKLQDQ X8, X7, X7
+	VINSERTF128 $1, X7, Y5, Y5
+
+	// w3 = twiddle[3*j*step + i*3*step]
+	LEAQ (R9)(AX*1), AX     // stride3_bytes
+	VMOVSD (R10)(BP*1), X6
+	ADDQ AX, BP
+	VMOVSD (R10)(BP*1), X7
+	ADDQ AX, BP
+	VMOVSD (R10)(BP*1), X8
+	ADDQ AX, BP
+	VMOVSD (R10)(BP*1), X9
+	VPUNPCKLQDQ X7, X6, X6
+	VPUNPCKLQDQ X9, X8, X8
+	VINSERTF128 $1, X8, Y6, Y6
+
+	// Complex multiply a1*w1, a2*w2, a3*w3
+	VMOVSLDUP Y4, Y7
+	VMOVSHDUP Y4, Y8
+	VSHUFPS $0xB1, Y1, Y1, Y9
+	VMULPS Y8, Y9, Y9
+	VFMADDSUB231PS Y7, Y1, Y9
+	VMOVAPS Y9, Y1
+
+	VMOVSLDUP Y5, Y7
+	VMOVSHDUP Y5, Y8
+	VSHUFPS $0xB1, Y2, Y2, Y9
+	VMULPS Y8, Y9, Y9
+	VFMADDSUB231PS Y7, Y2, Y9
+	VMOVAPS Y9, Y2
+
+	VMOVSLDUP Y6, Y7
+	VMOVSHDUP Y6, Y8
+	VSHUFPS $0xB1, Y3, Y3, Y9
+	VMULPS Y8, Y9, Y9
+	VFMADDSUB231PS Y7, Y3, Y9
+	VMOVAPS Y9, Y3
+
+	VADDPS Y0, Y2, Y10
+	VSUBPS Y2, Y0, Y11
+	VADDPS Y1, Y3, Y12
+	VSUBPS Y3, Y1, Y13
+
+	// (-i)*t3
+	VPERMILPS $0xB1, Y13, Y14
+	VXORPS Y15, Y15, Y15
+	VSUBPS Y14, Y15, Y7
+	VBLENDPS $0xAA, Y7, Y14, Y14
+
+	// i*t3
+	VPERMILPS $0xB1, Y13, Y7
+	VSUBPS Y7, Y15, Y8
+	VBLENDPS $0x55, Y8, Y7, Y7
+
+	VADDPS Y10, Y12, Y0
+	VADDPS Y11, Y14, Y1
+	VSUBPS Y12, Y10, Y2
+	VADDPS Y11, Y7, Y3
+
+	// store results (recompute indices)
+	MOVQ CX, SI
+	ADDQ DX, SI
+	MOVQ SI, DI
+	ADDQ R11, DI
+	MOVQ DI, BP
+	ADDQ R11, BP
+	MOVQ BP, AX
+	ADDQ R11, AX
+
+	VMOVUPS Y0, (R8)(SI*8)
+	VMOVUPS Y1, (R8)(DI*8)
+	VMOVUPS Y2, (R8)(BP*8)
+	VMOVUPS Y3, (R8)(AX*8)
+
+	ADDQ $4, DX
+	JMP  fwd_r4m_stepn_loop
+
+fwd_r4m_stage_scalar:
+	CMPQ DX, R11
+	JGE  fwd_r4m_stage_base_next
 	// twiddle indices: w1 = twiddle[j*step], w2 = twiddle[2*j*step], w3 = twiddle[3*j*step]
 	MOVQ DX, AX
 	IMULQ BX, AX
@@ -213,6 +355,8 @@ fwd_r4m_stage_inner:
 	JMP  fwd_r4m_stage_inner
 
 fwd_r4m_stage_base_next:
+	MOVQ R11, R15
+	SHLQ $2, R15
 	ADDQ R15, CX
 	JMP  fwd_r4m_stage_base
 
@@ -420,6 +564,148 @@ inv_r4m_stage_inner:
 	CMPQ DX, R11
 	JGE  inv_r4m_stage_base_next
 
+	// Fast path for vectorized strided twiddles.
+	CMPQ R11, $4
+	JL   inv_r4m_stage_scalar
+
+	MOVQ BX, R9
+	SHLQ $3, R9             // stride1_bytes
+
+	MOVQ DX, R15
+	IMULQ BX, R15
+	SHLQ $3, R15            // twiddle offset bytes (j*step*8)
+
+inv_r4m_stepn_loop:
+	MOVQ R11, AX
+	SUBQ DX, AX
+	CMPQ AX, $4
+	JL   inv_r4m_stage_scalar
+
+	// indices (element offsets)
+	MOVQ CX, SI
+	ADDQ DX, SI
+	MOVQ SI, DI
+	ADDQ R11, DI
+	MOVQ DI, BP
+	ADDQ R11, BP
+	MOVQ BP, AX
+	ADDQ R11, AX
+
+	VMOVUPS (R8)(SI*8), Y0
+	VMOVUPS (R8)(DI*8), Y1
+	VMOVUPS (R8)(BP*8), Y2
+	VMOVUPS (R8)(AX*8), Y3
+
+	// twiddle base offsets
+	MOVQ R15, DI
+	SHLQ $1, DI
+	MOVQ R15, BP
+	ADDQ DI, BP
+
+	// w1 = twiddle[j*step + i*step] for i=0..3
+	VMOVSD (R10)(R15*1), X4
+	ADDQ R9, R15
+	VMOVSD (R10)(R15*1), X5
+	ADDQ R9, R15
+	VMOVSD (R10)(R15*1), X6
+	ADDQ R9, R15
+	VMOVSD (R10)(R15*1), X7
+	ADDQ R9, R15            // advance to next block
+	VPUNPCKLQDQ X5, X4, X4
+	VPUNPCKLQDQ X7, X6, X6
+	VINSERTF128 $1, X6, Y4, Y4
+
+	// w2 = twiddle[2*j*step + i*2*step]
+	MOVQ R9, AX
+	SHLQ $1, AX             // stride2_bytes
+	VMOVSD (R10)(DI*1), X5
+	ADDQ AX, DI
+	VMOVSD (R10)(DI*1), X6
+	ADDQ AX, DI
+	VMOVSD (R10)(DI*1), X7
+	ADDQ AX, DI
+	VMOVSD (R10)(DI*1), X8
+	VPUNPCKLQDQ X6, X5, X5
+	VPUNPCKLQDQ X8, X7, X7
+	VINSERTF128 $1, X7, Y5, Y5
+
+	// w3 = twiddle[3*j*step + i*3*step]
+	LEAQ (R9)(AX*1), AX     // stride3_bytes
+	VMOVSD (R10)(BP*1), X6
+	ADDQ AX, BP
+	VMOVSD (R10)(BP*1), X7
+	ADDQ AX, BP
+	VMOVSD (R10)(BP*1), X8
+	ADDQ AX, BP
+	VMOVSD (R10)(BP*1), X9
+	VPUNPCKLQDQ X7, X6, X6
+	VPUNPCKLQDQ X9, X8, X8
+	VINSERTF128 $1, X8, Y6, Y6
+
+	// Conjugate complex multiply a1*w1, a2*w2, a3*w3
+	VMOVSLDUP Y4, Y7
+	VMOVSHDUP Y4, Y8
+	VSHUFPS $0xB1, Y1, Y1, Y9
+	VMULPS Y8, Y9, Y9
+	VFMSUBADD231PS Y7, Y1, Y9
+	VMOVAPS Y9, Y1
+
+	VMOVSLDUP Y5, Y7
+	VMOVSHDUP Y5, Y8
+	VSHUFPS $0xB1, Y2, Y2, Y9
+	VMULPS Y8, Y9, Y9
+	VFMSUBADD231PS Y7, Y2, Y9
+	VMOVAPS Y9, Y2
+
+	VMOVSLDUP Y6, Y7
+	VMOVSHDUP Y6, Y8
+	VSHUFPS $0xB1, Y3, Y3, Y9
+	VMULPS Y8, Y9, Y9
+	VFMSUBADD231PS Y7, Y3, Y9
+	VMOVAPS Y9, Y3
+
+	VADDPS Y0, Y2, Y10
+	VSUBPS Y2, Y0, Y11
+	VADDPS Y1, Y3, Y12
+	VSUBPS Y3, Y1, Y13
+
+	// (-i)*t3
+	VPERMILPS $0xB1, Y13, Y14
+	VXORPS Y15, Y15, Y15
+	VSUBPS Y14, Y15, Y7
+	VBLENDPS $0xAA, Y7, Y14, Y14
+
+	// i*t3
+	VPERMILPS $0xB1, Y13, Y7
+	VSUBPS Y7, Y15, Y8
+	VBLENDPS $0x55, Y8, Y7, Y7
+
+	VADDPS Y10, Y12, Y0
+	VADDPS Y11, Y7, Y1
+	VSUBPS Y12, Y10, Y2
+	VADDPS Y11, Y14, Y3
+
+	// store results (recompute indices)
+	MOVQ CX, SI
+	ADDQ DX, SI
+	MOVQ SI, DI
+	ADDQ R11, DI
+	MOVQ DI, BP
+	ADDQ R11, BP
+	MOVQ BP, AX
+	ADDQ R11, AX
+
+	VMOVUPS Y0, (R8)(SI*8)
+	VMOVUPS Y1, (R8)(DI*8)
+	VMOVUPS Y2, (R8)(BP*8)
+	VMOVUPS Y3, (R8)(AX*8)
+
+	ADDQ $4, DX
+	JMP  inv_r4m_stepn_loop
+
+inv_r4m_stage_scalar:
+	CMPQ DX, R11
+	JGE  inv_r4m_stage_base_next
 	// twiddle indices: w1 = twiddle[j*step], w2 = twiddle[2*j*step], w3 = twiddle[3*j*step]
 	MOVQ DX, AX
 	IMULQ BX, AX
@@ -500,6 +786,8 @@ inv_r4m_stage_inner:
 	JMP  inv_r4m_stage_inner
 
 inv_r4m_stage_base_next:
+	MOVQ R11, R15
+	SHLQ $2, R15
 	ADDQ R15, CX
 	JMP  inv_r4m_stage_base
 
