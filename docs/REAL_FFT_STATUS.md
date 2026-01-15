@@ -102,19 +102,23 @@ planReal64.Forward(output, input)
 I've added **Phase 11.4: Generic Real FFT API** with the following tasks:
 
 1. **Design generic type** `PlanReal[F Float, C Complex]`
+
    - Type constraint: `Float = float32 | float64`
    - Auto-pair: `float32` with `complex64`, `float64` with `complex128`
 
 2. **Implement generic constructor** `NewPlanRealT[F Float](n int)`
+
    - Type dispatch to correct backend
    - Share pack/unpack logic via generics
 
 3. **Add convenience constructors**
+
    - `NewPlanReal32()` - current behavior (backward compatible)
    - `NewPlanReal64()` - new for float64 support
    - `NewPlanReal()` remains alias to `NewPlanReal32()`
 
 4. **Implement float64 kernels**
+
    - Pack/unpack for `float64` → `complex128`
    - Weight computation at full `float64` precision
    - Test: <1e-12 round-trip error (vs <1e-6 for float32)
@@ -180,6 +184,7 @@ plan, err := algofft.NewPlanReal(4096)
 You have two options:
 
 1. **Short-term workaround**: Downcast to float32
+
    - ❌ Loses precision (~7 decimal digits)
    - ✅ Works today
 

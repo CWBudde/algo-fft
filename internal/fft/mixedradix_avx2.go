@@ -3,10 +3,11 @@
 package fft
 
 import (
+	"runtime"
+
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/kernels"
 	"github.com/MeKo-Christian/algo-fft/internal/memory"
-	"runtime"
 )
 
 func init() {

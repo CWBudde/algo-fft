@@ -144,8 +144,9 @@ func prepareTwiddle8192Mixed24AVX2(n int, inverse bool, dst []complex64) {
 // writeTwiddle3Packed writes 3 twiddles (w1, w2, w3) to the packed buffer
 // in SIMD-friendly format: [r, i, r, i] for each twiddle.
 // This format works with VMOVSLDUP/VMOVSHDUP to broadcast r and i separately:
-//   VMOVSLDUP [r, i, r, i] -> [r, r, r, r]
-//   VMOVSHDUP [r, i, r, i] -> [i, i, i, i]
+//
+//	VMOVSLDUP [r, i, r, i] -> [r, r, r, r]
+//	VMOVSHDUP [r, i, r, i] -> [i, i, i, i]
 //
 // If inverse is true, the imaginary parts are negated (conjugate).
 func writeTwiddle3Packed(buf []complex64, w1, w2, w3 complex64, inverse bool) {
@@ -169,8 +170,9 @@ func writeTwiddle3Packed(buf []complex64, w1, w2, w3 complex64, inverse bool) {
 // writeTwiddle1Packed writes 1 twiddle (w) to the packed buffer
 // in SIMD-friendly format: [r, i, r, i].
 // This format works with VMOVSLDUP/VMOVSHDUP to broadcast r and i separately:
-//   VMOVSLDUP [r, i, r, i] -> [r, r, r, r]
-//   VMOVSHDUP [r, i, r, i] -> [i, i, i, i]
+//
+//	VMOVSLDUP [r, i, r, i] -> [r, r, r, r]
+//	VMOVSHDUP [r, i, r, i] -> [i, i, i, i]
 //
 // If inverse is true, the imaginary part is negated (conjugate).
 func writeTwiddle1Packed(buf []complex64, w complex64, inverse bool) {

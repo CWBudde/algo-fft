@@ -10,7 +10,6 @@ TEXT ·ForwardSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size16Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $16
@@ -23,16 +22,23 @@ TEXT ·ForwardSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R14
 
 fwd_use_dst:
-	// Bit-reversal permutation into working buffer
-	XORQ CX, CX
-
-fwd_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R14)(CX*8)
-	INCQ CX
-	CMPQ CX, $16
-	JL   fwd_bitrev_loop
+	// Copy input to working buffer (radix-16 needs no bit-reversal)
+	MOVUPS 0(R9), X0
+	MOVUPS 16(R9), X1
+	MOVUPS 32(R9), X2
+	MOVUPS 48(R9), X3
+	MOVUPS 64(R9), X4
+	MOVUPS 80(R9), X5
+	MOVUPS 96(R9), X6
+	MOVUPS 112(R9), X7
+	MOVUPS X0, 0(R14)
+	MOVUPS X1, 16(R14)
+	MOVUPS X2, 32(R14)
+	MOVUPS X3, 48(R14)
+	MOVUPS X4, 64(R14)
+	MOVUPS X5, 80(R14)
+	MOVUPS X6, 96(R14)
+	MOVUPS X7, 112(R14)
 
 	MOVUPS 0(R14), X0
 	MOVUPS 16(R14), X1
@@ -318,7 +324,6 @@ TEXT ·InverseSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size16Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $16
@@ -331,16 +336,23 @@ TEXT ·InverseSSE2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R14
 
 inv_use_dst:
-	// Bit-reversal permutation into working buffer
-	XORQ CX, CX
-
-inv_bitrev_loop:
-	MOVQ (R12)(CX*8), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R14)(CX*8)
-	INCQ CX
-	CMPQ CX, $16
-	JL   inv_bitrev_loop
+	// Copy input to working buffer (radix-16 needs no bit-reversal)
+	MOVUPS 0(R9), X0
+	MOVUPS 16(R9), X1
+	MOVUPS 32(R9), X2
+	MOVUPS 48(R9), X3
+	MOVUPS 64(R9), X4
+	MOVUPS 80(R9), X5
+	MOVUPS 96(R9), X6
+	MOVUPS 112(R9), X7
+	MOVUPS X0, 0(R14)
+	MOVUPS X1, 16(R14)
+	MOVUPS X2, 32(R14)
+	MOVUPS X3, 48(R14)
+	MOVUPS X4, 64(R14)
+	MOVUPS X5, 80(R14)
+	MOVUPS X6, 96(R14)
+	MOVUPS X7, 112(R14)
 
 	MOVUPS 0(R14), X0
 	MOVUPS 16(R14), X1

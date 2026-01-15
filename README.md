@@ -15,21 +15,25 @@ The demo runs the library compiled to WebAssembly, allowing you to visualize FFT
 ## Features
 
 - **Core FFT Algorithms**
+
   - Radix-2 Decimation-in-Time (DIT) FFT
   - Complex-to-complex forward and inverse transforms
   - Both in-place and out-of-place variants
   - Power-of-2 and arbitrary-length transform support via Bluestein's algorithm
 
 - **Real FFT Support**
+
   - Specialized real-to-complex forward transforms
   - Complex-to-real inverse transforms
   - Optimized for real-valued signals
 
 - **Multi-Dimensional Transforms**
+
   - 1D, 2D, 3D, and N-dimensional FFT support
   - Efficient row-column algorithms
 
 - **Advanced Features**
+
   - Batch processing with optional parallelization
   - Strided data access for efficient matrix operations
   - Convolution and correlation via FFT
