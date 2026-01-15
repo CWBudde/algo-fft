@@ -62,6 +62,7 @@ More detailed explanation if needed. Wrap at 72 characters.
 
 1. **Push to your fork**: `git push origin feature/my-feature`
 2. **Create a Pull Request** with:
+
    - Clear description of changes
    - Reference to related issues
    - Test results showing all tests pass

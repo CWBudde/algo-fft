@@ -860,8 +860,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
 	}
 
-	p.codeletTwiddleForward, p.codeletTwiddleInverse, p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking =
-		prepareCodeletTwiddles(n, p.twiddle, estimate)
+	p.codeletTwiddleForward, p.codeletTwiddleInverse, p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, p.twiddle, estimate)
 
 	return p, nil
 }
@@ -969,8 +968,7 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
 	p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
 
-	p.codeletTwiddleForward, p.codeletTwiddleInverse, p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking =
-		prepareCodeletTwiddles(n, p.twiddle, estimate)
+	p.codeletTwiddleForward, p.codeletTwiddleInverse, p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, p.twiddle, estimate)
 
 	return p, nil
 }

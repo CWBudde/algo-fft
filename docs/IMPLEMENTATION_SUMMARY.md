@@ -75,32 +75,38 @@ NewPlanReal64WithOptions(n int, opts PlanOptions)
 **7 new comprehensive tests:**
 
 1. **Correctness** (`TestPlanReal64_Correctness`)
+
    - Tests against naive DFT reference
    - Sizes: 16, 32, 64, 128, 256
    - Tolerance: 1e-11
 
 2. **Round-trip** (`TestPlanReal64_RoundTrip`)
+
    - Inverse(Forward(x)) ≈ x
    - Mixed-frequency test signals
    - Sizes: 16, 32, 64, 128, 256, 1024
    - Tolerance: 1e-11
 
 3. **Precision comparison** (`TestPlanReal64_vsFloat32_Precision`)
+
    - Direct comparison: float32 vs float64
    - **Result:** float64 is 341 million times more accurate!
    - float32 error: 4.2e-7
    - float64 error: 1.2e-15
 
 4. **Conjugate symmetry** (`TestPlanReal64_ConjugateSymmetry`)
+
    - Verifies X[k] = conj(X[N-k])
    - Compares half-spectrum to full complex FFT
    - Tolerance: 1e-11
 
 5. **DC/Nyquist validation** (`TestPlanReal64_DCandNyquist`)
+
    - Ensures bins 0 and N/2 are purely real
    - Tolerance: 1e-12
 
 6. **Normalized forward** (`TestPlanReal64_Normalized`)
+
    - Tests 1/N scaling variant
    - Tolerance: 1e-12
 
@@ -292,15 +298,18 @@ ok  	github.com/MeKo-Christian/algofft	0.005s
 ## Files Added
 
 1. `plan_real_generic.go` (420 lines)
+
    - Generic `PlanRealT[F Float, C Complex]` type
    - Forward/Inverse/ForwardNormalized/ForwardUnitary methods
    - Type-safe pack/unpack for both precisions
 
 2. `plan_real_constructors.go` (36 lines)
+
    - `NewPlanReal32` / `NewPlanReal32WithOptions`
    - `NewPlanReal64` / `NewPlanReal64WithOptions`
 
 3. `plan_real_generic_test.go` (346 lines)
+
    - 7 comprehensive test cases
    - Correctness, precision, round-trip, symmetry, allocations
 
@@ -326,10 +335,12 @@ ok  	github.com/MeKo-Christian/algofft	0.005s
 The dramatic precision improvement comes from:
 
 1. **Float representation:**
+
    - float32: 24-bit mantissa (~7 decimal digits)
    - float64: 53-bit mantissa (~15 decimal digits)
 
 2. **Error accumulation:**
+
    - FFT involves O(N log N) operations
    - Each operation accumulates rounding errors
    - float64's extra precision prevents error buildup

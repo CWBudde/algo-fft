@@ -283,14 +283,14 @@ func registerAVX2DITCodelets64() {
 	// Expected to show better speedup than size 64 due to larger twiddle
 	// index computation overhead in stages 2-7.
 	Registry64.Register(CodeletEntry[complex64]{
-		Size:          8192,
-		Forward:       wrapCodelet64(amd64.ForwardAVX2Size8192Mixed24ParamsComplex64Asm),
-		Inverse:       wrapCodelet64(amd64.InverseAVX2Size8192Mixed24ParamsComplex64Asm),
-		Algorithm:     KernelDIT,
-		SIMDLevel:     SIMDAVX2,
-		Signature:     "dit8192_mixed24_params_avx2",
-		Priority:      30, // Higher than non-extra (25) - should be faster for large size
-		KernelType:    KernelTypeDIT,
+		Size:           8192,
+		Forward:        wrapCodelet64(amd64.ForwardAVX2Size8192Mixed24ParamsComplex64Asm),
+		Inverse:        wrapCodelet64(amd64.InverseAVX2Size8192Mixed24ParamsComplex64Asm),
+		Algorithm:      KernelDIT,
+		SIMDLevel:      SIMDAVX2,
+		Signature:      "dit8192_mixed24_params_avx2",
+		Priority:       30, // Higher than non-extra (25) - should be faster for large size
+		KernelType:     KernelTypeDIT,
 		TwiddleSize:    twiddleSize8192Mixed24AVX2,
 		PrepareTwiddle: prepareTwiddle8192Mixed24AVX2,
 	})

@@ -19,15 +19,15 @@ import (
 // Use NewFastPlan to create instances. Returns ErrNotImplemented if no
 // codelet is available for the requested size.
 type FastPlan[T Complex] struct {
-	n                     int
-	twiddle               []T
-	codeletTwiddleForward []T
-	codeletTwiddleInverse []T
-	scratch               []T
-	twiddleBacking        []byte
+	n                            int
+	twiddle                      []T
+	codeletTwiddleForward        []T
+	codeletTwiddleInverse        []T
+	scratch                      []T
+	twiddleBacking               []byte
 	codeletTwiddleForwardBacking []byte
 	codeletTwiddleInverseBacking []byte
-	scratchBacking        []byte
+	scratchBacking               []byte
 
 	forwardFunc fft.CodeletFunc[T]
 	inverseFunc fft.CodeletFunc[T]
@@ -98,8 +98,7 @@ func NewFastPlan[T Complex](n int) (*FastPlan[T], error) {
 		inverseFunc:           estimate.InverseCodelet,
 	}
 
-	fp.codeletTwiddleForward, fp.codeletTwiddleInverse, fp.codeletTwiddleForwardBacking, fp.codeletTwiddleInverseBacking =
-		prepareCodeletTwiddles(n, twiddle, estimate)
+	fp.codeletTwiddleForward, fp.codeletTwiddleInverse, fp.codeletTwiddleForwardBacking, fp.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, twiddle, estimate)
 
 	return fp, nil
 }
