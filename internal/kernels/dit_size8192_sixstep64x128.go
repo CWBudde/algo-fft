@@ -30,8 +30,8 @@ func forwardDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 
 	// Step 1: Transpose 64×128 (src) → 128×64 (work)
 	// src[i*cols + j] → work[j*rows + i]
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			work[j*rows+i] = src[i*cols+j]
 		}
 	}
@@ -39,14 +39,14 @@ func forwardDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	// Precompute row twiddles for size-64 FFT
 	// W_64^k = W_8192^(k*128) since 8192/64 = 128
 	var rowTwiddle64 [64]complex64
-	for k := 0; k < 64; k++ {
+	for k := range 64 {
 		rowTwiddle64[k] = twiddle[k*cols]
 	}
 
 	var rowScratch64 [64]complex64
 
 	// Step 2: 128 parallel FFT-64 (on rows of 128×64 matrix)
-	for r := 0; r < cols; r++ {
+	for r := range cols {
 		row := work[r*rows : (r+1)*rows]
 		if !forwardDIT64Radix4Complex64(row, row, rowTwiddle64[:], rowScratch64[:]) {
 			return false
@@ -55,8 +55,8 @@ func forwardDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 
 	// Step 3: Transpose 128×64 → 64×128 with twiddle multiply
 	// work[j*rows + i] → work2[i*cols + j] * W_8192^(i*j)
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			tw := twiddle[(i*j)%n]
 			work2[i*cols+j] = work[j*rows+i] * tw
 		}
@@ -65,14 +65,14 @@ func forwardDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	// Precompute row twiddles for size-128 FFT
 	// W_128^k = W_8192^(k*64) since 8192/128 = 64
 	var rowTwiddle128 [128]complex64
-	for k := 0; k < 128; k++ {
+	for k := range 128 {
 		rowTwiddle128[k] = twiddle[k*rows]
 	}
 
 	var rowScratch128 [128]complex64
 
 	// Step 4: 64 parallel FFT-128 (on rows of 64×128 matrix)
-	for r := 0; r < rows; r++ {
+	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
 		if !forwardDIT128Complex64(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
@@ -81,8 +81,8 @@ func forwardDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 
 	// Step 5: Final transpose 64×128 → 128×64 (to standard FFT output order)
 	// work2[i*cols + j] → dst[j*rows + i]
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			dst[j*rows+i] = work2[i*cols+j]
 		}
 	}
@@ -109,22 +109,22 @@ func inverseDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	work2 := make([]complex64, n)
 
 	// Step 1: Transpose 64×128 (src) → 128×64 (work)
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			work[j*rows+i] = src[i*cols+j]
 		}
 	}
 
 	// Precompute row twiddles for size-64 IFFT
 	var rowTwiddle64 [64]complex64
-	for k := 0; k < 64; k++ {
+	for k := range 64 {
 		rowTwiddle64[k] = twiddle[k*cols]
 	}
 
 	var rowScratch64 [64]complex64
 
 	// Step 2: 128 parallel IFFT-64 (on rows)
-	for r := 0; r < cols; r++ {
+	for r := range cols {
 		row := work[r*rows : (r+1)*rows]
 		if !inverseDIT64Radix4Complex64(row, row, rowTwiddle64[:], rowScratch64[:]) {
 			return false
@@ -132,8 +132,8 @@ func inverseDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	}
 
 	// Step 3: Transpose 128×64 → 64×128 with conjugate twiddle multiply
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			tw := twiddle[(i*j)%n]
 			twConj := complex(real(tw), -imag(tw))
 			work2[i*cols+j] = work[j*rows+i] * twConj
@@ -142,14 +142,14 @@ func inverseDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 
 	// Precompute row twiddles for size-128 IFFT
 	var rowTwiddle128 [128]complex64
-	for k := 0; k < 128; k++ {
+	for k := range 128 {
 		rowTwiddle128[k] = twiddle[k*rows]
 	}
 
 	var rowScratch128 [128]complex64
 
 	// Step 4: 64 parallel IFFT-128 (on rows)
-	for r := 0; r < rows; r++ {
+	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
 		if !inverseDIT128Complex64(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
@@ -157,8 +157,8 @@ func inverseDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	}
 
 	// Step 5: Final transpose 64×128 → 128×64
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			dst[j*rows+i] = work2[i*cols+j]
 		}
 	}
@@ -186,22 +186,22 @@ func forwardDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	work2 := make([]complex128, n)
 
 	// Step 1: Transpose 64×128 → 128×64
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			work[j*rows+i] = src[i*cols+j]
 		}
 	}
 
 	// Precompute row twiddles for size-64 FFT
 	var rowTwiddle64 [64]complex128
-	for k := 0; k < 64; k++ {
+	for k := range 64 {
 		rowTwiddle64[k] = twiddle[k*cols]
 	}
 
 	var rowScratch64 [64]complex128
 
 	// Step 2: 128 parallel FFT-64
-	for r := 0; r < cols; r++ {
+	for r := range cols {
 		row := work[r*rows : (r+1)*rows]
 		if !forwardDIT64Radix4Complex128(row, row, rowTwiddle64[:], rowScratch64[:]) {
 			return false
@@ -209,8 +209,8 @@ func forwardDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	}
 
 	// Step 3: Transpose + twiddle
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			tw := twiddle[(i*j)%n]
 			work2[i*cols+j] = work[j*rows+i] * tw
 		}
@@ -218,14 +218,14 @@ func forwardDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 
 	// Precompute row twiddles for size-128 FFT
 	var rowTwiddle128 [128]complex128
-	for k := 0; k < 128; k++ {
+	for k := range 128 {
 		rowTwiddle128[k] = twiddle[k*rows]
 	}
 
 	var rowScratch128 [128]complex128
 
 	// Step 4: 64 parallel FFT-128
-	for r := 0; r < rows; r++ {
+	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
 		if !forwardDIT128Complex128(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
@@ -233,8 +233,8 @@ func forwardDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	}
 
 	// Step 5: Final transpose
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			dst[j*rows+i] = work2[i*cols+j]
 		}
 	}
@@ -259,22 +259,22 @@ func inverseDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	work2 := make([]complex128, n)
 
 	// Step 1: Transpose 64×128 → 128×64
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			work[j*rows+i] = src[i*cols+j]
 		}
 	}
 
 	// Precompute row twiddles for size-64 IFFT
 	var rowTwiddle64 [64]complex128
-	for k := 0; k < 64; k++ {
+	for k := range 64 {
 		rowTwiddle64[k] = twiddle[k*cols]
 	}
 
 	var rowScratch64 [64]complex128
 
 	// Step 2: 128 parallel IFFT-64
-	for r := 0; r < cols; r++ {
+	for r := range cols {
 		row := work[r*rows : (r+1)*rows]
 		if !inverseDIT64Radix4Complex128(row, row, rowTwiddle64[:], rowScratch64[:]) {
 			return false
@@ -282,8 +282,8 @@ func inverseDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	}
 
 	// Step 3: Transpose + conjugate twiddle
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			tw := twiddle[(i*j)%n]
 			twConj := complex(real(tw), -imag(tw))
 			work2[i*cols+j] = work[j*rows+i] * twConj
@@ -292,14 +292,14 @@ func inverseDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 
 	// Precompute row twiddles for size-128 IFFT
 	var rowTwiddle128 [128]complex128
-	for k := 0; k < 128; k++ {
+	for k := range 128 {
 		rowTwiddle128[k] = twiddle[k*rows]
 	}
 
 	var rowScratch128 [128]complex128
 
 	// Step 4: 64 parallel IFFT-128
-	for r := 0; r < rows; r++ {
+	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
 		if !inverseDIT128Complex128(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
@@ -307,8 +307,8 @@ func inverseDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	}
 
 	// Step 5: Final transpose
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
+	for i := range rows {
+		for j := range cols {
 			dst[j*rows+i] = work2[i*cols+j]
 		}
 	}
