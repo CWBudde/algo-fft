@@ -20,6 +20,7 @@ type SIMDLevel = fftypes.SIMDLevel
 const (
 	SIMDNone   = fftypes.SIMDNone
 	SIMDSSE2   = fftypes.SIMDSSE2
+	SIMDSSE3   = fftypes.SIMDSSE3
 	SIMDAVX2   = fftypes.SIMDAVX2
 	SIMDAVX512 = fftypes.SIMDAVX512
 	SIMDNEON   = fftypes.SIMDNEON
@@ -231,6 +232,8 @@ func cpuSupports(features cpu.Features, level SIMDLevel) bool {
 		return true
 	case SIMDSSE2:
 		return features.HasSSE2
+	case SIMDSSE3:
+		return features.HasSSE3
 	case SIMDAVX2:
 		return features.HasAVX2
 	case SIMDAVX512:

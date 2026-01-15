@@ -1,0 +1,873 @@
+//go:build amd64 && asm && !purego
+
+#include "textflag.h"
+
+// ===========================================================================
+// Forward transform, size 32, complex64, radix-32 (4x8) variant
+// NOTE: This kernel was previously disabled due to correctness issues.
+// ===========================================================================
+TEXT ·ForwardSSE3Size32Radix32Complex64Asm(SB), NOSPLIT, $0-97
+	MOVQ dst+0(FP), R8
+	MOVQ src+24(FP), R9
+	MOVQ twiddle+48(FP), R10
+	MOVQ scratch+72(FP), R11
+	MOVQ src+32(FP), R13
+
+	CMPQ R13, $32
+	JNE  fwd_ret_false
+
+	// Select working input buffer (avoid clobber on in-place)
+	MOVQ R8, R14
+	CMPQ R8, R9
+	JNE  size32_r32_sse3_fwd_use_dst
+	MOVQ R11, R14
+
+size32_r32_sse3_fwd_use_dst:
+	// Copy input to working buffer (radix-32 needs no bit-reversal)
+	MOVUPS 0(R9), X0
+	MOVUPS 16(R9), X1
+	MOVUPS 32(R9), X2
+	MOVUPS 48(R9), X3
+	MOVUPS 64(R9), X4
+	MOVUPS 80(R9), X5
+	MOVUPS 96(R9), X6
+	MOVUPS 112(R9), X7
+	MOVUPS X0, 0(R14)
+	MOVUPS X1, 16(R14)
+	MOVUPS X2, 32(R14)
+	MOVUPS X3, 48(R14)
+	MOVUPS X4, 64(R14)
+	MOVUPS X5, 80(R14)
+	MOVUPS X6, 96(R14)
+	MOVUPS X7, 112(R14)
+	MOVUPS 128(R9), X0
+	MOVUPS 144(R9), X1
+	MOVUPS 160(R9), X2
+	MOVUPS 176(R9), X3
+	MOVUPS 192(R9), X4
+	MOVUPS 208(R9), X5
+	MOVUPS 224(R9), X6
+	MOVUPS 240(R9), X7
+	MOVUPS X0, 128(R14)
+	MOVUPS X1, 144(R14)
+	MOVUPS X2, 160(R14)
+	MOVUPS X3, 176(R14)
+	MOVUPS X4, 192(R14)
+	MOVUPS X5, 208(R14)
+	MOVUPS X6, 224(R14)
+	MOVUPS X7, 240(R14)
+
+	MOVQ R14, R9
+
+	// Use R11 (scratch) for intermediate storage if needed, but we can do it in registers
+	// if we process 2 columns at a time.
+	// Matrix 4x8: Row 0 (0..7), Row 1 (8..15), Row 2 (16..23), Row 3 (24..31)
+
+	MOVUPS ·maskNegLoPS(SB), X15
+
+	// Column pairs 0 & 1
+	MOVUPS 0(R9), X0      // Row 0, col 0,1
+	MOVUPS 64(R9), X1     // Row 1, col 0,1
+	MOVUPS 128(R9), X2    // Row 2, col 0,1
+	MOVUPS 192(R9), X3    // Row 3, col 0,1
+
+	// FFT4 on Columns
+	MOVAPS X0, X4
+	ADDPS  X2, X4    // S0
+	MOVAPS X1, X5
+	ADDPS  X3, X5    // S1
+	MOVAPS X0, X6
+	SUBPS  X2, X6    // D0
+	MOVAPS X1, X7
+	SUBPS  X3, X7    // D1
+	
+	MOVAPS X4, X0    // Y0 = S0 + S1
+	ADDPS  X5, X0
+	MOVAPS X4, X2    // Y2 = S0 - S1
+	SUBPS  X5, X2
+	
+	MOVAPS X7, X8
+	SHUFPS $0xB1, X8, X8
+	XORPS  X15, X8   // -i * D1
+	
+	MOVAPS X6, X1    // Y1 = D0 - i*D1
+	SUBPS  X8, X1
+	MOVAPS X6, X3    // Y3 = D0 + i*D1
+	ADDPS  X8, X3
+
+	// Twiddles for col 0, 1
+	// Row 0: W(32, 0*c) = 1.0 (X0 is fine)
+	
+	// Row 1: W(32, 1*0), W(32, 1*1)
+	MOVUPS 0(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X1, X11
+	MULPS  X9, X11
+	MOVAPS X1, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X1
+	
+	// Row 2: W(32, 2*0), W(32, 2*1)
+	MOVSD  0(R10), X8
+	MOVHPS 16(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X2, X11
+	MULPS  X9, X11
+	MOVAPS X2, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X2
+	
+	// Row 3: W(32, 3*0), W(32, 3*1)
+	MOVSD  0(R10), X8
+	MOVHPS 24(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X3, X11
+	MULPS  X9, X11
+	MOVAPS X3, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X3
+
+	MOVUPS X0, 0(R11)
+	MOVUPS X1, 64(R11)
+	MOVUPS X2, 128(R11)
+	MOVUPS X3, 192(R11)
+
+	// Column pairs 2 & 3
+	MOVUPS 16(R9), X0
+	MOVUPS 80(R9), X1
+	MOVUPS 144(R9), X2
+	MOVUPS 208(R9), X3
+	
+	MOVAPS X0, X4
+	ADDPS  X2, X4
+	MOVAPS X1, X5
+	ADDPS  X3, X5
+	MOVAPS X0, X6
+	SUBPS  X2, X6
+	MOVAPS X1, X7
+	SUBPS  X3, X7
+	MOVAPS X4, X0
+	ADDPS  X5, X0
+	MOVAPS X4, X2
+	SUBPS  X5, X2
+	MOVAPS X7, X8
+	SHUFPS $0xB1, X8, X8
+	XORPS  X15, X8
+	MOVAPS X6, X1
+	SUBPS  X8, X1
+	MOVAPS X6, X3
+	ADDPS  X8, X3
+
+	// Twiddles for col 2, 3
+	MOVUPS 16(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X1, X11
+	MULPS  X9, X11
+	MOVAPS X1, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X1
+	
+	MOVSD  32(R10), X8
+	MOVHPS 48(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X2, X11
+	MULPS  X9, X11
+	MOVAPS X2, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X2
+	
+	MOVSD  48(R10), X8
+	MOVHPS 72(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X3, X11
+	MULPS  X9, X11
+	MOVAPS X3, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X3
+
+	MOVUPS X0, 16(R11)
+	MOVUPS X1, 80(R11)
+	MOVUPS X2, 144(R11)
+	MOVUPS X3, 208(R11)
+
+	// Column pairs 4 & 5
+	MOVUPS 32(R9), X0
+	MOVUPS 96(R9), X1
+	MOVUPS 160(R9), X2
+	MOVUPS 224(R9), X3
+	
+	MOVAPS X0, X4
+	ADDPS  X2, X4
+	MOVAPS X1, X5
+	ADDPS  X3, X5
+	MOVAPS X0, X6
+	SUBPS  X2, X6
+	MOVAPS X1, X7
+	SUBPS  X3, X7
+	MOVAPS X4, X0
+	ADDPS  X5, X0
+	MOVAPS X4, X2
+	SUBPS  X5, X2
+	MOVAPS X7, X8
+	SHUFPS $0xB1, X8, X8
+	XORPS  X15, X8
+	MOVAPS X6, X1
+	SUBPS  X8, X1
+	MOVAPS X6, X3
+	ADDPS  X8, X3
+
+	// Twiddles for col 4, 5
+	MOVUPS 32(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X1, X11
+	MULPS  X9, X11
+	MOVAPS X1, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X1
+	
+	MOVSD  64(R10), X8
+	MOVHPS 80(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X2, X11
+	MULPS  X9, X11
+	MOVAPS X2, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X2
+	
+	MOVSD  96(R10), X8
+	MOVHPS 120(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X3, X11
+	MULPS  X9, X11
+	MOVAPS X3, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X3
+
+	MOVUPS X0, 32(R11)
+	MOVUPS X1, 96(R11)
+	MOVUPS X2, 160(R11)
+	MOVUPS X3, 224(R11)
+
+	// Column pairs 6 & 7
+	MOVUPS 48(R9), X0
+	MOVUPS 112(R9), X1
+	MOVUPS 176(R9), X2
+	MOVUPS 240(R9), X3
+	
+	MOVAPS X0, X4
+	ADDPS  X2, X4
+	MOVAPS X1, X5
+	ADDPS  X3, X5
+	MOVAPS X0, X6
+	SUBPS  X2, X6
+	MOVAPS X1, X7
+	SUBPS  X3, X7
+	MOVAPS X4, X0
+	ADDPS  X5, X0
+	MOVAPS X4, X2
+	SUBPS  X5, X2
+	MOVAPS X7, X8
+	SHUFPS $0xB1, X8, X8
+	XORPS  X15, X8
+	MOVAPS X6, X1
+	SUBPS  X8, X1
+	MOVAPS X6, X3
+	ADDPS  X8, X3
+
+	// Twiddles for col 6, 7
+	MOVUPS 48(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X1, X11
+	MULPS  X9, X11
+	MOVAPS X1, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X1
+	
+	MOVSD  96(R10), X8
+	MOVHPS 112(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X2, X11
+	MULPS  X9, X11
+	MOVAPS X2, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X2
+	
+	MOVSD  144(R10), X8
+	MOVHPS 168(R10), X8
+	MOVAPS X8, X9
+	SHUFPS $0xA0, X9, X9
+	MOVAPS X8, X10
+	SHUFPS $0xF5, X10, X10
+	MOVAPS X3, X11
+	MULPS  X9, X11
+	MOVAPS X3, X12
+	SHUFPS $0xB1, X12, X12
+	MULPS  X10, X12
+	ADDSUBPS X12, X11
+	MOVAPS X11, X3
+
+	MOVUPS X0, 48(R11)
+	MOVUPS X1, 112(R11)
+	MOVUPS X2, 176(R11)
+	MOVUPS X3, 240(R11)
+
+	// Step 2: Row FFTs (Size 8)
+	// Output order: X(k1 + 4*k2)
+	// k1 is row index (0..3), k2 is column index (0..7)
+	// So we'll store Row 0 to dst[0, 4, 8, 12, 16, 20, 24, 28]... wait.
+	// If we want natural order [0, 1, 2, ..., 31], and our output is k1 + 4*k2,
+	// then:
+	// dst[0] = k1=0, k2=0
+	// dst[1] = k1=1, k2=0
+	// dst[2] = k1=2, k2=0
+	// dst[3] = k1=3, k2=0
+	// dst[4] = k1=0, k2=1
+	// ...
+	// This is exactly what we want if we store the results of the Row FFTs transposed.
+	// Row 0 FFT results go to dst[0, 4, 8, 12, 16, 20, 24, 28].
+	
+	// Twiddles for Row FFTs (Size 8) are the standard W(8, i).
+	// We'll load them from the twiddle table at some offset?
+	// Usually, the planner provides them. For size 32, the twiddles might be different.
+	// Actually, the size-8 FFT within Radix-32 uses W(8, i) = W(32, 4*i).
+	// These are already in our twiddle table at indices 0, 4, 8, 12, ...
+	
+	// Let's load the 2 twiddles for Size-8 FFT.
+	// W(8, 1) and W(8, 2), W(8, 3).
+	// W(8, 0) is 1.
+	// In terms of W(32, i): W(32, 0), W(32, 4), W(32, 8), W(32, 12).
+	MOVUPS 0(R10), X14    // W(32, 0), W(32, 1) -> we need 0 and 4.
+	MOVUPS 0(R10), X0     // W(32, 0), W(32, 1)
+	MOVUPS 32(R10), X1    // W(32, 4), W(32, 5)
+	MOVUPS 64(R10), X2    // W(32, 8), W(32, 9)
+	MOVUPS 96(R10), X3    // W(32, 12), W(32, 13)
+	
+	// We need W8_01: [W(32, 0), W(32, 4)]
+	// We need W8_23: [W(32, 8), W(32, 12)]
+	MOVAPS X0, X8
+	UNPCKLPD X1, X8       // X8 = [W(32,0), W(32,4)]
+	MOVAPS X2, X9
+	UNPCKLPD X3, X9       // X9 = [W(32,8), W(32,12)]
+	
+	// Now process each Row
+	MOVQ $0, AX // Row index
+row_loop:
+	MOVQ AX, CX
+	SHLQ $6, CX // Row offset (8*8 bytes)
+	ADDQ R11, CX
+	MOVUPS 0(CX), X0
+	MOVUPS 16(CX), X1
+	MOVUPS 32(CX), X2
+	MOVUPS 48(CX), X3
+
+	// Size-8 FFT logic (from sse3_f32_size8_radix8.s)
+	// Stage 1: Sum/Diff (Stride 4)
+	MOVAPS X0, X4
+	ADDPS  X2, X4
+	MOVAPS X1, X5
+	ADDPS  X3, X5
+	MOVAPS X0, X6
+	SUBPS  X2, X6
+	MOVAPS X1, X7
+	SUBPS  X3, X7
+
+	// Unpack Sums
+	MOVAPS X4, X10
+	UNPCKLPD X5, X10
+	MOVAPS X4, X11
+	UNPCKHPD X5, X11
+
+	// Process Sums
+	MOVAPS X10, X12
+	SHUFPS $0x4E, X12, X12
+	MOVAPS X10, X0
+	ADDPS  X12, X0
+	MOVAPS X10, X1
+	SUBPS  X12, X1
+	MOVAPS X11, X12
+	SHUFPS $0x4E, X12, X12
+	MOVAPS X11, X2
+	ADDPS  X12, X2
+	MOVAPS X11, X3
+	SUBPS  X12, X3
+
+	// Unpack Diffs
+	MOVAPS X6, X10
+	UNPCKLPD X7, X10
+	MOVAPS X6, X11
+	UNPCKHPD X7, X11
+
+	// Process Diffs (Rotated -i)
+	MOVAPS X10, X12
+	SHUFPS $0x4E, X12, X12
+	MOVAPS X12, X13
+	SHUFPS $0xB1, X13, X13
+	MOVUPS ·maskNegHiPS(SB), X15
+	XORPS  X15, X13
+	MOVAPS X10, X4
+	ADDPS  X13, X4
+	MOVAPS X10, X5
+	SUBPS  X13, X5
+
+	MOVAPS X11, X12
+	SHUFPS $0x4E, X12, X12
+	MOVAPS X12, X13
+	SHUFPS $0xB1, X13, X13
+	XORPS  X15, X13
+	MOVAPS X11, X6
+	ADDPS  X13, X6
+	MOVAPS X11, X7
+	SUBPS  X13, X7
+
+	// Pack
+	MOVAPS X0, X10
+	UNPCKLPD X4, X10
+	MOVAPS X1, X11
+	UNPCKLPD X5, X11
+	MOVAPS X2, X12
+	UNPCKLPD X6, X12
+	MOVAPS X3, X13
+	UNPCKLPD X7, X13
+
+	// Stage 4: Twiddle
+	// X8 = W8_01, X9 = W8_23
+	MOVAPS X8, X4
+	SHUFPS $0xA0, X4, X4
+	MOVAPS X8, X5
+	SHUFPS $0xF5, X5, X5
+	MOVAPS X12, X6
+	MULPS  X4, X6
+	MOVAPS X12, X7
+	SHUFPS $0xB1, X7, X7
+	MULPS  X5, X7
+	ADDSUBPS X7, X6
+	MOVAPS X10, X0
+	ADDPS  X6, X0
+	MOVAPS X10, X2
+	SUBPS  X6, X2
+
+	MOVAPS X9, X4
+	SHUFPS $0xA0, X4, X4
+	MOVAPS X9, X5
+	SHUFPS $0xF5, X5, X5
+	MOVAPS X13, X6
+	MULPS  X4, X6
+	MOVAPS X13, X7
+	SHUFPS $0xB1, X7, X7
+	MULPS  X5, X7
+	ADDSUBPS X7, X6
+	MOVAPS X11, X1
+	ADDPS  X6, X1
+	MOVAPS X11, X3
+	SUBPS  X6, X3
+
+	// Now X0, X1, X2, X3 hold the Row FFT results.
+	// Store transposed to dst.
+	// Row index AX.
+	// dst indices: AX, AX+4, AX+8, AX+12, AX+16, AX+20, AX+24, AX+28
+	MOVQ AX, CX
+	SHLQ $3, CX // AX * 8 bytes
+	ADDQ R8, CX
+	
+	MOVSD  X0, 0(CX)
+	MOVHPS X0, 32(CX)
+	
+	MOVSD  X1, 64(CX)
+	MOVHPS X1, 96(CX)
+	
+	MOVSD  X2, 128(CX)
+	MOVHPS X2, 160(CX)
+	
+	MOVSD  X3, 192(CX)
+	MOVHPS X3, 224(CX)
+
+	INCQ AX
+	CMPQ AX, $4
+	JL row_loop
+
+	MOVB $1, ret+96(FP)
+	RET
+
+fwd_ret_false:
+	MOVB $0, ret+96(FP)
+	RET
+
+
+// ===========================================================================
+// Inverse transform
+// NOTE: This kernel was previously disabled due to correctness issues.
+// ===========================================================================
+TEXT ·InverseSSE3Size32Radix32Complex64Asm(SB), NOSPLIT, $0-97
+	MOVQ dst+0(FP), R8
+	MOVQ src+24(FP), R9
+	MOVQ twiddle+48(FP), R10
+	MOVQ scratch+72(FP), R11
+	MOVQ src+32(FP), R13
+
+	CMPQ R13, $32
+	JNE  inv_ret_false
+
+	// Select working input buffer (avoid clobber on in-place)
+	MOVQ R8, R14
+	CMPQ R8, R9
+	JNE  size32_r32_sse3_inv_use_dst
+	MOVQ R11, R14
+
+size32_r32_sse3_inv_use_dst:
+	// Copy input to working buffer (radix-32 needs no bit-reversal)
+	MOVUPS 0(R9), X0
+	MOVUPS 16(R9), X1
+	MOVUPS 32(R9), X2
+	MOVUPS 48(R9), X3
+	MOVUPS 64(R9), X4
+	MOVUPS 80(R9), X5
+	MOVUPS 96(R9), X6
+	MOVUPS 112(R9), X7
+	MOVUPS X0, 0(R14)
+	MOVUPS X1, 16(R14)
+	MOVUPS X2, 32(R14)
+	MOVUPS X3, 48(R14)
+	MOVUPS X4, 64(R14)
+	MOVUPS X5, 80(R14)
+	MOVUPS X6, 96(R14)
+	MOVUPS X7, 112(R14)
+	MOVUPS 128(R9), X0
+	MOVUPS 144(R9), X1
+	MOVUPS 160(R9), X2
+	MOVUPS 176(R9), X3
+	MOVUPS 192(R9), X4
+	MOVUPS 208(R9), X5
+	MOVUPS 224(R9), X6
+	MOVUPS 240(R9), X7
+	MOVUPS X0, 128(R14)
+	MOVUPS X1, 144(R14)
+	MOVUPS X2, 160(R14)
+	MOVUPS X3, 176(R14)
+	MOVUPS X4, 192(R14)
+	MOVUPS X5, 208(R14)
+	MOVUPS X6, 224(R14)
+	MOVUPS X7, 240(R14)
+
+	MOVQ R14, R9
+
+	MOVUPS ·maskNegLoPS(SB), X15
+	MOVUPS ·maskNegHiPS(SB), X14
+
+	// Step 1: Column IFFTs (Size 4)
+	MOVQ $0, AX // Col pair index
+col_inv_loop:
+	MOVQ AX, CX
+	SHLQ $4, CX // AX * 16 bytes
+	MOVQ CX, DX
+	ADDQ R9, CX
+	MOVUPS 0(CX), X0
+	MOVUPS 64(CX), X1
+	MOVUPS 128(CX), X2
+	MOVUPS 192(CX), X3
+
+	MOVAPS X0, X4
+	ADDPS  X2, X4
+	MOVAPS X1, X5
+	ADDPS  X3, X5
+	MOVAPS X0, X6
+	SUBPS  X2, X6
+	MOVAPS X1, X7
+	SUBPS  X3, X7
+	
+	MOVAPS X4, X0
+	ADDPS  X5, X0
+	MOVAPS X4, X2
+	SUBPS  X5, X2
+	
+	MOVAPS X7, X8
+	SHUFPS $0xB1, X8, X8
+	XORPS  X15, X8   // -i * D1
+	
+	MOVAPS X6, X1
+	ADDPS  X8, X1    // Y1 = D0 + i*D1 (IFFT)
+	MOVAPS X6, X3
+	SUBPS  X8, X3    // Y3 = D0 - i*D1 (IFFT)
+
+	// Twiddles (Conjugated)
+	// We need W(32, r*c) conjugated.
+	// W(32, i) is at R10 + i*8.
+	// For column pair AX (0..3), columns are 2*AX and 2*AX+1.
+	// Row 1: W(32, 1*col) -> offset = col*8 = AX*16
+	// Row 2: W(32, 2*col) -> offset = 2*col*8 = AX*32
+	// Row 3: W(32, 3*col) -> offset = 3*col*8 = AX*48
+	MOVQ AX, CX
+	SHLQ $4, CX            // CX = AX * 16
+	MOVUPS (R10)(CX*1), X8 // Row 1 twiddles (W(2c), W(2c+1))
+	MOVQ CX, DX
+	SHLQ $1, DX            // DX = CX * 2 = AX * 32
+	MOVSD  (R10)(DX*1), X9 // Row 2 twiddles (W(4c), W(4c+2))
+	MOVHPS 16(R10)(DX*1), X9
+	MOVQ CX, DX
+	SHLQ $1, DX
+	ADDQ CX, DX            // DX = CX * 3 = AX * 48
+	MOVSD  (R10)(DX*1), X10 // Row 3 twiddles (W(6c), W(6c+3))
+	MOVHPS 24(R10)(DX*1), X10
+	
+apply_tw:
+	// Conjugate twiddles
+	XORPS X14, X8
+	XORPS X14, X9
+	XORPS X14, X10
+	
+	// Apply X8 to X1
+	MOVAPS X8, X11
+	SHUFPS $0xA0, X11, X11
+	MOVAPS X8, X12
+	SHUFPS $0xF5, X12, X12
+	MOVAPS X1, X4
+	MULPS  X11, X4
+	MOVAPS X1, X5
+	SHUFPS $0xB1, X5, X5
+	MULPS  X12, X5
+	ADDSUBPS X5, X4
+	MOVAPS X4, X1
+	
+	// Apply X9 to X2
+	MOVAPS X9, X11
+	SHUFPS $0xA0, X11, X11
+	MOVAPS X9, X12
+	SHUFPS $0xF5, X12, X12
+	MOVAPS X2, X4
+	MULPS  X11, X4
+	MOVAPS X2, X5
+	SHUFPS $0xB1, X5, X5
+	MULPS  X12, X5
+	ADDSUBPS X5, X4
+	MOVAPS X4, X2
+
+	// Apply X10 to X3
+	MOVAPS X10, X11
+	SHUFPS $0xA0, X11, X11
+	MOVAPS X10, X12
+	SHUFPS $0xF5, X12, X12
+	MOVAPS X3, X4
+	MULPS  X11, X4
+	MOVAPS X3, X5
+	SHUFPS $0xB1, X5, X5
+	MULPS  X12, X5
+	ADDSUBPS X5, X4
+	MOVAPS X4, X3
+
+	// Store to scratch
+	MOVQ AX, CX
+	SHLQ $4, CX
+	MOVUPS X0, (R11)(CX*1)
+	ADDQ $64, CX
+	MOVUPS X1, (R11)(CX*1)
+	ADDQ $64, CX
+	MOVUPS X2, (R11)(CX*1)
+	ADDQ $64, CX
+	MOVUPS X3, (R11)(CX*1)
+
+	INCQ AX
+	CMPQ AX, $4
+	JL col_inv_loop
+
+	// Step 2: Row IFFTs (Size 8)
+	// We need W(8, i) conjugated.
+	MOVUPS 0(R10), X0
+	MOVUPS 32(R10), X1
+	MOVUPS 64(R10), X2
+	MOVUPS 96(R10), X3
+	MOVAPS X0, X8
+	UNPCKLPD X1, X8       // X8 = [W(32,0), W(32,4)]
+	MOVAPS X2, X9
+	UNPCKLPD X3, X9       // X9 = [W(32,8), W(32,12)]
+	XORPS  X14, X8
+	XORPS  X14, X9
+
+	MOVQ $0, AX
+row_inv_loop:
+	MOVQ AX, CX
+	SHLQ $6, CX
+	ADDQ R11, CX
+	MOVUPS 0(CX), X0
+	MOVUPS 16(CX), X1
+	MOVUPS 32(CX), X2
+	MOVUPS 48(CX), X3
+
+	// Stage 1
+	MOVAPS X0, X4
+	ADDPS  X2, X4
+	MOVAPS X1, X5
+	ADDPS  X3, X5
+	MOVAPS X0, X6
+	SUBPS  X2, X6
+	MOVAPS X1, X7
+	SUBPS  X3, X7
+
+	MOVAPS X4, X10
+	UNPCKLPD X5, X10
+	MOVAPS X4, X11
+	UNPCKHPD X5, X11
+
+	MOVAPS X10, X12
+	SHUFPS $0x4E, X12, X12
+	MOVAPS X10, X0
+	ADDPS  X12, X0
+	MOVAPS X10, X1
+	SUBPS  X12, X1
+	MOVAPS X11, X12
+	SHUFPS $0x4E, X12, X12
+	MOVAPS X11, X2
+	ADDPS  X12, X2
+	MOVAPS X11, X3
+	SUBPS  X12, X3
+
+	MOVAPS X6, X10
+	UNPCKLPD X7, X10
+	MOVAPS X6, X11
+	UNPCKHPD X7, X11
+
+	MOVAPS X10, X12
+	SHUFPS $0x4E, X12, X12
+	MOVAPS X12, X13
+	SHUFPS $0xB1, X13, X13
+	MOVUPS ·maskNegLoPS(SB), X15
+	XORPS  X15, X13  // +i * D
+	MOVAPS X10, X4
+	ADDPS  X13, X4
+	MOVAPS X10, X5
+	SUBPS  X13, X5
+
+	MOVAPS X11, X12
+	SHUFPS $0x4E, X12, X12
+	MOVAPS X12, X13
+	SHUFPS $0xB1, X13, X13
+	XORPS  X15, X13
+	MOVAPS X11, X6
+	ADDPS  X13, X6
+	MOVAPS X11, X7
+	SUBPS  X13, X7
+
+	MOVAPS X0, X10
+	UNPCKLPD X4, X10
+	MOVAPS X1, X11
+	UNPCKLPD X5, X11
+	MOVAPS X2, X12
+	UNPCKLPD X6, X12
+	MOVAPS X3, X13
+	UNPCKLPD X7, X13
+
+	// Stage 4: Twiddle
+	MOVAPS X8, X4
+	SHUFPS $0xA0, X4, X4
+	MOVAPS X8, X5
+	SHUFPS $0xF5, X5, X5
+	MOVAPS X12, X6
+	MULPS  X4, X6
+	MOVAPS X12, X7
+	SHUFPS $0xB1, X7, X7
+	MULPS  X5, X7
+	ADDSUBPS X7, X6
+	MOVAPS X10, X0
+	ADDPS  X6, X0
+	MOVAPS X10, X2
+	SUBPS  X6, X2
+
+	MOVAPS X9, X4
+	SHUFPS $0xA0, X4, X4
+	MOVAPS X9, X5
+	SHUFPS $0xF5, X5, X5
+	MOVAPS X13, X6
+	MULPS  X4, X6
+	MOVAPS X13, X7
+	SHUFPS $0xB1, X7, X7
+	MULPS  X5, X7
+	ADDSUBPS X7, X6
+	MOVAPS X11, X1
+	ADDPS  X6, X1
+	MOVAPS X11, X3
+	SUBPS  X6, X3
+
+	// Normalization (1/32)
+	MOVSS  ·thirtySecond32(SB), X15
+	SHUFPS $0x00, X15, X15
+	MULPS  X15, X0
+	MULPS  X15, X1
+	MULPS  X15, X2
+	MULPS  X15, X3
+
+	// Store transposed
+	MOVQ AX, CX
+	SHLQ $3, CX
+	ADDQ R8, CX
+	MOVSD  X0, 0(CX)
+	MOVHPS X0, 32(CX)
+	MOVSD  X1, 64(CX)
+	MOVHPS X1, 96(CX)
+	MOVSD  X2, 128(CX)
+	MOVHPS X2, 160(CX)
+	MOVSD  X3, 192(CX)
+	MOVHPS X3, 224(CX)
+
+	INCQ AX
+	CMPQ AX, $4
+	JL row_inv_loop
+
+	MOVB $1, ret+96(FP)
+	RET
+
+inv_ret_false:
+	MOVB $0, ret+96(FP)
+	RET

@@ -25,11 +25,17 @@ TEXT ·ForwardSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $64-64
 	CMPL AX, CX
 	JNE  fwd_use_dst
 	MOVL scratch+36(FP), AX
+	TESTL AX, AX
+	JZ   fwd_err
 	
 fwd_use_dst:
 	MOVL AX, 0(SP)
 
 	// Bit reversal
+	MOVL bitrev+52(FP), BX
+	CMPL BX, $16
+	JNE  fwd_err
+
 	MOVL bitrev+48(FP), DX
 	XORL SI, SI
 bitrev_loop:
@@ -190,6 +196,8 @@ TEXT ·InverseSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $64-64
 	CMPL AX, CX
 	JNE  inv_use_dst
 	MOVL scratch+36(FP), AX
+	TESTL AX, AX
+	JZ   inv_err
 inv_use_dst:
 	MOVL AX, 0(SP)
 

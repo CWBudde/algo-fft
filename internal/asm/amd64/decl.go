@@ -39,6 +39,18 @@ func ForwardAVX2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []
 func InverseAVX2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
 //go:noescape
+func ForwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+//go:noescape
+func InverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+//go:noescape
+func ForwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+//go:noescape
+func InverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+//go:noescape
 func ForwardSSE2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape

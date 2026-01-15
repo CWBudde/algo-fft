@@ -19,6 +19,7 @@ type SIMDLevel uint8
 const (
 	SIMDNone   SIMDLevel = iota // Pure Go implementation
 	SIMDSSE2                    // Requires SSE2 (x86_64 baseline)
+	SIMDSSE3                    // Requires SSE3
 	SIMDAVX2                    // Requires AVX2
 	SIMDAVX512                  // Requires AVX-512
 	SIMDNEON                    // Requires ARM NEON
@@ -31,6 +32,8 @@ func (s SIMDLevel) String() string {
 		return "generic"
 	case SIMDSSE2:
 		return "sse2"
+	case SIMDSSE3:
+		return "sse3"
 	case SIMDAVX2:
 		return "avx2"
 	case SIMDAVX512:
