@@ -256,10 +256,7 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 }
 
 func TestRecursiveDebug_DITComparison(t *testing.T) {
-
 	t.Parallel()
-
-
 
 	size := 512
 	features := cpu.DetectFeatures()

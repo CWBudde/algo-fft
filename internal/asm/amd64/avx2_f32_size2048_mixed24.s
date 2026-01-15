@@ -1099,13 +1099,6 @@ m24_2048_inv_scale_loop:
 	ADDQ $64, CX              // Advance by 64 bytes
 	CMPQ CX, $16384           // 2048 * 8 = 16384 bytes total
 	JL   m24_2048_inv_scale_loop
-	
-	// My loop:
-	VMOVUPS Y0, (R8)(CX*1)
-	VMOVUPS Y1, 32(R8)(CX*1)
-	ADDQ $64, CX
-	CMPQ CX, $16384
-	JL   m24_2048_inv_scale_loop
 
 	// Copy results to dst if needed (out-of-place inverse transform)
 	MOVQ dst+0(FP), R9
