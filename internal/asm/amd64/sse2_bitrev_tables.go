@@ -4,13 +4,6 @@ package amd64
 
 // SSE2 bit-reversal tables for size-specific kernels.
 // These are static arrays so assembly can reference them directly.
-var bitrevSSE2Size4Identity = [...]int{
-	0, 1, 2, 3,
-}
-
-var bitrevSSE2Size8Identity = [...]int{
-	0, 1, 2, 3, 4, 5, 6, 7,
-}
 
 var bitrevSSE2Size8Radix2 = [...]int{
 	0, 4, 2, 6, 1, 5, 3, 7,

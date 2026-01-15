@@ -33,7 +33,6 @@ TEXT ·ForwardSSE2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // unused
 	MOVQ scratch+72(FP), R11 // scratch pointer
-	LEAQ ·bitrevSSE2Size4Identity(SB), R12  // unused
 	MOVQ src+32(FP), R13     // R13 = n (should be 4)
 
 	// Verify n == 4
@@ -110,7 +109,6 @@ TEXT ·InverseSSE2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10 // unused
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size4Identity(SB), R12  // unused
 	MOVQ src+32(FP), R13
 
 	// Verify n == 4

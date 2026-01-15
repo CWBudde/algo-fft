@@ -29,8 +29,9 @@ See `docs/IMPLEMENTATION_INVENTORY.md` for full inventory. Assembly: `internal/a
 Infrastructure for SIMD-optimized codelet twiddle data. Enables codelets to receive pre-prepared twiddle layouts instead of computing twiddle indices at runtime.
 
 **API Changes:**
+
 - `CodeletFunc[T]` signature: uses twiddle-only buffers (supports SIMD-friendly layouts)
-- `CodeletEntry`: added `TwiddleSize` and `PrepareTwiddle` callbacks
+- `CodeletEntry`: added `TwiddleExtraSize` and `PrepareTwiddleExtra` callbacks
 - `PlanEstimate`: carries extra-twiddle callbacks from registry to plan creation
 - `Plan[T]`/`FastPlan[T]`: store codelet twiddle buffers per direction
 
@@ -350,11 +351,11 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 
 **Recommended - 64×128 Matrix**:
 
-- [ ] Create `internal/asm/amd64/avx2_f32_size8192_radix64x128.s`
-  - [ ] Stage 1: 128 parallel FFT-64
-  - [ ] Twiddle multiplication
-  - [ ] Stage 2: 64 parallel FFT-128
-  - [ ] 2 stages (vs 6.5 for mixed-2/4)
+- [x] Create `internal/asm/amd64/avx2_f32_size8192_radix64x128.s`
+  - [x] Stage 1: 128 parallel FFT-64
+  - [x] Twiddle multiplication
+  - [x] Stage 2: 64 parallel FFT-128
+  - [x] 2 stages (vs 6.5 for mixed-2/4)
 
 **Alternative - 16×32×16 (3D)**:
 
