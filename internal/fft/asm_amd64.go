@@ -14,12 +14,22 @@ func forwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
 			return true
 		}
 	}
+	if len(src) >= 64 && m.IsPowerOf2(len(src)) {
+		if kasm.ForwardAVX2Complex64Radix4MixedAsm(dst, src, twiddle, scratch, nil) {
+			return true
+		}
+	}
 	return kasm.ForwardAVX2Complex64Asm(dst, src, twiddle, scratch, nil)
 }
 
 func inverseAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
 	if len(src) >= 64 && m.IsPowerOf4(len(src)) {
 		if kasm.InverseAVX2Complex64Radix4Asm(dst, src, twiddle, scratch, nil) {
+			return true
+		}
+	}
+	if len(src) >= 64 && m.IsPowerOf2(len(src)) {
+		if kasm.InverseAVX2Complex64Radix4MixedAsm(dst, src, twiddle, scratch, nil) {
 			return true
 		}
 	}
@@ -32,6 +42,14 @@ func forwardAVX2Complex64GenericRadix2Asm(dst, src, twiddle, scratch []complex64
 
 func forwardAVX2Complex64Radix4Asm(dst, src, twiddle, scratch []complex64) bool {
 	return kasm.ForwardAVX2Complex64Radix4Asm(dst, src, twiddle, scratch, nil)
+}
+
+func forwardAVX2Complex64Radix4MixedAsm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.ForwardAVX2Complex64Radix4MixedAsm(dst, src, twiddle, scratch, nil)
+}
+
+func inverseAVX2Complex64Radix4MixedAsm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.InverseAVX2Complex64Radix4MixedAsm(dst, src, twiddle, scratch, nil)
 }
 
 func forwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64) bool {

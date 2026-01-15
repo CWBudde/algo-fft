@@ -38,7 +38,6 @@ TEXT ·ForwardSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	LEAQ ·bitrevSSE2Size8Mixed24(SB), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 8)
 
 	// Verify n == 8
@@ -69,51 +68,16 @@ TEXT ·ForwardSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 
 size8_r4_sse2_fwd_use_dst:
 	// ==================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// Bit-reversal load: pattern [0, 2, 4, 6, 1, 3, 5, 7] * 8 bytes
 	// ==================================================================
-	MOVQ (R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)
-
-	MOVQ 8(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 8(R8)
-
-	MOVQ 16(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 16(R8)
-
-	MOVQ 24(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 24(R8)
-
-	MOVQ 32(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 32(R8)
-
-	MOVQ 40(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 40(R8)
-
-	MOVQ 48(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 48(R8)
-
-	MOVQ 56(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 56(R8)
-
-	// ==================================================================
-	// Load x0..x7 into X0..X7 (lower 64 bits of each XMM)
-	// ==================================================================
-	MOVSD (R8), X0
-	MOVSD 8(R8), X1
-	MOVSD 16(R8), X2
-	MOVSD 24(R8), X3
-	MOVSD 32(R8), X4
-	MOVSD 40(R8), X5
-	MOVSD 48(R8), X6
-	MOVSD 56(R8), X7
+	MOVSD 0(R9), X0     // src[0]
+	MOVSD 16(R9), X1    // src[2]
+	MOVSD 32(R9), X2    // src[4]
+	MOVSD 48(R9), X3    // src[6]
+	MOVSD 8(R9), X4     // src[1]
+	MOVSD 24(R9), X5    // src[3]
+	MOVSD 40(R9), X6    // src[5]
+	MOVSD 56(R9), X7    // src[7]
 
 	// ==================================================================
 	// Stage 1: Radix-4 butterfly 1 on [x0, x1, x2, x3]
@@ -294,7 +258,6 @@ TEXT ·InverseSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size8Mixed24(SB), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 8
@@ -325,51 +288,16 @@ TEXT ·InverseSSE2Size8Radix4Complex64Asm(SB), NOSPLIT, $0-97
 
 size8_r4_sse2_inv_use_dst:
 	// ==================================================================
-	// Bit-reversal permutation
+	// Bit-reversal load: pattern [0, 2, 4, 6, 1, 3, 5, 7] * 8 bytes
 	// ==================================================================
-	MOVQ (R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, (R8)
-
-	MOVQ 8(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 8(R8)
-
-	MOVQ 16(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 16(R8)
-
-	MOVQ 24(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 24(R8)
-
-	MOVQ 32(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 32(R8)
-
-	MOVQ 40(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 40(R8)
-
-	MOVQ 48(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 48(R8)
-
-	MOVQ 56(R12), DX
-	MOVQ (R9)(DX*8), AX
-	MOVQ AX, 56(R8)
-
-	// ==================================================================
-	// Load x0..x7
-	// ==================================================================
-	MOVSD (R8), X0
-	MOVSD 8(R8), X1
-	MOVSD 16(R8), X2
-	MOVSD 24(R8), X3
-	MOVSD 32(R8), X4
-	MOVSD 40(R8), X5
-	MOVSD 48(R8), X6
-	MOVSD 56(R8), X7
+	MOVSD 0(R9), X0     // src[0]
+	MOVSD 16(R9), X1    // src[2]
+	MOVSD 32(R9), X2    // src[4]
+	MOVSD 48(R9), X3    // src[6]
+	MOVSD 8(R9), X4     // src[1]
+	MOVSD 24(R9), X5    // src[3]
+	MOVSD 40(R9), X6    // src[5]
+	MOVSD 56(R9), X7    // src[7]
 
 	// ==================================================================
 	// Stage 1: Radix-4 butterfly 1 with +i (inverse)
