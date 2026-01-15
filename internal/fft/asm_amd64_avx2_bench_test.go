@@ -636,3 +636,49 @@ func BenchmarkAVX2GenericRadix4_VsRadix2(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkAVX2GenericRadix4Mixed_VsRadix2 compares mixed radix-4 vs radix-2 AVX2 DIT.
+func BenchmarkAVX2GenericRadix4Mixed_VsRadix2(b *testing.B) {
+	_, _, avx2Available := getAVX2Kernels()
+	if !avx2Available {
+		b.Skip("AVX2 not available")
+	}
+
+	sizes := []int{128, 512, 2048, 8192}
+
+	for _, n := range sizes {
+		b.Run(sizeString(n), func(b *testing.B) {
+			src := make([]complex64, n)
+			for i := range src {
+				src[i] = complex(float32(i)/float32(n), float32(i%4)/4)
+			}
+
+			dst := make([]complex64, n)
+			twiddle, scratch := prepareFFTData[complex64](n)
+
+			b.Run("Radix4Mixed", func(b *testing.B) {
+				if !forwardAVX2Complex64Radix4MixedAsm(dst, src, twiddle, scratch) {
+					b.Skip("AVX2 radix-4 mixed not available")
+				}
+				b.ReportAllocs()
+				b.SetBytes(int64(n * 8))
+				b.ResetTimer()
+				for range b.N {
+					forwardAVX2Complex64Radix4MixedAsm(dst, src, twiddle, scratch)
+				}
+			})
+
+			b.Run("Radix2", func(b *testing.B) {
+				if !forwardAVX2Complex64GenericRadix2Asm(dst, src, twiddle, scratch) {
+					b.Skip("AVX2 radix-2 generic not available")
+				}
+				b.ReportAllocs()
+				b.SetBytes(int64(n * 8))
+				b.ResetTimer()
+				for range b.N {
+					forwardAVX2Complex64GenericRadix2Asm(dst, src, twiddle, scratch)
+				}
+			})
+		})
+	}
+}

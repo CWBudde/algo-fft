@@ -14,7 +14,6 @@ TEXT ·ForwardSSE2Size8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size8Mixed24(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
@@ -25,15 +24,15 @@ TEXT ·ForwardSSE2Size8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 size8_r4_fwd_use_dst:
-	// Bit-reversal
-	MOVQ (R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X0
-	MOVQ 8(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X1
-	MOVQ 16(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X2
-	MOVQ 24(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X3
-	MOVQ 32(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X4
-	MOVQ 40(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X5
-	MOVQ 48(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X6
-	MOVQ 56(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X7
+	// Bit-reversal load: pattern [0, 2, 4, 6, 1, 3, 5, 7] * 16 bytes
+	MOVUPD 0(R9), X0    // src[0]
+	MOVUPD 32(R9), X1   // src[2]
+	MOVUPD 64(R9), X2   // src[4]
+	MOVUPD 96(R9), X3   // src[6]
+	MOVUPD 16(R9), X4   // src[1]
+	MOVUPD 48(R9), X5   // src[3]
+	MOVUPD 80(R9), X6   // src[5]
+	MOVUPD 112(R9), X7  // src[7]
 
 	// Stage 1: Two Radix-4 butterflies
 	MOVUPS ·maskNegHiPD(SB), X15
@@ -110,7 +109,6 @@ TEXT ·InverseSSE2Size8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size8Mixed24(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
@@ -121,15 +119,15 @@ TEXT ·InverseSSE2Size8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ R11, R8
 
 size8_r4_inv_use_dst:
-	// Bit-reversal
-	MOVQ (R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X0
-	MOVQ 8(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X1
-	MOVQ 16(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X2
-	MOVQ 24(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X3
-	MOVQ 32(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X4
-	MOVQ 40(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X5
-	MOVQ 48(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X6
-	MOVQ 56(R12), DX; SHLQ $4, DX; MOVUPD (R9)(DX*1), X7
+	// Bit-reversal load: pattern [0, 2, 4, 6, 1, 3, 5, 7] * 16 bytes
+	MOVUPD 0(R9), X0    // src[0]
+	MOVUPD 32(R9), X1   // src[2]
+	MOVUPD 64(R9), X2   // src[4]
+	MOVUPD 96(R9), X3   // src[6]
+	MOVUPD 16(R9), X4   // src[1]
+	MOVUPD 48(R9), X5   // src[3]
+	MOVUPD 80(R9), X6   // src[5]
+	MOVUPD 112(R9), X7  // src[7]
 
 	// Stage 1: Two Radix-4 butterflies (+i)
 	MOVUPS ·maskNegLoPD(SB), X14
