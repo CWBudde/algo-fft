@@ -16,7 +16,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | 16    | Radix-4     | ✓   | ✓    | ✓    | ✓    | SSE2 |
 | 16    | Radix-16    | ✓   | ✓    | ✓    | -    | -    |
 | 32    | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
-| 32    | Mixed-2/4   | ✓   | -    | ✓    | ✓    | -    |
+| 32    | Mixed-2/4   | ✓   | ✓    | ✓    | ✓    | -    |
 | 32    | Radix-32    | ✓   | ✓    | -    | -    | -    |
 | 64    | Radix-2     | ✓   | ✓    | ✓    | ✓    | -    |
 | 64    | Radix-4     | ✓   | ✓    | ✓    | ✓    | -    |
@@ -134,22 +134,22 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 16
 
-| Type       | Algorithm | SIMD | Source | Status | Files                                         |
-| ---------- | --------- | ---- | ------ | ------ | --------------------------------------------- |
-| complex64  | radix-2   | none | Go     | ✓      | `dit_size16_radix2.go`                        |
-| complex64  | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size16_radix2.s` |
-| complex64  | radix-2   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size16_radix2.s` |
-| complex64  | radix-4   | none | Go     | ✓      | `dit_size16_radix4.go`                        |
-| complex64  | radix-4   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size16_radix4.s` |
-| complex64  | radix-4   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size16_radix4.s` |
-| complex64  | radix-4   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size16_radix4.s` |
-| complex64  | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size16_radix2.s` |
-| complex128 | radix-2   | none | Go     | ✓      | `dit_size16_radix2.go`                        |
-| complex128 | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f64_size16_radix2.s` |
-| complex128 | radix-4   | none | Go     | ✓      | `dit_size16_radix4.go`                        |
-| complex128 | radix-4   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f64_size16_radix4.s` |
-| complex128 | radix-4   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f64_size16_radix4.s` |
-| complex128 | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f64_size16_radix2.s` |
+| Type       | Algorithm | SIMD | Source | Status | Files                                          |
+| ---------- | --------- | ---- | ------ | ------ | ---------------------------------------------- |
+| complex64  | radix-2   | none | Go     | ✓      | `dit_size16_radix2.go`                         |
+| complex64  | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size16_radix2.s`  |
+| complex64  | radix-2   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size16_radix2.s`  |
+| complex64  | radix-4   | none | Go     | ✓      | `dit_size16_radix4.go`                         |
+| complex64  | radix-4   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size16_radix4.s`  |
+| complex64  | radix-4   | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size16_radix4.s`  |
+| complex64  | radix-4   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size16_radix4.s`  |
+| complex64  | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size16_radix2.s`  |
+| complex128 | radix-2   | none | Go     | ✓      | `dit_size16_radix2.go`                         |
+| complex128 | radix-2   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f64_size16_radix2.s`  |
+| complex128 | radix-4   | none | Go     | ✓      | `dit_size16_radix4.go`                         |
+| complex128 | radix-4   | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f64_size16_radix4.s`  |
+| complex128 | radix-4   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f64_size16_radix4.s`  |
+| complex128 | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f64_size16_radix2.s`  |
 | complex64  | radix-16  | none | Go     | ✓      | `dit_size16_radix16.go`                        |
 | complex64  | radix-16  | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size16_radix16.s` |
 | complex64  | radix-16  | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size16_radix16.s` |
@@ -173,7 +173,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | complex64  | radix-32  | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size32_radix32.s` |
 | complex64  | radix-32  | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size32_radix32.s` |
 | complex64  | mixed-2/4 | none | Go     | ✓      | `dit_size32_mixed24.go`                        |
-| complex64  | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size32_mixed24_avx2.go`                   |
+| complex64  | mixed-2/4 | AVX2 | Wrap   | ✓      | `internal/asm/amd64/avx2_size32_mixed24.go`    |
 | complex64  | mixed-2/4 | SSE2 | Asm    | ✓      | `internal/asm/amd64/sse2_f32_size32_mixed24.s` |
 | complex64  | mixed-2/4 | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f32_size32_mixed24.s` |
 | complex128 | radix-2   | none | Go     | ✓      | `dit_size32.go`                                |
@@ -181,7 +181,7 @@ This document provides a comprehensive overview of all specialized FFT implement
 | complex128 | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f64_size32_radix2.s`  |
 | complex128 | radix-32  | none | Go     | ✓      | `dit_size32_radix32.go`                        |
 | complex128 | mixed-2/4 | none | Go     | ✓      | `dit_size32_mixed24.go`                        |
-| complex128 | mixed-2/4 | AVX2 | Wrap   | ✓      | `dit_size32_mixed24_avx2.go`                   |
+| complex128 | mixed-2/4 | AVX2 | Wrap   | ✓      | `internal/asm/amd64/avx2_size32_mixed24.go`    |
 
 **Notes:**
 
@@ -340,11 +340,11 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 16384
 
-| Type       | Algorithm | SIMD | Source | Status | Files                     |
-| ---------- | --------- | ---- | ------ | ------ | ------------------------- |
-| complex64  | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go` |
+| Type       | Algorithm | SIMD | Source | Status | Files                      |
+| ---------- | --------- | ---- | ------ | ------ | -------------------------- |
+| complex64  | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go`  |
 | complex64  | six-step  | none | Go     | ✓      | `dit_size16384_sixstep.go` |
-| complex128 | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go` |
+| complex128 | radix-4   | none | Go     | ✓      | `dit_size16384_radix4.go`  |
 | complex128 | six-step  | none | Go     | ✓      | `dit_size16384_sixstep.go` |
 
 **Notes:**
@@ -408,7 +408,6 @@ SSE2 optimizations provide fallback for systems without AVX2:
 ### Critical Missing Features
 
 1. **Size 1024+ AVX2**
-
    - Sizes 1024, 2048, 4096, 8192, 16384 use Pure Go implementations
 
 2. **Complex128 AVX2 Radix-4 for Sizes 64+**
@@ -420,11 +419,9 @@ SSE2 optimizations provide fallback for systems without AVX2:
 The following sizes could benefit from additional variants:
 
 1. **Size 32 AVX2 Radix-4** (`complex64`/`complex128`)
-
    - Could reduce stages and improve performance
 
 2. **Size 128 AVX2 Radix-4** (`complex64`/`complex128`)
-
    - Could reduce stages and improve performance
 
 3. **Size 256 AVX2 Radix-4** (`complex128`)
@@ -455,7 +452,6 @@ Used for larger sizes:
 Implementations are registered via the codelet system:
 
 1. **Generic Go** - `codelet_init.go`:
-
    - `registerDITCodelets64()` - complex64 variants
    - `registerDITCodelets128()` - complex128 variants
 
