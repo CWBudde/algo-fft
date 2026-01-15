@@ -233,6 +233,7 @@ func prepareCodeletTwiddles[T Complex](
 ) ([]T, []T, []byte, []byte) {
 	forward := base
 	inverse := base
+
 	var forwardBacking, inverseBacking []byte
 
 	if estimate.TwiddleSize == nil || estimate.PrepareTwiddle == nil {

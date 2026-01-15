@@ -56,6 +56,7 @@ func (c *preparedTwiddleCache[T]) get(
 	}
 
 	actual, _ := c.m.LoadOrStore(key, entry)
+
 	return actual.(preparedTwiddleEntry[T]).data
 }
 

@@ -212,6 +212,7 @@ func TestPrecisionRoundTripSweep(t *testing.T) {
 			err128 := roundTripMaxError128(t, input128)
 
 			log2n := math.Log2(float64(n))
+
 			ratio := math.Inf(1)
 			if err128 > 0 {
 				ratio = err64 / err128
@@ -223,6 +224,7 @@ func TestPrecisionRoundTripSweep(t *testing.T) {
 			if maxErr64 < 1e-4 {
 				maxErr64 = 1e-4
 			}
+
 			if err64 > maxErr64 {
 				t.Errorf("complex64 round-trip error %e exceeds bound %e", err64, maxErr64)
 			}
@@ -231,6 +233,7 @@ func TestPrecisionRoundTripSweep(t *testing.T) {
 			if maxErr128 < 1e-11 {
 				maxErr128 = 1e-11
 			}
+
 			if err128 > maxErr128 {
 				t.Errorf("complex128 round-trip error %e exceeds bound %e", err128, maxErr128)
 			}
@@ -575,7 +578,7 @@ func makePrecisionInputs(n int, rng *rand.Rand) ([]complex64, []complex128) {
 	input64 := make([]complex64, n)
 	input128 := make([]complex128, n)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		re := rng.Float64()*2 - 1
 		im := rng.Float64()*2 - 1
 		input64[i] = complex(float32(re), float32(im))
@@ -587,7 +590,9 @@ func makePrecisionInputs(n int, rng *rand.Rand) ([]complex64, []complex128) {
 
 func roundTripMaxError64(t *testing.T, input []complex64) float64 {
 	t.Helper()
+
 	n := len(input)
+
 	plan, err := NewPlan(n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
@@ -607,6 +612,7 @@ func roundTripMaxError64(t *testing.T, input []complex64) float64 {
 	}
 
 	var maxErr float64
+
 	for i := range input {
 		err := cmplx64abs(roundtrip[i] - input[i])
 		if float64(err) > maxErr {
@@ -619,7 +625,9 @@ func roundTripMaxError64(t *testing.T, input []complex64) float64 {
 
 func roundTripMaxError128(t *testing.T, input []complex128) float64 {
 	t.Helper()
+
 	n := len(input)
+
 	plan, err := NewPlan64(n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
@@ -639,6 +647,7 @@ func roundTripMaxError128(t *testing.T, input []complex128) float64 {
 	}
 
 	var maxErr float64
+
 	for i := range input {
 		err := cmplx.Abs(roundtrip[i] - input[i])
 		if err > maxErr {

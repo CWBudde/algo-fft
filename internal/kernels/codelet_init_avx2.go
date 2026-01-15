@@ -261,7 +261,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX2,
 		Signature:  "dit2048_mixed24_avx2",
-		Priority:   -1, // Disabled: roundtrip failures under asm tag (see PLAN.md)
+		Priority:   25,
 		KernelType: KernelTypeDIT,
 	})
 

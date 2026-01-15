@@ -65,6 +65,7 @@ func TestRoundTripAllCodelets128(t *testing.T) {
 
 func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) {
 	t.Helper()
+
 	size := entry.Size
 
 	// Prepare buffers
@@ -109,7 +110,8 @@ func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]
 
 		// Compare roundtrip with original
 		maxErr := float64(0)
-		for i := 0; i < size; i++ {
+
+		for i := range size {
 			err := cmplx.Abs(complex128(roundtrip[i] - original[i]))
 			if err > maxErr {
 				maxErr = err
@@ -121,6 +123,7 @@ func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]
 		if tol < 1e-4 {
 			tol = 1e-4
 		}
+
 		if tol > 0.1 {
 			tol = 0.1
 		}
@@ -136,6 +139,7 @@ func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]
 
 func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]) {
 	t.Helper()
+
 	size := entry.Size
 
 	// Prepare buffers
@@ -180,7 +184,8 @@ func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex12
 
 		// Compare roundtrip with original
 		maxErr := float64(0)
-		for i := 0; i < size; i++ {
+
+		for i := range size {
 			err := cmplx.Abs(roundtrip[i] - original[i])
 			if err > maxErr {
 				maxErr = err
@@ -192,6 +197,7 @@ func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex12
 		if tol < 1e-10 {
 			tol = 1e-10
 		}
+
 		if tol > 1e-6 {
 			tol = 1e-6
 		}
@@ -259,6 +265,7 @@ func TestInPlaceAllCodelets128(t *testing.T) {
 
 func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) {
 	t.Helper()
+
 	size := entry.Size
 
 	// Prepare buffers
@@ -285,7 +292,8 @@ func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) 
 
 	// Compare in-place vs out-of-place
 	maxErr := float64(0)
-	for i := 0; i < size; i++ {
+
+	for i := range size {
 		err := cmplx.Abs(complex128(inPlace[i] - outOfPlace[i]))
 		if err > maxErr {
 			maxErr = err
@@ -301,6 +309,7 @@ func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) 
 	// Also test inverse in-place
 	freqOOP := make([]complex64, size)
 	copy(freqOOP, outOfPlace)
+
 	resultOOP := make([]complex64, size)
 	entry.Inverse(resultOOP, freqOOP, twiddleInverse, scratch)
 
@@ -309,7 +318,8 @@ func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) 
 	entry.Inverse(freqIP, freqIP, twiddleInverse, scratch)
 
 	maxErr = 0
-	for i := 0; i < size; i++ {
+
+	for i := range size {
 		err := cmplx.Abs(complex128(freqIP[i] - resultOOP[i]))
 		if err > maxErr {
 			maxErr = err
@@ -326,6 +336,7 @@ func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) 
 
 func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]) {
 	t.Helper()
+
 	size := entry.Size
 
 	// Prepare buffers
@@ -352,7 +363,8 @@ func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]
 
 	// Compare in-place vs out-of-place
 	maxErr := float64(0)
-	for i := 0; i < size; i++ {
+
+	for i := range size {
 		err := cmplx.Abs(inPlace[i] - outOfPlace[i])
 		if err > maxErr {
 			maxErr = err
@@ -368,6 +380,7 @@ func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]
 	// Also test inverse in-place
 	freqOOP := make([]complex128, size)
 	copy(freqOOP, outOfPlace)
+
 	resultOOP := make([]complex128, size)
 	entry.Inverse(resultOOP, freqOOP, twiddleInverse, scratch)
 
@@ -376,7 +389,8 @@ func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]
 	entry.Inverse(freqIP, freqIP, twiddleInverse, scratch)
 
 	maxErr = 0
-	for i := 0; i < size; i++ {
+
+	for i := range size {
 		err := cmplx.Abs(freqIP[i] - resultOOP[i])
 		if err > maxErr {
 			maxErr = err
@@ -410,6 +424,7 @@ func prepareCodeletTwiddles64(
 
 	forward, forwardBacking = memory.AllocAlignedComplex64(twiddleLen)
 	inverse, inverseBacking = memory.AllocAlignedComplex64(twiddleLen)
+
 	entry.PrepareTwiddle(size, false, forward)
 	entry.PrepareTwiddle(size, true, inverse)
 
@@ -435,6 +450,7 @@ func prepareCodeletTwiddles128(
 
 	forward, forwardBacking = memory.AllocAlignedComplex128(twiddleLen)
 	inverse, inverseBacking = memory.AllocAlignedComplex128(twiddleLen)
+
 	entry.PrepareTwiddle(size, false, forward)
 	entry.PrepareTwiddle(size, true, inverse)
 
