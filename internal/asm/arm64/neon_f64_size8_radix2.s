@@ -6,7 +6,7 @@
 
 #include "textflag.h"
 
-DATA ·neonInv8F64+0(SB)/8, $0x3fe0000000000000 // 1/8
+DATA ·neonInv8F64+0(SB)/8, $0x3fc0000000000000 // 1/8 = 0.125
 GLOBL ·neonInv8F64(SB), RODATA, $8
 
 // Forward transform, size 8, complex128, radix-2

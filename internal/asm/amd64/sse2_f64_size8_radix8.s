@@ -13,13 +13,10 @@ TEXT ·ForwardSSE2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size8Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
 	JNE  size8_r8_fwd_err
-
-	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
 
 	// Load masks
 	MOVUPS ·maskNegLoPD(SB), X14
@@ -98,13 +95,10 @@ TEXT ·InverseSSE2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size8Identity(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $8
 	JNE  size8_r8_inv_err
-
-	// Note: bitrev parameter ignored for radix-8 on size-8 (identity permutation)
 
 	MOVUPS ·maskNegLoPD(SB), X14
 	MOVUPS ·maskNegHiPD(SB), X15

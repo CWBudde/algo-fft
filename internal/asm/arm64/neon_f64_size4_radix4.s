@@ -97,12 +97,12 @@ neon4r4f64_copy_loop:
 
 neon4r4f64_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon4r4f64_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 // Inverse transform, size 4, radix-4 (no bit-reversal needed).
@@ -212,10 +212,10 @@ neon4r4f64_inv_scale_loop:
 
 neon4r4f64_inv_return_true:
 	MOVD $1, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
 
 neon4r4f64_inv_return_false:
 	MOVD $0, R0
-	MOVB R0, ret+120(FP)
+	MOVB R0, ret+96(FP)
 	RET
