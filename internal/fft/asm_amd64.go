@@ -128,6 +128,10 @@ func forwardAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64)
 	return kasm.ForwardAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
 }
 
+func forwardAVX2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.ForwardAVX2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch)
+}
+
 func forwardAVX2Size32Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
 	return kasm.ForwardAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
 }
@@ -218,6 +222,10 @@ func inverseAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64)
 
 func inverseAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
 	return kasm.InverseAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
+}
+
+func inverseAVX2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return kasm.InverseAVX2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2Size32Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
@@ -368,6 +376,10 @@ func forwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128) boo
 	return kasm.ForwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
 }
 
+func forwardAVX2Size32Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size32Mixed24Complex128Asm(dst, src, twiddle, scratch)
+}
+
 func forwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return kasm.ForwardAVX2Size64Radix2Complex128Asm(dst, src, twiddle, scratch)
 }
@@ -394,6 +406,10 @@ func inverseAVX2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex12
 
 func inverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return kasm.InverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
+}
+
+func inverseAVX2Size32Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size32Mixed24Complex128Asm(dst, src, twiddle, scratch)
 }
 
 func forwardSSE2Size4Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
