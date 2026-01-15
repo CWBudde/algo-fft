@@ -189,6 +189,7 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 8)
 		twiddle := ComputeTwiddleFactors[complex64](8)
 		scratch := make([]complex64, 8)
+
 		codeletTwiddle, twiddleBacking := prepareCodeletTwiddles64(8, twiddle, entry, false)
 		defer runtime.KeepAlive(twiddleBacking)
 
@@ -217,6 +218,7 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 8)
 		twiddle := ComputeTwiddleFactors[complex64](8)
 		scratch := make([]complex64, 8)
+
 		codeletTwiddle, twiddleBacking := prepareCodeletTwiddles64(8, twiddle, entry, true)
 		defer runtime.KeepAlive(twiddleBacking)
 
@@ -255,6 +257,7 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 512)
 		twiddle := ComputeTwiddleFactors[complex64](512)
 		scratch := make([]complex64, 512)
+
 		codeletTwiddle, twiddleBacking := prepareCodeletTwiddles64(512, twiddle, entry, false)
 		defer runtime.KeepAlive(twiddleBacking)
 
@@ -283,6 +286,7 @@ func TestCodeletFunctional(t *testing.T) {
 		dst := make([]complex64, 512)
 		twiddle := ComputeTwiddleFactors[complex64](512)
 		scratch := make([]complex64, 512)
+
 		codeletTwiddle, twiddleBacking := prepareCodeletTwiddles64(512, twiddle, entry, true)
 		defer runtime.KeepAlive(twiddleBacking)
 
@@ -322,5 +326,6 @@ func prepareCodeletTwiddles64(size int, base []complex64, entry *CodeletEntry[co
 
 	prepared, backing := memory.AllocAlignedComplex64(twiddleLen)
 	entry.PrepareTwiddle(size, inverse, prepared)
+
 	return prepared, backing
 }

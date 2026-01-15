@@ -33,9 +33,11 @@ func TestForwardDIT8192SixStep64x128_Complex64(t *testing.T) {
 	}
 
 	maxErr := float32(0)
+
 	for i := range n {
 		re := real(dstSixStep[i]) - real(dstMixed[i])
 		im := imag(dstSixStep[i]) - imag(dstMixed[i])
+
 		err := float32(math.Sqrt(float64(re*re + im*im)))
 		if err > maxErr {
 			maxErr = err
@@ -74,9 +76,11 @@ func TestInverseDIT8192SixStep64x128_Complex64(t *testing.T) {
 	}
 
 	maxErr := float32(0)
+
 	for i := range n {
 		re := real(dstSixStep[i]) - real(dstMixed[i])
 		im := imag(dstSixStep[i]) - imag(dstMixed[i])
+
 		err := float32(math.Sqrt(float64(re*re + im*im)))
 		if err > maxErr {
 			maxErr = err
@@ -115,9 +119,11 @@ func TestRoundTripDIT8192SixStep64x128_Complex64(t *testing.T) {
 	}
 
 	maxErr := float32(0)
+
 	for i := range n {
 		re := real(result[i]) - real(src[i])
 		im := imag(result[i]) - imag(src[i])
+
 		err := float32(math.Sqrt(float64(re*re + im*im)))
 		if err > maxErr {
 			maxErr = err
@@ -156,9 +162,11 @@ func TestForwardDIT8192SixStep64x128_Complex128(t *testing.T) {
 	}
 
 	maxErr := 0.0
+
 	for i := range n {
 		re := real(dstSixStep[i]) - real(dstMixed[i])
 		im := imag(dstSixStep[i]) - imag(dstMixed[i])
+
 		err := math.Sqrt(re*re + im*im)
 		if err > maxErr {
 			maxErr = err
@@ -197,9 +205,11 @@ func TestRoundTripDIT8192SixStep64x128_Complex128(t *testing.T) {
 	}
 
 	maxErr := 0.0
+
 	for i := range n {
 		re := real(result[i]) - real(src[i])
 		im := imag(result[i]) - imag(src[i])
+
 		err := math.Sqrt(re*re + im*im)
 		if err > maxErr {
 			maxErr = err

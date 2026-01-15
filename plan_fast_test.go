@@ -20,6 +20,7 @@ func TestFastPlan_PowersOfTwo(t *testing.T) {
 			t.Logf("Skipping size %d: no codelet available", n)
 			continue
 		}
+
 		if err != nil {
 			t.Errorf("NewFastPlan(%d) returned error: %v", n, err)
 			continue
@@ -34,6 +35,7 @@ func TestFastPlan_PowersOfTwo(t *testing.T) {
 		for i := range src {
 			src[i] = complex(float32(i), 0)
 		}
+
 		dst := make([]complex64, n)
 		plan.Forward(dst, src)
 
@@ -54,6 +56,7 @@ func TestFastPlan_InvalidSizes(t *testing.T) {
 		if plan != nil {
 			t.Errorf("NewFastPlan(%d) should return nil plan", n)
 		}
+
 		if err == nil {
 			t.Errorf("NewFastPlan(%d) should return error", n)
 		}
@@ -71,6 +74,7 @@ func TestFastPlan_MatchesSafeAPI(t *testing.T) {
 			t.Logf("Skipping size %d: no codelet available", n)
 			continue
 		}
+
 		if err != nil {
 			t.Fatalf("NewFastPlan(%d) error: %v", n, err)
 		}
@@ -90,6 +94,7 @@ func TestFastPlan_MatchesSafeAPI(t *testing.T) {
 		safeDst := make([]complex64, n)
 
 		fastPlan.Forward(fastDst, src)
+
 		if err := safePlan.Forward(safeDst, src); err != nil {
 			t.Fatalf("Safe plan forward error: %v", err)
 		}
@@ -115,6 +120,7 @@ func TestFastPlan_RoundTrip(t *testing.T) {
 		if errors.Is(err, ErrNotImplemented) {
 			continue
 		}
+
 		if err != nil {
 			t.Fatalf("NewFastPlan(%d) error: %v", n, err)
 		}
@@ -147,10 +153,12 @@ func TestFastPlan_InPlace(t *testing.T) {
 	t.Parallel()
 
 	n := 64
+
 	plan, err := NewFastPlan[complex64](n)
 	if errors.Is(err, ErrNotImplemented) {
 		t.Skip("No codelet for size 64")
 	}
+
 	if err != nil {
 		t.Fatalf("NewFastPlan(%d) error: %v", n, err)
 	}
@@ -187,6 +195,7 @@ func TestFastPlanReal32_Creation(t *testing.T) {
 			t.Logf("Skipping size %d: no codelet available", n)
 			continue
 		}
+
 		if err != nil {
 			t.Errorf("NewFastPlanReal32(%d) error: %v", n, err)
 			continue
@@ -195,6 +204,7 @@ func TestFastPlanReal32_Creation(t *testing.T) {
 		if plan.Len() != n {
 			t.Errorf("NewFastPlanReal32(%d).Len() = %d, want %d", n, plan.Len(), n)
 		}
+
 		if plan.SpectrumLen() != n/2+1 {
 			t.Errorf("NewFastPlanReal32(%d).SpectrumLen() = %d, want %d", n, plan.SpectrumLen(), n/2+1)
 		}
@@ -211,6 +221,7 @@ func TestFastPlanReal32_InvalidSizes(t *testing.T) {
 		if plan != nil {
 			t.Errorf("NewFastPlanReal32(%d) should return nil plan", n)
 		}
+
 		if err == nil {
 			t.Errorf("NewFastPlanReal32(%d) should return error", n)
 		}
@@ -228,6 +239,7 @@ func TestFastPlanReal32_MatchesSafeAPI(t *testing.T) {
 			t.Logf("Skipping size %d: no codelet available", n)
 			continue
 		}
+
 		if err != nil {
 			t.Fatalf("NewFastPlanReal32(%d) error: %v", n, err)
 		}
@@ -247,6 +259,7 @@ func TestFastPlanReal32_MatchesSafeAPI(t *testing.T) {
 		safeDst := make([]complex64, n/2+1)
 
 		fastPlan.Forward(fastDst, src)
+
 		if err := safePlan.Forward(safeDst, src); err != nil {
 			t.Fatalf("Safe plan forward error: %v", err)
 		}
@@ -272,6 +285,7 @@ func TestFastPlanReal32_RoundTrip(t *testing.T) {
 		if errors.Is(err, ErrNotImplemented) {
 			continue
 		}
+
 		if err != nil {
 			t.Fatalf("NewFastPlanReal32(%d) error: %v", n, err)
 		}
@@ -309,6 +323,7 @@ func TestFastPlanReal64_RoundTrip(t *testing.T) {
 		if errors.Is(err, ErrNotImplemented) {
 			continue
 		}
+
 		if err != nil {
 			t.Fatalf("NewFastPlanReal64(%d) error: %v", n, err)
 		}
@@ -357,6 +372,7 @@ func BenchmarkFastPlan_vs_Plan(b *testing.B) {
 
 		b.Run("Fast/"+itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				fastPlan.Forward(dst, src)
 			}
@@ -364,6 +380,7 @@ func BenchmarkFastPlan_vs_Plan(b *testing.B) {
 
 		b.Run("Safe/"+itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				_ = safePlan.Forward(dst, src)
 			}
@@ -392,6 +409,7 @@ func BenchmarkFastPlanReal32_vs_PlanRealT(b *testing.B) {
 
 		b.Run("Fast/"+itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				fastPlan.Forward(dst, src)
 			}
@@ -399,6 +417,7 @@ func BenchmarkFastPlanReal32_vs_PlanRealT(b *testing.B) {
 
 		b.Run("Safe/"+itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
+
 			for b.Loop() {
 				_ = safePlan.Forward(dst, src)
 			}

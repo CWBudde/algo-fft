@@ -34,6 +34,7 @@ func NewFastPlanReal32(n int) (*FastPlanReal32, error) {
 	}
 
 	half := n / 2
+
 	weight := make([]complex64, half+1)
 	for k := range weight {
 		theta := 2 * math.Pi * float64(k) / float64(n)
@@ -68,7 +69,7 @@ func (fp *FastPlanReal32) Forward(dst []complex64, src []float32) {
 	buf := fp.buf
 
 	// Pack: z[k] = src[2k] + i*src[2k+1]
-	for i := 0; i < half; i++ {
+	for i := range half {
 		buf[i] = complex(src[2*i], src[2*i+1])
 	}
 
@@ -83,6 +84,7 @@ func (fp *FastPlanReal32) Forward(dst []complex64, src []float32) {
 
 	// Recombination: X[k] = A[k] - U[k] * (A[k] - B[k])
 	weight := fp.weight
+
 	for k := 1; k < half; k++ {
 		a := buf[k]
 		bSrc := buf[half-k]
@@ -136,7 +138,7 @@ func (fp *FastPlanReal32) Inverse(dst []float32, src []complex64) {
 	fp.inner.Inverse(buf, buf)
 
 	// Unpack complex buffer to real output
-	for i := 0; i < half; i++ {
+	for i := range half {
 		v := buf[i]
 		dst[2*i] = real(v)
 		dst[2*i+1] = imag(v)
@@ -175,6 +177,7 @@ func NewFastPlanReal64(n int) (*FastPlanReal64, error) {
 	}
 
 	half := n / 2
+
 	weight := make([]complex128, half+1)
 	for k := range weight {
 		theta := 2 * math.Pi * float64(k) / float64(n)
@@ -209,7 +212,7 @@ func (fp *FastPlanReal64) Forward(dst []complex128, src []float64) {
 	buf := fp.buf
 
 	// Pack: z[k] = src[2k] + i*src[2k+1]
-	for i := 0; i < half; i++ {
+	for i := range half {
 		buf[i] = complex(src[2*i], src[2*i+1])
 	}
 
@@ -224,6 +227,7 @@ func (fp *FastPlanReal64) Forward(dst []complex128, src []float64) {
 
 	// Recombination: X[k] = A[k] - U[k] * (A[k] - B[k])
 	weight := fp.weight
+
 	for k := 1; k < half; k++ {
 		a := buf[k]
 		bSrc := buf[half-k]
@@ -277,7 +281,7 @@ func (fp *FastPlanReal64) Inverse(dst []float64, src []complex128) {
 	fp.inner.Inverse(buf, buf)
 
 	// Unpack complex buffer to real output
-	for i := 0; i < half; i++ {
+	for i := range half {
 		v := buf[i]
 		dst[2*i] = real(v)
 		dst[2*i+1] = imag(v)
