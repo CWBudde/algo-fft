@@ -384,6 +384,59 @@ fwd_r4m_r2_inner:
 	CMPQ DX, R11
 	JGE  fwd_r4m_r2_next
 
+	// Vectorized path for radix-2 (4 complex per iteration).
+	MOVQ R11, AX
+	SUBQ DX, AX
+	CMPQ AX, $4
+	JL   fwd_r4m_r2_scalar
+
+	// base offsets in bytes
+	MOVQ CX, SI
+	SHLQ $3, SI             // base bytes
+
+	MOVQ DX, DI
+	SHLQ $3, DI
+	LEAQ (R8)(SI*1), BP
+	ADDQ DI, BP             // ptrA = base + j
+
+	MOVQ DX, DI
+	ADDQ R11, DI
+	SHLQ $3, DI
+	LEAQ (R8)(SI*1), R9
+	ADDQ DI, R9             // ptrB = base + half + j
+
+	LEAQ (R10)(DX*8), R14   // twiddle ptr
+
+fwd_r4m_r2_vec:
+	MOVQ R11, AX
+	SUBQ DX, AX
+	CMPQ AX, $4
+	JL   fwd_r4m_r2_scalar
+
+	VMOVUPS (BP), Y0        // a
+	VMOVUPS (R9), Y1        // b
+	VMOVUPS (R14), Y2       // twiddle
+
+	VMOVSLDUP Y2, Y3        // w.r
+	VMOVSHDUP Y2, Y4        // w.i
+	VSHUFPS $0xB1, Y1, Y1, Y5
+	VMULPS Y4, Y5, Y5
+	VFMADDSUB231PS Y3, Y1, Y5 // t = w * b
+
+	VADDPS Y5, Y0, Y6
+	VSUBPS Y5, Y0, Y7
+
+	VMOVUPS Y6, (BP)
+	VMOVUPS Y7, (R9)
+
+	ADDQ $32, BP
+	ADDQ $32, R9
+	ADDQ $32, R14
+	ADDQ $4, DX
+	JMP  fwd_r4m_r2_vec
+
+fwd_r4m_r2_scalar:
+
 	MOVQ CX, SI
 	ADDQ DX, SI
 	MOVQ SI, DI
@@ -814,6 +867,59 @@ inv_r4m_r2_base:
 inv_r4m_r2_inner:
 	CMPQ DX, R11
 	JGE  inv_r4m_r2_next
+
+	// Vectorized path for radix-2 (4 complex per iteration).
+	MOVQ R11, AX
+	SUBQ DX, AX
+	CMPQ AX, $4
+	JL   inv_r4m_r2_scalar
+
+	// base offsets in bytes
+	MOVQ CX, SI
+	SHLQ $3, SI             // base bytes
+
+	MOVQ DX, DI
+	SHLQ $3, DI
+	LEAQ (R8)(SI*1), BP
+	ADDQ DI, BP             // ptrA = base + j
+
+	MOVQ DX, DI
+	ADDQ R11, DI
+	SHLQ $3, DI
+	LEAQ (R8)(SI*1), R9
+	ADDQ DI, R9             // ptrB = base + half + j
+
+	LEAQ (R10)(DX*8), R14   // twiddle ptr
+
+inv_r4m_r2_vec:
+	MOVQ R11, AX
+	SUBQ DX, AX
+	CMPQ AX, $4
+	JL   inv_r4m_r2_scalar
+
+	VMOVUPS (BP), Y0        // a
+	VMOVUPS (R9), Y1        // b
+	VMOVUPS (R14), Y2       // twiddle
+
+	VMOVSLDUP Y2, Y3        // w.r
+	VMOVSHDUP Y2, Y4        // w.i
+	VSHUFPS $0xB1, Y1, Y1, Y5
+	VMULPS Y4, Y5, Y5
+	VFMSUBADD231PS Y3, Y1, Y5 // t = conj(w) * b
+
+	VADDPS Y5, Y0, Y6
+	VSUBPS Y5, Y0, Y7
+
+	VMOVUPS Y6, (BP)
+	VMOVUPS Y7, (R9)
+
+	ADDQ $32, BP
+	ADDQ $32, R9
+	ADDQ $32, R14
+	ADDQ $4, DX
+	JMP  inv_r4m_r2_vec
+
+inv_r4m_r2_scalar:
 
 	MOVQ CX, SI
 	ADDQ DX, SI
