@@ -3,11 +3,8 @@
 package fft
 
 import (
-	"runtime"
-
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 	"github.com/MeKo-Christian/algo-fft/internal/kernels"
-	"github.com/MeKo-Christian/algo-fft/internal/memory"
 )
 
 func init() {
@@ -48,15 +45,8 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 
 			// 4. Call Kernel
 			codeletTwiddle := twiddleBuf
-			var codeletTwiddleBacking []byte
-			if entry.TwiddleSize != nil && entry.PrepareTwiddle != nil {
-				twiddleLen := entry.TwiddleSize(n)
-				if twiddleLen > 0 {
-					prepared, preparedBacking := memory.AllocAlignedComplex64(twiddleLen)
-					entry.PrepareTwiddle(n, inverse, prepared)
-					codeletTwiddle = prepared
-					codeletTwiddleBacking = preparedBacking
-				}
+			if prepared := kernels.GetPreparedTwiddle64(entry, n, inverse); prepared != nil {
+				codeletTwiddle = prepared
 			}
 
 			success := false
@@ -78,7 +68,6 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 			}
 
 			if success {
-				runtime.KeepAlive(codeletTwiddleBacking)
 				return
 			}
 		}
@@ -112,15 +101,8 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 
 			success := false
 			codeletTwiddle := twiddleBuf
-			var codeletTwiddleBacking []byte
-			if entry.TwiddleSize != nil && entry.PrepareTwiddle != nil {
-				twiddleLen := entry.TwiddleSize(n)
-				if twiddleLen > 0 {
-					prepared, preparedBacking := memory.AllocAlignedComplex128(twiddleLen)
-					entry.PrepareTwiddle(n, inverse, prepared)
-					codeletTwiddle = prepared
-					codeletTwiddleBacking = preparedBacking
-				}
+			if prepared := kernels.GetPreparedTwiddle128(entry, n, inverse); prepared != nil {
+				codeletTwiddle = prepared
 			}
 
 			if inverse {
@@ -141,7 +123,6 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 			}
 
 			if success {
-				runtime.KeepAlive(codeletTwiddleBacking)
 				return
 			}
 		}
