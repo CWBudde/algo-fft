@@ -23,22 +23,4 @@ func InverseAVX2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64
 	return InverseAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
 }
 
-// ForwardAVX2Size32Mixed24Complex128Asm wraps the size-32 AVX2 kernel for complex128.
-func ForwardAVX2Size32Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	const n = 32
-	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n {
-		return false
-	}
-
-	return ForwardAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
-}
-
-// InverseAVX2Size32Mixed24Complex128Asm wraps the size-32 AVX2 kernel for complex128.
-func InverseAVX2Size32Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	const n = 32
-	if len(dst) < n || len(src) < n || len(twiddle) < n || len(scratch) < n {
-		return false
-	}
-
-	return InverseAVX2Size32Complex128Asm(dst, src, twiddle, scratch)
-}
+// Note: complex128 mixed-2/4 has a dedicated AVX2 assembly implementation.

@@ -181,13 +181,13 @@ This document provides a comprehensive overview of all specialized FFT implement
 | complex128 | radix-2   | NEON | Asm    | ✓      | `internal/asm/arm64/neon_f64_size32_radix2.s`  |
 | complex128 | radix-32  | none | Go     | ✓      | `dit_size32_radix32.go`                        |
 | complex128 | mixed-2/4 | none | Go     | ✓      | `dit_size32_mixed24.go`                        |
-| complex128 | mixed-2/4 | AVX2 | Wrap   | ✓      | `internal/asm/amd64/avx2_size32_mixed24.go`    |
+| complex128 | mixed-2/4 | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f64_size32_mixed24.s` |
 
 **Notes:**
 
 - Radix-2 variant: 5 stages (2^5 = 2×2×2×2×2)
 - Mixed-2/4 variant: 3 stages (4×4×2); Go implementation delegates to radix-2 for correctness
-- Mixed-2/4 AVX2: Wraps existing AVX2 radix-2 assembly with same guarantees
+- Mixed-2/4 AVX2: complex64 wraps AVX2 radix-2; complex128 uses AVX2 mixed-2/4 assembly
 - Mixed-2/4 NEON: Dedicated mixed-radix assembly (uses mixed-2/4 bit-reversal)
 - Standard binary bit-reversal indices (not radix-4 reversal)
 - Mixed-radix priority: Generic (15) > Radix-2 (0), AVX2 mixed (25) > AVX2 radix-2 (20)
