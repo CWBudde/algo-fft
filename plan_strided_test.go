@@ -25,7 +25,7 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 	col := 2
 
 	contig := make([]complex64, plan.Len())
-	for i := 0; i < plan.Len(); i++ {
+	for i := range plan.Len() {
 		contig[i] = src[col+i*stride]
 	}
 
@@ -38,7 +38,7 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 		t.Fatalf("ForwardStrided failed: %v", err)
 	}
 
-	for i := 0; i < plan.Len(); i++ {
+	for i := range plan.Len() {
 		assertApproxComplex64f(t, dst[col+i*stride], want[i], 1e-4, "col[%d]", i)
 	}
 
