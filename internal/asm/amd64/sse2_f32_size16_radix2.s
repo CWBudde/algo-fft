@@ -42,7 +42,6 @@ TEXT ·ForwardSSE2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src slice data pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle slice data pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch slice data pointer
-	LEAQ ·bitrevSSE2Size16Radix2(SB), R12  // R12 = bitrev table pointer
 	MOVQ src+32(FP), R13     // R13 = src slice length (should be 16)
 
 	// ===== Input Validation =====
@@ -73,76 +72,195 @@ TEXT ·ForwardSSE2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 
 size16_r2_sse2_fwd_use_dst:
 	// ==================================================================
-	// STAGES 1 & 2 (Combined with bit-reversal)
+	// STAGES 1 & 2 (Combined with bit-reversal, fully unrolled)
 	// ==================================================================
-	// Process 4 elements at a time with fused bit-reversal load
+	// Unrolled loop processing all 16 elements with inlined bit-reversal
 	// Stage 1 stride 1: butterflies (0,1), (2,3)
 	// Stage 2 stride 2: butterflies (0,2), (1,3) with twiddles [1, -i]
+	// Bit-reversal pattern: 0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15
 	// ==================================================================
 	MOVQ R8, SI              // SI = work buffer write position
-	MOVQ $4, CX              // loop counter: 4 blocks of 4 elements
 	MOVUPS ·maskNegHiPS(SB), X15 // X15 = [0, 0x80000000, 0, 0x80000000] for -i mult
 
-stage12_loop:
-	// ----- Load 4 elements with bit-reversal -----
-	MOVQ (R12), DX           // DX = bitrev[i*4 + 0]
-	MOVSD (R9)(DX*8), X0     // X0 = src[bitrev[i*4 + 0]] (complex64 = 8 bytes)
-	MOVQ 8(R12), DX          // DX = bitrev[i*4 + 1]
-	MOVSD (R9)(DX*8), X1     // X1 = src[bitrev[i*4 + 1]]
-	MOVQ 16(R12), DX         // DX = bitrev[i*4 + 2]
-	MOVSD (R9)(DX*8), X2     // X2 = src[bitrev[i*4 + 2]]
-	MOVQ 24(R12), DX         // DX = bitrev[i*4 + 3]
-	MOVSD (R9)(DX*8), X3     // X3 = src[bitrev[i*4 + 3]]
-	ADDQ $32, R12            // advance bitrev pointer by 4 entries (4 * 8 bytes)
+	// ===== Block 0: Load src[0,8,4,12] =====
+	MOVSD 0(R9), X0          // X0 = src[0]
+	MOVSD 64(R9), X1         // X1 = src[8]
+	MOVSD 32(R9), X2         // X2 = src[4]
+	MOVSD 96(R9), X3         // X3 = src[12]
 
-	// ----- Stage 1: stride 1, twiddle w=1 -----
-	// Butterfly (X0, X1): X0' = X0 + X1, X1' = X0 - X1
-	MOVAPS X0, X8            // X8 = X0
-	ADDPS  X1, X8            // X8 = X0 + X1
-	MOVAPS X0, X9            // X9 = X0
-	SUBPS  X1, X9            // X9 = X0 - X1
-	MOVAPS X8, X0            // X0 = X0 + X1
-	MOVAPS X9, X1            // X1 = X0 - X1
+	// Stage 1: butterflies (0,8) and (4,12)
+	MOVAPS X0, X8
+	ADDPS  X1, X8
+	MOVAPS X0, X9
+	SUBPS  X1, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X1
 
-	// Butterfly (X2, X3): X2' = X2 + X3, X3' = X2 - X3
-	MOVAPS X2, X8            // X8 = X2
-	ADDPS  X3, X8            // X8 = X2 + X3
-	MOVAPS X2, X9            // X9 = X2
-	SUBPS  X3, X9            // X9 = X2 - X3
-	MOVAPS X8, X2            // X2 = X2 + X3
-	MOVAPS X9, X3            // X3 = X2 - X3
+	MOVAPS X2, X8
+	ADDPS  X3, X8
+	MOVAPS X2, X9
+	SUBPS  X3, X9
+	MOVAPS X8, X2
+	MOVAPS X9, X3
 
-	// ----- Stage 2: stride 2, twiddles [1, -i] -----
-	// Butterfly (X0, X2) with w=1: X0' = X0 + X2, X2' = X0 - X2
-	MOVAPS X0, X8            // X8 = X0
-	ADDPS  X2, X8            // X8 = X0 + X2
-	MOVAPS X0, X9            // X9 = X0
-	SUBPS  X2, X9            // X9 = X0 - X2
-	MOVAPS X8, X0            // X0 = X0 + X2
-	MOVAPS X9, X2            // X2 = X0 - X2
+	// Stage 2: butterflies (0,4) and (8,12) with w=[1,-i]
+	MOVAPS X0, X8
+	ADDPS  X2, X8
+	MOVAPS X0, X9
+	SUBPS  X2, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X2
 
-	// Butterfly (X1, X3) with w=-i
-	// Complex mult by -i: (a+bi)*(-i) = b - ai = (im, -re)
-	MOVAPS X3, X10           // X10 = X3 = (re, im)
-	SHUFPS $0xB1, X10, X10   // X10 = (im, re) - swap real/imag
-	XORPS  X15, X10          // X10 = (im, -re) - negate high (real becomes -re)
+	MOVAPS X3, X10
+	SHUFPS $0xB1, X10, X10
+	XORPS  X15, X10
+	MOVAPS X1, X8
+	ADDPS  X10, X8
+	MOVAPS X1, X9
+	SUBPS  X10, X9
+	MOVAPS X8, X1
+	MOVAPS X9, X3
 
-	MOVAPS X1, X8            // X8 = X1
-	ADDPS  X10, X8           // X8 = X1 + X3*(-i)
-	MOVAPS X1, X9            // X9 = X1
-	SUBPS  X10, X9           // X9 = X1 - X3*(-i)
-	MOVAPS X8, X1            // X1 = X1 + t
-	MOVAPS X9, X3            // X3 = X1 - t
+	// Store block 0
+	MOVSD X0, 0(SI)
+	MOVSD X1, 8(SI)
+	MOVSD X2, 16(SI)
+	MOVSD X3, 24(SI)
 
-	// ----- Store 4 results to work buffer -----
-	MOVSD X0, (SI)           // work[i*4 + 0] = X0
-	MOVSD X1, 8(SI)          // work[i*4 + 1] = X1
-	MOVSD X2, 16(SI)         // work[i*4 + 2] = X2
-	MOVSD X3, 24(SI)         // work[i*4 + 3] = X3
+	// ===== Block 1: Load src[2,10,6,14] =====
+	MOVSD 16(R9), X0         // X0 = src[2]
+	MOVSD 80(R9), X1         // X1 = src[10]
+	MOVSD 48(R9), X2         // X2 = src[6]
+	MOVSD 112(R9), X3        // X3 = src[14]
 
-	ADDQ $32, SI             // advance work pointer by 4 elements
-	DECQ CX                  // decrement loop counter
-	JNZ  stage12_loop        // continue if CX != 0
+	// Stage 1: butterflies (2,10) and (6,14)
+	MOVAPS X0, X8
+	ADDPS  X1, X8
+	MOVAPS X0, X9
+	SUBPS  X1, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X1
+
+	MOVAPS X2, X8
+	ADDPS  X3, X8
+	MOVAPS X2, X9
+	SUBPS  X3, X9
+	MOVAPS X8, X2
+	MOVAPS X9, X3
+
+	// Stage 2: butterflies (2,6) and (10,14) with w=[1,-i]
+	MOVAPS X0, X8
+	ADDPS  X2, X8
+	MOVAPS X0, X9
+	SUBPS  X2, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X2
+
+	MOVAPS X3, X10
+	SHUFPS $0xB1, X10, X10
+	XORPS  X15, X10
+	MOVAPS X1, X8
+	ADDPS  X10, X8
+	MOVAPS X1, X9
+	SUBPS  X10, X9
+	MOVAPS X8, X1
+	MOVAPS X9, X3
+
+	// Store block 1
+	MOVSD X0, 32(SI)
+	MOVSD X1, 40(SI)
+	MOVSD X2, 48(SI)
+	MOVSD X3, 56(SI)
+
+	// ===== Block 2: Load src[1,9,5,13] =====
+	MOVSD 8(R9), X0          // X0 = src[1]
+	MOVSD 72(R9), X1         // X1 = src[9]
+	MOVSD 40(R9), X2         // X2 = src[5]
+	MOVSD 104(R9), X3        // X3 = src[13]
+
+	// Stage 1: butterflies (1,9) and (5,13)
+	MOVAPS X0, X8
+	ADDPS  X1, X8
+	MOVAPS X0, X9
+	SUBPS  X1, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X1
+
+	MOVAPS X2, X8
+	ADDPS  X3, X8
+	MOVAPS X2, X9
+	SUBPS  X3, X9
+	MOVAPS X8, X2
+	MOVAPS X9, X3
+
+	// Stage 2: butterflies (1,5) and (9,13) with w=[1,-i]
+	MOVAPS X0, X8
+	ADDPS  X2, X8
+	MOVAPS X0, X9
+	SUBPS  X2, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X2
+
+	MOVAPS X3, X10
+	SHUFPS $0xB1, X10, X10
+	XORPS  X15, X10
+	MOVAPS X1, X8
+	ADDPS  X10, X8
+	MOVAPS X1, X9
+	SUBPS  X10, X9
+	MOVAPS X8, X1
+	MOVAPS X9, X3
+
+	// Store block 2
+	MOVSD X0, 64(SI)
+	MOVSD X1, 72(SI)
+	MOVSD X2, 80(SI)
+	MOVSD X3, 88(SI)
+
+	// ===== Block 3: Load src[3,11,7,15] =====
+	MOVSD 24(R9), X0         // X0 = src[3]
+	MOVSD 88(R9), X1         // X1 = src[11]
+	MOVSD 56(R9), X2         // X2 = src[7]
+	MOVSD 120(R9), X3        // X3 = src[15]
+
+	// Stage 1: butterflies (3,11) and (7,15)
+	MOVAPS X0, X8
+	ADDPS  X1, X8
+	MOVAPS X0, X9
+	SUBPS  X1, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X1
+
+	MOVAPS X2, X8
+	ADDPS  X3, X8
+	MOVAPS X2, X9
+	SUBPS  X3, X9
+	MOVAPS X8, X2
+	MOVAPS X9, X3
+
+	// Stage 2: butterflies (3,7) and (11,15) with w=[1,-i]
+	MOVAPS X0, X8
+	ADDPS  X2, X8
+	MOVAPS X0, X9
+	SUBPS  X2, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X2
+
+	MOVAPS X3, X10
+	SHUFPS $0xB1, X10, X10
+	XORPS  X15, X10
+	MOVAPS X1, X8
+	ADDPS  X10, X8
+	MOVAPS X1, X9
+	SUBPS  X10, X9
+	MOVAPS X8, X1
+	MOVAPS X9, X3
+
+	// Store block 3
+	MOVSD X0, 96(SI)
+	MOVSD X1, 104(SI)
+	MOVSD X2, 112(SI)
+	MOVSD X3, 120(SI)
 
 	// ==================================================================
 	// STAGE 3 (Stride 4)
@@ -475,7 +593,6 @@ TEXT ·InverseSSE2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src slice data pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle slice data pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch slice data pointer
-	LEAQ ·bitrevSSE2Size16Radix2(SB), R12  // R12 = bitrev table pointer
 	MOVQ src+32(FP), R13     // R13 = src slice length
 
 	// ===== Input Validation =====
@@ -505,72 +622,193 @@ TEXT ·InverseSSE2Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 
 size16_r2_sse2_inv_use_dst:
 	// ==================================================================
-	// STAGES 1 & 2 (Combined with bit-reversal)
+	// STAGES 1 & 2 (Combined with bit-reversal, fully unrolled)
 	// ==================================================================
 	// Inverse uses conjugate twiddles: conj(-i) = i for stage 2
+	// Bit-reversal pattern: 0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15
 	// ==================================================================
 	MOVQ R8, SI              // SI = work buffer write position
-	MOVQ $4, CX              // loop counter: 4 blocks of 4 elements
 	MOVUPS ·maskNegLoPS(SB), X15 // X15 = mask for +i mult (negate low = real)
 
-inv_stage12_loop:
-	// ----- Load 4 elements with bit-reversal -----
-	MOVQ (R12), DX           // DX = bitrev index
-	MOVSD (R9)(DX*8), X0     // X0 = src[bitrev[i*4 + 0]]
-	MOVQ 8(R12), DX          // DX = bitrev index
-	MOVSD (R9)(DX*8), X1     // X1 = src[bitrev[i*4 + 1]]
-	MOVQ 16(R12), DX         // DX = bitrev index
-	MOVSD (R9)(DX*8), X2     // X2 = src[bitrev[i*4 + 2]]
-	MOVQ 24(R12), DX         // DX = bitrev index
-	MOVSD (R9)(DX*8), X3     // X3 = src[bitrev[i*4 + 3]]
-	ADDQ $32, R12            // advance bitrev pointer
+	// ===== Block 0: Load src[0,8,4,12] =====
+	MOVSD 0(R9), X0          // X0 = src[0]
+	MOVSD 64(R9), X1         // X1 = src[8]
+	MOVSD 32(R9), X2         // X2 = src[4]
+	MOVSD 96(R9), X3         // X3 = src[12]
 
-	// ----- Stage 1: stride 1, twiddle w=1 -----
-	MOVAPS X0, X8            // X8 = X0
-	ADDPS  X1, X8            // X8 = X0 + X1
-	MOVAPS X0, X9            // X9 = X0
-	SUBPS  X1, X9            // X9 = X0 - X1
-	MOVAPS X8, X0            // X0 = X0 + X1
-	MOVAPS X9, X1            // X1 = X0 - X1
+	// Stage 1: butterflies (0,8) and (4,12)
+	MOVAPS X0, X8
+	ADDPS  X1, X8
+	MOVAPS X0, X9
+	SUBPS  X1, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X1
 
-	MOVAPS X2, X8            // X8 = X2
-	ADDPS  X3, X8            // X8 = X2 + X3
-	MOVAPS X2, X9            // X9 = X2
-	SUBPS  X3, X9            // X9 = X2 - X3
-	MOVAPS X8, X2            // X2 = X2 + X3
-	MOVAPS X9, X3            // X3 = X2 - X3
+	MOVAPS X2, X8
+	ADDPS  X3, X8
+	MOVAPS X2, X9
+	SUBPS  X3, X9
+	MOVAPS X8, X2
+	MOVAPS X9, X3
 
-	// ----- Stage 2: stride 2, twiddles [1, conj(-i)=i] -----
-	// Butterfly (X0, X2) with w=1
-	MOVAPS X0, X8            // X8 = X0
-	ADDPS  X2, X8            // X8 = X0 + X2
-	MOVAPS X0, X9            // X9 = X0
-	SUBPS  X2, X9            // X9 = X0 - X2
-	MOVAPS X8, X0            // X0 = X0 + X2
-	MOVAPS X9, X2            // X2 = X0 - X2
+	// Stage 2: butterflies with w=[1,i]
+	MOVAPS X0, X8
+	ADDPS  X2, X8
+	MOVAPS X0, X9
+	SUBPS  X2, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X2
 
-	// Butterfly (X1, X3) with w=i (conjugate of -i)
-	// Complex mult by i: (a+bi)*i = -b + ai = (-im, re)
-	MOVAPS X3, X10           // X10 = X3
-	SHUFPS $0xB1, X10, X10   // X10 = (X3.im, X3.re) - swap
-	XORPS  X15, X10          // X10 = (-X3.im, X3.re) = X3 * i (negate low)
+	MOVAPS X3, X10
+	SHUFPS $0xB1, X10, X10
+	XORPS  X15, X10
+	MOVAPS X1, X8
+	ADDPS  X10, X8
+	MOVAPS X1, X9
+	SUBPS  X10, X9
+	MOVAPS X8, X1
+	MOVAPS X9, X3
 
-	MOVAPS X1, X8            // X8 = X1
-	ADDPS  X10, X8           // X8 = X1 + X3*i
-	MOVAPS X1, X9            // X9 = X1
-	SUBPS  X10, X9           // X9 = X1 - X3*i
-	MOVAPS X8, X1            // X1 = X1 + t
-	MOVAPS X9, X3            // X3 = X1 - t
+	// Store block 0
+	MOVSD X0, 0(SI)
+	MOVSD X1, 8(SI)
+	MOVSD X2, 16(SI)
+	MOVSD X3, 24(SI)
 
-	// ----- Store 4 results -----
-	MOVSD X0, (SI)           // work[0] = X0
-	MOVSD X1, 8(SI)          // work[1] = X1
-	MOVSD X2, 16(SI)         // work[2] = X2
-	MOVSD X3, 24(SI)         // work[3] = X3
+	// ===== Block 1: Load src[2,10,6,14] =====
+	MOVSD 16(R9), X0         // X0 = src[2]
+	MOVSD 80(R9), X1         // X1 = src[10]
+	MOVSD 48(R9), X2         // X2 = src[6]
+	MOVSD 112(R9), X3        // X3 = src[14]
 
-	ADDQ $32, SI             // advance work pointer
-	DECQ CX                  // decrement counter
-	JNZ  inv_stage12_loop    // continue if CX != 0
+	// Stage 1: butterflies (2,10) and (6,14)
+	MOVAPS X0, X8
+	ADDPS  X1, X8
+	MOVAPS X0, X9
+	SUBPS  X1, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X1
+
+	MOVAPS X2, X8
+	ADDPS  X3, X8
+	MOVAPS X2, X9
+	SUBPS  X3, X9
+	MOVAPS X8, X2
+	MOVAPS X9, X3
+
+	// Stage 2: butterflies with w=[1,i]
+	MOVAPS X0, X8
+	ADDPS  X2, X8
+	MOVAPS X0, X9
+	SUBPS  X2, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X2
+
+	MOVAPS X3, X10
+	SHUFPS $0xB1, X10, X10
+	XORPS  X15, X10
+	MOVAPS X1, X8
+	ADDPS  X10, X8
+	MOVAPS X1, X9
+	SUBPS  X10, X9
+	MOVAPS X8, X1
+	MOVAPS X9, X3
+
+	// Store block 1
+	MOVSD X0, 32(SI)
+	MOVSD X1, 40(SI)
+	MOVSD X2, 48(SI)
+	MOVSD X3, 56(SI)
+
+	// ===== Block 2: Load src[1,9,5,13] =====
+	MOVSD 8(R9), X0          // X0 = src[1]
+	MOVSD 72(R9), X1         // X1 = src[9]
+	MOVSD 40(R9), X2         // X2 = src[5]
+	MOVSD 104(R9), X3        // X3 = src[13]
+
+	// Stage 1: butterflies (1,9) and (5,13)
+	MOVAPS X0, X8
+	ADDPS  X1, X8
+	MOVAPS X0, X9
+	SUBPS  X1, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X1
+
+	MOVAPS X2, X8
+	ADDPS  X3, X8
+	MOVAPS X2, X9
+	SUBPS  X3, X9
+	MOVAPS X8, X2
+	MOVAPS X9, X3
+
+	// Stage 2: butterflies with w=[1,i]
+	MOVAPS X0, X8
+	ADDPS  X2, X8
+	MOVAPS X0, X9
+	SUBPS  X2, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X2
+
+	MOVAPS X3, X10
+	SHUFPS $0xB1, X10, X10
+	XORPS  X15, X10
+	MOVAPS X1, X8
+	ADDPS  X10, X8
+	MOVAPS X1, X9
+	SUBPS  X10, X9
+	MOVAPS X8, X1
+	MOVAPS X9, X3
+
+	// Store block 2
+	MOVSD X0, 64(SI)
+	MOVSD X1, 72(SI)
+	MOVSD X2, 80(SI)
+	MOVSD X3, 88(SI)
+
+	// ===== Block 3: Load src[3,11,7,15] =====
+	MOVSD 24(R9), X0         // X0 = src[3]
+	MOVSD 88(R9), X1         // X1 = src[11]
+	MOVSD 56(R9), X2         // X2 = src[7]
+	MOVSD 120(R9), X3        // X3 = src[15]
+
+	// Stage 1: butterflies (3,11) and (7,15)
+	MOVAPS X0, X8
+	ADDPS  X1, X8
+	MOVAPS X0, X9
+	SUBPS  X1, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X1
+
+	MOVAPS X2, X8
+	ADDPS  X3, X8
+	MOVAPS X2, X9
+	SUBPS  X3, X9
+	MOVAPS X8, X2
+	MOVAPS X9, X3
+
+	// Stage 2: butterflies with w=[1,i]
+	MOVAPS X0, X8
+	ADDPS  X2, X8
+	MOVAPS X0, X9
+	SUBPS  X2, X9
+	MOVAPS X8, X0
+	MOVAPS X9, X2
+
+	MOVAPS X3, X10
+	SHUFPS $0xB1, X10, X10
+	XORPS  X15, X10
+	MOVAPS X1, X8
+	ADDPS  X10, X8
+	MOVAPS X1, X9
+	SUBPS  X10, X9
+	MOVAPS X8, X1
+	MOVAPS X9, X3
+
+	// Store block 3
+	MOVSD X0, 96(SI)
+	MOVSD X1, 104(SI)
+	MOVSD X2, 112(SI)
+	MOVSD X3, 120(SI)
 
 	// ==================================================================
 	// STAGE 3 (Stride 4) - Inverse uses conjugate twiddles
