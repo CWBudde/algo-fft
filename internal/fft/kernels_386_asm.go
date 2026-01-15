@@ -75,6 +75,8 @@ func forwardSSEComplex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	switch n {
+	case 2:
+		return forwardSSESize2Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
 	case 4:
 		return forwardSSESize4Radix4Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndicesRadix4(n))
 	}
@@ -89,6 +91,8 @@ func inverseSSEComplex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	switch n {
+	case 2:
+		return inverseSSESize2Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
 	case 4:
 		return inverseSSESize4Radix4Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndicesRadix4(n))
 	}

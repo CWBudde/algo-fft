@@ -682,3 +682,103 @@ func BenchmarkAVX2GenericRadix4Mixed_VsRadix2(b *testing.B) {
 		})
 	}
 }
+
+// =============================================================================
+// Complex128 Radix-4 Generic Benchmarks
+// =============================================================================
+
+// BenchmarkAVX2GenericRadix4Complex128 benchmarks the generic radix-4 Complex128 kernel.
+// Tests power-of-4 sizes (even log2): 64, 256, 1024, 4096
+func BenchmarkAVX2GenericRadix4Complex128(b *testing.B) {
+	sizes := []int{64, 256, 1024, 4096}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("Forward/%s", sizeString(n)), func(b *testing.B) {
+			src := make([]complex128, n)
+			for i := range src {
+				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
+			}
+
+			dst := make([]complex128, n)
+			twiddle, scratch := prepareFFTData[complex128](n)
+
+			if !forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch) {
+				b.Skip("AVX2 radix-4 complex128 not available")
+			}
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 16))
+			b.ResetTimer()
+			for range b.N {
+				forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch)
+			}
+		})
+
+		b.Run(fmt.Sprintf("Inverse/%s", sizeString(n)), func(b *testing.B) {
+			src := make([]complex128, n)
+			for i := range src {
+				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
+			}
+
+			dst := make([]complex128, n)
+			twiddle, scratch := prepareFFTData[complex128](n)
+
+			if !inverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch) {
+				b.Skip("AVX2 inverse radix-4 complex128 not available")
+			}
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 16))
+			b.ResetTimer()
+			for range b.N {
+				inverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch)
+			}
+		})
+	}
+}
+
+// BenchmarkAVX2GenericRadix4MixedComplex128 benchmarks the mixed radix-4 Complex128 kernel.
+// Tests odd log2 sizes: 32, 128, 512, 2048
+func BenchmarkAVX2GenericRadix4MixedComplex128(b *testing.B) {
+	sizes := []int{32, 128, 512, 2048}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("Forward/%s", sizeString(n)), func(b *testing.B) {
+			src := make([]complex128, n)
+			for i := range src {
+				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
+			}
+
+			dst := make([]complex128, n)
+			twiddle, scratch := prepareFFTData[complex128](n)
+
+			if !forwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch) {
+				b.Skip("AVX2 radix-4 mixed complex128 not available")
+			}
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 16))
+			b.ResetTimer()
+			for range b.N {
+				forwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch)
+			}
+		})
+
+		b.Run(fmt.Sprintf("Inverse/%s", sizeString(n)), func(b *testing.B) {
+			src := make([]complex128, n)
+			for i := range src {
+				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
+			}
+
+			dst := make([]complex128, n)
+			twiddle, scratch := prepareFFTData[complex128](n)
+
+			if !inverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch) {
+				b.Skip("AVX2 inverse radix-4 mixed complex128 not available")
+			}
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 16))
+			b.ResetTimer()
+			for range b.N {
+				inverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch)
+			}
+		})
+	}
+}

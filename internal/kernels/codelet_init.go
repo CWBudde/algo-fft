@@ -20,6 +20,7 @@ var (
 const (
 	SIMDNone   = planner.SIMDNone
 	SIMDSSE2   = planner.SIMDSSE2
+	SIMDSSE3   = planner.SIMDSSE3
 	SIMDAVX2   = planner.SIMDAVX2
 	SIMDAVX512 = planner.SIMDAVX512
 	SIMDNEON   = planner.SIMDNEON

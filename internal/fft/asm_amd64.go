@@ -68,6 +68,22 @@ func inverseAVX2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return kasm.InverseAVX2Complex128Asm(dst, src, twiddle, scratch, m.ComputeBitReversalIndices(len(src)))
 }
 
+func forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch, nil)
+}
+
+func inverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch, nil)
+}
+
+func forwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch, nil)
+}
+
+func inverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch, nil)
+}
+
 func forwardSSE2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return kasm.ForwardSSE2Complex128Asm(dst, src, twiddle, scratch)
 }
