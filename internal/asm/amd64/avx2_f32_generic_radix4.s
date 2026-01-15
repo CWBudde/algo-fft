@@ -129,8 +129,6 @@ fwd_r4_stage_base:
 
 	MOVQ R15, R11
 	SHLQ $3, R11            // quarter_bytes
-	MOVQ R11, R9
-	SHLQ $1, R9             // 2 * quarter_bytes
 
 fwd_r4_step1_loop:
 	MOVQ R15, AX
@@ -144,7 +142,7 @@ fwd_r4_step1_loop:
 	SHLQ $3, SI             // (base + j) * 8
 
 	LEAQ (SI)(R11*1), DI    // + quarter
-	LEAQ (SI)(R9*1), AX     // + 2*quarter
+	LEAQ (DI)(R11*1), AX    // + 2*quarter
 	LEAQ (AX)(R11*1), BP    // + 3*quarter
 
 	VMOVUPS (R8)(SI*1), Y0
@@ -175,16 +173,16 @@ fwd_r4_step1_loop:
 	// w3 = twiddle[3*j, 3*j+3, 3*j+6, 3*j+9]
 	LEAQ (DX)(DX*2), AX
 	SHLQ $3, AX
-	VMOVSD (R10)(AX*1), X9
+	VMOVSD (R10)(AX*1), X6
 	LEAQ 24(AX), DI
-	VMOVSD (R10)(DI*1), X10
+	VMOVSD (R10)(DI*1), X7
 	LEAQ 24(DI), DI
-	VMOVSD (R10)(DI*1), X11
+	VMOVSD (R10)(DI*1), X8
 	LEAQ 24(DI), DI
-	VMOVSD (R10)(DI*1), X12
-	VPUNPCKLQDQ X10, X9, X9
-	VPUNPCKLQDQ X12, X11, X11
-	VINSERTF128 $1, X11, Y6, Y6
+	VMOVSD (R10)(DI*1), X9
+	VPUNPCKLQDQ X7, X6, X6
+	VPUNPCKLQDQ X9, X8, X8
+	VINSERTF128 $1, X8, Y6, Y6
 
 	// Complex multiply a1*w1, a2*w2, a3*w3
 	VMOVSLDUP Y4, Y7
@@ -217,17 +215,21 @@ fwd_r4_step1_loop:
 	VPERMILPS $0xB1, Y13, Y14
 	VXORPS Y15, Y15, Y15
 	VSUBPS Y14, Y15, Y7
-	VBLENDPS $0x02, Y7, Y14, Y14
+	VBLENDPS $0xAA, Y7, Y14, Y14
 
 	// i*t3
 	VPERMILPS $0xB1, Y13, Y7
 	VSUBPS Y7, Y15, Y8
-	VBLENDPS $0x01, Y8, Y7, Y7
+	VBLENDPS $0x55, Y8, Y7, Y7
 
 	VADDPS Y10, Y12, Y0
 	VADDPS Y11, Y14, Y1
 	VSUBPS Y12, Y10, Y2
 	VADDPS Y11, Y7, Y3
+
+	LEAQ (SI)(R11*1), DI
+	LEAQ (DI)(R11*1), AX
+	LEAQ (AX)(R11*1), BP
 
 	VMOVUPS Y0, (R8)(SI*1)
 	VMOVUPS Y1, (R8)(DI*1)
@@ -475,8 +477,6 @@ inv_r4_stage_base:
 
 	MOVQ R15, R11
 	SHLQ $3, R11            // quarter_bytes
-	MOVQ R11, R9
-	SHLQ $1, R9             // 2 * quarter_bytes
 
 inv_r4_step1_loop:
 	MOVQ R15, AX
@@ -490,7 +490,7 @@ inv_r4_step1_loop:
 	SHLQ $3, SI             // (base + j) * 8
 
 	LEAQ (SI)(R11*1), DI    // + quarter
-	LEAQ (SI)(R9*1), AX     // + 2*quarter
+	LEAQ (DI)(R11*1), AX    // + 2*quarter
 	LEAQ (AX)(R11*1), BP    // + 3*quarter
 
 	VMOVUPS (R8)(SI*1), Y0
@@ -521,16 +521,16 @@ inv_r4_step1_loop:
 	// w3 = twiddle[3*j, 3*j+3, 3*j+6, 3*j+9]
 	LEAQ (DX)(DX*2), AX
 	SHLQ $3, AX
-	VMOVSD (R10)(AX*1), X9
+	VMOVSD (R10)(AX*1), X6
 	LEAQ 24(AX), DI
-	VMOVSD (R10)(DI*1), X10
+	VMOVSD (R10)(DI*1), X7
 	LEAQ 24(DI), DI
-	VMOVSD (R10)(DI*1), X11
+	VMOVSD (R10)(DI*1), X8
 	LEAQ 24(DI), DI
-	VMOVSD (R10)(DI*1), X12
-	VPUNPCKLQDQ X10, X9, X9
-	VPUNPCKLQDQ X12, X11, X11
-	VINSERTF128 $1, X11, Y6, Y6
+	VMOVSD (R10)(DI*1), X9
+	VPUNPCKLQDQ X7, X6, X6
+	VPUNPCKLQDQ X9, X8, X8
+	VINSERTF128 $1, X8, Y6, Y6
 
 	// Conjugate complex multiply a1*w1, a2*w2, a3*w3
 	VMOVSLDUP Y4, Y7
@@ -563,17 +563,21 @@ inv_r4_step1_loop:
 	VPERMILPS $0xB1, Y13, Y14
 	VXORPS Y15, Y15, Y15
 	VSUBPS Y14, Y15, Y7
-	VBLENDPS $0x02, Y7, Y14, Y14
+	VBLENDPS $0xAA, Y7, Y14, Y14
 
 	// i*t3
 	VPERMILPS $0xB1, Y13, Y7
 	VSUBPS Y7, Y15, Y8
-	VBLENDPS $0x01, Y8, Y7, Y7
+	VBLENDPS $0x55, Y8, Y7, Y7
 
 	VADDPS Y10, Y12, Y0
 	VADDPS Y11, Y7, Y1
 	VSUBPS Y12, Y10, Y2
 	VADDPS Y11, Y14, Y3
+
+	LEAQ (SI)(R11*1), DI
+	LEAQ (DI)(R11*1), AX
+	LEAQ (AX)(R11*1), BP
 
 	VMOVUPS Y0, (R8)(SI*1)
 	VMOVUPS Y1, (R8)(DI*1)

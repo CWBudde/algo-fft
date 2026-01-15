@@ -41,7 +41,6 @@ TEXT ·ForwardNEONComplex128Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD R11, R12
 	MOVD src+32(FP), R13
 
 	CBZ  R13, f128_return_true
@@ -71,9 +70,15 @@ f128_check_power_of_2:
 	TST  R13, R0
 	BNE  f128_return_false
 
+	// Compute log2(n) -> R12 (number of bits for bit-reversal)
+	CLZ  R13, R0                 // R0 = leading zeros of n
+	MOVD $63, R12
+	SUB  R0, R12, R12            // R12 = 63 - clz(n) = log2(n)
+
 	// -----------------------------------------------------------------------
 	// PHASE 2: Select working buffer
 	// -----------------------------------------------------------------------
+	MOVD R8, R20                 // R20 = original dst
 	CMP  R8, R9
 	BNE  f128_use_dst_as_work
 
@@ -85,20 +90,35 @@ f128_use_dst_as_work:
 
 f128_do_bit_reversal:
 	// -----------------------------------------------------------------------
-	// PHASE 3: Bit-reversal permutation
+	// PHASE 3: Bit-reversal permutation (computed on-the-fly)
 	// -----------------------------------------------------------------------
-	MOVD $0, R17
+	// For each i in [0, n), compute rev = bitreverse(i, log2(n))
+	// and copy src[rev] to work[i]
+	MOVD $0, R17                 // R17 = i
 
 f128_bitrev_loop:
 	CMP  R13, R17
 	BGE  f128_bitrev_done
 
-	LSL  $3, R17, R0
-	ADD  R12, R0, R0
-	MOVD (R0), R1
+	// Compute bit-reversed index of R17 using R12 bits
+	// rev = 0; for b=0; b<bits; b++ { rev = (rev<<1) | ((i>>b)&1) }
+	MOVD $0, R1                  // R1 = rev = 0
+	MOVD R17, R2                 // R2 = val = i
+	MOVD R12, R3                 // R3 = bits remaining
 
-	LSL  $4, R1, R0
-	ADD  R9, R0, R0
+f128_bitrev_bits:
+	CBZ  R3, f128_bitrev_bits_done
+	LSL  $1, R1, R1              // rev <<= 1
+	AND  $1, R2, R4              // R4 = val & 1
+	ORR  R4, R1, R1              // rev |= (val & 1)
+	LSR  $1, R2, R2              // val >>= 1
+	SUB  $1, R3, R3              // bits--
+	B    f128_bitrev_bits
+
+f128_bitrev_bits_done:
+	// R1 = bit-reversed index
+	LSL  $4, R1, R0              // R0 = rev * 16 (byte offset)
+	ADD  R9, R0, R0              // R0 = &src[rev]
 	MOVD (R0), R2
 	MOVD 8(R0), R3
 
@@ -236,7 +256,6 @@ TEXT ·InverseNEONComplex128Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD R11, R12
 	MOVD src+32(FP), R13
 
 	CBZ  R13, i128_return_true
@@ -266,9 +285,15 @@ i128_check_power_of_2:
 	TST  R13, R0
 	BNE  i128_return_false
 
+	// Compute log2(n) -> R12 (number of bits for bit-reversal)
+	CLZ  R13, R0                 // R0 = leading zeros of n
+	MOVD $63, R12
+	SUB  R0, R12, R12            // R12 = 63 - clz(n) = log2(n)
+
 	// -----------------------------------------------------------------------
 	// PHASE 2: Select working buffer
 	// -----------------------------------------------------------------------
+	MOVD R8, R20                 // R20 = original dst
 	CMP  R8, R9
 	BNE  i128_use_dst_as_work
 
@@ -280,20 +305,32 @@ i128_use_dst_as_work:
 
 i128_do_bit_reversal:
 	// -----------------------------------------------------------------------
-	// PHASE 3: Bit-reversal permutation
+	// PHASE 3: Bit-reversal permutation (computed on-the-fly)
 	// -----------------------------------------------------------------------
-	MOVD $0, R17
+	MOVD $0, R17                 // R17 = i
 
 i128_bitrev_loop:
 	CMP  R13, R17
 	BGE  i128_bitrev_done
 
-	LSL  $3, R17, R0
-	ADD  R12, R0, R0
-	MOVD (R0), R1
+	// Compute bit-reversed index of R17 using R12 bits
+	MOVD $0, R1                  // R1 = rev = 0
+	MOVD R17, R2                 // R2 = val = i
+	MOVD R12, R3                 // R3 = bits remaining
 
-	LSL  $4, R1, R0
-	ADD  R9, R0, R0
+i128_bitrev_bits:
+	CBZ  R3, i128_bitrev_bits_done
+	LSL  $1, R1, R1              // rev <<= 1
+	AND  $1, R2, R4              // R4 = val & 1
+	ORR  R4, R1, R1              // rev |= (val & 1)
+	LSR  $1, R2, R2              // val >>= 1
+	SUB  $1, R3, R3              // bits--
+	B    i128_bitrev_bits
+
+i128_bitrev_bits_done:
+	// R1 = bit-reversed index
+	LSL  $4, R1, R0              // R0 = rev * 16 (byte offset)
+	ADD  R9, R0, R0              // R0 = &src[rev]
 	MOVD (R0), R2
 	MOVD 8(R0), R3
 

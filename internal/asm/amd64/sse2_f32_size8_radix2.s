@@ -26,7 +26,6 @@ TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	LEAQ ·bitrevSSE2Size8Radix2(SB), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 8)
 
 	// Verify n == 8
@@ -57,32 +56,16 @@ TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 
 size8_r2_sse2_fwd_use_dst:
 	// ==================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
-	// Load directly into XMM registers (lower 64 bits)
+	// Bit-reversal load: pattern [0, 4, 2, 6, 1, 5, 3, 7] * 8 bytes
 	// ==================================================================
-	MOVQ (R12), DX
-	MOVSD (R9)(DX*8), X0     // x0
-
-	MOVQ 8(R12), DX
-	MOVSD (R9)(DX*8), X1     // x1
-
-	MOVQ 16(R12), DX
-	MOVSD (R9)(DX*8), X2     // x2
-
-	MOVQ 24(R12), DX
-	MOVSD (R9)(DX*8), X3     // x3
-
-	MOVQ 32(R12), DX
-	MOVSD (R9)(DX*8), X4     // x4
-
-	MOVQ 40(R12), DX
-	MOVSD (R9)(DX*8), X5     // x5
-
-	MOVQ 48(R12), DX
-	MOVSD (R9)(DX*8), X6     // x6
-
-	MOVQ 56(R12), DX
-	MOVSD (R9)(DX*8), X7     // x7
+	MOVSD 0(R9), X0     // src[0]
+	MOVSD 32(R9), X1    // src[4]
+	MOVSD 16(R9), X2    // src[2]
+	MOVSD 48(R9), X3    // src[6]
+	MOVSD 8(R9), X4     // src[1]
+	MOVSD 40(R9), X5    // src[5]
+	MOVSD 24(R9), X6    // src[3]
+	MOVSD 56(R9), X7    // src[7]
 
 	// ==================================================================
 	// Stage 1: 4 Radix-2 butterflies, stride 1, no twiddles (W^0 = 1)
@@ -297,7 +280,6 @@ TEXT ·InverseSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size8Radix2(SB), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 8
@@ -328,31 +310,16 @@ TEXT ·InverseSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 
 size8_r2_sse2_inv_use_dst:
 	// ==================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
+	// Bit-reversal load: pattern [0, 4, 2, 6, 1, 5, 3, 7] * 8 bytes
 	// ==================================================================
-	MOVQ (R12), DX
-	MOVSD (R9)(DX*8), X0
-
-	MOVQ 8(R12), DX
-	MOVSD (R9)(DX*8), X1
-
-	MOVQ 16(R12), DX
-	MOVSD (R9)(DX*8), X2
-
-	MOVQ 24(R12), DX
-	MOVSD (R9)(DX*8), X3
-
-	MOVQ 32(R12), DX
-	MOVSD (R9)(DX*8), X4
-
-	MOVQ 40(R12), DX
-	MOVSD (R9)(DX*8), X5
-
-	MOVQ 48(R12), DX
-	MOVSD (R9)(DX*8), X6
-
-	MOVQ 56(R12), DX
-	MOVSD (R9)(DX*8), X7
+	MOVSD 0(R9), X0     // src[0]
+	MOVSD 32(R9), X1    // src[4]
+	MOVSD 16(R9), X2    // src[2]
+	MOVSD 48(R9), X3    // src[6]
+	MOVSD 8(R9), X4     // src[1]
+	MOVSD 40(R9), X5    // src[5]
+	MOVSD 24(R9), X6    // src[3]
+	MOVSD 56(R9), X7    // src[7]
 
 	// ==================================================================
 	// Stage 1: 4 Radix-2 butterflies, stride 1, no twiddles
