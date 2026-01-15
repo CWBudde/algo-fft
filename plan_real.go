@@ -112,46 +112,6 @@ func (p *PlanReal) Forward(dst []complex64, src []float32) error {
 	return nil
 }
 
-func (p *PlanReal) forwardSingle(dst []complex64, src []float32) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.n || len(dst) != p.half+1 {
-		return ErrLengthMismatch
-	}
-
-	for i := range p.half {
-		p.buf[i] = complex(src[2*i], src[2*i+1])
-	}
-
-	err := p.plan.Forward(p.buf, p.buf)
-	if err != nil {
-		return err
-	}
-
-	y0 := p.buf[0]
-	y0r := real(y0)
-	y0i := imag(y0)
-	dst[0] = complex(y0r+y0i, 0)
-	dst[p.half] = complex(y0r-y0i, 0)
-
-	// Recombination step: extract X[k] from the N/2-point FFT of packed data.
-	// Given z[m] = x[2m] + i*x[2m+1], we computed Y = FFT(z).
-	// With A[k] = Y[k], B[k] = conj(Y[N/2-k]), and U[k] = 0.5 * (1 + i*W_N^k),
-	// the spectrum is recovered via: X[k] = A[k] - U[k] * (A[k] - B[k]).
-	for k := 1; k < p.half; k++ {
-		a := p.buf[k]
-		bSrc := p.buf[p.half-k]
-		b := complex(real(bSrc), -imag(bSrc)) // conj(Y[N/2-k])
-
-		c := p.weight[k] * (a - b)
-		dst[k] = a - c
-	}
-
-	return nil
-}
-
 // ForwardNormalized computes the real-to-complex FFT and scales the result by 1/N.
 func (p *PlanReal) ForwardNormalized(dst []complex64, src []float32) error {
 	err := p.Forward(dst, src)
@@ -206,6 +166,46 @@ func (p *PlanReal) Inverse(dst []float32, src []complex64) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (p *PlanReal) forwardSingle(dst []complex64, src []float32) error {
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	if len(src) != p.n || len(dst) != p.half+1 {
+		return ErrLengthMismatch
+	}
+
+	for i := range p.half {
+		p.buf[i] = complex(src[2*i], src[2*i+1])
+	}
+
+	err := p.plan.Forward(p.buf, p.buf)
+	if err != nil {
+		return err
+	}
+
+	y0 := p.buf[0]
+	y0r := real(y0)
+	y0i := imag(y0)
+	dst[0] = complex(y0r+y0i, 0)
+	dst[p.half] = complex(y0r-y0i, 0)
+
+	// Recombination step: extract X[k] from the N/2-point FFT of packed data.
+	// Given z[m] = x[2m] + i*x[2m+1], we computed Y = FFT(z).
+	// With A[k] = Y[k], B[k] = conj(Y[N/2-k]), and U[k] = 0.5 * (1 + i*W_N^k),
+	// the spectrum is recovered via: X[k] = A[k] - U[k] * (A[k] - B[k]).
+	for k := 1; k < p.half; k++ {
+		a := p.buf[k]
+		bSrc := p.buf[p.half-k]
+		b := complex(real(bSrc), -imag(bSrc)) // conj(Y[N/2-k])
+
+		c := p.weight[k] * (a - b)
+		dst[k] = a - c
 	}
 
 	return nil

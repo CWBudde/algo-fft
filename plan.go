@@ -230,9 +230,10 @@ func prepareCodeletTwiddles[T Complex](
 	n int,
 	base []T,
 	estimate fft.PlanEstimate[T],
-) (forward, inverse []T, forwardBacking, inverseBacking []byte) {
-	forward = base
-	inverse = base
+) ([]T, []T, []byte, []byte) {
+	forward := base
+	inverse := base
+	var forwardBacking, inverseBacking []byte
 
 	if estimate.TwiddleSize == nil || estimate.PrepareTwiddle == nil {
 		return forward, inverse, nil, nil
