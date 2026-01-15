@@ -436,6 +436,9 @@ fwd_r4m_r2_vec:
 	JMP  fwd_r4m_r2_vec
 
 fwd_r4m_r2_scalar:
+	// Check j < half before processing (vectorized exit may leave j == half)
+	CMPQ DX, R11
+	JGE  fwd_r4m_r2_next
 
 	MOVQ CX, SI
 	ADDQ DX, SI
@@ -920,6 +923,9 @@ inv_r4m_r2_vec:
 	JMP  inv_r4m_r2_vec
 
 inv_r4m_r2_scalar:
+	// Check j < half before processing (vectorized exit may leave j == half)
+	CMPQ DX, R11
+	JGE  inv_r4m_r2_next
 
 	MOVQ CX, SI
 	ADDQ DX, SI

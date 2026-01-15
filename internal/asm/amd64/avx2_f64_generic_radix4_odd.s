@@ -651,6 +651,10 @@ fwd_r4m_c128_r2_inner:
 	JMP  fwd_r4m_c128_r2_inner
 
 fwd_r4m_c128_r2_scalar:
+	// Check j < half before processing (vectorized exit may leave j == half)
+	CMPQ DX, R11
+	JGE  fwd_r4m_c128_r2_next
+
 	// XMM scalar path (1 element)
 	MOVQ CX, SI                 // SI = base
 	ADDQ DX, SI                 // SI = base + j
@@ -1321,6 +1325,10 @@ inv_r4m_c128_r2_inner:
 	JMP  inv_r4m_c128_r2_inner
 
 inv_r4m_c128_r2_scalar:
+	// Check j < half before processing (vectorized exit may leave j == half)
+	CMPQ DX, R11
+	JGE  inv_r4m_c128_r2_next
+
 	// XMM scalar path (1 element)
 	MOVQ CX, SI
 	ADDQ DX, SI
