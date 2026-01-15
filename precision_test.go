@@ -199,6 +199,45 @@ func TestPrecisionComplex64VsComplex128(t *testing.T) {
 	}
 }
 
+// TestPrecisionRoundTripSweep measures round-trip error across sizes for both precisions.
+func TestPrecisionRoundTripSweep(t *testing.T) {
+	sizes := []int{64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536}
+
+	for _, n := range sizes {
+		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
+			rng := rand.New(rand.NewSource(int64(n)))
+			input64, input128 := makePrecisionInputs(n, rng)
+
+			err64 := roundTripMaxError64(t, input64)
+			err128 := roundTripMaxError128(t, input128)
+
+			log2n := math.Log2(float64(n))
+			ratio := math.Inf(1)
+			if err128 > 0 {
+				ratio = err64 / err128
+			}
+
+			t.Logf("size=%d log2=%.0f err64=%e err128=%e ratio=%e", n, log2n, err64, err128, ratio)
+
+			maxErr64 := 5e-4 * log2n
+			if maxErr64 < 1e-4 {
+				maxErr64 = 1e-4
+			}
+			if err64 > maxErr64 {
+				t.Errorf("complex64 round-trip error %e exceeds bound %e", err64, maxErr64)
+			}
+
+			maxErr128 := 5e-10 * log2n
+			if maxErr128 < 1e-11 {
+				maxErr128 = 1e-11
+			}
+			if err128 > maxErr128 {
+				t.Errorf("complex128 round-trip error %e exceeds bound %e", err128, maxErr128)
+			}
+		})
+	}
+}
+
 func testPrecisionComparison(t *testing.T, n int) {
 	t.Helper()
 	// Generate test signals: sine wave
@@ -530,4 +569,82 @@ func testWhiteNoisePrecision(t *testing.T) {
 func cmplx64abs(c complex64) float32 {
 	r, i := real(c), imag(c)
 	return float32(math.Sqrt(float64(r*r + i*i)))
+}
+
+func makePrecisionInputs(n int, rng *rand.Rand) ([]complex64, []complex128) {
+	input64 := make([]complex64, n)
+	input128 := make([]complex128, n)
+
+	for i := 0; i < n; i++ {
+		re := rng.Float64()*2 - 1
+		im := rng.Float64()*2 - 1
+		input64[i] = complex(float32(re), float32(im))
+		input128[i] = complex(re, im)
+	}
+
+	return input64, input128
+}
+
+func roundTripMaxError64(t *testing.T, input []complex64) float64 {
+	t.Helper()
+	n := len(input)
+	plan, err := NewPlan(n)
+	if err != nil {
+		t.Fatalf("failed to create plan: %v", err)
+	}
+
+	src := make([]complex64, n)
+	copy(src, input)
+
+	freq := make([]complex64, n)
+	if err := plan.Forward(freq, src); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	roundtrip := make([]complex64, n)
+	if err := plan.Inverse(roundtrip, freq); err != nil {
+		t.Fatalf("Inverse failed: %v", err)
+	}
+
+	var maxErr float64
+	for i := range input {
+		err := cmplx64abs(roundtrip[i] - input[i])
+		if float64(err) > maxErr {
+			maxErr = float64(err)
+		}
+	}
+
+	return maxErr
+}
+
+func roundTripMaxError128(t *testing.T, input []complex128) float64 {
+	t.Helper()
+	n := len(input)
+	plan, err := NewPlan64(n)
+	if err != nil {
+		t.Fatalf("failed to create plan: %v", err)
+	}
+
+	src := make([]complex128, n)
+	copy(src, input)
+
+	freq := make([]complex128, n)
+	if err := plan.Forward(freq, src); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	roundtrip := make([]complex128, n)
+	if err := plan.Inverse(roundtrip, freq); err != nil {
+		t.Fatalf("Inverse failed: %v", err)
+	}
+
+	var maxErr float64
+	for i := range input {
+		err := cmplx.Abs(roundtrip[i] - input[i])
+		if err > maxErr {
+			maxErr = err
+		}
+	}
+
+	return maxErr
 }

@@ -51,6 +51,22 @@ Repeated forward/inverse cycles accumulate error linearly with the number of cyc
 
 **Recommendation**: For applications requiring repeated transforms (e.g., iterative solvers), use complex128 or periodically reinitialize from high-precision reference data.
 
+## Precision Profiling Sweep (Round-Trip)
+
+The test suite includes a size sweep that logs round-trip errors for both precisions
+along with `log2(size)` and the error ratio (complex64 / complex128). Use the output
+to plot error vs `log2(size)` if needed. Run:
+
+```bash
+go test -v -run TestPrecisionRoundTripSweep ./...
+```
+
+Example log format:
+
+```
+size=4096 log2=12 err64=... err128=... ratio=...
+```
+
 ## FFT Size Considerations
 
 Precision degrades slightly with FFT size due to increased accumulation depth:

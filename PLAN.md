@@ -286,7 +286,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Option B - 16×64 Matrix**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size1024_radix16x64.s`
-
   - [ ] Stage 1: 64 parallel FFT-16 on columns
   - [ ] Twiddle multiplication
   - [ ] Stage 2: 16 parallel FFT-64 on rows
@@ -315,7 +314,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Option C - 8×16×16 (3D decomposition)**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size2048_radix8x16x16.s`
-
   - [ ] Three-stage: FFT-8 → twiddle → FFT-16 → twiddle → FFT-16
   - [ ] Only 3 stages instead of 5.5
 
@@ -339,7 +337,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Option B - 64×64 Matrix**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size4096_radix64x64.s`
-
   - [ ] Stage 1: 64 parallel FFT-64
   - [ ] Twiddle multiplication
   - [ ] Stage 2: 64 parallel FFT-64
@@ -363,7 +360,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Alternative - 16×32×16 (3D)**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size8192_radix16x32x16.s`
-
   - [ ] Three-stage decomposition
 
 - [ ] Benchmark vs current mixed-2/4
@@ -384,7 +380,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Alternative - 16×16×64 (3D)**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size16384_radix16x16x64.s`
-
   - [ ] Three-stage: FFT-16 → twiddle → FFT-16 → twiddle → FFT-64
   - [ ] 3 stages (vs 7 for radix-4)
 
@@ -427,7 +422,6 @@ Based on expected benefit/effort ratio:
 
 - [ ] Create `benchmarks/phase14_results/` directory
 - [ ] Run benchmarks for all sizes 4-16384:
-
   - [ ] Pure Go baseline (no SIMD tags)
   - [ ] Optimized Go (radix-4/mixed-radix)
   - [ ] AVX2 assembly (`-tags=asm`)
@@ -549,497 +543,68 @@ NEON processes 1 complex128 per 128-bit register (half the throughput of complex
 
 ---
 
-## Phase 16: Cache & Loop Optimization
+## Phase 16: v1.0 Release
 
-### 16.1 Cache Profiling
+**Goal**: Ship a stable, well-tested v1.0 release without over-engineering.
 
-- [ ] Install `perf` if not present (Linux)
-- [ ] Run cache profiling on key benchmarks:
+### 16.1 Fix Current Build Issues
+
+- [ ] Resolve `prepareCodeletTwiddles64` redeclaration in test files
+- [ ] Ensure all tests pass: `go test ./...`
+
+### 16.2 API Consistency Review
+
+- [ ] List exported symbols: `go doc -all . | grep "^func\|^type"`
+- [ ] Verify all exported symbols have GoDoc comments
+- [ ] Check consistent naming (NewXxx pattern)
+- [ ] Verify error handling consistency
+
+### 16.3 Stability Testing
+
+- [ ] Run tests 5x to detect flaky tests:
   ```bash
-  perf stat -e cache-references,cache-misses,L1-dcache-loads,L1-dcache-load-misses \
-    go test -bench=BenchmarkPlan_1024 -benchtime=5s ./...
+  for i in {1..5}; do go test ./... || echo "FAIL $i"; done
   ```
-- [ ] Identify high cache-miss operations
-- [ ] Compare cache behavior across FFT sizes (small vs large)
-- [ ] Document baseline cache metrics
+- [ ] Fix any flaky tests found
+- [ ] Run `go test -race ./...` to verify concurrency safety
 
-### 16.2 Loop Optimization
+### 27.4 Release Checklist
 
-- [ ] Profile to identify critical inner loops:
-  ```bash
-  go test -bench=BenchmarkPlan_1024 -cpuprofile=cpu.prof ./...
-  go tool pprof -top cpu.prof
-  ```
-- [ ] For top 3 hotspots:
-  - [ ] Analyze loop structure
-  - [ ] Implement 2x or 4x manual unrolling
-  - [ ] Benchmark unrolled vs original
-  - [ ] Keep if > 5% improvement, revert if not
-- [ ] Consider `go:noinline` to prevent inlining that hurts cache
-
-### 16.3 Bounds Check Elimination
-
-- [ ] Identify bounds check hotspots:
-  ```bash
-  go build -gcflags="-d=ssa/check_bce/debug=1" ./internal/fft 2>&1 | grep -v "^#"
-  ```
-- [ ] For each bounds check in hot path:
-  - [ ] Add `_ = slice[len-1]` pattern before loop
-  - [ ] Or restructure loop to eliminate check
-- [ ] Verify no safety regressions with fuzz tests
-- [ ] Benchmark improvement
-
-### 16.4 Memory Access Patterns
-
-- [ ] Review butterfly loop memory access:
-  - [ ] Check for cache line conflicts
-  - [ ] Verify sequential access where possible
-- [ ] Consider cache-oblivious algorithms for large sizes
-- [ ] Implement prefetch hints if beneficial (via assembly)
-
----
-
-## Phase 19: Batch Processing - Remaining
-
-### 19.3 Parallel Batch Processing
-
-#### 19.3.1 API Design
-
-- [ ] Define parallel batch API:
-  ```go
-  func (p *Plan[T]) ForwardBatchParallel(dst, src []T, count int) error
-  func (p *Plan[T]) InverseBatchParallel(dst, src []T, count int) error
-  ```
-- [ ] Decide on concurrency options:
-  - [ ] Option A: Auto-detect optimal goroutine count
-  - [ ] Option B: Accept worker count parameter
-  - [ ] Option C: Use `runtime.GOMAXPROCS` directly
-
-#### 19.3.2 Implementation
-
-- [ ] Implement worker pool for batch processing:
-  - [ ] Create fixed pool of workers (1 per CPU core)
-  - [ ] Distribute transforms across workers
-  - [ ] Use `sync.WaitGroup` for synchronization
-- [ ] Ensure Plan is safe for concurrent read-only use:
-  - [ ] Verify twiddle factors are read-only
-  - [ ] Verify scratch buffers are per-goroutine (not shared)
-- [ ] Handle partial batches (count not divisible by worker count)
-
-#### 19.3.3 Tuning
-
-- [ ] Find optimal batch-per-goroutine threshold:
-  - [ ] Benchmark with batch sizes: 4, 8, 16, 32, 64, 128, 256
-  - [ ] Find crossover point where parallelism helps
-- [ ] Add `GOMAXPROCS` awareness:
-  - [ ] Scale worker count with available cores
-  - [ ] Respect user-set GOMAXPROCS
-- [ ] Consider work-stealing for load balancing
-
-#### 19.3.4 Testing
-
-- [ ] Add concurrent correctness tests
-- [ ] Add race detector tests: `go test -race ./...`
-- [ ] Benchmark parallel vs sequential for various batch sizes
-- [ ] Document speedup curves in BENCHMARKS.md
-
----
-
-## Phase 22: complex128 - Remaining
-
-### 22.3 Precision Profiling
-
-#### 22.3.1 Error Measurement
-
-- [ ] Create precision test suite in `precision_test.go`:
-  - [ ] Measure round-trip error: `max|x - Inverse(Forward(x))|`
-  - [ ] Test for FFT sizes: 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536
-- [ ] Compare complex64 vs complex128 error:
-  - [ ] Run same tests for both types
-  - [ ] Calculate error ratio (complex64_error / complex128_error)
-
-#### 22.3.2 Error Accumulation Analysis
-
-- [ ] Analyze how error grows with size:
-  - [ ] Plot error vs log2(size)
-  - [ ] Fit to theoretical O(log n) error growth
-- [ ] Identify precision-critical operations:
-  - [ ] Twiddle factor computation
-  - [ ] Butterfly multiply-add
-- [ ] Compare with theoretical bounds
-
-#### 22.3.3 Documentation
-
-- [ ] Create `docs/PRECISION.md`:
-  - [ ] Precision guarantees for each type
-  - [ ] Recommended use cases (audio vs scientific computing)
-  - [ ] Error bounds by FFT size
-  - [ ] Comparison with other FFT libraries
-- [ ] Add precision notes to README.md
-
----
-
-## Phase 23: WebAssembly - Remaining
-
-### 23.1 Browser Testing
-
-#### 23.1.1 Test Environment Setup
-
-- [ ] Create `examples/wasm/` directory
-- [ ] Add `index.html` with wasm_exec.js loader:
-  ```html
-  <script src="wasm_exec.js"></script>
-  <script>
-    const go = new Go();
-    WebAssembly.instantiateStreaming(fetch("fft.wasm"), go.importObject).then(
-      (result) => go.run(result.instance),
-    );
-  </script>
-  ```
-- [ ] Create simple FFT demo in Go (exports to JS)
-- [ ] Build WASM: `GOOS=js GOARCH=wasm go build -o fft.wasm`
-
-#### 23.1.2 Browser Compatibility
-
-- [ ] Test in major browsers:
-  - [ ] Chrome (latest)
-  - [ ] Firefox (latest)
-  - [ ] Safari (latest)
-  - [ ] Edge (latest)
-- [ ] Verify correct FFT results in each browser
-- [ ] Check for performance differences
-
-#### 23.1.3 Documentation
-
-- [ ] Document browser-specific considerations:
-  - [ ] Memory limits
-  - [ ] Performance characteristics
-  - [ ] Known issues
-- [ ] Add browser example to `examples/wasm/README.md`
-
-### 23.2 WASM SIMD (experimental)
-
-#### 23.2.1 SIMD Support Check
-
-- [ ] Monitor Go issue tracker for WASM SIMD support
-- [ ] Check Go 1.24+ release notes for SIMD features
-- [ ] Evaluate experimental `//go:wasmexport` and SIMD intrinsics
-
-#### 23.2.2 Prototype (if supported)
-
-- [ ] Create experimental WASM SIMD butterfly:
-  - [ ] Use v128 (128-bit SIMD) type
-  - [ ] Implement 2-element complex64 butterfly
-- [ ] Benchmark WASM SIMD vs scalar WASM
-- [ ] Document findings
-
-#### 23.2.3 Performance Comparison
-
-- [ ] Benchmark WASM vs native:
-
-  ```bash
-  # Native
-  go test -bench=BenchmarkPlan -benchtime=5s ./...
-
-  # WASM via Node.js
-  GOOS=js GOARCH=wasm go test -bench=BenchmarkPlan -benchtime=5s ./...
-  ```
-
-- [ ] Calculate WASM overhead percentage
-- [ ] Document in BENCHMARKS.md
-
----
-
-## Phase 24: Documentation & Examples
-
-### 24.1 GoDoc Completion
-
-#### 24.1.1 Symbol Audit
-
-- [ ] List all exported symbols:
-  ```bash
-  go doc -all github.com/MeKo-Tech/algo-fft | grep "^func\|^type\|^var\|^const"
-  ```
-- [ ] For each symbol, verify GoDoc comment exists and is clear
-- [ ] Add missing comments following Go conventions
-
-#### 24.1.2 Runnable Examples
-
-- [ ] Create `example_test.go` with:
-  - [ ] `ExampleNewPlan` - basic plan creation
-  - [ ] `ExamplePlan_Forward` - forward transform
-  - [ ] `ExamplePlan_Inverse` - inverse transform
-  - [ ] `ExampleNewPlan2D` - 2D FFT usage
-  - [ ] `ExampleConvolve` - convolution example
-  - [ ] `ExamplePlanReal_Forward` - real FFT
-- [ ] Verify examples run: `go test -v -run Example ./...`
-
-#### 24.1.3 Package Documentation
-
-- [ ] Create/update `doc.go`:
-  - [ ] Package overview
-  - [ ] Basic usage example
-  - [ ] Performance notes
-  - [ ] Architecture support
-- [ ] Verify rendering on pkg.go.dev
-
-### 24.2 README Enhancement
-
-#### 24.2.1 Installation & Quick Start
-
-- [ ] Add installation section:
-  ```bash
-  go get github.com/MeKo-Tech/algo-fft
-  ```
-- [ ] Add copy-paste ready quick start:
-  ```go
-  plan, _ := algofft.NewPlan32(1024)
-  plan.Forward(data)
-  ```
-
-#### 24.2.2 API Overview
-
-- [ ] Create API overview table:
-      | Function | Description |
-      | -------- | ----------- |
-      | `NewPlan32(n)` | Create complex64 FFT plan |
-      | `NewPlan64(n)` | Create complex128 FFT plan |
-      | ... | ... |
-
-#### 24.2.3 Performance & Comparison
-
-- [ ] Add performance characteristics section:
-  - [ ] Supported architectures
-  - [ ] SIMD acceleration
-  - [ ] Typical speedup ranges
-- [ ] Add comparison to other libraries:
-  - [ ] gonum/fourier
-  - [ ] go-fft
-  - [ ] scientificgo/fft
-
-#### 24.2.4 Badges
-
-- [ ] Add badges to README:
-  - [ ] Go Report Card
-  - [ ] GitHub Actions CI status
-  - [ ] Coverage (codecov or coveralls)
-  - [ ] pkg.go.dev reference
-  - [ ] License
-
-### 24.3 Tutorial Examples
-
-#### 24.3.1 Basic Example
-
-- [ ] Create `examples/basic/`:
-  - [ ] `main.go` - simple 1D FFT demonstration
-  - [ ] `README.md` - explanation and usage
-  - [ ] Show forward transform, magnitude spectrum, inverse
-
-#### 24.3.2 Audio Example
-
-- [ ] Create `examples/audio/`:
-  - [ ] `main.go` - audio spectrum analysis
-  - [ ] `README.md` - explanation
-  - [ ] Load WAV file (or generate test signal)
-  - [ ] Apply real FFT
-  - [ ] Display frequency content
-
-#### 24.3.3 Image Example
-
-- [ ] Create `examples/image/`:
-  - [ ] `main.go` - 2D FFT for image processing
-  - [ ] `README.md` - explanation
-  - [ ] Load image, apply 2D FFT
-  - [ ] Demonstrate frequency domain filtering
-  - [ ] Save result image
-
----
-
-## Phase 26: Profiling & Tuning
-
-### 26.1 CPU Profiling
-
-- [ ] Run CPU profiling on key benchmarks:
-  ```bash
-  go test -bench=BenchmarkPlan_1024 -cpuprofile=cpu.prof ./...
-  go tool pprof -http=:8080 cpu.prof
-  ```
-- [ ] Identify top 5 CPU consumers
-- [ ] Analyze call graphs for optimization opportunities
-- [ ] Document findings
-
-### 26.2 Memory Profiling
-
-- [ ] Run memory profiling:
-  ```bash
-  go test -bench=BenchmarkPlan_1024 -memprofile=mem.prof ./...
-  go tool pprof -http=:8080 mem.prof
-  ```
-- [ ] Verify zero-allocation transforms (after plan creation)
-- [ ] Identify any unexpected allocations
-- [ ] Fix allocation hotspots
-
-### 26.3 Optimization Pass
-
-- [ ] Address top performance hotspots from profiling
-- [ ] Re-run benchmarks after each optimization
-- [ ] Keep changes that provide > 5% improvement
-- [ ] Revert changes that regress performance
-
-### 26.4 Final Benchmark Comparison
-
-- [ ] Run full benchmark suite on final code
-- [ ] Compare against original Phase 14 baseline
-- [ ] Document overall speedup achieved
-- [ ] Update BENCHMARKS.md with final numbers
-
----
-
-## Phase 27: v1.0 Preparation
-
-### 27.1 API Review
-
-#### 27.1.1 Consistency Check
-
-- [ ] Review all public function signatures:
-  - [ ] Consistent naming (NewXxx, XxxFunc, etc.)
-  - [ ] Consistent parameter ordering
-  - [ ] Consistent error handling
-- [ ] Review all public types:
-  - [ ] Consistent field naming
-  - [ ] Appropriate visibility
-- [ ] Ensure generics are used consistently
-
-#### 27.1.2 Backward Compatibility
-
-- [ ] Document any breaking changes from v0.x
-- [ ] Create migration guide if needed
-- [ ] Consider deprecation warnings for removed features
-
-### 27.2 Stability Testing
-
-#### 27.2.1 Flake Detection
-
-- [ ] Run test suite 10+ times:
-  ```bash
-  for i in {1..10}; do go test ./... || echo "FAIL $i"; done
-  ```
-- [ ] Identify and fix any flaky tests
-- [ ] Add retry logic for inherently flaky tests (if unavoidable)
-
-#### 27.2.2 Go Version Testing
-
-- [ ] Test on Go 1.21: `go1.21 test ./...`
-- [ ] Test on Go 1.22: `go1.22 test ./...`
-- [ ] Test on Go 1.23: `go1.23 test ./...`
-- [ ] Test on Go 1.24: `go1.24 test ./...`
-- [ ] Fix any version-specific issues
-
-### 27.3 Release Preparation
-
-#### 27.3.1 Changelog
-
-- [ ] Create/update CHANGELOG.md:
-  - [ ] List all changes since v0.2.0
-  - [ ] Categorize: Added, Changed, Fixed, Removed
-  - [ ] Include migration notes
-
-#### 27.3.2 Release Notes
-
-- [ ] Write v1.0.0 release notes:
-  - [ ] Highlight key features
-  - [ ] Performance improvements
-  - [ ] API stability guarantee
-  - [ ] Acknowledgments
-
-#### 27.3.3 Tagging
-
+- [ ] Create CHANGELOG.md with key features
 - [ ] Tag release: `git tag v1.0.0`
-- [ ] Push tag: `git push origin v1.0.0`
 - [ ] Create GitHub release with notes
 - [ ] Verify on pkg.go.dev
 
----
+### 27.5 Basic GitHub Templates (Optional)
 
-## Phase 28: Community & Maintenance
-
-### 28.1 Community Setup
-
-#### 28.1.1 Issue Templates
-
-- [ ] Create `.github/ISSUE_TEMPLATE/bug_report.md`:
-  - [ ] Version information
-  - [ ] Steps to reproduce
-  - [ ] Expected vs actual behavior
-  - [ ] Platform details
-- [ ] Create `.github/ISSUE_TEMPLATE/feature_request.md`:
-  - [ ] Problem statement
-  - [ ] Proposed solution
-  - [ ] Alternatives considered
-
-#### 28.1.2 PR Template
-
-- [ ] Create `.github/PULL_REQUEST_TEMPLATE.md`:
-  - [ ] Description of changes
-  - [ ] Related issues
-  - [ ] Testing performed
-  - [ ] Checklist (tests, docs, benchmarks)
-
-#### 28.1.3 Community Features
-
-- [ ] Enable GitHub Discussions for Q&A
-- [ ] Add `CODE_OF_CONDUCT.md` (Contributor Covenant)
-- [ ] Add `SECURITY.md` for vulnerability reporting
-
-### 28.2 Contributor Experience
-
-#### 28.2.1 Development Documentation
-
-- [ ] Update CONTRIBUTING.md:
-  - [ ] Development environment setup
-  - [ ] How to run tests and benchmarks
-  - [ ] Code style guide
-  - [ ] PR process
-
-#### 28.2.2 Issue Management
-
-- [ ] Add "good first issue" labels to starter tasks
-- [ ] Add "help wanted" labels to complex tasks
-- [ ] Create issue templates for common tasks
-
-#### 28.2.3 Automation
-
-- [ ] Set up Dependabot for Go modules:
-  - [ ] Create `.github/dependabot.yml`
-  - [ ] Configure weekly update checks
-- [ ] Add stale issue bot (optional)
-
-### 28.3 Ongoing Maintenance
-
-#### 28.3.1 Security
-
-- [ ] Set up govulncheck in CI:
-  ```yaml
-  - run: go install golang.org/x/vuln/cmd/govulncheck@latest
-  - run: govulncheck ./...
-  ```
-- [ ] Create security policy in SECURITY.md
-
-#### 28.3.2 Compatibility
-
-- [ ] Document minimum Go version policy
-- [ ] Plan for future Go version testing
-- [ ] Monitor Go release notes for breaking changes
+- [ ] Add simple `.github/ISSUE_TEMPLATE/bug_report.md`
+- [ ] Add simple `.github/PULL_REQUEST_TEMPLATE.md`
 
 ---
 
 ## Future (Post v1.0)
 
-- AVX-512 support (when Go supports it better)
-- GPU acceleration (OpenCL/CUDA via cgo, optional)
+**Performance Optimizations** (only if users request):
+
+- Cache profiling and loop optimization
+- Parallel batch processing API
+- WASM SIMD (when Go supports it)
+- AVX-512 support
+- Higher-radix optimizations for remaining sizes
+
+**Features**:
+
+- Audio/image processing examples
+- GPU acceleration (OpenCL/CUDA via cgo)
 - Distributed FFT for very large datasets
-- Pruned FFT for sparse inputs/outputs
 - DCT (Discrete Cosine Transform)
 - Hilbert transform
-- Short-time FFT (STFT) for spectrograms
+- STFT for spectrograms
 - Gonum ecosystem integration
+
+**Community** (as project grows):
+
+- CODE_OF_CONDUCT.md
+- Dependabot configuration
+- Issue/PR templates refinement
+- ARM64 native CI runner
