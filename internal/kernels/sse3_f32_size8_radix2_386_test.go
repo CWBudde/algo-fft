@@ -9,7 +9,7 @@ import (
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
-func TestForwardSSE2Size8Radix2Complex64_386(t *testing.T) {
+func TestForwardSSE3Size8Radix2Complex64_386(t *testing.T) {
 	const n = 8
 	src := randomComplex64(n, 0x12345678)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
@@ -21,14 +21,14 @@ func TestForwardSSE2Size8Radix2Complex64_386(t *testing.T) {
 	copy(want, src)
 	forwardDIT8Complex64(want, want, twiddle, scratch)
 
-	if !x86.ForwardSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-		t.Fatal("ForwardSSE2Size8Radix2Complex64Asm failed")
+	if !x86.ForwardSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		t.Fatal("ForwardSSE3Size8Radix2Complex64Asm failed")
 	}
 
 	assertComplex64Close(t, dst, want, 1e-5)
 }
 
-func TestInverseSSE2Size8Radix2Complex64_386(t *testing.T) {
+func TestInverseSSE3Size8Radix2Complex64_386(t *testing.T) {
 	const n = 8
 	src := randomComplex64(n, 0x87654321)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
@@ -40,14 +40,14 @@ func TestInverseSSE2Size8Radix2Complex64_386(t *testing.T) {
 	copy(want, src)
 	inverseDIT8Complex64(want, want, twiddle, scratch)
 
-	if !x86.InverseSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
-		t.Fatal("InverseSSE2Size8Radix2Complex64Asm failed")
+	if !x86.InverseSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev) {
+		t.Fatal("InverseSSE3Size8Radix2Complex64Asm failed")
 	}
 
 	assertComplex64Close(t, dst, want, 1e-5)
 }
 
-func TestRoundTripSSE2Size8Radix2Complex64_386(t *testing.T) {
+func TestRoundTripSSE3Size8Radix2Complex64_386(t *testing.T) {
 	const n = 8
 	src := randomComplex64(n, 0xABCDEF)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
@@ -56,17 +56,17 @@ func TestRoundTripSSE2Size8Radix2Complex64_386(t *testing.T) {
 	fwd := make([]complex64, n)
 	inv := make([]complex64, n)
 
-	if !x86.ForwardSSE2Size8Radix2Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !x86.ForwardSSE3Size8Radix2Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("Forward failed")
 	}
-	if !x86.InverseSSE2Size8Radix2Complex64Asm(inv, fwd, twiddle, scratch, bitrev) {
+	if !x86.InverseSSE3Size8Radix2Complex64Asm(inv, fwd, twiddle, scratch, bitrev) {
 		t.Fatal("Inverse failed")
 	}
 
 	assertComplex64Close(t, inv, src, 1e-5)
 }
 
-func BenchmarkForwardSSE2Size8Radix2Complex64_386(b *testing.B) {
+func BenchmarkForwardSSE3Size8Radix2Complex64_386(b *testing.B) {
 	const n = 8
 	src := randomComplex64(n, 0x99999999)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
@@ -79,11 +79,11 @@ func BenchmarkForwardSSE2Size8Radix2Complex64_386(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		x86.ForwardSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		x86.ForwardSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 	}
 }
 
-func BenchmarkInverseSSE2Size8Radix2Complex64_386(b *testing.B) {
+func BenchmarkInverseSSE3Size8Radix2Complex64_386(b *testing.B) {
 	const n = 8
 	src := randomComplex64(n, 0x88888888)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
@@ -96,6 +96,6 @@ func BenchmarkInverseSSE2Size8Radix2Complex64_386(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		x86.InverseSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+		x86.InverseSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 	}
 }

@@ -52,7 +52,7 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 
 #### 13.1.1 complex64 Size 256 (Already Complete)
 
-- [x] Size 256: radix-4 SSE2 (exists: `internal/asm/amd64/sse2_f32_size256_radix4.s`)
+- [x] Size 256: radix-4 SSE2 (exists: `internal/asm/amd64/sse3_f32_size256_radix4.s`)
 
 #### 13.1.2 complex128 Size 256 SSE2 Kernels
 
@@ -78,15 +78,15 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 #### 13.2.1 complex64 Size 512 SSE2 Kernels
 
 - [x] Implement Size 512 radix-2 SSE2 for complex64
-  - [x] Create `internal/asm/amd64/sse2_f32_size512_radix2.s`
-  - [x] Implement `ForwardSSE2Size512Radix2Complex64Asm` (9 stages)
-  - [x] Implement `InverseSSE2Size512Radix2Complex64Asm` (with 1/512 scaling)
+  - [x] Create `internal/asm/amd64/sse3_f32_size512_radix2.s`
+  - [x] Implement `ForwardSSE3Size512Radix2Complex64Asm` (9 stages)
+  - [x] Implement `InverseSSE3Size512Radix2Complex64Asm` (with 1/512 scaling)
   - [x] Register in codelet system (consolidated in `codelet_init_sse2.go`)
 - [ ] Implement Size 512 mixed-2/4 SSE2 for complex64
-  - [ ] Create `internal/asm/amd64/sse2_f32_size512_mixed24.s`
-  - [ ] Implement `ForwardSSE2Size512Mixed24Complex64Asm` (4 radix-4 + 1 radix-2 = 5 stages)
-  - [ ] Implement `InverseSSE2Size512Mixed24Complex64Asm` (with 1/512 scaling)
-  - [ ] Add Go wrapper in `internal/kernels/sse2_f32_size512_mixed24.go`
+  - [ ] Create `internal/asm/amd64/sse3_f32_size512_mixed24.s`
+  - [ ] Implement `ForwardSSE3Size512Mixed24Complex64Asm` (4 radix-4 + 1 radix-2 = 5 stages)
+  - [ ] Implement `InverseSSE3Size512Mixed24Complex64Asm` (with 1/512 scaling)
+  - [ ] Add Go wrapper in `internal/kernels/sse3_f32_size512_mixed24.go`
   - [ ] Register in codelet system with priority 15
 
 #### 13.2.2 complex128 Size 512 SSE2 Kernels
@@ -116,11 +116,11 @@ Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2
 #### 13.3.1 complex64 Size 1024 SSE2 Kernels
 
 - [ ] Implement Size 1024 radix-4 SSE2 for complex64
-  - [ ] Create `internal/asm/amd64/sse2_f32_size1024_radix4.s`
+  - [ ] Create `internal/asm/amd64/sse3_f32_size1024_radix4.s`
   - [ ] Implement `ForwardSSE2Size1024Radix4Complex64Asm` (5 radix-4 stages)
   - [ ] Implement `InverseSSE2Size1024Radix4Complex64Asm` (with 1/1024 scaling)
   - [ ] Use radix-4 bit-reversal pattern
-  - [ ] Add Go wrapper in `internal/kernels/sse2_f32_size1024_radix4.go`
+  - [ ] Add Go wrapper in `internal/kernels/sse3_f32_size1024_radix4.go`
   - [ ] Register in codelet system with priority 15
 
 #### 13.3.2 complex128 Size 1024 SSE2 Kernels

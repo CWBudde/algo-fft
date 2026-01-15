@@ -42,28 +42,28 @@ func inverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, 
 	return kasm.InverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
-func forwardSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.ForwardSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+func forwardSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.ForwardSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
-func inverseSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.InverseSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
+func inverseSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.InverseSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
-func forwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.ForwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+func forwardSSE3Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.ForwardSSE3Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
-func inverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.InverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
+func inverseSSE3Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.InverseSSE3Size16Radix4Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
-func forwardSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.ForwardSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev)
+func forwardSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.ForwardSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
-func inverseSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
-	return kasm.InverseSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev)
+func inverseSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {
+	return kasm.InverseSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch, bitrev)
 }
 
 func forwardSSESize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool {

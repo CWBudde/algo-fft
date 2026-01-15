@@ -14,11 +14,17 @@ func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 		}
 	}
 
-	if features.HasSSE2 && !features.ForceGeneric {
-		sizeSpecific := sse2SizeSpecificOrGenericComplex64(KernelAuto)
+	if features.HasSSE3 && !features.ForceGeneric {
+		sizeSpecific := sse3SizeSpecificOrGenericComplex64(KernelAuto)
 		return Kernels[complex64]{
 			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
 			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
+		}
+	}
+	if features.HasSSE2 && !features.ForceGeneric {
+		return Kernels[complex64]{
+			Forward: fallbackKernel(forwardSSE2Complex64, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE2Complex64, auto.Inverse),
 		}
 	}
 
@@ -55,11 +61,17 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 		}
 	}
 
-	if features.HasSSE2 && !features.ForceGeneric {
-		sizeSpecific := sse2SizeSpecificOrGenericComplex64(KernelAuto)
+	if features.HasSSE3 && !features.ForceGeneric {
+		sizeSpecific := sse3SizeSpecificOrGenericComplex64(KernelAuto)
 		return Kernels[complex64]{
 			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
 			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
+		}
+	}
+	if features.HasSSE2 && !features.ForceGeneric {
+		return Kernels[complex64]{
+			Forward: fallbackKernel(forwardSSE2Complex64, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE2Complex64, auto.Inverse),
 		}
 	}
 

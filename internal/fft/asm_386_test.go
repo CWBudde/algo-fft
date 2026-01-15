@@ -35,15 +35,15 @@ func TestSSE2SizeSpecificComplex64_386(t *testing.T) {
 		{
 			name:    "Size8_Radix2",
 			size:    8,
-			forward: forwardSSE2Size8Radix2Complex64Asm,
-			inverse: inverseSSE2Size8Radix2Complex64Asm,
+			forward: forwardSSE3Size8Radix2Complex64Asm,
+			inverse: inverseSSE3Size8Radix2Complex64Asm,
 			radix:   2,
 		},
 		{
 			name:    "Size16_Radix4",
 			size:    16,
-			forward: forwardSSE2Size16Radix4Complex64Asm,
-			inverse: inverseSSE2Size16Radix4Complex64Asm,
+			forward: forwardSSE3Size16Radix4Complex64Asm,
+			inverse: inverseSSE3Size16Radix4Complex64Asm,
 			radix:   4,
 		},
 	}

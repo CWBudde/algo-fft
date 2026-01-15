@@ -15,7 +15,7 @@
 #include "textflag.h"
 
 // Forward transform, size 16, complex64, radix-4 variant
-TEXT ·ForwardSSE2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·ForwardSSE3Size16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -262,7 +262,7 @@ size16_r4_sse2_return_false:
 	RET
 
 // Inverse transform, size 16, complex64, radix-4 variant
-TEXT ·InverseSSE2Size16Radix4Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseSSE3Size16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9

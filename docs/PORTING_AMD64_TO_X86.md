@@ -38,7 +38,7 @@ The frame size calculation changes due to different slice layouts:
 **AMD64 Example:**
 
 ```assembly
-TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
 ```
 
 - Frame size: 121 bytes
@@ -47,7 +47,7 @@ TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
 **x86 Equivalent:**
 
 ```assembly
-TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-61
+TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $0-61
 ```
 
 - Frame size: 61 bytes
@@ -147,7 +147,7 @@ When you run out of registers, save values to stack:
 ```assembly
 // AMD64: $0-121 means 0 bytes local stack
 // x86 with 36 bytes local stack:
-TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $36-61
+TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $36-61
 ```
 
 **Save/restore pattern:**
@@ -209,7 +209,7 @@ This is a major difference from AMD64:
 2. **Reuse registers cleverly** - Overwrite values no longer needed
 3. **Process one butterfly at a time** - Load, compute, store, repeat
 
-See `internal/asm/x86/sse2_f32_size8_radix2.s` for a working example.
+See `internal/asm/x86/sse3_f32_size8_radix2.s` for a working example.
 
 ### 9. Data Size Differences
 
@@ -291,7 +291,7 @@ GLOBL ·sixteenth32(SB), RODATA|NOPTR, $4
 
 After porting, add corresponding test files:
 
-**File:** `internal/kernels/sse2_f32_size8_radix2_test.go`
+**File:** `internal/kernels/sse3_f32_size8_radix2_386_test.go`
 
 ```go
 //go:build 386 && asm && !purego
@@ -300,7 +300,7 @@ package kernels
 
 import "testing"
 
-func TestSSE2Size8Radix2Complex64_386(t *testing.T) {
+func TestSSE3Size8Radix2Complex64_386(t *testing.T) {
     // Test implementation
 }
 ```
@@ -309,8 +309,8 @@ func TestSSE2Size8Radix2Complex64_386(t *testing.T) {
 
 See the actual ported implementation in:
 
-- Source: `internal/asm/x86/sse2_f32_size8_radix2.s`
-- Tests: `internal/kernels/sse2_f32_size8_radix2_test.go`
+- Source: `internal/asm/x86/sse3_f32_size8_radix2.s`
+- Tests: `internal/kernels/sse3_f32_size8_radix2_386_test.go`
 
 ## Common Pitfalls
 
@@ -345,10 +345,10 @@ MOVL (DI), EAX
 
 ```assembly
 // WRONG - using amd64 frame size
-TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
+TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $0-121
 
 // CORRECT for x86
-TEXT ·ForwardSSE2Size8Radix2Complex64Asm(SB), NOSPLIT, $36-61
+TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $36-61
 ```
 
 ## Verification Checklist

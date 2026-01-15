@@ -7,11 +7,18 @@ import (
 	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
-// SSE2-only kernel selection for 386 architecture.
-// 386 has SSE2 but not AVX2, so we use SSE2 kernels with pure-Go fallback.
+// SSE2/SSE3 kernel selection for 386 architecture.
+// 386 has SSE2 but not AVX2, so we use SSE2 kernels with SSE3 size-specific
+// codelets when available, plus pure-Go fallback.
 
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	auto := autoKernelComplex64(KernelAuto)
+	if features.HasSSE3 && !features.ForceGeneric {
+		return Kernels[complex64]{
+			Forward: fallbackKernel(forwardSSE3Complex64, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE3Complex64, auto.Inverse),
+		}
+	}
 	if features.HasSSE2 && !features.ForceGeneric {
 		return Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSE2Complex64, auto.Forward),
@@ -40,6 +47,12 @@ func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 
 func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
 	auto := autoKernelComplex64(strategy)
+	if features.HasSSE3 && !features.ForceGeneric {
+		return Kernels[complex64]{
+			Forward: fallbackKernel(forwardSSE3Complex64, auto.Forward),
+			Inverse: fallbackKernel(inverseSSE3Complex64, auto.Inverse),
+		}
+	}
 	if features.HasSSE2 && !features.ForceGeneric {
 		return Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSE2Complex64, auto.Forward),
@@ -113,9 +126,6 @@ func forwardSSE2Complex64(dst, src, twiddle, scratch []complex64) bool {
 		return forwardSSE2Size2Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
 	case 4:
 		return forwardSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndicesRadix4(n))
-	case 8:
-		return forwardSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
-		// TODO(386): Re-enable size-16 radix-16 once x86 kernel is corrected.
 	}
 
 	return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
@@ -132,8 +142,43 @@ func inverseSSE2Complex64(dst, src, twiddle, scratch []complex64) bool {
 		return inverseSSE2Size2Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
 	case 4:
 		return inverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndicesRadix4(n))
+	}
+
+	return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
+}
+
+func forwardSSE3Complex64(dst, src, twiddle, scratch []complex64) bool {
+	n := len(src)
+	if !mathpkg.IsPowerOf2(n) {
+		return false
+	}
+
+	switch n {
+	case 2:
+		return forwardSSE2Size2Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
+	case 4:
+		return forwardSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndicesRadix4(n))
 	case 8:
-		return inverseSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
+		return forwardSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
+		// TODO(386): Re-enable size-16 radix-16 once x86 kernel is corrected.
+	}
+
+	return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
+}
+
+func inverseSSE3Complex64(dst, src, twiddle, scratch []complex64) bool {
+	n := len(src)
+	if !mathpkg.IsPowerOf2(n) {
+		return false
+	}
+
+	switch n {
+	case 2:
+		return inverseSSE2Size2Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
+	case 4:
+		return inverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndicesRadix4(n))
+	case 8:
+		return inverseSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
 		// TODO(386): Re-enable size-16 radix-16 once x86 kernel is corrected.
 	}
 

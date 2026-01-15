@@ -2,7 +2,7 @@
 
 package amd64
 
-// AVX2 and SSE2 FFT kernels for complex64 and complex128 data types.
+// AVX2 and SSE2/SSE3 FFT kernels for complex64 and complex128 data types.
 
 // ============================================================================
 // Generic FFT Kernels (Variable Size)
@@ -70,7 +70,7 @@ func InverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64, bit
 // Size-Specific FFT Kernels (Complex64)
 // ============================================================================
 
-// --- SSE2 Kernels (Complex64) ---
+// --- SSE2/SSE3 Kernels (Complex64) ---
 
 //go:noescape
 func ForwardSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
@@ -79,79 +79,79 @@ func ForwardSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) 
 func InverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardSSE2Size8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseSSE2Size8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size8Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseSSE2Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardSSE2Size8Radix8Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseSSE2Size8Radix8Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseSSE2Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseSSE2Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardSSE2Size16Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size16Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseSSE2Size16Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size16Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
-func ForwardSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-func InverseSSE2Size32Radix32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size32Radix32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size32Radix32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
-func ForwardSSE2Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-func InverseSSE2Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size32Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
-func ForwardSSE2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-func InverseSSE2Size32Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size32Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size32Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 func ForwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 func InverseAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseSSE2Size64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size64Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
-func ForwardSSE2Size64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-func InverseSSE2Size64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size64Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
-func ForwardSSE2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-func InverseSSE2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size128Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size128Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
-func ForwardSSE2Size128Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-func InverseSSE2Size128Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func ForwardSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size128Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size128Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseSSE2Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func ForwardSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func InverseSSE3Size256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
-func InverseSSE2Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+func ForwardSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func InverseSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
 func ForwardSSE2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool

@@ -19,7 +19,7 @@ func TestDebugSize16Radix16_386(t *testing.T) {
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	bitrev := math.ComputeIdentityIndices(n)
 
-	if !forwardSSE2Size16Radix16Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
+	if !forwardSSE3Size16Radix16Complex64Asm(fwd, src, twiddle, scratch, bitrev) {
 		t.Fatal("Forward failed")
 	}
 
@@ -29,7 +29,7 @@ func TestDebugSize16Radix16_386(t *testing.T) {
 	}
 
 	roundTrip := make([]complex64, n)
-	if !inverseSSE2Size16Radix16Complex64Asm(roundTrip, fwd, twiddle, scratch, bitrev) {
+	if !inverseSSE3Size16Radix16Complex64Asm(roundTrip, fwd, twiddle, scratch, bitrev) {
 		t.Fatal("Inverse failed")
 	}
 
