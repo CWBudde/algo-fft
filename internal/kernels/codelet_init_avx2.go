@@ -155,6 +155,18 @@ func registerAVX2DITCodelets64() {
 		KernelType: KernelTypeDIT,
 	})
 
+	// Size 128: Radix-2 AVX2 variant
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       128,
+		Forward:    wrapCodelet64(amd64.ForwardAVX2Size128Radix2Complex64Asm),
+		Inverse:    wrapCodelet64(amd64.InverseAVX2Size128Radix2Complex64Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit128_radix2_avx2",
+		Priority:   20,
+		KernelType: KernelTypeDIT,
+	})
+
 	// Size 256: Radix-2 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       256,
