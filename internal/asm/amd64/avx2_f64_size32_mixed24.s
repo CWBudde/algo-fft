@@ -1,0 +1,470 @@
+//go:build amd64 && asm && !purego
+
+// ===========================================================================
+// AVX2 Size-32 Mixed-Radix-2/4 FFT Kernels for AMD64 (complex128)
+// ===========================================================================
+
+#include "textflag.h"
+
+// Forward transform, size 32, complex128, mixed-radix
+TEXT ·ForwardAVX2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-97
+	// Load parameters
+	MOVQ dst+0(FP), R8
+	MOVQ src+24(FP), R9
+	MOVQ twiddle+48(FP), R10
+	MOVQ scratch+72(FP), R11
+	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12
+	MOVQ src+32(FP), R13
+
+	CMPQ R13, $32
+	JNE  m24_32_avx2_f64_fwd_err
+
+	MOVQ dst+8(FP), AX
+	CMPQ AX, $32
+	JL   m24_32_avx2_f64_fwd_err
+
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, $32
+	JL   m24_32_avx2_f64_fwd_err
+
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, $32
+	JL   m24_32_avx2_f64_fwd_err
+
+	CMPQ R8, R9
+	JNE  m24_32_avx2_f64_fwd_use_dst
+	MOVQ R11, R8
+
+m24_32_avx2_f64_fwd_use_dst:
+	// Bit-reversal
+	XORQ CX, CX
+m24_32_avx2_f64_fwd_bitrev_loop:
+	MOVQ (R12)(CX*8), DX
+	SHLQ $4, DX
+	VMOVUPD (R9)(DX*1), X0
+	MOVQ CX, AX
+	SHLQ $4, AX
+	VMOVUPD X0, (R8)(AX*1)
+	INCQ CX
+	CMPQ CX, $32
+	JL   m24_32_avx2_f64_fwd_bitrev_loop
+
+	// Stage 1: Radix-4 butterflies (stride 4)
+	MOVQ R8, SI
+	MOVQ $8, CX
+	VMOVUPS ·maskNegHiPD(SB), X15
+
+m24_32_avx2_f64_fwd_stage1_loop:
+	VMOVUPD (SI), X0
+	VMOVUPD 16(SI), X1
+	VMOVUPD 32(SI), X2
+	VMOVUPD 48(SI), X3
+	VADDPD X2, X0, X8
+	VSUBPD X2, X0, X9
+	VADDPD X3, X1, X10
+	VSUBPD X3, X1, X11
+	VSHUFPD $1, X11, X11, X12
+	VXORPD X15, X12, X12
+	VADDPD X10, X8, X0
+	VADDPD X12, X9, X1
+	VSUBPD X10, X8, X2
+	VSUBPD X12, X9, X3
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X2, 32(SI)
+	VMOVUPD X3, 48(SI)
+	ADDQ $64, SI
+	DECQ CX
+	JNZ  m24_32_avx2_f64_fwd_stage1_loop
+
+	// Stage 2: Radix-4 butterflies (stride 1), twiddle step = 2
+	MOVQ R8, SI
+	MOVQ $2, CX
+	VMOVUPS ·maskNegLoPD(SB), X14
+
+m24_32_avx2_f64_fwd_stage2_loop:
+	XORQ DX, DX
+m24_32_avx2_f64_fwd_stage2_inner:
+	MOVQ DX, AX
+	SHLQ $1, AX
+	SHLQ $4, AX
+	VMOVUPD (R10)(AX*1), X8
+	MOVQ DX, AX
+	SHLQ $2, AX
+	SHLQ $4, AX
+	VMOVUPD (R10)(AX*1), X9
+	MOVQ DX, AX
+	SHLQ $1, AX
+	ADDQ DX, AX
+	SHLQ $1, AX
+	SHLQ $4, AX
+	VMOVUPD (R10)(AX*1), X10
+
+	MOVQ DX, AX
+	SHLQ $4, AX
+	VMOVUPD (SI)(AX*1), X0
+	ADDQ $64, AX
+	VMOVUPD (SI)(AX*1), X1
+	ADDQ $64, AX
+	VMOVUPD (SI)(AX*1), X2
+	ADDQ $64, AX
+	VMOVUPD (SI)(AX*1), X3
+
+	// Complex mul
+	VMOVAPD X1, X4
+	VUNPCKLPD X4, X4, X4
+	VMULPD X8, X4, X4
+	VMOVAPD X1, X5
+	VUNPCKHPD X5, X5, X5
+	VMOVAPD X8, X6
+	VSHUFPD $1, X6, X6, X6
+	VMULPD X5, X6, X6
+	VXORPD X14, X6, X6
+	VADDPD X6, X4, X4
+	VMOVAPD X4, X1
+
+	VMOVAPD X2, X4
+	VUNPCKLPD X4, X4, X4
+	VMULPD X9, X4, X4
+	VMOVAPD X2, X5
+	VUNPCKHPD X5, X5, X5
+	VMOVAPD X9, X6
+	VSHUFPD $1, X6, X6, X6
+	VMULPD X5, X6, X6
+	VXORPD X14, X6, X6
+	VADDPD X6, X4, X4
+	VMOVAPD X4, X2
+
+	VMOVAPD X3, X4
+	VUNPCKLPD X4, X4, X4
+	VMULPD X10, X4, X4
+	VMOVAPD X3, X5
+	VUNPCKHPD X5, X5, X5
+	VMOVAPD X10, X6
+	VSHUFPD $1, X6, X6, X6
+	VMULPD X5, X6, X6
+	VXORPD X14, X6, X6
+	VADDPD X6, X4, X4
+	VMOVAPD X4, X3
+
+	// Radix-4
+	VADDPD X2, X0, X8
+	VSUBPD X2, X0, X9
+	VADDPD X3, X1, X10
+	VSUBPD X3, X1, X11
+	VSHUFPD $1, X11, X11, X12
+	VXORPD X15, X12, X12
+	VADDPD X10, X8, X0
+	VADDPD X12, X9, X1
+	VSUBPD X10, X8, X2
+	VSUBPD X12, X9, X3
+
+	MOVQ DX, AX
+	SHLQ $4, AX
+	VMOVUPD X0, (SI)(AX*1)
+	ADDQ $64, AX
+	VMOVUPD X1, (SI)(AX*1)
+	ADDQ $64, AX
+	VMOVUPD X2, (SI)(AX*1)
+	ADDQ $64, AX
+	VMOVUPD X3, (SI)(AX*1)
+
+	INCQ DX
+	CMPQ DX, $4
+	JL m24_32_avx2_f64_fwd_stage2_inner
+	ADDQ $256, SI
+	DECQ CX
+	JNZ m24_32_avx2_f64_fwd_stage2_loop
+
+	// Stage 3: Radix-2 combine
+	MOVQ R8, SI
+	MOVQ $16, DX
+m24_32_avx2_f64_fwd_stage3_loop:
+	VMOVUPD (SI), X0
+	VMOVUPD 256(SI), X1
+	MOVQ $16, AX
+	SUBQ DX, AX
+	SHLQ $4, AX
+	VMOVUPD (R10)(AX*1), X10
+	VMOVAPD X1, X2
+	VUNPCKLPD X2, X2, X2
+	VMULPD X10, X2, X2
+	VMOVAPD X1, X3
+	VUNPCKHPD X3, X3, X3
+	VMOVAPD X10, X4
+	VSHUFPD $1, X4, X4, X4
+	VMULPD X3, X4, X4
+	VXORPD X14, X4, X4
+	VADDPD X4, X2, X2
+	VMOVAPD X2, X1
+	VADDPD X1, X0, X2
+	VSUBPD X1, X0, X3
+	VMOVUPD X2, (SI)
+	VMOVUPD X3, 256(SI)
+	ADDQ $16, SI
+	DECQ DX
+	JNZ m24_32_avx2_f64_fwd_stage3_loop
+
+	// Copy to dst
+	MOVQ dst+0(FP), R14
+	CMPQ R8, R14
+	JE   m24_32_avx2_f64_fwd_done
+	MOVQ $32, CX
+	MOVQ R8, SI
+	MOVQ R14, DI
+m24_32_avx2_f64_fwd_copy:
+	VMOVUPD (SI), X0
+	VMOVUPD X0, (DI)
+	ADDQ $16, SI
+	ADDQ $16, DI
+	DECQ CX
+	JNZ m24_32_avx2_f64_fwd_copy
+
+m24_32_avx2_f64_fwd_done:
+	VZEROUPPER
+	MOVB $1, ret+96(FP)
+	RET
+m24_32_avx2_f64_fwd_err:
+	VZEROUPPER
+	MOVB $0, ret+96(FP)
+	RET
+
+// Inverse transform, size 32, complex128, mixed-radix
+TEXT ·InverseAVX2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-97
+	MOVQ dst+0(FP), R8
+	MOVQ src+24(FP), R9
+	MOVQ twiddle+48(FP), R10
+	MOVQ scratch+72(FP), R11
+	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12
+	MOVQ src+32(FP), R13
+
+	CMPQ R13, $32
+	JNE  m24_32_avx2_f64_inv_err
+
+	MOVQ dst+8(FP), AX
+	CMPQ AX, $32
+	JL   m24_32_avx2_f64_inv_err
+
+	MOVQ twiddle+56(FP), AX
+	CMPQ AX, $32
+	JL   m24_32_avx2_f64_inv_err
+
+	MOVQ scratch+80(FP), AX
+	CMPQ AX, $32
+	JL   m24_32_avx2_f64_inv_err
+
+	CMPQ R8, R9
+	JNE  m24_32_avx2_f64_inv_use_dst
+	MOVQ R11, R8
+
+m24_32_avx2_f64_inv_use_dst:
+	// Bit-reversal
+	XORQ CX, CX
+m24_32_avx2_f64_inv_bitrev_loop:
+	MOVQ (R12)(CX*8), DX
+	SHLQ $4, DX
+	VMOVUPD (R9)(DX*1), X0
+	MOVQ CX, AX
+	SHLQ $4, AX
+	VMOVUPD X0, (R8)(AX*1)
+	INCQ CX
+	CMPQ CX, $32
+	JL   m24_32_avx2_f64_inv_bitrev_loop
+
+	// Stage 1
+	MOVQ R8, SI
+	MOVQ $8, CX
+	VMOVUPS ·maskNegLoPD(SB), X14
+
+m24_32_avx2_f64_inv_stage1_loop:
+	VMOVUPD (SI), X0
+	VMOVUPD 16(SI), X1
+	VMOVUPD 32(SI), X2
+	VMOVUPD 48(SI), X3
+	VADDPD X2, X0, X8
+	VSUBPD X2, X0, X9
+	VADDPD X3, X1, X10
+	VSUBPD X3, X1, X11
+	VSHUFPD $1, X11, X11, X12
+	VXORPD X14, X12, X12
+	VADDPD X10, X8, X0
+	VADDPD X12, X9, X1
+	VSUBPD X10, X8, X2
+	VSUBPD X12, X9, X3
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X2, 32(SI)
+	VMOVUPD X3, 48(SI)
+	ADDQ $64, SI
+	DECQ CX
+	JNZ  m24_32_avx2_f64_inv_stage1_loop
+
+	// Stage 2
+	MOVQ R8, SI
+	MOVQ $2, CX
+	VMOVUPS ·maskNegHiPD(SB), X15
+
+m24_32_avx2_f64_inv_stage2_loop:
+	XORQ DX, DX
+m24_32_avx2_f64_inv_stage2_inner:
+	MOVQ DX, AX
+	SHLQ $1, AX
+	SHLQ $4, AX
+	VMOVUPD (R10)(AX*1), X8
+	VXORPD X15, X8, X8
+	MOVQ DX, AX
+	SHLQ $1, AX
+	SHLQ $1, AX
+	SHLQ $4, AX
+	VMOVUPD (R10)(AX*1), X9
+	VXORPD X15, X9, X9
+	MOVQ DX, AX
+	SHLQ $1, AX
+	ADDQ DX, AX
+	SHLQ $1, AX
+	SHLQ $4, AX
+	VMOVUPD (R10)(AX*1), X10
+	VXORPD X15, X10, X10
+
+	MOVQ DX, AX
+	SHLQ $4, AX
+	VMOVUPD (SI)(AX*1), X0
+	ADDQ $64, AX
+	VMOVUPD (SI)(AX*1), X1
+	ADDQ $64, AX
+	VMOVUPD (SI)(AX*1), X2
+	ADDQ $64, AX
+	VMOVUPD (SI)(AX*1), X3
+
+	// Complex mul
+	VMOVAPD X1, X4
+	VUNPCKLPD X4, X4, X4
+	VMULPD X8, X4, X4
+	VMOVAPD X1, X5
+	VUNPCKHPD X5, X5, X5
+	VMOVAPD X8, X6
+	VSHUFPD $1, X6, X6, X6
+	VMULPD X5, X6, X6
+	VXORPD ·maskNegLoPD(SB), X6, X6
+	VADDPD X6, X4, X4
+	VMOVAPD X4, X1
+
+	VMOVAPD X2, X4
+	VUNPCKLPD X4, X4, X4
+	VMULPD X9, X4, X4
+	VMOVAPD X2, X5
+	VUNPCKHPD X5, X5, X5
+	VMOVAPD X9, X6
+	VSHUFPD $1, X6, X6, X6
+	VMULPD X5, X6, X6
+	VXORPD ·maskNegLoPD(SB), X6, X6
+	VADDPD X6, X4, X4
+	VMOVAPD X4, X2
+
+	VMOVAPD X3, X4
+	VUNPCKLPD X4, X4, X4
+	VMULPD X10, X4, X4
+	VMOVAPD X3, X5
+	VUNPCKHPD X5, X5, X5
+	VMOVAPD X10, X6
+	VSHUFPD $1, X6, X6, X6
+	VMULPD X5, X6, X6
+	VXORPD ·maskNegLoPD(SB), X6, X6
+	VADDPD X6, X4, X4
+	VMOVAPD X4, X3
+
+	// Radix-4 butterfly (+i)
+	VADDPD X2, X0, X8
+	VSUBPD X2, X0, X9
+	VADDPD X3, X1, X10
+	VSUBPD X3, X1, X11
+	VSHUFPD $1, X11, X11, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X10, X8, X0
+	VADDPD X12, X9, X1
+	VSUBPD X10, X8, X2
+	VSUBPD X12, X9, X3
+
+	MOVQ DX, AX
+	SHLQ $4, AX
+	VMOVUPD X0, (SI)(AX*1)
+	ADDQ $64, AX
+	VMOVUPD X1, (SI)(AX*1)
+	ADDQ $64, AX
+	VMOVUPD X2, (SI)(AX*1)
+	ADDQ $64, AX
+	VMOVUPD X3, (SI)(AX*1)
+
+	INCQ DX
+	CMPQ DX, $4
+	JL m24_32_avx2_f64_inv_stage2_inner
+	ADDQ $256, SI
+	DECQ CX
+	JNZ m24_32_avx2_f64_inv_stage2_loop
+
+	// Stage 3: Radix-2 combine
+	MOVQ R8, SI
+	MOVQ $16, DX
+m24_32_avx2_f64_inv_stage3_loop:
+	VMOVUPD (SI), X0
+	VMOVUPD 256(SI), X1
+	MOVQ $16, AX
+	SUBQ DX, AX
+	SHLQ $4, AX
+	VMOVUPD (R10)(AX*1), X10
+	VXORPD X15, X10, X10
+	VMOVAPD X1, X2
+	VUNPCKLPD X2, X2, X2
+	VMULPD X10, X2, X2
+	VMOVAPD X1, X3
+	VUNPCKHPD X3, X3, X3
+	VMOVAPD X10, X4
+	VSHUFPD $1, X4, X4, X4
+	VMULPD X3, X4, X4
+	VXORPD ·maskNegLoPD(SB), X4, X4
+	VADDPD X4, X2, X2
+	VMOVAPD X2, X1
+	VADDPD X1, X0, X2
+	VSUBPD X1, X0, X3
+	VMOVUPD X2, (SI)
+	VMOVUPD X3, 256(SI)
+	ADDQ $16, SI
+	DECQ DX
+	JNZ m24_32_avx2_f64_inv_stage3_loop
+
+	// Scale by 1/32
+	VMOVSD ·thirtySecond64(SB), X15
+	VSHUFPD $0, X15, X15, X15
+	MOVQ $32, CX
+	MOVQ R8, SI
+m24_32_avx2_f64_inv_scale:
+	VMOVUPD (SI), X0
+	VMULPD X15, X0, X0
+	VMOVUPD X0, (SI)
+	ADDQ $16, SI
+	DECQ CX
+	JNZ m24_32_avx2_f64_inv_scale
+
+	// Copy to dst
+	MOVQ dst+0(FP), R14
+	CMPQ R8, R14
+	JE   m24_32_avx2_f64_inv_done
+	MOVQ $32, CX
+	MOVQ R8, SI
+	MOVQ R14, DI
+m24_32_avx2_f64_inv_copy:
+	VMOVUPD (SI), X0
+	VMOVUPD X0, (DI)
+	ADDQ $16, SI
+	ADDQ $16, DI
+	DECQ CX
+	JNZ m24_32_avx2_f64_inv_copy
+
+m24_32_avx2_f64_inv_done:
+	VZEROUPPER
+	MOVB $1, ret+96(FP)
+	RET
+m24_32_avx2_f64_inv_err:
+	VZEROUPPER
+	MOVB $0, ret+96(FP)
+	RET
