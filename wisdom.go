@@ -11,14 +11,14 @@ import (
 // ImportWisdom loads wisdom data from a file.
 // The file should be in the format produced by ExportWisdom.
 func ImportWisdom(filename string) error {
-	f, err := os.Open(filename)
+	file, err := os.Open(filename)
 	if err != nil {
 		return fmt.Errorf("failed to open wisdom file: %w", err)
 	}
 
-	defer f.Close()
+	defer file.Close()
 
-	if err := fft.DefaultWisdom.Import(f); err != nil {
+	if err := fft.DefaultWisdom.Import(file); err != nil {
 		return fmt.Errorf("failed to import wisdom: %w", err)
 	}
 

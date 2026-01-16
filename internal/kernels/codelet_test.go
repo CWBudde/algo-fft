@@ -15,8 +15,8 @@ func TestCodeletRegistryLookup(t *testing.T) {
 
 		features := cpu.Features{HasSSE2: true}
 
-		// Should find codelets for sizes 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192
-		sizes := []int{4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192}
+		// Should find codelets for sizes 4, 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192
+		sizes := []int{4, 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192}
 		for _, size := range sizes {
 			entry := Registry64.Lookup(size, features)
 			if entry == nil {
@@ -48,7 +48,7 @@ func TestCodeletRegistryLookup(t *testing.T) {
 
 		features := cpu.Features{HasSSE2: true}
 
-		sizes := []int{4, 8, 16, 32, 64, 128, 256}
+		sizes := []int{4, 8, 16, 32, 64, 128, 256, 384}
 		for _, size := range sizes {
 			entry := Registry128.Lookup(size, features)
 			if entry == nil {

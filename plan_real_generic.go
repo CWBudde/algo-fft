@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"math"
+	"unsafe"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
 )
@@ -147,22 +148,20 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 	}
 
 	// Pack real samples into complex buffer: z[k] = src[2k] + i*src[2k+1]
+	// Memory layout of []float32{r0,i0,r1,i1,...} is identical to []complex64,
+	// so we can use unsafe.Slice to reinterpret and copy efficiently.
 	var zero C
 	switch any(zero).(type) {
 	case complex64:
 		srcF32 := any(src).([]float32)
-
 		bufC64 := any(p.buf).([]complex64)
-		for i := range p.half {
-			bufC64[i] = complex(srcF32[2*i], srcF32[2*i+1])
-		}
+		srcAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&srcF32[0])), p.half)
+		copy(bufC64, srcAsComplex)
 	case complex128:
 		srcF64 := any(src).([]float64)
-
 		bufC128 := any(p.buf).([]complex128)
-		for i := range p.half {
-			bufC128[i] = complex(srcF64[2*i], srcF64[2*i+1])
-		}
+		srcAsComplex := unsafe.Slice((*complex128)(unsafe.Pointer(&srcF64[0])), p.half)
+		copy(bufC128, srcAsComplex)
 	}
 
 	// Perform N/2 complex FFT
