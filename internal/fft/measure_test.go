@@ -106,8 +106,12 @@ func TestGetMeasureConfig(t *testing.T) {
 	}
 }
 
+// TestBenchmarkStrategy tests the benchmarkStrategy function.
+//
+//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestBenchmarkStrategy(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - cpu.DetectFeatures() reads global state that tests in
+	// internal/cpu and other packages may modify via SetForcedFeatures()
 
 	features := cpu.DetectFeatures()
 
@@ -124,7 +128,7 @@ func TestBenchmarkStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+			// NOT parallel - parent test is not parallel
 
 			config := measureConfig{warmup: 1, iters: 3}
 			elapsed := benchmarkStrategy[complex64](tt.n, features, tt.strategy, config)
@@ -137,8 +141,11 @@ func TestBenchmarkStrategy(t *testing.T) {
 	}
 }
 
+// TestMeasureAndSelect_RecordsToWisdom tests that MeasureAndSelect records wisdom entries.
+//
+//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - cpu.DetectFeatures() reads global state
 
 	features := cpu.DetectFeatures()
 	recorder := &mockWisdomRecorder{}
@@ -186,8 +193,11 @@ func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
 	}
 }
 
+// TestMeasureAndSelect_ForcedStrategy tests that forced strategy skips measurement.
+//
+//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_ForcedStrategy(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - cpu.DetectFeatures() reads global state
 
 	features := cpu.DetectFeatures()
 	recorder := &mockWisdomRecorder{}
@@ -212,8 +222,11 @@ func TestMeasureAndSelect_ForcedStrategy(t *testing.T) {
 	}
 }
 
+// TestMeasureAndSelect_NilWisdom tests that MeasureAndSelect works with nil wisdom recorder.
+//
+//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_NilWisdom(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - cpu.DetectFeatures() reads global state
 
 	features := cpu.DetectFeatures()
 
@@ -232,8 +245,11 @@ func TestMeasureAndSelect_NilWisdom(t *testing.T) {
 	}
 }
 
+// TestMeasureAndSelect_Complex128 tests MeasureAndSelect with complex128.
+//
+//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_Complex128(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - cpu.DetectFeatures() reads global state
 
 	features := cpu.DetectFeatures()
 	recorder := &mockWisdomRecorder{}
@@ -260,8 +276,11 @@ func TestMeasureAndSelect_Complex128(t *testing.T) {
 	}
 }
 
+// TestMeasureAndSelect_AllModes tests all planner modes.
+//
+//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_AllModes(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - cpu.DetectFeatures() reads global state
 
 	features := cpu.DetectFeatures()
 
@@ -269,7 +288,7 @@ func TestMeasureAndSelect_AllModes(t *testing.T) {
 
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
-			t.Parallel()
+			// NOT parallel - parent test is not parallel
 
 			recorder := &mockWisdomRecorder{}
 			estimate := MeasureAndSelect[complex64](
@@ -307,8 +326,11 @@ func (m PlannerMode) String() string {
 	}
 }
 
+// TestWisdomEntry_Timestamp tests that wisdom entries have valid timestamps.
+//
+//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestWisdomEntry_Timestamp(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - cpu.DetectFeatures() reads global state
 
 	before := time.Now()
 
