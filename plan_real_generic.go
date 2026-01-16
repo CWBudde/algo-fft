@@ -5,6 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/fft"
 )
 
 // PlanRealT is a generic pre-computed real FFT plan supporting both float32 and float64 input.
@@ -285,7 +286,6 @@ func (p *PlanRealT[F, C]) Inverse(dst []F, src []C) error {
 	return nil
 }
 
-//nolint:gocognit
 func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
@@ -321,68 +321,12 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 		srcC64 := any(src).([]complex64)
 		bufC64 := any(p.buf).([]complex64)
 		weightC64 := any(p.weight).([]complex64)
-
-		x0 := real(srcC64[0])
-		xh := real(srcC64[p.half])
-		bufC64[0] = complex(0.5*(x0+xh), 0.5*(x0-xh))
-
-		for k := 1; k < p.half; k++ {
-			m := p.half - k
-			if k > m {
-				continue
-			}
-
-			xk := srcC64[k]
-			xmk := srcC64[m]
-			xmkc := complex(real(xmk), -imag(xmk))
-
-			u := weightC64[k]
-			oneMinusU := complex64(1) - u
-			det := complex64(1) - 2*u
-			// det is on the unit circle, so 1/det == conj(det)
-			invDet := complex(real(det), -imag(det))
-
-			a := (xk*oneMinusU - xmkc*u) * invDet
-			b := (oneMinusU*xmkc - u*xk) * invDet
-
-			bufC64[k] = a
-			if k != m {
-				bufC64[m] = complex(real(b), -imag(b))
-			}
-		}
+		fft.RepackInverseComplex64(bufC64, srcC64, weightC64)
 	case complex128:
 		srcC128 := any(src).([]complex128)
 		bufC128 := any(p.buf).([]complex128)
 		weightC128 := any(p.weight).([]complex128)
-
-		x0 := real(srcC128[0])
-		xh := real(srcC128[p.half])
-		bufC128[0] = complex(0.5*(x0+xh), 0.5*(x0-xh))
-
-		for k := 1; k < p.half; k++ {
-			m := p.half - k
-			if k > m {
-				continue
-			}
-
-			xk := srcC128[k]
-			xmk := srcC128[m]
-			xmkc := complex(real(xmk), -imag(xmk))
-
-			u := weightC128[k]
-			oneMinusU := complex128(1) - u
-			det := complex128(1) - 2*u
-			// det is on the unit circle, so 1/det == conj(det)
-			invDet := complex(real(det), -imag(det))
-
-			a := (xk*oneMinusU - xmkc*u) * invDet
-			b := (oneMinusU*xmkc - u*xk) * invDet
-
-			bufC128[k] = a
-			if k != m {
-				bufC128[m] = complex(real(b), -imag(b))
-			}
-		}
+		fft.RepackInverseComplex128(bufC128, srcC128, weightC128)
 	}
 
 	// Inverse N/2 complex FFT
@@ -392,25 +336,19 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 	}
 
 	// Unpack complex buffer to real output
+	// Memory layout of []complex64 is identical to []float32{r0,i0,r1,i1,...},
+	// so we can use unsafe.Slice to reinterpret and copy efficiently.
 	switch any(zero).(type) {
 	case complex64:
 		bufC64 := any(p.buf).([]complex64)
 		dstF32 := any(dst).([]float32)
-
-		for i := range p.half {
-			v := bufC64[i]
-			dstF32[2*i] = real(v)
-			dstF32[2*i+1] = imag(v)
-		}
+		dstAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&dstF32[0])), p.half)
+		copy(dstAsComplex, bufC64)
 	case complex128:
 		bufC128 := any(p.buf).([]complex128)
 		dstF64 := any(dst).([]float64)
-
-		for i := range p.half {
-			v := bufC128[i]
-			dstF64[2*i] = real(v)
-			dstF64[2*i+1] = imag(v)
-		}
+		dstAsComplex := unsafe.Slice((*complex128)(unsafe.Pointer(&dstF64[0])), p.half)
+		copy(dstAsComplex, bufC128)
 	}
 
 	return nil
@@ -426,16 +364,10 @@ func scaleSpectrumGeneric[C Complex](dst []C, scale float64) {
 	case complex64:
 		dstC64 := any(dst).([]complex64)
 
-		factor := complex(float32(scale), 0)
-		for i := range dstC64 {
-			dstC64[i] *= factor
-		}
+		fft.ScaleComplex64InPlace(dstC64, float32(scale))
 	case complex128:
 		dstC128 := any(dst).([]complex128)
 
-		factor := complex(scale, 0)
-		for i := range dstC128 {
-			dstC128[i] *= factor
-		}
+		fft.ScaleComplex128InPlace(dstC128, scale)
 	}
 }
