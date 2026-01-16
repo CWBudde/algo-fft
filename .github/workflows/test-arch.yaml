@@ -117,8 +117,8 @@ jobs:
           GOOS: js
           GOARCH: wasm
         run: |
-          # Copy wasm_exec.js from Go installation
-          cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" .
+          # Copy wasm_exec.js from Go installation (moved to lib/wasm in Go 1.24+)
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" .
 
           # Run tests
-          go test -v -count=1 -exec="$(go env GOROOT)/misc/wasm/go_js_wasm_exec" ./...
+          go test -v -count=1 -exec="$(go env GOROOT)/lib/wasm/go_js_wasm_exec" ./...
