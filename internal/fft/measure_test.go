@@ -107,13 +107,16 @@ func TestGetMeasureConfig(t *testing.T) {
 }
 
 // TestBenchmarkStrategy tests the benchmarkStrategy function.
-//
-//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestBenchmarkStrategy(t *testing.T) {
-	// NOT parallel - cpu.DetectFeatures() reads global state that tests in
-	// internal/cpu and other packages may modify via SetForcedFeatures()
+	t.Parallel()
 
-	features := cpu.DetectFeatures()
+	// Use explicit features with ForceGeneric to ensure pure-Go fallbacks are used.
+	// This makes the test immune to race conditions from other tests modifying
+	// global CPU detection state via SetForcedFeatures().
+	features := cpu.Features{
+		ForceGeneric: true,
+		Architecture: "amd64",
+	}
 
 	tests := []struct {
 		name     string
@@ -128,7 +131,7 @@ func TestBenchmarkStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// NOT parallel - parent test is not parallel
+			t.Parallel()
 
 			config := measureConfig{warmup: 1, iters: 3}
 			elapsed := benchmarkStrategy[complex64](tt.n, features, tt.strategy, config)
@@ -142,12 +145,14 @@ func TestBenchmarkStrategy(t *testing.T) {
 }
 
 // TestMeasureAndSelect_RecordsToWisdom tests that MeasureAndSelect records wisdom entries.
-//
-//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
-	// NOT parallel - cpu.DetectFeatures() reads global state
+	t.Parallel()
 
-	features := cpu.DetectFeatures()
+	// Use explicit features to avoid race conditions with other tests.
+	features := cpu.Features{
+		ForceGeneric: true,
+		Architecture: "amd64",
+	}
 	recorder := &mockWisdomRecorder{}
 
 	// Run with PlannerMeasure mode
@@ -194,12 +199,14 @@ func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
 }
 
 // TestMeasureAndSelect_ForcedStrategy tests that forced strategy skips measurement.
-//
-//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_ForcedStrategy(t *testing.T) {
-	// NOT parallel - cpu.DetectFeatures() reads global state
+	t.Parallel()
 
-	features := cpu.DetectFeatures()
+	// Use explicit features to avoid race conditions with other tests.
+	features := cpu.Features{
+		ForceGeneric: true,
+		Architecture: "amd64",
+	}
 	recorder := &mockWisdomRecorder{}
 
 	// Force Stockham strategy
@@ -223,12 +230,14 @@ func TestMeasureAndSelect_ForcedStrategy(t *testing.T) {
 }
 
 // TestMeasureAndSelect_NilWisdom tests that MeasureAndSelect works with nil wisdom recorder.
-//
-//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_NilWisdom(t *testing.T) {
-	// NOT parallel - cpu.DetectFeatures() reads global state
+	t.Parallel()
 
-	features := cpu.DetectFeatures()
+	// Use explicit features to avoid race conditions with other tests.
+	features := cpu.Features{
+		ForceGeneric: true,
+		Architecture: "amd64",
+	}
 
 	// Should not panic with nil wisdom recorder
 	estimate := MeasureAndSelect[complex64](
@@ -246,12 +255,14 @@ func TestMeasureAndSelect_NilWisdom(t *testing.T) {
 }
 
 // TestMeasureAndSelect_Complex128 tests MeasureAndSelect with complex128.
-//
-//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_Complex128(t *testing.T) {
-	// NOT parallel - cpu.DetectFeatures() reads global state
+	t.Parallel()
 
-	features := cpu.DetectFeatures()
+	// Use explicit features to avoid race conditions with other tests.
+	features := cpu.Features{
+		ForceGeneric: true,
+		Architecture: "amd64",
+	}
 	recorder := &mockWisdomRecorder{}
 
 	estimate := MeasureAndSelect[complex128](
@@ -277,18 +288,20 @@ func TestMeasureAndSelect_Complex128(t *testing.T) {
 }
 
 // TestMeasureAndSelect_AllModes tests all planner modes.
-//
-//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestMeasureAndSelect_AllModes(t *testing.T) {
-	// NOT parallel - cpu.DetectFeatures() reads global state
+	t.Parallel()
 
-	features := cpu.DetectFeatures()
+	// Use explicit features to avoid race conditions with other tests.
+	features := cpu.Features{
+		ForceGeneric: true,
+		Architecture: "amd64",
+	}
 
 	modes := []PlannerMode{PlannerMeasure, PlannerPatient, PlannerExhaustive}
 
 	for _, mode := range modes {
 		t.Run(mode.String(), func(t *testing.T) {
-			// NOT parallel - parent test is not parallel
+			t.Parallel()
 
 			recorder := &mockWisdomRecorder{}
 			estimate := MeasureAndSelect[complex64](
@@ -327,14 +340,16 @@ func (m PlannerMode) String() string {
 }
 
 // TestWisdomEntry_Timestamp tests that wisdom entries have valid timestamps.
-//
-//nolint:paralleltest // reads global CPU detection state that may be modified by tests in other packages
 func TestWisdomEntry_Timestamp(t *testing.T) {
-	// NOT parallel - cpu.DetectFeatures() reads global state
+	t.Parallel()
 
 	before := time.Now()
 
-	features := cpu.DetectFeatures()
+	// Use explicit features to avoid race conditions with other tests.
+	features := cpu.Features{
+		ForceGeneric: true,
+		Architecture: "amd64",
+	}
 	recorder := &mockWisdomRecorder{}
 
 	MeasureAndSelect[complex64](64, features, PlannerMeasure, recorder, KernelAuto)
