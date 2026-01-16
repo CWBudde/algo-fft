@@ -466,18 +466,22 @@ Based on expected benefit/effort ratio:
   - [ ] Option B: AWS Graviton t4g.micro (free tier eligible)
   - [ ] Option C: Apple Silicon Mac (M1/M2/M3)
 - [ ] Run full test suite on real hardware:
+
   ```bash
   go test -v -tags=asm ./...
   ```
+
 - [ ] Verify all NEON kernels produce correct results
 - [ ] Check for any hardware-specific issues (alignment, denormals)
 
 #### 15.4.2 Performance Benchmarking
 
 - [ ] Run benchmarks on real ARM64 hardware:
+
   ```bash
   just bench | tee benchmarks/arm64_native.txt
   ```
+
 - [ ] Compare QEMU vs native performance ratios
 - [ ] Document realistic speedup numbers for NEON kernels
 - [ ] Identify sizes where NEON provides most benefit
@@ -568,9 +572,11 @@ NEON processes 1 complex128 per 128-bit register (half the throughput of complex
 ### 16.3 Stability Testing
 
 - [ ] Run tests 5x to detect flaky tests:
+
   ```bash
   for i in {1..5}; do go test ./... || echo "FAIL $i"; done
   ```
+
 - [ ] Fix any flaky tests found
 - [ ] Run `go test -race ./...` to verify concurrency safety
 

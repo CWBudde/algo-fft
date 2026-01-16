@@ -16,10 +16,10 @@
 
 ## Sources
 
-- Go WebAssembly wiki: https://go.dev/wiki/WebAssembly
-- Go 1.25 release notes: https://go.dev/doc/go1.25
-- WebAssembly feature status: https://webassembly.org/features/
-- WebAssembly features JSON: https://webassembly.org/features.json
+- Go WebAssembly wiki: <https://go.dev/wiki/WebAssembly>
+- Go 1.25 release notes: <https://go.dev/doc/go1.25>
+- WebAssembly feature status: <https://webassembly.org/features/>
+- WebAssembly features JSON: <https://webassembly.org/features.json>
 
 ## Next steps (if SIMD becomes available in Go)
 

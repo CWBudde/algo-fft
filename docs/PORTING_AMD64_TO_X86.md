@@ -165,7 +165,7 @@ MOVL AX, 20(SP)     // n at SP+20
 MOVL 8(SP), BX      // Reload twiddle pointer
 ```
 
-### 7. SSE2 Instructions - Same on Both Architectures!
+### 7. SSE2 Instructions - Same on Both Architectures
 
 Good news: SSE2 instructions work identically:
 
@@ -187,7 +187,7 @@ XORPS X3, X0            // XOR (for sign flips)
 - AMD64: XMM0-XMM15 available
 - x86: XMM0-XMM7 available (8 registers, not 16)
 
-### 8. XMM Register Constraint - CRITICAL!
+### 8. XMM Register Constraint - CRITICAL
 
 **IMPORTANT:** x86 (32-bit) only has XMM0-XMM7, not XMM8-XMM15!
 

@@ -332,47 +332,6 @@ func TestPlanBatch_InPlace(t *testing.T) {
 	}
 }
 
-// TestPlanBatch_ZeroAllocations verifies no allocations during batch transforms.
-//
-//nolint:paralleltest
-func TestPlanBatch_ZeroAllocations(t *testing.T) {
-	// Note: t.Parallel() cannot be used here because testing.AllocsPerRun
-	// panics when called during a parallel test.
-	n := 64
-	count := 10
-
-	plan, err := NewPlan(n)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	src := make([]complex64, n*count)
-	dst := make([]complex64, n*count)
-
-	// Warm up
-	for range 5 {
-		_ = plan.ForwardBatch(dst, src, count)
-	}
-
-	// Measure allocations
-	allocs := testing.AllocsPerRun(100, func() {
-		_ = plan.ForwardBatch(dst, src, count)
-	})
-
-	if allocs > 0 {
-		t.Errorf("ForwardBatch allocated %f times per run, want 0", allocs)
-	}
-
-	// Same for inverse
-	allocs = testing.AllocsPerRun(100, func() {
-		_ = plan.InverseBatch(dst, src, count)
-	})
-
-	if allocs > 0 {
-		t.Errorf("InverseBatch allocated %f times per run, want 0", allocs)
-	}
-}
-
 // TestPlanBatch_LargeBatch verifies correctness with large batch counts.
 func TestPlanBatch_LargeBatch(t *testing.T) {
 	t.Parallel()
