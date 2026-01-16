@@ -98,7 +98,7 @@ MOVL dst+0(FP), DI
 SHLL $3, CX              # complex64 = 8 bytes
 ```
 
-## SSE2 Instructions - Unchanged!
+## SSE2 Instructions - Unchanged
 
 Good news: SSE2 instructions work identically on both architectures:
 

@@ -306,3 +306,155 @@ func TestKernelsFunctional_Complex128(t *testing.T) {
 		}
 	}
 }
+
+// TestAVX2KernelStrategyDispatch tests AVX2 strategy kernel dispatch functions.
+func TestAVX2KernelStrategyDispatch(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Complex64_DIT_Strategy", func(t *testing.T) {
+		t.Parallel()
+
+		n := 8
+		ditCalled := false
+		stockhamCalled := false
+
+		// Mock DIT and Stockham kernels
+		ditKernel := func(dst, src, twiddle, scratch []complex64) bool {
+			ditCalled = true
+			return true
+		}
+
+		stockhamKernel := func(dst, src, twiddle, scratch []complex64) bool {
+			stockhamCalled = true
+			return true
+		}
+
+		// Create AVX2 strategy kernel
+		kernel := avx2KernelComplex64(KernelDIT, ditKernel, stockhamKernel)
+
+		src := make([]complex64, n)
+		dst := make([]complex64, n)
+		twiddle := make([]complex64, n)
+		scratch := make([]complex64, n)
+
+		// Call kernel with DIT strategy
+		handled := kernel(dst, src, twiddle, scratch)
+
+		if !handled {
+			t.Error("Kernel should have handled the transform")
+		}
+
+		if !ditCalled {
+			t.Error("DIT kernel should have been called")
+		}
+
+		if stockhamCalled {
+			t.Error("Stockham kernel should not have been called")
+		}
+	})
+
+	t.Run("Complex64_Stockham_Strategy", func(t *testing.T) {
+		t.Parallel()
+
+		n := 1024
+		ditCalled := false
+		stockhamCalled := false
+
+		ditKernel := func(dst, src, twiddle, scratch []complex64) bool {
+			ditCalled = true
+			return true
+		}
+
+		stockhamKernel := func(dst, src, twiddle, scratch []complex64) bool {
+			stockhamCalled = true
+			return true
+		}
+
+		kernel := avx2KernelComplex64(KernelStockham, ditKernel, stockhamKernel)
+
+		src := make([]complex64, n)
+		dst := make([]complex64, n)
+		twiddle := make([]complex64, n)
+		scratch := make([]complex64, n)
+
+		handled := kernel(dst, src, twiddle, scratch)
+
+		if !handled {
+			t.Error("Kernel should have handled the transform")
+		}
+
+		if ditCalled {
+			t.Error("DIT kernel should not have been called")
+		}
+
+		if !stockhamCalled {
+			t.Error("Stockham kernel should have been called")
+		}
+	})
+
+	t.Run("Complex128_DIT_Strategy", func(t *testing.T) {
+		t.Parallel()
+
+		n := 8
+		ditCalled := false
+
+		ditKernel := func(dst, src, twiddle, scratch []complex128) bool {
+			ditCalled = true
+			return true
+		}
+
+		stockhamKernel := func(dst, src, twiddle, scratch []complex128) bool {
+			return true
+		}
+
+		kernel := avx2KernelComplex128(KernelDIT, ditKernel, stockhamKernel)
+
+		src := make([]complex128, n)
+		dst := make([]complex128, n)
+		twiddle := make([]complex128, n)
+		scratch := make([]complex128, n)
+
+		handled := kernel(dst, src, twiddle, scratch)
+
+		if !handled {
+			t.Error("Kernel should have handled the transform")
+		}
+
+		if !ditCalled {
+			t.Error("DIT kernel should have been called")
+		}
+	})
+
+	t.Run("Complex128_Stockham_Strategy", func(t *testing.T) {
+		t.Parallel()
+
+		n := 1024
+		stockhamCalled := false
+
+		ditKernel := func(dst, src, twiddle, scratch []complex128) bool {
+			return true
+		}
+
+		stockhamKernel := func(dst, src, twiddle, scratch []complex128) bool {
+			stockhamCalled = true
+			return true
+		}
+
+		kernel := avx2KernelComplex128(KernelStockham, ditKernel, stockhamKernel)
+
+		src := make([]complex128, n)
+		dst := make([]complex128, n)
+		twiddle := make([]complex128, n)
+		scratch := make([]complex128, n)
+
+		handled := kernel(dst, src, twiddle, scratch)
+
+		if !handled {
+			t.Error("Kernel should have handled the transform")
+		}
+
+		if !stockhamCalled {
+			t.Error("Stockham kernel should have been called")
+		}
+	})
+}

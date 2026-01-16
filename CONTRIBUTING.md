@@ -11,6 +11,7 @@ Be respectful and constructive in all interactions. We're committed to providing
 1. **Fork and clone** the repository
 2. **Create a feature branch**: `git checkout -b feature/my-feature`
 3. **Set up development environment**:
+
    ```bash
    go mod download
    just build

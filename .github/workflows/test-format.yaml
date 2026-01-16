@@ -28,7 +28,7 @@ jobs:
           curl -fsSL https://github.com/numtide/treefmt/releases/download/v2.1.1/treefmt_2.1.1_linux_amd64.tar.gz | sudo tar -C /usr/local/bin -xz treefmt
 
           # Install prettier
-          npm install -g prettier
+          npm install -g prettier markdownlint-cli
 
           # Install gofumpt
           go install mvdan.cc/gofumpt@latest
