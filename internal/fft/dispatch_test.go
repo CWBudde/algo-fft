@@ -129,13 +129,16 @@ func TestDetectFeatures(t *testing.T) {
 }
 
 // TestKernelSelectionWithForcedFeatures tests kernel selection with mocked CPU features.
+//
+//nolint:paralleltest // Modifies global CPU detection state via SetForcedFeatures/ResetDetection
 func TestKernelSelectionWithForcedFeatures(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - this test modifies global cpu.forcedFeatures state
 
 	// Test SSE2-only system (no AVX2)
+	//
+	//nolint:paralleltest // parent modifies global state
 	t.Run("SSE2Only", func(t *testing.T) {
-		t.Parallel()
-
+		// NOT parallel - modifies global CPU state
 		defer cpu.ResetDetection()
 
 		cpu.SetForcedFeatures(cpu.Features{
