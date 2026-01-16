@@ -385,6 +385,18 @@ func registerDITCodelets64() {
 		Priority:   20,
 	})
 
+	// Size 8192: Six-Step variant (64×128 matrix decomposition)
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       8192,
+		Forward:    wrapCodelet64(forwardDIT8192SixStep64x128Complex64),
+		Inverse:    wrapCodelet64(inverseDIT8192SixStep64x128Complex64),
+		Algorithm:  KernelDIT,
+		KernelType: KernelTypeDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit8192_sixstep64x128_generic",
+		Priority:   30,
+	})
+
 	// Size 16384: Radix-4 variant (16384 = 4^7, 7 stages vs 14 for radix-2)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16384,
@@ -732,6 +744,18 @@ func registerDITCodelets128() {
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8192_mixedradix24_generic",
 		Priority:   20,
+	})
+
+	// Size 8192: Six-Step variant (64×128 matrix decomposition)
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       8192,
+		Forward:    wrapCodelet128(forwardDIT8192SixStep64x128Complex128),
+		Inverse:    wrapCodelet128(inverseDIT8192SixStep64x128Complex128),
+		Algorithm:  KernelDIT,
+		KernelType: KernelTypeDIT,
+		SIMDLevel:  SIMDNone,
+		Signature:  "dit8192_sixstep64x128_generic",
+		Priority:   30,
 	})
 
 	// Size 16384: Radix-4 variant (16384 = 4^7, 7 stages vs 14 for radix-2)

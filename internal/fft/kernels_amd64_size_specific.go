@@ -242,6 +242,12 @@ func sse3SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 		}
 
 		switch n {
+		case 4:
+			if forwardSSE3Size4Radix4Complex64Asm(dst, src, twiddle, scratch) {
+				return true
+			}
+			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
+
 		case 8:
 			if forwardSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch) {
 				return true
@@ -318,6 +324,12 @@ func sse3SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 		}
 
 		switch n {
+		case 4:
+			if inverseSSE3Size4Radix4Complex64Asm(dst, src, twiddle, scratch) {
+				return true
+			}
+			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
+
 		case 8:
 			if inverseSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch) {
 				return true

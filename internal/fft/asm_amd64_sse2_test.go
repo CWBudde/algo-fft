@@ -110,14 +110,22 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 		testRoundTrip bool
 		testInPlace   bool
 	}{
-		{
-			name:          "Size4_Radix4",
-			size:          4,
-			forward:       forwardSSE2Size4Radix4Complex64Asm,
-			inverse:       inverseSSE2Size4Radix4Complex64Asm,
-			testRoundTrip: false,
-			testInPlace:   false,
-		},
+	{
+		name:          "Size4_Radix4",
+		size:          4,
+		forward:       forwardSSE2Size4Radix4Complex64Asm,
+		inverse:       inverseSSE2Size4Radix4Complex64Asm,
+		testRoundTrip: false,
+		testInPlace:   false,
+	},
+	{
+		name:          "Size4_Radix4_SSE3",
+		size:          4,
+		forward:       forwardSSE3Size4Radix4Complex64Asm,
+		inverse:       inverseSSE3Size4Radix4Complex64Asm,
+		testRoundTrip: false,
+		testInPlace:   false,
+	},
 		{
 			name:          "Size8_Radix4",
 			size:          8,
