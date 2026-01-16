@@ -12,8 +12,14 @@ import (
 
 // TestSIMDVsGeneric verifies that SIMD-optimized implementations produce
 // identical results to pure-Go fallback implementations.
+//
+//nolint:paralleltest // Modifies global CPU detection state via SetForcedFeatures/ResetDetection
 func TestSIMDVsGeneric(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - this test modifies global cpu.forcedFeatures state via
+	// cpu.SetForcedFeatures() and cpu.ResetDetection(), which would cause
+	// race conditions with other parallel tests that read CPU features.
+	// See: https://github.com/MeKo-Christian/algo-fft/issues (Windows CI failure)
+
 	// Skip if not on SIMD-capable architecture
 	arch := runtime.GOARCH
 	if arch != "amd64" && arch != "arm64" {
@@ -24,11 +30,11 @@ func TestSIMDVsGeneric(t *testing.T) {
 
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d_complex64", n), func(t *testing.T) {
-			t.Parallel()
+			// NOT parallel - parent test modifies global state
 			testSIMDvsGeneric64(t, n)
 		})
 		t.Run(fmt.Sprintf("size_%d_complex128", n), func(t *testing.T) {
-			t.Parallel()
+			// NOT parallel - parent test modifies global state
 			testSIMDvsGeneric128(t, n)
 		})
 	}
