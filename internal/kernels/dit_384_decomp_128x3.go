@@ -36,8 +36,11 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	// Step 3: Compute 3 independent 128-point FFTs.
-	var subTwiddle [stride]complex64
-	var subScratch [stride]complex64
+	var (
+		subTwiddle [stride]complex64
+		subScratch [stride]complex64
+	)
+
 	for k := range stride {
 		subTwiddle[k] = twiddle[k*3]
 	}
@@ -56,6 +59,7 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Step 4: Interleave output into final order.
 	copy(work, dst[:n])
+
 	for k1 := range stride {
 		for k2 := range 3 {
 			dst[k1*3+k2] = work[k2*stride+k1]
@@ -86,8 +90,11 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	// Step 2: Compute 3 independent 128-point IFFTs.
-	var subTwiddle [stride]complex64
-	var subScratch [stride]complex64
+	var (
+		subTwiddle [stride]complex64
+		subScratch [stride]complex64
+	)
+
 	for k := range stride {
 		subTwiddle[k] = twiddle[k*3]
 	}
@@ -106,6 +113,7 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Step 3: Apply conjugate twiddle factors.
 	copy(work, dst[:n])
+
 	for n1 := range stride {
 		work[stride+n1] *= mathpkg.Conj(twiddle[n1])
 		work[2*stride+n1] *= mathpkg.Conj(twiddle[2*n1])
@@ -113,6 +121,7 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Step 4: Compute 128 radix-3 inverse column butterflies.
 	scale := complex64(complex(1.0/3.0, 0))
+
 	for n1 := range stride {
 		a0 := work[n1]
 		a1 := work[n1+stride]
@@ -157,8 +166,11 @@ func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	}
 
 	// Step 3: Compute 3 independent 128-point FFTs.
-	var subTwiddle [stride]complex128
-	var subScratch [stride]complex128
+	var (
+		subTwiddle [stride]complex128
+		subScratch [stride]complex128
+	)
+
 	for k := range stride {
 		subTwiddle[k] = twiddle[k*3]
 	}
@@ -177,6 +189,7 @@ func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Step 4: Interleave output into final order.
 	copy(work, dst[:n])
+
 	for k1 := range stride {
 		for k2 := range 3 {
 			dst[k1*3+k2] = work[k2*stride+k1]
@@ -207,8 +220,11 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	}
 
 	// Step 2: Compute 3 independent 128-point IFFTs.
-	var subTwiddle [stride]complex128
-	var subScratch [stride]complex128
+	var (
+		subTwiddle [stride]complex128
+		subScratch [stride]complex128
+	)
+
 	for k := range stride {
 		subTwiddle[k] = twiddle[k*3]
 	}
@@ -227,6 +243,7 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Step 3: Apply conjugate twiddle factors.
 	copy(work, dst[:n])
+
 	for n1 := range stride {
 		work[stride+n1] *= mathpkg.Conj(twiddle[n1])
 		work[2*stride+n1] *= mathpkg.Conj(twiddle[2*n1])
@@ -234,6 +251,7 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 
 	// Step 4: Compute 128 radix-3 inverse column butterflies.
 	scale := complex128(complex(1.0/3.0, 0))
+
 	for n1 := range stride {
 		a0 := work[n1]
 		a1 := work[n1+stride]

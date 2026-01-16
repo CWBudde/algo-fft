@@ -165,3 +165,16 @@ func ComplexMulArrayComplex128NEONAsm(dst, a, b []complex128)
 
 //go:noescape
 func ComplexMulArrayInPlaceComplex128NEONAsm(dst, src []complex128)
+
+// Complex array scaling (element-wise) with scalar factors.
+
+//go:noescape
+func ScaleComplex64NEONAsm(dst []complex64, scale float32)
+
+//go:noescape
+func ScaleComplex128NEONAsm(dst []complex128, scale float64)
+
+// Inverse real FFT repack helpers (complex64 only).
+
+//go:noescape
+func InverseRepackComplex64NEONAsm(dst, src, weight []complex64, kStartMax int)

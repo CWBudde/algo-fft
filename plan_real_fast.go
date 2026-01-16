@@ -1,6 +1,10 @@
 package algofft
 
-import "math"
+import (
+	"math"
+
+	"github.com/MeKo-Christian/algo-fft/internal/fft"
+)
 
 // FastPlanReal32 provides zero-overhead real FFT for float32/complex64.
 // All operations are type-specialized with no runtime type switches.
@@ -94,6 +98,20 @@ func (fp *FastPlanReal32) Forward(dst []complex64, src []float32) {
 	}
 }
 
+// ForwardNormalized computes real→complex FFT and scales the result by 1/N.
+// Caller guarantees: len(dst) >= n/2+1, len(src) >= n, slices non-nil.
+func (fp *FastPlanReal32) ForwardNormalized(dst []complex64, src []float32) {
+	fp.Forward(dst, src)
+	fft.ScaleComplex64InPlace(dst, float32(1.0/float64(fp.n)))
+}
+
+// ForwardUnitary computes real→complex FFT and scales the result by 1/sqrt(N).
+// Caller guarantees: len(dst) >= n/2+1, len(src) >= n, slices non-nil.
+func (fp *FastPlanReal32) ForwardUnitary(dst []complex64, src []float32) {
+	fp.Forward(dst, src)
+	fft.ScaleComplex64InPlace(dst, float32(1.0/math.Sqrt(float64(fp.n))))
+}
+
 // Inverse computes complex→real IFFT without validation.
 // Caller guarantees: len(dst) >= n, len(src) >= n/2+1, slices non-nil.
 //
@@ -102,37 +120,9 @@ func (fp *FastPlanReal32) Forward(dst []complex64, src []float32) {
 func (fp *FastPlanReal32) Inverse(dst []float32, src []complex64) {
 	half := fp.half
 	buf := fp.buf
-	weight := fp.weight
 
-	// Reconstruct packed buffer from half-spectrum
-	x0 := real(src[0])
-	xh := real(src[half])
-	buf[0] = complex(0.5*(x0+xh), 0.5*(x0-xh))
-
-	for k := 1; k < half; k++ {
-		m := half - k
-		if k > m {
-			continue
-		}
-
-		xk := src[k]
-		xmk := src[m]
-		xmkc := complex(real(xmk), -imag(xmk))
-
-		u := weight[k]
-		oneMinusU := complex64(1) - u
-		det := complex64(1) - 2*u
-		// det is on the unit circle, so 1/det == conj(det)
-		invDet := complex(real(det), -imag(det))
-
-		a := (xk*oneMinusU - xmkc*u) * invDet
-		b := (oneMinusU*xmkc - u*xk) * invDet
-
-		buf[k] = a
-		if k != m {
-			buf[m] = complex(real(b), -imag(b))
-		}
-	}
+	// Reconstruct packed buffer from half-spectrum.
+	fft.RepackInverseComplex64(buf, src, fp.weight)
 
 	// Inverse N/2 complex FFT
 	fp.inner.Inverse(buf, buf)
@@ -237,6 +227,20 @@ func (fp *FastPlanReal64) Forward(dst []complex128, src []float64) {
 	}
 }
 
+// ForwardNormalized computes real→complex FFT and scales the result by 1/N.
+// Caller guarantees: len(dst) >= n/2+1, len(src) >= n, slices non-nil.
+func (fp *FastPlanReal64) ForwardNormalized(dst []complex128, src []float64) {
+	fp.Forward(dst, src)
+	fft.ScaleComplex128InPlace(dst, 1.0/float64(fp.n))
+}
+
+// ForwardUnitary computes real→complex FFT and scales the result by 1/sqrt(N).
+// Caller guarantees: len(dst) >= n/2+1, len(src) >= n, slices non-nil.
+func (fp *FastPlanReal64) ForwardUnitary(dst []complex128, src []float64) {
+	fp.Forward(dst, src)
+	fft.ScaleComplex128InPlace(dst, 1.0/math.Sqrt(float64(fp.n)))
+}
+
 // Inverse computes complex→real IFFT without validation.
 // Caller guarantees: len(dst) >= n, len(src) >= n/2+1, slices non-nil.
 //
@@ -245,37 +249,9 @@ func (fp *FastPlanReal64) Forward(dst []complex128, src []float64) {
 func (fp *FastPlanReal64) Inverse(dst []float64, src []complex128) {
 	half := fp.half
 	buf := fp.buf
-	weight := fp.weight
 
-	// Reconstruct packed buffer from half-spectrum
-	x0 := real(src[0])
-	xh := real(src[half])
-	buf[0] = complex(0.5*(x0+xh), 0.5*(x0-xh))
-
-	for k := 1; k < half; k++ {
-		m := half - k
-		if k > m {
-			continue
-		}
-
-		xk := src[k]
-		xmk := src[m]
-		xmkc := complex(real(xmk), -imag(xmk))
-
-		u := weight[k]
-		oneMinusU := complex128(1) - u
-		det := complex128(1) - 2*u
-		// det is on the unit circle, so 1/det == conj(det)
-		invDet := complex(real(det), -imag(det))
-
-		a := (xk*oneMinusU - xmkc*u) * invDet
-		b := (oneMinusU*xmkc - u*xk) * invDet
-
-		buf[k] = a
-		if k != m {
-			buf[m] = complex(real(b), -imag(b))
-		}
-	}
+	// Reconstruct packed buffer from half-spectrum.
+	fft.RepackInverseComplex128(buf, src, fp.weight)
 
 	// Inverse N/2 complex FFT
 	fp.inner.Inverse(buf, buf)

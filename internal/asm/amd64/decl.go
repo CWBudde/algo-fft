@@ -592,6 +592,28 @@ func ComplexMulArrayComplex128AVX2Asm(dst, a, b []complex128)
 //go:noescape
 func ComplexMulArrayInPlaceComplex128AVX2Asm(dst, src []complex128)
 
+// Complex array scaling (element-wise) with scalar factors.
+
+//go:noescape
+func ScaleComplex64AVX2Asm(dst []complex64, scale float32)
+
+//go:noescape
+func ScaleComplex64SSE2Asm(dst []complex64, scale float32)
+
+//go:noescape
+func ScaleComplex128AVX2Asm(dst []complex128, scale float64)
+
+//go:noescape
+func ScaleComplex128SSE2Asm(dst []complex128, scale float64)
+
+// Inverse real FFT repack helpers (complex64 only).
+
+//go:noescape
+func InverseRepackComplex64AVX2Asm(dst, src, weight []complex64, kStartMax int)
+
+//go:noescape
+func InverseRepackComplex64SSE2Asm(dst, src, weight []complex64, kStartMax int)
+
 // ============================================================================
 // Radix-3 FFT Butterfly Operations
 // ============================================================================

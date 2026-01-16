@@ -320,12 +320,12 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 384
 
-| Type       | Algorithm     | SIMD | Source | Status | Files                        |
-| ---------- | ------------- | ---- | ------ | ------ | ---------------------------- |
-| complex64  | mixed (128×3) | none | Go     | ✓      | `dit_size384_mixed.go`       |
-| complex64  | mixed (128×3) | AVX2 | Go     | ✓      | `codelet_init_avx2.go`       |
-| complex128 | mixed (128×3) | none | Go     | ✓      | `dit_size384_mixed.go`       |
-| complex128 | mixed (128×3) | AVX2 | Go     | ✓      | `codelet_init_avx2.go`       |
+| Type       | Algorithm     | SIMD | Source | Status | Files                  |
+| ---------- | ------------- | ---- | ------ | ------ | ---------------------- |
+| complex64  | mixed (128×3) | none | Go     | ✓      | `dit_size384_mixed.go` |
+| complex64  | mixed (128×3) | AVX2 | Go     | ✓      | `codelet_init_avx2.go` |
+| complex128 | mixed (128×3) | none | Go     | ✓      | `dit_size384_mixed.go` |
+| complex128 | mixed (128×3) | AVX2 | Go     | ✓      | `codelet_init_avx2.go` |
 
 **Notes:**
 
@@ -497,10 +497,12 @@ SSE2/SSE3 optimizations provide fallback for systems without AVX2:
 The following sizes could benefit from additional variants:
 
 1. **Complex128 AVX2 Radix-4 for Sizes 128, 256**
+
    - Currently only radix-2 AVX2 available
    - Could reduce stages and improve performance
 
 2. **Complex128 AVX2 for Sizes 1024+**
+
    - Only complex64 has AVX2 for large sizes
    - Complex128 falls back to pure Go for sizes 1024+
 
