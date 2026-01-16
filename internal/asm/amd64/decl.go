@@ -33,6 +33,12 @@ func ForwardSSE2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 func InverseSSE2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
+func ForwardSSE3Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func InverseSSE3Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
 func ForwardAVX2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
 //go:noescape
@@ -238,6 +244,12 @@ func ForwardAVX2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch []complex6
 
 //go:noescape
 func InverseAVX2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func ForwardAVX2Size128Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func InverseAVX2Size128Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
 func ForwardAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
