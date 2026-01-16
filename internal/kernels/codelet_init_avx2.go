@@ -319,6 +319,19 @@ func registerAVX2DITCodelets64() {
 		PrepareTwiddle: prepareTwiddle8192Mixed24AVX2,
 	})
 
+	// Size 8192: Six-Step (64×128) AVX2 variant
+	// Uses the six-step algorithm with AVX2-optimized sub-FFTs
+	Registry64.Register(CodeletEntry[complex64]{
+		Size:       8192,
+		Forward:    wrapCodelet64(forwardDIT8192SixStep64x128AVX2Complex64),
+		Inverse:    wrapCodelet64(inverseDIT8192SixStep64x128AVX2Complex64),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit8192_sixstep64x128_avx2",
+		Priority:   35, // Higher than params variant (30)
+		KernelType: KernelTypeDIT,
+	})
+
 	// Size 1024: Radix-4 AVX2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       1024,

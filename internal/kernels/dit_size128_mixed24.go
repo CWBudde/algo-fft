@@ -54,11 +54,6 @@ func ComputeBitReversalIndicesMixed128(n int) []int {
 	return indices
 }
 
-// bitrev128Mixed24 pre-computes bit-reversal indices for the size-128 mixed-2/4 kernel.
-//
-//nolint:gochecknoglobals
-var bitrev128Mixed24 = ComputeBitReversalIndicesMixed128(128)
-
 // forwardDIT128MixedRadix24Complex64 computes a 128-point forward FFT using
 // mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex64 data.
 //
