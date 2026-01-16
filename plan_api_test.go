@@ -98,8 +98,16 @@ func TestInverseInPlace_LengthMismatch(t *testing.T) {
 }
 
 // TestKernelStrategy tests the KernelStrategy method.
+//
+//nolint:paralleltest // Modifies global kernel strategy state via SetKernelStrategy
 func TestKernelStrategy(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - this test modifies global planner.kernelStrategy state via
+	// SetKernelStrategy(), which would cause race conditions with other parallel
+	// tests that read kernel strategy.
+
+	// Save and restore global strategy for the whole test
+	oldStrategy := GetKernelStrategy()
+	defer SetKernelStrategy(oldStrategy)
 
 	tests := []struct {
 		name     string
@@ -116,10 +124,7 @@ func TestKernelStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			// Save and restore global strategy
-			oldStrategy := GetKernelStrategy()
-			defer SetKernelStrategy(oldStrategy)
+			// NOT parallel - parent test modifies global state
 
 			// Set desired strategy
 			SetKernelStrategy(tt.strategy)
@@ -221,8 +226,10 @@ func TestNewPlanFromPool_ForcedStrategyOverridesCodelet128(t *testing.T) {
 }
 
 // TestSetGetKernelStrategy tests global strategy get/set.
+//
+//nolint:paralleltest // Modifies global kernel strategy state via SetKernelStrategy
 func TestSetGetKernelStrategy(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - this test modifies global planner.kernelStrategy state
 	// Save original strategy
 	original := GetKernelStrategy()
 	defer SetKernelStrategy(original)
@@ -246,8 +253,10 @@ func TestSetGetKernelStrategy(t *testing.T) {
 }
 
 // TestRecordBenchmarkDecision tests per-size strategy recording.
+//
+//nolint:paralleltest // Modifies global kernel strategy state via SetKernelStrategy and RecordBenchmarkDecision
 func TestRecordBenchmarkDecision(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - this test modifies global planner.kernelStrategy and benchDecisions state
 	// Save and restore global strategy
 	oldStrategy := GetKernelStrategy()
 	defer SetKernelStrategy(oldStrategy)
@@ -314,12 +323,13 @@ func TestTransform(t *testing.T) {
 }
 
 // TestString_AllStrategies tests String method with different strategies.
+//
+//nolint:paralleltest // Modifies global kernel strategy state via SetKernelStrategy
 func TestString_AllStrategies(t *testing.T) {
-	t.Parallel()
+	// NOT parallel - this test modifies global planner.kernelStrategy state
 	// Save and restore
 	oldStrategy := GetKernelStrategy()
-
-	t.Cleanup(func() { SetKernelStrategy(oldStrategy) })
+	defer SetKernelStrategy(oldStrategy)
 
 	tests := []struct {
 		strategy     KernelStrategy
@@ -335,7 +345,7 @@ func TestString_AllStrategies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expectedName, func(t *testing.T) {
-			t.Parallel()
+			// NOT parallel - parent test modifies global state
 			SetKernelStrategy(tt.strategy)
 
 			plan, err := NewPlanT[complex64](tt.size)
