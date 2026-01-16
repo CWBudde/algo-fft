@@ -2,10 +2,6 @@ name: test-arch
 
 on:
   workflow_call:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
 
 permissions:
   contents: read
@@ -104,7 +100,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Build WASM
         env:
