@@ -497,12 +497,10 @@ SSE2/SSE3 optimizations provide fallback for systems without AVX2:
 The following sizes could benefit from additional variants:
 
 1. **Complex128 AVX2 Radix-4 for Sizes 128, 256**
-
    - Currently only radix-2 AVX2 available
    - Could reduce stages and improve performance
 
 2. **Complex128 AVX2 for Sizes 1024+**
-
    - Only complex64 has AVX2 for large sizes
    - Complex128 falls back to pure Go for sizes 1024+
 
@@ -534,7 +532,6 @@ Used for larger sizes:
 Implementations are registered via the codelet system:
 
 1. **Generic Go** - `codelet_init.go`:
-
    - `registerDITCodelets64()` - complex64 variants
    - `registerDITCodelets128()` - complex128 variants
 
