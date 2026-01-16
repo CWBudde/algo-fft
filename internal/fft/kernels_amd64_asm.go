@@ -62,7 +62,7 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 	}
 
 	if features.HasSSE3 && !features.ForceGeneric {
-		sizeSpecific := sse3SizeSpecificOrGenericComplex64(KernelAuto)
+		sizeSpecific := sse3SizeSpecificOrGenericComplex64(strategy)
 		return Kernels[complex64]{
 			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
 			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),

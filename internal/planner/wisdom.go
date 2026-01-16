@@ -129,7 +129,7 @@ func (w *Wisdom) Export(writer io.Writer) error {
 			entry.Timestamp.Unix())
 
 		if _, err := writer.Write([]byte(line)); err != nil {
-			return err
+			return fmt.Errorf("failed to write wisdom entry: %w", err)
 		}
 	}
 
@@ -155,7 +155,11 @@ func (w *Wisdom) Import(reader io.Reader) error {
 		w.Store(entry)
 	}
 
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("failed to scan wisdom entries: %w", err)
+	}
+
+	return nil
 }
 
 // parseWisdomLine parses a single line of wisdom format.
