@@ -212,7 +212,6 @@ Generic implementations are instantiated for both precisions, with type-specific
    ```
 
 2. **Add to dispatch in `kernels_*.go`**:
-
    - Implement for both `complex64` and `complex128`
    - Return `true` if kernel handled the transform, `false` to fall back
 

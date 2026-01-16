@@ -286,7 +286,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Option B - 16×64 Matrix**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size1024_radix16x64.s`
-
   - [ ] Stage 1: 64 parallel FFT-16 on columns
   - [ ] Twiddle multiplication
   - [ ] Stage 2: 16 parallel FFT-64 on rows
@@ -315,7 +314,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Option C - 8×16×16 (3D decomposition)**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size2048_radix8x16x16.s`
-
   - [ ] Three-stage: FFT-8 → twiddle → FFT-16 → twiddle → FFT-16
   - [ ] Only 3 stages instead of 5.5
 
@@ -339,7 +337,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Option B - 64×64 Matrix**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size4096_radix64x64.s`
-
   - [ ] Stage 1: 64 parallel FFT-64
   - [ ] Twiddle multiplication
   - [ ] Stage 2: 64 parallel FFT-64
@@ -363,7 +360,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Alternative - 16×32×16 (3D)**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size8192_radix16x32x16.s`
-
   - [ ] Three-stage decomposition
 
 - [ ] Benchmark vs current mixed-2/4
@@ -384,7 +380,6 @@ For larger FFT sizes, higher radices reduce the number of stages (and thus memor
 **Alternative - 16×16×64 (3D)**:
 
 - [ ] Create `internal/asm/amd64/avx2_f32_size16384_radix16x16x64.s`
-
   - [ ] Three-stage: FFT-16 → twiddle → FFT-16 → twiddle → FFT-64
   - [ ] 3 stages (vs 7 for radix-4)
 
@@ -427,7 +422,6 @@ Based on expected benefit/effort ratio:
 
 - [ ] Create `benchmarks/phase14_results/` directory
 - [ ] Run benchmarks for all sizes 4-16384:
-
   - [ ] Pure Go baseline (no SIMD tags)
   - [ ] Optimized Go (radix-4/mixed-radix)
   - [ ] AVX2 assembly (`-tags=asm`)
