@@ -253,48 +253,63 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64) bool {
 	x0 := s[br[0]]
 	x1 := s[br[1]]
 	a0, a1 := x0+x1, x0-x1
+
 	x0 = s[br[2]]
 	x1 = s[br[3]]
 	a2, a3 := x0+x1, x0-x1
+
 	x0 = s[br[4]]
 	x1 = s[br[5]]
 	a4, a5 := x0+x1, x0-x1
+
 	x0 = s[br[6]]
 	x1 = s[br[7]]
 	a6, a7 := x0+x1, x0-x1
+
 	x0 = s[br[8]]
 	x1 = s[br[9]]
 	a8, a9 := x0+x1, x0-x1
+
 	x0 = s[br[10]]
 	x1 = s[br[11]]
 	a10, a11 := x0+x1, x0-x1
+
 	x0 = s[br[12]]
 	x1 = s[br[13]]
 	a12, a13 := x0+x1, x0-x1
+
 	x0 = s[br[14]]
 	x1 = s[br[15]]
 	a14, a15 := x0+x1, x0-x1
+
 	x0 = s[br[16]]
 	x1 = s[br[17]]
 	a16, a17 := x0+x1, x0-x1
+
 	x0 = s[br[18]]
 	x1 = s[br[19]]
 	a18, a19 := x0+x1, x0-x1
+
 	x0 = s[br[20]]
 	x1 = s[br[21]]
 	a20, a21 := x0+x1, x0-x1
+
 	x0 = s[br[22]]
 	x1 = s[br[23]]
 	a22, a23 := x0+x1, x0-x1
+
 	x0 = s[br[24]]
 	x1 = s[br[25]]
 	a24, a25 := x0+x1, x0-x1
+
 	x0 = s[br[26]]
 	x1 = s[br[27]]
 	a26, a27 := x0+x1, x0-x1
+
 	x0 = s[br[28]]
 	x1 = s[br[29]]
 	a28, a29 := x0+x1, x0-x1
+
 	x0 = s[br[30]]
 	x1 = s[br[31]]
 	a30, a31 := x0+x1, x0-x1

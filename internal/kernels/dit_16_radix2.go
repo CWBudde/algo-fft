@@ -17,98 +17,82 @@ func forwardDIT16Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	// Pre-load twiddle factors
 	w1, w2, w3, w4, w5, w6, w7 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7]
 
+	work1 := scratch[:n]
+	work2 := dst[:n]
+
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[0]
 	x1 := s[8]
-	a0, a1 := x0+x1, x0-x1
-
+	work1[0], work1[1] = x0+x1, x0-x1
 	x0 = s[4]
 	x1 = s[12]
-	a2, a3 := x0+x1, x0-x1
-
+	work1[2], work1[3] = x0+x1, x0-x1
 	x0 = s[2]
 	x1 = s[10]
-	a4, a5 := x0+x1, x0-x1
-
+	work1[4], work1[5] = x0+x1, x0-x1
 	x0 = s[6]
 	x1 = s[14]
-	a6, a7 := x0+x1, x0-x1
-
+	work1[6], work1[7] = x0+x1, x0-x1
 	x0 = s[1]
 	x1 = s[9]
-	a8, a9 := x0+x1, x0-x1
-
+	work1[8], work1[9] = x0+x1, x0-x1
 	x0 = s[5]
 	x1 = s[13]
-	a10, a11 := x0+x1, x0-x1
-
+	work1[10], work1[11] = x0+x1, x0-x1
 	x0 = s[3]
 	x1 = s[11]
-	a12, a13 := x0+x1, x0-x1
-
+	work1[12], work1[13] = x0+x1, x0-x1
 	x0 = s[7]
 	x1 = s[15]
-	a14, a15 := x0+x1, x0-x1
+	work1[14], work1[15] = x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
-	b0, b2 := a0+a2, a0-a2
-	t := w4 * a3
-	b1, b3 := a1+t, a1-t
-	b4, b6 := a4+a6, a4-a6
-	t = w4 * a7
-	b5, b7 := a5+t, a5-t
-	b8, b10 := a8+a10, a8-a10
-	t = w4 * a11
-	b9, b11 := a9+t, a9-t
-	b12, b14 := a12+a14, a12-a14
-	t = w4 * a15
-	b13, b15 := a13+t, a13-t
+	work2[0], work2[2] = work1[0]+work1[2], work1[0]-work1[2]
+	t := w4 * work1[3]
+	work2[1], work2[3] = work1[1]+t, work1[1]-t
+	work2[4], work2[6] = work1[4]+work1[6], work1[4]-work1[6]
+	t = w4 * work1[7]
+	work2[5], work2[7] = work1[5]+t, work1[5]-t
+	work2[8], work2[10] = work1[8]+work1[10], work1[8]-work1[10]
+	t = w4 * work1[11]
+	work2[9], work2[11] = work1[9]+t, work1[9]-t
+	work2[12], work2[14] = work1[12]+work1[14], work1[12]-work1[14]
+	t = w4 * work1[15]
+	work2[13], work2[15] = work1[13]+t, work1[13]-t
 
 	// Stage 3: 2 radix-2 butterflies, stride=8
-	c0, c4 := b0+b4, b0-b4
-	t = w2 * b5
-	c1, c5 := b1+t, b1-t
-	t = w4 * b6
-	c2, c6 := b2+t, b2-t
-	t = w6 * b7
-	c3, c7 := b3+t, b3-t
-	c8, c12 := b8+b12, b8-b12
-	t = w2 * b13
-	c9, c13 := b9+t, b9-t
-	t = w4 * b14
-	c10, c14 := b10+t, b10-t
-	t = w6 * b15
-	c11, c15 := b11+t, b11-t
+	work1[0], work1[4] = work2[0]+work2[4], work2[0]-work2[4]
+	t = w2 * work2[5]
+	work1[1], work1[5] = work2[1]+t, work2[1]-t
+	t = w4 * work2[6]
+	work1[2], work1[6] = work2[2]+t, work2[2]-t
+	t = w6 * work2[7]
+	work1[3], work1[7] = work2[3]+t, work2[3]-t
+	work1[8], work1[12] = work2[8]+work2[12], work2[8]-work2[12]
+	t = w2 * work2[13]
+	work1[9], work1[13] = work2[9]+t, work2[9]-t
+	t = w4 * work2[14]
+	work1[10], work1[14] = work2[10]+t, work2[10]-t
+	t = w6 * work2[15]
+	work1[11], work1[15] = work2[11]+t, work2[11]-t
 
 	// Stage 4: 1 radix-2 butterfly, stride=16 (full array)
-	// Write directly to output or scratch buffer to avoid aliasing.
-	work := dst
-	if &dst[0] == &src[0] {
-		work = scratch
-	}
-
-	work = work[:n]
-	work[0], work[8] = c0+c8, c0-c8
-	t = w1 * c9
-	work[1], work[9] = c1+t, c1-t
-	t = w2 * c10
-	work[2], work[10] = c2+t, c2-t
-	t = w3 * c11
-	work[3], work[11] = c3+t, c3-t
-	t = w4 * c12
-	work[4], work[12] = c4+t, c4-t
-	t = w5 * c13
-	work[5], work[13] = c5+t, c5-t
-	t = w6 * c14
-	work[6], work[14] = c6+t, c6-t
-	t = w7 * c15
-	work[7], work[15] = c7+t, c7-t
-
-	// Copy result back if we used scratch buffer
-	if &work[0] != &dst[0] {
-		copy(dst, work)
-	}
+	work2[0], work2[8] = work1[0]+work1[8], work1[0]-work1[8]
+	t = w1 * work1[9]
+	work2[1], work2[9] = work1[1]+t, work1[1]-t
+	t = w2 * work1[10]
+	work2[2], work2[10] = work1[2]+t, work1[2]-t
+	t = w3 * work1[11]
+	work2[3], work2[11] = work1[3]+t, work1[3]-t
+	t = w4 * work1[12]
+	work2[4], work2[12] = work1[4]+t, work1[4]-t
+	t = w5 * work1[13]
+	work2[5], work2[13] = work1[5]+t, work1[5]-t
+	t = w6 * work1[14]
+	work2[6], work2[14] = work1[6]+t, work1[6]-t
+	t = w7 * work1[15]
+	work2[7], work2[15] = work1[7]+t, work1[7]-t
 
 	return true
 }
@@ -128,109 +112,100 @@ func inverseDIT16Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	// Bounds hint for compiler optimization
 	s := src[:n]
 
-	// Conjugate twiddles for inverse transform
-	w1, w2, w3, w4, w5, w6, w7 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7]
-	w1 = complex(real(w1), -imag(w1))
-	w2 = complex(real(w2), -imag(w2))
-	w3 = complex(real(w3), -imag(w3))
-	w4 = complex(real(w4), -imag(w4))
-	w5 = complex(real(w5), -imag(w5))
-	w6 = complex(real(w6), -imag(w6))
-	w7 = complex(real(w7), -imag(w7))
+	work1 := scratch[:n]
+	work2 := dst[:n]
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[0]
 	x1 := s[8]
-	a0, a1 := x0+x1, x0-x1
-
+	work1[0], work1[1] = x0+x1, x0-x1
 	x0 = s[4]
 	x1 = s[12]
-	a2, a3 := x0+x1, x0-x1
-
+	work1[2], work1[3] = x0+x1, x0-x1
 	x0 = s[2]
 	x1 = s[10]
-	a4, a5 := x0+x1, x0-x1
+	work1[4], work1[5] = x0+x1, x0-x1
+
 	x0 = s[6]
 	x1 = s[14]
-	a6, a7 := x0+x1, x0-x1
+	work1[6], work1[7] = x0+x1, x0-x1
+
 	x0 = s[1]
 	x1 = s[9]
-	a8, a9 := x0+x1, x0-x1
+	work1[8], work1[9] = x0+x1, x0-x1
+
 	x0 = s[5]
 	x1 = s[13]
-	a10, a11 := x0+x1, x0-x1
+	work1[10], work1[11] = x0+x1, x0-x1
+
 	x0 = s[3]
 	x1 = s[11]
-	a12, a13 := x0+x1, x0-x1
+	work1[12], work1[13] = x0+x1, x0-x1
+
 	x0 = s[7]
 	x1 = s[15]
-	a14, a15 := x0+x1, x0-x1
+	work1[14], work1[15] = x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
-	b0, b2 := a0+a2, a0-a2
-	t := w4 * a3
-	b1, b3 := a1+t, a1-t
-	b4, b6 := a4+a6, a4-a6
-	t = w4 * a7
-	b5, b7 := a5+t, a5-t
-	b8, b10 := a8+a10, a8-a10
-	t = w4 * a11
-	b9, b11 := a9+t, a9-t
-	b12, b14 := a12+a14, a12-a14
-	t = w4 * a15
-	b13, b15 := a13+t, a13-t
+	work2[0], work2[2] = work1[0]+work1[2], work1[0]-work1[2]
+	w4 := twiddle[4]
+	t := complex(real(w4), -imag(w4)) * work1[3]
+	work2[1], work2[3] = work1[1]+t, work1[1]-t
+	work2[4], work2[6] = work1[4]+work1[6], work1[4]-work1[6]
+	t = complex(real(w4), -imag(w4)) * work1[7]
+	work2[5], work2[7] = work1[5]+t, work1[5]-t
+	work2[8], work2[10] = work1[8]+work1[10], work1[8]-work1[10]
+	t = complex(real(w4), -imag(w4)) * work1[11]
+	work2[9], work2[11] = work1[9]+t, work1[9]-t
+	work2[12], work2[14] = work1[12]+work1[14], work1[12]-work1[14]
+	t = complex(real(w4), -imag(w4)) * work1[15]
+	work2[13], work2[15] = work1[13]+t, work1[13]-t
 
 	// Stage 3: 2 radix-2 butterflies, stride=8
-	c0, c4 := b0+b4, b0-b4
-	t = w2 * b5
-	c1, c5 := b1+t, b1-t
-	t = w4 * b6
-	c2, c6 := b2+t, b2-t
-	t = w6 * b7
-	c3, c7 := b3+t, b3-t
-	c8, c12 := b8+b12, b8-b12
-	t = w2 * b13
-	c9, c13 := b9+t, b9-t
-	t = w4 * b14
-	c10, c14 := b10+t, b10-t
-	t = w6 * b15
-	c11, c15 := b11+t, b11-t
+	w2 := twiddle[2]
+	w6 := twiddle[6]
+	work1[0], work1[4] = work2[0]+work2[4], work2[0]-work2[4]
+	t = complex(real(w2), -imag(w2)) * work2[5]
+	work1[1], work1[5] = work2[1]+t, work2[1]-t
+	t = complex(real(w4), -imag(w4)) * work2[6]
+	work1[2], work1[6] = work2[2]+t, work2[2]-t
+	t = complex(real(w6), -imag(w6)) * work2[7]
+	work1[3], work1[7] = work2[3]+t, work2[3]-t
+	work1[8], work1[12] = work2[8]+work2[12], work2[8]-work2[12]
+	t = complex(real(w2), -imag(w2)) * work2[13]
+	work1[9], work1[13] = work2[9]+t, work2[9]-t
+	t = complex(real(w4), -imag(w4)) * work2[14]
+	work1[10], work1[14] = work2[10]+t, work2[10]-t
+	t = complex(real(w6), -imag(w6)) * work2[15]
+	work1[11], work1[15] = work2[11]+t, work2[11]-t
 
 	// Stage 4: 1 radix-2 butterfly, stride=16 (full array)
-	// Write directly to output or scratch buffer to avoid aliasing.
-	work := dst
-	if &dst[0] == &src[0] {
-		work = scratch
-	}
-
-	work = work[:n]
-	work[0], work[8] = c0+c8, c0-c8
-	t = w1 * c9
-	work[1], work[9] = c1+t, c1-t
-	t = w2 * c10
-	work[2], work[10] = c2+t, c2-t
-	t = w3 * c11
-	work[3], work[11] = c3+t, c3-t
-	t = w4 * c12
-	work[4], work[12] = c4+t, c4-t
-	t = w5 * c13
-	work[5], work[13] = c5+t, c5-t
-	t = w6 * c14
-	work[6], work[14] = c6+t, c6-t
-	t = w7 * c15
-	work[7], work[15] = c7+t, c7-t
-
-	// Copy result back if we used scratch buffer
-	if &work[0] != &dst[0] {
-		copy(dst, work)
-	}
-
-	// Apply 1/N scaling for inverse transform
 	scale := complex(float32(1.0/float64(n)), 0)
-	for i := range dst[:n] {
-		dst[i] *= scale
-	}
+	w1, w3, w5, w7 := twiddle[1], twiddle[3], twiddle[5], twiddle[7]
+	work2[0] = (work1[0] + work1[8]) * scale
+	work2[8] = (work1[0] - work1[8]) * scale
+	t = complex(real(w1), -imag(w1)) * work1[9]
+	work2[1] = (work1[1] + t) * scale
+	work2[9] = (work1[1] - t) * scale
+	t = complex(real(w2), -imag(w2)) * work1[10]
+	work2[2] = (work1[2] + t) * scale
+	work2[10] = (work1[2] - t) * scale
+	t = complex(real(w3), -imag(w3)) * work1[11]
+	work2[3] = (work1[3] + t) * scale
+	work2[11] = (work1[3] - t) * scale
+	t = complex(real(w4), -imag(w4)) * work1[12]
+	work2[4] = (work1[4] + t) * scale
+	work2[12] = (work1[4] - t) * scale
+	t = complex(real(w5), -imag(w5)) * work1[13]
+	work2[5] = (work1[5] + t) * scale
+	work2[13] = (work1[5] - t) * scale
+	t = complex(real(w6), -imag(w6)) * work1[14]
+	work2[6] = (work1[6] + t) * scale
+	work2[14] = (work1[6] - t) * scale
+	t = complex(real(w7), -imag(w7)) * work1[15]
+	work2[7] = (work1[7] + t) * scale
+	work2[15] = (work1[7] - t) * scale
 
 	return true
 }
@@ -252,91 +227,82 @@ func forwardDIT16Radix2Complex128(dst, src, twiddle, scratch []complex128) bool 
 	// Pre-load twiddle factors
 	w1, w2, w3, w4, w5, w6, w7 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7]
 
+	work1 := scratch[:n]
+	work2 := dst[:n]
+
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[0]
 	x1 := s[8]
-	a0, a1 := x0+x1, x0-x1
+	work1[0], work1[1] = x0+x1, x0-x1
 	x0 = s[4]
 	x1 = s[12]
-	a2, a3 := x0+x1, x0-x1
+	work1[2], work1[3] = x0+x1, x0-x1
 	x0 = s[2]
 	x1 = s[10]
-	a4, a5 := x0+x1, x0-x1
+	work1[4], work1[5] = x0+x1, x0-x1
 	x0 = s[6]
 	x1 = s[14]
-	a6, a7 := x0+x1, x0-x1
+	work1[6], work1[7] = x0+x1, x0-x1
 	x0 = s[1]
 	x1 = s[9]
-	a8, a9 := x0+x1, x0-x1
+	work1[8], work1[9] = x0+x1, x0-x1
 	x0 = s[5]
 	x1 = s[13]
-	a10, a11 := x0+x1, x0-x1
+	work1[10], work1[11] = x0+x1, x0-x1
 	x0 = s[3]
 	x1 = s[11]
-	a12, a13 := x0+x1, x0-x1
+	work1[12], work1[13] = x0+x1, x0-x1
 	x0 = s[7]
 	x1 = s[15]
-	a14, a15 := x0+x1, x0-x1
+	work1[14], work1[15] = x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
-	b0, b2 := a0+a2, a0-a2
-	t := w4 * a3
-	b1, b3 := a1+t, a1-t
-	b4, b6 := a4+a6, a4-a6
-	t = w4 * a7
-	b5, b7 := a5+t, a5-t
-	b8, b10 := a8+a10, a8-a10
-	t = w4 * a11
-	b9, b11 := a9+t, a9-t
-	b12, b14 := a12+a14, a12-a14
-	t = w4 * a15
-	b13, b15 := a13+t, a13-t
+	work2[0], work2[2] = work1[0]+work1[2], work1[0]-work1[2]
+	t := w4 * work1[3]
+	work2[1], work2[3] = work1[1]+t, work1[1]-t
+	work2[4], work2[6] = work1[4]+work1[6], work1[4]-work1[6]
+	t = w4 * work1[7]
+	work2[5], work2[7] = work1[5]+t, work1[5]-t
+	work2[8], work2[10] = work1[8]+work1[10], work1[8]-work1[10]
+	t = w4 * work1[11]
+	work2[9], work2[11] = work1[9]+t, work1[9]-t
+	work2[12], work2[14] = work1[12]+work1[14], work1[12]-work1[14]
+	t = w4 * work1[15]
+	work2[13], work2[15] = work1[13]+t, work1[13]-t
 
 	// Stage 3: 2 radix-2 butterflies, stride=8
-	c0, c4 := b0+b4, b0-b4
-	t = w2 * b5
-	c1, c5 := b1+t, b1-t
-	t = w4 * b6
-	c2, c6 := b2+t, b2-t
-	t = w6 * b7
-	c3, c7 := b3+t, b3-t
-	c8, c12 := b8+b12, b8-b12
-	t = w2 * b13
-	c9, c13 := b9+t, b9-t
-	t = w4 * b14
-	c10, c14 := b10+t, b10-t
-	t = w6 * b15
-	c11, c15 := b11+t, b11-t
+	work1[0], work1[4] = work2[0]+work2[4], work2[0]-work2[4]
+	t = w2 * work2[5]
+	work1[1], work1[5] = work2[1]+t, work2[1]-t
+	t = w4 * work2[6]
+	work1[2], work1[6] = work2[2]+t, work2[2]-t
+	t = w6 * work2[7]
+	work1[3], work1[7] = work2[3]+t, work2[3]-t
+	work1[8], work1[12] = work2[8]+work2[12], work2[8]-work2[12]
+	t = w2 * work2[13]
+	work1[9], work1[13] = work2[9]+t, work2[9]-t
+	t = w4 * work2[14]
+	work1[10], work1[14] = work2[10]+t, work2[10]-t
+	t = w6 * work2[15]
+	work1[11], work1[15] = work2[11]+t, work2[11]-t
 
 	// Stage 4: 1 radix-2 butterfly, stride=16 (full array)
-	// Write directly to output or scratch buffer to avoid aliasing.
-	work := dst
-	if &dst[0] == &src[0] {
-		work = scratch
-	}
-
-	work = work[:n]
-	work[0], work[8] = c0+c8, c0-c8
-	t = w1 * c9
-	work[1], work[9] = c1+t, c1-t
-	t = w2 * c10
-	work[2], work[10] = c2+t, c2-t
-	t = w3 * c11
-	work[3], work[11] = c3+t, c3-t
-	t = w4 * c12
-	work[4], work[12] = c4+t, c4-t
-	t = w5 * c13
-	work[5], work[13] = c5+t, c5-t
-	t = w6 * c14
-	work[6], work[14] = c6+t, c6-t
-	t = w7 * c15
-	work[7], work[15] = c7+t, c7-t
-
-	// Copy result back if we used scratch buffer
-	if &work[0] != &dst[0] {
-		copy(dst, work)
-	}
+	work2[0], work2[8] = work1[0]+work1[8], work1[0]-work1[8]
+	t = w1 * work1[9]
+	work2[1], work2[9] = work1[1]+t, work1[1]-t
+	t = w2 * work1[10]
+	work2[2], work2[10] = work1[2]+t, work1[2]-t
+	t = w3 * work1[11]
+	work2[3], work2[11] = work1[3]+t, work1[3]-t
+	t = w4 * work1[12]
+	work2[4], work2[12] = work1[4]+t, work1[4]-t
+	t = w5 * work1[13]
+	work2[5], work2[13] = work1[5]+t, work1[5]-t
+	t = w6 * work1[14]
+	work2[6], work2[14] = work1[6]+t, work1[6]-t
+	t = w7 * work1[15]
+	work2[7], work2[15] = work1[7]+t, work1[7]-t
 
 	return true
 }
@@ -358,107 +324,103 @@ func inverseDIT16Radix2Complex128(dst, src, twiddle, scratch []complex128) bool 
 	// Bounds hint for compiler optimization
 	s := src[:n]
 
-	// Conjugate twiddles for inverse transform
-	w1, w2, w3, w4, w5, w6, w7 := twiddle[1], twiddle[2], twiddle[3], twiddle[4], twiddle[5], twiddle[6], twiddle[7]
-	w1 = complex(real(w1), -imag(w1))
-	w2 = complex(real(w2), -imag(w2))
-	w3 = complex(real(w3), -imag(w3))
-	w4 = complex(real(w4), -imag(w4))
-	w5 = complex(real(w5), -imag(w5))
-	w6 = complex(real(w6), -imag(w6))
-	w7 = complex(real(w7), -imag(w7))
+	work1 := scratch[:n]
+	work2 := dst[:n]
 
 	// Stage 1: 8 radix-2 butterflies, stride=2, no twiddles (W^0 = 1)
 	// Reorder input using bit-reversal indices during the first stage loads.
 	x0 := s[0]
 	x1 := s[8]
-	a0, a1 := x0+x1, x0-x1
+	work1[0], work1[1] = x0+x1, x0-x1
+
 	x0 = s[4]
 	x1 = s[12]
-	a2, a3 := x0+x1, x0-x1
+	work1[2], work1[3] = x0+x1, x0-x1
+
 	x0 = s[2]
 	x1 = s[10]
-	a4, a5 := x0+x1, x0-x1
+	work1[4], work1[5] = x0+x1, x0-x1
+
 	x0 = s[6]
 	x1 = s[14]
-	a6, a7 := x0+x1, x0-x1
+	work1[6], work1[7] = x0+x1, x0-x1
+
 	x0 = s[1]
 	x1 = s[9]
-	a8, a9 := x0+x1, x0-x1
+	work1[8], work1[9] = x0+x1, x0-x1
+
 	x0 = s[5]
 	x1 = s[13]
-	a10, a11 := x0+x1, x0-x1
+	work1[10], work1[11] = x0+x1, x0-x1
+
 	x0 = s[3]
 	x1 = s[11]
-	a12, a13 := x0+x1, x0-x1
+	work1[12], work1[13] = x0+x1, x0-x1
+
 	x0 = s[7]
 	x1 = s[15]
-	a14, a15 := x0+x1, x0-x1
+	work1[14], work1[15] = x0+x1, x0-x1
 
 	// Stage 2: 4 radix-2 butterflies, stride=4
-	b0, b2 := a0+a2, a0-a2
-	t := w4 * a3
-	b1, b3 := a1+t, a1-t
-	b4, b6 := a4+a6, a4-a6
-	t = w4 * a7
-	b5, b7 := a5+t, a5-t
-	b8, b10 := a8+a10, a8-a10
-	t = w4 * a11
-	b9, b11 := a9+t, a9-t
-	b12, b14 := a12+a14, a12-a14
-	t = w4 * a15
-	b13, b15 := a13+t, a13-t
+	work2[0], work2[2] = work1[0]+work1[2], work1[0]-work1[2]
+	w4 := twiddle[4]
+	t := complex(real(w4), -imag(w4)) * work1[3]
+	work2[1], work2[3] = work1[1]+t, work1[1]-t
+	work2[4], work2[6] = work1[4]+work1[6], work1[4]-work1[6]
+	t = complex(real(w4), -imag(w4)) * work1[7]
+	work2[5], work2[7] = work1[5]+t, work1[5]-t
+	work2[8], work2[10] = work1[8]+work1[10], work1[8]-work1[10]
+	t = complex(real(w4), -imag(w4)) * work1[11]
+	work2[9], work2[11] = work1[9]+t, work1[9]-t
+	work2[12], work2[14] = work1[12]+work1[14], work1[12]-work1[14]
+	t = complex(real(w4), -imag(w4)) * work1[15]
+	work2[13], work2[15] = work1[13]+t, work1[13]-t
 
 	// Stage 3: 2 radix-2 butterflies, stride=8
-	c0, c4 := b0+b4, b0-b4
-	t = w2 * b5
-	c1, c5 := b1+t, b1-t
-	t = w4 * b6
-	c2, c6 := b2+t, b2-t
-	t = w6 * b7
-	c3, c7 := b3+t, b3-t
-	c8, c12 := b8+b12, b8-b12
-	t = w2 * b13
-	c9, c13 := b9+t, b9-t
-	t = w4 * b14
-	c10, c14 := b10+t, b10-t
-	t = w6 * b15
-	c11, c15 := b11+t, b11-t
+	w2 := twiddle[2]
+	w6 := twiddle[6]
+	work1[0], work1[4] = work2[0]+work2[4], work2[0]-work2[4]
+	t = complex(real(w2), -imag(w2)) * work2[5]
+	work1[1], work1[5] = work2[1]+t, work2[1]-t
+	t = complex(real(w4), -imag(w4)) * work2[6]
+	work1[2], work1[6] = work2[2]+t, work2[2]-t
+	t = complex(real(w6), -imag(w6)) * work2[7]
+	work1[3], work1[7] = work2[3]+t, work2[3]-t
+	work1[8], work1[12] = work2[8]+work2[12], work2[8]-work2[12]
+	t = complex(real(w2), -imag(w2)) * work2[13]
+	work1[9], work1[13] = work2[9]+t, work2[9]-t
+	t = complex(real(w4), -imag(w4)) * work2[14]
+	work1[10], work1[14] = work2[10]+t, work2[10]-t
+	t = complex(real(w6), -imag(w6)) * work2[15]
+	work1[11], work1[15] = work2[11]+t, work2[11]-t
 
 	// Stage 4: 1 radix-2 butterfly, stride=16 (full array)
-	// Write directly to output or scratch buffer to avoid aliasing.
-	work := dst
-	if &dst[0] == &src[0] {
-		work = scratch
-	}
-
-	work = work[:n]
-	work[0], work[8] = c0+c8, c0-c8
-	t = w1 * c9
-	work[1], work[9] = c1+t, c1-t
-	t = w2 * c10
-	work[2], work[10] = c2+t, c2-t
-	t = w3 * c11
-	work[3], work[11] = c3+t, c3-t
-	t = w4 * c12
-	work[4], work[12] = c4+t, c4-t
-	t = w5 * c13
-	work[5], work[13] = c5+t, c5-t
-	t = w6 * c14
-	work[6], work[14] = c6+t, c6-t
-	t = w7 * c15
-	work[7], work[15] = c7+t, c7-t
-
-	// Copy result back if we used scratch buffer
-	if &work[0] != &dst[0] {
-		copy(dst, work)
-	}
-
-	// Apply 1/N scaling for inverse transform
 	scale := complex(1.0/float64(n), 0)
-	for i := range dst[:n] {
-		dst[i] *= scale
-	}
+	w1, w3, w5, w7 := twiddle[1], twiddle[3], twiddle[5], twiddle[7]
+
+	work2[0] = (work1[0] + work1[8]) * scale
+	work2[8] = (work1[0] - work1[8]) * scale
+	t = complex(real(w1), -imag(w1)) * work1[9]
+	work2[1] = (work1[1] + t) * scale
+	work2[9] = (work1[1] - t) * scale
+	t = complex(real(w2), -imag(w2)) * work1[10]
+	work2[2] = (work1[2] + t) * scale
+	work2[10] = (work1[2] - t) * scale
+	t = complex(real(w3), -imag(w3)) * work1[11]
+	work2[3] = (work1[3] + t) * scale
+	work2[11] = (work1[3] - t) * scale
+	t = complex(real(w4), -imag(w4)) * work1[12]
+	work2[4] = (work1[4] + t) * scale
+	work2[12] = (work1[4] - t) * scale
+	t = complex(real(w5), -imag(w5)) * work1[13]
+	work2[5] = (work1[5] + t) * scale
+	work2[13] = (work1[5] - t) * scale
+	t = complex(real(w6), -imag(w6)) * work1[14]
+	work2[6] = (work1[6] + t) * scale
+	work2[14] = (work1[6] - t) * scale
+	t = complex(real(w7), -imag(w7)) * work1[15]
+	work2[7] = (work1[7] + t) * scale
+	work2[15] = (work1[7] - t) * scale
 
 	return true
 }

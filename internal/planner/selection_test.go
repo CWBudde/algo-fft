@@ -410,15 +410,15 @@ func TestConcurrentKernelStrategy(t *testing.T) {
 	originalStrategy := GetKernelStrategy()
 	defer SetKernelStrategy(originalStrategy)
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	const goroutines = 100
 
 	for i := range goroutines {
-		wg.Add(1)
+		waitGroup.Add(1)
 
 		go func(idx int) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			strategies := []KernelStrategy{KernelDIT, KernelStockham, KernelAuto}
 			strategy := strategies[idx%len(strategies)]
@@ -428,5 +428,5 @@ func TestConcurrentKernelStrategy(t *testing.T) {
 		}(i)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 }
