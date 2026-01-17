@@ -17,9 +17,10 @@ func TestReadCycleCounter(t *testing.T) {
 	// Test that cycle counter is monotonically increasing
 	c1 := ReadCycleCounter()
 
-	// On low-precision platforms, add a small delay to ensure time progresses
+	// On low-precision platforms (WebAssembly, generic), add a delay to ensure time progresses
+	// WebAssembly often has millisecond-level precision for security reasons
 	if !isHighPrecisionPlatform() {
-		time.Sleep(time.Microsecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	c2 := ReadCycleCounter()
@@ -39,8 +40,9 @@ func TestCyclesSince(t *testing.T) {
 	}
 
 	// On low-precision platforms, add a delay to ensure time progresses
+	// WebAssembly often has millisecond-level precision for security reasons
 	if !isHighPrecisionPlatform() {
-		time.Sleep(time.Microsecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	elapsed := CyclesSince(start)
