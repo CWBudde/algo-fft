@@ -1,13 +1,13 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// SSE2 Size-128 Mixed-Radix-2/4 FFT Kernels for AMD64 (complex128)
+// SSE2 Size-128 Radix-4-then-2 FFT Kernels for AMD64 (complex128)
 // ===========================================================================
 
 #include "textflag.h"
 
-// Forward transform, size 128, complex128, mixed-radix-2/4
-TEXT ·ForwardSSE2Size128Mixed24Complex128Asm(SB), NOSPLIT, $0-97
+// Forward transform, size 128, complex128, radix-4-then-2
+TEXT ·ForwardSSE2Size128Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
@@ -130,8 +130,8 @@ fwd_err:
 	MOVB $0, ret+96(FP)
 	RET
 
-// Inverse transform, size 128, complex128, mixed-radix-2/4
-TEXT ·InverseSSE2Size128Mixed24Complex128Asm(SB), NOSPLIT, $0-97
+// Inverse transform, size 128, complex128, radix-4-then-2
+TEXT ·InverseSSE2Size128Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9

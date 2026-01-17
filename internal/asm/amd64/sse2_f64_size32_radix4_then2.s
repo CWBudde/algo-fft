@@ -1,20 +1,20 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// SSE2 Size-32 Mixed-Radix-2/4 FFT Kernels for AMD64 (complex128)
+// SSE2 Size-32 Radix-4-then-2 FFT Kernels for AMD64 (complex128)
 // ===========================================================================
 
 #include "textflag.h"
 
-// Forward transform, size 32, complex128, mixed-radix
-TEXT ·ForwardSSE2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-97
+// Forward transform, size 32, complex128, radix-4-then-2
+TEXT ·ForwardSSE2Size32Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12
+	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -63,7 +63,7 @@ m24_32_f64_fwd_stage2_loop:
 	XORQ DX, DX
 m24_32_f64_fwd_stage2_inner:
 	// Twiddles for n=16 (within the group): j, 2j, 3j but scaled by 2?
-	// Wait, Stage 2 in size 32 mixed-radix is a radix-4 stage.
+	// Wait, Stage 2 in size 32 radix-4-then-2 is a radix-4 stage.
 	// distance is 4. twiddle step is 2.
 	MOVQ DX, AX; SHLQ $1, AX; SHLQ $4, AX; MOVUPD (R10)(AX*1), X8 // w[2j]
 	MOVQ DX, AX; SHLQ $2, AX; SHLQ $4, AX; MOVUPD (R10)(AX*1), X9 // w[4j]
@@ -128,14 +128,14 @@ m24_32_f64_fwd_err:
 	MOVB $0, ret+96(FP)
 	RET
 
-// Inverse transform, size 32, complex128, mixed-radix
-TEXT ·InverseSSE2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-97
+// Inverse transform, size 32, complex128, radix-4-then-2
+TEXT ·InverseSSE2Size32Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ R8, R14
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12
+	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32

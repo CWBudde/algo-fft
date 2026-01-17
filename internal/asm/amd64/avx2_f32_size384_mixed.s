@@ -33,7 +33,7 @@
 //
 // This is a Go-callable stub that validates parameters.
 // The actual transform is performed by the Go wrapper which calls:
-//   1. ForwardAVX2Size128Mixed24Complex64Asm for each 128-point sub-FFT
+//   1. ForwardAVX2Size128Radix4Then2Complex64Asm for each 128-point sub-FFT
 //   2. This assembly for twiddle multiplication and radix-3 butterflies
 //
 // For size-384, we implement the final radix-3 stage in assembly.

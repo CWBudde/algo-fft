@@ -1,10 +1,10 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// AVX2 Size-2048 Mixed-Radix-2/4 FFT Kernels for AMD64
+// AVX2 Size-2048 Radix-4-then-2 FFT Kernels for AMD64
 // ===========================================================================
 //
-// This file contains a mixed-radix-2/4 DIT FFT optimized for size 2048.
+// This file contains a radix-4-then-2 DIT FFT optimized for size 2048.
 // Stages:
 //   - Stage 1-5: radix-4 (5 stages)
 //   - Stage 6: radix-2 (final combine)
@@ -15,7 +15,7 @@
 
 #include "textflag.h"
 
-TEXT ·ForwardAVX2Size2048Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·ForwardAVX2Size2048Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -48,7 +48,7 @@ TEXT ·ForwardAVX2Size2048Mixed24Complex64Asm(SB), NOSPLIT, $0-97
 
 m24_2048_use_dst:
 	// ==================================================================
-	// Stage 1: 512 radix-4 butterflies with mixed-radix bit-reversal
+	// Stage 1: 512 radix-4 butterflies with radix-4-then-2 bit-reversal
 	// ==================================================================
 	XORQ CX, CX              // Initialize base offset CX = 0
 
@@ -56,7 +56,7 @@ m24_2048_stage1_loop:
 	CMPQ CX, $2048           // Check if CX >= 2048
 	JGE  m24_2048_stage2     // If yes, go to stage 2
 
-	// Load bit-reversed indices for mixed-radix
+	// Load bit-reversed indices for radix-4-then-2
 	MOVQ (R12)(CX*8), DX     // DX = bitrev[CX] (index 0)
 	MOVQ 8(R12)(CX*8), SI    // SI = bitrev[CX+1] (index 1)
 	MOVQ 16(R12)(CX*8), DI   // DI = bitrev[CX+2] (index 2)
@@ -559,9 +559,9 @@ m24_2048_return_false:
 	RET
 
 // ===========================================================================
-// Inverse transform, size 2048, complex64, mixed-radix-2/4
+// Inverse transform, size 2048, complex64, radix-4-then-2
 // ===========================================================================
-TEXT ·InverseAVX2Size2048Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseAVX2Size2048Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -594,7 +594,7 @@ TEXT ·InverseAVX2Size2048Mixed24Complex64Asm(SB), NOSPLIT, $0-97
 
 m24_2048_inv_use_dst:
 	// ==================================================================
-	// Stage 1: 512 radix-4 butterflies with mixed-radix bit-reversal
+	// Stage 1: 512 radix-4 butterflies with radix-4-then-2 bit-reversal
 	// ==================================================================
 	XORQ CX, CX
 
@@ -602,7 +602,7 @@ m24_2048_inv_stage1_loop:
 	CMPQ CX, $2048
 	JGE  m24_2048_inv_stage2
 
-	// Load bit-reversal indices for mixed-radix
+	// Load bit-reversal indices for radix-4-then-2
 	MOVQ (R12)(CX*8), DX     // Index 0
 	MOVQ 8(R12)(CX*8), SI    // Index 1
 	MOVQ 16(R12)(CX*8), DI   // Index 2
