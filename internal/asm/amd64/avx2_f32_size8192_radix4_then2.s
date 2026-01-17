@@ -1,10 +1,10 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// AVX2 Size-8192 Mixed-Radix-2/4 FFT Kernels for AMD64
+// AVX2 Size-8192 Radix-4-then-2 FFT Kernels for AMD64
 // ===========================================================================
 //
-// This file contains a mixed-radix-2/4 DIT FFT optimized for size 8192.
+// This file contains a radix-4-then-2 DIT FFT optimized for size 8192.
 // Stages:
 //   - Stage 1-6: radix-4 (6 stages)
 //   - Stage 7: radix-2 (final combine)
@@ -15,7 +15,7 @@
 
 #include "textflag.h"
 
-TEXT ·ForwardAVX2Size8192Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·ForwardAVX2Size8192Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -48,7 +48,7 @@ TEXT ·ForwardAVX2Size8192Mixed24Complex64Asm(SB), NOSPLIT, $0-97
 
 m24_8192_use_dst:
 	// ==================================================================
-	// Stage 1: 2048 radix-4 butterflies with mixed-radix bit-reversal
+	// Stage 1: 2048 radix-4 butterflies with radix-4-then-2 bit-reversal
 	// ==================================================================
 	XORQ CX, CX              // CX = base offset
 
@@ -618,9 +618,9 @@ m24_8192_return_false:
 	RET
 
 // ===========================================================================
-// Inverse transform, size 8192, complex64, mixed-radix-2/4
+// Inverse transform, size 8192, complex64, radix-4-then-2
 // ===========================================================================
-TEXT ·InverseAVX2Size8192Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseAVX2Size8192Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -653,7 +653,7 @@ TEXT ·InverseAVX2Size8192Mixed24Complex64Asm(SB), NOSPLIT, $0-97
 
 m24_8192_inv_use_dst:
 	// ==================================================================
-	// Stage 1: 2048 radix-4 butterflies with mixed-radix bit-reversal
+	// Stage 1: 2048 radix-4 butterflies with radix-4-then-2 bit-reversal
 	// ==================================================================
 	XORQ CX, CX
 

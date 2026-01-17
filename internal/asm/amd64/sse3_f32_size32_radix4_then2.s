@@ -1,10 +1,10 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// SSE2 Size-32 Mixed-Radix-2/4 FFT Kernels for AMD64
+// SSE2 Size-32 Radix-4-then-2 FFT Kernels for AMD64
 // ===========================================================================
 //
-// This file contains a mixed-radix-2/4 DIT FFT optimized for size 32.
+// This file contains a radix-4-then-2 DIT FFT optimized for size 32.
 // Stages:
 //   - Stage 1: radix-4 (Stride 1) - 8 butterflies
 //   - Stage 2: radix-4 (Stride 4) - 8 butterflies (2 groups of 4)
@@ -14,14 +14,14 @@
 
 #include "textflag.h"
 
-// Forward transform, size 32, complex64, mixed-radix
-TEXT ·ForwardSSE3Size32Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+// Forward transform, size 32, complex64, radix-4-then-2
+TEXT ·ForwardSSE3Size32Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12  // R12 = bitrev pointer
+	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 32)
 
 	// Verify n == 32
@@ -431,14 +431,14 @@ m24_32_sse2_fwd_return_false:
 	MOVB $0, ret+96(FP)
 	RET
 
-// Inverse transform, size 32, complex64, mixed-radix
-TEXT ·InverseSSE3Size32Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+// Inverse transform, size 32, complex64, radix-4-then-2
+TEXT ·InverseSSE3Size32Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12
+	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 32

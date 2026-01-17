@@ -1,23 +1,23 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// AVX2 Size-128 Mixed-Radix (2×4) FFT Kernels for AMD64 (complex64)
+// AVX2 Size-128 Radix-4-then-2 (2×4) FFT Kernels for AMD64 (complex64)
 // ===========================================================================
 //
-// Size 128 = 2 × 4³, implemented as mixed-radix decomposition:
+// Size 128 = 2 × 4³, implemented as radix-4-then-2 decomposition:
 //   Stage 1: 32 radix-4 butterflies, stride=4, twiddle=1 (no multiply)
 //   Stage 2: 8 groups × 4 butterflies, stride=16
 //   Stage 3: 2 groups × 16 butterflies, stride=64
 //   Stage 4: 32 radix-2 butterflies, stride=128
 //
-// This reduces from 7 stages (radix-2) to 4 stages (mixed radix).
+// This reduces from 7 stages (radix-2) to 4 stages (radix-4-then-2).
 //
 // ===========================================================================
 
 #include "textflag.h"
 
-// Forward transform, size 128, complex64, mixed-radix 2×4 (AVX2)
-TEXT ·ForwardAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+// Forward transform, size 128, complex64, radix-4-then-2 (2×4) (AVX2)
+TEXT ·ForwardAVX2Size128Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -50,7 +50,7 @@ TEXT ·ForwardAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-97
 size128_r4_use_dst:
 	// ==================================================================
 	// Bit-reversal permutation (copy src[bitrev[i]] -> work[i])
-	// Size 128 requires bit-reversal for mixed-radix ordering
+	// Size 128 requires bit-reversal for radix-4-then-2 ordering
 	// ==================================================================
 	LEAQ ·bitrev128_mixed(SB), R12
 	XORQ CX, CX              // CX = index 0..127
@@ -409,10 +409,10 @@ size128_r4_return_false:
 	RET
 
 // ===========================================================================
-// Inverse transform, size 128, complex64, mixed-radix 2×4 (AVX2)
+// Inverse transform, size 128, complex64, radix-4-then-2 (2×4) (AVX2)
 // Inverse FFT: Forward FFT with conjugated twiddles + 1/N scaling
 // ===========================================================================
-TEXT ·InverseAVX2Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseAVX2Size128Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters: dst, src, twiddle, scratch, n
 	MOVQ dst+0(FP), R8       // R8 = dst slice data
 	MOVQ src+24(FP), R9      // R9 = src slice data

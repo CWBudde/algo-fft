@@ -1,19 +1,19 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// AVX2 Size-32 Mixed-Radix-2/4 FFT Kernels for AMD64 (complex128)
+// AVX2 Size-32 Radix-4-then-2 FFT Kernels for AMD64 (complex128)
 // ===========================================================================
 
 #include "textflag.h"
 
-// Forward transform, size 32, complex128, mixed-radix
-TEXT ·ForwardAVX2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-97
+// Forward transform, size 32, complex128, radix-4-then-2
+TEXT ·ForwardAVX2Size32Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12
+	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32
@@ -229,13 +229,13 @@ m24_32_avx2_f64_fwd_err:
 	MOVB $0, ret+96(FP)
 	RET
 
-// Inverse transform, size 32, complex128, mixed-radix
-TEXT ·InverseAVX2Size32Mixed24Complex128Asm(SB), NOSPLIT, $0-97
+// Inverse transform, size 32, complex128, radix-4-then-2
+TEXT ·InverseAVX2Size32Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size32Mixed24(SB), R12
+	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12
 	MOVQ src+32(FP), R13
 
 	CMPQ R13, $32

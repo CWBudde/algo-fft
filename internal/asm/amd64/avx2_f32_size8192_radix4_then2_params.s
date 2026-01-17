@@ -1,10 +1,10 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// AVX2 Size-8192 Mixed-Radix-2/4 FFT Kernels with Pre-Prepared Twiddle Data
+// AVX2 Size-8192 Radix-4-then-2 FFT Kernels with Pre-Prepared Twiddle Data
 // ===========================================================================
 //
-// This file contains the twiddle-extra variant of the mixed-radix-2/4 DIT FFT
+// This file contains the twiddle-extra variant of the radix-4-then-2 DIT FFT
 // for size 8192. The twiddle buffer contains pre-broadcast twiddle factors,
 // eliminating runtime index computation and scalar-to-vector broadcasts.
 //
@@ -40,7 +40,7 @@
 #define BYTES_PER_RADIX4 48
 #define BYTES_PER_RADIX2 16
 
-TEXT ·ForwardAVX2Size8192Mixed24ParamsComplex64Asm(SB), NOSPLIT, $0-97
+TEXT ·ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -73,7 +73,7 @@ TEXT ·ForwardAVX2Size8192Mixed24ParamsComplex64Asm(SB), NOSPLIT, $0-97
 
 m24p_8192_use_dst:
 	// ==================================================================
-	// Stage 1: 2048 radix-4 butterflies with mixed-radix bit-reversal
+	// Stage 1: 2048 radix-4 butterflies with radix-4-then-2 bit-reversal
 	// No extra twiddles needed - all twiddles are 1
 	// ==================================================================
 	XORQ CX, CX              // CX = base offset
@@ -639,9 +639,9 @@ m24p_8192_return_false:
 	RET
 
 // ===========================================================================
-// Inverse transform, size 8192, complex64, mixed-radix-2/4 with twiddle-extra
+// Inverse transform, size 8192, complex64, radix-4-then-2 with twiddle-extra
 // ===========================================================================
-TEXT ·InverseAVX2Size8192Mixed24ParamsComplex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseAVX2Size8192Radix4Then2ParamsComplex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
@@ -674,7 +674,7 @@ TEXT ·InverseAVX2Size8192Mixed24ParamsComplex64Asm(SB), NOSPLIT, $0-97
 
 m24p_8192_inv_use_dst:
 	// ==================================================================
-	// Stage 1: 2048 radix-4 butterflies with mixed-radix bit-reversal
+	// Stage 1: 2048 radix-4 butterflies with radix-4-then-2 bit-reversal
 	// Inverse uses i*t3 for y1, (-i)*t3 for y3 (swapped from forward)
 	// ==================================================================
 	XORQ CX, CX

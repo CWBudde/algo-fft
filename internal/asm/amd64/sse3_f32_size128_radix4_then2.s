@@ -1,10 +1,10 @@
 //go:build amd64 && asm && !purego
 
 // ===========================================================================
-// SSE2 Size-128 Mixed-Radix (2×4) FFT Kernels for AMD64 (complex64)
+// SSE2 Size-128 Radix-4-then-2 (2×4) FFT Kernels for AMD64 (complex64)
 // ===========================================================================
 //
-// Size 128 = 2 × 4³, implemented as mixed-radix decomposition:
+// Size 128 = 2 × 4³, implemented as radix-4-then-2 decomposition:
 //   Stage 1: 32 radix-4 butterflies, stride=4, twiddle=1 (no multiply)
 //   Stage 2: 8 groups × 4 butterflies, stride=16
 //   Stage 3: 2 groups × 16 butterflies, stride=64
@@ -16,14 +16,14 @@
 
 #include "textflag.h"
 
-// Forward transform, size 128, complex64, mixed-radix 2×4 (SSE2)
-TEXT ·ForwardSSE3Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+// Forward transform, size 128, complex64, radix-4-then-2 (2×4) (SSE2)
+TEXT ·ForwardSSE3Size128Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8       // R8  = dst pointer
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	LEAQ ·bitrevSSE2Size128Mixed24(SB), R12  // R12 = bitrev pointer
+	LEAQ ·bitrevSSE2Size128Radix4Then2(SB), R12  // R12 = bitrev pointer
 	MOVQ src+32(FP), R13     // R13 = n (should be 128)
 
 	// Verify n == 128
@@ -452,15 +452,15 @@ size128_sse2_r4_return_false:
 	RET
 
 // ===========================================================================
-// Inverse transform, size 128, complex64, mixed-radix 2×4 (SSE2)
+// Inverse transform, size 128, complex64, radix-4-then-2 (2×4) (SSE2)
 // ===========================================================================
-TEXT ·InverseSSE3Size128Mixed24Complex64Asm(SB), NOSPLIT, $0-97
+TEXT ·InverseSSE3Size128Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	LEAQ ·bitrevSSE2Size128Mixed24(SB), R12
+	LEAQ ·bitrevSSE2Size128Radix4Then2(SB), R12
 	MOVQ src+32(FP), R13
 
 	// Verify n == 128

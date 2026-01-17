@@ -17,7 +17,7 @@ var bitrevSSE2Size32Radix2 = [...]int{
 	3, 19, 11, 27, 7, 23, 15, 31,
 }
 
-var bitrevSSE2Size32Mixed24 = [...]int{
+var bitrevSSE2Size32Radix4Then2 = [...]int{
 	0, 8, 16, 24, 2, 10, 18, 26,
 	4, 12, 20, 28, 6, 14, 22, 30,
 	1, 9, 17, 25, 3, 11, 19, 27,
@@ -65,7 +65,7 @@ var bitrevSSE2Size128Radix2 = [...]int{
 	15, 79, 47, 111, 31, 95, 63, 127,
 }
 
-var bitrevSSE2Size128Mixed24 = [...]int{
+var bitrevSSE2Size128Radix4Then2 = [...]int{
 	0, 32, 64, 96, 8, 40, 72, 104,
 	16, 48, 80, 112, 24, 56, 88, 120,
 	2, 34, 66, 98, 10, 42, 74, 106,
