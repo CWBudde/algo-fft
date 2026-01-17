@@ -76,6 +76,14 @@ func InverseAVX2Size512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []com
 	return InverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch)
 }
 
+func ForwardAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return ForwardAVX2Size8192Mixed24Complex128Asm(dst, src, twiddle, scratch)
+}
+
+func InverseAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return InverseAVX2Size8192Mixed24Complex128Asm(dst, src, twiddle, scratch)
+}
+
 func ForwardSSE2Size32Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return ForwardSSE2Size32Mixed24Complex128Asm(dst, src, twiddle, scratch)
 }

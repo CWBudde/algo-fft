@@ -66,7 +66,6 @@ func TestPlanTransformsNoAllocsComplex128(t *testing.T) {
 
 //nolint:paralleltest // AllocsPerRun panics during parallel tests
 func TestPlanTransformsNoAllocsComplex128_8192(t *testing.T) {
-
 	const n = 8192
 
 	plan, err := NewPlanT[complex128](n)

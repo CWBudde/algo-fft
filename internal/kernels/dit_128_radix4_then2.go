@@ -137,6 +137,7 @@ func forwardDIT128Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) b
 		work1[113+i*4] = t1 + complex(imag(t3), -real(t3))
 		work1[115+i*4] = t1 + complex(-imag(t3), real(t3))
 	}
+
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := tw[j*8]
@@ -343,6 +344,7 @@ func inverseDIT128Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) b
 		work1[113+i*4] = t1 + complex(-imag(t3), real(t3))
 		work1[115+i*4] = t1 + complex(imag(t3), -real(t3))
 	}
+
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := tw[j*8]
@@ -559,6 +561,7 @@ func forwardDIT128Radix4Then2Complex128(dst, src, twiddle, scratch []complex128)
 		work1[113+i*4] = t1 + complex(imag(t3), -real(t3))
 		work1[115+i*4] = t1 + complex(-imag(t3), real(t3))
 	}
+
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := tw[j*8]
@@ -763,6 +766,7 @@ func inverseDIT128Radix4Then2Complex128(dst, src, twiddle, scratch []complex128)
 		work1[113+i*4] = t1 + complex(-imag(t3), real(t3))
 		work1[115+i*4] = t1 + complex(imag(t3), -real(t3))
 	}
+
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := tw[j*8]

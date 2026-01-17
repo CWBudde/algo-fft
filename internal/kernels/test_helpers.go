@@ -74,14 +74,14 @@ func testName(op string, size int) string {
 }
 
 // skipNaiveReferenceIfSlow skips the test if running naive reference would be too slow.
-func skipNaiveReferenceIfSlow(t *testing.T, n int) {
+func skipNaiveReferenceIfSlow(t *testing.T) {
 	t.Helper()
 
 	if testing.Short() {
 		t.Skip("skipping naive reference in -short mode")
 	}
 
-	if os.Getenv("ALGOFFT_QEMU") == "1" && n > 4096 {
+	if os.Getenv("ALGOFFT_QEMU") == "1" {
 		t.Skip("skipping naive reference on QEMU for large sizes; run without ALGOFFT_QEMU for full coverage")
 	}
 }

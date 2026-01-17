@@ -46,11 +46,12 @@ func TestComputeTwiddleFactors(t *testing.T) {
 		}
 
 		const eps = 1e-6
-		if !approxEqual64(twiddle[0], 1+0i, eps) {
+
+		if !approxEqual64(twiddle[0], 1+0i) {
 			t.Errorf("twiddle[0] = %v, want 1", twiddle[0])
 		}
 
-		if !approxEqual64(twiddle[1], -1+0i, eps) {
+		if !approxEqual64(twiddle[1], -1+0i) {
 			t.Errorf("twiddle[1] = %v, want -1", twiddle[1])
 		}
 	})
@@ -68,7 +69,7 @@ func TestComputeTwiddleFactors(t *testing.T) {
 
 		expected := []complex64{1 + 0i, 0 - 1i, -1 + 0i, 0 + 1i}
 		for i, exp := range expected {
-			if !approxEqual64(twiddle[i], exp, eps) {
+			if !approxEqual64(twiddle[i], exp) {
 				t.Errorf("twiddle[%d] = %v, want %v", i, twiddle[i], exp)
 			}
 		}
@@ -97,7 +98,7 @@ func TestComputeTwiddleFactors(t *testing.T) {
 		}
 
 		for i, exp := range expected {
-			if !approxEqual64(twiddle[i], exp, eps) {
+			if !approxEqual64(twiddle[i], exp) {
 				t.Errorf("twiddle[%d] = %v, want %v", i, twiddle[i], exp)
 			}
 		}
@@ -118,7 +119,7 @@ func TestComputeTwiddleFactorsComplex128(t *testing.T) {
 
 		expected := []complex128{1 + 0i, 0 - 1i, -1 + 0i, 0 + 1i}
 		for i, exp := range expected {
-			if !approxEqual128(twiddle[i], exp, eps) {
+			if !approxEqual128(twiddle[i], exp) {
 				t.Errorf("twiddle[%d] = %v, want %v", i, twiddle[i], exp)
 			}
 		}
@@ -143,7 +144,8 @@ func TestComputeTwiddleFactorsProperties(t *testing.T) {
 
 			// Property 2: First element should be 1
 			const eps = 1e-14
-			if !approxEqual128(twiddle[0], 1+0i, eps) {
+
+			if !approxEqual128(twiddle[0], 1+0i) {
 				t.Errorf("twiddle[0] = %v, want 1", twiddle[0])
 			}
 
@@ -160,7 +162,7 @@ func TestComputeTwiddleFactorsProperties(t *testing.T) {
 				halfN := n / 2
 
 				expected := complex128(-1 + 0i)
-				if !approxEqual128(twiddle[halfN], expected, eps) {
+				if !approxEqual128(twiddle[halfN], expected) {
 					t.Errorf("twiddle[%d] = %v, want -1", halfN, twiddle[halfN])
 				}
 			}
@@ -191,7 +193,7 @@ func TestComplexFromFloat64(t *testing.T) {
 		const eps = 1e-6
 
 		expected := complex64(complex(float32(re), float32(im)))
-		if !approxEqual64(result, expected, eps) {
+		if !approxEqual64(result, expected) {
 			t.Errorf("ComplexFromFloat64[complex64](%v, %v) = %v, want %v",
 				re, im, result, expected)
 		}
@@ -206,7 +208,7 @@ func TestComplexFromFloat64(t *testing.T) {
 		const eps = 1e-14
 
 		expected := complex(re, im)
-		if !approxEqual128(result, expected, eps) {
+		if !approxEqual128(result, expected) {
 			t.Errorf("ComplexFromFloat64[complex128](%v, %v) = %v, want %v",
 				re, im, result, expected)
 		}
@@ -233,7 +235,8 @@ func TestComplexFromFloat64(t *testing.T) {
 		expected := complex64(complex(float32(-1.5), float32(-2.5)))
 
 		const eps = 1e-6
-		if !approxEqual64(result, expected, eps) {
+
+		if !approxEqual64(result, expected) {
 			t.Errorf("ComplexFromFloat64[complex64](-1.5, -2.5) = %v, want %v",
 				result, expected)
 		}
@@ -355,7 +358,7 @@ func TestTwiddleFactorSymmetry(t *testing.T) {
 				wnk := twiddle[n-k]
 				expectedConj := Conj(wk)
 
-				if !approxEqual128(wnk, expectedConj, eps) {
+				if !approxEqual128(wnk, expectedConj) {
 					t.Errorf("W_%d^%d = %v, W_%d^%d = %v, expected conjugates",
 						n, k, wk, n, n-k, wnk)
 				}
@@ -366,12 +369,16 @@ func TestTwiddleFactorSymmetry(t *testing.T) {
 
 // Helper functions
 
-func approxEqual64(a, b complex64, eps float32) bool {
+func approxEqual64(a, b complex64) bool {
+	const eps = 1e-6
+
 	return math.Abs(float64(real(a)-real(b))) < float64(eps) &&
 		math.Abs(float64(imag(a)-imag(b))) < float64(eps)
 }
 
-func approxEqual128(a, b complex128, eps float64) bool {
+func approxEqual128(a, b complex128) bool {
+	const eps = 1e-14
+
 	return math.Abs(real(a)-real(b)) < eps &&
 		math.Abs(imag(a)-imag(b)) < eps
 }
