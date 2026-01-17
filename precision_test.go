@@ -201,10 +201,14 @@ func TestPrecisionComplex64VsComplex128(t *testing.T) {
 
 // TestPrecisionRoundTripSweep measures round-trip error across sizes for both precisions.
 func TestPrecisionRoundTripSweep(t *testing.T) {
+	t.Parallel()
+
 	sizes := []int{64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536}
 
 	for _, n := range sizes {
 		t.Run(fmt.Sprintf("size_%d", n), func(t *testing.T) {
+			t.Parallel()
+
 			rng := rand.New(rand.NewSource(int64(n)))
 			input64, input128 := makePrecisionInputs(n, rng)
 

@@ -14,6 +14,8 @@ func isHighPrecisionPlatform() bool {
 }
 
 func TestReadCycleCounter(t *testing.T) {
+	t.Parallel()
+
 	// Test that cycle counter is monotonically increasing
 	c1 := ReadCycleCounter()
 
@@ -43,6 +45,8 @@ func TestReadCycleCounter(t *testing.T) {
 }
 
 func TestCyclesSince(t *testing.T) {
+	t.Parallel()
+
 	start := ReadCycleCounter()
 
 	// Do some work to ensure cycles elapse
@@ -70,6 +74,8 @@ func TestCyclesSince(t *testing.T) {
 }
 
 func TestCyclesToNanoseconds(t *testing.T) {
+	t.Parallel()
+
 	// Measure a known duration and verify cycle-to-ns conversion is reasonable
 	start := ReadCycleCounter()
 	timeStart := time.Now()
@@ -91,6 +97,8 @@ func TestCyclesToNanoseconds(t *testing.T) {
 }
 
 func TestCycleCounterPrecision(t *testing.T) {
+	t.Parallel()
+
 	// Skip this test on low-precision platforms where time.Now() is used
 	if !isHighPrecisionPlatform() {
 		t.Skip("Skipping precision test on platform without hardware cycle counter")
