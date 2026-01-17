@@ -25,11 +25,11 @@ func TestInverseRepackComplex64Generic(t *testing.T) {
 		{"Small_2", 2},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			half := tc.half
+			half := testCase.half
 			n := half * 2
 
 			// Create source spectrum with conjugate symmetry property
@@ -110,11 +110,11 @@ func TestInverseRepackComplex128Generic(t *testing.T) {
 		{"Small_2", 2},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			half := tc.half
+			half := testCase.half
 			n := half * 2
 
 			// Create source spectrum with conjugate symmetry property

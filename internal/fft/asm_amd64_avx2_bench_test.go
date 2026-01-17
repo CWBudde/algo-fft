@@ -43,12 +43,12 @@ func BenchmarkAVX2DITComplex64(b *testing.B) {
 		{"Size8192/Mixed24", 8192, forwardAVX2Size8192Mixed24Complex64Asm},
 	}
 
-	for _, tc := range cases {
-		b.Run(tc.name, func(b *testing.B) {
-			src := make([]complex64, tc.n)
-			dst := make([]complex64, tc.n)
-			scratch := make([]complex64, tc.n)
-			twiddle := ComputeTwiddleFactors[complex64](tc.n)
+	for _, testCase := range cases {
+		b.Run(testCase.name, func(b *testing.B) {
+			src := make([]complex64, testCase.n)
+			dst := make([]complex64, testCase.n)
+			scratch := make([]complex64, testCase.n)
+			twiddle := ComputeTwiddleFactors[complex64](testCase.n)
 
 			for i := range src {
 				src[i] = complex(float32(i), float32(-i))
@@ -56,10 +56,10 @@ func BenchmarkAVX2DITComplex64(b *testing.B) {
 
 			b.ResetTimer()
 			b.ReportAllocs()
-			b.SetBytes(int64(tc.n * 8))
+			b.SetBytes(int64(testCase.n * 8))
 
 			for b.Loop() {
-				tc.forward(dst, src, twiddle, scratch)
+				testCase.forward(dst, src, twiddle, scratch)
 			}
 		})
 	}

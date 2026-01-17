@@ -152,57 +152,57 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			src := randomComplex64(tc.size, 0xBEEF+uint64(tc.size))
-			fwd := make([]complex64, tc.size)
-			dst := make([]complex64, tc.size)
-			scratch := make([]complex64, tc.size)
-			twiddle := ComputeTwiddleFactors[complex64](tc.size)
+			src := randomComplex64(testCase.size, 0xBEEF+uint64(testCase.size))
+			fwd := make([]complex64, testCase.size)
+			dst := make([]complex64, testCase.size)
+			scratch := make([]complex64, testCase.size)
+			twiddle := ComputeTwiddleFactors[complex64](testCase.size)
 
 			// Test correctness vs reference
-			if !tc.forward(fwd, src, twiddle, scratch) {
-				t.Fatalf("Forward %s failed", tc.name)
+			if !testCase.forward(fwd, src, twiddle, scratch) {
+				t.Fatalf("Forward %s failed", testCase.name)
 			}
 
 			wantFwd := reference.NaiveDFT(src)
-			assertComplex64SliceClose(t, fwd, wantFwd, tc.size)
+			assertComplex64SliceClose(t, fwd, wantFwd, testCase.size)
 
-			if !tc.inverse(dst, fwd, twiddle, scratch) {
-				t.Fatalf("Inverse %s failed", tc.name)
+			if !testCase.inverse(dst, fwd, twiddle, scratch) {
+				t.Fatalf("Inverse %s failed", testCase.name)
 			}
 
 			wantInv := reference.NaiveIDFT(fwd)
-			assertComplex64SliceClose(t, dst, wantInv, tc.size)
+			assertComplex64SliceClose(t, dst, wantInv, testCase.size)
 
 			// Test round-trip if enabled
-			if tc.testRoundTrip {
-				roundtrip := make([]complex64, tc.size)
-				if !tc.forward(fwd, src, twiddle, scratch) {
+			if testCase.testRoundTrip {
+				roundtrip := make([]complex64, testCase.size)
+				if !testCase.forward(fwd, src, twiddle, scratch) {
 					t.Fatal("Round-trip forward failed")
 				}
-				if !tc.inverse(roundtrip, fwd, twiddle, scratch) {
+				if !testCase.inverse(roundtrip, fwd, twiddle, scratch) {
 					t.Fatal("Round-trip inverse failed")
 				}
-				assertComplex64SliceClose(t, roundtrip, src, tc.size)
+				assertComplex64SliceClose(t, roundtrip, src, testCase.size)
 			}
 
 			// Test in-place if enabled
-			if tc.testInPlace {
-				data := make([]complex64, tc.size)
+			if testCase.testInPlace {
+				data := make([]complex64, testCase.size)
 				copy(data, src)
 
-				if !tc.forward(data, data, twiddle, scratch) {
+				if !testCase.forward(data, data, twiddle, scratch) {
 					t.Fatal("In-place forward failed")
 				}
-				assertComplex64SliceClose(t, data, wantFwd, tc.size)
+				assertComplex64SliceClose(t, data, wantFwd, testCase.size)
 
-				if !tc.inverse(data, data, twiddle, scratch) {
+				if !testCase.inverse(data, data, twiddle, scratch) {
 					t.Fatal("In-place inverse failed")
 				}
-				assertComplex64SliceClose(t, data, src, tc.size)
+				assertComplex64SliceClose(t, data, src, testCase.size)
 			}
 		})
 	}
