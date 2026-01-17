@@ -18,24 +18,49 @@ func CyclesSince(start int64) int64 {
 // This uses a calibrated conversion factor determined at initialization.
 // The conversion is approximate and should only be used for reporting purposes.
 func CyclesToNanoseconds(cycles int64) int64 {
+	if counterFrequencyHz != 0 {
+		// ARM64 path: counter runs at a fixed frequency (CNTFRQ_EL0)
+		// nanoseconds = cycles * (1e9 / freqHz) = (cycles * 1e9) / freqHz
+		return (cycles * 1_000_000_000) / counterFrequencyHz
+	}
+
 	if cyclesPerNanosecond == 0 {
 		// Fallback when using time.Now() - cycles are already in nanoseconds
 		return cycles
 	}
 
+	// AMD64 path: TSC runs at CPU frequency, calibrated at startup
 	return cycles / cyclesPerNanosecond
 }
 
 // cyclesPerNanosecond is the calibrated CPU frequency in cycles/ns.
-// Initialized at package load time.
+// Used on AMD64. Initialized at package load time.
 var cyclesPerNanosecond int64
 
+// counterFrequencyHz is the counter frequency in Hz.
+// Used on ARM64 where the counter runs at a fixed, known frequency.
+var counterFrequencyHz int64
+
 func init() {
-	calibrateCycleCounter()
+	initCycleCounter()
+}
+
+// initCycleCounter initializes the cycle counter calibration.
+// On ARM64, reads the hardware frequency register.
+// On AMD64, calibrates by measuring cycles over a known time period.
+func initCycleCounter() {
+	// Try to get architecture-specific frequency first
+	counterFrequencyHz = getCounterFrequencyHz()
+
+	// If not available, calibrate
+	if counterFrequencyHz == 0 {
+		calibrateCycleCounter()
+	}
 }
 
 // calibrateCycleCounter determines the relationship between cycle counts and wall time.
 // This runs a brief calibration to estimate the CPU frequency.
+// Used on AMD64 and other platforms without a frequency register.
 func calibrateCycleCounter() {
 	// Run a quick calibration: measure cycles over a known time period
 	const calibrationDuration = 10 * time.Millisecond

@@ -12,3 +12,12 @@ TEXT ·readCycleCounter(SB), NOSPLIT, $0-8
 
 	MOVD R0, ret+0(FP)  // Return 64-bit cycle count
 	RET
+
+// func readCounterFrequency() int64
+TEXT ·readCounterFrequency(SB), NOSPLIT, $0-8
+	// Read the counter frequency (CNTFRQ_EL0)
+	// This tells us the frequency at which CNTVCT_EL0 increments
+	WORD $0xD53BE000  // MRS CNTFRQ_EL0, X0
+
+	MOVD R0, ret+0(FP)  // Return counter frequency in Hz
+	RET

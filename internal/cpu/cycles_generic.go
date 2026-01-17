@@ -9,3 +9,9 @@ import "time"
 func readCycleCounter() int64 {
 	return time.Now().UnixNano()
 }
+
+// getCounterFrequencyHz returns 0 for generic platforms.
+// Generic platforms use time.Now() which returns nanoseconds directly.
+func getCounterFrequencyHz() int64 {
+	return 0
+}
