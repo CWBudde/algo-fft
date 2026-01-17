@@ -594,6 +594,18 @@ func registerAVX2DITCodelets128() {
 		KernelType: KernelTypeDIT,
 	})
 
+	// Size 2048: Mixed-radix-2/4 AVX2 variant
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       2048,
+		Forward:    wrapCodelet128(amd64.ForwardAVX2Size2048Radix4Then2Complex128Asm),
+		Inverse:    wrapCodelet128(amd64.InverseAVX2Size2048Radix4Then2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDAVX2,
+		Signature:  "dit2048_radix4_then2_avx2",
+		Priority:   25,
+		KernelType: KernelTypeDIT,
+	})
+
 	// Size 8192: Mixed-radix-2/4 AVX2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8192,

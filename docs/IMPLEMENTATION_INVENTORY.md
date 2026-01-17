@@ -72,10 +72,10 @@ This document provides a comprehensive overview of all specialized FFT implement
 | 512   | Radix-16x32    | ✓   | -    | -    | -    | -    | -    |
 | 1024  | Radix-4        | ✓   | -    | -    | -    | -    | -    |
 | 1024  | Radix-32x32    | ✓   | -    | -    | -    | -    | -    |
-| 2048  | Mixed-2/4      | ✓   | -    | -    | -    | -    | -    |
+| 2048  | Mixed-2/4      | ✓   | ✓    | -    | -    | -    | -    |
 | 4096  | Radix-4        | ✓   | -    | -    | -    | -    | -    |
 | 4096  | Six-step       | ✓   | -    | -    | -    | -    | -    |
-| 8192  | Mixed-2/4      | ✓   | -    | -    | -    | -    | -    |
+| 8192  | Mixed-2/4      | ✓   | ✓    | -    | -    | -    | -    |
 | 8192  | Six-step       | ✓   | -    | -    | -    | -    | -    |
 | 16384 | Radix-4        | ✓   | -    | -    | -    | -    | -    |
 | 16384 | Six-step       | ✓   | -    | -    | -    | -    | -    |
@@ -386,18 +386,20 @@ This document provides a comprehensive overview of all specialized FFT implement
 
 ### Size 8192
 
-| Type       | Algorithm | SIMD | Source | Status | Files                                            |
-| ---------- | --------- | ---- | ------ | ------ | ------------------------------------------------ |
-| complex64  | mixed-2/4 | none | Go     | ✓      | `dit_size8192_mixed24.go`                        |
-| complex64  | mixed-2/4 | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size8192_mixed24.s` |
-| complex64  | six-step  | none | Go     | ✓      | `dit_size8192_sixstep64x128.go`                  |
-| complex64  | six-step  | AVX2 | Go     | ✓      | `dit_size8192_sixstep64x128_avx2.go`             |
-| complex128 | mixed-2/4 | none | Go     | ✓      | `dit_size8192_mixed24.go`                        |
-| complex128 | six-step  | none | Go     | ✓      | `dit_size8192_sixstep64x128.go`                  |
+| Type       | Algorithm | SIMD | Source | Status | Files                                                 |
+| ---------- | --------- | ---- | ------ | ------ | ----------------------------------------------------- |
+| complex64  | mixed-2/4 | none | Go     | ✓      | `dit_size8192_mixed24.go`                             |
+| complex64  | mixed-2/4 | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f32_size8192_radix4_then2.s` |
+| complex64  | six-step  | none | Go     | ✓      | `dit_size8192_sixstep64x128.go`                       |
+| complex64  | six-step  | AVX2 | Go     | ✓      | `dit_size8192_sixstep64x128_avx2.go`                  |
+| complex128 | mixed-2/4 | none | Go     | ✓      | `dit_size8192_mixed24.go`                             |
+| complex128 | mixed-2/4 | AVX2 | Asm    | ✓      | `internal/asm/amd64/avx2_f64_size8192_radix4_then2.s` |
+| complex128 | six-step  | none | Go     | ✓      | `dit_size8192_sixstep64x128.go`                       |
 
 **Notes:**
 
 - Mixed-2/4 variant: 6 radix-4 stages + 1 radix-2 stage (7 total vs 13 for pure radix-2)
+- AVX2 mixed-2/4 implemented for complex64 and complex128
 - Uses `ComputeBitReversalIndicesMixed24()` for mixed-radix bit-reversal
 - Six-step variant: 64×128 matrix decomposition with cache-blocked transpose operations
 - Six-step reduces complexity to 2 composite FFT stages (FFT-64 and FFT-128) with better cache behavior
@@ -460,10 +462,10 @@ AVX2 optimizations exist for both `complex64` and `complex128`:
 - **Size 1024**: 2 variants complex64 (radix-4, radix-32×32)
 - **Size 2048**: 1 variant complex64 (mixed⁴)
 - **Size 4096**: 2 variants complex64 (radix-4, six-step)
-- **Size 8192**: 3 variants complex64 (mixed⁴, mixed⁴-params, six-step)
+- **Size 8192**: 3 variants complex64 (mixed⁴, mixed⁴-params, six-step) + 1 variant complex128 (mixed⁴)
 - **Size 16384**: 2 variants complex64 (radix-4, six-step)
 
-**Total:** 50+ complete implementations
+**Total:** 51 complete implementations (34 complex64 + 17 complex128)
 
 ### SSE2/SSE3 Assembly Implementations
 
