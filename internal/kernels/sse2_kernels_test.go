@@ -415,103 +415,102 @@ var sse2TestCases128 = []sse2TestCase128{
 }
 
 func TestSSE2Kernels64(t *testing.T) {
-	for _, tc := range sse2TestCases64 {
-		tc := tc
-		t.Run(fmt.Sprintf("%s/Forward", tc.name), func(t *testing.T) {
+	for _, testCase := range sse2TestCases64 {
+		t.Run(fmt.Sprintf("%s/Forward", testCase.name), func(t *testing.T) {
 			t.Parallel()
-			src := randomComplex64(tc.size, 0x12345678)
-			dst := make([]complex64, tc.size)
-			scratch := make([]complex64, tc.size)
-			twiddle := ComputeTwiddleFactors[complex64](tc.size)
+			src := randomComplex64(testCase.size, 0x12345678)
+			dst := make([]complex64, testCase.size)
+			scratch := make([]complex64, testCase.size)
+			twiddle := ComputeTwiddleFactors[complex64](testCase.size)
 
-			if !tc.forwardKernel(dst, src, twiddle, scratch) {
+			if !testCase.forwardKernel(dst, src, twiddle, scratch) {
 				t.Fatal("forward kernel failed")
 			}
 
 			want := reference.NaiveDFT(src)
-			assertComplex64Close(t, dst, want, tc.tolerance)
+			assertComplex64Close(t, dst, want, testCase.tolerance)
 		})
-		t.Run(fmt.Sprintf("%s/Inverse", tc.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/Inverse", testCase.name), func(t *testing.T) {
 			t.Parallel()
-			src := randomComplex64(tc.size, 0x87654321)
-			dst := make([]complex64, tc.size)
-			scratch := make([]complex64, tc.size)
-			twiddle := ComputeTwiddleFactors[complex64](tc.size)
+			src := randomComplex64(testCase.size, 0x87654321)
+			dst := make([]complex64, testCase.size)
+			scratch := make([]complex64, testCase.size)
+			twiddle := ComputeTwiddleFactors[complex64](testCase.size)
 
-			if !tc.inverseKernel(dst, src, twiddle, scratch) {
+			if !testCase.inverseKernel(dst, src, twiddle, scratch) {
 				t.Fatal("inverse kernel failed")
 			}
 
 			want := reference.NaiveIDFT(src)
-			assertComplex64Close(t, dst, want, tc.tolerance)
+			assertComplex64Close(t, dst, want, testCase.tolerance)
 		})
-		t.Run(fmt.Sprintf("%s/RoundTrip", tc.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/RoundTrip", testCase.name), func(t *testing.T) {
 			t.Parallel()
-			src := randomComplex64(tc.size, 0xAABBCCDD)
-			fwd := make([]complex64, tc.size)
-			inv := make([]complex64, tc.size)
-			scratch := make([]complex64, tc.size)
-			twiddle := ComputeTwiddleFactors[complex64](tc.size)
+			src := randomComplex64(testCase.size, 0xAABBCCDD)
+			fwd := make([]complex64, testCase.size)
+			inv := make([]complex64, testCase.size)
+			scratch := make([]complex64, testCase.size)
+			twiddle := ComputeTwiddleFactors[complex64](testCase.size)
 
-			if !tc.forwardKernel(fwd, src, twiddle, scratch) {
+			if !testCase.forwardKernel(fwd, src, twiddle, scratch) {
 				t.Fatal("forward kernel failed")
 			}
-			if !tc.inverseKernel(inv, fwd, twiddle, scratch) {
+			if !testCase.inverseKernel(inv, fwd, twiddle, scratch) {
 				t.Fatal("inverse kernel failed")
 			}
 
-			assertComplex64Close(t, inv, src, tc.tolerance)
+			assertComplex64Close(t, inv, src, testCase.tolerance)
 		})
 	}
 }
 
 func TestSSE2Kernels128(t *testing.T) {
-	for _, tc := range sse2TestCases128 {
-		tc := tc
-		t.Run(fmt.Sprintf("%s/Forward", tc.name), func(t *testing.T) {
+	for _, testCase := range sse2TestCases128 {
+		testCase := testCase
+		t.Run(fmt.Sprintf("%s/Forward", testCase.name), func(t *testing.T) {
 			t.Parallel()
-			src := randomComplex128(tc.size, 0x11223344)
-			dst := make([]complex128, tc.size)
-			scratch := make([]complex128, tc.size)
-			twiddle := ComputeTwiddleFactors[complex128](tc.size)
+			src := randomComplex128(testCase.size, 0x11223344)
+			dst := make([]complex128, testCase.size)
+			scratch := make([]complex128, testCase.size)
+			twiddle := ComputeTwiddleFactors[complex128](testCase.size)
 
-			if !tc.forwardKernel(dst, src, twiddle, scratch) {
+			if !testCase.forwardKernel(dst, src, twiddle, scratch) {
 				t.Fatal("forward kernel failed")
 			}
 
 			want := reference.NaiveDFT128(src)
-			assertComplex128Close(t, dst, want, tc.tolerance)
+			assertComplex128Close(t, dst, want, testCase.tolerance)
 		})
-		t.Run(fmt.Sprintf("%s/Inverse", tc.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/Inverse", testCase.name), func(t *testing.T) {
 			t.Parallel()
-			src := randomComplex128(tc.size, 0x55667788)
-			dst := make([]complex128, tc.size)
-			scratch := make([]complex128, tc.size)
-			twiddle := ComputeTwiddleFactors[complex128](tc.size)
+			src := randomComplex128(testCase.size, 0x55667788)
+			dst := make([]complex128, testCase.size)
+			scratch := make([]complex128, testCase.size)
+			twiddle := ComputeTwiddleFactors[complex128](testCase.size)
 
-			if !tc.inverseKernel(dst, src, twiddle, scratch) {
+			if !testCase.inverseKernel(dst, src, twiddle, scratch) {
 				t.Fatal("inverse kernel failed")
 			}
 
 			want := reference.NaiveIDFT128(src)
-			assertComplex128Close(t, dst, want, tc.tolerance)
+			assertComplex128Close(t, dst, want, testCase.tolerance)
 		})
-		t.Run(fmt.Sprintf("%s/RoundTrip", tc.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/RoundTrip", testCase.name), func(t *testing.T) {
 			t.Parallel()
-			src := randomComplex128(tc.size, 0x99AABBCC)
-			fwd := make([]complex128, tc.size)
-			inv := make([]complex128, tc.size)
-			scratch := make([]complex128, tc.size)
-			twiddle := ComputeTwiddleFactors[complex128](tc.size)
+			src := randomComplex128(testCase.size, 0x99AABBCC)
+			fwd := make([]complex128, testCase.size)
+			inv := make([]complex128, testCase.size)
+			scratch := make([]complex128, testCase.size)
+			twiddle := ComputeTwiddleFactors[complex128](testCase.size)
 
-			if !tc.forwardKernel(fwd, src, twiddle, scratch) {
+			if !testCase.forwardKernel(fwd, src, twiddle, scratch) {
 				t.Fatal("forward kernel failed")
 			}
-			if !tc.inverseKernel(inv, fwd, twiddle, scratch) {
+			if !testCase.inverseKernel(inv, fwd, twiddle, scratch) {
 				t.Fatal("inverse kernel failed")
 			}
 
-			assertComplex128Close(t, inv, src, tc.tolerance)
+			assertComplex128Close(t, inv, src, testCase.tolerance)
 		})
 	}
 }
