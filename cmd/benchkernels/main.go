@@ -141,7 +141,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 
 		runtime.GC()
 
-		start := time.Now()
+		start := cpu.ReadCycleCounter()
 
 		for range iters {
 			err := runPlanMode(plan, dst, src, freq, mode)
@@ -155,11 +155,12 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 			continue
 		}
 
-		elapsed := time.Since(start)
+		elapsedCycles := cpu.CyclesSince(start)
+		elapsedNanos := cpu.CyclesToNanoseconds(elapsedCycles)
 
 		results = append(results, benchResult{
 			strategy: strategy,
-			nsPerOp:  float64(elapsed.Nanoseconds()) / float64(iters),
+			nsPerOp:  float64(elapsedNanos) / float64(iters),
 		})
 	}
 

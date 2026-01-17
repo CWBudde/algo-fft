@@ -12,14 +12,7 @@ import (
 
 // TestSIMDVsGeneric verifies that SIMD-optimized implementations produce
 // identical results to pure-Go fallback implementations.
-//
-//nolint:paralleltest // Modifies global CPU detection state via SetForcedFeatures/ResetDetection
 func TestSIMDVsGeneric(t *testing.T) {
-	// NOT parallel - this test modifies global cpu.forcedFeatures state via
-	// cpu.SetForcedFeatures() and cpu.ResetDetection(), which would cause
-	// race conditions with other parallel tests that read CPU features.
-	// See: https://github.com/MeKo-Christian/algo-fft/issues (Windows CI failure)
-
 	// Skip if not on SIMD-capable architecture
 	arch := runtime.GOARCH
 	if arch != "amd64" && arch != "arm64" {
@@ -49,11 +42,10 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	}
 
 	// Test with SIMD enabled
-	cpu.ResetDetection()
 	f := cpu.DetectFeatures()
 	t.Logf("Detected features: AVX2=%v, SSE2=%v", f.HasAVX2, f.HasSSE2)
 
-	plan, err := NewPlan(n)
+	plan, err := newPlanWithFeatures[complex64](n, f, PlanOptions{})
 	if err != nil {
 		t.Fatalf("failed to create SIMD plan: %v", err)
 	}
@@ -63,14 +55,12 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 		t.Fatalf("SIMD Forward failed: %v", err)
 	}
 
-	// Test with forced generic
-	cpu.SetForcedFeatures(cpu.Features{
+	// Test with forced generic features (no global override)
+	genericFeatures := cpu.Features{
 		ForceGeneric: true,
 		Architecture: runtime.GOARCH,
-	})
-	defer cpu.ResetDetection()
-
-	planGeneric, err := NewPlan(n)
+	}
+	planGeneric, err := newPlanWithFeatures[complex64](n, genericFeatures, PlanOptions{})
 	if err != nil {
 		t.Fatalf("failed to create generic plan: %v", err)
 	}
@@ -134,9 +124,8 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 		input[i] = complex(float64(i)*0.1, float64(n-i)*0.1)
 	}
 
-	cpu.ResetDetection()
-
-	plan, err := NewPlan64(n)
+	f := cpu.DetectFeatures()
+	plan, err := newPlanWithFeatures[complex128](n, f, PlanOptions{})
 	if err != nil {
 		t.Fatalf("failed to create SIMD plan: %v", err)
 	}
@@ -146,13 +135,11 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 		t.Fatalf("SIMD Forward failed: %v", err)
 	}
 
-	cpu.SetForcedFeatures(cpu.Features{
+	genericFeatures := cpu.Features{
 		ForceGeneric: true,
 		Architecture: runtime.GOARCH,
-	})
-	defer cpu.ResetDetection()
-
-	planGeneric, err := NewPlan64(n)
+	}
+	planGeneric, err := newPlanWithFeatures[complex128](n, genericFeatures, PlanOptions{})
 	if err != nil {
 		t.Fatalf("failed to create generic plan: %v", err)
 	}

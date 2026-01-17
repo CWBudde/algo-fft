@@ -209,14 +209,22 @@ func benchmarkStrategy[T Complex](
 	// Force GC before timing to reduce noise
 	runtime.GC()
 
-	// Benchmark
-	start := time.Now()
+	// Benchmark using CPU cycle counter for high precision
+	startCycles := cpu.ReadCycleCounter()
 
 	for range config.iters {
 		kernels.Forward(dst, src, twiddle, scratch)
 	}
 
-	return time.Since(start)
+	elapsedCycles := cpu.CyclesSince(startCycles)
+	elapsedNanos := cpu.CyclesToNanoseconds(elapsedCycles)
+
+	if elapsedNanos <= 0 {
+		// Should never happen with cycle counters, but handle gracefully
+		return time.Nanosecond
+	}
+
+	return time.Duration(elapsedNanos)
 }
 
 // estimateWithStrategy creates a PlanEstimate for a specific strategy.

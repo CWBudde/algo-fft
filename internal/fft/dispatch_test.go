@@ -129,36 +129,23 @@ func TestDetectFeatures(t *testing.T) {
 }
 
 // TestKernelSelectionWithForcedFeatures tests kernel selection with mocked CPU features.
-//
-//nolint:paralleltest // Modifies global CPU detection state via SetForcedFeatures/ResetDetection
 func TestKernelSelectionWithForcedFeatures(t *testing.T) {
-	// NOT parallel - this test modifies global cpu.forcedFeatures state
-
 	// Test SSE2-only system (no AVX2)
-	//
-	//nolint:paralleltest // parent modifies global state
 	t.Run("SSE2Only", func(t *testing.T) {
-		// NOT parallel - modifies global CPU state
-		defer cpu.ResetDetection()
-
-		cpu.SetForcedFeatures(cpu.Features{
+		features := cpu.Features{
 			HasSSE2:      true,
 			Architecture: "amd64",
-		})
+		}
 
-		kernels := SelectKernels[complex64](cpu.DetectFeatures())
+		kernels := SelectKernels[complex64](features)
 		if kernels.Forward == nil || kernels.Inverse == nil {
 			t.Error("Should have valid kernels even with SSE2 only")
 		}
 	})
 
 	// Test AVX2 system
-	//
-	//nolint:paralleltest
 	t.Run("AVX2System", func(t *testing.T) {
-		defer cpu.ResetDetection()
-
-		cpu.SetForcedFeatures(cpu.Features{
+		features := cpu.Features{
 			HasSSE2:      true,
 			HasSSE3:      true,
 			HasSSSE3:     true,
@@ -166,29 +153,20 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 			HasAVX:       true,
 			HasAVX2:      true,
 			Architecture: "amd64",
-		})
+		}
 
-		kernels := SelectKernels[complex64](cpu.DetectFeatures())
+		kernels := SelectKernels[complex64](features)
 		if kernels.Forward == nil || kernels.Inverse == nil {
 			t.Error("Should have valid kernels with AVX2")
 		}
 	})
 
 	// Test ForceGeneric flag disables SIMD
-	//
-	//nolint:paralleltest
 	t.Run("ForceGeneric", func(t *testing.T) {
-		defer cpu.ResetDetection()
-
-		cpu.SetForcedFeatures(cpu.Features{
+		features := cpu.Features{
 			HasAVX2:      true,
 			ForceGeneric: true,
 			Architecture: "amd64",
-		})
-
-		features := cpu.DetectFeatures()
-		if !features.ForceGeneric {
-			t.Error("ForceGeneric should be true")
 		}
 
 		// Kernels should still be selected (ForceGeneric is a hint, not a hard requirement)
@@ -199,17 +177,13 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 	})
 
 	// Test ARM NEON system
-	//
-	//nolint:paralleltest
 	t.Run("NEONSystem", func(t *testing.T) {
-		defer cpu.ResetDetection()
-
-		cpu.SetForcedFeatures(cpu.Features{
+		features := cpu.Features{
 			HasNEON:      true,
 			Architecture: "arm64",
-		})
+		}
 
-		kernels := SelectKernels[complex64](cpu.DetectFeatures())
+		kernels := SelectKernels[complex64](features)
 		if kernels.Forward == nil || kernels.Inverse == nil {
 			t.Error("Should have valid kernels with NEON")
 		}
