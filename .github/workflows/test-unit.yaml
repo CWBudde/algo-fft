@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   test:
+    name: Test Unit with Coverage
     runs-on: ubuntu-latest
 
     steps:
