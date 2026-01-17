@@ -22,24 +22,31 @@ func forwardDIT16Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	x0 := s[0]
 	x1 := s[8]
 	a0, a1 := x0+x1, x0-x1
+
 	x0 = s[4]
 	x1 = s[12]
 	a2, a3 := x0+x1, x0-x1
+
 	x0 = s[2]
 	x1 = s[10]
 	a4, a5 := x0+x1, x0-x1
+
 	x0 = s[6]
 	x1 = s[14]
 	a6, a7 := x0+x1, x0-x1
+
 	x0 = s[1]
 	x1 = s[9]
 	a8, a9 := x0+x1, x0-x1
+
 	x0 = s[5]
 	x1 = s[13]
 	a10, a11 := x0+x1, x0-x1
+
 	x0 = s[3]
 	x1 = s[11]
 	a12, a13 := x0+x1, x0-x1
+
 	x0 = s[7]
 	x1 = s[15]
 	a14, a15 := x0+x1, x0-x1
@@ -136,9 +143,11 @@ func inverseDIT16Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	x0 := s[0]
 	x1 := s[8]
 	a0, a1 := x0+x1, x0-x1
+
 	x0 = s[4]
 	x1 = s[12]
 	a2, a3 := x0+x1, x0-x1
+
 	x0 = s[2]
 	x1 = s[10]
 	a4, a5 := x0+x1, x0-x1
