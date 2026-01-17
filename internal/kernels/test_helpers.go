@@ -36,24 +36,6 @@ func randomComplex128(n int, seed uint64) []complex128 {
 	return out
 }
 
-// assertComplex64SliceClose checks that got and want are close within a default tolerance.
-// The tolerance is scaled by the transform size n.
-func assertComplex64SliceClose(t *testing.T, got, want []complex64, n int) {
-	t.Helper()
-
-	// Tolerance scales with size due to accumulated floating-point errors
-	tol := 1e-4 * float64(n) / 8
-	if tol < 1e-4 {
-		tol = 1e-4
-	}
-
-	if tol > 0.1 {
-		tol = 0.1
-	}
-
-	assertComplex64Close(t, got, want, tol)
-}
-
 // assertComplex64Close checks that got and want are close within tolerance.
 func assertComplex64Close(t *testing.T, got, want []complex64, tol float64) {
 	t.Helper()
@@ -91,11 +73,7 @@ func testName(op string, size int) string {
 	return fmt.Sprintf("%s_size_%d", op, size)
 }
 
-// benchName creates a descriptive benchmark name.
-func benchName(op string, size int) string {
-	return fmt.Sprintf("%s_%d", op, size)
-}
-
+// skipNaiveReferenceIfSlow skips the test if running naive reference would be too slow.
 func skipNaiveReferenceIfSlow(t *testing.T, n int) {
 	t.Helper()
 

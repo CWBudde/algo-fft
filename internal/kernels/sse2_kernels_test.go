@@ -125,7 +125,7 @@ var sse2TestCases64 = []sse2TestCase64{
 		name:      "Size32/Radix2",
 		size:      32,
 		radix:     2,
-		tolerance: 1e-6,
+		tolerance: 2e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
 			return amd64.ForwardSSE3Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
@@ -137,7 +137,7 @@ var sse2TestCases64 = []sse2TestCase64{
 		name:      "Size32/Radix32",
 		size:      32,
 		radix:     32,
-		tolerance: 1e-6,
+		tolerance: 2e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
 			return amd64.ForwardSSE3Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
 		},
@@ -149,7 +149,7 @@ var sse2TestCases64 = []sse2TestCase64{
 		name:      "Size32/Mixed24",
 		size:      32,
 		radix:     -24,
-		tolerance: 1e-6,
+		tolerance: 2e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
 			return amd64.ForwardSSE3Size32Mixed24Complex64Asm(dst, src, twiddle, scratch)
 		},
@@ -161,7 +161,7 @@ var sse2TestCases64 = []sse2TestCase64{
 		name:      "Size64/Radix2",
 		size:      64,
 		radix:     2,
-		tolerance: 1e-6,
+		tolerance: 2e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
 			return amd64.ForwardSSE3Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
@@ -173,7 +173,7 @@ var sse2TestCases64 = []sse2TestCase64{
 		name:      "Size64/Radix4",
 		size:      64,
 		radix:     4,
-		tolerance: 1e-6,
+		tolerance: 2e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
 			return amd64.ForwardSSE3Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
@@ -185,7 +185,7 @@ var sse2TestCases64 = []sse2TestCase64{
 		name:      "Size128/Radix2",
 		size:      128,
 		radix:     2,
-		tolerance: 1e-6,
+		tolerance: 3e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
 			return amd64.ForwardSSE3Size128Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
@@ -197,7 +197,7 @@ var sse2TestCases64 = []sse2TestCase64{
 		name:      "Size128/Mixed24",
 		size:      128,
 		radix:     -24,
-		tolerance: 1e-6,
+		tolerance: 3e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
 			return amd64.ForwardSSE3Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
 		},
@@ -209,7 +209,7 @@ var sse2TestCases64 = []sse2TestCase64{
 		name:      "Size256/Radix4",
 		size:      256,
 		radix:     4,
-		tolerance: 1e-6,
+		tolerance: 4e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
 			return amd64.ForwardSSE3Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
 		},
@@ -221,7 +221,7 @@ var sse2TestCases64 = []sse2TestCase64{
 		name:      "Size512/Radix2",
 		size:      512,
 		radix:     2,
-		tolerance: 1e-6,
+		tolerance: 7e-6,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
 			return amd64.ForwardSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
 		},
@@ -429,7 +429,7 @@ func TestSSE2Kernels64(t *testing.T) {
 			}
 
 			want := reference.NaiveDFT(src)
-			assertComplex64SliceClose(t, dst, want, tc.size)
+			assertComplex64Close(t, dst, want, tc.tolerance)
 		})
 		t.Run(fmt.Sprintf("%s/Inverse", tc.name), func(t *testing.T) {
 			t.Parallel()
@@ -443,7 +443,7 @@ func TestSSE2Kernels64(t *testing.T) {
 			}
 
 			want := reference.NaiveIDFT(src)
-			assertComplex64SliceClose(t, dst, want, tc.size)
+			assertComplex64Close(t, dst, want, tc.tolerance)
 		})
 		t.Run(fmt.Sprintf("%s/RoundTrip", tc.name), func(t *testing.T) {
 			t.Parallel()
@@ -460,7 +460,7 @@ func TestSSE2Kernels64(t *testing.T) {
 				t.Fatal("inverse kernel failed")
 			}
 
-			assertComplex64SliceClose(t, inv, src, tc.size)
+			assertComplex64Close(t, inv, src, tc.tolerance)
 		})
 	}
 }

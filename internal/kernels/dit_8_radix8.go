@@ -25,8 +25,8 @@ func forwardDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	e0 := a0 + a2
 	e2 := a0 - a2
-	e1 := a1 + mulNegI(a3)
-	e3 := a1 + mulI(a3)
+	e1 := a1 + complex(imag(a3), -real(a3))
+	e3 := a1 + complex(-imag(a3), real(a3))
 
 	a0 = x1 + x5
 	a1 = x1 - x5
@@ -35,8 +35,8 @@ func forwardDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	o0 := a0 + a2
 	o2 := a0 - a2
-	o1 := a1 + mulNegI(a3)
-	o3 := a1 + mulI(a3)
+	o1 := a1 + complex(imag(a3), -real(a3))
+	o3 := a1 + complex(-imag(a3), real(a3))
 
 	work := dst
 	if &dst[0] == &src[0] {
@@ -168,8 +168,8 @@ func forwardDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128) bool {
 
 	e0 := a0 + a2
 	e2 := a0 - a2
-	e1 := a1 + mulNegI(a3)
-	e3 := a1 + mulI(a3)
+	e1 := a1 + complex(imag(a3), -real(a3))
+	e3 := a1 + complex(-imag(a3), real(a3))
 
 	a0 = x1 + x5
 	a1 = x1 - x5
@@ -178,8 +178,8 @@ func forwardDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128) bool {
 
 	o0 := a0 + a2
 	o2 := a0 - a2
-	o1 := a1 + mulNegI(a3)
-	o3 := a1 + mulI(a3)
+	o1 := a1 + complex(imag(a3), -real(a3))
+	o3 := a1 + complex(-imag(a3), real(a3))
 
 	work := dst
 	if &dst[0] == &src[0] {

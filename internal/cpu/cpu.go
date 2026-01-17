@@ -140,17 +140,17 @@ func HasNEON() bool {
 // This is intended to exercise SSE-only dispatch paths in tests.
 // Call ResetDetection() to restore normal detection.
 func ForceSSEOnlyForTests() {
-	f := DetectFeatures()
-	f.HasSSE = true
-	f.HasSSE2 = false
-	f.HasSSE3 = false
-	f.HasSSSE3 = false
-	f.HasSSE41 = false
-	f.HasAVX = false
-	f.HasAVX2 = false
-	f.HasAVX512 = false
-	f.ForceGeneric = false
-	SetForcedFeatures(f)
+	feature := DetectFeatures()
+	feature.HasSSE = true
+	feature.HasSSE2 = false
+	feature.HasSSE3 = false
+	feature.HasSSSE3 = false
+	feature.HasSSE41 = false
+	feature.HasAVX = false
+	feature.HasAVX2 = false
+	feature.HasAVX512 = false
+	feature.ForceGeneric = false
+	SetForcedFeatures(feature)
 }
 
 // SetForcedFeatures overrides CPU feature detection with the specified features.
