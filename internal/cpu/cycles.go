@@ -22,6 +22,7 @@ func CyclesToNanoseconds(cycles int64) int64 {
 		// Fallback when using time.Now() - cycles are already in nanoseconds
 		return cycles
 	}
+
 	return cycles / cyclesPerNanosecond
 }
 

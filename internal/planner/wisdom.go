@@ -155,7 +155,8 @@ func (w *Wisdom) Import(reader io.Reader) error {
 		w.Store(entry)
 	}
 
-	if err := scanner.Err(); err != nil {
+	err := scanner.Err()
+	if err != nil {
 		return fmt.Errorf("failed to scan wisdom entries: %w", err)
 	}
 
