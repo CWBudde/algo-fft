@@ -8,6 +8,8 @@ import (
 
 // TestInverseRepackComplex64Generic tests the generic inverse repacking for complex64.
 func TestInverseRepackComplex64Generic(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name string
 		half int
@@ -56,13 +58,13 @@ func TestInverseRepackComplex64Generic(t *testing.T) {
 
 			// Verify properties
 			// 1. No NaN or Inf values
-			for i, v := range dst {
-				if math.IsNaN(float64(real(v))) || math.IsNaN(float64(imag(v))) {
-					t.Errorf("dst[%d] contains NaN: %v", i, v)
+			for i, val := range dst {
+				if math.IsNaN(float64(real(val))) || math.IsNaN(float64(imag(val))) {
+					t.Errorf("dst[%d] contains NaN: %v", i, val)
 				}
 
-				if math.IsInf(float64(real(v)), 0) || math.IsInf(float64(imag(v)), 0) {
-					t.Errorf("dst[%d] contains Inf: %v", i, v)
+				if math.IsInf(float64(real(val)), 0) || math.IsInf(float64(imag(val)), 0) {
+					t.Errorf("dst[%d] contains Inf: %v", i, val)
 				}
 			}
 
@@ -89,6 +91,8 @@ func TestInverseRepackComplex64Generic(t *testing.T) {
 
 // TestInverseRepackComplex128Generic tests the generic inverse repacking for complex128.
 func TestInverseRepackComplex128Generic(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name string
 		half int
@@ -137,13 +141,13 @@ func TestInverseRepackComplex128Generic(t *testing.T) {
 
 			// Verify properties
 			// 1. No NaN or Inf values
-			for i, v := range dst {
-				if cmplx.IsNaN(v) {
-					t.Errorf("dst[%d] contains NaN: %v", i, v)
+			for i, val := range dst {
+				if cmplx.IsNaN(val) {
+					t.Errorf("dst[%d] contains NaN: %v", i, val)
 				}
 
-				if cmplx.IsInf(v) {
-					t.Errorf("dst[%d] contains Inf: %v", i, v)
+				if cmplx.IsInf(val) {
+					t.Errorf("dst[%d] contains Inf: %v", i, val)
 				}
 			}
 
@@ -170,6 +174,8 @@ func TestInverseRepackComplex128Generic(t *testing.T) {
 
 // TestInverseRepackSymmetryComplex64 tests the symmetry properties of inverse repacking.
 func TestInverseRepackSymmetryComplex64(t *testing.T) {
+	t.Parallel()
+
 	half := 16
 	n := half * 2
 

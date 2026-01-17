@@ -222,13 +222,13 @@ func TestPlanRealForwardConjugateSymmetry(t *testing.T) {
 	const tol = 1e-4
 
 	for k := 1; k < n/2; k++ {
-		xk := ref[k]
-		xnk := ref[n-k]
-		conjXnk := complex(real(xnk), -imag(xnk))
+		spectrumValueAtK := ref[k]
+		spectrumValueAtNMinusK := ref[n-k]
+		conjugateOfSpectrumValueAtNMinusK := complex(real(spectrumValueAtNMinusK), -imag(spectrumValueAtNMinusK))
 
-		if cmplx.Abs(complex128(xk-conjXnk)) > tol {
+		if cmplx.Abs(complex128(spectrumValueAtK-conjugateOfSpectrumValueAtNMinusK)) > tol {
 			t.Errorf("conjugate symmetry violated: X[%d]=%v != conj(X[%d])=%v",
-				k, xk, n-k, conjXnk)
+				k, spectrumValueAtK, n-k, conjugateOfSpectrumValueAtNMinusK)
 		}
 	}
 
@@ -296,8 +296,8 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 				}
 
 				const (
-					f0 = 1.0
-					f1 = 8.0
+					baseFreq = 1.0
+					addFreq  = 8.0
 				)
 
 				src := make([]float32, n)
@@ -305,7 +305,7 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 
 				for i := range src {
 					tp := float64(i) / float64(n-1)
-					freq := f0 + (f1-f0)*tp
+					freq := baseFreq + (addFreq-baseFreq)*tp
 					phase += 2 * math.Pi * freq / float64(n)
 					src[i] = float32(math.Sin(phase))
 				}

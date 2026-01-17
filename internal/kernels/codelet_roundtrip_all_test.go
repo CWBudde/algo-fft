@@ -14,6 +14,8 @@ import (
 // TestRoundTripAllCodelets64 tests that every registered complex64 codelet passes
 // the forward -> inverse roundtrip test. This ensures all radix variants work correctly.
 func TestRoundTripAllCodelets64(t *testing.T) {
+	t.Parallel()
+
 	sizes := Registry64.Sizes()
 	features := cpu.DetectFeatures()
 
@@ -40,6 +42,8 @@ func TestRoundTripAllCodelets64(t *testing.T) {
 // TestRoundTripAllCodelets128 tests that every registered complex128 codelet passes
 // the forward -> inverse roundtrip test.
 func TestRoundTripAllCodelets128(t *testing.T) {
+	t.Parallel()
+
 	sizes := Registry128.Sizes()
 	features := cpu.DetectFeatures()
 
@@ -214,6 +218,8 @@ func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex12
 // TestInPlaceAllCodelets64 tests that every registered complex64 codelet works
 // correctly when dst == src (in-place operation).
 func TestInPlaceAllCodelets64(t *testing.T) {
+	t.Parallel()
+
 	sizes := Registry64.Sizes()
 	features := cpu.DetectFeatures()
 
@@ -240,6 +246,8 @@ func TestInPlaceAllCodelets64(t *testing.T) {
 // TestInPlaceAllCodelets128 tests that every registered complex128 codelet works
 // correctly when dst == src (in-place operation).
 func TestInPlaceAllCodelets128(t *testing.T) {
+	t.Parallel()
+
 	sizes := Registry128.Sizes()
 	features := cpu.DetectFeatures()
 

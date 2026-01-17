@@ -33,15 +33,15 @@ func testSharedPlan(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 		t.Fatalf("failed to create plan: %v", err)
 	}
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
 
-	for g := range numGoroutines {
-		wg.Add(1)
+	for goroutine := range numGoroutines {
+		waitGroup.Add(1)
 
 		go func(goroutineID int) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			// Each goroutine has its own buffers
 			src := make([]complex64, n)
@@ -67,10 +67,10 @@ func testSharedPlan(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 					return
 				}
 			}
-		}(g)
+		}(goroutine)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 	close(errors)
 
 	// Check for errors
@@ -100,15 +100,15 @@ func TestConcurrentPooledPlans(t *testing.T) {
 func testConcurrentPooled(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 	t.Helper()
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
 
-	for g := range numGoroutines {
-		wg.Add(1)
+	for goroutine := range numGoroutines {
+		waitGroup.Add(1)
 
 		go func(goroutineID int) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			src := make([]complex64, n)
 			dst := make([]complex64, n)
@@ -130,10 +130,10 @@ func testConcurrentPooled(t *testing.T, n, numGoroutines, itersPerGoroutine int)
 					return
 				}
 			}
-		}(g)
+		}(goroutine)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 	close(errors)
 
 	for err := range errors {
@@ -162,15 +162,15 @@ func TestConcurrentPlanCreation(t *testing.T) {
 func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
 	t.Helper()
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
 
-	for g := range numGoroutines {
-		wg.Add(1)
+	for goroutine := range numGoroutines {
+		waitGroup.Add(1)
 
 		go func(goroutineID int) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			// Each goroutine creates plans for different sizes
 			for _, n := range sizes {
@@ -193,10 +193,10 @@ func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
 					return
 				}
 			}
-		}(g)
+		}(goroutine)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 	close(errors)
 
 	for err := range errors {
@@ -220,15 +220,15 @@ func TestConcurrentMixedOperations(t *testing.T) {
 		t.Fatalf("failed to create plan: %v", err)
 	}
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
 
-	for g := range numGoroutines {
-		wg.Add(1)
+	for goroutine := range numGoroutines {
+		waitGroup.Add(1)
 
 		go func(goroutineID int) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			src := make([]complex64, n)
 			dst := make([]complex64, n)
@@ -253,10 +253,10 @@ func TestConcurrentMixedOperations(t *testing.T) {
 					}
 				}
 			}
-		}(g)
+		}(goroutine)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 	close(errors)
 
 	for err := range errors {
@@ -284,15 +284,15 @@ func TestConcurrentDifferentPrecisions(t *testing.T) {
 		t.Fatalf("failed to create complex128 plan: %v", err)
 	}
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
 
-	for g := range numGoroutines {
-		wg.Add(1)
+	for goroutine := range numGoroutines {
+		waitGroup.Add(1)
 
 		go func(goroutineID int) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			// Alternate between precisions
 			if goroutineID%2 == 0 {
@@ -328,10 +328,10 @@ func TestConcurrentDifferentPrecisions(t *testing.T) {
 					}
 				}
 			}
-		}(g)
+		}(goroutine)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 	close(errors)
 
 	for err := range errors {
@@ -358,15 +358,15 @@ func TestConcurrentStress(t *testing.T) {
 		t.Fatalf("failed to create plan: %v", err)
 	}
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	errors := make(chan error, numGoroutines)
 
-	for g := range numGoroutines {
-		wg.Add(1)
+	for goroutine := range numGoroutines {
+		waitGroup.Add(1)
 
 		go func(goroutineID int) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			src := make([]complex64, n)
 			dst := make([]complex64, n)
@@ -382,10 +382,10 @@ func TestConcurrentStress(t *testing.T) {
 					return
 				}
 			}
-		}(g)
+		}(goroutine)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 	close(errors)
 
 	for err := range errors {

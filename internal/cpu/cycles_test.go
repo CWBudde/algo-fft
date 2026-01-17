@@ -32,6 +32,7 @@ func TestReadCycleCounter(t *testing.T) {
 		for i := 0; i < 100 && c2 == c1; i++ {
 			// Do a tiny bit of work to ensure some time passes
 			runtime.KeepAlive(i)
+
 			c2 = ReadCycleCounter()
 		}
 	}
