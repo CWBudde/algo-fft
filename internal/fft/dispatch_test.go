@@ -130,8 +130,12 @@ func TestDetectFeatures(t *testing.T) {
 
 // TestKernelSelectionWithForcedFeatures tests kernel selection with mocked CPU features.
 func TestKernelSelectionWithForcedFeatures(t *testing.T) {
+	t.Parallel()
+
 	// Test SSE2-only system (no AVX2)
 	t.Run("SSE2Only", func(t *testing.T) {
+		t.Parallel()
+
 		features := cpu.Features{
 			HasSSE2:      true,
 			Architecture: "amd64",
@@ -145,6 +149,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 
 	// Test AVX2 system
 	t.Run("AVX2System", func(t *testing.T) {
+		t.Parallel()
+
 		features := cpu.Features{
 			HasSSE2:      true,
 			HasSSE3:      true,
@@ -163,6 +169,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 
 	// Test ForceGeneric flag disables SIMD
 	t.Run("ForceGeneric", func(t *testing.T) {
+		t.Parallel()
+
 		features := cpu.Features{
 			HasAVX2:      true,
 			ForceGeneric: true,
@@ -178,6 +186,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 
 	// Test ARM NEON system
 	t.Run("NEONSystem", func(t *testing.T) {
+		t.Parallel()
+
 		features := cpu.Features{
 			HasNEON:      true,
 			Architecture: "arm64",

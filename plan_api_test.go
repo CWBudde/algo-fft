@@ -99,6 +99,8 @@ func TestInverseInPlace_LengthMismatch(t *testing.T) {
 
 // TestKernelStrategy tests the KernelStrategy method.
 func TestKernelStrategy(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		size     int
@@ -114,6 +116,8 @@ func TestKernelStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			plan, err := NewPlanWithOptions[complex64](tt.size, PlanOptions{Strategy: tt.strategy})
 			if err != nil {
 				t.Fatalf("NewPlan(%d) failed: %v", tt.size, err)

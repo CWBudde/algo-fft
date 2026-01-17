@@ -33,6 +33,7 @@ func TestRoundTripAllCodelets64(t *testing.T) {
 			}
 
 			t.Run(fmt.Sprintf("size%d/%s", size, entry.Signature), func(t *testing.T) {
+				t.Parallel()
 				testRoundTripCodelet64(t, &entry)
 			})
 		}
@@ -61,6 +62,7 @@ func TestRoundTripAllCodelets128(t *testing.T) {
 			}
 
 			t.Run(fmt.Sprintf("size%d/%s", size, entry.Signature), func(t *testing.T) {
+				t.Parallel()
 				testRoundTripCodelet128(t, &entry)
 			})
 		}
@@ -237,6 +239,7 @@ func TestInPlaceAllCodelets64(t *testing.T) {
 			}
 
 			t.Run(fmt.Sprintf("size%d/%s", size, entry.Signature), func(t *testing.T) {
+				t.Parallel()
 				testInPlaceCodelet64(t, &entry)
 			})
 		}
@@ -265,6 +268,7 @@ func TestInPlaceAllCodelets128(t *testing.T) {
 			}
 
 			t.Run(fmt.Sprintf("size%d/%s", size, entry.Signature), func(t *testing.T) {
+				t.Parallel()
 				testInPlaceCodelet128(t, &entry)
 			})
 		}

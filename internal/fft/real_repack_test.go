@@ -27,6 +27,8 @@ func TestInverseRepackComplex64Generic(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			half := tc.half
 			n := half * 2
 
@@ -110,6 +112,8 @@ func TestInverseRepackComplex128Generic(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			half := tc.half
 			n := half * 2
 
@@ -218,6 +222,8 @@ func TestInverseRepackSymmetryComplex64(t *testing.T) {
 
 // TestInverseRepackSymmetryComplex128 tests the symmetry properties for complex128.
 func TestInverseRepackSymmetryComplex128(t *testing.T) {
+	t.Parallel()
+
 	half := 16
 	n := half * 2
 
@@ -260,7 +266,11 @@ func TestInverseRepackSymmetryComplex128(t *testing.T) {
 
 // TestInverseRepackEdgeCases tests edge cases for inverse repacking.
 func TestInverseRepackEdgeCases(t *testing.T) {
+	t.Parallel()
+
 	t.Run("MinimalSize_Complex64", func(t *testing.T) {
+		t.Parallel()
+
 		half := 2
 		n := half * 2
 
@@ -293,6 +303,8 @@ func TestInverseRepackEdgeCases(t *testing.T) {
 	})
 
 	t.Run("MinimalSize_Complex128", func(t *testing.T) {
+		t.Parallel()
+
 		half := 2
 		n := half * 2
 

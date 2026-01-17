@@ -13,6 +13,8 @@ import (
 // TestSIMDVsGeneric verifies that SIMD-optimized implementations produce
 // identical results to pure-Go fallback implementations.
 func TestSIMDVsGeneric(t *testing.T) {
+	t.Parallel()
+
 	// Skip if not on SIMD-capable architecture
 	arch := runtime.GOARCH
 	if arch != "amd64" && arch != "arm64" {
@@ -22,12 +24,13 @@ func TestSIMDVsGeneric(t *testing.T) {
 	sizes := []int{64, 256, 1024, 4096, 16384}
 
 	for _, n := range sizes {
+		n := n
 		t.Run(fmt.Sprintf("size_%d_complex64", n), func(t *testing.T) {
-			// NOT parallel - parent test modifies global state
+			t.Parallel()
 			testSIMDvsGeneric64(t, n)
 		})
 		t.Run(fmt.Sprintf("size_%d_complex128", n), func(t *testing.T) {
-			// NOT parallel - parent test modifies global state
+			t.Parallel()
 			testSIMDvsGeneric128(t, n)
 		})
 	}
