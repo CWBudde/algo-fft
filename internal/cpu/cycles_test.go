@@ -1,13 +1,27 @@
 package cpu
 
 import (
+	"runtime"
 	"testing"
 	"time"
 )
 
+// isHighPrecisionPlatform returns true if the platform has a high-precision cycle counter.
+// Platforms without assembly support (WebAssembly, etc.) use time.Now() fallback.
+func isHighPrecisionPlatform() bool {
+	// Only AMD64 and ARM64 have assembly implementations
+	return runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64"
+}
+
 func TestReadCycleCounter(t *testing.T) {
 	// Test that cycle counter is monotonically increasing
 	c1 := ReadCycleCounter()
+
+	// On low-precision platforms, add a small delay to ensure time progresses
+	if !isHighPrecisionPlatform() {
+		time.Sleep(time.Microsecond)
+	}
+
 	c2 := ReadCycleCounter()
 
 	if c2 <= c1 {
@@ -22,6 +36,11 @@ func TestCyclesSince(t *testing.T) {
 	sum := 0
 	for i := range 1000 {
 		sum += i
+	}
+
+	// On low-precision platforms, add a delay to ensure time progresses
+	if !isHighPrecisionPlatform() {
+		time.Sleep(time.Microsecond)
 	}
 
 	elapsed := CyclesSince(start)
@@ -58,6 +77,11 @@ func TestCyclesToNanoseconds(t *testing.T) {
 }
 
 func TestCycleCounterPrecision(t *testing.T) {
+	// Skip this test on low-precision platforms where time.Now() is used
+	if !isHighPrecisionPlatform() {
+		t.Skip("Skipping precision test on platform without hardware cycle counter")
+	}
+
 	// Measure how many unique values we can read in rapid succession
 	const samples = 1000
 
@@ -74,7 +98,6 @@ func TestCycleCounterPrecision(t *testing.T) {
 	}
 
 	// On real cycle counters, we should get many unique values
-	// On time.Now() fallback, we might get fewer
 	// Require at least 10% uniqueness (very conservative)
 	uniqueRatio := float64(len(unique)) / float64(samples)
 	if uniqueRatio < 0.1 {
