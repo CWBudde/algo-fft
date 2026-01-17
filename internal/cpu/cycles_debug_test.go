@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestCycleCounterDebug provides diagnostic information about the cycle counter
+// TestCycleCounterDebug provides diagnostic information about the cycle counter.
 func TestCycleCounterDebug(t *testing.T) {
 	t.Logf("Platform: %s/%s", runtime.GOOS, runtime.GOARCH)
 	t.Logf("High precision platform: %v", isHighPrecisionPlatform())
@@ -13,6 +13,7 @@ func TestCycleCounterDebug(t *testing.T) {
 	if runtime.GOARCH == "arm64" {
 		freq := getCounterFrequencyHz()
 		t.Logf("ARM64 counter frequency (CNTFRQ_EL0): %d Hz", freq)
+
 		if freq > 0 {
 			t.Logf("Counter frequency: %.2f MHz", float64(freq)/1_000_000)
 		}
