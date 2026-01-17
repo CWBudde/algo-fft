@@ -24,7 +24,7 @@ See `docs/IMPLEMENTATION_INVENTORY.md` for full inventory. Assembly: `internal/a
 
 ## Phase 12: complex128 Size Optimization (128, 512, 8192)
 
-**Status**: Not started
+**Status**: In progress
 **Priority**: High (regression vs FFTW at target sizes; 8192 alloc)
 
 Goal: Close the complex128 performance gap for sizes 128 and 512, and eliminate the unexpected allocation at size 8192. This phase focuses on diagnosis, kernel selection, and targeted kernel work for these sizes only (not a general large-size sweep).
@@ -34,6 +34,7 @@ Goal: Close the complex128 performance gap for sizes 128 and 512, and eliminate 
 - [x] Add focused benchmarks for complex128 sizes 128, 512, 8192 (forward + inverse)
   - [x] Record kernel selected, strategy (DIT/Stockham), and twiddle layout for each size
   - [x] Capture `-benchmem` + `-cpuprofile` for each size
+- [x] Capture `-tags asm` baselines (benchmem + cpu/mem profiles) for 128/512/8192 and save artifacts under `docs/artifacts/phase12/asm`
 - [x] Add a short note to `BENCHMARKS.md` capturing the baseline numbers and CPU details
 
 ### 12.2 Size 128 Optimization (complex128)

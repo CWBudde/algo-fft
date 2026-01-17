@@ -49,6 +49,37 @@ Record CPU model, Go version, and the logged plan details alongside the numbers.
 | BenchmarkPlanForward_8192_Complex128_Focus-12 | 116405 | 1126.00 |    0 |         0 |
 | BenchmarkPlanInverse_8192_Complex128_Focus-12 | 127627 | 1027.00 |    0 |         0 |
 
+## Phase 12 Focus (complex128 128/512/8192, -tags asm)
+
+Use the same focus benchmarks with `-tags asm` to capture asm-enabled kernel selection and profiles.
+
+```bash
+go test -v -run '^$' -bench 'BenchmarkPlanForward_(128|512|8192)_Complex128_Focus$' -benchmem -tags asm ./
+go test -v -run '^$' -bench 'BenchmarkPlanForward_128_Complex128_Focus$' -benchmem -tags asm -cpuprofile docs/artifacts/phase12/asm/fft128_cpu.pprof -memprofile docs/artifacts/phase12/asm/fft128_mem.pprof ./
+go test -v -run '^$' -bench 'BenchmarkPlanForward_512_Complex128_Focus$' -benchmem -tags asm -cpuprofile docs/artifacts/phase12/asm/fft512_cpu.pprof -memprofile docs/artifacts/phase12/asm/fft512_mem.pprof ./
+go test -v -run '^$' -bench 'BenchmarkPlanForward_8192_Complex128_Focus$' -benchmem -tags asm -cpuprofile docs/artifacts/phase12/asm/fft8192_cpu.pprof -memprofile docs/artifacts/phase12/asm/fft8192_mem.pprof ./
+```
+
+Record the plan details logged by the benchmarks for kernel/strategy/twiddle selection.
+
+**Captured Results**: 2026-01-17  
+**Go**: go1.25.0  
+**OS/Arch**: linux/amd64  
+**CPU**: 12th Gen Intel(R) Core(TM) i7-1255U  
+**Tags**: asm  
+**Profiles**: `docs/artifacts/phase12/asm/fft128_cpu.pprof`, `docs/artifacts/phase12/asm/fft512_cpu.pprof`, `docs/artifacts/phase12/asm/fft8192_cpu.pprof` (mem profiles alongside)
+
+**Plan selection**:  
+- 128: `dit128_radix2_avx2`  
+- 512: `dit512_radix4_then2_avx2`  
+- 8192: `dit8192_sixstep64x128_generic`
+
+| Benchmark                                     |   ns/op |    MB/s | B/op | allocs/op |
+| --------------------------------------------- | ------: | ------: | ---: | --------: |
+| BenchmarkPlanForward_128_Complex128_Focus-12  |   510.8 | 4009.21 |    0 |         0 |
+| BenchmarkPlanForward_512_Complex128_Focus-12  |    2194 | 3733.39 |    0 |         0 |
+| BenchmarkPlanForward_8192_Complex128_Focus-12 |  251140 |  521.91 |    3 |         0 |
+
 ## Baseline Results
 
 **Date**: 2025-12-24  

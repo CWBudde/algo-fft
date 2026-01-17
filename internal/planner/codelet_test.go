@@ -131,14 +131,14 @@ func TestCodeletRegistryPreferHigherSIMD(t *testing.T) {
 		{SIMDAVX512, "avx512"},
 	}
 
-	for _, v := range variants {
+	for _, variant := range variants {
 		registry.Register(CodeletEntry[complex64]{
 			Size:      32,
 			Forward:   dummyCodelet[complex64],
 			Inverse:   dummyCodelet[complex64],
 			Algorithm: KernelDIT,
-			SIMDLevel: v.simd,
-			Signature: "dit32_" + v.signature,
+			SIMDLevel: variant.simd,
+			Signature: "dit32_" + variant.signature,
 			Priority:  0,
 		})
 	}
@@ -400,16 +400,16 @@ func TestCodeletRegistryConcurrent(t *testing.T) {
 
 	registry := NewCodeletRegistry[complex64]()
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	const goroutines = 10
 
 	// Concurrent registration
 	for i := range goroutines {
-		wg.Add(1)
+		waitGroup.Add(1)
 
 		go func(idx int) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			for j := range 10 {
 				size := 16 + idx*100 + j
@@ -426,7 +426,7 @@ func TestCodeletRegistryConcurrent(t *testing.T) {
 		}(i)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 
 	// Verify all registered
 	sizes := registry.Sizes()

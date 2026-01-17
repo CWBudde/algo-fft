@@ -1,0 +1,9 @@
+goos: linux
+goarch: amd64
+pkg: github.com/MeKo-Christian/algo-fft
+cpu: 12th Gen Intel(R) Core(TM) i7-1255U
+BenchmarkPlanForward_8192_Complex128_Focus
+    plan_bench_complex128_focus_test.go:20: plan: size=8192 strategy=DIT algorithm=dit8192_sixstep64x128_generic twiddle=twiddle=8192,codelet_fwd=8192,codelet_inv=8192,packed4(radix=4,stages=6,values=4095),packed8(radix=8,stages=4,values=4095),packed16(radix=16,stages=3,values=4095)
+BenchmarkPlanForward_8192_Complex128_Focus-12    	    6874	    251140 ns/op	 521.91 MB/s	       3 B/op	       0 allocs/op
+PASS
+ok  	github.com/MeKo-Christian/algo-fft	1.925s
