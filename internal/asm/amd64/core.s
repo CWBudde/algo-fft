@@ -132,6 +132,9 @@ GLOBL ·twoFiftySixth64(SB), RODATA|NOPTR, $8
 DATA ·fiveHundredTwelfth64+0(SB)/8, $0x3f60000000000000 // 0.001953125 = 1/512
 GLOBL ·fiveHundredTwelfth64(SB), RODATA|NOPTR, $8
 
+DATA ·twoThousandFortyEighth64+0(SB)/8, $0x3f40000000000000 // 0.00048828125 = 1/2048
+GLOBL ·twoThousandFortyEighth64(SB), RODATA|NOPTR, $8
+
 DATA ·eightThousandOneHundredThirtySecond64+0(SB)/8, $0x3f20000000000000 // 0.0001220703125 = 1/8192
 GLOBL ·eightThousandOneHundredThirtySecond64(SB), RODATA|NOPTR, $8
 

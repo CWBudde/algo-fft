@@ -82,6 +82,8 @@ func allAVX2Cases128() []avx2TestCase128 {
 		{"Size64/Radix4", 64, forwardAVX2Size64Radix4Complex128Asm, inverseAVX2Size64Radix4Complex128Asm},
 		{"Size512/Radix2", 512, forwardAVX2Size512Radix2Complex128Asm, inverseAVX2Size512Radix2Complex128Asm},
 		{"Size512/Radix4Then2", 512, forwardAVX2Size512Radix4Then2Complex128Asm, inverseAVX2Size512Radix4Then2Complex128Asm},
+		{"Size2048/Radix4Then2", 2048, forwardAVX2Size2048Radix4Then2Complex128Asm, inverseAVX2Size2048Radix4Then2Complex128Asm},
+		{"Size8192/Radix4Then2", 8192, forwardAVX2Size8192Radix4Then2Complex128Asm, inverseAVX2Size8192Radix4Then2Complex128Asm},
 	}
 }
 
