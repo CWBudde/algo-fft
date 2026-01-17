@@ -23,7 +23,18 @@ func TestReadCycleCounter(t *testing.T) {
 		time.Sleep(2 * time.Millisecond)
 	}
 
+	// On ARM64, the counter runs at ~24-50 MHz, which means one tick every 20-40ns.
+	// Back-to-back calls might be faster than this, so retry until we see an increment.
+	// On AMD64, TSC runs at GHz speeds, so we'll see increments immediately.
 	c2 := ReadCycleCounter()
+	if c2 == c1 && isHighPrecisionPlatform() {
+		// Retry a few times with small work between attempts
+		for i := 0; i < 100 && c2 == c1; i++ {
+			// Do a tiny bit of work to ensure some time passes
+			runtime.KeepAlive(i)
+			c2 = ReadCycleCounter()
+		}
+	}
 
 	if c2 <= c1 {
 		t.Errorf("Cycle counter not monotonic: c1=%d, c2=%d", c1, c2)
