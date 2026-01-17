@@ -20,7 +20,7 @@ func TestCyclesSince(t *testing.T) {
 
 	// Do some work to ensure cycles elapse
 	sum := 0
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		sum += i
 	}
 
@@ -60,6 +60,7 @@ func TestCyclesToNanoseconds(t *testing.T) {
 func TestCycleCounterPrecision(t *testing.T) {
 	// Measure how many unique values we can read in rapid succession
 	const samples = 1000
+
 	values := make([]int64, samples)
 
 	for i := range values {
@@ -86,21 +87,21 @@ func TestCycleCounterPrecision(t *testing.T) {
 }
 
 func BenchmarkReadCycleCounter(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = ReadCycleCounter()
 	}
 }
 
 func BenchmarkCyclesSince(b *testing.B) {
 	start := ReadCycleCounter()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = CyclesSince(start)
 	}
 }
 
 func BenchmarkCyclesToNanoseconds(b *testing.B) {
 	cycles := int64(1000000)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = CyclesToNanoseconds(cycles)
 	}
 }

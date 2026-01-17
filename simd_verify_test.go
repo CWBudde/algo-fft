@@ -60,6 +60,7 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 		ForceGeneric: true,
 		Architecture: runtime.GOARCH,
 	}
+
 	planGeneric, err := newPlanWithFeatures[complex64](n, genericFeatures, PlanOptions{})
 	if err != nil {
 		t.Fatalf("failed to create generic plan: %v", err)
@@ -125,6 +126,7 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	}
 
 	f := cpu.DetectFeatures()
+
 	plan, err := newPlanWithFeatures[complex128](n, f, PlanOptions{})
 	if err != nil {
 		t.Fatalf("failed to create SIMD plan: %v", err)
@@ -139,6 +141,7 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 		ForceGeneric: true,
 		Architecture: runtime.GOARCH,
 	}
+
 	planGeneric, err := newPlanWithFeatures[complex128](n, genericFeatures, PlanOptions{})
 	if err != nil {
 		t.Fatalf("failed to create generic plan: %v", err)
