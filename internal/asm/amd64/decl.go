@@ -349,6 +349,12 @@ func ForwardAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex
 //go:noescape
 func InverseAVX2Size512Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
+//go:noescape
+func ForwardAVX2Size8192Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseAVX2Size8192Mixed24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
 // ============================================================================
 // Matrix Transpose Operations (for Six-Step FFT)
 // ============================================================================

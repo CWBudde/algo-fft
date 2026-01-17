@@ -179,7 +179,7 @@ func TestRoundTripSizesComplex128(t *testing.T) {
 		}
 
 		for i := range src {
-			assertApproxComplex128f(t, out[i], src[i], 1e-10, "n=%d out[%d]", n, i)
+			assertApproxComplex128f(t, out[i], src[i], "n=%d out[%d]", n, i)
 		}
 	}
 }

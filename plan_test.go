@@ -364,7 +364,7 @@ func TestForwardInverse_RoundTrip128(t *testing.T) {
 	}
 
 	for i := range src {
-		assertApproxComplex128f(t, roundTrip[i], src[i], 1e-10, "roundTrip[%d]", i)
+		assertApproxComplex128f(t, roundTrip[i], src[i], "roundTrip[%d]", i)
 	}
 }
 
@@ -376,9 +376,10 @@ func assertApproxComplex64f(t *testing.T, got, want complex64, tol float64, form
 	}
 }
 
-func assertApproxComplex128f(t *testing.T, got, want complex128, tol float64, format string, args ...any) {
+func assertApproxComplex128f(t *testing.T, got, want complex128, format string, args ...any) {
 	t.Helper()
 
+	const tol = 1e-10
 	if cmplx.Abs(got-want) > tol {
 		t.Fatalf(format+": got %v want %v", append(args, got, want)...)
 	}

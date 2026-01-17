@@ -103,7 +103,7 @@ func TestComplexMulArrayComplex128(t *testing.T) {
 			ComplexMulArrayComplex128(dst, testCase.a, testCase.b)
 
 			for i := range dst {
-				if !complexNear128(dst[i], testCase.want[i], 1e-10) {
+				if !complexNear128(dst[i], testCase.want[i]) {
 					t.Errorf("dst[%d] = %v, want %v", i, dst[i], testCase.want[i])
 				}
 			}
@@ -165,7 +165,7 @@ func TestComplexMulArrayInPlaceComplex128(t *testing.T) {
 	ComplexMulArrayInPlaceComplex128(dst, src)
 
 	for i := range dst {
-		if !complexNear128(dst[i], want[i], 1e-10) {
+		if !complexNear128(dst[i], want[i]) {
 			t.Errorf("dst[%d] = %v, want %v", i, dst[i], want[i])
 		}
 	}
@@ -209,6 +209,7 @@ func complexNear64(a, b complex64, tol float32) bool {
 		float32(math.Abs(float64(imag(a)-imag(b)))) < tol
 }
 
-func complexNear128(a, b complex128, tol float64) bool {
+func complexNear128(a, b complex128) bool {
+	const tol = 1e-10
 	return cmplx.Abs(a-b) < tol
 }

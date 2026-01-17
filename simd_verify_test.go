@@ -24,7 +24,6 @@ func TestSIMDVsGeneric(t *testing.T) {
 	sizes := []int{64, 256, 1024, 4096, 16384}
 
 	for _, n := range sizes {
-
 		t.Run(fmt.Sprintf("size_%d_complex64", n), func(t *testing.T) {
 			t.Parallel()
 			testSIMDvsGeneric64(t, n)

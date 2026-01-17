@@ -83,7 +83,7 @@ func TestPlanInverseStrided_Complex128(t *testing.T) {
 	}
 
 	for i := range n {
-		assertApproxComplex128f(t, dst[i*stride], time[i], 1e-10, "idx[%d]", i)
+		assertApproxComplex128f(t, dst[i*stride], time[i], "idx[%d]", i)
 	}
 }
 

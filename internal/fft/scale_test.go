@@ -145,7 +145,7 @@ func TestScaleComplex128InPlace(t *testing.T) {
 			}
 
 			for i := range dst {
-				if !complexNear128(dst[i], tt.want[i], 1e-10) {
+				if !complexNear128(dst[i], tt.want[i]) {
 					t.Errorf("dst[%d] = %v, want %v", i, dst[i], tt.want[i])
 				}
 			}
@@ -222,7 +222,7 @@ func TestScaleComplex128Large(t *testing.T) {
 				ScaleComplex128InPlace(dst, scale)
 
 				for i := range dst {
-					if !complexNear128(dst[i], want[i], 1e-10) {
+					if !complexNear128(dst[i], want[i]) {
 						t.Errorf("size %d, scale %.1f: dst[%d] = %v, want %v", n, scale, i, dst[i], want[i])
 					}
 				}
