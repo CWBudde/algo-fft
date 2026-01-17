@@ -26,7 +26,7 @@ var bitrev128 = [128]int{
 // This implementation uses:
 // - AVX2 assembly for transpose operations (Steps 1, 6)
 // - AVX2 assembly for fused transpose+twiddle (Steps 3+4)
-// - Existing ForwardAVX2Size128Mixed24Complex64Asm kernel for row FFTs (Steps 2, 5)
+// - Existing ForwardAVX2Size128Radix4Then2Complex64Asm kernel (radix-4-then-2) for row FFTs (Steps 2, 5)
 func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const (
 		n = 16384
@@ -61,7 +61,7 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 	// Step 2: Row FFTs using size-128 AVX2 mixed-radix kernel (128 FFTs of size 128)
 	for r := 0; r < m; r++ {
 		row := dst[r*m : (r+1)*m]
-		if !amd64.ForwardAVX2Size128Mixed24Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -75,7 +75,7 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 	// Step 5: Row FFTs using size-128 AVX2 mixed-radix kernel (128 FFTs of size 128)
 	for r := 0; r < m; r++ {
 		row := work[r*m : (r+1)*m]
-		if !amd64.ForwardAVX2Size128Mixed24Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -123,7 +123,7 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 	// Step 2: Row IFFTs using size-128 AVX2 mixed-radix kernel
 	for r := 0; r < m; r++ {
 		row := dst[r*m : (r+1)*m]
-		if !amd64.InverseAVX2Size128Mixed24Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !amd64.InverseAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -137,7 +137,7 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 	// Step 5: Row IFFTs using size-128 AVX2 mixed-radix kernel
 	for r := 0; r < m; r++ {
 		row := work[r*m : (r+1)*m]
-		if !amd64.InverseAVX2Size128Mixed24Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !amd64.InverseAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}

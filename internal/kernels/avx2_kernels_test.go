@@ -174,7 +174,7 @@ var avx2TestCases = []avx2TestCase{
 		},
 	},
 	{
-		name:          "Size128/Mixed24",
+		name:          "Size128/Radix4Then2",
 		size:          128,
 		radix:         -24,
 		tolerance:     1e-5,
@@ -182,10 +182,10 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0x99AABBCC,
 		roundTripSeed: 0xDDEEFF00,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size128Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseAVX2Size128Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -264,7 +264,7 @@ var avx2TestCases = []avx2TestCase{
 		},
 	},
 	{
-		name:          "Size512/Mixed24",
+		name:          "Size512/Radix4Then2",
 		size:          512,
 		radix:         -24,
 		tolerance:     1e-5,
@@ -272,10 +272,10 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xBBCCDDEE,
 		roundTripSeed: 0xFF001122,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size512Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardAVX2Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size512Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseAVX2Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -331,7 +331,7 @@ var avx2TestCases = []avx2TestCase{
 		},
 	},
 	{
-		name:          "Size2048/Mixed24",
+		name:          "Size2048/Radix4Then2",
 		size:          2048,
 		radix:         -24,
 		tolerance:     2e-5,
@@ -339,10 +339,10 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xDDEEFF00,
 		roundTripSeed: 0x11223344,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size2048Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardAVX2Size2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size2048Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseAVX2Size2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{
@@ -361,7 +361,7 @@ var avx2TestCases = []avx2TestCase{
 		},
 	},
 	{
-		name:          "Size8192/Mixed24",
+		name:          "Size8192/Radix4Then2",
 		size:          8192,
 		radix:         -24,
 		tolerance:     5e-5,
@@ -369,10 +369,10 @@ var avx2TestCases = []avx2TestCase{
 		inverseSeed:   0xFF001122,
 		roundTripSeed: 0x33445566,
 		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size8192Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.ForwardAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 		},
 		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size8192Mixed24Complex64Asm(dst, src, twiddle, scratch)
+			return amd64.InverseAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 		},
 	},
 	{

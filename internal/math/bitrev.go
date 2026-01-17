@@ -7,11 +7,11 @@ import "math/bits"
 //   - radix = 0: Identity permutation (no reordering, e.g., radix-8, radix-16)
 //   - radix = 2: Bit-reversal permutation (standard radix-2 FFT)
 //   - radix = 4: Digit-reversal in base-4 (radix-4 FFT)
-//   - radix = mixed24: Mixed radix-2/4 (one binary bit + quaternary digits)
+//   - radix = -24: Radix-4-then-2 (one binary bit + quaternary digits)
 //
 // For radix = 0, returns [0, 1, 2, ..., n-1].
 // For radix > 0, returns digit-reversed permutation in the given radix.
-// For radix = mixed24, n must be 2 * 4^k for some k >= 1.
+// For radix = -24, n must be 2 * 4^k for some k >= 1.
 //
 // Returns nil if n is invalid for the given radix.
 func ComputePermutationIndices(n int, radix int) []int {
@@ -50,14 +50,14 @@ func ComputePermutationIndices(n int, radix int) []int {
 		if res == nil {
 			// Not a power of 4, but a power of 2 (e.g., 8, 32, 128, 512, ...)
 			// Handle as mixed radix-2/4: 2 * 4^k
-			return computeMixedRadix24(n)
+			return computeRadix4Then2(n)
 		}
 
 		return res
 
-	case -24: // Special marker for mixed radix-2/4
+	case -24: // Special marker for radix-4-then-2
 		// Mixed radix: n = 2 * 4^k
-		return computeMixedRadix24(n)
+		return computeRadix4Then2(n)
 
 	default:
 		// General radix digit reversal
@@ -108,9 +108,9 @@ func reverseDigits(x, digits, radix, bitsPerDigit int) int {
 	return result
 }
 
-// computeMixedRadix24 computes bit-reversal for mixed radix-2/4 FFT.
+// computeRadix4Then2 computes bit-reversal for mixed radix-2/4 FFT.
 // n must be 2 * 4^k for some k >= 1.
-func computeMixedRadix24(n int) []int {
+func computeRadix4Then2(n int) []int {
 	if n <= 0 || n%2 != 0 {
 		return nil
 	}
@@ -194,10 +194,16 @@ func ComputeBitReversalIndicesRadix32(n int) []int {
 	return ComputePermutationIndices(n, 32)
 }
 
-// ComputeBitReversalIndicesMixed24 returns permutation for mixed radix-2/4 FFT.
+// ComputeBitReversalIndicesRadix4Then2 returns permutation for radix-4-then-2 FFT.
 // This is a convenience wrapper around ComputePermutationIndices(n, -24).
-func ComputeBitReversalIndicesMixed24(n int) []int {
+func ComputeBitReversalIndicesRadix4Then2(n int) []int {
 	return ComputePermutationIndices(n, -24)
+}
+
+// ComputeBitReversalIndicesMixed24 returns permutation for mixed radix-2/4 FFT.
+// This is kept for compatibility with older naming.
+func ComputeBitReversalIndicesMixed24(n int) []int {
+	return ComputeBitReversalIndicesRadix4Then2(n)
 }
 
 // ReverseBits reverses the lower 'nbits' bits of x using hardware bit reversal.

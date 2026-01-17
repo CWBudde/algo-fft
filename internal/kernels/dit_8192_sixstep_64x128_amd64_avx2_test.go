@@ -30,8 +30,8 @@ func TestForwardDIT8192SixStep64x128AVX2_Complex64(t *testing.T) {
 		t.Fatal("forwardDIT8192SixStep64x128AVX2Complex64 returned false")
 	}
 
-	if !forwardDIT8192Mixed24Complex64(dstMixed, src, twiddle, scratch) {
-		t.Fatal("forwardDIT8192Mixed24Complex64 returned false")
+	if !forwardDIT8192Radix4Then2Complex64(dstMixed, src, twiddle, scratch) {
+		t.Fatal("forwardDIT8192Radix4Then2Complex64 returned false")
 	}
 
 	maxErr := float32(0)
@@ -71,8 +71,8 @@ func TestInverseDIT8192SixStep64x128AVX2_Complex64(t *testing.T) {
 		t.Fatal("inverseDIT8192SixStep64x128AVX2Complex64 returned false")
 	}
 
-	if !inverseDIT8192Mixed24Complex64(dstMixed, src, twiddle, scratch) {
-		t.Fatal("inverseDIT8192Mixed24Complex64 returned false")
+	if !inverseDIT8192Radix4Then2Complex64(dstMixed, src, twiddle, scratch) {
+		t.Fatal("inverseDIT8192Radix4Then2Complex64 returned false")
 	}
 
 	maxErr := float32(0)

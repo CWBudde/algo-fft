@@ -88,7 +88,7 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	for k2 := range 3 {
 		rowStart := k2 * stride
 		// Input from work, Output to dst (temporarily stored as rows)
-		if !amd64.ForwardAVX2Size128Mixed24Complex64Asm(
+		if !amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(
 			dst[rowStart:rowStart+stride],
 			work[rowStart:rowStart+stride],
 			subTwiddle, subScratch,
@@ -146,7 +146,7 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	// Input from work, Output to dst (temporarily as rows)
 	for k2 := range 3 {
 		rowStart := k2 * stride
-		if !amd64.InverseAVX2Size128Mixed24Complex64Asm(
+		if !amd64.InverseAVX2Size128Radix4Then2Complex64Asm(
 			dst[rowStart:rowStart+stride],
 			work[rowStart:rowStart+stride],
 			subTwiddle, subScratch,

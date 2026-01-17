@@ -7,12 +7,12 @@ import (
 )
 
 const (
-	size2048Mixed24Tol64  = 1e-4
-	size2048Mixed24Tol128 = 1e-10
+	size2048Radix4Then2Tol64  = 1e-4
+	size2048Radix4Then2Tol128 = 1e-10
 )
 
-// TestForwardDIT2048Mixed24Complex64 tests the size-2048 forward mixed-radix-2/4 kernel.
-func TestForwardDIT2048Mixed24Complex64(t *testing.T) {
+// TestForwardDIT2048Radix4Then2Complex64 tests the size-2048 forward radix-4-then-2 kernel.
+func TestForwardDIT2048Radix4Then2Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 2048
@@ -22,16 +22,16 @@ func TestForwardDIT2048Mixed24Complex64(t *testing.T) {
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
-	if !forwardDIT2048Mixed24Complex64(dst, src, twiddle, scratch) {
-		t.Fatal("forwardDIT2048Mixed24Complex64 failed")
+	if !forwardDIT2048Radix4Then2Complex64(dst, src, twiddle, scratch) {
+		t.Fatal("forwardDIT2048Radix4Then2Complex64 failed")
 	}
 
 	want := reference.NaiveDFT(src)
-	assertComplex64Close(t, dst, want, size2048Mixed24Tol64)
+	assertComplex64Close(t, dst, want, size2048Radix4Then2Tol64)
 }
 
-// TestInverseDIT2048Mixed24Complex64 tests the size-2048 inverse mixed-radix-2/4 kernel.
-func TestInverseDIT2048Mixed24Complex64(t *testing.T) {
+// TestInverseDIT2048Radix4Then2Complex64 tests the size-2048 inverse radix-4-then-2 kernel.
+func TestInverseDIT2048Radix4Then2Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 2048
@@ -42,20 +42,20 @@ func TestInverseDIT2048Mixed24Complex64(t *testing.T) {
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
-	if !forwardDIT2048Mixed24Complex64(fwd, src, twiddle, scratch) {
-		t.Fatal("forwardDIT2048Mixed24Complex64 failed")
+	if !forwardDIT2048Radix4Then2Complex64(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT2048Radix4Then2Complex64 failed")
 	}
 
-	if !inverseDIT2048Mixed24Complex64(dst, fwd, twiddle, scratch) {
-		t.Fatal("inverseDIT2048Mixed24Complex64 failed")
+	if !inverseDIT2048Radix4Then2Complex64(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT2048Radix4Then2Complex64 failed")
 	}
 
 	want := reference.NaiveIDFT(fwd)
-	assertComplex64Close(t, dst, want, size2048Mixed24Tol64)
+	assertComplex64Close(t, dst, want, size2048Radix4Then2Tol64)
 }
 
-// TestRoundTripDIT2048Mixed24Complex64 tests forward then inverse returns original.
-func TestRoundTripDIT2048Mixed24Complex64(t *testing.T) {
+// TestRoundTripDIT2048Radix4Then2Complex64 tests forward then inverse returns original.
+func TestRoundTripDIT2048Radix4Then2Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 2048
@@ -66,19 +66,19 @@ func TestRoundTripDIT2048Mixed24Complex64(t *testing.T) {
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
-	if !forwardDIT2048Mixed24Complex64(fwd, src, twiddle, scratch) {
-		t.Fatal("forwardDIT2048Mixed24Complex64 failed")
+	if !forwardDIT2048Radix4Then2Complex64(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT2048Radix4Then2Complex64 failed")
 	}
 
-	if !inverseDIT2048Mixed24Complex64(dst, fwd, twiddle, scratch) {
-		t.Fatal("inverseDIT2048Mixed24Complex64 failed")
+	if !inverseDIT2048Radix4Then2Complex64(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT2048Radix4Then2Complex64 failed")
 	}
 
-	assertComplex64Close(t, dst, src, size2048Mixed24Tol64)
+	assertComplex64Close(t, dst, src, size2048Radix4Then2Tol64)
 }
 
-// TestForwardDIT2048Mixed24Complex128 tests the size-2048 forward mixed-radix-2/4 kernel (complex128).
-func TestForwardDIT2048Mixed24Complex128(t *testing.T) {
+// TestForwardDIT2048Radix4Then2Complex128 tests the size-2048 forward radix-4-then-2 kernel (complex128).
+func TestForwardDIT2048Radix4Then2Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 2048
@@ -88,16 +88,16 @@ func TestForwardDIT2048Mixed24Complex128(t *testing.T) {
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
 
-	if !forwardDIT2048Mixed24Complex128(dst, src, twiddle, scratch) {
-		t.Fatal("forwardDIT2048Mixed24Complex128 failed")
+	if !forwardDIT2048Radix4Then2Complex128(dst, src, twiddle, scratch) {
+		t.Fatal("forwardDIT2048Radix4Then2Complex128 failed")
 	}
 
 	want := reference.NaiveDFT128(src)
-	assertComplex128Close(t, dst, want, size2048Mixed24Tol128)
+	assertComplex128Close(t, dst, want, size2048Radix4Then2Tol128)
 }
 
-// TestInverseDIT2048Mixed24Complex128 tests the size-2048 inverse mixed-radix-2/4 kernel (complex128).
-func TestInverseDIT2048Mixed24Complex128(t *testing.T) {
+// TestInverseDIT2048Radix4Then2Complex128 tests the size-2048 inverse radix-4-then-2 kernel (complex128).
+func TestInverseDIT2048Radix4Then2Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 2048
@@ -108,20 +108,20 @@ func TestInverseDIT2048Mixed24Complex128(t *testing.T) {
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
 
-	if !forwardDIT2048Mixed24Complex128(fwd, src, twiddle, scratch) {
-		t.Fatal("forwardDIT2048Mixed24Complex128 failed")
+	if !forwardDIT2048Radix4Then2Complex128(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT2048Radix4Then2Complex128 failed")
 	}
 
-	if !inverseDIT2048Mixed24Complex128(dst, fwd, twiddle, scratch) {
-		t.Fatal("inverseDIT2048Mixed24Complex128 failed")
+	if !inverseDIT2048Radix4Then2Complex128(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT2048Radix4Then2Complex128 failed")
 	}
 
 	want := reference.NaiveIDFT128(fwd)
-	assertComplex128Close(t, dst, want, size2048Mixed24Tol128)
+	assertComplex128Close(t, dst, want, size2048Radix4Then2Tol128)
 }
 
-// TestRoundTripDIT2048Mixed24Complex128 tests forward then inverse returns original.
-func TestRoundTripDIT2048Mixed24Complex128(t *testing.T) {
+// TestRoundTripDIT2048Radix4Then2Complex128 tests forward then inverse returns original.
+func TestRoundTripDIT2048Radix4Then2Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 2048
@@ -132,13 +132,13 @@ func TestRoundTripDIT2048Mixed24Complex128(t *testing.T) {
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
 
-	if !forwardDIT2048Mixed24Complex128(fwd, src, twiddle, scratch) {
-		t.Fatal("forwardDIT2048Mixed24Complex128 failed")
+	if !forwardDIT2048Radix4Then2Complex128(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT2048Radix4Then2Complex128 failed")
 	}
 
-	if !inverseDIT2048Mixed24Complex128(dst, fwd, twiddle, scratch) {
-		t.Fatal("inverseDIT2048Mixed24Complex128 failed")
+	if !inverseDIT2048Radix4Then2Complex128(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT2048Radix4Then2Complex128 failed")
 	}
 
-	assertComplex128Close(t, dst, src, size2048Mixed24Tol128)
+	assertComplex128Close(t, dst, src, size2048Radix4Then2Tol128)
 }

@@ -19,6 +19,36 @@ scripts/bench_md.sh benchmarks/baseline.txt > /tmp/benchmarks.md
 
 3. Replace the "Baseline Results" table with the regenerated output.
 
+## Phase 12 Focus (complex128 128/512/8192)
+
+Use these focused benchmarks to capture kernel selection, strategy, and twiddle layout
+for complex128 sizes 128/512/8192. Run with `-v` to include the plan details logged by
+the benchmarks, and capture `-benchmem` + `-cpuprofile` for profiling.
+
+```bash
+go test -v -run '^$' -bench 'BenchmarkPlan(Forward|Inverse)_(128|512|8192)_Complex128_Focus$' -benchmem ./...
+go test -v -run '^$' -bench 'BenchmarkPlanForward_128_Complex128_Focus$' -benchmem -cpuprofile /tmp/fft128.pprof ./...
+go test -v -run '^$' -bench 'BenchmarkPlanForward_512_Complex128_Focus$' -benchmem -cpuprofile /tmp/fft512.pprof ./...
+go test -v -run '^$' -bench 'BenchmarkPlanForward_8192_Complex128_Focus$' -benchmem -cpuprofile /tmp/fft8192.pprof ./...
+```
+
+Record CPU model, Go version, and the logged plan details alongside the numbers.
+
+**Captured Results**: 2026-01-17  
+**Go**: go1.25.0  
+**OS/Arch**: linux/amd64  
+**CPU**: 12th Gen Intel(R) Core(TM) i7-1255U  
+**Profiles**: `/tmp/fft128.pprof`, `/tmp/fft512.pprof`, `/tmp/fft8192.pprof`
+
+| Benchmark                                     |  ns/op |    MB/s | B/op | allocs/op |
+| --------------------------------------------- | -----: | ------: | ---: | --------: |
+| BenchmarkPlanForward_128_Complex128_Focus-12  |  519.7 | 3940.76 |    0 |         0 |
+| BenchmarkPlanInverse_128_Complex128_Focus-12  |  631.2 | 3244.53 |    0 |         0 |
+| BenchmarkPlanForward_512_Complex128_Focus-12  |   2525 | 3244.08 |    0 |         0 |
+| BenchmarkPlanInverse_512_Complex128_Focus-12  |   2933 | 2793.05 |    0 |         0 |
+| BenchmarkPlanForward_8192_Complex128_Focus-12 | 116405 | 1126.00 |    0 |         0 |
+| BenchmarkPlanInverse_8192_Complex128_Focus-12 | 127627 | 1027.00 |    0 |         0 |
+
 ## Baseline Results
 
 **Date**: 2025-12-24  

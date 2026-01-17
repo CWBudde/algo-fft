@@ -28,8 +28,8 @@ func TestForwardDIT8192SixStep64x128_Complex64(t *testing.T) {
 		t.Fatal("forwardDIT8192SixStep64x128Complex64 returned false")
 	}
 
-	if !forwardDIT8192Mixed24Complex64(dstMixed, src, twiddle, scratch) {
-		t.Fatal("forwardDIT8192Mixed24Complex64 returned false")
+	if !forwardDIT8192Radix4Then2Complex64(dstMixed, src, twiddle, scratch) {
+		t.Fatal("forwardDIT8192Radix4Then2Complex64 returned false")
 	}
 
 	maxErr := float32(0)
@@ -71,8 +71,8 @@ func TestInverseDIT8192SixStep64x128_Complex64(t *testing.T) {
 		t.Fatal("inverseDIT8192SixStep64x128Complex64 returned false")
 	}
 
-	if !inverseDIT8192Mixed24Complex64(dstMixed, src, twiddle, scratch) {
-		t.Fatal("inverseDIT8192Mixed24Complex64 returned false")
+	if !inverseDIT8192Radix4Then2Complex64(dstMixed, src, twiddle, scratch) {
+		t.Fatal("inverseDIT8192Radix4Then2Complex64 returned false")
 	}
 
 	maxErr := float32(0)
@@ -157,8 +157,8 @@ func TestForwardDIT8192SixStep64x128_Complex128(t *testing.T) {
 		t.Fatal("forwardDIT8192SixStep64x128Complex128 returned false")
 	}
 
-	if !forwardDIT8192Mixed24Complex128(dstMixed, src, twiddle, scratch) {
-		t.Fatal("forwardDIT8192Mixed24Complex128 returned false")
+	if !forwardDIT8192Radix4Then2Complex128(dstMixed, src, twiddle, scratch) {
+		t.Fatal("forwardDIT8192Radix4Then2Complex128 returned false")
 	}
 
 	maxErr := 0.0
@@ -246,8 +246,8 @@ func BenchmarkForwardDIT8192SixStep64x128_Complex64(b *testing.B) {
 	}
 }
 
-// BenchmarkForwardDIT8192Mixed24_Complex64 benchmarks the mixed-radix for comparison.
-func BenchmarkForwardDIT8192Mixed24_Complex64(b *testing.B) {
+// BenchmarkForwardDIT8192Radix4Then2_Complex64 benchmarks the mixed-radix for comparison.
+func BenchmarkForwardDIT8192Radix4Then2_Complex64(b *testing.B) {
 	const n = 8192
 
 	src := make([]complex64, n)
@@ -264,6 +264,6 @@ func BenchmarkForwardDIT8192Mixed24_Complex64(b *testing.B) {
 	b.SetBytes(int64(n) * 8)
 
 	for b.Loop() {
-		forwardDIT8192Mixed24Complex64(dst, src, twiddle, scratch)
+		forwardDIT8192Radix4Then2Complex64(dst, src, twiddle, scratch)
 	}
 }
