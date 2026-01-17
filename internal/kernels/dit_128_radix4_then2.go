@@ -1,66 +1,5 @@
 package kernels
 
-import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
-
-// ComputeBitReversalIndicesMixed128 computes bit-reversal indices for
-// the AVX2 size-128 kernel.
-//
-// The AVX2 size-128 kernel expects inputs in a specific order:
-//
-//	work[0] = x(0)
-//	work[1] = x(32)
-//	work[2] = x(64)
-//	work[3] = x(96)
-//
-// Standard binary reversal gives:
-//
-//	0 -> 0
-//	1 -> 64
-//	2 -> 32
-//	3 -> 96
-//
-// To match the kernel's expectation, we need to swap indices 1 and 2.
-// This corresponds to swapping Bit 5 and Bit 6 of the bit-reversed value.
-func ComputeBitReversalIndicesMixed128(n int) []int {
-	if n != 128 {
-		return nil
-	}
-
-	indices := make([]int, n)
-	bits := 7 // 128 = 2^7
-
-	for i := range n {
-		// 1. Standard binary reverse
-		r := 0
-
-		x := i
-		for range bits {
-			r = (r << 1) | (x & 1)
-			x >>= 1
-		}
-
-		// 2. Swap Bit 5 and Bit 6
-		// These are the two MSBs for 7-bit number (bits 0..6)
-		b5 := (r >> 5) & 1
-		b6 := (r >> 6) & 1
-
-		// Clear bits 5 and 6
-		r &= ^(1<<5 | 1<<6)
-
-		// Set swapped
-		r |= (b5 << 6) | (b6 << 5)
-
-		indices[i] = r
-	}
-
-	return indices
-}
-
-// bitrev128Radix4Then2 pre-computes mixed-radix bit-reversal indices for size-128.
-//
-//nolint:gochecknoglobals
-var bitrev128Radix4Then2 = mathpkg.ComputeBitReversalIndicesRadix4Then2(128)
-
 // forwardDIT128Radix4Then2Complex64 computes a 128-point forward FFT using
 // radix-4-then-2 Decimation-in-Time (DIT) algorithm for complex64 data.
 func forwardDIT128Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) bool {
@@ -70,33 +9,134 @@ func forwardDIT128Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) b
 		return false
 	}
 
-	br := bitrev128Radix4Then2
 	s := src[:n]
 	tw := twiddle[:n]
 
 	// Stage 1: 32 radix-4 butterflies with fused bit-reversal.
-	var stage1 [128]complex64
+	work1 := scratch[:n]
+	work2 := dst[:n]
 
-	for base := 0; base < n; base += 4 {
-		a0 := s[br[base]]
-		a1 := s[br[base+1]]
-		a2 := s[br[base+2]]
-		a3 := s[br[base+3]]
+	for i := range 4 {
+		a0 := s[0+i*8]
+		a1 := s[32+i*8]
+		a2 := s[64+i*8]
+		a3 := s[96+i*8]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
-		stage1[base+1] = t1 + mulNegI(t3)
-		stage1[base+3] = t1 + mulI(t3)
+		work1[0+i*4] = t0 + t2
+		work1[2+i*4] = t0 - t2
+		work1[1+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[3+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[4+i*8]
+		a1 = s[36+i*8]
+		a2 = s[68+i*8]
+		a3 = s[100+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[32+i*4] = t0 + t2
+		work1[34+i*4] = t0 - t2
+		work1[33+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[35+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[2+i*8]
+		a1 = s[34+i*8]
+		a2 = s[66+i*8]
+		a3 = s[98+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[16+i*4] = t0 + t2
+		work1[18+i*4] = t0 - t2
+		work1[17+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[19+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[6+i*8]
+		a1 = s[38+i*8]
+		a2 = s[70+i*8]
+		a3 = s[102+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[48+i*4] = t0 + t2
+		work1[50+i*4] = t0 - t2
+		work1[49+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[51+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[1+i*8]
+		a1 = s[33+i*8]
+		a2 = s[65+i*8]
+		a3 = s[97+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[64+i*4] = t0 + t2
+		work1[66+i*4] = t0 - t2
+		work1[65+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[67+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[5+i*8]
+		a1 = s[37+i*8]
+		a2 = s[69+i*8]
+		a3 = s[101+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[96+i*4] = t0 + t2
+		work1[98+i*4] = t0 - t2
+		work1[97+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[99+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[3+i*8]
+		a1 = s[35+i*8]
+		a2 = s[67+i*8]
+		a3 = s[99+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[80+i*4] = t0 + t2
+		work1[82+i*4] = t0 - t2
+		work1[81+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[83+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[7+i*8]
+		a1 = s[39+i*8]
+		a2 = s[71+i*8]
+		a3 = s[103+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[112+i*4] = t0 + t2
+		work1[114+i*4] = t0 - t2
+		work1[113+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[115+i*4] = t1 + complex(-imag(t3), real(t3))
 	}
-
-	// Stage 2: 8 radix-4 groups × 4 butterflies each.
-	var stage2 [128]complex64
-
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := tw[j*8]
@@ -108,26 +148,24 @@ func forwardDIT128Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) b
 			idx2 := idx0 + 8
 			idx3 := idx0 + 12
 
-			a0 := stage1[idx0]
-			a1 := w1 * stage1[idx1]
-			a2 := w2 * stage1[idx2]
-			a3 := w3 * stage1[idx3]
+			a0 := work1[idx0]
+			a1 := w1 * work1[idx1]
+			a2 := w2 * work1[idx2]
+			a3 := w3 * work1[idx3]
 
 			t0 := a0 + a2
 			t1 := a0 - a2
 			t2 := a1 + a3
 			t3 := a1 - a3
 
-			stage2[idx0] = t0 + t2
-			stage2[idx2] = t0 - t2
-			stage2[idx1] = t1 + mulNegI(t3)
-			stage2[idx3] = t1 + mulI(t3)
+			work2[idx0] = t0 + t2
+			work2[idx2] = t0 - t2
+			work2[idx1] = t1 + complex(imag(t3), -real(t3))
+			work2[idx3] = t1 + complex(-imag(t3), real(t3))
 		}
 	}
 
 	// Stage 3: 2 radix-4 groups × 16 butterflies each.
-	var stage3 [128]complex64
-
 	for base := 0; base < n; base += 64 {
 		for j := range 16 {
 			w1 := tw[j*2]
@@ -139,41 +177,30 @@ func forwardDIT128Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) b
 			idx2 := idx0 + 32
 			idx3 := idx0 + 48
 
-			a0 := stage2[idx0]
-			a1 := w1 * stage2[idx1]
-			a2 := w2 * stage2[idx2]
-			a3 := w3 * stage2[idx3]
+			a0 := work2[idx0]
+			a1 := w1 * work2[idx1]
+			a2 := w2 * work2[idx2]
+			a3 := w3 * work2[idx3]
 
 			t0 := a0 + a2
 			t1 := a0 - a2
 			t2 := a1 + a3
 			t3 := a1 - a3
 
-			stage3[idx0] = t0 + t2
-			stage3[idx2] = t0 - t2
-			stage3[idx1] = t1 + mulNegI(t3)
-			stage3[idx3] = t1 + mulI(t3)
+			work1[idx0] = t0 + t2
+			work1[idx2] = t0 - t2
+			work1[idx1] = t1 + complex(imag(t3), -real(t3))
+			work1[idx3] = t1 + complex(-imag(t3), real(t3))
 		}
 	}
 
 	// Stage 4: radix-2 final stage (combines two 64-point halves).
-	work := dst
-	if &dst[0] == &src[0] {
-		work = scratch
-	}
-
-	work = work[:n]
-
 	for j := range 64 {
 		w := tw[j]
-		a := stage3[j]
-		b := w * stage3[j+64]
-		work[j] = a + b
-		work[j+64] = a - b
-	}
-
-	if &work[0] != &dst[0] {
-		copy(dst, work)
+		a := work1[j]
+		b := w * work1[j+64]
+		work2[j] = a + b
+		work2[j+64] = a - b
 	}
 
 	return true
@@ -188,31 +215,134 @@ func inverseDIT128Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) b
 		return false
 	}
 
-	br := bitrev128Radix4Then2
 	s := src[:n]
 	tw := twiddle[:n]
 
-	var stage1 [128]complex64
+	// Stage 1: 32 radix-4 butterflies with fused bit-reversal.
+	work1 := scratch[:n]
+	work2 := dst[:n]
 
-	for base := 0; base < n; base += 4 {
-		a0 := s[br[base]]
-		a1 := s[br[base+1]]
-		a2 := s[br[base+2]]
-		a3 := s[br[base+3]]
+	for i := range 4 {
+		a0 := s[0+i*8]
+		a1 := s[32+i*8]
+		a2 := s[64+i*8]
+		a3 := s[96+i*8]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
-		stage1[base+1] = t1 + mulI(t3)
-		stage1[base+3] = t1 + mulNegI(t3)
+		work1[0+i*4] = t0 + t2
+		work1[2+i*4] = t0 - t2
+		work1[1+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[3+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[4+i*8]
+		a1 = s[36+i*8]
+		a2 = s[68+i*8]
+		a3 = s[100+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[32+i*4] = t0 + t2
+		work1[34+i*4] = t0 - t2
+		work1[33+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[35+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[2+i*8]
+		a1 = s[34+i*8]
+		a2 = s[66+i*8]
+		a3 = s[98+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[16+i*4] = t0 + t2
+		work1[18+i*4] = t0 - t2
+		work1[17+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[19+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[6+i*8]
+		a1 = s[38+i*8]
+		a2 = s[70+i*8]
+		a3 = s[102+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[48+i*4] = t0 + t2
+		work1[50+i*4] = t0 - t2
+		work1[49+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[51+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[1+i*8]
+		a1 = s[33+i*8]
+		a2 = s[65+i*8]
+		a3 = s[97+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[64+i*4] = t0 + t2
+		work1[66+i*4] = t0 - t2
+		work1[65+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[67+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[5+i*8]
+		a1 = s[37+i*8]
+		a2 = s[69+i*8]
+		a3 = s[101+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[96+i*4] = t0 + t2
+		work1[98+i*4] = t0 - t2
+		work1[97+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[99+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[3+i*8]
+		a1 = s[35+i*8]
+		a2 = s[67+i*8]
+		a3 = s[99+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[80+i*4] = t0 + t2
+		work1[82+i*4] = t0 - t2
+		work1[81+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[83+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[7+i*8]
+		a1 = s[39+i*8]
+		a2 = s[71+i*8]
+		a3 = s[103+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[112+i*4] = t0 + t2
+		work1[114+i*4] = t0 - t2
+		work1[113+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[115+i*4] = t1 + complex(imag(t3), -real(t3))
 	}
-
-	var stage2 [128]complex64
-
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := tw[j*8]
@@ -227,24 +357,22 @@ func inverseDIT128Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) b
 			idx2 := idx0 + 8
 			idx3 := idx0 + 12
 
-			a0 := stage1[idx0]
-			a1 := w1 * stage1[idx1]
-			a2 := w2 * stage1[idx2]
-			a3 := w3 * stage1[idx3]
+			a0 := work1[idx0]
+			a1 := w1 * work1[idx1]
+			a2 := w2 * work1[idx2]
+			a3 := w3 * work1[idx3]
 
 			t0 := a0 + a2
 			t1 := a0 - a2
 			t2 := a1 + a3
 			t3 := a1 - a3
 
-			stage2[idx0] = t0 + t2
-			stage2[idx2] = t0 - t2
-			stage2[idx1] = t1 + mulI(t3)
-			stage2[idx3] = t1 + mulNegI(t3)
+			work2[idx0] = t0 + t2
+			work2[idx2] = t0 - t2
+			work2[idx1] = t1 + complex(-imag(t3), real(t3))
+			work2[idx3] = t1 + complex(imag(t3), -real(t3))
 		}
 	}
-
-	var stage3 [128]complex64
 
 	for base := 0; base < n; base += 64 {
 		for j := range 16 {
@@ -260,41 +388,30 @@ func inverseDIT128Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) b
 			idx2 := idx0 + 32
 			idx3 := idx0 + 48
 
-			a0 := stage2[idx0]
-			a1 := w1 * stage2[idx1]
-			a2 := w2 * stage2[idx2]
-			a3 := w3 * stage2[idx3]
+			a0 := work2[idx0]
+			a1 := w1 * work2[idx1]
+			a2 := w2 * work2[idx2]
+			a3 := w3 * work2[idx3]
 
 			t0 := a0 + a2
 			t1 := a0 - a2
 			t2 := a1 + a3
 			t3 := a1 - a3
 
-			stage3[idx0] = t0 + t2
-			stage3[idx2] = t0 - t2
-			stage3[idx1] = t1 + mulI(t3)
-			stage3[idx3] = t1 + mulNegI(t3)
+			work1[idx0] = t0 + t2
+			work1[idx2] = t0 - t2
+			work1[idx1] = t1 + complex(-imag(t3), real(t3))
+			work1[idx3] = t1 + complex(imag(t3), -real(t3))
 		}
 	}
-
-	work := dst
-	if &dst[0] == &src[0] {
-		work = scratch
-	}
-
-	work = work[:n]
 
 	for j := range 64 {
 		w := tw[j]
 		w = complex(real(w), -imag(w))
-		a := stage3[j]
-		b := w * stage3[j+64]
-		work[j] = a + b
-		work[j+64] = a - b
-	}
-
-	if &work[0] != &dst[0] {
-		copy(dst, work)
+		a := work1[j]
+		b := w * work1[j+64]
+		work2[j] = a + b
+		work2[j+64] = a - b
 	}
 
 	scale := complex(float32(1.0/float64(n)), 0)
@@ -314,31 +431,134 @@ func forwardDIT128Radix4Then2Complex128(dst, src, twiddle, scratch []complex128)
 		return false
 	}
 
-	br := bitrev128Radix4Then2
 	s := src[:n]
 	tw := twiddle[:n]
 
-	var stage1 [128]complex128
+	// Stage 1: 32 radix-4 butterflies with fused bit-reversal.
+	work1 := scratch[:n]
+	work2 := dst[:n]
 
-	for base := 0; base < n; base += 4 {
-		a0 := s[br[base]]
-		a1 := s[br[base+1]]
-		a2 := s[br[base+2]]
-		a3 := s[br[base+3]]
+	for i := range 4 {
+		a0 := s[0+i*8]
+		a1 := s[32+i*8]
+		a2 := s[64+i*8]
+		a3 := s[96+i*8]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
-		stage1[base+1] = t1 + mulNegI(t3)
-		stage1[base+3] = t1 + mulI(t3)
+		work1[0+i*4] = t0 + t2
+		work1[2+i*4] = t0 - t2
+		work1[1+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[3+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[4+i*8]
+		a1 = s[36+i*8]
+		a2 = s[68+i*8]
+		a3 = s[100+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[32+i*4] = t0 + t2
+		work1[34+i*4] = t0 - t2
+		work1[33+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[35+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[2+i*8]
+		a1 = s[34+i*8]
+		a2 = s[66+i*8]
+		a3 = s[98+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[16+i*4] = t0 + t2
+		work1[18+i*4] = t0 - t2
+		work1[17+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[19+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[6+i*8]
+		a1 = s[38+i*8]
+		a2 = s[70+i*8]
+		a3 = s[102+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[48+i*4] = t0 + t2
+		work1[50+i*4] = t0 - t2
+		work1[49+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[51+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[1+i*8]
+		a1 = s[33+i*8]
+		a2 = s[65+i*8]
+		a3 = s[97+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[64+i*4] = t0 + t2
+		work1[66+i*4] = t0 - t2
+		work1[65+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[67+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[5+i*8]
+		a1 = s[37+i*8]
+		a2 = s[69+i*8]
+		a3 = s[101+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[96+i*4] = t0 + t2
+		work1[98+i*4] = t0 - t2
+		work1[97+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[99+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[3+i*8]
+		a1 = s[35+i*8]
+		a2 = s[67+i*8]
+		a3 = s[99+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[80+i*4] = t0 + t2
+		work1[82+i*4] = t0 - t2
+		work1[81+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[83+i*4] = t1 + complex(-imag(t3), real(t3))
+
+		a0 = s[7+i*8]
+		a1 = s[39+i*8]
+		a2 = s[71+i*8]
+		a3 = s[103+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[112+i*4] = t0 + t2
+		work1[114+i*4] = t0 - t2
+		work1[113+i*4] = t1 + complex(imag(t3), -real(t3))
+		work1[115+i*4] = t1 + complex(-imag(t3), real(t3))
 	}
-
-	var stage2 [128]complex128
-
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := tw[j*8]
@@ -350,24 +570,22 @@ func forwardDIT128Radix4Then2Complex128(dst, src, twiddle, scratch []complex128)
 			idx2 := idx0 + 8
 			idx3 := idx0 + 12
 
-			a0 := stage1[idx0]
-			a1 := w1 * stage1[idx1]
-			a2 := w2 * stage1[idx2]
-			a3 := w3 * stage1[idx3]
+			a0 := work1[idx0]
+			a1 := w1 * work1[idx1]
+			a2 := w2 * work1[idx2]
+			a3 := w3 * work1[idx3]
 
 			t0 := a0 + a2
 			t1 := a0 - a2
 			t2 := a1 + a3
 			t3 := a1 - a3
 
-			stage2[idx0] = t0 + t2
-			stage2[idx2] = t0 - t2
-			stage2[idx1] = t1 + mulNegI(t3)
-			stage2[idx3] = t1 + mulI(t3)
+			work2[idx0] = t0 + t2
+			work2[idx2] = t0 - t2
+			work2[idx1] = t1 + complex(imag(t3), -real(t3))
+			work2[idx3] = t1 + complex(-imag(t3), real(t3))
 		}
 	}
-
-	var stage3 [128]complex128
 
 	for base := 0; base < n; base += 64 {
 		for j := range 16 {
@@ -380,40 +598,29 @@ func forwardDIT128Radix4Then2Complex128(dst, src, twiddle, scratch []complex128)
 			idx2 := idx0 + 32
 			idx3 := idx0 + 48
 
-			a0 := stage2[idx0]
-			a1 := w1 * stage2[idx1]
-			a2 := w2 * stage2[idx2]
-			a3 := w3 * stage2[idx3]
+			a0 := work2[idx0]
+			a1 := w1 * work2[idx1]
+			a2 := w2 * work2[idx2]
+			a3 := w3 * work2[idx3]
 
 			t0 := a0 + a2
 			t1 := a0 - a2
 			t2 := a1 + a3
 			t3 := a1 - a3
 
-			stage3[idx0] = t0 + t2
-			stage3[idx2] = t0 - t2
-			stage3[idx1] = t1 + mulNegI(t3)
-			stage3[idx3] = t1 + mulI(t3)
+			work1[idx0] = t0 + t2
+			work1[idx2] = t0 - t2
+			work1[idx1] = t1 + complex(imag(t3), -real(t3))
+			work1[idx3] = t1 + complex(-imag(t3), real(t3))
 		}
 	}
 
-	work := dst
-	if &dst[0] == &src[0] {
-		work = scratch
-	}
-
-	work = work[:n]
-
 	for j := range 64 {
 		w := tw[j]
-		a := stage3[j]
-		b := w * stage3[j+64]
-		work[j] = a + b
-		work[j+64] = a - b
-	}
-
-	if &work[0] != &dst[0] {
-		copy(dst, work)
+		a := work1[j]
+		b := w * work1[j+64]
+		work2[j] = a + b
+		work2[j+64] = a - b
 	}
 
 	return true
@@ -428,31 +635,134 @@ func inverseDIT128Radix4Then2Complex128(dst, src, twiddle, scratch []complex128)
 		return false
 	}
 
-	br := bitrev128Radix4Then2
 	s := src[:n]
 	tw := twiddle[:n]
 
-	var stage1 [128]complex128
+	// Stage 1: 32 radix-4 butterflies with fused bit-reversal.
+	work1 := scratch[:n]
+	work2 := dst[:n]
 
-	for base := 0; base < n; base += 4 {
-		a0 := s[br[base]]
-		a1 := s[br[base+1]]
-		a2 := s[br[base+2]]
-		a3 := s[br[base+3]]
+	for i := range 4 {
+		a0 := s[0+i*8]
+		a1 := s[32+i*8]
+		a2 := s[64+i*8]
+		a3 := s[96+i*8]
 
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		stage1[base] = t0 + t2
-		stage1[base+2] = t0 - t2
-		stage1[base+1] = t1 + mulI(t3)
-		stage1[base+3] = t1 + mulNegI(t3)
+		work1[0+i*4] = t0 + t2
+		work1[2+i*4] = t0 - t2
+		work1[1+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[3+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[4+i*8]
+		a1 = s[36+i*8]
+		a2 = s[68+i*8]
+		a3 = s[100+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[32+i*4] = t0 + t2
+		work1[34+i*4] = t0 - t2
+		work1[33+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[35+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[2+i*8]
+		a1 = s[34+i*8]
+		a2 = s[66+i*8]
+		a3 = s[98+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[16+i*4] = t0 + t2
+		work1[18+i*4] = t0 - t2
+		work1[17+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[19+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[6+i*8]
+		a1 = s[38+i*8]
+		a2 = s[70+i*8]
+		a3 = s[102+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[48+i*4] = t0 + t2
+		work1[50+i*4] = t0 - t2
+		work1[49+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[51+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[1+i*8]
+		a1 = s[33+i*8]
+		a2 = s[65+i*8]
+		a3 = s[97+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[64+i*4] = t0 + t2
+		work1[66+i*4] = t0 - t2
+		work1[65+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[67+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[5+i*8]
+		a1 = s[37+i*8]
+		a2 = s[69+i*8]
+		a3 = s[101+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[96+i*4] = t0 + t2
+		work1[98+i*4] = t0 - t2
+		work1[97+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[99+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[3+i*8]
+		a1 = s[35+i*8]
+		a2 = s[67+i*8]
+		a3 = s[99+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[80+i*4] = t0 + t2
+		work1[82+i*4] = t0 - t2
+		work1[81+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[83+i*4] = t1 + complex(imag(t3), -real(t3))
+
+		a0 = s[7+i*8]
+		a1 = s[39+i*8]
+		a2 = s[71+i*8]
+		a3 = s[103+i*8]
+
+		t0 = a0 + a2
+		t1 = a0 - a2
+		t2 = a1 + a3
+		t3 = a1 - a3
+
+		work1[112+i*4] = t0 + t2
+		work1[114+i*4] = t0 - t2
+		work1[113+i*4] = t1 + complex(-imag(t3), real(t3))
+		work1[115+i*4] = t1 + complex(imag(t3), -real(t3))
 	}
-
-	var stage2 [128]complex128
-
 	for base := 0; base < n; base += 16 {
 		for j := range 4 {
 			w1 := tw[j*8]
@@ -467,24 +777,22 @@ func inverseDIT128Radix4Then2Complex128(dst, src, twiddle, scratch []complex128)
 			idx2 := idx0 + 8
 			idx3 := idx0 + 12
 
-			a0 := stage1[idx0]
-			a1 := w1 * stage1[idx1]
-			a2 := w2 * stage1[idx2]
-			a3 := w3 * stage1[idx3]
+			a0 := work1[idx0]
+			a1 := w1 * work1[idx1]
+			a2 := w2 * work1[idx2]
+			a3 := w3 * work1[idx3]
 
 			t0 := a0 + a2
 			t1 := a0 - a2
 			t2 := a1 + a3
 			t3 := a1 - a3
 
-			stage2[idx0] = t0 + t2
-			stage2[idx2] = t0 - t2
-			stage2[idx1] = t1 + mulI(t3)
-			stage2[idx3] = t1 + mulNegI(t3)
+			work2[idx0] = t0 + t2
+			work2[idx2] = t0 - t2
+			work2[idx1] = t1 + complex(-imag(t3), real(t3))
+			work2[idx3] = t1 + complex(imag(t3), -real(t3))
 		}
 	}
-
-	var stage3 [128]complex128
 
 	for base := 0; base < n; base += 64 {
 		for j := range 16 {
@@ -500,41 +808,30 @@ func inverseDIT128Radix4Then2Complex128(dst, src, twiddle, scratch []complex128)
 			idx2 := idx0 + 32
 			idx3 := idx0 + 48
 
-			a0 := stage2[idx0]
-			a1 := w1 * stage2[idx1]
-			a2 := w2 * stage2[idx2]
-			a3 := w3 * stage2[idx3]
+			a0 := work2[idx0]
+			a1 := w1 * work2[idx1]
+			a2 := w2 * work2[idx2]
+			a3 := w3 * work2[idx3]
 
 			t0 := a0 + a2
 			t1 := a0 - a2
 			t2 := a1 + a3
 			t3 := a1 - a3
 
-			stage3[idx0] = t0 + t2
-			stage3[idx2] = t0 - t2
-			stage3[idx1] = t1 + mulI(t3)
-			stage3[idx3] = t1 + mulNegI(t3)
+			work1[idx0] = t0 + t2
+			work1[idx2] = t0 - t2
+			work1[idx1] = t1 + complex(-imag(t3), real(t3))
+			work1[idx3] = t1 + complex(imag(t3), -real(t3))
 		}
 	}
-
-	work := dst
-	if &dst[0] == &src[0] {
-		work = scratch
-	}
-
-	work = work[:n]
 
 	for j := range 64 {
 		w := tw[j]
 		w = complex(real(w), -imag(w))
-		a := stage3[j]
-		b := w * stage3[j+64]
-		work[j] = a + b
-		work[j+64] = a - b
-	}
-
-	if &work[0] != &dst[0] {
-		copy(dst, work)
+		a := work1[j]
+		b := w * work1[j+64]
+		work2[j] = a + b
+		work2[j+64] = a - b
 	}
 
 	scale := complex(1.0/float64(n), 0)
@@ -544,3 +841,6 @@ func inverseDIT128Radix4Then2Complex128(dst, src, twiddle, scratch []complex128)
 
 	return true
 }
+
+// forwardDIT128Radix4Then2Complex64 computes a 128-point forward FFT using
+// radix-4-then-2 Decimation-in-Time (DIT) algorithm for complex64 data.
