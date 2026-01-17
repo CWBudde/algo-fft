@@ -20,12 +20,6 @@ jobs:
             os: ubuntu-latest
             race: true
 
-          # amd64 on macOS
-          - goos: darwin
-            goarch: amd64
-            os: macos-13
-            race: true
-
           # arm64 on macOS (native)
           - goos: darwin
             goarch: arm64
