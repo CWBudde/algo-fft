@@ -17,7 +17,7 @@ func TestForwardDIT8192SixStep64x128_Complex64(t *testing.T) {
 	dstSixStep := make([]complex64, n)
 	dstMixed := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n)
+	scratch := make([]complex64, 2*n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -60,7 +60,7 @@ func TestInverseDIT8192SixStep64x128_Complex64(t *testing.T) {
 	dstSixStep := make([]complex64, n)
 	dstMixed := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n)
+	scratch := make([]complex64, 2*n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -103,7 +103,7 @@ func TestRoundTripDIT8192SixStep64x128_Complex64(t *testing.T) {
 	freq := make([]complex64, n)
 	result := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n)
+	scratch := make([]complex64, 2*n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -146,7 +146,7 @@ func TestForwardDIT8192SixStep64x128_Complex128(t *testing.T) {
 	dstSixStep := make([]complex128, n)
 	dstMixed := make([]complex128, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
-	scratch := make([]complex128, n)
+	scratch := make([]complex128, 2*n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -189,7 +189,7 @@ func TestRoundTripDIT8192SixStep64x128_Complex128(t *testing.T) {
 	freq := make([]complex128, n)
 	result := make([]complex128, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
-	scratch := make([]complex128, n)
+	scratch := make([]complex128, 2*n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -231,7 +231,7 @@ func BenchmarkForwardDIT8192SixStep64x128_Complex64(b *testing.B) {
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n)
+	scratch := make([]complex64, 2*n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {
@@ -253,7 +253,7 @@ func BenchmarkForwardDIT8192Mixed24_Complex64(b *testing.B) {
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-	scratch := make([]complex64, n)
+	scratch := make([]complex64, 2*n)
 
 	rng := rand.New(rand.NewSource(42))
 	for i := range src {

@@ -26,7 +26,12 @@ func forwardDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 
 	// Work buffer for intermediate results
 	work := scratch[:n]
-	work2 := make([]complex64, n) // second work buffer for transpose
+	var work2 []complex64
+	if len(scratch) >= 2*n {
+		work2 = scratch[n : 2*n]
+	} else {
+		work2 = make([]complex64, n) // fallback when scratch is undersized
+	}
 
 	// Step 1: Transpose 64×128 (src) → 128×64 (work)
 	// src[i*cols + j] → work[j*rows + i]
@@ -106,7 +111,12 @@ func inverseDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	}
 
 	work := scratch[:n]
-	work2 := make([]complex64, n)
+	var work2 []complex64
+	if len(scratch) >= 2*n {
+		work2 = scratch[n : 2*n]
+	} else {
+		work2 = make([]complex64, n)
+	}
 
 	// Step 1: Transpose 64×128 (src) → 128×64 (work)
 	for i := range rows {
@@ -183,7 +193,12 @@ func forwardDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	}
 
 	work := scratch[:n]
-	work2 := make([]complex128, n)
+	var work2 []complex128
+	if len(scratch) >= 2*n {
+		work2 = scratch[n : 2*n]
+	} else {
+		work2 = make([]complex128, n)
+	}
 
 	// Step 1: Transpose 64×128 → 128×64
 	for i := range rows {
@@ -256,7 +271,12 @@ func inverseDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	}
 
 	work := scratch[:n]
-	work2 := make([]complex128, n)
+	var work2 []complex128
+	if len(scratch) >= 2*n {
+		work2 = scratch[n : 2*n]
+	} else {
+		work2 = make([]complex128, n)
+	}
 
 	// Step 1: Transpose 64×128 → 128×64
 	for i := range rows {

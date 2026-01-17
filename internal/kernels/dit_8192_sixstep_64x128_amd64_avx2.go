@@ -30,7 +30,12 @@ func forwardDIT8192SixStep64x128AVX2Complex64(dst, src, twiddle, scratch []compl
 	}
 
 	work := scratch[:n]
-	work2 := make([]complex64, n)
+	var work2 []complex64
+	if len(scratch) >= 2*n {
+		work2 = scratch[n : 2*n]
+	} else {
+		work2 = make([]complex64, n)
+	}
 
 	// Step 1: Transpose 64×128 (src) → 128×64 (work)
 	for i := range rows {
@@ -103,7 +108,12 @@ func inverseDIT8192SixStep64x128AVX2Complex64(dst, src, twiddle, scratch []compl
 	}
 
 	work := scratch[:n]
-	work2 := make([]complex64, n)
+	var work2 []complex64
+	if len(scratch) >= 2*n {
+		work2 = scratch[n : 2*n]
+	} else {
+		work2 = make([]complex64, n)
+	}
 
 	// Step 1: Transpose 64×128 (src) → 128×64 (work)
 	for i := range rows {

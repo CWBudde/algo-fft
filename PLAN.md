@@ -20,24 +20,46 @@
 
 See `docs/IMPLEMENTATION_INVENTORY.md` for full inventory. Assembly: `internal/asm/{amd64,arm64,x86}/`, registration: `internal/kernels/codelet_init*.go`
 
-**Phase 11 ✅**: Bit-reversal refactoring complete — all kernels now self-contained with internal permutation (Pure Go, AVX2, SSE2, NEON)
+---
 
-**Phase 12 ✅**: Mixed-radix optimization complete — ping-pong buffering (20% throughput gain), type-specific butterflies (19% speedup), AVX2 radix-3/5, size-384 codelet; iterative version deferred (recursive already optimal)
+## Phase 12: complex128 Size Optimization (128, 512, 8192)
 
-### SIMD Params Preparation System ✅
+**Status**: Not started
+**Priority**: High (regression vs FFTW at target sizes; 8192 alloc)
 
-Infrastructure for SIMD-optimized codelet twiddle data. Enables codelets to receive pre-prepared twiddle layouts instead of computing twiddle indices at runtime.
+Goal: Close the complex128 performance gap for sizes 128 and 512, and eliminate the unexpected allocation at size 8192. This phase focuses on diagnosis, kernel selection, and targeted kernel work for these sizes only (not a general large-size sweep).
 
-**API Changes:**
+### 12.1 Benchmark + Profiling Baseline
 
-- `CodeletFunc[T]` signature: uses twiddle-only buffers (supports SIMD-friendly layouts)
-- `CodeletEntry`: added `TwiddleExtraSize` and `PrepareTwiddleExtra` callbacks
-- `PlanEstimate`: carries extra-twiddle callbacks from registry to plan creation
-- `Plan[T]`/`FastPlan[T]`: store codelet twiddle buffers per direction
+- [x] Add focused benchmarks for complex128 sizes 128, 512, 8192 (forward + inverse)
+  - [x] Record kernel selected, strategy (DIT/Stockham), and twiddle layout for each size
+  - [x] Capture `-benchmem` + `-cpuprofile` for each size
+- [x] Add a short note to `BENCHMARKS.md` capturing the baseline numbers and CPU details
 
-**Benefits:** Eliminates runtime index computation, scalar loads, and register shuffles. Pre-broadcast twiddles enable ~50% fewer instructions in SIMD twiddle handling.
+### 12.2 Size 128 Optimization (complex128)
 
-**Files modified:** `internal/fftypes/codelet.go`, `internal/planner/codelet.go`, `internal/planner/planner.go`, `plan.go`, `plan_fast.go`, `internal/kernels/codelet_init.go`, test files
+- [ ] Verify strategy selection: ensure radix-4 or mixed-2/4 path is preferred for size 128
+- [ ] Audit twiddle generation/packing cost for size 128 (complex128-specific)
+- [ ] Add or specialize a Go kernel for size 128 complex128 if dispatch falls back to generic Stockham
+- [ ] Validate against reference DFT and add targeted correctness test
+
+### 12.3 Size 512 Optimization (complex128)
+
+- [ ] Complete a mixed-2/4 kernel path for complex128 size 512 (Go or SSE2/AVX2)
+- [ ] Ensure the mixed-2/4 kernel is selected over radix-2 for size 512
+- [ ] Add targeted benchmarks and kernel-selection tests for size 512 complex128
+
+### 12.4 Size 8192 Allocation Elimination (complex128)
+
+- [x] Reproduce allocation with `-benchmem` and locate the source with `pprof` alloc profile
+- [x] Trace plan creation vs per-call transforms to confirm where the allocation occurs
+- [x] Fix any dynamic buffer growth in size 8192 complex128 path (twiddle packing, scratch, bitrev)
+- [x] Add a non-alloc regression test for size 8192 complex128 transforms
+
+### 12.5 Validation + Documentation
+
+- [ ] Re-run benchmarks for sizes 128, 512, 8192 (complex128) and update `BENCHMARKS.md`
+- [ ] Add notes to `docs/IMPLEMENTATION_INVENTORY.md` about the optimized paths
 
 ---
 

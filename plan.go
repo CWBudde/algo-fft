@@ -1,6 +1,7 @@
 package algofft
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
@@ -582,7 +583,7 @@ func NewPlanWithOptions[T Complex](n int, opts PlanOptions) (*Plan[T], error) {
 	return newPlanWithFeatures[T](n, cpu.DetectFeatures(), normalizePlanOptions(opts))
 }
 
-func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM int, decompStrategy *fft.DecomposeStrategy) *scratchSet[T] {
+func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM int, decompStrategy *fft.DecomposeStrategy, standardScratchSize int) *scratchSet[T] {
 	var (
 		zero                    T
 		scratch                 []T
@@ -655,9 +656,12 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 		}
 	} else {
 		// Standard
+		if standardScratchSize < n {
+			standardScratchSize = n
+		}
 		switch any(zero).(type) {
 		case complex64:
-			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(n)
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(standardScratchSize)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
@@ -665,7 +669,7 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 			stridedScratch = any(stridedAligned).([]T)
 			stridedBacking = stridedRaw
 		case complex128:
-			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(n)
+			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(standardScratchSize)
 			scratch = any(scratchAligned).([]T)
 			scratchBacking = scratchRaw
 
@@ -673,7 +677,7 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 			stridedScratch = any(stridedAligned).([]T)
 			stridedBacking = stridedRaw
 		default:
-			scratch = make([]T, n)
+			scratch = make([]T, standardScratchSize)
 			stridedScratch = make([]T, n)
 		}
 	}
@@ -686,6 +690,14 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 		bluesteinScratch:        bluesteinScratch,
 		bluesteinScratchBacking: bluesteinScratchBacking,
 	}
+}
+
+func standardScratchSize(n int, algorithm string) int {
+	if strings.Contains(algorithm, "sixstep64x128") {
+		return 2 * n
+	}
+
+	return n
 }
 
 func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptions) (*Plan[T], error) {
@@ -754,7 +766,8 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	}
 
 	// Allocate initial scratch set for setup (Bluestein filter computation)
-	setupScratch := allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy)
+	scratchSize := standardScratchSize(n, estimate.Algorithm)
+	setupScratch := allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy, scratchSize)
 
 	if useBluestein {
 		// Compute Bluestein tables
@@ -816,7 +829,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	// Create pool and put the setup scratch into it
 	scratchPool := &sync.Pool{
 		New: func() any {
-			return allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy)
+			return allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy, scratchSize)
 		},
 	}
 	scratchPool.Put(setupScratch)
@@ -928,7 +941,8 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
-	twiddle, scratch, stridedScratch, twiddleBacking, scratchBacking, stridedBacking := getBuffersFromPool[T](n, pool)
+	scratchSize := standardScratchSize(n, estimate.Algorithm)
+	twiddle, scratch, stridedScratch, twiddleBacking, scratchBacking, stridedBacking := getBuffersFromPool[T](n, scratchSize, pool)
 
 	var bitrev []int
 	if m.IsPowerOf2(n) {
@@ -975,8 +989,11 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	return p, nil
 }
 
-func getBuffersFromPool[T Complex](n int, pool *fft.BufferPool) (twiddle, scratch, stridedScratch []T, twiddleBacking, scratchBacking, stridedBacking []byte) {
+func getBuffersFromPool[T Complex](n, scratchSize int, pool *fft.BufferPool) (twiddle, scratch, stridedScratch []T, twiddleBacking, scratchBacking, stridedBacking []byte) {
 	var zero T
+	if scratchSize < n {
+		scratchSize = n
+	}
 	switch any(zero).(type) {
 	case complex64:
 		twiddleAligned, twiddleRaw := pool.GetComplex64(n)
@@ -985,7 +1002,7 @@ func getBuffersFromPool[T Complex](n int, pool *fft.BufferPool) (twiddle, scratc
 		twiddle = any(twiddleAligned).([]T)
 		twiddleBacking = twiddleRaw
 
-		scratchAligned, scratchRaw := pool.GetComplex64(n)
+		scratchAligned, scratchRaw := pool.GetComplex64(scratchSize)
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
 
@@ -999,7 +1016,7 @@ func getBuffersFromPool[T Complex](n int, pool *fft.BufferPool) (twiddle, scratc
 		twiddle = any(twiddleAligned).([]T)
 		twiddleBacking = twiddleRaw
 
-		scratchAligned, scratchRaw := pool.GetComplex128(n)
+		scratchAligned, scratchRaw := pool.GetComplex128(scratchSize)
 		scratch = any(scratchAligned).([]T)
 		scratchBacking = scratchRaw
 
@@ -1008,7 +1025,7 @@ func getBuffersFromPool[T Complex](n int, pool *fft.BufferPool) (twiddle, scratc
 		stridedBacking = stridedRaw
 	default:
 		twiddle = fft.ComputeTwiddleFactors[T](n)
-		scratch = make([]T, n)
+		scratch = make([]T, scratchSize)
 		stridedScratch = make([]T, n)
 	}
 
