@@ -26,6 +26,7 @@ func forwardDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 
 	// Work buffer for intermediate results
 	work := scratch[:n]
+
 	var work2 []complex64
 	if len(scratch) >= 2*n {
 		work2 = scratch[n : 2*n]
@@ -111,6 +112,7 @@ func inverseDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	}
 
 	work := scratch[:n]
+
 	var work2 []complex64
 	if len(scratch) >= 2*n {
 		work2 = scratch[n : 2*n]
@@ -193,6 +195,7 @@ func forwardDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	}
 
 	work := scratch[:n]
+
 	var work2 []complex128
 	if len(scratch) >= 2*n {
 		work2 = scratch[n : 2*n]
@@ -271,6 +274,7 @@ func inverseDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	}
 
 	work := scratch[:n]
+
 	var work2 []complex128
 	if len(scratch) >= 2*n {
 		work2 = scratch[n : 2*n]

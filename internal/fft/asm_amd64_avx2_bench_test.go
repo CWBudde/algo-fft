@@ -33,14 +33,14 @@ func BenchmarkAVX2DITComplex64(b *testing.B) {
 		{"Size128", 128, forwardAVX2Size128Complex64Asm},
 		{"Size256/Radix2", 256, forwardAVX2Size256Radix2Complex64Asm},
 		{"Size256/Radix4", 256, forwardAVX2Size256Radix4Complex64Asm},
-		{"Size512/Mixed24", 512, forwardAVX2Size512Mixed24Complex64Asm},
+		{"Size512/Radix4Then2", 512, forwardAVX2Size512Radix4Then2Complex64Asm},
 		{"Size512/Radix2", 512, forwardAVX2Size512Radix2Complex64Asm},
 		{"Size512/Radix8", 512, forwardAVX2Size512Radix8Complex64Asm},
 		{"Size512/Radix16x32", 512, forwardAVX2Size512Radix16x32Complex64Asm},
 		{"Size1024/Radix4", 1024, forwardAVX2Size1024Radix4Complex64Asm},
-		{"Size2048/Mixed24", 2048, forwardAVX2Size2048Mixed24Complex64Asm},
+		{"Size2048/Radix4Then2", 2048, forwardAVX2Size2048Radix4Then2Complex64Asm},
 		{"Size4096/Radix4", 4096, forwardAVX2Size4096Radix4Complex64Asm},
-		{"Size8192/Mixed24", 8192, forwardAVX2Size8192Mixed24Complex64Asm},
+		{"Size8192/Radix4Then2", 8192, forwardAVX2Size8192Radix4Then2Complex64Asm},
 	}
 
 	for _, testCase := range cases {
@@ -84,7 +84,7 @@ func BenchmarkAVX2DITComplex128(b *testing.B) {
 		{"Size64/Radix4", 64, forwardAVX2Size64Radix4Complex128Asm},
 		{"Size256/Radix2", 256, forwardAVX2Size256Radix2Complex128Asm},
 		{"Size512/Radix2", 512, forwardAVX2Size512Radix2Complex128Asm},
-		{"Size512/Mixed24", 512, forwardAVX2Size512Mixed24Complex128Asm},
+		{"Size512/Radix4Then2", 512, forwardAVX2Size512Radix4Then2Complex128Asm},
 	}
 
 	for _, tc := range cases {

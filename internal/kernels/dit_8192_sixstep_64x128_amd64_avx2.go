@@ -79,7 +79,7 @@ func forwardDIT8192SixStep64x128AVX2Complex64(dst, src, twiddle, scratch []compl
 	// Step 4: 64 parallel FFT-128 using AVX2
 	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
-		if !amd64.ForwardAVX2Size128Mixed24Complex64Asm(row, row, rowTwiddle128[:], rowScratch128[:]) {
+		if !amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
 		}
 	}
@@ -158,7 +158,7 @@ func inverseDIT8192SixStep64x128AVX2Complex64(dst, src, twiddle, scratch []compl
 	// Step 4: 64 parallel IFFT-128 using AVX2
 	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
-		if !amd64.InverseAVX2Size128Mixed24Complex64Asm(row, row, rowTwiddle128[:], rowScratch128[:]) {
+		if !amd64.InverseAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
 		}
 	}

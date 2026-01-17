@@ -22,23 +22,23 @@ func generateTwiddles8192() []complex64 {
 	return twiddle
 }
 
-// TestTwiddleSize8192Mixed24AVX2 verifies twiddle size calculation.
-func TestTwiddleSize8192Mixed24AVX2(t *testing.T) {
-	size := twiddleSize8192Mixed24AVX2(8192)
-	if size != twiddleSize8192Mixed24Elems {
-		t.Errorf("twiddleSize8192Mixed24AVX2(8192) = %d, want %d", size, twiddleSize8192Mixed24Elems)
+// TestTwiddleSize8192Radix4Then2AVX2 verifies twiddle size calculation.
+func TestTwiddleSize8192Radix4Then2AVX2(t *testing.T) {
+	size := twiddleSize8192Radix4Then2AVX2(8192)
+	if size != twiddleSize8192Radix4Then2Elems {
+		t.Errorf("twiddleSize8192Radix4Then2AVX2(8192) = %d, want %d", size, twiddleSize8192Radix4Then2Elems)
 	}
 }
 
-// TestPrepareTwiddle8192Mixed24AVX2 verifies twiddle preparation.
-func TestPrepareTwiddle8192Mixed24AVX2(t *testing.T) {
+// TestPrepareTwiddle8192Radix4Then2AVX2 verifies twiddle preparation.
+func TestPrepareTwiddle8192Radix4Then2AVX2(t *testing.T) {
 	// Test forward twiddle-extra
-	forwardExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	prepareTwiddle8192Mixed24AVX2(8192, false, forwardExtra)
+	forwardExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	prepareTwiddle8192Radix4Then2AVX2(8192, false, forwardExtra)
 
 	// Test inverse twiddle-extra
-	inverseExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	prepareTwiddle8192Mixed24AVX2(8192, true, inverseExtra)
+	inverseExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	prepareTwiddle8192Radix4Then2AVX2(8192, true, inverseExtra)
 
 	// Verify first twiddle in stage 2 (j=0, w1=twiddle[0], w2=twiddle[0], w3=twiddle[0])
 	if diff := cmplx.Abs(complex128(forwardExtra[0] - 1)); diff > 1e-6 {
@@ -59,11 +59,11 @@ func TestPrepareTwiddle8192Mixed24AVX2(t *testing.T) {
 	}
 }
 
-// TestForwardAVX2Size8192Mixed24ParamsVsReference verifies forward transform against DFT.
-func TestForwardAVX2Size8192Mixed24ParamsVsReference(t *testing.T) {
+// TestForwardAVX2Size8192Radix4Then2ParamsVsReference verifies forward transform against DFT.
+func TestForwardAVX2Size8192Radix4Then2ParamsVsReference(t *testing.T) {
 	const n = 8192
-	twiddleExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	prepareTwiddle8192Mixed24AVX2(n, false, twiddleExtra)
+	twiddleExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	prepareTwiddle8192Radix4Then2AVX2(n, false, twiddleExtra)
 
 	// Generate test input
 	src := make([]complex64, n)
@@ -75,9 +75,9 @@ func TestForwardAVX2Size8192Mixed24ParamsVsReference(t *testing.T) {
 	scratch := make([]complex64, n)
 
 	// Run twiddle-extra kernel
-	ok := amd64.ForwardAVX2Size8192Mixed24ParamsComplex64Asm(dst, src, twiddleExtra, scratch)
+	ok := amd64.ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm(dst, src, twiddleExtra, scratch)
 	if !ok {
-		t.Fatal("ForwardAVX2Size8192Mixed24ParamsComplex64Asm returned false")
+		t.Fatal("ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm returned false")
 	}
 
 	// Compute reference DFT
@@ -110,11 +110,11 @@ func TestForwardAVX2Size8192Mixed24ParamsVsReference(t *testing.T) {
 	t.Logf("Forward transform max diff: %v", maxDiff)
 }
 
-// TestInverseAVX2Size8192Mixed24ParamsVsReference verifies inverse transform against IDFT.
-func TestInverseAVX2Size8192Mixed24ParamsVsReference(t *testing.T) {
+// TestInverseAVX2Size8192Radix4Then2ParamsVsReference verifies inverse transform against IDFT.
+func TestInverseAVX2Size8192Radix4Then2ParamsVsReference(t *testing.T) {
 	const n = 8192
-	twiddleExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	prepareTwiddle8192Mixed24AVX2(n, true, twiddleExtra)
+	twiddleExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	prepareTwiddle8192Radix4Then2AVX2(n, true, twiddleExtra)
 
 	// Generate test input in frequency domain
 	src := make([]complex64, n)
@@ -126,9 +126,9 @@ func TestInverseAVX2Size8192Mixed24ParamsVsReference(t *testing.T) {
 	scratch := make([]complex64, n)
 
 	// Run twiddle-extra kernel
-	ok := amd64.InverseAVX2Size8192Mixed24ParamsComplex64Asm(dst, src, twiddleExtra, scratch)
+	ok := amd64.InverseAVX2Size8192Radix4Then2ParamsComplex64Asm(dst, src, twiddleExtra, scratch)
 	if !ok {
-		t.Fatal("InverseAVX2Size8192Mixed24ParamsComplex64Asm returned false")
+		t.Fatal("InverseAVX2Size8192Radix4Then2ParamsComplex64Asm returned false")
 	}
 
 	// Compute reference IDFT
@@ -160,13 +160,13 @@ func TestInverseAVX2Size8192Mixed24ParamsVsReference(t *testing.T) {
 	t.Logf("Inverse transform max diff: %v", maxDiff)
 }
 
-// TestRoundtripAVX2Size8192Mixed24Params verifies forward+inverse = identity.
-func TestRoundtripAVX2Size8192Mixed24Params(t *testing.T) {
+// TestRoundtripAVX2Size8192Radix4Then2Params verifies forward+inverse = identity.
+func TestRoundtripAVX2Size8192Radix4Then2Params(t *testing.T) {
 	const n = 8192
-	forwardExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	inverseExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	prepareTwiddle8192Mixed24AVX2(n, false, forwardExtra)
-	prepareTwiddle8192Mixed24AVX2(n, true, inverseExtra)
+	forwardExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	inverseExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	prepareTwiddle8192Radix4Then2AVX2(n, false, forwardExtra)
+	prepareTwiddle8192Radix4Then2AVX2(n, true, inverseExtra)
 
 	// Generate test input
 	original := make([]complex64, n)
@@ -179,13 +179,13 @@ func TestRoundtripAVX2Size8192Mixed24Params(t *testing.T) {
 	scratch := make([]complex64, n)
 
 	// Forward transform
-	ok := amd64.ForwardAVX2Size8192Mixed24ParamsComplex64Asm(freq, original, forwardExtra, scratch)
+	ok := amd64.ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm(freq, original, forwardExtra, scratch)
 	if !ok {
 		t.Fatal("Forward transform failed")
 	}
 
 	// Inverse transform
-	ok = amd64.InverseAVX2Size8192Mixed24ParamsComplex64Asm(recovered, freq, inverseExtra, scratch)
+	ok = amd64.InverseAVX2Size8192Radix4Then2ParamsComplex64Asm(recovered, freq, inverseExtra, scratch)
 	if !ok {
 		t.Fatal("Inverse transform failed")
 	}
@@ -207,14 +207,14 @@ func TestRoundtripAVX2Size8192Mixed24Params(t *testing.T) {
 	t.Logf("Roundtrip max diff: %v", maxDiff)
 }
 
-// TestParamsVsNonParamsAVX2Size8192Mixed24 verifies twiddle-extra kernel matches non-extra kernel.
-func TestParamsVsNonParamsAVX2Size8192Mixed24(t *testing.T) {
+// TestParamsVsNonParamsAVX2Size8192Radix4Then2 verifies twiddle-extra kernel matches non-extra kernel.
+func TestParamsVsNonParamsAVX2Size8192Radix4Then2(t *testing.T) {
 	const n = 8192
 	twiddle := generateTwiddles8192()
-	forwardExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	inverseExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	prepareTwiddle8192Mixed24AVX2(n, false, forwardExtra)
-	prepareTwiddle8192Mixed24AVX2(n, true, inverseExtra)
+	forwardExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	inverseExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	prepareTwiddle8192Radix4Then2AVX2(n, false, forwardExtra)
+	prepareTwiddle8192Radix4Then2AVX2(n, true, inverseExtra)
 
 	// Generate test input
 	src := make([]complex64, n)
@@ -225,7 +225,7 @@ func TestParamsVsNonParamsAVX2Size8192Mixed24(t *testing.T) {
 	// Non-extra kernel
 	dstNonParams := make([]complex64, n)
 	scratchNonParams := make([]complex64, n)
-	ok := amd64.ForwardAVX2Size8192Mixed24Complex64Asm(dstNonParams, src, twiddle, scratchNonParams)
+	ok := amd64.ForwardAVX2Size8192Radix4Then2Complex64Asm(dstNonParams, src, twiddle, scratchNonParams)
 	if !ok {
 		t.Fatal("Non-extra forward transform failed")
 	}
@@ -233,7 +233,7 @@ func TestParamsVsNonParamsAVX2Size8192Mixed24(t *testing.T) {
 	// Twiddle-extra kernel
 	dstParams := make([]complex64, n)
 	scratchParams := make([]complex64, n)
-	ok = amd64.ForwardAVX2Size8192Mixed24ParamsComplex64Asm(dstParams, src, forwardExtra, scratchParams)
+	ok = amd64.ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm(dstParams, src, forwardExtra, scratchParams)
 	if !ok {
 		t.Fatal("Extra forward transform failed")
 	}
@@ -259,12 +259,12 @@ func TestParamsVsNonParamsAVX2Size8192Mixed24(t *testing.T) {
 	invDstNonParams := make([]complex64, n)
 	invDstParams := make([]complex64, n)
 
-	ok = amd64.InverseAVX2Size8192Mixed24Complex64Asm(invDstNonParams, invSrc, twiddle, scratchNonParams)
+	ok = amd64.InverseAVX2Size8192Radix4Then2Complex64Asm(invDstNonParams, invSrc, twiddle, scratchNonParams)
 	if !ok {
 		t.Fatal("Non-extra inverse transform failed")
 	}
 
-	ok = amd64.InverseAVX2Size8192Mixed24ParamsComplex64Asm(invDstParams, invSrc, inverseExtra, scratchParams)
+	ok = amd64.InverseAVX2Size8192Radix4Then2ParamsComplex64Asm(invDstParams, invSrc, inverseExtra, scratchParams)
 	if !ok {
 		t.Fatal("Extra inverse transform failed")
 	}
@@ -286,11 +286,11 @@ func TestParamsVsNonParamsAVX2Size8192Mixed24(t *testing.T) {
 	t.Logf("Inverse extra vs non-extra max diff: %v", maxDiff)
 }
 
-// BenchmarkForwardAVX2Size8192Mixed24Params benchmarks the twiddle-extra kernel.
-func BenchmarkForwardAVX2Size8192Mixed24Params(b *testing.B) {
+// BenchmarkForwardAVX2Size8192Radix4Then2Params benchmarks the twiddle-extra kernel.
+func BenchmarkForwardAVX2Size8192Radix4Then2Params(b *testing.B) {
 	const n = 8192
-	twiddleExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	prepareTwiddle8192Mixed24AVX2(n, false, twiddleExtra)
+	twiddleExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	prepareTwiddle8192Radix4Then2AVX2(n, false, twiddleExtra)
 
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
@@ -304,12 +304,12 @@ func BenchmarkForwardAVX2Size8192Mixed24Params(b *testing.B) {
 	b.SetBytes(n * 8) // 8 bytes per complex64
 
 	for i := 0; i < b.N; i++ {
-		amd64.ForwardAVX2Size8192Mixed24ParamsComplex64Asm(dst, src, twiddleExtra, scratch)
+		amd64.ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm(dst, src, twiddleExtra, scratch)
 	}
 }
 
-// BenchmarkForwardAVX2Size8192Mixed24NonParams benchmarks the non-extra kernel for comparison.
-func BenchmarkForwardAVX2Size8192Mixed24NonParams(b *testing.B) {
+// BenchmarkForwardAVX2Size8192Radix4Then2NonParams benchmarks the non-extra kernel for comparison.
+func BenchmarkForwardAVX2Size8192Radix4Then2NonParams(b *testing.B) {
 	const n = 8192
 	twiddle := generateTwiddles8192()
 
@@ -325,15 +325,15 @@ func BenchmarkForwardAVX2Size8192Mixed24NonParams(b *testing.B) {
 	b.SetBytes(n * 8)
 
 	for i := 0; i < b.N; i++ {
-		amd64.ForwardAVX2Size8192Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		amd64.ForwardAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 	}
 }
 
-// BenchmarkInverseAVX2Size8192Mixed24Params benchmarks the inverse twiddle-extra kernel.
-func BenchmarkInverseAVX2Size8192Mixed24Params(b *testing.B) {
+// BenchmarkInverseAVX2Size8192Radix4Then2Params benchmarks the inverse twiddle-extra kernel.
+func BenchmarkInverseAVX2Size8192Radix4Then2Params(b *testing.B) {
 	const n = 8192
-	twiddleExtra := make([]complex64, twiddleSize8192Mixed24Elems)
-	prepareTwiddle8192Mixed24AVX2(n, true, twiddleExtra)
+	twiddleExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
+	prepareTwiddle8192Radix4Then2AVX2(n, true, twiddleExtra)
 
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
@@ -347,12 +347,12 @@ func BenchmarkInverseAVX2Size8192Mixed24Params(b *testing.B) {
 	b.SetBytes(n * 8)
 
 	for i := 0; i < b.N; i++ {
-		amd64.InverseAVX2Size8192Mixed24ParamsComplex64Asm(dst, src, twiddleExtra, scratch)
+		amd64.InverseAVX2Size8192Radix4Then2ParamsComplex64Asm(dst, src, twiddleExtra, scratch)
 	}
 }
 
-// BenchmarkInverseAVX2Size8192Mixed24NonParams benchmarks the non-extra inverse kernel.
-func BenchmarkInverseAVX2Size8192Mixed24NonParams(b *testing.B) {
+// BenchmarkInverseAVX2Size8192Radix4Then2NonParams benchmarks the non-extra inverse kernel.
+func BenchmarkInverseAVX2Size8192Radix4Then2NonParams(b *testing.B) {
 	const n = 8192
 	twiddle := generateTwiddles8192()
 
@@ -368,6 +368,6 @@ func BenchmarkInverseAVX2Size8192Mixed24NonParams(b *testing.B) {
 	b.SetBytes(n * 8)
 
 	for i := 0; i < b.N; i++ {
-		amd64.InverseAVX2Size8192Mixed24Complex64Asm(dst, src, twiddle, scratch)
+		amd64.InverseAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
 	}
 }

@@ -52,7 +52,7 @@ func neonSizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 32:
-			if forwardNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch) {
+			if forwardNEONSize32Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			if forwardNEONSize32Radix2Complex64Asm(dst, src, twiddle, scratch) {
@@ -70,7 +70,7 @@ func neonSizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 128:
-			if forwardNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch) {
+			if forwardNEONSize128Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			if forwardNEONSize128Radix2Complex64Asm(dst, src, twiddle, scratch) {
@@ -138,7 +138,7 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 32:
-			if inverseNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch) {
+			if inverseNEONSize32Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			if inverseNEONSize32Radix2Complex64Asm(dst, src, twiddle, scratch) {
@@ -156,7 +156,7 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 128:
-			if inverseNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch) {
+			if inverseNEONSize128Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			if inverseNEONSize128Radix2Complex64Asm(dst, src, twiddle, scratch) {

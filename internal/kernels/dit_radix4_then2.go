@@ -1,6 +1,6 @@
 package kernels
 
-// forwardMixedRadix24Complex64 computes a forward FFT using mixed-radix-2/4
+// forwardRadix4Then2Complex64 computes a forward FFT using radix-4-then-2
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 //
 // This function is optimized for power-of-2 sizes with ODD log2 exponents
@@ -19,14 +19,14 @@ package kernels
 // Returns false if any slice is too small or if size is not power-of-2.
 //
 
-func forwardMixedRadix24Complex64(dst, src, twiddle, scratch []complex64) bool {
-	// NOTE: The previous mixed-radix-2/4 implementation for odd log2 sizes was
+func forwardRadix4Then2Complex64(dst, src, twiddle, scratch []complex64) bool {
+	// NOTE: The previous radix-4-then-2 implementation for odd log2 sizes was
 	// incorrect and produced wrong results (e.g., impulse DC bin doubled for n=2048).
 	// For correctness, delegate to the proven radix-2 DIT implementation.
 	return ditForward[complex64](dst, src, twiddle, scratch)
 }
 
-// inverseMixedRadix24Complex64 computes an inverse FFT using mixed-radix-2/4
+// inverseRadix4Then2Complex64 computes an inverse FFT using radix-4-then-2
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 //
 // This function is optimized for power-of-2 sizes with ODD log2 exponents
@@ -46,7 +46,7 @@ func forwardMixedRadix24Complex64(dst, src, twiddle, scratch []complex64) bool {
 // Returns false if any slice is too small or if size is not power-of-2.
 //
 
-func inverseMixedRadix24Complex64(dst, src, twiddle, scratch []complex64) bool {
-	// See forwardMixedRadix24Complex64: delegate to the proven radix-2 inverse.
+func inverseRadix4Then2Complex64(dst, src, twiddle, scratch []complex64) bool {
+	// See forwardRadix4Then2Complex64: delegate to the proven radix-2 inverse.
 	return ditInverseComplex64(dst, src, twiddle, scratch)
 }

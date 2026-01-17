@@ -6,18 +6,18 @@ import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
 //
 //nolint:gochecknoglobals
 var (
-	bitrevSize16Radix2    = mathpkg.ComputeBitReversalIndices(16)
-	bitrevSize64Radix4    = mathpkg.ComputeBitReversalIndicesRadix4(64)
-	bitrevSize256Radix2   = mathpkg.ComputeBitReversalIndices(256)
-	bitrevSize256Radix4   = mathpkg.ComputeBitReversalIndicesRadix4(256)
-	bitrevSize512Radix2   = mathpkg.ComputeBitReversalIndices(512)
-	bitrevSize512Radix8   = mathpkg.ComputeBitReversalIndicesRadix8(512)
-	bitrevSize512Mixed24  = mathpkg.ComputeBitReversalIndicesMixed24(512)
-	bitrevSize1024Radix4  = mathpkg.ComputeBitReversalIndicesRadix4(1024)
-	bitrevSize2048Mixed24 = mathpkg.ComputeBitReversalIndicesMixed24(2048)
-	bitrevSize4096Radix4  = mathpkg.ComputeBitReversalIndicesRadix4(4096)
-	bitrevSize8192Mixed24 = mathpkg.ComputeBitReversalIndicesMixed24(8192)
-	bitrevSize16384Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(16384)
+	bitrevSize16Radix2        = mathpkg.ComputeBitReversalIndices(16)
+	bitrevSize64Radix4        = mathpkg.ComputeBitReversalIndicesRadix4(64)
+	bitrevSize256Radix2       = mathpkg.ComputeBitReversalIndices(256)
+	bitrevSize256Radix4       = mathpkg.ComputeBitReversalIndicesRadix4(256)
+	bitrevSize512Radix2       = mathpkg.ComputeBitReversalIndices(512)
+	bitrevSize512Radix8       = mathpkg.ComputeBitReversalIndicesRadix8(512)
+	bitrevSize512Radix4Then2  = mathpkg.ComputeBitReversalIndicesRadix4Then2(512)
+	bitrevSize1024Radix4      = mathpkg.ComputeBitReversalIndicesRadix4(1024)
+	bitrevSize2048Radix4Then2 = mathpkg.ComputeBitReversalIndicesRadix4Then2(2048)
+	bitrevSize4096Radix4      = mathpkg.ComputeBitReversalIndicesRadix4(4096)
+	bitrevSize8192Radix4Then2 = mathpkg.ComputeBitReversalIndicesRadix4Then2(8192)
+	bitrevSize16384Radix4     = mathpkg.ComputeBitReversalIndicesRadix4(16384)
 )
 
 //nolint:cyclop
@@ -46,7 +46,7 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 		// Fallback to optimized radix-4
 		return forwardDIT1024Radix4Complex64(dst, src, twiddle, scratch)
 	case 2048:
-		return forwardDIT2048Mixed24Complex64(dst, src, twiddle, scratch)
+		return forwardDIT2048Radix4Then2Complex64(dst, src, twiddle, scratch)
 	case 4096:
 		if forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch) {
 			return true
@@ -61,7 +61,7 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 			return true
 		}
 	} else if IsPowerOf2(n) {
-		if forwardMixedRadix24Complex64(dst, src, twiddle, scratch) {
+		if forwardRadix4Then2Complex64(dst, src, twiddle, scratch) {
 			return true
 		}
 	}
@@ -95,7 +95,7 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 		// Fallback to optimized radix-4
 		return inverseDIT1024Radix4Complex64(dst, src, twiddle, scratch)
 	case 2048:
-		return inverseDIT2048Mixed24Complex64(dst, src, twiddle, scratch)
+		return inverseDIT2048Radix4Then2Complex64(dst, src, twiddle, scratch)
 	case 4096:
 		if inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch) {
 			return true
@@ -110,7 +110,7 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 			return true
 		}
 	} else if IsPowerOf2(n) {
-		if inverseMixedRadix24Complex64(dst, src, twiddle, scratch) {
+		if inverseRadix4Then2Complex64(dst, src, twiddle, scratch) {
 			return true
 		}
 	}
@@ -143,7 +143,7 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 		// Fallback to optimized radix-4
 		return forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch)
 	case 2048:
-		return forwardDIT2048Mixed24Complex128(dst, src, twiddle, scratch)
+		return forwardDIT2048Radix4Then2Complex128(dst, src, twiddle, scratch)
 	case 4096:
 		if forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch) {
 			return true
@@ -184,7 +184,7 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 		// Fallback to optimized radix-4
 		return inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch)
 	case 2048:
-		return inverseDIT2048Mixed24Complex128(dst, src, twiddle, scratch)
+		return inverseDIT2048Radix4Then2Complex128(dst, src, twiddle, scratch)
 	case 4096:
 		if inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch) {
 			return true
@@ -580,10 +580,10 @@ var (
 	ForwardDIT256Radix4Complex64 = forwardDIT256Radix4Complex64
 	InverseDIT256Radix4Complex64 = inverseDIT256Radix4Complex64
 	// Size 512.
-	ForwardDIT512Complex64        = forwardDIT512Complex64
-	InverseDIT512Complex64        = inverseDIT512Complex64
-	ForwardDIT512Mixed24Complex64 = forwardDIT512Mixed24Complex64
-	InverseDIT512Mixed24Complex64 = inverseDIT512Mixed24Complex64
+	ForwardDIT512Complex64            = forwardDIT512Complex64
+	InverseDIT512Complex64            = inverseDIT512Complex64
+	ForwardDIT512Radix4Then2Complex64 = forwardDIT512Radix4Then2Complex64
+	InverseDIT512Radix4Then2Complex64 = inverseDIT512Radix4Then2Complex64
 
 	// Complex128 variants.
 	ForwardDIT4Radix4Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
@@ -626,18 +626,18 @@ var (
 	InverseDIT32Complex128 = func(dst, src, twiddle, scratch []complex128) bool {
 		return inverseDIT32Complex128(dst, src, twiddle, scratch)
 	}
-	ForwardDIT64Complex128         = forwardDIT64Complex128
-	InverseDIT64Complex128         = inverseDIT64Complex128
-	ForwardDIT64Radix4Complex128   = forwardDIT64Radix4Complex128
-	InverseDIT64Radix4Complex128   = inverseDIT64Radix4Complex128
-	ForwardDIT128Complex128        = forwardDIT128Complex128
-	InverseDIT128Complex128        = inverseDIT128Complex128
-	ForwardDIT256Complex128        = forwardDIT256Complex128
-	InverseDIT256Complex128        = inverseDIT256Complex128
-	ForwardDIT256Radix4Complex128  = forwardDIT256Radix4Complex128
-	InverseDIT256Radix4Complex128  = inverseDIT256Radix4Complex128
-	ForwardDIT512Complex128        = forwardDIT512Complex128
-	InverseDIT512Complex128        = inverseDIT512Complex128
-	ForwardDIT512Mixed24Complex128 = forwardDIT512Mixed24Complex128
-	InverseDIT512Mixed24Complex128 = inverseDIT512Mixed24Complex128
+	ForwardDIT64Complex128             = forwardDIT64Complex128
+	InverseDIT64Complex128             = inverseDIT64Complex128
+	ForwardDIT64Radix4Complex128       = forwardDIT64Radix4Complex128
+	InverseDIT64Radix4Complex128       = inverseDIT64Radix4Complex128
+	ForwardDIT128Complex128            = forwardDIT128Complex128
+	InverseDIT128Complex128            = inverseDIT128Complex128
+	ForwardDIT256Complex128            = forwardDIT256Complex128
+	InverseDIT256Complex128            = inverseDIT256Complex128
+	ForwardDIT256Radix4Complex128      = forwardDIT256Radix4Complex128
+	InverseDIT256Radix4Complex128      = inverseDIT256Radix4Complex128
+	ForwardDIT512Complex128            = forwardDIT512Complex128
+	InverseDIT512Complex128            = inverseDIT512Complex128
+	ForwardDIT512Radix4Then2Complex128 = forwardDIT512Radix4Then2Complex128
+	InverseDIT512Radix4Then2Complex128 = inverseDIT512Radix4Then2Complex128
 )

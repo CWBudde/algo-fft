@@ -3,6 +3,7 @@ package algofft
 import (
 	"errors"
 	"math/cmplx"
+	"strings"
 	"testing"
 )
 
@@ -211,6 +212,19 @@ func TestNewPlanFromPool_ForcedStrategyOverridesCodelet128(t *testing.T) {
 
 	if algo := pooled.Algorithm(); algo == "dit8_generic" {
 		t.Fatalf("Algorithm() = %q, expected non-codelet when strategy forced", algo)
+	}
+}
+
+func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
+	t.Parallel()
+
+	plan, err := NewPlanT[complex128](512)
+	if err != nil {
+		t.Fatalf("NewPlan(512) returned error: %v", err)
+	}
+
+	if algo := plan.Algorithm(); !strings.HasPrefix(algo, "dit512_radix4_then2") {
+		t.Fatalf("Algorithm() = %q, want prefix %q", algo, "dit512_radix4_then2")
 	}
 }
 

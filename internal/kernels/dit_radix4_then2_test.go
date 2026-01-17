@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	mixedRadix24Tol64 = 1e-4
+	radix4Then2Tol64 = 1e-4
 )
 
-// TestForwardMixedRadix24Complex64 tests the mixed-radix-2/4 forward kernel.
-func TestForwardMixedRadix24Complex64(t *testing.T) {
+// TestForwardRadix4Then2Complex64 tests the radix-4-then-2 forward kernel.
+func TestForwardRadix4Then2Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 32
@@ -21,16 +21,16 @@ func TestForwardMixedRadix24Complex64(t *testing.T) {
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
-	if !forwardMixedRadix24Complex64(dst, src, twiddle, scratch) {
-		t.Fatal("forwardMixedRadix24Complex64 failed")
+	if !forwardRadix4Then2Complex64(dst, src, twiddle, scratch) {
+		t.Fatal("forwardRadix4Then2Complex64 failed")
 	}
 
 	want := reference.NaiveDFT(src)
-	assertComplex64Close(t, dst, want, mixedRadix24Tol64)
+	assertComplex64Close(t, dst, want, radix4Then2Tol64)
 }
 
-// TestInverseMixedRadix24Complex64 tests the mixed-radix-2/4 inverse kernel.
-func TestInverseMixedRadix24Complex64(t *testing.T) {
+// TestInverseRadix4Then2Complex64 tests the radix-4-then-2 inverse kernel.
+func TestInverseRadix4Then2Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 32
@@ -41,14 +41,14 @@ func TestInverseMixedRadix24Complex64(t *testing.T) {
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
-	if !forwardMixedRadix24Complex64(fwd, src, twiddle, scratch) {
-		t.Fatal("forwardMixedRadix24Complex64 failed")
+	if !forwardRadix4Then2Complex64(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardRadix4Then2Complex64 failed")
 	}
 
-	if !inverseMixedRadix24Complex64(dst, fwd, twiddle, scratch) {
-		t.Fatal("inverseMixedRadix24Complex64 failed")
+	if !inverseRadix4Then2Complex64(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseRadix4Then2Complex64 failed")
 	}
 
 	want := reference.NaiveIDFT(fwd)
-	assertComplex64Close(t, dst, want, mixedRadix24Tol64)
+	assertComplex64Close(t, dst, want, radix4Then2Tol64)
 }

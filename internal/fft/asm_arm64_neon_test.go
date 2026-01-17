@@ -69,10 +69,10 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 			tol:     1e-4,
 		},
 		{
-			name:    "Size32_MixedRadix24",
+			name:    "Size32_Radix4Then2",
 			size:    32,
-			forward: forwardNEONSize32MixedRadix24Complex64Asm,
-			inverse: inverseNEONSize32MixedRadix24Complex64Asm,
+			forward: forwardNEONSize32Radix4Then2Complex64Asm,
+			inverse: inverseNEONSize32Radix4Then2Complex64Asm,
 			tol:     1e-4,
 		},
 		{
@@ -97,10 +97,10 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 			tol:     1e-3,
 		},
 		{
-			name:    "Size128_MixedRadix24",
+			name:    "Size128_Radix4Then2",
 			size:    128,
-			forward: forwardNEONSize128MixedRadix24Complex64Asm,
-			inverse: inverseNEONSize128MixedRadix24Complex64Asm,
+			forward: forwardNEONSize128Radix4Then2Complex64Asm,
+			inverse: inverseNEONSize128Radix4Then2Complex64Asm,
 			tol:     1e-3,
 		},
 		{

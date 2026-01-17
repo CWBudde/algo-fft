@@ -6,7 +6,7 @@ import (
 	m "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
-// Twiddle layout for AVX2 size-8192 mixed-radix-2/4 FFT:
+// Twiddle layout for AVX2 size-8192 radix-4-then-2 FFT:
 //
 // For size 8192 = 2 × 4^6, we have 7 stages:
 //   Stage 1: 2048 radix-4 butterflies with bit-reversal (no packed twiddles needed, twiddle=1)
@@ -42,9 +42,9 @@ import (
 // For inverse transform, we negate the imaginary parts (conjugate).
 
 const (
-	// twiddleSize8192Mixed24Bytes is the total twiddle size in bytes.
-	twiddleSize8192Mixed24Bytes = 131008
-	twiddleSize8192Mixed24Elems = twiddleSize8192Mixed24Bytes / 8
+	// twiddleSize8192Radix4Then2Bytes is the total twiddle size in bytes.
+	twiddleSize8192Radix4Then2Bytes = 131008
+	twiddleSize8192Radix4Then2Elems = twiddleSize8192Radix4Then2Bytes / 8
 
 	// Stage offsets within the twiddle buffer (complex64 element offsets).
 	twiddleStage2Offset8192 = 0
@@ -61,17 +61,17 @@ const (
 	elemsPerRadix2Butterfly = 2 // 1 twiddle × 2 complex64
 )
 
-// twiddleSize8192Mixed24AVX2 returns the element count for twiddles.
-func twiddleSize8192Mixed24AVX2(_ int) int {
-	return twiddleSize8192Mixed24Elems
+// twiddleSize8192Radix4Then2AVX2 returns the element count for twiddles.
+func twiddleSize8192Radix4Then2AVX2(_ int) int {
+	return twiddleSize8192Radix4Then2Elems
 }
 
-// prepareTwiddle8192Mixed24AVX2 transforms standard twiddle factors into
-// pre-broadcast SIMD twiddle data for the AVX2 size-8192 mixed-radix-2/4 kernel.
+// prepareTwiddle8192Radix4Then2AVX2 transforms standard twiddle factors into
+// pre-broadcast SIMD twiddle data for the AVX2 size-8192 radix-4-then-2 kernel.
 //
 // For inverse transform, we use conjugates: W_8192^(-k) = conj(W_8192^k).
-func prepareTwiddle8192Mixed24AVX2(n int, inverse bool, dst []complex64) {
-	if n != 8192 || len(dst) < twiddleSize8192Mixed24Elems {
+func prepareTwiddle8192Radix4Then2AVX2(n int, inverse bool, dst []complex64) {
+	if n != 8192 || len(dst) < twiddleSize8192Radix4Then2Elems {
 		return
 	}
 

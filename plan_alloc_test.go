@@ -65,6 +65,50 @@ func TestPlanTransformsNoAllocsComplex128(t *testing.T) {
 }
 
 //nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestPlanTransformsNoAllocsComplex128_8192(t *testing.T) {
+
+	const n = 8192
+
+	plan, err := NewPlanT[complex128](n)
+	if err != nil {
+		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+	}
+
+	src := make([]complex128, n)
+	for i := range src {
+		src[i] = complex(float64(i+1), float64(-i))
+	}
+
+	dst := make([]complex128, n)
+	freq := make([]complex128, n)
+
+	err = plan.Forward(freq, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	allocs := testing.AllocsPerRun(20, func() {
+		err := plan.Forward(dst, src)
+		if err != nil {
+			t.Fatalf("Forward() returned error: %v", err)
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("Forward allocated %.2f per run, want 0", allocs)
+	}
+
+	allocs = testing.AllocsPerRun(20, func() {
+		err := plan.Inverse(dst, freq)
+		if err != nil {
+			t.Fatalf("Inverse() returned error: %v", err)
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("Inverse allocated %.2f per run, want 0", allocs)
+	}
+}
+
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
 func TestPlanRealTransformsNoAllocs(t *testing.T) {
 	const n = 1024
 

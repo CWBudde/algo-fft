@@ -38,16 +38,16 @@ Goal: Close the complex128 performance gap for sizes 128 and 512, and eliminate 
 
 ### 12.2 Size 128 Optimization (complex128)
 
-- [ ] Verify strategy selection: ensure radix-4 or mixed-2/4 path is preferred for size 128
-- [ ] Audit twiddle generation/packing cost for size 128 (complex128-specific)
-- [ ] Add or specialize a Go kernel for size 128 complex128 if dispatch falls back to generic Stockham
-- [ ] Validate against reference DFT and add targeted correctness test
+- [x] Verify strategy selection: ensure radix-4 or mixed-2/4 path is preferred for size 128
+- [x] Audit twiddle generation/packing cost for size 128 (complex128-specific)
+- [x] Add or specialize a Go kernel for size 128 complex128 if dispatch falls back to generic Stockham
+- [x] Validate against reference DFT and add targeted correctness test
 
 ### 12.3 Size 512 Optimization (complex128)
 
-- [ ] Complete a mixed-2/4 kernel path for complex128 size 512 (Go or SSE2/AVX2)
-- [ ] Ensure the mixed-2/4 kernel is selected over radix-2 for size 512
-- [ ] Add targeted benchmarks and kernel-selection tests for size 512 complex128
+- [x] Complete a mixed-2/4 kernel path for complex128 size 512 (Go or SSE2/AVX2)
+- [x] Ensure the mixed-2/4 kernel is selected over radix-2 for size 512
+- [x] Add targeted benchmarks and kernel-selection tests for size 512 complex128
 
 ### 12.4 Size 8192 Allocation Elimination (complex128)
 

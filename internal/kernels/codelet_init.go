@@ -159,14 +159,14 @@ func registerDITCodelets64() {
 		KernelType: KernelTypeDIT,
 	})
 
-	// Size 32: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
+	// Size 32: Radix-4-then-2 variant (3 stages: 2 radix-4 + 1 radix-2)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
-		Forward:    wrapCodelet64(forwardDIT32MixedRadix24Complex64),
-		Inverse:    wrapCodelet64(inverseDIT32MixedRadix24Complex64),
+		Forward:    wrapCodelet64(forwardDIT32Radix4Then2Complex64),
+		Inverse:    wrapCodelet64(inverseDIT32Radix4Then2Complex64),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit32_mixed24_generic",
+		Signature:  "dit32_radix4_then2_generic",
 		Priority:   10,
 		KernelType: KernelTypeDIT,
 	})
@@ -219,14 +219,14 @@ func registerDITCodelets64() {
 		KernelType: KernelTypeDIT,
 	})
 
-	// Size 128: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
+	// Size 128: Radix-4-then-2 variant (4 stages: 3 radix-4 + 1 radix-2)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
-		Forward:    wrapCodelet64(forwardDIT128MixedRadix24Complex64),
-		Inverse:    wrapCodelet64(inverseDIT128MixedRadix24Complex64),
+		Forward:    wrapCodelet64(forwardDIT128Radix4Then2Complex64),
+		Inverse:    wrapCodelet64(inverseDIT128Radix4Then2Complex64),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit128_mixed24_generic",
+		Signature:  "dit128_radix4_then2_generic",
 		Priority:   15,
 		KernelType: KernelTypeDIT,
 	})
@@ -303,16 +303,16 @@ func registerDITCodelets64() {
 		Priority:   30,
 	})
 
-	// Size 512: Mixed-radix-2/4 variant
+	// Size 512: Radix-4-then-2 variant
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCodelet64(forwardDIT512Mixed24Complex64),
-		Inverse:    wrapCodelet64(inverseDIT512Mixed24Complex64),
+		Forward:    wrapCodelet64(forwardDIT512Radix4Then2Complex64),
+		Inverse:    wrapCodelet64(inverseDIT512Radix4Then2Complex64),
 		Algorithm:  KernelDIT,
 		KernelType: KernelTypeDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit512_mixed24_generic",
-		Priority:   20,
+		Signature:  "dit512_radix4_then2_generic",
+		Priority:   45,
 	})
 
 	// Size 512: Radix-16x32 variant (Six-step)
@@ -324,7 +324,7 @@ func registerDITCodelets64() {
 		KernelType: KernelTypeDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix16x32_generic",
-		Priority:   40,
+		Priority:   35,
 	})
 
 	// Size 1024: Radix-4 variant (1024 = 4^5, 5 stages vs 10 for radix-2)
@@ -349,15 +349,15 @@ func registerDITCodelets64() {
 		Priority:   25,
 	})
 
-	// Size 2048: Mixed-radix-2/4 variant (odd log2, faster than pure radix-2)
+	// Size 2048: Radix-4-then-2 variant (odd log2, faster than pure radix-2)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       2048,
-		Forward:    wrapCodelet64(forwardDIT2048Mixed24Complex64),
-		Inverse:    wrapCodelet64(inverseDIT2048Mixed24Complex64),
+		Forward:    wrapCodelet64(forwardDIT2048Radix4Then2Complex64),
+		Inverse:    wrapCodelet64(inverseDIT2048Radix4Then2Complex64),
 		Algorithm:  KernelDIT,
 		KernelType: KernelTypeDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit2048_mixedradix24_generic",
+		Signature:  "dit2048_radix4_then2_generic",
 		Priority:   20,
 	})
 
@@ -385,15 +385,15 @@ func registerDITCodelets64() {
 		Priority:   25,
 	})
 
-	// Size 8192: Mixed-radix-2/4 variant (odd log2, faster than pure radix-2)
+	// Size 8192: Radix-4-then-2 variant (odd log2, faster than pure radix-2)
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8192,
-		Forward:    wrapCodelet64(forwardDIT8192Mixed24Complex64),
-		Inverse:    wrapCodelet64(inverseDIT8192Mixed24Complex64),
+		Forward:    wrapCodelet64(forwardDIT8192Radix4Then2Complex64),
+		Inverse:    wrapCodelet64(inverseDIT8192Radix4Then2Complex64),
 		Algorithm:  KernelDIT,
 		KernelType: KernelTypeDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit8192_mixedradix24_generic",
+		Signature:  "dit8192_radix4_then2_generic",
 		Priority:   20,
 	})
 
@@ -532,14 +532,14 @@ func registerDITCodelets128() {
 		KernelType: KernelTypeDIT,
 	})
 
-	// Size 32: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
+	// Size 32: Radix-4-then-2 variant (3 stages: 2 radix-4 + 1 radix-2)
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       32,
-		Forward:    wrapCodelet128(forwardDIT32MixedRadix24Complex128),
-		Inverse:    wrapCodelet128(inverseDIT32MixedRadix24Complex128),
+		Forward:    wrapCodelet128(forwardDIT32Radix4Then2Complex128),
+		Inverse:    wrapCodelet128(inverseDIT32Radix4Then2Complex128),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit32_mixed24_generic",
+		Signature:  "dit32_radix4_then2_generic",
 		Priority:   15,
 		KernelType: KernelTypeDIT,
 	})
@@ -592,14 +592,14 @@ func registerDITCodelets128() {
 		KernelType: KernelTypeDIT,
 	})
 
-	// Size 128: Mixed-radix-2/4 variant (3 stages: 2 radix-4 + 1 radix-2)
+	// Size 128: Radix-4-then-2 variant (4 stages: 3 radix-4 + 1 radix-2)
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       128,
-		Forward:    wrapCodelet128(forwardDIT128MixedRadix24Complex128),
-		Inverse:    wrapCodelet128(inverseDIT128MixedRadix24Complex128),
+		Forward:    wrapCodelet128(forwardDIT128Radix4Then2Complex128),
+		Inverse:    wrapCodelet128(inverseDIT128Radix4Then2Complex128),
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit128_mixed24_generic",
+		Signature:  "dit128_radix4_then2_generic",
 		Priority:   15,
 		KernelType: KernelTypeDIT,
 	})
@@ -673,19 +673,19 @@ func registerDITCodelets128() {
 		KernelType: KernelTypeDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix8_generic",
-		Priority:   30,
+		Priority:   35,
 	})
 
-	// Size 512: Mixed-radix-2/4 variant
+	// Size 512: Radix-4-then-2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       512,
-		Forward:    wrapCodelet128(forwardDIT512Mixed24Complex128),
-		Inverse:    wrapCodelet128(inverseDIT512Mixed24Complex128),
+		Forward:    wrapCodelet128(forwardDIT512Radix4Then2Complex128),
+		Inverse:    wrapCodelet128(inverseDIT512Radix4Then2Complex128),
 		Algorithm:  KernelDIT,
 		KernelType: KernelTypeDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit512_mixed24_generic",
-		Priority:   20,
+		Signature:  "dit512_radix4_then2_generic",
+		Priority:   45,
 	})
 
 	// Size 512: Radix-16x32 variant (Six-step)
@@ -697,7 +697,7 @@ func registerDITCodelets128() {
 		KernelType: KernelTypeDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix16x32_generic",
-		Priority:   40,
+		Priority:   30,
 	})
 
 	// Size 1024: Radix-4 variant (1024 = 4^5, 5 stages vs 10 for radix-2)
@@ -722,15 +722,15 @@ func registerDITCodelets128() {
 		Priority:   25,
 	})
 
-	// Size 2048: Mixed-radix-2/4 variant
+	// Size 2048: Radix-4-then-2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       2048,
-		Forward:    wrapCodelet128(forwardDIT2048Mixed24Complex128),
-		Inverse:    wrapCodelet128(inverseDIT2048Mixed24Complex128),
+		Forward:    wrapCodelet128(forwardDIT2048Radix4Then2Complex128),
+		Inverse:    wrapCodelet128(inverseDIT2048Radix4Then2Complex128),
 		Algorithm:  KernelDIT,
 		KernelType: KernelTypeDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit2048_mixedradix24_generic",
+		Signature:  "dit2048_radix4_then2_generic",
 		Priority:   20,
 	})
 
@@ -758,15 +758,15 @@ func registerDITCodelets128() {
 		Priority:   25,
 	})
 
-	// Size 8192: Mixed-radix-2/4 variant
+	// Size 8192: Radix-4-then-2 variant
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8192,
-		Forward:    wrapCodelet128(forwardDIT8192Mixed24Complex128),
-		Inverse:    wrapCodelet128(inverseDIT8192Mixed24Complex128),
+		Forward:    wrapCodelet128(forwardDIT8192Radix4Then2Complex128),
+		Inverse:    wrapCodelet128(inverseDIT8192Radix4Then2Complex128),
 		Algorithm:  KernelDIT,
 		KernelType: KernelTypeDIT,
 		SIMDLevel:  SIMDNone,
-		Signature:  "dit8192_mixedradix24_generic",
+		Signature:  "dit8192_radix4_then2_generic",
 		Priority:   20,
 	})
 

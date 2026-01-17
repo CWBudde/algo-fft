@@ -1,14 +1,14 @@
 package kernels
 
-// forwardDIT2048Mixed24Complex64 computes a 2048-point forward FFT using
-// mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex64 data.
+// forwardDIT2048Radix4Then2Complex64 computes a 2048-point forward FFT using
+// radix-4-then-2 Decimation-in-Time (DIT) algorithm for complex64 data.
 //
 // For n = 2048 = 2 × 4^5, this uses 6 stages instead of 11:
 //   - Stages 1-5: radix-4 (512, 128, 32, 8, 2 groups)
 //   - Stage 6: radix-2 (final combination of two 1024-point halves)
 //
 // Expected speedup: ~40% over pure radix-2.
-func forwardDIT2048Mixed24Complex64(dst, src, twiddle, scratch []complex64) bool {
+func forwardDIT2048Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 2048
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -16,7 +16,7 @@ func forwardDIT2048Mixed24Complex64(dst, src, twiddle, scratch []complex64) bool
 	}
 
 	// Bounds hints
-	br := bitrevSize2048Mixed24
+	br := bitrevSize2048Radix4Then2
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -190,18 +190,18 @@ func forwardDIT2048Mixed24Complex64(dst, src, twiddle, scratch []complex64) bool
 	return true
 }
 
-// inverseDIT2048Mixed24Complex64 computes a 2048-point inverse FFT using
-// mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex64 data.
+// inverseDIT2048Radix4Then2Complex64 computes a 2048-point inverse FFT using
+// radix-4-then-2 Decimation-in-Time (DIT) algorithm for complex64 data.
 //
 // Uses conjugated twiddle factors and applies 1/N scaling.
-func inverseDIT2048Mixed24Complex64(dst, src, twiddle, scratch []complex64) bool {
+func inverseDIT2048Radix4Then2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 2048
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrevSize2048Mixed24
+	br := bitrevSize2048Radix4Then2
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -379,16 +379,16 @@ func inverseDIT2048Mixed24Complex64(dst, src, twiddle, scratch []complex64) bool
 	return true
 }
 
-// forwardDIT2048Mixed24Complex128 computes a 2048-point forward FFT using
-// mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex128 data.
-func forwardDIT2048Mixed24Complex128(dst, src, twiddle, scratch []complex128) bool {
+// forwardDIT2048Radix4Then2Complex128 computes a 2048-point forward FFT using
+// radix-4-then-2 Decimation-in-Time (DIT) algorithm for complex128 data.
+func forwardDIT2048Radix4Then2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 2048
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrevSize2048Mixed24
+	br := bitrevSize2048Radix4Then2
 	s := src[:n]
 	tw := twiddle[:n]
 
@@ -559,16 +559,16 @@ func forwardDIT2048Mixed24Complex128(dst, src, twiddle, scratch []complex128) bo
 	return true
 }
 
-// inverseDIT2048Mixed24Complex128 computes a 2048-point inverse FFT using
-// mixed-radix-2/4 Decimation-in-Time (DIT) algorithm for complex128 data.
-func inverseDIT2048Mixed24Complex128(dst, src, twiddle, scratch []complex128) bool {
+// inverseDIT2048Radix4Then2Complex128 computes a 2048-point inverse FFT using
+// radix-4-then-2 Decimation-in-Time (DIT) algorithm for complex128 data.
+func inverseDIT2048Radix4Then2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 2048
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
 		return false
 	}
 
-	br := bitrevSize2048Mixed24
+	br := bitrevSize2048Radix4Then2
 	s := src[:n]
 	tw := twiddle[:n]
 

@@ -19,7 +19,7 @@ func TestDebugAVX2Size8Radix4(t *testing.T) {
 	}
 
 	twiddle := ComputeTwiddleFactors[complex64](n)
-	bitrev := mathpkg.ComputeBitReversalIndicesMixed24(n)
+	bitrev := mathpkg.ComputeBitReversalIndicesRadix4Then2(n)
 
 	t.Logf("=== Input ===")
 	for i, v := range src {

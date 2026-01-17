@@ -659,6 +659,7 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 		if standardScratchSize < n {
 			standardScratchSize = n
 		}
+
 		switch any(zero).(type) {
 		case complex64:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(standardScratchSize)
@@ -991,9 +992,11 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 
 func getBuffersFromPool[T Complex](n, scratchSize int, pool *fft.BufferPool) (twiddle, scratch, stridedScratch []T, twiddleBacking, scratchBacking, stridedBacking []byte) {
 	var zero T
+
 	if scratchSize < n {
 		scratchSize = n
 	}
+
 	switch any(zero).(type) {
 	case complex64:
 		twiddleAligned, twiddleRaw := pool.GetComplex64(n)
