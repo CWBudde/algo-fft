@@ -60,34 +60,66 @@ fwd_r16_w16_loop:
 	// ==================================================================
 	// STEP 1: Transpose input (row-major) -> scratch (column-major)
 	// ==================================================================
-	XORQ R12, R12             // row
+	XORQ R12, R12             // row block (0..3)
 
-fwd_r16_transpose_in_row:
-	CMPQ R12, $16
+fwd_r16_transpose_in_rb:
+	CMPQ R12, $4
 	JGE  fwd_r16_stage1
-	MOVQ R12, R13
-	SHLQ $4, R13              // row*16
-	XORQ R14, R14             // col
+	MOVQ R12, R14
+	SHLQ $10, R14             // row_block_bytes = rb * 1024
+	MOVQ R12, DX
+	SHLQ $6, DX               // row_base_bytes = rb * 64
+	XORQ R13, R13             // col block (0..3)
 
-fwd_r16_transpose_in_col:
-	CMPQ R14, $16
-	JGE  fwd_r16_transpose_in_row_next
+fwd_r16_transpose_in_cb:
+	CMPQ R13, $4
+	JGE  fwd_r16_transpose_in_rb_next
 	MOVQ R13, AX
-	ADDQ R14, AX              // idx = row*16 + col
-	MOVQ AX, BX
-	SHLQ $4, BX               // byte offset
-	VMOVUPD (R9)(BX*1), X0
-	MOVQ R14, CX
-	SHLQ $4, CX               // col*16
-	ADDQ R12, CX              // col*16 + row
-	SHLQ $4, CX               // byte offset
-	VMOVUPD X0, (R11)(CX*1)
-	INCQ R14
-	JMP  fwd_r16_transpose_in_col
+	SHLQ $6, AX               // col_block_bytes = cb * 64
+	LEAQ (R9)(R14*1), SI
+	ADDQ AX, SI
+	LEAQ 256(SI), DI
+	LEAQ 512(SI), BX
+	LEAQ 768(SI), CX
 
-fwd_r16_transpose_in_row_next:
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 32(SI), Y1
+	VMOVUPD 0(DI), Y2
+	VMOVUPD 32(DI), Y3
+	VMOVUPD 0(BX), Y4
+	VMOVUPD 32(BX), Y5
+	VMOVUPD 0(CX), Y6
+	VMOVUPD 32(CX), Y7
+
+	VPERM2F128 $0x20, Y2, Y0, Y8
+	VPERM2F128 $0x31, Y2, Y0, Y9
+	VPERM2F128 $0x20, Y6, Y4, Y10
+	VPERM2F128 $0x31, Y6, Y4, Y11
+	VPERM2F128 $0x20, Y3, Y1, Y12
+	VPERM2F128 $0x31, Y3, Y1, Y13
+	VPERM2F128 $0x20, Y7, Y5, Y14
+	VPERM2F128 $0x31, Y7, Y5, Y15
+
+	MOVQ R13, AX
+	SHLQ $10, AX              // cb * 1024
+	LEAQ (R11)(AX*1), DI
+	ADDQ DX, DI               // add row_base_bytes
+
+	VMOVUPD Y8, 0(DI)
+	VMOVUPD Y10, 32(DI)
+	VMOVUPD Y9, 256(DI)
+	VMOVUPD Y11, 288(DI)
+	VMOVUPD Y12, 512(DI)
+	VMOVUPD Y14, 544(DI)
+	VMOVUPD Y13, 768(DI)
+	VMOVUPD Y15, 800(DI)
+
+	INCQ R13
+	JMP  fwd_r16_transpose_in_cb
+
+fwd_r16_transpose_in_rb_next:
 	INCQ R12
-	JMP  fwd_r16_transpose_in_row
+	JMP  fwd_r16_transpose_in_rb
 
 fwd_r16_stage1:
 	// ==================================================================
@@ -242,33 +274,66 @@ fwd_r16_transpose_out:
 	// ==================================================================
 	// STEP 4: Transpose scratch (column-major) -> dst (row-major)
 	// ==================================================================
-	XORQ R12, R12             // row
+	XORQ R12, R12             // row block (0..3)
 
-fwd_r16_transpose_out_row:
-	CMPQ R12, $16
+fwd_r16_transpose_out_rb:
+	CMPQ R12, $4
 	JGE  fwd_r16_stage2
-	MOVQ R12, R13
-	SHLQ $4, R13              // row*16
-	XORQ R14, R14             // col
+	MOVQ R12, R14
+	SHLQ $10, R14             // row_block_bytes = rb * 1024
+	MOVQ R12, DX
+	SHLQ $6, DX               // row_base_bytes = rb * 64
+	XORQ R13, R13             // col block (0..3)
 
-fwd_r16_transpose_out_col:
-	CMPQ R14, $16
-	JGE  fwd_r16_transpose_out_row_next
-	MOVQ R14, AX
-	SHLQ $4, AX               // col*16
-	ADDQ R12, AX              // col*16 + row
-	SHLQ $4, AX               // byte offset
-	VMOVUPD (R11)(AX*1), X0
-	MOVQ R13, BX
-	ADDQ R14, BX              // idx = row*16 + col
-	SHLQ $4, BX
-	VMOVUPD X0, (R8)(BX*1)
-	INCQ R14
-	JMP  fwd_r16_transpose_out_col
+fwd_r16_transpose_out_cb:
+	CMPQ R13, $4
+	JGE  fwd_r16_transpose_out_rb_next
+	MOVQ R13, AX
+	SHLQ $6, AX               // col_block_bytes = cb * 64
+	LEAQ (R11)(R14*1), SI
+	ADDQ AX, SI
+	LEAQ 256(SI), DI
+	LEAQ 512(SI), BX
+	LEAQ 768(SI), CX
 
-fwd_r16_transpose_out_row_next:
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 32(SI), Y1
+	VMOVUPD 0(DI), Y2
+	VMOVUPD 32(DI), Y3
+	VMOVUPD 0(BX), Y4
+	VMOVUPD 32(BX), Y5
+	VMOVUPD 0(CX), Y6
+	VMOVUPD 32(CX), Y7
+
+	VPERM2F128 $0x20, Y2, Y0, Y8
+	VPERM2F128 $0x31, Y2, Y0, Y9
+	VPERM2F128 $0x20, Y6, Y4, Y10
+	VPERM2F128 $0x31, Y6, Y4, Y11
+	VPERM2F128 $0x20, Y3, Y1, Y12
+	VPERM2F128 $0x31, Y3, Y1, Y13
+	VPERM2F128 $0x20, Y7, Y5, Y14
+	VPERM2F128 $0x31, Y7, Y5, Y15
+
+	MOVQ R13, AX
+	SHLQ $10, AX              // cb * 1024
+	LEAQ (R8)(AX*1), DI
+	ADDQ DX, DI               // add row_base_bytes
+
+	VMOVUPD Y8, 0(DI)
+	VMOVUPD Y10, 32(DI)
+	VMOVUPD Y9, 256(DI)
+	VMOVUPD Y11, 288(DI)
+	VMOVUPD Y12, 512(DI)
+	VMOVUPD Y14, 544(DI)
+	VMOVUPD Y13, 768(DI)
+	VMOVUPD Y15, 800(DI)
+
+	INCQ R13
+	JMP  fwd_r16_transpose_out_cb
+
+fwd_r16_transpose_out_rb_next:
 	INCQ R12
-	JMP  fwd_r16_transpose_out_row
+	JMP  fwd_r16_transpose_out_rb
 
 fwd_r16_stage2:
 	// ==================================================================
@@ -384,33 +449,66 @@ fwd_r16_final_transpose:
 	// ==================================================================
 	// STEP 6: Final transpose (dst -> scratch) and copy to dst
 	// ==================================================================
-	XORQ R12, R12             // row
+	XORQ R12, R12             // row block (0..3)
 
-fwd_r16_final_row:
-	CMPQ R12, $16
+fwd_r16_final_rb:
+	CMPQ R12, $4
 	JGE  fwd_r16_final_copy
-	MOVQ R12, R13
-	SHLQ $4, R13              // row*16
-	XORQ R14, R14             // col
+	MOVQ R12, R14
+	SHLQ $10, R14             // row_block_bytes = rb * 1024
+	MOVQ R12, DX
+	SHLQ $6, DX               // row_base_bytes = rb * 64
+	XORQ R13, R13             // col block (0..3)
 
-fwd_r16_final_col:
-	CMPQ R14, $16
-	JGE  fwd_r16_final_row_next
+fwd_r16_final_cb:
+	CMPQ R13, $4
+	JGE  fwd_r16_final_rb_next
 	MOVQ R13, AX
-	ADDQ R14, AX              // idx = row*16 + col
-	SHLQ $4, AX
-	VMOVUPD (R8)(AX*1), X0
-	MOVQ R14, BX
-	SHLQ $4, BX               // col*16
-	ADDQ R12, BX              // col*16 + row
-	SHLQ $4, BX
-	VMOVUPD X0, (R11)(BX*1)
-	INCQ R14
-	JMP  fwd_r16_final_col
+	SHLQ $6, AX               // col_block_bytes = cb * 64
+	LEAQ (R8)(R14*1), SI
+	ADDQ AX, SI
+	LEAQ 256(SI), DI
+	LEAQ 512(SI), BX
+	LEAQ 768(SI), CX
 
-fwd_r16_final_row_next:
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 32(SI), Y1
+	VMOVUPD 0(DI), Y2
+	VMOVUPD 32(DI), Y3
+	VMOVUPD 0(BX), Y4
+	VMOVUPD 32(BX), Y5
+	VMOVUPD 0(CX), Y6
+	VMOVUPD 32(CX), Y7
+
+	VPERM2F128 $0x20, Y2, Y0, Y8
+	VPERM2F128 $0x31, Y2, Y0, Y9
+	VPERM2F128 $0x20, Y6, Y4, Y10
+	VPERM2F128 $0x31, Y6, Y4, Y11
+	VPERM2F128 $0x20, Y3, Y1, Y12
+	VPERM2F128 $0x31, Y3, Y1, Y13
+	VPERM2F128 $0x20, Y7, Y5, Y14
+	VPERM2F128 $0x31, Y7, Y5, Y15
+
+	MOVQ R13, AX
+	SHLQ $10, AX              // cb * 1024
+	LEAQ (R11)(AX*1), DI
+	ADDQ DX, DI               // add row_base_bytes
+
+	VMOVUPD Y8, 0(DI)
+	VMOVUPD Y10, 32(DI)
+	VMOVUPD Y9, 256(DI)
+	VMOVUPD Y11, 288(DI)
+	VMOVUPD Y12, 512(DI)
+	VMOVUPD Y14, 544(DI)
+	VMOVUPD Y13, 768(DI)
+	VMOVUPD Y15, 800(DI)
+
+	INCQ R13
+	JMP  fwd_r16_final_cb
+
+fwd_r16_final_rb_next:
 	INCQ R12
-	JMP  fwd_r16_final_row
+	JMP  fwd_r16_final_rb
 
 fwd_r16_final_copy:
 	XORQ CX, CX
@@ -481,34 +579,66 @@ inv_r16_w16_loop:
 	// ==================================================================
 	// STEP 1: Transpose input (row-major) -> scratch (column-major)
 	// ==================================================================
-	XORQ R12, R12             // row
+	XORQ R12, R12             // row block (0..3)
 
-inv_r16_transpose_in_row:
-	CMPQ R12, $16
+inv_r16_transpose_in_rb:
+	CMPQ R12, $4
 	JGE  inv_r16_stage1
-	MOVQ R12, R13
-	SHLQ $4, R13              // row*16
-	XORQ R14, R14             // col
+	MOVQ R12, R14
+	SHLQ $10, R14             // row_block_bytes = rb * 1024
+	MOVQ R12, DX
+	SHLQ $6, DX               // row_base_bytes = rb * 64
+	XORQ R13, R13             // col block (0..3)
 
-inv_r16_transpose_in_col:
-	CMPQ R14, $16
-	JGE  inv_r16_transpose_in_row_next
+inv_r16_transpose_in_cb:
+	CMPQ R13, $4
+	JGE  inv_r16_transpose_in_rb_next
 	MOVQ R13, AX
-	ADDQ R14, AX              // idx = row*16 + col
-	MOVQ AX, BX
-	SHLQ $4, BX               // byte offset
-	VMOVUPD (R9)(BX*1), X0
-	MOVQ R14, CX
-	SHLQ $4, CX               // col*16
-	ADDQ R12, CX              // col*16 + row
-	SHLQ $4, CX               // byte offset
-	VMOVUPD X0, (R11)(CX*1)
-	INCQ R14
-	JMP  inv_r16_transpose_in_col
+	SHLQ $6, AX               // col_block_bytes = cb * 64
+	LEAQ (R9)(R14*1), SI
+	ADDQ AX, SI
+	LEAQ 256(SI), DI
+	LEAQ 512(SI), BX
+	LEAQ 768(SI), CX
 
-inv_r16_transpose_in_row_next:
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 32(SI), Y1
+	VMOVUPD 0(DI), Y2
+	VMOVUPD 32(DI), Y3
+	VMOVUPD 0(BX), Y4
+	VMOVUPD 32(BX), Y5
+	VMOVUPD 0(CX), Y6
+	VMOVUPD 32(CX), Y7
+
+	VPERM2F128 $0x20, Y2, Y0, Y8
+	VPERM2F128 $0x31, Y2, Y0, Y9
+	VPERM2F128 $0x20, Y6, Y4, Y10
+	VPERM2F128 $0x31, Y6, Y4, Y11
+	VPERM2F128 $0x20, Y3, Y1, Y12
+	VPERM2F128 $0x31, Y3, Y1, Y13
+	VPERM2F128 $0x20, Y7, Y5, Y14
+	VPERM2F128 $0x31, Y7, Y5, Y15
+
+	MOVQ R13, AX
+	SHLQ $10, AX              // cb * 1024
+	LEAQ (R11)(AX*1), DI
+	ADDQ DX, DI               // add row_base_bytes
+
+	VMOVUPD Y8, 0(DI)
+	VMOVUPD Y10, 32(DI)
+	VMOVUPD Y9, 256(DI)
+	VMOVUPD Y11, 288(DI)
+	VMOVUPD Y12, 512(DI)
+	VMOVUPD Y14, 544(DI)
+	VMOVUPD Y13, 768(DI)
+	VMOVUPD Y15, 800(DI)
+
+	INCQ R13
+	JMP  inv_r16_transpose_in_cb
+
+inv_r16_transpose_in_rb_next:
 	INCQ R12
-	JMP  inv_r16_transpose_in_row
+	JMP  inv_r16_transpose_in_rb
 
 inv_r16_stage1:
 	// ==================================================================
@@ -665,33 +795,66 @@ inv_r16_transpose_out:
 	// ==================================================================
 	// STEP 4: Transpose scratch (column-major) -> dst (row-major)
 	// ==================================================================
-	XORQ R12, R12             // row
+	XORQ R12, R12             // row block (0..3)
 
-inv_r16_transpose_out_row:
-	CMPQ R12, $16
+inv_r16_transpose_out_rb:
+	CMPQ R12, $4
 	JGE  inv_r16_stage2
-	MOVQ R12, R13
-	SHLQ $4, R13              // row*16
-	XORQ R14, R14             // col
+	MOVQ R12, R14
+	SHLQ $10, R14             // row_block_bytes = rb * 1024
+	MOVQ R12, DX
+	SHLQ $6, DX               // row_base_bytes = rb * 64
+	XORQ R13, R13             // col block (0..3)
 
-inv_r16_transpose_out_col:
-	CMPQ R14, $16
-	JGE  inv_r16_transpose_out_row_next
-	MOVQ R14, AX
-	SHLQ $4, AX               // col*16
-	ADDQ R12, AX              // col*16 + row
-	SHLQ $4, AX               // byte offset
-	VMOVUPD (R11)(AX*1), X0
-	MOVQ R13, BX
-	ADDQ R14, BX              // idx = row*16 + col
-	SHLQ $4, BX
-	VMOVUPD X0, (R8)(BX*1)
-	INCQ R14
-	JMP  inv_r16_transpose_out_col
+inv_r16_transpose_out_cb:
+	CMPQ R13, $4
+	JGE  inv_r16_transpose_out_rb_next
+	MOVQ R13, AX
+	SHLQ $6, AX               // col_block_bytes = cb * 64
+	LEAQ (R11)(R14*1), SI
+	ADDQ AX, SI
+	LEAQ 256(SI), DI
+	LEAQ 512(SI), BX
+	LEAQ 768(SI), CX
 
-inv_r16_transpose_out_row_next:
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 32(SI), Y1
+	VMOVUPD 0(DI), Y2
+	VMOVUPD 32(DI), Y3
+	VMOVUPD 0(BX), Y4
+	VMOVUPD 32(BX), Y5
+	VMOVUPD 0(CX), Y6
+	VMOVUPD 32(CX), Y7
+
+	VPERM2F128 $0x20, Y2, Y0, Y8
+	VPERM2F128 $0x31, Y2, Y0, Y9
+	VPERM2F128 $0x20, Y6, Y4, Y10
+	VPERM2F128 $0x31, Y6, Y4, Y11
+	VPERM2F128 $0x20, Y3, Y1, Y12
+	VPERM2F128 $0x31, Y3, Y1, Y13
+	VPERM2F128 $0x20, Y7, Y5, Y14
+	VPERM2F128 $0x31, Y7, Y5, Y15
+
+	MOVQ R13, AX
+	SHLQ $10, AX              // cb * 1024
+	LEAQ (R8)(AX*1), DI
+	ADDQ DX, DI               // add row_base_bytes
+
+	VMOVUPD Y8, 0(DI)
+	VMOVUPD Y10, 32(DI)
+	VMOVUPD Y9, 256(DI)
+	VMOVUPD Y11, 288(DI)
+	VMOVUPD Y12, 512(DI)
+	VMOVUPD Y14, 544(DI)
+	VMOVUPD Y13, 768(DI)
+	VMOVUPD Y15, 800(DI)
+
+	INCQ R13
+	JMP  inv_r16_transpose_out_cb
+
+inv_r16_transpose_out_rb_next:
 	INCQ R12
-	JMP  inv_r16_transpose_out_row
+	JMP  inv_r16_transpose_out_rb
 
 inv_r16_stage2:
 	// ==================================================================
@@ -807,33 +970,66 @@ inv_r16_final_transpose:
 	// ==================================================================
 	// STEP 6: Final transpose (dst -> scratch), scale, and copy to dst
 	// ==================================================================
-	XORQ R12, R12             // row
+	XORQ R12, R12             // row block (0..3)
 
-inv_r16_final_row:
-	CMPQ R12, $16
+inv_r16_final_rb:
+	CMPQ R12, $4
 	JGE  inv_r16_scale_copy
-	MOVQ R12, R13
-	SHLQ $4, R13              // row*16
-	XORQ R14, R14             // col
+	MOVQ R12, R14
+	SHLQ $10, R14             // row_block_bytes = rb * 1024
+	MOVQ R12, DX
+	SHLQ $6, DX               // row_base_bytes = rb * 64
+	XORQ R13, R13             // col block (0..3)
 
-inv_r16_final_col:
-	CMPQ R14, $16
-	JGE  inv_r16_final_row_next
+inv_r16_final_cb:
+	CMPQ R13, $4
+	JGE  inv_r16_final_rb_next
 	MOVQ R13, AX
-	ADDQ R14, AX              // idx = row*16 + col
-	SHLQ $4, AX
-	VMOVUPD (R8)(AX*1), X0
-	MOVQ R14, BX
-	SHLQ $4, BX               // col*16
-	ADDQ R12, BX              // col*16 + row
-	SHLQ $4, BX
-	VMOVUPD X0, (R11)(BX*1)
-	INCQ R14
-	JMP  inv_r16_final_col
+	SHLQ $6, AX               // col_block_bytes = cb * 64
+	LEAQ (R8)(R14*1), SI
+	ADDQ AX, SI
+	LEAQ 256(SI), DI
+	LEAQ 512(SI), BX
+	LEAQ 768(SI), CX
 
-inv_r16_final_row_next:
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 32(SI), Y1
+	VMOVUPD 0(DI), Y2
+	VMOVUPD 32(DI), Y3
+	VMOVUPD 0(BX), Y4
+	VMOVUPD 32(BX), Y5
+	VMOVUPD 0(CX), Y6
+	VMOVUPD 32(CX), Y7
+
+	VPERM2F128 $0x20, Y2, Y0, Y8
+	VPERM2F128 $0x31, Y2, Y0, Y9
+	VPERM2F128 $0x20, Y6, Y4, Y10
+	VPERM2F128 $0x31, Y6, Y4, Y11
+	VPERM2F128 $0x20, Y3, Y1, Y12
+	VPERM2F128 $0x31, Y3, Y1, Y13
+	VPERM2F128 $0x20, Y7, Y5, Y14
+	VPERM2F128 $0x31, Y7, Y5, Y15
+
+	MOVQ R13, AX
+	SHLQ $10, AX              // cb * 1024
+	LEAQ (R11)(AX*1), DI
+	ADDQ DX, DI               // add row_base_bytes
+
+	VMOVUPD Y8, 0(DI)
+	VMOVUPD Y10, 32(DI)
+	VMOVUPD Y9, 256(DI)
+	VMOVUPD Y11, 288(DI)
+	VMOVUPD Y12, 512(DI)
+	VMOVUPD Y14, 544(DI)
+	VMOVUPD Y13, 768(DI)
+	VMOVUPD Y15, 800(DI)
+
+	INCQ R13
+	JMP  inv_r16_final_cb
+
+inv_r16_final_rb_next:
 	INCQ R12
-	JMP  inv_r16_final_row
+	JMP  inv_r16_final_rb
 
 inv_r16_scale_copy:
 	MOVQ ·twoFiftySixth64(SB), AX
