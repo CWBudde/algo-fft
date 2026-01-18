@@ -718,7 +718,7 @@ inv_stage1_k2_loop:
 	JGE  inv_stage2
 
 	LEAQ ·bitrev32<>(SB), R15
-	LEAQ 0(SP), R12           // bufV base (2 rows packed)
+	LEAQ 1024(SP), R12        // scalar buf base
 	XORQ AX, AX // i=0
 inv_gather_row_loop:
 	CMPQ AX, $32
@@ -729,53 +729,50 @@ inv_gather_row_loop:
 	MOVQ R14, DX
 	SHLQ $4, DX               // k2*16
 	ADDQ DX, CX
-	VMOVUPD (R9)(CX*1), Y0
+	MOVUPD (R9)(CX*1), X0
 	MOVQ AX, SI
-	SHLQ $5, SI               // i*32
-	VMOVUPD Y0, (R12)(SI*1)
+	SHLQ $4, SI               // i*16
+	MOVUPD X0, (R12)(SI*1)
 	INCQ AX
 	JMP  inv_gather_row_loop
 
 inv_do_ifft_row:
-	MOVQ $1, BP               // return selector 1
-	JMP  inv_fft32x4
+	XORQ BP, BP               // return selector 0
+	JMP  inv_fft32
 inv_fft32x4_return_row:
 inv_fft32_return_row:
 
-	VMOVUPD ·signMaskF64x2<>(SB), Y14
+	MOVUPD ·signMaskF64x2<>(SB), X14
 	XORQ R13, R13 // n1=0
 inv_store_work_loop:
 	CMPQ R13, $32
 	JGE  inv_stage1_next_k2
 
 	MOVQ R13, SI
-	SHLQ $5, SI
-	VMOVUPD (R12)(SI*1), Y0
+	SHLQ $4, SI
+	LEAQ (R12)(SI*1), DI
+	MOVSD 0(DI), X0
+	MOVSD 8(DI), X1
 
 	MOVQ R14, AX
-	IMULQ R13, AX
-	SHLQ $4, AX
-	LEAQ (R10)(AX*1), DI
-	VMOVUPD (DI), X8
-	MOVQ R14, AX
-	INCQ AX
 	IMULQ R13, AX
 	SHLQ $4, AX
 	LEAQ (R10)(AX*1), SI
-	VMOVUPD (SI), X9
-	VINSERTF128 $0, X8, Y8, Y8
-	VINSERTF128 $1, X9, Y8, Y8
+	MOVSD 0(SI), X2
+	MOVSD 8(SI), X3
+	XORPD X14, X3
 
-	VMOVAPD Y8, Y11
-	VXORPD Y14, Y11, Y11
-	VMOVDDUP Y11, Y9
-	VPERMILPD $0x0F, Y11, Y10
-
-	VMOVAPD Y0, Y1
-	VPERMILPD $0x05, Y1, Y1
-	VMULPD Y10, Y1, Y1
-	VMULPD Y9, Y0, Y0
-	VADDSUBPD Y1, Y0, Y0
+	// (x+iy)*(c-di)
+	MOVAPD X0, X4
+	MULSD X2, X4
+	MOVAPD X1, X5
+	MULSD X3, X5
+	ADDSD X5, X4
+	MOVAPD X1, X6
+	MULSD X2, X6
+	MOVAPD X0, X7
+	MULSD X3, X7
+	SUBSD X7, X6
 
 	MOVQ R14, AX
 	SHLQ $9, AX               // k2*512
@@ -783,17 +780,14 @@ inv_store_work_loop:
 	SHLQ $4, BX               // n1*16
 	ADDQ BX, AX
 	LEAQ (R11)(AX*1), DI
-	VEXTRACTF128 $0, Y0, X0
-	VMOVUPD X0, (DI)
-	LEAQ 512(DI), DI
-	VEXTRACTF128 $1, Y0, X1
-	VMOVUPD X1, (DI)
+	MOVSD X4, 0(DI)
+	MOVSD X6, 8(DI)
 
 	INCQ R13
 	JMP  inv_store_work_loop
 
 inv_stage1_next_k2:
-	ADDQ $2, R14
+	INCQ R14
 	JMP  inv_stage1_k2_loop
 
 	// =====================================================================
