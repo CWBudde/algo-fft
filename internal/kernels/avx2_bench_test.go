@@ -48,3 +48,47 @@ func BenchmarkAVX2Complex64(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkAVX2Complex128 benchmarks AVX2 kernels for complex128.
+func BenchmarkAVX2Complex128(b *testing.B) {
+	cases := []benchCase128{
+		{"Size1024/Radix32x32", 1024, amd64.ForwardAVX2Size1024Radix32x32Complex128Asm, amd64.InverseAVX2Size1024Radix32x32Complex128Asm},
+	}
+
+	for _, tc := range cases {
+		b.Run(tc.name+"/Forward", func(b *testing.B) {
+			if tc.forward == nil {
+				b.Skip("Not implemented")
+			}
+			runBenchPreparedComplex128(b, tc.n, false, tc.forward)
+		})
+		b.Run(tc.name+"/Inverse", func(b *testing.B) {
+			if tc.inverse == nil {
+				b.Skip("Not implemented")
+			}
+			runBenchPreparedComplex128(b, tc.n, true, tc.inverse)
+		})
+	}
+}
+
+func runBenchPreparedComplex128(b *testing.B, n int, inverse bool, kernel func(dst, src, twiddle, scratch []complex128) bool) {
+	b.Helper()
+
+	src := make([]complex128, n)
+	dst := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := make([]complex128, twiddleSize1024Radix32x32AVX2(n))
+	prepareTwiddle1024Radix32x32AVX2(n, inverse, twiddle)
+
+	for i := range src {
+		src[i] = complex(float64(i), float64(-i))
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.SetBytes(int64(n * 16))
+
+	for b.Loop() {
+		kernel(dst, src, twiddle, scratch)
+	}
+}

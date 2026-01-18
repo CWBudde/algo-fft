@@ -185,3 +185,65 @@ func writeTwiddle1Packed(buf []complex64, w complex64, inverse bool) {
 	buf[0] = wc
 	buf[1] = wc
 }
+
+const (
+	twiddleSize1024Radix32x32AVX2Elems = 1128
+
+	twiddleStage2Offset1024 = 1024
+	twiddleStage3Offset1024 = 1028
+	twiddleStage4Offset1024 = 1040
+	twiddleStage5Offset1024 = 1068
+
+	twiddleStageEntryElems = 4
+)
+
+func twiddleSize1024Radix32x32AVX2(_ int) int {
+	return twiddleSize1024Radix32x32AVX2Elems
+}
+
+func prepareTwiddle1024Radix32x32AVX2(n int, inverse bool, dst []complex128) {
+	if n != 1024 || len(dst) < twiddleSize1024Radix32x32AVX2Elems {
+		return
+	}
+
+	twiddle := m.ComputeTwiddleFactors[complex128](n)
+	copy(dst[:n], twiddle)
+
+	sign := 1.0
+	if inverse {
+		sign = -1.0
+	}
+
+	writeStageEntry := func(offset int, w complex128) {
+		re := real(w)
+		im := imag(w) * sign
+		dst[offset+0] = complex(re, re)
+		dst[offset+1] = complex(re, re)
+		dst[offset+2] = complex(im, im)
+		dst[offset+3] = complex(im, im)
+	}
+
+	offset := twiddleStage2Offset1024
+	for j := 1; j < 2; j++ {
+		writeStageEntry(offset, twiddle[j*256])
+		offset += twiddleStageEntryElems
+	}
+
+	offset = twiddleStage3Offset1024
+	for j := 1; j < 4; j++ {
+		writeStageEntry(offset, twiddle[j*128])
+		offset += twiddleStageEntryElems
+	}
+
+	offset = twiddleStage4Offset1024
+	for j := 1; j < 8; j++ {
+		writeStageEntry(offset, twiddle[j*64])
+		offset += twiddleStageEntryElems
+	}
+
+	offset = twiddleStage5Offset1024
+	for j := 1; j < 16; j++ {
+		writeStageEntry(offset, twiddle[j*32])
+		offset += twiddleStageEntryElems
+	}
+}
