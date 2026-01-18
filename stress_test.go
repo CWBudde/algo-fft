@@ -180,7 +180,8 @@ func TestStressRandomSizes(t *testing.T) {
 			src[i] = complex(rand.Float32(), rand.Float32())
 		}
 
-		if err := plan.Forward(dst, src); err != nil {
+		err = plan.Forward(dst, src)
+		if err != nil {
 			t.Fatalf("Forward failed for size %d: %v", n, err)
 		}
 
@@ -235,7 +236,8 @@ func testPlanPooledStress(t *testing.T, n, iters int) {
 			t.Fatalf("NewPlanPooled failed at iteration %d: %v", i, err)
 		}
 
-		if err := plan.Forward(dst, src); err != nil {
+		err = plan.Forward(dst, src)
+		if err != nil {
 			t.Fatalf("Forward failed at iteration %d: %v", i, err)
 		}
 

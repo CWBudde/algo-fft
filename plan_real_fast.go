@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"math"
+	"unsafe"
 
 	"github.com/MeKo-Christian/algo-fft/internal/fft"
 )
@@ -73,9 +74,8 @@ func (fp *FastPlanReal32) Forward(dst []complex64, src []float32) {
 	buf := fp.buf
 
 	// Pack: z[k] = src[2k] + i*src[2k+1]
-	for i := range half {
-		buf[i] = complex(src[2*i], src[2*i+1])
-	}
+	srcAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&src[0])), half)
+	copy(buf, srcAsComplex)
 
 	// N/2 complex FFT (direct call, no validation)
 	fp.inner.Forward(buf, buf)
@@ -128,11 +128,8 @@ func (fp *FastPlanReal32) Inverse(dst []float32, src []complex64) {
 	fp.inner.Inverse(buf, buf)
 
 	// Unpack complex buffer to real output
-	for i := range half {
-		v := buf[i]
-		dst[2*i] = real(v)
-		dst[2*i+1] = imag(v)
-	}
+	dstAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&dst[0])), half)
+	copy(dstAsComplex, buf)
 }
 
 // FastPlanReal64 provides zero-overhead real FFT for float64/complex128.
@@ -202,9 +199,8 @@ func (fp *FastPlanReal64) Forward(dst []complex128, src []float64) {
 	buf := fp.buf
 
 	// Pack: z[k] = src[2k] + i*src[2k+1]
-	for i := range half {
-		buf[i] = complex(src[2*i], src[2*i+1])
-	}
+	srcAsComplex := unsafe.Slice((*complex128)(unsafe.Pointer(&src[0])), half)
+	copy(buf, srcAsComplex)
 
 	// N/2 complex FFT (direct call, no validation)
 	fp.inner.Forward(buf, buf)
@@ -257,9 +253,6 @@ func (fp *FastPlanReal64) Inverse(dst []float64, src []complex128) {
 	fp.inner.Inverse(buf, buf)
 
 	// Unpack complex buffer to real output
-	for i := range half {
-		v := buf[i]
-		dst[2*i] = real(v)
-		dst[2*i+1] = imag(v)
-	}
+	dstAsComplex := unsafe.Slice((*complex128)(unsafe.Pointer(&dst[0])), half)
+	copy(dstAsComplex, buf)
 }

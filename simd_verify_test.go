@@ -53,7 +53,8 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	}
 
 	simdOut := make([]complex64, n)
-	if err := plan.Forward(simdOut, input); err != nil {
+	err = plan.Forward(simdOut, input)
+	if err != nil {
 		t.Fatalf("SIMD Forward failed: %v", err)
 	}
 
@@ -69,7 +70,8 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	}
 
 	genericOut := make([]complex64, n)
-	if err := planGeneric.Forward(genericOut, input); err != nil {
+	err = planGeneric.Forward(genericOut, input)
+	if err != nil {
 		t.Fatalf("Generic Forward failed: %v", err)
 	}
 
@@ -135,7 +137,8 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	}
 
 	simdOut := make([]complex128, n)
-	if err := plan.Forward(simdOut, input); err != nil {
+	err = plan.Forward(simdOut, input)
+	if err != nil {
 		t.Fatalf("SIMD Forward failed: %v", err)
 	}
 
@@ -150,7 +153,8 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	}
 
 	genericOut := make([]complex128, n)
-	if err := planGeneric.Forward(genericOut, input); err != nil {
+	err = planGeneric.Forward(genericOut, input)
+	if err != nil {
 		t.Fatalf("Generic Forward failed: %v", err)
 	}
 
@@ -175,26 +179,34 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 		}
 	}
 
-	if maxRelErr > 1e-14 {
-		t.Errorf("SIMD vs Generic: max relative error %e exceeds 1e-14", maxRelErr)
+	if maxRelErr <= 1e-14 {
+		return
+	}
 
-		if n == 64 && firstBadIdx >= 0 {
-			t.Logf("First bad index: %d", firstBadIdx)
+	t.Errorf("SIMD vs Generic: max relative error %e exceeds 1e-14", maxRelErr)
 
-			badCount := 0
-			for i := 0; i < len(simdOut) && badCount < 20; i++ {
-				diff := cmplx.Abs(simdOut[i] - genericOut[i])
+	if n != 64 || firstBadIdx < 0 {
+		return
+	}
 
-				maxMag := math.Max(cmplx.Abs(simdOut[i]), cmplx.Abs(genericOut[i]))
-				if maxMag > 1e-14 {
-					relErr := diff / maxMag
-					if relErr > 1e-6 {
-						t.Logf("  BAD[%d] SIMD=%v Generic=%v (relErr=%.2e)", i, simdOut[i], genericOut[i], relErr)
+	t.Logf("First bad index: %d", firstBadIdx)
 
-						badCount++
-					}
-				}
-			}
+	badCount := 0
+	for i := 0; i < len(simdOut) && badCount < 20; i++ {
+		diff := cmplx.Abs(simdOut[i] - genericOut[i])
+
+		maxMag := math.Max(cmplx.Abs(simdOut[i]), cmplx.Abs(genericOut[i]))
+		if maxMag <= 1e-14 {
+			continue
 		}
+
+		relErr := diff / maxMag
+		if relErr <= 1e-6 {
+			continue
+		}
+
+		t.Logf("  BAD[%d] SIMD=%v Generic=%v (relErr=%.2e)", i, simdOut[i], genericOut[i], relErr)
+
+		badCount++
 	}
 }

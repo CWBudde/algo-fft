@@ -94,10 +94,14 @@ func makeComplexFromAngle[T Complex](angle float64) T {
 	switch any(zero).(type) {
 	case complex64:
 		c := complex(float32(cos), float32(sin))
-		return any(complex64(c)).(T)
+		rv, _ := any(c).(T)
+
+		return rv
 	case complex128:
 		c := complex(cos, sin)
-		return any(complex128(c)).(T)
+		rv, _ := any(c).(T)
+
+		return rv
 	default:
 		panic("unsupported complex type")
 	}

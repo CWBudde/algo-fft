@@ -370,12 +370,19 @@ func StockhamForward[T Complex](dst, src, twiddle, scratch []T) bool {
 
 // StockhamInverse wraps stockhamInverseComplex64/128.
 func StockhamInverse[T Complex](dst, src, twiddle, scratch []T) bool {
-	var zero T
-	switch any(zero).(type) {
-	case complex64:
-		return stockhamInverseComplex64(any(dst).([]complex64), any(src).([]complex64), any(twiddle).([]complex64), any(scratch).([]complex64))
-	case complex128:
-		return stockhamInverseComplex128(any(dst).([]complex128), any(src).([]complex128), any(twiddle).([]complex128), any(scratch).([]complex128))
+	switch d := any(dst).(type) {
+	case []complex64:
+		s, _ := any(src).([]complex64)
+		t, _ := any(twiddle).([]complex64)
+		sc, _ := any(scratch).([]complex64)
+
+		return stockhamInverseComplex64(d, s, t, sc)
+	case []complex128:
+		s, _ := any(src).([]complex128)
+		t, _ := any(twiddle).([]complex128)
+		sc, _ := any(scratch).([]complex128)
+
+		return stockhamInverseComplex128(d, s, t, sc)
 	default:
 		return false
 	}

@@ -20,20 +20,20 @@ func RealDFT2D(input []float32, rows, cols int) []complex64 {
 	halfCols := cols/2 + 1
 	output := make([]complex64, rows*halfCols)
 
-	for k := range rows {
-		for l := range halfCols {
+	for row := range rows {
+		for len := range halfCols {
 			var sum complex128
 
 			for m := range rows {
 				for n := range cols {
 					val := float64(input[m*cols+n])
-					angle := -2 * math.Pi * (float64(k*m)/float64(rows) + float64(l*n)/float64(cols))
+					angle := -2 * math.Pi * (float64(row*m)/float64(rows) + float64(len*n)/float64(cols))
 					twiddle := cmplx.Exp(complex(0, angle))
 					sum += complex(val, 0) * twiddle
 				}
 			}
 
-			output[k*halfCols+l] = complex64(sum)
+			output[row*halfCols+len] = complex64(sum)
 		}
 	}
 

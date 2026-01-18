@@ -172,11 +172,13 @@ func TestPlanND_RoundTrip_3D(t *testing.T) {
 			freq := make([]complex64, len(original))
 			roundTrip := make([]complex64, len(original))
 
-			if err := plan.Forward(freq, original); err != nil {
+			err = plan.Forward(freq, original)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
-			if err := plan.Inverse(roundTrip, freq); err != nil {
+			err = plan.Inverse(roundTrip, freq)
+			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
 			}
 
@@ -214,11 +216,13 @@ func TestPlanND_RoundTrip_4D(t *testing.T) {
 			freq := make([]complex64, len(original))
 			roundTrip := make([]complex64, len(original))
 
-			if err := plan.Forward(freq, original); err != nil {
+			err = plan.Forward(freq, original)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
-			if err := plan.Inverse(roundTrip, freq); err != nil {
+			err = plan.Inverse(roundTrip, freq)
+			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
 			}
 
@@ -255,11 +259,13 @@ func TestPlanND_RoundTrip_5D(t *testing.T) {
 			freq := make([]complex64, len(original))
 			roundTrip := make([]complex64, len(original))
 
-			if err := plan.Forward(freq, original); err != nil {
+			err = plan.Forward(freq, original)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
-			if err := plan.Inverse(roundTrip, freq); err != nil {
+			err = plan.Inverse(roundTrip, freq)
+			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
 			}
 
@@ -296,11 +302,13 @@ func TestPlanND_RoundTrip_Complex128(t *testing.T) {
 			freq := make([]complex128, len(original))
 			roundTrip := make([]complex128, len(original))
 
-			if err := plan.Forward(freq, original); err != nil {
+			err = plan.Forward(freq, original)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
-			if err := plan.Inverse(roundTrip, freq); err != nil {
+			err = plan.Inverse(roundTrip, freq)
+			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
 			}
 
@@ -344,11 +352,13 @@ func TestPlanND_BatchStrideRoundTrip(t *testing.T) {
 		copy(src[b*stride:b*stride+size], signal)
 	}
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
-	if err := plan.Inverse(roundTrip, dst); err != nil {
+	err = plan.Inverse(roundTrip, dst)
+	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 
@@ -383,13 +393,15 @@ func TestPlanND_MatchesPlan3D(t *testing.T) {
 
 	// Transform with Plan3D
 	out3D := make([]complex64, len(signal))
-	if err := plan3D.Forward(out3D, signal); err != nil {
+	err = plan3D.Forward(out3D, signal)
+	if err != nil {
 		t.Fatalf("Plan3D Forward failed: %v", err)
 	}
 
 	// Transform with PlanND
 	outND := make([]complex64, len(signal))
-	if err := planND.Forward(outND, signal); err != nil {
+	err = planND.Forward(outND, signal)
+	if err != nil {
 		t.Fatalf("PlanND Forward failed: %v", err)
 	}
 
@@ -429,12 +441,14 @@ func TestPlanND_InPlace(t *testing.T) {
 	copy(original, data)
 
 	// Forward in-place
-	if err := plan.ForwardInPlace(data); err != nil {
+	err = plan.ForwardInPlace(data)
+	if err != nil {
 		t.Fatalf("ForwardInPlace failed: %v", err)
 	}
 
 	// Inverse in-place
-	if err := plan.InverseInPlace(data); err != nil {
+	err = plan.InverseInPlace(data)
+	if err != nil {
 		t.Fatalf("InverseInPlace failed: %v", err)
 	}
 
@@ -458,20 +472,24 @@ func TestPlanND_ErrorHandling(t *testing.T) {
 	wrongSize := make([]complex64, 10)
 
 	// Nil slices
-	if err := plan.Forward(nil, validData); !errors.Is(err, ErrNilSlice) {
+	err = plan.Forward(nil, validData)
+	if !errors.Is(err, ErrNilSlice) {
 		t.Errorf("Expected ErrNilSlice for nil dst, got %v", err)
 	}
 
-	if err := plan.Forward(validData, nil); !errors.Is(err, ErrNilSlice) {
+	err = plan.Forward(validData, nil)
+	if !errors.Is(err, ErrNilSlice) {
 		t.Errorf("Expected ErrNilSlice for nil src, got %v", err)
 	}
 
 	// Wrong length
-	if err := plan.Forward(wrongSize, validData); !errors.Is(err, ErrLengthMismatch) {
+	err = plan.Forward(wrongSize, validData)
+	if !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("Expected ErrLengthMismatch for wrong dst size, got %v", err)
 	}
 
-	if err := plan.Forward(validData, wrongSize); !errors.Is(err, ErrLengthMismatch) {
+	err = plan.Forward(validData, wrongSize)
+	if !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("Expected ErrLengthMismatch for wrong src size, got %v", err)
 	}
 }

@@ -24,12 +24,14 @@ func TestInverseInPlace(t *testing.T) {
 
 	// Forward transform
 	freq := make([]complex64, 16)
-	if err := plan.Forward(freq, src); err != nil {
+	err = plan.Forward(freq, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
 	// Inverse in-place
-	if err := plan.InverseInPlace(freq); err != nil {
+	err = plan.InverseInPlace(freq)
+	if err != nil {
 		t.Fatalf("InverseInPlace failed: %v", err)
 	}
 
@@ -55,12 +57,14 @@ func TestInverseInPlace_Complex128(t *testing.T) {
 
 	// Forward transform
 	freq := make([]complex128, 32)
-	if err := plan.Forward(freq, src); err != nil {
+	err = plan.Forward(freq, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
 	// Inverse in-place
-	if err := plan.InverseInPlace(freq); err != nil {
+	err = plan.InverseInPlace(freq)
+	if err != nil {
 		t.Fatalf("InverseInPlace failed: %v", err)
 	}
 
@@ -138,7 +142,8 @@ func TestKernelStrategy(t *testing.T) {
 			dst := make([]complex64, tt.size)
 			src[0] = 1
 
-			if err := plan.Forward(dst, src); err != nil {
+			err = plan.Forward(dst, src)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 		})
@@ -288,7 +293,8 @@ func TestRecordBenchmarkDecision(t *testing.T) {
 	dst := make([]complex64, 512)
 	src[0] = 1
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 }
@@ -309,13 +315,15 @@ func TestTransform(t *testing.T) {
 
 	// Test forward
 	dstFwd := make([]complex64, 16)
-	if err := plan.Transform(dstFwd, src, false); err != nil {
+	err = plan.Transform(dstFwd, src, false)
+	if err != nil {
 		t.Fatalf("Transform(forward) failed: %v", err)
 	}
 
 	// Test inverse
 	dstInv := make([]complex64, 16)
-	if err := plan.Transform(dstInv, dstFwd, true); err != nil {
+	err = plan.Transform(dstInv, dstFwd, true)
+	if err != nil {
 		t.Fatalf("Transform(inverse) failed: %v", err)
 	}
 

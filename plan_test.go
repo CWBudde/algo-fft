@@ -26,7 +26,8 @@ func TestNewPlan_PowersOfTwo(t *testing.T) {
 		src := make([]complex64, n)
 
 		dst := make([]complex64, n)
-		if err := plan.Forward(dst, src); err != nil {
+		err = plan.Forward(dst, src)
+		if err != nil {
 			t.Errorf("Forward(%d) returned error: %v", n, err)
 		}
 	}
@@ -83,7 +84,8 @@ func TestNewPlan_MixedRadixLengths(t *testing.T) {
 		src[0] = 1
 
 		dst := make([]complex64, n)
-		if err := plan.Forward(dst, src); err != nil {
+		err = plan.Forward(dst, src)
+		if err != nil {
 			t.Fatalf("Forward(%d) returned error: %v", n, err)
 		}
 

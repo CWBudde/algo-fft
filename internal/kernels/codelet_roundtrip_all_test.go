@@ -421,9 +421,9 @@ func prepareCodeletTwiddles64(
 	size int,
 	base []complex64,
 	entry *planner.CodeletEntry[complex64],
-) (forward, inverse []complex64, forwardBacking, inverseBacking []byte) {
-	forward = base
-	inverse = base
+) ([]complex64, []complex64, []byte, []byte) {
+	forward := base
+	inverse := base
 
 	if entry.TwiddleSize == nil || entry.PrepareTwiddle == nil {
 		return forward, inverse, nil, nil
@@ -433,6 +433,8 @@ func prepareCodeletTwiddles64(
 	if twiddleLen <= 0 {
 		return forward, inverse, nil, nil
 	}
+
+	var forwardBacking, inverseBacking []byte
 
 	forward, forwardBacking = memory.AllocAlignedComplex64(twiddleLen)
 	inverse, inverseBacking = memory.AllocAlignedComplex64(twiddleLen)
@@ -447,9 +449,9 @@ func prepareCodeletTwiddles128(
 	size int,
 	base []complex128,
 	entry *planner.CodeletEntry[complex128],
-) (forward, inverse []complex128, forwardBacking, inverseBacking []byte) {
-	forward = base
-	inverse = base
+) ([]complex128, []complex128, []byte, []byte) {
+	forward := base
+	inverse := base
 
 	if entry.TwiddleSize == nil || entry.PrepareTwiddle == nil {
 		return forward, inverse, nil, nil
@@ -459,6 +461,8 @@ func prepareCodeletTwiddles128(
 	if twiddleLen <= 0 {
 		return forward, inverse, nil, nil
 	}
+
+	var forwardBacking, inverseBacking []byte
 
 	forward, forwardBacking = memory.AllocAlignedComplex128(twiddleLen)
 	inverse, inverseBacking = memory.AllocAlignedComplex128(twiddleLen)

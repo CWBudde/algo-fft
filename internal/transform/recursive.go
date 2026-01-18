@@ -2,6 +2,7 @@ package transform
 
 import (
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	imath "github.com/MeKo-Christian/algo-fft/internal/math"
 )
 
 // recursive.go implements the recursive FFT algorithm using decomposition strategies.
@@ -253,131 +254,6 @@ func recursiveInverseWithTwiddle[T Complex](
 	return twiddleOffset
 }
 
-// Helper functions for generating twiddle factors on-the-fly
-// (These are temporary; we'll optimize with precomputation in twiddle_recursive.go)
-
-func generateCombineTwiddles[T Complex](n, radix int) []T {
-	subSize := n / radix
-
-	twiddles := make([]T, subSize)
-	for k := range subSize {
-		angle := -2.0 * 3.14159265358979323846 * float64(k) / float64(n)
-		twiddles[k] = makeComplex[T](angle)
-	}
-
-	return twiddles
-}
-
-func generateCombineTwiddlesInverse[T Complex](n, radix int) []T {
-	subSize := n / radix
-
-	twiddles := make([]T, subSize)
-	for k := range subSize {
-		angle := 2.0 * 3.14159265358979323846 * float64(k) / float64(n) // Note: positive for inverse
-		twiddles[k] = makeComplex[T](angle)
-	}
-
-	return twiddles
-}
-
-func generateRadix4Twiddles[T Complex](n int) ([]T, []T, []T) {
-	quarter := n / 4
-	tw1 := make([]T, quarter)
-	tw2 := make([]T, quarter)
-	tw3 := make([]T, quarter)
-
-	for k := range quarter {
-		angle1 := -2.0 * 3.14159265358979323846 * float64(k) / float64(n)
-		angle2 := -2.0 * 3.14159265358979323846 * float64(2*k) / float64(n)
-		angle3 := -2.0 * 3.14159265358979323846 * float64(3*k) / float64(n)
-
-		tw1[k] = makeComplex[T](angle1)
-		tw2[k] = makeComplex[T](angle2)
-		tw3[k] = makeComplex[T](angle3)
-	}
-
-	return tw1, tw2, tw3
-}
-
-func generateRadix4TwiddlesInverse[T Complex](n int) ([]T, []T, []T) {
-	quarter := n / 4
-	tw1 := make([]T, quarter)
-	tw2 := make([]T, quarter)
-	tw3 := make([]T, quarter)
-
-	for k := range quarter {
-		angle1 := 2.0 * 3.14159265358979323846 * float64(k) / float64(n)
-		angle2 := 2.0 * 3.14159265358979323846 * float64(2*k) / float64(n)
-		angle3 := 2.0 * 3.14159265358979323846 * float64(3*k) / float64(n)
-
-		tw1[k] = makeComplex[T](angle1)
-		tw2[k] = makeComplex[T](angle2)
-		tw3[k] = makeComplex[T](angle3)
-	}
-
-	return tw1, tw2, tw3
-}
-
-func generateRadix8Twiddles[T Complex](n int) [][]T {
-	eighth := n / 8
-	twiddles := make([][]T, 8)
-
-	twiddles[0] = make([]T, eighth)
-	for k := range eighth {
-		twiddles[0][k] = makeComplex[T](0) // W^0 = 1
-	}
-
-	for r := 1; r < 8; r++ {
-		twiddles[r] = make([]T, eighth)
-		for k := range eighth {
-			angle := -2.0 * 3.14159265358979323846 * float64(r*k) / float64(n)
-			twiddles[r][k] = makeComplex[T](angle)
-		}
-	}
-
-	return twiddles
-}
-
-func generateGeneralTwiddles[T Complex](n, radix int) [][]T {
-	subSize := n / radix
-	twiddles := make([][]T, radix)
-
-	twiddles[0] = make([]T, subSize)
-	for k := range subSize {
-		twiddles[0][k] = makeComplex[T](0) // W^0 = 1
-	}
-
-	for r := 1; r < radix; r++ {
-		twiddles[r] = make([]T, subSize)
-		for k := range subSize {
-			angle := -2.0 * 3.14159265358979323846 * float64(r*k) / float64(n)
-			twiddles[r][k] = makeComplex[T](angle)
-		}
-	}
-
-	return twiddles
-}
-
-func generateGeneralTwiddlesInverse[T Complex](n, radix int) [][]T {
-	subSize := n / radix
-	twiddles := make([][]T, radix)
-
-	twiddles[0] = make([]T, subSize)
-	for k := range subSize {
-		twiddles[0][k] = makeComplex[T](0) // W^0 = 1
-	}
-
-	for r := 1; r < radix; r++ {
-		twiddles[r] = make([]T, subSize)
-		for k := range subSize {
-			angle := 2.0 * 3.14159265358979323846 * float64(r*k) / float64(n)
-			twiddles[r][k] = makeComplex[T](angle)
-		}
-	}
-
-	return twiddles
-}
-
 func splitTwiddleBlock[T Complex](block []T, radix, subSize int) [][]T {
 	twiddles := make([][]T, radix)
 	for r := range radix {
@@ -438,7 +314,7 @@ func combineRadix8Conj[T Complex](dst []T, subs [][]T, twiddles [][]T) {
 			sum := T(0)
 
 			for r := range 8 {
-				angle := 2.0 * 3.14159265358979323846 * float64(bin*r) / 8.0
+				angle := imath.TwoPi * float64(bin*r) / 8.0
 				w := T(complex(cos64(angle), sin64(angle)))
 				sum += w * t[r]
 			}
@@ -463,7 +339,7 @@ func combineGeneralConj[T Complex](dst []T, subs [][]T, twiddles [][]T, radix in
 			sum := T(0)
 
 			for r := range radix {
-				angle := 2.0 * 3.14159265358979323846 * float64(bin*r) / float64(radix)
+				angle := imath.TwoPi * float64(bin*r) / float64(radix)
 				w := T(complex(cos64(angle), sin64(angle)))
 				sum += w * t[r]
 			}
@@ -474,17 +350,16 @@ func combineGeneralConj[T Complex](dst []T, subs [][]T, twiddles [][]T, radix in
 }
 
 func scaleComplexSlice[T Complex](dst []T, scale float64) {
-	var zero T
-	switch any(zero).(type) {
-	case complex64:
+	switch dt := any(dst).(type) {
+	case []complex64:
 		s := complex(float32(scale), 0)
-		for i := range dst {
-			dst[i] = any(any(dst[i]).(complex64) * s).(T)
+		for i := range dt {
+			dt[i] *= s
 		}
-	case complex128:
+	case []complex128:
 		s := complex(scale, 0)
-		for i := range dst {
-			dst[i] = any(any(dst[i]).(complex128) * s).(T)
+		for i := range dt {
+			dt[i] *= s
 		}
 	default:
 		panic("unsupported complex type")
@@ -496,10 +371,14 @@ func makeComplex[T Complex](angle float64) T {
 	switch any(zero).(type) {
 	case complex64:
 		c := complex(float32(cos64(angle)), float32(sin64(angle)))
-		return any(complex64(c)).(T)
+		res, _ := any(c).(T)
+
+		return res
 	case complex128:
 		c := complex(cos64(angle), sin64(angle))
-		return any(complex128(c)).(T)
+		res, _ := any(c).(T)
+
+		return res
 	default:
 		panic("unsupported complex type")
 	}

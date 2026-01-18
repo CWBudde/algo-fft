@@ -18,7 +18,8 @@ func TestForward_Impulse_2048(t *testing.T) {
 	src[0] = 1
 	dst := make([]complex64, n)
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 

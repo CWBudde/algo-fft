@@ -1,6 +1,10 @@
 package transform
 
-import "math"
+import (
+	"math"
+
+	imath "github.com/MeKo-Christian/algo-fft/internal/math"
+)
 
 // combine.go implements the "combine" step of Cooley-Tukey decomposition.
 // After computing sub-FFTs, these functions merge them using twiddle factors.
@@ -94,7 +98,7 @@ func combineRadix8[T Complex](
 
 			for r := range 8 {
 				// W_8^(bin*r) rotation
-				angle := -2.0 * 3.14159265358979323846 * float64(bin*r) / 8.0
+				angle := -imath.TwoPi * float64(bin*r) / 8.0
 				w := T(complex(cos64(angle), sin64(angle)))
 				sum += w * t[r]
 			}
@@ -128,7 +132,7 @@ func combineGeneral[T Complex](
 			sum := T(0)
 
 			for r := range radix {
-				angle := -2.0 * 3.14159265358979323846 * float64(bin*r) / float64(radix)
+				angle := -imath.TwoPi * float64(bin*r) / float64(radix)
 				w := T(complex(cos64(angle), sin64(angle)))
 				sum += w * t[r]
 			}
@@ -143,12 +147,17 @@ func combineGeneral[T Complex](
 func multiplyByI[T Complex](x T) T {
 	// Multiply by i: rotate 90 degrees counterclockwise
 	// This is equivalent to: x * complex(0, 1)
-	var zero T
-	switch any(zero).(type) {
+	switch xv := any(x).(type) {
 	case complex64:
-		return any(any(x).(complex64) * complex64(complex(0, 1))).(T)
+		res := xv * complex(0, 1)
+		rv, _ := any(res).(T)
+
+		return rv
 	case complex128:
-		return any(any(x).(complex128) * complex128(complex(0, 1))).(T)
+		res := xv * complex(0, 1)
+		rv, _ := any(res).(T)
+
+		return rv
 	default:
 		panic("unsupported complex type")
 	}
@@ -159,12 +168,17 @@ func multiplyByI[T Complex](x T) T {
 func multiplyByNegI[T Complex](x T) T {
 	// Multiply by -i: rotate 90 degrees clockwise
 	// This is equivalent to: x * complex(0, -1)
-	var zero T
-	switch any(zero).(type) {
+	switch xv := any(x).(type) {
 	case complex64:
-		return any(any(x).(complex64) * complex64(complex(0, -1))).(T)
+		res := xv * complex(0, -1)
+		rv, _ := any(res).(T)
+
+		return rv
 	case complex128:
-		return any(any(x).(complex128) * complex128(complex(0, -1))).(T)
+		res := xv * complex(0, -1)
+		rv, _ := any(res).(T)
+
+		return rv
 	default:
 		panic("unsupported complex type")
 	}

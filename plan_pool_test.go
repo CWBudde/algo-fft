@@ -23,7 +23,8 @@ func TestNewPlanPooled_Complex64(t *testing.T) {
 	dst := make([]complex64, 1024)
 	src[0] = 1 // impulse
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 }
@@ -46,7 +47,8 @@ func TestNewPlanPooled_Complex128(t *testing.T) {
 	dst := make([]complex128, 1024)
 	src[0] = 1 // impulse
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 }
@@ -78,7 +80,8 @@ func TestPlanPooled_BufferReuse(t *testing.T) {
 	dst := make([]complex64, size)
 	src[0] = 1
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 }
@@ -96,7 +99,8 @@ func TestPlan_Reset(t *testing.T) {
 	dst := make([]complex64, 64)
 	src[0] = 1
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -104,7 +108,8 @@ func TestPlan_Reset(t *testing.T) {
 	plan.Reset()
 
 	// Plan should still work after reset
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward after Reset failed: %v", err)
 	}
 }
@@ -228,11 +233,13 @@ func TestPlan_Clone(t *testing.T) {
 	dstOriginal := make([]complex64, 256)
 	dstClone := make([]complex64, 256)
 
-	if err := original.Forward(dstOriginal, src); err != nil {
+	err = original.Forward(dstOriginal, src)
+	if err != nil {
 		t.Fatalf("original.Forward failed: %v", err)
 	}
 
-	if err := clone.Forward(dstClone, src); err != nil {
+	err = clone.Forward(dstClone, src)
+	if err != nil {
 		t.Fatalf("clone.Forward failed: %v", err)
 	}
 
@@ -262,7 +269,8 @@ func TestPlan_Clone_Independent(t *testing.T) {
 	dst := make([]complex64, 64)
 	src[0] = 1
 
-	if err := original.Forward(dst, src); err != nil {
+	err = original.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("original.Forward after clone.Close failed: %v", err)
 	}
 }
@@ -286,7 +294,8 @@ func TestPlan_Clone_Complex128(t *testing.T) {
 	dst := make([]complex128, 128)
 	src[0] = 1
 
-	if err := clone.Forward(dst, src); err != nil {
+	err = clone.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("clone.Forward failed: %v", err)
 	}
 }

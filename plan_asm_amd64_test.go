@@ -15,12 +15,14 @@ func TestForwardInverse_Size2_AsmRequired(t *testing.T) {
 	src := []complex64{1 + 2i, 3 + 4i}
 	dst := make([]complex64, 2)
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
 	}
 
 	roundTrip := make([]complex64, 2)
-	if err := plan.Inverse(roundTrip, dst); err != nil {
+	err = plan.Inverse(roundTrip, dst)
+	if err != nil {
 		t.Fatalf("Inverse() returned error: %v", err)
 	}
 

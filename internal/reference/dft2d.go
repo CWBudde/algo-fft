@@ -61,14 +61,14 @@ func NaiveDFT2D128(src []complex128, rows, cols int) []complex128 {
 
 	dst := make([]complex128, rows*cols)
 
-	for k := range rows {
-		for l := range cols {
+	for row := range rows {
+		for col := range cols {
 			var sum complex128
 
 			for m := range rows {
 				for n := range cols {
-					phaseRow := -2.0 * math.Pi * float64(k*m) / float64(rows)
-					phaseCol := -2.0 * math.Pi * float64(l*n) / float64(cols)
+					phaseRow := -2.0 * math.Pi * float64(row*m) / float64(rows)
+					phaseCol := -2.0 * math.Pi * float64(col*n) / float64(cols)
 					phase := phaseRow + phaseCol
 
 					twiddle := complex(math.Cos(phase), math.Sin(phase))
@@ -78,7 +78,7 @@ func NaiveDFT2D128(src []complex128, rows, cols int) []complex128 {
 				}
 			}
 
-			dst[k*cols+l] = sum
+			dst[row*cols+col] = sum
 		}
 	}
 
@@ -102,16 +102,16 @@ func NaiveIDFT2D(src []complex64, rows, cols int) []complex64 {
 		for n := range cols {
 			var sum complex128
 
-			for k := range rows {
-				for l := range cols {
+			for row := range rows {
+				for col := range cols {
 					// Positive phase for inverse: +2π*(km/rows + ln/cols)
-					phaseRow := 2.0 * math.Pi * float64(k*m) / float64(rows)
-					phaseCol := 2.0 * math.Pi * float64(l*n) / float64(cols)
+					phaseRow := 2.0 * math.Pi * float64(row*m) / float64(rows)
+					phaseCol := 2.0 * math.Pi * float64(col*n) / float64(cols)
 					phase := phaseRow + phaseCol
 
 					twiddle := complex(math.Cos(phase), math.Sin(phase))
 
-					idx := k*cols + l
+					idx := row*cols + col
 					sum += complex128(src[idx]) * twiddle
 				}
 			}

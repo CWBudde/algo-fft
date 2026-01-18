@@ -182,50 +182,51 @@ func butterfly3InverseComplex128(a0, a1, a2 complex128) (complex128, complex128,
 	return y0, y1, y2
 }
 
-// Generic wrapper that dispatches to type-specific implementations.
 func butterfly3Forward[T Complex](a0, a1, a2 T) (T, T, T) {
-	var zero T
-	switch any(zero).(type) {
+	switch a0v := any(a0).(type) {
 	case complex64:
-		y0, y1, y2 := butterfly3ForwardComplex64(
-			any(a0).(complex64),
-			any(a1).(complex64),
-			any(a2).(complex64),
-		)
+		a1v, _ := any(a1).(complex64)
+		a2v, _ := any(a2).(complex64)
+		y0, y1, y2 := butterfly3ForwardComplex64(a0v, a1v, a2v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T) //nolint:forcetypeassert
+		return r0, r1, r2
 	case complex128:
-		y0, y1, y2 := butterfly3ForwardComplex128(
-			any(a0).(complex128),
-			any(a1).(complex128),
-			any(a2).(complex128),
-		)
+		a1v, _ := any(a1).(complex128)
+		a2v, _ := any(a2).(complex128)
+		y0, y1, y2 := butterfly3ForwardComplex128(a0v, a1v, a2v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T) //nolint:forcetypeassert
+		return r0, r1, r2
 	default:
 		panic("unsupported complex type")
 	}
 }
 
 func butterfly3Inverse[T Complex](a0, a1, a2 T) (T, T, T) {
-	var zero T
-	switch any(zero).(type) {
+	switch a0v := any(a0).(type) {
 	case complex64:
-		y0, y1, y2 := butterfly3InverseComplex64(
-			any(a0).(complex64),
-			any(a1).(complex64),
-			any(a2).(complex64),
-		)
+		a1v, _ := any(a1).(complex64)
+		a2v, _ := any(a2).(complex64)
+		y0, y1, y2 := butterfly3InverseComplex64(a0v, a1v, a2v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T) //nolint:forcetypeassert
+		return r0, r1, r2
 	case complex128:
-		y0, y1, y2 := butterfly3InverseComplex128(
-			any(a0).(complex128),
-			any(a1).(complex128),
-			any(a2).(complex128),
-		)
+		a1v, _ := any(a1).(complex128)
+		a2v, _ := any(a2).(complex128)
+		y0, y1, y2 := butterfly3InverseComplex128(a0v, a1v, a2v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T) //nolint:forcetypeassert
+		return r0, r1, r2
 	default:
 		panic("unsupported complex type")
 	}

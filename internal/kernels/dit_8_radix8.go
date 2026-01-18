@@ -15,23 +15,20 @@ func forwardDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	// Pre-load twiddle factors.
 	w1, w2, w3 := twiddle[1], twiddle[2], twiddle[3]
 
-	x0, x1, x2, x3 := s[0], s[1], s[2], s[3]
-	x4, x5, x6, x7 := s[4], s[5], s[6], s[7]
-
-	a0 := x0 + x4
-	a1 := x0 - x4
-	a2 := x2 + x6
-	a3 := x2 - x6
+	a0 := s[0] + s[4]
+	a1 := s[0] - s[4]
+	a2 := s[2] + s[6]
+	a3 := s[2] - s[6]
 
 	e0 := a0 + a2
 	e2 := a0 - a2
 	e1 := a1 + complex(imag(a3), -real(a3))
 	e3 := a1 + complex(-imag(a3), real(a3))
 
-	a0 = x1 + x5
-	a1 = x1 - x5
-	a2 = x3 + x7
-	a3 = x3 - x7
+	a0 = s[1] + s[5]
+	a1 = s[1] - s[5]
+	a2 = s[3] + s[7]
+	a3 = s[3] - s[7]
 
 	o0 := a0 + a2
 	o2 := a0 - a2
@@ -87,23 +84,20 @@ func inverseDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	w2 = complex(real(w2), -imag(w2))
 	w3 = complex(real(w3), -imag(w3))
 
-	x0, x1, x2, x3 := s[0], s[1], s[2], s[3]
-	x4, x5, x6, x7 := s[4], s[5], s[6], s[7]
-
-	a0 := x0 + x4
-	a1 := x0 - x4
-	a2 := x2 + x6
-	a3 := x2 - x6
+	a0 := s[0] + s[4]
+	a1 := s[0] - s[4]
+	a2 := s[2] + s[6]
+	a3 := s[2] - s[6]
 
 	e0 := a0 + a2
 	e2 := a0 - a2
 	e1 := a1 + complex(-imag(a3), real(a3))
 	e3 := a1 + complex(imag(a3), -real(a3))
 
-	a0 = x1 + x5
-	a1 = x1 - x5
-	a2 = x3 + x7
-	a3 = x3 - x7
+	a0 = s[1] + s[5]
+	a1 = s[1] - s[5]
+	a2 = s[3] + s[7]
+	a3 = s[3] - s[7]
 
 	o0 := a0 + a2
 	o2 := a0 - a2
@@ -158,23 +152,20 @@ func forwardDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128) bool {
 
 	w1, w2, w3 := twiddle[1], twiddle[2], twiddle[3]
 
-	x0, x1, x2, x3 := s[0], s[1], s[2], s[3]
-	x4, x5, x6, x7 := s[4], s[5], s[6], s[7]
-
-	a0 := x0 + x4
-	a1 := x0 - x4
-	a2 := x2 + x6
-	a3 := x2 - x6
+	a0 := s[0] + s[4]
+	a1 := s[0] - s[4]
+	a2 := s[2] + s[6]
+	a3 := s[2] - s[6]
 
 	e0 := a0 + a2
 	e2 := a0 - a2
 	e1 := a1 + complex(imag(a3), -real(a3))
 	e3 := a1 + complex(-imag(a3), real(a3))
 
-	a0 = x1 + x5
-	a1 = x1 - x5
-	a2 = x3 + x7
-	a3 = x3 - x7
+	a0 = s[1] + s[5]
+	a1 = s[1] - s[5]
+	a2 = s[3] + s[7]
+	a3 = s[3] - s[7]
 
 	o0 := a0 + a2
 	o2 := a0 - a2
@@ -230,23 +221,20 @@ func inverseDIT8Radix8Complex128(dst, src, twiddle, scratch []complex128) bool {
 	w2 = complex(real(w2), -imag(w2))
 	w3 = complex(real(w3), -imag(w3))
 
-	x0, x1, x2, x3 := s[0], s[1], s[2], s[3]
-	x4, x5, x6, x7 := s[4], s[5], s[6], s[7]
-
-	a0 := x0 + x4
-	a1 := x0 - x4
-	a2 := x2 + x6
-	a3 := x2 - x6
+	a0 := s[0] + s[4]
+	a1 := s[0] - s[4]
+	a2 := s[2] + s[6]
+	a3 := s[2] - s[6]
 
 	e0 := a0 + a2
 	e2 := a0 - a2
 	e1 := a1 + complex(-imag(a3), real(a3))
 	e3 := a1 + complex(imag(a3), -real(a3))
 
-	a0 = x1 + x5
-	a1 = x1 - x5
-	a2 = x3 + x7
-	a3 = x3 - x7
+	a0 = s[1] + s[5]
+	a1 = s[1] - s[5]
+	a2 = s[3] + s[7]
+	a3 = s[3] - s[7]
 
 	o0 := a0 + a2
 	o2 := a0 - a2

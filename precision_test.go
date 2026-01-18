@@ -123,7 +123,8 @@ func testParseval64(t *testing.T, n int) {
 	}
 
 	output := make([]complex64, n)
-	if err := plan.Forward(output, data); err != nil {
+	err = plan.Forward(output, data)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -164,7 +165,8 @@ func testParseval128(t *testing.T, n int) {
 	}
 
 	output := make([]complex128, n)
-	if err := plan.Forward(output, data); err != nil {
+	err = plan.Forward(output, data)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -265,7 +267,8 @@ func testPrecisionComparison(t *testing.T, n int) {
 	}
 
 	output64 := make([]complex64, n)
-	if err := plan64.Forward(output64, input64); err != nil {
+	err = plan64.Forward(output64, input64)
+	if err != nil {
 		t.Fatalf("Forward complex64 failed: %v", err)
 	}
 
@@ -275,7 +278,8 @@ func testPrecisionComparison(t *testing.T, n int) {
 	}
 
 	output128 := make([]complex128, n)
-	if err := plan128.Forward(output128, input128); err != nil {
+	err = plan128.Forward(output128, input128)
+	if err != nil {
 		t.Fatalf("Forward complex128 failed: %v", err)
 	}
 
@@ -337,7 +341,8 @@ func testLargePrecision(t *testing.T, n int) {
 	}
 
 	output := make([]complex128, n)
-	if err := plan.Forward(output, data); err != nil {
+	err = plan.Forward(output, data)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -365,7 +370,8 @@ func testLargePrecision(t *testing.T, n int) {
 
 	// Test round-trip
 	roundtrip := make([]complex128, n)
-	if err := plan.Inverse(roundtrip, output); err != nil {
+	err = plan.Inverse(roundtrip, output)
+	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 
@@ -420,7 +426,8 @@ func testSineWavePrecision(t *testing.T) {
 	}
 
 	output := make([]complex128, n)
-	if err := plan.Forward(output, data); err != nil {
+	err = plan.Forward(output, data)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -466,7 +473,8 @@ func testCosineWavePrecision(t *testing.T) {
 	}
 
 	output := make([]complex128, n)
-	if err := plan.Forward(output, data); err != nil {
+	err = plan.Forward(output, data)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -505,7 +513,8 @@ func testImpulsePrecision(t *testing.T) {
 	}
 
 	output := make([]complex128, n)
-	if err := plan.Forward(output, data); err != nil {
+	err = plan.Forward(output, data)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -546,12 +555,14 @@ func testWhiteNoisePrecision(t *testing.T) {
 	}
 
 	freq := make([]complex128, n)
-	if err := plan.Forward(freq, original); err != nil {
+	err = plan.Forward(freq, original)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
 	roundtrip := make([]complex128, n)
-	if err := plan.Inverse(roundtrip, freq); err != nil {
+	err = plan.Inverse(roundtrip, freq)
+	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 
@@ -606,12 +617,14 @@ func roundTripMaxError64(t *testing.T, input []complex64) float64 {
 	copy(src, input)
 
 	freq := make([]complex64, n)
-	if err := plan.Forward(freq, src); err != nil {
+	err = plan.Forward(freq, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
 	roundtrip := make([]complex64, n)
-	if err := plan.Inverse(roundtrip, freq); err != nil {
+	err = plan.Inverse(roundtrip, freq)
+	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 
@@ -641,12 +654,14 @@ func roundTripMaxError128(t *testing.T, input []complex128) float64 {
 	copy(src, input)
 
 	freq := make([]complex128, n)
-	if err := plan.Forward(freq, src); err != nil {
+	err = plan.Forward(freq, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
 	roundtrip := make([]complex128, n)
-	if err := plan.Inverse(roundtrip, freq); err != nil {
+	err = plan.Inverse(roundtrip, freq)
+	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 

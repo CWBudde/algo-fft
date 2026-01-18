@@ -30,11 +30,13 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 	}
 
 	want := make([]complex64, plan.Len())
-	if err := plan.Forward(want, contig); err != nil {
+	err = plan.Forward(want, contig)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
-	if err := plan.ForwardStrided(dst[col:], src[col:], stride); err != nil {
+	err = plan.ForwardStrided(dst[col:], src[col:], stride)
+	if err != nil {
 		t.Fatalf("ForwardStrided failed: %v", err)
 	}
 
@@ -65,7 +67,8 @@ func TestPlanInverseStrided_Complex128(t *testing.T) {
 	}
 
 	freq := make([]complex128, n)
-	if err := plan.Forward(freq, time); err != nil {
+	err = plan.Forward(freq, time)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -78,7 +81,8 @@ func TestPlanInverseStrided_Complex128(t *testing.T) {
 		src[i*stride] = freq[i]
 	}
 
-	if err := plan.InverseStrided(dst, src, stride); err != nil {
+	err = plan.InverseStrided(dst, src, stride)
+	if err != nil {
 		t.Fatalf("InverseStrided failed: %v", err)
 	}
 
@@ -96,12 +100,14 @@ func TestPlanStrided_Errors(t *testing.T) {
 	}
 
 	data := make([]complex64, 4)
-	if err := plan.ForwardStrided(data, data, 0); !errors.Is(err, ErrInvalidStride) {
+	err = plan.ForwardStrided(data, data, 0)
+	if !errors.Is(err, ErrInvalidStride) {
 		t.Fatalf("expected ErrInvalidStride, got %v", err)
 	}
 
 	short := make([]complex64, 5)
-	if err := plan.ForwardStrided(short, short, 2); !errors.Is(err, ErrLengthMismatch) {
+	err = plan.ForwardStrided(short, short, 2)
+	if !errors.Is(err, ErrLengthMismatch) {
 		t.Fatalf("expected ErrLengthMismatch, got %v", err)
 	}
 }

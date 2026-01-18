@@ -28,12 +28,14 @@ func FuzzRoundTripComplex64(f *testing.F) {
 		}
 
 		freq := make([]complex64, n)
-		if err := plan.Forward(freq, src); err != nil {
+		err = plan.Forward(freq, src)
+		if err != nil {
 			t.Fatalf("Forward() returned error: %v", err)
 		}
 
 		out := make([]complex64, n)
-		if err := plan.Inverse(out, freq); err != nil {
+		err = plan.Inverse(out, freq)
+		if err != nil {
 			t.Fatalf("Inverse() returned error: %v", err)
 		}
 
@@ -67,11 +69,13 @@ func FuzzDeterministicForward(f *testing.F) {
 		out1 := make([]complex64, n)
 		out2 := make([]complex64, n)
 
-		if err := plan.Forward(out1, src); err != nil {
+		err = plan.Forward(out1, src)
+		if err != nil {
 			t.Fatalf("Forward() returned error: %v", err)
 		}
 
-		if err := plan.Forward(out2, src); err != nil {
+		err = plan.Forward(out2, src)
+		if err != nil {
 			t.Fatalf("Forward() returned error: %v", err)
 		}
 
@@ -130,12 +134,14 @@ func FuzzRoundTripReal(f *testing.F) {
 		}
 
 		freq := make([]complex64, plan.SpectrumLen())
-		if err := plan.Forward(freq, src); err != nil {
+		err = plan.Forward(freq, src)
+		if err != nil {
 			t.Fatalf("Forward() returned error: %v", err)
 		}
 
 		out := make([]float32, n)
-		if err := plan.Inverse(out, freq); err != nil {
+		err = plan.Inverse(out, freq)
+		if err != nil {
 			t.Fatalf("Inverse() returned error: %v", err)
 		}
 

@@ -257,22 +257,36 @@ func prepareCodeletTwiddles[T Complex](
 		fwd, fwdBacking := mem.AllocAlignedComplex64(twiddleLen)
 		inv, invBacking := mem.AllocAlignedComplex64(twiddleLen)
 
-		prepare(any(fwd).([]T), false)
-		prepare(any(inv).([]T), true)
+		fwdType, ok1 := any(fwd).([]T)
 
-		forward = any(fwd).([]T)
-		inverse = any(inv).([]T)
+		invType, ok2 := any(inv).([]T)
+		if !ok1 || !ok2 {
+			panic("algofft: internal type error in plan creation")
+		}
+
+		prepare(fwdType, false)
+		prepare(invType, true)
+
+		forward = fwdType
+		inverse = invType
 		forwardBacking = fwdBacking
 		inverseBacking = invBacking
 	case complex128:
 		fwd, fwdBacking := mem.AllocAlignedComplex128(twiddleLen)
 		inv, invBacking := mem.AllocAlignedComplex128(twiddleLen)
 
-		prepare(any(fwd).([]T), false)
-		prepare(any(inv).([]T), true)
+		fwdType, ok1 := any(fwd).([]T)
 
-		forward = any(fwd).([]T)
-		inverse = any(inv).([]T)
+		invType, ok2 := any(inv).([]T)
+		if !ok1 || !ok2 {
+			panic("algofft: internal type error in plan creation")
+		}
+
+		prepare(fwdType, false)
+		prepare(invType, true)
+
+		forward = fwdType
+		inverse = invType
 		forwardBacking = fwdBacking
 		inverseBacking = invBacking
 	default:
@@ -294,7 +308,12 @@ func (p *Plan[T]) getScratch() ([]T, []T, []T, *scratchSet[T]) {
 		return p.scratch, p.stridedScratch, p.bluesteinScratch, nil
 	}
 
-	s := p.scratchPool.Get().(*scratchSet[T])
+	obj := p.scratchPool.Get()
+
+	s, ok := obj.(*scratchSet[T])
+	if !ok {
+		panic("algofft: internal pool type error (scratchSet)")
+	}
 
 	return s.scratch, s.stridedScratch, s.bluesteinScratch, s
 }
@@ -603,27 +622,63 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 		switch any(zero).(type) {
 		case complex64:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
-			scratch = any(scratchAligned).([]T)
+
+			s, ok1 := any(scratchAligned).([]T)
+			if !ok1 {
+				panic("algofft: internal type error (scratch)")
+			}
+
+			scratch = s
 			scratchBacking = scratchRaw
 
 			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
-			stridedScratch = any(stridedAligned).([]T)
+
+			ss, ok2 := any(stridedAligned).([]T)
+			if !ok2 {
+				panic("algofft: internal type error (stridedScratch)")
+			}
+
+			stridedScratch = ss
 			stridedBacking = stridedRaw
 
 			bsAligned, bsRaw := mem.AllocAlignedComplex64(scratchSize)
-			bluesteinScratch = any(bsAligned).([]T)
+
+			bs, ok3 := any(bsAligned).([]T)
+			if !ok3 {
+				panic("algofft: internal type error (bluesteinScratch)")
+			}
+
+			bluesteinScratch = bs
 			bluesteinScratchBacking = bsRaw
 		case complex128:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
-			scratch = any(scratchAligned).([]T)
+
+			s, ok1 := any(scratchAligned).([]T)
+			if !ok1 {
+				panic("algofft: internal type error (scratch)")
+			}
+
+			scratch = s
 			scratchBacking = scratchRaw
 
 			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
-			stridedScratch = any(stridedAligned).([]T)
+
+			ss, ok2 := any(stridedAligned).([]T)
+			if !ok2 {
+				panic("algofft: internal type error (stridedScratch)")
+			}
+
+			stridedScratch = ss
 			stridedBacking = stridedRaw
 
 			bsAligned, bsRaw := mem.AllocAlignedComplex128(scratchSize)
-			bluesteinScratch = any(bsAligned).([]T)
+
+			bs, ok3 := any(bsAligned).([]T)
+			if !ok3 {
+				panic("algofft: internal type error (bluesteinScratch)")
+			}
+
+			bluesteinScratch = bs
 			bluesteinScratchBacking = bsRaw
 		default:
 			scratch = make([]T, scratchSize)
@@ -636,19 +691,43 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 		switch any(zero).(type) {
 		case complex64:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(scratchSize)
-			scratch = any(scratchAligned).([]T)
+
+			s, ok1 := any(scratchAligned).([]T)
+			if !ok1 {
+				panic("algofft: internal type error (scratch)")
+			}
+
+			scratch = s
 			scratchBacking = scratchRaw
 
 			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
-			stridedScratch = any(stridedAligned).([]T)
+
+			ss, ok2 := any(stridedAligned).([]T)
+			if !ok2 {
+				panic("algofft: internal type error (stridedScratch)")
+			}
+
+			stridedScratch = ss
 			stridedBacking = stridedRaw
 		case complex128:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(scratchSize)
-			scratch = any(scratchAligned).([]T)
+
+			s, ok1 := any(scratchAligned).([]T)
+			if !ok1 {
+				panic("algofft: internal type error (scratch)")
+			}
+
+			scratch = s
 			scratchBacking = scratchRaw
 
 			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
-			stridedScratch = any(stridedAligned).([]T)
+
+			ss, ok2 := any(stridedAligned).([]T)
+			if !ok2 {
+				panic("algofft: internal type error (stridedScratch)")
+			}
+
+			stridedScratch = ss
 			stridedBacking = stridedRaw
 		default:
 			scratch = make([]T, scratchSize)
@@ -663,19 +742,43 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 		switch any(zero).(type) {
 		case complex64:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex64(standardScratchSize)
-			scratch = any(scratchAligned).([]T)
+
+			s, ok1 := any(scratchAligned).([]T)
+			if !ok1 {
+				panic("algofft: internal type error (scratch)")
+			}
+
+			scratch = s
 			scratchBacking = scratchRaw
 
 			stridedAligned, stridedRaw := mem.AllocAlignedComplex64(n)
-			stridedScratch = any(stridedAligned).([]T)
+
+			ss, ok2 := any(stridedAligned).([]T)
+			if !ok2 {
+				panic("algofft: internal type error (stridedScratch)")
+			}
+
+			stridedScratch = ss
 			stridedBacking = stridedRaw
 		case complex128:
 			scratchAligned, scratchRaw := mem.AllocAlignedComplex128(standardScratchSize)
-			scratch = any(scratchAligned).([]T)
+
+			s, ok1 := any(scratchAligned).([]T)
+			if !ok1 {
+				panic("algofft: internal type error (scratch)")
+			}
+
+			scratch = s
 			scratchBacking = scratchRaw
 
 			stridedAligned, stridedRaw := mem.AllocAlignedComplex128(n)
-			stridedScratch = any(stridedAligned).([]T)
+
+			ss, ok2 := any(stridedAligned).([]T)
+			if !ok2 {
+				panic("algofft: internal type error (stridedScratch)")
+			}
+
+			stridedScratch = ss
 			stridedBacking = stridedRaw
 		default:
 			scratch = make([]T, standardScratchSize)
@@ -795,14 +898,26 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 			twiddleSize = len(tmpTwiddle)
 			twiddleAligned, twiddleRaw := mem.AllocAlignedComplex64(twiddleSize)
 			copy(twiddleAligned, tmpTwiddle)
-			twiddle = any(twiddleAligned).([]T)
+
+			t, ok := any(twiddleAligned).([]T)
+			if !ok {
+				panic("algofft: internal type error (twiddle)")
+			}
+
+			twiddle = t
 			twiddleBacking = twiddleRaw
 		case complex128:
 			tmpTwiddle := fft.TwiddleFactorsRecursive[complex128](decompStrategy)
 			twiddleSize = len(tmpTwiddle)
 			twiddleAligned, twiddleRaw := mem.AllocAlignedComplex128(twiddleSize)
 			copy(twiddleAligned, tmpTwiddle)
-			twiddle = any(twiddleAligned).([]T)
+
+			t, ok := any(twiddleAligned).([]T)
+			if !ok {
+				panic("algofft: internal type error (twiddle)")
+			}
+
+			twiddle = t
 			twiddleBacking = twiddleRaw
 		default:
 			twiddle = fft.TwiddleFactorsRecursive[T](decompStrategy)
@@ -814,13 +929,25 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 			twiddleAligned, twiddleRaw := mem.AllocAlignedComplex64(n)
 			tmp := fft.ComputeTwiddleFactors[complex64](n)
 			copy(twiddleAligned, tmp)
-			twiddle = any(twiddleAligned).([]T)
+
+			t, ok := any(twiddleAligned).([]T)
+			if !ok {
+				panic("algofft: internal type error (twiddle)")
+			}
+
+			twiddle = t
 			twiddleBacking = twiddleRaw
 		case complex128:
 			twiddleAligned, twiddleRaw := mem.AllocAlignedComplex128(n)
 			tmp := fft.ComputeTwiddleFactors[complex128](n)
 			copy(twiddleAligned, tmp)
-			twiddle = any(twiddleAligned).([]T)
+
+			t, ok := any(twiddleAligned).([]T)
+			if !ok {
+				panic("algofft: internal type error (twiddle)")
+			}
+
+			twiddle = t
 			twiddleBacking = twiddleRaw
 		default:
 			twiddle = fft.ComputeTwiddleFactors[T](n)
@@ -1002,29 +1129,65 @@ func getBuffersFromPool[T Complex](n, scratchSize int, pool *fft.BufferPool) (tw
 		twiddleAligned, twiddleRaw := pool.GetComplex64(n)
 		tmp := fft.ComputeTwiddleFactors[complex64](n)
 		copy(twiddleAligned, tmp)
-		twiddle = any(twiddleAligned).([]T)
+
+		t, ok1 := any(twiddleAligned).([]T)
+		if !ok1 {
+			panic("algofft: internal type error (twiddle)")
+		}
+
+		twiddle = t
 		twiddleBacking = twiddleRaw
 
 		scratchAligned, scratchRaw := pool.GetComplex64(scratchSize)
-		scratch = any(scratchAligned).([]T)
+
+		s, ok2 := any(scratchAligned).([]T)
+		if !ok2 {
+			panic("algofft: internal type error (scratch)")
+		}
+
+		scratch = s
 		scratchBacking = scratchRaw
 
 		stridedAligned, stridedRaw := pool.GetComplex64(n)
-		stridedScratch = any(stridedAligned).([]T)
+
+		ss, ok3 := any(stridedAligned).([]T)
+		if !ok3 {
+			panic("algofft: internal type error (stridedScratch)")
+		}
+
+		stridedScratch = ss
 		stridedBacking = stridedRaw
 	case complex128:
 		twiddleAligned, twiddleRaw := pool.GetComplex128(n)
 		tmp := fft.ComputeTwiddleFactors[complex128](n)
 		copy(twiddleAligned, tmp)
-		twiddle = any(twiddleAligned).([]T)
+
+		t, ok1 := any(twiddleAligned).([]T)
+		if !ok1 {
+			panic("algofft: internal type error (twiddle)")
+		}
+
+		twiddle = t
 		twiddleBacking = twiddleRaw
 
 		scratchAligned, scratchRaw := pool.GetComplex128(scratchSize)
-		scratch = any(scratchAligned).([]T)
+
+		s, ok2 := any(scratchAligned).([]T)
+		if !ok2 {
+			panic("algofft: internal type error (scratch)")
+		}
+
+		scratch = s
 		scratchBacking = scratchRaw
 
 		stridedAligned, stridedRaw := pool.GetComplex128(n)
-		stridedScratch = any(stridedAligned).([]T)
+
+		ss, ok3 := any(stridedAligned).([]T)
+		if !ok3 {
+			panic("algofft: internal type error (stridedScratch)")
+		}
+
+		stridedScratch = ss
 		stridedBacking = stridedRaw
 	default:
 		twiddle = fft.ComputeTwiddleFactors[T](n)
@@ -1066,27 +1229,45 @@ func (p *Plan[T]) Close() {
 	switch any(zero).(type) {
 	case complex64:
 		if p.twiddleBacking != nil {
-			p.pool.PutComplex64(p.n, any(p.twiddle).([]complex64), p.twiddleBacking)
+			t, ok := any(p.twiddle).([]complex64)
+			if ok {
+				p.pool.PutComplex64(p.n, t, p.twiddleBacking)
+			}
 		}
 
 		if p.scratchBacking != nil {
-			p.pool.PutComplex64(p.n, any(p.scratch).([]complex64), p.scratchBacking)
+			s, ok := any(p.scratch).([]complex64)
+			if ok {
+				p.pool.PutComplex64(p.n, s, p.scratchBacking)
+			}
 		}
 
 		if p.stridedScratchBacking != nil {
-			p.pool.PutComplex64(p.n, any(p.stridedScratch).([]complex64), p.stridedScratchBacking)
+			ss, ok := any(p.stridedScratch).([]complex64)
+			if ok {
+				p.pool.PutComplex64(p.n, ss, p.stridedScratchBacking)
+			}
 		}
 	case complex128:
 		if p.twiddleBacking != nil {
-			p.pool.PutComplex128(p.n, any(p.twiddle).([]complex128), p.twiddleBacking)
+			t, ok := any(p.twiddle).([]complex128)
+			if ok {
+				p.pool.PutComplex128(p.n, t, p.twiddleBacking)
+			}
 		}
 
 		if p.scratchBacking != nil {
-			p.pool.PutComplex128(p.n, any(p.scratch).([]complex128), p.scratchBacking)
+			s, ok := any(p.scratch).([]complex128)
+			if ok {
+				p.pool.PutComplex128(p.n, s, p.scratchBacking)
+			}
 		}
 
 		if p.stridedScratchBacking != nil {
-			p.pool.PutComplex128(p.n, any(p.stridedScratch).([]complex128), p.stridedScratchBacking)
+			ss, ok := any(p.stridedScratch).([]complex128)
+			if ok {
+				p.pool.PutComplex128(p.n, ss, p.stridedScratchBacking)
+			}
 		}
 	}
 

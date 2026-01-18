@@ -199,56 +199,66 @@ func butterfly5InverseComplex128(a0, a1, a2, a3, a4 complex128) (complex128, com
 
 // Generic wrapper that dispatches to type-specific implementations.
 func butterfly5Forward[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
-	var zero T
-	switch any(zero).(type) {
+	switch a0v := any(a0).(type) {
 	case complex64:
-		y0, y1, y2, y3, y4 := butterfly5ForwardComplex64(
-			any(a0).(complex64),
-			any(a1).(complex64),
-			any(a2).(complex64),
-			any(a3).(complex64),
-			any(a4).(complex64),
-		)
+		a1v, _ := any(a1).(complex64)
+		a2v, _ := any(a2).(complex64)
+		a3v, _ := any(a3).(complex64)
+		a4v, _ := any(a4).(complex64)
+		y0, y1, y2, y3, y4 := butterfly5ForwardComplex64(a0v, a1v, a2v, a3v, a4v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
+		r3, _ := any(y3).(T)
+		r4, _ := any(y4).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T), any(y4).(T)
+		return r0, r1, r2, r3, r4
 	case complex128:
-		y0, y1, y2, y3, y4 := butterfly5ForwardComplex128(
-			any(a0).(complex128),
-			any(a1).(complex128),
-			any(a2).(complex128),
-			any(a3).(complex128),
-			any(a4).(complex128),
-		)
+		a1v, _ := any(a1).(complex128)
+		a2v, _ := any(a2).(complex128)
+		a3v, _ := any(a3).(complex128)
+		a4v, _ := any(a4).(complex128)
+		y0, y1, y2, y3, y4 := butterfly5ForwardComplex128(a0v, a1v, a2v, a3v, a4v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
+		r3, _ := any(y3).(T)
+		r4, _ := any(y4).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T), any(y4).(T)
+		return r0, r1, r2, r3, r4
 	default:
 		panic("unsupported complex type")
 	}
 }
 
 func butterfly5Inverse[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
-	var zero T
-	switch any(zero).(type) {
+	switch a0v := any(a0).(type) {
 	case complex64:
-		y0, y1, y2, y3, y4 := butterfly5InverseComplex64(
-			any(a0).(complex64),
-			any(a1).(complex64),
-			any(a2).(complex64),
-			any(a3).(complex64),
-			any(a4).(complex64),
-		)
+		a1v, _ := any(a1).(complex64)
+		a2v, _ := any(a2).(complex64)
+		a3v, _ := any(a3).(complex64)
+		a4v, _ := any(a4).(complex64)
+		y0, y1, y2, y3, y4 := butterfly5InverseComplex64(a0v, a1v, a2v, a3v, a4v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
+		r3, _ := any(y3).(T)
+		r4, _ := any(y4).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T), any(y4).(T)
+		return r0, r1, r2, r3, r4
 	case complex128:
-		y0, y1, y2, y3, y4 := butterfly5InverseComplex128(
-			any(a0).(complex128),
-			any(a1).(complex128),
-			any(a2).(complex128),
-			any(a3).(complex128),
-			any(a4).(complex128),
-		)
+		a1v, _ := any(a1).(complex128)
+		a2v, _ := any(a2).(complex128)
+		a3v, _ := any(a3).(complex128)
+		a4v, _ := any(a4).(complex128)
+		y0, y1, y2, y3, y4 := butterfly5InverseComplex128(a0v, a1v, a2v, a3v, a4v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
+		r3, _ := any(y3).(T)
+		r4, _ := any(y4).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T), any(y4).(T)
+		return r0, r1, r2, r3, r4
 	default:
 		panic("unsupported complex type")
 	}

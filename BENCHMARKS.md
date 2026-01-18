@@ -69,19 +69,20 @@ Record the plan details logged by the benchmarks for kernel/strategy/twiddle sel
 **Tags**: asm  
 **Profiles**: `docs/artifacts/phase12/asm/fft128_cpu.pprof`, `docs/artifacts/phase12/asm/fft512_cpu.pprof`, `docs/artifacts/phase12/asm/fft8192_cpu.pprof`, plus inverse counterparts with `_inv_` (mem profiles alongside)
 
-**Plan selection**:  
-- 128: `dit128_radix2_avx2`  
-- 512: `dit512_radix4_then2_avx2`  
+**Plan selection**:
+
+- 128: `dit128_radix2_avx2`
+- 512: `dit512_radix4_then2_avx2`
 - 8192: `dit8192_sixstep64x128_generic`
 
-| Benchmark                                     |   ns/op |    MB/s | B/op | allocs/op |
-| --------------------------------------------- | ------: | ------: | ---: | --------: |
-| BenchmarkPlanForward_128_Complex128_Focus-12  |   510.8 | 4009.21 |    0 |         0 |
-| BenchmarkPlanForward_512_Complex128_Focus-12  |    2194 | 3733.39 |    0 |         0 |
-| BenchmarkPlanForward_8192_Complex128_Focus-12 |  251140 |  521.91 |    3 |         0 |
-| BenchmarkPlanInverse_128_Complex128_Focus-12  |   861.8 | 2376.46 |    0 |         0 |
-| BenchmarkPlanInverse_512_Complex128_Focus-12  |    2542 | 3223.18 |    0 |         0 |
-| BenchmarkPlanInverse_8192_Complex128_Focus-12 |  165146 |  793.67 |    2 |         0 |
+| Benchmark                                     |  ns/op |    MB/s | B/op | allocs/op |
+| --------------------------------------------- | -----: | ------: | ---: | --------: |
+| BenchmarkPlanForward_128_Complex128_Focus-12  |  510.8 | 4009.21 |    0 |         0 |
+| BenchmarkPlanForward_512_Complex128_Focus-12  |   2194 | 3733.39 |    0 |         0 |
+| BenchmarkPlanForward_8192_Complex128_Focus-12 | 251140 |  521.91 |    3 |         0 |
+| BenchmarkPlanInverse_128_Complex128_Focus-12  |  861.8 | 2376.46 |    0 |         0 |
+| BenchmarkPlanInverse_512_Complex128_Focus-12  |   2542 | 3223.18 |    0 |         0 |
+| BenchmarkPlanInverse_8192_Complex128_Focus-12 | 165146 |  793.67 |    2 |         0 |
 
 ## Baseline Results
 
