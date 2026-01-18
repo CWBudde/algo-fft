@@ -23,12 +23,14 @@ func TestDITScalingRoundTrip(t *testing.T) {
 	}
 
 	freq := make([]complex64, 16)
+
 	err = plan.Forward(freq, src)
 	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
 	}
 
 	out := make([]complex64, 16)
+
 	err = plan.Inverse(out, freq)
 	if err != nil {
 		t.Fatalf("Inverse() returned error: %v", err)
@@ -55,6 +57,7 @@ func TestOutOfPlaceDoesNotModifySource(t *testing.T) {
 	orig := append([]complex64(nil), src...)
 
 	dst := make([]complex64, 16)
+
 	err = plan.Forward(dst, src)
 	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
@@ -81,12 +84,14 @@ func TestInPlaceMatchesOutOfPlace(t *testing.T) {
 	}
 
 	out := make([]complex64, 32)
+
 	err = plan.Forward(out, src)
 	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
 	}
 
 	inplace := append([]complex64(nil), src...)
+
 	err = plan.InPlace(inplace)
 	if err != nil {
 		t.Fatalf("InPlace() returned error: %v", err)
@@ -111,12 +116,14 @@ func TestTransformForwardInverse(t *testing.T) {
 	}
 
 	freq := make([]complex64, 16)
+
 	err = plan.Transform(freq, src, false)
 	if err != nil {
 		t.Fatalf("Transform forward returned error: %v", err)
 	}
 
 	out := make([]complex64, 16)
+
 	err = plan.Transform(out, freq, true)
 	if err != nil {
 		t.Fatalf("Transform inverse returned error: %v", err)
@@ -145,12 +152,14 @@ func TestRoundTripSizes(t *testing.T) {
 		}
 
 		freq := make([]complex64, n)
+
 		err = plan.Forward(freq, src)
 		if err != nil {
 			t.Fatalf("Forward(%d) returned error: %v", n, err)
 		}
 
 		out := make([]complex64, n)
+
 		err = plan.Inverse(out, freq)
 		if err != nil {
 			t.Fatalf("Inverse(%d) returned error: %v", n, err)
@@ -178,12 +187,14 @@ func TestRoundTripSizesComplex128(t *testing.T) {
 		}
 
 		freq := make([]complex128, n)
+
 		err = plan.Forward(freq, src)
 		if err != nil {
 			t.Fatalf("Forward(%d) returned error: %v", n, err)
 		}
 
 		out := make([]complex128, n)
+
 		err = plan.Inverse(out, freq)
 		if err != nil {
 			t.Fatalf("Inverse(%d) returned error: %v", n, err)

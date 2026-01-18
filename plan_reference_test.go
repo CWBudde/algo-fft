@@ -22,6 +22,7 @@ func TestForwardMatchesReferenceSmall(t *testing.T) {
 		}
 
 		got := make([]complex64, n)
+
 		err = plan.Forward(got, src)
 		if err != nil {
 			t.Fatalf("Forward(%d) returned error: %v", n, err)
@@ -52,6 +53,7 @@ func TestInverseMatchesReferenceSmall(t *testing.T) {
 		freq := reference.NaiveDFT(src)
 
 		got := make([]complex64, n)
+
 		err = plan.Inverse(got, freq)
 		if err != nil {
 			t.Fatalf("Inverse(%d) returned error: %v", n, err)
@@ -80,6 +82,7 @@ func TestForwardMatchesReferenceSmall128(t *testing.T) {
 		}
 
 		got := make([]complex128, n)
+
 		err = plan.Forward(got, src)
 		if err != nil {
 			t.Fatalf("Forward(%d) returned error: %v", n, err)
@@ -110,6 +113,7 @@ func TestInverseMatchesReferenceSmall128(t *testing.T) {
 		freq := reference.NaiveDFT128(src)
 
 		got := make([]complex128, n)
+
 		err = plan.Inverse(got, freq)
 		if err != nil {
 			t.Fatalf("Inverse(%d) returned error: %v", n, err)

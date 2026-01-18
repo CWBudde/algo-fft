@@ -24,6 +24,7 @@ func TestInverseInPlace(t *testing.T) {
 
 	// Forward transform
 	freq := make([]complex64, 16)
+
 	err = plan.Forward(freq, src)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -57,6 +58,7 @@ func TestInverseInPlace_Complex128(t *testing.T) {
 
 	// Forward transform
 	freq := make([]complex128, 32)
+
 	err = plan.Forward(freq, src)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -315,6 +317,7 @@ func TestTransform(t *testing.T) {
 
 	// Test forward
 	dstFwd := make([]complex64, 16)
+
 	err = plan.Transform(dstFwd, src, false)
 	if err != nil {
 		t.Fatalf("Transform(forward) failed: %v", err)
@@ -322,6 +325,7 @@ func TestTransform(t *testing.T) {
 
 	// Test inverse
 	dstInv := make([]complex64, 16)
+
 	err = plan.Transform(dstInv, dstFwd, true)
 	if err != nil {
 		t.Fatalf("Transform(inverse) failed: %v", err)

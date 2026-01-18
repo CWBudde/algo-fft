@@ -30,6 +30,7 @@ func TestPlanForwardStrided_Complex64(t *testing.T) {
 	}
 
 	want := make([]complex64, plan.Len())
+
 	err = plan.Forward(want, contig)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -67,6 +68,7 @@ func TestPlanInverseStrided_Complex128(t *testing.T) {
 	}
 
 	freq := make([]complex128, n)
+
 	err = plan.Forward(freq, time)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -100,12 +102,14 @@ func TestPlanStrided_Errors(t *testing.T) {
 	}
 
 	data := make([]complex64, 4)
+
 	err = plan.ForwardStrided(data, data, 0)
 	if !errors.Is(err, ErrInvalidStride) {
 		t.Fatalf("expected ErrInvalidStride, got %v", err)
 	}
 
 	short := make([]complex64, 5)
+
 	err = plan.ForwardStrided(short, short, 2)
 	if !errors.Is(err, ErrLengthMismatch) {
 		t.Fatalf("expected ErrLengthMismatch, got %v", err)

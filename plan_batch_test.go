@@ -26,6 +26,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 
 		// Single FFT
 		expectedDst := make([]complex64, n)
+
 		err = plan.Forward(expectedDst, src)
 		if err != nil {
 			t.Fatal(err)
@@ -36,6 +37,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 		copy(batchSrc, src)
 
 		batchDst := make([]complex64, n)
+
 		err = plan.ForwardBatch(batchDst, batchSrc, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -69,6 +71,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 
 		// Compute batch FFT
 		batchDst := make([]complex64, n*count)
+
 		err = plan.ForwardBatch(batchDst, batchSrc, count)
 		if err != nil {
 			t.Fatal(err)
@@ -114,6 +117,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 
 		// Compute batch FFT
 		batchDst := make([]complex128, n*count)
+
 		err = plan.ForwardBatch(batchDst, batchSrc, count)
 		if err != nil {
 			t.Fatal(err)
@@ -162,12 +166,14 @@ func TestPlanInverseBatch_Correctness(t *testing.T) {
 
 		// Forward then inverse
 		freq := make([]complex64, n*count)
+
 		err = plan.ForwardBatch(freq, original, count)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		roundtrip := make([]complex64, n*count)
+
 		err = plan.InverseBatch(roundtrip, freq, count)
 		if err != nil {
 			t.Fatal(err)
@@ -318,6 +324,7 @@ func TestPlanBatch_InPlace(t *testing.T) {
 	copy(outOfPlace, original)
 
 	outDst := make([]complex64, n*count)
+
 	err = plan.ForwardBatch(outDst, outOfPlace, count)
 	if err != nil {
 		t.Fatal(err)
@@ -363,6 +370,7 @@ func TestPlanBatch_LargeBatch(t *testing.T) {
 
 	// Compute batch FFT
 	batchDst := make([]complex64, n*count)
+
 	err = plan.ForwardBatch(batchDst, batchSrc, count)
 	if err != nil {
 		t.Fatal(err)
