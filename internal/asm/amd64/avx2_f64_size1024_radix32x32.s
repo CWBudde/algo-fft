@@ -185,7 +185,9 @@ fwd_gather_row_loop:
 	SHLQ $4, CX               // rev*16
 	ADDQ DX, CX
 	VMOVUPD (R11)(CX*1), X0
-	VMOVUPD X0, (R12)(AX*16)
+	MOVQ AX, SI
+	SHLQ $4, SI
+	VMOVUPD X0, (R12)(SI*1)
 	INCQ AX
 	JMP  fwd_gather_row_loop
 
@@ -198,7 +200,9 @@ fwd_fft32_return_row:
 fwd_store_dst_loop:
 	CMPQ R13, $32
 	JGE  fwd_stage2_next_k2
-	VMOVUPD (R12)(R13*16), X0
+	MOVQ R13, SI
+	SHLQ $4, SI
+	VMOVUPD (R12)(SI*1), X0
 	MOVQ R13, BX
 	SHLQ $9, BX               // k1*512
 	MOVQ R14, CX
@@ -429,7 +433,9 @@ fwd_fft32:
 fwd_s1_kloop:
 	CMPQ AX, $32
 	JGE  fwd_s2
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 16(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
@@ -463,7 +469,9 @@ fwd_s2_jloop:
 fwd_s2_kloop:
 	CMPQ AX, $32
 	JGE  fwd_s2_nextj
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 32(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
@@ -510,7 +518,9 @@ fwd_s3_jloop:
 fwd_s3_kloop:
 	CMPQ AX, $32
 	JGE  fwd_s3_nextj
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 64(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
@@ -557,7 +567,9 @@ fwd_s4_jloop:
 fwd_s4_kloop:
 	CMPQ AX, $32
 	JGE  fwd_s4_nextj
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 128(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
@@ -601,7 +613,9 @@ fwd_s5_jloop:
 	MOVSD 0(R15), X8
 	MOVSD 8(R15), X9
 	MOVQ CX, AX
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 256(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
@@ -694,7 +708,9 @@ inv_gather_row_loop:
 	SHLQ $4, DX               // k2*16
 	ADDQ DX, CX
 	VMOVUPD (R9)(CX*1), X0
-	VMOVUPD X0, (R12)(AX*16)
+	MOVQ AX, SI
+	SHLQ $4, SI
+	VMOVUPD X0, (R12)(SI*1)
 	INCQ AX
 	JMP  inv_gather_row_loop
 
@@ -708,7 +724,9 @@ inv_store_work_loop:
 	CMPQ R13, $32
 	JGE  inv_stage1_next_k2
 
-	LEAQ (R12)(R13*16), SI
+	MOVQ R13, SI
+	SHLQ $4, SI
+	LEAQ (R12)(SI*1), SI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
 
@@ -1025,7 +1043,9 @@ inv_fft32:
 inv_s1_kloop:
 	CMPQ AX, $32
 	JGE  inv_s2
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 16(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
@@ -1059,7 +1079,9 @@ inv_s2_jloop:
 inv_s2_kloop:
 	CMPQ AX, $32
 	JGE  inv_s2_nextj
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 32(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
@@ -1106,7 +1128,9 @@ inv_s3_jloop:
 inv_s3_kloop:
 	CMPQ AX, $32
 	JGE  inv_s3_nextj
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 64(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
@@ -1153,7 +1177,9 @@ inv_s4_jloop:
 inv_s4_kloop:
 	CMPQ AX, $32
 	JGE  inv_s4_nextj
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 128(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
@@ -1197,7 +1223,9 @@ inv_s5_jloop:
 	MOVSD 0(R15), X8
 	MOVSD 8(R15), X9
 	MOVQ CX, AX
-	LEAQ (R12)(AX*16), SI
+	MOVQ AX, BX
+	SHLQ $4, BX
+	LEAQ (R12)(BX*1), SI
 	LEAQ 256(SI), DI
 	MOVSD 0(SI), X0
 	MOVSD 8(SI), X1
