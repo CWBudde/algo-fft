@@ -196,6 +196,61 @@ func TestPrepareTwiddle1024Radix32x32AVX2(t *testing.T) {
 	}
 }
 
+// TestTwiddleSize256Radix16AVX2 verifies twiddle size calculation.
+func TestTwiddleSize256Radix16AVX2(t *testing.T) {
+	size := twiddleSize256Radix16AVX2(256)
+	if size != twiddleSize256Radix16AVX2Elems {
+		t.Errorf("twiddleSize256Radix16AVX2(256) = %d, want %d", size, twiddleSize256Radix16AVX2Elems)
+	}
+}
+
+// TestPrepareTwiddle256Radix16AVX2 verifies twiddle preparation layout.
+func TestPrepareTwiddle256Radix16AVX2(t *testing.T) {
+	const n = 256
+	forwardExtra := make([]complex128, twiddleSize256Radix16AVX2Elems)
+	prepareTwiddle256Radix16AVX2(n, false, forwardExtra)
+
+	inverseExtra := make([]complex128, twiddleSize256Radix16AVX2Elems)
+	prepareTwiddle256Radix16AVX2(n, true, inverseExtra)
+
+	twiddle := m.ComputeTwiddleFactors[complex128](n)
+
+	checkPair := func(col, pair int) {
+		row := pair * 2
+		idx0 := row * col
+		idx1 := (row + 1) * col
+		offset := twiddleSize256Radix16BaseElems + ((col-1)*twiddlePairsPerCol256Radix16+pair)*twiddleElemsPerPair256Radix16
+
+		w0 := twiddle[idx0]
+		w1 := twiddle[idx1]
+		fwd := forwardExtra[offset:]
+		inv := inverseExtra[offset:]
+
+		if math.Abs(real(fwd[0])-real(w0)) > 1e-12 || math.Abs(imag(fwd[0])-real(w0)) > 1e-12 {
+			t.Errorf("forward re0 = %v, want %v", fwd[0], complex(real(w0), real(w0)))
+		}
+		if math.Abs(real(fwd[1])-real(w1)) > 1e-12 || math.Abs(imag(fwd[1])-real(w1)) > 1e-12 {
+			t.Errorf("forward re1 = %v, want %v", fwd[1], complex(real(w1), real(w1)))
+		}
+		if math.Abs(real(fwd[2])-imag(w0)) > 1e-12 || math.Abs(imag(fwd[2])-imag(w0)) > 1e-12 {
+			t.Errorf("forward im0 = %v, want %v", fwd[2], complex(imag(w0), imag(w0)))
+		}
+		if math.Abs(real(fwd[3])-imag(w1)) > 1e-12 || math.Abs(imag(fwd[3])-imag(w1)) > 1e-12 {
+			t.Errorf("forward im1 = %v, want %v", fwd[3], complex(imag(w1), imag(w1)))
+		}
+
+		if math.Abs(real(inv[2])+imag(w0)) > 1e-12 || math.Abs(imag(inv[2])+imag(w0)) > 1e-12 {
+			t.Errorf("inverse im0 = %v, want %v", inv[2], complex(-imag(w0), -imag(w0)))
+		}
+		if math.Abs(real(inv[3])+imag(w1)) > 1e-12 || math.Abs(imag(inv[3])+imag(w1)) > 1e-12 {
+			t.Errorf("inverse im1 = %v, want %v", inv[3], complex(-imag(w1), -imag(w1)))
+		}
+	}
+
+	checkPair(1, 0)
+	checkPair(3, 4)
+}
+
 // TestForwardAVX2Size1024Radix32x32ParamsVsReference verifies forward transform against DFT.
 func TestForwardAVX2Size1024Radix32x32ParamsVsReference(t *testing.T) {
 	const n = 1024
