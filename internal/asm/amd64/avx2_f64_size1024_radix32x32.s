@@ -32,6 +32,7 @@
 // - Column FFTs (forward stage 1) and column IFFTs (inverse stage 2) are
 //   vectorized by processing 2 columns at once using AVX2 YMM lanes.
 // - Row FFTs/IFFTs and irregular twiddle handling remain scalar for now.
+// - Twiddle slice is prepared: W_1024 followed by pre-broadcast stage tables.
 // - We still do VZEROUPPER.
 // ===========================================================================
 
@@ -49,9 +50,13 @@ DATA ·bitrev32<>+24(SB)/8, $0x1f0f17071b0b1303
 GLOBL ·scale1024f64<>(SB), RODATA|NOPTR, $8
 DATA ·scale1024f64<>(SB)/8, $0x3f50000000000000
 
-// float64 sign bit mask (0x8000000000000000)
-GLOBL ·signMaskF64<>(SB), RODATA|NOPTR, $8
-DATA ·signMaskF64<>(SB)/8, $0x8000000000000000
+// float64 sign bit mask vector [0, sign, 0, sign]
+GLOBL ·signMaskF64x2<>(SB), RODATA|NOPTR, $32
+DATA ·signMaskF64x2<>+0(SB)/8,  $0x0
+DATA ·signMaskF64x2<>+8(SB)/8,  $0x8000000000000000
+DATA ·signMaskF64x2<>+16(SB)/8, $0x0
+DATA ·signMaskF64x2<>+24(SB)/8, $0x8000000000000000
+
 
 // ---------------------------------------------------------------------------
 // ForwardAVX2Size1024Radix32x32Complex128Asm
@@ -66,7 +71,7 @@ TEXT ·ForwardAVX2Size1024Radix32x32Complex128Asm(SB), $1536-97
 	CMPQ AX, $1024
 	JL   fwd_fail
 	MOVQ twiddle+56(FP), AX
-	CMPQ AX, $1024
+	CMPQ AX, $1128
 	JL   fwd_fail
 	MOVQ scratch+80(FP), AX
 	CMPQ AX, $1024
@@ -108,6 +113,7 @@ fwd_gather_col_loop:
 	JMP  fwd_gather_col_loop
 
 fwd_do_fft_col:
+	XORQ BP, BP               // return selector 0
 	JMP  fwd_fft32x4
 fwd_fft32x4_return_col:
 
@@ -167,53 +173,60 @@ fwd_stage1_next_n1:
 	// Stage 2: for each k2, FFT32 over n1 (row) and store dst[k1*32+k2]
 	// =====================================================================
 fwd_stage2:
-	LEAQ 1024(SP), R12        // R12 = scalar buf base
-	XORQ R14, R14 // k2=0
+	LEAQ 0(SP), R12           // R12 = bufV base (2 rows packed)
+	XORQ R14, R14 // k2=0 (processed in blocks of 2)
 fwd_stage2_k2_loop:
 	CMPQ R14, $32
 	JGE  fwd_ok
 
-	MOVQ R14, DX
-	SHLQ $9, DX               // base=k2*512
 	LEAQ ·bitrev32<>(SB), R15
-	XORQ AX, AX               // i=0
+	XORQ AX, AX // i=0
 fwd_gather_row_loop:
 	CMPQ AX, $32
 	JGE  fwd_do_fft_row
 	MOVBLZX (R15)(AX*1), BX
 	MOVQ BX, CX
 	SHLQ $4, CX               // rev*16
-	ADDQ DX, CX
-	VMOVUPD (R11)(CX*1), X0
+	MOVQ R14, DX
+	SHLQ $9, DX               // base=k2*512
+	ADDQ CX, DX
+	LEAQ (R11)(DX*1), SI
+	VMOVUPD (SI), X0
+	ADDQ $512, DX             // base=(k2+1)*512
+	LEAQ (R11)(DX*1), DI
+	VMOVUPD (DI), X1
+	VINSERTF128 $0, X0, Y0, Y0
+	VINSERTF128 $1, X1, Y0, Y0
 	MOVQ AX, SI
-	SHLQ $4, SI
-	VMOVUPD X0, (R12)(SI*1)
+	SHLQ $5, SI               // i*32
+	VMOVUPD Y0, (R12)(SI*1)
 	INCQ AX
 	JMP  fwd_gather_row_loop
 
 fwd_do_fft_row:
 	MOVQ $1, BP               // return selector 1
-	JMP  fwd_fft32
+	JMP  fwd_fft32x4
+fwd_fft32x4_return_row:
 fwd_fft32_return_row:
 
 	XORQ R13, R13 // k1=0
+	MOVQ R14, DX
+	SHLQ $4, DX               // k2*16
 fwd_store_dst_loop:
 	CMPQ R13, $32
 	JGE  fwd_stage2_next_k2
 	MOVQ R13, SI
-	SHLQ $4, SI
-	VMOVUPD (R12)(SI*1), X0
+	SHLQ $5, SI
+	VMOVUPD (R12)(SI*1), Y0
 	MOVQ R13, BX
 	SHLQ $9, BX               // k1*512
-	MOVQ R14, CX
-	SHLQ $4, CX               // k2*16
-	ADDQ CX, BX
-	VMOVUPD X0, (R8)(BX*1)
+	ADDQ DX, BX
+	VMOVUPD Y0, (R8)(BX*1)
 	INCQ R13
 	JMP  fwd_store_dst_loop
 
 fwd_stage2_next_k2:
-	INCQ R14
+	ADDQ $2, R14
 	JMP  fwd_stage2_k2_loop
 
 	// =======================================================================
@@ -245,7 +258,7 @@ fwdx4_s1_kloop:
 	JMP  fwdx4_s1_kloop
 
 fwdx4_s2:
-	// Stage m=4: tw offset = j*4096 bytes (W_32^{j*8})
+	// Stage m=4: pre-broadcast twiddles (W_32^{j*8})
 	XORQ CX, CX
 fwdx4_s2_jloop:
 	CMPQ CX, $2
@@ -253,10 +266,12 @@ fwdx4_s2_jloop:
 	CMPQ CX, $0
 	JEQ  fwdx4_s2_kloop_init
 	MOVQ CX, DX
-	SHLQ $12, DX
-	LEAQ (R10)(DX*1), R15
-	VBROADCASTSD 0(R15), Y8
-	VBROADCASTSD 8(R15), Y9
+	DECQ DX
+	SHLQ $6, DX
+	LEAQ 16384(R10), R15
+	ADDQ DX, R15
+	VMOVUPD 0(R15), Y8
+	VMOVUPD 32(R15), Y9
 
 fwdx4_s2_kloop_init:
 	MOVQ CX, AX
@@ -290,7 +305,7 @@ fwdx4_s2_nextj:
 	JMP  fwdx4_s2_jloop
 
 fwdx4_s3:
-	// Stage m=8: tw offset = j*2048 bytes (W_32^{j*4})
+	// Stage m=8: pre-broadcast twiddles (W_32^{j*4})
 	XORQ CX, CX
 fwdx4_s3_jloop:
 	CMPQ CX, $4
@@ -298,10 +313,12 @@ fwdx4_s3_jloop:
 	CMPQ CX, $0
 	JEQ  fwdx4_s3_kloop_init
 	MOVQ CX, DX
-	SHLQ $11, DX
-	LEAQ (R10)(DX*1), R15
-	VBROADCASTSD 0(R15), Y8
-	VBROADCASTSD 8(R15), Y9
+	DECQ DX
+	SHLQ $6, DX
+	LEAQ 16448(R10), R15
+	ADDQ DX, R15
+	VMOVUPD 0(R15), Y8
+	VMOVUPD 32(R15), Y9
 
 fwdx4_s3_kloop_init:
 	MOVQ CX, AX
@@ -334,7 +351,7 @@ fwdx4_s3_nextj:
 	JMP  fwdx4_s3_jloop
 
 fwdx4_s4:
-	// Stage m=16: tw offset = j*1024 bytes (W_32^{j*2})
+	// Stage m=16: pre-broadcast twiddles (W_32^{j*2})
 	XORQ CX, CX
 fwdx4_s4_jloop:
 	CMPQ CX, $8
@@ -342,10 +359,12 @@ fwdx4_s4_jloop:
 	CMPQ CX, $0
 	JEQ  fwdx4_s4_kloop_init
 	MOVQ CX, DX
-	SHLQ $10, DX
-	LEAQ (R10)(DX*1), R15
-	VBROADCASTSD 0(R15), Y8
-	VBROADCASTSD 8(R15), Y9
+	DECQ DX
+	SHLQ $6, DX
+	LEAQ 16640(R10), R15
+	ADDQ DX, R15
+	VMOVUPD 0(R15), Y8
+	VMOVUPD 32(R15), Y9
 
 fwdx4_s4_kloop_init:
 	MOVQ CX, AX
@@ -378,7 +397,7 @@ fwdx4_s4_nextj:
 	JMP  fwdx4_s4_jloop
 
 fwdx4_s5:
-	// Stage m=32: tw offset = j*512 bytes (W_32^{j})
+	// Stage m=32: pre-broadcast twiddles (W_32^{j})
 	XORQ CX, CX
 fwdx4_s5_jloop:
 	CMPQ CX, $16
@@ -386,10 +405,12 @@ fwdx4_s5_jloop:
 	CMPQ CX, $0
 	JEQ  fwdx4_s5_do
 	MOVQ CX, DX
-	SHLQ $9, DX
-	LEAQ (R10)(DX*1), R15
-	VBROADCASTSD 0(R15), Y8
-	VBROADCASTSD 8(R15), Y9
+	DECQ DX
+	SHLQ $6, DX
+	LEAQ 17088(R10), R15
+	ADDQ DX, R15
+	VMOVUPD 0(R15), Y8
+	VMOVUPD 32(R15), Y9
 
 fwdx4_s5_do:
 	MOVQ CX, AX
@@ -416,6 +437,8 @@ fwdx4_s5_bfly:
 	JMP  fwdx4_s5_jloop
 
 fwd_fft32x4_ret:
+	CMPQ BP, $1
+	JEQ  fwd_fft32x4_return_row
 	JMP  fwd_fft32x4_return_col
 
 	// =======================================================================
@@ -672,7 +695,7 @@ TEXT ·InverseAVX2Size1024Radix32x32Complex128Asm(SB), $1536-97
 	CMPQ AX, $1024
 	JL   inv_fail
 	MOVQ twiddle+56(FP), AX
-	CMPQ AX, $1024
+	CMPQ AX, $1128
 	JL   inv_fail
 	MOVQ scratch+80(FP), AX
 	CMPQ AX, $1024
@@ -684,7 +707,6 @@ TEXT ·InverseAVX2Size1024Radix32x32Complex128Asm(SB), $1536-97
 	MOVQ twiddle+48(FP), R10 // twiddle base (W_1024)
 	MOVQ scratch+72(FP), R11 // work base
 	LEAQ 0(SP), R12          // local bufV[32]YMM (2 columns packed)
-	MOVSD ·scale1024f64<>(SB), X14
 
 	// =====================================================================
 	// Stage 1: for each k2, IFFT32 over k1 then apply conj(W_1024^(k2*n1))
@@ -696,7 +718,7 @@ inv_stage1_k2_loop:
 	JGE  inv_stage2
 
 	LEAQ ·bitrev32<>(SB), R15
-	LEAQ 1024(SP), R12        // scalar buf base
+	LEAQ 0(SP), R12           // bufV base (2 rows packed)
 	XORQ AX, AX // i=0
 inv_gather_row_loop:
 	CMPQ AX, $32
@@ -707,47 +729,53 @@ inv_gather_row_loop:
 	MOVQ R14, DX
 	SHLQ $4, DX               // k2*16
 	ADDQ DX, CX
-	VMOVUPD (R9)(CX*1), X0
+	VMOVUPD (R9)(CX*1), Y0
 	MOVQ AX, SI
-	SHLQ $4, SI
-	VMOVUPD X0, (R12)(SI*1)
+	SHLQ $5, SI               // i*32
+	VMOVUPD Y0, (R12)(SI*1)
 	INCQ AX
 	JMP  inv_gather_row_loop
 
 inv_do_ifft_row:
-	XORQ BP, BP               // return selector 0
-	JMP  inv_fft32
+	MOVQ $1, BP               // return selector 1
+	JMP  inv_fft32x4
+inv_fft32x4_return_row:
 inv_fft32_return_row:
 
+	VMOVUPD ·signMaskF64x2<>(SB), Y14
 	XORQ R13, R13 // n1=0
 inv_store_work_loop:
 	CMPQ R13, $32
 	JGE  inv_stage1_next_k2
 
 	MOVQ R13, SI
-	SHLQ $4, SI
-	LEAQ (R12)(SI*1), SI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
+	SHLQ $5, SI
+	VMOVUPD (R12)(SI*1), Y0
 
 	MOVQ R14, AX
 	IMULQ R13, AX
 	SHLQ $4, AX
 	LEAQ (R10)(AX*1), DI
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
+	VMOVUPD (DI), X8
+	MOVQ R14, AX
+	INCQ AX
+	IMULQ R13, AX
+	SHLQ $4, AX
+	LEAQ (R10)(AX*1), SI
+	VMOVUPD (SI), X9
+	VINSERTF128 $0, X8, Y8, Y8
+	VINSERTF128 $1, X9, Y8, Y8
 
-	// (a+bi)*(c-di)
-	MOVSD X0, X4
-	MULSD X2, X4
-	MOVSD X1, X5
-	MULSD X3, X5
-	ADDSD X5, X4              // real
-	MOVSD X1, X6
-	MULSD X2, X6
-	MOVSD X0, X7
-	MULSD X3, X7
-	SUBSD X7, X6              // imag
+	VMOVAPD Y8, Y11
+	VXORPD Y14, Y11, Y11
+	VMOVDDUP Y11, Y9
+	VPERMILPD $0x0F, Y11, Y10
+
+	VMOVAPD Y0, Y1
+	VPERMILPD $0x05, Y1, Y1
+	VMULPD Y10, Y1, Y1
+	VMULPD Y9, Y0, Y0
+	VADDSUBPD Y1, Y0, Y0
 
 	MOVQ R14, AX
 	SHLQ $9, AX               // k2*512
@@ -755,14 +783,17 @@ inv_store_work_loop:
 	SHLQ $4, BX               // n1*16
 	ADDQ BX, AX
 	LEAQ (R11)(AX*1), DI
-	MOVSD X4, 0(DI)
-	MOVSD X6, 8(DI)
+	VEXTRACTF128 $0, Y0, X0
+	VMOVUPD X0, (DI)
+	LEAQ 512(DI), DI
+	VEXTRACTF128 $1, Y0, X1
+	VMOVUPD X1, (DI)
 
 	INCQ R13
 	JMP  inv_store_work_loop
 
 inv_stage1_next_k2:
-	INCQ R14
+	ADDQ $2, R14
 	JMP  inv_stage1_k2_loop
 
 	// =====================================================================
@@ -796,6 +827,7 @@ inv_gather_col_loop:
 	JMP  inv_gather_col_loop
 
 inv_do_ifft_col:
+	XORQ BP, BP               // return selector 0
 	JMP  inv_fft32x4
 inv_fft32x4_return_col:
 
@@ -835,7 +867,6 @@ inv_stage2_next_n1:
 	// =======================================================================
 
 inv_fft32x4:
-	VBROADCASTSD ·signMaskF64<>(SB), Y14
 	// Stage m=2
 	XORQ AX, AX
 invx4_s1_kloop:
@@ -856,7 +887,7 @@ invx4_s1_kloop:
 	JMP  invx4_s1_kloop
 
 invx4_s2:
-	// Stage m=4 (conjugated twiddle: use imag = -d)
+	// Stage m=4 (conjugated twiddle)
 	XORQ CX, CX
 invx4_s2_jloop:
 	CMPQ CX, $2
@@ -864,11 +895,12 @@ invx4_s2_jloop:
 	CMPQ CX, $0
 	JEQ  invx4_s2_kloop_init
 	MOVQ CX, DX
-	SHLQ $12, DX
-	LEAQ (R10)(DX*1), R15
-	VBROADCASTSD 0(R15), Y8
-	VBROADCASTSD 8(R15), Y9
-	VXORPD Y14, Y9, Y9
+	DECQ DX
+	SHLQ $6, DX
+	LEAQ 16384(R10), R15
+	ADDQ DX, R15
+	VMOVUPD 0(R15), Y8
+	VMOVUPD 32(R15), Y9
 invx4_s2_kloop_init:
 	MOVQ CX, AX
 invx4_s2_kloop:
@@ -900,7 +932,7 @@ invx4_s2_nextj:
 	JMP  invx4_s2_jloop
 
 invx4_s3:
-	// Stage m=8
+	// Stage m=8 (conjugated twiddle)
 	XORQ CX, CX
 invx4_s3_jloop:
 	CMPQ CX, $4
@@ -908,11 +940,12 @@ invx4_s3_jloop:
 	CMPQ CX, $0
 	JEQ  invx4_s3_kloop_init
 	MOVQ CX, DX
-	SHLQ $11, DX
-	LEAQ (R10)(DX*1), R15
-	VBROADCASTSD 0(R15), Y8
-	VBROADCASTSD 8(R15), Y9
-	VXORPD Y14, Y9, Y9
+	DECQ DX
+	SHLQ $6, DX
+	LEAQ 16448(R10), R15
+	ADDQ DX, R15
+	VMOVUPD 0(R15), Y8
+	VMOVUPD 32(R15), Y9
 invx4_s3_kloop_init:
 	MOVQ CX, AX
 invx4_s3_kloop:
@@ -944,7 +977,7 @@ invx4_s3_nextj:
 	JMP  invx4_s3_jloop
 
 invx4_s4:
-	// Stage m=16
+	// Stage m=16 (conjugated twiddle)
 	XORQ CX, CX
 invx4_s4_jloop:
 	CMPQ CX, $8
@@ -952,11 +985,12 @@ invx4_s4_jloop:
 	CMPQ CX, $0
 	JEQ  invx4_s4_kloop_init
 	MOVQ CX, DX
-	SHLQ $10, DX
-	LEAQ (R10)(DX*1), R15
-	VBROADCASTSD 0(R15), Y8
-	VBROADCASTSD 8(R15), Y9
-	VXORPD Y14, Y9, Y9
+	DECQ DX
+	SHLQ $6, DX
+	LEAQ 16640(R10), R15
+	ADDQ DX, R15
+	VMOVUPD 0(R15), Y8
+	VMOVUPD 32(R15), Y9
 invx4_s4_kloop_init:
 	MOVQ CX, AX
 invx4_s4_kloop:
@@ -988,7 +1022,7 @@ invx4_s4_nextj:
 	JMP  invx4_s4_jloop
 
 invx4_s5:
-	// Stage m=32
+	// Stage m=32 (conjugated twiddle)
 	XORQ CX, CX
 invx4_s5_jloop:
 	CMPQ CX, $16
@@ -996,11 +1030,12 @@ invx4_s5_jloop:
 	CMPQ CX, $0
 	JEQ  invx4_s5_do
 	MOVQ CX, DX
-	SHLQ $9, DX
-	LEAQ (R10)(DX*1), R15
-	VBROADCASTSD 0(R15), Y8
-	VBROADCASTSD 8(R15), Y9
-	VXORPD Y14, Y9, Y9
+	DECQ DX
+	SHLQ $6, DX
+	LEAQ 17088(R10), R15
+	ADDQ DX, R15
+	VMOVUPD 0(R15), Y8
+	VMOVUPD 32(R15), Y9
 invx4_s5_do:
 	MOVQ CX, AX
 	MOVQ AX, DX
@@ -1026,6 +1061,8 @@ invx4_s5_bfly:
 	JMP  invx4_s5_jloop
 
 inv_fft32x4_ret:
+	CMPQ BP, $1
+	JEQ  inv_fft32x4_return_row
 	JMP  inv_fft32x4_return_col
 
 	// =======================================================================
