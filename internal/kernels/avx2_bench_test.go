@@ -64,7 +64,11 @@ func BenchmarkAVX2Complex128(b *testing.B) {
 				b.Skip("Not implemented")
 			}
 			if tc.n == 1024 {
-				runBenchPreparedComplex128(b, tc.n, false, tc.forward)
+				runBenchPreparedComplex128(b, tc.n, false, tc.forward, twiddleSize1024Radix32x32AVX2, prepareTwiddle1024Radix32x32AVX2)
+				return
+			}
+			if tc.n == 256 && tc.name == "Size256/Radix16" {
+				runBenchPreparedComplex128(b, tc.n, false, tc.forward, twiddleSize256Radix16AVX2, prepareTwiddle256Radix16AVX2)
 				return
 			}
 			runBenchComplex128(b, tc.n, tc.forward)
@@ -74,7 +78,11 @@ func BenchmarkAVX2Complex128(b *testing.B) {
 				b.Skip("Not implemented")
 			}
 			if tc.n == 1024 {
-				runBenchPreparedComplex128(b, tc.n, true, tc.inverse)
+				runBenchPreparedComplex128(b, tc.n, true, tc.inverse, twiddleSize1024Radix32x32AVX2, prepareTwiddle1024Radix32x32AVX2)
+				return
+			}
+			if tc.n == 256 && tc.name == "Size256/Radix16" {
+				runBenchPreparedComplex128(b, tc.n, true, tc.inverse, twiddleSize256Radix16AVX2, prepareTwiddle256Radix16AVX2)
 				return
 			}
 			runBenchComplex128(b, tc.n, tc.inverse)
@@ -82,14 +90,21 @@ func BenchmarkAVX2Complex128(b *testing.B) {
 	}
 }
 
-func runBenchPreparedComplex128(b *testing.B, n int, inverse bool, kernel func(dst, src, twiddle, scratch []complex128) bool) {
+func runBenchPreparedComplex128(
+	b *testing.B,
+	n int,
+	inverse bool,
+	kernel func(dst, src, twiddle, scratch []complex128) bool,
+	twiddleSize func(int) int,
+	prepare func(int, bool, []complex128),
+) {
 	b.Helper()
 
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
-	twiddle := make([]complex128, twiddleSize1024Radix32x32AVX2(n))
-	prepareTwiddle1024Radix32x32AVX2(n, inverse, twiddle)
+	twiddle := make([]complex128, twiddleSize(n))
+	prepare(n, inverse, twiddle)
 
 	for i := range src {
 		src[i] = complex(float64(i), float64(-i))

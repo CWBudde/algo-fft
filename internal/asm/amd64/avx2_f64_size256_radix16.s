@@ -235,34 +235,42 @@ fwd_r16_twiddle:
 	// ==================================================================
 	// STEP 3: Twiddle multiply W_256^(row*col)
 	// ==================================================================
+	// Twiddle table prepends base twiddles (0..255), then packed pairs per column:
+	//   [re0,re0,re1,re1] then [im0,im0,im1,im1] for rows (2*pair,2*pair+1).
 	MOVQ $1, R12              // col
 
 fwd_r16_twiddle_col:
 	CMPQ R12, $16
 	JGE  fwd_r16_transpose_out
 	MOVQ R12, AX
-	SHLQ $8, AX
+	SHLQ $8, AX               // col*256 bytes
 	LEAQ (R11)(AX*1), SI
-	XORQ R13, R13             // row
+	MOVQ R12, AX
+	DECQ AX                   // col-1
+	SHLQ $9, AX               // (col-1)*512 bytes (8 pairs * 64 bytes)
+	LEAQ 4096(R10)(AX*1), R14 // twiddle base for col (skip base twiddle[0:256])
+	XORQ R13, R13             // pair (0..7)
 
 fwd_r16_twiddle_row:
-	CMPQ R13, $16
+	CMPQ R13, $8
 	JGE  fwd_r16_twiddle_next_col
 	MOVQ R13, DX
-	SHLQ $4, DX               // row*16 bytes
-	VMOVUPD (SI)(DX*1), X0
-	MOVQ R13, AX
-	IMULQ R12, AX             // row*col
-	SHLQ $4, AX               // byte offset
-	VMOVUPD (R10)(AX*1), X1   // twiddle
-	// X0 = X0 * X1
-	VPERMILPD $0, X1, X2      // re
-	VPERMILPD $3, X1, X3      // im
-	VMULPD X2, X0, X4         // b*re
-	VSHUFPD $1, X0, X0, X5    // swap b
-	VMULPD X3, X5, X5         // swap(b)*im
-	VADDSUBPD X5, X4, X4      // complex multiply
-	VMOVUPD X4, (SI)(DX*1)
+	SHLQ $5, DX               // pair*32 bytes (2 complex128)
+	VMOVUPD (SI)(DX*1), Y0
+
+	MOVQ R13, BX
+	SHLQ $6, BX               // pair*64 bytes (4 complex128)
+	LEAQ (R14)(BX*1), DI
+	VMOVUPD (DI), Y1          // reDup
+	VMOVUPD 32(DI), Y2        // imDup
+
+	// Complex multiply: Y0 *= twiddle
+	VPERMILPD $0x05, Y0, Y3   // [i0, r0, i1, r1]
+	VMULPD Y1, Y0, Y4
+	VMULPD Y2, Y3, Y5
+	VADDSUBPD Y5, Y4, Y0
+	VMOVUPD Y0, (SI)(DX*1)
+
 	INCQ R13
 	JMP  fwd_r16_twiddle_row
 
@@ -754,36 +762,42 @@ inv_r16_twiddle:
 	// ==================================================================
 	// STEP 3: Twiddle multiply W_256^(-row*col)
 	// ==================================================================
+	// Twiddle table prepends base twiddles (0..255), then packed pairs per column
+	// (conjugated for inverse).
 	MOVQ $1, R12              // col
 
 inv_r16_twiddle_col:
 	CMPQ R12, $16
 	JGE  inv_r16_transpose_out
 	MOVQ R12, AX
-	SHLQ $8, AX
+	SHLQ $8, AX               // col*256 bytes
 	LEAQ (R11)(AX*1), SI
-	XORQ R13, R13             // row
+	MOVQ R12, AX
+	DECQ AX                   // col-1
+	SHLQ $9, AX               // (col-1)*512 bytes
+	LEAQ 4096(R10)(AX*1), R14 // twiddle base for col (skip base twiddle[0:256])
+	XORQ R13, R13             // pair (0..7)
 
 inv_r16_twiddle_row:
-	CMPQ R13, $16
+	CMPQ R13, $8
 	JGE  inv_r16_twiddle_next_col
 	MOVQ R13, DX
-	SHLQ $4, DX               // row*16 bytes
-	VMOVUPD (SI)(DX*1), X0
-	MOVQ R13, AX
-	IMULQ R12, AX             // row*col
-	SHLQ $4, AX               // byte offset
-	VMOVUPD (R10)(AX*1), X1   // twiddle
-	// conjugate twiddle
-	VXORPD ·maskNegHiPD(SB), X1, X1
-	// X0 = X0 * X1
-	VPERMILPD $0, X1, X2
-	VPERMILPD $3, X1, X3
-	VMULPD X2, X0, X4
-	VSHUFPD $1, X0, X0, X5
-	VMULPD X3, X5, X5
-	VADDSUBPD X5, X4, X4
-	VMOVUPD X4, (SI)(DX*1)
+	SHLQ $5, DX               // pair*32 bytes (2 complex128)
+	VMOVUPD (SI)(DX*1), Y0
+
+	MOVQ R13, BX
+	SHLQ $6, BX               // pair*64 bytes (4 complex128)
+	LEAQ (R14)(BX*1), DI
+	VMOVUPD (DI), Y1          // reDup
+	VMOVUPD 32(DI), Y2        // imDup
+
+	// Complex multiply: Y0 *= conj(twiddle)
+	VPERMILPD $0x05, Y0, Y3   // [i0, r0, i1, r1]
+	VMULPD Y1, Y0, Y4
+	VMULPD Y2, Y3, Y5
+	VADDSUBPD Y5, Y4, Y0
+	VMOVUPD Y0, (SI)(DX*1)
+
 	INCQ R13
 	JMP  inv_r16_twiddle_row
 
