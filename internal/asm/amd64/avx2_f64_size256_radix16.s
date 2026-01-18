@@ -106,6 +106,38 @@ fwd_r16_stage1_col:
 	MOVQ $1, R13              // half
 	MOVQ $8, R11              // step
 
+	// Bit-reversal permutation for size-16 (radix-2)
+	// Swaps: (1,8), (2,4), (3,12), (5,10), (7,14), (11,13)
+	VMOVUPD 16(SI), X0
+	VMOVUPD 128(SI), X1
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X0, 128(SI)
+
+	VMOVUPD 32(SI), X0
+	VMOVUPD 64(SI), X1
+	VMOVUPD X1, 32(SI)
+	VMOVUPD X0, 64(SI)
+
+	VMOVUPD 48(SI), X0
+	VMOVUPD 192(SI), X1
+	VMOVUPD X1, 48(SI)
+	VMOVUPD X0, 192(SI)
+
+	VMOVUPD 80(SI), X0
+	VMOVUPD 160(SI), X1
+	VMOVUPD X1, 80(SI)
+	VMOVUPD X0, 160(SI)
+
+	VMOVUPD 112(SI), X0
+	VMOVUPD 224(SI), X1
+	VMOVUPD X1, 112(SI)
+	VMOVUPD X0, 224(SI)
+
+	VMOVUPD 176(SI), X0
+	VMOVUPD 208(SI), X1
+	VMOVUPD X1, 176(SI)
+	VMOVUPD X0, 208(SI)
+
 fwd_r16_fft16_s1_stage_loop:
 	CMPQ R12, $17
 	JGE  fwd_r16_fft16_s1_done
@@ -254,6 +286,38 @@ fwd_r16_stage2_row:
 	MOVQ $2, R12              // size
 	MOVQ $1, R13              // half
 	MOVQ $8, R11              // step
+
+	// Bit-reversal permutation for size-16 (radix-2)
+	// Swaps: (1,8), (2,4), (3,12), (5,10), (7,14), (11,13)
+	VMOVUPD 16(SI), X0
+	VMOVUPD 128(SI), X1
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X0, 128(SI)
+
+	VMOVUPD 32(SI), X0
+	VMOVUPD 64(SI), X1
+	VMOVUPD X1, 32(SI)
+	VMOVUPD X0, 64(SI)
+
+	VMOVUPD 48(SI), X0
+	VMOVUPD 192(SI), X1
+	VMOVUPD X1, 48(SI)
+	VMOVUPD X0, 192(SI)
+
+	VMOVUPD 80(SI), X0
+	VMOVUPD 160(SI), X1
+	VMOVUPD X1, 80(SI)
+	VMOVUPD X0, 160(SI)
+
+	VMOVUPD 112(SI), X0
+	VMOVUPD 224(SI), X1
+	VMOVUPD X1, 112(SI)
+	VMOVUPD X0, 224(SI)
+
+	VMOVUPD 176(SI), X0
+	VMOVUPD 208(SI), X1
+	VMOVUPD X1, 176(SI)
+	VMOVUPD X0, 208(SI)
 
 fwd_r16_fft16_s2_stage_loop:
 	CMPQ R12, $17
@@ -463,6 +527,38 @@ inv_r16_stage1_col:
 	MOVQ $1, R13              // half
 	MOVQ $8, R11              // step
 
+	// Bit-reversal permutation for size-16 (radix-2)
+	// Swaps: (1,8), (2,4), (3,12), (5,10), (7,14), (11,13)
+	VMOVUPD 16(SI), X0
+	VMOVUPD 128(SI), X1
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X0, 128(SI)
+
+	VMOVUPD 32(SI), X0
+	VMOVUPD 64(SI), X1
+	VMOVUPD X1, 32(SI)
+	VMOVUPD X0, 64(SI)
+
+	VMOVUPD 48(SI), X0
+	VMOVUPD 192(SI), X1
+	VMOVUPD X1, 48(SI)
+	VMOVUPD X0, 192(SI)
+
+	VMOVUPD 80(SI), X0
+	VMOVUPD 160(SI), X1
+	VMOVUPD X1, 80(SI)
+	VMOVUPD X0, 160(SI)
+
+	VMOVUPD 112(SI), X0
+	VMOVUPD 224(SI), X1
+	VMOVUPD X1, 112(SI)
+	VMOVUPD X0, 224(SI)
+
+	VMOVUPD 176(SI), X0
+	VMOVUPD 208(SI), X1
+	VMOVUPD X1, 176(SI)
+	VMOVUPD X0, 208(SI)
+
 inv_r16_fft16_s1_stage_loop:
 	CMPQ R12, $17
 	JGE  inv_r16_fft16_s1_done
@@ -613,6 +709,38 @@ inv_r16_stage2_row:
 	MOVQ $2, R12              // size
 	MOVQ $1, R13              // half
 	MOVQ $8, R11              // step
+
+	// Bit-reversal permutation for size-16 (radix-2)
+	// Swaps: (1,8), (2,4), (3,12), (5,10), (7,14), (11,13)
+	VMOVUPD 16(SI), X0
+	VMOVUPD 128(SI), X1
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X0, 128(SI)
+
+	VMOVUPD 32(SI), X0
+	VMOVUPD 64(SI), X1
+	VMOVUPD X1, 32(SI)
+	VMOVUPD X0, 64(SI)
+
+	VMOVUPD 48(SI), X0
+	VMOVUPD 192(SI), X1
+	VMOVUPD X1, 48(SI)
+	VMOVUPD X0, 192(SI)
+
+	VMOVUPD 80(SI), X0
+	VMOVUPD 160(SI), X1
+	VMOVUPD X1, 80(SI)
+	VMOVUPD X0, 160(SI)
+
+	VMOVUPD 112(SI), X0
+	VMOVUPD 224(SI), X1
+	VMOVUPD X1, 112(SI)
+	VMOVUPD X0, 224(SI)
+
+	VMOVUPD 176(SI), X0
+	VMOVUPD 208(SI), X1
+	VMOVUPD X1, 176(SI)
+	VMOVUPD X0, 208(SI)
 
 inv_r16_fft16_s2_stage_loop:
 	CMPQ R12, $17
