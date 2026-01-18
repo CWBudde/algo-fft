@@ -180,20 +180,19 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	}
 
 	// Size-dependent thresholds for complex128
-	// Larger FFTs accumulate more floating-point error
-	threshold := 1e-14
+	// Based on empirical measurements with 2-3x safety margin:
+	//   Size 64: measured 1.75e-15
+	//   Size 256: measured 7.85e-15
+	//   Size 1024: measured 0.00e+00
+	//   Size 4096: measured 0.00e+00
+	//   Size 16384: measured 8.99e-13 (six-step algorithm)
+	threshold := 1e-14 // baseline for small sizes
 	if n >= 256 {
-		threshold = 1e-13
-	}
-	if n >= 1024 {
-		threshold = 1e-12
-	}
-	if n >= 4096 {
-		// Six-step algorithm has additional error from transposes and twiddle multiplies
-		threshold = 5e-12
+		threshold = 2e-14 // ~2.5x margin over measured 7.85e-15
 	}
 	if n >= 16384 {
-		threshold = 1e-11
+		// Six-step algorithm has additional error from transposes and twiddle multiplies
+		threshold = 2e-12 // ~2.2x margin over measured 8.99e-13
 	}
 
 	if maxRelErr <= threshold {
