@@ -53,6 +53,7 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	}
 
 	simdOut := make([]complex64, n)
+
 	err = plan.Forward(simdOut, input)
 	if err != nil {
 		t.Fatalf("SIMD Forward failed: %v", err)
@@ -70,6 +71,7 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	}
 
 	genericOut := make([]complex64, n)
+
 	err = planGeneric.Forward(genericOut, input)
 	if err != nil {
 		t.Fatalf("Generic Forward failed: %v", err)
@@ -137,6 +139,7 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	}
 
 	simdOut := make([]complex128, n)
+
 	err = plan.Forward(simdOut, input)
 	if err != nil {
 		t.Fatalf("SIMD Forward failed: %v", err)
@@ -153,6 +156,7 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	}
 
 	genericOut := make([]complex128, n)
+
 	err = planGeneric.Forward(genericOut, input)
 	if err != nil {
 		t.Fatalf("Generic Forward failed: %v", err)
@@ -190,6 +194,7 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	if n >= 256 {
 		threshold = 2e-14 // ~2.5x margin over measured 7.85e-15
 	}
+
 	if n >= 16384 {
 		// Six-step algorithm has additional error from transposes and twiddle multiplies
 		threshold = 2e-12 // ~2.2x margin over measured 8.99e-13

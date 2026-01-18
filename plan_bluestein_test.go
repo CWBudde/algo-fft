@@ -32,6 +32,7 @@ func TestNewPlan_Bluestein_EdgeCases(t *testing.T) {
 		}
 
 		back := make([]complex64, 1)
+
 		err = plan.Inverse(back, dst)
 		if err != nil {
 			t.Fatalf("Inverse failed: %v", err)
@@ -60,6 +61,7 @@ func TestNewPlan_Bluestein_EdgeCases(t *testing.T) {
 		}
 
 		back := make([]complex64, 2)
+
 		err = plan.Inverse(back, dst)
 		if err != nil {
 			t.Fatalf("Inverse failed: %v", err)
@@ -143,6 +145,7 @@ func TestBluestein_RoundTrip(t *testing.T) {
 		}
 
 		back := make([]complex64, n)
+
 		err = plan.Inverse(back, dst)
 		if err != nil {
 			t.Fatalf("Inverse failed: %v", err)
@@ -176,6 +179,7 @@ func TestBluestein_RoundTrip(t *testing.T) {
 		}
 
 		back := make([]complex128, n)
+
 		err = plan.Inverse(back, dst)
 		if err != nil {
 			t.Fatalf("Inverse failed: %v", err)
@@ -216,6 +220,7 @@ func TestBluestein_LargePrimes(t *testing.T) {
 			}
 
 			back := make([]complex64, n)
+
 			err = plan.Inverse(back, dst)
 			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
@@ -258,6 +263,7 @@ func TestBluestein_MatchesReference(t *testing.T) {
 
 			// Compute FFT with Bluestein
 			fftResult := make([]complex64, n)
+
 			err = plan.Forward(fftResult, src)
 			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
@@ -293,6 +299,7 @@ func TestBluestein_MatchesReference(t *testing.T) {
 
 			// Compute FFT with Bluestein
 			fftResult := make([]complex128, n)
+
 			err = plan.Forward(fftResult, src)
 			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
@@ -335,6 +342,7 @@ func TestBluestein_InverseMatchesReference(t *testing.T) {
 
 			// Compute IFFT with Bluestein
 			ifftResult := make([]complex128, n)
+
 			err = plan.Inverse(ifftResult, freq)
 			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)

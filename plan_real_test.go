@@ -529,6 +529,7 @@ func BenchmarkPlanRealInverse(b *testing.B) {
 			}
 
 			freq := make([]complex64, n/2+1)
+
 			err = plan.Forward(freq, src)
 			if err != nil {
 				b.Fatalf("Forward returned error: %v", err)

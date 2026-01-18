@@ -21,6 +21,7 @@ func TestFFTConstantSignal(t *testing.T) {
 	}
 
 	dst := make([]complex64, n)
+
 	err = plan.Forward(dst, src)
 	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
@@ -56,6 +57,7 @@ func TestFFTPureSinusoid(t *testing.T) {
 	}
 
 	dst := make([]complex64, n)
+
 	err = plan.Forward(dst, src)
 	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
@@ -96,6 +98,7 @@ func TestFFTNyquistFrequency(t *testing.T) {
 	}
 
 	dst := make([]complex64, n)
+
 	err = plan.Forward(dst, src)
 	if err != nil {
 		t.Fatalf("Forward() returned error: %v", err)
@@ -132,12 +135,14 @@ func TestFFTEdgeCases(t *testing.T) {
 		}
 
 		dst := make([]complex64, n)
+
 		err = plan.Forward(dst, src)
 		if err != nil {
 			t.Fatalf("Forward(%d) returned error: %v", n, err)
 		}
 
 		out := make([]complex64, n)
+
 		err = plan.Inverse(out, dst)
 		if err != nil {
 			t.Fatalf("Inverse(%d) returned error: %v", n, err)

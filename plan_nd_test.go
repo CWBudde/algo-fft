@@ -393,6 +393,7 @@ func TestPlanND_MatchesPlan3D(t *testing.T) {
 
 	// Transform with Plan3D
 	out3D := make([]complex64, len(signal))
+
 	err = plan3D.Forward(out3D, signal)
 	if err != nil {
 		t.Fatalf("Plan3D Forward failed: %v", err)
@@ -400,6 +401,7 @@ func TestPlanND_MatchesPlan3D(t *testing.T) {
 
 	// Transform with PlanND
 	outND := make([]complex64, len(signal))
+
 	err = planND.Forward(outND, signal)
 	if err != nil {
 		t.Fatalf("PlanND Forward failed: %v", err)

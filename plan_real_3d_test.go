@@ -39,6 +39,7 @@ func TestPlanReal3D_BasicSizes(t *testing.T) {
 
 			// Compute FFT using optimized implementation
 			spectrum := make([]complex64, plan.SpectrumLen())
+
 			err = plan.Forward(spectrum, input)
 			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
@@ -96,6 +97,7 @@ func TestPlanReal3D_RoundTrip(t *testing.T) {
 
 			// Forward transform
 			spectrum := make([]complex64, plan.SpectrumLen())
+
 			err = plan.Forward(spectrum, input)
 			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
@@ -103,6 +105,7 @@ func TestPlanReal3D_RoundTrip(t *testing.T) {
 
 			// Inverse transform
 			output := make([]float32, size.depth*size.height*size.width)
+
 			err = plan.Inverse(output, spectrum)
 			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
@@ -143,6 +146,7 @@ func TestPlanReal3D_ForwardFull(t *testing.T) {
 
 	// Compute compact spectrum
 	spectrumCompact := make([]complex64, plan.SpectrumLen())
+
 	err = plan.Forward(spectrumCompact, input)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -150,6 +154,7 @@ func TestPlanReal3D_ForwardFull(t *testing.T) {
 
 	// Compute full spectrum
 	spectrumFull := make([]complex64, 4*4*4)
+
 	err = plan.ForwardFull(spectrumFull, input)
 	if err != nil {
 		t.Fatalf("ForwardFull failed: %v", err)
@@ -189,6 +194,7 @@ func TestPlanReal3D_InverseFull(t *testing.T) {
 
 	// Forward full
 	spectrumFull := make([]complex64, 4*4*4)
+
 	err = plan.ForwardFull(spectrumFull, input)
 	if err != nil {
 		t.Fatalf("ForwardFull failed: %v", err)
@@ -196,6 +202,7 @@ func TestPlanReal3D_InverseFull(t *testing.T) {
 
 	// Inverse full
 	output := make([]float32, 4*4*4)
+
 	err = plan.InverseFull(output, spectrumFull)
 	if err != nil {
 		t.Fatalf("InverseFull failed: %v", err)
@@ -233,6 +240,7 @@ func TestPlanReal3D_ConstantSignal(t *testing.T) {
 	}
 
 	spectrum := make([]complex64, plan.SpectrumLen())
+
 	err = plan.Forward(spectrum, input)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -279,6 +287,7 @@ func TestPlanReal3D_Linearity(t *testing.T) {
 	fftX := make([]complex64, plan.SpectrumLen())
 
 	fftY := make([]complex64, plan.SpectrumLen())
+
 	err = plan.Forward(fftX, x)
 	if err != nil {
 		t.Fatalf("Forward(x) failed: %v", err)
@@ -303,6 +312,7 @@ func TestPlanReal3D_Linearity(t *testing.T) {
 
 	// Compute FFT(a*x + b*y)
 	fftCombined := make([]complex64, plan.SpectrumLen())
+
 	err = plan.Forward(fftCombined, combined)
 	if err != nil {
 		t.Fatalf("Forward(combined) failed: %v", err)
