@@ -617,6 +617,18 @@ func ForwardAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex1
 //go:noescape
 func InverseAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
+//go:noescape
+func ForwardAVX2Size256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseAVX2Size256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func ForwardAVX2Size256Radix16Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseAVX2Size256Radix16Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
 // ============================================================================
 // Element-wise Operations
 // ============================================================================
