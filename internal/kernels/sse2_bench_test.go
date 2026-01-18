@@ -37,3 +37,26 @@ func BenchmarkSSE2Complex64(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkSSE2Complex128 benchmarks SSE2 kernels for complex128.
+func BenchmarkSSE2Complex128(b *testing.B) {
+	cases := []benchCase128{
+		{"Size256/Radix2", 256, amd64.ForwardSSE2Size256Radix2Complex128Asm, amd64.InverseSSE2Size256Radix2Complex128Asm},
+		{"Size256/Radix4", 256, amd64.ForwardSSE2Size256Radix4Complex128Asm, amd64.InverseSSE2Size256Radix4Complex128Asm},
+	}
+
+	for _, testCase := range cases {
+		b.Run(testCase.name+"/Forward", func(b *testing.B) {
+			if testCase.forward == nil {
+				b.Skip("Not implemented")
+			}
+			runBenchComplex128(b, testCase.n, testCase.forward)
+		})
+		b.Run(testCase.name+"/Inverse", func(b *testing.B) {
+			if testCase.inverse == nil {
+				b.Skip("Not implemented")
+			}
+			runBenchComplex128(b, testCase.n, testCase.inverse)
+		})
+	}
+}
