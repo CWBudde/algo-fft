@@ -322,7 +322,7 @@ func registerSSE2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit256_radix2_sse2",
-		Priority:   10,
+		Priority:   12,
 		KernelType: KernelTypeDIT,
 	})
 
@@ -334,7 +334,7 @@ func registerSSE2DITCodelets128() {
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit256_radix4_sse2",
-		Priority:   15,
+		Priority:   18,
 		KernelType: KernelTypeDIT,
 	})
 
