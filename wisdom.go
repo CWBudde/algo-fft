@@ -18,7 +18,8 @@ func ImportWisdom(filename string) error {
 
 	defer file.Close()
 
-	if err := fft.DefaultWisdom.Import(file); err != nil {
+	err = fft.DefaultWisdom.Import(file)
+	if err != nil {
 		return fmt.Errorf("failed to import wisdom: %w", err)
 	}
 
@@ -41,7 +42,8 @@ func ExportWisdomTo(filename string, wisdom *Wisdom) error {
 
 	defer file.Close()
 
-	if err := wisdom.Export(file); err != nil {
+	err = wisdom.Export(file)
+	if err != nil {
 		return fmt.Errorf("failed to export wisdom: %w", err)
 	}
 

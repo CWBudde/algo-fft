@@ -156,12 +156,14 @@ func TestPlan3D_RoundTrip_Complex64(t *testing.T) {
 			roundTrip := make([]complex64, len(original))
 
 			// Forward
-			if err := plan.Forward(freq, original); err != nil {
+			err = plan.Forward(freq, original)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
 			// Inverse
-			if err := plan.Inverse(roundTrip, freq); err != nil {
+			err = plan.Inverse(roundTrip, freq)
+			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
 			}
 
@@ -212,11 +214,13 @@ func TestPlan3D_RoundTrip_Complex128(t *testing.T) {
 			freq := make([]complex128, len(original))
 			roundTrip := make([]complex128, len(original))
 
-			if err := plan.Forward(freq, original); err != nil {
+			err = plan.Forward(freq, original)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
-			if err := plan.Inverse(roundTrip, freq); err != nil {
+			err = plan.Inverse(roundTrip, freq)
+			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
 			}
 
@@ -256,7 +260,9 @@ func TestPlan3D_VsReference_Complex64(t *testing.T) {
 
 			// Optimized FFT
 			fast := make([]complex64, len(signal))
-			if err := plan.Forward(fast, signal); err != nil {
+
+			err = plan.Forward(fast, signal)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
@@ -313,7 +319,8 @@ func TestPlan3D_BatchStrideForward(t *testing.T) {
 		copy(src[b*stride:b*stride+depth*height*width], signal)
 	}
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -353,7 +360,9 @@ func TestPlan3D_VsReference_Complex128(t *testing.T) {
 			signal := generateRandom3DComplex128(testCase.depth, testCase.height, testCase.width, 11111)
 
 			fast := make([]complex128, len(signal))
-			if err := plan.Forward(fast, signal); err != nil {
+
+			err = plan.Forward(fast, signal)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
@@ -382,12 +391,14 @@ func TestPlan3D_InPlace(t *testing.T) {
 	copy(original, data)
 
 	// Forward in-place
-	if err := plan.ForwardInPlace(data); err != nil {
+	err = plan.ForwardInPlace(data)
+	if err != nil {
 		t.Fatalf("ForwardInPlace failed: %v", err)
 	}
 
 	// Inverse in-place
-	if err := plan.InverseInPlace(data); err != nil {
+	err = plan.InverseInPlace(data)
+	if err != nil {
 		t.Fatalf("InverseInPlace failed: %v", err)
 	}
 
@@ -411,20 +422,24 @@ func TestPlan3D_ErrorHandling(t *testing.T) {
 	wrongSize := make([]complex64, 10)
 
 	// Nil slices
-	if err := plan.Forward(nil, validData); !errors.Is(err, ErrNilSlice) {
+	err = plan.Forward(nil, validData)
+	if !errors.Is(err, ErrNilSlice) {
 		t.Errorf("Expected ErrNilSlice for nil dst, got %v", err)
 	}
 
-	if err := plan.Forward(validData, nil); !errors.Is(err, ErrNilSlice) {
+	err = plan.Forward(validData, nil)
+	if !errors.Is(err, ErrNilSlice) {
 		t.Errorf("Expected ErrNilSlice for nil src, got %v", err)
 	}
 
 	// Wrong length
-	if err := plan.Forward(wrongSize, validData); !errors.Is(err, ErrLengthMismatch) {
+	err = plan.Forward(wrongSize, validData)
+	if !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("Expected ErrLengthMismatch for wrong dst size, got %v", err)
 	}
 
-	if err := plan.Forward(validData, wrongSize); !errors.Is(err, ErrLengthMismatch) {
+	err = plan.Forward(validData, wrongSize)
+	if !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("Expected ErrLengthMismatch for wrong src size, got %v", err)
 	}
 }

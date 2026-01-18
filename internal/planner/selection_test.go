@@ -377,21 +377,21 @@ func TestConcurrentBenchmarkDecisions(t *testing.T) {
 
 	SetKernelStrategy(KernelAuto)
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	strategies := []KernelStrategy{KernelDIT, KernelStockham}
 
 	for i := range 100 {
-		wg.Add(1)
+		waitGroup.Add(1)
 
 		go func(size int, strategy KernelStrategy) {
-			defer wg.Done()
+			defer waitGroup.Done()
 
 			RecordBenchmarkDecision(size, strategy)
 		}(256+i, strategies[i%2])
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 
 	// Verify all decisions were recorded
 	benchMu.RLock()

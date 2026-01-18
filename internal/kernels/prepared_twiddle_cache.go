@@ -39,7 +39,12 @@ func (c *preparedTwiddleCache[T]) get(
 		signature: signature,
 	}
 	if v, ok := c.m.Load(key); ok {
-		return v.(preparedTwiddleEntry[T]).data
+		entry, ok := v.(preparedTwiddleEntry[T])
+		if !ok {
+			panic("algofft: internal twiddle cache type error")
+		}
+
+		return entry.data
 	}
 
 	size := twiddleSize(n)
@@ -57,7 +62,12 @@ func (c *preparedTwiddleCache[T]) get(
 
 	actual, _ := c.m.LoadOrStore(key, entry)
 
-	return actual.(preparedTwiddleEntry[T]).data
+	aentry, ok := actual.(preparedTwiddleEntry[T])
+	if !ok {
+		panic("algofft: internal twiddle cache type error")
+	}
+
+	return aentry.data
 }
 
 var (

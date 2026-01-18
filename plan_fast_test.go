@@ -95,7 +95,8 @@ func TestFastPlan_MatchesSafeAPI(t *testing.T) {
 
 		fastPlan.Forward(fastDst, src)
 
-		if err := safePlan.Forward(safeDst, src); err != nil {
+		err = safePlan.Forward(safeDst, src)
+		if err != nil {
 			t.Fatalf("Safe plan forward error: %v", err)
 		}
 
@@ -260,7 +261,8 @@ func TestFastPlanReal32_MatchesSafeAPI(t *testing.T) {
 
 		fastPlan.Forward(fastDst, src)
 
-		if err := safePlan.Forward(safeDst, src); err != nil {
+		err = safePlan.Forward(safeDst, src)
+		if err != nil {
 			t.Fatalf("Safe plan forward error: %v", err)
 		}
 

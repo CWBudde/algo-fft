@@ -95,10 +95,9 @@ func TestBluesteinWrappers(t *testing.T) {
 
 	// Use generic wrapper
 	n := 3
-	m := 4 // next power of 2 >= 2n-1 = 5? No, >= 5. so 8.
 	// ComputeBluesteinFilter uses m >= 2n-1.
-	// 2*3-1 = 5. m=8.
-	m = 8
+	// 2*3-1 = 5. next power of 2 >= 5 is 8.
+	m := 8
 
 	chirp := ComputeChirpSequence[complex64](n)
 	twiddles := mathpkg.ComputeTwiddleFactors[complex64](m)

@@ -191,52 +191,58 @@ func butterfly4InverseComplex128(a0, a1, a2, a3 complex128) (complex128, complex
 
 // Generic wrapper that dispatches to type-specific implementations.
 func butterfly4Forward[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
-	var zero T
-	switch any(zero).(type) {
+	switch a0v := any(a0).(type) {
 	case complex64:
-		y0, y1, y2, y3 := butterfly4ForwardComplex64(
-			any(a0).(complex64),
-			any(a1).(complex64),
-			any(a2).(complex64),
-			any(a3).(complex64),
-		)
+		a1v, _ := any(a1).(complex64)
+		a2v, _ := any(a2).(complex64)
+		a3v, _ := any(a3).(complex64)
+		y0, y1, y2, y3 := butterfly4ForwardComplex64(a0v, a1v, a2v, a3v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
+		r3, _ := any(y3).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T)
+		return r0, r1, r2, r3
 	case complex128:
-		y0, y1, y2, y3 := butterfly4ForwardComplex128(
-			any(a0).(complex128),
-			any(a1).(complex128),
-			any(a2).(complex128),
-			any(a3).(complex128),
-		)
+		a1v, _ := any(a1).(complex128)
+		a2v, _ := any(a2).(complex128)
+		a3v, _ := any(a3).(complex128)
+		y0, y1, y2, y3 := butterfly4ForwardComplex128(a0v, a1v, a2v, a3v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
+		r3, _ := any(y3).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T)
+		return r0, r1, r2, r3
 	default:
 		panic("unsupported complex type")
 	}
 }
 
 func butterfly4Inverse[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
-	var zero T
-	switch any(zero).(type) {
+	switch a0v := any(a0).(type) {
 	case complex64:
-		y0, y1, y2, y3 := butterfly4InverseComplex64(
-			any(a0).(complex64),
-			any(a1).(complex64),
-			any(a2).(complex64),
-			any(a3).(complex64),
-		)
+		a1v, _ := any(a1).(complex64)
+		a2v, _ := any(a2).(complex64)
+		a3v, _ := any(a3).(complex64)
+		y0, y1, y2, y3 := butterfly4InverseComplex64(a0v, a1v, a2v, a3v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
+		r3, _ := any(y3).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T)
+		return r0, r1, r2, r3
 	case complex128:
-		y0, y1, y2, y3 := butterfly4InverseComplex128(
-			any(a0).(complex128),
-			any(a1).(complex128),
-			any(a2).(complex128),
-			any(a3).(complex128),
-		)
+		a1v, _ := any(a1).(complex128)
+		a2v, _ := any(a2).(complex128)
+		a3v, _ := any(a3).(complex128)
+		y0, y1, y2, y3 := butterfly4InverseComplex128(a0v, a1v, a2v, a3v)
+		r0, _ := any(y0).(T)
+		r1, _ := any(y1).(T)
+		r2, _ := any(y2).(T)
+		r3, _ := any(y3).(T)
 
-		return any(y0).(T), any(y1).(T), any(y2).(T), any(y3).(T)
+		return r0, r1, r2, r3
 	default:
 		panic("unsupported complex type")
 	}
@@ -282,9 +288,15 @@ func reverseBase4(x, digits int) int {
 func mulI[T Complex](value T) T {
 	switch v := any(value).(type) {
 	case complex64:
-		return any(complex(-imag(v), real(v))).(T)
+		res := complex(-imag(v), real(v))
+		rv, _ := any(res).(T)
+
+		return rv
 	case complex128:
-		return any(complex(-imag(v), real(v))).(T)
+		res := complex(-imag(v), real(v))
+		rv, _ := any(res).(T)
+
+		return rv
 	default:
 		panic("unsupported complex type")
 	}
@@ -293,9 +305,15 @@ func mulI[T Complex](value T) T {
 func mulNegI[T Complex](value T) T {
 	switch v := any(value).(type) {
 	case complex64:
-		return any(complex(imag(v), -real(v))).(T)
+		res := complex(imag(v), -real(v))
+		rv, _ := any(res).(T)
+
+		return rv
 	case complex128:
-		return any(complex(imag(v), -real(v))).(T)
+		res := complex(imag(v), -real(v))
+		rv, _ := any(res).(T)
+
+		return rv
 	default:
 		panic("unsupported complex type")
 	}

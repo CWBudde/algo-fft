@@ -27,10 +27,12 @@ func TestWASMRoundTripComplex64(t *testing.T) {
 	tmp := make([]complex64, len(src))
 	dst := make([]complex64, len(src))
 
-	if err := plan.Forward(tmp, src); err != nil {
+	err = plan.Forward(tmp, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
-	if err := plan.Inverse(dst, tmp); err != nil {
+	err = plan.Inverse(dst, tmp)
+	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 
@@ -59,10 +61,12 @@ func TestWASMRoundTripComplex128(t *testing.T) {
 	tmp := make([]complex128, len(src))
 	dst := make([]complex128, len(src))
 
-	if err := plan.Forward(tmp, src); err != nil {
+	err = plan.Forward(tmp, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
-	if err := plan.Inverse(dst, tmp); err != nil {
+	err = plan.Inverse(dst, tmp)
+	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 

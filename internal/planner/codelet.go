@@ -259,9 +259,19 @@ func GetRegistry[T Complex]() *CodeletRegistry[T] {
 
 	switch any(zero).(type) {
 	case complex64:
-		return any(Registry64).(*CodeletRegistry[T])
+		reg, ok := any(Registry64).(*CodeletRegistry[T])
+		if !ok {
+			panic("algofft: internal consistency error (Registry64)")
+		}
+
+		return reg
 	case complex128:
-		return any(Registry128).(*CodeletRegistry[T])
+		reg, ok := any(Registry128).(*CodeletRegistry[T])
+		if !ok {
+			panic("algofft: internal consistency error (Registry128)")
+		}
+
+		return reg
 	default:
 		return nil
 	}

@@ -184,7 +184,8 @@ func runPlanMode(plan *algofft.Plan[complex64], dst, src, freq []complex64, mode
 			return fmt.Errorf("plan forward: %w", err)
 		}
 
-		if err := plan.Inverse(dst, freq); err != nil {
+		err = plan.Inverse(dst, freq)
+		if err != nil {
 			return fmt.Errorf("plan inverse: %w", err)
 		}
 

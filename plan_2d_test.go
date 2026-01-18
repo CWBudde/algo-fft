@@ -227,7 +227,8 @@ func TestPlan2D_ForwardMatchesReference(t *testing.T) {
 			dst := make([]complex64, testCase.rows*testCase.cols)
 
 			// Compute with Plan2D
-			if err := plan.Forward(dst, src); err != nil {
+			err = plan.Forward(dst, src)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
@@ -272,7 +273,8 @@ func TestPlan2D_InverseMatchesReference(t *testing.T) {
 			dst := make([]complex64, testCase.rows*testCase.cols)
 
 			// Compute with Plan2D
-			if err := plan.Inverse(dst, src); err != nil {
+			err = plan.Inverse(dst, src)
+			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
 			}
 
@@ -318,7 +320,8 @@ func TestPlan2D_BatchStrideForward(t *testing.T) {
 		copy(src[b*stride:b*stride+rows*cols], signal)
 	}
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -359,7 +362,8 @@ func TestPlan2D_ForwardMatchesReference128(t *testing.T) {
 			src := generateRandom2DSignal128(testCase.rows, testCase.cols, 12345)
 			dst := make([]complex128, testCase.rows*testCase.cols)
 
-			if err := plan.Forward(dst, src); err != nil {
+			err = plan.Forward(dst, src)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
@@ -407,12 +411,14 @@ func TestPlan2D_RoundTrip(t *testing.T) {
 			roundTrip := make([]complex64, testCase.rows*testCase.cols)
 
 			// Forward
-			if err := plan.Forward(freq, original); err != nil {
+			err = plan.Forward(freq, original)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
 			// Inverse
-			if err := plan.Inverse(roundTrip, freq); err != nil {
+			err = plan.Inverse(roundTrip, freq)
+			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
 			}
 
@@ -453,11 +459,13 @@ func TestPlan2D_RoundTrip128(t *testing.T) {
 			freq := make([]complex128, testCase.rows*testCase.cols)
 			roundTrip := make([]complex128, testCase.rows*testCase.cols)
 
-			if err := plan.Forward(freq, original); err != nil {
+			err = plan.Forward(freq, original)
+			if err != nil {
 				t.Fatalf("Forward failed: %v", err)
 			}
 
-			if err := plan.Inverse(roundTrip, freq); err != nil {
+			err = plan.Inverse(roundTrip, freq)
+			if err != nil {
 				t.Fatalf("Inverse failed: %v", err)
 			}
 
@@ -485,13 +493,17 @@ func TestPlan2D_InPlaceMatchesOutOfPlace(t *testing.T) {
 
 	// Out-of-place
 	outOfPlace := make([]complex64, rows*cols)
-	if err := plan.Forward(outOfPlace, src); err != nil {
+
+	err = plan.Forward(outOfPlace, src)
+	if err != nil {
 		t.Fatalf("Out-of-place Forward failed: %v", err)
 	}
 
 	// In-place
 	inPlace := append([]complex64(nil), src...)
-	if err := plan.ForwardInPlace(inPlace); err != nil {
+
+	err = plan.ForwardInPlace(inPlace)
+	if err != nil {
 		t.Fatalf("In-place Forward failed: %v", err)
 	}
 
@@ -528,7 +540,9 @@ func TestPlan2D_Linearity(t *testing.T) {
 
 	// FFT(aX + bY)
 	fftCombined := make([]complex64, rows*cols)
-	if err := plan.Forward(fftCombined, combined); err != nil {
+
+	err = plan.Forward(fftCombined, combined)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -536,11 +550,13 @@ func TestPlan2D_Linearity(t *testing.T) {
 	fftX := make([]complex64, rows*cols)
 	fftY := make([]complex64, rows*cols)
 
-	if err := plan.Forward(fftX, signalX); err != nil {
+	err = plan.Forward(fftX, signalX)
+	if err != nil {
 		t.Fatalf("Forward X failed: %v", err)
 	}
 
-	if err := plan.Forward(fftY, signalY); err != nil {
+	err = plan.Forward(fftY, signalY)
+	if err != nil {
 		t.Fatalf("Forward Y failed: %v", err)
 	}
 
@@ -578,7 +594,9 @@ func TestPlan2D_Parseval(t *testing.T) {
 
 	// Frequency-domain energy
 	freq := make([]complex64, rows*cols)
-	if err := plan.Forward(freq, signal); err != nil {
+
+	err = plan.Forward(freq, signal)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -613,7 +631,9 @@ func TestPlan2D_Separability(t *testing.T) {
 
 	// Direct 2D FFT
 	direct := make([]complex64, rows*cols)
-	if err := plan.Forward(direct, signal); err != nil {
+
+	err = plan.Forward(direct, signal)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -678,7 +698,9 @@ func TestPlan2D_ConstantSignal(t *testing.T) {
 	}
 
 	freq := make([]complex64, rows*cols)
-	if err := plan.Forward(freq, signal); err != nil {
+
+	err = plan.Forward(freq, signal)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -719,7 +741,9 @@ func TestPlan2D_PureSinusoid2D(t *testing.T) {
 	}
 
 	freq := make([]complex64, rows*cols)
-	if err := plan.Forward(freq, signal); err != nil {
+
+	err = plan.Forward(freq, signal)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
@@ -769,11 +793,13 @@ func TestPlan2D_Clone(t *testing.T) {
 	freq1 := make([]complex64, rows*cols)
 	freq2 := make([]complex64, rows*cols)
 
-	if err := original.Forward(freq1, signal); err != nil {
+	err = original.Forward(freq1, signal)
+	if err != nil {
 		t.Fatalf("original.Forward failed: %v", err)
 	}
 
-	if err := clone.Forward(freq2, signal); err != nil {
+	err = clone.Forward(freq2, signal)
+	if err != nil {
 		t.Fatalf("clone.Forward failed: %v", err)
 	}
 

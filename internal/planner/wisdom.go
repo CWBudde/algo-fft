@@ -128,7 +128,8 @@ func (w *Wisdom) Export(writer io.Writer) error {
 			entry.Algorithm,
 			entry.Timestamp.Unix())
 
-		if _, err := writer.Write([]byte(line)); err != nil {
+		_, err := writer.Write([]byte(line))
+		if err != nil {
 			return fmt.Errorf("failed to write wisdom entry: %w", err)
 		}
 	}

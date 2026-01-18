@@ -25,7 +25,8 @@ func TestPlanRealForwardImpulse(t *testing.T) {
 	src[0] = 1
 	dst := make([]complex64, n/2+1)
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
@@ -64,11 +65,13 @@ func TestPlanReal_BatchStrideRoundTrip(t *testing.T) {
 		}
 	}
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
-	if err := plan.Inverse(roundTrip, dst); err != nil {
+	err = plan.Inverse(roundTrip, dst)
+	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 
@@ -104,7 +107,8 @@ func TestPlanRealForwardConstant(t *testing.T) {
 
 	dst := make([]complex64, n/2+1)
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
@@ -136,7 +140,8 @@ func TestPlanRealForwardCosine(t *testing.T) {
 
 	dst := make([]complex64, n/2+1)
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
@@ -172,7 +177,8 @@ func TestPlanRealForwardMatchesReference(t *testing.T) {
 
 	dst := make([]complex64, n/2+1)
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
@@ -206,7 +212,8 @@ func TestPlanRealForwardConjugateSymmetry(t *testing.T) {
 
 	dst := make([]complex64, n/2+1)
 
-	if err := plan.Forward(dst, src); err != nil {
+	err = plan.Forward(dst, src)
+	if err != nil {
 		t.Fatalf("Forward returned error: %v", err)
 	}
 
@@ -330,7 +337,8 @@ func TestPlanRealEdgeCases(t *testing.T) {
 		src := []float32{1, 2}
 		dst := make([]complex64, 2)
 
-		if err := plan.Forward(dst, src); err != nil {
+		err = plan.Forward(dst, src)
+		if err != nil {
 			t.Fatalf("Forward returned error: %v", err)
 		}
 
@@ -354,7 +362,8 @@ func TestPlanRealEdgeCases(t *testing.T) {
 
 		dst := make([]complex64, n/2+1)
 
-		if err := plan.Forward(dst, src); err != nil {
+		err = plan.Forward(dst, src)
+		if err != nil {
 			t.Fatalf("Forward returned error: %v", err)
 		}
 
@@ -520,7 +529,8 @@ func BenchmarkPlanRealInverse(b *testing.B) {
 			}
 
 			freq := make([]complex64, n/2+1)
-			if err := plan.Forward(freq, src); err != nil {
+			err = plan.Forward(freq, src)
+			if err != nil {
 				b.Fatalf("Forward returned error: %v", err)
 			}
 

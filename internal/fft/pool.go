@@ -45,7 +45,11 @@ var DefaultPool = &BufferPool{}
 // GetComplex64 retrieves or allocates an aligned complex64 buffer of size n.
 func (p *BufferPool) GetComplex64(n int) ([]complex64, []byte) {
 	pool := p.getOrCreatePool64(n)
-	buf := pool.Get().(*alignedBuffer64)
+
+	buf, ok := pool.Get().(*alignedBuffer64)
+	if !ok {
+		panic("algofft: internal pool type error (complex64)")
+	}
 
 	return buf.data, buf.backing
 }
@@ -64,7 +68,11 @@ func (p *BufferPool) PutComplex64(n int, data []complex64, backing []byte) {
 // GetComplex128 retrieves or allocates an aligned complex128 buffer of size n.
 func (p *BufferPool) GetComplex128(n int) ([]complex128, []byte) {
 	pool := p.getOrCreatePool128(n)
-	buf := pool.Get().(*alignedBuffer128)
+
+	buf, ok := pool.Get().(*alignedBuffer128)
+	if !ok {
+		panic("algofft: internal pool type error (complex128)")
+	}
 
 	return buf.data, buf.backing
 }
@@ -83,7 +91,11 @@ func (p *BufferPool) PutComplex128(n int, data []complex128, backing []byte) {
 // GetIntSlice retrieves or allocates an int slice of size n.
 func (p *BufferPool) GetIntSlice(n int) []int {
 	pool := p.getOrCreatePoolInt(n)
-	buf := pool.Get().(*intBuffer)
+
+	buf, ok := pool.Get().(*intBuffer)
+	if !ok {
+		panic("algofft: internal pool type error (int)")
+	}
 
 	return buf.data
 }
@@ -100,7 +112,12 @@ func (p *BufferPool) PutIntSlice(n int, data []int) {
 
 func (p *BufferPool) getOrCreatePool64(n int) *sync.Pool {
 	if existing, ok := p.pools64.Load(n); ok {
-		return existing.(*sync.Pool)
+		pool, ok := existing.(*sync.Pool)
+		if !ok {
+			panic("algofft: internal pool map error (complex64)")
+		}
+
+		return pool
 	}
 
 	pool := &sync.Pool{
@@ -112,12 +129,22 @@ func (p *BufferPool) getOrCreatePool64(n int) *sync.Pool {
 
 	actual, _ := p.pools64.LoadOrStore(n, pool)
 
-	return actual.(*sync.Pool)
+	apool, ok := actual.(*sync.Pool)
+	if !ok {
+		panic("algofft: internal pool map error (complex64)")
+	}
+
+	return apool
 }
 
 func (p *BufferPool) getOrCreatePool128(n int) *sync.Pool {
 	if existing, ok := p.pools128.Load(n); ok {
-		return existing.(*sync.Pool)
+		pool, ok := existing.(*sync.Pool)
+		if !ok {
+			panic("algofft: internal pool map error (complex128)")
+		}
+
+		return pool
 	}
 
 	pool := &sync.Pool{
@@ -129,12 +156,22 @@ func (p *BufferPool) getOrCreatePool128(n int) *sync.Pool {
 
 	actual, _ := p.pools128.LoadOrStore(n, pool)
 
-	return actual.(*sync.Pool)
+	apool, ok := actual.(*sync.Pool)
+	if !ok {
+		panic("algofft: internal pool map error (complex128)")
+	}
+
+	return apool
 }
 
 func (p *BufferPool) getOrCreatePoolInt(n int) *sync.Pool {
 	if existing, ok := p.poolsInt.Load(n); ok {
-		return existing.(*sync.Pool)
+		pool, ok := existing.(*sync.Pool)
+		if !ok {
+			panic("algofft: internal pool map error (int)")
+		}
+
+		return pool
 	}
 
 	pool := &sync.Pool{
@@ -145,5 +182,10 @@ func (p *BufferPool) getOrCreatePoolInt(n int) *sync.Pool {
 
 	actual, _ := p.poolsInt.LoadOrStore(n, pool)
 
-	return actual.(*sync.Pool)
+	apool, ok := actual.(*sync.Pool)
+	if !ok {
+		panic("algofft: internal pool map error (int)")
+	}
+
+	return apool
 }

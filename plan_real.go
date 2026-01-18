@@ -2,8 +2,10 @@ package algofft
 
 import (
 	"math"
+	"unsafe"
 
 	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/MeKo-Christian/algo-fft/internal/fft"
 )
 
 // PlanReal is a pre-computed real FFT plan for float32 input.
@@ -180,9 +182,8 @@ func (p *PlanReal) forwardSingle(dst []complex64, src []float32) error {
 		return ErrLengthMismatch
 	}
 
-	for i := range p.half {
-		p.buf[i] = complex(src[2*i], src[2*i+1])
-	}
+	srcAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&src[0])), p.half)
+	copy(p.buf, srcAsComplex)
 
 	err := p.plan.Forward(p.buf, p.buf)
 	if err != nil {
@@ -226,44 +227,15 @@ func (p *PlanReal) inverseSingle(dst []float32, src []complex64) error {
 		return ErrInvalidSpectrum
 	}
 
-	x0 := real(src[0])
-	xh := real(src[p.half])
-	p.buf[0] = complex(0.5*(x0+xh), 0.5*(x0-xh))
-
-	for k := 1; k < p.half; k++ {
-		m := p.half - k
-		if k > m {
-			continue
-		}
-
-		xk := src[k]
-		xmk := src[m]
-		xmkc := complex(real(xmk), -imag(xmk))
-
-		u := p.weight[k]
-		oneMinusU := complex64(1) - u
-		det := complex64(1) - 2*u
-		invDet := complex64(1) / det
-
-		a := (xk*oneMinusU - xmkc*u) * invDet
-		b := (oneMinusU*xmkc - u*xk) * invDet
-
-		p.buf[k] = a
-		if k != m {
-			p.buf[m] = complex(real(b), -imag(b))
-		}
-	}
+	fft.RepackInverseComplex64(p.buf, src, p.weight)
 
 	err := p.plan.Inverse(p.buf, p.buf)
 	if err != nil {
 		return err
 	}
 
-	for i := range p.half {
-		v := p.buf[i]
-		dst[2*i] = real(v)
-		dst[2*i+1] = imag(v)
-	}
+	dstAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&dst[0])), p.half)
+	copy(dstAsComplex, p.buf)
 
 	return nil
 }
@@ -273,8 +245,5 @@ func scaleSpectrumComplex64(dst []complex64, scale float32) {
 		return
 	}
 
-	factor := complex(scale, 0)
-	for i := range dst {
-		dst[i] *= factor
-	}
+	fft.ScaleComplex64InPlace(dst, scale)
 }

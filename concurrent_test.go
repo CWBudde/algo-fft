@@ -125,7 +125,8 @@ func testConcurrentPooled(t *testing.T, n, numGoroutines, itersPerGoroutine int)
 					return
 				}
 
-				if err := plan.Forward(dst, src); err != nil {
+				err = plan.Forward(dst, src)
+				if err != nil {
 					errors <- fmt.Errorf("goroutine %d iteration %d Forward: %w", goroutineID, iter, err)
 					return
 				}
@@ -188,7 +189,8 @@ func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
 					src[i] = complex(rand.Float32(), rand.Float32())
 				}
 
-				if err := plan.Forward(dst, src); err != nil {
+				err = plan.Forward(dst, src)
+				if err != nil {
 					errors <- fmt.Errorf("goroutine %d size %d Forward: %w", goroutineID, n, err)
 					return
 				}

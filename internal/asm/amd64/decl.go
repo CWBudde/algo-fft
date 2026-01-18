@@ -382,6 +382,12 @@ func ForwardAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []co
 //go:noescape
 func InverseAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
+//go:noescape
+func ForwardAVX2Size16384Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseAVX2Size16384Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
 // ============================================================================
 // Matrix Transpose Operations (for Six-Step FFT)
 // ============================================================================

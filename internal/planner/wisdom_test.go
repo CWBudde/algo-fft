@@ -133,15 +133,15 @@ func TestWisdomExportImport(t *testing.T) {
 	}
 
 	// Verify entries
-	for _, e := range entries {
-		got, found := w2.Lookup(e.Key)
+	for _, entry := range entries {
+		got, found := w2.Lookup(entry.Key)
 		if !found {
-			t.Errorf("entry for size %d not found after import", e.Key.Size)
+			t.Errorf("entry for size %d not found after import", entry.Key.Size)
 			continue
 		}
 
-		if got.Algorithm != e.Algorithm {
-			t.Errorf("size %d: expected algorithm %q, got %q", e.Key.Size, e.Algorithm, got.Algorithm)
+		if got.Algorithm != entry.Algorithm {
+			t.Errorf("size %d: expected algorithm %q, got %q", entry.Key.Size, entry.Algorithm, got.Algorithm)
 		}
 	}
 }

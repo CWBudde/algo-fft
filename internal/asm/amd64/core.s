@@ -138,6 +138,9 @@ GLOBL ·twoThousandFortyEighth64(SB), RODATA|NOPTR, $8
 DATA ·eightThousandOneHundredThirtySecond64+0(SB)/8, $0x3f20000000000000 // 0.0001220703125 = 1/8192
 GLOBL ·eightThousandOneHundredThirtySecond64(SB), RODATA|NOPTR, $8
 
+DATA ·oneSixteenThousandThreeHundredEightyFourth64+0(SB)/8, $0x3f10000000000000 // 0.00006103515625 = 1/16384
+GLOBL ·oneSixteenThousandThreeHundredEightyFourth64(SB), RODATA|NOPTR, $8
+
 // ===========================================================================
 // CONSTANTS: Sign bit masks for complex number negation
 // ===========================================================================
