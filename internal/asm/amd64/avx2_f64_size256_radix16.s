@@ -10,6 +10,14 @@
 // 4. Transpose back to row-major (dst).
 // 5. Stage 2: 16 FFT-16 passes over rows.
 // 6. Final transpose to natural order and copy to dst.
+//
+// Parallelization notes (future work, not implemented here):
+// - Stage 1 (columns) and Stage 2 (rows) are 16 independent FFT-16 passes.
+//   These loops can be split across workers by column/row index.
+// - Transpose steps are 4x4 tiles; each tile is independent and can be
+//   distributed across workers or vectorized further without cross-tile sync.
+// - Twiddle multiply is independent per (row, col) cell; it can be fused into
+//   the transpose-out step once the mapping is verified.
 // ===========================================================================
 
 #include "textflag.h"
@@ -60,6 +68,8 @@ fwd_r16_w16_loop:
 	// ==================================================================
 	// STEP 1: Transpose input (row-major) -> scratch (column-major)
 	// ==================================================================
+	// rb = row block index (0..3), cb = col block index (0..3)
+	// Each block is a 4x4 tile of complex128 values (32 bytes per row).
 	XORQ R12, R12             // row block (0..3)
 
 fwd_r16_transpose_in_rb:
@@ -91,6 +101,8 @@ fwd_r16_transpose_in_cb:
 	VMOVUPD 0(CX), Y6
 	VMOVUPD 32(CX), Y7
 
+	// Transpose 4x4 complex128 tile:
+	// rows are contiguous in src; columns become contiguous in scratch.
 	VPERM2F128 $0x20, Y2, Y0, Y8
 	VPERM2F128 $0x31, Y2, Y0, Y9
 	VPERM2F128 $0x20, Y6, Y4, Y10
@@ -237,6 +249,7 @@ fwd_r16_twiddle:
 	// ==================================================================
 	// Twiddle table prepends base twiddles (0..255), then packed pairs per column:
 	//   [re0,re0,re1,re1] then [im0,im0,im1,im1] for rows (2*pair,2*pair+1).
+	// Indexing: packed_base = 4096 + (col-1)*512 + pair*64.
 	MOVQ $1, R12              // col
 
 fwd_r16_twiddle_col:
@@ -282,6 +295,7 @@ fwd_r16_transpose_out:
 	// ==================================================================
 	// STEP 4: Transpose scratch (column-major) -> dst (row-major)
 	// ==================================================================
+	// Mirror of transpose-in: tiles are independent 4x4 blocks.
 	XORQ R12, R12             // row block (0..3)
 
 fwd_r16_transpose_out_rb:
@@ -347,7 +361,211 @@ fwd_r16_stage2:
 	// ==================================================================
 	// STEP 5: Stage 2 - FFT-16 on each row (contiguous blocks)
 	// ==================================================================
+	// Rows are contiguous in dst after transpose-out; each row is independent.
 	XORQ R12, R12             // row
+
+// ---------------------------------------------------------------------------
+// Diagnostic fused-twiddle mapping (disabled; not referenced).
+// Use to validate the transpose-out twiddle mapping on a single tile:
+// - Assumes scratch base in R11, twiddle base in R10, dst base in R8.
+// - Operates on rb=0, cb=0 (rows 0..3, cols 0..3) and returns.
+// To enable for debugging, redirect the JGE at fwd_r16_stage1_col to this label.
+// ---------------------------------------------------------------------------
+fwd_r16_twiddle_fused_diag:
+	// Load scratch[0:4,0:4] (column-major tile)
+	LEAQ (R11), SI
+	LEAQ 256(SI), DI
+	LEAQ 512(SI), BX
+	LEAQ 768(SI), CX
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 32(SI), Y1
+	VMOVUPD 0(DI), Y2
+	VMOVUPD 32(DI), Y3
+	VMOVUPD 0(BX), Y4
+	VMOVUPD 32(BX), Y5
+	VMOVUPD 0(CX), Y6
+	VMOVUPD 32(CX), Y7
+
+	// Apply twiddles for col=1..3 (col=0 is identity)
+	LEAQ 4096(R10), DI        // col=1 base
+	// pair0 (rows 0..1)
+	VMOVUPD (DI), Y8
+	VMOVUPD 32(DI), Y9
+	VPERMILPD $0x05, Y2, Y10
+	VMULPD Y8, Y2, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y2
+	// pair1 (rows 2..3)
+	VMOVUPD 64(DI), Y8
+	VMOVUPD 96(DI), Y9
+	VPERMILPD $0x05, Y3, Y10
+	VMULPD Y8, Y3, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y3
+
+	ADDQ $512, DI             // col=2 base
+	VMOVUPD (DI), Y8
+	VMOVUPD 32(DI), Y9
+	VPERMILPD $0x05, Y4, Y10
+	VMULPD Y8, Y4, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y4
+	VMOVUPD 64(DI), Y8
+	VMOVUPD 96(DI), Y9
+	VPERMILPD $0x05, Y5, Y10
+	VMULPD Y8, Y5, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y5
+
+	ADDQ $512, DI             // col=3 base
+	VMOVUPD (DI), Y8
+	VMOVUPD 32(DI), Y9
+	VPERMILPD $0x05, Y6, Y10
+	VMULPD Y8, Y6, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y6
+	VMOVUPD 64(DI), Y8
+	VMOVUPD 96(DI), Y9
+	VPERMILPD $0x05, Y7, Y10
+	VMULPD Y8, Y7, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y7
+
+	// Store to dst as row-major tile
+	VPERM2F128 $0x20, Y2, Y0, Y8
+	VPERM2F128 $0x31, Y2, Y0, Y9
+	VPERM2F128 $0x20, Y6, Y4, Y10
+	VPERM2F128 $0x31, Y6, Y4, Y11
+	VPERM2F128 $0x20, Y3, Y1, Y12
+	VPERM2F128 $0x31, Y3, Y1, Y13
+	VPERM2F128 $0x20, Y7, Y5, Y14
+	VPERM2F128 $0x31, Y7, Y5, Y15
+
+	VMOVUPD Y8, 0(R8)
+	VMOVUPD Y10, 32(R8)
+	VMOVUPD Y9, 256(R8)
+	VMOVUPD Y11, 288(R8)
+	VMOVUPD Y12, 512(R8)
+	VMOVUPD Y14, 544(R8)
+	VMOVUPD Y13, 768(R8)
+	VMOVUPD Y15, 800(R8)
+	RET
+
+// Diagnostic fused-twiddle mapping for rb=0, cb=1 (cols 4..7), disabled.
+fwd_r16_twiddle_fused_diag_cb1:
+	// Load scratch[0:4,4:8] (column-major tile, cb=1)
+	LEAQ 64(R11), SI
+	LEAQ 256(SI), DI
+	LEAQ 512(SI), BX
+	LEAQ 768(SI), CX
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 32(SI), Y1
+	VMOVUPD 0(DI), Y2
+	VMOVUPD 32(DI), Y3
+	VMOVUPD 0(BX), Y4
+	VMOVUPD 32(BX), Y5
+	VMOVUPD 0(CX), Y6
+	VMOVUPD 32(CX), Y7
+
+	// Apply twiddles for col_in=1..3 (col_in=0 uses identity).
+	// cb=1 means row_in=4..7, so start at pair=2 (rows 4..5) and pair=3 (rows 6..7).
+	LEAQ 4096(R10), DI        // col=1 base
+	VMOVUPD 128(DI), Y8       // pair=2 (rows 4..5) reDup
+	VMOVUPD 160(DI), Y9       // pair=2 (rows 4..5) imDup
+	VPERMILPD $0x05, Y2, Y10
+	VMULPD Y8, Y2, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y2
+	VMOVUPD 192(DI), Y8       // pair=3 (rows 6..7) reDup
+	VMOVUPD 224(DI), Y9       // pair=3 (rows 6..7) imDup
+	VPERMILPD $0x05, Y3, Y10
+	VMULPD Y8, Y3, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y3
+
+	ADDQ $512, DI             // col=2 base
+	VMOVUPD 128(DI), Y8       // pair=2 (rows 4..5) reDup
+	VMOVUPD 160(DI), Y9       // pair=2 (rows 4..5) imDup
+	VPERMILPD $0x05, Y4, Y10
+	VMULPD Y8, Y4, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y4
+	VMOVUPD 192(DI), Y8       // pair=3 (rows 6..7) reDup
+	VMOVUPD 224(DI), Y9       // pair=3 (rows 6..7) imDup
+	VPERMILPD $0x05, Y5, Y10
+	VMULPD Y8, Y5, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y5
+
+	ADDQ $512, DI             // col=3 base
+	VMOVUPD 128(DI), Y8       // pair=2 (rows 4..5) reDup
+	VMOVUPD 160(DI), Y9       // pair=2 (rows 4..5) imDup
+	VPERMILPD $0x05, Y6, Y10
+	VMULPD Y8, Y6, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y6
+	VMOVUPD 192(DI), Y8       // pair=3 (rows 6..7) reDup
+	VMOVUPD 224(DI), Y9       // pair=3 (rows 6..7) imDup
+	VPERMILPD $0x05, Y7, Y10
+	VMULPD Y8, Y7, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y7
+
+	// Store to dst as row-major tile (cols 4..7)
+	VPERM2F128 $0x20, Y2, Y0, Y8
+	VPERM2F128 $0x31, Y2, Y0, Y9
+	VPERM2F128 $0x20, Y6, Y4, Y10
+	VPERM2F128 $0x31, Y6, Y4, Y11
+	VPERM2F128 $0x20, Y3, Y1, Y12
+	VPERM2F128 $0x31, Y3, Y1, Y13
+	VPERM2F128 $0x20, Y7, Y5, Y14
+	VPERM2F128 $0x31, Y7, Y5, Y15
+
+	LEAQ 64(R8), DI
+	VMOVUPD Y8, 0(DI)
+	VMOVUPD Y10, 32(DI)
+	VMOVUPD Y9, 256(DI)
+	VMOVUPD Y11, 288(DI)
+	VMOVUPD Y12, 512(DI)
+	VMOVUPD Y14, 544(DI)
+	VMOVUPD Y13, 768(DI)
+	VMOVUPD Y15, 800(DI)
+	RET
+
+// Diagnostic transpose mapping only for rb=0, cb=1 (cols 4..7), no twiddle.
+fwd_r16_twiddle_fused_diag_cb1_notw:
+	LEAQ 64(R11), SI
+	LEAQ 256(SI), DI
+	LEAQ 512(SI), BX
+	LEAQ 768(SI), CX
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 32(SI), Y1
+	VMOVUPD 0(DI), Y2
+	VMOVUPD 32(DI), Y3
+	VMOVUPD 0(BX), Y4
+	VMOVUPD 32(BX), Y5
+	VMOVUPD 0(CX), Y6
+	VMOVUPD 32(CX), Y7
+
+	VPERM2F128 $0x20, Y2, Y0, Y8
+	VPERM2F128 $0x31, Y2, Y0, Y9
+	VPERM2F128 $0x20, Y6, Y4, Y10
+	VPERM2F128 $0x31, Y6, Y4, Y11
+	VPERM2F128 $0x20, Y3, Y1, Y12
+	VPERM2F128 $0x31, Y3, Y1, Y13
+	VPERM2F128 $0x20, Y7, Y5, Y14
+	VPERM2F128 $0x31, Y7, Y5, Y15
+
+	LEAQ 64(R8), DI
+	VMOVUPD Y8, 0(DI)
+	VMOVUPD Y10, 32(DI)
+	VMOVUPD Y9, 256(DI)
+	VMOVUPD Y11, 288(DI)
+	VMOVUPD Y12, 512(DI)
+	VMOVUPD Y14, 544(DI)
+	VMOVUPD Y13, 768(DI)
+	VMOVUPD Y15, 800(DI)
+	RET
 
 fwd_r16_stage2_row:
 	CMPQ R12, $16
@@ -587,6 +805,7 @@ inv_r16_w16_loop:
 	// ==================================================================
 	// STEP 1: Transpose input (row-major) -> scratch (column-major)
 	// ==================================================================
+	// rb/cb tile layout matches forward; columns become contiguous in scratch.
 	XORQ R12, R12             // row block (0..3)
 
 inv_r16_transpose_in_rb:
@@ -809,6 +1028,7 @@ inv_r16_transpose_out:
 	// ==================================================================
 	// STEP 4: Transpose scratch (column-major) -> dst (row-major)
 	// ==================================================================
+	// Mirror of transpose-in; tiles are independent 4x4 blocks.
 	XORQ R12, R12             // row block (0..3)
 
 inv_r16_transpose_out_rb:
@@ -874,6 +1094,7 @@ inv_r16_stage2:
 	// ==================================================================
 	// STEP 5: Stage 2 - FFT-16 on each row (contiguous blocks)
 	// ==================================================================
+	// Rows are contiguous in dst after transpose-out; each row is independent.
 	XORQ R12, R12             // row
 
 inv_r16_stage2_row:
