@@ -141,7 +141,7 @@ fwd_r16_stage1:
 
 fwd_r16_stage1_col:
 	CMPQ R12, $16
-	JGE  fwd_r16_twiddle
+	JGE  fwd_r16_twiddle_transpose_fused
 	MOVQ R12, AX
 	SHLQ $8, AX               // col*256 bytes
 	LEAQ (R11)(AX*1), SI
@@ -243,104 +243,248 @@ fwd_r16_fft16_s1_done:
 	INCQ R12
 	JMP  fwd_r16_stage1_col
 
-fwd_r16_twiddle:
+fwd_r16_twiddle_transpose_fused:
 	// ==================================================================
-	// STEP 3: Twiddle multiply W_256^(row*col)
+	// STEP 3+4 FUSED: Twiddle multiply + transpose in single pass
 	// ==================================================================
-	// Twiddle table prepends base twiddles (0..255), then packed pairs per column:
-	//   [re0,re0,re1,re1] then [im0,im0,im1,im1] for rows (2*pair,2*pair+1).
-	// Indexing: packed_base = 4096 + (col-1)*512 + pair*64.
-	MOVQ $1, R12              // col
+	// Process all 16 tiles (4x4 complex128 blocks) in nested loops.
+	// For each tile: load from scratch (column-major), apply twiddles,
+	// transpose in-register, write to dst (row-major).
+	// This eliminates one full memory round-trip over the 4KB scratch buffer.
+	//
+	// Memory layout:
+	// - Scratch: column-major, 256-byte column stride (16 complex128 per column)
+	// - Dst: row-major, 256-byte row stride (16 complex128 per row)
+	// - Twiddles: 4096 + (global_col-1)*512 + pair*64
+	//
+	// Tile addressing:
+	// - scratch_tile_base = cb*1024 + rb*64
+	// - dst_tile_base = rb*1024 + cb*64
+	// - global_row = rb*4 + row_in_tile
+	// - global_col = cb*4 + col_in_tile
+	XORQ R12, R12             // rb = row block (0..3)
 
-fwd_r16_twiddle_col:
-	CMPQ R12, $16
-	JGE  fwd_r16_transpose_out
-	MOVQ R12, AX
-	SHLQ $8, AX               // col*256 bytes
-	LEAQ (R11)(AX*1), SI
-	MOVQ R12, AX
-	DECQ AX                   // col-1
-	SHLQ $9, AX               // (col-1)*512 bytes (8 pairs * 64 bytes)
-	LEAQ 4096(R10)(AX*1), R14 // twiddle base for col (skip base twiddle[0:256])
-	XORQ R13, R13             // pair (0..7)
-
-fwd_r16_twiddle_row:
-	CMPQ R13, $8
-	JGE  fwd_r16_twiddle_next_col
-	MOVQ R13, DX
-	SHLQ $5, DX               // pair*32 bytes (2 complex128)
-	VMOVUPD (SI)(DX*1), Y0
-
-	MOVQ R13, BX
-	SHLQ $6, BX               // pair*64 bytes (4 complex128)
-	LEAQ (R14)(BX*1), DI
-	VMOVUPD (DI), Y1          // reDup
-	VMOVUPD 32(DI), Y2        // imDup
-
-	// Complex multiply: Y0 *= twiddle
-	VPERMILPD $0x05, Y0, Y3   // [i0, r0, i1, r1]
-	VMULPD Y1, Y0, Y4
-	VMULPD Y2, Y3, Y5
-	VADDSUBPD Y5, Y4, Y0
-	VMOVUPD Y0, (SI)(DX*1)
-
-	INCQ R13
-	JMP  fwd_r16_twiddle_row
-
-fwd_r16_twiddle_next_col:
-	INCQ R12
-	JMP  fwd_r16_twiddle_col
-
-fwd_r16_transpose_out:
-	// ==================================================================
-	// STEP 4: Transpose scratch (column-major) -> dst (row-major)
-	// ==================================================================
-	// Mirror of transpose-in: tiles are independent 4x4 blocks.
-	XORQ R12, R12             // row block (0..3)
-
-fwd_r16_transpose_out_rb:
+fwd_r16_fused_rb:
 	CMPQ R12, $4
 	JGE  fwd_r16_stage2
-	MOVQ R12, R14
-	SHLQ $10, R14             // row_block_bytes = rb * 1024
-	MOVQ R12, DX
-	SHLQ $6, DX               // row_base_bytes = rb * 64
-	XORQ R13, R13             // col block (0..3)
+	XORQ R13, R13             // cb = col block (0..3)
 
-fwd_r16_transpose_out_cb:
+fwd_r16_fused_cb:
 	CMPQ R13, $4
-	JGE  fwd_r16_transpose_out_rb_next
+	JGE  fwd_r16_fused_rb_next
+
+	// ----------------------------------------------------------------
+	// Calculate scratch source address (column-major layout)
+	// scratch_base = cb*1024 + rb*64
+	// ----------------------------------------------------------------
 	MOVQ R13, AX
-	SHLQ $6, AX               // col_block_bytes = cb * 64
-	LEAQ (R11)(R14*1), SI
-	ADDQ AX, SI
-	LEAQ 256(SI), DI
-	LEAQ 512(SI), BX
-	LEAQ 768(SI), CX
+	SHLQ $10, AX              // AX = cb*1024
+	MOVQ R12, DX
+	SHLQ $6, DX               // DX = rb*64
+	ADDQ DX, AX               // AX = cb*1024 + rb*64
+	LEAQ (R11)(AX*1), SI      // SI = scratch + tile_base
 
-	VMOVUPD 0(SI), Y0
-	VMOVUPD 32(SI), Y1
-	VMOVUPD 0(DI), Y2
-	VMOVUPD 32(DI), Y3
-	VMOVUPD 0(BX), Y4
-	VMOVUPD 32(BX), Y5
-	VMOVUPD 0(CX), Y6
-	VMOVUPD 32(CX), Y7
+	// ----------------------------------------------------------------
+	// Load 4x4 tile (8 Y-registers, column-major order)
+	// Y0/Y1: col_in_tile=0 (global_col = cb*4+0)
+	// Y2/Y3: col_in_tile=1 (global_col = cb*4+1)
+	// Y4/Y5: col_in_tile=2 (global_col = cb*4+2)
+	// Y6/Y7: col_in_tile=3 (global_col = cb*4+3)
+	// Y0,Y2,Y4,Y6: rows 0-1 in tile (global rows rb*4+0, rb*4+1)
+	// Y1,Y3,Y5,Y7: rows 2-3 in tile (global rows rb*4+2, rb*4+3)
+	// ----------------------------------------------------------------
+	VMOVUPD 0(SI), Y0         // col 0, rows 0-1
+	VMOVUPD 32(SI), Y1        // col 0, rows 2-3
+	VMOVUPD 256(SI), Y2       // col 1, rows 0-1
+	VMOVUPD 288(SI), Y3       // col 1, rows 2-3
+	VMOVUPD 512(SI), Y4       // col 2, rows 0-1
+	VMOVUPD 544(SI), Y5       // col 2, rows 2-3
+	VMOVUPD 768(SI), Y6       // col 3, rows 0-1
+	VMOVUPD 800(SI), Y7       // col 3, rows 2-3
 
-	VPERM2F128 $0x20, Y2, Y0, Y8
-	VPERM2F128 $0x31, Y2, Y0, Y9
-	VPERM2F128 $0x20, Y6, Y4, Y10
-	VPERM2F128 $0x31, Y6, Y4, Y11
-	VPERM2F128 $0x20, Y3, Y1, Y12
-	VPERM2F128 $0x31, Y3, Y1, Y13
-	VPERM2F128 $0x20, Y7, Y5, Y14
-	VPERM2F128 $0x31, Y7, Y5, Y15
+	// ----------------------------------------------------------------
+	// Apply twiddles for W_256^(global_row * global_col)
+	// For tile (rb, cb):
+	// - global_row_base = rb*4, global_col_base = cb*4
+	// - pair_base = rb*2 (each rb covers 4 rows = 2 pairs)
+	// - Columns 1,2,3 in tile need twiddles if cb>0; else only cols 1,2,3
+	// - Column 0 gets twiddles if cb>0 (global_col = cb*4 >= 4)
+	// ----------------------------------------------------------------
 
+	// Calculate pair base offset for this tile: pair = rb*2
+	MOVQ R12, BX
+	SHLQ $7, BX               // BX = rb*2*64 = rb*128 (pair offset in bytes)
+
+	// Check if cb == 0 (special case: col 0 has identity twiddle)
+	TESTQ R13, R13
+	JZ   fwd_r16_fused_cb0_twiddle
+
+	// ----------------------------------------------------------------
+	// cb > 0: Apply twiddles to all 4 columns
+	// ----------------------------------------------------------------
+	// Column 0 in tile (global_col = cb*4)
 	MOVQ R13, AX
-	SHLQ $10, AX              // cb * 1024
-	LEAQ (R8)(AX*1), DI
-	ADDQ DX, DI               // add row_base_bytes
+	SHLQ $2, AX               // AX = cb*4 = global_col
+	DECQ AX                   // AX = global_col - 1
+	SHLQ $9, AX               // AX = (global_col-1)*512
+	LEAQ 4096(R10)(AX*1), R14 // R14 = twiddle base for this column
 
+	// Y0: rows 0-1 (pair = rb*2)
+	VMOVUPD (R14)(BX*1), Y8   // reDup for pair rb*2
+	VMOVUPD 32(R14)(BX*1), Y9 // imDup for pair rb*2
+	VPERMILPD $0x05, Y0, Y10
+	VMULPD Y8, Y0, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y0
+
+	// Y1: rows 2-3 (pair = rb*2+1)
+	VMOVUPD 64(R14)(BX*1), Y8 // reDup for pair rb*2+1
+	VMOVUPD 96(R14)(BX*1), Y9 // imDup for pair rb*2+1
+	VPERMILPD $0x05, Y1, Y10
+	VMULPD Y8, Y1, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y1
+
+	// Column 1 in tile (global_col = cb*4+1)
+	ADDQ $512, R14            // next column
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y2, Y10
+	VMULPD Y8, Y2, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y2
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y3, Y10
+	VMULPD Y8, Y3, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y3
+
+	// Column 2 in tile (global_col = cb*4+2)
+	ADDQ $512, R14
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y4, Y10
+	VMULPD Y8, Y4, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y4
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y5, Y10
+	VMULPD Y8, Y5, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y5
+
+	// Column 3 in tile (global_col = cb*4+3)
+	ADDQ $512, R14
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y6, Y10
+	VMULPD Y8, Y6, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y6
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y7, Y10
+	VMULPD Y8, Y7, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y7
+
+	JMP fwd_r16_fused_transpose
+
+fwd_r16_fused_cb0_twiddle:
+	// ----------------------------------------------------------------
+	// cb == 0: Column 0 has identity twiddle (W_256^0 = 1)
+	// Only apply twiddles to columns 1, 2, 3 (global_col = 1, 2, 3)
+	// ----------------------------------------------------------------
+	// Column 1 in tile (global_col = 1)
+	LEAQ 4096(R10), R14       // twiddle base for global_col=1 (col-1=0)
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y2, Y10
+	VMULPD Y8, Y2, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y2
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y3, Y10
+	VMULPD Y8, Y3, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y3
+
+	// Column 2 in tile (global_col = 2)
+	ADDQ $512, R14
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y4, Y10
+	VMULPD Y8, Y4, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y4
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y5, Y10
+	VMULPD Y8, Y5, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y5
+
+	// Column 3 in tile (global_col = 3)
+	ADDQ $512, R14
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y6, Y10
+	VMULPD Y8, Y6, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y6
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y7, Y10
+	VMULPD Y8, Y7, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y7
+
+fwd_r16_fused_transpose:
+	// ----------------------------------------------------------------
+	// Transpose 4x4 tile via VPERM2F128
+	// Input (column-major in Y0-Y7):
+	//   Y0/Y1 = col0, Y2/Y3 = col1, Y4/Y5 = col2, Y6/Y7 = col3
+	// Output (row-major in Y8-Y15):
+	//   Y8/Y10 = row0, Y9/Y11 = row1, Y12/Y14 = row2, Y13/Y15 = row3
+	// ----------------------------------------------------------------
+	VPERM2F128 $0x20, Y2, Y0, Y8   // low halves of Y0,Y2
+	VPERM2F128 $0x31, Y2, Y0, Y9   // high halves of Y0,Y2
+	VPERM2F128 $0x20, Y6, Y4, Y10  // low halves of Y4,Y6
+	VPERM2F128 $0x31, Y6, Y4, Y11  // high halves of Y4,Y6
+	VPERM2F128 $0x20, Y3, Y1, Y12  // low halves of Y1,Y3
+	VPERM2F128 $0x31, Y3, Y1, Y13  // high halves of Y1,Y3
+	VPERM2F128 $0x20, Y7, Y5, Y14  // low halves of Y5,Y7
+	VPERM2F128 $0x31, Y7, Y5, Y15  // high halves of Y5,Y7
+
+	// ----------------------------------------------------------------
+	// Calculate dst address (row-major layout)
+	// dst_base = rb*1024 + cb*64
+	// ----------------------------------------------------------------
+	MOVQ R12, AX
+	SHLQ $10, AX              // AX = rb*1024
+	MOVQ R13, DX
+	SHLQ $6, DX               // DX = cb*64
+	ADDQ DX, AX               // AX = rb*1024 + cb*64
+	LEAQ (R8)(AX*1), DI       // DI = dst + tile_base
+
+	// ----------------------------------------------------------------
+	// Store transposed tile to dst
+	// ----------------------------------------------------------------
 	VMOVUPD Y8, 0(DI)
 	VMOVUPD Y10, 32(DI)
 	VMOVUPD Y9, 256(DI)
@@ -351,11 +495,11 @@ fwd_r16_transpose_out_cb:
 	VMOVUPD Y15, 800(DI)
 
 	INCQ R13
-	JMP  fwd_r16_transpose_out_cb
+	JMP  fwd_r16_fused_cb
 
-fwd_r16_transpose_out_rb_next:
+fwd_r16_fused_rb_next:
 	INCQ R12
-	JMP  fwd_r16_transpose_out_rb
+	JMP  fwd_r16_fused_rb
 
 fwd_r16_stage2:
 	// ==================================================================
@@ -363,210 +507,6 @@ fwd_r16_stage2:
 	// ==================================================================
 	// Rows are contiguous in dst after transpose-out; each row is independent.
 	XORQ R12, R12             // row
-	JMP  fwd_r16_stage2_row   // skip diagnostic code below
-
-// ---------------------------------------------------------------------------
-// Diagnostic fused-twiddle mapping (disabled; not referenced).
-// Use to validate the transpose-out twiddle mapping on a single tile:
-// - Assumes scratch base in R11, twiddle base in R10, dst base in R8.
-// - Operates on rb=0, cb=0 (rows 0..3, cols 0..3) and returns.
-// To enable for debugging, redirect the JGE at fwd_r16_stage1_col to this label.
-// ---------------------------------------------------------------------------
-fwd_r16_twiddle_fused_diag:
-	// Load scratch[0:4,0:4] (column-major tile)
-	LEAQ (R11), SI
-	LEAQ 256(SI), DI
-	LEAQ 512(SI), BX
-	LEAQ 768(SI), CX
-	VMOVUPD 0(SI), Y0
-	VMOVUPD 32(SI), Y1
-	VMOVUPD 0(DI), Y2
-	VMOVUPD 32(DI), Y3
-	VMOVUPD 0(BX), Y4
-	VMOVUPD 32(BX), Y5
-	VMOVUPD 0(CX), Y6
-	VMOVUPD 32(CX), Y7
-
-	// Apply twiddles for col=1..3 (col=0 is identity)
-	LEAQ 4096(R10), DI        // col=1 base
-	// pair0 (rows 0..1)
-	VMOVUPD (DI), Y8
-	VMOVUPD 32(DI), Y9
-	VPERMILPD $0x05, Y2, Y10
-	VMULPD Y8, Y2, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y2
-	// pair1 (rows 2..3)
-	VMOVUPD 64(DI), Y8
-	VMOVUPD 96(DI), Y9
-	VPERMILPD $0x05, Y3, Y10
-	VMULPD Y8, Y3, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y3
-
-	ADDQ $512, DI             // col=2 base
-	VMOVUPD (DI), Y8
-	VMOVUPD 32(DI), Y9
-	VPERMILPD $0x05, Y4, Y10
-	VMULPD Y8, Y4, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y4
-	VMOVUPD 64(DI), Y8
-	VMOVUPD 96(DI), Y9
-	VPERMILPD $0x05, Y5, Y10
-	VMULPD Y8, Y5, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y5
-
-	ADDQ $512, DI             // col=3 base
-	VMOVUPD (DI), Y8
-	VMOVUPD 32(DI), Y9
-	VPERMILPD $0x05, Y6, Y10
-	VMULPD Y8, Y6, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y6
-	VMOVUPD 64(DI), Y8
-	VMOVUPD 96(DI), Y9
-	VPERMILPD $0x05, Y7, Y10
-	VMULPD Y8, Y7, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y7
-
-	// Store to dst as row-major tile
-	VPERM2F128 $0x20, Y2, Y0, Y8
-	VPERM2F128 $0x31, Y2, Y0, Y9
-	VPERM2F128 $0x20, Y6, Y4, Y10
-	VPERM2F128 $0x31, Y6, Y4, Y11
-	VPERM2F128 $0x20, Y3, Y1, Y12
-	VPERM2F128 $0x31, Y3, Y1, Y13
-	VPERM2F128 $0x20, Y7, Y5, Y14
-	VPERM2F128 $0x31, Y7, Y5, Y15
-
-	VMOVUPD Y8, 0(R8)
-	VMOVUPD Y10, 32(R8)
-	VMOVUPD Y9, 256(R8)
-	VMOVUPD Y11, 288(R8)
-	VMOVUPD Y12, 512(R8)
-	VMOVUPD Y14, 544(R8)
-	VMOVUPD Y13, 768(R8)
-	VMOVUPD Y15, 800(R8)
-	RET
-
-// Diagnostic fused-twiddle mapping for rb=0, cb=1 (cols 4..7), disabled.
-fwd_r16_twiddle_fused_diag_cb1:
-	// Load scratch[0:4,4:8] (column-major tile, cb=1)
-	LEAQ 64(R11), SI
-	LEAQ 256(SI), DI
-	LEAQ 512(SI), BX
-	LEAQ 768(SI), CX
-	VMOVUPD 0(SI), Y0
-	VMOVUPD 32(SI), Y1
-	VMOVUPD 0(DI), Y2
-	VMOVUPD 32(DI), Y3
-	VMOVUPD 0(BX), Y4
-	VMOVUPD 32(BX), Y5
-	VMOVUPD 0(CX), Y6
-	VMOVUPD 32(CX), Y7
-
-	// Apply twiddles for col_in=1..3 (col_in=0 uses identity).
-	// cb=1 means row_in=4..7, so start at pair=2 (rows 4..5) and pair=3 (rows 6..7).
-	LEAQ 4096(R10), DI        // col=1 base
-	VMOVUPD 128(DI), Y8       // pair=2 (rows 4..5) reDup
-	VMOVUPD 160(DI), Y9       // pair=2 (rows 4..5) imDup
-	VPERMILPD $0x05, Y2, Y10
-	VMULPD Y8, Y2, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y2
-	VMOVUPD 192(DI), Y8       // pair=3 (rows 6..7) reDup
-	VMOVUPD 224(DI), Y9       // pair=3 (rows 6..7) imDup
-	VPERMILPD $0x05, Y3, Y10
-	VMULPD Y8, Y3, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y3
-
-	ADDQ $512, DI             // col=2 base
-	VMOVUPD 128(DI), Y8       // pair=2 (rows 4..5) reDup
-	VMOVUPD 160(DI), Y9       // pair=2 (rows 4..5) imDup
-	VPERMILPD $0x05, Y4, Y10
-	VMULPD Y8, Y4, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y4
-	VMOVUPD 192(DI), Y8       // pair=3 (rows 6..7) reDup
-	VMOVUPD 224(DI), Y9       // pair=3 (rows 6..7) imDup
-	VPERMILPD $0x05, Y5, Y10
-	VMULPD Y8, Y5, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y5
-
-	ADDQ $512, DI             // col=3 base
-	VMOVUPD 128(DI), Y8       // pair=2 (rows 4..5) reDup
-	VMOVUPD 160(DI), Y9       // pair=2 (rows 4..5) imDup
-	VPERMILPD $0x05, Y6, Y10
-	VMULPD Y8, Y6, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y6
-	VMOVUPD 192(DI), Y8       // pair=3 (rows 6..7) reDup
-	VMOVUPD 224(DI), Y9       // pair=3 (rows 6..7) imDup
-	VPERMILPD $0x05, Y7, Y10
-	VMULPD Y8, Y7, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y7
-
-	// Store to dst as row-major tile (cols 4..7)
-	VPERM2F128 $0x20, Y2, Y0, Y8
-	VPERM2F128 $0x31, Y2, Y0, Y9
-	VPERM2F128 $0x20, Y6, Y4, Y10
-	VPERM2F128 $0x31, Y6, Y4, Y11
-	VPERM2F128 $0x20, Y3, Y1, Y12
-	VPERM2F128 $0x31, Y3, Y1, Y13
-	VPERM2F128 $0x20, Y7, Y5, Y14
-	VPERM2F128 $0x31, Y7, Y5, Y15
-
-	LEAQ 64(R8), DI
-	VMOVUPD Y8, 0(DI)
-	VMOVUPD Y10, 32(DI)
-	VMOVUPD Y9, 256(DI)
-	VMOVUPD Y11, 288(DI)
-	VMOVUPD Y12, 512(DI)
-	VMOVUPD Y14, 544(DI)
-	VMOVUPD Y13, 768(DI)
-	VMOVUPD Y15, 800(DI)
-	RET
-
-// Diagnostic transpose mapping only for rb=0, cb=1 (cols 4..7), no twiddle.
-fwd_r16_twiddle_fused_diag_cb1_notw:
-	LEAQ 64(R11), SI
-	LEAQ 256(SI), DI
-	LEAQ 512(SI), BX
-	LEAQ 768(SI), CX
-	VMOVUPD 0(SI), Y0
-	VMOVUPD 32(SI), Y1
-	VMOVUPD 0(DI), Y2
-	VMOVUPD 32(DI), Y3
-	VMOVUPD 0(BX), Y4
-	VMOVUPD 32(BX), Y5
-	VMOVUPD 0(CX), Y6
-	VMOVUPD 32(CX), Y7
-
-	VPERM2F128 $0x20, Y2, Y0, Y8
-	VPERM2F128 $0x31, Y2, Y0, Y9
-	VPERM2F128 $0x20, Y6, Y4, Y10
-	VPERM2F128 $0x31, Y6, Y4, Y11
-	VPERM2F128 $0x20, Y3, Y1, Y12
-	VPERM2F128 $0x31, Y3, Y1, Y13
-	VPERM2F128 $0x20, Y7, Y5, Y14
-	VPERM2F128 $0x31, Y7, Y5, Y15
-
-	LEAQ 64(R8), DI
-	VMOVUPD Y8, 0(DI)
-	VMOVUPD Y10, 32(DI)
-	VMOVUPD Y9, 256(DI)
-	VMOVUPD Y11, 288(DI)
-	VMOVUPD Y12, 512(DI)
-	VMOVUPD Y14, 544(DI)
-	VMOVUPD Y13, 768(DI)
-	VMOVUPD Y15, 800(DI)
-	RET
 
 // ---------------------------------------------------------------------------
 // Diagnostic fused-twiddle mapping (disabled; not referenced).
@@ -1079,7 +1019,7 @@ inv_r16_stage1:
 
 inv_r16_stage1_col:
 	CMPQ R12, $16
-	JGE  inv_r16_twiddle
+	JGE  inv_r16_twiddle_transpose_fused
 	MOVQ R12, AX
 	SHLQ $8, AX               // col*256 bytes
 	LEAQ (R11)(AX*1), SI
@@ -1181,89 +1121,188 @@ inv_r16_fft16_s1_done:
 	INCQ R12
 	JMP  inv_r16_stage1_col
 
-inv_r16_twiddle:
+inv_r16_twiddle_transpose_fused:
 	// ==================================================================
-	// STEP 3: Twiddle multiply W_256^(-row*col)
+	// STEP 3+4 FUSED: Twiddle multiply + transpose in single pass
 	// ==================================================================
-	// Twiddle table prepends base twiddles (0..255), then packed pairs per column
-	// (conjugated for inverse).
-	MOVQ $1, R12              // col
+	// Same structure as forward. The packed twiddle table for inverse
+	// already has conjugated imaginary parts (prepared by prepareTwiddle256Radix16AVX2),
+	// so we use the same multiply code as forward.
+	XORQ R12, R12             // rb = row block (0..3)
 
-inv_r16_twiddle_col:
-	CMPQ R12, $16
-	JGE  inv_r16_transpose_out
-	MOVQ R12, AX
-	SHLQ $8, AX               // col*256 bytes
-	LEAQ (R11)(AX*1), SI
-	MOVQ R12, AX
-	DECQ AX                   // col-1
-	SHLQ $9, AX               // (col-1)*512 bytes
-	LEAQ 4096(R10)(AX*1), R14 // twiddle base for col (skip base twiddle[0:256])
-	XORQ R13, R13             // pair (0..7)
-
-inv_r16_twiddle_row:
-	CMPQ R13, $8
-	JGE  inv_r16_twiddle_next_col
-	MOVQ R13, DX
-	SHLQ $5, DX               // pair*32 bytes (2 complex128)
-	VMOVUPD (SI)(DX*1), Y0
-
-	MOVQ R13, BX
-	SHLQ $6, BX               // pair*64 bytes (4 complex128)
-	LEAQ (R14)(BX*1), DI
-	VMOVUPD (DI), Y1          // reDup
-	VMOVUPD 32(DI), Y2        // imDup
-
-	// Complex multiply: Y0 *= conj(twiddle)
-	VPERMILPD $0x05, Y0, Y3   // [i0, r0, i1, r1]
-	VMULPD Y1, Y0, Y4
-	VMULPD Y2, Y3, Y5
-	VADDSUBPD Y5, Y4, Y0
-	VMOVUPD Y0, (SI)(DX*1)
-
-	INCQ R13
-	JMP  inv_r16_twiddle_row
-
-inv_r16_twiddle_next_col:
-	INCQ R12
-	JMP  inv_r16_twiddle_col
-
-inv_r16_transpose_out:
-	// ==================================================================
-	// STEP 4: Transpose scratch (column-major) -> dst (row-major)
-	// ==================================================================
-	// Mirror of transpose-in; tiles are independent 4x4 blocks.
-	XORQ R12, R12             // row block (0..3)
-
-inv_r16_transpose_out_rb:
+inv_r16_fused_rb:
 	CMPQ R12, $4
 	JGE  inv_r16_stage2
-	MOVQ R12, R14
-	SHLQ $10, R14             // row_block_bytes = rb * 1024
-	MOVQ R12, DX
-	SHLQ $6, DX               // row_base_bytes = rb * 64
-	XORQ R13, R13             // col block (0..3)
+	XORQ R13, R13             // cb = col block (0..3)
 
-inv_r16_transpose_out_cb:
+inv_r16_fused_cb:
 	CMPQ R13, $4
-	JGE  inv_r16_transpose_out_rb_next
+	JGE  inv_r16_fused_rb_next
+
+	// Calculate scratch source address (column-major layout)
 	MOVQ R13, AX
-	SHLQ $6, AX               // col_block_bytes = cb * 64
-	LEAQ (R11)(R14*1), SI
-	ADDQ AX, SI
-	LEAQ 256(SI), DI
-	LEAQ 512(SI), BX
-	LEAQ 768(SI), CX
+	SHLQ $10, AX              // AX = cb*1024
+	MOVQ R12, DX
+	SHLQ $6, DX               // DX = rb*64
+	ADDQ DX, AX               // AX = cb*1024 + rb*64
+	LEAQ (R11)(AX*1), SI      // SI = scratch + tile_base
 
-	VMOVUPD 0(SI), Y0
-	VMOVUPD 32(SI), Y1
-	VMOVUPD 0(DI), Y2
-	VMOVUPD 32(DI), Y3
-	VMOVUPD 0(BX), Y4
-	VMOVUPD 32(BX), Y5
-	VMOVUPD 0(CX), Y6
-	VMOVUPD 32(CX), Y7
+	// Load 4x4 tile (8 Y-registers, column-major order)
+	VMOVUPD 0(SI), Y0         // col 0, rows 0-1
+	VMOVUPD 32(SI), Y1        // col 0, rows 2-3
+	VMOVUPD 256(SI), Y2       // col 1, rows 0-1
+	VMOVUPD 288(SI), Y3       // col 1, rows 2-3
+	VMOVUPD 512(SI), Y4       // col 2, rows 0-1
+	VMOVUPD 544(SI), Y5       // col 2, rows 2-3
+	VMOVUPD 768(SI), Y6       // col 3, rows 0-1
+	VMOVUPD 800(SI), Y7       // col 3, rows 2-3
 
+	// Calculate pair base offset for this tile: pair = rb*2
+	MOVQ R12, BX
+	SHLQ $7, BX               // BX = rb*2*64 = rb*128 (pair offset in bytes)
+
+	// Check if cb == 0 (special case: col 0 has identity twiddle)
+	TESTQ R13, R13
+	JZ   inv_r16_fused_cb0_twiddle
+
+	// ----------------------------------------------------------------
+	// cb > 0: Apply twiddles to all 4 columns
+	// (Twiddle table already pre-conjugated for inverse)
+	// ----------------------------------------------------------------
+	// Column 0 in tile (global_col = cb*4)
+	MOVQ R13, AX
+	SHLQ $2, AX               // AX = cb*4 = global_col
+	DECQ AX                   // AX = global_col - 1
+	SHLQ $9, AX               // AX = (global_col-1)*512
+	LEAQ 4096(R10)(AX*1), R14 // R14 = twiddle base for this column
+
+	// Y0: rows 0-1 (pair = rb*2)
+	VMOVUPD (R14)(BX*1), Y8   // reDup for pair rb*2
+	VMOVUPD 32(R14)(BX*1), Y9 // imDup for pair rb*2
+	VPERMILPD $0x05, Y0, Y10
+	VMULPD Y8, Y0, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y0
+
+	// Y1: rows 2-3 (pair = rb*2+1)
+	VMOVUPD 64(R14)(BX*1), Y8 // reDup for pair rb*2+1
+	VMOVUPD 96(R14)(BX*1), Y9 // imDup for pair rb*2+1
+	VPERMILPD $0x05, Y1, Y10
+	VMULPD Y8, Y1, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y1
+
+	// Column 1 in tile (global_col = cb*4+1)
+	ADDQ $512, R14
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y2, Y10
+	VMULPD Y8, Y2, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y2
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y3, Y10
+	VMULPD Y8, Y3, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y3
+
+	// Column 2 in tile (global_col = cb*4+2)
+	ADDQ $512, R14
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y4, Y10
+	VMULPD Y8, Y4, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y4
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y5, Y10
+	VMULPD Y8, Y5, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y5
+
+	// Column 3 in tile (global_col = cb*4+3)
+	ADDQ $512, R14
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y6, Y10
+	VMULPD Y8, Y6, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y6
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y7, Y10
+	VMULPD Y8, Y7, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y7
+
+	JMP inv_r16_fused_transpose
+
+inv_r16_fused_cb0_twiddle:
+	// ----------------------------------------------------------------
+	// cb == 0: Column 0 has identity twiddle (W_256^0 = 1)
+	// Only apply twiddles to columns 1, 2, 3 (global_col = 1, 2, 3)
+	// ----------------------------------------------------------------
+	// Column 1 in tile (global_col = 1)
+	LEAQ 4096(R10), R14       // twiddle base for global_col=1 (col-1=0)
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y2, Y10
+	VMULPD Y8, Y2, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y2
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y3, Y10
+	VMULPD Y8, Y3, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y3
+
+	// Column 2 in tile (global_col = 2)
+	ADDQ $512, R14
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y4, Y10
+	VMULPD Y8, Y4, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y4
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y5, Y10
+	VMULPD Y8, Y5, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y5
+
+	// Column 3 in tile (global_col = 3)
+	ADDQ $512, R14
+
+	VMOVUPD (R14)(BX*1), Y8
+	VMOVUPD 32(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y6, Y10
+	VMULPD Y8, Y6, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y6
+
+	VMOVUPD 64(R14)(BX*1), Y8
+	VMOVUPD 96(R14)(BX*1), Y9
+	VPERMILPD $0x05, Y7, Y10
+	VMULPD Y8, Y7, Y11
+	VMULPD Y9, Y10, Y12
+	VADDSUBPD Y12, Y11, Y7
+
+inv_r16_fused_transpose:
+	// Transpose 4x4 tile via VPERM2F128
 	VPERM2F128 $0x20, Y2, Y0, Y8
 	VPERM2F128 $0x31, Y2, Y0, Y9
 	VPERM2F128 $0x20, Y6, Y4, Y10
@@ -1273,11 +1312,15 @@ inv_r16_transpose_out_cb:
 	VPERM2F128 $0x20, Y7, Y5, Y14
 	VPERM2F128 $0x31, Y7, Y5, Y15
 
-	MOVQ R13, AX
-	SHLQ $10, AX              // cb * 1024
-	LEAQ (R8)(AX*1), DI
-	ADDQ DX, DI               // add row_base_bytes
+	// Calculate dst address (row-major layout)
+	MOVQ R12, AX
+	SHLQ $10, AX              // AX = rb*1024
+	MOVQ R13, DX
+	SHLQ $6, DX               // DX = cb*64
+	ADDQ DX, AX               // AX = rb*1024 + cb*64
+	LEAQ (R8)(AX*1), DI       // DI = dst + tile_base
 
+	// Store transposed tile to dst
 	VMOVUPD Y8, 0(DI)
 	VMOVUPD Y10, 32(DI)
 	VMOVUPD Y9, 256(DI)
@@ -1288,11 +1331,11 @@ inv_r16_transpose_out_cb:
 	VMOVUPD Y15, 800(DI)
 
 	INCQ R13
-	JMP  inv_r16_transpose_out_cb
+	JMP  inv_r16_fused_cb
 
-inv_r16_transpose_out_rb_next:
+inv_r16_fused_rb_next:
 	INCQ R12
-	JMP  inv_r16_transpose_out_rb
+	JMP  inv_r16_fused_rb
 
 inv_r16_stage2:
 	// ==================================================================
