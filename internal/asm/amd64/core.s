@@ -189,3 +189,17 @@ GLOBL ·maskNegLoPD(SB), RODATA|NOPTR, $16
 DATA ·maskNegHiPD+0(SB)/8, $0x0000000000000000
 DATA ·maskNegHiPD+8(SB)/8, $0x8000000000000000 // negate lane 1 (im)
 GLOBL ·maskNegHiPD(SB), RODATA|NOPTR, $16
+
+// Float64 YMM (256-bit) lane negation masks for 2x complex128
+// For ±j multiplication on pairs of complex numbers
+DATA ·maskNegLoPD_YMM+0(SB)/8, $0x8000000000000000  // negate re of complex[0]
+DATA ·maskNegLoPD_YMM+8(SB)/8, $0x0000000000000000
+DATA ·maskNegLoPD_YMM+16(SB)/8, $0x8000000000000000 // negate re of complex[1]
+DATA ·maskNegLoPD_YMM+24(SB)/8, $0x0000000000000000
+GLOBL ·maskNegLoPD_YMM(SB), RODATA|NOPTR, $32
+
+DATA ·maskNegHiPD_YMM+0(SB)/8, $0x0000000000000000
+DATA ·maskNegHiPD_YMM+8(SB)/8, $0x8000000000000000  // negate im of complex[0]
+DATA ·maskNegHiPD_YMM+16(SB)/8, $0x0000000000000000
+DATA ·maskNegHiPD_YMM+24(SB)/8, $0x8000000000000000 // negate im of complex[1]
+GLOBL ·maskNegHiPD_YMM(SB), RODATA|NOPTR, $32
