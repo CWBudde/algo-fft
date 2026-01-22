@@ -149,105 +149,87 @@ fwd_r16_stage1_col:
 	MOVQ R12, R14             // save col
 
 	// ==================================================================
-	// RADIX-4 FFT-16: 2 stages of radix-4 butterflies
-	// Stage 1: 4 butterflies, no twiddles (only ±j via shuffles)
-	// Stage 2: 4 butterflies, with twiddles from W_16 table
+	// RADIX-4 FFT-16: 2 stages of radix-4 butterflies (YMM vectorized)
+	// Stage 1: 2 YMM ops (butterflies 0+1, 2+3 in parallel)
+	// Stage 2: 4 butterflies with twiddles from W_16 table
 	// ==================================================================
 
 	// ----------------------------------------------------------------
-	// STAGE 1: 4 radix-4 butterflies (NO twiddle multiplications)
-	// Reads from strided positions, writes to stage1 buffer (SP+256)
+	// STAGE 1: 4 radix-4 butterflies using YMM (2x parallel)
+	// Butterflies 0+1 processed together, then 2+3
+	// Reads from contiguous pairs, writes to stage1 buffer (SP+256)
 	// ----------------------------------------------------------------
 
-	// Butterfly 0: reads 0,4,8,12 → writes stage1[0,1,2,3]
-	VMOVUPD 0(SI), X0         // a0 = data[0]
-	VMOVUPD 64(SI), X1        // a1 = data[4]
-	VMOVUPD 128(SI), X2       // a2 = data[8]
-	VMOVUPD 192(SI), X3       // a3 = data[12]
-	VADDPD X2, X0, X4         // t0 = a0 + a2
-	VSUBPD X2, X0, X5         // t1 = a0 - a2
-	VADDPD X3, X1, X6         // t2 = a1 + a3
-	VSUBPD X3, X1, X7         // t3 = a1 - a3
-	VADDPD X6, X4, X8         // y0 = t0 + t2
-	VSUBPD X6, X4, X9         // y2 = t0 - t2
-	// y1 = t1 + (-j)*t3: -j*(a+bi) = b - ai
-	VSHUFPD $1, X7, X7, X10          // [im, re]
-	VXORPD ·maskNegHiPD(SB), X10, X10 // [im, -re] = -j*t3
-	VADDPD X10, X5, X11              // y1 = t1 + (-j)*t3
-	// y3 = t1 + j*t3: j*(a+bi) = -b + ai
-	VSHUFPD $1, X7, X7, X12          // [im, re]
-	VXORPD ·maskNegLoPD(SB), X12, X12 // [-im, re] = j*t3
-	VADDPD X12, X5, X13              // y3 = t1 + j*t3
-	VMOVUPD X8, 256(SP)       // stage1[0]
-	VMOVUPD X11, 272(SP)      // stage1[1]
-	VMOVUPD X9, 288(SP)       // stage1[2]
-	VMOVUPD X13, 304(SP)      // stage1[3]
+	// Butterflies 0+1: [data[0],data[1]], [data[4],data[5]], etc.
+	VMOVUPD 0(SI), Y0         // [data[0], data[1]]
+	VMOVUPD 64(SI), Y1        // [data[4], data[5]]
+	VMOVUPD 128(SI), Y2       // [data[8], data[9]]
+	VMOVUPD 192(SI), Y3       // [data[12], data[13]]
+	VADDPD Y2, Y0, Y4         // [t0_0, t0_1]
+	VSUBPD Y2, Y0, Y5         // [t1_0, t1_1]
+	VADDPD Y3, Y1, Y6         // [t2_0, t2_1]
+	VSUBPD Y3, Y1, Y7         // [t3_0, t3_1]
+	VADDPD Y6, Y4, Y8         // [y0_0, y0_1]
+	VSUBPD Y6, Y4, Y9         // [y2_0, y2_1]
+	// y1 = t1 + (-j)*t3
+	VSHUFPD $5, Y7, Y7, Y10   // swap re/im in each 128-bit lane
+	VXORPD ·maskNegHiPD_YMM(SB), Y10, Y10
+	VADDPD Y10, Y5, Y11       // [y1_0, y1_1]
+	// y3 = t1 + j*t3
+	VSHUFPD $5, Y7, Y7, Y12
+	VXORPD ·maskNegLoPD_YMM(SB), Y12, Y12
+	VADDPD Y12, Y5, Y13       // [y3_0, y3_1]
+	// Extract and store (keep original stage1 layout for Stage 2)
+	VEXTRACTF128 $0, Y8, X0
+	VMOVUPD X0, 256(SP)       // stage1[0]
+	VEXTRACTF128 $1, Y8, X0
+	VMOVUPD X0, 320(SP)       // stage1[4]
+	VEXTRACTF128 $0, Y11, X0
+	VMOVUPD X0, 272(SP)       // stage1[1]
+	VEXTRACTF128 $1, Y11, X0
+	VMOVUPD X0, 336(SP)       // stage1[5]
+	VEXTRACTF128 $0, Y9, X0
+	VMOVUPD X0, 288(SP)       // stage1[2]
+	VEXTRACTF128 $1, Y9, X0
+	VMOVUPD X0, 352(SP)       // stage1[6]
+	VEXTRACTF128 $0, Y13, X0
+	VMOVUPD X0, 304(SP)       // stage1[3]
+	VEXTRACTF128 $1, Y13, X0
+	VMOVUPD X0, 368(SP)       // stage1[7]
 
-	// Butterfly 1: reads 1,5,9,13 → writes stage1[4,5,6,7]
-	VMOVUPD 16(SI), X0        // a0 = data[1]
-	VMOVUPD 80(SI), X1        // a1 = data[5]
-	VMOVUPD 144(SI), X2       // a2 = data[9]
-	VMOVUPD 208(SI), X3       // a3 = data[13]
-	VADDPD X2, X0, X4         // t0
-	VSUBPD X2, X0, X5         // t1
-	VADDPD X3, X1, X6         // t2
-	VSUBPD X3, X1, X7         // t3
-	VADDPD X6, X4, X8         // y0
-	VSUBPD X6, X4, X9         // y2
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegHiPD(SB), X10, X10
-	VADDPD X10, X5, X11       // y1
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegLoPD(SB), X12, X12
-	VADDPD X12, X5, X13       // y3
-	VMOVUPD X8, 320(SP)       // stage1[4]
-	VMOVUPD X11, 336(SP)      // stage1[5]
-	VMOVUPD X9, 352(SP)       // stage1[6]
-	VMOVUPD X13, 368(SP)      // stage1[7]
-
-	// Butterfly 2: reads 2,6,10,14 → writes stage1[8,9,10,11]
-	VMOVUPD 32(SI), X0        // a0 = data[2]
-	VMOVUPD 96(SI), X1        // a1 = data[6]
-	VMOVUPD 160(SI), X2       // a2 = data[10]
-	VMOVUPD 224(SI), X3       // a3 = data[14]
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegHiPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegLoPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 384(SP)       // stage1[8]
-	VMOVUPD X11, 400(SP)      // stage1[9]
-	VMOVUPD X9, 416(SP)       // stage1[10]
-	VMOVUPD X13, 432(SP)      // stage1[11]
-
-	// Butterfly 3: reads 3,7,11,15 → writes stage1[12,13,14,15]
-	VMOVUPD 48(SI), X0        // a0 = data[3]
-	VMOVUPD 112(SI), X1       // a1 = data[7]
-	VMOVUPD 176(SI), X2       // a2 = data[11]
-	VMOVUPD 240(SI), X3       // a3 = data[15]
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegHiPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegLoPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 448(SP)       // stage1[12]
-	VMOVUPD X11, 464(SP)      // stage1[13]
-	VMOVUPD X9, 480(SP)       // stage1[14]
-	VMOVUPD X13, 496(SP)      // stage1[15]
+	// Butterflies 2+3: [data[2],data[3]], [data[6],data[7]], etc.
+	VMOVUPD 32(SI), Y0        // [data[2], data[3]]
+	VMOVUPD 96(SI), Y1        // [data[6], data[7]]
+	VMOVUPD 160(SI), Y2       // [data[10], data[11]]
+	VMOVUPD 224(SI), Y3       // [data[14], data[15]]
+	VADDPD Y2, Y0, Y4
+	VSUBPD Y2, Y0, Y5
+	VADDPD Y3, Y1, Y6
+	VSUBPD Y3, Y1, Y7
+	VADDPD Y6, Y4, Y8
+	VSUBPD Y6, Y4, Y9
+	VSHUFPD $5, Y7, Y7, Y10
+	VXORPD ·maskNegHiPD_YMM(SB), Y10, Y10
+	VADDPD Y10, Y5, Y11
+	VSHUFPD $5, Y7, Y7, Y12
+	VXORPD ·maskNegLoPD_YMM(SB), Y12, Y12
+	VADDPD Y12, Y5, Y13
+	VEXTRACTF128 $0, Y8, X0
+	VMOVUPD X0, 384(SP)       // stage1[8]
+	VEXTRACTF128 $1, Y8, X0
+	VMOVUPD X0, 448(SP)       // stage1[12]
+	VEXTRACTF128 $0, Y11, X0
+	VMOVUPD X0, 400(SP)       // stage1[9]
+	VEXTRACTF128 $1, Y11, X0
+	VMOVUPD X0, 464(SP)       // stage1[13]
+	VEXTRACTF128 $0, Y9, X0
+	VMOVUPD X0, 416(SP)       // stage1[10]
+	VEXTRACTF128 $1, Y9, X0
+	VMOVUPD X0, 480(SP)       // stage1[14]
+	VEXTRACTF128 $0, Y13, X0
+	VMOVUPD X0, 432(SP)       // stage1[11]
+	VEXTRACTF128 $1, Y13, X0
+	VMOVUPD X0, 496(SP)       // stage1[15]
 
 	// ----------------------------------------------------------------
 	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
@@ -904,96 +886,76 @@ fwd_r16_stage2_row:
 	// ==================================================================
 
 	// ----------------------------------------------------------------
-	// STAGE 1: 4 radix-4 butterflies (NO twiddle multiplications)
+	// STAGE 1: 4 radix-4 butterflies using YMM (2x parallel)
 	// ----------------------------------------------------------------
 
-	// Butterfly 0: reads 0,4,8,12 → writes stage1[0,1,2,3]
-	VMOVUPD 0(SI), X0
-	VMOVUPD 64(SI), X1
-	VMOVUPD 128(SI), X2
-	VMOVUPD 192(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegHiPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegLoPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 256(SP)
-	VMOVUPD X11, 272(SP)
-	VMOVUPD X9, 288(SP)
-	VMOVUPD X13, 304(SP)
+	// Butterflies 0+1
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 64(SI), Y1
+	VMOVUPD 128(SI), Y2
+	VMOVUPD 192(SI), Y3
+	VADDPD Y2, Y0, Y4
+	VSUBPD Y2, Y0, Y5
+	VADDPD Y3, Y1, Y6
+	VSUBPD Y3, Y1, Y7
+	VADDPD Y6, Y4, Y8
+	VSUBPD Y6, Y4, Y9
+	VSHUFPD $5, Y7, Y7, Y10
+	VXORPD ·maskNegHiPD_YMM(SB), Y10, Y10
+	VADDPD Y10, Y5, Y11
+	VSHUFPD $5, Y7, Y7, Y12
+	VXORPD ·maskNegLoPD_YMM(SB), Y12, Y12
+	VADDPD Y12, Y5, Y13
+	VEXTRACTF128 $0, Y8, X0
+	VMOVUPD X0, 256(SP)
+	VEXTRACTF128 $1, Y8, X0
+	VMOVUPD X0, 320(SP)
+	VEXTRACTF128 $0, Y11, X0
+	VMOVUPD X0, 272(SP)
+	VEXTRACTF128 $1, Y11, X0
+	VMOVUPD X0, 336(SP)
+	VEXTRACTF128 $0, Y9, X0
+	VMOVUPD X0, 288(SP)
+	VEXTRACTF128 $1, Y9, X0
+	VMOVUPD X0, 352(SP)
+	VEXTRACTF128 $0, Y13, X0
+	VMOVUPD X0, 304(SP)
+	VEXTRACTF128 $1, Y13, X0
+	VMOVUPD X0, 368(SP)
 
-	// Butterfly 1: reads 1,5,9,13 → writes stage1[4,5,6,7]
-	VMOVUPD 16(SI), X0
-	VMOVUPD 80(SI), X1
-	VMOVUPD 144(SI), X2
-	VMOVUPD 208(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegHiPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegLoPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 320(SP)
-	VMOVUPD X11, 336(SP)
-	VMOVUPD X9, 352(SP)
-	VMOVUPD X13, 368(SP)
-
-	// Butterfly 2: reads 2,6,10,14 → writes stage1[8,9,10,11]
-	VMOVUPD 32(SI), X0
-	VMOVUPD 96(SI), X1
-	VMOVUPD 160(SI), X2
-	VMOVUPD 224(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegHiPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegLoPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 384(SP)
-	VMOVUPD X11, 400(SP)
-	VMOVUPD X9, 416(SP)
-	VMOVUPD X13, 432(SP)
-
-	// Butterfly 3: reads 3,7,11,15 → writes stage1[12,13,14,15]
-	VMOVUPD 48(SI), X0
-	VMOVUPD 112(SI), X1
-	VMOVUPD 176(SI), X2
-	VMOVUPD 240(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegHiPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegLoPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 448(SP)
-	VMOVUPD X11, 464(SP)
-	VMOVUPD X9, 480(SP)
-	VMOVUPD X13, 496(SP)
+	// Butterflies 2+3
+	VMOVUPD 32(SI), Y0
+	VMOVUPD 96(SI), Y1
+	VMOVUPD 160(SI), Y2
+	VMOVUPD 224(SI), Y3
+	VADDPD Y2, Y0, Y4
+	VSUBPD Y2, Y0, Y5
+	VADDPD Y3, Y1, Y6
+	VSUBPD Y3, Y1, Y7
+	VADDPD Y6, Y4, Y8
+	VSUBPD Y6, Y4, Y9
+	VSHUFPD $5, Y7, Y7, Y10
+	VXORPD ·maskNegHiPD_YMM(SB), Y10, Y10
+	VADDPD Y10, Y5, Y11
+	VSHUFPD $5, Y7, Y7, Y12
+	VXORPD ·maskNegLoPD_YMM(SB), Y12, Y12
+	VADDPD Y12, Y5, Y13
+	VEXTRACTF128 $0, Y8, X0
+	VMOVUPD X0, 384(SP)
+	VEXTRACTF128 $1, Y8, X0
+	VMOVUPD X0, 448(SP)
+	VEXTRACTF128 $0, Y11, X0
+	VMOVUPD X0, 400(SP)
+	VEXTRACTF128 $1, Y11, X0
+	VMOVUPD X0, 464(SP)
+	VEXTRACTF128 $0, Y9, X0
+	VMOVUPD X0, 416(SP)
+	VEXTRACTF128 $1, Y9, X0
+	VMOVUPD X0, 480(SP)
+	VEXTRACTF128 $0, Y13, X0
+	VMOVUPD X0, 432(SP)
+	VEXTRACTF128 $1, Y13, X0
+	VMOVUPD X0, 496(SP)
 
 	// ----------------------------------------------------------------
 	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
@@ -1372,99 +1334,79 @@ inv_r16_stage1_col:
 	// ==================================================================
 
 	// ----------------------------------------------------------------
-	// STAGE 1: 4 radix-4 butterflies (NO twiddle multiplications)
+	// STAGE 1: 4 radix-4 butterflies using YMM (2x parallel)
 	// Inverse: y1 = t1 + j*t3 (maskNegLoPD), y3 = t1 + (-j)*t3 (maskNegHiPD)
 	// ----------------------------------------------------------------
 
-	// Butterfly 0: reads 0,4,8,12 → writes stage1[0,1,2,3]
-	VMOVUPD 0(SI), X0
-	VMOVUPD 64(SI), X1
-	VMOVUPD 128(SI), X2
-	VMOVUPD 192(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	// y1 = t1 + j*t3 (inverse swaps j and -j)
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegLoPD(SB), X10, X10
-	VADDPD X10, X5, X11
+	// Butterflies 0+1
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 64(SI), Y1
+	VMOVUPD 128(SI), Y2
+	VMOVUPD 192(SI), Y3
+	VADDPD Y2, Y0, Y4
+	VSUBPD Y2, Y0, Y5
+	VADDPD Y3, Y1, Y6
+	VSUBPD Y3, Y1, Y7
+	VADDPD Y6, Y4, Y8
+	VSUBPD Y6, Y4, Y9
+	// y1 = t1 + j*t3 (inverse uses swapped masks)
+	VSHUFPD $5, Y7, Y7, Y10
+	VXORPD ·maskNegLoPD_YMM(SB), Y10, Y10
+	VADDPD Y10, Y5, Y11
 	// y3 = t1 + (-j)*t3
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegHiPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 256(SP)
-	VMOVUPD X11, 272(SP)
-	VMOVUPD X9, 288(SP)
-	VMOVUPD X13, 304(SP)
+	VSHUFPD $5, Y7, Y7, Y12
+	VXORPD ·maskNegHiPD_YMM(SB), Y12, Y12
+	VADDPD Y12, Y5, Y13
+	VEXTRACTF128 $0, Y8, X0
+	VMOVUPD X0, 256(SP)
+	VEXTRACTF128 $1, Y8, X0
+	VMOVUPD X0, 320(SP)
+	VEXTRACTF128 $0, Y11, X0
+	VMOVUPD X0, 272(SP)
+	VEXTRACTF128 $1, Y11, X0
+	VMOVUPD X0, 336(SP)
+	VEXTRACTF128 $0, Y9, X0
+	VMOVUPD X0, 288(SP)
+	VEXTRACTF128 $1, Y9, X0
+	VMOVUPD X0, 352(SP)
+	VEXTRACTF128 $0, Y13, X0
+	VMOVUPD X0, 304(SP)
+	VEXTRACTF128 $1, Y13, X0
+	VMOVUPD X0, 368(SP)
 
-	// Butterfly 1: reads 1,5,9,13 → writes stage1[4,5,6,7]
-	VMOVUPD 16(SI), X0
-	VMOVUPD 80(SI), X1
-	VMOVUPD 144(SI), X2
-	VMOVUPD 208(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegLoPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegHiPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 320(SP)
-	VMOVUPD X11, 336(SP)
-	VMOVUPD X9, 352(SP)
-	VMOVUPD X13, 368(SP)
-
-	// Butterfly 2: reads 2,6,10,14 → writes stage1[8,9,10,11]
-	VMOVUPD 32(SI), X0
-	VMOVUPD 96(SI), X1
-	VMOVUPD 160(SI), X2
-	VMOVUPD 224(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegLoPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegHiPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 384(SP)
-	VMOVUPD X11, 400(SP)
-	VMOVUPD X9, 416(SP)
-	VMOVUPD X13, 432(SP)
-
-	// Butterfly 3: reads 3,7,11,15 → writes stage1[12,13,14,15]
-	VMOVUPD 48(SI), X0
-	VMOVUPD 112(SI), X1
-	VMOVUPD 176(SI), X2
-	VMOVUPD 240(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegLoPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegHiPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 448(SP)
-	VMOVUPD X11, 464(SP)
-	VMOVUPD X9, 480(SP)
-	VMOVUPD X13, 496(SP)
+	// Butterflies 2+3
+	VMOVUPD 32(SI), Y0
+	VMOVUPD 96(SI), Y1
+	VMOVUPD 160(SI), Y2
+	VMOVUPD 224(SI), Y3
+	VADDPD Y2, Y0, Y4
+	VSUBPD Y2, Y0, Y5
+	VADDPD Y3, Y1, Y6
+	VSUBPD Y3, Y1, Y7
+	VADDPD Y6, Y4, Y8
+	VSUBPD Y6, Y4, Y9
+	VSHUFPD $5, Y7, Y7, Y10
+	VXORPD ·maskNegLoPD_YMM(SB), Y10, Y10
+	VADDPD Y10, Y5, Y11
+	VSHUFPD $5, Y7, Y7, Y12
+	VXORPD ·maskNegHiPD_YMM(SB), Y12, Y12
+	VADDPD Y12, Y5, Y13
+	VEXTRACTF128 $0, Y8, X0
+	VMOVUPD X0, 384(SP)
+	VEXTRACTF128 $1, Y8, X0
+	VMOVUPD X0, 448(SP)
+	VEXTRACTF128 $0, Y11, X0
+	VMOVUPD X0, 400(SP)
+	VEXTRACTF128 $1, Y11, X0
+	VMOVUPD X0, 464(SP)
+	VEXTRACTF128 $0, Y9, X0
+	VMOVUPD X0, 416(SP)
+	VEXTRACTF128 $1, Y9, X0
+	VMOVUPD X0, 480(SP)
+	VEXTRACTF128 $0, Y13, X0
+	VMOVUPD X0, 432(SP)
+	VEXTRACTF128 $1, Y13, X0
+	VMOVUPD X0, 496(SP)
 
 	// ----------------------------------------------------------------
 	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
@@ -1863,96 +1805,76 @@ inv_r16_stage2_row:
 	// ==================================================================
 
 	// ----------------------------------------------------------------
-	// STAGE 1: 4 radix-4 butterflies (NO twiddle multiplications)
+	// STAGE 1: 4 radix-4 butterflies using YMM (2x parallel)
 	// ----------------------------------------------------------------
 
-	// Butterfly 0: reads 0,4,8,12 → writes stage1[0,1,2,3]
-	VMOVUPD 0(SI), X0
-	VMOVUPD 64(SI), X1
-	VMOVUPD 128(SI), X2
-	VMOVUPD 192(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegLoPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegHiPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 256(SP)
-	VMOVUPD X11, 272(SP)
-	VMOVUPD X9, 288(SP)
-	VMOVUPD X13, 304(SP)
+	// Butterflies 0+1
+	VMOVUPD 0(SI), Y0
+	VMOVUPD 64(SI), Y1
+	VMOVUPD 128(SI), Y2
+	VMOVUPD 192(SI), Y3
+	VADDPD Y2, Y0, Y4
+	VSUBPD Y2, Y0, Y5
+	VADDPD Y3, Y1, Y6
+	VSUBPD Y3, Y1, Y7
+	VADDPD Y6, Y4, Y8
+	VSUBPD Y6, Y4, Y9
+	VSHUFPD $5, Y7, Y7, Y10
+	VXORPD ·maskNegLoPD_YMM(SB), Y10, Y10
+	VADDPD Y10, Y5, Y11
+	VSHUFPD $5, Y7, Y7, Y12
+	VXORPD ·maskNegHiPD_YMM(SB), Y12, Y12
+	VADDPD Y12, Y5, Y13
+	VEXTRACTF128 $0, Y8, X0
+	VMOVUPD X0, 256(SP)
+	VEXTRACTF128 $1, Y8, X0
+	VMOVUPD X0, 320(SP)
+	VEXTRACTF128 $0, Y11, X0
+	VMOVUPD X0, 272(SP)
+	VEXTRACTF128 $1, Y11, X0
+	VMOVUPD X0, 336(SP)
+	VEXTRACTF128 $0, Y9, X0
+	VMOVUPD X0, 288(SP)
+	VEXTRACTF128 $1, Y9, X0
+	VMOVUPD X0, 352(SP)
+	VEXTRACTF128 $0, Y13, X0
+	VMOVUPD X0, 304(SP)
+	VEXTRACTF128 $1, Y13, X0
+	VMOVUPD X0, 368(SP)
 
-	// Butterfly 1: reads 1,5,9,13 → writes stage1[4,5,6,7]
-	VMOVUPD 16(SI), X0
-	VMOVUPD 80(SI), X1
-	VMOVUPD 144(SI), X2
-	VMOVUPD 208(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegLoPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegHiPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 320(SP)
-	VMOVUPD X11, 336(SP)
-	VMOVUPD X9, 352(SP)
-	VMOVUPD X13, 368(SP)
-
-	// Butterfly 2: reads 2,6,10,14 → writes stage1[8,9,10,11]
-	VMOVUPD 32(SI), X0
-	VMOVUPD 96(SI), X1
-	VMOVUPD 160(SI), X2
-	VMOVUPD 224(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegLoPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegHiPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 384(SP)
-	VMOVUPD X11, 400(SP)
-	VMOVUPD X9, 416(SP)
-	VMOVUPD X13, 432(SP)
-
-	// Butterfly 3: reads 3,7,11,15 → writes stage1[12,13,14,15]
-	VMOVUPD 48(SI), X0
-	VMOVUPD 112(SI), X1
-	VMOVUPD 176(SI), X2
-	VMOVUPD 240(SI), X3
-	VADDPD X2, X0, X4
-	VSUBPD X2, X0, X5
-	VADDPD X3, X1, X6
-	VSUBPD X3, X1, X7
-	VADDPD X6, X4, X8
-	VSUBPD X6, X4, X9
-	VSHUFPD $1, X7, X7, X10
-	VXORPD ·maskNegLoPD(SB), X10, X10
-	VADDPD X10, X5, X11
-	VSHUFPD $1, X7, X7, X12
-	VXORPD ·maskNegHiPD(SB), X12, X12
-	VADDPD X12, X5, X13
-	VMOVUPD X8, 448(SP)
-	VMOVUPD X11, 464(SP)
-	VMOVUPD X9, 480(SP)
-	VMOVUPD X13, 496(SP)
+	// Butterflies 2+3
+	VMOVUPD 32(SI), Y0
+	VMOVUPD 96(SI), Y1
+	VMOVUPD 160(SI), Y2
+	VMOVUPD 224(SI), Y3
+	VADDPD Y2, Y0, Y4
+	VSUBPD Y2, Y0, Y5
+	VADDPD Y3, Y1, Y6
+	VSUBPD Y3, Y1, Y7
+	VADDPD Y6, Y4, Y8
+	VSUBPD Y6, Y4, Y9
+	VSHUFPD $5, Y7, Y7, Y10
+	VXORPD ·maskNegLoPD_YMM(SB), Y10, Y10
+	VADDPD Y10, Y5, Y11
+	VSHUFPD $5, Y7, Y7, Y12
+	VXORPD ·maskNegHiPD_YMM(SB), Y12, Y12
+	VADDPD Y12, Y5, Y13
+	VEXTRACTF128 $0, Y8, X0
+	VMOVUPD X0, 384(SP)
+	VEXTRACTF128 $1, Y8, X0
+	VMOVUPD X0, 448(SP)
+	VEXTRACTF128 $0, Y11, X0
+	VMOVUPD X0, 400(SP)
+	VEXTRACTF128 $1, Y11, X0
+	VMOVUPD X0, 464(SP)
+	VEXTRACTF128 $0, Y9, X0
+	VMOVUPD X0, 416(SP)
+	VEXTRACTF128 $1, Y9, X0
+	VMOVUPD X0, 480(SP)
+	VEXTRACTF128 $0, Y13, X0
+	VMOVUPD X0, 432(SP)
+	VEXTRACTF128 $1, Y13, X0
+	VMOVUPD X0, 496(SP)
 
 	// ----------------------------------------------------------------
 	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
