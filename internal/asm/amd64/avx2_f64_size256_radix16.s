@@ -23,7 +23,8 @@
 #include "textflag.h"
 
 // Forward transform, size 256, complex128, radix-16 variant
-TEXT ·ForwardAVX2Size256Radix16Complex128Asm(SB), NOSPLIT, $256-97
+// Stack frame: 0-255 = W_16 table, 256-511 = FFT-16 stage1 buffer
+TEXT ·ForwardAVX2Size256Radix16Complex128Asm(SB), NOSPLIT, $512-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
@@ -146,100 +147,278 @@ fwd_r16_stage1_col:
 	SHLQ $8, AX               // col*256 bytes
 	LEAQ (R11)(AX*1), SI
 	MOVQ R12, R14             // save col
-	MOVQ $2, R12              // size
-	MOVQ $1, R13              // half
-	MOVQ $8, R11              // step
 
-	// Bit-reversal permutation for size-16 (radix-2)
-	// Swaps: (1,8), (2,4), (3,12), (5,10), (7,14), (11,13)
-	VMOVUPD 16(SI), X0
-	VMOVUPD 128(SI), X1
-	VMOVUPD X1, 16(SI)
-	VMOVUPD X0, 128(SI)
+	// ==================================================================
+	// RADIX-4 FFT-16: 2 stages of radix-4 butterflies
+	// Stage 1: 4 butterflies, no twiddles (only ±j via shuffles)
+	// Stage 2: 4 butterflies, with twiddles from W_16 table
+	// ==================================================================
 
-	VMOVUPD 32(SI), X0
-	VMOVUPD 64(SI), X1
-	VMOVUPD X1, 32(SI)
-	VMOVUPD X0, 64(SI)
+	// ----------------------------------------------------------------
+	// STAGE 1: 4 radix-4 butterflies (NO twiddle multiplications)
+	// Reads from strided positions, writes to stage1 buffer (SP+256)
+	// ----------------------------------------------------------------
 
-	VMOVUPD 48(SI), X0
-	VMOVUPD 192(SI), X1
-	VMOVUPD X1, 48(SI)
-	VMOVUPD X0, 192(SI)
+	// Butterfly 0: reads 0,4,8,12 → writes stage1[0,1,2,3]
+	VMOVUPD 0(SI), X0         // a0 = data[0]
+	VMOVUPD 64(SI), X1        // a1 = data[4]
+	VMOVUPD 128(SI), X2       // a2 = data[8]
+	VMOVUPD 192(SI), X3       // a3 = data[12]
+	VADDPD X2, X0, X4         // t0 = a0 + a2
+	VSUBPD X2, X0, X5         // t1 = a0 - a2
+	VADDPD X3, X1, X6         // t2 = a1 + a3
+	VSUBPD X3, X1, X7         // t3 = a1 - a3
+	VADDPD X6, X4, X8         // y0 = t0 + t2
+	VSUBPD X6, X4, X9         // y2 = t0 - t2
+	// y1 = t1 + (-j)*t3: -j*(a+bi) = b - ai
+	VSHUFPD $1, X7, X7, X10          // [im, re]
+	VXORPD ·maskNegHiPD(SB), X10, X10 // [im, -re] = -j*t3
+	VADDPD X10, X5, X11              // y1 = t1 + (-j)*t3
+	// y3 = t1 + j*t3: j*(a+bi) = -b + ai
+	VSHUFPD $1, X7, X7, X12          // [im, re]
+	VXORPD ·maskNegLoPD(SB), X12, X12 // [-im, re] = j*t3
+	VADDPD X12, X5, X13              // y3 = t1 + j*t3
+	VMOVUPD X8, 256(SP)       // stage1[0]
+	VMOVUPD X11, 272(SP)      // stage1[1]
+	VMOVUPD X9, 288(SP)       // stage1[2]
+	VMOVUPD X13, 304(SP)      // stage1[3]
 
-	VMOVUPD 80(SI), X0
-	VMOVUPD 160(SI), X1
-	VMOVUPD X1, 80(SI)
-	VMOVUPD X0, 160(SI)
+	// Butterfly 1: reads 1,5,9,13 → writes stage1[4,5,6,7]
+	VMOVUPD 16(SI), X0        // a0 = data[1]
+	VMOVUPD 80(SI), X1        // a1 = data[5]
+	VMOVUPD 144(SI), X2       // a2 = data[9]
+	VMOVUPD 208(SI), X3       // a3 = data[13]
+	VADDPD X2, X0, X4         // t0
+	VSUBPD X2, X0, X5         // t1
+	VADDPD X3, X1, X6         // t2
+	VSUBPD X3, X1, X7         // t3
+	VADDPD X6, X4, X8         // y0
+	VSUBPD X6, X4, X9         // y2
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11       // y1
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13       // y3
+	VMOVUPD X8, 320(SP)       // stage1[4]
+	VMOVUPD X11, 336(SP)      // stage1[5]
+	VMOVUPD X9, 352(SP)       // stage1[6]
+	VMOVUPD X13, 368(SP)      // stage1[7]
 
-	VMOVUPD 112(SI), X0
-	VMOVUPD 224(SI), X1
-	VMOVUPD X1, 112(SI)
-	VMOVUPD X0, 224(SI)
+	// Butterfly 2: reads 2,6,10,14 → writes stage1[8,9,10,11]
+	VMOVUPD 32(SI), X0        // a0 = data[2]
+	VMOVUPD 96(SI), X1        // a1 = data[6]
+	VMOVUPD 160(SI), X2       // a2 = data[10]
+	VMOVUPD 224(SI), X3       // a3 = data[14]
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 384(SP)       // stage1[8]
+	VMOVUPD X11, 400(SP)      // stage1[9]
+	VMOVUPD X9, 416(SP)       // stage1[10]
+	VMOVUPD X13, 432(SP)      // stage1[11]
 
-	VMOVUPD 176(SI), X0
-	VMOVUPD 208(SI), X1
-	VMOVUPD X1, 176(SI)
-	VMOVUPD X0, 208(SI)
+	// Butterfly 3: reads 3,7,11,15 → writes stage1[12,13,14,15]
+	VMOVUPD 48(SI), X0        // a0 = data[3]
+	VMOVUPD 112(SI), X1       // a1 = data[7]
+	VMOVUPD 176(SI), X2       // a2 = data[11]
+	VMOVUPD 240(SI), X3       // a3 = data[15]
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 448(SP)       // stage1[12]
+	VMOVUPD X11, 464(SP)      // stage1[13]
+	VMOVUPD X9, 480(SP)       // stage1[14]
+	VMOVUPD X13, 496(SP)      // stage1[15]
 
-fwd_r16_fft16_s1_stage_loop:
-	CMPQ R12, $17
-	JGE  fwd_r16_fft16_s1_done
-	XORQ DX, DX               // j
+	// ----------------------------------------------------------------
+	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
+	// Reads from stage1 buffer (SP+256), writes to data (SI)
+	// ----------------------------------------------------------------
 
-fwd_r16_fft16_s1_j_loop:
-	CMPQ DX, R13
-	JGE  fwd_r16_fft16_s1_next_stage
-	MOVQ DX, AX
-	IMULQ R11, AX             // j*step
-	SHLQ $4, AX               // twiddle byte offset
-	LEAQ (R15)(AX*1), DI      // twiddle pointer
-	MOVQ DX, R9              // k = j
+	// Butterfly 0: j=0, stage1[0,4,8,12], twiddles W^0 (=1, no multiply)
+	VMOVUPD 256(SP), X0       // a0 = stage1[0]
+	VMOVUPD 320(SP), X1       // a1 = stage1[4] * W^0 = stage1[4]
+	VMOVUPD 384(SP), X2       // a2 = stage1[8] * W^0 = stage1[8]
+	VMOVUPD 448(SP), X3       // a3 = stage1[12] * W^0 = stage1[12]
+	VADDPD X2, X0, X4         // t0
+	VSUBPD X2, X0, X5         // t1
+	VADDPD X3, X1, X6         // t2
+	VSUBPD X3, X1, X7         // t3
+	VADDPD X6, X4, X8         // y0 → data[0]
+	VSUBPD X6, X4, X9         // y2 → data[8]
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11       // y1 → data[4]
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13       // y3 → data[12]
+	VMOVUPD X8, 0(SI)
+	VMOVUPD X11, 64(SI)
+	VMOVUPD X9, 128(SI)
+	VMOVUPD X13, 192(SI)
 
-fwd_r16_fft16_s1_k_loop:
-	CMPQ R9, $16
-	JGE  fwd_r16_fft16_s1_j_next
-	// a = data[k]
-	MOVQ R9, AX
-	SHLQ $4, AX
-	LEAQ (SI)(AX*1), BX
-	VMOVUPD (BX), X0
-	// b = data[k+half]
-	MOVQ R9, AX
-	ADDQ R13, AX
-	SHLQ $4, AX
-	LEAQ (SI)(AX*1), CX
-	VMOVUPD (CX), X1
-	// twiddle
-	VMOVUPD (DI), X2
-	// t = b * twiddle
+	// Butterfly 1: j=1, stage1[1,5,9,13], twiddles W^1, W^2, W^3
+	VMOVUPD 272(SP), X0       // a0 = stage1[1]
+	// a1 = stage1[5] * W^1
+	VMOVUPD 336(SP), X1
+	VMOVUPD 16(R15), X2       // W^1
 	VPERMILPD $0, X2, X3
 	VPERMILPD $3, X2, X4
 	VMULPD X3, X1, X5
 	VSHUFPD $1, X1, X1, X6
 	VMULPD X4, X6, X6
-	VADDSUBPD X6, X5, X5
-	// a+t, a-t
-	VADDPD X5, X0, X7
-	VSUBPD X5, X0, X8
-	VMOVUPD X7, (BX)
-	VMOVUPD X8, (CX)
-	ADDQ R12, R9
-	JMP  fwd_r16_fft16_s1_k_loop
+	VADDSUBPD X6, X5, X1
+	// a2 = stage1[9] * W^2
+	VMOVUPD 400(SP), X2
+	VMOVUPD 32(R15), X3       // W^2
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	// a3 = stage1[13] * W^3
+	VMOVUPD 464(SP), X3
+	VMOVUPD 48(R15), X4       // W^3
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	// Radix-4 butterfly
+	VADDPD X2, X0, X4         // t0
+	VSUBPD X2, X0, X5         // t1
+	VADDPD X3, X1, X6         // t2
+	VSUBPD X3, X1, X7         // t3
+	VADDPD X6, X4, X8         // y0 → data[1]
+	VSUBPD X6, X4, X9         // y2 → data[9]
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11       // y1 → data[5]
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13       // y3 → data[13]
+	VMOVUPD X8, 16(SI)
+	VMOVUPD X11, 80(SI)
+	VMOVUPD X9, 144(SI)
+	VMOVUPD X13, 208(SI)
 
-fwd_r16_fft16_s1_j_next:
-	INCQ DX
-	JMP  fwd_r16_fft16_s1_j_loop
+	// Butterfly 2: j=2, stage1[2,6,10,14], twiddles W^2, W^4, W^6
+	VMOVUPD 288(SP), X0       // a0 = stage1[2]
+	// a1 = stage1[6] * W^2
+	VMOVUPD 352(SP), X1
+	VMOVUPD 32(R15), X2       // W^2
+	VPERMILPD $0, X2, X3
+	VPERMILPD $3, X2, X4
+	VMULPD X3, X1, X5
+	VSHUFPD $1, X1, X1, X6
+	VMULPD X4, X6, X6
+	VADDSUBPD X6, X5, X1
+	// a2 = stage1[10] * W^4
+	VMOVUPD 416(SP), X2
+	VMOVUPD 64(R15), X3       // W^4
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	// a3 = stage1[14] * W^6
+	VMOVUPD 480(SP), X3
+	VMOVUPD 96(R15), X4       // W^6
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	// Radix-4 butterfly
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 32(SI)
+	VMOVUPD X11, 96(SI)
+	VMOVUPD X9, 160(SI)
+	VMOVUPD X13, 224(SI)
 
-fwd_r16_fft16_s1_next_stage:
-	SHLQ $1, R12              // size *= 2
-	SHLQ $1, R13              // half *= 2
-	SHRQ $1, R11              // step /= 2
-	JMP  fwd_r16_fft16_s1_stage_loop
+	// Butterfly 3: j=3, stage1[3,7,11,15], twiddles W^3, W^6, W^9
+	VMOVUPD 304(SP), X0       // a0 = stage1[3]
+	// a1 = stage1[7] * W^3
+	VMOVUPD 368(SP), X1
+	VMOVUPD 48(R15), X2       // W^3
+	VPERMILPD $0, X2, X3
+	VPERMILPD $3, X2, X4
+	VMULPD X3, X1, X5
+	VSHUFPD $1, X1, X1, X6
+	VMULPD X4, X6, X6
+	VADDSUBPD X6, X5, X1
+	// a2 = stage1[11] * W^6
+	VMOVUPD 432(SP), X2
+	VMOVUPD 96(R15), X3       // W^6
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	// a3 = stage1[15] * W^9
+	VMOVUPD 496(SP), X3
+	VMOVUPD 144(R15), X4      // W^9
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	// Radix-4 butterfly
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 48(SI)
+	VMOVUPD X11, 112(SI)
+	VMOVUPD X9, 176(SI)
+	VMOVUPD X13, 240(SI)
 
-fwd_r16_fft16_s1_done:
-	MOVQ R14, R12             // restore col
-	MOVQ scratch+72(FP), R11  // restore scratch pointer
+	// Restore col counter and continue loop
+	MOVQ R14, R12
 	INCQ R12
 	JMP  fwd_r16_stage1_col
 
@@ -507,6 +686,7 @@ fwd_r16_stage2:
 	// ==================================================================
 	// Rows are contiguous in dst after transpose-out; each row is independent.
 	XORQ R12, R12             // row
+	JMP  fwd_r16_stage2_row   // skip over diagnostic code
 
 // ---------------------------------------------------------------------------
 // Diagnostic fused-twiddle mapping (disabled; not referenced).
@@ -718,100 +898,260 @@ fwd_r16_stage2_row:
 	SHLQ $8, AX               // row*256 bytes
 	LEAQ (R8)(AX*1), SI
 	MOVQ R12, R14             // save row
-	MOVQ $2, R12              // size
-	MOVQ $1, R13              // half
-	MOVQ $8, R11              // step
 
-	// Bit-reversal permutation for size-16 (radix-2)
-	// Swaps: (1,8), (2,4), (3,12), (5,10), (7,14), (11,13)
-	VMOVUPD 16(SI), X0
-	VMOVUPD 128(SI), X1
-	VMOVUPD X1, 16(SI)
-	VMOVUPD X0, 128(SI)
+	// ==================================================================
+	// RADIX-4 FFT-16: 2 stages of radix-4 butterflies (same as Stage 1)
+	// ==================================================================
 
-	VMOVUPD 32(SI), X0
+	// ----------------------------------------------------------------
+	// STAGE 1: 4 radix-4 butterflies (NO twiddle multiplications)
+	// ----------------------------------------------------------------
+
+	// Butterfly 0: reads 0,4,8,12 → writes stage1[0,1,2,3]
+	VMOVUPD 0(SI), X0
 	VMOVUPD 64(SI), X1
-	VMOVUPD X1, 32(SI)
-	VMOVUPD X0, 64(SI)
+	VMOVUPD 128(SI), X2
+	VMOVUPD 192(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 256(SP)
+	VMOVUPD X11, 272(SP)
+	VMOVUPD X9, 288(SP)
+	VMOVUPD X13, 304(SP)
 
+	// Butterfly 1: reads 1,5,9,13 → writes stage1[4,5,6,7]
+	VMOVUPD 16(SI), X0
+	VMOVUPD 80(SI), X1
+	VMOVUPD 144(SI), X2
+	VMOVUPD 208(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 320(SP)
+	VMOVUPD X11, 336(SP)
+	VMOVUPD X9, 352(SP)
+	VMOVUPD X13, 368(SP)
+
+	// Butterfly 2: reads 2,6,10,14 → writes stage1[8,9,10,11]
+	VMOVUPD 32(SI), X0
+	VMOVUPD 96(SI), X1
+	VMOVUPD 160(SI), X2
+	VMOVUPD 224(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 384(SP)
+	VMOVUPD X11, 400(SP)
+	VMOVUPD X9, 416(SP)
+	VMOVUPD X13, 432(SP)
+
+	// Butterfly 3: reads 3,7,11,15 → writes stage1[12,13,14,15]
 	VMOVUPD 48(SI), X0
-	VMOVUPD 192(SI), X1
-	VMOVUPD X1, 48(SI)
-	VMOVUPD X0, 192(SI)
+	VMOVUPD 112(SI), X1
+	VMOVUPD 176(SI), X2
+	VMOVUPD 240(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 448(SP)
+	VMOVUPD X11, 464(SP)
+	VMOVUPD X9, 480(SP)
+	VMOVUPD X13, 496(SP)
 
-	VMOVUPD 80(SI), X0
-	VMOVUPD 160(SI), X1
-	VMOVUPD X1, 80(SI)
-	VMOVUPD X0, 160(SI)
+	// ----------------------------------------------------------------
+	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
+	// ----------------------------------------------------------------
 
-	VMOVUPD 112(SI), X0
-	VMOVUPD 224(SI), X1
-	VMOVUPD X1, 112(SI)
-	VMOVUPD X0, 224(SI)
+	// Butterfly 0: j=0, twiddles W^0 (=1)
+	VMOVUPD 256(SP), X0
+	VMOVUPD 320(SP), X1
+	VMOVUPD 384(SP), X2
+	VMOVUPD 448(SP), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 0(SI)
+	VMOVUPD X11, 64(SI)
+	VMOVUPD X9, 128(SI)
+	VMOVUPD X13, 192(SI)
 
-	VMOVUPD 176(SI), X0
-	VMOVUPD 208(SI), X1
-	VMOVUPD X1, 176(SI)
-	VMOVUPD X0, 208(SI)
-
-fwd_r16_fft16_s2_stage_loop:
-	CMPQ R12, $17
-	JGE  fwd_r16_fft16_s2_done
-	XORQ DX, DX               // j
-
-fwd_r16_fft16_s2_j_loop:
-	CMPQ DX, R13
-	JGE  fwd_r16_fft16_s2_next_stage
-	MOVQ DX, AX
-	IMULQ R11, AX             // j*step
-	SHLQ $4, AX               // twiddle byte offset
-	LEAQ (R15)(AX*1), DI      // twiddle pointer
-	MOVQ DX, R9              // k = j
-
-fwd_r16_fft16_s2_k_loop:
-	CMPQ R9, $16
-	JGE  fwd_r16_fft16_s2_j_next
-	// a = data[k]
-	MOVQ R9, AX
-	SHLQ $4, AX
-	LEAQ (SI)(AX*1), BX
-	VMOVUPD (BX), X0
-	// b = data[k+half]
-	MOVQ R9, AX
-	ADDQ R13, AX
-	SHLQ $4, AX
-	LEAQ (SI)(AX*1), CX
-	VMOVUPD (CX), X1
-	// twiddle
-	VMOVUPD (DI), X2
-	// t = b * twiddle
+	// Butterfly 1: j=1, twiddles W^1, W^2, W^3
+	VMOVUPD 272(SP), X0
+	VMOVUPD 336(SP), X1
+	VMOVUPD 16(R15), X2
 	VPERMILPD $0, X2, X3
 	VPERMILPD $3, X2, X4
 	VMULPD X3, X1, X5
 	VSHUFPD $1, X1, X1, X6
 	VMULPD X4, X6, X6
-	VADDSUBPD X6, X5, X5
-	// a+t, a-t
-	VADDPD X5, X0, X7
-	VSUBPD X5, X0, X8
-	VMOVUPD X7, (BX)
-	VMOVUPD X8, (CX)
-	ADDQ R12, R9
-	JMP  fwd_r16_fft16_s2_k_loop
+	VADDSUBPD X6, X5, X1
+	VMOVUPD 400(SP), X2
+	VMOVUPD 32(R15), X3
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	VMOVUPD 464(SP), X3
+	VMOVUPD 48(R15), X4
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 16(SI)
+	VMOVUPD X11, 80(SI)
+	VMOVUPD X9, 144(SI)
+	VMOVUPD X13, 208(SI)
 
-fwd_r16_fft16_s2_j_next:
-	INCQ DX
-	JMP  fwd_r16_fft16_s2_j_loop
+	// Butterfly 2: j=2, twiddles W^2, W^4, W^6
+	VMOVUPD 288(SP), X0
+	VMOVUPD 352(SP), X1
+	VMOVUPD 32(R15), X2
+	VPERMILPD $0, X2, X3
+	VPERMILPD $3, X2, X4
+	VMULPD X3, X1, X5
+	VSHUFPD $1, X1, X1, X6
+	VMULPD X4, X6, X6
+	VADDSUBPD X6, X5, X1
+	VMOVUPD 416(SP), X2
+	VMOVUPD 64(R15), X3
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	VMOVUPD 480(SP), X3
+	VMOVUPD 96(R15), X4
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 32(SI)
+	VMOVUPD X11, 96(SI)
+	VMOVUPD X9, 160(SI)
+	VMOVUPD X13, 224(SI)
 
-fwd_r16_fft16_s2_next_stage:
-	SHLQ $1, R12              // size *= 2
-	SHLQ $1, R13              // half *= 2
-	SHRQ $1, R11              // step /= 2
-	JMP  fwd_r16_fft16_s2_stage_loop
+	// Butterfly 3: j=3, twiddles W^3, W^6, W^9
+	VMOVUPD 304(SP), X0
+	VMOVUPD 368(SP), X1
+	VMOVUPD 48(R15), X2
+	VPERMILPD $0, X2, X3
+	VPERMILPD $3, X2, X4
+	VMULPD X3, X1, X5
+	VSHUFPD $1, X1, X1, X6
+	VMULPD X4, X6, X6
+	VADDSUBPD X6, X5, X1
+	VMOVUPD 432(SP), X2
+	VMOVUPD 96(R15), X3
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	VMOVUPD 496(SP), X3
+	VMOVUPD 144(R15), X4
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegHiPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegLoPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 48(SI)
+	VMOVUPD X11, 112(SI)
+	VMOVUPD X9, 176(SI)
+	VMOVUPD X13, 240(SI)
 
-fwd_r16_fft16_s2_done:
-	MOVQ R14, R12             // restore row
-	MOVQ scratch+72(FP), R11  // restore scratch pointer
+	// Restore row counter and continue loop
+	MOVQ R14, R12
 	INCQ R12
 	JMP  fwd_r16_stage2_row
 
@@ -902,7 +1242,8 @@ fwd_r16_256_return_false:
 	RET
 
 // Inverse transform, size 256, complex128, radix-16 variant
-TEXT ·InverseAVX2Size256Radix16Complex128Asm(SB), NOSPLIT, $256-97
+// Stack frame: 0-255 = W_16 table (conjugated), 256-511 = FFT-16 stage1 buffer
+TEXT ·InverseAVX2Size256Radix16Complex128Asm(SB), NOSPLIT, $512-97
 	// Load parameters
 	MOVQ dst+0(FP), R8
 	MOVQ src+24(FP), R9
@@ -1024,100 +1365,265 @@ inv_r16_stage1_col:
 	SHLQ $8, AX               // col*256 bytes
 	LEAQ (R11)(AX*1), SI
 	MOVQ R12, R14             // save col
-	MOVQ $2, R12              // size
-	MOVQ $1, R13              // half
-	MOVQ $8, R11              // step
 
-	// Bit-reversal permutation for size-16 (radix-2)
-	// Swaps: (1,8), (2,4), (3,12), (5,10), (7,14), (11,13)
-	VMOVUPD 16(SI), X0
-	VMOVUPD 128(SI), X1
-	VMOVUPD X1, 16(SI)
-	VMOVUPD X0, 128(SI)
+	// ==================================================================
+	// RADIX-4 FFT-16 (INVERSE): 2 stages of radix-4 butterflies
+	// For inverse: swap j and -j operations compared to forward
+	// ==================================================================
 
-	VMOVUPD 32(SI), X0
+	// ----------------------------------------------------------------
+	// STAGE 1: 4 radix-4 butterflies (NO twiddle multiplications)
+	// Inverse: y1 = t1 + j*t3 (maskNegLoPD), y3 = t1 + (-j)*t3 (maskNegHiPD)
+	// ----------------------------------------------------------------
+
+	// Butterfly 0: reads 0,4,8,12 → writes stage1[0,1,2,3]
+	VMOVUPD 0(SI), X0
 	VMOVUPD 64(SI), X1
-	VMOVUPD X1, 32(SI)
-	VMOVUPD X0, 64(SI)
+	VMOVUPD 128(SI), X2
+	VMOVUPD 192(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	// y1 = t1 + j*t3 (inverse swaps j and -j)
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	// y3 = t1 + (-j)*t3
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 256(SP)
+	VMOVUPD X11, 272(SP)
+	VMOVUPD X9, 288(SP)
+	VMOVUPD X13, 304(SP)
 
+	// Butterfly 1: reads 1,5,9,13 → writes stage1[4,5,6,7]
+	VMOVUPD 16(SI), X0
+	VMOVUPD 80(SI), X1
+	VMOVUPD 144(SI), X2
+	VMOVUPD 208(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 320(SP)
+	VMOVUPD X11, 336(SP)
+	VMOVUPD X9, 352(SP)
+	VMOVUPD X13, 368(SP)
+
+	// Butterfly 2: reads 2,6,10,14 → writes stage1[8,9,10,11]
+	VMOVUPD 32(SI), X0
+	VMOVUPD 96(SI), X1
+	VMOVUPD 160(SI), X2
+	VMOVUPD 224(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 384(SP)
+	VMOVUPD X11, 400(SP)
+	VMOVUPD X9, 416(SP)
+	VMOVUPD X13, 432(SP)
+
+	// Butterfly 3: reads 3,7,11,15 → writes stage1[12,13,14,15]
 	VMOVUPD 48(SI), X0
-	VMOVUPD 192(SI), X1
-	VMOVUPD X1, 48(SI)
-	VMOVUPD X0, 192(SI)
+	VMOVUPD 112(SI), X1
+	VMOVUPD 176(SI), X2
+	VMOVUPD 240(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 448(SP)
+	VMOVUPD X11, 464(SP)
+	VMOVUPD X9, 480(SP)
+	VMOVUPD X13, 496(SP)
 
-	VMOVUPD 80(SI), X0
-	VMOVUPD 160(SI), X1
-	VMOVUPD X1, 80(SI)
-	VMOVUPD X0, 160(SI)
+	// ----------------------------------------------------------------
+	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
+	// Twiddles are already conjugated in W_16 table
+	// ----------------------------------------------------------------
 
-	VMOVUPD 112(SI), X0
-	VMOVUPD 224(SI), X1
-	VMOVUPD X1, 112(SI)
-	VMOVUPD X0, 224(SI)
+	// Butterfly 0: j=0, twiddles W^0 (=1)
+	VMOVUPD 256(SP), X0
+	VMOVUPD 320(SP), X1
+	VMOVUPD 384(SP), X2
+	VMOVUPD 448(SP), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 0(SI)
+	VMOVUPD X11, 64(SI)
+	VMOVUPD X9, 128(SI)
+	VMOVUPD X13, 192(SI)
 
-	VMOVUPD 176(SI), X0
-	VMOVUPD 208(SI), X1
-	VMOVUPD X1, 176(SI)
-	VMOVUPD X0, 208(SI)
-
-inv_r16_fft16_s1_stage_loop:
-	CMPQ R12, $17
-	JGE  inv_r16_fft16_s1_done
-	XORQ DX, DX               // j
-
-inv_r16_fft16_s1_j_loop:
-	CMPQ DX, R13
-	JGE  inv_r16_fft16_s1_next_stage
-	MOVQ DX, AX
-	IMULQ R11, AX             // j*step
-	SHLQ $4, AX               // twiddle byte offset
-	LEAQ (R15)(AX*1), DI      // twiddle pointer
-	MOVQ DX, R9              // k = j
-
-inv_r16_fft16_s1_k_loop:
-	CMPQ R9, $16
-	JGE  inv_r16_fft16_s1_j_next
-	// a = data[k]
-	MOVQ R9, AX
-	SHLQ $4, AX
-	LEAQ (SI)(AX*1), BX
-	VMOVUPD (BX), X0
-	// b = data[k+half]
-	MOVQ R9, AX
-	ADDQ R13, AX
-	SHLQ $4, AX
-	LEAQ (SI)(AX*1), CX
-	VMOVUPD (CX), X1
-	// twiddle
-	VMOVUPD (DI), X2
-	// t = b * twiddle
+	// Butterfly 1: j=1, twiddles W^1, W^2, W^3 (conjugated)
+	VMOVUPD 272(SP), X0
+	VMOVUPD 336(SP), X1
+	VMOVUPD 16(R15), X2
 	VPERMILPD $0, X2, X3
 	VPERMILPD $3, X2, X4
 	VMULPD X3, X1, X5
 	VSHUFPD $1, X1, X1, X6
 	VMULPD X4, X6, X6
-	VADDSUBPD X6, X5, X5
-	// a+t, a-t
-	VADDPD X5, X0, X7
-	VSUBPD X5, X0, X8
-	VMOVUPD X7, (BX)
-	VMOVUPD X8, (CX)
-	ADDQ R12, R9
-	JMP  inv_r16_fft16_s1_k_loop
+	VADDSUBPD X6, X5, X1
+	VMOVUPD 400(SP), X2
+	VMOVUPD 32(R15), X3
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	VMOVUPD 464(SP), X3
+	VMOVUPD 48(R15), X4
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 16(SI)
+	VMOVUPD X11, 80(SI)
+	VMOVUPD X9, 144(SI)
+	VMOVUPD X13, 208(SI)
 
-inv_r16_fft16_s1_j_next:
-	INCQ DX
-	JMP  inv_r16_fft16_s1_j_loop
+	// Butterfly 2: j=2, twiddles W^2, W^4, W^6 (conjugated)
+	VMOVUPD 288(SP), X0
+	VMOVUPD 352(SP), X1
+	VMOVUPD 32(R15), X2
+	VPERMILPD $0, X2, X3
+	VPERMILPD $3, X2, X4
+	VMULPD X3, X1, X5
+	VSHUFPD $1, X1, X1, X6
+	VMULPD X4, X6, X6
+	VADDSUBPD X6, X5, X1
+	VMOVUPD 416(SP), X2
+	VMOVUPD 64(R15), X3
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	VMOVUPD 480(SP), X3
+	VMOVUPD 96(R15), X4
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 32(SI)
+	VMOVUPD X11, 96(SI)
+	VMOVUPD X9, 160(SI)
+	VMOVUPD X13, 224(SI)
 
-inv_r16_fft16_s1_next_stage:
-	SHLQ $1, R12              // size *= 2
-	SHLQ $1, R13              // half *= 2
-	SHRQ $1, R11              // step /= 2
-	JMP  inv_r16_fft16_s1_stage_loop
+	// Butterfly 3: j=3, twiddles W^3, W^6, W^9 (conjugated)
+	VMOVUPD 304(SP), X0
+	VMOVUPD 368(SP), X1
+	VMOVUPD 48(R15), X2
+	VPERMILPD $0, X2, X3
+	VPERMILPD $3, X2, X4
+	VMULPD X3, X1, X5
+	VSHUFPD $1, X1, X1, X6
+	VMULPD X4, X6, X6
+	VADDSUBPD X6, X5, X1
+	VMOVUPD 432(SP), X2
+	VMOVUPD 96(R15), X3
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	VMOVUPD 496(SP), X3
+	VMOVUPD 144(R15), X4
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 48(SI)
+	VMOVUPD X11, 112(SI)
+	VMOVUPD X9, 176(SI)
+	VMOVUPD X13, 240(SI)
 
-inv_r16_fft16_s1_done:
-	MOVQ R14, R12             // restore col
-	MOVQ scratch+72(FP), R11  // restore scratch pointer
+	// Restore col counter and continue loop
+	MOVQ R14, R12
 	INCQ R12
 	JMP  inv_r16_stage1_col
 
@@ -1351,100 +1857,260 @@ inv_r16_stage2_row:
 	SHLQ $8, AX               // row*256 bytes
 	LEAQ (R8)(AX*1), SI
 	MOVQ R12, R14             // save row
-	MOVQ $2, R12              // size
-	MOVQ $1, R13              // half
-	MOVQ $8, R11              // step
 
-	// Bit-reversal permutation for size-16 (radix-2)
-	// Swaps: (1,8), (2,4), (3,12), (5,10), (7,14), (11,13)
-	VMOVUPD 16(SI), X0
-	VMOVUPD 128(SI), X1
-	VMOVUPD X1, 16(SI)
-	VMOVUPD X0, 128(SI)
+	// ==================================================================
+	// RADIX-4 FFT-16 (INVERSE): Same structure as Stage 1
+	// ==================================================================
 
-	VMOVUPD 32(SI), X0
+	// ----------------------------------------------------------------
+	// STAGE 1: 4 radix-4 butterflies (NO twiddle multiplications)
+	// ----------------------------------------------------------------
+
+	// Butterfly 0: reads 0,4,8,12 → writes stage1[0,1,2,3]
+	VMOVUPD 0(SI), X0
 	VMOVUPD 64(SI), X1
-	VMOVUPD X1, 32(SI)
-	VMOVUPD X0, 64(SI)
+	VMOVUPD 128(SI), X2
+	VMOVUPD 192(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 256(SP)
+	VMOVUPD X11, 272(SP)
+	VMOVUPD X9, 288(SP)
+	VMOVUPD X13, 304(SP)
 
+	// Butterfly 1: reads 1,5,9,13 → writes stage1[4,5,6,7]
+	VMOVUPD 16(SI), X0
+	VMOVUPD 80(SI), X1
+	VMOVUPD 144(SI), X2
+	VMOVUPD 208(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 320(SP)
+	VMOVUPD X11, 336(SP)
+	VMOVUPD X9, 352(SP)
+	VMOVUPD X13, 368(SP)
+
+	// Butterfly 2: reads 2,6,10,14 → writes stage1[8,9,10,11]
+	VMOVUPD 32(SI), X0
+	VMOVUPD 96(SI), X1
+	VMOVUPD 160(SI), X2
+	VMOVUPD 224(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 384(SP)
+	VMOVUPD X11, 400(SP)
+	VMOVUPD X9, 416(SP)
+	VMOVUPD X13, 432(SP)
+
+	// Butterfly 3: reads 3,7,11,15 → writes stage1[12,13,14,15]
 	VMOVUPD 48(SI), X0
-	VMOVUPD 192(SI), X1
-	VMOVUPD X1, 48(SI)
-	VMOVUPD X0, 192(SI)
+	VMOVUPD 112(SI), X1
+	VMOVUPD 176(SI), X2
+	VMOVUPD 240(SI), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 448(SP)
+	VMOVUPD X11, 464(SP)
+	VMOVUPD X9, 480(SP)
+	VMOVUPD X13, 496(SP)
 
-	VMOVUPD 80(SI), X0
-	VMOVUPD 160(SI), X1
-	VMOVUPD X1, 80(SI)
-	VMOVUPD X0, 160(SI)
+	// ----------------------------------------------------------------
+	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
+	// ----------------------------------------------------------------
 
-	VMOVUPD 112(SI), X0
-	VMOVUPD 224(SI), X1
-	VMOVUPD X1, 112(SI)
-	VMOVUPD X0, 224(SI)
+	// Butterfly 0: j=0, twiddles W^0 (=1)
+	VMOVUPD 256(SP), X0
+	VMOVUPD 320(SP), X1
+	VMOVUPD 384(SP), X2
+	VMOVUPD 448(SP), X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 0(SI)
+	VMOVUPD X11, 64(SI)
+	VMOVUPD X9, 128(SI)
+	VMOVUPD X13, 192(SI)
 
-	VMOVUPD 176(SI), X0
-	VMOVUPD 208(SI), X1
-	VMOVUPD X1, 176(SI)
-	VMOVUPD X0, 208(SI)
-
-inv_r16_fft16_s2_stage_loop:
-	CMPQ R12, $17
-	JGE  inv_r16_fft16_s2_done
-	XORQ DX, DX               // j
-
-inv_r16_fft16_s2_j_loop:
-	CMPQ DX, R13
-	JGE  inv_r16_fft16_s2_next_stage
-	MOVQ DX, AX
-	IMULQ R11, AX             // j*step
-	SHLQ $4, AX               // twiddle byte offset
-	LEAQ (R15)(AX*1), DI      // twiddle pointer
-	MOVQ DX, R9              // k = j
-
-inv_r16_fft16_s2_k_loop:
-	CMPQ R9, $16
-	JGE  inv_r16_fft16_s2_j_next
-	// a = data[k]
-	MOVQ R9, AX
-	SHLQ $4, AX
-	LEAQ (SI)(AX*1), BX
-	VMOVUPD (BX), X0
-	// b = data[k+half]
-	MOVQ R9, AX
-	ADDQ R13, AX
-	SHLQ $4, AX
-	LEAQ (SI)(AX*1), CX
-	VMOVUPD (CX), X1
-	// twiddle
-	VMOVUPD (DI), X2
-	// t = b * twiddle
+	// Butterfly 1: j=1, twiddles W^1, W^2, W^3 (conjugated)
+	VMOVUPD 272(SP), X0
+	VMOVUPD 336(SP), X1
+	VMOVUPD 16(R15), X2
 	VPERMILPD $0, X2, X3
 	VPERMILPD $3, X2, X4
 	VMULPD X3, X1, X5
 	VSHUFPD $1, X1, X1, X6
 	VMULPD X4, X6, X6
-	VADDSUBPD X6, X5, X5
-	// a+t, a-t
-	VADDPD X5, X0, X7
-	VSUBPD X5, X0, X8
-	VMOVUPD X7, (BX)
-	VMOVUPD X8, (CX)
-	ADDQ R12, R9
-	JMP  inv_r16_fft16_s2_k_loop
+	VADDSUBPD X6, X5, X1
+	VMOVUPD 400(SP), X2
+	VMOVUPD 32(R15), X3
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	VMOVUPD 464(SP), X3
+	VMOVUPD 48(R15), X4
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 16(SI)
+	VMOVUPD X11, 80(SI)
+	VMOVUPD X9, 144(SI)
+	VMOVUPD X13, 208(SI)
 
-inv_r16_fft16_s2_j_next:
-	INCQ DX
-	JMP  inv_r16_fft16_s2_j_loop
+	// Butterfly 2: j=2, twiddles W^2, W^4, W^6 (conjugated)
+	VMOVUPD 288(SP), X0
+	VMOVUPD 352(SP), X1
+	VMOVUPD 32(R15), X2
+	VPERMILPD $0, X2, X3
+	VPERMILPD $3, X2, X4
+	VMULPD X3, X1, X5
+	VSHUFPD $1, X1, X1, X6
+	VMULPD X4, X6, X6
+	VADDSUBPD X6, X5, X1
+	VMOVUPD 416(SP), X2
+	VMOVUPD 64(R15), X3
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	VMOVUPD 480(SP), X3
+	VMOVUPD 96(R15), X4
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 32(SI)
+	VMOVUPD X11, 96(SI)
+	VMOVUPD X9, 160(SI)
+	VMOVUPD X13, 224(SI)
 
-inv_r16_fft16_s2_next_stage:
-	SHLQ $1, R12              // size *= 2
-	SHLQ $1, R13              // half *= 2
-	SHRQ $1, R11              // step /= 2
-	JMP  inv_r16_fft16_s2_stage_loop
+	// Butterfly 3: j=3, twiddles W^3, W^6, W^9 (conjugated)
+	VMOVUPD 304(SP), X0
+	VMOVUPD 368(SP), X1
+	VMOVUPD 48(R15), X2
+	VPERMILPD $0, X2, X3
+	VPERMILPD $3, X2, X4
+	VMULPD X3, X1, X5
+	VSHUFPD $1, X1, X1, X6
+	VMULPD X4, X6, X6
+	VADDSUBPD X6, X5, X1
+	VMOVUPD 432(SP), X2
+	VMOVUPD 96(R15), X3
+	VPERMILPD $0, X3, X4
+	VPERMILPD $3, X3, X5
+	VMULPD X4, X2, X6
+	VSHUFPD $1, X2, X2, X7
+	VMULPD X5, X7, X7
+	VADDSUBPD X7, X6, X2
+	VMOVUPD 496(SP), X3
+	VMOVUPD 144(R15), X4
+	VPERMILPD $0, X4, X5
+	VPERMILPD $3, X4, X6
+	VMULPD X5, X3, X7
+	VSHUFPD $1, X3, X3, X8
+	VMULPD X6, X8, X8
+	VADDSUBPD X8, X7, X3
+	VADDPD X2, X0, X4
+	VSUBPD X2, X0, X5
+	VADDPD X3, X1, X6
+	VSUBPD X3, X1, X7
+	VADDPD X6, X4, X8
+	VSUBPD X6, X4, X9
+	VSHUFPD $1, X7, X7, X10
+	VXORPD ·maskNegLoPD(SB), X10, X10
+	VADDPD X10, X5, X11
+	VSHUFPD $1, X7, X7, X12
+	VXORPD ·maskNegHiPD(SB), X12, X12
+	VADDPD X12, X5, X13
+	VMOVUPD X8, 48(SI)
+	VMOVUPD X11, 112(SI)
+	VMOVUPD X9, 176(SI)
+	VMOVUPD X13, 240(SI)
 
-inv_r16_fft16_s2_done:
-	MOVQ R14, R12             // restore row
-	MOVQ scratch+72(FP), R11  // restore scratch pointer
+	// Restore row counter and continue loop
+	MOVQ R14, R12
 	INCQ R12
 	JMP  inv_r16_stage2_row
 
