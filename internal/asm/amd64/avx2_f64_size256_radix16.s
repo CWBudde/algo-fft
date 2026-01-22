@@ -234,7 +234,8 @@ fwd_r16_stage1_col:
 	// ----------------------------------------------------------------
 	// STAGE 2: 4 radix-4 butterflies using YMM (2x parallel)
 	// Butterflies 0+1 together, then 2+3
-	// Twiddles packed as [W^j_bf0, W^j_bf1] using VINSERTF128
+	// Pre-packed twiddles loaded directly from twiddle array (R10)
+	// Offsets: 11776 + pair*32 where pair 0-5 corresponds to 6 YMM pairs
 	// ----------------------------------------------------------------
 
 	// Butterflies 0+1: twiddles [W^0,W^1], [W^0,W^2], [W^0,W^3]
@@ -242,9 +243,7 @@ fwd_r16_stage1_col:
 	VMOVUPD 256(SP), Y0       // Y0 = [stage1[0], stage1[1]]
 	// a1 = [stage1[4], stage1[5]] * [W^0, W^1]
 	VMOVUPD 320(SP), Y1
-	VMOVUPD 0(R15), X8        // W^0 = 1
-	VMOVUPD 16(R15), X9       // W^1
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [1, W^1]
+	VMOVUPD 11776(R10), Y8    // Y8 = [W^0, W^1] pre-packed
 	VPERMILPD $0, Y8, Y9      // [re, re, re, re]
 	VPERMILPD $15, Y8, Y10    // [im, im, im, im]
 	VMULPD Y9, Y1, Y11
@@ -253,8 +252,7 @@ fwd_r16_stage1_col:
 	VADDSUBPD Y12, Y11, Y1
 	// a2 = [stage1[8], stage1[9]] * [W^0, W^2]
 	VMOVUPD 384(SP), Y2
-	VMOVUPD 32(R15), X9       // W^2
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [1, W^2] (reuse X8=W^0)
+	VMOVUPD 11808(R10), Y8    // Y8 = [W^0, W^2] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y2, Y11
@@ -263,8 +261,7 @@ fwd_r16_stage1_col:
 	VADDSUBPD Y12, Y11, Y2
 	// a3 = [stage1[12], stage1[13]] * [W^0, W^3]
 	VMOVUPD 448(SP), Y3
-	VMOVUPD 48(R15), X9       // W^3
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [1, W^3]
+	VMOVUPD 11840(R10), Y8    // Y8 = [W^0, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y3, Y11
@@ -294,9 +291,7 @@ fwd_r16_stage1_col:
 	VMOVUPD 288(SP), Y0
 	// a1 = [stage1[6], stage1[7]] * [W^2, W^3]
 	VMOVUPD 352(SP), Y1
-	VMOVUPD 32(R15), X8       // W^2
-	VMOVUPD 48(R15), X9       // W^3
-	VINSERTF128 $1, X9, Y8, Y8
+	VMOVUPD 11872(R10), Y8    // Y8 = [W^2, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y1, Y11
@@ -305,9 +300,7 @@ fwd_r16_stage1_col:
 	VADDSUBPD Y12, Y11, Y1
 	// a2 = [stage1[10], stage1[11]] * [W^4, W^6]
 	VMOVUPD 416(SP), Y2
-	VMOVUPD 64(R15), X8       // W^4
-	VMOVUPD 96(R15), X9       // W^6
-	VINSERTF128 $1, X9, Y8, Y8
+	VMOVUPD 11904(R10), Y8    // Y8 = [W^4, W^6] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y2, Y11
@@ -316,9 +309,7 @@ fwd_r16_stage1_col:
 	VADDSUBPD Y12, Y11, Y2
 	// a3 = [stage1[14], stage1[15]] * [W^6, W^9]
 	VMOVUPD 480(SP), Y3
-	VMOVUPD 96(R15), X8       // W^6
-	VMOVUPD 144(R15), X9      // W^9
-	VINSERTF128 $1, X9, Y8, Y8
+	VMOVUPD 11936(R10), Y8    // Y8 = [W^6, W^9] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y3, Y11
@@ -903,14 +894,13 @@ fwd_r16_stage2_row:
 
 	// ----------------------------------------------------------------
 	// STAGE 2: 4 radix-4 butterflies using YMM (2x parallel)
+	// Pre-packed twiddles loaded directly from twiddle array (R10)
 	// ----------------------------------------------------------------
 
 	// Butterflies 0+1
 	VMOVUPD 256(SP), Y0
 	VMOVUPD 320(SP), Y1
-	VMOVUPD 0(R15), X8
-	VMOVUPD 16(R15), X9
-	VINSERTF128 $1, X9, Y8, Y8
+	VMOVUPD 11776(R10), Y8    // [W^0, W^1] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y1, Y11
@@ -918,8 +908,7 @@ fwd_r16_stage2_row:
 	VMULPD Y10, Y12, Y12
 	VADDSUBPD Y12, Y11, Y1
 	VMOVUPD 384(SP), Y2
-	VMOVUPD 32(R15), X9
-	VINSERTF128 $1, X9, Y8, Y8
+	VMOVUPD 11808(R10), Y8    // [W^0, W^2] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y2, Y11
@@ -927,8 +916,7 @@ fwd_r16_stage2_row:
 	VMULPD Y10, Y12, Y12
 	VADDSUBPD Y12, Y11, Y2
 	VMOVUPD 448(SP), Y3
-	VMOVUPD 48(R15), X9
-	VINSERTF128 $1, X9, Y8, Y8
+	VMOVUPD 11840(R10), Y8    // [W^0, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y3, Y11
@@ -955,9 +943,7 @@ fwd_r16_stage2_row:
 	// Butterflies 2+3
 	VMOVUPD 288(SP), Y0
 	VMOVUPD 352(SP), Y1
-	VMOVUPD 32(R15), X8
-	VMOVUPD 48(R15), X9
-	VINSERTF128 $1, X9, Y8, Y8
+	VMOVUPD 11872(R10), Y8    // [W^2, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y1, Y11
@@ -965,9 +951,7 @@ fwd_r16_stage2_row:
 	VMULPD Y10, Y12, Y12
 	VADDSUBPD Y12, Y11, Y1
 	VMOVUPD 416(SP), Y2
-	VMOVUPD 64(R15), X8
-	VMOVUPD 96(R15), X9
-	VINSERTF128 $1, X9, Y8, Y8
+	VMOVUPD 11904(R10), Y8    // [W^4, W^6] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y2, Y11
@@ -975,9 +959,7 @@ fwd_r16_stage2_row:
 	VMULPD Y10, Y12, Y12
 	VADDSUBPD Y12, Y11, Y2
 	VMOVUPD 480(SP), Y3
-	VMOVUPD 96(R15), X8
-	VMOVUPD 144(R15), X9
-	VINSERTF128 $1, X9, Y8, Y8
+	VMOVUPD 11936(R10), Y8    // [W^6, W^9] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y3, Y11
@@ -1299,7 +1281,7 @@ inv_r16_stage1_col:
 
 	// ----------------------------------------------------------------
 	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
-	// Twiddles are already conjugated in W_16 table
+	// Twiddles are pre-packed and conjugated in twiddle array (R10)
 	// YMM-optimized: process butterflies 0+1 together, then 2+3
 	// Inverse uses j for y1, -j for y3 (swapped from forward)
 	// ----------------------------------------------------------------
@@ -1309,9 +1291,7 @@ inv_r16_stage1_col:
 
 	// a1 = [stage1[4], stage1[5]] * [W^0, W^1]
 	VMOVUPD 320(SP), Y1       // [stage1[4], stage1[5]]
-	VMOVUPD 0(R15), X8        // W^0 = 1
-	VMOVUPD 16(R15), X9       // W^1
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [1, W^1]
+	VMOVUPD 11776(R10), Y8    // Y8 = [W^0, W^1] pre-packed (conjugated)
 	VPERMILPD $0, Y8, Y9      // [re, re, re, re]
 	VPERMILPD $15, Y8, Y10    // [im, im, im, im]
 	VMULPD Y9, Y1, Y11        // [a*re, b*re, ...]
@@ -1321,9 +1301,7 @@ inv_r16_stage1_col:
 
 	// a2 = [stage1[8], stage1[9]] * [W^0, W^2]
 	VMOVUPD 384(SP), Y2       // [stage1[8], stage1[9]]
-	VMOVUPD 0(R15), X8        // W^0 = 1
-	VMOVUPD 32(R15), X9       // W^2
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [1, W^2]
+	VMOVUPD 11808(R10), Y8    // Y8 = [W^0, W^2] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y2, Y11
@@ -1333,9 +1311,7 @@ inv_r16_stage1_col:
 
 	// a3 = [stage1[12], stage1[13]] * [W^0, W^3]
 	VMOVUPD 448(SP), Y3       // [stage1[12], stage1[13]]
-	VMOVUPD 0(R15), X8        // W^0 = 1
-	VMOVUPD 48(R15), X9       // W^3
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [1, W^3]
+	VMOVUPD 11840(R10), Y8    // Y8 = [W^0, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y3, Y11
@@ -1368,9 +1344,7 @@ inv_r16_stage1_col:
 
 	// a1 = [stage1[6], stage1[7]] * [W^2, W^3]
 	VMOVUPD 352(SP), Y1       // [stage1[6], stage1[7]]
-	VMOVUPD 32(R15), X8       // W^2
-	VMOVUPD 48(R15), X9       // W^3
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [W^2, W^3]
+	VMOVUPD 11872(R10), Y8    // Y8 = [W^2, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y1, Y11
@@ -1380,9 +1354,7 @@ inv_r16_stage1_col:
 
 	// a2 = [stage1[10], stage1[11]] * [W^4, W^6]
 	VMOVUPD 416(SP), Y2       // [stage1[10], stage1[11]]
-	VMOVUPD 64(R15), X8       // W^4
-	VMOVUPD 96(R15), X9       // W^6
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [W^4, W^6]
+	VMOVUPD 11904(R10), Y8    // Y8 = [W^4, W^6] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y2, Y11
@@ -1392,9 +1364,7 @@ inv_r16_stage1_col:
 
 	// a3 = [stage1[14], stage1[15]] * [W^6, W^9]
 	VMOVUPD 480(SP), Y3       // [stage1[14], stage1[15]]
-	VMOVUPD 96(R15), X8       // W^6
-	VMOVUPD 144(R15), X9      // W^9
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [W^6, W^9]
+	VMOVUPD 11936(R10), Y8    // Y8 = [W^6, W^9] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y3, Y11
@@ -1736,6 +1706,7 @@ inv_r16_stage2_row:
 
 	// ----------------------------------------------------------------
 	// STAGE 2: 4 radix-4 butterflies (WITH twiddle multiplications)
+	// Pre-packed twiddles loaded from twiddle array (R10)
 	// YMM-optimized: process butterflies 0+1 together, then 2+3
 	// Inverse uses j for y1, -j for y3 (swapped from forward)
 	// ----------------------------------------------------------------
@@ -1745,9 +1716,7 @@ inv_r16_stage2_row:
 
 	// a1 = [stage1[4], stage1[5]] * [W^0, W^1]
 	VMOVUPD 320(SP), Y1       // [stage1[4], stage1[5]]
-	VMOVUPD 0(R15), X8        // W^0 = 1
-	VMOVUPD 16(R15), X9       // W^1
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [1, W^1]
+	VMOVUPD 11776(R10), Y8    // Y8 = [W^0, W^1] pre-packed (conjugated)
 	VPERMILPD $0, Y8, Y9      // [re, re, re, re]
 	VPERMILPD $15, Y8, Y10    // [im, im, im, im]
 	VMULPD Y9, Y1, Y11        // [a*re, b*re, ...]
@@ -1757,9 +1726,7 @@ inv_r16_stage2_row:
 
 	// a2 = [stage1[8], stage1[9]] * [W^0, W^2]
 	VMOVUPD 384(SP), Y2       // [stage1[8], stage1[9]]
-	VMOVUPD 0(R15), X8        // W^0 = 1
-	VMOVUPD 32(R15), X9       // W^2
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [1, W^2]
+	VMOVUPD 11808(R10), Y8    // Y8 = [W^0, W^2] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y2, Y11
@@ -1769,9 +1736,7 @@ inv_r16_stage2_row:
 
 	// a3 = [stage1[12], stage1[13]] * [W^0, W^3]
 	VMOVUPD 448(SP), Y3       // [stage1[12], stage1[13]]
-	VMOVUPD 0(R15), X8        // W^0 = 1
-	VMOVUPD 48(R15), X9       // W^3
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [1, W^3]
+	VMOVUPD 11840(R10), Y8    // Y8 = [W^0, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y3, Y11
@@ -1804,9 +1769,7 @@ inv_r16_stage2_row:
 
 	// a1 = [stage1[6], stage1[7]] * [W^2, W^3]
 	VMOVUPD 352(SP), Y1       // [stage1[6], stage1[7]]
-	VMOVUPD 32(R15), X8       // W^2
-	VMOVUPD 48(R15), X9       // W^3
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [W^2, W^3]
+	VMOVUPD 11872(R10), Y8    // Y8 = [W^2, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y1, Y11
@@ -1816,9 +1779,7 @@ inv_r16_stage2_row:
 
 	// a2 = [stage1[10], stage1[11]] * [W^4, W^6]
 	VMOVUPD 416(SP), Y2       // [stage1[10], stage1[11]]
-	VMOVUPD 64(R15), X8       // W^4
-	VMOVUPD 96(R15), X9       // W^6
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [W^4, W^6]
+	VMOVUPD 11904(R10), Y8    // Y8 = [W^4, W^6] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y2, Y11
@@ -1828,9 +1789,7 @@ inv_r16_stage2_row:
 
 	// a3 = [stage1[14], stage1[15]] * [W^6, W^9]
 	VMOVUPD 480(SP), Y3       // [stage1[14], stage1[15]]
-	VMOVUPD 96(R15), X8       // W^6
-	VMOVUPD 144(R15), X9      // W^9
-	VINSERTF128 $1, X9, Y8, Y8  // Y8 = [W^6, W^9]
+	VMOVUPD 11936(R10), Y8    // Y8 = [W^6, W^9] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
 	VMULPD Y9, Y3, Y11

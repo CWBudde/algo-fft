@@ -198,10 +198,15 @@ const (
 )
 
 const (
-	twiddleSize256Radix16AVX2Elems = 736
+	twiddleSize256Radix16AVX2Elems = 748 // 736 + 12 for Stage 2 pre-packed
 	twiddleSize256Radix16BaseElems = 256
 	twiddlePairsPerCol256Radix16   = 8
 	twiddleElemsPerPair256Radix16  = 4
+
+	// Pre-packed YMM pairs for FFT-16 Stage 2 (eliminates VINSERTF128 at runtime)
+	// Each pair is 2 complex128 values = 32 bytes = 1 YMM register
+	twiddleStage2PackedOffset256Radix16 = 736
+	twiddleStage2PackedElems256Radix16  = 12 // 6 pairs × 2 elements
 )
 
 func twiddleSize1024Radix32x32AVX2(_ int) int {
@@ -299,4 +304,31 @@ func prepareTwiddle256Radix16AVX2(n int, inverse bool, dst []complex128) {
 			offset += twiddleElemsPerPair256Radix16
 		}
 	}
+
+	// Pre-packed YMM pairs for FFT-16 Stage 2 butterflies
+	// W_16[k] = W_256[k*16], stored as contiguous complex128 pairs
+	// Format: [W^a, W^b] = [re_a, im_a, re_b, im_b] (32 bytes, loadable as YMM)
+	w16 := func(k int) complex128 {
+		w := twiddle[k*16]
+		if inverse {
+			return complex(real(w), -imag(w))
+		}
+		return w
+	}
+
+	offset = twiddleStage2PackedOffset256Radix16
+	// Butterflies 0+1: twiddles for a1, a2, a3
+	dst[offset+0] = w16(0)  // [W^0, W^1] for a1
+	dst[offset+1] = w16(1)
+	dst[offset+2] = w16(0)  // [W^0, W^2] for a2
+	dst[offset+3] = w16(2)
+	dst[offset+4] = w16(0)  // [W^0, W^3] for a3
+	dst[offset+5] = w16(3)
+	// Butterflies 2+3: twiddles for a1, a2, a3
+	dst[offset+6] = w16(2)  // [W^2, W^3] for a1
+	dst[offset+7] = w16(3)
+	dst[offset+8] = w16(4)  // [W^4, W^6] for a2
+	dst[offset+9] = w16(6)
+	dst[offset+10] = w16(6) // [W^6, W^9] for a3
+	dst[offset+11] = w16(9)
 }
