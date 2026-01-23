@@ -318,16 +318,16 @@ func prepareTwiddle256Radix16AVX2(n int, inverse bool, dst []complex128) {
 
 	offset = twiddleStage2PackedOffset256Radix16
 	// Butterflies 0+1: twiddles for a1, a2, a3
-	dst[offset+0] = w16(0)  // [W^0, W^1] for a1
+	dst[offset+0] = w16(0) // [W^0, W^1] for a1
 	dst[offset+1] = w16(1)
-	dst[offset+2] = w16(0)  // [W^0, W^2] for a2
+	dst[offset+2] = w16(0) // [W^0, W^2] for a2
 	dst[offset+3] = w16(2)
-	dst[offset+4] = w16(0)  // [W^0, W^3] for a3
+	dst[offset+4] = w16(0) // [W^0, W^3] for a3
 	dst[offset+5] = w16(3)
 	// Butterflies 2+3: twiddles for a1, a2, a3
-	dst[offset+6] = w16(2)  // [W^2, W^3] for a1
+	dst[offset+6] = w16(2) // [W^2, W^3] for a1
 	dst[offset+7] = w16(3)
-	dst[offset+8] = w16(4)  // [W^4, W^6] for a2
+	dst[offset+8] = w16(4) // [W^4, W^6] for a2
 	dst[offset+9] = w16(6)
 	dst[offset+10] = w16(6) // [W^6, W^9] for a3
 	dst[offset+11] = w16(9)
