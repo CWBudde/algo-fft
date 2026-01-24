@@ -516,3 +516,54 @@ func sprintf(format string, args ...interface{}) string {
 
 	return result
 }
+
+// TestPlanReal2D_Accessors tests the accessor methods.
+func TestPlanReal2D_Accessors(t *testing.T) {
+	t.Parallel()
+
+	rows := 8
+	cols := 16
+
+	plan, err := NewPlanReal2D(rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlanReal2D failed: %v", err)
+	}
+
+	if plan.Rows() != rows {
+		t.Errorf("Rows() = %d, want %d", plan.Rows(), rows)
+	}
+
+	if plan.Cols() != cols {
+		t.Errorf("Cols() = %d, want %d", plan.Cols(), cols)
+	}
+
+	expectedLen := rows * cols
+	if plan.Len() != expectedLen {
+		t.Errorf("Len() = %d, want %d", plan.Len(), expectedLen)
+	}
+
+	expectedSpectrumLen := rows * (cols/2 + 1)
+	if plan.SpectrumLen() != expectedSpectrumLen {
+		t.Errorf("SpectrumLen() = %d, want %d", plan.SpectrumLen(), expectedSpectrumLen)
+	}
+}
+
+// TestPlanReal2D_String tests the String() method.
+func TestPlanReal2D_String(t *testing.T) {
+	t.Parallel()
+
+	rows := 4
+	cols := 8
+
+	plan, err := NewPlanReal2D(rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlanReal2D failed: %v", err)
+	}
+
+	str := plan.String()
+	expected := "PlanReal2D[float32→complex64](4x8 → 4x5)"
+
+	if str != expected {
+		t.Errorf("String() = %q, want %q", str, expected)
+	}
+}
