@@ -263,9 +263,9 @@ func TestComputeBitReversalIndicesRadix4(t *testing.T) {
 		n      int
 		expect []int
 	}{
-		{"n=4", 4, []int{0, 1, 2, 3}},         // 4^1: identity in radix-4
+		{"n=4", 4, []int{0, 1, 2, 3}}, // 4^1: identity in radix-4
 		{"n=16", 16, []int{0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15}}, // 4^2
-		{"n=8 (not power of 4)", 8, []int{0, 2, 4, 6, 1, 3, 5, 7}}, // Mixed radix handling
+		{"n=8 (not power of 4)", 8, []int{0, 2, 4, 6, 1, 3, 5, 7}},                // Mixed radix handling
 	}
 
 	for _, tt := range tests {
@@ -410,7 +410,7 @@ func TestComputePermutationIndices_InvalidInputs(t *testing.T) {
 	}{
 		{"negative n", -1, 2},
 		{"zero n", 0, 2},
-		{"radix 3 with non-power", 8, 3}, // 8 is not a power of 3
+		{"radix 3 with non-power", 8, 3},  // 8 is not a power of 3
 		{"radix 5 with non-power", 16, 5}, // 16 is not a power of 5
 	}
 

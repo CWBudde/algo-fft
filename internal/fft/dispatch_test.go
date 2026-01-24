@@ -446,7 +446,7 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 	})
 }
 
-// TestEstimatePlan tests plan estimation functionality
+// TestEstimatePlan tests plan estimation functionality.
 func TestEstimatePlan(t *testing.T) {
 	t.Parallel()
 
@@ -465,7 +465,6 @@ func TestEstimatePlan(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -484,7 +483,7 @@ func TestEstimatePlan(t *testing.T) {
 	}
 }
 
-// TestHasCodelet tests codelet availability checking
+// TestHasCodelet tests codelet availability checking.
 func TestHasCodelet(t *testing.T) {
 	t.Parallel()
 
@@ -503,7 +502,7 @@ func TestHasCodelet(t *testing.T) {
 	}
 }
 
-// TestConjugatePackedTwiddles tests packed twiddle conjugation
+// TestConjugatePackedTwiddles tests packed twiddle conjugation.
 func TestConjugatePackedTwiddles(t *testing.T) {
 	t.Parallel()
 
@@ -559,7 +558,7 @@ func TestConjugatePackedTwiddles(t *testing.T) {
 	})
 }
 
-// TestComputeSquareTransposePairs tests transpose pair computation
+// TestComputeSquareTransposePairs tests transpose pair computation.
 func TestComputeSquareTransposePairs(t *testing.T) {
 	t.Parallel()
 
@@ -576,25 +575,29 @@ func TestComputeSquareTransposePairs(t *testing.T) {
 
 		// Verify no duplicate pairs
 		seen := make(map[int]bool)
+
 		for _, pair := range pairs {
 			if pair.I == pair.J {
 				t.Errorf("n=%d: self-swap at index %d", n, pair.I)
 			}
+
 			if seen[pair.I] && seen[pair.J] {
 				t.Errorf("n=%d: duplicate pair (%d, %d)", n, pair.I, pair.J)
 			}
+
 			seen[pair.I] = true
 			seen[pair.J] = true
 		}
 	}
 }
 
-// TestApplyTransposePairs tests transpose application
+// TestApplyTransposePairs tests transpose application.
 func TestApplyTransposePairs(t *testing.T) {
 	t.Parallel()
 
 	t.Run("complex64", func(t *testing.T) {
 		n := 4
+
 		data := make([]complex64, n*n)
 		for i := range data {
 			data[i] = complex(float32(i), 0)
@@ -611,6 +614,7 @@ func TestApplyTransposePairs(t *testing.T) {
 		for i := range n {
 			for j := range n {
 				idx := i*n + j
+
 				transIdx := j*n + i
 				if data[idx] != original[transIdx] {
 					t.Errorf("Transpose mismatch at (%d,%d): got %v, want %v",
@@ -622,6 +626,7 @@ func TestApplyTransposePairs(t *testing.T) {
 
 	t.Run("complex128", func(t *testing.T) {
 		n := 4
+
 		data := make([]complex128, n*n)
 		for i := range data {
 			data[i] = complex(float64(i), 0)
@@ -636,6 +641,7 @@ func TestApplyTransposePairs(t *testing.T) {
 		for i := range n {
 			for j := range n {
 				idx := i*n + j
+
 				transIdx := j*n + i
 				if data[idx] != original[transIdx] {
 					t.Errorf("Transpose mismatch at (%d,%d): got %v, want %v",

@@ -8,7 +8,7 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
-// TestRecursiveTransform tests the recursive FFT decomposition
+// TestRecursiveTransform tests the recursive FFT decomposition.
 func TestRecursiveTransform(t *testing.T) {
 	t.Parallel()
 
@@ -34,6 +34,7 @@ func testRecursive64(t *testing.T, n int) {
 	// Create decomposition strategy
 	codeletSizes := []int{4, 8, 16, 32}
 	cacheSize := 32768 // 32KB L1 cache
+
 	strategy := PlanDecomposition(n, codeletSizes, cacheSize)
 	if strategy == nil {
 		t.Skip("Cannot decompose size")
@@ -88,6 +89,7 @@ func testRecursive128(t *testing.T, n int) {
 
 	codeletSizes := []int{4, 8, 16, 32}
 	cacheSize := 32768
+
 	strategy := PlanDecomposition(n, codeletSizes, cacheSize)
 	if strategy == nil {
 		t.Skip("Cannot decompose size")
@@ -126,7 +128,7 @@ func testRecursive128(t *testing.T, n int) {
 	}
 }
 
-// TestStockhamPacked tests the packed Stockham FFT variant
+// TestStockhamPacked tests the packed Stockham FFT variant.
 func TestStockhamPacked(t *testing.T) {
 	t.Parallel()
 
@@ -157,6 +159,7 @@ func testStockhamPacked64(t *testing.T, n int) {
 
 	// Prepare packed twiddles
 	twiddle := ComputeTwiddleFactors[complex64](n)
+
 	packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
 	if packed == nil {
 		t.Skip("Failed to compute packed twiddles")
@@ -165,6 +168,7 @@ func testStockhamPacked64(t *testing.T, n int) {
 
 	// Test forward
 	dst := make([]complex64, n)
+
 	scratch := make([]complex64, n)
 	if !ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
 		t.Skip("ForwardStockhamPacked not implemented")
@@ -182,6 +186,7 @@ func testStockhamPacked64(t *testing.T, n int) {
 	// Test inverse with conjugated packed twiddles
 	invPacked := ConjugatePackedTwiddles(packed)
 	inv := make([]complex64, n)
+
 	scratch = make([]complex64, n)
 	if !InverseStockhamPacked(inv, dst, twiddle, scratch, invPacked) {
 		t.Skip("InverseStockhamPacked not implemented")
@@ -209,6 +214,7 @@ func testStockhamPacked128(t *testing.T, n int) {
 	want := reference.NaiveDFT128(src)
 
 	twiddle := ComputeTwiddleFactors[complex128](n)
+
 	packed := ComputePackedTwiddles[complex128](n, 4, twiddle)
 	if packed == nil {
 		t.Skip("Failed to compute packed twiddles")
@@ -216,6 +222,7 @@ func testStockhamPacked128(t *testing.T, n int) {
 	}
 
 	dst := make([]complex128, n)
+
 	scratch := make([]complex128, n)
 	if !ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
 		t.Skip("ForwardStockhamPacked not implemented")
@@ -231,6 +238,7 @@ func testStockhamPacked128(t *testing.T, n int) {
 
 	invPacked := ConjugatePackedTwiddles(packed)
 	inv := make([]complex128, n)
+
 	scratch = make([]complex128, n)
 	if !InverseStockhamPacked(inv, dst, twiddle, scratch, invPacked) {
 		t.Skip("InverseStockhamPacked not implemented")
@@ -245,7 +253,7 @@ func testStockhamPacked128(t *testing.T, n int) {
 	}
 }
 
-// TestTwiddleFactorsRecursive tests the twiddle factor generation for recursive decomposition
+// TestTwiddleFactorsRecursive tests the twiddle factor generation for recursive decomposition.
 func TestTwiddleFactorsRecursive(t *testing.T) {
 	t.Parallel()
 
@@ -253,8 +261,9 @@ func TestTwiddleFactorsRecursive(t *testing.T) {
 
 	for _, n := range sizes {
 		codeletSizes := []int{4, 8, 16, 32}
-	cacheSize := 32768
-	strategy := PlanDecomposition(n, codeletSizes, cacheSize)
+		cacheSize := 32768
+
+		strategy := PlanDecomposition(n, codeletSizes, cacheSize)
 		if strategy == nil {
 			continue
 		}
@@ -268,10 +277,12 @@ func TestTwiddleFactorsRecursive(t *testing.T) {
 			// Verify no NaN or Inf
 			for i, tw := range twiddle {
 				re := real(tw)
+
 				im := imag(tw)
 				if re != re || im != im { // NaN check
 					t.Errorf("index %d: NaN twiddle factor", i)
 				}
+
 				if re > 1e10 || re < -1e10 || im > 1e10 || im < -1e10 {
 					t.Errorf("index %d: potentially infinite twiddle factor", i)
 				}
@@ -288,6 +299,7 @@ func TestTwiddleFactorsRecursive(t *testing.T) {
 				if cmplx.IsNaN(tw) {
 					t.Errorf("index %d: NaN twiddle factor", i)
 				}
+
 				if cmplx.IsInf(tw) {
 					t.Errorf("index %d: Inf twiddle factor", i)
 				}

@@ -337,14 +337,13 @@ func TestInverseRepackEdgeCases(t *testing.T) {
 	})
 }
 
-// TestRepackInverseComplex64 tests the public RepackInverseComplex64 function
+// TestRepackInverseComplex64 tests the public RepackInverseComplex64 function.
 func TestRepackInverseComplex64(t *testing.T) {
 	t.Parallel()
 
 	sizes := []int{8, 16, 32, 64}
 
 	for _, half := range sizes {
-		half := half
 		t.Run("Size"+string(rune(half)), func(t *testing.T) {
 			t.Parallel()
 
@@ -355,6 +354,7 @@ func TestRepackInverseComplex64(t *testing.T) {
 			for i := range src {
 				src[i] = complex(float32(i), float32(-i))
 			}
+
 			src[0] = complex(real(src[0]), 0)
 			src[half] = complex(real(src[half]), 0)
 
@@ -380,14 +380,13 @@ func TestRepackInverseComplex64(t *testing.T) {
 	}
 }
 
-// TestRepackInverseComplex128 tests the public RepackInverseComplex128 function
+// TestRepackInverseComplex128 tests the public RepackInverseComplex128 function.
 func TestRepackInverseComplex128(t *testing.T) {
 	t.Parallel()
 
 	sizes := []int{8, 16, 32, 64}
 
 	for _, half := range sizes {
-		half := half
 		t.Run("Size"+string(rune(half)), func(t *testing.T) {
 			t.Parallel()
 
@@ -398,6 +397,7 @@ func TestRepackInverseComplex128(t *testing.T) {
 			for i := range src {
 				src[i] = complex(float64(i), float64(-i))
 			}
+
 			src[0] = complex(real(src[0]), 0)
 			src[half] = complex(real(src[half]), 0)
 

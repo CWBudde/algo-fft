@@ -168,7 +168,7 @@ func TestWisdomLen(t *testing.T) {
 	}
 
 	// Add entries
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		wisdom.Store(planner.WisdomEntry{
 			Key: planner.WisdomKey{
 				Size:        128 << i,
@@ -272,7 +272,7 @@ func TestImportWisdom(t *testing.T) {
 
 1024:1:0:bluestein:1234567893`
 
-	err := os.WriteFile(filename, []byte(wisdomData), 0644)
+	err := os.WriteFile(filename, []byte(wisdomData), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create test wisdom file: %v", err)
 	}
@@ -364,12 +364,13 @@ func TestImportWisdom_InvalidFormat(t *testing.T) {
 	// Create wisdom file with invalid format
 	invalidData := `128:0:0:dit64` // Missing timestamp field
 
-	err := os.WriteFile(filename, []byte(invalidData), 0644)
+	err := os.WriteFile(filename, []byte(invalidData), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
 	wisdom := NewWisdom()
+
 	file, err := os.Open(filename)
 	if err != nil {
 		t.Fatalf("Failed to open file: %v", err)
@@ -421,6 +422,7 @@ func TestExportImportRoundTrip(t *testing.T) {
 
 	// Import to new wisdom
 	imported := NewWisdom()
+
 	file, err := os.Open(filename)
 	if err != nil {
 		t.Fatalf("Failed to open exported file: %v", err)
@@ -468,7 +470,6 @@ func TestExportWisdom_NonExistentPath(t *testing.T) {
 
 func TestImportWisdom_NonExistentFile(t *testing.T) {
 	// Can't run in parallel because it uses global ImportWisdom
-
 	err := ImportWisdom("/nonexistent/wisdom.txt")
 	if err == nil {
 		t.Error("ImportWisdom() should fail with non-existent file")
@@ -484,7 +485,7 @@ func TestWisdom_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent stores
 	go func() {
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			wisdom.Store(planner.WisdomEntry{
 				Key: planner.WisdomKey{
 					Size:        128 + i,
@@ -495,22 +496,25 @@ func TestWisdom_ConcurrentAccess(t *testing.T) {
 				Timestamp: time.Now(),
 			})
 		}
+
 		done <- true
 	}()
 
 	// Concurrent lookups
 	go func() {
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			_, _ = wisdom.Lookup(planner.WisdomKey{Size: 128 + i, Precision: 0, CPUFeatures: 0})
 		}
+
 		done <- true
 	}()
 
 	// Concurrent len checks
 	go func() {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			_ = wisdom.Len()
 		}
+
 		done <- true
 	}()
 
@@ -557,12 +561,13 @@ func TestImportWisdom_EmptyFile(t *testing.T) {
 	filename := filepath.Join(tmpDir, "empty.txt")
 
 	// Create empty file
-	err := os.WriteFile(filename, []byte(""), 0644)
+	err := os.WriteFile(filename, []byte(""), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create empty file: %v", err)
 	}
 
 	wisdom := NewWisdom()
+
 	file, err := os.Open(filename)
 	if err != nil {
 		t.Fatalf("Failed to open file: %v", err)
@@ -581,14 +586,13 @@ func TestImportWisdom_EmptyFile(t *testing.T) {
 
 func TestImportWisdom_GlobalFunction(t *testing.T) {
 	// Note: Uses global DefaultWisdom, cannot run in parallel
-
 	tmpDir := t.TempDir()
 	filename := filepath.Join(tmpDir, "global_import_test.txt")
 
 	// Create wisdom file
 	wisdomData := `4096:0:0:global_test:1234567890`
 
-	err := os.WriteFile(filename, []byte(wisdomData), 0644)
+	err := os.WriteFile(filename, []byte(wisdomData), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create test wisdom file: %v", err)
 	}
@@ -613,7 +617,6 @@ func TestImportWisdom_GlobalFunction(t *testing.T) {
 
 func TestExportWisdom_GlobalFunction(t *testing.T) {
 	// Note: Uses global DefaultWisdom, cannot run in parallel
-
 	tmpDir := t.TempDir()
 	filename := filepath.Join(tmpDir, "global_export_test.txt")
 

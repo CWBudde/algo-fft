@@ -386,8 +386,7 @@ func sqrt64(x float64) float64 {
 	return guess
 }
 
-
-// TestConjugateOf tests the ConjugateOf helper function
+// TestConjugateOf tests the ConjugateOf helper function.
 func TestConjugateOf(t *testing.T) {
 	t.Parallel()
 
