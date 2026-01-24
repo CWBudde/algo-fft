@@ -445,3 +445,203 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 		}
 	})
 }
+
+// TestEstimatePlan tests plan estimation functionality
+func TestEstimatePlan(t *testing.T) {
+	t.Parallel()
+
+	features := cpu.DetectFeatures()
+	wisdom := NewWisdom()
+
+	testCases := []struct {
+		name     string
+		n        int
+		strategy KernelStrategy
+	}{
+		{"Small_Auto", 16, KernelAuto},
+		{"Medium_DIT", 256, KernelDIT},
+		{"Large_Stockham", 4096, KernelStockham},
+		{"PowerOf2_Auto", 1024, KernelAuto},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Test complex64
+			est64 := EstimatePlan[complex64](tc.n, features, wisdom, tc.strategy)
+			if est64.Algorithm == "" && est64.Strategy == 0 {
+				t.Errorf("complex64: empty plan estimate for n=%d", tc.n)
+			}
+
+			// Test complex128
+			est128 := EstimatePlan[complex128](tc.n, features, wisdom, tc.strategy)
+			if est128.Algorithm == "" && est128.Strategy == 0 {
+				t.Errorf("complex128: empty plan estimate for n=%d", tc.n)
+			}
+		})
+	}
+}
+
+// TestHasCodelet tests codelet availability checking
+func TestHasCodelet(t *testing.T) {
+	t.Parallel()
+
+	features := cpu.DetectFeatures()
+
+	// Common sizes that should have codelets
+	sizes := []int{4, 8, 16, 32, 64}
+
+	for _, n := range sizes {
+		has64 := HasCodelet[complex64](n, features)
+		has128 := HasCodelet[complex128](n, features)
+
+		// Just verify the function runs without error
+		// Actual availability depends on build configuration
+		t.Logf("n=%d: complex64=%v, complex128=%v", n, has64, has128)
+	}
+}
+
+// TestConjugatePackedTwiddles tests packed twiddle conjugation
+func TestConjugatePackedTwiddles(t *testing.T) {
+	t.Parallel()
+
+	t.Run("complex64", func(t *testing.T) {
+		n := 16
+		twiddle := ComputeTwiddleFactors[complex64](n)
+		packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
+
+		if packed == nil {
+			t.Fatal("ComputePackedTwiddles returned nil")
+		}
+
+		conjugated := ConjugatePackedTwiddles(packed)
+
+		if conjugated == nil {
+			t.Fatal("ConjugatePackedTwiddles returned nil")
+		}
+
+		// Verify conjugation
+		if len(conjugated.Values) != len(packed.Values) {
+			t.Fatalf("Length mismatch: got %d, want %d", len(conjugated.Values), len(packed.Values))
+		}
+
+		for i, v := range packed.Values {
+			expected := complex(real(v), -imag(v))
+			if conjugated.Values[i] != expected {
+				t.Errorf("index %d: got %v, want %v", i, conjugated.Values[i], expected)
+			}
+		}
+	})
+
+	t.Run("complex128", func(t *testing.T) {
+		n := 16
+		twiddle := ComputeTwiddleFactors[complex128](n)
+		packed := ComputePackedTwiddles[complex128](n, 4, twiddle)
+
+		if packed == nil {
+			t.Fatal("ComputePackedTwiddles returned nil")
+		}
+
+		conjugated := ConjugatePackedTwiddles(packed)
+
+		if conjugated == nil {
+			t.Fatal("ConjugatePackedTwiddles returned nil")
+		}
+
+		for i, v := range packed.Values {
+			expected := complex(real(v), -imag(v))
+			if conjugated.Values[i] != expected {
+				t.Errorf("index %d: got %v, want %v", i, conjugated.Values[i], expected)
+			}
+		}
+	})
+}
+
+// TestComputeSquareTransposePairs tests transpose pair computation
+func TestComputeSquareTransposePairs(t *testing.T) {
+	t.Parallel()
+
+	sizes := []int{2, 4, 8, 16}
+
+	for _, n := range sizes {
+		pairs := ComputeSquareTransposePairs(n)
+
+		// For n×n matrix, we expect at most (n²-n)/2 swaps
+		maxPairs := (n*n - n) / 2
+		if len(pairs) > maxPairs {
+			t.Errorf("n=%d: too many pairs: got %d, max %d", n, len(pairs), maxPairs)
+		}
+
+		// Verify no duplicate pairs
+		seen := make(map[int]bool)
+		for _, pair := range pairs {
+			if pair.I == pair.J {
+				t.Errorf("n=%d: self-swap at index %d", n, pair.I)
+			}
+			if seen[pair.I] && seen[pair.J] {
+				t.Errorf("n=%d: duplicate pair (%d, %d)", n, pair.I, pair.J)
+			}
+			seen[pair.I] = true
+			seen[pair.J] = true
+		}
+	}
+}
+
+// TestApplyTransposePairs tests transpose application
+func TestApplyTransposePairs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("complex64", func(t *testing.T) {
+		n := 4
+		data := make([]complex64, n*n)
+		for i := range data {
+			data[i] = complex(float32(i), 0)
+		}
+
+		// Create a copy for reference
+		original := make([]complex64, len(data))
+		copy(original, data)
+
+		pairs := ComputeSquareTransposePairs(n)
+		ApplyTransposePairs(data, pairs)
+
+		// Verify transpose: data[i*n+j] should equal original[j*n+i]
+		for i := range n {
+			for j := range n {
+				idx := i*n + j
+				transIdx := j*n + i
+				if data[idx] != original[transIdx] {
+					t.Errorf("Transpose mismatch at (%d,%d): got %v, want %v",
+						i, j, data[idx], original[transIdx])
+				}
+			}
+		}
+	})
+
+	t.Run("complex128", func(t *testing.T) {
+		n := 4
+		data := make([]complex128, n*n)
+		for i := range data {
+			data[i] = complex(float64(i), 0)
+		}
+
+		original := make([]complex128, len(data))
+		copy(original, data)
+
+		pairs := ComputeSquareTransposePairs(n)
+		ApplyTransposePairs(data, pairs)
+
+		for i := range n {
+			for j := range n {
+				idx := i*n + j
+				transIdx := j*n + i
+				if data[idx] != original[transIdx] {
+					t.Errorf("Transpose mismatch at (%d,%d): got %v, want %v",
+						i, j, data[idx], original[transIdx])
+				}
+			}
+		}
+	})
+}

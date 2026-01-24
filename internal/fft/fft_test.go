@@ -385,3 +385,49 @@ func sqrt64(x float64) float64 {
 
 	return guess
 }
+
+
+// TestConjugateOf tests the ConjugateOf helper function
+func TestConjugateOf(t *testing.T) {
+	t.Parallel()
+
+	t.Run("complex64", func(t *testing.T) {
+		testCases := []struct {
+			input    complex64
+			expected complex64
+		}{
+			{1 + 2i, 1 - 2i},
+			{3 - 4i, 3 + 4i},
+			{-5 + 6i, -5 - 6i},
+			{-7 - 8i, -7 + 8i},
+			{0, 0},
+		}
+
+		for _, tc := range testCases {
+			result := ConjugateOf(tc.input)
+			if result != tc.expected {
+				t.Errorf("ConjugateOf(%v): got %v, want %v", tc.input, result, tc.expected)
+			}
+		}
+	})
+
+	t.Run("complex128", func(t *testing.T) {
+		testCases := []struct {
+			input    complex128
+			expected complex128
+		}{
+			{1 + 2i, 1 - 2i},
+			{3 - 4i, 3 + 4i},
+			{-5 + 6i, -5 - 6i},
+			{-7 - 8i, -7 + 8i},
+			{0, 0},
+		}
+
+		for _, tc := range testCases {
+			result := ConjugateOf(tc.input)
+			if result != tc.expected {
+				t.Errorf("ConjugateOf(%v): got %v, want %v", tc.input, result, tc.expected)
+			}
+		}
+	})
+}
