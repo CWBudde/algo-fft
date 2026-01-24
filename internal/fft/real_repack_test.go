@@ -336,3 +336,89 @@ func TestInverseRepackEdgeCases(t *testing.T) {
 		}
 	})
 }
+
+// TestRepackInverseComplex64 tests the public RepackInverseComplex64 function
+func TestRepackInverseComplex64(t *testing.T) {
+	t.Parallel()
+
+	sizes := []int{8, 16, 32, 64}
+
+	for _, half := range sizes {
+		half := half
+		t.Run("Size"+string(rune(half)), func(t *testing.T) {
+			t.Parallel()
+
+			n := half * 2
+
+			// Create valid input
+			src := make([]complex64, half+1)
+			for i := range src {
+				src[i] = complex(float32(i), float32(-i))
+			}
+			src[0] = complex(real(src[0]), 0)
+			src[half] = complex(real(src[half]), 0)
+
+			// Generate weight
+			weight := make([]complex64, half+1)
+			for k := 0; k <= half; k++ {
+				theta := 2 * math.Pi * float64(k) / float64(n)
+				re := 0.5 * (1 + math.Sin(theta))
+				im := 0.5 * math.Cos(theta)
+				weight[k] = complex(float32(re), float32(im))
+			}
+
+			dst := make([]complex64, half)
+			RepackInverseComplex64(dst, src, weight)
+
+			// Verify no NaN
+			for i, v := range dst {
+				if math.IsNaN(float64(real(v))) || math.IsNaN(float64(imag(v))) {
+					t.Errorf("dst[%d] is NaN", i)
+				}
+			}
+		})
+	}
+}
+
+// TestRepackInverseComplex128 tests the public RepackInverseComplex128 function
+func TestRepackInverseComplex128(t *testing.T) {
+	t.Parallel()
+
+	sizes := []int{8, 16, 32, 64}
+
+	for _, half := range sizes {
+		half := half
+		t.Run("Size"+string(rune(half)), func(t *testing.T) {
+			t.Parallel()
+
+			n := half * 2
+
+			// Create valid input
+			src := make([]complex128, half+1)
+			for i := range src {
+				src[i] = complex(float64(i), float64(-i))
+			}
+			src[0] = complex(real(src[0]), 0)
+			src[half] = complex(real(src[half]), 0)
+
+			// Generate weight
+			weight := make([]complex128, half+1)
+			for k := 0; k <= half; k++ {
+				theta := 2 * math.Pi * float64(k) / float64(n)
+				re := 0.5 * (1 + math.Sin(theta))
+				im := 0.5 * math.Cos(theta)
+				weight[k] = complex(re, im)
+			}
+
+			dst := make([]complex128, half)
+			RepackInverseComplex128(dst, src, weight)
+
+			// Verify no NaN
+			for i, v := range dst {
+				if cmplx.IsNaN(v) {
+					t.Errorf("dst[%d] is NaN", i)
+				}
+			}
+		})
+	}
+}
