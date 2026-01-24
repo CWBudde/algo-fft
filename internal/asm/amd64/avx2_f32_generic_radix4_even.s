@@ -70,427 +70,427 @@ fwd_r4_use_dst:
 	XORQ CX, CX
 
 fwd_r4_bitrev_loop:
-	CMPQ CX, R13
-	JGE  fwd_r4_stage_init
+	CMPQ CX, R13              // check if index CX >= n (done?)
+	JGE  fwd_r4_stage_init    // if done, jump to stage init
 
-	MOVQ CX, DX
-	XORQ BX, BX
-	MOVQ R14, SI
+	MOVQ CX, DX               // DX = current index to bit-reverse
+	XORQ BX, BX               // BX = 0 (accumulator for reversed index)
+	MOVQ R14, SI              // SI = log2(n) (loop counter in bits)
 
 fwd_r4_bitrev_inner:
-	CMPQ SI, $0
-	JE   fwd_r4_bitrev_store
-	MOVQ DX, AX
-	ANDQ $3, AX
-	SHLQ $2, BX
-	ORQ  AX, BX
-	SHRQ $2, DX
-	SUBQ $2, SI
-	JMP  fwd_r4_bitrev_inner
+	CMPQ SI, $0               // check if all bits processed
+	JE   fwd_r4_bitrev_store  // if done, store result
+	MOVQ DX, AX               // AX = copy of current index
+	ANDQ $3, AX               // AX = lowest 2 bits (base-4 digit)
+	SHLQ $2, BX               // BX <<= 2 (shift reversed index left by 2 bits)
+	ORQ  AX, BX               // BX |= AX (append base-4 digit to reversed index)
+	SHRQ $2, DX               // DX >>= 2 (shift right by 2 bits for next digit)
+	SUBQ $2, SI               // SI -= 2 (processed 2 bits)
+	JMP  fwd_r4_bitrev_inner  // continue inner loop
 
 fwd_r4_bitrev_store:
-	MOVQ (R9)(BX*8), AX
-	MOVQ AX, (R8)(CX*8)
-	INCQ CX
-	JMP  fwd_r4_bitrev_loop
+	MOVQ (R9)(BX*8), AX       // load complex value from src[reversed_index]
+	MOVQ AX, (R8)(CX*8)       // store to dst[sequential_index]
+	INCQ CX                   // increment sequential index
+	JMP  fwd_r4_bitrev_loop   // continue outer loop
 
 fwd_r4_stage_init:
 	// -----------------------------------------------------------------------
 	// Radix-4 stages (size = 4, 16, 64, ...)
 	// -----------------------------------------------------------------------
-	MOVQ $2, R12            // log2(size) starting at 2
-	MOVQ $4, R14            // size
+	MOVQ $2, R12              // R12 = 2 (log2(size) starting at 2, since first stage is size=4)
+	MOVQ $4, R14              // R14 = 4 (initial size for first radix-4 stage)
 
 fwd_r4_stage_loop:
-	CMPQ R14, R13
-	JG   fwd_r4_copy_back
+	CMPQ R14, R13             // compare current size with n
+	JG   fwd_r4_copy_back     // if size > n, all stages done, copy back if needed
 
-	MOVQ R14, R15
-	SHRQ $2, R15            // quarter = size/4
+	MOVQ R14, R15             // R15 = current stage size
+	SHRQ $2, R15              // R15 = size/4 (quarter, number of butterflies per group)
 
 	// step = n >> log2(size)
-	MOVQ R13, BX
-	MOVQ R12, CX
-	SHRQ CL, BX
+	MOVQ R13, BX              // BX = n
+	MOVQ R12, CX              // CX = log2(size)
+	SHRQ CL, BX               // BX = n >> log2(size) (twiddle stride)
 
-	XORQ CX, CX             // base
+	XORQ CX, CX               // CX = 0 (base index for current group)
 
 fwd_r4_stage_base:
-	CMPQ CX, R13
-	JGE  fwd_r4_stage_next
+	CMPQ CX, R13              // check if base >= n (all groups processed?)
+	JGE  fwd_r4_stage_next    // if done, advance to next stage
 
-	XORQ DX, DX             // j
+	XORQ DX, DX               // DX = 0 (j, butterfly index within group)
 
 	// Fast path for contiguous twiddles on the final stage (step == 1).
-	CMPQ BX, $1
-	JNE  fwd_r4_stepn_prep
-	CMPQ R15, $4
-	JL   fwd_r4_stage_scalar
+	CMPQ BX, $1               // check if step == 1 (final stage)
+	JNE  fwd_r4_stepn_prep    // if step != 1, use strided twiddle path
+	CMPQ R15, $4              // check if quarter >= 4 (enough for vectorization)
+	JL   fwd_r4_stage_scalar  // if quarter < 4, use scalar path
 
-	MOVQ R15, R11
-	SHLQ $3, R11            // quarter_bytes
+	MOVQ R15, R11             // R11 = quarter
+	SHLQ $3, R11              // R11 = quarter * 8 (quarter_bytes, offset between a0/a1/a2/a3)
 
 fwd_r4_step1_loop:
-	MOVQ R15, AX
-	SUBQ DX, AX
-	CMPQ AX, $4
-	JL   fwd_r4_stage_scalar
+	MOVQ R15, AX              // AX = quarter
+	SUBQ DX, AX               // AX = quarter - j (remaining butterflies)
+	CMPQ AX, $4               // check if remaining >= 4 (can process 4 complex values)
+	JL   fwd_r4_stage_scalar  // if remaining < 4, switch to scalar
 
 	// base offset
-	MOVQ CX, SI
-	ADDQ DX, SI
-	SHLQ $3, SI             // (base + j) * 8
+	MOVQ CX, SI               // SI = base (group start index)
+	ADDQ DX, SI               // SI = base + j (element index)
+	SHLQ $3, SI               // SI = (base + j) * 8 (byte offset for complex64)
 
-	LEAQ (SI)(R11*1), DI    // + quarter
-	LEAQ (DI)(R11*1), AX    // + 2*quarter
-	LEAQ (AX)(R11*1), BP    // + 3*quarter
+	LEAQ (SI)(R11*1), DI      // DI = SI + quarter_bytes (offset to a1)
+	LEAQ (DI)(R11*1), AX      // AX = DI + quarter_bytes (offset to a2)
+	LEAQ (AX)(R11*1), BP      // BP = AX + quarter_bytes (offset to a3)
 
-	VMOVUPS (R8)(SI*1), Y0
-	VMOVUPS (R8)(DI*1), Y1
-	VMOVUPS (R8)(AX*1), Y2
-	VMOVUPS (R8)(BP*1), Y3
+	VMOVUPS (R8)(SI*1), Y0    // Y0 = load 4 complex from a0[j:j+4]
+	VMOVUPS (R8)(DI*1), Y1    // Y1 = load 4 complex from a1[j:j+4]
+	VMOVUPS (R8)(AX*1), Y2    // Y2 = load 4 complex from a2[j:j+4]
+	VMOVUPS (R8)(BP*1), Y3    // Y3 = load 4 complex from a3[j:j+4]
 
 	// w1 = twiddle[j : j+4] (contiguous)
-	MOVQ DX, AX
-	SHLQ $3, AX
-	VMOVUPS (R10)(AX*1), Y4
+	MOVQ DX, AX               // AX = j
+	SHLQ $3, AX               // AX = j * 8 (byte offset)
+	VMOVUPS (R10)(AX*1), Y4   // Y4 = load 4 contiguous twiddles w1[j:j+4]
 
 	// w2 = twiddle[2*j, 2*j+2, 2*j+4, 2*j+6]
-	MOVQ DX, AX
-	SHLQ $1, AX
-	SHLQ $3, AX
-	VMOVSD (R10)(AX*1), X5
-	LEAQ 16(AX), DI
-	VMOVSD (R10)(DI*1), X6
-	LEAQ 16(DI), DI
-	VMOVSD (R10)(DI*1), X7
-	LEAQ 16(DI), DI
-	VMOVSD (R10)(DI*1), X8
-	VPUNPCKLQDQ X6, X5, X5
-	VPUNPCKLQDQ X8, X7, X7
-	VINSERTF128 $1, X7, Y5, Y5
+	MOVQ DX, AX               // AX = j
+	SHLQ $1, AX               // AX = 2*j
+	SHLQ $3, AX               // AX = 2*j * 8 (byte offset)
+	VMOVSD (R10)(AX*1), X5    // X5 = twiddle[2*j] (one complex64)
+	LEAQ 16(AX), DI           // DI = offset to twiddle[2*j+2] (+16 bytes = +2 complex64)
+	VMOVSD (R10)(DI*1), X6    // X6 = twiddle[2*j+2]
+	LEAQ 16(DI), DI           // DI = offset to twiddle[2*j+4]
+	VMOVSD (R10)(DI*1), X7    // X7 = twiddle[2*j+4]
+	LEAQ 16(DI), DI           // DI = offset to twiddle[2*j+6]
+	VMOVSD (R10)(DI*1), X8    // X8 = twiddle[2*j+6]
+	VPUNPCKLQDQ X6, X5, X5    // X5 = [twiddle[2*j], twiddle[2*j+2]]
+	VPUNPCKLQDQ X8, X7, X7    // X7 = [twiddle[2*j+4], twiddle[2*j+6]]
+	VINSERTF128 $1, X7, Y5, Y5 // Y5 = combine into YMM (4 strided w2 twiddles)
 
 	// w3 = twiddle[3*j, 3*j+3, 3*j+6, 3*j+9]
-	LEAQ (DX)(DX*2), AX
-	SHLQ $3, AX
-	VMOVSD (R10)(AX*1), X6
-	LEAQ 24(AX), DI
-	VMOVSD (R10)(DI*1), X7
-	LEAQ 24(DI), DI
-	VMOVSD (R10)(DI*1), X8
-	LEAQ 24(DI), DI
-	VMOVSD (R10)(DI*1), X9
-	VPUNPCKLQDQ X7, X6, X6
-	VPUNPCKLQDQ X9, X8, X8
-	VINSERTF128 $1, X8, Y6, Y6
+	LEAQ (DX)(DX*2), AX       // AX = 3*j (using LEA for 3x multiplication)
+	SHLQ $3, AX               // AX = 3*j * 8 (byte offset)
+	VMOVSD (R10)(AX*1), X6    // X6 = twiddle[3*j]
+	LEAQ 24(AX), DI           // DI = offset to twiddle[3*j+3] (+24 bytes = +3 complex64)
+	VMOVSD (R10)(DI*1), X7    // X7 = twiddle[3*j+3]
+	LEAQ 24(DI), DI           // DI = offset to twiddle[3*j+6]
+	VMOVSD (R10)(DI*1), X8    // X8 = twiddle[3*j+6]
+	LEAQ 24(DI), DI           // DI = offset to twiddle[3*j+9]
+	VMOVSD (R10)(DI*1), X9    // X9 = twiddle[3*j+9]
+	VPUNPCKLQDQ X7, X6, X6    // X6 = [twiddle[3*j], twiddle[3*j+3]]
+	VPUNPCKLQDQ X9, X8, X8    // X8 = [twiddle[3*j+6], twiddle[3*j+9]]
+	VINSERTF128 $1, X8, Y6, Y6 // Y6 = combine into YMM (4 strided w3 twiddles)
 
 	// Complex multiply a1*w1, a2*w2, a3*w3
-	VMOVSLDUP Y4, Y7
-	VMOVSHDUP Y4, Y8
-	VSHUFPS $0xB1, Y1, Y1, Y9
-	VMULPS Y8, Y9, Y9
-	VFMADDSUB231PS Y7, Y1, Y9
-	VMOVAPS Y9, Y1
+	VMOVSLDUP Y4, Y7          // Y7 = [w1.re, w1.re, w1.re, w1.re, ...] (duplicate reals)
+	VMOVSHDUP Y4, Y8          // Y8 = [w1.im, w1.im, w1.im, w1.im, ...] (duplicate imags)
+	VSHUFPS $0xB1, Y1, Y1, Y9 // Y9 = [a1.im, a1.re, ...] (swap re/im pairs)
+	VMULPS Y8, Y9, Y9         // Y9 = [w1.im*a1.im, w1.im*a1.re, ...]
+	VFMADDSUB231PS Y7, Y1, Y9 // Y9 = Y9 +/- [w1.re*a1.re, w1.re*a1.im, ...] = a1*w1
+	VMOVAPS Y9, Y1            // Y1 = a1*w1 (result)
 
-	VMOVSLDUP Y5, Y7
-	VMOVSHDUP Y5, Y8
-	VSHUFPS $0xB1, Y2, Y2, Y9
-	VMULPS Y8, Y9, Y9
-	VFMADDSUB231PS Y7, Y2, Y9
-	VMOVAPS Y9, Y2
+	VMOVSLDUP Y5, Y7          // Y7 = duplicate w2 reals
+	VMOVSHDUP Y5, Y8          // Y8 = duplicate w2 imags
+	VSHUFPS $0xB1, Y2, Y2, Y9 // Y9 = swap a2 re/im pairs
+	VMULPS Y8, Y9, Y9         // Y9 = w2.im * a2 (swapped)
+	VFMADDSUB231PS Y7, Y2, Y9 // Y9 = Y9 +/- w2.re * a2 = a2*w2
+	VMOVAPS Y9, Y2            // Y2 = a2*w2 (result)
 
-	VMOVSLDUP Y6, Y7
-	VMOVSHDUP Y6, Y8
-	VSHUFPS $0xB1, Y3, Y3, Y9
-	VMULPS Y8, Y9, Y9
-	VFMADDSUB231PS Y7, Y3, Y9
-	VMOVAPS Y9, Y3
+	VMOVSLDUP Y6, Y7          // Y7 = duplicate w3 reals
+	VMOVSHDUP Y6, Y8          // Y8 = duplicate w3 imags
+	VSHUFPS $0xB1, Y3, Y3, Y9 // Y9 = swap a3 re/im pairs
+	VMULPS Y8, Y9, Y9         // Y9 = w3.im * a3 (swapped)
+	VFMADDSUB231PS Y7, Y3, Y9 // Y9 = Y9 +/- w3.re * a3 = a3*w3
+	VMOVAPS Y9, Y3            // Y3 = a3*w3 (result)
 
-	VADDPS Y0, Y2, Y10
-	VSUBPS Y2, Y0, Y11
-	VADDPS Y1, Y3, Y12
-	VSUBPS Y3, Y1, Y13
+	VADDPS Y0, Y2, Y10        // Y10 = a0 + a2 (t0)
+	VSUBPS Y2, Y0, Y11        // Y11 = a0 - a2 (t1)
+	VADDPS Y1, Y3, Y12        // Y12 = a1 + a3 (t2)
+	VSUBPS Y3, Y1, Y13        // Y13 = a1 - a3 (t3)
 
 	// (-i)*t3
-	VPERMILPS $0xB1, Y13, Y14
-	VXORPS Y15, Y15, Y15
-	VSUBPS Y14, Y15, Y7
-	VBLENDPS $0xAA, Y7, Y14, Y14
+	VPERMILPS $0xB1, Y13, Y14 // Y14 = [t3.im, t3.re, ...] (swap re/im)
+	VXORPS Y15, Y15, Y15      // Y15 = 0
+	VSUBPS Y14, Y15, Y7       // Y7 = -Y14 = [-t3.im, -t3.re, ...]
+	VBLENDPS $0xAA, Y7, Y14, Y14 // Y14 = [t3.im, -t3.re, ...] = (-i)*t3
 
 	// i*t3
-	VPERMILPS $0xB1, Y13, Y7
-	VSUBPS Y7, Y15, Y8
-	VBLENDPS $0x55, Y8, Y7, Y7
+	VPERMILPS $0xB1, Y13, Y7  // Y7 = [t3.im, t3.re, ...] (swap re/im)
+	VSUBPS Y7, Y15, Y8        // Y8 = -Y7 = [-t3.im, -t3.re, ...]
+	VBLENDPS $0x55, Y8, Y7, Y7 // Y7 = [-t3.im, t3.re, ...] = i*t3
 
-	VADDPS Y10, Y12, Y0
-	VADDPS Y11, Y14, Y1
-	VSUBPS Y12, Y10, Y2
-	VADDPS Y11, Y7, Y3
+	VADDPS Y10, Y12, Y0       // Y0 = t0 + t2 (output to a0)
+	VADDPS Y11, Y14, Y1       // Y1 = t1 + (-i)*t3 (output to a1)
+	VSUBPS Y12, Y10, Y2       // Y2 = t0 - t2 (output to a2)
+	VADDPS Y11, Y7, Y3        // Y3 = t1 + i*t3 (output to a3)
 
-	LEAQ (SI)(R11*1), DI
-	LEAQ (DI)(R11*1), AX
-	LEAQ (AX)(R11*1), BP
+	LEAQ (SI)(R11*1), DI      // DI = SI + quarter_bytes (store offset for a1)
+	LEAQ (DI)(R11*1), AX      // AX = DI + quarter_bytes (store offset for a2)
+	LEAQ (AX)(R11*1), BP      // BP = AX + quarter_bytes (store offset for a3)
 
-	VMOVUPS Y0, (R8)(SI*1)
-	VMOVUPS Y1, (R8)(DI*1)
-	VMOVUPS Y2, (R8)(AX*1)
-	VMOVUPS Y3, (R8)(BP*1)
+	VMOVUPS Y0, (R8)(SI*1)    // store 4 complex to a0[j:j+4]
+	VMOVUPS Y1, (R8)(DI*1)    // store 4 complex to a1[j:j+4]
+	VMOVUPS Y2, (R8)(AX*1)    // store 4 complex to a2[j:j+4]
+	VMOVUPS Y3, (R8)(BP*1)    // store 4 complex to a3[j:j+4]
 
-	ADDQ $4, DX
-	JMP  fwd_r4_step1_loop
+	ADDQ $4, DX               // j += 4 (processed 4 butterflies)
+	JMP  fwd_r4_step1_loop    // continue loop
 
 fwd_r4_stepn_prep:
 	// Fast path for strided twiddles (step > 1).
-	CMPQ R15, $4
-	JL   fwd_r4_stage_scalar
+	CMPQ R15, $4              // check if quarter >= 4
+	JL   fwd_r4_stage_scalar  // if quarter < 4, use scalar path
 
-	MOVQ R15, R11
-	SHLQ $3, R11            // quarter_bytes
+	MOVQ R15, R11             // R11 = quarter
+	SHLQ $3, R11              // R11 = quarter * 8 (quarter_bytes)
 
-	MOVQ BX, R9
-	SHLQ $3, R9             // stride1_bytes
+	MOVQ BX, R9               // R9 = step
+	SHLQ $3, R9               // R9 = step * 8 (stride1_bytes, byte stride for w1)
 
-	MOVQ DX, DI
-	IMULQ BX, DI
-	SHLQ $3, DI             // twiddle offset bytes (j*step*8)
+	MOVQ DX, DI               // DI = j
+	IMULQ BX, DI              // DI = j * step
+	SHLQ $3, DI               // DI = j * step * 8 (twiddle base offset in bytes)
 
 fwd_r4_stepn_loop:
-	MOVQ R15, AX
-	SUBQ DX, AX
-	CMPQ AX, $4
-	JL   fwd_r4_stage_scalar
+	MOVQ R15, AX              // AX = quarter
+	SUBQ DX, AX               // AX = quarter - j (remaining butterflies)
+	CMPQ AX, $4               // check if remaining >= 4
+	JL   fwd_r4_stage_scalar  // if remaining < 4, switch to scalar
 
 	// base offset
-	MOVQ CX, SI
-	ADDQ DX, SI
-	SHLQ $3, SI             // (base + j) * 8
+	MOVQ CX, SI               // SI = base
+	ADDQ DX, SI               // SI = base + j
+	SHLQ $3, SI               // SI = (base + j) * 8 (byte offset)
 
-	LEAQ (SI)(R11*1), R14   // + quarter
-	LEAQ (R14)(R11*1), AX   // + 2*quarter
-	LEAQ (AX)(R11*1), BP    // + 3*quarter
+	LEAQ (SI)(R11*1), R14     // R14 = SI + quarter_bytes (offset to a1)
+	LEAQ (R14)(R11*1), AX     // AX = R14 + quarter_bytes (offset to a2)
+	LEAQ (AX)(R11*1), BP      // BP = AX + quarter_bytes (offset to a3)
 
-	VMOVUPS (R8)(SI*1), Y0
-	VMOVUPS (R8)(R14*1), Y1
-	VMOVUPS (R8)(AX*1), Y2
-	VMOVUPS (R8)(BP*1), Y3
+	VMOVUPS (R8)(SI*1), Y0    // Y0 = load 4 complex from a0[j:j+4]
+	VMOVUPS (R8)(R14*1), Y1   // Y1 = load 4 complex from a1[j:j+4]
+	VMOVUPS (R8)(AX*1), Y2    // Y2 = load 4 complex from a2[j:j+4]
+	VMOVUPS (R8)(BP*1), Y3    // Y3 = load 4 complex from a3[j:j+4]
 
 	// twiddle base offsets
-	MOVQ DI, AX
-	SHLQ $1, AX
-	MOVQ DI, BP
-	ADDQ AX, BP
+	MOVQ DI, AX               // AX = j*step*8
+	SHLQ $1, AX               // AX = 2*j*step*8 (w2 base offset)
+	MOVQ DI, BP               // BP = j*step*8
+	ADDQ AX, BP               // BP = 3*j*step*8 (w3 base offset)
 
 	// w1 = twiddle[j*step + i*step] for i=0..3
-	VMOVSD (R10)(DI*1), X4
-	ADDQ R9, DI
-	VMOVSD (R10)(DI*1), X5
-	ADDQ R9, DI
-	VMOVSD (R10)(DI*1), X6
-	ADDQ R9, DI
-	VMOVSD (R10)(DI*1), X7
-	ADDQ R9, DI             // advance to next block
-	VPUNPCKLQDQ X5, X4, X4
-	VPUNPCKLQDQ X7, X6, X6
-	VINSERTF128 $1, X6, Y4, Y4
+	VMOVSD (R10)(DI*1), X4    // X4 = twiddle[j*step + 0*step]
+	ADDQ R9, DI               // DI += stride1_bytes
+	VMOVSD (R10)(DI*1), X5    // X5 = twiddle[j*step + 1*step]
+	ADDQ R9, DI               // DI += stride1_bytes
+	VMOVSD (R10)(DI*1), X6    // X6 = twiddle[j*step + 2*step]
+	ADDQ R9, DI               // DI += stride1_bytes
+	VMOVSD (R10)(DI*1), X7    // X7 = twiddle[j*step + 3*step]
+	ADDQ R9, DI               // DI += stride1_bytes (advance for next iteration)
+	VPUNPCKLQDQ X5, X4, X4    // X4 = [w1[0], w1[1]]
+	VPUNPCKLQDQ X7, X6, X6    // X6 = [w1[2], w1[3]]
+	VINSERTF128 $1, X6, Y4, Y4 // Y4 = 4 strided w1 twiddles
 
 	// w2 = twiddle[2*j*step + i*2*step]
-	MOVQ R9, R14
-	SHLQ $1, R14            // stride2_bytes
-	VMOVSD (R10)(AX*1), X5
-	ADDQ R14, AX
-	VMOVSD (R10)(AX*1), X6
-	ADDQ R14, AX
-	VMOVSD (R10)(AX*1), X7
-	ADDQ R14, AX
-	VMOVSD (R10)(AX*1), X8
-	VPUNPCKLQDQ X6, X5, X5
-	VPUNPCKLQDQ X8, X7, X7
-	VINSERTF128 $1, X7, Y5, Y5
+	MOVQ R9, R14              // R14 = stride1_bytes
+	SHLQ $1, R14              // R14 = 2 * stride1_bytes (stride2_bytes)
+	VMOVSD (R10)(AX*1), X5    // X5 = twiddle[2*j*step + 0*2*step]
+	ADDQ R14, AX              // AX += stride2_bytes
+	VMOVSD (R10)(AX*1), X6    // X6 = twiddle[2*j*step + 1*2*step]
+	ADDQ R14, AX              // AX += stride2_bytes
+	VMOVSD (R10)(AX*1), X7    // X7 = twiddle[2*j*step + 2*2*step]
+	ADDQ R14, AX              // AX += stride2_bytes
+	VMOVSD (R10)(AX*1), X8    // X8 = twiddle[2*j*step + 3*2*step]
+	VPUNPCKLQDQ X6, X5, X5    // X5 = [w2[0], w2[1]]
+	VPUNPCKLQDQ X8, X7, X7    // X7 = [w2[2], w2[3]]
+	VINSERTF128 $1, X7, Y5, Y5 // Y5 = 4 strided w2 twiddles
 
 	// w3 = twiddle[3*j*step + i*3*step]
-	LEAQ (R9)(R14*1), R14   // stride3_bytes
-	VMOVSD (R10)(BP*1), X6
-	ADDQ R14, BP
-	VMOVSD (R10)(BP*1), X7
-	ADDQ R14, BP
-	VMOVSD (R10)(BP*1), X8
-	ADDQ R14, BP
-	VMOVSD (R10)(BP*1), X9
-	VPUNPCKLQDQ X7, X6, X6
-	VPUNPCKLQDQ X9, X8, X8
-	VINSERTF128 $1, X8, Y6, Y6
+	LEAQ (R9)(R14*1), R14     // R14 = stride1_bytes + stride2_bytes (stride3_bytes)
+	VMOVSD (R10)(BP*1), X6    // X6 = twiddle[3*j*step + 0*3*step]
+	ADDQ R14, BP              // BP += stride3_bytes
+	VMOVSD (R10)(BP*1), X7    // X7 = twiddle[3*j*step + 1*3*step]
+	ADDQ R14, BP              // BP += stride3_bytes
+	VMOVSD (R10)(BP*1), X8    // X8 = twiddle[3*j*step + 2*3*step]
+	ADDQ R14, BP              // BP += stride3_bytes
+	VMOVSD (R10)(BP*1), X9    // X9 = twiddle[3*j*step + 3*3*step]
+	VPUNPCKLQDQ X7, X6, X6    // X6 = [w3[0], w3[1]]
+	VPUNPCKLQDQ X9, X8, X8    // X8 = [w3[2], w3[3]]
+	VINSERTF128 $1, X8, Y6, Y6 // Y6 = 4 strided w3 twiddles
 
 	// Complex multiply a1*w1, a2*w2, a3*w3
-	VMOVSLDUP Y4, Y7
-	VMOVSHDUP Y4, Y8
-	VSHUFPS $0xB1, Y1, Y1, Y9
-	VMULPS Y8, Y9, Y9
-	VFMADDSUB231PS Y7, Y1, Y9
-	VMOVAPS Y9, Y1
+	VMOVSLDUP Y4, Y7          // Y7 = [w1.re, w1.re, w1.re, w1.re, ...] (duplicate reals)
+	VMOVSHDUP Y4, Y8          // Y8 = [w1.im, w1.im, w1.im, w1.im, ...] (duplicate imags)
+	VSHUFPS $0xB1, Y1, Y1, Y9 // Y9 = [a1.im, a1.re, ...] (swap re/im pairs)
+	VMULPS Y8, Y9, Y9         // Y9 = [w1.im*a1.im, w1.im*a1.re, ...]
+	VFMADDSUB231PS Y7, Y1, Y9 // Y9 = Y9 +/- [w1.re*a1.re, w1.re*a1.im, ...] = a1*w1
+	VMOVAPS Y9, Y1            // Y1 = a1*w1 (result)
 
-	VMOVSLDUP Y5, Y7
-	VMOVSHDUP Y5, Y8
-	VSHUFPS $0xB1, Y2, Y2, Y9
-	VMULPS Y8, Y9, Y9
-	VFMADDSUB231PS Y7, Y2, Y9
-	VMOVAPS Y9, Y2
+	VMOVSLDUP Y5, Y7          // Y7 = duplicate w2 reals
+	VMOVSHDUP Y5, Y8          // Y8 = duplicate w2 imags
+	VSHUFPS $0xB1, Y2, Y2, Y9 // Y9 = swap a2 re/im pairs
+	VMULPS Y8, Y9, Y9         // Y9 = w2.im * a2 (swapped)
+	VFMADDSUB231PS Y7, Y2, Y9 // Y9 = Y9 +/- w2.re * a2 = a2*w2
+	VMOVAPS Y9, Y2            // Y2 = a2*w2 (result)
 
-	VMOVSLDUP Y6, Y7
-	VMOVSHDUP Y6, Y8
-	VSHUFPS $0xB1, Y3, Y3, Y9
-	VMULPS Y8, Y9, Y9
-	VFMADDSUB231PS Y7, Y3, Y9
-	VMOVAPS Y9, Y3
+	VMOVSLDUP Y6, Y7          // Y7 = duplicate w3 reals
+	VMOVSHDUP Y6, Y8          // Y8 = duplicate w3 imags
+	VSHUFPS $0xB1, Y3, Y3, Y9 // Y9 = swap a3 re/im pairs
+	VMULPS Y8, Y9, Y9         // Y9 = w3.im * a3 (swapped)
+	VFMADDSUB231PS Y7, Y3, Y9 // Y9 = Y9 +/- w3.re * a3 = a3*w3
+	VMOVAPS Y9, Y3            // Y3 = a3*w3 (result)
 
-	VADDPS Y0, Y2, Y10
-	VSUBPS Y2, Y0, Y11
-	VADDPS Y1, Y3, Y12
-	VSUBPS Y3, Y1, Y13
+	VADDPS Y0, Y2, Y10        // Y10 = a0 + a2 (t0)
+	VSUBPS Y2, Y0, Y11        // Y11 = a0 - a2 (t1)
+	VADDPS Y1, Y3, Y12        // Y12 = a1 + a3 (t2)
+	VSUBPS Y3, Y1, Y13        // Y13 = a1 - a3 (t3)
 
 	// (-i)*t3
-	VPERMILPS $0xB1, Y13, Y14
-	VXORPS Y15, Y15, Y15
-	VSUBPS Y14, Y15, Y7
-	VBLENDPS $0xAA, Y7, Y14, Y14
+	VPERMILPS $0xB1, Y13, Y14    // Y14 = [t3.im, t3.re, ...] (swap re/im)
+	VXORPS Y15, Y15, Y15         // Y15 = 0
+	VSUBPS Y14, Y15, Y7          // Y7 = -Y14 = [-t3.im, -t3.re, ...]
+	VBLENDPS $0xAA, Y7, Y14, Y14 // Y14 = [t3.im, -t3.re, ...] = (-i)*t3
 
 	// i*t3
-	VPERMILPS $0xB1, Y13, Y7
-	VSUBPS Y7, Y15, Y8
-	VBLENDPS $0x55, Y8, Y7, Y7
+	VPERMILPS $0xB1, Y13, Y7    // Y7 = [t3.im, t3.re, ...] (swap re/im)
+	VSUBPS Y7, Y15, Y8          // Y8 = -Y7 = [-t3.im, -t3.re, ...]
+	VBLENDPS $0x55, Y8, Y7, Y7  // Y7 = [-t3.im, t3.re, ...] = i*t3
 
-	VADDPS Y10, Y12, Y0
-	VADDPS Y11, Y14, Y1
-	VSUBPS Y12, Y10, Y2
-	VADDPS Y11, Y7, Y3
+	VADDPS Y10, Y12, Y0       // Y0 = t0 + t2 (output to a0)
+	VADDPS Y11, Y14, Y1       // Y1 = t1 + (-i)*t3 (output to a1)
+	VSUBPS Y12, Y10, Y2       // Y2 = t0 - t2 (output to a2)
+	VADDPS Y11, Y7, Y3        // Y3 = t1 + i*t3 (output to a3)
 
-	LEAQ (SI)(R11*1), R14
-	LEAQ (R14)(R11*1), AX
-	LEAQ (AX)(R11*1), BP
+	LEAQ (SI)(R11*1), R14     // R14 = SI + quarter_bytes (store offset for a1)
+	LEAQ (R14)(R11*1), AX     // AX = R14 + quarter_bytes (store offset for a2)
+	LEAQ (AX)(R11*1), BP      // BP = AX + quarter_bytes (store offset for a3)
 
-	VMOVUPS Y0, (R8)(SI*1)
-	VMOVUPS Y1, (R8)(R14*1)
-	VMOVUPS Y2, (R8)(AX*1)
-	VMOVUPS Y3, (R8)(BP*1)
+	VMOVUPS Y0, (R8)(SI*1)    // store 4 complex to a0[j:j+4]
+	VMOVUPS Y1, (R8)(R14*1)   // store 4 complex to a1[j:j+4]
+	VMOVUPS Y2, (R8)(AX*1)    // store 4 complex to a2[j:j+4]
+	VMOVUPS Y3, (R8)(BP*1)    // store 4 complex to a3[j:j+4]
 
-	ADDQ $4, DX
-	JMP  fwd_r4_stepn_loop
+	ADDQ $4, DX               // j += 4 (processed 4 butterflies)
+	JMP  fwd_r4_stepn_loop    // continue loop
 
 fwd_r4_stage_scalar:
-	CMPQ DX, R15
-	JGE  fwd_r4_stage_base_next
+	CMPQ DX, R15                // check if j >= quarter (all butterflies done?)
+	JGE  fwd_r4_stage_base_next // if done, advance to next group
 
 	// indices
-	MOVQ CX, SI
-	ADDQ DX, SI
-	MOVQ SI, DI
-	ADDQ R15, DI
-	MOVQ DI, R11
-	ADDQ R15, R11
-	MOVQ R11, R9
-	ADDQ R15, R9
+	MOVQ CX, SI               // SI = base + j (index of a0)
+	ADDQ DX, SI               // SI = base + j
+	MOVQ SI, DI               // DI = SI
+	ADDQ R15, DI              // DI = SI + quarter (index of a1)
+	MOVQ DI, R11              // R11 = DI
+	ADDQ R15, R11             // R11 = DI + quarter (index of a2)
+	MOVQ R11, R9              // R9 = R11
+	ADDQ R15, R9              // R9 = R11 + quarter (index of a3)
 
 	// twiddle indices: w1 = twiddle[j*step], w2 = twiddle[2*j*step], w3 = twiddle[3*j*step]
-	MOVQ DX, AX
-	IMULQ BX, AX
-	VMOVSD (R10)(AX*8), X8
+	MOVQ DX, AX               // AX = j
+	IMULQ BX, AX              // AX = j * step
+	VMOVSD (R10)(AX*8), X8    // X8 = w1 = twiddle[j*step]
 
-	MOVQ AX, BP
-	SHLQ $1, BP
-	VMOVSD (R10)(BP*8), X9
+	MOVQ AX, BP               // BP = j*step
+	SHLQ $1, BP               // BP = 2*j*step
+	VMOVSD (R10)(BP*8), X9    // X9 = w2 = twiddle[2*j*step]
 
-	ADDQ AX, BP
-	VMOVSD (R10)(BP*8), X10
+	ADDQ AX, BP               // BP = 3*j*step
+	VMOVSD (R10)(BP*8), X10   // X10 = w3 = twiddle[3*j*step]
 
 	// load inputs
-	VMOVSD (R8)(SI*8), X0
-	VMOVSD (R8)(DI*8), X1
-	VMOVSD (R8)(R11*8), X2
-	VMOVSD (R8)(R9*8), X3
+	VMOVSD (R8)(SI*8), X0     // X0 = a0
+	VMOVSD (R8)(DI*8), X1     // X1 = a1
+	VMOVSD (R8)(R11*8), X2    // X2 = a2
+	VMOVSD (R8)(R9*8), X3     // X3 = a3
 
 	// Complex multiply a1*w1, a2*w2, a3*w3
-	VMOVSLDUP X8, X11
-	VMOVSHDUP X8, X12
-	VSHUFPS $0xB1, X1, X1, X13
-	VMULPS X12, X13, X13
-	VFMADDSUB231PS X11, X1, X13
-	VMOVAPS X13, X1
+	VMOVSLDUP X8, X11           // X11 = [w1.re, w1.re] (duplicate reals)
+	VMOVSHDUP X8, X12           // X12 = [w1.im, w1.im] (duplicate imags)
+	VSHUFPS $0xB1, X1, X1, X13  // X13 = [a1.im, a1.re] (swap)
+	VMULPS X12, X13, X13        // X13 = [w1.im*a1.im, w1.im*a1.re]
+	VFMADDSUB231PS X11, X1, X13 // X13 = X13 +/- [w1.re*a1.re, w1.re*a1.im] = a1*w1
+	VMOVAPS X13, X1             // X1 = a1*w1
 
-	VMOVSLDUP X9, X11
-	VMOVSHDUP X9, X12
-	VSHUFPS $0xB1, X2, X2, X13
-	VMULPS X12, X13, X13
-	VFMADDSUB231PS X11, X2, X13
-	VMOVAPS X13, X2
+	VMOVSLDUP X9, X11           // X11 = [w2.re, w2.re]
+	VMOVSHDUP X9, X12           // X12 = [w2.im, w2.im]
+	VSHUFPS $0xB1, X2, X2, X13  // X13 = [a2.im, a2.re]
+	VMULPS X12, X13, X13        // X13 = [w2.im*a2.im, w2.im*a2.re]
+	VFMADDSUB231PS X11, X2, X13 // X13 = a2*w2
+	VMOVAPS X13, X2             // X2 = a2*w2
 
-	VMOVSLDUP X10, X11
-	VMOVSHDUP X10, X12
-	VSHUFPS $0xB1, X3, X3, X13
-	VMULPS X12, X13, X13
-	VFMADDSUB231PS X11, X3, X13
-	VMOVAPS X13, X3
+	VMOVSLDUP X10, X11          // X11 = [w3.re, w3.re]
+	VMOVSHDUP X10, X12          // X12 = [w3.im, w3.im]
+	VSHUFPS $0xB1, X3, X3, X13  // X13 = [a3.im, a3.re]
+	VMULPS X12, X13, X13        // X13 = [w3.im*a3.im, w3.im*a3.re]
+	VFMADDSUB231PS X11, X3, X13 // X13 = a3*w3
+	VMOVAPS X13, X3             // X3 = a3*w3
 
-	VADDPS X0, X2, X4
-	VSUBPS X2, X0, X5
-	VADDPS X1, X3, X6
-	VSUBPS X3, X1, X7
+	VADDPS X0, X2, X4         // X4 = a0 + a2 (t0)
+	VSUBPS X2, X0, X5         // X5 = a0 - a2 (t1)
+	VADDPS X1, X3, X6         // X6 = a1 + a3 (t2)
+	VSUBPS X3, X1, X7         // X7 = a1 - a3 (t3)
 
 	// (-i)*t3
-	VPERMILPS $0xB1, X7, X8
-	VXORPS X9, X9, X9
-	VSUBPS X8, X9, X10
-	VBLENDPS $0x02, X10, X8, X8
+	VPERMILPS $0xB1, X7, X8     // X8 = [t3.im, t3.re] (swap)
+	VXORPS X9, X9, X9           // X9 = 0
+	VSUBPS X8, X9, X10          // X10 = -X8 = [-t3.im, -t3.re]
+	VBLENDPS $0x02, X10, X8, X8 // X8 = [t3.im, -t3.re] = (-i)*t3
 
 	// i*t3
-	VPERMILPS $0xB1, X7, X11
-	VSUBPS X11, X9, X10
-	VBLENDPS $0x01, X10, X11, X11
+	VPERMILPS $0xB1, X7, X11      // X11 = [t3.im, t3.re] (swap)
+	VSUBPS X11, X9, X10           // X10 = -X11 = [-t3.im, -t3.re]
+	VBLENDPS $0x01, X10, X11, X11 // X11 = [-t3.im, t3.re] = i*t3
 
-	VADDPS X4, X6, X0
-	VADDPS X5, X8, X1
-	VSUBPS X6, X4, X2
-	VADDPS X5, X11, X3
+	VADDPS X4, X6, X0         // X0 = t0 + t2 (output to a0)
+	VADDPS X5, X8, X1         // X1 = t1 + (-i)*t3 (output to a1)
+	VSUBPS X6, X4, X2         // X2 = t0 - t2 (output to a2)
+	VADDPS X5, X11, X3        // X3 = t1 + i*t3 (output to a3)
 
-	VMOVSD X0, (R8)(SI*8)
-	VMOVSD X1, (R8)(DI*8)
-	VMOVSD X2, (R8)(R11*8)
-	VMOVSD X3, (R8)(R9*8)
+	VMOVSD X0, (R8)(SI*8)     // store result to a0
+	VMOVSD X1, (R8)(DI*8)     // store result to a1
+	VMOVSD X2, (R8)(R11*8)    // store result to a2
+	VMOVSD X3, (R8)(R9*8)     // store result to a3
 
-	INCQ DX
-	JMP  fwd_r4_stage_scalar
+	INCQ DX                   // j++ (next butterfly)
+	JMP  fwd_r4_stage_scalar  // continue scalar loop
 
 fwd_r4_stage_base_next:
-	MOVQ R15, R14
-	SHLQ $2, R14
-	ADDQ R14, CX
-	JMP  fwd_r4_stage_base
+	MOVQ R15, R14             // R14 = quarter
+	SHLQ $2, R14              // R14 = quarter * 4 = size
+	ADDQ R14, CX              // CX = base + size (advance to next group)
+	JMP  fwd_r4_stage_base    // continue base loop
 
 fwd_r4_stage_next:
-	ADDQ $2, R12
-	SHLQ $2, R14
-	JMP  fwd_r4_stage_loop
+	ADDQ $2, R12              // R12 += 2 (log2(size) += 2)
+	SHLQ $2, R14              // R14 *= 4 (size *= 4, next radix-4 stage)
+	JMP  fwd_r4_stage_loop    // continue stage loop
 
 fwd_r4_copy_back:
-	MOVQ dst+0(FP), AX
-	CMPQ R8, AX
-	JE   fwd_r4_return_true
+	MOVQ dst+0(FP), AX        // AX = original dst pointer
+	CMPQ R8, AX               // check if working buffer == dst
+	JE   fwd_r4_return_true   // if equal, no copy needed (already in dst)
 
-	XORQ CX, CX
+	XORQ CX, CX               // CX = 0 (copy index)
 
 fwd_r4_copy_loop:
-	CMPQ CX, R13
-	JGE  fwd_r4_return_true
-	MOVQ (R8)(CX*8), DX
-	MOVQ DX, (AX)(CX*8)
-	INCQ CX
-	JMP  fwd_r4_copy_loop
+	CMPQ CX, R13              // check if CX >= n (all elements copied?)
+	JGE  fwd_r4_return_true   // if done, return success
+	MOVQ (R8)(CX*8), DX       // DX = load element from working buffer
+	MOVQ DX, (AX)(CX*8)       // store element to dst
+	INCQ CX                   // CX++ (next element)
+	JMP  fwd_r4_copy_loop     // continue copy loop
 
 fwd_r4_return_true:
-	VZEROUPPER
-	MOVB $1, ret+120(FP)
+	VZEROUPPER                // clear upper YMM registers (required after AVX2)
+	MOVB $1, ret+120(FP)      // return true
 	RET
 
 fwd_r4_return_false:
-	MOVB $0, ret+120(FP)
+	MOVB $0, ret+120(FP)      // return false
 	RET
 
 // ===========================================================================
