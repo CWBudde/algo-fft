@@ -549,6 +549,210 @@ func BenchmarkPlanRealInverse(b *testing.B) {
 	}
 }
 
+// TestPlanReal_ForwardNormalized tests normalized forward transform.
+func TestPlanReal_ForwardNormalized(t *testing.T) {
+	t.Parallel()
+
+	n := 64
+
+	plan, err := NewPlanReal(n)
+	if err != nil {
+		t.Fatalf("NewPlanReal(%d) failed: %v", n, err)
+	}
+
+	// Create constant input (all ones)
+	input := make([]float32, n)
+	for i := range input {
+		input[i] = 1.0
+	}
+
+	// Get normal forward output
+	outputNormal := make([]complex64, plan.SpectrumLen())
+	err = plan.Forward(outputNormal, input)
+	if err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	// Get normalized forward output
+	outputNormalized := make([]complex64, plan.SpectrumLen())
+	err = plan.ForwardNormalized(outputNormalized, input)
+	if err != nil {
+		t.Fatalf("ForwardNormalized failed: %v", err)
+	}
+
+	// Check that normalized output equals normal output scaled by 1/N
+	scale := float32(1.0 / float64(n))
+	for k := range outputNormalized {
+		expected := complex(real(outputNormal[k])*scale, imag(outputNormal[k])*scale)
+		if cmplx.Abs(complex128(outputNormalized[k]-expected)) > 1e-5 {
+			t.Errorf("bin[%d]: got %v, want %v", k, outputNormalized[k], expected)
+		}
+	}
+}
+
+// TestPlanReal_ForwardUnitary tests unitary forward transform.
+func TestPlanReal_ForwardUnitary(t *testing.T) {
+	t.Parallel()
+
+	n := 64
+
+	plan, err := NewPlanReal(n)
+	if err != nil {
+		t.Fatalf("NewPlanReal(%d) failed: %v", n, err)
+	}
+
+	// Create test signal
+	input := make([]float32, n)
+	for i := range input {
+		input[i] = 1.0
+	}
+
+	// Get normal forward output
+	outputNormal := make([]complex64, plan.SpectrumLen())
+	err = plan.Forward(outputNormal, input)
+	if err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	// Get unitary forward output
+	outputUnitary := make([]complex64, plan.SpectrumLen())
+	err = plan.ForwardUnitary(outputUnitary, input)
+	if err != nil {
+		t.Fatalf("ForwardUnitary failed: %v", err)
+	}
+
+	// Check that unitary output equals normal output scaled by 1/sqrt(N)
+	scale := float32(1.0 / math.Sqrt(float64(n)))
+	for k := range outputUnitary {
+		expected := complex(real(outputNormal[k])*scale, imag(outputNormal[k])*scale)
+		if cmplx.Abs(complex128(outputUnitary[k]-expected)) > 1e-5 {
+			t.Errorf("bin[%d]: got %v, want %v", k, outputUnitary[k], expected)
+		}
+	}
+}
+
+// TestPlanReal_NormalizedWithRealSignal tests normalized transform with mixed signal.
+func TestPlanReal_NormalizedWithRealSignal(t *testing.T) {
+	t.Parallel()
+
+	n := 128
+
+	plan, err := NewPlanReal(n)
+	if err != nil {
+		t.Fatalf("NewPlanReal(%d) failed: %v", n, err)
+	}
+
+	// Create a mix of frequencies
+	input := make([]float32, n)
+	for i := range input {
+		t := float64(i) / float64(n)
+		input[i] = float32(math.Sin(2*math.Pi*3*t) + 0.5*math.Cos(2*math.Pi*7*t))
+	}
+
+	// Forward and normalized
+	spectrum := make([]complex64, plan.SpectrumLen())
+	err = plan.ForwardNormalized(spectrum, input)
+	if err != nil {
+		t.Fatalf("ForwardNormalized failed: %v", err)
+	}
+
+	// Verify non-zero values at expected frequencies
+	// Should have peaks at bins 3 and 7
+	if cmplx.Abs(complex128(spectrum[3])) < 0.1 {
+		t.Errorf("Expected significant energy at bin 3, got %v", spectrum[3])
+	}
+	if cmplx.Abs(complex128(spectrum[7])) < 0.1 {
+		t.Errorf("Expected significant energy at bin 7, got %v", spectrum[7])
+	}
+}
+
+// TestPlanReal_UnitaryWithRealSignal tests unitary transform with mixed signal.
+func TestPlanReal_UnitaryWithRealSignal(t *testing.T) {
+	t.Parallel()
+
+	n := 128
+
+	plan, err := NewPlanReal(n)
+	if err != nil {
+		t.Fatalf("NewPlanReal(%d) failed: %v", n, err)
+	}
+
+	// Create a mix of frequencies
+	input := make([]float32, n)
+	for i := range input {
+		t := float64(i) / float64(n)
+		input[i] = float32(math.Sin(2*math.Pi*3*t) + 0.5*math.Cos(2*math.Pi*7*t))
+	}
+
+	// Forward unitary
+	spectrum := make([]complex64, plan.SpectrumLen())
+	err = plan.ForwardUnitary(spectrum, input)
+	if err != nil {
+		t.Fatalf("ForwardUnitary failed: %v", err)
+	}
+
+	// Verify non-zero values at expected frequencies
+	// Should have peaks at bins 3 and 7
+	if cmplx.Abs(complex128(spectrum[3])) < 0.1 {
+		t.Errorf("Expected significant energy at bin 3, got %v", spectrum[3])
+	}
+	if cmplx.Abs(complex128(spectrum[7])) < 0.1 {
+		t.Errorf("Expected significant energy at bin 7, got %v", spectrum[7])
+	}
+}
+
+// TestPlanReal_NormalizedErrors tests error handling in normalized transforms.
+func TestPlanReal_NormalizedErrors(t *testing.T) {
+	t.Parallel()
+
+	plan, err := NewPlanReal(16)
+	if err != nil {
+		t.Fatalf("NewPlanReal failed: %v", err)
+	}
+
+	t.Run("ForwardNormalized_NilInput", func(t *testing.T) {
+		t.Parallel()
+
+		dst := make([]complex64, plan.SpectrumLen())
+		err := plan.ForwardNormalized(dst, nil)
+		if !errors.Is(err, ErrNilSlice) {
+			t.Errorf("expected ErrNilSlice, got %v", err)
+		}
+	})
+
+	t.Run("ForwardNormalized_WrongLength", func(t *testing.T) {
+		t.Parallel()
+
+		dst := make([]complex64, plan.SpectrumLen())
+		src := make([]float32, 8) // wrong length
+		err := plan.ForwardNormalized(dst, src)
+		if !errors.Is(err, ErrLengthMismatch) {
+			t.Errorf("expected ErrLengthMismatch, got %v", err)
+		}
+	})
+
+	t.Run("ForwardUnitary_NilInput", func(t *testing.T) {
+		t.Parallel()
+
+		dst := make([]complex64, plan.SpectrumLen())
+		err := plan.ForwardUnitary(dst, nil)
+		if !errors.Is(err, ErrNilSlice) {
+			t.Errorf("expected ErrNilSlice, got %v", err)
+		}
+	})
+
+	t.Run("ForwardUnitary_WrongLength", func(t *testing.T) {
+		t.Parallel()
+
+		dst := make([]complex64, plan.SpectrumLen())
+		src := make([]float32, 8) // wrong length
+		err := plan.ForwardUnitary(dst, src)
+		if !errors.Is(err, ErrLengthMismatch) {
+			t.Errorf("expected ErrLengthMismatch, got %v", err)
+		}
+	})
+}
+
 func BenchmarkPlanRealForwardNormalized(b *testing.B) {
 	sizes := []int{256, 1024, 4096, 16384}
 
