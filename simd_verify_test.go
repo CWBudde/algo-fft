@@ -194,6 +194,7 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	if n >= 256 {
 		threshold = 2e-14 // ~2.5x margin over measured 7.85e-15
 	}
+
 	if n >= 1024 {
 		threshold = 1e-13 // allow small SIMD-specific drift at larger sizes
 	}
