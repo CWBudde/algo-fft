@@ -353,6 +353,177 @@ func TestFastPlanReal64_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestFastPlanReal32_ForwardNormalized verifies normalized forward transform.
+func TestFastPlanReal32_ForwardNormalized(t *testing.T) {
+	t.Parallel()
+
+	n := 64
+	plan, err := NewFastPlanReal32(n)
+	if errors.Is(err, ErrNotImplemented) {
+		t.Skip("No codelet for size 64")
+	}
+
+	if err != nil {
+		t.Fatalf("NewFastPlanReal32(%d) error: %v", n, err)
+	}
+
+	// Create impulse signal
+	src := make([]float32, n)
+	src[0] = 1.0
+
+	freq := make([]complex64, n/2+1)
+	plan.ForwardNormalized(freq, src)
+
+	// Normalized forward should have DC bin = 1/N
+	expected := complex(float32(1.0/float64(n)), 0)
+	diff := cmplx.Abs(complex128(freq[0] - expected))
+
+	if diff > 1e-5 {
+		t.Errorf("ForwardNormalized impulse DC bin: got=%v want=%v diff=%v",
+			freq[0], expected, diff)
+	}
+
+	// All other bins should be 1/N as well for impulse
+	for k := 1; k < len(freq); k++ {
+		expected := complex(float32(1.0/float64(n)), 0)
+		diff := cmplx.Abs(complex128(freq[k] - expected))
+		if diff > 1e-5 {
+			t.Errorf("ForwardNormalized impulse bin %d: got=%v want=%v diff=%v",
+				k, freq[k], expected, diff)
+		}
+	}
+}
+
+// TestFastPlanReal32_ForwardUnitary verifies unitary forward transform.
+func TestFastPlanReal32_ForwardUnitary(t *testing.T) {
+	t.Parallel()
+
+	n := 64
+	plan, err := NewFastPlanReal32(n)
+	if errors.Is(err, ErrNotImplemented) {
+		t.Skip("No codelet for size 64")
+	}
+
+	if err != nil {
+		t.Fatalf("NewFastPlanReal32(%d) error: %v", n, err)
+	}
+
+	// Create impulse signal
+	src := make([]float32, n)
+	src[0] = 1.0
+
+	freq := make([]complex64, n/2+1)
+	plan.ForwardUnitary(freq, src)
+
+	// Unitary forward should have DC bin = 1/sqrt(N)
+	expected := complex(float32(1.0/math.Sqrt(float64(n))), 0)
+	diff := cmplx.Abs(complex128(freq[0] - expected))
+
+	if diff > 1e-5 {
+		t.Errorf("ForwardUnitary impulse DC bin: got=%v want=%v diff=%v",
+			freq[0], expected, diff)
+	}
+}
+
+// TestFastPlanReal64_BasicProperties verifies Len and SpectrumLen.
+func TestFastPlanReal64_BasicProperties(t *testing.T) {
+	t.Parallel()
+
+	sizes := []int{32, 64, 128, 256}
+	for _, n := range sizes {
+		plan, err := NewFastPlanReal64(n)
+		if errors.Is(err, ErrNotImplemented) {
+			t.Logf("Skipping size %d: no codelet available", n)
+			continue
+		}
+
+		if err != nil {
+			t.Errorf("NewFastPlanReal64(%d) error: %v", n, err)
+			continue
+		}
+
+		if plan.Len() != n {
+			t.Errorf("NewFastPlanReal64(%d).Len() = %d, want %d", n, plan.Len(), n)
+		}
+
+		if plan.SpectrumLen() != n/2+1 {
+			t.Errorf("NewFastPlanReal64(%d).SpectrumLen() = %d, want %d", n, plan.SpectrumLen(), n/2+1)
+		}
+	}
+}
+
+// TestFastPlanReal64_ForwardNormalized verifies normalized forward transform.
+func TestFastPlanReal64_ForwardNormalized(t *testing.T) {
+	t.Parallel()
+
+	n := 64
+	plan, err := NewFastPlanReal64(n)
+	if errors.Is(err, ErrNotImplemented) {
+		t.Skip("No codelet for size 64")
+	}
+
+	if err != nil {
+		t.Fatalf("NewFastPlanReal64(%d) error: %v", n, err)
+	}
+
+	// Create impulse signal
+	src := make([]float64, n)
+	src[0] = 1.0
+
+	freq := make([]complex128, n/2+1)
+	plan.ForwardNormalized(freq, src)
+
+	// Normalized forward should have DC bin = 1/N
+	expected := complex(1.0/float64(n), 0)
+	diff := cmplx.Abs(freq[0] - expected)
+
+	if diff > 1e-10 {
+		t.Errorf("ForwardNormalized impulse DC bin: got=%v want=%v diff=%v",
+			freq[0], expected, diff)
+	}
+
+	// All other bins should be 1/N as well for impulse
+	for k := 1; k < len(freq); k++ {
+		expected := complex(1.0/float64(n), 0)
+		diff := cmplx.Abs(freq[k] - expected)
+		if diff > 1e-10 {
+			t.Errorf("ForwardNormalized impulse bin %d: got=%v want=%v diff=%v",
+				k, freq[k], expected, diff)
+		}
+	}
+}
+
+// TestFastPlanReal64_ForwardUnitary verifies unitary forward transform.
+func TestFastPlanReal64_ForwardUnitary(t *testing.T) {
+	t.Parallel()
+
+	n := 64
+	plan, err := NewFastPlanReal64(n)
+	if errors.Is(err, ErrNotImplemented) {
+		t.Skip("No codelet for size 64")
+	}
+
+	if err != nil {
+		t.Fatalf("NewFastPlanReal64(%d) error: %v", n, err)
+	}
+
+	// Create impulse signal
+	src := make([]float64, n)
+	src[0] = 1.0
+
+	freq := make([]complex128, n/2+1)
+	plan.ForwardUnitary(freq, src)
+
+	// Unitary forward should have DC bin = 1/sqrt(N)
+	expected := complex(1.0/math.Sqrt(float64(n)), 0)
+	diff := cmplx.Abs(freq[0] - expected)
+
+	if diff > 1e-10 {
+		t.Errorf("ForwardUnitary impulse DC bin: got=%v want=%v diff=%v",
+			freq[0], expected, diff)
+	}
+}
+
 // BenchmarkFastPlan_vs_Plan compares FastPlan to regular Plan performance.
 func BenchmarkFastPlan_vs_Plan(b *testing.B) {
 	sizes := []int{64, 256, 1024}
