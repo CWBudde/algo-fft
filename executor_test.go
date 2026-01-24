@@ -72,12 +72,14 @@ func TestExecutor_Inverse(t *testing.T) {
 	original[0] = 1
 
 	freq := make([]complex64, 256)
+
 	err = executor.Forward(freq, original)
 	if err != nil {
 		t.Fatalf("executor.Forward() failed: %v", err)
 	}
 
 	recovered := make([]complex64, 256)
+
 	err = executor.Inverse(recovered, freq)
 	if err != nil {
 		t.Fatalf("executor.Inverse() failed: %v", err)
@@ -181,6 +183,7 @@ func TestExecutor_RoundTrip(t *testing.T) {
 
 	// Forward transform
 	freq := make([]complex64, 512)
+
 	err = executor.Forward(freq, original)
 	if err != nil {
 		t.Fatalf("executor.Forward() failed: %v", err)
@@ -188,6 +191,7 @@ func TestExecutor_RoundTrip(t *testing.T) {
 
 	// Inverse transform
 	recovered := make([]complex64, 512)
+
 	err = executor.Inverse(recovered, freq)
 	if err != nil {
 		t.Fatalf("executor.Inverse() failed: %v", err)
@@ -196,6 +200,7 @@ func TestExecutor_RoundTrip(t *testing.T) {
 	// Verify round-trip (Inverse automatically normalizes by 1/N)
 	for i := range original {
 		expected := original[i]
+
 		diff := absComplex64(recovered[i] - expected)
 		if diff > 1e-3 { // Allow for floating point error
 			t.Errorf("recovered[%d] = %v, want %v (diff=%v)", i, recovered[i], expected, diff)
@@ -226,20 +231,26 @@ func TestExecutor_ConcurrentSafety(t *testing.T) {
 	go func() {
 		src := make([]complex64, 256)
 		src[0] = 1
+
 		dst := make([]complex64, 256)
-		if err := exec1.Forward(dst, src); err != nil {
+		err := exec1.Forward(dst, src)
+		if err != nil {
 			t.Errorf("exec1.Forward() failed: %v", err)
 		}
+
 		done <- true
 	}()
 
 	go func() {
 		src := make([]complex64, 256)
 		src[1] = 1
+
 		dst := make([]complex64, 256)
-		if err := exec2.Forward(dst, src); err != nil {
+		err := exec2.Forward(dst, src)
+		if err != nil {
 			t.Errorf("exec2.Forward() failed: %v", err)
 		}
+
 		done <- true
 	}()
 
@@ -314,7 +325,7 @@ func TestExecutor_Complex64AndComplex128(t *testing.T) {
 	}
 
 	// Verify both produce similar results (accounting for precision)
-	for i := 0; i < 64; i++ {
+	for i := range 64 {
 		diff := complex128(dst32[i]) - dst64[i]
 		if absComplex128(diff) > 1e-5 {
 			t.Errorf("Results differ at index %d: complex64=%v, complex128=%v", i, dst32[i], dst64[i])
@@ -351,7 +362,7 @@ func TestExecutor_ErrorPropagation(t *testing.T) {
 	}
 }
 
-// Helper function for complex128 absolute value
+// Helper function for complex128 absolute value.
 func absComplex128(v complex128) float64 {
 	return real(v)*real(v) + imag(v)*imag(v)
 }

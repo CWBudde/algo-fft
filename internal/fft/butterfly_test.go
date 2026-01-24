@@ -7,7 +7,7 @@ import (
 	"github.com/MeKo-Christian/algo-fft/internal/reference"
 )
 
-// TestButterfly2 verifies the radix-2 butterfly operation
+// TestButterfly2 verifies the radix-2 butterfly operation.
 func TestButterfly2(t *testing.T) {
 	t.Parallel()
 
@@ -42,6 +42,7 @@ func testButterfly2_64(t *testing.T) {
 		if cmplx.Abs(complex128(got0-want0)) > testTol64 {
 			t.Errorf("butterfly2(%v, %v, %v) out0: got %v, want %v", tc.a, tc.b, tc.w, got0, want0)
 		}
+
 		if cmplx.Abs(complex128(got1-want1)) > testTol64 {
 			t.Errorf("butterfly2(%v, %v, %v) out1: got %v, want %v", tc.a, tc.b, tc.w, got1, want1)
 		}
@@ -68,13 +69,14 @@ func testButterfly2_128(t *testing.T) {
 		if cmplx.Abs(got0-want0) > testTol128 {
 			t.Errorf("butterfly2(%v, %v, %v) out0: got %v, want %v", tc.a, tc.b, tc.w, got0, want0)
 		}
+
 		if cmplx.Abs(got1-want1) > testTol128 {
 			t.Errorf("butterfly2(%v, %v, %v) out1: got %v, want %v", tc.a, tc.b, tc.w, got1, want1)
 		}
 	}
 }
 
-// TestButterfly3 verifies the radix-3 butterfly against naive DFT
+// TestButterfly3 verifies the radix-3 butterfly against naive DFT.
 func TestButterfly3(t *testing.T) {
 	t.Parallel()
 
@@ -132,7 +134,7 @@ func testButterfly3_128(t *testing.T) {
 	}
 }
 
-// TestButterfly3Inverse verifies inverse radix-3 butterfly
+// TestButterfly3Inverse verifies inverse radix-3 butterfly.
 func TestButterfly3Inverse(t *testing.T) {
 	t.Parallel()
 
@@ -192,7 +194,7 @@ func testButterfly3Inverse_128(t *testing.T) {
 	}
 }
 
-// TestButterfly4 verifies the radix-4 butterfly against naive DFT
+// TestButterfly4 verifies the radix-4 butterfly against naive DFT.
 func TestButterfly4(t *testing.T) {
 	t.Parallel()
 
@@ -246,7 +248,7 @@ func testButterfly4_128(t *testing.T) {
 	}
 }
 
-// TestButterfly4Inverse verifies inverse radix-4 butterfly
+// TestButterfly4Inverse verifies inverse radix-4 butterfly.
 func TestButterfly4Inverse(t *testing.T) {
 	t.Parallel()
 
@@ -304,7 +306,7 @@ func testButterfly4Inverse_128(t *testing.T) {
 	}
 }
 
-// TestButterfly5 verifies the radix-5 butterfly against naive DFT
+// TestButterfly5 verifies the radix-5 butterfly against naive DFT.
 func TestButterfly5(t *testing.T) {
 	t.Parallel()
 
@@ -358,7 +360,7 @@ func testButterfly5_128(t *testing.T) {
 	}
 }
 
-// TestButterfly5Inverse verifies inverse radix-5 butterfly
+// TestButterfly5Inverse verifies inverse radix-5 butterfly.
 func TestButterfly5Inverse(t *testing.T) {
 	t.Parallel()
 

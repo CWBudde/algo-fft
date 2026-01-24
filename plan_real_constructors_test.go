@@ -110,6 +110,7 @@ func TestNewPlanReal32WithOptions_RoundTrip(t *testing.T) {
 
 	// Forward
 	spectrum := make([]complex64, plan.SpectrumLen())
+
 	err = plan.Forward(spectrum, input)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -117,6 +118,7 @@ func TestNewPlanReal32WithOptions_RoundTrip(t *testing.T) {
 
 	// Inverse
 	recovered := make([]float32, n)
+
 	err = plan.Inverse(recovered, spectrum)
 	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
@@ -128,6 +130,7 @@ func TestNewPlanReal32WithOptions_RoundTrip(t *testing.T) {
 		if diff < 0 {
 			diff = -diff
 		}
+
 		if diff > 1e-3 {
 			t.Errorf("round-trip error at [%d]: got %v, want %v (diff=%v)", i, recovered[i], input[i], diff)
 			break
@@ -157,6 +160,7 @@ func TestNewPlanReal64WithOptions_RoundTrip(t *testing.T) {
 
 	// Forward
 	spectrum := make([]complex128, plan.SpectrumLen())
+
 	err = plan.Forward(spectrum, input)
 	if err != nil {
 		t.Fatalf("Forward failed: %v", err)
@@ -164,6 +168,7 @@ func TestNewPlanReal64WithOptions_RoundTrip(t *testing.T) {
 
 	// Inverse
 	recovered := make([]float64, n)
+
 	err = plan.Inverse(recovered, spectrum)
 	if err != nil {
 		t.Fatalf("Inverse failed: %v", err)
@@ -175,6 +180,7 @@ func TestNewPlanReal64WithOptions_RoundTrip(t *testing.T) {
 		if diff < 0 {
 			diff = -diff
 		}
+
 		if diff > 1e-11 {
 			t.Errorf("round-trip error at [%d]: got %v, want %v (diff=%v)", i, recovered[i], input[i], diff)
 			break

@@ -267,6 +267,7 @@ func TestPlanner_PlanND32(t *testing.T) {
 	planner := NewPlanner(PlanOptions{})
 
 	dims := []int{4, 8, 16}
+
 	plan, err := planner.PlanND32(dims)
 	if err != nil {
 		t.Fatalf("PlanND32(%v) failed: %v", dims, err)
@@ -306,6 +307,7 @@ func TestPlanner_PlanND64(t *testing.T) {
 	planner := NewPlanner(PlanOptions{})
 
 	dims := []int{8, 8}
+
 	plan, err := planner.PlanND64(dims)
 	if err != nil {
 		t.Fatalf("PlanND64(%v) failed: %v", dims, err)
@@ -408,6 +410,7 @@ func TestPlanner_WithStrategy(t *testing.T) {
 		}
 
 		planner := NewPlanner(opts)
+
 		plan, err := planner.Plan1D32(64)
 		if err != nil {
 			t.Errorf("Plan1D32(64) with strategy %v failed: %v", strategy, err)
@@ -499,8 +502,8 @@ func TestPlanner_OptionsNormalization(t *testing.T) {
 
 	// Test that invalid options are normalized
 	opts := PlanOptions{
-		Batch:   -5,  // Invalid: should be normalized to 0
-		Stride:  -10, // Invalid: should be normalized to 0
+		Batch:   -5,                    // Invalid: should be normalized to 0
+		Stride:  -10,                   // Invalid: should be normalized to 0
 		Radices: []int{2, -1, 4, 0, 8}, // Invalid entries should be removed
 	}
 
@@ -558,6 +561,7 @@ func TestPlanner_ConcurrentPlanCreation(t *testing.T) {
 		if err != nil || plan.Len() != 64 {
 			t.Errorf("Concurrent Plan1D32 failed")
 		}
+
 		done <- true
 	}()
 
@@ -566,6 +570,7 @@ func TestPlanner_ConcurrentPlanCreation(t *testing.T) {
 		if err != nil || plan.Len() != 8*16 {
 			t.Errorf("Concurrent Plan2D64 failed")
 		}
+
 		done <- true
 	}()
 
@@ -574,6 +579,7 @@ func TestPlanner_ConcurrentPlanCreation(t *testing.T) {
 		if err != nil || plan.Len() != 128 {
 			t.Errorf("Concurrent PlanReal failed")
 		}
+
 		done <- true
 	}()
 

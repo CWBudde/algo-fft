@@ -358,6 +358,7 @@ func TestFastPlanReal32_ForwardNormalized(t *testing.T) {
 	t.Parallel()
 
 	n := 64
+
 	plan, err := NewFastPlanReal32(n)
 	if errors.Is(err, ErrNotImplemented) {
 		t.Skip("No codelet for size 64")
@@ -386,6 +387,7 @@ func TestFastPlanReal32_ForwardNormalized(t *testing.T) {
 	// All other bins should be 1/N as well for impulse
 	for k := 1; k < len(freq); k++ {
 		expected := complex(float32(1.0/float64(n)), 0)
+
 		diff := cmplx.Abs(complex128(freq[k] - expected))
 		if diff > 1e-5 {
 			t.Errorf("ForwardNormalized impulse bin %d: got=%v want=%v diff=%v",
@@ -399,6 +401,7 @@ func TestFastPlanReal32_ForwardUnitary(t *testing.T) {
 	t.Parallel()
 
 	n := 64
+
 	plan, err := NewFastPlanReal32(n)
 	if errors.Is(err, ErrNotImplemented) {
 		t.Skip("No codelet for size 64")
@@ -457,6 +460,7 @@ func TestFastPlanReal64_ForwardNormalized(t *testing.T) {
 	t.Parallel()
 
 	n := 64
+
 	plan, err := NewFastPlanReal64(n)
 	if errors.Is(err, ErrNotImplemented) {
 		t.Skip("No codelet for size 64")
@@ -485,6 +489,7 @@ func TestFastPlanReal64_ForwardNormalized(t *testing.T) {
 	// All other bins should be 1/N as well for impulse
 	for k := 1; k < len(freq); k++ {
 		expected := complex(1.0/float64(n), 0)
+
 		diff := cmplx.Abs(freq[k] - expected)
 		if diff > 1e-10 {
 			t.Errorf("ForwardNormalized impulse bin %d: got=%v want=%v diff=%v",
@@ -498,6 +503,7 @@ func TestFastPlanReal64_ForwardUnitary(t *testing.T) {
 	t.Parallel()
 
 	n := 64
+
 	plan, err := NewFastPlanReal64(n)
 	if errors.Is(err, ErrNotImplemented) {
 		t.Skip("No codelet for size 64")

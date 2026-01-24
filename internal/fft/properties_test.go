@@ -11,7 +11,7 @@ import (
 )
 
 // TestFFTLinearity verifies that FFT is a linear operation:
-// FFT(a*x + b*y) = a*FFT(x) + b*FFT(y)
+// FFT(a*x + b*y) = a*FFT(x) + b*FFT(y).
 func TestFFTLinearity(t *testing.T) {
 	t.Parallel()
 
@@ -54,6 +54,7 @@ func testLinearity64(t *testing.T, n int) {
 	// FFT of combined
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
+
 	fftCombined := make([]complex64, n)
 	if !kernels.Forward(fftCombined, combined, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -62,10 +63,12 @@ func testLinearity64(t *testing.T, n int) {
 	// FFT of x and y separately
 	fftX := make([]complex64, n)
 	fftY := make([]complex64, n)
+
 	scratch = make([]complex64, n)
 	if !kernels.Forward(fftX, x, twiddle, scratch) {
 		t.Skip("Kernel not available")
 	}
+
 	scratch = make([]complex64, n)
 	if !kernels.Forward(fftY, y, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -100,6 +103,7 @@ func testLinearity128(t *testing.T, n int) {
 
 	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
+
 	fftCombined := make([]complex128, n)
 	if !kernels.Forward(fftCombined, combined, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -107,10 +111,12 @@ func testLinearity128(t *testing.T, n int) {
 
 	fftX := make([]complex128, n)
 	fftY := make([]complex128, n)
+
 	scratch = make([]complex128, n)
 	if !kernels.Forward(fftX, x, twiddle, scratch) {
 		t.Skip("Kernel not available")
 	}
+
 	scratch = make([]complex128, n)
 	if !kernels.Forward(fftY, y, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -125,7 +131,7 @@ func testLinearity128(t *testing.T, n int) {
 }
 
 // TestFFTParseval verifies Parseval's theorem:
-// sum(|x|²) = (1/n) * sum(|FFT(x)|²)
+// sum(|x|²) = (1/n) * sum(|FFT(x)|²).
 func TestFFTParseval(t *testing.T) {
 	t.Parallel()
 
@@ -162,6 +168,7 @@ func testParseval64(t *testing.T, n int) {
 	// FFT
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
+
 	dst := make([]complex64, n)
 	if !kernels.Forward(dst, src, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -172,6 +179,7 @@ func testParseval64(t *testing.T, n int) {
 	for _, v := range dst {
 		freqEnergy += float64(real(v)*real(v) + imag(v)*imag(v))
 	}
+
 	freqEnergy /= float64(n)
 
 	// Verify Parseval's theorem
@@ -196,6 +204,7 @@ func testParseval128(t *testing.T, n int) {
 
 	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
+
 	dst := make([]complex128, n)
 	if !kernels.Forward(dst, src, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -205,6 +214,7 @@ func testParseval128(t *testing.T, n int) {
 	for _, v := range dst {
 		freqEnergy += real(v)*real(v) + imag(v)*imag(v)
 	}
+
 	freqEnergy /= float64(n)
 
 	relError := math.Abs(timeEnergy-freqEnergy) / math.Max(timeEnergy, freqEnergy)
@@ -213,7 +223,7 @@ func testParseval128(t *testing.T, n int) {
 	}
 }
 
-// TestFFTRoundTrip verifies that IFFT(FFT(x)) ≈ x
+// TestFFTRoundTrip verifies that IFFT(FFT(x)) ≈ x.
 func TestFFTRoundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -244,6 +254,7 @@ func testRoundTrip64(t *testing.T, n int) {
 	// Forward FFT
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
+
 	fwd := make([]complex64, n)
 	if !kernels.Forward(fwd, src, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -251,6 +262,7 @@ func testRoundTrip64(t *testing.T, n int) {
 
 	// Inverse FFT
 	scratch = make([]complex64, n)
+
 	dst := make([]complex64, n)
 	if !kernels.Inverse(dst, fwd, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -270,12 +282,14 @@ func testRoundTrip128(t *testing.T, n int) {
 
 	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
+
 	fwd := make([]complex128, n)
 	if !kernels.Forward(fwd, src, twiddle, scratch) {
 		t.Skip("Kernel not available")
 	}
 
 	scratch = make([]complex128, n)
+
 	dst := make([]complex128, n)
 	if !kernels.Inverse(dst, fwd, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -285,7 +299,7 @@ func testRoundTrip128(t *testing.T, n int) {
 }
 
 // TestFFTShiftTheorem verifies the shift theorem:
-// If y[k] = x[(k-m) mod n], then FFT(y)[k] = FFT(x)[k] * exp(-2πikm/n)
+// If y[k] = x[(k-m) mod n], then FFT(y)[k] = FFT(x)[k] * exp(-2πikm/n).
 func TestFFTShiftTheorem(t *testing.T) {
 	t.Parallel()
 
@@ -325,12 +339,14 @@ func testShiftTheorem64(t *testing.T, n, m int) {
 	// FFT of both
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
+
 	fftX := make([]complex64, n)
 	if !kernels.Forward(fftX, x, twiddle, scratch) {
 		t.Skip("Kernel not available")
 	}
 
 	scratch = make([]complex64, n)
+
 	fftY := make([]complex64, n)
 	if !kernels.Forward(fftY, y, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -362,12 +378,14 @@ func testShiftTheorem128(t *testing.T, n, m int) {
 
 	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
+
 	fftX := make([]complex128, n)
 	if !kernels.Forward(fftX, x, twiddle, scratch) {
 		t.Skip("Kernel not available")
 	}
 
 	scratch = make([]complex128, n)
+
 	fftY := make([]complex128, n)
 	if !kernels.Forward(fftY, y, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -383,7 +401,7 @@ func testShiftTheorem128(t *testing.T, n, m int) {
 	assertComplex128SliceClose(t, fftY, expected, n)
 }
 
-// TestFFTAgainstReference verifies FFT output matches naive DFT
+// TestFFTAgainstReference verifies FFT output matches naive DFT.
 func TestFFTAgainstReference(t *testing.T) {
 	t.Parallel()
 
@@ -414,6 +432,7 @@ func testAgainstReference64(t *testing.T, n int) {
 	// FFT
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
+
 	dst := make([]complex64, n)
 	if !kernels.Forward(dst, src, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -435,6 +454,7 @@ func testAgainstReference128(t *testing.T, n int) {
 
 	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
+
 	dst := make([]complex128, n)
 	if !kernels.Forward(dst, src, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -445,7 +465,7 @@ func testAgainstReference128(t *testing.T, n int) {
 	assertComplex128SliceClose(t, dst, want, n)
 }
 
-// TestFFTSymmetry verifies that FFT of real input has conjugate symmetry
+// TestFFTSymmetry verifies that FFT of real input has conjugate symmetry.
 func TestFFTRealInputSymmetry(t *testing.T) {
 	t.Parallel()
 
@@ -480,6 +500,7 @@ func testRealInputSymmetry64(t *testing.T, n int) {
 	// FFT
 	twiddle := ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
+
 	dst := make([]complex64, n)
 	if !kernels.Forward(dst, src, twiddle, scratch) {
 		t.Skip("Kernel not available")
@@ -508,6 +529,7 @@ func testRealInputSymmetry128(t *testing.T, n int) {
 
 	twiddle := ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
+
 	dst := make([]complex128, n)
 	if !kernels.Forward(dst, src, twiddle, scratch) {
 		t.Skip("Kernel not available")

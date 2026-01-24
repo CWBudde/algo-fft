@@ -59,6 +59,7 @@ func testKernelCorrectness64(t *testing.T, n int, strategy KernelStrategy, featu
 	if n >= 4096 {
 		tol = 1e-3
 	}
+
 	for i := range dst {
 		if cmplx.Abs(complex128(dst[i]-want[i])) > tol {
 			t.Errorf("n=%d index=%d got=%v want=%v", n, i, dst[i], want[i])
@@ -68,6 +69,7 @@ func testKernelCorrectness64(t *testing.T, n int, strategy KernelStrategy, featu
 
 	// Test inverse
 	scratch = make([]complex64, n)
+
 	inv := make([]complex64, n)
 	if !kernels.Inverse(inv, dst, twiddle, scratch) {
 		t.Skipf("Inverse kernel unavailable for n=%d, strategy=%v", n, strategy)
@@ -99,6 +101,7 @@ func testKernelCorrectness128(t *testing.T, n int, strategy KernelStrategy, feat
 	if n >= 4096 {
 		tol = 1e-9
 	}
+
 	for i := range dst {
 		if cmplx.Abs(dst[i]-want[i]) > tol {
 			t.Errorf("n=%d index=%d got=%v want=%v", n, i, dst[i], want[i])
@@ -107,6 +110,7 @@ func testKernelCorrectness128(t *testing.T, n int, strategy KernelStrategy, feat
 	}
 
 	scratch = make([]complex128, n)
+
 	inv := make([]complex128, n)
 	if !kernels.Inverse(inv, dst, twiddle, scratch) {
 		t.Skipf("Inverse kernel unavailable for n=%d, strategy=%v", n, strategy)
@@ -116,7 +120,7 @@ func testKernelCorrectness128(t *testing.T, n int, strategy KernelStrategy, feat
 	assertComplex128SliceClose(t, inv, src, n)
 }
 
-// TestKernelConsistency verifies that different strategies produce identical results
+// TestKernelConsistency verifies that different strategies produce identical results.
 func TestKernelConsistency(t *testing.T) {
 	t.Parallel()
 
@@ -163,12 +167,16 @@ func testKernelConsistency64(t *testing.T, n int, features cpu.Features) {
 	}
 
 	// Compare all results against each other
-	var reference []complex64
-	var refStrategy KernelStrategy
+	var (
+		reference   []complex64
+		refStrategy KernelStrategy
+	)
+
 	for strategy, result := range results {
 		if reference == nil {
 			reference = result
 			refStrategy = strategy
+
 			continue
 		}
 
@@ -201,12 +209,16 @@ func testKernelConsistency128(t *testing.T, n int, features cpu.Features) {
 		return
 	}
 
-	var reference []complex128
-	var refStrategy KernelStrategy
+	var (
+		reference   []complex128
+		refStrategy KernelStrategy
+	)
+
 	for strategy, result := range results {
 		if reference == nil {
 			reference = result
 			refStrategy = strategy
+
 			continue
 		}
 
@@ -215,7 +227,7 @@ func testKernelConsistency128(t *testing.T, n int, features cpu.Features) {
 	}
 }
 
-// TestMixedRadixSizes verifies correctness for non-power-of-2 sizes
+// TestMixedRadixSizes verifies correctness for non-power-of-2 sizes.
 func TestMixedRadixSizes(t *testing.T) {
 	t.Parallel()
 
@@ -262,6 +274,7 @@ func testMixedRadix64(t *testing.T, n int) {
 	if n >= 40 {
 		tol = 5e-4
 	}
+
 	for i := range dst {
 		if cmplx.Abs(complex128(dst[i]-want[i])) > tol {
 			t.Errorf("n=%d index=%d got=%v want=%v", n, i, dst[i], want[i])
@@ -271,6 +284,7 @@ func testMixedRadix64(t *testing.T, n int) {
 
 	// Test round-trip
 	scratch = make([]complex64, n*2)
+
 	inv := make([]complex64, n)
 	if !kernels.Inverse(inv, dst, twiddle, scratch) {
 		t.Skip("Inverse kernel not available for mixed radix")
@@ -303,6 +317,7 @@ func testMixedRadix128(t *testing.T, n int) {
 	if n >= 40 {
 		tol = 5e-10
 	}
+
 	for i := range dst {
 		if cmplx.Abs(dst[i]-want[i]) > tol {
 			t.Errorf("n=%d index=%d got=%v want=%v", n, i, dst[i], want[i])
@@ -311,6 +326,7 @@ func testMixedRadix128(t *testing.T, n int) {
 	}
 
 	scratch = make([]complex128, n*2)
+
 	inv := make([]complex128, n)
 	if !kernels.Inverse(inv, dst, twiddle, scratch) {
 		t.Skip("Inverse kernel not available for mixed radix")
@@ -320,7 +336,7 @@ func testMixedRadix128(t *testing.T, n int) {
 	assertComplex128SliceClose(t, inv, src, n)
 }
 
-// TestSmallSizes verifies correctness for very small transforms
+// TestSmallSizes verifies correctness for very small transforms.
 func TestSmallSizes(t *testing.T) {
 	t.Parallel()
 
