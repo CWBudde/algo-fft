@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fft"
 )
 
 // ImportWisdom loads wisdom data from a file.

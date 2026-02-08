@@ -469,7 +469,7 @@ import (
     "math/rand"
     "testing"
 
-    mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+    mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 func TestForwardAVX2Size4096SixStepComplex64_Basic(t *testing.T) {
@@ -841,7 +841,7 @@ Since we can't easily inline the full size-64 kernel in assembly, we'll create a
 package kernels
 
 import (
-    "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+    "github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 // forwardDIT4096SixStepFullAVX2Complex64 implements the six-step algorithm

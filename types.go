@@ -1,6 +1,6 @@
 package algofft
 
-import "github.com/MeKo-Christian/algo-fft/internal/fftypes"
+import "github.com/cwbudde/algo-fft/internal/fftypes"
 
 // Complex is a type constraint for complex number types supported by the FFT.
 // The canonical definition is in internal/fftypes.

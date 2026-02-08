@@ -1,14 +1,14 @@
 # algo-fft - High-Performance Go FFT Library
 
-[![Tests](https://github.com/MeKo-Christian/algofft/actions/workflows/test.yaml/badge.svg)](https://github.com/MeKo-Christian/algo-fft/actions/workflows/test.yaml)
-[![codecov](https://codecov.io/gh/MeKo-Christian/algo-fft/branch/main/graph/badge.svg)](https://codecov.io/gh/MeKo-Christian/algo-fft)
-[![Go Reference](https://pkg.go.dev/badge/github.com/MeKo-Christian/algofft.svg)](https://pkg.go.dev/github.com/MeKo-Christian/algo-fft)
+[![Tests](https://github.com/cwbudde/algofft/actions/workflows/test.yaml/badge.svg)](https://github.com/cwbudde/algo-fft/actions/workflows/test.yaml)
+[![codecov](https://codecov.io/gh/cwbudde/algo-fft/branch/main/graph/badge.svg)](https://codecov.io/gh/cwbudde/algo-fft)
+[![Go Reference](https://pkg.go.dev/badge/github.com/cwbudde/algofft.svg)](https://pkg.go.dev/github.com/cwbudde/algo-fft)
 
 A new FFT (Fast Fourier Transform) library for Go, designed for high performance, numerical accuracy, and flexibility.
 
 ## Try It Online
 
-Experience algo-fft in your browser: **[Interactive FFT Demo](https://meko-christian.github.io/algo-fft/)**
+Experience algo-fft in your browser: **[Interactive FFT Demo](https://cwbudde.github.io/algo-fft/)**
 
 The demo runs the library compiled to WebAssembly, allowing you to visualize FFT transforms in real-time.
 
@@ -46,7 +46,7 @@ The demo runs the library compiled to WebAssembly, allowing you to visualize FFT
 ## Installation
 
 ```bash
-go get github.com/MeKo-Christian/algofft
+go get github.com/cwbudde/algofft
 ```
 
 ## Quick Start
@@ -56,7 +56,7 @@ package main
 
 import (
     "fmt"
-    "github.com/MeKo-Christian/algofft"
+    "github.com/cwbudde/algofft"
 )
 
 func main() {
@@ -171,7 +171,7 @@ Batch processing uses an interleaved/sequential memory layout where FFT `i` occu
 The wisdom system caches optimal planning decisions for reuse across program runs:
 
 ```go
-import "github.com/MeKo-Christian/algofft"
+import "github.com/cwbudde/algofft"
 
 // Plans are automatically optimized using built-in wisdom
 

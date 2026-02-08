@@ -271,7 +271,7 @@ plan64, _ := algofft.NewPlanReal64(4096)
 --- PASS: TestPlanReal64_ZeroAlloc (0.00s)
 
 PASS
-ok   github.com/MeKo-Christian/algofft 0.005s
+ok  	github.com/cwbudde/algofft	0.005s
 ```
 
 ---
