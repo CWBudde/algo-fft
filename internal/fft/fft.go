@@ -3,8 +3,8 @@ package fft
 import (
 	"math/bits"
 
-	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // Complex is a type alias for the complex number constraint.

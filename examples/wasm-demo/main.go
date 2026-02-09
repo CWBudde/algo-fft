@@ -10,7 +10,7 @@ import (
 	"syscall/js"
 	"time"
 
-	"github.com/MeKo-Christian/algo-fft"
+	algofft "github.com/cwbudde/algo-fft"
 )
 
 var (

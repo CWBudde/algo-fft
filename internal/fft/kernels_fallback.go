@@ -1,9 +1,9 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/kernels"
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 const ditAutoThreshold = 1024

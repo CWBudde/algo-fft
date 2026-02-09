@@ -5,9 +5,9 @@ package fft
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 func TestSSE2SizeSpecificComplex64_386(t *testing.T) {

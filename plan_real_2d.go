@@ -3,8 +3,8 @@ package algofft
 import (
 	"fmt"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 // PlanReal2D is a pre-computed 2D real FFT plan for float32 input matrices.

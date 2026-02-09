@@ -3,8 +3,8 @@
 package kernels
 
 import (
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
+	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 func radix5AVX2Available() bool {

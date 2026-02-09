@@ -3,8 +3,8 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {

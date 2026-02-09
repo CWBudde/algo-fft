@@ -1,7 +1,7 @@
 package planner
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 // WisdomStore interface for dependency injection from root package.

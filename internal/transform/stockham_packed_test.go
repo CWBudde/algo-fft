@@ -3,7 +3,7 @@ package transform
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 func TestStockhamPackedForwardMatchesReferenceComplex64(t *testing.T) {

@@ -3,7 +3,7 @@ package kernels
 import (
 	stdmath "math"
 
-	"github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/math"
 )
 
 // ForwardSixStepComplex64 performs a forward six-step FFT on complex64 data.

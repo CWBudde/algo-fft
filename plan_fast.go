@@ -1,11 +1,11 @@
 package algofft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
-	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fft"
+	m "github.com/cwbudde/algo-fft/internal/math"
+	mem "github.com/cwbudde/algo-fft/internal/memory"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // FastPlan provides zero-overhead FFT transforms for latency-critical workloads.

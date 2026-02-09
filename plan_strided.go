@@ -1,8 +1,8 @@
 package algofft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/fft"
+	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // ForwardStrided computes the forward FFT on strided input/output data.

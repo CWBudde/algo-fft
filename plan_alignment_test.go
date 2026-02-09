@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unsafe"
 
-	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
+	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 func TestPlanAlignmentComplex64(t *testing.T) {

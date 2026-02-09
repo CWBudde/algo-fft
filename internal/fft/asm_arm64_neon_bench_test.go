@@ -5,7 +5,7 @@ package fft
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 func BenchmarkNEONForward_64(b *testing.B)      { benchmarkNEONForward(b, 64) }

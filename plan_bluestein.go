@@ -1,7 +1,7 @@
 package algofft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fft"
 )
 
 func (p *Plan[T]) bluesteinForward(dst, src, scratch, bluesteinScratch []T) error {

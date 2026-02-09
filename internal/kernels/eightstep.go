@@ -1,7 +1,7 @@
 package kernels
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/math"
 )
 
 // ForwardEightStepComplex64 performs a forward eight-step FFT on complex64 data.

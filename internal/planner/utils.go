@@ -1,7 +1,7 @@
 package planner
 
 import (
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // ComputeTwiddleFactors returns the precomputed twiddle factors (roots of unity).
