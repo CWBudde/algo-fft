@@ -1,6 +1,6 @@
 package fft
 
-import "github.com/MeKo-Christian/algo-fft/internal/kernels"
+import "github.com/cwbudde/algo-fft/internal/kernels"
 
 const mixedRadixMaxStages = 64
 

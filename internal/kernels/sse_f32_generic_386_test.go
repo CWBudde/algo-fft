@@ -5,9 +5,9 @@ package kernels
 import (
 	"testing"
 
-	x86 "github.com/MeKo-Christian/algo-fft/internal/asm/x86"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	x86 "github.com/cwbudde/algo-fft/internal/asm/x86"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 func TestForwardSSEGenericComplex64_386(t *testing.T) {

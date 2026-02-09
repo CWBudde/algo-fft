@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // TestForwardStridedDIT_Complex64 tests forward strided DIT FFT with complex64.

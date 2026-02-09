@@ -5,9 +5,9 @@ package fft
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // TestSelectKernelsComplex64_SSE2Only tests SSE2 path without AVX2.

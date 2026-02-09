@@ -1,9 +1,9 @@
 package algofft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
-	"github.com/MeKo-Christian/algo-fft/internal/transform"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // recursiveForward computes the forward FFT using recursive decomposition.

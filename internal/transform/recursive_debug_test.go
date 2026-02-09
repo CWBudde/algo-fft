@@ -3,8 +3,8 @@ package transform
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // TestRecursiveDebug_Size512 - Minimal test to diagnose size-512 codelet failure.

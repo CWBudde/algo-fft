@@ -2,7 +2,7 @@
 
 package kernels
 
-import amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+import amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 
 // forwardAVX2Size256Radix4Complex64Safe ensures in-place forward uses dst output.
 // The AVX2 radix-4 size-256 forward kernel writes to scratch for in-place use

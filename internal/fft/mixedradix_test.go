@@ -4,8 +4,8 @@ import (
 	"math/cmplx"
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 func TestMixedRadixComplex64(t *testing.T) {

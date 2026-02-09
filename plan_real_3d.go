@@ -3,7 +3,7 @@ package algofft
 import (
 	"fmt"
 
-	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
+	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 // PlanReal3D is a pre-computed 3D real FFT plan for float32 input volumes.

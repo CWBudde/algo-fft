@@ -3,8 +3,8 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/kernels"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/kernels"
 )
 
 func init() {

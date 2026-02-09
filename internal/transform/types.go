@@ -1,10 +1,10 @@
 package transform
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
-	"github.com/MeKo-Christian/algo-fft/internal/kernels"
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // Complex is a type alias for the complex number constraint.

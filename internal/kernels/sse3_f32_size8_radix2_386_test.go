@@ -5,8 +5,8 @@ package kernels
 import (
 	"testing"
 
-	x86 "github.com/MeKo-Christian/algo-fft/internal/asm/x86"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	x86 "github.com/cwbudde/algo-fft/internal/asm/x86"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 func TestForwardSSE3Size8Radix2Complex64_386(t *testing.T) {

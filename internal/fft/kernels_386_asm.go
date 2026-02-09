@@ -3,8 +3,8 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // SSE2/SSE3 kernel selection for 386 architecture.

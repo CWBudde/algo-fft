@@ -2,7 +2,7 @@
 
 package fft
 
-import "github.com/MeKo-Christian/algo-fft/internal/cpu"
+import "github.com/cwbudde/algo-fft/internal/cpu"
 
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	return autoKernelComplex64(KernelAuto)

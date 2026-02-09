@@ -5,7 +5,7 @@ package kernels
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	"github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 func TestButterfly3ForwardAVX2Complex64(t *testing.T) {

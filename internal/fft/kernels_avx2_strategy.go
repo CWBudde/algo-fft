@@ -1,7 +1,7 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 func avx2KernelComplex64(strategy KernelStrategy, dit, stockham Kernel[complex64]) Kernel[complex64] {

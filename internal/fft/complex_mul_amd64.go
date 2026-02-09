@@ -3,8 +3,8 @@
 package fft
 
 import (
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
+	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 // AMD64 SIMD implementations for complex array multiplication.

@@ -1,10 +1,10 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
-	"github.com/MeKo-Christian/algo-fft/internal/transform"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // Type aliases for planner types used in the fft package.

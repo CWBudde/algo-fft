@@ -5,8 +5,8 @@ import (
 	"math/cmplx"
 	"math/rand"
 
-	"github.com/MeKo-Christian/algo-fft"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	algofft "github.com/MeKo-Christian/algo-fft"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 func main() {

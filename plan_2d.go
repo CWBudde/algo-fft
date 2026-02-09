@@ -3,9 +3,9 @@ package algofft
 import (
 	"fmt"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
-	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fft"
+	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 // Plan2D is a pre-computed 2D FFT plan for a specific matrix size and precision.

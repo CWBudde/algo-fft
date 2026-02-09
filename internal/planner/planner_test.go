@@ -3,7 +3,7 @@ package planner
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 // TestEstimatePlanPowerOf2 tests EstimatePlan with power-of-2 sizes.

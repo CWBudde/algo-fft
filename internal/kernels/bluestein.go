@@ -3,7 +3,7 @@ package kernels
 import (
 	"math"
 
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // Helper wrappers from internal/math.

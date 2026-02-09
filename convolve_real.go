@@ -1,6 +1,6 @@
 package algofft
 
-import m "github.com/MeKo-Christian/algo-fft/internal/math"
+import m "github.com/cwbudde/algo-fft/internal/math"
 
 // ConvolveReal computes the linear convolution of a and b using real FFTs.
 // The dst slice must have length len(a)+len(b)-1.

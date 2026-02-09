@@ -1,6 +1,6 @@
 package planner
 
-import "github.com/MeKo-Christian/algo-fft/internal/fftypes"
+import "github.com/cwbudde/algo-fft/internal/fftypes"
 
 // Complex is a type alias for the complex number constraint.
 // The canonical definition is in internal/fftypes.
