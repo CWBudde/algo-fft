@@ -6,9 +6,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/memory"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/memory"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // TestRoundTripAllCodelets64 tests that every registered complex64 codelet passes

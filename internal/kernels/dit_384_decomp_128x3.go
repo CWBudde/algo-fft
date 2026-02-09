@@ -2,7 +2,7 @@
 
 package kernels
 
-import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+import mathpkg "github.com/cwbudde/algo-fft/internal/math"
 
 // forwardDIT384MixedComplex64 computes a 384-point forward FFT using the
 // 128x3 decomposition (radix-3 first, then 128-point FFTs).

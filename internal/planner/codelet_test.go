@@ -4,8 +4,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 )
 
 // dummyCodelet is a dummy function for testing.

@@ -5,9 +5,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // PlannerMode controls how much work the planner does to choose kernels.

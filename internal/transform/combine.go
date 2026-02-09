@@ -3,7 +3,7 @@ package transform
 import (
 	"math"
 
-	imath "github.com/MeKo-Christian/algo-fft/internal/math"
+	imath "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // combine.go implements the "combine" step of Cooley-Tukey decomposition.

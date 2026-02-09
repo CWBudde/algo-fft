@@ -3,7 +3,7 @@ package algofft
 import (
 	"testing"
 
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
 func FuzzRoundTripComplex64(f *testing.F) {

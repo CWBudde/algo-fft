@@ -2,7 +2,7 @@
 
 package fft
 
-import kasm "github.com/MeKo-Christian/algo-fft/internal/asm/arm64"
+import kasm "github.com/cwbudde/algo-fft/internal/asm/arm64"
 
 func forwardNEONComplex64Asm(dst, src, twiddle, scratch []complex64) bool {
 	return kasm.ForwardNEONComplex64Asm(dst, src, twiddle, scratch)

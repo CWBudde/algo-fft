@@ -5,7 +5,7 @@ package kernels
 import (
 	"testing"
 
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 func TestForwardAVX2Size16384Radix4Complex128_VsGo(t *testing.T) {

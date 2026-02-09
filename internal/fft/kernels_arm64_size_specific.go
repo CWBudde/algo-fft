@@ -3,7 +3,7 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // neonSizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific

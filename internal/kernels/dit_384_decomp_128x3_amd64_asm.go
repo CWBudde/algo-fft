@@ -3,8 +3,8 @@
 package kernels
 
 import (
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // forwardDIT384MixedComplex64 computes a 384-point forward FFT using the

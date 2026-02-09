@@ -3,7 +3,7 @@
 package kernels
 
 import (
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
+	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // Twiddle layout for AVX2 size-8192 radix-4-then-2 FFT:

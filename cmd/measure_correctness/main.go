@@ -5,7 +5,7 @@ import (
 	"math/cmplx"
 	"math/rand"
 
-	algofft "github.com/MeKo-Christian/algo-fft"
+	algofft "github.com/cwbudde/algo-fft"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 

@@ -3,9 +3,9 @@
 package fft
 
 import (
-	kasm "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	kasm "github.com/cwbudde/algo-fft/internal/asm/amd64"
+	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 func forwardAVX2Complex64Asm(dst, src, twiddle, scratch []complex64) bool {

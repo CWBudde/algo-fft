@@ -1,6 +1,6 @@
 package kernels
 
-import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+import mathpkg "github.com/cwbudde/algo-fft/internal/math"
 
 // bitrev64Radix2 pre-computes bit-reversal indices for a 64-point radix-2 FFT.
 //

@@ -3,7 +3,7 @@
 package kernels
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	"github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 // forwardDIT8192SixStep64x128AVX2Complex64 computes an 8192-point forward FFT using

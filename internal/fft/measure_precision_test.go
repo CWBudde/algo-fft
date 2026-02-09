@@ -4,7 +4,7 @@ package fft
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 // TestBenchmarkStrategyNeverReturnsZero verifies that benchmarkStrategy

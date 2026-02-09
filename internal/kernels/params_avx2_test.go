@@ -7,9 +7,9 @@ import (
 	"math/cmplx"
 	"testing"
 
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
+	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // TestTwiddleSize8192Radix4Then2AVX2 verifies twiddle size calculation.

@@ -4,7 +4,7 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fft"
 )
 
 // FastPlanReal32 provides zero-overhead real FFT for float32/complex64.
