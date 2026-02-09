@@ -3,7 +3,7 @@ package fft
 import (
 	"sync"
 
-	mem "github.com/MeKo-Christian/algo-fft/internal/memory"
+	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 // BufferPool provides pooled allocations for FFT buffers to reduce GC pressure

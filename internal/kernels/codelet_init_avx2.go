@@ -3,7 +3,7 @@
 package kernels
 
 import (
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 // registerAVX2DITCodelets64 registers AVX2-optimized complex64 DIT codelets.

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // Forward FFT benchmarks for various sizes.

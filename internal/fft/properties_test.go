@@ -6,8 +6,8 @@ import (
 	"math/cmplx"
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // TestFFTLinearity verifies that FFT is a linear operation:

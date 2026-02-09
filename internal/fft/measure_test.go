@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 // mockWisdomRecorder records wisdom entries for testing.

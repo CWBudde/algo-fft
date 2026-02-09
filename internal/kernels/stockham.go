@@ -1,6 +1,6 @@
 package kernels
 
-import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+import mathpkg "github.com/cwbudde/algo-fft/internal/math"
 
 func forwardStockhamComplex64(dst, src, twiddle, scratch []complex64) bool {
 	return stockhamForward[complex64](dst, src, twiddle, scratch)

@@ -6,7 +6,7 @@ import (
 	"math"
 	"testing"
 
-	arm64 "github.com/MeKo-Christian/algo-fft/internal/asm/arm64"
+	arm64 "github.com/cwbudde/algo-fft/internal/asm/arm64"
 )
 
 func TestInverseRepackComplex64NEON(t *testing.T) {

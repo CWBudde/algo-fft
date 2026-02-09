@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	algofft "github.com/MeKo-Christian/algo-fft"
+	algofft "github.com/cwbudde/algo-fft"
 	"gonum.org/v1/gonum/dsp/fourier"
 )
 

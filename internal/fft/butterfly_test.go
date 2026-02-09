@@ -4,7 +4,7 @@ import (
 	"math/cmplx"
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // TestButterfly2 verifies the radix-2 butterfly operation.

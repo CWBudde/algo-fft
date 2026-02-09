@@ -4,8 +4,8 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fft"
 )
 
 // PlanReal is a pre-computed real FFT plan for float32 input.

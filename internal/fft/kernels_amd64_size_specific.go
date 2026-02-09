@@ -3,8 +3,8 @@
 package fft
 
 import (
-	m "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // avx2SizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific

@@ -1,6 +1,6 @@
 package kernels
 
-import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+import mathpkg "github.com/cwbudde/algo-fft/internal/math"
 
 // bitrev32Radix4Then2 pre-computes mixed-radix bit-reversal indices for a 32-point FFT.
 //

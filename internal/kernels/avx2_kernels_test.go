@@ -5,8 +5,8 @@ package kernels
 import (
 	"testing"
 
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // avx2TestCase defines a single AVX2 kernel test case

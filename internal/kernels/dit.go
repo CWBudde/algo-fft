@@ -1,6 +1,6 @@
 package kernels
 
-import mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+import mathpkg "github.com/cwbudde/algo-fft/internal/math"
 
 // Pre-computed bit-reversal indices for multiple sizes/algorithms.
 //

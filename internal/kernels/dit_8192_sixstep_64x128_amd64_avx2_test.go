@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // TestForwardDIT8192SixStep64x128AVX2_Complex64 tests that the AVX2 64×128 six-step

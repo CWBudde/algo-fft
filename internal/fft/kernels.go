@@ -1,10 +1,10 @@
 package fft
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/kernels"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
-	"github.com/MeKo-Christian/algo-fft/internal/transform"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // Re-export kernel types from internal/kernels and internal/planner.

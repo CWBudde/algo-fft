@@ -5,7 +5,7 @@ package kernels
 import (
 	"testing"
 
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 // BenchmarkSSE2Complex64 benchmarks SSE2/SSE3 kernels for complex64.

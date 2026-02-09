@@ -3,7 +3,7 @@ package kernels
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // TestForwardDIT32Radix32Complex64 tests the size-32 radix-32 forward kernel.

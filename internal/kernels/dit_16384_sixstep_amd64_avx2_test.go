@@ -7,8 +7,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/asm/amd64"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 func TestInverse16384SixStepAVX2_Impulse(t *testing.T) {

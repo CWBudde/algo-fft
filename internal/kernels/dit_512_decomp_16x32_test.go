@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 func TestForwardDIT512Mixed16x32Complex64(t *testing.T) {

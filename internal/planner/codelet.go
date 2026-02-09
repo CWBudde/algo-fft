@@ -4,8 +4,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
-	"github.com/MeKo-Christian/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 )
 
 // CodeletFunc is a type alias for the codelet function signature.

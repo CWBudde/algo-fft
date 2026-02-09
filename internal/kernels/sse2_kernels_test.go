@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // sse2TestCase64 defines a single SSE2/SSE3 kernel test case for complex64

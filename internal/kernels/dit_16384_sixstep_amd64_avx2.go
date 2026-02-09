@@ -3,7 +3,7 @@
 package kernels
 
 import (
-	"github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	"github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 // Precomputed bit-reversal indices for size 128 (radix-2).

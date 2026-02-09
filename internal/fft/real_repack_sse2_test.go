@@ -6,7 +6,7 @@ import (
 	"math"
 	"testing"
 
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 func TestInverseRepackComplex64SSE2(t *testing.T) {

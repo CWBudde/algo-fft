@@ -3,7 +3,7 @@
 package kernels
 
 import (
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 // registerSSE2DITCodelets64 registers SSE2/SSE3-optimized complex64 DIT codelets.

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MeKo-Christian/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 func TestNewWisdom(t *testing.T) {

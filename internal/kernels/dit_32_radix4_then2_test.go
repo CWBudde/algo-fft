@@ -3,7 +3,7 @@ package kernels
 import (
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 func TestForwardDIT32Radix4Then2Complex64(t *testing.T) {

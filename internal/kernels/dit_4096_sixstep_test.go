@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // Helper aliases for brevity.

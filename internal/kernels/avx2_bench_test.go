@@ -5,7 +5,7 @@ package kernels
 import (
 	"testing"
 
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
 // BenchmarkAVX2Complex64 benchmarks AVX2 kernels for complex64.

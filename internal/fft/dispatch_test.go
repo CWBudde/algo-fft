@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/MeKo-Christian/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 // TestSelectKernels tests the generic kernel selection.

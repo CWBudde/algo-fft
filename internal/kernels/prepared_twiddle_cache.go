@@ -3,7 +3,7 @@ package kernels
 import (
 	"sync"
 
-	"github.com/MeKo-Christian/algo-fft/internal/memory"
+	"github.com/cwbudde/algo-fft/internal/memory"
 )
 
 type preparedTwiddleKey struct {

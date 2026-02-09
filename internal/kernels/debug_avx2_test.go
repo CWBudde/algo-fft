@@ -5,8 +5,8 @@ package kernels
 import (
 	"testing"
 
-	amd64 "github.com/MeKo-Christian/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/MeKo-Christian/algo-fft/internal/math"
+	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 func TestDebugAVX2Size8Radix4(t *testing.T) {
