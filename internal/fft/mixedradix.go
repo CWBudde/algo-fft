@@ -142,7 +142,9 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet fun
 	//
 	// Note: We skip this check for very small sizes (<= 5) as they are handled
 	// by the switch statement anyway, and looking them up might be slower.
-	if n > 5 && hasCodelet(n) {
+	// ALSO skip for small sizes (<= 16) in the mixed-radix path to avoid
+	// the ping-pong base-case bug with codelets.
+	if n > 16 && hasCodelet(n) {
 		radices[count] = n
 		return count + 1
 	}
@@ -151,7 +153,8 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet fun
 		// Check again at each step: if the remaining size 'n' has a kernel, use it.
 		// e.g., 768 = 3 * 256. First loop picks 3. Second loop sees 256.
 		// Instead of 256 -> 4*4*4*4, we want 256 directly.
-		if n > 5 && hasCodelet(n) {
+		// Skip for small sizes (<= 16) to avoid ping-pong base-case bug.
+		if n > 16 && hasCodelet(n) {
 			radices[count] = n
 			count++
 
@@ -236,7 +239,10 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 	// Recursively process sub-transforms
 	for j := range radix {
 		if len(nextRadices) == 0 {
-			dst[j*span] = src[j*stride]
+			// Base case: gather span elements spaced by stride
+			for i := range span {
+				dst[j*span+i] = src[j*stride+i*stride]
+			}
 		} else {
 			recursiveStep64(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
 		}
@@ -366,7 +372,10 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 	// Recursively process sub-transforms
 	for j := range radix {
 		if len(nextRadices) == 0 {
-			dst[j*span] = src[j*stride]
+			// Base case: gather span elements spaced by stride
+			for i := range span {
+				dst[j*span+i] = src[j*stride+i*stride]
+			}
 		} else {
 			recursiveStep128(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
 		}
