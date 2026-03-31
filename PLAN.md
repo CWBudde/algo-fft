@@ -570,23 +570,106 @@ NEON processes 1 complex128 per 128-bit register (half the throughput of complex
 
 ---
 
-## Phase 16: v1.0 Release
+## Phase 16: AVX2 Wide-Butterfly Vectorization (complex64 YMM)
+
+**Status**: Not started
+**Priority**: High (closes the complex64/complex128 SIMD performance gap)
+
+**Problem**: All AVX2 butterfly codelets use XMM registers (128-bit) exclusively for the core butterfly computation. YMM registers (256-bit) are only used for bulk memory copy and inverse scaling epilogues. This means:
+
+- **complex128 (float64)**: One complex128 fills the full 128-bit XMM → 100% register utilization
+- **complex64 (float32)**: One complex64 occupies 64 of 128 bits → 50% XMM utilization
+
+A radix-4 butterfly operates on 4 complex values. With 256-bit YMM registers, 4 × complex64 = 32 bytes fits in a single YMM register. This enables processing an entire radix-4 butterfly point set in-register, or vectorizing across 2 independent radix-2 butterflies simultaneously. Neither opportunity is exploited today.
+
+**Evidence**: Benchmarks (algo-dsp streaming convolution, FFT size 8192, `-tags asm`) show complex128 at ~160 µs vs complex64 at ~230 µs. Without SIMD, complex64 is faster (~400 µs vs ~510 µs), confirming the gap is entirely in the SIMD kernels.
+
+**Goal**: Rewrite complex64 butterfly inner loops to use YMM registers for 2× throughput per butterfly stage. Target: complex64 at parity with or faster than complex128 for all sizes.
+
+### 16.1 Proof of Concept: Size 64 Radix-4 YMM Butterfly
+
+Start with a small, well-understood size to validate the vectorization strategy.
+
+- [ ] Create `internal/asm/amd64/avx2_f32_size64_radix4_ymm.s`
+  - [ ] Stage 1 (no twiddle): Load 4 complex64 into one YMM, perform radix-4 butterfly entirely in-register
+  - [ ] Stages 2-3 (with twiddle): Vectorize across 2 independent butterflies per YMM iteration
+  - [ ] Use VPERMILPS/VSHUFPS within YMM for the ±i·t3 rotation (avoid the 7-instruction XMM sequence)
+- [ ] Register with higher priority than existing size-64 radix-4 codelet
+- [ ] Benchmark vs existing XMM-only size-64 codelet
+- [ ] Validate correctness against reference DFT
+
+### 16.2 ±i·t3 Rotation Optimization
+
+The current complex64 ±i·t3 computation uses 7 XMM instructions (VPERMILPS + VXORPS + VSUBPS + VBLENDPS per direction). The complex128 version uses only 4 (VSHUFPD + VXORPD with pre-computed sign masks). Apply the same sign-mask strategy to complex64.
+
+- [ ] Pre-compute sign masks for float32 ±i multiplication (analogous to `maskNegHiPD`/`maskNegLoPD`)
+- [ ] Replace BLEND-based ±i·t3 with VXORPS using sign masks (4 instructions instead of 7)
+- [ ] Apply to both XMM and YMM butterfly variants
+- [ ] Benchmark reduction in butterfly instruction count
+
+### 16.3 Generic AVX2 Kernel YMM Upgrade (complex64)
+
+The generic kernel (`avx2_f32_generic.s`) already uses 100 YMM instructions but primarily for data movement. Upgrade the butterfly inner loops.
+
+- [ ] Audit `avx2_f32_generic.s` and `avx2_f32_generic_radix4_even/odd.s`
+  - [ ] Identify all butterfly loops still using XMM
+  - [ ] Determine which can be widened to YMM (depends on stride and data layout)
+- [ ] Rewrite inner loops for stride-1 stages to process 2 butterflies per YMM iteration
+- [ ] For strided stages: evaluate whether gather/scatter or explicit loads are faster
+- [ ] Benchmark generic kernel for sizes 128-8192
+
+### 16.4 Size-Specific Codelet Upgrades
+
+Upgrade the most performance-critical size-specific codelets to use YMM butterflies.
+
+- [ ] Size 8192 (`avx2_f32_size8192_radix4_then2.s`)
+  - [ ] Stages 1-6: Widen radix-4 butterfly to YMM (process 2 butterflies per iteration in later stages where stride permits)
+  - [ ] Stage 7 (radix-2 final): Process 2 independent radix-2 butterflies per YMM
+  - [ ] Target: match or beat complex128 size 8192 performance
+- [ ] Size 4096 (`avx2_f32_size4096_radix4.s`)
+- [ ] Size 2048 (`avx2_f32_size2048_radix4_then2.s`)
+- [ ] Size 1024 (`avx2_f32_size1024_radix4.s`)
+- [ ] Sizes 128-512: Evaluate benefit (smaller sizes may not benefit from wider registers)
+
+### 16.5 Complex Multiply YMM Optimization
+
+Upgrade `avx2_f32_complex_mul.s` to process 4 complex64 values per YMM iteration (currently processes 4 but could potentially interleave 2 independent multiply chains).
+
+- [ ] Review current YMM complex multiply throughput
+- [ ] Evaluate if FMA chain latency is the bottleneck (not throughput)
+- [ ] If latency-bound: interleave 2 independent multiply chains using 2 YMM register sets
+- [ ] Benchmark complex multiply for sizes used in streaming convolution
+
+### 16.6 Validation and Benchmarking
+
+- [ ] Run full correctness test suite with `-tags asm` for all modified codelets
+- [ ] Run round-trip (forward + inverse) precision tests for complex64
+- [ ] Benchmark all modified sizes: compare XMM-only vs YMM butterfly variants
+- [ ] Benchmark algo-dsp streaming convolution (the motivating use case):
+  - [ ] float32 vs float64 with SIMD: target float32 ≤ float64 latency
+  - [ ] ProcessBlockTo zero-alloc path for both precisions
+- [ ] Update `BENCHMARKS.md` with before/after comparison
+- [ ] Update `docs/IMPLEMENTATION_INVENTORY.md`
+
+---
+
+## Phase 17: v1.0 Release
 
 **Goal**: Ship a stable, well-tested v1.0 release without over-engineering.
 
-### 16.1 Fix Current Build Issues
+### 17.1 Fix Current Build Issues
 
 - [ ] Resolve `prepareCodeletTwiddles64` redeclaration in test files
 - [ ] Ensure all tests pass: `go test ./...`
 
-### 16.2 API Consistency Review
+### 17.2 API Consistency Review
 
 - [ ] List exported symbols: `go doc -all . | grep "^func\|^type"`
 - [ ] Verify all exported symbols have GoDoc comments
 - [ ] Check consistent naming (NewXxx pattern)
 - [ ] Verify error handling consistency
 
-### 16.3 Stability Testing
+### 17.3 Stability Testing
 
 - [ ] Run tests 5x to detect flaky tests:
 
@@ -597,14 +680,14 @@ NEON processes 1 complex128 per 128-bit register (half the throughput of complex
 - [ ] Fix any flaky tests found
 - [ ] Run `go test -race ./...` to verify concurrency safety
 
-### 27.4 Release Checklist
+### 17.4 Release Checklist
 
 - [ ] Create CHANGELOG.md with key features
 - [ ] Tag release: `git tag v1.0.0`
 - [ ] Create GitHub release with notes
 - [ ] Verify on pkg.go.dev
 
-### 27.5 Basic GitHub Templates (Optional)
+### 17.5 Basic GitHub Templates (Optional)
 
 - [ ] Add simple `.github/ISSUE_TEMPLATE/bug_report.md`
 - [ ] Add simple `.github/PULL_REQUEST_TEMPLATE.md`
