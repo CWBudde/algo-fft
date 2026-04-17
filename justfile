@@ -133,3 +133,7 @@ profile-cpu:
 
 # Default target
 default: build
+
+fix:
+    just lint-fix
+    just fmt
