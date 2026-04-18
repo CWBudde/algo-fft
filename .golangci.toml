@@ -1,18 +1,21 @@
-version = '2'
+version = "2"
 
 [linters]
 default = 'all'
 disable = [
-  'depguard',
-  'godoclint',
-  'gomoddirectives',
-  'gosec',
-  'ireturn',
-  'musttag',
-  'nlreturn',
-  'noctx',
-  'recvcheck',
-  'wsl',
+    'depguard',
+    'godoclint',
+    'gomoddirectives',
+    'gosec',
+    'ireturn',
+    'musttag',
+    'nlreturn',
+    'noctx',
+    'recvcheck',
+    'wsl',
+]
+enable = [
+    "revive",
 ]
 
 [linters.settings.revive]
@@ -20,6 +23,13 @@ disable = [
 name = "var-naming"
 disabled = true
 
+[[linters.settings.revive.rules]]
+name = "file-length-limit"
+
+[[linters.settings.revive.rules.arguments]]
+max = 1500
+skip-comments = false
+skip-blank-lines = false
 [linters.settings.varnamelen]
 ignore-names = [
   'a',
