@@ -2,34 +2,51 @@
 
 ## Project Overview
 
-**algofft** is a high-performance FFT (Fast Fourier Transform) library for Go, targeting production-ready performance with SIMD acceleration, zero-allocation transforms, and support for both complex64 and complex128 precision.
+**algofft** (module `github.com/cwbudde/algo-fft`) is a high-performance FFT (Fast Fourier Transform) library for Go, targeting production-ready performance with SIMD acceleration, zero-allocation transforms, and support for both complex64 and complex128 precision.
 
 **Current Status**: Early development (pre-v1.0). API may change before stable release.
 
 ## Project Structure & Module Organization
 
-**Public API (`/`)**: The root package `algofft` exposes the user-facing API:
+### Public API (`/`)
 
-- `Plan[T Complex]`: Generic FFT plan supporting complex64 and complex128
-- `NewPlanT[T]()`, `NewPlan()`, `NewPlan32()`, `NewPlan64()`: Plan constructors
-- `Plan.Forward()`, `Plan.Inverse()`: Transform methods
-- Error types and validation
+The root package `algofft` exposes the user-facing API, grouped roughly by file:
 
-**Internal Implementation (`/internal/fft/`)**: Core FFT algorithms and optimizations:
+- **Core plans** (`plan.go`, `planner.go`, `plan_options.go`, `executor.go`): `Plan[T Complex]` with constructors `NewPlanT[T]()`, `NewPlan()`, `NewPlan32()`, `NewPlan64()`; transform methods `Forward()`, `Inverse()`, `InPlace()`, `Transform()`
+- **Real FFT** (`plan_real*.go`): real-input transforms including 2D/3D variants
+- **Multi-dimensional** (`plan_2d.go`, `plan_3d.go`, `plan_nd.go`): 2D/3D/N-D transforms
+- **Arbitrary lengths** (`plan_bluestein.go`): Bluestein algorithm for non-power-of-2 sizes
+- **Batch & strided** (`plan_batch.go`, `plan_strided.go`): multiple transforms per call, custom layouts
+- **Wisdom** (`wisdom.go`): persist and reuse plan-tuning decisions
+- **DSP helpers** (`convolve.go`, `convolve_real.go`, `correlate.go`): `Convolve`, `ConvolveReal`, `Correlate`, `CrossCorrelate`, `AutoCorrelate` plus `*128` variants
+- **Foundations** (`types.go`, `errors.go`, `doc.go`): `Complex`/`Float` constraints (aliases into `internal/fftypes`), sentinel errors, package docs
 
-- **Kernel System**: Pluggable FFT kernels with runtime dispatch
-- **Algorithm Implementations**:
-  - **Stockham autosort**: Cache-friendly, no explicit bit-reversal (default for larger sizes)
-  - **DIT (Decimation-in-Time)**: Traditional Cooley-Tukey with bit-reversal (default for smaller sizes)
-- **SIMD Optimization**: Architecture-specific assembly (amd64, arm64) with pure-Go fallbacks
-- **Precomputation**: Twiddle factors, bit-reversal indices, packed twiddle tables for SIMD
+### Internal Packages (`/internal/`)
 
-**Reference Implementation (`/internal/reference/`)**: O(n²) naive DFT for testing and validation
+- `internal/kernels`: All FFT kernel implementations — DIT, Stockham, radix-2/3/4/5, six-step/eight-step, Bluestein, per-size codelets and their registration (`codelet_init*.go`); `types.go` defines `Kernel[T]`
+- `internal/planner`: Strategy selection, wisdom, and benchmark decisions (`selection.go`: `SetKernelStrategy`, `RecordBenchmarkDecision`, `ditAutoThreshold`)
+- `internal/fft`: Dispatch and re-export layer bridging the public API to kernels (`dispatch.go`: `SelectKernels[T]`)
+- `internal/fftypes`: Shared types — `Complex`, `Float`, `KernelStrategy`, `SIMDLevel`
+- `internal/cpu`: CPU feature detection (`DetectFeatures()`)
+- `internal/asm`: Architecture-specific assembly under `amd64/`, `arm64/`, `x86/` with Go declaration/stub bridges
+- `internal/math`: Twiddle factors, bit-reversal, factorization, transpose helpers
+- `internal/memory`: SIMD-aligned buffer allocation
+- `internal/transform`: Recursive decomposition, packed twiddles
+- `internal/reference`: Naive O(n²) DFT (plus 2D/3D and real variants) for testing and validation
 
-**Supporting Documentation**:
+### Other Directories
+
+- `cmd/`: Developer tools — `bench_compare`, `benchkernels`, `measure_correctness`
+- `examples/`: Usage examples including `wasm-demo`
+- `scripts/`: Benchmark, profiling, and WASM build scripts
+- `docs/`: Implementation notes (`IMPLEMENTATION_INVENTORY.md`, `PRECISION.md`, `WASM_SIMD.md`, …)
+
+### Supporting Documentation
 
 - `README.md`: User-facing documentation and quick start
-- `PLAN.md`: Detailed 28-phase implementation roadmap
+- `PLAN.md`: Phased implementation roadmap through v1.0 — the source of truth for current status
+- `BENCHMARKS.md`: Performance results
+- `CHANGELOG.md`: Release notes
 - `CONTRIBUTING.md`: Contribution guidelines
 - `goal.md`: High-level design philosophy
 
@@ -43,9 +60,26 @@ Use the `just` recipes defined in `justfile`:
 - `just test` — run unit tests with race detector.
 - `just bench` — run benchmarks only.
 - `just lint` / `just lint-fix` — run `golangci-lint` (optionally fix).
-- `just fmt` — run `treefmt` (Go via `gofumpt` + `gci`, Markdown via `prettier`).
+- `just fmt` — run `treefmt` (Go via `gofumpt` + `gci`, Markdown via `markdownlint` + `prettier`).
+- `just fmt-check` — verify formatting without changing files.
 - `just cover` — generate `coverage.html` from `coverage.txt`.
 - `just check` — run test + lint + cover.
+- `just fix` — run lint-fix + fmt.
+
+### Cross-Architecture & WASM
+
+- `just build-amd64` / `just build-arm64` / `just build-all` — cross-compile (amd64 uses `-tags "amd"`).
+- `just test-arm64` / `just bench-arm64` — run ARM64 tests/benchmarks via QEMU (requires `qemu-user-static`; benchmarks are correctness-only, not representative of performance).
+- `just test-all` / `just check-all` — run tests/checks on amd64 and arm64.
+- `just build-wasm` / `just test-wasm` / `just test-wasm-pkg <pkg>` — build and test the `js/wasm` target (tests run in Node.js).
+- `just build-wasm-demo` / `just run-wasm-demo` — build and serve the WASM demo.
+
+### SIMD, Stress, and Profiling
+
+- `just test-asm` — run tests with the `asm` build tag.
+- `just test-simd-verify` / `just test-arch` — verify SIMD implementations against Go fallbacks.
+- `just test-stress` — long-running stress tests (30m timeout).
+- `just profile-cpu` / `just profile-mem` — collect and view pprof profiles.
 
 ### Running Specific Tests
 
@@ -54,7 +88,7 @@ Use the `just` recipes defined in `justfile`:
 go test -v -run TestName ./...
 
 # Run tests in a specific package
-go test -v ./internal/fft
+go test -v ./internal/kernels
 
 # Run benchmarks for specific sizes
 go test -bench=BenchmarkPlanForward_1024 -benchmem ./...
@@ -67,7 +101,8 @@ go test -v -count=1 ./...
 
 - Follow standard Go style; format with `gofumpt` and import ordering via `gci` (use `just fmt`).
 - Use clear, descriptive names; keep functions focused and small.
-- Single letters (`i`, `j`, `k`, `n`) allowed for loop indices (configured in `.golangci.toml`).
+- Short variable names (`i`, `j`, `k`, `n`, `w`, `x0`, …) are allowed via the `varnamelen` ignore list in `.golangci.toml`.
+- Files are capped at 1500 lines (revive `file-length-limit`); split large files rather than growing them.
 - Add GoDoc comments for all exported symbols.
 - File naming: tests as `*_test.go`; architecture-specific files use `*_amd64.go`, `*_arm64.go`, and `.s` for assembly.
 - Default to `complex64` for performance; provide `complex128` for precision-critical applications.
@@ -91,7 +126,7 @@ The library uses multiple testing layers:
 - Coverage target: aim for >90% on non-assembly code.
 - Run tests with `just test`; coverage via `just cover`.
 - Always test both `complex64` and `complex128` variants when adding features.
-- Test that assembly and Go implementations produce identical results.
+- Test that assembly and Go implementations produce identical results (`just test-simd-verify`).
 
 ## Development Workflow
 
@@ -126,9 +161,10 @@ just bench     # Verify no performance regressions (optional but recommended)
 
 ## Commit & Pull Request Guidelines
 
-- Commit history is minimal; follow `CONTRIBUTING.md` style:
-  - Short summary (<=50 chars), blank line, optional details wrapped at 72 chars.
+- Use Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:` prefixes.
+  - Keep the summary concise (~50 chars), blank line, optional details wrapped at 72 chars.
   - Reference issues as needed (e.g., `#123`).
+- CI (`.github/workflows/`) gates PRs on unit tests, lint, formatting, benchmarks, cross-architecture tests, and the WASM demo build.
 - PRs should include:
   - Clear description of changes and motivation.
   - Linked issues (if any).
@@ -143,24 +179,27 @@ just bench     # Verify no performance regressions (optional but recommended)
 The library uses a type-driven dispatch system to select optimized kernels:
 
 ```
-Plan[T] → SelectKernels[T]() → selectKernelsComplex64/128() → Architecture-specific kernel
+Plan[T] → internal/planner (strategy) → internal/fft.SelectKernels[T]() → internal/kernels / internal/asm
 ```
 
 Kernels are selected at plan creation based on:
 
-- CPU features (AVX2, NEON, etc.) detected via `DetectFeatures()`
+- CPU features (AVX2, NEON, etc.) detected via `internal/cpu.DetectFeatures()`
 - Transform size and strategy (auto-selected or user-specified)
 - Benchmark cache for empirically-determined best kernel per size
 
 #### 2. Strategy Selection
 
-The library supports multiple FFT algorithms via `KernelStrategy`:
+The library supports multiple FFT algorithms via `KernelStrategy` (defined in `internal/fftypes`):
 
-- `KernelAuto`: Automatically select based on size (DIT for ≤1024, Stockham for larger)
+- `KernelAuto`: Automatically select based on size (DIT for ≤1024, Stockham for larger; see `ditAutoThreshold` in `internal/planner/selection.go`)
 - `KernelDIT`: Force Decimation-in-Time algorithm
 - `KernelStockham`: Force Stockham autosort algorithm
+- `KernelSixStep` / `KernelEightStep`: Cache-oblivious large-size algorithms
+- `KernelBluestein`: Arbitrary-length transforms
+- `KernelRecursive`: Recursive decomposition with codelet leaves
 
-Set globally via `SetKernelStrategy()` or override per-size via `RecordBenchmarkDecision()`.
+Set globally via `SetKernelStrategy()` or override per-size via `RecordBenchmarkDecision()` (both in `internal/planner/selection.go`).
 
 #### 3. Zero-Allocation Transforms
 
@@ -183,39 +222,20 @@ type Complex interface {
 
 Generic implementations are instantiated for both precisions, with type-specific optimizations dispatched at compile time.
 
-### File Organization
-
-**Root Package**:
-
-- `plan.go`: Public Plan API and constructors
-- `types.go`: Type constraints (Complex, Float)
-- `errors.go`: Error definitions
-- `doc.go`: Package documentation
-
-**internal/fft**:
-
-- `dispatch.go`: Kernel selection and type dispatch
-- `selection.go`: Strategy resolution (Auto/DIT/Stockham)
-- `fft.go`: Core FFT utilities (twiddle generation, bit-reversal)
-- `stockham.go`: Stockham autosort implementation
-- `dit.go`: Decimation-in-Time implementation
-- `features.go`: CPU feature detection
-- `kernels_*.go`: Architecture-specific kernel implementations
-- `asm_*.go`, `kernels_*_asm.go`: Assembly optimizations
-
 ### When Adding New Kernels
 
-1. **Define the kernel function** matching the `Kernel[T]` signature:
+1. **Define the kernel function** in `internal/kernels`, matching the `Kernel[T]` signature (`internal/kernels/types.go`):
 
    ```go
-   func(dst, src, twiddle, scratch []T, bitrev []int) bool
+   type Kernel[T Complex] func(dst, src, twiddle, scratch []T) bool
    ```
 
-2. **Add to dispatch in `kernels_*.go`**:
+2. **Register the kernel**:
    - Implement for both `complex64` and `complex128`
-   - Return `true` if kernel handled the transform, `false` to fall back
+   - Return `true` if the kernel handled the transform, `false` to fall back
+   - Size-specific codelets register via `codelet_init*.go` in `internal/kernels`
 
-3. **Update `selectKernels*()` functions** in dispatch logic to include the new kernel
+3. **Update dispatch**: extend `selectKernels*()` in `internal/fft/kernels_*.go` if the kernel needs architecture-gated selection
 
 4. **Test with reference implementation**: Compare against naive DFT in `internal/reference`
 
@@ -223,10 +243,10 @@ Generic implementations are instantiated for both precisions, with type-specific
 
 ### When Working with Assembly
 
-- Assembly kernels live in `kernels_*_asm.go` and `asm_*.go`
+- Assembly lives in `internal/asm/{amd64,arm64,x86}/` (`.s` files) with Go declaration/stub bridges alongside
 - Use build tags for architecture-specific files: `//go:build amd64` etc.
-- Always provide a pure-Go fallback in `kernels_generic.go` or `kernels_fallback.go`
-- Test that assembly and Go implementations produce identical results
+- Always provide a pure-Go fallback (see `kernels_generic.go` / `kernels_fallback.go` in `internal/fft`)
+- Test that assembly and Go implementations produce identical results (`just test-simd-verify`, `just test-asm`)
 - Use `go:noescape` pragma for performance-critical functions
 - Remember Plan9/Go asm uses src, dst operand order (opposite of Intel’s dst, src)
 - Subtractions like VSUBPS b, a, dst → dst = a - b
@@ -236,9 +256,11 @@ Generic implementations are instantiated for both precisions, with type-specific
 
 Custom errors defined in `errors.go`:
 
-- `ErrInvalidLength`: Non-power-of-2 or invalid size
+- `ErrInvalidLength`: Invalid FFT size (supported: powers of two and lengths factored by 2/3/5; mixed-radix and Bluestein extend further)
 - `ErrNilSlice`: Nil input/output slices
 - `ErrLengthMismatch`: Slice length doesn't match plan size
+- `ErrInvalidStride`: Invalid stride for the given data layout
+- `ErrInvalidSpectrum`: Real-FFT spectrum violates symmetry constraints (e.g., non-real DC or Nyquist bins)
 - `ErrNotImplemented`: Feature not yet implemented
 
 Validate inputs at the Plan API boundary, not in internal kernels.
@@ -256,10 +278,4 @@ From `goal.md` and `README.md`:
 
 ## Current Implementation Status
 
-See `PLAN.md` for the complete 28-phase roadmap. Key completed phases:
-
-- ✅ Phase 1-3: Project setup, core types, mathematical foundations
-- ✅ Phase 4 (partial): Stockham autosort implementation, DIT kernels, kernel selection
-- ✅ Phase 5: Testing infrastructure with naive DFT reference
-- ✅ Phase 6 (partial): Basic benchmarking suite
-- 🚧 Phase 4-22: Mixed-radix, real FFT, SIMD optimization, complex128 support (in progress)
+See `PLAN.md` for the roadmap and current status. In short: core transforms (DIT, Stockham, mixed-radix, Bluestein, six-step/eight-step), real FFT, 2D/3D/N-D transforms, complex128 support, convolution/correlation, and the WASM target are implemented; remaining work focuses on per-size tuning, broader SIMD coverage (SSE2, NEON), and v1.0 polish.

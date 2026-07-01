@@ -1,3 +1,5 @@
+//go:build legacy_radix2
+
 package kernels
 
 import mathpkg "github.com/cwbudde/algo-fft/internal/math"

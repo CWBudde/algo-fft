@@ -26,7 +26,8 @@ func stage1ForwardDIT1024Radix32x32Complex64(out, src, tw []complex64) {
 
 		// FFT-16 on even elements (bit-reversed input).
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 = fft16Complex64(
-			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15)
+			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15,
+		)
 
 		o00 := src[32*1+n1]
 		o01 := src[32*3+n1]
@@ -47,7 +48,8 @@ func stage1ForwardDIT1024Radix32x32Complex64(out, src, tw []complex64) {
 
 		// FFT-16 on odd elements (bit-reversed input).
 		o00, o01, o02, o03, o04, o05, o06, o07, o08, o09, o10, o11, o12, o13, o14, o15 = fft16Complex64(
-			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15)
+			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15,
+		)
 
 		// Combine with W_32 twiddle factors and apply inter-stage twiddles W_1024^{k2*n1}.
 		out[0*32+n1] = (e00 + o00) * tw[0]
@@ -141,7 +143,8 @@ func stage1ForwardDIT1024Radix32x32Complex128(out, src, tw []complex128) {
 
 		// FFT-16 on even elements (bit-reversed input).
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 = fft16Complex128(
-			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15)
+			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15,
+		)
 
 		o00 := src[32*1+n1]
 		o01 := src[32*3+n1]
@@ -162,7 +165,8 @@ func stage1ForwardDIT1024Radix32x32Complex128(out, src, tw []complex128) {
 
 		// FFT-16 on odd elements (bit-reversed input).
 		o00, o01, o02, o03, o04, o05, o06, o07, o08, o09, o10, o11, o12, o13, o14, o15 = fft16Complex128(
-			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15)
+			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15,
+		)
 
 		// Combine with W_32 twiddle factors and apply inter-stage twiddles W_1024^{k2*n1}.
 		out[0*32+n1] = (e00 + o00) * tw[0]
@@ -266,7 +270,8 @@ func forwardDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64) b
 		e15 := work[base+30]
 
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 = fft16Complex64(
-			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15)
+			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15,
+		)
 
 		o00 := work[base+1]
 		o01 := work[base+3]
@@ -286,7 +291,8 @@ func forwardDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64) b
 		o15 := work[base+31]
 
 		o00, o01, o02, o03, o04, o05, o06, o07, o08, o09, o10, o11, o12, o13, o14, o15 = fft16Complex64(
-			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15)
+			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15,
+		)
 
 		dst[32*0+k2] = e00 + o00
 		dst[32*16+k2] = e00 - o00
@@ -372,11 +378,13 @@ func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64) b
 	for k2 := range 32 {
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 := fft16Complex64Inverse(
 			s[32*0+k2], s[32*16+k2], s[32*8+k2], s[32*24+k2], s[32*4+k2], s[32*20+k2], s[32*12+k2], s[32*28+k2],
-			s[32*2+k2], s[32*18+k2], s[32*10+k2], s[32*26+k2], s[32*6+k2], s[32*22+k2], s[32*14+k2], s[32*30+k2])
+			s[32*2+k2], s[32*18+k2], s[32*10+k2], s[32*26+k2], s[32*6+k2], s[32*22+k2], s[32*14+k2], s[32*30+k2],
+		)
 
 		o00, o01, o02, o03, o04, o05, o06, o07, o08, o09, o10, o11, o12, o13, o14, o15 := fft16Complex64Inverse(
 			s[32*1+k2], s[32*17+k2], s[32*9+k2], s[32*25+k2], s[32*5+k2], s[32*21+k2], s[32*13+k2], s[32*29+k2],
-			s[32*3+k2], s[32*19+k2], s[32*11+k2], s[32*27+k2], s[32*7+k2], s[32*23+k2], s[32*15+k2], s[32*31+k2])
+			s[32*3+k2], s[32*19+k2], s[32*11+k2], s[32*27+k2], s[32*7+k2], s[32*23+k2], s[32*15+k2], s[32*31+k2],
+		)
 
 		r0 := e00 + o00
 		r16 := e00 - o00
@@ -498,7 +506,8 @@ func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64) b
 		e15 := work[32*30+n1]
 
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 = fft16Complex64Inverse(
-			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15)
+			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15,
+		)
 
 		o00 := work[32*1+n1]
 		o01 := work[32*3+n1]
@@ -518,7 +527,8 @@ func inverseDIT1024Mixed32x32Complex64(dst, src, twiddle, scratch []complex64) b
 		o15 := work[32*31+n1]
 
 		o00, o01, o02, o03, o04, o05, o06, o07, o08, o09, o10, o11, o12, o13, o14, o15 = fft16Complex64Inverse(
-			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15)
+			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15,
+		)
 
 		scaleComplex := complex(scale, 0)
 		work[32*0+n1] = (e00 + o00) * scaleComplex
@@ -627,7 +637,8 @@ func forwardDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128)
 		e15 := work[base+30]
 
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 = fft16Complex128(
-			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15)
+			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15,
+		)
 
 		o00 := work[base+1]
 		o01 := work[base+3]
@@ -647,7 +658,8 @@ func forwardDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128)
 		o15 := work[base+31]
 
 		o00, o01, o02, o03, o04, o05, o06, o07, o08, o09, o10, o11, o12, o13, o14, o15 = fft16Complex128(
-			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15)
+			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15,
+		)
 
 		dst[32*0+k2] = e00 + o00
 		dst[32*16+k2] = e00 - o00
@@ -733,10 +745,12 @@ func inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128)
 	for k2 := range 32 {
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 := fft16Complex128Inverse(
 			s[32*0+k2], s[32*16+k2], s[32*8+k2], s[32*24+k2], s[32*4+k2], s[32*20+k2], s[32*12+k2], s[32*28+k2],
-			s[32*2+k2], s[32*18+k2], s[32*10+k2], s[32*26+k2], s[32*6+k2], s[32*22+k2], s[32*14+k2], s[32*30+k2])
+			s[32*2+k2], s[32*18+k2], s[32*10+k2], s[32*26+k2], s[32*6+k2], s[32*22+k2], s[32*14+k2], s[32*30+k2],
+		)
 		o00, o01, o02, o03, o04, o05, o06, o07, o08, o09, o10, o11, o12, o13, o14, o15 := fft16Complex128Inverse(
 			s[32*1+k2], s[32*17+k2], s[32*9+k2], s[32*25+k2], s[32*5+k2], s[32*21+k2], s[32*13+k2], s[32*29+k2],
-			s[32*3+k2], s[32*19+k2], s[32*11+k2], s[32*27+k2], s[32*7+k2], s[32*23+k2], s[32*15+k2], s[32*31+k2])
+			s[32*3+k2], s[32*19+k2], s[32*11+k2], s[32*27+k2], s[32*7+k2], s[32*23+k2], s[32*15+k2], s[32*31+k2],
+		)
 
 		r0 := e00 + o00
 		r16 := e00 - o00
@@ -858,7 +872,8 @@ func inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128)
 		e15 := work[32*30+n1]
 
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 = fft16Complex128Inverse(
-			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15)
+			e00, e08, e04, e12, e02, e10, e06, e14, e01, e09, e05, e13, e03, e11, e07, e15,
+		)
 
 		o00 := work[32*1+n1]
 		o01 := work[32*3+n1]
@@ -878,7 +893,8 @@ func inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch []complex128)
 		o15 := work[32*31+n1]
 
 		o00, o01, o02, o03, o04, o05, o06, o07, o08, o09, o10, o11, o12, o13, o14, o15 = fft16Complex128Inverse(
-			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15)
+			o00, o08, o04, o12, o02, o10, o06, o14, o01, o09, o05, o13, o03, o11, o07, o15,
+		)
 
 		work[32*0+n1] = (e00 + o00) * scale
 		work[32*16+n1] = (e00 - o00) * scale

@@ -35,8 +35,10 @@ func BenchmarkBluestein_NewPlan_1536(b *testing.B) { benchmarkBluesteinNewPlan(b
 func BenchmarkBluestein_NewPlan_3000(b *testing.B) { benchmarkBluesteinNewPlan(b, 3000) }
 
 // Complex128 benchmarks (higher precision).
-func BenchmarkBluestein_Forward_384_Complex128(b *testing.B)  { benchmarkBluesteinForward128(b, 384) }
+func BenchmarkBluestein_Forward_384_Complex128(b *testing.B) { benchmarkBluesteinForward128(b, 384) }
+
 func BenchmarkBluestein_Forward_1000_Complex128(b *testing.B) { benchmarkBluesteinForward128(b, 1000) }
+
 func BenchmarkBluestein_Forward_3000_Complex128(b *testing.B) { benchmarkBluesteinForward128(b, 3000) }
 
 // Comparison benchmarks: Bluestein vs nearest power-of-2

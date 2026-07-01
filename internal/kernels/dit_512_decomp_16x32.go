@@ -46,7 +46,8 @@ func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bo
 			s[16*0+n1], s[16*16+n1], s[16*8+n1], s[16*24+n1],
 			s[16*4+n1], s[16*20+n1], s[16*12+n1], s[16*28+n1],
 			s[16*2+n1], s[16*18+n1], s[16*10+n1], s[16*26+n1],
-			s[16*6+n1], s[16*22+n1], s[16*14+n1], s[16*30+n1])
+			s[16*6+n1], s[16*22+n1], s[16*14+n1], s[16*30+n1],
+		)
 
 		// FFT-16 on odd elements (bit-reversed input)
 		// Odd indices:  n2 = 1, 3, 5, ..., 31 -> positions 16, 48, 80, ..., 496 -> 16*n2+n1
@@ -54,7 +55,8 @@ func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bo
 			s[16*1+n1], s[16*17+n1], s[16*9+n1], s[16*25+n1],
 			s[16*5+n1], s[16*21+n1], s[16*13+n1], s[16*29+n1],
 			s[16*3+n1], s[16*19+n1], s[16*11+n1], s[16*27+n1],
-			s[16*7+n1], s[16*23+n1], s[16*15+n1], s[16*31+n1])
+			s[16*7+n1], s[16*23+n1], s[16*15+n1], s[16*31+n1],
+		)
 
 		// Combine with W_32 twiddle factors: W_32^k = tw[k*16] (from 512-point table)
 		// Y[k] = e[k] + W_32^k * o[k], Y[k+16] = e[k] - W_32^k * o[k] for k=0..15
@@ -148,7 +150,8 @@ func forwardDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bo
 			out[base+br16_0], out[base+br16_1], out[base+br16_2], out[base+br16_3],
 			out[base+br16_4], out[base+br16_5], out[base+br16_6], out[base+br16_7],
 			out[base+br16_8], out[base+br16_9], out[base+br16_10], out[base+br16_11],
-			out[base+br16_12], out[base+br16_13], out[base+br16_14], out[base+br16_15])
+			out[base+br16_12], out[base+br16_13], out[base+br16_14], out[base+br16_15],
+		)
 
 		// Store to output: dst[32*k1 + k2] for k1 = 0..15
 		dst[32*0+k2] = r0
@@ -210,7 +213,8 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bo
 			s[32*br16_0+k2], s[32*br16_1+k2], s[32*br16_2+k2], s[32*br16_3+k2],
 			s[32*br16_4+k2], s[32*br16_5+k2], s[32*br16_6+k2], s[32*br16_7+k2],
 			s[32*br16_8+k2], s[32*br16_9+k2], s[32*br16_10+k2], s[32*br16_11+k2],
-			s[32*br16_12+k2], s[32*br16_13+k2], s[32*br16_14+k2], s[32*br16_15+k2])
+			s[32*br16_12+k2], s[32*br16_13+k2], s[32*br16_14+k2], s[32*br16_15+k2],
+		)
 
 		// Store with conjugate inter-stage twiddle W_512^{-k2*n1} = conj(tw[k2*n1])
 		base := k2 * 16
@@ -243,7 +247,8 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bo
 			out[16*0+n1], out[16*16+n1], out[16*8+n1], out[16*24+n1],
 			out[16*4+n1], out[16*20+n1], out[16*12+n1], out[16*28+n1],
 			out[16*2+n1], out[16*18+n1], out[16*10+n1], out[16*26+n1],
-			out[16*6+n1], out[16*22+n1], out[16*14+n1], out[16*30+n1])
+			out[16*6+n1], out[16*22+n1], out[16*14+n1], out[16*30+n1],
+		)
 
 		// IFFT-16 on odd elements (bit-reversed input)
 		// Odd indices:  k2 = 1, 3, 5, ..., 31
@@ -251,7 +256,8 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bo
 			out[16*1+n1], out[16*17+n1], out[16*9+n1], out[16*25+n1],
 			out[16*5+n1], out[16*21+n1], out[16*13+n1], out[16*29+n1],
 			out[16*3+n1], out[16*19+n1], out[16*11+n1], out[16*27+n1],
-			out[16*7+n1], out[16*23+n1], out[16*15+n1], out[16*31+n1])
+			out[16*7+n1], out[16*23+n1], out[16*15+n1], out[16*31+n1],
+		)
 
 		// Combine with conjugate W_32 twiddle factors: W_32^{-k} = conj(tw[k*16])
 		// x[n2] = e[n2] + W_32^{-n2} * o[n2], x[n2+16] = e[n2] - W_32^{-n2} * o[n2] for n2=0..15
@@ -379,7 +385,8 @@ func forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128) 
 			s[16*0+n1], s[16*16+n1], s[16*8+n1], s[16*24+n1],
 			s[16*4+n1], s[16*20+n1], s[16*12+n1], s[16*28+n1],
 			s[16*2+n1], s[16*18+n1], s[16*10+n1], s[16*26+n1],
-			s[16*6+n1], s[16*22+n1], s[16*14+n1], s[16*30+n1])
+			s[16*6+n1], s[16*22+n1], s[16*14+n1], s[16*30+n1],
+		)
 
 		// FFT-16 on odd elements (bit-reversed input)
 		// Odd indices:  n2 = 1, 3, 5, ..., 31
@@ -387,7 +394,8 @@ func forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128) 
 			s[16*1+n1], s[16*17+n1], s[16*9+n1], s[16*25+n1],
 			s[16*5+n1], s[16*21+n1], s[16*13+n1], s[16*29+n1],
 			s[16*3+n1], s[16*19+n1], s[16*11+n1], s[16*27+n1],
-			s[16*7+n1], s[16*23+n1], s[16*15+n1], s[16*31+n1])
+			s[16*7+n1], s[16*23+n1], s[16*15+n1], s[16*31+n1],
+		)
 
 		// Combine with W_32 twiddle factors and inter-stage twiddles
 		out[0*16+n1] = (e0 + o0) * tw[0]
@@ -461,7 +469,8 @@ func forwardDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128) 
 			out[base+br16_0], out[base+br16_1], out[base+br16_2], out[base+br16_3],
 			out[base+br16_4], out[base+br16_5], out[base+br16_6], out[base+br16_7],
 			out[base+br16_8], out[base+br16_9], out[base+br16_10], out[base+br16_11],
-			out[base+br16_12], out[base+br16_13], out[base+br16_14], out[base+br16_15])
+			out[base+br16_12], out[base+br16_13], out[base+br16_14], out[base+br16_15],
+		)
 
 		dst[32*0+k2] = r0
 		dst[32*1+k2] = r1
@@ -520,7 +529,8 @@ func inverseDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128) 
 			s[32*br16_0+k2], s[32*br16_1+k2], s[32*br16_2+k2], s[32*br16_3+k2],
 			s[32*br16_4+k2], s[32*br16_5+k2], s[32*br16_6+k2], s[32*br16_7+k2],
 			s[32*br16_8+k2], s[32*br16_9+k2], s[32*br16_10+k2], s[32*br16_11+k2],
-			s[32*br16_12+k2], s[32*br16_13+k2], s[32*br16_14+k2], s[32*br16_15+k2])
+			s[32*br16_12+k2], s[32*br16_13+k2], s[32*br16_14+k2], s[32*br16_15+k2],
+		)
 
 		base := k2 * 16
 		out[base+0] = r0 * conj(tw[k2*0])
@@ -551,7 +561,8 @@ func inverseDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128) 
 			out[16*0+n1], out[16*16+n1], out[16*8+n1], out[16*24+n1],
 			out[16*4+n1], out[16*20+n1], out[16*12+n1], out[16*28+n1],
 			out[16*2+n1], out[16*18+n1], out[16*10+n1], out[16*26+n1],
-			out[16*6+n1], out[16*22+n1], out[16*14+n1], out[16*30+n1])
+			out[16*6+n1], out[16*22+n1], out[16*14+n1], out[16*30+n1],
+		)
 
 		// IFFT-16 on odd elements (bit-reversed input)
 		// Odd indices:  k2 = 1, 3, 5, ..., 31
@@ -559,7 +570,8 @@ func inverseDIT512Mixed16x32Complex128(dst, src, twiddle, scratch []complex128) 
 			out[16*1+n1], out[16*17+n1], out[16*9+n1], out[16*25+n1],
 			out[16*5+n1], out[16*21+n1], out[16*13+n1], out[16*29+n1],
 			out[16*3+n1], out[16*19+n1], out[16*11+n1], out[16*27+n1],
-			out[16*7+n1], out[16*23+n1], out[16*15+n1], out[16*31+n1])
+			out[16*7+n1], out[16*23+n1], out[16*15+n1], out[16*31+n1],
+		)
 
 		dst[16*0+n1] = (e0 + o0) * complex(scale, 0)
 		dst[16*16+n1] = (e0 - o0) * complex(scale, 0)

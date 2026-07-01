@@ -615,10 +615,12 @@ func stage1InverseDIT1024Mixed32x32Complex128(work, src, twiddle []complex128) {
 	for k2 := 0; k2 < 32; k2++ {
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 := fft16Complex128Inverse(
 			src[32*0+k2], src[32*16+k2], src[32*8+k2], src[32*24+k2], src[32*4+k2], src[32*20+k2], src[32*12+k2], src[32*28+k2],
-			src[32*2+k2], src[32*18+k2], src[32*10+k2], src[32*26+k2], src[32*6+k2], src[32*22+k2], src[32*14+k2], src[32*30+k2])
+			src[32*2+k2], src[32*18+k2], src[32*10+k2], src[32*26+k2], src[32*6+k2], src[32*22+k2], src[32*14+k2], src[32*30+k2],
+		)
 		o00, o01, o02, o03, o04, o05, o06, o07, o08, o09, o10, o11, o12, o13, o14, o15 := fft16Complex128Inverse(
 			src[32*1+k2], src[32*17+k2], src[32*9+k2], src[32*25+k2], src[32*5+k2], src[32*21+k2], src[32*13+k2], src[32*29+k2],
-			src[32*3+k2], src[32*19+k2], src[32*11+k2], src[32*27+k2], src[32*7+k2], src[32*23+k2], src[32*15+k2], src[32*31+k2])
+			src[32*3+k2], src[32*19+k2], src[32*11+k2], src[32*27+k2], src[32*7+k2], src[32*23+k2], src[32*15+k2], src[32*31+k2],
+		)
 
 		r0 := e00 + o00
 		r16 := e00 - o00
