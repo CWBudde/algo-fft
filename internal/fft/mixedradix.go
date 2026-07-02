@@ -36,10 +36,23 @@ var (
 	recursiveStep128 func(dst, src, work []complex128, n, stride, step int, radices []int, twiddle []complex128, inverse bool)
 )
 
+// codeletSchedulable64/128 report whether the installed recursion driver can
+// execute a composite radix of the given size directly via a codelet. The
+// pure Go driver only knows radices 2/3/4/5, so scheduling any larger radix
+// would silently produce garbage (its butterfly switch returns on unknown
+// radices). SIMD builds (mixedradix_avx2.go) override these with a predicate
+// matching exactly what their recursion hook dispatches.
+var (
+	codeletSchedulable64  func(int) bool
+	codeletSchedulable128 func(int) bool
+)
+
 //nolint:gochecknoinits
 func init() {
 	recursiveStep64 = mixedRadixRecursivePingPongComplex64
 	recursiveStep128 = mixedRadixRecursivePingPongComplex128
+	codeletSchedulable64 = func(int) bool { return false }
+	codeletSchedulable128 = func(int) bool { return false }
 }
 
 func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, inverse bool) bool {
@@ -63,13 +76,16 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, inverse bool
 		zero       T
 	)
 
-	// Determine which registry to check based on type T
+	// A composite radix may only be scheduled when the recursion driver can
+	// dispatch it to a codelet (see codeletSchedulable64/128). Checking the
+	// registry alone is not enough: generic (non-SIMD) codelets are registered
+	// there too, but the drivers cannot invoke them for sub-transforms.
 
 	switch any(zero).(type) {
 	case complex64:
-		hasCodelet = kernels.Registry64.Has
+		hasCodelet = codeletSchedulable64
 	case complex128:
-		hasCodelet = kernels.Registry128.Has
+		hasCodelet = codeletSchedulable128
 	default:
 		hasCodelet = func(int) bool { return false }
 	}

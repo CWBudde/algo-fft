@@ -11,6 +11,19 @@ func init() {
 	// Override the recursion hooks with AVX2-aware versions.
 	recursiveStep64 = mixedRadixRecursivePingPongComplex64AVX2
 	recursiveStep128 = mixedRadixRecursivePingPongComplex128AVX2
+
+	// Allow the schedule to emit a composite radix only when the hooks above
+	// will actually dispatch it: an AVX2-level codelet with both directions.
+	// Anything weaker falls through to the pure Go recursion, which cannot
+	// execute composite radices.
+	codeletSchedulable64 = func(n int) bool {
+		entry := kernels.Registry64.Lookup(n, cpu.DetectFeatures())
+		return entry != nil && entry.SIMDLevel >= kernels.SIMDAVX2 && entry.Forward != nil && entry.Inverse != nil
+	}
+	codeletSchedulable128 = func(n int) bool {
+		entry := kernels.Registry128.Lookup(n, cpu.DetectFeatures())
+		return entry != nil && entry.SIMDLevel >= kernels.SIMDAVX2 && entry.Forward != nil && entry.Inverse != nil
+	}
 }
 
 // mixedRadixRecursivePingPongComplex64AVX2 checks for AVX2 codelets before recursing.
