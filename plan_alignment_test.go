@@ -22,7 +22,7 @@ func TestPlanAlignmentComplex64(t *testing.T) {
 	} else {
 		scratch, _, _, set := plan.getScratch()
 		checkAlignment(t, unsafe.Pointer(&scratch[0]))
-		plan.scratchPool.Put(set)
+		plan.scratchPool.put(set)
 	}
 }
 
@@ -41,7 +41,7 @@ func TestPlanAlignmentComplex128(t *testing.T) {
 	} else {
 		scratch, _, _, set := plan.getScratch()
 		checkAlignment(t, unsafe.Pointer(&scratch[0]))
-		plan.scratchPool.Put(set)
+		plan.scratchPool.put(set)
 	}
 }
 

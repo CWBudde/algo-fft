@@ -71,7 +71,7 @@ func (p *Plan[T]) transformStrided(dst, src []T, stride int, inverse bool) error
 
 	_, stridedScratch, _, set := p.getScratch()
 	if set != nil {
-		defer p.scratchPool.Put(set)
+		defer p.scratchPool.put(set)
 	}
 
 	buffer := stridedScratch[:p.n]

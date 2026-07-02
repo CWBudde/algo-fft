@@ -3,6 +3,7 @@ package algofft
 import (
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fft"
@@ -82,7 +83,7 @@ type Plan[T Complex] struct {
 
 	// scratchPool manages per-call scratch buffers for thread-safety.
 	// Used only when scratch field is nil.
-	scratchPool *sync.Pool
+	scratchPool *scratchCache[T]
 }
 
 type scratchSet[T any] struct {
@@ -92,6 +93,40 @@ type scratchSet[T any] struct {
 	stridedScratchBacking   []byte
 	bluesteinScratch        []T
 	bluesteinScratchBacking []byte
+}
+
+// scratchCache hands out per-call scratch sets. One set lives in a GC-proof
+// resident slot so a plan used from a single goroutine never re-allocates:
+// a bare sync.Pool is drained every two GC cycles, which re-runs the aligned
+// scratch allocations on small heaps. Concurrent transform bursts overflow
+// into the sync.Pool, so extras are cached opportunistically and released by
+// the GC when the burst is over.
+type scratchCache[T any] struct {
+	resident atomic.Pointer[scratchSet[T]]
+	pool     sync.Pool
+}
+
+func (c *scratchCache[T]) get() *scratchSet[T] {
+	if s := c.resident.Swap(nil); s != nil {
+		return s
+	}
+
+	obj := c.pool.Get()
+
+	s, ok := obj.(*scratchSet[T])
+	if !ok {
+		panic("algofft: internal pool type error (scratchSet)")
+	}
+
+	return s
+}
+
+func (c *scratchCache[T]) put(s *scratchSet[T]) {
+	if c.resident.CompareAndSwap(nil, s) {
+		return
+	}
+
+	c.pool.Put(s)
 }
 
 // KernelStrategy controls which FFT kernel a plan should use.
@@ -308,12 +343,7 @@ func (p *Plan[T]) getScratch() ([]T, []T, []T, *scratchSet[T]) {
 		return p.scratch, p.stridedScratch, p.bluesteinScratch, nil
 	}
 
-	obj := p.scratchPool.Get()
-
-	s, ok := obj.(*scratchSet[T])
-	if !ok {
-		panic("algofft: internal pool type error (scratchSet)")
-	}
+	s := p.scratchPool.get()
 
 	return s.scratch, s.stridedScratch, s.bluesteinScratch, s
 }
@@ -337,7 +367,7 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 
 	scratch, _, bsScratch, set := p.getScratch()
 	if set != nil {
-		defer p.scratchPool.Put(set)
+		defer p.scratchPool.put(set)
 	}
 
 	if p.kernelStrategy == fft.KernelBluestein {
@@ -387,7 +417,7 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 
 	scratch, _, bsScratch, set := p.getScratch()
 	if set != nil {
-		defer p.scratchPool.Put(set)
+		defer p.scratchPool.put(set)
 	}
 
 	if p.kernelStrategy == fft.KernelBluestein {
@@ -954,13 +984,12 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		}
 	}
 
-	// Create pool and put the setup scratch into it
-	scratchPool := &sync.Pool{
-		New: func() any {
-			return allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy, scratchSize)
-		},
+	// Create the scratch cache and seed it with the setup scratch set.
+	scratchPool := new(scratchCache[T])
+	scratchPool.pool.New = func() any {
+		return allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy, scratchSize)
 	}
-	scratchPool.Put(setupScratch)
+	scratchPool.put(setupScratch)
 
 	p := &Plan[T]{
 		n:                     n,

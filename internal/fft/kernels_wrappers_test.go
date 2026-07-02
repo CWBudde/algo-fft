@@ -112,7 +112,7 @@ func TestBluesteinWrappers(t *testing.T) {
 	// Convolution
 	x := make([]complex64, m)
 	dst := make([]complex64, m)
-	BluesteinConvolution(dst, x, filter, twiddles, scratch)
+	BluesteinConvolution(dst, x, filter, twiddles, scratch, nil)
 }
 
 func TestBluesteinWrappers128(t *testing.T) {
@@ -132,5 +132,5 @@ func TestBluesteinWrappers128(t *testing.T) {
 
 	x := make([]complex128, m)
 	dst := make([]complex128, m)
-	BluesteinConvolution(dst, x, filter, twiddles, scratch)
+	BluesteinConvolution(dst, x, filter, twiddles, scratch, nil)
 }

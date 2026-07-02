@@ -200,8 +200,17 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 	return ditInverseComplex128(dst, src, twiddle, scratch)
 }
 
-//nolint:cyclop
 func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
+	return ditForwardBitrev(dst, src, twiddle, scratch, nil)
+}
+
+// ditForwardBitrev is ditForward with an optional precomputed bit-reversal
+// table. Passing nil (or a short slice) computes the table locally; hot paths
+// that transform repeatedly at the same size (e.g. Bluestein convolutions)
+// should pass the plan's precomputed table to stay allocation-free.
+//
+//nolint:cyclop
+func ditForwardBitrev[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	n := len(src)
 	if n == 0 {
 		return true
@@ -232,8 +241,10 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	src = src[:n]
 	twiddle = twiddle[:n]
 
-	// Compute bit-reversal indices locally for fallback
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
+	if len(bitrev) < n {
+		// Compute bit-reversal indices locally for fallback
+		bitrev = mathpkg.ComputeBitReversalIndices(n)
+	}
 
 	for i := range n {
 		work[i] = src[bitrev[i]]
@@ -262,8 +273,15 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	return true
 }
 
-//nolint:cyclop
 func ditInverse[T Complex](dst, src, twiddle, scratch []T) bool {
+	return ditInverseBitrev(dst, src, twiddle, scratch, nil)
+}
+
+// ditInverseBitrev is ditInverse with an optional precomputed bit-reversal
+// table; see ditForwardBitrev.
+//
+//nolint:cyclop
+func ditInverseBitrev[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
 	n := len(src)
 	if n == 0 {
 		return true
@@ -294,7 +312,9 @@ func ditInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 	src = src[:n]
 	twiddle = twiddle[:n]
 
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
+	if len(bitrev) < n {
+		bitrev = mathpkg.ComputeBitReversalIndices(n)
+	}
 
 	for i := range n {
 		work[i] = src[bitrev[i]]

@@ -110,7 +110,7 @@ func TestBluesteinHelper(t *testing.T) {
 
 	dst := make([]complex128, m)
 
-	BluesteinConvolution(dst, x, filter, twiddles, scratch)
+	BluesteinConvolution(dst, x, filter, twiddles, scratch, nil)
 
 	// Basic check: output should not be all zeros (unless inputs determine so, which they don't)
 	allZero := true

@@ -131,8 +131,8 @@ func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, scratc
 	return kernels.ComputeBluesteinFilter[T](n, m, chirp, twiddles, scratch)
 }
 
-func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T) {
-	kernels.BluesteinConvolution[T](dst, x, filter, twiddles, scratch)
+func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T, bitrev []int) {
+	kernels.BluesteinConvolution[T](dst, x, filter, twiddles, scratch, bitrev)
 }
 
 func GetRegistry[T Complex]() *CodeletRegistry[T] {
