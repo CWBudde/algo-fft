@@ -6,6 +6,8 @@ import (
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
+const mixedRadix24Tol64 = 1e-4
+
 func TestForwardDIT32MixedRadix24Complex64(t *testing.T) {
 	t.Parallel()
 
