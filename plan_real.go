@@ -81,6 +81,23 @@ func (p *PlanReal) SpectrumLen() int {
 	return p.half + 1
 }
 
+// Clone creates an independent copy of the PlanReal for concurrent use.
+//
+// The clone shares immutable data (the recombination weights) with the
+// original but has its own pack/unpack scratch buffer and its own child
+// complex plan, so the original and its clones can run transforms
+// concurrently.
+func (p *PlanReal) Clone() *PlanReal {
+	return &PlanReal{
+		n:       p.n,
+		half:    p.half,
+		plan:    p.plan.Clone(),
+		weight:  p.weight, // Shared (immutable)
+		buf:     make([]complex64, p.half),
+		options: p.options,
+	}
+}
+
 // Forward computes the real-to-complex FFT.
 // dst must have length N/2+1 and src must have length N.
 func (p *PlanReal) Forward(dst []complex64, src []float32) error {

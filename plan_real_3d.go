@@ -450,7 +450,7 @@ func (p *PlanReal3D) Clone() *PlanReal3D {
 		height:                p.height,
 		width:                 p.width,
 		halfWidth:             p.halfWidth,
-		widthPlan:             p.widthPlan, // PlanReal doesn't have Clone yet, share for now
+		widthPlan:             p.widthPlan.Clone(),
 		heightPlans:           heightPlans,
 		depthPlans:            depthPlans,
 		scratchCompact:        scratchCompact,

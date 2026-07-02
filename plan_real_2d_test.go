@@ -3,6 +3,7 @@ package algofft
 import (
 	"math"
 	"math/rand"
+	"sync"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/reference"
@@ -428,6 +429,55 @@ func TestPlanReal2D_Clone(t *testing.T) {
 	if equalComplex64Slices(spectrum1, spectrum2) {
 		t.Error("Clone produced identical results for different inputs")
 	}
+}
+
+// TestPlanReal2D_Clone_Concurrent verifies that clones share no mutable state:
+// clones running Forward concurrently must reproduce the serial reference.
+// Run with -race; a shared row plan scratch buffer makes this fail.
+func TestPlanReal2D_Clone_Concurrent(t *testing.T) {
+	t.Parallel()
+
+	orig, err := NewPlanReal2D(8, 16)
+	if err != nil {
+		t.Fatalf("NewPlanReal2D failed: %v", err)
+	}
+
+	input := make([]float32, 8*16)
+	for i := range input {
+		input[i] = float32(i%13) - 6.0
+	}
+
+	want := make([]complex64, orig.SpectrumLen())
+
+	err = orig.Forward(want, input)
+	if err != nil {
+		t.Fatalf("reference Forward failed: %v", err)
+	}
+
+	var waitGroup sync.WaitGroup
+
+	for range 8 {
+		clone := orig.Clone()
+
+		waitGroup.Go(func() {
+			got := make([]complex64, clone.SpectrumLen())
+
+			for range 20 {
+				err := clone.Forward(got, input)
+				if err != nil {
+					t.Errorf("clone.Forward failed: %v", err)
+					return
+				}
+
+				if !equalComplex64Slices(got, want) {
+					t.Error("concurrent clone Forward differs from serial reference")
+					return
+				}
+			}
+		})
+	}
+
+	waitGroup.Wait()
 }
 
 // TestPlanReal2D_InvalidSizes tests error handling for invalid sizes.

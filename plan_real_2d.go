@@ -416,7 +416,7 @@ func (p *PlanReal2D) Clone() *PlanReal2D {
 		rows:                  p.rows,
 		cols:                  p.cols,
 		halfCols:              p.halfCols,
-		rowPlan:               p.rowPlan, // PlanReal doesn't have Clone yet, share for now
+		rowPlan:               p.rowPlan.Clone(),
 		colPlans:              colPlans,
 		scratchCompact:        scratchCompact,
 		scratchFull:           scratchFull,
