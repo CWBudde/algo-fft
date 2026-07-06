@@ -230,8 +230,14 @@ func itoa(n int) string {
 // plans so the strided DIT fast path can run without per-call recomputation.
 // Non-power-of-two sizes return nil; callers treat a nil table as "fast path
 // unavailable".
-func planBitReversal[T Complex](n int, _ fft.PlanEstimate[T]) []int {
-	if !m.IsPowerOf2(n) {
+//
+// Recursive plans are excluded: they store recursive-decomposition twiddles in
+// p.twiddle (see TwiddleFactorsRecursive), which are incompatible with the
+// radix-2 strided DIT fast path in transformStrided. Returning nil keeps that
+// fast path disabled for them so strided transforms fall back to the correct
+// generic gather/scatter path instead of silently producing a wrong spectrum.
+func planBitReversal[T Complex](n int, estimate fft.PlanEstimate[T]) []int {
+	if !m.IsPowerOf2(n) || estimate.Strategy == fft.KernelRecursive {
 		return nil
 	}
 

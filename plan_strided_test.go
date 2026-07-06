@@ -115,3 +115,68 @@ func TestPlanStrided_Errors(t *testing.T) {
 		t.Fatalf("expected ErrLengthMismatch, got %v", err)
 	}
 }
+
+// TestPlanForwardStridedRecursive_Complex64 guards against the strided DIT fast
+// path running on a recursive plan. Recursive plans store recursive-layout
+// twiddles in p.twiddle, which are incompatible with ForwardStridedDIT; if the
+// bit-reversal table is populated for them, the strided transform silently
+// produces the wrong spectrum. See planBitReversal.
+//
+// The mismatch only surfaces once the recursive decomposition twiddle table
+// diverges from the standard DIT layout, which happens at multi-level sizes
+// (e.g. n=1024, where the recursive table is twice as long), so the size here
+// is deliberately large.
+func TestPlanForwardStridedRecursive_Complex64(t *testing.T) {
+	t.Parallel()
+
+	const n = 1024
+
+	plan, err := NewPlanWithOptions[complex64](n, PlanOptions{Strategy: KernelRecursive})
+	if err != nil {
+		t.Fatalf("NewPlanWithOptions(Recursive) failed: %v", err)
+	}
+
+	if plan.kernelStrategy != KernelRecursive {
+		t.Fatalf("expected KernelRecursive strategy, got %v", plan.kernelStrategy)
+	}
+
+	stride := 3
+	col := 1
+	total := col + 1 + (n-1)*stride
+
+	src := make([]complex64, total)
+	contig := make([]complex64, n)
+
+	for i := range n {
+		v := complex(float32(i+1), float32(i)*0.25)
+		src[col+i*stride] = v
+		contig[i] = v
+	}
+
+	// The strided transform must agree with the plan's own contiguous transform
+	// of the gathered data. Comparing against the plan itself keeps the check
+	// robust to the recursive kernel's numerics while still catching the
+	// wrong-twiddle fast path, which diverges by many orders of magnitude.
+	want := make([]complex64, n)
+
+	err = plan.Forward(want, contig)
+	if err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	dst := make([]complex64, total)
+
+	err = plan.ForwardStrided(dst[col:], src[col:], stride)
+	if err != nil {
+		t.Fatalf("ForwardStrided failed: %v", err)
+	}
+
+	for i := range n {
+		got := dst[col+i*stride]
+
+		diff := cabsf32(got - want[i])
+		if float64(diff/(cabsf32(want[i])+1)) > 1e-4 {
+			t.Fatalf("recursive strided[%d]: got %v want %v (rel diff too large)", i, got, want[i])
+		}
+	}
+}
