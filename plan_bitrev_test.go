@@ -51,50 +51,64 @@ func TestPlanBitReversal_NonPowerOfTwo(t *testing.T) {
 func TestPlanStrided_FastPathMatchesContiguous(t *testing.T) {
 	t.Parallel()
 
+	for _, n := range []int{8, 64, 256, 1024} {
+		checkStridedMatchesContiguous(t, n)
+	}
+}
+
+func checkStridedMatchesContiguous(t *testing.T, n int) {
+	t.Helper()
+
 	const stride = 3
 
-	for _, n := range []int{8, 64, 256, 1024} {
-		plan, err := NewPlan32(n)
-		if err != nil {
-			t.Fatalf("NewPlan32(%d) failed: %v", n, err)
-		}
+	plan, err := NewPlan32(n)
+	if err != nil {
+		t.Fatalf("NewPlan32(%d) failed: %v", n, err)
+	}
 
-		src := make([]complex64, n*stride)
-		for i := range n {
-			src[i*stride] = complex(float32(i%17)-8, float32((i*5)%13)-6)
-		}
+	src := make([]complex64, n*stride)
+	for i := range n {
+		src[i*stride] = complex(float32(i%17)-8, float32((i*5)%13)-6)
+	}
 
-		contig := make([]complex64, n)
-		for i := range n {
-			contig[i] = src[i*stride]
-		}
+	contig := make([]complex64, n)
+	for i := range n {
+		contig[i] = src[i*stride]
+	}
 
-		want := make([]complex64, n)
-		if err := plan.Forward(want, contig); err != nil {
-			t.Fatalf("Forward(%d) failed: %v", n, err)
-		}
+	want := make([]complex64, n)
 
-		dst := make([]complex64, n*stride)
-		if err := plan.ForwardStrided(dst, src, stride); err != nil {
-			t.Fatalf("ForwardStrided(%d) failed: %v", n, err)
-		}
+	err = plan.Forward(want, contig)
+	if err != nil {
+		t.Fatalf("Forward(%d) failed: %v", n, err)
+	}
 
-		for i := range n {
-			assertApproxComplex64f(t, dst[i*stride], want[i], 1e-3, "n=%d forward[%d]", n, i)
-		}
+	dst := make([]complex64, n*stride)
 
-		wantInv := make([]complex64, n)
-		if err := plan.Inverse(wantInv, contig); err != nil {
-			t.Fatalf("Inverse(%d) failed: %v", n, err)
-		}
+	err = plan.ForwardStrided(dst, src, stride)
+	if err != nil {
+		t.Fatalf("ForwardStrided(%d) failed: %v", n, err)
+	}
 
-		dstInv := make([]complex64, n*stride)
-		if err := plan.InverseStrided(dstInv, src, stride); err != nil {
-			t.Fatalf("InverseStrided(%d) failed: %v", n, err)
-		}
+	for i := range n {
+		assertApproxComplex64f(t, dst[i*stride], want[i], 1e-3, "n=%d forward[%d]", n, i)
+	}
 
-		for i := range n {
-			assertApproxComplex64f(t, dstInv[i*stride], wantInv[i], 1e-3, "n=%d inverse[%d]", n, i)
-		}
+	wantInv := make([]complex64, n)
+
+	err = plan.Inverse(wantInv, contig)
+	if err != nil {
+		t.Fatalf("Inverse(%d) failed: %v", n, err)
+	}
+
+	dstInv := make([]complex64, n*stride)
+
+	err = plan.InverseStrided(dstInv, src, stride)
+	if err != nil {
+		t.Fatalf("InverseStrided(%d) failed: %v", n, err)
+	}
+
+	for i := range n {
+		assertApproxComplex64f(t, dstInv[i*stride], wantInv[i], 1e-3, "n=%d inverse[%d]", n, i)
 	}
 }

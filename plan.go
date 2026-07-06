@@ -2,8 +2,6 @@ package algofft
 
 import (
 	"strings"
-	"sync"
-	"sync/atomic"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fft"
@@ -95,39 +93,9 @@ type scratchSet[T any] struct {
 	bluesteinScratchBacking []byte
 }
 
-// scratchCache hands out per-call scratch sets. One set lives in a GC-proof
-// resident slot so a plan used from a single goroutine never re-allocates:
-// a bare sync.Pool is drained every two GC cycles, which re-runs the aligned
-// scratch allocations on small heaps. Concurrent transform bursts overflow
-// into the sync.Pool, so extras are cached opportunistically and released by
-// the GC when the burst is over.
-type scratchCache[T any] struct {
-	resident atomic.Pointer[scratchSet[T]]
-	pool     sync.Pool
-}
-
-func (c *scratchCache[T]) get() *scratchSet[T] {
-	if s := c.resident.Swap(nil); s != nil {
-		return s
-	}
-
-	obj := c.pool.Get()
-
-	s, ok := obj.(*scratchSet[T])
-	if !ok {
-		panic("algofft: internal pool type error (scratchSet)")
-	}
-
-	return s
-}
-
-func (c *scratchCache[T]) put(s *scratchSet[T]) {
-	if c.resident.CompareAndSwap(nil, s) {
-		return
-	}
-
-	c.pool.Put(s)
-}
+// scratchCache hands out per-call scratch sets for the 1D Plan; see
+// residentCache for the caching strategy.
+type scratchCache[T any] = residentCache[scratchSet[T]]
 
 // KernelStrategy controls which FFT kernel a plan should use.
 type KernelStrategy = fft.KernelStrategy

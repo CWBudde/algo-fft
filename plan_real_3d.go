@@ -9,6 +9,9 @@ import (
 // PlanReal3D is a pre-computed 3D real FFT plan for float32 input volumes.
 // The forward transform exploits conjugate symmetry by computing only the
 // non-redundant half of the spectrum along the last dimension.
+// Plans are reusable and safe for concurrent use during transforms: scratch
+// buffers are borrowed per call from an internal cache, so multiple
+// goroutines may share one instance.
 //
 // The 3D real FFT uses the dimension-by-dimension decomposition algorithm:
 // - Forward: Real FFT along width (innermost), then complex FFT along height and depth
@@ -24,12 +27,23 @@ type PlanReal3D struct {
 	widthPlan            *PlanReal          // Real FFT for width (size W → W/2+1)
 	heightPlans          []*Plan[complex64] // Complex FFT for height (one per width column)
 	depthPlans           []*Plan[complex64] // Complex FFT for depth (one per height×width position)
-	scratchCompact       []complex64        // Working buffer (D×H×(W/2+1))
-	scratchFull          []complex64        // Full spectrum buffer (D×H×W) for ForwardFull
 
-	// backing keeps aligned buffers alive for GC
-	scratchCompactBacking []byte
-	scratchFullBacking    []byte
+	// scratch hands out per-call working buffers for thread-safety.
+	scratch *residentCache[planReal3DScratch]
+}
+
+// planReal3DScratch is one per-call scratch set for PlanReal3D transforms.
+type planReal3DScratch struct {
+	compact        []complex64 // Working buffer (D×H×(W/2+1))
+	compactBacking []byte      // Keeps the aligned buffer alive for GC
+}
+
+func newPlanReal3DScratchCache(depth, height, halfWidth int) *residentCache[planReal3DScratch] {
+	return newResidentCache(func() *planReal3DScratch {
+		compact, backing := mem.AllocAlignedComplex64(depth * height * halfWidth)
+
+		return &planReal3DScratch{compact: compact, compactBacking: backing}
+	})
 }
 
 // NewPlanReal3D creates a new 3D real FFT plan for a D×H×W real volume.
@@ -38,7 +52,7 @@ type PlanReal3D struct {
 //
 // The plan pre-allocates all necessary buffers, enabling zero-allocation transforms.
 //
-// For concurrent use, create separate plans via Clone() for each goroutine.
+// A single plan instance may be shared by multiple goroutines.
 func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 	if depth <= 0 || height <= 0 || width <= 0 {
 		return nil, ErrInvalidLength
@@ -78,25 +92,15 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 		depthPlans[i] = plan
 	}
 
-	// Allocate scratch buffers (aligned for SIMD)
-	compactSize := depth * height * halfWidth
-	fullSize := depth * height * width
-
-	scratchCompact, scratchCompactBacking := mem.AllocAlignedComplex64(compactSize)
-	scratchFull, scratchFullBacking := mem.AllocAlignedComplex64(fullSize)
-
 	return &PlanReal3D{
-		depth:                 depth,
-		height:                height,
-		width:                 width,
-		halfWidth:             halfWidth,
-		widthPlan:             widthPlan,
-		heightPlans:           heightPlans,
-		depthPlans:            depthPlans,
-		scratchCompact:        scratchCompact,
-		scratchFull:           scratchFull,
-		scratchCompactBacking: scratchCompactBacking,
-		scratchFullBacking:    scratchFullBacking,
+		depth:       depth,
+		height:      height,
+		width:       width,
+		halfWidth:   halfWidth,
+		widthPlan:   widthPlan,
+		heightPlans: heightPlans,
+		depthPlans:  depthPlans,
+		scratch:     newPlanReal3DScratchCache(depth, height, halfWidth),
 	}, nil
 }
 
@@ -158,6 +162,11 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 		return ErrLengthMismatch
 	}
 
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	compact := s.compact
+
 	// Step 1: Real FFT along width (innermost dimension)
 	for d := range p.depth {
 		for h := range p.height {
@@ -165,7 +174,7 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 			dstOffset := d*p.height*p.halfWidth + h*p.halfWidth
 
 			srcRow := src[srcOffset : srcOffset+p.width]
-			dstRow := p.scratchCompact[dstOffset : dstOffset+p.halfWidth]
+			dstRow := compact[dstOffset : dstOffset+p.halfWidth]
 
 			err := p.widthPlan.Forward(dstRow, srcRow)
 			if err != nil {
@@ -181,7 +190,7 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 		for w := range p.halfWidth {
 			// Extract column along height
 			for h := range p.height {
-				heightData[h] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
+				heightData[h] = compact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
 			// Transform column
@@ -192,7 +201,7 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 
 			// Write back
 			for h := range p.height {
-				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = heightData[h]
+				compact[d*p.height*p.halfWidth+h*p.halfWidth+w] = heightData[h]
 			}
 		}
 	}
@@ -204,7 +213,7 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 		for w := range p.halfWidth {
 			// Extract slice along depth
 			for d := range p.depth {
-				depthData[d] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
+				depthData[d] = compact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
 			// Transform depth slice
@@ -217,13 +226,13 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 
 			// Write back
 			for d := range p.depth {
-				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = depthData[d]
+				compact[d*p.height*p.halfWidth+h*p.halfWidth+w] = depthData[d]
 			}
 		}
 	}
 
 	// Copy result to dst
-	copy(dst, p.scratchCompact)
+	copy(dst, compact)
 
 	return nil
 }
@@ -254,8 +263,13 @@ func (p *PlanReal3D) ForwardFull(dst []complex64, src []float32) error {
 		return ErrLengthMismatch
 	}
 
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	compact := s.compact
+
 	// First compute compact spectrum
-	err := p.Forward(p.scratchCompact, src)
+	err := p.Forward(compact, src)
 	if err != nil {
 		return err
 	}
@@ -266,7 +280,7 @@ func (p *PlanReal3D) ForwardFull(dst []complex64, src []float32) error {
 		for h := range p.height {
 			// Copy half-spectrum to output
 			for w := range p.halfWidth {
-				dst[d*p.height*p.width+h*p.width+w] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
+				dst[d*p.height*p.width+h*p.width+w] = compact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
 			// Fill conjugate pairs for w > W/2
@@ -309,8 +323,13 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 		return ErrLengthMismatch
 	}
 
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	compact := s.compact
+
 	// Copy src to scratch
-	copy(p.scratchCompact, src)
+	copy(compact, src)
 
 	// Step 1: Complex IFFT along depth (outermost dimension)
 	depthData := make([]complex64, p.depth)
@@ -319,7 +338,7 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 		for w := range p.halfWidth {
 			// Extract slice along depth
 			for d := range p.depth {
-				depthData[d] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
+				depthData[d] = compact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
 			// Inverse transform depth slice
@@ -332,7 +351,7 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 
 			// Write back
 			for d := range p.depth {
-				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = depthData[d]
+				compact[d*p.height*p.halfWidth+h*p.halfWidth+w] = depthData[d]
 			}
 		}
 	}
@@ -344,7 +363,7 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 		for w := range p.halfWidth {
 			// Extract column along height
 			for h := range p.height {
-				heightData[h] = p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w]
+				heightData[h] = compact[d*p.height*p.halfWidth+h*p.halfWidth+w]
 			}
 
 			// Inverse transform column
@@ -355,7 +374,7 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 
 			// Write back
 			for h := range p.height {
-				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = heightData[h]
+				compact[d*p.height*p.halfWidth+h*p.halfWidth+w] = heightData[h]
 			}
 		}
 	}
@@ -366,7 +385,7 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 			srcOffset := d*p.height*p.halfWidth + h*p.halfWidth
 			dstOffset := d*p.height*p.width + h*p.width
 
-			srcRow := p.scratchCompact[srcOffset : srcOffset+p.halfWidth]
+			srcRow := compact[srcOffset : srcOffset+p.halfWidth]
 			dstRow := dst[dstOffset : dstOffset+p.width]
 
 			err := p.widthPlan.Inverse(dstRow, srcRow)
@@ -405,57 +424,39 @@ func (p *PlanReal3D) InverseFull(dst []float32, src []complex64) error {
 		return ErrLengthMismatch
 	}
 
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	compact := s.compact
+
 	// Extract compact half-spectrum from full spectrum
 	for d := range p.depth {
 		for h := range p.height {
 			for w := range p.halfWidth {
-				p.scratchCompact[d*p.height*p.halfWidth+h*p.halfWidth+w] = src[d*p.height*p.width+h*p.width+w]
+				compact[d*p.height*p.halfWidth+h*p.halfWidth+w] = src[d*p.height*p.width+h*p.width+w]
 			}
 		}
 	}
 
 	// Use compact inverse
-	return p.Inverse(dst, p.scratchCompact)
+	return p.Inverse(dst, compact)
 }
 
-// Clone creates an independent copy of the PlanReal3D for concurrent use.
+// Clone creates an independent copy of the PlanReal3D.
 //
-// The clone shares immutable data but has its own:
-// - Scratch buffers (for thread safety)
-// - 1D plan instances (cloned from originals)
-//
-// This allows multiple goroutines to perform transforms concurrently.
+// A single PlanReal3D is already safe for concurrent transforms, so cloning
+// is not required for concurrency; it remains available for callers that want
+// isolated scratch caches. The clone shares the concurrency-safe child plans
+// but has its own scratch cache.
 func (p *PlanReal3D) Clone() *PlanReal3D {
-	// Allocate new scratch buffers
-	compactSize := p.depth * p.height * p.halfWidth
-	fullSize := p.depth * p.height * p.width
-
-	scratchCompact, scratchCompactBacking := mem.AllocAlignedComplex64(compactSize)
-	scratchFull, scratchFullBacking := mem.AllocAlignedComplex64(fullSize)
-
-	// Clone height plans
-	heightPlans := make([]*Plan[complex64], p.halfWidth)
-	for i := range heightPlans {
-		heightPlans[i] = p.heightPlans[i].Clone()
-	}
-
-	// Clone depth plans
-	depthPlans := make([]*Plan[complex64], p.height*p.halfWidth)
-	for i := range depthPlans {
-		depthPlans[i] = p.depthPlans[i].Clone()
-	}
-
 	return &PlanReal3D{
-		depth:                 p.depth,
-		height:                p.height,
-		width:                 p.width,
-		halfWidth:             p.halfWidth,
-		widthPlan:             p.widthPlan.Clone(),
-		heightPlans:           heightPlans,
-		depthPlans:            depthPlans,
-		scratchCompact:        scratchCompact,
-		scratchFull:           scratchFull,
-		scratchCompactBacking: scratchCompactBacking,
-		scratchFullBacking:    scratchFullBacking,
+		depth:       p.depth,
+		height:      p.height,
+		width:       p.width,
+		halfWidth:   p.halfWidth,
+		widthPlan:   p.widthPlan,
+		heightPlans: p.heightPlans,
+		depthPlans:  p.depthPlans,
+		scratch:     newPlanReal3DScratchCache(p.depth, p.height, p.halfWidth),
 	}
 }

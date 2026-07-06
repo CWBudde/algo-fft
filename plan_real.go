@@ -10,6 +10,9 @@ import (
 
 // PlanReal is a pre-computed real FFT plan for float32 input.
 // The forward transform returns the non-redundant half-spectrum with length N/2+1.
+// Plans are reusable and safe for concurrent use during transforms: the
+// pack/unpack buffer is borrowed per call from an internal cache, so multiple
+// goroutines may share one instance.
 //
 // Output bins obey conjugate symmetry for real inputs:
 //
@@ -22,8 +25,16 @@ type PlanReal struct {
 
 	plan    *Plan[complex64]
 	weight  []complex64
-	buf     []complex64
+	buf     *residentCache[[]complex64]
 	options PlanOptions
+}
+
+func newPlanRealBufCache(half int) *residentCache[[]complex64] {
+	return newResidentCache(func() *[]complex64 {
+		b := make([]complex64, half)
+
+		return &b
+	})
 }
 
 // NewPlanReal creates a new real FFT plan for length n.
@@ -45,7 +56,7 @@ func newPlanRealWithFeatures(n int, features cpu.Features, opts PlanOptions) (*P
 	childOpts := opts
 	childOpts.Batch = 0
 	childOpts.Stride = 0
-	// The real-FFT pack/unpack path uses the child complex plan in-place on p.buf.
+	// The real-FFT pack/unpack path uses the child complex plan in-place on the borrowed pack buffer.
 	childOpts.InPlace = true
 
 	plan, err := newPlanWithFeatures[complex64](n/2, features, childOpts)
@@ -66,7 +77,7 @@ func newPlanRealWithFeatures(n int, features cpu.Features, opts PlanOptions) (*P
 		half:    n / 2,
 		plan:    plan,
 		weight:  weight,
-		buf:     make([]complex64, n/2),
+		buf:     newPlanRealBufCache(n / 2),
 		options: opts,
 	}, nil
 }
@@ -81,19 +92,20 @@ func (p *PlanReal) SpectrumLen() int {
 	return p.half + 1
 }
 
-// Clone creates an independent copy of the PlanReal for concurrent use.
+// Clone creates an independent copy of the PlanReal.
 //
-// The clone shares immutable data (the recombination weights) with the
-// original but has its own pack/unpack scratch buffer and its own child
-// complex plan, so the original and its clones can run transforms
-// concurrently.
+// A single PlanReal is already safe for concurrent transforms, so cloning is
+// not required for concurrency; it remains available for callers that want
+// isolated scratch caches. The clone shares immutable data (the recombination
+// weights) and the concurrency-safe child complex plan, but has its own
+// pack/unpack buffer cache.
 func (p *PlanReal) Clone() *PlanReal {
 	return &PlanReal{
 		n:       p.n,
 		half:    p.half,
-		plan:    p.plan.Clone(),
+		plan:    p.plan,
 		weight:  p.weight, // Shared (immutable)
-		buf:     make([]complex64, p.half),
+		buf:     newPlanRealBufCache(p.half),
 		options: p.options,
 	}
 }
@@ -199,15 +211,20 @@ func (p *PlanReal) forwardSingle(dst []complex64, src []float32) error {
 		return ErrLengthMismatch
 	}
 
-	srcAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&src[0])), p.half)
-	copy(p.buf, srcAsComplex)
+	bufp := p.buf.get()
+	defer p.buf.put(bufp)
 
-	err := p.plan.Forward(p.buf, p.buf)
+	buf := *bufp
+
+	srcAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&src[0])), p.half)
+	copy(buf, srcAsComplex)
+
+	err := p.plan.Forward(buf, buf)
 	if err != nil {
 		return err
 	}
 
-	y0 := p.buf[0]
+	y0 := buf[0]
 	y0r := real(y0)
 	y0i := imag(y0)
 	dst[0] = complex(y0r+y0i, 0)
@@ -218,8 +235,8 @@ func (p *PlanReal) forwardSingle(dst []complex64, src []float32) error {
 	// With A[k] = Y[k], B[k] = conj(Y[N/2-k]), and U[k] = 0.5 * (1 + i*W_N^k),
 	// the spectrum is recovered via: X[k] = A[k] - U[k] * (A[k] - B[k]).
 	for k := 1; k < p.half; k++ {
-		a := p.buf[k]
-		bSrc := p.buf[p.half-k]
+		a := buf[k]
+		bSrc := buf[p.half-k]
 		b := complex(real(bSrc), -imag(bSrc)) // conj(Y[N/2-k])
 
 		c := p.weight[k] * (a - b)
@@ -244,15 +261,20 @@ func (p *PlanReal) inverseSingle(dst []float32, src []complex64) error {
 		return ErrInvalidSpectrum
 	}
 
-	fft.RepackInverseComplex64(p.buf, src, p.weight)
+	bufp := p.buf.get()
+	defer p.buf.put(bufp)
 
-	err := p.plan.Inverse(p.buf, p.buf)
+	buf := *bufp
+
+	fft.RepackInverseComplex64(buf, src, p.weight)
+
+	err := p.plan.Inverse(buf, buf)
 	if err != nil {
 		return err
 	}
 
 	dstAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&dst[0])), p.half)
-	copy(dstAsComplex, p.buf)
+	copy(dstAsComplex, buf)
 
 	return nil
 }
