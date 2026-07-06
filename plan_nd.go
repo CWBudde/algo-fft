@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
@@ -104,7 +105,7 @@ func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], 
 	strides := make([]int, len(dims))
 
 	stride := 1
-	for i := len(dims) - 1; i >= 0; i-- {
+	for i := range slices.Backward(dims) {
 		strides[i] = stride
 		stride *= dimsCopy[i]
 	}
@@ -374,7 +375,7 @@ func (p *PlanND[T]) forwardSingle(dst, src []T) error {
 	work := s.work
 	copy(work, src)
 
-	for dim := len(p.dims) - 1; dim >= 0; dim-- {
+	for dim := range slices.Backward(p.dims) {
 		err = p.transformDimension(work, dim, true)
 		if err != nil {
 			return err
@@ -398,7 +399,7 @@ func (p *PlanND[T]) inverseSingle(dst, src []T) error {
 	work := s.work
 	copy(work, src)
 
-	for dim := len(p.dims) - 1; dim >= 0; dim-- {
+	for dim := range slices.Backward(p.dims) {
 		err = p.transformDimension(work, dim, false)
 		if err != nil {
 			return err
@@ -425,9 +426,9 @@ func (p *PlanND[T]) sliceIndexToOffset(sliceIdx, dim int) int {
 	coords := make([]int, len(reducedDims))
 
 	remaining := sliceIdx
-	for i := len(reducedDims) - 1; i >= 0; i-- {
-		coords[i] = remaining % reducedDims[i]
-		remaining /= reducedDims[i]
+	for i, v := range slices.Backward(reducedDims) {
+		coords[i] = remaining % v
+		remaining /= v
 	}
 
 	// Map reduced coordinates back to full coordinates and compute offset
