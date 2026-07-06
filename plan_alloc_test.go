@@ -157,6 +157,219 @@ func assertNoAllocs(t *testing.T, label string, run func() error) {
 }
 
 //nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestPlan2DTransformsNoAllocsComplex64(t *testing.T) {
+	const rows, cols = 16, 16
+
+	plan, err := NewPlan2D32(rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlan2D32(%d, %d) returned error: %v", rows, cols, err)
+	}
+
+	src := make([]complex64, rows*cols)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	dst := make([]complex64, rows*cols)
+	freq := make([]complex64, rows*cols)
+
+	err = plan.Forward(freq, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	assertNoAllocs(t, "Forward", func() error { return plan.Forward(dst, src) })
+	assertNoAllocs(t, "Inverse", func() error { return plan.Inverse(dst, freq) })
+}
+
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestPlan2DTransformsNoAllocsComplex128(t *testing.T) {
+	const rows, cols = 16, 16
+
+	plan, err := NewPlan2D64(rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlan2D64(%d, %d) returned error: %v", rows, cols, err)
+	}
+
+	src := make([]complex128, rows*cols)
+	for i := range src {
+		src[i] = complex(float64(i+1), float64(-i))
+	}
+
+	dst := make([]complex128, rows*cols)
+	freq := make([]complex128, rows*cols)
+
+	err = plan.Forward(freq, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	assertNoAllocs(t, "Forward", func() error { return plan.Forward(dst, src) })
+	assertNoAllocs(t, "Inverse", func() error { return plan.Inverse(dst, freq) })
+}
+
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestPlan3DTransformsNoAllocsComplex64(t *testing.T) {
+	const depth, height, width = 8, 8, 8
+
+	plan, err := NewPlan3D32(depth, height, width)
+	if err != nil {
+		t.Fatalf("NewPlan3D32(%d, %d, %d) returned error: %v", depth, height, width, err)
+	}
+
+	src := make([]complex64, depth*height*width)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	dst := make([]complex64, depth*height*width)
+	freq := make([]complex64, depth*height*width)
+
+	err = plan.Forward(freq, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	assertNoAllocs(t, "Forward", func() error { return plan.Forward(dst, src) })
+	assertNoAllocs(t, "Inverse", func() error { return plan.Inverse(dst, freq) })
+}
+
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestPlan3DTransformsNoAllocsComplex128(t *testing.T) {
+	const depth, height, width = 8, 8, 8
+
+	plan, err := NewPlan3D64(depth, height, width)
+	if err != nil {
+		t.Fatalf("NewPlan3D64(%d, %d, %d) returned error: %v", depth, height, width, err)
+	}
+
+	src := make([]complex128, depth*height*width)
+	for i := range src {
+		src[i] = complex(float64(i+1), float64(-i))
+	}
+
+	dst := make([]complex128, depth*height*width)
+	freq := make([]complex128, depth*height*width)
+
+	err = plan.Forward(freq, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	assertNoAllocs(t, "Forward", func() error { return plan.Forward(dst, src) })
+	assertNoAllocs(t, "Inverse", func() error { return plan.Inverse(dst, freq) })
+}
+
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestPlanNDTransformsNoAllocsComplex64(t *testing.T) {
+	dims := []int{8, 8, 8}
+
+	plan, err := NewPlanND32(dims)
+	if err != nil {
+		t.Fatalf("NewPlanND32(%v) returned error: %v", dims, err)
+	}
+
+	src := make([]complex64, plan.Len())
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	dst := make([]complex64, plan.Len())
+	freq := make([]complex64, plan.Len())
+
+	err = plan.Forward(freq, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	assertNoAllocs(t, "Forward", func() error { return plan.Forward(dst, src) })
+	assertNoAllocs(t, "Inverse", func() error { return plan.Inverse(dst, freq) })
+}
+
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestPlanNDTransformsNoAllocsComplex128(t *testing.T) {
+	dims := []int{4, 4, 4, 4}
+
+	plan, err := NewPlanND64(dims)
+	if err != nil {
+		t.Fatalf("NewPlanND64(%v) returned error: %v", dims, err)
+	}
+
+	src := make([]complex128, plan.Len())
+	for i := range src {
+		src[i] = complex(float64(i+1), float64(-i))
+	}
+
+	dst := make([]complex128, plan.Len())
+	freq := make([]complex128, plan.Len())
+
+	err = plan.Forward(freq, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	assertNoAllocs(t, "Forward", func() error { return plan.Forward(dst, src) })
+	assertNoAllocs(t, "Inverse", func() error { return plan.Inverse(dst, freq) })
+}
+
+// TestPlanMixedRadixTransformsNoAllocs guards the zero-allocation promise on the
+// mixed-radix (highly-composite, non-power-of-2) path. These sizes exercise the
+// pooled radix schedule buffer and, under -tags asm, the pooled sub-transform
+// twiddle/scratch buffers and the size-384 codelet's pooled internals.
+//
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestPlanMixedRadixTransformsNoAllocs(t *testing.T) {
+	// 768 = 2^8·3, 1536 = 2^9·3 (routes through the size-384 codelet under asm).
+	for _, n := range []int{96, 768, 1536} {
+		t.Run("complex64_"+itoa(n), func(t *testing.T) {
+			plan, err := NewPlanT[complex64](n)
+			if err != nil {
+				t.Fatalf("NewPlanT[complex64](%d) returned error: %v", n, err)
+			}
+
+			src := make([]complex64, n)
+			for i := range src {
+				src[i] = complex(float32(i+1), float32(-i))
+			}
+
+			dst := make([]complex64, n)
+			freq := make([]complex64, n)
+
+			err = plan.Forward(freq, src)
+			if err != nil {
+				t.Fatalf("Forward() returned error: %v", err)
+			}
+
+			assertNoAllocs(t, "Forward", func() error { return plan.Forward(dst, src) })
+			assertNoAllocs(t, "Inverse", func() error { return plan.Inverse(dst, freq) })
+		})
+
+		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+			plan, err := NewPlanT[complex128](n)
+			if err != nil {
+				t.Fatalf("NewPlanT[complex128](%d) returned error: %v", n, err)
+			}
+
+			src := make([]complex128, n)
+			for i := range src {
+				src[i] = complex(float64(i+1), float64(-i))
+			}
+
+			dst := make([]complex128, n)
+			freq := make([]complex128, n)
+
+			err = plan.Forward(freq, src)
+			if err != nil {
+				t.Fatalf("Forward() returned error: %v", err)
+			}
+
+			assertNoAllocs(t, "Forward", func() error { return plan.Forward(dst, src) })
+			assertNoAllocs(t, "Inverse", func() error { return plan.Inverse(dst, freq) })
+		})
+	}
+}
+
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
 func TestPlanReal2DTransformsNoAllocs(t *testing.T) {
 	const rows, cols = 16, 16
 

@@ -226,17 +226,32 @@ into the P2 backlog below.
       multi-trial **median** sampling (outlier rejection) in `benchmarkStrategy`
       (`internal/fft/measure.go`).
 
-### P1.3 Zero-allocation parity across all plan types
+### P1.3 Zero-allocation parity across all plan types ✅ **completed 2026-07.**
 
-- [ ] Make `PlanND` zero-alloc: preallocate the per-dimension slice buffer and
-      precompute stride math instead of `make()` twice per slice
-      (`plan_nd.go:336,440`). Model it on the 3D path.
-- [ ] Hoist per-sub-transform `make()`s out of `mixedradix_avx2.go` (twiddle/
-      scratch) into plan-owned buffers.
-- [ ] Cache bit-reversal indices and `IsHighlyComposite`/factorization at plan
-      creation, not per transform (`asm_amd64.go:56-68`, `kernels_fallback.go`).
-- [ ] Extend `plan_alloc_test.go` to guard 2D/3D/ND and real variants (currently
-      1D-only), so the promise is enforced everywhere it is made.
+- [x] `PlanND` is now zero-alloc: the per-dimension slice buffer and the
+      `reducedDims`/`coords` index scratch are preallocated in `planNDScratch`
+      and threaded through `transformDimension`/`sliceIndexToOffset` (the base
+      offset is computed once per slice instead of twice), modeled on the 3D
+      path (`plan_nd.go`).
+- [x] Hoisted the per-sub-transform `make()`s out of `mixedradix_avx2.go`
+      (gathered twiddle + kernel scratch) into pooled leaf buffers
+      (`mrScratchPool64/128`); the size-384 complex128 codelet likewise now
+      precomputes its 128-point sub-twiddle once and pools its output/scratch
+      (`dit_384_decomp_128x3_amd64_asm.go`).
+- [x] `ComputeBitReversalIndices` is memoized for the AVX2 Stockham/complex128
+      wrappers (`bitrev_cache_amd64.go`, wired in `asm_amd64.go`), and
+      `IsHighlyComposite` is now allocation-free (divides out 2/3/5 in place
+      instead of materializing the factor slice, `internal/math/factor.go`) so
+      it no longer allocates on the per-transform dispatch hot path
+      (`kernels_fallback.go`). Two extra default-build leaks found and fixed
+      along the way: the mixed-radix schedule buffer (a `[64]int` that escaped
+      through the recursion hook) is now pooled (`radixSchedulePool`,
+      `mixedradix.go`), and the size-specific AVX2 dispatch no longer builds a
+      per-transform strategy closure (`kernels_amd64_size_specific.go`).
+- [x] Extended `plan_alloc_test.go` to guard 2D/3D/ND (both precisions) and the
+      mixed-radix path (96/768/1536, both precisions); the real 2D variant was
+      already covered. All are verified 0-alloc on both the default and
+      `-tags asm` builds.
 
 ### P1.4 Reduce duplication in the plan layer
 

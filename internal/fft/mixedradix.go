@@ -2,11 +2,24 @@ package fft
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/cwbudde/algo-fft/internal/kernels"
 )
 
 const mixedRadixMaxStages = 64
+
+// radixSchedulePool recycles the per-call radix schedule buffer. The buffer
+// escapes to the heap because its slice flows into the indirect recursion hook
+// (recursiveStep64/128), which defeats stack allocation; pooling keeps the
+// mixed-radix path allocation-free after warm-up, matching the zero-allocation
+// guarantee the power-of-2 kernels already meet. The buffer is used only within
+// a single synchronous transform, so it is safe to recycle.
+//
+//nolint:gochecknoglobals
+var radixSchedulePool = sync.Pool{
+	New: func() any { return new([mixedRadixMaxStages]int) },
+}
 
 func forwardMixedRadixComplex64(dst, src, twiddle, scratch []complex64) bool {
 	return mixedRadixForward[complex64](dst, src, twiddle, scratch)
@@ -75,10 +88,14 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, inverse bool
 	}
 
 	var (
-		radices    [mixedRadixMaxStages]int
 		hasCodelet func(int) bool
 		zero       T
 	)
+
+	// The schedule buffer is pooled rather than stack-allocated because it
+	// escapes through the indirect recursion hook below (see radixSchedulePool).
+	radices := radixSchedulePool.Get().(*[mixedRadixMaxStages]int) //nolint:forcetypeassert
+	defer radixSchedulePool.Put(radices)
 
 	// A composite radix may only be scheduled when the recursion driver can
 	// dispatch it to a codelet (see codeletSchedulable64/128). Checking the
@@ -94,7 +111,7 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, inverse bool
 		hasCodelet = func(int) bool { return false }
 	}
 
-	stageCount := mixedRadixSchedule(n, &radices, hasCodelet)
+	stageCount := mixedRadixSchedule(n, radices, hasCodelet)
 	if stageCount == 0 {
 		return false
 	}

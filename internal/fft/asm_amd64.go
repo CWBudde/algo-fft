@@ -53,19 +53,19 @@ func inverseAVX2Complex64Radix4MixedAsm(dst, src, twiddle, scratch []complex64) 
 }
 
 func forwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	return kasm.ForwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, m.ComputeBitReversalIndices(len(src)))
+	return kasm.ForwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, cachedBitReversalIndices(len(src)))
 }
 
 func inverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64) bool {
-	return kasm.InverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, m.ComputeBitReversalIndices(len(src)))
+	return kasm.InverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, cachedBitReversalIndices(len(src)))
 }
 
 func forwardAVX2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	return kasm.ForwardAVX2Complex128Asm(dst, src, twiddle, scratch, m.ComputeBitReversalIndices(len(src)))
+	return kasm.ForwardAVX2Complex128Asm(dst, src, twiddle, scratch, cachedBitReversalIndices(len(src)))
 }
 
 func inverseAVX2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	return kasm.InverseAVX2Complex128Asm(dst, src, twiddle, scratch, m.ComputeBitReversalIndices(len(src)))
+	return kasm.InverseAVX2Complex128Asm(dst, src, twiddle, scratch, cachedBitReversalIndices(len(src)))
 }
 
 func forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch []complex128) bool {
