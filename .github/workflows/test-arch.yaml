@@ -65,6 +65,22 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: go build -v ./...
 
+      # The asm build must always compile on every architecture. Tests with
+      # the asm tag run on amd64 and 386; arm64 stays build-only until the
+      # NEON complex64 kernels are fixed (PLAN.md P2.2).
+      - name: Build with asm tag
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -tags asm -v ./...
+
+      - name: Run tests with asm tag
+        if: matrix.goarch == 'amd64' || matrix.goarch == '386'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go test -tags asm -v -count=1 ./...
+
       - name: Run tests (with race detector)
         if: matrix.race
         env:
