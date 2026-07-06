@@ -6,8 +6,6 @@ import (
 	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
-const ditAutoThreshold = 1024
-
 func fallbackKernel[T Complex](primary, fallback Kernel[T]) Kernel[T] {
 	if primary == nil {
 		return fallback
