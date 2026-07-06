@@ -7,11 +7,11 @@ import mathpkg "github.com/cwbudde/algo-fft/internal/math"
 //nolint:gochecknoglobals
 var bitrev32Radix2 = mathpkg.ComputeBitReversalIndices(32)
 
-// forwardDIT32Complex64 computes a 32-point radix-2 forward FFT using the
+// forwardDIT32Radix2Complex64 computes a 32-point radix-2 forward FFT using the
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex64 data.
 // This implementation is fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64) bool {
+func forwardDIT32Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 32
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -211,14 +211,14 @@ func forwardDIT32Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return true
 }
 
-// inverseDIT32Complex64 computes a 32-point radix-2 inverse FFT using the
+// inverseDIT32Radix2Complex64 computes a 32-point radix-2 inverse FFT using the
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
 //
 //nolint:funlen
-func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64) bool {
+func inverseDIT32Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 32
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -441,11 +441,11 @@ func inverseDIT32Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return true
 }
 
-// forwardDIT32Complex128 computes a 32-point radix-2 forward FFT using the
+// forwardDIT32Radix2Complex128 computes a 32-point radix-2 forward FFT using the
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
-func forwardDIT32Complex128(dst, src, twiddle, scratch []complex128) bool {
+func forwardDIT32Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 32
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -647,14 +647,14 @@ func forwardDIT32Complex128(dst, src, twiddle, scratch []complex128) bool {
 	return true
 }
 
-// inverseDIT32Complex128 computes a 32-point radix-2 inverse FFT using the
+// inverseDIT32Radix2Complex128 computes a 32-point radix-2 inverse FFT using the
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
 //
 //nolint:funlen
-func inverseDIT32Complex128(dst, src, twiddle, scratch []complex128) bool {
+func inverseDIT32Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 32
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {

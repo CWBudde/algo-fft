@@ -359,6 +359,64 @@ func TestCodeletRegistryGetAvailableSizes(t *testing.T) {
 	}
 }
 
+// TestCodeletRegistryGetAvailableSizesDisabled verifies that GetAvailableSizes
+// does not advertise a size whose only CPU-compatible codelet is disabled
+// (Priority < 0), and that GetAvailableSizes stays consistent with Lookup.
+func TestCodeletRegistryGetAvailableSizesDisabled(t *testing.T) {
+	t.Parallel()
+
+	registry := NewCodeletRegistry[complex64]()
+
+	// Size 16: a normal, enabled codelet.
+	registry.Register(CodeletEntry[complex64]{
+		Size:      16,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: KernelDIT,
+		SIMDLevel: SIMDNone,
+		Signature: "generic",
+		Priority:  0,
+	})
+
+	// Size 32: served ONLY by a disabled codelet.
+	registry.Register(CodeletEntry[complex64]{
+		Size:      32,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: KernelDIT,
+		SIMDLevel: SIMDNone,
+		Signature: "disabled",
+		Priority:  -1,
+	})
+
+	features := cpu.Features{
+		Architecture: "amd64",
+		HasSSE2:      true,
+	}
+
+	// Lookup must reject the disabled-only size.
+	if got := registry.Lookup(32, features); got != nil {
+		t.Errorf("Lookup(32) = %v, want nil (only codelet is disabled)", got)
+	}
+
+	// GetAvailableSizes must not advertise the disabled-only size, and must
+	// agree with Lookup for every size it does advertise.
+	sizes := registry.GetAvailableSizes(features)
+	for _, size := range sizes {
+		if size == 32 {
+			t.Errorf("GetAvailableSizes advertised size 32 served only by a disabled codelet: %v", sizes)
+		}
+
+		if registry.Lookup(size, features) == nil {
+			t.Errorf("GetAvailableSizes advertised size %d but Lookup returns nil", size)
+		}
+	}
+
+	if len(sizes) != 1 {
+		t.Errorf("expected only size 16 available, got %v", sizes)
+	}
+}
+
 // TestCodeletRegistrySorted tests that GetAvailableSizes returns sorted results.
 func TestCodeletRegistrySorted(t *testing.T) {
 	t.Parallel()

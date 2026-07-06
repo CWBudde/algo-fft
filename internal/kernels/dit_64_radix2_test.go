@@ -22,8 +22,8 @@ func TestForwardDIT64Complex64(t *testing.T) {
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
-	if !forwardDIT64Complex64(dst, src, twiddle, scratch) {
-		t.Fatal("forwardDIT64Complex64 failed")
+	if !forwardDIT64Radix2Complex64(dst, src, twiddle, scratch) {
+		t.Fatal("forwardDIT64Radix2Complex64 failed")
 	}
 
 	want := reference.NaiveDFT(src)
@@ -42,12 +42,12 @@ func TestInverseDIT64Complex64(t *testing.T) {
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
-	if !forwardDIT64Complex64(fwd, src, twiddle, scratch) {
-		t.Fatal("forwardDIT64Complex64 failed")
+	if !forwardDIT64Radix2Complex64(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT64Radix2Complex64 failed")
 	}
 
-	if !inverseDIT64Complex64(dst, fwd, twiddle, scratch) {
-		t.Fatal("inverseDIT64Complex64 failed")
+	if !inverseDIT64Radix2Complex64(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT64Radix2Complex64 failed")
 	}
 
 	want := reference.NaiveIDFT(fwd)
@@ -65,8 +65,8 @@ func TestForwardDIT64Complex128(t *testing.T) {
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
 
-	if !forwardDIT64Complex128(dst, src, twiddle, scratch) {
-		t.Fatal("forwardDIT64Complex128 failed")
+	if !forwardDIT64Radix2Complex128(dst, src, twiddle, scratch) {
+		t.Fatal("forwardDIT64Radix2Complex128 failed")
 	}
 
 	want := reference.NaiveDFT128(src)
@@ -85,12 +85,12 @@ func TestInverseDIT64Complex128(t *testing.T) {
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
 
-	if !forwardDIT64Complex128(fwd, src, twiddle, scratch) {
-		t.Fatal("forwardDIT64Complex128 failed")
+	if !forwardDIT64Radix2Complex128(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT64Radix2Complex128 failed")
 	}
 
-	if !inverseDIT64Complex128(dst, fwd, twiddle, scratch) {
-		t.Fatal("inverseDIT64Complex128 failed")
+	if !inverseDIT64Radix2Complex128(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT64Radix2Complex128 failed")
 	}
 
 	want := reference.NaiveIDFT128(fwd)
@@ -109,12 +109,12 @@ func TestRoundTripDIT64Complex64(t *testing.T) {
 	scratch := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
 
-	if !forwardDIT64Complex64(fwd, src, twiddle, scratch) {
-		t.Fatal("forwardDIT64Complex64 failed")
+	if !forwardDIT64Radix2Complex64(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT64Radix2Complex64 failed")
 	}
 
-	if !inverseDIT64Complex64(dst, fwd, twiddle, scratch) {
-		t.Fatal("inverseDIT64Complex64 failed")
+	if !inverseDIT64Radix2Complex64(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT64Radix2Complex64 failed")
 	}
 
 	assertComplex64Close(t, dst, src, size64Tol64)
@@ -132,12 +132,12 @@ func TestRoundTripDIT64Complex128(t *testing.T) {
 	scratch := make([]complex128, n)
 	twiddle := ComputeTwiddleFactors[complex128](n)
 
-	if !forwardDIT64Complex128(fwd, src, twiddle, scratch) {
-		t.Fatal("forwardDIT64Complex128 failed")
+	if !forwardDIT64Radix2Complex128(fwd, src, twiddle, scratch) {
+		t.Fatal("forwardDIT64Radix2Complex128 failed")
 	}
 
-	if !inverseDIT64Complex128(dst, fwd, twiddle, scratch) {
-		t.Fatal("inverseDIT64Complex128 failed")
+	if !inverseDIT64Radix2Complex128(dst, fwd, twiddle, scratch) {
+		t.Fatal("inverseDIT64Radix2Complex128 failed")
 	}
 
 	assertComplex128Close(t, dst, src, size64Tol128)

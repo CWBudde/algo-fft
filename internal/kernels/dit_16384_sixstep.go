@@ -34,7 +34,7 @@ func forwardDIT16384SixStepComplex64(dst, src, twiddle, scratch []complex64) boo
 	// Step 2: Row FFTs (128 FFTs of size 128).
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !forwardDIT128Complex64(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !forwardDIT128Radix2Complex64(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -57,7 +57,7 @@ func forwardDIT16384SixStepComplex64(dst, src, twiddle, scratch []complex64) boo
 	// Step 5: Row FFTs (128 FFTs of size 128).
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !forwardDIT128Complex64(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !forwardDIT128Radix2Complex64(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -106,7 +106,7 @@ func inverseDIT16384SixStepComplex64(dst, src, twiddle, scratch []complex64) boo
 	// Step 2: Row IFFTs (128 IFFTs of size 128).
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !inverseDIT128Complex64(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !inverseDIT128Radix2Complex64(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -130,7 +130,7 @@ func inverseDIT16384SixStepComplex64(dst, src, twiddle, scratch []complex64) boo
 	// Step 5: Row IFFTs (128 IFFTs of size 128).
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !inverseDIT128Complex64(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !inverseDIT128Radix2Complex64(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -179,7 +179,7 @@ func forwardDIT16384SixStepComplex128(dst, src, twiddle, scratch []complex128) b
 	// Step 2: Row FFTs (128 FFTs of size 128).
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !forwardDIT128Complex128(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !forwardDIT128Radix2Complex128(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -202,7 +202,7 @@ func forwardDIT16384SixStepComplex128(dst, src, twiddle, scratch []complex128) b
 	// Step 5: Row FFTs (128 FFTs of size 128).
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !forwardDIT128Complex128(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !forwardDIT128Radix2Complex128(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -251,7 +251,7 @@ func inverseDIT16384SixStepComplex128(dst, src, twiddle, scratch []complex128) b
 	// Step 2: Row IFFTs (128 IFFTs of size 128).
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !inverseDIT128Complex128(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !inverseDIT128Radix2Complex128(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}
@@ -275,7 +275,7 @@ func inverseDIT16384SixStepComplex128(dst, src, twiddle, scratch []complex128) b
 	// Step 5: Row IFFTs (128 IFFTs of size 128).
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !inverseDIT128Complex128(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !inverseDIT128Radix2Complex128(row, row, rowTwiddle[:], rowScratch[:]) {
 			return false
 		}
 	}

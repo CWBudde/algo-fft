@@ -8,7 +8,7 @@ import mathpkg "github.com/cwbudde/algo-fft/internal/math"
 var bitrev64Radix2 = mathpkg.ComputeBitReversalIndices(64)
 
 //nolint:funlen
-func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64) bool {
+func forwardDIT64Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 64
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -467,7 +467,7 @@ func forwardDIT64Complex64(dst, src, twiddle, scratch []complex64) bool {
 }
 
 //nolint:funlen
-func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64) bool {
+func inverseDIT64Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 64
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -990,7 +990,7 @@ func inverseDIT64Complex64(dst, src, twiddle, scratch []complex64) bool {
 }
 
 //nolint:funlen
-func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128) bool {
+func forwardDIT64Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 64
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -1448,7 +1448,7 @@ func forwardDIT64Complex128(dst, src, twiddle, scratch []complex128) bool {
 }
 
 //nolint:funlen
-func inverseDIT64Complex128(dst, src, twiddle, scratch []complex128) bool {
+func inverseDIT64Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 64
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
