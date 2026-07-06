@@ -269,13 +269,23 @@ into the P2 backlog below.
       2D/3D/ND plans. (The 2D/3D/ND plans were already generic; no template
       generator was introduced.)
 
-### P1.5 Clean up dispatch
+### P1.5 Clean up dispatch ✅ **completed 2026-07.**
 
-- [ ] Factor the 4×-duplicated `SelectKernels[T]` type-switch/assertion
-      boilerplate (`dispatch.go`) into one helper; stop silently ignoring failed
-      type assertions.
-- [ ] Document the `stockham_packed_toggle_asm.go` inversion (packed Stockham is
-      _disabled_ exactly when `asm` is enabled) or remove it.
+- [x] Factored the 4×-duplicated `SelectKernels[T]` type-switch/assertion
+      boilerplate (`dispatch.go`) into `bridgeKernel[T]`/`bridgeKernels[T]`
+      helpers shared by `SelectKernels` and `SelectKernelsWithStrategy`. The
+      failed type assertion is no longer discarded with `_`: a mismatch (a
+      dispatch bug, impossible under the `Complex` constraint) now panics with a
+      descriptive message instead of silently returning a nil kernel. A
+      legitimately typed-nil kernel still asserts `ok == true`, so behavior is
+      preserved.
+- [x] Documented the `stockham_packed_toggle_*.go` inversion instead of removing
+      it (no correctness bug behind it): the pure-Go packed radix-4 Stockham path
+      is enabled on the default build but disabled under `-tags asm`, where the
+      SIMD codelet path in `plan.go` (checked first) supersedes it. Added
+      rationale comments to both toggle files and to the two `plan.go` dispatch
+      gates (`Forward`/`Inverse`) clarifying it is a dispatch de-duplication, not
+      a workaround.
 
 ### P1.6 Introduce a codelet generator
 

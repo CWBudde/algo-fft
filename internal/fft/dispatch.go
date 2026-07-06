@@ -1,6 +1,8 @@
 package fft
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/planner"
@@ -120,6 +122,29 @@ func ApplyTransposePairs[T any](data []T, pairs []TransposePair) {
 
 // Kernel and Kernels types are now imported from internal/kernels via kernels.go
 
+// bridgeKernel converts a concretely-typed kernel (returned by the per-arch
+// selectKernels* helpers) to the generic Kernel[T]. The type-switch in the
+// callers guarantees T matches the concrete type, so the assertion always
+// succeeds; a failure indicates a dispatch bug, so we panic rather than
+// silently return a nil kernel. A legitimately nil kernel of the matching
+// concrete type still asserts ok == true and is returned as-is.
+func bridgeKernel[T Complex](k any) Kernel[T] {
+	kern, ok := k.(Kernel[T])
+	if !ok {
+		panic(fmt.Sprintf("algofft: kernel type mismatch, got %T want Kernel[%T]", k, *new(T)))
+	}
+
+	return kern
+}
+
+// bridgeKernels bridges a matched forward/inverse kernel pair to Kernels[T].
+func bridgeKernels[T Complex](forward, inverse any) Kernels[T] {
+	return Kernels[T]{
+		Forward: bridgeKernel[T](forward),
+		Inverse: bridgeKernel[T](inverse),
+	}
+}
+
 // SelectKernels returns the best available kernels for the detected features.
 // Currently returns stubs until optimized kernels are implemented.
 func SelectKernels[T Complex](features cpu.Features) Kernels[T] {
@@ -127,24 +152,10 @@ func SelectKernels[T Complex](features cpu.Features) Kernels[T] {
 	switch any(zero).(type) {
 	case complex64:
 		k := selectKernelsComplex64(features)
-
-		forward, _ := any(k.Forward).(Kernel[T])
-		inverse, _ := any(k.Inverse).(Kernel[T])
-
-		return Kernels[T]{
-			Forward: forward,
-			Inverse: inverse,
-		}
+		return bridgeKernels[T](k.Forward, k.Inverse)
 	case complex128:
 		k := selectKernelsComplex128(features)
-
-		forward, _ := any(k.Forward).(Kernel[T])
-		inverse, _ := any(k.Inverse).(Kernel[T])
-
-		return Kernels[T]{
-			Forward: forward,
-			Inverse: inverse,
-		}
+		return bridgeKernels[T](k.Forward, k.Inverse)
 	default:
 		return Kernels[T]{
 			Forward: stubKernel[T],
@@ -159,24 +170,10 @@ func SelectKernelsWithStrategy[T Complex](features cpu.Features, strategy Kernel
 	switch any(zero).(type) {
 	case complex64:
 		k := selectKernelsComplex64WithStrategy(features, strategy)
-
-		forward, _ := any(k.Forward).(Kernel[T])
-		inverse, _ := any(k.Inverse).(Kernel[T])
-
-		return Kernels[T]{
-			Forward: forward,
-			Inverse: inverse,
-		}
+		return bridgeKernels[T](k.Forward, k.Inverse)
 	case complex128:
 		k := selectKernelsComplex128WithStrategy(features, strategy)
-
-		forward, _ := any(k.Forward).(Kernel[T])
-		inverse, _ := any(k.Inverse).(Kernel[T])
-
-		return Kernels[T]{
-			Forward: forward,
-			Inverse: inverse,
-		}
+		return bridgeKernels[T](k.Forward, k.Inverse)
 	default:
 		return Kernels[T]{
 			Forward: stubKernel[T],

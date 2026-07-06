@@ -260,6 +260,9 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		return nil
 	}
 
+	// Pure-Go packed radix-4 Stockham route. StockhamPackedAvailable is false
+	// under -tags asm, where the codelet path above supersedes it (see the
+	// toggle in internal/transform/stockham_packed_toggle_*.go).
 	if p.kernelStrategy == fft.KernelStockham && fft.StockhamPackedAvailable() {
 		if fft.ForwardStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4) {
 			return nil
@@ -310,6 +313,9 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 		return nil
 	}
 
+	// Pure-Go packed radix-4 Stockham route. StockhamPackedAvailable is false
+	// under -tags asm, where the codelet path above supersedes it (see the
+	// toggle in internal/transform/stockham_packed_toggle_*.go).
 	if p.kernelStrategy == fft.KernelStockham && fft.StockhamPackedAvailable() {
 		if fft.InverseStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4Inv) {
 			return nil
