@@ -27,7 +27,6 @@ func main() {
 		sizeList   = flag.String("sizes", "1024,4096,16384,65536", "comma-separated sizes")
 		iters      = flag.Int("iters", 50, "benchmark iterations")
 		warmup     = flag.Int("warmup", 5, "warmup iterations")
-		emit       = flag.Bool("emit", false, "emit RecordBenchmarkDecision lines")
 		wisdomFile = flag.String("wisdom", "", "export wisdom to file (portable format)")
 		mode       = flag.String("mode", "forward", "benchmark mode: forward, inverse, roundtrip, all")
 		seed       = flag.Int64("seed", 1, "rng seed")
@@ -42,9 +41,6 @@ func main() {
 	}
 
 	rnd := rand.New(rand.NewSource(*seed))
-
-	algofft.SetKernelStrategy(algofft.KernelAuto)
-	defer algofft.SetKernelStrategy(algofft.KernelAuto)
 
 	fmt.Printf("iters=%d warmup=%d\n", *iters, *warmup)
 	fmt.Printf("%8s  %10s  %12s  %12s\n", "size", "mode", "kernel", "ns/op")
@@ -72,10 +68,6 @@ func main() {
 				best := results[0]
 				best.size = n
 				bestResults = append(bestResults, best)
-
-				if *emit {
-					fmt.Printf("algofft.RecordBenchmarkDecision(%d, algofft.%s)\n", n, strategyConst(best.strategy))
-				}
 			}
 		}
 	}
@@ -112,9 +104,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 	results := make([]benchResult, 0, len(strategies))
 
 	for _, strategy := range strategies {
-		algofft.SetKernelStrategy(strategy)
-
-		plan, err := algofft.NewPlanT[complex64](n)
+		plan, err := algofft.NewPlanWithOptions[complex64](n, algofft.PlanOptions{Strategy: strategy})
 		if err != nil {
 			continue
 		}
@@ -164,8 +154,6 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 			nsPerOp:  float64(elapsedNanos) / float64(iters),
 		})
 	}
-
-	algofft.SetKernelStrategy(algofft.KernelAuto)
 
 	return results
 }
@@ -247,21 +235,6 @@ func strategyName(strategy algofft.KernelStrategy) string {
 		return "EightStep"
 	default:
 		return "Auto"
-	}
-}
-
-func strategyConst(strategy algofft.KernelStrategy) string {
-	switch strategy {
-	case algofft.KernelDIT:
-		return "KernelDIT"
-	case algofft.KernelStockham:
-		return "KernelStockham"
-	case algofft.KernelSixStep:
-		return "KernelSixStep"
-	case algofft.KernelEightStep:
-		return "KernelEightStep"
-	default:
-		return "KernelAuto"
 	}
 }
 

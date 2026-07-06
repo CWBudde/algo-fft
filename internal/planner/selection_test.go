@@ -1,204 +1,61 @@
 package planner
 
 import (
-	"sync"
 	"testing"
 )
 
-// TestSetGetKernelStrategy tests setting and getting kernel strategy.
-//
-//nolint:paralleltest
-func TestSetGetKernelStrategy(t *testing.T) {
-	originalStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(originalStrategy)
+// TestResolveKernelStrategyAuto tests the heuristic threshold behavior when no
+// strategy is forced (KernelAuto).
+func TestResolveKernelStrategyAuto(t *testing.T) {
+	t.Parallel()
 
-	tests := []KernelStrategy{
-		KernelAuto,
-		KernelDIT,
-		KernelStockham,
-		KernelSixStep,
-		KernelEightStep,
+	tests := []struct {
+		name string
+		size int
+		want KernelStrategy
+	}{
+		{"below threshold", 256, KernelDIT},
+		{"at threshold", 1024, KernelDIT},
+		{"above threshold", 2048, KernelStockham},
 	}
 
-	for _, strategy := range tests {
-		t.Run("strategy", func(t *testing.T) {
-			SetKernelStrategy(strategy)
-
-			got := GetKernelStrategy()
-			if got != strategy {
-				t.Errorf("SetKernelStrategy(%v); GetKernelStrategy() = %v, want %v",
-					strategy, got, strategy)
-			}
-		})
+	for _, tt := range tests {
+		got := ResolveKernelStrategy(tt.size)
+		if got != tt.want {
+			t.Errorf("ResolveKernelStrategy(%d) = %v, want %v", tt.size, got, tt.want)
+		}
 	}
 }
 
-// TestResolveKernelStrategyAutoThreshold tests the threshold behavior for auto strategy.
-//
-//nolint:paralleltest
-func TestResolveKernelStrategyAutoThreshold(t *testing.T) {
-	originalStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(originalStrategy)
-
-	SetKernelStrategy(KernelDIT)
-
-	// When DIT is forced, sizes at threshold should return DIT
-	ditResult := ResolveKernelStrategy(1024)
-	if ditResult != KernelDIT {
-		t.Errorf("ResolveKernelStrategy(1024) with forced DIT = %v, want KernelDIT", ditResult)
-	}
-
-	SetKernelStrategy(KernelStockham)
-
-	// When Stockham is forced, all sizes should return Stockham
-	stockhamResult := ResolveKernelStrategy(256)
-	if stockhamResult != KernelStockham {
-		t.Errorf("ResolveKernelStrategy(256) with forced Stockham = %v, want KernelStockham", stockhamResult)
-	}
-}
-
-// TestResolveKernelStrategyForced tests resolution with forced strategy.
-//
-//nolint:paralleltest
+// TestResolveKernelStrategyForced tests resolution with a forced strategy passed
+// as the default (mirrors PlanOptions.Strategy threading).
 func TestResolveKernelStrategyForced(t *testing.T) {
-	originalStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(originalStrategy)
+	t.Parallel()
 
 	strategies := []KernelStrategy{KernelDIT, KernelStockham}
 	for _, strategy := range strategies {
-		t.Run("forced_strategy", func(t *testing.T) {
-			SetKernelStrategy(strategy)
-
-			got := ResolveKernelStrategy(512)
-			if got != strategy {
-				t.Errorf("ResolveKernelStrategy(512) with forced %v = %v, want %v",
-					strategy, got, strategy)
-			}
-		})
+		got := ResolveKernelStrategyWithDefault(512, strategy)
+		if got != strategy {
+			t.Errorf("ResolveKernelStrategyWithDefault(512, %v) = %v, want %v",
+				strategy, got, strategy)
+		}
 	}
 }
 
-// TestResolveKernelStrategyWithDefault tests resolution with default strategy.
-//
-//nolint:paralleltest
+// TestResolveKernelStrategyWithDefault tests that a concrete default is honored and
+// KernelAuto falls through to heuristics.
 func TestResolveKernelStrategyWithDefault(t *testing.T) {
-	originalStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(originalStrategy)
-
-	SetKernelStrategy(KernelAuto)
+	t.Parallel()
 
 	got := ResolveKernelStrategyWithDefault(512, KernelStockham)
 	if got != KernelStockham {
 		t.Errorf("ResolveKernelStrategyWithDefault(512, Stockham) = %v, want Stockham", got)
 	}
-}
 
-// TestRecordBenchmarkDecision tests recording and retrieving benchmark decisions.
-//
-//nolint:paralleltest
-func TestRecordBenchmarkDecision(t *testing.T) {
-	originalDecisions := benchDecisions
-
-	defer func() {
-		benchMu.Lock()
-
-		benchDecisions = originalDecisions
-
-		benchMu.Unlock()
-	}()
-
-	benchMu.Lock()
-
-	benchDecisions = make(map[int]KernelStrategy)
-
-	benchMu.Unlock()
-
-	originalStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(originalStrategy)
-
-	SetKernelStrategy(KernelAuto)
-
-	// Record a decision
-	RecordBenchmarkDecision(512, KernelStockham)
-
-	// Verify it's used
-	got := ResolveKernelStrategy(512)
-	if got != KernelStockham {
-		t.Errorf("ResolveKernelStrategy(512) after recording decision = %v, want KernelStockham",
-			got)
-	}
-}
-
-// TestRecordBenchmarkDecisionInvalid tests that invalid decisions are ignored.
-//
-//nolint:paralleltest
-func TestRecordBenchmarkDecisionInvalid(t *testing.T) {
-	originalDecisions := benchDecisions
-
-	defer func() {
-		benchMu.Lock()
-
-		benchDecisions = originalDecisions
-
-		benchMu.Unlock()
-	}()
-
-	benchMu.Lock()
-
-	benchDecisions = make(map[int]KernelStrategy)
-
-	benchMu.Unlock()
-
-	originalStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(originalStrategy)
-
-	SetKernelStrategy(KernelAuto)
-
-	// Record invalid decisions (should be ignored)
-	RecordBenchmarkDecision(-1, KernelDIT)        // Negative size
-	RecordBenchmarkDecision(512, KernelBluestein) // Invalid strategy
-
-	benchMu.RLock()
-
-	count := len(benchDecisions)
-
-	benchMu.RUnlock()
-
-	if count != 0 {
-		t.Errorf("Expected no decisions recorded, got %d", count)
-	}
-}
-
-// TestRecordBenchmarkDecisionZeroSize tests that zero size is ignored.
-//
-//nolint:paralleltest
-func TestRecordBenchmarkDecisionZeroSize(t *testing.T) {
-	originalDecisions := benchDecisions
-
-	defer func() {
-		benchMu.Lock()
-
-		benchDecisions = originalDecisions
-
-		benchMu.Unlock()
-	}()
-
-	benchMu.Lock()
-
-	benchDecisions = make(map[int]KernelStrategy)
-
-	benchMu.Unlock()
-
-	RecordBenchmarkDecision(0, KernelDIT)
-
-	benchMu.RLock()
-
-	count := len(benchDecisions)
-
-	benchMu.RUnlock()
-
-	if count != 0 {
-		t.Errorf("Expected no decisions for size 0, got %d", count)
+	// KernelAuto default falls back to the size heuristic (512 <= threshold -> DIT).
+	got = ResolveKernelStrategyWithDefault(512, KernelAuto)
+	if got != KernelDIT {
+		t.Errorf("ResolveKernelStrategyWithDefault(512, Auto) = %v, want DIT", got)
 	}
 }
 
@@ -286,28 +143,10 @@ func TestFallbackKernelStrategy(t *testing.T) {
 	}
 }
 
-// TestSixStepEightStepSquareSizes tests strategy selection for square sizes.
-//
-//nolint:paralleltest
+// TestSixStepEightStepSquareSizes tests strategy selection for square sizes under
+// the auto heuristic.
 func TestSixStepEightStepSquareSizes(t *testing.T) {
-	originalStrategy := GetKernelStrategy()
-	originalDecisions := benchDecisions
-
-	defer func() {
-		SetKernelStrategy(originalStrategy)
-		benchMu.Lock()
-
-		benchDecisions = originalDecisions
-
-		benchMu.Unlock()
-	}()
-
-	SetKernelStrategy(KernelAuto)
-	benchMu.Lock()
-
-	benchDecisions = make(map[int]KernelStrategy)
-
-	benchMu.Unlock()
+	t.Parallel()
 
 	tests := []struct {
 		name string
@@ -329,104 +168,20 @@ func TestSixStepEightStepSquareSizes(t *testing.T) {
 	}
 }
 
-// TestForcedSixStepOnNonSquare tests that six/eight-step forced on non-square falls back.
-//
-//nolint:paralleltest
+// TestForcedSixStepOnNonSquare tests that six/eight-step forced on a non-square size
+// falls back to a size-appropriate strategy.
 func TestForcedSixStepOnNonSquare(t *testing.T) {
-	originalStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(originalStrategy)
+	t.Parallel()
 
-	SetKernelStrategy(KernelSixStep)
-
-	// Non-square size forced to sixstep should fall back
-	got := ResolveKernelStrategy(1000)
+	// Non-square size forced to sixstep should fall back.
+	got := ResolveKernelStrategyWithDefault(1000, KernelSixStep)
 	if got == KernelSixStep || got == KernelEightStep {
-		t.Errorf("ResolveKernelStrategy(1000, forced SixStep) = %v, should not be SixStep/EightStep for non-square",
-			got)
+		t.Errorf("ResolveKernelStrategyWithDefault(1000, SixStep) = %v, should fall back for non-square", got)
 	}
 
-	// Size <= ditAutoThreshold should fall back to DIT
-	got = ResolveKernelStrategy(512)
+	// Size <= ditAutoThreshold should fall back to DIT.
+	got = ResolveKernelStrategyWithDefault(512, KernelSixStep)
 	if got != KernelDIT {
-		t.Errorf("ResolveKernelStrategy(512, forced SixStep) = %v, want fallback DIT", got)
+		t.Errorf("ResolveKernelStrategyWithDefault(512, SixStep) = %v, want fallback DIT", got)
 	}
-}
-
-// TestConcurrentBenchmarkDecisions tests concurrent recording of benchmark decisions.
-//
-//nolint:paralleltest
-func TestConcurrentBenchmarkDecisions(t *testing.T) {
-	originalDecisions := benchDecisions
-
-	defer func() {
-		benchMu.Lock()
-
-		benchDecisions = originalDecisions
-
-		benchMu.Unlock()
-	}()
-
-	benchMu.Lock()
-
-	benchDecisions = make(map[int]KernelStrategy)
-
-	benchMu.Unlock()
-
-	originalStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(originalStrategy)
-
-	SetKernelStrategy(KernelAuto)
-
-	var waitGroup sync.WaitGroup
-
-	strategies := []KernelStrategy{KernelDIT, KernelStockham}
-
-	for i := range 100 {
-		waitGroup.Add(1)
-
-		go func(size int, strategy KernelStrategy) {
-			defer waitGroup.Done()
-
-			RecordBenchmarkDecision(size, strategy)
-		}(256+i, strategies[i%2])
-	}
-
-	waitGroup.Wait()
-
-	// Verify all decisions were recorded
-	benchMu.RLock()
-
-	if len(benchDecisions) != 100 {
-		t.Errorf("Expected 100 decisions recorded, got %d", len(benchDecisions))
-	}
-
-	benchMu.RUnlock()
-}
-
-// TestConcurrentKernelStrategy tests concurrent access to kernel strategy.
-//
-//nolint:paralleltest
-func TestConcurrentKernelStrategy(t *testing.T) {
-	originalStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(originalStrategy)
-
-	var waitGroup sync.WaitGroup
-
-	const goroutines = 100
-
-	for i := range goroutines {
-		waitGroup.Add(1)
-
-		go func(idx int) {
-			defer waitGroup.Done()
-
-			strategies := []KernelStrategy{KernelDIT, KernelStockham, KernelAuto}
-			strategy := strategies[idx%len(strategies)]
-			SetKernelStrategy(strategy)
-
-			_ = GetKernelStrategy()
-		}(i)
-	}
-
-	waitGroup.Wait()
 }

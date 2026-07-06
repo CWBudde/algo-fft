@@ -37,14 +37,13 @@ const (
 )
 
 // Re-export functions and variables from planner.
+//
+//nolint:gochecknoglobals // intentional re-export shims bridging planner to the public API
 var (
-	SetKernelStrategy       = planner.SetKernelStrategy
-	GetKernelStrategy       = planner.GetKernelStrategy
-	RecordBenchmarkDecision = planner.RecordBenchmarkDecision
-	ResolveKernelStrategy   = planner.ResolveKernelStrategy
-	DefaultWisdom           = planner.DefaultWisdom
-	NewWisdom               = planner.NewWisdom
-	CPUFeatureMask          = planner.CPUFeatureMask
+	ResolveKernelStrategy = planner.ResolveKernelStrategy
+	DefaultWisdom         = planner.DefaultWisdom
+	NewWisdom             = planner.NewWisdom
+	CPUFeatureMask        = planner.CPUFeatureMask
 )
 
 // Wrapper functions for generic planner functions.

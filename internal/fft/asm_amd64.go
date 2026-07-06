@@ -738,18 +738,20 @@ func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128) bool
 	return inverseStockhamComplex128(dst, src, twiddle, scratch)
 }
 
+// forwardSSE2Complex128/inverseSSE2Complex128 are the scalar SSE2-complex128 entry
+// points. The SSE2 asm kernel only covers a few small sizes, so they fall back to the
+// best scalar kernel for the size via the pure size heuristic (ResolveKernelStrategy
+// no longer reads any process-global state), keeping them strategy-snapshot-safe.
 func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
 
-	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
-	case KernelDIT:
-		return forwardDITComplex128(dst, src, twiddle, scratch)
+	switch planner.ResolveKernelStrategy(len(src)) {
 	case KernelStockham:
 		return forwardStockhamComplex128(dst, src, twiddle, scratch)
 	default:
-		return false
+		return forwardDITComplex128(dst, src, twiddle, scratch)
 	}
 }
 
@@ -758,12 +760,10 @@ func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128) bool {
 		return false
 	}
 
-	switch planner.ResolveKernelStrategyWithDefault(len(src), KernelAuto) {
-	case KernelDIT:
-		return inverseDITComplex128(dst, src, twiddle, scratch)
+	switch planner.ResolveKernelStrategy(len(src)) {
 	case KernelStockham:
 		return inverseStockhamComplex128(dst, src, twiddle, scratch)
 	default:
-		return false
+		return inverseDITComplex128(dst, src, twiddle, scratch)
 	}
 }
