@@ -201,7 +201,9 @@ func (r *CodeletRegistry[T]) GetAvailableSizes(features cpu.Features) []int {
 }
 
 // lookupUnlocked is an internal version of Lookup without locking.
-// Caller must hold r.mu (read or write lock).
+// Caller must hold r.mu (read or write lock). It must apply the same filtering
+// as Lookup (including skipping disabled codelets) so that GetAvailableSizes
+// never advertises a size that a subsequent Lookup would reject.
 func (r *CodeletRegistry[T]) lookupUnlocked(size int, features cpu.Features) *CodeletEntry[T] {
 	entries := r.codelets[size]
 	if len(entries) == 0 {
@@ -210,6 +212,11 @@ func (r *CodeletRegistry[T]) lookupUnlocked(size int, features cpu.Features) *Co
 
 	// Find the best codelet that the CPU supports
 	for i := range entries {
+		// Skip disabled codelets (negative priority), matching Lookup.
+		if entries[i].Priority < 0 {
+			continue
+		}
+
 		if cpuSupports(features, entries[i].SIMDLevel) {
 			return &entries[i]
 		}
