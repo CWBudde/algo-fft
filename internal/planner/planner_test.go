@@ -154,7 +154,7 @@ func TestEstimatePlanWithWisdom(t *testing.T) {
 		Key: WisdomKey{
 			Size:        512,
 			Precision:   0,
-			CPUFeatures: CPUFeatureMask(true, true, false, false),
+			CPUFeatures: CPUFeatureMask(true, false, true, false, false),
 		},
 		Algorithm: "stockham",
 	})
@@ -182,7 +182,7 @@ func TestEstimatePlanWisdomOverriddenByForce(t *testing.T) {
 		Key: WisdomKey{
 			Size:        512,
 			Precision:   0,
-			CPUFeatures: CPUFeatureMask(true, true, false, false),
+			CPUFeatures: CPUFeatureMask(true, false, true, false, false),
 		},
 		Algorithm: "stockham",
 	})

@@ -38,8 +38,10 @@ into the P2 backlog below.
 > concurrency-safe, the mixed-radix driver panics instead of returning garbage,
 > every registered codelet is validated per-direction against reference
 > spectra, and the docs/module-path/binary issues are resolved. Finding 6
-> (global mutable state) remains open as P1.1. The list is preserved below as
-> the review record.
+> (global mutable state) is resolved as P1.1 (2026-07): kernel strategy is now
+> per-plan via `PlanOptions.Strategy` and the size-only `benchDecisions` cache
+> was dropped in favor of the richer Wisdom cache. The list is preserved below
+> as the review record.
 
 1. **SIMD is effectively non-functional as shipped.**
    - Default builds (`go build ./...`, `just build`, published module) are
@@ -186,42 +188,70 @@ into the P2 backlog below.
 
 ## Priority 1 — Architecture Hardening
 
-### P1.1 Scope the global mutable state
+### P1.1 Scope the global mutable state ✅ **completed 2026-07.**
 
-- [ ] Move `kernelStrategy` and `benchDecisions` out of package globals into
-      `Planner`/`PlanOptions` scope so two library consumers cannot interfere.
-      If a process-global default is retained for convenience, document it loudly
-      and provide a reset; mirror `PlanOptions.Wisdom`'s per-instance model.
-- [ ] Re-key `benchDecisions` like `WisdomKey` (size + precision + CPU features +
-      direction) or drop it in favor of the richer Wisdom cache — one tuning
-      cache, not two with different keying.
-- [ ] Fix the 386 SSE2-complex128 wrappers that re-read the global strategy at
-      execution time (`asm_amd64.go:746,761`), breaking the plan snapshot
-      invariant; remove their amd64 dead duplicates.
+- [x] Removed the `kernelStrategy` global and its `SetKernelStrategy`/
+      `GetKernelStrategy` accessors entirely; kernel strategy is now chosen
+      per-plan via `PlanOptions.Strategy` (mirrors `PlanOptions.Wisdom`'s
+      per-instance model). `resolveKernelStrategy` is a pure function of
+      `(size, strategy)` with no process-global reads. Migrated
+      `examples/recursive_fft` and `cmd/benchkernels` to `PlanOptions.Strategy`.
+- [x] Dropped `benchDecisions`/`RecordBenchmarkDecision` in favor of the richer
+      Wisdom cache (size + precision + CPU features) — one tuning cache, not two.
+      `cmd/benchkernels` records tuning solely through Wisdom export
+      (`-wisdom`). (The extra "direction" dimension is deferred: kernel strategy
+      is direction-independent here and it would inflate the persisted Wisdom
+      format.)
+- [x] Fixed the SSE2-complex128 wrappers (`asm_amd64.go`) that re-read the global
+      strategy at execution time: they now select the scalar fallback via the
+      global-free size heuristic (`ResolveKernelStrategy`), matching their
+      complex64 siblings. The genuine 386 wrappers already dispatched by size, so
+      no change was needed there.
 
-### P1.2 Harden the Wisdom format
+### P1.2 Harden the Wisdom format ✅ **completed 2026-07.**
 
-- [ ] Add a version/magic header; reject unknown versions instead of
-      mis-parsing.
-- [ ] Make `Import` atomic: parse+validate into a temp map (known algorithm
-      names, supported sizes, feature-mask width) and swap in only on full
-      success.
-- [ ] Widen the CPU-feature mask to distinguish SSE3 from SSE2. Decide whether
-      `Timestamp` drives staleness/eviction or drop it from the format.
-- [ ] Increase `PlannerMeasure` iteration counts / add outlier rejection so
-      recorded wisdom isn't dominated by timing noise at small sizes.
+- [x] Added a version/magic header (`# algofft-wisdom v2`) written by `Export` and
+      required by `Import`; unversioned or unknown-version files are rejected with
+      a clear error instead of being mis-parsed (`internal/planner/wisdom.go`).
+- [x] Made `Import` atomic: it parses+validates the whole file into a temporary
+      map (size range, precision, feature-mask width, algorithm-name charset) and
+      merges into the live cache only on full success, so a malformed line leaves
+      the cache untouched.
+- [x] Widened the CPU-feature mask to distinguish SSE3 from SSE2 (new bit layout
+      `SSE2|SSE3|AVX2|AVX512|NEON`; `CPUFeatureMask`/`MakeWisdomKey` take a
+      `hasSSE3` argument and all call sites pass `features.HasSSE3`). `Timestamp`
+      now drives staleness: added `Wisdom.EvictOlderThan` and
+      `ImportWithMaxAge` / public `ImportWisdomWithMaxAge` to drop stale entries.
+- [x] Reduced `PlannerMeasure` timing noise: raised iteration counts and added
+      multi-trial **median** sampling (outlier rejection) in `benchmarkStrategy`
+      (`internal/fft/measure.go`).
 
-### P1.3 Zero-allocation parity across all plan types
+### P1.3 Zero-allocation parity across all plan types ✅ **completed 2026-07.**
 
-- [ ] Make `PlanND` zero-alloc: preallocate the per-dimension slice buffer and
-      precompute stride math instead of `make()` twice per slice
-      (`plan_nd.go:336,440`). Model it on the 3D path.
-- [ ] Hoist per-sub-transform `make()`s out of `mixedradix_avx2.go` (twiddle/
-      scratch) into plan-owned buffers.
-- [ ] Cache bit-reversal indices and `IsHighlyComposite`/factorization at plan
-      creation, not per transform (`asm_amd64.go:56-68`, `kernels_fallback.go`).
-- [ ] Extend `plan_alloc_test.go` to guard 2D/3D/ND and real variants (currently
-      1D-only), so the promise is enforced everywhere it is made.
+- [x] `PlanND` is now zero-alloc: the per-dimension slice buffer and the
+      `reducedDims`/`coords` index scratch are preallocated in `planNDScratch`
+      and threaded through `transformDimension`/`sliceIndexToOffset` (the base
+      offset is computed once per slice instead of twice), modeled on the 3D
+      path (`plan_nd.go`).
+- [x] Hoisted the per-sub-transform `make()`s out of `mixedradix_avx2.go`
+      (gathered twiddle + kernel scratch) into pooled leaf buffers
+      (`mrScratchPool64/128`); the size-384 complex128 codelet likewise now
+      precomputes its 128-point sub-twiddle once and pools its output/scratch
+      (`dit_384_decomp_128x3_amd64_asm.go`).
+- [x] `ComputeBitReversalIndices` is memoized for the AVX2 Stockham/complex128
+      wrappers (`bitrev_cache_amd64.go`, wired in `asm_amd64.go`), and
+      `IsHighlyComposite` is now allocation-free (divides out 2/3/5 in place
+      instead of materializing the factor slice, `internal/math/factor.go`) so
+      it no longer allocates on the per-transform dispatch hot path
+      (`kernels_fallback.go`). Two extra default-build leaks found and fixed
+      along the way: the mixed-radix schedule buffer (a `[64]int` that escaped
+      through the recursion hook) is now pooled (`radixSchedulePool`,
+      `mixedradix.go`), and the size-specific AVX2 dispatch no longer builds a
+      per-transform strategy closure (`kernels_amd64_size_specific.go`).
+- [x] Extended `plan_alloc_test.go` to guard 2D/3D/ND (both precisions) and the
+      mixed-radix path (96/768/1536, both precisions); the real 2D variant was
+      already covered. All are verified 0-alloc on both the default and
+      `-tags asm` builds.
 
 ### P1.4 Reduce duplication in the plan layer
 

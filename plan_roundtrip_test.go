@@ -3,16 +3,10 @@ package algofft
 import "testing"
 
 // TestDITScalingRoundTrip tests round-trip with DIT strategy.
-//
-//nolint:paralleltest // Modifies global kernel strategy state via SetKernelStrategy
 func TestDITScalingRoundTrip(t *testing.T) {
-	// NOT parallel - this test modifies global planner.kernelStrategy state
-	prev := GetKernelStrategy()
-	defer SetKernelStrategy(prev)
+	t.Parallel()
 
-	SetKernelStrategy(KernelDIT)
-
-	plan, err := NewPlanT[complex64](16)
+	plan, err := NewPlanWithOptions[complex64](16, PlanOptions{Strategy: KernelDIT})
 	if err != nil {
 		t.Fatalf("NewPlan(16) returned error: %v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/cwbudde/algo-fft/internal/fft"
 )
@@ -11,6 +12,14 @@ import (
 // ImportWisdom loads wisdom data from a file.
 // The file should be in the format produced by ExportWisdom.
 func ImportWisdom(filename string) error {
+	return ImportWisdomWithMaxAge(filename, 0)
+}
+
+// ImportWisdomWithMaxAge loads wisdom data from a file, dropping entries whose
+// recorded timestamp is older than maxAge. A maxAge <= 0 imports every entry.
+// The import is atomic: on any parse or validation error the wisdom cache is left
+// unchanged. The file should be in the format produced by ExportWisdom.
+func ImportWisdomWithMaxAge(filename string, maxAge time.Duration) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		return fmt.Errorf("failed to open wisdom file: %w", err)
@@ -18,7 +27,7 @@ func ImportWisdom(filename string) error {
 
 	defer file.Close()
 
-	err = fft.DefaultWisdom.Import(file)
+	err = fft.DefaultWisdom.ImportWithMaxAge(file, maxAge)
 	if err != nil {
 		return fmt.Errorf("failed to import wisdom: %w", err)
 	}

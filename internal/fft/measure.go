@@ -2,6 +2,7 @@ package fft
 
 import (
 	"runtime"
+	"slices"
 	"sort"
 	"time"
 
@@ -38,25 +39,30 @@ type MeasureResult struct {
 // measureConfig holds configuration for benchmarking based on planner mode.
 type measureConfig struct {
 	warmup int // Number of warmup iterations
-	iters  int // Number of benchmark iterations
+	iters  int // Number of benchmark iterations per trial
+	trials int // Number of trials; the median trial is used to reject outliers
 }
 
 // getMeasureConfig returns the benchmarking configuration for a given mode.
+// Each strategy is timed over `trials` independent trials of `iters` iterations
+// and the median trial time is kept, so a single noisy trial (GC pause, migration)
+// cannot skew the decision — important at small sizes where a transform is only a
+// few hundred nanoseconds.
 func getMeasureConfig(mode PlannerMode) measureConfig {
 	switch mode {
 	case PlannerEstimate:
 		// Estimate mode uses heuristics, not benchmarking.
 		// Return minimal config as fallback if called.
-		return measureConfig{warmup: 3, iters: 10}
+		return measureConfig{warmup: 3, iters: 30, trials: 5}
 	case PlannerMeasure:
-		return measureConfig{warmup: 3, iters: 10}
+		return measureConfig{warmup: 5, iters: 30, trials: 5}
 	case PlannerPatient:
-		return measureConfig{warmup: 5, iters: 50}
+		return measureConfig{warmup: 5, iters: 50, trials: 7}
 	case PlannerExhaustive:
-		return measureConfig{warmup: 10, iters: 100}
+		return measureConfig{warmup: 10, iters: 100, trials: 9}
 	}
 
-	return measureConfig{warmup: 3, iters: 10}
+	return measureConfig{warmup: 3, iters: 30, trials: 5}
 }
 
 // selectStrategiesToTest returns the strategies to benchmark based on planner mode.
@@ -159,6 +165,7 @@ func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecord
 
 	cpuMask := CPUFeatureMask(
 		features.HasSSE2,
+		features.HasSSE3,
 		features.HasAVX2,
 		features.HasAVX512,
 		features.HasNEON,
@@ -177,7 +184,9 @@ func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecord
 }
 
 // benchmarkStrategy runs a micro-benchmark for a single strategy.
-// Returns the total elapsed time for config.iters iterations, or 0 if the strategy failed.
+// It runs config.trials independent trials of config.iters iterations each and
+// returns the median trial's elapsed time, rejecting outlier trials. Returns 0 if
+// the strategy is not implemented for this size.
 func benchmarkStrategy[T Complex](
 	n int,
 	features cpu.Features,
@@ -206,25 +215,39 @@ func benchmarkStrategy[T Complex](
 		}
 	}
 
-	// Force GC before timing to reduce noise
-	runtime.GC()
+	trials := max(config.trials, 1)
 
-	// Benchmark using CPU cycle counter for high precision
-	startCycles := cpu.ReadCycleCounter()
+	samples := make([]int64, 0, trials)
 
-	for range config.iters {
-		kernels.Forward(dst, src, twiddle, scratch)
+	for range trials {
+		// Force GC before each trial to reduce noise from unrelated allocations.
+		runtime.GC()
+
+		startCycles := cpu.ReadCycleCounter()
+
+		for range config.iters {
+			kernels.Forward(dst, src, twiddle, scratch)
+		}
+
+		elapsedNanos := cpu.CyclesToNanoseconds(cpu.CyclesSince(startCycles))
+		if elapsedNanos <= 0 {
+			// Should never happen with cycle counters, but handle gracefully.
+			elapsedNanos = 1
+		}
+
+		samples = append(samples, elapsedNanos)
 	}
 
-	elapsedCycles := cpu.CyclesSince(startCycles)
-	elapsedNanos := cpu.CyclesToNanoseconds(elapsedCycles)
+	return time.Duration(medianInt64(samples))
+}
 
-	if elapsedNanos <= 0 {
-		// Should never happen with cycle counters, but handle gracefully
-		return time.Nanosecond
-	}
+// medianInt64 returns the median of a non-empty slice. For an even count it
+// returns the lower of the two middle values, which is sufficient for outlier
+// rejection here and avoids overflow from averaging.
+func medianInt64(samples []int64) int64 {
+	slices.Sort(samples)
 
-	return time.Duration(elapsedNanos)
+	return samples[(len(samples)-1)/2]
 }
 
 // estimateWithStrategy creates a PlanEstimate for a specific strategy.

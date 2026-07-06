@@ -3,8 +3,25 @@
 package kernels
 
 import (
+	"sync"
+
 	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
+// The 384-point complex128 codelet decomposes into three 128-point sub-FFTs.
+// The sub-FFT twiddle table depends only on the fixed sub-size (128), so it is
+// computed once at package load rather than on every transform (it is read-only
+// and shared across all calls). The per-call output and scratch buffers are
+// pooled: the codelet runs as a synchronous leaf (its 128-point sub-FFTs are
+// assembly, never re-entering Go codelets), so recycling the buffers keeps the
+// codelet allocation-free after warm-up while staying safe for concurrent use.
+//
+//nolint:gochecknoglobals
+var (
+	dit384Sub128TwiddleC128  = mathpkg.ComputeTwiddleFactors[complex128](128)
+	dit384OutPoolC128        = sync.Pool{New: func() any { return new([384]complex128) }}
+	dit384SubScratchPoolC128 = sync.Pool{New: func() any { return new([128]complex128) }}
 )
 
 // forwardDIT384MixedComplex64 computes a 384-point forward FFT using the
@@ -201,10 +218,18 @@ func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	// Step 2: Apply twiddle factors
 	amd64.ApplyTwiddle384Complex128Asm(scratch, twiddle)
 
-	// Prepare for 128-point sub-FFTs
-	twiddle128 := mathpkg.ComputeTwiddleFactors[complex128](stride)
-	subScratch := make([]complex128, stride)
-	fftOut := make([]complex128, n)
+	// Prepare for 128-point sub-FFTs (twiddle precomputed, buffers pooled)
+	twiddle128 := dit384Sub128TwiddleC128
+
+	subPtr := dit384SubScratchPoolC128.Get().(*[128]complex128) //nolint:forcetypeassert
+	defer dit384SubScratchPoolC128.Put(subPtr)
+
+	subScratch := subPtr[:]
+
+	outPtr := dit384OutPoolC128.Get().(*[384]complex128) //nolint:forcetypeassert
+	defer dit384OutPoolC128.Put(outPtr)
+
+	fftOut := outPtr[:]
 
 	// Step 3: Compute 3 independent 128-point FFTs
 	for k2 := range 3 {
@@ -238,7 +263,11 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	}
 
 	work := scratch
-	ifftIn := make([]complex128, n)
+
+	inPtr := dit384OutPoolC128.Get().(*[384]complex128) //nolint:forcetypeassert
+	defer dit384OutPoolC128.Put(inPtr)
+
+	ifftIn := inPtr[:]
 
 	// Step 1: De-interleave input
 	for k1 := range stride {
@@ -247,9 +276,13 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 		}
 	}
 
-	// Prepare for 128-point sub-IFFTs
-	twiddle128 := mathpkg.ComputeTwiddleFactors[complex128](stride)
-	subScratch := make([]complex128, stride)
+	// Prepare for 128-point sub-IFFTs (twiddle precomputed, buffers pooled)
+	twiddle128 := dit384Sub128TwiddleC128
+
+	subPtr := dit384SubScratchPoolC128.Get().(*[128]complex128) //nolint:forcetypeassert
+	defer dit384SubScratchPoolC128.Put(subPtr)
+
+	subScratch := subPtr[:]
 
 	// Step 2: Compute 3 independent 128-point IFFTs
 	for k2 := range 3 {

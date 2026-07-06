@@ -188,19 +188,22 @@ if err != nil {
     // handle error
 }
 
-// Embed wisdom in your binary
-const embeddedWisdom = `64:0:3:dit64_avx2:1234567890
-128:0:3:dit128_avx2:1234567890`
+// Embed wisdom in your binary (the first line must be the version header)
+const embeddedWisdom = `# algofft-wisdom v2
+64:0:5:dit64_avx2:1234567890
+128:0:5:dit128_avx2:1234567890`
 err = algofft.ImportWisdomFromString(embeddedWisdom)
 ```
 
-The wisdom format is text-based and portable across platforms with the same CPU features. Each line contains:
+The wisdom format is text-based and portable across platforms with the same CPU features. The first line is a version header (`# algofft-wisdom v2`); files without a recognized header are rejected rather than mis-parsed. Each subsequent line contains:
 
 - FFT size
 - Precision (0=complex64, 1=complex128)
-- CPU feature bitmask
+- CPU feature bitmask (bit0=SSE2, bit1=SSE3, bit2=AVX2, bit3=AVX512, bit4=NEON)
 - Algorithm name
 - Timestamp
+
+Import can also evict stale entries by age via `algofft.ImportWisdomWithMaxAge(path, maxAge)`.
 
 Benefits:
 
