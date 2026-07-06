@@ -34,6 +34,21 @@ func ComplexMulArrayInPlaceComplex128(dst, src []complex128) {
 	}
 }
 
+// ComplexMulArrayInPlace computes element-wise complex multiplication in-place
+// (dst[i] *= src[i]) for the complex type T, dispatching to the SIMD-accelerated
+// ComplexMulArrayInPlaceComplex64/128 entrypoints. The default branch is
+// unreachable under the Complex constraint.
+func ComplexMulArrayInPlace[T Complex](dst, src []T) {
+	switch d := any(dst).(type) {
+	case []complex64:
+		ComplexMulArrayInPlaceComplex64(d, any(src).([]complex64))
+	case []complex128:
+		ComplexMulArrayInPlaceComplex128(d, any(src).([]complex128))
+	default:
+		complexMulArrayInPlaceGeneric(dst, src)
+	}
+}
+
 // Generic (pure Go) implementations.
 
 func complexMulArrayGeneric[T Complex](dst, a, b []T) {
