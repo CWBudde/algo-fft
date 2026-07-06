@@ -19,6 +19,16 @@ import (
 // call. It is a pure size→indices memoization table (like the precomputed
 // package-level tables), not mutable planner state, so it does not reintroduce
 // the process-global tuning state removed in P1.1.
+//
+// Memory tradeoff: the cache is process-global and never evicted, so it keeps
+// one table per distinct transform size for the life of the process. Growth is
+// bounded by the number of distinct sizes actually transformed (typically a
+// handful) and each table is small (8·n bytes), so this is an intentional
+// space-for-speed choice — the same unbounded-by-size model the pre-existing
+// prepared-twiddle cache uses — and it only exists on -tags asm builds. A size
+// cap/eviction would add branching and locking to a hot path for no practical
+// benefit; if a future workload plans pathologically many distinct sizes, that
+// is where a bound (or a per-plan cache) should be introduced.
 var (
 	bitrevCacheMu sync.RWMutex
 	bitrevCache   = map[int][]int{}
