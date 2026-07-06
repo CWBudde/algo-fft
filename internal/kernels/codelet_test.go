@@ -2,6 +2,7 @@ package kernels
 
 import (
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
@@ -82,14 +83,7 @@ func TestCodeletRegistrySizes(t *testing.T) {
 	t.Parallel()
 
 	sizes := Registry64.Sizes()
-	has384 := false
-
-	for _, size := range sizes {
-		if size == 384 {
-			has384 = true
-			break
-		}
-	}
+	has384 := slices.Contains(sizes, 384)
 
 	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true, 512: true, 1024: true, 2048: true, 4096: true, 8192: true, 16384: true}
 	expectedCount := 13

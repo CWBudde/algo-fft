@@ -124,6 +124,7 @@ func gaussianKernel1D(radius int, sigma float64) []float32 {
 	kernel := make([]float32, size)
 
 	var sum float64
+
 	for i := -radius; i <= radius; i++ {
 		x := float64(i)
 		v := math.Exp(-(x * x) / (2 * sigma * sigma))

@@ -218,6 +218,7 @@ func TestRealDFT2D_Linearity(t *testing.T) {
 	x := make([]float32, rows*cols)
 
 	y := make([]float32, rows*cols)
+
 	for i := range x {
 		x[i] = float32(i) * 0.5
 		y[i] = float32(i)*0.2 + 1.0

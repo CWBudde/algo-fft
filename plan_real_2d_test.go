@@ -3,6 +3,7 @@ package algofft
 import (
 	"math"
 	"math/rand"
+	"strings"
 	"sync"
 	"testing"
 
@@ -546,23 +547,25 @@ func sprintf(format string, args ...interface{}) string {
 	result := ""
 	argIdx := 0
 
+	var resultSb549 strings.Builder
 	for i := 0; i < len(format); i++ {
 		//nolint:nestif
 		if format[i] == '%' && i+1 < len(format) {
 			if format[i+1] == 'd' {
 				if argIdx < len(args) {
-					result += itoa(args[argIdx].(int)) //nolint:forcetypeassert
+					resultSb549.WriteString(itoa(args[argIdx].(int))) //nolint:forcetypeassert
 					argIdx++
 				}
 
 				i++
 			} else {
-				result += string(format[i])
+				resultSb549.WriteString(string(format[i]))
 			}
 		} else {
-			result += string(format[i])
+			resultSb549.WriteString(string(format[i]))
 		}
 	}
+	result += resultSb549.String()
 
 	return result
 }

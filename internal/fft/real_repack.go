@@ -15,10 +15,7 @@ func RepackInverseComplex64(dst, src, weight []complex64) {
 		return
 	}
 
-	start := inverseRepackComplex64SIMD(dst, src, weight)
-	if start < 1 {
-		start = 1
-	}
+	start := max(inverseRepackComplex64SIMD(dst, src, weight), 1)
 
 	inverseRepackComplex64Generic(dst, src, weight, start)
 }
@@ -38,10 +35,7 @@ func RepackInverseComplex128(dst, src, weight []complex128) {
 		return
 	}
 
-	start := inverseRepackComplex128SIMD(dst, src, weight)
-	if start < 1 {
-		start = 1
-	}
+	start := max(inverseRepackComplex128SIMD(dst, src, weight), 1)
 
 	inverseRepackComplex128Generic(dst, src, weight, start)
 }

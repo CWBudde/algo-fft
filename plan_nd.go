@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 )
@@ -59,8 +60,6 @@ func NewPlanND[T Complex](dims []int) (*PlanND[T], error) {
 }
 
 // NewPlanNDWithOptions creates a new N-dimensional FFT plan with explicit planner options.
-//
-//nolint:funlen
 func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], error) {
 	if len(dims) == 0 {
 		return nil, ErrInvalidLength
@@ -91,6 +90,7 @@ func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], 
 
 	// Create 1D plans for each dimension
 	plans := make([]*Plan[T], len(dims))
+
 	for i, size := range dimsCopy {
 		plan, err := newPlanWithFeatures[T](size, features, childOpts)
 		if err != nil {
@@ -162,17 +162,17 @@ func (p *PlanND[T]) String() string {
 		typeName = "complex128"
 	}
 
-	dimsStr := ""
+	var dims strings.Builder
 
 	for i, d := range p.dims {
 		if i > 0 {
-			dimsStr += "x"
+			dims.WriteString("x")
 		}
 
-		dimsStr += itoa(d)
+		dims.WriteString(itoa(d))
 	}
 
-	return fmt.Sprintf("PlanND[%s](%s)", typeName, dimsStr)
+	return fmt.Sprintf("PlanND[%s](%s)", typeName, dims.String())
 }
 
 // Forward computes the N-D FFT: dst = FFT_ND(src).

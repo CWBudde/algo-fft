@@ -47,6 +47,7 @@ func TestAutoCorrelateZeroLagEnergy(t *testing.T) {
 	}
 
 	var energy float64
+
 	for _, v := range a {
 		vr := float64(real(v))
 		vi := float64(imag(v))
