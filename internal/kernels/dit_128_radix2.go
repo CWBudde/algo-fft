@@ -7,11 +7,11 @@ import mathpkg "github.com/cwbudde/algo-fft/internal/math"
 //nolint:gochecknoglobals
 var bitrev128Radix2 = mathpkg.ComputeBitReversalIndices(128)
 
-// forwardDIT128Complex64 computes a 128-point forward FFT using the
+// forwardDIT128Radix2Complex64 computes a 128-point forward FFT using the
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex64 data.
 // The algorithm performs 7 stages of butterfly operations (log2(128) = 7).
 // Returns false if any slice is too small.
-func forwardDIT128Complex64(dst, src, twiddle, scratch []complex64) bool {
+func forwardDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 128
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -107,11 +107,11 @@ func forwardDIT128Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return true
 }
 
-// inverseDIT128Complex64 computes a 128-point inverse FFT using the
+// inverseDIT128Radix2Complex64 computes a 128-point inverse FFT using the
 // Decimation-in-Time (DIT) algorithm for complex64 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Returns false if any slice is too small.
-func inverseDIT128Complex64(dst, src, twiddle, scratch []complex64) bool {
+func inverseDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 128
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -216,11 +216,11 @@ func inverseDIT128Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return true
 }
 
-// forwardDIT128Complex128 computes a 128-point forward FFT using the
+// forwardDIT128Radix2Complex128 computes a 128-point forward FFT using the
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex128 data.
 // The algorithm performs 7 stages of butterfly operations (log2(128) = 7).
 // Returns false if any slice is too small.
-func forwardDIT128Complex128(dst, src, twiddle, scratch []complex128) bool {
+func forwardDIT128Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 128
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
@@ -316,11 +316,11 @@ func forwardDIT128Complex128(dst, src, twiddle, scratch []complex128) bool {
 	return true
 }
 
-// inverseDIT128Complex128 computes a 128-point inverse FFT using the
+// inverseDIT128Radix2Complex128 computes a 128-point inverse FFT using the
 // Decimation-in-Time (DIT) algorithm for complex128 data.
 // Uses conjugated twiddle factors (negated imaginary parts) and applies
 // 1/N scaling at the end. Returns false if any slice is too small.
-func inverseDIT128Complex128(dst, src, twiddle, scratch []complex128) bool {
+func inverseDIT128Radix2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 128
 
 	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {

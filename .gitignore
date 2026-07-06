@@ -50,6 +50,8 @@ benchstat.txt
 # Compiled Go binaries (extensionless build outputs)
 /benchkernels
 /bench_compare
+/gencodelets
 cmd/*/bench_compare
 cmd/*/benchkernels
 cmd/*/measure_correctness
+cmd/*/gencodelets

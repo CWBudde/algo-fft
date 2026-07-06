@@ -289,17 +289,32 @@ into the P2 backlog below.
 
 ### P1.6 Introduce a codelet generator
 
-- [ ] Add a `go:generate` generator that emits the size-parameterized DIT/radix
-      codelets and the ~164 `Register(CodeletEntry{...})` blocks
-      (`codelet_init*.go`). This is the root cause of both the duplication and the
-      dead-copy class of bug; generation makes new sizes cheap and structurally
-      prevents drift.
-- [ ] Normalize kernel file naming to one convention (`dit_<size>_<radix>.go`),
-      removing the `dit_size*` fossils from the incomplete `legacy_radix2`
-      migration.
-- [ ] Fix the `Lookup`/`lookupUnlocked` divergence in
-      `internal/planner/codelet.go` so `GetAvailableSizes` can't advertise a size
-      served only by a disabled (`Priority < 0`) codelet.
+- [x] Added a `go:generate` generator (`cmd/gencodelets`) that emits the ~164
+      `Register(CodeletEntry{...})` blocks from a single declarative table
+      (`cmd/gencodelets/specs.go`). The four hand-written `codelet_init*.go`
+      register bodies were replaced by generated `codelet_init_*.gen.go` files
+      (generic/avx2/sse2/neon), with the scaffolding (init, `wrapCodelet*`,
+      registries) moved to a hand-written `codelet_registry.go`. The table was
+      seeded by AST-extracting the originals, so no field was hand-transcribed;
+      a registry snapshot confirmed the generated registrations are behaviorally
+      identical to the originals (62 generic + 53 AVX2 + 28 SSE2 + 21 NEON), and
+      `go generate` is idempotent. **Generating the codelet _bodies_
+      (the ~21k lines of hand-tuned unrolled DIT/radix math) was deliberately
+      left out of scope** — only the registration boilerplate (the actual
+      dead-copy/drift source) is now generated.
+- [x] Normalized kernel file naming: `git mv`d the four `dit_size*` fossils to
+      the `dit_<size>_<radix>.go` convention (`dit_32_radix2.go`,
+      `dit_64_radix2.go`, `dit_128_radix2.go`, `dit_32_mixed24.go`) and renamed
+      the 12 off-convention unexported functions to add the `Radix2` marker
+      (`forwardDIT32Complex64` → `forwardDIT32Radix2Complex64`, …). The `legacy_radix2`
+      tag was already removed by P0.2; the exported size-default aliases
+      (`ForwardDIT32Complex64`, matching `ForwardDIT256Complex64`) were kept.
+- [x] Fixed the `Lookup`/`lookupUnlocked` divergence in
+      `internal/planner/codelet.go`: `lookupUnlocked` now skips disabled
+      (`Priority < 0`) codelets like `Lookup` does, so `GetAvailableSizes` can no
+      longer advertise a size served only by a disabled codelet. Added a
+      regression test (`TestCodeletRegistryGetAvailableSizesDisabled`) asserting
+      `GetAvailableSizes` agrees with `Lookup`.
 
 ---
 

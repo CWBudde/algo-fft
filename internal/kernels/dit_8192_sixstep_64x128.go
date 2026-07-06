@@ -80,7 +80,7 @@ func forwardDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	// Step 4: 64 parallel FFT-128 (on rows of 64×128 matrix)
 	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
-		if !forwardDIT128Complex64(row, row, rowTwiddle128[:], rowScratch128[:]) {
+		if !forwardDIT128Radix2Complex64(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
 		}
 	}
@@ -163,7 +163,7 @@ func inverseDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	// Step 4: 64 parallel IFFT-128 (on rows)
 	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
-		if !inverseDIT128Complex64(row, row, rowTwiddle128[:], rowScratch128[:]) {
+		if !inverseDIT128Radix2Complex64(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
 		}
 	}
@@ -245,7 +245,7 @@ func forwardDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	// Step 4: 64 parallel FFT-128
 	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
-		if !forwardDIT128Complex128(row, row, rowTwiddle128[:], rowScratch128[:]) {
+		if !forwardDIT128Radix2Complex128(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
 		}
 	}
@@ -325,7 +325,7 @@ func inverseDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	// Step 4: 64 parallel IFFT-128
 	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
-		if !inverseDIT128Complex128(row, row, rowTwiddle128[:], rowScratch128[:]) {
+		if !inverseDIT128Radix2Complex128(row, row, rowTwiddle128[:], rowScratch128[:]) {
 			return false
 		}
 	}
