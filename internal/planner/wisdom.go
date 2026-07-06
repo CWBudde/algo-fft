@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -93,12 +94,33 @@ func (w *Wisdom) Len() int {
 	return len(w.entries)
 }
 
-// Export writes the wisdom cache to a writer in a portable text format.
-// Format: one entry per line as "size:precision:features:algorithm:timestamp"
+// wisdomMagic is the required first line of a wisdom file. It doubles as a magic
+// marker and a version header: Import rejects any file that does not start with
+// this exact line, so unversioned or future-format files fail loudly instead of
+// being mis-parsed.
+const wisdomMagic = "# algofft-wisdom v2"
+
+// wisdomLegend is a human-readable column legend written after the magic header.
+const wisdomLegend = "# size:precision:features:algorithm:timestamp"
+
+// maxWisdomSize is a sanity cap on the FFT size stored in a wisdom entry.
+const maxWisdomSize = 1 << 30
+
+// Export writes the wisdom cache to a writer in a portable, versioned text format.
+// The first line is the magic/version header (wisdomMagic), followed by a column
+// legend, then one entry per line as "size:precision:features:algorithm:timestamp".
 // Entries are sorted by size, precision, and CPU features for deterministic output.
 func (w *Wisdom) Export(writer io.Writer) error {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+
+	// Write the versioned header and column legend first.
+	header := wisdomMagic + "\n" + wisdomLegend + "\n"
+
+	_, err := writer.Write([]byte(header))
+	if err != nil {
+		return fmt.Errorf("failed to write wisdom header: %w", err)
+	}
 
 	// Collect entries into a slice for sorting
 	entries := make([]WisdomEntry, 0, len(w.entries))
@@ -128,7 +150,7 @@ func (w *Wisdom) Export(writer io.Writer) error {
 			entry.Algorithm,
 			entry.Timestamp.Unix())
 
-		_, err := writer.Write([]byte(line))
+		_, err = writer.Write([]byte(line))
 		if err != nil {
 			return fmt.Errorf("failed to write wisdom entry: %w", err)
 		}
@@ -137,23 +159,54 @@ func (w *Wisdom) Export(writer io.Writer) error {
 	return nil
 }
 
-// Import reads wisdom entries from a reader and adds them to the cache.
-// Existing entries with the same key are overwritten.
+// Import reads wisdom entries from a reader and merges them into the cache.
+// Existing entries with the same key are overwritten. See ImportWithMaxAge for
+// the full contract; Import applies no age-based eviction.
 func (w *Wisdom) Import(reader io.Reader) error {
+	return w.ImportWithMaxAge(reader, 0)
+}
+
+// ImportWithMaxAge reads wisdom entries from a reader and merges them into the
+// cache atomically: the file is fully parsed and validated into a temporary map
+// before any live entry is touched, so a malformed line aborts the whole import
+// with the cache left unchanged.
+//
+// The reader must begin with the versioned magic header (wisdomMagic); an
+// unrecognized or missing header is rejected rather than mis-parsed.
+//
+// If maxAge > 0, entries whose Timestamp is older than now-maxAge are dropped
+// before the merge, so a stale file cannot reintroduce outdated choices. A
+// maxAge <= 0 disables age-based eviction.
+func (w *Wisdom) ImportWithMaxAge(reader io.Reader, maxAge time.Duration) error {
 	scanner := bufio.NewScanner(reader)
+
+	headerSeen := false
+	staged := make(map[WisdomKey]WisdomEntry)
+
+	var cutoff time.Time
+	if maxAge > 0 {
+		cutoff = time.Now().Add(-maxAge)
+	}
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue // Skip empty lines and comments
+
+		// The first non-blank line must be the magic/version header.
+		if !headerSeen {
+			consumed, err := consumeHeader(line)
+			if err != nil {
+				return err
+			}
+
+			headerSeen = consumed
+
+			continue
 		}
 
-		entry, err := parseWisdomLine(line)
+		err := stageWisdomLine(line, staged, cutoff, maxAge > 0)
 		if err != nil {
 			return fmt.Errorf("wisdom import: %w", err)
 		}
-
-		w.Store(entry)
 	}
 
 	err := scanner.Err()
@@ -161,10 +214,85 @@ func (w *Wisdom) Import(reader io.Reader) error {
 		return fmt.Errorf("failed to scan wisdom entries: %w", err)
 	}
 
+	// headerSeen is false only when the input had no non-blank lines at all (a
+	// genuinely empty file), which is a harmless no-op. Any non-blank content is
+	// forced through the header check above, so a headerless data file errors there.
+	if !headerSeen {
+		return nil
+	}
+
+	// Merge atomically only after the whole file parsed and validated.
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	maps.Copy(w.entries, staged)
+
 	return nil
 }
 
-// parseWisdomLine parses a single line of wisdom format.
+// EvictOlderThan removes entries whose Timestamp is older than now-maxAge and
+// returns the number of entries removed. A maxAge <= 0 removes nothing.
+func (w *Wisdom) EvictOlderThan(maxAge time.Duration) int {
+	if maxAge <= 0 {
+		return 0
+	}
+
+	cutoff := time.Now().Add(-maxAge)
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	removed := 0
+
+	for key, entry := range w.entries {
+		if entry.Timestamp.Before(cutoff) {
+			removed++
+
+			delete(w.entries, key)
+		}
+	}
+
+	return removed
+}
+
+// consumeHeader inspects the first non-blank line of a wisdom file. It reports
+// whether the header was consumed (true once the magic line is seen) and errors
+// if a non-blank line is present but is not the expected magic/version header.
+func consumeHeader(line string) (bool, error) {
+	if line == "" {
+		return false, nil
+	}
+
+	if line != wisdomMagic {
+		return false, fmt.Errorf("wisdom import: unrecognized header %q, expected %q", line, wisdomMagic)
+	}
+
+	return true, nil
+}
+
+// stageWisdomLine parses one body line and, unless it is blank/comment or a
+// stale entry (when useCutoff is set), stages it into dst. Parse/validation
+// errors are returned unwrapped for the caller to contextualize.
+func stageWisdomLine(line string, dst map[WisdomKey]WisdomEntry, cutoff time.Time, useCutoff bool) error {
+	if line == "" || strings.HasPrefix(line, "#") {
+		return nil // Skip empty lines and comments.
+	}
+
+	entry, err := parseWisdomLine(line)
+	if err != nil {
+		return err
+	}
+
+	if useCutoff && entry.Timestamp.Before(cutoff) {
+		return nil // Drop stale entries.
+	}
+
+	dst[entry.Key] = entry
+
+	return nil
+}
+
+// parseWisdomLine parses and validates a single line of wisdom format.
 func parseWisdomLine(line string) (WisdomEntry, error) {
 	parts := strings.Split(line, ":")
 	if len(parts) != 5 {
@@ -193,7 +321,7 @@ func parseWisdomLine(line string) (WisdomEntry, error) {
 		return WisdomEntry{}, fmt.Errorf("invalid timestamp: %w", err)
 	}
 
-	return WisdomEntry{
+	entry := WisdomEntry{
 		Key: WisdomKey{
 			Size:        size,
 			Precision:   uint8(precision),
@@ -201,7 +329,61 @@ func parseWisdomLine(line string) (WisdomEntry, error) {
 		},
 		Algorithm: algorithm,
 		Timestamp: time.Unix(timestamp, 0),
-	}, nil
+	}
+
+	err = validateEntry(entry)
+	if err != nil {
+		return WisdomEntry{}, err
+	}
+
+	return entry, nil
+}
+
+// validateEntry rejects wisdom entries whose fields fall outside the supported
+// ranges of the current format.
+func validateEntry(entry WisdomEntry) error {
+	if entry.Key.Size <= 0 || entry.Key.Size > maxWisdomSize {
+		return fmt.Errorf("invalid size %d: out of range (1..%d)", entry.Key.Size, maxWisdomSize)
+	}
+
+	if entry.Key.Precision != PrecisionComplex64 && entry.Key.Precision != PrecisionComplex128 {
+		return fmt.Errorf("invalid precision %d: expected %d or %d",
+			entry.Key.Precision, PrecisionComplex64, PrecisionComplex128)
+	}
+
+	if entry.Key.CPUFeatures&^featMaskAll != 0 {
+		return fmt.Errorf("invalid feature mask %#x: bits set outside supported width %#x",
+			entry.Key.CPUFeatures, featMaskAll)
+	}
+
+	if !isValidAlgorithmName(entry.Algorithm) {
+		return fmt.Errorf("invalid algorithm name %q: expected non-empty [A-Za-z0-9_]", entry.Algorithm)
+	}
+
+	return nil
+}
+
+// isValidAlgorithmName reports whether s is a plausible algorithm/codelet name:
+// non-empty and restricted to a safe charset. Codelet signatures are
+// size-specific (e.g. "dit8_avx2"), so a closed enum is infeasible; this rejects
+// empty or garbage/injected values.
+func isValidAlgorithmName(s string) bool {
+	if s == "" {
+		return false
+	}
+
+	return strings.IndexFunc(s, isNotAlgorithmNameRune) < 0
+}
+
+// isNotAlgorithmNameRune reports whether r is outside the safe algorithm-name
+// charset ([A-Za-z0-9_]).
+func isNotAlgorithmNameRune(r rune) bool {
+	switch {
+	case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_':
+		return false
+	default:
+		return true
+	}
 }
 
 // DefaultWisdom is the global wisdom cache used by default planning.
@@ -216,7 +398,7 @@ const PrecisionComplex64 uint8 = 0
 const PrecisionComplex128 uint8 = 1
 
 // MakeWisdomKey creates a wisdom key from the given parameters.
-func MakeWisdomKey[T Complex](size int, hasSSE2, hasAVX2, hasAVX512, hasNEON bool) WisdomKey {
+func MakeWisdomKey[T Complex](size int, hasSSE2, hasSSE3, hasAVX2, hasAVX512, hasNEON bool) WisdomKey {
 	var zero T
 
 	precision := PrecisionComplex64
@@ -227,6 +409,6 @@ func MakeWisdomKey[T Complex](size int, hasSSE2, hasAVX2, hasAVX512, hasNEON boo
 	return WisdomKey{
 		Size:        size,
 		Precision:   precision,
-		CPUFeatures: CPUFeatureMask(hasSSE2, hasAVX2, hasAVX512, hasNEON),
+		CPUFeatures: CPUFeatureMask(hasSSE2, hasSSE3, hasAVX2, hasAVX512, hasNEON),
 	}
 }

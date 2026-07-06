@@ -272,15 +272,18 @@
 //		log.Fatal(err)
 //	}
 //
-//	// Or embed wisdom in your binary
-//	const wisdom = `64:0:3:dit64_avx2:1234567890
-//	128:0:3:dit128_avx2:1234567890`
+//	// Or embed wisdom in your binary. The first line must be the version header.
+//	const wisdom = `# algofft-wisdom v2
+//	64:0:5:dit64_avx2:1234567890
+//	128:0:5:dit128_avx2:1234567890`
 //	if err := algofft.ImportWisdomFromString(wisdom); err != nil {
 //		log.Fatal(err)
 //	}
 //
 // The wisdom format is portable across platforms with the same CPU features.
-// Each line contains: size:precision:features:algorithm:timestamp
+// The first line is a version header ("# algofft-wisdom v2"); each subsequent line
+// contains: size:precision:features:algorithm:timestamp. Files without a
+// recognized header are rejected rather than mis-parsed.
 //
 // Wisdom management:
 //

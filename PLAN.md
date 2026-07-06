@@ -208,17 +208,23 @@ into the P2 backlog below.
       complex64 siblings. The genuine 386 wrappers already dispatched by size, so
       no change was needed there.
 
-### P1.2 Harden the Wisdom format
+### P1.2 Harden the Wisdom format ✅ **completed 2026-07.**
 
-- [ ] Add a version/magic header; reject unknown versions instead of
-      mis-parsing.
-- [ ] Make `Import` atomic: parse+validate into a temp map (known algorithm
-      names, supported sizes, feature-mask width) and swap in only on full
-      success.
-- [ ] Widen the CPU-feature mask to distinguish SSE3 from SSE2. Decide whether
-      `Timestamp` drives staleness/eviction or drop it from the format.
-- [ ] Increase `PlannerMeasure` iteration counts / add outlier rejection so
-      recorded wisdom isn't dominated by timing noise at small sizes.
+- [x] Added a version/magic header (`# algofft-wisdom v2`) written by `Export` and
+      required by `Import`; unversioned or unknown-version files are rejected with
+      a clear error instead of being mis-parsed (`internal/planner/wisdom.go`).
+- [x] Made `Import` atomic: it parses+validates the whole file into a temporary
+      map (size range, precision, feature-mask width, algorithm-name charset) and
+      merges into the live cache only on full success, so a malformed line leaves
+      the cache untouched.
+- [x] Widened the CPU-feature mask to distinguish SSE3 from SSE2 (new bit layout
+      `SSE2|SSE3|AVX2|AVX512|NEON`; `CPUFeatureMask`/`MakeWisdomKey` take a
+      `hasSSE3` argument and all call sites pass `features.HasSSE3`). `Timestamp`
+      now drives staleness: added `Wisdom.EvictOlderThan` and
+      `ImportWithMaxAge` / public `ImportWisdomWithMaxAge` to drop stale entries.
+- [x] Reduced `PlannerMeasure` timing noise: raised iteration counts and added
+      multi-trial **median** sampling (outlier rejection) in `benchmarkStrategy`
+      (`internal/fft/measure.go`).
 
 ### P1.3 Zero-allocation parity across all plan types
 

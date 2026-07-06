@@ -2,6 +2,7 @@ package planner
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -151,7 +152,8 @@ func TestWisdomImportComments(t *testing.T) {
 
 	w := NewWisdom()
 
-	data := `# This is a comment
+	data := wisdomMagic + `
+# This is a comment
 8:0:1:dit8_generic:1700000000
 # Another comment
 
@@ -180,6 +182,45 @@ func TestWisdomImportInvalid(t *testing.T) {
 		{"invalid_precision", "8:xyz:1:test:1700000000"},
 		{"invalid_features", "8:0:xyz:test:1700000000"},
 		{"invalid_timestamp", "8:0:1:test:abc"},
+		{"size_zero", "0:0:1:test:1700000000"},
+		{"size_negative", "-8:0:1:test:1700000000"},
+		{"precision_out_of_range", "8:2:1:test:1700000000"},
+		{"feature_mask_too_wide", "8:0:64:test:1700000000"},
+		{"empty_algorithm", "8:0:1::1700000000"},
+		{"garbage_algorithm", "8:0:1:bad name:1700000000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			w := NewWisdom()
+
+			err := w.Import(strings.NewReader(wisdomMagic + "\n" + tt.data + "\n"))
+			if err == nil {
+				t.Error("expected error, got nil")
+			}
+		})
+	}
+}
+
+// TestWisdomImportHeader verifies the magic/version header is required.
+func TestWisdomImportHeader(t *testing.T) {
+	t.Parallel()
+
+	valid := "8:0:1:dit8_generic:1700000000\n"
+
+	tests := []struct {
+		name    string
+		data    string
+		wantErr bool
+	}{
+		{"missing_header", valid, true},
+		{"wrong_header", "# algofft-wisdom v1\n" + valid, true},
+		{"future_header", "# algofft-wisdom v3\n" + valid, true},
+		{"only_comments_no_magic", "# just a comment\n" + valid, true},
+		{"valid_header", wisdomMagic + "\n" + valid, false},
+		{"blank_lines_before_header", "\n\n" + wisdomMagic + "\n" + valid, false},
 	}
 
 	for _, tt := range tests {
@@ -189,17 +230,123 @@ func TestWisdomImportInvalid(t *testing.T) {
 			w := NewWisdom()
 
 			err := w.Import(strings.NewReader(tt.data))
-			if err == nil {
+			if tt.wantErr && err == nil {
 				t.Error("expected error, got nil")
 			}
+
+			if !tt.wantErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
 		})
+	}
+}
+
+// TestWisdomImportAtomic verifies a malformed line leaves the cache untouched.
+func TestWisdomImportAtomic(t *testing.T) {
+	t.Parallel()
+
+	w := NewWisdom()
+
+	// Pre-populate with a good entry.
+	w.Store(WisdomEntry{
+		Key:       WisdomKey{Size: 4, Precision: 0, CPUFeatures: 1},
+		Algorithm: "existing",
+		Timestamp: time.Unix(1700000000, 0),
+	})
+
+	// One good line followed by a bad one: nothing should be applied.
+	data := wisdomMagic + "\n" +
+		"8:0:1:dit8_generic:1700000000\n" +
+		"16:0:99:bad:1700000000\n" // feature mask too wide
+
+	err := w.Import(strings.NewReader(data))
+	if err == nil {
+		t.Fatal("expected error from malformed line, got nil")
+	}
+
+	if w.Len() != 1 {
+		t.Errorf("expected cache untouched (len 1), got len %d", w.Len())
+	}
+
+	// The staged good line must not have leaked in.
+	if _, found := w.Lookup(WisdomKey{Size: 8, Precision: 0, CPUFeatures: 1}); found {
+		t.Error("staged entry leaked into cache after failed import")
+	}
+}
+
+// TestWisdomEvictOlderThan verifies age-based eviction.
+func TestWisdomEvictOlderThan(t *testing.T) {
+	t.Parallel()
+
+	w := NewWisdom()
+
+	now := time.Now()
+	w.Store(WisdomEntry{
+		Key:       WisdomKey{Size: 8, Precision: 0, CPUFeatures: 1},
+		Algorithm: "fresh",
+		Timestamp: now,
+	})
+	w.Store(WisdomEntry{
+		Key:       WisdomKey{Size: 16, Precision: 0, CPUFeatures: 1},
+		Algorithm: "stale",
+		Timestamp: now.Add(-48 * time.Hour),
+	})
+
+	removed := w.EvictOlderThan(24 * time.Hour)
+	if removed != 1 {
+		t.Errorf("expected 1 removed, got %d", removed)
+	}
+
+	if w.Len() != 1 {
+		t.Errorf("expected 1 remaining, got %d", w.Len())
+	}
+
+	if _, found := w.Lookup(WisdomKey{Size: 16, Precision: 0, CPUFeatures: 1}); found {
+		t.Error("stale entry should have been evicted")
+	}
+
+	// Non-positive maxAge is a no-op.
+	if n := w.EvictOlderThan(0); n != 0 {
+		t.Errorf("EvictOlderThan(0) removed %d, want 0", n)
+	}
+}
+
+// TestWisdomImportWithMaxAge verifies stale entries are dropped during import.
+func TestWisdomImportWithMaxAge(t *testing.T) {
+	t.Parallel()
+
+	w := NewWisdom()
+
+	now := time.Now()
+	fresh := now.Unix()
+	stale := now.Add(-72 * time.Hour).Unix()
+
+	data := wisdomMagic + "\n" +
+		"8:0:1:fresh:" + strconv.FormatInt(fresh, 10) + "\n" +
+		"16:0:1:stale:" + strconv.FormatInt(stale, 10) + "\n"
+
+	err := w.ImportWithMaxAge(strings.NewReader(data), 24*time.Hour)
+	if err != nil {
+		t.Fatalf("import failed: %v", err)
+	}
+
+	if w.Len() != 1 {
+		t.Errorf("expected 1 entry after stale drop, got %d", w.Len())
+	}
+
+	if _, found := w.Lookup(WisdomKey{Size: 8, Precision: 0, CPUFeatures: 1}); !found {
+		t.Error("fresh entry missing after import")
+	}
+
+	if _, found := w.Lookup(WisdomKey{Size: 16, Precision: 0, CPUFeatures: 1}); found {
+		t.Error("stale entry should not have been imported")
 	}
 }
 
 func TestMakeWisdomKey(t *testing.T) {
 	t.Parallel()
 
-	key64 := MakeWisdomKey[complex64](1024, true, true, false, false)
+	key64 := MakeWisdomKey[complex64](1024, true, false, true, false, false)
 	if key64.Precision != PrecisionComplex64 {
 		t.Errorf("expected precision %d, got %d", PrecisionComplex64, key64.Precision)
 	}
@@ -208,7 +355,7 @@ func TestMakeWisdomKey(t *testing.T) {
 		t.Errorf("expected size 1024, got %d", key64.Size)
 	}
 
-	key128 := MakeWisdomKey[complex128](1024, true, true, false, false)
+	key128 := MakeWisdomKey[complex128](1024, true, false, true, false, false)
 	if key128.Precision != PrecisionComplex128 {
 		t.Errorf("expected precision %d, got %d", PrecisionComplex128, key128.Precision)
 	}
@@ -218,22 +365,37 @@ func TestCPUFeatureMask(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		sse2, avx2, avx512, neon bool
-		expected                 uint64
+		sse2, sse3, avx2, avx512, neon bool
+		expected                       uint64
 	}{
-		{false, false, false, false, 0},
-		{true, false, false, false, 1},
-		{true, true, false, false, 3},
-		{true, true, true, false, 7},
-		{false, false, false, true, 8},
-		{true, true, true, true, 15},
+		{false, false, false, false, false, 0},
+		{true, false, false, false, false, 1},  // SSE2
+		{false, true, false, false, false, 2},  // SSE3
+		{true, true, false, false, false, 3},   // SSE2+SSE3
+		{true, false, true, false, false, 5},   // SSE2+AVX2
+		{true, true, true, false, false, 7},    // SSE2+SSE3+AVX2
+		{true, true, true, true, false, 15},    // + AVX512
+		{false, false, false, false, true, 16}, // NEON
+		{true, true, true, true, true, 31},     // all
 	}
 
 	for _, tt := range tests {
-		got := CPUFeatureMask(tt.sse2, tt.avx2, tt.avx512, tt.neon)
+		got := CPUFeatureMask(tt.sse2, tt.sse3, tt.avx2, tt.avx512, tt.neon)
 		if got != tt.expected {
-			t.Errorf("CPUFeatureMask(%v,%v,%v,%v) = %d, want %d",
-				tt.sse2, tt.avx2, tt.avx512, tt.neon, got, tt.expected)
+			t.Errorf("CPUFeatureMask(%v,%v,%v,%v,%v) = %d, want %d",
+				tt.sse2, tt.sse3, tt.avx2, tt.avx512, tt.neon, got, tt.expected)
 		}
+	}
+}
+
+// TestCPUFeatureMaskSSE3Distinct verifies SSE3 is tracked separately from SSE2.
+func TestCPUFeatureMaskSSE3Distinct(t *testing.T) {
+	t.Parallel()
+
+	sse2Only := CPUFeatureMask(true, false, false, false, false)
+	sse2AndSSE3 := CPUFeatureMask(true, true, false, false, false)
+
+	if sse2Only == sse2AndSSE3 {
+		t.Errorf("SSE3 not distinguished from SSE2: both masks = %d", sse2Only)
 	}
 }

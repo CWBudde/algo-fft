@@ -244,6 +244,7 @@ func exportWisdom(filename string, results []benchResult) error {
 	features := cpu.DetectFeatures()
 	cpuMask := fft.CPUFeatureMask(
 		features.HasSSE2,
+		features.HasSSE3,
 		features.HasAVX2,
 		features.HasAVX512,
 		features.HasNEON,

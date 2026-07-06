@@ -119,7 +119,9 @@ func resolveWisdom[T Complex](n int, features cpu.Features, wisdom WisdomStore, 
 		precision = 1
 	}
 
-	cpuFeatures := CPUFeatureMask(features.HasSSE2, features.HasAVX2, features.HasAVX512, features.HasNEON)
+	cpuFeatures := CPUFeatureMask(
+		features.HasSSE2, features.HasSSE3, features.HasAVX2, features.HasAVX512, features.HasNEON,
+	)
 
 	algorithm, found := wisdom.LookupWisdom(n, precision, cpuFeatures)
 	if !found {
