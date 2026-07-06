@@ -27,24 +27,44 @@ func complexFromFloat64[T Complex](re, im float64) T {
 	return m.ComplexFromFloat64[T](re, im)
 }
 
+// CPU-feature bit positions used by the wisdom cache key. The layout is part of
+// the persisted wisdom format (version 2); changing it requires a format bump.
+const (
+	featSSE2   uint64 = 1 << 0
+	featSSE3   uint64 = 1 << 1
+	featAVX2   uint64 = 1 << 2
+	featAVX512 uint64 = 1 << 3
+	featNEON   uint64 = 1 << 4
+
+	// featMaskAll is the union of all defined feature bits. Any wisdom entry whose
+	// feature mask has bits outside this set comes from an incompatible format.
+	featMaskAll = featSSE2 | featSSE3 | featAVX2 | featAVX512 | featNEON
+)
+
 // CPUFeatureMask returns a bitmask of CPU features relevant for planning.
-func CPUFeatureMask(hasSSE2, hasAVX2, hasAVX512, hasNEON bool) uint64 {
+// SSE3 is tracked separately from SSE2 so wisdom tuned on an SSE3 machine is not
+// reused on an SSE2-only one.
+func CPUFeatureMask(hasSSE2, hasSSE3, hasAVX2, hasAVX512, hasNEON bool) uint64 {
 	var mask uint64
 
 	if hasSSE2 {
-		mask |= 1 << 0
+		mask |= featSSE2
+	}
+
+	if hasSSE3 {
+		mask |= featSSE3
 	}
 
 	if hasAVX2 {
-		mask |= 1 << 1
+		mask |= featAVX2
 	}
 
 	if hasAVX512 {
-		mask |= 1 << 2
+		mask |= featAVX512
 	}
 
 	if hasNEON {
-		mask |= 1 << 3
+		mask |= featNEON
 	}
 
 	return mask

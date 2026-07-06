@@ -3,9 +3,48 @@
 package fft
 
 import (
+	"sync"
+
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/kernels"
 )
+
+// mrScratchPool64/128 recycle the per-sub-transform gathered-twiddle and kernel
+// scratch buffers used when the AVX2 mixed-radix driver dispatches a whole
+// sub-transform to a codelet. Each codelet dispatch is a leaf (the function
+// returns immediately after, never nesting another dispatch), and the buffers
+// are used only for the duration of one synchronous codelet call, so recycling
+// them is safe and keeps the AVX2 mixed-radix path allocation-free after
+// warm-up. Sizes vary per sub-transform, so the pooled buffers are grown on
+// demand and sliced to the requested length.
+//
+//nolint:gochecknoglobals
+var (
+	mrScratchPool64  = sync.Pool{New: func() any { s := make([]complex64, 0); return &s }}
+	mrScratchPool128 = sync.Pool{New: func() any { s := make([]complex128, 0); return &s }}
+)
+
+func getMRScratch64(n int) *[]complex64 {
+	p := mrScratchPool64.Get().(*[]complex64) //nolint:forcetypeassert
+	if cap(*p) < n {
+		*p = make([]complex64, n)
+	} else {
+		*p = (*p)[:n]
+	}
+
+	return p
+}
+
+func getMRScratch128(n int) *[]complex128 {
+	p := mrScratchPool128.Get().(*[]complex128) //nolint:forcetypeassert
+	if cap(*p) < n {
+		*p = make([]complex128, n)
+	} else {
+		*p = (*p)[:n]
+	}
+
+	return p
+}
 
 func init() {
 	// Override the recursion hooks with AVX2-aware versions.
@@ -68,14 +107,20 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 				}
 			}
 
-			// 2. Prepare Twiddles
-			twiddleBuf := make([]complex64, n)
+			// 2. Prepare Twiddles (pooled: reused across sub-transforms)
+			twPtr := getMRScratch64(n)
+			defer mrScratchPool64.Put(twPtr)
+
+			twiddleBuf := *twPtr
 			for i := range n {
 				twiddleBuf[i] = twiddle[i*step]
 			}
 
-			// 3. Prepare Scratch for Kernel
-			kernelScratch := make([]complex64, n)
+			// 3. Prepare Scratch for Kernel (pooled)
+			scrPtr := getMRScratch64(n)
+			defer mrScratchPool64.Put(scrPtr)
+
+			kernelScratch := *scrPtr
 
 			// 4. Call Kernel
 			codeletTwiddle := twiddleBuf
@@ -116,12 +161,18 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 				}
 			}
 
-			twiddleBuf := make([]complex128, n)
+			twPtr := getMRScratch128(n)
+			defer mrScratchPool128.Put(twPtr)
+
+			twiddleBuf := *twPtr
 			for i := range n {
 				twiddleBuf[i] = twiddle[i*step]
 			}
 
-			kernelScratch := make([]complex128, n)
+			scrPtr := getMRScratch128(n)
+			defer mrScratchPool128.Put(scrPtr)
+
+			kernelScratch := *scrPtr
 
 			codeletTwiddle := twiddleBuf
 			if prepared := kernels.GetPreparedTwiddle128(entry, n, inverse); prepared != nil {

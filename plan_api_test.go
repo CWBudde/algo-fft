@@ -235,69 +235,48 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 	}
 }
 
-// TestSetGetKernelStrategy tests global strategy get/set.
-//
-//nolint:paralleltest // Modifies global kernel strategy state via SetKernelStrategy
-func TestSetGetKernelStrategy(t *testing.T) {
-	// NOT parallel - this test modifies global planner.kernelStrategy state
-	// Save original strategy
-	original := GetKernelStrategy()
-	defer SetKernelStrategy(original)
+// TestStrategyIsolation verifies that per-plan PlanOptions.Strategy is honored
+// independently, with no shared process-global strategy state: two plans built
+// with different forced strategies each report their own.
+func TestStrategyIsolation(t *testing.T) {
+	t.Parallel()
 
-	strategies := []KernelStrategy{
-		KernelAuto,
-		KernelDIT,
-		KernelStockham,
-		KernelSixStep,
-		KernelEightStep,
-	}
-
-	for _, strategy := range strategies {
-		SetKernelStrategy(strategy)
-
-		got := GetKernelStrategy()
-		if got != strategy {
-			t.Errorf("After SetKernelStrategy(%v), GetKernelStrategy() = %v", strategy, got)
-		}
-	}
-}
-
-// TestRecordBenchmarkDecision tests per-size strategy recording.
-//
-//nolint:paralleltest // Modifies global kernel strategy state via SetKernelStrategy and RecordBenchmarkDecision
-func TestRecordBenchmarkDecision(t *testing.T) {
-	// NOT parallel - this test modifies global planner.kernelStrategy and benchDecisions state
-	// Save and restore global strategy
-	oldStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(oldStrategy)
-
-	// Set to auto to allow per-size decisions
-	SetKernelStrategy(KernelAuto)
-
-	// Record a decision for size 512
-	RecordBenchmarkDecision(512, KernelStockham)
-
-	// Create a plan for size 512
-	plan, err := NewPlanT[complex64](512)
+	planA, err := NewPlanWithOptions[complex64](512, PlanOptions{Strategy: KernelDIT})
 	if err != nil {
-		t.Fatalf("NewPlan(512) failed: %v", err)
+		t.Fatalf("NewPlanWithOptions(512, DIT) failed: %v", err)
 	}
 
-	// The plan should use the recorded decision
-	strategy := plan.KernelStrategy()
-	if strategy != KernelStockham && strategy != KernelAuto {
-		// Allow auto if the specific strategy isn't available
-		t.Logf("Expected KernelStockham from RecordBenchmarkDecision, got %v", strategy)
+	planB, err := NewPlanWithOptions[complex64](512, PlanOptions{Strategy: KernelStockham})
+	if err != nil {
+		t.Fatalf("NewPlanWithOptions(512, Stockham) failed: %v", err)
 	}
 
-	// Verify the plan works
+	if got := planA.KernelStrategy(); got != KernelDIT {
+		t.Errorf("planA.KernelStrategy() = %v, want KernelDIT", got)
+	}
+
+	if got := planB.KernelStrategy(); got != KernelStockham {
+		t.Errorf("planB.KernelStrategy() = %v, want KernelStockham", got)
+	}
+
+	// Creating planB must not have altered planA's snapshot.
+	if got := planA.KernelStrategy(); got != KernelDIT {
+		t.Errorf("planA.KernelStrategy() after building planB = %v, want KernelDIT", got)
+	}
+
+	// Both plans must produce correct results.
 	src := make([]complex64, 512)
 	dst := make([]complex64, 512)
 	src[0] = 1
 
-	err = plan.Forward(dst, src)
+	err = planA.Forward(dst, src)
 	if err != nil {
-		t.Fatalf("Forward failed: %v", err)
+		t.Fatalf("planA.Forward failed: %v", err)
+	}
+
+	err = planB.Forward(dst, src)
+	if err != nil {
+		t.Fatalf("planB.Forward failed: %v", err)
 	}
 }
 
@@ -338,13 +317,8 @@ func TestTransform(t *testing.T) {
 }
 
 // TestString_AllStrategies tests String method with different strategies.
-//
-//nolint:paralleltest // Modifies global kernel strategy state via SetKernelStrategy
 func TestString_AllStrategies(t *testing.T) {
-	// NOT parallel - this test modifies global planner.kernelStrategy state
-	// Save and restore
-	oldStrategy := GetKernelStrategy()
-	defer SetKernelStrategy(oldStrategy)
+	t.Parallel()
 
 	tests := []struct {
 		strategy     KernelStrategy
@@ -360,10 +334,9 @@ func TestString_AllStrategies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expectedName, func(t *testing.T) {
-			// NOT parallel - parent test modifies global state
-			SetKernelStrategy(tt.strategy)
+			t.Parallel()
 
-			plan, err := NewPlanT[complex64](tt.size)
+			plan, err := NewPlanWithOptions[complex64](tt.size, PlanOptions{Strategy: tt.strategy})
 			if err != nil {
 				t.Fatalf("NewPlan failed: %v", err)
 			}

@@ -24,7 +24,7 @@ The root package `algofft` exposes the user-facing API, grouped roughly by file:
 ### Internal Packages (`/internal/`)
 
 - `internal/kernels`: All FFT kernel implementations — DIT, Stockham, radix-2/3/4/5, six-step/eight-step, Bluestein, per-size codelets and their registration (`codelet_init*.go`); `types.go` defines `Kernel[T]`
-- `internal/planner`: Strategy selection, wisdom, and benchmark decisions (`selection.go`: `SetKernelStrategy`, `RecordBenchmarkDecision`, `ditAutoThreshold`)
+- `internal/planner`: Strategy selection and wisdom (`selection.go`: `ResolveKernelStrategy`, `ditAutoThreshold`). Kernel strategy is chosen per-plan (no process-global state); tuning decisions are persisted via the Wisdom cache.
 - `internal/fft`: Dispatch and re-export layer bridging the public API to kernels (`dispatch.go`: `SelectKernels[T]`)
 - `internal/fftypes`: Shared types — `Complex`, `Float`, `KernelStrategy`, `SIMDLevel`
 - `internal/cpu`: CPU feature detection (`DetectFeatures()`)
@@ -186,7 +186,7 @@ Kernels are selected at plan creation based on:
 
 - CPU features (AVX2, NEON, etc.) detected via `internal/cpu.DetectFeatures()`
 - Transform size and strategy (auto-selected or user-specified)
-- Benchmark cache for empirically-determined best kernel per size
+- Wisdom cache (per-instance, keyed by size + precision + CPU features) for empirically-determined best kernel
 
 #### 2. Strategy Selection
 
@@ -199,7 +199,7 @@ The library supports multiple FFT algorithms via `KernelStrategy` (defined in `i
 - `KernelBluestein`: Arbitrary-length transforms
 - `KernelRecursive`: Recursive decomposition with codelet leaves
 
-Set globally via `SetKernelStrategy()` or override per-size via `RecordBenchmarkDecision()` (both in `internal/planner/selection.go`).
+Force a strategy per-plan via `PlanOptions.Strategy` (default `KernelAuto` lets the planner choose by size). There is no process-global strategy override; empirically-tuned per-size/precision choices are persisted and reused via the Wisdom cache (`PlanOptions.Wisdom`).
 
 #### 3. Zero-Allocation Transforms
 

@@ -110,22 +110,6 @@ const (
 	KernelRecursive = fft.KernelRecursive // Recursive decomposition with codelet leaves
 )
 
-// SetKernelStrategy overrides the global kernel selection strategy.
-// Use KernelAuto to restore automatic selection.
-func SetKernelStrategy(strategy KernelStrategy) {
-	fft.SetKernelStrategy(strategy)
-}
-
-// GetKernelStrategy returns the current global kernel selection strategy.
-func GetKernelStrategy() KernelStrategy {
-	return fft.GetKernelStrategy()
-}
-
-// RecordBenchmarkDecision stores a per-size kernel choice for auto selection.
-func RecordBenchmarkDecision(n int, strategy KernelStrategy) {
-	fft.RecordBenchmarkDecision(n, strategy)
-}
-
 // wisdomAdapter adapts the public WisdomStore interface to the internal WisdomRecorder.
 type wisdomAdapter struct {
 	store WisdomStore

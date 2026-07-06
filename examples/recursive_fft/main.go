@@ -17,13 +17,13 @@ func main() {
 	fmt.Println("====================================")
 	fmt.Println()
 
-	// Set the global kernel strategy to use recursive decomposition
-	algofft.SetKernelStrategy(algofft.KernelRecursive)
-
-	// Create a plan for 8192-point FFT
+	// Create a plan for 8192-point FFT, forcing recursive decomposition
+	// per-plan via PlanOptions (no process-global state).
 	size := 8192
 
-	plan, err := algofft.NewPlan32(size)
+	plan, err := algofft.NewPlanWithOptions[complex64](size, algofft.PlanOptions{
+		Strategy: algofft.KernelRecursive,
+	})
 	if err != nil {
 		panic(err)
 	}

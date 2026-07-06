@@ -87,11 +87,12 @@ func TestGetMeasureConfig(t *testing.T) {
 		mode           PlannerMode
 		expectedWarmup int
 		expectedIters  int
+		expectedTrials int
 	}{
-		{PlannerMeasure, 3, 10},
-		{PlannerPatient, 5, 50},
-		{PlannerExhaustive, 10, 100},
-		{PlannerEstimate, 3, 10}, // fallback
+		{PlannerMeasure, 5, 30, 5},
+		{PlannerPatient, 5, 50, 7},
+		{PlannerExhaustive, 10, 100, 9},
+		{PlannerEstimate, 3, 30, 5}, // fallback
 	}
 
 	for _, tt := range tests {
@@ -102,6 +103,10 @@ func TestGetMeasureConfig(t *testing.T) {
 
 		if config.iters != tt.expectedIters {
 			t.Errorf("getMeasureConfig(%v).iters = %d, want %d", tt.mode, config.iters, tt.expectedIters)
+		}
+
+		if config.trials != tt.expectedTrials {
+			t.Errorf("getMeasureConfig(%v).trials = %d, want %d", tt.mode, config.trials, tt.expectedTrials)
 		}
 	}
 }

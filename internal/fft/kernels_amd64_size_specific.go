@@ -20,10 +20,14 @@ func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 		// Determine which algorithm (DIT vs Stockham) based on strategy
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
-			// For non-DIT strategies, use the existing strategy-based dispatch
-			return avx2KernelComplex64(strategy, forwardAVX2Complex64, forwardAVX2StockhamComplex64)(
-				dst, src, twiddle, scratch,
-			)
+			// Non-DIT strategy: dispatch directly on the already-resolved strategy
+			// rather than building (and immediately calling) a per-transform
+			// strategy closure, which would allocate on every call.
+			if resolved == KernelStockham {
+				return forwardAVX2StockhamComplex64(dst, src, twiddle, scratch)
+			}
+
+			return false
 		}
 
 		// DIT strategy: try size-specific, fall back to generic AVX2
@@ -125,10 +129,14 @@ func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 		// Determine which algorithm (DIT vs Stockham) based on strategy
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
-			// For non-DIT strategies, use the existing strategy-based dispatch
-			return avx2KernelComplex64(strategy, inverseAVX2Complex64, inverseAVX2StockhamComplex64)(
-				dst, src, twiddle, scratch,
-			)
+			// Non-DIT strategy: dispatch directly on the already-resolved strategy
+			// rather than building (and immediately calling) a per-transform
+			// strategy closure, which would allocate on every call.
+			if resolved == KernelStockham {
+				return inverseAVX2StockhamComplex64(dst, src, twiddle, scratch)
+			}
+
+			return false
 		}
 
 		// DIT strategy: try size-specific, fall back to generic AVX2
@@ -412,9 +420,13 @@ func avx2SizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
-			return avx2KernelComplex128(strategy, forwardAVX2Complex128, forwardAVX2StockhamComplex128)(
-				dst, src, twiddle, scratch,
-			)
+			// Dispatch directly on the resolved strategy to avoid allocating a
+			// per-transform strategy closure.
+			if resolved == KernelStockham {
+				return forwardAVX2StockhamComplex128(dst, src, twiddle, scratch)
+			}
+
+			return false
 		}
 
 		switch n {
@@ -481,9 +493,13 @@ func avx2SizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kern
 
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
 		if resolved != KernelDIT {
-			return avx2KernelComplex128(strategy, inverseAVX2Complex128, inverseAVX2StockhamComplex128)(
-				dst, src, twiddle, scratch,
-			)
+			// Dispatch directly on the resolved strategy to avoid allocating a
+			// per-transform strategy closure.
+			if resolved == KernelStockham {
+				return inverseAVX2StockhamComplex128(dst, src, twiddle, scratch)
+			}
+
+			return false
 		}
 
 		switch n {
