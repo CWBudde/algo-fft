@@ -225,15 +225,19 @@ into the P2 backlog below.
 
 ### P1.4 Reduce duplication in the plan layer
 
-- [ ] Split `plan.go` (1,425 lines, near the 1,500 cap): extract the ~270 lines
+- [x] Split `plan.go` (1,425 lines, near the 1,500 cap): extract the ~270 lines
       of triplicated `complex64/complex128/default` alloc type-switches into one
-      generic aligned-alloc helper (`plan_alloc.go`), and move `Close`/`Reset`/
-      `Clone` to `plan_lifecycle.go`.
-- [ ] Retire `PlanReal` in favor of the generic `PlanRealT` (the former is a
-      verbatim non-generic duplicate kept "for backward compatibility"), or
-      generate it.
-- [ ] Generate the `*128` DSP twins (`Convolve128`, `CrossCorrelate128`, …) and
-      the 2D/3D/ND boilerplate from a single template.
+      generic aligned-alloc helper (`mem.AllocAligned[T]` in `plan_alloc.go`), and
+      move `Close`/`Reset`/`Clone` to `plan_lifecycle.go`. `plan.go` is now 786
+      lines.
+- [x] Retire `PlanReal` in favor of the generic `PlanRealT` (the former is a
+      verbatim non-generic duplicate kept "for backward compatibility"): it is now
+      a type alias for `PlanRealT[float32, complex64]`.
+- [x] De-duplicate the `*128` DSP twins (`Convolve128`, `CrossCorrelate128`, …) by
+      making the helpers generic (`convolveT[T]`, `crossCorrelateT[T]`,
+      `convolveRealT[F,C]`) with thin wrappers, mirroring the already-generic
+      2D/3D/ND plans. (The 2D/3D/ND plans were already generic; no template
+      generator was introduced.)
 
 ### P1.5 Clean up dispatch
 
