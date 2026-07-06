@@ -540,34 +540,27 @@ func equalComplex64Slices(a, b []complex64) bool {
 	return true
 }
 
-//nolint:unparam
-func sprintf(format string, args ...interface{}) string {
-	// Simple sprintf implementation to avoid importing fmt
-	// Only handles %d and %dx%d patterns used in tests
-	result := ""
+func sprintf(format string, args ...any) string {
+	// Simple sprintf implementation to avoid importing fmt.
+	// Only handles the %d patterns used in tests.
+	var result strings.Builder
+
 	argIdx := 0
 
-	var resultSb549 strings.Builder
 	for i := 0; i < len(format); i++ {
-		//nolint:nestif
-		if format[i] == '%' && i+1 < len(format) {
-			if format[i+1] == 'd' {
-				if argIdx < len(args) {
-					resultSb549.WriteString(itoa(args[argIdx].(int))) //nolint:forcetypeassert
-					argIdx++
-				}
-
-				i++
-			} else {
-				resultSb549.WriteString(string(format[i]))
+		if format[i] == '%' && i+1 < len(format) && format[i+1] == 'd' {
+			if argIdx < len(args) {
+				result.WriteString(itoa(args[argIdx].(int))) //nolint:forcetypeassert
+				argIdx++
 			}
+
+			i++
 		} else {
-			resultSb549.WriteString(string(format[i]))
+			result.WriteByte(format[i])
 		}
 	}
-	result += resultSb549.String()
 
-	return result
+	return result.String()
 }
 
 // TestPlanReal2D_Accessors tests the accessor methods.

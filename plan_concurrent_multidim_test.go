@@ -1,6 +1,8 @@
 package algofft
 
 import (
+	"errors"
+	"math/cmplx"
 	"sync"
 	"testing"
 )
@@ -43,12 +45,32 @@ func runConcurrentWorkers(t *testing.T, transform func() error) {
 	}
 }
 
-func assertSpectrumMatches(t *testing.T, got, want []complex64, context string) {
-	t.Helper()
+// spectrumMismatch compares two complex64 spectra and returns an error on the
+// first divergence. It is goroutine-safe (unlike the t.Fatalf-based assert
+// helpers) so worker goroutines can report failures back through the harness.
+func spectrumMismatch(got, want []complex64, context string) error {
+	const tol = 1e-3
 
 	for i := range want {
-		assertApproxComplex64f(t, got[i], want[i], 1e-3, "%s[%d]", context, i)
+		if cmplx.Abs(complex128(got[i]-want[i])) > tol {
+			return errors.New(sprintf(context+" mismatch at index %d", i)) //nolint:err113 // descriptive test error, no fmt by convention
+		}
 	}
+
+	return nil
+}
+
+// spectrumMismatch128 is the complex128 counterpart of spectrumMismatch.
+func spectrumMismatch128(got, want []complex128, context string) error {
+	const tol = 1e-10
+
+	for i := range want {
+		if cmplx.Abs(got[i]-want[i]) > tol {
+			return errors.New(sprintf(context+" mismatch at index %d", i)) //nolint:err113 // descriptive test error, no fmt by convention
+		}
+	}
+
+	return nil
 }
 
 func TestConcurrentSharedPlan2D(t *testing.T) {
@@ -79,9 +101,7 @@ func TestConcurrentSharedPlan2D(t *testing.T) {
 			return err
 		}
 
-		assertSpectrumMatches(t, dst, want, "plan2d")
-
-		return nil
+		return spectrumMismatch(dst, want, "plan2d")
 	})
 }
 
@@ -113,9 +133,7 @@ func TestConcurrentSharedPlan3D(t *testing.T) {
 			return err
 		}
 
-		assertSpectrumMatches(t, dst, want, "plan3d")
-
-		return nil
+		return spectrumMismatch(dst, want, "plan3d")
 	})
 }
 
@@ -147,9 +165,7 @@ func TestConcurrentSharedPlanND(t *testing.T) {
 			return err
 		}
 
-		assertSpectrumMatches(t, dst, want, "plannd")
-
-		return nil
+		return spectrumMismatch(dst, want, "plannd")
 	})
 }
 
@@ -181,9 +197,7 @@ func TestConcurrentSharedPlanReal(t *testing.T) {
 			return err
 		}
 
-		assertSpectrumMatches(t, dst, want, "planreal")
-
-		return nil
+		return spectrumMismatch(dst, want, "planreal")
 	})
 }
 
@@ -215,11 +229,7 @@ func TestConcurrentSharedPlanRealT(t *testing.T) {
 			return err
 		}
 
-		for i := range want {
-			assertApproxComplex128f(t, dst[i], want[i], "planrealt[%d]", i)
-		}
-
-		return nil
+		return spectrumMismatch128(dst, want, "planrealt")
 	})
 }
 
@@ -251,9 +261,7 @@ func TestConcurrentSharedPlanReal2D(t *testing.T) {
 			return err
 		}
 
-		assertSpectrumMatches(t, dst, want, "planreal2d")
-
-		return nil
+		return spectrumMismatch(dst, want, "planreal2d")
 	})
 }
 
@@ -285,8 +293,6 @@ func TestConcurrentSharedPlanReal3D(t *testing.T) {
 			return err
 		}
 
-		assertSpectrumMatches(t, dst, want, "planreal3d")
-
-		return nil
+		return spectrumMismatch(dst, want, "planreal3d")
 	})
 }
