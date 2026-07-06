@@ -473,4 +473,3 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 		}
 	}
 }
-

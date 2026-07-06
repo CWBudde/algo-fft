@@ -1,6 +1,7 @@
 package asm
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -55,11 +56,11 @@ func assemblyDirs(root string) ([]string, error) {
 
 		entries, err := os.ReadDir(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("reading %s: %w", path, err)
 		}
 
-		for _, e := range entries {
-			if strings.HasSuffix(e.Name(), ".s") {
+		for _, entry := range entries {
+			if strings.HasSuffix(entry.Name(), ".s") {
 				dirs = append(dirs, path)
 				break
 			}
@@ -67,8 +68,11 @@ func assemblyDirs(root string) ([]string, error) {
 
 		return nil
 	})
+	if err != nil {
+		return nil, fmt.Errorf("walking %s: %w", root, err)
+	}
 
-	return dirs, err
+	return dirs, nil
 }
 
 func checkDeclTextParity(t *testing.T, dir string) {
@@ -98,20 +102,19 @@ func bodylessDecls(dir string) (map[string]string, error) {
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading %s: %w", dir, err)
 	}
 
 	fset := token.NewFileSet()
 
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+	for _, entry := range entries {
+		if !isGoSourceFile(entry) {
 			continue
 		}
 
-		file, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.SkipObjectResolution)
+		file, err := parser.ParseFile(fset, filepath.Join(dir, entry.Name()), nil, parser.SkipObjectResolution)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parsing %s: %w", entry.Name(), err)
 		}
 
 		for _, decl := range file.Decls {
@@ -127,23 +130,29 @@ func bodylessDecls(dir string) (map[string]string, error) {
 	return decls, nil
 }
 
+func isGoSourceFile(e os.DirEntry) bool {
+	name := e.Name()
+
+	return !e.IsDir() && strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go")
+}
+
 // textSymbols collects all TEXT directive symbol names from .s files in dir.
 func textSymbols(dir string) (map[string]bool, error) {
 	symbols := make(map[string]bool)
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading %s: %w", dir, err)
 	}
 
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".s") {
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".s") {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("reading %s: %w", entry.Name(), err)
 		}
 
 		for _, match := range textSymbolRe.FindAllStringSubmatch(string(data), -1) {

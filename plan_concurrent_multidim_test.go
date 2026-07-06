@@ -14,18 +14,18 @@ const (
 	concurrentIters   = 25
 )
 
-// runConcurrentWorkers runs fn from several goroutines and reports the first error.
-func runConcurrentWorkers(t *testing.T, fn func() error) {
+// runConcurrentWorkers runs transform from several goroutines and reports the first error.
+func runConcurrentWorkers(t *testing.T, transform func() error) {
 	t.Helper()
 
-	var wg sync.WaitGroup
+	var workers sync.WaitGroup
 
 	errCh := make(chan error, concurrentWorkers)
 
 	for range concurrentWorkers {
-		wg.Go(func() {
+		workers.Go(func() {
 			for range concurrentIters {
-				err := fn()
+				err := transform()
 				if err != nil {
 					errCh <- err
 
@@ -35,7 +35,7 @@ func runConcurrentWorkers(t *testing.T, fn func() error) {
 		})
 	}
 
-	wg.Wait()
+	workers.Wait()
 	close(errCh)
 
 	for err := range errCh {
