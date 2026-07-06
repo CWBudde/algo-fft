@@ -36,12 +36,14 @@ func (p *Plan[T]) Close() {
 		fft.PoolPut(p.pool, p.n, p.twiddle, p.twiddleBacking)
 	}
 
+	// Scratch may be allocated larger than p.n (see standardScratchSize), so it
+	// was drawn from the pool bucket keyed on its own length; return it there.
 	if p.scratchBacking != nil {
-		fft.PoolPut(p.pool, p.n, p.scratch, p.scratchBacking)
+		fft.PoolPut(p.pool, len(p.scratch), p.scratch, p.scratchBacking)
 	}
 
 	if p.stridedScratchBacking != nil {
-		fft.PoolPut(p.pool, p.n, p.stridedScratch, p.stridedScratchBacking)
+		fft.PoolPut(p.pool, len(p.stridedScratch), p.stridedScratch, p.stridedScratchBacking)
 	}
 
 	if p.bitrev != nil {
@@ -54,11 +56,13 @@ func (p *Plan[T]) Close() {
 	p.codeletTwiddleForward = nil
 	p.codeletTwiddleInverse = nil
 	p.scratch = nil
+	p.stridedScratch = nil
 	p.bitrev = nil
 	p.twiddleBacking = nil
 	p.codeletTwiddleForwardBacking = nil
 	p.codeletTwiddleInverseBacking = nil
 	p.scratchBacking = nil
+	p.stridedScratchBacking = nil
 }
 
 // Clone creates an independent copy of the Plan with its own scratch buffer.
