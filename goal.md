@@ -2,6 +2,10 @@
 
 This plan outlines a multi-phase approach to build an open-source FFT library in Go. It emphasizes a pure Go implementation (no cgo) for broad platform support (including WebAssembly), a focus on complex64 performance, and a clean API that hides backend details (like SIMD/assembly optimizations) from users. Each phase lists key tasks and goals, ensuring the library is extensible, well-tested, and contributor-friendly.
 
+> **Status note:** the runtime-dispatch vision below is not fully realized yet.
+> As shipped today, SIMD kernels require building with `-tags asm`; the default
+> build is pure Go. See `PLAN.md` (P2) for the work to make SIMD the default.
+
 ## Phase 1: MVP - Basic Radix-2 FFT (Complex64)
 
 - **API Design (Plan-Based):** Define a core Plan type (e.g. gofft.Plan) with an idiomatic Go API similar to Gonum's Fourier package. Provide functions like NewPlan(n int) \*Plan to initialize for a fixed length, and methods Forward(dst, src \[\]complex64) and Inverse(dst, src \[\]complex64) (or Transform/Inverse) for computing the FFT and inverse. The Plan can store precomputed twiddle factors for reuse. This plan-based approach lets users set up an FFT once and reuse it, mirroring Gonum's pattern of NewFFT followed by transform calls[\[1\]](https://pkg.go.dev/gonum.org/v1/gonum/dsp/fourier#:~:text=%2F%2F%20Initialize%20an%20FFT%20and,Coefficients%28nil%2C%20samples)[\[2\]](https://pkg.go.dev/gonum.org/v1/gonum/dsp/fourier#:~:text=%2F%2F%20Initialize%20an%20FFT%20and,Coefficients%28nil%2C%20tone). Initially focus on complex64 as the primary type for efficiency; design the API such that complex128 support can be added later (e.g. via a separate Plan type or generics) without breaking changes.

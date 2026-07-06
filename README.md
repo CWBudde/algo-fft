@@ -1,8 +1,8 @@
 # algo-fft - High-Performance Go FFT Library
 
-[![Tests](https://github.com/cwbudde/algofft/actions/workflows/test.yaml/badge.svg)](https://github.com/cwbudde/algo-fft/actions/workflows/test.yaml)
+[![Tests](https://github.com/cwbudde/algo-fft/actions/workflows/test.yaml/badge.svg)](https://github.com/cwbudde/algo-fft/actions/workflows/test.yaml)
 [![codecov](https://codecov.io/gh/cwbudde/algo-fft/branch/main/graph/badge.svg)](https://codecov.io/gh/cwbudde/algo-fft)
-[![Go Reference](https://pkg.go.dev/badge/github.com/cwbudde/algofft.svg)](https://pkg.go.dev/github.com/cwbudde/algo-fft)
+[![Go Reference](https://pkg.go.dev/badge/github.com/cwbudde/algo-fft.svg)](https://pkg.go.dev/github.com/cwbudde/algo-fft)
 
 A new FFT (Fast Fourier Transform) library for Go, designed for high performance, numerical accuracy, and flexibility.
 
@@ -37,7 +37,8 @@ The demo runs the library compiled to WebAssembly, allowing you to visualize FFT
 
 - **Performance**
   - Zero-dispatch codelets for common sizes (8, 16, 32, 64, 128)
-  - SIMD acceleration (AVX2 on amd64, NEON on ARM64)
+  - SIMD acceleration (AVX2 on amd64, NEON on ARM64) — currently requires
+    building with `-tags asm`; default builds use optimized pure Go
   - Zero-allocation transforms with pre-allocated Plans
   - CPU feature detection and runtime dispatch
   - Wisdom system for caching optimal planning decisions
@@ -46,7 +47,7 @@ The demo runs the library compiled to WebAssembly, allowing you to visualize FFT
 ## Installation
 
 ```bash
-go get github.com/cwbudde/algofft
+go get github.com/cwbudde/algo-fft
 ```
 
 ## Quick Start
@@ -56,7 +57,7 @@ package main
 
 import (
     "fmt"
-    "github.com/cwbudde/algofft"
+    "github.com/cwbudde/algo-fft"
 )
 
 func main() {
@@ -171,7 +172,7 @@ Batch processing uses an interleaved/sequential memory layout where FFT `i` occu
 The wisdom system caches optimal planning decisions for reuse across program runs:
 
 ```go
-import "github.com/cwbudde/algofft"
+import "github.com/cwbudde/algo-fft"
 
 // Plans are automatically optimized using built-in wisdom
 
@@ -238,7 +239,7 @@ The table below shows performance comparison with gonum's FFT implementation for
 | 2048 | 30.68 µs | 93.93 µs  | 3.1x    |
 | 4096 | 95.84 µs | 310.53 µs | 3.2x    |
 
-_Benchmarked on Linux/amd64 with AVX2 acceleration_
+_Benchmarked on Linux/amd64 with AVX2 acceleration (built with `-tags asm`)_
 
 ## Correctness
 
@@ -332,7 +333,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to algofft
 ## Goals & Design
 
 - **Correctness**: Extensive testing and mathematical precision
-- **Performance**: SIMD optimization across architectures
+- **Performance**: SIMD optimization across architectures (via the `-tags asm` build until it becomes the default)
 - **Usability**: Clean, ergonomic Go API
 - **Maintainability**: Well-documented, modular codebase
 
