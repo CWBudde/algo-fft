@@ -37,13 +37,18 @@ type PlanReal2D struct {
 type planReal2DScratch struct {
 	compact        []complex64 // Working buffer (M×(N/2+1))
 	compactBacking []byte      // Keeps the aligned buffer alive for GC
+	colData        []complex64 // Column working buffer (length rows)
 }
 
 func newPlanReal2DScratchCache(rows, halfCols int) *residentCache[planReal2DScratch] {
 	return newResidentCache(func() *planReal2DScratch {
 		compact, backing := mem.AllocAlignedComplex64(rows * halfCols)
 
-		return &planReal2DScratch{compact: compact, compactBacking: backing}
+		return &planReal2DScratch{
+			compact:        compact,
+			compactBacking: backing,
+			colData:        make([]complex64, rows),
+		}
 	})
 }
 
@@ -171,62 +176,6 @@ func (p *PlanReal2D) Forward(dst []complex64, src []float32) error {
 	return nil
 }
 
-func (p *PlanReal2D) forwardSingle(dst []complex64, src []float32) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.rows*p.cols {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != p.rows*p.halfCols {
-		return ErrLengthMismatch
-	}
-
-	s := p.scratch.get()
-	defer p.scratch.put(s)
-
-	compact := s.compact
-
-	// Step 1: Real FFT on each row (float32 input → complex64 half-spectrum)
-	for row := range p.rows {
-		srcRow := src[row*p.cols : (row+1)*p.cols]
-		dstRow := compact[row*p.halfCols : (row+1)*p.halfCols]
-
-		err := p.rowPlan.Forward(dstRow, srcRow)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Step 2: Complex FFT on each column of the half-spectrum
-	colData := make([]complex64, p.rows)
-
-	for col := range p.halfCols {
-		// Extract column
-		for row := range p.rows {
-			colData[row] = compact[row*p.halfCols+col]
-		}
-
-		// Transform column
-		err := p.colPlans[col].InPlace(colData)
-		if err != nil {
-			return err
-		}
-
-		// Write back
-		for row := range p.rows {
-			compact[row*p.halfCols+col] = colData[row]
-		}
-	}
-
-	// Copy result to dst
-	copy(dst, compact)
-
-	return nil
-}
-
 // ForwardFull computes the 2D real FFT with full spectrum output (includes redundant conjugates).
 //
 // Input src: M×N row-major array of float32 (length M*N)
@@ -255,8 +204,10 @@ func (p *PlanReal2D) ForwardFull(dst []complex64, src []float32) error {
 
 	compact := s.compact
 
-	// First compute compact spectrum
-	err := p.Forward(compact, src)
+	// Compute the compact spectrum directly into the borrowed buffer. Calling
+	// the exported Forward here would nest a second scratch borrow and break
+	// the zero-allocation guarantee once GC drains the overflow pool.
+	err := p.forwardCompactInto(compact, s.colData, src)
 	if err != nil {
 		return err
 	}
@@ -431,4 +382,70 @@ func (p *PlanReal2D) Clone() *PlanReal2D {
 		scratch:  newPlanReal2DScratchCache(p.rows, p.halfCols),
 		options:  p.options,
 	}
+}
+
+func (p *PlanReal2D) forwardSingle(dst []complex64, src []float32) error {
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	if len(src) != p.rows*p.cols {
+		return ErrLengthMismatch
+	}
+
+	if len(dst) != p.rows*p.halfCols {
+		return ErrLengthMismatch
+	}
+
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	err := p.forwardCompactInto(s.compact, s.colData, src)
+	if err != nil {
+		return err
+	}
+
+	// Copy result to dst
+	copy(dst, s.compact)
+
+	return nil
+}
+
+// forwardCompactInto computes the compact half-spectrum of src into compact
+// (length rows*halfCols), using colData (length rows) as the column working
+// buffer. It borrows no scratch of its own, so callers that already hold a
+// scratch set reuse its buffers and stay allocation-free — this lets
+// ForwardFull run without nesting a second scratch borrow through Forward.
+func (p *PlanReal2D) forwardCompactInto(compact, colData []complex64, src []float32) error {
+	// Step 1: Real FFT on each row (float32 input → complex64 half-spectrum)
+	for row := range p.rows {
+		srcRow := src[row*p.cols : (row+1)*p.cols]
+		dstRow := compact[row*p.halfCols : (row+1)*p.halfCols]
+
+		err := p.rowPlan.Forward(dstRow, srcRow)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Step 2: Complex FFT on each column of the half-spectrum
+	for col := range p.halfCols {
+		// Extract column
+		for row := range p.rows {
+			colData[row] = compact[row*p.halfCols+col]
+		}
+
+		// Transform column
+		err := p.colPlans[col].InPlace(colData)
+		if err != nil {
+			return err
+		}
+
+		// Write back
+		for row := range p.rows {
+			compact[row*p.halfCols+col] = colData[row]
+		}
+	}
+
+	return nil
 }

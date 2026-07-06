@@ -2,7 +2,10 @@
 
 package algofft
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 //nolint:paralleltest // AllocsPerRun panics during parallel tests
 func TestPlanTransformsNoAllocsComplex64(t *testing.T) {
@@ -142,6 +145,61 @@ func assertNoAllocs(t *testing.T, label string, run func() error) {
 	t.Helper()
 
 	allocs := testing.AllocsPerRun(100, func() {
+		err := run()
+		if err != nil {
+			t.Fatalf("%s returned error: %v", label, err)
+		}
+	})
+
+	if allocs != 0 {
+		t.Fatalf("%s allocated %.2f per run, want 0", label, allocs)
+	}
+}
+
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestPlanReal2DTransformsNoAllocs(t *testing.T) {
+	const rows, cols = 16, 16
+
+	plan, err := NewPlanReal2D(rows, cols)
+	if err != nil {
+		t.Fatalf("NewPlanReal2D(%d, %d) returned error: %v", rows, cols, err)
+	}
+
+	src := make([]float32, rows*cols)
+	for i := range src {
+		src[i] = float32(i) * 0.5
+	}
+
+	compact := make([]complex64, rows*(cols/2+1))
+	full := make([]complex64, rows*cols)
+
+	// Warm the resident scratch slot so the first measured run is steady-state.
+	err = plan.Forward(compact, src)
+	if err != nil {
+		t.Fatalf("Forward() returned error: %v", err)
+	}
+
+	err = plan.ForwardFull(full, src)
+	if err != nil {
+		t.Fatalf("ForwardFull() returned error: %v", err)
+	}
+
+	// Force a GC each iteration to drain the overflow pool: this catches
+	// ForwardFull nesting a second scratch borrow through Forward, which would
+	// re-allocate once the pool is empty.
+	assertNoAllocsGC(t, "Forward", func() error { return plan.Forward(compact, src) })
+	assertNoAllocsGC(t, "ForwardFull", func() error { return plan.ForwardFull(full, src) })
+}
+
+// assertNoAllocsGC is assertNoAllocs but forces a GC before each run so that
+// buffers cached opportunistically in the overflow sync.Pool are reclaimed,
+// exercising the resident-only allocation-free path.
+func assertNoAllocsGC(t *testing.T, label string, run func() error) {
+	t.Helper()
+
+	allocs := testing.AllocsPerRun(50, func() {
+		runtime.GC()
+
 		err := run()
 		if err != nil {
 			t.Fatalf("%s returned error: %v", label, err)
