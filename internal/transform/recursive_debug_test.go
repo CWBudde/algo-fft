@@ -41,10 +41,7 @@ func TestRecursiveDebug_Size512(t *testing.T) {
 	twiddle := TwiddleFactorsRecursive[complex64](strategy)
 	t.Logf("Generated %d twiddle factors", len(twiddle))
 
-	numToShow := 5
-	if len(twiddle) < numToShow {
-		numToShow = len(twiddle)
-	}
+	numToShow := min(len(twiddle), 5)
 
 	t.Logf("First few twiddles: %v", twiddle[:numToShow])
 

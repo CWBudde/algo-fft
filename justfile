@@ -40,7 +40,7 @@ check: test lint cover
 
 # Build with asm
 build-amd64:
-    GOOS=linux GOARCH=amd64 go build -tags "amd" -v ./...
+    GOOS=linux GOARCH=amd64 go build -tags "asm" -v ./...
 
 # Cross-compile for ARM64
 build-arm64:

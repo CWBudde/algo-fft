@@ -10,6 +10,9 @@ import (
 
 // PlanRealT is a generic pre-computed real FFT plan supporting both float32 and float64 input.
 // The forward transform returns the non-redundant half-spectrum with length N/2+1.
+// Plans are reusable and safe for concurrent use during transforms: the
+// pack/unpack buffer is borrowed per call from an internal cache, so multiple
+// goroutines may share one instance.
 //
 // Type parameters:
 //   - F: float type (float32 or float64)
@@ -26,8 +29,16 @@ type PlanRealT[F Float, C Complex] struct {
 
 	plan    *Plan[C]
 	weight  []C
-	buf     []C
+	buf     *residentCache[[]C]
 	options PlanOptions
+}
+
+func newPlanRealTBufCache[C Complex](half int) *residentCache[[]C] {
+	return newResidentCache(func() *[]C {
+		b := make([]C, half)
+
+		return &b
+	})
 }
 
 // NewPlanRealT creates a new generic real FFT plan for length n.
@@ -58,7 +69,7 @@ func newPlanRealTWithFeatures[F Float, C Complex](n int, features cpu.Features, 
 	childOpts := opts
 	childOpts.Batch = 0
 	childOpts.Stride = 0
-	// The real-FFT pack/unpack path uses the child complex plan in-place on p.buf.
+	// The real-FFT pack/unpack path uses the child complex plan in-place on the borrowed pack buffer.
 	childOpts.InPlace = true
 
 	plan, err := newPlanWithFeatures[C](n/2, features, childOpts)
@@ -91,7 +102,7 @@ func newPlanRealTWithFeatures[F Float, C Complex](n int, features cpu.Features, 
 		half:    n / 2,
 		plan:    plan,
 		weight:  weight,
-		buf:     make([]C, n/2),
+		buf:     newPlanRealTBufCache[C](n / 2),
 		options: opts,
 	}, nil
 }
@@ -148,6 +159,11 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 		return ErrLengthMismatch
 	}
 
+	bufp := p.buf.get()
+	defer p.buf.put(bufp)
+
+	buf := *bufp
+
 	// Pack real samples into complex buffer: z[k] = src[2k] + i*src[2k+1]
 	// Memory layout of []float32{r0,i0,r1,i1,...} is identical to []complex64,
 	// so we can use unsafe.Slice to reinterpret and copy efficiently.
@@ -155,24 +171,24 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 	switch any(zero).(type) {
 	case complex64:
 		srcF32 := any(src).([]float32)
-		bufC64 := any(p.buf).([]complex64)
+		bufC64 := any(buf).([]complex64)
 		srcAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&srcF32[0])), p.half)
 		copy(bufC64, srcAsComplex)
 	case complex128:
 		srcF64 := any(src).([]float64)
-		bufC128 := any(p.buf).([]complex128)
+		bufC128 := any(buf).([]complex128)
 		srcAsComplex := unsafe.Slice((*complex128)(unsafe.Pointer(&srcF64[0])), p.half)
 		copy(bufC128, srcAsComplex)
 	}
 
 	// Perform N/2 complex FFT
-	err := p.plan.Forward(p.buf, p.buf)
+	err := p.plan.Forward(buf, buf)
 	if err != nil {
 		return err
 	}
 
 	// Extract DC and Nyquist bins
-	y0 := p.buf[0]
+	y0 := buf[0]
 
 	switch any(zero).(type) {
 	case complex64:
@@ -197,7 +213,7 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 	// the spectrum is recovered via: X[k] = A[k] - U[k] * (A[k] - B[k]).
 	switch any(zero).(type) {
 	case complex64:
-		bufC64 := any(p.buf).([]complex64)
+		bufC64 := any(buf).([]complex64)
 		dstC64 := any(dst).([]complex64)
 
 		weightC64 := any(p.weight).([]complex64)
@@ -210,7 +226,7 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 			dstC64[k] = a - c
 		}
 	case complex128:
-		bufC128 := any(p.buf).([]complex128)
+		bufC128 := any(buf).([]complex128)
 		dstC128 := any(dst).([]complex128)
 
 		weightC128 := any(p.weight).([]complex128)
@@ -315,22 +331,27 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 		}
 	}
 
+	bufp := p.buf.get()
+	defer p.buf.put(bufp)
+
+	buf := *bufp
+
 	// Reconstruct packed buffer from half-spectrum
 	switch any(zero).(type) {
 	case complex64:
 		srcC64 := any(src).([]complex64)
-		bufC64 := any(p.buf).([]complex64)
+		bufC64 := any(buf).([]complex64)
 		weightC64 := any(p.weight).([]complex64)
 		fft.RepackInverseComplex64(bufC64, srcC64, weightC64)
 	case complex128:
 		srcC128 := any(src).([]complex128)
-		bufC128 := any(p.buf).([]complex128)
+		bufC128 := any(buf).([]complex128)
 		weightC128 := any(p.weight).([]complex128)
 		fft.RepackInverseComplex128(bufC128, srcC128, weightC128)
 	}
 
 	// Inverse N/2 complex FFT
-	err := p.plan.Inverse(p.buf, p.buf)
+	err := p.plan.Inverse(buf, buf)
 	if err != nil {
 		return err
 	}
@@ -340,12 +361,12 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 	// so we can use unsafe.Slice to reinterpret and copy efficiently.
 	switch any(zero).(type) {
 	case complex64:
-		bufC64 := any(p.buf).([]complex64)
+		bufC64 := any(buf).([]complex64)
 		dstF32 := any(dst).([]float32)
 		dstAsComplex := unsafe.Slice((*complex64)(unsafe.Pointer(&dstF32[0])), p.half)
 		copy(dstAsComplex, bufC64)
 	case complex128:
-		bufC128 := any(p.buf).([]complex128)
+		bufC128 := any(buf).([]complex128)
 		dstF64 := any(dst).([]float64)
 		dstAsComplex := unsafe.Slice((*complex128)(unsafe.Pointer(&dstF64[0])), p.half)
 		copy(dstAsComplex, bufC128)

@@ -233,6 +233,7 @@ func TestExecutor_ConcurrentSafety(t *testing.T) {
 		src[0] = 1
 
 		dst := make([]complex64, 256)
+
 		err := exec1.Forward(dst, src)
 		if err != nil {
 			t.Errorf("exec1.Forward() failed: %v", err)
@@ -246,6 +247,7 @@ func TestExecutor_ConcurrentSafety(t *testing.T) {
 		src[1] = 1
 
 		dst := make([]complex64, 256)
+
 		err := exec2.Forward(dst, src)
 		if err != nil {
 			t.Errorf("exec2.Forward() failed: %v", err)

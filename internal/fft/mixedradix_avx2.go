@@ -13,28 +13,49 @@ func init() {
 	recursiveStep128 = mixedRadixRecursivePingPongComplex128AVX2
 
 	// Allow the schedule to emit a composite radix only when the hooks above
-	// will actually dispatch it: an AVX2-level codelet with both directions.
-	// Anything weaker falls through to the pure Go recursion, which cannot
-	// execute composite radices.
+	// will actually dispatch it. Schedule-time and dispatch-time decisions
+	// share the mixedRadixCodelet64/128 lookup so they cannot drift apart;
+	// a mismatch would route a composite radix into the pure Go butterfly,
+	// which panics on radices it cannot execute.
 	codeletSchedulable64 = func(n int) bool {
-		entry := kernels.Registry64.Lookup(n, cpu.DetectFeatures())
-		return entry != nil && entry.SIMDLevel >= kernels.SIMDAVX2 && entry.Forward != nil && entry.Inverse != nil
+		return mixedRadixCodelet64(n) != nil
 	}
 	codeletSchedulable128 = func(n int) bool {
-		entry := kernels.Registry128.Lookup(n, cpu.DetectFeatures())
-		return entry != nil && entry.SIMDLevel >= kernels.SIMDAVX2 && entry.Forward != nil && entry.Inverse != nil
+		return mixedRadixCodelet128(n) != nil
 	}
+}
+
+// mixedRadixCodelet64 returns the codelet the AVX2 mixed-radix driver will
+// dispatch for a size-n sub-transform, or nil if the pure Go recursion must
+// handle it. This is the single source of truth for both the scheduler's
+// composite-radix predicate and the dispatch hook: an entry qualifies only
+// with AVX2 (or better) and both directions available, so a scheduled
+// composite radix can always be executed.
+func mixedRadixCodelet64(n int) *kernels.CodeletEntry[complex64] {
+	entry := kernels.Registry64.Lookup(n, cpu.DetectFeatures())
+	if entry == nil || entry.SIMDLevel < kernels.SIMDAVX2 || entry.Forward == nil || entry.Inverse == nil {
+		return nil
+	}
+
+	return entry
+}
+
+// mixedRadixCodelet128 is the complex128 counterpart of mixedRadixCodelet64.
+func mixedRadixCodelet128(n int) *kernels.CodeletEntry[complex128] {
+	entry := kernels.Registry128.Lookup(n, cpu.DetectFeatures())
+	if entry == nil || entry.SIMDLevel < kernels.SIMDAVX2 || entry.Forward == nil || entry.Inverse == nil {
+		return nil
+	}
+
+	return entry
 }
 
 // mixedRadixRecursivePingPongComplex64AVX2 checks for AVX2 codelets before recursing.
 func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, stride, step int, radices []int, twiddle []complex64, inverse bool) {
-	// Optimization: check if we have an AVX2 codelet for this sub-transform size.
-	// We only do this for n > 1 (base cases are handled by the pure Go recursion anyway).
+	// Optimization: dispatch whole sub-transforms to AVX2 codelets when
+	// available. Uses the same lookup as the scheduling predicate.
 	if n > 1 {
-		features := cpu.DetectFeatures()
-		if entry := kernels.Registry64.Lookup(n, features); entry != nil && entry.SIMDLevel >= kernels.SIMDAVX2 {
-			// Found an AVX2 kernel for this sub-transform!
-
+		if entry := mixedRadixCodelet64(n); entry != nil {
 			// 1. Prepare Input
 			var inputBuf []complex64
 			if stride == 1 {
@@ -62,27 +83,18 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 				codeletTwiddle = prepared
 			}
 
-			success := false
 			if inverse {
-				if entry.Inverse != nil {
-					entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
-					// Undo built-in scaling of the Inverse codelet (1/n)
-					scale := complex64(complex(float32(n), 0))
-					for i := range n {
-						dst[i] *= scale
-					}
-					success = true
+				entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
+				// Undo built-in scaling of the Inverse codelet (1/n)
+				scale := complex64(complex(float32(n), 0))
+				for i := range n {
+					dst[i] *= scale
 				}
 			} else {
-				if entry.Forward != nil {
-					entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
-					success = true
-				}
+				entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
 			}
 
-			if success {
-				return
-			}
+			return
 		}
 	}
 
@@ -93,8 +105,7 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 // mixedRadixRecursivePingPongComplex128AVX2 is the complex128 version.
 func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, stride, step int, radices []int, twiddle []complex128, inverse bool) {
 	if n > 1 {
-		features := cpu.DetectFeatures()
-		if entry := kernels.Registry128.Lookup(n, features); entry != nil && entry.SIMDLevel >= kernels.SIMDAVX2 {
+		if entry := mixedRadixCodelet128(n); entry != nil {
 			var inputBuf []complex128
 			if stride == 1 {
 				inputBuf = src[:n]
@@ -112,32 +123,23 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 
 			kernelScratch := make([]complex128, n)
 
-			success := false
 			codeletTwiddle := twiddleBuf
 			if prepared := kernels.GetPreparedTwiddle128(entry, n, inverse); prepared != nil {
 				codeletTwiddle = prepared
 			}
 
 			if inverse {
-				if entry.Inverse != nil {
-					entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
-					// Undo built-in scaling of the Inverse codelet (1/n)
-					scale := complex128(complex(float64(n), 0))
-					for i := range n {
-						dst[i] *= scale
-					}
-					success = true
+				entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
+				// Undo built-in scaling of the Inverse codelet (1/n)
+				scale := complex128(complex(float64(n), 0))
+				for i := range n {
+					dst[i] *= scale
 				}
 			} else {
-				if entry.Forward != nil {
-					entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
-					success = true
-				}
+				entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
 			}
 
-			if success {
-				return
-			}
+			return
 		}
 	}
 

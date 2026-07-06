@@ -32,6 +32,15 @@ into the P2 backlog below.
 
 ### What is broken, dormant, or misleading (the review's headline findings)
 
+> **Update (2026-07, P0 complete):** findings 1–5 and 7 below are fixed — the
+> `-tags asm` build compiles and is CI-gated (amd64/386 tested, arm64
+> build-only pending P2.2), dead code is deleted, all plan types are genuinely
+> concurrency-safe, the mixed-radix driver panics instead of returning garbage,
+> every registered codelet is validated per-direction against reference
+> spectra, and the docs/module-path/binary issues are resolved. Finding 6
+> (global mutable state) remains open as P1.1. The list is preserved below as
+> the review record.
+
 1. **SIMD is effectively non-functional as shipped.**
    - Default builds (`go build ./...`, `just build`, published module) are
      **100 % pure Go** — every SIMD dispatch file is gated behind
@@ -54,7 +63,7 @@ into the P2 backlog below.
    drivers + an unused generic ping-pong driver).
 
 3. **False concurrency-safety guarantees.** `Plan2D`, `Plan3D`, `PlanND`, and
-   `PlanReal2D` document *"safe for concurrent use during transforms"* but share
+   `PlanReal2D` document _"safe for concurrent use during transforms"_ but share
    mutable scratch buffers; two concurrent `Forward` calls on one instance race.
    Only 1D `Plan`/`PlanReal` are actually safe.
 
@@ -101,74 +110,74 @@ into the P2 backlog below.
 
 ## Priority 0 — Correctness & Build Integrity
 
-**Gate: none of P1–P3 starts until P0 is green.**
+**Gate: none of P1–P3 starts until P0 is green.** ✅ **P0 completed 2026-07.**
 
 ### P0.1 Repair and CI-gate the `-tags asm` build
 
-- [ ] Remove the duplicate declarations so `go build -tags asm ./...` compiles.
+- [x] Remove the duplicate declarations so `go build -tags asm ./...` compiles.
       Keep one file per (size, algorithm); delete the redundant twin
       (`dit_384_decomp_128x3_amd64_asm.go`, `dit_4096_sixstep_amd64_avx2.go`,
       `dit_16384_sixstep_amd64_avx2.go`, or their `dit_size*` counterparts).
-- [ ] Fix the amd64 decl↔TEXT drift: `decl.go` declares
+- [x] Fix the amd64 decl↔TEXT drift: `decl.go` declares
       `Forward/InverseSSE2Size128Radix4Complex128Asm` with no matching `TEXT`
       (only the `...Then2...` symbol exists). Rename or delete the dead wrappers.
-- [ ] Add CI jobs: `go build -tags asm ./...` and `go test -tags asm ./...`
+- [x] Add CI jobs: `go build -tags asm ./...` and `go test -tags asm ./...`
       (amd64), plus `-tags asm` under QEMU for arm64.
-- [ ] Add a lint/CI check that every `//go:noescape` decl has a matching `TEXT`
+- [x] Add a lint/CI check that every `//go:noescape` decl has a matching `TEXT`
       symbol, to prevent decl↔asm drift recurring.
 
 ### P0.2 Delete dead code
 
-- [ ] Delete `internal/kernels/dit_{32,64,128}_radix2.go` (`legacy_radix2`,
+- [x] Delete `internal/kernels/dit_{32,64,128}_radix2.go` (`legacy_radix2`,
       ~3,347 LOC — never compiles). Retire the `legacy_radix2` tag.
-- [ ] Delete the ~520 dead lines in `internal/fft/mixedradix.go`
+- [x] Delete the ~520 dead lines in `internal/fft/mixedradix.go`
       (`mixedRadixIterativeComplex64/128`, the unused generic
       `mixedRadixRecursivePingPong[T]`).
-- [ ] Delete the dead stub `planBitReversal` (`plan.go:261`, always returns
+- [x] Delete the dead stub `planBitReversal` (`plan.go:261`, always returns
       `nil`) — either implement it (so non-pooled plans get `bitrev` and the
       strided radix-2 fast path can trigger) or remove it and the dead
       `ForwardStrided` fast-path branch. Remove the `// (FIXED)` marker.
-- [ ] Remove the duplicate `ditAutoThreshold` in
+- [x] Remove the duplicate `ditAutoThreshold` in
       `internal/fft/kernels_fallback.go:9` (unused shadow of the planner copy).
 
 ### P0.3 Fix false concurrency-safety (code or docs)
 
-- [ ] Give `Plan2D`/`Plan3D`/`PlanND`/`PlanReal2D` a per-call scratch cache like
+- [x] Give `Plan2D`/`Plan3D`/`PlanND`/`PlanReal2D` a per-call scratch cache like
       1D `Plan` (preferred), **or** correct their doc comments to
-      *"Clone per goroutine; a single instance is not safe for concurrent
-      transforms"* (as `PlanReal` already correctly states).
-- [ ] Add a `-race` concurrent test per multi-dim plan type to lock in whichever
+      _"Clone per goroutine; a single instance is not safe for concurrent
+      transforms"_ (as `PlanReal` already correctly states).
+- [x] Add a `-race` concurrent test per multi-dim plan type to lock in whichever
       guarantee is chosen.
 
 ### P0.4 Eliminate silent wrong-answer paths
 
-- [ ] Replace every mixed-radix butterfly `default: return` (`mixedradix.go`
+- [x] Replace every mixed-radix butterfly `default: return` (`mixedradix.go`
       ~364/494/639) with a `panic` (unschedulable radix is a programming error,
       not a runtime input error).
-- [ ] Make the scheduler/driver contract explicit: have the driver expose its
+- [x] Make the scheduler/driver contract explicit: have the driver expose its
       executable radix set and validate the emitted schedule against it, instead
       of hand-synced `codeletSchedulable64/128` global hooks.
-- [ ] Strengthen the registry sweep (`codelet_roundtrip_all_test.go`) from
+- [x] Strengthen the registry sweep (`codelet_roundtrip_all_test.go`) from
       round-trip-only to **forward-vs-`reference.NaiveDFT`** for every registered
       codelet, and add a meta-test asserting every `Signature` has reference
       coverage (a compensating forward/inverse bug currently passes).
 
 ### P0.5 Fix user- and agent-breaking docs
 
-- [ ] Fix README module path everywhere: `cwbudde/algofft` → `cwbudde/algo-fft`
+- [x] Fix README module path everywhere: `cwbudde/algofft` → `cwbudde/algo-fft`
       (lines 3, 5, 49, 59, 174) so `go get` and the examples work.
-- [ ] Rewrite `CHANGELOG.md` to reflect implemented features (move Core/Real/
+- [x] Rewrite `CHANGELOG.md` to reflect implemented features (move Core/Real/
       Bluestein/SIMD/multi-dim out of "Planned").
-- [ ] Point `GEMINI.md` at `AGENTS.md` (like `CLAUDE.md` does) or rewrite it to
+- [x] Point `GEMINI.md` at `AGENTS.md` (like `CLAUDE.md` does) or rewrite it to
       the real `internal/kernels` + `internal/asm` layout and current phase.
-- [ ] Scope the SIMD claims in README/`goal.md`: state plainly that SIMD requires
+- [x] Scope the SIMD claims in README/`goal.md`: state plainly that SIMD requires
       `-tags asm` (until P2 makes it default), or hold the claim until then.
-- [ ] Fix `justfile:43` `-tags "amd"` → `-tags "asm"` and the matching
+- [x] Fix `justfile:43` `-tags "amd"` → `-tags "asm"` and the matching
       AGENTS.md line ("amd64 uses `-tags amd`" is false).
 
 ### P0.6 Repo hygiene
 
-- [ ] `git rm` the committed binaries (`benchkernels`,
+- [x] `git rm` the committed binaries (`benchkernels`,
       `cmd/bench_compare/bench_compare`, ~6 MB) and add `.gitignore` rules for
       extensionless Go binaries (e.g. `/benchkernels`, `cmd/*/bench_compare`, or a
       `/build/` convention).
@@ -232,7 +241,7 @@ into the P2 backlog below.
       boilerplate (`dispatch.go`) into one helper; stop silently ignoring failed
       type assertions.
 - [ ] Document the `stockham_packed_toggle_asm.go` inversion (packed Stockham is
-      *disabled* exactly when `asm` is enabled) or remove it.
+      _disabled_ exactly when `asm` is enabled) or remove it.
 
 ### P1.6 Introduce a codelet generator
 
@@ -258,13 +267,27 @@ into the P2 backlog below.
 
 - [ ] Decide the delivery model: either fold the asm kernels into the default
       build behind runtime CPU detection (preferred — remove the `asm` tag as a
-      *build* gate and select at runtime), or keep `-tags asm` but document it as
+      _build_ gate and select at runtime), or keep `-tags asm` but document it as
       required for SIMD and publish guidance/benchmarks for both.
 - [ ] Ensure `ForceGeneric`/fallback correctness parity is what CI benchmarks,
       not just the fast path.
 
+### P2.1a Clean up asmdecl findings
+
+- [ ] `go vet -tags asm ./...` reports hundreds of `asmdecl` findings across
+      `internal/asm/**.s`: slice parameters are addressed with the base-pointer
+      name at the length-field offset (e.g. `src+32(FP)` instead of
+      `src_len+32(FP)`). The offsets are numerically correct (tests pass), but
+      the naming defeats vet's frame checking. Rename the FP references so
+      `go vet -tags asm` can be added to CI.
+
 ### P2.2 Fix known-incorrect kernels
 
+- [ ] **ARM64 NEON complex64 kernels produce wrong results** (found by the
+      P0.1 QEMU `-tags asm` test run): `TestAllKernelsCorrectness` in
+      `internal/fft` fails for complex64 at sizes 16–4096 across DIT, Stockham,
+      and Auto strategies; complex128 passes. Until fixed, CI builds
+      (but does not test) `-tags asm` on arm64 (`test-arch.yaml`).
 - [ ] AVX2 Stockham "compiles/runs but produces wrong results" (old Phase 14.4):
       diff intermediate buffers against pure-Go per stage, fix buffer-swap /
       twiddle indexing, gate behind the P0.4 forward-vs-reference sweep.
@@ -277,15 +300,15 @@ Reuse-friendly decompositions, highest benefit/effort first. Each item: add the
 `.s`, wire the codelet with priority, add forward-vs-reference + round-trip tests,
 benchmark vs the current path with `benchstat`.
 
-| Priority | Size  | Decomposition        | Reuses            | Status  |
-| -------- | ----- | -------------------- | ----------------- | ------- |
-| 1        | 4096  | 64×64 (2-stage)      | FFT-64 kernel     | planned |
-| 2        | 1024  | 32×32 (2-stage)      | FFT-32 kernel     | planned |
-| 3        | 256   | 16×16 (2-stage)      | radix-16 kernel   | done (Go+AVX2) |
-| 4        | 16384 | 128×128 (2-stage)    | needs FFT-128     | partial |
-| 5        | 8192  | 64×128 (2-stage)     | needs FFT-128     | partial |
-| 6        | 512   | radix-8 / 16×32      | radix-8 infra     | done (Go) |
-| 7        | 2048  | 32×64 (2-stage)      | FFT-32/64 kernels | planned |
+| Priority | Size  | Decomposition     | Reuses            | Status         |
+| -------- | ----- | ----------------- | ----------------- | -------------- |
+| 1        | 4096  | 64×64 (2-stage)   | FFT-64 kernel     | planned        |
+| 2        | 1024  | 32×32 (2-stage)   | FFT-32 kernel     | planned        |
+| 3        | 256   | 16×16 (2-stage)   | radix-16 kernel   | done (Go+AVX2) |
+| 4        | 16384 | 128×128 (2-stage) | needs FFT-128     | partial        |
+| 5        | 8192  | 64×128 (2-stage)  | needs FFT-128     | partial        |
+| 6        | 512   | radix-8 / 16×32   | radix-8 infra     | done (Go)      |
+| 7        | 2048  | 32×64 (2-stage)   | FFT-32/64 kernels | planned        |
 
 - [ ] complex128 large-size AVX2 (512 done; 1024/2048/4096/8192/16384 pending).
 - [ ] SSE2 coverage for 512 mixed-2/4 and 1024 radix-4 (both precisions) — the

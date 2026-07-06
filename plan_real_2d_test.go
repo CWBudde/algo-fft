@@ -3,6 +3,7 @@ package algofft
 import (
 	"math"
 	"math/rand"
+	"strings"
 	"sync"
 	"testing"
 
@@ -539,32 +540,27 @@ func equalComplex64Slices(a, b []complex64) bool {
 	return true
 }
 
-//nolint:unparam
-func sprintf(format string, args ...interface{}) string {
-	// Simple sprintf implementation to avoid importing fmt
-	// Only handles %d and %dx%d patterns used in tests
-	result := ""
+func sprintf(format string, args ...any) string {
+	// Simple sprintf implementation to avoid importing fmt.
+	// Only handles the %d patterns used in tests.
+	var result strings.Builder
+
 	argIdx := 0
 
 	for i := 0; i < len(format); i++ {
-		//nolint:nestif
-		if format[i] == '%' && i+1 < len(format) {
-			if format[i+1] == 'd' {
-				if argIdx < len(args) {
-					result += itoa(args[argIdx].(int)) //nolint:forcetypeassert
-					argIdx++
-				}
-
-				i++
-			} else {
-				result += string(format[i])
+		if format[i] == '%' && i+1 < len(format) && format[i+1] == 'd' {
+			if argIdx < len(args) {
+				result.WriteString(itoa(args[argIdx].(int))) //nolint:forcetypeassert
+				argIdx++
 			}
+
+			i++
 		} else {
-			result += string(format[i])
+			result.WriteByte(format[i])
 		}
 	}
 
-	return result
+	return result.String()
 }
 
 // TestPlanReal2D_Accessors tests the accessor methods.

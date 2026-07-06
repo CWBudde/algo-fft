@@ -32,6 +32,7 @@ func main() {
 		mode       = flag.String("mode", "forward", "benchmark mode: forward, inverse, roundtrip, all")
 		seed       = flag.Int64("seed", 1, "rng seed")
 	)
+
 	flag.Parse()
 
 	sizes := parseSizes(*sizeList)

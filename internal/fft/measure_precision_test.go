@@ -14,6 +14,7 @@ import (
 func TestBenchmarkStrategyNeverReturnsZero(t *testing.T) {
 	// Force generic implementation to avoid CPU feature dependencies
 	cpu.SetForcedFeatures(cpu.Features{ForceGeneric: true})
+
 	defer cpu.ResetDetection()
 
 	features := cpu.DetectFeatures()

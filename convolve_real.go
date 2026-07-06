@@ -20,10 +20,7 @@ func ConvolveReal(dst, a, b []float32) error {
 		return ErrLengthMismatch
 	}
 
-	fftLen := m.NextPowerOfTwo(convLen)
-	if fftLen < 2 {
-		fftLen = 2
-	}
+	fftLen := max(m.NextPowerOfTwo(convLen), 2)
 
 	plan, err := NewPlanReal(fftLen)
 	if err != nil {

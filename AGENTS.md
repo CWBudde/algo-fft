@@ -68,7 +68,7 @@ Use the `just` recipes defined in `justfile`:
 
 ### Cross-Architecture & WASM
 
-- `just build-amd64` / `just build-arm64` / `just build-all` — cross-compile (amd64 uses `-tags "amd"`).
+- `just build-amd64` / `just build-arm64` / `just build-all` — cross-compile (amd64 uses `-tags "asm"`).
 - `just test-arm64` / `just bench-arm64` — run ARM64 tests/benchmarks via QEMU (requires `qemu-user-static`; benchmarks are correctness-only, not representative of performance).
 - `just test-all` / `just check-all` — run tests/checks on amd64 and arm64.
 - `just build-wasm` / `just test-wasm` / `just test-wasm-pkg <pkg>` — build and test the `js/wasm` target (tests run in Node.js).

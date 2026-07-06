@@ -1,10 +1,7 @@
 package algofft
 
 func resolveBatchStride(size int, opts PlanOptions) (int, int, error) {
-	batch := opts.Batch
-	if batch < 1 {
-		batch = 1
-	}
+	batch := max(opts.Batch, 1)
 
 	stride := opts.Stride
 	if stride <= 0 {
@@ -19,10 +16,7 @@ func resolveBatchStride(size int, opts PlanOptions) (int, int, error) {
 }
 
 func resolveBatchStrideReal(inSize, outSize int, opts PlanOptions) (int, int, int, error) {
-	batch := opts.Batch
-	if batch < 1 {
-		batch = 1
-	}
+	batch := max(opts.Batch, 1)
 
 	strideIn := opts.Stride
 	if strideIn <= 0 {

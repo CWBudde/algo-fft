@@ -22,10 +22,6 @@ func ForwardSSEComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int
 
 func InverseSSEComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
-//go:noescape
-
-func ForwardAVX2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-
 // --- Complex64 Kernels ---
 
 //go:noescape

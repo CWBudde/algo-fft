@@ -324,6 +324,14 @@ func inverseAVX2Size2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []co
 	return kasm.InverseAVX2Size2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch)
 }
 
+func forwardAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.ForwardAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch)
+}
+
+func inverseAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return kasm.InverseAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch)
+}
+
 func forwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return kasm.ForwardAVX2Size512Radix2Complex128Asm(dst, src, twiddle, scratch)
 }
@@ -514,14 +522,6 @@ func forwardSSE2Size128Radix2Complex128Asm(dst, src, twiddle, scratch []complex1
 
 func inverseSSE2Size128Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return kasm.InverseSSE2Size128Radix2Complex128Asm(dst, src, twiddle, scratch)
-}
-
-func forwardSSE2Size128Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	return kasm.ForwardSSE2Size128Radix4Complex128Asm(dst, src, twiddle, scratch)
-}
-
-func inverseSSE2Size128Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	return kasm.InverseSSE2Size128Radix4Complex128Asm(dst, src, twiddle, scratch)
 }
 
 func forwardSSE2Size256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {

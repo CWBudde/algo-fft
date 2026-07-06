@@ -30,3 +30,24 @@ jobs:
         with:
           files: ./coverage.txt
           flags: unittests
+
+  test-asm:
+    name: Test SIMD kernels (-tags asm)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Note: `go vet -tags asm` is not run here — the .s files carry many
+      # pre-existing asmdecl naming findings (functionally correct offsets
+      # under mismatched parameter names). Tracked in PLAN.md P2.
+      - name: Build with asm tag
+        run: go build -tags asm -v ./...
+
+      - name: Run tests with asm tag
+        run: go test -tags asm -v -race -count=1 ./...

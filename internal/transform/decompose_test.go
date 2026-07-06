@@ -1,6 +1,7 @@
 package transform
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -86,14 +87,7 @@ func checkLeaves(t *testing.T, s *DecomposeStrategy, codeletSizes []int) {
 
 	if s.UseCodelet {
 		// Verify this size is actually in codeletSizes
-		found := false
-
-		for _, size := range codeletSizes {
-			if size == s.Size {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(codeletSizes, s.Size)
 
 		if !found {
 			t.Errorf("Leaf node size %d is not in codeletSizes %v", s.Size, codeletSizes)

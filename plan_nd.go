@@ -2,13 +2,15 @@ package algofft
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 // PlanND is a pre-computed N-dimensional FFT plan for arbitrary dimensions.
-// Plans are reusable and safe for concurrent use during transforms (but not during creation).
+// Plans are reusable and safe for concurrent use during transforms (but not
+// during creation): scratch buffers are borrowed per call from an internal
+// cache, so multiple goroutines may share one instance.
 //
 // The N-D FFT uses the dimension-by-dimension decomposition algorithm:
 // transforms are applied sequentially along each axis from innermost to outermost.
@@ -20,12 +22,25 @@ import (
 type PlanND[T Complex] struct {
 	dims    []int      // Dimension sizes [d0, d1, ..., dN-1]
 	plans   []*Plan[T] // 1D plans for each dimension
-	scratch []T        // Working buffer (size = product of all dims)
 	strides []int      // Pre-computed strides for each dimension
 	options PlanOptions
 
-	// backing keeps aligned scratch buffer alive for GC
-	scratchBacking []byte
+	// scratch hands out per-call working buffers for thread-safety.
+	scratch *residentCache[planNDScratch[T]]
+}
+
+// planNDScratch is one per-call scratch set for PlanND transforms.
+type planNDScratch[T Complex] struct {
+	work        []T    // Working buffer (size = product of all dims)
+	workBacking []byte // Keeps the aligned working buffer alive for GC
+}
+
+func newPlanNDScratchCache[T Complex](totalSize int) *residentCache[planNDScratch[T]] {
+	return newResidentCache(func() *planNDScratch[T] {
+		work, backing := allocAlignedSlice[T](totalSize)
+
+		return &planNDScratch[T]{work: work, workBacking: backing}
+	})
 }
 
 // NewPlanND creates a new N-dimensional FFT plan for the given dimension sizes.
@@ -39,14 +54,12 @@ type PlanND[T Complex] struct {
 //
 // The plan pre-allocates all necessary buffers, enabling zero-allocation transforms.
 //
-// For concurrent use, create separate plans via Clone() for each goroutine.
+// A single plan instance may be shared by multiple goroutines.
 func NewPlanND[T Complex](dims []int) (*PlanND[T], error) {
 	return NewPlanNDWithOptions[T](dims, PlanOptions{})
 }
 
 // NewPlanNDWithOptions creates a new N-dimensional FFT plan with explicit planner options.
-//
-//nolint:funlen
 func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], error) {
 	if len(dims) == 0 {
 		return nil, ErrInvalidLength
@@ -77,6 +90,7 @@ func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], 
 
 	// Create 1D plans for each dimension
 	plans := make([]*Plan[T], len(dims))
+
 	for i, size := range dimsCopy {
 		plan, err := newPlanWithFeatures[T](size, features, childOpts)
 		if err != nil {
@@ -84,23 +98,6 @@ func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], 
 		}
 
 		plans[i] = plan
-	}
-
-	// Allocate scratch buffer (aligned for SIMD)
-	var (
-		scratch        []T
-		scratchBacking []byte
-	)
-
-	switch any(scratch).(type) {
-	case []complex64:
-		s, b := mem.AllocAlignedComplex64(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	case []complex128:
-		s, b := mem.AllocAlignedComplex128(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
 	}
 
 	// Pre-compute strides for efficient indexing
@@ -113,12 +110,11 @@ func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], 
 	}
 
 	return &PlanND[T]{
-		dims:           dimsCopy,
-		plans:          plans,
-		scratch:        scratch,
-		strides:        strides,
-		scratchBacking: scratchBacking,
-		options:        opts,
+		dims:    dimsCopy,
+		plans:   plans,
+		scratch: newPlanNDScratchCache[T](totalSize),
+		strides: strides,
+		options: opts,
 	}, nil
 }
 
@@ -166,17 +162,17 @@ func (p *PlanND[T]) String() string {
 		typeName = "complex128"
 	}
 
-	dimsStr := ""
+	var dims strings.Builder
 
 	for i, d := range p.dims {
 		if i > 0 {
-			dimsStr += "x"
+			dims.WriteString("x")
 		}
 
-		dimsStr += itoa(d)
+		dims.WriteString(itoa(d))
 	}
 
-	return fmt.Sprintf("PlanND[%s](%s)", typeName, dimsStr)
+	return fmt.Sprintf("PlanND[%s](%s)", typeName, dims.String())
 }
 
 // Forward computes the N-D FFT: dst = FFT_ND(src).
@@ -257,39 +253,13 @@ func (p *PlanND[T]) InverseInPlace(data []T) error {
 	return p.Inverse(data, data)
 }
 
-// Clone creates an independent copy of the PlanND for concurrent use.
+// Clone creates an independent copy of the PlanND.
 //
-// The clone shares immutable data but has its own:
-// - Scratch buffer (for thread safety)
-// - 1D plan instances (cloned from originals)
-//
-// This allows multiple goroutines to perform transforms concurrently.
+// A single PlanND is already safe for concurrent transforms, so cloning is
+// not required for concurrency; it remains available for callers that want
+// isolated scratch caches. The clone shares the concurrency-safe 1D child
+// plans but has its own scratch cache.
 func (p *PlanND[T]) Clone() *PlanND[T] {
-	// Allocate new scratch buffer
-	var (
-		scratch        []T
-		scratchBacking []byte
-	)
-
-	totalSize := p.Len()
-
-	switch any(scratch).(type) {
-	case []complex64:
-		s, b := mem.AllocAlignedComplex64(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	case []complex128:
-		s, b := mem.AllocAlignedComplex128(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	}
-
-	// Clone all 1D plans
-	plans := make([]*Plan[T], len(p.plans))
-	for i, plan := range p.plans {
-		plans[i] = plan.Clone()
-	}
-
 	// Copy dimensions and strides
 	dims := make([]int, len(p.dims))
 	copy(dims, p.dims)
@@ -298,12 +268,11 @@ func (p *PlanND[T]) Clone() *PlanND[T] {
 	copy(strides, p.strides)
 
 	return &PlanND[T]{
-		dims:           dims,
-		plans:          plans,
-		scratch:        scratch,
-		strides:        strides,
-		scratchBacking: scratchBacking,
-		options:        p.options,
+		dims:    dims,
+		plans:   p.plans,
+		scratch: newPlanNDScratchCache[T](p.Len()),
+		strides: strides,
+		options: p.options,
 	}
 }
 
@@ -399,7 +368,10 @@ func (p *PlanND[T]) forwardSingle(dst, src []T) error {
 		return err
 	}
 
-	work := p.scratch
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	work := s.work
 	copy(work, src)
 
 	for dim := len(p.dims) - 1; dim >= 0; dim-- {
@@ -420,7 +392,10 @@ func (p *PlanND[T]) inverseSingle(dst, src []T) error {
 		return err
 	}
 
-	work := p.scratch
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	work := s.work
 	copy(work, src)
 
 	for dim := len(p.dims) - 1; dim >= 0; dim-- {

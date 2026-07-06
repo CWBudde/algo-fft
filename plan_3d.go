@@ -4,11 +4,12 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 // Plan3D is a pre-computed 3D FFT plan for a specific volume size and precision.
-// Plans are reusable and safe for concurrent use during transforms (but not during creation).
+// Plans are reusable and safe for concurrent use during transforms (but not
+// during creation): scratch buffers are borrowed per call from an internal
+// cache, so multiple goroutines may share one instance.
 //
 // The 3D FFT uses the dimension-by-dimension decomposition algorithm:
 // - Forward: FFT along width (innermost), then height, then depth (outermost)
@@ -23,12 +24,31 @@ type Plan3D[T Complex] struct {
 	widthPlan            *Plan[T] // Plan for transforming along width (size=width)
 	heightPlan           *Plan[T] // Plan for transforming along height (size=height)
 	depthPlan            *Plan[T] // Plan for transforming along depth (size=depth)
-	scratch              []T      // Working buffer (size=depth*height*width)
-	dimScratch           []T      // Dimension scratch buffer for strided transforms (size=max(height,depth))
 	options              PlanOptions
 
-	// backing keeps aligned scratch buffer alive for GC
-	scratchBacking []byte
+	// scratch hands out per-call working buffers for thread-safety.
+	scratch *residentCache[plan3DScratch[T]]
+}
+
+// plan3DScratch is one per-call scratch set for Plan3D transforms.
+type plan3DScratch[T Complex] struct {
+	work        []T    // Working buffer (size=depth*height*width)
+	workBacking []byte // Keeps the aligned working buffer alive for GC
+	dim         []T    // Dimension buffer for strided transforms (size=max(height,depth))
+}
+
+func newPlan3DScratchCache[T Complex](depth, height, width int) *residentCache[plan3DScratch[T]] {
+	dimSize := max(depth, height)
+
+	return newResidentCache(func() *plan3DScratch[T] {
+		work, backing := allocAlignedSlice[T](depth * height * width)
+
+		return &plan3DScratch[T]{
+			work:        work,
+			workBacking: backing,
+			dim:         make([]T, dimSize),
+		}
+	})
 }
 
 // NewPlan3D creates a new 3D FFT plan for a depth×height×width volume.
@@ -38,14 +58,12 @@ type Plan3D[T Complex] struct {
 //
 // The plan pre-allocates all necessary buffers, enabling zero-allocation transforms.
 //
-// For concurrent use, create separate plans via Clone() for each goroutine.
+// A single plan instance may be shared by multiple goroutines.
 func NewPlan3D[T Complex](depth, height, width int) (*Plan3D[T], error) {
 	return NewPlan3DWithOptions[T](depth, height, width, PlanOptions{})
 }
 
 // NewPlan3DWithOptions creates a new 3D FFT plan with explicit planner options.
-//
-//nolint:funlen
 func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions) (*Plan3D[T], error) {
 	if depth <= 0 || height <= 0 || width <= 0 {
 		return nil, ErrInvalidLength
@@ -75,44 +93,15 @@ func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions)
 		return nil, err
 	}
 
-	// Allocate scratch buffer (aligned for SIMD)
-	var (
-		scratch        []T
-		scratchBacking []byte
-	)
-
-	totalSize := depth * height * width
-
-	switch any(scratch).(type) {
-	case []complex64:
-		s, b := mem.AllocAlignedComplex64(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	case []complex128:
-		s, b := mem.AllocAlignedComplex128(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	}
-
-	// Allocate dimension scratch buffer for strided transforms
-	dimScratchSize := height
-	if depth > height {
-		dimScratchSize = depth
-	}
-
-	dimScratch := make([]T, dimScratchSize)
-
 	return &Plan3D[T]{
-		depth:          depth,
-		height:         height,
-		width:          width,
-		widthPlan:      widthPlan,
-		heightPlan:     heightPlan,
-		depthPlan:      depthPlan,
-		scratch:        scratch,
-		dimScratch:     dimScratch,
-		scratchBacking: scratchBacking,
-		options:        opts,
+		depth:      depth,
+		height:     height,
+		width:      width,
+		widthPlan:  widthPlan,
+		heightPlan: heightPlan,
+		depthPlan:  depthPlan,
+		scratch:    newPlan3DScratchCache[T](depth, height, width),
+		options:    opts,
 	}, nil
 }
 
@@ -246,52 +235,22 @@ func (p *Plan3D[T]) InverseInPlace(data []T) error {
 	return p.Inverse(data, data)
 }
 
-// Clone creates an independent copy of the Plan3D for concurrent use.
+// Clone creates an independent copy of the Plan3D.
 //
-// The clone shares immutable data but has its own:
-// - Scratch buffer (for thread safety)
-// - 1D plan instances (cloned from originals)
-//
-// This allows multiple goroutines to perform transforms concurrently.
+// A single Plan3D is already safe for concurrent transforms, so cloning is
+// not required for concurrency; it remains available for callers that want
+// isolated scratch caches. The clone shares the concurrency-safe 1D child
+// plans but has its own scratch cache.
 func (p *Plan3D[T]) Clone() *Plan3D[T] {
-	// Allocate new scratch buffer
-	var (
-		scratch        []T
-		scratchBacking []byte
-	)
-
-	totalSize := p.depth * p.height * p.width
-
-	switch any(scratch).(type) {
-	case []complex64:
-		s, b := mem.AllocAlignedComplex64(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	case []complex128:
-		s, b := mem.AllocAlignedComplex128(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	}
-
-	// Allocate dimension scratch buffer for strided transforms
-	dimScratchSize := p.height
-	if p.depth > p.height {
-		dimScratchSize = p.depth
-	}
-
-	dimScratch := make([]T, dimScratchSize)
-
 	return &Plan3D[T]{
-		depth:          p.depth,
-		height:         p.height,
-		width:          p.width,
-		widthPlan:      p.widthPlan.Clone(),
-		heightPlan:     p.heightPlan.Clone(),
-		depthPlan:      p.depthPlan.Clone(),
-		scratch:        scratch,
-		dimScratch:     dimScratch,
-		scratchBacking: scratchBacking,
-		options:        p.options,
+		depth:      p.depth,
+		height:     p.height,
+		width:      p.width,
+		widthPlan:  p.widthPlan,
+		heightPlan: p.heightPlan,
+		depthPlan:  p.depthPlan,
+		scratch:    newPlan3DScratchCache[T](p.depth, p.height, p.width),
+		options:    p.options,
 	}
 }
 
@@ -333,8 +292,8 @@ func (p *Plan3D[T]) transformWidth(data []T, forward bool) {
 
 // transformHeight transforms along the height dimension (middle).
 // For each depth slice, columns along height are extracted, transformed, and written back.
-func (p *Plan3D[T]) transformHeight(data []T, forward bool) {
-	colData := p.dimScratch[:p.height]
+func (p *Plan3D[T]) transformHeight(data, dimScratch []T, forward bool) {
+	colData := dimScratch[:p.height]
 
 	for d := range p.depth {
 		for w := range p.width {
@@ -360,8 +319,8 @@ func (p *Plan3D[T]) transformHeight(data []T, forward bool) {
 
 // transformDepth transforms along the depth dimension (outermost).
 // For each (height, width) position, a slice along depth is extracted, transformed, and written back.
-func (p *Plan3D[T]) transformDepth(data []T, forward bool) {
-	depthData := p.dimScratch[:p.depth]
+func (p *Plan3D[T]) transformDepth(data, dimScratch []T, forward bool) {
+	depthData := dimScratch[:p.depth]
 
 	for h := range p.height {
 		for w := range p.width {
@@ -391,12 +350,15 @@ func (p *Plan3D[T]) forwardSingle(dst, src []T) error {
 		return err
 	}
 
-	work := p.scratch
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	work := s.work
 	copy(work, src)
 
 	p.transformWidth(work, true)
-	p.transformHeight(work, true)
-	p.transformDepth(work, true)
+	p.transformHeight(work, s.dim, true)
+	p.transformDepth(work, s.dim, true)
 
 	copy(dst, work)
 
@@ -409,12 +371,15 @@ func (p *Plan3D[T]) inverseSingle(dst, src []T) error {
 		return err
 	}
 
-	work := p.scratch
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	work := s.work
 	copy(work, src)
 
 	p.transformWidth(work, false)
-	p.transformHeight(work, false)
-	p.transformDepth(work, false)
+	p.transformHeight(work, s.dim, false)
+	p.transformDepth(work, s.dim, false)
 
 	copy(dst, work)
 

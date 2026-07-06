@@ -2,8 +2,6 @@ package algofft
 
 import (
 	"strings"
-	"sync"
-	"sync/atomic"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fft"
@@ -95,39 +93,9 @@ type scratchSet[T any] struct {
 	bluesteinScratchBacking []byte
 }
 
-// scratchCache hands out per-call scratch sets. One set lives in a GC-proof
-// resident slot so a plan used from a single goroutine never re-allocates:
-// a bare sync.Pool is drained every two GC cycles, which re-runs the aligned
-// scratch allocations on small heaps. Concurrent transform bursts overflow
-// into the sync.Pool, so extras are cached opportunistically and released by
-// the GC when the burst is over.
-type scratchCache[T any] struct {
-	resident atomic.Pointer[scratchSet[T]]
-	pool     sync.Pool
-}
-
-func (c *scratchCache[T]) get() *scratchSet[T] {
-	if s := c.resident.Swap(nil); s != nil {
-		return s
-	}
-
-	obj := c.pool.Get()
-
-	s, ok := obj.(*scratchSet[T])
-	if !ok {
-		panic("algofft: internal pool type error (scratchSet)")
-	}
-
-	return s
-}
-
-func (c *scratchCache[T]) put(s *scratchSet[T]) {
-	if c.resident.CompareAndSwap(nil, s) {
-		return
-	}
-
-	c.pool.Put(s)
-}
+// scratchCache hands out per-call scratch sets for the 1D Plan; see
+// residentCache for the caching strategy.
+type scratchCache[T any] = residentCache[scratchSet[T]]
 
 // KernelStrategy controls which FFT kernel a plan should use.
 type KernelStrategy = fft.KernelStrategy
@@ -258,8 +226,22 @@ func itoa(n int) string {
 	return string(buf[i:])
 }
 
+// planBitReversal precomputes radix-2 bit-reversal indices for power-of-two
+// plans so the strided DIT fast path can run without per-call recomputation.
+// Non-power-of-two sizes return nil; callers treat a nil table as "fast path
+// unavailable".
+//
+// Recursive plans are excluded: they store recursive-decomposition twiddles in
+// p.twiddle (see TwiddleFactorsRecursive), which are incompatible with the
+// radix-2 strided DIT fast path in transformStrided. Returning nil keeps that
+// fast path disabled for them so strided transforms fall back to the correct
+// generic gather/scatter path instead of silently producing a wrong spectrum.
 func planBitReversal[T Complex](n int, estimate fft.PlanEstimate[T]) []int {
-	return nil
+	if !m.IsPowerOf2(n) || estimate.Strategy == fft.KernelRecursive {
+		return nil
+	}
+
+	return fft.ComputeBitReversalIndices(n)
 }
 
 func prepareCodeletTwiddles[T Complex](
@@ -1388,7 +1370,7 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		twiddle:                      p.twiddle, // Shared (immutable)
 		codeletTwiddleForward:        p.codeletTwiddleForward,
 		codeletTwiddleInverse:        p.codeletTwiddleInverse,
-		scratch:                      scratch,             // New allocation (FIXED)
+		scratch:                      scratch,             // New allocation
 		stridedScratch:               stridedScratch,      // New allocation
 		bitrev:                       p.bitrev,            // Shared (immutable)
 		packedTwiddle4:               p.packedTwiddle4,    // Shared (immutable)

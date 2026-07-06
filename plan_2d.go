@@ -5,11 +5,12 @@ import (
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fft"
-	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 // Plan2D is a pre-computed 2D FFT plan for a specific matrix size and precision.
-// Plans are reusable and safe for concurrent use during transforms (but not during creation).
+// Plans are reusable and safe for concurrent use during transforms (but not
+// during creation): scratch buffers are borrowed per call from an internal
+// cache, so multiple goroutines may share one instance.
 //
 // The 2D FFT uses the row-column decomposition algorithm:
 // - Forward: FFT rows, then FFT columns
@@ -22,15 +23,32 @@ type Plan2D[T Complex] struct {
 	rows, cols int      // Matrix dimensions
 	rowPlan    *Plan[T] // Plan for transforming rows (size=cols)
 	colPlan    *Plan[T] // Plan for transforming columns (size=rows)
-	scratch    []T      // Working buffer (size=rows*cols)
-	colScratch []T      // Column scratch buffer for strided transforms (size=rows)
 	options    PlanOptions
+
+	// scratch hands out per-call working buffers for thread-safety.
+	scratch *residentCache[plan2DScratch[T]]
 
 	// Transpose support for square matrices
 	transposePairs []fft.TransposePair
+}
 
-	// backing keeps aligned scratch buffer alive for GC
-	scratchBacking []byte
+// plan2DScratch is one per-call scratch set for Plan2D transforms.
+type plan2DScratch[T Complex] struct {
+	work        []T    // Working buffer (size=rows*cols)
+	workBacking []byte // Keeps the aligned working buffer alive for GC
+	col         []T    // Column buffer for strided transforms (size=rows)
+}
+
+func newPlan2DScratchCache[T Complex](rows, cols int) *residentCache[plan2DScratch[T]] {
+	return newResidentCache(func() *plan2DScratch[T] {
+		work, backing := allocAlignedSlice[T](rows * cols)
+
+		return &plan2DScratch[T]{
+			work:        work,
+			workBacking: backing,
+			col:         make([]T, rows),
+		}
+	})
 }
 
 // NewPlan2D creates a new 2D FFT plan for a rows×cols matrix.
@@ -40,7 +58,7 @@ type Plan2D[T Complex] struct {
 //
 // The plan pre-allocates all necessary buffers, enabling zero-allocation transforms.
 //
-// For concurrent use, create separate plans via Clone() for each goroutine.
+// A single plan instance may be shared by multiple goroutines.
 func NewPlan2D[T Complex](rows, cols int) (*Plan2D[T], error) {
 	return NewPlan2DWithOptions[T](rows, cols, PlanOptions{})
 }
@@ -70,37 +88,13 @@ func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[
 		return nil, err
 	}
 
-	// Allocate scratch buffer (aligned for SIMD)
-	var (
-		scratch        []T
-		scratchBacking []byte
-	)
-
-	totalSize := rows * cols
-
-	switch any(scratch).(type) {
-	case []complex64:
-		s, b := mem.AllocAlignedComplex64(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	case []complex128:
-		s, b := mem.AllocAlignedComplex128(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	}
-
-	// Allocate column scratch buffer for strided transforms
-	colScratch := make([]T, rows)
-
 	p := &Plan2D[T]{
-		rows:           rows,
-		cols:           cols,
-		rowPlan:        rowPlan,
-		colPlan:        colPlan,
-		scratch:        scratch,
-		colScratch:     colScratch,
-		scratchBacking: scratchBacking,
-		options:        opts,
+		rows:    rows,
+		cols:    cols,
+		rowPlan: rowPlan,
+		colPlan: colPlan,
+		scratch: newPlan2DScratchCache[T](rows, cols),
+		options: opts,
 	}
 
 	// Pre-compute transpose pairs for square matrices (optimization)
@@ -232,44 +226,19 @@ func (p *Plan2D[T]) InverseInPlace(data []T) error {
 	return p.Inverse(data, data)
 }
 
-// Clone creates an independent copy of the Plan2D for concurrent use.
+// Clone creates an independent copy of the Plan2D.
 //
-// The clone shares immutable data (transpose pairs) but has its own:
-// - Scratch buffer (for thread safety)
-// - 1D plan instances (cloned from originals)
-//
-// This allows multiple goroutines to perform transforms concurrently.
+// A single Plan2D is already safe for concurrent transforms, so cloning is
+// not required for concurrency; it remains available for callers that want
+// isolated scratch caches. The clone shares immutable data (transpose pairs)
+// and the concurrency-safe 1D child plans, but has its own scratch cache.
 func (p *Plan2D[T]) Clone() *Plan2D[T] {
-	// Allocate new scratch buffer
-	var (
-		scratch        []T
-		scratchBacking []byte
-	)
-
-	totalSize := p.rows * p.cols
-
-	switch any(scratch).(type) {
-	case []complex64:
-		s, b := mem.AllocAlignedComplex64(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	case []complex128:
-		s, b := mem.AllocAlignedComplex128(totalSize)
-		scratch = any(s).([]T)
-		scratchBacking = b
-	}
-
-	// Allocate column scratch buffer for strided transforms
-	colScratch := make([]T, p.rows)
-
 	return &Plan2D[T]{
 		rows:           p.rows,
 		cols:           p.cols,
-		rowPlan:        p.rowPlan.Clone(),
-		colPlan:        p.colPlan.Clone(),
-		scratch:        scratch,
-		colScratch:     colScratch,
-		scratchBacking: scratchBacking,
+		rowPlan:        p.rowPlan,
+		colPlan:        p.colPlan,
+		scratch:        newPlan2DScratchCache[T](p.rows, p.cols),
 		transposePairs: p.transposePairs, // Shared (immutable)
 		options:        p.options,
 	}
@@ -315,9 +284,7 @@ func (p *Plan2D[T]) transformColumnsViaTranspose(data []T, forward bool) {
 }
 
 // transformColumnsStrided transforms columns using strided access for non-square matrices.
-func (p *Plan2D[T]) transformColumnsStrided(data []T, forward bool) {
-	colData := p.colScratch
-
+func (p *Plan2D[T]) transformColumnsStrided(data, colData []T, forward bool) {
 	for col := range p.cols {
 		// Extract column
 		for row := range p.rows {
@@ -344,7 +311,10 @@ func (p *Plan2D[T]) forwardSingle(dst, src []T) error {
 		return err
 	}
 
-	work := p.scratch
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	work := s.work
 	copy(work, src)
 
 	// Transform rows
@@ -361,7 +331,7 @@ func (p *Plan2D[T]) forwardSingle(dst, src []T) error {
 	if p.rows == p.cols {
 		p.transformColumnsViaTranspose(work, true)
 	} else {
-		p.transformColumnsStrided(work, true)
+		p.transformColumnsStrided(work, s.col, true)
 	}
 
 	copy(dst, work)
@@ -375,7 +345,10 @@ func (p *Plan2D[T]) inverseSingle(dst, src []T) error {
 		return err
 	}
 
-	work := p.scratch
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	work := s.work
 	copy(work, src)
 
 	// Transform rows (inverse)
@@ -392,7 +365,7 @@ func (p *Plan2D[T]) inverseSingle(dst, src []T) error {
 	if p.rows == p.cols {
 		p.transformColumnsViaTranspose(work, false)
 	} else {
-		p.transformColumnsStrided(work, false)
+		p.transformColumnsStrided(work, s.col, false)
 	}
 
 	copy(dst, work)
