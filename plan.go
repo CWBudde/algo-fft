@@ -258,8 +258,16 @@ func itoa(n int) string {
 	return string(buf[i:])
 }
 
-func planBitReversal[T Complex](n int, estimate fft.PlanEstimate[T]) []int {
-	return nil
+// planBitReversal precomputes radix-2 bit-reversal indices for power-of-two
+// plans so the strided DIT fast path can run without per-call recomputation.
+// Non-power-of-two sizes return nil; callers treat a nil table as "fast path
+// unavailable".
+func planBitReversal[T Complex](n int, _ fft.PlanEstimate[T]) []int {
+	if !m.IsPowerOf2(n) {
+		return nil
+	}
+
+	return fft.ComputeBitReversalIndices(n)
 }
 
 func prepareCodeletTwiddles[T Complex](
@@ -1388,7 +1396,7 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		twiddle:                      p.twiddle, // Shared (immutable)
 		codeletTwiddleForward:        p.codeletTwiddleForward,
 		codeletTwiddleInverse:        p.codeletTwiddleInverse,
-		scratch:                      scratch,             // New allocation (FIXED)
+		scratch:                      scratch,             // New allocation
 		stridedScratch:               stridedScratch,      // New allocation
 		bitrev:                       p.bitrev,            // Shared (immutable)
 		packedTwiddle4:               p.packedTwiddle4,    // Shared (immutable)
