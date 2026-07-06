@@ -110,6 +110,35 @@ func (p *BufferPool) PutIntSlice(n int, data []int) {
 	pool.Put(&intBuffer{data: data})
 }
 
+// PoolGet retrieves or allocates a pooled aligned buffer of the complex type T,
+// dispatching to GetComplex64 or GetComplex128. The default branch is unreachable
+// under the Complex constraint and exists only to satisfy the generic type-switch.
+func PoolGet[T Complex](p *BufferPool, n int) ([]T, []byte) {
+	var zero T
+
+	switch any(zero).(type) {
+	case complex64:
+		data, backing := p.GetComplex64(n)
+		return any(data).([]T), backing
+	case complex128:
+		data, backing := p.GetComplex128(n)
+		return any(data).([]T), backing
+	default:
+		return make([]T, n), nil
+	}
+}
+
+// PoolPut returns a buffer of the complex type T to the pool, dispatching to
+// PutComplex64 or PutComplex128. Nil data is ignored.
+func PoolPut[T Complex](p *BufferPool, n int, data []T, backing []byte) {
+	switch d := any(data).(type) {
+	case []complex64:
+		p.PutComplex64(n, d, backing)
+	case []complex128:
+		p.PutComplex128(n, d, backing)
+	}
+}
+
 func (p *BufferPool) getOrCreatePool64(n int) *sync.Pool {
 	if existing, ok := p.pools64.Load(n); ok {
 		pool, ok := existing.(*sync.Pool)
