@@ -117,6 +117,24 @@ func (p *PlanRealT[F, C]) SpectrumLen() int {
 	return p.half + 1
 }
 
+// Clone creates an independent copy of the PlanRealT.
+//
+// A single PlanRealT is already safe for concurrent transforms, so cloning is
+// not required for concurrency; it remains available for callers that want
+// isolated scratch caches. The clone shares immutable data (the recombination
+// weights) and the concurrency-safe child complex plan, but has its own
+// pack/unpack buffer cache.
+func (p *PlanRealT[F, C]) Clone() *PlanRealT[F, C] {
+	return &PlanRealT[F, C]{
+		n:       p.n,
+		half:    p.half,
+		plan:    p.plan,
+		weight:  p.weight, // Shared (immutable)
+		buf:     newPlanRealTBufCache[C](p.half),
+		options: p.options,
+	}
+}
+
 // Forward computes the real-to-complex FFT.
 // dst must have length N/2+1 and src must have length N.
 func (p *PlanRealT[F, C]) Forward(dst []C, src []F) error {
