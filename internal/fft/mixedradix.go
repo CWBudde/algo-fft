@@ -1,6 +1,10 @@
 package fft
 
-import "github.com/cwbudde/algo-fft/internal/kernels"
+import (
+	"strconv"
+
+	"github.com/cwbudde/algo-fft/internal/kernels"
+)
 
 const mixedRadixMaxStages = 64
 
@@ -325,7 +329,12 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			dst[3*span+k] = y3
 			dst[4*span+k] = y4
 		default:
-			return
+			// A radix the driver cannot execute means the scheduler and the
+			// recursion hook disagree — a programming error, never a runtime
+			// input error. Returning here would leave dst partially written
+			// and surface as a wrong answer with a nil error.
+			panic("algofft: mixed-radix driver cannot execute radix " + strconv.Itoa(radix) +
+				" (scheduler/driver contract violation)")
 		}
 	}
 }
@@ -455,7 +464,12 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			dst[3*span+k] = y3
 			dst[4*span+k] = y4
 		default:
-			return
+			// A radix the driver cannot execute means the scheduler and the
+			// recursion hook disagree — a programming error, never a runtime
+			// input error. Returning here would leave dst partially written
+			// and surface as a wrong answer with a nil error.
+			panic("algofft: mixed-radix driver cannot execute radix " + strconv.Itoa(radix) +
+				" (scheduler/driver contract violation)")
 		}
 	}
 }
