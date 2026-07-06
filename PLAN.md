@@ -1,639 +1,377 @@
-# PLAN.md - algofft Implementation Roadmap
+# PLAN.md — algofft Roadmap to a Top-Notch v1.0
 
-## Completed (Summary)
+This roadmap is the source of truth for status and direction. It was rewritten
+after a full architecture review to reflect the library **as it actually builds
+and ships today**, not as previously aspired. Work is ordered by priority:
+**P0 (correctness & integrity)** must land before performance polish, because
+several headline features are currently broken or misleading.
 
-**Phases 1-10**: Project setup, types, API, errors, twiddles, bit-reversal, radix-2/3/4/5 FFT, Stockham autosort, DIT, mixed-radix, Bluestein, six-step/eight-step large FFT, SIMD infrastructure, CPU detection
-
-**Real FFT**: Forward/inverse, generic float32/float64, 2D/3D real FFT with compact/full output
-**Multi-dimensional**: 2D, 3D, N-D FFT with generic support
-**Testing**: Reference DFT, correctness, property-based, fuzz, precision, stress, concurrent tests
-**Benchmarking**: Full suite with regression tracking, BENCHMARKS.md
-**Batch/Strided**: Sequential batch API, strided transforms
-**Convolution**: FFT-based convolution/correlation for complex and real
-**complex128**: Full generic API with explicit constructors
-**WebAssembly**: Build, test (Node.js), examples
-**Cross-arch CI**: amd64, arm64, 386, WASM matrix
+Design philosophy lives in `goal.md`; component inventory in
+`docs/IMPLEMENTATION_INVENTORY.md`; the pre-review per-size assembly plan is
+preserved in git history (see the commit that replaced this file) and condensed
+into the P2 backlog below.
 
 ---
 
-## Current Status
+## 1. Honest Current Status
 
-See `docs/IMPLEMENTATION_INVENTORY.md` for full inventory. Assembly: `internal/asm/{amd64,arm64,x86}/`, registration: `internal/kernels/codelet_init*.go`
+### What genuinely works and is well-tested
 
----
+- **Pure-Go core transforms**: DIT, Stockham, radix-2/3/4/5, mixed-radix,
+  Bluestein (arbitrary length), six-step/eight-step large sizes.
+- **Real FFT** (1D/2D/3D), **multi-dimensional** (2D/3D/N-D), **batch/strided**,
+  **convolution/correlation** (complex & real), **complex64 + complex128**.
+- **WebAssembly** target builds and tests under Node.
+- **Testing** of the pure-Go paths is broad and passes under `-race`:
+  reference-DFT cross-validation, Parseval/linearity/shift properties,
+  round-trip, fuzz seed corpus, stress, concurrent, and 1D zero-alloc guards.
+- **1D `Plan[T]` is genuinely concurrency-safe** and zero-allocation after
+  creation, via an elegant resident-pointer + `sync.Pool` scratch cache.
+- **Tooling**: strict `golangci-lint` (`default = all`), `treefmt`, a thorough
+  `justfile`, and a multi-OS / multi-arch / WASM CI matrix with the race detector.
 
-## Phase 12: complex128 Size Optimization (128, 512, 8192)
+### What is broken, dormant, or misleading (the review's headline findings)
 
-**Status**: In progress
-**Priority**: High (regression vs FFTW at target sizes; 8192 alloc)
+1. **SIMD is effectively non-functional as shipped.**
+   - Default builds (`go build ./...`, `just build`, published module) are
+     **100 % pure Go** — every SIMD dispatch file is gated behind
+     `//go:build ... && asm && !purego`. A normal `go get` consumer gets **zero
+     SIMD**, contradicting README/`goal.md` headline claims.
+   - **`go build -tags asm ./...` does not compile** — 11 duplicate-declaration
+     errors from committed twin files in `internal/kernels`
+     (`dit_size384_mixed.go` ↔ `dit_384_decomp_128x3_amd64_asm.go`,
+     `dit_size4096_sixstep_avx2.go` ↔ `dit_4096_sixstep_amd64_avx2.go`,
+     `dit_size16384_sixstep_avx2.go` ↔ `dit_16384_sixstep_amd64_avx2.go`).
+   - **No CI job builds or tests with `-tags asm`**, which is why the breakage
+     went unnoticed. The large, genuine `.s` investment (AVX2/SSE2/SSE3/NEON/x86)
+     is currently unreachable and unverified.
 
-Goal: Close the complex128 performance gap for sizes 128 and 512, and eliminate the unexpected allocation at size 8192. This phase focuses on diagnosis, kernel selection, and targeted kernel work for these sizes only (not a general large-size sweep).
+2. **Dead code that cannot compile.** The `legacy_radix2` build tag guards
+   `dit_{32,64,128}_radix2.go` (~3,347 LOC) which redeclare the symbols already
+   provided by the un-tagged `dit_size{32,64,128}_radix2.go` files — so the tag
+   fails to build and the files are dead under every configuration. Plus
+   ~520 dead lines in `internal/fft/mixedradix.go` (disabled WIP iterative
+   drivers + an unused generic ping-pong driver).
 
-### 12.1 Benchmark + Profiling Baseline
+3. **False concurrency-safety guarantees.** `Plan2D`, `Plan3D`, `PlanND`, and
+   `PlanReal2D` document *"safe for concurrent use during transforms"* but share
+   mutable scratch buffers; two concurrent `Forward` calls on one instance race.
+   Only 1D `Plan`/`PlanReal` are actually safe.
 
-- [x] Add focused benchmarks for complex128 sizes 128, 512, 8192 (forward + inverse)
-  - [x] Record kernel selected, strategy (DIT/Stockham), and twiddle layout for each size
-  - [x] Capture `-benchmem` + `-cpuprofile` for each size
-- [x] Capture `-tags asm` baselines (benchmem + cpu/mem profiles) for 128/512/8192 and save artifacts under `docs/artifacts/phase12/asm`
-- [x] Add a short note to `BENCHMARKS.md` capturing the baseline numbers and CPU details
+4. **Silent wrong-answer paths.** The mixed-radix butterfly `switch` has a
+   `default: return` that yields garbage output with `err == nil` when the
+   scheduler emits a radix the driver can't execute. The scheduler/driver
+   contract is an implicit pair of global func pointers kept in sync by hand
+   (the recent `0461cc4` fix patched one instance of exactly this class).
 
-### 12.2 Size 128 Optimization (complex128)
+5. **Zero-alloc promise violated off the 1D path.** `PlanND` allocates
+   `O(slices × dims)` per transform (`plan_nd.go:336,442,450`), the AVX2
+   mixed-radix driver `make()`s per sub-transform, and asm/fallback paths
+   recompute bit-reversal / factorization per call.
 
-- [x] Verify strategy selection: ensure radix-4 or mixed-2/4 path is preferred for size 128
-- [x] Audit twiddle generation/packing cost for size 128 (complex128-specific)
-- [x] Add or specialize a Go kernel for size 128 complex128 if dispatch falls back to generic Stockham
-- [x] Validate against reference DFT and add targeted correctness test
+6. **Process-global mutable state, library-hostile.** Three singletons —
+   `kernelStrategy`, `benchDecisions` (keyed by size only, so it crosses
+   complex64/complex128), and `DefaultWisdom` — are exported as global mutators
+   with no per-consumer isolation. Wisdom files have no version header and import
+   non-atomically into the global.
 
-### 12.3 Size 512 Optimization (complex128)
-
-- [x] Complete a mixed-2/4 kernel path for complex128 size 512 (Go or SSE2/AVX2)
-- [x] Ensure the mixed-2/4 kernel is selected over radix-2 for size 512
-- [x] Add targeted benchmarks and kernel-selection tests for size 512 complex128
-
-### 12.4 Size 8192 Allocation Elimination (complex128)
-
-- [x] Reproduce allocation with `-benchmem` and locate the source with `pprof` alloc profile
-- [x] Trace plan creation vs per-call transforms to confirm where the allocation occurs
-- [x] Fix any dynamic buffer growth in size 8192 complex128 path (twiddle packing, scratch, bitrev)
-- [x] Add a non-alloc regression test for size 8192 complex128 transforms
-
-### 12.5 Validation + Documentation
-
-- [ ] Re-run benchmarks for sizes 128, 512, 8192 (complex128) and update `BENCHMARKS.md`
-- [ ] Add notes to `docs/IMPLEMENTATION_INVENTORY.md` about the optimized paths
-
----
-
-## Phase 13: SSE2 Coverage (Sizes 256-1024)
-
-**Status**: In Progress
-**Priority**: Medium (provides fallback for systems without AVX2)
-
-Target: Implement SSE2 kernels for sizes 256-1024 to ensure systems without AVX2 have optimized paths. Reference: `docs/IMPLEMENTATION_INVENTORY.md`
-
-### 13.1 Size 256 SSE2 Kernels
-
-#### 13.1.1 complex64 Size 256 (Already Complete)
-
-- [x] Size 256: radix-4 SSE2 (exists: `internal/asm/amd64/sse3_f32_size256_radix4.s`)
-
-#### 13.1.2 complex128 Size 256 SSE2 Kernels
-
-- [x] Implement Size 256 radix-2 SSE2 for complex128
-  - [x] Create `internal/asm/amd64/sse2_f64_size256_radix2.s`
-  - [x] Implement `ForwardSSE2Size256Radix2Complex128Asm` (8 stages)
-  - [x] Implement `InverseSSE2Size256Radix2Complex128Asm` (with 1/256 scaling)
-  - [x] Register in codelet system (consolidated in `codelet_init_sse2.go`)
-- [x] Implement Size 256 radix-4 SSE2 for complex128
-  - [x] Create `internal/asm/amd64/sse2_f64_size256_radix4.s`
-  - [x] Implement `ForwardSSE2Size256Radix4Complex128Asm` (4 stages)
-  - [x] Implement `InverseSSE2Size256Radix4Complex128Asm` (with 1/256 scaling)
-  - [x] Register in codelet system (consolidated in `codelet_init_sse2.go`)
-
-#### 13.1.3 Size 256 Test Coverage
-
-- [x] Add test cases to unified `internal/kernels/sse2_kernels_test.go`
-  - [x] Test cases for complex64 (Radix 4)
-  - [x] Test cases for complex128 (Radix 2, Radix 4)
-
-### 13.2 Size 512 SSE2 Kernels
-
-#### 13.2.1 complex64 Size 512 SSE2 Kernels
-
-- [x] Implement Size 512 radix-2 SSE2 for complex64
-  - [x] Create `internal/asm/amd64/sse3_f32_size512_radix2.s`
-  - [x] Implement `ForwardSSE3Size512Radix2Complex64Asm` (9 stages)
-  - [x] Implement `InverseSSE3Size512Radix2Complex64Asm` (with 1/512 scaling)
-  - [x] Register in codelet system (consolidated in `codelet_init_sse2.go`)
-- [ ] Implement Size 512 mixed-2/4 SSE2 for complex64
-  - [ ] Create `internal/asm/amd64/sse3_f32_size512_mixed24.s`
-  - [ ] Implement `ForwardSSE3Size512Mixed24Complex64Asm` (4 radix-4 + 1 radix-2 = 5 stages)
-  - [ ] Implement `InverseSSE3Size512Mixed24Complex64Asm` (with 1/512 scaling)
-  - [ ] Add Go wrapper in `internal/kernels/sse3_f32_size512_mixed24.go`
-  - [ ] Register in codelet system with priority 15
-
-#### 13.2.2 complex128 Size 512 SSE2 Kernels
-
-- [x] Implement Size 512 radix-2 SSE2 for complex128
-  - [x] Create `internal/asm/amd64/sse2_f64_size512_radix2.s`
-  - [x] Implement `ForwardSSE2Size512Radix2Complex128Asm` (9 stages)
-  - [x] Implement `InverseSSE2Size512Radix2Complex128Asm` (with 1/512 scaling)
-  - [x] Register in codelet system (consolidated in `codelet_init_sse2.go`)
-- [ ] Implement Size 512 mixed-2/4 SSE2 for complex128
-  - [ ] Create `internal/asm/amd64/sse2_f64_size512_mixed24.s`
-  - [ ] Implement `ForwardSSE2Size512Mixed24Complex128Asm` (4 radix-4 + 1 radix-2 = 5 stages)
-  - [ ] Implement `InverseSSE2Size512Mixed24Complex128Asm` (with 1/512 scaling)
-  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size512_mixed24.go`
-  - [ ] Register in codelet system with priority 15
-
-#### 13.2.3 Size 512 Test Coverage
-
-- [ ] Add test cases to unified `internal/kernels/sse2_kernels_test.go`
-  - [x] Test cases for complex64 (Radix 2)
-  - [ ] Test cases for complex64 (Mixed 2/4)
-  - [x] Test cases for complex128 (Radix 2)
-  - [ ] Test cases for complex128 (Mixed 2/4)
-
-### 13.3 Size 1024 SSE2 Kernels
-
-#### 13.3.1 complex64 Size 1024 SSE2 Kernels
-
-- [ ] Implement Size 1024 radix-4 SSE2 for complex64
-  - [ ] Create `internal/asm/amd64/sse3_f32_size1024_radix4.s`
-  - [ ] Implement `ForwardSSE2Size1024Radix4Complex64Asm` (5 radix-4 stages)
-  - [ ] Implement `InverseSSE2Size1024Radix4Complex64Asm` (with 1/1024 scaling)
-  - [ ] Use radix-4 bit-reversal pattern
-  - [ ] Add Go wrapper in `internal/kernels/sse3_f32_size1024_radix4.go`
-  - [ ] Register in codelet system with priority 15
-
-#### 13.3.2 complex128 Size 1024 SSE2 Kernels
-
-- [ ] Implement Size 1024 radix-4 SSE2 for complex128
-  - [ ] Create `internal/asm/amd64/sse2_f64_size1024_radix4.s`
-  - [ ] Implement `ForwardSSE2Size1024Radix4Complex128Asm` (5 radix-4 stages)
-  - [ ] Implement `InverseSSE2Size1024Radix4Complex128Asm` (with 1/1024 scaling)
-  - [ ] Use radix-4 bit-reversal pattern
-  - [ ] Add Go wrapper in `internal/kernels/sse2_f64_size1024_radix4.go`
-  - [ ] Register in codelet system with priority 15
-
-#### 13.3.3 Size 1024 Test Coverage
-
-- [ ] Add test cases to unified `internal/kernels/sse2_kernels_test.go`
-  - [ ] Test cases for complex64 (Radix 4)
-  - [ ] Test cases for complex128 (Radix 4)
-
-### 13.4 Performance Validation
-
-- [ ] Run benchmarks comparing SSE2 vs pure Go for all new kernels
-- [ ] Document performance improvements in benchmark results
-- [ ] Update `docs/IMPLEMENTATION_INVENTORY.md` with new SSE2 coverage
-- [ ] Verify SSE2 kernels are selected on systems without AVX2 support
+7. **Docs that break users or mislead agents.** README's `go get` /import lines
+   use the wrong module path `cwbudde/algofft` (missing dash → won't resolve);
+   `CHANGELOG.md` lists shipped features under "Planned"; `GEMINI.md` describes a
+   long-gone layout; ~6 MB of compiled binaries (`benchkernels`,
+   `cmd/bench_compare/bench_compare`) are committed and not git-ignored.
 
 ---
 
-## Phase 14: FFT Size Optimizations - Remaining Work
-
-### 14.2 AVX2 Large Size Kernels (512-16384)
-
-**Status**: In Progress
-**Priority**: Medium (Pure Go implementations exist and perform well)
-
-Sizes 512-16384 currently use pure Go mixed-radix or radix-4 implementations. AVX2 acceleration could provide 1.5-2x additional speedup.
-
-#### 14.3 Size 128 Radix-4 AVX2
-
-- [x] Create `internal/asm/amd64/avx2_f32_size128_radix4.s` (currently only
-      radix-2/mixed exist)
-  - [x] Implement `forwardAVX2Size128Radix4Complex64` (3.5 stages: 3 radix-4 + 1
-        radix-2)
-  - [ ] Use radix-4 bit-reversal for first 64 elements, binary for rest
-- [ ] Benchmark radix-4 vs current mixed-2/4 wrapper
-- [ ] Register higher-performing variant with higher priority
-- **Status**: Enabled for size-128 row FFTs in AVX2 six-step (16384) path;
-  correctness covered by asm tests.
-
-### 14.4 Fix AVX2 Stockham Correctness
-
-**Status**: Compiles and runs without segfault, but produces wrong results
-**Priority**: LOW (DIT kernels work correctly)
-
-- [ ] Add debug logging to Stockham assembly
-  - [ ] Dump intermediate buffer after each stage
-  - [ ] Compare with pure-Go stage outputs
-- [ ] Identify which stage first diverges from pure-Go
-- [ ] Check buffer swap logic (dst ↔ scratch pointer handling)
-- [ ] Verify twiddle factor indexing matches pure-Go
-- [ ] Fix identified bugs and re-test
-- [ ] Run full test suite with `-tags=asm -run TestStockham`
-
-### 14.6.2 AVX2 complex128 Large Sizes (512-16384)
-
-**Status**: In Progress
-**Priority**: Low (complex128 use cases less common)
-
-For each size, create assembly file in `internal/asm/amd64/`:
-
-- [x] Size 512: `avx2_f64_size512_mixed24.s`
-  - [x] Forward and inverse transforms
-  - [x] Register in `codelet_init_avx2.go`
-- [ ] Size 1024: `avx2_f64_size1024_radix4.s`
-- [ ] Size 2048: `avx2_f64_size2048_mixed24.s`
-- [ ] Size 4096: `avx2_f64_size4096_radix4.s`
-- [ ] Size 8192: `avx2_f64_size8192_mixed24.s`
-- [ ] Size 16384: `avx2_f64_size16384_radix4.s`
-
-### 14.7 Higher-Radix Optimization Strategies
-
-**Status**: Not started
-**Priority**: Medium-High (could provide 1.3-2x speedup over radix-4 for larger sizes)
-
-For larger FFT sizes, higher radices reduce the number of stages (and thus memory passes), potentially improving cache utilization and throughput. Each radix-N stage reduces log₂(N) stages into one, at the cost of more complex butterfly operations.
-
-#### 14.7.1 Radix Decomposition Analysis
-
-| Size  | Radix-2   | Radix-4    | Radix-8   | Radix-16   | Optimal Decomposition      |
-| ----- | --------- | ---------- | --------- | ---------- | -------------------------- |
-| 256   | 8 stages  | 4 stages   | 2⅔ stages | 2 stages   | 16×16 (2 stages)           |
-| 512   | 9 stages  | 4.5 stages | 3 stages  | 2¼ stages  | 8×8×8 (3 radix-8) or 16×32 |
-| 1024  | 10 stages | 5 stages   | 3⅓ stages | 2.5 stages | 32×32 or 16×64             |
-| 2048  | 11 stages | 5.5 stages | 3⅔ stages | 2¾ stages  | 32×64 or 8×16×16           |
-| 4096  | 12 stages | 6 stages   | 4 stages  | 3 stages   | 64×64 or 16×16×16          |
-| 8192  | 13 stages | 6.5 stages | 4⅓ stages | 3¼ stages  | 64×128 or 16×32×16         |
-| 16384 | 14 stages | 7 stages   | 4⅔ stages | 3.5 stages | 128×128 or 16×16×64        |
-
-**Note**: "N×M" notation means a 2D Cooley-Tukey decomposition (N rows × M columns).
-
-#### 14.7.2 Size 256 - Radix-16 (2-Stage)
-
-**Rationale**: 256 = 16 × 16, can be computed as a 16×16 matrix with:
-
-1. Column FFT-16 (using existing radix-16 kernel)
-2. Twiddle multiplication
-3. Row FFT-16 (same kernel)
-
-- [x] Create `internal/asm/amd64/avx2_f32_size256_radix16.s`
-  - [x] Implement as 16×16 matrix factorization
-  - [x] Stage 1: 16 parallel FFT-16 on columns
-  - [x] Twiddle: W₂₅₆^(row×col) multiplication
-  - [x] Stage 2: 16 parallel FFT-16 on rows
-  - [x] Final transposition to natural order
-- [x] No bit-reversal needed (identity permutation for 4^k sizes)
-- [x] Register with priority 30 (higher than radix-4 priority 25)
-- [x] Benchmark: Target 1.3-1.5x speedup vs radix-4
-
-#### 14.7.3 Size 512 - Radix-8 (3-Stage)
-
-**Rationale**: 512 = 8 × 8 × 8, can be computed with 3 radix-8 stages.
-
-- [x] Create `internal/asm/amd64/avx2_f32_size512_radix8.s`
-  - [x] Implement 3 radix-8 stages (vs 5 stages for mixed-2/4)
-  - [x] Use radix-8 twiddle factors: W₅₁₂^k for k ∈ {0,1,2,3,4,5,6,7}×stride
-  - [x] Radix-8 butterfly: 8-point DFT inline
-- [x] Create radix-8 bit-reversal function `ComputeBitReversalIndicesRadix8(n int) []int`
-- [x] Register with priority 30 (higher than mixed-2/4 priority 25)
-- [x] Benchmark: Target 1.2-1.4x speedup vs mixed-2/4
-
-**Alternative**: 512 = 16 × 32 (2-stage mixed-radix-16/32)
-
-- [x] Pure Go optimized implementation: `internal/kernels/dit_size512_radix16x32.go`
-  - [x] Six-step FFT algorithm: n = 16*n2 + n1, k = 32*k1 + k2
-  - [x] Stage 1: 16 FFT-32s on columns using Cooley-Tukey decomposition (FFT-32 = 2×FFT-16 + twiddles)
-  - [x] Stage 2: 32 FFT-16s on rows using DIT fft16 with bit-reversed input
-  - [x] Algorithm validated: forward/inverse for complex64 and complex128
-  - [x] **Performance**: ~8% faster than radix-8 Go implementation (3908 ns/op vs 4245 ns/op forward)
-  - [x] Uses precomputed twiddle factors from 512-point table
-  - [x] Uses identity permutation (no bit-reversal on input)
-- [x] Create `internal/asm/amd64/avx2_f32_size512_radix16x32.s` (stub implementation)
-  - [x] Add Go function declarations in `internal/asm/amd64/decl.go`
-  - [x] Add test cases to unified `internal/kernels/avx2_kernels_test.go`
-  - [x] Stub returns false to use Go fallback (full AVX2 implementation deferred)
-  - **Performance**: Go radix-16x32 achieves ~4821 ns/op (faster than Go radix-8 ~5147 ns/op)
-  - **Note**: AVX2 radix-8 achieves ~2052 ns/op - full AVX2 radix-16x32 could be competitive
-  - [x] Stage 1: 16 parallel FFT-32 on columns (using SIMD radix-32 butterflies)
-  - [x] Twiddle multiplication
-  - [x] Stage 2: 32 parallel FFT-16 on rows (using SIMD radix-16 butterflies)
-  - [x] Could be competitive with radix-8 AVX2 (2 stages vs 3 stages)
-
-#### 14.7.4 Size 1024 - Radix-16 (2.5-Stage) or 32×32
-
-**Rationale**: 1024 = 32 × 32 or 1024 = 16 × 64
-
-**Option A - 32×32 Matrix**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size1024_radix32x32.s`
-  - [ ] Stage 1: 32 parallel FFT-32 on columns
-  - [ ] Twiddle multiplication
-  - [ ] Stage 2: 32 parallel FFT-32 on rows
-- [ ] Requires radix-32 butterfly (existing size-32 radix-32 kernel can be reused)
-
-**Option B - 16×64 Matrix**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size1024_radix16x64.s`
-  - [ ] Stage 1: 64 parallel FFT-16 on columns
-  - [ ] Twiddle multiplication
-  - [ ] Stage 2: 16 parallel FFT-64 on rows
-
-- [ ] Benchmark both options vs current radix-4 (5 stages)
-- [ ] Register higher-performing variant with priority 30
-
-#### 14.7.5 Size 2048 - Higher-Radix Decompositions
-
-**Rationale**: 2048 = 2 × 1024 = 32 × 64 = 16 × 128 = 8 × 256
-
-**Option A - 32×64 Matrix**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size2048_radix32x64.s`
-  - [ ] Stage 1: 64 parallel FFT-32
-  - [ ] Twiddle multiplication
-  - [ ] Stage 2: 32 parallel FFT-64
-
-**Option B - 16×128 Matrix**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size2048_radix16x128.s`
-  - [ ] Stage 1: 128 parallel FFT-16
-  - [ ] Twiddle multiplication
-  - [ ] Stage 2: 16 parallel FFT-128
-
-**Option C - 8×16×16 (3D decomposition)**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size2048_radix8x16x16.s`
-  - [ ] Three-stage: FFT-8 → twiddle → FFT-16 → twiddle → FFT-16
-  - [ ] Only 3 stages instead of 5.5
-
-- [ ] Benchmark all options vs current mixed-2/4
-- [ ] Register best performer with priority 30
-
-#### 14.7.6 Size 4096 - Radix-16 (3-Stage) or 64×64
-
-**Rationale**: 4096 = 16³ = 64 × 64 = 256 × 16
-
-**Option A - 16×16×16 Cube (3-stage)**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size4096_radix16cubed.s`
-  - [ ] Stage 1: 256 parallel FFT-16
-  - [ ] Twiddle multiplication
-  - [ ] Stage 2: 256 parallel FFT-16
-  - [ ] Twiddle multiplication
-  - [ ] Stage 3: 256 parallel FFT-16
-  - [ ] 3 stages total (vs 6 for radix-4)
-
-**Option B - 64×64 Matrix**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size4096_radix64x64.s`
-  - [ ] Stage 1: 64 parallel FFT-64
-  - [ ] Twiddle multiplication
-  - [ ] Stage 2: 64 parallel FFT-64
-  - [ ] 2 stages total (optimal!)
-
-- [ ] Benchmark vs current radix-4 (6 stages)
-- [ ] Target 1.5-2x speedup with 64×64 decomposition
-
-#### 14.7.7 Size 8192 - Higher-Radix Decompositions
-
-**Rationale**: 8192 = 64 × 128 = 32 × 256 = 16 × 512
-
-**Recommended - 64×128 Matrix**:
-
-- [x] Create `internal/asm/amd64/avx2_f32_size8192_radix64x128.s`
-  - [x] Stage 1: 128 parallel FFT-64
-  - [x] Twiddle multiplication
-  - [x] Stage 2: 64 parallel FFT-128
-  - [x] 2 stages (vs 6.5 for mixed-2/4)
-
-**Alternative - 16×32×16 (3D)**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size8192_radix16x32x16.s`
-  - [ ] Three-stage decomposition
-
-- [ ] Benchmark vs current mixed-2/4
-- [ ] Target 2-3x speedup with 2-stage decomposition
-
-#### 14.7.8 Size 16384 - Radix-128 (2-Stage)
-
-**Rationale**: 16384 = 128 × 128 = 64 × 256 = 16 × 1024
-
-**Optimal - 128×128 Matrix**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size16384_radix128x128.s`
-  - [ ] Stage 1: 128 parallel FFT-128
-  - [ ] Twiddle multiplication
-  - [ ] Stage 2: 128 parallel FFT-128
-  - [ ] 2 stages only! (vs 7 for radix-4)
-
-**Alternative - 16×16×64 (3D)**:
-
-- [ ] Create `internal/asm/amd64/avx2_f32_size16384_radix16x16x64.s`
-  - [ ] Three-stage: FFT-16 → twiddle → FFT-16 → twiddle → FFT-64
-  - [ ] 3 stages (vs 7 for radix-4)
-
-- [ ] Benchmark vs current radix-4 (7 stages)
-- [ ] Target 2-3x speedup with 2-stage decomposition
-
-#### 14.7.9 Cache-Oblivious Strategies
-
-For sizes that exceed L2 cache (typically 256KB-1MB), consider:
-
-**Blocking/Tiling**:
-
-- [ ] Implement cache-blocked variants for sizes ≥ 8192
-  - [ ] Divide FFT into cache-sized blocks
-  - [ ] Process blocks sequentially to maintain cache residency
-  - [ ] Trade extra passes for better cache utilization
-
-**SIMD-Aware Data Layout**:
-
-- [ ] Investigate SOA (Structure of Arrays) layout for complex data
-  - [ ] Separate real and imaginary arrays
-  - [ ] Better SIMD utilization (no interleave/deinterleave overhead)
-  - [ ] Requires API extension (breaking change, v2.0 consideration)
-
-#### 14.7.10 Implementation Priority Order
-
-Based on expected benefit/effort ratio:
-
-1. **Size 4096 - 64×64** (High impact, reuses FFT-64 kernel)
-2. **Size 1024 - 32×32** (Medium size, reuses FFT-32 kernel)
-3. **Size 256 - 16×16** (Reuses existing radix-16 kernel)
-4. **Size 16384 - 128×128** (Highest absolute benefit, requires FFT-128)
-5. **Size 8192 - 64×128** (Large benefit, requires FFT-128)
-6. **Size 512 - radix-8** (Smaller benefit, new radix-8 infrastructure)
-7. **Size 2048 - 32×64** (Medium benefit)
-
-### 14.8 Testing & Benchmarking
-
-#### 14.8.1 Comprehensive Benchmark Suite
-
-- [ ] Create `benchmarks/phase14_results/` directory
-- [ ] Run benchmarks for all sizes 4-16384:
-  - [ ] Pure Go baseline (no SIMD tags)
-  - [ ] Optimized Go (radix-4/mixed-radix)
-  - [ ] AVX2 assembly (`-tags=asm`)
-  - [ ] SSE2 fallback (`-tags=asm` on non-AVX2 CPU or emulated)
-
-- [ ] Save results as `benchmarks/phase14_results/{arch}_{date}.txt`
-
-#### 14.8.2 Statistical Analysis
-
-- [ ] Install `benchstat` if not present: `go install golang.org/x/perf/cmd/benchstat@latest`
-- [ ] Compare baseline vs optimized: `benchstat baseline.txt optimized.txt`
-- [ ] Document speedup ratios in table format
-- [ ] Identify any regressions
-
-#### 14.8.3 Documentation Updates
-
-- [ ] Update `docs/IMPLEMENTATION_INVENTORY.md` with new implementations
-- [ ] Update `BENCHMARKS.md` with:
-  - [ ] Performance comparison tables
-  - [ ] Speedup charts (if applicable)
-  - [ ] Hardware tested (CPU model, RAM speed)
-- [ ] Add performance notes to README.md
+## 2. Guiding Principles for the Road to v1.0
+
+1. **Correctness before speed.** A dormant-but-correct pure-Go library beats a
+   fast one that silently returns garbage or fails to build.
+2. **The default build is the product.** Whatever `go get` gives a user must be
+   the thing we test, benchmark, and document. No headline feature may depend on
+   a non-default build tag unless CI builds that tag.
+3. **No silent failure.** Every unhandled case fails loudly (error or panic),
+   never garbage-with-`nil`-error.
+4. **Docs match reality.** Every claim in README/`goal.md` is either true on the
+   default build or explicitly scoped.
+5. **Prefer generation over duplication.** Regular, size-parameterized code
+   (codelets, registration tables, `*128` twins) should be generated.
 
 ---
 
-## Phase 15: ARM64 NEON - Remaining Work
+## Priority 0 — Correctness & Build Integrity
 
-### 15.4 Production Testing on Real Hardware
+**Gate: none of P1–P3 starts until P0 is green.**
 
-**Status**: QEMU testing complete, real hardware pending
+### P0.1 Repair and CI-gate the `-tags asm` build
 
-#### 15.4.1 Hardware Testing
+- [ ] Remove the duplicate declarations so `go build -tags asm ./...` compiles.
+      Keep one file per (size, algorithm); delete the redundant twin
+      (`dit_384_decomp_128x3_amd64_asm.go`, `dit_4096_sixstep_amd64_avx2.go`,
+      `dit_16384_sixstep_amd64_avx2.go`, or their `dit_size*` counterparts).
+- [ ] Fix the amd64 decl↔TEXT drift: `decl.go` declares
+      `Forward/InverseSSE2Size128Radix4Complex128Asm` with no matching `TEXT`
+      (only the `...Then2...` symbol exists). Rename or delete the dead wrappers.
+- [ ] Add CI jobs: `go build -tags asm ./...` and `go test -tags asm ./...`
+      (amd64), plus `-tags asm` under QEMU for arm64.
+- [ ] Add a lint/CI check that every `//go:noescape` decl has a matching `TEXT`
+      symbol, to prevent decl↔asm drift recurring.
 
-- [ ] Acquire access to ARM64 hardware:
-  - [ ] Option A: Raspberry Pi 4/5 (local)
-  - [ ] Option B: AWS Graviton t4g.micro (free tier eligible)
-  - [ ] Option C: Apple Silicon Mac (M1/M2/M3)
-- [ ] Run full test suite on real hardware:
+### P0.2 Delete dead code
 
-  ```bash
-  go test -v -tags=asm ./...
-  ```
+- [ ] Delete `internal/kernels/dit_{32,64,128}_radix2.go` (`legacy_radix2`,
+      ~3,347 LOC — never compiles). Retire the `legacy_radix2` tag.
+- [ ] Delete the ~520 dead lines in `internal/fft/mixedradix.go`
+      (`mixedRadixIterativeComplex64/128`, the unused generic
+      `mixedRadixRecursivePingPong[T]`).
+- [ ] Delete the dead stub `planBitReversal` (`plan.go:261`, always returns
+      `nil`) — either implement it (so non-pooled plans get `bitrev` and the
+      strided radix-2 fast path can trigger) or remove it and the dead
+      `ForwardStrided` fast-path branch. Remove the `// (FIXED)` marker.
+- [ ] Remove the duplicate `ditAutoThreshold` in
+      `internal/fft/kernels_fallback.go:9` (unused shadow of the planner copy).
 
-- [ ] Verify all NEON kernels produce correct results
-- [ ] Check for any hardware-specific issues (alignment, denormals)
+### P0.3 Fix false concurrency-safety (code or docs)
 
-#### 15.4.2 Performance Benchmarking
+- [ ] Give `Plan2D`/`Plan3D`/`PlanND`/`PlanReal2D` a per-call scratch cache like
+      1D `Plan` (preferred), **or** correct their doc comments to
+      *"Clone per goroutine; a single instance is not safe for concurrent
+      transforms"* (as `PlanReal` already correctly states).
+- [ ] Add a `-race` concurrent test per multi-dim plan type to lock in whichever
+      guarantee is chosen.
 
-- [ ] Run benchmarks on real ARM64 hardware:
+### P0.4 Eliminate silent wrong-answer paths
 
-  ```bash
-  just bench | tee benchmarks/arm64_native.txt
-  ```
+- [ ] Replace every mixed-radix butterfly `default: return` (`mixedradix.go`
+      ~364/494/639) with a `panic` (unschedulable radix is a programming error,
+      not a runtime input error).
+- [ ] Make the scheduler/driver contract explicit: have the driver expose its
+      executable radix set and validate the emitted schedule against it, instead
+      of hand-synced `codeletSchedulable64/128` global hooks.
+- [ ] Strengthen the registry sweep (`codelet_roundtrip_all_test.go`) from
+      round-trip-only to **forward-vs-`reference.NaiveDFT`** for every registered
+      codelet, and add a meta-test asserting every `Signature` has reference
+      coverage (a compensating forward/inverse bug currently passes).
 
-- [ ] Compare QEMU vs native performance ratios
-- [ ] Document realistic speedup numbers for NEON kernels
-- [ ] Identify sizes where NEON provides most benefit
+### P0.5 Fix user- and agent-breaking docs
 
-#### 15.4.3 CI Integration
+- [ ] Fix README module path everywhere: `cwbudde/algofft` → `cwbudde/algo-fft`
+      (lines 3, 5, 49, 59, 174) so `go get` and the examples work.
+- [ ] Rewrite `CHANGELOG.md` to reflect implemented features (move Core/Real/
+      Bluestein/SIMD/multi-dim out of "Planned").
+- [ ] Point `GEMINI.md` at `AGENTS.md` (like `CLAUDE.md` does) or rewrite it to
+      the real `internal/kernels` + `internal/asm` layout and current phase.
+- [ ] Scope the SIMD claims in README/`goal.md`: state plainly that SIMD requires
+      `-tags asm` (until P2 makes it default), or hold the claim until then.
+- [ ] Fix `justfile:43` `-tags "amd"` → `-tags "asm"` and the matching
+      AGENTS.md line ("amd64 uses `-tags amd`" is false).
 
-- [ ] Add ARM64 runner to GitHub Actions:
-  - [ ] Option A: `runs-on: macos-14` (Apple Silicon)
-  - [ ] Option B: Self-hosted ARM64 runner
-  - [ ] Option C: ARM64 Docker container via QEMU (slower but available)
-- [ ] Add ARM64 build job to `.github/workflows/ci.yml`
-- [ ] Ensure SIMD paths are tested in CI
-- [ ] Add ARM64 badge to README
+### P0.6 Repo hygiene
 
-#### 15.4.4 Documentation
-
-- [ ] Add ARM64 section to BENCHMARKS.md:
-  - [ ] Performance comparison tables (NEON vs pure-Go)
-  - [ ] Hardware tested (Cortex-A76, Apple M1, Graviton, etc.)
-- [ ] Document NEON characteristics:
-  - [ ] 128-bit registers (2 complex64 per register)
-  - [ ] Expected speedup range
-- [ ] Compare NEON vs AVX2 speedup ratios
-
-### 15.5 Size-Specific NEON Kernels - Remaining
-
-Sizes 4, 8, 16, 32, 64, 128, 256 forward transforms implemented for complex64.
-
-#### 15.5.1 Inverse Transforms
-
-For each existing forward NEON kernel, implement inverse:
-
-- [x] Size 4: `inverseNEONSize4Radix4Complex64`
-  - [x] Add to `internal/asm/arm64/neon_f32_size4_radix4.s`
-  - [x] Conjugate twiddle factors (negate imaginary part)
-  - [x] Add 1/4 scaling factor
-- [x] Size 8: `inverseNEONSize8Radix2Complex64`, `inverseNEONSize8Radix8Complex64`
-- [x] Size 16: `inverseNEONSize16Radix4Complex64`
-- [x] Size 32: `inverseNEONSize32Radix2Complex64`, `inverseNEONSize32Mixed24Complex64`
-- [x] Size 64: `inverseNEONSize64Radix4Complex64`
-- [x] Size 128: `inverseNEONSize128Radix2Complex64`, `inverseNEONSize128Mixed24Complex64`
-- [x] Size 256: `inverseNEONSize256Radix4Complex64`
-- [x] Add round-trip tests for each size
-
-#### 15.5.2 Size 512+ NEON Kernels
-
-Evaluate benefit before implementing (may not be worthwhile due to cache effects):
-
-- [ ] Benchmark pure-Go sizes 512, 1024, 2048 on ARM64
-- [ ] Estimate potential NEON speedup
-- [ ] If > 1.5x expected:
-  - [ ] Implement `forwardNEONSize512Mixed24Complex64`
-  - [ ] Implement `forwardNEONSize1024Radix4Complex64`
-- [ ] If < 1.3x expected:
-  - [ ] Document decision to use pure-Go for large sizes
-  - [ ] Focus optimization effort elsewhere
-
-#### 15.5.3 complex128 NEON Kernels
-
-NEON processes 1 complex128 per 128-bit register (half the throughput of complex64):
-
-- [x] Evaluate if NEON complex128 provides benefit over pure-Go
-- [x] If beneficial, implement for key sizes:
-  - [x] Size 4: `forwardNEONSize4Radix4Complex128`
-  - [x] Size 8: `forwardNEONSize8Radix2Complex128`
-  - [x] Size 16: `forwardNEONSize16Radix4Complex128`
-- [x] Add corresponding inverse transforms
-- [x] Benchmark and document speedup
+- [ ] `git rm` the committed binaries (`benchkernels`,
+      `cmd/bench_compare/bench_compare`, ~6 MB) and add `.gitignore` rules for
+      extensionless Go binaries (e.g. `/benchkernels`, `cmd/*/bench_compare`, or a
+      `/build/` convention).
 
 ---
 
-## Phase 16: v1.0 Release
+## Priority 1 — Architecture Hardening
 
-**Goal**: Ship a stable, well-tested v1.0 release without over-engineering.
+### P1.1 Scope the global mutable state
 
-### 16.1 Fix Current Build Issues
+- [ ] Move `kernelStrategy` and `benchDecisions` out of package globals into
+      `Planner`/`PlanOptions` scope so two library consumers cannot interfere.
+      If a process-global default is retained for convenience, document it loudly
+      and provide a reset; mirror `PlanOptions.Wisdom`'s per-instance model.
+- [ ] Re-key `benchDecisions` like `WisdomKey` (size + precision + CPU features +
+      direction) or drop it in favor of the richer Wisdom cache — one tuning
+      cache, not two with different keying.
+- [ ] Fix the 386 SSE2-complex128 wrappers that re-read the global strategy at
+      execution time (`asm_amd64.go:746,761`), breaking the plan snapshot
+      invariant; remove their amd64 dead duplicates.
 
-- [ ] Resolve `prepareCodeletTwiddles64` redeclaration in test files
-- [ ] Ensure all tests pass: `go test ./...`
+### P1.2 Harden the Wisdom format
 
-### 16.2 API Consistency Review
+- [ ] Add a version/magic header; reject unknown versions instead of
+      mis-parsing.
+- [ ] Make `Import` atomic: parse+validate into a temp map (known algorithm
+      names, supported sizes, feature-mask width) and swap in only on full
+      success.
+- [ ] Widen the CPU-feature mask to distinguish SSE3 from SSE2. Decide whether
+      `Timestamp` drives staleness/eviction or drop it from the format.
+- [ ] Increase `PlannerMeasure` iteration counts / add outlier rejection so
+      recorded wisdom isn't dominated by timing noise at small sizes.
 
-- [ ] List exported symbols: `go doc -all . | grep "^func\|^type"`
-- [ ] Verify all exported symbols have GoDoc comments
-- [ ] Check consistent naming (NewXxx pattern)
-- [ ] Verify error handling consistency
+### P1.3 Zero-allocation parity across all plan types
 
-### 16.3 Stability Testing
+- [ ] Make `PlanND` zero-alloc: preallocate the per-dimension slice buffer and
+      precompute stride math instead of `make()` twice per slice
+      (`plan_nd.go:336,440`). Model it on the 3D path.
+- [ ] Hoist per-sub-transform `make()`s out of `mixedradix_avx2.go` (twiddle/
+      scratch) into plan-owned buffers.
+- [ ] Cache bit-reversal indices and `IsHighlyComposite`/factorization at plan
+      creation, not per transform (`asm_amd64.go:56-68`, `kernels_fallback.go`).
+- [ ] Extend `plan_alloc_test.go` to guard 2D/3D/ND and real variants (currently
+      1D-only), so the promise is enforced everywhere it is made.
 
-- [ ] Run tests 5x to detect flaky tests:
+### P1.4 Reduce duplication in the plan layer
 
-  ```bash
-  for i in {1..5}; do go test ./... || echo "FAIL $i"; done
-  ```
+- [ ] Split `plan.go` (1,425 lines, near the 1,500 cap): extract the ~270 lines
+      of triplicated `complex64/complex128/default` alloc type-switches into one
+      generic aligned-alloc helper (`plan_alloc.go`), and move `Close`/`Reset`/
+      `Clone` to `plan_lifecycle.go`.
+- [ ] Retire `PlanReal` in favor of the generic `PlanRealT` (the former is a
+      verbatim non-generic duplicate kept "for backward compatibility"), or
+      generate it.
+- [ ] Generate the `*128` DSP twins (`Convolve128`, `CrossCorrelate128`, …) and
+      the 2D/3D/ND boilerplate from a single template.
 
-- [ ] Fix any flaky tests found
-- [ ] Run `go test -race ./...` to verify concurrency safety
+### P1.5 Clean up dispatch
 
-### 27.4 Release Checklist
+- [ ] Factor the 4×-duplicated `SelectKernels[T]` type-switch/assertion
+      boilerplate (`dispatch.go`) into one helper; stop silently ignoring failed
+      type assertions.
+- [ ] Document the `stockham_packed_toggle_asm.go` inversion (packed Stockham is
+      *disabled* exactly when `asm` is enabled) or remove it.
 
-- [ ] Create CHANGELOG.md with key features
-- [ ] Tag release: `git tag v1.0.0`
-- [ ] Create GitHub release with notes
-- [ ] Verify on pkg.go.dev
+### P1.6 Introduce a codelet generator
 
-### 27.5 Basic GitHub Templates (Optional)
-
-- [ ] Add simple `.github/ISSUE_TEMPLATE/bug_report.md`
-- [ ] Add simple `.github/PULL_REQUEST_TEMPLATE.md`
+- [ ] Add a `go:generate` generator that emits the size-parameterized DIT/radix
+      codelets and the ~164 `Register(CodeletEntry{...})` blocks
+      (`codelet_init*.go`). This is the root cause of both the duplication and the
+      dead-copy class of bug; generation makes new sizes cheap and structurally
+      prevents drift.
+- [ ] Normalize kernel file naming to one convention (`dit_<size>_<radix>.go`),
+      removing the `dit_size*` fossils from the incomplete `legacy_radix2`
+      migration.
+- [ ] Fix the `Lookup`/`lookupUnlocked` divergence in
+      `internal/planner/codelet.go` so `GetAvailableSizes` can't advertise a size
+      served only by a disabled (`Priority < 0`) codelet.
 
 ---
 
-## Future (Post v1.0)
+## Priority 2 — SIMD That Actually Ships
 
-**Performance Optimizations** (only if users request):
+**Precondition: P0.1 done (asm builds and is CI-tested).**
 
-- Cache profiling and loop optimization
-- Parallel batch processing API
-- WASM SIMD (when Go supports it)
-- AVX-512 support
-- Higher-radix optimizations for remaining sizes
+### P2.1 Make SIMD reachable on the default build
 
-**Features**:
+- [ ] Decide the delivery model: either fold the asm kernels into the default
+      build behind runtime CPU detection (preferred — remove the `asm` tag as a
+      *build* gate and select at runtime), or keep `-tags asm` but document it as
+      required for SIMD and publish guidance/benchmarks for both.
+- [ ] Ensure `ForceGeneric`/fallback correctness parity is what CI benchmarks,
+      not just the fast path.
 
-- Audio/image processing examples
-- GPU acceleration (OpenCL/CUDA via cgo)
-- Distributed FFT for very large datasets
-- DCT (Discrete Cosine Transform)
-- Hilbert transform
-- STFT for spectrograms
-- Gonum ecosystem integration
+### P2.2 Fix known-incorrect kernels
 
-**Community** (as project grows):
+- [ ] AVX2 Stockham "compiles/runs but produces wrong results" (old Phase 14.4):
+      diff intermediate buffers against pure-Go per stage, fix buffer-swap /
+      twiddle indexing, gate behind the P0.4 forward-vs-reference sweep.
+- [ ] Re-enable size-16 radix-16 on x86/386 once corrected
+      (`kernels_386_asm.go:163,182` `TODO(386)`).
 
-- CODE_OF_CONDUCT.md
-- Dependabot configuration
-- Issue/PR templates refinement
-- ARM64 native CI runner
+### P2.3 Higher-radix / larger-size kernel backlog (condensed)
+
+Reuse-friendly decompositions, highest benefit/effort first. Each item: add the
+`.s`, wire the codelet with priority, add forward-vs-reference + round-trip tests,
+benchmark vs the current path with `benchstat`.
+
+| Priority | Size  | Decomposition        | Reuses            | Status  |
+| -------- | ----- | -------------------- | ----------------- | ------- |
+| 1        | 4096  | 64×64 (2-stage)      | FFT-64 kernel     | planned |
+| 2        | 1024  | 32×32 (2-stage)      | FFT-32 kernel     | planned |
+| 3        | 256   | 16×16 (2-stage)      | radix-16 kernel   | done (Go+AVX2) |
+| 4        | 16384 | 128×128 (2-stage)    | needs FFT-128     | partial |
+| 5        | 8192  | 64×128 (2-stage)     | needs FFT-128     | partial |
+| 6        | 512   | radix-8 / 16×32      | radix-8 infra     | done (Go) |
+| 7        | 2048  | 32×64 (2-stage)      | FFT-32/64 kernels | planned |
+
+- [ ] complex128 large-size AVX2 (512 done; 1024/2048/4096/8192/16384 pending).
+- [ ] SSE2 coverage for 512 mixed-2/4 and 1024 radix-4 (both precisions) — the
+      non-AVX2 fallback path.
+- [ ] ARM64 NEON: sizes 512+ (evaluate benefit first), remaining complex128.
+
+### P2.4 New instruction sets
+
+- [ ] AVX-512 kernels (`HasAVX512` is detected today but dead).
+- [ ] Revisit WASM SIMD when Go's toolchain supports it.
+
+---
+
+## Priority 3 — API Completeness & Polish
+
+- [ ] Remove or implement the shipped-but-inert public options: `Radices` and
+      `WorkspacePolicy`/`Workspace` (all three enum values are "not yet
+      implemented"). Don't ship dead knobs in a v1.0 API.
+- [ ] Fix the pooled-pool API: `NewPlanFromPool`/`NewPlanFromPoolWithOptions`
+      take an `internal/fft.BufferPool` no external caller can name — re-export a
+      public pool type + default, or remove these from the public surface. Align
+      their length/planner contract with `newPlanWithFeatures` (currently they
+      reject Bluestein sizes with a misleading `ErrNotImplemented`).
+- [ ] Introspection parity: give `Plan2D/3D/ND`, `PlanReal*`, and `FastPlan` the
+      `Meta()`/`KernelStrategy()`/`Algorithm()` accessors that only 1D `Plan` has;
+      give `FastPlan` a `Close()`.
+- [ ] Resolve the `InPlace` naming outlier (1D `InPlace` = forward-only vs
+      `ForwardInPlace`/`InverseInPlace` elsewhere).
+- [ ] Add plan-reuse variants for `Convolve`/`Correlate` so DSP-in-a-loop doesn't
+      re-plan and re-allocate every call.
+- [ ] Error-handling consistency: uniform wrapping (`plan_nd.go` adds
+      dimension-indexed context via `%w`; 2D/3D return bare sentinels).
+- [ ] `go doc -all` audit: verify every exported symbol has GoDoc; consider
+      enabling a doc-comment linter (AGENTS requires it but nothing enforces it).
+
+---
+
+## Testing & CI Hardening (cross-cutting)
+
+- [ ] **asm in CI** (see P0.1) — build + test both tags on amd64 and arm64/QEMU.
+- [ ] **Coverage gate**: add `codecov.yml` with a threshold and **reconcile the
+      target** — `AGENTS.md` says >90 %, `CONTRIBUTING.md` says >80 %. Pick one.
+      Raise the weakest non-asm packages toward it: `internal/fft` (61.9 %),
+      root (79.0 %), `internal/cpu` (78.5 %), `internal/planner` (81.6 %).
+- [ ] **Make the benchmark gate real or remove it**: commit
+      `benchmarks/baseline-<os>.txt` so `scripts/bench_compare.sh` actually
+      compares (today it `exit 0`s on the missing baseline), or move benchmarks to
+      a manual/nightly job off noisy shared runners.
+- [ ] **Pin toolchain**: `test-bench.yaml` pins `go-version: 1.23` while every
+      other job uses `go.mod` (1.25). Unify to `go-version-file: go.mod`. Pin
+      `golangci-lint-action` to a release instead of `latest`.
+- [ ] **Continuous fuzzing**: add a time-budgeted CI fuzz job (currently
+      seed-corpus-only) for round-trip and no-panic properties.
+- [ ] **Property-test parity**: apply Parseval/linearity/shift to the core 1D
+      complex path (today unevenly spread across 2D/3D/real files).
+
+---
+
+## v1.0 Release — Definition of Done
+
+v1.0 ships only when **all** of the following hold:
+
+- [ ] `go build ./...` and `go build -tags asm ./...` both compile on amd64 and
+      arm64; both are gated in CI.
+- [ ] `go test -race ./...` and `go test -tags asm ./...` pass; 5× repeat run is
+      flake-free.
+- [ ] No dead build tags, no committed binaries, no false doc guarantees.
+- [ ] Every public option and constructor is either implemented or removed —
+      no "not yet implemented" in the exported surface.
+- [ ] Coverage meets the single agreed target for non-asm code; the asm path has
+      forward-vs-reference tests for every registered codelet.
+- [ ] README/`goal.md`/CHANGELOG are accurate on the default build; module path
+      resolves; `pkg.go.dev` renders.
+- [ ] `docs/IMPLEMENTATION_INVENTORY.md` and `BENCHMARKS.md` regenerated with
+      committed baselines and the CPU/hardware used.
+- [ ] Tag `v1.0.0`, GitHub release notes, `.github/ISSUE_TEMPLATE` +
+      `PULL_REQUEST_TEMPLATE.md`.
+
+---
+
+## Post-v1.0 Future
+
+**Performance** (as users request): cache-blocked variants for sizes above L2,
+SoA (split real/imag) layout as a v2 API, parallel batch API, AVX-512 breadth.
+
+**Features**: DCT, Hilbert transform, STFT/spectrograms, audio/image examples,
+Gonum ecosystem integration, optional GPU backends (kept out of the pure-Go core).
+
+**Community**: `CODE_OF_CONDUCT.md`, Dependabot, native ARM64 CI runner.
