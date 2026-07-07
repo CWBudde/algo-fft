@@ -342,14 +342,32 @@ into the P2 backlog below.
 
 ### P2.2 Fix known-incorrect kernels
 
-- [ ] **ARM64 NEON complex64 kernels produce wrong results** (found by the
-      P0.1 QEMU `-tags asm` test run): `TestAllKernelsCorrectness` in
-      `internal/fft` fails for complex64 at sizes 16–4096 across DIT, Stockham,
-      and Auto strategies; complex128 passes. Until fixed, CI builds
-      (but does not test) `-tags asm` on arm64 (`test-arch.yaml`).
+- [x] **ARM64 NEON complex64 kernels produce wrong results** — fixed (2026-07).
+      Three bugs: (1) the generic `forwardNEONComplex64Asm`/`inverse` read
+      bit-reversal indices from the uninitialized scratch buffer (the `.s` was
+      written for a 5-arg `bitrev []int` signature the 4-arg Go decl never
+      supplied) — now computed on-the-fly via `CLZ` like the complex128 kernel;
+      (2) the size-128 radix-4-then-2 inverse conjugated twice in stage 1
+      (sign-flip **and** store swap), cancelling out — now stores X1/X3 in
+      forward order; (3) the size-64 radix-4 NEON kernels used a self-consistent
+      but reference-wrong convention and were never selected in dispatch (radix-2
+      wins for n=64) — removed. `TestAllKernelsCorrectness`,
+      `TestNEONSizeSpecificComplex64`, `TestKernelConsistency`, and the full
+      `internal/fft` asm suite now pass under QEMU.
+- [ ] **Remaining arm64 `-tags asm` faults** (pre-existing, surfaced once the
+      NEON complex64 kernels were correct; block flipping arm64 asm from
+      build-only to tested in CI): `TestInPlaceAllCodelets64` segfaults at
+      `size384/dit384_mixed_generic` on the in-place (`dst==src`) path, and
+      `TestPlan2DTransformsNoAllocsComplex64` faults. Both pass on amd64, so
+      these are arm64-specific. Diagnose the shared out-of-bounds before
+      enabling `-tags asm` tests on arm64 (`test-arch.yaml`).
 - [ ] AVX2 Stockham "compiles/runs but produces wrong results" (old Phase 14.4):
-      diff intermediate buffers against pure-Go per stage, fix buffer-swap /
-      twiddle indexing, gate behind the P0.4 forward-vs-reference sweep.
+      **not reproduced** on current code — the AVX2 Stockham complex64 asm
+      kernel matches `reference.NaiveDFT` within float32 tolerance at sizes
+      16–4096 (maxErr ~2e-5 at n=4096) and `TestAllKernelsCorrectness`
+      (`KernelStockham`) passes with `-tags asm`. If still an issue, capture a
+      concrete failing case; otherwise close. Keep the P0.4 forward-vs-reference
+      sweep gating any future changes.
 - [ ] Re-enable size-16 radix-16 on x86/386 once corrected
       (`kernels_386_asm.go:163,182` `TODO(386)`).
 
