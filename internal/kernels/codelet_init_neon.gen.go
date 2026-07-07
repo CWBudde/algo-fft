@@ -109,17 +109,6 @@ func registerNEONDITCodelets64() {
 	})
 
 	Registry64.Register(CodeletEntry[complex64]{
-		Size:       64,
-		Forward:    wrapCodelet64(arm64.ForwardNEONSize64Radix4Complex64Asm),
-		Inverse:    wrapCodelet64(arm64.InverseNEONSize64Radix4Complex64Asm),
-		Algorithm:  KernelDIT,
-		SIMDLevel:  SIMDNEON,
-		Signature:  "dit64_radix4_neon",
-		Priority:   28,
-		KernelType: KernelTypeDIT,
-	})
-
-	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
 		Forward:    wrapCodelet64(arm64.ForwardNEONSize128Radix2Complex64Asm),
 		Inverse:    wrapCodelet64(arm64.InverseNEONSize128Radix2Complex64Asm),
