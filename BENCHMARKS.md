@@ -5,19 +5,46 @@ hardware- and Go-version-specific.
 
 ## How to Update
 
-1. Run benchmarks and update the baseline output file:
+1. Run default-build benchmarks and update the baseline output file:
 
 ```bash
-scripts/run_benchmarks.sh benchmarks/baseline.txt
+scripts/run_benchmarks.sh benchmarks/baseline-ubuntu-latest-default.txt
 ```
 
-2. Regenerate the table below:
+2. On linux/amd64, run the asm-enabled benchmarks separately:
+
+```bash
+scripts/run_benchmarks.sh benchmarks/baseline-ubuntu-latest-asm.txt -tags asm
+```
+
+3. On macOS, keep a separate default-build baseline:
+
+```bash
+scripts/run_benchmarks.sh benchmarks/baseline-macos-14-default.txt
+```
+
+4. Regenerate the table below:
 
 ```bash
 scripts/bench_md.sh benchmarks/baseline.txt > /tmp/benchmarks.md
 ```
 
-3. Replace the "Baseline Results" table with the regenerated output.
+5. Replace the "Baseline Results" table with the regenerated output.
+
+## SIMD Benchmark Modes
+
+SIMD kernels are intentionally still delivered behind the `asm` build tag. The
+default build remains the shipped baseline while P2.2 tracks known ARM64 NEON
+complex64 correctness failures. Benchmark CI therefore records two linux/amd64
+streams:
+
+- `default`: the normal `go test` build that users get from `go get`
+- `asm`: `go test -tags asm`, covering AVX2/SSE2 dispatch and assembly wrappers
+
+The benchmark suite also includes focused `ForceGeneric` cases. Those cases run
+through the fallback dispatch even in an asm-enabled binary, validate one output
+against the reference DFT or round-trip input before timing, and then measure the
+fallback path with allocations reported.
 
 ## Phase 12 Focus (complex128 128/512/8192)
 

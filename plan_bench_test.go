@@ -2,10 +2,12 @@ package algofft
 
 import (
 	"fmt"
+	"math/cmplx"
 	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fft"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
@@ -60,6 +62,10 @@ func BenchmarkPlanForward_16384_Recursive(b *testing.B) {
 	benchmarkPlanForwardWithOptions(b, 16384, PlanOptions{Strategy: KernelRecursive})
 }
 
+func BenchmarkPlanForward_1024_ForceGeneric(b *testing.B) {
+	benchmarkPlanForwardForceGeneric(b, 1024)
+}
+
 // Inverse FFT benchmarks for various sizes.
 func BenchmarkPlanInverse_8(b *testing.B)     { benchmarkPlanInverse(b, 8) }
 func BenchmarkPlanInverse_16(b *testing.B)    { benchmarkPlanInverse(b, 16) }
@@ -108,6 +114,10 @@ func BenchmarkPlanInverse_8192_Recursive(b *testing.B) {
 
 func BenchmarkPlanInverse_16384_Recursive(b *testing.B) {
 	benchmarkPlanInverseWithOptions(b, 16384, PlanOptions{Strategy: KernelRecursive})
+}
+
+func BenchmarkPlanInverse_1024_ForceGeneric(b *testing.B) {
+	benchmarkPlanInverseForceGeneric(b, 1024)
 }
 
 // Plan creation benchmarks (additional sizes - 64, 1024, 65536 are in plan_test.go).
@@ -410,6 +420,191 @@ func BenchmarkPlanInverse_512_Complex128_Focus(b *testing.B) {
 
 func BenchmarkPlanInverse_8192_Complex128_Focus(b *testing.B) {
 	benchmarkPlanInverseComplex128Focus(b, 8192)
+}
+
+func BenchmarkPlanForward_512_Complex128_ForceGeneric(b *testing.B) {
+	benchmarkPlanForwardComplex128ForceGeneric(b, 512)
+}
+
+func BenchmarkPlanInverse_512_Complex128_ForceGeneric(b *testing.B) {
+	benchmarkPlanInverseComplex128ForceGeneric(b, 512)
+}
+
+func benchmarkPlanForwardForceGeneric(b *testing.B, fftSize int) {
+	b.Helper()
+	forceGenericForBenchmark(b)
+
+	plan, err := NewPlanT[complex64](fftSize)
+	if err != nil {
+		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+	}
+
+	src := make([]complex64, fftSize)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	dst := make([]complex64, fftSize)
+	if err := plan.Forward(dst, src); err != nil {
+		b.Fatalf("Forward() returned error: %v", err)
+	}
+	assertComplex64Close(b, dst, reference.NaiveDFT(src), 1e-1)
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 8))
+	b.ResetTimer()
+
+	for b.Loop() {
+		fwdErr := plan.Forward(dst, src)
+		if fwdErr != nil {
+			b.Fatalf("Forward() returned error: %v", fwdErr)
+		}
+	}
+}
+
+func benchmarkPlanInverseForceGeneric(b *testing.B, fftSize int) {
+	b.Helper()
+	forceGenericForBenchmark(b)
+
+	plan, err := NewPlanT[complex64](fftSize)
+	if err != nil {
+		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+	}
+
+	src := make([]complex64, fftSize)
+	for i := range src {
+		src[i] = complex(float32(i+1), float32(-i))
+	}
+
+	freq := make([]complex64, fftSize)
+	if err := plan.Forward(freq, src); err != nil {
+		b.Fatalf("Forward() returned error: %v", err)
+	}
+
+	dst := make([]complex64, fftSize)
+	if err := plan.Inverse(dst, freq); err != nil {
+		b.Fatalf("Inverse() returned error: %v", err)
+	}
+	assertComplex64Close(b, dst, src, 1e-3)
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 8))
+	b.ResetTimer()
+
+	for b.Loop() {
+		invErr := plan.Inverse(dst, freq)
+		if invErr != nil {
+			b.Fatalf("Inverse() returned error: %v", invErr)
+		}
+	}
+}
+
+func benchmarkPlanForwardComplex128ForceGeneric(b *testing.B, fftSize int) {
+	b.Helper()
+	forceGenericForBenchmark(b)
+
+	plan, err := NewPlanT[complex128](fftSize)
+	if err != nil {
+		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+	}
+
+	src := make([]complex128, fftSize)
+	for i := range src {
+		src[i] = complex(float64(i+1), float64(-i))
+	}
+
+	dst := make([]complex128, fftSize)
+	if err := plan.Forward(dst, src); err != nil {
+		b.Fatalf("Forward() returned error: %v", err)
+	}
+	assertComplex128Close(b, dst, reference.NaiveDFT128(src), 1e-7)
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 16))
+	b.ResetTimer()
+
+	for b.Loop() {
+		fwdErr := plan.Forward(dst, src)
+		if fwdErr != nil {
+			b.Fatalf("Forward() returned error: %v", fwdErr)
+		}
+	}
+}
+
+func benchmarkPlanInverseComplex128ForceGeneric(b *testing.B, fftSize int) {
+	b.Helper()
+	forceGenericForBenchmark(b)
+
+	plan, err := NewPlanT[complex128](fftSize)
+	if err != nil {
+		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+	}
+
+	src := make([]complex128, fftSize)
+	for i := range src {
+		src[i] = complex(float64(i+1), float64(-i))
+	}
+
+	freq := make([]complex128, fftSize)
+	if err := plan.Forward(freq, src); err != nil {
+		b.Fatalf("Forward() returned error: %v", err)
+	}
+
+	dst := make([]complex128, fftSize)
+	if err := plan.Inverse(dst, freq); err != nil {
+		b.Fatalf("Inverse() returned error: %v", err)
+	}
+	assertComplex128Close(b, dst, src, 1e-10)
+
+	b.ReportAllocs()
+	b.SetBytes(int64(fftSize * 16))
+	b.ResetTimer()
+
+	for b.Loop() {
+		invErr := plan.Inverse(dst, freq)
+		if invErr != nil {
+			b.Fatalf("Inverse() returned error: %v", invErr)
+		}
+	}
+}
+
+func forceGenericForBenchmark(b *testing.B) {
+	b.Helper()
+
+	features := cpu.DetectFeatures()
+	features.ForceGeneric = true
+	cpu.SetForcedFeatures(features)
+	b.Cleanup(cpu.ResetDetection)
+}
+
+func assertComplex64Close(b *testing.B, got, want []complex64, tolerance float64) {
+	b.Helper()
+
+	if len(got) != len(want) {
+		b.Fatalf("length mismatch: got %d, want %d", len(got), len(want))
+	}
+
+	for i := range got {
+		diff := cmplx.Abs(complex128(got[i]) - complex128(want[i]))
+		if diff > tolerance {
+			b.Fatalf("index %d: got %v, want %v, diff %g > %g", i, got[i], want[i], diff, tolerance)
+		}
+	}
+}
+
+func assertComplex128Close(b *testing.B, got, want []complex128, tolerance float64) {
+	b.Helper()
+
+	if len(got) != len(want) {
+		b.Fatalf("length mismatch: got %d, want %d", len(got), len(want))
+	}
+
+	for i := range got {
+		diff := cmplx.Abs(got[i] - want[i])
+		if diff > tolerance {
+			b.Fatalf("index %d: got %v, want %v, diff %g > %g", i, got[i], want[i], diff, tolerance)
+		}
+	}
 }
 
 func benchmarkPlanForwardComplex128Focus(b *testing.B, fftSize int) {

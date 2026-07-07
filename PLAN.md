@@ -324,12 +324,17 @@ into the P2 backlog below.
 
 ### P2.1 Make SIMD reachable on the default build
 
-- [ ] Decide the delivery model: either fold the asm kernels into the default
-      build behind runtime CPU detection (preferred — remove the `asm` tag as a
-      _build_ gate and select at runtime), or keep `-tags asm` but document it as
-      required for SIMD and publish guidance/benchmarks for both.
-- [ ] Ensure `ForceGeneric`/fallback correctness parity is what CI benchmarks,
-      not just the fast path.
+- [x] Decide the delivery model: **keep SIMD behind `-tags asm` until P2.2's
+      known ARM64 NEON complex64 correctness failures are fixed**. Removing the
+      build tag remains the preferred end-state, but enabling it before P2.2
+      would make the default arm64 build select kernels that are already known
+      wrong. README already scopes SIMD as `-tags asm`; `BENCHMARKS.md` now
+      documents separate default and asm benchmark streams.
+- [x] Ensure `ForceGeneric`/fallback correctness parity is what CI benchmarks,
+      not just the fast path. Benchmark CI now runs default-build benchmarks and
+      linux/amd64 `-tags asm` benchmarks, and the benchmark suite includes
+      `ForceGeneric` complex64/complex128 cases that validate one output against
+      the reference DFT or round-trip input before timing the fallback path.
 
 ### P2.1a Clean up asmdecl findings
 
@@ -416,9 +421,10 @@ benchmark vs the current path with `benchstat`.
       `benchmarks/baseline-<os>.txt` so `scripts/bench_compare.sh` actually
       compares (today it `exit 0`s on the missing baseline), or move benchmarks to
       a manual/nightly job off noisy shared runners.
-- [ ] **Pin toolchain**: `test-bench.yaml` pins `go-version: 1.23` while every
-      other job uses `go.mod` (1.25). Unify to `go-version-file: go.mod`. Pin
-      `golangci-lint-action` to a release instead of `latest`.
+- [ ] **Pin toolchain**: `test-bench.yaml` no longer pins `go-version: 1.23`;
+      it uses `go-version-file: go.mod` like the other workflows. Remaining:
+      pin `golangci-lint-action`'s `version` input to a release instead of
+      `latest`.
 - [ ] **Continuous fuzzing**: add a time-budgeted CI fuzz job (currently
       seed-corpus-only) for round-trip and no-panic properties.
 - [ ] **Property-test parity**: apply Parseval/linearity/shift to the core 1D

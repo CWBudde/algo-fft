@@ -8,12 +8,20 @@ permissions:
 
 jobs:
   bench:
-    name: Benchmark Tests
+    name: Benchmark Tests (${{ matrix.os }}, ${{ matrix.mode }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-14]
-        go-version: ["1.23"]
+        include:
+          - os: ubuntu-latest
+            mode: default
+            tags: ""
+          - os: ubuntu-latest
+            mode: asm
+            tags: asm
+          - os: macos-14
+            mode: default
+            tags: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -21,25 +29,27 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version-file: go.mod
 
       - name: Run benchmarks
-        run: scripts/run_benchmarks.sh benchmarks/latest-${{ matrix.os }}.txt
+        env:
+          GO_TEST_TAGS: ${{ matrix.tags }}
+          OUTPUT_PATH: benchmarks/latest-${{ matrix.os }}-${{ matrix.mode }}.txt
+        run: |
+          if [[ -n "$GO_TEST_TAGS" ]]; then
+            scripts/run_benchmarks.sh "$OUTPUT_PATH" -tags "$GO_TEST_TAGS"
+          else
+            scripts/run_benchmarks.sh "$OUTPUT_PATH"
+          fi
 
       - name: Install benchstat
-        if: matrix.os == 'ubuntu-latest'
         run: go install golang.org/x/perf/cmd/benchstat@latest
 
       - name: Compare against baseline
-        if: matrix.os == 'ubuntu-latest'
-        run: scripts/bench_compare.sh benchmarks/baseline-${{ matrix.os }}.txt benchmarks/latest-${{ matrix.os }}.txt
-
-      - name: Compare against baseline (macOS)
-        if: matrix.os == 'macos-14'
-        run: scripts/bench_compare.sh benchmarks/baseline-${{ matrix.os }}.txt benchmarks/latest-${{ matrix.os }}.txt
+        run: scripts/bench_compare.sh benchmarks/baseline-${{ matrix.os }}-${{ matrix.mode }}.txt benchmarks/latest-${{ matrix.os }}-${{ matrix.mode }}.txt
 
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: benchmarks-${{ matrix.os }}
+          name: benchmarks-${{ matrix.os }}-${{ matrix.mode }}
           path: benchmarks
