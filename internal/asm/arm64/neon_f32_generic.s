@@ -117,10 +117,12 @@ do_bit_reversal:
 	//     rev := bitreverse(i, log2(n))
 	//     work[i] = src[rev]
 	//   }
-	// R12 = bits = log2(n) = 63 - clz(n)
-	CLZ  R13, R0                 // R0 = leading zeros of n
-	MOVD $63, R12
-	SUB  R0, R12, R12            // R12 = log2(n)
+	// The reversed index is RBIT(i) >> (64 - log2(n)); since n is a power of
+	// two, 64 - log2(n) == clz(n) + 1. Computing it with RBIT + a single shift
+	// is O(1) per index instead of an inner per-bit loop.
+	// R12 = shift = 64 - log2(n) = clz(n) + 1
+	CLZ  R13, R12                // R12 = leading zeros of n
+	ADD  $1, R12, R12            // R12 = clz(n) + 1
 
 	MOVD $0, R17                 // R17 = i = 0
 
@@ -128,21 +130,10 @@ bitrev_loop:
 	CMP  R13, R17                // Compare i with n
 	BGE  bitrev_done             // if i >= n, done
 
-	// Compute rev = bitreverse(i, bits)
-	MOVD $0, R1                  // R1 = rev = 0
-	MOVD R17, R2                 // R2 = val = i
-	MOVD R12, R3                 // R3 = bits remaining
+	// rev = reverse64(i) >> (64 - log2(n))
+	RBIT R17, R1                 // R1 = bit-reversed 64-bit value of i
+	LSR  R12, R1, R1             // R1 = rev (low log2(n) bits of i, reversed)
 
-bitrev_bits:
-	CBZ  R3, bitrev_bits_done
-	LSL  $1, R1, R1              // rev <<= 1
-	AND  $1, R2, R4              // R4 = val & 1
-	ORR  R4, R1, R1              // rev |= (val & 1)
-	LSR  $1, R2, R2              // val >>= 1
-	SUB  $1, R3, R3              // bits--
-	B    bitrev_bits
-
-bitrev_bits_done:
 	// Load src[rev] (complex64 = 8 bytes)
 	LSL  $3, R1, R0              // R0 = rev * 8 (byte offset for complex64 array)
 	ADD  R9, R0, R0              // R0 = &src[rev]
@@ -504,10 +495,11 @@ inv_do_bit_reversal:
 	// -----------------------------------------------------------------------
 	// PHASE 3: Bit-reversal permutation (computed on-the-fly)
 	// -----------------------------------------------------------------------
-	// R12 = bits = log2(n) = 63 - clz(n)
-	CLZ  R13, R0                 // R0 = leading zeros of n
-	MOVD $63, R12
-	SUB  R0, R12, R12            // R12 = log2(n)
+	// The reversed index is RBIT(i) >> (64 - log2(n)); since n is a power of
+	// two, 64 - log2(n) == clz(n) + 1 (see the forward path for details).
+	// R12 = shift = 64 - log2(n) = clz(n) + 1
+	CLZ  R13, R12                // R12 = leading zeros of n
+	ADD  $1, R12, R12            // R12 = clz(n) + 1
 
 	MOVD $0, R17                 // R17 = i = 0
 
@@ -515,21 +507,10 @@ inv_bitrev_loop:
 	CMP  R13, R17                // Compare i with n
 	BGE  inv_bitrev_done         // if i >= n, done
 
-	// Compute rev = bitreverse(i, bits)
-	MOVD $0, R1                  // R1 = rev = 0
-	MOVD R17, R2                 // R2 = val = i
-	MOVD R12, R3                 // R3 = bits remaining
+	// rev = reverse64(i) >> (64 - log2(n))
+	RBIT R17, R1                 // R1 = bit-reversed 64-bit value of i
+	LSR  R12, R1, R1             // R1 = rev (low log2(n) bits of i, reversed)
 
-inv_bitrev_bits:
-	CBZ  R3, inv_bitrev_bits_done
-	LSL  $1, R1, R1              // rev <<= 1
-	AND  $1, R2, R4              // R4 = val & 1
-	ORR  R4, R1, R1              // rev |= (val & 1)
-	LSR  $1, R2, R2              // val >>= 1
-	SUB  $1, R3, R3              // bits--
-	B    inv_bitrev_bits
-
-inv_bitrev_bits_done:
 	// Load src[rev] (complex64 = 8 bytes)
 	LSL  $3, R1, R0              // R0 = rev * 8 (byte offset for complex64 array)
 	ADD  R9, R0, R0              // R0 = &src[rev]

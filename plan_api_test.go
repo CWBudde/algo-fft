@@ -231,19 +231,25 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 		t.Fatalf("NewPlan(512) returned error: %v", err)
 	}
 
-	// On amd64 the planner selects the radix-4-then-2 codelet (generic, or its
-	// AVX2 override under -tags asm). On arm64 there is no NEON radix-4-then-2
-	// codelet for size 512 yet (NEON 512+ coverage is deferred; see PLAN.md
-	// P2.3), so with -tags asm the size-512 generic NEON codelet
-	// ("dit512_generic_neon") is chosen because codelet selection prefers a
-	// higher SIMD level over a higher-priority scalar codelet.
-	wantPrefix := "dit512_radix4_then2"
+	// The planner should select the radix-4-then-2 codelet: the generic scalar
+	// one, or its AVX2 override under -tags asm. This holds on every build
+	// except arm64 with -tags asm, where there is no NEON radix-4-then-2 codelet
+	// for size 512 yet (NEON 512+ coverage is deferred; see PLAN.md P2.3) and
+	// the size-512 generic NEON codelet ("dit512_generic_neon") wins because
+	// codelet selection prefers a higher SIMD level over a higher-priority
+	// scalar codelet. Only that specific NEON signature is accepted as an
+	// alternative, so the arm64 non-asm build still enforces the scalar prefix.
+	const wantPrefix = "dit512_radix4_then2"
+
+	algo := plan.Algorithm()
+	ok := strings.HasPrefix(algo, wantPrefix)
 	if runtime.GOARCH == "arm64" {
-		wantPrefix = "dit512_"
+		ok = ok || algo == "dit512_generic_neon"
 	}
 
-	if algo := plan.Algorithm(); !strings.HasPrefix(algo, wantPrefix) {
-		t.Fatalf("Algorithm() = %q, want prefix %q", algo, wantPrefix)
+	if !ok {
+		t.Fatalf("Algorithm() = %q, want prefix %q (or %q on arm64 -tags asm)",
+			algo, wantPrefix, "dit512_generic_neon")
 	}
 }
 
