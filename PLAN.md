@@ -354,13 +354,22 @@ into the P2 backlog below.
       wins for n=64) — removed. `TestAllKernelsCorrectness`,
       `TestNEONSizeSpecificComplex64`, `TestKernelConsistency`, and the full
       `internal/fft` asm suite now pass under QEMU.
-- [ ] **Remaining arm64 `-tags asm` faults** (pre-existing, surfaced once the
-      NEON complex64 kernels were correct; block flipping arm64 asm from
-      build-only to tested in CI): `TestInPlaceAllCodelets64` segfaults at
-      `size384/dit384_mixed_generic` on the in-place (`dst==src`) path, and
-      `TestPlan2DTransformsNoAllocsComplex64` faults. Both pass on amd64, so
-      these are arm64-specific. Diagnose the shared out-of-bounds before
-      enabling `-tags asm` tests on arm64 (`test-arch.yaml`).
+- [x] **Remaining arm64 `-tags asm` faults** — fixed (2026-07). The
+      `TestInPlaceAllCodelets64` and `TestPlan2DTransformsNoAllocsComplex64`
+      segfaults shared one root cause: the size-specific NEON **complex64**
+      kernels (4/8/16/32/64/128/256 + the 128/32 mixed variants) corrupted the
+      in-place (`dst==src`) copy-back. The loop advanced `R1` to
+      `scratch_base + i*8`, then computed the destination as
+      `dst_base + R1` = `dst + scratch + i*8` — a wild pointer. Keep the offset
+      in `R1` and use a scratch register for the load address. Out-of-place
+      transforms skip the copy-back, which is why only the in-place / 2D paths
+      faulted. (The complex128 kernels already kept the offset separate.) A
+      third, unrelated failure surfaced once the crash was gone —
+      `TestPlanAlgorithmSize512Radix4Then2Complex128` asserted an amd64-only
+      algorithm; made arch-aware (arm64 has no NEON radix-4-then-2 for 512).
+      **The full `go test -tags asm ./...` now passes on arm64 under QEMU (all
+      10 packages).** Next: flip `test-arch.yaml` from build-only to test on
+      arm64 (was blocked by these faults; see Testing & CI Hardening / P0.1).
 - [ ] AVX2 Stockham "compiles/runs but produces wrong results" (old Phase 14.4):
       **not reproduced** on current code — the AVX2 Stockham complex64 asm
       kernel matches `reference.NaiveDFT` within float32 tolerance at sizes
