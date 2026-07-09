@@ -15,7 +15,7 @@ TEXT ·ForwardSSE2Size32Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $32
 	JNE  m24_32_f64_fwd_err
@@ -245,7 +245,7 @@ TEXT ·InverseSSE2Size32Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $32
 	JNE  m24_32_f64_inv_err

@@ -86,22 +86,22 @@ TEXT ·ForwardAVX2Complex128Asm(SB), NOSPLIT, $0-121
 	MOVQ twiddle+48(FP), R10 // twiddle pointer
 	MOVQ scratch+72(FP), R11 // scratch pointer
 	MOVQ bitrev+96(FP), R12  // bitrev pointer
-	MOVQ src+32(FP), R13     // n = len(src)
+	MOVQ src_len+32(FP), R13     // n = len(src)
 
 	TESTQ R13, R13
 	JZ    return_true_128
 
 	// Validate slice lengths
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, R13
 	JL   return_false_128
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, R13
 	JL   return_false_128
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, R13
 	JL   return_false_128
-	MOVQ bitrev+104(FP), AX
+	MOVQ bitrev_len+104(FP), AX
 	CMPQ AX, R13
 	JL   return_false_128
 
@@ -441,7 +441,7 @@ TEXT ·InverseAVX2Complex128Asm(SB), NOSPLIT, $0-121
 	MOVQ twiddle+48(FP), R10    // R10 = twiddle factors ptr
 	MOVQ scratch+72(FP), R11    // R11 = scratch buffer ptr
 	MOVQ bitrev+96(FP), R12     // R12 = bit-reversal indices ptr
-	MOVQ src+32(FP), R13        // R13 = n (src length)
+	MOVQ src_len+32(FP), R13        // R13 = n (src length)
 
 	// -----------------------------------------------------------------------
 	// PHASE 2: Input validation
@@ -450,16 +450,16 @@ TEXT ·InverseAVX2Complex128Asm(SB), NOSPLIT, $0-121
 	JZ    inv_ret_true_128      // Empty input is trivially correct
 
 	// Verify all slice lengths are sufficient
-	MOVQ dst+8(FP), AX          // dst.len
+	MOVQ dst_len+8(FP), AX          // dst.len
 	CMPQ AX, R13
 	JL   inv_ret_false_128
-	MOVQ twiddle+56(FP), AX     // twiddle.len
+	MOVQ twiddle_len+56(FP), AX     // twiddle.len
 	CMPQ AX, R13
 	JL   inv_ret_false_128
-	MOVQ scratch+80(FP), AX     // scratch.len
+	MOVQ scratch_len+80(FP), AX     // scratch.len
 	CMPQ AX, R13
 	JL   inv_ret_false_128
-	MOVQ bitrev+104(FP), AX     // bitrev.len
+	MOVQ bitrev_len+104(FP), AX     // bitrev.len
 	CMPQ AX, R13
 	JL   inv_ret_false_128
 

@@ -18,21 +18,21 @@ TEXT ·ForwardAVX2Size128Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size128Radix2(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $128
 	JNE  size128_avx2_r2_fwd_return_false
 
 	// Validate slice lengths
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $128
 	JL   size128_avx2_r2_fwd_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $128
 	JL   size128_avx2_r2_fwd_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $128
 	JL   size128_avx2_r2_fwd_return_false
 
@@ -283,21 +283,21 @@ TEXT ·InverseAVX2Size128Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size128Radix2(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $128
 	JNE  size128_avx2_r2_inv_return_false
 
 	// Validate slice lengths
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $128
 	JL   size128_avx2_r2_inv_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $128
 	JL   size128_avx2_r2_inv_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $128
 	JL   size128_avx2_r2_inv_return_false
 

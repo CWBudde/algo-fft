@@ -14,20 +14,20 @@ TEXT ·ForwardAVX2Size32Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $32
 	JNE  m24_32_avx2_f64_fwd_err
 
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $32
 	JL   m24_32_avx2_f64_fwd_err
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $32
 	JL   m24_32_avx2_f64_fwd_err
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $32
 	JL   m24_32_avx2_f64_fwd_err
 
@@ -236,20 +236,20 @@ TEXT ·InverseAVX2Size32Radix4Then2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size32Radix4Then2(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $32
 	JNE  m24_32_avx2_f64_inv_err
 
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $32
 	JL   m24_32_avx2_f64_inv_err
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $32
 	JL   m24_32_avx2_f64_inv_err
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $32
 	JL   m24_32_avx2_f64_inv_err
 

@@ -45,7 +45,7 @@ TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $96-61
 	MOVL DX, 12(SP)
 	MOVL bitrev+48(FP), BP
 	MOVL BP, 16(SP)
-	MOVL src+16(FP), AX
+	MOVL src_len+16(FP), AX
 	MOVL AX, 20(SP)
 
 	// Verify n == 8
@@ -53,19 +53,19 @@ TEXT ·ForwardSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $96-61
 	JNE  size8_r2_sse2_386_fwd_return_false
 
 	// Validate all slice lengths >= 8
-	MOVL dst+4(FP), CX
+	MOVL dst_len+4(FP), CX
 	CMPL CX, $8
 	JL   size8_r2_sse2_386_fwd_return_false
 
-	MOVL twiddle+28(FP), CX
+	MOVL twiddle_len+28(FP), CX
 	CMPL CX, $8
 	JL   size8_r2_sse2_386_fwd_return_false
 
-	MOVL scratch+40(FP), CX
+	MOVL scratch_len+40(FP), CX
 	CMPL CX, $8
 	JL   size8_r2_sse2_386_fwd_return_false
 
-	MOVL bitrev+52(FP), CX
+	MOVL bitrev_len+52(FP), CX
 	CMPL CX, $8
 	JL   size8_r2_sse2_386_fwd_return_false
 
@@ -420,7 +420,7 @@ TEXT ·InverseSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $96-61
 	MOVL DX, 12(SP)
 	MOVL bitrev+48(FP), BP
 	MOVL BP, 16(SP)
-	MOVL src+16(FP), AX
+	MOVL src_len+16(FP), AX
 	MOVL AX, 20(SP)
 
 	// Verify n == 8
@@ -428,19 +428,19 @@ TEXT ·InverseSSE3Size8Radix2Complex64Asm(SB), NOSPLIT, $96-61
 	JNE  size8_r2_sse2_386_inv_return_false
 
 	// Validate slice lengths
-	MOVL dst+4(FP), CX
+	MOVL dst_len+4(FP), CX
 	CMPL CX, $8
 	JL   size8_r2_sse2_386_inv_return_false
 
-	MOVL twiddle+28(FP), CX
+	MOVL twiddle_len+28(FP), CX
 	CMPL CX, $8
 	JL   size8_r2_sse2_386_inv_return_false
 
-	MOVL scratch+40(FP), CX
+	MOVL scratch_len+40(FP), CX
 	CMPL CX, $8
 	JL   size8_r2_sse2_386_inv_return_false
 
-	MOVL bitrev+52(FP), CX
+	MOVL bitrev_len+52(FP), CX
 	CMPL CX, $8
 	JL   size8_r2_sse2_386_inv_return_false
 

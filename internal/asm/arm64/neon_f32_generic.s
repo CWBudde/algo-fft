@@ -63,21 +63,21 @@ TEXT ·ForwardNEONComplex64Asm(SB), NOSPLIT, $0-97
 	// R11 = scratch pointer
 	MOVD scratch+72(FP), R11
 	// R13 = n = len(src)
-	MOVD src+32(FP), R13
+	MOVD src_len+32(FP), R13
 
 	// Empty input is valid (no-op)
 	CBZ  R13, return_true
 
 	// Validate all slice lengths are >= n
-	MOVD dst+8(FP), R0
+	MOVD dst_len+8(FP), R0
 	CMP  R13, R0
 	BLT  return_false            // dst too short
 
-	MOVD twiddle+56(FP), R0
+	MOVD twiddle_len+56(FP), R0
 	CMP  R13, R0
 	BLT  return_false            // twiddle too short
 
-	MOVD scratch+80(FP), R0
+	MOVD scratch_len+80(FP), R0
 	CMP  R13, R0
 	BLT  return_false            // scratch too short
 
@@ -446,21 +446,21 @@ TEXT ·InverseNEONComplex64Asm(SB), NOSPLIT, $0-97
 	// R11 = scratch pointer
 	MOVD scratch+72(FP), R11
 	// R13 = n = len(src)
-	MOVD src+32(FP), R13
+	MOVD src_len+32(FP), R13
 
 	// Empty input is valid (no-op)
 	CBZ  R13, inv_return_true
 
 	// Validate all slice lengths are >= n
-	MOVD dst+8(FP), R0
+	MOVD dst_len+8(FP), R0
 	CMP  R13, R0
 	BLT  inv_return_false        // dst too short
 
-	MOVD twiddle+56(FP), R0
+	MOVD twiddle_len+56(FP), R0
 	CMP  R13, R0
 	BLT  inv_return_false        // twiddle too short
 
-	MOVD scratch+80(FP), R0
+	MOVD scratch_len+80(FP), R0
 	CMP  R13, R0
 	BLT  inv_return_false        // scratch too short
 

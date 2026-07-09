@@ -30,22 +30,22 @@ TEXT ·ForwardAVX2Size64Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
 	LEAQ ·bitrev64_r4_c128(SB), R12 // R12 = internal bitrev table
-	MOVQ src+32(FP), R13     // R13 = n (should be 64)
+	MOVQ src_len+32(FP), R13     // R13 = n (should be 64)
 
 	// Verify n == 64
 	CMPQ R13, $64
 	JNE  r4_64_128_return_false
 
 	// Validate slice lengths
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $64
 	JL   r4_64_128_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $64
 	JL   r4_64_128_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $64
 	JL   r4_64_128_return_false
 
@@ -458,21 +458,21 @@ TEXT ·InverseAVX2Size64Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrev64_r4_c128(SB), R12 // R12 = internal bitrev table
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $64
 	JNE  r4_64_128_inv_return_false
 
 	// Validate slice lengths
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $64
 	JL   r4_64_128_inv_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $64
 	JL   r4_64_128_inv_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $64
 	JL   r4_64_128_inv_return_false
 

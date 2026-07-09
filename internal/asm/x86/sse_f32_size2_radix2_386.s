@@ -17,10 +17,10 @@
 // Forward transform, size 2, complex64, radix-2
 // func ForwardSSESize2Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 // ===========================================================================
-TEXT ·ForwardSSESize2Radix2Complex64Asm(SB), NOSPLIT, $0-60
+TEXT ·ForwardSSESize2Radix2Complex64Asm(SB), NOSPLIT, $0-61
 	MOVL dst+0(FP), AX
 	MOVL src+12(FP), CX
-	MOVL src+16(FP), DX
+	MOVL src_len+16(FP), DX
 
 	// Verify n == 2
 	CMPL DX, $2
@@ -54,10 +54,10 @@ fwd_err:
 // Inverse transform, size 2, complex64, radix-2
 // func InverseSSESize2Radix2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 // ===========================================================================
-TEXT ·InverseSSESize2Radix2Complex64Asm(SB), NOSPLIT, $0-60
+TEXT ·InverseSSESize2Radix2Complex64Asm(SB), NOSPLIT, $0-61
 	MOVL dst+0(FP), AX
 	MOVL src+12(FP), CX
-	MOVL src+16(FP), DX
+	MOVL src_len+16(FP), DX
 
 	CMPL DX, $2
 	JNE  inv_err

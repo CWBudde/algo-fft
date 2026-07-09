@@ -14,7 +14,7 @@ TEXT ·ForwardSSE2Size16Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $16
 	JNE  size16_sse2_128_fwd_err
@@ -222,7 +222,7 @@ TEXT ·InverseSSE2Size16Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $16
 	JNE  size16_sse2_128_inv_err

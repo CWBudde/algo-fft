@@ -20,18 +20,18 @@ TEXT ·ForwardAVX2Size512Radix8Complex64Asm(SB), $4096-97
 	MOVQ src+24(FP), R9              // R9 = src pointer
 	MOVQ twiddle+48(FP), R10         // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11         // R11 = scratch pointer
-	MOVQ src+32(FP), R13             // R13 = len(src)
+	MOVQ src_len+32(FP), R13             // R13 = len(src)
 	LEAQ ·bitrev512_r8(SB), R12      // R12 = bitrev table
 
 	CMPQ R13, $512                   // len(src) < 512?
 	JL   size512_r8_fwd_return_false // return false
-	MOVQ dst+8(FP), AX               // AX = len(dst)
+	MOVQ dst_len+8(FP), AX               // AX = len(dst)
 	CMPQ AX, $512                    // len(dst) < 512?
 	JL   size512_r8_fwd_return_false // return false
-	MOVQ twiddle+56(FP), AX          // AX = len(twiddle)
+	MOVQ twiddle_len+56(FP), AX          // AX = len(twiddle)
 	CMPQ AX, $512                    // len(twiddle) < 512?
 	JL   size512_r8_fwd_return_false // return false
-	MOVQ scratch+80(FP), AX          // AX = len(scratch)
+	MOVQ scratch_len+80(FP), AX          // AX = len(scratch)
 	CMPQ AX, $512                    // len(scratch) < 512?
 	JL   size512_r8_fwd_return_false // return false
 
@@ -487,18 +487,18 @@ TEXT ·InverseAVX2Size512Radix8Complex64Asm(SB), $4096-97
 	MOVQ src+24(FP), R9              // R9 = src pointer
 	MOVQ twiddle+48(FP), R10         // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11         // R11 = scratch pointer
-	MOVQ src+32(FP), R13             // R13 = len(src)
+	MOVQ src_len+32(FP), R13             // R13 = len(src)
 	LEAQ ·bitrev512_r8(SB), R12      // R12 = bitrev table
 
 	CMPQ R13, $512                   // len(src) < 512?
 	JL   size512_r8_inv_return_false // return false
-	MOVQ dst+8(FP), AX               // AX = len(dst)
+	MOVQ dst_len+8(FP), AX               // AX = len(dst)
 	CMPQ AX, $512                    // len(dst) < 512?
 	JL   size512_r8_inv_return_false // return false
-	MOVQ twiddle+56(FP), AX          // AX = len(twiddle)
+	MOVQ twiddle_len+56(FP), AX          // AX = len(twiddle)
 	CMPQ AX, $512                    // len(twiddle) < 512?
 	JL   size512_r8_inv_return_false // return false
-	MOVQ scratch+80(FP), AX          // AX = len(scratch)
+	MOVQ scratch_len+80(FP), AX          // AX = len(scratch)
 	CMPQ AX, $512                    // len(scratch) < 512?
 	JL   size512_r8_inv_return_false // return false
 

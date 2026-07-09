@@ -47,22 +47,22 @@ TEXT ·ForwardAVX2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 32)
+	MOVQ src_len+32(FP), R13     // R13 = n (should be 32)
 
 	// Verify n == 32
 	CMPQ R13, $32            // Check size == 32
 	JNE  size32_return_false // Abort if not exactly 32
 
 	// Validate all slice lengths >= 32
-	MOVQ dst+8(FP), AX       // Get dst length
+	MOVQ dst_len+8(FP), AX       // Get dst length
 	CMPQ AX, $32             // Verify length >= 32
 	JL   size32_return_false
 
-	MOVQ twiddle+56(FP), AX  // Get twiddle length
+	MOVQ twiddle_len+56(FP), AX  // Get twiddle length
 	CMPQ AX, $32
 	JL   size32_return_false
 
-	MOVQ scratch+80(FP), AX  // Get scratch length
+	MOVQ scratch_len+80(FP), AX  // Get scratch length
 	CMPQ AX, $32
 	JL   size32_return_false
 
@@ -583,22 +583,22 @@ TEXT ·InverseAVX2Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer (conjugated for inverse)
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 32)
+	MOVQ src_len+32(FP), R13     // R13 = n (should be 32)
 
 	// Verify n == 32
 	CMPQ R13, $32            // Check size == 32
 	JNE  size32_inv_return_false
 
 	// Validate all slice lengths >= 32
-	MOVQ dst+8(FP), AX       // Get dst length
+	MOVQ dst_len+8(FP), AX       // Get dst length
 	CMPQ AX, $32
 	JL   size32_inv_return_false
 
-	MOVQ twiddle+56(FP), AX  // Get twiddle length
+	MOVQ twiddle_len+56(FP), AX  // Get twiddle length
 	CMPQ AX, $32
 	JL   size32_inv_return_false
 
-	MOVQ scratch+80(FP), AX  // Get scratch length
+	MOVQ scratch_len+80(FP), AX  // Get scratch length
 	CMPQ AX, $32
 	JL   size32_inv_return_false
 

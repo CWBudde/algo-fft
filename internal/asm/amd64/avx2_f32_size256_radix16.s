@@ -21,21 +21,21 @@ TEXT ·ForwardAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-97
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer (W_256)
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer (size 256)
-	MOVQ src+32(FP), R13         // R13 = Length of source slice
+	MOVQ src_len+32(FP), R13         // R13 = Length of source slice
 
 	// --- Input Validation ---
 	CMPQ R13, $256               // Verify length is exactly 256
 	JNE  fwd_ret_false           // Return false if validation fails
 
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $256
 	JL   fwd_ret_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $256
 	JL   fwd_ret_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $256
 	JL   fwd_ret_false
 
@@ -833,21 +833,21 @@ TEXT ·InverseAVX2Size256Radix16Complex64Asm(SB), NOSPLIT, $128-97
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer (W_256)
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer (size 256)
-	MOVQ src+32(FP), R13         // R13 = Length of source slice
+	MOVQ src_len+32(FP), R13         // R13 = Length of source slice
 
 	// --- Input Validation ---
 	CMPQ R13, $256               // Verify length is exactly 256
 	JNE  inv_ret_false           // Return false if validation fails
 
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $256
 	JL   inv_ret_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $256
 	JL   inv_ret_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $256
 	JL   inv_ret_false
 

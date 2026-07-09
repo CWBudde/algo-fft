@@ -56,7 +56,7 @@ TEXT ·ComplexMulArrayComplex64AVX2Asm(SB), NOSPLIT, $0-72
 	MOVQ dst+0(FP), DI       // DI = dst pointer (slice data ptr)
 	MOVQ a+24(FP), SI        // SI = a pointer (slice data ptr)
 	MOVQ b+48(FP), DX        // DX = b pointer (slice data ptr)
-	MOVQ a+32(FP), CX        // CX = n = len(a) (number of complex64 elements)
+	MOVQ a_len+32(FP), CX        // CX = n = len(a) (number of complex64 elements)
 
 	// Empty input check
 	TESTQ CX, CX             // Test if n == 0
@@ -156,7 +156,7 @@ cmul64_done:
 TEXT ·ComplexMulArrayInPlaceComplex64AVX2Asm(SB), NOSPLIT, $0-48
 	MOVQ dst+0(FP), DI       // DI = dst pointer (slice data ptr)
 	MOVQ src+24(FP), SI      // SI = src pointer (slice data ptr)
-	MOVQ dst+8(FP), CX       // CX = n = len(dst) (number of complex64 elements)
+	MOVQ dst_len+8(FP), CX       // CX = n = len(dst) (number of complex64 elements)
 
 	TESTQ CX, CX             // Test if n == 0
 	JZ    cmul64ip_done      // Jump to done if empty

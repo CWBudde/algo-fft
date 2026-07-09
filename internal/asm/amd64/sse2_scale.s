@@ -7,9 +7,9 @@
 #include "textflag.h"
 
 // func ScaleComplex64SSE2Asm(dst []complex64, scale float32)
-TEXT ·ScaleComplex64SSE2Asm(SB), NOSPLIT, $0-32
+TEXT ·ScaleComplex64SSE2Asm(SB), NOSPLIT, $0-28
 	MOVQ dst+0(FP), DI
-	MOVQ dst+8(FP), CX
+	MOVQ dst_len+8(FP), CX
 	TESTQ CX, CX
 	JZ    sse2_scale64_done
 
@@ -60,7 +60,7 @@ sse2_scale64_done:
 // func ScaleComplex128SSE2Asm(dst []complex128, scale float64)
 TEXT ·ScaleComplex128SSE2Asm(SB), NOSPLIT, $0-32
 	MOVQ dst+0(FP), DI
-	MOVQ dst+8(FP), CX
+	MOVQ dst_len+8(FP), CX
 	TESTQ CX, CX
 	JZ    sse2_scale128_done
 

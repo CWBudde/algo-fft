@@ -41,19 +41,19 @@ TEXT ·ForwardNEONComplex128Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD src+32(FP), R13
+	MOVD src_len+32(FP), R13
 
 	CBZ  R13, f128_return_true
 
-	MOVD dst+8(FP), R0
+	MOVD dst_len+8(FP), R0
 	CMP  R13, R0
 	BLT  f128_return_false
 
-	MOVD twiddle+56(FP), R0
+	MOVD twiddle_len+56(FP), R0
 	CMP  R13, R0
 	BLT  f128_return_false
 
-	MOVD scratch+80(FP), R0
+	MOVD scratch_len+80(FP), R0
 	CMP  R13, R0
 	BLT  f128_return_false
 
@@ -256,19 +256,19 @@ TEXT ·InverseNEONComplex128Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD src+32(FP), R13
+	MOVD src_len+32(FP), R13
 
 	CBZ  R13, i128_return_true
 
-	MOVD dst+8(FP), R0
+	MOVD dst_len+8(FP), R0
 	CMP  R13, R0
 	BLT  i128_return_false
 
-	MOVD twiddle+56(FP), R0
+	MOVD twiddle_len+56(FP), R0
 	CMP  R13, R0
 	BLT  i128_return_false
 
-	MOVD scratch+80(FP), R0
+	MOVD scratch_len+80(FP), R0
 	CMP  R13, R0
 	BLT  i128_return_false
 

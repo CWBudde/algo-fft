@@ -12,11 +12,11 @@
 #include "textflag.h"
 
 // func ForwardSSE2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-TEXT ·ForwardSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $64-64
+TEXT ·ForwardSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $64-61
 	// Load parameters
 	MOVL dst+0(FP), AX
 	MOVL src+12(FP), CX
-	MOVL src+16(FP), DX
+	MOVL src_len+16(FP), DX
 
 	CMPL DX, $16
 	JNE  fwd_err
@@ -32,7 +32,7 @@ fwd_use_dst:
 	MOVL AX, 0(SP)
 
 	// Bit reversal
-	MOVL bitrev+52(FP), BX
+	MOVL bitrev_len+52(FP), BX
 	CMPL BX, $16
 	JNE  fwd_err
 
@@ -331,10 +331,10 @@ fwd_err:
 	RET
 
 // func InverseSSE2Size16Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-TEXT ·InverseSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $64-64
+TEXT ·InverseSSE2Size16Radix4Complex128Asm(SB), NOSPLIT, $64-61
 	MOVL dst+0(FP), AX
 	MOVL src+12(FP), CX
-	MOVL src+16(FP), DX
+	MOVL src_len+16(FP), DX
 	CMPL DX, $16
 	JNE  inv_err
 

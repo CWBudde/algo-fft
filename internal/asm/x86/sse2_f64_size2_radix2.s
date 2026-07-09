@@ -3,10 +3,10 @@
 #include "textflag.h"
 
 // func ForwardSSE2Size2Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-TEXT ·ForwardSSE2Size2Radix2Complex128Asm(SB), NOSPLIT, $0-60
+TEXT ·ForwardSSE2Size2Radix2Complex128Asm(SB), NOSPLIT, $0-61
 	MOVL dst+0(FP), AX
 	MOVL src+12(FP), CX
-	MOVL src+16(FP), DX
+	MOVL src_len+16(FP), DX
 
 	CMPL DX, $2
 	JNE  err
@@ -28,10 +28,10 @@ err:
 	RET
 
 // func InverseSSE2Size2Radix2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-TEXT ·InverseSSE2Size2Radix2Complex128Asm(SB), NOSPLIT, $0-60
+TEXT ·InverseSSE2Size2Radix2Complex128Asm(SB), NOSPLIT, $0-61
 	MOVL dst+0(FP), AX
 	MOVL src+12(FP), CX
-	MOVL src+16(FP), DX
+	MOVL src_len+16(FP), DX
 
 	CMPL DX, $2
 	JNE  err
