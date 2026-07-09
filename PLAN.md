@@ -331,14 +331,22 @@ into the P2 backlog below.
 - [ ] Ensure `ForceGeneric`/fallback correctness parity is what CI benchmarks,
       not just the fast path.
 
-### P2.1a Clean up asmdecl findings
+### P2.1a Clean up asmdecl findings ✅ **completed 2026-07.**
 
-- [ ] `go vet -tags asm ./...` reports hundreds of `asmdecl` findings across
-      `internal/asm/**.s`: slice parameters are addressed with the base-pointer
-      name at the length-field offset (e.g. `src+32(FP)` instead of
-      `src_len+32(FP)`). The offsets are numerically correct (tests pass), but
-      the naming defeats vet's frame checking. Rename the FP references so
-      `go vet -tags asm` can be added to CI.
+- [x] `go vet -tags asm ./...` reported ~1,000 `asmdecl` findings across
+      `internal/asm/**.s`; all fixed and vet is now clean on amd64, arm64, and
+      386. Three classes: (1) 984 slice FP references using the base-pointer
+      name at the length-field offset (`src+32(FP)` → `src_len+32(FP)`;
+      offsets were numerically correct, only names renamed — codegen is
+      unchanged since the assembler resolves by offset); (2) 25 wrong TEXT
+      frame sizes (`ScaleComplex64*Asm` declared `$0-32` for a 28-byte
+      frame; 22 x86/386 kernels declared `-60`/`-64` for their 61-byte
+      5-slices+bool frames); (3) 10 arm64 NEON complex128 size-specific
+      kernels (8/32/64/128/256) had `TEXT` symbols but no Go declaration —
+      declared in `arm64/decl.go` (wiring into codelet registration stays
+      with P2.3). `go vet -tags asm` now runs in CI per architecture
+      (`test-arch.yaml`) and locally via `just vet-asm`, closing the reverse
+      direction of the P0.1 decl↔TEXT drift check.
 
 ### P2.2 Fix known-incorrect kernels
 
