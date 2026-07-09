@@ -6,10 +6,9 @@
 //
 // Radix-16 (4x4) FFT kernels for size 16.
 // Adapted for 386 (8 XMM registers) from AMD64 implementation.
-// NOTE: This 386 port is not yet correct for size-16 radix-16. It produces
-// mismatched output (e.g., index 8 in asm_386_test). The kernel is currently
-// excluded from 386 dispatch until the row/column stages are revalidated.
-// TODO(386): Compare per-stage output against amd64/avx2 reference and fix.
+// The kernel operates on a work buffer that aliases dst whenever dst != src,
+// so the final transpose runs in place: every slot of the (16,48)<->(64,96)
+// swap must be loaded before any of them is stored (see Step 4).
 //
 // ===========================================================================
 
@@ -230,39 +229,42 @@ row_loop:
 	// ==================================================================
 	// Step 4: Transpose and Store
 	// ==================================================================
+	// DI aliases AX (dst) when dst != src, so this transpose may run in
+	// place. Slots 16/48 and 64/96 swap contents: load all four before
+	// storing any of them, or the later pair reads clobbered data.
 	MOVL dst+0(FP), AX
 	MOVUPS 0(DI), X0
-  MOVUPS 32(DI), X2
-  MOVAPS X0, X7
-  UNPCKLPD X2, X7
-  MOVUPS X7, 0(AX)
-  MOVAPS X0, X7
-  UNPCKHPD X2, X7
-  MOVUPS X7, 32(AX)
-	MOVUPS 64(DI), X4
-  MOVUPS 96(DI), X6
-  MOVAPS X4, X7
-  UNPCKLPD X6, X7
-  MOVUPS X7, 16(AX)
-  MOVAPS X4, X7
-  UNPCKHPD X6, X7
-  MOVUPS X7, 48(AX)
+	MOVUPS 32(DI), X2
 	MOVUPS 16(DI), X1
-  MOVUPS 48(DI), X3
-  MOVAPS X1, X7
-  UNPCKLPD X3, X7
-  MOVUPS X7, 64(AX)
-  MOVAPS X1, X7
-  UNPCKHPD X3, X7
-  MOVUPS X7, 96(AX)
+	MOVUPS 48(DI), X3
+	MOVUPS 64(DI), X4
+	MOVUPS 96(DI), X6
+	MOVAPS X0, X7
+	UNPCKLPD X2, X7
+	MOVUPS X7, 0(AX)
+	MOVAPS X0, X7
+	UNPCKHPD X2, X7
+	MOVUPS X7, 32(AX)
+	MOVAPS X4, X7
+	UNPCKLPD X6, X7
+	MOVUPS X7, 16(AX)
+	MOVAPS X4, X7
+	UNPCKHPD X6, X7
+	MOVUPS X7, 48(AX)
+	MOVAPS X1, X7
+	UNPCKLPD X3, X7
+	MOVUPS X7, 64(AX)
+	MOVAPS X1, X7
+	UNPCKHPD X3, X7
+	MOVUPS X7, 96(AX)
 	MOVUPS 80(DI), X5
-  MOVUPS 112(DI), X0
-  MOVAPS X5, X7
-  UNPCKLPD X0, X7
-  MOVUPS X7, 80(AX)
-  MOVAPS X5, X7
-  UNPCKHPD X0, X7
-  MOVUPS X7, 112(AX)
+	MOVUPS 112(DI), X0
+	MOVAPS X5, X7
+	UNPCKLPD X0, X7
+	MOVUPS X7, 80(AX)
+	MOVAPS X5, X7
+	UNPCKHPD X0, X7
+	MOVUPS X7, 112(AX)
 
 	MOVB $1, ret+60(FP)
 	RET
@@ -476,49 +478,51 @@ inv_row_loop:
   JL inv_row_loop
 
 	// Step 4: Scale and Transpose
+	// Same aliasing hazard as the forward transpose: preload the
+	// (16,48)<->(64,96) swap before storing any of it.
 	MOVL dst+0(FP), AX
-  MOVSS ·sixteenth32(SB), X7
-  SHUFPS $0x00, X7, X7
+	MOVSS ·sixteenth32(SB), X7
+	SHUFPS $0x00, X7, X7
 	MOVUPS 0(DI), X0
-  MOVUPS 32(DI), X2
-  MOVAPS X0, X4
-  UNPCKLPD X2, X4
-  MULPS X7, X4
-  MOVUPS X4, 0(AX)
-  MOVAPS X0, X4
-  UNPCKHPD X2, X4
-  MULPS X7, X4
-  MOVUPS X4, 32(AX)
-	MOVUPS 64(DI), X1
-  MOVUPS 96(DI), X3
-  MOVAPS X1, X4
-  UNPCKLPD X3, X4
-  MULPS X7, X4
-  MOVUPS X4, 16(AX)
-  MOVAPS X1, X4
-  UNPCKHPD X3, X4
-  MULPS X7, X4
-  MOVUPS X4, 48(AX)
-	MOVUPS 16(DI), X0
-  MOVUPS 48(DI), X2
-  MOVAPS X0, X4
-  UNPCKLPD X2, X4
-  MULPS X7, X4
-  MOVUPS X4, 64(AX)
-  MOVAPS X0, X4
-  UNPCKHPD X2, X4
-  MULPS X7, X4
-  MOVUPS X4, 96(AX)
+	MOVUPS 32(DI), X2
+	MOVUPS 16(DI), X1
+	MOVUPS 48(DI), X3
+	MOVUPS 64(DI), X5
+	MOVUPS 96(DI), X6
+	MOVAPS X0, X4
+	UNPCKLPD X2, X4
+	MULPS X7, X4
+	MOVUPS X4, 0(AX)
+	MOVAPS X0, X4
+	UNPCKHPD X2, X4
+	MULPS X7, X4
+	MOVUPS X4, 32(AX)
+	MOVAPS X5, X4
+	UNPCKLPD X6, X4
+	MULPS X7, X4
+	MOVUPS X4, 16(AX)
+	MOVAPS X5, X4
+	UNPCKHPD X6, X4
+	MULPS X7, X4
+	MOVUPS X4, 48(AX)
+	MOVAPS X1, X4
+	UNPCKLPD X3, X4
+	MULPS X7, X4
+	MOVUPS X4, 64(AX)
+	MOVAPS X1, X4
+	UNPCKHPD X3, X4
+	MULPS X7, X4
+	MOVUPS X4, 96(AX)
 	MOVUPS 80(DI), X1
-  MOVUPS 112(DI), X3
-  MOVAPS X1, X4
-  UNPCKLPD X3, X4
-  MULPS X7, X4
-  MOVUPS X4, 80(AX)
-  MOVAPS X1, X4
-  UNPCKHPD X3, X4
-  MULPS X7, X4
-  MOVUPS X4, 112(AX)
+	MOVUPS 112(DI), X3
+	MOVAPS X1, X4
+	UNPCKLPD X3, X4
+	MULPS X7, X4
+	MOVUPS X4, 80(AX)
+	MOVAPS X1, X4
+	UNPCKHPD X3, X4
+	MULPS X7, X4
+	MOVUPS X4, 112(AX)
 
 	MOVB $1, ret+60(FP)
 	RET

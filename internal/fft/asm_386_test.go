@@ -46,6 +46,13 @@ func TestSSE2SizeSpecificComplex64_386(t *testing.T) {
 			inverse: inverseSSE3Size16Radix4Complex64Asm,
 			radix:   4,
 		},
+		{
+			name:    "Size16_Radix16",
+			size:    16,
+			forward: forwardSSE3Size16Radix16Complex64Asm,
+			inverse: inverseSSE3Size16Radix16Complex64Asm,
+			radix:   0, // single-stage radix-16 takes natural order (identity)
+		},
 	}
 
 	for _, tc := range tests {
