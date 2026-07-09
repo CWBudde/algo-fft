@@ -36,9 +36,9 @@
 TEXT ·Transpose64x64Complex64AVX2Asm(SB), NOSPLIT, $0-49
     // Load parameters
     MOVQ dst+0(FP), R8       // R8 = dst pointer
-    MOVQ dst+8(FP), R9       // R9 = dst length
+    MOVQ dst_len+8(FP), R9   // R9 = dst length
     MOVQ src+24(FP), R10     // R10 = src pointer
-    MOVQ src+32(FP), R11     // R11 = src length
+    MOVQ src_len+32(FP), R11 // R11 = src length
 
     // Validate lengths >= 4096
     CMPQ R9, $4096
@@ -165,11 +165,11 @@ transpose_return_false:
 TEXT ·TransposeTwiddle64x64Complex64AVX2Asm(SB), NOSPLIT, $0-73
     // Load parameters
     MOVQ dst+0(FP), R8       // R8 = dst pointer
-    MOVQ dst+8(FP), R9       // dst length
+    MOVQ dst_len+8(FP), R9   // dst length
     MOVQ src+24(FP), R10     // R10 = src pointer
-    MOVQ src+32(FP), R11     // src length
+    MOVQ src_len+32(FP), R11 // src length
     MOVQ twiddle+48(FP), R12 // R12 = twiddle pointer
-    MOVQ twiddle+56(FP), R13 // twiddle length
+    MOVQ twiddle_len+56(FP), R13 // twiddle length
 
     // Validate lengths
     CMPQ R9, $4096           // dst length >= 4096?
@@ -315,11 +315,11 @@ tt_return_false:
 TEXT ·TransposeTwiddleConj64x64Complex64AVX2Asm(SB), NOSPLIT, $0-73
     // Load parameters
     MOVQ dst+0(FP), R8
-    MOVQ dst+8(FP), R9
+    MOVQ dst_len+8(FP), R9
     MOVQ src+24(FP), R10
-    MOVQ src+32(FP), R11
+    MOVQ src_len+32(FP), R11
     MOVQ twiddle+48(FP), R12
-    MOVQ twiddle+56(FP), R13
+    MOVQ twiddle_len+56(FP), R13
 
     // Validate lengths
     CMPQ R9, $4096           // dst length >= 4096?

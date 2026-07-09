@@ -7,9 +7,9 @@
 #include "textflag.h"
 
 // func ScaleComplex64NEONAsm(dst []complex64, scale float32)
-TEXT ·ScaleComplex64NEONAsm(SB), NOSPLIT, $0-32
+TEXT ·ScaleComplex64NEONAsm(SB), NOSPLIT, $0-28
 	MOVD dst+0(FP), R0
-	MOVD dst+8(FP), R1
+	MOVD dst_len+8(FP), R1
 	CBZ  R1, scale64_done
 
 	MOVW scale+24(FP), R2
@@ -50,7 +50,7 @@ scale64_done:
 // func ScaleComplex128NEONAsm(dst []complex128, scale float64)
 TEXT ·ScaleComplex128NEONAsm(SB), NOSPLIT, $0-32
 	MOVD dst+0(FP), R0
-	MOVD dst+8(FP), R1
+	MOVD dst_len+8(FP), R1
 	CBZ  R1, scale128_done
 
 	MOVD scale+24(FP), R2

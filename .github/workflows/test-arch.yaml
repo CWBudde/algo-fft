@@ -76,6 +76,16 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: go build -tags asm -v ./...
 
+      # Vet the asm build for every target architecture. asmdecl checks the
+      # hand-written .s frame references against the Go declarations, catching
+      # FP-offset naming drift and decl↔TEXT mismatches. vet cross-compiles, so
+      # no emulator is needed even for arm64/386.
+      - name: Vet with asm tag
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go vet -tags asm ./...
+
       - name: Run tests with asm tag
         env:
           GOOS: ${{ matrix.goos }}

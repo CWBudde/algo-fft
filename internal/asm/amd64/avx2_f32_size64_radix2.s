@@ -32,22 +32,22 @@ TEXT ·ForwardAVX2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 64)
+	MOVQ src_len+32(FP), R13 // R13 = n (should be 64)
 
 	// Verify n == 64
 	CMPQ R13, $64
 	JNE  size64_return_false
 
 	// Validate all slice lengths >= 64
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $64
 	JL   size64_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $64
 	JL   size64_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $64
 	JL   size64_return_false
 
@@ -1135,22 +1135,22 @@ TEXT ·InverseAVX2Size64Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 64)
+	MOVQ src_len+32(FP), R13 // R13 = n (should be 64)
 
 	// Verify n == 64
 	CMPQ R13, $64
 	JNE  inv_size64_return_false
 
 	// Validate all slice lengths >= 64
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $64
 	JL   inv_size64_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $64
 	JL   inv_size64_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $64
 	JL   inv_size64_return_false
 

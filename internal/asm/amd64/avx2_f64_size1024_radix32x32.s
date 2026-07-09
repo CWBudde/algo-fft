@@ -64,16 +64,16 @@ DATA ·signMaskF64x2<>+24(SB)/8, $0x8000000000000000
 // ---------------------------------------------------------------------------
 TEXT ·ForwardAVX2Size1024Radix32x32Complex128Asm(SB), $1536-97
 	// ---- len checks ----
-	MOVQ src+32(FP), AX
+	MOVQ src_len+32(FP), AX
 	CMPQ AX, $1024
 	JL   fwd_fail
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $1024
 	JL   fwd_fail
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $1128
 	JL   fwd_fail
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $1024
 	JL   fwd_fail
 
@@ -688,16 +688,16 @@ fwd_fail:
 // ---------------------------------------------------------------------------
 TEXT ·InverseAVX2Size1024Radix32x32Complex128Asm(SB), $1536-97
 	// ---- len checks ----
-	MOVQ src+32(FP), AX
+	MOVQ src_len+32(FP), AX
 	CMPQ AX, $1024
 	JL   inv_fail
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $1024
 	JL   inv_fail
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $1128
 	JL   inv_fail
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $1024
 	JL   inv_fail
 

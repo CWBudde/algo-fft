@@ -21,7 +21,7 @@ TEXT ·ForwardSSE2Complex64Asm(SB), NOSPLIT, $36-61
 	MOVL twiddle+24(FP), BX
 	MOVL scratch+36(FP), DX
 	MOVL bitrev+48(FP), BP
-	MOVL src+16(FP), AX // n
+	MOVL src_len+16(FP), AX // n
 
 	MOVL DI, 0(SP)
 	MOVL SI, 4(SP)
@@ -34,16 +34,16 @@ TEXT ·ForwardSSE2Complex64Asm(SB), NOSPLIT, $36-61
 	JZ   sse2_return_true
 
 	// Validate slice lengths >= n
-	MOVL dst+4(FP), CX
+	MOVL dst_len+4(FP), CX
 	CMPL CX, AX
 	JL   sse2_return_false
-	MOVL twiddle+28(FP), CX
+	MOVL twiddle_len+28(FP), CX
 	CMPL CX, AX
 	JL   sse2_return_false
-	MOVL scratch+40(FP), CX
+	MOVL scratch_len+40(FP), CX
 	CMPL CX, AX
 	JL   sse2_return_false
-	MOVL bitrev+52(FP), CX
+	MOVL bitrev_len+52(FP), CX
 	CMPL CX, AX
 	JL   sse2_return_false
 
@@ -307,7 +307,7 @@ TEXT ·InverseSSE2Complex64Asm(SB), NOSPLIT, $36-61
 	MOVL twiddle+24(FP), BX
 	MOVL scratch+36(FP), DX
 	MOVL bitrev+48(FP), BP
-	MOVL src+16(FP), AX // n
+	MOVL src_len+16(FP), AX // n
 
 	MOVL DI, 0(SP)
 	MOVL SI, 4(SP)
@@ -320,16 +320,16 @@ TEXT ·InverseSSE2Complex64Asm(SB), NOSPLIT, $36-61
 	JZ   inv_sse2_return_true
 
 	// Validate slice lengths >= n
-	MOVL dst+4(FP), CX
+	MOVL dst_len+4(FP), CX
 	CMPL CX, AX
 	JL   inv_sse2_return_false
-	MOVL twiddle+28(FP), CX
+	MOVL twiddle_len+28(FP), CX
 	CMPL CX, AX
 	JL   inv_sse2_return_false
-	MOVL scratch+40(FP), CX
+	MOVL scratch_len+40(FP), CX
 	CMPL CX, AX
 	JL   inv_sse2_return_false
-	MOVL bitrev+52(FP), CX
+	MOVL bitrev_len+52(FP), CX
 	CMPL CX, AX
 	JL   inv_sse2_return_false
 

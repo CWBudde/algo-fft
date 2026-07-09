@@ -35,24 +35,24 @@ TEXT ·ForwardNEONSize64Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9         // R9 = src.data
 	MOVD twiddle+48(FP), R10    // R10 = twiddle.data
 	MOVD scratch+72(FP), R11    // R11 = scratch.data
-	MOVD src+32(FP), R13        // R13 = src.len (n)
+	MOVD src_len+32(FP), R13    // R13 = src.len (n)
 
 	// Validate n == 64
 	CMP  $64, R13               // n must be exactly 64
 	BNE  neon64r2f64_return_false
 
 	// Validate dst capacity >= 64
-	MOVD dst+8(FP), R0          // R0 = dst.len
+	MOVD dst_len+8(FP), R0      // R0 = dst.len
 	CMP  $64, R0
 	BLT  neon64r2f64_return_false
 
 	// Validate twiddle capacity >= 64
-	MOVD twiddle+56(FP), R0     // R0 = twiddle.len
+	MOVD twiddle_len+56(FP), R0 // R0 = twiddle.len
 	CMP  $64, R0
 	BLT  neon64r2f64_return_false
 
 	// Validate scratch capacity >= 64
-	MOVD scratch+80(FP), R0     // R0 = scratch.len
+	MOVD scratch_len+80(FP), R0 // R0 = scratch.len
 	CMP  $64, R0
 	BLT  neon64r2f64_return_false
 
@@ -220,24 +220,24 @@ TEXT ·InverseNEONSize64Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9         // R9 = src.data
 	MOVD twiddle+48(FP), R10    // R10 = twiddle.data
 	MOVD scratch+72(FP), R11    // R11 = scratch.data
-	MOVD src+32(FP), R13        // R13 = src.len (n)
+	MOVD src_len+32(FP), R13    // R13 = src.len (n)
 
 	// Validate n == 64
 	CMP  $64, R13
 	BNE  neon64r2f64_inv_return_false
 
 	// Validate dst capacity >= 64
-	MOVD dst+8(FP), R0
+	MOVD dst_len+8(FP), R0
 	CMP  $64, R0
 	BLT  neon64r2f64_inv_return_false
 
 	// Validate twiddle capacity >= 64
-	MOVD twiddle+56(FP), R0
+	MOVD twiddle_len+56(FP), R0
 	CMP  $64, R0
 	BLT  neon64r2f64_inv_return_false
 
 	// Validate scratch capacity >= 64
-	MOVD scratch+80(FP), R0
+	MOVD scratch_len+80(FP), R0
 	CMP  $64, R0
 	BLT  neon64r2f64_inv_return_false
 

@@ -21,22 +21,22 @@ TEXT ·ForwardSSE2Size256Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size256Radix4(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	// Verify n == 256
 	CMPQ R13, $256
 	JNE  size256_r4_f64_return_false
 
 	// Validate all slice lengths >= 256
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $256
 	JL   size256_r4_f64_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $256
 	JL   size256_r4_f64_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $256
 	JL   size256_r4_f64_return_false
 
@@ -499,22 +499,22 @@ TEXT ·InverseSSE2Size256Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size256Radix4(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	// Verify n == 256
 	CMPQ R13, $256
 	JNE  size256_r4_f64_inv_return_false
 
 	// Validate all slice lengths >= 256
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $256
 	JL   size256_r4_f64_inv_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $256
 	JL   size256_r4_f64_inv_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $256
 	JL   size256_r4_f64_inv_return_false
 

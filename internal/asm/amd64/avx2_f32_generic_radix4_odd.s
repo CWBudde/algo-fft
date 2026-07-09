@@ -17,22 +17,22 @@ TEXT ·ForwardAVX2Complex64Radix4MixedAsm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	// Empty input is valid (no-op)
 	TESTQ R13, R13
 	JZ    fwd_r4m_return_true
 
 	// Validate all slice lengths are >= n
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, R13
 	JL   fwd_r4m_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, R13
 	JL   fwd_r4m_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, R13
 	JL   fwd_r4m_return_false
 
@@ -504,22 +504,22 @@ TEXT ·InverseAVX2Complex64Radix4MixedAsm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	// Empty input is valid (no-op)
 	TESTQ R13, R13
 	JZ    inv_r4m_return_true
 
 	// Validate all slice lengths are >= n
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, R13
 	JL   inv_r4m_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, R13
 	JL   inv_r4m_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, R13
 	JL   inv_r4m_return_false
 

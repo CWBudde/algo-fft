@@ -331,14 +331,30 @@ into the P2 backlog below.
 - [ ] Ensure `ForceGeneric`/fallback correctness parity is what CI benchmarks,
       not just the fast path.
 
-### P2.1a Clean up asmdecl findings
+### P2.1a Clean up asmdecl findings ✅ **completed 2026-07.**
 
-- [ ] `go vet -tags asm ./...` reports hundreds of `asmdecl` findings across
-      `internal/asm/**.s`: slice parameters are addressed with the base-pointer
+- [x] `go vet -tags asm ./...` reported hundreds of `asmdecl` findings across
+      `internal/asm/**.s`: slice parameters were addressed with the base-pointer
       name at the length-field offset (e.g. `src+32(FP)` instead of
-      `src_len+32(FP)`). The offsets are numerically correct (tests pass), but
-      the naming defeats vet's frame checking. Rename the FP references so
-      `go vet -tags asm` can be added to CI.
+      `src_len+32(FP)`). Renamed all 944 length-field FP references
+      (amd64/arm64/386) to their `_len` form — driven from vet's exact
+      file:line output so only genuine length-field references were touched
+      (a blind global replace would have corrupted signatures like
+      `func(n int, dst []T)` where `dst+8(FP)` is legitimately the base).
+- [x] Fixed the remaining non-offset asmdecl findings surfaced once the offsets
+      were clean: the complex64 scale kernels over-declared their argument frame
+      (`$0-32` → `$0-28` in `avx2_scale.s`/`sse2_scale.s`/`neon_scale.s`; the
+      complex128 siblings were already correct), and the x86/386 codelets
+      under/over-declared theirs (`$0-60`/`$0-64` → `$0-61`, accounting for the
+      12-byte 386 slice header × 5 slices plus the 1-byte `bool` return).
+- [x] Deleted 5 orphaned arm64 NEON complex128 `.s` files (~4345 lines, sizes
+      8/32/64/128/256) that defined TEXT symbols with no Go declaration and no
+      caller anywhere — provably unreachable, unverified dead code that
+      `asmdecl` flagged as "missing Go declaration" (same class P2.2 resolved by
+      deletion). Re-add when arm64 NEON complex128 is actually wired (P2.3).
+- [x] Added a `go vet -tags asm ./...` step to `test-arch.yaml` for every
+      target architecture (amd64/arm64/386 — vet cross-compiles, no emulator
+      needed), so decl↔TEXT and FP-offset drift can no longer land silently.
 
 ### P2.2 Fix known-incorrect kernels
 

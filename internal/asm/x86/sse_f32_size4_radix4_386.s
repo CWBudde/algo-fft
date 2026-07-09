@@ -26,18 +26,18 @@
 // Forward transform, size 4, complex64, radix-4
 // func ForwardSSESize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 // ===========================================================================
-TEXT ·ForwardSSESize4Radix4Complex64Asm(SB), NOSPLIT, $0-64
+TEXT ·ForwardSSESize4Radix4Complex64Asm(SB), NOSPLIT, $0-61
 	// Load parameters
 	MOVL dst+0(FP), AX       // AX = dst pointer
 	MOVL src+12(FP), CX      // CX = src pointer
-	MOVL src+16(FP), DX      // DX = n (should be 4)
+	MOVL src_len+16(FP), DX  // DX = n (should be 4)
 
 	// Verify n == 4
 	CMPL DX, $4
 	JNE  size4_sse_32_fwd_return_false
 
 	// Validate all slice lengths >= 4
-	MOVL dst+4(FP), DX
+	MOVL dst_len+4(FP), DX
 	CMPL DX, $4
 	JL   size4_sse_32_fwd_return_false
 
@@ -104,18 +104,18 @@ size4_sse_32_fwd_return_false:
 // Inverse transform, size 4, complex64, radix-4
 // func InverseSSESize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 // ===========================================================================
-TEXT ·InverseSSESize4Radix4Complex64Asm(SB), NOSPLIT, $0-64
+TEXT ·InverseSSESize4Radix4Complex64Asm(SB), NOSPLIT, $0-61
 	// Load parameters
 	MOVL dst+0(FP), AX
 	MOVL src+12(FP), CX
-	MOVL src+16(FP), DX
+	MOVL src_len+16(FP), DX
 
 	// Verify n == 4
 	CMPL DX, $4
 	JNE  size4_sse_32_inv_return_false
 
 	// Validate lengths
-	MOVL dst+4(FP), DX
+	MOVL dst_len+4(FP), DX
 	CMPL DX, $4
 	JL   size4_sse_32_inv_return_false
 

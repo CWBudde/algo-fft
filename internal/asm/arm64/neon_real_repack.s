@@ -27,7 +27,7 @@ GLOBL ·complex64ImagSignMaskNEON(SB), RODATA|NOPTR, $16
 // func InverseRepackComplex64NEONAsm(dst, src, weight []complex64, kStartMax int)
 TEXT ·InverseRepackComplex64NEONAsm(SB), NOSPLIT, $0-80
 	MOVD dst+0(FP), R0       // dst base
-	MOVD dst+8(FP), R8       // half (dst len)
+	MOVD dst_len+8(FP), R8   // half (dst len)
 	MOVD src+24(FP), R1      // src base
 	MOVD weight+48(FP), R2   // weight base
 	MOVD kStartMax+72(FP), R3

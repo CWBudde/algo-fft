@@ -44,21 +44,21 @@ TEXT ·ForwardSSE3Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle slice data pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch slice data pointer
 	LEAQ ·bitrevSSE2Size32Radix2(SB), R12  // R12 = bitrev table pointer
-	MOVQ src+32(FP), R13     // R13 = src slice length (should be 32)
+	MOVQ src_len+32(FP), R13 // R13 = src slice length (should be 32)
 
 	// ===== Input Validation =====
 	CMPQ R13, $32            // check n == 32
 	JNE  size32_r2_sse2_fwd_return_false
 
-	MOVQ dst+8(FP), AX       // dst.len
+	MOVQ dst_len+8(FP), AX   // dst.len
 	CMPQ AX, $32             // dst.len >= 32?
 	JL   size32_r2_sse2_fwd_return_false
 
-	MOVQ twiddle+56(FP), AX  // twiddle.len
+	MOVQ twiddle_len+56(FP), AX  // twiddle.len
 	CMPQ AX, $32             // twiddle.len >= 32?
 	JL   size32_r2_sse2_fwd_return_false
 
-	MOVQ scratch+80(FP), AX  // scratch.len
+	MOVQ scratch_len+80(FP), AX  // scratch.len
 	CMPQ AX, $32             // scratch.len >= 32?
 	JL   size32_r2_sse2_fwd_return_false
 
@@ -827,21 +827,21 @@ TEXT ·InverseSSE3Size32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle slice data pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch slice data pointer
 	LEAQ ·bitrevSSE2Size32Radix2(SB), R12  // R12 = bitrev table pointer
-	MOVQ src+32(FP), R13     // R13 = src slice length
+	MOVQ src_len+32(FP), R13 // R13 = src slice length
 
 	// ===== Input Validation =====
 	CMPQ R13, $32            // check n == 32
 	JNE  size32_r2_sse2_inv_return_false
 
-	MOVQ dst+8(FP), AX       // dst.len
+	MOVQ dst_len+8(FP), AX   // dst.len
 	CMPQ AX, $32             // dst.len >= 32?
 	JL   size32_r2_sse2_inv_return_false
 
-	MOVQ twiddle+56(FP), AX  // twiddle.len
+	MOVQ twiddle_len+56(FP), AX  // twiddle.len
 	CMPQ AX, $32             // twiddle.len >= 32?
 	JL   size32_r2_sse2_inv_return_false
 
-	MOVQ scratch+80(FP), AX  // scratch.len
+	MOVQ scratch_len+80(FP), AX  // scratch.len
 	CMPQ AX, $32             // scratch.len >= 32?
 	JL   size32_r2_sse2_inv_return_false
 

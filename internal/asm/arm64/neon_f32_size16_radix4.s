@@ -22,22 +22,22 @@ TEXT ·ForwardNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9          // R9  = src pointer
 	MOVD twiddle+48(FP), R10     // R10 = twiddle pointer
 	MOVD scratch+72(FP), R11     // R11 = scratch pointer
-	MOVD src+32(FP), R13         // R13 = n (should be 16)
+	MOVD src_len+32(FP), R13     // R13 = n (should be 16)
 
 	// Verify n == 16
 	CMP  $16, R13
 	BNE  neon16r4_return_false
 
 	// Validate all slice lengths >= 16
-	MOVD dst+8(FP), R0
+	MOVD dst_len+8(FP), R0
 	CMP  $16, R0
 	BLT  neon16r4_return_false
 
-	MOVD twiddle+56(FP), R0
+	MOVD twiddle_len+56(FP), R0
 	CMP  $16, R0
 	BLT  neon16r4_return_false
 
-	MOVD scratch+80(FP), R0
+	MOVD scratch_len+80(FP), R0
 	CMP  $16, R0
 	BLT  neon16r4_return_false
 
@@ -328,20 +328,20 @@ TEXT ·InverseNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD src+32(FP), R13
+	MOVD src_len+32(FP), R13
 
 	CMP  $16, R13
 	BNE  neon16r4_inv_return_false
 
-	MOVD dst+8(FP), R0
+	MOVD dst_len+8(FP), R0
 	CMP  $16, R0
 	BLT  neon16r4_inv_return_false
 
-	MOVD twiddle+56(FP), R0
+	MOVD twiddle_len+56(FP), R0
 	CMP  $16, R0
 	BLT  neon16r4_inv_return_false
 
-	MOVD scratch+80(FP), R0
+	MOVD scratch_len+80(FP), R0
 	CMP  $16, R0
 	BLT  neon16r4_inv_return_false
 

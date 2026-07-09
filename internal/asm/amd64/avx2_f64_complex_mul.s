@@ -50,7 +50,7 @@ TEXT ·ComplexMulArrayComplex128AVX2Asm(SB), NOSPLIT, $0-72
 	MOVQ dst+0(FP), DI       // DI = dst pointer
 	MOVQ a+24(FP), SI        // SI = a pointer
 	MOVQ b+48(FP), DX        // DX = b pointer
-	MOVQ a+32(FP), CX        // CX = n = len(a)
+	MOVQ a_len+32(FP), CX    // CX = n = len(a)
 
 	TESTQ CX, CX
 	JZ    cmul128_done
@@ -130,7 +130,7 @@ cmul128_done:
 TEXT ·ComplexMulArrayInPlaceComplex128AVX2Asm(SB), NOSPLIT, $0-48
 	MOVQ dst+0(FP), DI       // DI = dst pointer
 	MOVQ src+24(FP), SI      // SI = src pointer
-	MOVQ dst+8(FP), CX       // CX = n = len(dst)
+	MOVQ dst_len+8(FP), CX   // CX = n = len(dst)
 
 	TESTQ CX, CX
 	JZ    cmul128ip_done

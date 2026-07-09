@@ -39,22 +39,22 @@ TEXT ·ForwardAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer (not used for size 4)
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 4)
+	MOVQ src_len+32(FP), R13 // R13 = n (should be 4)
 
 	// Verify n == 4
 	CMPQ R13, $4
 	JNE  size4_r4_fwd_return_false
 
 	// Validate all slice lengths >= 4
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $4
 	JL   size4_r4_fwd_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $4
 	JL   size4_r4_fwd_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $4
 	JL   size4_r4_fwd_return_false
 
@@ -219,22 +219,22 @@ TEXT ·InverseAVX2Size4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	// Verify n == 4
 	CMPQ R13, $4
 	JNE  size4_r4_inv_return_false
 
 	// Validate all slice lengths >= 4
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $4
 	JL   size4_r4_inv_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $4
 	JL   size4_r4_inv_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $4
 	JL   size4_r4_inv_return_false
 

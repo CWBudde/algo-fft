@@ -124,22 +124,22 @@ TEXT ·ForwardAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n = len(src)
+	MOVQ src_len+32(FP), R13 // R13 = n = len(src)
 
 	// Empty input is valid (no-op)
 	TESTQ R13, R13
 	JZ    return_true
 
 	// Validate all slice lengths are >= n
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, R13
 	JL   return_false        // dst too short
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, R13
 	JL   return_false        // twiddle too short
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, R13
 	JL   return_false        // scratch too short
 
@@ -719,26 +719,26 @@ TEXT ·ForwardAVX2StockhamComplex64Asm(SB), NOSPLIT, $0-121
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
 	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer (unused)
-	MOVQ src+32(FP), R13     // R13 = n = len(src)
+	MOVQ src_len+32(FP), R13 // R13 = n = len(src)
 
 	// Empty input is valid (no-op)
 	TESTQ R13, R13
 	JZ    stockham_return_true
 
 	// Validate all slice lengths are >= n
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, R13
 	JL   stockham_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, R13
 	JL   stockham_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, R13
 	JL   stockham_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ bitrev_len+104(FP), AX
 	CMPQ AX, R13
 	JL   stockham_return_false
 
@@ -1031,22 +1031,22 @@ TEXT ·InverseAVX2Complex64Asm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n = len(src)
+	MOVQ src_len+32(FP), R13 // R13 = n = len(src)
 
 	// Empty input is valid
 	TESTQ R13, R13
 	JZ    inv_return_true
 
 	// Validate slice lengths
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, R13
 	JL   inv_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, R13
 	JL   inv_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, R13
 	JL   inv_return_false
 
@@ -1570,26 +1570,26 @@ TEXT ·InverseAVX2StockhamComplex64Asm(SB), NOSPLIT, $0-121
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
 	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer (unused)
-	MOVQ src+32(FP), R13     // R13 = n = len(src)
+	MOVQ src_len+32(FP), R13 // R13 = n = len(src)
 
 	// Empty input is valid (no-op)
 	TESTQ R13, R13
 	JZ    inv_stockham_return_true
 
 	// Validate all slice lengths are >= n
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, R13
 	JL   inv_stockham_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, R13
 	JL   inv_stockham_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, R13
 	JL   inv_stockham_return_false
 
-	MOVQ bitrev+104(FP), AX
+	MOVQ bitrev_len+104(FP), AX
 	CMPQ AX, R13
 	JL   inv_stockham_return_false
 

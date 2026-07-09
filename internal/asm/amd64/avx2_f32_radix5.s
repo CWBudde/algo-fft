@@ -90,43 +90,43 @@ TEXT ·Butterfly5ForwardAVX2Complex64(SB), NOSPLIT, $0-240
 	MOVQ a4+216(FP), CX
 
 	// Verify all slices have length >= 2
-	MOVQ y0+8(FP), AX
+	MOVQ y0_len+8(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
-	MOVQ y1+32(FP), AX
+	MOVQ y1_len+32(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
-	MOVQ y2+56(FP), AX
+	MOVQ y2_len+56(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
-	MOVQ y3+80(FP), AX
+	MOVQ y3_len+80(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
-	MOVQ y4+104(FP), AX
+	MOVQ y4_len+104(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
-	MOVQ a0+128(FP), AX
+	MOVQ a0_len+128(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
-	MOVQ a1+152(FP), AX
+	MOVQ a1_len+152(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
-	MOVQ a2+176(FP), AX
+	MOVQ a2_len+176(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
-	MOVQ a3+200(FP), AX
+	MOVQ a3_len+200(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
-	MOVQ a4+224(FP), AX
+	MOVQ a4_len+224(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_fwd_return
 
@@ -218,43 +218,43 @@ TEXT ·Butterfly5InverseAVX2Complex64(SB), NOSPLIT, $0-240
 	MOVQ a4+216(FP), CX
 
 	// Verify all slices have length >= 2
-	MOVQ y0+8(FP), AX
+	MOVQ y0_len+8(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
-	MOVQ y1+32(FP), AX
+	MOVQ y1_len+32(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
-	MOVQ y2+56(FP), AX
+	MOVQ y2_len+56(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
-	MOVQ y3+80(FP), AX
+	MOVQ y3_len+80(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
-	MOVQ y4+104(FP), AX
+	MOVQ y4_len+104(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
-	MOVQ a0+128(FP), AX
+	MOVQ a0_len+128(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
-	MOVQ a1+152(FP), AX
+	MOVQ a1_len+152(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
-	MOVQ a2+176(FP), AX
+	MOVQ a2_len+176(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
-	MOVQ a3+200(FP), AX
+	MOVQ a3_len+200(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
-	MOVQ a4+224(FP), AX
+	MOVQ a4_len+224(FP), AX
 	CMPQ AX, $2
 	JL   butterfly5_inv_return
 
