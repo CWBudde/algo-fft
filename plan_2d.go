@@ -136,9 +136,9 @@ func (p *Plan2D[T]) Len() int {
 func (p *Plan2D[T]) String() string {
 	var zero T
 
-	typeName := "complex64"
+	typeName := precisionNameComplex64
 	if _, ok := any(zero).(complex128); ok {
-		typeName = "complex128"
+		typeName = precisionNameComplex128
 	}
 
 	return fmt.Sprintf("Plan2D[%s](%dx%d)", typeName, p.rows, p.cols)

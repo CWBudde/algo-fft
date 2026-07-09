@@ -22,11 +22,6 @@ var IsPowerOf2 = m.IsPowerOf2
 // Re-exported from internal/math.
 var IsHighlyComposite = m.IsHighlyComposite
 
-// complexFromFloat64 creates a complex number of type T from float64 components.
-func complexFromFloat64[T Complex](re, im float64) T {
-	return m.ComplexFromFloat64[T](re, im)
-}
-
 // CPU-feature bit positions used by the wisdom cache key. The layout is part of
 // the persisted wisdom format (version 2); changing it requires a format bump.
 const (
@@ -72,18 +67,27 @@ func CPUFeatureMask(hasSSE2, hasSSE3, hasAVX2, hasAVX512, hasNEON bool) uint64 {
 
 // StrategyToAlgorithmName converts a kernel strategy to an algorithm name.
 // This is used for wisdom cache entries and debugging output.
+// Algorithm names shared between wisdom entries and strategy mapping.
+const (
+	algoDITFallback = "dit_fallback"
+	algoStockham    = "stockham"
+	algoSixStep     = "sixstep"
+	algoEightStep   = "eightstep"
+	algoBluestein   = "bluestein"
+)
+
 func StrategyToAlgorithmName(strategy KernelStrategy) string {
 	switch strategy {
 	case KernelDIT:
-		return "dit_fallback"
+		return algoDITFallback
 	case KernelStockham:
-		return "stockham"
+		return algoStockham
 	case KernelSixStep:
-		return "sixstep"
+		return algoSixStep
 	case KernelEightStep:
-		return "eightstep"
+		return algoEightStep
 	case KernelBluestein:
-		return "bluestein"
+		return algoBluestein
 	default:
 		return "unknown"
 	}

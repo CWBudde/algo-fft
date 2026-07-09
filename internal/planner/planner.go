@@ -40,7 +40,9 @@ type PlanEstimate[T Complex] struct {
 // The returned PlanEstimate contains either:
 //   - Direct codelet bindings (zero dispatch) if a codelet is registered for the size
 //   - Empty codelet fields and just Strategy if no codelet (caller uses fallback kernels)
-func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, forcedStrategy KernelStrategy) PlanEstimate[T] {
+func EstimatePlan[T Complex](
+	n int, features cpu.Features, wisdom WisdomStore, forcedStrategy KernelStrategy,
+) PlanEstimate[T] {
 	strategy := ResolveKernelStrategy(n)
 	if forcedStrategy != KernelAuto {
 		strategy = forcedStrategy
@@ -50,7 +52,7 @@ func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, f
 	if !IsPowerOf2(n) && !IsHighlyComposite(n) {
 		return PlanEstimate[T]{
 			Strategy:  KernelBluestein,
-			Algorithm: "bluestein",
+			Algorithm: algoBluestein,
 		}
 	}
 
@@ -102,7 +104,9 @@ func tryRegistry[T Complex](n int, features cpu.Features, forcedStrategy KernelS
 	}
 }
 
-func resolveWisdom[T Complex](n int, features cpu.Features, wisdom WisdomStore, forcedStrategy KernelStrategy) (*PlanEstimate[T], KernelStrategy, bool) {
+func resolveWisdom[T Complex](
+	n int, features cpu.Features, wisdom WisdomStore, forcedStrategy KernelStrategy,
+) (*PlanEstimate[T], KernelStrategy, bool) {
 	if wisdom == nil {
 		return nil, KernelAuto, false
 	}
@@ -151,15 +155,15 @@ func resolveWisdom[T Complex](n int, features cpu.Features, wisdom WisdomStore, 
 	var strategy KernelStrategy
 
 	switch algorithm {
-	case "dit_fallback":
+	case algoDITFallback:
 		strategy = KernelDIT
-	case "stockham":
+	case algoStockham:
 		strategy = KernelStockham
-	case "sixstep":
+	case algoSixStep:
 		strategy = KernelSixStep
-	case "eightstep":
+	case algoEightStep:
 		strategy = KernelEightStep
-	case "bluestein":
+	case algoBluestein:
 		strategy = KernelBluestein
 	default:
 		return nil, KernelAuto, false

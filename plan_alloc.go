@@ -59,7 +59,9 @@ func prepareCodeletTwiddles[T Complex](
 // scratch size follows the strategy (Bluestein → M, Recursive → recursive scratch,
 // otherwise the standard size clamped to at least n); the extra Bluestein scratch
 // is allocated only for the Bluestein strategy.
-func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM int, decompStrategy *fft.DecomposeStrategy, standardScratchSize int) *scratchSet[T] {
+func allocateScratchSet[T Complex](
+	n int, strategy KernelStrategy, bluesteinM int, decompStrategy *fft.DecomposeStrategy, standardScratchSize int,
+) *scratchSet[T] {
 	var scratchSize int
 
 	switch strategy {
@@ -95,7 +97,11 @@ func allocateScratchSet[T Complex](n int, strategy KernelStrategy, bluesteinM in
 
 // getBuffersFromPool draws the twiddle, scratch, and strided-scratch buffers for a
 // pooled plan from pool, filling the twiddle table with the computed factors.
-func getBuffersFromPool[T Complex](n, scratchSize int, pool *fft.BufferPool) (twiddle, scratch, stridedScratch []T, twiddleBacking, scratchBacking, stridedBacking []byte) {
+//
+//nolint:nonamedreturns // six return values need names to be readable
+func getBuffersFromPool[T Complex](n, scratchSize int, pool *fft.BufferPool) (
+	twiddle, scratch, stridedScratch []T, twiddleBacking, scratchBacking, stridedBacking []byte,
+) {
 	if scratchSize < n {
 		scratchSize = n
 	}

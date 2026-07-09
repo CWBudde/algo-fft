@@ -162,7 +162,7 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64) bool
 	// Apply 1/N scaling and copy back
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range n {
-		dst[i] = dst[i] * scale
+		dst[i] *= scale
 	}
 
 	return true
@@ -423,7 +423,7 @@ func inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch []complex128) bo
 	}
 
 	for i := range n {
-		dst[i] = dst[i] * scale
+		dst[i] *= scale
 	}
 
 	return true

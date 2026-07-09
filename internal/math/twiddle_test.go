@@ -45,8 +45,6 @@ func TestComputeTwiddleFactors(t *testing.T) {
 			t.Fatalf("len = %d, want 2", len(twiddle))
 		}
 
-		const eps = 1e-6
-
 		if !approxEqual64(twiddle[0], 1+0i) {
 			t.Errorf("twiddle[0] = %v, want 1", twiddle[0])
 		}
@@ -65,8 +63,6 @@ func TestComputeTwiddleFactors(t *testing.T) {
 			t.Fatalf("len = %d, want 4", len(twiddle))
 		}
 
-		const eps = 1e-6
-
 		expected := []complex64{1 + 0i, 0 - 1i, -1 + 0i, 0 + 1i}
 		for i, exp := range expected {
 			if !approxEqual64(twiddle[i], exp) {
@@ -83,7 +79,6 @@ func TestComputeTwiddleFactors(t *testing.T) {
 			t.Fatalf("len = %d, want 8", len(twiddle))
 		}
 
-		const eps = 1e-6
 		// W_8^k = exp(-2πik/8) for k=0..7
 		sqrt2 := float32(math.Sqrt(2) / 2)
 		expected := []complex64{
@@ -114,8 +109,6 @@ func TestComputeTwiddleFactorsComplex128(t *testing.T) {
 		if len(twiddle) != 4 {
 			t.Fatalf("len = %d, want 4", len(twiddle))
 		}
-
-		const eps = 1e-14
 
 		expected := []complex128{1 + 0i, 0 - 1i, -1 + 0i, 0 + 1i}
 		for i, exp := range expected {
@@ -190,8 +183,6 @@ func TestComplexFromFloat64(t *testing.T) {
 		re, im := 3.14, 2.71
 		result := ComplexFromFloat64[complex64](re, im)
 
-		const eps = 1e-6
-
 		expected := complex64(complex(float32(re), float32(im)))
 		if !approxEqual64(result, expected) {
 			t.Errorf("ComplexFromFloat64[complex64](%v, %v) = %v, want %v",
@@ -204,8 +195,6 @@ func TestComplexFromFloat64(t *testing.T) {
 
 		re, im := 3.141592653589793, 2.718281828459045
 		result := ComplexFromFloat64[complex128](re, im)
-
-		const eps = 1e-14
 
 		expected := complex(re, im)
 		if !approxEqual128(result, expected) {
@@ -233,8 +222,6 @@ func TestComplexFromFloat64(t *testing.T) {
 
 		result := ComplexFromFloat64[complex64](-1.5, -2.5)
 		expected := complex64(complex(float32(-1.5), float32(-2.5)))
-
-		const eps = 1e-6
 
 		if !approxEqual64(result, expected) {
 			t.Errorf("ComplexFromFloat64[complex64](-1.5, -2.5) = %v, want %v",
@@ -350,8 +337,6 @@ func TestTwiddleFactorSymmetry(t *testing.T) {
 			t.Parallel()
 
 			twiddle := ComputeTwiddleFactors[complex128](n)
-
-			const eps = 1e-14
 
 			for k := 1; k < n/2; k++ {
 				wk := twiddle[k]

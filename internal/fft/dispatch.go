@@ -49,7 +49,9 @@ var (
 )
 
 // Wrapper functions for generic planner functions.
-func EstimatePlan[T Complex](n int, features cpu.Features, wisdom WisdomStore, strategy KernelStrategy) PlanEstimate[T] {
+func EstimatePlan[T Complex](
+	n int, features cpu.Features, wisdom WisdomStore, strategy KernelStrategy,
+) PlanEstimate[T] {
 	return planner.EstimatePlan[T](n, features, wisdom, strategy)
 }
 

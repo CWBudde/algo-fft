@@ -271,62 +271,6 @@ func (p *PlanReal2D) Inverse(dst []float32, src []complex64) error {
 	return nil
 }
 
-func (p *PlanReal2D) inverseSingle(dst []float32, src []complex64) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.rows*p.halfCols {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != p.rows*p.cols {
-		return ErrLengthMismatch
-	}
-
-	s := p.scratch.get()
-	defer p.scratch.put(s)
-
-	compact := s.compact
-
-	// Copy src to scratch
-	copy(compact, src)
-
-	// Step 1: Complex IFFT on each column
-	colData := make([]complex64, p.rows)
-
-	for col := range p.halfCols {
-		// Extract column
-		for row := range p.rows {
-			colData[row] = compact[row*p.halfCols+col]
-		}
-
-		// Inverse transform column
-		err := p.colPlans[col].InverseInPlace(colData)
-		if err != nil {
-			return err
-		}
-
-		// Write back
-		for row := range p.rows {
-			compact[row*p.halfCols+col] = colData[row]
-		}
-	}
-
-	// Step 2: Real IFFT on each row (complex64 half-spectrum → float32)
-	for row := range p.rows {
-		srcRow := compact[row*p.halfCols : (row+1)*p.halfCols]
-		dstRow := dst[row*p.cols : (row+1)*p.cols]
-
-		err := p.rowPlan.Inverse(dstRow, srcRow)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // InverseFull computes the 2D real IFFT from full spectrum.
 //
 // Input src: M×N row-major array of complex64
@@ -382,6 +326,62 @@ func (p *PlanReal2D) Clone() *PlanReal2D {
 		scratch:  newPlanReal2DScratchCache(p.rows, p.halfCols),
 		options:  p.options,
 	}
+}
+
+func (p *PlanReal2D) inverseSingle(dst []float32, src []complex64) error {
+	if dst == nil || src == nil {
+		return ErrNilSlice
+	}
+
+	if len(src) != p.rows*p.halfCols {
+		return ErrLengthMismatch
+	}
+
+	if len(dst) != p.rows*p.cols {
+		return ErrLengthMismatch
+	}
+
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	compact := s.compact
+
+	// Copy src to scratch
+	copy(compact, src)
+
+	// Step 1: Complex IFFT on each column
+	colData := make([]complex64, p.rows)
+
+	for col := range p.halfCols {
+		// Extract column
+		for row := range p.rows {
+			colData[row] = compact[row*p.halfCols+col]
+		}
+
+		// Inverse transform column
+		err := p.colPlans[col].InverseInPlace(colData)
+		if err != nil {
+			return err
+		}
+
+		// Write back
+		for row := range p.rows {
+			compact[row*p.halfCols+col] = colData[row]
+		}
+	}
+
+	// Step 2: Real IFFT on each row (complex64 half-spectrum → float32)
+	for row := range p.rows {
+		srcRow := compact[row*p.halfCols : (row+1)*p.halfCols]
+		dstRow := dst[row*p.cols : (row+1)*p.cols]
+
+		err := p.rowPlan.Inverse(dstRow, srcRow)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (p *PlanReal2D) forwardSingle(dst []complex64, src []float32) error {

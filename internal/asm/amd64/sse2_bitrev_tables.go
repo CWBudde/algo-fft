@@ -5,11 +5,13 @@ package amd64
 // SSE2 bit-reversal tables for size-specific kernels.
 // These are static arrays so assembly can reference them directly.
 
+//nolint:unused // referenced from SSE2 assembly (sse2_f*.s), invisible to the linter
 var bitrevSSE2Size16Radix4 = [...]int{
 	0, 4, 8, 12, 1, 5, 9, 13,
 	2, 6, 10, 14, 3, 7, 11, 15,
 }
 
+//nolint:unused // referenced from SSE2 assembly (sse2_f*.s), invisible to the linter
 var bitrevSSE2Size32Radix2 = [...]int{
 	0, 16, 8, 24, 4, 20, 12, 28,
 	2, 18, 10, 26, 6, 22, 14, 30,
@@ -17,6 +19,7 @@ var bitrevSSE2Size32Radix2 = [...]int{
 	3, 19, 11, 27, 7, 23, 15, 31,
 }
 
+//nolint:unused // referenced from SSE2 assembly (sse2_f*.s), invisible to the linter
 var bitrevSSE2Size32Radix4Then2 = [...]int{
 	0, 8, 16, 24, 2, 10, 18, 26,
 	4, 12, 20, 28, 6, 14, 22, 30,
@@ -24,6 +27,7 @@ var bitrevSSE2Size32Radix4Then2 = [...]int{
 	5, 13, 21, 29, 7, 15, 23, 31,
 }
 
+//nolint:unused // referenced from SSE2 assembly (sse2_f*.s), invisible to the linter
 var bitrevSSE2Size64Radix2 = [...]int{
 	0, 32, 16, 48, 8, 40, 24, 56,
 	4, 36, 20, 52, 12, 44, 28, 60,
@@ -35,6 +39,7 @@ var bitrevSSE2Size64Radix2 = [...]int{
 	7, 39, 23, 55, 15, 47, 31, 63,
 }
 
+//nolint:unused // referenced from SSE2 assembly (sse2_f*.s), invisible to the linter
 var bitrevSSE2Size64Radix4 = [...]int{
 	0, 16, 32, 48, 4, 20, 36, 52,
 	8, 24, 40, 56, 12, 28, 44, 60,
@@ -46,6 +51,7 @@ var bitrevSSE2Size64Radix4 = [...]int{
 	11, 27, 43, 59, 15, 31, 47, 63,
 }
 
+//nolint:unused // referenced from SSE2 assembly (sse2_f*.s), invisible to the linter
 var bitrevSSE2Size128Radix2 = [...]int{
 	0, 64, 32, 96, 16, 80, 48, 112,
 	8, 72, 40, 104, 24, 88, 56, 120,
@@ -65,6 +71,7 @@ var bitrevSSE2Size128Radix2 = [...]int{
 	15, 79, 47, 111, 31, 95, 63, 127,
 }
 
+//nolint:unused // referenced from SSE2 assembly (sse2_f*.s), invisible to the linter
 var bitrevSSE2Size128Radix4Then2 = [...]int{
 	0, 32, 64, 96, 8, 40, 72, 104,
 	16, 48, 80, 112, 24, 56, 88, 120,
@@ -84,41 +91,7 @@ var bitrevSSE2Size128Radix4Then2 = [...]int{
 	23, 55, 87, 119, 31, 63, 95, 127,
 }
 
-var bitrevSSE2Size256Radix2 = [...]int{
-	0, 128, 64, 192, 32, 160, 96, 224,
-	16, 144, 80, 208, 48, 176, 112, 240,
-	8, 136, 72, 200, 40, 168, 104, 232,
-	24, 152, 88, 216, 56, 184, 120, 248,
-	4, 132, 68, 196, 36, 164, 100, 228,
-	20, 148, 84, 212, 52, 180, 116, 244,
-	12, 140, 76, 204, 44, 172, 108, 236,
-	28, 156, 92, 220, 60, 188, 124, 252,
-	2, 130, 66, 194, 34, 162, 98, 226,
-	18, 146, 82, 210, 50, 178, 114, 242,
-	10, 138, 74, 202, 42, 170, 106, 234,
-	26, 154, 90, 218, 58, 186, 122, 250,
-	6, 134, 70, 198, 38, 166, 102, 230,
-	22, 150, 86, 214, 54, 182, 118, 246,
-	14, 142, 78, 206, 46, 174, 110, 238,
-	30, 158, 94, 222, 62, 190, 126, 254,
-	1, 129, 65, 193, 33, 161, 97, 225,
-	17, 145, 81, 209, 49, 177, 113, 241,
-	9, 137, 73, 201, 41, 169, 105, 233,
-	25, 153, 89, 217, 57, 185, 121, 249,
-	5, 133, 69, 197, 37, 165, 101, 229,
-	21, 149, 85, 213, 53, 181, 117, 245,
-	13, 141, 77, 205, 45, 173, 109, 237,
-	29, 157, 93, 221, 61, 189, 125, 253,
-	3, 131, 67, 195, 35, 163, 99, 227,
-	19, 147, 83, 211, 51, 179, 115, 243,
-	11, 139, 75, 203, 43, 171, 107, 235,
-	27, 155, 91, 219, 59, 187, 123, 251,
-	7, 135, 71, 199, 39, 167, 103, 231,
-	23, 151, 87, 215, 55, 183, 119, 247,
-	15, 143, 79, 207, 47, 175, 111, 239,
-	31, 159, 95, 223, 63, 191, 127, 255,
-}
-
+//nolint:unused // referenced from SSE2 assembly (sse2_f*.s), invisible to the linter
 var bitrevSSE2Size256Radix4 = [...]int{
 	0, 64, 128, 192, 16, 80, 144, 208,
 	32, 96, 160, 224, 48, 112, 176, 240,
@@ -154,6 +127,7 @@ var bitrevSSE2Size256Radix4 = [...]int{
 	47, 111, 175, 239, 63, 127, 191, 255,
 }
 
+//nolint:unused // referenced from SSE2 assembly (sse2_f*.s), invisible to the linter
 var bitrevSSE2Size512Radix2 = [...]int{
 	0, 256, 128, 384, 64, 320, 192, 448,
 	32, 288, 160, 416, 96, 352, 224, 480,

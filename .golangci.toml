@@ -4,6 +4,21 @@ version = "2"
 default = 'all'
 disable = [
     'depguard',
+    # dupl: the per-size codelets are deliberately unrolled near-duplicates
+    # (see PLAN.md P1.6 — bodies stay hand-written), and tests are
+    # table-driven twins per precision. Duplication here is the design.
+    'dupl',
+    # err113: parse/validation errors built with fmt.Errorf carry dynamic
+    # context by design; sentinel errors exist where callers match (errors.go).
+    'err113',
+    # exhaustruct: option structs (PlanOptions, cpu.Features, …) rely on
+    # meaningful zero values; it was already downgraded to info severity.
+    'exhaustruct',
+    # gochecknoglobals/-inits: the codelet registry, dispatch hooks, and
+    # precomputed tables are deliberate package-level state wired in init()
+    # (see AGENTS.md "When Adding New Kernels").
+    'gochecknoglobals',
+    'gochecknoinits',
     'godoclint',
     'gomoddirectives',
     'gosec',
@@ -11,12 +26,37 @@ disable = [
     'musttag',
     'nlreturn',
     'noctx',
+    # noinlineerr: `if err := f(); err != nil` is idiomatic Go.
+    'noinlineerr',
+    # paralleltest/tparallel: t.Parallel() is opted into per test; many tests
+    # (AllocsPerRun, benchmarks, QEMU-gated) must not run parallel.
+    'paralleltest',
     'recvcheck',
+    'tparallel',
+    # varnamelen: single/double-letter names are the natural vocabulary of
+    # FFT butterfly math (x0, t1, w, re, im, …) across kernels, DSP helpers,
+    # and tests alike; the previous ignore-names allowlist could not keep up.
+    'varnamelen',
     'wsl',
+    # wsl_v5: v4 was already disabled above; v5 only crept in via
+    # default = 'all'.
+    'wsl_v5',
 ]
 enable = [
     "revive",
 ]
+
+# Transform entry points validate inputs and dispatch across kernel choices;
+# the default max of 10 forces artificial splits of linear switch logic. 20
+# keeps a real bound without fighting the domain.
+[linters.settings.cyclop]
+max-complexity = 20
+
+# Plan constructors and real-FFT pack/unpack bodies are linear sequences of
+# setup steps; the default 60/40 forces splits that hide the sequence.
+[linters.settings.funlen]
+lines = 100
+statements = 80
 
 [linters.settings.revive]
 [[linters.settings.revive.rules]]
@@ -30,74 +70,10 @@ name = "file-length-limit"
 max = 1500
 skip-comments = false
 skip-blank-lines = false
-[linters.settings.varnamelen]
-ignore-names = [
-  'a',
-  'b',
-  'c',
-  'd',
-  'i',
-  'j',
-  'k',
-  'n',
-  'm',
-  'ok',
-  're',
-  'im',
-  'pi',
-  'p',
-  'in',
-  's',
-  'a0',
-  'a1',
-  'a2',
-  'a3',
-  'a4',
-  'tt',
-  'tw',
-  't0',
-  't1',
-  't2',
-  't3',
-  'w1',
-  'w2',
-  'w3',
-  'w4',
-  'w',
-  'h',
-  'x',
-  'y',
-  'z',
-  'e0',
-  'e1',
-  'e2',
-  'e3',
-  'o0',
-  'o1',
-  'o2',
-  'o3',
-  'x0',
-  'x1',
-  'x2',
-  'x3',
-  'x4',
-  'y0',
-  'y1',
-  'y2',
-  'y3',
-  'y4',
-]
-ignore-decls = ['T any', 'T Complex']
-
-[linters.settings.wsl_v5]
-allow-first-in-block = true
-branch-max-lines = 2
-allow-whole-block = false
-
 [linters.exclusions]
 generated = 'lax'
 presets = ['comments', 'common-false-positives', 'legacy', 'std-error-handling']
-paths = ['third_party$', 'builtin$', 'examples$']
+paths = ['third_party$', 'builtin$', 'examples/']
 
 [[linters.exclusions.rules]]
 linters = ['mnd']
@@ -107,11 +83,50 @@ path = '.*\.go'
 linters = ['testpackage']
 path = '.*_test\.go'
 
+# The hand-unrolled per-size kernels and their SIMD bridges are generated-like
+# code: long, branchy, and repetitive by construction (PLAN.md P1.6 keeps the
+# bodies hand-written). Complexity/length style checks add no signal there,
+# and the wide butterfly helpers return 16-wide tuples where named returns
+# are the only readable option.
+[[linters.exclusions.rules]]
+linters = ['cyclop', 'funlen', 'gocognit', 'lll', 'maintidx', 'nestif', 'nonamedreturns']
+path = '^internal/(kernels|asm)/'
+
+# Dispatch wrappers, mixed-radix drivers, and the packed-Stockham/recursive
+# transform bodies carry the same unrolled-kernel character.
+[[linters.exclusions.rules]]
+linters = ['cyclop', 'funlen', 'gocognit', 'lll', 'maintidx', 'nestif']
+path = '^internal/(fft/(kernels|asm|mixedradix|butterfly)|transform/)'
+
+# Tests favor exhaustive tables and inline literals over factored helpers.
+[[linters.exclusions.rules]]
+linters = ['cyclop', 'funlen', 'gocognit', 'goconst', 'lll', 'maintidx', 'forcetypeassert', 'nonamedreturns']
+path = '.*_test\.go'
+
+# CLI tools print to stdout by design; their spec/config tables read best as
+# one row per line regardless of length.
+[[linters.exclusions.rules]]
+linters = ['forbidigo', 'funlen', 'lll']
+path = '^cmd/'
+
+# Generic<->concrete bridge files: type switches over any(x) where the
+# Complex/Float constraint guarantees the arm. A mismatch is a dispatch bug
+# and panics, which is the intended no-silent-failure contract (PLAN.md P0.4).
+[[linters.exclusions.rules]]
+linters = ['forcetypeassert']
+path = '^(plan_(real_generic|recursive|fast|bluestein)\.go|internal/memory/aligned_generic\.go|internal/fft/(pool|complex_mul)\.go)'
+
+# Cross-arch alias tables: symbols may only be read by another GOARCH's
+# dispatch files, which the (host-arch) unused check cannot see.
+[[linters.exclusions.rules]]
+linters = ['unused']
+path = '^internal/fft/kernels_(386|arm64|amd64)'
+
 [severity]
 default = 'warn'
 
 [[severity.rules]]
-linters = ['exhaustive', 'exhaustruct', 'godox']
+linters = ['exhaustive', 'godox']
 severity = 'info'
 
 [formatters]

@@ -61,9 +61,7 @@ func IsPowerOf2(n int) bool {
 // Helper functions for tests.
 var (
 	forwardStockhamComplex64  = kernels.ForwardStockhamComplex64
-	inverseStockhamComplex64  = kernels.InverseStockhamComplex64
 	forwardStockhamComplex128 = kernels.ForwardStockhamComplex128
-	inverseStockhamComplex128 = kernels.InverseStockhamComplex128
 )
 
 // Test helper functions (defined in test files in kernels package)

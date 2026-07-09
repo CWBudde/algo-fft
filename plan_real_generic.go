@@ -61,7 +61,9 @@ func NewPlanRealTWithOptions[F Float, C Complex](n int, opts PlanOptions) (*Plan
 	return newPlanRealTWithFeatures[F, C](n, cpu.DetectFeatures(), normalizePlanOptions(opts))
 }
 
-func newPlanRealTWithFeatures[F Float, C Complex](n int, features cpu.Features, opts PlanOptions) (*PlanRealT[F, C], error) {
+func newPlanRealTWithFeatures[F Float, C Complex](
+	n int, features cpu.Features, opts PlanOptions,
+) (*PlanRealT[F, C], error) {
 	if n < 2 || n%2 != 0 {
 		return nil, ErrInvalidLength
 	}

@@ -98,7 +98,8 @@ func NewFastPlan[T Complex](n int) (*FastPlan[T], error) {
 		inverseFunc:           estimate.InverseCodelet,
 	}
 
-	fp.codeletTwiddleForward, fp.codeletTwiddleInverse, fp.codeletTwiddleForwardBacking, fp.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, twiddle, estimate)
+	fp.codeletTwiddleForward, fp.codeletTwiddleInverse,
+		fp.codeletTwiddleForwardBacking, fp.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, twiddle, estimate)
 
 	return fp, nil
 }

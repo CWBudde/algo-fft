@@ -134,14 +134,20 @@ func (p *Plan[T]) Algorithm() string {
 }
 
 // String returns a human-readable description of the Plan for debugging.
+// Precision names used by the String() methods of all plan types.
+const (
+	precisionNameComplex64  = "complex64"
+	precisionNameComplex128 = "complex128"
+)
+
 // The format is: "Plan[type](size, strategy)" where type is "complex64" or "complex128".
 func (p *Plan[T]) String() string {
 	var zero T
 
-	typeName := "complex64"
+	typeName := precisionNameComplex64
 
 	if _, ok := any(zero).(complex128); ok {
-		typeName = "complex128"
+		typeName = precisionNameComplex128
 	}
 
 	strategyName := "auto"
@@ -522,14 +528,36 @@ func standardScratchSize(n int, algorithm string) int {
 	return n
 }
 
-func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptions) (*Plan[T], error) {
-	if n < 1 {
-		return nil, ErrInvalidLength
+// computeBluesteinTables precomputes the chirp sequences, sub-FFT twiddles,
+// bit-reversal indices, and forward/inverse filters for a Bluestein plan of
+// length n with padded sub-FFT size m.
+//
+//nolint:nonamedreturns // six related tables; names document the tuple
+func computeBluesteinTables[T Complex](n, m int, scratch []T) (
+	chirp, chirpInv, filter, filterInv, twiddle []T, bitrev []int,
+) {
+	chirp = fft.ComputeChirpSequence[T](n)
+
+	chirpInv = make([]T, n)
+	for i, v := range chirp {
+		chirpInv[i] = fft.ConjugateOf(v)
 	}
 
-	// Choose planning strategy based on mode
-	var estimate fft.PlanEstimate[T]
+	twiddle = fft.ComputeTwiddleFactors[T](m)
+	bitrev = fft.ComputeBitReversalIndices(m)
 
+	// Compute filters using the pre-allocated scratch buffer.
+	filter = fft.ComputeBluesteinFilter(n, m, chirp, twiddle, scratch)
+	filterInv = fft.ComputeBluesteinFilter(n, m, chirpInv, twiddle, scratch)
+
+	return chirp, chirpInv, filter, filterInv, twiddle, bitrev
+}
+
+// selectPlanEstimate chooses the plan estimate according to the planner mode:
+// measuring modes micro-benchmark candidate strategies (recording results into
+// the Wisdom store when one is configured), while estimate mode uses
+// heuristics only.
+func selectPlanEstimate[T Complex](n int, features cpu.Features, opts PlanOptions) fft.PlanEstimate[T] {
 	switch opts.Planner {
 	case PlannerMeasure, PlannerPatient, PlannerExhaustive:
 		// Run micro-benchmarks to find the best strategy
@@ -538,7 +566,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 			recorder = wisdomAdapter{opts.Wisdom}
 		}
 
-		estimate = fft.MeasureAndSelect[T](
+		return fft.MeasureAndSelect[T](
 			n,
 			features,
 			fft.PlannerMode(opts.Planner),
@@ -547,11 +575,19 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		)
 	case PlannerEstimate:
 		// PlannerEstimate: use heuristics only (fast path)
-		estimate = fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+		return fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
 	default:
 		// Fallback for any unknown planner modes
-		estimate = fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+		return fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
 	}
+}
+
+func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptions) (*Plan[T], error) {
+	if n < 1 {
+		return nil, ErrInvalidLength
+	}
+
+	estimate := selectPlanEstimate[T](n, features, opts)
 
 	useBluestein := estimate.Strategy == fft.KernelBluestein
 	useRecursive := estimate.Strategy == fft.KernelRecursive
@@ -591,24 +627,17 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	setupScratch := allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy, scratchSize)
 
 	if useBluestein {
-		// Compute Bluestein tables
-		bluesteinChirp = fft.ComputeChirpSequence[T](n)
+		bluesteinChirp, bluesteinChirpInv, bluesteinFilter, bluesteinFilterInv,
+			bluesteinTwiddle, bluesteinBitrev = computeBluesteinTables[T](n, bluesteinM, setupScratch.bluesteinScratch)
+	}
 
-		bluesteinChirpInv = make([]T, n)
-		for i, v := range bluesteinChirp {
-			bluesteinChirpInv[i] = fft.ConjugateOf(v)
-		}
-
-		bluesteinTwiddle = fft.ComputeTwiddleFactors[T](bluesteinM)
-		bluesteinBitrev = fft.ComputeBitReversalIndices(bluesteinM)
-
-		// Compute filters using the pre-allocated scratch buffer
-		bluesteinFilter = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirp, bluesteinTwiddle, setupScratch.bluesteinScratch)
-		bluesteinFilterInv = fft.ComputeBluesteinFilter(n, bluesteinM, bluesteinChirpInv, bluesteinTwiddle, setupScratch.bluesteinScratch)
-	} else if useRecursive {
+	switch {
+	case useBluestein:
+		// Twiddles were computed above alongside the Bluestein tables.
+	case useRecursive:
 		// Generate twiddles for recursive decomposition.
 		twiddle, twiddleBacking = allocTwiddle(fft.TwiddleFactorsRecursive[T](decompStrategy))
-	} else {
+	default:
 		// Standard allocation.
 		twiddle, twiddleBacking = allocTwiddle(fft.ComputeTwiddleFactors[T](n))
 	}
@@ -661,7 +690,8 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
 	}
 
-	p.codeletTwiddleForward, p.codeletTwiddleInverse, p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, p.twiddle, estimate)
+	p.codeletTwiddleForward, p.codeletTwiddleInverse,
+		p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, p.twiddle, estimate)
 
 	return p, nil
 }
@@ -728,7 +758,8 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
 
 	scratchSize := standardScratchSize(n, estimate.Algorithm)
-	twiddle, scratch, stridedScratch, twiddleBacking, scratchBacking, stridedBacking := getBuffersFromPool[T](n, scratchSize, pool)
+	twiddle, scratch, stridedScratch,
+		twiddleBacking, scratchBacking, stridedBacking := getBuffersFromPool[T](n, scratchSize, pool)
 
 	var bitrev []int
 	if m.IsPowerOf2(n) {
@@ -770,7 +801,8 @@ func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
 	p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
 
-	p.codeletTwiddleForward, p.codeletTwiddleInverse, p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, p.twiddle, estimate)
+	p.codeletTwiddleForward, p.codeletTwiddleInverse,
+		p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, p.twiddle, estimate)
 
 	return p, nil
 }

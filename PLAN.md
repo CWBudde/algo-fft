@@ -332,7 +332,7 @@ into the P2 backlog below.
       `cpu.DetectFeatures()`. `-tags purego` is the supported pure-Go opt-out
       (tag was already respected; now it is the _only_ gate). The
       `stockham_packed_toggle` pair now keys on `(amd64 || arm64 || 386) &&
-    !purego` (formerly the `asm` tag); `-tags asm` remains accepted as a
+  !purego` (formerly the `asm` tag); `-tags asm` remains accepted as a
       harmless no-op for existing scripts. Docs updated (README, goal.md,
       AGENTS.md, CHANGELOG) — the SIMD claim is now true on the default build.
 - [x] Fallback correctness parity is CI-gated: every `test-arch` matrix leg
@@ -386,15 +386,21 @@ into the P2 backlog below.
       **The full `go test -tags asm ./...` now passes on arm64 under QEMU (all
       10 packages).** Next: flip `test-arch.yaml` from build-only to test on
       arm64 (was blocked by these faults; see Testing & CI Hardening / P0.1).
-- [ ] AVX2 Stockham "compiles/runs but produces wrong results" (old Phase 14.4):
-      **not reproduced** on current code — the AVX2 Stockham complex64 asm
-      kernel matches `reference.NaiveDFT` within float32 tolerance at sizes
-      16–4096 (maxErr ~2e-5 at n=4096) and `TestAllKernelsCorrectness`
-      (`KernelStockham`) passes with `-tags asm`. If still an issue, capture a
-      concrete failing case; otherwise close. Keep the P0.4 forward-vs-reference
-      sweep gating any future changes.
-- [ ] Re-enable size-16 radix-16 on x86/386 once corrected
-      (`kernels_386_asm.go:163,182` `TODO(386)`).
+- [x] AVX2 Stockham "compiles/runs but produces wrong results" (old Phase
+      14.4): **closed 2026-07, not reproduced** — the AVX2 Stockham complex64
+      asm kernel matches `reference.NaiveDFT` within float32 tolerance at
+      sizes 16–4096 (maxErr ~2e-5 at n=4096) and `TestAllKernelsCorrectness`
+      (all strategies) passes on the default (SIMD) build, which CI now runs
+      on every push (P2.1). The P0.4 forward-vs-reference sweep gates any
+      future changes.
+- [x] Size-16 radix-16 on x86/386 — **fixed and re-enabled 2026-07**. Root
+      cause: the kernel's work buffer aliases `dst` whenever `dst != src`, so
+      the final 4×4 transpose ran in place, and its store order clobbered
+      slots 16/48 (writing the transposed rows 2/3) before reading them for
+      outputs 8/9/12/13. Fixed by preloading the entire (16,48)↔(64,96) swap
+      into registers before storing (forward and inverse). Re-enabled in the
+      SSE3 dispatch (`kernels_386_asm.go`, identity bit-reversal) and covered
+      by a forward-vs-reference + inverse case in `asm_386_test.go`.
 
 ### P2.3 Higher-radix / larger-size kernel backlog (condensed)
 
@@ -452,12 +458,23 @@ benchmark vs the current path with `benchstat`.
 
 - [x] **SIMD + fallback in CI** (see P0.1/P2.1) — every arch matrix leg builds,
       vets, and tests both the default (SIMD) build and `-tags purego`.
-- [ ] **Lint the SIMD files**: folding SIMD into the default build (P2.1) made
-      golangci-lint analyze the formerly `asm`-gated Go files for the first
-      time, surfacing ~900 pre-existing findings there (mostly `unused`
-      dispatch wrappers, `varnamelen`, `dupl` in table files) on top of the
-      already-failing lint gate. Triage: delete genuinely dead wrappers,
-      annotate the rest, and get `test-lint` green.
+- [x] **Lint gate green** (2026-07): `golangci-lint run` now exits 0 (was
+      ~2,800 findings once the P2.1 fold made the SIMD files visible). Three
+      prongs: (1) ~110 genuinely dead symbols deleted after per-arch/per-`.s`
+      reference triage — unused complex128 SSE2/AVX2 dispatch wrappers in
+      `internal/fft/asm_amd64.go`, ~50 dead kernel aliases in
+      `internal/fft/kernels.go`, `bitrev_identity.go`, `wrapAsmDIT64/128`,
+      stale test helpers (the 9 asm-referenced bitrev tables kept with
+      `//nolint:unused`); (2) mechanical fixes — 70 `x = x + y` → `x += y`,
+      ~130 auto-fixes (intrange/godot/perfsprint/…), ~110 wrapper closures
+      collapsed to direct function references, long lines wrapped, missing
+      `b.Helper()`s, `dit_64_radix2.go` and `asm_amd64_avx2_test.go` split to
+      respect the 1500-line cap; (3) documented config decisions in
+      `.golangci.toml` — disabled linters that fight the codebase's nature
+      (varnamelen/wsl_v5/exhaustruct/dupl/paralleltest/gochecknoglobals/…,
+      each with a rationale comment), path-scoped exclusions for the
+      hand-unrolled kernels, tests, cmd tools, and generic bridge files, and
+      cyclop/funlen limits raised to 20/100-80.
 - [ ] **Coverage gate**: add `codecov.yml` with a threshold and **reconcile the
       target** — `AGENTS.md` says >90 %, `CONTRIBUTING.md` says >80 %. Pick one.
       Raise the weakest non-asm packages toward it: `internal/fft` (61.9 %),

@@ -125,7 +125,7 @@ func BenchmarkButterfly3ForwardAVX2(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		amd64.Butterfly3ForwardAVX2Complex64(y0, y1, y2, a0, a1, a2)
 	}
 }
@@ -148,7 +148,7 @@ func BenchmarkButterfly3ForwardScalar(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := range 4 {
 			y0[j], y1[j], y2[j] = butterfly3ForwardComplex64(a0[j], a1[j], a2[j])
 		}

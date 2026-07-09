@@ -365,21 +365,3 @@ func scaleComplexSlice[T Complex](dst []T, scale float64) {
 		panic("unsupported complex type")
 	}
 }
-
-func makeComplex[T Complex](angle float64) T {
-	var zero T
-	switch any(zero).(type) {
-	case complex64:
-		c := complex(float32(cos64(angle)), float32(sin64(angle)))
-		res, _ := any(c).(T)
-
-		return res
-	case complex128:
-		c := complex(cos64(angle), sin64(angle))
-		res, _ := any(c).(T)
-
-		return res
-	default:
-		panic("unsupported complex type")
-	}
-}
