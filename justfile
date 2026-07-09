@@ -50,9 +50,15 @@ build-arm64:
 build-wasm:
     GOOS=js GOARCH=wasm go build -v ./...
 
-# Run WebAssembly tests in Node.js
+# Run tests with the asm build tag
 test-asm:
     go test -tags "asm" -v -count=1 ./...
+
+# Vet the asm build (asmdecl frame checks) on amd64, arm64, and 386
+vet-asm:
+    GOARCH=amd64 go vet -tags "asm" ./...
+    GOARCH=arm64 go vet -tags "asm" ./...
+    GOARCH=386 go vet -tags "asm" ./...
 
 # Run WebAssembly tests in Node.js
 test-wasm:

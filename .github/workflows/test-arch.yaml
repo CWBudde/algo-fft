@@ -76,6 +76,15 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: go build -tags asm -v ./...
 
+      # asmdecl (via go vet) checks every FP reference and frame size in the
+      # .s files against the Go declarations — this is what catches decl↔asm
+      # drift, so it must stay green on every architecture.
+      - name: Vet with asm tag
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go vet -tags asm ./...
+
       - name: Run tests with asm tag
         env:
           GOOS: ${{ matrix.goos }}
