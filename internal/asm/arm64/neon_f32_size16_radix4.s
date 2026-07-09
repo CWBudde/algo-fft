@@ -304,8 +304,8 @@ neon16r4_copy_loop:
 	CMP  $16, R0
 	BGE  neon16r4_return_true
 	LSL  $3, R0, R1
-	ADD  R8, R1, R1
-	MOVD (R1), R2
+	ADD  R8, R1, R2
+	MOVD (R2), R2
 	ADD  R20, R1, R3
 	MOVD R2, (R3)
 	ADD  $1, R0, R0
@@ -575,8 +575,8 @@ neon16r4_inv_copy_loop:
 	CMP  $16, R0
 	BGE  neon16r4_inv_scale
 	LSL  $3, R0, R1
-	ADD  R8, R1, R1
-	MOVD (R1), R2
+	ADD  R8, R1, R2
+	MOVD (R2), R2
 	ADD  R20, R1, R3
 	MOVD R2, (R3)
 	ADD  $1, R0, R0

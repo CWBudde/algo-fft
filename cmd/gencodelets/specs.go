@@ -1101,13 +1101,6 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit64_radix2_neon", Priority: 22,
 	},
 	{
-		Target: "neon", Prec: 64, Size: 64,
-		Forward:   "arm64.ForwardNEONSize64Radix4Complex64Asm",
-		Inverse:   "arm64.InverseNEONSize64Radix4Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
-		Signature: "dit64_radix4_neon", Priority: 28,
-	},
-	{
 		Target: "neon", Prec: 64, Size: 128,
 		Forward:   "arm64.ForwardNEONSize128Radix2Complex64Asm",
 		Inverse:   "arm64.InverseNEONSize128Radix2Complex64Asm",

@@ -308,8 +308,8 @@ neon32m24_copy_loop:
 	CMP  $32, R0
 	BGE  neon32m24_return_true
 	LSL  $3, R0, R1
-	ADD  R8, R1, R1
-	MOVD (R1), R2
+	ADD  R8, R1, R2
+	MOVD (R2), R2
 	ADD  R20, R1, R3
 	MOVD R2, (R3)
 	ADD  $1, R0, R0
@@ -631,8 +631,8 @@ neon32m24_inv_copy_loop:
 	CMP  $32, R0
 	BGE  neon32m24_inv_scale_apply
 	LSL  $3, R0, R1
-	ADD  R8, R1, R1
-	MOVD (R1), R2
+	ADD  R8, R1, R2
+	MOVD (R2), R2
 	ADD  R20, R1, R3
 	MOVD R2, (R3)
 	ADD  $1, R0, R0

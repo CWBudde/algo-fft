@@ -20,7 +20,7 @@
 //   R9:  src pointer
 //   R10: twiddle pointer
 //   R11: scratch pointer / reused for stride_bytes
-//   R12: bitrev pointer / reused for stride_bytes
+//   R12: log2(n) (bit count for on-the-fly bit-reversal)
 //   R13: n (transform length)
 //   R14: size (outer loop: 2, 4, 8, ... n)
 //   R15: half = size/2
@@ -38,15 +38,17 @@
 // forwardNEONComplex64Asm - Forward FFT for complex64 using NEON
 // ===========================================================================
 //
-// func forwardNEONComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+// func forwardNEONComplex64Asm(dst, src, twiddle, scratch []complex64) bool
+//
+// Bit-reversed indices are computed on-the-fly (see PHASE 3); no bitrev
+// argument is required.
 //
 // Go calling convention on ARM64:
 //   dst_base+0(FP), dst_len+8(FP), dst_cap+16(FP)
 //   src_base+24(FP), src_len+32(FP), src_cap+40(FP)
 //   twiddle_base+48(FP), twiddle_len+56(FP), twiddle_cap+64(FP)
 //   scratch_base+72(FP), scratch_len+80(FP), scratch_cap+88(FP)
-//   bitrev_base+96(FP), bitrev_len+104(FP), bitrev_cap+112(FP)
-//   return: bool (R0)
+//   return: bool (ret+96(FP))
 //
 TEXT ·ForwardNEONComplex64Asm(SB), NOSPLIT, $0-97
 	// -----------------------------------------------------------------------
@@ -60,8 +62,6 @@ TEXT ·ForwardNEONComplex64Asm(SB), NOSPLIT, $0-97
 	MOVD twiddle+48(FP), R10
 	// R11 = scratch pointer
 	MOVD scratch+72(FP), R11
-	// R12 = scratch pointer (reused for internal bitrev indexing if needed)
-	MOVD R11, R12
 	// R13 = n = len(src)
 	MOVD src+32(FP), R13
 
@@ -110,37 +110,39 @@ use_dst_as_work:
 
 do_bit_reversal:
 	// -----------------------------------------------------------------------
-	// PHASE 3: Bit-reversal permutation
+	// PHASE 3: Bit-reversal permutation (computed on-the-fly)
 	// -----------------------------------------------------------------------
-	// Reorder input using precomputed bit-reversed indices:
-	//   work[i] = src[bitrev[i]]  for i = 0..n-1
-	//
-	// Algorithm:
+	// Reorder input by reversing the low log2(n) bits of each index:
 	//   for i := 0; i < n; i++ {
-	//     j := bitrev[i]
-	//     work[i] = src[j]
+	//     rev := bitreverse(i, log2(n))
+	//     work[i] = src[rev]
 	//   }
+	// The reversed index is RBIT(i) >> (64 - log2(n)); since n is a power of
+	// two, 64 - log2(n) == clz(n) + 1. Computing it with RBIT + a single shift
+	// is O(1) per index instead of an inner per-bit loop.
+	// R12 = shift = 64 - log2(n) = clz(n) + 1
+	CLZ  R13, R12                // R12 = leading zeros of n
+	ADD  $1, R12, R12            // R12 = clz(n) + 1
+
 	MOVD $0, R17                 // R17 = i = 0
 
 bitrev_loop:
 	CMP  R13, R17                // Compare i with n
 	BGE  bitrev_done             // if i >= n, done
 
-	// Load j = bitrev[i]
-	// bitrev is []int, each int is 8 bytes on arm64
-	LSL  $3, R17, R0             // R0 = i * 8 (byte offset for int array)
-	ADD  R12, R0, R0             // R0 = &bitrev[i]
-	MOVD (R0), R1                // R1 = j = bitrev[i]
+	// rev = reverse64(i) >> (64 - log2(n))
+	RBIT R17, R1                 // R1 = bit-reversed 64-bit value of i
+	LSR  R12, R1, R1             // R1 = rev (low log2(n) bits of i, reversed)
 
-	// Load src[j] (complex64 = 8 bytes)
-	LSL  $3, R1, R0              // R0 = j * 8 (byte offset for complex64 array)
-	ADD  R9, R0, R0              // R0 = &src[j]
-	MOVD (R0), R2                // R2 = src[j] (8 bytes = 1 complex64)
+	// Load src[rev] (complex64 = 8 bytes)
+	LSL  $3, R1, R0              // R0 = rev * 8 (byte offset for complex64 array)
+	ADD  R9, R0, R0              // R0 = &src[rev]
+	MOVD (R0), R2                // R2 = src[rev] (8 bytes = 1 complex64)
 
 	// Store to work[i]
 	LSL  $3, R17, R0             // R0 = i * 8
 	ADD  R8, R0, R0              // R0 = &work[i]
-	MOVD R2, (R0)                // work[i] = src[j]
+	MOVD R2, (R0)                // work[i] = src[rev]
 
 	ADD  $1, R17, R17            // i++
 	B    bitrev_loop
@@ -443,8 +445,6 @@ TEXT ·InverseNEONComplex64Asm(SB), NOSPLIT, $0-97
 	MOVD twiddle+48(FP), R10
 	// R11 = scratch pointer
 	MOVD scratch+72(FP), R11
-	// R12 = scratch pointer
-	MOVD R11, R12
 	// R13 = n = len(src)
 	MOVD src+32(FP), R13
 
@@ -493,28 +493,33 @@ inv_use_dst_as_work:
 
 inv_do_bit_reversal:
 	// -----------------------------------------------------------------------
-	// PHASE 3: Bit-reversal permutation
+	// PHASE 3: Bit-reversal permutation (computed on-the-fly)
 	// -----------------------------------------------------------------------
+	// The reversed index is RBIT(i) >> (64 - log2(n)); since n is a power of
+	// two, 64 - log2(n) == clz(n) + 1 (see the forward path for details).
+	// R12 = shift = 64 - log2(n) = clz(n) + 1
+	CLZ  R13, R12                // R12 = leading zeros of n
+	ADD  $1, R12, R12            // R12 = clz(n) + 1
+
 	MOVD $0, R17                 // R17 = i = 0
 
 inv_bitrev_loop:
 	CMP  R13, R17                // Compare i with n
 	BGE  inv_bitrev_done         // if i >= n, done
 
-	// Load j = bitrev[i]
-	LSL  $3, R17, R0             // R0 = i * 8 (byte offset for int array)
-	ADD  R12, R0, R0             // R0 = &bitrev[i]
-	MOVD (R0), R1                // R1 = j = bitrev[i]
+	// rev = reverse64(i) >> (64 - log2(n))
+	RBIT R17, R1                 // R1 = bit-reversed 64-bit value of i
+	LSR  R12, R1, R1             // R1 = rev (low log2(n) bits of i, reversed)
 
-	// Load src[j] (complex64 = 8 bytes)
-	LSL  $3, R1, R0              // R0 = j * 8 (byte offset for complex64 array)
-	ADD  R9, R0, R0              // R0 = &src[j]
-	MOVD (R0), R2                // R2 = src[j]
+	// Load src[rev] (complex64 = 8 bytes)
+	LSL  $3, R1, R0              // R0 = rev * 8 (byte offset for complex64 array)
+	ADD  R9, R0, R0              // R0 = &src[rev]
+	MOVD (R0), R2                // R2 = src[rev]
 
 	// Store to work[i]
 	LSL  $3, R17, R0             // R0 = i * 8
 	ADD  R8, R0, R0              // R0 = &work[i]
-	MOVD R2, (R0)                // work[i] = src[j]
+	MOVD R2, (R0)                // work[i] = src[rev]
 
 	ADD  $1, R17, R17            // i++
 	B    inv_bitrev_loop

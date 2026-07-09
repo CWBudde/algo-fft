@@ -443,8 +443,8 @@ neon128m24_copy_loop:
 	CMP  $128, R0
 	BGE  neon128m24_return_true
 	LSL  $3, R0, R1
-	ADD  R8, R1, R1
-	MOVD (R1), R2
+	ADD  R8, R1, R2
+	MOVD (R2), R2
 	ADD  R20, R1, R3
 	MOVD R2, (R3)
 	ADD  $1, R0, R0
@@ -548,24 +548,25 @@ neon128m24_inv_stage1_loop:
 	FSUBS F12, F8, F18
 	FSUBS F13, F9, F19
 
+	// Inverse radix-4 butterfly (conjugated ±i): X1 = s1 + i*s3, X3 = s1 - i*s3.
 	FNEGS F15, F20
 	FMOVS F14, F21
-	FADDS F20, F10, F22
+	FADDS F20, F10, F22          // (F22,F23) = s1 + i*s3 = X1
 	FADDS F21, F11, F23
 
 	FMOVS F15, F24
 	FNEGS F14, F25
-	FADDS F24, F10, F26
+	FADDS F24, F10, F26          // (F26,F27) = s1 - i*s3 = X3
 	FADDS F25, F11, F27
 
 	FMOVS F16, 0(R1)
 	FMOVS F17, 4(R1)
-	FMOVS F26, 8(R1)
-	FMOVS F27, 12(R1)
+	FMOVS F22, 8(R1)             // X1
+	FMOVS F23, 12(R1)
 	FMOVS F18, 16(R1)
 	FMOVS F19, 20(R1)
-	FMOVS F22, 24(R1)
-	FMOVS F23, 28(R1)
+	FMOVS F26, 24(R1)            // X3
+	FMOVS F27, 28(R1)
 
 	ADD  $4, R14, R14
 	B    neon128m24_inv_stage1_loop
@@ -904,8 +905,8 @@ neon128m24_inv_copy_loop:
 	CMP  $128, R0
 	BGE  neon128m24_inv_scale_apply
 	LSL  $3, R0, R1
-	ADD  R8, R1, R1
-	MOVD (R1), R2
+	ADD  R8, R1, R2
+	MOVD (R2), R2
 	ADD  R20, R1, R3
 	MOVD R2, (R3)
 	ADD  $1, R0, R0
