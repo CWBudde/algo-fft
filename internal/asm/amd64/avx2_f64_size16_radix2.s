@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // AVX2 Size-16 Radix-2 FFT (complex128) Kernels for AMD64

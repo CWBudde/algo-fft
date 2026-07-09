@@ -1,4 +1,4 @@
-//go:build 386 && asm && !purego
+//go:build 386 && !purego
 
 // ===========================================================================
 // SSE2 Size-8 Radix-2 FFT Kernels for x86/386 (complex64)

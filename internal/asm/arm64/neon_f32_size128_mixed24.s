@@ -1,4 +1,4 @@
-//go:build arm64 && asm && !purego
+//go:build arm64 && !purego
 
 // ===========================================================================
 // NEON Size-128 Mixed-Radix (Radix-4 + Radix-2) FFT Kernels for ARM64

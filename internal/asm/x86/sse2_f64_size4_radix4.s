@@ -1,4 +1,4 @@
-//go:build 386 && asm && !purego
+//go:build 386 && !purego
 
 // ===========================================================================
 // SSE2 Size-4 FFT Kernels for 386 (complex128)

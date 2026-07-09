@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Batch and strided transform APIs
 - Convolution and correlation helpers (complex and real, both precisions)
 - complex64 and complex128 precision throughout
-- SIMD kernels (AVX2/SSE2/SSE3 on amd64, NEON on arm64), currently behind
-  the `asm` build tag; default builds use pure Go
+- SIMD kernels (AVX2/SSE2/SSE3 on amd64, NEON on arm64) in the default
+  build, selected at runtime via CPU detection (`purego` build tag opts out)
 - Wisdom: persist and reuse plan-tuning decisions
 - WebAssembly (js/wasm) target support
 - Concurrency-safe plans: a single plan instance may run transforms from
@@ -32,8 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- SIMD enabled on default builds via runtime CPU detection (removing the
-  `asm` build-tag gate)
 - AVX-512 kernels
 - Broader SSE2/NEON size coverage
 

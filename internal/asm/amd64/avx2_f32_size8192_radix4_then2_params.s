@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // AVX2 Size-8192 Radix-4-then-2 FFT Kernels with Pre-Prepared Twiddle Data

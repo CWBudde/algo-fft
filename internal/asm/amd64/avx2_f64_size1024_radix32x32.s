@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // Size-1024 Radix-32×32 FFT Kernel (complex128)

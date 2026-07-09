@@ -322,20 +322,28 @@ into the P2 backlog below.
 
 **Precondition: P0.1 done (asm builds and is CI-tested).**
 
-### P2.1 Make SIMD reachable on the default build
+### P2.1 Make SIMD reachable on the default build ✅ **completed 2026-07.**
 
-- [ ] Decide the delivery model: either fold the asm kernels into the default
-      build behind runtime CPU detection (preferred — remove the `asm` tag as a
-      _build_ gate and select at runtime), or keep `-tags asm` but document it as
-      required for SIMD and publish guidance/benchmarks for both.
-- [ ] Ensure `ForceGeneric`/fallback correctness parity is what CI benchmarks,
-      not just the fast path.
+- [x] Delivery model decided and implemented: the asm kernels are folded into
+      the default build behind runtime CPU detection (the plan's preferred
+      option). The `asm` tag was removed from all 225 build constraints —
+      SIMD files now gate on `<arch> && !purego`, fallbacks on the negation —
+      so a plain `go get` consumer gets SIMD, selected at runtime via
+      `cpu.DetectFeatures()`. `-tags purego` is the supported pure-Go opt-out
+      (tag was already respected; now it is the _only_ gate). The
+      `stockham_packed_toggle` pair now keys on `(amd64 || arm64 || 386) &&
+    !purego` (formerly the `asm` tag); `-tags asm` remains accepted as a
+      harmless no-op for existing scripts. Docs updated (README, goal.md,
+      AGENTS.md, CHANGELOG) — the SIMD claim is now true on the default build.
+- [x] Fallback correctness parity is CI-gated: every `test-arch` matrix leg
+      (amd64, 386, arm64/QEMU, darwin/arm64, windows/amd64) and a dedicated
+      `test-unit` job build and test `-tags purego` alongside the default
+      SIMD build; `just test-purego` runs it locally.
 
 ### P2.1a Clean up asmdecl findings ✅ **completed 2026-07.**
 
 - [x] `go vet -tags asm ./...` reported ~1,000 `asmdecl` findings across
-      `internal/asm/**.s`; all fixed and vet is now clean on amd64, arm64, and
-      386. Three classes: (1) 984 slice FP references using the base-pointer
+      `internal/asm/**.s`; all fixed and vet is now clean on amd64, arm64, and 386. Three classes: (1) 984 slice FP references using the base-pointer
       name at the length-field offset (`src+32(FP)` → `src_len+32(FP)`;
       offsets were numerically correct, only names renamed — codegen is
       unchanged since the assembler resolves by offset); (2) 25 wrong TEXT
@@ -442,7 +450,14 @@ benchmark vs the current path with `benchstat`.
 
 ## Testing & CI Hardening (cross-cutting)
 
-- [ ] **asm in CI** (see P0.1) — build + test both tags on amd64 and arm64/QEMU.
+- [x] **SIMD + fallback in CI** (see P0.1/P2.1) — every arch matrix leg builds,
+      vets, and tests both the default (SIMD) build and `-tags purego`.
+- [ ] **Lint the SIMD files**: folding SIMD into the default build (P2.1) made
+      golangci-lint analyze the formerly `asm`-gated Go files for the first
+      time, surfacing ~900 pre-existing findings there (mostly `unused`
+      dispatch wrappers, `varnamelen`, `dupl` in table files) on top of the
+      already-failing lint gate. Triage: delete genuinely dead wrappers,
+      annotate the rest, and get `test-lint` green.
 - [ ] **Coverage gate**: add `codecov.yml` with a threshold and **reconcile the
       target** — `AGENTS.md` says >90 %, `CONTRIBUTING.md` says >80 %. Pick one.
       Raise the weakest non-asm packages toward it: `internal/fft` (61.9 %),
@@ -465,10 +480,10 @@ benchmark vs the current path with `benchstat`.
 
 v1.0 ships only when **all** of the following hold:
 
-- [ ] `go build ./...` and `go build -tags asm ./...` both compile on amd64 and
-      arm64; both are gated in CI.
-- [ ] `go test -race ./...` and `go test -tags asm ./...` pass; 5× repeat run is
-      flake-free.
+- [ ] `go build ./...` and `go build -tags purego ./...` both compile on amd64
+      and arm64; both are gated in CI.
+- [ ] `go test -race ./...` and `go test -tags purego ./...` pass; 5× repeat run
+      is flake-free.
 - [ ] No dead build tags, no committed binaries, no false doc guarantees.
 - [ ] Every public option and constructor is either implemented or removed —
       no "not yet implemented" in the exported surface.

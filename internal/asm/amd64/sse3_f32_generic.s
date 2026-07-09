@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // SSE3-optimized FFT Assembly for AMD64 (complex64/float32)

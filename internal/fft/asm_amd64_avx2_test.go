@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // Package fft provides comprehensive AVX2-optimized FFT tests.
 // This file tests:

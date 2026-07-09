@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // AVX2 64×64 Matrix Transpose for Complex64 (Six-Step FFT Support)

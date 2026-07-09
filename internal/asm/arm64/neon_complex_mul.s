@@ -1,4 +1,4 @@
-//go:build arm64 && asm && !purego
+//go:build arm64 && !purego
 
 // =========================================================================== 
 // NEON complex multiply helpers for ARM64

@@ -1,4 +1,4 @@
-//go:build arm64 && asm && !purego
+//go:build arm64 && !purego
 
 // ===========================================================================
 // NEON Complex Scale Helpers for ARM64

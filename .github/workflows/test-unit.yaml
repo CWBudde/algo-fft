@@ -31,8 +31,10 @@ jobs:
           files: ./coverage.txt
           flags: unittests
 
-  test-asm:
-    name: Test SIMD kernels (-tags asm)
+  # The default build (and the coverage job above) includes the SIMD kernels;
+  # this job covers the pure-Go fallback so both configurations stay green.
+  test-purego:
+    name: Test pure-Go fallback (-tags purego)
     runs-on: ubuntu-latest
 
     steps:
@@ -43,11 +45,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # Note: `go vet -tags asm` is not run here — the .s files carry many
-      # pre-existing asmdecl naming findings (functionally correct offsets
-      # under mismatched parameter names). Tracked in PLAN.md P2.
-      - name: Build with asm tag
-        run: go build -tags asm -v ./...
+      - name: Build (purego)
+        run: go build -tags purego -v ./...
 
-      - name: Run tests with asm tag
-        run: go test -tags asm -v -race -count=1 ./...
+      - name: Run tests (purego)
+        run: go test -tags purego -v -race -count=1 ./...

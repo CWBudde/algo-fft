@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // SSE2 Size-16 Radix-2 FFT Kernels for AMD64 (complex64)

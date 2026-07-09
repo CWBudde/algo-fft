@@ -68,7 +68,7 @@ Use the `just` recipes defined in `justfile`:
 
 ### Cross-Architecture & WASM
 
-- `just build-amd64` / `just build-arm64` / `just build-all` — cross-compile (amd64 uses `-tags "asm"`).
+- `just build-amd64` / `just build-arm64` / `just build-all` — cross-compile (SIMD is part of the default build).
 - `just test-arm64` / `just bench-arm64` — run ARM64 tests/benchmarks via QEMU (requires `qemu-user-static`; benchmarks are correctness-only, not representative of performance).
 - `just test-all` / `just check-all` — run tests/checks on amd64 and arm64.
 - `just build-wasm` / `just test-wasm` / `just test-wasm-pkg <pkg>` — build and test the `js/wasm` target (tests run in Node.js).
@@ -76,7 +76,8 @@ Use the `just` recipes defined in `justfile`:
 
 ### SIMD, Stress, and Profiling
 
-- `just test-asm` — run tests with the `asm` build tag.
+- `just test-purego` — run tests with the pure-Go fallback (`-tags purego`).
+- `just vet-arch` — run `go vet` (asmdecl frame checks) on amd64, arm64, and 386.
 - `just test-simd-verify` / `just test-arch` — verify SIMD implementations against Go fallbacks.
 - `just test-stress` — long-running stress tests (30m timeout).
 - `just profile-cpu` / `just profile-mem` — collect and view pprof profiles.
@@ -246,7 +247,7 @@ Generic implementations are instantiated for both precisions, with type-specific
 - Assembly lives in `internal/asm/{amd64,arm64,x86}/` (`.s` files) with Go declaration/stub bridges alongside
 - Use build tags for architecture-specific files: `//go:build amd64` etc.
 - Always provide a pure-Go fallback (see `kernels_generic.go` / `kernels_fallback.go` in `internal/fft`)
-- Test that assembly and Go implementations produce identical results (`just test-simd-verify`, `just test-asm`)
+- Test that assembly and Go implementations produce identical results (`just test-simd-verify`, `just test-purego`)
 - Use `go:noescape` pragma for performance-critical functions
 - Remember Plan9/Go asm uses src, dst operand order (opposite of Intel’s dst, src)
 - Subtractions like VSUBPS b, a, dst → dst = a - b

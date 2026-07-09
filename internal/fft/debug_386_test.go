@@ -1,4 +1,4 @@
-//go:build 386 && asm && !purego && debug
+//go:build 386 && !purego && debug
 
 package fft
 

@@ -49,9 +49,11 @@ Record CPU model, Go version, and the logged plan details alongside the numbers.
 | BenchmarkPlanForward_8192_Complex128_Focus-12 | 116405 | 1126.00 |    0 |         0 |
 | BenchmarkPlanInverse_8192_Complex128_Focus-12 | 127627 | 1027.00 |    0 |         0 |
 
-## Phase 12 Focus (complex128 128/512/8192, -tags asm)
+## Phase 12 Focus (complex128 128/512/8192, SIMD)
 
-Use the same focus benchmarks with `-tags asm` to capture asm-enabled kernel selection and profiles.
+The focus benchmarks capture SIMD kernel selection and profiles (SIMD is part
+of the default build; the `-tags asm` flag below is now a no-op kept for
+reproducibility of the original runs).
 
 ```bash
 go test -v -run '^$' -bench 'BenchmarkPlanForward_(128|512|8192)_Complex128_Focus$' -benchmem -tags asm ./
@@ -155,7 +157,7 @@ Record the plan details logged by the benchmarks for kernel/strategy/twiddle sel
 
 ## AVX2 Performance (Phase 14.2)
 
-Build with `-tags asm` to enable AVX2 optimizations on amd64.
+AVX2 optimizations are part of the default build on amd64 (use `-tags purego` to disable).
 These results compare the baseline Pure Go implementation with the AVX2 optimized version.
 
 **Date**: 2026-01-04
