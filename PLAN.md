@@ -332,7 +332,7 @@ into the P2 backlog below.
       `cpu.DetectFeatures()`. `-tags purego` is the supported pure-Go opt-out
       (tag was already respected; now it is the _only_ gate). The
       `stockham_packed_toggle` pair now keys on `(amd64 || arm64 || 386) &&
-  !purego` (formerly the `asm` tag); `-tags asm` remains accepted as a
+!purego` (formerly the `asm` tag); `-tags asm` remains accepted as a
       harmless no-op for existing scripts. Docs updated (README, goal.md,
       AGENTS.md, CHANGELOG) — the SIMD claim is now true on the default build.
 - [x] Fallback correctness parity is CI-gated: every `test-arch` matrix leg
@@ -432,25 +432,43 @@ benchmark vs the current path with `benchstat`.
 
 ## Priority 3 — API Completeness & Polish
 
-- [ ] Remove or implement the shipped-but-inert public options: `Radices` and
-      `WorkspacePolicy`/`Workspace` (all three enum values are "not yet
-      implemented"). Don't ship dead knobs in a v1.0 API.
-- [ ] Fix the pooled-pool API: `NewPlanFromPool`/`NewPlanFromPoolWithOptions`
-      take an `internal/fft.BufferPool` no external caller can name — re-export a
-      public pool type + default, or remove these from the public surface. Align
-      their length/planner contract with `newPlanWithFeatures` (currently they
-      reject Bluestein sizes with a misleading `ErrNotImplemented`).
-- [ ] Introspection parity: give `Plan2D/3D/ND`, `PlanReal*`, and `FastPlan` the
-      `Meta()`/`KernelStrategy()`/`Algorithm()` accessors that only 1D `Plan` has;
-      give `FastPlan` a `Close()`.
-- [ ] Resolve the `InPlace` naming outlier (1D `InPlace` = forward-only vs
-      `ForwardInPlace`/`InverseInPlace` elsewhere).
-- [ ] Add plan-reuse variants for `Convolve`/`Correlate` so DSP-in-a-loop doesn't
-      re-plan and re-allocate every call.
-- [ ] Error-handling consistency: uniform wrapping (`plan_nd.go` adds
-      dimension-indexed context via `%w`; 2D/3D return bare sentinels).
-- [ ] `go doc -all` audit: verify every exported symbol has GoDoc; consider
-      enabling a doc-comment linter (AGENTS requires it but nothing enforces it).
+✅ **completed 2026-07.**
+
+- [x] Removed the shipped-but-inert public options: `Radices` (never read) and
+      `WorkspacePolicy`/`Workspace` (all three enum values were "not yet
+      implemented") are gone from `PlanOptions`, along with their normalization
+      code and tests. No dead knobs in the v1.0 API.
+- [x] Fixed the pooled-pool API: `NewPlanFromPool`/`NewPlanFromPoolWithOptions`
+      (which took an `internal/fft.BufferPool` no external caller can name) are
+      unexported; `NewPlanPooled`/`NewPlanPooledWithOptions` remain the public
+      surface. Their contract now matches `newPlanWithFeatures`: `opts.Planner`
+      is honored (via `selectPlanEstimate`), and Bluestein/recursive sizes are
+      served by the regular allocator instead of being rejected with a
+      misleading `ErrNotImplemented`/`ErrInvalidLength`.
+- [x] Introspection parity (`plan_introspect.go`): `Plan2D/3D/ND` and
+      `PlanReal2D/3D` expose `Meta()` plus per-axis `KernelStrategies()`/
+      `Algorithms()` (one entry per dimension — a single resolved strategy is
+      ill-defined for composite plans); `PlanRealT` and `FastPlanReal32/64`
+      delegate singular `Meta()`/`KernelStrategy()`/`Algorithm()` to their
+      underlying complex plan; `FastPlan` gained all three plus `Close()`
+      (`FastPlanReal32/64` too).
+- [x] Resolved the `InPlace` naming outlier: 1D `Plan` and `FastPlan` now have
+      `ForwardInPlace` matching the multi-dim plans; the forward-only `InPlace`
+      remains as a deprecated alias and internal callers were migrated.
+- [x] Added plan-reuse DSP types (`convolver.go`): `Convolver[T]`,
+      `Correlator[T]`, and `RealConvolver[F,C]` hold one plan plus pooled
+      scratch (residentCache pattern — concurrency-safe, zero allocations in
+      steady state, locked in by `AllocsPerRun` tests) so DSP-in-a-loop doesn't
+      re-plan/re-allocate; the one-shot helpers' docs point to them.
+- [x] Error-handling consistency: 2D/3D and real-2D/3D constructors now wrap
+      `ErrInvalidLength` and child-plan failures with dimension context via
+      `%w`, matching `plan_nd.go`; transform-time validation keeps bare
+      sentinels everywhere (fast path, matches 1D).
+- [x] GoDoc audit: AST sweep of the root package found 8 undocumented exported
+      consts (`Kernel*` strategy values, `Precision*`), now documented. Enabled
+      revive's `exported` doc-comment rule scoped to the public package
+      (`internal/`+`cmd/` excluded via `^exported:` text match in
+      `.golangci.toml`), so the AGENTS.md requirement is enforced in CI.
 
 ---
 
