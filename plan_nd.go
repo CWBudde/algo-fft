@@ -346,7 +346,7 @@ func (p *PlanND[T]) transformDimension(s *planNDScratch[T], dim int, forward boo
 		// Transform slice
 		var err error
 		if forward {
-			err = plan.InPlace(sliceData)
+			err = plan.ForwardInPlace(sliceData)
 		} else {
 			err = plan.InverseInPlace(sliceData)
 		}

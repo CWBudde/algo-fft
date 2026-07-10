@@ -65,8 +65,16 @@ func NewPlan3D[T Complex](depth, height, width int) (*Plan3D[T], error) {
 
 // NewPlan3DWithOptions creates a new 3D FFT plan with explicit planner options.
 func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions) (*Plan3D[T], error) {
-	if depth <= 0 || height <= 0 || width <= 0 {
-		return nil, ErrInvalidLength
+	if depth <= 0 {
+		return nil, fmt.Errorf("depth has invalid size %d: %w", depth, ErrInvalidLength)
+	}
+
+	if height <= 0 {
+		return nil, fmt.Errorf("height has invalid size %d: %w", height, ErrInvalidLength)
+	}
+
+	if width <= 0 {
+		return nil, fmt.Errorf("width has invalid size %d: %w", width, ErrInvalidLength)
 	}
 
 	opts = normalizePlanOptions(opts)
@@ -80,17 +88,17 @@ func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions)
 	// Create 1D plans for each dimension
 	widthPlan, err := newPlanWithFeatures[T](width, features, childOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create width-transform plan (size %d): %w", width, err)
 	}
 
 	heightPlan, err := newPlanWithFeatures[T](height, features, childOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create height-transform plan (size %d): %w", height, err)
 	}
 
 	depthPlan, err := newPlanWithFeatures[T](depth, features, childOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create depth-transform plan (size %d): %w", depth, err)
 	}
 
 	return &Plan3D[T]{
@@ -282,7 +290,7 @@ func (p *Plan3D[T]) transformWidth(data []T, forward bool) {
 
 			rowData := data[offset : offset+p.width]
 			if forward {
-				_ = p.widthPlan.InPlace(rowData)
+				_ = p.widthPlan.ForwardInPlace(rowData)
 			} else {
 				_ = p.widthPlan.InverseInPlace(rowData)
 			}
@@ -304,7 +312,7 @@ func (p *Plan3D[T]) transformHeight(data, dimScratch []T, forward bool) {
 
 			// Transform column
 			if forward {
-				_ = p.heightPlan.InPlace(colData)
+				_ = p.heightPlan.ForwardInPlace(colData)
 			} else {
 				_ = p.heightPlan.InverseInPlace(colData)
 			}
@@ -331,7 +339,7 @@ func (p *Plan3D[T]) transformDepth(data, dimScratch []T, forward bool) {
 
 			// Transform depth slice
 			if forward {
-				_ = p.depthPlan.InPlace(depthData)
+				_ = p.depthPlan.ForwardInPlace(depthData)
 			} else {
 				_ = p.depthPlan.InverseInPlace(depthData)
 			}

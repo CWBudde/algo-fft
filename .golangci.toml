@@ -70,6 +70,13 @@ name = "file-length-limit"
 max = 1500
 skip-comments = false
 skip-blank-lines = false
+
+# AGENTS.md requires GoDoc on all exported symbols; enforce it on the public
+# API surface (scoped to the root package by the '^exported:' exclusion for
+# internal/ and cmd/ below).
+[[linters.settings.revive.rules]]
+name = "exported"
+
 [linters.exclusions]
 generated = 'lax'
 presets = ['comments', 'common-false-positives', 'legacy', 'std-error-handling']
@@ -78,6 +85,13 @@ paths = ['third_party$', 'builtin$', 'examples/']
 [[linters.exclusions.rules]]
 linters = ['mnd']
 path = '.*\.go'
+
+# The exported doc-comment requirement (AGENTS.md) targets the public API in
+# the root package; internal packages and dev tools stay unforced.
+[[linters.exclusions.rules]]
+linters = ['revive']
+path = '^(internal|cmd)/'
+text = '^exported:'
 
 [[linters.exclusions.rules]]
 linters = ['testpackage']

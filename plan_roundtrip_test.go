@@ -86,7 +86,7 @@ func TestInPlaceMatchesOutOfPlace(t *testing.T) {
 
 	inplace := append([]complex64(nil), src...)
 
-	err = plan.InPlace(inplace)
+	err = plan.ForwardInPlace(inplace)
 	if err != nil {
 		t.Fatalf("InPlace() returned error: %v", err)
 	}

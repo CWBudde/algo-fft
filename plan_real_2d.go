@@ -65,12 +65,13 @@ func NewPlanReal2D(rows, cols int) (*PlanReal2D, error) {
 
 // NewPlanReal2DWithOptions creates a new 2D real FFT plan with explicit planner options.
 func NewPlanReal2DWithOptions(rows, cols int, opts PlanOptions) (*PlanReal2D, error) {
-	if rows <= 0 || cols <= 0 {
-		return nil, ErrInvalidLength
+	if rows <= 0 {
+		return nil, fmt.Errorf("rows has invalid size %d: %w", rows, ErrInvalidLength)
 	}
 
 	if cols < 2 || cols%2 != 0 {
-		return nil, ErrInvalidLength // Real FFT requires even N
+		// Real FFT requires even N
+		return nil, fmt.Errorf("cols has invalid size %d (must be even and >= 2): %w", cols, ErrInvalidLength)
 	}
 
 	opts = normalizePlanOptions(opts)
@@ -84,7 +85,7 @@ func NewPlanReal2DWithOptions(rows, cols int, opts PlanOptions) (*PlanReal2D, er
 	// Create 1D real plan for rows
 	rowPlan, err := newPlanRealWithFeatures(cols, features, childOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create row-transform plan (size %d): %w", cols, err)
 	}
 
 	halfCols := cols/2 + 1
@@ -94,7 +95,7 @@ func NewPlanReal2DWithOptions(rows, cols int, opts PlanOptions) (*PlanReal2D, er
 	for i := range colPlans {
 		plan, err := newPlanWithFeatures[complex64](rows, features, childOpts)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create column-transform plan (size %d): %w", rows, err)
 		}
 
 		colPlans[i] = plan
@@ -436,7 +437,7 @@ func (p *PlanReal2D) forwardCompactInto(compact, colData []complex64, src []floa
 		}
 
 		// Transform column
-		err := p.colPlans[col].InPlace(colData)
+		err := p.colPlans[col].ForwardInPlace(colData)
 		if err != nil {
 			return err
 		}

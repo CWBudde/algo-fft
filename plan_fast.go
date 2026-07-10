@@ -31,6 +31,9 @@ type FastPlan[T Complex] struct {
 
 	forwardFunc fft.CodeletFunc[T]
 	inverseFunc fft.CodeletFunc[T]
+
+	algorithm string
+	strategy  KernelStrategy
 }
 
 // NewFastPlan creates an optimized FFT plan with pre-resolved dispatch.
@@ -96,6 +99,8 @@ func NewFastPlan[T Complex](n int) (*FastPlan[T], error) {
 		scratchBacking:        scratchBacking,
 		forwardFunc:           estimate.ForwardCodelet,
 		inverseFunc:           estimate.InverseCodelet,
+		algorithm:             estimate.Algorithm,
+		strategy:              estimate.Strategy,
 	}
 
 	fp.codeletTwiddleForward, fp.codeletTwiddleInverse,
@@ -121,10 +126,18 @@ func (fp *FastPlan[T]) Inverse(dst, src []T) {
 	fp.inverseFunc(dst, src, fp.codeletTwiddleInverse, fp.scratch)
 }
 
-// InPlace performs the forward FFT in-place without validation.
+// ForwardInPlace performs the forward FFT in-place without validation.
 // Caller guarantees: len(data) >= n, slice non-nil.
-func (fp *FastPlan[T]) InPlace(data []T) {
+func (fp *FastPlan[T]) ForwardInPlace(data []T) {
 	fp.forwardFunc(data, data, fp.codeletTwiddleForward, fp.scratch)
+}
+
+// InPlace performs the forward FFT in-place without validation.
+//
+// Deprecated: Use ForwardInPlace, which matches the naming of the
+// multi-dimensional plans' ForwardInPlace/InverseInPlace pair.
+func (fp *FastPlan[T]) InPlace(data []T) {
+	fp.ForwardInPlace(data)
 }
 
 // InverseInPlace performs the inverse FFT in-place without validation.

@@ -237,7 +237,7 @@ func TestInPlace_NilSlice(t *testing.T) {
 		t.Fatalf("NewPlan(8) returned error: %v", err)
 	}
 
-	err = plan.InPlace(nil)
+	err = plan.ForwardInPlace(nil)
 	if !errors.Is(err, ErrNilSlice) {
 		t.Errorf("InPlace(nil) = %v, want ErrNilSlice", err)
 	}
@@ -251,7 +251,7 @@ func TestInPlace_LengthMismatch(t *testing.T) {
 		t.Fatalf("NewPlan(8) returned error: %v", err)
 	}
 
-	err = plan.InPlace(make([]complex64, 4))
+	err = plan.ForwardInPlace(make([]complex64, 4))
 	if !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("InPlace(short) = %v, want ErrLengthMismatch", err)
 	}

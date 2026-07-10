@@ -87,12 +87,12 @@ type Plan[T Complex] struct {
 type KernelStrategy = fft.KernelStrategy
 
 const (
-	KernelAuto      = fft.KernelAuto
-	KernelDIT       = fft.KernelDIT
-	KernelStockham  = fft.KernelStockham
-	KernelSixStep   = fft.KernelSixStep
-	KernelEightStep = fft.KernelEightStep
-	KernelBluestein = fft.KernelBluestein
+	KernelAuto      = fft.KernelAuto      // Let the planner choose by size
+	KernelDIT       = fft.KernelDIT       // Decimation-in-time
+	KernelStockham  = fft.KernelStockham  // Stockham autosort
+	KernelSixStep   = fft.KernelSixStep   // Six-step (cache-friendly, large sizes)
+	KernelEightStep = fft.KernelEightStep // Eight-step (cache-friendly, large sizes)
+	KernelBluestein = fft.KernelBluestein // Bluestein (arbitrary lengths)
 	KernelRecursive = fft.KernelRecursive // Recursive decomposition with codelet leaves
 )
 
@@ -336,14 +336,22 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 	return ErrNotImplemented
 }
 
-// InPlace computes the forward FFT in-place, modifying the input slice directly.
+// ForwardInPlace computes the forward FFT in-place, modifying the input slice directly.
 //
 // This is equivalent to Forward(data, data) but may be slightly more efficient.
 //
 // Returns ErrNilSlice if data is nil.
 // Returns ErrLengthMismatch if slice length doesn't match Plan dimensions.
-func (p *Plan[T]) InPlace(data []T) error {
+func (p *Plan[T]) ForwardInPlace(data []T) error {
 	return p.Forward(data, data)
+}
+
+// InPlace computes the forward FFT in-place.
+//
+// Deprecated: Use ForwardInPlace, which matches the naming of the
+// multi-dimensional plans' ForwardInPlace/InverseInPlace pair.
+func (p *Plan[T]) InPlace(data []T) error {
+	return p.ForwardInPlace(data)
 }
 
 // InverseInPlace computes the inverse FFT in-place, modifying the input slice directly.
@@ -726,33 +734,36 @@ func NewPlan64(n int) (*Plan[complex128], error) {
 //	plan, err := NewPlanPooled[complex64](1024)
 //	defer plan.Close()
 func NewPlanPooled[T Complex](n int) (*Plan[T], error) {
-	return NewPlanFromPool[T](n, fft.DefaultPool)
+	return newPlanFromPoolWithOptions[T](n, fft.DefaultPool, PlanOptions{})
 }
 
 // NewPlanPooledWithOptions creates a new FFT plan using pooled buffers and planner options.
+//
+// It accepts the same lengths and options as NewPlanTWithOptions. Sizes or
+// forced strategies that require Bluestein or recursive decomposition carry
+// extra per-plan tables the shared buffer pool does not manage; those plans
+// are built with the regular allocator instead (Close remains valid, it just
+// has no buffers to return).
 func NewPlanPooledWithOptions[T Complex](n int, opts PlanOptions) (*Plan[T], error) {
-	return NewPlanFromPoolWithOptions[T](n, fft.DefaultPool, opts)
+	return newPlanFromPoolWithOptions[T](n, fft.DefaultPool, opts)
 }
 
-// NewPlanFromPool creates a new FFT plan using buffers from the specified pool.
-// This allows custom pool management for advanced use cases.
-func NewPlanFromPool[T Complex](n int, pool *fft.BufferPool) (*Plan[T], error) {
-	return NewPlanFromPoolWithOptions[T](n, pool, PlanOptions{})
-}
-
-// NewPlanFromPoolWithOptions creates a new FFT plan using buffers from the specified pool and planner options.
-func NewPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts PlanOptions) (*Plan[T], error) {
-	if n < 1 || (!m.IsPowerOf2(n) && !m.IsHighlyComposite(n)) {
+// newPlanFromPoolWithOptions creates a new FFT plan using buffers from the
+// specified pool. It mirrors newPlanWithFeatures' length and planner contract:
+// any length newPlanWithFeatures accepts is accepted here, with Bluestein and
+// recursive plans delegated to it because their extra tables are not pooled.
+func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts PlanOptions) (*Plan[T], error) {
+	if n < 1 {
 		return nil, ErrInvalidLength
 	}
 
 	opts = normalizePlanOptions(opts)
 	features := cpu.DetectFeatures()
-	estimate := fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+	estimate := selectPlanEstimate[T](n, features, opts)
 
 	strategy := estimate.Strategy
-	if strategy == fft.KernelBluestein {
-		return nil, ErrNotImplemented
+	if strategy == fft.KernelBluestein || strategy == fft.KernelRecursive {
+		return newPlanWithFeatures[T](n, features, opts)
 	}
 
 	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)

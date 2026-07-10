@@ -65,8 +65,12 @@ func NewPlan2D[T Complex](rows, cols int) (*Plan2D[T], error) {
 
 // NewPlan2DWithOptions creates a new 2D FFT plan with explicit planner options.
 func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[T], error) {
-	if rows <= 0 || cols <= 0 {
-		return nil, ErrInvalidLength
+	if rows <= 0 {
+		return nil, fmt.Errorf("rows has invalid size %d: %w", rows, ErrInvalidLength)
+	}
+
+	if cols <= 0 {
+		return nil, fmt.Errorf("cols has invalid size %d: %w", cols, ErrInvalidLength)
 	}
 
 	opts = normalizePlanOptions(opts)
@@ -80,12 +84,12 @@ func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[
 	// Create 1D plans for rows and columns
 	rowPlan, err := newPlanWithFeatures[T](cols, features, childOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create row-transform plan (size %d): %w", cols, err)
 	}
 
 	colPlan, err := newPlanWithFeatures[T](rows, features, childOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create column-transform plan (size %d): %w", rows, err)
 	}
 
 	p := &Plan2D[T]{
@@ -273,7 +277,7 @@ func (p *Plan2D[T]) transformColumnsViaTranspose(data []T, forward bool) {
 	for row := range p.rows {
 		rowData := data[row*p.cols : (row+1)*p.cols]
 		if forward {
-			_ = p.colPlan.InPlace(rowData)
+			_ = p.colPlan.ForwardInPlace(rowData)
 		} else {
 			_ = p.colPlan.InverseInPlace(rowData)
 		}
@@ -293,7 +297,7 @@ func (p *Plan2D[T]) transformColumnsStrided(data, colData []T, forward bool) {
 
 		// Transform column
 		if forward {
-			_ = p.colPlan.InPlace(colData)
+			_ = p.colPlan.ForwardInPlace(colData)
 		} else {
 			_ = p.colPlan.InverseInPlace(colData)
 		}
@@ -321,7 +325,7 @@ func (p *Plan2D[T]) forwardSingle(dst, src []T) error {
 	for row := range p.rows {
 		rowData := work[row*p.cols : (row+1)*p.cols]
 
-		err := p.rowPlan.InPlace(rowData)
+		err := p.rowPlan.ForwardInPlace(rowData)
 		if err != nil {
 			return err
 		}

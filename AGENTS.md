@@ -12,7 +12,7 @@
 
 The root package `algofft` exposes the user-facing API, grouped roughly by file:
 
-- **Core plans** (`plan.go`, `planner.go`, `plan_options.go`, `executor.go`): `Plan[T Complex]` with constructors `NewPlanT[T]()`, `NewPlan()`, `NewPlan32()`, `NewPlan64()`; transform methods `Forward()`, `Inverse()`, `InPlace()`, `Transform()`
+- **Core plans** (`plan.go`, `planner.go`, `plan_options.go`, `executor.go`): `Plan[T Complex]` with constructors `NewPlanT[T]()`, `NewPlan()`, `NewPlan32()`, `NewPlan64()`; transform methods `Forward()`, `Inverse()`, `ForwardInPlace()`, `InverseInPlace()`, `Transform()`
 - **Real FFT** (`plan_real*.go`): real-input transforms including 2D/3D variants
 - **Multi-dimensional** (`plan_2d.go`, `plan_3d.go`, `plan_nd.go`): 2D/3D/N-D transforms
 - **Arbitrary lengths** (`plan_bluestein.go`): Bluestein algorithm for non-power-of-2 sizes

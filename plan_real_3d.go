@@ -54,18 +54,23 @@ func newPlanReal3DScratchCache(depth, height, halfWidth int) *residentCache[plan
 //
 // A single plan instance may be shared by multiple goroutines.
 func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
-	if depth <= 0 || height <= 0 || width <= 0 {
-		return nil, ErrInvalidLength
+	if depth <= 0 {
+		return nil, fmt.Errorf("depth has invalid size %d: %w", depth, ErrInvalidLength)
+	}
+
+	if height <= 0 {
+		return nil, fmt.Errorf("height has invalid size %d: %w", height, ErrInvalidLength)
 	}
 
 	if width < 2 || width%2 != 0 {
-		return nil, ErrInvalidLength // Real FFT requires even W
+		// Real FFT requires even W
+		return nil, fmt.Errorf("width has invalid size %d (must be even and >= 2): %w", width, ErrInvalidLength)
 	}
 
 	// Create 1D real plan for width
 	widthPlan, err := NewPlanReal(width)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create width-transform plan (size %d): %w", width, err)
 	}
 
 	halfWidth := width/2 + 1
@@ -75,7 +80,7 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 	for i := range heightPlans {
 		plan, err := NewPlanT[complex64](height)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create height-transform plan (size %d): %w", height, err)
 		}
 
 		heightPlans[i] = plan
@@ -86,7 +91,7 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 	for i := range depthPlans {
 		plan, err := NewPlanT[complex64](depth)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create depth-transform plan (size %d): %w", depth, err)
 		}
 
 		depthPlans[i] = plan
@@ -194,7 +199,7 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 			}
 
 			// Transform column
-			err := p.heightPlans[w].InPlace(heightData)
+			err := p.heightPlans[w].ForwardInPlace(heightData)
 			if err != nil {
 				return err
 			}
@@ -219,7 +224,7 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 			// Transform depth slice
 			planIdx := h*p.halfWidth + w
 
-			err := p.depthPlans[planIdx].InPlace(depthData)
+			err := p.depthPlans[planIdx].ForwardInPlace(depthData)
 			if err != nil {
 				return err
 			}
