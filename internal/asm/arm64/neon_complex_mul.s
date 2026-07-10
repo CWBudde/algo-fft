@@ -1,4 +1,4 @@
-//go:build arm64 && asm && !purego
+//go:build arm64 && !purego
 
 // =========================================================================== 
 // NEON complex multiply helpers for ARM64
@@ -11,7 +11,7 @@ TEXT ·ComplexMulArrayComplex64NEONAsm(SB), NOSPLIT, $0-72
 	MOVD dst+0(FP), R0
 	MOVD a+24(FP), R1
 	MOVD b+48(FP), R2
-	MOVD dst+8(FP), R3
+	MOVD dst_len+8(FP), R3
 
 	CBZ  R3, cmul64_done
 	MOVD R3, R4
@@ -70,7 +70,7 @@ cmul64_done:
 TEXT ·ComplexMulArrayInPlaceComplex64NEONAsm(SB), NOSPLIT, $0-48
 	MOVD dst+0(FP), R0
 	MOVD src+24(FP), R1
-	MOVD dst+8(FP), R2
+	MOVD dst_len+8(FP), R2
 
 	CBZ  R2, cmul64_inplace_done
 	MOVD R2, R3
@@ -129,7 +129,7 @@ TEXT ·ComplexMulArrayComplex128NEONAsm(SB), NOSPLIT, $0-72
 	MOVD dst+0(FP), R0
 	MOVD a+24(FP), R1
 	MOVD b+48(FP), R2
-	MOVD dst+8(FP), R3
+	MOVD dst_len+8(FP), R3
 
 	CBZ  R3, cmul128_done
 
@@ -162,7 +162,7 @@ cmul128_done:
 TEXT ·ComplexMulArrayInPlaceComplex128NEONAsm(SB), NOSPLIT, $0-48
 	MOVD dst+0(FP), R0
 	MOVD src+24(FP), R1
-	MOVD dst+8(FP), R2
+	MOVD dst_len+8(FP), R2
 
 	CBZ  R2, cmul128_inplace_done
 

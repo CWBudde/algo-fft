@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 package fft
 
@@ -25,7 +25,7 @@ import (
 // bounded by the number of distinct sizes actually transformed (typically a
 // handful) and each table is small (8·n bytes), so this is an intentional
 // space-for-speed choice — the same unbounded-by-size model the pre-existing
-// prepared-twiddle cache uses — and it only exists on -tags asm builds. A size
+// prepared-twiddle cache uses — and it only exists on SIMD builds. A size
 // cap/eviction would add branching and locking to a hot path for no practical
 // benefit; if a future workload plans pathologically many distinct sizes, that
 // is where a bound (or a per-plan cache) should be introduced.

@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // AVX2 Radix-3 Butterfly (complex64) for AMD64
@@ -211,27 +211,27 @@ TEXT ·Butterfly3ForwardAVX2Complex64(SB), NOSPLIT, $0-144
 	MOVQ a2+120(FP), R13 // R13 = a2 pointer
 
 	// Verify all slices have length >= 4
-	MOVQ y0+8(FP), AX
+	MOVQ y0_len+8(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_fwd_return
 
-	MOVQ y1+32(FP), AX
+	MOVQ y1_len+32(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_fwd_return
 
-	MOVQ y2+56(FP), AX
+	MOVQ y2_len+56(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_fwd_return
 
-	MOVQ a0+80(FP), AX
+	MOVQ a0_len+80(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_fwd_return
 
-	MOVQ a1+104(FP), AX
+	MOVQ a1_len+104(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_fwd_return
 
-	MOVQ a2+128(FP), AX
+	MOVQ a2_len+128(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_fwd_return
 
@@ -267,27 +267,27 @@ TEXT ·Butterfly3InverseAVX2Complex64(SB), NOSPLIT, $0-144
 	MOVQ a2+120(FP), R13
 
 	// Verify all slices have length >= 4
-	MOVQ y0+8(FP), AX
+	MOVQ y0_len+8(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_inv_return
 
-	MOVQ y1+32(FP), AX
+	MOVQ y1_len+32(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_inv_return
 
-	MOVQ y2+56(FP), AX
+	MOVQ y2_len+56(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_inv_return
 
-	MOVQ a0+80(FP), AX
+	MOVQ a0_len+80(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_inv_return
 
-	MOVQ a1+104(FP), AX
+	MOVQ a1_len+104(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_inv_return
 
-	MOVQ a2+128(FP), AX
+	MOVQ a2_len+128(FP), AX
 	CMPQ AX, $4
 	JL   butterfly3_inv_return
 

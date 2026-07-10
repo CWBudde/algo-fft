@@ -1,4 +1,4 @@
-//go:build amd64 && asm
+//go:build amd64 && !purego
 
 package kernels
 
@@ -9,7 +9,7 @@ import (
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
-// avx2TestCase defines a single AVX2 kernel test case
+// avx2TestCase defines a single AVX2 kernel test case.
 type avx2TestCase struct {
 	name          string
 	size          int
@@ -22,7 +22,7 @@ type avx2TestCase struct {
 	inverseKernel func([]complex64, []complex64, []complex64, []complex64) bool
 }
 
-// avx2TestCases defines all AVX2 kernel test cases
+// avx2TestCases defines all AVX2 kernel test cases.
 var avx2TestCases = []avx2TestCase{
 	{
 		name:          "Size4/Radix4",
@@ -32,12 +32,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x12345678,
 		inverseSeed:   0x87654321,
 		roundTripSeed: 0xAABBCCDD,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size4Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size4Radix4Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size4Radix4Complex64Asm,
 	},
 	{
 		name:          "Size8/Radix8",
@@ -47,12 +43,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x12345678,
 		inverseSeed:   0x87654321,
 		roundTripSeed: 0xAABBCCDD,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size8Radix8Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size8Radix8Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size8Radix8Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size8Radix8Complex64Asm,
 	},
 	{
 		name:          "Size16/Radix2",
@@ -62,12 +54,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x11223344,
 		inverseSeed:   0x55667788,
 		roundTripSeed: 0x99AABBCC,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size16Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size16Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size16Radix2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size16Radix2Complex64Asm,
 	},
 	{
 		name:          "Size16/Radix4",
@@ -77,12 +65,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x22334455,
 		inverseSeed:   0x66778899,
 		roundTripSeed: 0xAABBDDEE,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size16Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size16Radix4Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size16Radix4Complex64Asm,
 	},
 	{
 		name:          "Size16/Radix16",
@@ -92,12 +76,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x11223344,
 		inverseSeed:   0x55667788,
 		roundTripSeed: 0x99AABBCC,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size16Radix16Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size16Radix16Complex64Asm,
 	},
 	{
 		name:          "Size32/Radix2",
@@ -107,12 +87,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x33445566,
 		inverseSeed:   0x778899AA,
 		roundTripSeed: 0xBBCCDDEE,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size32Radix2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size32Radix2Complex64Asm,
 	},
 	{
 		name:          "Size32/Radix32",
@@ -122,12 +98,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x33445566,
 		inverseSeed:   0x778899AA,
 		roundTripSeed: 0xBBCCDDEE,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size32Radix32Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size32Radix32Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size32Radix32Complex64Asm,
 	},
 	{
 		name:          "Size64/Radix2",
@@ -137,26 +109,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x44556677,
 		inverseSeed:   0x8899AABB,
 		roundTripSeed: 0xCCDDEEFF,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			// Size 64 radix-2 uses bit-reversal, but it's handled internally in the kernel now?
-			// Wait, size 64 radix-2 in AVX2 does NOT handle bitrev internally yet?
-			// PLAN.md 11.13.2 says Size 64-256 Medium Complex64 Files.
-			// "avx2_f32_size64_radix4.s: Internalize bitrev" -> DONE.
-			// What about Radix2?
-			// codelet_init_avx2.go uses wrapAsmDIT64 with bitrevSize64Radix2.
-			// So generic radix-2 DIT needs bitrev.
-			// amd64.ForwardAVX2Size64Complex64Asm takes 5 args (via asm_bridge?).
-			// Wait, asm_bridge.go defines wrapAsmDIT64 which calls the 5-arg asm func.
-			// So the assembly still takes bitrev?
-			// Let's check internal/asm/amd64/decl.go.
-			// If assembly takes bitrev, I must pass it.
-			// But here I'm removing bitrevFunc from test case.
-			// So I need to use wrapAsmDIT64 logic inside the lambda?
-			return amd64.ForwardAVX2Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size64Radix2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size64Radix2Complex64Asm,
 	},
 	{
 		name:          "Size64/Radix4",
@@ -166,12 +120,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x11223344,
 		inverseSeed:   0x55667788,
 		roundTripSeed: 0x99AABBCC,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size64Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size64Radix4Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size64Radix4Complex64Asm,
 	},
 	{
 		name:          "Size128/Radix4Then2",
@@ -181,12 +131,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x55667788,
 		inverseSeed:   0x99AABBCC,
 		roundTripSeed: 0xDDEEFF00,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size128Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size128Radix4Then2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size128Radix4Then2Complex64Asm,
 	},
 	{
 		name:          "Size128/Radix2",
@@ -196,12 +142,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x13579BDF,
 		inverseSeed:   0x2468ACE0,
 		roundTripSeed: 0x0F1E2D3C,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size128Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size128Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size128Radix2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size128Radix2Complex64Asm,
 	},
 	{
 		name:          "Size256/Radix2",
@@ -211,12 +153,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x66778899,
 		inverseSeed:   0xAABBCCDD,
 		roundTripSeed: 0xEEFF0011,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size256Radix2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size256Radix2Complex64Asm,
 	},
 	{
 		name:          "Size256/Radix4",
@@ -226,12 +164,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x11223344,
 		inverseSeed:   0x55667788,
 		roundTripSeed: 0x99AABBCC,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size256Radix4Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size256Radix4Complex64Asm,
 	},
 	{
 		name:          "Size256/Radix16",
@@ -241,12 +175,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x66778899,
 		inverseSeed:   0xAABBCCDD,
 		roundTripSeed: 0xEEFF0011,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size256Radix16Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size256Radix16Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size256Radix16Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size256Radix16Complex64Asm,
 	},
 	{
 		name:          "Size512/Radix2",
@@ -256,12 +186,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x778899AA,
 		inverseSeed:   0xBBCCDDEE,
 		roundTripSeed: 0xFF001122,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size512Radix2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size512Radix2Complex64Asm,
 	},
 	{
 		name:          "Size512/Radix4Then2",
@@ -271,12 +197,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x778899AA,
 		inverseSeed:   0xBBCCDDEE,
 		roundTripSeed: 0xFF001122,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size512Radix4Then2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size512Radix4Then2Complex64Asm,
 	},
 	{
 		name:          "Size512/Radix8",
@@ -308,12 +230,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x8899AABB,
 		inverseSeed:   0xCCDDEEFF,
 		roundTripSeed: 0x00112233,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size1024Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size1024Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size1024Radix4Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size1024Radix4Complex64Asm,
 	},
 	{
 		name:          "Size1024/Radix32x32",
@@ -323,12 +241,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x1122AABB,
 		inverseSeed:   0x3344CCDD,
 		roundTripSeed: 0x5566EEFF,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size1024Radix32x32Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size1024Radix32x32Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size1024Radix32x32Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size1024Radix32x32Complex64Asm,
 	},
 	{
 		name:          "Size2048/Radix4Then2",
@@ -338,12 +252,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0x99AABBCC,
 		inverseSeed:   0xDDEEFF00,
 		roundTripSeed: 0x11223344,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size2048Radix4Then2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size2048Radix4Then2Complex64Asm,
 	},
 	{
 		name:          "Size4096/Radix4",
@@ -353,12 +263,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0xAABBCCDD,
 		inverseSeed:   0xEEFF0011,
 		roundTripSeed: 0x22334455,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size4096Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size4096Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size4096Radix4Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size4096Radix4Complex64Asm,
 	},
 	{
 		name:          "Size8192/Radix4Then2",
@@ -368,12 +274,8 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0xBBCCDDEE,
 		inverseSeed:   0xFF001122,
 		roundTripSeed: 0x33445566,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size8192Radix4Then2Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size8192Radix4Then2Complex64Asm,
 	},
 	{
 		name:          "Size16384/Radix4",
@@ -383,19 +285,16 @@ var avx2TestCases = []avx2TestCase{
 		forwardSeed:   0xCCDDEEFF,
 		inverseSeed:   0x00112233,
 		roundTripSeed: 0x44556677,
-		forwardKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.ForwardAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
-		inverseKernel: func(dst, src, twiddle, scratch []complex64) bool {
-			return amd64.InverseAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch)
-		},
+		forwardKernel: amd64.ForwardAVX2Size16384Radix4Complex64Asm,
+		inverseKernel: amd64.InverseAVX2Size16384Radix4Complex64Asm,
 	},
 }
 
-// TestAVX2KernelsForward tests all AVX2 forward kernels
+// TestAVX2KernelsForward tests all AVX2 forward kernels.
 func TestAVX2KernelsForward(t *testing.T) {
+	requireAVX2(t)
+
 	for _, tc := range avx2TestCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if testing.Short() && tc.size >= 8192 {
 				t.Skip("skipping large size in short mode")
@@ -417,10 +316,11 @@ func TestAVX2KernelsForward(t *testing.T) {
 	}
 }
 
-// TestAVX2KernelsInverse tests all AVX2 inverse kernels
+// TestAVX2KernelsInverse tests all AVX2 inverse kernels.
 func TestAVX2KernelsInverse(t *testing.T) {
+	requireAVX2(t)
+
 	for _, tc := range avx2TestCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if testing.Short() && tc.size >= 8192 {
 				t.Skip("skipping large size in short mode")
@@ -449,10 +349,11 @@ func TestAVX2KernelsInverse(t *testing.T) {
 	}
 }
 
-// TestAVX2KernelsRoundTrip tests forward-inverse round-trip for all AVX2 kernels
+// TestAVX2KernelsRoundTrip tests forward-inverse round-trip for all AVX2 kernels.
 func TestAVX2KernelsRoundTrip(t *testing.T) {
+	requireAVX2(t)
+
 	for _, tc := range avx2TestCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if testing.Short() && tc.size >= 8192 {
 				t.Skip("skipping large size in short mode")

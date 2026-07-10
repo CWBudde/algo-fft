@@ -201,7 +201,7 @@ func forwardDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 // 1/N scaling at the end. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
 //
-//nolint:funlen
+
 func inverseDIT16Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 16
 
@@ -600,7 +600,7 @@ func forwardDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
 //
-//nolint:funlen
+
 func inverseDIT16Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 16
 

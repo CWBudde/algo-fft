@@ -239,7 +239,7 @@ func TestBluestein_LargePrimes(t *testing.T) {
 // This is the critical correctness test - it proves the FFT computes the right answer,
 // not just that it's invertible.
 //
-//nolint:gocognit
+
 func TestBluestein_MatchesReference(t *testing.T) {
 	t.Parallel()
 

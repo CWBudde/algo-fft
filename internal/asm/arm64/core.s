@@ -1,4 +1,4 @@
-//go:build arm64 && asm && !purego
+//go:build arm64 && !purego
 
 // ===========================================================================
 // ARM64 NEON FFT Assembly - Core Utilities and Constants

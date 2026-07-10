@@ -1,4 +1,4 @@
-//go:build 386 && asm && !purego
+//go:build 386 && !purego
 
 // ===========================================================================
 // X86 (32-bit) FFT Assembly - Core Utilities and Constants

@@ -314,7 +314,7 @@ func TestPlanNDTransformsNoAllocsComplex128(t *testing.T) {
 
 // TestPlanMixedRadixTransformsNoAllocs guards the zero-allocation promise on the
 // mixed-radix (highly-composite, non-power-of-2) path. These sizes exercise the
-// pooled radix schedule buffer and, under -tags asm, the pooled sub-transform
+// pooled radix schedule buffer and, on SIMD builds, the pooled sub-transform
 // twiddle/scratch buffers and the size-384 codelet's pooled internals.
 //
 //nolint:paralleltest // AllocsPerRun panics during parallel tests

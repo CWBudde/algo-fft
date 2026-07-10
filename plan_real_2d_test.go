@@ -550,7 +550,7 @@ func sprintf(format string, args ...any) string {
 	for i := 0; i < len(format); i++ {
 		if format[i] == '%' && i+1 < len(format) && format[i+1] == 'd' {
 			if argIdx < len(args) {
-				result.WriteString(itoa(args[argIdx].(int))) //nolint:forcetypeassert
+				result.WriteString(itoa(args[argIdx].(int)))
 				argIdx++
 			}
 

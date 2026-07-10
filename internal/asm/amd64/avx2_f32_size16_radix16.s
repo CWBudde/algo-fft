@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 #include "textflag.h"
 
@@ -17,7 +17,7 @@ TEXT ·ForwardAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer (not used)
-	MOVQ src+32(FP), R13         // R13 = Length of source slice
+	MOVQ src_len+32(FP), R13         // R13 = Length of source slice
 
 	// --- Input Validation ---
 	CMPQ R13, $16                // Verify length is exactly 16
@@ -219,7 +219,7 @@ TEXT ·InverseAVX2Size16Radix16Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9          // R9 = Source pointer
 	MOVQ twiddle+48(FP), R10     // R10 = Twiddle factors pointer
 	MOVQ scratch+72(FP), R11     // R11 = Scratch pointer
-	MOVQ src+32(FP), R13         // R13 = Length
+	MOVQ src_len+32(FP), R13         // R13 = Length
 
 	// --- Input Validation ---
 	CMPQ R13, $16                // Verify length is 16

@@ -1,4 +1,4 @@
-//go:build amd64 && asm
+//go:build amd64 && !purego
 
 package kernels
 
@@ -9,6 +9,8 @@ import (
 )
 
 func TestForwardAVX2Size16384Radix4Complex128_VsGo(t *testing.T) {
+	requireAVX2(t)
+
 	if testing.Short() {
 		t.Skip("skipping size-16384 AVX2 complex128 test in short mode")
 	}
@@ -33,6 +35,8 @@ func TestForwardAVX2Size16384Radix4Complex128_VsGo(t *testing.T) {
 }
 
 func TestRoundTripAVX2Size16384Radix4Complex128(t *testing.T) {
+	requireAVX2(t)
+
 	if testing.Short() {
 		t.Skip("skipping size-16384 AVX2 complex128 test in short mode")
 	}

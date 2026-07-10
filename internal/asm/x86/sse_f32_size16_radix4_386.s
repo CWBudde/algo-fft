@@ -1,4 +1,4 @@
-//go:build 386 && asm && !purego
+//go:build 386 && !purego
 
 // ===========================================================================
 // SSE (SSE1) Size-16 Radix-4 FFT Kernels for 386 (complex64)
@@ -24,7 +24,7 @@
 // ===========================================================================
 
 // func ForwardSSESize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-TEXT ·ForwardSSESize16Radix4Complex64Asm(SB), NOSPLIT, $128-64
+TEXT ·ForwardSSESize16Radix4Complex64Asm(SB), NOSPLIT, $128-61
 	// Stack layout:
 	//   SP+0..3:   working buffer ptr
 	//   SP+4..7:   saved SI
@@ -36,7 +36,7 @@ TEXT ·ForwardSSESize16Radix4Complex64Asm(SB), NOSPLIT, $128-64
 	// Load parameters
 	MOVL dst+0(FP), AX
 	MOVL src+12(FP), CX
-	MOVL src+16(FP), DX
+	MOVL src_len+16(FP), DX
 
 	// Verify n == 16
 	CMPL DX, $16
@@ -276,11 +276,11 @@ fwd_ret_false:
 	RET
 
 // func InverseSSESize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-TEXT ·InverseSSESize16Radix4Complex64Asm(SB), NOSPLIT, $128-64
+TEXT ·InverseSSESize16Radix4Complex64Asm(SB), NOSPLIT, $128-61
 	// Load parameters
 	MOVL dst+0(FP), AX
 	MOVL src+12(FP), CX
-	MOVL src+16(FP), DX
+	MOVL src_len+16(FP), DX
 
 	// Verify n == 16
 	CMPL DX, $16

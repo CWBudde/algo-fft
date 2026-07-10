@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 package kernels
 
@@ -14,6 +14,8 @@ import (
 
 // TestTwiddleSize8192Radix4Then2AVX2 verifies twiddle size calculation.
 func TestTwiddleSize8192Radix4Then2AVX2(t *testing.T) {
+	requireAVX2(t)
+
 	size := twiddleSize8192Radix4Then2AVX2(8192)
 	if size != twiddleSize8192Radix4Then2Elems {
 		t.Errorf("twiddleSize8192Radix4Then2AVX2(8192) = %d, want %d", size, twiddleSize8192Radix4Then2Elems)
@@ -22,6 +24,8 @@ func TestTwiddleSize8192Radix4Then2AVX2(t *testing.T) {
 
 // TestPrepareTwiddle8192Radix4Then2AVX2 verifies twiddle preparation.
 func TestPrepareTwiddle8192Radix4Then2AVX2(t *testing.T) {
+	requireAVX2(t)
+
 	// Test forward twiddle-extra
 	forwardExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
 	prepareTwiddle8192Radix4Then2AVX2(8192, false, forwardExtra)
@@ -51,6 +55,8 @@ func TestPrepareTwiddle8192Radix4Then2AVX2(t *testing.T) {
 
 // TestForwardAVX2Size8192Radix4Then2ParamsVsReference verifies forward transform against DFT.
 func TestForwardAVX2Size8192Radix4Then2ParamsVsReference(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 8192
 	twiddleExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
 	prepareTwiddle8192Radix4Then2AVX2(n, false, twiddleExtra)
@@ -102,6 +108,8 @@ func TestForwardAVX2Size8192Radix4Then2ParamsVsReference(t *testing.T) {
 
 // TestInverseAVX2Size8192Radix4Then2ParamsVsReference verifies inverse transform against IDFT.
 func TestInverseAVX2Size8192Radix4Then2ParamsVsReference(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 8192
 	twiddleExtra := make([]complex64, twiddleSize8192Radix4Then2Elems)
 	prepareTwiddle8192Radix4Then2AVX2(n, true, twiddleExtra)
@@ -153,6 +161,8 @@ func TestInverseAVX2Size8192Radix4Then2ParamsVsReference(t *testing.T) {
 
 // TestTwiddleSize1024Radix32x32AVX2 verifies twiddle size calculation.
 func TestTwiddleSize1024Radix32x32AVX2(t *testing.T) {
+	requireAVX2(t)
+
 	size := twiddleSize1024Radix32x32AVX2(1024)
 	if size != twiddleSize1024Radix32x32AVX2Elems {
 		t.Errorf("twiddleSize1024Radix32x32AVX2(1024) = %d, want %d", size, twiddleSize1024Radix32x32AVX2Elems)
@@ -161,6 +171,8 @@ func TestTwiddleSize1024Radix32x32AVX2(t *testing.T) {
 
 // TestPrepareTwiddle1024Radix32x32AVX2 verifies twiddle preparation.
 func TestPrepareTwiddle1024Radix32x32AVX2(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 1024
 	forwardExtra := make([]complex128, twiddleSize1024Radix32x32AVX2Elems)
 	prepareTwiddle1024Radix32x32AVX2(n, false, forwardExtra)
@@ -198,6 +210,8 @@ func TestPrepareTwiddle1024Radix32x32AVX2(t *testing.T) {
 
 // TestTwiddleSize256Radix16AVX2 verifies twiddle size calculation.
 func TestTwiddleSize256Radix16AVX2(t *testing.T) {
+	requireAVX2(t)
+
 	size := twiddleSize256Radix16AVX2(256)
 	if size != twiddleSize256Radix16AVX2Elems {
 		t.Errorf("twiddleSize256Radix16AVX2(256) = %d, want %d", size, twiddleSize256Radix16AVX2Elems)
@@ -206,6 +220,8 @@ func TestTwiddleSize256Radix16AVX2(t *testing.T) {
 
 // TestPrepareTwiddle256Radix16AVX2 verifies twiddle preparation layout.
 func TestPrepareTwiddle256Radix16AVX2(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 256
 	forwardExtra := make([]complex128, twiddleSize256Radix16AVX2Elems)
 	prepareTwiddle256Radix16AVX2(n, false, forwardExtra)
@@ -253,6 +269,8 @@ func TestPrepareTwiddle256Radix16AVX2(t *testing.T) {
 
 // TestForwardAVX2Size1024Radix32x32ParamsVsReference verifies forward transform against DFT.
 func TestForwardAVX2Size1024Radix32x32ParamsVsReference(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 1024
 	twiddleExtra := make([]complex128, twiddleSize1024Radix32x32AVX2Elems)
 	prepareTwiddle1024Radix32x32AVX2(n, false, twiddleExtra)
@@ -283,6 +301,8 @@ func TestForwardAVX2Size1024Radix32x32ParamsVsReference(t *testing.T) {
 
 // TestInverseAVX2Size1024Radix32x32ParamsVsReference verifies inverse transform against IDFT.
 func TestInverseAVX2Size1024Radix32x32ParamsVsReference(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 1024
 	twiddleExtra := make([]complex128, twiddleSize1024Radix32x32AVX2Elems)
 	prepareTwiddle1024Radix32x32AVX2(n, true, twiddleExtra)
@@ -314,6 +334,8 @@ func TestInverseAVX2Size1024Radix32x32ParamsVsReference(t *testing.T) {
 // TestInverseAVX2Size1024Radix32x32ScaleVsDIT compares AVX2 output against the
 // Go DIT implementation to highlight uniform scaling issues.
 func TestInverseAVX2Size1024Radix32x32ScaleVsDIT(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 1024
 	src := make([]complex128, n)
 	for i := range n {
@@ -377,6 +399,8 @@ func TestInverseAVX2Size1024Radix32x32ScaleVsDIT(t *testing.T) {
 // TestInverseAVX2Size1024Radix32x32RowIFFTIsolation uses a sparse spectrum
 // (k2=0 only) so the inverse should replicate a 32-point IDFT across n2.
 func TestInverseAVX2Size1024Radix32x32RowIFFTIsolation(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 1024
 	const n1 = 32
 	src := make([]complex128, n)
@@ -402,8 +426,8 @@ func TestInverseAVX2Size1024Radix32x32RowIFFTIsolation(t *testing.T) {
 	}
 
 	expected := make([]complex128, n)
-	for n2 := 0; n2 < 32; n2++ {
-		for n1 := 0; n1 < 32; n1++ {
+	for n2 := range 32 {
+		for n1 := range 32 {
 			expected[n2*32+n1] = time32[n1] / complex(32, 0)
 		}
 	}
@@ -440,6 +464,8 @@ func TestInverseAVX2Size1024Radix32x32RowIFFTIsolation(t *testing.T) {
 // TestInverseAVX2Size1024Radix32x32K2Isolation compares AVX2 vs Go DIT when only
 // a single non-zero k2 column is present, isolating inter-stage twiddle usage.
 func TestInverseAVX2Size1024Radix32x32K2Isolation(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 1024
 	const n1 = 32
 	const k2 = 1
@@ -484,6 +510,8 @@ func TestInverseAVX2Size1024Radix32x32K2Isolation(t *testing.T) {
 // TestInverseAVX2Size1024Radix32x32WorkVsDITK2Isolation compares the stage-1
 // work buffer between Go and AVX2 for a single non-zero k2 column.
 func TestInverseAVX2Size1024Radix32x32WorkVsDITK2Isolation(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 1024
 	const n1 = 32
 	const k2 = 1
@@ -541,7 +569,7 @@ func TestInverseAVX2Size1024Radix32x32WorkVsDITK2Isolation(t *testing.T) {
 			1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31,
 		}
 		var maxBitrev float64
-		for n1 := 0; n1 < 32; n1++ {
+		for n1 := range 32 {
 			i := 32 + n1
 			j := 32 + bitrev[n1]
 			diff := cmplx.Abs(workAVX[i] - workGo[j])
@@ -552,7 +580,7 @@ func TestInverseAVX2Size1024Radix32x32WorkVsDITK2Isolation(t *testing.T) {
 		t.Logf("work max diff k2=1 bitrev=%e", maxBitrev)
 		var maxSwap float64
 		for k := 0; k < 32; k += 2 {
-			for n1 := 0; n1 < 32; n1++ {
+			for n1 := range 32 {
 				i0 := k*32 + n1
 				i1 := (k+1)*32 + n1
 				diff0 := cmplx.Abs(workAVX[i0] - workGo[i1])
@@ -573,6 +601,8 @@ func TestInverseAVX2Size1024Radix32x32WorkVsDITK2Isolation(t *testing.T) {
 // TestInverseAVX2Size1024Radix32x32WorkVsDITK2Zero isolates k2=0 data to
 // verify the stage-1 output for the lowest column.
 func TestInverseAVX2Size1024Radix32x32WorkVsDITK2Zero(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 1024
 	const n1 = 32
 	const k2 = 0
@@ -597,7 +627,7 @@ func TestInverseAVX2Size1024Radix32x32WorkVsDITK2Zero(t *testing.T) {
 
 	var maxDiff float64
 	var worst int
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		diff := cmplx.Abs(workAVX[i] - workGo[i])
 		if diff > maxDiff {
 			maxDiff = diff
@@ -612,7 +642,7 @@ func TestInverseAVX2Size1024Radix32x32WorkVsDITK2Zero(t *testing.T) {
 }
 
 func stage1InverseDIT1024Mixed32x32Complex128(work, src, twiddle []complex128) {
-	for k2 := 0; k2 < 32; k2++ {
+	for k2 := range 32 {
 		e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15 := fft16Complex128Inverse(
 			src[32*0+k2], src[32*16+k2], src[32*8+k2], src[32*24+k2], src[32*4+k2], src[32*20+k2], src[32*12+k2], src[32*28+k2],
 			src[32*2+k2], src[32*18+k2], src[32*10+k2], src[32*26+k2], src[32*6+k2], src[32*22+k2], src[32*14+k2], src[32*30+k2],

@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // SSE2 Size-512 Radix-2 FFT Kernels for AMD64
@@ -14,21 +14,21 @@ TEXT ·ForwardSSE3Size512Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size512Radix2(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $512
 	JNE  size512_r2_return_false
 
 	// Validate all slice lengths >= 512
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $512
 	JL   size512_r2_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $512
 	JL   size512_r2_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $512
 	JL   size512_r2_return_false
 
@@ -353,21 +353,21 @@ TEXT ·InverseSSE3Size512Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
 	LEAQ ·bitrevSSE2Size512Radix2(SB), R12
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $512
 	JNE  size512_r2_inv_return_false
 
 	// Validate all slice lengths >= 512
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $512
 	JL   size512_r2_inv_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $512
 	JL   size512_r2_inv_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $512
 	JL   size512_r2_inv_return_false
 

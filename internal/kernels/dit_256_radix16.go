@@ -175,28 +175,28 @@ func fft16Complex64(
 	v0 = t0
 	t3 := complex(imag(v3), -real(v3))
 	v3 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 
 	t0 = v4 + v6
 	v6 = v4 - v6
 	v4 = t0
 	t3 = complex(imag(v7), -real(v7))
 	v7 = v5 - t3
-	v5 = v5 + t3
+	v5 += t3
 
 	t0 = v8 + v10
 	v10 = v8 - v10
 	v8 = t0
 	t3 = complex(imag(v11), -real(v11))
 	v11 = v9 - t3
-	v9 = v9 + t3
+	v9 += t3
 
 	t0 = v12 + v14
 	v14 = v12 - v14
 	v12 = t0
 	t3 = complex(imag(v15), -real(v15))
 	v15 = v13 - t3
-	v13 = v13 + t3
+	v13 += t3
 
 	// Stage 3
 	t0 = v0 + v4
@@ -205,14 +205,14 @@ func fft16Complex64(
 	tr, ti := real(v5), imag(v5)
 	t3 = complex(tr*isq2+ti*isq2, ti*isq2-tr*isq2)
 	v5 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 	t3 = complex(imag(v6), -real(v6))
 	v6 = v2 - t3
-	v2 = v2 + t3
+	v2 += t3
 	tr, ti = real(v7), imag(v7)
 	t3 = complex(ti*isq2-tr*isq2, -ti*isq2-tr*isq2)
 	v7 = v3 - t3
-	v3 = v3 + t3
+	v3 += t3
 
 	t0 = v8 + v12
 	v12 = v8 - v12
@@ -220,14 +220,14 @@ func fft16Complex64(
 	tr, ti = real(v13), imag(v13)
 	t3 = complex(tr*isq2+ti*isq2, ti*isq2-tr*isq2)
 	v13 = v9 - t3
-	v9 = v9 + t3
+	v9 += t3
 	t3 = complex(imag(v14), -real(v14))
 	v14 = v10 - t3
-	v10 = v10 + t3
+	v10 += t3
 	tr, ti = real(v15), imag(v15)
 	t3 = complex(ti*isq2-tr*isq2, -ti*isq2-tr*isq2)
 	v15 = v11 - t3
-	v11 = v11 + t3
+	v11 += t3
 
 	// Stage 4
 	t0 = v0 + v8
@@ -236,30 +236,30 @@ func fft16Complex64(
 	tr, ti = real(v9), imag(v9)
 	t3 = complex(tr*cos1+ti*sin1, ti*cos1-tr*sin1)
 	v9 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 	tr, ti = real(v10), imag(v10)
 	t3 = complex(tr*isq2+ti*isq2, ti*isq2-tr*isq2)
 	v10 = v2 - t3
-	v2 = v2 + t3
+	v2 += t3
 	tr, ti = real(v11), imag(v11)
 	t3 = complex(tr*sin1+ti*cos1, ti*sin1-tr*cos1)
 	v11 = v3 - t3
-	v3 = v3 + t3
+	v3 += t3
 	t3 = complex(imag(v12), -real(v12))
 	v12 = v4 - t3
-	v4 = v4 + t3
+	v4 += t3
 	tr, ti = real(v13), imag(v13)
 	t3 = complex(ti*cos1-tr*sin1, -ti*sin1-tr*cos1)
 	v13 = v5 - t3
-	v5 = v5 + t3
+	v5 += t3
 	tr, ti = real(v14), imag(v14)
 	t3 = complex(ti*isq2-tr*isq2, -ti*isq2-tr*isq2)
 	v14 = v6 - t3
-	v6 = v6 + t3
+	v6 += t3
 	tr, ti = real(v15), imag(v15)
 	t3 = complex(ti*sin1-tr*cos1, -ti*cos1-tr*sin1)
 	v15 = v7 - t3
-	v7 = v7 + t3
+	v7 += t3
 
 	r0, r1, r2, r3, r4, r5, r6, r7 = v0, v1, v2, v3, v4, v5, v6, v7
 	r8, r9, r10, r11, r12, r13, r14, r15 = v8, v9, v10, v11, v12, v13, v14, v15
@@ -408,28 +408,28 @@ func fft16Complex64Inverse(
 	v0 = t0
 	t3 := complex(-imag(v3), real(v3))
 	v3 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 
 	t0 = v4 + v6
 	v6 = v4 - v6
 	v4 = t0
 	t3 = complex(-imag(v7), real(v7))
 	v7 = v5 - t3
-	v5 = v5 + t3
+	v5 += t3
 
 	t0 = v8 + v10
 	v10 = v8 - v10
 	v8 = t0
 	t3 = complex(-imag(v11), real(v11))
 	v11 = v9 - t3
-	v9 = v9 + t3
+	v9 += t3
 
 	t0 = v12 + v14
 	v14 = v12 - v14
 	v12 = t0
 	t3 = complex(-imag(v15), real(v15))
 	v15 = v13 - t3
-	v13 = v13 + t3
+	v13 += t3
 
 	// Stage 3. Twiddles W_8^{-k}.
 	t0 = v0 + v4
@@ -438,14 +438,14 @@ func fft16Complex64Inverse(
 	tr, ti := real(v5), imag(v5)
 	t3 = complex(tr*P_isq2-ti*P_isq2, tr*P_isq2+ti*P_isq2)
 	v5 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 	t3 = complex(-imag(v6), real(v6))
 	v6 = v2 - t3
-	v2 = v2 + t3
+	v2 += t3
 	tr, ti = real(v7), imag(v7)
 	t3 = complex(-tr*P_isq2-ti*P_isq2, tr*P_isq2-ti*P_isq2)
 	v7 = v3 - t3
-	v3 = v3 + t3
+	v3 += t3
 
 	t0 = v8 + v12
 	v12 = v8 - v12
@@ -453,14 +453,14 @@ func fft16Complex64Inverse(
 	tr, ti = real(v13), imag(v13)
 	t3 = complex(tr*P_isq2-ti*P_isq2, tr*P_isq2+ti*P_isq2)
 	v13 = v9 - t3
-	v9 = v9 + t3
+	v9 += t3
 	t3 = complex(-imag(v14), real(v14))
 	v14 = v10 - t3
-	v10 = v10 + t3
+	v10 += t3
 	tr, ti = real(v15), imag(v15)
 	t3 = complex(-tr*P_isq2-ti*P_isq2, tr*P_isq2-ti*P_isq2)
 	v15 = v11 - t3
-	v11 = v11 + t3
+	v11 += t3
 
 	// Stage 4. W_16^{-k}.
 	t0 = v0 + v8
@@ -469,30 +469,30 @@ func fft16Complex64Inverse(
 	tr, ti = real(v9), imag(v9)
 	t3 = complex(tr*P_cos1-ti*P_sin1, tr*P_sin1+ti*P_cos1)
 	v9 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 	tr, ti = real(v10), imag(v10)
 	t3 = complex(tr*P_isq2-ti*P_isq2, tr*P_isq2+ti*P_isq2)
 	v10 = v2 - t3
-	v2 = v2 + t3
+	v2 += t3
 	tr, ti = real(v11), imag(v11)
 	t3 = complex(tr*P_sin1-ti*P_cos1, tr*P_cos1+ti*P_sin1)
 	v11 = v3 - t3
-	v3 = v3 + t3
+	v3 += t3
 	t3 = complex(-imag(v12), real(v12))
 	v12 = v4 - t3
-	v4 = v4 + t3
+	v4 += t3
 	tr, ti = real(v13), imag(v13)
 	t3 = complex(tr*(-P_sin1)-ti*P_cos1, tr*P_cos1+ti*(-P_sin1))
 	v13 = v5 - t3
-	v5 = v5 + t3
+	v5 += t3
 	tr, ti = real(v14), imag(v14)
 	t3 = complex(tr*(-P_isq2)-ti*P_isq2, tr*P_isq2+ti*(-P_isq2))
 	v14 = v6 - t3
-	v6 = v6 + t3
+	v6 += t3
 	tr, ti = real(v15), imag(v15)
 	t3 = complex(tr*(-P_cos1)-ti*P_sin1, tr*P_sin1+ti*(-P_cos1))
 	v15 = v7 - t3
-	v7 = v7 + t3
+	v7 += t3
 
 	r0, r1, r2, r3, r4, r5, r6, r7 = v0, v1, v2, v3, v4, v5, v6, v7
 	r8, r9, r10, r11, r12, r13, r14, r15 = v8, v9, v10, v11, v12, v13, v14, v15
@@ -639,28 +639,28 @@ func fft16Complex128(
 	v0 = t0
 	t3 := complex(imag(v3), -real(v3))
 	v3 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 
 	t0 = v4 + v6
 	v6 = v4 - v6
 	v4 = t0
 	t3 = complex(imag(v7), -real(v7))
 	v7 = v5 - t3
-	v5 = v5 + t3
+	v5 += t3
 
 	t0 = v8 + v10
 	v10 = v8 - v10
 	v8 = t0
 	t3 = complex(imag(v11), -real(v11))
 	v11 = v9 - t3
-	v9 = v9 + t3
+	v9 += t3
 
 	t0 = v12 + v14
 	v14 = v12 - v14
 	v12 = t0
 	t3 = complex(imag(v15), -real(v15))
 	v15 = v13 - t3
-	v13 = v13 + t3
+	v13 += t3
 
 	// Stage 3
 	t0 = v0 + v4
@@ -669,14 +669,14 @@ func fft16Complex128(
 	tr, ti := real(v5), imag(v5)
 	t3 = complex(tr*isq2+ti*isq2, ti*isq2-tr*isq2)
 	v5 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 	t3 = complex(imag(v6), -real(v6))
 	v6 = v2 - t3
-	v2 = v2 + t3
+	v2 += t3
 	tr, ti = real(v7), imag(v7)
 	t3 = complex(ti*isq2-tr*isq2, -ti*isq2-tr*isq2)
 	v7 = v3 - t3
-	v3 = v3 + t3
+	v3 += t3
 
 	t0 = v8 + v12
 	v12 = v8 - v12
@@ -684,14 +684,14 @@ func fft16Complex128(
 	tr, ti = real(v13), imag(v13)
 	t3 = complex(tr*isq2+ti*isq2, ti*isq2-tr*isq2)
 	v13 = v9 - t3
-	v9 = v9 + t3
+	v9 += t3
 	t3 = complex(imag(v14), -real(v14))
 	v14 = v10 - t3
-	v10 = v10 + t3
+	v10 += t3
 	tr, ti = real(v15), imag(v15)
 	t3 = complex(ti*isq2-tr*isq2, -ti*isq2-tr*isq2)
 	v15 = v11 - t3
-	v11 = v11 + t3
+	v11 += t3
 
 	// Stage 4
 	t0 = v0 + v8
@@ -700,30 +700,30 @@ func fft16Complex128(
 	tr, ti = real(v9), imag(v9)
 	t3 = complex(tr*cos1+ti*sin1, ti*cos1-tr*sin1)
 	v9 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 	tr, ti = real(v10), imag(v10)
 	t3 = complex(tr*isq2+ti*isq2, ti*isq2-tr*isq2)
 	v10 = v2 - t3
-	v2 = v2 + t3
+	v2 += t3
 	tr, ti = real(v11), imag(v11)
 	t3 = complex(tr*sin1+ti*cos1, ti*sin1-tr*cos1)
 	v11 = v3 - t3
-	v3 = v3 + t3
+	v3 += t3
 	t3 = complex(imag(v12), -real(v12))
 	v12 = v4 - t3
-	v4 = v4 + t3
+	v4 += t3
 	tr, ti = real(v13), imag(v13)
 	t3 = complex(ti*cos1-tr*sin1, -ti*sin1-tr*cos1)
 	v13 = v5 - t3
-	v5 = v5 + t3
+	v5 += t3
 	tr, ti = real(v14), imag(v14)
 	t3 = complex(ti*isq2-tr*isq2, -ti*isq2-tr*isq2)
 	v14 = v6 - t3
-	v6 = v6 + t3
+	v6 += t3
 	tr, ti = real(v15), imag(v15)
 	t3 = complex(ti*sin1-tr*cos1, -ti*cos1-tr*sin1)
 	v15 = v7 - t3
-	v7 = v7 + t3
+	v7 += t3
 
 	r0, r1, r2, r3, r4, r5, r6, r7 = v0, v1, v2, v3, v4, v5, v6, v7
 	r8, r9, r10, r11, r12, r13, r14, r15 = v8, v9, v10, v11, v12, v13, v14, v15
@@ -872,28 +872,28 @@ func fft16Complex128Inverse(
 	v0 = t0
 	t3 := complex(-imag(v3), real(v3))
 	v3 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 
 	t0 = v4 + v6
 	v6 = v4 - v6
 	v4 = t0
 	t3 = complex(-imag(v7), real(v7))
 	v7 = v5 - t3
-	v5 = v5 + t3
+	v5 += t3
 
 	t0 = v8 + v10
 	v10 = v8 - v10
 	v8 = t0
 	t3 = complex(-imag(v11), real(v11))
 	v11 = v9 - t3
-	v9 = v9 + t3
+	v9 += t3
 
 	t0 = v12 + v14
 	v14 = v12 - v14
 	v12 = t0
 	t3 = complex(-imag(v15), real(v15))
 	v15 = v13 - t3
-	v13 = v13 + t3
+	v13 += t3
 
 	// Stage 3. Twiddles W_8^{-k}.
 	t0 = v0 + v4
@@ -902,14 +902,14 @@ func fft16Complex128Inverse(
 	tr, ti := real(v5), imag(v5)
 	t3 = complex(tr*P_isq2-ti*P_isq2, tr*P_isq2+ti*P_isq2)
 	v5 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 	t3 = complex(-imag(v6), real(v6))
 	v6 = v2 - t3
-	v2 = v2 + t3
+	v2 += t3
 	tr, ti = real(v7), imag(v7)
 	t3 = complex(-tr*P_isq2-ti*P_isq2, tr*P_isq2-ti*P_isq2)
 	v7 = v3 - t3
-	v3 = v3 + t3
+	v3 += t3
 
 	t0 = v8 + v12
 	v12 = v8 - v12
@@ -917,14 +917,14 @@ func fft16Complex128Inverse(
 	tr, ti = real(v13), imag(v13)
 	t3 = complex(tr*P_isq2-ti*P_isq2, tr*P_isq2+ti*P_isq2)
 	v13 = v9 - t3
-	v9 = v9 + t3
+	v9 += t3
 	t3 = complex(-imag(v14), real(v14))
 	v14 = v10 - t3
-	v10 = v10 + t3
+	v10 += t3
 	tr, ti = real(v15), imag(v15)
 	t3 = complex(-tr*P_isq2-ti*P_isq2, tr*P_isq2-ti*P_isq2)
 	v15 = v11 - t3
-	v11 = v11 + t3
+	v11 += t3
 
 	// Stage 4. W_16^{-k}.
 	t0 = v0 + v8
@@ -933,30 +933,30 @@ func fft16Complex128Inverse(
 	tr, ti = real(v9), imag(v9)
 	t3 = complex(tr*P_cos1-ti*P_sin1, tr*P_sin1+ti*P_cos1)
 	v9 = v1 - t3
-	v1 = v1 + t3
+	v1 += t3
 	tr, ti = real(v10), imag(v10)
 	t3 = complex(tr*P_isq2-ti*P_isq2, tr*P_isq2+ti*P_isq2)
 	v10 = v2 - t3
-	v2 = v2 + t3
+	v2 += t3
 	tr, ti = real(v11), imag(v11)
 	t3 = complex(tr*P_sin1-ti*P_cos1, tr*P_cos1+ti*P_sin1)
 	v11 = v3 - t3
-	v3 = v3 + t3
+	v3 += t3
 	t3 = complex(-imag(v12), real(v12))
 	v12 = v4 - t3
-	v4 = v4 + t3
+	v4 += t3
 	tr, ti = real(v13), imag(v13)
 	t3 = complex(tr*(-P_sin1)-ti*P_cos1, tr*P_cos1+ti*(-P_sin1))
 	v13 = v5 - t3
-	v5 = v5 + t3
+	v5 += t3
 	tr, ti = real(v14), imag(v14)
 	t3 = complex(tr*(-P_isq2)-ti*P_isq2, tr*P_isq2+ti*(-P_isq2))
 	v14 = v6 - t3
-	v6 = v6 + t3
+	v6 += t3
 	tr, ti = real(v15), imag(v15)
 	t3 = complex(tr*(-P_cos1)-ti*P_sin1, tr*P_sin1+ti*(-P_cos1))
 	v15 = v7 - t3
-	v7 = v7 + t3
+	v7 += t3
 
 	r0, r1, r2, r3, r4, r5, r6, r7 = v0, v1, v2, v3, v4, v5, v6, v7
 	r8, r9, r10, r11, r12, r13, r14, r15 = v8, v9, v10, v11, v12, v13, v14, v15

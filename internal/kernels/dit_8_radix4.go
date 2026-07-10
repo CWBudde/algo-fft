@@ -101,7 +101,7 @@ func forwardDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
 //
-//nolint:funlen
+
 func inverseDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const n = 8
 
@@ -283,7 +283,7 @@ func forwardDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 // Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
 //
-//nolint:funlen
+
 func inverseDIT8Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	const n = 8
 

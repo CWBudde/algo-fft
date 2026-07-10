@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // AVX2 Size-8 Radix-2 FFT (complex64) Kernels for AMD64
@@ -39,22 +39,22 @@ TEXT ·ForwardAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 8)
+	MOVQ src_len+32(FP), R13     // R13 = n (should be 8)
 
 	// Verify n == 8
 	CMPQ R13, $8
 	JNE  size8_fwd_return_false
 
 	// Validate all slice lengths >= 8
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $8
 	JL   size8_fwd_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $8
 	JL   size8_fwd_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $8
 	JL   size8_fwd_return_false
 
@@ -225,22 +225,22 @@ TEXT ·InverseAVX2Size8Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 8)
+	MOVQ src_len+32(FP), R13     // R13 = n (should be 8)
 
 	// Verify n == 8
 	CMPQ R13, $8
 	JNE  size8_inv_return_false
 
 	// Validate all slice lengths >= 8
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $8
 	JL   size8_inv_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $8
 	JL   size8_inv_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $8
 	JL   size8_inv_return_false
 

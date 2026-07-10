@@ -9,7 +9,7 @@ import (
 
 // TestPlanForwardBatch_Correctness verifies batch forward transform correctness.
 //
-//nolint:gocognit
+
 func TestPlanForwardBatch_Correctness(t *testing.T) {
 	t.Run("count=1_matches_single", func(t *testing.T) {
 		t.Parallel()
@@ -190,7 +190,7 @@ func TestPlanInverseBatch_Correctness(t *testing.T) {
 
 // TestPlanBatch_Errors verifies error handling.
 //
-//nolint:funlen
+
 func TestPlanBatch_Errors(t *testing.T) {
 	t.Parallel()
 

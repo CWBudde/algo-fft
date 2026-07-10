@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 #include "textflag.h"
 
@@ -126,16 +126,16 @@ GLOBL const_signmask_full<>(SB), RODATA|NOPTR, $32
 // ===========================================================================
 TEXT ·ForwardAVX2Size512Radix16x32Complex64Asm(SB), $8192-97
 	// ===== VALIDATION =====
-	MOVQ src+32(FP), AX
+	MOVQ src_len+32(FP), AX
 	CMPQ AX, $512
 	JL   fwd_fail
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $512
 	JL   fwd_fail
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $512
 	JL   fwd_fail
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $512
 	JL   fwd_fail
 
@@ -1392,16 +1392,16 @@ fwd_fail:
 // ===========================================================================
 TEXT ·InverseAVX2Size512Radix16x32Complex64Asm(SB), $8192-97
 	// ===== VALIDATION =====
-	MOVQ src+32(FP), AX
+	MOVQ src_len+32(FP), AX
 	CMPQ AX, $512
 	JL   inv_fail
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $512
 	JL   inv_fail
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $512
 	JL   inv_fail
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $512
 	JL   inv_fail
 

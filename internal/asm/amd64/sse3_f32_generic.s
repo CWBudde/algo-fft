@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // SSE3-optimized FFT Assembly for AMD64 (complex64/float32)
@@ -34,22 +34,22 @@ TEXT ·ForwardSSE3Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n = len(src)
+	MOVQ src_len+32(FP), R13     // R13 = n = len(src)
 
 	// Empty input is valid (no-op)
 	TESTQ R13, R13
 	JZ    sse2_return_true
 
 	// Validate all slice lengths are >= n
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, R13
 	JL   sse2_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, R13
 	JL   sse2_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, R13
 	JL   sse2_return_false
 
@@ -354,22 +354,22 @@ TEXT ·InverseSSE3Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n = len(src)
+	MOVQ src_len+32(FP), R13     // R13 = n = len(src)
 
 	// Empty input is valid (no-op)
 	TESTQ R13, R13
 	JZ    inv_sse2_return_true
 
 	// Validate all slice lengths are >= n
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, R13
 	JL   inv_sse2_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, R13
 	JL   inv_sse2_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, R13
 	JL   inv_sse2_return_false
 

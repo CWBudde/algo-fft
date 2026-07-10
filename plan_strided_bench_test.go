@@ -10,7 +10,6 @@ func BenchmarkPlanForwardStrided_Copy(b *testing.B) {
 	benchForwardStrided(b, true)
 }
 
-//nolint:gocognit
 func benchForwardStrided(b *testing.B, useCopy bool) {
 	b.Helper()
 

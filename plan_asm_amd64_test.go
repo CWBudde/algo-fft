@@ -1,4 +1,4 @@
-//go:build amd64 && asm
+//go:build amd64 && !purego
 
 package algofft
 

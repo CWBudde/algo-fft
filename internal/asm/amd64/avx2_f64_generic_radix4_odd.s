@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // AVX2/FMA-optimized FFT Assembly for AMD64 - complex128 (float64)
@@ -50,7 +50,7 @@ TEXT ·ForwardAVX2Complex128Radix4MixedAsm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9         // R9 = src pointer
 	MOVQ twiddle+48(FP), R10    // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11    // R11 = scratch pointer
-	MOVQ src+32(FP), R13        // R13 = n (element count from src.len)
+	MOVQ src_len+32(FP), R13        // R13 = n (element count from src.len)
 
 	// ===================================================================
 	// Empty input check - empty is valid (no-op)
@@ -61,15 +61,15 @@ TEXT ·ForwardAVX2Complex128Radix4MixedAsm(SB), NOSPLIT, $0-121
 	// ===================================================================
 	// Validate all slice lengths are >= n
 	// ===================================================================
-	MOVQ dst+8(FP), AX          // AX = dst.len
+	MOVQ dst_len+8(FP), AX          // AX = dst.len
 	CMPQ AX, R13                // compare dst.len with n
 	JL   fwd_r4m_c128_return_false // fail if dst.len < n
 
-	MOVQ twiddle+56(FP), AX     // AX = twiddle.len
+	MOVQ twiddle_len+56(FP), AX     // AX = twiddle.len
 	CMPQ AX, R13                // compare twiddle.len with n
 	JL   fwd_r4m_c128_return_false // fail if twiddle.len < n
 
-	MOVQ scratch+80(FP), AX     // AX = scratch.len
+	MOVQ scratch_len+80(FP), AX     // AX = scratch.len
 	CMPQ AX, R13                // compare scratch.len with n
 	JL   fwd_r4m_c128_return_false // fail if scratch.len < n
 
@@ -740,7 +740,7 @@ TEXT ·InverseAVX2Complex128Radix4MixedAsm(SB), NOSPLIT, $0-121
 	MOVQ src+24(FP), R9         // R9 = src pointer
 	MOVQ twiddle+48(FP), R10    // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11    // R11 = scratch pointer
-	MOVQ src+32(FP), R13        // R13 = n (element count from src.len)
+	MOVQ src_len+32(FP), R13        // R13 = n (element count from src.len)
 
 	// ===================================================================
 	// Empty input check - empty is valid (no-op)
@@ -751,15 +751,15 @@ TEXT ·InverseAVX2Complex128Radix4MixedAsm(SB), NOSPLIT, $0-121
 	// ===================================================================
 	// Validate all slice lengths are >= n
 	// ===================================================================
-	MOVQ dst+8(FP), AX          // AX = dst.len
+	MOVQ dst_len+8(FP), AX          // AX = dst.len
 	CMPQ AX, R13                // compare dst.len with n
 	JL   inv_r4m_c128_return_false // fail if dst.len < n
 
-	MOVQ twiddle+56(FP), AX     // AX = twiddle.len
+	MOVQ twiddle_len+56(FP), AX     // AX = twiddle.len
 	CMPQ AX, R13                // compare twiddle.len with n
 	JL   inv_r4m_c128_return_false // fail if twiddle.len < n
 
-	MOVQ scratch+80(FP), AX     // AX = scratch.len
+	MOVQ scratch_len+80(FP), AX     // AX = scratch.len
 	CMPQ AX, R13                // compare scratch.len with n
 	JL   inv_r4m_c128_return_false // fail if scratch.len < n
 

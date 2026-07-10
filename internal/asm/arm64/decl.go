@@ -1,4 +1,4 @@
-//go:build arm64 && asm && !purego
+//go:build arm64 && !purego
 
 package arm64
 
@@ -145,6 +145,40 @@ func ForwardNEONSize256Radix4Complex128Asm(dst, src, twiddle, scratch []complex1
 
 //go:noescape
 func InverseNEONSize256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+// The kernels below have assembly implementations but are not yet wired into
+// codelet registration (pending P2.3 arm64 complex128 coverage). Declared so
+// go vet's asmdecl can check their frames and they stay callable from tests.
+
+//go:noescape
+func ForwardNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func ForwardNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func ForwardNEONSize64Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseNEONSize64Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func ForwardNEONSize128MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseNEONSize128MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func ForwardNEONSize256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseNEONSize256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // Complex multiply helpers.
 

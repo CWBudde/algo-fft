@@ -59,35 +59,39 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qemu-user-static
 
+      # The default build includes the SIMD kernels (selected at runtime via
+      # CPU detection); -tags purego opts out to the pure-Go fallback. Both
+      # flavors must compile and pass on every architecture (amd64, 386, and
+      # arm64 — native on macOS, via QEMU/binfmt on Linux). ALGOFFT_QEMU=1 is
+      # set only under emulation so the O(n^2) large-size reference checks
+      # skip (too slow on QEMU); native arm64 runs the full suite.
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: go build -v ./...
 
-      # The asm build must always compile on every architecture, and the asm
-      # tests now run on every architecture too (amd64, 386, and arm64 — native
-      # on macOS, via QEMU/binfmt on Linux). ALGOFFT_QEMU=1 is set only under
-      # emulation so the O(n^2) large-size reference checks skip (too slow on
-      # QEMU); native arm64 runs the full suite.
-      - name: Build with asm tag
+      - name: Build (purego)
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: go build -tags asm -v ./...
+        run: go build -tags purego -v ./...
 
-      - name: Run tests with asm tag
+      # asmdecl (via go vet) checks every FP reference and frame size in the
+      # .s files against the Go declarations — this is what catches decl↔asm
+      # drift, so it must stay green on every architecture.
+      - name: Vet
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          ALGOFFT_QEMU: ${{ matrix.use_qemu && '1' || '' }}
-        run: go test -tags asm -v -count=1 ./...
+        run: go vet ./...
 
       - name: Run tests (with race detector)
         if: matrix.race
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          ALGOFFT_QEMU: ${{ matrix.use_qemu && '1' || '' }}
         run: go test -v -race -count=1 ./...
 
       - name: Run tests (without race detector)
@@ -95,7 +99,17 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          ALGOFFT_QEMU: ${{ matrix.use_qemu && '1' || '' }}
         run: go test -v -count=1 ./...
+
+      # Fallback-parity: the pure-Go path is a supported configuration, not
+      # dead code — it must pass everywhere the SIMD build does.
+      - name: Run tests (purego)
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          ALGOFFT_QEMU: ${{ matrix.use_qemu && '1' || '' }}
+        run: go test -tags purego -v -count=1 ./...
 
   test-wasm:
     name: Test WASM (js/wasm)

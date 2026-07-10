@@ -38,9 +38,9 @@ clean:
 # Run all checks (test, lint, coverage)
 check: test lint cover
 
-# Build with asm
+# Cross-compile for amd64 (SIMD is included in the default build)
 build-amd64:
-    GOOS=linux GOARCH=amd64 go build -tags "asm" -v ./...
+    GOOS=linux GOARCH=amd64 go build -v ./...
 
 # Cross-compile for ARM64
 build-arm64:
@@ -50,9 +50,16 @@ build-arm64:
 build-wasm:
     GOOS=js GOARCH=wasm go build -v ./...
 
-# Run WebAssembly tests in Node.js
-test-asm:
-    go test -tags "asm" -v -count=1 ./...
+# Run tests with the pure-Go fallback (no SIMD kernels)
+test-purego:
+    go test -tags "purego" -v -count=1 ./...
+
+# Vet the SIMD build (asmdecl frame checks) on amd64, arm64, and 386
+vet-arch:
+    GOARCH=amd64 go vet ./...
+    GOARCH=arm64 go vet ./...
+    GOARCH=386 go vet ./...
+    go vet -tags "purego" ./...
 
 # Run WebAssembly tests in Node.js
 test-wasm:

@@ -1,4 +1,4 @@
-//go:build amd64 && asm
+//go:build amd64 && !purego
 
 package kernels
 
@@ -10,6 +10,8 @@ import (
 
 // BenchmarkAVX2Complex64 benchmarks AVX2 kernels for complex64.
 func BenchmarkAVX2Complex64(b *testing.B) {
+	requireAVX2(b)
+
 	cases := []benchCase64{
 		{"Size4/Radix4", 4, amd64.ForwardAVX2Size4Radix4Complex64Asm, amd64.InverseAVX2Size4Radix4Complex64Asm},
 		{"Size8/Radix2", 8, amd64.ForwardAVX2Size8Radix2Complex64Asm, amd64.InverseAVX2Size8Radix2Complex64Asm},
@@ -51,6 +53,8 @@ func BenchmarkAVX2Complex64(b *testing.B) {
 
 // BenchmarkAVX2Complex128 benchmarks AVX2 kernels for complex128.
 func BenchmarkAVX2Complex128(b *testing.B) {
+	requireAVX2(b)
+
 	cases := []benchCase128{
 		{"Size256/Radix2", 256, amd64.ForwardAVX2Size256Radix2Complex128Asm, amd64.InverseAVX2Size256Radix2Complex128Asm},
 		{"Size256/Radix4", 256, amd64.ForwardAVX2Size256Radix4Complex128Asm, amd64.InverseAVX2Size256Radix4Complex128Asm},

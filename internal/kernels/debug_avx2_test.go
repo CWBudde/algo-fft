@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 package kernels
 
@@ -10,6 +10,8 @@ import (
 )
 
 func TestDebugAVX2Size8Radix4(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 8
 
 	// Simple test input
@@ -44,7 +46,7 @@ func TestDebugAVX2Size8Radix4(t *testing.T) {
 
 	// Check forward match
 	fwdMatch := true
-	for i := 0; i < n; i++ {
+	for i := range n {
 		diff := abs64(goFwd[i] - avxFwd[i])
 		if diff > 1e-5 {
 			t.Logf("Forward mismatch at [%d]: Go=%v AVX2=%v diff=%e", i, goFwd[i], avxFwd[i], diff)
@@ -68,7 +70,7 @@ func TestDebugAVX2Size8Radix4(t *testing.T) {
 	// Check inverse match
 	t.Logf("\n=== Per-element inverse differences ===")
 	invMatch := true
-	for i := 0; i < n; i++ {
+	for i := range n {
 		diff := abs64(goInv[i] - avxInv[i])
 		t.Logf("[%d] Go=%v AVX2=%v diff=%e", i, goInv[i], avxInv[i], diff)
 		if diff > 1e-5 {
@@ -85,7 +87,7 @@ func TestDebugAVX2Size8Radix4(t *testing.T) {
 
 	goRoundTrip := true
 	avxRoundTrip := true
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if abs64(src[i]-goInv[i]) > 1e-5 {
 			goRoundTrip = false
 		}

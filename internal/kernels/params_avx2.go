@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 package kernels
 
@@ -80,7 +80,7 @@ func prepareTwiddle8192Radix4Then2AVX2(n int, inverse bool, dst []complex64) {
 	// Stage 2: 4 butterflies (j=0..3), twiddle step = 512
 	// Indices: j*512, 2*j*512, 3*j*512
 	offset := twiddleStage2Offset8192
-	for j := 0; j < 4; j++ {
+	for j := range 4 {
 		idx1 := j * 512
 		idx2 := 2 * j * 512
 		idx3 := 3 * j * 512
@@ -91,7 +91,7 @@ func prepareTwiddle8192Radix4Then2AVX2(n int, inverse bool, dst []complex64) {
 	// Stage 3: 16 butterflies (j=0..15), twiddle step = 128
 	// Indices: j*128, 2*j*128, 3*j*128
 	offset = twiddleStage3Offset8192
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		idx1 := j * 128
 		idx2 := 2 * j * 128
 		idx3 := 3 * j * 128
@@ -102,7 +102,7 @@ func prepareTwiddle8192Radix4Then2AVX2(n int, inverse bool, dst []complex64) {
 	// Stage 4: 64 butterflies (j=0..63), twiddle step = 32
 	// Indices: j*32, 2*j*32, 3*j*32
 	offset = twiddleStage4Offset8192
-	for j := 0; j < 64; j++ {
+	for j := range 64 {
 		idx1 := j * 32
 		idx2 := 2 * j * 32
 		idx3 := 3 * j * 32
@@ -113,7 +113,7 @@ func prepareTwiddle8192Radix4Then2AVX2(n int, inverse bool, dst []complex64) {
 	// Stage 5: 256 butterflies (j=0..255), twiddle step = 8
 	// Indices: j*8, 2*j*8, 3*j*8
 	offset = twiddleStage5Offset8192
-	for j := 0; j < 256; j++ {
+	for j := range 256 {
 		idx1 := j * 8
 		idx2 := 2 * j * 8
 		idx3 := 3 * j * 8
@@ -124,7 +124,7 @@ func prepareTwiddle8192Radix4Then2AVX2(n int, inverse bool, dst []complex64) {
 	// Stage 6: 1024 butterflies (j=0..1023), twiddle step = 2
 	// Indices: j*2, 2*j*2, 3*j*2
 	offset = twiddleStage6Offset8192
-	for j := 0; j < 1024; j++ {
+	for j := range 1024 {
 		idx1 := j * 2
 		idx2 := 2 * j * 2
 		idx3 := 3 * j * 2
@@ -135,7 +135,7 @@ func prepareTwiddle8192Radix4Then2AVX2(n int, inverse bool, dst []complex64) {
 	// Stage 7: 4096 radix-2 butterflies (j=0..4095)
 	// Indices: j
 	offset = twiddleStage7Offset8192
-	for j := 0; j < 4096; j++ {
+	for j := range 4096 {
 		writeTwiddle1Packed(dst[offset:], twiddle[j], inverse)
 		offset += elemsPerRadix2Butterfly
 	}
@@ -145,8 +145,8 @@ func prepareTwiddle8192Radix4Then2AVX2(n int, inverse bool, dst []complex64) {
 // in SIMD-friendly format: [r, i, r, i] for each twiddle.
 // This format works with VMOVSLDUP/VMOVSHDUP to broadcast r and i separately:
 //
-//	VMOVSLDUP [r, i, r, i] -> [r, r, r, r]
-//	VMOVSHDUP [r, i, r, i] -> [i, i, i, i]
+//	VMOVSLDUP [r, i, r, i] -> [r, r, r]
+//	VMOVSHDUP [r, i, r, i] -> [i, i, i]
 //
 // If inverse is true, the imaginary parts are negated (conjugate).
 func writeTwiddle3Packed(buf []complex64, w1, w2, w3 complex64, inverse bool) {
@@ -171,8 +171,8 @@ func writeTwiddle3Packed(buf []complex64, w1, w2, w3 complex64, inverse bool) {
 // in SIMD-friendly format: [r, i, r, i].
 // This format works with VMOVSLDUP/VMOVSHDUP to broadcast r and i separately:
 //
-//	VMOVSLDUP [r, i, r, i] -> [r, r, r, r]
-//	VMOVSHDUP [r, i, r, i] -> [i, i, i, i]
+//	VMOVSLDUP [r, i, r, i] -> [r, r, r]
+//	VMOVSHDUP [r, i, r, i] -> [i, i, i]
 //
 // If inverse is true, the imaginary part is negated (conjugate).
 func writeTwiddle1Packed(buf []complex64, w complex64, inverse bool) {
@@ -204,7 +204,7 @@ const (
 	twiddleElemsPerPair256Radix16  = 4
 
 	// Pre-packed YMM pairs for FFT-16 Stage 2 (eliminates VINSERTF128 at runtime)
-	// Each pair is 2 complex128 values = 32 bytes = 1 YMM register
+	// Each pair is 2 complex128 values = 32 bytes = 1 YMM register.
 	twiddleStage2PackedOffset256Radix16 = 736
 	twiddleStage2PackedElems256Radix16  = 12 // 6 pairs × 2 elements
 )
@@ -296,7 +296,7 @@ func prepareTwiddle256Radix16AVX2(n int, inverse bool, dst []complex128) {
 
 	offset := twiddleSize256Radix16BaseElems
 	for col := 1; col < 16; col++ {
-		for pair := 0; pair < twiddlePairsPerCol256Radix16; pair++ {
+		for pair := range twiddlePairsPerCol256Radix16 {
 			row := pair * 2
 			idx0 := row * col
 			idx1 := (row + 1) * col

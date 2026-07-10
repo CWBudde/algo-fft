@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // SSE2 Size-16 Radix-2 FFT Kernels for AMD64 (complex64)
@@ -42,21 +42,21 @@ TEXT ·ForwardSSE3Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src slice data pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle slice data pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch slice data pointer
-	MOVQ src+32(FP), R13     // R13 = src slice length (should be 16)
+	MOVQ src_len+32(FP), R13     // R13 = src slice length (should be 16)
 
 	// ===== Input Validation =====
 	CMPQ R13, $16            // check n == 16
 	JNE  size16_r2_sse2_fwd_return_false
 
-	MOVQ dst+8(FP), AX       // dst.len
+	MOVQ dst_len+8(FP), AX       // dst.len
 	CMPQ AX, $16             // dst.len >= 16?
 	JL   size16_r2_sse2_fwd_return_false
 
-	MOVQ twiddle+56(FP), AX  // twiddle.len
+	MOVQ twiddle_len+56(FP), AX  // twiddle.len
 	CMPQ AX, $16             // twiddle.len >= 16?
 	JL   size16_r2_sse2_fwd_return_false
 
-	MOVQ scratch+80(FP), AX  // scratch.len
+	MOVQ scratch_len+80(FP), AX  // scratch.len
 	CMPQ AX, $16             // scratch.len >= 16?
 	JL   size16_r2_sse2_fwd_return_false
 
@@ -593,21 +593,21 @@ TEXT ·InverseSSE3Size16Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src slice data pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle slice data pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch slice data pointer
-	MOVQ src+32(FP), R13     // R13 = src slice length
+	MOVQ src_len+32(FP), R13     // R13 = src slice length
 
 	// ===== Input Validation =====
 	CMPQ R13, $16            // check n == 16
 	JNE  size16_r2_sse2_inv_return_false
 
-	MOVQ dst+8(FP), AX       // dst.len
+	MOVQ dst_len+8(FP), AX       // dst.len
 	CMPQ AX, $16             // dst.len >= 16?
 	JL   size16_r2_sse2_inv_return_false
 
-	MOVQ twiddle+56(FP), AX  // twiddle.len
+	MOVQ twiddle_len+56(FP), AX  // twiddle.len
 	CMPQ AX, $16             // twiddle.len >= 16?
 	JL   size16_r2_sse2_inv_return_false
 
-	MOVQ scratch+80(FP), AX  // scratch.len
+	MOVQ scratch_len+80(FP), AX  // scratch.len
 	CMPQ AX, $16             // scratch.len >= 16?
 	JL   size16_r2_sse2_inv_return_false
 

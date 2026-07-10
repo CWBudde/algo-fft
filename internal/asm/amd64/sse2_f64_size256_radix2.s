@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // SSE2 Size-256 Radix-2 FFT Kernels for AMD64 (complex128)
@@ -14,7 +14,7 @@ TEXT ·ForwardSSE2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	// Check size n == 256
 	CMPQ R13, $256
@@ -1020,7 +1020,7 @@ TEXT ·InverseSSE2Size256Radix2Complex128Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9
 	MOVQ twiddle+48(FP), R10
 	MOVQ scratch+72(FP), R11
-	MOVQ src+32(FP), R13
+	MOVQ src_len+32(FP), R13
 
 	CMPQ R13, $256
 	JNE  inv_err

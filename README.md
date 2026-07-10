@@ -37,8 +37,9 @@ The demo runs the library compiled to WebAssembly, allowing you to visualize FFT
 
 - **Performance**
   - Zero-dispatch codelets for common sizes (8, 16, 32, 64, 128)
-  - SIMD acceleration (AVX2 on amd64, NEON on ARM64) — currently requires
-    building with `-tags asm`; default builds use optimized pure Go
+  - SIMD acceleration (AVX2/SSE2 on amd64, NEON on arm64) included in the
+    default build and selected at runtime via CPU detection (`-tags purego`
+    opts out to pure Go)
   - Zero-allocation transforms with pre-allocated Plans
   - CPU feature detection and runtime dispatch
   - Wisdom system for caching optimal planning decisions
@@ -242,7 +243,7 @@ The table below shows performance comparison with gonum's FFT implementation for
 | 2048 | 30.68 µs | 93.93 µs  | 3.1x    |
 | 4096 | 95.84 µs | 310.53 µs | 3.2x    |
 
-_Benchmarked on Linux/amd64 with AVX2 acceleration (built with `-tags asm`)_
+_Benchmarked on Linux/amd64 with AVX2 acceleration (default build)_
 
 ## Correctness
 
@@ -336,7 +337,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to algofft
 ## Goals & Design
 
 - **Correctness**: Extensive testing and mathematical precision
-- **Performance**: SIMD optimization across architectures (via the `-tags asm` build until it becomes the default)
+- **Performance**: SIMD optimization across architectures, on by default with runtime CPU detection
 - **Usability**: Clean, ergonomic Go API
 - **Maintainability**: Well-documented, modular codebase
 

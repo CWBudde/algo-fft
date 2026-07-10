@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 package kernels
 
@@ -17,8 +17,8 @@ import (
 func makeDiagInput() []complex128 {
 	const n = 256
 	src := make([]complex128, n)
-	for r := 0; r < 16; r++ {
-		for c := 0; c < 16; c++ {
+	for r := range 16 {
+		for c := range 16 {
 			src[r*16+c] = complex(float64(r+1), float64((c+1)*(r+1)))
 		}
 	}
@@ -26,6 +26,8 @@ func makeDiagInput() []complex128 {
 }
 
 func TestDiagFusedTwiddleForwardTile(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 to enable the fused-twiddle diagnostic test")
 	}
@@ -42,17 +44,17 @@ func TestDiagFusedTwiddleForwardTile(t *testing.T) {
 
 	baseTwiddle := m.ComputeTwiddleFactors[complex128](n)
 	colFFT := make([][]complex128, 4)
-	for col := 0; col < 4; col++ {
+	for col := range 4 {
 		column := make([]complex128, 16)
-		for row := 0; row < 16; row++ {
+		for row := range 16 {
 			column[row] = src[row*16+col]
 		}
 		colFFT[col] = reference.NaiveDFT128(column)
 	}
 
 	const tol = 1e-9
-	for row := 0; row < 4; row++ {
-		for col := 0; col < 4; col++ {
+	for row := range 4 {
+		for col := range 4 {
 			expected := colFFT[col][row] * baseTwiddle[row*col]
 			got := dst[row*16+col]
 			if cmplx.Abs(got-expected) > tol {
@@ -65,6 +67,8 @@ func TestDiagFusedTwiddleForwardTile(t *testing.T) {
 // TestDiagFusedTwiddleForwardTileCb1 validates the forward fused-twiddle mapping
 // for the (rb=0, cb=1) tile when the diagnostic hook is enabled.
 func TestDiagFusedTwiddleForwardTileCb1(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_TILE") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 and ALGOFFT_DIAG_TWIDDLE_TILE=1 to enable this test")
 	}
@@ -83,14 +87,14 @@ func TestDiagFusedTwiddleForwardTileCb1(t *testing.T) {
 	colFFT := make([][]complex128, 4)
 	for col := 4; col < 8; col++ {
 		column := make([]complex128, 16)
-		for row := 0; row < 16; row++ {
+		for row := range 16 {
 			column[row] = src[row*16+col]
 		}
 		colFFT[col-4] = reference.NaiveDFT128(column)
 	}
 
 	const tol = 1e-9
-	for row := 0; row < 4; row++ {
+	for row := range 4 {
 		for col := 4; col < 8; col++ {
 			expected := colFFT[col-4][row] * baseTwiddle[row*col]
 			got := dst[row*16+col]
@@ -104,6 +108,8 @@ func TestDiagFusedTwiddleForwardTileCb1(t *testing.T) {
 // TestDiagFusedTwiddleForwardTileCb1Mapped validates the cb1 tile against the
 // transpose-out mapping (row_in = cb*4+r, col_in = rb*4+c).
 func TestDiagFusedTwiddleForwardTileCb1Mapped(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_TILE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_MAP") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 ALGOFFT_DIAG_TWIDDLE_TILE=1 ALGOFFT_DIAG_TWIDDLE_MAP=1")
 	}
@@ -120,16 +126,16 @@ func TestDiagFusedTwiddleForwardTileCb1Mapped(t *testing.T) {
 
 	baseTwiddle := m.ComputeTwiddleFactors[complex128](n)
 	colFFT := make([][]complex128, 4)
-	for col := 0; col < 4; col++ {
+	for col := range 4 {
 		column := make([]complex128, 16)
-		for row := 0; row < 16; row++ {
+		for row := range 16 {
 			column[row] = src[row*16+col]
 		}
 		colFFT[col] = reference.NaiveDFT128(column)
 	}
 
 	const tol = 1e-9
-	for row := 0; row < 4; row++ {
+	for row := range 4 {
 		rowIn := 4 + row
 		for col := 4; col < 8; col++ {
 			colIn := col - 4
@@ -145,6 +151,8 @@ func TestDiagFusedTwiddleForwardTileCb1Mapped(t *testing.T) {
 // TestDiagTransposeForwardTileCb1NoTwiddle validates the transpose-out mapping
 // for the (rb=0, cb=1) tile without twiddle.
 func TestDiagTransposeForwardTileCb1NoTwiddle(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_TILE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_NOTW") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 ALGOFFT_DIAG_TWIDDLE_TILE=1 ALGOFFT_DIAG_TWIDDLE_NOTW=1")
 	}
@@ -162,14 +170,14 @@ func TestDiagTransposeForwardTileCb1NoTwiddle(t *testing.T) {
 	colFFT := make([][]complex128, 4)
 	for col := 4; col < 8; col++ {
 		column := make([]complex128, 16)
-		for row := 0; row < 16; row++ {
+		for row := range 16 {
 			column[row] = src[row*16+col]
 		}
 		colFFT[col-4] = reference.NaiveDFT128(column)
 	}
 
 	const tol = 1e-9
-	for row := 0; row < 4; row++ {
+	for row := range 4 {
 		for col := 4; col < 8; col++ {
 			expected := colFFT[col-4][row]
 			got := dst[row*16+col]
@@ -183,6 +191,8 @@ func TestDiagTransposeForwardTileCb1NoTwiddle(t *testing.T) {
 // TestDiagTransposeMappingCb1 reports which (row,col) from the column FFTs
 // appear in the (rb=0, cb=1) tile when no twiddle is applied.
 func TestDiagTransposeMappingCb1(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_TILE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_NOTW") != "1" || os.Getenv("ALGOFFT_DIAG_MAP") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 ALGOFFT_DIAG_TWIDDLE_TILE=1 ALGOFFT_DIAG_TWIDDLE_NOTW=1 ALGOFFT_DIAG_MAP=1")
 	}
@@ -198,21 +208,21 @@ func TestDiagTransposeMappingCb1(t *testing.T) {
 	_ = amd64.ForwardAVX2Size256Radix16Complex128Asm(dst, src, twiddle, scratch)
 
 	colFFT := make([][]complex128, 16)
-	for col := 0; col < 16; col++ {
+	for col := range 16 {
 		column := make([]complex128, 16)
-		for row := 0; row < 16; row++ {
+		for row := range 16 {
 			column[row] = src[row*16+col]
 		}
 		colFFT[col] = reference.NaiveDFT128(column)
 	}
 
 	const tol = 1e-9
-	for row := 0; row < 4; row++ {
+	for row := range 4 {
 		for col := 4; col < 8; col++ {
 			got := dst[row*16+col]
 			found := false
 			for srcCol := 0; srcCol < 16 && !found; srcCol++ {
-				for srcRow := 0; srcRow < 16; srcRow++ {
+				for srcRow := range 16 {
 					expected := colFFT[srcCol][srcRow]
 					if cmplx.Abs(got-expected) <= tol {
 						t.Logf("tile[%d,%d] matches col=%d row=%d value=%v", row, col, srcCol, srcRow, got)

@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // AVX2 Size-8192 Radix-4-then-2 FFT Kernels with Pre-Prepared Twiddle Data
@@ -46,7 +46,7 @@ TEXT ·ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R14 // R14 = twiddle-extra pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 8192)
+	MOVQ src_len+32(FP), R13     // R13 = n (should be 8192)
 	LEAQ ·bitrev8192_m24(SB), R12
 
 	// Verify n == 8192
@@ -54,15 +54,15 @@ TEXT ·ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm(SB), NOSPLIT, $0-97
 	JNE  m24p_8192_return_false
 
 	// Validate slice lengths
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $8192
 	JL   m24p_8192_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $16376
 	JL   m24p_8192_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $8192
 	JL   m24p_8192_return_false
 
@@ -647,7 +647,7 @@ TEXT ·InverseAVX2Size8192Radix4Then2ParamsComplex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R14 // R14 = twiddle-extra pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 8192)
+	MOVQ src_len+32(FP), R13     // R13 = n (should be 8192)
 	LEAQ ·bitrev8192_m24(SB), R12
 
 	// Verify n == 8192
@@ -655,15 +655,15 @@ TEXT ·InverseAVX2Size8192Radix4Then2ParamsComplex64Asm(SB), NOSPLIT, $0-97
 	JNE  m24p_8192_inv_return_false
 
 	// Validate slice lengths
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $8192
 	JL   m24p_8192_inv_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $16376
 	JL   m24p_8192_inv_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $8192
 	JL   m24p_8192_inv_return_false
 

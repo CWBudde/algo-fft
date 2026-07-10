@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 package kernels
 
@@ -9,6 +9,8 @@ import (
 )
 
 func TestButterfly5ForwardAVX2Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	a0 := []complex64{1 + 2i, 3 + 4i}
@@ -43,6 +45,8 @@ func TestButterfly5ForwardAVX2Complex64(t *testing.T) {
 }
 
 func TestButterfly5RoundTripAVX2(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	orig0 := []complex64{1 + 2i, 3 + 4i}
@@ -82,6 +86,8 @@ func TestButterfly5RoundTripAVX2(t *testing.T) {
 }
 
 func TestButterfly5InverseAVX2Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	a0 := []complex64{1 + 2i, 3 + 4i}

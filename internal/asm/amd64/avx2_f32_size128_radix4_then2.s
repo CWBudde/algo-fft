@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // ===========================================================================
 // AVX2 Size-128 Radix-4-then-2 (2×4) FFT Kernels for AMD64 (complex64)
@@ -23,22 +23,22 @@ TEXT ·ForwardAVX2Size128Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9  = src pointer
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
 	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src+32(FP), R13     // R13 = n (should be 128)
+	MOVQ src_len+32(FP), R13     // R13 = n (should be 128)
 
 	// Verify n == 128
 	CMPQ R13, $128
 	JNE  size128_r4_return_false
 
 	// Validate slice lengths (all must be >= 128)
-	MOVQ dst+8(FP), AX
+	MOVQ dst_len+8(FP), AX
 	CMPQ AX, $128
 	JL   size128_r4_return_false
 
-	MOVQ twiddle+56(FP), AX
+	MOVQ twiddle_len+56(FP), AX
 	CMPQ AX, $128
 	JL   size128_r4_return_false
 
-	MOVQ scratch+80(FP), AX
+	MOVQ scratch_len+80(FP), AX
 	CMPQ AX, $128
 	JL   size128_r4_return_false
 
@@ -418,22 +418,22 @@ TEXT ·InverseAVX2Size128Radix4Then2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVQ src+24(FP), R9      // R9 = src slice data
 	MOVQ twiddle+48(FP), R10 // R10 = twiddle factors
 	MOVQ scratch+72(FP), R11 // R11 = scratch buffer
-	MOVQ src+32(FP), R13     // R13 = n (size)
+	MOVQ src_len+32(FP), R13     // R13 = n (size)
 
 	// Validate n == 128
 	CMPQ R13, $128
 	JNE  size128_r4_inv_return_false
 
 	// Validate slice lengths (must be >= 128 complex64 elements)
-	MOVQ dst+8(FP), AX       // dst len
+	MOVQ dst_len+8(FP), AX       // dst len
 	CMPQ AX, $128
 	JL   size128_r4_inv_return_false
 
-	MOVQ twiddle+56(FP), AX  // twiddle len
+	MOVQ twiddle_len+56(FP), AX  // twiddle len
 	CMPQ AX, $128
 	JL   size128_r4_inv_return_false
 
-	MOVQ scratch+80(FP), AX  // scratch len
+	MOVQ scratch_len+80(FP), AX  // scratch len
 	CMPQ AX, $128
 	JL   size128_r4_inv_return_false
 

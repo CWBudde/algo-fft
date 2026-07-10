@@ -1,4 +1,4 @@
-//go:build 386 && asm && !purego
+//go:build 386 && !purego
 
 package fft
 
@@ -160,7 +160,8 @@ func forwardSSE3Complex64(dst, src, twiddle, scratch []complex64) bool {
 		return forwardSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndicesRadix4(n))
 	case 8:
 		return forwardSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
-		// TODO(386): Re-enable size-16 radix-16 once x86 kernel is corrected.
+	case 16:
+		return forwardSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeIdentityIndices(n))
 	}
 
 	return forwardSSE2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
@@ -179,7 +180,8 @@ func inverseSSE3Complex64(dst, src, twiddle, scratch []complex64) bool {
 		return inverseSSE2Size4Radix4Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndicesRadix4(n))
 	case 8:
 		return inverseSSE3Size8Radix2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))
-		// TODO(386): Re-enable size-16 radix-16 once x86 kernel is corrected.
+	case 16:
+		return inverseSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeIdentityIndices(n))
 	}
 
 	return inverseSSE2Complex64Asm(dst, src, twiddle, scratch, mathpkg.ComputeBitReversalIndices(n))

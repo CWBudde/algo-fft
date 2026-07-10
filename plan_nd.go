@@ -175,9 +175,9 @@ func (p *PlanND[T]) Len() int {
 func (p *PlanND[T]) String() string {
 	var zero T
 
-	typeName := "complex64"
+	typeName := precisionNameComplex64
 	if _, ok := any(zero).(complex128); ok {
-		typeName = "complex128"
+		typeName = precisionNameComplex128
 	}
 
 	var dims strings.Builder

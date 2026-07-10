@@ -1,4 +1,4 @@
-//go:build arm64 && asm && !purego
+//go:build arm64 && !purego
 
 // ===========================================================================
 // NEON Size-32 Mixed-Radix (Radix-4 + Radix-2) FFT Kernels for ARM64 (complex128)
@@ -25,24 +25,24 @@ TEXT ·ForwardNEONSize32MixedRadix24Complex128Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9         // R9 = src.data
 	MOVD twiddle+48(FP), R10    // R10 = twiddle.data
 	MOVD scratch+72(FP), R11    // R11 = scratch.data
-	MOVD src+32(FP), R13        // R13 = src.len (n)
+	MOVD src_len+32(FP), R13        // R13 = src.len (n)
 
 	// Validate n == 32
 	CMP  $32, R13               // n must be exactly 32
 	BNE  neon32m24f64_return_false
 
 	// Validate dst capacity >= 32
-	MOVD dst+8(FP), R0
+	MOVD dst_len+8(FP), R0
 	CMP  $32, R0
 	BLT  neon32m24f64_return_false
 
 	// Validate twiddle capacity >= 32
-	MOVD twiddle+56(FP), R0
+	MOVD twiddle_len+56(FP), R0
 	CMP  $32, R0
 	BLT  neon32m24f64_return_false
 
 	// Validate scratch capacity >= 32
-	MOVD scratch+80(FP), R0
+	MOVD scratch_len+80(FP), R0
 	CMP  $32, R0
 	BLT  neon32m24f64_return_false
 
@@ -400,20 +400,20 @@ TEXT ·InverseNEONSize32MixedRadix24Complex128Asm(SB), NOSPLIT, $0-97
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
 	MOVD scratch+72(FP), R11
-	MOVD src+32(FP), R13
+	MOVD src_len+32(FP), R13
 
 	CMP  $32, R13
 	BNE  neon32m24f64_inv_return_false
 
-	MOVD dst+8(FP), R0
+	MOVD dst_len+8(FP), R0
 	CMP  $32, R0
 	BLT  neon32m24f64_inv_return_false
 
-	MOVD twiddle+56(FP), R0
+	MOVD twiddle_len+56(FP), R0
 	CMP  $32, R0
 	BLT  neon32m24f64_inv_return_false
 
-	MOVD scratch+80(FP), R0
+	MOVD scratch_len+80(FP), R0
 	CMP  $32, R0
 	BLT  neon32m24f64_inv_return_false
 

@@ -108,6 +108,8 @@ func BenchmarkRadix5Forward_625(b *testing.B) {
 }
 
 func benchmarkRadix5ForwardKernel(b *testing.B, n int, kernel func(dst, src, twiddle, scratch []complex64, bitrev []int) bool) {
+	b.Helper()
+
 	src := randomComplex64(n, 0x1234+uint64(n))
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)

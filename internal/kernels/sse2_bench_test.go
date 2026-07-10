@@ -1,4 +1,4 @@
-//go:build amd64 && asm
+//go:build amd64 && !purego
 
 package kernels
 
@@ -10,6 +10,8 @@ import (
 
 // BenchmarkSSE2Complex64 benchmarks SSE2/SSE3 kernels for complex64.
 func BenchmarkSSE2Complex64(b *testing.B) {
+	requireSSE3(b)
+
 	cases := []benchCase64{
 		{"Size4/Radix4", 4, amd64.ForwardSSE2Size4Radix4Complex64Asm, amd64.InverseSSE2Size4Radix4Complex64Asm},
 		{"Size8/Radix2", 8, amd64.ForwardSSE3Size8Radix2Complex64Asm, amd64.InverseSSE3Size8Radix2Complex64Asm},
@@ -40,6 +42,8 @@ func BenchmarkSSE2Complex64(b *testing.B) {
 
 // BenchmarkSSE2Complex128 benchmarks SSE2 kernels for complex128.
 func BenchmarkSSE2Complex128(b *testing.B) {
+	requireSSE3(b)
+
 	cases := []benchCase128{
 		{"Size256/Radix2", 256, amd64.ForwardSSE2Size256Radix2Complex128Asm, amd64.InverseSSE2Size256Radix2Complex128Asm},
 		{"Size256/Radix4", 256, amd64.ForwardSSE2Size256Radix4Complex128Asm, amd64.InverseSSE2Size256Radix4Complex128Asm},

@@ -27,7 +27,7 @@ GLOBL ·complex64ImagSignMask(SB), RODATA|NOPTR, $16
 // func InverseRepackComplex64SSE2Asm(dst, src, weight []complex64, kStartMax int)
 TEXT ·InverseRepackComplex64SSE2Asm(SB), NOSPLIT, $0-80
 	MOVQ dst+0(FP), DI
-	MOVQ dst+8(FP), R8
+	MOVQ dst_len+8(FP), R8
 	MOVQ src+24(FP), SI
 	MOVQ weight+48(FP), DX
 	MOVQ kStartMax+72(FP), CX

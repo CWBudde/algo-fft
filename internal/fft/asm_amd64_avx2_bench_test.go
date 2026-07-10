@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 // Package fft provides AVX2-optimized FFT benchmarks.
 // Tests are in asm_amd64_avx2_test.go.
@@ -688,12 +688,12 @@ func BenchmarkAVX2GenericRadix4Mixed_VsRadix2(b *testing.B) {
 // =============================================================================
 
 // BenchmarkAVX2GenericRadix4Complex128 benchmarks the generic radix-4 Complex128 kernel.
-// Tests power-of-4 sizes (even log2): 64, 256, 1024, 4096
+// Tests power-of-4 sizes (even log2): 64, 256, 1024, 4096.
 func BenchmarkAVX2GenericRadix4Complex128(b *testing.B) {
 	sizes := []int{64, 256, 1024, 4096}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprintf("Forward/%s", sizeString(n)), func(b *testing.B) {
+		b.Run("Forward/"+sizeString(n), func(b *testing.B) {
 			src := make([]complex128, n)
 			for i := range src {
 				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
@@ -713,7 +713,7 @@ func BenchmarkAVX2GenericRadix4Complex128(b *testing.B) {
 			}
 		})
 
-		b.Run(fmt.Sprintf("Inverse/%s", sizeString(n)), func(b *testing.B) {
+		b.Run("Inverse/"+sizeString(n), func(b *testing.B) {
 			src := make([]complex128, n)
 			for i := range src {
 				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
@@ -736,12 +736,12 @@ func BenchmarkAVX2GenericRadix4Complex128(b *testing.B) {
 }
 
 // BenchmarkAVX2GenericRadix4MixedComplex128 benchmarks the mixed radix-4 Complex128 kernel.
-// Tests odd log2 sizes: 32, 128, 512, 2048
+// Tests odd log2 sizes: 32, 128, 512, 2048.
 func BenchmarkAVX2GenericRadix4MixedComplex128(b *testing.B) {
 	sizes := []int{32, 128, 512, 2048}
 
 	for _, n := range sizes {
-		b.Run(fmt.Sprintf("Forward/%s", sizeString(n)), func(b *testing.B) {
+		b.Run("Forward/"+sizeString(n), func(b *testing.B) {
 			src := make([]complex128, n)
 			for i := range src {
 				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
@@ -761,7 +761,7 @@ func BenchmarkAVX2GenericRadix4MixedComplex128(b *testing.B) {
 			}
 		})
 
-		b.Run(fmt.Sprintf("Inverse/%s", sizeString(n)), func(b *testing.B) {
+		b.Run("Inverse/"+sizeString(n), func(b *testing.B) {
 			src := make([]complex128, n)
 			for i := range src {
 				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)

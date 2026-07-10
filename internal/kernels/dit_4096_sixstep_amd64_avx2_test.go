@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 package kernels
 
@@ -11,6 +11,8 @@ import (
 )
 
 func TestForwardDIT4096SixStepAVX2_Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 4096
 
 	src := make([]complex64, n)
@@ -54,6 +56,8 @@ func TestForwardDIT4096SixStepAVX2_Complex64(t *testing.T) {
 }
 
 func TestRoundTripDIT4096SixStepAVX2_Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 4096
 
 	src := make([]complex64, n)
@@ -105,6 +109,8 @@ func TestRoundTripDIT4096SixStepAVX2_Complex64(t *testing.T) {
 }
 
 func TestInPlaceDIT4096SixStepAVX2_Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 4096
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
@@ -151,6 +157,8 @@ func TestInPlaceDIT4096SixStepAVX2_Complex64(t *testing.T) {
 }
 
 func BenchmarkForwardDIT4096SixStepAVX2_Complex64(b *testing.B) {
+	requireAVX2(b)
+
 	const n = 4096
 
 	src := make([]complex64, n)

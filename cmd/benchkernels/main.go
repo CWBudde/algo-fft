@@ -84,7 +84,6 @@ func main() {
 	}
 }
 
-//nolint:cyclop
 func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchResult {
 	src := make([]complex64, n)
 	for i := range src {

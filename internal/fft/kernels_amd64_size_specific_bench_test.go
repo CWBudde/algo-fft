@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 package fft
 
@@ -12,14 +12,14 @@ import (
 // Once unrolled kernels are implemented (phases 14.5.2-14.5.5), size-specific
 // should show 5-20% speedup.
 func benchmarkSizeSpecificVsGeneric(b *testing.B, n int) {
+	b.Helper()
+
 	b.Run("SizeSpecific", func(b *testing.B) {
 		benchmarkKernel(b, n, avx2SizeSpecificOrGenericDITComplex64(KernelAuto))
 	})
 
 	b.Run("GenericAVX2", func(b *testing.B) {
-		benchmarkKernel(b, n, func(dst, src, twiddle, scratch []complex64) bool {
-			return forwardAVX2Complex64Asm(dst, src, twiddle, scratch)
-		})
+		benchmarkKernel(b, n, forwardAVX2Complex64Asm)
 	})
 
 	b.Run("PureGo", func(b *testing.B) {
@@ -28,6 +28,8 @@ func benchmarkSizeSpecificVsGeneric(b *testing.B, n int) {
 }
 
 func benchmarkKernel(b *testing.B, n int, kernel Kernel[complex64]) {
+	b.Helper()
+
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	twiddle := ComputeTwiddleFactors[complex64](n)
@@ -49,37 +51,51 @@ func benchmarkKernel(b *testing.B, n int, kernel Kernel[complex64]) {
 	}
 }
 
-// Benchmark size 16 (smallest size-specific kernel)
+// Benchmark size 16 (smallest size-specific kernel).
 func BenchmarkAVX2SizeSpecific_vs_Generic_16(b *testing.B) {
+	requireAVX2(b)
+
 	benchmarkSizeSpecificVsGeneric(b, 16)
 }
 
-// Benchmark size 32
+// Benchmark size 32.
 func BenchmarkAVX2SizeSpecific_vs_Generic_32(b *testing.B) {
+	requireAVX2(b)
+
 	benchmarkSizeSpecificVsGeneric(b, 32)
 }
 
-// Benchmark size 64
+// Benchmark size 64.
 func BenchmarkAVX2SizeSpecific_vs_Generic_64(b *testing.B) {
+	requireAVX2(b)
+
 	benchmarkSizeSpecificVsGeneric(b, 64)
 }
 
-// Benchmark size 128 (largest size-specific kernel)
+// Benchmark size 128 (largest size-specific kernel).
 func BenchmarkAVX2SizeSpecific_vs_Generic_128(b *testing.B) {
+	requireAVX2(b)
+
 	benchmarkSizeSpecificVsGeneric(b, 128)
 }
 
-// Benchmark size 256 (should use generic AVX2, not size-specific)
+// Benchmark size 256 (should use generic AVX2, not size-specific).
 func BenchmarkAVX2SizeSpecific_vs_Generic_256(b *testing.B) {
+	requireAVX2(b)
+
 	benchmarkSizeSpecificVsGeneric(b, 256)
 }
 
-// Benchmark size 1024 (larger size to show generic performance)
+// Benchmark size 1024 (larger size to show generic performance).
 func BenchmarkAVX2SizeSpecific_vs_Generic_1024(b *testing.B) {
+	requireAVX2(b)
+
 	benchmarkSizeSpecificVsGeneric(b, 1024)
 }
 
-// Benchmark size 2048
+// Benchmark size 2048.
 func BenchmarkAVX2SizeSpecific_vs_Generic_2048(b *testing.B) {
+	requireAVX2(b)
+
 	benchmarkSizeSpecificVsGeneric(b, 2048)
 }

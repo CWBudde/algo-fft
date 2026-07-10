@@ -70,10 +70,10 @@ func tonePattern[T Complex](n, bin int) referencePattern[T] {
 func complexFrom[T Complex](re, im float64) T {
 	var zero T
 	if _, ok := any(zero).(complex64); ok {
-		return any(complex(float32(re), float32(im))).(T) //nolint:forcetypeassert
+		return any(complex(float32(re), float32(im))).(T)
 	}
 
-	return any(complex(re, im)).(T) //nolint:forcetypeassert
+	return any(complex(re, im)).(T)
 }
 
 // referencePatterns64 assembles the per-size reference set for complex64.

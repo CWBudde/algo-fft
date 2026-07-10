@@ -1,4 +1,4 @@
-//go:build amd64 && asm && !purego
+//go:build amd64 && !purego
 
 package kernels
 
@@ -12,6 +12,8 @@ import (
 )
 
 func TestInverse16384SixStepAVX2_Impulse(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 16384
 
 	// FFT of impulse gives all ones
@@ -40,6 +42,8 @@ func TestInverse16384SixStepAVX2_Impulse(t *testing.T) {
 }
 
 func TestRoundTrip16384SixStepAVX2_Impulse(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 16384
 
 	// Round-trip test with impulse
@@ -81,6 +85,8 @@ func TestRoundTrip16384SixStepAVX2_Impulse(t *testing.T) {
 }
 
 func TestForwardDIT16384SixStepAVX2_Impulse(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 16384
 
 	// Test with impulse: FFT of impulse should give all ones
@@ -120,6 +126,8 @@ func TestForwardDIT16384SixStepAVX2_Impulse(t *testing.T) {
 }
 
 func TestForwardDIT16384SixStepAVX2_Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 16384
 
 	src := make([]complex64, n)
@@ -165,6 +173,8 @@ func TestForwardDIT16384SixStepAVX2_Complex64(t *testing.T) {
 }
 
 func TestRoundTripDIT16384SixStepAVX2_Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 16384
 
 	src := make([]complex64, n)
@@ -218,6 +228,8 @@ func TestRoundTripDIT16384SixStepAVX2_Complex64(t *testing.T) {
 // TestForwardDIT16384SixStepAVX2_VsRadix4 tests six-step against radix-4 implementation
 // by checking if they produce the same results.
 func TestForwardDIT16384SixStepAVX2_VsRadix4(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 16384
 
 	src := make([]complex64, n)
@@ -282,8 +294,10 @@ func cmplxAbs64(c complex64) float32 {
 }
 
 // TestSize128Kernel_RoundTrip tests if the size-128 FFT kernel round-trips correctly
-// Uses generic DIT (ForwardAVX2Complex64Asm) rather than radix-4 specific
+// Uses generic DIT (ForwardAVX2Complex64Asm) rather than radix-4 specific.
 func TestSize128Kernel_RoundTrip(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 128
 
 	src := make([]complex64, n)
@@ -327,8 +341,10 @@ func TestSize128Kernel_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestSixStep16384_RoundTrip_SingleBin tests round-trip with a single bin
+// TestSixStep16384_RoundTrip_SingleBin tests round-trip with a single bin.
 func TestSixStep16384_RoundTrip_SingleBin(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 16384
 
 	// Input with single non-zero at position 1
@@ -379,8 +395,10 @@ func TestSixStep16384_RoundTrip_SingleBin(t *testing.T) {
 	}
 }
 
-// TestSixStep16384_SingleFrequency tests with a single frequency bin
+// TestSixStep16384_SingleFrequency tests with a single frequency bin.
 func TestSixStep16384_SingleFrequency(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 16384
 	const m = 128
 
@@ -401,7 +419,7 @@ func TestSixStep16384_SingleFrequency(t *testing.T) {
 	// For a single non-zero input at position 1: X[k] = W^k = exp(-2πik/n)
 	maxErr := float32(0)
 	maxErrIdx := 0
-	for k := 0; k < n; k++ {
+	for k := range n {
 		// Expected: W_n^k = exp(-2πik/n)
 		angle := -2.0 * math.Pi * float64(k) / float64(n)
 		expected := complex(float32(math.Cos(angle)), float32(math.Sin(angle)))
@@ -422,7 +440,7 @@ func TestSixStep16384_SingleFrequency(t *testing.T) {
 
 	// Log first few outputs vs expected
 	t.Log("First 5 outputs:")
-	for k := 0; k < 5; k++ {
+	for k := range 5 {
 		angle := -2.0 * math.Pi * float64(k) / float64(n)
 		expected := complex(float32(math.Cos(angle)), float32(math.Sin(angle)))
 		t.Logf("  k=%d: got=%v, expected=%v, err=%e", k, dst[k], expected, cmplxAbs64(dst[k]-expected))
@@ -430,7 +448,7 @@ func TestSixStep16384_SingleFrequency(t *testing.T) {
 
 	if maxErr > 1e-3 {
 		// Find where position 1's result actually ended up
-		for k := 0; k < n; k++ {
+		for k := range n {
 			expected := complex(float32(math.Cos(-2*math.Pi/float64(n))), float32(math.Sin(-2*math.Pi/float64(n))))
 			err := cmplxAbs64(dst[k] - expected)
 			if err < 1e-4 {
@@ -446,8 +464,10 @@ func TestSixStep16384_SingleFrequency(t *testing.T) {
 	}
 }
 
-// TestForwardDIT4096SixStepAVX2_VsRadix4 tests if size-4096 six-step also has ordering difference
+// TestForwardDIT4096SixStepAVX2_VsRadix4 tests if size-4096 six-step also has ordering difference.
 func TestForwardDIT4096SixStepAVX2_VsRadix4(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 4096
 
 	src := make([]complex64, n)
@@ -505,6 +525,8 @@ func TestForwardDIT4096SixStepAVX2_VsRadix4(t *testing.T) {
 }
 
 func TestInPlaceDIT16384SixStepAVX2_Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 16384
 
 	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
@@ -551,6 +573,8 @@ func TestInPlaceDIT16384SixStepAVX2_Complex64(t *testing.T) {
 }
 
 func BenchmarkForwardDIT16384SixStepAVX2_Complex64(b *testing.B) {
+	requireAVX2(b)
+
 	const n = 16384
 
 	src := make([]complex64, n)
@@ -572,6 +596,8 @@ func BenchmarkForwardDIT16384SixStepAVX2_Complex64(b *testing.B) {
 }
 
 func BenchmarkForwardDIT16384Radix4AVX2_Complex64(b *testing.B) {
+	requireAVX2(b)
+
 	const n = 16384
 
 	src := make([]complex64, n)

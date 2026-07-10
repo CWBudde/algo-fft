@@ -2,9 +2,9 @@
 
 This plan outlines a multi-phase approach to build an open-source FFT library in Go. It emphasizes a pure Go implementation (no cgo) for broad platform support (including WebAssembly), a focus on complex64 performance, and a clean API that hides backend details (like SIMD/assembly optimizations) from users. Each phase lists key tasks and goals, ensuring the library is extensible, well-tested, and contributor-friendly.
 
-> **Status note:** the runtime-dispatch vision below is not fully realized yet.
-> As shipped today, SIMD kernels require building with `-tags asm`; the default
-> build is pure Go. See `PLAN.md` (P2) for the work to make SIMD the default.
+> **Status note (2026-07):** SIMD kernels ship in the default build and are
+> selected at runtime via CPU feature detection; `-tags purego` opts out to
+> the pure-Go fallback. See `PLAN.md` (P2) for remaining per-size coverage.
 
 ## Phase 1: MVP - Basic Radix-2 FFT (Complex64)
 
