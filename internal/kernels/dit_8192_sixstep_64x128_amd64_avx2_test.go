@@ -13,6 +13,8 @@ import (
 // TestForwardDIT8192SixStep64x128AVX2_Complex64 tests that the AVX2 64×128 six-step
 // implementation produces the same results as the existing mixed-radix implementation.
 func TestForwardDIT8192SixStep64x128AVX2_Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 8192
 
 	src := make([]complex64, n)
@@ -54,6 +56,8 @@ func TestForwardDIT8192SixStep64x128AVX2_Complex64(t *testing.T) {
 
 // TestInverseDIT8192SixStep64x128AVX2_Complex64 tests the AVX2 inverse transform.
 func TestInverseDIT8192SixStep64x128AVX2_Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 8192
 
 	src := make([]complex64, n)
@@ -95,6 +99,8 @@ func TestInverseDIT8192SixStep64x128AVX2_Complex64(t *testing.T) {
 
 // TestRoundTripDIT8192SixStep64x128AVX2_Complex64 verifies IFFT(FFT(x)) ≈ x.
 func TestRoundTripDIT8192SixStep64x128AVX2_Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 8192
 
 	src := make([]complex64, n)
@@ -136,6 +142,8 @@ func TestRoundTripDIT8192SixStep64x128AVX2_Complex64(t *testing.T) {
 
 // BenchmarkForwardDIT8192SixStep64x128AVX2_Complex64 benchmarks the AVX2 version.
 func BenchmarkForwardDIT8192SixStep64x128AVX2_Complex64(b *testing.B) {
+	requireAVX2(b)
+
 	const n = 8192
 
 	src := make([]complex64, n)

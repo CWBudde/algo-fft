@@ -9,6 +9,8 @@ import (
 )
 
 func TestAVX2Size32Radix4Then2Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	const (
 		n   = 32
 		tol = radix4Then2Tol64
@@ -41,6 +43,8 @@ func TestAVX2Size32Radix4Then2Complex64(t *testing.T) {
 }
 
 func TestAVX2Size32Radix4Then2Complex128(t *testing.T) {
+	requireAVX2(t)
+
 	const (
 		n   = 32
 		tol = 1e-10

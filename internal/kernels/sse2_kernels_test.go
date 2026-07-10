@@ -284,6 +284,8 @@ var sse2TestCases128 = []sse2TestCase128{
 }
 
 func TestSSE2Kernels64(t *testing.T) {
+	requireSSE3(t)
+
 	for _, testCase := range sse2TestCases64 {
 		t.Run(testCase.name+"/Forward", func(t *testing.T) {
 			t.Parallel()
@@ -334,6 +336,8 @@ func TestSSE2Kernels64(t *testing.T) {
 }
 
 func TestSSE2Kernels128(t *testing.T) {
+	requireSSE3(t)
+
 	for _, testCase := range sse2TestCases128 {
 		t.Run(testCase.name+"/Forward", func(t *testing.T) {
 			t.Parallel()

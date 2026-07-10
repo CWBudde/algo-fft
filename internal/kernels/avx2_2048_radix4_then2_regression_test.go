@@ -9,6 +9,8 @@ import (
 )
 
 func TestAVX2Size2048Radix4Then2Regression(t *testing.T) {
+	requireAVX2(t)
+
 	const (
 		n   = 2048
 		tol = 2e-5

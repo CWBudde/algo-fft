@@ -9,6 +9,8 @@ import (
 )
 
 func TestButterfly3ForwardAVX2Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	// Test 4 parallel butterflies with known inputs
@@ -38,6 +40,8 @@ func TestButterfly3ForwardAVX2Complex64(t *testing.T) {
 }
 
 func TestButterfly3InverseAVX2Complex64(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	// Test 4 parallel butterflies - use same value in all 4 lanes for easier debugging
@@ -71,6 +75,8 @@ func TestButterfly3InverseAVX2Complex64(t *testing.T) {
 }
 
 func TestButterfly3RoundTripAVX2(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	// Test that inverse(forward(x)) * (1/3) ≈ x for 4 parallel butterflies
@@ -107,6 +113,8 @@ func TestButterfly3RoundTripAVX2(t *testing.T) {
 }
 
 func BenchmarkButterfly3ForwardAVX2(b *testing.B) {
+	requireAVX2(b)
+
 	a0 := make([]complex64, 4)
 	a1 := make([]complex64, 4)
 	a2 := make([]complex64, 4)
@@ -131,6 +139,8 @@ func BenchmarkButterfly3ForwardAVX2(b *testing.B) {
 }
 
 func BenchmarkButterfly3ForwardScalar(b *testing.B) {
+	requireAVX2(b)
+
 	a0 := make([]complex64, 4)
 	a1 := make([]complex64, 4)
 	a2 := make([]complex64, 4)

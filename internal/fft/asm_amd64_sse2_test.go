@@ -102,6 +102,8 @@ func TestSSE2Inverse_VsPureGo(t *testing.T) {
 
 // TestSSE2SizeSpecificComplex64 validates size-specific SSE2 kernels against reference implementation.
 func TestSSE2SizeSpecificComplex64(t *testing.T) {
+	requireSSE3(t) // the table mixes SSE2 and SSE3 kernels
+
 	tests := []struct {
 		name          string
 		size          int

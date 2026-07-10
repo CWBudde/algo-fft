@@ -10,6 +10,8 @@ import (
 )
 
 func TestDebugAVX2Size8Radix4(t *testing.T) {
+	requireAVX2(t)
+
 	const n = 8
 
 	// Simple test input

@@ -111,6 +111,8 @@ func TestAVX2Inverse128_VsPureGo(t *testing.T) {
 // =============================================================================
 
 func TestAVX2GenericRadix4Complex128Forward(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	// Test power-of-4 sizes supported by the generic radix-4 kernel
@@ -158,6 +160,8 @@ func TestAVX2GenericRadix4Complex128Forward(t *testing.T) {
 }
 
 func TestAVX2GenericRadix4Complex128ForwardImpulse(t *testing.T) {
+	requireAVX2(t)
+
 	// Impulse test - FFT of delta should be all 1s
 	n := 64
 	src := make([]complex128, n)
@@ -189,6 +193,8 @@ func TestAVX2GenericRadix4Complex128ForwardImpulse(t *testing.T) {
 }
 
 func TestAVX2GenericRadix4Complex128Inverse(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	// Test power-of-4 sizes supported by the generic radix-4 kernel
@@ -242,6 +248,8 @@ func TestAVX2GenericRadix4Complex128Inverse(t *testing.T) {
 }
 
 func TestAVX2GenericRadix4Complex128RoundTrip(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	// Test power-of-4 sizes supported by the generic radix-4 kernel
@@ -302,6 +310,8 @@ func TestAVX2GenericRadix4Complex128RoundTrip(t *testing.T) {
 // =============================================================================
 
 func TestAVX2GenericRadix4MixedComplex128Forward(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	// Test odd log2 sizes supported by the mixed radix-4 kernel
@@ -349,6 +359,8 @@ func TestAVX2GenericRadix4MixedComplex128Forward(t *testing.T) {
 }
 
 func TestAVX2GenericRadix4MixedComplex128ForwardImpulse(t *testing.T) {
+	requireAVX2(t)
+
 	// Impulse test - FFT of delta should be all 1s
 	n := 128 // Use odd log2 size
 	src := make([]complex128, n)
@@ -380,6 +392,8 @@ func TestAVX2GenericRadix4MixedComplex128ForwardImpulse(t *testing.T) {
 }
 
 func TestAVX2GenericRadix4MixedComplex128Inverse(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	// Test odd log2 sizes supported by the mixed radix-4 kernel
@@ -433,6 +447,8 @@ func TestAVX2GenericRadix4MixedComplex128Inverse(t *testing.T) {
 }
 
 func TestAVX2GenericRadix4MixedComplex128RoundTrip(t *testing.T) {
+	requireAVX2(t)
+
 	t.Parallel()
 
 	// Test odd log2 sizes supported by the mixed radix-4 kernel

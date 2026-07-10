@@ -10,6 +10,8 @@ import (
 )
 
 func TestInverseRepackComplex64AVX2(t *testing.T) {
+	requireAVX2(t)
+
 	cases := []int{8, 9, 16, 17, 32, 33}
 	for _, half := range cases {
 		t.Run("HalfSize_"+itoaRepack(half), func(t *testing.T) {
@@ -25,15 +27,21 @@ func TestInverseRepackComplex64AVX2(t *testing.T) {
 }
 
 func TestInverseRepackComplex64AVX2_ZeroWeight(t *testing.T) {
+	requireAVX2(t)
+
 	half := 16
 	runInverseRepackAVX2Case(t, half, func(int) complex64 { return 0 })
 }
 
 func TestInverseRepackComplex64AVX2_PureRealWeight(t *testing.T) {
+	requireAVX2(t)
+
 	runInverseRepackAVX2Case(t, 16, func(int) complex64 { return complex(0.25, 0) })
 }
 
 func TestInverseRepackComplex64AVX2_PureImagWeight(t *testing.T) {
+	requireAVX2(t)
+
 	runInverseRepackAVX2Case(t, 16, func(int) complex64 { return complex(0, 0.25) })
 }
 

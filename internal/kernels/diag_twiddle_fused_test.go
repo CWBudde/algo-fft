@@ -26,6 +26,8 @@ func makeDiagInput() []complex128 {
 }
 
 func TestDiagFusedTwiddleForwardTile(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 to enable the fused-twiddle diagnostic test")
 	}
@@ -65,6 +67,8 @@ func TestDiagFusedTwiddleForwardTile(t *testing.T) {
 // TestDiagFusedTwiddleForwardTileCb1 validates the forward fused-twiddle mapping
 // for the (rb=0, cb=1) tile when the diagnostic hook is enabled.
 func TestDiagFusedTwiddleForwardTileCb1(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_TILE") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 and ALGOFFT_DIAG_TWIDDLE_TILE=1 to enable this test")
 	}
@@ -104,6 +108,8 @@ func TestDiagFusedTwiddleForwardTileCb1(t *testing.T) {
 // TestDiagFusedTwiddleForwardTileCb1Mapped validates the cb1 tile against the
 // transpose-out mapping (row_in = cb*4+r, col_in = rb*4+c).
 func TestDiagFusedTwiddleForwardTileCb1Mapped(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_TILE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_MAP") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 ALGOFFT_DIAG_TWIDDLE_TILE=1 ALGOFFT_DIAG_TWIDDLE_MAP=1")
 	}
@@ -145,6 +151,8 @@ func TestDiagFusedTwiddleForwardTileCb1Mapped(t *testing.T) {
 // TestDiagTransposeForwardTileCb1NoTwiddle validates the transpose-out mapping
 // for the (rb=0, cb=1) tile without twiddle.
 func TestDiagTransposeForwardTileCb1NoTwiddle(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_TILE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_NOTW") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 ALGOFFT_DIAG_TWIDDLE_TILE=1 ALGOFFT_DIAG_TWIDDLE_NOTW=1")
 	}
@@ -183,6 +191,8 @@ func TestDiagTransposeForwardTileCb1NoTwiddle(t *testing.T) {
 // TestDiagTransposeMappingCb1 reports which (row,col) from the column FFTs
 // appear in the (rb=0, cb=1) tile when no twiddle is applied.
 func TestDiagTransposeMappingCb1(t *testing.T) {
+	requireAVX2(t)
+
 	if os.Getenv("ALGOFFT_DIAG_TWIDDLE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_TILE") != "1" || os.Getenv("ALGOFFT_DIAG_TWIDDLE_NOTW") != "1" || os.Getenv("ALGOFFT_DIAG_MAP") != "1" {
 		t.Skip("set ALGOFFT_DIAG_TWIDDLE=1 ALGOFFT_DIAG_TWIDDLE_TILE=1 ALGOFFT_DIAG_TWIDDLE_NOTW=1 ALGOFFT_DIAG_MAP=1")
 	}

@@ -142,6 +142,8 @@ func BenchmarkSSE2Sizes(b *testing.B) {
 
 // BenchmarkSSE2Size32Comparison compares different size-32 kernel implementations.
 func BenchmarkSSE2Size32Comparison(b *testing.B) {
+	requireAVX2(b)
+
 	const n = 32
 	src := generateRandomComplex64(n, 0xBEEF32)
 	dst := make([]complex64, n)

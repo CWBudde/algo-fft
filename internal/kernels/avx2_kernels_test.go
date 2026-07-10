@@ -292,6 +292,8 @@ var avx2TestCases = []avx2TestCase{
 
 // TestAVX2KernelsForward tests all AVX2 forward kernels.
 func TestAVX2KernelsForward(t *testing.T) {
+	requireAVX2(t)
+
 	for _, tc := range avx2TestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if testing.Short() && tc.size >= 8192 {
@@ -316,6 +318,8 @@ func TestAVX2KernelsForward(t *testing.T) {
 
 // TestAVX2KernelsInverse tests all AVX2 inverse kernels.
 func TestAVX2KernelsInverse(t *testing.T) {
+	requireAVX2(t)
+
 	for _, tc := range avx2TestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if testing.Short() && tc.size >= 8192 {
@@ -347,6 +351,8 @@ func TestAVX2KernelsInverse(t *testing.T) {
 
 // TestAVX2KernelsRoundTrip tests forward-inverse round-trip for all AVX2 kernels.
 func TestAVX2KernelsRoundTrip(t *testing.T) {
+	requireAVX2(t)
+
 	for _, tc := range avx2TestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if testing.Short() && tc.size >= 8192 {
