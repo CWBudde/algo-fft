@@ -32,16 +32,6 @@ const (
 	PlannerExhaustive
 )
 
-// WorkspacePolicy controls how executors manage scratch space.
-// Note: This feature is not yet implemented and will be added in a future release.
-type WorkspacePolicy uint8
-
-const (
-	WorkspaceAuto     WorkspacePolicy = iota // Not yet implemented
-	WorkspacePooled                          // Not yet implemented
-	WorkspaceExternal                        // Not yet implemented
-)
-
 // PlanOptions controls planning decisions and execution layout.
 type PlanOptions struct {
 	// Planner controls how much work the planner does to choose kernels.
@@ -51,9 +41,6 @@ type PlanOptions struct {
 	// Strategy forces a specific kernel strategy. Use KernelAuto (default)
 	// to let the planner choose based on size and benchmarks.
 	Strategy KernelStrategy
-
-	// Radices hints at which radices to prefer for mixed-radix FFT.
-	Radices []int
 
 	// Batch specifies the number of transforms to execute in a batch.
 	Batch int
@@ -69,10 +56,6 @@ type PlanOptions struct {
 	// stored to this cache. When creating plans, cached decisions are used
 	// to skip benchmarking for previously-measured sizes.
 	Wisdom WisdomStore
-
-	// Workspace controls how executors manage scratch space.
-	// Note: This feature is not yet implemented.
-	Workspace WorkspacePolicy
 }
 
 // WisdomStore persists planner decisions for reuse.
@@ -107,8 +90,8 @@ type WisdomEntry struct {
 type PrecisionKind uint8
 
 const (
-	PrecisionComplex64 PrecisionKind = iota
-	PrecisionComplex128
+	PrecisionComplex64  PrecisionKind = iota // complex64 (float32 parts)
+	PrecisionComplex128                      // complex128 (float64 parts)
 )
 
 func normalizePlanOptions(opts PlanOptions) PlanOptions {
@@ -125,23 +108,6 @@ func normalizePlanOptions(opts PlanOptions) PlanOptions {
 	// Normalize stride: negative values are treated as default (contiguous)
 	if opts.Stride < 0 {
 		opts.Stride = 0 // 0 means use default stride
-	}
-
-	// Normalize radices: drop invalid entries (<= 1)
-	// If none remain, fall back to planner defaults by clearing the slice
-	if len(opts.Radices) > 0 {
-		validRadices := opts.Radices[:0]
-		for _, r := range opts.Radices {
-			if r > 1 {
-				validRadices = append(validRadices, r)
-			}
-		}
-
-		if len(validRadices) == 0 {
-			opts.Radices = nil
-		} else {
-			opts.Radices = validRadices
-		}
 	}
 
 	return opts
