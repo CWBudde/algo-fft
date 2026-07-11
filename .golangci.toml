@@ -118,9 +118,10 @@ linters = ['cyclop', 'funlen', 'gocognit', 'goconst', 'lll', 'maintidx', 'forcet
 path = '.*_test\.go'
 
 # CLI tools print to stdout by design; their spec/config tables read best as
-# one row per line regardless of length.
+# one row per line regardless of length, and repeat literals ("KernelDIT",
+# "avx2", …) by design — a constant per table cell would obscure the data.
 [[linters.exclusions.rules]]
-linters = ['forbidigo', 'funlen', 'lll']
+linters = ['forbidigo', 'funlen', 'goconst', 'lll']
 path = '^cmd/'
 
 # Generic<->concrete bridge files: type switches over any(x) where the

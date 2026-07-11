@@ -140,6 +140,14 @@ const (
 	precisionNameComplex128 = "complex128"
 )
 
+// Strategy names used by String() and the introspection tests.
+const (
+	strategyNameDIT       = "DIT"
+	strategyNameStockham  = "Stockham"
+	strategyNameSixStep   = "SixStep"
+	strategyNameEightStep = "EightStep"
+)
+
 // The format is: "Plan[type](size, strategy)" where type is "complex64" or "complex128".
 func (p *Plan[T]) String() string {
 	var zero T
@@ -154,13 +162,13 @@ func (p *Plan[T]) String() string {
 
 	switch p.kernelStrategy {
 	case fft.KernelDIT:
-		strategyName = "DIT"
+		strategyName = strategyNameDIT
 	case fft.KernelStockham:
-		strategyName = "Stockham"
+		strategyName = strategyNameStockham
 	case fft.KernelSixStep:
-		strategyName = "SixStep"
+		strategyName = strategyNameSixStep
 	case fft.KernelEightStep:
-		strategyName = "EightStep"
+		strategyName = strategyNameEightStep
 	case fft.KernelBluestein:
 		strategyName = "Bluestein"
 	}
