@@ -1,0 +1,27 @@
+# Coverage gate (PLAN.md, Testing & CI Hardening). The agreed target for
+# non-assembly code is >90% (AGENTS.md and CONTRIBUTING.md); coverage is
+# uploaded by the test-unit workflow from the default (SIMD) build.
+coverage:
+  status:
+    project:
+      default:
+        target: 90%
+        threshold: 0.5%
+    patch:
+      default:
+        # Informational: hand-unrolled kernels and arch-gated dispatch make
+        # per-patch line coverage noisy; the project gate is the enforced one.
+        informational: true
+
+ignore:
+  # Developer tools and examples, not part of the shipped library.
+  - "cmd/**"
+  - "examples/**"
+  # Assembly declaration/stub bridges: the .s bodies are invisible to Go
+  # coverage and the Go-side stubs only execute on matching hardware. The asm
+  # path is gated by forward-vs-reference tests instead (PLAN.md P0.4).
+  - "internal/asm/**"
+
+comment:
+  layout: "condensed_header, diff, flags"
+  require_changes: true

@@ -44,7 +44,8 @@ just cover      # Generate coverage report
 - Ensure all tests pass: `just test`
 - Add property-based tests where applicable
 - Include edge case testing
-- Aim for >80% code coverage
+- Aim for >90% code coverage on non-assembly code (enforced via Codecov, see
+  `codecov.yml`)
 
 ### Commit Messages
 
