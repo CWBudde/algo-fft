@@ -6,12 +6,12 @@ import (
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
+// The correctness tests below call stockhamPackedRun directly so the packed
+// implementation is verified on every build; the public wrappers gate on the
+// per-build dispatch toggle (see TestStockhamPackedToggleGatesPublicAPI).
+
 func TestStockhamPackedForwardMatchesReferenceComplex64(t *testing.T) {
 	t.Parallel()
-
-	if !StockhamPackedAvailable() {
-		t.Skip("packed stockham disabled in this build")
-	}
 
 	sizes := []int{4, 8, 16, 32, 64}
 	for _, n := range sizes {
@@ -26,8 +26,8 @@ func TestStockhamPackedForwardMatchesReferenceComplex64(t *testing.T) {
 		dst := make([]complex64, n)
 
 		scratch := make([]complex64, n)
-		if !ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
-			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
+		if !stockhamPackedRun(dst, src, twiddle, scratch, packed, false) {
+			t.Fatalf("stockhamPackedRun(%d) returned false", n)
 		}
 
 		want := reference.NaiveDFT(src)
@@ -37,10 +37,6 @@ func TestStockhamPackedForwardMatchesReferenceComplex64(t *testing.T) {
 
 func TestStockhamPackedInverseMatchesReferenceComplex64(t *testing.T) {
 	t.Parallel()
-
-	if !StockhamPackedAvailable() {
-		t.Skip("packed stockham disabled in this build")
-	}
 
 	sizes := []int{4, 8, 16, 32, 64}
 	for _, n := range sizes {
@@ -55,8 +51,8 @@ func TestStockhamPackedInverseMatchesReferenceComplex64(t *testing.T) {
 		dst := make([]complex64, n)
 
 		scratch := make([]complex64, n)
-		if !InverseStockhamPacked(dst, src, twiddle, scratch, packed) {
-			t.Fatalf("InverseStockhamPacked(%d) returned false", n)
+		if !stockhamPackedRun(dst, src, twiddle, scratch, packed, true) {
+			t.Fatalf("stockhamPackedRun(%d) returned false", n)
 		}
 
 		want := reference.NaiveIDFT(src)
@@ -66,10 +62,6 @@ func TestStockhamPackedInverseMatchesReferenceComplex64(t *testing.T) {
 
 func TestStockhamPackedForwardMatchesReferenceComplex128(t *testing.T) {
 	t.Parallel()
-
-	if !StockhamPackedAvailable() {
-		t.Skip("packed stockham disabled in this build")
-	}
 
 	sizes := []int{4, 8, 16, 32}
 	for _, n := range sizes {
@@ -84,8 +76,8 @@ func TestStockhamPackedForwardMatchesReferenceComplex128(t *testing.T) {
 		dst := make([]complex128, n)
 
 		scratch := make([]complex128, n)
-		if !ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
-			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
+		if !stockhamPackedRun(dst, src, twiddle, scratch, packed, false) {
+			t.Fatalf("stockhamPackedRun(%d) returned false", n)
 		}
 
 		want := reference.NaiveDFT128(src)
@@ -95,10 +87,6 @@ func TestStockhamPackedForwardMatchesReferenceComplex128(t *testing.T) {
 
 func TestStockhamPackedInverseMatchesReferenceComplex128(t *testing.T) {
 	t.Parallel()
-
-	if !StockhamPackedAvailable() {
-		t.Skip("packed stockham disabled in this build")
-	}
 
 	sizes := []int{4, 8, 16, 32}
 	for _, n := range sizes {
@@ -113,8 +101,8 @@ func TestStockhamPackedInverseMatchesReferenceComplex128(t *testing.T) {
 		dst := make([]complex128, n)
 
 		scratch := make([]complex128, n)
-		if !InverseStockhamPacked(dst, src, twiddle, scratch, packed) {
-			t.Fatalf("InverseStockhamPacked(%d) returned false", n)
+		if !stockhamPackedRun(dst, src, twiddle, scratch, packed, true) {
+			t.Fatalf("stockhamPackedRun(%d) returned false", n)
 		}
 
 		want := reference.NaiveIDFT128(src)
@@ -124,10 +112,6 @@ func TestStockhamPackedInverseMatchesReferenceComplex128(t *testing.T) {
 
 func TestStockhamPackedMatchesStockhamComplex64(t *testing.T) {
 	t.Parallel()
-
-	if !StockhamPackedAvailable() {
-		t.Skip("packed stockham disabled in this build")
-	}
 
 	sizes := []int{256, 1024, 2048}
 	for _, n := range sizes {
@@ -144,8 +128,8 @@ func TestStockhamPackedMatchesStockhamComplex64(t *testing.T) {
 		scratch := make([]complex64, n)
 		scratchGo := make([]complex64, n)
 
-		if !ForwardStockhamPacked(dstPacked, src, twiddle, scratch, packed) {
-			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
+		if !stockhamPackedRun(dstPacked, src, twiddle, scratch, packed, false) {
+			t.Fatalf("stockhamPackedRun(%d) returned false", n)
 		}
 
 		if !forwardStockhamComplex64(dstGo, src, twiddle, scratchGo) {
@@ -158,10 +142,6 @@ func TestStockhamPackedMatchesStockhamComplex64(t *testing.T) {
 
 func TestStockhamPackedMatchesStockhamComplex128(t *testing.T) {
 	t.Parallel()
-
-	if !StockhamPackedAvailable() {
-		t.Skip("packed stockham disabled in this build")
-	}
 
 	sizes := []int{256, 1024, 2048}
 	for _, n := range sizes {
@@ -178,8 +158,8 @@ func TestStockhamPackedMatchesStockhamComplex128(t *testing.T) {
 		scratch := make([]complex128, n)
 		scratchGo := make([]complex128, n)
 
-		if !ForwardStockhamPacked(dstPacked, src, twiddle, scratch, packed) {
-			t.Fatalf("ForwardStockhamPacked(%d) returned false", n)
+		if !stockhamPackedRun(dstPacked, src, twiddle, scratch, packed, false) {
+			t.Fatalf("stockhamPackedRun(%d) returned false", n)
 		}
 
 		if !forwardStockhamComplex128(dstGo, src, twiddle, scratchGo) {
@@ -187,5 +167,36 @@ func TestStockhamPackedMatchesStockhamComplex128(t *testing.T) {
 		}
 
 		assertComplex128Close(t, dstPacked, dstGo, 1e-10)
+	}
+}
+
+// TestStockhamPackedToggleGatesPublicAPI locks in the dispatch contract: the
+// exported entry points succeed exactly when the per-build toggle is on.
+func TestStockhamPackedToggleGatesPublicAPI(t *testing.T) {
+	t.Parallel()
+
+	const n = 16
+
+	src := randomComplex64(n, 0x70661E)
+	twiddle := ComputeTwiddleFactors[complex64](n)
+
+	packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
+	if packed == nil {
+		t.Fatalf("ComputePackedTwiddles(%d) returned nil", n)
+	}
+
+	dst := make([]complex64, n)
+	scratch := make([]complex64, n)
+
+	got := ForwardStockhamPacked(dst, src, twiddle, scratch, packed)
+	if got != StockhamPackedAvailable() {
+		t.Errorf("ForwardStockhamPacked handled=%v, want %v (toggle)", got, StockhamPackedAvailable())
+	}
+
+	inv := ConjugatePackedTwiddles(packed)
+
+	got = InverseStockhamPacked(dst, src, twiddle, scratch, inv)
+	if got != StockhamPackedAvailable() {
+		t.Errorf("InverseStockhamPacked handled=%v, want %v (toggle)", got, StockhamPackedAvailable())
 	}
 }

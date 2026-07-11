@@ -23,6 +23,13 @@ func stockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwi
 		return false
 	}
 
+	return stockhamPackedRun(dst, src, twiddle, scratch, packed, inverse)
+}
+
+// stockhamPackedRun is the toggle-independent engine behind stockhamPacked.
+// Tests call it directly so the implementation is exercised on every build,
+// including SIMD builds where the dispatch toggle is off.
+func stockhamPackedRun[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T], inverse bool) bool {
 	switch any(*new(T)).(type) {
 	case complex64:
 		dst64, ok := any(dst).([]complex64)
