@@ -647,7 +647,7 @@ func TestPlan2D_Separability(t *testing.T) {
 	for row := range rows {
 		rowData := temp[row*cols : (row+1)*cols]
 
-		err := rowPlan.InPlace(rowData)
+		err := rowPlan.ForwardInPlace(rowData)
 		if err != nil {
 			t.Fatalf("InPlace row %d failed: %v", row, err)
 		}
@@ -663,7 +663,7 @@ func TestPlan2D_Separability(t *testing.T) {
 			colData[row] = temp[row*cols+col]
 		}
 
-		err := colPlan.InPlace(colData)
+		err := colPlan.ForwardInPlace(colData)
 		if err != nil {
 			t.Fatalf("InPlace col %d failed: %v", col, err)
 		}

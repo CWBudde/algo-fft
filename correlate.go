@@ -35,6 +35,9 @@ func Correlate(dst, a, b []complex64) error {
 // CrossCorrelate computes the full cross-correlation of a and b.
 // The dst slice must have length len(a)+len(b)-1.
 // Output index k corresponds to lag k-(len(b)-1).
+//
+// Each call creates a fresh FFT plan; for repeated correlations of
+// same-length inputs, use a Correlator to reuse the plan and buffers.
 func CrossCorrelate(dst, a, b []complex64) error {
 	return crossCorrelateT(dst, a, b)
 }

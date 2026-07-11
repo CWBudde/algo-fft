@@ -429,7 +429,6 @@ func TestItoa(t *testing.T) {
 }
 
 // TestNewPlanPooled_AlreadyTested is covered by plan_pool_test.go
-// NewPlanFromPool is an internal constructor that requires a pool parameter
 
 // TestPlan_ConcurrentUse tests that plans can be used concurrently.
 func TestPlan_ConcurrentUse(t *testing.T) {

@@ -58,6 +58,9 @@ func convolveT[T Complex](dst, a, b []T) error {
 
 // Convolve computes the linear convolution of a and b using FFTs.
 // The dst slice must have length len(a)+len(b)-1.
+//
+// Each call creates a fresh FFT plan; for repeated convolutions of
+// same-length inputs, use a Convolver to reuse the plan and buffers.
 func Convolve(dst, a, b []complex64) error {
 	return convolveT(dst, a, b)
 }

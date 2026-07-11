@@ -147,9 +147,52 @@ func TestPlan_Close_Pooled(t *testing.T) {
 func TestPlanPooled_InvalidLength(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewPlanPooled[complex64](98) // Includes unsupported prime factor
-	if !errors.Is(err, ErrInvalidLength) {
-		t.Errorf("expected ErrInvalidLength, got %v", err)
+	for _, n := range []int{0, -4} {
+		_, err := NewPlanPooled[complex64](n)
+		if !errors.Is(err, ErrInvalidLength) {
+			t.Errorf("NewPlanPooled(%d): expected ErrInvalidLength, got %v", n, err)
+		}
+	}
+}
+
+// TestPlanPooled_BluesteinFallback locks in the pooled constructor's length
+// contract matching NewPlanT: sizes that need Bluestein (here 98 = 2·7²) are
+// accepted and served by the regular allocator instead of being rejected.
+func TestPlanPooled_BluesteinFallback(t *testing.T) {
+	t.Parallel()
+
+	const n = 98
+
+	plan, err := NewPlanPooled[complex64](n)
+	if err != nil {
+		t.Fatalf("NewPlanPooled(%d) failed: %v", n, err)
+	}
+	defer plan.Close()
+
+	if got := plan.KernelStrategy(); got != KernelBluestein {
+		t.Fatalf("KernelStrategy() = %v, want %v", got, KernelBluestein)
+	}
+
+	src := make([]complex64, n)
+	freq := make([]complex64, n)
+	dst := make([]complex64, n)
+
+	for i := range src {
+		src[i] = complex(float32(i%7)-3, float32(i%5)-2)
+	}
+
+	if err := plan.Forward(freq, src); err != nil {
+		t.Fatalf("Forward failed: %v", err)
+	}
+
+	if err := plan.Inverse(dst, freq); err != nil {
+		t.Fatalf("Inverse failed: %v", err)
+	}
+
+	for i := range src {
+		if d := dst[i] - src[i]; real(d)*real(d)+imag(d)*imag(d) > 1e-6 {
+			t.Fatalf("round-trip mismatch at %d: got %v, want %v", i, dst[i], src[i])
+		}
 	}
 }
 

@@ -173,7 +173,7 @@ func TestFastPlan_InPlace(t *testing.T) {
 	original := make([]complex64, n)
 	copy(original, data)
 
-	plan.InPlace(data)
+	plan.ForwardInPlace(data)
 	plan.InverseInPlace(data)
 
 	// Compare with original

@@ -64,6 +64,9 @@ func convolveRealT[F Float, C Complex](dst, a, b []F) error {
 
 // ConvolveReal computes the linear convolution of a and b using real FFTs.
 // The dst slice must have length len(a)+len(b)-1.
+//
+// Each call creates a fresh FFT plan; for repeated convolutions of
+// same-length inputs, use a RealConvolver to reuse the plan and buffers.
 func ConvolveReal(dst, a, b []float32) error {
 	return convolveRealT[float32, complex64](dst, a, b)
 }

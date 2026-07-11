@@ -23,8 +23,8 @@ func (p *Plan[T]) Reset() {
 // Close releases pooled resources back to the buffer pool.
 // After Close, the Plan must not be used.
 //
-// Close is only necessary for Plans created with NewPlanPooled or NewPlanFromPool.
-// For Plans created with NewPlan, Close is a no-op.
+// Close is only necessary for Plans created with NewPlanPooled or
+// NewPlanPooledWithOptions. For Plans created with NewPlan, Close is a no-op.
 //
 // It is safe to call Close multiple times; subsequent calls are no-ops.
 func (p *Plan[T]) Close() {

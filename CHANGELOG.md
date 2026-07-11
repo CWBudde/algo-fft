@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Plan-reuse DSP types `Convolver`, `Correlator`, and `RealConvolver`:
+  reusable, concurrency-safe, zero-allocation convolution/correlation for
+  loops (the one-shot `Convolve`/`CrossCorrelate`/`ConvolveReal` helpers
+  re-plan on every call)
+- Introspection parity: `Plan2D`/`Plan3D`/`PlanND`/`PlanReal2D`/`PlanReal3D`
+  expose `Meta()` and per-axis `KernelStrategies()`/`Algorithms()`;
+  `PlanRealT`, `FastPlan`, and `FastPlanReal32/64` expose
+  `Meta()`/`KernelStrategy()`/`Algorithm()`; `FastPlan` and
+  `FastPlanReal32/64` gained `Close()`
+- `Plan.ForwardInPlace` and `FastPlan.ForwardInPlace`, matching the
+  multi-dimensional plans' `ForwardInPlace`/`InverseInPlace` naming
 - Core FFT implementation: DIT, Stockham, radix-2/3/4/5, mixed-radix,
   six-step/eight-step algorithms with per-size codelets
 - Bluestein's algorithm for arbitrary-length transforms
@@ -29,6 +40,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Development tooling (justfile, golangci-lint, treefmt, pre-commit hooks)
 - GitHub Actions CI/CD workflow (multi-OS, multi-arch, WASM)
 - Project documentation (README, CONTRIBUTING, CHANGELOG)
+
+### Changed
+
+- Multi-dimensional plan constructors now wrap `ErrInvalidLength` and child
+  plan failures with dimension context (matching `PlanND`); match errors with
+  `errors.Is`
+- `NewPlanPooled`/`NewPlanPooledWithOptions` accept the same lengths and
+  planner options as `NewPlanT`: Bluestein sizes are served by the regular
+  allocator instead of being rejected, and `PlanOptions.Planner` measure
+  modes are honored
+
+### Deprecated
+
+- `Plan.InPlace` and `FastPlan.InPlace` (forward-only): use `ForwardInPlace`
+
+### Removed
+
+- Inert `PlanOptions.Radices` and `PlanOptions.Workspace` options and the
+  `WorkspacePolicy` type (all were documented "not yet implemented" and never
+  read)
+- `NewPlanFromPool`/`NewPlanFromPoolWithOptions` (took an internal pool type
+  no external caller could name; use `NewPlanPooled`/`NewPlanPooledWithOptions`)
 
 ### Planned
 

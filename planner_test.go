@@ -502,9 +502,8 @@ func TestPlanner_OptionsNormalization(t *testing.T) {
 
 	// Test that invalid options are normalized
 	opts := PlanOptions{
-		Batch:   -5,                    // Invalid: should be normalized to 0
-		Stride:  -10,                   // Invalid: should be normalized to 0
-		Radices: []int{2, -1, 4, 0, 8}, // Invalid entries should be removed
+		Batch:  -5,  // Invalid: should be normalized to 0
+		Stride: -10, // Invalid: should be normalized to 0
 	}
 
 	planner := NewPlanner(opts)
@@ -517,34 +516,6 @@ func TestPlanner_OptionsNormalization(t *testing.T) {
 	// Stride should be normalized
 	if planner.opts.Stride < 0 {
 		t.Errorf("Stride = %d, should be >= 0 after normalization", planner.opts.Stride)
-	}
-
-	// Radices should only contain valid values (> 1)
-	for _, r := range planner.opts.Radices {
-		if r <= 1 {
-			t.Errorf("Radices contains invalid value %d, should be > 1", r)
-		}
-	}
-
-	// Should only have 2, 4, 8 from the original list
-	if len(planner.opts.Radices) != 3 {
-		t.Errorf("Radices length = %d, want 3 (valid entries)", len(planner.opts.Radices))
-	}
-}
-
-func TestPlanner_AllInvalidRadices(t *testing.T) {
-	t.Parallel()
-
-	// Test that all invalid radices results in nil slice
-	opts := PlanOptions{
-		Radices: []int{-1, 0, 1}, // All invalid
-	}
-
-	planner := NewPlanner(opts)
-
-	// Should be cleared to nil
-	if planner.opts.Radices != nil {
-		t.Errorf("Radices = %v, want nil after removing all invalid entries", planner.opts.Radices)
 	}
 }
 
