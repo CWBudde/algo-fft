@@ -211,6 +211,14 @@ func TestCorrelator_Errors(t *testing.T) {
 	if err := corr.CrossCorrelate(dst, a, b[:3]); !errors.Is(err, ErrLengthMismatch) {
 		t.Errorf("short b: got %v, want ErrLengthMismatch", err)
 	}
+
+	if err := corr.CrossCorrelate(dst, a[:7], b); !errors.Is(err, ErrLengthMismatch) {
+		t.Errorf("short a: got %v, want ErrLengthMismatch", err)
+	}
+
+	if err := corr.CrossCorrelate(dst[:5], a, b); !errors.Is(err, ErrLengthMismatch) {
+		t.Errorf("short dst: got %v, want ErrLengthMismatch", err)
+	}
 }
 
 func TestRealConvolver_MatchesConvolveReal(t *testing.T) {

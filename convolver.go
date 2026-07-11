@@ -6,9 +6,9 @@ import (
 )
 
 // Convolver computes linear convolutions of fixed-length inputs, reusing one
-// FFT plan and preallocated buffers across calls. Use it instead of Convolve
-// when convolving in a loop: after creation, Convolve performs no planning
-// and no allocations.
+// FFT plan and preallocated buffers across calls. Use it instead of the
+// one-shot Convolve function when convolving in a loop: after creation, the
+// Convolver.Convolve method performs no planning and no allocations.
 //
 // A Convolver is safe for concurrent use: scratch buffers are borrowed per
 // call from an internal cache, so multiple goroutines may share one instance.
@@ -111,9 +111,10 @@ func (c *Convolver[T]) Convolve(dst, a, b []T) error {
 }
 
 // Correlator computes cross-correlations of fixed-length inputs, reusing one
-// FFT plan and preallocated buffers across calls. Use it instead of
-// CrossCorrelate when correlating in a loop: after creation, CrossCorrelate
-// performs no planning and no allocations.
+// FFT plan and preallocated buffers across calls. Use it instead of the
+// one-shot CrossCorrelate function when correlating in a loop: after
+// creation, the Correlator.CrossCorrelate method performs no planning and no
+// allocations.
 //
 // A Correlator is safe for concurrent use: scratch buffers are borrowed per
 // call from an internal cache, so multiple goroutines may share one instance.
@@ -157,7 +158,7 @@ func (c *Correlator[T]) CrossCorrelate(dst, a, b []T) error {
 		return ErrNilSlice
 	}
 
-	if len(b) != c.conv.lenB {
+	if len(a) != c.conv.lenA || len(b) != c.conv.lenB || len(dst) != c.conv.convLen {
 		return ErrLengthMismatch
 	}
 
@@ -174,8 +175,9 @@ func (c *Correlator[T]) CrossCorrelate(dst, a, b []T) error {
 
 // RealConvolver computes linear convolutions of fixed-length real inputs,
 // reusing one real FFT plan and preallocated buffers across calls. Use it
-// instead of ConvolveReal when convolving in a loop: after creation, Convolve
-// performs no planning and no allocations.
+// instead of the one-shot ConvolveReal function when convolving in a loop:
+// after creation, the RealConvolver.Convolve method performs no planning and
+// no allocations.
 //
 // A RealConvolver is safe for concurrent use: scratch buffers are borrowed
 // per call from an internal cache, so multiple goroutines may share one

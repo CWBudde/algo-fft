@@ -331,9 +331,10 @@ into the P2 backlog below.
       so a plain `go get` consumer gets SIMD, selected at runtime via
       `cpu.DetectFeatures()`. `-tags purego` is the supported pure-Go opt-out
       (tag was already respected; now it is the _only_ gate). The
-      `stockham_packed_toggle` pair now keys on `(amd64 || arm64 || 386) &&
-!purego` (formerly the `asm` tag); `-tags asm` remains accepted as a
-      harmless no-op for existing scripts. Docs updated (README, goal.md,
+      `stockham_packed_toggle` pair now keys on
+      `(amd64 || arm64 || 386) && !purego` (formerly the `asm` tag);
+      `-tags asm` remains accepted as a harmless no-op for existing
+      scripts. Docs updated (README, goal.md,
       AGENTS.md, CHANGELOG) — the SIMD claim is now true on the default build.
 - [x] Fallback correctness parity is CI-gated: every `test-arch` matrix leg
       (amd64, 386, arm64/QEMU, darwin/arm64, windows/amd64) and a dedicated
