@@ -1,4 +1,4 @@
-//go:build amd64
+//go:build amd64 && !purego
 
 package fft
 
@@ -20,6 +20,8 @@ import (
 //
 //nolint:paralleltest // modifies global CPU feature state
 func TestSelectKernelsComplex64_SSE3Only(t *testing.T) {
+	requireSSE3(t) // forcing HasSSE3 past dispatch would SIGILL on a non-SSE3 host
+
 	originalFeatures := cpu.DetectFeatures()
 	defer cpu.SetForcedFeatures(originalFeatures)
 
@@ -58,6 +60,8 @@ func TestSelectKernelsComplex64_SSE3Only(t *testing.T) {
 //
 //nolint:paralleltest // modifies global CPU feature state
 func TestSelectKernelsWithStrategy_SSE3(t *testing.T) {
+	requireSSE3(t) // forcing HasSSE3 past dispatch would SIGILL on a non-SSE3 host
+
 	originalFeatures := cpu.DetectFeatures()
 	defer cpu.SetForcedFeatures(originalFeatures)
 
