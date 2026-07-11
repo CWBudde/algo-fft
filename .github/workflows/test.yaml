@@ -26,5 +26,5 @@ jobs:
   test-format:
     uses: ./.github/workflows/test-format.yaml
 
-  test-bench:
-    uses: ./.github/workflows/test-bench.yaml
+  test-fuzz:
+    uses: ./.github/workflows/test-fuzz.yaml

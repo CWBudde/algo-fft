@@ -1,0 +1,58 @@
+name: test-fuzz
+
+# Time-budgeted fuzzing (PLAN.md, Testing & CI Hardening): every fuzz target
+# runs beyond its seed corpus on each PR (short budget) and nightly (longer
+# budget). New crashers are uploaded as artifacts so they can be added to the
+# seed corpus.
+on:
+  workflow_call:
+    inputs:
+      fuzztime:
+        description: "Fuzz budget per target (Go duration)"
+        type: string
+        default: "20s"
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: "Fuzz budget per target (Go duration)"
+        type: string
+        default: "5m"
+  schedule:
+    - cron: "42 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Fuzz each target
+        env:
+          # Nightly runs get a longer budget than the PR gate.
+          FUZZTIME: ${{ inputs.fuzztime || (github.event_name == 'schedule' && '5m') || '20s' }}
+        run: |
+          set -euo pipefail
+          targets=$(go test -list '^Fuzz' . | grep '^Fuzz')
+          echo "Fuzzing targets for ${FUZZTIME} each:"
+          echo "$targets"
+          for target in $targets; do
+            go test -run='^$' -fuzz="^${target}\$" -fuzztime="$FUZZTIME" .
+          done
+
+      - name: Upload new crashers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashers
+          path: testdata/fuzz
+          if-no-files-found: ignore
