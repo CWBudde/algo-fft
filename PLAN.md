@@ -419,7 +419,12 @@ benchmark vs the current path with `benchstat`.
 | 6        | 512   | radix-8 / 16×32   | radix-8 infra     | done (Go)      |
 | 7        | 2048  | 32×64 (2-stage)   | FFT-32/64 kernels | planned        |
 
-- [ ] complex128 large-size AVX2 (512 done; 1024/2048/4096/8192/16384 pending).
+- [x] complex128 large-size AVX2 — **completed 2026-07**. 512/1024/2048/8192/
+      16384 were already covered (radix-4-then-2, 32×32, radix-4); the last gap,
+      size 4096, is closed by a 6-stage radix-4 AVX2 kernel
+      (`avx2_f64_size4096_radix4.s`, priority 30, shares the complex64 kernel's
+      `bitrev4096_r4` table) — ~1.7× faster than the generic six-step path it
+      replaces (36 µs vs 61 µs on Xeon 2.1 GHz).
 - [ ] SSE2 coverage for 512 mixed-2/4 and 1024 radix-4 (both precisions) — the
       non-AVX2 fallback path.
 - [ ] ARM64 NEON: sizes 512+ (evaluate benefit first), remaining complex128.
