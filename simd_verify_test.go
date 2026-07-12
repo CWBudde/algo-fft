@@ -188,8 +188,8 @@ func testSIMDvsGeneric128(t *testing.T, n int) {
 	//   Size 64: measured 1.75e-15
 	//   Size 256: measured 7.85e-15
 	//   Size 1024: measured 5.62e-14
-	//   Size 4096: measured 2.01e-13 (AVX2 radix-4 kernel)
-	//   Size 16384: measured 8.99e-13 (AVX2 radix-4 kernel; dit16384_radix4_avx2)
+	//   Size 4096: measured 2.01e-13 (on amd64+AVX2, radix-4 codelet)
+	//   Size 16384: measured 8.99e-13 (on amd64+AVX2, radix-4 codelet)
 	threshold := 1e-14 // baseline for small sizes
 	if n >= 256 {
 		threshold = 2e-14 // ~2.5x margin over measured 7.85e-15
