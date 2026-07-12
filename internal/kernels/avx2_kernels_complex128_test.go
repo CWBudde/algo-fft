@@ -30,6 +30,29 @@ func TestForwardAVX2Size4096Radix4Complex128_VsGo(t *testing.T) {
 	assertComplex128Close(t, dstASM, dstGo, size4096Tol128)
 }
 
+func TestForwardAVX2Size4096Radix4Complex128_InPlace(t *testing.T) {
+	requireAVX2(t)
+
+	const n = 4096
+
+	src := randomComplex128(n, 0x5E6F7081)
+	data := make([]complex128, n)
+	copy(data, src)
+	want := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+
+	if !amd64.ForwardAVX2Size4096Radix4Complex128Asm(want, src, twiddle, scratch) {
+		t.Fatal("out-of-place ForwardAVX2Size4096Radix4Complex128Asm failed")
+	}
+
+	if !amd64.ForwardAVX2Size4096Radix4Complex128Asm(data, data, twiddle, scratch) {
+		t.Fatal("in-place ForwardAVX2Size4096Radix4Complex128Asm failed")
+	}
+
+	assertComplex128Close(t, data, want, size4096Tol128)
+}
+
 func TestRoundTripAVX2Size4096Radix4Complex128(t *testing.T) {
 	requireAVX2(t)
 
