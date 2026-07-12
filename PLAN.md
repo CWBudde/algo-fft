@@ -494,21 +494,34 @@ benchmark vs the current path with `benchstat`.
       each with a rationale comment), path-scoped exclusions for the
       hand-unrolled kernels, tests, cmd tools, and generic bridge files, and
       cyclop/funlen limits raised to 20/100-80.
-- [ ] **Coverage gate**: add `codecov.yml` with a threshold and **reconcile the
-      target** — `AGENTS.md` says >90 %, `CONTRIBUTING.md` says >80 %. Pick one.
-      Raise the weakest non-asm packages toward it: `internal/fft` (61.9 %),
-      root (79.0 %), `internal/cpu` (78.5 %), `internal/planner` (81.6 %).
-- [ ] **Make the benchmark gate real or remove it**: commit
-      `benchmarks/baseline-<os>.txt` so `scripts/bench_compare.sh` actually
-      compares (today it `exit 0`s on the missing baseline), or move benchmarks to
-      a manual/nightly job off noisy shared runners.
-- [ ] **Pin toolchain**: `test-bench.yaml` pins `go-version: 1.23` while every
-      other job uses `go.mod` (1.25). Unify to `go-version-file: go.mod`. Pin
-      `golangci-lint-action` to a release instead of `latest`.
-- [ ] **Continuous fuzzing**: add a time-budgeted CI fuzz job (currently
-      seed-corpus-only) for round-trip and no-panic properties.
-- [ ] **Property-test parity**: apply Parseval/linearity/shift to the core 1D
-      complex path (today unevenly spread across 2D/3D/real files).
+- [x] **Coverage gate** (2026-07): `codecov.yml` added — project gate at the
+      reconciled target **90 %** (threshold 0.5 %, patch informational;
+      `cmd/`, `examples/`, and the `internal/asm` bridge stubs excluded).
+      `CONTRIBUTING.md` raised from >80 % to match `AGENTS.md`. Weakest
+      packages raised: `internal/transform` 41.0 → 90.6 % (the packed-Stockham
+      engine is now tested on every build via a toggle-independent entry
+      point, plus forced radix-2/-16 recursive-inverse combine tests),
+      `internal/cpu` 78.5 → 100 %, `internal/fft` 74.9 → 80.7 % (forced-SSE3
+      dispatch tier now verified against reference on AVX2 machines, generic
+      pool/mul/scale helpers covered). Root was already 86.3 %; total 91.4 %+.
+- [x] **Benchmark gate** (2026-07): moved off the PR gate to a nightly
+      (`schedule`) + `workflow_dispatch` workflow — shared runners are too
+      noisy for a reliable threshold. The baseline comparison stays
+      informational until a `benchmarks/baseline-<os>.txt` is committed.
+- [x] **Pin toolchain** (2026-07): `test-bench.yaml` now uses
+      `go-version-file: go.mod` like every other job; `golangci-lint-action`
+      pinned to `v2.12.2` instead of `latest`.
+- [x] **Continuous fuzzing** (2026-07): `test-fuzz.yaml` runs every fuzz
+      target beyond its seed corpus — 20 s each on PRs, 5 min each nightly —
+      and uploads new crashers as artifacts. Its first run immediately found
+      a divide-by-zero in three fuzz harnesses on empty input (fixed; the
+      minimized crashers are committed as the regression corpus under
+      `testdata/fuzz/`).
+- [x] **Property-test parity** (2026-07): `plan_properties_test.go` applies
+      Parseval/linearity/shift to the public 1D `Plan[T]` (both precisions)
+      across all dispatch families — powers of two, mixed radix 2/3/5, and
+      Bluestein primes — complementing the raw-kernel property suite in
+      `internal/fft`.
 
 ---
 

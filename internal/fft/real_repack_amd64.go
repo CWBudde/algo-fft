@@ -33,10 +33,7 @@ func inverseRepackComplex64AVX2(dst, src, weight []complex64) int {
 		amd64.InverseRepackComplex64AVX2Asm(dst, src, weight, limit)
 	}
 
-	start := limit + 1
-	if start < 1 {
-		start = 1
-	}
+	start := max(limit+1, 1)
 	return start
 }
 
@@ -51,10 +48,7 @@ func inverseRepackComplex64SSE2(dst, src, weight []complex64) int {
 		amd64.InverseRepackComplex64SSE2Asm(dst, src, weight, limit)
 	}
 
-	start := limit + 1
-	if start < 1 {
-		start = 1
-	}
+	start := max(limit+1, 1)
 	return start
 }
 

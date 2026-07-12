@@ -67,10 +67,7 @@ func runInverseRepackSSE2Case(t *testing.T, half int, weightFn func(k int) compl
 		amd64.InverseRepackComplex64SSE2Asm(dstSIMD, src, weight, limit)
 	}
 
-	start := limit + 1
-	if start < 1 {
-		start = 1
-	}
+	start := max(limit+1, 1)
 	inverseRepackComplex64Generic(dstSIMD, src, weight, start)
 
 	const eps = 1e-4

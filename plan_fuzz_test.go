@@ -13,7 +13,7 @@ func FuzzRoundTripComplex64(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		n := m.NextPowerOfTwo(len(data))
-		if n == 0 || n > 1024 {
+		if len(data) == 0 || n > 1024 {
 			return
 		}
 
@@ -54,7 +54,7 @@ func FuzzDeterministicForward(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		n := m.NextPowerOfTwo(len(data))
-		if n == 0 || n > 1024 {
+		if len(data) == 0 || n > 1024 {
 			return
 		}
 
@@ -94,7 +94,7 @@ func FuzzNoPanicValidInput(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		n := m.NextPowerOfTwo(len(data))
-		if n == 0 || n > 1024 {
+		if len(data) == 0 || n > 1024 {
 			return
 		}
 
