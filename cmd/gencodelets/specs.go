@@ -828,6 +828,13 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit2048_radix4_then2_avx2", Priority: 25,
 	},
 	{
+		Target: "avx2", Prec: 128, Size: 4096,
+		Forward:   "amd64.ForwardAVX2Size4096Radix4Complex128Asm",
+		Inverse:   "amd64.InverseAVX2Size4096Radix4Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit4096_radix4_avx2", Priority: 30,
+	},
+	{
 		Target: "avx2", Prec: 128, Size: 8192,
 		Forward:   "amd64.ForwardAVX2Size8192Radix4Then2Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size8192Radix4Then2Complex128Asm",

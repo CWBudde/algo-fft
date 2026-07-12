@@ -8,6 +8,73 @@ import (
 	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
+func TestForwardAVX2Size4096Radix4Complex128_VsGo(t *testing.T) {
+	requireAVX2(t)
+
+	const n = 4096
+
+	src := randomComplex128(n, 0xA1B2C3D4)
+	dstASM := make([]complex128, n)
+	dstGo := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+
+	if !amd64.ForwardAVX2Size4096Radix4Complex128Asm(dstASM, src, twiddle, scratch) {
+		t.Fatal("ForwardAVX2Size4096Radix4Complex128Asm failed")
+	}
+
+	if !forwardDIT4096Radix4Complex128(dstGo, src, twiddle, scratch) {
+		t.Fatal("forwardDIT4096Radix4Complex128 failed")
+	}
+
+	assertComplex128Close(t, dstASM, dstGo, size4096Tol128)
+}
+
+func TestForwardAVX2Size4096Radix4Complex128_InPlace(t *testing.T) {
+	requireAVX2(t)
+
+	const n = 4096
+
+	src := randomComplex128(n, 0x5E6F7081)
+	data := make([]complex128, n)
+	copy(data, src)
+	want := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+
+	if !amd64.ForwardAVX2Size4096Radix4Complex128Asm(want, src, twiddle, scratch) {
+		t.Fatal("out-of-place ForwardAVX2Size4096Radix4Complex128Asm failed")
+	}
+
+	if !amd64.ForwardAVX2Size4096Radix4Complex128Asm(data, data, twiddle, scratch) {
+		t.Fatal("in-place ForwardAVX2Size4096Radix4Complex128Asm failed")
+	}
+
+	assertComplex128Close(t, data, want, size4096Tol128)
+}
+
+func TestRoundTripAVX2Size4096Radix4Complex128(t *testing.T) {
+	requireAVX2(t)
+
+	const n = 4096
+
+	src := randomComplex128(n, 0x11223344)
+	fwd := make([]complex128, n)
+	dst := make([]complex128, n)
+	scratch := make([]complex128, n)
+	twiddle := ComputeTwiddleFactors[complex128](n)
+
+	if !amd64.ForwardAVX2Size4096Radix4Complex128Asm(fwd, src, twiddle, scratch) {
+		t.Fatal("ForwardAVX2Size4096Radix4Complex128Asm failed")
+	}
+
+	if !amd64.InverseAVX2Size4096Radix4Complex128Asm(dst, fwd, twiddle, scratch) {
+		t.Fatal("InverseAVX2Size4096Radix4Complex128Asm failed")
+	}
+
+	assertComplex128Close(t, dst, src, size4096Tol128)
+}
+
 func TestForwardAVX2Size16384Radix4Complex128_VsGo(t *testing.T) {
 	requireAVX2(t)
 
