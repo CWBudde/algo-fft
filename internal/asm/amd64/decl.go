@@ -383,6 +383,12 @@ func ForwardAVX2Size2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []co
 func InverseAVX2Size2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
+func ForwardAVX2Size4096Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseAVX2Size4096Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
 func ForwardAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
