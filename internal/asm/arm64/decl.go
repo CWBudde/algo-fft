@@ -146,10 +146,6 @@ func ForwardNEONSize256Radix4Complex128Asm(dst, src, twiddle, scratch []complex1
 //go:noescape
 func InverseNEONSize256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
-// The kernels below have assembly implementations but are not yet wired into
-// codelet registration (pending P2.3 arm64 complex128 coverage). Declared so
-// go vet's asmdecl can check their frames and they stay callable from tests.
-
 //go:noescape
 func ForwardNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
