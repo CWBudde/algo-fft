@@ -435,7 +435,23 @@ benchmark vs the current path with `benchstat`.
       forward/inverse vs `reference.NaiveDFT` plus round-trip and in-place.
       On the non-AVX2 tier, 1024 complex64 is ~2.8× faster than the generic
       SSE3 kernel; 512 complex128 is ~15 % faster than the radix-2 codelet.
-- [ ] ARM64 NEON: sizes 512+ (evaluate benefit first), remaining complex128.
+- [x] ARM64 NEON remaining complex128 — **completed 2026-07**. The five
+      declared-but-unregistered kernel pairs flagged in P2.1a (8 radix-4,
+      32 mixed-2/4, 64 radix-4, 128 mixed-2/4, 256 radix-2) are wired into
+      codelet registration via `gencodelets`, alongside the size-specific
+      4/8/16/32 kernels that were previously reachable only through the
+      `internal/fft` dispatch layer — the complex128 NEON registry now mirrors
+      the complex64 one. Every size-specific NEON complex128 kernel is
+      validated forward-vs-reference, round-trip, **and in-place** (the P2.2
+      copy-back bug class) in `internal/asm/arm64/neon_f64_size_specific_test.go`;
+      the P0.4 registry sweep covers the new codelets on top. Full arm64 suite
+      passes under QEMU.
+- [ ] ARM64 NEON sizes 512+: **evaluation blocked on native ARM64 hardware** —
+      QEMU timings are not representative (see `bench-arm64` note), so a
+      size-specific 512/1024 kernel can't be benchmark-justified from CI today.
+      Sizes 512/1024 are already NEON-served by the generic DIT kernels
+      (registered as priority-1 codelets); revisit alongside the post-v1.0
+      "native ARM64 CI runner" item.
 
 ### P2.4 New instruction sets
 

@@ -178,6 +178,61 @@ func registerNEONDITCodelets64() {
 // registerNEONDITCodelets128 registers the NEON complex128 DIT codelets.
 func registerNEONDITCodelets128() {
 	Registry128.Register(CodeletEntry[complex128]{
+		Size:       4,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize4Radix4Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize4Radix4Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit4_radix4_neon",
+		Priority:   10,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       8,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize8Radix2Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize8Radix2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit8_radix2_neon",
+		Priority:   20,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       8,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize8Radix4Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize8Radix4Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit8_radix4_neon",
+		Priority:   25,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       16,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize16Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize16Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit16_radix2_neon",
+		Priority:   22,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       16,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize16Radix4Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize16Radix4Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit16_radix4_neon",
+		Priority:   28,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
 		Size:       32,
 		Forward:    wrapCodelet128(arm64.ForwardNEONComplex128Asm),
 		Inverse:    wrapCodelet128(arm64.InverseNEONComplex128Asm),
@@ -185,6 +240,28 @@ func registerNEONDITCodelets128() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit32_generic_neon",
 		Priority:   1,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       32,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize32Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize32Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit32_radix2_neon",
+		Priority:   20,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       32,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize32Radix4Then2Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize32Radix4Then2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit32_radix4_then2_neon",
+		Priority:   24,
 		KernelType: KernelTypeDIT,
 	})
 
@@ -200,6 +277,17 @@ func registerNEONDITCodelets128() {
 	})
 
 	Registry128.Register(CodeletEntry[complex128]{
+		Size:       64,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize64Radix4Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize64Radix4Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit64_radix4_neon",
+		Priority:   24,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
 		Size:       128,
 		Forward:    wrapCodelet128(arm64.ForwardNEONSize128Radix2Complex128Asm),
 		Inverse:    wrapCodelet128(arm64.InverseNEONSize128Radix2Complex128Asm),
@@ -207,6 +295,28 @@ func registerNEONDITCodelets128() {
 		SIMDLevel:  SIMDNEON,
 		Signature:  "dit128_radix2_neon",
 		Priority:   20,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       128,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize128Radix4Then2Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize128Radix4Then2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit128_radix4_then2_neon",
+		Priority:   24,
+		KernelType: KernelTypeDIT,
+	})
+
+	Registry128.Register(CodeletEntry[complex128]{
+		Size:       256,
+		Forward:    wrapCodelet128(arm64.ForwardNEONSize256Radix2Complex128Asm),
+		Inverse:    wrapCodelet128(arm64.InverseNEONSize256Radix2Complex128Asm),
+		Algorithm:  KernelDIT,
+		SIMDLevel:  SIMDNEON,
+		Signature:  "dit256_radix2_neon",
+		Priority:   18,
 		KernelType: KernelTypeDIT,
 	})
 
