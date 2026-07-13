@@ -181,10 +181,34 @@ func ForwardSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64
 func InverseSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
+func ForwardSSE3Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func InverseSSE3Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func ForwardSSE3Size1024Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func InverseSSE3Size1024Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
 func ForwardSSE2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
 func InverseSSE2Size512Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func ForwardSSE2Size512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseSSE2Size512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func ForwardSSE2Size1024Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseSSE2Size1024Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // --- AVX2 Kernels (Complex64) ---
 

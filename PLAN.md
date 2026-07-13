@@ -425,8 +425,16 @@ benchmark vs the current path with `benchstat`.
       (`avx2_f64_size4096_radix4.s`, priority 30, shares the complex64 kernel's
       `bitrev4096_r4` table) — ~1.7× faster than the generic six-step path it
       replaces (36 µs vs 61 µs on Xeon 2.1 GHz).
-- [ ] SSE2 coverage for 512 mixed-2/4 and 1024 radix-4 (both precisions) — the
-      non-AVX2 fallback path.
+- [x] SSE2 coverage for 512 mixed-2/4 and 1024 radix-4 (both precisions) — the
+      non-AVX2 fallback path. **Completed 2026-07**: four kernels — SSE2
+      complex128 + SSE3 complex64 for size 512 radix-4-then-2 (four radix-4
+      stages + one radix-2 stage, mixed-digit-reversal permutation) and size
+      1024 radix-4 (five stages, base-4 digit reversal). Registered via
+      `gencodelets` (priority 12, above the size-512 radix-2 codelets) and
+      wired into the SSE3 size-specific dispatch; each is validated
+      forward/inverse vs `reference.NaiveDFT` plus round-trip and in-place.
+      On the non-AVX2 tier, 1024 complex64 is ~2.8× faster than the generic
+      SSE3 kernel; 512 complex128 is ~15 % faster than the radix-2 codelet.
 - [ ] ARM64 NEON: sizes 512+ (evaluate benefit first), remaining complex128.
 
 ### P2.4 New instruction sets
