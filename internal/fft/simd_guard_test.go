@@ -28,3 +28,12 @@ func requireSSE3(tb testing.TB) {
 		tb.Skip("host CPU lacks SSE3")
 	}
 }
+
+// requireAVX512 is the AVX-512 analogue of requireAVX2.
+func requireAVX512(tb testing.TB) {
+	tb.Helper()
+
+	if !cpu.DetectFeatures().HasAVX512 {
+		tb.Skip("host CPU lacks AVX-512")
+	}
+}

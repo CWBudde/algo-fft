@@ -6,6 +6,16 @@ import "github.com/cwbudde/algo-fft/internal/cpu"
 
 func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	auto := autoKernelComplex64(KernelAuto)
+	// AVX-512 implies AVX2 on every real CPU; the explicit HasAVX2 check keeps
+	// the chain safe under forced test feature sets.
+	if features.HasAVX512 && features.HasAVX2 && !features.ForceGeneric {
+		sizeSpecific := avx512SizeSpecificOrGenericComplex64(KernelAuto)
+		return Kernels[complex64]{
+			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
+			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
+		}
+	}
+
 	if features.HasAVX2 && !features.ForceGeneric {
 		sizeSpecific := avx2SizeSpecificOrGenericComplex64(KernelAuto)
 		return Kernels[complex64]{
@@ -33,6 +43,14 @@ func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 
 func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 	auto := autoKernelComplex128(KernelAuto)
+	if features.HasAVX512 && features.HasAVX2 && !features.ForceGeneric {
+		sizeSpecific := avx512SizeSpecificOrGenericComplex128(KernelAuto)
+		return Kernels[complex128]{
+			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
+			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
+		}
+	}
+
 	if features.HasAVX2 && !features.ForceGeneric {
 		sizeSpecific := avx2SizeSpecificOrGenericComplex128(KernelAuto)
 		return Kernels[complex128]{
@@ -53,6 +71,14 @@ func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 
 func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
 	auto := autoKernelComplex64(strategy)
+	if features.HasAVX512 && features.HasAVX2 && !features.ForceGeneric {
+		sizeSpecific := avx512SizeSpecificOrGenericComplex64(strategy)
+		return Kernels[complex64]{
+			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
+			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
+		}
+	}
+
 	if features.HasAVX2 && !features.ForceGeneric {
 		sizeSpecific := avx2SizeSpecificOrGenericComplex64(strategy)
 		return Kernels[complex64]{
@@ -80,6 +106,14 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 
 func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
 	auto := autoKernelComplex128(strategy)
+	if features.HasAVX512 && features.HasAVX2 && !features.ForceGeneric {
+		sizeSpecific := avx512SizeSpecificOrGenericComplex128(strategy)
+		return Kernels[complex128]{
+			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
+			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
+		}
+	}
+
 	if features.HasAVX2 && !features.ForceGeneric {
 		sizeSpecific := avx2SizeSpecificOrGenericComplex128(strategy)
 		return Kernels[complex128]{
