@@ -63,6 +63,10 @@ func init() {
 	// Register AVX2 codelets (conditional on build tags)
 	registerAVX2DITCodelets64()
 	registerAVX2DITCodelets128()
+
+	// Register AVX-512 codelets (conditional on build tags)
+	registerAVX512DITCodelets64()
+	registerAVX512DITCodelets128()
 }
 
 // KernelFunc64 is the signature of existing complex64 kernels that return bool.

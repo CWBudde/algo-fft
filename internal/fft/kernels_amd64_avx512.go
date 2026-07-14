@@ -11,6 +11,11 @@ import (
 // tuned AVX2 size-specific codelets (which still win at the sizes they cover)
 // and the generic AVX2 kernels (which it beats at every measured size).
 //
+// This tier serves plans without a registry codelet binding; at sizes
+// 1024/4096/8192/16384 the same kernel is additionally registered as a
+// complex64 codelet, so those plans bind it directly
+// (internal/kernels/dit_avx512_amd64.go).
+//
 // Measured on Xeon 2.8 GHz (Skylake-SP class), forward complex64:
 //
 //	size    AVX-512   AVX2 generic  AVX2 Stockham  best AVX2 codelet
