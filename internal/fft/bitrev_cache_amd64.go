@@ -34,6 +34,18 @@ var (
 	bitrevCache   = map[int][]int{}
 )
 
+// PrewarmSizeCaches populates the process-global per-size tables used by the
+// SIMD kernel wrappers (currently the radix-2 bit-reversal table shared by
+// the AVX-512 generic, AVX2 Stockham, and AVX2 complex128 wrappers) so that a
+// plan's first transform does not allocate. Called at plan creation; a no-op
+// for sizes the wrappers never handle (non-powers of two) and on non-SIMD
+// builds (see bitrev_cache_stub.go).
+func PrewarmSizeCaches(n int) {
+	if n > 0 && m.IsPowerOf2(n) {
+		cachedBitReversalIndices(n)
+	}
+}
+
 // cachedBitReversalIndices returns the shared radix-2 bit-reversal table for
 // size n, computing and caching it on first use.
 func cachedBitReversalIndices(n int) []int {

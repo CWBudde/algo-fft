@@ -598,6 +598,23 @@ func selectPlanEstimate[T Complex](n int, features cpu.Features, opts PlanOption
 	}
 }
 
+// kernelSelectionStrategy chooses the strategy handed to
+// SelectKernelsWithStrategy. Plan estimates pre-resolve KernelAuto (e.g. to
+// KernelStockham for large sizes), which would make an auto choice
+// indistinguishable from an explicitly forced one at kernel-dispatch time.
+// When the user did not force a strategy and the estimate matches the pure
+// size heuristic (i.e. it is not a wisdom- or measurement-derived override),
+// KernelAuto is passed instead so per-size dispatch keeps the distinction:
+// the AVX-512 tier substitutes its faster DIT kernel for auto-resolved
+// Stockham sizes while an explicit KernelStockham stays on the Stockham path.
+func kernelSelectionStrategy(n int, requested, estimated KernelStrategy) KernelStrategy {
+	if requested == KernelAuto && estimated == fft.ResolveKernelStrategy(n) {
+		return KernelAuto
+	}
+
+	return estimated
+}
+
 func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptions) (*Plan[T], error) {
 	if n < 1 {
 		return nil, ErrInvalidLength
@@ -610,7 +627,11 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	strategy := estimate.Strategy
 
 	// Get fallback kernels (used when no codelet is available)
-	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
+	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy, strategy))
+
+	// Prewarm shared per-size tables (bit-reversal indices) so the first
+	// transform stays allocation-free.
+	fft.PrewarmSizeCaches(n)
 
 	var (
 		twiddle        []T
@@ -774,7 +795,11 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 		return newPlanWithFeatures[T](n, features, opts)
 	}
 
-	kernels := fft.SelectKernelsWithStrategy[T](features, strategy)
+	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy, strategy))
+
+	// Prewarm shared per-size tables (bit-reversal indices) so the first
+	// transform stays allocation-free.
+	fft.PrewarmSizeCaches(n)
 
 	scratchSize := standardScratchSize(n, estimate.Algorithm)
 	twiddle, scratch, stridedScratch,

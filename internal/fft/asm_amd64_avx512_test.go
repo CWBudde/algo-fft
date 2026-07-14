@@ -348,3 +348,28 @@ func TestAVX512DispatchSelectKernels(t *testing.T) {
 		}
 	}
 }
+
+// TestPrewarmSizeCaches verifies that a prewarmed size serves its
+// bit-reversal table without allocating (the wrappers stay allocation-free
+// from the very first transform of a plan; see plan creation in the root
+// package, which calls PrewarmSizeCaches).
+//
+//nolint:paralleltest // testing.AllocsPerRun panics inside parallel tests
+func TestPrewarmSizeCaches(t *testing.T) {
+	const n = 1 << 13
+
+	PrewarmSizeCaches(n)
+
+	if allocs := testing.AllocsPerRun(10, func() {
+		if len(cachedBitReversalIndices(n)) != n {
+			t.Fatal("unexpected table length")
+		}
+	}); allocs != 0 {
+		t.Errorf("cachedBitReversalIndices allocated %v times per run after prewarm", allocs)
+	}
+
+	// Non-powers of two and non-positive sizes must be safe no-ops.
+	PrewarmSizeCaches(0)
+	PrewarmSizeCaches(-8)
+	PrewarmSizeCaches(24)
+}
