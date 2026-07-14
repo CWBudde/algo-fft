@@ -455,8 +455,33 @@ benchmark vs the current path with `benchstat`.
 
 ### P2.4 New instruction sets
 
-- [ ] AVX-512 kernels (`HasAVX512` is detected today but dead).
-- [ ] Revisit WASM SIMD when Go's toolchain supports it.
+- [x] AVX-512 kernels (`HasAVX512` was detected but dead) — **first increment
+      completed 2026-07**. Generic radix-2 DIT kernels for both precisions
+      (`avx512_f32_generic.s` / `avx512_f64_generic.s`, forward + inverse,
+      AVX512F only): ZMM registers process 8 complex64 / 4 complex128
+      butterflies per iteration, permutation uses the shared per-size
+      bit-reversal table (computing it on the fly costs ~30% at n=1024).
+      Wired into `selectKernels*` as a new top tier
+      (`kernels_amd64_avx512.go`): tuned AVX2 size-specific codelets keep
+      the sizes they cover; the AVX-512 kernel serves the remaining DIT
+      sizes and all Stockham-resolved sizes, beating the AVX2 generic
+      radix-4/mixed path by 1.2–1.4× and the AVX2/Go Stockham paths by
+      1.15–2.4× at every measured size 1024–2²¹ except complex64 2¹⁹ (~5%
+      slower; benchmark tables in `kernels_amd64_avx512.go`, Xeon 2.8 GHz).
+      Plan-level (`NewPlan32`, non-codelet sizes 32768/65536/131072):
+      12–21% faster, still zero-alloc. Validated forward/inverse vs
+      `reference.NaiveDFT`, round-trip, and in-place at sizes 16–8192 plus
+      a dispatch-level strategy sweep (`asm_amd64_avx512_test.go`).
+- [ ] AVX-512 follow-ups: per-size AVX-512 codelets via `gencodelets` — the
+      registry path still binds AVX2 codelets at covered sizes (e.g. 16384,
+      where the generic AVX-512 kernel is already ~20% faster than the AVX2
+      radix-4 codelet), and higher-radix AVX-512 variants should widen the
+      gap. Needs AVX-512 CI/bench hardware to tune priorities.
+- [ ] Revisit WASM SIMD — **rechecked 2026-07**: Go's `GOEXPERIMENT=simd`
+      intrinsics (golang/go#73787) gained amd64 support in Go 1.26 and
+      Wasm/ARM64 `archsimd` support in the Go 1.27 RC; still experimental
+      and this module targets Go 1.25. Revisit once the experiment
+      graduates or the toolchain floor moves.
 
 ---
 
