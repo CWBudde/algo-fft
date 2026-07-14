@@ -472,11 +472,21 @@ benchmark vs the current path with `benchstat`.
       12–21% faster, still zero-alloc. Validated forward/inverse vs
       `reference.NaiveDFT`, round-trip, and in-place at sizes 16–8192 plus
       a dispatch-level strategy sweep (`asm_amd64_avx512_test.go`).
-- [ ] AVX-512 follow-ups: per-size AVX-512 codelets via `gencodelets` — the
-      registry path still binds AVX2 codelets at covered sizes (e.g. 16384,
-      where the generic AVX-512 kernel is already ~20% faster than the AVX2
-      radix-4 codelet), and higher-radix AVX-512 variants should widen the
-      gap. Needs AVX-512 CI/bench hardware to tune priorities.
+- [x] Per-size AVX-512 codelets via `gencodelets` — **completed 2026-07**.
+      A new `avx512` generator target registers the generic AVX-512 radix-2
+      kernel as complex64 codelets at 1024/4096/8192/16384, the sizes where
+      it beats the best AVX2 codelet on AVX-512 hardware (Xeon 2.8 GHz):
+      plan-level forward 19.9→8.2 µs (1024, 2.4×), 42.8→34.4 µs (4096),
+      149→83 µs (8192, 1.8×), 236→195 µs (16384, 1.2×); the inverse
+      direction shows the same winners; all still zero-alloc. AVX2 codelets
+      keep 2048 (faster) and every complex128 size (faster at ≥2048, tie at
+      1024). Codelet selection prefers the higher SIMD level over priority,
+      so only benchmark-winning sizes are registered; the measurements and
+      rationale live in `internal/kernels/dit_avx512_amd64.go`.
+- [ ] AVX-512 follow-ups: higher-radix / per-size-tuned AVX-512 variants
+      should widen the gap (and could reclaim 2048 and the complex128
+      sizes, where the AVX2 codelets still win). Needs AVX-512 CI/bench
+      hardware for regression tracking.
 - [ ] Revisit WASM SIMD — **rechecked 2026-07**: Go's `GOEXPERIMENT=simd`
       intrinsics (golang/go#73787) gained amd64 support in Go 1.26 and
       Wasm/ARM64 `archsimd` support in the Go 1.27 RC; still experimental

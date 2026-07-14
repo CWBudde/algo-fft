@@ -28,8 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Batch and strided transform APIs
 - Convolution and correlation helpers (complex and real, both precisions)
 - complex64 and complex128 precision throughout
-- SIMD kernels (AVX2/SSE2/SSE3 on amd64, NEON on arm64) in the default
-  build, selected at runtime via CPU detection (`purego` build tag opts out)
+- SIMD kernels (AVX-512/AVX2/SSE2/SSE3 on amd64, NEON on arm64) in the
+  default build, selected at runtime via CPU detection (`purego` build tag
+  opts out); on AVX-512 CPUs the generic AVX-512 kernel also serves as the
+  complex64 codelet at sizes 1024/4096/8192/16384 (1.2–2.4× over the AVX2
+  codelets it replaces)
 - Wisdom: persist and reuse plan-tuning decisions
 - WebAssembly (js/wasm) target support
 - Concurrency-safe plans: a single plan instance may run transforms from
@@ -65,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- AVX-512 kernels
+- Higher-radix / per-size-tuned AVX-512 kernel variants
 - Broader SSE2/NEON size coverage
 
 ## [0.0.1] - 2025-12-24

@@ -33,6 +33,7 @@ type target struct {
 var targets = []target{
 	{kind: "generic", file: "codelet_init_generic.gen.go", buildTag: "", regPrefix: "", importPkg: "", importAs: ""},
 	{kind: "avx2", file: "codelet_init_avx2.gen.go", buildTag: "amd64 && !purego", regPrefix: "AVX2", importPkg: "github.com/cwbudde/algo-fft/internal/asm/amd64", importAs: "amd64"},
+	{kind: "avx512", file: "codelet_init_avx512.gen.go", buildTag: "amd64 && !purego", regPrefix: "AVX512", importPkg: "github.com/cwbudde/algo-fft/internal/asm/amd64", importAs: "amd64"},
 	{kind: "sse2", file: "codelet_init_sse2.gen.go", buildTag: "amd64 && !purego", regPrefix: "SSE2", importPkg: "github.com/cwbudde/algo-fft/internal/asm/amd64", importAs: "amd64"},
 	{kind: "neon", file: "codelet_init_neon.gen.go", buildTag: "arm64 && !purego", regPrefix: "NEON", importPkg: "github.com/cwbudde/algo-fft/internal/asm/arm64", importAs: "arm64"},
 }

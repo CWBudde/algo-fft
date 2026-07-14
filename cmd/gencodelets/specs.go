@@ -8,7 +8,7 @@ package main
 // codelet_init*.go files. To add or retune a codelet, edit a row here (or add
 // one) and run `go generate ./internal/kernels/...`.
 type codeletSpec struct {
-	// Target selects the output file / build tag: "generic", "avx2", "sse2", "neon".
+	// Target selects the output file / build tag: "generic", "avx2", "avx512", "sse2", "neon".
 	Target string
 	// Prec is 64 or 128 (complex64 / complex128).
 	Prec int
@@ -691,6 +691,39 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT16384SixStepAVX2Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_sixstep_avx2", Priority: 35,
+	},
+	// AVX-512 codelets: the generic AVX-512 radix-2 DIT kernel, registered only
+	// at the sizes where it beats the best AVX2 codelet (codelet selection
+	// prefers the higher SIMD level, so an entry here always outranks the AVX2
+	// ones on AVX-512 hosts). Benchmarks and the complex128 rationale live in
+	// internal/kernels/dit_avx512_amd64.go.
+	{
+		Target: "avx512", Prec: 64, Size: 1024,
+		Forward:   "forwardAVX512Radix2Complex64",
+		Inverse:   "inverseAVX512Radix2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit1024_radix2_avx512", Priority: 10,
+	},
+	{
+		Target: "avx512", Prec: 64, Size: 4096,
+		Forward:   "forwardAVX512Radix2Complex64",
+		Inverse:   "inverseAVX512Radix2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit4096_radix2_avx512", Priority: 10,
+	},
+	{
+		Target: "avx512", Prec: 64, Size: 8192,
+		Forward:   "forwardAVX512Radix2Complex64",
+		Inverse:   "inverseAVX512Radix2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit8192_radix2_avx512", Priority: 10,
+	},
+	{
+		Target: "avx512", Prec: 64, Size: 16384,
+		Forward:   "forwardAVX512Radix2Complex64",
+		Inverse:   "inverseAVX512Radix2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit16384_radix2_avx512", Priority: 10,
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 384,
