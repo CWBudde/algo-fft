@@ -1,6 +1,7 @@
 package kernels
 
 //go:generate go run ../../cmd/gencodelets .
+//go:generate go run ../../cmd/gencodelets -inventory ../../docs/IMPLEMENTATION_INVENTORY.md
 
 import (
 	"github.com/cwbudde/algo-fft/internal/planner"
