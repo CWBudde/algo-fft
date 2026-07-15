@@ -1,0 +1,44 @@
+name: Bug report
+description: Report incorrect results, crashes, or build failures
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: >-
+        Minimal Go program or test that reproduces the issue. Include the
+        transform size(s), precision (complex64/complex128), and plan options
+        used.
+      render: go
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: algo-fft version
+      description: Module version or commit hash.
+      placeholder: v1.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: >-
+        Output of `go version` plus OS/arch and CPU model. If relevant,
+        whether the failure also occurs with `-tags purego` (this disables
+        the SIMD kernels and isolates dispatch/assembly issues).
+      placeholder: |
+        go version go1.25.0 linux/amd64
+        CPU: ...
+        Reproduces with -tags purego: yes/no
+    validations:
+      required: true
