@@ -7,7 +7,8 @@ file). What remains here is a condensed record, the few carried-over open
 items, and the post-v1.0 optimization backlog.
 
 Design philosophy lives in `goal.md`; the component inventory is generated
-into `docs/IMPLEMENTATION_INVENTORY.md` (`cmd/gencodelets -inventory`).
+into `docs/IMPLEMENTATION_INVENTORY.md` via `go generate ./internal/kernels/...`
+(which runs `cmd/gencodelets -inventory <path>`).
 
 ---
 
@@ -22,10 +23,13 @@ All v1.0 Definition-of-Done items are green except the release tag itself:
   scheduler/driver contract is validated); every registered codelet is
   verified forward-vs-`reference.NaiveDFT` per direction; docs/module-path/
   committed-binary issues fixed.
-- **P1 Architecture hardening** (2026-07): no process-global mutable state —
-  kernel strategy is per-plan (`PlanOptions.Strategy`), tuning persists via
-  the versioned, atomically-imported Wisdom cache (size + precision + CPU
-  features). Zero-allocation parity across 1D/2D/3D/ND/real/mixed-radix on
+- **P1 Architecture hardening** (2026-07): kernel strategy is per-plan
+  (`PlanOptions.Strategy`) with no process-global strategy state; tuning
+  persists via the versioned, atomically-imported Wisdom cache (size +
+  precision + CPU features). One deliberate global remains: the _default_
+  Wisdom cache (`fft.DefaultWisdom`, mutated by `ImportWisdom*`/
+  `ClearWisdom`) — per-consumer isolation is available via
+  `PlanOptions.Wisdom`. Zero-allocation parity across 1D/2D/3D/ND/real/mixed-radix on
   both default and SIMD paths, locked in by `AllocsPerRun` guards. Plan-layer
   and DSP `*128` duplication collapsed into generics; dispatch de-duplicated;
   codelet **registration** is generated from a declarative table
@@ -39,7 +43,9 @@ All v1.0 Definition-of-Done items are green except the release tag itself:
   complex64+complex128 size-specific sets, first AVX-512 tier (generic
   radix-2 + per-size codelets at 1024/4096/8192/16384 where it wins).
 - **P3 API completeness & polish** (2026-07): no dead knobs or
-  "not yet implemented" in the public API; introspection parity
+  unimplemented options in the public API (the remaining `ErrNotImplemented`
+  returns are intentional: the documented `FastPlan` "no codelet for this
+  size" signal and unreachable defensive fallbacks); introspection parity
   (`Meta()`/`KernelStrategies()`/`Algorithms()` across plan types);
   `ForwardInPlace` naming unified; plan-reuse DSP types (`Convolver`,
   `Correlator`, `RealConvolver`); consistent `%w` error wrapping; GoDoc
@@ -95,7 +101,9 @@ references are to the current tree.
 ### P4.1 Algorithm-level upgrades (benefit all builds, including purego)
 
 - [ ] **Bluestein padding: next 5-smooth size instead of next power of two.**
-      `internal/kernels/bluestein.go` pads to `NextPowerOfTwo(2n-1)`; the
+      Plan construction picks `bluesteinM = math.NextPowerOfTwo(2n-1)`
+      (`plan.go`, `useBluestein` branch; kernels in
+      `internal/kernels/bluestein.go` take m as given); the
       mixed-radix engine already handles any 2^a·3^b·5^c length, which is
       frequently much smaller (e.g. n=3000: m=8192 today vs m=6000 — and
       n=1000: 2048 vs 2000). Add `NextHighlyComposite` to `internal/math`,
