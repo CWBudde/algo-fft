@@ -3,23 +3,85 @@
 This file tracks baseline benchmark results for `algofft`. Results are
 hardware- and Go-version-specific.
 
+Committed baselines live in `benchmarks/baseline-<os>.txt`; the nightly
+benchmark workflow (`.github/workflows/test-bench.yaml`) compares fresh runs
+against them with `benchstat` (informational — shared runners are too noisy
+for a hard gate).
+
 ## How to Update
 
-1. Run benchmarks and update the baseline output file:
+1. Run benchmarks and update the baseline output file for your OS:
 
 ```bash
-scripts/run_benchmarks.sh benchmarks/baseline.txt
+scripts/run_benchmarks.sh benchmarks/baseline-ubuntu-latest.txt
 ```
 
 2. Regenerate the table below:
 
 ```bash
-scripts/bench_md.sh benchmarks/baseline.txt > /tmp/benchmarks.md
+scripts/bench_md.sh benchmarks/baseline-ubuntu-latest.txt > /tmp/benchmarks.md
 ```
 
-3. Replace the "Baseline Results" table with the regenerated output.
+3. Replace the "Baseline Results" table with the regenerated output (the
+   committed table covers the root-package plan-level benchmarks; the full
+   run lives in the baseline file), and record the date, Go version, and CPU.
 
-## Phase 12 Focus (complex128 128/512/8192)
+## Baseline Results
+
+**Date**: 2026-07-15  
+**Go**: go1.25.0  
+**OS/Arch**: linux/amd64  
+**CPU**: Intel(R) Xeon(R) Processor @ 2.10GHz (4 vCPUs, AVX-512 available —
+the AVX-512 kernels and codelets are active in this run)  
+**Full run**: `benchmarks/baseline-ubuntu-latest.txt` (830 results across all
+packages; the table below is the root-package plan-level subset)
+
+| Benchmark                    |   ns/op |    MB/s |    B/op | allocs/op |
+| ---------------------------- | ------: | ------: | ------: | --------: |
+| BenchmarkPlanForward_8-4     |   46.18 | 1385.91 |       0 |         0 |
+| BenchmarkPlanForward_16-4    |   47.21 | 2711.53 |       0 |         0 |
+| BenchmarkPlanForward_32-4    |   86.61 | 2955.93 |       0 |         0 |
+| BenchmarkPlanForward_64-4    |   233.7 | 2190.59 |       0 |         0 |
+| BenchmarkPlanForward_128-4   |   586.7 | 1745.23 |       0 |         0 |
+| BenchmarkPlanForward_256-4   |    1113 | 1839.78 |       0 |         0 |
+| BenchmarkPlanForward_1024-4  |    6038 | 1356.75 |       0 |         0 |
+| BenchmarkPlanForward_2048-4  |   12399 | 1321.40 |       0 |         0 |
+| BenchmarkPlanForward_4096-4  |   25953 | 1262.61 |       0 |         0 |
+| BenchmarkPlanForward_8192-4  |   61481 | 1065.95 |       0 |         0 |
+| BenchmarkPlanForward_16384-4 |  154479 |  848.48 |       0 |         0 |
+| BenchmarkPlanForward_65536-4 |  848718 |  617.74 |       0 |         0 |
+| BenchmarkPlanInverse_8-4     |   46.86 | 1365.77 |       0 |         0 |
+| BenchmarkPlanInverse_16-4    |   48.00 | 2666.63 |       0 |         0 |
+| BenchmarkPlanInverse_32-4    |   91.96 | 2783.88 |       0 |         0 |
+| BenchmarkPlanInverse_64-4    |   254.2 | 2014.05 |       0 |         0 |
+| BenchmarkPlanInverse_128-4   |   550.5 | 1860.17 |       0 |         0 |
+| BenchmarkPlanInverse_256-4   |    1278 | 1601.93 |       0 |         0 |
+| BenchmarkPlanInverse_1024-4  |    5906 | 1387.16 |       0 |         0 |
+| BenchmarkPlanInverse_2048-4  |   12113 | 1352.59 |       0 |         0 |
+| BenchmarkPlanInverse_4096-4  |   25555 | 1282.23 |       0 |         0 |
+| BenchmarkPlanInverse_8192-4  |   63512 | 1031.87 |       0 |         0 |
+| BenchmarkPlanInverse_16384-4 |  168007 |  780.16 |       0 |         0 |
+| BenchmarkPlanInverse_65536-4 |  860078 |  609.58 |       0 |         0 |
+| BenchmarkNewPlan_16-4        |    3094 |       - |    3072 |        42 |
+| BenchmarkNewPlan_64-4        |    6126 |       - |    7096 |        49 |
+| BenchmarkNewPlan_256-4       |   18199 |       - |   23824 |        56 |
+| BenchmarkNewPlan_1024-4      |   63763 |       - |   92160 |        64 |
+| BenchmarkNewPlan_4096-4      |  320626 |       - |  607649 |        82 |
+| BenchmarkNewPlan_16384-4     |  939457 |       - | 1557938 |        86 |
+| BenchmarkNewPlan_65536-4     | 4849566 |       - | 9356749 |       109 |
+| BenchmarkReferenceDFT_16-4   |    6912 |   18.52 |     640 |         3 |
+| BenchmarkReferenceDFT_64-4   |  134839 |    3.80 |    2560 |         3 |
+| BenchmarkReferenceDFT_256-4  | 1917806 |    1.07 |   10240 |         3 |
+
+## Historical Results
+
+The dated sections below are point-in-time records kept for reference. They
+predate later optimizations (P1.3 zero-allocation parity for `PlanND` and the
+mixed-radix path, the P2.1 fold of SIMD into the default build, and the P2.4
+AVX-512 kernels), so their absolute numbers and allocation counts do not
+reflect the current code — see the Baseline Results above for current data.
+
+### Phase 12 Focus (complex128 128/512/8192)
 
 Use these focused benchmarks to capture kernel selection, strategy, and twiddle layout
 for complex128 sizes 128/512/8192. Run with `-v` to include the plan details logged by
@@ -49,7 +111,7 @@ Record CPU model, Go version, and the logged plan details alongside the numbers.
 | BenchmarkPlanForward_8192_Complex128_Focus-12 | 116405 | 1126.00 |    0 |         0 |
 | BenchmarkPlanInverse_8192_Complex128_Focus-12 | 127627 | 1027.00 |    0 |         0 |
 
-## Phase 12 Focus (complex128 128/512/8192, SIMD)
+### Phase 12 Focus (complex128 128/512/8192, SIMD)
 
 The focus benchmarks capture SIMD kernel selection and profiles (SIMD is part
 of the default build; the `-tags asm` flag below is now a no-op kept for
@@ -86,7 +148,7 @@ Record the plan details logged by the benchmarks for kernel/strategy/twiddle sel
 | BenchmarkPlanInverse_512_Complex128_Focus-12  |   2542 | 3223.18 |    0 |         0 |
 | BenchmarkPlanInverse_8192_Complex128_Focus-12 | 165146 |  793.67 |    2 |         0 |
 
-## Baseline Results
+### Baseline Results (2025-12-24)
 
 **Date**: 2025-12-24  
 **Go**: go1.25.0  
@@ -155,7 +217,7 @@ Record the plan details logged by the benchmarks for kernel/strategy/twiddle sel
 | BenchmarkBaseTwiddleLookup_Radix8_65536-12               |   72736 |       - |       0 |         0 |
 | BenchmarkBaseTwiddleLookup_Radix16_65536-12              |  177567 |       - |       0 |         0 |
 
-## AVX2 Performance (Phase 14.2)
+### AVX2 Performance (Phase 14.2)
 
 AVX2 optimizations are part of the default build on amd64 (use `-tags purego` to disable).
 These results compare the baseline Pure Go implementation with the AVX2 optimized version.
@@ -163,7 +225,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 **Date**: 2026-01-04
 **CPU**: 12th Gen Intel(R) Core(TM) i7-1255U
 
-### complex64 Forward FFT
+#### complex64 Forward FFT
 
 |  Size | Pure Go (ns) | Pure Go (MB/s) | AVX2 (ns) | AVX2 (MB/s) |  Speedup |
 | ----: | -----------: | -------------: | --------: | ----------: | -------: |
@@ -173,7 +235,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 |  4096 |        54463 |            601 |     20498 |        1599 | **2.7x** |
 | 16384 |       336675 |            389 |     75015 |        1747 | **4.5x** |
 
-### complex128 Forward FFT (AVX2)
+#### complex128 Forward FFT (AVX2)
 
 | Size | AVX2 (ns) | AVX2 (MB/s) |
 | ---: | --------: | ----------: |
@@ -182,7 +244,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 | 1024 |      4511 |        3632 |
 | 4096 |     22795 |        2875 |
 
-### Key Optimizations Applied
+#### Key Optimizations Applied
 
 1. **SIMD Vectorization**: Process 4 complex64 or 2 complex128 per iteration using YMM registers
 2. **FMA Instructions**: `VFMADDSUB231PS/PD` for fused multiply-add in butterfly computation
@@ -190,7 +252,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 4. **Manual Twiddle Gathering**: Use scalar loads + pack for strided twiddle access
 5. **Zero Allocations**: All transforms are allocation-free after plan creation
 
-## ARM64 NEON vs Go (QEMU)
+### ARM64 NEON vs Go (QEMU)
 
 **Date**: 2025-12-25  
 **Go**: go1.25.0  
@@ -198,7 +260,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 **CPU**: ARMv8 Processor rev 0 (v8l)  
 **Note**: QEMU results are not representative of real ARM64 hardware.
 
-### complex64 Forward FFT
+#### complex64 Forward FFT
 
 | Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
 | ---: | --------: | ----------: | ----------: | ------------: |
@@ -207,7 +269,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 | 1024 |    278673 |       29.40 |      284396 |         28.80 |
 | 4096 |   1332887 |       24.58 |     1274761 |         25.71 |
 
-### complex64 Inverse FFT
+#### complex64 Inverse FFT
 
 | Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
 | ---: | --------: | ----------: | ----------: | ------------: |
@@ -216,7 +278,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 | 1024 |    326061 |       25.12 |      336179 |         24.37 |
 | 4096 |   1514744 |       21.63 |     1537455 |         21.31 |
 
-### complex128 Forward FFT
+#### complex128 Forward FFT
 
 | Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
 | ---: | --------: | ----------: | ----------: | ------------: |
@@ -225,7 +287,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 | 1024 |    186962 |       87.63 |      218785 |         74.89 |
 | 4096 |    911766 |       71.88 |     1093437 |         59.94 |
 
-### complex128 Inverse FFT
+#### complex128 Inverse FFT
 
 | Size | NEON (ns) | NEON (MB/s) | Go DIT (ns) | Go DIT (MB/s) |
 | ---: | --------: | ----------: | ----------: | ------------: |
@@ -234,14 +296,14 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 | 1024 |    194358 |       84.30 |      269664 |         60.76 |
 | 4096 |    916886 |       71.48 |     1238905 |         52.90 |
 
-## Multi-Dimensional FFT Performance (Phase 18)
+### Multi-Dimensional FFT Performance (Phase 18)
 
 **Date**: 2025-12-26
 **Go**: go1.25.0
 **OS/Arch**: linux/amd64
 **CPU**: 12th Gen Intel(R) Core(TM) i7-1255U
 
-### 3D FFT: Plan3D vs PlanND Comparison
+#### 3D FFT: Plan3D vs PlanND Comparison
 
 | Implementation | Size  | Elements | Time (µs) | Throughput (MB/s) | Allocs/op | Bytes/op |
 | -------------- | ----- | -------- | --------- | ----------------- | --------- | -------- |
@@ -250,7 +312,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 
 **Analysis**: PlanND has ~24% overhead vs specialized Plan3D. This is a reasonable trade-off for supporting arbitrary dimensions.
 
-### PlanND Performance Across Dimensions
+#### PlanND Performance Across Dimensions
 
 | Dimensions | Size      | Elements | Time (µs) | Throughput (MB/s) | Allocs/op |
 | ---------- | --------- | -------- | --------- | ----------------- | --------- |
@@ -260,7 +322,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 
 **Scaling**: Allocation count scales linearly with dimension count (one temporary buffer per dimension). Performance scales well with problem size.
 
-### 3D FFT Sizes (Plan3D)
+#### 3D FFT Sizes (Plan3D)
 
 | Size     | Elements | Time (µs) | Throughput (MB/s) | Allocs/op | Bytes/op |
 | -------- | -------- | --------- | ----------------- | --------- | -------- |
@@ -268,7 +330,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 | 16×16×16 | 4,096    | ~120      | ~270              | 2         | 128      |
 | 32×32×32 | 32,768   | ~1,000    | ~260              | 2         | 128      |
 
-### Key Findings
+#### Key Findings
 
 1. **Specialized implementations are faster**: Plan2D and Plan3D outperform PlanND by 20-30% for their specific dimensions
 2. **PlanND provides excellent flexibility**: Supports arbitrary dimensions (tested up to 5D) with reasonable overhead
@@ -276,7 +338,7 @@ These results compare the baseline Pure Go implementation with the AVX2 optimize
 4. **Memory efficiency**: Aligned scratch buffers enable SIMD optimizations in underlying 1D FFT kernels
 5. **Dimension scaling**: Higher dimensions add marginal overhead due to additional slice extraction/writing
 
-### Recommendations
+#### Recommendations
 
 - **Use specialized plans when possible**: Plan2D for images, Plan3D for volumes
 - **Use PlanND for flexibility**: When dimension count varies or exceeds 3

@@ -37,7 +37,7 @@ The demo runs the library compiled to WebAssembly, allowing you to visualize FFT
 
 - **Performance**
   - Zero-dispatch codelets for common sizes (8, 16, 32, 64, 128)
-  - SIMD acceleration (AVX2/SSE2 on amd64, NEON on arm64) included in the
+  - SIMD acceleration (AVX-512/AVX2/SSE3/SSE2 on amd64, NEON on arm64) included in the
     default build and selected at runtime via CPU detection (`-tags purego`
     opts out to pure Go)
   - Zero-allocation transforms with pre-allocated Plans

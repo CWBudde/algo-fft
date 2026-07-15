@@ -593,21 +593,36 @@ benchmark vs the current path with `benchstat`.
 
 v1.0 ships only when **all** of the following hold:
 
-- [ ] `go build ./...` and `go build -tags purego ./...` both compile on amd64
-      and arm64; both are gated in CI.
-- [ ] `go test -race ./...` and `go test -tags purego ./...` pass; 5× repeat run
-      is flake-free.
-- [ ] No dead build tags, no committed binaries, no false doc guarantees.
-- [ ] Every public option and constructor is either implemented or removed —
-      no "not yet implemented" in the exported surface.
-- [ ] Coverage meets the single agreed target for non-asm code; the asm path has
-      forward-vs-reference tests for every registered codelet.
-- [ ] README/`goal.md`/CHANGELOG are accurate on the default build; module path
-      resolves; `pkg.go.dev` renders.
-- [ ] `docs/IMPLEMENTATION_INVENTORY.md` and `BENCHMARKS.md` regenerated with
-      committed baselines and the CPU/hardware used.
-- [ ] Tag `v1.0.0`, GitHub release notes, `.github/ISSUE_TEMPLATE` +
-      `PULL_REQUEST_TEMPLATE.md`.
+- [x] `go build ./...` and `go build -tags purego ./...` both compile on amd64
+      and arm64; both are gated in CI. _(Verified 2026-07: all four builds
+      compile locally; `test-arch.yaml` gates default + purego builds and
+      tests on amd64, 386, and arm64 — macOS native and Linux/QEMU.)_
+- [x] `go test -race ./...` and `go test -tags purego ./...` pass; 5× repeat run
+      is flake-free. _(Verified 2026-07: race suite ×5 and purego suite ×5,
+      zero failures.)_
+- [x] No dead build tags, no committed binaries, no false doc guarantees.
+      _(Audited 2026-07: remaining tags are `purego`, `stress`, `debug`,
+      `ignore`, and arch tags — all live; no binaries in git; README/CHANGELOG
+      claims match the default build.)_
+- [x] Every public option and constructor is either implemented or removed —
+      no "not yet implemented" in the exported surface. _(Done in P3; the
+      remaining `ErrNotImplemented` returns are the documented FastPlan
+      "no codelet for this size" signal and unreachable defensive fallbacks.)_
+- [x] Coverage meets the single agreed target for non-asm code (90 %, gated
+      via `codecov.yml`); the asm path has forward-vs-reference tests for
+      every registered codelet (P0.4 registry sweep + meta-test).
+- [x] README/`goal.md`/CHANGELOG are accurate on the default build; module path
+      resolves; `pkg.go.dev` renders. _(Verified 2026-07: pkg.go.dev serves
+      full docs for the module.)_
+- [x] `docs/IMPLEMENTATION_INVENTORY.md` and `BENCHMARKS.md` regenerated with
+      committed baselines and the CPU/hardware used. _(2026-07: the inventory
+      is now generated from the codelet table — `cmd/gencodelets -inventory`,
+      wired into `go generate ./internal/kernels/...`; BENCHMARKS.md carries a
+      fresh baseline with the committed `benchmarks/baseline-ubuntu-latest.txt`
+      consumed by the nightly bench workflow.)_
+- [ ] Tag `v1.0.0`, GitHub release notes. _(Owner action — everything above is
+      green; `.github/ISSUE_TEMPLATE/` and `PULL_REQUEST_TEMPLATE.md` added
+      2026-07.)_
 
 ---
 

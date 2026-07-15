@@ -7,11 +7,15 @@
 // hand-written scaffolding (init, wrapCodelet helpers, registries) lives in
 // internal/kernels/codelet_registry.go.
 //
+// With -inventory <path>, it instead renders the implementation inventory
+// document (docs/IMPLEMENTATION_INVENTORY.md) from the same table.
+//
 // Regenerate with: go generate ./internal/kernels/...
 package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"go/format"
 	"os"
@@ -39,9 +43,25 @@ var targets = []target{
 }
 
 func main() {
+	inventoryPath := flag.String("inventory", "",
+		"render the implementation inventory markdown to this path instead of generating code")
+	flag.Parse()
+
+	if *inventoryPath != "" {
+		err := os.WriteFile(*inventoryPath, renderInventory(), 0o644) //nolint:gosec
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "gencodelets: write %s: %v\n", *inventoryPath, err)
+			os.Exit(1)
+		}
+
+		fmt.Fprintf(os.Stderr, "gencodelets: wrote %s\n", *inventoryPath)
+
+		return
+	}
+
 	outDir := "internal/kernels"
-	if len(os.Args) > 1 {
-		outDir = os.Args[1]
+	if flag.NArg() > 0 {
+		outDir = flag.Arg(0)
 	}
 
 	for _, tgt := range targets {

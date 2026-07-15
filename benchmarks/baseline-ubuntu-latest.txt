@@ -1,0 +1,902 @@
+goos: linux
+goarch: amd64
+pkg: github.com/cwbudde/algo-fft
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz
+BenchmarkConvolve_64x64-4                      	   13707	     86422 ns/op	  11.76 MB/s	   26336 B/op	      28 allocs/op
+BenchmarkConvolve_256x256-4                    	    3364	    350210 ns/op	  11.67 MB/s	  102752 B/op	      28 allocs/op
+BenchmarkConvolve_1024x1024-4                  	     890	   1377307 ns/op	  11.89 MB/s	  412768 B/op	      28 allocs/op
+BenchmarkConvolveReal_64x64-4                  	   81426	     15382 ns/op	  33.03 MB/s	   11104 B/op	      61 allocs/op
+BenchmarkConvolveReal_256x256-4                	   27734	     43735 ns/op	  46.74 MB/s	   39160 B/op	      68 allocs/op
+BenchmarkConvolveReal_1024x1024-4              	    6402	    192156 ns/op	  42.61 MB/s	  153578 B/op	      76 allocs/op
+BenchmarkPlan2D_Forward_8x8-4                  	 1000000	      1013 ns/op	 505.66 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_16x16-4                	  700647	      1781 ns/op	1150.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_32x32-4                	  195656	      6553 ns/op	1250.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_64x64-4                	   28082	     43240 ns/op	 757.81 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_128x128-4              	    4338	    280158 ns/op	 467.85 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_256x256-4              	     999	   1156618 ns/op	 453.29 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_512x512-4              	     217	   5866818 ns/op	 357.46 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Inverse_8x8-4                  	 1229571	       992.8 ns/op	 515.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Inverse_16x16-4                	  695565	      1766 ns/op	1159.37 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Inverse_32x32-4                	  164268	      6839 ns/op	1197.80 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Inverse_64x64-4                	   29209	     40667 ns/op	 805.76 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Inverse_128x128-4              	    4612	    263854 ns/op	 496.76 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Inverse_256x256-4              	     920	   1239799 ns/op	 422.88 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_16x32-4                	  319244	      3865 ns/op	1059.89 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_32x64-4                	   64980	     18700 ns/op	 876.13 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_64x128-4               	   10000	    101558 ns/op	 645.31 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_Forward_128x256-4              	    2696	    445989 ns/op	 587.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_InPlaceVsOutOfPlace_64x64/OutOfPlace-4         	   28533	     40063 ns/op	 817.91 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_InPlaceVsOutOfPlace_64x64/InPlace-4            	   31444	     39027 ns/op	 839.61 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_ReusePatterns_64x64/ReusePlanReuseBuffers-4    	   27520	     39773 ns/op	 823.88 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_ReusePatterns_64x64/ReusePlanAllocBuffers-4    	   29265	     43912 ns/op	 746.22 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan2D_ReusePatterns_64x64/NewPlanEachIter-4          	   17398	     68502 ns/op	 478.35 MB/s	   55960 B/op	     105 allocs/op
+BenchmarkPlan2D_Forward_64x64_Complex128-4                     	   18367	     65357 ns/op	1002.74 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan3D_Forward_8x8x8-4                                	   93240	     13382 ns/op	 306.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan3D_Forward_16x16x16-4                             	   20593	     64087 ns/op	 511.30 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan3D_Forward_32x32x32-4                             	    2221	    528453 ns/op	 496.06 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlan3D_RoundTrip_16x16x16-4                           	    9883	    121548 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n64_count1-4                         	 4865306	       241.4 ns/op	2121.06 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n64_count4-4                         	 1267318	      1013 ns/op	2022.62 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n64_count16-4                        	  303296	      3768 ns/op	2174.07 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n64_count64-4                        	   76148	     15564 ns/op	2105.31 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n256_count1-4                        	  963967	      1139 ns/op	1797.71 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n256_count4-4                        	  284950	      4420 ns/op	1853.54 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n256_count16-4                       	   62695	     18752 ns/op	1747.41 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n256_count64-4                       	   16032	     71359 ns/op	1836.80 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n1024_count1-4                       	  182020	      6450 ns/op	1270.07 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n1024_count4-4                       	   40645	     25791 ns/op	1270.50 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n1024_count16-4                      	   12038	    105916 ns/op	1237.51 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardBatch/n1024_count64-4                      	    2937	    433664 ns/op	1208.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n64_count1-4                         	 4652306	       277.6 ns/op	1844.11 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n64_count4-4                         	 1000000	      1030 ns/op	1987.95 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n64_count16-4                        	  282378	      4209 ns/op	1946.53 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n64_count64-4                        	   72946	     16493 ns/op	1986.80 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n256_count1-4                        	  943054	      1246 ns/op	1643.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n256_count4-4                        	  223076	      5195 ns/op	1576.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n256_count16-4                       	   55993	     22528 ns/op	1454.56 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n256_count64-4                       	   14173	     83761 ns/op	1564.83 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n1024_count1-4                       	  184414	      6122 ns/op	1338.10 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n1024_count4-4                       	   44484	     26350 ns/op	1243.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n1024_count16-4                      	   12130	     99219 ns/op	1321.03 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverseBatch/n1024_count64-4                      	    2838	    411504 ns/op	1274.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchVsIndividual/batch-4                             	   12649	    100820 ns/op	1300.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchVsIndividual/individual-4                        	   13280	     94694 ns/op	1384.16 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n64_count4_outofplace-4                  	 1249254	      1007 ns/op	2034.26 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n64_count4_inplace-4                     	 1000000	      1144 ns/op	1789.48 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n64_count16_outofplace-4                 	  294280	      3782 ns/op	2166.07 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n64_count16_inplace-4                    	  293414	      4108 ns/op	1994.10 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n256_count4_outofplace-4                 	  272229	      4262 ns/op	1922.03 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n256_count4_inplace-4                    	  270183	      4708 ns/op	1739.92 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n256_count16_outofplace-4                	   65199	     16901 ns/op	1938.87 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n256_count16_inplace-4                   	   68997	     17561 ns/op	1865.99 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n1024_count4_outofplace-4                	   45706	     25362 ns/op	1291.99 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n1024_count4_inplace-4                   	   46016	     27660 ns/op	1184.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n1024_count16_outofplace-4               	   12298	    100399 ns/op	1305.52 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchInPlace/n1024_count16_inplace-4                  	   10000	    107290 ns/op	1221.66 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchComplex128/n64_count4-4                          	  767466	      1520 ns/op	2694.62 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchComplex128/n64_count16-4                         	  202822	      6210 ns/op	2638.37 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchComplex128/n256_count4-4                         	  198818	      6134 ns/op	2671.15 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchComplex128/n256_count16-4                        	   49701	     24774 ns/op	2645.39 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchComplex128/n1024_count4-4                        	   37224	     31402 ns/op	2086.99 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBatchComplex128/n1024_count16-4                       	   10000	    131545 ns/op	1992.81 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_8-4                                       	24386496	        46.18 ns/op	1385.91 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_16-4                                      	21714728	        47.21 ns/op	2711.53 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_32-4                                      	13613594	        86.61 ns/op	2955.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_64-4                                      	 5224426	       233.7 ns/op	2190.59 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_128-4                                     	 2071818	       586.7 ns/op	1745.23 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_256-4                                     	 1000000	      1113 ns/op	1839.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_1024-4                                    	  216068	      6038 ns/op	1356.75 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_2048-4                                    	   90861	     12399 ns/op	1321.40 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_4096-4                                    	   45860	     25953 ns/op	1262.61 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_8192-4                                    	   19632	     61481 ns/op	1065.95 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_16384-4                                   	    7281	    154479 ns/op	 848.48 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_65536-4                                   	    1446	    848718 ns/op	 617.74 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_8192_DIT-4                                	   18084	     62910 ns/op	1041.75 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_8192_Stockham-4                           	   15201	     82028 ns/op	 798.95 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_2048_DIT-4                                	  104120	     12149 ns/op	1348.55 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_2048_Stockham-4                           	   76940	     15518 ns/op	1055.79 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForward_1024_Recursive-4                          	   81261	     15480 ns/op	 529.21 MB/s	    8384 B/op	       6 allocs/op
+BenchmarkPlanForward_2048_Recursive-4                          	   37740	     30019 ns/op	 545.78 MB/s	   16576 B/op	       6 allocs/op
+BenchmarkPlanForward_4096_Recursive-4                          	    1346	    881374 ns/op	  37.18 MB/s	   33344 B/op	      11 allocs/op
+BenchmarkPlanForward_8192_Recursive-4                          	     279	   4011879 ns/op	  16.34 MB/s	  132224 B/op	     531 allocs/op
+BenchmarkPlanForward_16384_Recursive-4                         	      75	  15842108 ns/op	   8.27 MB/s	  264832 B/op	     547 allocs/op
+BenchmarkPlanInverse_8-4                                       	25435498	        46.86 ns/op	1365.77 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_16-4                                      	23606390	        48.00 ns/op	2666.63 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_32-4                                      	13156897	        91.96 ns/op	2783.88 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_64-4                                      	 4706122	       254.2 ns/op	2014.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_128-4                                     	 2161830	       550.5 ns/op	1860.17 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_256-4                                     	  968846	      1278 ns/op	1601.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_1024-4                                    	  203814	      5906 ns/op	1387.16 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_2048-4                                    	  103519	     12113 ns/op	1352.59 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_4096-4                                    	   48470	     25555 ns/op	1282.23 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_8192-4                                    	   19099	     63512 ns/op	1031.87 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_16384-4                                   	    7430	    168007 ns/op	 780.16 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_65536-4                                   	    1394	    860078 ns/op	 609.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_8192_DIT-4                                	   17288	     68926 ns/op	 950.81 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_8192_Stockham-4                           	   12862	     93276 ns/op	 702.60 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_2048_DIT-4                                	   90844	     13775 ns/op	1189.36 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_2048_Stockham-4                           	   58296	     19180 ns/op	 854.22 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanInverse_1024_Recursive-4                          	   42007	     25912 ns/op	 316.15 MB/s	    8384 B/op	       6 allocs/op
+BenchmarkPlanInverse_2048_Recursive-4                          	   27261	     45662 ns/op	 358.81 MB/s	   16576 B/op	       6 allocs/op
+BenchmarkPlanInverse_4096_Recursive-4                          	    1227	   1020101 ns/op	  32.12 MB/s	   33344 B/op	      11 allocs/op
+BenchmarkPlanInverse_8192_Recursive-4                          	     258	   4408353 ns/op	  14.87 MB/s	  132224 B/op	     531 allocs/op
+BenchmarkPlanInverse_16384_Recursive-4                         	      66	  16820092 ns/op	   7.79 MB/s	  264832 B/op	     547 allocs/op
+BenchmarkNewPlan_16-4                                          	  384678	      3094 ns/op	    3072 B/op	      42 allocs/op
+BenchmarkNewPlan_256-4                                         	   71061	     18199 ns/op	   23824 B/op	      56 allocs/op
+BenchmarkNewPlan_4096-4                                        	    3672	    320626 ns/op	  607649 B/op	      82 allocs/op
+BenchmarkNewPlan_16384-4                                       	    1251	    939457 ns/op	 1557938 B/op	      86 allocs/op
+BenchmarkReferenceDFT_16-4                                     	  184746	      6912 ns/op	  18.52 MB/s	     640 B/op	       3 allocs/op
+BenchmarkReferenceDFT_64-4                                     	    8324	    134839 ns/op	   3.80 MB/s	    2560 B/op	       3 allocs/op
+BenchmarkReferenceDFT_256-4                                    	     607	   1917806 ns/op	   1.07 MB/s	   10240 B/op	       3 allocs/op
+BenchmarkPlanForward_MemStats_1024-4                           	  206406	      5861 ns/op	1397.68 MB/s	         0 bytes/op	       0 B/op	       0 allocs/op
+BenchmarkPlanReusePatterns_1024/ReusePlanReuseBuffers-4        	  205185	      6200 ns/op	1321.23 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReusePatterns_1024/ReusePlanAllocBuffers-4        	   88884	     12815 ns/op	 639.24 MB/s	   16384 B/op	       2 allocs/op
+BenchmarkPlanReusePatterns_1024/NewPlanEachIter-4              	   14943	     77839 ns/op	 105.24 MB/s	  108544 B/op	      66 allocs/op
+BenchmarkPlanForward_128_Complex128_Focus-4                    	 1466583	       876.6 ns/op	2336.35 MB/s	       0 B/op	       0 allocs/op
+--- BENCH: BenchmarkPlanForward_128_Complex128_Focus-4
+    plan_bench_test.go:392: plan: size=128 strategy=DIT algorithm=dit128_radix2_avx2 twiddle=twiddle=128,codelet_fwd=128,codelet_inv=128,packed4(radix=4,stages=3,values=63),packed8(radix=8,stages=2,values=63),packed16(radix=16,stages=1,values=15)
+BenchmarkPlanForward_512_Complex128_Focus-4                    	  308845	      3906 ns/op	2097.23 MB/s	       0 B/op	       0 allocs/op
+--- BENCH: BenchmarkPlanForward_512_Complex128_Focus-4
+    plan_bench_test.go:396: plan: size=512 strategy=DIT algorithm=dit512_radix4_then2_avx2 twiddle=twiddle=512,codelet_fwd=512,codelet_inv=512,packed4(radix=4,stages=4,values=255),packed8(radix=8,stages=3,values=511),packed16(radix=16,stages=2,values=255)
+BenchmarkPlanForward_8192_Complex128_Focus-4                   	   12272	     99298 ns/op	1319.99 MB/s	       0 B/op	       0 allocs/op
+--- BENCH: BenchmarkPlanForward_8192_Complex128_Focus-4
+    plan_bench_test.go:400: plan: size=8192 strategy=DIT algorithm=dit8192_radix4_then2_avx2 twiddle=twiddle=8192,codelet_fwd=8192,codelet_inv=8192,packed4(radix=4,stages=6,values=4095),packed8(radix=8,stages=4,values=4095),packed16(radix=16,stages=3,values=4095)
+BenchmarkPlanInverse_128_Complex128_Focus-4                    	 1239403	       972.5 ns/op	2106.02 MB/s	       0 B/op	       0 allocs/op
+--- BENCH: BenchmarkPlanInverse_128_Complex128_Focus-4
+    plan_bench_test.go:404: plan: size=128 strategy=DIT algorithm=dit128_radix2_avx2 twiddle=twiddle=128,codelet_fwd=128,codelet_inv=128,packed4(radix=4,stages=3,values=63),packed8(radix=8,stages=2,values=63),packed16(radix=16,stages=1,values=15)
+BenchmarkPlanInverse_512_Complex128_Focus-4                    	  316663	      4121 ns/op	1988.00 MB/s	       0 B/op	       0 allocs/op
+--- BENCH: BenchmarkPlanInverse_512_Complex128_Focus-4
+    plan_bench_test.go:408: plan: size=512 strategy=DIT algorithm=dit512_radix4_then2_avx2 twiddle=twiddle=512,codelet_fwd=512,codelet_inv=512,packed4(radix=4,stages=4,values=255),packed8(radix=8,stages=3,values=511),packed16(radix=16,stages=2,values=255)
+BenchmarkPlanInverse_8192_Complex128_Focus-4                   	   12331	     97833 ns/op	1339.75 MB/s	       0 B/op	       0 allocs/op
+--- BENCH: BenchmarkPlanInverse_8192_Complex128_Focus-4
+    plan_bench_test.go:412: plan: size=8192 strategy=DIT algorithm=dit8192_radix4_then2_avx2 twiddle=twiddle=8192,codelet_fwd=8192,codelet_inv=8192,packed4(radix=4,stages=6,values=4095),packed8(radix=8,stages=4,values=4095),packed16(radix=16,stages=3,values=4095)
+BenchmarkBluestein_Forward_384-4                               	  279030	      4119 ns/op	 745.76 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Forward_768-4                               	   26353	     47117 ns/op	 130.40 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Forward_1000-4                              	   19048	     64015 ns/op	 124.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Forward_1536-4                              	   45747	     27551 ns/op	 446.02 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Forward_3000-4                              	    3156	    317469 ns/op	  75.60 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Inverse_384-4                               	  198325	      5971 ns/op	 514.49 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Inverse_768-4                               	   24457	     46800 ns/op	 131.28 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Inverse_1000-4                              	   18372	     65931 ns/op	 121.34 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Inverse_1536-4                              	   24573	     47905 ns/op	 256.51 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Inverse_3000-4                              	    3696	    344900 ns/op	  69.59 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_NewPlan_384-4                               	   61900	     19606 ns/op	   25488 B/op	      55 allocs/op
+BenchmarkBluestein_NewPlan_768-4                               	   35604	     32608 ns/op	   45680 B/op	      58 allocs/op
+BenchmarkBluestein_NewPlan_1000-4                              	   30229	     39744 ns/op	   52720 B/op	      58 allocs/op
+BenchmarkBluestein_NewPlan_1536-4                              	   17185	     68282 ns/op	  100288 B/op	      62 allocs/op
+BenchmarkBluestein_NewPlan_3000-4                              	   10000	    114016 ns/op	  145600 B/op	      62 allocs/op
+BenchmarkBluestein_Forward_384_Complex128-4                    	   14604	     82236 ns/op	  74.71 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Forward_1000_Complex128-4                   	   27783	     43984 ns/op	 363.77 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluestein_Forward_3000_Complex128-4                   	    4046	    287138 ns/op	 167.17 MB/s	       0 B/op	       0 allocs/op
+BenchmarkComparison_384_vs_512/Bluestein_384-4                 	  274945	      4624 ns/op	 664.41 MB/s	       0 B/op	       0 allocs/op
+BenchmarkComparison_384_vs_512/PowerOf2_512-4                  	  517764	      2304 ns/op	1777.81 MB/s	       0 B/op	       0 allocs/op
+BenchmarkComparison_1000_vs_1024/Bluestein_1000-4              	   22033	     54343 ns/op	 147.21 MB/s	       0 B/op	       0 allocs/op
+BenchmarkComparison_1000_vs_1024/PowerOf2_1024-4               	  219858	      5738 ns/op	1427.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkComparison_3000_vs_4096/Bluestein_3000-4              	    4186	    297323 ns/op	  80.72 MB/s	       0 B/op	       0 allocs/op
+BenchmarkComparison_3000_vs_4096/PowerOf2_4096-4               	   47386	     25131 ns/op	1303.88 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinVsNaive/Bluestein_7-4                        	 2203492	       569.6 ns/op	  98.31 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinVsNaive/Naive_7-4                            	  866504	      1256 ns/op	  44.59 MB/s	     288 B/op	       3 allocs/op
+BenchmarkBluesteinVsNaive/Bluestein_13-4                       	 1019918	      1221 ns/op	  85.15 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinVsNaive/Naive_13-4                           	  257996	      4718 ns/op	  22.04 MB/s	     528 B/op	       3 allocs/op
+BenchmarkBluesteinVsNaive/Bluestein_31-4                       	  459111	      2638 ns/op	  94.01 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinVsNaive/Naive_31-4                           	   41659	     27055 ns/op	   9.17 MB/s	    1280 B/op	       3 allocs/op
+BenchmarkBluesteinVsNaive/Bluestein_127-4                      	   88284	     13024 ns/op	  78.01 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinVsNaive/Naive_127-4                          	    2409	    517816 ns/op	   1.96 MB/s	    5120 B/op	       3 allocs/op
+BenchmarkBluesteinForward/complex64_7-4                        	 2062278	       577.3 ns/op	  97.00 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinForward/complex128_7-4                       	 2473153	       423.9 ns/op	 264.24 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinForward/complex64_13-4                       	  952794	      1144 ns/op	  90.91 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinForward/complex128_13-4                      	 1364745	       862.0 ns/op	 241.29 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinForward/complex64_31-4                       	  468913	      2446 ns/op	 101.39 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinForward/complex128_31-4                      	  632308	      1964 ns/op	 252.50 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinForward/complex64_127-4                      	   97341	     12635 ns/op	  80.41 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinForward/complex128_127-4                     	  122984	     10436 ns/op	 194.71 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinForward/complex64_509-4                      	   19568	     70386 ns/op	  57.85 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinForward/complex128_509-4                     	   22777	     50169 ns/op	 162.33 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex64_7-4                        	 2038284	       576.1 ns/op	  97.20 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex128_7-4                       	 2880352	       435.0 ns/op	 257.46 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex64_13-4                       	  996579	      1275 ns/op	  81.57 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex128_13-4                      	 1254048	      1018 ns/op	 204.39 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex64_31-4                       	  426864	      2630 ns/op	  94.28 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex128_31-4                      	  526840	      2189 ns/op	 226.57 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex64_127-4                      	   93541	     12805 ns/op	  79.35 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex128_127-4                     	  126656	      9938 ns/op	 204.47 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex64_509-4                      	   19852	     60174 ns/op	  67.67 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinInverse/complex128_509-4                     	   24475	     50806 ns/op	 160.30 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinRoundTrip/13-4                               	  540174	      2298 ns/op	  90.51 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinRoundTrip/31-4                               	  198206	      5396 ns/op	  91.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBluesteinRoundTrip/127-4                              	   44769	     25807 ns/op	  78.74 MB/s	       0 B/op	       0 allocs/op
+BenchmarkFastPlan_vs_Plan/Fast/64-4                            	 5782935	       210.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlan_vs_Plan/Safe/64-4                            	 5218701	       233.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlan_vs_Plan/Fast/256-4                           	 1000000	      1049 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlan_vs_Plan/Safe/256-4                           	 1000000	      1123 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlan_vs_Plan/Fast/1024-4                          	  191606	      6056 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlan_vs_Plan/Safe/1024-4                          	  211924	      5922 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlanReal32_vs_PlanRealT/Fast/64-4                 	 5952195	       198.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlanReal32_vs_PlanRealT/Safe/64-4                 	 4957376	       234.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlanReal32_vs_PlanRealT/Fast/256-4                	 1000000	      1097 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlanReal32_vs_PlanRealT/Safe/256-4                	  935017	      1262 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlanReal32_vs_PlanRealT/Fast/1024-4               	  276580	      4385 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastPlanReal32_vs_PlanRealT/Safe/1024-4               	  247370	      4662 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlanND_3D_8x8x8-4                                     	   82207	     14543 ns/op	 281.65 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanND_4D_4x4x4x4-4                                   	   19800	     61360 ns/op	  33.38 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanND_5D_2x2x2x2x2-4                                 	   66358	     16249 ns/op	  15.75 MB/s	    1280 B/op	      80 allocs/op
+BenchmarkPlan3D_8x8x8-4                                        	   89569	     12629 ns/op	 324.32 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanND_vs_Plan3D_8x8x8-4                              	   81733	     14186 ns/op	 288.74 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPooledVsRegular/Pooled/64-4                           	  180210	      5735 ns/op	    5282 B/op	      47 allocs/op
+BenchmarkPooledVsRegular/Regular/64-4                          	  192972	      6081 ns/op	    7096 B/op	      49 allocs/op
+BenchmarkPooledVsRegular/Pooled/256-4                          	   75243	     16430 ns/op	   16834 B/op	      54 allocs/op
+BenchmarkPooledVsRegular/Regular/256-4                         	   64251	     18112 ns/op	   23824 B/op	      56 allocs/op
+BenchmarkPooledVsRegular/Pooled/1024-4                         	   21470	     56036 ns/op	   63743 B/op	      62 allocs/op
+BenchmarkPooledVsRegular/Regular/1024-4                        	   19444	     61304 ns/op	   92160 B/op	      64 allocs/op
+BenchmarkPooledVsRegular/Pooled/4096-4                         	    4288	    299513 ns/op	  486466 B/op	      80 allocs/op
+BenchmarkPooledVsRegular/Regular/4096-4                        	    3324	    321123 ns/op	  607649 B/op	      82 allocs/op
+BenchmarkPlanReal2D_Forward/8x8-4                              	  480879	      2535 ns/op	 100.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_Forward/16x16-4                            	  447907	      2747 ns/op	 372.81 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_Forward/32x32-4                            	  163345	      6684 ns/op	 612.77 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_Forward/64x64-4                            	   40306	     27788 ns/op	 589.62 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_Forward/128x128-4                          	   10000	    126481 ns/op	 518.15 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_Forward/256x256-4                          	    2066	    614963 ns/op	 426.28 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_Forward/512x512-4                          	     480	   2436759 ns/op	 430.32 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_ForwardFull/8x8-4                          	  428112	      2739 ns/op	  93.46 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_ForwardFull/16x16-4                        	  354261	      3047 ns/op	 336.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_ForwardFull/32x32-4                        	  133815	      9051 ns/op	 452.52 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_ForwardFull/64x64-4                        	   29071	     38463 ns/op	 425.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_ForwardFull/128x128-4                      	    7273	    176705 ns/op	 370.88 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_ForwardFull/256x256-4                      	    1766	    714802 ns/op	 366.74 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_Inverse/8x8-4                              	 2795895	       454.0 ns/op	 563.89 MB/s	      64 B/op	       1 allocs/op
+BenchmarkPlanReal2D_Inverse/16x16-4                            	 1368790	       816.1 ns/op	1254.69 MB/s	     128 B/op	       1 allocs/op
+BenchmarkPlanReal2D_Inverse/32x32-4                            	  419384	      2804 ns/op	1460.67 MB/s	     256 B/op	       1 allocs/op
+BenchmarkPlanReal2D_Inverse/64x64-4                            	   83950	     13599 ns/op	1204.78 MB/s	     512 B/op	       1 allocs/op
+BenchmarkPlanReal2D_Inverse/128x128-4                          	   17371	     61726 ns/op	1061.72 MB/s	    1024 B/op	       1 allocs/op
+BenchmarkPlanReal2D_Inverse/256x256-4                          	    3506	    296444 ns/op	 884.29 MB/s	    2048 B/op	       1 allocs/op
+BenchmarkPlanReal2D_Inverse/512x512-4                          	     832	   1597375 ns/op	 656.44 MB/s	    4096 B/op	       1 allocs/op
+BenchmarkPlanReal2D_RoundTrip/8x8-4                            	  148016	      7657 ns/op	  33.44 MB/s	      64 B/op	       1 allocs/op
+BenchmarkPlanReal2D_RoundTrip/16x16-4                          	  151128	      7772 ns/op	 131.76 MB/s	     128 B/op	       1 allocs/op
+BenchmarkPlanReal2D_RoundTrip/32x32-4                          	   52317	     21719 ns/op	 188.59 MB/s	     256 B/op	       1 allocs/op
+BenchmarkPlanReal2D_RoundTrip/64x64-4                          	   23233	     54622 ns/op	 299.95 MB/s	     512 B/op	       1 allocs/op
+BenchmarkPlanReal2D_RoundTrip/128x128-4                        	    3157	    389539 ns/op	 168.24 MB/s	    1024 B/op	       1 allocs/op
+BenchmarkPlanReal2D_RoundTrip/256x256-4                        	    1344	    861254 ns/op	 304.37 MB/s	    2048 B/op	       1 allocs/op
+BenchmarkPlanReal2D_NonSquare/16x32-4                          	  273741	      3856 ns/op	 531.16 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_NonSquare/32x64-4                          	   97600	     12271 ns/op	 667.57 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_NonSquare/64x128-4                         	   17895	     67051 ns/op	 488.70 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal2D_NonSquare/128x256-4                        	    4084	    308142 ns/op	 425.36 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanReal3D_Forward/8x8x8-4                            	   46446	     24790 ns/op	  82.61 MB/s	     128 B/op	       2 allocs/op
+BenchmarkPlanReal3D_Forward/16x16x16-4                         	   20576	     61993 ns/op	 264.29 MB/s	     256 B/op	       2 allocs/op
+BenchmarkPlanReal3D_Forward/32x32x32-4                         	    3452	    362626 ns/op	 361.45 MB/s	     512 B/op	       2 allocs/op
+BenchmarkPlanReal3D_Forward/64x64x64-4                         	     360	   3247063 ns/op	 322.93 MB/s	    1024 B/op	       2 allocs/op
+BenchmarkPlanReal3D_Forward/128x128x128-4                      	      30	  36724034 ns/op	 228.42 MB/s	    2048 B/op	       2 allocs/op
+BenchmarkPlanReal3D_ForwardFull/8x8x8-4                        	   47196	     24785 ns/op	  82.63 MB/s	     128 B/op	       2 allocs/op
+BenchmarkPlanReal3D_ForwardFull/16x16x16-4                     	   16827	     67666 ns/op	 242.13 MB/s	     257 B/op	       2 allocs/op
+BenchmarkPlanReal3D_ForwardFull/32x32x32-4                     	    2529	    466898 ns/op	 280.73 MB/s	     570 B/op	       2 allocs/op
+BenchmarkPlanReal3D_ForwardFull/64x64x64-4                     	     283	   4176909 ns/op	 251.04 MB/s	    4875 B/op	       2 allocs/op
+BenchmarkPlanReal3D_Inverse/8x8x8-4                            	  204568	      5748 ns/op	 356.28 MB/s	     128 B/op	       2 allocs/op
+BenchmarkPlanReal3D_Inverse/16x16x16-4                         	   48294	     25927 ns/op	 631.92 MB/s	     256 B/op	       2 allocs/op
+BenchmarkPlanReal3D_Inverse/32x32x32-4                         	    6438	    190418 ns/op	 688.34 MB/s	     512 B/op	       2 allocs/op
+BenchmarkPlanReal3D_Inverse/64x64x64-4                         	     567	   2143251 ns/op	 489.25 MB/s	    1024 B/op	       2 allocs/op
+BenchmarkPlanReal3D_Inverse/128x128x128-4                      	      38	  28371004 ns/op	 295.68 MB/s	    2048 B/op	       2 allocs/op
+BenchmarkPlanReal3D_RoundTrip/8x8x8-4                          	   17803	     65158 ns/op	  31.43 MB/s	     256 B/op	       4 allocs/op
+BenchmarkPlanReal3D_RoundTrip/16x16x16-4                       	    8174	    163381 ns/op	 100.28 MB/s	     512 B/op	       4 allocs/op
+BenchmarkPlanReal3D_RoundTrip/32x32x32-4                       	    2092	    695653 ns/op	 188.42 MB/s	    1024 B/op	       4 allocs/op
+BenchmarkPlanReal3D_RoundTrip/64x64x64-4                       	     211	   6411597 ns/op	 163.54 MB/s	    2048 B/op	       4 allocs/op
+BenchmarkPlanReal3D_NonCubic/8x8x16-4                          	   58246	     18641 ns/op	 219.73 MB/s	     128 B/op	       2 allocs/op
+BenchmarkPlanReal3D_NonCubic/8x16x16-4                         	   37519	     33626 ns/op	 243.62 MB/s	     192 B/op	       2 allocs/op
+BenchmarkPlanReal3D_NonCubic/16x16x32-4                        	   14144	     90769 ns/op	 361.01 MB/s	     256 B/op	       2 allocs/op
+BenchmarkPlanReal3D_NonCubic/16x32x32-4                        	    6758	    176750 ns/op	 370.78 MB/s	     384 B/op	       2 allocs/op
+BenchmarkPlanRealForward/Real_N=256-4                          	 1000000	      1195 ns/op	 856.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForward/Complex_N=256-4                       	 1000000	      1106 ns/op	1851.95 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForward/Real_N=1024-4                         	  269198	      4755 ns/op	 861.33 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForward/Complex_N=1024-4                      	  192038	      6108 ns/op	1341.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForward/Real_N=4096-4                         	   56222	     20746 ns/op	 789.74 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForward/Complex_N=4096-4                      	   47073	     28451 ns/op	1151.75 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForward/Real_N=16384-4                        	   10000	    111636 ns/op	 587.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForward/Complex_N=16384-4                     	    7022	    173120 ns/op	 757.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealInverse/Real_N=256-4                          	  420955	      2479 ns/op	 413.09 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealInverse/Real_N=1024-4                         	  120782	     10466 ns/op	 391.38 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealInverse/Real_N=4096-4                         	   28180	     46442 ns/op	 352.79 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealInverse/Real_N=16384-4                        	    6111	    196205 ns/op	 334.02 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForwardNormalized/Real_N=256-4                	  962684	      1419 ns/op	 721.73 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForwardNormalized/Real_N=1024-4               	  225643	      4677 ns/op	 875.71 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForwardNormalized/Real_N=4096-4               	   57679	     21584 ns/op	 759.07 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForwardNormalized/Real_N=16384-4              	   10000	    106211 ns/op	 617.04 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForwardUnitary/Real_N=256-4                   	  783387	      1401 ns/op	 730.75 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForwardUnitary/Real_N=1024-4                  	  257588	      4891 ns/op	 837.51 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForwardUnitary/Real_N=4096-4                  	   55339	     21010 ns/op	 779.84 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanRealForwardUnitary/Real_N=16384-4                 	   12044	    100100 ns/op	 654.70 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardStrided/Strided/256-4                      	   99709	     12085 ns/op	 169.46 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardStrided/Strided/1024-4                     	   15760	     75852 ns/op	 108.00 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardStrided/Strided/4096-4                     	    2764	    432586 ns/op	  75.75 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardStrided_Copy/Copy/256-4                    	  470331	      2419 ns/op	 846.54 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardStrided_Copy/Copy/1024-4                   	   61530	     18229 ns/op	 449.41 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPlanForwardStrided_Copy/Copy/4096-4                   	   15241	     79542 ns/op	 411.96 MB/s	       0 B/op	       0 allocs/op
+BenchmarkNewPlan_64-4                                          	  192692	      6126 ns/op	    7096 B/op	      49 allocs/op
+BenchmarkNewPlan_1024-4                                        	   19988	     63763 ns/op	   92160 B/op	      64 allocs/op
+BenchmarkNewPlan_65536-4                                       	     246	   4849566 ns/op	 9356749 B/op	     109 allocs/op
+PASS
+ok  	github.com/cwbudde/algo-fft	407.766s
+?   	github.com/cwbudde/algo-fft/cmd/benchkernels	[no test files]
+?   	github.com/cwbudde/algo-fft/cmd/gencodelets	[no test files]
+?   	github.com/cwbudde/algo-fft/examples/real_fft_comparison	[no test files]
+?   	github.com/cwbudde/algo-fft/examples/real_fft_float64	[no test files]
+?   	github.com/cwbudde/algo-fft/examples/recursive_fft	[no test files]
+?   	github.com/cwbudde/algo-fft/examples/wasm-demo	[no test files]
+PASS
+ok  	github.com/cwbudde/algo-fft/internal/asm	0.006s
+?   	github.com/cwbudde/algo-fft/internal/asm/amd64	[no test files]
+goos: linux
+goarch: amd64
+pkg: github.com/cwbudde/algo-fft/internal/cpu
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz
+BenchmarkDetectFeatures-4        	31101205	        37.60 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQueryFunctions/HasAVX2-4         	32844817	        37.40 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQueryFunctions/HasSSE41-4        	29081878	        39.58 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQueryFunctions/HasNEON-4         	28252467	        39.90 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadCycleCounter-4               	41550277	        29.54 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCyclesSince-4                    	39789160	        29.74 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCyclesToNanoseconds-4            	1000000000	         0.4196 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/cwbudde/algo-fft/internal/cpu	7.822s
+goos: linux
+goarch: amd64
+pkg: github.com/cwbudde/algo-fft/internal/fft
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz
+BenchmarkAVX2DITComplex64/Size4/Radix4-4      	 6496134	       193.1 ns/op	 165.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size8/Radix2-4      	98153754	        12.19 ns/op	5251.31 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size8/Radix4-4      	83517721	        15.01 ns/op	4265.03 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size8/Radix8-4      	98738426	        11.95 ns/op	5354.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size16/Radix2-4     	63119228	        19.49 ns/op	6568.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size16/Radix4-4     	37120021	        32.13 ns/op	3984.11 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size32/Radix2-4     	25257331	        44.23 ns/op	5787.98 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size32/Radix32-4    	21050731	        53.27 ns/op	4805.42 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size64/Radix2-4     	12518648	        95.91 ns/op	5338.07 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size64/Radix4-4     	 5182460	       234.7 ns/op	2181.38 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size128-4           	 2032762	       576.5 ns/op	1776.27 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size256/Radix2-4    	 1682432	       702.2 ns/op	2916.70 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size256/Radix4-4    	  890946	      1316 ns/op	1555.87 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size512/Radix4Then2-4         	  435037	      2540 ns/op	1612.57 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size512/Radix2-4              	  781604	      1510 ns/op	2713.39 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size512/Radix8-4              	  543129	      2150 ns/op	1905.32 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size512/Radix16x32-4          	  461403	      2742 ns/op	1493.67 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size1024/Radix4-4             	  178389	      6473 ns/op	1265.49 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size2048/Radix4Then2-4        	   99848	     13639 ns/op	1201.26 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size4096/Radix4-4             	   38979	     30398 ns/op	1077.98 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex64/Size8192/Radix4Then2-4        	   19737	     60850 ns/op	1077.00 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size4/Radix4-4               	167665296	         6.932 ns/op	9232.60 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size8/Radix2-4               	100000000	        10.94 ns/op	11696.64 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size8/Radix4-4               	100000000	        11.19 ns/op	11438.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size8/Radix8-4               	100000000	        11.26 ns/op	11363.59 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size16/Radix2-4              	17341342	        61.56 ns/op	4158.73 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size16/Radix4-4              	29638368	        42.65 ns/op	6002.65 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size32/Radix2-4              	 8175566	       160.1 ns/op	3198.62 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size128/Radix2-4             	 1545380	       784.4 ns/op	2610.80 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size64/Radix2-4              	 3962942	       330.1 ns/op	3101.68 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size64/Radix4-4              	 2846025	       378.1 ns/op	2708.45 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size256/Radix2-4             	  609232	      2018 ns/op	2029.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size512/Radix2-4             	  290010	      4366 ns/op	1876.50 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2DITComplex128/Size512/Radix4Then2-4        	  317588	      3814 ns/op	2147.66 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Forward/64-4                               	 2934781	       388.0 ns/op	1319.49 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Forward/256-4                              	  580663	      1999 ns/op	1024.44 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Forward/1K-4                               	  154260	      8738 ns/op	 937.54 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Forward/4K-4                               	   28952	     42321 ns/op	 774.26 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Forward/16K-4                              	    6445	    166939 ns/op	 785.15 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Inverse/64-4                               	 1753108	       652.1 ns/op	 785.21 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Inverse/256-4                              	  456483	      2533 ns/op	 808.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Inverse/1K-4                               	  127116	      8991 ns/op	 911.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Inverse/4K-4                               	   27627	     40030 ns/op	 818.59 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Inverse/16K-4                              	    6007	    175488 ns/op	 746.90 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamForward/N=256-4                    	  560725	      2082 ns/op	 983.59 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamForward/N=512-4                    	  305506	      4065 ns/op	1007.61 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamForward/N=1024-4                   	  123514	      8295 ns/op	 987.63 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamForward/N=2048-4                   	   82239	     15388 ns/op	1064.71 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamForward/N=4096-4                   	   30418	     43380 ns/op	 755.38 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamForward/N=8192-4                   	   15049	     81170 ns/op	 807.40 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamForward/N=16384-4                  	    5610	    203642 ns/op	 643.64 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamInverse/N=256-4                    	  536960	      2530 ns/op	 809.40 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamInverse/N=512-4                    	  277746	      4139 ns/op	 989.70 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamInverse/N=1024-4                   	  121840	      9237 ns/op	 886.91 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamInverse/N=2048-4                   	   74196	     19260 ns/op	 850.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamInverse/N=4096-4                   	   25652	     49400 ns/op	 663.32 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamInverse/N=8192-4                   	   10000	    109800 ns/op	 596.87 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2StockhamInverse/N=16384-4                  	    5731	    225859 ns/op	 580.33 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoForward/64-4                             	 2406897	       492.8 ns/op	1038.87 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoForward/256-4                            	  315750	      3751 ns/op	 545.94 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoForward/1K-4                             	   66907	     17927 ns/op	 456.96 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoForward/4K-4                             	   11376	    102206 ns/op	 320.61 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoForward/16K-4                            	    1611	    690717 ns/op	 189.76 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoInverse/64-4                             	 1673151	       714.1 ns/op	 717.01 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoInverse/256-4                            	  274914	      4757 ns/op	 430.51 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoInverse/1K-4                             	   57757	     20338 ns/op	 402.79 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoInverse/4K-4                             	   10000	    112090 ns/op	 292.34 MB/s	       0 B/op	       0 allocs/op
+BenchmarkPureGoInverse/16K-4                            	    1249	   1094986 ns/op	 119.70 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2VsPureGo/64/PureGo-4                       	 2343739	       492.6 ns/op	1039.40 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2VsPureGo/64/AVX2-4                         	 2933332	       436.8 ns/op	1172.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2VsPureGo/256/PureGo-4                      	  281320	      4213 ns/op	 486.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2VsPureGo/256/AVX2-4                        	  576858	      2104 ns/op	 973.22 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2VsPureGo/1K/PureGo-4                       	   67232	     17476 ns/op	 468.75 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2VsPureGo/1K/AVX2-4                         	  160581	      7605 ns/op	1077.25 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2VsPureGo/4K/PureGo-4                       	   13332	     91714 ns/op	 357.28 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2VsPureGo/4K/AVX2-4                         	   26886	     39811 ns/op	 823.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Forward128/64-4                            	 2521573	       447.0 ns/op	2290.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Forward128/256-4                           	  518533	      2164 ns/op	1892.62 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Forward128/1K-4                            	  125434	      9838 ns/op	1665.41 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Forward128/4K-4                            	   25947	     45146 ns/op	1451.63 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Inverse128/64-4                            	 2683417	       465.9 ns/op	2197.85 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Inverse128/256-4                           	  608881	      1976 ns/op	2073.13 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Inverse128/1K-4                            	  130540	      8857 ns/op	1849.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Inverse128/4K-4                            	   26464	     48880 ns/op	1340.77 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size16_VsGeneric/AVX2-4                    	 6773888	       174.1 ns/op	 735.29 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size16_VsGeneric/PureGo-4                  	18977883	        70.75 ns/op	1809.18 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size32_VsGeneric/AVX2-4                    	 3996519	       296.5 ns/op	 863.50 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size32_VsGeneric/PureGo-4                  	 4935590	       221.7 ns/op	1154.71 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size64_VsGeneric/AVX2-4                    	 3334716	       393.2 ns/op	1301.99 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size64_VsGeneric/PureGo-4                  	 2589055	       468.6 ns/op	1092.55 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size256_Comprehensive/AVX2_Radix2-4        	 1615162	       714.2 ns/op	2867.54 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size256_Comprehensive/AVX2_Radix4-4        	  963979	      1268 ns/op	1615.46 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size256_Comprehensive/PureGo_DIT_Radix2-4  	  340579	      3536 ns/op	 579.17 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Size256_Comprehensive/PureGo_Radix4-4      	  483219	      2506 ns/op	 817.36 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4_VsRadix2/64/Radix4-4         	 3268758	       346.2 ns/op	1478.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4_VsRadix2/64/Radix2-4         	 2036583	       593.4 ns/op	 862.77 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4_VsRadix2/256/Radix4-4        	  641667	      1872 ns/op	1094.28 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4_VsRadix2/256/Radix2-4        	  347025	      3201 ns/op	 639.86 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4_VsRadix2/1K/Radix4-4         	  158710	      7446 ns/op	1100.20 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4_VsRadix2/1K/Radix2-4         	  101540	     12711 ns/op	 644.51 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4_VsRadix2/4K/Radix4-4         	   32017	     35833 ns/op	 914.46 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4_VsRadix2/4K/Radix2-4         	   19878	     55396 ns/op	 591.52 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Mixed_VsRadix2/128/Radix4Mixed-4         	 1301790	       922.1 ns/op	1110.46 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Mixed_VsRadix2/128/Radix2-4              	  748246	      1405 ns/op	 728.72 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Mixed_VsRadix2/512/Radix4Mixed-4         	  263557	      4532 ns/op	 903.83 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Mixed_VsRadix2/512/Radix2-4              	  176397	      6546 ns/op	 625.68 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Mixed_VsRadix2/2K/Radix4Mixed-4          	   62126	     20796 ns/op	 787.86 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Mixed_VsRadix2/2K/Radix2-4               	   43894	     26741 ns/op	 612.68 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Mixed_VsRadix2/8K/Radix4Mixed-4          	   13578	     90689 ns/op	 722.64 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Mixed_VsRadix2/8K/Radix2-4               	    8252	    127539 ns/op	 513.85 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Complex128/Forward/64-4                  	 2135109	       561.1 ns/op	1824.98 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Complex128/Inverse/64-4                  	 2338082	       532.9 ns/op	1921.42 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Complex128/Forward/256-4                 	  467678	      2593 ns/op	1579.82 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Complex128/Inverse/256-4                 	  456692	      2518 ns/op	1626.54 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Complex128/Forward/1K-4                  	   95583	     12570 ns/op	1303.43 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Complex128/Inverse/1K-4                  	   92112	     12926 ns/op	1267.52 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Complex128/Forward/4K-4                  	   20180	     56363 ns/op	1162.75 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4Complex128/Inverse/4K-4                  	   21637	     58542 ns/op	1119.47 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4MixedComplex128/Forward/32-4             	 6773479	       179.4 ns/op	2853.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4MixedComplex128/Inverse/32-4             	 6570848	       186.3 ns/op	2747.56 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4MixedComplex128/Forward/128-4            	 1240424	       973.9 ns/op	2102.86 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4MixedComplex128/Inverse/128-4            	 1252389	       990.5 ns/op	2067.59 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4MixedComplex128/Forward/512-4            	  233216	      5408 ns/op	1514.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4MixedComplex128/Inverse/512-4            	  231076	      5468 ns/op	1498.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4MixedComplex128/Forward/2K-4             	   54698	     22021 ns/op	1488.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2GenericRadix4MixedComplex128/Inverse/2K-4             	   53547	     23849 ns/op	1373.96 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size64/AVX512-4                    	 3520034	       319.4 ns/op	1603.18 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size64/AVX2Radix2-4                	 1856342	       630.1 ns/op	 812.51 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size64/AVX2Auto-4                  	 3161488	       431.2 ns/op	1187.43 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size256/AVX512-4                   	  809839	      1369 ns/op	1495.95 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size256/AVX2Radix2-4               	  371374	      3117 ns/op	 657.14 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size256/AVX2Auto-4                 	  587679	      1978 ns/op	1035.21 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size1024/AVX512-4                  	  167913	      6522 ns/op	1256.07 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size1024/AVX2Radix2-4              	   92854	     13279 ns/op	 616.90 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size1024/AVX2Auto-4                	  142327	      8051 ns/op	1017.50 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size4096/AVX512-4                  	   45308	     27061 ns/op	1210.91 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size4096/AVX2Radix2-4              	   17025	     60409 ns/op	 542.44 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size4096/AVX2Auto-4                	   32173	     37060 ns/op	 884.20 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size16384/AVX512-4                 	    6519	    168199 ns/op	 779.27 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size16384/AVX2Radix2-4             	    4147	    321120 ns/op	 408.17 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex64/Size16384/AVX2Auto-4               	    6182	    168540 ns/op	 777.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size64/AVX512-4                   	 3499856	       337.3 ns/op	3036.04 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size64/AVX2Radix2-4               	 2594799	       482.3 ns/op	2123.33 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size256/AVX512-4                  	  846054	      1520 ns/op	2694.14 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size256/AVX2Radix2-4              	  531697	      2335 ns/op	1754.50 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size1024/AVX512-4                 	  173110	      7964 ns/op	2057.15 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size1024/AVX2Radix2-4             	  123584	      9875 ns/op	1659.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size4096/AVX512-4                 	   29894	     38986 ns/op	1681.00 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size4096/AVX2Radix2-4             	   27145	     44027 ns/op	1488.54 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size16384/AVX512-4                	    5905	    201297 ns/op	1302.27 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512GenericComplex128/Size16384/AVX2Radix2-4            	    5217	    252443 ns/op	1038.43 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size64/AVX512-4                    	 3231008	       332.5 ns/op	1539.73 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size64/AVX2Auto-4                  	 1796398	       643.3 ns/op	 795.86 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size256/AVX512-4                   	  777066	      1393 ns/op	1470.13 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size256/AVX2Auto-4                 	  485328	      2333 ns/op	 877.77 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size1024/AVX512-4                  	  171628	      6815 ns/op	1202.13 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size1024/AVX2Auto-4                	  128152	      9308 ns/op	 880.09 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size4096/AVX512-4                  	   41556	     28314 ns/op	1157.30 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size4096/AVX2Auto-4                	   30800	     40331 ns/op	 812.49 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size16384/AVX512-4                 	    6932	    167120 ns/op	 784.30 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX512InverseComplex64/Size16384/AVX2Auto-4               	    6796	    196907 ns/op	 665.66 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Forward/64-4                                          	 1000000	      1004 ns/op	 510.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Forward/256-4                                         	  252169	      5243 ns/op	 390.63 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Forward/1K-4                                          	   52732	     24465 ns/op	 334.85 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Forward/4K-4                                          	    9038	    116517 ns/op	 281.23 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Forward/16K-4                                         	    2011	    572241 ns/op	 229.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Inverse/64-4                                          	 1000000	      1083 ns/op	 472.63 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Inverse/256-4                                         	  201828	      5301 ns/op	 386.34 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Inverse/1K-4                                          	   44816	     27515 ns/op	 297.73 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Inverse/4K-4                                          	   10000	    119586 ns/op	 274.01 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Inverse/16K-4                                         	    2085	    558749 ns/op	 234.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2VsPureGo/64/PureGo-4                                  	 2624590	       459.6 ns/op	1113.90 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2VsPureGo/64/SSE2-4                                    	 1000000	      1078 ns/op	 474.90 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2VsPureGo/256/PureGo-4                                 	  332470	      3719 ns/op	 550.66 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2VsPureGo/256/SSE2-4                                   	  244267	      4970 ns/op	 412.06 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2VsPureGo/1K/PureGo-4                                  	   76968	     16079 ns/op	 509.48 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2VsPureGo/1K/SSE2-4                                    	   50476	     24704 ns/op	 331.61 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2VsPureGo/4K/PureGo-4                                  	   13632	     88661 ns/op	 369.59 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2VsPureGo/4K/SSE2-4                                    	    9806	    116897 ns/op	 280.31 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Sizes/8-4                                             	15380034	        82.83 ns/op	 772.70 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Sizes/16-4                                            	 6201918	       187.2 ns/op	 683.90 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Sizes/32-4                                            	 2712796	       474.0 ns/op	 540.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Sizes/64-4                                            	 1000000	      1133 ns/op	 452.03 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Sizes/128-4                                           	  560472	      2407 ns/op	 425.39 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Sizes/256-4                                           	  211340	      5239 ns/op	 390.94 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Size32Comparison/SSE2_Dispatch-4                      	 2571627	       486.0 ns/op	 526.71 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Size32Comparison/SSE2_Generic-4                       	 2454228	       499.9 ns/op	 512.06 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Size32Comparison/SSE2_Radix32-4                       	17176488	        63.68 ns/op	4020.38 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Size32Comparison/PureGo-4                             	 5283584	       230.5 ns/op	1110.48 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Size32Comparison/AVX2_Generic-4                       	 3050593	       372.0 ns/op	 688.15 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Size32Comparison/AVX2_Radix32-4                       	20988574	        65.47 ns/op	3909.91 MB/s	       0 B/op	       0 allocs/op
+BenchmarkComputeTwiddleFactors64_16-4                              	 2789846	       409.2 ns/op	     128 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors64_256-4                             	  191925	      6402 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors64_1024-4                            	   47466	     25087 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors64_4096-4                            	   12444	     97267 ns/op	   32768 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors64_65536-4                           	     718	   1599052 ns/op	  524288 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors128_1024-4                           	   45346	     25986 ns/op	   16384 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices_16-4                            	 8064843	       149.6 ns/op	     128 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices_256-4                           	  492547	      2197 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices_1024-4                          	  123573	      8524 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices_4096-4                          	   38491	     33775 ns/op	   32768 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices_65536-4                         	    2652	    456003 ns/op	  524298 B/op	       1 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_16/SizeSpecific-4             	28246834	        37.23 ns/op	3438.27 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_16/GenericAVX2-4              	 7119284	       162.9 ns/op	 785.73 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_16/PureGo-4                   	19796870	        61.66 ns/op	2075.90 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_32/SizeSpecific-4             	20432838	        61.18 ns/op	4184.41 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_32/GenericAVX2-4              	 4435808	       266.4 ns/op	 960.98 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_32/PureGo-4                   	 5877595	       205.6 ns/op	1244.96 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_64/SizeSpecific-4             	 5508373	       207.5 ns/op	2467.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_64/GenericAVX2-4              	 3540770	       381.2 ns/op	1343.26 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_64/PureGo-4                   	 2735335	       455.0 ns/op	1125.25 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_128/SizeSpecific-4            	 2334680	       564.5 ns/op	1814.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_128/GenericAVX2-4             	 1000000	      1012 ns/op	1011.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_128/PureGo-4                  	  757826	      1509 ns/op	 678.57 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_256/SizeSpecific-4            	  893058	      1287 ns/op	1591.66 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_256/GenericAVX2-4             	  561946	      1981 ns/op	1033.76 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_256/PureGo-4                  	  309528	      3782 ns/op	 541.52 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_1024/SizeSpecific-4           	  158817	      8178 ns/op	1001.75 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_1024/GenericAVX2-4            	  134535	      7886 ns/op	1038.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_1024/PureGo-4                 	   75066	     16028 ns/op	 511.11 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_2048/SizeSpecific-4           	   78640	     14998 ns/op	1092.45 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_2048/GenericAVX2-4            	   60639	     19571 ns/op	 837.17 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2SizeSpecific_vs_Generic_2048/PureGo-4                 	   36957	     30127 ns/op	 543.84 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBufferPool_GetPut_Complex64/64-4                          	12032317	        91.28 ns/op	      48 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_Complex64/256-4                         	13111712	        99.96 ns/op	      48 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_Complex64/1024-4                        	11535674	       103.7 ns/op	      48 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_Complex64/4096-4                        	12743434	       119.3 ns/op	      48 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_Complex128/64-4                         	10513389	       102.0 ns/op	      48 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_Complex128/256-4                        	11668996	       103.3 ns/op	      48 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_Complex128/1024-4                       	13010707	       111.9 ns/op	      48 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_Complex128/4096-4                       	12090721	       109.6 ns/op	      48 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_IntSlice/64-4                           	11426827	        91.58 ns/op	      24 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_IntSlice/256-4                          	13765210	        94.79 ns/op	      24 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_IntSlice/1024-4                         	13641902	        85.83 ns/op	      24 B/op	       1 allocs/op
+BenchmarkBufferPool_GetPut_IntSlice/4096-4                         	13120258	        86.52 ns/op	      24 B/op	       1 allocs/op
+PASS
+ok  	github.com/cwbudde/algo-fft/internal/fft	316.652s
+?   	github.com/cwbudde/algo-fft/internal/fftypes	[no test files]
+goos: linux
+goarch: amd64
+pkg: github.com/cwbudde/algo-fft/internal/kernels
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz
+BenchmarkAVX2Complex64/Size4/Radix4/Forward-4          	 6156492	       194.0 ns/op	 164.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size4/Radix4/Inverse-4          	 3561999	       334.8 ns/op	  95.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size8/Radix2/Forward-4          	100000000	        10.93 ns/op	5857.85 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size8/Radix2/Inverse-4          	 5474572	       199.6 ns/op	 320.67 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size8/Radix4/Forward-4          	87739507	        13.48 ns/op	4747.22 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size8/Radix4/Inverse-4          	70004251	        15.85 ns/op	4037.94 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size8/Radix8/Forward-4          	89469259	        14.19 ns/op	4510.57 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size8/Radix8/Inverse-4          	 5124452	       235.7 ns/op	 271.56 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size16/Radix2/Forward-4         	51722492	        22.34 ns/op	5728.65 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size16/Radix2/Inverse-4         	 5720391	       210.9 ns/op	 606.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size16/Radix4/Forward-4         	37019214	        32.39 ns/op	3951.91 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size16/Radix4/Inverse-4         	39221874	        33.66 ns/op	3803.18 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size16/Radix16/Forward-4        	56494650	        22.35 ns/op	5728.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size16/Radix16/Inverse-4        	39433560	        26.69 ns/op	4795.90 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size32/Radix2/Forward-4         	27669428	        44.18 ns/op	5793.96 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size32/Radix2/Inverse-4         	 5321732	       229.9 ns/op	1113.56 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size64/Radix2/Forward-4         	12424580	        93.40 ns/op	5481.71 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size64/Radix2/Inverse-4         	 4197996	       279.6 ns/op	1831.06 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size64/Radix4/Forward-4         	 4970266	       236.1 ns/op	2168.70 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size64/Radix4/Inverse-4         	 5109829	       237.0 ns/op	2160.42 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size128/Radix4Then2/Forward-4   	 1896760	       615.3 ns/op	1664.33 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size128/Radix4Then2/Inverse-4   	 1860885	       625.3 ns/op	1637.73 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size256/Radix2/Forward-4        	 1467750	       820.7 ns/op	2495.29 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size256/Radix2/Inverse-4        	 1000000	      1126 ns/op	1818.64 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size256/Radix4/Forward-4        	  848917	      1390 ns/op	1473.55 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size256/Radix4/Inverse-4        	  719236	      1420 ns/op	1442.46 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size256/Radix16/Forward-4       	 1000000	      1078 ns/op	1899.92 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size256/Radix16/Inverse-4       	  882567	      1362 ns/op	1503.65 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size512/Radix2/Forward-4        	  731527	      1757 ns/op	2331.01 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size512/Radix2/Inverse-4        	  647311	      1925 ns/op	2127.42 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size512/Radix8/Forward-4        	  497215	      2361 ns/op	1735.13 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size512/Radix8/Inverse-4        	  442291	      2742 ns/op	1493.98 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size512/Radix4Then2/Forward-4   	  444259	      2595 ns/op	1578.48 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size512/Radix4Then2/Inverse-4   	  399472	      2507 ns/op	1633.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size512/Radix16x32/Forward-4    	  409417	      2707 ns/op	1513.22 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size512/Radix16x32/Inverse-4    	  423477	      3022 ns/op	1355.53 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size1024/Radix4/Forward-4       	  195202	      6089 ns/op	1345.45 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size1024/Radix4/Inverse-4       	  191338	      6025 ns/op	1359.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size1024/Radix32x32/Forward-4   	   91507	     12969 ns/op	 631.65 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex64/Size1024/Radix32x32/Inverse-4   	   80914	     15476 ns/op	 529.35 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size256/Radix2/Forward-4       	  638973	      1876 ns/op	2183.74 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size256/Radix2/Inverse-4       	  478852	      2150 ns/op	1904.99 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size256/Radix4/Forward-4       	  691254	      1642 ns/op	2493.87 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size256/Radix4/Inverse-4       	  717427	      1888 ns/op	2169.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size256/Radix16/Forward-4      	  968701	      1292 ns/op	3170.40 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size256/Radix16/Inverse-4      	 1000000	      1236 ns/op	3313.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size1024/Radix32x32/Forward-4  	  141300	      7838 ns/op	2090.45 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size1024/Radix32x32/Inverse-4  	   79621	     15751 ns/op	1040.22 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size4096/Radix4/Forward-4      	   28447	     42764 ns/op	1532.52 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAVX2Complex128/Size4096/Radix4/Inverse-4      	   28402	     42192 ns/op	1553.27 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRadix32x32Forward_1024-4                      	   73837	     16681 ns/op	 491.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT16384SixStepAVX2_Complex64-4        	    5127	    217897 ns/op	 601.53 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT16384Radix4AVX2_Complex64-4         	    7047	    148401 ns/op	 883.23 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT256Radix16Complex64-4               	  457136	      2321 ns/op	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT256Radix16Complex128-4              	  501036	      2402 ns/op	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT384MixedComplex64-4                 	  251030	      4080 ns/op	 752.87 MB/s	       0 B/op	       0 allocs/op
+BenchmarkInverseDIT384MixedComplex64-4                 	  249644	      5347 ns/op	 574.49 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT384MixedComplex128-4                	   15217	     78803 ns/op	  77.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkInverseDIT384MixedComplex128-4                	   10000	    105668 ns/op	  58.14 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT4096SixStepAVX2_Complex64-4         	   30237	     38577 ns/op	 849.42 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT4096Radix4_Complex64-4              	   15589	     77986 ns/op	 420.18 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT4096SixStep_Complex64-4             	   12660	     96684 ns/op	 338.92 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT8192SixStep64x128AVX2_Complex64-4   	    8932	    134708 ns/op	 486.51 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT8192SixStep64x128_Complex64-4       	    5691	    227065 ns/op	 288.62 MB/s	       0 B/op	       0 allocs/op
+BenchmarkForwardDIT8192Radix4Then2_Complex64-4         	    7382	    152057 ns/op	 431.00 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size4/Radix4/Forward-4           	204270734	         5.899 ns/op	5424.35 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size4/Radix4/Inverse-4           	94563489	        12.22 ns/op	2617.70 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size8/Radix2/Forward-4           	44767515	        27.34 ns/op	2341.15 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size8/Radix2/Inverse-4           	22129027	        51.79 ns/op	1235.72 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size8/Radix4/Forward-4           	61082410	        19.81 ns/op	3231.32 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size8/Radix4/Inverse-4           	30917128	        41.08 ns/op	1557.80 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size8/Radix8/Forward-4           	58949502	        19.80 ns/op	3232.27 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size8/Radix8/Inverse-4           	28835212	        42.04 ns/op	1522.41 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size16/Radix2/Forward-4          	16022313	        73.62 ns/op	1738.75 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size16/Radix2/Inverse-4          	10088619	       119.3 ns/op	1073.14 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size16/Radix4/Forward-4          	20983207	        61.44 ns/op	2083.41 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size16/Radix4/Inverse-4          	12703279	        96.70 ns/op	1323.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size32/Radix2/Forward-4          	 5588073	       215.5 ns/op	1187.99 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size32/Radix2/Inverse-4          	 3910546	       280.9 ns/op	 911.47 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size32/Radix4x4x2/Forward-4      	 6093944	       189.3 ns/op	1352.52 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size32/Radix4x4x2/Inverse-4      	 4386962	       272.3 ns/op	 940.24 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size64/Radix2/Forward-4          	 1302116	       927.5 ns/op	 552.02 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size64/Radix2/Inverse-4          	  706888	      1583 ns/op	 323.48 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size64/Radix4/Forward-4          	 2474454	       458.2 ns/op	1117.35 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size64/Radix4/Inverse-4          	 1953919	       612.0 ns/op	 836.61 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size128/Forward-4                	  825890	      1482 ns/op	 690.94 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size128/Inverse-4                	  645921	      1782 ns/op	 574.73 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size256/Radix2/Forward-4         	  287443	      3620 ns/op	 565.73 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size256/Radix2/Inverse-4         	  305210	      4096 ns/op	 500.02 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size256/Radix4/Forward-4         	  484986	      2611 ns/op	 784.50 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size256/Radix4/Inverse-4         	  346269	      3234 ns/op	 633.25 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size256/Radix16/Forward-4        	  538682	      2312 ns/op	 885.66 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size256/Radix16/Inverse-4        	  389965	      3084 ns/op	 663.99 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size512/Forward-4                	  162667	      7686 ns/op	 532.88 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size512/Inverse-4                	  120598	     10227 ns/op	 400.52 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size512/Radix8/Forward-4         	  148903	      8732 ns/op	 469.10 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size512/Radix8/Inverse-4         	  137542	      8958 ns/op	 457.26 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size512/Radix4Then2/Forward-4    	  199525	      6463 ns/op	 633.73 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size512/Radix4Then2/Inverse-4    	  166783	      7787 ns/op	 526.04 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size512/Radix16x32/Forward-4     	  180075	      6274 ns/op	 652.81 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size512/Radix16x32/Inverse-4     	  168355	      7097 ns/op	 577.15 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size1024/Radix4/Forward-4        	   87644	     13589 ns/op	 602.82 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size1024/Radix4/Inverse-4        	   72625	     17041 ns/op	 480.71 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size1024/Radix32x32/Forward-4    	   70239	     16878 ns/op	 485.36 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex64/Size1024/Radix32x32/Inverse-4    	   65521	     18338 ns/op	 446.72 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size4/Radix4/Forward-4          	174766464	         6.652 ns/op	9621.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size4/Radix4/Inverse-4          	132512118	         9.077 ns/op	7050.78 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size8/Radix2/Forward-4          	74086965	        16.82 ns/op	7611.55 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size8/Radix2/Inverse-4          	38622663	        27.35 ns/op	4679.61 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size8/Radix4/Forward-4          	69520647	        18.43 ns/op	6944.43 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size8/Radix4/Inverse-4          	37987057	        27.66 ns/op	4626.91 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size8/Radix8/Forward-4          	73992859	        16.19 ns/op	7904.76 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size8/Radix8/Inverse-4          	43732404	        29.55 ns/op	4331.18 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size16/Radix2/Forward-4         	24897816	        49.68 ns/op	5153.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size16/Radix2/Inverse-4         	21089286	        56.61 ns/op	4521.88 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size16/Radix4/Forward-4         	29861956	        38.01 ns/op	6735.84 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size16/Radix4/Inverse-4         	18962708	        59.43 ns/op	4307.38 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size32/Radix2/Forward-4         	 8425002	       143.0 ns/op	3579.72 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size32/Radix2/Inverse-4         	 5923953	       184.5 ns/op	2775.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size32/Radix4x4x2/Forward-4     	 7796858	       161.0 ns/op	3179.43 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size32/Radix4x4x2/Inverse-4     	 5836404	       202.6 ns/op	2526.86 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size64/Radix2/Forward-4         	 2735234	       436.0 ns/op	2348.38 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size64/Radix2/Inverse-4         	 1000000	      1057 ns/op	 968.39 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size64/Radix4/Forward-4         	 3773934	       304.5 ns/op	3362.67 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size64/Radix4/Inverse-4         	 3006446	       407.6 ns/op	2512.07 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size128/Forward-4               	  996712	      1040 ns/op	1969.62 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size128/Inverse-4               	  907642	      1282 ns/op	1598.08 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size256/Radix2/Forward-4        	  510418	      2367 ns/op	1730.23 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size256/Radix2/Inverse-4        	  418057	      2969 ns/op	1379.52 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size256/Radix4/Forward-4        	  816199	      1676 ns/op	2443.87 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size256/Radix4/Inverse-4        	  539250	      2059 ns/op	1989.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size256/Radix16/Forward-4       	  482794	      2542 ns/op	1611.19 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size256/Radix16/Inverse-4       	  445050	      2812 ns/op	1456.43 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size512/Forward-4               	  189714	      5854 ns/op	1399.41 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size512/Inverse-4               	  184197	      7017 ns/op	1167.37 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size512/Radix8/Forward-4        	  286710	      4084 ns/op	2005.80 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size512/Radix8/Inverse-4        	  252490	      4680 ns/op	1750.61 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size512/Radix4Then2/Forward-4   	  306429	      4247 ns/op	1928.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size512/Radix4Then2/Inverse-4   	  221919	      5123 ns/op	1598.96 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size512/Radix16x32/Forward-4    	  228168	      5272 ns/op	1553.95 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size512/Radix16x32/Inverse-4    	  169082	      6058 ns/op	1352.26 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size1024/Radix4/Forward-4       	   85413	     12559 ns/op	1304.56 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size1024/Radix4/Inverse-4       	   93474	     13000 ns/op	1260.30 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size1024/Radix32x32/Forward-4   	   79609	     13699 ns/op	1196.00 MB/s	       0 B/op	       0 allocs/op
+BenchmarkDITComplex128/Size1024/Radix32x32/Inverse-4   	   82500	     14915 ns/op	1098.50 MB/s	       0 B/op	       0 allocs/op
+BenchmarkButterfly3ForwardAVX2-4                       	 2860065	       357.8 ns/op	 268.31 MB/s	       0 B/op	       0 allocs/op
+BenchmarkButterfly3ForwardScalar-4                     	218776435	         5.565 ns/op	17249.44 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRadix3Forward_27-4                            	 1783278	       658.7 ns/op	 327.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRadix3Forward_243-4                           	  139999	      9502 ns/op	 204.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRadix4/radix4_size_64-4                       	 1000000	      1151 ns/op	       0 B/op	       0 allocs/op
+BenchmarkRadix4/generic_size_64-4                      	  882160	      1437 ns/op	     512 B/op	       1 allocs/op
+BenchmarkRadix4/radix4_size_256-4                      	  192462	      5904 ns/op	       0 B/op	       0 allocs/op
+BenchmarkRadix4/generic_size_256-4                     	  183544	      6886 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkRadix4/radix4_size_1024-4                     	   47838	     24652 ns/op	       0 B/op	       0 allocs/op
+BenchmarkRadix4/generic_size_1024-4                    	   40898	     27331 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkRadix4/radix4_size_4096-4                     	    9838	    117179 ns/op	       0 B/op	       0 allocs/op
+BenchmarkRadix4/generic_size_4096-4                    	    9724	    135387 ns/op	   32768 B/op	       1 allocs/op
+BenchmarkRadix5Forward_125-4                           	  238491	      5110 ns/op	 195.69 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRadix5Forward_625-4                           	   34749	     35769 ns/op	 139.79 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size4/Radix4/Forward-4          	177608240	         6.868 ns/op	4659.07 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size4/Radix4/Inverse-4          	162517411	         7.370 ns/op	4342.18 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size8/Radix2/Forward-4          	89068549	        15.22 ns/op	4206.29 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size8/Radix2/Inverse-4          	81329052	        15.32 ns/op	4177.00 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size8/Radix4/Forward-4          	97367134	        12.68 ns/op	5045.89 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size8/Radix4/Inverse-4          	75947246	        13.51 ns/op	4738.13 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size8/Radix8/Forward-4          	100000000	        11.70 ns/op	5471.79 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size8/Radix8/Inverse-4          	99409654	        13.97 ns/op	4579.70 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size16/Radix2/Forward-4         	36536812	        37.52 ns/op	3411.54 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size16/Radix2/Inverse-4         	29073343	        39.15 ns/op	3269.61 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size16/Radix4/Forward-4         	23569050	        47.09 ns/op	2718.05 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size16/Radix4/Inverse-4         	20966236	        65.44 ns/op	1955.94 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size16/Radix16/Forward-4        	37288459	        29.00 ns/op	4414.31 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size16/Radix16/Inverse-4        	38317926	        27.71 ns/op	4619.15 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size64/Radix4/Forward-4         	 3970591	       301.6 ns/op	1697.38 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size64/Radix4/Inverse-4         	 3213577	       374.5 ns/op	1367.27 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size128/Radix4Then2/Forward-4   	 1822672	       682.5 ns/op	1500.44 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size128/Radix4Then2/Inverse-4   	 1582116	       754.4 ns/op	1357.43 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size512/Radix2/Forward-4        	  307699	      3984 ns/op	1028.04 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size512/Radix2/Inverse-4        	  294294	      4390 ns/op	 932.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size512/Radix4Then2/Forward-4   	  331744	      3500 ns/op	1170.37 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size512/Radix4Then2/Inverse-4   	  288252	      3977 ns/op	1029.81 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size1024/Radix4/Forward-4       	  166543	      7805 ns/op	1049.60 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex64/Size1024/Radix4/Inverse-4       	  146568	      9168 ns/op	 893.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size256/Radix2/Forward-4       	  704064	      1589 ns/op	2577.67 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size256/Radix2/Inverse-4       	  692134	      1736 ns/op	2359.32 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size256/Radix4/Forward-4       	  877719	      1511 ns/op	2711.10 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size256/Radix4/Inverse-4       	  731114	      1686 ns/op	2429.43 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size512/Radix2/Forward-4       	  270398	      4394 ns/op	1864.55 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size512/Radix2/Inverse-4       	  258568	      5071 ns/op	1615.56 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size512/Radix4Then2/Forward-4  	  302134	      3781 ns/op	2166.67 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size512/Radix4Then2/Inverse-4  	  291542	      4677 ns/op	1751.63 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size1024/Radix4/Forward-4      	  135165	      8314 ns/op	1970.59 MB/s	       0 B/op	       0 allocs/op
+BenchmarkSSE2Complex128/Size1024/Radix4/Inverse-4      	  141243	      8643 ns/op	1895.60 MB/s	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/cwbudde/algo-fft/internal/kernels	234.935s
+goos: linux
+goarch: amd64
+pkg: github.com/cwbudde/algo-fft/internal/math
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz
+BenchmarkReverseBits-4                   	279623766	         4.013 ns/op	       0 B/op	       0 allocs/op
+BenchmarkComputeBitReversalIndices/8-4   	14688541	        75.05 ns/op	      64 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices/16-4  	 9149041	       144.0 ns/op	     128 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices/32-4  	 4994252	       261.7 ns/op	     256 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices/64-4  	 2503953	       439.6 ns/op	     512 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices/<8-4  	 1450675	       865.6 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices/I6-4  	  701912	      1643 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices/c2-4  	  362264	      3464 ns/op	    4096 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices/1k-4  	  177829	      6726 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices/2k-4  	   94035	     13639 ns/op	   16384 B/op	       1 allocs/op
+BenchmarkComputeBitReversalIndices/4k-4  	   41284	     25499 ns/op	   32768 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/32-4         	 5343862	       249.7 ns/op	     256 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/32-4        	 3073627	       360.1 ns/op	     512 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/64-4         	 2637267	       403.8 ns/op	     512 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/64-4        	 2078744	       567.3 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/128-4        	 1687021	       685.4 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/128-4       	 1000000	      1106 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/256-4        	  794134	      1439 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/256-4       	  544051	      2391 ns/op	    4096 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/512-4        	  354552	      3108 ns/op	    4096 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/512-4       	  250324	      4577 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/1k-4         	  199462	      6534 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/1k-4        	  151153	      8103 ns/op	   16384 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/2k-4         	  107355	     11914 ns/op	   16384 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/2k-4        	   66255	     16847 ns/op	   32768 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/4k-4         	   50040	     22744 ns/op	   32768 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/4k-4        	   44374	     28534 ns/op	   65536 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/8k-4         	   28933	     41188 ns/op	   65536 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/8k-4        	   22675	     53710 ns/op	  131072 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/16k-4        	   15409	     81446 ns/op	  131072 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/16k-4       	    9692	    111105 ns/op	  262144 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/32k-4        	    7830	    149179 ns/op	  262144 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/32k-4       	    6092	    208463 ns/op	  524289 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex64/65k-4        	    3426	    331602 ns/op	  524293 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactorsPhasor/complex128/65k-4       	    2122	    528509 ns/op	 1048587 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Direct/complex128/256-4      	  192865	      5931 ns/op	    4096 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Phasor/complex128/256-4      	  553964	      2238 ns/op	    4096 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Direct/complex128/1k-4       	   57427	     22020 ns/op	   16384 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Phasor/complex128/1k-4       	  171051	      7455 ns/op	   16384 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Direct/complex128/4k-4       	   13525	     89210 ns/op	   65536 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Phasor/complex128/4k-4       	   37682	     30142 ns/op	   65536 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Direct/complex128/16k-4      	    3486	    351331 ns/op	  262148 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Phasor/complex128/16k-4      	   12466	     92538 ns/op	  262144 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Direct/complex128/65k-4      	     802	   1494323 ns/op	 1048577 B/op	       1 allocs/op
+BenchmarkTwiddleDirectVsPhasor/Phasor/complex128/65k-4      	    2263	    574334 ns/op	 1048585 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/8-4                	 7688983	       165.3 ns/op	      64 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/8-4               	 6129975	       184.1 ns/op	     128 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/16-4               	 3743892	       339.3 ns/op	     128 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/16-4              	 3151910	       403.9 ns/op	     256 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/32-4               	 1587034	       757.6 ns/op	     256 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/32-4              	 1432662	       818.3 ns/op	     512 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/64-4               	  708535	      1511 ns/op	     512 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/64-4              	  798840	      1397 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/128-4              	  504252	      2633 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/128-4             	  383246	      2902 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/256-4              	  229093	      5585 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/256-4             	  187101	      6237 ns/op	    4096 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/512-4              	   96319	     11859 ns/op	    4096 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/512-4             	   95942	     11755 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/1k-4               	   52677	     21777 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/1k-4              	   51350	     23299 ns/op	   16384 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/2k-4               	   26914	     40190 ns/op	   16384 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/2k-4              	   28568	     42100 ns/op	   32768 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex64/4k-4               	   14419	     85764 ns/op	   32768 B/op	       1 allocs/op
+BenchmarkComputeTwiddleFactors/complex128/4k-4              	   13508	     95088 ns/op	   65536 B/op	       1 allocs/op
+BenchmarkComplexFromFloat64/complex64-4                     	1000000000	         0.4420 ns/op	       0 B/op	       0 allocs/op
+BenchmarkComplexFromFloat64/complex128-4                    	1000000000	         0.4218 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConj/complex64-4                                   	1000000000	         0.4395 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConj/complex128-4                                  	1000000000	         0.4127 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/cwbudde/algo-fft/internal/math	98.712s
+goos: linux
+goarch: amd64
+pkg: github.com/cwbudde/algo-fft/internal/memory
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz
+BenchmarkAllocAlignedComplex64/64-4 	 4862712	       260.8 ns/op	1963.43 MB/s	     576 B/op	       1 allocs/op
+BenchmarkAllocAlignedComplex64/256-4         	 1558058	       794.3 ns/op	2578.21 MB/s	    2304 B/op	       1 allocs/op
+BenchmarkAllocAlignedComplex64/1024-4        	  469233	      2565 ns/op	3193.62 MB/s	    9472 B/op	       1 allocs/op
+BenchmarkAllocAlignedComplex64/4096-4        	   95824	     10890 ns/op	3008.87 MB/s	   40960 B/op	       1 allocs/op
+BenchmarkAllocAlignedComplex128/64-4         	 2402011	       498.3 ns/op	2055.09 MB/s	    1152 B/op	       1 allocs/op
+BenchmarkAllocAlignedComplex128/256-4        	  727651	      1486 ns/op	2755.50 MB/s	    4864 B/op	       1 allocs/op
+BenchmarkAllocAlignedComplex128/1024-4       	  251056	      4723 ns/op	3469.15 MB/s	   18432 B/op	       1 allocs/op
+BenchmarkAllocAlignedComplex128/4096-4       	   64526	     18264 ns/op	3588.29 MB/s	   73728 B/op	       1 allocs/op
+BenchmarkAlignPtr/16-4                       	1000000000	         0.4312 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAlignPtr/32-4                       	1000000000	         0.4777 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAlignPtr/64-4                       	1000000000	         0.4289 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/cwbudde/algo-fft/internal/memory	12.861s
+PASS
+ok  	github.com/cwbudde/algo-fft/internal/planner	0.022s
+goos: linux
+goarch: amd64
+pkg: github.com/cwbudde/algo-fft/internal/reference
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz
+BenchmarkNaiveDFT2D_4x4-4        	  145198	      7605 ns/op	     128 B/op	       1 allocs/op
+BenchmarkNaiveDFT2D_8x8-4        	    8161	    137027 ns/op	     512 B/op	       1 allocs/op
+BenchmarkNaiveDFT2D_16x16-4      	     508	   2290185 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkNaiveDFT3D_4x4x4-4      	    8566	    131664 ns/op	     512 B/op	       1 allocs/op
+BenchmarkNaiveDFT3D_8x8x8-4      	     116	   9852424 ns/op	    4096 B/op	       1 allocs/op
+BenchmarkNaiveDFT3D_16x16x16-4   	       2	 648246608 ns/op	   32768 B/op	       1 allocs/op
+PASS
+ok  	github.com/cwbudde/algo-fft/internal/reference	8.906s
+goos: linux
+goarch: amd64
+pkg: github.com/cwbudde/algo-fft/internal/transform
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz
+BenchmarkPackedTwiddleLookup_Radix4_4096-4     	  665630	      1953 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPackedTwiddleLookup_Radix8_4096-4     	  674826	      1828 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPackedTwiddleLookup_Radix16_4096-4    	  727720	      1702 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPackedTwiddleLookup_Radix4_65536-4    	   44245	     27494 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPackedTwiddleLookup_Radix8_65536-4    	   86594	     13436 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPackedTwiddleLookup_Radix16_65536-4   	   44371	     29049 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBaseTwiddleLookup_Radix4_4096-4       	   73939	     16411 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBaseTwiddleLookup_Radix8_4096-4       	   75620	     15897 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBaseTwiddleLookup_Radix16_4096-4      	   75667	     16289 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBaseTwiddleLookup_Radix4_65536-4      	    4398	    260981 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBaseTwiddleLookup_Radix8_65536-4      	    9004	    131094 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBaseTwiddleLookup_Radix16_65536-4     	    4731	    262382 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/cwbudde/algo-fft/internal/transform	14.707s
