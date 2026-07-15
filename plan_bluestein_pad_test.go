@@ -1,6 +1,7 @@
 package algofft
 
 import (
+	"errors"
 	"math/cmplx"
 	"testing"
 
@@ -32,6 +33,31 @@ func TestBluesteinPadSize(t *testing.T) {
 			t.Errorf("bluesteinPadSize(%d) = %d, want %d (current calibration always picks the power of two)",
 				n, got, want)
 		}
+	}
+}
+
+// TestNewPlan_BluesteinTooLarge pins the plan-boundary guard: lengths whose
+// Bluestein pad size (>= 2n-1) would overflow int are rejected with
+// ErrInvalidLength instead of planning against wrapped arithmetic.
+// maxBluesteinLength+1 is divisible by 3 but not 5-smooth, so it resolves to
+// the Bluestein strategy on both 32- and 64-bit platforms.
+func TestNewPlan_BluesteinTooLarge(t *testing.T) {
+	t.Parallel()
+
+	n := maxBluesteinLength + 1
+
+	if m.IsPowerOf2(n) || m.IsHighlyComposite(n) {
+		t.Fatalf("test premise broken: %d would not use Bluestein", n)
+	}
+
+	_, err := NewPlanT[complex64](n)
+	if !errors.Is(err, ErrInvalidLength) {
+		t.Fatalf("NewPlanT[complex64](%d) error = %v, want ErrInvalidLength", n, err)
+	}
+
+	_, err = NewPlanT[complex128](n)
+	if !errors.Is(err, ErrInvalidLength) {
+		t.Fatalf("NewPlanT[complex128](%d) error = %v, want ErrInvalidLength", n, err)
 	}
 }
 

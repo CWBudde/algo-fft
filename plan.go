@@ -2,6 +2,7 @@ package algofft
 
 import (
 	stdmath "math"
+	"math/bits"
 	"strings"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
@@ -545,6 +546,13 @@ func standardScratchSize(n int, algorithm string) int {
 	return n
 }
 
+// maxBluesteinLength is the largest transform length a Bluestein plan
+// accepts. The padded sub-FFT needs 2n-1 and NextPowerOfTwo(2n-1) to be
+// representable in int, which bounds n to 2^61 on 64-bit platforms (2^29 on
+// 32-bit) — far beyond any allocatable transform, but without the bound the
+// arithmetic in bluesteinPadSize would silently wrap.
+const maxBluesteinLength = 1 << (bits.UintSize - 3)
+
 // bluesteinSubFFTPenalty weights the estimated per-point cost of the
 // mixed-radix sub-FFT relative to the size-dispatched power-of-two DIT
 // sub-FFT. Measured with BenchmarkBluesteinPadCandidates (internal/fft) on
@@ -584,6 +592,29 @@ func bluesteinPadSize(n int) int {
 	}
 
 	return pow2
+}
+
+// planStrategyConfig computes the strategy-specific plan configuration: the
+// Bluestein padded sub-FFT size (rejecting lengths whose pad size >= 2n-1
+// cannot be represented; see maxBluesteinLength) or the recursive
+// decomposition strategy. Strategies without extra configuration return zero
+// values.
+func planStrategyConfig(n int, useBluestein, useRecursive bool) (int, *fft.DecomposeStrategy, error) {
+	switch {
+	case useBluestein:
+		if n > maxBluesteinLength {
+			return 0, nil, ErrInvalidLength
+		}
+
+		return bluesteinPadSize(n), nil, nil
+	case useRecursive:
+		codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
+		cacheSize := 32768 // L1 cache size estimate
+
+		return 0, fft.PlanDecomposition(n, codeletSizes, cacheSize), nil
+	default:
+		return 0, nil, nil
+	}
 }
 
 // computeBluesteinTables precomputes the chirp sequences, sub-FFT twiddles,
@@ -675,6 +706,11 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	useRecursive := estimate.Strategy == fft.KernelRecursive
 	strategy := estimate.Strategy
 
+	bluesteinM, decompStrategy, err := planStrategyConfig(n, useBluestein, useRecursive)
+	if err != nil {
+		return nil, err
+	}
+
 	// Get fallback kernels (used when no codelet is available)
 	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy, strategy))
 
@@ -687,26 +723,13 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		twiddleBacking []byte
 
 		// Bluestein specific
-		bluesteinM         int
 		bluesteinChirp     []T
 		bluesteinChirpInv  []T
 		bluesteinFilter    []T
 		bluesteinFilterInv []T
 		bluesteinTwiddle   []T
 		bluesteinBitrev    []int
-
-		// Recursive decomposition specific
-		decompStrategy *fft.DecomposeStrategy
 	)
-
-	// Pre-calculate configuration
-	if useBluestein {
-		bluesteinM = bluesteinPadSize(n)
-	} else if useRecursive {
-		codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
-		cacheSize := 32768 // L1 cache size estimate
-		decompStrategy = fft.PlanDecomposition(n, codeletSizes, cacheSize)
-	}
 
 	// Allocate initial scratch set for setup (Bluestein filter computation)
 	scratchSize := standardScratchSize(n, estimate.Algorithm)

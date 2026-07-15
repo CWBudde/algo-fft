@@ -1,6 +1,7 @@
 package math
 
 import (
+	"math/bits"
 	"reflect"
 	"testing"
 )
@@ -66,6 +67,38 @@ func TestNextHighlyComposite(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("NextHighlyComposite(%d) = %d, want %d", tt.n, got, tt.want)
 		}
+	}
+}
+
+// TestNextHighlyComposite_HugeInputs pins the overflow behavior: the largest
+// n with a representable power-of-two search bound still resolves, and inputs
+// beyond it report 0 instead of searching against wrapped arithmetic.
+func TestNextHighlyComposite_HugeInputs(t *testing.T) {
+	t.Parallel()
+
+	// 2^(bits.UintSize-2) is itself a power of two, hence 5-smooth.
+	huge := 1 << (bits.UintSize - 2)
+	if got := NextHighlyComposite(huge); got != huge {
+		t.Errorf("NextHighlyComposite(2^%d) = %d, want %d", bits.UintSize-2, got, huge)
+	}
+
+	// One past it, NextPowerOfTwo(n) is no longer representable.
+	if got := NextHighlyComposite(huge + 1); got != 0 {
+		t.Errorf("NextHighlyComposite(2^%d+1) = %d, want 0", bits.UintSize-2, got)
+	}
+
+	maxInt := 1<<(bits.UintSize-1) - 1
+	if got := NextHighlyComposite(maxInt); got != 0 {
+		t.Errorf("NextHighlyComposite(MaxInt) = %d, want 0", got)
+	}
+
+	// Near-bound composite input: the search must stay overflow-free and
+	// return a representable 5-smooth result >= n.
+	n := huge - 12345
+	got := NextHighlyComposite(n)
+
+	if got < n || got > huge || !IsHighlyComposite(got) {
+		t.Errorf("NextHighlyComposite(%d) = %d, want 5-smooth in [n, 2^%d]", n, got, bits.UintSize-2)
 	}
 }
 
