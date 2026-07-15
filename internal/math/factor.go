@@ -27,6 +27,41 @@ func Factorize(n int) []int {
 	return factors
 }
 
+// NextHighlyComposite returns the smallest 5-smooth number (of the form
+// 2^a·3^b·5^c) greater than or equal to n. For n <= 1, returns 1.
+//
+// The result is never larger than NextPowerOfTwo(n), since powers of two are
+// themselves 5-smooth. Callers use this to pick padded FFT lengths that the
+// mixed-radix engine can execute exactly (e.g. Bluestein sub-FFT sizes),
+// which are frequently much smaller than the next power of two.
+func NextHighlyComposite(n int) int {
+	if n <= 1 {
+		return 1
+	}
+
+	// The next power of two is always a valid 5-smooth candidate and bounds
+	// the search: only products of powers of 3 and 5 below it can improve on
+	// it, which keeps every intermediate product within range of the final
+	// answer (no overflow beyond NextPowerOfTwo(n) itself).
+	best := NextPowerOfTwo(n)
+
+	for p5 := 1; p5 < best; p5 *= 5 {
+		for p35 := p5; p35 < best; p35 *= 3 {
+			// Smallest power of two lifting p35 to >= n.
+			p2 := 1
+			for p35*p2 < n {
+				p2 <<= 1
+			}
+
+			if candidate := p35 * p2; candidate < best {
+				best = candidate
+			}
+		}
+	}
+
+	return best
+}
+
 // IsHighlyComposite reports whether n only contains 2, 3, or 5 factors.
 //
 // It divides out all factors of 2, 3, and 5 in place rather than materializing
