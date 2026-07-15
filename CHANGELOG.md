@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bluestein plans run their padded sub-FFT through the size-dispatched DIT
+  kernels (radix-4 and size-specific codelets, SIMD where available) instead
+  of the generic radix-2 path: prime-size transforms measure 25–64% faster
+  (geomean −39%) on the default build and 1.2–1.4× faster on `purego`
+- Bluestein pad sizes are chosen per size at plan time via a cost model that
+  can also select 5-smooth (2^a·3^b·5^c) padded lengths executed by the
+  mixed-radix engine; with the current kernels the measured crossover always
+  favors the next power of two, so behavior is unchanged (see PLAN.md P4.1)
+
 ### Added
 
 - Plan-reuse DSP types `Convolver`, `Correlator`, and `RealConvolver`:

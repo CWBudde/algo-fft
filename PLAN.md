@@ -100,16 +100,24 @@ references are to the current tree.
 
 ### P4.1 Algorithm-level upgrades (benefit all builds, including purego)
 
-- [ ] **Bluestein padding: next 5-smooth size instead of next power of two.**
-      Plan construction picks `bluesteinM = math.NextPowerOfTwo(2n-1)`
-      (`plan.go`, `useBluestein` branch; kernels in
-      `internal/kernels/bluestein.go` take m as given); the
-      mixed-radix engine already handles any 2^a·3^b·5^c length, which is
-      frequently much smaller (e.g. n=3000: m=8192 today vs m=6000 — and
-      n=1000: 2048 vs 2000). Add `NextHighlyComposite` to `internal/math`,
-      benchmark the crossover (a 5-smooth FFT is slightly slower per point
-      than a radix-2 one), and pick per size at plan time — the choice is a
-      pure function of n, so it can also be Wisdom-tuned.
+- [x] **Bluestein padding: next 5-smooth size instead of next power of two.**
+      _(2026-07)_ Done, with a measurement-driven twist. `NextHighlyComposite`
+      landed in `internal/math`; the Bluestein sub-FFT (filter build and
+      convolution, `internal/fft`) executes any 5-smooth m via the mixed-radix
+      engine; `bluesteinPadSize` (`plan.go`) costs both candidates as
+      m·log2(m). Benchmarking the crossover (`BenchmarkBluesteinPadCandidates`,
+      `internal/fft`) exposed the real win first: the power-of-two sub-FFT was
+      running the generic scalar radix-2 kernel, and routing it through the
+      size-dispatched DIT kernels made Bluestein 25–64% faster (geomean −39%)
+      on the default build and 1.2–1.4× on purego. Against that upgraded
+      baseline the mixed-radix engine measures 2.2× (purego) to 4.5× (AVX2)
+      slower per point, while a 5-smooth pad can undercut the next power of
+      two by at most ~2× in m·log2(m) work — so the power of two wins at
+      every size and `bluesteinSubFFTPenalty` (2.2) intentionally keeps
+      5-smooth pads disabled. The chooser and mixed-radix path stay wired and
+      tested; if radix-3/5 butterflies get SIMD kernels, re-run the benchmark
+      on both builds and lower the constant. (Note: the P4.5 fast-size padding
+      item faces the same ≤2× bound and should reuse this measurement.)
 - [ ] **Rader's algorithm for prime sizes.** Primes currently always pay
       Bluestein's ~4× padded-FFT cost. Rader maps a prime-p FFT to a cyclic
       convolution of length p−1; when p−1 is 5-smooth (e.g. 11, 31, 61, 101,
