@@ -60,6 +60,7 @@ func TestQueryFunctions(t *testing.T) {
 		{"HasSSE41", HasSSE41(), features.HasSSE41},
 		{"HasAVX", HasAVX(), features.HasAVX},
 		{"HasAVX2", HasAVX2(), features.HasAVX2},
+		{"HasFMA", HasFMA(), features.HasFMA},
 		{"HasAVX512", HasAVX512(), features.HasAVX512},
 		{"HasNEON", HasNEON(), features.HasNEON},
 	}

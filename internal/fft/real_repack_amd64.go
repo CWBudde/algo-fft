@@ -54,7 +54,9 @@ func inverseRepackComplex64SSE2(dst, src, weight []complex64) int {
 
 func inverseRepackComplex128SIMD(dst, src, weight []complex128) int {
 	features := cpu.DetectFeatures()
-	if features.ForceGeneric || !features.HasAVX2 {
+	// The AVX2 kernel uses VFMADDSUB, and FMA is a separate CPUID bit from
+	// AVX2, so both are required before taking the AVX2 path.
+	if features.ForceGeneric || !features.HasAVX2 || !features.HasFMA {
 		return 1
 	}
 

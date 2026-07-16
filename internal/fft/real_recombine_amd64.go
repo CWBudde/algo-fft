@@ -17,7 +17,9 @@ func recombineForwardComplex64SIMD(dst, src, weight []complex64) int {
 
 	half := len(src)
 
-	if features.HasAVX2 {
+	// The AVX2 kernels use VFMADDSUB, and FMA is a separate CPUID bit from
+	// AVX2, so both are required before taking the AVX2 tier.
+	if features.HasAVX2 && features.HasFMA {
 		// The vector loop consumes full blocks of 4 bins starting at k=1; the
 		// reversed load for a block ending at k+3 <= half-1 stays in bounds.
 		count := (half - 1) / 4 * 4
@@ -53,7 +55,8 @@ func recombineForwardComplex128SIMD(dst, src, weight []complex128) int {
 
 	half := len(src)
 
-	if features.HasAVX2 {
+	// The AVX2 kernel uses VFMADDSUB; see recombineForwardComplex64SIMD.
+	if features.HasAVX2 && features.HasFMA {
 		// Full blocks of 2 bins starting at k=1.
 		count := (half - 1) / 2 * 2
 		if count < 2 {

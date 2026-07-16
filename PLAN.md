@@ -157,7 +157,13 @@ references are to the current tree.
       remaining AVX2 kernels to fused form (fewer uops, better accuracy —
       one rounding instead of two). Do it size-by-size with `benchstat` and
       the existing forward-vs-reference gates; expect the biggest wins on
-      the twiddle-heavy generic radix-4 and Stockham kernels.
+      the twiddle-heavy generic radix-4 and Stockham kernels. Also part of
+      the audit: FMA is a separate CPUID bit from AVX2, and the pre-existing
+      FMA-using AVX2 kernels are dispatched on `HasAVX2` alone — harmless on
+      real hardware (all AVX2 CPUs ship FMA3) but wrong on emulators/VMs
+      that mask FMA. `cpu.Features.HasFMA` exists now and the real-FFT
+      recombination/repack dispatch already requires it; sweep the remaining
+      AVX2 dispatch sites onto `HasAVX2 && HasFMA` as kernels are audited.
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and

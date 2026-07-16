@@ -6,8 +6,10 @@ package fft
 //
 //	dst[k] = Y[k] - U[k]*(Y[k] - conj(Y[half-k]))  for k = 1..half-1.
 //
-// dst must have length >= half and must not alias src; the DC and Nyquist
-// bins (dst[0] and dst[half]) are left untouched.
+// Only bins 1..half-1 are written, so dst must have length >= half and must
+// not alias src. Callers pass the half+1-length spectrum buffer and fill the
+// DC and Nyquist bins (dst[0] and dst[half]) themselves; this function never
+// touches them.
 func RecombineForwardComplex64(dst, src, weight []complex64) {
 	half := len(src)
 	if half < 2 {
