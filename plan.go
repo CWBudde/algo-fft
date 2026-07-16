@@ -1,6 +1,8 @@
 package algofft
 
 import (
+	stdmath "math"
+	"math/bits"
 	"strings"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
@@ -43,7 +45,7 @@ type Plan[T Complex] struct {
 	packedTwiddle16   *fft.PackedTwiddles[T]
 
 	// Bluestein specific fields (used only if kernelStrategy == KernelBluestein)
-	bluesteinM              int   // Padded size M >= 2N-1
+	bluesteinM              int   // Padded size M >= 2N-1 (power of two or 5-smooth; see bluesteinPadSize)
 	bluesteinChirp          []T   // Size N
 	bluesteinChirpInv       []T   // Size N
 	bluesteinFilter         []T   // Size M
@@ -544,6 +546,77 @@ func standardScratchSize(n int, algorithm string) int {
 	return n
 }
 
+// maxBluesteinLength is the largest transform length a Bluestein plan
+// accepts. The padded sub-FFT needs 2n-1 and NextPowerOfTwo(2n-1) to be
+// representable in int, which bounds n to 2^61 on 64-bit platforms (2^29 on
+// 32-bit) — far beyond any allocatable transform, but without the bound the
+// arithmetic in bluesteinPadSize would silently wrap.
+const maxBluesteinLength = 1 << (bits.UintSize - 3)
+
+// bluesteinSubFFTPenalty weights the estimated per-point cost of the
+// mixed-radix sub-FFT relative to the size-dispatched power-of-two DIT
+// sub-FFT. Measured with BenchmarkBluesteinPadCandidates (internal/fft) on
+// an AVX2/AVX-512 Xeon: ~2.2x on the purego build and ~4.5x on the default
+// (SIMD) build. Because a 5-smooth pad can undercut the next power of two by
+// at most ~2x in m·log2(m) work (m is confined to [2n-1, 2·(2n-1))), any
+// penalty above ~2.1 means the power of two wins at every size — which is
+// what the measurements show for the current kernels, so this constant
+// intentionally disables 5-smooth pads. The chooser and the mixed-radix
+// sub-FFT path are kept wired up: if the mixed-radix engine gets faster
+// (e.g. SIMD radix-3/5 butterflies), re-run the benchmark on both builds and
+// lower this constant to re-enable them.
+const bluesteinSubFFTPenalty = 2.2
+
+// bluesteinPadSize returns the padded sub-FFT length for a Bluestein plan of
+// logical length n. The cyclic convolution needs any length m >= 2n-1 the
+// engine can execute exactly; the next 5-smooth size (2^a·3^b·5^c, handled by
+// the mixed-radix engine) is frequently much smaller than the next power of
+// two (e.g. n=1009: 2025 vs 4096), so both are costed as m·log2(m) with the
+// mixed-radix penalty applied and the cheaper one wins. The choice is a pure
+// function of n.
+func bluesteinPadSize(n int) int {
+	minM := 2*n - 1
+
+	pow2 := m.NextPowerOfTwo(minM)
+
+	smooth := m.NextHighlyComposite(minM)
+	if smooth >= pow2 || smooth < 2 {
+		return pow2
+	}
+
+	costPow2 := float64(pow2) * stdmath.Log2(float64(pow2))
+	costSmooth := bluesteinSubFFTPenalty * float64(smooth) * stdmath.Log2(float64(smooth))
+
+	if costSmooth < costPow2 {
+		return smooth
+	}
+
+	return pow2
+}
+
+// planStrategyConfig computes the strategy-specific plan configuration: the
+// Bluestein padded sub-FFT size (rejecting lengths whose pad size >= 2n-1
+// cannot be represented; see maxBluesteinLength) or the recursive
+// decomposition strategy. Strategies without extra configuration return zero
+// values.
+func planStrategyConfig(n int, useBluestein, useRecursive bool) (int, *fft.DecomposeStrategy, error) {
+	switch {
+	case useBluestein:
+		if n > maxBluesteinLength {
+			return 0, nil, ErrInvalidLength
+		}
+
+		return bluesteinPadSize(n), nil, nil
+	case useRecursive:
+		codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
+		cacheSize := 32768 // L1 cache size estimate
+
+		return 0, fft.PlanDecomposition(n, codeletSizes, cacheSize), nil
+	default:
+		return 0, nil, nil
+	}
+}
+
 // computeBluesteinTables precomputes the chirp sequences, sub-FFT twiddles,
 // bit-reversal indices, and forward/inverse filters for a Bluestein plan of
 // length n with padded sub-FFT size m.
@@ -560,7 +633,14 @@ func computeBluesteinTables[T Complex](n, m int, scratch []T) (
 	}
 
 	twiddle = fft.ComputeTwiddleFactors[T](m)
-	bitrev = fft.ComputeBitReversalIndices(m)
+
+	// bitrev feeds only the power-of-two DIT sub-FFT path; 5-smooth padded
+	// sizes run through the mixed-radix engine, which does not use it. (The
+	// parameter m shadows the math package alias, so test the bit pattern
+	// directly.)
+	if m&(m-1) == 0 {
+		bitrev = fft.ComputeBitReversalIndices(m)
+	}
 
 	// Compute filters using the pre-allocated scratch buffer.
 	filter = fft.ComputeBluesteinFilter(n, m, chirp, twiddle, scratch)
@@ -626,6 +706,11 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	useRecursive := estimate.Strategy == fft.KernelRecursive
 	strategy := estimate.Strategy
 
+	bluesteinM, decompStrategy, err := planStrategyConfig(n, useBluestein, useRecursive)
+	if err != nil {
+		return nil, err
+	}
+
 	// Get fallback kernels (used when no codelet is available)
 	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy, strategy))
 
@@ -638,26 +723,13 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		twiddleBacking []byte
 
 		// Bluestein specific
-		bluesteinM         int
 		bluesteinChirp     []T
 		bluesteinChirpInv  []T
 		bluesteinFilter    []T
 		bluesteinFilterInv []T
 		bluesteinTwiddle   []T
 		bluesteinBitrev    []int
-
-		// Recursive decomposition specific
-		decompStrategy *fft.DecomposeStrategy
 	)
-
-	// Pre-calculate configuration
-	if useBluestein {
-		bluesteinM = m.NextPowerOfTwo(2*n - 1)
-	} else if useRecursive {
-		codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
-		cacheSize := 32768 // L1 cache size estimate
-		decompStrategy = fft.PlanDecomposition(n, codeletSizes, cacheSize)
-	}
 
 	// Allocate initial scratch set for setup (Bluestein filter computation)
 	scratchSize := standardScratchSize(n, estimate.Algorithm)

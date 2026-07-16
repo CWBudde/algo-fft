@@ -404,6 +404,46 @@ func TestPlanReal2DTransformsNoAllocs(t *testing.T) {
 	assertNoAllocsGC(t, "ForwardFull", func() error { return plan.ForwardFull(full, src) })
 }
 
+// TestBluesteinTransformsNoAllocs locks in zero allocations for Bluestein
+// plans: n=509 pads to m=1024 (size-dispatched DIT sub-FFT), n=4099 pads to
+// m=16384 (above the dispatch bound, generic radix-2 with the plan's cached
+// bit-reversal table).
+//
+//nolint:paralleltest // AllocsPerRun panics during parallel tests
+func TestBluesteinTransformsNoAllocs(t *testing.T) {
+	for _, n := range []int{509, 4099} {
+		plan, err := NewPlanT[complex64](n)
+		if err != nil {
+			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		}
+
+		if plan.KernelStrategy() != KernelBluestein {
+			t.Fatalf("NewPlan(%d) strategy = %v, want KernelBluestein", n, plan.KernelStrategy())
+		}
+
+		src := make([]complex64, n)
+		for i := range src {
+			src[i] = complex(float32(i+1), float32(-i))
+		}
+
+		dst := make([]complex64, n)
+		freq := make([]complex64, n)
+
+		// Warm the resident scratch slot so the first measured run is steady-state.
+		err = plan.Forward(freq, src)
+		if err != nil {
+			t.Fatalf("Forward() returned error: %v", err)
+		}
+
+		assertNoAllocs(t, "Forward", func() error {
+			return plan.Forward(dst, src)
+		})
+		assertNoAllocs(t, "Inverse", func() error {
+			return plan.Inverse(dst, freq)
+		})
+	}
+}
+
 // assertNoAllocsGC is assertNoAllocs but forces a GC before each run so that
 // buffers cached opportunistically in the overflow sync.Pool are reclaimed,
 // exercising the resident-only allocation-free path.
