@@ -8,10 +8,18 @@ import (
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
-// ForceGeneric benchmarks measure the pure-Go fallback dispatch path in a
-// default (SIMD-enabled) binary. Each case validates one output against the
-// reference DFT or the round-trip input before timing, so the fallback path
-// that gets benchmarked is also known to be correct.
+// ForceGeneric benchmarks measure the pure-Go fallback kernel dispatch path
+// in a default (SIMD-enabled) binary. Each case validates one output against
+// the reference DFT or the round-trip input before timing, so the fallback
+// path that gets benchmarked is also known to be correct.
+//
+// ForceGeneric alone is not enough to reach the fallback kernels: generic
+// (SIMDNone) codelets are registered for every power-of-two size from 4
+// through 16384, so an auto-strategy plan would bind a zero-dispatch codelet
+// and never touch the fallback dispatch. Plans are therefore created via
+// newForceGenericFallbackPlan, which forces KernelStockham to bypass codelet
+// binding (all registered codelets are DIT) and asserts the plan landed on
+// the fallback path.
 
 func BenchmarkPlanForward_1024_ForceGeneric(b *testing.B) {
 	benchmarkPlanForwardForceGeneric(b, 1024)
@@ -33,10 +41,7 @@ func benchmarkPlanForwardForceGeneric(b *testing.B, fftSize int) {
 	b.Helper()
 	forceGenericForBenchmark(b)
 
-	plan, err := NewPlanT[complex64](fftSize)
-	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
-	}
+	plan := newForceGenericFallbackPlan[complex64](b, fftSize)
 
 	src := make([]complex64, fftSize)
 	for i := range src {
@@ -65,10 +70,7 @@ func benchmarkPlanInverseForceGeneric(b *testing.B, fftSize int) {
 	b.Helper()
 	forceGenericForBenchmark(b)
 
-	plan, err := NewPlanT[complex64](fftSize)
-	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
-	}
+	plan := newForceGenericFallbackPlan[complex64](b, fftSize)
 
 	src := make([]complex64, fftSize)
 	for i := range src {
@@ -102,10 +104,7 @@ func benchmarkPlanForwardComplex128ForceGeneric(b *testing.B, fftSize int) {
 	b.Helper()
 	forceGenericForBenchmark(b)
 
-	plan, err := NewPlanT[complex128](fftSize)
-	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
-	}
+	plan := newForceGenericFallbackPlan[complex128](b, fftSize)
 
 	src := make([]complex128, fftSize)
 	for i := range src {
@@ -134,10 +133,7 @@ func benchmarkPlanInverseComplex128ForceGeneric(b *testing.B, fftSize int) {
 	b.Helper()
 	forceGenericForBenchmark(b)
 
-	plan, err := NewPlanT[complex128](fftSize)
-	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
-	}
+	plan := newForceGenericFallbackPlan[complex128](b, fftSize)
 
 	src := make([]complex128, fftSize)
 	for i := range src {
@@ -165,6 +161,27 @@ func benchmarkPlanInverseComplex128ForceGeneric(b *testing.B, fftSize int) {
 			b.Fatalf("Inverse() returned error: %v", invErr)
 		}
 	}
+}
+
+// newForceGenericFallbackPlan creates a plan that exercises the pure-Go
+// fallback kernel dispatch path. Generic codelets cover all power-of-two
+// sizes up to 16384 even under ForceGeneric, so the plan forces
+// KernelStockham to skip codelet binding (every registered codelet is DIT).
+// The bound algorithm is asserted so a future Stockham codelet cannot
+// silently move the benchmark back onto the zero-dispatch codelet path.
+func newForceGenericFallbackPlan[T Complex](b *testing.B, fftSize int) *Plan[T] {
+	b.Helper()
+
+	plan, err := NewPlanWithOptions[T](fftSize, PlanOptions{Strategy: KernelStockham})
+	if err != nil {
+		b.Fatalf("NewPlanWithOptions(%d) returned error: %v", fftSize, err)
+	}
+
+	if algo := plan.Algorithm(); algo != "stockham" {
+		b.Fatalf("plan bound algorithm %q, want fallback kernel dispatch (stockham)", algo)
+	}
+
+	return plan
 }
 
 // forceGenericForBenchmark forces the pure-Go fallback dispatch for plans
