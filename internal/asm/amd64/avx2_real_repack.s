@@ -189,3 +189,135 @@ avx2_repack_next:
 avx2_repack_done:
 	VZEROUPPER
 	RET
+
+// ===========================================================================
+// AVX2 Inverse Real FFT Repack Helper (complex128, vectorized)
+// ===========================================================================
+//
+// Per pair (k, m = half-k) the inverse pre-pass computes
+//
+//   oneMinusU = 1 - U[k]
+//   invDet    = conj(1 - 2*U[k])          // det is on the unit circle
+//   dst[k]    = (X[k]*oneMinusU - conj(X[m])*U[k]) * invDet
+//   dst[m]    = conj((oneMinusU*conj(X[m]) - U[k]*X[k]) * invDet)
+//
+// Two k-bins are processed per iteration in one YMM register; the mirrored
+// X[m] pair is a single reversed load (one 32-byte load ending at index m,
+// then a 128-bit lane swap) and the mirrored store reverses the same way.
+// ===========================================================================
+
+DATA ·complex128OnesMaskY+0(SB)/8, $0x3ff0000000000000
+DATA ·complex128OnesMaskY+8(SB)/8, $0x0000000000000000
+DATA ·complex128OnesMaskY+16(SB)/8, $0x3ff0000000000000
+DATA ·complex128OnesMaskY+24(SB)/8, $0x0000000000000000
+GLOBL ·complex128OnesMaskY(SB), RODATA|NOPTR, $32
+
+// func InverseRepackComplex128AVX2Asm(dst, src, weight []complex128, count int)
+//
+// Processes k = 1..count in blocks of 2; the caller guarantees count is a
+// multiple of 2 with count <= (half-1)/2, so the k-side and mirrored m-side
+// load/store ranges never overlap and stay in bounds.
+TEXT ·InverseRepackComplex128AVX2Asm(SB), NOSPLIT, $0-80
+	MOVQ dst+0(FP), DI     // DI = dst base pointer
+	MOVQ dst_len+8(FP), R8 // R8 = half = len(dst)
+	MOVQ src+24(FP), SI    // SI = src base pointer
+	MOVQ weight+48(FP), DX // DX = weight base pointer
+	MOVQ count+72(FP), CX  // CX = count (multiple of 2, <= (half-1)/2)
+
+	CMPQ CX, $2
+	JL   repack128_done
+
+	MOVQ  $·complex128OnesMaskY(SB), R9
+	VMOVUPD (R9), Y13      // Y13 = [1.0, 0.0, 1.0, 0.0]
+	MOVQ  $·maskNegHiPD_YMM(SB), R9
+	VMOVUPD (R9), Y14      // Y14 = sign mask for imaginary float64 lanes
+
+	// Base byte offset for the mirrored side: block at k accesses
+	// src/dst[m-1 .. m] with m = half-k, i.e. byte offset (half-1-k)*16.
+	MOVQ R8, R11
+	SUBQ $1, R11
+	SHLQ $4, R11           // R11 = (half-1)*16
+
+	MOVQ CX, R12
+	SUBQ $1, R12           // R12 = last block start = count-1
+	MOVQ $1, AX            // AX = k
+
+repack128_loop:
+	CMPQ AX, R12
+	JG   repack128_done
+
+	MOVQ AX, R9
+	SHLQ $4, R9            // R9 = k*16
+
+	VMOVUPD (SI)(R9*1), Y0 // Y0 = xk = src[k..k+1]
+
+	MOVQ R11, R10
+	SUBQ R9, R10           // R10 = (half-k-1)*16
+	VMOVUPD (SI)(R10*1), Y1 // Y1 = [src[m-1], src[m]]
+	VPERM2F128 $0x01, Y1, Y1, Y1 // swap lanes -> [src[m], src[m-1]] = xmk per k-lane
+	VXORPD Y14, Y1, Y1     // Y1 = xmkc = conj(xmk)
+
+	VMOVUPD (DX)(R9*1), Y2 // Y2 = u = weight[k..k+1]
+	VSUBPD Y2, Y13, Y3     // Y3 = oneMinusU = (1 - u.r, -u.i)
+
+	VADDPD Y2, Y2, Y4      // Y4 = 2*u
+	VSUBPD Y4, Y13, Y4     // Y4 = det = 1 - 2*u
+	VXORPD Y14, Y4, Y4     // Y4 = invDet = conj(det)
+
+	// t0 = xk * oneMinusU
+	VMOVDDUP Y0, Y5        // [xk.r, xk.r]
+	VPERMILPD $0x0F, Y0, Y6 // [xk.i, xk.i]
+	VPERMILPD $0x05, Y3, Y7 // [oneMinusU.i, oneMinusU.r]
+	VMULPD Y7, Y6, Y8      // xk.i * swapped
+	VFMADDSUB231PD Y5, Y3, Y8 // Y8 = t0 = xk * oneMinusU
+
+	// t1 = xmkc * u
+	VMOVDDUP Y1, Y5
+	VPERMILPD $0x0F, Y1, Y6
+	VPERMILPD $0x05, Y2, Y7
+	VMULPD Y7, Y6, Y9
+	VFMADDSUB231PD Y5, Y2, Y9 // Y9 = t1 = xmkc * u
+
+	VSUBPD Y9, Y8, Y8      // Y8 = t0 - t1
+
+	// a = (t0 - t1) * invDet
+	VMOVDDUP Y8, Y5
+	VPERMILPD $0x0F, Y8, Y6
+	VPERMILPD $0x05, Y4, Y7
+	VMULPD Y7, Y6, Y10
+	VFMADDSUB231PD Y5, Y4, Y10 // Y10 = a
+	VMOVUPD Y10, (DI)(R9*1)   // dst[k..k+1] = a
+
+	// t2 = xmkc * oneMinusU
+	VMOVDDUP Y1, Y5
+	VPERMILPD $0x0F, Y1, Y6
+	VPERMILPD $0x05, Y3, Y7
+	VMULPD Y7, Y6, Y8
+	VFMADDSUB231PD Y5, Y3, Y8 // Y8 = t2 = xmkc * oneMinusU
+
+	// t3 = xk * u
+	VMOVDDUP Y0, Y5
+	VPERMILPD $0x0F, Y0, Y6
+	VPERMILPD $0x05, Y2, Y7
+	VMULPD Y7, Y6, Y9
+	VFMADDSUB231PD Y5, Y2, Y9 // Y9 = t3 = xk * u
+
+	VSUBPD Y9, Y8, Y8      // Y8 = t2 - t3
+
+	// b = (t2 - t3) * invDet
+	VMOVDDUP Y8, Y5
+	VPERMILPD $0x0F, Y8, Y6
+	VPERMILPD $0x05, Y4, Y7
+	VMULPD Y7, Y6, Y10
+	VFMADDSUB231PD Y5, Y4, Y10 // Y10 = b
+
+	VXORPD Y14, Y10, Y10   // conj(b)
+	VPERM2F128 $0x01, Y10, Y10, Y10 // reverse lanes to mirrored order
+	VMOVUPD Y10, (DI)(R10*1) // dst[m-1..m] = [conj(b_{k+1}), conj(b_k)]
+
+	ADDQ $2, AX            // k += 2
+	JMP  repack128_loop
+
+repack128_done:
+	VZEROUPPER
+	RET

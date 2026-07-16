@@ -181,10 +181,15 @@ references are to the current tree.
       4.5–8× faster than the scalar loop; end-to-end
       `BenchmarkPlanRealForward` (AVX2) improved 27–41% (geomean −34.7%),
       zero-alloc preserved, generic path unchanged (no purego regression).
-      Both `PlanRealT` and `FastPlanReal32/64` route through it. Remaining
-      follow-ups: NEON variant (blocked on the native-ARM64 benchmarking
-      item), SSE2 tier, and a complex128 inverse pre-pass kernel
-      (`inverseRepackComplex128SIMD` is still a stub).
+      Both `PlanRealT` and `FastPlanReal32/64` route through it. Follow-ups
+      landed the same month: an SSE3 tier for the forward recombination
+      (complex64 2 bins/XMM at ~4.2× the scalar loop, complex128 1 bin/XMM
+      at ~1.3×; SSE2-only hardware falls back to the generic loop since the
+      idiom needs `MOVSLDUP`/`ADDSUBPS`) and a vectorized AVX2 complex128
+      inverse pre-pass kernel (2 pair-bins per iteration with reversed
+      mirrored load/store, ~2.1× the scalar loop, replacing the
+      `inverseRepackComplex128SIMD` stub). Remaining: NEON variant (blocked
+      on the native-ARM64 benchmarking item).
 - [ ] **SSE2 tier breadth.** The non-AVX2 tier has tuned kernels only at
       512/1024; profile which other hot sizes (256, 2048, 4096) fall back to
       the generic path on SSE-only hardware and extend where `benchstat`
