@@ -171,15 +171,20 @@ references are to the current tree.
       generic NEON butterfly, and runtime-dispatch it above plain NEON.
       Apple Silicon and Neoverse both support it. Blocked for benchmarking
       on the same native-ARM64-hardware item as NEON 512+.
-- [ ] **SIMD the real-FFT recombination loop.** The pack step is already a
-      `memcpy`, but the per-bin recombination
-      (`plan_real_generic.go:240` / `:253`) is a scalar Go loop over
-      `X[k] = A[k] − U[k]·(A[k]−B[k])` — one complex mul + conj + adds per
-      bin, executed on every real transform of every size. An AVX2/NEON
-      kernel (process 4–8 bins per iteration; the mirrored `B[k]` load is a
-      reversed read) should noticeably cut small/medium real-FFT latency,
-      where the recombination is a large fraction of total time. Same for
-      the inverse pre-pass.
+- [x] **SIMD the real-FFT forward recombination loop.** _(2026-07)_ The
+      per-bin recombination `X[k] = A[k] − U[k]·(A[k]−B[k])` now lives in
+      `internal/fft.RecombineForwardComplex64/128` with AVX2 kernels
+      (`internal/asm/amd64/avx2_real_recombine.s`): 4 complex64 / 2
+      complex128 bins per iteration, the mirrored `B[k]` as one reversed
+      vector load + in-register reversal + conjugate sign-flip, and the
+      `U[k]·t` product as an FMA `VFMADDSUB` complex multiply. The kernel is
+      4.5–8× faster than the scalar loop; end-to-end
+      `BenchmarkPlanRealForward` (AVX2) improved 27–41% (geomean −34.7%),
+      zero-alloc preserved, generic path unchanged (no purego regression).
+      Both `PlanRealT` and `FastPlanReal32/64` route through it. Remaining
+      follow-ups: NEON variant (blocked on the native-ARM64 benchmarking
+      item), SSE2 tier, and a complex128 inverse pre-pass kernel
+      (`inverseRepackComplex128SIMD` is still a stub).
 - [ ] **SSE2 tier breadth.** The non-AVX2 tier has tuned kernels only at
       512/1024; profile which other hot sizes (256, 2048, 4096) fall back to
       the generic path on SSE-only hardware and extend where `benchstat`

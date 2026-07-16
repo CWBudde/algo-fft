@@ -87,15 +87,7 @@ func (fp *FastPlanReal32) Forward(dst []complex64, src []float32) {
 	dst[half] = complex(y0r-y0i, 0)
 
 	// Recombination: X[k] = A[k] - U[k] * (A[k] - B[k])
-	weight := fp.weight
-
-	for k := 1; k < half; k++ {
-		a := buf[k]
-		bSrc := buf[half-k]
-		b := complex(real(bSrc), -imag(bSrc)) // conj(Y[N/2-k])
-		c := weight[k] * (a - b)
-		dst[k] = a - c
-	}
+	fft.RecombineForwardComplex64(dst, buf, fp.weight)
 }
 
 // ForwardNormalized computes real→complex FFT and scales the result by 1/N.
@@ -212,15 +204,7 @@ func (fp *FastPlanReal64) Forward(dst []complex128, src []float64) {
 	dst[half] = complex(y0r-y0i, 0)
 
 	// Recombination: X[k] = A[k] - U[k] * (A[k] - B[k])
-	weight := fp.weight
-
-	for k := 1; k < half; k++ {
-		a := buf[k]
-		bSrc := buf[half-k]
-		b := complex(real(bSrc), -imag(bSrc)) // conj(Y[N/2-k])
-		c := weight[k] * (a - b)
-		dst[k] = a - c
-	}
+	fft.RecombineForwardComplex128(dst, buf, fp.weight)
 }
 
 // ForwardNormalized computes real→complex FFT and scales the result by 1/N.

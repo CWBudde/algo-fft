@@ -235,29 +235,13 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 	case complex64:
 		bufC64 := any(buf).([]complex64)
 		dstC64 := any(dst).([]complex64)
-
 		weightC64 := any(p.weight).([]complex64)
-		for k := 1; k < p.half; k++ {
-			a := bufC64[k]
-			bSrc := bufC64[p.half-k]
-			b := complex(real(bSrc), -imag(bSrc)) // conj(Y[N/2-k])
-
-			c := weightC64[k] * (a - b)
-			dstC64[k] = a - c
-		}
+		fft.RecombineForwardComplex64(dstC64, bufC64, weightC64)
 	case complex128:
 		bufC128 := any(buf).([]complex128)
 		dstC128 := any(dst).([]complex128)
-
 		weightC128 := any(p.weight).([]complex128)
-		for k := 1; k < p.half; k++ {
-			a := bufC128[k]
-			bSrc := bufC128[p.half-k]
-			b := complex(real(bSrc), -imag(bSrc)) // conj(Y[N/2-k])
-
-			c := weightC128[k] * (a - b)
-			dstC128[k] = a - c
-		}
+		fft.RecombineForwardComplex128(dstC128, bufC128, weightC128)
 	}
 
 	return nil
