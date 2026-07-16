@@ -695,6 +695,31 @@ func InverseRepackComplex64AVX2Asm(dst, src, weight []complex64, kStartMax int)
 //go:noescape
 func InverseRepackComplex64SSE2Asm(dst, src, weight []complex64, kStartMax int)
 
+// InverseRepackComplex128AVX2Asm processes pair bins k = 1..count (blocks of
+// 2) of the inverse real-FFT pre-pass, writing dst[k] and the mirrored
+// conj bin dst[half-k]; count must be a multiple of 2 with
+// count <= (len(dst)-1)/2.
+//
+//go:noescape
+func InverseRepackComplex128AVX2Asm(dst, src, weight []complex128, count int)
+
+// Forward real FFT recombination helpers.
+// Both process bins k = 1..count with dst[k] = src[k] - weight[k]*(src[k]-conj(src[half-k]));
+// count must be a whole number of vector blocks (4 for complex64, 2 for
+// complex128) with count <= len(src)-1, and dst must not alias src.
+
+//go:noescape
+func RecombineForwardComplex64AVX2Asm(dst, src, weight []complex64, count int)
+
+//go:noescape
+func RecombineForwardComplex128AVX2Asm(dst, src, weight []complex128, count int)
+
+//go:noescape
+func RecombineForwardComplex64SSE3Asm(dst, src, weight []complex64, count int)
+
+//go:noescape
+func RecombineForwardComplex128SSE3Asm(dst, src, weight []complex128, count int)
+
 // ============================================================================
 // Radix-3 FFT Butterfly Operations
 // ============================================================================

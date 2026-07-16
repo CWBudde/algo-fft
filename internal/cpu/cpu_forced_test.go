@@ -31,6 +31,7 @@ func TestForceSSEOnlyForTests(t *testing.T) { //nolint:paralleltest // mutates g
 		"HasSSE41":  features.HasSSE41,
 		"HasAVX":    features.HasAVX,
 		"HasAVX2":   features.HasAVX2,
+		"HasFMA":    features.HasFMA,
 		"HasAVX512": features.HasAVX512,
 	} {
 		if got {

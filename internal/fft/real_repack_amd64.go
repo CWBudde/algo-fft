@@ -53,5 +53,24 @@ func inverseRepackComplex64SSE2(dst, src, weight []complex64) int {
 }
 
 func inverseRepackComplex128SIMD(dst, src, weight []complex128) int {
-	return 1
+	features := cpu.DetectFeatures()
+	// The AVX2 kernel uses VFMADDSUB, and FMA is a separate CPUID bit from
+	// AVX2, so both are required before taking the AVX2 path.
+	if features.ForceGeneric || !features.HasAVX2 || !features.HasFMA {
+		return 1
+	}
+
+	half := len(dst)
+
+	// The vector loop consumes blocks of 2 pair-bins (k and its mirror
+	// half-k); it must stop before k meets its mirror, so only full blocks
+	// within k <= (half-1)/2 are handled.
+	count := (half - 1) / 2 / 2 * 2
+	if count < 2 {
+		return 1
+	}
+
+	amd64.InverseRepackComplex128AVX2Asm(dst, src, weight, count)
+
+	return count + 1
 }

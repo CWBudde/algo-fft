@@ -27,6 +27,7 @@ type Features struct {
 	HasSSE41  bool // Streaming SIMD Extensions 4.1
 	HasAVX    bool // Advanced Vector Extensions
 	HasAVX2   bool // Advanced Vector Extensions 2
+	HasFMA    bool // Fused Multiply-Add (FMA3; independent CPUID bit from AVX2)
 	HasAVX512 bool // Advanced Vector Extensions 512
 
 	// ARM SIMD features
@@ -125,6 +126,13 @@ func HasAVX2() bool {
 	return DetectFeatures().HasAVX2
 }
 
+// HasFMA returns true if the CPU supports FMA3 (fused multiply-add) instructions.
+// FMA is a separate CPUID feature bit from AVX2, so kernels that mix AVX2 and
+// VFMADD*/VFMADDSUB* instructions must check both.
+func HasFMA() bool {
+	return DetectFeatures().HasFMA
+}
+
 // HasAVX512 returns true if the CPU supports AVX-512 instructions.
 func HasAVX512() bool {
 	return DetectFeatures().HasAVX512
@@ -148,6 +156,7 @@ func ForceSSEOnlyForTests() {
 	feature.HasSSE41 = false
 	feature.HasAVX = false
 	feature.HasAVX2 = false
+	feature.HasFMA = false
 	feature.HasAVX512 = false
 	feature.ForceGeneric = false
 	SetForcedFeatures(feature)
