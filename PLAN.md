@@ -155,11 +155,23 @@ references are to the current tree.
       transpose kernels stop at 128×128). Revisit the auto rule when the
       P4.3 cache-blocked transpose lands; wisdom/measure modes can pick
       split-radix anywhere it wins per-machine.
-- [ ] **Radix-8 stage for the generic DIT driver.** The generic driver
-      currently composes radix-2/4 passes; a radix-8 stage cuts the pass
-      count for 2^(3k) sizes and reduces twiddle loads per point. The radix-8
-      infrastructure already exists for the size-512 codelet — generalize it
-      into the mixed-radix scheduler's executable set.
+- [x] **Radix-8 stage for the generic DIT driver.** _(2026-07)_ The radix-8
+      butterfly from the size-512 codelet is generalized into
+      `internal/kernels/radix8.go` (hardcoded ±i/W_8^1/W_8^3 rotations, both
+      precisions) and added to the mixed-radix engine's executable set
+      (`internal/fft/mixedradix.go`): the scheduler emits a radix-8 stage
+      whenever the remaining power-of-two part 2^e has e ≥ 3 — except e = 4,
+      where [4,4] measured ~20% faster than [8,2] — so 2^5 runs as [8,4]
+      instead of [4,4,2], 2^9 as [8,8,8] instead of [4,4,4,4,2]. Gated to
+      the no-codelet path (`!oddFirst`): with a codelet reachable on the
+      radix-4 suffix chain the schedule is unchanged, so AVX2 production
+      schedules (and the P4.1 odd-first/Rader tuning) are untouched.
+      Measured via `BenchmarkMixedRadixRadix8Schedule` (old vs new schedule
+      through the same driver, purego): geomean −16.9% across
+      32…12288-point radix-8-bearing sizes, wins at every size and both
+      precisions (complex64 −11…−34%), zero-alloc preserved. Benefits
+      purego, SSE-only amd64, and arm64 builds — the paths without a
+      codelet chain.
 - [ ] **Real-FFT for odd/multi-factor lengths + real-input Bluestein.**
       `NewPlanRealT` requires even n (pack method). Odd/arbitrary lengths
       currently force users through the complex path at 2× memory and flops.

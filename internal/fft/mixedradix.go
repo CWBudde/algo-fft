@@ -1,6 +1,7 @@
 package fft
 
 import (
+	"math/bits"
 	"strconv"
 	"sync"
 
@@ -55,7 +56,7 @@ var (
 
 // codeletSchedulable64/128 report whether the installed recursion driver can
 // execute a composite radix of the given size directly via a codelet. The
-// pure Go driver only knows radices 2/3/4/5, so scheduling any larger radix
+// pure Go driver only knows radices 2/3/4/5/8, so scheduling any larger radix
 // would silently produce garbage (its butterfly switch returns on unknown
 // radices). SIMD builds (mixedradix_avx2.go) override these with a predicate
 // matching exactly what their recursion hook dispatches.
@@ -222,6 +223,17 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet fun
 			// reorder measured slower than the radix-4-major order below.
 			radices[count] = 3
 			n /= 3
+		case !oddFirst && radix8Profitable(n):
+			// A radix-8 stage covers three powers of two per pass instead of
+			// two, cutting the pass count (and per-point twiddle loads) for
+			// power-of-two parts 2^e with e ≥ 3: 2^5 runs as [8,4] instead of
+			// [4,4,2], 2^6 as [8,8] instead of [4,4,4]. Skipped when a
+			// codelet is reachable on the radix-4 suffix chain (oddFirst) —
+			// splitting by 8 would step over the codelet size and lose the
+			// tuned leaf. e == 4 keeps [4,4] over [8,2]: same pass count,
+			// and the radix-2 tail measured slower.
+			radices[count] = 8
+			n /= 8
 		case n%4 == 0:
 			radices[count] = 4
 			n /= 4
@@ -242,6 +254,15 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet fun
 	}
 
 	return count
+}
+
+// radix8Profitable reports whether the scheduler should emit a radix-8 stage
+// for the current remaining size n. The power-of-two part 2^e of n must hold
+// at least three factors of two, and e == 4 is excluded so 2^4 stays [4,4]
+// rather than [8,2] (equal pass count, slower radix-2 tail).
+func radix8Profitable(n int) bool {
+	e := bits.TrailingZeros(uint(n))
+	return e >= 3 && e != 4
 }
 
 // mixedRadixRecursivePingPongComplex64 is a specialized complex64 version that calls
@@ -368,6 +389,49 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			dst[2*span+k] = y2
 			dst[3*span+k] = y3
 			dst[4*span+k] = y4
+		case 8:
+			w1 := twiddle[k*step]
+			w2 := twiddle[2*k*step]
+			w3 := twiddle[3*k*step]
+			w4 := twiddle[4*k*step]
+			w5 := twiddle[5*k*step]
+			w6 := twiddle[6*k*step]
+			w7 := twiddle[7*k*step]
+
+			if inverse {
+				w1 = conj(w1)
+				w2 = conj(w2)
+				w3 = conj(w3)
+				w4 = conj(w4)
+				w5 = conj(w5)
+				w6 = conj(w6)
+				w7 = conj(w7)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+			a2 := w2 * input[2*span+k]
+			a3 := w3 * input[3*span+k]
+			a4 := w4 * input[4*span+k]
+			a5 := w5 * input[5*span+k]
+			a6 := w6 * input[6*span+k]
+			a7 := w7 * input[7*span+k]
+
+			var y0, y1, y2, y3, y4, y5, y6, y7 complex64
+			if inverse {
+				y0, y1, y2, y3, y4, y5, y6, y7 = kernels.Butterfly8InverseComplex64(a0, a1, a2, a3, a4, a5, a6, a7)
+			} else {
+				y0, y1, y2, y3, y4, y5, y6, y7 = kernels.Butterfly8ForwardComplex64(a0, a1, a2, a3, a4, a5, a6, a7)
+			}
+
+			dst[k] = y0
+			dst[span+k] = y1
+			dst[2*span+k] = y2
+			dst[3*span+k] = y3
+			dst[4*span+k] = y4
+			dst[5*span+k] = y5
+			dst[6*span+k] = y6
+			dst[7*span+k] = y7
 		default:
 			// A radix the driver cannot execute means the scheduler and the
 			// recursion hook disagree — a programming error, never a runtime
@@ -503,6 +567,49 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			dst[2*span+k] = y2
 			dst[3*span+k] = y3
 			dst[4*span+k] = y4
+		case 8:
+			w1 := twiddle[k*step]
+			w2 := twiddle[2*k*step]
+			w3 := twiddle[3*k*step]
+			w4 := twiddle[4*k*step]
+			w5 := twiddle[5*k*step]
+			w6 := twiddle[6*k*step]
+			w7 := twiddle[7*k*step]
+
+			if inverse {
+				w1 = conj(w1)
+				w2 = conj(w2)
+				w3 = conj(w3)
+				w4 = conj(w4)
+				w5 = conj(w5)
+				w6 = conj(w6)
+				w7 = conj(w7)
+			}
+
+			a0 := input[k]
+			a1 := w1 * input[span+k]
+			a2 := w2 * input[2*span+k]
+			a3 := w3 * input[3*span+k]
+			a4 := w4 * input[4*span+k]
+			a5 := w5 * input[5*span+k]
+			a6 := w6 * input[6*span+k]
+			a7 := w7 * input[7*span+k]
+
+			var y0, y1, y2, y3, y4, y5, y6, y7 complex128
+			if inverse {
+				y0, y1, y2, y3, y4, y5, y6, y7 = kernels.Butterfly8InverseComplex128(a0, a1, a2, a3, a4, a5, a6, a7)
+			} else {
+				y0, y1, y2, y3, y4, y5, y6, y7 = kernels.Butterfly8ForwardComplex128(a0, a1, a2, a3, a4, a5, a6, a7)
+			}
+
+			dst[k] = y0
+			dst[span+k] = y1
+			dst[2*span+k] = y2
+			dst[3*span+k] = y3
+			dst[4*span+k] = y4
+			dst[5*span+k] = y5
+			dst[6*span+k] = y6
+			dst[7*span+k] = y7
 		default:
 			// A radix the driver cannot execute means the scheduler and the
 			// recursion hook disagree — a programming error, never a runtime
