@@ -38,7 +38,8 @@ func PowMod(base, exp, m uint64) uint64 {
 }
 
 // millerRabinBases is a base set that makes the Miller-Rabin test
-// deterministic for every n < 3.3e24, which covers all uint64 inputs.
+// deterministic for every value below ~3.3e24 — far beyond the int range
+// IsPrime accepts on any platform, so the answer is always exact.
 //
 //nolint:gochecknoglobals // immutable lookup table
 var millerRabinBases = [...]uint64{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37}

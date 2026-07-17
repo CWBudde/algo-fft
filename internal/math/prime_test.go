@@ -2,6 +2,7 @@ package math
 
 import (
 	"math/big"
+	"math/bits"
 	"testing"
 )
 
@@ -10,8 +11,8 @@ func TestIsPrime(t *testing.T) {
 
 	primes := []int{
 		2, 3, 5, 7, 11, 13, 17, 19, 23, 97, 101, 257, 641, 769,
-		65537, 2147483647, // 2^31 - 1 (Mersenne)
-		1000000007, 67280421310721,
+		65537, 2147483647, // 2^31 - 1 (Mersenne); max portable int
+		1000000007,
 	}
 	for _, n := range primes {
 		if !IsPrime(n) {
@@ -23,11 +24,31 @@ func TestIsPrime(t *testing.T) {
 		-7, 0, 1, 4, 6, 9, 15, 25, 121, 1024,
 		561, 41041, 825265, // Carmichael numbers
 		2047, 3277, 4033, // base-2 Fermat pseudoprimes
-		2147483649, 1000000005,
+		1000000005,
 	}
 	for _, n := range composites {
 		if IsPrime(n) {
 			t.Errorf("IsPrime(%d) = true, want false", n)
+		}
+	}
+
+	// Values beyond the 32-bit int range, exercised only on 64-bit
+	// platforms. They are typed uint64 and converted through variables so
+	// this file still compiles when int is 32 bits (386, arm, wasm/GOOS
+	// combinations with 32-bit int).
+	if bits.UintSize == 64 {
+		primes64 := []uint64{67280421310721} // prime factor of F6 = 2^64+1
+		for _, v := range primes64 {
+			if n := int(v); !IsPrime(n) {
+				t.Errorf("IsPrime(%d) = false, want true", n)
+			}
+		}
+
+		composites64 := []uint64{2147483649, 4611686018427387903} // 2^31+1, 2^62-1
+		for _, v := range composites64 {
+			if n := int(v); IsPrime(n) {
+				t.Errorf("IsPrime(%d) = true, want false", n)
+			}
 		}
 	}
 }
