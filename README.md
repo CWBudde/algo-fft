@@ -19,6 +19,7 @@ The demo runs the library compiled to WebAssembly, allowing you to visualize FFT
   - Complex-to-complex forward and inverse transforms
   - Both in-place and out-of-place variants
   - Power-of-2 and arbitrary-length transform support via Bluestein's algorithm
+  - Rader's algorithm for prime lengths with 5-smooth n-1 (e.g. 17, 257, 65537)
 
 - **Real FFT Support**
   - Specialized real-to-complex forward transforms
@@ -349,6 +350,7 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 - FFT Algorithm Overview: [Cooley-Tukey FFT](https://en.wikipedia.org/wiki/Cooley%E2%80%93Tukey_FFT_algorithm)
 - Bluestein's Algorithm: [Chirp-Z Transform](https://en.wikipedia.org/wiki/Bluestein%27s_FFT_algorithm)
+- Rader's Algorithm: [Rader's FFT Algorithm](https://en.wikipedia.org/wiki/Rader%27s_FFT_algorithm)
 - Real FFT: [Real FFT](https://en.wikipedia.org/wiki/Fast_Fourier_transform#Real_FFT)
 
 ## Status

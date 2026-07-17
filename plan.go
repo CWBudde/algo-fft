@@ -55,6 +55,12 @@ type Plan[T Complex] struct {
 	bluesteinScratch        []T   // Size M (extra scratch for Bluestein)
 	bluesteinScratchBacking []byte
 
+	// Rader specific fields. A non-nil raderPermIn marks a prime-length plan
+	// that runs Rader's algorithm instead of Bluestein; it reuses the
+	// bluestein* tables above with M = N-1 (exact, unpadded sub-FFT).
+	raderPermIn  []int // Input gather permutation: g^(-q) mod N
+	raderPermOut []int // Output scatter permutation: g^m mod N
+
 	// Zero-dispatch codelet bindings (nil = use fallback kernel)
 	forwardCodelet fft.CodeletFunc[T]
 	inverseCodelet fft.CodeletFunc[T]
@@ -263,6 +269,10 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 	}
 
 	if p.kernelStrategy == fft.KernelBluestein {
+		if p.raderPermIn != nil {
+			return p.raderForward(dst, src, scratch, bsScratch)
+		}
+
 		return p.bluesteinForward(dst, src, scratch, bsScratch)
 	}
 
@@ -316,6 +326,10 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 	}
 
 	if p.kernelStrategy == fft.KernelBluestein {
+		if p.raderPermIn != nil {
+			return p.raderInverse(dst, src, scratch, bsScratch)
+		}
+
 		return p.bluesteinInverse(dst, src, scratch, bsScratch)
 	}
 
@@ -523,7 +537,9 @@ func (p *Plan[T]) validateSlices(dst, src []T) error {
 // The size n can be any positive integer.
 // Power-of-2 sizes are most efficient.
 // Highly composite sizes (factors 2, 3, 5) use mixed-radix algorithms.
-// Prime or other sizes use Bluestein's algorithm (Chirp-Z transform).
+// Prime sizes whose n-1 is 5-smooth use Rader's algorithm when it measures
+// faster; other primes and remaining sizes use Bluestein's algorithm
+// (Chirp-Z transform).
 //
 // Example:
 //
@@ -596,11 +612,15 @@ func bluesteinPadSize(n int) int {
 
 // planStrategyConfig computes the strategy-specific plan configuration: the
 // Bluestein padded sub-FFT size (rejecting lengths whose pad size >= 2n-1
-// cannot be represented; see maxBluesteinLength) or the recursive
-// decomposition strategy. Strategies without extra configuration return zero
-// values.
-func planStrategyConfig(n int, useBluestein, useRecursive bool) (int, *fft.DecomposeStrategy, error) {
+// cannot be represented; see maxBluesteinLength), the exact Rader sub-FFT
+// size n-1, or the recursive decomposition strategy. Strategies without
+// extra configuration return zero values.
+func planStrategyConfig(n int, useBluestein, useRader, useRecursive bool) (int, *fft.DecomposeStrategy, error) {
 	switch {
+	case useRader:
+		// Rader's cyclic convolution runs at exactly n-1 (5-smooth by
+		// eligibility), no padding needed.
+		return n - 1, nil, nil
 	case useBluestein:
 		if n > maxBluesteinLength {
 			return 0, nil, ErrInvalidLength
@@ -615,6 +635,41 @@ func planStrategyConfig(n int, useBluestein, useRecursive bool) (int, *fft.Decom
 	default:
 		return 0, nil, nil
 	}
+}
+
+// algorithmRader is the Algorithm() name reported by prime-length plans that
+// run Rader's algorithm (see internal/fft/rader.go and plan_rader.go).
+const algorithmRader = "rader"
+
+// convolutionTables groups the precomputed tables shared by the Bluestein and
+// Rader arbitrary-length paths. Bluestein fills the chirp sequences; Rader
+// fills the generator permutations; both fill the frequency-domain filters,
+// sub-FFT twiddles, and (for power-of-two sub-FFT sizes) the bitrev table.
+type convolutionTables[T Complex] struct {
+	chirp, chirpInv   []T
+	filter, filterInv []T
+	twiddle           []T
+	bitrev            []int
+	raderPermIn       []int
+	raderPermOut      []int
+}
+
+// computeConvolutionTables fills the Rader or Bluestein tables for an
+// arbitrary-length plan of size n with sub-FFT size m; other strategies
+// return the zero value. scratch must have length >= m.
+func computeConvolutionTables[T Complex](n, m int, useBluestein, useRader bool, scratch []T) convolutionTables[T] {
+	var tables convolutionTables[T]
+
+	switch {
+	case useRader:
+		tables.raderPermIn, tables.raderPermOut, tables.filter, tables.filterInv,
+			tables.twiddle, tables.bitrev = fft.ComputeRaderTables[T](n, scratch)
+	case useBluestein:
+		tables.chirp, tables.chirpInv, tables.filter, tables.filterInv,
+			tables.twiddle, tables.bitrev = computeBluesteinTables[T](n, m, scratch)
+	}
+
+	return tables
 }
 
 // computeBluesteinTables precomputes the chirp sequences, sub-FFT twiddles,
@@ -706,7 +761,12 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	useRecursive := estimate.Strategy == fft.KernelRecursive
 	strategy := estimate.Strategy
 
-	bluesteinM, decompStrategy, err := planStrategyConfig(n, useBluestein, useRecursive)
+	// Prime lengths whose n-1 is 5-smooth upgrade from Bluestein to Rader's
+	// algorithm (exact length-(n-1) convolution instead of one padded to
+	// >= 2n-1). An explicitly forced KernelBluestein is honored as-is.
+	useRader := useBluestein && opts.Strategy != fft.KernelBluestein && fft.RaderEligible(n)
+
+	bluesteinM, decompStrategy, err := planStrategyConfig(n, useBluestein, useRader, useRecursive)
 	if err != nil {
 		return nil, err
 	}
@@ -721,34 +781,28 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	var (
 		twiddle        []T
 		twiddleBacking []byte
-
-		// Bluestein specific
-		bluesteinChirp     []T
-		bluesteinChirpInv  []T
-		bluesteinFilter    []T
-		bluesteinFilterInv []T
-		bluesteinTwiddle   []T
-		bluesteinBitrev    []int
 	)
 
-	// Allocate initial scratch set for setup (Bluestein filter computation)
+	// Allocate initial scratch set for setup (Bluestein/Rader filter computation)
 	scratchSize := standardScratchSize(n, estimate.Algorithm)
 	setupScratch := allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy, scratchSize)
 
-	if useBluestein {
-		bluesteinChirp, bluesteinChirpInv, bluesteinFilter, bluesteinFilterInv,
-			bluesteinTwiddle, bluesteinBitrev = computeBluesteinTables[T](n, bluesteinM, setupScratch.bluesteinScratch)
-	}
+	tables := computeConvolutionTables[T](n, bluesteinM, useBluestein, useRader, setupScratch.bluesteinScratch)
 
 	switch {
 	case useBluestein:
-		// Twiddles were computed above alongside the Bluestein tables.
+		// Twiddles were computed above alongside the Bluestein/Rader tables.
 	case useRecursive:
 		// Generate twiddles for recursive decomposition.
 		twiddle, twiddleBacking = allocTwiddle(fft.TwiddleFactorsRecursive[T](decompStrategy))
 	default:
 		// Standard allocation.
 		twiddle, twiddleBacking = allocTwiddle(fft.ComputeTwiddleFactors[T](n))
+	}
+
+	algorithm := estimate.Algorithm
+	if useRader {
+		algorithm = algorithmRader
 	}
 
 	// Create the scratch cache and seed it with the setup scratch set.
@@ -768,7 +822,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		bitrev:                planBitReversal(n, estimate),
 		forwardCodelet:        estimate.ForwardCodelet,
 		inverseCodelet:        estimate.InverseCodelet,
-		algorithm:             estimate.Algorithm,
+		algorithm:             algorithm,
 		forwardKernel:         kernels.Forward,
 		inverseKernel:         kernels.Inverse,
 		kernelStrategy:        strategy,
@@ -776,13 +830,15 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		twiddleBacking:        twiddleBacking,
 		scratchPool:           scratchPool,
 		bluesteinM:            bluesteinM,
-		bluesteinChirp:        bluesteinChirp,
-		bluesteinChirpInv:     bluesteinChirpInv,
-		bluesteinFilter:       bluesteinFilter,
-		bluesteinFilterInv:    bluesteinFilterInv,
-		bluesteinTwiddle:      bluesteinTwiddle,
-		bluesteinBitrev:       bluesteinBitrev,
+		bluesteinChirp:        tables.chirp,
+		bluesteinChirpInv:     tables.chirpInv,
+		bluesteinFilter:       tables.filter,
+		bluesteinFilterInv:    tables.filterInv,
+		bluesteinTwiddle:      tables.twiddle,
+		bluesteinBitrev:       tables.bitrev,
 		bluesteinScratch:      nil, // Use pool
+		raderPermIn:           tables.raderPermIn,
+		raderPermOut:          tables.raderPermOut,
 		meta: PlanMeta{
 			Planner:  opts.Planner,
 			Strategy: strategy,

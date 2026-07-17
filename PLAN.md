@@ -118,13 +118,22 @@ references are to the current tree.
       tested; if radix-3/5 butterflies get SIMD kernels, re-run the benchmark
       on both builds and lower the constant. (Note: the P4.5 fast-size padding
       item faces the same ≤2× bound and should reuse this measurement.)
-- [ ] **Rader's algorithm for prime sizes.** Primes currently always pay
-      Bluestein's ~4× padded-FFT cost. Rader maps a prime-p FFT to a cyclic
-      convolution of length p−1; when p−1 is 5-smooth (e.g. 11, 31, 61, 101,
-      151, 181, 241, 251…) this needs no padding at all, and otherwise pads
-      far less than Bluestein. Implement as a new `KernelStrategy`
-      (`KernelRader`) selected by the planner for primes with smooth p−1;
-      validate vs reference and benchmark vs Bluestein per size.
+- [x] **Rader's algorithm for prime sizes.** Rader maps a prime-p FFT to a
+      cyclic convolution of length p−1, which needs no padding when p−1 is
+      5-smooth (vs Bluestein's pad to ≥ 2p−1). Implemented in
+      `internal/fft/rader.go` + `plan_rader.go`, riding the Bluestein plan
+      plumbing (strategy stays `KernelBluestein`, `Algorithm()` reports
+      `"rader"`; forcing `KernelBluestein` opts out). Per-size benchmarking
+      (`BenchmarkRaderVsBluestein`, both precisions) showed the mixed-radix
+      engine's per-point penalty makes "smaller" not always faster, so
+      `RaderEligible` gates on measured wins: power-of-two p−1 (17, 257,
+      65537: 4–5×), any 5-smooth p−1 ≥ 4096 (4001, 12289, 18433, 40961:
+      1.5–4.8×), and 2^a·5^b p−1 with a ≥ 4, p−1 ≥ 400 (401, 641, 1601:
+      1.3–2.2×); measured losses (31, 97, 151, 251, 769, 1153, 3001…) stay
+      on Bluestein. If the mixed-radix engine gets faster, re-run the
+      benchmark and widen the gate. Remaining follow-up: padded Rader for
+      non-smooth p−1 is a wash vs Bluestein (pad ≥ 2p−3 vs ≥ 2p−1), so it
+      was intentionally skipped.
 - [ ] **Split-radix (conjugate-pair) kernels.** The core power-of-two paths
       are radix-2/4/mixed; split-radix cuts real operations ~25–33% vs
       radix-2 and is the classical best-known op count for 2^k. Start with a

@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Rader's algorithm for prime-size transforms: primes whose p−1 is 5-smooth
+  and passes a measured cost gate (e.g. 17, 257, 401, 641, 1601, 4001,
+  12289, 40961, 65537) now run an exact length-(p−1) cyclic convolution
+  instead of Bluestein's power-of-two pad to ≥ 2p−1, measuring 1.3–5.2×
+  faster on both precisions (still zero-alloc); other primes keep Bluestein,
+  and forcing `PlanOptions.Strategy = KernelBluestein` opts out
 - Plan-reuse DSP types `Convolver`, `Correlator`, and `RealConvolver`:
   reusable, concurrency-safe, zero-allocation convolution/correlation for
   loops (the one-shot `Convolve`/`CrossCorrelate`/`ConvolveReal` helpers
