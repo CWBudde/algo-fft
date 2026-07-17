@@ -45,13 +45,13 @@ func TestSelectStrategiesToTest(t *testing.T) {
 			name:     "Patient mode power-of-two",
 			mode:     PlannerPatient,
 			n:        1024,
-			expected: []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep},
+			expected: []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelSplitRadix},
 		},
 		{
 			name:     "Exhaustive mode power-of-two",
 			mode:     PlannerExhaustive,
 			n:        1024,
-			expected: []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelEightStep},
+			expected: []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelEightStep, KernelSplitRadix},
 		},
 		{
 			name:     "Prime size uses Bluestein only",

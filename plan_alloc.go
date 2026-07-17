@@ -66,7 +66,11 @@ func allocateScratchSet[T Complex](
 
 	switch strategy {
 	case fft.KernelBluestein:
-		scratchSize = bluesteinM
+		// Rader plans set bluesteinM = n-1 (exact sub-FFT), so clamp to n:
+		// paths outside the convolution (e.g. strided gather) assume the
+		// standard scratch holds a full length-n frame. Bluestein pads to
+		// >= 2n-1, where the clamp is a no-op.
+		scratchSize = max(bluesteinM, n)
 	case fft.KernelRecursive:
 		scratchSize = fft.ScratchSizeRecursive(decompStrategy)
 	default:

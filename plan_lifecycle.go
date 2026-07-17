@@ -79,7 +79,8 @@ func (p *Plan[T]) Clone() *Plan[T] {
 
 	switch p.kernelStrategy {
 	case fft.KernelBluestein:
-		scratchSize = p.bluesteinM
+		// max: Rader plans set bluesteinM = n-1 (see allocateScratchSet).
+		scratchSize = max(p.bluesteinM, p.n)
 	case fft.KernelRecursive:
 		scratchSize = fft.ScratchSizeRecursive(p.decompStrategy)
 	}
@@ -134,5 +135,9 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		bluesteinBitrev:         p.bluesteinBitrev,
 		bluesteinScratch:        bluesteinScratch,        // New allocation
 		bluesteinScratchBacking: bluesteinScratchBacking, // New allocation
+
+		// Rader fields (shared, immutable)
+		raderPermIn:  p.raderPermIn,
+		raderPermOut: p.raderPermOut,
 	}
 }

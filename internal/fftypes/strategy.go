@@ -10,7 +10,8 @@ const (
 	KernelSixStep
 	KernelEightStep
 	KernelBluestein
-	KernelRecursive // Recursive decomposition with codelet leaves
+	KernelRecursive  // Recursive decomposition with codelet leaves
+	KernelSplitRadix // Split-radix (2/4) DIT, power-of-two sizes only
 )
 
 // SIMDLevel describes the minimum required CPU features for a codelet.

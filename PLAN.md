@@ -118,20 +118,43 @@ references are to the current tree.
       tested; if radix-3/5 butterflies get SIMD kernels, re-run the benchmark
       on both builds and lower the constant. (Note: the P4.5 fast-size padding
       item faces the same ≤2× bound and should reuse this measurement.)
-- [ ] **Rader's algorithm for prime sizes.** Primes currently always pay
-      Bluestein's ~4× padded-FFT cost. Rader maps a prime-p FFT to a cyclic
-      convolution of length p−1; when p−1 is 5-smooth (e.g. 11, 31, 61, 101,
-      151, 181, 241, 251…) this needs no padding at all, and otherwise pads
-      far less than Bluestein. Implement as a new `KernelStrategy`
-      (`KernelRader`) selected by the planner for primes with smooth p−1;
-      validate vs reference and benchmark vs Bluestein per size.
-- [ ] **Split-radix (conjugate-pair) kernels.** The core power-of-two paths
-      are radix-2/4/mixed; split-radix cuts real operations ~25–33% vs
-      radix-2 and is the classical best-known op count for 2^k. Start with a
-      generic pure-Go split-radix DIT and benchmark against the tuned
-      radix-4/Stockham paths at 32–4096 — it wins most cleanly at the sizes
-      that lack hand-tuned codelets, and on the purego/WASM builds. Land as a
-      `KernelStrategy` with auto-selection only where `benchstat` proves it.
+      _Update 2026-07:_ the odd-first mixed-radix schedule and the size-384
+      `VZEROUPPER` fix cut the engine penalty to ~1.3–2× for 5-smooth sizes
+      whose power-of-two part is ≥ 8 — re-running the pad-candidate benchmark
+      with a shape-aware cost model may now re-enable 5-smooth pads for those
+      shapes.
+- [x] **Rader's algorithm for prime sizes.** Rader maps a prime-p FFT to a
+      cyclic convolution of length p−1, which needs no padding when p−1 is
+      5-smooth (vs Bluestein's pad to ≥ 2p−1). Implemented in
+      `internal/fft/rader.go` + `plan_rader.go`, riding the Bluestein plan
+      plumbing (strategy stays `KernelBluestein`, `Algorithm()` reports
+      `"rader"`; forcing `KernelBluestein` opts out). Per-size benchmarking
+      (`BenchmarkRaderVsBluestein`, both precisions) showed the mixed-radix
+      engine's per-point penalty makes "smaller" not always faster, so
+      `RaderEligible` gates on measured wins: power-of-two p−1 (17, 257,
+      65537: 4–5×) and any 5-smooth p−1 ≥ 96 whose power-of-two part is
+      ≥ 8 (97, 401, 641, 769, 1153, 1601, 3001, 4001, 12289, 18433, 40961:
+      1.1–5.6×, and 1.6–2.1× on purego) — with the odd-first mixed-radix
+      schedule those shapes end in a tuned codelet leaf. Shapes whose
+      power-of-two part is ≤ 4 (31, 61, 101, 151, 251) and tiny p−1 (≤ 40)
+      measured as losses and stay on Bluestein. Remaining follow-up: padded Rader for
+      non-smooth p−1 is a wash vs Bluestein (pad ≥ 2p−3 vs ≥ 2p−1), so it
+      was intentionally skipped.
+- [x] **Split-radix (conjugate-pair) kernels.** _(2026-07)_ Generic
+      split-radix (2/4) DIT landed in `internal/kernels/splitradix.go`
+      (recursive, natural-order output, no bit-reversal pass; per-precision
+      hot paths; in-place via scratch), exposed as `KernelSplitRadix` with
+      full strategy plumbing (planner names, wisdom mapping, measure-mode
+      candidates for Patient/Exhaustive). Measured
+      (`BenchmarkSplitRadixVsIncumbents`): on purego it beats the
+      auto-selected path at every power of two ≥ 256 (+11–34%, 2.1× at
+      262144); on the SIMD build the AVX2/AVX-512 codelets stay ahead below 262144. Auto-selection changed only where proven on **both** builds
+      and precisions: power-of-two squares in [2^18, 2^22) (512², 1024²) now
+      resolve to split-radix instead of six-step (~2× both directions) —
+      six-step's scalar O(n) index-table transpose dominates there (the SIMD
+      transpose kernels stop at 128×128). Revisit the auto rule when the
+      P4.3 cache-blocked transpose lands; wisdom/measure modes can pick
+      split-radix anywhere it wins per-machine.
 - [ ] **Radix-8 stage for the generic DIT driver.** The generic driver
       currently composes radix-2/4 passes; a radix-8 stage cuts the pass
       count for 2^(3k) sizes and reduces twiddle loads per point. The radix-8

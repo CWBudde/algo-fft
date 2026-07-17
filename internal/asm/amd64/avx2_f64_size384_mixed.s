@@ -201,6 +201,7 @@ twiddle384_subarray2_loop:
 	JMP  twiddle384_subarray2_loop
 
 twiddle384_done:
+	VZEROUPPER
 	RET
 
 // ============================================================================
@@ -300,6 +301,7 @@ radix3_384_fwd_loop:
 	JMP  radix3_384_fwd_loop
 
 radix3_384_fwd_done:
+	VZEROUPPER
 	RET
 
 // ============================================================================
@@ -381,4 +383,5 @@ radix3_384_inv_loop:
 	JMP  radix3_384_inv_loop
 
 radix3_384_inv_done:
+	VZEROUPPER
 	RET

@@ -94,7 +94,7 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
 		}
 	}
-	if features.HasSSE2 && !features.ForceGeneric {
+	if features.HasSSE2 && !features.ForceGeneric && simdTierServesStrategy(strategy) {
 		return Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSE2Complex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE2Complex64, auto.Inverse),
@@ -122,7 +122,7 @@ func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelS
 		}
 	}
 
-	if features.HasSSE2 && !features.ForceGeneric {
+	if features.HasSSE2 && !features.ForceGeneric && simdTierServesStrategy(strategy) {
 		return Kernels[complex128]{
 			Forward: fallbackKernel(forwardSSE2Complex128Asm, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE2Complex128Asm, auto.Inverse),

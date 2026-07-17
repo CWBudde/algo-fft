@@ -154,9 +154,11 @@ func TestSixStepEightStepSquareSizes(t *testing.T) {
 		want KernelStrategy
 	}{
 		{"2048x2048", 2048 * 2048, KernelEightStep}, // 4194304 >= 1<<22 (4194304)? Yes
-		{"512x512", 512 * 512, KernelSixStep},       // 262144 >= 1<<18 (262144)? Yes
-		{"256x256", 256 * 256, KernelStockham},      // 65536 is square but < 1<<18
-		{"32x32", 32 * 32, KernelDIT},               // 1024 is square but <= ditAutoThreshold
+		{"512x512", 512 * 512, KernelSplitRadix},    // pow2 square in [1<<18, 1<<22): split-radix beats six-step ~2x
+		{"1024x1024", 1024 * 1024, KernelSplitRadix},
+		{"900x900", 900 * 900, KernelSixStep},  // non-pow2 square >= 1<<18 keeps six-step
+		{"256x256", 256 * 256, KernelStockham}, // 65536 is square but < 1<<18
+		{"32x32", 32 * 32, KernelDIT},          // 1024 is square but <= ditAutoThreshold
 	}
 
 	for _, tt := range tests {

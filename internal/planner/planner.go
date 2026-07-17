@@ -165,6 +165,8 @@ func resolveWisdom[T Complex](
 		strategy = KernelEightStep
 	case algoBluestein:
 		strategy = KernelBluestein
+	case algoSplitRadix:
+		strategy = KernelSplitRadix
 	default:
 		return nil, KernelAuto, false
 	}

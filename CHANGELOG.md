@@ -18,8 +18,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mixed-radix engine; with the current kernels the measured crossover always
   favors the next power of two, so behavior is unchanged (see PLAN.md P4.1)
 
+### Fixed
+
+- Missing `VZEROUPPER` in the size-384 mixed codelet assembly
+  (`avx2_f{32,64}_size384_mixed.s`) and the AVX2 radix-3 butterfly helpers:
+  the dirty upper-YMM state made every legacy-SSE instruction in downstream
+  kernels pay the AVX–SSE transition penalty — the complex128 size-384
+  codelet ran 22× slower than after the fix (68µs → 3.1µs), dragging down
+  every size routed through it (1152: 210µs → 14µs)
+
+### Changed
+
+- The mixed-radix scheduler strips odd factors before powers of two whenever
+  a codelet exists for a power-of-two suffix, so 5-smooth sizes end in a
+  tuned SIMD codelet leaf (768 = [3, 256] instead of [4, 4, 4, 4, 3]):
+  96/480/768/1152/12000 measure 2.4–5.2× faster; sizes without a reachable
+  codelet keep the old order and are unchanged
+
 ### Added
 
+- Split-radix (2/4) FFT kernel for power-of-two sizes, selectable via
+  `PlanOptions.Strategy = KernelSplitRadix` and included in the
+  Patient/Exhaustive measuring-planner candidates. Auto-selection now uses
+  it for power-of-two squares in [2^18, 2^22) (512², 1024²), where it
+  measured ~2× faster than the previous six-step choice in both directions,
+  both precisions, on both the SIMD and purego builds; on the purego build
+  a forced split-radix plan also beats the default path at every power of
+  two ≥ 256 (+11–34%)
+- Rader's algorithm for prime-size transforms: primes whose p−1 is 5-smooth
+  and passes a measured cost gate (e.g. 17, 97, 257, 641, 769, 1153, 1601,
+  4001, 12289, 40961, 65537) now run an exact length-(p−1) cyclic
+  convolution instead of Bluestein's power-of-two pad to ≥ 2p−1, measuring
+  1.1–5.6× faster on both precisions (still zero-alloc); other primes keep
+  Bluestein, and forcing `PlanOptions.Strategy = KernelBluestein` opts out
 - Plan-reuse DSP types `Convolver`, `Correlator`, and `RealConvolver`:
   reusable, concurrency-safe, zero-allocation convolution/correlation for
   loops (the one-shot `Convolve`/`CrossCorrelate`/`ConvolveReal` helpers

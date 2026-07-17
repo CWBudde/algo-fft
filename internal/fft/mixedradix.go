@@ -184,6 +184,19 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet fun
 		return count + 1
 	}
 
+	// oddFirst: strip odd factors before the powers of two when the
+	// power-of-two part of n (or a radix-4 suffix of it) can be dispatched to
+	// a codelet — that keeps it intact for the per-step codelet check below.
+	// Without a reachable codelet the reorder pays and buys nothing.
+	oddFirst := false
+
+	for pow2 := n & -n; pow2 >= 8; pow2 /= 4 {
+		if hasCodelet(pow2) {
+			oddFirst = true
+			break
+		}
+	}
+
 	for n > 1 {
 		// Check again at each step: if the remaining size 'n' has a kernel, use it.
 		// e.g., 768 = 3 * 256. First loop picks 3. Second loop sees 256.
@@ -199,6 +212,16 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet fun
 		case n%5 == 0:
 			radices[count] = 5
 			n /= 5
+		case oddFirst && n%3 == 0:
+			// Strip the factors of 3 before the powers of two so the
+			// power-of-two part stays intact until the codelet check above
+			// can claim it whole: 768 schedules as [3, 256] with a tuned
+			// size-256 codelet leaf instead of fragmenting into
+			// [4, 4, 4, 4, 3]. Applied only when a codelet actually exists
+			// for a power-of-two suffix (see oddFirst) — otherwise the
+			// reorder measured slower than the radix-4-major order below.
+			radices[count] = 3
+			n /= 3
 		case n%4 == 0:
 			radices[count] = 4
 			n /= 4
