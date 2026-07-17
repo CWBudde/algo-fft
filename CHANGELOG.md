@@ -37,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Split-radix (2/4) FFT kernel for power-of-two sizes, selectable via
+  `PlanOptions.Strategy = KernelSplitRadix` and included in the
+  Patient/Exhaustive measuring-planner candidates. Auto-selection now uses
+  it for power-of-two squares in [2^18, 2^22) (512², 1024²), where it
+  measured ~2× faster than the previous six-step choice in both directions,
+  both precisions, on both the SIMD and purego builds; on the purego build
+  a forced split-radix plan also beats the default path at every power of
+  two ≥ 256 (+11–34%)
 - Rader's algorithm for prime-size transforms: primes whose p−1 is 5-smooth
   and passes a measured cost gate (e.g. 17, 97, 257, 641, 769, 1153, 1601,
   4001, 12289, 40961, 65537) now run an exact length-(p−1) cyclic

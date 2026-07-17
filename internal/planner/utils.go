@@ -74,6 +74,7 @@ const (
 	algoSixStep     = "sixstep"
 	algoEightStep   = "eightstep"
 	algoBluestein   = "bluestein"
+	algoSplitRadix  = "splitradix"
 )
 
 func StrategyToAlgorithmName(strategy KernelStrategy) string {
@@ -88,6 +89,8 @@ func StrategyToAlgorithmName(strategy KernelStrategy) string {
 		return algoEightStep
 	case KernelBluestein:
 		return algoBluestein
+	case KernelSplitRadix:
+		return algoSplitRadix
 	default:
 		return "unknown"
 	}

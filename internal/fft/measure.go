@@ -80,11 +80,11 @@ func selectStrategiesToTest(mode PlannerMode, n int) []KernelStrategy {
 		// Quick: test the two most common strategies
 		return []KernelStrategy{KernelDIT, KernelStockham}
 	case PlannerPatient:
-		// Moderate: add SixStep for larger sizes
-		return []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep}
+		// Moderate: add SixStep and SplitRadix for larger sizes
+		return []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelSplitRadix}
 	case PlannerExhaustive:
 		// Thorough: test all power-of-two strategies
-		return []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelEightStep}
+		return []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelEightStep, KernelSplitRadix}
 	}
 
 	return []KernelStrategy{KernelDIT, KernelStockham}

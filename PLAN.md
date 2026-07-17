@@ -140,13 +140,22 @@ references are to the current tree.
       measured as losses and stay on Bluestein. Remaining follow-up: padded Rader for
       non-smooth p−1 is a wash vs Bluestein (pad ≥ 2p−3 vs ≥ 2p−1), so it
       was intentionally skipped.
-- [ ] **Split-radix (conjugate-pair) kernels.** The core power-of-two paths
-      are radix-2/4/mixed; split-radix cuts real operations ~25–33% vs
-      radix-2 and is the classical best-known op count for 2^k. Start with a
-      generic pure-Go split-radix DIT and benchmark against the tuned
-      radix-4/Stockham paths at 32–4096 — it wins most cleanly at the sizes
-      that lack hand-tuned codelets, and on the purego/WASM builds. Land as a
-      `KernelStrategy` with auto-selection only where `benchstat` proves it.
+- [x] **Split-radix (conjugate-pair) kernels.** _(2026-07)_ Generic
+      split-radix (2/4) DIT landed in `internal/kernels/splitradix.go`
+      (recursive, natural-order output, no bit-reversal pass; per-precision
+      hot paths; in-place via scratch), exposed as `KernelSplitRadix` with
+      full strategy plumbing (planner names, wisdom mapping, measure-mode
+      candidates for Patient/Exhaustive). Measured
+      (`BenchmarkSplitRadixVsIncumbents`): on purego it beats the
+      auto-selected path at every power of two ≥ 256 (+11–34%, 2.1× at
+      262144); on the SIMD build the AVX2/AVX-512 codelets stay ahead below
+      262144. Auto-selection changed only where proven on **both** builds
+      and precisions: power-of-two squares in [2^18, 2^22) (512², 1024²) now
+      resolve to split-radix instead of six-step (~2× both directions) —
+      six-step's scalar O(n) index-table transpose dominates there (the SIMD
+      transpose kernels stop at 128×128). Revisit the auto rule when the
+      P4.3 cache-blocked transpose lands; wisdom/measure modes can pick
+      split-radix anywhere it wins per-machine.
 - [ ] **Radix-8 stage for the generic DIT driver.** The generic driver
       currently composes radix-2/4 passes; a radix-8 stage cuts the pass
       count for 2^(3k) sizes and reduces twiddle loads per point. The radix-8

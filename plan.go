@@ -95,13 +95,14 @@ type Plan[T Complex] struct {
 type KernelStrategy = fft.KernelStrategy
 
 const (
-	KernelAuto      = fft.KernelAuto      // Let the planner choose by size
-	KernelDIT       = fft.KernelDIT       // Decimation-in-time
-	KernelStockham  = fft.KernelStockham  // Stockham autosort
-	KernelSixStep   = fft.KernelSixStep   // Six-step (cache-friendly, large sizes)
-	KernelEightStep = fft.KernelEightStep // Eight-step (cache-friendly, large sizes)
-	KernelBluestein = fft.KernelBluestein // Bluestein (arbitrary lengths)
-	KernelRecursive = fft.KernelRecursive // Recursive decomposition with codelet leaves
+	KernelAuto       = fft.KernelAuto       // Let the planner choose by size
+	KernelDIT        = fft.KernelDIT        // Decimation-in-time
+	KernelStockham   = fft.KernelStockham   // Stockham autosort
+	KernelSixStep    = fft.KernelSixStep    // Six-step (cache-friendly, large sizes)
+	KernelEightStep  = fft.KernelEightStep  // Eight-step (cache-friendly, large sizes)
+	KernelBluestein  = fft.KernelBluestein  // Bluestein (arbitrary lengths)
+	KernelRecursive  = fft.KernelRecursive  // Recursive decomposition with codelet leaves
+	KernelSplitRadix = fft.KernelSplitRadix // Split-radix (2/4) DIT (power-of-two lengths)
 )
 
 // wisdomAdapter adapts the public WisdomStore interface to the internal WisdomRecorder.
@@ -179,6 +180,8 @@ func (p *Plan[T]) String() string {
 		strategyName = strategyNameEightStep
 	case fft.KernelBluestein:
 		strategyName = "Bluestein"
+	case fft.KernelSplitRadix:
+		strategyName = "SplitRadix"
 	}
 
 	pooled := ""

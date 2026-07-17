@@ -41,6 +41,19 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 		}
 
 		if n >= 1<<18 {
+			// Power-of-two squares in [2^18, 2^22) — 512^2 and 1024^2 —
+			// previously resolved to six-step, whose scalar O(n) index-table
+			// transpose dominates at these sizes (the SIMD transpose kernels
+			// stop at 128x128). Split-radix measured ~2x faster for both
+			// directions, both precisions, on both the SIMD and purego
+			// builds (BenchmarkSplitRadixVsIncumbents). Revisit when the
+			// P4.3 cache-blocked transpose lands. Non-power-of-two squares
+			// keep six-step: they execute through the mixed-radix engine
+			// anyway, and split-radix would decline them.
+			if IsPowerOf2(n) {
+				return KernelSplitRadix
+			}
+
 			return KernelSixStep
 		}
 	}

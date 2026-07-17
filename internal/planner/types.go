@@ -12,11 +12,12 @@ type KernelStrategy = fftypes.KernelStrategy
 
 // Strategy constants.
 const (
-	KernelAuto      = fftypes.KernelAuto
-	KernelDIT       = fftypes.KernelDIT
-	KernelStockham  = fftypes.KernelStockham
-	KernelSixStep   = fftypes.KernelSixStep
-	KernelEightStep = fftypes.KernelEightStep
-	KernelBluestein = fftypes.KernelBluestein
-	KernelRecursive = fftypes.KernelRecursive
+	KernelAuto       = fftypes.KernelAuto
+	KernelDIT        = fftypes.KernelDIT
+	KernelStockham   = fftypes.KernelStockham
+	KernelSixStep    = fftypes.KernelSixStep
+	KernelEightStep  = fftypes.KernelEightStep
+	KernelBluestein  = fftypes.KernelBluestein
+	KernelRecursive  = fftypes.KernelRecursive
+	KernelSplitRadix = fftypes.KernelSplitRadix
 )

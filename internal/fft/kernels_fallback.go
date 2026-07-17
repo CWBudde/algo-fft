@@ -40,6 +40,8 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 				return kernels.ForwardSixStepComplex64(dst, src, twiddle, scratch)
 			case KernelEightStep:
 				return kernels.ForwardEightStepComplex64(dst, src, twiddle, scratch)
+			case KernelSplitRadix:
+				return kernels.ForwardSplitRadixComplex64(dst, src, twiddle, scratch)
 			default:
 				return forwardStockhamComplex64(dst, src, twiddle, scratch)
 			}
@@ -62,6 +64,8 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 				return kernels.InverseSixStepComplex64(dst, src, twiddle, scratch)
 			case KernelEightStep:
 				return kernels.InverseEightStepComplex64(dst, src, twiddle, scratch)
+			case KernelSplitRadix:
+				return kernels.InverseSplitRadixComplex64(dst, src, twiddle, scratch)
 			default:
 				return inverseStockhamComplex64(dst, src, twiddle, scratch)
 			}
@@ -89,6 +93,8 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 				return kernels.ForwardSixStepComplex128(dst, src, twiddle, scratch)
 			case KernelEightStep:
 				return kernels.ForwardEightStepComplex128(dst, src, twiddle, scratch)
+			case KernelSplitRadix:
+				return kernels.ForwardSplitRadixComplex128(dst, src, twiddle, scratch)
 			default:
 				return forwardStockhamComplex128(dst, src, twiddle, scratch)
 			}
@@ -111,6 +117,8 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 				return kernels.InverseSixStepComplex128(dst, src, twiddle, scratch)
 			case KernelEightStep:
 				return kernels.InverseEightStepComplex128(dst, src, twiddle, scratch)
+			case KernelSplitRadix:
+				return kernels.InverseSplitRadixComplex128(dst, src, twiddle, scratch)
 			default:
 				return inverseStockhamComplex128(dst, src, twiddle, scratch)
 			}

@@ -29,13 +29,14 @@ const (
 
 // Re-export kernel strategy constants from planner.
 const (
-	KernelAuto      = planner.KernelAuto
-	KernelDIT       = planner.KernelDIT
-	KernelStockham  = planner.KernelStockham
-	KernelSixStep   = planner.KernelSixStep
-	KernelEightStep = planner.KernelEightStep
-	KernelBluestein = planner.KernelBluestein
-	KernelRecursive = planner.KernelRecursive
+	KernelAuto       = planner.KernelAuto
+	KernelDIT        = planner.KernelDIT
+	KernelStockham   = planner.KernelStockham
+	KernelSixStep    = planner.KernelSixStep
+	KernelEightStep  = planner.KernelEightStep
+	KernelBluestein  = planner.KernelBluestein
+	KernelRecursive  = planner.KernelRecursive
+	KernelSplitRadix = planner.KernelSplitRadix
 )
 
 // Re-export functions and variables from planner.
