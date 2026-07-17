@@ -142,6 +142,10 @@ func TestMixedRadixRadix8VsReferenceComplex64(t *testing.T) {
 			}
 		}
 
+		if maxRef == 0 {
+			maxRef = 1 // all-zero reference: fall back to absolute error
+		}
+
 		for i := range dst {
 			if cmplx.Abs(complex128(dst[i]-ref[i]))/maxRef > 1e-5 {
 				t.Errorf("n=%d: forward mismatch at %d: got %v want %v", n, i, dst[i], ref[i])
@@ -190,6 +194,10 @@ func TestMixedRadixRadix8VsReferenceComplex128(t *testing.T) {
 			if m := cmplx.Abs(ref[i]); m > maxRef {
 				maxRef = m
 			}
+		}
+
+		if maxRef == 0 {
+			maxRef = 1 // all-zero reference: fall back to absolute error
 		}
 
 		for i := range dst {
@@ -244,6 +252,10 @@ func TestMixedRadixTransformRadix8InPlace(t *testing.T) {
 			if m := cmplx.Abs(complex128(ref[i])); m > maxRef {
 				maxRef = m
 			}
+		}
+
+		if maxRef == 0 {
+			maxRef = 1 // all-zero reference: fall back to absolute error
 		}
 
 		for i := range buf {

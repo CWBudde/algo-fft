@@ -57,9 +57,10 @@ var (
 // codeletSchedulable64/128 report whether the installed recursion driver can
 // execute a composite radix of the given size directly via a codelet. The
 // pure Go driver only knows radices 2/3/4/5/8, so scheduling any larger radix
-// would silently produce garbage (its butterfly switch returns on unknown
-// radices). SIMD builds (mixedradix_avx2.go) override these with a predicate
-// matching exactly what their recursion hook dispatches.
+// would panic at transform time (its butterfly switch treats unknown radices
+// as a scheduler/driver contract violation). SIMD builds (mixedradix_avx2.go)
+// override these with a predicate matching exactly what their recursion hook
+// dispatches.
 var (
 	codeletSchedulable64  func(int) bool
 	codeletSchedulable128 func(int) bool
