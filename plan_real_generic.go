@@ -22,7 +22,13 @@ import (
 //
 //	X[k] = conj(X[N-k]) for k = 1..N/2-1
 //
-// Index 0 is DC and index N/2 is Nyquist (purely real for even N).
+// Index 0 is DC and index N/2 is Nyquist (purely real for even N; odd
+// lengths have no Nyquist bin).
+//
+// Even lengths use the packed half-size complex FFT method. Odd lengths are
+// supported via an internal full-size complex FFT fallback — correct for any
+// length the complex planner handles (including primes), at roughly 2× the
+// memory and flops of the packed method.
 type PlanRealT[F Float, C Complex] struct {
 	n    int
 	half int
@@ -41,9 +47,12 @@ func newPlanRealTBufCache[C Complex](half int) *residentCache[[]C] {
 	})
 }
 
-// NewPlanRealT creates a new generic real FFT plan for length n.
+// NewPlanRealT creates a new generic real FFT plan for length n (n >= 2).
 // The type parameter F determines the precision (float32 or float64).
 // The complex type C must match F (float32→complex64, float64→complex128).
+//
+// Even lengths run the packed half-size method; odd lengths run a full-size
+// complex FFT internally (see PlanRealT).
 //
 // Example:
 //
@@ -64,8 +73,12 @@ func NewPlanRealTWithOptions[F Float, C Complex](n int, opts PlanOptions) (*Plan
 func newPlanRealTWithFeatures[F Float, C Complex](
 	n int, features cpu.Features, opts PlanOptions,
 ) (*PlanRealT[F, C], error) {
-	if n < 2 || n%2 != 0 {
+	if n < 2 {
 		return nil, ErrInvalidLength
+	}
+
+	if n%2 != 0 {
+		return newPlanRealTOddWithFeatures[F, C](n, features, opts)
 	}
 
 	childOpts := opts
@@ -132,7 +145,7 @@ func (p *PlanRealT[F, C]) Clone() *PlanRealT[F, C] {
 		half:    p.half,
 		plan:    p.plan,
 		weight:  p.weight, // Shared (immutable)
-		buf:     newPlanRealTBufCache[C](p.half),
+		buf:     newPlanRealTBufCache[C](p.plan.Len()),
 		options: p.options,
 	}
 }
@@ -177,6 +190,10 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 
 	if len(src) != p.n || len(dst) != p.half+1 {
 		return ErrLengthMismatch
+	}
+
+	if p.n%2 != 0 {
+		return p.forwardOdd(dst, src)
 	}
 
 	bufp := p.buf.get()
@@ -313,6 +330,10 @@ func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
 
 	if len(dst) != p.n || len(src) != p.half+1 {
 		return ErrLengthMismatch
+	}
+
+	if p.n%2 != 0 {
+		return p.inverseOdd(dst, src)
 	}
 
 	// Validate DC and Nyquist are real (imaginary parts near zero)

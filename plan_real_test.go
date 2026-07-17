@@ -394,12 +394,25 @@ func TestPlanRealErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("odd length", func(t *testing.T) {
+	t.Run("negative length", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewPlanReal(7)
+		_, err := NewPlanReal(-4)
 		if !errors.Is(err, ErrInvalidLength) {
 			t.Errorf("expected ErrInvalidLength, got %v", err)
+		}
+	})
+
+	t.Run("odd length supported", func(t *testing.T) {
+		t.Parallel()
+
+		plan, err := NewPlanReal(7)
+		if err != nil {
+			t.Fatalf("NewPlanReal(7) returned error: %v", err)
+		}
+
+		if plan.SpectrumLen() != 4 {
+			t.Errorf("SpectrumLen() = %d, want 4", plan.SpectrumLen())
 		}
 	})
 

@@ -15,11 +15,13 @@ import "github.com/cwbudde/algo-fft/internal/cpu"
 //
 //	X[k] = conj(X[N-k]) for k = 1..N/2-1
 //
-// Index 0 is DC and index N/2 is Nyquist (purely real for even N).
+// Index 0 is DC and index N/2 is Nyquist (purely real for even N; odd
+// lengths have no Nyquist bin).
 type PlanReal = PlanRealT[float32, complex64]
 
-// NewPlanReal creates a new real FFT plan for length n.
-// Currently, only even lengths are supported by the real FFT pack method.
+// NewPlanReal creates a new real FFT plan for length n (n >= 2).
+// Even lengths use the packed half-size method; odd lengths are supported
+// via an internal full-size complex FFT fallback.
 func NewPlanReal(n int) (*PlanReal, error) {
 	return NewPlanRealT[float32, complex64](n)
 }

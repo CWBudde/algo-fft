@@ -94,20 +94,23 @@ func (p *PlanND[T]) Algorithms() []string {
 	return algorithms
 }
 
-// Meta returns metadata about the underlying half-size complex plan that
-// performs the packed real transform.
+// Meta returns metadata about the underlying complex plan that performs the
+// real transform (half-size for even lengths, full-size for the odd-length
+// fallback).
 func (p *PlanRealT[F, C]) Meta() PlanMeta {
 	return p.plan.Meta()
 }
 
 // KernelStrategy returns the resolved kernel strategy of the underlying
-// half-size complex plan.
+// complex plan (half-size for even lengths, full-size for the odd-length
+// fallback).
 func (p *PlanRealT[F, C]) KernelStrategy() KernelStrategy {
 	return p.plan.KernelStrategy()
 }
 
 // Algorithm returns the human-readable algorithm name of the underlying
-// half-size complex plan.
+// complex plan (half-size for even lengths, full-size for the odd-length
+// fallback).
 func (p *PlanRealT[F, C]) Algorithm() string {
 	return p.plan.Algorithm()
 }

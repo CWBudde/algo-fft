@@ -67,9 +67,9 @@ func TestNewPlanReal32WithOptions_InvalidLength(t *testing.T) {
 		t.Error("expected error for n=0, got nil")
 	}
 
-	_, err = NewPlanReal32WithOptions(7, PlanOptions{})
+	_, err = NewPlanReal32WithOptions(1, PlanOptions{})
 	if err == nil {
-		t.Error("expected error for odd n, got nil")
+		t.Error("expected error for n=1, got nil")
 	}
 }
 
@@ -82,9 +82,9 @@ func TestNewPlanReal64WithOptions_InvalidLength(t *testing.T) {
 		t.Error("expected error for n=0, got nil")
 	}
 
-	_, err = NewPlanReal64WithOptions(7, PlanOptions{})
+	_, err = NewPlanReal64WithOptions(1, PlanOptions{})
 	if err == nil {
-		t.Error("expected error for odd n, got nil")
+		t.Error("expected error for n=1, got nil")
 	}
 }
 
