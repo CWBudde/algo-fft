@@ -148,8 +148,7 @@ references are to the current tree.
       candidates for Patient/Exhaustive). Measured
       (`BenchmarkSplitRadixVsIncumbents`): on purego it beats the
       auto-selected path at every power of two ≥ 256 (+11–34%, 2.1× at
-      262144); on the SIMD build the AVX2/AVX-512 codelets stay ahead below
-      262144. Auto-selection changed only where proven on **both** builds
+      262144); on the SIMD build the AVX2/AVX-512 codelets stay ahead below 262144. Auto-selection changed only where proven on **both** builds
       and precisions: power-of-two squares in [2^18, 2^22) (512², 1024²) now
       resolve to split-radix instead of six-step (~2× both directions) —
       six-step's scalar O(n) index-table transpose dominates there (the SIMD

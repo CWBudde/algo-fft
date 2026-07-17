@@ -47,19 +47,19 @@ func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 
 func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
 	auto := autoKernelComplex64(strategy)
-	if features.HasSSE3 && !features.ForceGeneric {
+	if features.HasSSE3 && !features.ForceGeneric && simdTierServesStrategy(strategy) {
 		return Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSE3Complex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE3Complex64, auto.Inverse),
 		}
 	}
-	if features.HasSSE2 && !features.ForceGeneric {
+	if features.HasSSE2 && !features.ForceGeneric && simdTierServesStrategy(strategy) {
 		return Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSE2Complex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE2Complex64, auto.Inverse),
 		}
 	}
-	if features.HasSSE && !features.ForceGeneric {
+	if features.HasSSE && !features.ForceGeneric && simdTierServesStrategy(strategy) {
 		return Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSEComplex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSEComplex64, auto.Inverse),
@@ -70,7 +70,7 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 
 func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
 	auto := autoKernelComplex128(strategy)
-	if features.HasSSE2 && !features.ForceGeneric {
+	if features.HasSSE2 && !features.ForceGeneric && simdTierServesStrategy(strategy) {
 		return Kernels[complex128]{
 			Forward: fallbackKernel(forwardSSE2Complex128, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE2Complex128, auto.Inverse),

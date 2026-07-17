@@ -6,6 +6,18 @@ import (
 	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
+// simdTierServesStrategy reports whether a fixed-algorithm SIMD tier (the
+// generic SSE/SSE2 radix-2 DIT wrappers, which ignore the strategy argument)
+// may serve a plan with the given strategy. Only auto and an explicit
+// KernelDIT match the algorithm those wrappers implement; any other forced
+// strategy must fall through to the strategy-dispatching auto kernel,
+// otherwise the tier silently overrides the caller's algorithm choice (and
+// breaks the zero-allocation guarantee of the pure-Go strategies — the SSE
+// wrappers recompute bit-reversal tables per call).
+func simdTierServesStrategy(strategy KernelStrategy) bool {
+	return strategy == KernelAuto || strategy == KernelDIT
+}
+
 func fallbackKernel[T Complex](primary, fallback Kernel[T]) Kernel[T] {
 	if primary == nil {
 		return fallback
