@@ -249,6 +249,7 @@ TEXT ·Butterfly3ForwardAVX2Complex64(SB), NOSPLIT, $0-144
 	VMOVUPS Y2, (R10)  // y2[0:3]
 
 butterfly3_fwd_return:
+	VZEROUPPER
 	RET
 
 // ===========================================================================
@@ -305,4 +306,5 @@ TEXT ·Butterfly3InverseAVX2Complex64(SB), NOSPLIT, $0-144
 	VMOVUPS Y2, (R10)
 
 butterfly3_inv_return:
+	VZEROUPPER
 	RET

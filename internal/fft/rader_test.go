@@ -7,8 +7,8 @@ func TestRaderEligible(t *testing.T) {
 
 	eligible := []int{
 		17, 257, 65537, // n-1 a power of two
-		401, 641, 1601, 4001, // n-1 = 2^a*5^b, a >= 4, >= 400
-		12289, 18433, 40961, // n-1 5-smooth >= 4096
+		97, 769, 1153, 3001, // n-1 5-smooth, power-of-two part >= 8
+		401, 641, 1601, 4001, 12289, 18433, 40961,
 	}
 	for _, n := range eligible {
 		if !RaderEligible(n) {
@@ -20,8 +20,8 @@ func TestRaderEligible(t *testing.T) {
 		1, 2, 3, 4, 5, 6, 8, 16, // too small / not on the Bluestein path
 		23, 29, 47, 59, 1009, // prime but n-1 not 5-smooth
 		25, 121, 256, 1000, // not prime
-		7, 11, 13, 31, 61, 97, 101, 151, 251, // measured slower than Bluestein
-		769, 1153, 3001, // n-1 has a factor of 3 below the 4096 cutoff
+		7, 11, 13, 31, 41, 61, // n-1 too small; measured slower than Bluestein
+		101, 151, 251, // n-1 power-of-two part <= 4: measured slower
 	}
 	for _, n := range ineligible {
 		if RaderEligible(n) {

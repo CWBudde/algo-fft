@@ -34,22 +34,24 @@ func RaderEligible(n int) bool {
 
 // raderConvolutionWins reports whether an exact length-l sub-FFT beats
 // Bluestein's padded power-of-two sub-FFT of length >= 2l+1. Although l < the
-// pad always, the mixed-radix engine costs several times more per point than
-// the power-of-two DIT kernels, so smaller does not mean faster. Measured on
-// AVX2/AVX-512 amd64 for both precisions (BenchmarkRaderVsBluestein):
+// pad always, the mixed-radix engine costs more per point than the
+// power-of-two DIT kernels, so smaller does not always mean faster. Measured
+// on AVX2/AVX-512 amd64 for both precisions (BenchmarkRaderVsBluestein):
 //
 //   - power-of-two l wins 4-5x at every size (17, 257, 65537);
-//   - any 5-smooth l >= 4096 wins 1.5-4.8x (4001, 12289, 18433, 40961) —
-//     at that scale the pad's 2-4x extra points dominate the engine penalty;
-//   - mid-range l of the form 2^a*5^b with a >= 4 and l >= 400 wins
-//     1.3-2.2x (401, 641, 1601); factors of 3 (769, 1153, 3001) and smaller
-//     or odd-heavy shapes (31..251) measured as losses and stay on Bluestein.
+//   - other 5-smooth l wins 1.1-5.6x when its power-of-two part is >= 8 —
+//     the mixed-radix schedule then ends in a tuned codelet leaf ([3, 32]
+//     for 96, [3, 3, 128] for 1152) so the engine penalty stays small
+//     (97, 401, 641, 769, 1153, 1601, 3001, 4001, 12289, 18433, 40961);
+//   - shapes whose power-of-two part is <= 4 keep the odd combine stages
+//     dominant and measured as losses (31, 61, 101, 151, 251), as did tiny
+//     l (7..41) where fixed overheads dominate. Those stay on Bluestein.
 func raderConvolutionWins(l int) bool {
-	if mathpkg.IsPowerOf2(l) || l >= 4096 {
+	if mathpkg.IsPowerOf2(l) {
 		return true
 	}
 
-	return l >= 400 && l%3 != 0 && l%16 == 0
+	return l >= 96 && l&-l >= 8
 }
 
 // ComputeRaderTables precomputes the plan-time tables for a Rader transform

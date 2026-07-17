@@ -118,6 +118,11 @@ references are to the current tree.
       tested; if radix-3/5 butterflies get SIMD kernels, re-run the benchmark
       on both builds and lower the constant. (Note: the P4.5 fast-size padding
       item faces the same ≤2× bound and should reuse this measurement.)
+      _Update 2026-07:_ the odd-first mixed-radix schedule and the size-384
+      `VZEROUPPER` fix cut the engine penalty to ~1.3–2× for 5-smooth sizes
+      whose power-of-two part is ≥ 8 — re-running the pad-candidate benchmark
+      with a shape-aware cost model may now re-enable 5-smooth pads for those
+      shapes.
 - [x] **Rader's algorithm for prime sizes.** Rader maps a prime-p FFT to a
       cyclic convolution of length p−1, which needs no padding when p−1 is
       5-smooth (vs Bluestein's pad to ≥ 2p−1). Implemented in
@@ -127,11 +132,12 @@ references are to the current tree.
       (`BenchmarkRaderVsBluestein`, both precisions) showed the mixed-radix
       engine's per-point penalty makes "smaller" not always faster, so
       `RaderEligible` gates on measured wins: power-of-two p−1 (17, 257,
-      65537: 4–5×), any 5-smooth p−1 ≥ 4096 (4001, 12289, 18433, 40961:
-      1.5–4.8×), and 2^a·5^b p−1 with a ≥ 4, p−1 ≥ 400 (401, 641, 1601:
-      1.3–2.2×); measured losses (31, 97, 151, 251, 769, 1153, 3001…) stay
-      on Bluestein. If the mixed-radix engine gets faster, re-run the
-      benchmark and widen the gate. Remaining follow-up: padded Rader for
+      65537: 4–5×) and any 5-smooth p−1 ≥ 96 whose power-of-two part is
+      ≥ 8 (97, 401, 641, 769, 1153, 1601, 3001, 4001, 12289, 18433, 40961:
+      1.1–5.6×, and 1.6–2.1× on purego) — with the odd-first mixed-radix
+      schedule those shapes end in a tuned codelet leaf. Shapes whose
+      power-of-two part is ≤ 4 (31, 61, 101, 151, 251) and tiny p−1 (≤ 40)
+      measured as losses and stay on Bluestein. Remaining follow-up: padded Rader for
       non-smooth p−1 is a wash vs Bluestein (pad ≥ 2p−3 vs ≥ 2p−1), so it
       was intentionally skipped.
 - [ ] **Split-radix (conjugate-pair) kernels.** The core power-of-two paths

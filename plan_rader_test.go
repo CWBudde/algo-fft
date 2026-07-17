@@ -10,14 +10,15 @@ import (
 
 // raderTestPrimes are prime lengths the planner upgrades from Bluestein to
 // Rader's algorithm (n-1 is 5-smooth and a measured win; see
-// fft.RaderEligible). 17/257 exercise the power-of-two sub-FFT path,
-// 401/641/1601 the mixed-radix path.
-var raderTestPrimes = []int{17, 257, 401, 641, 1601}
+// fft.RaderEligible). 17/257 exercise the power-of-two sub-FFT path, the
+// rest the mixed-radix path with a codelet leaf (97 -> [3, 32],
+// 1153 -> [3, 3, 128], ...).
+var raderTestPrimes = []int{17, 97, 257, 401, 641, 769, 1153, 1601}
 
 // raderFallbackPrimes stay on Bluestein: either n-1 is not 5-smooth (23, 29,
-// 47, 1009) or the exact sub-FFT measured slower than the padded one (31, 97,
-// 151, 769).
-var raderFallbackPrimes = []int{23, 29, 31, 47, 97, 151, 769, 1009}
+// 47, 1009) or the exact sub-FFT measured slower than the padded one (31,
+// 101, 151, 251: power-of-two part of n-1 is <= 4).
+var raderFallbackPrimes = []int{23, 29, 31, 47, 101, 151, 251, 1009}
 
 func randomComplex64(n int, seed int64) []complex64 {
 	rng := rand.New(rand.NewSource(seed)) //nolint:gosec // deterministic test data
@@ -192,7 +193,7 @@ func TestRader_InverseMatchesReference(t *testing.T) {
 func TestRader_RoundTrip(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{4001, 12289, 40961, 65537} {
+	for _, n := range []int{3001, 4001, 12289, 40961, 65537} {
 		t.Run(itoa(n), func(t *testing.T) {
 			t.Parallel()
 
