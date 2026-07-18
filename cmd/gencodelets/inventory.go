@@ -197,7 +197,7 @@ by these tiers, in dispatch order:
    internal/fft/kernels_386_asm.go): SSE2/SSE3 kernels for sizes 2/4/8/16,
    including the size-16 radix-16 variant.
 3. **Pure-Go algorithm families** (internal/kernels, internal/transform):
-   DIT, Stockham, mixed-radix 2/3/5, Bluestein (arbitrary lengths),
+   DIT, Stockham, mixed-radix 2/3/5/7/11, Bluestein (arbitrary lengths),
    six-step/eight-step (large sizes), and recursive decomposition — both
    precisions, every platform, and the only tier under -tags purego.
 

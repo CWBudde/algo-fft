@@ -216,3 +216,53 @@ func TestHasCodelet(t *testing.T) {
 		t.Error("HasCodelet should return false when no codelets registered")
 	}
 }
+
+// TestMixedRadixEligible locks in the measured win gate for lengths with
+// factors 7/11 (see mixedRadix7And11Wins for the benchmark rationale).
+func TestMixedRadixEligible(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		n    int
+		want bool
+	}{
+		// Non-smooth lengths are never eligible.
+		{n: 13, want: false},
+		{n: 26, want: false},
+		{n: 1001, want: false},
+		// 5-smooth lengths are always eligible (incumbent behavior).
+		{n: 12, want: true},
+		{n: 15, want: true},
+		{n: 480, want: true},
+		// Factors 7/11 with power-of-two part >= 8: measured wins.
+		{n: 56, want: true},
+		{n: 448, want: true},
+		{n: 616, want: true},
+		{n: 704, want: true},
+		{n: 1344, want: true},
+		// Power-of-two part 2 or 4: measured losses, keep Bluestein.
+		{n: 14, want: false},
+		{n: 28, want: false},
+		{n: 308, want: false},
+		{n: 462, want: false},
+		{n: 924, want: false},
+		// Odd: eligible when the Bluestein pad is >= ~2.5n.
+		{n: 7, want: false},
+		{n: 11, want: true},
+		{n: 35, want: true},
+		{n: 63, want: false},
+		{n: 77, want: true},
+		{n: 121, want: false},
+		{n: 231, want: false},
+		{n: 385, want: true},
+		{n: 847, want: false},
+		{n: 2401, want: true},
+	}
+
+	for _, tt := range tests {
+		got := MixedRadixEligible(tt.n)
+		if got != tt.want {
+			t.Errorf("MixedRadixEligible(%d) = %v, want %v", tt.n, got, tt.want)
+		}
+	}
+}

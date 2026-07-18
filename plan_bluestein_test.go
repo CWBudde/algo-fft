@@ -78,8 +78,9 @@ func TestNewPlan_Bluestein_EdgeCases(t *testing.T) {
 func TestNewPlan_Bluestein(t *testing.T) {
 	t.Parallel()
 
-	// Prime lengths trigger Bluestein
-	primes := []int{7, 11, 13, 17}
+	// Prime lengths outside the mixed-radix radix set {2,3,5,7,11} trigger
+	// Bluestein (7 and 11 are now executed exactly by the mixed-radix engine).
+	primes := []int{13, 17, 19, 23}
 	for _, n := range primes {
 		t.Run("complex64_"+itoa(n), func(t *testing.T) {
 			t.Parallel()

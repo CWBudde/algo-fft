@@ -539,7 +539,8 @@ func (p *Plan[T]) validateSlices(dst, src []T) error {
 // NewPlanT creates a new FFT plan for the given size using the generic type T.
 // The size n can be any positive integer.
 // Power-of-2 sizes are most efficient.
-// Highly composite sizes (factors 2, 3, 5) use mixed-radix algorithms.
+// Highly composite sizes (factors 2, 3, 5) use mixed-radix algorithms, as do
+// sizes with factors 7/11 where that measures faster than Bluestein.
 // Prime sizes whose n-1 is 5-smooth use Rader's algorithm when it measures
 // faster; other primes and remaining sizes use Bluestein's algorithm
 // (Chirp-Z transform).

@@ -1,6 +1,8 @@
 package planner
 
 import (
+	"math/bits"
+
 	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
@@ -18,9 +20,70 @@ var ComputeBitReversalIndices = m.ComputeBitReversalIndices
 // Re-exported from internal/math.
 var IsPowerOf2 = m.IsPowerOf2
 
-// IsHighlyComposite checks if n can be efficiently factored for mixed-radix FFT.
+// IsHighlyComposite checks if n only contains 2, 3, or 5 factors.
 // Re-exported from internal/math.
 var IsHighlyComposite = m.IsHighlyComposite
+
+// IsMixedRadixSmooth checks if n can be executed exactly by the mixed-radix
+// engine (factors 2, 3, 5, 7, 11). Re-exported from internal/math.
+var IsMixedRadixSmooth = m.IsMixedRadixSmooth
+
+// maxExactLength mirrors the root package's maxBluesteinLength: beyond it the
+// Bluestein pad size 2n-1 is not representable, so the mixed-radix engine is
+// the only executable path for a smooth length and the win gate must not
+// exclude it (its 2n-1 arithmetic would also wrap).
+const maxExactLength = 1 << (bits.UintSize - 3)
+
+// MixedRadixEligible reports whether a non-power-of-two length should run on
+// the mixed-radix engine instead of Bluestein. All 5-smooth lengths qualify
+// (the engine has been the incumbent for them since mixed-radix landed).
+// Lengths with factors 7/11 qualify only where the engine measured faster
+// than Bluestein (see mixedRadix7And11Wins); the rest keep the Bluestein
+// routing they had before radix-7/11 existed.
+func MixedRadixEligible(n int) bool {
+	if !m.IsMixedRadixSmooth(n) {
+		return false
+	}
+
+	if m.IsHighlyComposite(n) {
+		return true
+	}
+
+	return mixedRadix7And11Wins(n)
+}
+
+// mixedRadix7And11Wins is the measured win gate for lengths containing
+// factors 7/11 (BenchmarkMixedRadix7And11VsBluestein, AVX2 amd64, both
+// precisions; the purego build measured mixed-radix ahead at every tested
+// shape, so this gate only forgoes small purego wins at the excluded shapes):
+//
+//   - power-of-two part >= 8 wins 1.3-6x at every size (56 ... 14080): the
+//     schedule strips the odd factors first and lands the pow2 part in
+//     radix-8 passes or a tuned codelet leaf;
+//   - power-of-two part 2 or 4 measured as losses (14, 22, 28, 44, 308, 462,
+//     924): the strided radix-2/4 tail stages dominate, as they did for the
+//     Rader gate (see raderConvolutionWins);
+//   - odd lengths win when Bluestein's padded power-of-two sub-FFT is
+//     >= ~2.5n (11, 33, 35, 49, 77, 165, 385, 539, 693, 1155, 2401 at
+//     1.2-3.4x) and wash or lose below that (7, 55, 63, 105, 121, 231, 847),
+//     where the ~2x pad lands on an unusually effective codelet.
+func mixedRadix7And11Wins(n int) bool {
+	if n > maxExactLength {
+		return true
+	}
+
+	pow2 := n & -n
+	if pow2 >= 8 {
+		return true
+	}
+
+	if pow2 > 1 {
+		return false
+	}
+
+	// Odd: Bluestein pads to the next power of two >= 2n-1; require pad >= 2.5n.
+	return 2*m.NextPowerOfTwo(2*n-1) >= 5*n
+}
 
 // CPU-feature bit positions used by the wisdom cache key. The layout is part of
 // the persisted wisdom format (version 2); changing it requires a format bump.

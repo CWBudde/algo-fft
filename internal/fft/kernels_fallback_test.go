@@ -1,6 +1,7 @@
 package fft
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
@@ -165,11 +166,13 @@ func TestAutoKernelComplex64_MixedRadix(t *testing.T) {
 func TestAutoKernelComplex64_NonComposite(t *testing.T) {
 	t.Parallel()
 
-	// Prime numbers and non-highly-composite non-power-of-2 sizes
-	sizes := []int{7, 11, 13, 17}
+	// Primes outside the mixed-radix radix set {2,3,5,7,11} and other
+	// non-smooth non-power-of-2 sizes must decline so the plan layer routes
+	// them to Bluestein.
+	sizes := []int{13, 17, 19, 26}
 
 	for _, size := range sizes {
-		t.Run("NonComposite_"+string(rune(size)), func(t *testing.T) {
+		t.Run("NonComposite_"+strconv.Itoa(size), func(t *testing.T) {
 			t.Parallel()
 
 			input := make([]complex64, size)
@@ -247,7 +250,7 @@ func TestAutoKernelComplex128(t *testing.T) {
 func TestAutoKernelComplex128_NonComposite(t *testing.T) {
 	t.Parallel()
 
-	size := 7 // Prime number
+	size := 13 // Prime outside the mixed-radix radix set {2,3,5,7,11}
 
 	input := make([]complex128, size)
 	for i := range input {
@@ -263,12 +266,12 @@ func TestAutoKernelComplex128_NonComposite(t *testing.T) {
 	// Should fail for prime size
 	ok := kernels.Forward(output, input, twiddle, scratch)
 	if ok {
-		t.Error("autoKernelComplex128 should fail for prime size 7, but succeeded")
+		t.Error("autoKernelComplex128 should fail for prime size 13, but succeeded")
 	}
 
 	ok = kernels.Inverse(output, input, twiddle, scratch)
 	if ok {
-		t.Error("autoKernelComplex128 inverse should fail for prime size 7, but succeeded")
+		t.Error("autoKernelComplex128 inverse should fail for prime size 13, but succeeded")
 	}
 }
 

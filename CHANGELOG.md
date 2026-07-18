@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Radix-7 and radix-11 butterflies for the mixed-radix engine: lengths with
+  factors 7/11 (e.g. 448, 704, 1344) run exactly instead of through
+  Bluestein wherever that measured faster — 1.3–6× on AVX2 for shapes with
+  power-of-two part ≥ 8 and 1.2–3.4× for odd shapes whose Bluestein pad is
+  ≥ ~2.5n, and every tested shape on `purego`; shapes that measured as
+  losses keep their previous Bluestein routing
+
 ### Changed
 
 - Bluestein plans run their padded sub-FFT through the size-dispatched DIT

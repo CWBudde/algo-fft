@@ -56,7 +56,7 @@ var (
 
 // codeletSchedulable64/128 report whether the installed recursion driver can
 // execute a composite radix of the given size directly via a codelet. The
-// pure Go driver only knows radices 2/3/4/5/8, so scheduling any larger radix
+// pure Go driver only knows radices 2/3/4/5/7/8/11, so scheduling any larger radix
 // would panic at transform time (its butterfly switch treats unknown radices
 // as a scheduler/driver contract violation). SIMD builds (mixedradix_avx2.go)
 // override these with a predicate matching exactly what their recursion hook
@@ -214,6 +214,16 @@ func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet fun
 		case n%5 == 0:
 			radices[count] = 5
 			n /= 5
+		case n%7 == 0:
+			// Factors 7 and 11 are stripped unconditionally, like 5: they
+			// must come off before the power-of-two cases below can claim the
+			// remainder, and pulling them ahead of the pow2 part keeps that
+			// part intact for the per-step codelet check above.
+			radices[count] = 7
+			n /= 7
+		case n%11 == 0:
+			radices[count] = 11
+			n /= 11
 		case oddFirst && n%3 == 0:
 			// Strip the factors of 3 before the powers of two so the
 			// power-of-two part stays intact until the codelet check above
@@ -390,6 +400,50 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			dst[2*span+k] = y2
 			dst[3*span+k] = y3
 			dst[4*span+k] = y4
+		case 7:
+			var a [7]complex64
+
+			a[0] = input[k]
+			for j := 1; j < 7; j++ {
+				w := twiddle[j*k*step]
+				if inverse {
+					w = conj(w)
+				}
+
+				a[j] = w * input[j*span+k]
+			}
+
+			if inverse {
+				kernels.Butterfly7InverseComplex64(&a)
+			} else {
+				kernels.Butterfly7ForwardComplex64(&a)
+			}
+
+			for j := range 7 {
+				dst[j*span+k] = a[j]
+			}
+		case 11:
+			var a [11]complex64
+
+			a[0] = input[k]
+			for j := 1; j < 11; j++ {
+				w := twiddle[j*k*step]
+				if inverse {
+					w = conj(w)
+				}
+
+				a[j] = w * input[j*span+k]
+			}
+
+			if inverse {
+				kernels.Butterfly11InverseComplex64(&a)
+			} else {
+				kernels.Butterfly11ForwardComplex64(&a)
+			}
+
+			for j := range 11 {
+				dst[j*span+k] = a[j]
+			}
 		case 8:
 			w1 := twiddle[k*step]
 			w2 := twiddle[2*k*step]
@@ -568,6 +622,50 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			dst[2*span+k] = y2
 			dst[3*span+k] = y3
 			dst[4*span+k] = y4
+		case 7:
+			var a [7]complex128
+
+			a[0] = input[k]
+			for j := 1; j < 7; j++ {
+				w := twiddle[j*k*step]
+				if inverse {
+					w = conj(w)
+				}
+
+				a[j] = w * input[j*span+k]
+			}
+
+			if inverse {
+				kernels.Butterfly7InverseComplex128(&a)
+			} else {
+				kernels.Butterfly7ForwardComplex128(&a)
+			}
+
+			for j := range 7 {
+				dst[j*span+k] = a[j]
+			}
+		case 11:
+			var a [11]complex128
+
+			a[0] = input[k]
+			for j := 1; j < 11; j++ {
+				w := twiddle[j*k*step]
+				if inverse {
+					w = conj(w)
+				}
+
+				a[j] = w * input[j*span+k]
+			}
+
+			if inverse {
+				kernels.Butterfly11InverseComplex128(&a)
+			} else {
+				kernels.Butterfly11ForwardComplex128(&a)
+			}
+
+			for j := range 11 {
+				dst[j*span+k] = a[j]
+			}
 		case 8:
 			w1 := twiddle[k*step]
 			w2 := twiddle[2*k*step]
