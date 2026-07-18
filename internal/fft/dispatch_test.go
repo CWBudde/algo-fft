@@ -558,44 +558,13 @@ func TestConjugatePackedTwiddles(t *testing.T) {
 	})
 }
 
-// TestComputeSquareTransposePairs tests transpose pair computation.
-func TestComputeSquareTransposePairs(t *testing.T) {
-	t.Parallel()
-
-	sizes := []int{2, 4, 8, 16}
-
-	for _, n := range sizes {
-		pairs := ComputeSquareTransposePairs(n)
-
-		// For n×n matrix, we expect at most (n²-n)/2 swaps
-		maxPairs := (n*n - n) / 2
-		if len(pairs) > maxPairs {
-			t.Errorf("n=%d: too many pairs: got %d, max %d", n, len(pairs), maxPairs)
-		}
-
-		// Verify no duplicate pairs
-		seen := make(map[int]bool)
-
-		for _, pair := range pairs {
-			if pair.I == pair.J {
-				t.Errorf("n=%d: self-swap at index %d", n, pair.I)
-			}
-
-			if seen[pair.I] && seen[pair.J] {
-				t.Errorf("n=%d: duplicate pair (%d, %d)", n, pair.I, pair.J)
-			}
-
-			seen[pair.I] = true
-			seen[pair.J] = true
-		}
-	}
-}
-
-// TestApplyTransposePairs tests transpose application.
-func TestApplyTransposePairs(t *testing.T) {
+// TestTransposeSquare tests the re-exported in-place transpose.
+func TestTransposeSquare(t *testing.T) {
 	t.Parallel()
 
 	t.Run("complex64", func(t *testing.T) {
+		t.Parallel()
+
 		n := 4
 
 		data := make([]complex64, n*n)
@@ -607,8 +576,7 @@ func TestApplyTransposePairs(t *testing.T) {
 		original := make([]complex64, len(data))
 		copy(original, data)
 
-		pairs := ComputeSquareTransposePairs(n)
-		ApplyTransposePairs(data, pairs)
+		TransposeSquare(data, n)
 
 		// Verify transpose: data[i*n+j] should equal original[j*n+i]
 		for i := range n {
@@ -625,6 +593,8 @@ func TestApplyTransposePairs(t *testing.T) {
 	})
 
 	t.Run("complex128", func(t *testing.T) {
+		t.Parallel()
+
 		n := 4
 
 		data := make([]complex128, n*n)
@@ -635,8 +605,7 @@ func TestApplyTransposePairs(t *testing.T) {
 		original := make([]complex128, len(data))
 		copy(original, data)
 
-		pairs := ComputeSquareTransposePairs(n)
-		ApplyTransposePairs(data, pairs)
+		TransposeSquare(data, n)
 
 		for i := range n {
 			for j := range n {

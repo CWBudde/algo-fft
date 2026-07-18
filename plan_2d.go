@@ -27,9 +27,6 @@ type Plan2D[T Complex] struct {
 
 	// scratch hands out per-call working buffers for thread-safety.
 	scratch *residentCache[plan2DScratch[T]]
-
-	// Transpose support for square matrices
-	transposePairs []fft.TransposePair
 }
 
 // plan2DScratch is one per-call scratch set for Plan2D transforms.
@@ -99,11 +96,6 @@ func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[
 		colPlan: colPlan,
 		scratch: newPlan2DScratchCache[T](rows, cols),
 		options: opts,
-	}
-
-	// Pre-compute transpose pairs for square matrices (optimization)
-	if rows == cols {
-		p.transposePairs = fft.ComputeSquareTransposePairs(rows)
 	}
 
 	return p, nil
@@ -234,17 +226,16 @@ func (p *Plan2D[T]) InverseInPlace(data []T) error {
 //
 // A single Plan2D is already safe for concurrent transforms, so cloning is
 // not required for concurrency; it remains available for callers that want
-// isolated scratch caches. The clone shares immutable data (transpose pairs)
-// and the concurrency-safe 1D child plans, but has its own scratch cache.
+// isolated scratch caches. The clone shares the concurrency-safe 1D child
+// plans, but has its own scratch cache.
 func (p *Plan2D[T]) Clone() *Plan2D[T] {
 	return &Plan2D[T]{
-		rows:           p.rows,
-		cols:           p.cols,
-		rowPlan:        p.rowPlan,
-		colPlan:        p.colPlan,
-		scratch:        newPlan2DScratchCache[T](p.rows, p.cols),
-		transposePairs: p.transposePairs, // Shared (immutable)
-		options:        p.options,
+		rows:    p.rows,
+		cols:    p.cols,
+		rowPlan: p.rowPlan,
+		colPlan: p.colPlan,
+		scratch: newPlan2DScratchCache[T](p.rows, p.cols),
+		options: p.options,
 	}
 }
 
@@ -271,7 +262,7 @@ func (p *Plan2D[T]) validate(dst, src []T) error {
 // This is more cache-friendly than strided access.
 func (p *Plan2D[T]) transformColumnsViaTranspose(data []T, forward bool) {
 	// Transpose: columns become rows
-	fft.ApplyTransposePairs(data, p.transposePairs)
+	fft.TransposeSquare(data, p.rows)
 
 	// Transform each column (now a row)
 	for row := range p.rows {
@@ -284,7 +275,7 @@ func (p *Plan2D[T]) transformColumnsViaTranspose(data []T, forward bool) {
 	}
 
 	// Transpose back
-	fft.ApplyTransposePairs(data, p.transposePairs)
+	fft.TransposeSquare(data, p.rows)
 }
 
 // transformColumnsStrided transforms columns using strided access for non-square matrices.
