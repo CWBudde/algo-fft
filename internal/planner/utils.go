@@ -81,8 +81,15 @@ func mixedRadix7And11Wins(n int) bool {
 		return false
 	}
 
-	// Odd: Bluestein pads to the next power of two >= 2n-1; require pad >= 2.5n.
-	return 2*m.NextPowerOfTwo(2*n-1) >= 5*n
+	// Odd: Bluestein pads to the next power of two >= 2n-1; require
+	// pad >= 2.5n. With n odd this is exactly pad-2n >= (n+1)/2, phrased so
+	// no intermediate exceeds 2^(UintSize-2): the direct 2*pad and 5*n forms
+	// overflow 32-bit int for n near maxExactLength and could flip the
+	// comparison. pad-2n >= -1 always (pad >= 2n-1), so the left side is
+	// safe too.
+	pad := m.NextPowerOfTwo(2*n - 1)
+
+	return pad-2*n >= (n+1)/2
 }
 
 // CPU-feature bit positions used by the wisdom cache key. The layout is part of
