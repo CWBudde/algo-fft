@@ -162,3 +162,38 @@ func TestIsHighlyComposite(t *testing.T) {
 		}
 	}
 }
+
+func TestIsMixedRadixSmooth(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		n    int
+		want bool
+	}{
+		{n: -5, want: false},
+		{n: 0, want: false},
+		{n: 1, want: true},
+		{n: 7, want: true},
+		{n: 11, want: true},
+		{n: 14, want: true},
+		{n: 49, want: true},
+		{n: 77, want: true},
+		{n: 121, want: true},
+		{n: 448, want: true},
+		{n: 704, want: true},
+		{n: 1344, want: true},
+		{n: 2310, want: true}, // 2·3·5·7·11
+		{n: 30, want: true},   // 5-smooth stays smooth
+		{n: 13, want: false},
+		{n: 26, want: false},
+		{n: 91, want: false},   // 7·13
+		{n: 1001, want: false}, // 7·11·13
+	}
+
+	for _, tt := range tests {
+		got := IsMixedRadixSmooth(tt.n)
+		if got != tt.want {
+			t.Errorf("IsMixedRadixSmooth(%d) = %v, want %v", tt.n, got, tt.want)
+		}
+	}
+}

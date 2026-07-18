@@ -191,11 +191,29 @@ references are to the current tree.
       symmetry in the padded convolution to close the ~2× gap vs a
       hypothetical packed odd-length method; the 2D/3D real plans still
       require even width (their row/column packing is a separate item).
-- [ ] **Radix-7 / radix-11 butterflies for the mixed-radix engine.** Extends
-      exact (non-Bluestein) coverage from 2^a·3^b·5^c to include factors 7
-      and 11 (e.g. 448, 704, 1344, common in audio/comms block sizes).
-      Butterfly count grows quickly with radix, so gate on a demonstrated
-      win vs Bluestein at representative sizes before landing.
+- [x] **Radix-7 / radix-11 butterflies for the mixed-radix engine.**
+      _(2026-07)_ Full-matrix DFT butterflies with precomputed coefficient
+      tables landed in `internal/kernels/radix{7,11}.go` (both precisions,
+      forward + conjugate-inverse tables); the scheduler strips factors 7/11
+      unconditionally (like 5, keeping the pow2 part intact for codelet
+      leaves) and both recursion drivers execute them. Extends exact
+      (non-Bluestein) coverage from 2^a·3^b·5^c to 2^a·3^b·5^c·7^d·11^e —
+      but only where measured faster: routing goes through the new
+      `planner.MixedRadixEligible` win gate
+      (`BenchmarkMixedRadix7And11VsBluestein`, both precisions, both builds).
+      On AVX2, shapes with power-of-two part ≥ 8 win 1.3–6× (448: 3.3×,
+      704: 2.6×, 1344: 4.8×, 3584–14080: 4–6×), odd shapes win 1.2–3.4× when
+      Bluestein's pad is ≥ ~2.5n (11, 33, 35, 49, 77, 385, 539, 693, 1155,
+      2401); on purego every tested shape won (1.1–4.7×). Shapes that
+      measured as losses on AVX2 — pow2 part 2/4 (14, 28, 308, 462, 924:
+      strided radix-2/4 tails, same pattern as the Rader gate) and odd with
+      pad < 2.5n (7, 63, 121, 231, 847: the ~2× pad lands on an unusually
+      fast codelet) — keep their previous Bluestein routing, so nothing
+      regresses. Zero-alloc preserved (`TestMixedRadix7And11_ZeroAlloc`),
+      verified vs `reference.NaiveDFT` + round-trip + in-place at 28 sizes.
+      Follow-ups: extend `RaderEligible` to primes with 7/11-smooth p−1
+      (needs its own benchmark pass), and revisit the gated-out shapes if
+      the odd butterflies get SIMD kernels.
 
 ### P4.2 SIMD depth & breadth
 

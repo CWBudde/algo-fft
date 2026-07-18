@@ -5,7 +5,8 @@ import "errors"
 // Sentinel errors returned by FFT operations.
 var (
 	// ErrInvalidLength is returned when the FFT size is not valid.
-	// Supported sizes include powers of two and lengths factored by 2, 3, or 5.
+	// Supported sizes include powers of two and lengths factored by
+	// 2, 3, 5, 7, or 11.
 	// Mixed-radix and Bluestein algorithms extend supported sizes further.
 	ErrInvalidLength = errors.New("algo-fft: invalid FFT length")
 

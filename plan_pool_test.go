@@ -156,12 +156,12 @@ func TestPlanPooled_InvalidLength(t *testing.T) {
 }
 
 // TestPlanPooled_BluesteinFallback locks in the pooled constructor's length
-// contract matching NewPlanT: sizes that need Bluestein (here 98 = 2·7²) are
+// contract matching NewPlanT: sizes that need Bluestein (here 338 = 2·13²) are
 // accepted and served by the regular allocator instead of being rejected.
 func TestPlanPooled_BluesteinFallback(t *testing.T) {
 	t.Parallel()
 
-	const n = 98
+	const n = 338
 
 	plan, err := NewPlanPooled[complex64](n)
 	if err != nil {

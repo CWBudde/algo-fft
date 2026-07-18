@@ -36,7 +36,7 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 	return Kernels[complex64]{
 		Forward: func(dst, src, twiddle, scratch []complex64) bool {
 			if !m.IsPowerOf2(len(src)) {
-				if m.IsHighlyComposite(len(src)) {
+				if m.IsMixedRadixSmooth(len(src)) {
 					return forwardMixedRadixComplex64(dst, src, twiddle, scratch)
 				}
 
@@ -60,7 +60,7 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 		},
 		Inverse: func(dst, src, twiddle, scratch []complex64) bool {
 			if !m.IsPowerOf2(len(src)) {
-				if m.IsHighlyComposite(len(src)) {
+				if m.IsMixedRadixSmooth(len(src)) {
 					return inverseMixedRadixComplex64(dst, src, twiddle, scratch)
 				}
 
@@ -89,7 +89,7 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 	return Kernels[complex128]{
 		Forward: func(dst, src, twiddle, scratch []complex128) bool {
 			if !m.IsPowerOf2(len(src)) {
-				if m.IsHighlyComposite(len(src)) {
+				if m.IsMixedRadixSmooth(len(src)) {
 					return forwardMixedRadixComplex128(dst, src, twiddle, scratch)
 				}
 
@@ -113,7 +113,7 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 		},
 		Inverse: func(dst, src, twiddle, scratch []complex128) bool {
 			if !m.IsPowerOf2(len(src)) {
-				if m.IsHighlyComposite(len(src)) {
+				if m.IsMixedRadixSmooth(len(src)) {
 					return inverseMixedRadixComplex128(dst, src, twiddle, scratch)
 				}
 

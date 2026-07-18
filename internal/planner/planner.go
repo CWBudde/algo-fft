@@ -49,7 +49,7 @@ func EstimatePlan[T Complex](
 	}
 
 	// For Bluestein, there are no codelets
-	if !IsPowerOf2(n) && !IsHighlyComposite(n) {
+	if !IsPowerOf2(n) && !MixedRadixEligible(n) {
 		return PlanEstimate[T]{
 			Strategy:  KernelBluestein,
 			Algorithm: algoBluestein,

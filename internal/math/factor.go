@@ -112,3 +112,39 @@ func IsHighlyComposite(n int) bool {
 
 	return n == 1
 }
+
+// IsMixedRadixSmooth reports whether n only contains 2, 3, 5, 7, or 11
+// factors — exactly the radices the mixed-radix engine can execute without
+// falling back to Bluestein. IsHighlyComposite (5-smooth) remains the
+// predicate for contexts where factors 7/11 are not acceptable, such as
+// Bluestein pad sizes and Rader sub-FFT lengths.
+//
+// Like IsHighlyComposite, it divides factors out in place so it stays
+// allocation-free on the per-transform dispatch hot path.
+func IsMixedRadixSmooth(n int) bool {
+	if n <= 0 {
+		return false
+	}
+
+	for n%2 == 0 {
+		n /= 2
+	}
+
+	for n%3 == 0 {
+		n /= 3
+	}
+
+	for n%5 == 0 {
+		n /= 5
+	}
+
+	for n%7 == 0 {
+		n /= 7
+	}
+
+	for n%11 == 0 {
+		n /= 11
+	}
+
+	return n == 1
+}
