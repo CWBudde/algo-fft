@@ -54,9 +54,7 @@ func eightStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 		copy(dst, src)
 	}
 
-	// Use shared transpose logic for correctness
-	pairs := math.ComputeSquareTransposePairs(m)
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	rowTwiddle := scratch[:m]
 	rowScratch := scratch[m : 2*m]
@@ -69,7 +67,7 @@ func eightStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 		}
 	}
 
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	for i := range m {
 		for j := range m {
@@ -84,7 +82,7 @@ func eightStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 		}
 	}
 
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	return true
 }
@@ -119,8 +117,7 @@ func eightStepInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 		copy(dst, src)
 	}
 
-	pairs := math.ComputeSquareTransposePairs(m)
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	rowTwiddle := scratch[:m]
 	rowScratch := scratch[m : 2*m]
@@ -133,7 +130,7 @@ func eightStepInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 		}
 	}
 
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	for i := range m {
 		for j := range m {
@@ -148,7 +145,7 @@ func eightStepInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 		}
 	}
 
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	return true
 }

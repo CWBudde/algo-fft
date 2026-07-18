@@ -269,15 +269,24 @@ references are to the current tree.
 
 ### P4.3 Memory & cache
 
-- [ ] **Cache-blocked transpose for six-step/eight-step.**
-      `internal/math/transpose.go` materializes an O(n²) swap-pair slice per
-      matrix size (cached forever, ~storage of the matrix itself) and walks
-      it in an order with no cache blocking. Replace with a tiled in-place
-      transpose (e.g. 8×8 blocks, recursing or looping over tiles) — no
-      index table at all, better locality, less resident memory. This
-      directly speeds the six-step/eight-step large-size paths and the 2D
-      plans. Follow up with a SIMD 8×8 complex tile kernel (AVX2
-      `VPERM2F128`/`VUNPCK` pattern, NEON `TRN1/TRN2`).
+- [x] **Cache-blocked transpose for six-step/eight-step.** _(2026-07)_ The
+      O(n²) swap-pair index table (cached forever per size) is gone;
+      `math.TransposeSquare` (`internal/math/transpose.go`) transposes in
+      place with a tiled walk — no index table, no permanent cache, works
+      for any n. Tile edge 8 was chosen by sweep
+      (`BenchmarkTransposeSquareBlockSize`): small tiles keep the strided
+      stream within the TLB/L1 (16+ falls off a cliff beyond 512²); n ≤ 32
+      uses an unblocked walk (whole matrix fits L1). Transpose
+      micro-benchmark: −70…−82% at 128²…1024², both precisions. End-to-end:
+      generic six-step/eight-step (`internal/kernels`) −10…−23% at
+      n ≥ 65536 (geomean −12.8%, `BenchmarkSixStepComplex64/128`), square
+      `Plan2D` 128²…512² −30…−42% (geomean −34.6%); zero-alloc preserved.
+      The split-radix auto-rule revisit ran: six-step gained but split-radix
+      still wins 1.2–1.6× at 2^18/2^20 pow2 squares, so the P4.1 rule
+      stands (comment updated in `internal/planner/selection.go`).
+      Remaining follow-up: SIMD 8×8 complex tile kernel (AVX2
+      `VPERM2F128`/`VUNPCK` pattern, NEON `TRN1/TRN2`) for a further
+      constant-factor win.
 - [ ] **Cache-blocked variants above L2.** For n where the working set
       exceeds L2 (≳2¹⁸ complex64), evaluate four-step/six-step with
       block sizes chosen from detected cache sizes (extend `internal/cpu`

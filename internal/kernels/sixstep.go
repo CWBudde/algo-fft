@@ -56,8 +56,7 @@ func sixStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 		copy(dst, src)
 	}
 
-	pairs := math.ComputeSquareTransposePairs(m)
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	rowTwiddle := scratch[:m]
 	rowScratch := scratch[m : 2*m]
@@ -70,7 +69,7 @@ func sixStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 		}
 	}
 
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	for i := range m {
 		for j := range m {
@@ -85,7 +84,7 @@ func sixStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 		}
 	}
 
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	return true
 }
@@ -120,8 +119,7 @@ func sixStepInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 		copy(dst, src)
 	}
 
-	pairs := math.ComputeSquareTransposePairs(m)
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	rowTwiddle := scratch[:m]
 	rowScratch := scratch[m : 2*m]
@@ -134,7 +132,7 @@ func sixStepInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 		}
 	}
 
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	for i := range m {
 		for j := range m {
@@ -149,7 +147,7 @@ func sixStepInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 		}
 	}
 
-	math.ApplyTransposePairs(data, pairs)
+	math.TransposeSquare(data, m)
 
 	return true
 }

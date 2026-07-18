@@ -112,15 +112,10 @@ func InverseStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *Pa
 	return transform.InverseStockhamPacked[T](dst, src, twiddle, scratch, packed)
 }
 
-// Re-export transpose types and functions from internal/math.
-type TransposePair = math.TransposePair
-
-func ComputeSquareTransposePairs(n int) []TransposePair {
-	return math.ComputeSquareTransposePairs(n)
-}
-
-func ApplyTransposePairs[T any](data []T, pairs []TransposePair) {
-	math.ApplyTransposePairs(data, pairs)
+// TransposeSquare re-exports the cache-blocked in-place square transpose
+// from internal/math.
+func TransposeSquare[T any](data []T, n int) {
+	math.TransposeSquare(data, n)
 }
 
 // Kernel and Kernels types are now imported from internal/kernels via kernels.go
