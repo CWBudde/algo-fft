@@ -327,13 +327,26 @@ references are to the current tree.
 
 ### P4.5 DSP-layer optimizations
 
-- [ ] **Fast-size padding for one-shot convolution/correlation.**
-      `convolveT` (`convolve.go`) plans at exactly `len(a)+len(b)-1` — a
-      prime `convLen` silently pays full Bluestein cost. Linear convolution
-      only needs a cyclic length ≥ convLen, so pad to the next 5-smooth
-      (or power-of-two) size and truncate. Applies to `Convolve`,
-      `Correlate`, `CrossCorrelate`, `AutoCorrelate`, the real variants,
-      and the plan-reuse `Convolver`/`Correlator` types.
+- [x] **Fast-size padding for one-shot convolution/correlation.** _(2026-07)_
+      `fastConvolutionLength` (`convolve.go`) frees the FFT size from the
+      awkward lengths convolution produces: lengths the engine executes
+      exactly (powers of two, gated mixed-radix smooth) are kept — padding
+      those is not a measured purego win — while anything that would route
+      to Rader/Bluestein is padded to the next fast size and the result
+      truncated to convLen. Pad candidates are costed exactly like
+      `bluesteinPadSize` (pow2 vs next 5-smooth with the measured
+      mixed-radix penalty, i.e. pow2 wins under the current constant).
+      Wired through `convolveT` and `Convolver` (which `Correlate`/
+      `CrossCorrelate`/`AutoCorrelate`/`Correlator` ride); the real
+      variants already padded to the next power of two. Measured
+      (Bluestein/Rader-routed convLen 127…4001, both builds): one-shot
+      `Convolve` −70…−85% on AVX2 and −70…−78% on purego, with the
+      Rader-routed lengths also winning (257: −34% AVX2 / −15% purego;
+      4001: −74% / −70%); steady-state `Convolver` at prime convLen 1009
+      −91.5% (AVX2) / −78% (purego). `ConvolveReal` unchanged. Zero-alloc
+      steady state preserved (`TestConvolver_ZeroAllocSteadyStatePadded`);
+      correctness pinned vs naive convolution at prime and Rader-eligible
+      lengths, plus a `fastConvolutionLength` invariant sweep.
 - [ ] **Buffer reuse in one-shot DSP helpers.** The one-shots allocate 5
       temporaries per call; route them through the pooled resident-cache
       scratch (as `Convolver` already does) so casual users get most of the

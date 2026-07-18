@@ -15,6 +15,7 @@ import (
 type Convolver[T Complex] struct {
 	lenA, lenB int
 	convLen    int
+	fftLen     int
 	plan       *Plan[T]
 	scratch    *residentCache[convolverScratch[T]]
 }
@@ -39,8 +40,9 @@ func NewConvolver[T Complex](lenA, lenB int) (*Convolver[T], error) {
 	}
 
 	convLen := lenA + lenB - 1
+	fftLen := fastConvolutionLength(convLen)
 
-	plan, err := NewPlanT[T](convLen)
+	plan, err := NewPlanT[T](fftLen)
 	if err != nil {
 		return nil, err
 	}
@@ -49,19 +51,20 @@ func NewConvolver[T Complex](lenA, lenB int) (*Convolver[T], error) {
 		lenA:    lenA,
 		lenB:    lenB,
 		convLen: convLen,
+		fftLen:  fftLen,
 		plan:    plan,
-		scratch: newConvolverScratchCache[T](convLen),
+		scratch: newConvolverScratchCache[T](fftLen),
 	}, nil
 }
 
-func newConvolverScratchCache[T Complex](convLen int) *residentCache[convolverScratch[T]] {
+func newConvolverScratchCache[T Complex](fftLen int) *residentCache[convolverScratch[T]] {
 	return newResidentCache(func() *convolverScratch[T] {
 		return &convolverScratch[T]{
-			aPadded: make([]T, convLen),
-			bPadded: make([]T, convLen),
-			aFreq:   make([]T, convLen),
-			bFreq:   make([]T, convLen),
-			time:    make([]T, convLen),
+			aPadded: make([]T, fftLen),
+			bPadded: make([]T, fftLen),
+			aFreq:   make([]T, fftLen),
+			bFreq:   make([]T, fftLen),
+			time:    make([]T, fftLen),
 		}
 	})
 }
@@ -105,7 +108,7 @@ func (c *Convolver[T]) Convolve(dst, a, b []T) error {
 		return err
 	}
 
-	copy(dst, s.time)
+	copy(dst, s.time[:c.convLen])
 
 	return nil
 }
