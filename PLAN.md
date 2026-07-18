@@ -172,12 +172,25 @@ references are to the current tree.
       precisions (complex64 −11…−34%), zero-alloc preserved. Benefits
       purego, SSE-only amd64, and arm64 builds — the paths without a
       codelet chain.
-- [ ] **Real-FFT for odd/multi-factor lengths + real-input Bluestein.**
-      `NewPlanRealT` requires even n (pack method). Odd/arbitrary lengths
-      currently force users through the complex path at 2× memory and flops.
-      Support odd n via the complex fallback internally first, then evaluate
-      a real-input Bluestein that exploits conjugate symmetry in the padded
-      convolution.
+- [x] **Real-FFT for odd/multi-factor lengths.** _(2026-07)_ `NewPlanRealT`
+      (and the `NewPlanReal*` constructors) now accept any n ≥ 2: even
+      lengths keep the packed half-size method unchanged; odd lengths run an
+      internal full-size complex FFT fallback (`plan_real_odd.go`) — forward
+      widens the real input and keeps the n/2+1 non-redundant bins, inverse
+      rebuilds the full Hermitian spectrum before the complex inverse, with
+      DC-only spectrum validation (odd n has no Nyquist bin). Works for every
+      length the complex planner supports (mixed-radix, Bluestein, Rader);
+      zero-alloc in steady state (`AllocsPerRun` guard at n=105), batch/
+      stride and `Clone` supported, verified forward-vs-`reference.NaiveDFT`
+      and round-trip at both precisions across primes/5-smooth/prime-power
+      odd sizes. Multi-factor even lengths already worked (the half-size
+      child plan handles arbitrary sizes). `BenchmarkPlanRealForwardOdd`
+      shows the fallback tracks the same-size complex plan's cost, i.e. the
+      users' previous manual workaround minus the copies. Remaining
+      follow-up: evaluate a real-input Bluestein that exploits conjugate
+      symmetry in the padded convolution to close the ~2× gap vs a
+      hypothetical packed odd-length method; the 2D/3D real plans still
+      require even width (their row/column packing is a separate item).
 - [ ] **Radix-7 / radix-11 butterflies for the mixed-radix engine.** Extends
       exact (non-Bluestein) coverage from 2^a·3^b·5^c to include factors 7
       and 11 (e.g. 448, 704, 1344, common in audio/comms block sizes).

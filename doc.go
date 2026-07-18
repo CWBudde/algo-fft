@@ -101,7 +101,9 @@
 //
 // The output contains only the non-redundant half of the spectrum due to
 // conjugate symmetry of real signals: X[k] = conj(X[N-k]) for k = 1..N/2-1.
-// Index 0 is DC, index N/2 is Nyquist (purely real for even N).
+// Index 0 is DC, index N/2 is Nyquist (purely real for even N; odd lengths
+// have no Nyquist bin). Even lengths use the packed half-size method; odd
+// lengths are supported via an internal full-size complex FFT fallback.
 //
 // Precision note: real FFT round-trips use float32 arithmetic. Expect small
 // absolute errors (around 1e-3 in typical tests) depending on size and input.
