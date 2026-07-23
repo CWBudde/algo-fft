@@ -3,6 +3,7 @@ package algofft
 import (
 	"errors"
 	"math/cmplx"
+	"strconv"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/fft"
@@ -81,7 +82,7 @@ func TestBluestein_SmoothPadMatchesReference(t *testing.T) {
 			t.Fatalf("bad test case n=%d m=%d", tc.n, tc.m)
 		}
 
-		t.Run("complex128_"+itoa(tc.n), func(t *testing.T) {
+		t.Run("complex128_"+strconv.Itoa(tc.n), func(t *testing.T) {
 			t.Parallel()
 
 			scratch := make([]complex128, tc.m)
@@ -159,7 +160,7 @@ func TestBluestein_LargePrimesMatchReference(t *testing.T) {
 
 		ref := reference.NaiveDFT128(src128)
 
-		t.Run("complex64_"+itoa(n), func(t *testing.T) {
+		t.Run("complex64_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex64](n)
@@ -187,7 +188,7 @@ func TestBluestein_LargePrimesMatchReference(t *testing.T) {
 			}
 		})
 
-		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+		t.Run("complex128_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex128](n)

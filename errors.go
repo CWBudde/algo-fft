@@ -25,7 +25,9 @@ var (
 	// expected symmetry constraints (e.g., non-real DC or Nyquist bins).
 	ErrInvalidSpectrum = errors.New("algo-fft: invalid spectrum")
 
-	// ErrNotImplemented is returned for features that are not yet implemented.
-	// This is a temporary error used during development.
+	// ErrNotImplemented is returned by constructors when the requested
+	// configuration has no implementation (e.g. NewFastPlan for a size
+	// without a registered codelet). Transform methods never return it: plan
+	// construction either builds a working executor or fails.
 	ErrNotImplemented = errors.New("algo-fft: not implemented")
 )

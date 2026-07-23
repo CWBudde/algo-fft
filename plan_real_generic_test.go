@@ -3,6 +3,7 @@ package algofft
 import (
 	"math"
 	"math/cmplx"
+	"strconv"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/reference"
@@ -15,7 +16,7 @@ func TestPlanReal64_Correctness(t *testing.T) {
 	sizes := []int{16, 32, 64, 128, 256}
 
 	for _, n := range sizes {
-		t.Run("Size"+itoa(n), func(t *testing.T) {
+		t.Run("Size"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlanReal64(n)
@@ -57,7 +58,7 @@ func TestPlanReal64_RoundTrip(t *testing.T) {
 	sizes := []int{16, 32, 64, 128, 256, 1024}
 
 	for _, n := range sizes {
-		t.Run("Size"+itoa(n), func(t *testing.T) {
+		t.Run("Size"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlanReal64(n)

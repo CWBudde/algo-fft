@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"math/cmplx"
+	"strconv"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/reference"
@@ -82,7 +83,7 @@ func TestNewPlan_Bluestein(t *testing.T) {
 	// Bluestein (7 and 11 are now executed exactly by the mixed-radix engine).
 	primes := []int{13, 17, 19, 23}
 	for _, n := range primes {
-		t.Run("complex64_"+itoa(n), func(t *testing.T) {
+		t.Run("complex64_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex64](n)
@@ -99,7 +100,7 @@ func TestNewPlan_Bluestein(t *testing.T) {
 				t.Errorf("Strategy = %v, want KernelBluestein", plan.KernelStrategy())
 			}
 		})
-		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+		t.Run("complex128_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex128](n)
@@ -200,7 +201,7 @@ func TestBluestein_LargePrimes(t *testing.T) {
 	primes := []int{251, 509, 1021}
 
 	for _, n := range primes {
-		t.Run(itoa(n), func(t *testing.T) {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex64](n)
@@ -248,7 +249,7 @@ func TestBluestein_MatchesReference(t *testing.T) {
 	primes := []int{7, 11, 13, 17, 19, 23, 31}
 
 	for _, n := range primes {
-		t.Run("complex64_"+itoa(n), func(t *testing.T) {
+		t.Run("complex64_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex64](n)
@@ -284,7 +285,7 @@ func TestBluestein_MatchesReference(t *testing.T) {
 			}
 		})
 
-		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+		t.Run("complex128_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex128](n)
@@ -327,7 +328,7 @@ func TestBluestein_InverseMatchesReference(t *testing.T) {
 	primes := []int{7, 11, 13}
 
 	for _, n := range primes {
-		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+		t.Run("complex128_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex128](n)
@@ -369,7 +370,7 @@ func BenchmarkBluesteinVsNaive(b *testing.B) {
 	primes := []int{7, 13, 31, 127}
 
 	for _, n := range primes {
-		b.Run("Bluestein_"+itoa(n), func(b *testing.B) {
+		b.Run("Bluestein_"+strconv.Itoa(n), func(b *testing.B) {
 			plan, err := NewPlan[complex64](n)
 			if err != nil {
 				b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
@@ -392,7 +393,7 @@ func BenchmarkBluesteinVsNaive(b *testing.B) {
 			}
 		})
 
-		b.Run("Naive_"+itoa(n), func(b *testing.B) {
+		b.Run("Naive_"+strconv.Itoa(n), func(b *testing.B) {
 			src := make([]complex64, n)
 			for i := range src {
 				src[i] = complex(float32(i), 0)
@@ -415,7 +416,7 @@ func BenchmarkBluesteinForward(b *testing.B) {
 	primes := []int{7, 13, 31, 127, 509}
 
 	for _, n := range primes {
-		b.Run("complex64_"+itoa(n), func(b *testing.B) {
+		b.Run("complex64_"+strconv.Itoa(n), func(b *testing.B) {
 			plan, err := NewPlan[complex64](n)
 			if err != nil {
 				b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
@@ -438,7 +439,7 @@ func BenchmarkBluesteinForward(b *testing.B) {
 			}
 		})
 
-		b.Run("complex128_"+itoa(n), func(b *testing.B) {
+		b.Run("complex128_"+strconv.Itoa(n), func(b *testing.B) {
 			plan, err := NewPlan[complex128](n)
 			if err != nil {
 				b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
@@ -468,7 +469,7 @@ func BenchmarkBluesteinInverse(b *testing.B) {
 	primes := []int{7, 13, 31, 127, 509}
 
 	for _, n := range primes {
-		b.Run("complex64_"+itoa(n), func(b *testing.B) {
+		b.Run("complex64_"+strconv.Itoa(n), func(b *testing.B) {
 			plan, err := NewPlan[complex64](n)
 			if err != nil {
 				b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
@@ -491,7 +492,7 @@ func BenchmarkBluesteinInverse(b *testing.B) {
 			}
 		})
 
-		b.Run("complex128_"+itoa(n), func(b *testing.B) {
+		b.Run("complex128_"+strconv.Itoa(n), func(b *testing.B) {
 			plan, err := NewPlan[complex128](n)
 			if err != nil {
 				b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
@@ -521,7 +522,7 @@ func BenchmarkBluesteinRoundTrip(b *testing.B) {
 	primes := []int{13, 31, 127}
 
 	for _, n := range primes {
-		b.Run(itoa(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			plan, err := NewPlan[complex64](n)
 			if err != nil {
 				b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)

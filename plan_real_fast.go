@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"math"
+	"strconv"
 	"unsafe"
 
 	"github.com/cwbudde/algo-fft/internal/fft"
@@ -129,7 +130,7 @@ func (fp *FastPlanReal[F, C]) SpectrumLen() int {
 
 // String returns a human-readable description of the FastPlanReal for debugging.
 func (fp *FastPlanReal[F, C]) String() string {
-	return "FastPlanReal[" + realPlanTypeNames[C]() + "](" + itoa(fp.n) + " → " + itoa(fp.half+1) + ")"
+	return "FastPlanReal[" + realPlanTypeNames[C]() + "](" + strconv.Itoa(fp.n) + " → " + strconv.Itoa(fp.half+1) + ")"
 }
 
 // Clone creates an independent copy of the FastPlanReal with its own pack

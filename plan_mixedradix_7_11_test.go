@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"math/cmplx"
+	"strconv"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/reference"
@@ -21,7 +22,7 @@ func TestNewPlan_MixedRadix7And11(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range mixedRadix7And11PlanSizes {
-		t.Run(itoa(n), func(t *testing.T) {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex128](n)
@@ -221,16 +222,16 @@ func BenchmarkMixedRadix7And11VsBluestein(b *testing.B) {
 	}
 
 	for _, n := range sizes {
-		b.Run("MixedRadix_"+itoa(n), func(b *testing.B) {
+		b.Run("MixedRadix_"+strconv.Itoa(n), func(b *testing.B) {
 			run64(b, n, PlanOptions{})
 		})
-		b.Run("Bluestein_"+itoa(n), func(b *testing.B) {
+		b.Run("Bluestein_"+strconv.Itoa(n), func(b *testing.B) {
 			run64(b, n, PlanOptions{Strategy: KernelBluestein})
 		})
-		b.Run("MixedRadix128_"+itoa(n), func(b *testing.B) {
+		b.Run("MixedRadix128_"+strconv.Itoa(n), func(b *testing.B) {
 			run128(b, n, PlanOptions{})
 		})
-		b.Run("Bluestein128_"+itoa(n), func(b *testing.B) {
+		b.Run("Bluestein128_"+strconv.Itoa(n), func(b *testing.B) {
 			run128(b, n, PlanOptions{Strategy: KernelBluestein})
 		})
 	}

@@ -23,75 +23,64 @@ type Plan[T Complex] struct {
 	// n is the FFT length (number of complex samples).
 	n int
 
-	// twiddle contains precomputed twiddle factors (roots of unity).
-	// For a size-n FFT: W_n^k = exp(-2πik/n) for k = 0..n-1
-	twiddle []T
+	// exec is the strategy-specific engine that runs the transforms. It owns
+	// the precomputed tables of exactly one strategy family (see
+	// plan_exec*.go) and is shared with clones (immutable after construction).
+	exec planExecutor[T]
 
-	// codeletTwiddle* hold codelet-specific twiddle layouts (may alias twiddle).
+	// forwardCodelet/inverseCodelet cache the kernel executor's zero-dispatch
+	// codelet binding (nil when the plan has none). They exist purely as a
+	// Forward/Inverse fast path: one direct call instead of the interface
+	// dispatch, which benchstat showed costs ~20ns — dominant for tiny
+	// codelet-bound sizes (+70% at n=8). The executor keeps its own copies
+	// and is complete without this cache: a codelet that bails here is
+	// retried there before the kernel fallback.
+	forwardCodelet        fftypes.CodeletFunc[T]
+	inverseCodelet        fftypes.CodeletFunc[T]
 	codeletTwiddleForward []T
 	codeletTwiddleInverse []T
 
-	// scratch is an optional pre-allocated buffer for intermediate computations.
-	// If nil, scratch buffers are retrieved from scratchPool per call.
-	scratch []T
-
-	// stridedScratch is an optional pre-allocated buffer for strided transforms.
-	stridedScratch []T
-
-	// bitrev contains precomputed bit-reversal permutation indices.
-	// bitrev[i] contains the bit-reversed index for position i.
-	bitrev []int
-
-	// packedTwiddle* store prepacked twiddle tables for SIMD-friendly radices.
-	packedTwiddle4    *transform.PackedTwiddles[T]
-	packedTwiddle4Inv *transform.PackedTwiddles[T]
-	packedTwiddle8    *transform.PackedTwiddles[T]
-	packedTwiddle16   *transform.PackedTwiddles[T]
-
-	// Bluestein specific fields (used only if kernelStrategy == KernelBluestein)
-	bluesteinM              int   // Padded size M >= 2N-1 (power of two or 5-smooth; see bluesteinPadSize)
-	bluesteinChirp          []T   // Size N
-	bluesteinChirpInv       []T   // Size N
-	bluesteinFilter         []T   // Size M
-	bluesteinFilterInv      []T   // Size M
-	bluesteinTwiddle        []T   // Size M
-	bluesteinBitrev         []int // Size M
-	bluesteinScratch        []T   // Size M (extra scratch for Bluestein)
-	bluesteinScratchBacking []byte
-
-	// Rader specific fields. A non-nil raderPermIn marks a prime-length plan
-	// that runs Rader's algorithm instead of Bluestein; it reuses the
-	// bluestein* tables above with M = N-1 (exact, unpadded sub-FFT).
-	raderPermIn  []int // Input gather permutation: g^(-q) mod N
-	raderPermOut []int // Output scatter permutation: g^m mod N
-
-	// Zero-dispatch codelet bindings (nil = use fallback kernel)
-	forwardCodelet fftypes.CodeletFunc[T]
-	inverseCodelet fftypes.CodeletFunc[T]
-
-	// algorithm describes which implementation is bound (e.g., "dit64_generic", "stockham")
+	// algorithm describes which implementation is bound (e.g., "dit64_generic", "stockham").
 	algorithm string
 
-	forwardKernel  kernels.Kernel[T]
-	inverseKernel  kernels.Kernel[T]
+	// kernelStrategy is the resolved strategy, reported by introspection and
+	// consulted by the strided fast-path gate.
 	kernelStrategy fftypes.KernelStrategy
 
-	// Recursive decomposition strategy (nil if using existing kernel path)
-	decompStrategy *transform.DecomposeStrategy
+	// twiddle contains the plan's twiddle factors: the standard table
+	// W_n^k = exp(-2πik/n) for kernel plans (also used by the strided DIT
+	// fast path), the recursive layout for recursive plans, nil for
+	// Bluestein/Rader plans (their sub-FFT twiddles live in the executor).
+	twiddle []T
 
-	// backing buffers keep aligned slices alive for GC.
-	twiddleBacking               []byte
-	codeletTwiddleForwardBacking []byte
-	codeletTwiddleInverseBacking []byte
-	scratchBacking               []byte
-	stridedScratchBacking        []byte
+	// bitrev contains precomputed radix-2 bit-reversal indices for the
+	// strided DIT fast path; nil when that path is unavailable (see
+	// planBitReversal).
+	bitrev []int
+
+	// twiddleBacking keeps the aligned twiddle memory alive for GC.
+	twiddleBacking []byte
+
+	// Fixed per-plan scratch buffers (pooled and cloned plans). When scratch
+	// is nil, per-call scratch sets are drawn from scratchPool instead.
+	scratch               []T
+	stridedScratch        []T
+	subScratch            []T // Bluestein/Rader sub-FFT scratch
+	scratchBacking        []byte
+	stridedScratchBacking []byte
+	subScratchBacking     []byte
+
+	// scratchLen/subScratchLen record the scratch sizes the strategy needs,
+	// used by scratch-set allocation and Clone.
+	scratchLen    int
+	subScratchLen int
+
+	// scratchPool manages per-call scratch buffers for thread-safety.
+	// Used only when the scratch field is nil.
+	scratchPool *scratchCache[T]
 
 	// pool is the buffer pool this Plan was allocated from (nil if not pooled).
 	pool *fft.BufferPool
-
-	// scratchPool manages per-call scratch buffers for thread-safety.
-	// Used only when scratch field is nil.
-	scratchPool *scratchCache[T]
 }
 
 // wisdomAdapter adapts the public WisdomStore interface to the internal WisdomRecorder.
@@ -115,103 +104,6 @@ func (a wisdomAdapter) Store(entry planner.WisdomEntry) {
 	})
 }
 
-// Len returns the FFT length (number of complex samples) for this Plan.
-func (p *Plan[T]) Len() int {
-	return p.n
-}
-
-// KernelStrategy reports the strategy chosen when the plan was created.
-func (p *Plan[T]) KernelStrategy() KernelStrategy {
-	return kernelStrategyFromInternal(p.kernelStrategy)
-}
-
-// Algorithm returns the name of the bound kernel or codelet (e.g., "dit8_generic").
-// Returns empty string if no specific algorithm is bound.
-func (p *Plan[T]) Algorithm() string {
-	return p.algorithm
-}
-
-// String returns a human-readable description of the Plan for debugging.
-// Precision names used by the String() methods of all plan types.
-const (
-	precisionNameComplex64  = "complex64"
-	precisionNameComplex128 = "complex128"
-)
-
-// Strategy names used by the String() methods and the introspection tests.
-const (
-	strategyNameAuto       = "auto"
-	strategyNameDIT        = "DIT"
-	strategyNameStockham   = "Stockham"
-	strategyNameSixStep    = "SixStep"
-	strategyNameEightStep  = "EightStep"
-	strategyNameBluestein  = "Bluestein"
-	strategyNameRecursive  = "Recursive"
-	strategyNameSplitRadix = "SplitRadix"
-)
-
-// The format is: "Plan[type](size, strategy)" where type is "complex64" or "complex128".
-func (p *Plan[T]) String() string {
-	typeName := complexTypeName[T]()
-
-	strategyName := strategyNameAuto
-
-	switch p.kernelStrategy {
-	case fftypes.KernelDIT:
-		strategyName = strategyNameDIT
-	case fftypes.KernelStockham:
-		strategyName = strategyNameStockham
-	case fftypes.KernelSixStep:
-		strategyName = strategyNameSixStep
-	case fftypes.KernelEightStep:
-		strategyName = strategyNameEightStep
-	case fftypes.KernelBluestein:
-		strategyName = strategyNameBluestein
-	case fftypes.KernelRecursive:
-		strategyName = strategyNameRecursive
-	case fftypes.KernelSplitRadix:
-		strategyName = strategyNameSplitRadix
-	case fftypes.KernelAuto:
-		// Resolved plans never carry KernelAuto; keep the default name.
-	}
-
-	pooled := ""
-	if p.pool != nil {
-		pooled = ", pooled"
-	}
-
-	return "Plan[" + typeName + "](" + itoa(p.n) + ", " + strategyName + pooled + ")"
-}
-
-// itoa converts an int to a string without importing strconv.
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-
-	negative := n < 0
-	if negative {
-		n = -n
-	}
-
-	var buf [20]byte
-
-	i := len(buf)
-
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-
-	if negative {
-		i--
-		buf[i] = '-'
-	}
-
-	return string(buf[i:])
-}
-
 // planBitReversal precomputes radix-2 bit-reversal indices for power-of-two
 // plans so the strided DIT fast path can run without per-call recomputation.
 // Non-power-of-two sizes return nil; callers treat a nil table as "fast path
@@ -228,287 +120,6 @@ func planBitReversal[T Complex](n int, estimate planner.PlanEstimate[T]) []int {
 	}
 
 	return m.ComputeBitReversalIndices(n)
-}
-
-func (p *Plan[T]) getScratch() ([]T, []T, []T, *scratchSet[T]) {
-	if p.scratch != nil {
-		return p.scratch, p.stridedScratch, p.bluesteinScratch, nil
-	}
-
-	s := p.scratchPool.get()
-
-	return s.scratch, s.stridedScratch, s.bluesteinScratch, s
-}
-
-// Forward computes the forward (time-to-frequency) FFT.
-//
-// The transform is computed as:
-//
-//	X[k] = Σ x[n] * exp(-2πink/N) for k = 0..N-1
-//
-// dst and src must have length equal to Plan.Len().
-// dst and src may point to the same slice for in-place operation.
-//
-// Returns ErrNilSlice if dst or src is nil.
-// Returns ErrLengthMismatch if slice lengths don't match Plan dimensions.
-func (p *Plan[T]) Forward(dst, src []T) error {
-	err := p.validateSlices(dst, src)
-	if err != nil {
-		return err
-	}
-
-	scratch, _, bsScratch, set := p.getScratch()
-	if set != nil {
-		defer p.scratchPool.put(set)
-	}
-
-	if p.kernelStrategy == fftypes.KernelBluestein {
-		if p.raderPermIn != nil {
-			return p.raderForward(dst, src, scratch, bsScratch)
-		}
-
-		return p.bluesteinForward(dst, src, scratch, bsScratch)
-	}
-
-	if p.kernelStrategy == fftypes.KernelRecursive {
-		return p.recursiveForward(dst, src, scratch)
-	}
-
-	// Zero-dispatch codelet path (highest priority). A codelet reports false
-	// when it bailed without doing any work; fall through to the generic
-	// dispatch below then instead of returning unset output.
-	if p.forwardCodelet != nil && p.forwardCodelet(dst, src, p.codeletTwiddleForward, scratch) {
-		return nil
-	}
-
-	// Pure-Go packed radix-4 Stockham route. StockhamPackedAvailable is false
-	// on SIMD builds, where the codelet path above supersedes it (see the
-	// toggle in internal/transform/stockham_packed_toggle_*.go).
-	if p.kernelStrategy == fftypes.KernelStockham && transform.StockhamPackedAvailable() {
-		if transform.ForwardStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4) {
-			return nil
-		}
-	}
-
-	// Fallback kernel dispatch
-	if p.forwardKernel != nil && p.forwardKernel(dst, src, p.twiddle, scratch) {
-		return nil
-	}
-
-	return ErrNotImplemented
-}
-
-// Inverse computes the inverse (frequency-to-time) FFT.
-//
-// The transform is computed as:
-//
-//	x[n] = (1/N) * Σ X[k] * exp(2πink/N) for n = 0..N-1
-//
-// dst and src must have length equal to Plan.Len().
-// dst and src may point to the same slice for in-place operation.
-//
-// Returns ErrNilSlice if dst or src is nil.
-// Returns ErrLengthMismatch if slice lengths don't match Plan dimensions.
-func (p *Plan[T]) Inverse(dst, src []T) error {
-	err := p.validateSlices(dst, src)
-	if err != nil {
-		return err
-	}
-
-	scratch, _, bsScratch, set := p.getScratch()
-	if set != nil {
-		defer p.scratchPool.put(set)
-	}
-
-	if p.kernelStrategy == fftypes.KernelBluestein {
-		if p.raderPermIn != nil {
-			return p.raderInverse(dst, src, scratch, bsScratch)
-		}
-
-		return p.bluesteinInverse(dst, src, scratch, bsScratch)
-	}
-
-	if p.kernelStrategy == fftypes.KernelRecursive {
-		return p.recursiveInverse(dst, src, scratch)
-	}
-
-	// Zero-dispatch codelet path (highest priority). A codelet reports false
-	// when it bailed without doing any work; fall through to the generic
-	// dispatch below then instead of returning unset output.
-	if p.inverseCodelet != nil && p.inverseCodelet(dst, src, p.codeletTwiddleInverse, scratch) {
-		return nil
-	}
-
-	// Pure-Go packed radix-4 Stockham route. StockhamPackedAvailable is false
-	// on SIMD builds, where the codelet path above supersedes it (see the
-	// toggle in internal/transform/stockham_packed_toggle_*.go).
-	if p.kernelStrategy == fftypes.KernelStockham && transform.StockhamPackedAvailable() {
-		if transform.InverseStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4Inv) {
-			return nil
-		}
-	}
-
-	// Fallback kernel dispatch
-	if p.inverseKernel != nil && p.inverseKernel(dst, src, p.twiddle, scratch) {
-		return nil
-	}
-
-	return ErrNotImplemented
-}
-
-// ForwardInPlace computes the forward FFT in-place, modifying the input slice directly.
-//
-// This is equivalent to Forward(data, data) but may be slightly more efficient.
-//
-// Returns ErrNilSlice if data is nil.
-// Returns ErrLengthMismatch if slice length doesn't match Plan dimensions.
-func (p *Plan[T]) ForwardInPlace(data []T) error {
-	return p.Forward(data, data)
-}
-
-// InverseInPlace computes the inverse FFT in-place, modifying the input slice directly.
-//
-// This is equivalent to Inverse(data, data) but may be slightly more efficient.
-//
-// Returns ErrNilSlice if data is nil.
-// Returns ErrLengthMismatch if slice length doesn't match Plan dimensions.
-func (p *Plan[T]) InverseInPlace(data []T) error {
-	return p.Inverse(data, data)
-}
-
-// ForwardUnsafe performs the forward FFT without any validation.
-// This is a zero-overhead path for latency-critical workloads.
-//
-// REQUIREMENTS (caller must guarantee):
-//   - dst and src are non-nil slices
-//   - len(dst) >= p.Len() and len(src) >= p.Len()
-//   - Plan has pre-allocated scratch (p.scratch != nil)
-//   - Plan has a bound codelet or kernel
-//
-// Violating these requirements causes undefined behavior or panic.
-// Use Forward() for the safe, validated path.
-func (p *Plan[T]) ForwardUnsafe(dst, src []T) {
-	if p.forwardCodelet != nil && p.forwardCodelet(dst, src, p.codeletTwiddleForward, p.scratch) {
-		return
-	}
-
-	p.forwardKernel(dst, src, p.twiddle, p.scratch)
-}
-
-// InverseUnsafe performs the inverse FFT without any validation.
-// This is a zero-overhead path for latency-critical workloads.
-//
-// REQUIREMENTS (caller must guarantee):
-//   - dst and src are non-nil slices
-//   - len(dst) >= p.Len() and len(src) >= p.Len()
-//   - Plan has pre-allocated scratch (p.scratch != nil)
-//   - Plan has a bound codelet or kernel
-//
-// Violating these requirements causes undefined behavior or panic.
-// Use Inverse() for the safe, validated path.
-func (p *Plan[T]) InverseUnsafe(dst, src []T) {
-	if p.inverseCodelet != nil && p.inverseCodelet(dst, src, p.codeletTwiddleInverse, p.scratch) {
-		return
-	}
-
-	p.inverseKernel(dst, src, p.twiddle, p.scratch)
-}
-
-// Transform computes either forward or inverse FFT based on the inverse flag.
-// This is a convenience wrapper over Forward/Inverse.
-func (p *Plan[T]) Transform(dst, src []T, inverse bool) error {
-	if inverse {
-		return p.Inverse(dst, src)
-	}
-
-	return p.Forward(dst, src)
-}
-
-// ForwardBatch computes count forward FFTs on sequential data.
-//
-// The data layout is interleaved/sequential:
-//   - FFT 0: src[0:n] → dst[0:n]
-//   - FFT 1: src[n:2n] → dst[n:2n]
-//   - FFT i: src[i*n:(i+1)*n] → dst[i*n:(i+1)*n]
-//
-// dst and src must have length >= count * Plan.Len().
-// dst and src may point to the same slice for in-place batch operation.
-//
-// Returns ErrNilSlice if dst or src is nil.
-// Returns ErrInvalidLength if count < 1.
-// Returns ErrLengthMismatch if slice lengths are insufficient.
-func (p *Plan[T]) ForwardBatch(dst, src []T, count int) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if count < 1 {
-		return ErrInvalidLength
-	}
-
-	required := count * p.n
-	if len(dst) < required || len(src) < required {
-		return ErrLengthMismatch
-	}
-
-	for i := range count {
-		start := i * p.n
-
-		end := start + p.n
-
-		err := p.Forward(dst[start:end], src[start:end])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// InverseBatch computes count inverse FFTs on sequential data.
-//
-// The data layout is interleaved/sequential:
-//   - FFT 0: src[0:n] → dst[0:n]
-//   - FFT 1: src[n:2n] → dst[n:2n]
-//   - FFT i: src[i*n:(i+1)*n] → dst[i*n:(i+1)*n]
-//
-// dst and src must have length >= count * Plan.Len().
-// dst and src may point to the same slice for in-place batch operation.
-//
-// Returns ErrNilSlice if dst or src is nil.
-// Returns ErrInvalidLength if count < 1.
-// Returns ErrLengthMismatch if slice lengths are insufficient.
-func (p *Plan[T]) InverseBatch(dst, src []T, count int) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if count < 1 {
-		return ErrInvalidLength
-	}
-
-	required := count * p.n
-	if len(dst) < required || len(src) < required {
-		return ErrLengthMismatch
-	}
-
-	for i := range count {
-		start := i * p.n
-
-		end := start + p.n
-
-		err := p.Inverse(dst[start:end], src[start:end])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// validateSlices checks that dst and src are valid for this Plan.
-func (p *Plan[T]) validateSlices(dst, src []T) error {
-	return validateDstSrc(dst, src, p.n, p.n)
 }
 
 // NewPlan creates a new FFT plan for the given size using the generic type T.
@@ -531,6 +142,44 @@ func NewPlan[T Complex](n int) (*Plan[T], error) {
 // NewPlanWithOptions creates a new FFT plan with explicit planner options.
 func NewPlanWithOptions[T Complex](n int, opts PlanOptions) (*Plan[T], error) {
 	return newPlanWithFeatures[T](n, cpu.DetectFeatures(), normalizePlanOptions(opts))
+}
+
+// NewPlan32 creates a new single-precision (complex64) FFT plan.
+// This is one-line sugar for NewPlan[complex64](n).
+func NewPlan32(n int) (*Plan[complex64], error) {
+	return NewPlan[complex64](n)
+}
+
+// NewPlan64 creates a new double-precision (complex128) FFT plan.
+// This is one-line sugar for NewPlan[complex128](n).
+func NewPlan64(n int) (*Plan[complex128], error) {
+	return NewPlan[complex128](n)
+}
+
+// NewPlanPooled creates a new FFT plan using pooled buffer allocations.
+// This is more efficient when creating and destroying many Plans of the same size.
+//
+// The returned Plan should be closed with Close() when no longer needed to return
+// buffers to the pool. If Close() is not called, the buffers will eventually be
+// garbage collected, but reuse efficiency will be reduced.
+//
+// Example:
+//
+//	plan, err := NewPlanPooled[complex64](1024)
+//	defer plan.Close()
+func NewPlanPooled[T Complex](n int) (*Plan[T], error) {
+	return newPlanFromPoolWithOptions[T](n, fft.DefaultPool, PlanOptions{})
+}
+
+// NewPlanPooledWithOptions creates a new FFT plan using pooled buffers and planner options.
+//
+// It accepts the same lengths and options as NewPlanWithOptions. Sizes or
+// forced strategies that require Bluestein or recursive decomposition carry
+// extra per-plan tables the shared buffer pool does not manage; those plans
+// are built with the regular allocator instead (Close remains valid, it just
+// has no buffers to return).
+func NewPlanPooledWithOptions[T Complex](n int, opts PlanOptions) (*Plan[T], error) {
+	return newPlanFromPoolWithOptions[T](n, fft.DefaultPool, opts)
 }
 
 func standardScratchSize(n int, algorithm string) int {
@@ -599,6 +248,10 @@ func bluesteinPadSize(n int) int {
 // cannot be represented; see maxBluesteinLength), the exact Rader sub-FFT
 // size n-1, or the recursive decomposition strategy. Strategies without
 // extra configuration return zero values.
+//
+// Recursive decomposition is limited to power-of-two lengths: the strategy
+// tree terminates only in power-of-two codelet/DIT leaves, so any other
+// length would build an executor that silently produces a wrong spectrum.
 func planStrategyConfig(n int, useBluestein, useRader, useRecursive bool) (int, *transform.DecomposeStrategy, error) {
 	switch {
 	case useRader:
@@ -612,17 +265,48 @@ func planStrategyConfig(n int, useBluestein, useRader, useRecursive bool) (int, 
 
 		return bluesteinPadSize(n), nil, nil
 	case useRecursive:
+		if !m.IsPowerOf2(n) {
+			return 0, nil, ErrInvalidLength
+		}
+
 		codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
 		cacheSize := 32768 // L1 cache size estimate
 
-		return 0, transform.PlanDecomposition(n, codeletSizes, cacheSize), nil
+		strategy := transform.PlanDecomposition(n, codeletSizes, cacheSize)
+		if strategy == nil {
+			return 0, nil, ErrInvalidLength
+		}
+
+		return 0, strategy, nil
 	default:
 		return 0, nil, nil
 	}
 }
 
+// planScratchSizes returns the main and sub-FFT scratch lengths for a plan
+// configuration. The main scratch follows the strategy; the sub-FFT scratch
+// exists only for the Bluestein/Rader convolution.
+func planScratchSizes(
+	n int, strategy fftypes.KernelStrategy, subM int,
+	decomp *transform.DecomposeStrategy, algorithm string,
+) (int, int) {
+	//nolint:exhaustive // only Bluestein/Recursive need non-standard scratch sizes
+	switch strategy {
+	case fftypes.KernelBluestein:
+		// Rader plans set subM = n-1 (exact sub-FFT), so clamp to n: paths
+		// outside the convolution (e.g. strided gather) assume the main
+		// scratch holds a full length-n frame. Bluestein pads to >= 2n-1,
+		// where the clamp is a no-op.
+		return max(subM, n), subM
+	case fftypes.KernelRecursive:
+		return transform.ScratchSizeRecursive(decomp), 0
+	default:
+		return max(standardScratchSize(n, algorithm), n), 0
+	}
+}
+
 // algorithmRader is the Algorithm() name reported by prime-length plans that
-// run Rader's algorithm (see internal/fft/rader.go and plan_rader.go).
+// run Rader's algorithm (see internal/fft/rader.go and plan_exec_rader.go).
 const algorithmRader = "rader"
 
 // convolutionTables groups the precomputed tables shared by the Bluestein and
@@ -732,6 +416,60 @@ func kernelSelectionStrategy(n int, requested, estimated fftypes.KernelStrategy)
 	return estimated
 }
 
+// newKernelExecutor builds the codelet/kernel executor: codelet bindings and
+// their twiddle layouts from the plan estimate, the strategy-dispatched
+// fallback kernels, and the packed Stockham tables when that route is enabled
+// for this build and strategy.
+func newKernelExecutor[T Complex](
+	n int, twiddle []T, kern kernels.Kernels[T], estimate planner.PlanEstimate[T],
+) *kernelExecutor[T] {
+	e := &kernelExecutor[T]{
+		forwardCodelet: estimate.ForwardCodelet,
+		inverseCodelet: estimate.InverseCodelet,
+		twiddle:        twiddle,
+		forwardKernel:  kern.Forward,
+		inverseKernel:  kern.Inverse,
+	}
+
+	e.codeletTwiddleForward, e.codeletTwiddleInverse,
+		e.codeletTwiddleForwardBacking, e.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, twiddle, estimate)
+
+	if estimate.Strategy == fftypes.KernelStockham && transform.StockhamPackedAvailable() {
+		e.packedForward = transform.ComputePackedTwiddles[T](n, 4, twiddle)
+		e.packedInverse = transform.ConjugatePackedTwiddles(e.packedForward)
+	}
+
+	return e
+}
+
+// newConvolutionExecutor builds the executor for the arbitrary-length
+// convolution strategies from the precomputed tables: Rader (exact
+// length-(n-1) sub-FFT) when eligible, Bluestein (padded to m) otherwise.
+func newConvolutionExecutor[T Complex](n, m int, useRader bool, tables convolutionTables[T]) planExecutor[T] {
+	if useRader {
+		return &raderExecutor[T]{
+			n:         n,
+			permIn:    tables.raderPermIn,
+			permOut:   tables.raderPermOut,
+			filter:    tables.filter,
+			filterInv: tables.filterInv,
+			twiddle:   tables.twiddle,
+			bitrev:    tables.bitrev,
+		}
+	}
+
+	return &bluesteinExecutor[T]{
+		n:         n,
+		m:         m,
+		chirp:     tables.chirp,
+		chirpInv:  tables.chirpInv,
+		filter:    tables.filter,
+		filterInv: tables.filterInv,
+		twiddle:   tables.twiddle,
+		bitrev:    tables.bitrev,
+	}
+}
+
 func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptions) (*Plan[T], error) {
 	if n < 1 {
 		return nil, ErrInvalidLength
@@ -753,27 +491,26 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		return nil, err
 	}
 
-	// Get fallback kernels (used when no codelet is available)
-	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy.internal(), strategy))
-
 	// Prewarm shared per-size tables (bit-reversal indices) so the first
 	// transform stays allocation-free.
 	fft.PrewarmSizeCaches(n)
+
+	// Allocate the initial scratch set for setup (Bluestein/Rader filter
+	// computation) and later transforms.
+	scratchLen, subScratchLen := planScratchSizes(n, strategy, bluesteinM, decompStrategy, estimate.Algorithm)
+	setupScratch := allocateScratchSet[T](n, scratchLen, subScratchLen)
+
+	tables := computeConvolutionTables[T](n, bluesteinM, useBluestein, useRader, setupScratch.subScratch)
 
 	var (
 		twiddle        []T
 		twiddleBacking []byte
 	)
 
-	// Allocate initial scratch set for setup (Bluestein/Rader filter computation)
-	scratchSize := standardScratchSize(n, estimate.Algorithm)
-	setupScratch := allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy, scratchSize)
-
-	tables := computeConvolutionTables[T](n, bluesteinM, useBluestein, useRader, setupScratch.bluesteinScratch)
-
 	switch {
 	case useBluestein:
-		// Twiddles were computed above alongside the Bluestein/Rader tables.
+		// Sub-FFT twiddles were computed above alongside the Bluestein/Rader
+		// tables and live in the executor; the plan-level table stays nil.
 	case useRecursive:
 		// Generate twiddles for recursive decomposition.
 		twiddle, twiddleBacking = allocTwiddle(transform.TwiddleFactorsRecursive[T](decompStrategy))
@@ -787,91 +524,56 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		algorithm = algorithmRader
 	}
 
+	var (
+		exec planExecutor[T]
+		ke   *kernelExecutor[T]
+	)
+
+	switch {
+	case useBluestein:
+		exec = newConvolutionExecutor(n, bluesteinM, useRader, tables)
+	case useRecursive:
+		exec = &recursiveExecutor[T]{
+			strategy: decompStrategy,
+			twiddle:  twiddle,
+			features: features,
+		}
+	default:
+		// Fallback kernels serve transforms when no codelet is bound (or a
+		// codelet bails); only the kernel executor needs them.
+		kern := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy.internal(), strategy))
+		ke = newKernelExecutor[T](n, twiddle, kern, estimate)
+		exec = ke
+	}
+
 	// Create the scratch cache and seed it with the setup scratch set.
 	scratchPool := new(scratchCache[T])
 	scratchPool.pool.New = func() any {
-		return allocateScratchSet[T](n, strategy, bluesteinM, decompStrategy, scratchSize)
+		return allocateScratchSet[T](n, scratchLen, subScratchLen)
 	}
 	scratchPool.put(setupScratch)
 
 	p := &Plan[T]{
-		n:                     n,
-		twiddle:               twiddle,
-		codeletTwiddleForward: twiddle,
-		codeletTwiddleInverse: twiddle,
-		scratch:               nil, // Use pool
-		stridedScratch:        nil, // Use pool
-		bitrev:                planBitReversal(n, estimate),
-		forwardCodelet:        estimate.ForwardCodelet,
-		inverseCodelet:        estimate.InverseCodelet,
-		algorithm:             algorithm,
-		forwardKernel:         kernels.Forward,
-		inverseKernel:         kernels.Inverse,
-		kernelStrategy:        strategy,
-		decompStrategy:        decompStrategy,
-		twiddleBacking:        twiddleBacking,
-		scratchPool:           scratchPool,
-		bluesteinM:            bluesteinM,
-		bluesteinChirp:        tables.chirp,
-		bluesteinChirpInv:     tables.chirpInv,
-		bluesteinFilter:       tables.filter,
-		bluesteinFilterInv:    tables.filterInv,
-		bluesteinTwiddle:      tables.twiddle,
-		bluesteinBitrev:       tables.bitrev,
-		bluesteinScratch:      nil, // Use pool
-		raderPermIn:           tables.raderPermIn,
-		raderPermOut:          tables.raderPermOut,
+		n:              n,
+		exec:           exec,
+		algorithm:      algorithm,
+		kernelStrategy: strategy,
+		twiddle:        twiddle,
+		bitrev:         planBitReversal(n, estimate),
+		twiddleBacking: twiddleBacking,
+		scratchLen:     scratchLen,
+		subScratchLen:  subScratchLen,
+		scratchPool:    scratchPool,
 	}
 
-	if !useBluestein {
-		p.packedTwiddle4 = transform.ComputePackedTwiddles[T](n, 4, p.twiddle)
-		p.packedTwiddle4Inv = transform.ConjugatePackedTwiddles(p.packedTwiddle4)
-		p.packedTwiddle8 = transform.ComputePackedTwiddles[T](n, 8, p.twiddle)
-		p.packedTwiddle16 = transform.ComputePackedTwiddles[T](n, 16, p.twiddle)
+	if ke != nil {
+		p.forwardCodelet = ke.forwardCodelet
+		p.inverseCodelet = ke.inverseCodelet
+		p.codeletTwiddleForward = ke.codeletTwiddleForward
+		p.codeletTwiddleInverse = ke.codeletTwiddleInverse
 	}
-
-	p.codeletTwiddleForward, p.codeletTwiddleInverse,
-		p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, p.twiddle, estimate)
 
 	return p, nil
-}
-
-// NewPlan32 creates a new single-precision (complex64) FFT plan.
-// This is one-line sugar for NewPlan[complex64](n).
-func NewPlan32(n int) (*Plan[complex64], error) {
-	return NewPlan[complex64](n)
-}
-
-// NewPlan64 creates a new double-precision (complex128) FFT plan.
-// This is one-line sugar for NewPlan[complex128](n).
-func NewPlan64(n int) (*Plan[complex128], error) {
-	return NewPlan[complex128](n)
-}
-
-// NewPlanPooled creates a new FFT plan using pooled buffer allocations.
-// This is more efficient when creating and destroying many Plans of the same size.
-//
-// The returned Plan should be closed with Close() when no longer needed to return
-// buffers to the pool. If Close() is not called, the buffers will eventually be
-// garbage collected, but reuse efficiency will be reduced.
-//
-// Example:
-//
-//	plan, err := NewPlanPooled[complex64](1024)
-//	defer plan.Close()
-func NewPlanPooled[T Complex](n int) (*Plan[T], error) {
-	return newPlanFromPoolWithOptions[T](n, fft.DefaultPool, PlanOptions{})
-}
-
-// NewPlanPooledWithOptions creates a new FFT plan using pooled buffers and planner options.
-//
-// It accepts the same lengths and options as NewPlanWithOptions. Sizes or
-// forced strategies that require Bluestein or recursive decomposition carry
-// extra per-plan tables the shared buffer pool does not manage; those plans
-// are built with the regular allocator instead (Close remains valid, it just
-// has no buffers to return).
-func NewPlanPooledWithOptions[T Complex](n int, opts PlanOptions) (*Plan[T], error) {
-	return newPlanFromPoolWithOptions[T](n, fft.DefaultPool, opts)
 }
 
 // newPlanFromPoolWithOptions creates a new FFT plan using buffers from the
@@ -892,15 +594,15 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 		return newPlanWithFeatures[T](n, features, opts)
 	}
 
-	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy.internal(), strategy))
+	kern := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy.internal(), strategy))
 
 	// Prewarm shared per-size tables (bit-reversal indices) so the first
 	// transform stays allocation-free.
 	fft.PrewarmSizeCaches(n)
 
-	scratchSize := standardScratchSize(n, estimate.Algorithm)
+	scratchLen := max(standardScratchSize(n, estimate.Algorithm), n)
 	twiddle, scratch, stridedScratch,
-		twiddleBacking, scratchBacking, stridedBacking := getBuffersFromPool[T](n, scratchSize, pool)
+		twiddleBacking, scratchBacking, stridedBacking := getBuffersFromPool[T](n, scratchLen, pool)
 
 	var bitrev []int
 	if m.IsPowerOf2(n) {
@@ -909,34 +611,25 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 		copy(bitrev, computed)
 	}
 
-	p := &Plan[T]{
+	ke := newKernelExecutor[T](n, twiddle, kern, estimate)
+
+	return &Plan[T]{
 		n:                     n,
+		exec:                  ke,
+		forwardCodelet:        ke.forwardCodelet,
+		inverseCodelet:        ke.inverseCodelet,
+		codeletTwiddleForward: ke.codeletTwiddleForward,
+		codeletTwiddleInverse: ke.codeletTwiddleInverse,
+		algorithm:             estimate.Algorithm,
+		kernelStrategy:        strategy,
 		twiddle:               twiddle,
-		codeletTwiddleForward: twiddle,
-		codeletTwiddleInverse: twiddle,
+		bitrev:                bitrev,
+		twiddleBacking:        twiddleBacking,
 		scratch:               scratch,
 		stridedScratch:        stridedScratch,
-		bitrev:                bitrev,
-		forwardCodelet:        estimate.ForwardCodelet,
-		inverseCodelet:        estimate.InverseCodelet,
-		algorithm:             estimate.Algorithm,
-		forwardKernel:         kernels.Forward,
-		inverseKernel:         kernels.Inverse,
-		kernelStrategy:        strategy,
-		twiddleBacking:        twiddleBacking,
 		scratchBacking:        scratchBacking,
 		stridedScratchBacking: stridedBacking,
+		scratchLen:            scratchLen,
 		pool:                  pool,
-		scratchPool:           nil, // No internal pool for pooled plans
-	}
-
-	p.packedTwiddle4 = transform.ComputePackedTwiddles[T](n, 4, p.twiddle)
-	p.packedTwiddle4Inv = transform.ConjugatePackedTwiddles(p.packedTwiddle4)
-	p.packedTwiddle8 = transform.ComputePackedTwiddles[T](n, 8, p.twiddle)
-	p.packedTwiddle16 = transform.ComputePackedTwiddles[T](n, 16, p.twiddle)
-
-	p.codeletTwiddleForward, p.codeletTwiddleInverse,
-		p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, p.twiddle, estimate)
-
-	return p, nil
+	}, nil
 }

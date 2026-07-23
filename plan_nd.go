@@ -3,6 +3,7 @@ package algofft
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
@@ -169,7 +170,7 @@ func (p *PlanND[T]) String() string {
 			dims.WriteString("x")
 		}
 
-		dims.WriteString(itoa(d))
+		dims.WriteString(strconv.Itoa(d))
 	}
 
 	return fmt.Sprintf("PlanND[%s](%s)", complexTypeName[T](), dims.String())

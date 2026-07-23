@@ -482,27 +482,21 @@ func logPlanDetails[T Complex](b *testing.B, plan *Plan[T]) {
 }
 
 func twiddleLayoutSummary[T Complex](plan *Plan[T]) string {
-	parts := make([]string, 0, 6)
+	parts := make([]string, 0, 4)
 	parts = append(parts, fmt.Sprintf("twiddle=%d", len(plan.twiddle)))
 
-	if len(plan.codeletTwiddleForward) > 0 {
-		parts = append(parts, fmt.Sprintf("codelet_fwd=%d", len(plan.codeletTwiddleForward)))
-	}
+	if ke, ok := plan.exec.(*kernelExecutor[T]); ok {
+		if len(ke.codeletTwiddleForward) > 0 {
+			parts = append(parts, fmt.Sprintf("codelet_fwd=%d", len(ke.codeletTwiddleForward)))
+		}
 
-	if len(plan.codeletTwiddleInverse) > 0 {
-		parts = append(parts, fmt.Sprintf("codelet_inv=%d", len(plan.codeletTwiddleInverse)))
-	}
+		if len(ke.codeletTwiddleInverse) > 0 {
+			parts = append(parts, fmt.Sprintf("codelet_inv=%d", len(ke.codeletTwiddleInverse)))
+		}
 
-	if plan.packedTwiddle4 != nil {
-		parts = append(parts, packedSummary("packed4", plan.packedTwiddle4))
-	}
-
-	if plan.packedTwiddle8 != nil {
-		parts = append(parts, packedSummary("packed8", plan.packedTwiddle8))
-	}
-
-	if plan.packedTwiddle16 != nil {
-		parts = append(parts, packedSummary("packed16", plan.packedTwiddle16))
+		if ke.packedForward != nil {
+			parts = append(parts, packedSummary("packed4", ke.packedForward))
+		}
 	}
 
 	return strings.Join(parts, ",")

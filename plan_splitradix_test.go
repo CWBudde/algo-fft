@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"math/cmplx"
+	"strconv"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/reference"
@@ -13,7 +14,7 @@ func TestSplitRadix_PlanForced(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range []int{8, 64, 256, 1024} {
-		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+		t.Run("complex128_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlanWithOptions[complex128](n, PlanOptions{Strategy: KernelSplitRadix})
@@ -51,7 +52,7 @@ func TestSplitRadix_PlanForced(t *testing.T) {
 			}
 		})
 
-		t.Run("complex64_"+itoa(n), func(t *testing.T) {
+		t.Run("complex64_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlanWithOptions[complex64](n, PlanOptions{Strategy: KernelSplitRadix})
@@ -129,9 +130,9 @@ func BenchmarkSplitRadixVsIncumbents(b *testing.B) {
 	}
 
 	for _, n := range []int{64, 256, 1024, 4096, 16384, 65536, 262144} {
-		b.Run("Auto_"+itoa(n), func(b *testing.B) { run(b, n, PlanOptions{}) })
-		b.Run("SplitRadix_"+itoa(n), func(b *testing.B) { run(b, n, PlanOptions{Strategy: KernelSplitRadix}) })
-		b.Run("DIT_"+itoa(n), func(b *testing.B) { run(b, n, PlanOptions{Strategy: KernelDIT}) })
-		b.Run("Stockham_"+itoa(n), func(b *testing.B) { run(b, n, PlanOptions{Strategy: KernelStockham}) })
+		b.Run("Auto_"+strconv.Itoa(n), func(b *testing.B) { run(b, n, PlanOptions{}) })
+		b.Run("SplitRadix_"+strconv.Itoa(n), func(b *testing.B) { run(b, n, PlanOptions{Strategy: KernelSplitRadix}) })
+		b.Run("DIT_"+strconv.Itoa(n), func(b *testing.B) { run(b, n, PlanOptions{Strategy: KernelDIT}) })
+		b.Run("Stockham_"+strconv.Itoa(n), func(b *testing.B) { run(b, n, PlanOptions{Strategy: KernelStockham}) })
 	}
 }

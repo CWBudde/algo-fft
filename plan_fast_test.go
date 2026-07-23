@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"math/cmplx"
+	"strconv"
 	"testing"
 )
 
@@ -549,7 +550,7 @@ func BenchmarkFastPlan_vs_Plan(b *testing.B) {
 		src := make([]complex64, n)
 		dst := make([]complex64, n)
 
-		b.Run("Fast/"+itoa(n), func(b *testing.B) {
+		b.Run("Fast/"+strconv.Itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
 
 			for b.Loop() {
@@ -557,7 +558,7 @@ func BenchmarkFastPlan_vs_Plan(b *testing.B) {
 			}
 		})
 
-		b.Run("Safe/"+itoa(n), func(b *testing.B) {
+		b.Run("Safe/"+strconv.Itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
 
 			for b.Loop() {
@@ -586,7 +587,7 @@ func BenchmarkFastPlanReal32_vs_PlanReal(b *testing.B) {
 		src := make([]float32, n)
 		dst := make([]complex64, n/2+1)
 
-		b.Run("Fast/"+itoa(n), func(b *testing.B) {
+		b.Run("Fast/"+strconv.Itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
 
 			for b.Loop() {
@@ -594,7 +595,7 @@ func BenchmarkFastPlanReal32_vs_PlanReal(b *testing.B) {
 			}
 		})
 
-		b.Run("Safe/"+itoa(n), func(b *testing.B) {
+		b.Run("Safe/"+strconv.Itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
 
 			for b.Loop() {

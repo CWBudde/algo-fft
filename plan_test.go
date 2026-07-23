@@ -389,6 +389,38 @@ func assertApproxComplex128f(t *testing.T, got, want complex128, format string, 
 	}
 }
 
+// TestNewPlan_ForcedRecursiveRejectsNonPowerOfTwo pins the constructor
+// guarantee introduced with the executor split: a plan is only built when its
+// executor can actually run the transform. The recursive decomposition tree
+// terminates only in power-of-two codelet/DIT leaves, so forcing
+// KernelRecursive on any other length must fail at construction — before the
+// gate, such plans silently produced wrong spectra.
+func TestNewPlan_ForcedRecursiveRejectsNonPowerOfTwo(t *testing.T) {
+	t.Parallel()
+
+	for _, n := range []int{6, 12, 20, 48, 100} {
+		_, err := NewPlanWithOptions[complex64](n, PlanOptions{Strategy: KernelRecursive})
+		if !errors.Is(err, ErrInvalidLength) {
+			t.Errorf("NewPlanWithOptions[complex64](%d, Recursive) error = %v, want ErrInvalidLength", n, err)
+		}
+
+		_, err = NewPlanWithOptions[complex128](n, PlanOptions{Strategy: KernelRecursive})
+		if !errors.Is(err, ErrInvalidLength) {
+			t.Errorf("NewPlanWithOptions[complex128](%d, Recursive) error = %v, want ErrInvalidLength", n, err)
+		}
+	}
+
+	// Power-of-two lengths must keep working.
+	plan, err := NewPlanWithOptions[complex64](64, PlanOptions{Strategy: KernelRecursive})
+	if err != nil {
+		t.Fatalf("NewPlanWithOptions[complex64](64, Recursive) returned error: %v", err)
+	}
+
+	if got := plan.KernelStrategy(); got != KernelRecursive {
+		t.Errorf("KernelStrategy() = %v, want KernelRecursive", got)
+	}
+}
+
 // Benchmarks
 
 func BenchmarkNewPlan_64(b *testing.B) {

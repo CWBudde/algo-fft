@@ -1,6 +1,8 @@
 package algofft
 
 import (
+	"strconv"
+
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fftypes"
 	m "github.com/cwbudde/algo-fft/internal/math"
@@ -116,7 +118,7 @@ func (fp *FastPlan[T]) Len() int {
 
 // String returns a human-readable description of the FastPlan for debugging.
 func (fp *FastPlan[T]) String() string {
-	return "FastPlan[" + complexTypeName[T]() + "](" + itoa(fp.n) + ", " + fp.algorithm + ")"
+	return "FastPlan[" + complexTypeName[T]() + "](" + strconv.Itoa(fp.n) + ", " + fp.algorithm + ")"
 }
 
 // Clone creates an independent copy of the FastPlan with its own scratch

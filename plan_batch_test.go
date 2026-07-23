@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"math/cmplx"
+	"strconv"
 	"testing"
 )
 
@@ -614,5 +615,5 @@ func BenchmarkBatchComplex128(b *testing.B) {
 }
 
 func formatBenchName(n, count int) string {
-	return "n" + itoa(n) + "_count" + itoa(count)
+	return "n" + strconv.Itoa(n) + "_count" + strconv.Itoa(count)
 }

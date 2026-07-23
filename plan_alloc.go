@@ -2,22 +2,20 @@ package algofft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/fft"
-	"github.com/cwbudde/algo-fft/internal/fftypes"
 	m "github.com/cwbudde/algo-fft/internal/math"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
 	"github.com/cwbudde/algo-fft/internal/planner"
-	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // scratchSet groups the per-call scratch buffers a Plan hands out, together with
 // the []byte backings that keep their aligned memory alive for the GC.
 type scratchSet[T any] struct {
-	scratch                 []T
-	scratchBacking          []byte
-	stridedScratch          []T
-	stridedScratchBacking   []byte
-	bluesteinScratch        []T
-	bluesteinScratchBacking []byte
+	scratch               []T
+	scratchBacking        []byte
+	stridedScratch        []T
+	stridedScratchBacking []byte
+	subScratch            []T // Bluestein/Rader sub-FFT scratch
+	subScratchBacking     []byte
 }
 
 // scratchCache hands out per-call scratch sets for the 1D Plan; see
@@ -59,49 +57,30 @@ func prepareCodeletTwiddles[T Complex](
 	return forward, inverse, forwardBacking, inverseBacking
 }
 
-// allocateScratchSet allocates the scratch buffers required by strategy. The
-// scratch size follows the strategy (Bluestein → M, Recursive → recursive scratch,
-// otherwise the standard size clamped to at least n); the extra Bluestein scratch
-// is allocated only for the Bluestein strategy.
-func allocateScratchSet[T Complex](
-	n int, strategy fftypes.KernelStrategy, bluesteinM int,
-	decompStrategy *transform.DecomposeStrategy, standardScratchSize int,
-) *scratchSet[T] {
-	var scratchSize int
-
-	//nolint:exhaustive // only Bluestein/Recursive need non-standard scratch sizes
-	switch strategy {
-	case fftypes.KernelBluestein:
-		// Rader plans set bluesteinM = n-1 (exact sub-FFT), so clamp to n:
-		// paths outside the convolution (e.g. strided gather) assume the
-		// standard scratch holds a full length-n frame. Bluestein pads to
-		// >= 2n-1, where the clamp is a no-op.
-		scratchSize = max(bluesteinM, n)
-	case fftypes.KernelRecursive:
-		scratchSize = transform.ScratchSizeRecursive(decompStrategy)
-	default:
-		scratchSize = max(standardScratchSize, n)
-	}
-
-	scratch, scratchBacking := mem.AllocAligned[T](scratchSize)
+// allocateScratchSet allocates the per-call scratch buffers for a plan of
+// length n: the main scratch (scratchLen), the strided gather/scatter buffer
+// (always n), and the Bluestein/Rader sub-FFT scratch (subScratchLen, skipped
+// when zero). The lengths come from planScratchSizes.
+func allocateScratchSet[T Complex](n, scratchLen, subScratchLen int) *scratchSet[T] {
+	scratch, scratchBacking := mem.AllocAligned[T](scratchLen)
 	stridedScratch, stridedBacking := mem.AllocAligned[T](n)
 
 	var (
-		bluesteinScratch        []T
-		bluesteinScratchBacking []byte
+		subScratch        []T
+		subScratchBacking []byte
 	)
 
-	if strategy == fftypes.KernelBluestein {
-		bluesteinScratch, bluesteinScratchBacking = mem.AllocAligned[T](bluesteinM)
+	if subScratchLen > 0 {
+		subScratch, subScratchBacking = mem.AllocAligned[T](subScratchLen)
 	}
 
 	return &scratchSet[T]{
-		scratch:                 scratch,
-		scratchBacking:          scratchBacking,
-		stridedScratch:          stridedScratch,
-		stridedScratchBacking:   stridedBacking,
-		bluesteinScratch:        bluesteinScratch,
-		bluesteinScratchBacking: bluesteinScratchBacking,
+		scratch:               scratch,
+		scratchBacking:        scratchBacking,
+		stridedScratch:        stridedScratch,
+		stridedScratchBacking: stridedBacking,
+		subScratch:            subScratch,
+		subScratchBacking:     subScratchBacking,
 	}
 }
 

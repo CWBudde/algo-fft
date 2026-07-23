@@ -1,11 +1,85 @@
 package algofft
 
+import (
+	"strconv"
+
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+)
+
 // This file provides the introspection and lifecycle accessors shared by all
 // plan types. Every plan implements the PlanInfo interface (see
 // plan_interface.go): plural KernelStrategies/Algorithms report the resolved
 // kernel per axis (single-kernel plans return one-element slices), and Close
 // releases plan resources. Single-kernel plan types additionally keep the
 // singular KernelStrategy/Algorithm accessors as convenience.
+
+// Precision names used by the String() methods of all plan types.
+const (
+	precisionNameComplex64  = "complex64"
+	precisionNameComplex128 = "complex128"
+)
+
+// Strategy names used by the String() methods and the introspection tests.
+const (
+	strategyNameAuto       = "auto"
+	strategyNameDIT        = "DIT"
+	strategyNameStockham   = "Stockham"
+	strategyNameSixStep    = "SixStep"
+	strategyNameEightStep  = "EightStep"
+	strategyNameBluestein  = "Bluestein"
+	strategyNameRecursive  = "Recursive"
+	strategyNameSplitRadix = "SplitRadix"
+)
+
+// Len returns the FFT length (number of complex samples) for this Plan.
+func (p *Plan[T]) Len() int {
+	return p.n
+}
+
+// KernelStrategy reports the strategy chosen when the plan was created.
+func (p *Plan[T]) KernelStrategy() KernelStrategy {
+	return kernelStrategyFromInternal(p.kernelStrategy)
+}
+
+// Algorithm returns the name of the bound kernel or codelet (e.g., "dit8_generic").
+// Returns empty string if no specific algorithm is bound.
+func (p *Plan[T]) Algorithm() string {
+	return p.algorithm
+}
+
+// String returns a human-readable description of the Plan for debugging.
+// The format is: "Plan[type](size, strategy)" where type is "complex64" or "complex128".
+func (p *Plan[T]) String() string {
+	typeName := complexTypeName[T]()
+
+	strategyName := strategyNameAuto
+
+	switch p.kernelStrategy {
+	case fftypes.KernelDIT:
+		strategyName = strategyNameDIT
+	case fftypes.KernelStockham:
+		strategyName = strategyNameStockham
+	case fftypes.KernelSixStep:
+		strategyName = strategyNameSixStep
+	case fftypes.KernelEightStep:
+		strategyName = strategyNameEightStep
+	case fftypes.KernelBluestein:
+		strategyName = strategyNameBluestein
+	case fftypes.KernelRecursive:
+		strategyName = strategyNameRecursive
+	case fftypes.KernelSplitRadix:
+		strategyName = strategyNameSplitRadix
+	case fftypes.KernelAuto:
+		// Resolved plans never carry KernelAuto; keep the default name.
+	}
+
+	pooled := ""
+	if p.pool != nil {
+		pooled = ", pooled"
+	}
+
+	return "Plan[" + typeName + "](" + strconv.Itoa(p.n) + ", " + strategyName + pooled + ")"
+}
 
 // KernelStrategies returns the resolved kernel strategy as a one-element
 // slice (1D plans have a single kernel). See KernelStrategy for the singular

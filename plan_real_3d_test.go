@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"math/rand"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -453,5 +454,5 @@ func TestPlanReal3D_InvalidSizes(t *testing.T) {
 
 // Helper function for 3D size formatting.
 func sprintf3d(d, h, w int) string {
-	return itoa(d) + "x" + itoa(h) + "x" + itoa(w)
+	return strconv.Itoa(d) + "x" + strconv.Itoa(h) + "x" + strconv.Itoa(w)
 }

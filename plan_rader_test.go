@@ -3,6 +3,7 @@ package algofft
 import (
 	"math/cmplx"
 	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/reference"
@@ -108,7 +109,7 @@ func TestRader_MatchesReference(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range raderTestPrimes {
-		t.Run("complex64_"+itoa(n), func(t *testing.T) {
+		t.Run("complex64_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex64](n)
@@ -131,7 +132,7 @@ func TestRader_MatchesReference(t *testing.T) {
 			}
 		})
 
-		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+		t.Run("complex128_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex128](n)
@@ -162,7 +163,7 @@ func TestRader_InverseMatchesReference(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range []int{17, 257, 401} {
-		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+		t.Run("complex128_"+strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex128](n)
@@ -194,7 +195,7 @@ func TestRader_RoundTrip(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range []int{3001, 4001, 12289, 40961, 65537} {
-		t.Run(itoa(n), func(t *testing.T) {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
 			plan, err := NewPlan[complex128](n)
@@ -259,9 +260,9 @@ func TestRader_InPlace(t *testing.T) {
 	}
 }
 
-// TestRader_Executor verifies cloned plans (Executor path) carry the Rader
-// tables and produce identical results.
-func TestRader_Executor(t *testing.T) {
+// TestRader_Clone verifies cloned plans carry the Rader tables and produce
+// identical results.
+func TestRader_Clone(t *testing.T) {
 	t.Parallel()
 
 	n := 257
@@ -271,7 +272,7 @@ func TestRader_Executor(t *testing.T) {
 		t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 	}
 
-	exec := plan.NewExecutor()
+	exec := plan.Clone()
 	defer exec.Close()
 
 	src := randomComplex128(n, 5)
@@ -320,10 +321,10 @@ func BenchmarkRaderVsBluestein(b *testing.B) {
 	}
 
 	for _, n := range sizes {
-		b.Run("Rader_"+itoa(n), func(b *testing.B) {
+		b.Run("Rader_"+strconv.Itoa(n), func(b *testing.B) {
 			run64(b, n, PlanOptions{})
 		})
-		b.Run("Bluestein_"+itoa(n), func(b *testing.B) {
+		b.Run("Bluestein_"+strconv.Itoa(n), func(b *testing.B) {
 			run64(b, n, PlanOptions{Strategy: KernelBluestein})
 		})
 	}

@@ -2,22 +2,24 @@ package algofft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/fft"
-	"github.com/cwbudde/algo-fft/internal/fftypes"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
-	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // Reset clears the scratch buffer and resets internal state.
 // This can be useful to ensure deterministic behavior or to clear sensitive data.
 // The Plan remains usable after Reset.
 func (p *Plan[T]) Reset() {
-	// Clear scratch buffer if it exists (pooled plans)
+	// Clear fixed scratch buffers if they exist (pooled/cloned plans)
 	if p.scratch != nil {
 		clear(p.scratch)
 	}
 
 	if p.stridedScratch != nil {
 		clear(p.stridedScratch)
+	}
+
+	if p.subScratch != nil {
+		clear(p.subScratch)
 	}
 	// For scratchPool, we don't clear as they are transient
 }
@@ -52,94 +54,73 @@ func (p *Plan[T]) Close() {
 		p.pool.PutIntSlice(p.n, p.bitrev)
 	}
 
-	// Clear references to prevent reuse after Close
+	// Clear references to prevent reuse after Close. Dropping the executor
+	// releases its tables for GC (pooled plans never share it with clones of
+	// other plans; clones of this plan keep their own reference).
 	p.pool = nil
-	p.twiddle = nil
+	p.exec = nil
+	p.forwardCodelet = nil
+	p.inverseCodelet = nil
 	p.codeletTwiddleForward = nil
 	p.codeletTwiddleInverse = nil
+	p.twiddle = nil
 	p.scratch = nil
 	p.stridedScratch = nil
 	p.bitrev = nil
 	p.twiddleBacking = nil
-	p.codeletTwiddleForwardBacking = nil
-	p.codeletTwiddleInverseBacking = nil
 	p.scratchBacking = nil
 	p.stridedScratchBacking = nil
 }
 
-// Clone creates an independent copy of the Plan with its own scratch buffer.
+// Clone creates an independent copy of the Plan with its own scratch buffers.
 // This is useful when multiple goroutines need to perform transforms concurrently,
 // as each goroutine should use its own Plan to avoid data races on the scratch buffer.
 //
-// The cloned Plan shares immutable data (twiddle factors, bit-reversal indices)
-// with the original for memory efficiency, but has its own scratch buffer.
+// The cloned Plan shares immutable data (the executor with its precomputed
+// tables, twiddle factors, bit-reversal indices) with the original for memory
+// efficiency, but has its own scratch buffers.
 //
 // Cloned Plans are never pooled, even if the original was.
 // Calling Close() on a cloned Plan is a no-op.
 func (p *Plan[T]) Clone() *Plan[T] {
-	scratchSize := p.n
-
-	//nolint:exhaustive // only Bluestein/Recursive need non-standard scratch sizes
-	switch p.kernelStrategy {
-	case fftypes.KernelBluestein:
-		// max: Rader plans set bluesteinM = n-1 (see allocateScratchSet).
-		scratchSize = max(p.bluesteinM, p.n)
-	case fftypes.KernelRecursive:
-		scratchSize = transform.ScratchSizeRecursive(p.decompStrategy)
-	}
-
-	scratch, scratchBacking := mem.AllocAligned[T](scratchSize)
+	scratch, scratchBacking := mem.AllocAligned[T](p.scratchLen)
 	stridedScratch, stridedScratchBacking := mem.AllocAligned[T](p.n)
 
 	var (
-		bluesteinScratch        []T
-		bluesteinScratchBacking []byte
+		subScratch        []T
+		subScratchBacking []byte
 	)
 
-	if p.kernelStrategy == fftypes.KernelBluestein {
-		bluesteinScratch, bluesteinScratchBacking = mem.AllocAligned[T](p.bluesteinM)
+	if p.subScratchLen > 0 {
+		subScratch, subScratchBacking = mem.AllocAligned[T](p.subScratchLen)
 	}
 
 	return &Plan[T]{
-		n:                            p.n,
-		twiddle:                      p.twiddle, // Shared (immutable)
-		codeletTwiddleForward:        p.codeletTwiddleForward,
-		codeletTwiddleInverse:        p.codeletTwiddleInverse,
-		scratch:                      scratch,             // New allocation
-		stridedScratch:               stridedScratch,      // New allocation
-		bitrev:                       p.bitrev,            // Shared (immutable)
-		packedTwiddle4:               p.packedTwiddle4,    // Shared (immutable)
-		packedTwiddle4Inv:            p.packedTwiddle4Inv, // Shared (immutable)
-		packedTwiddle8:               p.packedTwiddle8,    // Shared (immutable)
-		packedTwiddle16:              p.packedTwiddle16,   // Shared (immutable)
-		forwardCodelet:               p.forwardCodelet,    // Shared (function pointer)
-		inverseCodelet:               p.inverseCodelet,    // Shared (function pointer)
-		algorithm:                    p.algorithm,         // Shared (immutable string)
-		forwardKernel:                p.forwardKernel,
-		inverseKernel:                p.inverseKernel,
-		kernelStrategy:               p.kernelStrategy,
-		decompStrategy:               p.decompStrategy,
-		twiddleBacking:               p.twiddleBacking, // Shared reference (keeps original alive)
-		codeletTwiddleForwardBacking: p.codeletTwiddleForwardBacking,
-		codeletTwiddleInverseBacking: p.codeletTwiddleInverseBacking,
-		scratchBacking:               scratchBacking, // New allocation
-		stridedScratchBacking:        stridedScratchBacking,
-		pool:                         nil, // Clones are never pooled
-		scratchPool:                  nil, // Clones have fixed scratch
+		n:              p.n,
+		exec:           p.exec,      // Shared (immutable after construction)
+		algorithm:      p.algorithm, // Shared (immutable string)
+		kernelStrategy: p.kernelStrategy,
+		twiddle:        p.twiddle,        // Shared (immutable)
+		bitrev:         p.bitrev,         // Shared (immutable)
+		twiddleBacking: p.twiddleBacking, // Shared reference (keeps original alive)
 
-		// Bluestein fields
-		bluesteinM:              p.bluesteinM,
-		bluesteinChirp:          p.bluesteinChirp,
-		bluesteinChirpInv:       p.bluesteinChirpInv,
-		bluesteinFilter:         p.bluesteinFilter,
-		bluesteinFilterInv:      p.bluesteinFilterInv,
-		bluesteinTwiddle:        p.bluesteinTwiddle,
-		bluesteinBitrev:         p.bluesteinBitrev,
-		bluesteinScratch:        bluesteinScratch,        // New allocation
-		bluesteinScratchBacking: bluesteinScratchBacking, // New allocation
+		// Shared codelet fast-path cache (function pointers + immutable tables)
+		forwardCodelet:        p.forwardCodelet,
+		inverseCodelet:        p.inverseCodelet,
+		codeletTwiddleForward: p.codeletTwiddleForward,
+		codeletTwiddleInverse: p.codeletTwiddleInverse,
 
-		// Rader fields (shared, immutable)
-		raderPermIn:  p.raderPermIn,
-		raderPermOut: p.raderPermOut,
+		// Fresh scratch allocations
+		scratch:               scratch,
+		stridedScratch:        stridedScratch,
+		subScratch:            subScratch,
+		scratchBacking:        scratchBacking,
+		stridedScratchBacking: stridedScratchBacking,
+		subScratchBacking:     subScratchBacking,
+		scratchLen:            p.scratchLen,
+		subScratchLen:         p.subScratchLen,
+
+		pool:        nil, // Clones are never pooled
+		scratchPool: nil, // Clones have fixed scratch
 	}
 }

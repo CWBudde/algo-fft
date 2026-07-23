@@ -159,9 +159,15 @@ introspection methods are asymmetric across plan types.
       boundary; `Wisdom` is a wrapper struct over the internal cache with
       `WisdomKey`/`WisdomEntry` converted at the boundary. No public type
       aliases into `internal/*` remain.
-- [ ] `ErrNotImplemented` must not be reachable from a live `Forward` path
+- [x] `ErrNotImplemented` must not be reachable from a live `Forward` path
       (plan.go:306) — after A4 the constructor either builds a working
-      executor or fails. _(Gated on A4, tracked there.)_
+      executor or fails. _(Done 2026-07 with A4: the `planExecutor`
+      methods return no error; the constructor rejects forced-recursive
+      non-power-of-two lengths with `ErrInvalidLength` (previously silent
+      wrong spectra), and a kernel bail after construction — impossible for
+      a validated plan — panics as an internal invariant violation.
+      `ErrNotImplemented` remains only as a constructor error
+      (`NewFastPlan*` without a codelet).)_
 
 ### A2. Collapse the multi-dimensional plan copies
 
@@ -279,20 +285,59 @@ for every strategy simultaneously, dispatched by an `if kernelStrategy == …`
 ladder in `Forward`/`Inverse`. Every new strategy touches the struct and
 both hot methods.
 
-- [ ] Introduce an internal executor interface
+- [x] Introduce an internal executor interface
       (`forward(dst, src)`, `inverse(dst, src)`, `close()`); one
       implementation per strategy family (codelet/DIT, Stockham,
       split-radix, six/eight-step, recursive, Bluestein, Rader) owning only
       its own tables. `Plan[T]` shrinks to: validation, scratch/pool
       management, one executor field, introspection.
-- [ ] Re-partition the `plan_*.go` files along the new seams (construction,
+      _(Done 2026-07. `planExecutor[T]` in `plan_exec.go` with four
+      implementations: `kernelExecutor` (codelet → packed Stockham →
+      strategy-dispatched fallback kernel; DIT/Stockham/six/eight-step/
+      split-radix/mixed-radix differ only in which kernel the dispatch
+      bound, so one executor serves them), `bluesteinExecutor`,
+      `raderExecutor`, `recursiveExecutor` — each owning only its own
+      tables. Deviations from the sketch, both deliberate: no `close()`
+      (executors are immutable after construction and shared with clones,
+      so `Plan.Close` just drops the reference) and no error returns (see
+      the `ErrNotImplemented` item under A1). `Plan[T]` went from ~40
+      fields to 21 (validation, scratch/pool management, executor,
+      introspection, shared twiddle/bitrev for the strided fast path, and
+      a four-field codelet fast-path cache — see the zero-alloc item);
+      dead weight found on the way — `packedTwiddle8/16` computed but
+      never read, packed twiddles built for non-Stockham plans, a per-call
+      `cpu.DetectFeatures()` in the recursive path — is gone. The public
+      `Executor[T]`/`NewExecutor` shim was deleted with A6's blessing
+      (`Clone()` is the concurrent-use story; tests moved to
+      `plan_clone_test.go`).)_
+- [x] Re-partition the `plan_*.go` files along the new seams (construction,
       execution wrappers, lifecycle, introspection, DSP) — the current
       split is arbitrary (batch execution in plan.go, batch stride
-      resolution in plan_batch.go; hand-rolled `itoa` in plan.go next to
+      resolution in plan*batch.go; hand-rolled `itoa` in plan.go next to
       `fmt.Sprintf` in plan_2d.go).
-- [ ] Zero-alloc and `AllocsPerRun` guards must stay green throughout —
+      *(Done 2026-07. `plan.go` = struct + construction only (984 → 595
+      lines); `plan_transform.go` = Forward/Inverse/InPlace/Unsafe/batch
+      wrappers; `plan_exec*.go` = the four executors; `plan_lifecycle.go`
+      = Reset/Close/Clone (the strategy switches replaced by stored
+      `scratchLen`/`subScratchLen`); `plan_introspect.go` = Len/String/
+      KernelStrategy/Algorithm + the name constants; `plan_alloc.go` =
+      allocation helpers (`allocateScratchSet` now takes plain sizes).
+      `executor.go`, `plan_bluestein.go`, `plan_rader.go`,
+      `plan_recursive.go` deleted; hand-rolled `itoa` replaced by
+      `strconv.Itoa` everywhere.)\_
+- [x] Zero-alloc and `AllocsPerRun` guards must stay green throughout —
       this is a refactor, not a rewrite; land it strategy-by-strategy with
       the existing reference/round-trip gates.
+      _(Done 2026-07. All `*NoAllocs*` guards green; full suite, `-race`,
+      purego, arm64 (QEMU), wasm/386 cross-builds, `vet-arch`, and lint
+      all pass. Interleaved `benchstat` vs the pre-split tree first showed
+      the interface dispatch costing ~20 ns — +73% at n=8, invisible from
+      n=64 up — so the codelet binding is additionally cached on `Plan` as
+      a zero-dispatch fast path (documented at the fields; the executor
+      stays complete without it). With the cache, n≥16 is neutral and n=8
+      shows a ~2 ns residual (+10%, p≈0.04) at the measurement machine's
+      layout-noise floor; `FastPlan` remains the latency path for tiny
+      sizes.)_
 
 ### A5. Generate the complex128 kernel twins
 
@@ -324,9 +369,11 @@ package (38k lines).
       this file is the source of truth) or rewrite its header to say so.
 - [ ] Extend `just clean` to remove `*.test` binaries, `*.pprof`, `*.o`,
       `dist/`, and stale `coverage_*` variants.
-- [ ] `Executor.Close` doc says "no-op" but calls `plan.Close()`
+- [x] `Executor.Close` doc says "no-op" but calls `plan.Close()`
       (executor.go:35-42) — make the code and comment agree (A1/A4 may
       delete `Executor` entirely; it is a thin `Clone()` wrapper).
+      _(Done 2026-07 with A4: `Executor`/`NewExecutor` deleted; `Clone()`
+      is the concurrent-use API.)_
 - [ ] Inline magic epsilons `1e-4`/`1e-12` in real-inverse spectrum
       validation (plan_real_generic.go:342-353) → named, documented
       constants.

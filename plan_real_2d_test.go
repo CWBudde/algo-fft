@@ -3,6 +3,7 @@ package algofft
 import (
 	"math"
 	"math/rand"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -497,7 +498,7 @@ func sprintf(format string, args ...any) string {
 	for i := 0; i < len(format); i++ {
 		if format[i] == '%' && i+1 < len(format) && format[i+1] == 'd' {
 			if argIdx < len(args) {
-				result.WriteString(itoa(args[argIdx].(int)))
+				result.WriteString(strconv.Itoa(args[argIdx].(int)))
 				argIdx++
 			}
 

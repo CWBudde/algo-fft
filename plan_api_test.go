@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/cmplx"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -365,7 +366,7 @@ func TestString_AllStrategies(t *testing.T) {
 			}
 
 			// Should contain size
-			sizeStr := itoa(tt.size)
+			sizeStr := strconv.Itoa(tt.size)
 			if !contains(s, sizeStr) {
 				t.Errorf("String() should contain '%s', got: %s", sizeStr, s)
 			}
@@ -419,12 +420,12 @@ func TestItoa(t *testing.T) {
 	}
 
 	// Test itoa directly with negative numbers (though not used in Plan)
-	if result := itoa(-42); result != "-42" {
-		t.Errorf("itoa(-42) = %s, want -42", result)
+	if result := strconv.Itoa(-42); result != "-42" {
+		t.Errorf("strconv.Itoa(-42) = %s, want -42", result)
 	}
 
-	if result := itoa(0); result != "0" {
-		t.Errorf("itoa(0) = %s, want 0", result)
+	if result := strconv.Itoa(0); result != "0" {
+		t.Errorf("strconv.Itoa(0) = %s, want 0", result)
 	}
 }
 

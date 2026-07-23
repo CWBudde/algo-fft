@@ -4,6 +4,7 @@ package algofft
 
 import (
 	"runtime"
+	"strconv"
 	"testing"
 )
 
@@ -355,7 +356,7 @@ func TestPlanNDTransformsNoAllocsComplex128(t *testing.T) {
 func TestPlanMixedRadixTransformsNoAllocs(t *testing.T) {
 	// 768 = 2^8·3, 1536 = 2^9·3 (routes through the size-384 codelet under asm).
 	for _, n := range []int{96, 768, 1536} {
-		t.Run("complex64_"+itoa(n), func(t *testing.T) {
+		t.Run("complex64_"+strconv.Itoa(n), func(t *testing.T) {
 			plan, err := NewPlan[complex64](n)
 			if err != nil {
 				t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
@@ -378,7 +379,7 @@ func TestPlanMixedRadixTransformsNoAllocs(t *testing.T) {
 			assertNoAllocs(t, "Inverse", func() error { return plan.Inverse(dst, freq) })
 		})
 
-		t.Run("complex128_"+itoa(n), func(t *testing.T) {
+		t.Run("complex128_"+strconv.Itoa(n), func(t *testing.T) {
 			plan, err := NewPlan[complex128](n)
 			if err != nil {
 				t.Fatalf("NewPlan[complex128](%d) returned error: %v", n, err)

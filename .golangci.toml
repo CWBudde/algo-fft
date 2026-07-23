@@ -129,13 +129,20 @@ path = '^cmd/'
 # and panics, which is the intended no-silent-failure contract (PLAN.md P0.4).
 [[linters.exclusions.rules]]
 linters = ['forcetypeassert']
-path = '^(plan_(real_fast|real_generic|real_odd|recursive|fast|bluestein)\.go|internal/memory/aligned_generic\.go|internal/fft/(pool|complex_mul)\.go)'
+path = '^(plan_(real_fast|real_generic|real_odd|fast|exec_recursive)\.go|internal/memory/aligned_generic\.go|internal/fft/(pool|complex_mul)\.go)'
 
 # Cross-arch alias tables: symbols may only be read by another GOARCH's
 # dispatch files, which the (host-arch) unused check cannot see.
 [[linters.exclusions.rules]]
 linters = ['unused']
 path = '^internal/fft/kernels_(386|arm64|amd64)'
+
+# Plan executors implement the generic planExecutor[T] interface; the unused
+# checker cannot see generic interface satisfaction (even with the
+# compile-time conformance assertions in plan_exec.go) and flags the methods.
+[[linters.exclusions.rules]]
+linters = ['unused']
+path = '^plan_exec'
 
 [severity]
 default = 'warn'

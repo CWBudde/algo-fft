@@ -1,6 +1,9 @@
 package algofft
 
-import "testing"
+import (
+	"strconv"
+	"testing"
+)
 
 func BenchmarkPlanForwardStrided(b *testing.B) {
 	benchForwardStrided(b, false)
@@ -42,7 +45,7 @@ func benchForwardStrided(b *testing.B, useCopy bool) {
 			label = "Copy"
 		}
 
-		b.Run(label+"/"+itoa(n), func(b *testing.B) {
+		b.Run(label+"/"+strconv.Itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(n * 8))
 			b.ResetTimer()

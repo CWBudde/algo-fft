@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 )
 
@@ -364,7 +365,7 @@ func BenchmarkPooledVsRegular(b *testing.B) {
 			plan.Close()
 		}
 
-		b.Run("Pooled/"+itoa(size), func(b *testing.B) {
+		b.Run("Pooled/"+strconv.Itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
 
 			for b.Loop() {
@@ -373,7 +374,7 @@ func BenchmarkPooledVsRegular(b *testing.B) {
 			}
 		})
 
-		b.Run("Regular/"+itoa(size), func(b *testing.B) {
+		b.Run("Regular/"+strconv.Itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
 
 			for b.Loop() {
