@@ -230,6 +230,22 @@ references are to the current tree.
       that mask FMA. `cpu.Features.HasFMA` exists now and the real-FFT
       recombination/repack dispatch already requires it; sweep the remaining
       AVX2 dispatch sites onto `HasAVX2 && HasFMA` as kernels are audited.
+      _Update 2026-07:_ first audit pass landed. The complex128 radix-4
+      codelet family (`avx2_f64_size256_radix4.s`,
+      `avx2_f64_size32_radix4_then2.s`) had its per-twiddle complex-multiply
+      cores (`VMULPD`/`VXORPD`-negate/`VADDPD`) fused to the in-tree
+      `VMOVDDUP`/`VPERMILPD`/`VFMADDSUB231PD` idiom already used by
+      `avx2_f64_size64_radix4.s` — 24 multiply sites, dead `maskNegLoPD`
+      loads removed. Measured (size-256 c128 forward, AVX2+FMA): −10.9%
+      (p=0.000), zero-alloc preserved, registry sweep vs `reference.NaiveDFT`
+      green. On the dispatch side, the AVX2 **codelet** tier is now gated on
+      `HasFMA` too: `planner.cpuSupports` requires `HasAVX2 && HasFMA` for
+      `SIMDAVX2` (the whole codelet tier compiles to FMA opcodes), so an
+      FMA-masked VM correctly falls back to SSE/generic instead of faulting.
+      Remaining: the f32 size-specific codelets (different YMM/low-64 idioms),
+      the generic radix-4/Stockham kernels, and the non-codelet AVX2 dispatch
+      sites (`complex_mul_amd64.go`, `kernels_amd64_asm.go`) still need their
+      pass.
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and

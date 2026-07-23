@@ -102,6 +102,7 @@ func TestCodeletRegistryMultipleVariants(t *testing.T) {
 	features := cpu.Features{
 		Architecture: "amd64",
 		HasAVX2:      true,
+		HasFMA:       true,
 	}
 
 	found := registry.Lookup(16, features)
@@ -148,6 +149,7 @@ func TestCodeletRegistryPreferHigherSIMD(t *testing.T) {
 		Architecture: "amd64",
 		HasSSE2:      true,
 		HasAVX2:      true,
+		HasFMA:       true,
 		HasAVX512:    true,
 	}
 
@@ -352,6 +354,7 @@ func TestCodeletRegistryGetAvailableSizes(t *testing.T) {
 
 	// With AVX2, should get all three
 	features.HasAVX2 = true
+	features.HasFMA = true
 
 	got = registry.GetAvailableSizes(features)
 	if len(got) != 3 {
@@ -506,7 +509,8 @@ func TestCPUSupports(t *testing.T) {
 		{"None level always supported", cpu.Features{}, SIMDNone, true},
 		{"SSE2 with SSE2 support", cpu.Features{HasSSE2: true}, SIMDSSE2, true},
 		{"SSE2 without SSE2 support", cpu.Features{HasSSE2: false}, SIMDSSE2, false},
-		{"AVX2 with AVX2 support", cpu.Features{HasAVX2: true}, SIMDAVX2, true},
+		{"AVX2 with AVX2+FMA support", cpu.Features{HasAVX2: true, HasFMA: true}, SIMDAVX2, true},
+		{"AVX2 without FMA support", cpu.Features{HasAVX2: true, HasFMA: false}, SIMDAVX2, false},
 		{"AVX2 without AVX2 support", cpu.Features{HasAVX2: false}, SIMDAVX2, false},
 		{"AVX512 with AVX512 support", cpu.Features{HasAVX512: true}, SIMDAVX512, true},
 		{"NEON with NEON support", cpu.Features{HasNEON: true}, SIMDNEON, true},
