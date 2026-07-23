@@ -1,5 +1,12 @@
 # Implementation Plan for **gofft** (Go FFT Library)
 
+> **Archived historical design doc.** This is the original vision document,
+> written under the project's early name **gofft** (the package is now
+> `algofft`, the module `github.com/cwbudde/algo-fft`). It is preserved for its
+> design philosophy and rationale; the old name is left intact as a historical
+> artifact. For current status and the authoritative roadmap, see
+> [`../PLAN.md`](../PLAN.md), which supersedes this file.
+
 This plan outlines a multi-phase approach to build an open-source FFT library in Go. It emphasizes a pure Go implementation (no cgo) for broad platform support (including WebAssembly), a focus on complex64 performance, and a clean API that hides backend details (like SIMD/assembly optimizations) from users. Each phase lists key tasks and goals, ensuring the library is extensible, well-tested, and contributor-friendly.
 
 > **Status note (2026-07):** SIMD kernels ship in the default build and are

@@ -49,7 +49,7 @@ The root package `algofft` exposes the user-facing API, grouped roughly by file:
 - `BENCHMARKS.md`: Performance results
 - `CHANGELOG.md`: Release notes
 - `CONTRIBUTING.md`: Contribution guidelines
-- `goal.md`: High-level design philosophy
+- `docs/goal.md`: High-level design philosophy (archived historical design doc; `PLAN.md` is the source of truth)
 
 ## Build, Test, and Development Commands
 
@@ -135,7 +135,7 @@ The library uses multiple testing layers:
 ### Adding a New Feature
 
 1. Check `PLAN.md` for the detailed implementation roadmap
-2. Read `goal.md` for high-level design philosophy
+2. Read `docs/goal.md` for high-level design philosophy
 3. Implement feature with tests first (TDD approach recommended)
 4. Run `just lint-fix` to auto-format and fix linter issues
 5. Verify `just check` passes (test + lint + coverage)
@@ -270,7 +270,7 @@ Validate inputs at the Plan API boundary, not in internal kernels.
 
 ## Design Philosophy
 
-From `goal.md` and `README.md`:
+From `docs/goal.md` and `README.md`:
 
 1. **Pure Go**: No cgo, WebAssembly-compatible
 2. **Performance**: SIMD acceleration, zero-allocation transforms

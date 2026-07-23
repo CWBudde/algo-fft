@@ -7,7 +7,7 @@ file). What remains here is a condensed record, the **immediate pre-v1.0
 architecture consolidation (§2)**, the few carried-over open items, and the
 post-v1.0 optimization backlog.
 
-Design philosophy lives in `goal.md`; the component inventory is generated
+Design philosophy lives in `docs/goal.md`; the component inventory is generated
 into `docs/IMPLEMENTATION_INVENTORY.md` via `go generate ./internal/kernels/...`
 (which runs `cmd/gencodelets -inventory <path>`).
 
@@ -382,28 +382,36 @@ package (38k lines).
 
 ### A6. Quick fixes _(independent, land anytime)_
 
-- [ ] `cmd/bench_compare` + `cmd/measure_correctness` **don't compile**:
+- [x] `cmd/bench_compare` + `cmd/measure_correctness` **don't compile**:
       their `go.mod` says `github.com/cwbudde/algofft` (no dash) vs the
       actual module `algo-fft`; `measure_correctness` also imports
-      `internal/reference` across a module boundary (illegal). Fold both
-      into the main module; delete the "Why Separate Modules?" rationale
-      from `cmd/README.md`.
-- [ ] `cmd/README.md` documents 2 of 4 tools — add `gencodelets` and
-      `benchkernels`.
-- [ ] Naming drift: `gofft` appears 16× in README.md and throughout
+      `internal/reference` across a module boundary (illegal).
+      _(Done 2026-07.)_ `measure_correctness` folded into the main module
+      (its `go.mod`/`go.sum` deleted). `bench_compare` **kept as a separate
+      module** — its names fixed to `algo-fft` — so its gonum benchmarking
+      dependency stays out of the main module's graph; `cmd/README.md`'s
+      "Why a Separate Module?" section was rewritten (not deleted) to reflect
+      that only `bench_compare` is isolated.
+- [x] `cmd/README.md` documents 2 of 4 tools — add `gencodelets` and
+      `benchkernels`. _(Done 2026-07; also documents the new `genkernels`, so
+      all five tools are covered.)_
+- [x] Naming drift: `gofft` appears 16× in README.md and throughout
       `goal.md`; standardize on `algofft` (package) / `algo-fft` (module).
-      Archive `goal.md` (it's the historical design doc for the old name;
-      this file is the source of truth) or rewrite its header to say so.
-- [ ] Extend `just clean` to remove `*.test` binaries, `*.pprof`, `*.o`,
-      `dist/`, and stale `coverage_*` variants.
+      _(Done 2026-07.)_ README.md already used `algofft`; `goal.md` was
+      **archived** to `docs/goal.md` with a historical banner (superseded by
+      this file), and its `gofft` mentions are kept as a historical artifact.
+      References in `AGENTS.md` and this file updated to `docs/goal.md`.
+- [x] Extend `just clean` to remove `*.test` binaries, `*.pprof`, `*.o`,
+      `dist/`, and stale `coverage_*` variants. _(Done 2026-07.)_
 - [x] `Executor.Close` doc says "no-op" but calls `plan.Close()`
       (executor.go:35-42) — make the code and comment agree (A1/A4 may
       delete `Executor` entirely; it is a thin `Clone()` wrapper).
       _(Done 2026-07 with A4: `Executor`/`NewExecutor` deleted; `Clone()`
       is the concurrent-use API.)_
-- [ ] Inline magic epsilons `1e-4`/`1e-12` in real-inverse spectrum
+- [x] Inline magic epsilons `1e-4`/`1e-12` in real-inverse spectrum
       validation (plan_real_generic.go:342-353) → named, documented
-      constants.
+      constants. _(Done 2026-07: `spectrumImagTol32`/`spectrumImagTol64` in
+      `plan_real_generic.go`, used by both the even and odd inverse paths.)_
 
 **Explicitly kept as-is** (reviewed, deliberate): the benchmark-cited
 selection thresholds in `internal/planner` (compile-time constants are fine

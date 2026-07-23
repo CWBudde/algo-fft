@@ -33,7 +33,9 @@ cover:
 
 # Clean build artifacts
 clean:
-    rm -f coverage.txt coverage.html
+    rm -f coverage.txt coverage.html coverage_*.txt coverage_*.html
+    rm -rf dist/
+    find . -type f \( -name '*.test' -o -name '*.pprof' -o -name '*.o' \) -delete
 
 # Run all checks (test, lint, coverage)
 check: test lint cover

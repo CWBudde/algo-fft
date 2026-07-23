@@ -9,6 +9,17 @@ import (
 	"github.com/cwbudde/algo-fft/internal/fft"
 )
 
+// Tolerances bounding the imaginary component allowed in the DC (and, for even
+// lengths, Nyquist) bins of a spectrum passed to a real inverse transform.
+// Real-input FFTs produce purely real DC/Nyquist bins; a spectrum whose
+// imaginary part exceeds these bounds cannot come from real data and is
+// rejected with ErrInvalidSpectrum. The float32 bound is looser to absorb the
+// larger rounding error of complex64 arithmetic.
+const (
+	spectrumImagTol32 = 1e-4  // complex64 (float32) inputs
+	spectrumImagTol64 = 1e-12 // complex128 (float64) inputs
+)
+
 // PlanReal is a generic pre-computed real FFT plan supporting both float32
 // and float64 input. The forward transform returns the non-redundant
 // half-spectrum with length N/2+1. Plans are reusable and safe for concurrent
@@ -277,19 +288,15 @@ func (p *PlanReal[F, C]) Inverse(dst []F, src []C) error {
 	// Validate DC and Nyquist are real (imaginary parts near zero)
 	var zero C
 
-	spectrumEps := 1e-4
-
 	switch any(zero).(type) {
 	case complex64:
 		srcC64 := any(src).([]complex64)
-		if math.Abs(float64(imag(srcC64[0]))) > spectrumEps || math.Abs(float64(imag(srcC64[p.half]))) > spectrumEps {
+		if math.Abs(float64(imag(srcC64[0]))) > spectrumImagTol32 || math.Abs(float64(imag(srcC64[p.half]))) > spectrumImagTol32 {
 			return ErrInvalidSpectrum
 		}
 	case complex128:
 		srcC128 := any(src).([]complex128)
-
-		spectrumEps = 1e-12 // Tighter tolerance for float64
-		if math.Abs(imag(srcC128[0])) > spectrumEps || math.Abs(imag(srcC128[p.half])) > spectrumEps {
+		if math.Abs(imag(srcC128[0])) > spectrumImagTol64 || math.Abs(imag(srcC128[p.half])) > spectrumImagTol64 {
 			return ErrInvalidSpectrum
 		}
 	}
