@@ -4,17 +4,17 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	"github.com/cwbudde/algo-fft/internal/planner"
 	"github.com/cwbudde/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // bailingRegistry returns a registry whose only codelet models a kernel that
 // bails without doing any work (e.g. an undersized-slice guard). The recursive
 // executor must detect this and fall back to the generic DIT path instead of
 // silently returning wrong output. Regression test for PLAN.md A0.
-func bailingRegistry(size int) *planner.CodeletRegistry[complex64] {
-	reg := planner.NewCodeletRegistry[complex64]()
-	reg.Register(planner.CodeletEntry[complex64]{
+func bailingRegistry(size int) *registry.CodeletRegistry[complex64] {
+	reg := registry.NewCodeletRegistry[complex64]()
+	reg.Register(registry.CodeletEntry[complex64]{
 		Size: size,
 		Forward: func(dst, src, twiddle, scratch []complex64) bool {
 			return false // bails: does no work

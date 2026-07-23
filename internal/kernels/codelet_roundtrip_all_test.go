@@ -8,7 +8,7 @@ import (
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/memory"
-	"github.com/cwbudde/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // TestRoundTripAllCodelets64 tests that every registered complex64 codelet passes
@@ -16,11 +16,11 @@ import (
 func TestRoundTripAllCodelets64(t *testing.T) {
 	t.Parallel()
 
-	sizes := Registry64.Sizes()
+	sizes := registry.Registry64.Sizes()
 	features := cpu.DetectFeatures()
 
 	for _, size := range sizes {
-		entries := Registry64.GetAllForSize(size)
+		entries := registry.Registry64.GetAllForSize(size)
 		for _, entry := range entries {
 			// Skip disabled codelets (negative priority)
 			if entry.Priority < 0 {
@@ -28,7 +28,7 @@ func TestRoundTripAllCodelets64(t *testing.T) {
 			}
 
 			// Skip codelets that require unsupported CPU features
-			if !cpuSupportsLevel(features, entry.SIMDLevel) {
+			if !registry.CPUSupports(features, entry.SIMDLevel) {
 				continue
 			}
 
@@ -45,11 +45,11 @@ func TestRoundTripAllCodelets64(t *testing.T) {
 func TestRoundTripAllCodelets128(t *testing.T) {
 	t.Parallel()
 
-	sizes := Registry128.Sizes()
+	sizes := registry.Registry128.Sizes()
 	features := cpu.DetectFeatures()
 
 	for _, size := range sizes {
-		entries := Registry128.GetAllForSize(size)
+		entries := registry.Registry128.GetAllForSize(size)
 		for _, entry := range entries {
 			// Skip disabled codelets (negative priority)
 			if entry.Priority < 0 {
@@ -57,7 +57,7 @@ func TestRoundTripAllCodelets128(t *testing.T) {
 			}
 
 			// Skip codelets that require unsupported CPU features
-			if !cpuSupportsLevel(features, entry.SIMDLevel) {
+			if !registry.CPUSupports(features, entry.SIMDLevel) {
 				continue
 			}
 
@@ -69,7 +69,7 @@ func TestRoundTripAllCodelets128(t *testing.T) {
 	}
 }
 
-func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) {
+func testRoundTripCodelet64(t *testing.T, entry *registry.CodeletEntry[complex64]) {
 	t.Helper()
 
 	size := entry.Size
@@ -143,7 +143,7 @@ func testRoundTripCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]
 	runtime.KeepAlive(inverseBacking)
 }
 
-func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]) {
+func testRoundTripCodelet128(t *testing.T, entry *registry.CodeletEntry[complex128]) {
 	t.Helper()
 
 	size := entry.Size
@@ -222,11 +222,11 @@ func testRoundTripCodelet128(t *testing.T, entry *planner.CodeletEntry[complex12
 func TestInPlaceAllCodelets64(t *testing.T) {
 	t.Parallel()
 
-	sizes := Registry64.Sizes()
+	sizes := registry.Registry64.Sizes()
 	features := cpu.DetectFeatures()
 
 	for _, size := range sizes {
-		entries := Registry64.GetAllForSize(size)
+		entries := registry.Registry64.GetAllForSize(size)
 		for _, entry := range entries {
 			// Skip disabled codelets (negative priority)
 			if entry.Priority < 0 {
@@ -234,7 +234,7 @@ func TestInPlaceAllCodelets64(t *testing.T) {
 			}
 
 			// Skip codelets that require unsupported CPU features
-			if !cpuSupportsLevel(features, entry.SIMDLevel) {
+			if !registry.CPUSupports(features, entry.SIMDLevel) {
 				continue
 			}
 
@@ -251,11 +251,11 @@ func TestInPlaceAllCodelets64(t *testing.T) {
 func TestInPlaceAllCodelets128(t *testing.T) {
 	t.Parallel()
 
-	sizes := Registry128.Sizes()
+	sizes := registry.Registry128.Sizes()
 	features := cpu.DetectFeatures()
 
 	for _, size := range sizes {
-		entries := Registry128.GetAllForSize(size)
+		entries := registry.Registry128.GetAllForSize(size)
 		for _, entry := range entries {
 			// Skip disabled codelets (negative priority)
 			if entry.Priority < 0 {
@@ -263,7 +263,7 @@ func TestInPlaceAllCodelets128(t *testing.T) {
 			}
 
 			// Skip codelets that require unsupported CPU features
-			if !cpuSupportsLevel(features, entry.SIMDLevel) {
+			if !registry.CPUSupports(features, entry.SIMDLevel) {
 				continue
 			}
 
@@ -275,7 +275,7 @@ func TestInPlaceAllCodelets128(t *testing.T) {
 	}
 }
 
-func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) {
+func testInPlaceCodelet64(t *testing.T, entry *registry.CodeletEntry[complex64]) {
 	t.Helper()
 
 	size := entry.Size
@@ -346,7 +346,7 @@ func testInPlaceCodelet64(t *testing.T, entry *planner.CodeletEntry[complex64]) 
 	runtime.KeepAlive(inverseBacking)
 }
 
-func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]) {
+func testInPlaceCodelet128(t *testing.T, entry *registry.CodeletEntry[complex128]) {
 	t.Helper()
 
 	size := entry.Size
@@ -420,7 +420,7 @@ func testInPlaceCodelet128(t *testing.T, entry *planner.CodeletEntry[complex128]
 func prepareCodeletTwiddles64(
 	size int,
 	base []complex64,
-	entry *planner.CodeletEntry[complex64],
+	entry *registry.CodeletEntry[complex64],
 ) ([]complex64, []complex64, []byte, []byte) {
 	forward := base
 	inverse := base
@@ -448,7 +448,7 @@ func prepareCodeletTwiddles64(
 func prepareCodeletTwiddles128(
 	size int,
 	base []complex128,
-	entry *planner.CodeletEntry[complex128],
+	entry *registry.CodeletEntry[complex128],
 ) ([]complex128, []complex128, []byte, []byte) {
 	forward := base
 	inverse := base
@@ -471,22 +471,4 @@ func prepareCodeletTwiddles128(
 	entry.PrepareTwiddle(size, true, inverse)
 
 	return forward, inverse, forwardBacking, inverseBacking
-}
-
-// cpuSupportsLevel checks if the current CPU supports the required SIMD level.
-func cpuSupportsLevel(features cpu.Features, level planner.SIMDLevel) bool {
-	switch level {
-	case planner.SIMDNone:
-		return true
-	case planner.SIMDSSE2:
-		return features.HasSSE2
-	case planner.SIMDAVX2:
-		return features.HasAVX2
-	case planner.SIMDAVX512:
-		return features.HasAVX512
-	case planner.SIMDNEON:
-		return features.HasNEON
-	default:
-		return false
-	}
 }

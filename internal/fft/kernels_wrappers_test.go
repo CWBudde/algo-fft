@@ -4,6 +4,7 @@ import (
 	"math/cmplx"
 	"testing"
 
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
@@ -23,14 +24,14 @@ func TestDITWrappers(t *testing.T) {
 	dst := make([]complex64, n)
 
 	// Forward
-	if !ditForward(dst, src, twiddle, scratch) {
-		t.Fatal("ditForward failed")
+	if !kernels.DITForward(dst, src, twiddle, scratch) {
+		t.Fatal("kernels.DITForward failed")
 	}
 
 	ref := reference.NaiveDFT(src)
 	for i := range dst {
 		if cmplx.Abs(complex128(dst[i]-ref[i])) > 1e-5 {
-			t.Errorf("ditForward mismatch at %d", i)
+			t.Errorf("kernels.DITForward mismatch at %d", i)
 		}
 	}
 
@@ -38,13 +39,13 @@ func TestDITWrappers(t *testing.T) {
 	fwd := make([]complex64, n)
 	copy(fwd, dst)
 
-	if !ditInverse(dst, fwd, twiddle, scratch) {
-		t.Fatal("ditInverse failed")
+	if !kernels.DITInverse(dst, fwd, twiddle, scratch) {
+		t.Fatal("kernels.DITInverse failed")
 	}
 
 	for i := range dst {
 		if cmplx.Abs(complex128(dst[i]-src[i])) > 1e-5 {
-			t.Errorf("ditInverse mismatch at %d", i)
+			t.Errorf("kernels.DITInverse mismatch at %d", i)
 		}
 	}
 }
@@ -64,14 +65,14 @@ func TestStockhamWrappers(t *testing.T) {
 	dst := make([]complex64, n)
 
 	// Forward
-	if !stockhamForward(dst, src, twiddle, scratch) {
-		t.Fatal("stockhamForward failed")
+	if !kernels.StockhamForward(dst, src, twiddle, scratch) {
+		t.Fatal("kernels.StockhamForward failed")
 	}
 
 	ref := reference.NaiveDFT(src)
 	for i := range dst {
 		if cmplx.Abs(complex128(dst[i]-ref[i])) > 1e-5 {
-			t.Errorf("stockhamForward mismatch at %d", i)
+			t.Errorf("kernels.StockhamForward mismatch at %d", i)
 		}
 	}
 
@@ -79,13 +80,13 @@ func TestStockhamWrappers(t *testing.T) {
 	fwd := make([]complex64, n)
 	copy(fwd, dst)
 
-	if !stockhamInverse(dst, fwd, twiddle, scratch) {
-		t.Fatal("stockhamInverse failed")
+	if !kernels.StockhamInverse(dst, fwd, twiddle, scratch) {
+		t.Fatal("kernels.StockhamInverse failed")
 	}
 
 	for i := range dst {
 		if cmplx.Abs(complex128(dst[i]-src[i])) > 1e-5 {
-			t.Errorf("stockhamInverse mismatch at %d", i)
+			t.Errorf("kernels.StockhamInverse mismatch at %d", i)
 		}
 	}
 }
@@ -99,7 +100,7 @@ func TestBluesteinWrappers(t *testing.T) {
 	// 2*3-1 = 5. next power of 2 >= 5 is 8.
 	m := 8
 
-	chirp := ComputeChirpSequence[complex64](n)
+	chirp := kernels.ComputeChirpSequence[complex64](n)
 	twiddles := mathpkg.ComputeTwiddleFactors[complex64](m)
 	scratch := make([]complex64, m)
 
@@ -121,7 +122,7 @@ func TestBluesteinWrappers128(t *testing.T) {
 	n := 3
 	m := 8
 
-	chirp := ComputeChirpSequence[complex128](n)
+	chirp := kernels.ComputeChirpSequence[complex128](n)
 	twiddles := mathpkg.ComputeTwiddleFactors[complex128](m)
 	scratch := make([]complex128, m)
 

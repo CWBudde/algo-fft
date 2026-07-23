@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 )
 
 func TestPlanForwardStrided_Complex64(t *testing.T) {
@@ -138,7 +138,7 @@ func TestPlanForwardStridedRecursive_Complex64(t *testing.T) {
 		t.Fatalf("NewPlanWithOptions(Recursive) failed: %v", err)
 	}
 
-	if plan.kernelStrategy != fft.KernelRecursive {
+	if plan.kernelStrategy != fftypes.KernelRecursive {
 		t.Fatalf("expected KernelRecursive strategy, got %v", plan.kernelStrategy)
 	}
 

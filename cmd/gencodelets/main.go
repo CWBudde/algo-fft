@@ -3,8 +3,8 @@
 //
 // It emits one file per build target (generic / avx2 / sse2 / neon), each
 // containing register{Kind}DITCodelets64 and register{Kind}DITCodelets128
-// functions that populate the global codelet registries at init time. The
-// hand-written scaffolding (init, registries) lives in
+// functions that populate the global codelet registries (internal/registry)
+// at init time. The hand-written init scaffolding lives in
 // internal/kernels/codelet_registry.go.
 //
 // With -inventory <path>, it instead renders the implementation inventory
@@ -97,10 +97,18 @@ func renderTarget(tgt target) []byte {
 
 	b.WriteString("package kernels\n\n")
 
-	// Emit the import only when the target actually references it.
+	// Registration goes straight to the leaf registry package; the strategy/
+	// SIMD/kernel-type constants live in fftypes. The optional per-arch asm
+	// import is emitted only when the target actually references it.
+	b.WriteString("import (\n")
+	b.WriteString("\"github.com/cwbudde/algo-fft/internal/fftypes\"\n")
+	b.WriteString("\"github.com/cwbudde/algo-fft/internal/registry\"\n")
+
 	if tgt.importPkg != "" && targetUsesImport(tgt) {
-		fmt.Fprintf(&b, "import %s %q\n\n", tgt.importAs, tgt.importPkg)
+		fmt.Fprintf(&b, "%s %q\n", tgt.importAs, tgt.importPkg)
 	}
+
+	b.WriteString(")\n\n")
 
 	for _, prec := range []int{64, 128} {
 		renderRegisterFunc(&b, tgt, prec)
@@ -132,17 +140,17 @@ func renderRegisterFunc(b *bytes.Buffer, tgt target, prec int) {
 }
 
 func renderRegister(b *bytes.Buffer, s codeletSpec) {
-	reg := fmt.Sprintf("Registry%d", s.Prec)
+	reg := fmt.Sprintf("registry.Registry%d", s.Prec)
 
-	fmt.Fprintf(b, "%s.Register(CodeletEntry[complex%d]{\n", reg, s.Prec)
+	fmt.Fprintf(b, "%s.Register(registry.CodeletEntry[complex%d]{\n", reg, s.Prec)
 	fmt.Fprintf(b, "Size: %d,\n", s.Size)
 	fmt.Fprintf(b, "Forward: %s,\n", s.Forward)
 	fmt.Fprintf(b, "Inverse: %s,\n", s.Inverse)
-	fmt.Fprintf(b, "Algorithm: %s,\n", s.Algorithm)
-	fmt.Fprintf(b, "SIMDLevel: %s,\n", s.SIMDLevel)
+	fmt.Fprintf(b, "Algorithm: fftypes.%s,\n", s.Algorithm)
+	fmt.Fprintf(b, "SIMDLevel: fftypes.%s,\n", s.SIMDLevel)
 	fmt.Fprintf(b, "Signature: %q,\n", s.Signature)
 	fmt.Fprintf(b, "Priority: %d,\n", s.Priority)
-	fmt.Fprintf(b, "KernelType: %s,\n", s.KernelType)
+	fmt.Fprintf(b, "KernelType: fftypes.%s,\n", s.KernelType)
 
 	if s.TwiddleSize != "" {
 		fmt.Fprintf(b, "TwiddleSize: %s,\n", s.TwiddleSize)

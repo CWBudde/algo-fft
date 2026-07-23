@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/registry"
+	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // TestRecursiveTransform tests the recursive FFT decomposition.
@@ -35,29 +38,29 @@ func testRecursive64(t *testing.T, n int) {
 	codeletSizes := []int{4, 8, 16, 32}
 	cacheSize := 32768 // 32KB L1 cache
 
-	strategy := PlanDecomposition(n, codeletSizes, cacheSize)
+	strategy := transform.PlanDecomposition(n, codeletSizes, cacheSize)
 	if strategy == nil {
 		t.Skip("Cannot decompose size")
 		return
 	}
 
 	// Get twiddle factors for recursive transform
-	twiddle := TwiddleFactorsRecursive[complex64](strategy)
+	twiddle := transform.TwiddleFactorsRecursive[complex64](strategy)
 	if len(twiddle) == 0 {
 		t.Skip("No twiddle factors generated")
 		return
 	}
 
 	// Allocate scratch space
-	scratchSize := ScratchSizeRecursive(strategy)
+	scratchSize := transform.ScratchSizeRecursive(strategy)
 	scratch := make([]complex64, scratchSize)
 
 	// Get registry
-	registry := GetRegistry[complex64]()
+	registry := registry.GetRegistry[complex64]()
 
 	// Test forward
 	dst := make([]complex64, n)
-	RecursiveForward(dst, src, strategy, twiddle, scratch, registry, features)
+	transform.RecursiveForward(dst, src, strategy, twiddle, scratch, registry, features)
 
 	// Verify against reference
 	for i := range dst {
@@ -69,7 +72,7 @@ func testRecursive64(t *testing.T, n int) {
 
 	// Test inverse
 	inv := make([]complex64, n)
-	RecursiveInverse(inv, dst, strategy, twiddle, scratch, registry, features)
+	transform.RecursiveInverse(inv, dst, strategy, twiddle, scratch, registry, features)
 
 	// Verify round-trip
 	for i := range inv {
@@ -90,25 +93,25 @@ func testRecursive128(t *testing.T, n int) {
 	codeletSizes := []int{4, 8, 16, 32}
 	cacheSize := 32768
 
-	strategy := PlanDecomposition(n, codeletSizes, cacheSize)
+	strategy := transform.PlanDecomposition(n, codeletSizes, cacheSize)
 	if strategy == nil {
 		t.Skip("Cannot decompose size")
 		return
 	}
 
-	twiddle := TwiddleFactorsRecursive[complex128](strategy)
+	twiddle := transform.TwiddleFactorsRecursive[complex128](strategy)
 	if len(twiddle) == 0 {
 		t.Skip("No twiddle factors generated")
 		return
 	}
 
-	scratchSize := ScratchSizeRecursive(strategy)
+	scratchSize := transform.ScratchSizeRecursive(strategy)
 	scratch := make([]complex128, scratchSize)
 
-	registry := GetRegistry[complex128]()
+	registry := registry.GetRegistry[complex128]()
 
 	dst := make([]complex128, n)
-	RecursiveForward(dst, src, strategy, twiddle, scratch, registry, features)
+	transform.RecursiveForward(dst, src, strategy, twiddle, scratch, registry, features)
 
 	for i := range dst {
 		if cmplx.Abs(dst[i]-want[i]) > testTol128 {
@@ -118,7 +121,7 @@ func testRecursive128(t *testing.T, n int) {
 	}
 
 	inv := make([]complex128, n)
-	RecursiveInverse(inv, dst, strategy, twiddle, scratch, registry, features)
+	transform.RecursiveInverse(inv, dst, strategy, twiddle, scratch, registry, features)
 
 	for i := range inv {
 		if cmplx.Abs(inv[i]-src[i]) > testTol128 {
@@ -149,7 +152,7 @@ func testStockhamPacked64(t *testing.T, n int) {
 	t.Helper()
 
 	// Check if packed Stockham is available
-	if !StockhamPackedAvailable() {
+	if !transform.StockhamPackedAvailable() {
 		t.Skipf("Packed Stockham not available for n=%d", n)
 		return
 	}
@@ -158,9 +161,9 @@ func testStockhamPacked64(t *testing.T, n int) {
 	want := reference.NaiveDFT(src)
 
 	// Prepare packed twiddles
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 
-	packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
+	packed := transform.ComputePackedTwiddles[complex64](n, 4, twiddle)
 	if packed == nil {
 		t.Skip("Failed to compute packed twiddles")
 		return
@@ -170,8 +173,8 @@ func testStockhamPacked64(t *testing.T, n int) {
 	dst := make([]complex64, n)
 
 	scratch := make([]complex64, n)
-	if !ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
-		t.Skip("ForwardStockhamPacked not implemented")
+	if !transform.ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
+		t.Skip("transform.ForwardStockhamPacked not implemented")
 		return
 	}
 
@@ -184,12 +187,12 @@ func testStockhamPacked64(t *testing.T, n int) {
 	}
 
 	// Test inverse with conjugated packed twiddles
-	invPacked := ConjugatePackedTwiddles(packed)
+	invPacked := transform.ConjugatePackedTwiddles(packed)
 	inv := make([]complex64, n)
 
 	scratch = make([]complex64, n)
-	if !InverseStockhamPacked(inv, dst, twiddle, scratch, invPacked) {
-		t.Skip("InverseStockhamPacked not implemented")
+	if !transform.InverseStockhamPacked(inv, dst, twiddle, scratch, invPacked) {
+		t.Skip("transform.InverseStockhamPacked not implemented")
 		return
 	}
 
@@ -205,7 +208,7 @@ func testStockhamPacked64(t *testing.T, n int) {
 func testStockhamPacked128(t *testing.T, n int) {
 	t.Helper()
 
-	if !StockhamPackedAvailable() {
+	if !transform.StockhamPackedAvailable() {
 		t.Skipf("Packed Stockham not available for n=%d", n)
 		return
 	}
@@ -213,9 +216,9 @@ func testStockhamPacked128(t *testing.T, n int) {
 	src := randomComplex128(n, uint64(n+456))
 	want := reference.NaiveDFT128(src)
 
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
-	packed := ComputePackedTwiddles[complex128](n, 4, twiddle)
+	packed := transform.ComputePackedTwiddles[complex128](n, 4, twiddle)
 	if packed == nil {
 		t.Skip("Failed to compute packed twiddles")
 		return
@@ -224,8 +227,8 @@ func testStockhamPacked128(t *testing.T, n int) {
 	dst := make([]complex128, n)
 
 	scratch := make([]complex128, n)
-	if !ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
-		t.Skip("ForwardStockhamPacked not implemented")
+	if !transform.ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
+		t.Skip("transform.ForwardStockhamPacked not implemented")
 		return
 	}
 
@@ -236,12 +239,12 @@ func testStockhamPacked128(t *testing.T, n int) {
 		}
 	}
 
-	invPacked := ConjugatePackedTwiddles(packed)
+	invPacked := transform.ConjugatePackedTwiddles(packed)
 	inv := make([]complex128, n)
 
 	scratch = make([]complex128, n)
-	if !InverseStockhamPacked(inv, dst, twiddle, scratch, invPacked) {
-		t.Skip("InverseStockhamPacked not implemented")
+	if !transform.InverseStockhamPacked(inv, dst, twiddle, scratch, invPacked) {
+		t.Skip("transform.InverseStockhamPacked not implemented")
 		return
 	}
 
@@ -263,13 +266,13 @@ func TestTwiddleFactorsRecursive(t *testing.T) {
 		codeletSizes := []int{4, 8, 16, 32}
 		cacheSize := 32768
 
-		strategy := PlanDecomposition(n, codeletSizes, cacheSize)
+		strategy := transform.PlanDecomposition(n, codeletSizes, cacheSize)
 		if strategy == nil {
 			continue
 		}
 
 		t.Run("complex64", func(t *testing.T) {
-			twiddle := TwiddleFactorsRecursive[complex64](strategy)
+			twiddle := transform.TwiddleFactorsRecursive[complex64](strategy)
 			if len(twiddle) == 0 {
 				t.Skip("No twiddles generated")
 			}
@@ -290,7 +293,7 @@ func TestTwiddleFactorsRecursive(t *testing.T) {
 		})
 
 		t.Run("complex128", func(t *testing.T) {
-			twiddle := TwiddleFactorsRecursive[complex128](strategy)
+			twiddle := transform.TwiddleFactorsRecursive[complex128](strategy)
 			if len(twiddle) == 0 {
 				t.Skip("No twiddles generated")
 			}

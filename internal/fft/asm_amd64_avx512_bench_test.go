@@ -10,18 +10,21 @@ package fft
 import (
 	"fmt"
 	"testing"
+
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 //nolint:gochecknoglobals // shared read-only benchmark fixture
 var avx512BenchSizes = []int{64, 256, 1024, 4096, 16384}
 
-func benchKernelComplex64(b *testing.B, n int, kernel Kernel[complex64]) {
+func benchKernelComplex64(b *testing.B, n int, kernel kernels.Kernel[complex64]) {
 	b.Helper()
 
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 
 	for i := range src {
 		src[i] = complex(float32(i), float32(-i))
@@ -38,13 +41,13 @@ func benchKernelComplex64(b *testing.B, n int, kernel Kernel[complex64]) {
 	}
 }
 
-func benchKernelComplex128(b *testing.B, n int, kernel Kernel[complex128]) {
+func benchKernelComplex128(b *testing.B, n int, kernel kernels.Kernel[complex128]) {
 	b.Helper()
 
 	src := make([]complex128, n)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 	for i := range src {
 		src[i] = complex(float64(i), float64(-i))

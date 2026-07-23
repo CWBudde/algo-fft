@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 func TestCodeletRegistryLookup(t *testing.T) {
@@ -19,7 +21,7 @@ func TestCodeletRegistryLookup(t *testing.T) {
 		// Should find codelets for sizes 4, 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192
 		sizes := []int{4, 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192}
 		for _, size := range sizes {
-			entry := Registry64.Lookup(size, features)
+			entry := registry.Registry64.Lookup(size, features)
 			if entry == nil {
 				t.Errorf("expected codelet for size %d, got nil", size)
 				continue
@@ -51,7 +53,7 @@ func TestCodeletRegistryLookup(t *testing.T) {
 
 		sizes := []int{4, 8, 16, 32, 64, 128, 256, 384}
 		for _, size := range sizes {
-			entry := Registry128.Lookup(size, features)
+			entry := registry.Registry128.Lookup(size, features)
 			if entry == nil {
 				t.Errorf("expected codelet for size %d, got nil", size)
 				continue
@@ -72,7 +74,7 @@ func TestCodeletRegistryNoMatch(t *testing.T) {
 	// Sizes without codelets should return nil
 	noCodeletSizes := []int{2}
 	for _, size := range noCodeletSizes {
-		entry := Registry64.Lookup(size, features)
+		entry := registry.Registry64.Lookup(size, features)
 		if entry != nil {
 			t.Errorf("expected nil for size %d, got %v", size, entry)
 		}
@@ -82,7 +84,7 @@ func TestCodeletRegistryNoMatch(t *testing.T) {
 func TestCodeletRegistrySizes(t *testing.T) {
 	t.Parallel()
 
-	sizes := Registry64.Sizes()
+	sizes := registry.Registry64.Sizes()
 	has384 := slices.Contains(sizes, 384)
 
 	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true, 512: true, 1024: true, 2048: true, 4096: true, 8192: true, 16384: true}
@@ -108,7 +110,7 @@ func TestCodeletRegistrySizes(t *testing.T) {
 func TestCodeletRegistryLookupBySignature(t *testing.T) {
 	t.Parallel()
 	// Updated signature format: dit{size}_radix{radix}_{simd}
-	entry := Registry64.LookupBySignature(64, "dit64_radix2_generic")
+	entry := registry.Registry64.LookupBySignature(64, "dit64_radix2_generic")
 	if entry == nil {
 		t.Fatal("expected to find dit64_radix2_generic, got nil")
 	}
@@ -122,7 +124,7 @@ func TestCodeletRegistryLookupBySignature(t *testing.T) {
 	}
 
 	// Non-existent signature
-	entry = Registry64.LookupBySignature(64, "nonexistent")
+	entry = registry.Registry64.LookupBySignature(64, "nonexistent")
 	if entry != nil {
 		t.Errorf("expected nil for nonexistent signature, got %v", entry)
 	}
@@ -131,14 +133,14 @@ func TestCodeletRegistryLookupBySignature(t *testing.T) {
 func TestGetRegistry(t *testing.T) {
 	t.Parallel()
 
-	reg64 := GetRegistry[complex64]()
-	if reg64 != Registry64 {
-		t.Error("GetRegistry[complex64]() should return Registry64")
+	reg64 := registry.GetRegistry[complex64]()
+	if reg64 != registry.Registry64 {
+		t.Error("registry.GetRegistry[complex64]() should return registry.Registry64")
 	}
 
-	reg128 := GetRegistry[complex128]()
-	if reg128 != Registry128 {
-		t.Error("GetRegistry[complex128]() should return Registry128")
+	reg128 := registry.GetRegistry[complex128]()
+	if reg128 != registry.Registry128 {
+		t.Error("registry.GetRegistry[complex128]() should return registry.Registry128")
 	}
 }
 
@@ -146,15 +148,15 @@ func TestSIMDLevelString(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		level    SIMDLevel
+		level    fftypes.SIMDLevel
 		expected string
 	}{
-		{SIMDNone, "generic"},
-		{SIMDSSE2, "sse2"},
-		{SIMDAVX2, "avx2"},
-		{SIMDAVX512, "avx512"},
-		{SIMDNEON, "neon"},
-		{SIMDLevel(99), "unknown"},
+		{fftypes.SIMDNone, "generic"},
+		{fftypes.SIMDSSE2, "sse2"},
+		{fftypes.SIMDAVX2, "avx2"},
+		{fftypes.SIMDAVX512, "avx512"},
+		{fftypes.SIMDNEON, "neon"},
+		{fftypes.SIMDLevel(99), "unknown"},
 	}
 
 	for _, tt := range tests {
@@ -173,7 +175,7 @@ func TestCodeletFunctional(t *testing.T) {
 	t.Run("forward_8", func(t *testing.T) {
 		t.Parallel()
 
-		entry := Registry64.Lookup(8, features)
+		entry := registry.Registry64.Lookup(8, features)
 		if entry == nil {
 			t.Skip("no codelet for size 8")
 		}
@@ -203,7 +205,7 @@ func TestCodeletFunctional(t *testing.T) {
 	t.Run("inverse_8", func(t *testing.T) {
 		t.Parallel()
 
-		entry := Registry64.Lookup(8, features)
+		entry := registry.Registry64.Lookup(8, features)
 		if entry == nil {
 			t.Skip("no codelet for size 8")
 		}
@@ -243,7 +245,7 @@ func TestCodeletFunctional(t *testing.T) {
 	t.Run("forward_512", func(t *testing.T) {
 		t.Parallel()
 
-		entry := Registry64.Lookup(512, features)
+		entry := registry.Registry64.Lookup(512, features)
 		if entry == nil {
 			t.Skip("no codelet for size 512")
 		}
@@ -273,7 +275,7 @@ func TestCodeletFunctional(t *testing.T) {
 	t.Run("inverse_512", func(t *testing.T) {
 		t.Parallel()
 
-		entry := Registry64.Lookup(512, features)
+		entry := registry.Registry64.Lookup(512, features)
 		if entry == nil {
 			t.Skip("no codelet for size 512")
 		}

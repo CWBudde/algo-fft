@@ -3,7 +3,8 @@ package algofft
 import (
 	"testing"
 
-	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // TestKernelSelectionStrategy verifies that the auto/forced distinction
@@ -16,21 +17,21 @@ func TestKernelSelectionStrategy(t *testing.T) {
 	cases := []struct {
 		name      string
 		n         int
-		requested fft.KernelStrategy
-		estimated fft.KernelStrategy
-		want      fft.KernelStrategy
+		requested fftypes.KernelStrategy
+		estimated fftypes.KernelStrategy
+		want      fftypes.KernelStrategy
 	}{
 		// Auto plans whose estimate equals the size heuristic keep KernelAuto.
-		{"AutoSmallDIT", 512, fft.KernelAuto, fft.ResolveKernelStrategy(512), fft.KernelAuto},
-		{"AutoLargeStockham", 4096, fft.KernelAuto, fft.ResolveKernelStrategy(4096), fft.KernelAuto},
+		{"AutoSmallDIT", 512, fftypes.KernelAuto, planner.ResolveKernelStrategy(512), fftypes.KernelAuto},
+		{"AutoLargeStockham", 4096, fftypes.KernelAuto, planner.ResolveKernelStrategy(4096), fftypes.KernelAuto},
 		// Explicit forces are always passed through.
-		{"ForcedStockham", 4096, fft.KernelStockham, fft.KernelStockham, fft.KernelStockham},
-		{"ForcedDIT", 4096, fft.KernelDIT, fft.KernelDIT, fft.KernelDIT},
-		{"ForcedStockhamSmall", 512, fft.KernelStockham, fft.KernelStockham, fft.KernelStockham},
+		{"ForcedStockham", 4096, fftypes.KernelStockham, fftypes.KernelStockham, fftypes.KernelStockham},
+		{"ForcedDIT", 4096, fftypes.KernelDIT, fftypes.KernelDIT, fftypes.KernelDIT},
+		{"ForcedStockhamSmall", 512, fftypes.KernelStockham, fftypes.KernelStockham, fftypes.KernelStockham},
 		// Auto plans with a wisdom/measurement override (estimate deviates
 		// from the heuristic) keep the override.
-		{"WisdomDITAtLargeSize", 4096, fft.KernelAuto, fft.KernelDIT, fft.KernelDIT},
-		{"WisdomStockhamAtSmallSize", 512, fft.KernelAuto, fft.KernelStockham, fft.KernelStockham},
+		{"WisdomDITAtLargeSize", 4096, fftypes.KernelAuto, fftypes.KernelDIT, fftypes.KernelDIT},
+		{"WisdomStockhamAtSmallSize", 512, fftypes.KernelAuto, fftypes.KernelStockham, fftypes.KernelStockham},
 	}
 
 	for _, tc := range cases {

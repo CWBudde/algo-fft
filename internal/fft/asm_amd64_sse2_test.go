@@ -7,11 +7,13 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // getSSE2Kernels returns the SSE2 kernels if available.
-func getSSE2Kernels() (forward, inverse Kernel[complex64], available bool) {
+func getSSE2Kernels() (forward, inverse kernels.Kernel[complex64], available bool) {
 	if runtime.GOARCH != "amd64" {
 		return nil, nil, false
 	}
@@ -178,7 +180,7 @@ func TestSSE2SizeSpecificComplex64(t *testing.T) {
 			fwd := make([]complex64, testCase.size)
 			dst := make([]complex64, testCase.size)
 			scratch := make([]complex64, testCase.size)
-			twiddle := ComputeTwiddleFactors[complex64](testCase.size)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](testCase.size)
 
 			// Test correctness vs reference
 			if !testCase.forward(fwd, src, twiddle, scratch) {
@@ -250,7 +252,7 @@ func TestSSE2SizeSpecificComplex128(t *testing.T) {
 			fwd := make([]complex128, tc.size)
 			dst := make([]complex128, tc.size)
 			scratch := make([]complex128, tc.size)
-			twiddle := ComputeTwiddleFactors[complex128](tc.size)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](tc.size)
 
 			if !tc.forward(fwd, src, twiddle, scratch) {
 				t.Fatalf("Forward %s failed", tc.name)

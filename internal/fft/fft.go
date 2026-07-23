@@ -11,22 +11,6 @@ import (
 // The canonical definition is in internal/fftypes.
 type Complex = fftypes.Complex
 
-// ComputeTwiddleFactors returns the precomputed twiddle factors (roots of unity).
-// Re-exported from internal/math.
-func ComputeTwiddleFactors[T Complex](n int) []T {
-	return m.ComputeTwiddleFactors[T](n)
-}
-
-// ComputeBitReversalIndices returns the bit-reversal permutation indices.
-// Re-exported from internal/math.
-var ComputeBitReversalIndices = m.ComputeBitReversalIndices
-
-// ConjugateOf returns the complex conjugate of val.
-// Re-exported from internal/math.
-func ConjugateOf[T Complex](val T) T {
-	return m.ConjugateOf[T](val)
-}
-
 // conj returns the complex conjugate (private wrapper).
 func conj[T Complex](val T) T {
 	return m.Conj[T](val)

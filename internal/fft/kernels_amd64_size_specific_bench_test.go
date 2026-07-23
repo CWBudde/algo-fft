@@ -4,6 +4,10 @@ package fft
 
 import (
 	"testing"
+
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // benchmarkSizeSpecificVsGeneric compares the performance of size-specific dispatch
@@ -15,7 +19,7 @@ func benchmarkSizeSpecificVsGeneric(b *testing.B, n int) {
 	b.Helper()
 
 	b.Run("SizeSpecific", func(b *testing.B) {
-		benchmarkKernel(b, n, avx2SizeSpecificOrGenericDITComplex64(KernelAuto))
+		benchmarkKernel(b, n, avx2SizeSpecificOrGenericDITComplex64(fftypes.KernelAuto))
 	})
 
 	b.Run("GenericAVX2", func(b *testing.B) {
@@ -23,16 +27,16 @@ func benchmarkSizeSpecificVsGeneric(b *testing.B, n int) {
 	})
 
 	b.Run("PureGo", func(b *testing.B) {
-		benchmarkKernel(b, n, forwardDITComplex64)
+		benchmarkKernel(b, n, kernels.ForwardDITComplex64)
 	})
 }
 
-func benchmarkKernel(b *testing.B, n int, kernel Kernel[complex64]) {
+func benchmarkKernel(b *testing.B, n int, kernel kernels.Kernel[complex64]) {
 	b.Helper()
 
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
 	// Initialize with random data

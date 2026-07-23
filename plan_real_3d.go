@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	"github.com/cwbudde/algo-fft/internal/fft"
+	m "github.com/cwbudde/algo-fft/internal/math"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
@@ -325,7 +325,7 @@ func (p *PlanReal3D[F, C]) ForwardFull(dst []C, src []F) error {
 				mirrorD := (p.depth - d) % p.depth
 				mirrorH := (p.height - h) % p.height
 				val := dst[mirrorD*p.height*p.width+mirrorH*p.width+mirrorW]
-				dst[d*p.height*p.width+h*p.width+w] = fft.ConjugateOf(val)
+				dst[d*p.height*p.width+h*p.width+w] = m.ConjugateOf(val)
 			}
 		}
 	}

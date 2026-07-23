@@ -363,12 +363,17 @@ func stockhamInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
 	return true
 }
 
-// StockhamForward wraps the generic stockhamForward.
+// StockhamForward is the canonical plain Stockham autosort kernel: radix-2,
+// power-of-two lengths only, standard twiddle layout. The packed mixed-radix
+// variant (radix-4 + radix-2 with packed twiddles) is a separate algorithm
+// owned by internal/transform (ForwardStockhamPacked); it is not a
+// replacement for this kernel.
 func StockhamForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	return stockhamForward(dst, src, twiddle, scratch)
 }
 
-// StockhamInverse wraps stockhamInverseComplex64/128.
+// StockhamInverse is the inverse counterpart of StockhamForward (see there
+// for the ownership split with internal/transform's packed variant).
 func StockhamInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 	switch d := any(dst).(type) {
 	case []complex64:

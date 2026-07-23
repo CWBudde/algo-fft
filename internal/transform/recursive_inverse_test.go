@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // splitStrategy builds a hand-rolled one-level decomposition (size =
@@ -38,10 +39,10 @@ func TestRecursiveInverseRadix2Split(t *testing.T) {
 	scratch := make([]complex64, ScratchSizeRecursive(strategy))
 
 	forward := make([]complex64, 512)
-	recursiveForward(forward, src, strategy, twiddle, scratch, Registry64, features)
+	recursiveForward(forward, src, strategy, twiddle, scratch, registry.Registry64, features)
 
 	inverse := make([]complex64, 512)
-	recursiveInverse(inverse, forward, strategy, twiddle, scratch, Registry64, features)
+	recursiveInverse(inverse, forward, strategy, twiddle, scratch, registry.Registry64, features)
 
 	assertComplex64Close(t, inverse, src, 1e-3)
 }
@@ -63,13 +64,13 @@ func TestRecursiveInverseGeneralRadixSplit(t *testing.T) {
 		scratch := make([]complex64, ScratchSizeRecursive(strategy))
 
 		forward := make([]complex64, 256)
-		recursiveForward(forward, src, strategy, twiddle, scratch, Registry64, features)
+		recursiveForward(forward, src, strategy, twiddle, scratch, registry.Registry64, features)
 
 		want := reference.NaiveDFT(src)
 		assertComplex64Close(t, forward, want, 1e-3)
 
 		inverse := make([]complex64, 256)
-		recursiveInverse(inverse, forward, strategy, twiddle, scratch, Registry64, features)
+		recursiveInverse(inverse, forward, strategy, twiddle, scratch, registry.Registry64, features)
 
 		assertComplex64Close(t, inverse, src, 1e-3)
 	})
@@ -82,13 +83,13 @@ func TestRecursiveInverseGeneralRadixSplit(t *testing.T) {
 		scratch := make([]complex128, ScratchSizeRecursive(strategy))
 
 		forward := make([]complex128, 256)
-		recursiveForward(forward, src, strategy, twiddle, scratch, Registry128, features)
+		recursiveForward(forward, src, strategy, twiddle, scratch, registry.Registry128, features)
 
 		want := reference.NaiveDFT128(src)
 		assertComplex128Close(t, forward, want, 1e-9)
 
 		inverse := make([]complex128, 256)
-		recursiveInverse(inverse, forward, strategy, twiddle, scratch, Registry128, features)
+		recursiveInverse(inverse, forward, strategy, twiddle, scratch, registry.Registry128, features)
 
 		assertComplex128Close(t, inverse, src, 1e-9)
 	})
@@ -108,13 +109,13 @@ func TestRecursiveInverseDITFallbackLeaf(t *testing.T) {
 	scratch := make([]complex64, ScratchSizeRecursive(strategy))
 
 	forward := make([]complex64, 4)
-	recursiveForward(forward, src, strategy, twiddle, scratch, Registry64, features)
+	recursiveForward(forward, src, strategy, twiddle, scratch, registry.Registry64, features)
 
 	want := reference.NaiveDFT(src)
 	assertComplex64Close(t, forward, want, 1e-4)
 
 	inverse := make([]complex64, 4)
-	recursiveInverse(inverse, forward, strategy, twiddle, scratch, Registry64, features)
+	recursiveInverse(inverse, forward, strategy, twiddle, scratch, registry.Registry64, features)
 
 	assertComplex64Close(t, inverse, src, 1e-4)
 }

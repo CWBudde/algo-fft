@@ -1,6 +1,11 @@
 package fft
 
-import "testing"
+import (
+	"testing"
+
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/transform"
+)
 
 func TestLog2(t *testing.T) {
 	t.Parallel()
@@ -87,37 +92,37 @@ func TestComplexFromFloat64_Complex128(t *testing.T) {
 
 func BenchmarkComputeTwiddleFactors64_16(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeTwiddleFactors[complex64](16)
+		_ = mathpkg.ComputeTwiddleFactors[complex64](16)
 	}
 }
 
 func BenchmarkComputeTwiddleFactors64_256(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeTwiddleFactors[complex64](256)
+		_ = mathpkg.ComputeTwiddleFactors[complex64](256)
 	}
 }
 
 func BenchmarkComputeTwiddleFactors64_1024(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeTwiddleFactors[complex64](1024)
+		_ = mathpkg.ComputeTwiddleFactors[complex64](1024)
 	}
 }
 
 func BenchmarkComputeTwiddleFactors64_4096(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeTwiddleFactors[complex64](4096)
+		_ = mathpkg.ComputeTwiddleFactors[complex64](4096)
 	}
 }
 
 func BenchmarkComputeTwiddleFactors64_65536(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeTwiddleFactors[complex64](65536)
+		_ = mathpkg.ComputeTwiddleFactors[complex64](65536)
 	}
 }
 
 func BenchmarkComputeTwiddleFactors128_1024(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeTwiddleFactors[complex128](1024)
+		_ = mathpkg.ComputeTwiddleFactors[complex128](1024)
 	}
 }
 
@@ -125,31 +130,31 @@ func BenchmarkComputeTwiddleFactors128_1024(b *testing.B) {
 
 func BenchmarkComputeBitReversalIndices_16(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeBitReversalIndices(16)
+		_ = mathpkg.ComputeBitReversalIndices(16)
 	}
 }
 
 func BenchmarkComputeBitReversalIndices_256(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeBitReversalIndices(256)
+		_ = mathpkg.ComputeBitReversalIndices(256)
 	}
 }
 
 func BenchmarkComputeBitReversalIndices_1024(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeBitReversalIndices(1024)
+		_ = mathpkg.ComputeBitReversalIndices(1024)
 	}
 }
 
 func BenchmarkComputeBitReversalIndices_4096(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeBitReversalIndices(4096)
+		_ = mathpkg.ComputeBitReversalIndices(4096)
 	}
 }
 
 func BenchmarkComputeBitReversalIndices_65536(b *testing.B) {
 	for b.Loop() {
-		_ = ComputeBitReversalIndices(65536)
+		_ = mathpkg.ComputeBitReversalIndices(65536)
 	}
 }
 
@@ -157,11 +162,11 @@ func TestComputePackedTwiddles_Radix4(t *testing.T) {
 	t.Parallel()
 
 	n := 16
-	twiddle := ComputeTwiddleFactors[complex64](n)
-	packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
+	packed := transform.ComputePackedTwiddles[complex64](n, 4, twiddle)
 
 	if packed == nil {
-		t.Fatalf("ComputePackedTwiddles returned nil")
+		t.Fatalf("transform.ComputePackedTwiddles returned nil")
 	}
 
 	if packed.Radix != 4 {
@@ -208,8 +213,8 @@ func TestTwiddleFactorPrecision(t *testing.T) {
 
 	sizes := []int{8, 16, 64, 256, 1024}
 	for _, n := range sizes {
-		twiddle64 := ComputeTwiddleFactors[complex64](n)
-		twiddle128 := ComputeTwiddleFactors[complex128](n)
+		twiddle64 := mathpkg.ComputeTwiddleFactors[complex64](n)
+		twiddle128 := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 		for k := range n {
 			// Convert complex64 to complex128 for comparison
@@ -386,7 +391,7 @@ func sqrt64(x float64) float64 {
 	return guess
 }
 
-// TestConjugateOf tests the ConjugateOf helper function.
+// TestConjugateOf tests the mathpkg.ConjugateOf helper function.
 func TestConjugateOf(t *testing.T) {
 	t.Parallel()
 
@@ -403,9 +408,9 @@ func TestConjugateOf(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
-			result := ConjugateOf(tc.input)
+			result := mathpkg.ConjugateOf(tc.input)
 			if result != tc.expected {
-				t.Errorf("ConjugateOf(%v): got %v, want %v", tc.input, result, tc.expected)
+				t.Errorf("mathpkg.ConjugateOf(%v): got %v, want %v", tc.input, result, tc.expected)
 			}
 		}
 	})
@@ -423,9 +428,9 @@ func TestConjugateOf(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
-			result := ConjugateOf(tc.input)
+			result := mathpkg.ConjugateOf(tc.input)
 			if result != tc.expected {
-				t.Errorf("ConjugateOf(%v): got %v, want %v", tc.input, result, tc.expected)
+				t.Errorf("mathpkg.ConjugateOf(%v): got %v, want %v", tc.input, result, tc.expected)
 			}
 		}
 	})

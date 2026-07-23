@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // TestRecursiveDebug_Size512 - Minimal test to diagnose size-512 codelet failure.
@@ -24,10 +25,10 @@ func TestRecursiveDebug_Size512(t *testing.T) {
 	t.Logf("  Size: %d", strategy.Size)
 
 	// EVIDENCE: Check if codelet exists
-	codelet := Registry64.Lookup(size, features)
+	codelet := registry.Registry64.Lookup(size, features)
 	if codelet == nil {
 		t.Errorf("CRITICAL: No codelet found for size %d with features %+v", size, features)
-		t.Logf("Available sizes: %v", Registry64.GetAvailableSizes(features))
+		t.Logf("Available sizes: %v", registry.Registry64.GetAvailableSizes(features))
 	} else {
 		t.Logf("Codelet found: %s (SIMD: %v, Priority: %d)",
 			codelet.Signature, codelet.SIMDLevel, codelet.Priority)
@@ -54,7 +55,7 @@ func TestRecursiveDebug_Size512(t *testing.T) {
 	t.Logf("Output[0] before = %v", output[0])
 
 	// Execute recursive FFT
-	recursiveForward(output, input, strategy, twiddle, scratch, Registry64, features)
+	recursiveForward(output, input, strategy, twiddle, scratch, registry.Registry64, features)
 
 	// EVIDENCE: Check output after transform
 	t.Logf("Output[0] after = %v", output[0])
@@ -126,7 +127,7 @@ func TestRecursiveDebug_Size1024(t *testing.T) {
 	scratch := make([]complex64, ScratchSizeRecursive(strategy))
 
 	// Execute recursive FFT
-	recursiveForward(output, input, strategy, twiddle, scratch, Registry64, features)
+	recursiveForward(output, input, strategy, twiddle, scratch, registry.Registry64, features)
 
 	// Check output
 	t.Logf("Output[0] = %v (expected: (1+0i))", output[0])
@@ -194,7 +195,7 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 		subTwiddle := twiddle[offset : offset+subSize]
 		offset += subSize
 
-		codelet := Registry64.Lookup(subSize, features)
+		codelet := registry.Registry64.Lookup(subSize, features)
 		if codelet != nil {
 			codelet.Forward(subResults[i], subInput, subTwiddle, make([]complex64, subSize))
 		} else {
@@ -244,7 +245,7 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 		maxDiff, maxIndex, output[maxIndex], expected[maxIndex])
 
 	recursiveOutput := make([]complex64, size)
-	recursiveForward(recursiveOutput, input, strategy, twiddle, make([]complex64, ScratchSizeRecursive(strategy)), Registry64, features)
+	recursiveForward(recursiveOutput, input, strategy, twiddle, make([]complex64, ScratchSizeRecursive(strategy)), registry.Registry64, features)
 
 	err = compareComplexSlices(recursiveOutput, output, 1e-6)
 	if err != nil {
@@ -286,7 +287,7 @@ func TestRecursiveDebug_DITComparison(t *testing.T) {
 	}
 
 	// Method 2: Call via codelet registry
-	codelet := Registry64.Lookup(size, features)
+	codelet := registry.Registry64.Lookup(size, features)
 	if codelet == nil {
 		t.Fatal("No codelet for size 512")
 	}
@@ -333,15 +334,15 @@ func TestRecursiveDebug_InverseSize512(t *testing.T) {
 
 	forward := make([]complex64, size)
 	inverse := make([]complex64, size)
-	recursiveForward(forward, input, strategy, twiddle, make([]complex64, ScratchSizeRecursive(strategy)), Registry64, features)
-	recursiveInverse(inverse, forward, strategy, twiddle, make([]complex64, ScratchSizeRecursive(strategy)), Registry64, features)
+	recursiveForward(forward, input, strategy, twiddle, make([]complex64, ScratchSizeRecursive(strategy)), registry.Registry64, features)
+	recursiveInverse(inverse, forward, strategy, twiddle, make([]complex64, ScratchSizeRecursive(strategy)), registry.Registry64, features)
 
 	err := compareComplexSlices(inverse, input, 1e-3)
 	if err != nil {
 		t.Errorf("recursive round-trip mismatch: %v", err)
 	}
 
-	codelet := Registry64.Lookup(size, features)
+	codelet := registry.Registry64.Lookup(size, features)
 	if codelet == nil {
 		t.Fatal("no codelet for size 512")
 	}

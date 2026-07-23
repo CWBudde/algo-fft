@@ -3,6 +3,8 @@
 package fft
 
 import (
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	m "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/planner"
 )
@@ -34,13 +36,13 @@ import (
 //	16384   233 µs    269 µs        562 µs
 //	2^21    232 ms    -             331 ms
 //
-// Sizes the auto heuristic resolves to KernelStockham also run the AVX-512
+// Sizes the auto heuristic resolves to fftypes.KernelStockham also run the AVX-512
 // DIT kernel: it computes the identical transform faster at every measured
 // size but one (complex64 n=2^19, ~5% slower — outweighed by 15-40% wins
-// elsewhere). An explicitly forced KernelStockham stays on the Stockham
+// elsewhere). An explicitly forced fftypes.KernelStockham stays on the Stockham
 // path: PlanOptions.Strategy documents force semantics, and the measurement
 // planner relies on forced strategies timing the kernels they name. Plans
-// keep the auto/forced distinction visible here by passing KernelAuto for
+// keep the auto/forced distinction visible here by passing fftypes.KernelAuto for
 // heuristic choices (see kernelSelectionStrategy in plan.go).
 
 // avx2SizeSpecificDITComplex64Covers reports whether the complex64 DIT switch
@@ -71,13 +73,13 @@ func avx2SizeSpecificDITComplex128Covers(n int) bool {
 // dispatch chain, except where the AVX2 chain is known to win or is
 // explicitly requested:
 //   - DIT-resolved sizes covered by a tuned AVX2 codelet (see table above)
-//   - an explicitly forced KernelStockham (algorithm choice is honored)
+//   - an explicitly forced fftypes.KernelStockham (algorithm choice is honored)
 //
 // The AVX-512 kernel declines n < 16, so those sizes fall through to the
 // AVX2 chain as before.
 func avx512FirstKernel[T Complex](
-	strategy KernelStrategy, avx512, avx2 Kernel[T], coveredByAVX2 func(int) bool,
-) Kernel[T] {
+	strategy fftypes.KernelStrategy, avx512, avx2 kernels.Kernel[T], coveredByAVX2 func(int) bool,
+) kernels.Kernel[T] {
 	return func(dst, src, twiddle, scratch []T) bool {
 		n := len(src)
 		if !m.IsPowerOf2(n) {
@@ -85,14 +87,14 @@ func avx512FirstKernel[T Complex](
 		}
 
 		switch planner.ResolveKernelStrategyWithDefault(n, strategy) {
-		case KernelDIT:
+		case fftypes.KernelDIT:
 			if coveredByAVX2(n) {
 				return avx2(dst, src, twiddle, scratch)
 			}
-		case KernelStockham:
-			if strategy == KernelStockham {
+		case fftypes.KernelStockham:
+			if strategy == fftypes.KernelStockham {
 				// Explicitly forced Stockham: honor the algorithm choice.
-				// Auto plans reach here with strategy == KernelAuto (see
+				// Auto plans reach here with strategy == fftypes.KernelAuto (see
 				// kernelSelectionStrategy in plan.go) and get the faster
 				// AVX-512 DIT substitution below.
 				return avx2(dst, src, twiddle, scratch)
@@ -112,10 +114,10 @@ func avx512FirstKernel[T Complex](
 // avx512SizeSpecificOrGenericComplex64 returns the complex64 kernel pair for
 // AVX-512 hosts: AVX2 codelets where they win, AVX-512 generic elsewhere,
 // AVX2 generic as the safety net.
-func avx512SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex64] {
+func avx512SizeSpecificOrGenericComplex64(strategy fftypes.KernelStrategy) kernels.Kernels[complex64] {
 	avx2 := avx2SizeSpecificOrGenericComplex64(strategy)
 
-	return Kernels[complex64]{
+	return kernels.Kernels[complex64]{
 		Forward: avx512FirstKernel(strategy, forwardAVX512Complex64, avx2.Forward, avx2SizeSpecificDITComplex64Covers),
 		Inverse: avx512FirstKernel(strategy, inverseAVX512Complex64, avx2.Inverse, avx2SizeSpecificDITComplex64Covers),
 	}
@@ -123,10 +125,10 @@ func avx512SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[compl
 
 // avx512SizeSpecificOrGenericComplex128 is the complex128 analogue of
 // avx512SizeSpecificOrGenericComplex64.
-func avx512SizeSpecificOrGenericComplex128(strategy KernelStrategy) Kernels[complex128] {
+func avx512SizeSpecificOrGenericComplex128(strategy fftypes.KernelStrategy) kernels.Kernels[complex128] {
 	avx2 := avx2SizeSpecificOrGenericComplex128(strategy)
 
-	return Kernels[complex128]{
+	return kernels.Kernels[complex128]{
 		Forward: avx512FirstKernel(strategy, forwardAVX512Complex128, avx2.Forward, avx2SizeSpecificDITComplex128Covers),
 		Inverse: avx512FirstKernel(strategy, inverseAVX512Complex128, avx2.Inverse, avx2SizeSpecificDITComplex128Covers),
 	}

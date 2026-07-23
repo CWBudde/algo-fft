@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 )
 
 // TestBenchmarkStrategyNeverReturnsZero verifies that benchmarkStrategy
@@ -25,14 +26,14 @@ func TestBenchmarkStrategyNeverReturnsZero(t *testing.T) {
 
 	for _, n := range sizes {
 		t.Run("Complex64", func(t *testing.T) {
-			elapsed := benchmarkStrategy[complex64](n, features, KernelDIT, config)
+			elapsed := benchmarkStrategy[complex64](n, features, fftypes.KernelDIT, config)
 			if elapsed == 0 {
 				t.Errorf("benchmarkStrategy returned zero duration for size %d (complex64)", n)
 			}
 		})
 
 		t.Run("Complex128", func(t *testing.T) {
-			elapsed := benchmarkStrategy[complex128](n, features, KernelDIT, config)
+			elapsed := benchmarkStrategy[complex128](n, features, fftypes.KernelDIT, config)
 			if elapsed == 0 {
 				t.Errorf("benchmarkStrategy returned zero duration for size %d (complex128)", n)
 			}

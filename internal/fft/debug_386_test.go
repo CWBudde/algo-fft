@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/math"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 func TestDebugSize16Radix16_386(t *testing.T) {
@@ -16,7 +17,7 @@ func TestDebugSize16Radix16_386(t *testing.T) {
 
 	fwd := make([]complex64, n)
 	scratch := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	bitrev := math.ComputeIdentityIndices(n)
 
 	if !forwardSSE3Size16Radix16Complex64Asm(fwd, src, twiddle, scratch, bitrev) {

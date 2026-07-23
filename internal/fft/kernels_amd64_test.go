@@ -21,7 +21,7 @@ func TestSelectKernelsComplex64_SSE2Only(t *testing.T) {
 	// Force SSE2 only (no AVX2)
 	cpu.SetForcedFeatures(cpu.Features{HasSSE2: true, HasAVX2: false})
 
-	kernels := selectKernelsComplex64(cpu.DetectFeatures())
+	kern := selectKernelsComplex64(cpu.DetectFeatures())
 
 	// Test forward
 	n := 16
@@ -35,13 +35,13 @@ func TestSelectKernelsComplex64_SSE2Only(t *testing.T) {
 	scratch := make([]complex64, n)
 	output := make([]complex64, n)
 
-	ok := kernels.Forward(output, input, twiddle, scratch)
+	ok := kern.Forward(output, input, twiddle, scratch)
 	if !ok {
 		t.Fatal("SSE2 forward kernel failed")
 	}
 
 	// Test inverse
-	ok = kernels.Inverse(output, output, twiddle, scratch)
+	ok = kern.Inverse(output, output, twiddle, scratch)
 	if !ok {
 		t.Fatal("SSE2 inverse kernel failed")
 	}
@@ -56,7 +56,7 @@ func TestSelectKernelsComplex128_SSE2Only(t *testing.T) {
 
 	cpu.SetForcedFeatures(cpu.Features{HasSSE2: true, HasAVX2: false})
 
-	kernels := selectKernelsComplex128(cpu.DetectFeatures())
+	kern := selectKernelsComplex128(cpu.DetectFeatures())
 
 	n := 16
 
@@ -69,12 +69,12 @@ func TestSelectKernelsComplex128_SSE2Only(t *testing.T) {
 	scratch := make([]complex128, n)
 	output := make([]complex128, n)
 
-	ok := kernels.Forward(output, input, twiddle, scratch)
+	ok := kern.Forward(output, input, twiddle, scratch)
 	if !ok {
 		t.Fatal("SSE2 complex128 forward kernel failed")
 	}
 
-	ok = kernels.Inverse(output, output, twiddle, scratch)
+	ok = kern.Inverse(output, output, twiddle, scratch)
 	if !ok {
 		t.Fatal("SSE2 complex128 inverse kernel failed")
 	}
@@ -100,7 +100,7 @@ func TestSelectKernelsWithStrategy_SSE2(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			kernels := selectKernelsComplex64WithStrategy(cpu.DetectFeatures(), tt.strategy)
+			kern := selectKernelsComplex64WithStrategy(cpu.DetectFeatures(), tt.strategy)
 
 			n := 32
 
@@ -113,12 +113,12 @@ func TestSelectKernelsWithStrategy_SSE2(t *testing.T) {
 			scratch := make([]complex64, n)
 			output := make([]complex64, n)
 
-			ok := kernels.Forward(output, input, twiddle, scratch)
+			ok := kern.Forward(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("SSE2 forward failed with strategy %v", tt.strategy)
 			}
 
-			ok = kernels.Inverse(output, output, twiddle, scratch)
+			ok = kern.Inverse(output, output, twiddle, scratch)
 			if !ok {
 				t.Fatalf("SSE2 inverse failed with strategy %v", tt.strategy)
 			}
@@ -355,7 +355,7 @@ func TestSelectKernelsComplex128WithStrategy_SSE2(t *testing.T) {
 
 	for _, strategy := range strategies {
 		t.Run("Strategy_"+string(rune(strategy)), func(t *testing.T) {
-			kernels := selectKernelsComplex128WithStrategy(cpu.DetectFeatures(), strategy)
+			kern := selectKernelsComplex128WithStrategy(cpu.DetectFeatures(), strategy)
 
 			n := 32
 
@@ -368,12 +368,12 @@ func TestSelectKernelsComplex128WithStrategy_SSE2(t *testing.T) {
 			scratch := make([]complex128, n)
 			output := make([]complex128, n)
 
-			ok := kernels.Forward(output, input, twiddle, scratch)
+			ok := kern.Forward(output, input, twiddle, scratch)
 			if !ok {
 				t.Fatalf("Forward failed with strategy %v", strategy)
 			}
 
-			ok = kernels.Inverse(output, output, twiddle, scratch)
+			ok = kern.Inverse(output, output, twiddle, scratch)
 			if !ok {
 				t.Fatalf("Inverse failed with strategy %v", strategy)
 			}

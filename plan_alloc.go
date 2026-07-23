@@ -2,7 +2,11 @@ package algofft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	m "github.com/cwbudde/algo-fft/internal/math"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
+	"github.com/cwbudde/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // scratchSet groups the per-call scratch buffers a Plan hands out, together with
@@ -35,7 +39,7 @@ func allocTwiddle[T Complex](src []T) ([]T, []byte) {
 func prepareCodeletTwiddles[T Complex](
 	n int,
 	base []T,
-	estimate fft.PlanEstimate[T],
+	estimate planner.PlanEstimate[T],
 ) ([]T, []T, []byte, []byte) {
 	if estimate.TwiddleSize == nil || estimate.PrepareTwiddle == nil {
 		return base, base, nil, nil
@@ -60,19 +64,21 @@ func prepareCodeletTwiddles[T Complex](
 // otherwise the standard size clamped to at least n); the extra Bluestein scratch
 // is allocated only for the Bluestein strategy.
 func allocateScratchSet[T Complex](
-	n int, strategy fft.KernelStrategy, bluesteinM int, decompStrategy *fft.DecomposeStrategy, standardScratchSize int,
+	n int, strategy fftypes.KernelStrategy, bluesteinM int,
+	decompStrategy *transform.DecomposeStrategy, standardScratchSize int,
 ) *scratchSet[T] {
 	var scratchSize int
 
+	//nolint:exhaustive // only Bluestein/Recursive need non-standard scratch sizes
 	switch strategy {
-	case fft.KernelBluestein:
+	case fftypes.KernelBluestein:
 		// Rader plans set bluesteinM = n-1 (exact sub-FFT), so clamp to n:
 		// paths outside the convolution (e.g. strided gather) assume the
 		// standard scratch holds a full length-n frame. Bluestein pads to
 		// >= 2n-1, where the clamp is a no-op.
 		scratchSize = max(bluesteinM, n)
-	case fft.KernelRecursive:
-		scratchSize = fft.ScratchSizeRecursive(decompStrategy)
+	case fftypes.KernelRecursive:
+		scratchSize = transform.ScratchSizeRecursive(decompStrategy)
 	default:
 		scratchSize = max(standardScratchSize, n)
 	}
@@ -85,7 +91,7 @@ func allocateScratchSet[T Complex](
 		bluesteinScratchBacking []byte
 	)
 
-	if strategy == fft.KernelBluestein {
+	if strategy == fftypes.KernelBluestein {
 		bluesteinScratch, bluesteinScratchBacking = mem.AllocAligned[T](bluesteinM)
 	}
 
@@ -111,7 +117,7 @@ func getBuffersFromPool[T Complex](n, scratchSize int, pool *fft.BufferPool) (
 	}
 
 	twiddle, twiddleBacking = fft.PoolGet[T](pool, n)
-	copy(twiddle, fft.ComputeTwiddleFactors[T](n))
+	copy(twiddle, m.ComputeTwiddleFactors[T](n))
 
 	scratch, scratchBacking = fft.PoolGet[T](pool, scratchSize)
 	stridedScratch, stridedBacking = fft.PoolGet[T](pool, n)

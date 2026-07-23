@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	"github.com/cwbudde/algo-fft/internal/fft"
+	m "github.com/cwbudde/algo-fft/internal/math"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
@@ -224,7 +224,7 @@ func (p *PlanReal2D[F, C]) ForwardFull(dst []C, src []F) error {
 			// Need to conjugate and mirror row as well for 2D
 			mirrorRow := (p.rows - row) % p.rows
 			val := dst[mirrorRow*p.cols+mirrorCol]
-			dst[row*p.cols+col] = fft.ConjugateOf(val)
+			dst[row*p.cols+col] = m.ConjugateOf(val)
 		}
 	}
 

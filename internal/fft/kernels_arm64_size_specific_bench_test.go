@@ -4,6 +4,10 @@ package fft
 
 import (
 	"testing"
+
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // benchmarkNEONSizeSpecificVsGeneric compares the performance of size-specific dispatch
@@ -13,7 +17,7 @@ import (
 // should show 5-20% speedup.
 func benchmarkNEONSizeSpecificVsGeneric(b *testing.B, n int) {
 	b.Run("SizeSpecific", func(b *testing.B) {
-		benchmarkNEONKernel(b, n, neonSizeSpecificOrGenericDITComplex64(KernelAuto))
+		benchmarkNEONKernel(b, n, neonSizeSpecificOrGenericDITComplex64(fftypes.KernelAuto))
 	})
 
 	b.Run("GenericNEON", func(b *testing.B) {
@@ -23,14 +27,14 @@ func benchmarkNEONSizeSpecificVsGeneric(b *testing.B, n int) {
 	})
 
 	b.Run("PureGo", func(b *testing.B) {
-		benchmarkNEONKernel(b, n, forwardDITComplex64)
+		benchmarkNEONKernel(b, n, kernels.ForwardDITComplex64)
 	})
 }
 
-func benchmarkNEONKernel(b *testing.B, n int, kernel Kernel[complex64]) {
+func benchmarkNEONKernel(b *testing.B, n int, kernel kernels.Kernel[complex64]) {
 	src := make([]complex64, n)
 	dst := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
 	// Initialize with random data

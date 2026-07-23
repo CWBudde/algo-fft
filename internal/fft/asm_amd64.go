@@ -4,6 +4,8 @@ package fft
 
 import (
 	kasm "github.com/cwbudde/algo-fft/internal/asm/amd64"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	m "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/planner"
 )
@@ -618,19 +620,19 @@ func forwardAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128) bool
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
-	return forwardStockhamComplex128(dst, src, twiddle, scratch)
+	return kernels.ForwardStockhamComplex128(dst, src, twiddle, scratch)
 }
 
 func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128) bool {
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
-	return inverseStockhamComplex128(dst, src, twiddle, scratch)
+	return kernels.InverseStockhamComplex128(dst, src, twiddle, scratch)
 }
 
 // forwardSSE2Complex128/inverseSSE2Complex128 are the scalar SSE2-complex128 entry
 // points. The SSE2 asm kernel only covers a few small sizes, so they fall back to the
-// best scalar kernel for the size via the pure size heuristic (ResolveKernelStrategy
+// best scalar kernel for the size via the pure size heuristic (planner.ResolveKernelStrategy
 // no longer reads any process-global state), keeping them strategy-snapshot-safe.
 func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	if !m.IsPowerOf2(len(src)) {
@@ -638,10 +640,10 @@ func forwardSSE2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	}
 
 	switch planner.ResolveKernelStrategy(len(src)) {
-	case KernelStockham:
-		return forwardStockhamComplex128(dst, src, twiddle, scratch)
+	case fftypes.KernelStockham:
+		return kernels.ForwardStockhamComplex128(dst, src, twiddle, scratch)
 	default:
-		return forwardDITComplex128(dst, src, twiddle, scratch)
+		return kernels.ForwardDITComplex128(dst, src, twiddle, scratch)
 	}
 }
 
@@ -651,9 +653,9 @@ func inverseSSE2Complex128(dst, src, twiddle, scratch []complex128) bool {
 	}
 
 	switch planner.ResolveKernelStrategy(len(src)) {
-	case KernelStockham:
-		return inverseStockhamComplex128(dst, src, twiddle, scratch)
+	case fftypes.KernelStockham:
+		return kernels.InverseStockhamComplex128(dst, src, twiddle, scratch)
 	default:
-		return inverseDITComplex128(dst, src, twiddle, scratch)
+		return kernels.InverseDITComplex128(dst, src, twiddle, scratch)
 	}
 }

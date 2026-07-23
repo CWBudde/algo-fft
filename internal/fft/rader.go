@@ -4,6 +4,7 @@ import (
 	stdmath "math"
 	"strconv"
 
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
@@ -95,10 +96,10 @@ func ComputeRaderTables[T Complex](p int, scratch []T) (
 		filterInv[r] = mathpkg.ComplexFromFloat64[T](re, -im)
 	}
 
-	twiddle = ComputeTwiddleFactors[T](l)
+	twiddle = mathpkg.ComputeTwiddleFactors[T](l)
 
 	if mathpkg.IsPowerOf2(l) {
-		bitrev = ComputeBitReversalIndices(l)
+		bitrev = mathpkg.ComputeBitReversalIndices(l)
 	}
 
 	raderFilterFFT(filter, twiddle, scratch[:l])
@@ -113,7 +114,7 @@ func ComputeRaderTables[T Complex](p int, scratch []T) (
 // driver, other 5-smooth lengths through the mixed-radix engine.
 func raderFilterFFT[T Complex](buf, twiddle, scratch []T) {
 	if mathpkg.IsPowerOf2(len(buf)) {
-		if !ditForward(buf, buf, twiddle, scratch) {
+		if !kernels.DITForward(buf, buf, twiddle, scratch) {
 			panic("algofft: DIT driver rejected Rader filter FFT size " +
 				strconv.Itoa(len(buf)) + " (planner/engine contract violation)")
 		}

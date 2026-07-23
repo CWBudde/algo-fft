@@ -4,13 +4,15 @@ package fft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
-func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
-	auto := autoKernelComplex64(KernelAuto)
+func selectKernelsComplex64(features cpu.Features) kernels.Kernels[complex64] {
+	auto := autoKernelComplex64(fftypes.KernelAuto)
 	if features.HasNEON && !features.ForceGeneric {
-		return Kernels[complex64]{
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(forwardNEONComplex64, auto.Forward),
 			Inverse: fallbackKernel(inverseNEONComplex64, auto.Inverse),
 		}
@@ -19,10 +21,10 @@ func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	return auto
 }
 
-func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
-	auto := autoKernelComplex128(KernelAuto)
+func selectKernelsComplex128(features cpu.Features) kernels.Kernels[complex128] {
+	auto := autoKernelComplex128(fftypes.KernelAuto)
 	if features.HasNEON && !features.ForceGeneric {
-		return Kernels[complex128]{
+		return kernels.Kernels[complex128]{
 			Forward: fallbackKernel(forwardNEONComplex128, auto.Forward),
 			Inverse: fallbackKernel(inverseNEONComplex128, auto.Inverse),
 		}
@@ -31,10 +33,10 @@ func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 	return auto
 }
 
-func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
+func selectKernelsComplex64WithStrategy(features cpu.Features, strategy fftypes.KernelStrategy) kernels.Kernels[complex64] {
 	auto := autoKernelComplex64(strategy)
 	if features.HasNEON && !features.ForceGeneric {
-		return Kernels[complex64]{
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(forwardNEONComplex64, auto.Forward),
 			Inverse: fallbackKernel(inverseNEONComplex64, auto.Inverse),
 		}
@@ -43,10 +45,10 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 	return auto
 }
 
-func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
+func selectKernelsComplex128WithStrategy(features cpu.Features, strategy fftypes.KernelStrategy) kernels.Kernels[complex128] {
 	auto := autoKernelComplex128(strategy)
 	if features.HasNEON && !features.ForceGeneric {
-		return Kernels[complex128]{
+		return kernels.Kernels[complex128]{
 			Forward: fallbackKernel(forwardNEONComplex128, auto.Forward),
 			Inverse: fallbackKernel(inverseNEONComplex128, auto.Inverse),
 		}
@@ -60,7 +62,7 @@ func forwardNEONComplex64(dst, src, twiddle, scratch []complex64) bool {
 		return false
 	}
 
-	return forwardDITComplex64(dst, src, twiddle, scratch)
+	return kernels.ForwardDITComplex64(dst, src, twiddle, scratch)
 }
 
 func inverseNEONComplex64(dst, src, twiddle, scratch []complex64) bool {
@@ -68,7 +70,7 @@ func inverseNEONComplex64(dst, src, twiddle, scratch []complex64) bool {
 		return false
 	}
 
-	return inverseDITComplex64(dst, src, twiddle, scratch)
+	return kernels.InverseDITComplex64(dst, src, twiddle, scratch)
 }
 
 func forwardNEONComplex128(dst, src, twiddle, scratch []complex128) bool {
@@ -76,7 +78,7 @@ func forwardNEONComplex128(dst, src, twiddle, scratch []complex128) bool {
 		return false
 	}
 
-	return forwardDITComplex128(dst, src, twiddle, scratch)
+	return kernels.ForwardDITComplex128(dst, src, twiddle, scratch)
 }
 
 func inverseNEONComplex128(dst, src, twiddle, scratch []complex128) bool {
@@ -84,5 +86,5 @@ func inverseNEONComplex128(dst, src, twiddle, scratch []complex128) bool {
 		return false
 	}
 
-	return inverseDITComplex128(dst, src, twiddle, scratch)
+	return kernels.InverseDITComplex128(dst, src, twiddle, scratch)
 }

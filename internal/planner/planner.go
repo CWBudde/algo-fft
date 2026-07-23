@@ -2,6 +2,8 @@ package planner
 
 import (
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // WisdomStore interface for dependency injection from root package.
@@ -15,10 +17,10 @@ type WisdomStore interface {
 // PlanEstimate holds the result of estimating which kernel/codelet to use.
 type PlanEstimate[T Complex] struct {
 	// ForwardCodelet is the directly-bound forward codelet (nil if none)
-	ForwardCodelet CodeletFunc[T]
+	ForwardCodelet fftypes.CodeletFunc[T]
 
 	// InverseCodelet is the directly-bound inverse codelet (nil if none)
-	InverseCodelet CodeletFunc[T]
+	InverseCodelet fftypes.CodeletFunc[T]
 
 	// Algorithm is the human-readable name of the chosen implementation
 	Algorithm string
@@ -27,8 +29,8 @@ type PlanEstimate[T Complex] struct {
 	Strategy KernelStrategy
 
 	// Codelet twiddle preparation callbacks (nil if codelet uses standard twiddles)
-	TwiddleSize    TwiddleSizeFunc       // Returns element count for codelet twiddles
-	PrepareTwiddle PrepareTwiddleFunc[T] // Prepares twiddle layout for the codelet
+	TwiddleSize    registry.TwiddleSizeFunc       // Returns element count for codelet twiddles
+	PrepareTwiddle registry.PrepareTwiddleFunc[T] // Prepares twiddle layout for the codelet
 }
 
 // EstimatePlan determines the best kernel/codelet for the given size.
@@ -80,12 +82,12 @@ func EstimatePlan[T Complex](
 }
 
 func tryRegistry[T Complex](n int, features cpu.Features, forcedStrategy KernelStrategy) *PlanEstimate[T] {
-	registry := GetRegistry[T]()
-	if registry == nil {
+	reg := registry.GetRegistry[T]()
+	if reg == nil {
 		return nil
 	}
 
-	entry := registry.Lookup(n, features)
+	entry := reg.Lookup(n, features)
 	if entry == nil {
 		return nil
 	}
@@ -137,10 +139,10 @@ func resolveWisdom[T Complex](
 	// (e.g. imported wisdom, or FMA masked off under a VM while the feature
 	// mask still matches on AVX2), so re-check cpuSupports before binding —
 	// LookupBySignature itself does not filter by CPU features.
-	registry := GetRegistry[T]()
-	if registry != nil {
-		codelet := registry.LookupBySignature(n, algorithm)
-		if codelet != nil && cpuSupports(features, codelet.SIMDLevel) {
+	reg := registry.GetRegistry[T]()
+	if reg != nil {
+		codelet := reg.LookupBySignature(n, algorithm)
+		if codelet != nil && registry.CPUSupports(features, codelet.SIMDLevel) {
 			if forcedStrategy != KernelAuto && codelet.Algorithm != forcedStrategy {
 				return nil, KernelAuto, false
 			}
@@ -157,22 +159,8 @@ func resolveWisdom[T Complex](
 	}
 
 	// Wisdom algorithm doesn't match a codelet, apply as kernel strategy
-	var strategy KernelStrategy
-
-	switch algorithm {
-	case algoDITFallback:
-		strategy = KernelDIT
-	case algoStockham:
-		strategy = KernelStockham
-	case algoSixStep:
-		strategy = KernelSixStep
-	case algoEightStep:
-		strategy = KernelEightStep
-	case algoBluestein:
-		strategy = KernelBluestein
-	case algoSplitRadix:
-		strategy = KernelSplitRadix
-	default:
+	strategy, ok := AlgorithmNameToStrategy(algorithm)
+	if !ok {
 		return nil, KernelAuto, false
 	}
 
@@ -185,10 +173,10 @@ func resolveWisdom[T Complex](
 
 // HasCodelet returns true if a codelet is available for the given size.
 func HasCodelet[T Complex](n int, features cpu.Features) bool {
-	registry := GetRegistry[T]()
-	if registry == nil {
+	reg := registry.GetRegistry[T]()
+	if reg == nil {
 		return false
 	}
 
-	return registry.Lookup(n, features) != nil
+	return reg.Lookup(n, features) != nil
 }

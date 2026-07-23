@@ -7,10 +7,13 @@ package fft
 import (
 	"fmt"
 	"testing"
+
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // =============================================================================
-// Individual Kernel Benchmarks
+// Individual kernels.Kernel Benchmarks
 // =============================================================================
 
 // BenchmarkAVX2DITComplex64 benchmarks all AVX2 DIT kernels for complex64.
@@ -48,7 +51,7 @@ func BenchmarkAVX2DITComplex64(b *testing.B) {
 			src := make([]complex64, testCase.n)
 			dst := make([]complex64, testCase.n)
 			scratch := make([]complex64, testCase.n)
-			twiddle := ComputeTwiddleFactors[complex64](testCase.n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](testCase.n)
 
 			for i := range src {
 				src[i] = complex(float32(i), float32(-i))
@@ -92,7 +95,7 @@ func BenchmarkAVX2DITComplex128(b *testing.B) {
 			src := make([]complex128, tc.n)
 			dst := make([]complex128, tc.n)
 			scratch := make([]complex128, tc.n)
-			twiddle := ComputeTwiddleFactors[complex128](tc.n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](tc.n)
 
 			for i := range src {
 				src[i] = complex(float64(i), float64(-i))
@@ -540,7 +543,7 @@ func BenchmarkAVX2Size256_Comprehensive(b *testing.B) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 
 	b.Run("AVX2_Radix2", func(b *testing.B) {
 		if !forwardAVX2Size256Radix2Complex64Asm(dst, src, twiddle, scratch) {
@@ -567,26 +570,26 @@ func BenchmarkAVX2Size256_Comprehensive(b *testing.B) {
 	})
 
 	b.Run("PureGo_DIT_Radix2", func(b *testing.B) {
-		if !forwardDIT256Complex64(dst, src, twiddle, scratch) {
+		if !kernels.ForwardDIT256Complex64(dst, src, twiddle, scratch) {
 			b.Skip("Pure Go DIT failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for range b.N {
-			forwardDIT256Complex64(dst, src, twiddle, scratch)
+			kernels.ForwardDIT256Complex64(dst, src, twiddle, scratch)
 		}
 	})
 
 	b.Run("PureGo_Radix4", func(b *testing.B) {
-		if !forwardDIT256Radix4Complex64(dst, src, twiddle, scratch) {
+		if !kernels.ForwardDIT256Radix4Complex64(dst, src, twiddle, scratch) {
 			b.Skip("Pure Go radix-4 failed")
 		}
 		b.ReportAllocs()
 		b.SetBytes(int64(n * 8))
 		b.ResetTimer()
 		for range b.N {
-			forwardDIT256Radix4Complex64(dst, src, twiddle, scratch)
+			kernels.ForwardDIT256Radix4Complex64(dst, src, twiddle, scratch)
 		}
 	})
 }

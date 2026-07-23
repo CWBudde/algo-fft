@@ -4,6 +4,7 @@ import (
 	"math/cmplx"
 	"testing"
 
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
@@ -37,14 +38,14 @@ func testButterfly2_64(t *testing.T) {
 		want0 := tc.a + tc.w*tc.b
 		want1 := tc.a - tc.w*tc.b
 
-		got0, got1 := butterfly2(tc.a, tc.b, tc.w)
+		got0, got1 := kernels.Butterfly2(tc.a, tc.b, tc.w)
 
 		if cmplx.Abs(complex128(got0-want0)) > testTol64 {
-			t.Errorf("butterfly2(%v, %v, %v) out0: got %v, want %v", tc.a, tc.b, tc.w, got0, want0)
+			t.Errorf("kernels.Butterfly2(%v, %v, %v) out0: got %v, want %v", tc.a, tc.b, tc.w, got0, want0)
 		}
 
 		if cmplx.Abs(complex128(got1-want1)) > testTol64 {
-			t.Errorf("butterfly2(%v, %v, %v) out1: got %v, want %v", tc.a, tc.b, tc.w, got1, want1)
+			t.Errorf("kernels.Butterfly2(%v, %v, %v) out1: got %v, want %v", tc.a, tc.b, tc.w, got1, want1)
 		}
 	}
 }
@@ -64,14 +65,14 @@ func testButterfly2_128(t *testing.T) {
 		want0 := tc.a + tc.w*tc.b
 		want1 := tc.a - tc.w*tc.b
 
-		got0, got1 := butterfly2(tc.a, tc.b, tc.w)
+		got0, got1 := kernels.Butterfly2(tc.a, tc.b, tc.w)
 
 		if cmplx.Abs(got0-want0) > testTol128 {
-			t.Errorf("butterfly2(%v, %v, %v) out0: got %v, want %v", tc.a, tc.b, tc.w, got0, want0)
+			t.Errorf("kernels.Butterfly2(%v, %v, %v) out0: got %v, want %v", tc.a, tc.b, tc.w, got0, want0)
 		}
 
 		if cmplx.Abs(got1-want1) > testTol128 {
-			t.Errorf("butterfly2(%v, %v, %v) out1: got %v, want %v", tc.a, tc.b, tc.w, got1, want1)
+			t.Errorf("kernels.Butterfly2(%v, %v, %v) out1: got %v, want %v", tc.a, tc.b, tc.w, got1, want1)
 		}
 	}
 }
@@ -105,7 +106,7 @@ func testButterfly3_64(t *testing.T) {
 		want := reference.NaiveDFT(input)
 
 		// Apply butterfly
-		got0, got1, got2 := butterfly3Forward(input[0], input[1], input[2])
+		got0, got1, got2 := kernels.Butterfly3Forward(input[0], input[1], input[2])
 		got := []complex64{got0, got1, got2}
 
 		// Verify results
@@ -127,7 +128,7 @@ func testButterfly3_128(t *testing.T) {
 	for _, input := range testInputs {
 		want := reference.NaiveDFT128(input)
 
-		got0, got1, got2 := butterfly3Forward(input[0], input[1], input[2])
+		got0, got1, got2 := kernels.Butterfly3Forward(input[0], input[1], input[2])
 		got := []complex128{got0, got1, got2}
 
 		assertComplex128SliceClose(t, got, want, 3)
@@ -157,8 +158,8 @@ func testButterfly3Inverse_64(t *testing.T) {
 
 	for _, input := range testInputs {
 		// Forward then inverse should recover input (scaled by n)
-		fwd0, fwd1, fwd2 := butterfly3Forward(input[0], input[1], input[2])
-		inv0, inv1, inv2 := butterfly3Inverse(fwd0, fwd1, fwd2)
+		fwd0, fwd1, fwd2 := kernels.Butterfly3Forward(input[0], input[1], input[2])
+		inv0, inv1, inv2 := kernels.Butterfly3Inverse(fwd0, fwd1, fwd2)
 		got := []complex64{inv0, inv1, inv2}
 
 		// Scale by n=3 for comparison
@@ -181,8 +182,8 @@ func testButterfly3Inverse_128(t *testing.T) {
 	}
 
 	for _, input := range testInputs {
-		fwd0, fwd1, fwd2 := butterfly3Forward(input[0], input[1], input[2])
-		inv0, inv1, inv2 := butterfly3Inverse(fwd0, fwd1, fwd2)
+		fwd0, fwd1, fwd2 := kernels.Butterfly3Forward(input[0], input[1], input[2])
+		inv0, inv1, inv2 := kernels.Butterfly3Inverse(fwd0, fwd1, fwd2)
 		got := []complex128{inv0, inv1, inv2}
 
 		want := make([]complex128, 3)
@@ -220,7 +221,7 @@ func testButterfly4_64(t *testing.T) {
 	for _, input := range testInputs {
 		want := reference.NaiveDFT(input)
 
-		got0, got1, got2, got3 := butterfly4Forward(input[0], input[1], input[2], input[3])
+		got0, got1, got2, got3 := kernels.Butterfly4Forward(input[0], input[1], input[2], input[3])
 		got := []complex64{got0, got1, got2, got3}
 
 		assertComplex64SliceClose(t, got, want, 4)
@@ -241,7 +242,7 @@ func testButterfly4_128(t *testing.T) {
 	for _, input := range testInputs {
 		want := reference.NaiveDFT128(input)
 
-		got0, got1, got2, got3 := butterfly4Forward(input[0], input[1], input[2], input[3])
+		got0, got1, got2, got3 := kernels.Butterfly4Forward(input[0], input[1], input[2], input[3])
 		got := []complex128{got0, got1, got2, got3}
 
 		assertComplex128SliceClose(t, got, want, 4)
@@ -270,8 +271,8 @@ func testButterfly4Inverse_64(t *testing.T) {
 	}
 
 	for _, input := range testInputs {
-		fwd0, fwd1, fwd2, fwd3 := butterfly4Forward(input[0], input[1], input[2], input[3])
-		inv0, inv1, inv2, inv3 := butterfly4Inverse(fwd0, fwd1, fwd2, fwd3)
+		fwd0, fwd1, fwd2, fwd3 := kernels.Butterfly4Forward(input[0], input[1], input[2], input[3])
+		inv0, inv1, inv2, inv3 := kernels.Butterfly4Inverse(fwd0, fwd1, fwd2, fwd3)
 		got := []complex64{inv0, inv1, inv2, inv3}
 
 		want := make([]complex64, 4)
@@ -293,8 +294,8 @@ func testButterfly4Inverse_128(t *testing.T) {
 	}
 
 	for _, input := range testInputs {
-		fwd0, fwd1, fwd2, fwd3 := butterfly4Forward(input[0], input[1], input[2], input[3])
-		inv0, inv1, inv2, inv3 := butterfly4Inverse(fwd0, fwd1, fwd2, fwd3)
+		fwd0, fwd1, fwd2, fwd3 := kernels.Butterfly4Forward(input[0], input[1], input[2], input[3])
+		inv0, inv1, inv2, inv3 := kernels.Butterfly4Inverse(fwd0, fwd1, fwd2, fwd3)
 		got := []complex128{inv0, inv1, inv2, inv3}
 
 		want := make([]complex128, 4)
@@ -332,7 +333,7 @@ func testButterfly5_64(t *testing.T) {
 	for _, input := range testInputs {
 		want := reference.NaiveDFT(input)
 
-		got0, got1, got2, got3, got4 := butterfly5Forward(input[0], input[1], input[2], input[3], input[4])
+		got0, got1, got2, got3, got4 := kernels.Butterfly5Forward(input[0], input[1], input[2], input[3], input[4])
 		got := []complex64{got0, got1, got2, got3, got4}
 
 		assertComplex64SliceClose(t, got, want, 5)
@@ -353,7 +354,7 @@ func testButterfly5_128(t *testing.T) {
 	for _, input := range testInputs {
 		want := reference.NaiveDFT128(input)
 
-		got0, got1, got2, got3, got4 := butterfly5Forward(input[0], input[1], input[2], input[3], input[4])
+		got0, got1, got2, got3, got4 := kernels.Butterfly5Forward(input[0], input[1], input[2], input[3], input[4])
 		got := []complex128{got0, got1, got2, got3, got4}
 
 		assertComplex128SliceClose(t, got, want, 5)
@@ -382,8 +383,8 @@ func testButterfly5Inverse_64(t *testing.T) {
 	}
 
 	for _, input := range testInputs {
-		fwd0, fwd1, fwd2, fwd3, fwd4 := butterfly5Forward(input[0], input[1], input[2], input[3], input[4])
-		inv0, inv1, inv2, inv3, inv4 := butterfly5Inverse(fwd0, fwd1, fwd2, fwd3, fwd4)
+		fwd0, fwd1, fwd2, fwd3, fwd4 := kernels.Butterfly5Forward(input[0], input[1], input[2], input[3], input[4])
+		inv0, inv1, inv2, inv3, inv4 := kernels.Butterfly5Inverse(fwd0, fwd1, fwd2, fwd3, fwd4)
 		got := []complex64{inv0, inv1, inv2, inv3, inv4}
 
 		want := make([]complex64, 5)
@@ -405,8 +406,8 @@ func testButterfly5Inverse_128(t *testing.T) {
 	}
 
 	for _, input := range testInputs {
-		fwd0, fwd1, fwd2, fwd3, fwd4 := butterfly5Forward(input[0], input[1], input[2], input[3], input[4])
-		inv0, inv1, inv2, inv3, inv4 := butterfly5Inverse(fwd0, fwd1, fwd2, fwd3, fwd4)
+		fwd0, fwd1, fwd2, fwd3, fwd4 := kernels.Butterfly5Forward(input[0], input[1], input[2], input[3], input[4])
+		inv0, inv1, inv2, inv3, inv4 := kernels.Butterfly5Inverse(fwd0, fwd1, fwd2, fwd3, fwd4)
 		got := []complex128{inv0, inv1, inv2, inv3, inv4}
 
 		want := make([]complex128, 5)

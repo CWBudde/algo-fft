@@ -5,11 +5,13 @@ import (
 	"time"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // mockWisdomRecorder records wisdom entries for testing.
 type mockWisdomRecorder struct {
-	entries []WisdomEntry
+	entries []planner.WisdomEntry
 }
 
 func (m *mockWisdomRecorder) LookupWisdom(size int, precision uint8, cpuFeatures uint64) (string, bool) {
@@ -22,7 +24,7 @@ func (m *mockWisdomRecorder) LookupWisdom(size int, precision uint8, cpuFeatures
 	return "", false
 }
 
-func (m *mockWisdomRecorder) Store(entry WisdomEntry) {
+func (m *mockWisdomRecorder) Store(entry planner.WisdomEntry) {
 	m.entries = append(m.entries, entry)
 }
 
@@ -33,31 +35,31 @@ func TestSelectStrategiesToTest(t *testing.T) {
 		name     string
 		mode     PlannerMode
 		n        int
-		expected []KernelStrategy
+		expected []fftypes.KernelStrategy
 	}{
 		{
 			name:     "Measure mode power-of-two",
 			mode:     PlannerMeasure,
 			n:        1024,
-			expected: []KernelStrategy{KernelDIT, KernelStockham},
+			expected: []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham},
 		},
 		{
 			name:     "Patient mode power-of-two",
 			mode:     PlannerPatient,
 			n:        1024,
-			expected: []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelSplitRadix},
+			expected: []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep, fftypes.KernelSplitRadix},
 		},
 		{
 			name:     "Exhaustive mode power-of-two",
 			mode:     PlannerExhaustive,
 			n:        1024,
-			expected: []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelEightStep, KernelSplitRadix},
+			expected: []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep, fftypes.KernelEightStep, fftypes.KernelSplitRadix},
 		},
 		{
 			name:     "Prime size uses Bluestein only",
 			mode:     PlannerExhaustive,
 			n:        17,
-			expected: []KernelStrategy{KernelBluestein},
+			expected: []fftypes.KernelStrategy{fftypes.KernelBluestein},
 		},
 	}
 
@@ -126,12 +128,12 @@ func TestBenchmarkStrategy(t *testing.T) {
 	tests := []struct {
 		name     string
 		n        int
-		strategy KernelStrategy
+		strategy fftypes.KernelStrategy
 	}{
-		{"DIT 64", 64, KernelDIT},
-		{"Stockham 64", 64, KernelStockham},
-		{"DIT 256", 256, KernelDIT},
-		{"Stockham 256", 256, KernelStockham},
+		{"DIT 64", 64, fftypes.KernelDIT},
+		{"Stockham 64", 64, fftypes.KernelStockham},
+		{"DIT 256", 256, fftypes.KernelDIT},
+		{"Stockham 256", 256, fftypes.KernelStockham},
 	}
 
 	for _, tt := range tests {
@@ -166,7 +168,7 @@ func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
 		features,
 		PlannerMeasure,
 		recorder,
-		KernelAuto,
+		fftypes.KernelAuto,
 	)
 
 	// Should have recorded an entry
@@ -181,8 +183,8 @@ func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
 		t.Errorf("entry.Key.Size = %d, want 256", entry.Key.Size)
 	}
 
-	if entry.Key.Precision != PrecisionComplex64 {
-		t.Errorf("entry.Key.Precision = %d, want %d", entry.Key.Precision, PrecisionComplex64)
+	if entry.Key.Precision != planner.PrecisionComplex64 {
+		t.Errorf("entry.Key.Precision = %d, want %d", entry.Key.Precision, planner.PrecisionComplex64)
 	}
 
 	if entry.Algorithm == "" {
@@ -194,8 +196,8 @@ func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
 	}
 
 	// Estimate should have a valid strategy
-	if estimate.Strategy == KernelAuto {
-		t.Error("estimate.Strategy should not be KernelAuto after measurement")
+	if estimate.Strategy == fftypes.KernelAuto {
+		t.Error("estimate.Strategy should not be fftypes.KernelAuto after measurement")
 	}
 
 	if estimate.Algorithm == "" {
@@ -220,7 +222,7 @@ func TestMeasureAndSelect_ForcedStrategy(t *testing.T) {
 		features,
 		PlannerMeasure,
 		recorder,
-		KernelStockham,
+		fftypes.KernelStockham,
 	)
 
 	// Should NOT record to wisdom when strategy is forced
@@ -229,8 +231,8 @@ func TestMeasureAndSelect_ForcedStrategy(t *testing.T) {
 	}
 
 	// Should use forced strategy
-	if estimate.Strategy != KernelStockham {
-		t.Errorf("estimate.Strategy = %v, want %v", estimate.Strategy, KernelStockham)
+	if estimate.Strategy != fftypes.KernelStockham {
+		t.Errorf("estimate.Strategy = %v, want %v", estimate.Strategy, fftypes.KernelStockham)
 	}
 }
 
@@ -250,12 +252,12 @@ func TestMeasureAndSelect_NilWisdom(t *testing.T) {
 		features,
 		PlannerMeasure,
 		nil,
-		KernelAuto,
+		fftypes.KernelAuto,
 	)
 
 	// Should still return valid estimate
-	if estimate.Strategy == KernelAuto {
-		t.Error("estimate.Strategy should not be KernelAuto")
+	if estimate.Strategy == fftypes.KernelAuto {
+		t.Error("estimate.Strategy should not be fftypes.KernelAuto")
 	}
 }
 
@@ -275,7 +277,7 @@ func TestMeasureAndSelect_Complex128(t *testing.T) {
 		features,
 		PlannerMeasure,
 		recorder,
-		KernelAuto,
+		fftypes.KernelAuto,
 	)
 
 	if len(recorder.entries) != 1 {
@@ -283,12 +285,12 @@ func TestMeasureAndSelect_Complex128(t *testing.T) {
 	}
 
 	// Should record with complex128 precision
-	if recorder.entries[0].Key.Precision != PrecisionComplex128 {
-		t.Errorf("precision = %d, want %d", recorder.entries[0].Key.Precision, PrecisionComplex128)
+	if recorder.entries[0].Key.Precision != planner.PrecisionComplex128 {
+		t.Errorf("precision = %d, want %d", recorder.entries[0].Key.Precision, planner.PrecisionComplex128)
 	}
 
-	if estimate.Strategy == KernelAuto {
-		t.Error("estimate.Strategy should not be KernelAuto")
+	if estimate.Strategy == fftypes.KernelAuto {
+		t.Error("estimate.Strategy should not be fftypes.KernelAuto")
 	}
 }
 
@@ -314,14 +316,14 @@ func TestMeasureAndSelect_AllModes(t *testing.T) {
 				features,
 				mode,
 				recorder,
-				KernelAuto,
+				fftypes.KernelAuto,
 			)
 
 			if len(recorder.entries) != 1 {
 				t.Errorf("mode %v: expected 1 entry, got %d", mode, len(recorder.entries))
 			}
 
-			if estimate.Strategy == KernelAuto {
+			if estimate.Strategy == fftypes.KernelAuto {
 				t.Errorf("mode %v: strategy should not be Auto", mode)
 			}
 		})
@@ -357,7 +359,7 @@ func TestWisdomEntry_Timestamp(t *testing.T) {
 	}
 	recorder := &mockWisdomRecorder{}
 
-	MeasureAndSelect[complex64](64, features, PlannerMeasure, recorder, KernelAuto)
+	MeasureAndSelect[complex64](64, features, PlannerMeasure, recorder, fftypes.KernelAuto)
 
 	after := time.Now()
 

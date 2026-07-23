@@ -19,14 +19,15 @@ The root package `algofft` exposes the user-facing API, grouped roughly by file:
 - **Batch & strided** (`plan_batch.go`, `plan_strided.go`): multiple transforms per call, custom layouts
 - **Wisdom** (`wisdom.go`): persist and reuse plan-tuning decisions
 - **DSP helpers** (`convolve.go`, `convolve_real.go`, `correlate.go`): `Convolve`, `ConvolveReal`, `Correlate`, `CrossCorrelate`, `AutoCorrelate` plus `*128` variants
-- **Foundations** (`types.go`, `errors.go`, `doc.go`): `Complex`/`Float` constraints (aliases into `internal/fftypes`), sentinel errors, package docs
+- **Foundations** (`types.go`, `errors.go`, `doc.go`): `Complex`/`Float` constraints, sentinel errors, package docs
 
 ### Internal Packages (`/internal/`)
 
 - `internal/kernels`: All FFT kernel implementations — DIT, Stockham, radix-2/3/4/5, six-step/eight-step, Bluestein, per-size codelets and their registration (`codelet_init*.go`); `types.go` defines `Kernel[T]`
-- `internal/planner`: Strategy selection and wisdom (`selection.go`: `ResolveKernelStrategy`, `ditAutoThreshold`). Kernel strategy is chosen per-plan (no process-global state); tuning decisions are persisted via the Wisdom cache.
-- `internal/fft`: Dispatch and re-export layer bridging the public API to kernels (`dispatch.go`: `SelectKernels[T]`)
-- `internal/fftypes`: Shared types — `Complex`, `Float`, `KernelStrategy`, `SIMDLevel`
+- `internal/planner`: Strategy selection and wisdom (`selection.go`: `ResolveKernelStrategy`, `ditAutoThreshold`; `utils.go`: the strategy↔algorithm-name table). Kernel strategy is chosen per-plan (no process-global state); tuning decisions are persisted via the Wisdom cache.
+- `internal/registry`: Leaf codelet registry — `kernels` registers into it at init, `planner`/`transform` read from it
+- `internal/fft`: Architecture dispatch and engine glue (`dispatch.go`: `SelectKernels[T]`; mixed-radix engine, Rader/Bluestein glue, pooling, SIMD helper dispatch). Not a re-export façade: the root imports `planner`/`kernels`/`transform`/`fftypes` directly for their own symbols.
+- `internal/fftypes`: Shared types — `Complex`, `Float`, `KernelStrategy`, `SIMDLevel`, `CodeletFunc`
 - `internal/cpu`: CPU feature detection (`DetectFeatures()`)
 - `internal/asm`: Architecture-specific assembly under `amd64/`, `arm64/`, `x86/` with Go declaration/stub bridges
 - `internal/math`: Twiddle factors, bit-reversal, factorization, transpose helpers

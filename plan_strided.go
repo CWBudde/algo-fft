@@ -2,6 +2,7 @@ package algofft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
@@ -52,7 +53,7 @@ func (p *Plan[T]) transformStrided(dst, src []T, stride int, inverse bool) error
 	// - dst != src (not in-place)
 	// - The bitrev is standard radix-2 (strided DIT requires radix-2 bit-reversal)
 	canUseStridedDIT := m.IsPowerOf2(p.n) &&
-		p.kernelStrategy != fft.KernelBluestein &&
+		p.kernelStrategy != fftypes.KernelBluestein &&
 		!sameSliceStrided(dst, src) &&
 		isRadix2BitRev(p.bitrev, p.n)
 

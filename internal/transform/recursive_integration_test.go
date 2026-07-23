@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // TestRecursiveFFTCorrectness validates recursive FFT against reference DFT.
@@ -44,7 +45,7 @@ func TestRecursiveFFTCorrectness(t *testing.T) {
 			scratch := make([]complex64, ScratchSizeRecursive(strategy))
 
 			// Execute recursive FFT
-			recursiveForward(output, input, strategy, twiddle, scratch, Registry64, features)
+			recursiveForward(output, input, strategy, twiddle, scratch, registry.Registry64, features)
 
 			// Compute reference DFT
 			expected := reference.NaiveDFT(input)
@@ -90,10 +91,10 @@ func TestRecursiveIFFTCorrectness(t *testing.T) {
 			scratch := make([]complex64, ScratchSizeRecursive(strategy))
 
 			// Forward transform
-			recursiveForward(forward, input, strategy, twiddle, scratch, Registry64, features)
+			recursiveForward(forward, input, strategy, twiddle, scratch, registry.Registry64, features)
 
 			// Inverse transform
-			recursiveInverse(inverse, forward, strategy, twiddle, scratch, Registry64, features)
+			recursiveInverse(inverse, forward, strategy, twiddle, scratch, registry.Registry64, features)
 
 			// Should recover original input
 			err := compareComplexSlices(inverse, input, 3e-3)
@@ -132,7 +133,7 @@ func TestRecursiveFFTParsevalTheorem(t *testing.T) {
 	output := make([]complex64, size)
 	twiddle := TwiddleFactorsRecursive[complex64](strategy)
 	scratch := make([]complex64, ScratchSizeRecursive(strategy))
-	recursiveForward(output, input, strategy, twiddle, scratch, Registry64, features)
+	recursiveForward(output, input, strategy, twiddle, scratch, registry.Registry64, features)
 
 	// Compute energy in frequency domain
 	freqEnergy := float32(0)
@@ -182,8 +183,8 @@ func TestRecursiveFFTLinearity(t *testing.T) {
 	scratchSize := ScratchSizeRecursive(strategy)
 	scratch := make([]complex64, scratchSize)
 
-	recursiveForward(fftX, x, strategy, twiddle, scratch, Registry64, features)
-	recursiveForward(fftY, y, strategy, twiddle, scratch, Registry64, features)
+	recursiveForward(fftX, x, strategy, twiddle, scratch, registry.Registry64, features)
+	recursiveForward(fftY, y, strategy, twiddle, scratch, registry.Registry64, features)
 
 	// Compute a*FFT(x) + b*FFT(y)
 	expected := make([]complex64, size)
@@ -199,7 +200,7 @@ func TestRecursiveFFTLinearity(t *testing.T) {
 
 	// Compute FFT(a*x + b*y)
 	actual := make([]complex64, size)
-	recursiveForward(actual, combined, strategy, twiddle, scratch, Registry64, features)
+	recursiveForward(actual, combined, strategy, twiddle, scratch, registry.Registry64, features)
 
 	// Should match
 	err := compareComplexSlicesRel(actual, expected, 1e-1, 1e-7)
@@ -239,7 +240,7 @@ func TestRecursiveFFTComplex128(t *testing.T) {
 	scratch := make([]complex128, ScratchSizeRecursive(strategy))
 
 	// Execute FFT
-	recursiveForward(output, input, strategy, twiddle, scratch, Registry128, features)
+	recursiveForward(output, input, strategy, twiddle, scratch, registry.Registry128, features)
 
 	// Compute reference DFT in complex128 to avoid float32 truncation.
 	expected := naiveDFTComplex128(input)
@@ -281,7 +282,7 @@ func TestRecursiveFFTSmallSizes(t *testing.T) {
 			twiddle := TwiddleFactorsRecursive[complex64](strategy)
 			scratch := make([]complex64, ScratchSizeRecursive(strategy))
 
-			recursiveForward(output, input, strategy, twiddle, scratch, Registry64, features)
+			recursiveForward(output, input, strategy, twiddle, scratch, registry.Registry64, features)
 
 			// Compare against reference
 			expected := reference.NaiveDFT(input)

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // TestEstimatePlanPowerOf2 tests EstimatePlan with power-of-2 sizes.
@@ -205,6 +207,9 @@ func TestEstimatePlanWisdomOverriddenByForce(t *testing.T) {
 // a codelet whose SIMD level the CPU does not support (e.g. an AVX2 codelet on
 // a CPU with FMA masked off — the wisdom feature mask alone does not
 // distinguish this case).
+// dummyCodelet is a stand-in codelet body for registry entries in tests.
+func dummyCodelet[T Complex](dst, src, twiddle, scratch []T) bool { return true }
+
 func TestResolveWisdomRejectsUnsupportedCodelet(t *testing.T) {
 	t.Parallel()
 
@@ -215,12 +220,12 @@ func TestResolveWisdomRejectsUnsupportedCodelet(t *testing.T) {
 		sig  = "wisdomtest_avx2"
 	)
 
-	GetRegistry[complex64]().Register(CodeletEntry[complex64]{
+	registry.GetRegistry[complex64]().Register(registry.CodeletEntry[complex64]{
 		Size:      size,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
 		Algorithm: KernelDIT,
-		SIMDLevel: SIMDAVX2,
+		SIMDLevel: fftypes.SIMDAVX2,
 		Signature: sig,
 		Priority:  1,
 	})

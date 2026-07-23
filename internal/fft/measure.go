@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // PlannerMode controls how much work the planner does to choose kernels.
@@ -22,16 +24,16 @@ const (
 	PlannerExhaustive                    // Thorough benchmark: test all strategies
 )
 
-// WisdomRecorder extends WisdomStore with the ability to record new entries.
+// WisdomRecorder extends planner.WisdomStore with the ability to record new entries.
 // This interface allows the planner to save benchmark results.
 type WisdomRecorder interface {
-	WisdomStore
-	Store(entry WisdomEntry)
+	planner.WisdomStore
+	Store(entry planner.WisdomEntry)
 }
 
 // MeasureResult holds the benchmark result for a single strategy.
 type MeasureResult struct {
-	Strategy  KernelStrategy
+	Strategy  fftypes.KernelStrategy
 	Algorithm string
 	NsPerOp   float64
 }
@@ -66,29 +68,34 @@ func getMeasureConfig(mode PlannerMode) measureConfig {
 }
 
 // selectStrategiesToTest returns the strategies to benchmark based on planner mode.
-func selectStrategiesToTest(mode PlannerMode, n int) []KernelStrategy {
+func selectStrategiesToTest(mode PlannerMode, n int) []fftypes.KernelStrategy {
 	// For non-power-of-two sizes not eligible for the mixed-radix engine,
 	// only Bluestein is available.
-	if !m.IsPowerOf2(n) && !planner.MixedRadixEligible(n) {
-		return []KernelStrategy{KernelBluestein}
+	if !mathpkg.IsPowerOf2(n) && !planner.MixedRadixEligible(n) {
+		return []fftypes.KernelStrategy{fftypes.KernelBluestein}
 	}
 
 	switch mode {
 	case PlannerEstimate:
 		// Estimate mode doesn't benchmark, but return default if called
-		return []KernelStrategy{KernelDIT, KernelStockham}
+		return []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham}
 	case PlannerMeasure:
 		// Quick: test the two most common strategies
-		return []KernelStrategy{KernelDIT, KernelStockham}
+		return []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham}
 	case PlannerPatient:
 		// Moderate: add SixStep and SplitRadix for larger sizes
-		return []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelSplitRadix}
+		return []fftypes.KernelStrategy{
+			fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep, fftypes.KernelSplitRadix,
+		}
 	case PlannerExhaustive:
 		// Thorough: test all power-of-two strategies
-		return []KernelStrategy{KernelDIT, KernelStockham, KernelSixStep, KernelEightStep, KernelSplitRadix}
+		return []fftypes.KernelStrategy{
+			fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep,
+			fftypes.KernelEightStep, fftypes.KernelSplitRadix,
+		}
 	}
 
-	return []KernelStrategy{KernelDIT, KernelStockham}
+	return []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham}
 }
 
 // MeasureAndSelect benchmarks multiple strategies and returns the best one.
@@ -98,16 +105,16 @@ func MeasureAndSelect[T Complex](
 	features cpu.Features,
 	mode PlannerMode,
 	wisdom WisdomRecorder,
-	forcedStrategy KernelStrategy,
-) PlanEstimate[T] {
+	forcedStrategy fftypes.KernelStrategy,
+) planner.PlanEstimate[T] {
 	// If a specific strategy is forced, skip benchmarking
-	if forcedStrategy != KernelAuto {
+	if forcedStrategy != fftypes.KernelAuto {
 		return estimateWithStrategy[T](n, features, forcedStrategy)
 	}
 
 	strategies := selectStrategiesToTest(mode, n)
 	if len(strategies) == 0 {
-		return estimateWithStrategy[T](n, features, KernelAuto)
+		return estimateWithStrategy[T](n, features, fftypes.KernelAuto)
 	}
 
 	// Single strategy? Just use it directly
@@ -131,7 +138,7 @@ func MeasureAndSelect[T Complex](
 
 	// If no strategy succeeded, fall back to heuristics
 	if len(results) == 0 {
-		return EstimatePlan[T](n, features, nil, KernelAuto)
+		return planner.EstimatePlan[T](n, features, nil, fftypes.KernelAuto)
 	}
 
 	// Sort by performance (fastest first)
@@ -159,12 +166,12 @@ func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecord
 
 	switch any(zero).(type) {
 	case complex64:
-		precision = PrecisionComplex64
+		precision = planner.PrecisionComplex64
 	case complex128:
-		precision = PrecisionComplex128
+		precision = planner.PrecisionComplex128
 	}
 
-	cpuMask := CPUFeatureMask(
+	cpuMask := planner.CPUFeatureMask(
 		features.HasSSE2,
 		features.HasSSE3,
 		features.HasAVX2,
@@ -172,8 +179,8 @@ func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecord
 		features.HasNEON,
 	)
 
-	entry := WisdomEntry{
-		Key: WisdomKey{
+	entry := planner.WisdomEntry{
+		Key: planner.WisdomKey{
 			Size:        n,
 			Precision:   precision,
 			CPUFeatures: cpuMask,
@@ -191,13 +198,13 @@ func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecord
 func benchmarkStrategy[T Complex](
 	n int,
 	features cpu.Features,
-	strategy KernelStrategy,
+	strategy fftypes.KernelStrategy,
 	config measureConfig,
 ) time.Duration {
 	// Prepare data buffers
 	src := make([]T, n)
 	dst := make([]T, n)
-	twiddle := ComputeTwiddleFactors[T](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[T](n)
 	scratch := make([]T, n)
 
 	// Initialize source with simple pattern (avoids random number generation)
@@ -206,11 +213,11 @@ func benchmarkStrategy[T Complex](
 	}
 
 	// Get kernel for this strategy
-	kernels := SelectKernelsWithStrategy[T](features, strategy)
+	kern := SelectKernelsWithStrategy[T](features, strategy)
 
 	// Warmup: verify the kernel works and warm up CPU caches
 	for range config.warmup {
-		ok := kernels.Forward(dst, src, twiddle, scratch)
+		ok := kern.Forward(dst, src, twiddle, scratch)
 		if !ok {
 			return 0 // Strategy not implemented
 		}
@@ -227,7 +234,7 @@ func benchmarkStrategy[T Complex](
 		startCycles := cpu.ReadCycleCounter()
 
 		for range config.iters {
-			kernels.Forward(dst, src, twiddle, scratch)
+			kern.Forward(dst, src, twiddle, scratch)
 		}
 
 		elapsedNanos := cpu.CyclesToNanoseconds(cpu.CyclesSince(startCycles))
@@ -251,18 +258,18 @@ func medianInt64(samples []int64) int64 {
 	return samples[(len(samples)-1)/2]
 }
 
-// estimateWithStrategy creates a PlanEstimate for a specific strategy.
+// estimateWithStrategy creates a planner.PlanEstimate for a specific strategy.
 func estimateWithStrategy[T Complex](
 	n int,
 	features cpu.Features,
-	strategy KernelStrategy,
-) PlanEstimate[T] {
+	strategy fftypes.KernelStrategy,
+) planner.PlanEstimate[T] {
 	// Check for codelets first
-	registry := GetRegistry[T]()
+	registry := registry.GetRegistry[T]()
 	if registry != nil {
 		entry := registry.Lookup(n, features)
-		if entry != nil && (strategy == KernelAuto || entry.Algorithm == strategy) {
-			return PlanEstimate[T]{
+		if entry != nil && (strategy == fftypes.KernelAuto || entry.Algorithm == strategy) {
+			return planner.PlanEstimate[T]{
 				ForwardCodelet: entry.Forward,
 				InverseCodelet: entry.Inverse,
 				Algorithm:      entry.Signature,
@@ -272,11 +279,11 @@ func estimateWithStrategy[T Complex](
 	}
 
 	// Fall back to kernel-based estimate
-	if strategy == KernelAuto {
-		strategy = ResolveKernelStrategy(n)
+	if strategy == fftypes.KernelAuto {
+		strategy = planner.ResolveKernelStrategy(n)
 	}
 
-	return PlanEstimate[T]{
+	return planner.PlanEstimate[T]{
 		ForwardCodelet: nil,
 		InverseCodelet: nil,
 		Strategy:       strategy,

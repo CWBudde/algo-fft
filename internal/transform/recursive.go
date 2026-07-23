@@ -3,6 +3,7 @@ package transform
 import (
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	imath "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // recursive.go implements the recursive FFT algorithm using decomposition strategies.
@@ -17,7 +18,7 @@ func RecursiveForward[T Complex](
 	strategy *DecomposeStrategy,
 	twiddle []T,
 	scratch []T,
-	registry *CodeletRegistry[T],
+	registry *registry.CodeletRegistry[T],
 	features cpu.Features,
 ) {
 	recursiveForwardWithTwiddle(dst, src, strategy, twiddle, 0, scratch, registry, features)
@@ -29,7 +30,7 @@ func recursiveForward[T Complex](
 	strategy *DecomposeStrategy,
 	twiddle []T,
 	scratch []T,
-	registry *CodeletRegistry[T],
+	registry *registry.CodeletRegistry[T],
 	features cpu.Features,
 ) {
 	RecursiveForward(dst, src, strategy, twiddle, scratch, registry, features)
@@ -41,7 +42,7 @@ func recursiveForwardWithTwiddle[T Complex](
 	twiddle []T,
 	twiddleOffset int,
 	scratch []T,
-	registry *CodeletRegistry[T],
+	registry *registry.CodeletRegistry[T],
 	features cpu.Features,
 ) int {
 	n := len(src)
@@ -139,7 +140,7 @@ func RecursiveInverse[T Complex](
 	strategy *DecomposeStrategy,
 	twiddle []T,
 	scratch []T,
-	registry *CodeletRegistry[T],
+	registry *registry.CodeletRegistry[T],
 	features cpu.Features,
 ) {
 	recursiveInverseWithTwiddle(dst, src, strategy, twiddle, 0, scratch, registry, features)
@@ -151,7 +152,7 @@ func recursiveInverse[T Complex](
 	strategy *DecomposeStrategy,
 	twiddle []T,
 	scratch []T,
-	registry *CodeletRegistry[T],
+	registry *registry.CodeletRegistry[T],
 	features cpu.Features,
 ) {
 	RecursiveInverse(dst, src, strategy, twiddle, scratch, registry, features)
@@ -163,7 +164,7 @@ func recursiveInverseWithTwiddle[T Complex](
 	twiddle []T,
 	twiddleOffset int,
 	scratch []T,
-	registry *CodeletRegistry[T],
+	registry *registry.CodeletRegistry[T],
 	features cpu.Features,
 ) int {
 	n := len(src)

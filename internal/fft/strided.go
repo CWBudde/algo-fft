@@ -1,5 +1,9 @@
 package fft
 
+import (
+	"github.com/cwbudde/algo-fft/internal/kernels"
+)
+
 // ForwardStridedDIT runs a radix-2 DIT FFT over strided data.
 // dst and src must be large enough for n elements with the given stride.
 func ForwardStridedDIT[T Complex](dst, src, twiddle []T, bitrev []int, stride, n int) bool {
@@ -40,7 +44,7 @@ func ditForwardStrided[T Complex](dst, src, twiddle []T, bitrev []int, stride, n
 			index2 := (base + half) * stride
 			for j := range half {
 				tw := twiddle[j*step]
-				a, b := butterfly2(dst[index1], dst[index2], tw)
+				a, b := kernels.Butterfly2(dst[index1], dst[index2], tw)
 				dst[index1] = a
 				dst[index2] = b
 				index1 += stride
@@ -80,7 +84,7 @@ func ditInverseStrided[T Complex](dst, src, twiddle []T, bitrev []int, stride, n
 			index2 := (base + half) * stride
 			for j := range half {
 				tw := conj(twiddle[j*step])
-				a, b := butterfly2(dst[index1], dst[index2], tw)
+				a, b := kernels.Butterfly2(dst[index1], dst[index2], tw)
 				dst[index1] = a
 				dst[index2] = b
 				index1 += stride

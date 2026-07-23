@@ -9,6 +9,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
@@ -131,7 +132,7 @@ func TestAVX2GenericRadix4Complex128Forward(t *testing.T) {
 
 			dst := make([]complex128, n)
 			scratch := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 			// Run the generic radix-4 kernel
 			if !forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch) {
@@ -169,7 +170,7 @@ func TestAVX2GenericRadix4Complex128ForwardImpulse(t *testing.T) {
 
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 	if !forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch) {
 		t.Fatalf("Forward failed")
@@ -213,7 +214,7 @@ func TestAVX2GenericRadix4Complex128Inverse(t *testing.T) {
 
 			dst := make([]complex128, n)
 			scratch := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 			// Run the generic radix-4 inverse kernel
 			if !inverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch) {
@@ -270,7 +271,7 @@ func TestAVX2GenericRadix4Complex128RoundTrip(t *testing.T) {
 			forward := make([]complex128, n)
 			result := make([]complex128, n)
 			scratch := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 			// Forward transform
 			if !forwardAVX2Complex128Radix4Asm(forward, original, twiddle, scratch) {
@@ -306,7 +307,7 @@ func TestAVX2GenericRadix4Complex128RoundTrip(t *testing.T) {
 }
 
 // =============================================================================
-// Tests for Generic Radix-4 Mixed (odd log2) Complex128 Kernel
+// Tests for Generic Radix-4 Mixed (odd log2) Complex128 kernels.Kernel
 // =============================================================================
 
 func TestAVX2GenericRadix4MixedComplex128Forward(t *testing.T) {
@@ -331,7 +332,7 @@ func TestAVX2GenericRadix4MixedComplex128Forward(t *testing.T) {
 
 			dst := make([]complex128, n)
 			scratch := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 			// Run the generic radix-4 mixed kernel
 			if !forwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch) {
@@ -368,7 +369,7 @@ func TestAVX2GenericRadix4MixedComplex128ForwardImpulse(t *testing.T) {
 
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 	if !forwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch) {
 		t.Fatalf("Forward failed")
@@ -412,7 +413,7 @@ func TestAVX2GenericRadix4MixedComplex128Inverse(t *testing.T) {
 
 			dst := make([]complex128, n)
 			scratch := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 			// Run the generic radix-4 mixed inverse kernel
 			if !inverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch) {
@@ -467,7 +468,7 @@ func TestAVX2GenericRadix4MixedComplex128RoundTrip(t *testing.T) {
 
 			forward := make([]complex128, n)
 			scratch := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
 			// Forward transform
 			if !forwardAVX2Complex128Radix4MixedAsm(forward, original, twiddle, scratch) {

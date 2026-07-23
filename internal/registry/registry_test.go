@@ -1,4 +1,4 @@
-package planner
+package registry
 
 import (
 	"sync"
@@ -9,7 +9,7 @@ import (
 )
 
 // dummyCodelet is a dummy function for testing.
-func dummyCodelet[T Complex](dst, src, twiddle, scratch []T) bool { return true }
+func dummyCodelet[T fftypes.Complex](dst, src, twiddle, scratch []T) bool { return true }
 
 // TestCodeletRegistryRegisterAndLookup tests basic register and lookup operations.
 func TestCodeletRegistryRegisterAndLookup(t *testing.T) {
@@ -21,8 +21,8 @@ func TestCodeletRegistryRegisterAndLookup(t *testing.T) {
 		Size:      16,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "dit16_generic",
 		Priority:  1,
 	}
@@ -53,8 +53,8 @@ func TestCodeletRegistryNotFound(t *testing.T) {
 		Size:      16,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "dit16_generic",
 		Priority:  1,
 	}
@@ -82,8 +82,8 @@ func TestCodeletRegistryMultipleVariants(t *testing.T) {
 		Size:      16,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "dit16_generic",
 		Priority:  0,
 	})
@@ -93,8 +93,8 @@ func TestCodeletRegistryMultipleVariants(t *testing.T) {
 		Size:      16,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDAVX2,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDAVX2,
 		Signature: "dit16_avx2",
 		Priority:  0,
 	})
@@ -123,13 +123,13 @@ func TestCodeletRegistryPreferHigherSIMD(t *testing.T) {
 
 	// Register multiple SIMD variants
 	variants := []struct {
-		simd      SIMDLevel
+		simd      fftypes.SIMDLevel
 		signature string
 	}{
-		{SIMDNone, "generic"},
-		{SIMDSSE2, "sse2"},
-		{SIMDAVX2, "avx2"},
-		{SIMDAVX512, "avx512"},
+		{fftypes.SIMDNone, "generic"},
+		{fftypes.SIMDSSE2, "sse2"},
+		{fftypes.SIMDAVX2, "avx2"},
+		{fftypes.SIMDAVX512, "avx512"},
 	}
 
 	for _, variant := range variants {
@@ -137,7 +137,7 @@ func TestCodeletRegistryPreferHigherSIMD(t *testing.T) {
 			Size:      32,
 			Forward:   dummyCodelet[complex64],
 			Inverse:   dummyCodelet[complex64],
-			Algorithm: KernelDIT,
+			Algorithm: fftypes.KernelDIT,
 			SIMDLevel: variant.simd,
 			Signature: "dit32_" + variant.signature,
 			Priority:  0,
@@ -210,8 +210,8 @@ func TestCodeletRegistryPriority(t *testing.T) {
 		Size:      16,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "low_priority",
 		Priority:  1,
 	})
@@ -220,8 +220,8 @@ func TestCodeletRegistryPriority(t *testing.T) {
 		Size:      16,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "high_priority",
 		Priority:  10,
 	})
@@ -250,8 +250,8 @@ func TestCodeletRegistryLookupBySignature(t *testing.T) {
 		Size:      16,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "dit16_generic",
 		Priority:  1,
 	})
@@ -279,8 +279,8 @@ func TestCodeletRegistrySizes(t *testing.T) {
 			Size:      size,
 			Forward:   dummyCodelet[complex64],
 			Inverse:   dummyCodelet[complex64],
-			Algorithm: KernelDIT,
-			SIMDLevel: SIMDNone,
+			Algorithm: fftypes.KernelDIT,
+			SIMDLevel: fftypes.SIMDNone,
 			Signature: "test",
 			Priority:  0,
 		})
@@ -315,8 +315,8 @@ func TestCodeletRegistryGetAvailableSizes(t *testing.T) {
 		Size:      16,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "generic",
 		Priority:  0,
 	})
@@ -325,8 +325,8 @@ func TestCodeletRegistryGetAvailableSizes(t *testing.T) {
 		Size:      32,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDAVX2,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDAVX2,
 		Signature: "avx2",
 		Priority:  0,
 	})
@@ -335,8 +335,8 @@ func TestCodeletRegistryGetAvailableSizes(t *testing.T) {
 		Size:      64,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "generic",
 		Priority:  0,
 	})
@@ -375,8 +375,8 @@ func TestCodeletRegistryGetAvailableSizesDisabled(t *testing.T) {
 		Size:      16,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "generic",
 		Priority:  0,
 	})
@@ -386,8 +386,8 @@ func TestCodeletRegistryGetAvailableSizesDisabled(t *testing.T) {
 		Size:      32,
 		Forward:   dummyCodelet[complex64],
 		Inverse:   dummyCodelet[complex64],
-		Algorithm: KernelDIT,
-		SIMDLevel: SIMDNone,
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
 		Signature: "disabled",
 		Priority:  -1,
 	})
@@ -433,8 +433,8 @@ func TestCodeletRegistrySorted(t *testing.T) {
 			Size:      size,
 			Forward:   dummyCodelet[complex64],
 			Inverse:   dummyCodelet[complex64],
-			Algorithm: KernelDIT,
-			SIMDLevel: SIMDNone,
+			Algorithm: fftypes.KernelDIT,
+			SIMDLevel: fftypes.SIMDNone,
 			Signature: "test",
 			Priority:  0,
 		})
@@ -478,8 +478,8 @@ func TestCodeletRegistryConcurrent(t *testing.T) {
 					Size:      size,
 					Forward:   dummyCodelet[complex64],
 					Inverse:   dummyCodelet[complex64],
-					Algorithm: KernelDIT,
-					SIMDLevel: SIMDNone,
+					Algorithm: fftypes.KernelDIT,
+					SIMDLevel: fftypes.SIMDNone,
 					Signature: "test",
 					Priority:  0,
 				})
@@ -503,25 +503,25 @@ func TestCPUSupports(t *testing.T) {
 	tests := []struct {
 		name     string
 		features cpu.Features
-		level    SIMDLevel
+		level    fftypes.SIMDLevel
 		want     bool
 	}{
-		{"None level always supported", cpu.Features{}, SIMDNone, true},
-		{"SSE2 with SSE2 support", cpu.Features{HasSSE2: true}, SIMDSSE2, true},
-		{"SSE2 without SSE2 support", cpu.Features{HasSSE2: false}, SIMDSSE2, false},
-		{"AVX2 with AVX2+FMA support", cpu.Features{HasAVX2: true, HasFMA: true}, SIMDAVX2, true},
-		{"AVX2 without FMA support", cpu.Features{HasAVX2: true, HasFMA: false}, SIMDAVX2, false},
-		{"AVX2 without AVX2 support", cpu.Features{HasAVX2: false}, SIMDAVX2, false},
-		{"AVX512 with AVX512 support", cpu.Features{HasAVX512: true}, SIMDAVX512, true},
-		{"NEON with NEON support", cpu.Features{HasNEON: true}, SIMDNEON, true},
-		{"NEON without NEON support", cpu.Features{HasNEON: false}, SIMDNEON, false},
+		{"None level always supported", cpu.Features{}, fftypes.SIMDNone, true},
+		{"SSE2 with SSE2 support", cpu.Features{HasSSE2: true}, fftypes.SIMDSSE2, true},
+		{"SSE2 without SSE2 support", cpu.Features{HasSSE2: false}, fftypes.SIMDSSE2, false},
+		{"AVX2 with AVX2+FMA support", cpu.Features{HasAVX2: true, HasFMA: true}, fftypes.SIMDAVX2, true},
+		{"AVX2 without FMA support", cpu.Features{HasAVX2: true, HasFMA: false}, fftypes.SIMDAVX2, false},
+		{"AVX2 without AVX2 support", cpu.Features{HasAVX2: false}, fftypes.SIMDAVX2, false},
+		{"AVX512 with AVX512 support", cpu.Features{HasAVX512: true}, fftypes.SIMDAVX512, true},
+		{"NEON with NEON support", cpu.Features{HasNEON: true}, fftypes.SIMDNEON, true},
+		{"NEON without NEON support", cpu.Features{HasNEON: false}, fftypes.SIMDNEON, false},
 		{"Invalid level", cpu.Features{}, fftypes.SIMDLevel(99), false},
 	}
 
 	for _, tt := range tests {
-		got := cpuSupports(tt.features, tt.level)
+		got := CPUSupports(tt.features, tt.level)
 		if got != tt.want {
-			t.Errorf("%s: cpuSupports() = %v, want %v", tt.name, got, tt.want)
+			t.Errorf("%s: CPUSupports() = %v, want %v", tt.name, got, tt.want)
 		}
 	}
 }

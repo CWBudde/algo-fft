@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/algo-fft/internal/fft"
 	"github.com/cwbudde/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // Forward FFT benchmarks for various sizes.
@@ -508,6 +508,6 @@ func twiddleLayoutSummary[T Complex](plan *Plan[T]) string {
 	return strings.Join(parts, ",")
 }
 
-func packedSummary[T Complex](label string, packed *fft.PackedTwiddles[T]) string {
+func packedSummary[T Complex](label string, packed *transform.PackedTwiddles[T]) string {
 	return fmt.Sprintf("%s(radix=%d,stages=%d,values=%d)", label, packed.Radix, len(packed.StageOffsets), len(packed.Values))
 }

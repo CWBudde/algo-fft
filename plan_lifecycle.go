@@ -2,7 +2,9 @@ package algofft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
+	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // Reset clears the scratch buffer and resets internal state.
@@ -77,12 +79,13 @@ func (p *Plan[T]) Close() {
 func (p *Plan[T]) Clone() *Plan[T] {
 	scratchSize := p.n
 
+	//nolint:exhaustive // only Bluestein/Recursive need non-standard scratch sizes
 	switch p.kernelStrategy {
-	case fft.KernelBluestein:
+	case fftypes.KernelBluestein:
 		// max: Rader plans set bluesteinM = n-1 (see allocateScratchSet).
 		scratchSize = max(p.bluesteinM, p.n)
-	case fft.KernelRecursive:
-		scratchSize = fft.ScratchSizeRecursive(p.decompStrategy)
+	case fftypes.KernelRecursive:
+		scratchSize = transform.ScratchSizeRecursive(p.decompStrategy)
 	}
 
 	scratch, scratchBacking := mem.AllocAligned[T](scratchSize)
@@ -93,7 +96,7 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		bluesteinScratchBacking []byte
 	)
 
-	if p.kernelStrategy == fft.KernelBluestein {
+	if p.kernelStrategy == fftypes.KernelBluestein {
 		bluesteinScratch, bluesteinScratchBacking = mem.AllocAligned[T](p.bluesteinM)
 	}
 

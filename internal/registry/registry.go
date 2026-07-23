@@ -1,4 +1,9 @@
-package planner
+// Package registry holds the codelet registry: size-indexed lookup of
+// hand-tuned FFT codelets. It is a leaf package (importing only fftypes and
+// cpu) so that layering stays acyclic: internal/kernels registers codelets
+// into it at init time, and internal/planner and internal/transform read from
+// it during plan estimation and recursive execution.
+package registry
 
 import (
 	"sort"
@@ -8,34 +13,6 @@ import (
 	"github.com/cwbudde/algo-fft/internal/fftypes"
 )
 
-// CodeletFunc is a type alias for the codelet function signature.
-// The canonical definition is in internal/fftypes.
-type CodeletFunc[T Complex] = fftypes.CodeletFunc[T]
-
-// SIMDLevel is a type alias for SIMD feature levels.
-// The canonical definition is in internal/fftypes.
-type SIMDLevel = fftypes.SIMDLevel
-
-// SIMD level constants - aliases for backward compatibility.
-const (
-	SIMDNone   = fftypes.SIMDNone
-	SIMDSSE2   = fftypes.SIMDSSE2
-	SIMDSSE3   = fftypes.SIMDSSE3
-	SIMDAVX2   = fftypes.SIMDAVX2
-	SIMDAVX512 = fftypes.SIMDAVX512
-	SIMDNEON   = fftypes.SIMDNEON
-)
-
-// KernelType is a type alias for kernel classification.
-// The canonical definition is in internal/fftypes.
-type KernelType = fftypes.KernelType
-
-// Kernel type constants - aliases for backward compatibility.
-const (
-	KernelTypeCore = fftypes.KernelTypeCore
-	KernelTypeDIT  = fftypes.KernelTypeDIT
-)
-
 // TwiddleSizeFunc returns the element count needed for codelet twiddles.
 // Returns 0 if the codelet uses standard twiddles.
 type TwiddleSizeFunc func(n int) int
@@ -43,18 +20,18 @@ type TwiddleSizeFunc func(n int) int
 // PrepareTwiddleFunc fills codelet-specific twiddle data.
 // It receives the size, inverse flag, and destination slice.
 // The destination slice is owned by the Plan and persists for its lifetime.
-type PrepareTwiddleFunc[T Complex] func(n int, inverse bool, dst []T)
+type PrepareTwiddleFunc[T fftypes.Complex] func(n int, inverse bool, dst []T)
 
 // CodeletEntry describes a registered codelet for a specific size.
-type CodeletEntry[T Complex] struct {
-	Size       int            // FFT size this codelet handles
-	Forward    CodeletFunc[T] // Forward transform (nil if not available)
-	Inverse    CodeletFunc[T] // Inverse transform (nil if not available)
-	Algorithm  KernelStrategy // DIT, Stockham, etc.
-	SIMDLevel  SIMDLevel      // Required CPU features
-	Signature  string         // Human-readable name: "dit8_avx2"
-	Priority   int            // Higher priority = preferred (for same SIMD level)
-	KernelType KernelType     // How the kernel handles permutation
+type CodeletEntry[T fftypes.Complex] struct {
+	Size       int                    // FFT size this codelet handles
+	Forward    fftypes.CodeletFunc[T] // Forward transform (nil if not available)
+	Inverse    fftypes.CodeletFunc[T] // Inverse transform (nil if not available)
+	Algorithm  fftypes.KernelStrategy // DIT, Stockham, etc.
+	SIMDLevel  fftypes.SIMDLevel      // Required CPU features
+	Signature  string                 // Human-readable name: "dit8_avx2"
+	Priority   int                    // Higher priority = preferred (for same SIMD level)
+	KernelType fftypes.KernelType     // How the kernel handles permutation
 
 	// Codelet twiddle preparation (nil = use standard twiddle layout)
 	TwiddleSize    TwiddleSizeFunc       // Returns element count for codelet twiddles
@@ -64,13 +41,13 @@ type CodeletEntry[T Complex] struct {
 // CodeletRegistry provides size-indexed codelet lookup.
 // Codelets are organized by size, with multiple implementations per size
 // (e.g., generic, AVX2, NEON variants).
-type CodeletRegistry[T Complex] struct {
+type CodeletRegistry[T fftypes.Complex] struct {
 	mu       sync.RWMutex
 	codelets map[int][]CodeletEntry[T] // size -> codelets (sorted by preference)
 }
 
 // NewCodeletRegistry creates a new empty codelet registry.
-func NewCodeletRegistry[T Complex]() *CodeletRegistry[T] {
+func NewCodeletRegistry[T fftypes.Complex]() *CodeletRegistry[T] {
 	return &CodeletRegistry[T]{
 		codelets: make(map[int][]CodeletEntry[T]),
 	}
@@ -106,24 +83,7 @@ func (r *CodeletRegistry[T]) Lookup(size int, features cpu.Features) *CodeletEnt
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	entries := r.codelets[size]
-	if len(entries) == 0 {
-		return nil
-	}
-
-	// Find the best codelet that the CPU supports
-	for i := range entries {
-		// Skip disabled codelets (negative priority)
-		if entries[i].Priority < 0 {
-			continue
-		}
-
-		if cpuSupports(features, entries[i].SIMDLevel) {
-			return &entries[i]
-		}
-	}
-
-	return nil
+	return r.lookupUnlocked(size, features)
 }
 
 // LookupBySignature finds a codelet by its signature.
@@ -201,9 +161,9 @@ func (r *CodeletRegistry[T]) GetAvailableSizes(features cpu.Features) []int {
 }
 
 // lookupUnlocked is an internal version of Lookup without locking.
-// Caller must hold r.mu (read or write lock). It must apply the same filtering
-// as Lookup (including skipping disabled codelets) so that GetAvailableSizes
-// never advertises a size that a subsequent Lookup would reject.
+// Caller must hold r.mu (read or write lock). It skips disabled codelets
+// (negative priority) so that GetAvailableSizes never advertises a size that
+// a subsequent Lookup would reject.
 func (r *CodeletRegistry[T]) lookupUnlocked(size int, features cpu.Features) *CodeletEntry[T] {
 	entries := r.codelets[size]
 	if len(entries) == 0 {
@@ -212,12 +172,12 @@ func (r *CodeletRegistry[T]) lookupUnlocked(size int, features cpu.Features) *Co
 
 	// Find the best codelet that the CPU supports
 	for i := range entries {
-		// Skip disabled codelets (negative priority), matching Lookup.
+		// Skip disabled codelets (negative priority)
 		if entries[i].Priority < 0 {
 			continue
 		}
 
-		if cpuSupports(features, entries[i].SIMDLevel) {
+		if CPUSupports(features, entries[i].SIMDLevel) {
 			return &entries[i]
 		}
 	}
@@ -225,23 +185,23 @@ func (r *CodeletRegistry[T]) lookupUnlocked(size int, features cpu.Features) *Co
 	return nil
 }
 
-// cpuSupports checks if the CPU features support the given SIMD level.
-func cpuSupports(features cpu.Features, level SIMDLevel) bool {
+// CPUSupports checks if the CPU features support the given SIMD level.
+func CPUSupports(features cpu.Features, level fftypes.SIMDLevel) bool {
 	// ForceGeneric is a testing/debugging knob to disable *all* SIMD. It must
 	// also apply to codelet selection; otherwise codelets can still pick SIMD
 	// even when asm-dispatch selection is forced to generic.
-	if features.ForceGeneric && level != SIMDNone {
+	if features.ForceGeneric && level != fftypes.SIMDNone {
 		return false
 	}
 
 	switch level {
-	case SIMDNone:
+	case fftypes.SIMDNone:
 		return true
-	case SIMDSSE2:
+	case fftypes.SIMDSSE2:
 		return features.HasSSE2
-	case SIMDSSE3:
+	case fftypes.SIMDSSE3:
 		return features.HasSSE3
-	case SIMDAVX2:
+	case fftypes.SIMDAVX2:
 		// The AVX2 codelet tier is uniformly FMA-dependent (its complex
 		// multiplies compile to VFMADDSUB/VFMADD), so require HasFMA too.
 		// FMA is a separate CPUID bit from AVX2: every real AVX2 CPU ships
@@ -249,16 +209,16 @@ func cpuSupports(features cpu.Features, level SIMDLevel) bool {
 		// there faults. When FMA is absent we correctly fall back to the
 		// SSE/generic tiers instead.
 		return features.HasAVX2 && features.HasFMA
-	case SIMDAVX512:
+	case fftypes.SIMDAVX512:
 		return features.HasAVX512
-	case SIMDNEON:
+	case fftypes.SIMDNEON:
 		return features.HasNEON
 	default:
 		return false
 	}
 }
 
-// Global codelet registries, populated at init time.
+// Global codelet registries, populated by internal/kernels at init time.
 //
 //nolint:gochecknoglobals
 var (
@@ -267,7 +227,7 @@ var (
 )
 
 // GetRegistry returns the appropriate registry for type T.
-func GetRegistry[T Complex]() *CodeletRegistry[T] {
+func GetRegistry[T fftypes.Complex]() *CodeletRegistry[T] {
 	var zero T
 
 	switch any(zero).(type) {

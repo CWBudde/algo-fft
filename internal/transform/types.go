@@ -4,29 +4,10 @@ import (
 	"github.com/cwbudde/algo-fft/internal/fftypes"
 	"github.com/cwbudde/algo-fft/internal/kernels"
 	m "github.com/cwbudde/algo-fft/internal/math"
-	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // Complex is a type alias for the complex number constraint.
 type Complex = fftypes.Complex
-
-// CodeletRegistry and related types from planner (via kernels).
-type (
-	CodeletRegistry[T Complex] = planner.CodeletRegistry[T]
-	CodeletEntry[T Complex]    = planner.CodeletEntry[T]
-)
-
-// KernelType constants for codelet classification.
-const (
-	KernelTypeCore = planner.KernelTypeCore
-	KernelTypeDIT  = planner.KernelTypeDIT
-)
-
-// Re-export registries for tests.
-var (
-	Registry64  = planner.Registry64
-	Registry128 = planner.Registry128
-)
 
 // Helper functions from math package.
 func ComputeTwiddleFactors[T Complex](n int) []T {

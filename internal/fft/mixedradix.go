@@ -121,7 +121,7 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, inverse bool
 	work := dst
 	workIsDst := true
 
-	if sameSlice(dst, src) {
+	if kernels.SameSlice(dst, src) {
 		work = scratch
 		workIsDst = false
 	}

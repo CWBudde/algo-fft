@@ -5,6 +5,10 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // TestSelectKernels tests the generic kernel selection.
@@ -40,12 +44,12 @@ func TestSelectKernelsWithStrategy(t *testing.T) {
 
 	features := cpu.DetectFeatures()
 
-	strategies := []KernelStrategy{
-		KernelAuto,
-		KernelDIT,
-		KernelStockham,
-		KernelSixStep,
-		KernelEightStep,
+	strategies := []fftypes.KernelStrategy{
+		fftypes.KernelAuto,
+		fftypes.KernelDIT,
+		fftypes.KernelStockham,
+		fftypes.KernelSixStep,
+		fftypes.KernelEightStep,
 	}
 
 	strategyNames := []string{
@@ -141,8 +145,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 			Architecture: "amd64",
 		}
 
-		kernels := SelectKernels[complex64](features)
-		if kernels.Forward == nil || kernels.Inverse == nil {
+		kern := SelectKernels[complex64](features)
+		if kern.Forward == nil || kern.Inverse == nil {
 			t.Error("Should have valid kernels even with SSE2 only")
 		}
 	})
@@ -161,8 +165,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 			Architecture: "amd64",
 		}
 
-		kernels := SelectKernels[complex64](features)
-		if kernels.Forward == nil || kernels.Inverse == nil {
+		kern := SelectKernels[complex64](features)
+		if kern.Forward == nil || kern.Inverse == nil {
 			t.Error("Should have valid kernels with AVX2")
 		}
 	})
@@ -177,9 +181,9 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 			Architecture: "amd64",
 		}
 
-		// Kernels should still be selected (ForceGeneric is a hint, not a hard requirement)
-		kernels := SelectKernels[complex64](features)
-		if kernels.Forward == nil || kernels.Inverse == nil {
+		// kernels.Kernels should still be selected (ForceGeneric is a hint, not a hard requirement)
+		kern := SelectKernels[complex64](features)
+		if kern.Forward == nil || kern.Inverse == nil {
 			t.Error("Should have valid kernels even with ForceGeneric")
 		}
 	})
@@ -193,8 +197,8 @@ func TestKernelSelectionWithForcedFeatures(t *testing.T) {
 			Architecture: "arm64",
 		}
 
-		kernels := SelectKernels[complex64](features)
-		if kernels.Forward == nil || kernels.Inverse == nil {
+		kern := SelectKernels[complex64](features)
+		if kern.Forward == nil || kern.Inverse == nil {
 			t.Error("Should have valid kernels with NEON")
 		}
 	})
@@ -205,10 +209,10 @@ func TestKernelsFunctional_Complex64(t *testing.T) {
 	t.Parallel()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex64](features)
+	kern := SelectKernels[complex64](features)
 
 	n := 8
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
 	// Test forward kernel
@@ -216,7 +220,7 @@ func TestKernelsFunctional_Complex64(t *testing.T) {
 	dst := make([]complex64, n)
 	src[0] = 1 // impulse
 
-	if !kernels.Forward(dst, src, twiddle, scratch) {
+	if !kern.Forward(dst, src, twiddle, scratch) {
 		t.Fatal("Forward kernel returned false")
 	}
 
@@ -233,7 +237,7 @@ func TestKernelsFunctional_Complex64(t *testing.T) {
 
 	// Test inverse kernel
 	roundTrip := make([]complex64, n)
-	if !kernels.Inverse(roundTrip, dst, twiddle, scratch) {
+	if !kern.Inverse(roundTrip, dst, twiddle, scratch) {
 		t.Fatal("Inverse kernel returned false")
 	}
 
@@ -254,10 +258,10 @@ func TestKernelsFunctional_Complex128(t *testing.T) {
 	t.Parallel()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex128](features)
+	kern := SelectKernels[complex128](features)
 
 	n := 16
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 
 	// Test forward kernel
@@ -265,7 +269,7 @@ func TestKernelsFunctional_Complex128(t *testing.T) {
 	dst := make([]complex128, n)
 	src[0] = 1 // impulse
 
-	if !kernels.Forward(dst, src, twiddle, scratch) {
+	if !kern.Forward(dst, src, twiddle, scratch) {
 		t.Fatal("Forward kernel returned false")
 	}
 
@@ -278,7 +282,7 @@ func TestKernelsFunctional_Complex128(t *testing.T) {
 
 	// Test inverse kernel
 	roundTrip := make([]complex128, n)
-	if !kernels.Inverse(roundTrip, dst, twiddle, scratch) {
+	if !kern.Inverse(roundTrip, dst, twiddle, scratch) {
 		t.Fatal("Inverse kernel returned false")
 	}
 
@@ -317,7 +321,7 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 		}
 
 		// Create AVX2 strategy kernel
-		kernel := avx2KernelComplex64(KernelDIT, ditKernel, stockhamKernel)
+		kernel := avx2KernelComplex64(fftypes.KernelDIT, ditKernel, stockhamKernel)
 
 		src := make([]complex64, n)
 		dst := make([]complex64, n)
@@ -328,7 +332,7 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 		handled := kernel(dst, src, twiddle, scratch)
 
 		if !handled {
-			t.Error("Kernel should have handled the transform")
+			t.Error("kernels.Kernel should have handled the transform")
 		}
 
 		if !ditCalled {
@@ -357,7 +361,7 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 			return true
 		}
 
-		kernel := avx2KernelComplex64(KernelStockham, ditKernel, stockhamKernel)
+		kernel := avx2KernelComplex64(fftypes.KernelStockham, ditKernel, stockhamKernel)
 
 		src := make([]complex64, n)
 		dst := make([]complex64, n)
@@ -367,7 +371,7 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 		handled := kernel(dst, src, twiddle, scratch)
 
 		if !handled {
-			t.Error("Kernel should have handled the transform")
+			t.Error("kernels.Kernel should have handled the transform")
 		}
 
 		if ditCalled {
@@ -394,7 +398,7 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 			return true
 		}
 
-		kernel := avx2KernelComplex128(KernelDIT, ditKernel, stockhamKernel)
+		kernel := avx2KernelComplex128(fftypes.KernelDIT, ditKernel, stockhamKernel)
 
 		src := make([]complex128, n)
 		dst := make([]complex128, n)
@@ -404,7 +408,7 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 		handled := kernel(dst, src, twiddle, scratch)
 
 		if !handled {
-			t.Error("Kernel should have handled the transform")
+			t.Error("kernels.Kernel should have handled the transform")
 		}
 
 		if !ditCalled {
@@ -427,7 +431,7 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 			return true
 		}
 
-		kernel := avx2KernelComplex128(KernelStockham, ditKernel, stockhamKernel)
+		kernel := avx2KernelComplex128(fftypes.KernelStockham, ditKernel, stockhamKernel)
 
 		src := make([]complex128, n)
 		dst := make([]complex128, n)
@@ -437,7 +441,7 @@ func TestAVX2KernelStrategyDispatch(t *testing.T) {
 		handled := kernel(dst, src, twiddle, scratch)
 
 		if !handled {
-			t.Error("Kernel should have handled the transform")
+			t.Error("kernels.Kernel should have handled the transform")
 		}
 
 		if !stockhamCalled {
@@ -451,17 +455,17 @@ func TestEstimatePlan(t *testing.T) {
 	t.Parallel()
 
 	features := cpu.DetectFeatures()
-	wisdom := NewWisdom()
+	wisdom := planner.NewWisdom()
 
 	testCases := []struct {
 		name     string
 		n        int
-		strategy KernelStrategy
+		strategy fftypes.KernelStrategy
 	}{
-		{"Small_Auto", 16, KernelAuto},
-		{"Medium_DIT", 256, KernelDIT},
-		{"Large_Stockham", 4096, KernelStockham},
-		{"PowerOf2_Auto", 1024, KernelAuto},
+		{"Small_Auto", 16, fftypes.KernelAuto},
+		{"Medium_DIT", 256, fftypes.KernelDIT},
+		{"Large_Stockham", 4096, fftypes.KernelStockham},
+		{"PowerOf2_Auto", 1024, fftypes.KernelAuto},
 	}
 
 	for _, tc := range testCases {
@@ -469,13 +473,13 @@ func TestEstimatePlan(t *testing.T) {
 			t.Parallel()
 
 			// Test complex64
-			est64 := EstimatePlan[complex64](tc.n, features, wisdom, tc.strategy)
+			est64 := planner.EstimatePlan[complex64](tc.n, features, wisdom, tc.strategy)
 			if est64.Algorithm == "" && est64.Strategy == 0 {
 				t.Errorf("complex64: empty plan estimate for n=%d", tc.n)
 			}
 
 			// Test complex128
-			est128 := EstimatePlan[complex128](tc.n, features, wisdom, tc.strategy)
+			est128 := planner.EstimatePlan[complex128](tc.n, features, wisdom, tc.strategy)
 			if est128.Algorithm == "" && est128.Strategy == 0 {
 				t.Errorf("complex128: empty plan estimate for n=%d", tc.n)
 			}
@@ -493,8 +497,8 @@ func TestHasCodelet(t *testing.T) {
 	sizes := []int{4, 8, 16, 32, 64}
 
 	for _, n := range sizes {
-		has64 := HasCodelet[complex64](n, features)
-		has128 := HasCodelet[complex128](n, features)
+		has64 := planner.HasCodelet[complex64](n, features)
+		has128 := planner.HasCodelet[complex128](n, features)
 
 		// Just verify the function runs without error
 		// Actual availability depends on build configuration
@@ -508,17 +512,17 @@ func TestConjugatePackedTwiddles(t *testing.T) {
 
 	t.Run("complex64", func(t *testing.T) {
 		n := 16
-		twiddle := ComputeTwiddleFactors[complex64](n)
-		packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
+		twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
+		packed := transform.ComputePackedTwiddles[complex64](n, 4, twiddle)
 
 		if packed == nil {
-			t.Fatal("ComputePackedTwiddles returned nil")
+			t.Fatal("transform.ComputePackedTwiddles returned nil")
 		}
 
-		conjugated := ConjugatePackedTwiddles(packed)
+		conjugated := transform.ConjugatePackedTwiddles(packed)
 
 		if conjugated == nil {
-			t.Fatal("ConjugatePackedTwiddles returned nil")
+			t.Fatal("transform.ConjugatePackedTwiddles returned nil")
 		}
 
 		// Verify conjugation
@@ -536,17 +540,17 @@ func TestConjugatePackedTwiddles(t *testing.T) {
 
 	t.Run("complex128", func(t *testing.T) {
 		n := 16
-		twiddle := ComputeTwiddleFactors[complex128](n)
-		packed := ComputePackedTwiddles[complex128](n, 4, twiddle)
+		twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
+		packed := transform.ComputePackedTwiddles[complex128](n, 4, twiddle)
 
 		if packed == nil {
-			t.Fatal("ComputePackedTwiddles returned nil")
+			t.Fatal("transform.ComputePackedTwiddles returned nil")
 		}
 
-		conjugated := ConjugatePackedTwiddles(packed)
+		conjugated := transform.ConjugatePackedTwiddles(packed)
 
 		if conjugated == nil {
-			t.Fatal("ConjugatePackedTwiddles returned nil")
+			t.Fatal("transform.ConjugatePackedTwiddles returned nil")
 		}
 
 		for i, v := range packed.Values {
@@ -576,7 +580,7 @@ func TestTransposeSquare(t *testing.T) {
 		original := make([]complex64, len(data))
 		copy(original, data)
 
-		TransposeSquare(data, n)
+		mathpkg.TransposeSquare(data, n)
 
 		// Verify transpose: data[i*n+j] should equal original[j*n+i]
 		for i := range n {
@@ -605,7 +609,7 @@ func TestTransposeSquare(t *testing.T) {
 		original := make([]complex128, len(data))
 		copy(original, data)
 
-		TransposeSquare(data, n)
+		mathpkg.TransposeSquare(data, n)
 
 		for i := range n {
 			for j := range n {

@@ -212,7 +212,7 @@ The intended layering is `fftypes` (contracts) → `kernels`/`transform`
 (algorithms) → `planner` (selection) → `fft` (bridge) → root. Three things
 muddy it:
 
-- [ ] **Un-invert `kernels → planner`**: the codelet registry
+- [x] **Un-invert `kernels → planner`**: the codelet registry
       (`CodeletRegistry`, `Registry64/128`, `CodeletEntry`) lives in
       `planner` and `kernels` registers _upward_ into it, re-exporting
       planner types back out (`codelet_registry.go:11-41`). Move the
@@ -220,7 +220,15 @@ muddy it:
       `internal/registry`); `kernels` registers into it, `planner` reads
       from it. This also removes the four-deep type-alias chain
       (`fftypes.CodeletFunc` → planner → kernels → fft).
-- [ ] **Decide what `internal/fft` is** — currently it is both a façade
+      _(Done 2026-07. New leaf package `internal/registry` (imports only
+      `fftypes` + `cpu`) owns `CodeletRegistry`/`CodeletEntry`/
+      `Registry64/128`/`GetRegistry`/`CPUSupports`; `cmd/gencodelets` now
+      emits `registry.`/`fftypes.`-qualified registrations (regenerated).
+      `kernels` and `transform` no longer import `planner` at all — both
+      inversions gone — and the alias chain is deleted; the duplicated
+      `cpuSupportsLevel` copy in the kernels tests now uses
+      `registry.CPUSupports`.)_
+- [x] **Decide what `internal/fft` is** — currently it is both a façade
       and bypassed: the root package imports six internal packages directly
       and calls `EstimatePlan` via `fft` in one path (plan.go:724) and via
       `planner` in another (`plan_fast.go:55`). Either (a) make it a real
@@ -231,16 +239,38 @@ muddy it:
       reason for the façade emerges — less indirection, honest line counts.
       Real logic in `fft` (arch dispatch, mixed-radix engine, Rader glue,
       pooling) stays; only forwarding shims go.
-- [ ] **One Stockham owner**: `kernels.ForwardStockham*` and
+      _(Done 2026-07, option (b). `fft/kernels.go` is deleted (its real
+      Bluestein glue moved to `fft/bluestein.go`); `dispatch.go` keeps only
+      `SelectKernels*`/`bridgeKernel*`; `fft.go` keeps only private
+      helpers. The root and `cmd/` now import `fftypes` (strategy enum),
+      `planner` (wisdom/estimate), `transform` (recursive/packed),
+      `kernels`, `registry`, and `math` directly; every remaining
+      `fft.X` use in the root is real logic (SIMD helper dispatch,
+      pooling, Rader/Bluestein/strided/measure). All fft-internal alias
+      uses were qualified with their owning packages.)_
+- [x] **One Stockham owner**: `kernels.ForwardStockham*` and
       `transform.ForwardStockhamPacked` coexist and are re-exported side by
       side. Declare one canonical (or document the split: fixed-size vs
       packed mixed-radix) and name/locate them so the distinction is
       visible.
-- [ ] **One algorithm-name ↔ strategy mapping**: `resolveWisdom`
+      _(Done 2026-07: documented as two distinct algorithms, not
+      duplicates — `kernels.StockhamForward/Inverse` is the canonical
+      plain radix-2 power-of-two autosort; `transform`'s packed variant is
+      the radix-4+2 engine with `PackedTwiddles` and a per-build toggle.
+      Role comments at both sites point at each other, and the
+      side-by-side re-exports in `fft` are gone with the façade.)_
+- [x] **One algorithm-name ↔ strategy mapping**: `resolveWisdom`
       (planner.go:107) and `StrategyToAlgorithmName` (utils.go:150) are two
       hand-synced switch statements; collapse to one table. Give
       `KernelRecursive` an explicit entry instead of falling through to
       `"unknown"`.
+      _(Done 2026-07. One `strategyAlgorithmNames` table in
+      `planner/utils.go` drives both directions
+      (`StrategyToAlgorithmName` + new `AlgorithmNameToStrategy`, used by
+      `resolveWisdom`); `KernelRecursive` maps to `"recursive"`, and
+      `Plan.String()` now prints `Recursive` instead of `auto` for
+      recursive plans. Round-trip pinned by
+      `planner/strategy_names_test.go`.)_
 
 ### A4. Split the `Plan[T]` god-struct into per-strategy executors
 

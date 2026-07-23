@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
@@ -305,24 +306,24 @@ func TestAVX512DispatchSelectKernels(t *testing.T) {
 	requireAVX512(t)
 
 	features := cpu.DetectFeatures()
-	strategies := []KernelStrategy{KernelAuto, KernelDIT, KernelStockham}
+	strategies := []fftypes.KernelStrategy{fftypes.KernelAuto, fftypes.KernelDIT, fftypes.KernelStockham}
 	sizes := []int{16, 64, 1024, 4096}
 
 	for _, st := range strategies {
 		for _, n := range sizes {
-			kernels := selectKernelsComplex64WithStrategy(features, st)
+			kern := selectKernelsComplex64WithStrategy(features, st)
 			src := randomComplex64(n, 0x5130+uint64(n))
 			dst := make([]complex64, n)
 			rt := make([]complex64, n)
 			twiddle, scratch := prepareFFTData[complex64](n)
 
-			if !kernels.Forward(dst, src, twiddle, scratch) {
+			if !kern.Forward(dst, src, twiddle, scratch) {
 				t.Fatalf("complex64 forward failed (strategy=%v n=%d)", st, n)
 			}
 
 			assertComplex64SliceClose(t, dst, reference.NaiveDFT(src), n)
 
-			if !kernels.Inverse(rt, dst, twiddle, scratch) {
+			if !kern.Inverse(rt, dst, twiddle, scratch) {
 				t.Fatalf("complex64 inverse failed (strategy=%v n=%d)", st, n)
 			}
 

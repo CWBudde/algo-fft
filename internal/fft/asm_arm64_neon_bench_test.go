@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 func BenchmarkNEONForward_64(b *testing.B)      { benchmarkNEONForward(b, 64) }
@@ -84,8 +86,8 @@ func benchmarkKernelForward(b *testing.B, n int, features cpu.Features) {
 	b.Cleanup(cpu.ResetDetection)
 	cpu.SetForcedFeatures(features)
 
-	kernels := SelectKernels[complex64](cpu.DetectFeatures())
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	kern := SelectKernels[complex64](cpu.DetectFeatures())
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 	src := make([]complex64, n)
 	for i := range src {
@@ -98,7 +100,7 @@ func benchmarkKernelForward(b *testing.B, n int, features cpu.Features) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if !kernels.Forward(dst, src, twiddle, scratch) {
+		if !kern.Forward(dst, src, twiddle, scratch) {
 			b.Fatalf("Forward kernel returned false for n=%d", n)
 		}
 	}
@@ -109,8 +111,8 @@ func benchmarkKernelInverse(b *testing.B, n int, features cpu.Features) {
 	b.Cleanup(cpu.ResetDetection)
 	cpu.SetForcedFeatures(features)
 
-	kernels := SelectKernels[complex64](cpu.DetectFeatures())
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	kern := SelectKernels[complex64](cpu.DetectFeatures())
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 	src := make([]complex64, n)
 	for i := range src {
@@ -118,7 +120,7 @@ func benchmarkKernelInverse(b *testing.B, n int, features cpu.Features) {
 	}
 	freq := make([]complex64, n)
 
-	if !kernels.Forward(freq, src, twiddle, scratch) {
+	if !kern.Forward(freq, src, twiddle, scratch) {
 		b.Fatalf("Forward kernel returned false for n=%d", n)
 	}
 
@@ -129,7 +131,7 @@ func benchmarkKernelInverse(b *testing.B, n int, features cpu.Features) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if !kernels.Inverse(dst, freq, twiddle, scratch) {
+		if !kern.Inverse(dst, freq, twiddle, scratch) {
 			b.Fatalf("Inverse kernel returned false for n=%d", n)
 		}
 	}
@@ -138,7 +140,7 @@ func benchmarkKernelInverse(b *testing.B, n int, features cpu.Features) {
 func benchmarkDITForward(b *testing.B, n int) {
 	b.Helper()
 
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 	src := make([]complex64, n)
 	for i := range src {
@@ -151,8 +153,8 @@ func benchmarkDITForward(b *testing.B, n int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if !forwardDITComplex64(dst, src, twiddle, scratch) {
-			b.Fatalf("forwardDITComplex64 returned false for n=%d", n)
+		if !kernels.ForwardDITComplex64(dst, src, twiddle, scratch) {
+			b.Fatalf("kernels.ForwardDITComplex64 returned false for n=%d", n)
 		}
 	}
 }
@@ -160,7 +162,7 @@ func benchmarkDITForward(b *testing.B, n int) {
 func benchmarkDITInverse(b *testing.B, n int) {
 	b.Helper()
 
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 	src := make([]complex64, n)
 	for i := range src {
@@ -168,8 +170,8 @@ func benchmarkDITInverse(b *testing.B, n int) {
 	}
 	freq := make([]complex64, n)
 
-	if !forwardDITComplex64(freq, src, twiddle, scratch) {
-		b.Fatalf("forwardDITComplex64 returned false for n=%d", n)
+	if !kernels.ForwardDITComplex64(freq, src, twiddle, scratch) {
+		b.Fatalf("kernels.ForwardDITComplex64 returned false for n=%d", n)
 	}
 
 	dst := make([]complex64, n)
@@ -179,8 +181,8 @@ func benchmarkDITInverse(b *testing.B, n int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if !inverseDITComplex64(dst, freq, twiddle, scratch) {
-			b.Fatalf("inverseDITComplex64 returned false for n=%d", n)
+		if !kernels.InverseDITComplex64(dst, freq, twiddle, scratch) {
+			b.Fatalf("kernels.InverseDITComplex64 returned false for n=%d", n)
 		}
 	}
 }
@@ -188,7 +190,7 @@ func benchmarkDITInverse(b *testing.B, n int) {
 func benchmarkKernelForward128(b *testing.B, n int, useNEON bool) {
 	b.Helper()
 
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 	src := make([]complex128, n)
 	for i := range src {
@@ -206,8 +208,8 @@ func benchmarkKernelForward128(b *testing.B, n int, useNEON bool) {
 				b.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 		} else {
-			if !forwardDITComplex128(dst, src, twiddle, scratch) {
-				b.Fatalf("forwardDITComplex128 returned false for n=%d", n)
+			if !kernels.ForwardDITComplex128(dst, src, twiddle, scratch) {
+				b.Fatalf("kernels.ForwardDITComplex128 returned false for n=%d", n)
 			}
 		}
 	}
@@ -216,7 +218,7 @@ func benchmarkKernelForward128(b *testing.B, n int, useNEON bool) {
 func benchmarkKernelInverse128(b *testing.B, n int, useNEON bool) {
 	b.Helper()
 
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 	src := make([]complex128, n)
 	for i := range src {
@@ -224,8 +226,8 @@ func benchmarkKernelInverse128(b *testing.B, n int, useNEON bool) {
 	}
 	freq := make([]complex128, n)
 
-	if !forwardDITComplex128(freq, src, twiddle, scratch) {
-		b.Fatalf("forwardDITComplex128 returned false for n=%d", n)
+	if !kernels.ForwardDITComplex128(freq, src, twiddle, scratch) {
+		b.Fatalf("kernels.ForwardDITComplex128 returned false for n=%d", n)
 	}
 
 	dst := make([]complex128, n)
@@ -240,8 +242,8 @@ func benchmarkKernelInverse128(b *testing.B, n int, useNEON bool) {
 				b.Fatalf("inverseNEONComplex128Asm returned false for n=%d", n)
 			}
 		} else {
-			if !inverseDITComplex128(dst, freq, twiddle, scratch) {
-				b.Fatalf("inverseDITComplex128 returned false for n=%d", n)
+			if !kernels.InverseDITComplex128(dst, freq, twiddle, scratch) {
+				b.Fatalf("kernels.InverseDITComplex128 returned false for n=%d", n)
 			}
 		}
 	}

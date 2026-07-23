@@ -2,7 +2,7 @@ package algofft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 	m "github.com/cwbudde/algo-fft/internal/math"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
 	"github.com/cwbudde/algo-fft/internal/planner"
@@ -29,11 +29,11 @@ type FastPlan[T Complex] struct {
 	codeletTwiddleInverseBacking []byte
 	scratchBacking               []byte
 
-	forwardFunc fft.CodeletFunc[T]
-	inverseFunc fft.CodeletFunc[T]
+	forwardFunc fftypes.CodeletFunc[T]
+	inverseFunc fftypes.CodeletFunc[T]
 
 	algorithm string
-	strategy  fft.KernelStrategy
+	strategy  fftypes.KernelStrategy
 }
 
 // NewFastPlan creates an optimized FFT plan with pre-resolved dispatch.
@@ -52,7 +52,7 @@ func NewFastPlan[T Complex](n int) (*FastPlan[T], error) {
 	}
 
 	features := cpu.DetectFeatures()
-	estimate := planner.EstimatePlan[T](n, features, nil, fft.KernelAuto)
+	estimate := planner.EstimatePlan[T](n, features, nil, fftypes.KernelAuto)
 
 	// Require codelets - no fallback dispatch
 	if estimate.ForwardCodelet == nil || estimate.InverseCodelet == nil {

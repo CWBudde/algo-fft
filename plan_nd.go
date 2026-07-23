@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	"github.com/cwbudde/algo-fft/internal/fft"
+	m "github.com/cwbudde/algo-fft/internal/math"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
@@ -270,7 +270,7 @@ func (p *PlanND[T]) transformDimension(s *planNDScratch[T], dim int, forward boo
 		slab := dimSize * dimSize
 		for base := 0; base < len(data); base += slab {
 			block := data[base : base+slab]
-			fft.TransposeSquare(block, dimSize)
+			m.TransposeSquare(block, dimSize)
 
 			for row := 0; row < slab; row += dimSize {
 				err := transformSliceInPlace(plan, block[row:row+dimSize], forward)
@@ -279,7 +279,7 @@ func (p *PlanND[T]) transformDimension(s *planNDScratch[T], dim int, forward boo
 				}
 			}
 
-			fft.TransposeSquare(block, dimSize)
+			m.TransposeSquare(block, dimSize)
 		}
 
 		return nil

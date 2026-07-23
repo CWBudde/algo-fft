@@ -27,7 +27,7 @@ func TestSelectKernelsComplex64_SSE3Only(t *testing.T) {
 
 	cpu.SetForcedFeatures(cpu.Features{HasSSE: true, HasSSE2: true, HasSSE3: true})
 
-	kernels := selectKernelsComplex64(cpu.DetectFeatures())
+	kern := selectKernelsComplex64(cpu.DetectFeatures())
 
 	sizes := []int{4, 8, 16, 32, 64, 128, 256, 512, 2048}
 	for _, n := range sizes {
@@ -37,7 +37,7 @@ func TestSelectKernelsComplex64_SSE3Only(t *testing.T) {
 			scratch := make([]complex64, n)
 
 			dst := make([]complex64, n)
-			if !kernels.Forward(dst, src, twiddle, scratch) {
+			if !kern.Forward(dst, src, twiddle, scratch) {
 				t.Fatalf("SSE3 forward kernel failed for n=%d", n)
 			}
 
@@ -45,7 +45,7 @@ func TestSelectKernelsComplex64_SSE3Only(t *testing.T) {
 			assertComplex64SliceClose(t, dst, want, n)
 
 			inv := make([]complex64, n)
-			if !kernels.Inverse(inv, dst, twiddle, scratch) {
+			if !kern.Inverse(inv, dst, twiddle, scratch) {
 				t.Fatalf("SSE3 inverse kernel failed for n=%d", n)
 			}
 
@@ -78,7 +78,7 @@ func TestSelectKernelsWithStrategy_SSE3(t *testing.T) {
 
 	for _, tt := range strategies {
 		t.Run(tt.name, func(t *testing.T) {
-			kernels := selectKernelsComplex64WithStrategy(cpu.DetectFeatures(), tt.strategy)
+			kern := selectKernelsComplex64WithStrategy(cpu.DetectFeatures(), tt.strategy)
 
 			for _, n := range []int{32, 128} {
 				src := randomComplex64(n, 0x57A7+uint64(n))
@@ -86,7 +86,7 @@ func TestSelectKernelsWithStrategy_SSE3(t *testing.T) {
 				scratch := make([]complex64, n)
 
 				dst := make([]complex64, n)
-				if !kernels.Forward(dst, src, twiddle, scratch) {
+				if !kern.Forward(dst, src, twiddle, scratch) {
 					t.Fatalf("SSE3 forward failed with strategy %v, n=%d", tt.strategy, n)
 				}
 
@@ -94,7 +94,7 @@ func TestSelectKernelsWithStrategy_SSE3(t *testing.T) {
 				assertComplex64SliceClose(t, dst, want, n)
 
 				inv := make([]complex64, n)
-				if !kernels.Inverse(inv, dst, twiddle, scratch) {
+				if !kern.Inverse(inv, dst, twiddle, scratch) {
 					t.Fatalf("SSE3 inverse failed with strategy %v, n=%d", tt.strategy, n)
 				}
 

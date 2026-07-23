@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/cwbudde/algo-fft/internal/memory"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 type preparedTwiddleKey struct {
@@ -75,7 +76,7 @@ var (
 	preparedTwiddleCache128 preparedTwiddleCache[complex128]
 )
 
-func GetPreparedTwiddle64(entry *CodeletEntry[complex64], n int, inverse bool) []complex64 {
+func GetPreparedTwiddle64(entry *registry.CodeletEntry[complex64], n int, inverse bool) []complex64 {
 	if entry == nil {
 		return nil
 	}
@@ -90,7 +91,7 @@ func GetPreparedTwiddle64(entry *CodeletEntry[complex64], n int, inverse bool) [
 	)
 }
 
-func GetPreparedTwiddle128(entry *CodeletEntry[complex128], n int, inverse bool) []complex128 {
+func GetPreparedTwiddle128(entry *registry.CodeletEntry[complex128], n int, inverse bool) []complex128 {
 	if entry == nil {
 		return nil
 	}

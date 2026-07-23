@@ -7,7 +7,11 @@ import (
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // Plan is a pre-computed FFT plan for a specific size and precision.
@@ -39,10 +43,10 @@ type Plan[T Complex] struct {
 	bitrev []int
 
 	// packedTwiddle* store prepacked twiddle tables for SIMD-friendly radices.
-	packedTwiddle4    *fft.PackedTwiddles[T]
-	packedTwiddle4Inv *fft.PackedTwiddles[T]
-	packedTwiddle8    *fft.PackedTwiddles[T]
-	packedTwiddle16   *fft.PackedTwiddles[T]
+	packedTwiddle4    *transform.PackedTwiddles[T]
+	packedTwiddle4Inv *transform.PackedTwiddles[T]
+	packedTwiddle8    *transform.PackedTwiddles[T]
+	packedTwiddle16   *transform.PackedTwiddles[T]
 
 	// Bluestein specific fields (used only if kernelStrategy == KernelBluestein)
 	bluesteinM              int   // Padded size M >= 2N-1 (power of two or 5-smooth; see bluesteinPadSize)
@@ -62,18 +66,18 @@ type Plan[T Complex] struct {
 	raderPermOut []int // Output scatter permutation: g^m mod N
 
 	// Zero-dispatch codelet bindings (nil = use fallback kernel)
-	forwardCodelet fft.CodeletFunc[T]
-	inverseCodelet fft.CodeletFunc[T]
+	forwardCodelet fftypes.CodeletFunc[T]
+	inverseCodelet fftypes.CodeletFunc[T]
 
 	// algorithm describes which implementation is bound (e.g., "dit64_generic", "stockham")
 	algorithm string
 
-	forwardKernel  fft.Kernel[T]
-	inverseKernel  fft.Kernel[T]
-	kernelStrategy fft.KernelStrategy
+	forwardKernel  kernels.Kernel[T]
+	inverseKernel  kernels.Kernel[T]
+	kernelStrategy fftypes.KernelStrategy
 
 	// Recursive decomposition strategy (nil if using existing kernel path)
-	decompStrategy *fft.DecomposeStrategy
+	decompStrategy *transform.DecomposeStrategy
 
 	// backing buffers keep aligned slices alive for GC.
 	twiddleBacking               []byte
@@ -99,7 +103,7 @@ func (a wisdomAdapter) LookupWisdom(size int, precision uint8, cpuFeatures uint6
 	return a.store.LookupWisdom(size, precision, cpuFeatures)
 }
 
-func (a wisdomAdapter) Store(entry fft.WisdomEntry) {
+func (a wisdomAdapter) Store(entry planner.WisdomEntry) {
 	a.store.Store(WisdomEntry{
 		Key: WisdomKey{
 			Size:        entry.Key.Size,
@@ -153,18 +157,22 @@ func (p *Plan[T]) String() string {
 	strategyName := strategyNameAuto
 
 	switch p.kernelStrategy {
-	case fft.KernelDIT:
+	case fftypes.KernelDIT:
 		strategyName = strategyNameDIT
-	case fft.KernelStockham:
+	case fftypes.KernelStockham:
 		strategyName = strategyNameStockham
-	case fft.KernelSixStep:
+	case fftypes.KernelSixStep:
 		strategyName = strategyNameSixStep
-	case fft.KernelEightStep:
+	case fftypes.KernelEightStep:
 		strategyName = strategyNameEightStep
-	case fft.KernelBluestein:
+	case fftypes.KernelBluestein:
 		strategyName = strategyNameBluestein
-	case fft.KernelSplitRadix:
+	case fftypes.KernelRecursive:
+		strategyName = strategyNameRecursive
+	case fftypes.KernelSplitRadix:
 		strategyName = strategyNameSplitRadix
+	case fftypes.KernelAuto:
+		// Resolved plans never carry KernelAuto; keep the default name.
 	}
 
 	pooled := ""
@@ -214,12 +222,12 @@ func itoa(n int) string {
 // radix-2 strided DIT fast path in transformStrided. Returning nil keeps that
 // fast path disabled for them so strided transforms fall back to the correct
 // generic gather/scatter path instead of silently producing a wrong spectrum.
-func planBitReversal[T Complex](n int, estimate fft.PlanEstimate[T]) []int {
-	if !m.IsPowerOf2(n) || estimate.Strategy == fft.KernelRecursive {
+func planBitReversal[T Complex](n int, estimate planner.PlanEstimate[T]) []int {
+	if !m.IsPowerOf2(n) || estimate.Strategy == fftypes.KernelRecursive {
 		return nil
 	}
 
-	return fft.ComputeBitReversalIndices(n)
+	return m.ComputeBitReversalIndices(n)
 }
 
 func (p *Plan[T]) getScratch() ([]T, []T, []T, *scratchSet[T]) {
@@ -254,7 +262,7 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		defer p.scratchPool.put(set)
 	}
 
-	if p.kernelStrategy == fft.KernelBluestein {
+	if p.kernelStrategy == fftypes.KernelBluestein {
 		if p.raderPermIn != nil {
 			return p.raderForward(dst, src, scratch, bsScratch)
 		}
@@ -262,7 +270,7 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		return p.bluesteinForward(dst, src, scratch, bsScratch)
 	}
 
-	if p.kernelStrategy == fft.KernelRecursive {
+	if p.kernelStrategy == fftypes.KernelRecursive {
 		return p.recursiveForward(dst, src, scratch)
 	}
 
@@ -276,8 +284,8 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 	// Pure-Go packed radix-4 Stockham route. StockhamPackedAvailable is false
 	// on SIMD builds, where the codelet path above supersedes it (see the
 	// toggle in internal/transform/stockham_packed_toggle_*.go).
-	if p.kernelStrategy == fft.KernelStockham && fft.StockhamPackedAvailable() {
-		if fft.ForwardStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4) {
+	if p.kernelStrategy == fftypes.KernelStockham && transform.StockhamPackedAvailable() {
+		if transform.ForwardStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4) {
 			return nil
 		}
 	}
@@ -312,7 +320,7 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 		defer p.scratchPool.put(set)
 	}
 
-	if p.kernelStrategy == fft.KernelBluestein {
+	if p.kernelStrategy == fftypes.KernelBluestein {
 		if p.raderPermIn != nil {
 			return p.raderInverse(dst, src, scratch, bsScratch)
 		}
@@ -320,7 +328,7 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 		return p.bluesteinInverse(dst, src, scratch, bsScratch)
 	}
 
-	if p.kernelStrategy == fft.KernelRecursive {
+	if p.kernelStrategy == fftypes.KernelRecursive {
 		return p.recursiveInverse(dst, src, scratch)
 	}
 
@@ -334,8 +342,8 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 	// Pure-Go packed radix-4 Stockham route. StockhamPackedAvailable is false
 	// on SIMD builds, where the codelet path above supersedes it (see the
 	// toggle in internal/transform/stockham_packed_toggle_*.go).
-	if p.kernelStrategy == fft.KernelStockham && fft.StockhamPackedAvailable() {
-		if fft.InverseStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4Inv) {
+	if p.kernelStrategy == fftypes.KernelStockham && transform.StockhamPackedAvailable() {
+		if transform.InverseStockhamPacked(dst, src, p.twiddle, scratch, p.packedTwiddle4Inv) {
 			return nil
 		}
 	}
@@ -591,7 +599,7 @@ func bluesteinPadSize(n int) int {
 // cannot be represented; see maxBluesteinLength), the exact Rader sub-FFT
 // size n-1, or the recursive decomposition strategy. Strategies without
 // extra configuration return zero values.
-func planStrategyConfig(n int, useBluestein, useRader, useRecursive bool) (int, *fft.DecomposeStrategy, error) {
+func planStrategyConfig(n int, useBluestein, useRader, useRecursive bool) (int, *transform.DecomposeStrategy, error) {
 	switch {
 	case useRader:
 		// Rader's cyclic convolution runs at exactly n-1 (5-smooth by
@@ -607,7 +615,7 @@ func planStrategyConfig(n int, useBluestein, useRader, useRecursive bool) (int, 
 		codeletSizes := []int{4, 8, 16, 32, 64, 128, 256, 512}
 		cacheSize := 32768 // L1 cache size estimate
 
-		return 0, fft.PlanDecomposition(n, codeletSizes, cacheSize), nil
+		return 0, transform.PlanDecomposition(n, codeletSizes, cacheSize), nil
 	default:
 		return 0, nil, nil
 	}
@@ -650,32 +658,30 @@ func computeConvolutionTables[T Complex](n, m int, useBluestein, useRader bool, 
 
 // computeBluesteinTables precomputes the chirp sequences, sub-FFT twiddles,
 // bit-reversal indices, and forward/inverse filters for a Bluestein plan of
-// length n with padded sub-FFT size m.
+// length n with padded sub-FFT size padM.
 //
 //nolint:nonamedreturns // six related tables; names document the tuple
-func computeBluesteinTables[T Complex](n, m int, scratch []T) (
+func computeBluesteinTables[T Complex](n, padM int, scratch []T) (
 	chirp, chirpInv, filter, filterInv, twiddle []T, bitrev []int,
 ) {
-	chirp = fft.ComputeChirpSequence[T](n)
+	chirp = kernels.ComputeChirpSequence[T](n)
 
 	chirpInv = make([]T, n)
 	for i, v := range chirp {
-		chirpInv[i] = fft.ConjugateOf(v)
+		chirpInv[i] = m.ConjugateOf(v)
 	}
 
-	twiddle = fft.ComputeTwiddleFactors[T](m)
+	twiddle = m.ComputeTwiddleFactors[T](padM)
 
 	// bitrev feeds only the power-of-two DIT sub-FFT path; 5-smooth padded
-	// sizes run through the mixed-radix engine, which does not use it. (The
-	// parameter m shadows the math package alias, so test the bit pattern
-	// directly.)
-	if m&(m-1) == 0 {
-		bitrev = fft.ComputeBitReversalIndices(m)
+	// sizes run through the mixed-radix engine, which does not use it.
+	if m.IsPowerOf2(padM) {
+		bitrev = m.ComputeBitReversalIndices(padM)
 	}
 
 	// Compute filters using the pre-allocated scratch buffer.
-	filter = fft.ComputeBluesteinFilter(n, m, chirp, twiddle, scratch)
-	filterInv = fft.ComputeBluesteinFilter(n, m, chirpInv, twiddle, scratch)
+	filter = fft.ComputeBluesteinFilter(n, padM, chirp, twiddle, scratch)
+	filterInv = fft.ComputeBluesteinFilter(n, padM, chirpInv, twiddle, scratch)
 
 	return chirp, chirpInv, filter, filterInv, twiddle, bitrev
 }
@@ -684,7 +690,7 @@ func computeBluesteinTables[T Complex](n, m int, scratch []T) (
 // measuring modes micro-benchmark candidate strategies (recording results into
 // the Wisdom store when one is configured), while estimate mode uses
 // heuristics only.
-func selectPlanEstimate[T Complex](n int, features cpu.Features, opts PlanOptions) fft.PlanEstimate[T] {
+func selectPlanEstimate[T Complex](n int, features cpu.Features, opts PlanOptions) planner.PlanEstimate[T] {
 	switch opts.Planner {
 	case PlannerMeasure, PlannerPatient, PlannerExhaustive:
 		// Run micro-benchmarks to find the best strategy
@@ -702,10 +708,10 @@ func selectPlanEstimate[T Complex](n int, features cpu.Features, opts PlanOption
 		)
 	case PlannerEstimate:
 		// PlannerEstimate: use heuristics only (fast path)
-		return fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy.internal())
+		return planner.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy.internal())
 	default:
 		// Fallback for any unknown planner modes
-		return fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy.internal())
+		return planner.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy.internal())
 	}
 }
 
@@ -718,9 +724,9 @@ func selectPlanEstimate[T Complex](n int, features cpu.Features, opts PlanOption
 // KernelAuto is passed instead so per-size dispatch keeps the distinction:
 // the AVX-512 tier substitutes its faster DIT kernel for auto-resolved
 // Stockham sizes while an explicit KernelStockham stays on the Stockham path.
-func kernelSelectionStrategy(n int, requested, estimated fft.KernelStrategy) fft.KernelStrategy {
-	if requested == fft.KernelAuto && estimated == fft.ResolveKernelStrategy(n) {
-		return fft.KernelAuto
+func kernelSelectionStrategy(n int, requested, estimated fftypes.KernelStrategy) fftypes.KernelStrategy {
+	if requested == fftypes.KernelAuto && estimated == planner.ResolveKernelStrategy(n) {
+		return fftypes.KernelAuto
 	}
 
 	return estimated
@@ -733,8 +739,8 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 
 	estimate := selectPlanEstimate[T](n, features, opts)
 
-	useBluestein := estimate.Strategy == fft.KernelBluestein
-	useRecursive := estimate.Strategy == fft.KernelRecursive
+	useBluestein := estimate.Strategy == fftypes.KernelBluestein
+	useRecursive := estimate.Strategy == fftypes.KernelRecursive
 	strategy := estimate.Strategy
 
 	// Prime lengths whose n-1 is 5-smooth upgrade from Bluestein to Rader's
@@ -770,10 +776,10 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		// Twiddles were computed above alongside the Bluestein/Rader tables.
 	case useRecursive:
 		// Generate twiddles for recursive decomposition.
-		twiddle, twiddleBacking = allocTwiddle(fft.TwiddleFactorsRecursive[T](decompStrategy))
+		twiddle, twiddleBacking = allocTwiddle(transform.TwiddleFactorsRecursive[T](decompStrategy))
 	default:
 		// Standard allocation.
-		twiddle, twiddleBacking = allocTwiddle(fft.ComputeTwiddleFactors[T](n))
+		twiddle, twiddleBacking = allocTwiddle(m.ComputeTwiddleFactors[T](n))
 	}
 
 	algorithm := estimate.Algorithm
@@ -818,10 +824,10 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	}
 
 	if !useBluestein {
-		p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
-		p.packedTwiddle4Inv = fft.ConjugatePackedTwiddles(p.packedTwiddle4)
-		p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
-		p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
+		p.packedTwiddle4 = transform.ComputePackedTwiddles[T](n, 4, p.twiddle)
+		p.packedTwiddle4Inv = transform.ConjugatePackedTwiddles(p.packedTwiddle4)
+		p.packedTwiddle8 = transform.ComputePackedTwiddles[T](n, 8, p.twiddle)
+		p.packedTwiddle16 = transform.ComputePackedTwiddles[T](n, 16, p.twiddle)
 	}
 
 	p.codeletTwiddleForward, p.codeletTwiddleInverse,
@@ -882,7 +888,7 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	estimate := selectPlanEstimate[T](n, features, opts)
 
 	strategy := estimate.Strategy
-	if strategy == fft.KernelBluestein || strategy == fft.KernelRecursive {
+	if strategy == fftypes.KernelBluestein || strategy == fftypes.KernelRecursive {
 		return newPlanWithFeatures[T](n, features, opts)
 	}
 
@@ -899,7 +905,7 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 	var bitrev []int
 	if m.IsPowerOf2(n) {
 		bitrev = pool.GetIntSlice(n)
-		computed := fft.ComputeBitReversalIndices(n)
+		computed := m.ComputeBitReversalIndices(n)
 		copy(bitrev, computed)
 	}
 
@@ -924,10 +930,10 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 		scratchPool:           nil, // No internal pool for pooled plans
 	}
 
-	p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)
-	p.packedTwiddle4Inv = fft.ConjugatePackedTwiddles(p.packedTwiddle4)
-	p.packedTwiddle8 = fft.ComputePackedTwiddles[T](n, 8, p.twiddle)
-	p.packedTwiddle16 = fft.ComputePackedTwiddles[T](n, 16, p.twiddle)
+	p.packedTwiddle4 = transform.ComputePackedTwiddles[T](n, 4, p.twiddle)
+	p.packedTwiddle4Inv = transform.ConjugatePackedTwiddles(p.packedTwiddle4)
+	p.packedTwiddle8 = transform.ComputePackedTwiddles[T](n, 8, p.twiddle)
+	p.packedTwiddle16 = transform.ComputePackedTwiddles[T](n, 16, p.twiddle)
 
 	p.codeletTwiddleForward, p.codeletTwiddleInverse,
 		p.codeletTwiddleForwardBacking, p.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, p.twiddle, estimate)

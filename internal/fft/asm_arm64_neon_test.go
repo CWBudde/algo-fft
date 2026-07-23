@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
@@ -123,7 +125,7 @@ func TestNEONSizeSpecificComplex64(t *testing.T) {
 
 			dst := make([]complex64, tc.size)
 			inv := make([]complex64, tc.size)
-			twiddle := ComputeTwiddleFactors[complex64](tc.size)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tc.size)
 			scratch := make([]complex64, tc.size)
 
 			// Test forward transform vs reference
@@ -194,7 +196,7 @@ func TestNEONSizeSpecificComplex128(t *testing.T) {
 
 			dst := make([]complex128, tc.size)
 			inv := make([]complex128, tc.size)
-			twiddle := ComputeTwiddleFactors[complex128](tc.size)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](tc.size)
 			scratch := make([]complex128, tc.size)
 
 			// Test forward transform vs reference
@@ -227,7 +229,7 @@ func TestNEONComplex128_AsmPath(t *testing.T) {
 			}
 
 			dst := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 			scratch := make([]complex128, n)
 
 			if !forwardNEONComplex128Asm(dst, src, twiddle, scratch) {
@@ -259,7 +261,7 @@ func TestNEONComplex128_CorrectnessVsReference(t *testing.T) {
 			}
 
 			dst := make([]complex128, n)
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 			scratch := make([]complex128, n)
 
 			if !forwardNEONComplex128Asm(dst, src, twiddle, scratch) {
@@ -283,7 +285,7 @@ func TestNEONComplex128_RoundTrip(t *testing.T) {
 				original[i] = complex(float64(i*7%13), float64((i*11)%17))
 			}
 
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 			scratch := make([]complex128, n)
 			freq := make([]complex128, n)
 			recovered := make([]complex128, n)
@@ -312,7 +314,7 @@ func TestNEONComplex128_VsGoDIT(t *testing.T) {
 				src[i] = complex(float64(i%10), float64((i*3)%7))
 			}
 
-			twiddle := ComputeTwiddleFactors[complex128](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 			scratch := make([]complex128, n)
 			neonResult := make([]complex128, n)
 			goResult := make([]complex128, n)
@@ -321,9 +323,9 @@ func TestNEONComplex128_VsGoDIT(t *testing.T) {
 				t.Fatalf("forwardNEONComplex128Asm returned false for n=%d", n)
 			}
 
-			// forwardDITComplex128 now takes 4 args!
-			if !forwardDITComplex128(goResult, src, twiddle, scratch) {
-				t.Fatalf("forwardDITComplex128(%d) failed", n)
+			// kernels.ForwardDITComplex128 now takes 4 args!
+			if !kernels.ForwardDITComplex128(goResult, src, twiddle, scratch) {
+				t.Fatalf("kernels.ForwardDITComplex128(%d) failed", n)
 			}
 
 			assertComplex128MaxError(t, neonResult, goResult, 1e-12, "go-dit")

@@ -7,6 +7,7 @@ import (
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/math"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
@@ -61,7 +62,7 @@ func TestSSE2SizeSpecificComplex64_386(t *testing.T) {
 			fwd := make([]complex64, tc.size)
 			dst := make([]complex64, tc.size)
 			scratch := make([]complex64, tc.size)
-			twiddle := ComputeTwiddleFactors[complex64](tc.size)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tc.size)
 
 			var bitrev []int
 			if tc.radix == 4 {
@@ -69,7 +70,7 @@ func TestSSE2SizeSpecificComplex64_386(t *testing.T) {
 			} else if tc.radix == 0 {
 				bitrev = math.ComputeIdentityIndices(tc.size)
 			} else {
-				bitrev = ComputeBitReversalIndices(tc.size)
+				bitrev = mathpkg.ComputeBitReversalIndices(tc.size)
 			}
 
 			if !tc.forward(fwd, src, twiddle, scratch, bitrev) {
@@ -133,13 +134,13 @@ func TestSSESizeSpecificComplex64_386(t *testing.T) {
 			fwd := make([]complex64, tc.size)
 			dst := make([]complex64, tc.size)
 			scratch := make([]complex64, tc.size)
-			twiddle := ComputeTwiddleFactors[complex64](tc.size)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tc.size)
 
 			var bitrev []int
 			if tc.radix == 4 {
 				bitrev = math.ComputeBitReversalIndicesRadix4(tc.size)
 			} else {
-				bitrev = ComputeBitReversalIndices(tc.size)
+				bitrev = mathpkg.ComputeBitReversalIndices(tc.size)
 			}
 
 			if !tc.forward(fwd, src, twiddle, scratch, bitrev) {
@@ -168,8 +169,8 @@ func TestSelectKernelsComplex64_SSEOnly_386(t *testing.T) {
 		t.Fatalf("expected SSE-only features, got: %+v", features)
 	}
 
-	kernels := selectKernelsComplex64(features)
-	if kernels.Forward == nil || kernels.Inverse == nil {
+	kern := selectKernelsComplex64(features)
+	if kern.Forward == nil || kern.Inverse == nil {
 		t.Fatal("expected SSE-only kernels to be available")
 	}
 
@@ -178,16 +179,16 @@ func TestSelectKernelsComplex64_SSEOnly_386(t *testing.T) {
 	dst := make([]complex64, n)
 	inv := make([]complex64, n)
 	scratch := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 
-	if !kernels.Forward(dst, src, twiddle, scratch) {
+	if !kern.Forward(dst, src, twiddle, scratch) {
 		t.Fatal("SSE-only forward kernel failed")
 	}
 
 	want := reference.NaiveDFT(src)
 	assertComplex64SliceClose(t, dst, want, n)
 
-	if !kernels.Inverse(inv, dst, twiddle, scratch) {
+	if !kern.Inverse(inv, dst, twiddle, scratch) {
 		t.Fatal("SSE-only inverse kernel failed")
 	}
 
@@ -241,13 +242,13 @@ func TestSSE2SizeSpecificComplex128_386(t *testing.T) {
 			fwd := make([]complex128, tc.size)
 			dst := make([]complex128, tc.size)
 			scratch := make([]complex128, tc.size)
-			twiddle := ComputeTwiddleFactors[complex128](tc.size)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](tc.size)
 
 			var bitrev []int
 			if tc.radix == 4 {
 				bitrev = math.ComputeBitReversalIndicesRadix4(tc.size)
 			} else {
-				bitrev = ComputeBitReversalIndices(tc.size)
+				bitrev = mathpkg.ComputeBitReversalIndices(tc.size)
 			}
 
 			if !tc.forward(fwd, src, twiddle, scratch, bitrev) {

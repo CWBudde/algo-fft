@@ -4,6 +4,8 @@ package fft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
@@ -11,22 +13,22 @@ import (
 // 386 has SSE2 but not AVX2, so we use SSE2 kernels with SSE3 size-specific
 // codelets when available, plus pure-Go fallback.
 
-func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
-	auto := autoKernelComplex64(KernelAuto)
+func selectKernelsComplex64(features cpu.Features) kernels.Kernels[complex64] {
+	auto := autoKernelComplex64(fftypes.KernelAuto)
 	if features.HasSSE3 && !features.ForceGeneric {
-		return Kernels[complex64]{
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSE3Complex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE3Complex64, auto.Inverse),
 		}
 	}
 	if features.HasSSE2 && !features.ForceGeneric {
-		return Kernels[complex64]{
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSE2Complex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE2Complex64, auto.Inverse),
 		}
 	}
 	if features.HasSSE && !features.ForceGeneric {
-		return Kernels[complex64]{
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSEComplex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSEComplex64, auto.Inverse),
 		}
@@ -34,10 +36,10 @@ func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	return auto
 }
 
-func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
-	auto := autoKernelComplex128(KernelAuto)
+func selectKernelsComplex128(features cpu.Features) kernels.Kernels[complex128] {
+	auto := autoKernelComplex128(fftypes.KernelAuto)
 	if features.HasSSE2 && !features.ForceGeneric {
-		return Kernels[complex128]{
+		return kernels.Kernels[complex128]{
 			Forward: fallbackKernel(forwardSSE2Complex128, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE2Complex128, auto.Inverse),
 		}
@@ -45,22 +47,22 @@ func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 	return auto
 }
 
-func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
+func selectKernelsComplex64WithStrategy(features cpu.Features, strategy fftypes.KernelStrategy) kernels.Kernels[complex64] {
 	auto := autoKernelComplex64(strategy)
 	if features.HasSSE3 && !features.ForceGeneric && simdTierServesStrategy(strategy) {
-		return Kernels[complex64]{
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSE3Complex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE3Complex64, auto.Inverse),
 		}
 	}
 	if features.HasSSE2 && !features.ForceGeneric && simdTierServesStrategy(strategy) {
-		return Kernels[complex64]{
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSE2Complex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE2Complex64, auto.Inverse),
 		}
 	}
 	if features.HasSSE && !features.ForceGeneric && simdTierServesStrategy(strategy) {
-		return Kernels[complex64]{
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(forwardSSEComplex64, auto.Forward),
 			Inverse: fallbackKernel(inverseSSEComplex64, auto.Inverse),
 		}
@@ -68,10 +70,10 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 	return auto
 }
 
-func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
+func selectKernelsComplex128WithStrategy(features cpu.Features, strategy fftypes.KernelStrategy) kernels.Kernels[complex128] {
 	auto := autoKernelComplex128(strategy)
 	if features.HasSSE2 && !features.ForceGeneric && simdTierServesStrategy(strategy) {
-		return Kernels[complex128]{
+		return kernels.Kernels[complex128]{
 			Forward: fallbackKernel(forwardSSE2Complex128, auto.Forward),
 			Inverse: fallbackKernel(inverseSSE2Complex128, auto.Inverse),
 		}

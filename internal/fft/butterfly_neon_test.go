@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
@@ -20,12 +22,12 @@ func TestNEONComplex64_CorrectnessVsReference(t *testing.T) {
 				src[i] = complex(float32(i%10), float32((i*3)%7))
 			}
 
-			kernels := SelectKernels[complex64](cpu.DetectFeatures())
+			kern := SelectKernels[complex64](cpu.DetectFeatures())
 			neonResult := make([]complex64, n)
-			twiddle := ComputeTwiddleFactors[complex64](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 			scratch := make([]complex64, n)
 
-			if !kernels.Forward(neonResult, src, twiddle, scratch) {
+			if !kern.Forward(neonResult, src, twiddle, scratch) {
 				t.Fatalf("Forward kernel returned false for n=%d", n)
 			}
 
@@ -46,15 +48,15 @@ func TestNEONComplex64_RoundTrip(t *testing.T) {
 
 			freq := make([]complex64, n)
 			recovered := make([]complex64, n)
-			twiddle := ComputeTwiddleFactors[complex64](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 			scratch := make([]complex64, n)
-			kernels := SelectKernels[complex64](cpu.DetectFeatures())
+			kern := SelectKernels[complex64](cpu.DetectFeatures())
 
-			if !kernels.Forward(freq, original, twiddle, scratch) {
+			if !kern.Forward(freq, original, twiddle, scratch) {
 				t.Fatalf("Forward kernel returned false for n=%d", n)
 			}
 
-			if !kernels.Inverse(recovered, freq, twiddle, scratch) {
+			if !kern.Inverse(recovered, freq, twiddle, scratch) {
 				t.Fatalf("Inverse kernel returned false for n=%d", n)
 			}
 
@@ -73,18 +75,18 @@ func TestNEONComplex64_VsGoDIT(t *testing.T) {
 			}
 
 			neonResult := make([]complex64, n)
-			twiddle := ComputeTwiddleFactors[complex64](n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 			scratch := make([]complex64, n)
-			kernels := SelectKernels[complex64](cpu.DetectFeatures())
+			kern := SelectKernels[complex64](cpu.DetectFeatures())
 
-			if !kernels.Forward(neonResult, src, twiddle, scratch) {
+			if !kern.Forward(neonResult, src, twiddle, scratch) {
 				t.Fatalf("Forward kernel returned false for n=%d", n)
 			}
 
 			goResult := make([]complex64, n)
 
-			if !forwardDITComplex64(goResult, src, twiddle, scratch) {
-				t.Fatalf("forwardDITComplex64(%d) failed", n)
+			if !kernels.ForwardDITComplex64(goResult, src, twiddle, scratch) {
+				t.Fatalf("kernels.ForwardDITComplex64(%d) failed", n)
 			}
 
 			assertComplex64MaxError(t, neonResult, goResult, 5e-5, "go-dit")
@@ -99,18 +101,18 @@ func TestNEONComplex64_Strided1024(t *testing.T) {
 		src[i] = complex(float32(i%17), float32((i*5)%11))
 	}
 
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 	neonResult := make([]complex64, n)
 	goResult := make([]complex64, n)
 
-	kernels := SelectKernels[complex64](cpu.DetectFeatures())
-	if !kernels.Forward(neonResult, src, twiddle, scratch) {
+	kern := SelectKernels[complex64](cpu.DetectFeatures())
+	if !kern.Forward(neonResult, src, twiddle, scratch) {
 		t.Fatalf("Forward kernel returned false for n=%d", n)
 	}
 
-	if !forwardDITComplex64(goResult, src, twiddle, scratch) {
-		t.Fatalf("forwardDITComplex64(%d) failed", n)
+	if !kernels.ForwardDITComplex64(goResult, src, twiddle, scratch) {
+		t.Fatalf("kernels.ForwardDITComplex64(%d) failed", n)
 	}
 
 	assertComplex64MaxError(t, neonResult, goResult, 3e-4, "strided-1024")

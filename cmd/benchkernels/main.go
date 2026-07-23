@@ -11,7 +11,7 @@ import (
 
 	algofft "github.com/cwbudde/algo-fft"
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 const modeInverse = "inverse"
@@ -61,7 +61,7 @@ func main() {
 			})
 
 			for _, res := range results {
-				fmt.Printf("%8d  %10s  %12s  %12.1f\n", n, runMode, strategyName(res.strategy), res.nsPerOp)
+				fmt.Printf("%8d  %10s  %12s  %12.1f\n", n, runMode, kernelStrategyLabel(res.strategy), res.nsPerOp)
 			}
 
 			if runMode == "forward" {
@@ -222,26 +222,11 @@ func parseSizes(list string) []int {
 	return out
 }
 
-func strategyName(strategy algofft.KernelStrategy) string {
-	switch strategy {
-	case algofft.KernelDIT:
-		return "DIT"
-	case algofft.KernelStockham:
-		return "Stockham"
-	case algofft.KernelSixStep:
-		return "SixStep"
-	case algofft.KernelEightStep:
-		return "EightStep"
-	default:
-		return "Auto"
-	}
-}
-
 // exportWisdom writes benchmark results to a wisdom file.
 func exportWisdom(filename string, results []benchResult) error {
 	wisdom := algofft.NewWisdom()
 	features := cpu.DetectFeatures()
-	cpuMask := fft.CPUFeatureMask(
+	cpuMask := planner.CPUFeatureMask(
 		features.HasSSE2,
 		features.HasSSE3,
 		features.HasAVX2,
@@ -270,7 +255,15 @@ func exportWisdom(filename string, results []benchResult) error {
 	return nil
 }
 
-// strategyToAlgorithmName converts strategy to the algorithm name used in wisdom files.
+// kernelStrategyLabel names a strategy for display, via the public String().
+func kernelStrategyLabel(strategy algofft.KernelStrategy) string {
+	return strategy.String()
+}
+
+// strategyToAlgorithmName converts strategy to the algorithm name used in
+// wisdom files. The names must match the planner's strategy↔algorithm-name
+// table (internal/planner/utils.go); benchkernels operates on the public
+// enum, so it carries its own copy of the strategies it benchmarks.
 func strategyToAlgorithmName(strategy algofft.KernelStrategy) string {
 	switch strategy {
 	case algofft.KernelDIT:
@@ -281,6 +274,14 @@ func strategyToAlgorithmName(strategy algofft.KernelStrategy) string {
 		return "sixstep"
 	case algofft.KernelEightStep:
 		return "eightstep"
+	case algofft.KernelBluestein:
+		return "bluestein"
+	case algofft.KernelSplitRadix:
+		return "splitradix"
+	case algofft.KernelRecursive:
+		return "recursive"
+	case algofft.KernelAuto:
+		return "unknown"
 	default:
 		return "unknown"
 	}

@@ -135,8 +135,6 @@ func CPUFeatureMask(hasSSE2, hasSSE3, hasAVX2, hasAVX512, hasNEON bool) uint64 {
 	return mask
 }
 
-// StrategyToAlgorithmName converts a kernel strategy to an algorithm name.
-// This is used for wisdom cache entries and debugging output.
 // Algorithm names shared between wisdom entries and strategy mapping.
 const (
 	algoDITFallback = "dit_fallback"
@@ -145,23 +143,58 @@ const (
 	algoEightStep   = "eightstep"
 	algoBluestein   = "bluestein"
 	algoSplitRadix  = "splitradix"
+	algoRecursive   = "recursive"
+
+	// algoUnknown is returned for strategies with no table entry (KernelAuto).
+	algoUnknown = "unknown"
 )
 
-func StrategyToAlgorithmName(strategy KernelStrategy) string {
-	switch strategy {
-	case KernelDIT:
-		return algoDITFallback
-	case KernelStockham:
-		return algoStockham
-	case KernelSixStep:
-		return algoSixStep
-	case KernelEightStep:
-		return algoEightStep
-	case KernelBluestein:
-		return algoBluestein
-	case KernelSplitRadix:
-		return algoSplitRadix
-	default:
-		return "unknown"
+// strategyAlgorithmNames is the single strategy↔algorithm-name table. Both
+// StrategyToAlgorithmName and AlgorithmNameToStrategy derive from it, so the
+// two directions cannot drift apart. The names are part of the persisted
+// wisdom format — do not rename existing entries.
+//
+//nolint:gochecknoglobals // static lookup table
+var strategyAlgorithmNames = map[KernelStrategy]string{
+	KernelDIT:        algoDITFallback,
+	KernelStockham:   algoStockham,
+	KernelSixStep:    algoSixStep,
+	KernelEightStep:  algoEightStep,
+	KernelBluestein:  algoBluestein,
+	KernelSplitRadix: algoSplitRadix,
+	KernelRecursive:  algoRecursive,
+}
+
+// algorithmNameStrategies is the reverse of strategyAlgorithmNames, built at
+// init from the same table.
+//
+//nolint:gochecknoglobals // static lookup table
+var algorithmNameStrategies = func() map[string]KernelStrategy {
+	rev := make(map[string]KernelStrategy, len(strategyAlgorithmNames))
+	for strategy, name := range strategyAlgorithmNames {
+		rev[name] = strategy
 	}
+
+	return rev
+}()
+
+// StrategyToAlgorithmName converts a kernel strategy to the algorithm name
+// used in wisdom cache entries and debugging output. Unmapped strategies
+// (KernelAuto) return "unknown".
+func StrategyToAlgorithmName(strategy KernelStrategy) string {
+	name, ok := strategyAlgorithmNames[strategy]
+	if !ok {
+		return algoUnknown
+	}
+
+	return name
+}
+
+// AlgorithmNameToStrategy converts a wisdom algorithm name back to its kernel
+// strategy. Names that do not correspond to a strategy (codelet signatures,
+// "unknown") return ok=false.
+func AlgorithmNameToStrategy(name string) (KernelStrategy, bool) {
+	strategy, ok := algorithmNameStrategies[name]
+
+	return strategy, ok
 }

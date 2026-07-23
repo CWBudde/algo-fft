@@ -3,6 +3,8 @@
 package fft
 
 import (
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	m "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/planner"
 )
@@ -10,7 +12,7 @@ import (
 // avx2SizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific
 // AVX2 implementations for common sizes (8, 16, 32, 64, 128), falling back to the
 // generic AVX2 kernel for other sizes or if the size-specific kernel fails.
-func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[complex64] {
+func avx2SizeSpecificOrGenericDITComplex64(strategy fftypes.KernelStrategy) kernels.Kernel[complex64] {
 	return func(dst, src, twiddle, scratch []complex64) bool {
 		n := len(src)
 		if !m.IsPowerOf2(n) {
@@ -19,11 +21,11 @@ func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			// Non-DIT strategy: dispatch directly on the already-resolved strategy
 			// rather than building (and immediately calling) a per-transform
 			// strategy closure, which would allocate on every call.
-			if resolved == KernelStockham {
+			if resolved == fftypes.KernelStockham {
 				return forwardAVX2StockhamComplex64(dst, src, twiddle, scratch)
 			}
 
@@ -119,7 +121,7 @@ func avx2SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 
 // avx2SizeSpecificOrGenericDITInverseComplex64 returns a kernel that tries size-specific
 // AVX2 implementations for inverse transforms.
-func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kernel[complex64] {
+func avx2SizeSpecificOrGenericDITInverseComplex64(strategy fftypes.KernelStrategy) kernels.Kernel[complex64] {
 	return func(dst, src, twiddle, scratch []complex64) bool {
 		n := len(src)
 		if !m.IsPowerOf2(n) {
@@ -128,11 +130,11 @@ func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			// Non-DIT strategy: dispatch directly on the already-resolved strategy
 			// rather than building (and immediately calling) a per-transform
 			// strategy closure, which would allocate on every call.
-			if resolved == KernelStockham {
+			if resolved == fftypes.KernelStockham {
 				return inverseAVX2StockhamComplex64(dst, src, twiddle, scratch)
 			}
 
@@ -228,8 +230,8 @@ func avx2SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 
 // avx2SizeSpecificOrGenericComplex64 wraps both forward and inverse size-specific kernels
 // for convenience, matching the pattern in selectKernelsComplex64.
-func avx2SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex64] {
-	return Kernels[complex64]{
+func avx2SizeSpecificOrGenericComplex64(strategy fftypes.KernelStrategy) kernels.Kernels[complex64] {
+	return kernels.Kernels[complex64]{
 		Forward: avx2SizeSpecificOrGenericDITComplex64(strategy),
 		Inverse: avx2SizeSpecificOrGenericDITInverseComplex64(strategy),
 	}
@@ -237,7 +239,7 @@ func avx2SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex
 
 // sse3SizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific
 // SSE3 implementations for common sizes, falling back to the generic SSE3 kernel.
-func sse3SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[complex64] {
+func sse3SizeSpecificOrGenericDITComplex64(strategy fftypes.KernelStrategy) kernels.Kernel[complex64] {
 	return func(dst, src, twiddle, scratch []complex64) bool {
 		n := len(src)
 		if !m.IsPowerOf2(n) {
@@ -245,7 +247,7 @@ func sse3SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 		}
 
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
 		}
 
@@ -328,7 +330,7 @@ func sse3SizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 	}
 }
 
-func sse3SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kernel[complex64] {
+func sse3SizeSpecificOrGenericDITInverseComplex64(strategy fftypes.KernelStrategy) kernels.Kernel[complex64] {
 	return func(dst, src, twiddle, scratch []complex64) bool {
 		n := len(src)
 		if !m.IsPowerOf2(n) {
@@ -336,7 +338,7 @@ func sse3SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 		}
 
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
 		}
 
@@ -419,8 +421,8 @@ func sse3SizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 	}
 }
 
-func sse3SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex64] {
-	return Kernels[complex64]{
+func sse3SizeSpecificOrGenericComplex64(strategy fftypes.KernelStrategy) kernels.Kernels[complex64] {
+	return kernels.Kernels[complex64]{
 		Forward: sse3SizeSpecificOrGenericDITComplex64(strategy),
 		Inverse: sse3SizeSpecificOrGenericDITInverseComplex64(strategy),
 	}
@@ -429,7 +431,7 @@ func sse3SizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex
 // avx2SizeSpecificOrGenericDITComplex128 returns a kernel that tries size-specific
 // AVX2 implementations for sizes where we have asm complex128 code, falling back to
 // the generic AVX2 kernel otherwise.
-func avx2SizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[complex128] {
+func avx2SizeSpecificOrGenericDITComplex128(strategy fftypes.KernelStrategy) kernels.Kernel[complex128] {
 	return func(dst, src, twiddle, scratch []complex128) bool {
 		n := len(src)
 		if !m.IsPowerOf2(n) {
@@ -437,10 +439,10 @@ func avx2SizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 		}
 
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			// Dispatch directly on the resolved strategy to avoid allocating a
 			// per-transform strategy closure.
-			if resolved == KernelStockham {
+			if resolved == fftypes.KernelStockham {
 				return forwardAVX2StockhamComplex128(dst, src, twiddle, scratch)
 			}
 
@@ -502,7 +504,7 @@ func avx2SizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 	}
 }
 
-func avx2SizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kernel[complex128] {
+func avx2SizeSpecificOrGenericDITInverseComplex128(strategy fftypes.KernelStrategy) kernels.Kernel[complex128] {
 	return func(dst, src, twiddle, scratch []complex128) bool {
 		n := len(src)
 		if !m.IsPowerOf2(n) {
@@ -510,10 +512,10 @@ func avx2SizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kern
 		}
 
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			// Dispatch directly on the resolved strategy to avoid allocating a
 			// per-transform strategy closure.
-			if resolved == KernelStockham {
+			if resolved == fftypes.KernelStockham {
 				return inverseAVX2StockhamComplex128(dst, src, twiddle, scratch)
 			}
 
@@ -575,8 +577,8 @@ func avx2SizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kern
 	}
 }
 
-func avx2SizeSpecificOrGenericComplex128(strategy KernelStrategy) Kernels[complex128] {
-	return Kernels[complex128]{
+func avx2SizeSpecificOrGenericComplex128(strategy fftypes.KernelStrategy) kernels.Kernels[complex128] {
+	return kernels.Kernels[complex128]{
 		Forward: avx2SizeSpecificOrGenericDITComplex128(strategy),
 		Inverse: avx2SizeSpecificOrGenericDITInverseComplex128(strategy),
 	}

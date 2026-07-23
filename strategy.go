@@ -1,6 +1,8 @@
 package algofft
 
-import "github.com/cwbudde/algo-fft/internal/fft"
+import (
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+)
 
 // KernelStrategy controls which FFT kernel a plan should use. It is declared
 // in this package (not aliased from an internal package) so internal
@@ -44,48 +46,48 @@ func (s KernelStrategy) String() string {
 }
 
 // internal converts the public strategy to the internal kernel-strategy enum.
-func (s KernelStrategy) internal() fft.KernelStrategy {
+func (s KernelStrategy) internal() fftypes.KernelStrategy {
 	switch s {
 	case KernelDIT:
-		return fft.KernelDIT
+		return fftypes.KernelDIT
 	case KernelStockham:
-		return fft.KernelStockham
+		return fftypes.KernelStockham
 	case KernelSixStep:
-		return fft.KernelSixStep
+		return fftypes.KernelSixStep
 	case KernelEightStep:
-		return fft.KernelEightStep
+		return fftypes.KernelEightStep
 	case KernelBluestein:
-		return fft.KernelBluestein
+		return fftypes.KernelBluestein
 	case KernelRecursive:
-		return fft.KernelRecursive
+		return fftypes.KernelRecursive
 	case KernelSplitRadix:
-		return fft.KernelSplitRadix
+		return fftypes.KernelSplitRadix
 	case KernelAuto:
-		return fft.KernelAuto
+		return fftypes.KernelAuto
 	default:
-		return fft.KernelAuto
+		return fftypes.KernelAuto
 	}
 }
 
 // kernelStrategyFromInternal converts an internal kernel-strategy value to
 // the public enum.
-func kernelStrategyFromInternal(s fft.KernelStrategy) KernelStrategy {
+func kernelStrategyFromInternal(s fftypes.KernelStrategy) KernelStrategy {
 	switch s {
-	case fft.KernelDIT:
+	case fftypes.KernelDIT:
 		return KernelDIT
-	case fft.KernelStockham:
+	case fftypes.KernelStockham:
 		return KernelStockham
-	case fft.KernelSixStep:
+	case fftypes.KernelSixStep:
 		return KernelSixStep
-	case fft.KernelEightStep:
+	case fftypes.KernelEightStep:
 		return KernelEightStep
-	case fft.KernelBluestein:
+	case fftypes.KernelBluestein:
 		return KernelBluestein
-	case fft.KernelRecursive:
+	case fftypes.KernelRecursive:
 		return KernelRecursive
-	case fft.KernelSplitRadix:
+	case fftypes.KernelSplitRadix:
 		return KernelSplitRadix
-	case fft.KernelAuto:
+	case fftypes.KernelAuto:
 		return KernelAuto
 	default:
 		return KernelAuto

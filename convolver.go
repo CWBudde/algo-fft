@@ -170,7 +170,7 @@ func (c *Correlator[T]) CrossCorrelate(dst, a, b []T) error {
 
 	rev := *bRevConj
 	for i := range b {
-		rev[i] = fft.ConjugateOf(b[len(b)-1-i])
+		rev[i] = m.ConjugateOf(b[len(b)-1-i])
 	}
 
 	return c.conv.Convolve(dst, a, rev)

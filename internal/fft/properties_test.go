@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
@@ -35,7 +36,7 @@ func testLinearity64(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex64](features)
+	kern := SelectKernels[complex64](features)
 
 	// Generate random inputs
 	x := randomComplex64(n, 12345)
@@ -52,12 +53,12 @@ func testLinearity64(t *testing.T, n int) {
 	}
 
 	// FFT of combined
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
 	fftCombined := make([]complex64, n)
-	if !kernels.Forward(fftCombined, combined, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftCombined, combined, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	// FFT of x and y separately
@@ -65,13 +66,13 @@ func testLinearity64(t *testing.T, n int) {
 	fftY := make([]complex64, n)
 
 	scratch = make([]complex64, n)
-	if !kernels.Forward(fftX, x, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftX, x, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	scratch = make([]complex64, n)
-	if !kernels.Forward(fftY, y, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftY, y, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	// Compute a*FFT(x) + b*FFT(y)
@@ -88,7 +89,7 @@ func testLinearity128(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex128](features)
+	kern := SelectKernels[complex128](features)
 
 	x := randomComplex128(n, 12345)
 	y := randomComplex128(n, 67890)
@@ -101,25 +102,25 @@ func testLinearity128(t *testing.T, n int) {
 		combined[i] = a*x[i] + b*y[i]
 	}
 
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 
 	fftCombined := make([]complex128, n)
-	if !kernels.Forward(fftCombined, combined, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftCombined, combined, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	fftX := make([]complex128, n)
 	fftY := make([]complex128, n)
 
 	scratch = make([]complex128, n)
-	if !kernels.Forward(fftX, x, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftX, x, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	scratch = make([]complex128, n)
-	if !kernels.Forward(fftY, y, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftY, y, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	expected := make([]complex128, n)
@@ -155,7 +156,7 @@ func testParseval64(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex64](features)
+	kern := SelectKernels[complex64](features)
 
 	src := randomComplex64(n, 11111)
 
@@ -166,12 +167,12 @@ func testParseval64(t *testing.T, n int) {
 	}
 
 	// FFT
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
 	dst := make([]complex64, n)
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	// Compute energy in frequency domain
@@ -193,7 +194,7 @@ func testParseval128(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex128](features)
+	kern := SelectKernels[complex128](features)
 
 	src := randomComplex128(n, 11111)
 
@@ -202,12 +203,12 @@ func testParseval128(t *testing.T, n int) {
 		timeEnergy += real(v)*real(v) + imag(v)*imag(v)
 	}
 
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 
 	dst := make([]complex128, n)
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	var freqEnergy float64
@@ -247,25 +248,25 @@ func testRoundTrip64(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex64](features)
+	kern := SelectKernels[complex64](features)
 
 	src := randomComplex64(n, 99999)
 
 	// Forward FFT
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
 	fwd := make([]complex64, n)
-	if !kernels.Forward(fwd, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fwd, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	// Inverse FFT
 	scratch = make([]complex64, n)
 
 	dst := make([]complex64, n)
-	if !kernels.Inverse(dst, fwd, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Inverse(dst, fwd, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	// Verify round-trip
@@ -276,23 +277,23 @@ func testRoundTrip128(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex128](features)
+	kern := SelectKernels[complex128](features)
 
 	src := randomComplex128(n, 99999)
 
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 
 	fwd := make([]complex128, n)
-	if !kernels.Forward(fwd, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fwd, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	scratch = make([]complex128, n)
 
 	dst := make([]complex128, n)
-	if !kernels.Inverse(dst, fwd, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Inverse(dst, fwd, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	assertComplex128SliceClose(t, dst, src, n)
@@ -326,7 +327,7 @@ func testShiftTheorem64(t *testing.T, n, m int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex64](features)
+	kern := SelectKernels[complex64](features)
 
 	x := randomComplex64(n, 77777)
 
@@ -337,19 +338,19 @@ func testShiftTheorem64(t *testing.T, n, m int) {
 	}
 
 	// FFT of both
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
 	fftX := make([]complex64, n)
-	if !kernels.Forward(fftX, x, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftX, x, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	scratch = make([]complex64, n)
 
 	fftY := make([]complex64, n)
-	if !kernels.Forward(fftY, y, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftY, y, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	// Verify shift theorem: FFT(y)[k] = FFT(x)[k] * exp(-2πikm/n)
@@ -367,7 +368,7 @@ func testShiftTheorem128(t *testing.T, n, m int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex128](features)
+	kern := SelectKernels[complex128](features)
 
 	x := randomComplex128(n, 77777)
 
@@ -376,19 +377,19 @@ func testShiftTheorem128(t *testing.T, n, m int) {
 		y[k] = x[(k-m+n)%n]
 	}
 
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 
 	fftX := make([]complex128, n)
-	if !kernels.Forward(fftX, x, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftX, x, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	scratch = make([]complex128, n)
 
 	fftY := make([]complex128, n)
-	if !kernels.Forward(fftY, y, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(fftY, y, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	expected := make([]complex128, n)
@@ -425,17 +426,17 @@ func testAgainstReference64(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex64](features)
+	kern := SelectKernels[complex64](features)
 
 	src := randomComplex64(n, 55555)
 
 	// FFT
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
 	dst := make([]complex64, n)
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	// Reference
@@ -448,16 +449,16 @@ func testAgainstReference128(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex128](features)
+	kern := SelectKernels[complex128](features)
 
 	src := randomComplex128(n, 55555)
 
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 
 	dst := make([]complex128, n)
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	want := reference.NaiveDFT128(src)
@@ -489,7 +490,7 @@ func testRealInputSymmetry64(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex64](features)
+	kern := SelectKernels[complex64](features)
 
 	// Generate real-valued input
 	src := make([]complex64, n)
@@ -498,12 +499,12 @@ func testRealInputSymmetry64(t *testing.T, n int) {
 	}
 
 	// FFT
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
 	dst := make([]complex64, n)
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	// Verify conjugate symmetry: FFT[k] = conj(FFT[n-k])
@@ -520,19 +521,19 @@ func testRealInputSymmetry128(t *testing.T, n int) {
 	t.Helper()
 
 	features := cpu.DetectFeatures()
-	kernels := SelectKernels[complex128](features)
+	kern := SelectKernels[complex128](features)
 
 	src := make([]complex128, n)
 	for i := range n {
 		src[i] = complex(float64(i), 0)
 	}
 
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 
 	dst := make([]complex128, n)
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 	}
 
 	for k := 1; k < n/2; k++ {

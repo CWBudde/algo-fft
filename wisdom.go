@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // Wisdom caches planning decisions for fast lookup. It wraps the internal
@@ -16,12 +16,12 @@ import (
 //
 // Wisdom implements the WisdomStore interface and is safe for concurrent use.
 type Wisdom struct {
-	inner *fft.Wisdom
+	inner *planner.Wisdom
 }
 
 // NewWisdom creates a new empty wisdom cache.
 func NewWisdom() *Wisdom {
-	return &Wisdom{inner: fft.NewWisdom()}
+	return &Wisdom{inner: planner.NewWisdom()}
 }
 
 // LookupWisdom returns the algorithm name for a given FFT configuration.
@@ -32,7 +32,7 @@ func (w *Wisdom) LookupWisdom(size int, precision uint8, cpuFeatures uint64) (st
 
 // Lookup returns the full wisdom entry for a given key.
 func (w *Wisdom) Lookup(key WisdomKey) (WisdomEntry, bool) {
-	entry, found := w.inner.Lookup(fft.WisdomKey{
+	entry, found := w.inner.Lookup(planner.WisdomKey{
 		Size:        key.Size,
 		Precision:   key.Precision,
 		CPUFeatures: key.CPUFeatures,
@@ -46,8 +46,8 @@ func (w *Wisdom) Lookup(key WisdomKey) (WisdomEntry, bool) {
 
 // Store saves a planning decision to the wisdom cache.
 func (w *Wisdom) Store(entry WisdomEntry) {
-	w.inner.Store(fft.WisdomEntry{
-		Key: fft.WisdomKey{
+	w.inner.Store(planner.WisdomEntry{
+		Key: planner.WisdomKey{
 			Size:        entry.Key.Size,
 			Precision:   entry.Key.Precision,
 			CPUFeatures: entry.Key.CPUFeatures,
@@ -108,7 +108,7 @@ func (w *Wisdom) EvictOlderThan(maxAge time.Duration) int {
 	return w.inner.EvictOlderThan(maxAge)
 }
 
-func wisdomEntryFromInternal(entry fft.WisdomEntry) WisdomEntry {
+func wisdomEntryFromInternal(entry planner.WisdomEntry) WisdomEntry {
 	return WisdomEntry{
 		Key: WisdomKey{
 			Size:        entry.Key.Size,
@@ -138,7 +138,7 @@ func ImportWisdomWithMaxAge(filename string, maxAge time.Duration) error {
 
 	defer file.Close()
 
-	err = fft.DefaultWisdom.ImportWithMaxAge(file, maxAge)
+	err = planner.DefaultWisdom.ImportWithMaxAge(file, maxAge)
 	if err != nil {
 		return fmt.Errorf("failed to import wisdom: %w", err)
 	}
@@ -149,7 +149,7 @@ func ImportWisdomWithMaxAge(filename string, maxAge time.Duration) error {
 // ExportWisdom saves the process-wide default wisdom cache to a file.
 // The file can be loaded later with ImportWisdom.
 func ExportWisdom(filename string) error {
-	return ExportWisdomTo(filename, &Wisdom{inner: fft.DefaultWisdom})
+	return ExportWisdomTo(filename, &Wisdom{inner: planner.DefaultWisdom})
 }
 
 // ExportWisdomTo saves a specific wisdom cache to a file.
@@ -174,7 +174,7 @@ func ExportWisdomTo(filename string, wisdom *Wisdom) error {
 // process-wide default wisdom cache. This is useful for embedding wisdom data
 // in compiled binaries.
 func ImportWisdomFromString(data string) error {
-	err := fft.DefaultWisdom.Import(strings.NewReader(data))
+	err := planner.DefaultWisdom.Import(strings.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("failed to import wisdom from string: %w", err)
 	}
@@ -184,11 +184,11 @@ func ImportWisdomFromString(data string) error {
 
 // ClearWisdom removes all entries from the process-wide default wisdom cache.
 func ClearWisdom() {
-	fft.DefaultWisdom.Clear()
+	planner.DefaultWisdom.Clear()
 }
 
 // WisdomLen returns the number of entries in the process-wide default wisdom
 // cache.
 func WisdomLen() int {
-	return fft.DefaultWisdom.Len()
+	return planner.DefaultWisdom.Len()
 }

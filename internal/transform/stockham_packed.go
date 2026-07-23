@@ -1,5 +1,13 @@
 package transform
 
+// This file owns the packed mixed-radix Stockham engine: radix-4 (plus one
+// radix-2 stage for odd log2) with precomputed packed twiddles, gated by the
+// per-build stockhamPackedEnabled toggle. It is a different algorithm from
+// the plain radix-2 Stockham autosort, whose canonical home is
+// internal/kernels (StockhamForward/StockhamInverse); the two are not
+// interchangeable — this one needs a PackedTwiddles table and is only wired
+// up on builds where it beats the SIMD codelet path.
+
 // StockhamPackedAvailable reports whether packed Stockham is enabled in this build.
 // The stockhamPackedEnabled constant is defined in stockham_packed_toggle_*.go files.
 func StockhamPackedAvailable() bool {

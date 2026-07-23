@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
@@ -16,7 +18,7 @@ func TestAllKernelsCorrectness(t *testing.T) {
 
 	features := cpu.DetectFeatures()
 	sizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 4096}
-	strategies := []KernelStrategy{KernelDIT, KernelStockham, KernelAuto}
+	strategies := []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelAuto}
 
 	for _, n := range sizes {
 		for _, strategy := range strategies {
@@ -34,7 +36,7 @@ func TestAllKernelsCorrectness(t *testing.T) {
 	}
 }
 
-func testKernelCorrectness64(t *testing.T, n int, strategy KernelStrategy, features cpu.Features) {
+func testKernelCorrectness64(t *testing.T, n int, strategy fftypes.KernelStrategy, features cpu.Features) {
 	t.Helper()
 
 	// Generate random input
@@ -44,13 +46,13 @@ func testKernelCorrectness64(t *testing.T, n int, strategy KernelStrategy, featu
 	want := reference.NaiveDFT(src)
 
 	// Test with selected kernel
-	kernels := SelectKernelsWithStrategy[complex64](features, strategy)
+	kern := SelectKernelsWithStrategy[complex64](features, strategy)
 	dst := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skipf("Kernel unavailable for n=%d, strategy=%v", n, strategy)
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skipf("kernels.Kernel unavailable for n=%d, strategy=%v", n, strategy)
 		return
 	}
 
@@ -71,7 +73,7 @@ func testKernelCorrectness64(t *testing.T, n int, strategy KernelStrategy, featu
 	scratch = make([]complex64, n)
 
 	inv := make([]complex64, n)
-	if !kernels.Inverse(inv, dst, twiddle, scratch) {
+	if !kern.Inverse(inv, dst, twiddle, scratch) {
 		t.Skipf("Inverse kernel unavailable for n=%d, strategy=%v", n, strategy)
 		return
 	}
@@ -79,20 +81,20 @@ func testKernelCorrectness64(t *testing.T, n int, strategy KernelStrategy, featu
 	assertComplex64SliceClose(t, inv, src, n)
 }
 
-func testKernelCorrectness128(t *testing.T, n int, strategy KernelStrategy, features cpu.Features) {
+func testKernelCorrectness128(t *testing.T, n int, strategy fftypes.KernelStrategy, features cpu.Features) {
 	t.Helper()
 
 	src := randomComplex128(n, uint64(n*int(strategy)))
 
 	want := reference.NaiveDFT128(src)
 
-	kernels := SelectKernelsWithStrategy[complex128](features, strategy)
+	kern := SelectKernelsWithStrategy[complex128](features, strategy)
 	dst := make([]complex128, n)
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skipf("Kernel unavailable for n=%d, strategy=%v", n, strategy)
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skipf("kernels.Kernel unavailable for n=%d, strategy=%v", n, strategy)
 		return
 	}
 
@@ -112,7 +114,7 @@ func testKernelCorrectness128(t *testing.T, n int, strategy KernelStrategy, feat
 	scratch = make([]complex128, n)
 
 	inv := make([]complex128, n)
-	if !kernels.Inverse(inv, dst, twiddle, scratch) {
+	if !kern.Inverse(inv, dst, twiddle, scratch) {
 		t.Skipf("Inverse kernel unavailable for n=%d, strategy=%v", n, strategy)
 		return
 	}
@@ -145,18 +147,18 @@ func testKernelConsistency64(t *testing.T, n int, features cpu.Features) {
 	t.Helper()
 
 	src := randomComplex64(n, 33333)
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 
 	// Collect results from all available strategies
-	strategies := []KernelStrategy{KernelDIT, KernelStockham, KernelAuto}
-	results := make(map[KernelStrategy][]complex64)
+	strategies := []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelAuto}
+	results := make(map[fftypes.KernelStrategy][]complex64)
 
 	for _, strategy := range strategies {
-		kernels := SelectKernelsWithStrategy[complex64](features, strategy)
+		kern := SelectKernelsWithStrategy[complex64](features, strategy)
 		dst := make([]complex64, n)
 		scratch := make([]complex64, n)
 
-		if kernels.Forward(dst, src, twiddle, scratch) {
+		if kern.Forward(dst, src, twiddle, scratch) {
 			results[strategy] = dst
 		}
 	}
@@ -169,7 +171,7 @@ func testKernelConsistency64(t *testing.T, n int, features cpu.Features) {
 	// Compare all results against each other
 	var (
 		reference   []complex64
-		refStrategy KernelStrategy
+		refStrategy fftypes.KernelStrategy
 	)
 
 	for strategy, result := range results {
@@ -189,17 +191,17 @@ func testKernelConsistency128(t *testing.T, n int, features cpu.Features) {
 	t.Helper()
 
 	src := randomComplex128(n, 33333)
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 
-	strategies := []KernelStrategy{KernelDIT, KernelStockham, KernelAuto}
-	results := make(map[KernelStrategy][]complex128)
+	strategies := []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelAuto}
+	results := make(map[fftypes.KernelStrategy][]complex128)
 
 	for _, strategy := range strategies {
-		kernels := SelectKernelsWithStrategy[complex128](features, strategy)
+		kern := SelectKernelsWithStrategy[complex128](features, strategy)
 		dst := make([]complex128, n)
 		scratch := make([]complex128, n)
 
-		if kernels.Forward(dst, src, twiddle, scratch) {
+		if kern.Forward(dst, src, twiddle, scratch) {
 			results[strategy] = dst
 		}
 	}
@@ -211,7 +213,7 @@ func testKernelConsistency128(t *testing.T, n int, features cpu.Features) {
 
 	var (
 		reference   []complex128
-		refStrategy KernelStrategy
+		refStrategy fftypes.KernelStrategy
 	)
 
 	for strategy, result := range results {
@@ -259,13 +261,13 @@ func testMixedRadix64(t *testing.T, n int) {
 	want := reference.NaiveDFT(src)
 
 	// Test auto kernel selection
-	kernels := SelectKernels[complex64](features)
+	kern := SelectKernels[complex64](features)
 	dst := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n*2) // Extra scratch for mixed radix
 
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available for mixed radix")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available for mixed radix")
 		return
 	}
 
@@ -286,7 +288,7 @@ func testMixedRadix64(t *testing.T, n int) {
 	scratch = make([]complex64, n*2)
 
 	inv := make([]complex64, n)
-	if !kernels.Inverse(inv, dst, twiddle, scratch) {
+	if !kern.Inverse(inv, dst, twiddle, scratch) {
 		t.Skip("Inverse kernel not available for mixed radix")
 		return
 	}
@@ -302,13 +304,13 @@ func testMixedRadix128(t *testing.T, n int) {
 
 	want := reference.NaiveDFT128(src)
 
-	kernels := SelectKernels[complex128](features)
+	kern := SelectKernels[complex128](features)
 	dst := make([]complex128, n)
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n*2)
 
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available for mixed radix")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available for mixed radix")
 		return
 	}
 
@@ -328,7 +330,7 @@ func testMixedRadix128(t *testing.T, n int) {
 	scratch = make([]complex128, n*2)
 
 	inv := make([]complex128, n)
-	if !kernels.Inverse(inv, dst, twiddle, scratch) {
+	if !kern.Inverse(inv, dst, twiddle, scratch) {
 		t.Skip("Inverse kernel not available for mixed radix")
 		return
 	}
@@ -364,13 +366,13 @@ func testSmallSize64(t *testing.T, n int) {
 
 	want := reference.NaiveDFT(src)
 
-	kernels := SelectKernels[complex64](features)
+	kern := SelectKernels[complex64](features)
 	dst := make([]complex64, n)
-	twiddle := ComputeTwiddleFactors[complex64](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
 	scratch := make([]complex64, n)
 
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 		return
 	}
 
@@ -385,13 +387,13 @@ func testSmallSize128(t *testing.T, n int) {
 
 	want := reference.NaiveDFT128(src)
 
-	kernels := SelectKernels[complex128](features)
+	kern := SelectKernels[complex128](features)
 	dst := make([]complex128, n)
-	twiddle := ComputeTwiddleFactors[complex128](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
 	scratch := make([]complex128, n)
 
-	if !kernels.Forward(dst, src, twiddle, scratch) {
-		t.Skip("Kernel not available")
+	if !kern.Forward(dst, src, twiddle, scratch) {
+		t.Skip("kernels.Kernel not available")
 		return
 	}
 

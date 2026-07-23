@@ -17,6 +17,8 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
@@ -209,17 +211,17 @@ func computeEnergy(x []complex64) float64 {
 }
 
 func prepareFFTData[T Complex](n int) ([]T, []T) {
-	twiddle := ComputeTwiddleFactors[T](n)
+	twiddle := mathpkg.ComputeTwiddleFactors[T](n)
 	scratch := make([]T, n)
 
 	return twiddle, scratch
 }
 
 // =============================================================================
-// AVX2 Kernel Access Functions
+// AVX2 kernels.Kernel Access Functions
 // =============================================================================
 
-func getAVX2Kernels() (forward, inverse Kernel[complex64], available bool) {
+func getAVX2Kernels() (forward, inverse kernels.Kernel[complex64], available bool) {
 	const archAMD64 = "amd64"
 	if runtime.GOARCH != archAMD64 {
 		return nil, nil, false
@@ -233,7 +235,7 @@ func getAVX2Kernels() (forward, inverse Kernel[complex64], available bool) {
 	return forwardAVX2Complex64, inverseAVX2Complex64, true
 }
 
-func getAVX2StockhamKernels() (forward, inverse Kernel[complex64], available bool) {
+func getAVX2StockhamKernels() (forward, inverse kernels.Kernel[complex64], available bool) {
 	const archAMD64 = "amd64"
 	if runtime.GOARCH != archAMD64 {
 		return nil, nil, false
@@ -247,11 +249,11 @@ func getAVX2StockhamKernels() (forward, inverse Kernel[complex64], available boo
 	return forwardAVX2StockhamComplex64, inverseAVX2StockhamComplex64, true
 }
 
-func getPureGoKernels() (forward, inverse Kernel[complex64]) {
-	return forwardDITComplex64, inverseDITComplex64
+func getPureGoKernels() (forward, inverse kernels.Kernel[complex64]) {
+	return kernels.ForwardDITComplex64, kernels.InverseDITComplex64
 }
 
-func getAVX2Kernels128() (forward, inverse Kernel[complex128], available bool) {
+func getAVX2Kernels128() (forward, inverse kernels.Kernel[complex128], available bool) {
 	const archAMD64 = "amd64"
 	if runtime.GOARCH != archAMD64 {
 		return nil, nil, false
@@ -265,12 +267,12 @@ func getAVX2Kernels128() (forward, inverse Kernel[complex128], available bool) {
 	return forwardAVX2Complex128, inverseAVX2Complex128, true
 }
 
-func getPureGoKernels128() (forward, inverse Kernel[complex128]) {
-	return forwardDITComplex128, inverseDITComplex128
+func getPureGoKernels128() (forward, inverse kernels.Kernel[complex128]) {
+	return kernels.ForwardDITComplex128, kernels.InverseDITComplex128
 }
 
 // =============================================================================
-// Kernel Round-Trip Tests
+// kernels.Kernel Round-Trip Tests
 // =============================================================================
 
 func TestAVX2RoundTripComplex64(t *testing.T) {
@@ -286,7 +288,7 @@ func TestAVX2RoundTripComplex64(t *testing.T) {
 			fwd := make([]complex64, tc.n)
 			dst := make([]complex64, tc.n)
 			scratch := make([]complex64, tc.n)
-			twiddle := ComputeTwiddleFactors[complex64](tc.n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tc.n)
 
 			if !tc.forward(fwd, src, twiddle, scratch) {
 				t.Fatalf("%s forward failed", tc.name)
@@ -314,7 +316,7 @@ func TestAVX2RoundTripComplex128(t *testing.T) {
 			fwd := make([]complex128, tc.n)
 			dst := make([]complex128, tc.n)
 			scratch := make([]complex128, tc.n)
-			twiddle := ComputeTwiddleFactors[complex128](tc.n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](tc.n)
 
 			if !tc.forward(fwd, src, twiddle, scratch) {
 				t.Fatalf("%s forward failed", tc.name)
@@ -330,7 +332,7 @@ func TestAVX2RoundTripComplex128(t *testing.T) {
 }
 
 // =============================================================================
-// Kernel vs DFT Tests
+// kernels.Kernel vs DFT Tests
 // =============================================================================
 
 func TestAVX2ForwardVsDFTComplex64(t *testing.T) {
@@ -349,7 +351,7 @@ func TestAVX2ForwardVsDFTComplex64(t *testing.T) {
 			src := randomComplex64(tc.n, 0xDF064+uint64(tc.n))
 			dst := make([]complex64, tc.n)
 			scratch := make([]complex64, tc.n)
-			twiddle := ComputeTwiddleFactors[complex64](tc.n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tc.n)
 
 			if !tc.forward(dst, src, twiddle, scratch) {
 				t.Fatalf("%s failed", tc.name)
@@ -378,7 +380,7 @@ func TestAVX2InverseVsIDFTComplex64(t *testing.T) {
 			fwd := make([]complex64, tc.n)
 			dst := make([]complex64, tc.n)
 			scratch := make([]complex64, tc.n)
-			twiddle := ComputeTwiddleFactors[complex64](tc.n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](tc.n)
 
 			if !tc.forward(fwd, src, twiddle, scratch) {
 				t.Fatalf("%s forward failed", tc.name)
@@ -410,7 +412,7 @@ func TestAVX2ForwardVsDFTComplex128(t *testing.T) {
 			src := randomComplex128(tc.n, 0xDF128+uint64(tc.n))
 			dst := make([]complex128, tc.n)
 			scratch := make([]complex128, tc.n)
-			twiddle := ComputeTwiddleFactors[complex128](tc.n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](tc.n)
 
 			if !tc.forward(dst, src, twiddle, scratch) {
 				t.Fatalf("%s failed", tc.name)
@@ -439,7 +441,7 @@ func TestAVX2InverseVsIDFTComplex128(t *testing.T) {
 			fwd := make([]complex128, tc.n)
 			dst := make([]complex128, tc.n)
 			scratch := make([]complex128, tc.n)
-			twiddle := ComputeTwiddleFactors[complex128](tc.n)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex128](tc.n)
 
 			if !tc.forward(fwd, src, twiddle, scratch) {
 				t.Fatalf("%s forward failed", tc.name)
@@ -568,7 +570,7 @@ func TestAVX2StockhamForward_VsPureGo(t *testing.T) {
 			t.Skip("AVX2 Stockham forward not implemented")
 		}
 
-		if !forwardStockhamComplex64(dstGo, src, twiddle, scratch) {
+		if !kernels.ForwardStockhamComplex64(dstGo, src, twiddle, scratch) {
 			t.Fatal("pure-Go Stockham forward failed")
 		}
 
@@ -601,7 +603,7 @@ func TestAVX2StockhamInverse_VsPureGo(t *testing.T) {
 			t.Skip("AVX2 Stockham inverse not implemented")
 		}
 
-		if !inverseStockhamComplex64(dstGo, src, twiddle, scratch) {
+		if !kernels.InverseStockhamComplex64(dstGo, src, twiddle, scratch) {
 			t.Fatal("pure-Go Stockham inverse failed")
 		}
 
@@ -639,7 +641,7 @@ func TestAVX2VsReferenceDFT(t *testing.T) {
 func testAVX2VsReference(
 	t *testing.T,
 	sizes []int,
-	avx2Kernel Kernel[complex64],
+	avx2Kernel kernels.Kernel[complex64],
 	refKernel func([]complex64) []complex64,
 	seedOffset uint64,
 	name string,

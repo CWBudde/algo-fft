@@ -2,13 +2,17 @@
 
 package fft
 
-import "github.com/cwbudde/algo-fft/internal/cpu"
+import (
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
+)
 
-func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
-	auto := autoKernelComplex64(KernelAuto)
+func selectKernelsComplex64(features cpu.Features) kernels.Kernels[complex64] {
+	auto := autoKernelComplex64(fftypes.KernelAuto)
 	if features.HasNEON && !features.ForceGeneric {
-		sizeSpecific := neonSizeSpecificOrGenericComplex64(KernelAuto)
-		return Kernels[complex64]{
+		sizeSpecific := neonSizeSpecificOrGenericComplex64(fftypes.KernelAuto)
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
 			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
 		}
@@ -17,11 +21,11 @@ func selectKernelsComplex64(features cpu.Features) Kernels[complex64] {
 	return auto
 }
 
-func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
-	auto := autoKernelComplex128(KernelAuto)
+func selectKernelsComplex128(features cpu.Features) kernels.Kernels[complex128] {
+	auto := autoKernelComplex128(fftypes.KernelAuto)
 	if features.HasNEON && !features.ForceGeneric {
-		sizeSpecific := neonSizeSpecificOrGenericComplex128(KernelAuto)
-		return Kernels[complex128]{
+		sizeSpecific := neonSizeSpecificOrGenericComplex128(fftypes.KernelAuto)
+		return kernels.Kernels[complex128]{
 			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
 			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
 		}
@@ -30,11 +34,11 @@ func selectKernelsComplex128(features cpu.Features) Kernels[complex128] {
 	return auto
 }
 
-func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex64] {
+func selectKernelsComplex64WithStrategy(features cpu.Features, strategy fftypes.KernelStrategy) kernels.Kernels[complex64] {
 	auto := autoKernelComplex64(strategy)
 	if features.HasNEON && !features.ForceGeneric {
 		sizeSpecific := neonSizeSpecificOrGenericComplex64(strategy)
-		return Kernels[complex64]{
+		return kernels.Kernels[complex64]{
 			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
 			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
 		}
@@ -43,11 +47,11 @@ func selectKernelsComplex64WithStrategy(features cpu.Features, strategy KernelSt
 	return auto
 }
 
-func selectKernelsComplex128WithStrategy(features cpu.Features, strategy KernelStrategy) Kernels[complex128] {
+func selectKernelsComplex128WithStrategy(features cpu.Features, strategy fftypes.KernelStrategy) kernels.Kernels[complex128] {
 	auto := autoKernelComplex128(strategy)
 	if features.HasNEON && !features.ForceGeneric {
 		sizeSpecific := neonSizeSpecificOrGenericComplex128(strategy)
-		return Kernels[complex128]{
+		return kernels.Kernels[complex128]{
 			Forward: fallbackKernel(sizeSpecific.Forward, auto.Forward),
 			Inverse: fallbackKernel(sizeSpecific.Inverse, auto.Inverse),
 		}

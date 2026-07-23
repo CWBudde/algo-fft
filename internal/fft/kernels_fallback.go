@@ -1,6 +1,7 @@
 package fft
 
 import (
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 	"github.com/cwbudde/algo-fft/internal/kernels"
 	m "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/planner"
@@ -9,16 +10,16 @@ import (
 // simdTierServesStrategy reports whether a fixed-algorithm SIMD tier (the
 // generic SSE/SSE2 radix-2 DIT wrappers, which ignore the strategy argument)
 // may serve a plan with the given strategy. Only auto and an explicit
-// KernelDIT match the algorithm those wrappers implement; any other forced
+// fftypes.KernelDIT match the algorithm those wrappers implement; any other forced
 // strategy must fall through to the strategy-dispatching auto kernel,
 // otherwise the tier silently overrides the caller's algorithm choice (and
 // breaks the zero-allocation guarantee of the pure-Go strategies — the SSE
 // wrappers recompute bit-reversal tables per call).
-func simdTierServesStrategy(strategy KernelStrategy) bool {
-	return strategy == KernelAuto || strategy == KernelDIT
+func simdTierServesStrategy(strategy fftypes.KernelStrategy) bool {
+	return strategy == fftypes.KernelAuto || strategy == fftypes.KernelDIT
 }
 
-func fallbackKernel[T Complex](primary, fallback Kernel[T]) Kernel[T] {
+func fallbackKernel[T Complex](primary, fallback kernels.Kernel[T]) kernels.Kernel[T] {
 	if primary == nil {
 		return fallback
 	}
@@ -32,8 +33,8 @@ func fallbackKernel[T Complex](primary, fallback Kernel[T]) Kernel[T] {
 	}
 }
 
-func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
-	return Kernels[complex64]{
+func autoKernelComplex64(strategy fftypes.KernelStrategy) kernels.Kernels[complex64] {
+	return kernels.Kernels[complex64]{
 		Forward: func(dst, src, twiddle, scratch []complex64) bool {
 			if !m.IsPowerOf2(len(src)) {
 				if m.IsMixedRadixSmooth(len(src)) {
@@ -44,18 +45,18 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 			}
 
 			switch planner.ResolveKernelStrategyWithDefault(len(src), strategy) {
-			case KernelDIT:
-				return forwardDITComplex64(dst, src, twiddle, scratch)
-			case KernelStockham:
-				return forwardStockhamComplex64(dst, src, twiddle, scratch)
-			case KernelSixStep:
+			case fftypes.KernelDIT:
+				return kernels.ForwardDITComplex64(dst, src, twiddle, scratch)
+			case fftypes.KernelStockham:
+				return kernels.ForwardStockhamComplex64(dst, src, twiddle, scratch)
+			case fftypes.KernelSixStep:
 				return kernels.ForwardSixStepComplex64(dst, src, twiddle, scratch)
-			case KernelEightStep:
+			case fftypes.KernelEightStep:
 				return kernels.ForwardEightStepComplex64(dst, src, twiddle, scratch)
-			case KernelSplitRadix:
+			case fftypes.KernelSplitRadix:
 				return kernels.ForwardSplitRadixComplex64(dst, src, twiddle, scratch)
 			default:
-				return forwardStockhamComplex64(dst, src, twiddle, scratch)
+				return kernels.ForwardStockhamComplex64(dst, src, twiddle, scratch)
 			}
 		},
 		Inverse: func(dst, src, twiddle, scratch []complex64) bool {
@@ -68,25 +69,25 @@ func autoKernelComplex64(strategy KernelStrategy) Kernels[complex64] {
 			}
 
 			switch planner.ResolveKernelStrategyWithDefault(len(src), strategy) {
-			case KernelDIT:
-				return inverseDITComplex64(dst, src, twiddle, scratch)
-			case KernelStockham:
-				return inverseStockhamComplex64(dst, src, twiddle, scratch)
-			case KernelSixStep:
+			case fftypes.KernelDIT:
+				return kernels.InverseDITComplex64(dst, src, twiddle, scratch)
+			case fftypes.KernelStockham:
+				return kernels.InverseStockhamComplex64(dst, src, twiddle, scratch)
+			case fftypes.KernelSixStep:
 				return kernels.InverseSixStepComplex64(dst, src, twiddle, scratch)
-			case KernelEightStep:
+			case fftypes.KernelEightStep:
 				return kernels.InverseEightStepComplex64(dst, src, twiddle, scratch)
-			case KernelSplitRadix:
+			case fftypes.KernelSplitRadix:
 				return kernels.InverseSplitRadixComplex64(dst, src, twiddle, scratch)
 			default:
-				return inverseStockhamComplex64(dst, src, twiddle, scratch)
+				return kernels.InverseStockhamComplex64(dst, src, twiddle, scratch)
 			}
 		},
 	}
 }
 
-func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
-	return Kernels[complex128]{
+func autoKernelComplex128(strategy fftypes.KernelStrategy) kernels.Kernels[complex128] {
+	return kernels.Kernels[complex128]{
 		Forward: func(dst, src, twiddle, scratch []complex128) bool {
 			if !m.IsPowerOf2(len(src)) {
 				if m.IsMixedRadixSmooth(len(src)) {
@@ -97,18 +98,18 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 			}
 
 			switch planner.ResolveKernelStrategyWithDefault(len(src), strategy) {
-			case KernelDIT:
-				return forwardDITComplex128(dst, src, twiddle, scratch)
-			case KernelStockham:
-				return forwardStockhamComplex128(dst, src, twiddle, scratch)
-			case KernelSixStep:
+			case fftypes.KernelDIT:
+				return kernels.ForwardDITComplex128(dst, src, twiddle, scratch)
+			case fftypes.KernelStockham:
+				return kernels.ForwardStockhamComplex128(dst, src, twiddle, scratch)
+			case fftypes.KernelSixStep:
 				return kernels.ForwardSixStepComplex128(dst, src, twiddle, scratch)
-			case KernelEightStep:
+			case fftypes.KernelEightStep:
 				return kernels.ForwardEightStepComplex128(dst, src, twiddle, scratch)
-			case KernelSplitRadix:
+			case fftypes.KernelSplitRadix:
 				return kernels.ForwardSplitRadixComplex128(dst, src, twiddle, scratch)
 			default:
-				return forwardStockhamComplex128(dst, src, twiddle, scratch)
+				return kernels.ForwardStockhamComplex128(dst, src, twiddle, scratch)
 			}
 		},
 		Inverse: func(dst, src, twiddle, scratch []complex128) bool {
@@ -121,18 +122,18 @@ func autoKernelComplex128(strategy KernelStrategy) Kernels[complex128] {
 			}
 
 			switch planner.ResolveKernelStrategyWithDefault(len(src), strategy) {
-			case KernelDIT:
-				return inverseDITComplex128(dst, src, twiddle, scratch)
-			case KernelStockham:
-				return inverseStockhamComplex128(dst, src, twiddle, scratch)
-			case KernelSixStep:
+			case fftypes.KernelDIT:
+				return kernels.InverseDITComplex128(dst, src, twiddle, scratch)
+			case fftypes.KernelStockham:
+				return kernels.InverseStockhamComplex128(dst, src, twiddle, scratch)
+			case fftypes.KernelSixStep:
 				return kernels.InverseSixStepComplex128(dst, src, twiddle, scratch)
-			case KernelEightStep:
+			case fftypes.KernelEightStep:
 				return kernels.InverseEightStepComplex128(dst, src, twiddle, scratch)
-			case KernelSplitRadix:
+			case fftypes.KernelSplitRadix:
 				return kernels.InverseSplitRadixComplex128(dst, src, twiddle, scratch)
 			default:
-				return inverseStockhamComplex128(dst, src, twiddle, scratch)
+				return kernels.InverseStockhamComplex128(dst, src, twiddle, scratch)
 			}
 		},
 	}

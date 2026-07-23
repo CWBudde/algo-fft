@@ -6,7 +6,9 @@ import (
 	"sync"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 	"github.com/cwbudde/algo-fft/internal/kernels"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // mrScratchPool64/128 recycle the per-sub-transform gathered-twiddle and kernel
@@ -70,9 +72,9 @@ func init() {
 // composite-radix predicate and the dispatch hook: an entry qualifies only
 // with AVX2 (or better) and both directions available, so a scheduled
 // composite radix can always be executed.
-func mixedRadixCodelet64(n int) *kernels.CodeletEntry[complex64] {
-	entry := kernels.Registry64.Lookup(n, cpu.DetectFeatures())
-	if entry == nil || entry.SIMDLevel < kernels.SIMDAVX2 || entry.Forward == nil || entry.Inverse == nil {
+func mixedRadixCodelet64(n int) *registry.CodeletEntry[complex64] {
+	entry := registry.Registry64.Lookup(n, cpu.DetectFeatures())
+	if entry == nil || entry.SIMDLevel < fftypes.SIMDAVX2 || entry.Forward == nil || entry.Inverse == nil {
 		return nil
 	}
 
@@ -80,9 +82,9 @@ func mixedRadixCodelet64(n int) *kernels.CodeletEntry[complex64] {
 }
 
 // mixedRadixCodelet128 is the complex128 counterpart of mixedRadixCodelet64.
-func mixedRadixCodelet128(n int) *kernels.CodeletEntry[complex128] {
-	entry := kernels.Registry128.Lookup(n, cpu.DetectFeatures())
-	if entry == nil || entry.SIMDLevel < kernels.SIMDAVX2 || entry.Forward == nil || entry.Inverse == nil {
+func mixedRadixCodelet128(n int) *registry.CodeletEntry[complex128] {
+	entry := registry.Registry128.Lookup(n, cpu.DetectFeatures())
+	if entry == nil || entry.SIMDLevel < fftypes.SIMDAVX2 || entry.Forward == nil || entry.Inverse == nil {
 		return nil
 	}
 
@@ -116,13 +118,13 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 				twiddleBuf[i] = twiddle[i*step]
 			}
 
-			// 3. Prepare Scratch for Kernel (pooled)
+			// 3. Prepare Scratch for kernels.Kernel (pooled)
 			scrPtr := getMRScratch64(n)
 			defer mrScratchPool64.Put(scrPtr)
 
 			kernelScratch := *scrPtr
 
-			// 4. Call Kernel
+			// 4. Call kernels.Kernel
 			codeletTwiddle := twiddleBuf
 			if prepared := kernels.GetPreparedTwiddle64(entry, n, inverse); prepared != nil {
 				codeletTwiddle = prepared

@@ -2,7 +2,7 @@ package algofft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	"github.com/cwbudde/algo-fft/internal/fft"
+	"github.com/cwbudde/algo-fft/internal/registry"
 	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
@@ -18,7 +18,7 @@ func (p *Plan[T]) recursiveForward(dst, src, scratch []T) error {
 	var zero T
 	switch any(zero).(type) {
 	case complex64:
-		registry := fft.Registry64
+		registry := registry.Registry64
 		src64 := any(src).([]complex64)
 		dst64 := any(dst).([]complex64)
 		twiddle64 := any(p.twiddle).([]complex64)
@@ -28,7 +28,7 @@ func (p *Plan[T]) recursiveForward(dst, src, scratch []T) error {
 
 		return nil
 	case complex128:
-		registry := fft.Registry128
+		registry := registry.Registry128
 		src128 := any(src).([]complex128)
 		dst128 := any(dst).([]complex128)
 		twiddle128 := any(p.twiddle).([]complex128)
@@ -54,7 +54,7 @@ func (p *Plan[T]) recursiveInverse(dst, src, scratch []T) error {
 	var zero T
 	switch any(zero).(type) {
 	case complex64:
-		registry := fft.Registry64
+		registry := registry.Registry64
 		src64 := any(src).([]complex64)
 		dst64 := any(dst).([]complex64)
 		twiddle64 := any(p.twiddle).([]complex64)
@@ -64,7 +64,7 @@ func (p *Plan[T]) recursiveInverse(dst, src, scratch []T) error {
 
 		return nil
 	case complex128:
-		registry := fft.Registry128
+		registry := registry.Registry128
 		src128 := any(src).([]complex128)
 		dst128 := any(dst).([]complex128)
 		twiddle128 := any(p.twiddle).([]complex128)

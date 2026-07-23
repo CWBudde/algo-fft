@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
-	"github.com/cwbudde/algo-fft/internal/planner"
 	"github.com/cwbudde/algo-fft/internal/reference"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // These sweeps validate every registered codelet against independent ground
@@ -151,11 +151,11 @@ func TestForwardInverseAllCodeletsVsReference64(t *testing.T) {
 
 	checked := 0
 
-	for _, size := range Registry64.Sizes() {
+	for _, size := range registry.Registry64.Sizes() {
 		patterns := referencePatterns64(size)
 
-		for _, entry := range Registry64.GetAllForSize(size) {
-			if entry.Priority < 0 || !cpuSupportsLevel(features, entry.SIMDLevel) {
+		for _, entry := range registry.Registry64.GetAllForSize(size) {
+			if entry.Priority < 0 || !registry.CPUSupports(features, entry.SIMDLevel) {
 				continue
 			}
 
@@ -169,7 +169,7 @@ func TestForwardInverseAllCodeletsVsReference64(t *testing.T) {
 	}
 
 	if checked == 0 {
-		t.Fatal("no runnable codelets found in Registry64 — registry sweep is vacuous")
+		t.Fatal("no runnable codelets found in registry.Registry64 — registry sweep is vacuous")
 	}
 }
 
@@ -181,11 +181,11 @@ func TestForwardInverseAllCodeletsVsReference128(t *testing.T) {
 
 	checked := 0
 
-	for _, size := range Registry128.Sizes() {
+	for _, size := range registry.Registry128.Sizes() {
 		patterns := referencePatterns128(size)
 
-		for _, entry := range Registry128.GetAllForSize(size) {
-			if entry.Priority < 0 || !cpuSupportsLevel(features, entry.SIMDLevel) {
+		for _, entry := range registry.Registry128.GetAllForSize(size) {
+			if entry.Priority < 0 || !registry.CPUSupports(features, entry.SIMDLevel) {
 				continue
 			}
 
@@ -199,11 +199,11 @@ func TestForwardInverseAllCodeletsVsReference128(t *testing.T) {
 	}
 
 	if checked == 0 {
-		t.Fatal("no runnable codelets found in Registry128 — registry sweep is vacuous")
+		t.Fatal("no runnable codelets found in registry.Registry128 — registry sweep is vacuous")
 	}
 }
 
-func testCodeletVsReference64(t *testing.T, entry *planner.CodeletEntry[complex64], patterns []referencePattern[complex64]) {
+func testCodeletVsReference64(t *testing.T, entry *registry.CodeletEntry[complex64], patterns []referencePattern[complex64]) {
 	t.Helper()
 
 	size := entry.Size
@@ -242,7 +242,7 @@ func testCodeletVsReference64(t *testing.T, entry *planner.CodeletEntry[complex6
 	runtime.KeepAlive(inverseBacking)
 }
 
-func testCodeletVsReference128(t *testing.T, entry *planner.CodeletEntry[complex128], patterns []referencePattern[complex128]) {
+func testCodeletVsReference128(t *testing.T, entry *registry.CodeletEntry[complex128], patterns []referencePattern[complex128]) {
 	t.Helper()
 
 	size := entry.Size
@@ -286,10 +286,10 @@ func testCodeletVsReference128(t *testing.T, entry *planner.CodeletEntry[complex
 func TestCodeletRegistrySignaturesUnique(t *testing.T) {
 	t.Parallel()
 
-	for _, size := range Registry64.Sizes() {
+	for _, size := range registry.Registry64.Sizes() {
 		seen := map[string]bool{}
 
-		for _, entry := range Registry64.GetAllForSize(size) {
+		for _, entry := range registry.Registry64.GetAllForSize(size) {
 			if entry.Signature == "" {
 				t.Errorf("complex64 size %d: entry with empty signature", size)
 			}
@@ -302,10 +302,10 @@ func TestCodeletRegistrySignaturesUnique(t *testing.T) {
 		}
 	}
 
-	for _, size := range Registry128.Sizes() {
+	for _, size := range registry.Registry128.Sizes() {
 		seen := map[string]bool{}
 
-		for _, entry := range Registry128.GetAllForSize(size) {
+		for _, entry := range registry.Registry128.GetAllForSize(size) {
 			if entry.Signature == "" {
 				t.Errorf("complex128 size %d: entry with empty signature", size)
 			}

@@ -5,50 +5,55 @@
 
 package kernels
 
+import (
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/registry"
+)
+
 // registerAVX512DITCodelets64 registers the AVX512 complex64 DIT codelets.
 func registerAVX512DITCodelets64() {
-	Registry64.Register(CodeletEntry[complex64]{
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       1024,
 		Forward:    forwardAVX512Radix2Complex64,
 		Inverse:    inverseAVX512Radix2Complex64,
-		Algorithm:  KernelDIT,
-		SIMDLevel:  SIMDAVX512,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDAVX512,
 		Signature:  "dit1024_radix2_avx512",
 		Priority:   10,
-		KernelType: KernelTypeDIT,
+		KernelType: fftypes.KernelTypeDIT,
 	})
 
-	Registry64.Register(CodeletEntry[complex64]{
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       4096,
 		Forward:    forwardAVX512Radix2Complex64,
 		Inverse:    inverseAVX512Radix2Complex64,
-		Algorithm:  KernelDIT,
-		SIMDLevel:  SIMDAVX512,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDAVX512,
 		Signature:  "dit4096_radix2_avx512",
 		Priority:   10,
-		KernelType: KernelTypeDIT,
+		KernelType: fftypes.KernelTypeDIT,
 	})
 
-	Registry64.Register(CodeletEntry[complex64]{
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       8192,
 		Forward:    forwardAVX512Radix2Complex64,
 		Inverse:    inverseAVX512Radix2Complex64,
-		Algorithm:  KernelDIT,
-		SIMDLevel:  SIMDAVX512,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDAVX512,
 		Signature:  "dit8192_radix2_avx512",
 		Priority:   10,
-		KernelType: KernelTypeDIT,
+		KernelType: fftypes.KernelTypeDIT,
 	})
 
-	Registry64.Register(CodeletEntry[complex64]{
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       16384,
 		Forward:    forwardAVX512Radix2Complex64,
 		Inverse:    inverseAVX512Radix2Complex64,
-		Algorithm:  KernelDIT,
-		SIMDLevel:  SIMDAVX512,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDAVX512,
 		Signature:  "dit16384_radix2_avx512",
 		Priority:   10,
-		KernelType: KernelTypeDIT,
+		KernelType: fftypes.KernelTypeDIT,
 	})
 }
 

@@ -36,14 +36,14 @@ func BenchmarkBluesteinPadCandidates(b *testing.B) {
 				filter[i] = complex(1, 0)
 			}
 
-			twiddle := ComputeTwiddleFactors[complex64](m)
+			twiddle := mathpkg.ComputeTwiddleFactors[complex64](m)
 			scratch := make([]complex64, m)
 			work := make([]complex64, m)
 			copy(work, x)
 
 			var bitrev []int
 			if mathpkg.IsPowerOf2(m) {
-				bitrev = ComputeBitReversalIndices(m)
+				bitrev = mathpkg.ComputeBitReversalIndices(m)
 			}
 
 			// Warm the mixed-radix scratch pools so steady-state is measured.

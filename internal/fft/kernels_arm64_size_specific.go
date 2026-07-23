@@ -3,19 +3,21 @@
 package fft
 
 import (
+	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 // neonSizeSpecificOrGenericDITComplex64 returns a kernel that tries size-specific
 // NEON implementations for common sizes (4, 8, 16, 32, 64, 128), falling back to the
 // generic NEON kernel for other sizes or if the size-specific kernel fails.
-func neonSizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[complex64] {
+func neonSizeSpecificOrGenericDITComplex64(strategy fftypes.KernelStrategy) kernels.Kernel[complex64] {
 	return func(dst, src, twiddle, scratch []complex64) bool {
 		n := len(src)
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			// For non-DIT strategies, use generic NEON
 			// (NEON Stockham not yet implemented for ARM64)
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
@@ -93,13 +95,13 @@ func neonSizeSpecificOrGenericDITComplex64(strategy KernelStrategy) Kernel[compl
 
 // neonSizeSpecificOrGenericDITInverseComplex64 returns a kernel that tries size-specific
 // NEON implementations for inverse transforms.
-func neonSizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kernel[complex64] {
+func neonSizeSpecificOrGenericDITInverseComplex64(strategy fftypes.KernelStrategy) kernels.Kernel[complex64] {
 	return func(dst, src, twiddle, scratch []complex64) bool {
 		n := len(src)
 
 		// Determine which algorithm (DIT vs Stockham) based on strategy
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			// For non-DIT strategies, use generic NEON
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch)
 		}
@@ -176,8 +178,8 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy KernelStrategy) Kerne
 
 // neonSizeSpecificOrGenericComplex64 wraps both forward and inverse size-specific kernels
 // for convenience, matching the pattern in selectKernelsComplex64.
-func neonSizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex64] {
-	return Kernels[complex64]{
+func neonSizeSpecificOrGenericComplex64(strategy fftypes.KernelStrategy) kernels.Kernels[complex64] {
+	return kernels.Kernels[complex64]{
 		Forward: neonSizeSpecificOrGenericDITComplex64(strategy),
 		Inverse: neonSizeSpecificOrGenericDITInverseComplex64(strategy),
 	}
@@ -186,12 +188,12 @@ func neonSizeSpecificOrGenericComplex64(strategy KernelStrategy) Kernels[complex
 // neonSizeSpecificOrGenericDITComplex128 returns a kernel that tries size-specific
 // NEON implementations for sizes where we have asm complex128 code, falling back to
 // the generic NEON kernel (which currently delegates to pure Go) otherwise.
-func neonSizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[complex128] {
+func neonSizeSpecificOrGenericDITComplex128(strategy fftypes.KernelStrategy) kernels.Kernel[complex128] {
 	return func(dst, src, twiddle, scratch []complex128) bool {
 		n := len(src)
 
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			return forwardNEONComplex128Asm(dst, src, twiddle, scratch)
 		}
 
@@ -225,12 +227,12 @@ func neonSizeSpecificOrGenericDITComplex128(strategy KernelStrategy) Kernel[comp
 	}
 }
 
-func neonSizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kernel[complex128] {
+func neonSizeSpecificOrGenericDITInverseComplex128(strategy fftypes.KernelStrategy) kernels.Kernel[complex128] {
 	return func(dst, src, twiddle, scratch []complex128) bool {
 		n := len(src)
 
 		resolved := planner.ResolveKernelStrategyWithDefault(n, strategy)
-		if resolved != KernelDIT {
+		if resolved != fftypes.KernelDIT {
 			return inverseNEONComplex128Asm(dst, src, twiddle, scratch)
 		}
 
@@ -264,8 +266,8 @@ func neonSizeSpecificOrGenericDITInverseComplex128(strategy KernelStrategy) Kern
 	}
 }
 
-func neonSizeSpecificOrGenericComplex128(strategy KernelStrategy) Kernels[complex128] {
-	return Kernels[complex128]{
+func neonSizeSpecificOrGenericComplex128(strategy fftypes.KernelStrategy) kernels.Kernels[complex128] {
+	return kernels.Kernels[complex128]{
 		Forward: neonSizeSpecificOrGenericDITComplex128(strategy),
 		Inverse: neonSizeSpecificOrGenericDITInverseComplex128(strategy),
 	}
