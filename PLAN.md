@@ -347,11 +347,38 @@ in element type — a deliberate performance choice (generics deoptimize
 complex arithmetic), but double the maintenance surface of the largest
 package (38k lines).
 
-- [ ] Extend `cmd/gencodelets` (or add a sibling template step) to emit the
+- [x] Extend `cmd/gencodelets` (or add a sibling template step) to emit the
       `Complex128` kernel bodies from the `Complex64` sources, with
       generated-file headers. Hand-written code shrinks by roughly half;
       emitted instructions unchanged (verify with the existing
       forward-vs-reference registry sweep and `benchstat` noise runs).
+      _(Done 2026-07 as the sibling command `cmd/genkernels` (source-to-source,
+      unlike the spec-table-driven `gencodelets`): every eligible
+      `*Complex64` function gets its twin emitted into a per-file
+      `<base>_c128.gen.go` (42 files, 108 functions); stale outputs are
+      removed on regeneration and the third `go:generate` directive lives in
+      `codelet_registry.go`. ~9.9k hand-written complex128 lines deleted.
+      A pre-generation audit diffed a candidate transform of every complex64
+      function against its hand-written twin: 92 were identical modulo
+      comments/blank lines, 16 had drifted (the complex64 side had been
+      optimized later — unrolled stages, hoisted twiddles, a dropped `%256`);
+      for those the generated twin replaces the stale copy, which benchstat
+      (interleaved, `-test.cpu 1`, n=8) confirmed as free complex128 wins:
+      1024/radix4 −27%/−18%, 4096/radix4 forward −7%, rest neutral, all
+      complex64 controls neutral. Deliberately still hand-written: the
+      radix-3/5 complex128 entry points (they delegate to the generic
+      implementations), the test helpers, and `dit_16384_radix4`'s complex128
+      pair — its `[16384]complex128` stage arrays (256 KiB) exceed the
+      compiler's 128 KiB explicit-declaration stack limit, so a textual twin
+      heap-allocated ~1.75 MiB/op at ~2× the time (caught by benchstat, then
+      pinned by a new guard). That guard —
+      `codelet_alloc_norace_test.go`, a registry-wide zero-alloc sweep — also
+      caught two pre-existing escapes: the 8192-point radix-4-then-2 and
+      six-step codelets `make` 128 KiB complex128 buffers (over the 64 KiB
+      implicit-alloc limit). Fixed at the complex64 source with explicit
+      backing arrays; complex128 8192 radix4then2 got −38%/−34% and
+      0 B/op from it. `BenchmarkDITComplex64/128` gained 4096/8192/16384
+      cases.)_
 
 ### A6. Quick fixes _(independent, land anytime)_
 

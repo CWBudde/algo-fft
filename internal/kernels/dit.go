@@ -116,88 +116,6 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 	return ditInverseComplex64(dst, src, twiddle, scratch)
 }
 
-func forwardDITComplex128(dst, src, twiddle, scratch []complex128) bool {
-	switch len(src) {
-	case 8:
-		return forwardDIT8Complex128(dst, src, twiddle, scratch)
-	case 16:
-		// Use faster radix-4 implementation (12-15% faster than radix-2)
-		return forwardDIT16Radix4Complex128(dst, src, twiddle, scratch)
-	case 32:
-		return forwardDIT32Radix2Complex128(dst, src, twiddle, scratch)
-	case 64:
-		return forwardDIT64Radix4Complex128(dst, src, twiddle, scratch)
-	case 128:
-		return forwardDIT128Radix2Complex128(dst, src, twiddle, scratch)
-	case 256:
-		return forwardDIT256Complex128(dst, src, twiddle, scratch)
-	case 512:
-		return forwardDIT512Complex128(dst, src, twiddle, scratch)
-	case 1024:
-		// Try radix-32x32 first
-		if forwardDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch) {
-			return true
-		}
-		// Fallback to optimized radix-4
-		return forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch)
-	case 2048:
-		return forwardDIT2048Radix4Then2Complex128(dst, src, twiddle, scratch)
-	case 4096:
-		if forwardDIT4096SixStepComplex128(dst, src, twiddle, scratch) {
-			return true
-		}
-
-		return forwardDIT4096Radix4Complex128(dst, src, twiddle, scratch)
-	}
-
-	if forwardRadix4Complex128(dst, src, twiddle, scratch) {
-		return true
-	}
-
-	return ditForward[complex128](dst, src, twiddle, scratch)
-}
-
-func inverseDITComplex128(dst, src, twiddle, scratch []complex128) bool {
-	switch len(src) {
-	case 8:
-		return inverseDIT8Complex128(dst, src, twiddle, scratch)
-	case 16:
-		// Use faster radix-4 implementation (12-15% faster than radix-2)
-		return inverseDIT16Radix4Complex128(dst, src, twiddle, scratch)
-	case 32:
-		return inverseDIT32Radix2Complex128(dst, src, twiddle, scratch)
-	case 64:
-		return inverseDIT64Radix4Complex128(dst, src, twiddle, scratch)
-	case 128:
-		return inverseDIT128Radix2Complex128(dst, src, twiddle, scratch)
-	case 256:
-		return inverseDIT256Complex128(dst, src, twiddle, scratch)
-	case 512:
-		return inverseDIT512Complex128(dst, src, twiddle, scratch)
-	case 1024:
-		// Try radix-32x32 first
-		if inverseDIT1024Mixed32x32Complex128(dst, src, twiddle, scratch) {
-			return true
-		}
-		// Fallback to optimized radix-4
-		return inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch)
-	case 2048:
-		return inverseDIT2048Radix4Then2Complex128(dst, src, twiddle, scratch)
-	case 4096:
-		if inverseDIT4096SixStepComplex128(dst, src, twiddle, scratch) {
-			return true
-		}
-
-		return inverseDIT4096Radix4Complex128(dst, src, twiddle, scratch)
-	}
-
-	if inverseRadix4Complex128(dst, src, twiddle, scratch) {
-		return true
-	}
-
-	return ditInverseComplex128(dst, src, twiddle, scratch)
-}
-
 func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	return ditForwardBitrev(dst, src, twiddle, scratch, nil)
 }
@@ -412,72 +330,6 @@ func ditInverseComplex64(dst, src, twiddle, scratch []complex64) bool {
 	return true
 }
 
-func ditInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
-	n := len(src)
-	if n == 0 {
-		return true
-	}
-
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
-		return false
-	}
-
-	if n == 1 {
-		dst[0] = src[0]
-		return true
-	}
-
-	if !mathpkg.IsPowerOf2(n) {
-		return false
-	}
-
-	work := dst
-	workIsDst := true
-
-	if sameSlice(dst, src) {
-		work = scratch
-		workIsDst = false
-	}
-
-	work = work[:n]
-	src = src[:n]
-	twiddle = twiddle[:n]
-
-	bitrev := mathpkg.ComputeBitReversalIndices(n)
-
-	for i := range n {
-		work[i] = src[bitrev[i]]
-	}
-
-	for size := 2; size <= n; size <<= 1 {
-		half := size >> 1
-
-		step := n / size
-		for base := 0; base < n; base += size {
-			block := work[base : base+size]
-
-			for j := range half {
-				tw := twiddle[j*step]
-				tw = complex(real(tw), -imag(tw))
-				a, b := butterfly2(block[j], block[j+half], tw)
-				block[j] = a
-				block[j+half] = b
-			}
-		}
-	}
-
-	if !workIsDst {
-		copy(dst, work)
-	}
-
-	scale := complex(1.0/float64(n), 0)
-	for i := range dst {
-		dst[i] *= scale
-	}
-
-	return true
-}
-
 func butterfly2[T Complex](a, b, w T) (T, T) {
 	t := w * b
 	return a + t, a - t
@@ -514,28 +366,12 @@ func inverseDIT8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return inverseDIT8Radix8Complex64(dst, src, twiddle, scratch)
 }
 
-func forwardDIT8Complex128(dst, src, twiddle, scratch []complex128) bool {
-	return forwardDIT8Radix8Complex128(dst, src, twiddle, scratch)
-}
-
-func inverseDIT8Complex128(dst, src, twiddle, scratch []complex128) bool {
-	return inverseDIT8Radix8Complex128(dst, src, twiddle, scratch)
-}
-
 func forwardDIT16Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return forwardDIT16Radix4Complex64(dst, src, twiddle, scratch)
 }
 
 func inverseDIT16Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return inverseDIT16Radix4Complex64(dst, src, twiddle, scratch)
-}
-
-func forwardDIT16Complex128(dst, src, twiddle, scratch []complex128) bool {
-	return forwardDIT16Radix4Complex128(dst, src, twiddle, scratch)
-}
-
-func inverseDIT16Complex128(dst, src, twiddle, scratch []complex128) bool {
-	return inverseDIT16Radix4Complex128(dst, src, twiddle, scratch)
 }
 
 // Size-specific DIT exports for benchmarks and tests.

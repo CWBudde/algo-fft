@@ -42,44 +42,8 @@ func Butterfly7InverseComplex64(a *[7]complex64) {
 	butterfly7Complex64(a, &radix7Inv64)
 }
 
-// Butterfly7ForwardComplex128 applies the forward radix-7 DFT butterfly to a
-// in place. Inputs must already carry their stage twiddle factors.
-func Butterfly7ForwardComplex128(a *[7]complex128) {
-	butterfly7Complex128(a, &radix7Fwd128)
-}
-
-// Butterfly7InverseComplex128 applies the inverse (conjugate) radix-7 DFT
-// butterfly to a in place. No 1/7 scaling is applied.
-func Butterfly7InverseComplex128(a *[7]complex128) {
-	butterfly7Complex128(a, &radix7Inv128)
-}
-
 func butterfly7Complex64(a *[7]complex64, table *[49]complex64) {
 	var y [7]complex64
-
-	sum := a[0]
-	for k := 1; k < 7; k++ {
-		sum += a[k]
-	}
-
-	y[0] = sum
-
-	for j := 1; j < 7; j++ {
-		acc := a[0]
-		row := table[j*7 : j*7+7]
-
-		for k := 1; k < 7; k++ {
-			acc += a[k] * row[k]
-		}
-
-		y[j] = acc
-	}
-
-	*a = y
-}
-
-func butterfly7Complex128(a *[7]complex128, table *[49]complex128) {
-	var y [7]complex128
 
 	sum := a[0]
 	for k := 1; k < 7; k++ {

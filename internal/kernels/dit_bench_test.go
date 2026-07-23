@@ -43,6 +43,9 @@ func BenchmarkDITComplex64(b *testing.B) {
 		{"Size512/Radix16x32", 512, forwardDIT512Mixed16x32Complex64, inverseDIT512Mixed16x32Complex64},
 		{"Size1024/Radix4", 1024, forwardDIT1024Radix4Complex64, inverseDIT1024Radix4Complex64},
 		{"Size1024/Radix32x32", 1024, forwardDIT1024Mixed32x32Complex64, inverseDIT1024Mixed32x32Complex64},
+		{"Size4096/Radix4", 4096, forwardDIT4096Radix4Complex64, inverseDIT4096Radix4Complex64},
+		{"Size8192/Radix4Then2", 8192, forwardDIT8192Radix4Then2Complex64, inverseDIT8192Radix4Then2Complex64},
+		{"Size16384/Radix4", 16384, forwardDIT16384Radix4Complex64, inverseDIT16384Radix4Complex64},
 	}
 
 	for _, testCase := range cases {
@@ -78,6 +81,9 @@ func BenchmarkDITComplex128(b *testing.B) {
 		{"Size512/Radix16x32", 512, forwardDIT512Mixed16x32Complex128, inverseDIT512Mixed16x32Complex128},
 		{"Size1024/Radix4", 1024, forwardDIT1024Radix4Complex128, inverseDIT1024Radix4Complex128},
 		{"Size1024/Radix32x32", 1024, forwardDIT1024Mixed32x32Complex128, inverseDIT1024Mixed32x32Complex128},
+		{"Size4096/Radix4", 4096, forwardDIT4096Radix4Complex128, inverseDIT4096Radix4Complex128},
+		{"Size8192/Radix4Then2", 8192, forwardDIT8192Radix4Then2Complex128, inverseDIT8192Radix4Then2Complex128},
+		{"Size16384/Radix4", 16384, forwardDIT16384Radix4Complex128, inverseDIT16384Radix4Complex128},
 	}
 
 	for _, testCase := range cases {

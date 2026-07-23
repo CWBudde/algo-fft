@@ -2,6 +2,7 @@ package kernels
 
 //go:generate go run ../../cmd/gencodelets .
 //go:generate go run ../../cmd/gencodelets -inventory ../../docs/IMPLEMENTATION_INVENTORY.md
+//go:generate go run ../../cmd/genkernels .
 
 // This file registers all built-in codelets with the global registries in
 // internal/registry. Registration happens at init time so codelets are

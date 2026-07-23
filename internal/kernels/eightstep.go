@@ -14,16 +14,6 @@ func InverseEightStepComplex64(dst, src, twiddle, scratch []complex64) bool {
 	return eightStepInverse[complex64](dst, src, twiddle, scratch)
 }
 
-// ForwardEightStepComplex128 performs a forward eight-step FFT on complex128 data.
-func ForwardEightStepComplex128(dst, src, twiddle, scratch []complex128) bool {
-	return eightStepForward[complex128](dst, src, twiddle, scratch)
-}
-
-// InverseEightStepComplex128 performs an inverse eight-step FFT on complex128 data.
-func InverseEightStepComplex128(dst, src, twiddle, scratch []complex128) bool {
-	return eightStepInverse[complex128](dst, src, twiddle, scratch)
-}
-
 func eightStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	n := len(src)
 	if n == 0 {

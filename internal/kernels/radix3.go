@@ -158,30 +158,6 @@ func butterfly3InverseComplex64(a0, a1, a2 complex64) (complex64, complex64, com
 	return y0, y1, y2
 }
 
-func butterfly3ForwardComplex128(a0, a1, a2 complex128) (complex128, complex128, complex128) {
-	t1 := a1 + a2
-	t2 := a1 - a2
-
-	y0 := a0 + t1
-	base := a0 + radix3Half128*t1
-	y1 := base + radix3CoefFwd128*t2
-	y2 := base - radix3CoefFwd128*t2
-
-	return y0, y1, y2
-}
-
-func butterfly3InverseComplex128(a0, a1, a2 complex128) (complex128, complex128, complex128) {
-	t1 := a1 + a2
-	t2 := a1 - a2
-
-	y0 := a0 + t1
-	base := a0 + radix3Half128*t1
-	y1 := base + radix3CoefInv128*t2
-	y2 := base - radix3CoefInv128*t2
-
-	return y0, y1, y2
-}
-
 func butterfly3Forward[T Complex](a0, a1, a2 T) (T, T, T) {
 	switch a0v := any(a0).(type) {
 	case complex64:
@@ -248,14 +224,6 @@ func Butterfly3ForwardComplex64(a0, a1, a2 complex64) (complex64, complex64, com
 
 func Butterfly3InverseComplex64(a0, a1, a2 complex64) (complex64, complex64, complex64) {
 	return butterfly3InverseComplex64(a0, a1, a2)
-}
-
-func Butterfly3ForwardComplex128(a0, a1, a2 complex128) (complex128, complex128, complex128) {
-	return butterfly3ForwardComplex128(a0, a1, a2)
-}
-
-func Butterfly3InverseComplex128(a0, a1, a2 complex128) (complex128, complex128, complex128) {
-	return butterfly3InverseComplex128(a0, a1, a2)
 }
 
 func reverseBase3(x, digits int) int {

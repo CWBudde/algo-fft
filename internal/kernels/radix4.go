@@ -8,14 +8,6 @@ func inverseRadix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	return radix4Inverse[complex64](dst, src, twiddle, scratch)
 }
 
-func forwardRadix4Complex128(dst, src, twiddle, scratch []complex128) bool {
-	return radix4Forward[complex128](dst, src, twiddle, scratch)
-}
-
-func inverseRadix4Complex128(dst, src, twiddle, scratch []complex128) bool {
-	return radix4Inverse[complex128](dst, src, twiddle, scratch)
-}
-
 func radix4Forward[T Complex](dst, src, twiddle, scratch []T) bool {
 	return radix4Transform(dst, src, twiddle, scratch, false)
 }
@@ -151,44 +143,6 @@ func butterfly4InverseComplex64(a0, a1, a2, a3 complex64) (complex64, complex64,
 	return y0, y1, y2, y3
 }
 
-func butterfly4ForwardComplex128(a0, a1, a2, a3 complex128) (complex128, complex128, complex128, complex128) {
-	t0 := a0 + a2
-	t1 := a0 - a2
-	t2 := a1 + a3
-	t3 := a1 - a3
-
-	// Multiply by -i: -i*z = -i*(x+iy) = y - ix
-	t3NegI := complex(imag(t3), -real(t3))
-	// Multiply by i: i*z = i*(x+iy) = -y + ix
-	t3I := complex(-imag(t3), real(t3))
-
-	y0 := t0 + t2
-	y2 := t0 - t2
-	y1 := t1 + t3NegI
-	y3 := t1 + t3I
-
-	return y0, y1, y2, y3
-}
-
-func butterfly4InverseComplex128(a0, a1, a2, a3 complex128) (complex128, complex128, complex128, complex128) {
-	t0 := a0 + a2
-	t1 := a0 - a2
-	t2 := a1 + a3
-	t3 := a1 - a3
-
-	// Multiply by i: i*z = i*(x+iy) = -y + ix
-	t3I := complex(-imag(t3), real(t3))
-	// Multiply by -i: -i*z = -i*(x+iy) = y - ix
-	t3NegI := complex(imag(t3), -real(t3))
-
-	y0 := t0 + t2
-	y2 := t0 - t2
-	y1 := t1 + t3I
-	y3 := t1 + t3NegI
-
-	return y0, y1, y2, y3
-}
-
 // Generic wrapper that dispatches to type-specific implementations.
 func butterfly4Forward[T Complex](a0, a1, a2, a3 T) (T, T, T, T) {
 	switch a0v := any(a0).(type) {
@@ -264,14 +218,6 @@ func Butterfly4ForwardComplex64(a0, a1, a2, a3 complex64) (complex64, complex64,
 
 func Butterfly4InverseComplex64(a0, a1, a2, a3 complex64) (complex64, complex64, complex64, complex64) {
 	return butterfly4InverseComplex64(a0, a1, a2, a3)
-}
-
-func Butterfly4ForwardComplex128(a0, a1, a2, a3 complex128) (complex128, complex128, complex128, complex128) {
-	return butterfly4ForwardComplex128(a0, a1, a2, a3)
-}
-
-func Butterfly4InverseComplex128(a0, a1, a2, a3 complex128) (complex128, complex128, complex128, complex128) {
-	return butterfly4InverseComplex128(a0, a1, a2, a3)
 }
 
 func reverseBase4(x, digits int) int {

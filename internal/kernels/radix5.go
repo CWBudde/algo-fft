@@ -167,36 +167,6 @@ func butterfly5InverseComplex64(a0, a1, a2, a3, a4 complex64) (complex64, comple
 	return y0, y1, y2, y3, y4
 }
 
-func butterfly5ForwardComplex128(a0, a1, a2, a3, a4 complex128) (complex128, complex128, complex128, complex128, complex128) {
-	w1 := radix5Twiddles128[0]
-	w2 := radix5Twiddles128[1]
-	w3 := radix5Twiddles128[2]
-	w4 := radix5Twiddles128[3]
-
-	y0 := a0 + a1 + a2 + a3 + a4
-	y1 := a0 + a1*w1 + a2*w2 + a3*w3 + a4*w4
-	y2 := a0 + a1*w2 + a2*w4 + a3*w1 + a4*w3
-	y3 := a0 + a1*w3 + a2*w1 + a3*w4 + a4*w2
-	y4 := a0 + a1*w4 + a2*w3 + a3*w2 + a4*w1
-
-	return y0, y1, y2, y3, y4
-}
-
-func butterfly5InverseComplex128(a0, a1, a2, a3, a4 complex128) (complex128, complex128, complex128, complex128, complex128) {
-	w1 := conj(radix5Twiddles128[0])
-	w2 := conj(radix5Twiddles128[1])
-	w3 := conj(radix5Twiddles128[2])
-	w4 := conj(radix5Twiddles128[3])
-
-	y0 := a0 + a1 + a2 + a3 + a4
-	y1 := a0 + a1*w1 + a2*w2 + a3*w3 + a4*w4
-	y2 := a0 + a1*w2 + a2*w4 + a3*w1 + a4*w3
-	y3 := a0 + a1*w3 + a2*w1 + a3*w4 + a4*w2
-	y4 := a0 + a1*w4 + a2*w3 + a3*w2 + a4*w1
-
-	return y0, y1, y2, y3, y4
-}
-
 // Generic wrapper that dispatches to type-specific implementations.
 func butterfly5Forward[T Complex](a0, a1, a2, a3, a4 T) (T, T, T, T, T) {
 	switch a0v := any(a0).(type) {
@@ -280,14 +250,6 @@ func Butterfly5ForwardComplex64(a0, a1, a2, a3, a4 complex64) (complex64, comple
 
 func Butterfly5InverseComplex64(a0, a1, a2, a3, a4 complex64) (complex64, complex64, complex64, complex64, complex64) {
 	return butterfly5InverseComplex64(a0, a1, a2, a3, a4)
-}
-
-func Butterfly5ForwardComplex128(a0, a1, a2, a3, a4 complex128) (complex128, complex128, complex128, complex128, complex128) {
-	return butterfly5ForwardComplex128(a0, a1, a2, a3, a4)
-}
-
-func Butterfly5InverseComplex128(a0, a1, a2, a3, a4 complex128) (complex128, complex128, complex128, complex128, complex128) {
-	return butterfly5InverseComplex128(a0, a1, a2, a3, a4)
 }
 
 func reverseBase5(x, digits int) int {

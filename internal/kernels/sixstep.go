@@ -16,16 +16,6 @@ func InverseSixStepComplex64(dst, src, twiddle, scratch []complex64) bool {
 	return sixStepInverse[complex64](dst, src, twiddle, scratch)
 }
 
-// ForwardSixStepComplex128 performs a forward six-step FFT on complex128 data.
-func ForwardSixStepComplex128(dst, src, twiddle, scratch []complex128) bool {
-	return sixStepForward[complex128](dst, src, twiddle, scratch)
-}
-
-// InverseSixStepComplex128 performs an inverse six-step FFT on complex128 data.
-func InverseSixStepComplex128(dst, src, twiddle, scratch []complex128) bool {
-	return sixStepInverse[complex128](dst, src, twiddle, scratch)
-}
-
 func sixStepForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	n := len(src)
 	if n == 0 {

@@ -31,7 +31,11 @@ func forwardDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	if len(scratch) >= 2*n {
 		work2 = scratch[n : 2*n]
 	} else {
-		work2 = make([]complex64, n) // fallback when scratch is undersized
+		// Fallback when scratch is undersized: an explicit array stays
+		// stack-allocated in both precisions (make would heap-allocate the
+		// complex128 twin: 128 KiB exceeds the 64 KiB implicit-alloc limit).
+		var work2Backing [n]complex64
+		work2 = work2Backing[:]
 	}
 
 	// Step 1: Transpose 64×128 (src) → 128×64 (work)
@@ -117,7 +121,8 @@ func inverseDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 	if len(scratch) >= 2*n {
 		work2 = scratch[n : 2*n]
 	} else {
-		work2 = make([]complex64, n)
+		var work2Backing [n]complex64
+		work2 = work2Backing[:]
 	}
 
 	// Step 1: Transpose 64×128 (src) → 128×64 (work)
@@ -177,165 +182,6 @@ func inverseDIT8192SixStep64x128Complex64(dst, src, twiddle, scratch []complex64
 
 	// The row IFFTs already applied 1/64 and 1/128 scaling
 	// Total scaling: 1/64 * 1/128 = 1/8192 ✓
-
-	return true
-}
-
-// forwardDIT8192SixStep64x128Complex128 computes an 8192-point forward FFT using
-// a 64×128 matrix decomposition for complex128 data.
-func forwardDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex128) bool {
-	const (
-		n    = 8192
-		rows = 64
-		cols = 128
-	)
-
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
-		return false
-	}
-
-	work := scratch[:n]
-
-	var work2 []complex128
-	if len(scratch) >= 2*n {
-		work2 = scratch[n : 2*n]
-	} else {
-		work2 = make([]complex128, n)
-	}
-
-	// Step 1: Transpose 64×128 → 128×64
-	for i := range rows {
-		for j := range cols {
-			work[j*rows+i] = src[i*cols+j]
-		}
-	}
-
-	// Precompute row twiddles for size-64 FFT
-	var rowTwiddle64 [64]complex128
-	for k := range 64 {
-		rowTwiddle64[k] = twiddle[k*cols]
-	}
-
-	var rowScratch64 [64]complex128
-
-	// Step 2: 128 parallel FFT-64
-	for r := range cols {
-		row := work[r*rows : (r+1)*rows]
-		if !forwardDIT64Radix4Complex128(row, row, rowTwiddle64[:], rowScratch64[:]) {
-			return false
-		}
-	}
-
-	// Step 3: Transpose + twiddle
-	for i := range rows {
-		for j := range cols {
-			tw := twiddle[(i*j)%n]
-			work2[i*cols+j] = work[j*rows+i] * tw
-		}
-	}
-
-	// Precompute row twiddles for size-128 FFT
-	var rowTwiddle128 [128]complex128
-	for k := range 128 {
-		rowTwiddle128[k] = twiddle[k*rows]
-	}
-
-	var rowScratch128 [128]complex128
-
-	// Step 4: 64 parallel FFT-128
-	for r := range rows {
-		row := work2[r*cols : (r+1)*cols]
-		if !forwardDIT128Radix2Complex128(row, row, rowTwiddle128[:], rowScratch128[:]) {
-			return false
-		}
-	}
-
-	// Step 5: Final transpose
-	for i := range rows {
-		for j := range cols {
-			dst[j*rows+i] = work2[i*cols+j]
-		}
-	}
-
-	return true
-}
-
-// inverseDIT8192SixStep64x128Complex128 computes an 8192-point inverse FFT using
-// a 64×128 matrix decomposition for complex128 data.
-func inverseDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex128) bool {
-	const (
-		n    = 8192
-		rows = 64
-		cols = 128
-	)
-
-	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
-		return false
-	}
-
-	work := scratch[:n]
-
-	var work2 []complex128
-	if len(scratch) >= 2*n {
-		work2 = scratch[n : 2*n]
-	} else {
-		work2 = make([]complex128, n)
-	}
-
-	// Step 1: Transpose 64×128 → 128×64
-	for i := range rows {
-		for j := range cols {
-			work[j*rows+i] = src[i*cols+j]
-		}
-	}
-
-	// Precompute row twiddles for size-64 IFFT
-	var rowTwiddle64 [64]complex128
-	for k := range 64 {
-		rowTwiddle64[k] = twiddle[k*cols]
-	}
-
-	var rowScratch64 [64]complex128
-
-	// Step 2: 128 parallel IFFT-64
-	for r := range cols {
-		row := work[r*rows : (r+1)*rows]
-		if !inverseDIT64Radix4Complex128(row, row, rowTwiddle64[:], rowScratch64[:]) {
-			return false
-		}
-	}
-
-	// Step 3: Transpose + conjugate twiddle
-	for i := range rows {
-		for j := range cols {
-			tw := twiddle[(i*j)%n]
-			twConj := complex(real(tw), -imag(tw))
-			work2[i*cols+j] = work[j*rows+i] * twConj
-		}
-	}
-
-	// Precompute row twiddles for size-128 IFFT
-	var rowTwiddle128 [128]complex128
-	for k := range 128 {
-		rowTwiddle128[k] = twiddle[k*rows]
-	}
-
-	var rowScratch128 [128]complex128
-
-	// Step 4: 64 parallel IFFT-128
-	for r := range rows {
-		row := work2[r*cols : (r+1)*cols]
-		if !inverseDIT128Radix2Complex128(row, row, rowTwiddle128[:], rowScratch128[:]) {
-			return false
-		}
-	}
-
-	// Step 5: Final transpose
-	for i := range rows {
-		for j := range cols {
-			dst[j*rows+i] = work2[i*cols+j]
-		}
-	}
 
 	return true
 }
