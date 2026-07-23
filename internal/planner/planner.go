@@ -132,10 +132,15 @@ func resolveWisdom[T Complex](
 		return nil, KernelAuto, false
 	}
 
-	// Wisdom provides algorithm name, try to bind specific codelet by signature
+	// Wisdom provides algorithm name, try to bind specific codelet by signature.
+	// Wisdom entries can originate from machines with different CPU features
+	// (e.g. imported wisdom, or FMA masked off under a VM while the feature
+	// mask still matches on AVX2), so re-check cpuSupports before binding —
+	// LookupBySignature itself does not filter by CPU features.
 	registry := GetRegistry[T]()
 	if registry != nil {
-		if codelet := registry.LookupBySignature(n, algorithm); codelet != nil {
+		codelet := registry.LookupBySignature(n, algorithm)
+		if codelet != nil && cpuSupports(features, codelet.SIMDLevel) {
 			if forcedStrategy != KernelAuto && codelet.Algorithm != forcedStrategy {
 				return nil, KernelAuto, false
 			}

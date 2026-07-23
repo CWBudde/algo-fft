@@ -242,7 +242,13 @@ func cpuSupports(features cpu.Features, level SIMDLevel) bool {
 	case SIMDSSE3:
 		return features.HasSSE3
 	case SIMDAVX2:
-		return features.HasAVX2
+		// The AVX2 codelet tier is uniformly FMA-dependent (its complex
+		// multiplies compile to VFMADDSUB/VFMADD), so require HasFMA too.
+		// FMA is a separate CPUID bit from AVX2: every real AVX2 CPU ships
+		// FMA3, but emulators/VMs can mask it, and executing an FMA opcode
+		// there faults. When FMA is absent we correctly fall back to the
+		// SSE/generic tiers instead.
+		return features.HasAVX2 && features.HasFMA
 	case SIMDAVX512:
 		return features.HasAVX512
 	case SIMDNEON:
