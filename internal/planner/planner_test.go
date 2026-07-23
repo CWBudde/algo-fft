@@ -201,6 +201,66 @@ func TestEstimatePlanWisdomOverriddenByForce(t *testing.T) {
 	}
 }
 
+// TestResolveWisdomRejectsUnsupportedCodelet verifies that wisdom cannot bind
+// a codelet whose SIMD level the CPU does not support (e.g. an AVX2 codelet on
+// a CPU with FMA masked off — the wisdom feature mask alone does not
+// distinguish this case).
+func TestResolveWisdomRejectsUnsupportedCodelet(t *testing.T) {
+	t.Parallel()
+
+	// Unique size and signature so the global registry entry cannot interfere
+	// with other tests.
+	const (
+		size = 1 << 19
+		sig  = "wisdomtest_avx2"
+	)
+
+	GetRegistry[complex64]().Register(CodeletEntry[complex64]{
+		Size:      size,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: KernelDIT,
+		SIMDLevel: SIMDAVX2,
+		Signature: sig,
+		Priority:  1,
+	})
+
+	wisdom := NewWisdom()
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
+			Size:        size,
+			Precision:   0,
+			CPUFeatures: CPUFeatureMask(true, false, true, false, false),
+		},
+		Algorithm: sig,
+	})
+
+	// AVX2 present but FMA masked off: the AVX2 codelet must not be bound.
+	noFMA := cpu.Features{
+		Architecture: "amd64",
+		HasSSE2:      true,
+		HasAVX2:      true,
+	}
+
+	est, _, found := resolveWisdom[complex64](size, noFMA, wisdom, KernelAuto)
+	if found || est != nil {
+		t.Errorf("resolveWisdom bound CPU-incompatible codelet: est=%v, found=%v", est, found)
+	}
+
+	// Sanity check: with FMA available the same wisdom entry binds the codelet.
+	withFMA := noFMA
+	withFMA.HasFMA = true
+
+	est, _, found = resolveWisdom[complex64](size, withFMA, wisdom, KernelAuto)
+	if !found || est == nil {
+		t.Fatalf("resolveWisdom did not bind supported codelet: est=%v, found=%v", est, found)
+	}
+
+	if est.Algorithm != sig {
+		t.Errorf("resolveWisdom algorithm = %q, want %q", est.Algorithm, sig)
+	}
+}
+
 // TestHasCodelet tests the HasCodelet function.
 func TestHasCodelet(t *testing.T) {
 	t.Parallel()
