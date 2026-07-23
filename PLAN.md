@@ -3,8 +3,9 @@
 This roadmap is the source of truth for status and direction. The v1.0
 engineering work (Priorities 0–3 of the post-review roadmap) is **complete**;
 the detailed item-by-item history is preserved in git (see the history of this
-file). What remains here is a condensed record, the few carried-over open
-items, and the post-v1.0 optimization backlog.
+file). What remains here is a condensed record, the **immediate pre-v1.0
+architecture consolidation (§2)**, the few carried-over open items, and the
+post-v1.0 optimization backlog.
 
 Design philosophy lives in `goal.md`; the component inventory is generated
 into `docs/IMPLEMENTATION_INVENTORY.md` via `go generate ./internal/kernels/...`
@@ -58,8 +59,10 @@ All v1.0 Definition-of-Done items are green except the release tag itself:
 
 ### Open items carried over
 
-- [ ] **Tag `v1.0.0`**, GitHub release notes. _(Owner action — all
-      engineering gates are green; issue/PR templates in place.)_
+- [ ] **Tag `v1.0.0`**, GitHub release notes. _(Now gated on the
+      architecture consolidation below (§2) — the API-shape items in A1/A2
+      are breaking changes and must land before the tag; issue/PR templates
+      in place.)_
 - [ ] **ARM64 NEON sizes 512+**: blocked on native ARM64 hardware — QEMU
       timings are not representative, so a size-specific 512/1024 kernel
       can't be benchmark-justified from CI today. Sizes 512/1024 are already
@@ -75,7 +78,195 @@ All v1.0 Definition-of-Done items are green except the release tag itself:
 
 ---
 
-## 2. Methodology for every P4 item
+## 2. Immediate — Architecture Consolidation (pre-v1.0)
+
+Outcome of the 2026-07 architecture review. The library has little external
+usage yet, so **breaking changes land directly — no deprecation shims, no
+transition aliases**. Deprecated symbols are deleted, not kept. This section
+gates the `v1.0.0` tag: the API is the one thing that cannot be fixed after
+tagging.
+
+Ordering below is execution order: A0 first (correctness risk), then the
+structural items; A6 quick fixes can land anytime.
+
+### A0. Fix the lossy codelet fallback contract _(correctness risk)_
+
+The `Kernel[T]` contract returns `bool` ("handled?") and `internal/fft`
+honors it with `if !kernel(...)` fallbacks — but `fftypes.CodeletFunc` has no
+bool, and `wrapCodelet64/128` (`internal/kernels/codelet_registry.go:80-91`)
+discards the return value. `internal/transform/recursive.go:57` then calls
+`codelet.Forward(...)` with no way to detect failure: a codelet that bails
+(e.g. undersized slice) silently no-ops instead of falling back.
+
+- [ ] Unify on **one** kernel contract: give `CodeletFunc` the same
+      `bool` return (preferred), or make registration statically guarantee
+      the codelet cannot fail for its registered size — then delete the
+      lossy adapter. Add a regression test that a failing codelet on the
+      recursive path falls back (or errors) instead of producing silent
+      wrong output.
+
+### A1. Public API rationalization _(breaking, before tag)_
+
+Today three precision idioms coexist (`NewPlanT[T]`, `NewPlan32/64`, bare
+`NewPlan`), generic-vs-concrete is inconsistent (`FastPlanReal32/64` and
+`PlanReal2D/3D` are hand-written concrete while everything else is generic —
+and double-precision real 2D/3D therefore **doesn't exist**), and lifecycle/
+introspection methods are asymmetric across plan types.
+
+- [ ] **One precision scheme**: generic constructors (`NewPlanT[T]`-style)
+      are canonical; keep `32`/`64` wrappers only as documented one-line
+      sugar. Delete redundant entry points (the `Planner` type overlaps
+      `NewPlan*WithOptions` — keep one).
+- [ ] **Make everything generic**: `FastPlanReal[F, C]` replaces
+      `FastPlanReal32/64`; `PlanReal2D`/`PlanReal3D` become generic over
+      `[F, C]`, which closes the missing float64 real-2D/3D gap for free.
+- [ ] **One common plan interface** implemented by every plan type:
+      `Len`, `Forward`, `Inverse`, `Close`, `Clone` (+ `Reset` where
+      meaningful). Unify singular/plural introspection: `Algorithms()`/
+      `KernelStrategies()` everywhere (1D returns a 1-element slice) or a
+      single `Meta()` — pick one, delete the other.
+- [ ] **One in-place story**: `ForwardInPlace`/`InverseInPlace` only.
+      Delete deprecated `InPlace()` (plan.go:380, plan_fast.go:139) and the
+      inert `PlanOptions.InPlace` flag.
+- [ ] **Split `PlanOptions` to plan-time concerns only** (`Strategy`,
+      `Planner`, `Wisdom`): `Batch`/`Stride` are execution-call concerns
+      already served by `ForwardBatch`/`ForwardStrided` — remove them from
+      options and delete the per-constructor child-option stripping
+      (`plan_2d.go:77`, `plan_3d.go:84`, `plan_nd.go:105`, …).
+- [ ] **Own the public types**: `Complex`, `Float`, `KernelStrategy`,
+      `Wisdom` are currently aliases into `internal/*` — re-declare them in
+      the root package and convert at the boundary (the `WisdomKey`/
+      `WisdomEntry` pattern, applied consistently), so internal refactors
+      stop being public breaking changes.
+- [ ] `ErrNotImplemented` must not be reachable from a live `Forward` path
+      (plan.go:306) — after A4 the constructor either builds a working
+      executor or fails.
+
+### A2. Collapse the multi-dimensional plan copies
+
+`Plan2D` (369 lines) and `Plan3D` (395 lines) fully reimplement what
+`PlanND` already does; `PlanReal2D/3D` copy the same skeleton again —
+~150 lines of identical wrapper logic (`Forward`/`Inverse` batch loops,
+`validate`, `String`, `Clone`, option stripping) exist five times.
+
+- [ ] Make `Plan2D`/`Plan3D` thin typed wrappers over the ND engine.
+      Keep a dimension-specialized inner loop **only** where `benchstat`
+      proves it beats the ND path (methodology §3 applies).
+- [ ] Extract shared wrapper logic (validation, String/typeName, Clone,
+      batch loop) into one internal helper set; delete the five copies.
+      The `switch any(zero).(type)` type-name/dispatch block currently
+      appears in a dozen-plus places (plan.go:166, plan_scratch.go:60,
+      plan_real_generic.go ×7, …) — one `typeName[T]()`/dispatch helper.
+- [ ] Deduplicate the one-shot vs reusable DSP pipelines: `convolveT`
+      (convolve.go:55) and `Convolver.Convolve` (convolver.go:80) implement
+      the identical pad→FFT→multiply→IFFT→copy sequence — one core, two
+      entry points. Same for the shared pad cost model (`bluesteinPadSize`
+      / `fastConvolutionLength`).
+
+### A3. Internal layering repair
+
+The intended layering is `fftypes` (contracts) → `kernels`/`transform`
+(algorithms) → `planner` (selection) → `fft` (bridge) → root. Three things
+muddy it:
+
+- [ ] **Un-invert `kernels → planner`**: the codelet registry
+      (`CodeletRegistry`, `Registry64/128`, `CodeletEntry`) lives in
+      `planner` and `kernels` registers _upward_ into it, re-exporting
+      planner types back out (`codelet_registry.go:11-41`). Move the
+      registry into a neutral leaf package (`internal/fftypes` or a new
+      `internal/registry`); `kernels` registers into it, `planner` reads
+      from it. This also removes the four-deep type-alias chain
+      (`fftypes.CodeletFunc` → planner → kernels → fft).
+- [ ] **Decide what `internal/fft` is** — currently it is both a façade
+      and bypassed: the root package imports six internal packages directly
+      and calls `EstimatePlan` via `fft` in one path (plan.go:724) and via
+      `planner` in another (plan_fast.go:55). Either (a) make it a real
+      façade and the _only_ internal import of the root package, or
+      (b) delete the pure re-export files (`kernels.go`, most of
+      `dispatch.go`, `transform_exports`) and let the root import
+      `planner`/`kernels`/`transform` directly. Pick (b) unless a concrete
+      reason for the façade emerges — less indirection, honest line counts.
+      Real logic in `fft` (arch dispatch, mixed-radix engine, Rader glue,
+      pooling) stays; only forwarding shims go.
+- [ ] **One Stockham owner**: `kernels.ForwardStockham*` and
+      `transform.ForwardStockhamPacked` coexist and are re-exported side by
+      side. Declare one canonical (or document the split: fixed-size vs
+      packed mixed-radix) and name/locate them so the distinction is
+      visible.
+- [ ] **One algorithm-name ↔ strategy mapping**: `resolveWisdom`
+      (planner.go:107) and `StrategyToAlgorithmName` (utils.go:150) are two
+      hand-synced switch statements; collapse to one table. Give
+      `KernelRecursive` an explicit entry instead of falling through to
+      `"unknown"`.
+
+### A4. Split the `Plan[T]` god-struct into per-strategy executors
+
+`plan.go` is 984 lines; `Plan[T]` is a ~40-field tagged union carrying state
+for every strategy simultaneously, dispatched by an `if kernelStrategy == …`
+ladder in `Forward`/`Inverse`. Every new strategy touches the struct and
+both hot methods.
+
+- [ ] Introduce an internal executor interface
+      (`forward(dst, src)`, `inverse(dst, src)`, `close()`); one
+      implementation per strategy family (codelet/DIT, Stockham,
+      split-radix, six/eight-step, recursive, Bluestein, Rader) owning only
+      its own tables. `Plan[T]` shrinks to: validation, scratch/pool
+      management, one executor field, introspection.
+- [ ] Re-partition the `plan_*.go` files along the new seams (construction,
+      execution wrappers, lifecycle, introspection, DSP) — the current
+      split is arbitrary (batch execution in plan.go, batch stride
+      resolution in plan_batch.go; hand-rolled `itoa` in plan.go next to
+      `fmt.Sprintf` in plan_2d.go).
+- [ ] Zero-alloc and `AllocsPerRun` guards must stay green throughout —
+      this is a refactor, not a rewrite; land it strategy-by-strategy with
+      the existing reference/round-trip gates.
+
+### A5. Generate the complex128 kernel twins
+
+`internal/kernels` hand-maintains ~500 monomorphized functions (270
+`*Complex64`, 231 `*Complex128`) that are byte-for-byte twins differing only
+in element type — a deliberate performance choice (generics deoptimize
+complex arithmetic), but double the maintenance surface of the largest
+package (38k lines).
+
+- [ ] Extend `cmd/gencodelets` (or add a sibling template step) to emit the
+      `Complex128` kernel bodies from the `Complex64` sources, with
+      generated-file headers. Hand-written code shrinks by roughly half;
+      emitted instructions unchanged (verify with the existing
+      forward-vs-reference registry sweep and `benchstat` noise runs).
+
+### A6. Quick fixes _(independent, land anytime)_
+
+- [ ] `cmd/bench_compare` + `cmd/measure_correctness` **don't compile**:
+      their `go.mod` says `github.com/cwbudde/algofft` (no dash) vs the
+      actual module `algo-fft`; `measure_correctness` also imports
+      `internal/reference` across a module boundary (illegal). Fold both
+      into the main module; delete the "Why Separate Modules?" rationale
+      from `cmd/README.md`.
+- [ ] `cmd/README.md` documents 2 of 4 tools — add `gencodelets` and
+      `benchkernels`.
+- [ ] Naming drift: `gofft` appears 16× in README.md and throughout
+      `goal.md`; standardize on `algofft` (package) / `algo-fft` (module).
+      Archive `goal.md` (it's the historical design doc for the old name;
+      this file is the source of truth) or rewrite its header to say so.
+- [ ] Extend `just clean` to remove `*.test` binaries, `*.pprof`, `*.o`,
+      `dist/`, and stale `coverage_*` variants.
+- [ ] `Executor.Close` doc says "no-op" but calls `plan.Close()`
+      (executor.go:35-42) — make the code and comment agree (A1/A4 may
+      delete `Executor` entirely; it is a thin `Clone()` wrapper).
+- [ ] Inline magic epsilons `1e-4`/`1e-12` in real-inverse spectrum
+      validation (plan_real_generic.go:342-353) → named, documented
+      constants.
+
+**Explicitly kept as-is** (reviewed, deliberate): the benchmark-cited
+selection thresholds in `internal/planner` (compile-time constants are fine
+pre-wisdom-tuning), the asm build-tag triples, the wisdom cache design, the
+root-package black-box test strategy (revisit file organization post-v1.0 if
+it grows), and hand-written SIMD assembly.
+
+---
+
+## 3. Methodology for every P4 item
 
 The P0–P2 discipline continues to apply to all optimization work:
 
