@@ -113,7 +113,7 @@ func BenchmarkSplitRadixVsIncumbents(b *testing.B) {
 
 		plan, err := NewPlanWithOptions[complex64](n, opts)
 		if err != nil {
-			b.Fatalf("NewPlan(%d) failed: %v", n, err)
+			b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		src := randomComplex64(n, int64(n))

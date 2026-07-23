@@ -17,7 +17,7 @@ func TestPlanBatch_ZeroAllocations(t *testing.T) {
 	n := 64
 	count := 10
 
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatal(err)
 	}

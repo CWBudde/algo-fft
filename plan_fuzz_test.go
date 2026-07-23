@@ -17,9 +17,9 @@ func FuzzRoundTripComplex64(f *testing.F) {
 			return
 		}
 
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 		}
 
 		src := make([]complex64, n)
@@ -58,9 +58,9 @@ func FuzzDeterministicForward(f *testing.F) {
 			return
 		}
 
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 		}
 
 		src := make([]complex64, n)
@@ -98,9 +98,9 @@ func FuzzNoPanicValidInput(f *testing.F) {
 			return
 		}
 
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 		}
 
 		src := make([]complex64, n)
@@ -125,9 +125,9 @@ func FuzzRoundTripReal(f *testing.F) {
 			return
 		}
 
-		plan, err := NewPlanReal(n)
+		plan, err := NewPlanReal[float32, complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 		}
 
 		src := make([]float32, n)

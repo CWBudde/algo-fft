@@ -3,46 +3,59 @@ package algofft
 import (
 	"fmt"
 
+	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fft"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
-// PlanReal3D is a pre-computed 3D real FFT plan for float32 input volumes.
+// PlanReal3D is a pre-computed 3D real FFT plan for real input volumes.
 // The forward transform exploits conjugate symmetry by computing only the
 // non-redundant half of the spectrum along the last dimension.
 // Plans are reusable and safe for concurrent use during transforms: scratch
 // buffers are borrowed per call from an internal cache, so multiple
 // goroutines may share one instance.
 //
+// Type parameters:
+//   - F: float type (float32 or float64)
+//   - C: complex type (complex64 or complex128), must match F
+//
 // The 3D real FFT uses the dimension-by-dimension decomposition algorithm:
 // - Forward: Real FFT along width (innermost), then complex FFT along height and depth
 // - Inverse: Complex IFFT along depth and height, then real IFFT along width
 //
 // Data layout:
-// - Input (real): row-major D×H×W float32 array
-// - Compact output: row-major D×H×(W/2+1) complex64 array
-// - Full output: row-major D×H×W complex64 array (with redundant conjugate pairs).
-type PlanReal3D struct {
-	depth, height, width int                // Input dimensions (D×H×W real values)
-	halfWidth            int                // W/2+1 (compact spectrum width)
-	widthPlan            *PlanReal          // Real FFT for width (size W → W/2+1)
-	heightPlans          []*Plan[complex64] // Complex FFT for height (one per width column)
-	depthPlans           []*Plan[complex64] // Complex FFT for depth (one per height×width position)
+// - Input (real): row-major D×H×W float array
+// - Compact output: row-major D×H×(W/2+1) complex array
+// - Full output: row-major D×H×W complex array (with redundant conjugate pairs).
+type PlanReal3D[F Float, C Complex] struct {
+	depth, height, width int             // Input dimensions (D×H×W real values)
+	halfWidth            int             // W/2+1 (compact spectrum width)
+	widthPlan            *PlanReal[F, C] // Real FFT for width (size W → W/2+1)
+	heightPlans          []*Plan[C]      // Complex FFT for height (one per width column)
+	depthPlans           []*Plan[C]      // Complex FFT for depth (one per height×width position)
 
 	// scratch hands out per-call working buffers for thread-safety.
-	scratch *residentCache[planReal3DScratch]
+	scratch *residentCache[planReal3DScratch[C]]
 }
 
 // planReal3DScratch is one per-call scratch set for PlanReal3D transforms.
-type planReal3DScratch struct {
-	compact        []complex64 // Working buffer (D×H×(W/2+1))
-	compactBacking []byte      // Keeps the aligned buffer alive for GC
+type planReal3DScratch[C Complex] struct {
+	compact        []C    // Working buffer (D×H×(W/2+1))
+	compactBacking []byte // Keeps the aligned buffer alive for GC
+	heightData     []C    // Column working buffer (length height)
+	depthData      []C    // Depth working buffer (length depth)
 }
 
-func newPlanReal3DScratchCache(depth, height, halfWidth int) *residentCache[planReal3DScratch] {
-	return newResidentCache(func() *planReal3DScratch {
-		compact, backing := mem.AllocAlignedComplex64(depth * height * halfWidth)
+func newPlanReal3DScratchCache[C Complex](depth, height, halfWidth int) *residentCache[planReal3DScratch[C]] {
+	return newResidentCache(func() *planReal3DScratch[C] {
+		compact, backing := mem.AllocAligned[C](depth * height * halfWidth)
 
-		return &planReal3DScratch{compact: compact, compactBacking: backing}
+		return &planReal3DScratch[C]{
+			compact:        compact,
+			compactBacking: backing,
+			heightData:     make([]C, height),
+			depthData:      make([]C, depth),
+		}
 	})
 }
 
@@ -53,7 +66,19 @@ func newPlanReal3DScratchCache(depth, height, halfWidth int) *residentCache[plan
 // The plan pre-allocates all necessary buffers, enabling zero-allocation transforms.
 //
 // A single plan instance may be shared by multiple goroutines.
-func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
+//
+// Example:
+//
+//	plan32, err := algofft.NewPlanReal3D[float32, complex64](32, 64, 64)
+//	plan64, err := algofft.NewPlanReal3D[float64, complex128](32, 64, 64)
+func NewPlanReal3D[F Float, C Complex](depth, height, width int) (*PlanReal3D[F, C], error) {
+	return NewPlanReal3DWithOptions[F, C](depth, height, width, PlanOptions{})
+}
+
+// NewPlanReal3DWithOptions creates a new 3D real FFT plan with explicit planner options.
+func NewPlanReal3DWithOptions[F Float, C Complex](
+	depth, height, width int, opts PlanOptions,
+) (*PlanReal3D[F, C], error) {
 	if depth <= 0 {
 		return nil, fmt.Errorf("depth has invalid size %d: %w", depth, ErrInvalidLength)
 	}
@@ -67,8 +92,11 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 		return nil, fmt.Errorf("width has invalid size %d (must be even and >= 2): %w", width, ErrInvalidLength)
 	}
 
+	opts = normalizePlanOptions(opts)
+	features := cpu.DetectFeatures()
+
 	// Create 1D real plan for width
-	widthPlan, err := NewPlanReal(width)
+	widthPlan, err := newPlanRealWithFeatures[F, C](width, features, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create width-transform plan (size %d): %w", width, err)
 	}
@@ -76,9 +104,9 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 	halfWidth := width/2 + 1
 
 	// Create complex plans for height (one for each column in compact spectrum)
-	heightPlans := make([]*Plan[complex64], halfWidth)
+	heightPlans := make([]*Plan[C], halfWidth)
 	for i := range heightPlans {
-		plan, err := NewPlanT[complex64](height)
+		plan, err := newPlanWithFeatures[C](height, features, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create height-transform plan (size %d): %w", height, err)
 		}
@@ -87,9 +115,9 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 	}
 
 	// Create complex plans for depth (one for each height×width position)
-	depthPlans := make([]*Plan[complex64], height*halfWidth)
+	depthPlans := make([]*Plan[C], height*halfWidth)
 	for i := range depthPlans {
-		plan, err := NewPlanT[complex64](depth)
+		plan, err := newPlanWithFeatures[C](depth, features, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create depth-transform plan (size %d): %w", depth, err)
 		}
@@ -97,7 +125,7 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 		depthPlans[i] = plan
 	}
 
-	return &PlanReal3D{
+	return &PlanReal3D[F, C]{
 		depth:       depth,
 		height:      height,
 		width:       width,
@@ -105,53 +133,63 @@ func NewPlanReal3D(depth, height, width int) (*PlanReal3D, error) {
 		widthPlan:   widthPlan,
 		heightPlans: heightPlans,
 		depthPlans:  depthPlans,
-		scratch:     newPlanReal3DScratchCache(depth, height, halfWidth),
+		scratch:     newPlanReal3DScratchCache[C](depth, height, halfWidth),
 	}, nil
 }
 
+// NewPlanReal3D32 creates a new single-precision 3D real FFT plan.
+// This is one-line sugar for NewPlanReal3D[float32, complex64](depth, height, width).
+func NewPlanReal3D32(depth, height, width int) (*PlanReal3D[float32, complex64], error) {
+	return NewPlanReal3D[float32, complex64](depth, height, width)
+}
+
+// NewPlanReal3D64 creates a new double-precision 3D real FFT plan.
+// This is one-line sugar for NewPlanReal3D[float64, complex128](depth, height, width).
+func NewPlanReal3D64(depth, height, width int) (*PlanReal3D[float64, complex128], error) {
+	return NewPlanReal3D[float64, complex128](depth, height, width)
+}
+
 // Depth returns the depth dimension of the input volume.
-func (p *PlanReal3D) Depth() int {
+func (p *PlanReal3D[F, C]) Depth() int {
 	return p.depth
 }
 
 // Height returns the height dimension of the input volume.
-func (p *PlanReal3D) Height() int {
+func (p *PlanReal3D[F, C]) Height() int {
 	return p.height
 }
 
 // Width returns the width dimension of the input volume.
-func (p *PlanReal3D) Width() int {
+func (p *PlanReal3D[F, C]) Width() int {
 	return p.width
 }
 
 // Len returns the total number of real input elements (depth × height × width).
-func (p *PlanReal3D) Len() int {
+func (p *PlanReal3D[F, C]) Len() int {
 	return p.depth * p.height * p.width
 }
 
 // SpectrumLen returns the total number of complex values in compact output.
-func (p *PlanReal3D) SpectrumLen() int {
+func (p *PlanReal3D[F, C]) SpectrumLen() int {
 	return p.depth * p.height * p.halfWidth
 }
 
 // String returns a human-readable description of the PlanReal3D for debugging.
-func (p *PlanReal3D) String() string {
-	return fmt.Sprintf("PlanReal3D[float32→complex64](%dx%dx%d → %dx%dx%d)",
-		p.depth, p.height, p.width, p.depth, p.height, p.halfWidth)
+func (p *PlanReal3D[F, C]) String() string {
+	return fmt.Sprintf("PlanReal3D[%s](%dx%dx%d → %dx%dx%d)",
+		realPlanTypeNames[C](), p.depth, p.height, p.width, p.depth, p.height, p.halfWidth)
 }
 
 // Forward computes the 3D real FFT in compact format (memory-efficient).
 //
-// Input src: D×H×W row-major array of float32 (length D*H*W)
-// Output dst: D×H×(W/2+1) row-major array of complex64 (length D*H*(W/2+1))
+// Input src: D×H×W row-major array of floats (length D*H*W)
+// Output dst: D×H×(W/2+1) row-major array of complex values (length D*H*(W/2+1))
 //
 // The output exploits conjugate symmetry: only the non-redundant half-spectrum is stored.
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
-//
-//nolint:gocognit
-func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
+func (p *PlanReal3D[F, C]) Forward(dst []C, src []F) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
@@ -170,6 +208,21 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 	s := p.scratch.get()
 	defer p.scratch.put(s)
 
+	err := p.forwardCompactInto(s, src)
+	if err != nil {
+		return err
+	}
+
+	// Copy result to dst
+	copy(dst, s.compact)
+
+	return nil
+}
+
+// forwardCompactInto computes the compact half-spectrum of src into the
+// scratch set's compact buffer. It borrows no scratch of its own, so callers
+// that already hold a scratch set stay allocation-free.
+func (p *PlanReal3D[F, C]) forwardCompactInto(s *planReal3DScratch[C], src []F) error {
 	compact := s.compact
 
 	// Step 1: Real FFT along width (innermost dimension)
@@ -189,7 +242,7 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 	}
 
 	// Step 2: Complex FFT along height (middle dimension)
-	heightData := make([]complex64, p.height)
+	heightData := s.heightData
 
 	for d := range p.depth {
 		for w := range p.halfWidth {
@@ -212,7 +265,7 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 	}
 
 	// Step 3: Complex FFT along depth (outermost dimension)
-	depthData := make([]complex64, p.depth)
+	depthData := s.depthData
 
 	for h := range p.height {
 		for w := range p.halfWidth {
@@ -236,35 +289,31 @@ func (p *PlanReal3D) Forward(dst []complex64, src []float32) error {
 		}
 	}
 
-	// Copy result to dst
-	copy(dst, compact)
-
 	return nil
 }
 
 // ForwardFull computes the 3D real FFT with full spectrum output (includes redundant conjugates).
 //
-// Input src: D×H×W row-major array of float32 (length D*H*W)
-// Output dst: D×H×W row-major array of complex64 (length D*H*W)
+// Input src: D×H×W row-major array of floats (length D*H*W)
+// Output dst: D×H×W row-major array of complex values (length D*H*W)
 //
 // The output is the complete spectrum with conjugate symmetry explicitly filled in.
 // This is easier to work with but uses 2x memory compared to Forward().
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
-func (p *PlanReal3D) ForwardFull(dst []complex64, src []float32) error {
+func (p *PlanReal3D[F, C]) ForwardFull(dst []C, src []F) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
 
-	expectedSrcLen := p.depth * p.height * p.width
-	expectedDstLen := p.depth * p.height * p.width
+	expectedLen := p.depth * p.height * p.width
 
-	if len(src) != expectedSrcLen {
+	if len(src) != expectedLen {
 		return ErrLengthMismatch
 	}
 
-	if len(dst) != expectedDstLen {
+	if len(dst) != expectedLen {
 		return ErrLengthMismatch
 	}
 
@@ -273,8 +322,8 @@ func (p *PlanReal3D) ForwardFull(dst []complex64, src []float32) error {
 
 	compact := s.compact
 
-	// First compute compact spectrum
-	err := p.Forward(compact, src)
+	// Compute the compact spectrum directly into the borrowed buffer.
+	err := p.forwardCompactInto(s, src)
 	if err != nil {
 		return err
 	}
@@ -295,7 +344,7 @@ func (p *PlanReal3D) ForwardFull(dst []complex64, src []float32) error {
 				mirrorD := (p.depth - d) % p.depth
 				mirrorH := (p.height - h) % p.height
 				val := dst[mirrorD*p.height*p.width+mirrorH*p.width+mirrorW]
-				dst[d*p.height*p.width+h*p.width+w] = complex(real(val), -imag(val))
+				dst[d*p.height*p.width+h*p.width+w] = fft.ConjugateOf(val)
 			}
 		}
 	}
@@ -305,14 +354,14 @@ func (p *PlanReal3D) ForwardFull(dst []complex64, src []float32) error {
 
 // Inverse computes the 3D real IFFT from compact half-spectrum.
 //
-// Input src: D×H×(W/2+1) row-major array of complex64
-// Output dst: D×H×W row-major array of float32
+// Input src: D×H×(W/2+1) row-major array of complex values
+// Output dst: D×H×W row-major array of floats
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 //
 //nolint:gocognit
-func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
+func (p *PlanReal3D[F, C]) Inverse(dst []F, src []C) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
@@ -337,7 +386,7 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 	copy(compact, src)
 
 	// Step 1: Complex IFFT along depth (outermost dimension)
-	depthData := make([]complex64, p.depth)
+	depthData := s.depthData
 
 	for h := range p.height {
 		for w := range p.halfWidth {
@@ -362,7 +411,7 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 	}
 
 	// Step 2: Complex IFFT along height (middle dimension)
-	heightData := make([]complex64, p.height)
+	heightData := s.heightData
 
 	for d := range p.depth {
 		for w := range p.halfWidth {
@@ -405,27 +454,26 @@ func (p *PlanReal3D) Inverse(dst []float32, src []complex64) error {
 
 // InverseFull computes the 3D real IFFT from full spectrum.
 //
-// Input src: D×H×W row-major array of complex64
-// Output dst: D×H×W row-major array of float32
+// Input src: D×H×W row-major array of complex values
+// Output dst: D×H×W row-major array of floats
 //
 // The input should have conjugate symmetry (as produced by ForwardFull).
 // Only the non-redundant half is used; the rest is ignored.
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
-func (p *PlanReal3D) InverseFull(dst []float32, src []complex64) error {
+func (p *PlanReal3D[F, C]) InverseFull(dst []F, src []C) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
 
-	expectedSrcLen := p.depth * p.height * p.width
-	expectedDstLen := p.depth * p.height * p.width
+	expectedLen := p.depth * p.height * p.width
 
-	if len(src) != expectedSrcLen {
+	if len(src) != expectedLen {
 		return ErrLengthMismatch
 	}
 
-	if len(dst) != expectedDstLen {
+	if len(dst) != expectedLen {
 		return ErrLengthMismatch
 	}
 
@@ -453,8 +501,8 @@ func (p *PlanReal3D) InverseFull(dst []float32, src []complex64) error {
 // is not required for concurrency; it remains available for callers that want
 // isolated scratch caches. The clone shares the concurrency-safe child plans
 // but has its own scratch cache.
-func (p *PlanReal3D) Clone() *PlanReal3D {
-	return &PlanReal3D{
+func (p *PlanReal3D[F, C]) Clone() *PlanReal3D[F, C] {
+	return &PlanReal3D[F, C]{
 		depth:       p.depth,
 		height:      p.height,
 		width:       p.width,
@@ -462,6 +510,6 @@ func (p *PlanReal3D) Clone() *PlanReal3D {
 		widthPlan:   p.widthPlan,
 		heightPlans: p.heightPlans,
 		depthPlans:  p.depthPlans,
-		scratch:     newPlanReal3DScratchCache(p.depth, p.height, p.halfWidth),
+		scratch:     newPlanReal3DScratchCache[C](p.depth, p.height, p.halfWidth),
 	}
 }

@@ -4,50 +4,54 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fft"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
-// PlanReal2D is a pre-computed 2D real FFT plan for float32 input matrices.
+// PlanReal2D is a pre-computed 2D real FFT plan for real input matrices.
 // The forward transform exploits conjugate symmetry by computing only the
 // non-redundant half of the spectrum along the last dimension.
 // Plans are reusable and safe for concurrent use during transforms: scratch
 // buffers are borrowed per call from an internal cache, so multiple
 // goroutines may share one instance.
 //
+// Type parameters:
+//   - F: float type (float32 or float64)
+//   - C: complex type (complex64 or complex128), must match F
+//
 // The 2D real FFT uses the row-column decomposition algorithm:
 // - Forward: Real FFT on rows (produces M×(N/2+1) complex), then complex FFT on columns
 // - Inverse: Complex IFFT on columns, then real IFFT on rows
 //
 // Data layout:
-// - Input (real): row-major M×N float32 array
-// - Compact output: row-major M×(N/2+1) complex64 array
-// - Full output: row-major M×N complex64 array (with redundant conjugate pairs).
-type PlanReal2D struct {
-	rows, cols int                // Input dimensions (M×N real values)
-	halfCols   int                // N/2+1 (compact spectrum width)
-	rowPlan    *PlanReal          // Real FFT for rows (size N → N/2+1)
-	colPlans   []*Plan[complex64] // Complex FFT for each column (size M)
-	options    PlanOptions
+// - Input (real): row-major M×N float array
+// - Compact output: row-major M×(N/2+1) complex array
+// - Full output: row-major M×N complex array (with redundant conjugate pairs).
+type PlanReal2D[F Float, C Complex] struct {
+	rows, cols int             // Input dimensions (M×N real values)
+	halfCols   int             // N/2+1 (compact spectrum width)
+	rowPlan    *PlanReal[F, C] // Real FFT for rows (size N → N/2+1)
+	colPlans   []*Plan[C]      // Complex FFT for each column (size M)
 
 	// scratch hands out per-call working buffers for thread-safety.
-	scratch *residentCache[planReal2DScratch]
+	scratch *residentCache[planReal2DScratch[C]]
 }
 
 // planReal2DScratch is one per-call scratch set for PlanReal2D transforms.
-type planReal2DScratch struct {
-	compact        []complex64 // Working buffer (M×(N/2+1))
-	compactBacking []byte      // Keeps the aligned buffer alive for GC
-	colData        []complex64 // Column working buffer (length rows)
+type planReal2DScratch[C Complex] struct {
+	compact        []C    // Working buffer (M×(N/2+1))
+	compactBacking []byte // Keeps the aligned buffer alive for GC
+	colData        []C    // Column working buffer (length rows)
 }
 
-func newPlanReal2DScratchCache(rows, halfCols int) *residentCache[planReal2DScratch] {
-	return newResidentCache(func() *planReal2DScratch {
-		compact, backing := mem.AllocAlignedComplex64(rows * halfCols)
+func newPlanReal2DScratchCache[C Complex](rows, halfCols int) *residentCache[planReal2DScratch[C]] {
+	return newResidentCache(func() *planReal2DScratch[C] {
+		compact, backing := mem.AllocAligned[C](rows * halfCols)
 
-		return &planReal2DScratch{
+		return &planReal2DScratch[C]{
 			compact:        compact,
 			compactBacking: backing,
-			colData:        make([]complex64, rows),
+			colData:        make([]C, rows),
 		}
 	})
 }
@@ -59,12 +63,17 @@ func newPlanReal2DScratchCache(rows, halfCols int) *residentCache[planReal2DScra
 // The plan pre-allocates all necessary buffers, enabling zero-allocation transforms.
 //
 // A single plan instance may be shared by multiple goroutines.
-func NewPlanReal2D(rows, cols int) (*PlanReal2D, error) {
-	return NewPlanReal2DWithOptions(rows, cols, PlanOptions{})
+//
+// Example:
+//
+//	plan32, err := algofft.NewPlanReal2D[float32, complex64](480, 640)
+//	plan64, err := algofft.NewPlanReal2D[float64, complex128](480, 640)
+func NewPlanReal2D[F Float, C Complex](rows, cols int) (*PlanReal2D[F, C], error) {
+	return NewPlanReal2DWithOptions[F, C](rows, cols, PlanOptions{})
 }
 
 // NewPlanReal2DWithOptions creates a new 2D real FFT plan with explicit planner options.
-func NewPlanReal2DWithOptions(rows, cols int, opts PlanOptions) (*PlanReal2D, error) {
+func NewPlanReal2DWithOptions[F Float, C Complex](rows, cols int, opts PlanOptions) (*PlanReal2D[F, C], error) {
 	if rows <= 0 {
 		return nil, fmt.Errorf("rows has invalid size %d: %w", rows, ErrInvalidLength)
 	}
@@ -77,13 +86,8 @@ func NewPlanReal2DWithOptions(rows, cols int, opts PlanOptions) (*PlanReal2D, er
 	opts = normalizePlanOptions(opts)
 	features := cpu.DetectFeatures()
 
-	childOpts := opts
-	childOpts.Batch = 0
-	childOpts.Stride = 0
-	childOpts.InPlace = false
-
 	// Create 1D real plan for rows
-	rowPlan, err := newPlanRealWithFeatures(cols, features, childOpts)
+	rowPlan, err := newPlanRealWithFeatures[F, C](cols, features, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create row-transform plan (size %d): %w", cols, err)
 	}
@@ -91,9 +95,9 @@ func NewPlanReal2DWithOptions(rows, cols int, opts PlanOptions) (*PlanReal2D, er
 	halfCols := cols/2 + 1
 
 	// Create complex plans for columns (one for each column in compact spectrum)
-	colPlans := make([]*Plan[complex64], halfCols)
+	colPlans := make([]*Plan[C], halfCols)
 	for i := range colPlans {
-		plan, err := newPlanWithFeatures[complex64](rows, features, childOpts)
+		plan, err := newPlanWithFeatures[C](rows, features, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create column-transform plan (size %d): %w", rows, err)
 		}
@@ -101,93 +105,100 @@ func NewPlanReal2DWithOptions(rows, cols int, opts PlanOptions) (*PlanReal2D, er
 		colPlans[i] = plan
 	}
 
-	return &PlanReal2D{
+	return &PlanReal2D[F, C]{
 		rows:     rows,
 		cols:     cols,
 		halfCols: halfCols,
 		rowPlan:  rowPlan,
 		colPlans: colPlans,
-		scratch:  newPlanReal2DScratchCache(rows, halfCols),
-		options:  opts,
+		scratch:  newPlanReal2DScratchCache[C](rows, halfCols),
 	}, nil
 }
 
+// NewPlanReal2D32 creates a new single-precision 2D real FFT plan.
+// This is one-line sugar for NewPlanReal2D[float32, complex64](rows, cols).
+func NewPlanReal2D32(rows, cols int) (*PlanReal2D[float32, complex64], error) {
+	return NewPlanReal2D[float32, complex64](rows, cols)
+}
+
+// NewPlanReal2D64 creates a new double-precision 2D real FFT plan.
+// This is one-line sugar for NewPlanReal2D[float64, complex128](rows, cols).
+func NewPlanReal2D64(rows, cols int) (*PlanReal2D[float64, complex128], error) {
+	return NewPlanReal2D[float64, complex128](rows, cols)
+}
+
 // Rows returns the number of rows in the input matrix.
-func (p *PlanReal2D) Rows() int {
+func (p *PlanReal2D[F, C]) Rows() int {
 	return p.rows
 }
 
 // Cols returns the number of columns in the input matrix.
-func (p *PlanReal2D) Cols() int {
+func (p *PlanReal2D[F, C]) Cols() int {
 	return p.cols
 }
 
 // Len returns the total number of real input elements (rows × cols).
-func (p *PlanReal2D) Len() int {
+func (p *PlanReal2D[F, C]) Len() int {
 	return p.rows * p.cols
 }
 
 // SpectrumLen returns the total number of complex values in compact output (rows × (cols/2+1)).
-func (p *PlanReal2D) SpectrumLen() int {
+func (p *PlanReal2D[F, C]) SpectrumLen() int {
 	return p.rows * p.halfCols
 }
 
 // String returns a human-readable description of the PlanReal2D for debugging.
-func (p *PlanReal2D) String() string {
-	return fmt.Sprintf("PlanReal2D[float32→complex64](%dx%d → %dx%d)", p.rows, p.cols, p.rows, p.halfCols)
+func (p *PlanReal2D[F, C]) String() string {
+	return fmt.Sprintf("PlanReal2D[%s](%dx%d → %dx%d)", realPlanTypeNames[C](), p.rows, p.cols, p.rows, p.halfCols)
 }
 
 // Forward computes the 2D real FFT in compact format (memory-efficient).
 //
-// Input src: M×N row-major array of float32 (length M*N)
-// Output dst: M×(N/2+1) row-major array of complex64 (length M*(N/2+1))
+// Input src: M×N row-major array of floats (length M*N)
+// Output dst: M×(N/2+1) row-major array of complex values (length M*(N/2+1))
 //
 // The output exploits conjugate symmetry: only the non-redundant half-spectrum is stored.
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
-func (p *PlanReal2D) Forward(dst []complex64, src []float32) error {
+func (p *PlanReal2D[F, C]) Forward(dst []C, src []F) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
 
-	if p.options.Batch <= 1 && p.options.Stride <= 0 {
-		return p.forwardSingle(dst, src)
+	if len(src) != p.rows*p.cols {
+		return ErrLengthMismatch
 	}
 
-	batch, strideIn, strideOut, err := resolveBatchStrideReal(p.rows*p.cols, p.rows*p.halfCols, p.options)
+	if len(dst) != p.rows*p.halfCols {
+		return ErrLengthMismatch
+	}
+
+	s := p.scratch.get()
+	defer p.scratch.put(s)
+
+	err := p.forwardCompactInto(s.compact, s.colData, src)
 	if err != nil {
 		return err
 	}
 
-	for b := range batch {
-		srcOff := b * strideIn
-
-		dstOff := b * strideOut
-		if srcOff+p.rows*p.cols > len(src) || dstOff+p.rows*p.halfCols > len(dst) {
-			return ErrLengthMismatch
-		}
-
-		err = p.forwardSingle(dst[dstOff:dstOff+p.rows*p.halfCols], src[srcOff:srcOff+p.rows*p.cols])
-		if err != nil {
-			return err
-		}
-	}
+	// Copy result to dst
+	copy(dst, s.compact)
 
 	return nil
 }
 
 // ForwardFull computes the 2D real FFT with full spectrum output (includes redundant conjugates).
 //
-// Input src: M×N row-major array of float32 (length M*N)
-// Output dst: M×N row-major array of complex64 (length M*N)
+// Input src: M×N row-major array of floats (length M*N)
+// Output dst: M×N row-major array of complex values (length M*N)
 //
 // The output is the complete spectrum with conjugate symmetry explicitly filled in.
 // This is easier to work with but uses 2x memory compared to Forward().
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
-func (p *PlanReal2D) ForwardFull(dst []complex64, src []float32) error {
+func (p *PlanReal2D[F, C]) ForwardFull(dst []C, src []F) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
@@ -227,7 +238,7 @@ func (p *PlanReal2D) ForwardFull(dst []complex64, src []float32) error {
 			// Need to conjugate and mirror row as well for 2D
 			mirrorRow := (p.rows - row) % p.rows
 			val := dst[mirrorRow*p.cols+mirrorCol]
-			dst[row*p.cols+col] = complex(real(val), -imag(val))
+			dst[row*p.cols+col] = fft.ConjugateOf(val)
 		}
 	}
 
@@ -236,34 +247,59 @@ func (p *PlanReal2D) ForwardFull(dst []complex64, src []float32) error {
 
 // Inverse computes the 2D real IFFT from compact half-spectrum.
 //
-// Input src: M×(N/2+1) row-major array of complex64
-// Output dst: M×N row-major array of float32
+// Input src: M×(N/2+1) row-major array of complex values
+// Output dst: M×N row-major array of floats
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
-func (p *PlanReal2D) Inverse(dst []float32, src []complex64) error {
+func (p *PlanReal2D[F, C]) Inverse(dst []F, src []C) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
 
-	if p.options.Batch <= 1 && p.options.Stride <= 0 {
-		return p.inverseSingle(dst, src)
+	if len(src) != p.rows*p.halfCols {
+		return ErrLengthMismatch
 	}
 
-	batch, strideIn, strideOut, err := resolveBatchStrideReal(p.rows*p.cols, p.rows*p.halfCols, p.options)
-	if err != nil {
-		return err
+	if len(dst) != p.rows*p.cols {
+		return ErrLengthMismatch
 	}
 
-	for b := range batch {
-		dstOff := b * strideIn
+	s := p.scratch.get()
+	defer p.scratch.put(s)
 
-		srcOff := b * strideOut
-		if dstOff+p.rows*p.cols > len(dst) || srcOff+p.rows*p.halfCols > len(src) {
-			return ErrLengthMismatch
+	compact := s.compact
+
+	// Copy src to scratch
+	copy(compact, src)
+
+	// Step 1: Complex IFFT on each column
+	colData := s.colData
+
+	for col := range p.halfCols {
+		// Extract column
+		for row := range p.rows {
+			colData[row] = compact[row*p.halfCols+col]
 		}
 
-		err = p.inverseSingle(dst[dstOff:dstOff+p.rows*p.cols], src[srcOff:srcOff+p.rows*p.halfCols])
+		// Inverse transform column
+		err := p.colPlans[col].InverseInPlace(colData)
+		if err != nil {
+			return err
+		}
+
+		// Write back
+		for row := range p.rows {
+			compact[row*p.halfCols+col] = colData[row]
+		}
+	}
+
+	// Step 2: Real IFFT on each row (complex half-spectrum → float)
+	for row := range p.rows {
+		srcRow := compact[row*p.halfCols : (row+1)*p.halfCols]
+		dstRow := dst[row*p.cols : (row+1)*p.cols]
+
+		err := p.rowPlan.Inverse(dstRow, srcRow)
 		if err != nil {
 			return err
 		}
@@ -274,15 +310,15 @@ func (p *PlanReal2D) Inverse(dst []float32, src []complex64) error {
 
 // InverseFull computes the 2D real IFFT from full spectrum.
 //
-// Input src: M×N row-major array of complex64
-// Output dst: M×N row-major array of float32
+// Input src: M×N row-major array of complex values
+// Output dst: M×N row-major array of floats
 //
 // The input should have conjugate symmetry (as produced by ForwardFull).
 // Only the non-redundant half is used; the rest is ignored.
 //
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
-func (p *PlanReal2D) InverseFull(dst []float32, src []complex64) error {
+func (p *PlanReal2D[F, C]) InverseFull(dst []F, src []C) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
@@ -317,99 +353,15 @@ func (p *PlanReal2D) InverseFull(dst []float32, src []complex64) error {
 // is not required for concurrency; it remains available for callers that want
 // isolated scratch caches. The clone shares the concurrency-safe child plans
 // but has its own scratch cache.
-func (p *PlanReal2D) Clone() *PlanReal2D {
-	return &PlanReal2D{
+func (p *PlanReal2D[F, C]) Clone() *PlanReal2D[F, C] {
+	return &PlanReal2D[F, C]{
 		rows:     p.rows,
 		cols:     p.cols,
 		halfCols: p.halfCols,
 		rowPlan:  p.rowPlan,
 		colPlans: p.colPlans,
-		scratch:  newPlanReal2DScratchCache(p.rows, p.halfCols),
-		options:  p.options,
+		scratch:  newPlanReal2DScratchCache[C](p.rows, p.halfCols),
 	}
-}
-
-func (p *PlanReal2D) inverseSingle(dst []float32, src []complex64) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.rows*p.halfCols {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != p.rows*p.cols {
-		return ErrLengthMismatch
-	}
-
-	s := p.scratch.get()
-	defer p.scratch.put(s)
-
-	compact := s.compact
-
-	// Copy src to scratch
-	copy(compact, src)
-
-	// Step 1: Complex IFFT on each column
-	colData := make([]complex64, p.rows)
-
-	for col := range p.halfCols {
-		// Extract column
-		for row := range p.rows {
-			colData[row] = compact[row*p.halfCols+col]
-		}
-
-		// Inverse transform column
-		err := p.colPlans[col].InverseInPlace(colData)
-		if err != nil {
-			return err
-		}
-
-		// Write back
-		for row := range p.rows {
-			compact[row*p.halfCols+col] = colData[row]
-		}
-	}
-
-	// Step 2: Real IFFT on each row (complex64 half-spectrum → float32)
-	for row := range p.rows {
-		srcRow := compact[row*p.halfCols : (row+1)*p.halfCols]
-		dstRow := dst[row*p.cols : (row+1)*p.cols]
-
-		err := p.rowPlan.Inverse(dstRow, srcRow)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (p *PlanReal2D) forwardSingle(dst []complex64, src []float32) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.rows*p.cols {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != p.rows*p.halfCols {
-		return ErrLengthMismatch
-	}
-
-	s := p.scratch.get()
-	defer p.scratch.put(s)
-
-	err := p.forwardCompactInto(s.compact, s.colData, src)
-	if err != nil {
-		return err
-	}
-
-	// Copy result to dst
-	copy(dst, s.compact)
-
-	return nil
 }
 
 // forwardCompactInto computes the compact half-spectrum of src into compact
@@ -417,8 +369,8 @@ func (p *PlanReal2D) forwardSingle(dst []complex64, src []float32) error {
 // buffer. It borrows no scratch of its own, so callers that already hold a
 // scratch set reuse its buffers and stay allocation-free — this lets
 // ForwardFull run without nesting a second scratch borrow through Forward.
-func (p *PlanReal2D) forwardCompactInto(compact, colData []complex64, src []float32) error {
-	// Step 1: Real FFT on each row (float32 input → complex64 half-spectrum)
+func (p *PlanReal2D[F, C]) forwardCompactInto(compact, colData []C, src []F) error {
+	// Step 1: Real FFT on each row (float input → complex half-spectrum)
 	for row := range p.rows {
 		srcRow := src[row*p.cols : (row+1)*p.cols]
 		dstRow := compact[row*p.halfCols : (row+1)*p.halfCols]

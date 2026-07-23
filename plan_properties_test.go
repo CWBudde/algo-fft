@@ -78,9 +78,9 @@ func TestPlanLinearity(t *testing.T) {
 func planPropLinearity[T Complex](t *testing.T, n int, tol float64) {
 	t.Helper()
 
-	plan, err := NewPlanT[T](n)
+	plan, err := NewPlan[T](n)
 	if err != nil {
-		t.Fatalf("NewPlanT(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 	}
 
 	x := randomPlanPropInput[T](n, 12345)
@@ -144,9 +144,9 @@ func TestPlanShiftTheorem(t *testing.T) {
 func planPropShiftTheorem[T Complex](t *testing.T, n, m int, tol float64) {
 	t.Helper()
 
-	plan, err := NewPlanT[T](n)
+	plan, err := NewPlan[T](n)
 	if err != nil {
-		t.Fatalf("NewPlanT(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 	}
 
 	x := randomPlanPropInput[T](n, 77777)
@@ -202,9 +202,9 @@ func TestPlanParseval(t *testing.T) {
 func planPropParseval[T Complex](t *testing.T, n int, tol float64) {
 	t.Helper()
 
-	plan, err := NewPlanT[T](n)
+	plan, err := NewPlan[T](n)
 	if err != nil {
-		t.Fatalf("NewPlanT(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
 	}
 
 	src := randomPlanPropInput[T](n, 11111)

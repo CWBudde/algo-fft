@@ -33,7 +33,7 @@ type FastPlan[T Complex] struct {
 	inverseFunc fft.CodeletFunc[T]
 
 	algorithm string
-	strategy  KernelStrategy
+	strategy  fft.KernelStrategy
 }
 
 // NewFastPlan creates an optimized FFT plan with pre-resolved dispatch.
@@ -44,7 +44,7 @@ type FastPlan[T Complex] struct {
 //	plan, err := algofft.NewFastPlan[complex64](256)
 //	if err != nil {
 //	    // Fall back to regular Plan for this size
-//	    regularPlan, _ := algofft.NewPlanT[complex64](256)
+//	    regularPlan, _ := algofft.NewPlan[complex64](256)
 //	}
 func NewFastPlan[T Complex](n int) (*FastPlan[T], error) {
 	if n < 1 || !m.IsPowerOf2(n) {
@@ -114,6 +114,46 @@ func (fp *FastPlan[T]) Len() int {
 	return fp.n
 }
 
+// String returns a human-readable description of the FastPlan for debugging.
+func (fp *FastPlan[T]) String() string {
+	var zero T
+
+	typeName := precisionNameComplex64
+	if _, ok := any(zero).(complex128); ok {
+		typeName = precisionNameComplex128
+	}
+
+	return "FastPlan[" + typeName + "](" + itoa(fp.n) + ", " + fp.algorithm + ")"
+}
+
+// Clone creates an independent copy of the FastPlan with its own scratch
+// buffer. Clones share the immutable twiddle tables and codelet bindings, so
+// each goroutine can transform concurrently on its own clone.
+func (fp *FastPlan[T]) Clone() *FastPlan[T] {
+	var (
+		scratch        []T
+		scratchBacking []byte
+		zero           T
+	)
+
+	switch any(zero).(type) {
+	case complex64:
+		sc, scb := mem.AllocAlignedComplex64(fp.n)
+		scratch = any(sc).([]T)
+		scratchBacking = scb
+	case complex128:
+		sc, scb := mem.AllocAlignedComplex128(fp.n)
+		scratch = any(sc).([]T)
+		scratchBacking = scb
+	}
+
+	clone := *fp
+	clone.scratch = scratch
+	clone.scratchBacking = scratchBacking
+
+	return &clone
+}
+
 // Forward performs the forward FFT without validation.
 // Caller guarantees: len(dst) >= n, len(src) >= n, slices non-nil.
 func (fp *FastPlan[T]) Forward(dst, src []T) {
@@ -136,14 +176,6 @@ func (fp *FastPlan[T]) ForwardInPlace(data []T) {
 	if !fp.forwardFunc(data, data, fp.codeletTwiddleForward, fp.scratch) {
 		panic("algofft: FastPlan codelet rejected its input (caller contract violated?)")
 	}
-}
-
-// InPlace performs the forward FFT in-place without validation.
-//
-// Deprecated: Use ForwardInPlace, which matches the naming of the
-// multi-dimensional plans' ForwardInPlace/InverseInPlace pair.
-func (fp *FastPlan[T]) InPlace(data []T) {
-	fp.ForwardInPlace(data)
 }
 
 // InverseInPlace performs the inverse FFT in-place without validation.

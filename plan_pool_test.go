@@ -89,7 +89,7 @@ func TestPlanPooled_BufferReuse(t *testing.T) {
 func TestPlan_Reset(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](64)
+	plan, err := NewPlan[complex64](64)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestPlan_Reset(t *testing.T) {
 func TestPlan_Close_NonPooled(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](64)
+	plan, err := NewPlan[complex64](64)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestPlanPooled_InvalidLength(t *testing.T) {
 }
 
 // TestPlanPooled_BluesteinFallback locks in the pooled constructor's length
-// contract matching NewPlanT: sizes that need Bluestein (here 338 = 2·13²) are
+// contract matching NewPlan: sizes that need Bluestein (here 338 = 2·13²) are
 // accepted and served by the regular allocator instead of being rejected.
 func TestPlanPooled_BluesteinFallback(t *testing.T) {
 	t.Parallel()
@@ -199,7 +199,7 @@ func TestPlanPooled_BluesteinFallback(t *testing.T) {
 func TestPlan_String_Complex64(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](256)
+	plan, err := NewPlan[complex64](256)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestPlan_String_Complex64(t *testing.T) {
 func TestPlan_String_Complex128(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex128](512)
+	plan, err := NewPlan[complex128](512)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestPlan_String_Pooled(t *testing.T) {
 func TestPlan_Clone(t *testing.T) {
 	t.Parallel()
 
-	original, err := NewPlanT[complex64](256)
+	original, err := NewPlan[complex64](256)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -297,7 +297,7 @@ func TestPlan_Clone(t *testing.T) {
 func TestPlan_Clone_Independent(t *testing.T) {
 	t.Parallel()
 
-	original, err := NewPlanT[complex64](64)
+	original, err := NewPlan[complex64](64)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -321,7 +321,7 @@ func TestPlan_Clone_Independent(t *testing.T) {
 func TestPlan_Clone_Complex128(t *testing.T) {
 	t.Parallel()
 
-	original, err := NewPlanT[complex128](128)
+	original, err := NewPlan[complex128](128)
 	if err != nil {
 		t.Fatalf("NewPlan failed: %v", err)
 	}
@@ -377,7 +377,7 @@ func BenchmarkPooledVsRegular(b *testing.B) {
 			b.ReportAllocs()
 
 			for b.Loop() {
-				_, _ = NewPlanT[complex64](size)
+				_, _ = NewPlan[complex64](size)
 			}
 		})
 	}

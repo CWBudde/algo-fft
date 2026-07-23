@@ -1,31 +1,23 @@
 package algofft
 
-// This file provides introspection accessors for the plan types beyond the 1D
-// Plan[T] (whose Meta/KernelStrategy/Algorithm live in plan.go and
-// plan_meta.go). Multi-dimensional plans run an independent 1D plan per axis,
-// so they expose per-axis KernelStrategies/Algorithms instead of the singular
-// accessors; real plans delegate to their underlying half-size complex plan.
+// This file provides the introspection and lifecycle accessors shared by all
+// plan types. Every plan implements the PlanInfo interface (see
+// plan_interface.go): plural KernelStrategies/Algorithms report the resolved
+// kernel per axis (single-kernel plans return one-element slices), and Close
+// releases plan resources. Single-kernel plan types additionally keep the
+// singular KernelStrategy/Algorithm accessors as convenience.
 
-// metaFromOptions builds a PlanMeta view of the options a composite plan was
-// constructed with. Unlike the 1D Plan's Meta (whose Strategy is the resolved
-// strategy of its single kernel), Strategy here is the requested
-// PlanOptions.Strategy — composite plans resolve one strategy per axis, which
-// KernelStrategies reports.
-func metaFromOptions(opts PlanOptions) PlanMeta {
-	return PlanMeta{
-		Planner:  opts.Planner,
-		Strategy: opts.Strategy,
-		Batch:    opts.Batch,
-		Stride:   opts.Stride,
-		InPlace:  opts.InPlace,
-	}
+// KernelStrategies returns the resolved kernel strategy as a one-element
+// slice (1D plans have a single kernel). See KernelStrategy for the singular
+// accessor.
+func (p *Plan[T]) KernelStrategies() []KernelStrategy {
+	return []KernelStrategy{p.KernelStrategy()}
 }
 
-// Meta returns metadata about how the plan was constructed. Strategy reflects
-// the requested PlanOptions.Strategy; the per-axis resolved strategies are
-// available via KernelStrategies.
-func (p *Plan2D[T]) Meta() PlanMeta {
-	return metaFromOptions(p.options)
+// Algorithms returns the bound algorithm name as a one-element slice (1D
+// plans have a single kernel). See Algorithm for the singular accessor.
+func (p *Plan[T]) Algorithms() []string {
+	return []string{p.Algorithm()}
 }
 
 // KernelStrategies returns the resolved kernel strategy for each axis in
@@ -41,11 +33,13 @@ func (p *Plan2D[T]) Algorithms() []string {
 	return []string{p.colPlan.Algorithm(), p.rowPlan.Algorithm()}
 }
 
-// Meta returns metadata about how the plan was constructed. Strategy reflects
-// the requested PlanOptions.Strategy; the per-axis resolved strategies are
-// available via KernelStrategies.
-func (p *Plan3D[T]) Meta() PlanMeta {
-	return metaFromOptions(p.options)
+// Close releases the plan's scratch cache and child-plan references. After
+// Close the plan must not be used for transforms; calling Close multiple
+// times is safe. Clones are unaffected (they hold their own references).
+func (p *Plan2D[T]) Close() {
+	p.rowPlan = nil
+	p.colPlan = nil
+	p.scratch = nil
 }
 
 // KernelStrategies returns the resolved kernel strategy for each axis in
@@ -65,11 +59,14 @@ func (p *Plan3D[T]) Algorithms() []string {
 	return []string{p.depthPlan.Algorithm(), p.heightPlan.Algorithm(), p.widthPlan.Algorithm()}
 }
 
-// Meta returns metadata about how the plan was constructed. Strategy reflects
-// the requested PlanOptions.Strategy; the per-axis resolved strategies are
-// available via KernelStrategies.
-func (p *PlanND[T]) Meta() PlanMeta {
-	return metaFromOptions(p.options)
+// Close releases the plan's scratch cache and child-plan references. After
+// Close the plan must not be used for transforms; calling Close multiple
+// times is safe. Clones are unaffected (they hold their own references).
+func (p *Plan3D[T]) Close() {
+	p.depthPlan = nil
+	p.heightPlan = nil
+	p.widthPlan = nil
+	p.scratch = nil
 }
 
 // KernelStrategies returns the resolved kernel strategy for each dimension:
@@ -94,60 +91,77 @@ func (p *PlanND[T]) Algorithms() []string {
 	return algorithms
 }
 
-// Meta returns metadata about the underlying complex plan that performs the
-// real transform (half-size for even lengths, full-size for the odd-length
-// fallback).
-func (p *PlanRealT[F, C]) Meta() PlanMeta {
-	return p.plan.Meta()
+// Close releases the plan's scratch cache and child-plan references. After
+// Close the plan must not be used for transforms; calling Close multiple
+// times is safe. Clones are unaffected (they hold their own references).
+func (p *PlanND[T]) Close() {
+	p.plans = nil
+	p.scratch = nil
 }
 
 // KernelStrategy returns the resolved kernel strategy of the underlying
 // complex plan (half-size for even lengths, full-size for the odd-length
 // fallback).
-func (p *PlanRealT[F, C]) KernelStrategy() KernelStrategy {
+func (p *PlanReal[F, C]) KernelStrategy() KernelStrategy {
 	return p.plan.KernelStrategy()
 }
 
 // Algorithm returns the human-readable algorithm name of the underlying
 // complex plan (half-size for even lengths, full-size for the odd-length
 // fallback).
-func (p *PlanRealT[F, C]) Algorithm() string {
+func (p *PlanReal[F, C]) Algorithm() string {
 	return p.plan.Algorithm()
 }
 
-// Meta returns metadata about how the plan was constructed. Strategy reflects
-// the requested PlanOptions.Strategy; the per-axis resolved strategies are
-// available via KernelStrategies.
-func (p *PlanReal2D) Meta() PlanMeta {
-	return metaFromOptions(p.options)
+// KernelStrategies returns the resolved kernel strategy of the underlying
+// complex plan as a one-element slice.
+func (p *PlanReal[F, C]) KernelStrategies() []KernelStrategy {
+	return []KernelStrategy{p.KernelStrategy()}
+}
+
+// Algorithms returns the algorithm name of the underlying complex plan as a
+// one-element slice.
+func (p *PlanReal[F, C]) Algorithms() []string {
+	return []string{p.Algorithm()}
+}
+
+// Close releases the plan's buffers and child-plan reference. After Close the
+// plan must not be used for transforms; calling Close multiple times is safe.
+// Clones are unaffected (they hold their own references).
+func (p *PlanReal[F, C]) Close() {
+	p.plan = nil
+	p.weight = nil
+	p.buf = nil
 }
 
 // KernelStrategies returns the resolved kernel strategy for each axis in
 // dimension order: index 0 describes the length-rows complex transforms
 // applied along columns, index 1 the length-cols real transforms applied
 // along rows (reported via their half-size complex plan).
-func (p *PlanReal2D) KernelStrategies() []KernelStrategy {
+func (p *PlanReal2D[F, C]) KernelStrategies() []KernelStrategy {
 	return []KernelStrategy{p.colPlans[0].KernelStrategy(), p.rowPlan.KernelStrategy()}
 }
 
 // Algorithms returns the human-readable algorithm name for each axis, in the
 // same dimension order as KernelStrategies.
-func (p *PlanReal2D) Algorithms() []string {
+func (p *PlanReal2D[F, C]) Algorithms() []string {
 	return []string{p.colPlans[0].Algorithm(), p.rowPlan.Algorithm()}
 }
 
-// Meta returns metadata about how the plan was constructed. PlanReal3D takes
-// no options, so this reports the defaults; the per-axis resolved strategies
-// are available via KernelStrategies.
-func (p *PlanReal3D) Meta() PlanMeta {
-	return metaFromOptions(normalizePlanOptions(PlanOptions{}))
+// Close releases the plan's scratch cache and child-plan references. After
+// Close the plan must not be used for transforms; calling Close multiple
+// times is safe. Clones are unaffected (they hold their own references).
+func (p *PlanReal2D[F, C]) Close() {
+	p.rowPlan = nil
+	p.colPlans = nil
+	p.scratch = nil
 }
 
 // KernelStrategies returns the resolved kernel strategy for each axis in
 // dimension order (depth, height, width): the depth and height entries
 // describe complex transforms, the width entry the real transform (reported
 // via its half-size complex plan).
-func (p *PlanReal3D) KernelStrategies() []KernelStrategy {
+func (p *PlanReal3D[F, C]) KernelStrategies() []KernelStrategy {
 	return []KernelStrategy{
 		p.depthPlans[0].KernelStrategy(),
 		p.heightPlans[0].KernelStrategy(),
@@ -157,7 +171,7 @@ func (p *PlanReal3D) KernelStrategies() []KernelStrategy {
 
 // Algorithms returns the human-readable algorithm name for each axis, in the
 // same dimension order as KernelStrategies.
-func (p *PlanReal3D) Algorithms() []string {
+func (p *PlanReal3D[F, C]) Algorithms() []string {
 	return []string{
 		p.depthPlans[0].Algorithm(),
 		p.heightPlans[0].Algorithm(),
@@ -165,20 +179,35 @@ func (p *PlanReal3D) Algorithms() []string {
 	}
 }
 
-// Meta returns metadata about how the plan was constructed. FastPlan always
-// uses heuristic planning (PlannerEstimate) and direct codelet bindings.
-func (fp *FastPlan[T]) Meta() PlanMeta {
-	return PlanMeta{Planner: PlannerEstimate, Strategy: fp.strategy}
+// Close releases the plan's scratch cache and child-plan references. After
+// Close the plan must not be used for transforms; calling Close multiple
+// times is safe. Clones are unaffected (they hold their own references).
+func (p *PlanReal3D[F, C]) Close() {
+	p.widthPlan = nil
+	p.heightPlans = nil
+	p.depthPlans = nil
+	p.scratch = nil
 }
 
 // KernelStrategy returns the kernel strategy resolved at creation time.
 func (fp *FastPlan[T]) KernelStrategy() KernelStrategy {
-	return fp.strategy
+	return kernelStrategyFromInternal(fp.strategy)
 }
 
 // Algorithm returns the human-readable name of the bound codelet.
 func (fp *FastPlan[T]) Algorithm() string {
 	return fp.algorithm
+}
+
+// KernelStrategies returns the resolved kernel strategy as a one-element
+// slice (a FastPlan binds exactly one codelet).
+func (fp *FastPlan[T]) KernelStrategies() []KernelStrategy {
+	return []KernelStrategy{fp.KernelStrategy()}
+}
+
+// Algorithms returns the bound codelet name as a one-element slice.
+func (fp *FastPlan[T]) Algorithms() []string {
+	return []string{fp.algorithm}
 }
 
 // Close releases the plan's buffers. FastPlan buffers are not pooled, so Close
@@ -197,53 +226,34 @@ func (fp *FastPlan[T]) Close() {
 	fp.inverseFunc = nil
 }
 
-// Meta returns metadata about the underlying half-size complex FastPlan.
-func (fp *FastPlanReal32) Meta() PlanMeta {
-	return fp.inner.Meta()
-}
-
 // KernelStrategy returns the kernel strategy of the underlying half-size
 // complex FastPlan.
-func (fp *FastPlanReal32) KernelStrategy() KernelStrategy {
+func (fp *FastPlanReal[F, C]) KernelStrategy() KernelStrategy {
 	return fp.inner.KernelStrategy()
 }
 
 // Algorithm returns the codelet name of the underlying half-size complex
 // FastPlan.
-func (fp *FastPlanReal32) Algorithm() string {
+func (fp *FastPlanReal[F, C]) Algorithm() string {
 	return fp.inner.Algorithm()
+}
+
+// KernelStrategies returns the kernel strategy of the underlying half-size
+// complex FastPlan as a one-element slice.
+func (fp *FastPlanReal[F, C]) KernelStrategies() []KernelStrategy {
+	return []KernelStrategy{fp.inner.KernelStrategy()}
+}
+
+// Algorithms returns the codelet name of the underlying half-size complex
+// FastPlan as a one-element slice.
+func (fp *FastPlanReal[F, C]) Algorithms() []string {
+	return []string{fp.inner.Algorithm()}
 }
 
 // Close releases the plan's buffers, including the underlying complex
 // FastPlan's. After Close the plan must not be used for transforms; calling
 // Close multiple times is safe.
-func (fp *FastPlanReal32) Close() {
-	fp.inner.Close()
-	fp.weight = nil
-	fp.buf = nil
-}
-
-// Meta returns metadata about the underlying half-size complex FastPlan.
-func (fp *FastPlanReal64) Meta() PlanMeta {
-	return fp.inner.Meta()
-}
-
-// KernelStrategy returns the kernel strategy of the underlying half-size
-// complex FastPlan.
-func (fp *FastPlanReal64) KernelStrategy() KernelStrategy {
-	return fp.inner.KernelStrategy()
-}
-
-// Algorithm returns the codelet name of the underlying half-size complex
-// FastPlan.
-func (fp *FastPlanReal64) Algorithm() string {
-	return fp.inner.Algorithm()
-}
-
-// Close releases the plan's buffers, including the underlying complex
-// FastPlan's. After Close the plan must not be used for transforms; calling
-// Close multiple times is safe.
-func (fp *FastPlanReal64) Close() {
+func (fp *FastPlanReal[F, C]) Close() {
 	fp.inner.Close()
 	fp.weight = nil
 	fp.buf = nil

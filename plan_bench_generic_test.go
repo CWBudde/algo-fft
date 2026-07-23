@@ -186,7 +186,7 @@ func newForceGenericFallbackPlan[T Complex](b *testing.B, fftSize int) *Plan[T] 
 
 // forceGenericForBenchmark forces the pure-Go fallback dispatch for plans
 // created afterwards. Kernels are selected at plan creation, so this must be
-// called before NewPlanT. Real detection is restored when the benchmark ends.
+// called before NewPlan. Real detection is restored when the benchmark ends.
 func forceGenericForBenchmark(b *testing.B) {
 	b.Helper()
 

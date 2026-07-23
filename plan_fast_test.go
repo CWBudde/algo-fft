@@ -79,9 +79,9 @@ func TestFastPlan_MatchesSafeAPI(t *testing.T) {
 			t.Fatalf("NewFastPlan(%d) error: %v", n, err)
 		}
 
-		safePlan, err := NewPlanT[complex64](n)
+		safePlan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlanT(%d) error: %v", n, err)
+			t.Fatalf("NewPlan(%d) error: %v", n, err)
 		}
 
 		// Create test input
@@ -229,7 +229,7 @@ func TestFastPlanReal32_InvalidSizes(t *testing.T) {
 	}
 }
 
-// TestFastPlanReal32_MatchesSafeAPI verifies FastPlanReal32 matches PlanRealT.
+// TestFastPlanReal32_MatchesSafeAPI verifies FastPlanReal32 matches PlanReal.
 func TestFastPlanReal32_MatchesSafeAPI(t *testing.T) {
 	t.Parallel()
 
@@ -245,9 +245,9 @@ func TestFastPlanReal32_MatchesSafeAPI(t *testing.T) {
 			t.Fatalf("NewFastPlanReal32(%d) error: %v", n, err)
 		}
 
-		safePlan, err := NewPlanRealT[float32, complex64](n)
+		safePlan, err := NewPlanReal[float32, complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlanRealT(%d) error: %v", n, err)
+			t.Fatalf("NewPlanReal(%d) error: %v", n, err)
 		}
 
 		// Create test input
@@ -541,9 +541,9 @@ func BenchmarkFastPlan_vs_Plan(b *testing.B) {
 			continue
 		}
 
-		safePlan, err := NewPlanT[complex64](n)
+		safePlan, err := NewPlan[complex64](n)
 		if err != nil {
-			b.Fatalf("NewPlanT(%d) error: %v", n, err)
+			b.Fatalf("NewPlan(%d) error: %v", n, err)
 		}
 
 		src := make([]complex64, n)
@@ -567,8 +567,8 @@ func BenchmarkFastPlan_vs_Plan(b *testing.B) {
 	}
 }
 
-// BenchmarkFastPlanReal32_vs_PlanRealT compares real FFT performance.
-func BenchmarkFastPlanReal32_vs_PlanRealT(b *testing.B) {
+// BenchmarkFastPlanReal32_vs_PlanReal compares real FFT performance.
+func BenchmarkFastPlanReal32_vs_PlanReal(b *testing.B) {
 	sizes := []int{64, 256, 1024}
 
 	for _, n := range sizes {
@@ -578,9 +578,9 @@ func BenchmarkFastPlanReal32_vs_PlanRealT(b *testing.B) {
 			continue
 		}
 
-		safePlan, err := NewPlanRealT[float32, complex64](n)
+		safePlan, err := NewPlanReal[float32, complex64](n)
 		if err != nil {
-			b.Fatalf("NewPlanRealT(%d) error: %v", n, err)
+			b.Fatalf("NewPlanReal(%d) error: %v", n, err)
 		}
 
 		src := make([]float32, n)

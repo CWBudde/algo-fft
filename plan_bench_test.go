@@ -140,9 +140,9 @@ func BenchmarkPlanReusePatterns_1024(b *testing.B) {
 func benchmarkPlanForward(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlanT[complex64](fftSize)
+	plan, err := NewPlan[complex64](fftSize)
 	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 	}
 
 	src := make([]complex64, fftSize)
@@ -194,9 +194,9 @@ func benchmarkPlanForwardWithOptions(b *testing.B, fftSize int, opts PlanOptions
 func benchmarkPlanForwardMemStats(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlanT[complex64](fftSize)
+	plan, err := NewPlan[complex64](fftSize)
 	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 	}
 
 	src := make([]complex64, fftSize)
@@ -234,9 +234,9 @@ func benchmarkPlanForwardMemStats(b *testing.B, fftSize int) {
 func benchmarkPlanForwardAllocBuffers(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlanT[complex64](fftSize)
+	plan, err := NewPlan[complex64](fftSize)
 	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 	}
 
 	template := make([]complex64, fftSize)
@@ -274,9 +274,9 @@ func benchmarkPlanForwardNewPlanEachIter(b *testing.B, fftSize int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		plan, err := NewPlanT[complex64](fftSize)
+		plan, err := NewPlan[complex64](fftSize)
 		if err != nil {
-			b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+			b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 		}
 
 		src := make([]complex64, fftSize)
@@ -294,9 +294,9 @@ func benchmarkPlanForwardNewPlanEachIter(b *testing.B, fftSize int) {
 func benchmarkPlanInverse(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlanT[complex64](fftSize)
+	plan, err := NewPlan[complex64](fftSize)
 	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 	}
 
 	src := make([]complex64, fftSize)
@@ -358,9 +358,9 @@ func benchmarkNewPlan(b *testing.B, fftSize int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		plan, err := NewPlanT[complex64](fftSize)
+		plan, err := NewPlan[complex64](fftSize)
 		if err != nil {
-			b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+			b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 		}
 
 		// Prevent compiler from optimizing away the allocation
@@ -415,9 +415,9 @@ func BenchmarkPlanInverse_8192_Complex128_Focus(b *testing.B) {
 func benchmarkPlanForwardComplex128Focus(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlanT[complex128](fftSize)
+	plan, err := NewPlan[complex128](fftSize)
 	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 	}
 
 	logPlanDetails(b, plan)
@@ -444,9 +444,9 @@ func benchmarkPlanForwardComplex128Focus(b *testing.B, fftSize int) {
 func benchmarkPlanInverseComplex128Focus(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlanT[complex128](fftSize)
+	plan, err := NewPlan[complex128](fftSize)
 	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 	}
 
 	logPlanDetails(b, plan)
@@ -475,29 +475,10 @@ func logPlanDetails[T Complex](b *testing.B, plan *Plan[T]) {
 	b.Logf(
 		"plan: size=%d strategy=%s algorithm=%s twiddle=%s",
 		plan.n,
-		kernelStrategyName(plan.kernelStrategy),
+		kernelStrategyFromInternal(plan.kernelStrategy).String(),
 		plan.algorithm,
 		twiddleLayoutSummary(plan),
 	)
-}
-
-func kernelStrategyName(strategy KernelStrategy) string {
-	switch strategy {
-	case KernelDIT:
-		return "DIT"
-	case KernelStockham:
-		return "Stockham"
-	case KernelSixStep:
-		return "SixStep"
-	case KernelEightStep:
-		return "EightStep"
-	case KernelBluestein:
-		return "Bluestein"
-	case KernelRecursive:
-		return "Recursive"
-	default:
-		return "Auto"
-	}
 }
 
 func twiddleLayoutSummary[T Complex](plan *Plan[T]) string {

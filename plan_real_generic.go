@@ -1,6 +1,7 @@
 package algofft
 
 import (
+	"fmt"
 	"math"
 	"unsafe"
 
@@ -8,11 +9,11 @@ import (
 	"github.com/cwbudde/algo-fft/internal/fft"
 )
 
-// PlanRealT is a generic pre-computed real FFT plan supporting both float32 and float64 input.
-// The forward transform returns the non-redundant half-spectrum with length N/2+1.
-// Plans are reusable and safe for concurrent use during transforms: the
-// pack/unpack buffer is borrowed per call from an internal cache, so multiple
-// goroutines may share one instance.
+// PlanReal is a generic pre-computed real FFT plan supporting both float32
+// and float64 input. The forward transform returns the non-redundant
+// half-spectrum with length N/2+1. Plans are reusable and safe for concurrent
+// use during transforms: the pack/unpack buffer is borrowed per call from an
+// internal cache, so multiple goroutines may share one instance.
 //
 // Type parameters:
 //   - F: float type (float32 or float64)
@@ -29,17 +30,16 @@ import (
 // supported via an internal full-size complex FFT fallback — correct for any
 // length the complex planner handles (including primes), at roughly 2× the
 // memory and flops of the packed method.
-type PlanRealT[F Float, C Complex] struct {
+type PlanReal[F Float, C Complex] struct {
 	n    int
 	half int
 
-	plan    *Plan[C]
-	weight  []C
-	buf     *residentCache[[]C]
-	options PlanOptions
+	plan   *Plan[C]
+	weight []C
+	buf    *residentCache[[]C]
 }
 
-func newPlanRealTBufCache[C Complex](half int) *residentCache[[]C] {
+func newPlanRealBufCache[C Complex](half int) *residentCache[[]C] {
 	return newResidentCache(func() *[]C {
 		b := make([]C, half)
 
@@ -47,47 +47,41 @@ func newPlanRealTBufCache[C Complex](half int) *residentCache[[]C] {
 	})
 }
 
-// NewPlanRealT creates a new generic real FFT plan for length n (n >= 2).
+// NewPlanReal creates a new generic real FFT plan for length n (n >= 2).
 // The type parameter F determines the precision (float32 or float64).
 // The complex type C must match F (float32→complex64, float64→complex128).
 //
 // Even lengths run the packed half-size method; odd lengths run a full-size
-// complex FFT internally (see PlanRealT).
+// complex FFT internally (see PlanReal).
 //
 // Example:
 //
 //	// Float32 precision
-//	plan32, err := algofft.NewPlanRealT[float32, complex64](4096)
+//	plan32, err := algofft.NewPlanReal[float32, complex64](4096)
 //
 //	// Float64 precision
-//	plan64, err := algofft.NewPlanRealT[float64, complex128](4096)
-func NewPlanRealT[F Float, C Complex](n int) (*PlanRealT[F, C], error) {
-	return NewPlanRealTWithOptions[F, C](n, PlanOptions{})
+//	plan64, err := algofft.NewPlanReal[float64, complex128](4096)
+func NewPlanReal[F Float, C Complex](n int) (*PlanReal[F, C], error) {
+	return NewPlanRealWithOptions[F, C](n, PlanOptions{})
 }
 
-// NewPlanRealTWithOptions creates a new generic real FFT plan with explicit planner options.
-func NewPlanRealTWithOptions[F Float, C Complex](n int, opts PlanOptions) (*PlanRealT[F, C], error) {
-	return newPlanRealTWithFeatures[F, C](n, cpu.DetectFeatures(), normalizePlanOptions(opts))
+// NewPlanRealWithOptions creates a new generic real FFT plan with explicit planner options.
+func NewPlanRealWithOptions[F Float, C Complex](n int, opts PlanOptions) (*PlanReal[F, C], error) {
+	return newPlanRealWithFeatures[F, C](n, cpu.DetectFeatures(), normalizePlanOptions(opts))
 }
 
-func newPlanRealTWithFeatures[F Float, C Complex](
+func newPlanRealWithFeatures[F Float, C Complex](
 	n int, features cpu.Features, opts PlanOptions,
-) (*PlanRealT[F, C], error) {
+) (*PlanReal[F, C], error) {
 	if n < 2 {
 		return nil, ErrInvalidLength
 	}
 
 	if n%2 != 0 {
-		return newPlanRealTOddWithFeatures[F, C](n, features, opts)
+		return newPlanRealOddWithFeatures[F, C](n, features, opts)
 	}
 
-	childOpts := opts
-	childOpts.Batch = 0
-	childOpts.Stride = 0
-	// The real-FFT pack/unpack path uses the child complex plan in-place on the borrowed pack buffer.
-	childOpts.InPlace = true
-
-	plan, err := newPlanWithFeatures[C](n/2, features, childOpts)
+	plan, err := newPlanWithFeatures[C](n/2, features, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -112,78 +106,60 @@ func newPlanRealTWithFeatures[F Float, C Complex](
 		}
 	}
 
-	return &PlanRealT[F, C]{
-		n:       n,
-		half:    n / 2,
-		plan:    plan,
-		weight:  weight,
-		buf:     newPlanRealTBufCache[C](n / 2),
-		options: opts,
+	return &PlanReal[F, C]{
+		n:      n,
+		half:   n / 2,
+		plan:   plan,
+		weight: weight,
+		buf:    newPlanRealBufCache[C](n / 2),
 	}, nil
 }
 
 // Len returns the number of real samples for this plan.
-func (p *PlanRealT[F, C]) Len() int {
+func (p *PlanReal[F, C]) Len() int {
 	return p.n
 }
 
 // SpectrumLen returns the number of complex frequency bins (N/2+1).
-func (p *PlanRealT[F, C]) SpectrumLen() int {
+func (p *PlanReal[F, C]) SpectrumLen() int {
 	return p.half + 1
 }
 
-// Clone creates an independent copy of the PlanRealT.
+// realPlanTypeNames names the F→C type pair of a real plan for String().
+func realPlanTypeNames[C Complex]() string {
+	var zero C
+	if _, ok := any(zero).(complex128); ok {
+		return "float64→complex128"
+	}
+
+	return "float32→complex64"
+}
+
+// String returns a human-readable description of the PlanReal for debugging.
+func (p *PlanReal[F, C]) String() string {
+	return fmt.Sprintf("PlanReal[%s](%d → %d)", realPlanTypeNames[C](), p.n, p.half+1)
+}
+
+// Clone creates an independent copy of the PlanReal.
 //
-// A single PlanRealT is already safe for concurrent transforms, so cloning is
+// A single PlanReal is already safe for concurrent transforms, so cloning is
 // not required for concurrency; it remains available for callers that want
 // isolated scratch caches. The clone shares immutable data (the recombination
 // weights) and the concurrency-safe child complex plan, but has its own
 // pack/unpack buffer cache.
-func (p *PlanRealT[F, C]) Clone() *PlanRealT[F, C] {
-	return &PlanRealT[F, C]{
-		n:       p.n,
-		half:    p.half,
-		plan:    p.plan,
-		weight:  p.weight, // Shared (immutable)
-		buf:     newPlanRealTBufCache[C](p.plan.Len()),
-		options: p.options,
+func (p *PlanReal[F, C]) Clone() *PlanReal[F, C] {
+	return &PlanReal[F, C]{
+		n:      p.n,
+		half:   p.half,
+		plan:   p.plan,
+		weight: p.weight, // Shared (immutable)
+		buf:    newPlanRealBufCache[C](p.plan.Len()),
 	}
 }
 
 // Forward computes the real-to-complex FFT.
 // dst must have length N/2+1 and src must have length N.
-func (p *PlanRealT[F, C]) Forward(dst []C, src []F) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if p.options.Batch <= 1 && p.options.Stride <= 0 {
-		return p.forwardSingle(dst, src)
-	}
-
-	batch, strideIn, strideOut, err := resolveBatchStrideReal(p.n, p.half+1, p.options)
-	if err != nil {
-		return err
-	}
-
-	for b := range batch {
-		srcOff := b * strideIn
-		dstOff := b * strideOut
-
-		if srcOff+p.n > len(src) || dstOff+p.half+1 > len(dst) {
-			return ErrLengthMismatch
-		}
-
-		err = p.forwardSingle(dst[dstOff:dstOff+p.half+1], src[srcOff:srcOff+p.n])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
+func (p *PlanReal[F, C]) Forward(dst []C, src []F) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}
@@ -265,7 +241,7 @@ func (p *PlanRealT[F, C]) forwardSingle(dst []C, src []F) error {
 }
 
 // ForwardNormalized computes the real-to-complex FFT and scales the result by 1/N.
-func (p *PlanRealT[F, C]) ForwardNormalized(dst []C, src []F) error {
+func (p *PlanReal[F, C]) ForwardNormalized(dst []C, src []F) error {
 	err := p.Forward(dst, src)
 	if err != nil {
 		return err
@@ -278,7 +254,7 @@ func (p *PlanRealT[F, C]) ForwardNormalized(dst []C, src []F) error {
 }
 
 // ForwardUnitary computes the real-to-complex FFT and scales the result by 1/sqrt(N).
-func (p *PlanRealT[F, C]) ForwardUnitary(dst []C, src []F) error {
+func (p *PlanReal[F, C]) ForwardUnitary(dst []C, src []F) error {
 	err := p.Forward(dst, src)
 	if err != nil {
 		return err
@@ -292,38 +268,7 @@ func (p *PlanRealT[F, C]) ForwardUnitary(dst []C, src []F) error {
 
 // Inverse computes the complex-to-real inverse FFT.
 // dst must have length N and src must have length N/2+1.
-func (p *PlanRealT[F, C]) Inverse(dst []F, src []C) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if p.options.Batch <= 1 && p.options.Stride <= 0 {
-		return p.inverseSingle(dst, src)
-	}
-
-	batch, strideIn, strideOut, err := resolveBatchStrideReal(p.n, p.half+1, p.options)
-	if err != nil {
-		return err
-	}
-
-	for b := range batch {
-		dstOff := b * strideIn
-		srcOff := b * strideOut
-
-		if dstOff+p.n > len(dst) || srcOff+p.half+1 > len(src) {
-			return ErrLengthMismatch
-		}
-
-		err = p.inverseSingle(dst[dstOff:dstOff+p.n], src[srcOff:srcOff+p.half+1])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (p *PlanRealT[F, C]) inverseSingle(dst []F, src []C) error {
+func (p *PlanReal[F, C]) Inverse(dst []F, src []C) error {
 	if dst == nil || src == nil {
 		return ErrNilSlice
 	}

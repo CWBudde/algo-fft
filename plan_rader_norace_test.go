@@ -8,9 +8,9 @@ import "testing"
 // both the power-of-two (257) and mixed-radix (641) sub-FFT variants.
 func TestRader_ZeroAlloc(t *testing.T) {
 	for _, n := range []int{257, 641} {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) failed: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		src := randomComplex64(n, 3)

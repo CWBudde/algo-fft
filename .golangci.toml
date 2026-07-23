@@ -129,7 +129,7 @@ path = '^cmd/'
 # and panics, which is the intended no-silent-failure contract (PLAN.md P0.4).
 [[linters.exclusions.rules]]
 linters = ['forcetypeassert']
-path = '^(plan_(real_generic|real_odd|recursive|fast|bluestein)\.go|internal/memory/aligned_generic\.go|internal/fft/(pool|complex_mul)\.go)'
+path = '^(plan_(real_fast|real_generic|real_odd|recursive|fast|bluestein)\.go|internal/memory/aligned_generic\.go|internal/fft/(pool|complex_mul)\.go)'
 
 # Cross-arch alias tables: symbols may only be read by another GOARCH's
 # dispatch files, which the (host-arch) unused check cannot see.

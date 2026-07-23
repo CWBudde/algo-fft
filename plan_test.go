@@ -12,14 +12,14 @@ func TestNewPlan_PowersOfTwo(t *testing.T) {
 
 	sizes := []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096}
 	for _, n := range sizes {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Errorf("NewPlan(%d) returned error: %v", n, err)
+			t.Errorf("NewPlan[complex64](%d) returned error: %v", n, err)
 			continue
 		}
 
 		if plan.Len() != n {
-			t.Errorf("NewPlan(%d).Len() = %d, want %d", n, plan.Len(), n)
+			t.Errorf("NewPlan[complex64](%d).Len() = %d, want %d", n, plan.Len(), n)
 		}
 
 		// Verify Forward works
@@ -65,9 +65,9 @@ func TestNewPlan_InvalidLength(t *testing.T) {
 
 	invalidSizes := []int{0, -1, -100}
 	for _, n := range invalidSizes {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if !errors.Is(err, ErrInvalidLength) {
-			t.Errorf("NewPlan(%d) = (%v, %v), want (nil, ErrInvalidLength)", n, plan, err)
+			t.Errorf("NewPlan[complex64](%d) = (%v, %v), want (nil, ErrInvalidLength)", n, plan, err)
 		}
 	}
 }
@@ -76,9 +76,9 @@ func TestNewPlan_MixedRadixLengths(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range []int{6, 10, 12, 15, 20, 30, 60} {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 		}
 
 		src := make([]complex64, n)
@@ -102,9 +102,9 @@ func TestNewPlan_MixedRadixLengths(t *testing.T) {
 func TestNewPlan_TwiddleFactors(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex128](8)
+	plan, err := NewPlan[complex128](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	// W_n^0 should be 1
@@ -131,9 +131,9 @@ func TestNewPlan_TwiddleFactors(t *testing.T) {
 func TestNewPlan_TwiddleFactorsPeriodicity(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex128](16)
+	plan, err := NewPlan[complex128](16)
 	if err != nil {
-		t.Fatalf("NewPlan(16) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](16) returned error: %v", err)
 	}
 
 	// Verify W_n^k has magnitude 1 (lies on unit circle)
@@ -150,9 +150,9 @@ func TestNewPlan_TwiddleFactorsPeriodicity(t *testing.T) {
 func TestForward_NilSlice(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](8)
+	plan, err := NewPlan[complex64](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	// nil dst
@@ -177,9 +177,9 @@ func TestForward_NilSlice(t *testing.T) {
 func TestForward_LengthMismatch(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](8)
+	plan, err := NewPlan[complex64](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	// dst too short
@@ -204,9 +204,9 @@ func TestForward_LengthMismatch(t *testing.T) {
 func TestInverse_NilSlice(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](8)
+	plan, err := NewPlan[complex64](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	err = plan.Inverse(nil, make([]complex64, 8))
@@ -218,9 +218,9 @@ func TestInverse_NilSlice(t *testing.T) {
 func TestInverse_LengthMismatch(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](8)
+	plan, err := NewPlan[complex64](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	err = plan.Inverse(make([]complex64, 4), make([]complex64, 8))
@@ -232,9 +232,9 @@ func TestInverse_LengthMismatch(t *testing.T) {
 func TestInPlace_NilSlice(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](8)
+	plan, err := NewPlan[complex64](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	err = plan.ForwardInPlace(nil)
@@ -246,9 +246,9 @@ func TestInPlace_NilSlice(t *testing.T) {
 func TestInPlace_LengthMismatch(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](8)
+	plan, err := NewPlan[complex64](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	err = plan.ForwardInPlace(make([]complex64, 4))
@@ -260,9 +260,9 @@ func TestInPlace_LengthMismatch(t *testing.T) {
 func TestForward_Impulse(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](8)
+	plan, err := NewPlan[complex64](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	dst := make([]complex64, 8)
@@ -283,9 +283,9 @@ func TestForward_Impulse(t *testing.T) {
 func TestForwardInverse_RoundTrip(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](8)
+	plan, err := NewPlan[complex64](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	src := make([]complex64, 8)
@@ -315,9 +315,9 @@ func TestForwardInverse_RoundTrip(t *testing.T) {
 func TestForwardInverse_Size2(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](2)
+	plan, err := NewPlan[complex64](2)
 	if err != nil {
-		t.Fatalf("NewPlan(2) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](2) returned error: %v", err)
 	}
 
 	src := []complex64{1 + 2i, 3 + 4i}
@@ -343,9 +343,9 @@ func TestForwardInverse_Size2(t *testing.T) {
 func TestForwardInverse_RoundTrip128(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex128](8)
+	plan, err := NewPlan[complex128](8)
 	if err != nil {
-		t.Fatalf("NewPlan(8) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](8) returned error: %v", err)
 	}
 
 	src := make([]complex128, 8)
@@ -393,18 +393,18 @@ func assertApproxComplex128f(t *testing.T, got, want complex128, format string, 
 
 func BenchmarkNewPlan_64(b *testing.B) {
 	for b.Loop() {
-		_, _ = NewPlanT[complex64](64)
+		_, _ = NewPlan[complex64](64)
 	}
 }
 
 func BenchmarkNewPlan_1024(b *testing.B) {
 	for b.Loop() {
-		_, _ = NewPlanT[complex64](1024)
+		_, _ = NewPlan[complex64](1024)
 	}
 }
 
 func BenchmarkNewPlan_65536(b *testing.B) {
 	for b.Loop() {
-		_, _ = NewPlanT[complex64](65536)
+		_, _ = NewPlan[complex64](65536)
 	}
 }

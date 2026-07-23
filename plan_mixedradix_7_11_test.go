@@ -24,13 +24,13 @@ func TestNewPlan_MixedRadix7And11(t *testing.T) {
 		t.Run(itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanT[complex128](n)
+			plan, err := NewPlan[complex128](n)
 			if err != nil {
-				t.Fatalf("NewPlan(%d) failed: %v", n, err)
+				t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 			}
 
 			if plan.KernelStrategy() == KernelBluestein {
-				t.Fatalf("NewPlan(%d) resolved to Bluestein, want mixed-radix", n)
+				t.Fatalf("NewPlan[complex64](%d) resolved to Bluestein, want mixed-radix", n)
 			}
 
 			src := randomComplex128(n, int64(n))
@@ -77,13 +77,13 @@ func TestNewPlan_7And11GateKeepsBluestein(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range []int{7, 14, 22, 28, 63, 121, 231, 308, 462, 847, 924} {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) failed: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		if got := plan.KernelStrategy(); got != KernelBluestein {
-			t.Errorf("NewPlan(%d): KernelStrategy() = %v, want KernelBluestein", n, got)
+			t.Errorf("NewPlan[complex64](%d): KernelStrategy() = %v, want KernelBluestein", n, got)
 		}
 	}
 }
@@ -185,7 +185,7 @@ func BenchmarkMixedRadix7And11VsBluestein(b *testing.B) {
 
 		plan, err := NewPlanWithOptions[complex64](n, opts)
 		if err != nil {
-			b.Fatalf("NewPlan(%d) failed: %v", n, err)
+			b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		src := randomComplex64(n, int64(n))
@@ -205,7 +205,7 @@ func BenchmarkMixedRadix7And11VsBluestein(b *testing.B) {
 
 		plan, err := NewPlanWithOptions[complex128](n, opts)
 		if err != nil {
-			b.Fatalf("NewPlan(%d) failed: %v", n, err)
+			b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		src := randomComplex128(n, int64(n))

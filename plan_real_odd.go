@@ -6,7 +6,7 @@ import (
 	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
-// This file implements the odd-length fallback for PlanRealT. The packed
+// This file implements the odd-length fallback for PlanReal. The packed
 // half-size method requires even n; odd lengths instead run a full-size
 // complex FFT internally: the forward transform widens the real input into
 // the complex buffer and keeps the non-redundant n/2+1 bins, the inverse
@@ -15,33 +15,26 @@ import (
 // flops but keeps the real-FFT API available for every length the complex
 // planner supports (including primes, via Bluestein/Rader).
 
-func newPlanRealTOddWithFeatures[F Float, C Complex](
+func newPlanRealOddWithFeatures[F Float, C Complex](
 	n int, features cpu.Features, opts PlanOptions,
-) (*PlanRealT[F, C], error) {
-	childOpts := opts
-	childOpts.Batch = 0
-	childOpts.Stride = 0
-	// The fallback runs the full-size complex plan in-place on the borrowed buffer.
-	childOpts.InPlace = true
-
-	plan, err := newPlanWithFeatures[C](n, features, childOpts)
+) (*PlanReal[F, C], error) {
+	plan, err := newPlanWithFeatures[C](n, features, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	// No recombination weights: the fallback slices the full spectrum directly.
-	return &PlanRealT[F, C]{
-		n:       n,
-		half:    n / 2,
-		plan:    plan,
-		buf:     newPlanRealTBufCache[C](n),
-		options: opts,
+	return &PlanReal[F, C]{
+		n:    n,
+		half: n / 2,
+		plan: plan,
+		buf:  newPlanRealBufCache[C](n),
 	}, nil
 }
 
 // forwardOdd computes the real-to-complex FFT for odd n via the full-size
 // complex plan. Lengths are validated by the caller (forwardSingle).
-func (p *PlanRealT[F, C]) forwardOdd(dst []C, src []F) error {
+func (p *PlanReal[F, C]) forwardOdd(dst []C, src []F) error {
 	bufp := p.buf.get()
 	defer p.buf.put(bufp)
 
@@ -79,7 +72,7 @@ func (p *PlanRealT[F, C]) forwardOdd(dst []C, src []F) error {
 
 // inverseOdd computes the complex-to-real inverse FFT for odd n via the
 // full-size complex plan. Lengths are validated by the caller (inverseSingle).
-func (p *PlanRealT[F, C]) inverseOdd(dst []F, src []C) error {
+func (p *PlanReal[F, C]) inverseOdd(dst []F, src []C) error {
 	// Odd lengths have no Nyquist bin; only DC must be (near-)real.
 	var zero C
 	switch any(zero).(type) {

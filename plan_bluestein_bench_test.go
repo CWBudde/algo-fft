@@ -61,9 +61,9 @@ func BenchmarkComparison_3000_vs_4096(b *testing.B) {
 func benchmarkBluesteinForward(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlanT[complex64](fftSize)
+	plan, err := NewPlan[complex64](fftSize)
 	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 	}
 
 	src := make([]complex64, fftSize)
@@ -88,9 +88,9 @@ func benchmarkBluesteinForward(b *testing.B, fftSize int) {
 func benchmarkBluesteinInverse(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlanT[complex64](fftSize)
+	plan, err := NewPlan[complex64](fftSize)
 	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 	}
 
 	src := make([]complex64, fftSize)
@@ -125,9 +125,9 @@ func benchmarkBluesteinNewPlan(b *testing.B, fftSize int) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		plan, err := NewPlanT[complex64](fftSize)
+		plan, err := NewPlan[complex64](fftSize)
 		if err != nil {
-			b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+			b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 		}
 
 		_ = plan
@@ -137,9 +137,9 @@ func benchmarkBluesteinNewPlan(b *testing.B, fftSize int) {
 func benchmarkBluesteinForward128(b *testing.B, fftSize int) {
 	b.Helper()
 
-	plan, err := NewPlanT[complex128](fftSize)
+	plan, err := NewPlan[complex128](fftSize)
 	if err != nil {
-		b.Fatalf("NewPlan(%d) returned error: %v", fftSize, err)
+		b.Fatalf("NewPlan[complex64](%d) returned error: %v", fftSize, err)
 	}
 
 	src := make([]complex128, fftSize)

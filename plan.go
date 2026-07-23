@@ -71,7 +71,6 @@ type Plan[T Complex] struct {
 	forwardKernel  fft.Kernel[T]
 	inverseKernel  fft.Kernel[T]
 	kernelStrategy fft.KernelStrategy
-	meta           PlanMeta
 
 	// Recursive decomposition strategy (nil if using existing kernel path)
 	decompStrategy *fft.DecomposeStrategy
@@ -90,20 +89,6 @@ type Plan[T Complex] struct {
 	// Used only when scratch field is nil.
 	scratchPool *scratchCache[T]
 }
-
-// KernelStrategy controls which FFT kernel a plan should use.
-type KernelStrategy = fft.KernelStrategy
-
-const (
-	KernelAuto       = fft.KernelAuto       // Let the planner choose by size
-	KernelDIT        = fft.KernelDIT        // Decimation-in-time
-	KernelStockham   = fft.KernelStockham   // Stockham autosort
-	KernelSixStep    = fft.KernelSixStep    // Six-step (cache-friendly, large sizes)
-	KernelEightStep  = fft.KernelEightStep  // Eight-step (cache-friendly, large sizes)
-	KernelBluestein  = fft.KernelBluestein  // Bluestein (arbitrary lengths)
-	KernelRecursive  = fft.KernelRecursive  // Recursive decomposition with codelet leaves
-	KernelSplitRadix = fft.KernelSplitRadix // Split-radix (2/4) DIT (power-of-two lengths)
-)
 
 // wisdomAdapter adapts the public WisdomStore interface to the internal WisdomRecorder.
 type wisdomAdapter struct {
@@ -133,7 +118,7 @@ func (p *Plan[T]) Len() int {
 
 // KernelStrategy reports the strategy chosen when the plan was created.
 func (p *Plan[T]) KernelStrategy() KernelStrategy {
-	return p.kernelStrategy
+	return kernelStrategyFromInternal(p.kernelStrategy)
 }
 
 // Algorithm returns the name of the bound kernel or codelet (e.g., "dit8_generic").
@@ -149,12 +134,16 @@ const (
 	precisionNameComplex128 = "complex128"
 )
 
-// Strategy names used by String() and the introspection tests.
+// Strategy names used by the String() methods and the introspection tests.
 const (
-	strategyNameDIT       = "DIT"
-	strategyNameStockham  = "Stockham"
-	strategyNameSixStep   = "SixStep"
-	strategyNameEightStep = "EightStep"
+	strategyNameAuto       = "auto"
+	strategyNameDIT        = "DIT"
+	strategyNameStockham   = "Stockham"
+	strategyNameSixStep    = "SixStep"
+	strategyNameEightStep  = "EightStep"
+	strategyNameBluestein  = "Bluestein"
+	strategyNameRecursive  = "Recursive"
+	strategyNameSplitRadix = "SplitRadix"
 )
 
 // The format is: "Plan[type](size, strategy)" where type is "complex64" or "complex128".
@@ -167,7 +156,7 @@ func (p *Plan[T]) String() string {
 		typeName = precisionNameComplex128
 	}
 
-	strategyName := "auto"
+	strategyName := strategyNameAuto
 
 	switch p.kernelStrategy {
 	case fft.KernelDIT:
@@ -179,9 +168,9 @@ func (p *Plan[T]) String() string {
 	case fft.KernelEightStep:
 		strategyName = strategyNameEightStep
 	case fft.KernelBluestein:
-		strategyName = "Bluestein"
+		strategyName = strategyNameBluestein
 	case fft.KernelSplitRadix:
-		strategyName = "SplitRadix"
+		strategyName = strategyNameSplitRadix
 	}
 
 	pooled := ""
@@ -375,14 +364,6 @@ func (p *Plan[T]) ForwardInPlace(data []T) error {
 	return p.Forward(data, data)
 }
 
-// InPlace computes the forward FFT in-place.
-//
-// Deprecated: Use ForwardInPlace, which matches the naming of the
-// multi-dimensional plans' ForwardInPlace/InverseInPlace pair.
-func (p *Plan[T]) InPlace(data []T) error {
-	return p.ForwardInPlace(data)
-}
-
 // InverseInPlace computes the inverse FFT in-place, modifying the input slice directly.
 //
 // This is equivalent to Inverse(data, data) but may be slightly more efficient.
@@ -536,7 +517,7 @@ func (p *Plan[T]) validateSlices(dst, src []T) error {
 	return nil
 }
 
-// NewPlanT creates a new FFT plan for the given size using the generic type T.
+// NewPlan creates a new FFT plan for the given size using the generic type T.
 // The size n can be any positive integer.
 // Power-of-2 sizes are most efficient.
 // Highly composite sizes (factors 2, 3, 5) use mixed-radix algorithms, as do
@@ -547,9 +528,9 @@ func (p *Plan[T]) validateSlices(dst, src []T) error {
 //
 // Example:
 //
-//	plan, err := NewPlanT[complex64](1024)
-//	plan128, err := NewPlanT[complex128](1024)
-func NewPlanT[T Complex](n int) (*Plan[T], error) {
+//	plan, err := NewPlan[complex64](1024)
+//	plan128, err := NewPlan[complex128](1024)
+func NewPlan[T Complex](n int) (*Plan[T], error) {
 	return newPlanWithFeatures[T](n, cpu.DetectFeatures(), PlanOptions{})
 }
 
@@ -726,14 +707,14 @@ func selectPlanEstimate[T Complex](n int, features cpu.Features, opts PlanOption
 			features,
 			fft.PlannerMode(opts.Planner),
 			recorder,
-			opts.Strategy,
+			opts.Strategy.internal(),
 		)
 	case PlannerEstimate:
 		// PlannerEstimate: use heuristics only (fast path)
-		return fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+		return fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy.internal())
 	default:
 		// Fallback for any unknown planner modes
-		return fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy)
+		return fft.EstimatePlan[T](n, features, opts.Wisdom, opts.Strategy.internal())
 	}
 }
 
@@ -746,9 +727,9 @@ func selectPlanEstimate[T Complex](n int, features cpu.Features, opts PlanOption
 // KernelAuto is passed instead so per-size dispatch keeps the distinction:
 // the AVX-512 tier substitutes its faster DIT kernel for auto-resolved
 // Stockham sizes while an explicit KernelStockham stays on the Stockham path.
-func kernelSelectionStrategy(n int, requested, estimated KernelStrategy) KernelStrategy {
-	if requested == KernelAuto && estimated == fft.ResolveKernelStrategy(n) {
-		return KernelAuto
+func kernelSelectionStrategy(n int, requested, estimated fft.KernelStrategy) fft.KernelStrategy {
+	if requested == fft.KernelAuto && estimated == fft.ResolveKernelStrategy(n) {
+		return fft.KernelAuto
 	}
 
 	return estimated
@@ -768,7 +749,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	// Prime lengths whose n-1 is 5-smooth upgrade from Bluestein to Rader's
 	// algorithm (exact length-(n-1) convolution instead of one padded to
 	// >= 2n-1). An explicitly forced KernelBluestein is honored as-is.
-	useRader := useBluestein && opts.Strategy != fft.KernelBluestein && fft.RaderEligible(n)
+	useRader := useBluestein && opts.Strategy != KernelBluestein && fft.RaderEligible(n)
 
 	bluesteinM, decompStrategy, err := planStrategyConfig(n, useBluestein, useRader, useRecursive)
 	if err != nil {
@@ -776,7 +757,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	}
 
 	// Get fallback kernels (used when no codelet is available)
-	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy, strategy))
+	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy.internal(), strategy))
 
 	// Prewarm shared per-size tables (bit-reversal indices) so the first
 	// transform stays allocation-free.
@@ -843,13 +824,6 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		bluesteinScratch:      nil, // Use pool
 		raderPermIn:           tables.raderPermIn,
 		raderPermOut:          tables.raderPermOut,
-		meta: PlanMeta{
-			Planner:  opts.Planner,
-			Strategy: strategy,
-			Batch:    opts.Batch,
-			Stride:   opts.Stride,
-			InPlace:  opts.InPlace,
-		},
 	}
 
 	if !useBluestein {
@@ -865,22 +839,16 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	return p, nil
 }
 
-// NewPlan creates a new single-precision (complex64) FFT plan.
-// This is equivalent to NewPlan32(n).
-func NewPlan(n int) (*Plan[complex64], error) {
-	return NewPlan32(n)
-}
-
 // NewPlan32 creates a new single-precision (complex64) FFT plan.
-// This is equivalent to NewPlanT[complex64](n).
+// This is one-line sugar for NewPlan[complex64](n).
 func NewPlan32(n int) (*Plan[complex64], error) {
-	return NewPlanT[complex64](n)
+	return NewPlan[complex64](n)
 }
 
 // NewPlan64 creates a new double-precision (complex128) FFT plan.
-// This is equivalent to NewPlanT[complex128](n).
+// This is one-line sugar for NewPlan[complex128](n).
 func NewPlan64(n int) (*Plan[complex128], error) {
-	return NewPlanT[complex128](n)
+	return NewPlan[complex128](n)
 }
 
 // NewPlanPooled creates a new FFT plan using pooled buffer allocations.
@@ -900,7 +868,7 @@ func NewPlanPooled[T Complex](n int) (*Plan[T], error) {
 
 // NewPlanPooledWithOptions creates a new FFT plan using pooled buffers and planner options.
 //
-// It accepts the same lengths and options as NewPlanTWithOptions. Sizes or
+// It accepts the same lengths and options as NewPlanWithOptions. Sizes or
 // forced strategies that require Bluestein or recursive decomposition carry
 // extra per-plan tables the shared buffer pool does not manage; those plans
 // are built with the regular allocator instead (Close remains valid, it just
@@ -927,7 +895,7 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 		return newPlanWithFeatures[T](n, features, opts)
 	}
 
-	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy, strategy))
+	kernels := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy.internal(), strategy))
 
 	// Prewarm shared per-size tables (bit-reversal indices) so the first
 	// transform stays allocation-free.
@@ -963,13 +931,6 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 		stridedScratchBacking: stridedBacking,
 		pool:                  pool,
 		scratchPool:           nil, // No internal pool for pooled plans
-		meta: PlanMeta{
-			Planner:  opts.Planner,
-			Strategy: strategy,
-			Batch:    opts.Batch,
-			Stride:   opts.Stride,
-			InPlace:  opts.InPlace,
-		},
 	}
 
 	p.packedTwiddle4 = fft.ComputePackedTwiddles[T](n, 4, p.twiddle)

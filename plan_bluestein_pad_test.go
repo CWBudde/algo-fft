@@ -50,14 +50,14 @@ func TestNewPlan_BluesteinTooLarge(t *testing.T) {
 		t.Fatalf("test premise broken: %d would not use Bluestein", n)
 	}
 
-	_, err := NewPlanT[complex64](n)
+	_, err := NewPlan[complex64](n)
 	if !errors.Is(err, ErrInvalidLength) {
-		t.Fatalf("NewPlanT[complex64](%d) error = %v, want ErrInvalidLength", n, err)
+		t.Fatalf("NewPlan[complex64](%d) error = %v, want ErrInvalidLength", n, err)
 	}
 
-	_, err = NewPlanT[complex128](n)
+	_, err = NewPlan[complex128](n)
 	if !errors.Is(err, ErrInvalidLength) {
-		t.Fatalf("NewPlanT[complex128](%d) error = %v, want ErrInvalidLength", n, err)
+		t.Fatalf("NewPlan[complex128](%d) error = %v, want ErrInvalidLength", n, err)
 	}
 }
 
@@ -162,9 +162,9 @@ func TestBluestein_LargePrimesMatchReference(t *testing.T) {
 		t.Run("complex64_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanT[complex64](n)
+			plan, err := NewPlan[complex64](n)
 			if err != nil {
-				t.Fatalf("NewPlan(%d) failed: %v", n, err)
+				t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 			}
 
 			src := make([]complex64, n)
@@ -190,9 +190,9 @@ func TestBluestein_LargePrimesMatchReference(t *testing.T) {
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanT[complex128](n)
+			plan, err := NewPlan[complex128](n)
 			if err != nil {
-				t.Fatalf("NewPlan(%d) failed: %v", n, err)
+				t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 			}
 
 			dst := make([]complex128, n)

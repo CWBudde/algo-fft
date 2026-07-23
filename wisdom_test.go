@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
 func TestNewWisdom(t *testing.T) {
@@ -30,8 +28,8 @@ func TestWisdom_StoreAndLookup(t *testing.T) {
 	wisdom := NewWisdom()
 
 	// Store an entry
-	entry := planner.WisdomEntry{
-		Key: planner.WisdomKey{
+	entry := WisdomEntry{
+		Key: WisdomKey{
 			Size:        128,
 			Precision:   0, // complex64
 			CPUFeatures: 0,
@@ -74,7 +72,7 @@ func TestWisdom_LookupNonExistent(t *testing.T) {
 	wisdom := NewWisdom()
 
 	// Lookup non-existent entry
-	_, found := wisdom.Lookup(planner.WisdomKey{Size: 256, Precision: 0, CPUFeatures: 0})
+	_, found := wisdom.Lookup(WisdomKey{Size: 256, Precision: 0, CPUFeatures: 0})
 	if found {
 		t.Error("Lookup() found non-existent entry")
 	}
@@ -95,10 +93,10 @@ func TestWisdom_OverwriteEntry(t *testing.T) {
 
 	wisdom := NewWisdom()
 
-	key := planner.WisdomKey{Size: 64, Precision: 1, CPUFeatures: 123}
+	key := WisdomKey{Size: 64, Precision: 1, CPUFeatures: 123}
 
 	// Store first entry
-	entry1 := planner.WisdomEntry{
+	entry1 := WisdomEntry{
 		Key:       key,
 		Algorithm: "stockham",
 		Timestamp: time.Now(),
@@ -106,7 +104,7 @@ func TestWisdom_OverwriteEntry(t *testing.T) {
 	wisdom.Store(entry1)
 
 	// Store second entry with same key
-	entry2 := planner.WisdomEntry{
+	entry2 := WisdomEntry{
 		Key:       key,
 		Algorithm: "dit64",
 		Timestamp: time.Now(),
@@ -138,8 +136,8 @@ func TestClearWisdom(t *testing.T) {
 
 	// Add some entries
 	wisdom := NewWisdom()
-	wisdom.Store(planner.WisdomEntry{
-		Key:       planner.WisdomKey{Size: 128, Precision: 0, CPUFeatures: 0},
+	wisdom.Store(WisdomEntry{
+		Key:       WisdomKey{Size: 128, Precision: 0, CPUFeatures: 0},
 		Algorithm: "test",
 		Timestamp: time.Now(),
 	})
@@ -169,8 +167,8 @@ func TestWisdomLen(t *testing.T) {
 
 	// Add entries
 	for i := range 5 {
-		wisdom.Store(planner.WisdomEntry{
-			Key: planner.WisdomKey{
+		wisdom.Store(WisdomEntry{
+			Key: WisdomKey{
 				Size:        128 << i,
 				Precision:   0,
 				CPUFeatures: 0,
@@ -201,8 +199,8 @@ func TestExportWisdom(t *testing.T) {
 
 	// Create a wisdom instance with some entries
 	wisdom := NewWisdom()
-	wisdom.Store(planner.WisdomEntry{
-		Key: planner.WisdomKey{
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
 			Size:        128,
 			Precision:   0,
 			CPUFeatures: 0,
@@ -211,8 +209,8 @@ func TestExportWisdom(t *testing.T) {
 		Timestamp: time.Unix(1234567890, 0),
 	})
 
-	wisdom.Store(planner.WisdomEntry{
-		Key: planner.WisdomKey{
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
 			Size:        256,
 			Precision:   1,
 			CPUFeatures: 5,
@@ -302,7 +300,7 @@ func TestImportWisdom(t *testing.T) {
 	}
 
 	// Verify first entry
-	entry, found := wisdom.Lookup(planner.WisdomKey{Size: 128, Precision: 0, CPUFeatures: 0})
+	entry, found := wisdom.Lookup(WisdomKey{Size: 128, Precision: 0, CPUFeatures: 0})
 	if !found {
 		t.Error("Failed to find first imported entry")
 	} else if entry.Algorithm != "dit64" {
@@ -310,7 +308,7 @@ func TestImportWisdom(t *testing.T) {
 	}
 
 	// Verify second entry
-	entry, found = wisdom.Lookup(planner.WisdomKey{Size: 256, Precision: 1, CPUFeatures: 5})
+	entry, found = wisdom.Lookup(WisdomKey{Size: 256, Precision: 1, CPUFeatures: 5})
 	if !found {
 		t.Error("Failed to find second imported entry")
 	} else if entry.Algorithm != "stockham" {
@@ -318,7 +316,7 @@ func TestImportWisdom(t *testing.T) {
 	}
 
 	// Verify third entry
-	entry, found = wisdom.Lookup(planner.WisdomKey{Size: 512, Precision: 0, CPUFeatures: 7})
+	entry, found = wisdom.Lookup(WisdomKey{Size: 512, Precision: 0, CPUFeatures: 7})
 	if !found {
 		t.Error("Failed to find third imported entry")
 	} else if entry.Algorithm != "sixstep" {
@@ -326,7 +324,7 @@ func TestImportWisdom(t *testing.T) {
 	}
 
 	// Verify fourth entry
-	entry, found = wisdom.Lookup(planner.WisdomKey{Size: 1024, Precision: 1, CPUFeatures: 0})
+	entry, found = wisdom.Lookup(WisdomKey{Size: 1024, Precision: 1, CPUFeatures: 0})
 	if !found {
 		t.Error("Failed to find fourth imported entry")
 	} else if entry.Algorithm != "bluestein" {
@@ -396,19 +394,19 @@ func TestExportImportRoundTrip(t *testing.T) {
 	// Create original wisdom
 	original := NewWisdom()
 
-	entries := []planner.WisdomEntry{
+	entries := []WisdomEntry{
 		{
-			Key:       planner.WisdomKey{Size: 64, Precision: 0, CPUFeatures: 0},
+			Key:       WisdomKey{Size: 64, Precision: 0, CPUFeatures: 0},
 			Algorithm: "dit32",
 			Timestamp: time.Unix(1000000000, 0),
 		},
 		{
-			Key:       planner.WisdomKey{Size: 128, Precision: 0, CPUFeatures: 1},
+			Key:       WisdomKey{Size: 128, Precision: 0, CPUFeatures: 1},
 			Algorithm: "dit64",
 			Timestamp: time.Unix(1000000001, 0),
 		},
 		{
-			Key:       planner.WisdomKey{Size: 256, Precision: 1, CPUFeatures: 2},
+			Key:       WisdomKey{Size: 256, Precision: 1, CPUFeatures: 2},
 			Algorithm: "stockham",
 			Timestamp: time.Unix(1000000002, 0),
 		},
@@ -490,8 +488,8 @@ func TestWisdom_ConcurrentAccess(t *testing.T) {
 	// Concurrent stores
 	go func() {
 		for i := range 100 {
-			wisdom.Store(planner.WisdomEntry{
-				Key: planner.WisdomKey{
+			wisdom.Store(WisdomEntry{
+				Key: WisdomKey{
 					Size:        128 + i,
 					Precision:   0,
 					CPUFeatures: 0,
@@ -507,7 +505,7 @@ func TestWisdom_ConcurrentAccess(t *testing.T) {
 	// Concurrent lookups
 	go func() {
 		for i := range 100 {
-			_, _ = wisdom.Lookup(planner.WisdomKey{Size: 128 + i, Precision: 0, CPUFeatures: 0})
+			_, _ = wisdom.Lookup(WisdomKey{Size: 128 + i, Precision: 0, CPUFeatures: 0})
 		}
 
 		done <- true

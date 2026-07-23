@@ -24,7 +24,6 @@ type Plan3D[T Complex] struct {
 	widthPlan            *Plan[T] // Plan for transforming along width (size=width)
 	heightPlan           *Plan[T] // Plan for transforming along height (size=height)
 	depthPlan            *Plan[T] // Plan for transforming along depth (size=depth)
-	options              PlanOptions
 
 	// scratch hands out per-call working buffers for thread-safety.
 	scratch *residentCache[plan3DScratch[T]]
@@ -80,23 +79,18 @@ func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions)
 	opts = normalizePlanOptions(opts)
 	features := cpu.DetectFeatures()
 
-	childOpts := opts
-	childOpts.Batch = 0
-	childOpts.Stride = 0
-	childOpts.InPlace = false
-
 	// Create 1D plans for each dimension
-	widthPlan, err := newPlanWithFeatures[T](width, features, childOpts)
+	widthPlan, err := newPlanWithFeatures[T](width, features, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create width-transform plan (size %d): %w", width, err)
 	}
 
-	heightPlan, err := newPlanWithFeatures[T](height, features, childOpts)
+	heightPlan, err := newPlanWithFeatures[T](height, features, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create height-transform plan (size %d): %w", height, err)
 	}
 
-	depthPlan, err := newPlanWithFeatures[T](depth, features, childOpts)
+	depthPlan, err := newPlanWithFeatures[T](depth, features, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create depth-transform plan (size %d): %w", depth, err)
 	}
@@ -109,7 +103,6 @@ func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions)
 		heightPlan: heightPlan,
 		depthPlan:  depthPlan,
 		scratch:    newPlan3DScratchCache[T](depth, height, width),
-		options:    opts,
 	}, nil
 }
 
@@ -168,30 +161,7 @@ func (p *Plan3D[T]) String() string {
 //
 //	x[d,h,w] * exp(-2πi*(kd*d/depth + kh*h/height + kw*w/width))
 func (p *Plan3D[T]) Forward(dst, src []T) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	batch, stride, err := resolveBatchStride(p.Len(), p.options)
-	if err != nil {
-		return err
-	}
-
-	for b := range batch {
-		srcOff := b * stride
-
-		dstOff := b * stride
-		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
-			return ErrLengthMismatch
-		}
-
-		err = p.forwardSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return p.forwardSingle(dst, src)
 }
 
 // Inverse computes the 3D IFFT: dst = IFFT3D(src).
@@ -205,30 +175,7 @@ func (p *Plan3D[T]) Forward(dst, src []T) error {
 //
 //	X[kd,kh,kw] * exp(2πi*(kd*d/depth + kh*h/height + kw*w/width))
 func (p *Plan3D[T]) Inverse(dst, src []T) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	batch, stride, err := resolveBatchStride(p.Len(), p.options)
-	if err != nil {
-		return err
-	}
-
-	for b := range batch {
-		srcOff := b * stride
-
-		dstOff := b * stride
-		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
-			return ErrLengthMismatch
-		}
-
-		err = p.inverseSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return p.inverseSingle(dst, src)
 }
 
 // ForwardInPlace computes the 3D FFT in-place: data = FFT3D(data).
@@ -258,7 +205,6 @@ func (p *Plan3D[T]) Clone() *Plan3D[T] {
 		heightPlan: p.heightPlan,
 		depthPlan:  p.depthPlan,
 		scratch:    newPlan3DScratchCache[T](p.depth, p.height, p.width),
-		options:    p.options,
 	}
 }
 

@@ -121,34 +121,47 @@ Today three precision idioms coexist (`NewPlanT[T]`, `NewPlan32/64`, bare
 and double-precision real 2D/3D therefore **doesn't exist**), and lifecycle/
 introspection methods are asymmetric across plan types.
 
-- [ ] **One precision scheme**: generic constructors (`NewPlanT[T]`-style)
-      are canonical; keep `32`/`64` wrappers only as documented one-line
-      sugar. Delete redundant entry points (the `Planner` type overlaps
-      `NewPlan*WithOptions` — keep one).
-- [ ] **Make everything generic**: `FastPlanReal[F, C]` replaces
-      `FastPlanReal32/64`; `PlanReal2D`/`PlanReal3D` become generic over
-      `[F, C]`, which closes the missing float64 real-2D/3D gap for free.
-- [ ] **One common plan interface** implemented by every plan type:
-      `Len`, `Forward`, `Inverse`, `Close`, `Clone` (+ `Reset` where
-      meaningful). Unify singular/plural introspection: `Algorithms()`/
-      `KernelStrategies()` everywhere (1D returns a 1-element slice) or a
-      single `Meta()` — pick one, delete the other.
-- [ ] **One in-place story**: `ForwardInPlace`/`InverseInPlace` only.
-      Delete deprecated `InPlace()` (plan.go:380, plan_fast.go:139) and the
-      inert `PlanOptions.InPlace` flag.
-- [ ] **Split `PlanOptions` to plan-time concerns only** (`Strategy`,
-      `Planner`, `Wisdom`): `Batch`/`Stride` are execution-call concerns
-      already served by `ForwardBatch`/`ForwardStrided` — remove them from
-      options and delete the per-constructor child-option stripping
-      (`plan_2d.go:77`, `plan_3d.go:84`, `plan_nd.go:105`, …).
-- [ ] **Own the public types**: `Complex`, `Float`, `KernelStrategy`,
-      `Wisdom` are currently aliases into `internal/*` — re-declare them in
-      the root package and convert at the boundary (the `WisdomKey`/
-      `WisdomEntry` pattern, applied consistently), so internal refactors
-      stop being public breaking changes.
+- [x] **One precision scheme**. _(2026-07)_ The generic constructors now
+      carry the plain names: `NewPlan[T]` (replaces `NewPlanT` and the bare
+      complex64 `NewPlan`), `NewPlanReal[F, C]` (replaces `NewPlanRealT` and
+      bare `NewPlanReal`); `32`/`64` wrappers remain as documented one-line
+      sugar. The `Planner` type, its `Plan1D/2D/3D/ND/Real*` methods, and
+      the free `Plan1D` function are deleted — `New*WithOptions` is the one
+      options-carrying entry point.
+- [x] **Make everything generic**. _(2026-07)_ `FastPlanReal[F, C]`
+      replaces `FastPlanReal32/64` (recombination helpers are bound at
+      construction, so the hot path keeps zero type switches);
+      `PlanReal2D[F, C]`/`PlanReal3D[F, C]` replace the concrete float32
+      versions, closing the missing float64 real-2D/3D gap
+      (`plan_real_multidim_64_test.go` validates both against the naive
+      reference DFT). `PlanReal3D` also gained the previously missing
+      `WithOptions` constructor.
+- [x] **One common plan interface**. _(2026-07)_ `PlanInfo` (`Len`,
+      `KernelStrategies`, `Algorithms`, `String`, `Close`) is implemented by
+      every plan type, with compile-time assertions in `plan_interface.go`.
+      Plural introspection everywhere (single-kernel plans return
+      one-element slices, singular accessors stay as convenience);
+      `Meta()`/`PlanMeta` deleted. `Close` added to the composite/real
+      plans, `Clone`/`String` added to `FastPlan`/`FastPlanReal`. Transform
+      methods stay on the concrete generic types (their signatures depend
+      on the element types).
+- [x] **One in-place story**. _(2026-07)_ Deprecated `InPlace()` deleted
+      from `Plan` and `FastPlan`; inert `PlanOptions.InPlace` flag deleted.
+- [x] **Split `PlanOptions` to plan-time concerns only**. _(2026-07)_
+      `PlanOptions` is now `Planner`/`Strategy`/`Wisdom` only. `Batch`/
+      `Stride` fields, the option-driven batch loops in the 2D/3D/ND/real
+      plans, `resolveBatchStride*`, and all per-constructor child-option
+      stripping are deleted; `ForwardBatch`/`ForwardStrided` on the 1D plan
+      remain the batch/stride story.
+- [x] **Own the public types**. _(2026-07)_ `Complex`/`Float` are declared
+      in the root package; `KernelStrategy` is a root-owned enum (with
+      `String()`) converted to the internal enum at the plan-construction
+      boundary; `Wisdom` is a wrapper struct over the internal cache with
+      `WisdomKey`/`WisdomEntry` converted at the boundary. No public type
+      aliases into `internal/*` remain.
 - [ ] `ErrNotImplemented` must not be reachable from a live `Forward` path
       (plan.go:306) — after A4 the constructor either builds a working
-      executor or fails.
+      executor or fails. _(Gated on A4, tracked there.)_
 
 ### A2. Collapse the multi-dimensional plan copies
 

@@ -8,7 +8,7 @@ func TestDITScalingRoundTrip(t *testing.T) {
 
 	plan, err := NewPlanWithOptions[complex64](16, PlanOptions{Strategy: KernelDIT})
 	if err != nil {
-		t.Fatalf("NewPlan(16) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](16) returned error: %v", err)
 	}
 
 	src := make([]complex64, 16)
@@ -38,9 +38,9 @@ func TestDITScalingRoundTrip(t *testing.T) {
 func TestOutOfPlaceDoesNotModifySource(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](16)
+	plan, err := NewPlan[complex64](16)
 	if err != nil {
-		t.Fatalf("NewPlan(16) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](16) returned error: %v", err)
 	}
 
 	src := make([]complex64, 16)
@@ -67,9 +67,9 @@ func TestOutOfPlaceDoesNotModifySource(t *testing.T) {
 func TestInPlaceMatchesOutOfPlace(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](32)
+	plan, err := NewPlan[complex64](32)
 	if err != nil {
-		t.Fatalf("NewPlan(32) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](32) returned error: %v", err)
 	}
 
 	src := make([]complex64, 32)
@@ -99,9 +99,9 @@ func TestInPlaceMatchesOutOfPlace(t *testing.T) {
 func TestTransformForwardInverse(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanT[complex64](16)
+	plan, err := NewPlan[complex64](16)
 	if err != nil {
-		t.Fatalf("NewPlan(16) returned error: %v", err)
+		t.Fatalf("NewPlan[complex64](16) returned error: %v", err)
 	}
 
 	src := make([]complex64, 16)
@@ -133,9 +133,9 @@ func TestRoundTripSizes(t *testing.T) {
 
 	sizes := []int{8, 16, 32, 64, 128, 256, 512, 1024}
 	for _, n := range sizes {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 		}
 
 		t.Logf("n=%d strategy=%v algorithm=%s", n, plan.kernelStrategy, plan.algorithm)
@@ -170,9 +170,9 @@ func TestRoundTripSizesComplex128(t *testing.T) {
 
 	sizes := []int{8, 16, 32}
 	for _, n := range sizes {
-		plan, err := NewPlanT[complex128](n)
+		plan, err := NewPlan[complex128](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 		}
 
 		src := make([]complex128, n)

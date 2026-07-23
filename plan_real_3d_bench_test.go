@@ -17,7 +17,7 @@ func BenchmarkPlanReal3D_Forward(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf3d(size.depth, size.height, size.width), func(b *testing.B) {
-			plan, err := NewPlanReal3D(size.depth, size.height, size.width)
+			plan, err := NewPlanReal3D[float32, complex64](size.depth, size.height, size.width)
 			if err != nil {
 				b.Fatalf("NewPlanReal3D failed: %v", err)
 			}
@@ -53,7 +53,7 @@ func BenchmarkPlanReal3D_ForwardFull(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf3d(size.depth, size.height, size.width), func(b *testing.B) {
-			plan, err := NewPlanReal3D(size.depth, size.height, size.width)
+			plan, err := NewPlanReal3D[float32, complex64](size.depth, size.height, size.width)
 			if err != nil {
 				b.Fatalf("NewPlanReal3D failed: %v", err)
 			}
@@ -89,7 +89,7 @@ func BenchmarkPlanReal3D_Inverse(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf3d(size.depth, size.height, size.width), func(b *testing.B) {
-			plan, err := NewPlanReal3D(size.depth, size.height, size.width)
+			plan, err := NewPlanReal3D[float32, complex64](size.depth, size.height, size.width)
 			if err != nil {
 				b.Fatalf("NewPlanReal3D failed: %v", err)
 			}
@@ -124,7 +124,7 @@ func BenchmarkPlanReal3D_RoundTrip(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf3d(size.depth, size.height, size.width), func(b *testing.B) {
-			plan, err := NewPlanReal3D(size.depth, size.height, size.width)
+			plan, err := NewPlanReal3D[float32, complex64](size.depth, size.height, size.width)
 			if err != nil {
 				b.Fatalf("NewPlanReal3D failed: %v", err)
 			}
@@ -161,7 +161,7 @@ func BenchmarkPlanReal3D_NonCubic(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf3d(size.depth, size.height, size.width), func(b *testing.B) {
-			plan, err := NewPlanReal3D(size.depth, size.height, size.width)
+			plan, err := NewPlanReal3D[float32, complex64](size.depth, size.height, size.width)
 			if err != nil {
 				b.Fatalf("NewPlanReal3D failed: %v", err)
 			}

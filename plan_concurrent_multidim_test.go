@@ -172,7 +172,7 @@ func TestConcurrentSharedPlanND(t *testing.T) {
 func TestConcurrentSharedPlanReal(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal(64)
+	plan, err := NewPlanReal[float32, complex64](64)
 	if err != nil {
 		t.Fatalf("NewPlanReal failed: %v", err)
 	}
@@ -201,12 +201,12 @@ func TestConcurrentSharedPlanReal(t *testing.T) {
 	})
 }
 
-func TestConcurrentSharedPlanRealT(t *testing.T) {
+func TestConcurrentSharedPlanReal64(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanRealT[float64, complex128](64)
+	plan, err := NewPlanReal[float64, complex128](64)
 	if err != nil {
-		t.Fatalf("NewPlanRealT failed: %v", err)
+		t.Fatalf("NewPlanReal failed: %v", err)
 	}
 
 	src := make([]float64, plan.Len())
@@ -236,7 +236,7 @@ func TestConcurrentSharedPlanRealT(t *testing.T) {
 func TestConcurrentSharedPlanReal2D(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal2D(8, 16)
+	plan, err := NewPlanReal2D[float32, complex64](8, 16)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}
@@ -268,7 +268,7 @@ func TestConcurrentSharedPlanReal2D(t *testing.T) {
 func TestConcurrentSharedPlanReal3D(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal3D(4, 4, 8)
+	plan, err := NewPlanReal3D[float32, complex64](4, 4, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
 	}

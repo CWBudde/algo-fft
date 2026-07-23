@@ -42,7 +42,7 @@ func NewConvolver[T Complex](lenA, lenB int) (*Convolver[T], error) {
 	convLen := lenA + lenB - 1
 	fftLen := fastConvolutionLength(convLen)
 
-	plan, err := NewPlanT[T](fftLen)
+	plan, err := NewPlan[T](fftLen)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ type RealConvolver[F Float, C Complex] struct {
 	lenA, lenB int
 	convLen    int
 	fftLen     int
-	plan       *PlanRealT[F, C]
+	plan       *PlanReal[F, C]
 	scratch    *residentCache[realConvolverScratch[F, C]]
 }
 
@@ -215,7 +215,7 @@ func NewRealConvolver[F Float, C Complex](lenA, lenB int) (*RealConvolver[F, C],
 	convLen := lenA + lenB - 1
 	fftLen := max(m.NextPowerOfTwo(convLen), 2)
 
-	plan, err := NewPlanRealT[F, C](fftLen)
+	plan, err := NewPlanReal[F, C](fftLen)
 	if err != nil {
 		return nil, err
 	}

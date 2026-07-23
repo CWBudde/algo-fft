@@ -29,7 +29,7 @@ func TestPlanReal2D_BasicSizes(t *testing.T) {
 		t.Run(sprintf("%dx%d", size.rows, size.cols), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanReal2D(size.rows, size.cols)
+			plan, err := NewPlanReal2D[float32, complex64](size.rows, size.cols)
 			if err != nil {
 				t.Fatalf("NewPlanReal2D failed: %v", err)
 			}
@@ -69,59 +69,6 @@ func TestPlanReal2D_BasicSizes(t *testing.T) {
 	}
 }
 
-func TestPlanReal2D_BatchStrideRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	const (
-		rows   = 4
-		cols   = 6
-		batch  = 2
-		stride = rows*cols + 5
-	)
-
-	plan, err := NewPlanReal2DWithOptions(rows, cols, PlanOptions{
-		Batch:  batch,
-		Stride: stride,
-	})
-	if err != nil {
-		t.Fatalf("NewPlanReal2DWithOptions failed: %v", err)
-	}
-
-	src := make([]float32, batch*stride)
-	freq := make([]complex64, batch*stride)
-	roundTrip := make([]float32, batch*stride)
-
-	rng := rand.New(rand.NewSource(77))
-
-	for b := range batch {
-		base := b * stride
-		for i := range rows * cols {
-			src[base+i] = float32(rng.Float64()*2 - 1)
-		}
-	}
-
-	err = plan.Forward(freq, src)
-	if err != nil {
-		t.Fatalf("Forward failed: %v", err)
-	}
-
-	err = plan.Inverse(roundTrip, freq)
-	if err != nil {
-		t.Fatalf("Inverse failed: %v", err)
-	}
-
-	const tol = 1e-3
-
-	for b := range batch {
-		base := b * stride
-		for i := range rows * cols {
-			if math.Abs(float64(roundTrip[base+i]-src[base+i])) > tol {
-				t.Fatalf("batch %d idx %d mismatch: got %v want %v", b, i, roundTrip[base+i], src[base+i])
-			}
-		}
-	}
-}
-
 // TestPlanReal2D_RoundTrip tests that Inverse(Forward(x)) ≈ x.
 func TestPlanReal2D_RoundTrip(t *testing.T) {
 	t.Parallel()
@@ -142,7 +89,7 @@ func TestPlanReal2D_RoundTrip(t *testing.T) {
 		t.Run(sprintf("%dx%d", size.rows, size.cols), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanReal2D(size.rows, size.cols)
+			plan, err := NewPlanReal2D[float32, complex64](size.rows, size.cols)
 			if err != nil {
 				t.Fatalf("NewPlanReal2D failed: %v", err)
 			}
@@ -191,7 +138,7 @@ func TestPlanReal2D_RoundTrip(t *testing.T) {
 func TestPlanReal2D_ForwardFull(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal2D(8, 8)
+	plan, err := NewPlanReal2D[float32, complex64](8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}
@@ -241,7 +188,7 @@ func TestPlanReal2D_ForwardFull(t *testing.T) {
 func TestPlanReal2D_InverseFull(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal2D(8, 8)
+	plan, err := NewPlanReal2D[float32, complex64](8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}
@@ -288,7 +235,7 @@ func TestPlanReal2D_InverseFull(t *testing.T) {
 func TestPlanReal2D_ConstantSignal(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal2D(8, 8)
+	plan, err := NewPlanReal2D[float32, complex64](8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}
@@ -326,7 +273,7 @@ func TestPlanReal2D_ConstantSignal(t *testing.T) {
 func TestPlanReal2D_Linearity(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal2D(8, 8)
+	plan, err := NewPlanReal2D[float32, complex64](8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}
@@ -398,7 +345,7 @@ func TestPlanReal2D_Linearity(t *testing.T) {
 func TestPlanReal2D_Clone(t *testing.T) {
 	t.Parallel()
 
-	plan1, err := NewPlanReal2D(8, 8)
+	plan1, err := NewPlanReal2D[float32, complex64](8, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}
@@ -438,7 +385,7 @@ func TestPlanReal2D_Clone(t *testing.T) {
 func TestPlanReal2D_Clone_Concurrent(t *testing.T) {
 	t.Parallel()
 
-	orig, err := NewPlanReal2D(8, 16)
+	orig, err := NewPlanReal2D[float32, complex64](8, 16)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}
@@ -498,13 +445,13 @@ func TestPlanReal2D_InvalidSizes(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		_, err := NewPlanReal2D(testCase.rows, testCase.cols)
+		_, err := NewPlanReal2D[float32, complex64](testCase.rows, testCase.cols)
 		if testCase.shouldFail && err == nil {
-			t.Errorf("NewPlanReal2D(%d, %d) should fail but didn't", testCase.rows, testCase.cols)
+			t.Errorf("NewPlanReal2D[float32, complex64](%d, %d) should fail but didn't", testCase.rows, testCase.cols)
 		}
 
 		if !testCase.shouldFail && err != nil {
-			t.Errorf("NewPlanReal2D(%d, %d) failed unexpectedly: %v", testCase.rows, testCase.cols, err)
+			t.Errorf("NewPlanReal2D[float32, complex64](%d, %d) failed unexpectedly: %v", testCase.rows, testCase.cols, err)
 		}
 	}
 }
@@ -570,7 +517,7 @@ func TestPlanReal2D_Accessors(t *testing.T) {
 	rows := 8
 	cols := 16
 
-	plan, err := NewPlanReal2D(rows, cols)
+	plan, err := NewPlanReal2D[float32, complex64](rows, cols)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}
@@ -601,7 +548,7 @@ func TestPlanReal2D_String(t *testing.T) {
 	rows := 4
 	cols := 8
 
-	plan, err := NewPlanReal2D(rows, cols)
+	plan, err := NewPlanReal2D[float32, complex64](rows, cols)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}

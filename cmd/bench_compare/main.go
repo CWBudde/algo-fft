@@ -40,7 +40,7 @@ func main() {
 }
 
 func benchmarkAlgoFft(n, iterations int) time.Duration {
-	plan, err := algofft.NewPlan(n)
+	plan, err := algofft.NewPlan[complex64](n)
 	if err != nil {
 		panic(err)
 	}

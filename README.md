@@ -64,7 +64,7 @@ import (
 
 func main() {
     // Create a plan for FFT of length 8
-    plan, err := algofft.NewPlan(8)
+    plan, err := algofft.NewPlan[complex64](8)
     if err != nil {
         panic(err)
     }
@@ -90,7 +90,7 @@ func main() {
 
 ```go
 // Create a plan
-plan, err := algofft.NewPlan(n)
+plan, err := algofft.NewPlan[complex64](n)
 
 // Forward FFT (out-of-place)
 err = plan.Forward(dst, src)
@@ -107,7 +107,7 @@ err = plan.InverseInPlace(data)
 
 ```go
 // Float32 precision (single-precision)
-planReal32, err := algofft.NewPlanReal32(n)  // or NewPlanReal(n) for backward compatibility
+planReal32, err := algofft.NewPlanReal32(n)  // sugar for NewPlanReal[float32, complex64](n)
 if err != nil {
     // handle error
 }
@@ -127,7 +127,7 @@ output64 := make([]complex128, n/2+1)  // Half-spectrum: N/2+1 bins
 err = planReal64.Forward(output64, input64)
 
 // Generic API (type-safe)
-plan, err := algofft.NewPlanRealT[float64, complex128](n)
+plan, err := algofft.NewPlanReal[float64, complex128](n)
 ```
 
 The real FFT returns the non-redundant half-spectrum with length N/2+1.
@@ -158,7 +158,7 @@ can be faster.
 
 ```go
 // Process multiple FFTs efficiently
-plan, _ := algofft.NewPlan(1024)
+plan, _ := algofft.NewPlan[complex64](1024)
 count := 16
 src := make([]complex64, 1024*count)
 dst := make([]complex64, 1024*count)

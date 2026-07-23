@@ -46,9 +46,9 @@ func TestRader_PlanSelection(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range raderTestPrimes {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) failed: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		if plan.Algorithm() != algorithmRader {
@@ -61,9 +61,9 @@ func TestRader_PlanSelection(t *testing.T) {
 	}
 
 	for _, n := range raderFallbackPrimes {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) failed: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		if plan.Algorithm() == algorithmRader {
@@ -111,9 +111,9 @@ func TestRader_MatchesReference(t *testing.T) {
 		t.Run("complex64_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanT[complex64](n)
+			plan, err := NewPlan[complex64](n)
 			if err != nil {
-				t.Fatalf("NewPlan(%d) failed: %v", n, err)
+				t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 			}
 
 			src := randomComplex64(n, int64(n))
@@ -134,9 +134,9 @@ func TestRader_MatchesReference(t *testing.T) {
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanT[complex128](n)
+			plan, err := NewPlan[complex128](n)
 			if err != nil {
-				t.Fatalf("NewPlan(%d) failed: %v", n, err)
+				t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 			}
 
 			src := randomComplex128(n, int64(n))
@@ -165,9 +165,9 @@ func TestRader_InverseMatchesReference(t *testing.T) {
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanT[complex128](n)
+			plan, err := NewPlan[complex128](n)
 			if err != nil {
-				t.Fatalf("NewPlan(%d) failed: %v", n, err)
+				t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 			}
 
 			freq := randomComplex128(n, int64(n)+7)
@@ -197,9 +197,9 @@ func TestRader_RoundTrip(t *testing.T) {
 		t.Run(itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanT[complex128](n)
+			plan, err := NewPlan[complex128](n)
 			if err != nil {
-				t.Fatalf("NewPlan(%d) failed: %v", n, err)
+				t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 			}
 
 			if plan.Algorithm() != algorithmRader {
@@ -232,9 +232,9 @@ func TestRader_InPlace(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range []int{17, 641} {
-		plan, err := NewPlanT[complex128](n)
+		plan, err := NewPlan[complex128](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) failed: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		src := randomComplex128(n, 99)
@@ -266,9 +266,9 @@ func TestRader_Executor(t *testing.T) {
 
 	n := 257
 
-	plan, err := NewPlanT[complex128](n)
+	plan, err := NewPlan[complex128](n)
 	if err != nil {
-		t.Fatalf("NewPlan(%d) failed: %v", n, err)
+		t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 	}
 
 	exec := plan.NewExecutor()
@@ -304,7 +304,7 @@ func BenchmarkRaderVsBluestein(b *testing.B) {
 
 		plan, err := NewPlanWithOptions[complex64](n, opts)
 		if err != nil {
-			b.Fatalf("NewPlan(%d) failed: %v", n, err)
+			b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		src := randomComplex64(n, int64(n))

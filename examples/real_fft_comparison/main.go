@@ -19,7 +19,7 @@ func main() {
 	fmt.Println("Example 1: Float32 Real FFT (standard precision)")
 	fmt.Println("-------------------------------------------------")
 
-	plan32, err := algofft.NewPlanReal32(n) // or NewPlanReal(n)
+	plan32, err := algofft.NewPlanReal32(n) // or NewPlanReal[float32, complex64](n)
 	if err != nil {
 		panic(err)
 	}
@@ -90,7 +90,7 @@ func main() {
 	fmt.Println("-----------------------------------")
 
 	// Explicit type parameters
-	planGeneric, err := algofft.NewPlanRealT[float64, complex128](n)
+	planGeneric, err := algofft.NewPlanReal[float64, complex128](n)
 	if err != nil {
 		panic(err)
 	}

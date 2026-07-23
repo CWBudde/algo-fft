@@ -9,9 +9,9 @@ import "testing"
 // pow2/3/5 stages, both precisions).
 func TestMixedRadix7And11_ZeroAlloc(t *testing.T) {
 	for _, n := range []int{77, 448, 704, 1344} {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) failed: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
 		}
 
 		src := randomComplex64(n, 3)
@@ -28,7 +28,7 @@ func TestMixedRadix7And11_ZeroAlloc(t *testing.T) {
 			t.Errorf("n=%d complex64: transforms allocate %v times per run, want 0", n, allocs)
 		}
 
-		plan128, err := NewPlanT[complex128](n)
+		plan128, err := NewPlan[complex128](n)
 		if err != nil {
 			t.Fatalf("NewPlan128(%d) failed: %v", n, err)
 		}

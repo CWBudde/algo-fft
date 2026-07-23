@@ -116,7 +116,6 @@ func (p *Plan[T]) Clone() *Plan[T] {
 		inverseKernel:                p.inverseKernel,
 		kernelStrategy:               p.kernelStrategy,
 		decompStrategy:               p.decompStrategy,
-		meta:                         p.meta,
 		twiddleBacking:               p.twiddleBacking, // Shared reference (keeps original alive)
 		codeletTwiddleForwardBacking: p.codeletTwiddleForwardBacking,
 		codeletTwiddleInverseBacking: p.codeletTwiddleInverseBacking,

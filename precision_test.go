@@ -35,7 +35,7 @@ func testErrorAccumulation64(t *testing.T, n, numCycles int) {
 	}
 
 	// Create plan
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
@@ -117,7 +117,7 @@ func testParseval64(t *testing.T, n int) {
 	}
 
 	// Perform FFT
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
@@ -263,7 +263,7 @@ func testPrecisionComparison(t *testing.T, n int) {
 	}
 
 	// Perform FFT with both precisions
-	plan64, err := NewPlan(n)
+	plan64, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create complex64 plan: %v", err)
 	}
@@ -619,7 +619,7 @@ func roundTripMaxError64(t *testing.T, input []complex64) float64 {
 
 	n := len(input)
 
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}

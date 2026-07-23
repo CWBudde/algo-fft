@@ -68,7 +68,7 @@ func convolveT[T Complex](dst, a, b []T) error {
 
 	fftLen := fastConvolutionLength(convLen)
 
-	plan, err := NewPlanT[T](fftLen)
+	plan, err := NewPlan[T](fftLen)
 	if err != nil {
 		return err
 	}

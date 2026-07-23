@@ -34,7 +34,7 @@ func TestStressLongRunning(t *testing.T) {
 
 func runStressTest(t *testing.T, n int, duration time.Duration) {
 	t.Helper()
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestStressMemoryStability(t *testing.T) {
 }
 
 func testMemoryStability(t *testing.T, n, totalIters, sampleInterval int) {
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestStressRandomSizes(t *testing.T) {
 		// Pick random size
 		n := powerOfTwo[rand.Intn(len(powerOfTwo))]
 
-		plan, err := NewPlan(n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
 			t.Fatalf("failed to create plan for size %d: %v", n, err)
 		}

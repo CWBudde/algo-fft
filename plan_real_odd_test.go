@@ -262,49 +262,6 @@ func TestPlanRealOddLengthMismatch(t *testing.T) {
 	}
 }
 
-func TestPlanRealOddBatch(t *testing.T) {
-	t.Parallel()
-
-	const (
-		n     = 15
-		batch = 3
-	)
-
-	plan, err := NewPlanReal32WithOptions(n, PlanOptions{Batch: batch})
-	if err != nil {
-		t.Fatalf("NewPlanReal32WithOptions(%d) returned error: %v", n, err)
-	}
-
-	single, err := NewPlanReal32(n)
-	if err != nil {
-		t.Fatalf("NewPlanReal32(%d) returned error: %v", n, err)
-	}
-
-	src := make([]float32, batch*n)
-	for i := range src {
-		src[i] = float32(math.Sin(0.11 * float64(i)))
-	}
-
-	specLen := plan.SpectrumLen()
-	dst := make([]complex64, batch*specLen)
-
-	if err := plan.Forward(dst, src); err != nil {
-		t.Fatalf("batched Forward returned error: %v", err)
-	}
-
-	want := make([]complex64, specLen)
-
-	for b := range batch {
-		if err := single.Forward(want, src[b*n:(b+1)*n]); err != nil {
-			t.Fatalf("single Forward returned error: %v", err)
-		}
-
-		for k := range want {
-			assertApproxComplex64Tolf(t, dst[b*specLen+k], want[k], 1e-4, "batch %d bin %d", b, k)
-		}
-	}
-}
-
 func TestPlanRealOddClone(t *testing.T) {
 	t.Parallel()
 
@@ -343,9 +300,9 @@ func BenchmarkPlanRealForwardOdd(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run("Real_N="+strconv.Itoa(n), func(b *testing.B) {
-			plan, err := NewPlanReal(n)
+			plan, err := NewPlanReal[float32, complex64](n)
 			if err != nil {
-				b.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+				b.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 			}
 
 			src := make([]float32, n)
@@ -366,9 +323,9 @@ func BenchmarkPlanRealForwardOdd(b *testing.B) {
 		})
 
 		b.Run("Complex_N="+strconv.Itoa(n), func(b *testing.B) {
-			plan, err := NewPlanT[complex64](n)
+			plan, err := NewPlan[complex64](n)
 			if err != nil {
-				b.Fatalf("NewPlan(%d) returned error: %v", n, err)
+				b.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 			}
 
 			src := make([]complex64, n)

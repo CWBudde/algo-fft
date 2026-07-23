@@ -5,19 +5,18 @@ import (
 )
 
 // TestIntrospection_MultiDim verifies that 2D/3D/ND plans report per-axis
-// strategies and algorithms consistent with equivalent 1D plans, and that
-// Meta reflects the requested options.
+// strategies and algorithms consistent with equivalent 1D plans.
 func TestIntrospection_MultiDim(t *testing.T) {
 	t.Parallel()
 
-	ref16, err := NewPlanT[complex64](16)
+	ref16, err := NewPlan[complex64](16)
 	if err != nil {
-		t.Fatalf("NewPlanT(16) failed: %v", err)
+		t.Fatalf("NewPlan(16) failed: %v", err)
 	}
 
-	ref32, err := NewPlanT[complex64](32)
+	ref32, err := NewPlan[complex64](32)
 	if err != nil {
-		t.Fatalf("NewPlanT(32) failed: %v", err)
+		t.Fatalf("NewPlan(32) failed: %v", err)
 	}
 
 	p2d, err := NewPlan2D[complex64](16, 32)
@@ -34,10 +33,6 @@ func TestIntrospection_MultiDim(t *testing.T) {
 
 	if got := p2d.KernelStrategies(); got[0] != wantStrategies[0] || got[1] != wantStrategies[1] {
 		t.Errorf("Plan2D.KernelStrategies() = %v, want %v", got, wantStrategies)
-	}
-
-	if meta := p2d.Meta(); meta.Planner != PlannerEstimate || meta.Strategy != KernelAuto {
-		t.Errorf("Plan2D.Meta() = %+v, want default planner/strategy", meta)
 	}
 
 	p3d, err := NewPlan3D[complex64](8, 16, 32)
@@ -67,18 +62,14 @@ func TestIntrospection_MultiDim(t *testing.T) {
 	}
 }
 
-// TestIntrospection_MultiDimForcedStrategy verifies the requested strategy is
-// visible in Meta and resolved per axis.
+// TestIntrospection_MultiDimForcedStrategy verifies a forced strategy is
+// resolved per axis.
 func TestIntrospection_MultiDimForcedStrategy(t *testing.T) {
 	t.Parallel()
 
 	p2d, err := NewPlan2DWithOptions[complex64](16, 16, PlanOptions{Strategy: KernelStockham})
 	if err != nil {
 		t.Fatalf("NewPlan2DWithOptions failed: %v", err)
-	}
-
-	if meta := p2d.Meta(); meta.Strategy != KernelStockham {
-		t.Errorf("Meta().Strategy = %v, want %v", meta.Strategy, KernelStockham)
 	}
 
 	for i, s := range p2d.KernelStrategies() {
@@ -93,25 +84,25 @@ func TestIntrospection_MultiDimForcedStrategy(t *testing.T) {
 func TestIntrospection_Real(t *testing.T) {
 	t.Parallel()
 
-	pr, err := NewPlanRealT[float32, complex64](64)
+	pr, err := NewPlanReal[float32, complex64](64)
 	if err != nil {
-		t.Fatalf("NewPlanRealT failed: %v", err)
+		t.Fatalf("NewPlanReal failed: %v", err)
 	}
 
-	ref32, err := NewPlanT[complex64](32)
+	ref32, err := NewPlan[complex64](32)
 	if err != nil {
-		t.Fatalf("NewPlanT(32) failed: %v", err)
+		t.Fatalf("NewPlan(32) failed: %v", err)
 	}
 
 	if got := pr.Algorithm(); got != ref32.Algorithm() {
-		t.Errorf("PlanRealT.Algorithm() = %q, want %q (half-size complex plan)", got, ref32.Algorithm())
+		t.Errorf("PlanReal.Algorithm() = %q, want %q (half-size complex plan)", got, ref32.Algorithm())
 	}
 
 	if got := pr.KernelStrategy(); got != ref32.KernelStrategy() {
-		t.Errorf("PlanRealT.KernelStrategy() = %v, want %v", got, ref32.KernelStrategy())
+		t.Errorf("PlanReal.KernelStrategy() = %v, want %v", got, ref32.KernelStrategy())
 	}
 
-	pr2d, err := NewPlanReal2D(16, 32)
+	pr2d, err := NewPlanReal2D[float32, complex64](16, 32)
 	if err != nil {
 		t.Fatalf("NewPlanReal2D failed: %v", err)
 	}
@@ -124,7 +115,7 @@ func TestIntrospection_Real(t *testing.T) {
 		t.Errorf("PlanReal2D.KernelStrategies() = %v, want 2 entries", got)
 	}
 
-	pr3d, err := NewPlanReal3D(8, 16, 32)
+	pr3d, err := NewPlanReal3D[float32, complex64](8, 16, 32)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
 	}
@@ -133,8 +124,8 @@ func TestIntrospection_Real(t *testing.T) {
 		t.Errorf("PlanReal3D.Algorithms() = %v, want 3 non-empty entries", got)
 	}
 
-	if meta := pr3d.Meta(); meta.Planner != PlannerEstimate {
-		t.Errorf("PlanReal3D.Meta().Planner = %v, want %v", meta.Planner, PlannerEstimate)
+	if got := pr3d.KernelStrategies(); len(got) != 3 {
+		t.Errorf("PlanReal3D.KernelStrategies() = %v, want 3 entries", got)
 	}
 }
 
@@ -150,10 +141,6 @@ func TestIntrospection_FastPlan(t *testing.T) {
 
 	if fp.Algorithm() == "" {
 		t.Error("FastPlan.Algorithm() is empty, want codelet name")
-	}
-
-	if meta := fp.Meta(); meta.Planner != PlannerEstimate || meta.Strategy != fp.KernelStrategy() {
-		t.Errorf("FastPlan.Meta() = %+v, inconsistent with KernelStrategy()", meta)
 	}
 
 	algo := fp.Algorithm()

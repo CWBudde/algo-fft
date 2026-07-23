@@ -24,7 +24,7 @@ func convolveRealT[F Float, C Complex](dst, a, b []F) error {
 
 	fftLen := max(m.NextPowerOfTwo(convLen), 2)
 
-	plan, err := NewPlanRealT[F, C](fftLen)
+	plan, err := NewPlanReal[F, C](fftLen)
 	if err != nil {
 		return err
 	}

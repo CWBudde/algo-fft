@@ -11,9 +11,9 @@ import (
 func TestPlanTransformsNoAllocsComplex64(t *testing.T) {
 	const n = 1024
 
-	plan, err := NewPlanT[complex64](n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]complex64, n)
@@ -41,9 +41,9 @@ func TestPlanTransformsNoAllocsComplex64(t *testing.T) {
 func TestPlanTransformsNoAllocsComplex128(t *testing.T) {
 	const n = 1024
 
-	plan, err := NewPlanT[complex128](n)
+	plan, err := NewPlan[complex128](n)
 	if err != nil {
-		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]complex128, n)
@@ -71,9 +71,9 @@ func TestPlanTransformsNoAllocsComplex128(t *testing.T) {
 func TestPlanTransformsNoAllocsComplex128_8192(t *testing.T) {
 	const n = 8192
 
-	plan, err := NewPlanT[complex128](n)
+	plan, err := NewPlan[complex128](n)
 	if err != nil {
-		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]complex128, n)
@@ -114,9 +114,9 @@ func TestPlanTransformsNoAllocsComplex128_8192(t *testing.T) {
 func TestPlanRealTransformsNoAllocs(t *testing.T) {
 	const n = 1024
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]float32, n)
@@ -148,9 +148,9 @@ func TestPlanRealTransformsNoAllocs(t *testing.T) {
 func TestPlanRealOddTransformsNoAllocs(t *testing.T) {
 	const n = 105
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]float32, n)
@@ -356,9 +356,9 @@ func TestPlanMixedRadixTransformsNoAllocs(t *testing.T) {
 	// 768 = 2^8·3, 1536 = 2^9·3 (routes through the size-384 codelet under asm).
 	for _, n := range []int{96, 768, 1536} {
 		t.Run("complex64_"+itoa(n), func(t *testing.T) {
-			plan, err := NewPlanT[complex64](n)
+			plan, err := NewPlan[complex64](n)
 			if err != nil {
-				t.Fatalf("NewPlanT[complex64](%d) returned error: %v", n, err)
+				t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 			}
 
 			src := make([]complex64, n)
@@ -379,9 +379,9 @@ func TestPlanMixedRadixTransformsNoAllocs(t *testing.T) {
 		})
 
 		t.Run("complex128_"+itoa(n), func(t *testing.T) {
-			plan, err := NewPlanT[complex128](n)
+			plan, err := NewPlan[complex128](n)
 			if err != nil {
-				t.Fatalf("NewPlanT[complex128](%d) returned error: %v", n, err)
+				t.Fatalf("NewPlan[complex128](%d) returned error: %v", n, err)
 			}
 
 			src := make([]complex128, n)
@@ -407,9 +407,9 @@ func TestPlanMixedRadixTransformsNoAllocs(t *testing.T) {
 func TestPlanReal2DTransformsNoAllocs(t *testing.T) {
 	const rows, cols = 16, 16
 
-	plan, err := NewPlanReal2D(rows, cols)
+	plan, err := NewPlanReal2D[float32, complex64](rows, cols)
 	if err != nil {
-		t.Fatalf("NewPlanReal2D(%d, %d) returned error: %v", rows, cols, err)
+		t.Fatalf("NewPlanReal2D[float32, complex64](%d, %d) returned error: %v", rows, cols, err)
 	}
 
 	src := make([]float32, rows*cols)
@@ -446,13 +446,13 @@ func TestPlanReal2DTransformsNoAllocs(t *testing.T) {
 //nolint:paralleltest // AllocsPerRun panics during parallel tests
 func TestBluesteinTransformsNoAllocs(t *testing.T) {
 	for _, n := range []int{509, 4099} {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 		}
 
 		if plan.KernelStrategy() != KernelBluestein {
-			t.Fatalf("NewPlan(%d) strategy = %v, want KernelBluestein", n, plan.KernelStrategy())
+			t.Fatalf("NewPlan[complex64](%d) strategy = %v, want KernelBluestein", n, plan.KernelStrategy())
 		}
 
 		src := make([]complex64, n)

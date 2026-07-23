@@ -16,7 +16,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 
 		n := 16
 
-		plan, err := NewPlan(n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -57,7 +57,7 @@ func TestPlanForwardBatch_Correctness(t *testing.T) {
 		n := 16
 		count := 4
 
-		plan, err := NewPlan(n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -153,7 +153,7 @@ func TestPlanInverseBatch_Correctness(t *testing.T) {
 		n := 64
 		count := 3
 
-		plan, err := NewPlan(n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -196,7 +196,7 @@ func TestPlanBatch_Errors(t *testing.T) {
 
 	n := 16
 
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,7 +308,7 @@ func TestPlanBatch_InPlace(t *testing.T) {
 	n := 32
 	count := 4
 
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +354,7 @@ func TestPlanBatch_LargeBatch(t *testing.T) {
 	n := 256
 	count := 100
 
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -431,7 +431,7 @@ func BenchmarkPlanForwardBatch(b *testing.B) {
 	for _, n := range sizes {
 		for _, count := range counts {
 			b.Run(formatBenchName(n, count), func(b *testing.B) {
-				plan, err := NewPlan(n)
+				plan, err := NewPlan[complex64](n)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -464,7 +464,7 @@ func BenchmarkPlanInverseBatch(b *testing.B) {
 	for _, n := range sizes {
 		for _, count := range counts {
 			b.Run(formatBenchName(n, count), func(b *testing.B) {
-				plan, err := NewPlan(n)
+				plan, err := NewPlan[complex64](n)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -495,7 +495,7 @@ func BenchmarkBatchVsIndividual(b *testing.B) {
 	count := 16
 
 	b.Run("batch", func(b *testing.B) {
-		plan, err := NewPlan(n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -513,7 +513,7 @@ func BenchmarkBatchVsIndividual(b *testing.B) {
 	})
 
 	b.Run("individual", func(b *testing.B) {
-		plan, err := NewPlan(n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -543,7 +543,7 @@ func BenchmarkBatchInPlace(b *testing.B) {
 	for _, n := range sizes {
 		for _, count := range counts {
 			b.Run(formatBenchName(n, count)+"_outofplace", func(b *testing.B) {
-				plan, err := NewPlan(n)
+				plan, err := NewPlan[complex64](n)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -561,7 +561,7 @@ func BenchmarkBatchInPlace(b *testing.B) {
 			})
 
 			b.Run(formatBenchName(n, count)+"_inplace", func(b *testing.B) {
-				plan, err := NewPlan(n)
+				plan, err := NewPlan[complex64](n)
 				if err != nil {
 					b.Fatal(err)
 				}

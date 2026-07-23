@@ -239,7 +239,7 @@ func strategyName(strategy algofft.KernelStrategy) string {
 
 // exportWisdom writes benchmark results to a wisdom file.
 func exportWisdom(filename string, results []benchResult) error {
-	wisdom := fft.NewWisdom()
+	wisdom := algofft.NewWisdom()
 	features := cpu.DetectFeatures()
 	cpuMask := fft.CPUFeatureMask(
 		features.HasSSE2,
@@ -250,10 +250,10 @@ func exportWisdom(filename string, results []benchResult) error {
 	)
 
 	for _, res := range results {
-		entry := fft.WisdomEntry{
-			Key: fft.WisdomKey{
+		entry := algofft.WisdomEntry{
+			Key: algofft.WisdomKey{
 				Size:        res.size,
-				Precision:   fft.PrecisionComplex64, // benchkernels uses complex64
+				Precision:   uint8(algofft.PrecisionComplex64), // benchkernels uses complex64
 				CPUFeatures: cpuMask,
 			},
 			Algorithm: strategyToAlgorithmName(res.strategy),
@@ -262,7 +262,6 @@ func exportWisdom(filename string, results []benchResult) error {
 		wisdom.Store(entry)
 	}
 
-	// Use internal wisdom directly since algofft.Wisdom is a type alias
 	err := algofft.ExportWisdomTo(filename, wisdom)
 	if err != nil {
 		return fmt.Errorf("export wisdom to %s: %w", filename, err)

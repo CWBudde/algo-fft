@@ -60,7 +60,7 @@ func prepareCodeletTwiddles[T Complex](
 // otherwise the standard size clamped to at least n); the extra Bluestein scratch
 // is allocated only for the Bluestein strategy.
 func allocateScratchSet[T Complex](
-	n int, strategy KernelStrategy, bluesteinM int, decompStrategy *fft.DecomposeStrategy, standardScratchSize int,
+	n int, strategy fft.KernelStrategy, bluesteinM int, decompStrategy *fft.DecomposeStrategy, standardScratchSize int,
 ) *scratchSet[T] {
 	var scratchSize int
 

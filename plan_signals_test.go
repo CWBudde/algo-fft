@@ -10,9 +10,9 @@ func TestFFTConstantSignal(t *testing.T) {
 
 	n := 16
 
-	plan, err := NewPlanT[complex64](n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]complex64, n)
@@ -45,9 +45,9 @@ func TestFFTPureSinusoid(t *testing.T) {
 	n := 32
 	k := 3
 
-	plan, err := NewPlanT[complex64](n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]complex64, n)
@@ -83,9 +83,9 @@ func TestFFTNyquistFrequency(t *testing.T) {
 
 	n := 32
 
-	plan, err := NewPlanT[complex64](n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]complex64, n)
@@ -124,9 +124,9 @@ func TestFFTEdgeCases(t *testing.T) {
 	t.Parallel()
 
 	for _, n := range []int{1, 2} {
-		plan, err := NewPlanT[complex64](n)
+		plan, err := NewPlan[complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 		}
 
 		src := make([]complex64, n)

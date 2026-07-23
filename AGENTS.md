@@ -12,7 +12,7 @@
 
 The root package `algofft` exposes the user-facing API, grouped roughly by file:
 
-- **Core plans** (`plan.go`, `planner.go`, `plan_options.go`, `executor.go`): `Plan[T Complex]` with constructors `NewPlanT[T]()`, `NewPlan()`, `NewPlan32()`, `NewPlan64()`; transform methods `Forward()`, `Inverse()`, `ForwardInPlace()`, `InverseInPlace()`, `Transform()`
+- **Core plans** (`plan.go`, `plan_options.go`, `executor.go`): `Plan[T Complex]` with generic constructor `NewPlan[T]()` (plus `NewPlan32()`/`NewPlan64()` sugar); transform methods `Forward()`, `Inverse()`, `ForwardInPlace()`, `InverseInPlace()`, `Transform()`
 - **Real FFT** (`plan_real*.go`): real-input transforms including 2D/3D variants
 - **Multi-dimensional** (`plan_2d.go`, `plan_3d.go`, `plan_nd.go`): 2D/3D/N-D transforms
 - **Arbitrary lengths** (`plan_bluestein.go`): Bluestein algorithm for non-power-of-2 sizes
@@ -207,7 +207,7 @@ Force a strategy per-plan via `PlanOptions.Strategy` (default `KernelAuto` lets 
 After plan creation, transforms perform zero allocations:
 
 - Twiddle factors precomputed and stored in Plan
-- Scratch buffers pre-allocated during plan creation (`NewPlanT`/`NewPlan32`/`NewPlan64`)
+- Scratch buffers pre-allocated during plan creation (`NewPlan`/`NewPlan32`/`NewPlan64`)
 - Bit-reversal indices precomputed
 - Packed twiddle tables for SIMD kernels prepared upfront
 

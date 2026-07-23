@@ -292,52 +292,6 @@ func TestPlan2D_InverseMatchesReference(t *testing.T) {
 	}
 }
 
-func TestPlan2D_BatchStrideForward(t *testing.T) {
-	t.Parallel()
-
-	const (
-		rows   = 4
-		cols   = 4
-		batch  = 2
-		stride = rows*cols + 5
-	)
-
-	plan, err := NewPlan2DWithOptions[complex64](rows, cols, PlanOptions{
-		Batch:  batch,
-		Stride: stride,
-	})
-	if err != nil {
-		t.Fatalf("NewPlan2DWithOptions failed: %v", err)
-	}
-
-	src := make([]complex64, batch*stride)
-	dst := make([]complex64, batch*stride)
-
-	signals := make([][]complex64, batch)
-	for b := range batch {
-		signal := generateRandom2DSignal(rows, cols, uint64(100+b))
-		signals[b] = signal
-		copy(src[b*stride:b*stride+rows*cols], signal)
-	}
-
-	err = plan.Forward(dst, src)
-	if err != nil {
-		t.Fatalf("Forward failed: %v", err)
-	}
-
-	tol := 1e-3
-
-	for b := range batch {
-		want := reference.NaiveDFT2D(signals[b], rows, cols)
-
-		got := dst[b*stride : b*stride+rows*cols]
-		for i := range got {
-			row, col := i/cols, i%cols
-			assertApproxComplex64Tolf(t, got[i], want[i], tol, "[batch=%d %d,%d]", b, row, col)
-		}
-	}
-}
-
 func TestPlan2D_ForwardMatchesReference128(t *testing.T) {
 	t.Parallel()
 
@@ -638,8 +592,8 @@ func TestPlan2D_Separability(t *testing.T) {
 	}
 
 	// Separable: row-wise then column-wise
-	rowPlan, _ := NewPlanT[complex64](cols)
-	colPlan, _ := NewPlanT[complex64](rows)
+	rowPlan, _ := NewPlan[complex64](cols)
+	colPlan, _ := NewPlan[complex64](rows)
 
 	temp := append([]complex64(nil), signal...)
 

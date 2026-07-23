@@ -27,7 +27,7 @@ func TestPlanReal3D_BasicSizes(t *testing.T) {
 		t.Run(sprintf3d(size.depth, size.height, size.width), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanReal3D(size.depth, size.height, size.width)
+			plan, err := NewPlanReal3D[float32, complex64](size.depth, size.height, size.width)
 			if err != nil {
 				t.Fatalf("NewPlanReal3D failed: %v", err)
 			}
@@ -85,7 +85,7 @@ func TestPlanReal3D_RoundTrip(t *testing.T) {
 		t.Run(sprintf3d(size.depth, size.height, size.width), func(t *testing.T) {
 			t.Parallel()
 
-			plan, err := NewPlanReal3D(size.depth, size.height, size.width)
+			plan, err := NewPlanReal3D[float32, complex64](size.depth, size.height, size.width)
 			if err != nil {
 				t.Fatalf("NewPlanReal3D failed: %v", err)
 			}
@@ -134,7 +134,7 @@ func TestPlanReal3D_RoundTrip(t *testing.T) {
 func TestPlanReal3D_ForwardFull(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal3D(4, 4, 4)
+	plan, err := NewPlanReal3D[float32, complex64](4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestPlanReal3D_ForwardFull(t *testing.T) {
 func TestPlanReal3D_InverseFull(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal3D(4, 4, 4)
+	plan, err := NewPlanReal3D[float32, complex64](4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
 	}
@@ -229,7 +229,7 @@ func TestPlanReal3D_InverseFull(t *testing.T) {
 func TestPlanReal3D_ConstantSignal(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal3D(4, 4, 4)
+	plan, err := NewPlanReal3D[float32, complex64](4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestPlanReal3D_ConstantSignal(t *testing.T) {
 func TestPlanReal3D_Linearity(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal3D(4, 4, 4)
+	plan, err := NewPlanReal3D[float32, complex64](4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestPlanReal3D_Linearity(t *testing.T) {
 func TestPlanReal3D_Clone(t *testing.T) {
 	t.Parallel()
 
-	plan1, err := NewPlanReal3D(4, 4, 4)
+	plan1, err := NewPlanReal3D[float32, complex64](4, 4, 4)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
 	}
@@ -379,7 +379,7 @@ func TestPlanReal3D_Clone(t *testing.T) {
 func TestPlanReal3D_Clone_Concurrent(t *testing.T) {
 	t.Parallel()
 
-	orig, err := NewPlanReal3D(4, 4, 8)
+	orig, err := NewPlanReal3D[float32, complex64](4, 4, 8)
 	if err != nil {
 		t.Fatalf("NewPlanReal3D failed: %v", err)
 	}
@@ -440,13 +440,13 @@ func TestPlanReal3D_InvalidSizes(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		_, err := NewPlanReal3D(testCase.depth, testCase.height, testCase.width)
+		_, err := NewPlanReal3D[float32, complex64](testCase.depth, testCase.height, testCase.width)
 		if testCase.shouldFail && err == nil {
-			t.Errorf("NewPlanReal3D(%d, %d, %d) should fail but didn't", testCase.depth, testCase.height, testCase.width)
+			t.Errorf("NewPlanReal3D[float32, complex64](%d, %d, %d) should fail but didn't", testCase.depth, testCase.height, testCase.width)
 		}
 
 		if !testCase.shouldFail && err != nil {
-			t.Errorf("NewPlanReal3D(%d, %d, %d) failed unexpectedly: %v", testCase.depth, testCase.height, testCase.width, err)
+			t.Errorf("NewPlanReal3D[float32, complex64](%d, %d, %d) failed unexpectedly: %v", testCase.depth, testCase.height, testCase.width, err)
 		}
 	}
 }

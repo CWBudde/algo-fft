@@ -28,7 +28,7 @@ func TestConcurrentSharedPlan(t *testing.T) {
 func testSharedPlan(t *testing.T, n, numGoroutines, itersPerGoroutine int) {
 	t.Helper()
 	// Create shared plan
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
@@ -175,7 +175,7 @@ func testConcurrentCreation(t *testing.T, sizes []int, numGoroutines int) {
 
 			// Each goroutine creates plans for different sizes
 			for _, n := range sizes {
-				plan, err := NewPlan(n)
+				plan, err := NewPlan[complex64](n)
 				if err != nil {
 					errors <- fmt.Errorf("goroutine %d size %d: %w", goroutineID, n, err)
 					return
@@ -217,7 +217,7 @@ func TestConcurrentMixedOperations(t *testing.T) {
 	numGoroutines := 8
 	itersPerGoroutine := 100
 
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}
@@ -274,7 +274,7 @@ func TestConcurrentDifferentPrecisions(t *testing.T) {
 	numGoroutines := 8
 	itersPerGoroutine := 50
 
-	plan64, err := NewPlan(n)
+	plan64, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create complex64 plan: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestConcurrentStress(t *testing.T) {
 	numGoroutines := 32
 	itersPerGoroutine := 1000
 
-	plan, err := NewPlan(n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
 	}

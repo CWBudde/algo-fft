@@ -16,9 +16,9 @@ func TestPlanRealForwardImpulse(t *testing.T) {
 
 	const n = 16
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]float32, n)
@@ -35,58 +35,6 @@ func TestPlanRealForwardImpulse(t *testing.T) {
 	}
 }
 
-func TestPlanReal_BatchStrideRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	const (
-		n      = 16
-		batch  = 2
-		stride = n + 5
-	)
-
-	plan, err := NewPlanRealWithOptions(n, PlanOptions{
-		Batch:  batch,
-		Stride: stride,
-	})
-	if err != nil {
-		t.Fatalf("NewPlanRealWithOptions failed: %v", err)
-	}
-
-	src := make([]float32, batch*stride)
-	dst := make([]complex64, batch*stride)
-	roundTrip := make([]float32, batch*stride)
-
-	rng := rand.New(rand.NewSource(42))
-
-	for b := range batch {
-		base := b * stride
-		for i := range n {
-			src[base+i] = float32(rng.Float64()*2 - 1)
-		}
-	}
-
-	err = plan.Forward(dst, src)
-	if err != nil {
-		t.Fatalf("Forward failed: %v", err)
-	}
-
-	err = plan.Inverse(roundTrip, dst)
-	if err != nil {
-		t.Fatalf("Inverse failed: %v", err)
-	}
-
-	const tol = 1e-3
-
-	for b := range batch {
-		base := b * stride
-		for i := range n {
-			if math.Abs(float64(roundTrip[base+i]-src[base+i])) > tol {
-				t.Fatalf("batch %d idx %d mismatch: got %v want %v", b, i, roundTrip[base+i], src[base+i])
-			}
-		}
-	}
-}
-
 func TestPlanRealForwardConstant(t *testing.T) {
 	t.Parallel()
 
@@ -95,9 +43,9 @@ func TestPlanRealForwardConstant(t *testing.T) {
 		value = 2.0
 	)
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]float32, n)
@@ -127,9 +75,9 @@ func TestPlanRealForwardCosine(t *testing.T) {
 		k = 3
 	)
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]float32, n)
@@ -165,9 +113,9 @@ func TestPlanRealForwardMatchesReference(t *testing.T) {
 
 	const n = 32
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 	}
 
 	src := make([]float32, n)
@@ -199,9 +147,9 @@ func TestPlanRealForwardConjugateSymmetry(t *testing.T) {
 
 	const n = 64
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 	}
 
 	// Use a mixed signal to get non-trivial spectrum
@@ -260,9 +208,9 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 			t.Run("noise", func(t *testing.T) {
 				t.Parallel()
 
-				plan, err := NewPlanReal(n)
+				plan, err := NewPlanReal[float32, complex64](n)
 				if err != nil {
-					t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+					t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 				}
 
 				rng := rand.New(rand.NewSource(1))
@@ -278,9 +226,9 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 			t.Run("tones", func(t *testing.T) {
 				t.Parallel()
 
-				plan, err := NewPlanReal(n)
+				plan, err := NewPlanReal[float32, complex64](n)
 				if err != nil {
-					t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+					t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 				}
 
 				src := make([]float32, n)
@@ -296,9 +244,9 @@ func TestPlanRealRoundTripSignals(t *testing.T) {
 			t.Run("chirp", func(t *testing.T) {
 				t.Parallel()
 
-				plan, err := NewPlanReal(n)
+				plan, err := NewPlanReal[float32, complex64](n)
 				if err != nil {
-					t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+					t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 				}
 
 				const (
@@ -328,9 +276,9 @@ func TestPlanRealEdgeCases(t *testing.T) {
 	t.Run("n=2", func(t *testing.T) {
 		t.Parallel()
 
-		plan, err := NewPlanReal(2)
+		plan, err := NewPlanReal[float32, complex64](2)
 		if err != nil {
-			t.Fatalf("NewPlanReal(2) returned error: %v", err)
+			t.Fatalf("NewPlanReal[float32, complex64](2) returned error: %v", err)
 		}
 
 		src := []float32{1, 2}
@@ -351,9 +299,9 @@ func TestPlanRealEdgeCases(t *testing.T) {
 
 		const n = 4096
 
-		plan, err := NewPlanReal(n)
+		plan, err := NewPlanReal[float32, complex64](n)
 		if err != nil {
-			t.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+			t.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 		}
 
 		src := make([]float32, n)
@@ -379,7 +327,7 @@ func TestPlanRealErrors(t *testing.T) {
 	t.Run("invalid length 0", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewPlanReal(0)
+		_, err := NewPlanReal[float32, complex64](0)
 		if !errors.Is(err, ErrInvalidLength) {
 			t.Errorf("expected ErrInvalidLength, got %v", err)
 		}
@@ -388,7 +336,7 @@ func TestPlanRealErrors(t *testing.T) {
 	t.Run("invalid length 1", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewPlanReal(1)
+		_, err := NewPlanReal[float32, complex64](1)
 		if !errors.Is(err, ErrInvalidLength) {
 			t.Errorf("expected ErrInvalidLength, got %v", err)
 		}
@@ -397,7 +345,7 @@ func TestPlanRealErrors(t *testing.T) {
 	t.Run("negative length", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewPlanReal(-4)
+		_, err := NewPlanReal[float32, complex64](-4)
 		if !errors.Is(err, ErrInvalidLength) {
 			t.Errorf("expected ErrInvalidLength, got %v", err)
 		}
@@ -406,9 +354,9 @@ func TestPlanRealErrors(t *testing.T) {
 	t.Run("odd length supported", func(t *testing.T) {
 		t.Parallel()
 
-		plan, err := NewPlanReal(7)
+		plan, err := NewPlanReal[float32, complex64](7)
 		if err != nil {
-			t.Fatalf("NewPlanReal(7) returned error: %v", err)
+			t.Fatalf("NewPlanReal[float32, complex64](7) returned error: %v", err)
 		}
 
 		if plan.SpectrumLen() != 4 {
@@ -419,7 +367,7 @@ func TestPlanRealErrors(t *testing.T) {
 	t.Run("nil slices", func(t *testing.T) {
 		t.Parallel()
 
-		plan, _ := NewPlanReal(16)
+		plan, _ := NewPlanReal[float32, complex64](16)
 
 		err := plan.Forward(nil, make([]float32, 16))
 		if !errors.Is(err, ErrNilSlice) {
@@ -435,7 +383,7 @@ func TestPlanRealErrors(t *testing.T) {
 	t.Run("length mismatch", func(t *testing.T) {
 		t.Parallel()
 
-		plan, _ := NewPlanReal(16)
+		plan, _ := NewPlanReal[float32, complex64](16)
 
 		err := plan.Forward(make([]complex64, 8), make([]float32, 16))
 		if !errors.Is(err, ErrLengthMismatch) {
@@ -449,7 +397,7 @@ func TestPlanRealErrors(t *testing.T) {
 	})
 }
 
-func assertPlanRealRoundTrip(t *testing.T, plan *PlanReal, src []float32, tol float64) {
+func assertPlanRealRoundTrip(t *testing.T, plan *PlanReal[float32, complex64], src []float32, tol float64) {
 	t.Helper()
 
 	freq := make([]complex64, plan.SpectrumLen())
@@ -478,9 +426,9 @@ func BenchmarkPlanRealForward(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run(fmt.Sprintf("Real_N=%d", n), func(b *testing.B) {
-			plan, err := NewPlanReal(n)
+			plan, err := NewPlanReal[float32, complex64](n)
 			if err != nil {
-				b.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+				b.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 			}
 
 			src := make([]float32, n)
@@ -501,9 +449,9 @@ func BenchmarkPlanRealForward(b *testing.B) {
 		})
 
 		b.Run(fmt.Sprintf("Complex_N=%d", n), func(b *testing.B) {
-			plan, err := NewPlanT[complex64](n)
+			plan, err := NewPlan[complex64](n)
 			if err != nil {
-				b.Fatalf("NewPlan(%d) returned error: %v", n, err)
+				b.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 			}
 
 			src := make([]complex64, n)
@@ -530,9 +478,9 @@ func BenchmarkPlanRealInverse(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run(fmt.Sprintf("Real_N=%d", n), func(b *testing.B) {
-			plan, err := NewPlanReal(n)
+			plan, err := NewPlanReal[float32, complex64](n)
 			if err != nil {
-				b.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+				b.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 			}
 
 			src := make([]float32, n)
@@ -567,9 +515,9 @@ func TestPlanReal_ForwardNormalized(t *testing.T) {
 
 	n := 64
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) failed: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) failed: %v", n, err)
 	}
 
 	// Create constant input (all ones)
@@ -610,9 +558,9 @@ func TestPlanReal_ForwardUnitary(t *testing.T) {
 
 	n := 64
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) failed: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) failed: %v", n, err)
 	}
 
 	// Create test signal
@@ -653,9 +601,9 @@ func TestPlanReal_NormalizedWithRealSignal(t *testing.T) {
 
 	n := 128
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) failed: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) failed: %v", n, err)
 	}
 
 	// Create a mix of frequencies
@@ -690,9 +638,9 @@ func TestPlanReal_UnitaryWithRealSignal(t *testing.T) {
 
 	n := 128
 
-	plan, err := NewPlanReal(n)
+	plan, err := NewPlanReal[float32, complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanReal(%d) failed: %v", n, err)
+		t.Fatalf("NewPlanReal[float32, complex64](%d) failed: %v", n, err)
 	}
 
 	// Create a mix of frequencies
@@ -725,7 +673,7 @@ func TestPlanReal_UnitaryWithRealSignal(t *testing.T) {
 func TestPlanReal_NormalizedErrors(t *testing.T) {
 	t.Parallel()
 
-	plan, err := NewPlanReal(16)
+	plan, err := NewPlanReal[float32, complex64](16)
 	if err != nil {
 		t.Fatalf("NewPlanReal failed: %v", err)
 	}
@@ -782,9 +730,9 @@ func BenchmarkPlanRealForwardNormalized(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run(fmt.Sprintf("Real_N=%d", n), func(b *testing.B) {
-			plan, err := NewPlanReal(n)
+			plan, err := NewPlanReal[float32, complex64](n)
 			if err != nil {
-				b.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+				b.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 			}
 
 			src := make([]float32, n)
@@ -811,9 +759,9 @@ func BenchmarkPlanRealForwardUnitary(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run(fmt.Sprintf("Real_N=%d", n), func(b *testing.B) {
-			plan, err := NewPlanReal(n)
+			plan, err := NewPlanReal[float32, complex64](n)
 			if err != nil {
-				b.Fatalf("NewPlanReal(%d) returned error: %v", n, err)
+				b.Fatalf("NewPlanReal[float32, complex64](%d) returned error: %v", n, err)
 			}
 
 			src := make([]float32, n)

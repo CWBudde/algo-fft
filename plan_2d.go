@@ -23,7 +23,6 @@ type Plan2D[T Complex] struct {
 	rows, cols int      // Matrix dimensions
 	rowPlan    *Plan[T] // Plan for transforming rows (size=cols)
 	colPlan    *Plan[T] // Plan for transforming columns (size=rows)
-	options    PlanOptions
 
 	// scratch hands out per-call working buffers for thread-safety.
 	scratch *residentCache[plan2DScratch[T]]
@@ -73,18 +72,13 @@ func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[
 	opts = normalizePlanOptions(opts)
 	features := cpu.DetectFeatures()
 
-	childOpts := opts
-	childOpts.Batch = 0
-	childOpts.Stride = 0
-	childOpts.InPlace = false
-
 	// Create 1D plans for rows and columns
-	rowPlan, err := newPlanWithFeatures[T](cols, features, childOpts)
+	rowPlan, err := newPlanWithFeatures[T](cols, features, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create row-transform plan (size %d): %w", cols, err)
 	}
 
-	colPlan, err := newPlanWithFeatures[T](rows, features, childOpts)
+	colPlan, err := newPlanWithFeatures[T](rows, features, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create column-transform plan (size %d): %w", rows, err)
 	}
@@ -95,7 +89,6 @@ func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[
 		rowPlan: rowPlan,
 		colPlan: colPlan,
 		scratch: newPlan2DScratchCache[T](rows, cols),
-		options: opts,
 	}
 
 	return p, nil
@@ -149,30 +142,7 @@ func (p *Plan2D[T]) String() string {
 //
 // Formula: X[k,l] = Σ(m=0..rows-1) Σ(n=0..cols-1) x[m,n] * exp(-2πi*(km/rows + ln/cols)).
 func (p *Plan2D[T]) Forward(dst, src []T) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	batch, stride, err := resolveBatchStride(p.Len(), p.options)
-	if err != nil {
-		return err
-	}
-
-	for b := range batch {
-		srcOff := b * stride
-
-		dstOff := b * stride
-		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
-			return ErrLengthMismatch
-		}
-
-		err = p.forwardSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return p.forwardSingle(dst, src)
 }
 
 // Inverse computes the 2D IFFT: dst = IFFT2D(src).
@@ -184,30 +154,7 @@ func (p *Plan2D[T]) Forward(dst, src []T) error {
 //
 // Formula: x[m,n] = (1/(rows*cols)) * Σ(k=0..rows-1) Σ(l=0..cols-1) X[k,l] * exp(2πi*(km/rows + ln/cols)).
 func (p *Plan2D[T]) Inverse(dst, src []T) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	batch, stride, err := resolveBatchStride(p.Len(), p.options)
-	if err != nil {
-		return err
-	}
-
-	for b := range batch {
-		srcOff := b * stride
-
-		dstOff := b * stride
-		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
-			return ErrLengthMismatch
-		}
-
-		err = p.inverseSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return p.inverseSingle(dst, src)
 }
 
 // ForwardInPlace computes the 2D FFT in-place: data = FFT2D(data).
@@ -235,7 +182,6 @@ func (p *Plan2D[T]) Clone() *Plan2D[T] {
 		rowPlan: p.rowPlan,
 		colPlan: p.colPlan,
 		scratch: newPlan2DScratchCache[T](p.rows, p.cols),
-		options: p.options,
 	}
 }
 

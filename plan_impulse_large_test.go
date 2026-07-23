@@ -7,9 +7,9 @@ func TestForward_Impulse_2048(t *testing.T) {
 
 	const n = 2048
 
-	plan, err := NewPlanT[complex64](n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlan(%d) returned error: %v", n, err)
+		t.Fatalf("NewPlan[complex64](%d) returned error: %v", n, err)
 	}
 
 	t.Logf("strategy=%v algorithm=%q", plan.KernelStrategy(), plan.Algorithm())

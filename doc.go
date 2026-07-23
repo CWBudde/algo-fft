@@ -14,23 +14,19 @@
 //
 // Generic constructor (recommended for type-safe code):
 //
-//	plan, err := algofft.NewPlanT[complex64](1024)
-//	plan128, err := algofft.NewPlanT[complex128](1024)
+//	plan, err := algofft.NewPlan[complex64](1024)
+//	plan128, err := algofft.NewPlan[complex128](1024)
 //
 // Explicit precision constructors:
 //
 //	plan32, err := algofft.NewPlan32(1024)   // complex64 (single precision)
 //	plan64, err := algofft.NewPlan64(1024)   // complex128 (double precision)
 //
-// Convenience alias (defaults to complex64 for best performance):
-//
-//	plan, err := algofft.NewPlan(1024)  // equivalent to NewPlan32
-//
 // # Basic Usage (1D FFT)
 //
 // Create a plan for a specific FFT size, then reuse it for multiple transforms:
 //
-//	plan, err := algofft.NewPlan(1024)
+//	plan, err := algofft.NewPlan[complex64](1024)
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -67,7 +63,7 @@
 //
 // Or using the generic constructor:
 //
-//	plan, err := algofft.NewPlanT[complex128](1024)
+//	plan, err := algofft.NewPlan[complex128](1024)
 //
 // Use complex128 when:
 //   - Accumulating many transforms (error compounds less)
@@ -78,7 +74,7 @@
 //
 // For real-valued input signals, use PlanReal for ~2x performance improvement:
 //
-//	planReal, err := algofft.NewPlanReal(1024)
+//	planReal, err := algofft.NewPlanReal[float32, complex64](1024)
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -148,7 +144,7 @@
 //
 // For volumetric data (medical imaging, fluid dynamics):
 //
-//	plan3D, err := algofft.NewPlan3D(64, 64, 64) // depth, rows, cols
+//	plan3D, err := algofft.NewPlan3D[complex64](64, 64, 64) // depth, rows, cols
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -166,7 +162,7 @@
 // For arbitrary dimensions (4D, 5D, etc.):
 //
 //	dims := []int{8, 16, 32, 64} // 4D: 8x16x32x64
-//	planND, err := algofft.NewPlanND(dims)
+//	planND, err := algofft.NewPlanND[complex64](dims)
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -183,7 +179,7 @@
 //
 // Process multiple signals of the same length efficiently:
 //
-//	plan, _ := algofft.NewPlan(256)
+//	plan, _ := algofft.NewPlan[complex64](256)
 //
 //	// 100 signals, each 256 samples, stored sequentially
 //	count := 100
@@ -191,7 +187,7 @@
 //	spectra := make([]complex64, count*256)
 //
 //	// Transform all signals in one call
-//	if err := plan.ForwardBatch(spectra, signals, count, 256); err != nil {
+//	if err := plan.ForwardBatch(spectra, signals, count); err != nil {
 //		log.Fatal(err)
 //	}
 //
@@ -201,7 +197,7 @@
 //
 // Transform non-contiguous data (e.g., matrix columns):
 //
-//	plan, _ := algofft.NewPlan(128)
+//	plan, _ := algofft.NewPlan[complex64](128)
 //
 //	// 128x256 matrix in row-major order
 //	matrix := make([]complex64, 128*256)
@@ -262,7 +258,7 @@
 // Basic wisdom usage:
 //
 //	// Plans automatically use wisdom (if available)
-//	plan, err := algofft.NewPlan(1024)
+//	plan, err := algofft.NewPlan[complex64](1024)
 //
 //	// Export wisdom to a file
 //	if err := algofft.ExportWisdom("fft_wisdom.txt"); err != nil {
@@ -335,8 +331,8 @@
 // # Precision
 //
 // Two precision levels are available:
-//   - complex64 (Plan32 / NewPlan / NewPlan32): 32-bit float components, faster, lower memory
-//   - complex128 (Plan64 / NewPlan64): 64-bit float components, higher precision
+//   - complex64 (NewPlan[complex64] / NewPlan32): 32-bit float components, faster, lower memory
+//   - complex128 (NewPlan[complex128] / NewPlan64): 64-bit float components, higher precision
 //
 // The generic Plan[T] type unifies both precisions with compile-time type safety.
 //

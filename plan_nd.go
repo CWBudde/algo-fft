@@ -24,7 +24,6 @@ type PlanND[T Complex] struct {
 	dims    []int      // Dimension sizes [d0, d1, ..., dN-1]
 	plans   []*Plan[T] // 1D plans for each dimension
 	strides []int      // Pre-computed strides for each dimension
-	options PlanOptions
 
 	// scratch hands out per-call working buffers for thread-safety.
 	scratch *residentCache[planNDScratch[T]]
@@ -101,16 +100,11 @@ func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], 
 	dimsCopy := make([]int, len(dims))
 	copy(dimsCopy, dims)
 
-	childOpts := opts
-	childOpts.Batch = 0
-	childOpts.Stride = 0
-	childOpts.InPlace = false
-
 	// Create 1D plans for each dimension
 	plans := make([]*Plan[T], len(dims))
 
 	for i, size := range dimsCopy {
-		plan, err := newPlanWithFeatures[T](size, features, childOpts)
+		plan, err := newPlanWithFeatures[T](size, features, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create plan for dimension %d (size %d): %w", i, size, err)
 		}
@@ -132,7 +126,6 @@ func NewPlanNDWithOptions[T Complex](dims []int, opts PlanOptions) (*PlanND[T], 
 		plans:   plans,
 		scratch: newPlanNDScratchCache[T](dimsCopy),
 		strides: strides,
-		options: opts,
 	}, nil
 }
 
@@ -200,30 +193,7 @@ func (p *PlanND[T]) String() string {
 //
 // Supports in-place operation (dst == src).
 func (p *PlanND[T]) Forward(dst, src []T) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	batch, stride, err := resolveBatchStride(p.Len(), p.options)
-	if err != nil {
-		return err
-	}
-
-	for b := range batch {
-		srcOff := b * stride
-
-		dstOff := b * stride
-		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
-			return ErrLengthMismatch
-		}
-
-		err = p.forwardSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return p.forwardSingle(dst, src)
 }
 
 // Inverse computes the N-D IFFT: dst = IFFT_ND(src).
@@ -233,30 +203,7 @@ func (p *PlanND[T]) Forward(dst, src []T) error {
 //
 // Supports in-place operation (dst == src).
 func (p *PlanND[T]) Inverse(dst, src []T) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	batch, stride, err := resolveBatchStride(p.Len(), p.options)
-	if err != nil {
-		return err
-	}
-
-	for b := range batch {
-		srcOff := b * stride
-
-		dstOff := b * stride
-		if srcOff+p.Len() > len(src) || dstOff+p.Len() > len(dst) {
-			return ErrLengthMismatch
-		}
-
-		err = p.inverseSingle(dst[dstOff:dstOff+p.Len()], src[srcOff:srcOff+p.Len()])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return p.inverseSingle(dst, src)
 }
 
 // ForwardInPlace computes the N-D FFT in-place: data = FFT_ND(data).
@@ -290,7 +237,6 @@ func (p *PlanND[T]) Clone() *PlanND[T] {
 		plans:   p.plans,
 		scratch: newPlanNDScratchCache[T](dims),
 		strides: strides,
-		options: p.options,
 	}
 }
 

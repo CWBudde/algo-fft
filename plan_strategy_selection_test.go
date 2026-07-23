@@ -16,21 +16,21 @@ func TestKernelSelectionStrategy(t *testing.T) {
 	cases := []struct {
 		name      string
 		n         int
-		requested KernelStrategy
-		estimated KernelStrategy
-		want      KernelStrategy
+		requested fft.KernelStrategy
+		estimated fft.KernelStrategy
+		want      fft.KernelStrategy
 	}{
 		// Auto plans whose estimate equals the size heuristic keep KernelAuto.
-		{"AutoSmallDIT", 512, KernelAuto, fft.ResolveKernelStrategy(512), KernelAuto},
-		{"AutoLargeStockham", 4096, KernelAuto, fft.ResolveKernelStrategy(4096), KernelAuto},
+		{"AutoSmallDIT", 512, fft.KernelAuto, fft.ResolveKernelStrategy(512), fft.KernelAuto},
+		{"AutoLargeStockham", 4096, fft.KernelAuto, fft.ResolveKernelStrategy(4096), fft.KernelAuto},
 		// Explicit forces are always passed through.
-		{"ForcedStockham", 4096, KernelStockham, KernelStockham, KernelStockham},
-		{"ForcedDIT", 4096, KernelDIT, KernelDIT, KernelDIT},
-		{"ForcedStockhamSmall", 512, KernelStockham, KernelStockham, KernelStockham},
+		{"ForcedStockham", 4096, fft.KernelStockham, fft.KernelStockham, fft.KernelStockham},
+		{"ForcedDIT", 4096, fft.KernelDIT, fft.KernelDIT, fft.KernelDIT},
+		{"ForcedStockhamSmall", 512, fft.KernelStockham, fft.KernelStockham, fft.KernelStockham},
 		// Auto plans with a wisdom/measurement override (estimate deviates
 		// from the heuristic) keep the override.
-		{"WisdomDITAtLargeSize", 4096, KernelAuto, KernelDIT, KernelDIT},
-		{"WisdomStockhamAtSmallSize", 512, KernelAuto, KernelStockham, KernelStockham},
+		{"WisdomDITAtLargeSize", 4096, fft.KernelAuto, fft.KernelDIT, fft.KernelDIT},
+		{"WisdomStockhamAtSmallSize", 512, fft.KernelAuto, fft.KernelStockham, fft.KernelStockham},
 	}
 
 	for _, tc := range cases {

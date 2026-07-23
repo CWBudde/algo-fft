@@ -28,7 +28,7 @@ func main() {
 }
 
 func measureMaxError32(n, trials int) float64 {
-	plan, err := algofft.NewPlan(n)
+	plan, err := algofft.NewPlan[complex64](n)
 	if err != nil {
 		panic(err)
 	}

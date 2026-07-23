@@ -32,7 +32,10 @@ const (
 	PlannerExhaustive
 )
 
-// PlanOptions controls planning decisions and execution layout.
+// PlanOptions controls planning decisions. All options are plan-time
+// concerns; per-call execution layout (batching, striding) is expressed at
+// the call site via ForwardBatch/InverseBatch and ForwardStrided/
+// InverseStrided instead.
 type PlanOptions struct {
 	// Planner controls how much work the planner does to choose kernels.
 	// Default is PlannerEstimate (heuristics only, no benchmarking).
@@ -41,15 +44,6 @@ type PlanOptions struct {
 	// Strategy forces a specific kernel strategy. Use KernelAuto (default)
 	// to let the planner choose based on size and benchmarks.
 	Strategy KernelStrategy
-
-	// Batch specifies the number of transforms to execute in a batch.
-	Batch int
-
-	// Stride specifies the stride between consecutive elements.
-	Stride int
-
-	// InPlace enables in-place transforms when possible.
-	InPlace bool
 
 	// Wisdom provides a cache for storing and retrieving optimal kernel choices.
 	// When using PlannerMeasure or higher, benchmark results are automatically
@@ -98,16 +92,6 @@ func normalizePlanOptions(opts PlanOptions) PlanOptions {
 	// Default planner mode when unset
 	if opts.Planner == 0 {
 		opts.Planner = PlannerEstimate
-	}
-
-	// Ensure batch count is sensible: default to a single transform
-	if opts.Batch < 0 {
-		opts.Batch = 0 // 0 is treated as 1 in resolveBatchStride
-	}
-
-	// Normalize stride: negative values are treated as default (contiguous)
-	if opts.Stride < 0 {
-		opts.Stride = 0 // 0 means use default stride
 	}
 
 	return opts

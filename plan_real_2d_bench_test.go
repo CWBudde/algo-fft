@@ -19,7 +19,7 @@ func BenchmarkPlanReal2D_Forward(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf("%dx%d", size.rows, size.cols), func(b *testing.B) {
-			plan, err := NewPlanReal2D(size.rows, size.cols)
+			plan, err := NewPlanReal2D[float32, complex64](size.rows, size.cols)
 			if err != nil {
 				b.Fatalf("NewPlanReal2D failed: %v", err)
 			}
@@ -57,7 +57,7 @@ func BenchmarkPlanReal2D_ForwardFull(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf("%dx%d", size.rows, size.cols), func(b *testing.B) {
-			plan, err := NewPlanReal2D(size.rows, size.cols)
+			plan, err := NewPlanReal2D[float32, complex64](size.rows, size.cols)
 			if err != nil {
 				b.Fatalf("NewPlanReal2D failed: %v", err)
 			}
@@ -95,7 +95,7 @@ func BenchmarkPlanReal2D_Inverse(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf("%dx%d", size.rows, size.cols), func(b *testing.B) {
-			plan, err := NewPlanReal2D(size.rows, size.cols)
+			plan, err := NewPlanReal2D[float32, complex64](size.rows, size.cols)
 			if err != nil {
 				b.Fatalf("NewPlanReal2D failed: %v", err)
 			}
@@ -132,7 +132,7 @@ func BenchmarkPlanReal2D_RoundTrip(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf("%dx%d", size.rows, size.cols), func(b *testing.B) {
-			plan, err := NewPlanReal2D(size.rows, size.cols)
+			plan, err := NewPlanReal2D[float32, complex64](size.rows, size.cols)
 			if err != nil {
 				b.Fatalf("NewPlanReal2D failed: %v", err)
 			}
@@ -169,7 +169,7 @@ func BenchmarkPlanReal2D_NonSquare(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(sprintf("%dx%d", size.rows, size.cols), func(b *testing.B) {
-			plan, err := NewPlanReal2D(size.rows, size.cols)
+			plan, err := NewPlanReal2D[float32, complex64](size.rows, size.cols)
 			if err != nil {
 				b.Fatalf("NewPlanReal2D failed: %v", err)
 			}

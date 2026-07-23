@@ -6,15 +6,15 @@ import (
 )
 
 // TestForwardInPlace_MatchesForward verifies the 1D ForwardInPlace/
-// InverseInPlace pair and that the deprecated InPlace alias stays equivalent.
+// InverseInPlace pair matches Forward/Inverse.
 func TestForwardInPlace_MatchesForward(t *testing.T) {
 	t.Parallel()
 
 	const n = 64
 
-	plan, err := NewPlanT[complex64](n)
+	plan, err := NewPlan[complex64](n)
 	if err != nil {
-		t.Fatalf("NewPlanT failed: %v", err)
+		t.Fatalf("NewPlan failed: %v", err)
 	}
 
 	src := make([]complex64, n)
@@ -49,24 +49,10 @@ func TestForwardInPlace_MatchesForward(t *testing.T) {
 			t.Fatalf("round-trip mismatch at %d: got %v, want %v", i, got[i], src[i])
 		}
 	}
-
-	// The deprecated alias must keep behaving like ForwardInPlace.
-	alias := make([]complex64, n)
-	copy(alias, src)
-
-	if err := plan.InPlace(alias); err != nil {
-		t.Fatalf("InPlace failed: %v", err)
-	}
-
-	for i := range want {
-		if cmplx.Abs(complex128(alias[i]-want[i])) > 1e-5 {
-			t.Fatalf("InPlace alias mismatch at %d: got %v, want %v", i, alias[i], want[i])
-		}
-	}
 }
 
-// TestFastPlanForwardInPlace verifies that FastPlan's ForwardInPlace and the
-// legacy InPlace alias both produce the Forward result.
+// TestFastPlanForwardInPlace verifies that FastPlan's ForwardInPlace
+// produces the Forward result.
 func TestFastPlanForwardInPlace(t *testing.T) {
 	t.Parallel()
 
@@ -89,17 +75,9 @@ func TestFastPlanForwardInPlace(t *testing.T) {
 	copy(got, src)
 	fp.ForwardInPlace(got)
 
-	alias := make([]complex64, n)
-	copy(alias, src)
-	fp.InPlace(alias)
-
 	for i := range want {
 		if cmplx.Abs(complex128(got[i]-want[i])) > 1e-5 {
 			t.Fatalf("ForwardInPlace mismatch at %d: got %v, want %v", i, got[i], want[i])
-		}
-
-		if cmplx.Abs(complex128(alias[i]-want[i])) > 1e-5 {
-			t.Fatalf("InPlace alias mismatch at %d: got %v, want %v", i, alias[i], want[i])
 		}
 	}
 }
