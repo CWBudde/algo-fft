@@ -1,13 +1,12 @@
 package algofft
 
-import (
-	"github.com/cwbudde/algo-fft/internal/fft"
-	m "github.com/cwbudde/algo-fft/internal/math"
-)
-
 // convolveRealT computes the linear convolution of a and b using real FFTs for
 // the float type F and its matching complex type C. The dst slice must have
 // length len(a)+len(b)-1.
+//
+// This is the one-shot entry point to the real convolution pipeline owned by
+// RealConvolver: it validates, builds a throwaway RealConvolver, and runs it
+// once.
 func convolveRealT[F Float, C Complex](dst, a, b []F) error {
 	if dst == nil || a == nil || b == nil {
 		return ErrNilSlice
@@ -17,49 +16,16 @@ func convolveRealT[F Float, C Complex](dst, a, b []F) error {
 		return ErrInvalidLength
 	}
 
-	convLen := len(a) + len(b) - 1
-	if len(dst) != convLen {
+	if len(dst) != len(a)+len(b)-1 {
 		return ErrLengthMismatch
 	}
 
-	fftLen := max(m.NextPowerOfTwo(convLen), 2)
-
-	plan, err := NewPlanReal[F, C](fftLen)
+	conv, err := NewRealConvolver[F, C](len(a), len(b))
 	if err != nil {
 		return err
 	}
 
-	aPadded := make([]F, fftLen)
-	bPadded := make([]F, fftLen)
-
-	copy(aPadded, a)
-	copy(bPadded, b)
-
-	aFreq := make([]C, plan.SpectrumLen())
-	bFreq := make([]C, plan.SpectrumLen())
-
-	err = plan.Forward(aFreq, aPadded)
-	if err != nil {
-		return err
-	}
-
-	err = plan.Forward(bFreq, bPadded)
-	if err != nil {
-		return err
-	}
-
-	fft.ComplexMulArrayInPlace(aFreq, bFreq)
-
-	time := make([]F, fftLen)
-
-	err = plan.Inverse(time, aFreq)
-	if err != nil {
-		return err
-	}
-
-	copy(dst, time[:convLen])
-
-	return nil
+	return conv.Convolve(dst, a, b)
 }
 
 // ConvolveReal computes the linear convolution of a and b using real FFTs.

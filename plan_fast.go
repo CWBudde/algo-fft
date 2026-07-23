@@ -116,14 +116,7 @@ func (fp *FastPlan[T]) Len() int {
 
 // String returns a human-readable description of the FastPlan for debugging.
 func (fp *FastPlan[T]) String() string {
-	var zero T
-
-	typeName := precisionNameComplex64
-	if _, ok := any(zero).(complex128); ok {
-		typeName = precisionNameComplex128
-	}
-
-	return "FastPlan[" + typeName + "](" + itoa(fp.n) + ", " + fp.algorithm + ")"
+	return "FastPlan[" + complexTypeName[T]() + "](" + itoa(fp.n) + ", " + fp.algorithm + ")"
 }
 
 // Clone creates an independent copy of the FastPlan with its own scratch

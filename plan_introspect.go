@@ -24,49 +24,46 @@ func (p *Plan[T]) Algorithms() []string {
 // dimension order: index 0 describes the length-rows transforms applied along
 // columns, index 1 the length-cols transforms applied along rows.
 func (p *Plan2D[T]) KernelStrategies() []KernelStrategy {
-	return []KernelStrategy{p.colPlan.KernelStrategy(), p.rowPlan.KernelStrategy()}
+	return p.nd.KernelStrategies()
 }
 
 // Algorithms returns the human-readable algorithm name for each axis, in the
 // same dimension order as KernelStrategies.
 func (p *Plan2D[T]) Algorithms() []string {
-	return []string{p.colPlan.Algorithm(), p.rowPlan.Algorithm()}
+	return p.nd.Algorithms()
 }
 
 // Close releases the plan's scratch cache and child-plan references. After
 // Close the plan must not be used for transforms; calling Close multiple
 // times is safe. Clones are unaffected (they hold their own references).
 func (p *Plan2D[T]) Close() {
-	p.rowPlan = nil
-	p.colPlan = nil
-	p.scratch = nil
+	if p.nd != nil {
+		p.nd.Close()
+		p.nd = nil
+	}
 }
 
 // KernelStrategies returns the resolved kernel strategy for each axis in
 // dimension order (depth, height, width): entry i describes the 1D transforms
 // whose length is that dimension's size.
 func (p *Plan3D[T]) KernelStrategies() []KernelStrategy {
-	return []KernelStrategy{
-		p.depthPlan.KernelStrategy(),
-		p.heightPlan.KernelStrategy(),
-		p.widthPlan.KernelStrategy(),
-	}
+	return p.nd.KernelStrategies()
 }
 
 // Algorithms returns the human-readable algorithm name for each axis, in the
 // same dimension order as KernelStrategies.
 func (p *Plan3D[T]) Algorithms() []string {
-	return []string{p.depthPlan.Algorithm(), p.heightPlan.Algorithm(), p.widthPlan.Algorithm()}
+	return p.nd.Algorithms()
 }
 
 // Close releases the plan's scratch cache and child-plan references. After
 // Close the plan must not be used for transforms; calling Close multiple
 // times is safe. Clones are unaffected (they hold their own references).
 func (p *Plan3D[T]) Close() {
-	p.depthPlan = nil
-	p.heightPlan = nil
-	p.widthPlan = nil
-	p.scratch = nil
+	if p.nd != nil {
+		p.nd.Close()
+		p.nd = nil
+	}
 }
 
 // KernelStrategies returns the resolved kernel strategy for each dimension:

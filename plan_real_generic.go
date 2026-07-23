@@ -127,8 +127,7 @@ func (p *PlanReal[F, C]) SpectrumLen() int {
 
 // realPlanTypeNames names the F→C type pair of a real plan for String().
 func realPlanTypeNames[C Complex]() string {
-	var zero C
-	if _, ok := any(zero).(complex128); ok {
+	if complexTypeName[C]() == precisionNameComplex128 {
 		return "float64→complex128"
 	}
 
@@ -160,12 +159,9 @@ func (p *PlanReal[F, C]) Clone() *PlanReal[F, C] {
 // Forward computes the real-to-complex FFT.
 // dst must have length N/2+1 and src must have length N.
 func (p *PlanReal[F, C]) Forward(dst []C, src []F) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.n || len(dst) != p.half+1 {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.half+1, p.n)
+	if err != nil {
+		return err
 	}
 
 	if p.n%2 != 0 {
@@ -195,7 +191,7 @@ func (p *PlanReal[F, C]) Forward(dst []C, src []F) error {
 	}
 
 	// Perform N/2 complex FFT
-	err := p.plan.Forward(buf, buf)
+	err = p.plan.Forward(buf, buf)
 	if err != nil {
 		return err
 	}
@@ -269,12 +265,9 @@ func (p *PlanReal[F, C]) ForwardUnitary(dst []C, src []F) error {
 // Inverse computes the complex-to-real inverse FFT.
 // dst must have length N and src must have length N/2+1.
 func (p *PlanReal[F, C]) Inverse(dst []F, src []C) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(dst) != p.n || len(src) != p.half+1 {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.n, p.half+1)
+	if err != nil {
+		return err
 	}
 
 	if p.n%2 != 0 {
@@ -321,7 +314,7 @@ func (p *PlanReal[F, C]) Inverse(dst []F, src []C) error {
 	}
 
 	// Inverse N/2 complex FFT
-	err := p.plan.Inverse(buf, buf)
+	err = p.plan.Inverse(buf, buf)
 	if err != nil {
 		return err
 	}

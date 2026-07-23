@@ -148,13 +148,7 @@ const (
 
 // The format is: "Plan[type](size, strategy)" where type is "complex64" or "complex128".
 func (p *Plan[T]) String() string {
-	var zero T
-
-	typeName := precisionNameComplex64
-
-	if _, ok := any(zero).(complex128); ok {
-		typeName = precisionNameComplex128
-	}
+	typeName := complexTypeName[T]()
 
 	strategyName := strategyNameAuto
 
@@ -506,15 +500,7 @@ func (p *Plan[T]) InverseBatch(dst, src []T, count int) error {
 
 // validateSlices checks that dst and src are valid for this Plan.
 func (p *Plan[T]) validateSlices(dst, src []T) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(dst) != p.n || len(src) != p.n {
-		return ErrLengthMismatch
-	}
-
-	return nil
+	return validateDstSrc(dst, src, p.n, p.n)
 }
 
 // NewPlan creates a new FFT plan for the given size using the generic type T.
@@ -568,16 +554,14 @@ const maxBluesteinLength = 1 << (bits.UintSize - 3)
 // lower this constant to re-enable them.
 const bluesteinSubFFTPenalty = 2.2
 
-// bluesteinPadSize returns the padded sub-FFT length for a Bluestein plan of
-// logical length n. The cyclic convolution needs any length m >= 2n-1 the
-// engine can execute exactly; the next 5-smooth size (2^a·3^b·5^c, handled by
-// the mixed-radix engine) is frequently much smaller than the next power of
-// two (e.g. n=1009: 2025 vs 4096), so both are costed as m·log2(m) with the
-// mixed-radix penalty applied and the cheaper one wins. The choice is a pure
-// function of n.
-func bluesteinPadSize(n int) int {
-	minM := 2*n - 1
-
+// cheapestPaddedLength returns the cheapest FFT length m >= minM the engine
+// can execute exactly. The next 5-smooth size (2^a·3^b·5^c, handled by the
+// mixed-radix engine) is frequently much smaller than the next power of two
+// (e.g. minM=2017: 2025 vs 4096), so both are costed as m·log2(m) with the
+// mixed-radix penalty applied and the cheaper one wins. This is the shared
+// pad cost model for Bluestein sub-FFTs and fast convolution lengths; the
+// choice is a pure function of minM.
+func cheapestPaddedLength(minM int) int {
 	pow2 := m.NextPowerOfTwo(minM)
 
 	smooth := m.NextHighlyComposite(minM)
@@ -593,6 +577,13 @@ func bluesteinPadSize(n int) int {
 	}
 
 	return pow2
+}
+
+// bluesteinPadSize returns the padded sub-FFT length for a Bluestein plan of
+// logical length n: the cyclic convolution needs any length m >= 2n-1, costed
+// via the shared pad model (see cheapestPaddedLength).
+func bluesteinPadSize(n int) int {
+	return cheapestPaddedLength(2*n - 1)
 }
 
 // planStrategyConfig computes the strategy-specific plan configuration: the

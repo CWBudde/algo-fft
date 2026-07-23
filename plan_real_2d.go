@@ -162,22 +162,15 @@ func (p *PlanReal2D[F, C]) String() string {
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 func (p *PlanReal2D[F, C]) Forward(dst []C, src []F) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.rows*p.cols {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != p.rows*p.halfCols {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.rows*p.halfCols, p.rows*p.cols)
+	if err != nil {
+		return err
 	}
 
 	s := p.scratch.get()
 	defer p.scratch.put(s)
 
-	err := p.forwardCompactInto(s.compact, s.colData, src)
+	err = p.forwardCompactInto(s.compact, s.colData, src)
 	if err != nil {
 		return err
 	}
@@ -199,16 +192,9 @@ func (p *PlanReal2D[F, C]) Forward(dst []C, src []F) error {
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 func (p *PlanReal2D[F, C]) ForwardFull(dst []C, src []F) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.rows*p.cols {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != p.rows*p.cols {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.rows*p.cols, p.rows*p.cols)
+	if err != nil {
+		return err
 	}
 
 	s := p.scratch.get()
@@ -219,7 +205,7 @@ func (p *PlanReal2D[F, C]) ForwardFull(dst []C, src []F) error {
 	// Compute the compact spectrum directly into the borrowed buffer. Calling
 	// the exported Forward here would nest a second scratch borrow and break
 	// the zero-allocation guarantee once GC drains the overflow pool.
-	err := p.forwardCompactInto(compact, s.colData, src)
+	err = p.forwardCompactInto(compact, s.colData, src)
 	if err != nil {
 		return err
 	}
@@ -253,16 +239,9 @@ func (p *PlanReal2D[F, C]) ForwardFull(dst []C, src []F) error {
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 func (p *PlanReal2D[F, C]) Inverse(dst []F, src []C) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.rows*p.halfCols {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != p.rows*p.cols {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.rows*p.cols, p.rows*p.halfCols)
+	if err != nil {
+		return err
 	}
 
 	s := p.scratch.get()
@@ -319,16 +298,9 @@ func (p *PlanReal2D[F, C]) Inverse(dst []F, src []C) error {
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 func (p *PlanReal2D[F, C]) InverseFull(dst []F, src []C) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(src) != p.rows*p.cols {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != p.rows*p.cols {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.rows*p.cols, p.rows*p.cols)
+	if err != nil {
+		return err
 	}
 
 	s := p.scratch.get()

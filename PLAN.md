@@ -170,19 +170,41 @@ introspection methods are asymmetric across plan types.
 ~150 lines of identical wrapper logic (`Forward`/`Inverse` batch loops,
 `validate`, `String`, `Clone`, option stripping) exist five times.
 
-- [ ] Make `Plan2D`/`Plan3D` thin typed wrappers over the ND engine.
+- [x] Make `Plan2D`/`Plan3D` thin typed wrappers over the ND engine.
       Keep a dimension-specialized inner loop **only** where `benchstat`
       proves it beats the ND path (methodology §3 applies).
-- [ ] Extract shared wrapper logic (validation, String/typeName, Clone,
+      _(Done 2026-07. `PlanND.transformDimension` gained the three access
+      patterns the specialized plans had: contiguous in-place rows for the
+      innermost axis, per-slab `TransposeSquare` for a second-innermost
+      axis matching the innermost size, and a two-loop strided enumeration
+      replacing the div/mod `sliceIndexToOffset`. `Plan2D`/`Plan3D` now
+      hold only their dimensions plus an inner `*PlanND`; benchstat showed
+      no specialized loop beat the ND path (512×512 2D −5%, 4D −22%,
+      rest ~equal, still zero allocations), so all five copies of the
+      transform bodies were deleted.)_
+- [x] Extract shared wrapper logic (validation, String/typeName, Clone,
       batch loop) into one internal helper set; delete the five copies.
       The `switch any(zero).(type)` type-name/dispatch block currently
-      appears in a dozen-plus places (plan.go:166, plan_scratch.go:60,
+      appears in a dozen-plus places (plan.go:166, plan*scratch.go:60,
       plan_real_generic.go ×7, …) — one `typeName[T]()`/dispatch helper.
-- [ ] Deduplicate the one-shot vs reusable DSP pipelines: `convolveT`
+      *(Done 2026-07. `plan_common.go` holds `complexTypeName[T]()`,
+      `validateDstSrc[D, S]()` (two element types, so real plans share it),
+      and `transformSliceInPlace()`. All `String()` type-name blocks and
+      the validation copies in `Plan`, `PlanND`, `PlanReal`,
+      `PlanReal2D/3D` now use them; `allocAlignedSlice`'s dispatch switch
+      collapsed onto the existing `mem.AllocAligned[T]`. The remaining
+      `switch any(zero)` sites are value-dispatch bridges scheduled for
+      A5's kernel twins.)\_
+- [x] Deduplicate the one-shot vs reusable DSP pipelines: `convolveT`
       (convolve.go:55) and `Convolver.Convolve` (convolver.go:80) implement
       the identical pad→FFT→multiply→IFFT→copy sequence — one core, two
       entry points. Same for the shared pad cost model (`bluesteinPadSize`
       / `fastConvolutionLength`).
+      _(Done 2026-07. `convolveT`, `crossCorrelateT`, and `convolveRealT`
+      validate and then run a throwaway `Convolver`/`Correlator`/
+      `RealConvolver`; the reusable types own the pipeline. The pow2-vs-
+      5-smooth costing now lives once in `cheapestPaddedLength(minM)`,
+      used by both `bluesteinPadSize` and `fastConvolutionLength`.)_
 
 ### A3. Internal layering repair
 
@@ -201,7 +223,7 @@ muddy it:
 - [ ] **Decide what `internal/fft` is** — currently it is both a façade
       and bypassed: the root package imports six internal packages directly
       and calls `EstimatePlan` via `fft` in one path (plan.go:724) and via
-      `planner` in another (plan_fast.go:55). Either (a) make it a real
+      `planner` in another (`plan_fast.go:55`). Either (a) make it a real
       façade and the _only_ internal import of the root package, or
       (b) delete the pure re-export files (`kernels.go`, most of
       `dispatch.go`, `transform_exports`) and let the root import

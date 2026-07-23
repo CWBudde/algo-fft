@@ -2,9 +2,6 @@ package algofft
 
 import (
 	"fmt"
-
-	"github.com/cwbudde/algo-fft/internal/cpu"
-	"github.com/cwbudde/algo-fft/internal/fft"
 )
 
 // Plan2D is a pre-computed 2D FFT plan for a specific matrix size and precision.
@@ -12,39 +9,16 @@ import (
 // during creation): scratch buffers are borrowed per call from an internal
 // cache, so multiple goroutines may share one instance.
 //
-// The 2D FFT uses the row-column decomposition algorithm:
-// - Forward: FFT rows, then FFT columns
-// - Inverse: IFFT rows, then IFFT columns
+// Plan2D is a typed wrapper over the N-dimensional engine (PlanND) using the
+// row-column decomposition: FFT rows, then FFT columns. Square matrices
+// transform columns via a cache-friendly transpose.
 //
 // Data layout is row-major: matrix[row*cols + col]
 //
 // The generic type parameter T must be either complex64 or complex128.
 type Plan2D[T Complex] struct {
-	rows, cols int      // Matrix dimensions
-	rowPlan    *Plan[T] // Plan for transforming rows (size=cols)
-	colPlan    *Plan[T] // Plan for transforming columns (size=rows)
-
-	// scratch hands out per-call working buffers for thread-safety.
-	scratch *residentCache[plan2DScratch[T]]
-}
-
-// plan2DScratch is one per-call scratch set for Plan2D transforms.
-type plan2DScratch[T Complex] struct {
-	work        []T    // Working buffer (size=rows*cols)
-	workBacking []byte // Keeps the aligned working buffer alive for GC
-	col         []T    // Column buffer for strided transforms (size=rows)
-}
-
-func newPlan2DScratchCache[T Complex](rows, cols int) *residentCache[plan2DScratch[T]] {
-	return newResidentCache(func() *plan2DScratch[T] {
-		work, backing := allocAlignedSlice[T](rows * cols)
-
-		return &plan2DScratch[T]{
-			work:        work,
-			workBacking: backing,
-			col:         make([]T, rows),
-		}
-	})
+	rows, cols int
+	nd         *PlanND[T]
 }
 
 // NewPlan2D creates a new 2D FFT plan for a rows×cols matrix.
@@ -69,29 +43,12 @@ func NewPlan2DWithOptions[T Complex](rows, cols int, opts PlanOptions) (*Plan2D[
 		return nil, fmt.Errorf("cols has invalid size %d: %w", cols, ErrInvalidLength)
 	}
 
-	opts = normalizePlanOptions(opts)
-	features := cpu.DetectFeatures()
-
-	// Create 1D plans for rows and columns
-	rowPlan, err := newPlanWithFeatures[T](cols, features, opts)
+	nd, err := NewPlanNDWithOptions[T]([]int{rows, cols}, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create row-transform plan (size %d): %w", cols, err)
+		return nil, err
 	}
 
-	colPlan, err := newPlanWithFeatures[T](rows, features, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create column-transform plan (size %d): %w", rows, err)
-	}
-
-	p := &Plan2D[T]{
-		rows:    rows,
-		cols:    cols,
-		rowPlan: rowPlan,
-		colPlan: colPlan,
-		scratch: newPlan2DScratchCache[T](rows, cols),
-	}
-
-	return p, nil
+	return &Plan2D[T]{rows: rows, cols: cols, nd: nd}, nil
 }
 
 // NewPlan2D32 creates a new 2D FFT plan using complex64 precision.
@@ -123,14 +80,7 @@ func (p *Plan2D[T]) Len() int {
 
 // String returns a human-readable description of the Plan2D for debugging.
 func (p *Plan2D[T]) String() string {
-	var zero T
-
-	typeName := precisionNameComplex64
-	if _, ok := any(zero).(complex128); ok {
-		typeName = precisionNameComplex128
-	}
-
-	return fmt.Sprintf("Plan2D[%s](%dx%d)", typeName, p.rows, p.cols)
+	return fmt.Sprintf("Plan2D[%s](%dx%d)", complexTypeName[T](), p.rows, p.cols)
 }
 
 // Forward computes the 2D FFT: dst = FFT2D(src).
@@ -142,7 +92,7 @@ func (p *Plan2D[T]) String() string {
 //
 // Formula: X[k,l] = Σ(m=0..rows-1) Σ(n=0..cols-1) x[m,n] * exp(-2πi*(km/rows + ln/cols)).
 func (p *Plan2D[T]) Forward(dst, src []T) error {
-	return p.forwardSingle(dst, src)
+	return p.nd.Forward(dst, src)
 }
 
 // Inverse computes the 2D IFFT: dst = IFFT2D(src).
@@ -154,19 +104,19 @@ func (p *Plan2D[T]) Forward(dst, src []T) error {
 //
 // Formula: x[m,n] = (1/(rows*cols)) * Σ(k=0..rows-1) Σ(l=0..cols-1) X[k,l] * exp(2πi*(km/rows + ln/cols)).
 func (p *Plan2D[T]) Inverse(dst, src []T) error {
-	return p.inverseSingle(dst, src)
+	return p.nd.Inverse(dst, src)
 }
 
 // ForwardInPlace computes the 2D FFT in-place: data = FFT2D(data).
 // This is equivalent to Forward(data, data).
 func (p *Plan2D[T]) ForwardInPlace(data []T) error {
-	return p.Forward(data, data)
+	return p.nd.ForwardInPlace(data)
 }
 
 // InverseInPlace computes the 2D IFFT in-place: data = IFFT2D(data).
 // This is equivalent to Inverse(data, data).
 func (p *Plan2D[T]) InverseInPlace(data []T) error {
-	return p.Inverse(data, data)
+	return p.nd.InverseInPlace(data)
 }
 
 // Clone creates an independent copy of the Plan2D.
@@ -176,140 +126,5 @@ func (p *Plan2D[T]) InverseInPlace(data []T) error {
 // isolated scratch caches. The clone shares the concurrency-safe 1D child
 // plans, but has its own scratch cache.
 func (p *Plan2D[T]) Clone() *Plan2D[T] {
-	return &Plan2D[T]{
-		rows:    p.rows,
-		cols:    p.cols,
-		rowPlan: p.rowPlan,
-		colPlan: p.colPlan,
-		scratch: newPlan2DScratchCache[T](p.rows, p.cols),
-	}
-}
-
-// validate checks that dst and src have the correct length for this plan.
-func (p *Plan2D[T]) validate(dst, src []T) error {
-	expectedLen := p.rows * p.cols
-
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(dst) != expectedLen {
-		return ErrLengthMismatch
-	}
-
-	if len(src) != expectedLen {
-		return ErrLengthMismatch
-	}
-
-	return nil
-}
-
-// transformColumnsViaTranspose transforms columns using transpose for square matrices.
-// This is more cache-friendly than strided access.
-func (p *Plan2D[T]) transformColumnsViaTranspose(data []T, forward bool) {
-	// Transpose: columns become rows
-	fft.TransposeSquare(data, p.rows)
-
-	// Transform each column (now a row)
-	for row := range p.rows {
-		rowData := data[row*p.cols : (row+1)*p.cols]
-		if forward {
-			_ = p.colPlan.ForwardInPlace(rowData)
-		} else {
-			_ = p.colPlan.InverseInPlace(rowData)
-		}
-	}
-
-	// Transpose back
-	fft.TransposeSquare(data, p.rows)
-}
-
-// transformColumnsStrided transforms columns using strided access for non-square matrices.
-func (p *Plan2D[T]) transformColumnsStrided(data, colData []T, forward bool) {
-	for col := range p.cols {
-		// Extract column
-		for row := range p.rows {
-			colData[row] = data[row*p.cols+col]
-		}
-
-		// Transform column
-		if forward {
-			_ = p.colPlan.ForwardInPlace(colData)
-		} else {
-			_ = p.colPlan.InverseInPlace(colData)
-		}
-
-		// Write back
-		for row := range p.rows {
-			data[row*p.cols+col] = colData[row]
-		}
-	}
-}
-
-func (p *Plan2D[T]) forwardSingle(dst, src []T) error {
-	err := p.validate(dst, src)
-	if err != nil {
-		return err
-	}
-
-	s := p.scratch.get()
-	defer p.scratch.put(s)
-
-	work := s.work
-	copy(work, src)
-
-	// Transform rows
-	for row := range p.rows {
-		rowData := work[row*p.cols : (row+1)*p.cols]
-
-		err := p.rowPlan.ForwardInPlace(rowData)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Transform columns
-	if p.rows == p.cols {
-		p.transformColumnsViaTranspose(work, true)
-	} else {
-		p.transformColumnsStrided(work, s.col, true)
-	}
-
-	copy(dst, work)
-
-	return nil
-}
-
-func (p *Plan2D[T]) inverseSingle(dst, src []T) error {
-	err := p.validate(dst, src)
-	if err != nil {
-		return err
-	}
-
-	s := p.scratch.get()
-	defer p.scratch.put(s)
-
-	work := s.work
-	copy(work, src)
-
-	// Transform rows (inverse)
-	for row := range p.rows {
-		rowData := work[row*p.cols : (row+1)*p.cols]
-
-		err := p.rowPlan.InverseInPlace(rowData)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Transform columns (inverse)
-	if p.rows == p.cols {
-		p.transformColumnsViaTranspose(work, false)
-	} else {
-		p.transformColumnsStrided(work, s.col, false)
-	}
-
-	copy(dst, work)
-
-	return nil
+	return &Plan2D[T]{rows: p.rows, cols: p.cols, nd: p.nd.Clone()}
 }

@@ -190,25 +190,15 @@ func (p *PlanReal3D[F, C]) String() string {
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 func (p *PlanReal3D[F, C]) Forward(dst []C, src []F) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	expectedSrcLen := p.depth * p.height * p.width
-	expectedDstLen := p.depth * p.height * p.halfWidth
-
-	if len(src) != expectedSrcLen {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != expectedDstLen {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.depth*p.height*p.halfWidth, p.depth*p.height*p.width)
+	if err != nil {
+		return err
 	}
 
 	s := p.scratch.get()
 	defer p.scratch.put(s)
 
-	err := p.forwardCompactInto(s, src)
+	err = p.forwardCompactInto(s, src)
 	if err != nil {
 		return err
 	}
@@ -303,18 +293,9 @@ func (p *PlanReal3D[F, C]) forwardCompactInto(s *planReal3DScratch[C], src []F) 
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 func (p *PlanReal3D[F, C]) ForwardFull(dst []C, src []F) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	expectedLen := p.depth * p.height * p.width
-
-	if len(src) != expectedLen {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != expectedLen {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.depth*p.height*p.width, p.depth*p.height*p.width)
+	if err != nil {
+		return err
 	}
 
 	s := p.scratch.get()
@@ -323,7 +304,7 @@ func (p *PlanReal3D[F, C]) ForwardFull(dst []C, src []F) error {
 	compact := s.compact
 
 	// Compute the compact spectrum directly into the borrowed buffer.
-	err := p.forwardCompactInto(s, src)
+	err = p.forwardCompactInto(s, src)
 	if err != nil {
 		return err
 	}
@@ -362,19 +343,9 @@ func (p *PlanReal3D[F, C]) ForwardFull(dst []C, src []F) error {
 //
 //nolint:gocognit
 func (p *PlanReal3D[F, C]) Inverse(dst []F, src []C) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	expectedSrcLen := p.depth * p.height * p.halfWidth
-	expectedDstLen := p.depth * p.height * p.width
-
-	if len(src) != expectedSrcLen {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != expectedDstLen {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.depth*p.height*p.width, p.depth*p.height*p.halfWidth)
+	if err != nil {
+		return err
 	}
 
 	s := p.scratch.get()
@@ -463,18 +434,9 @@ func (p *PlanReal3D[F, C]) Inverse(dst []F, src []C) error {
 // Returns ErrNilSlice if dst or src is nil.
 // Returns ErrLengthMismatch if slice lengths don't match plan dimensions.
 func (p *PlanReal3D[F, C]) InverseFull(dst []F, src []C) error {
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	expectedLen := p.depth * p.height * p.width
-
-	if len(src) != expectedLen {
-		return ErrLengthMismatch
-	}
-
-	if len(dst) != expectedLen {
-		return ErrLengthMismatch
+	err := validateDstSrc(dst, src, p.depth*p.height*p.width, p.depth*p.height*p.width)
+	if err != nil {
+		return err
 	}
 
 	s := p.scratch.get()

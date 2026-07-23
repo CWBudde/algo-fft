@@ -1,9 +1,10 @@
 package algofft
 
-import "github.com/cwbudde/algo-fft/internal/fft"
-
 // crossCorrelateT computes the full cross-correlation of a and b for the complex
 // type T. The dst slice must have length len(a)+len(b)-1.
+//
+// This is the one-shot entry point to the correlation pipeline owned by
+// Correlator: it validates, builds a throwaway Correlator, and runs it once.
 func crossCorrelateT[T Complex](dst, a, b []T) error {
 	if dst == nil || a == nil || b == nil {
 		return ErrNilSlice
@@ -17,12 +18,12 @@ func crossCorrelateT[T Complex](dst, a, b []T) error {
 		return ErrLengthMismatch
 	}
 
-	bRevConj := make([]T, len(b))
-	for i := range b {
-		bRevConj[i] = fft.ConjugateOf(b[len(b)-1-i])
+	corr, err := NewCorrelator[T](len(a), len(b))
+	if err != nil {
+		return err
 	}
 
-	return convolveT(dst, a, bRevConj)
+	return corr.CrossCorrelate(dst, a, b)
 }
 
 // Correlate computes the full cross-correlation of a and b.

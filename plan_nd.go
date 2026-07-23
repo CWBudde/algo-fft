@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fft"
+	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 // PlanND is a pre-computed N-dimensional FFT plan for arbitrary dimensions.
@@ -34,8 +36,6 @@ type planNDScratch[T Complex] struct {
 	work        []T    // Working buffer (size = product of all dims)
 	workBacking []byte // Keeps the aligned working buffer alive for GC
 	slice       []T    // One transform slice, sized max(dims)
-	reducedDims []int  // Reduced dimension sizes (cap = len(dims))
-	coords      []int  // Reduced-space coordinates (cap = len(dims))
 }
 
 func newPlanNDScratchCache[T Complex](dims []int) *residentCache[planNDScratch[T]] {
@@ -49,17 +49,13 @@ func newPlanNDScratchCache[T Complex](dims []int) *residentCache[planNDScratch[T
 		}
 	}
 
-	numDims := len(dims)
-
 	return newResidentCache(func() *planNDScratch[T] {
-		work, backing := allocAlignedSlice[T](totalSize)
+		work, backing := mem.AllocAligned[T](totalSize)
 
 		return &planNDScratch[T]{
 			work:        work,
 			workBacking: backing,
 			slice:       make([]T, maxDim),
-			reducedDims: make([]int, 0, numDims),
-			coords:      make([]int, numDims),
 		}
 	})
 }
@@ -166,13 +162,6 @@ func (p *PlanND[T]) Len() int {
 
 // String returns a human-readable description of the PlanND for debugging.
 func (p *PlanND[T]) String() string {
-	var zero T
-
-	typeName := precisionNameComplex64
-	if _, ok := any(zero).(complex128); ok {
-		typeName = precisionNameComplex128
-	}
-
 	var dims strings.Builder
 
 	for i, d := range p.dims {
@@ -183,7 +172,7 @@ func (p *PlanND[T]) String() string {
 		dims.WriteString(itoa(d))
 	}
 
-	return fmt.Sprintf("PlanND[%s](%s)", typeName, dims.String())
+	return fmt.Sprintf("PlanND[%s](%s)", complexTypeName[T](), dims.String())
 }
 
 // Forward computes the N-D FFT: dst = FFT_ND(src).
@@ -242,67 +231,79 @@ func (p *PlanND[T]) Clone() *PlanND[T] {
 
 // validate checks that dst and src have the correct length for this plan.
 func (p *PlanND[T]) validate(dst, src []T) error {
-	expectedLen := p.Len()
+	n := p.Len()
 
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(dst) != expectedLen {
-		return ErrLengthMismatch
-	}
-
-	if len(src) != expectedLen {
-		return ErrLengthMismatch
-	}
-
-	return nil
+	return validateDstSrc(dst, src, n, n)
 }
 
-// transformDimension applies 1D FFT along the specified dimension.
-// This extracts slices along the dimension, transforms them, and writes back.
-// All working buffers come from s, so the transform allocates nothing.
+// transformDimension applies 1D FFT along the specified dimension, choosing
+// among three access patterns: contiguous in-place rows for the innermost
+// dimension, per-slab transpose for a second-innermost dimension matching the
+// innermost size (square trailing slabs), and strided extract/write for
+// everything else. All working buffers come from s, so the transform
+// allocates nothing.
 func (p *PlanND[T]) transformDimension(s *planNDScratch[T], dim int, forward bool) error {
 	dimSize := p.dims[dim]
+	stride := p.strides[dim]
 	plan := p.plans[dim]
-
 	data := s.work
-	sliceData := s.slice[:dimSize]
 
-	// Reduced dimension sizes depend only on dim, so build them once per axis
-	// rather than once per slice. The backing array is reused across calls.
-	reduced := s.reducedDims[:0]
-
-	for d := range len(p.dims) {
-		if d != dim {
-			reduced = append(reduced, p.dims[d])
+	// Contiguous slices (innermost dimension): transform rows in place, no
+	// extract/write copies.
+	if stride == 1 {
+		for base := 0; base < len(data); base += dimSize {
+			err := transformSliceInPlace(plan, data[base:base+dimSize], forward)
+			if err != nil {
+				return err
+			}
 		}
+
+		return nil
 	}
 
-	// Total number of slices to process
-	totalSlices := p.Len() / dimSize
+	// Square trailing slab (second-innermost dimension whose size matches the
+	// innermost): transpose each dimSize×dimSize slab so its columns become
+	// contiguous rows, transform in place, transpose back. This is far more
+	// cache-friendly than strided access.
+	last := len(p.dims) - 1
+	if dim == last-1 && dimSize == p.dims[last] {
+		slab := dimSize * dimSize
+		for base := 0; base < len(data); base += slab {
+			block := data[base : base+slab]
+			fft.TransposeSquare(block, dimSize)
 
-	// Iterate through all slices along this dimension
-	for sliceIdx := range totalSlices {
-		baseOffset := p.sliceIndexToOffset(reduced, s.coords, sliceIdx, dim)
+			for row := 0; row < slab; row += dimSize {
+				err := transformSliceInPlace(plan, block[row:row+dimSize], forward)
+				if err != nil {
+					return err
+				}
+			}
 
-		// Extract slice
-		p.extractSlice(data, sliceData, baseOffset, dim)
-
-		// Transform slice
-		var err error
-		if forward {
-			err = plan.ForwardInPlace(sliceData)
-		} else {
-			err = plan.InverseInPlace(sliceData)
+			fft.TransposeSquare(block, dimSize)
 		}
 
-		if err != nil {
-			return err
-		}
+		return nil
+	}
 
-		// Write back
-		p.writeSlice(data, sliceData, baseOffset, dim)
+	// General strided path. In row-major layout the slices along dim start at
+	// every offset outer*dimSize*stride + inner with inner < stride, so two
+	// nested loops enumerate them without any coordinate arithmetic.
+	sliceData := s.slice[:dimSize]
+	block := dimSize * stride
+
+	for outer := 0; outer < len(data); outer += block {
+		for inner := range stride {
+			base := outer + inner
+
+			p.extractSlice(data, sliceData, base, dim)
+
+			err := transformSliceInPlace(plan, sliceData, forward)
+			if err != nil {
+				return err
+			}
+
+			p.writeSlice(data, sliceData, base, dim)
+		}
 	}
 
 	return nil
@@ -378,38 +379,4 @@ func (p *PlanND[T]) inverseSingle(dst, src []T) error {
 	copy(dst, work)
 
 	return nil
-}
-
-// sliceIndexToOffset converts a linear slice index to the base offset (the
-// offset of the slice's first element along dim).
-//
-// reducedDims holds the sizes of all dimensions except dim (as built by
-// transformDimension); coords is scratch of length >= len(reducedDims) used to
-// hold the reduced-space coordinates. Both are caller-owned so this allocates
-// nothing.
-func (p *PlanND[T]) sliceIndexToOffset(reducedDims, coords []int, sliceIdx, dim int) int {
-	coords = coords[:len(reducedDims)]
-
-	// Convert linear sliceIdx to coordinates in reduced space
-	remaining := sliceIdx
-	for i, v := range slices.Backward(reducedDims) {
-		coords[i] = remaining % v
-		remaining /= v
-	}
-
-	// Map reduced coordinates back to full coordinates and compute offset
-	offset := 0
-	reducedIdx := 0
-
-	for d := range len(p.dims) {
-		if d == dim {
-			// This dimension is set to 0 (first element along transform axis)
-			continue
-		}
-
-		offset += coords[reducedIdx] * p.strides[d]
-		reducedIdx++
-	}
-
-	return offset
 }

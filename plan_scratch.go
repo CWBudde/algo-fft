@@ -3,8 +3,6 @@ package algofft
 import (
 	"sync"
 	"sync/atomic"
-
-	mem "github.com/cwbudde/algo-fft/internal/memory"
 )
 
 // residentCache hands out per-call scratch sets so a single plan instance can
@@ -50,33 +48,4 @@ func (c *residentCache[S]) put(s *S) {
 	}
 
 	c.pool.Put(s)
-}
-
-// allocAlignedSlice allocates a SIMD-aligned slice for the supported complex
-// types, returning the slice and its backing array (kept alive for the GC).
-func allocAlignedSlice[T Complex](n int) ([]T, []byte) {
-	var zero T
-
-	switch any(zero).(type) {
-	case complex64:
-		s, b := mem.AllocAlignedComplex64(n)
-
-		t, ok := any(s).([]T)
-		if !ok {
-			panic("algofft: internal type error (aligned alloc)")
-		}
-
-		return t, b
-	case complex128:
-		s, b := mem.AllocAlignedComplex128(n)
-
-		t, ok := any(s).([]T)
-		if !ok {
-			panic("algofft: internal type error (aligned alloc)")
-		}
-
-		return t, b
-	default:
-		return make([]T, n), nil
-	}
 }

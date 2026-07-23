@@ -2,8 +2,6 @@ package algofft
 
 import (
 	"fmt"
-
-	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 // Plan3D is a pre-computed 3D FFT plan for a specific volume size and precision.
@@ -11,43 +9,17 @@ import (
 // during creation): scratch buffers are borrowed per call from an internal
 // cache, so multiple goroutines may share one instance.
 //
-// The 3D FFT uses the dimension-by-dimension decomposition algorithm:
-// - Forward: FFT along width (innermost), then height, then depth (outermost)
-// - Inverse: IFFT along width, then height, then depth
+// Plan3D is a typed wrapper over the N-dimensional engine (PlanND) using the
+// dimension-by-dimension decomposition: FFT along width (innermost), then
+// height, then depth (outermost).
 //
 // Data layout is row-major: volume[d*height*width + h*width + w]
 // where d is depth index, h is height index, w is width index.
 //
 // The generic type parameter T must be either complex64 or complex128.
 type Plan3D[T Complex] struct {
-	depth, height, width int      // Volume dimensions
-	widthPlan            *Plan[T] // Plan for transforming along width (size=width)
-	heightPlan           *Plan[T] // Plan for transforming along height (size=height)
-	depthPlan            *Plan[T] // Plan for transforming along depth (size=depth)
-
-	// scratch hands out per-call working buffers for thread-safety.
-	scratch *residentCache[plan3DScratch[T]]
-}
-
-// plan3DScratch is one per-call scratch set for Plan3D transforms.
-type plan3DScratch[T Complex] struct {
-	work        []T    // Working buffer (size=depth*height*width)
-	workBacking []byte // Keeps the aligned working buffer alive for GC
-	dim         []T    // Dimension buffer for strided transforms (size=max(height,depth))
-}
-
-func newPlan3DScratchCache[T Complex](depth, height, width int) *residentCache[plan3DScratch[T]] {
-	dimSize := max(depth, height)
-
-	return newResidentCache(func() *plan3DScratch[T] {
-		work, backing := allocAlignedSlice[T](depth * height * width)
-
-		return &plan3DScratch[T]{
-			work:        work,
-			workBacking: backing,
-			dim:         make([]T, dimSize),
-		}
-	})
+	depth, height, width int
+	nd                   *PlanND[T]
 }
 
 // NewPlan3D creates a new 3D FFT plan for a depth×height×width volume.
@@ -76,34 +48,12 @@ func NewPlan3DWithOptions[T Complex](depth, height, width int, opts PlanOptions)
 		return nil, fmt.Errorf("width has invalid size %d: %w", width, ErrInvalidLength)
 	}
 
-	opts = normalizePlanOptions(opts)
-	features := cpu.DetectFeatures()
-
-	// Create 1D plans for each dimension
-	widthPlan, err := newPlanWithFeatures[T](width, features, opts)
+	nd, err := NewPlanNDWithOptions[T]([]int{depth, height, width}, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create width-transform plan (size %d): %w", width, err)
+		return nil, err
 	}
 
-	heightPlan, err := newPlanWithFeatures[T](height, features, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create height-transform plan (size %d): %w", height, err)
-	}
-
-	depthPlan, err := newPlanWithFeatures[T](depth, features, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create depth-transform plan (size %d): %w", depth, err)
-	}
-
-	return &Plan3D[T]{
-		depth:      depth,
-		height:     height,
-		width:      width,
-		widthPlan:  widthPlan,
-		heightPlan: heightPlan,
-		depthPlan:  depthPlan,
-		scratch:    newPlan3DScratchCache[T](depth, height, width),
-	}, nil
+	return &Plan3D[T]{depth: depth, height: height, width: width, nd: nd}, nil
 }
 
 // NewPlan3D32 creates a new 3D FFT plan using complex64 precision.
@@ -140,14 +90,7 @@ func (p *Plan3D[T]) Len() int {
 
 // String returns a human-readable description of the Plan3D for debugging.
 func (p *Plan3D[T]) String() string {
-	var zero T
-
-	typeName := precisionNameComplex64
-	if _, ok := any(zero).(complex128); ok {
-		typeName = precisionNameComplex128
-	}
-
-	return fmt.Sprintf("Plan3D[%s](%dx%dx%d)", typeName, p.depth, p.height, p.width)
+	return fmt.Sprintf("Plan3D[%s](%dx%dx%d)", complexTypeName[T](), p.depth, p.height, p.width)
 }
 
 // Forward computes the 3D FFT: dst = FFT3D(src).
@@ -161,7 +104,7 @@ func (p *Plan3D[T]) String() string {
 //
 //	x[d,h,w] * exp(-2πi*(kd*d/depth + kh*h/height + kw*w/width))
 func (p *Plan3D[T]) Forward(dst, src []T) error {
-	return p.forwardSingle(dst, src)
+	return p.nd.Forward(dst, src)
 }
 
 // Inverse computes the 3D IFFT: dst = IFFT3D(src).
@@ -175,19 +118,19 @@ func (p *Plan3D[T]) Forward(dst, src []T) error {
 //
 //	X[kd,kh,kw] * exp(2πi*(kd*d/depth + kh*h/height + kw*w/width))
 func (p *Plan3D[T]) Inverse(dst, src []T) error {
-	return p.inverseSingle(dst, src)
+	return p.nd.Inverse(dst, src)
 }
 
 // ForwardInPlace computes the 3D FFT in-place: data = FFT3D(data).
 // This is equivalent to Forward(data, data).
 func (p *Plan3D[T]) ForwardInPlace(data []T) error {
-	return p.Forward(data, data)
+	return p.nd.ForwardInPlace(data)
 }
 
 // InverseInPlace computes the 3D IFFT in-place: data = IFFT3D(data).
 // This is equivalent to Inverse(data, data).
 func (p *Plan3D[T]) InverseInPlace(data []T) error {
-	return p.Inverse(data, data)
+	return p.nd.InverseInPlace(data)
 }
 
 // Clone creates an independent copy of the Plan3D.
@@ -197,145 +140,5 @@ func (p *Plan3D[T]) InverseInPlace(data []T) error {
 // isolated scratch caches. The clone shares the concurrency-safe 1D child
 // plans but has its own scratch cache.
 func (p *Plan3D[T]) Clone() *Plan3D[T] {
-	return &Plan3D[T]{
-		depth:      p.depth,
-		height:     p.height,
-		width:      p.width,
-		widthPlan:  p.widthPlan,
-		heightPlan: p.heightPlan,
-		depthPlan:  p.depthPlan,
-		scratch:    newPlan3DScratchCache[T](p.depth, p.height, p.width),
-	}
-}
-
-// validate checks that dst and src have the correct length for this plan.
-func (p *Plan3D[T]) validate(dst, src []T) error {
-	expectedLen := p.depth * p.height * p.width
-
-	if dst == nil || src == nil {
-		return ErrNilSlice
-	}
-
-	if len(dst) != expectedLen {
-		return ErrLengthMismatch
-	}
-
-	if len(src) != expectedLen {
-		return ErrLengthMismatch
-	}
-
-	return nil
-}
-
-// transformWidth transforms along the width dimension (innermost).
-// Each row of width elements is transformed in-place.
-func (p *Plan3D[T]) transformWidth(data []T, forward bool) {
-	for d := range p.depth {
-		for h := range p.height {
-			offset := d*p.height*p.width + h*p.width
-
-			rowData := data[offset : offset+p.width]
-			if forward {
-				_ = p.widthPlan.ForwardInPlace(rowData)
-			} else {
-				_ = p.widthPlan.InverseInPlace(rowData)
-			}
-		}
-	}
-}
-
-// transformHeight transforms along the height dimension (middle).
-// For each depth slice, columns along height are extracted, transformed, and written back.
-func (p *Plan3D[T]) transformHeight(data, dimScratch []T, forward bool) {
-	colData := dimScratch[:p.height]
-
-	for d := range p.depth {
-		for w := range p.width {
-			// Extract column along height
-			for h := range p.height {
-				colData[h] = data[d*p.height*p.width+h*p.width+w]
-			}
-
-			// Transform column
-			if forward {
-				_ = p.heightPlan.ForwardInPlace(colData)
-			} else {
-				_ = p.heightPlan.InverseInPlace(colData)
-			}
-
-			// Write back
-			for h := range p.height {
-				data[d*p.height*p.width+h*p.width+w] = colData[h]
-			}
-		}
-	}
-}
-
-// transformDepth transforms along the depth dimension (outermost).
-// For each (height, width) position, a slice along depth is extracted, transformed, and written back.
-func (p *Plan3D[T]) transformDepth(data, dimScratch []T, forward bool) {
-	depthData := dimScratch[:p.depth]
-
-	for h := range p.height {
-		for w := range p.width {
-			// Extract slice along depth
-			for d := range p.depth {
-				depthData[d] = data[d*p.height*p.width+h*p.width+w]
-			}
-
-			// Transform depth slice
-			if forward {
-				_ = p.depthPlan.ForwardInPlace(depthData)
-			} else {
-				_ = p.depthPlan.InverseInPlace(depthData)
-			}
-
-			// Write back
-			for d := range p.depth {
-				data[d*p.height*p.width+h*p.width+w] = depthData[d]
-			}
-		}
-	}
-}
-
-func (p *Plan3D[T]) forwardSingle(dst, src []T) error {
-	err := p.validate(dst, src)
-	if err != nil {
-		return err
-	}
-
-	s := p.scratch.get()
-	defer p.scratch.put(s)
-
-	work := s.work
-	copy(work, src)
-
-	p.transformWidth(work, true)
-	p.transformHeight(work, s.dim, true)
-	p.transformDepth(work, s.dim, true)
-
-	copy(dst, work)
-
-	return nil
-}
-
-func (p *Plan3D[T]) inverseSingle(dst, src []T) error {
-	err := p.validate(dst, src)
-	if err != nil {
-		return err
-	}
-
-	s := p.scratch.get()
-	defer p.scratch.put(s)
-
-	work := s.work
-	copy(work, src)
-
-	p.transformWidth(work, false)
-	p.transformHeight(work, s.dim, false)
-	p.transformDepth(work, s.dim, false)
-
-	copy(dst, work)
-
-	return nil
+	return &Plan3D[T]{depth: p.depth, height: p.height, width: p.width, nd: p.nd.Clone()}
 }
