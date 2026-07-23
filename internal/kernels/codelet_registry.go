@@ -69,23 +69,3 @@ func init() {
 	registerAVX512DITCodelets64()
 	registerAVX512DITCodelets128()
 }
-
-// KernelFunc64 is the signature of existing complex64 kernels that return bool.
-type KernelFunc64 func(dst, src, twiddle, scratch []complex64) bool
-
-// KernelFunc128 is the signature of existing complex128 kernels that return bool.
-type KernelFunc128 func(dst, src, twiddle, scratch []complex128) bool
-
-// wrapCodelet64 adapts a bool-returning kernel to the CodeletFunc signature.
-func wrapCodelet64(fn KernelFunc64) CodeletFunc[complex64] {
-	return func(dst, src, twiddle, scratch []complex64) {
-		fn(dst, src, twiddle, scratch)
-	}
-}
-
-// wrapCodelet128 adapts a bool-returning kernel to the CodeletFunc signature.
-func wrapCodelet128(fn KernelFunc128) CodeletFunc[complex128] {
-	return func(dst, src, twiddle, scratch []complex128) {
-		fn(dst, src, twiddle, scratch)
-	}
-}

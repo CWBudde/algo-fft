@@ -14,7 +14,9 @@ type codeletSpec struct {
 	Prec int
 	// Size is the FFT length the codelet handles.
 	Size int
-	// Forward / Inverse are the kernel expressions passed to wrapCodelet{64,128}.
+	// Forward / Inverse are kernel expressions matching the CodeletFunc
+	// signature (bool-returning; the codelet reports whether it handled the
+	// transform).
 	Forward string
 	Inverse string
 	// Algorithm, SIMDLevel, KernelType are planner enum identifiers.

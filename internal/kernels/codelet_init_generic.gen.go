@@ -7,8 +7,8 @@ package kernels
 func registerDITCodelets64() {
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4,
-		Forward:    wrapCodelet64(forwardDIT4Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT4Radix4Complex64),
+		Forward:    forwardDIT4Radix4Complex64,
+		Inverse:    inverseDIT4Radix4Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4_radix4_generic",
@@ -18,8 +18,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCodelet64(forwardDIT8Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT8Radix2Complex64),
+		Forward:    forwardDIT8Radix2Complex64,
+		Inverse:    inverseDIT8Radix2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix2_generic",
@@ -29,8 +29,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCodelet64(forwardDIT8Radix8Complex64),
-		Inverse:    wrapCodelet64(inverseDIT8Radix8Complex64),
+		Forward:    forwardDIT8Radix8Complex64,
+		Inverse:    inverseDIT8Radix8Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
@@ -40,8 +40,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCodelet64(forwardDIT8Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT8Radix4Complex64),
+		Forward:    forwardDIT8Radix4Complex64,
+		Inverse:    inverseDIT8Radix4Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_mixedradix_generic",
@@ -51,8 +51,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCodelet64(forwardDIT16Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT16Radix2Complex64),
+		Forward:    forwardDIT16Radix2Complex64,
+		Inverse:    inverseDIT16Radix2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix2_generic",
@@ -62,8 +62,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCodelet64(forwardDIT16Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT16Radix4Complex64),
+		Forward:    forwardDIT16Radix4Complex64,
+		Inverse:    inverseDIT16Radix4Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix4_generic",
@@ -73,8 +73,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCodelet64(forwardDIT16Radix16Complex64),
-		Inverse:    wrapCodelet64(inverseDIT16Radix16Complex64),
+		Forward:    forwardDIT16Radix16Complex64,
+		Inverse:    inverseDIT16Radix16Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix16_generic",
@@ -84,8 +84,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
-		Forward:    wrapCodelet64(forwardDIT32Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT32Radix2Complex64),
+		Forward:    forwardDIT32Radix2Complex64,
+		Inverse:    inverseDIT32Radix2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_radix2_generic",
@@ -95,8 +95,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
-		Forward:    wrapCodelet64(forwardDIT32Radix4Then2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT32Radix4Then2Complex64),
+		Forward:    forwardDIT32Radix4Then2Complex64,
+		Inverse:    inverseDIT32Radix4Then2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_radix4_then2_generic",
@@ -106,8 +106,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
-		Forward:    wrapCodelet64(forwardDIT32Radix32Complex64),
-		Inverse:    wrapCodelet64(inverseDIT32Radix32Complex64),
+		Forward:    forwardDIT32Radix32Complex64,
+		Inverse:    inverseDIT32Radix32Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_radix32_generic",
@@ -117,8 +117,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
-		Forward:    wrapCodelet64(forwardDIT64Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT64Radix2Complex64),
+		Forward:    forwardDIT64Radix2Complex64,
+		Inverse:    inverseDIT64Radix2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit64_radix2_generic",
@@ -128,8 +128,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
-		Forward:    wrapCodelet64(forwardDIT64Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT64Radix4Complex64),
+		Forward:    forwardDIT64Radix4Complex64,
+		Inverse:    inverseDIT64Radix4Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit64_radix4_generic",
@@ -139,8 +139,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
-		Forward:    wrapCodelet64(forwardDIT128Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT128Radix2Complex64),
+		Forward:    forwardDIT128Radix2Complex64,
+		Inverse:    inverseDIT128Radix2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit128_radix2_generic",
@@ -150,8 +150,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
-		Forward:    wrapCodelet64(forwardDIT128Radix4Then2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT128Radix4Then2Complex64),
+		Forward:    forwardDIT128Radix4Then2Complex64,
+		Inverse:    inverseDIT128Radix4Then2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit128_radix4_then2_generic",
@@ -161,8 +161,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       256,
-		Forward:    wrapCodelet64(forwardDIT256Complex64),
-		Inverse:    wrapCodelet64(inverseDIT256Complex64),
+		Forward:    forwardDIT256Complex64,
+		Inverse:    inverseDIT256Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix2_generic",
@@ -172,8 +172,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       256,
-		Forward:    wrapCodelet64(forwardDIT256Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT256Radix4Complex64),
+		Forward:    forwardDIT256Radix4Complex64,
+		Inverse:    inverseDIT256Radix4Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix4_generic",
@@ -183,8 +183,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       256,
-		Forward:    wrapCodelet64(forwardDIT256Radix16Complex64),
-		Inverse:    wrapCodelet64(inverseDIT256Radix16Complex64),
+		Forward:    forwardDIT256Radix16Complex64,
+		Inverse:    inverseDIT256Radix16Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix16_generic",
@@ -194,8 +194,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       384,
-		Forward:    wrapCodelet64(forwardDIT384MixedComplex64),
-		Inverse:    wrapCodelet64(inverseDIT384MixedComplex64),
+		Forward:    forwardDIT384MixedComplex64,
+		Inverse:    inverseDIT384MixedComplex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit384_mixed_generic",
@@ -205,8 +205,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCodelet64(forwardDIT512Complex64),
-		Inverse:    wrapCodelet64(inverseDIT512Complex64),
+		Forward:    forwardDIT512Complex64,
+		Inverse:    inverseDIT512Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix2_generic",
@@ -216,8 +216,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCodelet64(forwardDIT512Radix8Complex64),
-		Inverse:    wrapCodelet64(inverseDIT512Radix8Complex64),
+		Forward:    forwardDIT512Radix8Complex64,
+		Inverse:    inverseDIT512Radix8Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix8_generic",
@@ -227,8 +227,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCodelet64(forwardDIT512Radix4Then2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT512Radix4Then2Complex64),
+		Forward:    forwardDIT512Radix4Then2Complex64,
+		Inverse:    inverseDIT512Radix4Then2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix4_then2_generic",
@@ -238,8 +238,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCodelet64(forwardDIT512Mixed16x32Complex64),
-		Inverse:    wrapCodelet64(inverseDIT512Mixed16x32Complex64),
+		Forward:    forwardDIT512Mixed16x32Complex64,
+		Inverse:    inverseDIT512Mixed16x32Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix16x32_generic",
@@ -249,8 +249,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       1024,
-		Forward:    wrapCodelet64(forwardDIT1024Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT1024Radix4Complex64),
+		Forward:    forwardDIT1024Radix4Complex64,
+		Inverse:    inverseDIT1024Radix4Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix4_generic",
@@ -260,8 +260,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       1024,
-		Forward:    wrapCodelet64(forwardDIT1024Mixed32x32Complex64),
-		Inverse:    wrapCodelet64(inverseDIT1024Mixed32x32Complex64),
+		Forward:    forwardDIT1024Mixed32x32Complex64,
+		Inverse:    inverseDIT1024Mixed32x32Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix32x32_generic",
@@ -271,8 +271,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       2048,
-		Forward:    wrapCodelet64(forwardDIT2048Radix4Then2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT2048Radix4Then2Complex64),
+		Forward:    forwardDIT2048Radix4Then2Complex64,
+		Inverse:    inverseDIT2048Radix4Then2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit2048_radix4_then2_generic",
@@ -282,8 +282,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4096,
-		Forward:    wrapCodelet64(forwardDIT4096Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT4096Radix4Complex64),
+		Forward:    forwardDIT4096Radix4Complex64,
+		Inverse:    inverseDIT4096Radix4Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4096_radix4_generic",
@@ -293,8 +293,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4096,
-		Forward:    wrapCodelet64(forwardDIT4096SixStepComplex64),
-		Inverse:    wrapCodelet64(inverseDIT4096SixStepComplex64),
+		Forward:    forwardDIT4096SixStepComplex64,
+		Inverse:    inverseDIT4096SixStepComplex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4096_sixstep_generic",
@@ -304,8 +304,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8192,
-		Forward:    wrapCodelet64(forwardDIT8192Radix4Then2Complex64),
-		Inverse:    wrapCodelet64(inverseDIT8192Radix4Then2Complex64),
+		Forward:    forwardDIT8192Radix4Then2Complex64,
+		Inverse:    inverseDIT8192Radix4Then2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8192_radix4_then2_generic",
@@ -315,8 +315,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8192,
-		Forward:    wrapCodelet64(forwardDIT8192SixStep64x128Complex64),
-		Inverse:    wrapCodelet64(inverseDIT8192SixStep64x128Complex64),
+		Forward:    forwardDIT8192SixStep64x128Complex64,
+		Inverse:    inverseDIT8192SixStep64x128Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8192_sixstep64x128_generic",
@@ -326,8 +326,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16384,
-		Forward:    wrapCodelet64(forwardDIT16384Radix4Complex64),
-		Inverse:    wrapCodelet64(inverseDIT16384Radix4Complex64),
+		Forward:    forwardDIT16384Radix4Complex64,
+		Inverse:    inverseDIT16384Radix4Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16384_radix4_generic",
@@ -337,8 +337,8 @@ func registerDITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16384,
-		Forward:    wrapCodelet64(forwardDIT16384SixStepComplex64),
-		Inverse:    wrapCodelet64(inverseDIT16384SixStepComplex64),
+		Forward:    forwardDIT16384SixStepComplex64,
+		Inverse:    inverseDIT16384SixStepComplex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16384_sixstep_generic",
@@ -351,8 +351,8 @@ func registerDITCodelets64() {
 func registerDITCodelets128() {
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       4,
-		Forward:    wrapCodelet128(forwardDIT4Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT4Radix4Complex128),
+		Forward:    forwardDIT4Radix4Complex128,
+		Inverse:    inverseDIT4Radix4Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4_radix4_generic",
@@ -362,8 +362,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCodelet128(forwardDIT8Radix2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT8Radix2Complex128),
+		Forward:    forwardDIT8Radix2Complex128,
+		Inverse:    inverseDIT8Radix2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix2_generic",
@@ -373,8 +373,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCodelet128(forwardDIT8Radix8Complex128),
-		Inverse:    wrapCodelet128(inverseDIT8Radix8Complex128),
+		Forward:    forwardDIT8Radix8Complex128,
+		Inverse:    inverseDIT8Radix8Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_radix8_generic",
@@ -384,8 +384,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCodelet128(forwardDIT8Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT8Radix4Complex128),
+		Forward:    forwardDIT8Radix4Complex128,
+		Inverse:    inverseDIT8Radix4Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8_mixedradix_generic",
@@ -395,8 +395,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16,
-		Forward:    wrapCodelet128(forwardDIT16Radix2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT16Radix2Complex128),
+		Forward:    forwardDIT16Radix2Complex128,
+		Inverse:    inverseDIT16Radix2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix2_generic",
@@ -406,8 +406,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16,
-		Forward:    wrapCodelet128(forwardDIT16Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT16Radix4Complex128),
+		Forward:    forwardDIT16Radix4Complex128,
+		Inverse:    inverseDIT16Radix4Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix4_generic",
@@ -417,8 +417,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16,
-		Forward:    wrapCodelet128(forwardDIT16Radix16Complex128),
-		Inverse:    wrapCodelet128(inverseDIT16Radix16Complex128),
+		Forward:    forwardDIT16Radix16Complex128,
+		Inverse:    inverseDIT16Radix16Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16_radix16_generic",
@@ -428,8 +428,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       32,
-		Forward:    wrapCodelet128(forwardDIT32Radix2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT32Radix2Complex128),
+		Forward:    forwardDIT32Radix2Complex128,
+		Inverse:    inverseDIT32Radix2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_radix2_generic",
@@ -439,8 +439,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       32,
-		Forward:    wrapCodelet128(forwardDIT32Radix4Then2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT32Radix4Then2Complex128),
+		Forward:    forwardDIT32Radix4Then2Complex128,
+		Inverse:    inverseDIT32Radix4Then2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_radix4_then2_generic",
@@ -450,8 +450,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       32,
-		Forward:    wrapCodelet128(forwardDIT32Radix32Complex128),
-		Inverse:    wrapCodelet128(inverseDIT32Radix32Complex128),
+		Forward:    forwardDIT32Radix32Complex128,
+		Inverse:    inverseDIT32Radix32Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit32_radix32_generic",
@@ -461,8 +461,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
-		Forward:    wrapCodelet128(forwardDIT64Radix2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT64Radix2Complex128),
+		Forward:    forwardDIT64Radix2Complex128,
+		Inverse:    inverseDIT64Radix2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit64_radix2_generic",
@@ -472,8 +472,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
-		Forward:    wrapCodelet128(forwardDIT64Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT64Radix4Complex128),
+		Forward:    forwardDIT64Radix4Complex128,
+		Inverse:    inverseDIT64Radix4Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit64_radix4_generic",
@@ -483,8 +483,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       128,
-		Forward:    wrapCodelet128(forwardDIT128Radix2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT128Radix2Complex128),
+		Forward:    forwardDIT128Radix2Complex128,
+		Inverse:    inverseDIT128Radix2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit128_radix2_generic",
@@ -494,8 +494,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       128,
-		Forward:    wrapCodelet128(forwardDIT128Radix4Then2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT128Radix4Then2Complex128),
+		Forward:    forwardDIT128Radix4Then2Complex128,
+		Inverse:    inverseDIT128Radix4Then2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit128_radix4_then2_generic",
@@ -505,8 +505,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       256,
-		Forward:    wrapCodelet128(forwardDIT256Complex128),
-		Inverse:    wrapCodelet128(inverseDIT256Complex128),
+		Forward:    forwardDIT256Complex128,
+		Inverse:    inverseDIT256Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix2_generic",
@@ -516,8 +516,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       256,
-		Forward:    wrapCodelet128(forwardDIT256Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT256Radix4Complex128),
+		Forward:    forwardDIT256Radix4Complex128,
+		Inverse:    inverseDIT256Radix4Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix4_generic",
@@ -527,8 +527,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       256,
-		Forward:    wrapCodelet128(forwardDIT256Radix16Complex128),
-		Inverse:    wrapCodelet128(inverseDIT256Radix16Complex128),
+		Forward:    forwardDIT256Radix16Complex128,
+		Inverse:    inverseDIT256Radix16Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit256_radix16_generic",
@@ -538,8 +538,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       384,
-		Forward:    wrapCodelet128(forwardDIT384MixedComplex128),
-		Inverse:    wrapCodelet128(inverseDIT384MixedComplex128),
+		Forward:    forwardDIT384MixedComplex128,
+		Inverse:    inverseDIT384MixedComplex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit384_mixed_generic",
@@ -549,8 +549,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       512,
-		Forward:    wrapCodelet128(forwardDIT512Complex128),
-		Inverse:    wrapCodelet128(inverseDIT512Complex128),
+		Forward:    forwardDIT512Complex128,
+		Inverse:    inverseDIT512Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix2_generic",
@@ -560,8 +560,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       512,
-		Forward:    wrapCodelet128(forwardDIT512Radix8Complex128),
-		Inverse:    wrapCodelet128(inverseDIT512Radix8Complex128),
+		Forward:    forwardDIT512Radix8Complex128,
+		Inverse:    inverseDIT512Radix8Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix8_generic",
@@ -571,8 +571,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       512,
-		Forward:    wrapCodelet128(forwardDIT512Radix4Then2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT512Radix4Then2Complex128),
+		Forward:    forwardDIT512Radix4Then2Complex128,
+		Inverse:    inverseDIT512Radix4Then2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix4_then2_generic",
@@ -582,8 +582,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       512,
-		Forward:    wrapCodelet128(forwardDIT512Mixed16x32Complex128),
-		Inverse:    wrapCodelet128(inverseDIT512Mixed16x32Complex128),
+		Forward:    forwardDIT512Mixed16x32Complex128,
+		Inverse:    inverseDIT512Mixed16x32Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit512_radix16x32_generic",
@@ -593,8 +593,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       1024,
-		Forward:    wrapCodelet128(forwardDIT1024Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT1024Radix4Complex128),
+		Forward:    forwardDIT1024Radix4Complex128,
+		Inverse:    inverseDIT1024Radix4Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix4_generic",
@@ -604,8 +604,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       1024,
-		Forward:    wrapCodelet128(forwardDIT1024Mixed32x32Complex128),
-		Inverse:    wrapCodelet128(inverseDIT1024Mixed32x32Complex128),
+		Forward:    forwardDIT1024Mixed32x32Complex128,
+		Inverse:    inverseDIT1024Mixed32x32Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit1024_radix32x32_generic",
@@ -615,8 +615,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       2048,
-		Forward:    wrapCodelet128(forwardDIT2048Radix4Then2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT2048Radix4Then2Complex128),
+		Forward:    forwardDIT2048Radix4Then2Complex128,
+		Inverse:    inverseDIT2048Radix4Then2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit2048_radix4_then2_generic",
@@ -626,8 +626,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       4096,
-		Forward:    wrapCodelet128(forwardDIT4096Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT4096Radix4Complex128),
+		Forward:    forwardDIT4096Radix4Complex128,
+		Inverse:    inverseDIT4096Radix4Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4096_radix4_generic",
@@ -637,8 +637,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       4096,
-		Forward:    wrapCodelet128(forwardDIT4096SixStepComplex128),
-		Inverse:    wrapCodelet128(inverseDIT4096SixStepComplex128),
+		Forward:    forwardDIT4096SixStepComplex128,
+		Inverse:    inverseDIT4096SixStepComplex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit4096_sixstep_generic",
@@ -648,8 +648,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8192,
-		Forward:    wrapCodelet128(forwardDIT8192Radix4Then2Complex128),
-		Inverse:    wrapCodelet128(inverseDIT8192Radix4Then2Complex128),
+		Forward:    forwardDIT8192Radix4Then2Complex128,
+		Inverse:    inverseDIT8192Radix4Then2Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8192_radix4_then2_generic",
@@ -659,8 +659,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8192,
-		Forward:    wrapCodelet128(forwardDIT8192SixStep64x128Complex128),
-		Inverse:    wrapCodelet128(inverseDIT8192SixStep64x128Complex128),
+		Forward:    forwardDIT8192SixStep64x128Complex128,
+		Inverse:    inverseDIT8192SixStep64x128Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit8192_sixstep64x128_generic",
@@ -670,8 +670,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16384,
-		Forward:    wrapCodelet128(forwardDIT16384Radix4Complex128),
-		Inverse:    wrapCodelet128(inverseDIT16384Radix4Complex128),
+		Forward:    forwardDIT16384Radix4Complex128,
+		Inverse:    inverseDIT16384Radix4Complex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16384_radix4_generic",
@@ -681,8 +681,8 @@ func registerDITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16384,
-		Forward:    wrapCodelet128(forwardDIT16384SixStepComplex128),
-		Inverse:    wrapCodelet128(inverseDIT16384SixStepComplex128),
+		Forward:    forwardDIT16384SixStepComplex128,
+		Inverse:    inverseDIT16384SixStepComplex128,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDNone,
 		Signature:  "dit16384_sixstep_generic",

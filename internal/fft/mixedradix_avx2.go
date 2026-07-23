@@ -128,18 +128,21 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 				codeletTwiddle = prepared
 			}
 
+			// A codelet reports false when it bailed without doing any work;
+			// fall through to the pure-Go implementation then.
 			if inverse {
-				entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
-				// Undo built-in scaling of the Inverse codelet (1/n)
-				scale := complex64(complex(float32(n), 0))
-				for i := range n {
-					dst[i] *= scale
-				}
-			} else {
-				entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
-			}
+				if entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch) {
+					// Undo built-in scaling of the Inverse codelet (1/n)
+					scale := complex64(complex(float32(n), 0))
+					for i := range n {
+						dst[i] *= scale
+					}
 
-			return
+					return
+				}
+			} else if entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch) {
+				return
+			}
 		}
 	}
 
@@ -179,18 +182,21 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 				codeletTwiddle = prepared
 			}
 
+			// A codelet reports false when it bailed without doing any work;
+			// fall through to the pure-Go implementation then.
 			if inverse {
-				entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
-				// Undo built-in scaling of the Inverse codelet (1/n)
-				scale := complex128(complex(float64(n), 0))
-				for i := range n {
-					dst[i] *= scale
-				}
-			} else {
-				entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch)
-			}
+				if entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch) {
+					// Undo built-in scaling of the Inverse codelet (1/n)
+					scale := complex128(complex(float64(n), 0))
+					for i := range n {
+						dst[i] *= scale
+					}
 
-			return
+					return
+				}
+			} else if entry.Forward(dst[:n], inputBuf, codeletTwiddle, kernelScratch) {
+				return
+			}
 		}
 	}
 

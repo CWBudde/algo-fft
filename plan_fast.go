@@ -117,19 +117,25 @@ func (fp *FastPlan[T]) Len() int {
 // Forward performs the forward FFT without validation.
 // Caller guarantees: len(dst) >= n, len(src) >= n, slices non-nil.
 func (fp *FastPlan[T]) Forward(dst, src []T) {
-	fp.forwardFunc(dst, src, fp.codeletTwiddleForward, fp.scratch)
+	if !fp.forwardFunc(dst, src, fp.codeletTwiddleForward, fp.scratch) {
+		panic("algofft: FastPlan codelet rejected its input (caller contract violated?)")
+	}
 }
 
 // Inverse performs the inverse FFT without validation.
 // Caller guarantees: len(dst) >= n, len(src) >= n, slices non-nil.
 func (fp *FastPlan[T]) Inverse(dst, src []T) {
-	fp.inverseFunc(dst, src, fp.codeletTwiddleInverse, fp.scratch)
+	if !fp.inverseFunc(dst, src, fp.codeletTwiddleInverse, fp.scratch) {
+		panic("algofft: FastPlan codelet rejected its input (caller contract violated?)")
+	}
 }
 
 // ForwardInPlace performs the forward FFT in-place without validation.
 // Caller guarantees: len(data) >= n, slice non-nil.
 func (fp *FastPlan[T]) ForwardInPlace(data []T) {
-	fp.forwardFunc(data, data, fp.codeletTwiddleForward, fp.scratch)
+	if !fp.forwardFunc(data, data, fp.codeletTwiddleForward, fp.scratch) {
+		panic("algofft: FastPlan codelet rejected its input (caller contract violated?)")
+	}
 }
 
 // InPlace performs the forward FFT in-place without validation.
@@ -143,5 +149,7 @@ func (fp *FastPlan[T]) InPlace(data []T) {
 // InverseInPlace performs the inverse FFT in-place without validation.
 // Caller guarantees: len(data) >= n, slice non-nil.
 func (fp *FastPlan[T]) InverseInPlace(data []T) {
-	fp.inverseFunc(data, data, fp.codeletTwiddleInverse, fp.scratch)
+	if !fp.inverseFunc(data, data, fp.codeletTwiddleInverse, fp.scratch) {
+		panic("algofft: FastPlan codelet rejected its input (caller contract violated?)")
+	}
 }

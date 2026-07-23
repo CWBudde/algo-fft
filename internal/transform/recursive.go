@@ -50,16 +50,13 @@ func recursiveForwardWithTwiddle[T Complex](
 	if strategy.UseCodelet {
 		twiddleSlice := twiddle[twiddleOffset : twiddleOffset+n]
 
+		// Kernels are self-contained and handle permutation internally.
+		// A codelet reports false when it bailed without doing any work;
+		// fall back to generic DIT then (as when no codelet is registered).
 		codelet := registry.Lookup(n, features)
-		if codelet != nil {
-			// Call the codelet's forward function
-			// Kernels are now self-contained and handle permutation internally
-			codelet.Forward(dst, src, twiddleSlice, scratch)
-
-			return twiddleOffset + n
+		if codelet == nil || !codelet.Forward(dst, src, twiddleSlice, scratch) {
+			ditForward(dst, src, twiddleSlice, scratch)
 		}
-		// Fallback to generic DIT if codelet missing (should not happen if registry is correct)
-		ditForward(dst, src, twiddleSlice, scratch)
 
 		return twiddleOffset + n
 	}
@@ -175,15 +172,12 @@ func recursiveInverseWithTwiddle[T Complex](
 	if strategy.UseCodelet {
 		twiddleSlice := twiddle[twiddleOffset : twiddleOffset+n]
 
+		// See the forward path: fall back to generic DIT when the codelet is
+		// missing or bailed without doing any work.
 		codelet := registry.Lookup(n, features)
-		if codelet != nil {
-			// Kernels are now self-contained and handle permutation internally
-			codelet.Inverse(dst, src, twiddleSlice, scratch)
-
-			return twiddleOffset + n
+		if codelet == nil || !codelet.Inverse(dst, src, twiddleSlice, scratch) {
+			ditInverse(dst, src, twiddleSlice, scratch)
 		}
-		// Fallback
-		ditInverse(dst, src, twiddleSlice, scratch)
 
 		return twiddleOffset + n
 	}

@@ -98,12 +98,20 @@ discards the return value. `internal/transform/recursive.go:57` then calls
 `codelet.Forward(...)` with no way to detect failure: a codelet that bails
 (e.g. undersized slice) silently no-ops instead of falling back.
 
-- [ ] Unify on **one** kernel contract: give `CodeletFunc` the same
-      `bool` return (preferred), or make registration statically guarantee
-      the codelet cannot fail for its registered size — then delete the
-      lossy adapter. Add a regression test that a failing codelet on the
-      recursive path falls back (or errors) instead of producing silent
-      wrong output.
+- [x] Unify on **one** kernel contract. _(2026-07)_ `fftypes.CodeletFunc`
+      now returns `bool` ("handled?"), matching `Kernel[T]`; the lossy
+      `wrapCodelet64/128` adapters are deleted and `cmd/gencodelets` emits
+      the kernel functions directly (regenerated). Every call site honors
+      the signal: the recursive executor falls back to generic DIT
+      (`internal/transform/recursive.go`), the AVX2 mixed-radix path falls
+      through to pure Go (`internal/fft/mixedradix_avx2.go`), `Plan`
+      falls through to Stockham/kernel dispatch (safe and Unsafe paths),
+      and `FastPlan` panics on a bail (caller-contract violation; no
+      silent no-op). Regression tests
+      (`internal/transform/recursive_fallback_test.go`) register a bailing
+      codelet and verify forward/inverse output still matches
+      `reference.NaiveDFT` — they fail against the old contract. Full
+      `-race` suite, purego, arm64, and wasm builds green.
 
 ### A1. Public API rationalization _(breaking, before tag)_
 

@@ -4,7 +4,7 @@
 // It emits one file per build target (generic / avx2 / sse2 / neon), each
 // containing register{Kind}DITCodelets64 and register{Kind}DITCodelets128
 // functions that populate the global codelet registries at init time. The
-// hand-written scaffolding (init, wrapCodelet helpers, registries) lives in
+// hand-written scaffolding (init, registries) lives in
 // internal/kernels/codelet_registry.go.
 //
 // With -inventory <path>, it instead renders the implementation inventory
@@ -133,12 +133,11 @@ func renderRegisterFunc(b *bytes.Buffer, tgt target, prec int) {
 
 func renderRegister(b *bytes.Buffer, s codeletSpec) {
 	reg := fmt.Sprintf("Registry%d", s.Prec)
-	wrap := fmt.Sprintf("wrapCodelet%d", s.Prec)
 
 	fmt.Fprintf(b, "%s.Register(CodeletEntry[complex%d]{\n", reg, s.Prec)
 	fmt.Fprintf(b, "Size: %d,\n", s.Size)
-	fmt.Fprintf(b, "Forward: %s(%s),\n", wrap, s.Forward)
-	fmt.Fprintf(b, "Inverse: %s(%s),\n", wrap, s.Inverse)
+	fmt.Fprintf(b, "Forward: %s,\n", s.Forward)
+	fmt.Fprintf(b, "Inverse: %s,\n", s.Inverse)
 	fmt.Fprintf(b, "Algorithm: %s,\n", s.Algorithm)
 	fmt.Fprintf(b, "SIMDLevel: %s,\n", s.SIMDLevel)
 	fmt.Fprintf(b, "Signature: %q,\n", s.Signature)

@@ -9,8 +9,8 @@ package kernels
 func registerAVX512DITCodelets64() {
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       1024,
-		Forward:    wrapCodelet64(forwardAVX512Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseAVX512Radix2Complex64),
+		Forward:    forwardAVX512Radix2Complex64,
+		Inverse:    inverseAVX512Radix2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX512,
 		Signature:  "dit1024_radix2_avx512",
@@ -20,8 +20,8 @@ func registerAVX512DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4096,
-		Forward:    wrapCodelet64(forwardAVX512Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseAVX512Radix2Complex64),
+		Forward:    forwardAVX512Radix2Complex64,
+		Inverse:    inverseAVX512Radix2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX512,
 		Signature:  "dit4096_radix2_avx512",
@@ -31,8 +31,8 @@ func registerAVX512DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8192,
-		Forward:    wrapCodelet64(forwardAVX512Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseAVX512Radix2Complex64),
+		Forward:    forwardAVX512Radix2Complex64,
+		Inverse:    inverseAVX512Radix2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX512,
 		Signature:  "dit8192_radix2_avx512",
@@ -42,8 +42,8 @@ func registerAVX512DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16384,
-		Forward:    wrapCodelet64(forwardAVX512Radix2Complex64),
-		Inverse:    wrapCodelet64(inverseAVX512Radix2Complex64),
+		Forward:    forwardAVX512Radix2Complex64,
+		Inverse:    inverseAVX512Radix2Complex64,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDAVX512,
 		Signature:  "dit16384_radix2_avx512",

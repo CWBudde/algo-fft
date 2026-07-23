@@ -283,9 +283,10 @@ func (p *Plan[T]) Forward(dst, src []T) error {
 		return p.recursiveForward(dst, src, scratch)
 	}
 
-	// Zero-dispatch codelet path (highest priority)
-	if p.forwardCodelet != nil {
-		p.forwardCodelet(dst, src, p.codeletTwiddleForward, scratch)
+	// Zero-dispatch codelet path (highest priority). A codelet reports false
+	// when it bailed without doing any work; fall through to the generic
+	// dispatch below then instead of returning unset output.
+	if p.forwardCodelet != nil && p.forwardCodelet(dst, src, p.codeletTwiddleForward, scratch) {
 		return nil
 	}
 
@@ -340,9 +341,10 @@ func (p *Plan[T]) Inverse(dst, src []T) error {
 		return p.recursiveInverse(dst, src, scratch)
 	}
 
-	// Zero-dispatch codelet path (highest priority)
-	if p.inverseCodelet != nil {
-		p.inverseCodelet(dst, src, p.codeletTwiddleInverse, scratch)
+	// Zero-dispatch codelet path (highest priority). A codelet reports false
+	// when it bailed without doing any work; fall through to the generic
+	// dispatch below then instead of returning unset output.
+	if p.inverseCodelet != nil && p.inverseCodelet(dst, src, p.codeletTwiddleInverse, scratch) {
 		return nil
 	}
 
@@ -403,8 +405,7 @@ func (p *Plan[T]) InverseInPlace(data []T) error {
 // Violating these requirements causes undefined behavior or panic.
 // Use Forward() for the safe, validated path.
 func (p *Plan[T]) ForwardUnsafe(dst, src []T) {
-	if p.forwardCodelet != nil {
-		p.forwardCodelet(dst, src, p.codeletTwiddleForward, p.scratch)
+	if p.forwardCodelet != nil && p.forwardCodelet(dst, src, p.codeletTwiddleForward, p.scratch) {
 		return
 	}
 
@@ -423,8 +424,7 @@ func (p *Plan[T]) ForwardUnsafe(dst, src []T) {
 // Violating these requirements causes undefined behavior or panic.
 // Use Inverse() for the safe, validated path.
 func (p *Plan[T]) InverseUnsafe(dst, src []T) {
-	if p.inverseCodelet != nil {
-		p.inverseCodelet(dst, src, p.codeletTwiddleInverse, p.scratch)
+	if p.inverseCodelet != nil && p.inverseCodelet(dst, src, p.codeletTwiddleInverse, p.scratch) {
 		return
 	}
 

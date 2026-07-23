@@ -29,13 +29,19 @@ func (kt KernelType) String() string {
 }
 
 // CodeletFunc is a kernel function for a specific fixed size.
-// Unlike Kernel[T], codelets have a hardcoded size and perform no runtime checks.
-// The caller guarantees that all slices have the required length.
+// Unlike Kernel[T], codelets have a hardcoded size; the caller is expected to
+// guarantee that all slices have the required length.
 //
 // Parameters:
 //   - dst, src: Input/output data (len >= codelet size)
 //   - twiddle: Codelet-specific twiddle data (may be standard twiddles or SIMD-friendly layout)
 //   - scratch: Working buffer for intermediate results
 //
+// The return value reports whether the codelet handled the transform. It is
+// false when the codelet bailed without doing any work (e.g. an undersized
+// slice tripped a guard); callers must then fall back to a generic path
+// instead of treating dst as valid. This mirrors the Kernel[T] contract so
+// the "handled?" signal survives both dispatch paths.
+//
 // Kernels using this signature handle permutation internally.
-type CodeletFunc[T Complex] func(dst, src, twiddle, scratch []T)
+type CodeletFunc[T Complex] func(dst, src, twiddle, scratch []T) bool

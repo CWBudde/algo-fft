@@ -11,8 +11,8 @@ import amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 func registerSSE2DITCodelets64() {
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       4,
-		Forward:    wrapCodelet64(amd64.ForwardSSE2Size4Radix4Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE2Size4Radix4Complex64Asm),
+		Forward:    amd64.ForwardSSE2Size4Radix4Complex64Asm,
+		Inverse:    amd64.InverseSSE2Size4Radix4Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit4_radix4_sse2",
@@ -22,8 +22,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size8Radix2Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size8Radix2Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size8Radix2Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size8Radix2Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit8_radix2_sse3",
@@ -33,8 +33,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       8,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size8Radix8Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size8Radix8Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size8Radix8Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size8Radix8Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit8_radix8_sse3",
@@ -44,8 +44,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size16Radix16Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size16Radix16Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size16Radix16Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size16Radix16Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit16_radix16_sse3",
@@ -55,8 +55,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size16Radix2Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size16Radix2Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size16Radix2Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size16Radix2Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit16_radix2_sse3",
@@ -66,8 +66,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       16,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size16Radix4Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size16Radix4Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size16Radix4Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size16Radix4Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit16_radix4_sse3",
@@ -77,8 +77,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size32Radix2Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size32Radix2Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size32Radix2Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size32Radix2Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit32_radix2_sse3",
@@ -88,8 +88,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       32,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size32Radix4Then2Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size32Radix4Then2Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size32Radix4Then2Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size32Radix4Then2Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit32_radix4_then2_sse3",
@@ -99,8 +99,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size64Radix4Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size64Radix4Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size64Radix4Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size64Radix4Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit64_radix4_sse3",
@@ -110,8 +110,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       64,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size64Radix2Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size64Radix2Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size64Radix2Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size64Radix2Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit64_radix2_sse3",
@@ -121,8 +121,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size128Radix4Then2Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size128Radix4Then2Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size128Radix4Then2Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size128Radix4Then2Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit128_radix4_then2_sse3",
@@ -132,8 +132,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       128,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size128Radix2Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size128Radix2Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size128Radix2Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size128Radix2Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit128_radix2_sse3",
@@ -143,8 +143,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size512Radix2Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size512Radix2Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size512Radix2Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size512Radix2Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit512_radix2_sse3",
@@ -154,8 +154,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       512,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size512Radix4Then2Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size512Radix4Then2Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size512Radix4Then2Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size512Radix4Then2Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit512_radix4_then2_sse3",
@@ -165,8 +165,8 @@ func registerSSE2DITCodelets64() {
 
 	Registry64.Register(CodeletEntry[complex64]{
 		Size:       1024,
-		Forward:    wrapCodelet64(amd64.ForwardSSE3Size1024Radix4Complex64Asm),
-		Inverse:    wrapCodelet64(amd64.InverseSSE3Size1024Radix4Complex64Asm),
+		Forward:    amd64.ForwardSSE3Size1024Radix4Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size1024Radix4Complex64Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE3,
 		Signature:  "dit1024_radix4_sse3",
@@ -179,8 +179,8 @@ func registerSSE2DITCodelets64() {
 func registerSSE2DITCodelets128() {
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       4,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size4Radix4Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size4Radix4Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size4Radix4Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size4Radix4Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit4_radix4_sse2",
@@ -190,8 +190,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size8Radix2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size8Radix2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size8Radix2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size8Radix2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit8_radix2_sse2",
@@ -201,8 +201,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size8Radix8Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size8Radix8Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size8Radix8Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size8Radix8Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit8_radix8_sse2",
@@ -212,8 +212,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       8,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size8Radix4Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size8Radix4Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size8Radix4Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size8Radix4Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit8_radix4_sse2",
@@ -223,8 +223,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size16Radix2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size16Radix2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size16Radix2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size16Radix2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit16_radix2_sse2",
@@ -234,8 +234,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       16,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size16Radix4Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size16Radix4Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size16Radix4Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size16Radix4Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit16_radix4_sse2",
@@ -245,8 +245,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       32,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size32Radix2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size32Radix2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size32Radix2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size32Radix2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit32_radix2_sse2",
@@ -256,8 +256,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       32,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size32Radix4Then2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size32Radix4Then2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size32Radix4Then2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size32Radix4Then2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit32_radix4_then2_sse2",
@@ -267,8 +267,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size64Radix2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size64Radix2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size64Radix2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size64Radix2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit64_radix2_sse2",
@@ -278,8 +278,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       64,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size64Radix4Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size64Radix4Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size64Radix4Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size64Radix4Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit64_radix4_sse2",
@@ -289,8 +289,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       128,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size128Radix2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size128Radix2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size128Radix2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size128Radix2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit128_radix2_sse2",
@@ -300,8 +300,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       128,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size128Radix4Then2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size128Radix4Then2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size128Radix4Then2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size128Radix4Then2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit128_radix4_then2_sse2",
@@ -311,8 +311,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       256,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size256Radix2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size256Radix2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size256Radix2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size256Radix2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit256_radix2_sse2",
@@ -322,8 +322,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       256,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size256Radix4Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size256Radix4Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size256Radix4Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size256Radix4Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit256_radix4_sse2",
@@ -333,8 +333,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       512,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size512Radix2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size512Radix2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size512Radix2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size512Radix2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit512_radix2_sse2",
@@ -344,8 +344,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       512,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size512Radix4Then2Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size512Radix4Then2Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size512Radix4Then2Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size512Radix4Then2Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit512_radix4_then2_sse2",
@@ -355,8 +355,8 @@ func registerSSE2DITCodelets128() {
 
 	Registry128.Register(CodeletEntry[complex128]{
 		Size:       1024,
-		Forward:    wrapCodelet128(amd64.ForwardSSE2Size1024Radix4Complex128Asm),
-		Inverse:    wrapCodelet128(amd64.InverseSSE2Size1024Radix4Complex128Asm),
+		Forward:    amd64.ForwardSSE2Size1024Radix4Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size1024Radix4Complex128Asm,
 		Algorithm:  KernelDIT,
 		SIMDLevel:  SIMDSSE2,
 		Signature:  "dit1024_radix4_sse2",
