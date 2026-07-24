@@ -409,9 +409,9 @@ package (38k lines).
       _(Done 2026-07 with A4: `Executor`/`NewExecutor` deleted; `Clone()`
       is the concurrent-use API.)_
 - [x] Inline magic epsilons `1e-4`/`1e-12` in real-inverse spectrum
-      validation (plan_real_generic.go:342-353) → named, documented
-      constants. _(Done 2026-07: `spectrumImagTol32`/`spectrumImagTol64` in
-      `plan_real_generic.go`, used by both the even and odd inverse paths.)_
+      validation (plan*real_generic.go:342-353) → named, documented
+      constants. *(Done 2026-07: `spectrumImagTol32`/`spectrumImagTol64` in
+      `plan_real_generic.go`, used by both the even and odd inverse paths.)\_
 
 **Explicitly kept as-is** (reviewed, deliberate): the benchmark-cited
 selection thresholds in `internal/planner` (compile-time constants are fine
@@ -624,10 +624,17 @@ references are to the current tree.
       mirrored load/store, ~2.1× the scalar loop, replacing the
       `inverseRepackComplex128SIMD` stub). Remaining: NEON variant (blocked
       on the native-ARM64 benchmarking item).
-- [ ] **SSE2 tier breadth.** The non-AVX2 tier has tuned kernels only at
-      512/1024; profile which other hot sizes (256, 2048, 4096) fall back to
-      the generic path on SSE-only hardware and extend where `benchstat`
-      justifies.
+- [ ] **SSE2 tier breadth.** The non-AVX2 tier had tuned kernels only up to
+      1024; profiling (i7-1255U, 2026-07) showed 2048 falling back to the
+      generic Go codelet on SSE-only hardware (complex64: 17.7/20.7µs
+      fwd/inv; complex128: 11.9/14.9µs — the size-specific generic codelet
+      outranks the plain SSE asm loop in the registry). First tranche landed
+      2026-07: size-2048 radix-4-then-2 kernels for both precisions
+      (`sse3_f32_size2048_radix4_then2.s`, `sse2_f64_size2048_radix4_then2.s`,
+      registered as `dit2048_radix4_then2_sse3/sse2`), complex64 −46/−49%
+      (1.8–2.0×), complex128 −12/−26%. Remaining: 4096 (generic SSE3 asm
+      67µs complex64, Go codelet ~44µs complex128 — likely a similar win)
+      and re-check 256 complex64 (SSE3 has only a radix-4 variant there).
 
 ### P4.3 Memory & cache
 
