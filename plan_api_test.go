@@ -232,25 +232,27 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 		t.Fatalf("NewPlan[complex64](512) returned error: %v", err)
 	}
 
-	// The planner should select the radix-4-then-2 codelet: the generic scalar
-	// one, or its AVX2 override on amd64. This holds on every build except
-	// arm64 SIMD builds, where there is no NEON radix-4-then-2 codelet for
-	// size 512 yet (NEON 512+ coverage is deferred; see PLAN.md P2.3) and
-	// the size-512 generic NEON codelet ("dit512_generic_neon") wins because
-	// codelet selection prefers a higher SIMD level over a higher-priority
-	// scalar codelet. Only that specific NEON signature is accepted as an
-	// alternative, so the arm64 purego build still enforces the scalar prefix.
-	const wantPrefix = "dit512_radix4_then2"
-
+	// The planner should select the best size-512 codelet for the build:
+	//   * amd64 AVX2 builds: the radix-8 AVX2 codelet ("dit512_radix8_avx2"),
+	//     which benchmarks fastest at size 512 c128 and outranks the AVX2
+	//     radix-4-then-2 override.
+	//   * other amd64 builds (SSE2-only or purego) and generic builds: the
+	//     radix-4-then-2 codelet (its SSE2 override or the generic scalar one).
+	//   * arm64 SIMD builds: there is no NEON radix-4-then-2 codelet for size
+	//     512 yet (NEON 512+ coverage is deferred; see PLAN.md P2.3), so the
+	//     size-512 generic NEON codelet ("dit512_generic_neon") wins because
+	//     codelet selection prefers a higher SIMD level over a higher-priority
+	//     scalar codelet.
 	algo := plan.Algorithm()
-	ok := strings.HasPrefix(algo, wantPrefix)
+	ok := strings.HasPrefix(algo, "dit512_radix4_then2") ||
+		algo == "dit512_radix8_avx2"
 	if runtime.GOARCH == "arm64" {
 		ok = ok || algo == "dit512_generic_neon"
 	}
 
 	if !ok {
-		t.Fatalf("Algorithm() = %q, want prefix %q (or %q on arm64 SIMD builds)",
-			algo, wantPrefix, "dit512_generic_neon")
+		t.Fatalf("Algorithm() = %q, want %q, prefix %q, or %q on arm64 SIMD builds",
+			algo, "dit512_radix8_avx2", "dit512_radix4_then2", "dit512_generic_neon")
 	}
 }
 

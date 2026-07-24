@@ -96,6 +96,12 @@ func ForwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64
 //go:noescape
 func InverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
+//go:noescape
+func ForwardNEONSize1024Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
+//go:noescape
+func InverseNEONSize1024Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+
 // Size-specific complex128 NEON kernels.
 
 //go:noescape
@@ -147,6 +153,12 @@ func ForwardNEONSize256Radix4Complex128Asm(dst, src, twiddle, scratch []complex1
 func InverseNEONSize256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
+func ForwardNEONSize1024Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseNEONSize1024Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
 func ForwardNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
@@ -175,6 +187,12 @@ func ForwardNEONSize256Radix2Complex128Asm(dst, src, twiddle, scratch []complex1
 
 //go:noescape
 func InverseNEONSize256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func ForwardNEONSize512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseNEONSize512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // Complex multiply helpers.
 

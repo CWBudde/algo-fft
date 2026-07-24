@@ -876,6 +876,13 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit512_radix4_then2_avx2", Priority: 25,
 	},
 	{
+		Target: "avx2", Prec: 128, Size: 512,
+		Forward:   "amd64.ForwardAVX2Size512Radix8Complex128Asm",
+		Inverse:   "amd64.InverseAVX2Size512Radix8Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit512_radix8_avx2", Priority: 30,
+	},
+	{
 		Target: "avx2", Prec: 128, Size: 1024,
 		Forward:   "amd64.ForwardAVX2Size1024Radix32x32Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size1024Radix32x32Complex128Asm",
@@ -1339,6 +1346,13 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit1024_radix2_neon", Priority: 1,
 	},
 	{
+		Target: "neon", Prec: 64, Size: 1024,
+		Forward:   "arm64.ForwardNEONSize1024Radix4Complex64Asm",
+		Inverse:   "arm64.InverseNEONSize1024Radix4Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit1024_radix4_neon", Priority: 28,
+	},
+	{
 		Target: "neon", Prec: 128, Size: 4,
 		Forward:   "arm64.ForwardNEONSize4Radix4Complex128Asm",
 		Inverse:   "arm64.InverseNEONSize4Radix4Complex128Asm",
@@ -1438,9 +1452,23 @@ var codeletSpecs = []codeletSpec{
 	},
 	{
 		Target: "neon", Prec: 128, Size: 512,
+		Forward:   "arm64.ForwardNEONSize512Radix4Then2Complex128Asm",
+		Inverse:   "arm64.InverseNEONSize512Radix4Then2Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit512_radix4_then2_neon", Priority: 24,
+	},
+	{
+		Target: "neon", Prec: 128, Size: 512,
 		Forward:   "arm64.ForwardNEONComplex128Asm",
 		Inverse:   "arm64.InverseNEONComplex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
 		Signature: "dit512_generic_neon", Priority: 1,
+	},
+	{
+		Target: "neon", Prec: 128, Size: 1024,
+		Forward:   "arm64.ForwardNEONSize1024Radix4Complex128Asm",
+		Inverse:   "arm64.InverseNEONSize1024Radix4Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit1024_radix4_neon", Priority: 28,
 	},
 }

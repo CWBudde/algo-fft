@@ -44,9 +44,15 @@ func TestNEONComplex128SizeSpecificKernels(t *testing.T) {
 		{"Size128_Radix4Then2", 128, ForwardNEONSize128Radix4Then2Complex128Asm, InverseNEONSize128Radix4Then2Complex128Asm},
 		{"Size256_Radix2", 256, ForwardNEONSize256Radix2Complex128Asm, InverseNEONSize256Radix2Complex128Asm},
 		{"Size256_Radix4", 256, ForwardNEONSize256Radix4Complex128Asm, InverseNEONSize256Radix4Complex128Asm},
+		{"Size1024_Radix4", 1024, ForwardNEONSize1024Radix4Complex128Asm, InverseNEONSize1024Radix4Complex128Asm},
 	}
 
-	const tol = 1e-10
+	// Size 1024 involves 5 FFT stages with larger-magnitude accumulated sums
+	// than the smaller sizes above, so its round-trip error is naturally a
+	// bit larger in absolute terms (still ~3e-13 relative, matching the
+	// tol=1e-9 relative bound used by codelet_reference_all_test.go for
+	// complex128).
+	const tol = 1e-9
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
