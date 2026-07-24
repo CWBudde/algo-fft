@@ -968,6 +968,13 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit128_radix2_sse3", Priority: 17,
 	},
 	{
+		Target: "sse2", Prec: 64, Size: 256,
+		Forward:   "amd64.ForwardSSE3Size256Radix4Complex64Asm",
+		Inverse:   "amd64.InverseSSE3Size256Radix4Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDSSE3", KernelType: "KernelTypeDIT",
+		Signature: "dit256_radix4_sse3", Priority: 12,
+	},
+	{
 		Target: "sse2", Prec: 64, Size: 512,
 		Forward:   "amd64.ForwardSSE3Size512Radix2Complex64Asm",
 		Inverse:   "amd64.InverseSSE3Size512Radix2Complex64Asm",

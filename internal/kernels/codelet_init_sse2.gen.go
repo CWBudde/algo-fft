@@ -146,6 +146,17 @@ func registerSSE2DITCodelets64() {
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       256,
+		Forward:    amd64.ForwardSSE3Size256Radix4Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size256Radix4Complex64Asm,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDSSE3,
+		Signature:  "dit256_radix4_sse3",
+		Priority:   12,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       512,
 		Forward:    amd64.ForwardSSE3Size512Radix2Complex64Asm,
 		Inverse:    amd64.InverseSSE3Size512Radix2Complex64Asm,

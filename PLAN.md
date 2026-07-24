@@ -625,21 +625,47 @@ references are to the current tree.
       `inverseRepackComplex128SIMD` stub). Remaining: NEON variant (blocked
       on the native-ARM64 benchmarking item).
 - [ ] **SSE2 tier breadth.** The non-AVX2 tier had tuned kernels only up to
-      1024; profiling (i7-1255U, 2026-07) showed 2048 falling back to the
-      generic Go codelet on SSE-only hardware (complex64: 17.7/20.7µs
-      fwd/inv; complex128: 11.9/14.9µs — the size-specific generic codelet
-      outranks the plain SSE asm loop in the registry). First tranche landed
-      2026-07: size-2048 radix-4-then-2 kernels for both precisions
-      (`sse3_f32_size2048_radix4_then2.s`, `sse2_f64_size2048_radix4_then2.s`,
-      registered as `dit2048_radix4_then2_sse3/sse2`), complex64 −46/−49%
-      (1.8–2.0×), complex128 −12/−26%. Second tranche landed 2026-07:
-      size-4096 pure radix-4 kernels for both precisions
-      (`sse3_f32_size4096_radix4.s`, `sse2_f64_size4096_radix4.s`, registered
-      as `dit4096_radix4_sse3/sse2`, reusing the AVX2 `bitrev4096_r4` table);
-      vs the generic Go six-step codelet (the actual SSE-only path,
-      ~79/86µs fwd/inv both precisions) complex64 49.9/53.2µs (1.59/1.64×)
-      and complex128 52.3/60.3µs (1.52/1.41×). Remaining: re-check 256
-      complex64 (SSE3 has only a radix-4 variant there).
+      1024; on SSE-only hardware the hot sizes above that fell back to the
+      generic Go size-codelets (which outrank the plain SSE asm loop in the
+      registry: SIMD level first, then priority). Sub-tasks:
+  - [x] **Profile the gap.** _(2026-07, i7-1255U)_ Established the actual
+        SSE-only paths and baselines: at 2048 the generic Go codelet runs
+        17.7/20.7µs fwd/inv (complex64) and 11.9/14.9µs (complex128); at
+        4096 the generic Go six-step codelet runs ~79/86µs fwd/inv for both
+        precisions. Also found `ForwardSSE2Complex128Asm` is a return-false
+        stub, so complex128 ≥2048 ran pure Go.
+  - [x] **Size-2048 kernels (both precisions).** _(2026-07)_ Radix-4-then-2
+        (2048 = 4⁵·2): `sse3_f32_size2048_radix4_then2.s`,
+        `sse2_f64_size2048_radix4_then2.s`, registered as
+        `dit2048_radix4_then2_sse3/sse2` (priority 12). complex64 −46/−49%
+        (1.8–2.0×), complex128 −12/−26% vs the generic codelet.
+  - [x] **Size-4096 kernels (both precisions).** _(2026-07)_ Pure radix-4
+        (4096 = 4⁶): `sse3_f32_size4096_radix4.s`,
+        `sse2_f64_size4096_radix4.s`, registered as
+        `dit4096_radix4_sse3/sse2`, reusing the AVX2 `bitrev4096_r4` digit-
+        reversal table. vs the generic six-step codelet: complex64
+        49.9/53.2µs (1.59/1.64×), complex128 52.3/60.3µs (1.52/1.41×).
+  - [x] **Re-check 256 complex64.** _(2026-07)_
+        `ForwardSSE3Size256Radix4Complex64Asm` existed and was wired into
+        the SSE3 fallback dispatch, but had no registry entry — the
+        plan-level codelet lookup on SSE-only hardware served 256 from the
+        generic radix-16 Go codelet instead. Benchmarked: asm 854/964 ns
+        fwd/inv vs generic radix-16 1421/1938 ns (1.6/2.0×); registered as
+        `dit256_radix4_sse3` (priority 12).
+  - [ ] **Evaluate 8192 for the SSE tier.** With 2048/4096 landed, 8192 is
+        the next size that falls back to the generic Go codelets
+        (`dit8192_radix4_then2` / `dit8192_sixstep64x128`). 8192 = 4⁶·2
+        maps onto the same radix-4-then-2 template; measure whether a
+        straight-line DIT still wins there or the working set (128/256 KiB)
+        makes the cache-aware six-step codelet the better SSE-only path —
+        only add the ~2×1200-line kernels if `benchstat` justifies it.
+  - [ ] **Validate on genuine SSE-only hardware.** All measurements so far
+        force the SSE path on an AVX2-capable i7-1255U; spot-check the
+        speedups (and the DIT-vs-six-step crossover) on a real pre-AVX2
+        machine or a VM with AVX masked before calling the tier done.
+        (Not planned: a complex64 tier for SSE2-without-SSE3 hardware — the
+        complex multiply idiom needs `ADDSUBPS`, and SSE3 has been
+        universal since ~2005; such machines keep the generic Go path.)
 
 ### P4.3 Memory & cache
 
