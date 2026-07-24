@@ -20,4 +20,5 @@ const (
 	KernelBluestein  = fftypes.KernelBluestein
 	KernelRecursive  = fftypes.KernelRecursive
 	KernelSplitRadix = fftypes.KernelSplitRadix
+	KernelFourStep   = fftypes.KernelFourStep
 )

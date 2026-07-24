@@ -83,15 +83,16 @@ func selectStrategiesToTest(mode PlannerMode, n int) []fftypes.KernelStrategy {
 		// Quick: test the two most common strategies
 		return []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham}
 	case PlannerPatient:
-		// Moderate: add SixStep and SplitRadix for larger sizes
+		// Moderate: add SixStep, SplitRadix, and FourStep for larger sizes
 		return []fftypes.KernelStrategy{
-			fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep, fftypes.KernelSplitRadix,
+			fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep,
+			fftypes.KernelSplitRadix, fftypes.KernelFourStep,
 		}
 	case PlannerExhaustive:
 		// Thorough: test all power-of-two strategies
 		return []fftypes.KernelStrategy{
 			fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep,
-			fftypes.KernelEightStep, fftypes.KernelSplitRadix,
+			fftypes.KernelEightStep, fftypes.KernelSplitRadix, fftypes.KernelFourStep,
 		}
 	}
 

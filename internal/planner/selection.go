@@ -31,6 +31,10 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 			return fallbackKernelStrategy(n)
 		}
 
+		if strategy == KernelFourStep && (n < 4 || !IsPowerOf2(n)) {
+			return fallbackKernelStrategy(n)
+		}
+
 		return strategy
 	}
 

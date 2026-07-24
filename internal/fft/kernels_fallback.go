@@ -55,6 +55,8 @@ func autoKernelComplex64(strategy fftypes.KernelStrategy) kernels.Kernels[comple
 				return kernels.ForwardEightStepComplex64(dst, src, twiddle, scratch)
 			case fftypes.KernelSplitRadix:
 				return kernels.ForwardSplitRadixComplex64(dst, src, twiddle, scratch)
+			case fftypes.KernelFourStep:
+				return kernels.ForwardFourStepComplex64(dst, src, twiddle, scratch)
 			default:
 				return kernels.ForwardStockhamComplex64(dst, src, twiddle, scratch)
 			}
@@ -79,6 +81,8 @@ func autoKernelComplex64(strategy fftypes.KernelStrategy) kernels.Kernels[comple
 				return kernels.InverseEightStepComplex64(dst, src, twiddle, scratch)
 			case fftypes.KernelSplitRadix:
 				return kernels.InverseSplitRadixComplex64(dst, src, twiddle, scratch)
+			case fftypes.KernelFourStep:
+				return kernels.InverseFourStepComplex64(dst, src, twiddle, scratch)
 			default:
 				return kernels.InverseStockhamComplex64(dst, src, twiddle, scratch)
 			}
@@ -108,6 +112,8 @@ func autoKernelComplex128(strategy fftypes.KernelStrategy) kernels.Kernels[compl
 				return kernels.ForwardEightStepComplex128(dst, src, twiddle, scratch)
 			case fftypes.KernelSplitRadix:
 				return kernels.ForwardSplitRadixComplex128(dst, src, twiddle, scratch)
+			case fftypes.KernelFourStep:
+				return kernels.ForwardFourStepComplex128(dst, src, twiddle, scratch)
 			default:
 				return kernels.ForwardStockhamComplex128(dst, src, twiddle, scratch)
 			}
@@ -132,6 +138,8 @@ func autoKernelComplex128(strategy fftypes.KernelStrategy) kernels.Kernels[compl
 				return kernels.InverseEightStepComplex128(dst, src, twiddle, scratch)
 			case fftypes.KernelSplitRadix:
 				return kernels.InverseSplitRadixComplex128(dst, src, twiddle, scratch)
+			case fftypes.KernelFourStep:
+				return kernels.InverseFourStepComplex128(dst, src, twiddle, scratch)
 			default:
 				return kernels.InverseStockhamComplex128(dst, src, twiddle, scratch)
 			}

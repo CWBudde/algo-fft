@@ -693,11 +693,30 @@ references are to the current tree.
       Remaining follow-up: SIMD 8×8 complex tile kernel (AVX2
       `VPERM2F128`/`VUNPCK` pattern, NEON `TRN1/TRN2`) for a further
       constant-factor win.
-- [ ] **Cache-blocked variants above L2.** For n where the working set
-      exceeds L2 (≳2¹⁸ complex64), evaluate four-step/six-step with
-      block sizes chosen from detected cache sizes (extend `internal/cpu`
-      to expose L1d/L2 sizes) instead of fixed decompositions; Wisdom-tune
-      the block choice.
+- [x] **Cache-blocked variants above L2.** _(2026-07)_ `internal/cpu` now
+      exposes per-core L1d/L2 sizes (`DetectCaches`: Linux sysfs, conservative
+      32K/256K defaults elsewhere, `SetForcedCaches` for tests). New
+      `KernelFourStep` strategy (public enum, planner, dispatch, wisdom name
+      "fourstep"): the rectangular generalization of six-step over
+      `math.TransposeRect` (tiled out-of-place transpose), so any power-of-two
+      n ≥ 4 splits as n1×n2 — including the non-square sizes six-step
+      declines — with the split chosen by a cache-residency cost model over
+      the detected L1d/L2 instead of the fixed √n (`fourStepSplit`,
+      `internal/kernels/fourstep.go`); zero-alloc, both precisions
+      (generated twin). Wisdom-tuning: Patient/Exhaustive measure modes now
+      benchmark four-step, so per-machine wisdom picks it where it wins.
+      Measured (i7-1255U, AVX2, complex64, forward): four-step ≈ six-step at
+      square sizes (same row lengths), beats split-radix at 2^21…2^23
+      (−7…−28%), ties plain Stockham at 2^23; the split sweep
+      (`BenchmarkFourStepSplitSweep`) is flat (±7%), with the cache-derived
+      choice within noise of the optimum, so the auto rule is unchanged —
+      measure/wisdom remains the arbiter. Follow-ups: SIMD row FFTs inside
+      four-step (rows are contiguous; the row passes still use the scalar
+      Stockham butterflies, the main handicap vs the monolithic kernels), and
+      a P4.1 auto-rule re-measure — on this machine plain Stockham now beats
+      split-radix at 2^18–2^22 (e.g. 3.1 vs 4.9 ms at 2^18, also in
+      `BenchmarkSplitRadixVsIncumbents`), contradicting the recorded P4.1
+      numbers.
 - [ ] **Twiddle-table bandwidth reduction.** The packed-twiddle tables are
       per-plan precomputed; for large n they are a significant fraction of
       the working set. Evaluate (a) sharing tables between forward/inverse

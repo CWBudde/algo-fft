@@ -98,6 +98,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 		algofft.KernelStockham,
 		algofft.KernelSixStep,
 		algofft.KernelEightStep,
+		algofft.KernelFourStep,
 	}
 
 	results := make([]benchResult, 0, len(strategies))
@@ -280,6 +281,8 @@ func strategyToAlgorithmName(strategy algofft.KernelStrategy) string {
 		return "splitradix"
 	case algofft.KernelRecursive:
 		return "recursive"
+	case algofft.KernelFourStep:
+		return "fourstep"
 	case algofft.KernelAuto:
 		return "unknown"
 	default:

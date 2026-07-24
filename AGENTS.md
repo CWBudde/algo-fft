@@ -198,6 +198,7 @@ The library supports multiple FFT algorithms via `KernelStrategy` (defined in `i
 - `KernelDIT`: Force Decimation-in-Time algorithm
 - `KernelStockham`: Force Stockham autosort algorithm
 - `KernelSixStep` / `KernelEightStep`: Cache-oblivious large-size algorithms
+- `KernelFourStep`: Rectangular six-step with the n1×n2 split chosen from detected L1d/L2 cache sizes (any power-of-two length)
 - `KernelBluestein`: Arbitrary-length transforms
 - `KernelRecursive`: Recursive decomposition with codelet leaves
 

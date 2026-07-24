@@ -29,6 +29,7 @@ const (
 	strategyNameBluestein  = "Bluestein"
 	strategyNameRecursive  = "Recursive"
 	strategyNameSplitRadix = "SplitRadix"
+	strategyNameFourStep   = "FourStep"
 )
 
 // Len returns the FFT length (number of complex samples) for this Plan.
@@ -69,6 +70,8 @@ func (p *Plan[T]) String() string {
 		strategyName = strategyNameRecursive
 	case fftypes.KernelSplitRadix:
 		strategyName = strategyNameSplitRadix
+	case fftypes.KernelFourStep:
+		strategyName = strategyNameFourStep
 	case fftypes.KernelAuto:
 		// Resolved plans never carry KernelAuto; keep the default name.
 	}
