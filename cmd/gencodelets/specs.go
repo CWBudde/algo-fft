@@ -1045,6 +1045,20 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit8192_radix4_then2_sse3", Priority: 12,
 	},
 	{
+		Target: "sse2", Prec: 64, Size: 16384,
+		Forward:   "amd64.ForwardSSE3Size16384Radix4Complex64Asm",
+		Inverse:   "amd64.InverseSSE3Size16384Radix4Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDSSE3", KernelType: "KernelTypeDIT",
+		Signature: "dit16384_radix4_sse3", Priority: 12,
+	},
+	{
+		Target: "sse2", Prec: 64, Size: 32768,
+		Forward:   "forwardDIT32768Radix4Then2SSE3Complex64",
+		Inverse:   "inverseDIT32768Radix4Then2SSE3Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDSSE3", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_radix4_then2_sse3", Priority: 12,
+	},
+	{
 		Target: "sse2", Prec: 128, Size: 4,
 		Forward:   "amd64.ForwardSSE2Size4Radix4Complex128Asm",
 		Inverse:   "amd64.InverseSSE2Size4Radix4Complex128Asm",
@@ -1183,6 +1197,20 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "amd64.InverseSSE2Size8192Radix4Then2Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDSSE2", KernelType: "KernelTypeDIT",
 		Signature: "dit8192_radix4_then2_sse2", Priority: 12,
+	},
+	{
+		Target: "sse2", Prec: 128, Size: 16384,
+		Forward:   "amd64.ForwardSSE2Size16384Radix4Complex128Asm",
+		Inverse:   "amd64.InverseSSE2Size16384Radix4Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDSSE2", KernelType: "KernelTypeDIT",
+		Signature: "dit16384_radix4_sse2", Priority: 12,
+	},
+	{
+		Target: "sse2", Prec: 128, Size: 32768,
+		Forward:   "forwardDIT32768Radix4Then2SSE2Complex128",
+		Inverse:   "inverseDIT32768Radix4Then2SSE2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDSSE2", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_radix4_then2_sse2", Priority: 12,
 	},
 	{
 		Target: "neon", Prec: 64, Size: 4,

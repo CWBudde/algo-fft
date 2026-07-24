@@ -293,6 +293,8 @@ func sse3TrySizeSpecificForwardComplex64(n int, dst, src, twiddle, scratch []com
 		return forwardSSE3Size4096Radix4Complex64Asm(dst, src, twiddle, scratch)
 	case 8192:
 		return forwardSSE3Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
+	case 16384:
+		return forwardSSE3Size16384Radix4Complex64Asm(dst, src, twiddle, scratch)
 	default:
 		return false
 	}
@@ -352,6 +354,8 @@ func sse3TrySizeSpecificInverseComplex64(n int, dst, src, twiddle, scratch []com
 		return inverseSSE3Size4096Radix4Complex64Asm(dst, src, twiddle, scratch)
 	case 8192:
 		return inverseSSE3Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
+	case 16384:
+		return inverseSSE3Size16384Radix4Complex64Asm(dst, src, twiddle, scratch)
 	default:
 		return false
 	}

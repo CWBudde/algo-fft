@@ -221,6 +221,28 @@ func registerSSE2DITCodelets64() {
 		Priority:   12,
 		KernelType: fftypes.KernelTypeDIT,
 	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       16384,
+		Forward:    amd64.ForwardSSE3Size16384Radix4Complex64Asm,
+		Inverse:    amd64.InverseSSE3Size16384Radix4Complex64Asm,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDSSE3,
+		Signature:  "dit16384_radix4_sse3",
+		Priority:   12,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       32768,
+		Forward:    forwardDIT32768Radix4Then2SSE3Complex64,
+		Inverse:    inverseDIT32768Radix4Then2SSE3Complex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDSSE3,
+		Signature:  "dit32768_radix4_then2_sse3",
+		Priority:   12,
+		KernelType: fftypes.KernelTypeDIT,
+	})
 }
 
 // registerSSE2DITCodelets128 registers the SSE2 complex128 DIT codelets.
@@ -441,6 +463,28 @@ func registerSSE2DITCodelets128() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDSSE2,
 		Signature:  "dit8192_radix4_then2_sse2",
+		Priority:   12,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       16384,
+		Forward:    amd64.ForwardSSE2Size16384Radix4Complex128Asm,
+		Inverse:    amd64.InverseSSE2Size16384Radix4Complex128Asm,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDSSE2,
+		Signature:  "dit16384_radix4_sse2",
+		Priority:   12,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       32768,
+		Forward:    forwardDIT32768Radix4Then2SSE2Complex128,
+		Inverse:    inverseDIT32768Radix4Then2SSE2Complex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDSSE2,
+		Signature:  "dit32768_radix4_then2_sse2",
 		Priority:   12,
 		KernelType: fftypes.KernelTypeDIT,
 	})

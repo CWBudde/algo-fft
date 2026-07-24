@@ -29,6 +29,8 @@ func BenchmarkSSE2Complex64(b *testing.B) {
 		{"Size2048/Radix4Then2", 2048, amd64.ForwardSSE3Size2048Radix4Then2Complex64Asm, amd64.InverseSSE3Size2048Radix4Then2Complex64Asm},
 		{"Size4096/Radix4", 4096, amd64.ForwardSSE3Size4096Radix4Complex64Asm, amd64.InverseSSE3Size4096Radix4Complex64Asm},
 		{"Size8192/Radix4Then2", 8192, amd64.ForwardSSE3Size8192Radix4Then2Complex64Asm, amd64.InverseSSE3Size8192Radix4Then2Complex64Asm},
+		{"Size16384/Radix4", 16384, amd64.ForwardSSE3Size16384Radix4Complex64Asm, amd64.InverseSSE3Size16384Radix4Complex64Asm},
+		{"Size32768/Radix4Then2", 32768, forwardDIT32768Radix4Then2SSE3Complex64, inverseDIT32768Radix4Then2SSE3Complex64},
 	}
 
 	for _, testCase := range cases {
@@ -60,6 +62,8 @@ func BenchmarkSSE2Complex128(b *testing.B) {
 		{"Size2048/Radix4Then2", 2048, amd64.ForwardSSE2Size2048Radix4Then2Complex128Asm, amd64.InverseSSE2Size2048Radix4Then2Complex128Asm},
 		{"Size4096/Radix4", 4096, amd64.ForwardSSE2Size4096Radix4Complex128Asm, amd64.InverseSSE2Size4096Radix4Complex128Asm},
 		{"Size8192/Radix4Then2", 8192, amd64.ForwardSSE2Size8192Radix4Then2Complex128Asm, amd64.InverseSSE2Size8192Radix4Then2Complex128Asm},
+		{"Size16384/Radix4", 16384, amd64.ForwardSSE2Size16384Radix4Complex128Asm, amd64.InverseSSE2Size16384Radix4Complex128Asm},
+		{"Size32768/Radix4Then2", 32768, forwardDIT32768Radix4Then2SSE2Complex128, inverseDIT32768Radix4Then2SSE2Complex128},
 	}
 
 	for _, testCase := range cases {

@@ -644,9 +644,32 @@ references are to the current tree.
       16384 −50/−45%, 65536 −38/−33%, 131072 −24/−32%, 524288 −29/−12%,
       2^21 −16/−27% (large sizes go memory-bound). End-to-end vs FFTW:
       65536 1.44 ms→1.02 ms (gap 4.4×→3.1×), 524288 gap now 2.0×.
-      Noticed in the same run: complex64 131072 end-to-end (3.77 ms) is
-      slower than complex128 (2.46 ms) — the c64 large-size path deserves
-      a selection audit (follow-up).
+      Noticed in the same run: complex64 131072 end-to-end appeared slower
+      than complex128 (3.77 ms vs 2.46 ms) — re-measured 2026-07-24 on an
+      idle machine and it does not reproduce (c64 ~1.2 ms vs c128 ~2.1 ms,
+      3× consistent); the original reading was a contaminated measurement,
+      no selection bug.
+- [x] **SSE3/SSE2 tier for 16384/32768 (both precisions).** _(2026-07,
+      i7-1255U)_ The SSE codelet ladder stopped at 8192, so pre-AVX2 hosts
+      ran the generic Go codelets at 16384/32768. Four new kernels —
+      `sse3_f32_size16384_radix4.s`, `sse3_f32_size32768_radix4_then2.s`,
+      `sse2_f64_size16384_radix4.s`, `sse2_f64_size32768_radix4_then2.s` —
+      emitted by a one-off Go generator whose stage templates were
+      validated by regenerating the existing 4096/8192 SSE files and
+      diffing (instruction-for-instruction identical). 16384 embeds no new
+      table (reuses the AVX2 files' `bitrev16384_r4`); 32768 takes
+      `bitrev []int` as an argument like its AVX2 twin, bound via wrappers
+      in `dit_32768_radix4_then2_amd64_sse.go`. Registered at priority 12
+      (SIMD level dominates priority, so these only serve pre-AVX2 hosts);
+      case 16384 also added to the forced-DIT SSE dispatch in internal/fft
+      (32768 is registry-only, matching AVX2). Codelet-candidates bench vs
+      the generic codelets they displace (fwd/inv): c64 16384 −41/−47%,
+      32768 −15/−42%; c128 16384 −41/−23%, 32768 ±0/−38%. Noted: c128
+      16384 SSE2 forward measured faster than the AVX2 codelet (104 vs
+      124 µs) on this machine — the wisdom cache can exploit that; a
+      priority flip would need re-measurement on more hardware. Validated
+      per-direction vs the generic codelets plus exact in-place aliasing
+      tests (`dit_sse_16384_32768_test.go`).
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and
