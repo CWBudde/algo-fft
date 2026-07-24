@@ -652,13 +652,19 @@ references are to the current tree.
         generic radix-16 Go codelet instead. Benchmarked: asm 854/964 ns
         fwd/inv vs generic radix-16 1421/1938 ns (1.6/2.0×); registered as
         `dit256_radix4_sse3` (priority 12).
-  - [ ] **Evaluate 8192 for the SSE tier.** With 2048/4096 landed, 8192 is
-        the next size that falls back to the generic Go codelets
-        (`dit8192_radix4_then2` / `dit8192_sixstep64x128`). 8192 = 4⁶·2
-        maps onto the same radix-4-then-2 template; measure whether a
-        straight-line DIT still wins there or the working set (128/256 KiB)
-        makes the cache-aware six-step codelet the better SSE-only path —
-        only add the ~2×1200-line kernels if `benchstat` justifies it.
+  - [x] **Size-8192 kernels (both precisions).** _(2026-07)_ Gate
+        measurement first: at 8192 the straight-line `dit8192_radix4_then2`
+        generic codelet (~90/107µs c64, ~67/77µs c128 fwd/inv) clearly
+        beats the priority-favored `dit8192_sixstep64x128` (~156–380µs c64,
+        ~114/131µs c128) — the 128/256 KiB working set does not rescue
+        six-step on the i7-1255U, so the DIT asm was justified.
+        Implemented radix-4-then-2 (8192 = 4⁶·2):
+        `sse3_f32_size8192_radix4_then2.s`,
+        `sse2_f64_size8192_radix4_then2.s`, registered as
+        `dit8192_radix4_then2_sse3/sse2` (priority 12), reusing the AVX2
+        `bitrev8192_m24` digit-reversal table. vs the six-step codelet the
+        SSE path previously served: c64 ~74/108µs, c128 ~70/64µs fwd/inv
+        (1.5–2×).
   - [ ] **Validate on genuine SSE-only hardware.** All measurements so far
         force the SSE path on an AVX2-capable i7-1255U; spot-check the
         speedups (and the DIT-vs-six-step crossover) on a real pre-AVX2

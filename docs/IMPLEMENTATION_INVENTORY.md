@@ -44,7 +44,7 @@ pure-Go fallback.
 |  4096 | Radix-2         |  -  |  -   |  -   |  -   |    ✓    |  -   |
 |  4096 | Radix-4         |  ✓  |  -   |  ✓   |  ✓   |    -    |  -   |
 |  4096 | Six-step        |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
-|  8192 | Mixed-2/4       |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
+|  8192 | Mixed-2/4       |  ✓  |  -   |  ✓   |  ✓   |    -    |  -   |
 |  8192 | Radix-2         |  -  |  -   |  -   |  -   |    ✓    |  -   |
 |  8192 | Six-step 64×128 |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 | 16384 | Radix-2         |  -  |  -   |  -   |  -   |    ✓    |  -   |
@@ -87,7 +87,7 @@ pure-Go fallback.
 |  2048 | Mixed-2/4       |  ✓  |  ✓   |  -   |  ✓   |    -    |  -   |
 |  4096 | Radix-4         |  ✓  |  ✓   |  -   |  ✓   |    -    |  -   |
 |  4096 | Six-step        |  ✓  |  -   |  -   |  -   |    -    |  -   |
-|  8192 | Mixed-2/4       |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
+|  8192 | Mixed-2/4       |  ✓  |  ✓   |  -   |  ✓   |    -    |  -   |
 |  8192 | Six-step 64×128 |  ✓  |  -   |  -   |  -   |    -    |  -   |
 | 16384 | Radix-4         |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 | 16384 | Six-step        |  ✓  |  -   |  -   |  -   |    -    |  -   |
@@ -101,10 +101,10 @@ pure-Go fallback.
 | generic | `(all builds)`     |        31 |         31 |    62 |
 | avx2    | `amd64 && !purego` |        32 |         22 |    54 |
 | avx512  | `amd64 && !purego` |         4 |          0 |     4 |
-| sse2    | `amd64 && !purego` |        18 |         19 |    37 |
+| sse2    | `amd64 && !purego` |        19 |         20 |    39 |
 | neon    | `arm64 && !purego` |        15 |         15 |    30 |
 
-Total registered codelets: **187**.
+Total registered codelets: **189**.
 
 ## Beyond the Codelet Registry
 
