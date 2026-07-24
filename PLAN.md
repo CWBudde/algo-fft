@@ -670,6 +670,19 @@ references are to the current tree.
       priority flip would need re-measurement on more hardware. Validated
       per-direction vs the generic codelets plus exact in-place aliasing
       tests (`dit_sse_16384_32768_test.go`).
+- [x] **Three missing codelets via subagent delegation.** _(2026-07,
+      i7-1255U; opus/sonnet/haiku experiment — see AGENTS.md “Delegating
+      Codelet Work to Subagents”)_ New hand-written kernels, each verified
+      against the reference DFT via the registry-driven test suite:
+      `avx2_f64_size1024_radix4.s` (closes the gap where AVX2 hosts fell
+      back to SSE2 at c128-1024 because the radix-32×32 entry is disabled;
+      priority 35; idle-machine bench fwd/inv 4165/4354 ns vs SSE2
+      4802/5368 ns), `avx2_f64_size128_radix4_then2.s` (priority 25, fwd/inv
+      413/443 ns — fastest c128-128 candidate, beats the radix-2 AVX2 at
+      484/584 ns), and `sse3_f32_size256_radix2.s` (priority 10, below the
+      radix-4 SSE3 at 12 as intended; wisdom-selectable alternative). All
+      reuse existing bitrev tables (`bitrev1024_r4`, `bitrev128_mixed`,
+      `bitrev256_r2`) and core.s scale constants — no new data symbols.
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and

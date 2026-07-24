@@ -30,7 +30,7 @@ pure-Go fallback.
 |   128 | Mixed-2/4       |  ✓  |  -   |  ✓   |  ✓   |    -    |  ✓   |
 |   128 | Radix-2         |  ✓  |  -   |  ✓   |  ✓   |    -    |  ✓   |
 |   256 | Radix-16        |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
-|   256 | Radix-2         |  ✓  |  -   |  -   |  ✓   |    -    |  ✓   |
+|   256 | Radix-2         |  ✓  |  -   |  ✓   |  ✓   |    -    |  ✓   |
 |   256 | Radix-4         |  ✓  |  -   |  ✓   |  ✓   |    -    |  ✓   |
 |   384 | Mixed 128×3     |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 |   512 | Mixed-2/4       |  ✓  |  -   |  ✓   |  ✓   |    -    |  -   |
@@ -72,7 +72,7 @@ pure-Go fallback.
 |    32 | Radix-32        |  ✓  |  -   |  -   |  -   |    -    |  -   |
 |    64 | Radix-2         |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
 |    64 | Radix-4         |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
-|   128 | Mixed-2/4       |  ✓  |  ✓   |  -   |  -   |    -    |  ✓   |
+|   128 | Mixed-2/4       |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
 |   128 | Radix-2         |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
 |   256 | Radix-16        |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 |   256 | Radix-2         |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
@@ -84,7 +84,7 @@ pure-Go fallback.
 |   512 | Radix-2         |  ✓  |  ✓   |  -   |  ✓   |    -    |  -   |
 |   512 | Radix-8         |  ✓  |  -   |  -   |  -   |    -    |  -   |
 |  1024 | Radix-32×32     |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
-|  1024 | Radix-4         |  ✓  |  ✓   |  -   |  -   |    -    |  -   |
+|  1024 | Radix-4         |  ✓  |  ✓   |  -   |  ✓   |    -    |  -   |
 |  2048 | Mixed-2/4       |  ✓  |  ✓   |  -   |  ✓   |    -    |  -   |
 |  4096 | Radix-4         |  ✓  |  ✓   |  -   |  ✓   |    -    |  -   |
 |  4096 | Six-step        |  ✓  |  -   |  -   |  -   |    -    |  -   |
@@ -101,12 +101,12 @@ pure-Go fallback.
 | Target  | Build constraint   | complex64 | complex128 | Total |
 | ------- | ------------------ | --------: | ---------: | ----: |
 | generic | `(all builds)`     |        32 |         32 |    64 |
-| avx2    | `amd64 && !purego` |        33 |         23 |    56 |
+| avx2    | `amd64 && !purego` |        33 |         25 |    58 |
 | avx512  | `amd64 && !purego` |         4 |          0 |     4 |
-| sse2    | `amd64 && !purego` |        21 |         22 |    43 |
+| sse2    | `amd64 && !purego` |        22 |         22 |    44 |
 | neon    | `arm64 && !purego` |        15 |         15 |    30 |
 
-Total registered codelets: **197**.
+Total registered codelets: **200**.
 
 ## Beyond the Codelet Registry
 

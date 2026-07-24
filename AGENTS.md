@@ -256,6 +256,37 @@ Generic implementations are instantiated for both precisions, with type-specific
 - Subtractions like VSUBPS b, a, dst → dst = a - b
 - add comments after instructions for clarity
 
+### Delegating Codelet Work to Subagents (Model Choice)
+
+Empirical results from delegating new asm codelets to subagents (2026-07, three
+parallel worktree agents, each verified against the reference-DFT registry tests):
+
+- **Haiku** handled a near-mechanical template adaptation (same SIMD level and
+  algorithm, one stage removed — SSE3 c64 256 radix-2 from the 512 template) with
+  one self-fixed bug. Suitable only when an almost-identical template exists.
+- **Sonnet** cleanly synthesized a new precision×size combination from two
+  templates (AVX2 c128 128 radix-4-then-2), zero debug iterations, and correctly
+  resolved a conflict between the brief and the actual template structure. Good
+  default for straightforward codelet ports.
+- **Opus** was needed where a performance bar had to be met, not just correctness:
+  its template-faithful AVX2 c128 1024 radix-4 lost to SSE2, and it redesigned the
+  addressing/butterfly form to win. Use Opus (or the main session) whenever the
+  task involves tuning, novel idioms, or beating an existing kernel.
+
+Process notes that mattered more than model tier:
+
+- Give each agent an isolated git worktree — they all edit `cmd/gencodelets/specs.go`
+  and regenerate `.gen.go` files, which races in a shared tree.
+- Write a tight brief: exact template files to copy idioms from, reusable bitrev
+  tables/scale constants (cross-file symbol reuse within `internal/asm/<arch>`),
+  frame layout (`$0-97` for the 4-slice+bool Kernel signature), the specs.go
+  registration steps, and the verification ladder (build → vet → full
+  `internal/kernels` tests → benchmark).
+- Correctness is guarded by the registry-driven reference tests, so a cheaper
+  model is safe to try: a wrong kernel fails tests rather than landing silently.
+  Verify benchmark-based Priority claims yourself on an idle machine — subagent
+  runs contend with each other and skew timings.
+
 ### Error Handling
 
 Custom errors defined in `errors.go`:
