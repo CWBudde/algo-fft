@@ -380,6 +380,21 @@ func ForwardAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch []com
 //go:noescape
 func InverseAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
+// Size-32768 radix-4-then-2 kernels. The mixed digit-reversal table is passed
+// in as bitrev (32768 entries) instead of being embedded as a DATA table.
+
+//go:noescape
+func ForwardAVX2Size32768Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
+func InverseAVX2Size32768Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
+
+//go:noescape
+func ForwardAVX2Size32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
+//go:noescape
+func InverseAVX2Size32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
+
 // Params-enabled variants for size 8192: use pre-broadcast twiddle data for improved SIMD efficiency.
 // The twiddle slice contains pre-broadcast factors for stages 2-7, eliminating runtime
 // index computation and scalar-to-vector broadcasts in the hot loop.

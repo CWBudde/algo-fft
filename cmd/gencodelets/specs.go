@@ -194,7 +194,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT1024Radix4Complex64",
 		Inverse:   "inverseDIT1024Radix4Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix4_generic", Priority: 15,
+		Signature: "dit1024_radix4_generic", Priority: 30,
 	},
 	{
 		Target: "generic", Prec: 64, Size: 1024,
@@ -215,7 +215,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT4096Radix4Complex64",
 		Inverse:   "inverseDIT4096Radix4Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit4096_radix4_generic", Priority: 15,
+		Signature: "dit4096_radix4_generic", Priority: 30,
 	},
 	{
 		Target: "generic", Prec: 64, Size: 4096,
@@ -229,7 +229,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT8192Radix4Then2Complex64",
 		Inverse:   "inverseDIT8192Radix4Then2Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit8192_radix4_then2_generic", Priority: 20,
+		Signature: "dit8192_radix4_then2_generic", Priority: 35,
 	},
 	{
 		Target: "generic", Prec: 64, Size: 8192,
@@ -243,7 +243,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT16384Radix4Complex64",
 		Inverse:   "inverseDIT16384Radix4Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit16384_radix4_generic", Priority: 15,
+		Signature: "dit16384_radix4_generic", Priority: 30,
 	},
 	{
 		Target: "generic", Prec: 64, Size: 16384,
@@ -251,6 +251,13 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT16384SixStepComplex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_sixstep_generic", Priority: 25,
+	},
+	{
+		Target: "generic", Prec: 64, Size: 32768,
+		Forward:   "forwardDIT32768Radix4Then2Complex64",
+		Inverse:   "inverseDIT32768Radix4Then2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_radix4_then2_generic", Priority: 20,
 	},
 	{
 		Target: "generic", Prec: 128, Size: 4,
@@ -411,7 +418,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT1024Radix4Complex128",
 		Inverse:   "inverseDIT1024Radix4Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix4_generic", Priority: 15,
+		Signature: "dit1024_radix4_generic", Priority: 30,
 	},
 	{
 		Target: "generic", Prec: 128, Size: 1024,
@@ -432,7 +439,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT4096Radix4Complex128",
 		Inverse:   "inverseDIT4096Radix4Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit4096_radix4_generic", Priority: 15,
+		Signature: "dit4096_radix4_generic", Priority: 30,
 	},
 	{
 		Target: "generic", Prec: 128, Size: 4096,
@@ -446,7 +453,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT8192Radix4Then2Complex128",
 		Inverse:   "inverseDIT8192Radix4Then2Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit8192_radix4_then2_generic", Priority: 20,
+		Signature: "dit8192_radix4_then2_generic", Priority: 35,
 	},
 	{
 		Target: "generic", Prec: 128, Size: 8192,
@@ -460,7 +467,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT16384Radix4Complex128",
 		Inverse:   "inverseDIT16384Radix4Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit16384_radix4_generic", Priority: 15,
+		Signature: "dit16384_radix4_generic", Priority: 30,
 	},
 	{
 		Target: "generic", Prec: 128, Size: 16384,
@@ -468,6 +475,13 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT16384SixStepComplex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_sixstep_generic", Priority: 25,
+	},
+	{
+		Target: "generic", Prec: 128, Size: 32768,
+		Forward:   "forwardDIT32768Radix4Then2Complex128",
+		Inverse:   "inverseDIT32768Radix4Then2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_radix4_then2_generic", Priority: 20,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 4,
@@ -572,7 +586,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size256Radix2Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size256Radix2Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix2_avx2", Priority: 15,
+		Signature: "dit256_radix2_avx2", Priority: 135,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 256,
@@ -593,7 +607,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size512Radix2Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size512Radix2Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix2_avx2", Priority: 10,
+		Signature: "dit512_radix2_avx2", Priority: 35,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 512,
@@ -642,7 +656,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm",
 		Inverse:   "amd64.InverseAVX2Size8192Radix4Then2ParamsComplex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit8192_radix4_then2_params_avx2", Priority: 30,
+		Signature: "dit8192_radix4_then2_params_avx2", Priority: 40,
 		TwiddleSize: "twiddleSize8192Radix4Then2AVX2", PrepareTwiddle: "prepareTwiddle8192Radix4Then2AVX2",
 	},
 	{
@@ -657,7 +671,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size1024Radix4Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size1024Radix4Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix4_avx2", Priority: 25,
+		Signature: "dit1024_radix4_avx2", Priority: 35,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 1024,
@@ -671,7 +685,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size4096Radix4Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size4096Radix4Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit4096_radix4_avx2", Priority: 25,
+		Signature: "dit4096_radix4_avx2", Priority: 40,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 4096,
@@ -685,7 +699,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size16384Radix4Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size16384Radix4Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit16384_radix4_avx2", Priority: 25,
+		Signature: "dit16384_radix4_avx2", Priority: 40,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 16384,
@@ -693,6 +707,13 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT16384SixStepAVX2Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_sixstep_avx2", Priority: 35,
+	},
+	{
+		Target: "avx2", Prec: 64, Size: 32768,
+		Forward:   "forwardDIT32768Radix4Then2AVX2Complex64",
+		Inverse:   "inverseDIT32768Radix4Then2AVX2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_radix4_then2_avx2", Priority: 25,
 	},
 	// AVX-512 codelets: the generic AVX-512 radix-2 DIT kernel, registered only
 	// at the sizes where it beats the best AVX2 codelet (codelet selection
@@ -830,7 +851,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size256Radix16Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size256Radix16Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix16_avx2", Priority: 15,
+		Signature: "dit256_radix16_avx2", Priority: 45,
 		TwiddleSize: "twiddleSize256Radix16AVX2", PrepareTwiddle: "prepareTwiddle256Radix16AVX2",
 	},
 	{
@@ -852,7 +873,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size1024Radix32x32Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size1024Radix32x32Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix32x32_avx2", Priority: 30,
+		Signature: "dit1024_radix32x32_avx2", Priority: -1,
 		TwiddleSize: "twiddleSize1024Radix32x32AVX2", PrepareTwiddle: "prepareTwiddle1024Radix32x32AVX2",
 	},
 	{
@@ -882,6 +903,13 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "amd64.InverseAVX2Size16384Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_radix4_avx2", Priority: 30,
+	},
+	{
+		Target: "avx2", Prec: 128, Size: 32768,
+		Forward:   "forwardDIT32768Radix4Then2AVX2Complex128",
+		Inverse:   "inverseDIT32768Radix4Then2AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_radix4_then2_avx2", Priority: 25,
 	},
 	{
 		Target: "sse2", Prec: 64, Size: 4,

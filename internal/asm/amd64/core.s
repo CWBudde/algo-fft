@@ -114,6 +114,9 @@ GLOBL ·eightThousandOneHundredThirtySecond32(SB), RODATA|NOPTR, $4
 DATA ·oneSixteenThousandThreeHundredEightyFourth32+0(SB)/4, $0x38800000 // 1/16384
 GLOBL ·oneSixteenThousandThreeHundredEightyFourth32(SB), RODATA|NOPTR, $4
 
+DATA ·oneThirtyTwoThousandSevenHundredSixtyEighth32+0(SB)/4, $0x38000000 // 0.000030517578125f = 1/32768
+GLOBL ·oneThirtyTwoThousandSevenHundredSixtyEighth32(SB), RODATA|NOPTR, $4
+
 DATA ·sixteenth64+0(SB)/8, $0x3fb0000000000000    // 0.0625 = 1/16
 GLOBL ·sixteenth64(SB), RODATA|NOPTR, $8
 
@@ -146,6 +149,9 @@ GLOBL ·eightThousandOneHundredThirtySecond64(SB), RODATA|NOPTR, $8
 
 DATA ·oneSixteenThousandThreeHundredEightyFourth64+0(SB)/8, $0x3f10000000000000 // 0.00006103515625 = 1/16384
 GLOBL ·oneSixteenThousandThreeHundredEightyFourth64(SB), RODATA|NOPTR, $8
+
+DATA ·oneThirtyTwoThousandSevenHundredSixtyEighth64+0(SB)/8, $0x3f00000000000000 // 0.000030517578125 = 1/32768
+GLOBL ·oneThirtyTwoThousandSevenHundredSixtyEighth64(SB), RODATA|NOPTR, $8
 
 // ===========================================================================
 // CONSTANTS: Sign bit masks for complex number negation

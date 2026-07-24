@@ -117,6 +117,14 @@ path = '^internal/(fft/(kernels|asm|mixedradix|butterfly)|transform/)'
 linters = ['cyclop', 'funlen', 'gocognit', 'goconst', 'lll', 'maintidx', 'forcetypeassert', 'nonamedreturns']
 path = '.*_test\.go'
 
+# SA5011 false-positives in tests: staticcheck (via golangci-lint) fails to
+# treat t.Fatal/t.Skip/b.Fatalf nil-guards as terminating, so the guarded
+# dereference after `if x == nil { t.Fatal(...) }` is flagged. Test-only.
+[[linters.exclusions.rules]]
+linters = ['staticcheck']
+path = '.*_test\.go'
+text = '^SA5011'
+
 # CLI tools print to stdout by design; their spec/config tables read best as
 # one row per line regardless of length, and repeat literals ("KernelDIT",
 # "avx2", …) by design — a constant per table cell would obscure the data.

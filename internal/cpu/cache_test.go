@@ -64,7 +64,7 @@ func TestParseSysfsCacheSize(t *testing.T) {
 		{"48K\n", 48 * 1024},
 		{"1024K", 1024 * 1024},
 		{"8M", 8 * 1024 * 1024},
-		{"2G", 2 * 1024 * 1024 * 1024},
+		{"1G", 1024 * 1024 * 1024}, // largest G value that still fits a 32-bit int (386 build)
 		{"65536", 65536},
 		{"", 0},
 		{"garbage", 0},

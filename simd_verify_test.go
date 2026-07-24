@@ -101,7 +101,11 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	}
 
 	if n >= 256 {
-		threshold = 5e-6
+		// The AVX2 side runs the radix-2 codelet here (8 stages vs the
+		// generic radix-16's 2), so rounding accumulates on both sides of
+		// the comparison; each codelet is gated against the naive DFT in
+		// internal/kernels with its own tolerance.
+		threshold = 1e-5
 	}
 
 	if n >= 1024 {

@@ -87,12 +87,12 @@ func TestCodeletRegistrySizes(t *testing.T) {
 	sizes := registry.Registry64.Sizes()
 	has384 := slices.Contains(sizes, 384)
 
-	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true, 512: true, 1024: true, 2048: true, 4096: true, 8192: true, 16384: true}
-	expectedCount := 13
+	expected := map[int]bool{4: true, 8: true, 16: true, 32: true, 64: true, 128: true, 256: true, 512: true, 1024: true, 2048: true, 4096: true, 8192: true, 16384: true, 32768: true}
+	expectedCount := 14
 
 	if has384 {
 		expected[384] = true
-		expectedCount = 14
+		expectedCount++
 	}
 
 	if len(sizes) != expectedCount {

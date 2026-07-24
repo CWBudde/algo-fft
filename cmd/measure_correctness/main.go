@@ -36,7 +36,7 @@ func measureMaxError32(n, trials int) float64 {
 	maxRelErr := 0.0
 	rng := rand.New(rand.NewSource(42))
 
-	for trial := 0; trial < trials; trial++ {
+	for range trials {
 		// Generate random input
 		src := make([]complex64, n)
 		for i := range src {
@@ -78,7 +78,7 @@ func measureMaxError64(n, trials int) float64 {
 	maxRelErr := 0.0
 	rng := rand.New(rand.NewSource(42))
 
-	for trial := 0; trial < trials; trial++ {
+	for range trials {
 		// Generate random input
 		src := make([]complex128, n)
 		for i := range src {

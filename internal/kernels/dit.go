@@ -6,18 +6,19 @@ import mathpkg "github.com/cwbudde/algo-fft/internal/math"
 //
 //nolint:gochecknoglobals
 var (
-	bitrevSize16Radix2        = mathpkg.ComputeBitReversalIndices(16)
-	bitrevSize64Radix4        = mathpkg.ComputeBitReversalIndicesRadix4(64)
-	bitrevSize256Radix2       = mathpkg.ComputeBitReversalIndices(256)
-	bitrevSize256Radix4       = mathpkg.ComputeBitReversalIndicesRadix4(256)
-	bitrevSize512Radix2       = mathpkg.ComputeBitReversalIndices(512)
-	bitrevSize512Radix8       = mathpkg.ComputeBitReversalIndicesRadix8(512)
-	bitrevSize512Radix4Then2  = mathpkg.ComputeBitReversalIndicesRadix4Then2(512)
-	bitrevSize1024Radix4      = mathpkg.ComputeBitReversalIndicesRadix4(1024)
-	bitrevSize2048Radix4Then2 = mathpkg.ComputeBitReversalIndicesRadix4Then2(2048)
-	bitrevSize4096Radix4      = mathpkg.ComputeBitReversalIndicesRadix4(4096)
-	bitrevSize8192Radix4Then2 = mathpkg.ComputeBitReversalIndicesRadix4Then2(8192)
-	bitrevSize16384Radix4     = mathpkg.ComputeBitReversalIndicesRadix4(16384)
+	bitrevSize16Radix2         = mathpkg.ComputeBitReversalIndices(16)
+	bitrevSize64Radix4         = mathpkg.ComputeBitReversalIndicesRadix4(64)
+	bitrevSize256Radix2        = mathpkg.ComputeBitReversalIndices(256)
+	bitrevSize256Radix4        = mathpkg.ComputeBitReversalIndicesRadix4(256)
+	bitrevSize512Radix2        = mathpkg.ComputeBitReversalIndices(512)
+	bitrevSize512Radix8        = mathpkg.ComputeBitReversalIndicesRadix8(512)
+	bitrevSize512Radix4Then2   = mathpkg.ComputeBitReversalIndicesRadix4Then2(512)
+	bitrevSize1024Radix4       = mathpkg.ComputeBitReversalIndicesRadix4(1024)
+	bitrevSize2048Radix4Then2  = mathpkg.ComputeBitReversalIndicesRadix4Then2(2048)
+	bitrevSize4096Radix4       = mathpkg.ComputeBitReversalIndicesRadix4(4096)
+	bitrevSize8192Radix4Then2  = mathpkg.ComputeBitReversalIndicesRadix4Then2(8192)
+	bitrevSize16384Radix4      = mathpkg.ComputeBitReversalIndicesRadix4(16384)
+	bitrevSize32768Radix4Then2 = mathpkg.ComputeBitReversalIndicesRadix4Then2(32768)
 )
 
 func forwardDITComplex64(dst, src, twiddle, scratch []complex64) bool {

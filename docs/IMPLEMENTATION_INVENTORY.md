@@ -50,6 +50,7 @@ pure-Go fallback.
 | 16384 | Radix-2         |  -  |  -   |  -   |  -   |    ✓    |  -   |
 | 16384 | Radix-4         |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 | 16384 | Six-step        |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
+| 32768 | Mixed-2/4       |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 
 ✓ = registered codelet (forward + inverse); - = not registered.
 
@@ -91,6 +92,7 @@ pure-Go fallback.
 |  8192 | Six-step 64×128 |  ✓  |  -   |  -   |  -   |    -    |  -   |
 | 16384 | Radix-4         |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 | 16384 | Six-step        |  ✓  |  -   |  -   |  -   |    -    |  -   |
+| 32768 | Mixed-2/4       |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 
 ✓ = registered codelet (forward + inverse); - = not registered.
 
@@ -98,13 +100,13 @@ pure-Go fallback.
 
 | Target  | Build constraint   | complex64 | complex128 | Total |
 | ------- | ------------------ | --------: | ---------: | ----: |
-| generic | `(all builds)`     |        31 |         31 |    62 |
-| avx2    | `amd64 && !purego` |        32 |         22 |    54 |
+| generic | `(all builds)`     |        32 |         32 |    64 |
+| avx2    | `amd64 && !purego` |        33 |         23 |    56 |
 | avx512  | `amd64 && !purego` |         4 |          0 |     4 |
 | sse2    | `amd64 && !purego` |        19 |         20 |    39 |
 | neon    | `arm64 && !purego` |        15 |         15 |    30 |
 
-Total registered codelets: **189**.
+Total registered codelets: **193**.
 
 ## Beyond the Codelet Registry
 

@@ -174,7 +174,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit256_radix2_avx2",
-		Priority:   15,
+		Priority:   135,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -207,7 +207,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit512_radix2_avx2",
-		Priority:   10,
+		Priority:   35,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -284,7 +284,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:      fftypes.KernelDIT,
 		SIMDLevel:      fftypes.SIMDAVX2,
 		Signature:      "dit8192_radix4_then2_params_avx2",
-		Priority:       30,
+		Priority:       40,
 		KernelType:     fftypes.KernelTypeDIT,
 		TwiddleSize:    twiddleSize8192Radix4Then2AVX2,
 		PrepareTwiddle: prepareTwiddle8192Radix4Then2AVX2,
@@ -308,7 +308,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit1024_radix4_avx2",
-		Priority:   25,
+		Priority:   35,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -330,7 +330,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit4096_radix4_avx2",
-		Priority:   25,
+		Priority:   40,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -352,7 +352,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit16384_radix4_avx2",
-		Priority:   25,
+		Priority:   40,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -364,6 +364,17 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit16384_sixstep_avx2",
 		Priority:   35,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       32768,
+		Forward:    forwardDIT32768Radix4Then2AVX2Complex64,
+		Inverse:    inverseDIT32768Radix4Then2AVX2Complex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDAVX2,
+		Signature:  "dit32768_radix4_then2_avx2",
+		Priority:   25,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 }
@@ -531,7 +542,7 @@ func registerAVX2DITCodelets128() {
 		Algorithm:      fftypes.KernelDIT,
 		SIMDLevel:      fftypes.SIMDAVX2,
 		Signature:      "dit256_radix16_avx2",
-		Priority:       15,
+		Priority:       45,
 		KernelType:     fftypes.KernelTypeDIT,
 		TwiddleSize:    twiddleSize256Radix16AVX2,
 		PrepareTwiddle: prepareTwiddle256Radix16AVX2,
@@ -566,7 +577,7 @@ func registerAVX2DITCodelets128() {
 		Algorithm:      fftypes.KernelDIT,
 		SIMDLevel:      fftypes.SIMDAVX2,
 		Signature:      "dit1024_radix32x32_avx2",
-		Priority:       30,
+		Priority:       -1,
 		KernelType:     fftypes.KernelTypeDIT,
 		TwiddleSize:    twiddleSize1024Radix32x32AVX2,
 		PrepareTwiddle: prepareTwiddle1024Radix32x32AVX2,
@@ -613,6 +624,17 @@ func registerAVX2DITCodelets128() {
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit16384_radix4_avx2",
 		Priority:   30,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       32768,
+		Forward:    forwardDIT32768Radix4Then2AVX2Complex128,
+		Inverse:    inverseDIT32768Radix4Then2AVX2Complex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDAVX2,
+		Signature:  "dit32768_radix4_then2_avx2",
+		Priority:   25,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 }

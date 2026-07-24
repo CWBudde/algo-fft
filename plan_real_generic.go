@@ -291,7 +291,8 @@ func (p *PlanReal[F, C]) Inverse(dst []F, src []C) error {
 	switch any(zero).(type) {
 	case complex64:
 		srcC64 := any(src).([]complex64)
-		if math.Abs(float64(imag(srcC64[0]))) > spectrumImagTol32 || math.Abs(float64(imag(srcC64[p.half]))) > spectrumImagTol32 {
+		if math.Abs(float64(imag(srcC64[0]))) > spectrumImagTol32 ||
+			math.Abs(float64(imag(srcC64[p.half]))) > spectrumImagTol32 {
 			return ErrInvalidSpectrum
 		}
 	case complex128:

@@ -203,7 +203,10 @@ func TestRecursiveFFTLinearity(t *testing.T) {
 	recursiveForward(actual, combined, strategy, twiddle, scratch, registry.Registry64, features)
 
 	// Should match
-	err := compareComplexSlicesRel(actual, expected, 1e-1, 1e-7)
+	// relTol 1e-6 is ~8 float32 ULPs: the two sides run the same decomposition
+	// but rounding does not cancel exactly, and the margin depends on which
+	// leaf codelets the registry selects.
+	err := compareComplexSlicesRel(actual, expected, 1e-1, 1e-6)
 	if err != nil {
 		maxDiff, maxIndex := maxDiffComplex64(actual, expected)
 		rel := float32(0)

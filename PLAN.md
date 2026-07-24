@@ -592,6 +592,43 @@ references are to the current tree.
       the generic radix-4/Stockham kernels, and the non-codelet AVX2 dispatch
       sites (`complex_mul_amd64.go`, `kernels_amd64_asm.go`) still need their
       pass.
+- [x] **Codelet priority retune (measured).** _(2026-07, i7-1255U)_ New
+      `BenchmarkCodeletCandidates64/128` (internal/kernels) times every
+      registered codelet per size, exposing systematic mis-selection: the
+      priority-favored six-step / radix-32×32 / radix-16 / radix-8 codelets
+      lose to the plain radix-4 family at every size where both exist, in
+      both the AVX2 and generic tiers. Flipped priorities in
+      `cmd/gencodelets/specs.go` (AVX2 c64: 256 radix16→radix2 −26%,
+      512 radix8→radix2 −26%, 1024 radix32x32→radix4 −52%,
+      4096 sixstep→radix4 −26%, 8192 sixstep→radix4_then2_params −55%,
+      16384 sixstep→radix4 −32%; AVX2 c128: 256 radix4→radix16 −8/−24%;
+      generic both precisions: radix4/radix4_then2 over sixstep/radix32x32
+      at 1024/4096/8192/16384). The c128 1024 radix-32×32 AVX2 codelet is
+      disabled (priority −1): its inverse ran 2× slower (9.3 µs) than the
+      SSE2 radix-4 (5.1 µs) that now serves, while its forward was within
+      4%. End-to-end (vs FFTW bench harness): c64 forward 1024 −52%,
+      8192 −57%, 16384 −35%; c128 inverse 1024 −49%, 256 −30%. Six-step
+      codelets stay registered for wisdom/measure to pick where they win.
+- [x] **Size-32768 codelets (both precisions, generic + AVX2).** _(2026-07,
+      i7-1255U)_ 32768 = 2·4^7 had no codelets at all — plans fell back to
+      generic Stockham, which for complex128 is scalar Go on amd64
+      (no c128 Stockham asm): 618 µs forward vs FFTW's 123 µs, a 5× cliff.
+      New radix-4-then-2 codelets (7 radix-4 stages + radix-2 combine):
+      generic Go `dit_32768_radix4_then2.go` ping-pongs between scratch and
+      dst instead of per-stage stack arrays (which would exceed the 128 KiB
+      stack-alloc limit; src is fully consumed by stage 1's bit-reversed
+      loads, so dst is safe from stage 2 even in-place), c128 twin
+      generated. AVX2 `avx2_f{32,64}_size32768_radix4_then2.s` follow the
+      8192 loop-based pattern but take the digit-reversal table as a
+      `bitrev []int` argument (an embedded DATA table would add 256 KiB to
+      the binary) via thin wrappers binding internal/kernels' shared table.
+      Measured end-to-end at 32768: c128 618→237 µs fwd (2.6×),
+      601→257 µs inv; c64 225→168 µs fwd (−26%), 221→170 µs inv (the c64
+      baseline was the generic AVX2 Stockham asm). Validated per-direction
+      vs the naive reference DFT (generic) and vs the generic codelet
+      (AVX2), plus round-trip and in-place aliasing tests. Follow-ups:
+      SSE3/SSE2 tier for 16384/32768 (SSE tier currently stops at 8192),
+      and 65536+ remain Stockham/split-radix territory.
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and
