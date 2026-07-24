@@ -683,6 +683,25 @@ references are to the current tree.
       radix-4 SSE3 at 12 as intended; wisdom-selectable alternative). All
       reuse existing bitrev tables (`bitrev1024_r4`, `bitrev128_mixed`,
       `bitrev256_r2`) and core.s scale constants — no new data symbols.
+- [x] **Batch 2 subagent codelets: NEON ladder extension + AVX2 c128 512
+      radix-8.** _(2026-07, subagent delegation round 2)_ Three NEON kernels
+      close the biggest arm64 gap (the size-specific ladder stopped at 256;
+      512/1024 ran the priority-1 generic radix-2 fallback):
+      `neon_f32_size1024_radix4.s`, `neon_f64_size1024_radix4.s` (both
+      priority 28), and `neon_f64_size512_mixed24.s` (priority 24). Each
+      embeds its own file-scoped bitrev table (NEON files use `<>` static
+      symbols — not shareable across files); the c64 1024 table was verified
+      byte-for-byte against amd64's `bitrev1024_r4`. Correctness validated
+      under QEMU (roundtrip, in-place, reference DFT; full kernels + asm/arm64 + root packages); priorities are ladder-mirrored, NOT tuned — QEMU
+      timing is meaningless, so real-arm64 benchmarking remains open. On the
+      amd64 side, `avx2_f64_size512_radix8.s` (priority 30) beats the previous
+      best c128-512 codelet `dit512_radix4_then2_avx2` by 21–30% (idle-machine
+      fwd/inv 1719/1860 ns vs 2164/2639 ns) using the byte-pointer addressing + FMA idiom lessons from the 1024 radix-4 kernel; it now auto-selects on
+      AVX2 hosts (plan_api_test.go updated accordingly).
+- [ ] **NEON priority tuning on real arm64 hardware** — the four ladder
+      priorities added above (and the 512/1024 generic-fallback relegation)
+      were mirrored from smaller sizes; needs benchmarking on Apple
+      Silicon/Graviton.
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and

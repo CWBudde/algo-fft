@@ -238,11 +238,12 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 	//     radix-4-then-2 override.
 	//   * other amd64 builds (SSE2-only or purego) and generic builds: the
 	//     radix-4-then-2 codelet (its SSE2 override or the generic scalar one).
-	//   * arm64 SIMD builds: there is no NEON radix-4-then-2 codelet for size
-	//     512 yet (NEON 512+ coverage is deferred; see PLAN.md P2.3), so the
-	//     size-512 generic NEON codelet ("dit512_generic_neon") wins because
-	//     codelet selection prefers a higher SIMD level over a higher-priority
-	//     scalar codelet.
+	//   * arm64 SIMD builds: the NEON radix-4-then-2 codelet
+	//     ("dit512_radix4_then2_neon") wins via the shared prefix check; the
+	//     size-512 generic NEON codelet ("dit512_generic_neon") is also
+	//     accepted for older builds where the size-specific kernel is absent,
+	//     because codelet selection prefers a higher SIMD level over a
+	//     higher-priority scalar codelet.
 	algo := plan.Algorithm()
 	ok := strings.HasPrefix(algo, "dit512_radix4_then2") ||
 		algo == "dit512_radix8_avx2"

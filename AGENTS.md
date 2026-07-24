@@ -258,20 +258,27 @@ Generic implementations are instantiated for both precisions, with type-specific
 
 ### Delegating Codelet Work to Subagents (Model Choice)
 
-Empirical results from delegating new asm codelets to subagents (2026-07, three
-parallel worktree agents, each verified against the reference-DFT registry tests):
+Empirical results from delegating new asm codelets to subagents (2026-07, two
+rounds of parallel worktree agents, each verified against the reference-DFT
+registry tests; round 2 covered NEON/arm64 under QEMU):
 
-- **Haiku** handled a near-mechanical template adaptation (same SIMD level and
-  algorithm, one stage removed — SSE3 c64 256 radix-2 from the 512 template) with
-  one self-fixed bug. Suitable only when an almost-identical template exists.
-- **Sonnet** cleanly synthesized a new precision×size combination from two
-  templates (AVX2 c128 128 radix-4-then-2), zero debug iterations, and correctly
-  resolved a conflict between the brief and the actual template structure. Good
-  default for straightforward codelet ports.
-- **Opus** was needed where a performance bar had to be met, not just correctness:
-  its template-faithful AVX2 c128 1024 radix-4 lost to SSE2, and it redesigned the
-  addressing/butterfly form to win. Use Opus (or the main session) whenever the
-  task involves tuning, novel idioms, or beating an existing kernel.
+- **Haiku** handled near-mechanical template adaptations (SSE3 c64 256 radix-2
+  from the 512 template — one self-fixed bug; NEON c128 512 mixed-2/4 from the
+  128 template — zero iterations once the brief explicitly warned to translate
+  every size-derived constant). Suitable when an almost-identical template
+  exists; spell out the known failure mode in the brief.
+- **Sonnet** cleanly synthesized new precision×size combinations from templates
+  (AVX2 c128 128 radix-4-then-2; NEON c64/c128 1024 radix-4 including generating
+  and cross-checking its own bitrev tables), zero asm debug iterations across
+  three tasks, and exercised good judgment on brief-vs-reality conflicts and a
+  justified test-tolerance widening. Good default for codelet ports, including
+  cross-arch (arm64/QEMU) work.
+- **Opus** is the choice when a performance bar must be met, not just
+  correctness: it redesigned the addressing/butterfly form when a
+  template-faithful AVX2 c128 1024 radix-4 lost to SSE2, and — given that
+  lesson in the brief — wrote an AVX2 c128 512 radix-8 that beat the prior
+  best by 21–30% with only a single typo-fix iteration. Use Opus (or the main
+  session) for tuning, novel idioms, or beating an existing kernel.
 
 Process notes that mattered more than model tier:
 
