@@ -629,6 +629,24 @@ references are to the current tree.
       (AVX2), plus round-trip and in-place aliasing tests. Follow-ups:
       SSE3/SSE2 tier for 16384/32768 (SSE tier currently stops at 8192),
       and 65536+ remain Stockham/split-radix territory.
+- [x] **AVX2 complex128 Stockham asm.** _(2026-07, i7-1255U)_ Every
+      Stockham-resolved complex128 size (>1024, non-square — 65536, 131072,
+      524288, 2^21, …; codelets cover ≤32768) previously ran the scalar Go
+      Stockham kernel on amd64. New
+      `Forward/InverseAVX2StockhamComplex128Asm`
+      (`internal/asm/amd64/avx2_f64_stockham.s`) mirror the f32 Stockham
+      structure — ping-pong buffers, contiguous fast path for stage 1,
+      running-offset strided twiddle gather, scalar tail — with two
+      complex128 per YMM and the f64 VMOVDDUP/VPERMILPD/VFMADDSUB231PD
+      (VFMSUBADD for inverse) multiply idiom; 4-slice signature, no bitrev
+      argument. Wired in `internal/fft/asm_amd64.go` with Go fallback for
+      n < 16. Kernel-level (asm vs scalar Go, fwd/inv): 2048 −50/−55%,
+      16384 −50/−45%, 65536 −38/−33%, 131072 −24/−32%, 524288 −29/−12%,
+      2^21 −16/−27% (large sizes go memory-bound). End-to-end vs FFTW:
+      65536 1.44 ms→1.02 ms (gap 4.4×→3.1×), 524288 gap now 2.0×.
+      Noticed in the same run: complex64 131072 end-to-end (3.77 ms) is
+      slower than complex128 (2.46 ms) — the c64 large-size path deserves
+      a selection audit (follow-up).
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and

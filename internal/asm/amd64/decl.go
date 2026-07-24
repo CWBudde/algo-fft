@@ -72,6 +72,12 @@ func ForwardAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64, bit
 //go:noescape
 func InverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
 
+//go:noescape
+func ForwardAVX2StockhamComplex128Asm(dst, src, twiddle, scratch []complex128) bool
+
+//go:noescape
+func InverseAVX2StockhamComplex128Asm(dst, src, twiddle, scratch []complex128) bool
+
 // ============================================================================
 // Size-Specific FFT Kernels (Complex64)
 // ============================================================================

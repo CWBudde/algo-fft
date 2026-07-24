@@ -644,6 +644,10 @@ func forwardAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128) bool
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
+	if kasm.ForwardAVX2StockhamComplex128Asm(dst, src, twiddle, scratch) {
+		return true
+	}
+	// The asm kernel declines n < 16; keep those on the Go Stockham path.
 	return kernels.ForwardStockhamComplex128(dst, src, twiddle, scratch)
 }
 
@@ -651,6 +655,10 @@ func inverseAVX2StockhamComplex128(dst, src, twiddle, scratch []complex128) bool
 	if !m.IsPowerOf2(len(src)) {
 		return false
 	}
+	if kasm.InverseAVX2StockhamComplex128Asm(dst, src, twiddle, scratch) {
+		return true
+	}
+	// The asm kernel declines n < 16; keep those on the Go Stockham path.
 	return kernels.InverseStockhamComplex128(dst, src, twiddle, scratch)
 }
 

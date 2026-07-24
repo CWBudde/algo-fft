@@ -28,7 +28,8 @@ import (
 //	65536   0.91 ms   -             1.11 ms        (none)
 //	2^21    120 ms    -             166 ms         (none)
 //
-// complex128 (no AVX2 Stockham asm exists; Go Stockham shown):
+// complex128 (measured before the AVX2 complex128 Stockham asm landed; the
+// Go Stockham column is the scalar kernel it has since replaced):
 //
 //	size    AVX-512   AVX2 generic  Go Stockham
 //	1024    9.4 µs    12.4 µs       -

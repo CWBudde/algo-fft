@@ -785,3 +785,74 @@ func BenchmarkAVX2GenericRadix4MixedComplex128(b *testing.B) {
 		})
 	}
 }
+
+// =============================================================================
+// Stockham complex128 Benchmarks (AVX2 asm vs pure-Go)
+// =============================================================================
+
+var stockham128BenchSizes = []int{2048, 16384, 65536, 131072, 524288, 2097152}
+
+// BenchmarkAVX2StockhamForward128 benchmarks the AVX2 complex128 Stockham
+// forward kernel; the purego sub-benchmarks time the scalar Go kernel it
+// replaced for direct comparison.
+func BenchmarkAVX2StockhamForward128(b *testing.B) {
+	if _, _, avx2Available := getAVX2Kernels128(); !avx2Available {
+		b.Skip("AVX2 not available on this system")
+	}
+
+	for _, n := range stockham128BenchSizes {
+		src := randomStockham128Input(n, 0xDEAD0000+uint64(n))
+		twiddle, scratch := prepareFFTData[complex128](n)
+		dst := make([]complex128, n)
+
+		b.Run(fmt.Sprintf("N=%d/avx2", n), func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 16))
+
+			for range b.N {
+				forwardAVX2StockhamComplex128(dst, src, twiddle, scratch)
+			}
+		})
+
+		b.Run(fmt.Sprintf("N=%d/purego", n), func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 16))
+
+			for range b.N {
+				kernels.ForwardStockhamComplex128(dst, src, twiddle, scratch)
+			}
+		})
+	}
+}
+
+// BenchmarkAVX2StockhamInverse128 is the inverse counterpart of
+// BenchmarkAVX2StockhamForward128.
+func BenchmarkAVX2StockhamInverse128(b *testing.B) {
+	if _, _, avx2Available := getAVX2Kernels128(); !avx2Available {
+		b.Skip("AVX2 not available on this system")
+	}
+
+	for _, n := range stockham128BenchSizes {
+		src := randomStockham128Input(n, 0xBEEF0000+uint64(n))
+		twiddle, scratch := prepareFFTData[complex128](n)
+		dst := make([]complex128, n)
+
+		b.Run(fmt.Sprintf("N=%d/avx2", n), func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 16))
+
+			for range b.N {
+				inverseAVX2StockhamComplex128(dst, src, twiddle, scratch)
+			}
+		})
+
+		b.Run(fmt.Sprintf("N=%d/purego", n), func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(n * 16))
+
+			for range b.N {
+				kernels.InverseStockhamComplex128(dst, src, twiddle, scratch)
+			}
+		})
+	}
+}
