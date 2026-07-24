@@ -717,12 +717,31 @@ references are to the current tree.
       split-radix at 2^18–2^22 (e.g. 3.1 vs 4.9 ms at 2^18, also in
       `BenchmarkSplitRadixVsIncumbents`), contradicting the recorded P4.1
       numbers.
-- [ ] **Twiddle-table bandwidth reduction.** The packed-twiddle tables are
-      per-plan precomputed; for large n they are a significant fraction of
-      the working set. Evaluate (a) sharing tables between forward/inverse
-      via conjugate-on-load (SIMD sign-flip is nearly free), and (b) the
-      quarter-table symmetry (store n/8 entries + swizzle). Only worth it
-      where measurements show the tables competing with data for cache.
+- [x] **Twiddle-table bandwidth reduction.** _(2026-07, i7-1255U)_ Survey
+      first: on SIMD builds the large-n strategies (Stockham, six-step/
+      eight-step, four-step) already share the single n-entry base table
+      between directions (kernels conjugate on load), and the per-size
+      codelet layouts are small (≤1128 elements) and cached process-wide —
+      no meaningful duplication there. The real duplication was the pure-Go
+      packed radix-4 Stockham route (purego/WASM builds): plans held
+      `packedForward` plus a fully conjugated `packedInverse` copy
+      (~n entries each). (a) landed: the radix-4 stages now conjugate
+      w1..w3 on load (the radix-2 stage already did),
+      `InverseStockhamPacked` takes the shared forward table, and
+      `ConjugatePackedTwiddles` is gone — per-plan packed-table memory
+      halved, and the change was free or better (new
+      `BenchmarkStockhamPacked` fwd/inv/round-trip at 4K/64K/1M, both
+      precisions: geomean −3.1%, inverse −2…−6%; zero-alloc preserved).
+      (b) quarter-table symmetry evaluated and declined for the scalar
+      path: a constant-twiddle upper-bound experiment at 64K/1M showed
+      removing _all_ table traffic wins ~20–24%, but an L1-resident
+      tiny-table variant with the identical load mix isolated the
+      cache-footprint share to only ~4% (64K) to ~8% (1M, noisy) — the
+      rest is load-instruction cost that a quarter-table keeps and adds
+      octant-decode ALU on top of, so scalar swizzling would be a net
+      loss. Revisit only inside SIMD kernels (sign-flip/shuffle is nearly
+      free there) if profiles ever show the base table competing with data
+      at very large n.
 - [ ] **SoA (split real/imag) layout exploration** (post-v1.0 API, from the
       Future list). Prototype internal SoA for one kernel family (e.g. the
       AVX-512 generic path, which currently spends shuffle uops

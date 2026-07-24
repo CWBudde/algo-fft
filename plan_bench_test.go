@@ -494,8 +494,8 @@ func twiddleLayoutSummary[T Complex](plan *Plan[T]) string {
 			parts = append(parts, fmt.Sprintf("codelet_inv=%d", len(ke.codeletTwiddleInverse)))
 		}
 
-		if ke.packedForward != nil {
-			parts = append(parts, packedSummary("packed4", ke.packedForward))
+		if ke.packed != nil {
+			parts = append(parts, packedSummary("packed4", ke.packed))
 		}
 	}
 

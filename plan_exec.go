@@ -62,12 +62,12 @@ type kernelExecutor[T Complex] struct {
 	forwardKernel kernels.Kernel[T]
 	inverseKernel kernels.Kernel[T]
 
-	// packedForward/packedInverse enable the pure-Go packed radix-4 Stockham
-	// route. They are non-nil only for Stockham plans on builds where
+	// packed enables the pure-Go packed radix-4 Stockham route; both
+	// directions share it — the inverse conjugates the twiddles on load. It
+	// is non-nil only for Stockham plans on builds where
 	// transform.StockhamPackedAvailable() reports true (SIMD builds use the
 	// codelet path instead; see internal/transform/stockham_packed_toggle_*.go).
-	packedForward *transform.PackedTwiddles[T]
-	packedInverse *transform.PackedTwiddles[T]
+	packed *transform.PackedTwiddles[T]
 }
 
 func (e *kernelExecutor[T]) forward(dst, src, scratch, _ []T) {
@@ -78,7 +78,7 @@ func (e *kernelExecutor[T]) forward(dst, src, scratch, _ []T) {
 		return
 	}
 
-	if e.packedForward != nil && transform.ForwardStockhamPacked(dst, src, e.twiddle, scratch, e.packedForward) {
+	if e.packed != nil && transform.ForwardStockhamPacked(dst, src, e.twiddle, scratch, e.packed) {
 		return
 	}
 
@@ -95,7 +95,7 @@ func (e *kernelExecutor[T]) inverse(dst, src, scratch, _ []T) {
 		return
 	}
 
-	if e.packedInverse != nil && transform.InverseStockhamPacked(dst, src, e.twiddle, scratch, e.packedInverse) {
+	if e.packed != nil && transform.InverseStockhamPacked(dst, src, e.twiddle, scratch, e.packed) {
 		return
 	}
 

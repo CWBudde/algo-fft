@@ -8,7 +8,6 @@ import (
 	"github.com/cwbudde/algo-fft/internal/fftypes"
 	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/planner"
-	"github.com/cwbudde/algo-fft/internal/transform"
 )
 
 // TestSelectKernels tests the generic kernel selection.
@@ -504,62 +503,6 @@ func TestHasCodelet(t *testing.T) {
 		// Actual availability depends on build configuration
 		t.Logf("n=%d: complex64=%v, complex128=%v", n, has64, has128)
 	}
-}
-
-// TestConjugatePackedTwiddles tests packed twiddle conjugation.
-func TestConjugatePackedTwiddles(t *testing.T) {
-	t.Parallel()
-
-	t.Run("complex64", func(t *testing.T) {
-		n := 16
-		twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
-		packed := transform.ComputePackedTwiddles[complex64](n, 4, twiddle)
-
-		if packed == nil {
-			t.Fatal("transform.ComputePackedTwiddles returned nil")
-		}
-
-		conjugated := transform.ConjugatePackedTwiddles(packed)
-
-		if conjugated == nil {
-			t.Fatal("transform.ConjugatePackedTwiddles returned nil")
-		}
-
-		// Verify conjugation
-		if len(conjugated.Values) != len(packed.Values) {
-			t.Fatalf("Length mismatch: got %d, want %d", len(conjugated.Values), len(packed.Values))
-		}
-
-		for i, v := range packed.Values {
-			expected := complex(real(v), -imag(v))
-			if conjugated.Values[i] != expected {
-				t.Errorf("index %d: got %v, want %v", i, conjugated.Values[i], expected)
-			}
-		}
-	})
-
-	t.Run("complex128", func(t *testing.T) {
-		n := 16
-		twiddle := mathpkg.ComputeTwiddleFactors[complex128](n)
-		packed := transform.ComputePackedTwiddles[complex128](n, 4, twiddle)
-
-		if packed == nil {
-			t.Fatal("transform.ComputePackedTwiddles returned nil")
-		}
-
-		conjugated := transform.ConjugatePackedTwiddles(packed)
-
-		if conjugated == nil {
-			t.Fatal("transform.ConjugatePackedTwiddles returned nil")
-		}
-
-		for i, v := range packed.Values {
-			expected := complex(real(v), -imag(v))
-			if conjugated.Values[i] != expected {
-				t.Errorf("index %d: got %v, want %v", i, conjugated.Values[i], expected)
-			}
-		}
-	})
 }
 
 // TestTransposeSquare tests the re-exported in-place transpose.

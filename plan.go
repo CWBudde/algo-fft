@@ -435,8 +435,7 @@ func newKernelExecutor[T Complex](
 		e.codeletTwiddleForwardBacking, e.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, twiddle, estimate)
 
 	if estimate.Strategy == fftypes.KernelStockham && transform.StockhamPackedAvailable() {
-		e.packedForward = transform.ComputePackedTwiddles[T](n, 4, twiddle)
-		e.packedInverse = transform.ConjugatePackedTwiddles(e.packedForward)
+		e.packed = transform.ComputePackedTwiddles[T](n, 4, twiddle)
 	}
 
 	return e

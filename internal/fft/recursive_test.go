@@ -186,12 +186,11 @@ func testStockhamPacked64(t *testing.T, n int) {
 		}
 	}
 
-	// Test inverse with conjugated packed twiddles
-	invPacked := transform.ConjugatePackedTwiddles(packed)
+	// Test inverse with the shared forward table (conjugated on load).
 	inv := make([]complex64, n)
 
 	scratch = make([]complex64, n)
-	if !transform.InverseStockhamPacked(inv, dst, twiddle, scratch, invPacked) {
+	if !transform.InverseStockhamPacked(inv, dst, twiddle, scratch, packed) {
 		t.Skip("transform.InverseStockhamPacked not implemented")
 		return
 	}
@@ -239,11 +238,10 @@ func testStockhamPacked128(t *testing.T, n int) {
 		}
 	}
 
-	invPacked := transform.ConjugatePackedTwiddles(packed)
 	inv := make([]complex128, n)
 
 	scratch = make([]complex128, n)
-	if !transform.InverseStockhamPacked(inv, dst, twiddle, scratch, invPacked) {
+	if !transform.InverseStockhamPacked(inv, dst, twiddle, scratch, packed) {
 		t.Skip("transform.InverseStockhamPacked not implemented")
 		return
 	}

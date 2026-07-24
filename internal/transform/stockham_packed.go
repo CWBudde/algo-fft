@@ -21,7 +21,9 @@ func ForwardStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *Pa
 }
 
 // InverseStockhamPacked executes a mixed-radix (radix-4 + optional radix-2) Stockham inverse FFT
-// using packed radix-4 twiddles when available.
+// using packed radix-4 twiddles when available. It takes the same forward
+// table as ForwardStockhamPacked and conjugates the twiddles on load, so both
+// directions share one table.
 func InverseStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T]) bool {
 	return stockhamPacked(dst, src, twiddle, scratch, packed, true)
 }
@@ -413,6 +415,12 @@ func stockhamRadix4StageComplex64(in, out, packed []complex64, n, m, stageOffset
 			w2 := packed[twOffset+1]
 			w3 := packed[twOffset+2]
 
+			if inverse {
+				w1 = complex(real(w1), -imag(w1))
+				w2 = complex(real(w2), -imag(w2))
+				w3 = complex(real(w3), -imag(w3))
+			}
+
 			a0 := inBlock[j]
 			a1 := inBlock[j+span]
 			a2 := inBlock[j+2*span]
@@ -469,6 +477,12 @@ func stockhamRadix4StageComplex128(in, out, packed []complex128, n, m, stageOffs
 			w1 := packed[twOffset]
 			w2 := packed[twOffset+1]
 			w3 := packed[twOffset+2]
+
+			if inverse {
+				w1 = complex(real(w1), -imag(w1))
+				w2 = complex(real(w2), -imag(w2))
+				w3 = complex(real(w3), -imag(w3))
+			}
 
 			a0 := inBlock[j]
 			a1 := inBlock[j+span]

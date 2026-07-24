@@ -43,7 +43,7 @@ func TestStockhamPackedInverseMatchesReferenceComplex64(t *testing.T) {
 		src := randomComplex64(n, 0xBADC0DE+uint64(n))
 		twiddle := ComputeTwiddleFactors[complex64](n)
 
-		packed := ConjugatePackedTwiddles(ComputePackedTwiddles[complex64](n, 4, twiddle))
+		packed := ComputePackedTwiddles[complex64](n, 4, twiddle)
 		if packed == nil {
 			t.Fatalf("ComputePackedTwiddles(%d) returned nil", n)
 		}
@@ -93,7 +93,7 @@ func TestStockhamPackedInverseMatchesReferenceComplex128(t *testing.T) {
 		src := randomComplex128(n, 0xDEADBEEF+uint64(n))
 		twiddle := ComputeTwiddleFactors[complex128](n)
 
-		packed := ConjugatePackedTwiddles(ComputePackedTwiddles[complex128](n, 4, twiddle))
+		packed := ComputePackedTwiddles[complex128](n, 4, twiddle)
 		if packed == nil {
 			t.Fatalf("ComputePackedTwiddles(%d) returned nil", n)
 		}
@@ -193,9 +193,7 @@ func TestStockhamPackedToggleGatesPublicAPI(t *testing.T) {
 		t.Errorf("ForwardStockhamPacked handled=%v, want %v (toggle)", got, StockhamPackedAvailable())
 	}
 
-	inv := ConjugatePackedTwiddles(packed)
-
-	got = InverseStockhamPacked(dst, src, twiddle, scratch, inv)
+	got = InverseStockhamPacked(dst, src, twiddle, scratch, packed)
 	if got != StockhamPackedAvailable() {
 		t.Errorf("InverseStockhamPacked handled=%v, want %v (toggle)", got, StockhamPackedAvailable())
 	}
