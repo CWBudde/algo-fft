@@ -410,7 +410,7 @@ package (38k lines).
       is the concurrent-use API.)_
 - [x] Inline magic epsilons `1e-4`/`1e-12` in real-inverse spectrum
       validation (plan*real_generic.go:342-353) → named, documented
-      constants. *(Done 2026-07: `spectrumImagTol32`/`spectrumImagTol64` in
+      constants.*(Done 2026-07: `spectrumImagTol32`/`spectrumImagTol64` in
       `plan_real_generic.go`, used by both the even and odd inverse paths.)\_
 
 **Explicitly kept as-is** (reviewed, deliberate): the benchmark-cited
@@ -632,9 +632,14 @@ references are to the current tree.
       2026-07: size-2048 radix-4-then-2 kernels for both precisions
       (`sse3_f32_size2048_radix4_then2.s`, `sse2_f64_size2048_radix4_then2.s`,
       registered as `dit2048_radix4_then2_sse3/sse2`), complex64 −46/−49%
-      (1.8–2.0×), complex128 −12/−26%. Remaining: 4096 (generic SSE3 asm
-      67µs complex64, Go codelet ~44µs complex128 — likely a similar win)
-      and re-check 256 complex64 (SSE3 has only a radix-4 variant there).
+      (1.8–2.0×), complex128 −12/−26%. Second tranche landed 2026-07:
+      size-4096 pure radix-4 kernels for both precisions
+      (`sse3_f32_size4096_radix4.s`, `sse2_f64_size4096_radix4.s`, registered
+      as `dit4096_radix4_sse3/sse2`, reusing the AVX2 `bitrev4096_r4` table);
+      vs the generic Go six-step codelet (the actual SSE-only path,
+      ~79/86µs fwd/inv both precisions) complex64 49.9/53.2µs (1.59/1.64×)
+      and complex128 52.3/60.3µs (1.52/1.41×). Remaining: re-check 256
+      complex64 (SSE3 has only a radix-4 variant there).
 
 ### P4.3 Memory & cache
 

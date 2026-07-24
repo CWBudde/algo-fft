@@ -251,88 +251,48 @@ func sse3SizeSpecificOrGenericDITComplex64(strategy fftypes.KernelStrategy) kern
 			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
 		}
 
-		switch n {
-		case 4:
-			if forwardSSE3Size4Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 8:
-			if forwardSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardSSE3Size8Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 16:
-			if forwardSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 32:
-			if forwardSSE3Size32Radix32Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardSSE3Size32Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardSSE3Size32Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 64:
-			if forwardSSE3Size64Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardSSE3Size64Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 128:
-			if forwardSSE3Size128Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardSSE3Size128Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 256:
-			if forwardSSE3Size256Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 512:
-			if forwardSSE3Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 1024:
-			if forwardSSE3Size1024Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 2048:
-			if forwardSSE3Size2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		default:
-			return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
+		if sse3TrySizeSpecificForwardComplex64(n, dst, src, twiddle, scratch) {
+			return true
 		}
+
+		return forwardSSE3Complex64Asm(dst, src, twiddle, scratch)
+	}
+}
+
+// sse3TrySizeSpecificForwardComplex64 tries the tuned SSE3 forward kernels
+// for n, returning false if no size-specific kernel handled the transform.
+func sse3TrySizeSpecificForwardComplex64(n int, dst, src, twiddle, scratch []complex64) bool {
+	switch n {
+	case 4:
+		return forwardSSE3Size4Radix4Complex64Asm(dst, src, twiddle, scratch)
+	case 8:
+		return forwardSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch) ||
+			forwardSSE3Size8Radix4Complex64Asm(dst, src, twiddle, scratch)
+	case 16:
+		return forwardSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
+	case 32:
+		return forwardSSE3Size32Radix32Complex64Asm(dst, src, twiddle, scratch) ||
+			forwardSSE3Size32Radix4Then2Complex64Asm(dst, src, twiddle, scratch) ||
+			forwardSSE3Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
+	case 64:
+		return forwardSSE3Size64Radix4Complex64Asm(dst, src, twiddle, scratch) ||
+			forwardSSE3Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
+	case 128:
+		return forwardSSE3Size128Radix4Then2Complex64Asm(dst, src, twiddle, scratch) ||
+			forwardSSE3Size128Radix2Complex64Asm(dst, src, twiddle, scratch)
+	case 256:
+		return forwardSSE3Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
+	case 512:
+		return forwardSSE3Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch) ||
+			forwardSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
+	case 1024:
+		return forwardSSE3Size1024Radix4Complex64Asm(dst, src, twiddle, scratch)
+	case 2048:
+		return forwardSSE3Size2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
+	case 4096:
+		return forwardSSE3Size4096Radix4Complex64Asm(dst, src, twiddle, scratch)
+	default:
+		return false
 	}
 }
 
@@ -348,88 +308,48 @@ func sse3SizeSpecificOrGenericDITInverseComplex64(strategy fftypes.KernelStrateg
 			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
 		}
 
-		switch n {
-		case 4:
-			if inverseSSE3Size4Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 8:
-			if inverseSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseSSE3Size8Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 16:
-			if inverseSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 32:
-			if inverseSSE3Size32Radix32Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseSSE3Size32Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseSSE3Size32Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 64:
-			if inverseSSE3Size64Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseSSE3Size64Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 128:
-			if inverseSSE3Size128Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseSSE3Size128Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 256:
-			if inverseSSE3Size256Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 512:
-			if inverseSSE3Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 1024:
-			if inverseSSE3Size1024Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		case 2048:
-			if inverseSSE3Size2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
-
-		default:
-			return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
+		if sse3TrySizeSpecificInverseComplex64(n, dst, src, twiddle, scratch) {
+			return true
 		}
+
+		return inverseSSE3Complex64Asm(dst, src, twiddle, scratch)
+	}
+}
+
+// sse3TrySizeSpecificInverseComplex64 tries the tuned SSE3 inverse kernels
+// for n, returning false if no size-specific kernel handled the transform.
+func sse3TrySizeSpecificInverseComplex64(n int, dst, src, twiddle, scratch []complex64) bool {
+	switch n {
+	case 4:
+		return inverseSSE3Size4Radix4Complex64Asm(dst, src, twiddle, scratch)
+	case 8:
+		return inverseSSE3Size8Radix8Complex64Asm(dst, src, twiddle, scratch) ||
+			inverseSSE3Size8Radix4Complex64Asm(dst, src, twiddle, scratch)
+	case 16:
+		return inverseSSE3Size16Radix16Complex64Asm(dst, src, twiddle, scratch)
+	case 32:
+		return inverseSSE3Size32Radix32Complex64Asm(dst, src, twiddle, scratch) ||
+			inverseSSE3Size32Radix4Then2Complex64Asm(dst, src, twiddle, scratch) ||
+			inverseSSE3Size32Radix2Complex64Asm(dst, src, twiddle, scratch)
+	case 64:
+		return inverseSSE3Size64Radix4Complex64Asm(dst, src, twiddle, scratch) ||
+			inverseSSE3Size64Radix2Complex64Asm(dst, src, twiddle, scratch)
+	case 128:
+		return inverseSSE3Size128Radix4Then2Complex64Asm(dst, src, twiddle, scratch) ||
+			inverseSSE3Size128Radix2Complex64Asm(dst, src, twiddle, scratch)
+	case 256:
+		return inverseSSE3Size256Radix4Complex64Asm(dst, src, twiddle, scratch)
+	case 512:
+		return inverseSSE3Size512Radix4Then2Complex64Asm(dst, src, twiddle, scratch) ||
+			inverseSSE3Size512Radix2Complex64Asm(dst, src, twiddle, scratch)
+	case 1024:
+		return inverseSSE3Size1024Radix4Complex64Asm(dst, src, twiddle, scratch)
+	case 2048:
+		return inverseSSE3Size2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch)
+	case 4096:
+		return inverseSSE3Size4096Radix4Complex64Asm(dst, src, twiddle, scratch)
+	default:
+		return false
 	}
 }
 

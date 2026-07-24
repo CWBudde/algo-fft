@@ -182,6 +182,14 @@ var sse2TestCases64 = []sse2TestCase64{
 		forwardKernel: amd64.ForwardSSE3Size2048Radix4Then2Complex64Asm,
 		inverseKernel: amd64.InverseSSE3Size2048Radix4Then2Complex64Asm,
 	},
+	{
+		name:          "Size4096/Radix4",
+		size:          4096,
+		radix:         4,
+		tolerance:     1e-4,
+		forwardKernel: amd64.ForwardSSE3Size4096Radix4Complex64Asm,
+		inverseKernel: amd64.InverseSSE3Size4096Radix4Complex64Asm,
+	},
 }
 
 var sse2TestCases128 = []sse2TestCase128{
@@ -328,6 +336,14 @@ var sse2TestCases128 = []sse2TestCase128{
 		tolerance:     1e-10,
 		forwardKernel: amd64.ForwardSSE2Size2048Radix4Then2Complex128Asm,
 		inverseKernel: amd64.InverseSSE2Size2048Radix4Then2Complex128Asm,
+	},
+	{
+		name:          "Size4096/Radix4",
+		size:          4096,
+		radix:         4,
+		tolerance:     5e-10,
+		forwardKernel: amd64.ForwardSSE2Size4096Radix4Complex128Asm,
+		inverseKernel: amd64.InverseSSE2Size4096Radix4Complex128Asm,
 	},
 }
 
