@@ -1,6 +1,10 @@
 package kernels
 
-import "math"
+import (
+	"math"
+
+	m "github.com/cwbudde/algo-fft/internal/math"
+)
 
 // radix7Fwd64/128 hold the full 7x7 DFT coefficient matrix W^(jk mod 7) with
 // W = exp(-2*pi*i/7); radix7Inv64/128 hold the conjugate matrix. Row j starts
@@ -57,7 +61,7 @@ func butterfly7Complex64(a *[7]complex64, table *[49]complex64) {
 		row := table[j*7 : j*7+7]
 
 		for k := 1; k < 7; k++ {
-			acc += a[k] * row[k]
+			acc += m.MulComplex64(a[k], row[k])
 		}
 
 		y[j] = acc

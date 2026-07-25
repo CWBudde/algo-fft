@@ -129,9 +129,28 @@ func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T, bitr
 	// We use dst as the work buffer. If dst != x, the sub-FFT handles the copy/transform.
 	bluesteinSubForward(dst, x, twiddles, scratch, bitrev)
 
-	// 2. Multiply by filter
-	for i := range dst {
-		dst[i] *= filter[i]
+	// 2. Multiply by filter. Monomorphized per precision so the complex64 side
+	// can use m.MulComplex64: Go compiles scalar `complex64 * complex64` by
+	// widening to complex128 and rounding back, which costs twice the
+	// instructions of the complex128 multiply and is a large part of why
+	// complex64 measured slower than complex128 on the Bluestein path
+	// (PLAN.md P5.0). internal/fft has SIMD entrypoints for this product, but
+	// it imports this package, so the dispatch cannot go the other way.
+	switch d := any(dst).(type) {
+	case []complex64:
+		f, _ := any(filter).([]complex64)
+		for i := range d {
+			d[i] = m.MulComplex64(d[i], f[i])
+		}
+	case []complex128:
+		f, _ := any(filter).([]complex128)
+		for i := range d {
+			d[i] *= f[i]
+		}
+	default:
+		for i := range dst {
+			dst[i] *= filter[i]
+		}
 	}
 
 	// 3. IFFT

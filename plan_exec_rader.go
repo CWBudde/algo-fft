@@ -2,7 +2,6 @@ package algofft
 
 import (
 	"github.com/cwbudde/algo-fft/internal/fft"
-	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // raderExecutor runs prime-length transforms via Rader's algorithm (see
@@ -63,10 +62,16 @@ func (e *raderExecutor[T]) inverse(dst, src, scratch, sub []T) {
 
 	fft.BluesteinConvolution(scratch[:l], scratch[:l], e.filterInv, e.twiddle, sub[:l], e.bitrev)
 
-	scale := m.ComplexFromFloat64[T](1.0/float64(e.n), 0)
-
-	dst[0] = sum * scale
+	// Scatter unscaled, then apply the real 1/N factor over the whole output
+	// through the SIMD scale helper. Folding the factor into the scatter loop
+	// would need a complex multiply per element, and Go compiles scalar
+	// complex64 multiplication by widening to complex128 and rounding back
+	// (see math.MulComplex64) — one of the reasons complex64 measured slower
+	// than complex128 on the arbitrary-length paths (PLAN.md P5.0).
+	dst[0] = sum
 	for i, k := range e.permOut {
-		dst[k] = (x0 + scratch[i]) * scale
+		dst[k] = x0 + scratch[i]
 	}
+
+	fft.ScaleInPlace(dst[:e.n], 1.0/float64(e.n))
 }

@@ -2,6 +2,10 @@
 
 package kernels
 
+import (
+	m "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // Butterfly11ForwardComplex128 applies the forward radix-11 DFT butterfly to a
 // in place. Inputs must already carry their stage twiddle factors.
 func Butterfly11ForwardComplex128(a *[11]complex128) {
@@ -29,7 +33,7 @@ func butterfly11Complex128(a *[11]complex128, table *[121]complex128) {
 		row := table[j*11 : j*11+11]
 
 		for k := 1; k < 11; k++ {
-			acc += a[k] * row[k]
+			acc += m.MulComplex128(a[k], row[k])
 		}
 
 		y[j] = acc

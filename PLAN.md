@@ -1170,19 +1170,84 @@ and the three items in P5.0 are defects rather than missing optimizations.
 
 ### P5.0 Defects — fix before any of the optimization items
 
-- [ ] **complex64 is _slower_ than complex128 at 20 of 23 non-power-of-two
+- [x] **complex64 is _slower_ than complex128 at 20 of 23 non-power-of-two
       lengths** (ratios 0.68–0.95; worst 12000 at 0.68, then 257 at 0.70,
-      704 and 1000 at 0.74). A half-width type cannot legitimately cost
-      more, so this is a defect in the non-power-of-two complex64 paths, not
-      a tuning gap. The same symptom was already recorded locally for size
-      384 in P4.2 ("c64 fwd ~2.3 µs is _slower than c128_ at the same size,
-      which should not happen") — the sweep shows it is not local to 384 but
-      systemic across the mixed-radix, Bluestein and Rader routes. The 384
-      diagnosis is the likely template: dead or unwired complex64 assembly,
-      scalar Go doing work its complex128 twin does in asm, and per-call
-      scratch that the complex128 path pools. Audit the c64 side of the
-      `internal/fft` mixed-radix, Bluestein and Rader glue for those three
-      causes before optimizing anything else in this section.
+      704 and 1000 at 0.74). _(2026-07)_ Root cause found, and it is none of
+      the three suspected: **Go's compiler does not implement scalar
+      `complex64 * complex64` in single precision.** It widens all four
+      float32 components to float64, multiplies in double precision and
+      rounds the two results back — `CVTSS2SD ×4, MULSD ×3, VFMADD231SD,
+    SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
+      expression on complex128 (verified in the emitted assembly; addition,
+      subtraction and conjugation are unaffected — only the multiply
+      promotes). So any FFT stage written as scalar Go is _structurally_
+      more expensive in complex64 than in complex128. Power-of-two lengths
+      hide it by running entirely inside hand-written float32 SIMD codelets;
+      the non-power-of-two routes cannot, because their odd-radix stages,
+      chirp modulation and pointwise products are scalar Go. That also
+      explains the size ordering the sweep shows and the audit reproduced:
+      c64 loses worst where scalar stages dominate (12000 `[5,5,5,3,32]`,
+      704 `[11,64]`, 1000, 3600) and still _wins_ where an asm leaf does the
+      work (96 `[3,32]`, 768 `[3,256]`). The registry was ruled out first —
+      c64 and c128 have codelets at exactly the same sizes and schedule
+      identically, so there is no dead or unwired complex64 assembly here.
+      Fix: `math.MulComplex64` multiplies the components directly (MULSS ×3,
+      VFMADD231SS, SUBSS), applied across the mixed-radix driver, the
+      radix-3/5/7/11 butterflies, the Bluestein/Rader glue and the pure-Go
+      element-wise fallbacks; the chirp and filter products now route through
+      the existing SIMD `ComplexMulArray`/`ScaleInPlace` entrypoints. The
+      complex128 twins pick up `math.MulComplex128` (the plain operator)
+      through genkernels' existing textual rewrite, with no generator change.
+      Every c64 function on the non-power-of-two path is now at **zero**
+      float32→float64 promotions, measured as an exact instruction-count A/B
+      on a cleaned build cache: mixed-radix driver 92 → 0, `butterfly5*` 16
+      → 0 each, `butterfly3*` 8 → 0 each, `butterfly7/11` 4 → 0,
+      `bluesteinExecutor.forward/inverse` 40/60 → 0, `raderExecutor.inverse`
+      30 → 0, `fft.BluesteinConvolution[c64]` 20 → 0. Accuracy measured
+      against a float64 naive DFT over the flagged lengths (fixed seed, so
+      both arms transform identical vectors) came out neutral-to-better —
+      improved at 8 of 12 sizes (257 −23%, 1009 −39%, 2205 −34%, 3600 −37%),
+      slightly worse at 3 (1000 +75%, 31 +7%, 768 +4%), all still inside the
+      documented ~10⁻⁶ complex64 band, and the Go paths now round the same
+      way the SIMD codelets already did. One test tolerance was corrected as
+      part of this: `TestBluestein_MatchesReference`'s complex64 arm bounded
+      the error at an absolute 1e-3 on a bin that grows to ~9.5e3, i.e. under
+      one float32 ulp of headroom, so it was passing on luck; it is now
+      relative to the bin magnitude.
+
+      Measured c64/c128 forward ratio (>1 = c64 slower, i.e. the defect),
+      median of 14 process runs, ratio taken _within_ each run so thermal
+      drift cancels — the machine was contended throughout, so treat the
+      ratios as sound and the absolute times as indicative:
+
+      | n     | route                        | before | after    |
+      | ----- | ---------------------------- | ------ | -------- |
+      | 704   | mixed-radix `[11,64]`        | 1.27   | **0.98** |
+      | 1000  | mixed-radix `[5,5,5,8]`      | 1.26   | **0.91** |
+      | 2205  | mixed-radix `[5,7,7,3,3]`    | 1.18   | **0.96** |
+      | 3600  | mixed-radix `[5,5,3,3,16]`   | 1.19   | **0.91** |
+      | 12000 | mixed-radix `[5,5,5,3,32]`   | 1.27   | **0.90** |
+      | 257   | Rader, power-of-two sub-FFT  | 1.46   | 1.41     |
+      | 1009  | Bluestein, power-of-two pad  | 1.29   | 1.25     |
+
+      In absolute terms the complex64 arm gained 21–32% at 1000, 2205, 3600
+      and 12000 (p ≤ 0.04, `benchstat`, consistent across two independent
+      run orderings) while complex128 showed no significant change at any
+      length. Note what did _not_ move: 257 and 1009 are exactly the two
+      lengths whose sub-FFT is a power-of-two DIT rather than the mixed-radix
+      engine, so their residual deficit is not in the glue this item covers —
+      it is the power-of-two forward path, which is the next item.
+
+- [ ] **The same promotion still costs the pure-Go power-of-two codelets.**
+      The fix above deliberately stopped at the paths P5.0 named. The
+      generic radix-2/4 DIT codelets in `internal/kernels` are still written
+      with the `*` operator and hold most of the library's remaining 5738
+      promotion instructions (`forwardDIT64Radix2Complex64` alone has 448).
+      They are dead weight on the default build, where the AVX2 codelets win
+      selection, but they _are_ the transform on `purego` and WASM — so this
+      is the same defect, one build tag over. Mechanical to fix (swap `*`
+      for `math.MulComplex64` in the complex64 sources and regenerate), and
+      it should be measured on the purego build rather than the default one.
 - [ ] **The power-of-two complex64 _forward_ path underperforms its own
       inverse.** Splitting the c64/c128 ratio by direction on the same run:
       at 128, forward gains 1.23× where inverse gains 3.36×; at 256, 1.67×
@@ -1190,7 +1255,12 @@ and the three items in P5.0 are defects rather than missing optimizations.
       inverse codelets are extracting the width benefit the forward ones are
       not, at the same sizes, from the same registry. Whatever the inverse
       does differently is the fix — a like-for-like comparison inside one
-      build should be cheap to localize.
+      build should be cheap to localize. The first item's measurements
+      sharpen the target: after the scalar-multiply fix, the only lengths
+      where complex64 is still slower than complex128 are 257 (1.41×) and
+      1009 (1.25×) — the two whose sub-FFT is a power-of-two DIT rather than
+      the mixed-radix engine. They are this item seen through the
+      arbitrary-length routes, and give it two extra reproductions.
 - [ ] **algo-fft loses to gonum at n = 44100** — 4.00 ms against gonum's
       2.59 ms (FFTW3: 236 µs). That is the canonical audio sample rate, in
       the FFT library of a DSP suite, and it is the worst result in the

@@ -1,6 +1,10 @@
 package kernels
 
-import "math"
+import (
+	"math"
+
+	m "github.com/cwbudde/algo-fft/internal/math"
+)
 
 //nolint:gochecknoglobals
 var (
@@ -144,10 +148,10 @@ func butterfly5ForwardComplex64(a0, a1, a2, a3, a4 complex64) (complex64, comple
 	w4 := radix5Twiddles64[3]
 
 	y0 := a0 + a1 + a2 + a3 + a4
-	y1 := a0 + a1*w1 + a2*w2 + a3*w3 + a4*w4
-	y2 := a0 + a1*w2 + a2*w4 + a3*w1 + a4*w3
-	y3 := a0 + a1*w3 + a2*w1 + a3*w4 + a4*w2
-	y4 := a0 + a1*w4 + a2*w3 + a3*w2 + a4*w1
+	y1 := a0 + m.MulComplex64(a1, w1) + m.MulComplex64(a2, w2) + m.MulComplex64(a3, w3) + m.MulComplex64(a4, w4)
+	y2 := a0 + m.MulComplex64(a1, w2) + m.MulComplex64(a2, w4) + m.MulComplex64(a3, w1) + m.MulComplex64(a4, w3)
+	y3 := a0 + m.MulComplex64(a1, w3) + m.MulComplex64(a2, w1) + m.MulComplex64(a3, w4) + m.MulComplex64(a4, w2)
+	y4 := a0 + m.MulComplex64(a1, w4) + m.MulComplex64(a2, w3) + m.MulComplex64(a3, w2) + m.MulComplex64(a4, w1)
 
 	return y0, y1, y2, y3, y4
 }
@@ -159,10 +163,10 @@ func butterfly5InverseComplex64(a0, a1, a2, a3, a4 complex64) (complex64, comple
 	w4 := conj(radix5Twiddles64[3])
 
 	y0 := a0 + a1 + a2 + a3 + a4
-	y1 := a0 + a1*w1 + a2*w2 + a3*w3 + a4*w4
-	y2 := a0 + a1*w2 + a2*w4 + a3*w1 + a4*w3
-	y3 := a0 + a1*w3 + a2*w1 + a3*w4 + a4*w2
-	y4 := a0 + a1*w4 + a2*w3 + a3*w2 + a4*w1
+	y1 := a0 + m.MulComplex64(a1, w1) + m.MulComplex64(a2, w2) + m.MulComplex64(a3, w3) + m.MulComplex64(a4, w4)
+	y2 := a0 + m.MulComplex64(a1, w2) + m.MulComplex64(a2, w4) + m.MulComplex64(a3, w1) + m.MulComplex64(a4, w3)
+	y3 := a0 + m.MulComplex64(a1, w3) + m.MulComplex64(a2, w1) + m.MulComplex64(a3, w4) + m.MulComplex64(a4, w2)
+	y4 := a0 + m.MulComplex64(a1, w4) + m.MulComplex64(a2, w3) + m.MulComplex64(a3, w2) + m.MulComplex64(a4, w1)
 
 	return y0, y1, y2, y3, y4
 }

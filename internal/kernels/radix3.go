@@ -1,6 +1,10 @@
 package kernels
 
-import "math"
+import (
+	"math"
+
+	m "github.com/cwbudde/algo-fft/internal/math"
+)
 
 // Precomputed radix-3 butterfly constants.
 // These are used in the radix-3 DFT butterfly operations to avoid
@@ -139,9 +143,9 @@ func butterfly3ForwardComplex64(a0, a1, a2 complex64) (complex64, complex64, com
 	t2 := a1 - a2
 
 	y0 := a0 + t1
-	base := a0 + radix3Half64*t1
-	y1 := base + radix3CoefFwd64*t2
-	y2 := base - radix3CoefFwd64*t2
+	base := a0 + m.MulComplex64(radix3Half64, t1)
+	y1 := base + m.MulComplex64(radix3CoefFwd64, t2)
+	y2 := base - m.MulComplex64(radix3CoefFwd64, t2)
 
 	return y0, y1, y2
 }
@@ -151,9 +155,9 @@ func butterfly3InverseComplex64(a0, a1, a2 complex64) (complex64, complex64, com
 	t2 := a1 - a2
 
 	y0 := a0 + t1
-	base := a0 + radix3Half64*t1
-	y1 := base + radix3CoefInv64*t2
-	y2 := base - radix3CoefInv64*t2
+	base := a0 + m.MulComplex64(radix3Half64, t1)
+	y1 := base + m.MulComplex64(radix3CoefInv64, t2)
+	y2 := base - m.MulComplex64(radix3CoefInv64, t2)
 
 	return y0, y1, y2
 }

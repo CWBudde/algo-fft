@@ -274,13 +274,30 @@ func TestBluestein_MatchesReference(t *testing.T) {
 			// Compute reference naive DFT
 			naiveResult := reference.NaiveDFT(src)
 
-			// Compare results
-			// Note: complex64 has limited precision, especially for larger sizes
-			// Tolerance is relaxed compared to complex128
+			// Compare results.
+			//
+			// The tolerance has to scale with the bin magnitude. This input
+			// (src[i] = i² + i·j) drives bin 0 to Σi² ≈ 9.5e3 at n = 31, where
+			// one float32 ulp is already ~1e-3 — so a fixed 1e-3 bound leaves
+			// no headroom at all, and both operands here are complex64 (the
+			// naive reference included). Bound the error relative to the
+			// reference magnitude instead, with an absolute floor so
+			// near-zero bins stay checkable.
+			const (
+				relTol = 1e-5
+				absTol = 1e-3
+			)
+
 			for i := range fftResult {
 				diff := cmplx.Abs(complex128(fftResult[i] - naiveResult[i]))
-				if diff > 1e-3 {
-					t.Errorf("Bin %d: FFT=%v, Naive=%v, diff=%v", i, fftResult[i], naiveResult[i], diff)
+
+				tol := relTol * cmplx.Abs(complex128(naiveResult[i]))
+				if tol < absTol {
+					tol = absTol
+				}
+
+				if diff > tol {
+					t.Errorf("Bin %d: FFT=%v, Naive=%v, diff=%v (tol %v)", i, fftResult[i], naiveResult[i], diff, tol)
 				}
 			}
 		})

@@ -34,9 +34,7 @@ func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T, bitr
 
 	mustMixedRadix(mixedRadixForward(dst, x, twiddles, scratch), m)
 
-	for i := range dst {
-		dst[i] *= filter[i]
-	}
+	ComplexMulArrayInPlace(dst[:m], filter)
 
 	mustMixedRadix(mixedRadixInverse(dst, dst, twiddles, scratch), m)
 }

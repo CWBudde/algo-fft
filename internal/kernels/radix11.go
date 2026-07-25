@@ -1,6 +1,10 @@
 package kernels
 
-import "math"
+import (
+	"math"
+
+	m "github.com/cwbudde/algo-fft/internal/math"
+)
 
 // radix11Fwd64/128 hold the full 11x11 DFT coefficient matrix W^(jk mod 11)
 // with W = exp(-2*pi*i/11); radix11Inv64/128 hold the conjugate matrix. Row j
@@ -57,7 +61,7 @@ func butterfly11Complex64(a *[11]complex64, table *[121]complex64) {
 		row := table[j*11 : j*11+11]
 
 		for k := 1; k < 11; k++ {
-			acc += a[k] * row[k]
+			acc += m.MulComplex64(a[k], row[k])
 		}
 
 		y[j] = acc

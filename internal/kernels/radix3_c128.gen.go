@@ -2,14 +2,18 @@
 
 package kernels
 
+import (
+	m "github.com/cwbudde/algo-fft/internal/math"
+)
+
 func butterfly3ForwardComplex128(a0, a1, a2 complex128) (complex128, complex128, complex128) {
 	t1 := a1 + a2
 	t2 := a1 - a2
 
 	y0 := a0 + t1
-	base := a0 + radix3Half128*t1
-	y1 := base + radix3CoefFwd128*t2
-	y2 := base - radix3CoefFwd128*t2
+	base := a0 + m.MulComplex128(radix3Half128, t1)
+	y1 := base + m.MulComplex128(radix3CoefFwd128, t2)
+	y2 := base - m.MulComplex128(radix3CoefFwd128, t2)
 
 	return y0, y1, y2
 }
@@ -19,9 +23,9 @@ func butterfly3InverseComplex128(a0, a1, a2 complex128) (complex128, complex128,
 	t2 := a1 - a2
 
 	y0 := a0 + t1
-	base := a0 + radix3Half128*t1
-	y1 := base + radix3CoefInv128*t2
-	y2 := base - radix3CoefInv128*t2
+	base := a0 + m.MulComplex128(radix3Half128, t1)
+	y1 := base + m.MulComplex128(radix3CoefInv128, t2)
+	y2 := base - m.MulComplex128(radix3CoefInv128, t2)
 
 	return y0, y1, y2
 }

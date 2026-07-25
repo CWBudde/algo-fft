@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/cwbudde/algo-fft/internal/kernels"
+	m "github.com/cwbudde/algo-fft/internal/math"
 )
 
 const mixedRadixMaxStages = 64
@@ -315,7 +316,7 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
+			a1 := m.MulComplex64(w1, input[span+k])
 
 			dst[k] = a0 + a1
 			dst[span+k] = a0 - a1
@@ -329,8 +330,8 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
-			a2 := w2 * input[2*span+k]
+			a1 := m.MulComplex64(w1, input[span+k])
+			a2 := m.MulComplex64(w2, input[2*span+k])
 
 			var y0, y1, y2 complex64
 			if inverse {
@@ -354,9 +355,9 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
-			a2 := w2 * input[2*span+k]
-			a3 := w3 * input[3*span+k]
+			a1 := m.MulComplex64(w1, input[span+k])
+			a2 := m.MulComplex64(w2, input[2*span+k])
+			a3 := m.MulComplex64(w3, input[3*span+k])
 
 			var y0, y1, y2, y3 complex64
 			if inverse {
@@ -383,10 +384,10 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
-			a2 := w2 * input[2*span+k]
-			a3 := w3 * input[3*span+k]
-			a4 := w4 * input[4*span+k]
+			a1 := m.MulComplex64(w1, input[span+k])
+			a2 := m.MulComplex64(w2, input[2*span+k])
+			a3 := m.MulComplex64(w3, input[3*span+k])
+			a4 := m.MulComplex64(w4, input[4*span+k])
 
 			var y0, y1, y2, y3, y4 complex64
 			if inverse {
@@ -410,7 +411,7 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 					w = conj(w)
 				}
 
-				a[j] = w * input[j*span+k]
+				a[j] = m.MulComplex64(w, input[j*span+k])
 			}
 
 			if inverse {
@@ -432,7 +433,7 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 					w = conj(w)
 				}
 
-				a[j] = w * input[j*span+k]
+				a[j] = m.MulComplex64(w, input[j*span+k])
 			}
 
 			if inverse {
@@ -464,13 +465,13 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
-			a2 := w2 * input[2*span+k]
-			a3 := w3 * input[3*span+k]
-			a4 := w4 * input[4*span+k]
-			a5 := w5 * input[5*span+k]
-			a6 := w6 * input[6*span+k]
-			a7 := w7 * input[7*span+k]
+			a1 := m.MulComplex64(w1, input[span+k])
+			a2 := m.MulComplex64(w2, input[2*span+k])
+			a3 := m.MulComplex64(w3, input[3*span+k])
+			a4 := m.MulComplex64(w4, input[4*span+k])
+			a5 := m.MulComplex64(w5, input[5*span+k])
+			a6 := m.MulComplex64(w6, input[6*span+k])
+			a7 := m.MulComplex64(w7, input[7*span+k])
 
 			var y0, y1, y2, y3, y4, y5, y6, y7 complex64
 			if inverse {
@@ -537,7 +538,7 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
+			a1 := m.MulComplex128(w1, input[span+k])
 
 			dst[k] = a0 + a1
 			dst[span+k] = a0 - a1
@@ -551,8 +552,8 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
-			a2 := w2 * input[2*span+k]
+			a1 := m.MulComplex128(w1, input[span+k])
+			a2 := m.MulComplex128(w2, input[2*span+k])
 
 			var y0, y1, y2 complex128
 			if inverse {
@@ -576,9 +577,9 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
-			a2 := w2 * input[2*span+k]
-			a3 := w3 * input[3*span+k]
+			a1 := m.MulComplex128(w1, input[span+k])
+			a2 := m.MulComplex128(w2, input[2*span+k])
+			a3 := m.MulComplex128(w3, input[3*span+k])
 
 			var y0, y1, y2, y3 complex128
 			if inverse {
@@ -605,10 +606,10 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
-			a2 := w2 * input[2*span+k]
-			a3 := w3 * input[3*span+k]
-			a4 := w4 * input[4*span+k]
+			a1 := m.MulComplex128(w1, input[span+k])
+			a2 := m.MulComplex128(w2, input[2*span+k])
+			a3 := m.MulComplex128(w3, input[3*span+k])
+			a4 := m.MulComplex128(w4, input[4*span+k])
 
 			var y0, y1, y2, y3, y4 complex128
 			if inverse {
@@ -632,7 +633,7 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 					w = conj(w)
 				}
 
-				a[j] = w * input[j*span+k]
+				a[j] = m.MulComplex128(w, input[j*span+k])
 			}
 
 			if inverse {
@@ -654,7 +655,7 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 					w = conj(w)
 				}
 
-				a[j] = w * input[j*span+k]
+				a[j] = m.MulComplex128(w, input[j*span+k])
 			}
 
 			if inverse {
@@ -686,13 +687,13 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			}
 
 			a0 := input[k]
-			a1 := w1 * input[span+k]
-			a2 := w2 * input[2*span+k]
-			a3 := w3 * input[3*span+k]
-			a4 := w4 * input[4*span+k]
-			a5 := w5 * input[5*span+k]
-			a6 := w6 * input[6*span+k]
-			a7 := w7 * input[7*span+k]
+			a1 := m.MulComplex128(w1, input[span+k])
+			a2 := m.MulComplex128(w2, input[2*span+k])
+			a3 := m.MulComplex128(w3, input[3*span+k])
+			a4 := m.MulComplex128(w4, input[4*span+k])
+			a5 := m.MulComplex128(w5, input[5*span+k])
+			a6 := m.MulComplex128(w6, input[6*span+k])
+			a7 := m.MulComplex128(w7, input[7*span+k])
 
 			var y0, y1, y2, y3, y4, y5, y6, y7 complex128
 			if inverse {

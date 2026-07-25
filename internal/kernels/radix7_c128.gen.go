@@ -2,6 +2,10 @@
 
 package kernels
 
+import (
+	m "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // Butterfly7ForwardComplex128 applies the forward radix-7 DFT butterfly to a
 // in place. Inputs must already carry their stage twiddle factors.
 func Butterfly7ForwardComplex128(a *[7]complex128) {
@@ -29,7 +33,7 @@ func butterfly7Complex128(a *[7]complex128, table *[49]complex128) {
 		row := table[j*7 : j*7+7]
 
 		for k := 1; k < 7; k++ {
-			acc += a[k] * row[k]
+			acc += m.MulComplex128(a[k], row[k])
 		}
 
 		y[j] = acc
