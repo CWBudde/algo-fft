@@ -469,6 +469,54 @@ references are to the current tree.
       whose power-of-two part is ≥ 8 — re-running the pad-candidate benchmark
       with a shape-aware cost model may now re-enable 5-smooth pads for those
       shapes.
+- [x] **Shape-aware Bluestein/convolution pad selection.** _(2026-07-25)_ The
+      follow-up above, done. The single `bluesteinSubFFTPenalty` constant is
+      gone: measured against the power-of-two endpoint of its own dyadic
+      window, a mixed-radix sub-FFT's cost per m·log2(m) point-pass spans ~7×
+      on shape alone (`BenchmarkBluesteinPadShapes`, new, i7-1255U/AVX2,
+      complex64: 3072 = 2^10·3 → 0.83, 2560 = 2^9·5 → 0.96, 3584 = 2^9·7 →
+      1.39, 2160 = 2^4·3^3·5 → 2.31, 3000 = 2^3·3·5^3 → 2.87, 2250 = 2·3^2·5^3
+      → 6.18), so no scalar penalty can be right for all of them — which is why
+      2.2 had to disable every candidate. A deep power-of-two part lands the
+      schedule in a tuned codelet leaf and each surviving odd stage is overhead
+      on top, so the model is now a whitelist of candidate shapes
+      (`padShapes`, `plan_padsize.go`), each admitted only above the pad size
+      where it wins at **both** precisions.
+      `BenchmarkBluesteinPadFamilies` (new) calibrated the thresholds over ten
+      windows 2^7…2^16 as candidate ns/op over the window's power-of-two
+      endpoint (c64/c128): `3·2^(k-2)` turns over at 2^9 (0.71/0.87) and holds
+      to 2^16 (0.41/0.46), 2^8 being a wash for complex128 (0.78/1.00);
+      `15·2^(k-4)` turns over at 2^13 (0.80/0.69) and holds to 2^16
+      (0.74/0.75), 2^12 still losing 13% on complex64. The third family
+      `7·2^(k-3)` is admitted by no threshold — it loses to `15·2^(k-4)` in
+      every window where either wins (a full-matrix radix-7 butterfly costs
+      more than the radix-3 plus radix-5 pair) and, being the smaller of the
+      two, it is reachable only when `15·2^(k-4)` is reachable as well, so it
+      is dominated outright. Multi-odd-stage shapes (2^a·3^3·5, 2^a·3·5^3, …)
+      lose to `3·2^(k-2)` wherever both are reachable and are not candidates
+      either. Both callers of the shared model benefit: `bluesteinPadSize` and
+      `fastConvolutionLength` (convLen 257 → 384 instead of 512).
+      End-to-end `Plan.Forward` (`BenchmarkBluesteinPadModel`, new; both arms
+      interleaved in one process by emptying `padShapes` around `NewPlan`,
+      medians of 5, c64/c128 vs the power-of-two pad): n=677 → 1536 0.74/0.85,
+      n=2531 → 6144 0.43/0.47, n=3079 → 7680 0.80/0.67, n=4099 → 12288
+      0.44/0.47, n=6151 → 15360 0.78/0.70, n=8209 → 24576 0.43/0.46 — i.e.
+      −15…−57%, with the unchanged control n=1009 measuring 1.00/1.00. The
+      per-size ratios track the sub-FFT calibration to within a point or two,
+      so the win reaches the user rather than stopping at the sub-FFT.
+      Zero-alloc preserved on the new mixed-radix padded path for both plans
+      and `Convolver` (`plan_bluestein_norace_test.go`; the assertions are
+      `!race`-tagged for the same reason the Rader/radix-7/11 ones are —
+      pooled mixed-radix scratch does not survive race instrumentation);
+      verified vs `reference.NaiveDFT` at the new pad sizes, plus an invariant
+      sweep over every n ≤ 5000 pinning that the pad covers 2n−1, never
+      exceeds the power of two it replaces, and is a length both the raw engine
+      and the planner accept. Follow-ups: (a) the calibration is AVX2-only —
+      the purego build passes but was not re-measured, and since SIMD
+      accelerates the power-of-two baseline more than the mixed-radix engine
+      the thresholds are conservative there, so a purego pass may lower them;
+      (b) shapes filling the (0.9375P, P] gap (e.g. `63·2^(k-6)` = 0.984P) are
+      unmeasured, as are the 2^17+ windows.
 - [x] **Rader's algorithm for prime sizes.** Rader maps a prime-p FFT to a
       cyclic convolution of length p−1, which needs no padding when p−1 is
       5-smooth (vs Bluestein's pad to ≥ 2p−1). Implemented in
