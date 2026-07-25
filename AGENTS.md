@@ -258,37 +258,42 @@ Generic implementations are instantiated for both precisions, with type-specific
 
 ### Delegating Codelet Work to Subagents (Model Choice)
 
-Empirical results from delegating new asm codelets to subagents (2026-07, two
-rounds of parallel worktree agents, each verified against the reference-DFT
-registry tests; round 2 covered NEON/arm64 under QEMU):
+Model choice, from three delegation rounds (2026-07, parallel worktree agents,
+NEON/arm64 verified under QEMU):
 
-- **Haiku** handled near-mechanical template adaptations (SSE3 c64 256 radix-2
-  from the 512 template — one self-fixed bug; NEON c128 512 mixed-2/4 from the
-  128 template — zero iterations once the brief explicitly warned to translate
-  every size-derived constant). Suitable when an almost-identical template
-  exists; spell out the known failure mode in the brief.
-- **Sonnet** cleanly synthesized new precision×size combinations from templates
-  (AVX2 c128 128 radix-4-then-2; NEON c64/c128 1024 radix-4 including generating
-  and cross-checking its own bitrev tables), zero asm debug iterations across
-  three tasks, and exercised good judgment on brief-vs-reality conflicts and a
-  justified test-tolerance widening. Good default for codelet ports, including
-  cross-arch (arm64/QEMU) work.
-- **Opus** is the choice when a performance bar must be met, not just
-  correctness: it redesigned the addressing/butterfly form when a
-  template-faithful AVX2 c128 1024 radix-4 lost to SSE2, and — given that
-  lesson in the brief — wrote an AVX2 c128 512 radix-8 that beat the prior
-  best by 21–30% with only a single typo-fix iteration. Use Opus (or the main
-  session) for tuning, novel idioms, or beating an existing kernel.
+- **Haiku**: only for near-mechanical template scaling where every data table
+  can be copied, not derived (its one failure across three rounds was a
+  self-derived permutation table; the asm around it was correct). Spell out
+  the known failure mode and the exact table source in the brief.
+- **Sonnet**: default for codelet ports and new precision×size combinations,
+  including cross-arch (arm64/QEMU) work and debugging another agent's
+  kernel. Seven kernels across three rounds with zero asm bugs reaching a
+  test run.
+- **Opus**: when a performance bar must be beaten, not just correctness —
+  e.g. it redesigned the addressing/butterfly form to beat SSE2 after a
+  template-faithful port lost, then beat the prior best by 21–30%. Also use
+  Opus (or the main session) for tuning and novel idioms.
 
 Process notes that mattered more than model tier:
 
-- Give each agent an isolated git worktree — they all edit `cmd/gencodelets/specs.go`
-  and regenerate `.gen.go` files, which races in a shared tree.
+- Give each agent an isolated git worktree — they all edit the specs table
+  (`cmd/gencodelets/specs.go`; NEON rows live in `specs_neon.go`) and
+  regenerate `.gen.go` files, which races in a shared tree.
 - Write a tight brief: exact template files to copy idioms from, reusable bitrev
-  tables/scale constants (cross-file symbol reuse within `internal/asm/<arch>`),
-  frame layout (`$0-97` for the 4-slice+bool Kernel signature), the specs.go
+  tables/scale constants (cross-file symbol reuse within `internal/asm/<arch>`;
+  NEON `<>` symbols are file-scoped, so each arm64 file embeds its own copies),
+  frame layout (`$0-97` for the 4-slice+bool Kernel signature), the specs
   registration steps, and the verification ladder (build → vet → full
   `internal/kernels` tests → benchmark).
+- Permutation tables are precision-independent: the complex64 and complex128
+  files for the same size/algorithm must contain the SAME index table. Tell
+  agents to copy the twin file's table (or cross-check against
+  `internal/math`'s `ComputeBitReversalIndices*` helpers) instead of deriving
+  their own — a self-derived-but-wrong table was the only correctness bug to
+  reach testing across rounds 1–3.
+- Agents tend to background long QEMU runs and then stop to "wait" for them,
+  which stalls the round; instruct them to run all verification in the
+  foreground with generous timeouts.
 - Correctness is guarded by the registry-driven reference tests, so a cheaper
   model is safe to try: a wrong kernel fails tests rather than landing silently.
   Verify benchmark-based Priority claims yourself on an idle machine — subagent

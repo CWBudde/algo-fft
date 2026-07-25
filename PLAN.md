@@ -698,10 +698,28 @@ references are to the current tree.
       best c128-512 codelet `dit512_radix4_then2_avx2` by 21–30% (idle-machine
       fwd/inv 1719/1860 ns vs 2164/2639 ns) using the byte-pointer addressing + FMA idiom lessons from the 1024 radix-4 kernel; it now auto-selects on
       AVX2 hosts (plan_api_test.go updated accordingly).
-- [ ] **NEON priority tuning on real arm64 hardware** — the four ladder
-      priorities added above (and the 512/1024 generic-fallback relegation)
-      were mirrored from smaller sizes; needs benchmarking on Apple
-      Silicon/Graviton.
+- [x] **Batch 3 subagent codelets: NEON ladder completed through 4096.**
+      _(2026-07, subagent delegation round 3)_ Five NEON kernels, closing every
+      remaining size-specific gap up to 4096 on arm64:
+      `neon_f32_size512_mixed24.s` (c64 512 previously ran the priority-1
+      radix-2 fallback), `neon_f32_size2048_mixed24.s`,
+      `neon_f64_size2048_mixed24.s` (all mixed-2/4, priority 24), and
+      `neon_f32_size4096_radix4.s`, `neon_f64_size4096_radix4.s` (priority
+      28). All QEMU-verified (roundtrip, in-place, reference DFT; full
+      kernels + asm/arm64 + root packages) plus native suites; priorities are
+      ladder-mirrored, NOT tuned (see the open item below). Permutation
+      tables were cross-checked against `internal/math` helpers
+      (`ComputeBitReversalIndicesRadix4` / `...Mixed24`) or the
+      twin-precision file's table (tables are precision-independent — the one
+      bug of the round was a wrongly self-derived c64-512 table, fixed by
+      copying the f64 file's table). `cmd/gencodelets/specs.go` hit the
+      1500-line revive limit and was split: NEON rows now live in
+      `cmd/gencodelets/specs_neon.go` (concatenated in `init()`; generator
+      output unchanged).
+- [ ] **NEON priority tuning on real arm64 hardware** — the ladder
+      priorities added above (batches 2–3: 512–4096, and the 512/1024
+      generic-fallback relegation) were mirrored from smaller sizes; needs
+      benchmarking on Apple Silicon/Graviton.
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and
