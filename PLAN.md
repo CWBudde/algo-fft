@@ -588,10 +588,54 @@ references are to the current tree.
       `HasFMA` too: `planner.cpuSupports` requires `HasAVX2 && HasFMA` for
       `SIMDAVX2` (the whole codelet tier compiles to FMA opcodes), so an
       FMA-masked VM correctly falls back to SSE/generic instead of faulting.
-      Remaining: the f32 size-specific codelets (different YMM/low-64 idioms),
-      the generic radix-4/Stockham kernels, and the non-codelet AVX2 dispatch
-      sites (`complex_mul_amd64.go`, `kernels_amd64_asm.go`) still need their
-      pass.
+      _Update 2026-07-25 (second pass):_ every AVX2 codelet that the registry
+      actually **selects** for its size is now fused. Cross-referencing the
+      FMA-less `.s` files against the winning `Priority` per
+      (Size, SIMDAVX2, Prec) left 7 files; all were converted, 97 sites total:
+      `avx2_f64_size256_radix16.s` (64 sites, `VADDSUBPD` 64→0),
+      `avx2_f32_size32_radix32.s` (19, and −95 lines),
+      `avx2_f{32,64}_size8_radix4.s` (4+4),
+      `avx2_f32_size16_radix16.s` (6), `avx2_f{32,64}_size384_mixed.s` (2+2).
+      Trivial twiddles (±1, ±i — done with shuffle+sign-mask, no multiply) and
+      the real-scalar 1/n inverse-normalization multiplies were deliberately
+      left alone: they have no addend to fuse, so an FMA form would add work.
+      `avx2_f32_radix3.s` was likewise left alone — its `half*t1` is a
+      real-scalar multiply and its `coef*t2` product feeds both an add and a
+      sub, so fusing would cost 2 copies + 2 FMAs to save 1 multiply.
+      **Accuracy (deterministic, `cmd/measure_correctness`, fixed seed 42 —
+      identical input vectors both arms):** max relative error vs the reference
+      DFT improved at exactly the sizes carrying the most fused twiddle work —
+      c64 size 16 2.35e-06→1.68e-06 (−28.5%), c64 size 32 2.41e-05→1.49e-05
+      (−38.2%); c128 sizes 8/256 moved by +1.4%/+0.5% in the last digits and
+      every other size was bit-identical. This is the expected one-rounding-
+      instead-of-two effect.
+      **Performance: not demonstrated.** Three benchstat attempts on the
+      i7-1255U were inconclusive — the package hits 86–98 °C under sustained
+      benchmarking and throttles, giving ±30–90% run-to-run variance that
+      swamps the effect. A first sequential A/B suggested wins (c64 size-8
+      −13%, size-32 forward −6.7%, c128 size-384 −5.4%/−7.3%) but ran the two
+      arms under drifting thermal conditions; an interleaved re-run could not
+      confirm them. Treat this pass as instruction-count and accuracy work
+      until it can be re-measured on a thermally stable machine — it does
+      **not** yet satisfy rule 5 of the methodology gate above.
+      Correctness is solid: full `internal/kernels` suite green (incl.
+      `-race`), `just vet-arch` clean on amd64/arm64/386/purego, zero-alloc
+      preserved on every touched codelet.
+      Remaining: (a) the non-codelet AVX2 dispatch sites
+      (`internal/fft/complex_mul_amd64.go`, `kernels_amd64_asm.go`,
+      `scale_amd64.go`, `internal/kernels/radix5_avx2.go`) still gate on
+      `HasAVX2` alone and need the `HasAVX2 && HasFMA` sweep; (b) the
+      FMA-less files that no size currently selects
+      (`avx2_f32_size512_radix16x32.s` 128 muls,
+      `avx2_f{32,64}_size1024_radix32x32.s`, `avx2_f32_size256_radix16.s`,
+      `avx2_f32_size128_radix2.s`, `avx2_f32_size32_radix4_then2.s`,
+      `avx2_f{32,64}_size4_radix4.s`) — fusing those only matters if a
+      priority retune would bring them back into play.
+      _Correction to the earlier "Remaining" list:_ the generic
+      radix-4/Stockham kernels do **not** need a pass — they are already
+      fused (`avx2_f32_generic.s` 22 mul/23 fma,
+      `avx2_f{32,64}_generic_radix4_{even,odd}.s` ≈1:1,
+      `avx2_f64_stockham.s` 6/6).
 - [x] **Codelet priority retune (measured).** _(2026-07, i7-1255U)_ New
       `BenchmarkCodeletCandidates64/128` (internal/kernels) times every
       registered codelet per size, exposing systematic mis-selection: the
@@ -733,6 +777,30 @@ references are to the current tree.
       The dedicated `neon_f64_size_specific_test.go` naive-DFT check now
       skips sizes ≥8192 under QEMU/-short (it costs ~10 min emulated; runs
       fully on real arm64), with measured-error-based tolerances.
+- [ ] **Size-384 path cleanup (both precisions).** Found while auditing the
+      384 codelet for FMA (2026-07-25), verified independently — 384 is by far
+      the worst ns/point in the registry (c128 fwd ~2.2 µs vs ~0.7 µs at
+      size 256, and c64 fwd ~2.3 µs is _slower than c128_ at the same size,
+      which should not happen for a half-width type). Three separate causes: 1. **The complex64 AVX2 asm for 384 is dead code.**
+      `ApplyTwiddle384Complex64Asm`, `Radix3Butterflies384{Forward,Inverse}Complex64Asm`
+      and `{Forward,Inverse}AVX2Size384MixedComplex64Asm` are defined in
+      `internal/asm/amd64/avx2_f32_size384_mixed.s` and declared in
+      `decl.go`, but have **zero callers** outside `decl.go` — confirmed by
+      grep, and confirmed empirically (FMA-fusing that file changed the
+      size-384 c64 benchmark by nothing). `forwardDIT384MixedComplex64` in
+      `internal/kernels/dit_384_decomp_128x3_amd64_asm.go` instead does the
+      radix-3 column DFT and the twiddle multiply in **scalar Go**
+      (`butterfly3ForwardComplex64`, `work[i] *= twiddle[...]`). The
+      complex128 twins _are_ wired up. Either wire the c64 asm in or delete it. 2. **complex128 uses the slower 128-point sub-kernel.** The c128 path
+      calls `amd64.ForwardAVX2Size128Radix2Complex128Asm` (plain radix-2,
+      7 stages) for its three 128-point sub-FFTs, while the c64 path
+      correctly uses `...Size128Radix4Then2Complex64Asm`. The c128
+      radix-4-then-2 variant exists and is declared — this looks like a
+      straight oversight. 3. **complex64 rebuilds per-call scratch.** The c64 path does
+      `make([]complex64, stride)` twice per transform (sub-twiddle and
+      sub-scratch); these currently stay on the stack so the zero-alloc
+      tests still pass, but the c128 path precomputes the 128-point twiddle
+      once at init and pools both buffers via `sync.Pool`. Mirror that.
 - [ ] **NEON priority tuning on real arm64 hardware** — the ladder
       priorities added above (batches 2–4: 512–32768, and the 512/1024
       generic-fallback relegation) were mirrored from smaller sizes; needs
