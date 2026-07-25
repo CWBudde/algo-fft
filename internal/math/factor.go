@@ -149,3 +149,73 @@ func IsMixedRadixSmooth(n int) bool {
 
 	return n == 1
 }
+
+// EachMixedRadixSmooth calls fn for every mixed-radix-smooth number
+// (2^a·3^b·5^c·7^d·11^e) in the inclusive range [lo, hi], in unspecified order.
+//
+// NextHighlyComposite answers "the smallest 5-smooth size >= n", which is the
+// right question only when smaller always means cheaper. It does not: the
+// mixed-radix engine's per-point cost depends on the candidate's *shape* (how
+// deep its power-of-two part is, whether the odd part needs a radix-7/11
+// full-matrix butterfly), so picking a padded length means costing all the
+// candidates in the window, not just the smallest. That is what this
+// enumeration is for (see cheapestPaddedLength in the root package).
+//
+// The walk is allocation-free and every step is division-guarded, so no
+// intermediate product can overflow. Callers are expected to use it at plan
+// construction time, not per transform: the number of candidates grows like
+// log(hi)^5, which is a few hundred iterations at realistic transform sizes.
+func EachMixedRadixSmooth(lo, hi int, fn func(m int)) {
+	if hi < 1 || lo > hi {
+		return
+	}
+
+	if lo < 1 {
+		lo = 1
+	}
+
+	// p11, p7, p5 and odd accumulate 11^e, ·7^d, ·5^c and ·3^b respectively;
+	// the innermost loop lifts each odd part by every power of two that keeps
+	// the product inside the window.
+	for p11 := 1; ; {
+		for p7 := p11; ; {
+			for p5 := p7; ; {
+				for odd := p5; ; {
+					for v := odd; ; v *= 2 {
+						if v >= lo {
+							fn(v)
+						}
+
+						if v > hi/2 {
+							break
+						}
+					}
+
+					if odd > hi/3 {
+						break
+					}
+
+					odd *= 3
+				}
+
+				if p5 > hi/5 {
+					break
+				}
+
+				p5 *= 5
+			}
+
+			if p7 > hi/7 {
+				break
+			}
+
+			p7 *= 7
+		}
+
+		if p11 > hi/11 {
+			break
+		}
+
+		p11 *= 11
+	}
+}

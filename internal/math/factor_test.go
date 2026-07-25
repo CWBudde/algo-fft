@@ -197,3 +197,66 @@ func TestIsMixedRadixSmooth(t *testing.T) {
 		}
 	}
 }
+
+func TestEachMixedRadixSmooth(t *testing.T) {
+	t.Parallel()
+
+	// Cross-check the enumeration against a brute-force scan with the
+	// predicate: every emitted value must be smooth and in range, and no
+	// in-range smooth value may be missed or emitted twice.
+	ranges := []struct{ lo, hi int }{
+		{lo: 1, hi: 1},
+		{lo: 1, hi: 200},
+		{lo: 2049, hi: 4096},
+		{lo: 4097, hi: 8192},
+		{lo: 12345, hi: 16384},
+		{lo: 65535, hi: 65536},
+		{lo: 100, hi: 99}, // empty
+		{lo: -10, hi: 12}, // lo clamped to 1
+	}
+
+	for _, r := range ranges {
+		seen := make(map[int]int)
+
+		EachMixedRadixSmooth(r.lo, r.hi, func(m int) {
+			seen[m]++
+		})
+
+		for m, count := range seen {
+			if count != 1 {
+				t.Errorf("range [%d,%d]: %d emitted %d times, want 1", r.lo, r.hi, m, count)
+			}
+
+			if m < r.lo || m > r.hi {
+				t.Errorf("range [%d,%d]: emitted out-of-range %d", r.lo, r.hi, m)
+			}
+
+			if !IsMixedRadixSmooth(m) {
+				t.Errorf("range [%d,%d]: emitted non-smooth %d", r.lo, r.hi, m)
+			}
+		}
+
+		lo := max(r.lo, 1)
+		for n := lo; n <= r.hi; n++ {
+			if IsMixedRadixSmooth(n) && seen[n] == 0 {
+				t.Errorf("range [%d,%d]: missed smooth %d", r.lo, r.hi, n)
+			}
+		}
+	}
+}
+
+func TestEachMixedRadixSmoothIsAllocationFree(t *testing.T) {
+	sink := 0
+
+	allocs := testing.AllocsPerRun(10, func() {
+		EachMixedRadixSmooth(2049, 4096, func(m int) { sink += m })
+	})
+
+	if allocs != 0 {
+		t.Errorf("EachMixedRadixSmooth allocated %.1f times per run, want 0", allocs)
+	}
+
+	if sink == 0 {
+		t.Error("callback never fired")
+	}
+}
