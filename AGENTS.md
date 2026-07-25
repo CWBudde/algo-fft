@@ -294,6 +294,12 @@ Process notes that mattered more than model tier:
 - Agents tend to background long QEMU runs and then stop to "wait" for them,
   which stalls the round; instruct them to run all verification in the
   foreground with generous timeouts.
+- Have agents generate repetitive asm with a throwaway Go generator and
+  validate it by byte-reproducing the existing template size first — this
+  caught every would-be bug in rounds 3–4 before a single test ran. Tell
+  them to use unique scratch paths (PID/random suffix): two parallel agents
+  once collided on the same "obvious" generator filename in the shared
+  scratchpad.
 - Correctness is guarded by the registry-driven reference tests, so a cheaper
   model is safe to try: a wrong kernel fails tests rather than landing silently.
   Verify benchmark-based Priority claims yourself on an idle machine — subagent

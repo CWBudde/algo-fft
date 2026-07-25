@@ -716,10 +716,30 @@ references are to the current tree.
       1500-line revive limit and was split: NEON rows now live in
       `cmd/gencodelets/specs_neon.go` (concatenated in `init()`; generator
       output unchanged).
+- [x] **Batch 4 subagent codelets: NEON ladder completed to 32768.**
+      _(2026-07, subagent delegation round 4; six sonnet agents, zero bugs
+      reaching a test run)_ Six NEON kernels: `neon_f32_size8192_mixed24.s`,
+      `neon_f64_size8192_mixed24.s`, `neon_f32_size32768_mixed24.s`,
+      `neon_f64_size32768_mixed24.s` (priority 24) and
+      `neon_f32_size16384_radix4.s`, `neon_f64_size16384_radix4.s`
+      (priority 28). arm64 now has size-specific codelets at every power of
+      two 4–32768 in both precisions, matching the amd64 SSE3 tier. All
+      agents generated the asm programmatically, first validating their
+      generator by byte-reproducing the existing 2048/4096 template, and
+      pulled permutation tables straight from
+      `internal/math.ComputeBitReversalIndices{Radix4,Mixed24}`.
+      QEMU-verified (registry analytic patterns + roundtrip + in-place — the
+      naive-DFT random check caps at 2048 by design) plus native suites.
+      The dedicated `neon_f64_size_specific_test.go` naive-DFT check now
+      skips sizes ≥8192 under QEMU/-short (it costs ~10 min emulated; runs
+      fully on real arm64), with measured-error-based tolerances.
 - [ ] **NEON priority tuning on real arm64 hardware** — the ladder
-      priorities added above (batches 2–3: 512–4096, and the 512/1024
+      priorities added above (batches 2–4: 512–32768, and the 512/1024
       generic-fallback relegation) were mirrored from smaller sizes; needs
-      benchmarking on Apple Silicon/Graviton.
+      benchmarking on Apple Silicon/Graviton. Above ~8192 the DIT codelets
+      also compete with the Go six-step path on real hardware (cache
+      behavior differs from QEMU) — measure before trusting the 24/28
+      priorities there.
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and
