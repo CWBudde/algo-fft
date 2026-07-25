@@ -8,7 +8,7 @@ const ditAutoThreshold = 1024
 
 // ResolveKernelStrategy returns the heuristically-selected strategy for size n.
 // Selection order for KernelAuto:
-//  1. Square-size transforms: prefer six/eight-step for large sizes
+//  1. Non-power-of-two square sizes: prefer six/eight-step for large sizes
 //  2. Size threshold: DIT for <= ditAutoThreshold, Stockham otherwise
 //
 // Per-plan overrides are supplied via PlanOptions.Strategy (threaded through as the
@@ -38,28 +38,39 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 		return strategy
 	}
 
+	// Power-of-two squares are deliberately NOT special-cased: measured over
+	// every candidate strategy at the only sizes the square branch can reach
+	// (2^18, 2^20, and 2^22), the plain size heuristic below — Stockham — wins
+	// or ties against six-step, eight-step, four-step and split-radix on both
+	// the SIMD and purego builds, at both precisions and in both directions
+	// (BenchmarkSquareAutoRule, i7-1255U/AVX2).
+	//
+	// This replaces two earlier rules that measured as losses:
+	//   - split-radix for [2^18, 2^22): Stockham beats it in every arm except
+	//     purego 2^18 complex64 forward, where it trails by 3% (noise). At the
+	//     other extreme split-radix costs 2x — 2^20 complex128 forward is
+	//     80.3 ms vs six-step's 39.3 ms and Stockham's 49.7 ms.
+	//   - eight-step for powers of two >= 2^22: at 2^22 complex64 Stockham runs
+	//     157/171 ms (fwd/inv) against eight-step's 201/269 ms on the SIMD
+	//     build, and 102/113 vs 203/247 ms on purego.
+	//
+	// One arm dissents and is accepted knowingly: 2^20 complex128 forward
+	// prefers six-step (39.3 ms) over Stockham (49.7 ms) on the SIMD build.
+	// A precision- and direction-blind rule cannot capture that, the same
+	// size's other three arms all favor Stockham, and Stockham still beats the
+	// split-radix it replaces there by 1.6x. Wisdom/measure modes pick per
+	// machine where it matters (see selectStrategiesToTest in internal/fft).
+	//
+	// Non-power-of-two squares keep six/eight-step: they execute through the
+	// mixed-radix engine, split-radix declines them, and they were not part of
+	// this measurement.
 	m := intSqrt(n)
-	if m*m == n {
+	if m*m == n && !IsPowerOf2(n) {
 		if n >= 1<<22 {
 			return KernelEightStep
 		}
 
 		if n >= 1<<18 {
-			// Power-of-two squares in [2^18, 2^22) — 512^2 and 1024^2 —
-			// previously resolved to six-step, whose scalar transpose
-			// dominates at these sizes (the SIMD transpose kernels stop at
-			// 128x128). Split-radix measured ~2x faster for both directions,
-			// both precisions, on both the SIMD and purego builds
-			// (BenchmarkSplitRadixVsIncumbents). Re-measured after the P4.3
-			// cache-blocked transpose landed: six-step gained 10-17% at
-			// these sizes but split-radix still wins 1.2-1.6x, so the rule
-			// stands. Non-power-of-two squares keep six-step: they execute
-			// through the mixed-radix engine anyway, and split-radix would
-			// decline them.
-			if IsPowerOf2(n) {
-				return KernelSplitRadix
-			}
-
 			return KernelSixStep
 		}
 	}

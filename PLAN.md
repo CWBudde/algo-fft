@@ -577,6 +577,10 @@ references are to the current tree.
       transpose kernels stop at 128×128). Revisit the auto rule when the
       P4.3 cache-blocked transpose lands; wisdom/measure modes can pick
       split-radix anywhere it wins per-machine.
+      _Update 2026-07-25: this auto-rule change has been reverted — see the
+      P4.3 re-measure item below. Split-radix itself, the strategy plumbing,
+      and its purego wins are unaffected; only the KernelAuto routing for
+      power-of-two squares changed._
 - [x] **Radix-8 stage for the generic DIT driver.** _(2026-07)_ The radix-8
       butterfly from the size-512 codelet is generalized into
       `internal/kernels/radix8.go` (hardcoded ±i/W_8^1/W_8^3 rotations, both
@@ -1002,13 +1006,57 @@ references are to the current tree.
       (−7…−28%), ties plain Stockham at 2^23; the split sweep
       (`BenchmarkFourStepSplitSweep`) is flat (±7%), with the cache-derived
       choice within noise of the optimum, so the auto rule is unchanged —
-      measure/wisdom remains the arbiter. Follow-ups: SIMD row FFTs inside
+      measure/wisdom remains the arbiter. Follow-up: SIMD row FFTs inside
       four-step (rows are contiguous; the row passes still use the scalar
-      Stockham butterflies, the main handicap vs the monolithic kernels), and
-      a P4.1 auto-rule re-measure — on this machine plain Stockham now beats
-      split-radix at 2^18–2^22 (e.g. 3.1 vs 4.9 ms at 2^18, also in
-      `BenchmarkSplitRadixVsIncumbents`), contradicting the recorded P4.1
-      numbers.
+      Stockham butterflies, the main handicap vs the monolithic kernels).
+      The auto-rule re-measure this item asked for is done — next item.
+- [x] **Auto-rule re-measure for power-of-two squares.** _(2026-07-25)_ The
+      contradiction recorded above was real: the `KernelAuto` square branch
+      was costing users at every size it could reach. `BenchmarkSquareAutoRule`
+      (new, `plan_autosquare_bench_test.go`) measures all candidate strategies
+      at the only power-of-two squares the branch reaches — 2^18, 2^20 and
+      2^22 — in both directions, both precisions, both builds, arms adjacent
+      in one process, medians of 5 (i7-1255U/AVX2). Outcome: **power-of-two
+      squares are no longer special-cased at all**; they fall through to the
+      plain size heuristic (Stockham). Non-power-of-two squares keep
+      six/eight-step, unchanged and unmeasured here.
+      Against the incumbent split-radix, Stockham wins or ties every arm on
+      both builds bar one (purego 2^18 c64 forward, −3%, inside noise):
+      SIMD 2^18 c64 3.39/3.28 ms fwd/inv vs 10.16/7.00, c128 6.71/6.84 vs
+      6.87/8.39; SIMD 2^20 c64 31.0/26.2 vs 42.0/50.3; purego 2^20 c128
+      20.2/21.7 vs 44.9/46.4. The eight-step branch fell to the same
+      measurement at 2^22 c64: Stockham 157/171 ms vs 201/269 (SIMD) and
+      102/113 vs 203/247 (purego), so powers of two skip it too.
+      One dissenting arm is accepted knowingly rather than papered over:
+      2^20 complex128 forward prefers six-step (39.3 ms) to Stockham
+      (49.7 ms) on the SIMD build. A precision- and direction-blind rule
+      cannot capture it, the size's other three arms favor Stockham, and
+      Stockham still beats the split-radix it replaces there by 1.6×.
+      Note the SIMD Stockham complex128 numbers are themselves depressed by
+      the packed-route dispatch gap below; fixing that only widens the margin
+      this rule was chosen on.
+- [ ] **Packed Stockham is disabled on SIMD builds above the codelet range.**
+      _(found 2026-07-25 while re-measuring the square rule)_
+      `internal/transform/stockham_packed_toggle_simd.go` sets
+      `stockhamPackedEnabled = false` for amd64/arm64/386, reasoning that "the
+      hand-written codelet path is checked first and supersedes it". That
+      holds only up to 32768 — the largest registered codelet. Above it a
+      Stockham-resolved plan on a SIMD build has no codelet to supersede
+      anything and falls through to the generic SIMD Stockham kernel, which is
+      slower than the pure-Go packed radix-4 route the toggle disabled.
+      Same benchmark, same machine, forced Stockham, SIMD vs purego ns/op:
+      2^18 c64 3.39 vs 5.26 (SIMD wins, 0.64×) — but 2^18 c128 6.71 vs 3.84
+      (**1.75× loss**), 2^20 c64 31.0 vs 23.5 (1.32×), 2^20 c128 49.7 vs 20.2
+      (**2.46×**), 2^22 c64 157 vs 102 (1.54×). So the SIMD kernel only wins
+      for complex64 at 2^18; everywhere above that the disabled route is
+      faster, on both precisions. Fix is not simply flipping the toggle — the
+      executor checks packed _before_ the bound kernel
+      (`kernelExecutor.forward`, `plan_exec.go`), so enabling it wholesale
+      would regress 2^18 complex64. Wants a measured per-precision/size
+      crossover, then either a size gate on the toggle or a reordering of the
+      two branches. Affects every Stockham-resolved size above 32768 on
+      amd64/arm64/386, which after the rule change above includes the
+      power-of-two squares.
 - [x] **Twiddle-table bandwidth reduction.** _(2026-07, i7-1255U)_ Survey
       first: on SIMD builds the large-n strategies (Stockham, six-step/
       eight-step, four-step) already share the single n-entry base table
