@@ -97,18 +97,16 @@ size8_128_r4_fwd_use_dst:
 	MOVUPD X11, (R8)
 	MOVUPD X12, 64(R8)
 
-	// w1 * a5
+	// w1 * a5 (FMA: w1 = (+sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
 	MOVUPD 16(R10), X8       // w1
-	VPERMILPD $1, X8, X9     // w1 swap
-	VMULPD X8, X5, X13       // tmp1
-	VMULPD X9, X5, X14       // tmp2
-	VPERMILPD $1, X13, X15
-	VSUBPD X15, X13, X13     // realvec
-	VPERMILPD $1, X14, X15
-	VADDPD X15, X14, X14     // imagvec
-	VUNPCKLPD X14, X13, X13  // w1*a5
-	VADDPD X13, X1, X0       // y1
-	VSUBPD X13, X1, X1       // y5
+	VMOVDDUP X8, X9          // Xre = broadcast real(w1)
+	VPERMILPD $1, X8, X12    // tmp = swap(w1)
+	VMOVDDUP X12, X12        // Xim = broadcast imag(w1)
+	VPERMILPD $1, X5, X13    // Xswap = swap(a5)
+	VMULPD X12, X13, X14     // Xacc = Xim * Xswap
+	VFMADDSUB231PD X9, X5, X14 // Xacc = Xre*a5 -/+ Xacc = w1*a5
+	VADDPD X14, X1, X0       // y1
+	VSUBPD X14, X1, X1       // y5
 	MOVUPD X0, 16(R8)
 	MOVUPD X1, 80(R8)
 
@@ -131,18 +129,16 @@ size8_128_r4_fwd_use_dst:
 	MOVUPD X2, 32(R8)
 	MOVUPD X3, 96(R8)
 
-	// w3 * a7
+	// w3 * a7 (FMA: w3 = (-sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
 	MOVUPD 48(R10), X8       // w3
-	VPERMILPD $1, X8, X9
-	VMULPD X8, X7, X13
-	VMULPD X9, X7, X14
-	VPERMILPD $1, X13, X15
-	VSUBPD X15, X13, X13
-	VPERMILPD $1, X14, X15
-	VADDPD X15, X14, X14
-	VUNPCKLPD X14, X13, X13  // w3*a7
-	VADDPD X13, X11, X4      // y3
-	VSUBPD X13, X11, X5      // y7
+	VMOVDDUP X8, X9          // Xre = broadcast real(w3)
+	VPERMILPD $1, X8, X12    // tmp = swap(w3)
+	VMOVDDUP X12, X12        // Xim = broadcast imag(w3)
+	VPERMILPD $1, X7, X13    // Xswap = swap(a7)
+	VMULPD X12, X13, X14     // Xacc = Xim * Xswap
+	VFMADDSUB231PD X9, X7, X14 // Xacc = Xre*a7 -/+ Xacc = w3*a7
+	VADDPD X14, X11, X4      // y3
+	VSUBPD X14, X11, X5      // y7
 	MOVUPD X4, 48(R8)
 	MOVUPD X5, 112(R8)
 
@@ -265,22 +261,20 @@ size8_128_r4_inv_use_dst:
 	MOVUPD X11, (R8)
 	MOVUPD X12, 64(R8)
 
-	// conj(w1) * a5
-	MOVUPD 16(R10), X8
+	// conj(w1) * a5 (FMA: w1 = (+sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
+	MOVUPD 16(R10), X8       // w1
+	VMOVDDUP X8, X9          // Xre = broadcast real(w1) (same for conj)
+	VPERMILPD $1, X8, X12    // tmp = swap(w1)
+	VMOVDDUP X12, X12        // Xim0 = broadcast imag(w1)
 	MOVQ ·signbit64(SB), AX
-	VMOVQ AX, X9
-	VPERMILPD $1, X9, X9
-	VXORPD X9, X8, X8
-	VPERMILPD $1, X8, X9
-	VMULPD X8, X5, X13
-	VMULPD X9, X5, X14
-	VPERMILPD $1, X13, X15
-	VSUBPD X15, X13, X13
-	VPERMILPD $1, X14, X15
-	VADDPD X15, X14, X14
-	VUNPCKLPD X14, X13, X13
-	VADDPD X13, X1, X0       // y1
-	VSUBPD X13, X1, X1       // y5
+	VMOVQ AX, X15
+	VMOVDDUP X15, X15        // negate-all mask
+	VXORPD X15, X12, X12     // Xim = imag(conj(w1)) = -imag(w1)
+	VPERMILPD $1, X5, X13    // Xswap = swap(a5)
+	VMULPD X12, X13, X14     // Xacc = Xim * Xswap
+	VFMADDSUB231PD X9, X5, X14 // Xacc = Xre*a5 -/+ Xacc = conj(w1)*a5
+	VADDPD X14, X1, X0       // y1
+	VSUBPD X14, X1, X1       // y5
 	MOVQ ·eighth64(SB), AX
 	VMOVQ AX, X8
 	VMOVDDUP X8, X8
@@ -317,22 +311,20 @@ size8_128_r4_inv_use_dst:
 	MOVUPD X2, 32(R8)
 	MOVUPD X3, 96(R8)
 
-	// conj(w3) * a7
-	MOVUPD 48(R10), X8
+	// conj(w3) * a7 (FMA: w3 = (-sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
+	MOVUPD 48(R10), X8       // w3
+	VMOVDDUP X8, X9          // Xre = broadcast real(w3) (same for conj)
+	VPERMILPD $1, X8, X12    // tmp = swap(w3)
+	VMOVDDUP X12, X12        // Xim0 = broadcast imag(w3)
 	MOVQ ·signbit64(SB), AX
-	VMOVQ AX, X9
-	VPERMILPD $1, X9, X9
-	VXORPD X9, X8, X8
-	VPERMILPD $1, X8, X9
-	VMULPD X8, X7, X13
-	VMULPD X9, X7, X14
-	VPERMILPD $1, X13, X15
-	VSUBPD X15, X13, X13
-	VPERMILPD $1, X14, X15
-	VADDPD X15, X14, X14
-	VUNPCKLPD X14, X13, X13
-	VADDPD X13, X11, X4      // y3
-	VSUBPD X13, X11, X5      // y7
+	VMOVQ AX, X15
+	VMOVDDUP X15, X15        // negate-all mask
+	VXORPD X15, X12, X12     // Xim = imag(conj(w3)) = -imag(w3)
+	VPERMILPD $1, X7, X13    // Xswap = swap(a7)
+	VMULPD X12, X13, X14     // Xacc = Xim * Xswap
+	VFMADDSUB231PD X9, X7, X14 // Xacc = Xre*a7 -/+ Xacc = conj(w3)*a7
+	VADDPD X14, X11, X4      // y3
+	VSUBPD X14, X11, X5      // y7
 	MOVQ ·eighth64(SB), AX
 	VMOVQ AX, X8
 	VMOVDDUP X8, X8

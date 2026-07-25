@@ -246,28 +246,28 @@ fwd_r16_stage1_col:
 	VMOVUPD 11776(R10), Y8    // Y8 = [W^0, W^1] pre-packed
 	VPERMILPD $0, Y8, Y9      // [re, re, re, re]
 	VPERMILPD $15, Y8, Y10    // [im, im, im, im]
-	VMULPD Y9, Y1, Y11
-	VSHUFPD $5, Y1, Y1, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y1
+	VSHUFPD $5, Y1, Y1, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1
 	// a2 = [stage1[8], stage1[9]] * [W^0, W^2]
 	VMOVUPD 384(SP), Y2
 	VMOVUPD 11808(R10), Y8    // Y8 = [W^0, W^2] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y2, Y11
-	VSHUFPD $5, Y2, Y2, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VSHUFPD $5, Y2, Y2, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 	// a3 = [stage1[12], stage1[13]] * [W^0, W^3]
 	VMOVUPD 448(SP), Y3
 	VMOVUPD 11840(R10), Y8    // Y8 = [W^0, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y3, Y11
-	VSHUFPD $5, Y3, Y3, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VSHUFPD $5, Y3, Y3, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 	// Radix-4 butterfly
 	VADDPD Y2, Y0, Y4         // t0
 	VSUBPD Y2, Y0, Y5         // t1
@@ -294,28 +294,28 @@ fwd_r16_stage1_col:
 	VMOVUPD 11872(R10), Y8    // Y8 = [W^2, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y1, Y11
-	VSHUFPD $5, Y1, Y1, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y1
+	VSHUFPD $5, Y1, Y1, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1
 	// a2 = [stage1[10], stage1[11]] * [W^4, W^6]
 	VMOVUPD 416(SP), Y2
 	VMOVUPD 11904(R10), Y8    // Y8 = [W^4, W^6] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y2, Y11
-	VSHUFPD $5, Y2, Y2, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VSHUFPD $5, Y2, Y2, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 	// a3 = [stage1[14], stage1[15]] * [W^6, W^9]
 	VMOVUPD 480(SP), Y3
 	VMOVUPD 11936(R10), Y8    // Y8 = [W^6, W^9] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y3, Y11
-	VSHUFPD $5, Y3, Y3, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VSHUFPD $5, Y3, Y3, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 	// Radix-4 butterfly
 	VADDPD Y2, Y0, Y4
 	VSUBPD Y2, Y0, Y5
@@ -428,69 +428,69 @@ fwd_r16_fused_cb:
 	// Y0: rows 0-1 (pair = rb*2)
 	VMOVUPD (R14)(BX*1), Y8   // reDup for pair rb*2
 	VMOVUPD 32(R14)(BX*1), Y9 // imDup for pair rb*2
-	VPERMILPD $0x05, Y0, Y10
-	VMULPD Y8, Y0, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y0
+	VPERMILPD $0x05, Y0, Y10 // swap(Y0) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y0)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y0, Y12 // Y12 = Y0*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y0
 
 	// Y1: rows 2-3 (pair = rb*2+1)
 	VMOVUPD 64(R14)(BX*1), Y8 // reDup for pair rb*2+1
 	VMOVUPD 96(R14)(BX*1), Y9 // imDup for pair rb*2+1
-	VPERMILPD $0x05, Y1, Y10
-	VMULPD Y8, Y1, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y1
+	VPERMILPD $0x05, Y1, Y10 // swap(Y1) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1
 
 	// Column 1 in tile (global_col = cb*4+1)
 	ADDQ $512, R14            // next column
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y2, Y10
-	VMULPD Y8, Y2, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VPERMILPD $0x05, Y2, Y10 // swap(Y2) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y3, Y10
-	VMULPD Y8, Y3, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VPERMILPD $0x05, Y3, Y10 // swap(Y3) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 
 	// Column 2 in tile (global_col = cb*4+2)
 	ADDQ $512, R14
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y4, Y10
-	VMULPD Y8, Y4, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y4
+	VPERMILPD $0x05, Y4, Y10 // swap(Y4) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y4)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y4, Y12 // Y12 = Y4*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y4
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y5, Y10
-	VMULPD Y8, Y5, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y5
+	VPERMILPD $0x05, Y5, Y10 // swap(Y5) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y5)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y5, Y12 // Y12 = Y5*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y5
 
 	// Column 3 in tile (global_col = cb*4+3)
 	ADDQ $512, R14
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y6, Y10
-	VMULPD Y8, Y6, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y6
+	VPERMILPD $0x05, Y6, Y10 // swap(Y6) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y6)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y6, Y12 // Y12 = Y6*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y6
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y7, Y10
-	VMULPD Y8, Y7, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y7
+	VPERMILPD $0x05, Y7, Y10 // swap(Y7) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y7)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y7, Y12 // Y12 = Y7*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y7
 
 	JMP fwd_r16_fused_transpose
 
@@ -504,51 +504,51 @@ fwd_r16_fused_cb0_twiddle:
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y2, Y10
-	VMULPD Y8, Y2, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VPERMILPD $0x05, Y2, Y10 // swap(Y2) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y3, Y10
-	VMULPD Y8, Y3, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VPERMILPD $0x05, Y3, Y10 // swap(Y3) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 
 	// Column 2 in tile (global_col = 2)
 	ADDQ $512, R14
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y4, Y10
-	VMULPD Y8, Y4, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y4
+	VPERMILPD $0x05, Y4, Y10 // swap(Y4) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y4)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y4, Y12 // Y12 = Y4*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y4
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y5, Y10
-	VMULPD Y8, Y5, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y5
+	VPERMILPD $0x05, Y5, Y10 // swap(Y5) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y5)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y5, Y12 // Y12 = Y5*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y5
 
 	// Column 3 in tile (global_col = 3)
 	ADDQ $512, R14
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y6, Y10
-	VMULPD Y8, Y6, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y6
+	VPERMILPD $0x05, Y6, Y10 // swap(Y6) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y6)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y6, Y12 // Y12 = Y6*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y6
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y7, Y10
-	VMULPD Y8, Y7, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y7
+	VPERMILPD $0x05, Y7, Y10 // swap(Y7) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y7)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y7, Y12 // Y12 = Y7*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y7
 
 fwd_r16_fused_transpose:
 	// ----------------------------------------------------------------
@@ -632,45 +632,45 @@ fwd_r16_twiddle_fused_diag:
 	// pair0 (rows 0..1)
 	VMOVUPD (DI), Y8
 	VMOVUPD 32(DI), Y9
-	VPERMILPD $0x05, Y2, Y10
-	VMULPD Y8, Y2, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VPERMILPD $0x05, Y2, Y10 // swap(Y2) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 	// pair1 (rows 2..3)
 	VMOVUPD 64(DI), Y8
 	VMOVUPD 96(DI), Y9
-	VPERMILPD $0x05, Y3, Y10
-	VMULPD Y8, Y3, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VPERMILPD $0x05, Y3, Y10 // swap(Y3) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 
 	ADDQ $512, DI             // col=2 base
 	VMOVUPD (DI), Y8
 	VMOVUPD 32(DI), Y9
-	VPERMILPD $0x05, Y4, Y10
-	VMULPD Y8, Y4, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y4
+	VPERMILPD $0x05, Y4, Y10 // swap(Y4) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y4)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y4, Y12 // Y12 = Y4*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y4
 	VMOVUPD 64(DI), Y8
 	VMOVUPD 96(DI), Y9
-	VPERMILPD $0x05, Y5, Y10
-	VMULPD Y8, Y5, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y5
+	VPERMILPD $0x05, Y5, Y10 // swap(Y5) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y5)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y5, Y12 // Y12 = Y5*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y5
 
 	ADDQ $512, DI             // col=3 base
 	VMOVUPD (DI), Y8
 	VMOVUPD 32(DI), Y9
-	VPERMILPD $0x05, Y6, Y10
-	VMULPD Y8, Y6, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y6
+	VPERMILPD $0x05, Y6, Y10 // swap(Y6) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y6)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y6, Y12 // Y12 = Y6*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y6
 	VMOVUPD 64(DI), Y8
 	VMOVUPD 96(DI), Y9
-	VPERMILPD $0x05, Y7, Y10
-	VMULPD Y8, Y7, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y7
+	VPERMILPD $0x05, Y7, Y10 // swap(Y7) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y7)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y7, Y12 // Y12 = Y7*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y7
 
 	// Store to dst as row-major tile
 	VPERM2F128 $0x20, Y2, Y0, Y8
@@ -713,44 +713,44 @@ fwd_r16_twiddle_fused_diag_cb1:
 	LEAQ 4096(R10), DI        // col=1 base
 	VMOVUPD 128(DI), Y8       // pair=2 (rows 4..5) reDup
 	VMOVUPD 160(DI), Y9       // pair=2 (rows 4..5) imDup
-	VPERMILPD $0x05, Y2, Y10
-	VMULPD Y8, Y2, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VPERMILPD $0x05, Y2, Y10 // swap(Y2) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 	VMOVUPD 192(DI), Y8       // pair=3 (rows 6..7) reDup
 	VMOVUPD 224(DI), Y9       // pair=3 (rows 6..7) imDup
-	VPERMILPD $0x05, Y3, Y10
-	VMULPD Y8, Y3, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VPERMILPD $0x05, Y3, Y10 // swap(Y3) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 
 	ADDQ $512, DI             // col=2 base
 	VMOVUPD 128(DI), Y8       // pair=2 (rows 4..5) reDup
 	VMOVUPD 160(DI), Y9       // pair=2 (rows 4..5) imDup
-	VPERMILPD $0x05, Y4, Y10
-	VMULPD Y8, Y4, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y4
+	VPERMILPD $0x05, Y4, Y10 // swap(Y4) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y4)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y4, Y12 // Y12 = Y4*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y4
 	VMOVUPD 192(DI), Y8       // pair=3 (rows 6..7) reDup
 	VMOVUPD 224(DI), Y9       // pair=3 (rows 6..7) imDup
-	VPERMILPD $0x05, Y5, Y10
-	VMULPD Y8, Y5, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y5
+	VPERMILPD $0x05, Y5, Y10 // swap(Y5) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y5)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y5, Y12 // Y12 = Y5*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y5
 
 	ADDQ $512, DI             // col=3 base
 	VMOVUPD 128(DI), Y8       // pair=2 (rows 4..5) reDup
 	VMOVUPD 160(DI), Y9       // pair=2 (rows 4..5) imDup
-	VPERMILPD $0x05, Y6, Y10
-	VMULPD Y8, Y6, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y6
+	VPERMILPD $0x05, Y6, Y10 // swap(Y6) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y6)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y6, Y12 // Y12 = Y6*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y6
 	VMOVUPD 192(DI), Y8       // pair=3 (rows 6..7) reDup
 	VMOVUPD 224(DI), Y9       // pair=3 (rows 6..7) imDup
-	VPERMILPD $0x05, Y7, Y10
-	VMULPD Y8, Y7, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y7
+	VPERMILPD $0x05, Y7, Y10 // swap(Y7) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y7)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y7, Y12 // Y12 = Y7*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y7
 
 	// Store to dst as row-major tile (cols 4..7)
 	VPERM2F128 $0x20, Y2, Y0, Y8
@@ -903,26 +903,26 @@ fwd_r16_stage2_row:
 	VMOVUPD 11776(R10), Y8    // [W^0, W^1] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y1, Y11
-	VSHUFPD $5, Y1, Y1, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y1
+	VSHUFPD $5, Y1, Y1, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1
 	VMOVUPD 384(SP), Y2
 	VMOVUPD 11808(R10), Y8    // [W^0, W^2] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y2, Y11
-	VSHUFPD $5, Y2, Y2, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VSHUFPD $5, Y2, Y2, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 	VMOVUPD 448(SP), Y3
 	VMOVUPD 11840(R10), Y8    // [W^0, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y3, Y11
-	VSHUFPD $5, Y3, Y3, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VSHUFPD $5, Y3, Y3, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 	VADDPD Y2, Y0, Y4
 	VSUBPD Y2, Y0, Y5
 	VADDPD Y3, Y1, Y6
@@ -946,26 +946,26 @@ fwd_r16_stage2_row:
 	VMOVUPD 11872(R10), Y8    // [W^2, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y1, Y11
-	VSHUFPD $5, Y1, Y1, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y1
+	VSHUFPD $5, Y1, Y1, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1
 	VMOVUPD 416(SP), Y2
 	VMOVUPD 11904(R10), Y8    // [W^4, W^6] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y2, Y11
-	VSHUFPD $5, Y2, Y2, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VSHUFPD $5, Y2, Y2, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 	VMOVUPD 480(SP), Y3
 	VMOVUPD 11936(R10), Y8    // [W^6, W^9] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y3, Y11
-	VSHUFPD $5, Y3, Y3, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VSHUFPD $5, Y3, Y3, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 	VADDPD Y2, Y0, Y4
 	VSUBPD Y2, Y0, Y5
 	VADDPD Y3, Y1, Y6
@@ -1294,30 +1294,30 @@ inv_r16_stage1_col:
 	VMOVUPD 11776(R10), Y8    // Y8 = [W^0, W^1] pre-packed (conjugated)
 	VPERMILPD $0, Y8, Y9      // [re, re, re, re]
 	VPERMILPD $15, Y8, Y10    // [im, im, im, im]
-	VMULPD Y9, Y1, Y11        // [a*re, b*re, ...]
-	VSHUFPD $5, Y1, Y1, Y12   // swap re/im in each lane
-	VMULPD Y10, Y12, Y12      // [a*im, b*im, ...]
-	VADDSUBPD Y12, Y11, Y1    // a1 = [stage1[4]*1, stage1[5]*W^1]
+	VSHUFPD $5, Y1, Y1, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1  // a1 = [stage1[4]*1, stage1[5]*W^1]
 
 	// a2 = [stage1[8], stage1[9]] * [W^0, W^2]
 	VMOVUPD 384(SP), Y2       // [stage1[8], stage1[9]]
 	VMOVUPD 11808(R10), Y8    // Y8 = [W^0, W^2] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y2, Y11
-	VSHUFPD $5, Y2, Y2, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y2    // a2 = [stage1[8]*1, stage1[9]*W^2]
+	VSHUFPD $5, Y2, Y2, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2  // a2 = [stage1[8]*1, stage1[9]*W^2]
 
 	// a3 = [stage1[12], stage1[13]] * [W^0, W^3]
 	VMOVUPD 448(SP), Y3       // [stage1[12], stage1[13]]
 	VMOVUPD 11840(R10), Y8    // Y8 = [W^0, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y3, Y11
-	VSHUFPD $5, Y3, Y3, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y3    // a3 = [stage1[12]*1, stage1[13]*W^3]
+	VSHUFPD $5, Y3, Y3, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3  // a3 = [stage1[12]*1, stage1[13]*W^3]
 
 	// Radix-4 butterfly (inverse: j for y1, -j for y3)
 	VADDPD Y2, Y0, Y4         // t0 = a0 + a2
@@ -1347,30 +1347,30 @@ inv_r16_stage1_col:
 	VMOVUPD 11872(R10), Y8    // Y8 = [W^2, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y1, Y11
-	VSHUFPD $5, Y1, Y1, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y1
+	VSHUFPD $5, Y1, Y1, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1
 
 	// a2 = [stage1[10], stage1[11]] * [W^4, W^6]
 	VMOVUPD 416(SP), Y2       // [stage1[10], stage1[11]]
 	VMOVUPD 11904(R10), Y8    // Y8 = [W^4, W^6] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y2, Y11
-	VSHUFPD $5, Y2, Y2, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VSHUFPD $5, Y2, Y2, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 
 	// a3 = [stage1[14], stage1[15]] * [W^6, W^9]
 	VMOVUPD 480(SP), Y3       // [stage1[14], stage1[15]]
 	VMOVUPD 11936(R10), Y8    // Y8 = [W^6, W^9] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y3, Y11
-	VSHUFPD $5, Y3, Y3, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VSHUFPD $5, Y3, Y3, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 
 	// Radix-4 butterfly (inverse: j for y1, -j for y3)
 	VADDPD Y2, Y0, Y4         // t0 = a0 + a2
@@ -1455,69 +1455,69 @@ inv_r16_fused_cb:
 	// Y0: rows 0-1 (pair = rb*2)
 	VMOVUPD (R14)(BX*1), Y8   // reDup for pair rb*2
 	VMOVUPD 32(R14)(BX*1), Y9 // imDup for pair rb*2
-	VPERMILPD $0x05, Y0, Y10
-	VMULPD Y8, Y0, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y0
+	VPERMILPD $0x05, Y0, Y10 // swap(Y0) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y0)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y0, Y12 // Y12 = Y0*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y0
 
 	// Y1: rows 2-3 (pair = rb*2+1)
 	VMOVUPD 64(R14)(BX*1), Y8 // reDup for pair rb*2+1
 	VMOVUPD 96(R14)(BX*1), Y9 // imDup for pair rb*2+1
-	VPERMILPD $0x05, Y1, Y10
-	VMULPD Y8, Y1, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y1
+	VPERMILPD $0x05, Y1, Y10 // swap(Y1) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1
 
 	// Column 1 in tile (global_col = cb*4+1)
 	ADDQ $512, R14
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y2, Y10
-	VMULPD Y8, Y2, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VPERMILPD $0x05, Y2, Y10 // swap(Y2) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y3, Y10
-	VMULPD Y8, Y3, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VPERMILPD $0x05, Y3, Y10 // swap(Y3) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 
 	// Column 2 in tile (global_col = cb*4+2)
 	ADDQ $512, R14
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y4, Y10
-	VMULPD Y8, Y4, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y4
+	VPERMILPD $0x05, Y4, Y10 // swap(Y4) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y4)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y4, Y12 // Y12 = Y4*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y4
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y5, Y10
-	VMULPD Y8, Y5, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y5
+	VPERMILPD $0x05, Y5, Y10 // swap(Y5) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y5)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y5, Y12 // Y12 = Y5*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y5
 
 	// Column 3 in tile (global_col = cb*4+3)
 	ADDQ $512, R14
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y6, Y10
-	VMULPD Y8, Y6, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y6
+	VPERMILPD $0x05, Y6, Y10 // swap(Y6) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y6)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y6, Y12 // Y12 = Y6*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y6
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y7, Y10
-	VMULPD Y8, Y7, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y7
+	VPERMILPD $0x05, Y7, Y10 // swap(Y7) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y7)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y7, Y12 // Y12 = Y7*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y7
 
 	JMP inv_r16_fused_transpose
 
@@ -1531,51 +1531,51 @@ inv_r16_fused_cb0_twiddle:
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y2, Y10
-	VMULPD Y8, Y2, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VPERMILPD $0x05, Y2, Y10 // swap(Y2) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y3, Y10
-	VMULPD Y8, Y3, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VPERMILPD $0x05, Y3, Y10 // swap(Y3) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 
 	// Column 2 in tile (global_col = 2)
 	ADDQ $512, R14
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y4, Y10
-	VMULPD Y8, Y4, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y4
+	VPERMILPD $0x05, Y4, Y10 // swap(Y4) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y4)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y4, Y12 // Y12 = Y4*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y4
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y5, Y10
-	VMULPD Y8, Y5, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y5
+	VPERMILPD $0x05, Y5, Y10 // swap(Y5) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y5)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y5, Y12 // Y12 = Y5*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y5
 
 	// Column 3 in tile (global_col = 3)
 	ADDQ $512, R14
 
 	VMOVUPD (R14)(BX*1), Y8
 	VMOVUPD 32(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y6, Y10
-	VMULPD Y8, Y6, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y6
+	VPERMILPD $0x05, Y6, Y10 // swap(Y6) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y6)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y6, Y12 // Y12 = Y6*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y6
 
 	VMOVUPD 64(R14)(BX*1), Y8
 	VMOVUPD 96(R14)(BX*1), Y9
-	VPERMILPD $0x05, Y7, Y10
-	VMULPD Y8, Y7, Y11
-	VMULPD Y9, Y10, Y12
-	VADDSUBPD Y12, Y11, Y7
+	VPERMILPD $0x05, Y7, Y10 // swap(Y7) re/im in each 128-bit lane
+	VMULPD Y9, Y10, Y12       // Y12 = swap(Y7)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y8, Y7, Y12 // Y12 = Y7*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y7
 
 inv_r16_fused_transpose:
 	// Transpose 4x4 tile via VPERM2F128
@@ -1719,30 +1719,30 @@ inv_r16_stage2_row:
 	VMOVUPD 11776(R10), Y8    // Y8 = [W^0, W^1] pre-packed (conjugated)
 	VPERMILPD $0, Y8, Y9      // [re, re, re, re]
 	VPERMILPD $15, Y8, Y10    // [im, im, im, im]
-	VMULPD Y9, Y1, Y11        // [a*re, b*re, ...]
-	VSHUFPD $5, Y1, Y1, Y12   // swap re/im in each lane
-	VMULPD Y10, Y12, Y12      // [a*im, b*im, ...]
-	VADDSUBPD Y12, Y11, Y1    // a1 = [stage1[4]*1, stage1[5]*W^1]
+	VSHUFPD $5, Y1, Y1, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1  // a1 = [stage1[4]*1, stage1[5]*W^1]
 
 	// a2 = [stage1[8], stage1[9]] * [W^0, W^2]
 	VMOVUPD 384(SP), Y2       // [stage1[8], stage1[9]]
 	VMOVUPD 11808(R10), Y8    // Y8 = [W^0, W^2] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y2, Y11
-	VSHUFPD $5, Y2, Y2, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y2    // a2 = [stage1[8]*1, stage1[9]*W^2]
+	VSHUFPD $5, Y2, Y2, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2  // a2 = [stage1[8]*1, stage1[9]*W^2]
 
 	// a3 = [stage1[12], stage1[13]] * [W^0, W^3]
 	VMOVUPD 448(SP), Y3       // [stage1[12], stage1[13]]
 	VMOVUPD 11840(R10), Y8    // Y8 = [W^0, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y3, Y11
-	VSHUFPD $5, Y3, Y3, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y3    // a3 = [stage1[12]*1, stage1[13]*W^3]
+	VSHUFPD $5, Y3, Y3, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3  // a3 = [stage1[12]*1, stage1[13]*W^3]
 
 	// Radix-4 butterfly (inverse: j for y1, -j for y3)
 	VADDPD Y2, Y0, Y4         // t0 = a0 + a2
@@ -1772,30 +1772,30 @@ inv_r16_stage2_row:
 	VMOVUPD 11872(R10), Y8    // Y8 = [W^2, W^3] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y1, Y11
-	VSHUFPD $5, Y1, Y1, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y1
+	VSHUFPD $5, Y1, Y1, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y1)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y1, Y12 // Y12 = Y1*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y1
 
 	// a2 = [stage1[10], stage1[11]] * [W^4, W^6]
 	VMOVUPD 416(SP), Y2       // [stage1[10], stage1[11]]
 	VMOVUPD 11904(R10), Y8    // Y8 = [W^4, W^6] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y2, Y11
-	VSHUFPD $5, Y2, Y2, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y2
+	VSHUFPD $5, Y2, Y2, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y2)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y2, Y12 // Y12 = Y2*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y2
 
 	// a3 = [stage1[14], stage1[15]] * [W^6, W^9]
 	VMOVUPD 480(SP), Y3       // [stage1[14], stage1[15]]
 	VMOVUPD 11936(R10), Y8    // Y8 = [W^6, W^9] pre-packed
 	VPERMILPD $0, Y8, Y9
 	VPERMILPD $15, Y8, Y10
-	VMULPD Y9, Y3, Y11
-	VSHUFPD $5, Y3, Y3, Y12
-	VMULPD Y10, Y12, Y12
-	VADDSUBPD Y12, Y11, Y3
+	VSHUFPD $5, Y3, Y3, Y12      // swap re/im in each 128-bit lane
+	VMULPD Y10, Y12, Y12      // Y12 = swap(Y3)*imDup (accumulator: imag-part contribution)
+	VFMADDSUB231PD Y9, Y3, Y12 // Y12 = Y3*reDup addsub Y12 (fused re*reDup, single rounding)
+	VMOVAPD Y12, Y3
 
 	// Radix-4 butterfly (inverse: j for y1, -j for y3)
 	VADDPD Y2, Y0, Y4         // t0 = a0 + a2

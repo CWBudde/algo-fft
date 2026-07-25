@@ -152,20 +152,13 @@ size8_r4_fwd_bitrev:
 	VADDPS X4, X0, X12   // y0
 	VSUBPS X4, X0, X13   // y4
 
-	// w1 * a5
-	MOVQ 8(R10), X8
-	VSHUFPS $0x00, X8, X8, X9  // w1.r
-	VSHUFPS $0x55, X8, X8, X10 // w1.i
-	VSHUFPS $0xB1, X5, X5, X11 // a5 swapped
-	VMULPS X9, X5, X14
-	VMULPS X10, X11, X15
-	MOVL ·signbit32(SB), AX
-	MOVD AX, X9
-	VBROADCASTSS X9, X9
-	VXORPS X10, X10, X10
-	VBLENDPS $0x55, X9, X10, X9
-	VXORPS X9, X15, X15
-	VADDPS X15, X14, X14       // w1*a5
+	// w1 * a5 (FMA: w1 = (+sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
+	MOVQ 8(R10), X8            // w1
+	VMOVSLDUP X8, X9           // Xre = broadcast real(w1)
+	VMOVSHDUP X8, X10          // Xim = broadcast imag(w1)
+	VPERMILPS $0xB1, X5, X11   // Xswap = swap(a5)
+	VMULPS X10, X11, X14       // Xacc = Xim * Xswap
+	VFMADDSUB231PS X9, X5, X14 // Xacc = Xre*a5 -/+ Xacc = w1*a5
 	VADDPS X14, X1, X8         // y1
 	VSUBPS X14, X1, X9         // y5
 
@@ -186,22 +179,15 @@ size8_r4_fwd_bitrev:
 	VADDPS X14, X2, X10        // y2
 	VSUBPS X14, X2, X11        // y6
 
-	// w3 * a7
-	MOVQ 24(R10), X14
-	VSHUFPS $0x00, X14, X14, X15
-	VSHUFPS $0x55, X14, X14, X4
-	VSHUFPS $0xB1, X7, X7, X5
-	VMULPS X15, X7, X14
-	VMULPS X4, X5, X15
-	MOVL ·signbit32(SB), AX
-	MOVD AX, X4
-	VBROADCASTSS X4, X4
-	VXORPS X5, X5, X5
-	VBLENDPS $0x55, X4, X5, X4
-	VXORPS X4, X15, X15
-	VADDPS X15, X14, X14       // w3*a7
-	VADDPS X14, X3, X15        // y3
-	VSUBPS X14, X3, X4         // y7
+	// w3 * a7 (FMA: w3 = (-sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
+	MOVQ 24(R10), X14          // w3
+	VMOVSLDUP X14, X15         // Xre = broadcast real(w3)
+	VMOVSHDUP X14, X4          // Xim = broadcast imag(w3)
+	VPERMILPS $0xB1, X7, X5    // Xswap = swap(a7)
+	VMULPS X4, X5, X4          // Xacc = Xim * Xswap
+	VFMADDSUB231PS X15, X7, X4 // Xacc = Xre*a7 -/+ Xacc = w3*a7
+	VADDPS X4, X3, X15         // y3
+	VSUBPS X4, X3, X4          // y7
 
 	// Store results to work buffer
 	MOVQ X12, (R8)
@@ -365,18 +351,22 @@ size8_r4_inv_bitrev:
 	VADDPS X4, X0, X12
 	VSUBPS X4, X0, X13
 
-	// conj(w1) * a5
-	MOVQ 8(R10), X8
-	VXORPS X10, X8, X8
-	VSHUFPS $0x00, X8, X8, X14
-	VSHUFPS $0x55, X8, X8, X15
-	VSHUFPS $0xB1, X5, X5, X8
-	VMULPS X14, X5, X9
-	VMULPS X15, X8, X14
-	VXORPS X11, X14, X14
-	VADDPS X14, X9, X9        // conj(w1)*a5
-	VADDPS X9, X1, X8         // y1
-	VSUBPS X9, X1, X9         // y5
+	// conj(w1) * a5 (FMA: w1 = (+sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
+	// NOTE: X10/X11 hold the maskNegImag/maskNegReal masks still needed by
+	// the untouched conj(w2) site below, and X12/X13 hold y0/y4 (not stored
+	// until the end of this function), so this site avoids all four.
+	MOVQ 8(R10), X14             // w1
+	VMOVSLDUP X14, X9            // Xre = broadcast real(w1) (same for conj)
+	VMOVSHDUP X14, X15           // Xim0 = broadcast imag(w1)
+	MOVL ·signbit32(SB), AX
+	MOVD AX, X14
+	VBROADCASTSS X14, X14        // negate-all mask (reuses X14 after w1 consumed)
+	VXORPS X14, X15, X15         // Xim = imag(conj(w1)) = -imag(w1)
+	VPERMILPS $0xB1, X5, X14     // Xswap = swap(a5) (reuses X14 after mask consumed)
+	VMULPS X15, X14, X0          // Xacc = Xim * Xswap (X0 free: a0 already consumed)
+	VFMADDSUB231PS X9, X5, X0    // Xacc = Xre*a5 -/+ Xacc = conj(w1)*a5
+	VADDPS X0, X1, X8            // y1
+	VSUBPS X0, X1, X9            // y5
 
 	// conj(w2) * a6
 	MOVQ 16(R10), X14
@@ -391,30 +381,19 @@ size8_r4_inv_bitrev:
 	VADDPS X14, X2, X10       // y2
 	VSUBPS X14, X2, X11       // y6
 
-	// conj(w3) * a7
-	MOVQ 24(R10), X1
-	// Rebuild maskNegImag (X10 was clobbered by y2 at line 415)
+	// conj(w3) * a7 (FMA: w3 = (-sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
+	MOVQ 24(R10), X14           // w3
+	VMOVSLDUP X14, X15          // Xre = broadcast real(w3) (same for conj)
+	VMOVSHDUP X14, X4           // Xim0 = broadcast imag(w3)
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X4
-	VBROADCASTSS X4, X4
-	VXORPS X5, X5, X5
-	VBLENDPS $0xAA, X4, X5, X4
-	VXORPS X4, X1, X1
-	VSHUFPS $0x00, X1, X1, X2
-	VSHUFPS $0x55, X1, X1, X6
-	VSHUFPS $0xB1, X7, X7, X1
-	VMULPS X2, X7, X4
-	VMULPS X6, X1, X5
-	// Rebuild maskNegReal (X11 was clobbered by y6 at line 416)
-	MOVL ·signbit32(SB), AX
-	MOVD AX, X6
-	VBROADCASTSS X6, X6
-	VXORPS X2, X2, X2
-	VBLENDPS $0x55, X6, X2, X6
-	VXORPS X6, X5, X5
-	VADDPS X5, X4, X14        // conj(w3)*a7
-	VADDPS X14, X3, X15       // y3
-	VSUBPS X14, X3, X4        // y7
+	MOVD AX, X1
+	VBROADCASTSS X1, X1         // negate-all mask
+	VXORPS X1, X4, X4           // Xim = imag(conj(w3)) = -imag(w3)
+	VPERMILPS $0xB1, X7, X1     // Xswap = swap(a7)
+	VMULPS X4, X1, X4           // Xacc = Xim * Xswap
+	VFMADDSUB231PS X15, X7, X4  // Xacc = Xre*a7 -/+ Xacc = conj(w3)*a7
+	VADDPS X4, X3, X15          // y3
+	VSUBPS X4, X3, X4           // y7
 
 	// Apply 1/8 scaling
 	MOVL ·eighth32(SB), AX

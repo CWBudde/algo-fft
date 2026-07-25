@@ -163,25 +163,22 @@ twiddle384_subarray1_loop:
 
 	// Complex multiply: Y0 = Y0 * Y1
 	// (a+bi)(c+di) = (ac-bd) + (ad+bc)i
-	// Using AVX2: duplicate real/imag, multiply, add/sub
+	// Using AVX2: duplicate real/imag, then a single FMA-fused multiply-addsub
 
 	// Step 1: Duplicate real parts: [a,a,a,a,...] and imag parts: [b,b,b,b,...]
 	VMOVSLDUP Y0, Y2         // Y2 = [a0,a0, a1,a1, a2,a2, a3,a3] (duplicate reals)
 	VMOVSHDUP Y0, Y3         // Y3 = [b0,b0, b1,b1, b2,b2, b3,b3] (duplicate imags)
 
-	// Step 2: Multiply
-	VMULPS Y2, Y1, Y4        // Y4 = [a*c, a*d, ...] (real * twiddle)
-
-	// Step 3: Swap real/imag of twiddle for cross terms
+	// Step 2: Swap real/imag of twiddle for cross terms
 	VSHUFPS $0xB1, Y1, Y1, Y5 // Y5 = [d,c, d,c, ...] (swap pairs)
-	VMULPS Y3, Y5, Y6        // Y6 = [b*d, b*c, ...]
+	VMULPS Y3, Y5, Y6        // Y6 = [b*d, b*c, ...] (imag * swapped twiddle)
 
-	// Step 4: Add/sub to get final result
-	// Real = a*c - b*d, Imag = a*d + b*c
-	VADDSUBPS Y6, Y4, Y0     // Y0 = [a*c-b*d, a*d+b*c, ...] = complex product
+	// Step 3: FMA-fused multiply-addsub: Y6 = twiddle*real -/+ Y6
+	// Real = a*c - b*d, Imag = a*d + b*c (single rounding step per lane)
+	VFMADDSUB231PS Y2, Y1, Y6 // Y6 = [a*c-b*d, a*d+b*c, ...] = complex product
 
 	// Store result
-	VMOVUPS Y0, (SI)
+	VMOVUPS Y6, (SI)
 
 	ADDQ $4, CX
 	JMP  twiddle384_subarray1_loop
@@ -222,16 +219,15 @@ twiddle384_subarray2_loop:
 	VINSERTPS $0x10, X4, X3, X3  // X3 = [tw4_r, tw4_i, tw6_r, tw6_i]
 	VINSERTF128 $1, X3, Y1, Y1   // Y1 = [tw0, tw2, tw4, tw6]
 
-	// Complex multiply: Y0 = Y0 * Y1
+	// Complex multiply: Y0 = Y0 * Y1 (FMA-fused multiply-addsub)
 	VMOVSLDUP Y0, Y2         // Y2 = duplicate reals
 	VMOVSHDUP Y0, Y3         // Y3 = duplicate imags
-	VMULPS Y2, Y1, Y4        // Y4 = real * twiddle
 	VSHUFPS $0xB1, Y1, Y1, Y5 // Y5 = swap twiddle pairs
 	VMULPS Y3, Y5, Y6        // Y6 = imag * swapped twiddle
-	VADDSUBPS Y6, Y4, Y0     // Y0 = complex product
+	VFMADDSUB231PS Y2, Y1, Y6 // Y6 = twiddle*real -/+ Y6 = complex product
 
 	// Store result
-	VMOVUPS Y0, (SI)
+	VMOVUPS Y6, (SI)
 
 	ADDQ $4, CX
 	JMP  twiddle384_subarray2_loop

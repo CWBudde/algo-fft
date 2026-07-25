@@ -71,10 +71,10 @@ fwd_use_dst:
 	VMOVUPS 0(R10), Y4           // Load contiguous twiddles W^0..W^3
 	VPERMILPS $0xA0, Y4, Y5      // Y5 = Re(W)
 	VPERMILPS $0xF5, Y4, Y6      // Y6 = Im(W)
-	VMULPS Y5, Y1, Y7            // Y7 = Row1 * Re(W)
 	VPERMILPS $0xB1, Y1, Y8      // Y8 = Row1 swapped
 	VMULPS Y6, Y8, Y8            // Y8 = Row1_swapped * Im(W)
-	VADDSUBPS Y8, Y7, Y1         // Row 1 = (ac-bd, ad+bc)
+	VFMADDSUB231PS Y5, Y1, Y8    // Y8 = Row1*Re(W) +/- Y8 = (ac-bd, ad+bc), fused
+	VMOVAPS Y8, Y1               // Row 1 = twiddled result
 
 	// --- Row 2 Multiplication ---
 	VMOVSD 0(R10), X4            // Load W^0
@@ -86,10 +86,10 @@ fwd_use_dst:
 	VINSERTF128 $0x01, X5, Y4, Y4 // Y4 = (W^0, W^2, W^4, W^6)
 	VPERMILPS $0xA0, Y4, Y5      // Y5 = Re(W)
 	VPERMILPS $0xF5, Y4, Y6      // Y6 = Im(W)
-	VMULPS Y5, Y2, Y7            // Y7 = Row2 * Re(W)
 	VPERMILPS $0xB1, Y2, Y8      // Y8 = Row2 swapped
 	VMULPS Y6, Y8, Y8            // Y8 = Row2_swapped * Im(W)
-	VADDSUBPS Y8, Y7, Y2         // Row 2 = (ac-bd, ad+bc)
+	VFMADDSUB231PS Y5, Y2, Y8    // Y8 = Row2*Re(W) +/- Y8 = (ac-bd, ad+bc), fused
+	VMOVAPS Y8, Y2               // Row 2 = twiddled result
 
 	// --- Row 3 Multiplication ---
 	VMOVSD 0(R10), X4            // Load W^0
@@ -103,10 +103,10 @@ fwd_use_dst:
 	VINSERTF128 $0x01, X5, Y4, Y4 // Y4 = (W^0, W^3, W^6, W^9)
 	VPERMILPS $0xA0, Y4, Y5      // Y5 = Re(W)
 	VPERMILPS $0xF5, Y4, Y6      // Y6 = Im(W)
-	VMULPS Y5, Y3, Y7            // Y7 = Row3 * Re(W)
 	VPERMILPS $0xB1, Y3, Y8      // Y8 = Row3 swapped
 	VMULPS Y6, Y8, Y8            // Y8 = Row3_swapped * Im(W)
-	VADDSUBPS Y8, Y7, Y3         // Row 3 = (ac-bd, ad+bc)
+	VFMADDSUB231PS Y5, Y3, Y8    // Y8 = Row3*Re(W) +/- Y8 = (ac-bd, ad+bc), fused
+	VMOVAPS Y8, Y3               // Row 3 = twiddled result
 
 
 	// =======================================================================
@@ -274,10 +274,10 @@ inv_use_dst:
 	VXORPS Y15, Y4, Y4            // Conjugate twiddles: W -> conj(W)
 	VPERMILPS $0xA0, Y4, Y5       // Y5 = Re(W)
 	VPERMILPS $0xF5, Y4, Y6       // Y6 = Im(W)
-	VMULPS Y5, Y1, Y7             // Y7 = Row1 * Re(W)
 	VPERMILPS $0xB1, Y1, Y8       // Y8 = Row1 swapped
 	VMULPS Y6, Y8, Y8             // Y8 = Row1_swapped * Im(W)
-	VADDSUBPS Y8, Y7, Y1          // Row 1 = (ac-bd, ad+bc)
+	VFMADDSUB231PS Y5, Y1, Y8     // Y8 = Row1*Re(W) +/- Y8 = (ac-bd, ad+bc), fused
+	VMOVAPS Y8, Y1                // Row 1 = twiddled result
 
 	// --- Row 2 ---
 	VMOVSD 0(R10), X4             // Load W^0
@@ -290,10 +290,10 @@ inv_use_dst:
 	VXORPS Y15, Y4, Y4            // Conjugate
 	VPERMILPS $0xA0, Y4, Y5       // Y5 = Re(W)
 	VPERMILPS $0xF5, Y4, Y6       // Y6 = Im(W)
-	VMULPS Y5, Y2, Y7             // Y7 = Row2 * Re(W)
 	VPERMILPS $0xB1, Y2, Y8       // Y8 = Row2 swapped
 	VMULPS Y6, Y8, Y8             // Y8 = Row2_swapped * Im(W)
-	VADDSUBPS Y8, Y7, Y2          // Row 2 = (ac-bd, ad+bc)
+	VFMADDSUB231PS Y5, Y2, Y8     // Y8 = Row2*Re(W) +/- Y8 = (ac-bd, ad+bc), fused
+	VMOVAPS Y8, Y2                // Row 2 = twiddled result
 
 	// --- Row 3 ---
 	VMOVSD 0(R10), X4             // Load W^0
@@ -308,10 +308,10 @@ inv_use_dst:
 	VXORPS Y15, Y4, Y4            // Conjugate
 	VPERMILPS $0xA0, Y4, Y5       // Y5 = Re(W)
 	VPERMILPS $0xF5, Y4, Y6       // Y6 = Im(W)
-	VMULPS Y5, Y3, Y7             // Y7 = Row3 * Re(W)
 	VPERMILPS $0xB1, Y3, Y8       // Y8 = Row3 swapped
 	VMULPS Y6, Y8, Y8             // Y8 = Row3_swapped * Im(W)
-	VADDSUBPS Y8, Y7, Y3          // Row 3 = (ac-bd, ad+bc)
+	VFMADDSUB231PS Y5, Y3, Y8     // Y8 = Row3*Re(W) +/- Y8 = (ac-bd, ad+bc), fused
+	VMOVAPS Y8, Y3                // Row 3 = twiddled result
 
 	// =======================================================================
 	// STEP 3: Horizontal IFFT4 (Transform within each YMM Row)

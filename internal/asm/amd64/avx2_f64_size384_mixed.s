@@ -127,7 +127,7 @@ twiddle384_subarray1_loop:
 	LEAQ (R10)(R14*1), DI
 	VMOVUPD (DI), Y1         // Y1 = twiddle[CX : CX+2]
 
-	// Complex multiply: Y0 = Y0 * Y1
+	// Complex multiply: Y0 = Y0 * Y1 (FMA-fused multiply-addsub)
 	// using VPERMPD for shuffling doubles in YMM
 
 	// Duplicate reals: [r0, r0, r1, r1]
@@ -138,9 +138,6 @@ twiddle384_subarray1_loop:
 	// 0xF5 = 11 11 01 01 (indices 3,3,1,1)
 	VPERMPD $0xF5, Y0, Y3
 
-	// Multiply real*twiddle
-	VMULPD Y2, Y1, Y4        // Y4 = [r0*tr0, r0*ti0, r1*tr1, r1*ti1]
-
 	// Swap twiddle pairs: [ti0, tr0, ti1, tr1]
 	// 0xB1 = 10 11 00 01 (indices 2,3,0,1)
 	VPERMPD $0xB1, Y1, Y5
@@ -148,11 +145,12 @@ twiddle384_subarray1_loop:
 	// Multiply imag*swapped_twiddle
 	VMULPD Y3, Y5, Y6        // Y6 = [i0*ti0, i0*tr0, i1*ti1, i1*tr1]
 
-	// AddSub: Real = a*c - b*d, Imag = a*d + b*c
-	VADDSUBPD Y6, Y4, Y0     // Y0 = [r*tr-i*ti, r*ti+i*tr, ...]
+	// FMA: Y6 = twiddle*real -/+ Y6
+	// Real = a*c - b*d, Imag = a*d + b*c (single rounding step per lane)
+	VFMADDSUB231PD Y2, Y1, Y6 // Y6 = [r*tr-i*ti, r*ti+i*tr, ...]
 
 	// Store result
-	VMOVUPD Y0, (SI)
+	VMOVUPD Y6, (SI)
 
 	ADDQ $2, CX
 	JMP  twiddle384_subarray1_loop
@@ -186,16 +184,15 @@ twiddle384_subarray2_loop:
 
 	VINSERTF128 $1, X2, Y1, Y1 // Y1 = [tw[2*CX], tw[2*CX+2]]
 
-	// Complex multiply (same as above)
+	// Complex multiply (same as above, FMA-fused)
 	VPERMPD $0xA0, Y0, Y2    // Reals
 	VPERMPD $0xF5, Y0, Y3    // Imags
-	VMULPD Y2, Y1, Y4        // Real * Twiddle
 	VPERMPD $0xB1, Y1, Y5    // Swap Twiddle
 	VMULPD Y3, Y5, Y6        // Imag * Swapped
-	VADDSUBPD Y6, Y4, Y0     // Result
+	VFMADDSUB231PD Y2, Y1, Y6 // Y6 = twiddle*real -/+ Y6 = complex product
 
 	// Store result
-	VMOVUPD Y0, (SI)
+	VMOVUPD Y6, (SI)
 
 	ADDQ $2, CX
 	JMP  twiddle384_subarray2_loop
