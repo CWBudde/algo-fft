@@ -1,0 +1,18415 @@
+//go:build arm64 && !purego
+
+// ===========================================================================
+// NEON Size-16384 Radix-4 FFT Kernels for ARM64 (complex128)
+// ===========================================================================
+//
+// Size 16384 = 4^7, radix-4 algorithm uses 7 stages:
+//   Stage 1: 4096 groups x 1 butterfly (no twiddles), stride=4
+//   Stage 2: 1024 groups x 4 butterflies, span=16,  twiddle step=1024
+//   Stage 3: 256 groups x 16 butterflies, span=64,  twiddle step=256
+//   Stage 4: 64 groups x 64 butterflies, span=256,  twiddle step=64
+//   Stage 5: 16 groups x 256 butterflies, span=1024,  twiddle step=16
+//   Stage 6: 4 groups x 1024 butterflies, span=4096,  twiddle step=4
+//   Stage 7: 1 group x 4096 butterflies, span=16384, twiddle step=1
+//
+// Each complex128 element is 16 bytes (real f64 + imag f64).
+//
+// ===========================================================================
+
+#include "textflag.h"
+
+DATA ·neonInv16384R4F64+0(SB)/8, $0x3f10000000000000 // 1/16384 = 6.103515625e-05
+GLOBL ·neonInv16384R4F64(SB), RODATA, $8
+
+// Forward transform, size 16384, complex128, radix-4 variant
+// func ForwardNEONSize16384Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+TEXT ·ForwardNEONSize16384Radix4Complex128Asm(SB), NOSPLIT, $0-97
+	MOVD dst+0(FP), R8
+	MOVD src+24(FP), R9
+	MOVD twiddle+48(FP), R10
+	MOVD scratch+72(FP), R11
+	MOVD src_len+32(FP), R13
+
+	CMP  $16384, R13
+	BNE  neon16384r4f64_return_false
+
+	MOVD dst_len+8(FP), R0
+	CMP  $16384, R0
+	BLT  neon16384r4f64_return_false
+
+	MOVD twiddle_len+56(FP), R0
+	CMP  $16384, R0
+	BLT  neon16384r4f64_return_false
+
+	MOVD scratch_len+80(FP), R0
+	CMP  $16384, R0
+	BLT  neon16384r4f64_return_false
+
+	MOVD $bitrev_size16384_radix4_f64<>(SB), R12
+	MOVD R8, R20
+
+	CMP  R8, R9
+	BNE  neon16384r4f64_use_dst
+	MOVD R11, R8
+
+neon16384r4f64_use_dst:
+	// =========================================================================
+	// Bit-reversal permutation
+	// =========================================================================
+	MOVD $0, R0
+
+neon16384r4f64_bitrev_loop:
+	CMP  $16384, R0
+	BGE  neon16384r4f64_stage1
+
+	LSL  $3, R0, R1
+	ADD  R12, R1, R1
+	MOVD (R1), R2
+
+	LSL  $4, R2, R3
+	ADD  R9, R3, R3
+	MOVD (R3), R4
+	MOVD 8(R3), R5
+
+	LSL  $4, R0, R3
+	ADD  R8, R3, R3
+	MOVD R4, (R3)
+	MOVD R5, 8(R3)
+
+	ADD  $1, R0, R0
+	B    neon16384r4f64_bitrev_loop
+
+neon16384r4f64_stage1:
+	// =========================================================================
+	// Stage 1: 4096 radix-4 butterflies (no twiddles)
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_stage1_loop:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_stage2
+
+	LSL  $4, R14, R1
+	ADD  R8, R1, R1
+
+	FMOVD 0(R1), F0
+	FMOVD 8(R1), F1
+	FMOVD 16(R1), F2
+	FMOVD 24(R1), F3
+	FMOVD 32(R1), F4
+	FMOVD 40(R1), F5
+	FMOVD 48(R1), F6
+	FMOVD 56(R1), F7
+
+	FADDD F4, F0, F8
+	FADDD F5, F1, F9
+	FSUBD F4, F0, F10
+	FSUBD F5, F1, F11
+
+	FADDD F6, F2, F12
+	FADDD F7, F3, F13
+	FSUBD F6, F2, F14
+	FSUBD F7, F3, F15
+
+	FADDD F12, F8, F16
+	FADDD F13, F9, F17
+	FSUBD F12, F8, F18
+	FSUBD F13, F9, F19
+
+	FMOVD F15, F20
+	FNEGD F14, F21
+
+	FADDD F20, F10, F22
+	FADDD F21, F11, F23
+
+	FNEGD F15, F24
+	FMOVD F14, F25
+
+	FADDD F24, F10, F26
+	FADDD F25, F11, F27
+
+	FMOVD F16, 0(R1)
+	FMOVD F17, 8(R1)
+	FMOVD F22, 16(R1)
+	FMOVD F23, 24(R1)
+	FMOVD F18, 32(R1)
+	FMOVD F19, 40(R1)
+	FMOVD F26, 48(R1)
+	FMOVD F27, 56(R1)
+
+	ADD  $4, R14, R14
+	B    neon16384r4f64_stage1_loop
+
+neon16384r4f64_stage2:
+	// =========================================================================
+	// Stage 2: radix-4 with twiddles, span=16, twiddle step=1024
+	// 1024 groups of 4 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_stage2_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_stage3
+
+	MOVD $0, R15
+
+neon16384r4f64_stage2_j:
+	CMP  $4, R15
+	BGE  neon16384r4f64_stage2_next
+
+	ADD  R14, R15, R0
+	ADD  $4, R0, R1
+	ADD  $8, R0, R2
+	ADD  $12, R0, R3
+
+	// Twiddles: w1=tw[j*1024], w2=tw[j*2048], w3=tw[j*3072]
+	LSL  $10, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+
+	LSL  $11, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+
+	MOVD $3072, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FADDD F21, F16, F26
+	FSUBD F20, F17, F27
+
+	FSUBD F21, F16, F28
+	FADDD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_stage2_j
+
+neon16384r4f64_stage2_next:
+	ADD  $16, R14, R14
+	B    neon16384r4f64_stage2_base
+
+neon16384r4f64_stage3:
+	// =========================================================================
+	// Stage 3: radix-4 with twiddles, span=64, twiddle step=256
+	// 256 groups of 16 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_stage3_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_stage4
+
+	MOVD $0, R15
+
+neon16384r4f64_stage3_j:
+	CMP  $16, R15
+	BGE  neon16384r4f64_stage3_next
+
+	ADD  R14, R15, R0
+	ADD  $16, R0, R1
+	ADD  $32, R0, R2
+	ADD  $48, R0, R3
+
+	// Twiddles: w1=tw[j*256], w2=tw[j*512], w3=tw[j*768]
+	LSL  $8, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+
+	LSL  $9, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+
+	MOVD $768, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FADDD F21, F16, F26
+	FSUBD F20, F17, F27
+
+	FSUBD F21, F16, F28
+	FADDD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_stage3_j
+
+neon16384r4f64_stage3_next:
+	ADD  $64, R14, R14
+	B    neon16384r4f64_stage3_base
+
+neon16384r4f64_stage4:
+	// =========================================================================
+	// Stage 4: radix-4 with twiddles, span=256, twiddle step=64
+	// 64 groups of 64 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_stage4_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_stage5
+
+	MOVD $0, R15
+
+neon16384r4f64_stage4_j:
+	CMP  $64, R15
+	BGE  neon16384r4f64_stage4_next
+
+	ADD  R14, R15, R0
+	ADD  $64, R0, R1
+	ADD  $128, R0, R2
+	ADD  $192, R0, R3
+
+	// Twiddles: w1=tw[j*64], w2=tw[j*128], w3=tw[j*192]
+	LSL  $6, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+
+	LSL  $7, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+
+	MOVD $192, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FADDD F21, F16, F26
+	FSUBD F20, F17, F27
+
+	FSUBD F21, F16, F28
+	FADDD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_stage4_j
+
+neon16384r4f64_stage4_next:
+	ADD  $256, R14, R14
+	B    neon16384r4f64_stage4_base
+
+neon16384r4f64_stage5:
+	// =========================================================================
+	// Stage 5: radix-4 with twiddles, span=1024, twiddle step=16
+	// 16 groups of 256 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_stage5_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_stage6
+
+	MOVD $0, R15
+
+neon16384r4f64_stage5_j:
+	CMP  $256, R15
+	BGE  neon16384r4f64_stage5_next
+
+	ADD  R14, R15, R0
+	ADD  $256, R0, R1
+	ADD  $512, R0, R2
+	ADD  $768, R0, R3
+
+	// Twiddles: w1=tw[j*16], w2=tw[j*32], w3=tw[j*48]
+	LSL  $4, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+
+	LSL  $5, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+
+	MOVD $48, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FADDD F21, F16, F26
+	FSUBD F20, F17, F27
+
+	FSUBD F21, F16, F28
+	FADDD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_stage5_j
+
+neon16384r4f64_stage5_next:
+	ADD  $1024, R14, R14
+	B    neon16384r4f64_stage5_base
+
+neon16384r4f64_stage6:
+	// =========================================================================
+	// Stage 6: radix-4 with twiddles, span=4096, twiddle step=4
+	// 4 groups of 1024 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_stage6_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_stage7
+
+	MOVD $0, R15
+
+neon16384r4f64_stage6_j:
+	CMP  $1024, R15
+	BGE  neon16384r4f64_stage6_next
+
+	ADD  R14, R15, R0
+	ADD  $1024, R0, R1
+	ADD  $2048, R0, R2
+	ADD  $3072, R0, R3
+
+	// Twiddles: w1=tw[j*4], w2=tw[j*8], w3=tw[j*12]
+	LSL  $2, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+
+	LSL  $3, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+
+	MOVD $12, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FADDD F21, F16, F26
+	FSUBD F20, F17, F27
+
+	FSUBD F21, F16, F28
+	FADDD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_stage6_j
+
+neon16384r4f64_stage6_next:
+	ADD  $4096, R14, R14
+	B    neon16384r4f64_stage6_base
+
+neon16384r4f64_stage7:
+	// =========================================================================
+	// Stage 7: radix-4 with twiddles, span=16384, twiddle step=1
+	// 1 group of 4096 butterflies
+	// =========================================================================
+	MOVD $0, R15
+
+neon16384r4f64_stage7_loop:
+	CMP  $4096, R15
+	BGE  neon16384r4f64_done
+
+	MOVD R15, R0
+	ADD  $4096, R15, R1
+	ADD  $8192, R15, R2
+	ADD  $12288, R15, R3
+
+	// Twiddles: w1=tw[j], w2=tw[2j], w3=tw[3j]
+	LSL  $4, R15, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+
+	LSL  $1, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+
+	ADD  R4, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FADDD F21, F16, F26
+	FSUBD F20, F17, F27
+
+	FSUBD F21, F16, F28
+	FADDD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_stage7_loop
+
+neon16384r4f64_done:
+	CMP  R8, R20
+	BEQ  neon16384r4f64_return_true
+
+	MOVD $0, R0
+neon16384r4f64_copy_loop:
+	CMP  $16384, R0
+	BGE  neon16384r4f64_return_true
+	LSL  $4, R0, R1
+	ADD  R8, R1, R2
+	MOVD (R2), R3
+	MOVD 8(R2), R4
+	ADD  R20, R1, R5
+	MOVD R3, (R5)
+	MOVD R4, 8(R5)
+	ADD  $1, R0, R0
+	B    neon16384r4f64_copy_loop
+
+neon16384r4f64_return_true:
+	MOVD $1, R0
+	MOVB R0, ret+96(FP)
+	RET
+
+neon16384r4f64_return_false:
+	MOVD $0, R0
+	MOVB R0, ret+96(FP)
+	RET
+
+// ===========================================================================
+// Inverse transform
+// ===========================================================================
+// Inverse transform, size 16384, complex128, radix-4 variant
+// func InverseNEONSize16384Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+TEXT ·InverseNEONSize16384Radix4Complex128Asm(SB), NOSPLIT, $0-97
+	MOVD dst+0(FP), R8
+	MOVD src+24(FP), R9
+	MOVD twiddle+48(FP), R10
+	MOVD scratch+72(FP), R11
+	MOVD src_len+32(FP), R13
+
+	CMP  $16384, R13
+	BNE  neon16384r4f64_inv_return_false
+
+	MOVD dst_len+8(FP), R0
+	CMP  $16384, R0
+	BLT  neon16384r4f64_inv_return_false
+
+	MOVD twiddle_len+56(FP), R0
+	CMP  $16384, R0
+	BLT  neon16384r4f64_inv_return_false
+
+	MOVD scratch_len+80(FP), R0
+	CMP  $16384, R0
+	BLT  neon16384r4f64_inv_return_false
+
+	MOVD $bitrev_size16384_radix4_f64<>(SB), R12
+	MOVD R8, R20
+
+	CMP  R8, R9
+	BNE  neon16384r4f64_inv_use_dst
+	MOVD R11, R8
+
+neon16384r4f64_inv_use_dst:
+	// =========================================================================
+	// Bit-reversal permutation
+	// =========================================================================
+	MOVD $0, R0
+
+neon16384r4f64_inv_bitrev_loop:
+	CMP  $16384, R0
+	BGE  neon16384r4f64_inv_stage1
+
+	LSL  $3, R0, R1
+	ADD  R12, R1, R1
+	MOVD (R1), R2
+
+	LSL  $4, R2, R3
+	ADD  R9, R3, R3
+	MOVD (R3), R4
+	MOVD 8(R3), R5
+
+	LSL  $4, R0, R3
+	ADD  R8, R3, R3
+	MOVD R4, (R3)
+	MOVD R5, 8(R3)
+
+	ADD  $1, R0, R0
+	B    neon16384r4f64_inv_bitrev_loop
+
+neon16384r4f64_inv_stage1:
+	// =========================================================================
+	// Stage 1: 4096 radix-4 butterflies (no twiddles)
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_inv_stage1_loop:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_inv_stage2
+
+	LSL  $4, R14, R1
+	ADD  R8, R1, R1
+
+	FMOVD 0(R1), F0
+	FMOVD 8(R1), F1
+	FMOVD 16(R1), F2
+	FMOVD 24(R1), F3
+	FMOVD 32(R1), F4
+	FMOVD 40(R1), F5
+	FMOVD 48(R1), F6
+	FMOVD 56(R1), F7
+
+	FADDD F4, F0, F8
+	FADDD F5, F1, F9
+	FSUBD F4, F0, F10
+	FSUBD F5, F1, F11
+
+	FADDD F6, F2, F12
+	FADDD F7, F3, F13
+	FSUBD F6, F2, F14
+	FSUBD F7, F3, F15
+
+	FADDD F12, F8, F16
+	FADDD F13, F9, F17
+	FSUBD F12, F8, F18
+	FSUBD F13, F9, F19
+
+	FNEGD F15, F20
+	FMOVD F14, F21
+
+	FADDD F20, F10, F22
+	FADDD F21, F11, F23
+
+	FMOVD F15, F24
+	FNEGD F14, F25
+
+	FADDD F24, F10, F26
+	FADDD F25, F11, F27
+
+	FMOVD F16, 0(R1)
+	FMOVD F17, 8(R1)
+	FMOVD F22, 16(R1)
+	FMOVD F23, 24(R1)
+	FMOVD F18, 32(R1)
+	FMOVD F19, 40(R1)
+	FMOVD F26, 48(R1)
+	FMOVD F27, 56(R1)
+
+	ADD  $4, R14, R14
+	B    neon16384r4f64_inv_stage1_loop
+
+neon16384r4f64_inv_stage2:
+	// =========================================================================
+	// Stage 2: radix-4 with twiddles, span=16, twiddle step=1024
+	// 1024 groups of 4 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_inv_stage2_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_inv_stage3
+
+	MOVD $0, R15
+
+neon16384r4f64_inv_stage2_j:
+	CMP  $4, R15
+	BGE  neon16384r4f64_inv_stage2_next
+
+	ADD  R14, R15, R0
+	ADD  $4, R0, R1
+	ADD  $8, R0, R2
+	ADD  $12, R0, R3
+
+	// Twiddles: w1=tw[j*1024], w2=tw[j*2048], w3=tw[j*3072]
+	LSL  $10, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+	FNEGD F1, F1
+
+	LSL  $11, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+	FNEGD F3, F3
+
+	MOVD $3072, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+	FNEGD F5, F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FSUBD F21, F16, F26
+	FADDD F20, F17, F27
+
+	FADDD F21, F16, F28
+	FSUBD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_inv_stage2_j
+
+neon16384r4f64_inv_stage2_next:
+	ADD  $16, R14, R14
+	B    neon16384r4f64_inv_stage2_base
+
+neon16384r4f64_inv_stage3:
+	// =========================================================================
+	// Stage 3: radix-4 with twiddles, span=64, twiddle step=256
+	// 256 groups of 16 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_inv_stage3_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_inv_stage4
+
+	MOVD $0, R15
+
+neon16384r4f64_inv_stage3_j:
+	CMP  $16, R15
+	BGE  neon16384r4f64_inv_stage3_next
+
+	ADD  R14, R15, R0
+	ADD  $16, R0, R1
+	ADD  $32, R0, R2
+	ADD  $48, R0, R3
+
+	// Twiddles: w1=tw[j*256], w2=tw[j*512], w3=tw[j*768]
+	LSL  $8, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+	FNEGD F1, F1
+
+	LSL  $9, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+	FNEGD F3, F3
+
+	MOVD $768, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+	FNEGD F5, F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FSUBD F21, F16, F26
+	FADDD F20, F17, F27
+
+	FADDD F21, F16, F28
+	FSUBD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_inv_stage3_j
+
+neon16384r4f64_inv_stage3_next:
+	ADD  $64, R14, R14
+	B    neon16384r4f64_inv_stage3_base
+
+neon16384r4f64_inv_stage4:
+	// =========================================================================
+	// Stage 4: radix-4 with twiddles, span=256, twiddle step=64
+	// 64 groups of 64 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_inv_stage4_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_inv_stage5
+
+	MOVD $0, R15
+
+neon16384r4f64_inv_stage4_j:
+	CMP  $64, R15
+	BGE  neon16384r4f64_inv_stage4_next
+
+	ADD  R14, R15, R0
+	ADD  $64, R0, R1
+	ADD  $128, R0, R2
+	ADD  $192, R0, R3
+
+	// Twiddles: w1=tw[j*64], w2=tw[j*128], w3=tw[j*192]
+	LSL  $6, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+	FNEGD F1, F1
+
+	LSL  $7, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+	FNEGD F3, F3
+
+	MOVD $192, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+	FNEGD F5, F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FSUBD F21, F16, F26
+	FADDD F20, F17, F27
+
+	FADDD F21, F16, F28
+	FSUBD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_inv_stage4_j
+
+neon16384r4f64_inv_stage4_next:
+	ADD  $256, R14, R14
+	B    neon16384r4f64_inv_stage4_base
+
+neon16384r4f64_inv_stage5:
+	// =========================================================================
+	// Stage 5: radix-4 with twiddles, span=1024, twiddle step=16
+	// 16 groups of 256 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_inv_stage5_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_inv_stage6
+
+	MOVD $0, R15
+
+neon16384r4f64_inv_stage5_j:
+	CMP  $256, R15
+	BGE  neon16384r4f64_inv_stage5_next
+
+	ADD  R14, R15, R0
+	ADD  $256, R0, R1
+	ADD  $512, R0, R2
+	ADD  $768, R0, R3
+
+	// Twiddles: w1=tw[j*16], w2=tw[j*32], w3=tw[j*48]
+	LSL  $4, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+	FNEGD F1, F1
+
+	LSL  $5, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+	FNEGD F3, F3
+
+	MOVD $48, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+	FNEGD F5, F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FSUBD F21, F16, F26
+	FADDD F20, F17, F27
+
+	FADDD F21, F16, F28
+	FSUBD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_inv_stage5_j
+
+neon16384r4f64_inv_stage5_next:
+	ADD  $1024, R14, R14
+	B    neon16384r4f64_inv_stage5_base
+
+neon16384r4f64_inv_stage6:
+	// =========================================================================
+	// Stage 6: radix-4 with twiddles, span=4096, twiddle step=4
+	// 4 groups of 1024 butterflies
+	// =========================================================================
+	MOVD $0, R14
+
+neon16384r4f64_inv_stage6_base:
+	CMP  $16384, R14
+	BGE  neon16384r4f64_inv_stage7
+
+	MOVD $0, R15
+
+neon16384r4f64_inv_stage6_j:
+	CMP  $1024, R15
+	BGE  neon16384r4f64_inv_stage6_next
+
+	ADD  R14, R15, R0
+	ADD  $1024, R0, R1
+	ADD  $2048, R0, R2
+	ADD  $3072, R0, R3
+
+	// Twiddles: w1=tw[j*4], w2=tw[j*8], w3=tw[j*12]
+	LSL  $2, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+	FNEGD F1, F1
+
+	LSL  $3, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+	FNEGD F3, F3
+
+	MOVD $12, R6
+	MUL  R15, R6, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+	FNEGD F5, F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FSUBD F21, F16, F26
+	FADDD F20, F17, F27
+
+	FADDD F21, F16, F28
+	FSUBD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_inv_stage6_j
+
+neon16384r4f64_inv_stage6_next:
+	ADD  $4096, R14, R14
+	B    neon16384r4f64_inv_stage6_base
+
+neon16384r4f64_inv_stage7:
+	// =========================================================================
+	// Stage 7: radix-4 with twiddles, span=16384, twiddle step=1
+	// 1 group of 4096 butterflies
+	// =========================================================================
+	MOVD $0, R15
+
+neon16384r4f64_inv_stage7_loop:
+	CMP  $4096, R15
+	BGE  neon16384r4f64_inv_copy
+
+	MOVD R15, R0
+	ADD  $4096, R15, R1
+	ADD  $8192, R15, R2
+	ADD  $12288, R15, R3
+
+	// Twiddles: w1=tw[j], w2=tw[2j], w3=tw[3j]
+	LSL  $4, R15, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F0
+	FMOVD 8(R5), F1
+	FNEGD F1, F1
+
+	LSL  $1, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F2
+	FMOVD 8(R5), F3
+	FNEGD F3, F3
+
+	ADD  R4, R15, R4
+	LSL  $4, R4, R5
+	ADD  R10, R5, R5
+	FMOVD 0(R5), F4
+	FMOVD 8(R5), F5
+	FNEGD F5, F5
+
+	// Load values
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F6
+	FMOVD 8(R7), F7
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F8
+	FMOVD 8(R7), F9
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F10
+	FMOVD 8(R7), F11
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD 0(R7), F12
+	FMOVD 8(R7), F13
+
+	// Apply twiddles (t1 = w1*x1, t2 = w2*x2, t3 = w3*x3)
+	FMULD F0, F8, F14
+	FMULD F1, F9, F15
+	FSUBD F15, F14, F14
+	FMULD F0, F9, F15
+	FMULD F1, F8, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F8
+	FMOVD F15, F9
+
+	FMULD F2, F10, F14
+	FMULD F3, F11, F15
+	FSUBD F15, F14, F14
+	FMULD F2, F11, F15
+	FMULD F3, F10, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F10
+	FMOVD F15, F11
+
+	FMULD F4, F12, F14
+	FMULD F5, F13, F15
+	FSUBD F15, F14, F14
+	FMULD F4, F13, F15
+	FMULD F5, F12, F16
+	FADDD F16, F15, F15
+	FMOVD F14, F12
+	FMOVD F15, F13
+
+	// Radix-4 butterfly
+	FADDD F10, F6, F14
+	FADDD F11, F7, F15
+	FSUBD F10, F6, F16
+	FSUBD F11, F7, F17
+
+	FADDD F12, F8, F18
+	FADDD F13, F9, F19
+	FSUBD F12, F8, F20
+	FSUBD F13, F9, F21
+
+	FADDD F18, F14, F22
+	FADDD F19, F15, F23
+	FSUBD F18, F14, F24
+	FSUBD F19, F15, F25
+
+	FSUBD F21, F16, F26
+	FADDD F20, F17, F27
+
+	FADDD F21, F16, F28
+	FSUBD F20, F17, F29
+
+	// Store
+	LSL  $4, R0, R7
+	ADD  R8, R7, R7
+	FMOVD F22, 0(R7)
+	FMOVD F23, 8(R7)
+
+	LSL  $4, R1, R7
+	ADD  R8, R7, R7
+	FMOVD F26, 0(R7)
+	FMOVD F27, 8(R7)
+
+	LSL  $4, R2, R7
+	ADD  R8, R7, R7
+	FMOVD F24, 0(R7)
+	FMOVD F25, 8(R7)
+
+	LSL  $4, R3, R7
+	ADD  R8, R7, R7
+	FMOVD F28, 0(R7)
+	FMOVD F29, 8(R7)
+
+	ADD  $1, R15, R15
+	B    neon16384r4f64_inv_stage7_loop
+
+neon16384r4f64_inv_copy:
+	CMP  R8, R20
+	BEQ  neon16384r4f64_inv_scale
+
+	MOVD $0, R0
+neon16384r4f64_inv_copy_loop:
+	CMP  $16384, R0
+	BGE  neon16384r4f64_inv_scale
+	LSL  $4, R0, R1
+	ADD  R8, R1, R2
+	MOVD (R2), R3
+	MOVD 8(R2), R4
+	ADD  R20, R1, R5
+	MOVD R3, (R5)
+	MOVD R4, 8(R5)
+	ADD  $1, R0, R0
+	B    neon16384r4f64_inv_copy_loop
+
+neon16384r4f64_inv_scale:
+	MOVD $·neonInv16384R4F64(SB), R1
+	FMOVD (R1), F0
+	MOVD $0, R0
+
+neon16384r4f64_inv_scale_loop:
+	CMP  $16384, R0
+	BGE  neon16384r4f64_inv_return_true
+	LSL  $4, R0, R1
+	ADD  R20, R1, R1
+	FMOVD 0(R1), F2
+	FMOVD 8(R1), F3
+	FMULD F0, F2, F2
+	FMULD F0, F3, F3
+	FMOVD F2, 0(R1)
+	FMOVD F3, 8(R1)
+	ADD  $1, R0, R0
+	B    neon16384r4f64_inv_scale_loop
+
+neon16384r4f64_inv_return_true:
+	MOVD $1, R0
+	MOVB R0, ret+96(FP)
+	RET
+
+neon16384r4f64_inv_return_false:
+	MOVD $0, R0
+	MOVB R0, ret+96(FP)
+	RET
+
+// ===========================================================================
+// Bit-reversal table for size 16384 radix-4
+// Reverses 7 base-4 digits
+// ===========================================================================
+DATA bitrev_size16384_radix4_f64<>+0x000(SB)/8, $0
+DATA bitrev_size16384_radix4_f64<>+0x008(SB)/8, $4096
+DATA bitrev_size16384_radix4_f64<>+0x010(SB)/8, $8192
+DATA bitrev_size16384_radix4_f64<>+0x018(SB)/8, $12288
+DATA bitrev_size16384_radix4_f64<>+0x020(SB)/8, $1024
+DATA bitrev_size16384_radix4_f64<>+0x028(SB)/8, $5120
+DATA bitrev_size16384_radix4_f64<>+0x030(SB)/8, $9216
+DATA bitrev_size16384_radix4_f64<>+0x038(SB)/8, $13312
+DATA bitrev_size16384_radix4_f64<>+0x040(SB)/8, $2048
+DATA bitrev_size16384_radix4_f64<>+0x048(SB)/8, $6144
+DATA bitrev_size16384_radix4_f64<>+0x050(SB)/8, $10240
+DATA bitrev_size16384_radix4_f64<>+0x058(SB)/8, $14336
+DATA bitrev_size16384_radix4_f64<>+0x060(SB)/8, $3072
+DATA bitrev_size16384_radix4_f64<>+0x068(SB)/8, $7168
+DATA bitrev_size16384_radix4_f64<>+0x070(SB)/8, $11264
+DATA bitrev_size16384_radix4_f64<>+0x078(SB)/8, $15360
+DATA bitrev_size16384_radix4_f64<>+0x080(SB)/8, $256
+DATA bitrev_size16384_radix4_f64<>+0x088(SB)/8, $4352
+DATA bitrev_size16384_radix4_f64<>+0x090(SB)/8, $8448
+DATA bitrev_size16384_radix4_f64<>+0x098(SB)/8, $12544
+DATA bitrev_size16384_radix4_f64<>+0x0A0(SB)/8, $1280
+DATA bitrev_size16384_radix4_f64<>+0x0A8(SB)/8, $5376
+DATA bitrev_size16384_radix4_f64<>+0x0B0(SB)/8, $9472
+DATA bitrev_size16384_radix4_f64<>+0x0B8(SB)/8, $13568
+DATA bitrev_size16384_radix4_f64<>+0x0C0(SB)/8, $2304
+DATA bitrev_size16384_radix4_f64<>+0x0C8(SB)/8, $6400
+DATA bitrev_size16384_radix4_f64<>+0x0D0(SB)/8, $10496
+DATA bitrev_size16384_radix4_f64<>+0x0D8(SB)/8, $14592
+DATA bitrev_size16384_radix4_f64<>+0x0E0(SB)/8, $3328
+DATA bitrev_size16384_radix4_f64<>+0x0E8(SB)/8, $7424
+DATA bitrev_size16384_radix4_f64<>+0x0F0(SB)/8, $11520
+DATA bitrev_size16384_radix4_f64<>+0x0F8(SB)/8, $15616
+DATA bitrev_size16384_radix4_f64<>+0x100(SB)/8, $512
+DATA bitrev_size16384_radix4_f64<>+0x108(SB)/8, $4608
+DATA bitrev_size16384_radix4_f64<>+0x110(SB)/8, $8704
+DATA bitrev_size16384_radix4_f64<>+0x118(SB)/8, $12800
+DATA bitrev_size16384_radix4_f64<>+0x120(SB)/8, $1536
+DATA bitrev_size16384_radix4_f64<>+0x128(SB)/8, $5632
+DATA bitrev_size16384_radix4_f64<>+0x130(SB)/8, $9728
+DATA bitrev_size16384_radix4_f64<>+0x138(SB)/8, $13824
+DATA bitrev_size16384_radix4_f64<>+0x140(SB)/8, $2560
+DATA bitrev_size16384_radix4_f64<>+0x148(SB)/8, $6656
+DATA bitrev_size16384_radix4_f64<>+0x150(SB)/8, $10752
+DATA bitrev_size16384_radix4_f64<>+0x158(SB)/8, $14848
+DATA bitrev_size16384_radix4_f64<>+0x160(SB)/8, $3584
+DATA bitrev_size16384_radix4_f64<>+0x168(SB)/8, $7680
+DATA bitrev_size16384_radix4_f64<>+0x170(SB)/8, $11776
+DATA bitrev_size16384_radix4_f64<>+0x178(SB)/8, $15872
+DATA bitrev_size16384_radix4_f64<>+0x180(SB)/8, $768
+DATA bitrev_size16384_radix4_f64<>+0x188(SB)/8, $4864
+DATA bitrev_size16384_radix4_f64<>+0x190(SB)/8, $8960
+DATA bitrev_size16384_radix4_f64<>+0x198(SB)/8, $13056
+DATA bitrev_size16384_radix4_f64<>+0x1A0(SB)/8, $1792
+DATA bitrev_size16384_radix4_f64<>+0x1A8(SB)/8, $5888
+DATA bitrev_size16384_radix4_f64<>+0x1B0(SB)/8, $9984
+DATA bitrev_size16384_radix4_f64<>+0x1B8(SB)/8, $14080
+DATA bitrev_size16384_radix4_f64<>+0x1C0(SB)/8, $2816
+DATA bitrev_size16384_radix4_f64<>+0x1C8(SB)/8, $6912
+DATA bitrev_size16384_radix4_f64<>+0x1D0(SB)/8, $11008
+DATA bitrev_size16384_radix4_f64<>+0x1D8(SB)/8, $15104
+DATA bitrev_size16384_radix4_f64<>+0x1E0(SB)/8, $3840
+DATA bitrev_size16384_radix4_f64<>+0x1E8(SB)/8, $7936
+DATA bitrev_size16384_radix4_f64<>+0x1F0(SB)/8, $12032
+DATA bitrev_size16384_radix4_f64<>+0x1F8(SB)/8, $16128
+DATA bitrev_size16384_radix4_f64<>+0x200(SB)/8, $64
+DATA bitrev_size16384_radix4_f64<>+0x208(SB)/8, $4160
+DATA bitrev_size16384_radix4_f64<>+0x210(SB)/8, $8256
+DATA bitrev_size16384_radix4_f64<>+0x218(SB)/8, $12352
+DATA bitrev_size16384_radix4_f64<>+0x220(SB)/8, $1088
+DATA bitrev_size16384_radix4_f64<>+0x228(SB)/8, $5184
+DATA bitrev_size16384_radix4_f64<>+0x230(SB)/8, $9280
+DATA bitrev_size16384_radix4_f64<>+0x238(SB)/8, $13376
+DATA bitrev_size16384_radix4_f64<>+0x240(SB)/8, $2112
+DATA bitrev_size16384_radix4_f64<>+0x248(SB)/8, $6208
+DATA bitrev_size16384_radix4_f64<>+0x250(SB)/8, $10304
+DATA bitrev_size16384_radix4_f64<>+0x258(SB)/8, $14400
+DATA bitrev_size16384_radix4_f64<>+0x260(SB)/8, $3136
+DATA bitrev_size16384_radix4_f64<>+0x268(SB)/8, $7232
+DATA bitrev_size16384_radix4_f64<>+0x270(SB)/8, $11328
+DATA bitrev_size16384_radix4_f64<>+0x278(SB)/8, $15424
+DATA bitrev_size16384_radix4_f64<>+0x280(SB)/8, $320
+DATA bitrev_size16384_radix4_f64<>+0x288(SB)/8, $4416
+DATA bitrev_size16384_radix4_f64<>+0x290(SB)/8, $8512
+DATA bitrev_size16384_radix4_f64<>+0x298(SB)/8, $12608
+DATA bitrev_size16384_radix4_f64<>+0x2A0(SB)/8, $1344
+DATA bitrev_size16384_radix4_f64<>+0x2A8(SB)/8, $5440
+DATA bitrev_size16384_radix4_f64<>+0x2B0(SB)/8, $9536
+DATA bitrev_size16384_radix4_f64<>+0x2B8(SB)/8, $13632
+DATA bitrev_size16384_radix4_f64<>+0x2C0(SB)/8, $2368
+DATA bitrev_size16384_radix4_f64<>+0x2C8(SB)/8, $6464
+DATA bitrev_size16384_radix4_f64<>+0x2D0(SB)/8, $10560
+DATA bitrev_size16384_radix4_f64<>+0x2D8(SB)/8, $14656
+DATA bitrev_size16384_radix4_f64<>+0x2E0(SB)/8, $3392
+DATA bitrev_size16384_radix4_f64<>+0x2E8(SB)/8, $7488
+DATA bitrev_size16384_radix4_f64<>+0x2F0(SB)/8, $11584
+DATA bitrev_size16384_radix4_f64<>+0x2F8(SB)/8, $15680
+DATA bitrev_size16384_radix4_f64<>+0x300(SB)/8, $576
+DATA bitrev_size16384_radix4_f64<>+0x308(SB)/8, $4672
+DATA bitrev_size16384_radix4_f64<>+0x310(SB)/8, $8768
+DATA bitrev_size16384_radix4_f64<>+0x318(SB)/8, $12864
+DATA bitrev_size16384_radix4_f64<>+0x320(SB)/8, $1600
+DATA bitrev_size16384_radix4_f64<>+0x328(SB)/8, $5696
+DATA bitrev_size16384_radix4_f64<>+0x330(SB)/8, $9792
+DATA bitrev_size16384_radix4_f64<>+0x338(SB)/8, $13888
+DATA bitrev_size16384_radix4_f64<>+0x340(SB)/8, $2624
+DATA bitrev_size16384_radix4_f64<>+0x348(SB)/8, $6720
+DATA bitrev_size16384_radix4_f64<>+0x350(SB)/8, $10816
+DATA bitrev_size16384_radix4_f64<>+0x358(SB)/8, $14912
+DATA bitrev_size16384_radix4_f64<>+0x360(SB)/8, $3648
+DATA bitrev_size16384_radix4_f64<>+0x368(SB)/8, $7744
+DATA bitrev_size16384_radix4_f64<>+0x370(SB)/8, $11840
+DATA bitrev_size16384_radix4_f64<>+0x378(SB)/8, $15936
+DATA bitrev_size16384_radix4_f64<>+0x380(SB)/8, $832
+DATA bitrev_size16384_radix4_f64<>+0x388(SB)/8, $4928
+DATA bitrev_size16384_radix4_f64<>+0x390(SB)/8, $9024
+DATA bitrev_size16384_radix4_f64<>+0x398(SB)/8, $13120
+DATA bitrev_size16384_radix4_f64<>+0x3A0(SB)/8, $1856
+DATA bitrev_size16384_radix4_f64<>+0x3A8(SB)/8, $5952
+DATA bitrev_size16384_radix4_f64<>+0x3B0(SB)/8, $10048
+DATA bitrev_size16384_radix4_f64<>+0x3B8(SB)/8, $14144
+DATA bitrev_size16384_radix4_f64<>+0x3C0(SB)/8, $2880
+DATA bitrev_size16384_radix4_f64<>+0x3C8(SB)/8, $6976
+DATA bitrev_size16384_radix4_f64<>+0x3D0(SB)/8, $11072
+DATA bitrev_size16384_radix4_f64<>+0x3D8(SB)/8, $15168
+DATA bitrev_size16384_radix4_f64<>+0x3E0(SB)/8, $3904
+DATA bitrev_size16384_radix4_f64<>+0x3E8(SB)/8, $8000
+DATA bitrev_size16384_radix4_f64<>+0x3F0(SB)/8, $12096
+DATA bitrev_size16384_radix4_f64<>+0x3F8(SB)/8, $16192
+DATA bitrev_size16384_radix4_f64<>+0x400(SB)/8, $128
+DATA bitrev_size16384_radix4_f64<>+0x408(SB)/8, $4224
+DATA bitrev_size16384_radix4_f64<>+0x410(SB)/8, $8320
+DATA bitrev_size16384_radix4_f64<>+0x418(SB)/8, $12416
+DATA bitrev_size16384_radix4_f64<>+0x420(SB)/8, $1152
+DATA bitrev_size16384_radix4_f64<>+0x428(SB)/8, $5248
+DATA bitrev_size16384_radix4_f64<>+0x430(SB)/8, $9344
+DATA bitrev_size16384_radix4_f64<>+0x438(SB)/8, $13440
+DATA bitrev_size16384_radix4_f64<>+0x440(SB)/8, $2176
+DATA bitrev_size16384_radix4_f64<>+0x448(SB)/8, $6272
+DATA bitrev_size16384_radix4_f64<>+0x450(SB)/8, $10368
+DATA bitrev_size16384_radix4_f64<>+0x458(SB)/8, $14464
+DATA bitrev_size16384_radix4_f64<>+0x460(SB)/8, $3200
+DATA bitrev_size16384_radix4_f64<>+0x468(SB)/8, $7296
+DATA bitrev_size16384_radix4_f64<>+0x470(SB)/8, $11392
+DATA bitrev_size16384_radix4_f64<>+0x478(SB)/8, $15488
+DATA bitrev_size16384_radix4_f64<>+0x480(SB)/8, $384
+DATA bitrev_size16384_radix4_f64<>+0x488(SB)/8, $4480
+DATA bitrev_size16384_radix4_f64<>+0x490(SB)/8, $8576
+DATA bitrev_size16384_radix4_f64<>+0x498(SB)/8, $12672
+DATA bitrev_size16384_radix4_f64<>+0x4A0(SB)/8, $1408
+DATA bitrev_size16384_radix4_f64<>+0x4A8(SB)/8, $5504
+DATA bitrev_size16384_radix4_f64<>+0x4B0(SB)/8, $9600
+DATA bitrev_size16384_radix4_f64<>+0x4B8(SB)/8, $13696
+DATA bitrev_size16384_radix4_f64<>+0x4C0(SB)/8, $2432
+DATA bitrev_size16384_radix4_f64<>+0x4C8(SB)/8, $6528
+DATA bitrev_size16384_radix4_f64<>+0x4D0(SB)/8, $10624
+DATA bitrev_size16384_radix4_f64<>+0x4D8(SB)/8, $14720
+DATA bitrev_size16384_radix4_f64<>+0x4E0(SB)/8, $3456
+DATA bitrev_size16384_radix4_f64<>+0x4E8(SB)/8, $7552
+DATA bitrev_size16384_radix4_f64<>+0x4F0(SB)/8, $11648
+DATA bitrev_size16384_radix4_f64<>+0x4F8(SB)/8, $15744
+DATA bitrev_size16384_radix4_f64<>+0x500(SB)/8, $640
+DATA bitrev_size16384_radix4_f64<>+0x508(SB)/8, $4736
+DATA bitrev_size16384_radix4_f64<>+0x510(SB)/8, $8832
+DATA bitrev_size16384_radix4_f64<>+0x518(SB)/8, $12928
+DATA bitrev_size16384_radix4_f64<>+0x520(SB)/8, $1664
+DATA bitrev_size16384_radix4_f64<>+0x528(SB)/8, $5760
+DATA bitrev_size16384_radix4_f64<>+0x530(SB)/8, $9856
+DATA bitrev_size16384_radix4_f64<>+0x538(SB)/8, $13952
+DATA bitrev_size16384_radix4_f64<>+0x540(SB)/8, $2688
+DATA bitrev_size16384_radix4_f64<>+0x548(SB)/8, $6784
+DATA bitrev_size16384_radix4_f64<>+0x550(SB)/8, $10880
+DATA bitrev_size16384_radix4_f64<>+0x558(SB)/8, $14976
+DATA bitrev_size16384_radix4_f64<>+0x560(SB)/8, $3712
+DATA bitrev_size16384_radix4_f64<>+0x568(SB)/8, $7808
+DATA bitrev_size16384_radix4_f64<>+0x570(SB)/8, $11904
+DATA bitrev_size16384_radix4_f64<>+0x578(SB)/8, $16000
+DATA bitrev_size16384_radix4_f64<>+0x580(SB)/8, $896
+DATA bitrev_size16384_radix4_f64<>+0x588(SB)/8, $4992
+DATA bitrev_size16384_radix4_f64<>+0x590(SB)/8, $9088
+DATA bitrev_size16384_radix4_f64<>+0x598(SB)/8, $13184
+DATA bitrev_size16384_radix4_f64<>+0x5A0(SB)/8, $1920
+DATA bitrev_size16384_radix4_f64<>+0x5A8(SB)/8, $6016
+DATA bitrev_size16384_radix4_f64<>+0x5B0(SB)/8, $10112
+DATA bitrev_size16384_radix4_f64<>+0x5B8(SB)/8, $14208
+DATA bitrev_size16384_radix4_f64<>+0x5C0(SB)/8, $2944
+DATA bitrev_size16384_radix4_f64<>+0x5C8(SB)/8, $7040
+DATA bitrev_size16384_radix4_f64<>+0x5D0(SB)/8, $11136
+DATA bitrev_size16384_radix4_f64<>+0x5D8(SB)/8, $15232
+DATA bitrev_size16384_radix4_f64<>+0x5E0(SB)/8, $3968
+DATA bitrev_size16384_radix4_f64<>+0x5E8(SB)/8, $8064
+DATA bitrev_size16384_radix4_f64<>+0x5F0(SB)/8, $12160
+DATA bitrev_size16384_radix4_f64<>+0x5F8(SB)/8, $16256
+DATA bitrev_size16384_radix4_f64<>+0x600(SB)/8, $192
+DATA bitrev_size16384_radix4_f64<>+0x608(SB)/8, $4288
+DATA bitrev_size16384_radix4_f64<>+0x610(SB)/8, $8384
+DATA bitrev_size16384_radix4_f64<>+0x618(SB)/8, $12480
+DATA bitrev_size16384_radix4_f64<>+0x620(SB)/8, $1216
+DATA bitrev_size16384_radix4_f64<>+0x628(SB)/8, $5312
+DATA bitrev_size16384_radix4_f64<>+0x630(SB)/8, $9408
+DATA bitrev_size16384_radix4_f64<>+0x638(SB)/8, $13504
+DATA bitrev_size16384_radix4_f64<>+0x640(SB)/8, $2240
+DATA bitrev_size16384_radix4_f64<>+0x648(SB)/8, $6336
+DATA bitrev_size16384_radix4_f64<>+0x650(SB)/8, $10432
+DATA bitrev_size16384_radix4_f64<>+0x658(SB)/8, $14528
+DATA bitrev_size16384_radix4_f64<>+0x660(SB)/8, $3264
+DATA bitrev_size16384_radix4_f64<>+0x668(SB)/8, $7360
+DATA bitrev_size16384_radix4_f64<>+0x670(SB)/8, $11456
+DATA bitrev_size16384_radix4_f64<>+0x678(SB)/8, $15552
+DATA bitrev_size16384_radix4_f64<>+0x680(SB)/8, $448
+DATA bitrev_size16384_radix4_f64<>+0x688(SB)/8, $4544
+DATA bitrev_size16384_radix4_f64<>+0x690(SB)/8, $8640
+DATA bitrev_size16384_radix4_f64<>+0x698(SB)/8, $12736
+DATA bitrev_size16384_radix4_f64<>+0x6A0(SB)/8, $1472
+DATA bitrev_size16384_radix4_f64<>+0x6A8(SB)/8, $5568
+DATA bitrev_size16384_radix4_f64<>+0x6B0(SB)/8, $9664
+DATA bitrev_size16384_radix4_f64<>+0x6B8(SB)/8, $13760
+DATA bitrev_size16384_radix4_f64<>+0x6C0(SB)/8, $2496
+DATA bitrev_size16384_radix4_f64<>+0x6C8(SB)/8, $6592
+DATA bitrev_size16384_radix4_f64<>+0x6D0(SB)/8, $10688
+DATA bitrev_size16384_radix4_f64<>+0x6D8(SB)/8, $14784
+DATA bitrev_size16384_radix4_f64<>+0x6E0(SB)/8, $3520
+DATA bitrev_size16384_radix4_f64<>+0x6E8(SB)/8, $7616
+DATA bitrev_size16384_radix4_f64<>+0x6F0(SB)/8, $11712
+DATA bitrev_size16384_radix4_f64<>+0x6F8(SB)/8, $15808
+DATA bitrev_size16384_radix4_f64<>+0x700(SB)/8, $704
+DATA bitrev_size16384_radix4_f64<>+0x708(SB)/8, $4800
+DATA bitrev_size16384_radix4_f64<>+0x710(SB)/8, $8896
+DATA bitrev_size16384_radix4_f64<>+0x718(SB)/8, $12992
+DATA bitrev_size16384_radix4_f64<>+0x720(SB)/8, $1728
+DATA bitrev_size16384_radix4_f64<>+0x728(SB)/8, $5824
+DATA bitrev_size16384_radix4_f64<>+0x730(SB)/8, $9920
+DATA bitrev_size16384_radix4_f64<>+0x738(SB)/8, $14016
+DATA bitrev_size16384_radix4_f64<>+0x740(SB)/8, $2752
+DATA bitrev_size16384_radix4_f64<>+0x748(SB)/8, $6848
+DATA bitrev_size16384_radix4_f64<>+0x750(SB)/8, $10944
+DATA bitrev_size16384_radix4_f64<>+0x758(SB)/8, $15040
+DATA bitrev_size16384_radix4_f64<>+0x760(SB)/8, $3776
+DATA bitrev_size16384_radix4_f64<>+0x768(SB)/8, $7872
+DATA bitrev_size16384_radix4_f64<>+0x770(SB)/8, $11968
+DATA bitrev_size16384_radix4_f64<>+0x778(SB)/8, $16064
+DATA bitrev_size16384_radix4_f64<>+0x780(SB)/8, $960
+DATA bitrev_size16384_radix4_f64<>+0x788(SB)/8, $5056
+DATA bitrev_size16384_radix4_f64<>+0x790(SB)/8, $9152
+DATA bitrev_size16384_radix4_f64<>+0x798(SB)/8, $13248
+DATA bitrev_size16384_radix4_f64<>+0x7A0(SB)/8, $1984
+DATA bitrev_size16384_radix4_f64<>+0x7A8(SB)/8, $6080
+DATA bitrev_size16384_radix4_f64<>+0x7B0(SB)/8, $10176
+DATA bitrev_size16384_radix4_f64<>+0x7B8(SB)/8, $14272
+DATA bitrev_size16384_radix4_f64<>+0x7C0(SB)/8, $3008
+DATA bitrev_size16384_radix4_f64<>+0x7C8(SB)/8, $7104
+DATA bitrev_size16384_radix4_f64<>+0x7D0(SB)/8, $11200
+DATA bitrev_size16384_radix4_f64<>+0x7D8(SB)/8, $15296
+DATA bitrev_size16384_radix4_f64<>+0x7E0(SB)/8, $4032
+DATA bitrev_size16384_radix4_f64<>+0x7E8(SB)/8, $8128
+DATA bitrev_size16384_radix4_f64<>+0x7F0(SB)/8, $12224
+DATA bitrev_size16384_radix4_f64<>+0x7F8(SB)/8, $16320
+DATA bitrev_size16384_radix4_f64<>+0x800(SB)/8, $16
+DATA bitrev_size16384_radix4_f64<>+0x808(SB)/8, $4112
+DATA bitrev_size16384_radix4_f64<>+0x810(SB)/8, $8208
+DATA bitrev_size16384_radix4_f64<>+0x818(SB)/8, $12304
+DATA bitrev_size16384_radix4_f64<>+0x820(SB)/8, $1040
+DATA bitrev_size16384_radix4_f64<>+0x828(SB)/8, $5136
+DATA bitrev_size16384_radix4_f64<>+0x830(SB)/8, $9232
+DATA bitrev_size16384_radix4_f64<>+0x838(SB)/8, $13328
+DATA bitrev_size16384_radix4_f64<>+0x840(SB)/8, $2064
+DATA bitrev_size16384_radix4_f64<>+0x848(SB)/8, $6160
+DATA bitrev_size16384_radix4_f64<>+0x850(SB)/8, $10256
+DATA bitrev_size16384_radix4_f64<>+0x858(SB)/8, $14352
+DATA bitrev_size16384_radix4_f64<>+0x860(SB)/8, $3088
+DATA bitrev_size16384_radix4_f64<>+0x868(SB)/8, $7184
+DATA bitrev_size16384_radix4_f64<>+0x870(SB)/8, $11280
+DATA bitrev_size16384_radix4_f64<>+0x878(SB)/8, $15376
+DATA bitrev_size16384_radix4_f64<>+0x880(SB)/8, $272
+DATA bitrev_size16384_radix4_f64<>+0x888(SB)/8, $4368
+DATA bitrev_size16384_radix4_f64<>+0x890(SB)/8, $8464
+DATA bitrev_size16384_radix4_f64<>+0x898(SB)/8, $12560
+DATA bitrev_size16384_radix4_f64<>+0x8A0(SB)/8, $1296
+DATA bitrev_size16384_radix4_f64<>+0x8A8(SB)/8, $5392
+DATA bitrev_size16384_radix4_f64<>+0x8B0(SB)/8, $9488
+DATA bitrev_size16384_radix4_f64<>+0x8B8(SB)/8, $13584
+DATA bitrev_size16384_radix4_f64<>+0x8C0(SB)/8, $2320
+DATA bitrev_size16384_radix4_f64<>+0x8C8(SB)/8, $6416
+DATA bitrev_size16384_radix4_f64<>+0x8D0(SB)/8, $10512
+DATA bitrev_size16384_radix4_f64<>+0x8D8(SB)/8, $14608
+DATA bitrev_size16384_radix4_f64<>+0x8E0(SB)/8, $3344
+DATA bitrev_size16384_radix4_f64<>+0x8E8(SB)/8, $7440
+DATA bitrev_size16384_radix4_f64<>+0x8F0(SB)/8, $11536
+DATA bitrev_size16384_radix4_f64<>+0x8F8(SB)/8, $15632
+DATA bitrev_size16384_radix4_f64<>+0x900(SB)/8, $528
+DATA bitrev_size16384_radix4_f64<>+0x908(SB)/8, $4624
+DATA bitrev_size16384_radix4_f64<>+0x910(SB)/8, $8720
+DATA bitrev_size16384_radix4_f64<>+0x918(SB)/8, $12816
+DATA bitrev_size16384_radix4_f64<>+0x920(SB)/8, $1552
+DATA bitrev_size16384_radix4_f64<>+0x928(SB)/8, $5648
+DATA bitrev_size16384_radix4_f64<>+0x930(SB)/8, $9744
+DATA bitrev_size16384_radix4_f64<>+0x938(SB)/8, $13840
+DATA bitrev_size16384_radix4_f64<>+0x940(SB)/8, $2576
+DATA bitrev_size16384_radix4_f64<>+0x948(SB)/8, $6672
+DATA bitrev_size16384_radix4_f64<>+0x950(SB)/8, $10768
+DATA bitrev_size16384_radix4_f64<>+0x958(SB)/8, $14864
+DATA bitrev_size16384_radix4_f64<>+0x960(SB)/8, $3600
+DATA bitrev_size16384_radix4_f64<>+0x968(SB)/8, $7696
+DATA bitrev_size16384_radix4_f64<>+0x970(SB)/8, $11792
+DATA bitrev_size16384_radix4_f64<>+0x978(SB)/8, $15888
+DATA bitrev_size16384_radix4_f64<>+0x980(SB)/8, $784
+DATA bitrev_size16384_radix4_f64<>+0x988(SB)/8, $4880
+DATA bitrev_size16384_radix4_f64<>+0x990(SB)/8, $8976
+DATA bitrev_size16384_radix4_f64<>+0x998(SB)/8, $13072
+DATA bitrev_size16384_radix4_f64<>+0x9A0(SB)/8, $1808
+DATA bitrev_size16384_radix4_f64<>+0x9A8(SB)/8, $5904
+DATA bitrev_size16384_radix4_f64<>+0x9B0(SB)/8, $10000
+DATA bitrev_size16384_radix4_f64<>+0x9B8(SB)/8, $14096
+DATA bitrev_size16384_radix4_f64<>+0x9C0(SB)/8, $2832
+DATA bitrev_size16384_radix4_f64<>+0x9C8(SB)/8, $6928
+DATA bitrev_size16384_radix4_f64<>+0x9D0(SB)/8, $11024
+DATA bitrev_size16384_radix4_f64<>+0x9D8(SB)/8, $15120
+DATA bitrev_size16384_radix4_f64<>+0x9E0(SB)/8, $3856
+DATA bitrev_size16384_radix4_f64<>+0x9E8(SB)/8, $7952
+DATA bitrev_size16384_radix4_f64<>+0x9F0(SB)/8, $12048
+DATA bitrev_size16384_radix4_f64<>+0x9F8(SB)/8, $16144
+DATA bitrev_size16384_radix4_f64<>+0xA00(SB)/8, $80
+DATA bitrev_size16384_radix4_f64<>+0xA08(SB)/8, $4176
+DATA bitrev_size16384_radix4_f64<>+0xA10(SB)/8, $8272
+DATA bitrev_size16384_radix4_f64<>+0xA18(SB)/8, $12368
+DATA bitrev_size16384_radix4_f64<>+0xA20(SB)/8, $1104
+DATA bitrev_size16384_radix4_f64<>+0xA28(SB)/8, $5200
+DATA bitrev_size16384_radix4_f64<>+0xA30(SB)/8, $9296
+DATA bitrev_size16384_radix4_f64<>+0xA38(SB)/8, $13392
+DATA bitrev_size16384_radix4_f64<>+0xA40(SB)/8, $2128
+DATA bitrev_size16384_radix4_f64<>+0xA48(SB)/8, $6224
+DATA bitrev_size16384_radix4_f64<>+0xA50(SB)/8, $10320
+DATA bitrev_size16384_radix4_f64<>+0xA58(SB)/8, $14416
+DATA bitrev_size16384_radix4_f64<>+0xA60(SB)/8, $3152
+DATA bitrev_size16384_radix4_f64<>+0xA68(SB)/8, $7248
+DATA bitrev_size16384_radix4_f64<>+0xA70(SB)/8, $11344
+DATA bitrev_size16384_radix4_f64<>+0xA78(SB)/8, $15440
+DATA bitrev_size16384_radix4_f64<>+0xA80(SB)/8, $336
+DATA bitrev_size16384_radix4_f64<>+0xA88(SB)/8, $4432
+DATA bitrev_size16384_radix4_f64<>+0xA90(SB)/8, $8528
+DATA bitrev_size16384_radix4_f64<>+0xA98(SB)/8, $12624
+DATA bitrev_size16384_radix4_f64<>+0xAA0(SB)/8, $1360
+DATA bitrev_size16384_radix4_f64<>+0xAA8(SB)/8, $5456
+DATA bitrev_size16384_radix4_f64<>+0xAB0(SB)/8, $9552
+DATA bitrev_size16384_radix4_f64<>+0xAB8(SB)/8, $13648
+DATA bitrev_size16384_radix4_f64<>+0xAC0(SB)/8, $2384
+DATA bitrev_size16384_radix4_f64<>+0xAC8(SB)/8, $6480
+DATA bitrev_size16384_radix4_f64<>+0xAD0(SB)/8, $10576
+DATA bitrev_size16384_radix4_f64<>+0xAD8(SB)/8, $14672
+DATA bitrev_size16384_radix4_f64<>+0xAE0(SB)/8, $3408
+DATA bitrev_size16384_radix4_f64<>+0xAE8(SB)/8, $7504
+DATA bitrev_size16384_radix4_f64<>+0xAF0(SB)/8, $11600
+DATA bitrev_size16384_radix4_f64<>+0xAF8(SB)/8, $15696
+DATA bitrev_size16384_radix4_f64<>+0xB00(SB)/8, $592
+DATA bitrev_size16384_radix4_f64<>+0xB08(SB)/8, $4688
+DATA bitrev_size16384_radix4_f64<>+0xB10(SB)/8, $8784
+DATA bitrev_size16384_radix4_f64<>+0xB18(SB)/8, $12880
+DATA bitrev_size16384_radix4_f64<>+0xB20(SB)/8, $1616
+DATA bitrev_size16384_radix4_f64<>+0xB28(SB)/8, $5712
+DATA bitrev_size16384_radix4_f64<>+0xB30(SB)/8, $9808
+DATA bitrev_size16384_radix4_f64<>+0xB38(SB)/8, $13904
+DATA bitrev_size16384_radix4_f64<>+0xB40(SB)/8, $2640
+DATA bitrev_size16384_radix4_f64<>+0xB48(SB)/8, $6736
+DATA bitrev_size16384_radix4_f64<>+0xB50(SB)/8, $10832
+DATA bitrev_size16384_radix4_f64<>+0xB58(SB)/8, $14928
+DATA bitrev_size16384_radix4_f64<>+0xB60(SB)/8, $3664
+DATA bitrev_size16384_radix4_f64<>+0xB68(SB)/8, $7760
+DATA bitrev_size16384_radix4_f64<>+0xB70(SB)/8, $11856
+DATA bitrev_size16384_radix4_f64<>+0xB78(SB)/8, $15952
+DATA bitrev_size16384_radix4_f64<>+0xB80(SB)/8, $848
+DATA bitrev_size16384_radix4_f64<>+0xB88(SB)/8, $4944
+DATA bitrev_size16384_radix4_f64<>+0xB90(SB)/8, $9040
+DATA bitrev_size16384_radix4_f64<>+0xB98(SB)/8, $13136
+DATA bitrev_size16384_radix4_f64<>+0xBA0(SB)/8, $1872
+DATA bitrev_size16384_radix4_f64<>+0xBA8(SB)/8, $5968
+DATA bitrev_size16384_radix4_f64<>+0xBB0(SB)/8, $10064
+DATA bitrev_size16384_radix4_f64<>+0xBB8(SB)/8, $14160
+DATA bitrev_size16384_radix4_f64<>+0xBC0(SB)/8, $2896
+DATA bitrev_size16384_radix4_f64<>+0xBC8(SB)/8, $6992
+DATA bitrev_size16384_radix4_f64<>+0xBD0(SB)/8, $11088
+DATA bitrev_size16384_radix4_f64<>+0xBD8(SB)/8, $15184
+DATA bitrev_size16384_radix4_f64<>+0xBE0(SB)/8, $3920
+DATA bitrev_size16384_radix4_f64<>+0xBE8(SB)/8, $8016
+DATA bitrev_size16384_radix4_f64<>+0xBF0(SB)/8, $12112
+DATA bitrev_size16384_radix4_f64<>+0xBF8(SB)/8, $16208
+DATA bitrev_size16384_radix4_f64<>+0xC00(SB)/8, $144
+DATA bitrev_size16384_radix4_f64<>+0xC08(SB)/8, $4240
+DATA bitrev_size16384_radix4_f64<>+0xC10(SB)/8, $8336
+DATA bitrev_size16384_radix4_f64<>+0xC18(SB)/8, $12432
+DATA bitrev_size16384_radix4_f64<>+0xC20(SB)/8, $1168
+DATA bitrev_size16384_radix4_f64<>+0xC28(SB)/8, $5264
+DATA bitrev_size16384_radix4_f64<>+0xC30(SB)/8, $9360
+DATA bitrev_size16384_radix4_f64<>+0xC38(SB)/8, $13456
+DATA bitrev_size16384_radix4_f64<>+0xC40(SB)/8, $2192
+DATA bitrev_size16384_radix4_f64<>+0xC48(SB)/8, $6288
+DATA bitrev_size16384_radix4_f64<>+0xC50(SB)/8, $10384
+DATA bitrev_size16384_radix4_f64<>+0xC58(SB)/8, $14480
+DATA bitrev_size16384_radix4_f64<>+0xC60(SB)/8, $3216
+DATA bitrev_size16384_radix4_f64<>+0xC68(SB)/8, $7312
+DATA bitrev_size16384_radix4_f64<>+0xC70(SB)/8, $11408
+DATA bitrev_size16384_radix4_f64<>+0xC78(SB)/8, $15504
+DATA bitrev_size16384_radix4_f64<>+0xC80(SB)/8, $400
+DATA bitrev_size16384_radix4_f64<>+0xC88(SB)/8, $4496
+DATA bitrev_size16384_radix4_f64<>+0xC90(SB)/8, $8592
+DATA bitrev_size16384_radix4_f64<>+0xC98(SB)/8, $12688
+DATA bitrev_size16384_radix4_f64<>+0xCA0(SB)/8, $1424
+DATA bitrev_size16384_radix4_f64<>+0xCA8(SB)/8, $5520
+DATA bitrev_size16384_radix4_f64<>+0xCB0(SB)/8, $9616
+DATA bitrev_size16384_radix4_f64<>+0xCB8(SB)/8, $13712
+DATA bitrev_size16384_radix4_f64<>+0xCC0(SB)/8, $2448
+DATA bitrev_size16384_radix4_f64<>+0xCC8(SB)/8, $6544
+DATA bitrev_size16384_radix4_f64<>+0xCD0(SB)/8, $10640
+DATA bitrev_size16384_radix4_f64<>+0xCD8(SB)/8, $14736
+DATA bitrev_size16384_radix4_f64<>+0xCE0(SB)/8, $3472
+DATA bitrev_size16384_radix4_f64<>+0xCE8(SB)/8, $7568
+DATA bitrev_size16384_radix4_f64<>+0xCF0(SB)/8, $11664
+DATA bitrev_size16384_radix4_f64<>+0xCF8(SB)/8, $15760
+DATA bitrev_size16384_radix4_f64<>+0xD00(SB)/8, $656
+DATA bitrev_size16384_radix4_f64<>+0xD08(SB)/8, $4752
+DATA bitrev_size16384_radix4_f64<>+0xD10(SB)/8, $8848
+DATA bitrev_size16384_radix4_f64<>+0xD18(SB)/8, $12944
+DATA bitrev_size16384_radix4_f64<>+0xD20(SB)/8, $1680
+DATA bitrev_size16384_radix4_f64<>+0xD28(SB)/8, $5776
+DATA bitrev_size16384_radix4_f64<>+0xD30(SB)/8, $9872
+DATA bitrev_size16384_radix4_f64<>+0xD38(SB)/8, $13968
+DATA bitrev_size16384_radix4_f64<>+0xD40(SB)/8, $2704
+DATA bitrev_size16384_radix4_f64<>+0xD48(SB)/8, $6800
+DATA bitrev_size16384_radix4_f64<>+0xD50(SB)/8, $10896
+DATA bitrev_size16384_radix4_f64<>+0xD58(SB)/8, $14992
+DATA bitrev_size16384_radix4_f64<>+0xD60(SB)/8, $3728
+DATA bitrev_size16384_radix4_f64<>+0xD68(SB)/8, $7824
+DATA bitrev_size16384_radix4_f64<>+0xD70(SB)/8, $11920
+DATA bitrev_size16384_radix4_f64<>+0xD78(SB)/8, $16016
+DATA bitrev_size16384_radix4_f64<>+0xD80(SB)/8, $912
+DATA bitrev_size16384_radix4_f64<>+0xD88(SB)/8, $5008
+DATA bitrev_size16384_radix4_f64<>+0xD90(SB)/8, $9104
+DATA bitrev_size16384_radix4_f64<>+0xD98(SB)/8, $13200
+DATA bitrev_size16384_radix4_f64<>+0xDA0(SB)/8, $1936
+DATA bitrev_size16384_radix4_f64<>+0xDA8(SB)/8, $6032
+DATA bitrev_size16384_radix4_f64<>+0xDB0(SB)/8, $10128
+DATA bitrev_size16384_radix4_f64<>+0xDB8(SB)/8, $14224
+DATA bitrev_size16384_radix4_f64<>+0xDC0(SB)/8, $2960
+DATA bitrev_size16384_radix4_f64<>+0xDC8(SB)/8, $7056
+DATA bitrev_size16384_radix4_f64<>+0xDD0(SB)/8, $11152
+DATA bitrev_size16384_radix4_f64<>+0xDD8(SB)/8, $15248
+DATA bitrev_size16384_radix4_f64<>+0xDE0(SB)/8, $3984
+DATA bitrev_size16384_radix4_f64<>+0xDE8(SB)/8, $8080
+DATA bitrev_size16384_radix4_f64<>+0xDF0(SB)/8, $12176
+DATA bitrev_size16384_radix4_f64<>+0xDF8(SB)/8, $16272
+DATA bitrev_size16384_radix4_f64<>+0xE00(SB)/8, $208
+DATA bitrev_size16384_radix4_f64<>+0xE08(SB)/8, $4304
+DATA bitrev_size16384_radix4_f64<>+0xE10(SB)/8, $8400
+DATA bitrev_size16384_radix4_f64<>+0xE18(SB)/8, $12496
+DATA bitrev_size16384_radix4_f64<>+0xE20(SB)/8, $1232
+DATA bitrev_size16384_radix4_f64<>+0xE28(SB)/8, $5328
+DATA bitrev_size16384_radix4_f64<>+0xE30(SB)/8, $9424
+DATA bitrev_size16384_radix4_f64<>+0xE38(SB)/8, $13520
+DATA bitrev_size16384_radix4_f64<>+0xE40(SB)/8, $2256
+DATA bitrev_size16384_radix4_f64<>+0xE48(SB)/8, $6352
+DATA bitrev_size16384_radix4_f64<>+0xE50(SB)/8, $10448
+DATA bitrev_size16384_radix4_f64<>+0xE58(SB)/8, $14544
+DATA bitrev_size16384_radix4_f64<>+0xE60(SB)/8, $3280
+DATA bitrev_size16384_radix4_f64<>+0xE68(SB)/8, $7376
+DATA bitrev_size16384_radix4_f64<>+0xE70(SB)/8, $11472
+DATA bitrev_size16384_radix4_f64<>+0xE78(SB)/8, $15568
+DATA bitrev_size16384_radix4_f64<>+0xE80(SB)/8, $464
+DATA bitrev_size16384_radix4_f64<>+0xE88(SB)/8, $4560
+DATA bitrev_size16384_radix4_f64<>+0xE90(SB)/8, $8656
+DATA bitrev_size16384_radix4_f64<>+0xE98(SB)/8, $12752
+DATA bitrev_size16384_radix4_f64<>+0xEA0(SB)/8, $1488
+DATA bitrev_size16384_radix4_f64<>+0xEA8(SB)/8, $5584
+DATA bitrev_size16384_radix4_f64<>+0xEB0(SB)/8, $9680
+DATA bitrev_size16384_radix4_f64<>+0xEB8(SB)/8, $13776
+DATA bitrev_size16384_radix4_f64<>+0xEC0(SB)/8, $2512
+DATA bitrev_size16384_radix4_f64<>+0xEC8(SB)/8, $6608
+DATA bitrev_size16384_radix4_f64<>+0xED0(SB)/8, $10704
+DATA bitrev_size16384_radix4_f64<>+0xED8(SB)/8, $14800
+DATA bitrev_size16384_radix4_f64<>+0xEE0(SB)/8, $3536
+DATA bitrev_size16384_radix4_f64<>+0xEE8(SB)/8, $7632
+DATA bitrev_size16384_radix4_f64<>+0xEF0(SB)/8, $11728
+DATA bitrev_size16384_radix4_f64<>+0xEF8(SB)/8, $15824
+DATA bitrev_size16384_radix4_f64<>+0xF00(SB)/8, $720
+DATA bitrev_size16384_radix4_f64<>+0xF08(SB)/8, $4816
+DATA bitrev_size16384_radix4_f64<>+0xF10(SB)/8, $8912
+DATA bitrev_size16384_radix4_f64<>+0xF18(SB)/8, $13008
+DATA bitrev_size16384_radix4_f64<>+0xF20(SB)/8, $1744
+DATA bitrev_size16384_radix4_f64<>+0xF28(SB)/8, $5840
+DATA bitrev_size16384_radix4_f64<>+0xF30(SB)/8, $9936
+DATA bitrev_size16384_radix4_f64<>+0xF38(SB)/8, $14032
+DATA bitrev_size16384_radix4_f64<>+0xF40(SB)/8, $2768
+DATA bitrev_size16384_radix4_f64<>+0xF48(SB)/8, $6864
+DATA bitrev_size16384_radix4_f64<>+0xF50(SB)/8, $10960
+DATA bitrev_size16384_radix4_f64<>+0xF58(SB)/8, $15056
+DATA bitrev_size16384_radix4_f64<>+0xF60(SB)/8, $3792
+DATA bitrev_size16384_radix4_f64<>+0xF68(SB)/8, $7888
+DATA bitrev_size16384_radix4_f64<>+0xF70(SB)/8, $11984
+DATA bitrev_size16384_radix4_f64<>+0xF78(SB)/8, $16080
+DATA bitrev_size16384_radix4_f64<>+0xF80(SB)/8, $976
+DATA bitrev_size16384_radix4_f64<>+0xF88(SB)/8, $5072
+DATA bitrev_size16384_radix4_f64<>+0xF90(SB)/8, $9168
+DATA bitrev_size16384_radix4_f64<>+0xF98(SB)/8, $13264
+DATA bitrev_size16384_radix4_f64<>+0xFA0(SB)/8, $2000
+DATA bitrev_size16384_radix4_f64<>+0xFA8(SB)/8, $6096
+DATA bitrev_size16384_radix4_f64<>+0xFB0(SB)/8, $10192
+DATA bitrev_size16384_radix4_f64<>+0xFB8(SB)/8, $14288
+DATA bitrev_size16384_radix4_f64<>+0xFC0(SB)/8, $3024
+DATA bitrev_size16384_radix4_f64<>+0xFC8(SB)/8, $7120
+DATA bitrev_size16384_radix4_f64<>+0xFD0(SB)/8, $11216
+DATA bitrev_size16384_radix4_f64<>+0xFD8(SB)/8, $15312
+DATA bitrev_size16384_radix4_f64<>+0xFE0(SB)/8, $4048
+DATA bitrev_size16384_radix4_f64<>+0xFE8(SB)/8, $8144
+DATA bitrev_size16384_radix4_f64<>+0xFF0(SB)/8, $12240
+DATA bitrev_size16384_radix4_f64<>+0xFF8(SB)/8, $16336
+DATA bitrev_size16384_radix4_f64<>+0x1000(SB)/8, $32
+DATA bitrev_size16384_radix4_f64<>+0x1008(SB)/8, $4128
+DATA bitrev_size16384_radix4_f64<>+0x1010(SB)/8, $8224
+DATA bitrev_size16384_radix4_f64<>+0x1018(SB)/8, $12320
+DATA bitrev_size16384_radix4_f64<>+0x1020(SB)/8, $1056
+DATA bitrev_size16384_radix4_f64<>+0x1028(SB)/8, $5152
+DATA bitrev_size16384_radix4_f64<>+0x1030(SB)/8, $9248
+DATA bitrev_size16384_radix4_f64<>+0x1038(SB)/8, $13344
+DATA bitrev_size16384_radix4_f64<>+0x1040(SB)/8, $2080
+DATA bitrev_size16384_radix4_f64<>+0x1048(SB)/8, $6176
+DATA bitrev_size16384_radix4_f64<>+0x1050(SB)/8, $10272
+DATA bitrev_size16384_radix4_f64<>+0x1058(SB)/8, $14368
+DATA bitrev_size16384_radix4_f64<>+0x1060(SB)/8, $3104
+DATA bitrev_size16384_radix4_f64<>+0x1068(SB)/8, $7200
+DATA bitrev_size16384_radix4_f64<>+0x1070(SB)/8, $11296
+DATA bitrev_size16384_radix4_f64<>+0x1078(SB)/8, $15392
+DATA bitrev_size16384_radix4_f64<>+0x1080(SB)/8, $288
+DATA bitrev_size16384_radix4_f64<>+0x1088(SB)/8, $4384
+DATA bitrev_size16384_radix4_f64<>+0x1090(SB)/8, $8480
+DATA bitrev_size16384_radix4_f64<>+0x1098(SB)/8, $12576
+DATA bitrev_size16384_radix4_f64<>+0x10A0(SB)/8, $1312
+DATA bitrev_size16384_radix4_f64<>+0x10A8(SB)/8, $5408
+DATA bitrev_size16384_radix4_f64<>+0x10B0(SB)/8, $9504
+DATA bitrev_size16384_radix4_f64<>+0x10B8(SB)/8, $13600
+DATA bitrev_size16384_radix4_f64<>+0x10C0(SB)/8, $2336
+DATA bitrev_size16384_radix4_f64<>+0x10C8(SB)/8, $6432
+DATA bitrev_size16384_radix4_f64<>+0x10D0(SB)/8, $10528
+DATA bitrev_size16384_radix4_f64<>+0x10D8(SB)/8, $14624
+DATA bitrev_size16384_radix4_f64<>+0x10E0(SB)/8, $3360
+DATA bitrev_size16384_radix4_f64<>+0x10E8(SB)/8, $7456
+DATA bitrev_size16384_radix4_f64<>+0x10F0(SB)/8, $11552
+DATA bitrev_size16384_radix4_f64<>+0x10F8(SB)/8, $15648
+DATA bitrev_size16384_radix4_f64<>+0x1100(SB)/8, $544
+DATA bitrev_size16384_radix4_f64<>+0x1108(SB)/8, $4640
+DATA bitrev_size16384_radix4_f64<>+0x1110(SB)/8, $8736
+DATA bitrev_size16384_radix4_f64<>+0x1118(SB)/8, $12832
+DATA bitrev_size16384_radix4_f64<>+0x1120(SB)/8, $1568
+DATA bitrev_size16384_radix4_f64<>+0x1128(SB)/8, $5664
+DATA bitrev_size16384_radix4_f64<>+0x1130(SB)/8, $9760
+DATA bitrev_size16384_radix4_f64<>+0x1138(SB)/8, $13856
+DATA bitrev_size16384_radix4_f64<>+0x1140(SB)/8, $2592
+DATA bitrev_size16384_radix4_f64<>+0x1148(SB)/8, $6688
+DATA bitrev_size16384_radix4_f64<>+0x1150(SB)/8, $10784
+DATA bitrev_size16384_radix4_f64<>+0x1158(SB)/8, $14880
+DATA bitrev_size16384_radix4_f64<>+0x1160(SB)/8, $3616
+DATA bitrev_size16384_radix4_f64<>+0x1168(SB)/8, $7712
+DATA bitrev_size16384_radix4_f64<>+0x1170(SB)/8, $11808
+DATA bitrev_size16384_radix4_f64<>+0x1178(SB)/8, $15904
+DATA bitrev_size16384_radix4_f64<>+0x1180(SB)/8, $800
+DATA bitrev_size16384_radix4_f64<>+0x1188(SB)/8, $4896
+DATA bitrev_size16384_radix4_f64<>+0x1190(SB)/8, $8992
+DATA bitrev_size16384_radix4_f64<>+0x1198(SB)/8, $13088
+DATA bitrev_size16384_radix4_f64<>+0x11A0(SB)/8, $1824
+DATA bitrev_size16384_radix4_f64<>+0x11A8(SB)/8, $5920
+DATA bitrev_size16384_radix4_f64<>+0x11B0(SB)/8, $10016
+DATA bitrev_size16384_radix4_f64<>+0x11B8(SB)/8, $14112
+DATA bitrev_size16384_radix4_f64<>+0x11C0(SB)/8, $2848
+DATA bitrev_size16384_radix4_f64<>+0x11C8(SB)/8, $6944
+DATA bitrev_size16384_radix4_f64<>+0x11D0(SB)/8, $11040
+DATA bitrev_size16384_radix4_f64<>+0x11D8(SB)/8, $15136
+DATA bitrev_size16384_radix4_f64<>+0x11E0(SB)/8, $3872
+DATA bitrev_size16384_radix4_f64<>+0x11E8(SB)/8, $7968
+DATA bitrev_size16384_radix4_f64<>+0x11F0(SB)/8, $12064
+DATA bitrev_size16384_radix4_f64<>+0x11F8(SB)/8, $16160
+DATA bitrev_size16384_radix4_f64<>+0x1200(SB)/8, $96
+DATA bitrev_size16384_radix4_f64<>+0x1208(SB)/8, $4192
+DATA bitrev_size16384_radix4_f64<>+0x1210(SB)/8, $8288
+DATA bitrev_size16384_radix4_f64<>+0x1218(SB)/8, $12384
+DATA bitrev_size16384_radix4_f64<>+0x1220(SB)/8, $1120
+DATA bitrev_size16384_radix4_f64<>+0x1228(SB)/8, $5216
+DATA bitrev_size16384_radix4_f64<>+0x1230(SB)/8, $9312
+DATA bitrev_size16384_radix4_f64<>+0x1238(SB)/8, $13408
+DATA bitrev_size16384_radix4_f64<>+0x1240(SB)/8, $2144
+DATA bitrev_size16384_radix4_f64<>+0x1248(SB)/8, $6240
+DATA bitrev_size16384_radix4_f64<>+0x1250(SB)/8, $10336
+DATA bitrev_size16384_radix4_f64<>+0x1258(SB)/8, $14432
+DATA bitrev_size16384_radix4_f64<>+0x1260(SB)/8, $3168
+DATA bitrev_size16384_radix4_f64<>+0x1268(SB)/8, $7264
+DATA bitrev_size16384_radix4_f64<>+0x1270(SB)/8, $11360
+DATA bitrev_size16384_radix4_f64<>+0x1278(SB)/8, $15456
+DATA bitrev_size16384_radix4_f64<>+0x1280(SB)/8, $352
+DATA bitrev_size16384_radix4_f64<>+0x1288(SB)/8, $4448
+DATA bitrev_size16384_radix4_f64<>+0x1290(SB)/8, $8544
+DATA bitrev_size16384_radix4_f64<>+0x1298(SB)/8, $12640
+DATA bitrev_size16384_radix4_f64<>+0x12A0(SB)/8, $1376
+DATA bitrev_size16384_radix4_f64<>+0x12A8(SB)/8, $5472
+DATA bitrev_size16384_radix4_f64<>+0x12B0(SB)/8, $9568
+DATA bitrev_size16384_radix4_f64<>+0x12B8(SB)/8, $13664
+DATA bitrev_size16384_radix4_f64<>+0x12C0(SB)/8, $2400
+DATA bitrev_size16384_radix4_f64<>+0x12C8(SB)/8, $6496
+DATA bitrev_size16384_radix4_f64<>+0x12D0(SB)/8, $10592
+DATA bitrev_size16384_radix4_f64<>+0x12D8(SB)/8, $14688
+DATA bitrev_size16384_radix4_f64<>+0x12E0(SB)/8, $3424
+DATA bitrev_size16384_radix4_f64<>+0x12E8(SB)/8, $7520
+DATA bitrev_size16384_radix4_f64<>+0x12F0(SB)/8, $11616
+DATA bitrev_size16384_radix4_f64<>+0x12F8(SB)/8, $15712
+DATA bitrev_size16384_radix4_f64<>+0x1300(SB)/8, $608
+DATA bitrev_size16384_radix4_f64<>+0x1308(SB)/8, $4704
+DATA bitrev_size16384_radix4_f64<>+0x1310(SB)/8, $8800
+DATA bitrev_size16384_radix4_f64<>+0x1318(SB)/8, $12896
+DATA bitrev_size16384_radix4_f64<>+0x1320(SB)/8, $1632
+DATA bitrev_size16384_radix4_f64<>+0x1328(SB)/8, $5728
+DATA bitrev_size16384_radix4_f64<>+0x1330(SB)/8, $9824
+DATA bitrev_size16384_radix4_f64<>+0x1338(SB)/8, $13920
+DATA bitrev_size16384_radix4_f64<>+0x1340(SB)/8, $2656
+DATA bitrev_size16384_radix4_f64<>+0x1348(SB)/8, $6752
+DATA bitrev_size16384_radix4_f64<>+0x1350(SB)/8, $10848
+DATA bitrev_size16384_radix4_f64<>+0x1358(SB)/8, $14944
+DATA bitrev_size16384_radix4_f64<>+0x1360(SB)/8, $3680
+DATA bitrev_size16384_radix4_f64<>+0x1368(SB)/8, $7776
+DATA bitrev_size16384_radix4_f64<>+0x1370(SB)/8, $11872
+DATA bitrev_size16384_radix4_f64<>+0x1378(SB)/8, $15968
+DATA bitrev_size16384_radix4_f64<>+0x1380(SB)/8, $864
+DATA bitrev_size16384_radix4_f64<>+0x1388(SB)/8, $4960
+DATA bitrev_size16384_radix4_f64<>+0x1390(SB)/8, $9056
+DATA bitrev_size16384_radix4_f64<>+0x1398(SB)/8, $13152
+DATA bitrev_size16384_radix4_f64<>+0x13A0(SB)/8, $1888
+DATA bitrev_size16384_radix4_f64<>+0x13A8(SB)/8, $5984
+DATA bitrev_size16384_radix4_f64<>+0x13B0(SB)/8, $10080
+DATA bitrev_size16384_radix4_f64<>+0x13B8(SB)/8, $14176
+DATA bitrev_size16384_radix4_f64<>+0x13C0(SB)/8, $2912
+DATA bitrev_size16384_radix4_f64<>+0x13C8(SB)/8, $7008
+DATA bitrev_size16384_radix4_f64<>+0x13D0(SB)/8, $11104
+DATA bitrev_size16384_radix4_f64<>+0x13D8(SB)/8, $15200
+DATA bitrev_size16384_radix4_f64<>+0x13E0(SB)/8, $3936
+DATA bitrev_size16384_radix4_f64<>+0x13E8(SB)/8, $8032
+DATA bitrev_size16384_radix4_f64<>+0x13F0(SB)/8, $12128
+DATA bitrev_size16384_radix4_f64<>+0x13F8(SB)/8, $16224
+DATA bitrev_size16384_radix4_f64<>+0x1400(SB)/8, $160
+DATA bitrev_size16384_radix4_f64<>+0x1408(SB)/8, $4256
+DATA bitrev_size16384_radix4_f64<>+0x1410(SB)/8, $8352
+DATA bitrev_size16384_radix4_f64<>+0x1418(SB)/8, $12448
+DATA bitrev_size16384_radix4_f64<>+0x1420(SB)/8, $1184
+DATA bitrev_size16384_radix4_f64<>+0x1428(SB)/8, $5280
+DATA bitrev_size16384_radix4_f64<>+0x1430(SB)/8, $9376
+DATA bitrev_size16384_radix4_f64<>+0x1438(SB)/8, $13472
+DATA bitrev_size16384_radix4_f64<>+0x1440(SB)/8, $2208
+DATA bitrev_size16384_radix4_f64<>+0x1448(SB)/8, $6304
+DATA bitrev_size16384_radix4_f64<>+0x1450(SB)/8, $10400
+DATA bitrev_size16384_radix4_f64<>+0x1458(SB)/8, $14496
+DATA bitrev_size16384_radix4_f64<>+0x1460(SB)/8, $3232
+DATA bitrev_size16384_radix4_f64<>+0x1468(SB)/8, $7328
+DATA bitrev_size16384_radix4_f64<>+0x1470(SB)/8, $11424
+DATA bitrev_size16384_radix4_f64<>+0x1478(SB)/8, $15520
+DATA bitrev_size16384_radix4_f64<>+0x1480(SB)/8, $416
+DATA bitrev_size16384_radix4_f64<>+0x1488(SB)/8, $4512
+DATA bitrev_size16384_radix4_f64<>+0x1490(SB)/8, $8608
+DATA bitrev_size16384_radix4_f64<>+0x1498(SB)/8, $12704
+DATA bitrev_size16384_radix4_f64<>+0x14A0(SB)/8, $1440
+DATA bitrev_size16384_radix4_f64<>+0x14A8(SB)/8, $5536
+DATA bitrev_size16384_radix4_f64<>+0x14B0(SB)/8, $9632
+DATA bitrev_size16384_radix4_f64<>+0x14B8(SB)/8, $13728
+DATA bitrev_size16384_radix4_f64<>+0x14C0(SB)/8, $2464
+DATA bitrev_size16384_radix4_f64<>+0x14C8(SB)/8, $6560
+DATA bitrev_size16384_radix4_f64<>+0x14D0(SB)/8, $10656
+DATA bitrev_size16384_radix4_f64<>+0x14D8(SB)/8, $14752
+DATA bitrev_size16384_radix4_f64<>+0x14E0(SB)/8, $3488
+DATA bitrev_size16384_radix4_f64<>+0x14E8(SB)/8, $7584
+DATA bitrev_size16384_radix4_f64<>+0x14F0(SB)/8, $11680
+DATA bitrev_size16384_radix4_f64<>+0x14F8(SB)/8, $15776
+DATA bitrev_size16384_radix4_f64<>+0x1500(SB)/8, $672
+DATA bitrev_size16384_radix4_f64<>+0x1508(SB)/8, $4768
+DATA bitrev_size16384_radix4_f64<>+0x1510(SB)/8, $8864
+DATA bitrev_size16384_radix4_f64<>+0x1518(SB)/8, $12960
+DATA bitrev_size16384_radix4_f64<>+0x1520(SB)/8, $1696
+DATA bitrev_size16384_radix4_f64<>+0x1528(SB)/8, $5792
+DATA bitrev_size16384_radix4_f64<>+0x1530(SB)/8, $9888
+DATA bitrev_size16384_radix4_f64<>+0x1538(SB)/8, $13984
+DATA bitrev_size16384_radix4_f64<>+0x1540(SB)/8, $2720
+DATA bitrev_size16384_radix4_f64<>+0x1548(SB)/8, $6816
+DATA bitrev_size16384_radix4_f64<>+0x1550(SB)/8, $10912
+DATA bitrev_size16384_radix4_f64<>+0x1558(SB)/8, $15008
+DATA bitrev_size16384_radix4_f64<>+0x1560(SB)/8, $3744
+DATA bitrev_size16384_radix4_f64<>+0x1568(SB)/8, $7840
+DATA bitrev_size16384_radix4_f64<>+0x1570(SB)/8, $11936
+DATA bitrev_size16384_radix4_f64<>+0x1578(SB)/8, $16032
+DATA bitrev_size16384_radix4_f64<>+0x1580(SB)/8, $928
+DATA bitrev_size16384_radix4_f64<>+0x1588(SB)/8, $5024
+DATA bitrev_size16384_radix4_f64<>+0x1590(SB)/8, $9120
+DATA bitrev_size16384_radix4_f64<>+0x1598(SB)/8, $13216
+DATA bitrev_size16384_radix4_f64<>+0x15A0(SB)/8, $1952
+DATA bitrev_size16384_radix4_f64<>+0x15A8(SB)/8, $6048
+DATA bitrev_size16384_radix4_f64<>+0x15B0(SB)/8, $10144
+DATA bitrev_size16384_radix4_f64<>+0x15B8(SB)/8, $14240
+DATA bitrev_size16384_radix4_f64<>+0x15C0(SB)/8, $2976
+DATA bitrev_size16384_radix4_f64<>+0x15C8(SB)/8, $7072
+DATA bitrev_size16384_radix4_f64<>+0x15D0(SB)/8, $11168
+DATA bitrev_size16384_radix4_f64<>+0x15D8(SB)/8, $15264
+DATA bitrev_size16384_radix4_f64<>+0x15E0(SB)/8, $4000
+DATA bitrev_size16384_radix4_f64<>+0x15E8(SB)/8, $8096
+DATA bitrev_size16384_radix4_f64<>+0x15F0(SB)/8, $12192
+DATA bitrev_size16384_radix4_f64<>+0x15F8(SB)/8, $16288
+DATA bitrev_size16384_radix4_f64<>+0x1600(SB)/8, $224
+DATA bitrev_size16384_radix4_f64<>+0x1608(SB)/8, $4320
+DATA bitrev_size16384_radix4_f64<>+0x1610(SB)/8, $8416
+DATA bitrev_size16384_radix4_f64<>+0x1618(SB)/8, $12512
+DATA bitrev_size16384_radix4_f64<>+0x1620(SB)/8, $1248
+DATA bitrev_size16384_radix4_f64<>+0x1628(SB)/8, $5344
+DATA bitrev_size16384_radix4_f64<>+0x1630(SB)/8, $9440
+DATA bitrev_size16384_radix4_f64<>+0x1638(SB)/8, $13536
+DATA bitrev_size16384_radix4_f64<>+0x1640(SB)/8, $2272
+DATA bitrev_size16384_radix4_f64<>+0x1648(SB)/8, $6368
+DATA bitrev_size16384_radix4_f64<>+0x1650(SB)/8, $10464
+DATA bitrev_size16384_radix4_f64<>+0x1658(SB)/8, $14560
+DATA bitrev_size16384_radix4_f64<>+0x1660(SB)/8, $3296
+DATA bitrev_size16384_radix4_f64<>+0x1668(SB)/8, $7392
+DATA bitrev_size16384_radix4_f64<>+0x1670(SB)/8, $11488
+DATA bitrev_size16384_radix4_f64<>+0x1678(SB)/8, $15584
+DATA bitrev_size16384_radix4_f64<>+0x1680(SB)/8, $480
+DATA bitrev_size16384_radix4_f64<>+0x1688(SB)/8, $4576
+DATA bitrev_size16384_radix4_f64<>+0x1690(SB)/8, $8672
+DATA bitrev_size16384_radix4_f64<>+0x1698(SB)/8, $12768
+DATA bitrev_size16384_radix4_f64<>+0x16A0(SB)/8, $1504
+DATA bitrev_size16384_radix4_f64<>+0x16A8(SB)/8, $5600
+DATA bitrev_size16384_radix4_f64<>+0x16B0(SB)/8, $9696
+DATA bitrev_size16384_radix4_f64<>+0x16B8(SB)/8, $13792
+DATA bitrev_size16384_radix4_f64<>+0x16C0(SB)/8, $2528
+DATA bitrev_size16384_radix4_f64<>+0x16C8(SB)/8, $6624
+DATA bitrev_size16384_radix4_f64<>+0x16D0(SB)/8, $10720
+DATA bitrev_size16384_radix4_f64<>+0x16D8(SB)/8, $14816
+DATA bitrev_size16384_radix4_f64<>+0x16E0(SB)/8, $3552
+DATA bitrev_size16384_radix4_f64<>+0x16E8(SB)/8, $7648
+DATA bitrev_size16384_radix4_f64<>+0x16F0(SB)/8, $11744
+DATA bitrev_size16384_radix4_f64<>+0x16F8(SB)/8, $15840
+DATA bitrev_size16384_radix4_f64<>+0x1700(SB)/8, $736
+DATA bitrev_size16384_radix4_f64<>+0x1708(SB)/8, $4832
+DATA bitrev_size16384_radix4_f64<>+0x1710(SB)/8, $8928
+DATA bitrev_size16384_radix4_f64<>+0x1718(SB)/8, $13024
+DATA bitrev_size16384_radix4_f64<>+0x1720(SB)/8, $1760
+DATA bitrev_size16384_radix4_f64<>+0x1728(SB)/8, $5856
+DATA bitrev_size16384_radix4_f64<>+0x1730(SB)/8, $9952
+DATA bitrev_size16384_radix4_f64<>+0x1738(SB)/8, $14048
+DATA bitrev_size16384_radix4_f64<>+0x1740(SB)/8, $2784
+DATA bitrev_size16384_radix4_f64<>+0x1748(SB)/8, $6880
+DATA bitrev_size16384_radix4_f64<>+0x1750(SB)/8, $10976
+DATA bitrev_size16384_radix4_f64<>+0x1758(SB)/8, $15072
+DATA bitrev_size16384_radix4_f64<>+0x1760(SB)/8, $3808
+DATA bitrev_size16384_radix4_f64<>+0x1768(SB)/8, $7904
+DATA bitrev_size16384_radix4_f64<>+0x1770(SB)/8, $12000
+DATA bitrev_size16384_radix4_f64<>+0x1778(SB)/8, $16096
+DATA bitrev_size16384_radix4_f64<>+0x1780(SB)/8, $992
+DATA bitrev_size16384_radix4_f64<>+0x1788(SB)/8, $5088
+DATA bitrev_size16384_radix4_f64<>+0x1790(SB)/8, $9184
+DATA bitrev_size16384_radix4_f64<>+0x1798(SB)/8, $13280
+DATA bitrev_size16384_radix4_f64<>+0x17A0(SB)/8, $2016
+DATA bitrev_size16384_radix4_f64<>+0x17A8(SB)/8, $6112
+DATA bitrev_size16384_radix4_f64<>+0x17B0(SB)/8, $10208
+DATA bitrev_size16384_radix4_f64<>+0x17B8(SB)/8, $14304
+DATA bitrev_size16384_radix4_f64<>+0x17C0(SB)/8, $3040
+DATA bitrev_size16384_radix4_f64<>+0x17C8(SB)/8, $7136
+DATA bitrev_size16384_radix4_f64<>+0x17D0(SB)/8, $11232
+DATA bitrev_size16384_radix4_f64<>+0x17D8(SB)/8, $15328
+DATA bitrev_size16384_radix4_f64<>+0x17E0(SB)/8, $4064
+DATA bitrev_size16384_radix4_f64<>+0x17E8(SB)/8, $8160
+DATA bitrev_size16384_radix4_f64<>+0x17F0(SB)/8, $12256
+DATA bitrev_size16384_radix4_f64<>+0x17F8(SB)/8, $16352
+DATA bitrev_size16384_radix4_f64<>+0x1800(SB)/8, $48
+DATA bitrev_size16384_radix4_f64<>+0x1808(SB)/8, $4144
+DATA bitrev_size16384_radix4_f64<>+0x1810(SB)/8, $8240
+DATA bitrev_size16384_radix4_f64<>+0x1818(SB)/8, $12336
+DATA bitrev_size16384_radix4_f64<>+0x1820(SB)/8, $1072
+DATA bitrev_size16384_radix4_f64<>+0x1828(SB)/8, $5168
+DATA bitrev_size16384_radix4_f64<>+0x1830(SB)/8, $9264
+DATA bitrev_size16384_radix4_f64<>+0x1838(SB)/8, $13360
+DATA bitrev_size16384_radix4_f64<>+0x1840(SB)/8, $2096
+DATA bitrev_size16384_radix4_f64<>+0x1848(SB)/8, $6192
+DATA bitrev_size16384_radix4_f64<>+0x1850(SB)/8, $10288
+DATA bitrev_size16384_radix4_f64<>+0x1858(SB)/8, $14384
+DATA bitrev_size16384_radix4_f64<>+0x1860(SB)/8, $3120
+DATA bitrev_size16384_radix4_f64<>+0x1868(SB)/8, $7216
+DATA bitrev_size16384_radix4_f64<>+0x1870(SB)/8, $11312
+DATA bitrev_size16384_radix4_f64<>+0x1878(SB)/8, $15408
+DATA bitrev_size16384_radix4_f64<>+0x1880(SB)/8, $304
+DATA bitrev_size16384_radix4_f64<>+0x1888(SB)/8, $4400
+DATA bitrev_size16384_radix4_f64<>+0x1890(SB)/8, $8496
+DATA bitrev_size16384_radix4_f64<>+0x1898(SB)/8, $12592
+DATA bitrev_size16384_radix4_f64<>+0x18A0(SB)/8, $1328
+DATA bitrev_size16384_radix4_f64<>+0x18A8(SB)/8, $5424
+DATA bitrev_size16384_radix4_f64<>+0x18B0(SB)/8, $9520
+DATA bitrev_size16384_radix4_f64<>+0x18B8(SB)/8, $13616
+DATA bitrev_size16384_radix4_f64<>+0x18C0(SB)/8, $2352
+DATA bitrev_size16384_radix4_f64<>+0x18C8(SB)/8, $6448
+DATA bitrev_size16384_radix4_f64<>+0x18D0(SB)/8, $10544
+DATA bitrev_size16384_radix4_f64<>+0x18D8(SB)/8, $14640
+DATA bitrev_size16384_radix4_f64<>+0x18E0(SB)/8, $3376
+DATA bitrev_size16384_radix4_f64<>+0x18E8(SB)/8, $7472
+DATA bitrev_size16384_radix4_f64<>+0x18F0(SB)/8, $11568
+DATA bitrev_size16384_radix4_f64<>+0x18F8(SB)/8, $15664
+DATA bitrev_size16384_radix4_f64<>+0x1900(SB)/8, $560
+DATA bitrev_size16384_radix4_f64<>+0x1908(SB)/8, $4656
+DATA bitrev_size16384_radix4_f64<>+0x1910(SB)/8, $8752
+DATA bitrev_size16384_radix4_f64<>+0x1918(SB)/8, $12848
+DATA bitrev_size16384_radix4_f64<>+0x1920(SB)/8, $1584
+DATA bitrev_size16384_radix4_f64<>+0x1928(SB)/8, $5680
+DATA bitrev_size16384_radix4_f64<>+0x1930(SB)/8, $9776
+DATA bitrev_size16384_radix4_f64<>+0x1938(SB)/8, $13872
+DATA bitrev_size16384_radix4_f64<>+0x1940(SB)/8, $2608
+DATA bitrev_size16384_radix4_f64<>+0x1948(SB)/8, $6704
+DATA bitrev_size16384_radix4_f64<>+0x1950(SB)/8, $10800
+DATA bitrev_size16384_radix4_f64<>+0x1958(SB)/8, $14896
+DATA bitrev_size16384_radix4_f64<>+0x1960(SB)/8, $3632
+DATA bitrev_size16384_radix4_f64<>+0x1968(SB)/8, $7728
+DATA bitrev_size16384_radix4_f64<>+0x1970(SB)/8, $11824
+DATA bitrev_size16384_radix4_f64<>+0x1978(SB)/8, $15920
+DATA bitrev_size16384_radix4_f64<>+0x1980(SB)/8, $816
+DATA bitrev_size16384_radix4_f64<>+0x1988(SB)/8, $4912
+DATA bitrev_size16384_radix4_f64<>+0x1990(SB)/8, $9008
+DATA bitrev_size16384_radix4_f64<>+0x1998(SB)/8, $13104
+DATA bitrev_size16384_radix4_f64<>+0x19A0(SB)/8, $1840
+DATA bitrev_size16384_radix4_f64<>+0x19A8(SB)/8, $5936
+DATA bitrev_size16384_radix4_f64<>+0x19B0(SB)/8, $10032
+DATA bitrev_size16384_radix4_f64<>+0x19B8(SB)/8, $14128
+DATA bitrev_size16384_radix4_f64<>+0x19C0(SB)/8, $2864
+DATA bitrev_size16384_radix4_f64<>+0x19C8(SB)/8, $6960
+DATA bitrev_size16384_radix4_f64<>+0x19D0(SB)/8, $11056
+DATA bitrev_size16384_radix4_f64<>+0x19D8(SB)/8, $15152
+DATA bitrev_size16384_radix4_f64<>+0x19E0(SB)/8, $3888
+DATA bitrev_size16384_radix4_f64<>+0x19E8(SB)/8, $7984
+DATA bitrev_size16384_radix4_f64<>+0x19F0(SB)/8, $12080
+DATA bitrev_size16384_radix4_f64<>+0x19F8(SB)/8, $16176
+DATA bitrev_size16384_radix4_f64<>+0x1A00(SB)/8, $112
+DATA bitrev_size16384_radix4_f64<>+0x1A08(SB)/8, $4208
+DATA bitrev_size16384_radix4_f64<>+0x1A10(SB)/8, $8304
+DATA bitrev_size16384_radix4_f64<>+0x1A18(SB)/8, $12400
+DATA bitrev_size16384_radix4_f64<>+0x1A20(SB)/8, $1136
+DATA bitrev_size16384_radix4_f64<>+0x1A28(SB)/8, $5232
+DATA bitrev_size16384_radix4_f64<>+0x1A30(SB)/8, $9328
+DATA bitrev_size16384_radix4_f64<>+0x1A38(SB)/8, $13424
+DATA bitrev_size16384_radix4_f64<>+0x1A40(SB)/8, $2160
+DATA bitrev_size16384_radix4_f64<>+0x1A48(SB)/8, $6256
+DATA bitrev_size16384_radix4_f64<>+0x1A50(SB)/8, $10352
+DATA bitrev_size16384_radix4_f64<>+0x1A58(SB)/8, $14448
+DATA bitrev_size16384_radix4_f64<>+0x1A60(SB)/8, $3184
+DATA bitrev_size16384_radix4_f64<>+0x1A68(SB)/8, $7280
+DATA bitrev_size16384_radix4_f64<>+0x1A70(SB)/8, $11376
+DATA bitrev_size16384_radix4_f64<>+0x1A78(SB)/8, $15472
+DATA bitrev_size16384_radix4_f64<>+0x1A80(SB)/8, $368
+DATA bitrev_size16384_radix4_f64<>+0x1A88(SB)/8, $4464
+DATA bitrev_size16384_radix4_f64<>+0x1A90(SB)/8, $8560
+DATA bitrev_size16384_radix4_f64<>+0x1A98(SB)/8, $12656
+DATA bitrev_size16384_radix4_f64<>+0x1AA0(SB)/8, $1392
+DATA bitrev_size16384_radix4_f64<>+0x1AA8(SB)/8, $5488
+DATA bitrev_size16384_radix4_f64<>+0x1AB0(SB)/8, $9584
+DATA bitrev_size16384_radix4_f64<>+0x1AB8(SB)/8, $13680
+DATA bitrev_size16384_radix4_f64<>+0x1AC0(SB)/8, $2416
+DATA bitrev_size16384_radix4_f64<>+0x1AC8(SB)/8, $6512
+DATA bitrev_size16384_radix4_f64<>+0x1AD0(SB)/8, $10608
+DATA bitrev_size16384_radix4_f64<>+0x1AD8(SB)/8, $14704
+DATA bitrev_size16384_radix4_f64<>+0x1AE0(SB)/8, $3440
+DATA bitrev_size16384_radix4_f64<>+0x1AE8(SB)/8, $7536
+DATA bitrev_size16384_radix4_f64<>+0x1AF0(SB)/8, $11632
+DATA bitrev_size16384_radix4_f64<>+0x1AF8(SB)/8, $15728
+DATA bitrev_size16384_radix4_f64<>+0x1B00(SB)/8, $624
+DATA bitrev_size16384_radix4_f64<>+0x1B08(SB)/8, $4720
+DATA bitrev_size16384_radix4_f64<>+0x1B10(SB)/8, $8816
+DATA bitrev_size16384_radix4_f64<>+0x1B18(SB)/8, $12912
+DATA bitrev_size16384_radix4_f64<>+0x1B20(SB)/8, $1648
+DATA bitrev_size16384_radix4_f64<>+0x1B28(SB)/8, $5744
+DATA bitrev_size16384_radix4_f64<>+0x1B30(SB)/8, $9840
+DATA bitrev_size16384_radix4_f64<>+0x1B38(SB)/8, $13936
+DATA bitrev_size16384_radix4_f64<>+0x1B40(SB)/8, $2672
+DATA bitrev_size16384_radix4_f64<>+0x1B48(SB)/8, $6768
+DATA bitrev_size16384_radix4_f64<>+0x1B50(SB)/8, $10864
+DATA bitrev_size16384_radix4_f64<>+0x1B58(SB)/8, $14960
+DATA bitrev_size16384_radix4_f64<>+0x1B60(SB)/8, $3696
+DATA bitrev_size16384_radix4_f64<>+0x1B68(SB)/8, $7792
+DATA bitrev_size16384_radix4_f64<>+0x1B70(SB)/8, $11888
+DATA bitrev_size16384_radix4_f64<>+0x1B78(SB)/8, $15984
+DATA bitrev_size16384_radix4_f64<>+0x1B80(SB)/8, $880
+DATA bitrev_size16384_radix4_f64<>+0x1B88(SB)/8, $4976
+DATA bitrev_size16384_radix4_f64<>+0x1B90(SB)/8, $9072
+DATA bitrev_size16384_radix4_f64<>+0x1B98(SB)/8, $13168
+DATA bitrev_size16384_radix4_f64<>+0x1BA0(SB)/8, $1904
+DATA bitrev_size16384_radix4_f64<>+0x1BA8(SB)/8, $6000
+DATA bitrev_size16384_radix4_f64<>+0x1BB0(SB)/8, $10096
+DATA bitrev_size16384_radix4_f64<>+0x1BB8(SB)/8, $14192
+DATA bitrev_size16384_radix4_f64<>+0x1BC0(SB)/8, $2928
+DATA bitrev_size16384_radix4_f64<>+0x1BC8(SB)/8, $7024
+DATA bitrev_size16384_radix4_f64<>+0x1BD0(SB)/8, $11120
+DATA bitrev_size16384_radix4_f64<>+0x1BD8(SB)/8, $15216
+DATA bitrev_size16384_radix4_f64<>+0x1BE0(SB)/8, $3952
+DATA bitrev_size16384_radix4_f64<>+0x1BE8(SB)/8, $8048
+DATA bitrev_size16384_radix4_f64<>+0x1BF0(SB)/8, $12144
+DATA bitrev_size16384_radix4_f64<>+0x1BF8(SB)/8, $16240
+DATA bitrev_size16384_radix4_f64<>+0x1C00(SB)/8, $176
+DATA bitrev_size16384_radix4_f64<>+0x1C08(SB)/8, $4272
+DATA bitrev_size16384_radix4_f64<>+0x1C10(SB)/8, $8368
+DATA bitrev_size16384_radix4_f64<>+0x1C18(SB)/8, $12464
+DATA bitrev_size16384_radix4_f64<>+0x1C20(SB)/8, $1200
+DATA bitrev_size16384_radix4_f64<>+0x1C28(SB)/8, $5296
+DATA bitrev_size16384_radix4_f64<>+0x1C30(SB)/8, $9392
+DATA bitrev_size16384_radix4_f64<>+0x1C38(SB)/8, $13488
+DATA bitrev_size16384_radix4_f64<>+0x1C40(SB)/8, $2224
+DATA bitrev_size16384_radix4_f64<>+0x1C48(SB)/8, $6320
+DATA bitrev_size16384_radix4_f64<>+0x1C50(SB)/8, $10416
+DATA bitrev_size16384_radix4_f64<>+0x1C58(SB)/8, $14512
+DATA bitrev_size16384_radix4_f64<>+0x1C60(SB)/8, $3248
+DATA bitrev_size16384_radix4_f64<>+0x1C68(SB)/8, $7344
+DATA bitrev_size16384_radix4_f64<>+0x1C70(SB)/8, $11440
+DATA bitrev_size16384_radix4_f64<>+0x1C78(SB)/8, $15536
+DATA bitrev_size16384_radix4_f64<>+0x1C80(SB)/8, $432
+DATA bitrev_size16384_radix4_f64<>+0x1C88(SB)/8, $4528
+DATA bitrev_size16384_radix4_f64<>+0x1C90(SB)/8, $8624
+DATA bitrev_size16384_radix4_f64<>+0x1C98(SB)/8, $12720
+DATA bitrev_size16384_radix4_f64<>+0x1CA0(SB)/8, $1456
+DATA bitrev_size16384_radix4_f64<>+0x1CA8(SB)/8, $5552
+DATA bitrev_size16384_radix4_f64<>+0x1CB0(SB)/8, $9648
+DATA bitrev_size16384_radix4_f64<>+0x1CB8(SB)/8, $13744
+DATA bitrev_size16384_radix4_f64<>+0x1CC0(SB)/8, $2480
+DATA bitrev_size16384_radix4_f64<>+0x1CC8(SB)/8, $6576
+DATA bitrev_size16384_radix4_f64<>+0x1CD0(SB)/8, $10672
+DATA bitrev_size16384_radix4_f64<>+0x1CD8(SB)/8, $14768
+DATA bitrev_size16384_radix4_f64<>+0x1CE0(SB)/8, $3504
+DATA bitrev_size16384_radix4_f64<>+0x1CE8(SB)/8, $7600
+DATA bitrev_size16384_radix4_f64<>+0x1CF0(SB)/8, $11696
+DATA bitrev_size16384_radix4_f64<>+0x1CF8(SB)/8, $15792
+DATA bitrev_size16384_radix4_f64<>+0x1D00(SB)/8, $688
+DATA bitrev_size16384_radix4_f64<>+0x1D08(SB)/8, $4784
+DATA bitrev_size16384_radix4_f64<>+0x1D10(SB)/8, $8880
+DATA bitrev_size16384_radix4_f64<>+0x1D18(SB)/8, $12976
+DATA bitrev_size16384_radix4_f64<>+0x1D20(SB)/8, $1712
+DATA bitrev_size16384_radix4_f64<>+0x1D28(SB)/8, $5808
+DATA bitrev_size16384_radix4_f64<>+0x1D30(SB)/8, $9904
+DATA bitrev_size16384_radix4_f64<>+0x1D38(SB)/8, $14000
+DATA bitrev_size16384_radix4_f64<>+0x1D40(SB)/8, $2736
+DATA bitrev_size16384_radix4_f64<>+0x1D48(SB)/8, $6832
+DATA bitrev_size16384_radix4_f64<>+0x1D50(SB)/8, $10928
+DATA bitrev_size16384_radix4_f64<>+0x1D58(SB)/8, $15024
+DATA bitrev_size16384_radix4_f64<>+0x1D60(SB)/8, $3760
+DATA bitrev_size16384_radix4_f64<>+0x1D68(SB)/8, $7856
+DATA bitrev_size16384_radix4_f64<>+0x1D70(SB)/8, $11952
+DATA bitrev_size16384_radix4_f64<>+0x1D78(SB)/8, $16048
+DATA bitrev_size16384_radix4_f64<>+0x1D80(SB)/8, $944
+DATA bitrev_size16384_radix4_f64<>+0x1D88(SB)/8, $5040
+DATA bitrev_size16384_radix4_f64<>+0x1D90(SB)/8, $9136
+DATA bitrev_size16384_radix4_f64<>+0x1D98(SB)/8, $13232
+DATA bitrev_size16384_radix4_f64<>+0x1DA0(SB)/8, $1968
+DATA bitrev_size16384_radix4_f64<>+0x1DA8(SB)/8, $6064
+DATA bitrev_size16384_radix4_f64<>+0x1DB0(SB)/8, $10160
+DATA bitrev_size16384_radix4_f64<>+0x1DB8(SB)/8, $14256
+DATA bitrev_size16384_radix4_f64<>+0x1DC0(SB)/8, $2992
+DATA bitrev_size16384_radix4_f64<>+0x1DC8(SB)/8, $7088
+DATA bitrev_size16384_radix4_f64<>+0x1DD0(SB)/8, $11184
+DATA bitrev_size16384_radix4_f64<>+0x1DD8(SB)/8, $15280
+DATA bitrev_size16384_radix4_f64<>+0x1DE0(SB)/8, $4016
+DATA bitrev_size16384_radix4_f64<>+0x1DE8(SB)/8, $8112
+DATA bitrev_size16384_radix4_f64<>+0x1DF0(SB)/8, $12208
+DATA bitrev_size16384_radix4_f64<>+0x1DF8(SB)/8, $16304
+DATA bitrev_size16384_radix4_f64<>+0x1E00(SB)/8, $240
+DATA bitrev_size16384_radix4_f64<>+0x1E08(SB)/8, $4336
+DATA bitrev_size16384_radix4_f64<>+0x1E10(SB)/8, $8432
+DATA bitrev_size16384_radix4_f64<>+0x1E18(SB)/8, $12528
+DATA bitrev_size16384_radix4_f64<>+0x1E20(SB)/8, $1264
+DATA bitrev_size16384_radix4_f64<>+0x1E28(SB)/8, $5360
+DATA bitrev_size16384_radix4_f64<>+0x1E30(SB)/8, $9456
+DATA bitrev_size16384_radix4_f64<>+0x1E38(SB)/8, $13552
+DATA bitrev_size16384_radix4_f64<>+0x1E40(SB)/8, $2288
+DATA bitrev_size16384_radix4_f64<>+0x1E48(SB)/8, $6384
+DATA bitrev_size16384_radix4_f64<>+0x1E50(SB)/8, $10480
+DATA bitrev_size16384_radix4_f64<>+0x1E58(SB)/8, $14576
+DATA bitrev_size16384_radix4_f64<>+0x1E60(SB)/8, $3312
+DATA bitrev_size16384_radix4_f64<>+0x1E68(SB)/8, $7408
+DATA bitrev_size16384_radix4_f64<>+0x1E70(SB)/8, $11504
+DATA bitrev_size16384_radix4_f64<>+0x1E78(SB)/8, $15600
+DATA bitrev_size16384_radix4_f64<>+0x1E80(SB)/8, $496
+DATA bitrev_size16384_radix4_f64<>+0x1E88(SB)/8, $4592
+DATA bitrev_size16384_radix4_f64<>+0x1E90(SB)/8, $8688
+DATA bitrev_size16384_radix4_f64<>+0x1E98(SB)/8, $12784
+DATA bitrev_size16384_radix4_f64<>+0x1EA0(SB)/8, $1520
+DATA bitrev_size16384_radix4_f64<>+0x1EA8(SB)/8, $5616
+DATA bitrev_size16384_radix4_f64<>+0x1EB0(SB)/8, $9712
+DATA bitrev_size16384_radix4_f64<>+0x1EB8(SB)/8, $13808
+DATA bitrev_size16384_radix4_f64<>+0x1EC0(SB)/8, $2544
+DATA bitrev_size16384_radix4_f64<>+0x1EC8(SB)/8, $6640
+DATA bitrev_size16384_radix4_f64<>+0x1ED0(SB)/8, $10736
+DATA bitrev_size16384_radix4_f64<>+0x1ED8(SB)/8, $14832
+DATA bitrev_size16384_radix4_f64<>+0x1EE0(SB)/8, $3568
+DATA bitrev_size16384_radix4_f64<>+0x1EE8(SB)/8, $7664
+DATA bitrev_size16384_radix4_f64<>+0x1EF0(SB)/8, $11760
+DATA bitrev_size16384_radix4_f64<>+0x1EF8(SB)/8, $15856
+DATA bitrev_size16384_radix4_f64<>+0x1F00(SB)/8, $752
+DATA bitrev_size16384_radix4_f64<>+0x1F08(SB)/8, $4848
+DATA bitrev_size16384_radix4_f64<>+0x1F10(SB)/8, $8944
+DATA bitrev_size16384_radix4_f64<>+0x1F18(SB)/8, $13040
+DATA bitrev_size16384_radix4_f64<>+0x1F20(SB)/8, $1776
+DATA bitrev_size16384_radix4_f64<>+0x1F28(SB)/8, $5872
+DATA bitrev_size16384_radix4_f64<>+0x1F30(SB)/8, $9968
+DATA bitrev_size16384_radix4_f64<>+0x1F38(SB)/8, $14064
+DATA bitrev_size16384_radix4_f64<>+0x1F40(SB)/8, $2800
+DATA bitrev_size16384_radix4_f64<>+0x1F48(SB)/8, $6896
+DATA bitrev_size16384_radix4_f64<>+0x1F50(SB)/8, $10992
+DATA bitrev_size16384_radix4_f64<>+0x1F58(SB)/8, $15088
+DATA bitrev_size16384_radix4_f64<>+0x1F60(SB)/8, $3824
+DATA bitrev_size16384_radix4_f64<>+0x1F68(SB)/8, $7920
+DATA bitrev_size16384_radix4_f64<>+0x1F70(SB)/8, $12016
+DATA bitrev_size16384_radix4_f64<>+0x1F78(SB)/8, $16112
+DATA bitrev_size16384_radix4_f64<>+0x1F80(SB)/8, $1008
+DATA bitrev_size16384_radix4_f64<>+0x1F88(SB)/8, $5104
+DATA bitrev_size16384_radix4_f64<>+0x1F90(SB)/8, $9200
+DATA bitrev_size16384_radix4_f64<>+0x1F98(SB)/8, $13296
+DATA bitrev_size16384_radix4_f64<>+0x1FA0(SB)/8, $2032
+DATA bitrev_size16384_radix4_f64<>+0x1FA8(SB)/8, $6128
+DATA bitrev_size16384_radix4_f64<>+0x1FB0(SB)/8, $10224
+DATA bitrev_size16384_radix4_f64<>+0x1FB8(SB)/8, $14320
+DATA bitrev_size16384_radix4_f64<>+0x1FC0(SB)/8, $3056
+DATA bitrev_size16384_radix4_f64<>+0x1FC8(SB)/8, $7152
+DATA bitrev_size16384_radix4_f64<>+0x1FD0(SB)/8, $11248
+DATA bitrev_size16384_radix4_f64<>+0x1FD8(SB)/8, $15344
+DATA bitrev_size16384_radix4_f64<>+0x1FE0(SB)/8, $4080
+DATA bitrev_size16384_radix4_f64<>+0x1FE8(SB)/8, $8176
+DATA bitrev_size16384_radix4_f64<>+0x1FF0(SB)/8, $12272
+DATA bitrev_size16384_radix4_f64<>+0x1FF8(SB)/8, $16368
+DATA bitrev_size16384_radix4_f64<>+0x2000(SB)/8, $4
+DATA bitrev_size16384_radix4_f64<>+0x2008(SB)/8, $4100
+DATA bitrev_size16384_radix4_f64<>+0x2010(SB)/8, $8196
+DATA bitrev_size16384_radix4_f64<>+0x2018(SB)/8, $12292
+DATA bitrev_size16384_radix4_f64<>+0x2020(SB)/8, $1028
+DATA bitrev_size16384_radix4_f64<>+0x2028(SB)/8, $5124
+DATA bitrev_size16384_radix4_f64<>+0x2030(SB)/8, $9220
+DATA bitrev_size16384_radix4_f64<>+0x2038(SB)/8, $13316
+DATA bitrev_size16384_radix4_f64<>+0x2040(SB)/8, $2052
+DATA bitrev_size16384_radix4_f64<>+0x2048(SB)/8, $6148
+DATA bitrev_size16384_radix4_f64<>+0x2050(SB)/8, $10244
+DATA bitrev_size16384_radix4_f64<>+0x2058(SB)/8, $14340
+DATA bitrev_size16384_radix4_f64<>+0x2060(SB)/8, $3076
+DATA bitrev_size16384_radix4_f64<>+0x2068(SB)/8, $7172
+DATA bitrev_size16384_radix4_f64<>+0x2070(SB)/8, $11268
+DATA bitrev_size16384_radix4_f64<>+0x2078(SB)/8, $15364
+DATA bitrev_size16384_radix4_f64<>+0x2080(SB)/8, $260
+DATA bitrev_size16384_radix4_f64<>+0x2088(SB)/8, $4356
+DATA bitrev_size16384_radix4_f64<>+0x2090(SB)/8, $8452
+DATA bitrev_size16384_radix4_f64<>+0x2098(SB)/8, $12548
+DATA bitrev_size16384_radix4_f64<>+0x20A0(SB)/8, $1284
+DATA bitrev_size16384_radix4_f64<>+0x20A8(SB)/8, $5380
+DATA bitrev_size16384_radix4_f64<>+0x20B0(SB)/8, $9476
+DATA bitrev_size16384_radix4_f64<>+0x20B8(SB)/8, $13572
+DATA bitrev_size16384_radix4_f64<>+0x20C0(SB)/8, $2308
+DATA bitrev_size16384_radix4_f64<>+0x20C8(SB)/8, $6404
+DATA bitrev_size16384_radix4_f64<>+0x20D0(SB)/8, $10500
+DATA bitrev_size16384_radix4_f64<>+0x20D8(SB)/8, $14596
+DATA bitrev_size16384_radix4_f64<>+0x20E0(SB)/8, $3332
+DATA bitrev_size16384_radix4_f64<>+0x20E8(SB)/8, $7428
+DATA bitrev_size16384_radix4_f64<>+0x20F0(SB)/8, $11524
+DATA bitrev_size16384_radix4_f64<>+0x20F8(SB)/8, $15620
+DATA bitrev_size16384_radix4_f64<>+0x2100(SB)/8, $516
+DATA bitrev_size16384_radix4_f64<>+0x2108(SB)/8, $4612
+DATA bitrev_size16384_radix4_f64<>+0x2110(SB)/8, $8708
+DATA bitrev_size16384_radix4_f64<>+0x2118(SB)/8, $12804
+DATA bitrev_size16384_radix4_f64<>+0x2120(SB)/8, $1540
+DATA bitrev_size16384_radix4_f64<>+0x2128(SB)/8, $5636
+DATA bitrev_size16384_radix4_f64<>+0x2130(SB)/8, $9732
+DATA bitrev_size16384_radix4_f64<>+0x2138(SB)/8, $13828
+DATA bitrev_size16384_radix4_f64<>+0x2140(SB)/8, $2564
+DATA bitrev_size16384_radix4_f64<>+0x2148(SB)/8, $6660
+DATA bitrev_size16384_radix4_f64<>+0x2150(SB)/8, $10756
+DATA bitrev_size16384_radix4_f64<>+0x2158(SB)/8, $14852
+DATA bitrev_size16384_radix4_f64<>+0x2160(SB)/8, $3588
+DATA bitrev_size16384_radix4_f64<>+0x2168(SB)/8, $7684
+DATA bitrev_size16384_radix4_f64<>+0x2170(SB)/8, $11780
+DATA bitrev_size16384_radix4_f64<>+0x2178(SB)/8, $15876
+DATA bitrev_size16384_radix4_f64<>+0x2180(SB)/8, $772
+DATA bitrev_size16384_radix4_f64<>+0x2188(SB)/8, $4868
+DATA bitrev_size16384_radix4_f64<>+0x2190(SB)/8, $8964
+DATA bitrev_size16384_radix4_f64<>+0x2198(SB)/8, $13060
+DATA bitrev_size16384_radix4_f64<>+0x21A0(SB)/8, $1796
+DATA bitrev_size16384_radix4_f64<>+0x21A8(SB)/8, $5892
+DATA bitrev_size16384_radix4_f64<>+0x21B0(SB)/8, $9988
+DATA bitrev_size16384_radix4_f64<>+0x21B8(SB)/8, $14084
+DATA bitrev_size16384_radix4_f64<>+0x21C0(SB)/8, $2820
+DATA bitrev_size16384_radix4_f64<>+0x21C8(SB)/8, $6916
+DATA bitrev_size16384_radix4_f64<>+0x21D0(SB)/8, $11012
+DATA bitrev_size16384_radix4_f64<>+0x21D8(SB)/8, $15108
+DATA bitrev_size16384_radix4_f64<>+0x21E0(SB)/8, $3844
+DATA bitrev_size16384_radix4_f64<>+0x21E8(SB)/8, $7940
+DATA bitrev_size16384_radix4_f64<>+0x21F0(SB)/8, $12036
+DATA bitrev_size16384_radix4_f64<>+0x21F8(SB)/8, $16132
+DATA bitrev_size16384_radix4_f64<>+0x2200(SB)/8, $68
+DATA bitrev_size16384_radix4_f64<>+0x2208(SB)/8, $4164
+DATA bitrev_size16384_radix4_f64<>+0x2210(SB)/8, $8260
+DATA bitrev_size16384_radix4_f64<>+0x2218(SB)/8, $12356
+DATA bitrev_size16384_radix4_f64<>+0x2220(SB)/8, $1092
+DATA bitrev_size16384_radix4_f64<>+0x2228(SB)/8, $5188
+DATA bitrev_size16384_radix4_f64<>+0x2230(SB)/8, $9284
+DATA bitrev_size16384_radix4_f64<>+0x2238(SB)/8, $13380
+DATA bitrev_size16384_radix4_f64<>+0x2240(SB)/8, $2116
+DATA bitrev_size16384_radix4_f64<>+0x2248(SB)/8, $6212
+DATA bitrev_size16384_radix4_f64<>+0x2250(SB)/8, $10308
+DATA bitrev_size16384_radix4_f64<>+0x2258(SB)/8, $14404
+DATA bitrev_size16384_radix4_f64<>+0x2260(SB)/8, $3140
+DATA bitrev_size16384_radix4_f64<>+0x2268(SB)/8, $7236
+DATA bitrev_size16384_radix4_f64<>+0x2270(SB)/8, $11332
+DATA bitrev_size16384_radix4_f64<>+0x2278(SB)/8, $15428
+DATA bitrev_size16384_radix4_f64<>+0x2280(SB)/8, $324
+DATA bitrev_size16384_radix4_f64<>+0x2288(SB)/8, $4420
+DATA bitrev_size16384_radix4_f64<>+0x2290(SB)/8, $8516
+DATA bitrev_size16384_radix4_f64<>+0x2298(SB)/8, $12612
+DATA bitrev_size16384_radix4_f64<>+0x22A0(SB)/8, $1348
+DATA bitrev_size16384_radix4_f64<>+0x22A8(SB)/8, $5444
+DATA bitrev_size16384_radix4_f64<>+0x22B0(SB)/8, $9540
+DATA bitrev_size16384_radix4_f64<>+0x22B8(SB)/8, $13636
+DATA bitrev_size16384_radix4_f64<>+0x22C0(SB)/8, $2372
+DATA bitrev_size16384_radix4_f64<>+0x22C8(SB)/8, $6468
+DATA bitrev_size16384_radix4_f64<>+0x22D0(SB)/8, $10564
+DATA bitrev_size16384_radix4_f64<>+0x22D8(SB)/8, $14660
+DATA bitrev_size16384_radix4_f64<>+0x22E0(SB)/8, $3396
+DATA bitrev_size16384_radix4_f64<>+0x22E8(SB)/8, $7492
+DATA bitrev_size16384_radix4_f64<>+0x22F0(SB)/8, $11588
+DATA bitrev_size16384_radix4_f64<>+0x22F8(SB)/8, $15684
+DATA bitrev_size16384_radix4_f64<>+0x2300(SB)/8, $580
+DATA bitrev_size16384_radix4_f64<>+0x2308(SB)/8, $4676
+DATA bitrev_size16384_radix4_f64<>+0x2310(SB)/8, $8772
+DATA bitrev_size16384_radix4_f64<>+0x2318(SB)/8, $12868
+DATA bitrev_size16384_radix4_f64<>+0x2320(SB)/8, $1604
+DATA bitrev_size16384_radix4_f64<>+0x2328(SB)/8, $5700
+DATA bitrev_size16384_radix4_f64<>+0x2330(SB)/8, $9796
+DATA bitrev_size16384_radix4_f64<>+0x2338(SB)/8, $13892
+DATA bitrev_size16384_radix4_f64<>+0x2340(SB)/8, $2628
+DATA bitrev_size16384_radix4_f64<>+0x2348(SB)/8, $6724
+DATA bitrev_size16384_radix4_f64<>+0x2350(SB)/8, $10820
+DATA bitrev_size16384_radix4_f64<>+0x2358(SB)/8, $14916
+DATA bitrev_size16384_radix4_f64<>+0x2360(SB)/8, $3652
+DATA bitrev_size16384_radix4_f64<>+0x2368(SB)/8, $7748
+DATA bitrev_size16384_radix4_f64<>+0x2370(SB)/8, $11844
+DATA bitrev_size16384_radix4_f64<>+0x2378(SB)/8, $15940
+DATA bitrev_size16384_radix4_f64<>+0x2380(SB)/8, $836
+DATA bitrev_size16384_radix4_f64<>+0x2388(SB)/8, $4932
+DATA bitrev_size16384_radix4_f64<>+0x2390(SB)/8, $9028
+DATA bitrev_size16384_radix4_f64<>+0x2398(SB)/8, $13124
+DATA bitrev_size16384_radix4_f64<>+0x23A0(SB)/8, $1860
+DATA bitrev_size16384_radix4_f64<>+0x23A8(SB)/8, $5956
+DATA bitrev_size16384_radix4_f64<>+0x23B0(SB)/8, $10052
+DATA bitrev_size16384_radix4_f64<>+0x23B8(SB)/8, $14148
+DATA bitrev_size16384_radix4_f64<>+0x23C0(SB)/8, $2884
+DATA bitrev_size16384_radix4_f64<>+0x23C8(SB)/8, $6980
+DATA bitrev_size16384_radix4_f64<>+0x23D0(SB)/8, $11076
+DATA bitrev_size16384_radix4_f64<>+0x23D8(SB)/8, $15172
+DATA bitrev_size16384_radix4_f64<>+0x23E0(SB)/8, $3908
+DATA bitrev_size16384_radix4_f64<>+0x23E8(SB)/8, $8004
+DATA bitrev_size16384_radix4_f64<>+0x23F0(SB)/8, $12100
+DATA bitrev_size16384_radix4_f64<>+0x23F8(SB)/8, $16196
+DATA bitrev_size16384_radix4_f64<>+0x2400(SB)/8, $132
+DATA bitrev_size16384_radix4_f64<>+0x2408(SB)/8, $4228
+DATA bitrev_size16384_radix4_f64<>+0x2410(SB)/8, $8324
+DATA bitrev_size16384_radix4_f64<>+0x2418(SB)/8, $12420
+DATA bitrev_size16384_radix4_f64<>+0x2420(SB)/8, $1156
+DATA bitrev_size16384_radix4_f64<>+0x2428(SB)/8, $5252
+DATA bitrev_size16384_radix4_f64<>+0x2430(SB)/8, $9348
+DATA bitrev_size16384_radix4_f64<>+0x2438(SB)/8, $13444
+DATA bitrev_size16384_radix4_f64<>+0x2440(SB)/8, $2180
+DATA bitrev_size16384_radix4_f64<>+0x2448(SB)/8, $6276
+DATA bitrev_size16384_radix4_f64<>+0x2450(SB)/8, $10372
+DATA bitrev_size16384_radix4_f64<>+0x2458(SB)/8, $14468
+DATA bitrev_size16384_radix4_f64<>+0x2460(SB)/8, $3204
+DATA bitrev_size16384_radix4_f64<>+0x2468(SB)/8, $7300
+DATA bitrev_size16384_radix4_f64<>+0x2470(SB)/8, $11396
+DATA bitrev_size16384_radix4_f64<>+0x2478(SB)/8, $15492
+DATA bitrev_size16384_radix4_f64<>+0x2480(SB)/8, $388
+DATA bitrev_size16384_radix4_f64<>+0x2488(SB)/8, $4484
+DATA bitrev_size16384_radix4_f64<>+0x2490(SB)/8, $8580
+DATA bitrev_size16384_radix4_f64<>+0x2498(SB)/8, $12676
+DATA bitrev_size16384_radix4_f64<>+0x24A0(SB)/8, $1412
+DATA bitrev_size16384_radix4_f64<>+0x24A8(SB)/8, $5508
+DATA bitrev_size16384_radix4_f64<>+0x24B0(SB)/8, $9604
+DATA bitrev_size16384_radix4_f64<>+0x24B8(SB)/8, $13700
+DATA bitrev_size16384_radix4_f64<>+0x24C0(SB)/8, $2436
+DATA bitrev_size16384_radix4_f64<>+0x24C8(SB)/8, $6532
+DATA bitrev_size16384_radix4_f64<>+0x24D0(SB)/8, $10628
+DATA bitrev_size16384_radix4_f64<>+0x24D8(SB)/8, $14724
+DATA bitrev_size16384_radix4_f64<>+0x24E0(SB)/8, $3460
+DATA bitrev_size16384_radix4_f64<>+0x24E8(SB)/8, $7556
+DATA bitrev_size16384_radix4_f64<>+0x24F0(SB)/8, $11652
+DATA bitrev_size16384_radix4_f64<>+0x24F8(SB)/8, $15748
+DATA bitrev_size16384_radix4_f64<>+0x2500(SB)/8, $644
+DATA bitrev_size16384_radix4_f64<>+0x2508(SB)/8, $4740
+DATA bitrev_size16384_radix4_f64<>+0x2510(SB)/8, $8836
+DATA bitrev_size16384_radix4_f64<>+0x2518(SB)/8, $12932
+DATA bitrev_size16384_radix4_f64<>+0x2520(SB)/8, $1668
+DATA bitrev_size16384_radix4_f64<>+0x2528(SB)/8, $5764
+DATA bitrev_size16384_radix4_f64<>+0x2530(SB)/8, $9860
+DATA bitrev_size16384_radix4_f64<>+0x2538(SB)/8, $13956
+DATA bitrev_size16384_radix4_f64<>+0x2540(SB)/8, $2692
+DATA bitrev_size16384_radix4_f64<>+0x2548(SB)/8, $6788
+DATA bitrev_size16384_radix4_f64<>+0x2550(SB)/8, $10884
+DATA bitrev_size16384_radix4_f64<>+0x2558(SB)/8, $14980
+DATA bitrev_size16384_radix4_f64<>+0x2560(SB)/8, $3716
+DATA bitrev_size16384_radix4_f64<>+0x2568(SB)/8, $7812
+DATA bitrev_size16384_radix4_f64<>+0x2570(SB)/8, $11908
+DATA bitrev_size16384_radix4_f64<>+0x2578(SB)/8, $16004
+DATA bitrev_size16384_radix4_f64<>+0x2580(SB)/8, $900
+DATA bitrev_size16384_radix4_f64<>+0x2588(SB)/8, $4996
+DATA bitrev_size16384_radix4_f64<>+0x2590(SB)/8, $9092
+DATA bitrev_size16384_radix4_f64<>+0x2598(SB)/8, $13188
+DATA bitrev_size16384_radix4_f64<>+0x25A0(SB)/8, $1924
+DATA bitrev_size16384_radix4_f64<>+0x25A8(SB)/8, $6020
+DATA bitrev_size16384_radix4_f64<>+0x25B0(SB)/8, $10116
+DATA bitrev_size16384_radix4_f64<>+0x25B8(SB)/8, $14212
+DATA bitrev_size16384_radix4_f64<>+0x25C0(SB)/8, $2948
+DATA bitrev_size16384_radix4_f64<>+0x25C8(SB)/8, $7044
+DATA bitrev_size16384_radix4_f64<>+0x25D0(SB)/8, $11140
+DATA bitrev_size16384_radix4_f64<>+0x25D8(SB)/8, $15236
+DATA bitrev_size16384_radix4_f64<>+0x25E0(SB)/8, $3972
+DATA bitrev_size16384_radix4_f64<>+0x25E8(SB)/8, $8068
+DATA bitrev_size16384_radix4_f64<>+0x25F0(SB)/8, $12164
+DATA bitrev_size16384_radix4_f64<>+0x25F8(SB)/8, $16260
+DATA bitrev_size16384_radix4_f64<>+0x2600(SB)/8, $196
+DATA bitrev_size16384_radix4_f64<>+0x2608(SB)/8, $4292
+DATA bitrev_size16384_radix4_f64<>+0x2610(SB)/8, $8388
+DATA bitrev_size16384_radix4_f64<>+0x2618(SB)/8, $12484
+DATA bitrev_size16384_radix4_f64<>+0x2620(SB)/8, $1220
+DATA bitrev_size16384_radix4_f64<>+0x2628(SB)/8, $5316
+DATA bitrev_size16384_radix4_f64<>+0x2630(SB)/8, $9412
+DATA bitrev_size16384_radix4_f64<>+0x2638(SB)/8, $13508
+DATA bitrev_size16384_radix4_f64<>+0x2640(SB)/8, $2244
+DATA bitrev_size16384_radix4_f64<>+0x2648(SB)/8, $6340
+DATA bitrev_size16384_radix4_f64<>+0x2650(SB)/8, $10436
+DATA bitrev_size16384_radix4_f64<>+0x2658(SB)/8, $14532
+DATA bitrev_size16384_radix4_f64<>+0x2660(SB)/8, $3268
+DATA bitrev_size16384_radix4_f64<>+0x2668(SB)/8, $7364
+DATA bitrev_size16384_radix4_f64<>+0x2670(SB)/8, $11460
+DATA bitrev_size16384_radix4_f64<>+0x2678(SB)/8, $15556
+DATA bitrev_size16384_radix4_f64<>+0x2680(SB)/8, $452
+DATA bitrev_size16384_radix4_f64<>+0x2688(SB)/8, $4548
+DATA bitrev_size16384_radix4_f64<>+0x2690(SB)/8, $8644
+DATA bitrev_size16384_radix4_f64<>+0x2698(SB)/8, $12740
+DATA bitrev_size16384_radix4_f64<>+0x26A0(SB)/8, $1476
+DATA bitrev_size16384_radix4_f64<>+0x26A8(SB)/8, $5572
+DATA bitrev_size16384_radix4_f64<>+0x26B0(SB)/8, $9668
+DATA bitrev_size16384_radix4_f64<>+0x26B8(SB)/8, $13764
+DATA bitrev_size16384_radix4_f64<>+0x26C0(SB)/8, $2500
+DATA bitrev_size16384_radix4_f64<>+0x26C8(SB)/8, $6596
+DATA bitrev_size16384_radix4_f64<>+0x26D0(SB)/8, $10692
+DATA bitrev_size16384_radix4_f64<>+0x26D8(SB)/8, $14788
+DATA bitrev_size16384_radix4_f64<>+0x26E0(SB)/8, $3524
+DATA bitrev_size16384_radix4_f64<>+0x26E8(SB)/8, $7620
+DATA bitrev_size16384_radix4_f64<>+0x26F0(SB)/8, $11716
+DATA bitrev_size16384_radix4_f64<>+0x26F8(SB)/8, $15812
+DATA bitrev_size16384_radix4_f64<>+0x2700(SB)/8, $708
+DATA bitrev_size16384_radix4_f64<>+0x2708(SB)/8, $4804
+DATA bitrev_size16384_radix4_f64<>+0x2710(SB)/8, $8900
+DATA bitrev_size16384_radix4_f64<>+0x2718(SB)/8, $12996
+DATA bitrev_size16384_radix4_f64<>+0x2720(SB)/8, $1732
+DATA bitrev_size16384_radix4_f64<>+0x2728(SB)/8, $5828
+DATA bitrev_size16384_radix4_f64<>+0x2730(SB)/8, $9924
+DATA bitrev_size16384_radix4_f64<>+0x2738(SB)/8, $14020
+DATA bitrev_size16384_radix4_f64<>+0x2740(SB)/8, $2756
+DATA bitrev_size16384_radix4_f64<>+0x2748(SB)/8, $6852
+DATA bitrev_size16384_radix4_f64<>+0x2750(SB)/8, $10948
+DATA bitrev_size16384_radix4_f64<>+0x2758(SB)/8, $15044
+DATA bitrev_size16384_radix4_f64<>+0x2760(SB)/8, $3780
+DATA bitrev_size16384_radix4_f64<>+0x2768(SB)/8, $7876
+DATA bitrev_size16384_radix4_f64<>+0x2770(SB)/8, $11972
+DATA bitrev_size16384_radix4_f64<>+0x2778(SB)/8, $16068
+DATA bitrev_size16384_radix4_f64<>+0x2780(SB)/8, $964
+DATA bitrev_size16384_radix4_f64<>+0x2788(SB)/8, $5060
+DATA bitrev_size16384_radix4_f64<>+0x2790(SB)/8, $9156
+DATA bitrev_size16384_radix4_f64<>+0x2798(SB)/8, $13252
+DATA bitrev_size16384_radix4_f64<>+0x27A0(SB)/8, $1988
+DATA bitrev_size16384_radix4_f64<>+0x27A8(SB)/8, $6084
+DATA bitrev_size16384_radix4_f64<>+0x27B0(SB)/8, $10180
+DATA bitrev_size16384_radix4_f64<>+0x27B8(SB)/8, $14276
+DATA bitrev_size16384_radix4_f64<>+0x27C0(SB)/8, $3012
+DATA bitrev_size16384_radix4_f64<>+0x27C8(SB)/8, $7108
+DATA bitrev_size16384_radix4_f64<>+0x27D0(SB)/8, $11204
+DATA bitrev_size16384_radix4_f64<>+0x27D8(SB)/8, $15300
+DATA bitrev_size16384_radix4_f64<>+0x27E0(SB)/8, $4036
+DATA bitrev_size16384_radix4_f64<>+0x27E8(SB)/8, $8132
+DATA bitrev_size16384_radix4_f64<>+0x27F0(SB)/8, $12228
+DATA bitrev_size16384_radix4_f64<>+0x27F8(SB)/8, $16324
+DATA bitrev_size16384_radix4_f64<>+0x2800(SB)/8, $20
+DATA bitrev_size16384_radix4_f64<>+0x2808(SB)/8, $4116
+DATA bitrev_size16384_radix4_f64<>+0x2810(SB)/8, $8212
+DATA bitrev_size16384_radix4_f64<>+0x2818(SB)/8, $12308
+DATA bitrev_size16384_radix4_f64<>+0x2820(SB)/8, $1044
+DATA bitrev_size16384_radix4_f64<>+0x2828(SB)/8, $5140
+DATA bitrev_size16384_radix4_f64<>+0x2830(SB)/8, $9236
+DATA bitrev_size16384_radix4_f64<>+0x2838(SB)/8, $13332
+DATA bitrev_size16384_radix4_f64<>+0x2840(SB)/8, $2068
+DATA bitrev_size16384_radix4_f64<>+0x2848(SB)/8, $6164
+DATA bitrev_size16384_radix4_f64<>+0x2850(SB)/8, $10260
+DATA bitrev_size16384_radix4_f64<>+0x2858(SB)/8, $14356
+DATA bitrev_size16384_radix4_f64<>+0x2860(SB)/8, $3092
+DATA bitrev_size16384_radix4_f64<>+0x2868(SB)/8, $7188
+DATA bitrev_size16384_radix4_f64<>+0x2870(SB)/8, $11284
+DATA bitrev_size16384_radix4_f64<>+0x2878(SB)/8, $15380
+DATA bitrev_size16384_radix4_f64<>+0x2880(SB)/8, $276
+DATA bitrev_size16384_radix4_f64<>+0x2888(SB)/8, $4372
+DATA bitrev_size16384_radix4_f64<>+0x2890(SB)/8, $8468
+DATA bitrev_size16384_radix4_f64<>+0x2898(SB)/8, $12564
+DATA bitrev_size16384_radix4_f64<>+0x28A0(SB)/8, $1300
+DATA bitrev_size16384_radix4_f64<>+0x28A8(SB)/8, $5396
+DATA bitrev_size16384_radix4_f64<>+0x28B0(SB)/8, $9492
+DATA bitrev_size16384_radix4_f64<>+0x28B8(SB)/8, $13588
+DATA bitrev_size16384_radix4_f64<>+0x28C0(SB)/8, $2324
+DATA bitrev_size16384_radix4_f64<>+0x28C8(SB)/8, $6420
+DATA bitrev_size16384_radix4_f64<>+0x28D0(SB)/8, $10516
+DATA bitrev_size16384_radix4_f64<>+0x28D8(SB)/8, $14612
+DATA bitrev_size16384_radix4_f64<>+0x28E0(SB)/8, $3348
+DATA bitrev_size16384_radix4_f64<>+0x28E8(SB)/8, $7444
+DATA bitrev_size16384_radix4_f64<>+0x28F0(SB)/8, $11540
+DATA bitrev_size16384_radix4_f64<>+0x28F8(SB)/8, $15636
+DATA bitrev_size16384_radix4_f64<>+0x2900(SB)/8, $532
+DATA bitrev_size16384_radix4_f64<>+0x2908(SB)/8, $4628
+DATA bitrev_size16384_radix4_f64<>+0x2910(SB)/8, $8724
+DATA bitrev_size16384_radix4_f64<>+0x2918(SB)/8, $12820
+DATA bitrev_size16384_radix4_f64<>+0x2920(SB)/8, $1556
+DATA bitrev_size16384_radix4_f64<>+0x2928(SB)/8, $5652
+DATA bitrev_size16384_radix4_f64<>+0x2930(SB)/8, $9748
+DATA bitrev_size16384_radix4_f64<>+0x2938(SB)/8, $13844
+DATA bitrev_size16384_radix4_f64<>+0x2940(SB)/8, $2580
+DATA bitrev_size16384_radix4_f64<>+0x2948(SB)/8, $6676
+DATA bitrev_size16384_radix4_f64<>+0x2950(SB)/8, $10772
+DATA bitrev_size16384_radix4_f64<>+0x2958(SB)/8, $14868
+DATA bitrev_size16384_radix4_f64<>+0x2960(SB)/8, $3604
+DATA bitrev_size16384_radix4_f64<>+0x2968(SB)/8, $7700
+DATA bitrev_size16384_radix4_f64<>+0x2970(SB)/8, $11796
+DATA bitrev_size16384_radix4_f64<>+0x2978(SB)/8, $15892
+DATA bitrev_size16384_radix4_f64<>+0x2980(SB)/8, $788
+DATA bitrev_size16384_radix4_f64<>+0x2988(SB)/8, $4884
+DATA bitrev_size16384_radix4_f64<>+0x2990(SB)/8, $8980
+DATA bitrev_size16384_radix4_f64<>+0x2998(SB)/8, $13076
+DATA bitrev_size16384_radix4_f64<>+0x29A0(SB)/8, $1812
+DATA bitrev_size16384_radix4_f64<>+0x29A8(SB)/8, $5908
+DATA bitrev_size16384_radix4_f64<>+0x29B0(SB)/8, $10004
+DATA bitrev_size16384_radix4_f64<>+0x29B8(SB)/8, $14100
+DATA bitrev_size16384_radix4_f64<>+0x29C0(SB)/8, $2836
+DATA bitrev_size16384_radix4_f64<>+0x29C8(SB)/8, $6932
+DATA bitrev_size16384_radix4_f64<>+0x29D0(SB)/8, $11028
+DATA bitrev_size16384_radix4_f64<>+0x29D8(SB)/8, $15124
+DATA bitrev_size16384_radix4_f64<>+0x29E0(SB)/8, $3860
+DATA bitrev_size16384_radix4_f64<>+0x29E8(SB)/8, $7956
+DATA bitrev_size16384_radix4_f64<>+0x29F0(SB)/8, $12052
+DATA bitrev_size16384_radix4_f64<>+0x29F8(SB)/8, $16148
+DATA bitrev_size16384_radix4_f64<>+0x2A00(SB)/8, $84
+DATA bitrev_size16384_radix4_f64<>+0x2A08(SB)/8, $4180
+DATA bitrev_size16384_radix4_f64<>+0x2A10(SB)/8, $8276
+DATA bitrev_size16384_radix4_f64<>+0x2A18(SB)/8, $12372
+DATA bitrev_size16384_radix4_f64<>+0x2A20(SB)/8, $1108
+DATA bitrev_size16384_radix4_f64<>+0x2A28(SB)/8, $5204
+DATA bitrev_size16384_radix4_f64<>+0x2A30(SB)/8, $9300
+DATA bitrev_size16384_radix4_f64<>+0x2A38(SB)/8, $13396
+DATA bitrev_size16384_radix4_f64<>+0x2A40(SB)/8, $2132
+DATA bitrev_size16384_radix4_f64<>+0x2A48(SB)/8, $6228
+DATA bitrev_size16384_radix4_f64<>+0x2A50(SB)/8, $10324
+DATA bitrev_size16384_radix4_f64<>+0x2A58(SB)/8, $14420
+DATA bitrev_size16384_radix4_f64<>+0x2A60(SB)/8, $3156
+DATA bitrev_size16384_radix4_f64<>+0x2A68(SB)/8, $7252
+DATA bitrev_size16384_radix4_f64<>+0x2A70(SB)/8, $11348
+DATA bitrev_size16384_radix4_f64<>+0x2A78(SB)/8, $15444
+DATA bitrev_size16384_radix4_f64<>+0x2A80(SB)/8, $340
+DATA bitrev_size16384_radix4_f64<>+0x2A88(SB)/8, $4436
+DATA bitrev_size16384_radix4_f64<>+0x2A90(SB)/8, $8532
+DATA bitrev_size16384_radix4_f64<>+0x2A98(SB)/8, $12628
+DATA bitrev_size16384_radix4_f64<>+0x2AA0(SB)/8, $1364
+DATA bitrev_size16384_radix4_f64<>+0x2AA8(SB)/8, $5460
+DATA bitrev_size16384_radix4_f64<>+0x2AB0(SB)/8, $9556
+DATA bitrev_size16384_radix4_f64<>+0x2AB8(SB)/8, $13652
+DATA bitrev_size16384_radix4_f64<>+0x2AC0(SB)/8, $2388
+DATA bitrev_size16384_radix4_f64<>+0x2AC8(SB)/8, $6484
+DATA bitrev_size16384_radix4_f64<>+0x2AD0(SB)/8, $10580
+DATA bitrev_size16384_radix4_f64<>+0x2AD8(SB)/8, $14676
+DATA bitrev_size16384_radix4_f64<>+0x2AE0(SB)/8, $3412
+DATA bitrev_size16384_radix4_f64<>+0x2AE8(SB)/8, $7508
+DATA bitrev_size16384_radix4_f64<>+0x2AF0(SB)/8, $11604
+DATA bitrev_size16384_radix4_f64<>+0x2AF8(SB)/8, $15700
+DATA bitrev_size16384_radix4_f64<>+0x2B00(SB)/8, $596
+DATA bitrev_size16384_radix4_f64<>+0x2B08(SB)/8, $4692
+DATA bitrev_size16384_radix4_f64<>+0x2B10(SB)/8, $8788
+DATA bitrev_size16384_radix4_f64<>+0x2B18(SB)/8, $12884
+DATA bitrev_size16384_radix4_f64<>+0x2B20(SB)/8, $1620
+DATA bitrev_size16384_radix4_f64<>+0x2B28(SB)/8, $5716
+DATA bitrev_size16384_radix4_f64<>+0x2B30(SB)/8, $9812
+DATA bitrev_size16384_radix4_f64<>+0x2B38(SB)/8, $13908
+DATA bitrev_size16384_radix4_f64<>+0x2B40(SB)/8, $2644
+DATA bitrev_size16384_radix4_f64<>+0x2B48(SB)/8, $6740
+DATA bitrev_size16384_radix4_f64<>+0x2B50(SB)/8, $10836
+DATA bitrev_size16384_radix4_f64<>+0x2B58(SB)/8, $14932
+DATA bitrev_size16384_radix4_f64<>+0x2B60(SB)/8, $3668
+DATA bitrev_size16384_radix4_f64<>+0x2B68(SB)/8, $7764
+DATA bitrev_size16384_radix4_f64<>+0x2B70(SB)/8, $11860
+DATA bitrev_size16384_radix4_f64<>+0x2B78(SB)/8, $15956
+DATA bitrev_size16384_radix4_f64<>+0x2B80(SB)/8, $852
+DATA bitrev_size16384_radix4_f64<>+0x2B88(SB)/8, $4948
+DATA bitrev_size16384_radix4_f64<>+0x2B90(SB)/8, $9044
+DATA bitrev_size16384_radix4_f64<>+0x2B98(SB)/8, $13140
+DATA bitrev_size16384_radix4_f64<>+0x2BA0(SB)/8, $1876
+DATA bitrev_size16384_radix4_f64<>+0x2BA8(SB)/8, $5972
+DATA bitrev_size16384_radix4_f64<>+0x2BB0(SB)/8, $10068
+DATA bitrev_size16384_radix4_f64<>+0x2BB8(SB)/8, $14164
+DATA bitrev_size16384_radix4_f64<>+0x2BC0(SB)/8, $2900
+DATA bitrev_size16384_radix4_f64<>+0x2BC8(SB)/8, $6996
+DATA bitrev_size16384_radix4_f64<>+0x2BD0(SB)/8, $11092
+DATA bitrev_size16384_radix4_f64<>+0x2BD8(SB)/8, $15188
+DATA bitrev_size16384_radix4_f64<>+0x2BE0(SB)/8, $3924
+DATA bitrev_size16384_radix4_f64<>+0x2BE8(SB)/8, $8020
+DATA bitrev_size16384_radix4_f64<>+0x2BF0(SB)/8, $12116
+DATA bitrev_size16384_radix4_f64<>+0x2BF8(SB)/8, $16212
+DATA bitrev_size16384_radix4_f64<>+0x2C00(SB)/8, $148
+DATA bitrev_size16384_radix4_f64<>+0x2C08(SB)/8, $4244
+DATA bitrev_size16384_radix4_f64<>+0x2C10(SB)/8, $8340
+DATA bitrev_size16384_radix4_f64<>+0x2C18(SB)/8, $12436
+DATA bitrev_size16384_radix4_f64<>+0x2C20(SB)/8, $1172
+DATA bitrev_size16384_radix4_f64<>+0x2C28(SB)/8, $5268
+DATA bitrev_size16384_radix4_f64<>+0x2C30(SB)/8, $9364
+DATA bitrev_size16384_radix4_f64<>+0x2C38(SB)/8, $13460
+DATA bitrev_size16384_radix4_f64<>+0x2C40(SB)/8, $2196
+DATA bitrev_size16384_radix4_f64<>+0x2C48(SB)/8, $6292
+DATA bitrev_size16384_radix4_f64<>+0x2C50(SB)/8, $10388
+DATA bitrev_size16384_radix4_f64<>+0x2C58(SB)/8, $14484
+DATA bitrev_size16384_radix4_f64<>+0x2C60(SB)/8, $3220
+DATA bitrev_size16384_radix4_f64<>+0x2C68(SB)/8, $7316
+DATA bitrev_size16384_radix4_f64<>+0x2C70(SB)/8, $11412
+DATA bitrev_size16384_radix4_f64<>+0x2C78(SB)/8, $15508
+DATA bitrev_size16384_radix4_f64<>+0x2C80(SB)/8, $404
+DATA bitrev_size16384_radix4_f64<>+0x2C88(SB)/8, $4500
+DATA bitrev_size16384_radix4_f64<>+0x2C90(SB)/8, $8596
+DATA bitrev_size16384_radix4_f64<>+0x2C98(SB)/8, $12692
+DATA bitrev_size16384_radix4_f64<>+0x2CA0(SB)/8, $1428
+DATA bitrev_size16384_radix4_f64<>+0x2CA8(SB)/8, $5524
+DATA bitrev_size16384_radix4_f64<>+0x2CB0(SB)/8, $9620
+DATA bitrev_size16384_radix4_f64<>+0x2CB8(SB)/8, $13716
+DATA bitrev_size16384_radix4_f64<>+0x2CC0(SB)/8, $2452
+DATA bitrev_size16384_radix4_f64<>+0x2CC8(SB)/8, $6548
+DATA bitrev_size16384_radix4_f64<>+0x2CD0(SB)/8, $10644
+DATA bitrev_size16384_radix4_f64<>+0x2CD8(SB)/8, $14740
+DATA bitrev_size16384_radix4_f64<>+0x2CE0(SB)/8, $3476
+DATA bitrev_size16384_radix4_f64<>+0x2CE8(SB)/8, $7572
+DATA bitrev_size16384_radix4_f64<>+0x2CF0(SB)/8, $11668
+DATA bitrev_size16384_radix4_f64<>+0x2CF8(SB)/8, $15764
+DATA bitrev_size16384_radix4_f64<>+0x2D00(SB)/8, $660
+DATA bitrev_size16384_radix4_f64<>+0x2D08(SB)/8, $4756
+DATA bitrev_size16384_radix4_f64<>+0x2D10(SB)/8, $8852
+DATA bitrev_size16384_radix4_f64<>+0x2D18(SB)/8, $12948
+DATA bitrev_size16384_radix4_f64<>+0x2D20(SB)/8, $1684
+DATA bitrev_size16384_radix4_f64<>+0x2D28(SB)/8, $5780
+DATA bitrev_size16384_radix4_f64<>+0x2D30(SB)/8, $9876
+DATA bitrev_size16384_radix4_f64<>+0x2D38(SB)/8, $13972
+DATA bitrev_size16384_radix4_f64<>+0x2D40(SB)/8, $2708
+DATA bitrev_size16384_radix4_f64<>+0x2D48(SB)/8, $6804
+DATA bitrev_size16384_radix4_f64<>+0x2D50(SB)/8, $10900
+DATA bitrev_size16384_radix4_f64<>+0x2D58(SB)/8, $14996
+DATA bitrev_size16384_radix4_f64<>+0x2D60(SB)/8, $3732
+DATA bitrev_size16384_radix4_f64<>+0x2D68(SB)/8, $7828
+DATA bitrev_size16384_radix4_f64<>+0x2D70(SB)/8, $11924
+DATA bitrev_size16384_radix4_f64<>+0x2D78(SB)/8, $16020
+DATA bitrev_size16384_radix4_f64<>+0x2D80(SB)/8, $916
+DATA bitrev_size16384_radix4_f64<>+0x2D88(SB)/8, $5012
+DATA bitrev_size16384_radix4_f64<>+0x2D90(SB)/8, $9108
+DATA bitrev_size16384_radix4_f64<>+0x2D98(SB)/8, $13204
+DATA bitrev_size16384_radix4_f64<>+0x2DA0(SB)/8, $1940
+DATA bitrev_size16384_radix4_f64<>+0x2DA8(SB)/8, $6036
+DATA bitrev_size16384_radix4_f64<>+0x2DB0(SB)/8, $10132
+DATA bitrev_size16384_radix4_f64<>+0x2DB8(SB)/8, $14228
+DATA bitrev_size16384_radix4_f64<>+0x2DC0(SB)/8, $2964
+DATA bitrev_size16384_radix4_f64<>+0x2DC8(SB)/8, $7060
+DATA bitrev_size16384_radix4_f64<>+0x2DD0(SB)/8, $11156
+DATA bitrev_size16384_radix4_f64<>+0x2DD8(SB)/8, $15252
+DATA bitrev_size16384_radix4_f64<>+0x2DE0(SB)/8, $3988
+DATA bitrev_size16384_radix4_f64<>+0x2DE8(SB)/8, $8084
+DATA bitrev_size16384_radix4_f64<>+0x2DF0(SB)/8, $12180
+DATA bitrev_size16384_radix4_f64<>+0x2DF8(SB)/8, $16276
+DATA bitrev_size16384_radix4_f64<>+0x2E00(SB)/8, $212
+DATA bitrev_size16384_radix4_f64<>+0x2E08(SB)/8, $4308
+DATA bitrev_size16384_radix4_f64<>+0x2E10(SB)/8, $8404
+DATA bitrev_size16384_radix4_f64<>+0x2E18(SB)/8, $12500
+DATA bitrev_size16384_radix4_f64<>+0x2E20(SB)/8, $1236
+DATA bitrev_size16384_radix4_f64<>+0x2E28(SB)/8, $5332
+DATA bitrev_size16384_radix4_f64<>+0x2E30(SB)/8, $9428
+DATA bitrev_size16384_radix4_f64<>+0x2E38(SB)/8, $13524
+DATA bitrev_size16384_radix4_f64<>+0x2E40(SB)/8, $2260
+DATA bitrev_size16384_radix4_f64<>+0x2E48(SB)/8, $6356
+DATA bitrev_size16384_radix4_f64<>+0x2E50(SB)/8, $10452
+DATA bitrev_size16384_radix4_f64<>+0x2E58(SB)/8, $14548
+DATA bitrev_size16384_radix4_f64<>+0x2E60(SB)/8, $3284
+DATA bitrev_size16384_radix4_f64<>+0x2E68(SB)/8, $7380
+DATA bitrev_size16384_radix4_f64<>+0x2E70(SB)/8, $11476
+DATA bitrev_size16384_radix4_f64<>+0x2E78(SB)/8, $15572
+DATA bitrev_size16384_radix4_f64<>+0x2E80(SB)/8, $468
+DATA bitrev_size16384_radix4_f64<>+0x2E88(SB)/8, $4564
+DATA bitrev_size16384_radix4_f64<>+0x2E90(SB)/8, $8660
+DATA bitrev_size16384_radix4_f64<>+0x2E98(SB)/8, $12756
+DATA bitrev_size16384_radix4_f64<>+0x2EA0(SB)/8, $1492
+DATA bitrev_size16384_radix4_f64<>+0x2EA8(SB)/8, $5588
+DATA bitrev_size16384_radix4_f64<>+0x2EB0(SB)/8, $9684
+DATA bitrev_size16384_radix4_f64<>+0x2EB8(SB)/8, $13780
+DATA bitrev_size16384_radix4_f64<>+0x2EC0(SB)/8, $2516
+DATA bitrev_size16384_radix4_f64<>+0x2EC8(SB)/8, $6612
+DATA bitrev_size16384_radix4_f64<>+0x2ED0(SB)/8, $10708
+DATA bitrev_size16384_radix4_f64<>+0x2ED8(SB)/8, $14804
+DATA bitrev_size16384_radix4_f64<>+0x2EE0(SB)/8, $3540
+DATA bitrev_size16384_radix4_f64<>+0x2EE8(SB)/8, $7636
+DATA bitrev_size16384_radix4_f64<>+0x2EF0(SB)/8, $11732
+DATA bitrev_size16384_radix4_f64<>+0x2EF8(SB)/8, $15828
+DATA bitrev_size16384_radix4_f64<>+0x2F00(SB)/8, $724
+DATA bitrev_size16384_radix4_f64<>+0x2F08(SB)/8, $4820
+DATA bitrev_size16384_radix4_f64<>+0x2F10(SB)/8, $8916
+DATA bitrev_size16384_radix4_f64<>+0x2F18(SB)/8, $13012
+DATA bitrev_size16384_radix4_f64<>+0x2F20(SB)/8, $1748
+DATA bitrev_size16384_radix4_f64<>+0x2F28(SB)/8, $5844
+DATA bitrev_size16384_radix4_f64<>+0x2F30(SB)/8, $9940
+DATA bitrev_size16384_radix4_f64<>+0x2F38(SB)/8, $14036
+DATA bitrev_size16384_radix4_f64<>+0x2F40(SB)/8, $2772
+DATA bitrev_size16384_radix4_f64<>+0x2F48(SB)/8, $6868
+DATA bitrev_size16384_radix4_f64<>+0x2F50(SB)/8, $10964
+DATA bitrev_size16384_radix4_f64<>+0x2F58(SB)/8, $15060
+DATA bitrev_size16384_radix4_f64<>+0x2F60(SB)/8, $3796
+DATA bitrev_size16384_radix4_f64<>+0x2F68(SB)/8, $7892
+DATA bitrev_size16384_radix4_f64<>+0x2F70(SB)/8, $11988
+DATA bitrev_size16384_radix4_f64<>+0x2F78(SB)/8, $16084
+DATA bitrev_size16384_radix4_f64<>+0x2F80(SB)/8, $980
+DATA bitrev_size16384_radix4_f64<>+0x2F88(SB)/8, $5076
+DATA bitrev_size16384_radix4_f64<>+0x2F90(SB)/8, $9172
+DATA bitrev_size16384_radix4_f64<>+0x2F98(SB)/8, $13268
+DATA bitrev_size16384_radix4_f64<>+0x2FA0(SB)/8, $2004
+DATA bitrev_size16384_radix4_f64<>+0x2FA8(SB)/8, $6100
+DATA bitrev_size16384_radix4_f64<>+0x2FB0(SB)/8, $10196
+DATA bitrev_size16384_radix4_f64<>+0x2FB8(SB)/8, $14292
+DATA bitrev_size16384_radix4_f64<>+0x2FC0(SB)/8, $3028
+DATA bitrev_size16384_radix4_f64<>+0x2FC8(SB)/8, $7124
+DATA bitrev_size16384_radix4_f64<>+0x2FD0(SB)/8, $11220
+DATA bitrev_size16384_radix4_f64<>+0x2FD8(SB)/8, $15316
+DATA bitrev_size16384_radix4_f64<>+0x2FE0(SB)/8, $4052
+DATA bitrev_size16384_radix4_f64<>+0x2FE8(SB)/8, $8148
+DATA bitrev_size16384_radix4_f64<>+0x2FF0(SB)/8, $12244
+DATA bitrev_size16384_radix4_f64<>+0x2FF8(SB)/8, $16340
+DATA bitrev_size16384_radix4_f64<>+0x3000(SB)/8, $36
+DATA bitrev_size16384_radix4_f64<>+0x3008(SB)/8, $4132
+DATA bitrev_size16384_radix4_f64<>+0x3010(SB)/8, $8228
+DATA bitrev_size16384_radix4_f64<>+0x3018(SB)/8, $12324
+DATA bitrev_size16384_radix4_f64<>+0x3020(SB)/8, $1060
+DATA bitrev_size16384_radix4_f64<>+0x3028(SB)/8, $5156
+DATA bitrev_size16384_radix4_f64<>+0x3030(SB)/8, $9252
+DATA bitrev_size16384_radix4_f64<>+0x3038(SB)/8, $13348
+DATA bitrev_size16384_radix4_f64<>+0x3040(SB)/8, $2084
+DATA bitrev_size16384_radix4_f64<>+0x3048(SB)/8, $6180
+DATA bitrev_size16384_radix4_f64<>+0x3050(SB)/8, $10276
+DATA bitrev_size16384_radix4_f64<>+0x3058(SB)/8, $14372
+DATA bitrev_size16384_radix4_f64<>+0x3060(SB)/8, $3108
+DATA bitrev_size16384_radix4_f64<>+0x3068(SB)/8, $7204
+DATA bitrev_size16384_radix4_f64<>+0x3070(SB)/8, $11300
+DATA bitrev_size16384_radix4_f64<>+0x3078(SB)/8, $15396
+DATA bitrev_size16384_radix4_f64<>+0x3080(SB)/8, $292
+DATA bitrev_size16384_radix4_f64<>+0x3088(SB)/8, $4388
+DATA bitrev_size16384_radix4_f64<>+0x3090(SB)/8, $8484
+DATA bitrev_size16384_radix4_f64<>+0x3098(SB)/8, $12580
+DATA bitrev_size16384_radix4_f64<>+0x30A0(SB)/8, $1316
+DATA bitrev_size16384_radix4_f64<>+0x30A8(SB)/8, $5412
+DATA bitrev_size16384_radix4_f64<>+0x30B0(SB)/8, $9508
+DATA bitrev_size16384_radix4_f64<>+0x30B8(SB)/8, $13604
+DATA bitrev_size16384_radix4_f64<>+0x30C0(SB)/8, $2340
+DATA bitrev_size16384_radix4_f64<>+0x30C8(SB)/8, $6436
+DATA bitrev_size16384_radix4_f64<>+0x30D0(SB)/8, $10532
+DATA bitrev_size16384_radix4_f64<>+0x30D8(SB)/8, $14628
+DATA bitrev_size16384_radix4_f64<>+0x30E0(SB)/8, $3364
+DATA bitrev_size16384_radix4_f64<>+0x30E8(SB)/8, $7460
+DATA bitrev_size16384_radix4_f64<>+0x30F0(SB)/8, $11556
+DATA bitrev_size16384_radix4_f64<>+0x30F8(SB)/8, $15652
+DATA bitrev_size16384_radix4_f64<>+0x3100(SB)/8, $548
+DATA bitrev_size16384_radix4_f64<>+0x3108(SB)/8, $4644
+DATA bitrev_size16384_radix4_f64<>+0x3110(SB)/8, $8740
+DATA bitrev_size16384_radix4_f64<>+0x3118(SB)/8, $12836
+DATA bitrev_size16384_radix4_f64<>+0x3120(SB)/8, $1572
+DATA bitrev_size16384_radix4_f64<>+0x3128(SB)/8, $5668
+DATA bitrev_size16384_radix4_f64<>+0x3130(SB)/8, $9764
+DATA bitrev_size16384_radix4_f64<>+0x3138(SB)/8, $13860
+DATA bitrev_size16384_radix4_f64<>+0x3140(SB)/8, $2596
+DATA bitrev_size16384_radix4_f64<>+0x3148(SB)/8, $6692
+DATA bitrev_size16384_radix4_f64<>+0x3150(SB)/8, $10788
+DATA bitrev_size16384_radix4_f64<>+0x3158(SB)/8, $14884
+DATA bitrev_size16384_radix4_f64<>+0x3160(SB)/8, $3620
+DATA bitrev_size16384_radix4_f64<>+0x3168(SB)/8, $7716
+DATA bitrev_size16384_radix4_f64<>+0x3170(SB)/8, $11812
+DATA bitrev_size16384_radix4_f64<>+0x3178(SB)/8, $15908
+DATA bitrev_size16384_radix4_f64<>+0x3180(SB)/8, $804
+DATA bitrev_size16384_radix4_f64<>+0x3188(SB)/8, $4900
+DATA bitrev_size16384_radix4_f64<>+0x3190(SB)/8, $8996
+DATA bitrev_size16384_radix4_f64<>+0x3198(SB)/8, $13092
+DATA bitrev_size16384_radix4_f64<>+0x31A0(SB)/8, $1828
+DATA bitrev_size16384_radix4_f64<>+0x31A8(SB)/8, $5924
+DATA bitrev_size16384_radix4_f64<>+0x31B0(SB)/8, $10020
+DATA bitrev_size16384_radix4_f64<>+0x31B8(SB)/8, $14116
+DATA bitrev_size16384_radix4_f64<>+0x31C0(SB)/8, $2852
+DATA bitrev_size16384_radix4_f64<>+0x31C8(SB)/8, $6948
+DATA bitrev_size16384_radix4_f64<>+0x31D0(SB)/8, $11044
+DATA bitrev_size16384_radix4_f64<>+0x31D8(SB)/8, $15140
+DATA bitrev_size16384_radix4_f64<>+0x31E0(SB)/8, $3876
+DATA bitrev_size16384_radix4_f64<>+0x31E8(SB)/8, $7972
+DATA bitrev_size16384_radix4_f64<>+0x31F0(SB)/8, $12068
+DATA bitrev_size16384_radix4_f64<>+0x31F8(SB)/8, $16164
+DATA bitrev_size16384_radix4_f64<>+0x3200(SB)/8, $100
+DATA bitrev_size16384_radix4_f64<>+0x3208(SB)/8, $4196
+DATA bitrev_size16384_radix4_f64<>+0x3210(SB)/8, $8292
+DATA bitrev_size16384_radix4_f64<>+0x3218(SB)/8, $12388
+DATA bitrev_size16384_radix4_f64<>+0x3220(SB)/8, $1124
+DATA bitrev_size16384_radix4_f64<>+0x3228(SB)/8, $5220
+DATA bitrev_size16384_radix4_f64<>+0x3230(SB)/8, $9316
+DATA bitrev_size16384_radix4_f64<>+0x3238(SB)/8, $13412
+DATA bitrev_size16384_radix4_f64<>+0x3240(SB)/8, $2148
+DATA bitrev_size16384_radix4_f64<>+0x3248(SB)/8, $6244
+DATA bitrev_size16384_radix4_f64<>+0x3250(SB)/8, $10340
+DATA bitrev_size16384_radix4_f64<>+0x3258(SB)/8, $14436
+DATA bitrev_size16384_radix4_f64<>+0x3260(SB)/8, $3172
+DATA bitrev_size16384_radix4_f64<>+0x3268(SB)/8, $7268
+DATA bitrev_size16384_radix4_f64<>+0x3270(SB)/8, $11364
+DATA bitrev_size16384_radix4_f64<>+0x3278(SB)/8, $15460
+DATA bitrev_size16384_radix4_f64<>+0x3280(SB)/8, $356
+DATA bitrev_size16384_radix4_f64<>+0x3288(SB)/8, $4452
+DATA bitrev_size16384_radix4_f64<>+0x3290(SB)/8, $8548
+DATA bitrev_size16384_radix4_f64<>+0x3298(SB)/8, $12644
+DATA bitrev_size16384_radix4_f64<>+0x32A0(SB)/8, $1380
+DATA bitrev_size16384_radix4_f64<>+0x32A8(SB)/8, $5476
+DATA bitrev_size16384_radix4_f64<>+0x32B0(SB)/8, $9572
+DATA bitrev_size16384_radix4_f64<>+0x32B8(SB)/8, $13668
+DATA bitrev_size16384_radix4_f64<>+0x32C0(SB)/8, $2404
+DATA bitrev_size16384_radix4_f64<>+0x32C8(SB)/8, $6500
+DATA bitrev_size16384_radix4_f64<>+0x32D0(SB)/8, $10596
+DATA bitrev_size16384_radix4_f64<>+0x32D8(SB)/8, $14692
+DATA bitrev_size16384_radix4_f64<>+0x32E0(SB)/8, $3428
+DATA bitrev_size16384_radix4_f64<>+0x32E8(SB)/8, $7524
+DATA bitrev_size16384_radix4_f64<>+0x32F0(SB)/8, $11620
+DATA bitrev_size16384_radix4_f64<>+0x32F8(SB)/8, $15716
+DATA bitrev_size16384_radix4_f64<>+0x3300(SB)/8, $612
+DATA bitrev_size16384_radix4_f64<>+0x3308(SB)/8, $4708
+DATA bitrev_size16384_radix4_f64<>+0x3310(SB)/8, $8804
+DATA bitrev_size16384_radix4_f64<>+0x3318(SB)/8, $12900
+DATA bitrev_size16384_radix4_f64<>+0x3320(SB)/8, $1636
+DATA bitrev_size16384_radix4_f64<>+0x3328(SB)/8, $5732
+DATA bitrev_size16384_radix4_f64<>+0x3330(SB)/8, $9828
+DATA bitrev_size16384_radix4_f64<>+0x3338(SB)/8, $13924
+DATA bitrev_size16384_radix4_f64<>+0x3340(SB)/8, $2660
+DATA bitrev_size16384_radix4_f64<>+0x3348(SB)/8, $6756
+DATA bitrev_size16384_radix4_f64<>+0x3350(SB)/8, $10852
+DATA bitrev_size16384_radix4_f64<>+0x3358(SB)/8, $14948
+DATA bitrev_size16384_radix4_f64<>+0x3360(SB)/8, $3684
+DATA bitrev_size16384_radix4_f64<>+0x3368(SB)/8, $7780
+DATA bitrev_size16384_radix4_f64<>+0x3370(SB)/8, $11876
+DATA bitrev_size16384_radix4_f64<>+0x3378(SB)/8, $15972
+DATA bitrev_size16384_radix4_f64<>+0x3380(SB)/8, $868
+DATA bitrev_size16384_radix4_f64<>+0x3388(SB)/8, $4964
+DATA bitrev_size16384_radix4_f64<>+0x3390(SB)/8, $9060
+DATA bitrev_size16384_radix4_f64<>+0x3398(SB)/8, $13156
+DATA bitrev_size16384_radix4_f64<>+0x33A0(SB)/8, $1892
+DATA bitrev_size16384_radix4_f64<>+0x33A8(SB)/8, $5988
+DATA bitrev_size16384_radix4_f64<>+0x33B0(SB)/8, $10084
+DATA bitrev_size16384_radix4_f64<>+0x33B8(SB)/8, $14180
+DATA bitrev_size16384_radix4_f64<>+0x33C0(SB)/8, $2916
+DATA bitrev_size16384_radix4_f64<>+0x33C8(SB)/8, $7012
+DATA bitrev_size16384_radix4_f64<>+0x33D0(SB)/8, $11108
+DATA bitrev_size16384_radix4_f64<>+0x33D8(SB)/8, $15204
+DATA bitrev_size16384_radix4_f64<>+0x33E0(SB)/8, $3940
+DATA bitrev_size16384_radix4_f64<>+0x33E8(SB)/8, $8036
+DATA bitrev_size16384_radix4_f64<>+0x33F0(SB)/8, $12132
+DATA bitrev_size16384_radix4_f64<>+0x33F8(SB)/8, $16228
+DATA bitrev_size16384_radix4_f64<>+0x3400(SB)/8, $164
+DATA bitrev_size16384_radix4_f64<>+0x3408(SB)/8, $4260
+DATA bitrev_size16384_radix4_f64<>+0x3410(SB)/8, $8356
+DATA bitrev_size16384_radix4_f64<>+0x3418(SB)/8, $12452
+DATA bitrev_size16384_radix4_f64<>+0x3420(SB)/8, $1188
+DATA bitrev_size16384_radix4_f64<>+0x3428(SB)/8, $5284
+DATA bitrev_size16384_radix4_f64<>+0x3430(SB)/8, $9380
+DATA bitrev_size16384_radix4_f64<>+0x3438(SB)/8, $13476
+DATA bitrev_size16384_radix4_f64<>+0x3440(SB)/8, $2212
+DATA bitrev_size16384_radix4_f64<>+0x3448(SB)/8, $6308
+DATA bitrev_size16384_radix4_f64<>+0x3450(SB)/8, $10404
+DATA bitrev_size16384_radix4_f64<>+0x3458(SB)/8, $14500
+DATA bitrev_size16384_radix4_f64<>+0x3460(SB)/8, $3236
+DATA bitrev_size16384_radix4_f64<>+0x3468(SB)/8, $7332
+DATA bitrev_size16384_radix4_f64<>+0x3470(SB)/8, $11428
+DATA bitrev_size16384_radix4_f64<>+0x3478(SB)/8, $15524
+DATA bitrev_size16384_radix4_f64<>+0x3480(SB)/8, $420
+DATA bitrev_size16384_radix4_f64<>+0x3488(SB)/8, $4516
+DATA bitrev_size16384_radix4_f64<>+0x3490(SB)/8, $8612
+DATA bitrev_size16384_radix4_f64<>+0x3498(SB)/8, $12708
+DATA bitrev_size16384_radix4_f64<>+0x34A0(SB)/8, $1444
+DATA bitrev_size16384_radix4_f64<>+0x34A8(SB)/8, $5540
+DATA bitrev_size16384_radix4_f64<>+0x34B0(SB)/8, $9636
+DATA bitrev_size16384_radix4_f64<>+0x34B8(SB)/8, $13732
+DATA bitrev_size16384_radix4_f64<>+0x34C0(SB)/8, $2468
+DATA bitrev_size16384_radix4_f64<>+0x34C8(SB)/8, $6564
+DATA bitrev_size16384_radix4_f64<>+0x34D0(SB)/8, $10660
+DATA bitrev_size16384_radix4_f64<>+0x34D8(SB)/8, $14756
+DATA bitrev_size16384_radix4_f64<>+0x34E0(SB)/8, $3492
+DATA bitrev_size16384_radix4_f64<>+0x34E8(SB)/8, $7588
+DATA bitrev_size16384_radix4_f64<>+0x34F0(SB)/8, $11684
+DATA bitrev_size16384_radix4_f64<>+0x34F8(SB)/8, $15780
+DATA bitrev_size16384_radix4_f64<>+0x3500(SB)/8, $676
+DATA bitrev_size16384_radix4_f64<>+0x3508(SB)/8, $4772
+DATA bitrev_size16384_radix4_f64<>+0x3510(SB)/8, $8868
+DATA bitrev_size16384_radix4_f64<>+0x3518(SB)/8, $12964
+DATA bitrev_size16384_radix4_f64<>+0x3520(SB)/8, $1700
+DATA bitrev_size16384_radix4_f64<>+0x3528(SB)/8, $5796
+DATA bitrev_size16384_radix4_f64<>+0x3530(SB)/8, $9892
+DATA bitrev_size16384_radix4_f64<>+0x3538(SB)/8, $13988
+DATA bitrev_size16384_radix4_f64<>+0x3540(SB)/8, $2724
+DATA bitrev_size16384_radix4_f64<>+0x3548(SB)/8, $6820
+DATA bitrev_size16384_radix4_f64<>+0x3550(SB)/8, $10916
+DATA bitrev_size16384_radix4_f64<>+0x3558(SB)/8, $15012
+DATA bitrev_size16384_radix4_f64<>+0x3560(SB)/8, $3748
+DATA bitrev_size16384_radix4_f64<>+0x3568(SB)/8, $7844
+DATA bitrev_size16384_radix4_f64<>+0x3570(SB)/8, $11940
+DATA bitrev_size16384_radix4_f64<>+0x3578(SB)/8, $16036
+DATA bitrev_size16384_radix4_f64<>+0x3580(SB)/8, $932
+DATA bitrev_size16384_radix4_f64<>+0x3588(SB)/8, $5028
+DATA bitrev_size16384_radix4_f64<>+0x3590(SB)/8, $9124
+DATA bitrev_size16384_radix4_f64<>+0x3598(SB)/8, $13220
+DATA bitrev_size16384_radix4_f64<>+0x35A0(SB)/8, $1956
+DATA bitrev_size16384_radix4_f64<>+0x35A8(SB)/8, $6052
+DATA bitrev_size16384_radix4_f64<>+0x35B0(SB)/8, $10148
+DATA bitrev_size16384_radix4_f64<>+0x35B8(SB)/8, $14244
+DATA bitrev_size16384_radix4_f64<>+0x35C0(SB)/8, $2980
+DATA bitrev_size16384_radix4_f64<>+0x35C8(SB)/8, $7076
+DATA bitrev_size16384_radix4_f64<>+0x35D0(SB)/8, $11172
+DATA bitrev_size16384_radix4_f64<>+0x35D8(SB)/8, $15268
+DATA bitrev_size16384_radix4_f64<>+0x35E0(SB)/8, $4004
+DATA bitrev_size16384_radix4_f64<>+0x35E8(SB)/8, $8100
+DATA bitrev_size16384_radix4_f64<>+0x35F0(SB)/8, $12196
+DATA bitrev_size16384_radix4_f64<>+0x35F8(SB)/8, $16292
+DATA bitrev_size16384_radix4_f64<>+0x3600(SB)/8, $228
+DATA bitrev_size16384_radix4_f64<>+0x3608(SB)/8, $4324
+DATA bitrev_size16384_radix4_f64<>+0x3610(SB)/8, $8420
+DATA bitrev_size16384_radix4_f64<>+0x3618(SB)/8, $12516
+DATA bitrev_size16384_radix4_f64<>+0x3620(SB)/8, $1252
+DATA bitrev_size16384_radix4_f64<>+0x3628(SB)/8, $5348
+DATA bitrev_size16384_radix4_f64<>+0x3630(SB)/8, $9444
+DATA bitrev_size16384_radix4_f64<>+0x3638(SB)/8, $13540
+DATA bitrev_size16384_radix4_f64<>+0x3640(SB)/8, $2276
+DATA bitrev_size16384_radix4_f64<>+0x3648(SB)/8, $6372
+DATA bitrev_size16384_radix4_f64<>+0x3650(SB)/8, $10468
+DATA bitrev_size16384_radix4_f64<>+0x3658(SB)/8, $14564
+DATA bitrev_size16384_radix4_f64<>+0x3660(SB)/8, $3300
+DATA bitrev_size16384_radix4_f64<>+0x3668(SB)/8, $7396
+DATA bitrev_size16384_radix4_f64<>+0x3670(SB)/8, $11492
+DATA bitrev_size16384_radix4_f64<>+0x3678(SB)/8, $15588
+DATA bitrev_size16384_radix4_f64<>+0x3680(SB)/8, $484
+DATA bitrev_size16384_radix4_f64<>+0x3688(SB)/8, $4580
+DATA bitrev_size16384_radix4_f64<>+0x3690(SB)/8, $8676
+DATA bitrev_size16384_radix4_f64<>+0x3698(SB)/8, $12772
+DATA bitrev_size16384_radix4_f64<>+0x36A0(SB)/8, $1508
+DATA bitrev_size16384_radix4_f64<>+0x36A8(SB)/8, $5604
+DATA bitrev_size16384_radix4_f64<>+0x36B0(SB)/8, $9700
+DATA bitrev_size16384_radix4_f64<>+0x36B8(SB)/8, $13796
+DATA bitrev_size16384_radix4_f64<>+0x36C0(SB)/8, $2532
+DATA bitrev_size16384_radix4_f64<>+0x36C8(SB)/8, $6628
+DATA bitrev_size16384_radix4_f64<>+0x36D0(SB)/8, $10724
+DATA bitrev_size16384_radix4_f64<>+0x36D8(SB)/8, $14820
+DATA bitrev_size16384_radix4_f64<>+0x36E0(SB)/8, $3556
+DATA bitrev_size16384_radix4_f64<>+0x36E8(SB)/8, $7652
+DATA bitrev_size16384_radix4_f64<>+0x36F0(SB)/8, $11748
+DATA bitrev_size16384_radix4_f64<>+0x36F8(SB)/8, $15844
+DATA bitrev_size16384_radix4_f64<>+0x3700(SB)/8, $740
+DATA bitrev_size16384_radix4_f64<>+0x3708(SB)/8, $4836
+DATA bitrev_size16384_radix4_f64<>+0x3710(SB)/8, $8932
+DATA bitrev_size16384_radix4_f64<>+0x3718(SB)/8, $13028
+DATA bitrev_size16384_radix4_f64<>+0x3720(SB)/8, $1764
+DATA bitrev_size16384_radix4_f64<>+0x3728(SB)/8, $5860
+DATA bitrev_size16384_radix4_f64<>+0x3730(SB)/8, $9956
+DATA bitrev_size16384_radix4_f64<>+0x3738(SB)/8, $14052
+DATA bitrev_size16384_radix4_f64<>+0x3740(SB)/8, $2788
+DATA bitrev_size16384_radix4_f64<>+0x3748(SB)/8, $6884
+DATA bitrev_size16384_radix4_f64<>+0x3750(SB)/8, $10980
+DATA bitrev_size16384_radix4_f64<>+0x3758(SB)/8, $15076
+DATA bitrev_size16384_radix4_f64<>+0x3760(SB)/8, $3812
+DATA bitrev_size16384_radix4_f64<>+0x3768(SB)/8, $7908
+DATA bitrev_size16384_radix4_f64<>+0x3770(SB)/8, $12004
+DATA bitrev_size16384_radix4_f64<>+0x3778(SB)/8, $16100
+DATA bitrev_size16384_radix4_f64<>+0x3780(SB)/8, $996
+DATA bitrev_size16384_radix4_f64<>+0x3788(SB)/8, $5092
+DATA bitrev_size16384_radix4_f64<>+0x3790(SB)/8, $9188
+DATA bitrev_size16384_radix4_f64<>+0x3798(SB)/8, $13284
+DATA bitrev_size16384_radix4_f64<>+0x37A0(SB)/8, $2020
+DATA bitrev_size16384_radix4_f64<>+0x37A8(SB)/8, $6116
+DATA bitrev_size16384_radix4_f64<>+0x37B0(SB)/8, $10212
+DATA bitrev_size16384_radix4_f64<>+0x37B8(SB)/8, $14308
+DATA bitrev_size16384_radix4_f64<>+0x37C0(SB)/8, $3044
+DATA bitrev_size16384_radix4_f64<>+0x37C8(SB)/8, $7140
+DATA bitrev_size16384_radix4_f64<>+0x37D0(SB)/8, $11236
+DATA bitrev_size16384_radix4_f64<>+0x37D8(SB)/8, $15332
+DATA bitrev_size16384_radix4_f64<>+0x37E0(SB)/8, $4068
+DATA bitrev_size16384_radix4_f64<>+0x37E8(SB)/8, $8164
+DATA bitrev_size16384_radix4_f64<>+0x37F0(SB)/8, $12260
+DATA bitrev_size16384_radix4_f64<>+0x37F8(SB)/8, $16356
+DATA bitrev_size16384_radix4_f64<>+0x3800(SB)/8, $52
+DATA bitrev_size16384_radix4_f64<>+0x3808(SB)/8, $4148
+DATA bitrev_size16384_radix4_f64<>+0x3810(SB)/8, $8244
+DATA bitrev_size16384_radix4_f64<>+0x3818(SB)/8, $12340
+DATA bitrev_size16384_radix4_f64<>+0x3820(SB)/8, $1076
+DATA bitrev_size16384_radix4_f64<>+0x3828(SB)/8, $5172
+DATA bitrev_size16384_radix4_f64<>+0x3830(SB)/8, $9268
+DATA bitrev_size16384_radix4_f64<>+0x3838(SB)/8, $13364
+DATA bitrev_size16384_radix4_f64<>+0x3840(SB)/8, $2100
+DATA bitrev_size16384_radix4_f64<>+0x3848(SB)/8, $6196
+DATA bitrev_size16384_radix4_f64<>+0x3850(SB)/8, $10292
+DATA bitrev_size16384_radix4_f64<>+0x3858(SB)/8, $14388
+DATA bitrev_size16384_radix4_f64<>+0x3860(SB)/8, $3124
+DATA bitrev_size16384_radix4_f64<>+0x3868(SB)/8, $7220
+DATA bitrev_size16384_radix4_f64<>+0x3870(SB)/8, $11316
+DATA bitrev_size16384_radix4_f64<>+0x3878(SB)/8, $15412
+DATA bitrev_size16384_radix4_f64<>+0x3880(SB)/8, $308
+DATA bitrev_size16384_radix4_f64<>+0x3888(SB)/8, $4404
+DATA bitrev_size16384_radix4_f64<>+0x3890(SB)/8, $8500
+DATA bitrev_size16384_radix4_f64<>+0x3898(SB)/8, $12596
+DATA bitrev_size16384_radix4_f64<>+0x38A0(SB)/8, $1332
+DATA bitrev_size16384_radix4_f64<>+0x38A8(SB)/8, $5428
+DATA bitrev_size16384_radix4_f64<>+0x38B0(SB)/8, $9524
+DATA bitrev_size16384_radix4_f64<>+0x38B8(SB)/8, $13620
+DATA bitrev_size16384_radix4_f64<>+0x38C0(SB)/8, $2356
+DATA bitrev_size16384_radix4_f64<>+0x38C8(SB)/8, $6452
+DATA bitrev_size16384_radix4_f64<>+0x38D0(SB)/8, $10548
+DATA bitrev_size16384_radix4_f64<>+0x38D8(SB)/8, $14644
+DATA bitrev_size16384_radix4_f64<>+0x38E0(SB)/8, $3380
+DATA bitrev_size16384_radix4_f64<>+0x38E8(SB)/8, $7476
+DATA bitrev_size16384_radix4_f64<>+0x38F0(SB)/8, $11572
+DATA bitrev_size16384_radix4_f64<>+0x38F8(SB)/8, $15668
+DATA bitrev_size16384_radix4_f64<>+0x3900(SB)/8, $564
+DATA bitrev_size16384_radix4_f64<>+0x3908(SB)/8, $4660
+DATA bitrev_size16384_radix4_f64<>+0x3910(SB)/8, $8756
+DATA bitrev_size16384_radix4_f64<>+0x3918(SB)/8, $12852
+DATA bitrev_size16384_radix4_f64<>+0x3920(SB)/8, $1588
+DATA bitrev_size16384_radix4_f64<>+0x3928(SB)/8, $5684
+DATA bitrev_size16384_radix4_f64<>+0x3930(SB)/8, $9780
+DATA bitrev_size16384_radix4_f64<>+0x3938(SB)/8, $13876
+DATA bitrev_size16384_radix4_f64<>+0x3940(SB)/8, $2612
+DATA bitrev_size16384_radix4_f64<>+0x3948(SB)/8, $6708
+DATA bitrev_size16384_radix4_f64<>+0x3950(SB)/8, $10804
+DATA bitrev_size16384_radix4_f64<>+0x3958(SB)/8, $14900
+DATA bitrev_size16384_radix4_f64<>+0x3960(SB)/8, $3636
+DATA bitrev_size16384_radix4_f64<>+0x3968(SB)/8, $7732
+DATA bitrev_size16384_radix4_f64<>+0x3970(SB)/8, $11828
+DATA bitrev_size16384_radix4_f64<>+0x3978(SB)/8, $15924
+DATA bitrev_size16384_radix4_f64<>+0x3980(SB)/8, $820
+DATA bitrev_size16384_radix4_f64<>+0x3988(SB)/8, $4916
+DATA bitrev_size16384_radix4_f64<>+0x3990(SB)/8, $9012
+DATA bitrev_size16384_radix4_f64<>+0x3998(SB)/8, $13108
+DATA bitrev_size16384_radix4_f64<>+0x39A0(SB)/8, $1844
+DATA bitrev_size16384_radix4_f64<>+0x39A8(SB)/8, $5940
+DATA bitrev_size16384_radix4_f64<>+0x39B0(SB)/8, $10036
+DATA bitrev_size16384_radix4_f64<>+0x39B8(SB)/8, $14132
+DATA bitrev_size16384_radix4_f64<>+0x39C0(SB)/8, $2868
+DATA bitrev_size16384_radix4_f64<>+0x39C8(SB)/8, $6964
+DATA bitrev_size16384_radix4_f64<>+0x39D0(SB)/8, $11060
+DATA bitrev_size16384_radix4_f64<>+0x39D8(SB)/8, $15156
+DATA bitrev_size16384_radix4_f64<>+0x39E0(SB)/8, $3892
+DATA bitrev_size16384_radix4_f64<>+0x39E8(SB)/8, $7988
+DATA bitrev_size16384_radix4_f64<>+0x39F0(SB)/8, $12084
+DATA bitrev_size16384_radix4_f64<>+0x39F8(SB)/8, $16180
+DATA bitrev_size16384_radix4_f64<>+0x3A00(SB)/8, $116
+DATA bitrev_size16384_radix4_f64<>+0x3A08(SB)/8, $4212
+DATA bitrev_size16384_radix4_f64<>+0x3A10(SB)/8, $8308
+DATA bitrev_size16384_radix4_f64<>+0x3A18(SB)/8, $12404
+DATA bitrev_size16384_radix4_f64<>+0x3A20(SB)/8, $1140
+DATA bitrev_size16384_radix4_f64<>+0x3A28(SB)/8, $5236
+DATA bitrev_size16384_radix4_f64<>+0x3A30(SB)/8, $9332
+DATA bitrev_size16384_radix4_f64<>+0x3A38(SB)/8, $13428
+DATA bitrev_size16384_radix4_f64<>+0x3A40(SB)/8, $2164
+DATA bitrev_size16384_radix4_f64<>+0x3A48(SB)/8, $6260
+DATA bitrev_size16384_radix4_f64<>+0x3A50(SB)/8, $10356
+DATA bitrev_size16384_radix4_f64<>+0x3A58(SB)/8, $14452
+DATA bitrev_size16384_radix4_f64<>+0x3A60(SB)/8, $3188
+DATA bitrev_size16384_radix4_f64<>+0x3A68(SB)/8, $7284
+DATA bitrev_size16384_radix4_f64<>+0x3A70(SB)/8, $11380
+DATA bitrev_size16384_radix4_f64<>+0x3A78(SB)/8, $15476
+DATA bitrev_size16384_radix4_f64<>+0x3A80(SB)/8, $372
+DATA bitrev_size16384_radix4_f64<>+0x3A88(SB)/8, $4468
+DATA bitrev_size16384_radix4_f64<>+0x3A90(SB)/8, $8564
+DATA bitrev_size16384_radix4_f64<>+0x3A98(SB)/8, $12660
+DATA bitrev_size16384_radix4_f64<>+0x3AA0(SB)/8, $1396
+DATA bitrev_size16384_radix4_f64<>+0x3AA8(SB)/8, $5492
+DATA bitrev_size16384_radix4_f64<>+0x3AB0(SB)/8, $9588
+DATA bitrev_size16384_radix4_f64<>+0x3AB8(SB)/8, $13684
+DATA bitrev_size16384_radix4_f64<>+0x3AC0(SB)/8, $2420
+DATA bitrev_size16384_radix4_f64<>+0x3AC8(SB)/8, $6516
+DATA bitrev_size16384_radix4_f64<>+0x3AD0(SB)/8, $10612
+DATA bitrev_size16384_radix4_f64<>+0x3AD8(SB)/8, $14708
+DATA bitrev_size16384_radix4_f64<>+0x3AE0(SB)/8, $3444
+DATA bitrev_size16384_radix4_f64<>+0x3AE8(SB)/8, $7540
+DATA bitrev_size16384_radix4_f64<>+0x3AF0(SB)/8, $11636
+DATA bitrev_size16384_radix4_f64<>+0x3AF8(SB)/8, $15732
+DATA bitrev_size16384_radix4_f64<>+0x3B00(SB)/8, $628
+DATA bitrev_size16384_radix4_f64<>+0x3B08(SB)/8, $4724
+DATA bitrev_size16384_radix4_f64<>+0x3B10(SB)/8, $8820
+DATA bitrev_size16384_radix4_f64<>+0x3B18(SB)/8, $12916
+DATA bitrev_size16384_radix4_f64<>+0x3B20(SB)/8, $1652
+DATA bitrev_size16384_radix4_f64<>+0x3B28(SB)/8, $5748
+DATA bitrev_size16384_radix4_f64<>+0x3B30(SB)/8, $9844
+DATA bitrev_size16384_radix4_f64<>+0x3B38(SB)/8, $13940
+DATA bitrev_size16384_radix4_f64<>+0x3B40(SB)/8, $2676
+DATA bitrev_size16384_radix4_f64<>+0x3B48(SB)/8, $6772
+DATA bitrev_size16384_radix4_f64<>+0x3B50(SB)/8, $10868
+DATA bitrev_size16384_radix4_f64<>+0x3B58(SB)/8, $14964
+DATA bitrev_size16384_radix4_f64<>+0x3B60(SB)/8, $3700
+DATA bitrev_size16384_radix4_f64<>+0x3B68(SB)/8, $7796
+DATA bitrev_size16384_radix4_f64<>+0x3B70(SB)/8, $11892
+DATA bitrev_size16384_radix4_f64<>+0x3B78(SB)/8, $15988
+DATA bitrev_size16384_radix4_f64<>+0x3B80(SB)/8, $884
+DATA bitrev_size16384_radix4_f64<>+0x3B88(SB)/8, $4980
+DATA bitrev_size16384_radix4_f64<>+0x3B90(SB)/8, $9076
+DATA bitrev_size16384_radix4_f64<>+0x3B98(SB)/8, $13172
+DATA bitrev_size16384_radix4_f64<>+0x3BA0(SB)/8, $1908
+DATA bitrev_size16384_radix4_f64<>+0x3BA8(SB)/8, $6004
+DATA bitrev_size16384_radix4_f64<>+0x3BB0(SB)/8, $10100
+DATA bitrev_size16384_radix4_f64<>+0x3BB8(SB)/8, $14196
+DATA bitrev_size16384_radix4_f64<>+0x3BC0(SB)/8, $2932
+DATA bitrev_size16384_radix4_f64<>+0x3BC8(SB)/8, $7028
+DATA bitrev_size16384_radix4_f64<>+0x3BD0(SB)/8, $11124
+DATA bitrev_size16384_radix4_f64<>+0x3BD8(SB)/8, $15220
+DATA bitrev_size16384_radix4_f64<>+0x3BE0(SB)/8, $3956
+DATA bitrev_size16384_radix4_f64<>+0x3BE8(SB)/8, $8052
+DATA bitrev_size16384_radix4_f64<>+0x3BF0(SB)/8, $12148
+DATA bitrev_size16384_radix4_f64<>+0x3BF8(SB)/8, $16244
+DATA bitrev_size16384_radix4_f64<>+0x3C00(SB)/8, $180
+DATA bitrev_size16384_radix4_f64<>+0x3C08(SB)/8, $4276
+DATA bitrev_size16384_radix4_f64<>+0x3C10(SB)/8, $8372
+DATA bitrev_size16384_radix4_f64<>+0x3C18(SB)/8, $12468
+DATA bitrev_size16384_radix4_f64<>+0x3C20(SB)/8, $1204
+DATA bitrev_size16384_radix4_f64<>+0x3C28(SB)/8, $5300
+DATA bitrev_size16384_radix4_f64<>+0x3C30(SB)/8, $9396
+DATA bitrev_size16384_radix4_f64<>+0x3C38(SB)/8, $13492
+DATA bitrev_size16384_radix4_f64<>+0x3C40(SB)/8, $2228
+DATA bitrev_size16384_radix4_f64<>+0x3C48(SB)/8, $6324
+DATA bitrev_size16384_radix4_f64<>+0x3C50(SB)/8, $10420
+DATA bitrev_size16384_radix4_f64<>+0x3C58(SB)/8, $14516
+DATA bitrev_size16384_radix4_f64<>+0x3C60(SB)/8, $3252
+DATA bitrev_size16384_radix4_f64<>+0x3C68(SB)/8, $7348
+DATA bitrev_size16384_radix4_f64<>+0x3C70(SB)/8, $11444
+DATA bitrev_size16384_radix4_f64<>+0x3C78(SB)/8, $15540
+DATA bitrev_size16384_radix4_f64<>+0x3C80(SB)/8, $436
+DATA bitrev_size16384_radix4_f64<>+0x3C88(SB)/8, $4532
+DATA bitrev_size16384_radix4_f64<>+0x3C90(SB)/8, $8628
+DATA bitrev_size16384_radix4_f64<>+0x3C98(SB)/8, $12724
+DATA bitrev_size16384_radix4_f64<>+0x3CA0(SB)/8, $1460
+DATA bitrev_size16384_radix4_f64<>+0x3CA8(SB)/8, $5556
+DATA bitrev_size16384_radix4_f64<>+0x3CB0(SB)/8, $9652
+DATA bitrev_size16384_radix4_f64<>+0x3CB8(SB)/8, $13748
+DATA bitrev_size16384_radix4_f64<>+0x3CC0(SB)/8, $2484
+DATA bitrev_size16384_radix4_f64<>+0x3CC8(SB)/8, $6580
+DATA bitrev_size16384_radix4_f64<>+0x3CD0(SB)/8, $10676
+DATA bitrev_size16384_radix4_f64<>+0x3CD8(SB)/8, $14772
+DATA bitrev_size16384_radix4_f64<>+0x3CE0(SB)/8, $3508
+DATA bitrev_size16384_radix4_f64<>+0x3CE8(SB)/8, $7604
+DATA bitrev_size16384_radix4_f64<>+0x3CF0(SB)/8, $11700
+DATA bitrev_size16384_radix4_f64<>+0x3CF8(SB)/8, $15796
+DATA bitrev_size16384_radix4_f64<>+0x3D00(SB)/8, $692
+DATA bitrev_size16384_radix4_f64<>+0x3D08(SB)/8, $4788
+DATA bitrev_size16384_radix4_f64<>+0x3D10(SB)/8, $8884
+DATA bitrev_size16384_radix4_f64<>+0x3D18(SB)/8, $12980
+DATA bitrev_size16384_radix4_f64<>+0x3D20(SB)/8, $1716
+DATA bitrev_size16384_radix4_f64<>+0x3D28(SB)/8, $5812
+DATA bitrev_size16384_radix4_f64<>+0x3D30(SB)/8, $9908
+DATA bitrev_size16384_radix4_f64<>+0x3D38(SB)/8, $14004
+DATA bitrev_size16384_radix4_f64<>+0x3D40(SB)/8, $2740
+DATA bitrev_size16384_radix4_f64<>+0x3D48(SB)/8, $6836
+DATA bitrev_size16384_radix4_f64<>+0x3D50(SB)/8, $10932
+DATA bitrev_size16384_radix4_f64<>+0x3D58(SB)/8, $15028
+DATA bitrev_size16384_radix4_f64<>+0x3D60(SB)/8, $3764
+DATA bitrev_size16384_radix4_f64<>+0x3D68(SB)/8, $7860
+DATA bitrev_size16384_radix4_f64<>+0x3D70(SB)/8, $11956
+DATA bitrev_size16384_radix4_f64<>+0x3D78(SB)/8, $16052
+DATA bitrev_size16384_radix4_f64<>+0x3D80(SB)/8, $948
+DATA bitrev_size16384_radix4_f64<>+0x3D88(SB)/8, $5044
+DATA bitrev_size16384_radix4_f64<>+0x3D90(SB)/8, $9140
+DATA bitrev_size16384_radix4_f64<>+0x3D98(SB)/8, $13236
+DATA bitrev_size16384_radix4_f64<>+0x3DA0(SB)/8, $1972
+DATA bitrev_size16384_radix4_f64<>+0x3DA8(SB)/8, $6068
+DATA bitrev_size16384_radix4_f64<>+0x3DB0(SB)/8, $10164
+DATA bitrev_size16384_radix4_f64<>+0x3DB8(SB)/8, $14260
+DATA bitrev_size16384_radix4_f64<>+0x3DC0(SB)/8, $2996
+DATA bitrev_size16384_radix4_f64<>+0x3DC8(SB)/8, $7092
+DATA bitrev_size16384_radix4_f64<>+0x3DD0(SB)/8, $11188
+DATA bitrev_size16384_radix4_f64<>+0x3DD8(SB)/8, $15284
+DATA bitrev_size16384_radix4_f64<>+0x3DE0(SB)/8, $4020
+DATA bitrev_size16384_radix4_f64<>+0x3DE8(SB)/8, $8116
+DATA bitrev_size16384_radix4_f64<>+0x3DF0(SB)/8, $12212
+DATA bitrev_size16384_radix4_f64<>+0x3DF8(SB)/8, $16308
+DATA bitrev_size16384_radix4_f64<>+0x3E00(SB)/8, $244
+DATA bitrev_size16384_radix4_f64<>+0x3E08(SB)/8, $4340
+DATA bitrev_size16384_radix4_f64<>+0x3E10(SB)/8, $8436
+DATA bitrev_size16384_radix4_f64<>+0x3E18(SB)/8, $12532
+DATA bitrev_size16384_radix4_f64<>+0x3E20(SB)/8, $1268
+DATA bitrev_size16384_radix4_f64<>+0x3E28(SB)/8, $5364
+DATA bitrev_size16384_radix4_f64<>+0x3E30(SB)/8, $9460
+DATA bitrev_size16384_radix4_f64<>+0x3E38(SB)/8, $13556
+DATA bitrev_size16384_radix4_f64<>+0x3E40(SB)/8, $2292
+DATA bitrev_size16384_radix4_f64<>+0x3E48(SB)/8, $6388
+DATA bitrev_size16384_radix4_f64<>+0x3E50(SB)/8, $10484
+DATA bitrev_size16384_radix4_f64<>+0x3E58(SB)/8, $14580
+DATA bitrev_size16384_radix4_f64<>+0x3E60(SB)/8, $3316
+DATA bitrev_size16384_radix4_f64<>+0x3E68(SB)/8, $7412
+DATA bitrev_size16384_radix4_f64<>+0x3E70(SB)/8, $11508
+DATA bitrev_size16384_radix4_f64<>+0x3E78(SB)/8, $15604
+DATA bitrev_size16384_radix4_f64<>+0x3E80(SB)/8, $500
+DATA bitrev_size16384_radix4_f64<>+0x3E88(SB)/8, $4596
+DATA bitrev_size16384_radix4_f64<>+0x3E90(SB)/8, $8692
+DATA bitrev_size16384_radix4_f64<>+0x3E98(SB)/8, $12788
+DATA bitrev_size16384_radix4_f64<>+0x3EA0(SB)/8, $1524
+DATA bitrev_size16384_radix4_f64<>+0x3EA8(SB)/8, $5620
+DATA bitrev_size16384_radix4_f64<>+0x3EB0(SB)/8, $9716
+DATA bitrev_size16384_radix4_f64<>+0x3EB8(SB)/8, $13812
+DATA bitrev_size16384_radix4_f64<>+0x3EC0(SB)/8, $2548
+DATA bitrev_size16384_radix4_f64<>+0x3EC8(SB)/8, $6644
+DATA bitrev_size16384_radix4_f64<>+0x3ED0(SB)/8, $10740
+DATA bitrev_size16384_radix4_f64<>+0x3ED8(SB)/8, $14836
+DATA bitrev_size16384_radix4_f64<>+0x3EE0(SB)/8, $3572
+DATA bitrev_size16384_radix4_f64<>+0x3EE8(SB)/8, $7668
+DATA bitrev_size16384_radix4_f64<>+0x3EF0(SB)/8, $11764
+DATA bitrev_size16384_radix4_f64<>+0x3EF8(SB)/8, $15860
+DATA bitrev_size16384_radix4_f64<>+0x3F00(SB)/8, $756
+DATA bitrev_size16384_radix4_f64<>+0x3F08(SB)/8, $4852
+DATA bitrev_size16384_radix4_f64<>+0x3F10(SB)/8, $8948
+DATA bitrev_size16384_radix4_f64<>+0x3F18(SB)/8, $13044
+DATA bitrev_size16384_radix4_f64<>+0x3F20(SB)/8, $1780
+DATA bitrev_size16384_radix4_f64<>+0x3F28(SB)/8, $5876
+DATA bitrev_size16384_radix4_f64<>+0x3F30(SB)/8, $9972
+DATA bitrev_size16384_radix4_f64<>+0x3F38(SB)/8, $14068
+DATA bitrev_size16384_radix4_f64<>+0x3F40(SB)/8, $2804
+DATA bitrev_size16384_radix4_f64<>+0x3F48(SB)/8, $6900
+DATA bitrev_size16384_radix4_f64<>+0x3F50(SB)/8, $10996
+DATA bitrev_size16384_radix4_f64<>+0x3F58(SB)/8, $15092
+DATA bitrev_size16384_radix4_f64<>+0x3F60(SB)/8, $3828
+DATA bitrev_size16384_radix4_f64<>+0x3F68(SB)/8, $7924
+DATA bitrev_size16384_radix4_f64<>+0x3F70(SB)/8, $12020
+DATA bitrev_size16384_radix4_f64<>+0x3F78(SB)/8, $16116
+DATA bitrev_size16384_radix4_f64<>+0x3F80(SB)/8, $1012
+DATA bitrev_size16384_radix4_f64<>+0x3F88(SB)/8, $5108
+DATA bitrev_size16384_radix4_f64<>+0x3F90(SB)/8, $9204
+DATA bitrev_size16384_radix4_f64<>+0x3F98(SB)/8, $13300
+DATA bitrev_size16384_radix4_f64<>+0x3FA0(SB)/8, $2036
+DATA bitrev_size16384_radix4_f64<>+0x3FA8(SB)/8, $6132
+DATA bitrev_size16384_radix4_f64<>+0x3FB0(SB)/8, $10228
+DATA bitrev_size16384_radix4_f64<>+0x3FB8(SB)/8, $14324
+DATA bitrev_size16384_radix4_f64<>+0x3FC0(SB)/8, $3060
+DATA bitrev_size16384_radix4_f64<>+0x3FC8(SB)/8, $7156
+DATA bitrev_size16384_radix4_f64<>+0x3FD0(SB)/8, $11252
+DATA bitrev_size16384_radix4_f64<>+0x3FD8(SB)/8, $15348
+DATA bitrev_size16384_radix4_f64<>+0x3FE0(SB)/8, $4084
+DATA bitrev_size16384_radix4_f64<>+0x3FE8(SB)/8, $8180
+DATA bitrev_size16384_radix4_f64<>+0x3FF0(SB)/8, $12276
+DATA bitrev_size16384_radix4_f64<>+0x3FF8(SB)/8, $16372
+DATA bitrev_size16384_radix4_f64<>+0x4000(SB)/8, $8
+DATA bitrev_size16384_radix4_f64<>+0x4008(SB)/8, $4104
+DATA bitrev_size16384_radix4_f64<>+0x4010(SB)/8, $8200
+DATA bitrev_size16384_radix4_f64<>+0x4018(SB)/8, $12296
+DATA bitrev_size16384_radix4_f64<>+0x4020(SB)/8, $1032
+DATA bitrev_size16384_radix4_f64<>+0x4028(SB)/8, $5128
+DATA bitrev_size16384_radix4_f64<>+0x4030(SB)/8, $9224
+DATA bitrev_size16384_radix4_f64<>+0x4038(SB)/8, $13320
+DATA bitrev_size16384_radix4_f64<>+0x4040(SB)/8, $2056
+DATA bitrev_size16384_radix4_f64<>+0x4048(SB)/8, $6152
+DATA bitrev_size16384_radix4_f64<>+0x4050(SB)/8, $10248
+DATA bitrev_size16384_radix4_f64<>+0x4058(SB)/8, $14344
+DATA bitrev_size16384_radix4_f64<>+0x4060(SB)/8, $3080
+DATA bitrev_size16384_radix4_f64<>+0x4068(SB)/8, $7176
+DATA bitrev_size16384_radix4_f64<>+0x4070(SB)/8, $11272
+DATA bitrev_size16384_radix4_f64<>+0x4078(SB)/8, $15368
+DATA bitrev_size16384_radix4_f64<>+0x4080(SB)/8, $264
+DATA bitrev_size16384_radix4_f64<>+0x4088(SB)/8, $4360
+DATA bitrev_size16384_radix4_f64<>+0x4090(SB)/8, $8456
+DATA bitrev_size16384_radix4_f64<>+0x4098(SB)/8, $12552
+DATA bitrev_size16384_radix4_f64<>+0x40A0(SB)/8, $1288
+DATA bitrev_size16384_radix4_f64<>+0x40A8(SB)/8, $5384
+DATA bitrev_size16384_radix4_f64<>+0x40B0(SB)/8, $9480
+DATA bitrev_size16384_radix4_f64<>+0x40B8(SB)/8, $13576
+DATA bitrev_size16384_radix4_f64<>+0x40C0(SB)/8, $2312
+DATA bitrev_size16384_radix4_f64<>+0x40C8(SB)/8, $6408
+DATA bitrev_size16384_radix4_f64<>+0x40D0(SB)/8, $10504
+DATA bitrev_size16384_radix4_f64<>+0x40D8(SB)/8, $14600
+DATA bitrev_size16384_radix4_f64<>+0x40E0(SB)/8, $3336
+DATA bitrev_size16384_radix4_f64<>+0x40E8(SB)/8, $7432
+DATA bitrev_size16384_radix4_f64<>+0x40F0(SB)/8, $11528
+DATA bitrev_size16384_radix4_f64<>+0x40F8(SB)/8, $15624
+DATA bitrev_size16384_radix4_f64<>+0x4100(SB)/8, $520
+DATA bitrev_size16384_radix4_f64<>+0x4108(SB)/8, $4616
+DATA bitrev_size16384_radix4_f64<>+0x4110(SB)/8, $8712
+DATA bitrev_size16384_radix4_f64<>+0x4118(SB)/8, $12808
+DATA bitrev_size16384_radix4_f64<>+0x4120(SB)/8, $1544
+DATA bitrev_size16384_radix4_f64<>+0x4128(SB)/8, $5640
+DATA bitrev_size16384_radix4_f64<>+0x4130(SB)/8, $9736
+DATA bitrev_size16384_radix4_f64<>+0x4138(SB)/8, $13832
+DATA bitrev_size16384_radix4_f64<>+0x4140(SB)/8, $2568
+DATA bitrev_size16384_radix4_f64<>+0x4148(SB)/8, $6664
+DATA bitrev_size16384_radix4_f64<>+0x4150(SB)/8, $10760
+DATA bitrev_size16384_radix4_f64<>+0x4158(SB)/8, $14856
+DATA bitrev_size16384_radix4_f64<>+0x4160(SB)/8, $3592
+DATA bitrev_size16384_radix4_f64<>+0x4168(SB)/8, $7688
+DATA bitrev_size16384_radix4_f64<>+0x4170(SB)/8, $11784
+DATA bitrev_size16384_radix4_f64<>+0x4178(SB)/8, $15880
+DATA bitrev_size16384_radix4_f64<>+0x4180(SB)/8, $776
+DATA bitrev_size16384_radix4_f64<>+0x4188(SB)/8, $4872
+DATA bitrev_size16384_radix4_f64<>+0x4190(SB)/8, $8968
+DATA bitrev_size16384_radix4_f64<>+0x4198(SB)/8, $13064
+DATA bitrev_size16384_radix4_f64<>+0x41A0(SB)/8, $1800
+DATA bitrev_size16384_radix4_f64<>+0x41A8(SB)/8, $5896
+DATA bitrev_size16384_radix4_f64<>+0x41B0(SB)/8, $9992
+DATA bitrev_size16384_radix4_f64<>+0x41B8(SB)/8, $14088
+DATA bitrev_size16384_radix4_f64<>+0x41C0(SB)/8, $2824
+DATA bitrev_size16384_radix4_f64<>+0x41C8(SB)/8, $6920
+DATA bitrev_size16384_radix4_f64<>+0x41D0(SB)/8, $11016
+DATA bitrev_size16384_radix4_f64<>+0x41D8(SB)/8, $15112
+DATA bitrev_size16384_radix4_f64<>+0x41E0(SB)/8, $3848
+DATA bitrev_size16384_radix4_f64<>+0x41E8(SB)/8, $7944
+DATA bitrev_size16384_radix4_f64<>+0x41F0(SB)/8, $12040
+DATA bitrev_size16384_radix4_f64<>+0x41F8(SB)/8, $16136
+DATA bitrev_size16384_radix4_f64<>+0x4200(SB)/8, $72
+DATA bitrev_size16384_radix4_f64<>+0x4208(SB)/8, $4168
+DATA bitrev_size16384_radix4_f64<>+0x4210(SB)/8, $8264
+DATA bitrev_size16384_radix4_f64<>+0x4218(SB)/8, $12360
+DATA bitrev_size16384_radix4_f64<>+0x4220(SB)/8, $1096
+DATA bitrev_size16384_radix4_f64<>+0x4228(SB)/8, $5192
+DATA bitrev_size16384_radix4_f64<>+0x4230(SB)/8, $9288
+DATA bitrev_size16384_radix4_f64<>+0x4238(SB)/8, $13384
+DATA bitrev_size16384_radix4_f64<>+0x4240(SB)/8, $2120
+DATA bitrev_size16384_radix4_f64<>+0x4248(SB)/8, $6216
+DATA bitrev_size16384_radix4_f64<>+0x4250(SB)/8, $10312
+DATA bitrev_size16384_radix4_f64<>+0x4258(SB)/8, $14408
+DATA bitrev_size16384_radix4_f64<>+0x4260(SB)/8, $3144
+DATA bitrev_size16384_radix4_f64<>+0x4268(SB)/8, $7240
+DATA bitrev_size16384_radix4_f64<>+0x4270(SB)/8, $11336
+DATA bitrev_size16384_radix4_f64<>+0x4278(SB)/8, $15432
+DATA bitrev_size16384_radix4_f64<>+0x4280(SB)/8, $328
+DATA bitrev_size16384_radix4_f64<>+0x4288(SB)/8, $4424
+DATA bitrev_size16384_radix4_f64<>+0x4290(SB)/8, $8520
+DATA bitrev_size16384_radix4_f64<>+0x4298(SB)/8, $12616
+DATA bitrev_size16384_radix4_f64<>+0x42A0(SB)/8, $1352
+DATA bitrev_size16384_radix4_f64<>+0x42A8(SB)/8, $5448
+DATA bitrev_size16384_radix4_f64<>+0x42B0(SB)/8, $9544
+DATA bitrev_size16384_radix4_f64<>+0x42B8(SB)/8, $13640
+DATA bitrev_size16384_radix4_f64<>+0x42C0(SB)/8, $2376
+DATA bitrev_size16384_radix4_f64<>+0x42C8(SB)/8, $6472
+DATA bitrev_size16384_radix4_f64<>+0x42D0(SB)/8, $10568
+DATA bitrev_size16384_radix4_f64<>+0x42D8(SB)/8, $14664
+DATA bitrev_size16384_radix4_f64<>+0x42E0(SB)/8, $3400
+DATA bitrev_size16384_radix4_f64<>+0x42E8(SB)/8, $7496
+DATA bitrev_size16384_radix4_f64<>+0x42F0(SB)/8, $11592
+DATA bitrev_size16384_radix4_f64<>+0x42F8(SB)/8, $15688
+DATA bitrev_size16384_radix4_f64<>+0x4300(SB)/8, $584
+DATA bitrev_size16384_radix4_f64<>+0x4308(SB)/8, $4680
+DATA bitrev_size16384_radix4_f64<>+0x4310(SB)/8, $8776
+DATA bitrev_size16384_radix4_f64<>+0x4318(SB)/8, $12872
+DATA bitrev_size16384_radix4_f64<>+0x4320(SB)/8, $1608
+DATA bitrev_size16384_radix4_f64<>+0x4328(SB)/8, $5704
+DATA bitrev_size16384_radix4_f64<>+0x4330(SB)/8, $9800
+DATA bitrev_size16384_radix4_f64<>+0x4338(SB)/8, $13896
+DATA bitrev_size16384_radix4_f64<>+0x4340(SB)/8, $2632
+DATA bitrev_size16384_radix4_f64<>+0x4348(SB)/8, $6728
+DATA bitrev_size16384_radix4_f64<>+0x4350(SB)/8, $10824
+DATA bitrev_size16384_radix4_f64<>+0x4358(SB)/8, $14920
+DATA bitrev_size16384_radix4_f64<>+0x4360(SB)/8, $3656
+DATA bitrev_size16384_radix4_f64<>+0x4368(SB)/8, $7752
+DATA bitrev_size16384_radix4_f64<>+0x4370(SB)/8, $11848
+DATA bitrev_size16384_radix4_f64<>+0x4378(SB)/8, $15944
+DATA bitrev_size16384_radix4_f64<>+0x4380(SB)/8, $840
+DATA bitrev_size16384_radix4_f64<>+0x4388(SB)/8, $4936
+DATA bitrev_size16384_radix4_f64<>+0x4390(SB)/8, $9032
+DATA bitrev_size16384_radix4_f64<>+0x4398(SB)/8, $13128
+DATA bitrev_size16384_radix4_f64<>+0x43A0(SB)/8, $1864
+DATA bitrev_size16384_radix4_f64<>+0x43A8(SB)/8, $5960
+DATA bitrev_size16384_radix4_f64<>+0x43B0(SB)/8, $10056
+DATA bitrev_size16384_radix4_f64<>+0x43B8(SB)/8, $14152
+DATA bitrev_size16384_radix4_f64<>+0x43C0(SB)/8, $2888
+DATA bitrev_size16384_radix4_f64<>+0x43C8(SB)/8, $6984
+DATA bitrev_size16384_radix4_f64<>+0x43D0(SB)/8, $11080
+DATA bitrev_size16384_radix4_f64<>+0x43D8(SB)/8, $15176
+DATA bitrev_size16384_radix4_f64<>+0x43E0(SB)/8, $3912
+DATA bitrev_size16384_radix4_f64<>+0x43E8(SB)/8, $8008
+DATA bitrev_size16384_radix4_f64<>+0x43F0(SB)/8, $12104
+DATA bitrev_size16384_radix4_f64<>+0x43F8(SB)/8, $16200
+DATA bitrev_size16384_radix4_f64<>+0x4400(SB)/8, $136
+DATA bitrev_size16384_radix4_f64<>+0x4408(SB)/8, $4232
+DATA bitrev_size16384_radix4_f64<>+0x4410(SB)/8, $8328
+DATA bitrev_size16384_radix4_f64<>+0x4418(SB)/8, $12424
+DATA bitrev_size16384_radix4_f64<>+0x4420(SB)/8, $1160
+DATA bitrev_size16384_radix4_f64<>+0x4428(SB)/8, $5256
+DATA bitrev_size16384_radix4_f64<>+0x4430(SB)/8, $9352
+DATA bitrev_size16384_radix4_f64<>+0x4438(SB)/8, $13448
+DATA bitrev_size16384_radix4_f64<>+0x4440(SB)/8, $2184
+DATA bitrev_size16384_radix4_f64<>+0x4448(SB)/8, $6280
+DATA bitrev_size16384_radix4_f64<>+0x4450(SB)/8, $10376
+DATA bitrev_size16384_radix4_f64<>+0x4458(SB)/8, $14472
+DATA bitrev_size16384_radix4_f64<>+0x4460(SB)/8, $3208
+DATA bitrev_size16384_radix4_f64<>+0x4468(SB)/8, $7304
+DATA bitrev_size16384_radix4_f64<>+0x4470(SB)/8, $11400
+DATA bitrev_size16384_radix4_f64<>+0x4478(SB)/8, $15496
+DATA bitrev_size16384_radix4_f64<>+0x4480(SB)/8, $392
+DATA bitrev_size16384_radix4_f64<>+0x4488(SB)/8, $4488
+DATA bitrev_size16384_radix4_f64<>+0x4490(SB)/8, $8584
+DATA bitrev_size16384_radix4_f64<>+0x4498(SB)/8, $12680
+DATA bitrev_size16384_radix4_f64<>+0x44A0(SB)/8, $1416
+DATA bitrev_size16384_radix4_f64<>+0x44A8(SB)/8, $5512
+DATA bitrev_size16384_radix4_f64<>+0x44B0(SB)/8, $9608
+DATA bitrev_size16384_radix4_f64<>+0x44B8(SB)/8, $13704
+DATA bitrev_size16384_radix4_f64<>+0x44C0(SB)/8, $2440
+DATA bitrev_size16384_radix4_f64<>+0x44C8(SB)/8, $6536
+DATA bitrev_size16384_radix4_f64<>+0x44D0(SB)/8, $10632
+DATA bitrev_size16384_radix4_f64<>+0x44D8(SB)/8, $14728
+DATA bitrev_size16384_radix4_f64<>+0x44E0(SB)/8, $3464
+DATA bitrev_size16384_radix4_f64<>+0x44E8(SB)/8, $7560
+DATA bitrev_size16384_radix4_f64<>+0x44F0(SB)/8, $11656
+DATA bitrev_size16384_radix4_f64<>+0x44F8(SB)/8, $15752
+DATA bitrev_size16384_radix4_f64<>+0x4500(SB)/8, $648
+DATA bitrev_size16384_radix4_f64<>+0x4508(SB)/8, $4744
+DATA bitrev_size16384_radix4_f64<>+0x4510(SB)/8, $8840
+DATA bitrev_size16384_radix4_f64<>+0x4518(SB)/8, $12936
+DATA bitrev_size16384_radix4_f64<>+0x4520(SB)/8, $1672
+DATA bitrev_size16384_radix4_f64<>+0x4528(SB)/8, $5768
+DATA bitrev_size16384_radix4_f64<>+0x4530(SB)/8, $9864
+DATA bitrev_size16384_radix4_f64<>+0x4538(SB)/8, $13960
+DATA bitrev_size16384_radix4_f64<>+0x4540(SB)/8, $2696
+DATA bitrev_size16384_radix4_f64<>+0x4548(SB)/8, $6792
+DATA bitrev_size16384_radix4_f64<>+0x4550(SB)/8, $10888
+DATA bitrev_size16384_radix4_f64<>+0x4558(SB)/8, $14984
+DATA bitrev_size16384_radix4_f64<>+0x4560(SB)/8, $3720
+DATA bitrev_size16384_radix4_f64<>+0x4568(SB)/8, $7816
+DATA bitrev_size16384_radix4_f64<>+0x4570(SB)/8, $11912
+DATA bitrev_size16384_radix4_f64<>+0x4578(SB)/8, $16008
+DATA bitrev_size16384_radix4_f64<>+0x4580(SB)/8, $904
+DATA bitrev_size16384_radix4_f64<>+0x4588(SB)/8, $5000
+DATA bitrev_size16384_radix4_f64<>+0x4590(SB)/8, $9096
+DATA bitrev_size16384_radix4_f64<>+0x4598(SB)/8, $13192
+DATA bitrev_size16384_radix4_f64<>+0x45A0(SB)/8, $1928
+DATA bitrev_size16384_radix4_f64<>+0x45A8(SB)/8, $6024
+DATA bitrev_size16384_radix4_f64<>+0x45B0(SB)/8, $10120
+DATA bitrev_size16384_radix4_f64<>+0x45B8(SB)/8, $14216
+DATA bitrev_size16384_radix4_f64<>+0x45C0(SB)/8, $2952
+DATA bitrev_size16384_radix4_f64<>+0x45C8(SB)/8, $7048
+DATA bitrev_size16384_radix4_f64<>+0x45D0(SB)/8, $11144
+DATA bitrev_size16384_radix4_f64<>+0x45D8(SB)/8, $15240
+DATA bitrev_size16384_radix4_f64<>+0x45E0(SB)/8, $3976
+DATA bitrev_size16384_radix4_f64<>+0x45E8(SB)/8, $8072
+DATA bitrev_size16384_radix4_f64<>+0x45F0(SB)/8, $12168
+DATA bitrev_size16384_radix4_f64<>+0x45F8(SB)/8, $16264
+DATA bitrev_size16384_radix4_f64<>+0x4600(SB)/8, $200
+DATA bitrev_size16384_radix4_f64<>+0x4608(SB)/8, $4296
+DATA bitrev_size16384_radix4_f64<>+0x4610(SB)/8, $8392
+DATA bitrev_size16384_radix4_f64<>+0x4618(SB)/8, $12488
+DATA bitrev_size16384_radix4_f64<>+0x4620(SB)/8, $1224
+DATA bitrev_size16384_radix4_f64<>+0x4628(SB)/8, $5320
+DATA bitrev_size16384_radix4_f64<>+0x4630(SB)/8, $9416
+DATA bitrev_size16384_radix4_f64<>+0x4638(SB)/8, $13512
+DATA bitrev_size16384_radix4_f64<>+0x4640(SB)/8, $2248
+DATA bitrev_size16384_radix4_f64<>+0x4648(SB)/8, $6344
+DATA bitrev_size16384_radix4_f64<>+0x4650(SB)/8, $10440
+DATA bitrev_size16384_radix4_f64<>+0x4658(SB)/8, $14536
+DATA bitrev_size16384_radix4_f64<>+0x4660(SB)/8, $3272
+DATA bitrev_size16384_radix4_f64<>+0x4668(SB)/8, $7368
+DATA bitrev_size16384_radix4_f64<>+0x4670(SB)/8, $11464
+DATA bitrev_size16384_radix4_f64<>+0x4678(SB)/8, $15560
+DATA bitrev_size16384_radix4_f64<>+0x4680(SB)/8, $456
+DATA bitrev_size16384_radix4_f64<>+0x4688(SB)/8, $4552
+DATA bitrev_size16384_radix4_f64<>+0x4690(SB)/8, $8648
+DATA bitrev_size16384_radix4_f64<>+0x4698(SB)/8, $12744
+DATA bitrev_size16384_radix4_f64<>+0x46A0(SB)/8, $1480
+DATA bitrev_size16384_radix4_f64<>+0x46A8(SB)/8, $5576
+DATA bitrev_size16384_radix4_f64<>+0x46B0(SB)/8, $9672
+DATA bitrev_size16384_radix4_f64<>+0x46B8(SB)/8, $13768
+DATA bitrev_size16384_radix4_f64<>+0x46C0(SB)/8, $2504
+DATA bitrev_size16384_radix4_f64<>+0x46C8(SB)/8, $6600
+DATA bitrev_size16384_radix4_f64<>+0x46D0(SB)/8, $10696
+DATA bitrev_size16384_radix4_f64<>+0x46D8(SB)/8, $14792
+DATA bitrev_size16384_radix4_f64<>+0x46E0(SB)/8, $3528
+DATA bitrev_size16384_radix4_f64<>+0x46E8(SB)/8, $7624
+DATA bitrev_size16384_radix4_f64<>+0x46F0(SB)/8, $11720
+DATA bitrev_size16384_radix4_f64<>+0x46F8(SB)/8, $15816
+DATA bitrev_size16384_radix4_f64<>+0x4700(SB)/8, $712
+DATA bitrev_size16384_radix4_f64<>+0x4708(SB)/8, $4808
+DATA bitrev_size16384_radix4_f64<>+0x4710(SB)/8, $8904
+DATA bitrev_size16384_radix4_f64<>+0x4718(SB)/8, $13000
+DATA bitrev_size16384_radix4_f64<>+0x4720(SB)/8, $1736
+DATA bitrev_size16384_radix4_f64<>+0x4728(SB)/8, $5832
+DATA bitrev_size16384_radix4_f64<>+0x4730(SB)/8, $9928
+DATA bitrev_size16384_radix4_f64<>+0x4738(SB)/8, $14024
+DATA bitrev_size16384_radix4_f64<>+0x4740(SB)/8, $2760
+DATA bitrev_size16384_radix4_f64<>+0x4748(SB)/8, $6856
+DATA bitrev_size16384_radix4_f64<>+0x4750(SB)/8, $10952
+DATA bitrev_size16384_radix4_f64<>+0x4758(SB)/8, $15048
+DATA bitrev_size16384_radix4_f64<>+0x4760(SB)/8, $3784
+DATA bitrev_size16384_radix4_f64<>+0x4768(SB)/8, $7880
+DATA bitrev_size16384_radix4_f64<>+0x4770(SB)/8, $11976
+DATA bitrev_size16384_radix4_f64<>+0x4778(SB)/8, $16072
+DATA bitrev_size16384_radix4_f64<>+0x4780(SB)/8, $968
+DATA bitrev_size16384_radix4_f64<>+0x4788(SB)/8, $5064
+DATA bitrev_size16384_radix4_f64<>+0x4790(SB)/8, $9160
+DATA bitrev_size16384_radix4_f64<>+0x4798(SB)/8, $13256
+DATA bitrev_size16384_radix4_f64<>+0x47A0(SB)/8, $1992
+DATA bitrev_size16384_radix4_f64<>+0x47A8(SB)/8, $6088
+DATA bitrev_size16384_radix4_f64<>+0x47B0(SB)/8, $10184
+DATA bitrev_size16384_radix4_f64<>+0x47B8(SB)/8, $14280
+DATA bitrev_size16384_radix4_f64<>+0x47C0(SB)/8, $3016
+DATA bitrev_size16384_radix4_f64<>+0x47C8(SB)/8, $7112
+DATA bitrev_size16384_radix4_f64<>+0x47D0(SB)/8, $11208
+DATA bitrev_size16384_radix4_f64<>+0x47D8(SB)/8, $15304
+DATA bitrev_size16384_radix4_f64<>+0x47E0(SB)/8, $4040
+DATA bitrev_size16384_radix4_f64<>+0x47E8(SB)/8, $8136
+DATA bitrev_size16384_radix4_f64<>+0x47F0(SB)/8, $12232
+DATA bitrev_size16384_radix4_f64<>+0x47F8(SB)/8, $16328
+DATA bitrev_size16384_radix4_f64<>+0x4800(SB)/8, $24
+DATA bitrev_size16384_radix4_f64<>+0x4808(SB)/8, $4120
+DATA bitrev_size16384_radix4_f64<>+0x4810(SB)/8, $8216
+DATA bitrev_size16384_radix4_f64<>+0x4818(SB)/8, $12312
+DATA bitrev_size16384_radix4_f64<>+0x4820(SB)/8, $1048
+DATA bitrev_size16384_radix4_f64<>+0x4828(SB)/8, $5144
+DATA bitrev_size16384_radix4_f64<>+0x4830(SB)/8, $9240
+DATA bitrev_size16384_radix4_f64<>+0x4838(SB)/8, $13336
+DATA bitrev_size16384_radix4_f64<>+0x4840(SB)/8, $2072
+DATA bitrev_size16384_radix4_f64<>+0x4848(SB)/8, $6168
+DATA bitrev_size16384_radix4_f64<>+0x4850(SB)/8, $10264
+DATA bitrev_size16384_radix4_f64<>+0x4858(SB)/8, $14360
+DATA bitrev_size16384_radix4_f64<>+0x4860(SB)/8, $3096
+DATA bitrev_size16384_radix4_f64<>+0x4868(SB)/8, $7192
+DATA bitrev_size16384_radix4_f64<>+0x4870(SB)/8, $11288
+DATA bitrev_size16384_radix4_f64<>+0x4878(SB)/8, $15384
+DATA bitrev_size16384_radix4_f64<>+0x4880(SB)/8, $280
+DATA bitrev_size16384_radix4_f64<>+0x4888(SB)/8, $4376
+DATA bitrev_size16384_radix4_f64<>+0x4890(SB)/8, $8472
+DATA bitrev_size16384_radix4_f64<>+0x4898(SB)/8, $12568
+DATA bitrev_size16384_radix4_f64<>+0x48A0(SB)/8, $1304
+DATA bitrev_size16384_radix4_f64<>+0x48A8(SB)/8, $5400
+DATA bitrev_size16384_radix4_f64<>+0x48B0(SB)/8, $9496
+DATA bitrev_size16384_radix4_f64<>+0x48B8(SB)/8, $13592
+DATA bitrev_size16384_radix4_f64<>+0x48C0(SB)/8, $2328
+DATA bitrev_size16384_radix4_f64<>+0x48C8(SB)/8, $6424
+DATA bitrev_size16384_radix4_f64<>+0x48D0(SB)/8, $10520
+DATA bitrev_size16384_radix4_f64<>+0x48D8(SB)/8, $14616
+DATA bitrev_size16384_radix4_f64<>+0x48E0(SB)/8, $3352
+DATA bitrev_size16384_radix4_f64<>+0x48E8(SB)/8, $7448
+DATA bitrev_size16384_radix4_f64<>+0x48F0(SB)/8, $11544
+DATA bitrev_size16384_radix4_f64<>+0x48F8(SB)/8, $15640
+DATA bitrev_size16384_radix4_f64<>+0x4900(SB)/8, $536
+DATA bitrev_size16384_radix4_f64<>+0x4908(SB)/8, $4632
+DATA bitrev_size16384_radix4_f64<>+0x4910(SB)/8, $8728
+DATA bitrev_size16384_radix4_f64<>+0x4918(SB)/8, $12824
+DATA bitrev_size16384_radix4_f64<>+0x4920(SB)/8, $1560
+DATA bitrev_size16384_radix4_f64<>+0x4928(SB)/8, $5656
+DATA bitrev_size16384_radix4_f64<>+0x4930(SB)/8, $9752
+DATA bitrev_size16384_radix4_f64<>+0x4938(SB)/8, $13848
+DATA bitrev_size16384_radix4_f64<>+0x4940(SB)/8, $2584
+DATA bitrev_size16384_radix4_f64<>+0x4948(SB)/8, $6680
+DATA bitrev_size16384_radix4_f64<>+0x4950(SB)/8, $10776
+DATA bitrev_size16384_radix4_f64<>+0x4958(SB)/8, $14872
+DATA bitrev_size16384_radix4_f64<>+0x4960(SB)/8, $3608
+DATA bitrev_size16384_radix4_f64<>+0x4968(SB)/8, $7704
+DATA bitrev_size16384_radix4_f64<>+0x4970(SB)/8, $11800
+DATA bitrev_size16384_radix4_f64<>+0x4978(SB)/8, $15896
+DATA bitrev_size16384_radix4_f64<>+0x4980(SB)/8, $792
+DATA bitrev_size16384_radix4_f64<>+0x4988(SB)/8, $4888
+DATA bitrev_size16384_radix4_f64<>+0x4990(SB)/8, $8984
+DATA bitrev_size16384_radix4_f64<>+0x4998(SB)/8, $13080
+DATA bitrev_size16384_radix4_f64<>+0x49A0(SB)/8, $1816
+DATA bitrev_size16384_radix4_f64<>+0x49A8(SB)/8, $5912
+DATA bitrev_size16384_radix4_f64<>+0x49B0(SB)/8, $10008
+DATA bitrev_size16384_radix4_f64<>+0x49B8(SB)/8, $14104
+DATA bitrev_size16384_radix4_f64<>+0x49C0(SB)/8, $2840
+DATA bitrev_size16384_radix4_f64<>+0x49C8(SB)/8, $6936
+DATA bitrev_size16384_radix4_f64<>+0x49D0(SB)/8, $11032
+DATA bitrev_size16384_radix4_f64<>+0x49D8(SB)/8, $15128
+DATA bitrev_size16384_radix4_f64<>+0x49E0(SB)/8, $3864
+DATA bitrev_size16384_radix4_f64<>+0x49E8(SB)/8, $7960
+DATA bitrev_size16384_radix4_f64<>+0x49F0(SB)/8, $12056
+DATA bitrev_size16384_radix4_f64<>+0x49F8(SB)/8, $16152
+DATA bitrev_size16384_radix4_f64<>+0x4A00(SB)/8, $88
+DATA bitrev_size16384_radix4_f64<>+0x4A08(SB)/8, $4184
+DATA bitrev_size16384_radix4_f64<>+0x4A10(SB)/8, $8280
+DATA bitrev_size16384_radix4_f64<>+0x4A18(SB)/8, $12376
+DATA bitrev_size16384_radix4_f64<>+0x4A20(SB)/8, $1112
+DATA bitrev_size16384_radix4_f64<>+0x4A28(SB)/8, $5208
+DATA bitrev_size16384_radix4_f64<>+0x4A30(SB)/8, $9304
+DATA bitrev_size16384_radix4_f64<>+0x4A38(SB)/8, $13400
+DATA bitrev_size16384_radix4_f64<>+0x4A40(SB)/8, $2136
+DATA bitrev_size16384_radix4_f64<>+0x4A48(SB)/8, $6232
+DATA bitrev_size16384_radix4_f64<>+0x4A50(SB)/8, $10328
+DATA bitrev_size16384_radix4_f64<>+0x4A58(SB)/8, $14424
+DATA bitrev_size16384_radix4_f64<>+0x4A60(SB)/8, $3160
+DATA bitrev_size16384_radix4_f64<>+0x4A68(SB)/8, $7256
+DATA bitrev_size16384_radix4_f64<>+0x4A70(SB)/8, $11352
+DATA bitrev_size16384_radix4_f64<>+0x4A78(SB)/8, $15448
+DATA bitrev_size16384_radix4_f64<>+0x4A80(SB)/8, $344
+DATA bitrev_size16384_radix4_f64<>+0x4A88(SB)/8, $4440
+DATA bitrev_size16384_radix4_f64<>+0x4A90(SB)/8, $8536
+DATA bitrev_size16384_radix4_f64<>+0x4A98(SB)/8, $12632
+DATA bitrev_size16384_radix4_f64<>+0x4AA0(SB)/8, $1368
+DATA bitrev_size16384_radix4_f64<>+0x4AA8(SB)/8, $5464
+DATA bitrev_size16384_radix4_f64<>+0x4AB0(SB)/8, $9560
+DATA bitrev_size16384_radix4_f64<>+0x4AB8(SB)/8, $13656
+DATA bitrev_size16384_radix4_f64<>+0x4AC0(SB)/8, $2392
+DATA bitrev_size16384_radix4_f64<>+0x4AC8(SB)/8, $6488
+DATA bitrev_size16384_radix4_f64<>+0x4AD0(SB)/8, $10584
+DATA bitrev_size16384_radix4_f64<>+0x4AD8(SB)/8, $14680
+DATA bitrev_size16384_radix4_f64<>+0x4AE0(SB)/8, $3416
+DATA bitrev_size16384_radix4_f64<>+0x4AE8(SB)/8, $7512
+DATA bitrev_size16384_radix4_f64<>+0x4AF0(SB)/8, $11608
+DATA bitrev_size16384_radix4_f64<>+0x4AF8(SB)/8, $15704
+DATA bitrev_size16384_radix4_f64<>+0x4B00(SB)/8, $600
+DATA bitrev_size16384_radix4_f64<>+0x4B08(SB)/8, $4696
+DATA bitrev_size16384_radix4_f64<>+0x4B10(SB)/8, $8792
+DATA bitrev_size16384_radix4_f64<>+0x4B18(SB)/8, $12888
+DATA bitrev_size16384_radix4_f64<>+0x4B20(SB)/8, $1624
+DATA bitrev_size16384_radix4_f64<>+0x4B28(SB)/8, $5720
+DATA bitrev_size16384_radix4_f64<>+0x4B30(SB)/8, $9816
+DATA bitrev_size16384_radix4_f64<>+0x4B38(SB)/8, $13912
+DATA bitrev_size16384_radix4_f64<>+0x4B40(SB)/8, $2648
+DATA bitrev_size16384_radix4_f64<>+0x4B48(SB)/8, $6744
+DATA bitrev_size16384_radix4_f64<>+0x4B50(SB)/8, $10840
+DATA bitrev_size16384_radix4_f64<>+0x4B58(SB)/8, $14936
+DATA bitrev_size16384_radix4_f64<>+0x4B60(SB)/8, $3672
+DATA bitrev_size16384_radix4_f64<>+0x4B68(SB)/8, $7768
+DATA bitrev_size16384_radix4_f64<>+0x4B70(SB)/8, $11864
+DATA bitrev_size16384_radix4_f64<>+0x4B78(SB)/8, $15960
+DATA bitrev_size16384_radix4_f64<>+0x4B80(SB)/8, $856
+DATA bitrev_size16384_radix4_f64<>+0x4B88(SB)/8, $4952
+DATA bitrev_size16384_radix4_f64<>+0x4B90(SB)/8, $9048
+DATA bitrev_size16384_radix4_f64<>+0x4B98(SB)/8, $13144
+DATA bitrev_size16384_radix4_f64<>+0x4BA0(SB)/8, $1880
+DATA bitrev_size16384_radix4_f64<>+0x4BA8(SB)/8, $5976
+DATA bitrev_size16384_radix4_f64<>+0x4BB0(SB)/8, $10072
+DATA bitrev_size16384_radix4_f64<>+0x4BB8(SB)/8, $14168
+DATA bitrev_size16384_radix4_f64<>+0x4BC0(SB)/8, $2904
+DATA bitrev_size16384_radix4_f64<>+0x4BC8(SB)/8, $7000
+DATA bitrev_size16384_radix4_f64<>+0x4BD0(SB)/8, $11096
+DATA bitrev_size16384_radix4_f64<>+0x4BD8(SB)/8, $15192
+DATA bitrev_size16384_radix4_f64<>+0x4BE0(SB)/8, $3928
+DATA bitrev_size16384_radix4_f64<>+0x4BE8(SB)/8, $8024
+DATA bitrev_size16384_radix4_f64<>+0x4BF0(SB)/8, $12120
+DATA bitrev_size16384_radix4_f64<>+0x4BF8(SB)/8, $16216
+DATA bitrev_size16384_radix4_f64<>+0x4C00(SB)/8, $152
+DATA bitrev_size16384_radix4_f64<>+0x4C08(SB)/8, $4248
+DATA bitrev_size16384_radix4_f64<>+0x4C10(SB)/8, $8344
+DATA bitrev_size16384_radix4_f64<>+0x4C18(SB)/8, $12440
+DATA bitrev_size16384_radix4_f64<>+0x4C20(SB)/8, $1176
+DATA bitrev_size16384_radix4_f64<>+0x4C28(SB)/8, $5272
+DATA bitrev_size16384_radix4_f64<>+0x4C30(SB)/8, $9368
+DATA bitrev_size16384_radix4_f64<>+0x4C38(SB)/8, $13464
+DATA bitrev_size16384_radix4_f64<>+0x4C40(SB)/8, $2200
+DATA bitrev_size16384_radix4_f64<>+0x4C48(SB)/8, $6296
+DATA bitrev_size16384_radix4_f64<>+0x4C50(SB)/8, $10392
+DATA bitrev_size16384_radix4_f64<>+0x4C58(SB)/8, $14488
+DATA bitrev_size16384_radix4_f64<>+0x4C60(SB)/8, $3224
+DATA bitrev_size16384_radix4_f64<>+0x4C68(SB)/8, $7320
+DATA bitrev_size16384_radix4_f64<>+0x4C70(SB)/8, $11416
+DATA bitrev_size16384_radix4_f64<>+0x4C78(SB)/8, $15512
+DATA bitrev_size16384_radix4_f64<>+0x4C80(SB)/8, $408
+DATA bitrev_size16384_radix4_f64<>+0x4C88(SB)/8, $4504
+DATA bitrev_size16384_radix4_f64<>+0x4C90(SB)/8, $8600
+DATA bitrev_size16384_radix4_f64<>+0x4C98(SB)/8, $12696
+DATA bitrev_size16384_radix4_f64<>+0x4CA0(SB)/8, $1432
+DATA bitrev_size16384_radix4_f64<>+0x4CA8(SB)/8, $5528
+DATA bitrev_size16384_radix4_f64<>+0x4CB0(SB)/8, $9624
+DATA bitrev_size16384_radix4_f64<>+0x4CB8(SB)/8, $13720
+DATA bitrev_size16384_radix4_f64<>+0x4CC0(SB)/8, $2456
+DATA bitrev_size16384_radix4_f64<>+0x4CC8(SB)/8, $6552
+DATA bitrev_size16384_radix4_f64<>+0x4CD0(SB)/8, $10648
+DATA bitrev_size16384_radix4_f64<>+0x4CD8(SB)/8, $14744
+DATA bitrev_size16384_radix4_f64<>+0x4CE0(SB)/8, $3480
+DATA bitrev_size16384_radix4_f64<>+0x4CE8(SB)/8, $7576
+DATA bitrev_size16384_radix4_f64<>+0x4CF0(SB)/8, $11672
+DATA bitrev_size16384_radix4_f64<>+0x4CF8(SB)/8, $15768
+DATA bitrev_size16384_radix4_f64<>+0x4D00(SB)/8, $664
+DATA bitrev_size16384_radix4_f64<>+0x4D08(SB)/8, $4760
+DATA bitrev_size16384_radix4_f64<>+0x4D10(SB)/8, $8856
+DATA bitrev_size16384_radix4_f64<>+0x4D18(SB)/8, $12952
+DATA bitrev_size16384_radix4_f64<>+0x4D20(SB)/8, $1688
+DATA bitrev_size16384_radix4_f64<>+0x4D28(SB)/8, $5784
+DATA bitrev_size16384_radix4_f64<>+0x4D30(SB)/8, $9880
+DATA bitrev_size16384_radix4_f64<>+0x4D38(SB)/8, $13976
+DATA bitrev_size16384_radix4_f64<>+0x4D40(SB)/8, $2712
+DATA bitrev_size16384_radix4_f64<>+0x4D48(SB)/8, $6808
+DATA bitrev_size16384_radix4_f64<>+0x4D50(SB)/8, $10904
+DATA bitrev_size16384_radix4_f64<>+0x4D58(SB)/8, $15000
+DATA bitrev_size16384_radix4_f64<>+0x4D60(SB)/8, $3736
+DATA bitrev_size16384_radix4_f64<>+0x4D68(SB)/8, $7832
+DATA bitrev_size16384_radix4_f64<>+0x4D70(SB)/8, $11928
+DATA bitrev_size16384_radix4_f64<>+0x4D78(SB)/8, $16024
+DATA bitrev_size16384_radix4_f64<>+0x4D80(SB)/8, $920
+DATA bitrev_size16384_radix4_f64<>+0x4D88(SB)/8, $5016
+DATA bitrev_size16384_radix4_f64<>+0x4D90(SB)/8, $9112
+DATA bitrev_size16384_radix4_f64<>+0x4D98(SB)/8, $13208
+DATA bitrev_size16384_radix4_f64<>+0x4DA0(SB)/8, $1944
+DATA bitrev_size16384_radix4_f64<>+0x4DA8(SB)/8, $6040
+DATA bitrev_size16384_radix4_f64<>+0x4DB0(SB)/8, $10136
+DATA bitrev_size16384_radix4_f64<>+0x4DB8(SB)/8, $14232
+DATA bitrev_size16384_radix4_f64<>+0x4DC0(SB)/8, $2968
+DATA bitrev_size16384_radix4_f64<>+0x4DC8(SB)/8, $7064
+DATA bitrev_size16384_radix4_f64<>+0x4DD0(SB)/8, $11160
+DATA bitrev_size16384_radix4_f64<>+0x4DD8(SB)/8, $15256
+DATA bitrev_size16384_radix4_f64<>+0x4DE0(SB)/8, $3992
+DATA bitrev_size16384_radix4_f64<>+0x4DE8(SB)/8, $8088
+DATA bitrev_size16384_radix4_f64<>+0x4DF0(SB)/8, $12184
+DATA bitrev_size16384_radix4_f64<>+0x4DF8(SB)/8, $16280
+DATA bitrev_size16384_radix4_f64<>+0x4E00(SB)/8, $216
+DATA bitrev_size16384_radix4_f64<>+0x4E08(SB)/8, $4312
+DATA bitrev_size16384_radix4_f64<>+0x4E10(SB)/8, $8408
+DATA bitrev_size16384_radix4_f64<>+0x4E18(SB)/8, $12504
+DATA bitrev_size16384_radix4_f64<>+0x4E20(SB)/8, $1240
+DATA bitrev_size16384_radix4_f64<>+0x4E28(SB)/8, $5336
+DATA bitrev_size16384_radix4_f64<>+0x4E30(SB)/8, $9432
+DATA bitrev_size16384_radix4_f64<>+0x4E38(SB)/8, $13528
+DATA bitrev_size16384_radix4_f64<>+0x4E40(SB)/8, $2264
+DATA bitrev_size16384_radix4_f64<>+0x4E48(SB)/8, $6360
+DATA bitrev_size16384_radix4_f64<>+0x4E50(SB)/8, $10456
+DATA bitrev_size16384_radix4_f64<>+0x4E58(SB)/8, $14552
+DATA bitrev_size16384_radix4_f64<>+0x4E60(SB)/8, $3288
+DATA bitrev_size16384_radix4_f64<>+0x4E68(SB)/8, $7384
+DATA bitrev_size16384_radix4_f64<>+0x4E70(SB)/8, $11480
+DATA bitrev_size16384_radix4_f64<>+0x4E78(SB)/8, $15576
+DATA bitrev_size16384_radix4_f64<>+0x4E80(SB)/8, $472
+DATA bitrev_size16384_radix4_f64<>+0x4E88(SB)/8, $4568
+DATA bitrev_size16384_radix4_f64<>+0x4E90(SB)/8, $8664
+DATA bitrev_size16384_radix4_f64<>+0x4E98(SB)/8, $12760
+DATA bitrev_size16384_radix4_f64<>+0x4EA0(SB)/8, $1496
+DATA bitrev_size16384_radix4_f64<>+0x4EA8(SB)/8, $5592
+DATA bitrev_size16384_radix4_f64<>+0x4EB0(SB)/8, $9688
+DATA bitrev_size16384_radix4_f64<>+0x4EB8(SB)/8, $13784
+DATA bitrev_size16384_radix4_f64<>+0x4EC0(SB)/8, $2520
+DATA bitrev_size16384_radix4_f64<>+0x4EC8(SB)/8, $6616
+DATA bitrev_size16384_radix4_f64<>+0x4ED0(SB)/8, $10712
+DATA bitrev_size16384_radix4_f64<>+0x4ED8(SB)/8, $14808
+DATA bitrev_size16384_radix4_f64<>+0x4EE0(SB)/8, $3544
+DATA bitrev_size16384_radix4_f64<>+0x4EE8(SB)/8, $7640
+DATA bitrev_size16384_radix4_f64<>+0x4EF0(SB)/8, $11736
+DATA bitrev_size16384_radix4_f64<>+0x4EF8(SB)/8, $15832
+DATA bitrev_size16384_radix4_f64<>+0x4F00(SB)/8, $728
+DATA bitrev_size16384_radix4_f64<>+0x4F08(SB)/8, $4824
+DATA bitrev_size16384_radix4_f64<>+0x4F10(SB)/8, $8920
+DATA bitrev_size16384_radix4_f64<>+0x4F18(SB)/8, $13016
+DATA bitrev_size16384_radix4_f64<>+0x4F20(SB)/8, $1752
+DATA bitrev_size16384_radix4_f64<>+0x4F28(SB)/8, $5848
+DATA bitrev_size16384_radix4_f64<>+0x4F30(SB)/8, $9944
+DATA bitrev_size16384_radix4_f64<>+0x4F38(SB)/8, $14040
+DATA bitrev_size16384_radix4_f64<>+0x4F40(SB)/8, $2776
+DATA bitrev_size16384_radix4_f64<>+0x4F48(SB)/8, $6872
+DATA bitrev_size16384_radix4_f64<>+0x4F50(SB)/8, $10968
+DATA bitrev_size16384_radix4_f64<>+0x4F58(SB)/8, $15064
+DATA bitrev_size16384_radix4_f64<>+0x4F60(SB)/8, $3800
+DATA bitrev_size16384_radix4_f64<>+0x4F68(SB)/8, $7896
+DATA bitrev_size16384_radix4_f64<>+0x4F70(SB)/8, $11992
+DATA bitrev_size16384_radix4_f64<>+0x4F78(SB)/8, $16088
+DATA bitrev_size16384_radix4_f64<>+0x4F80(SB)/8, $984
+DATA bitrev_size16384_radix4_f64<>+0x4F88(SB)/8, $5080
+DATA bitrev_size16384_radix4_f64<>+0x4F90(SB)/8, $9176
+DATA bitrev_size16384_radix4_f64<>+0x4F98(SB)/8, $13272
+DATA bitrev_size16384_radix4_f64<>+0x4FA0(SB)/8, $2008
+DATA bitrev_size16384_radix4_f64<>+0x4FA8(SB)/8, $6104
+DATA bitrev_size16384_radix4_f64<>+0x4FB0(SB)/8, $10200
+DATA bitrev_size16384_radix4_f64<>+0x4FB8(SB)/8, $14296
+DATA bitrev_size16384_radix4_f64<>+0x4FC0(SB)/8, $3032
+DATA bitrev_size16384_radix4_f64<>+0x4FC8(SB)/8, $7128
+DATA bitrev_size16384_radix4_f64<>+0x4FD0(SB)/8, $11224
+DATA bitrev_size16384_radix4_f64<>+0x4FD8(SB)/8, $15320
+DATA bitrev_size16384_radix4_f64<>+0x4FE0(SB)/8, $4056
+DATA bitrev_size16384_radix4_f64<>+0x4FE8(SB)/8, $8152
+DATA bitrev_size16384_radix4_f64<>+0x4FF0(SB)/8, $12248
+DATA bitrev_size16384_radix4_f64<>+0x4FF8(SB)/8, $16344
+DATA bitrev_size16384_radix4_f64<>+0x5000(SB)/8, $40
+DATA bitrev_size16384_radix4_f64<>+0x5008(SB)/8, $4136
+DATA bitrev_size16384_radix4_f64<>+0x5010(SB)/8, $8232
+DATA bitrev_size16384_radix4_f64<>+0x5018(SB)/8, $12328
+DATA bitrev_size16384_radix4_f64<>+0x5020(SB)/8, $1064
+DATA bitrev_size16384_radix4_f64<>+0x5028(SB)/8, $5160
+DATA bitrev_size16384_radix4_f64<>+0x5030(SB)/8, $9256
+DATA bitrev_size16384_radix4_f64<>+0x5038(SB)/8, $13352
+DATA bitrev_size16384_radix4_f64<>+0x5040(SB)/8, $2088
+DATA bitrev_size16384_radix4_f64<>+0x5048(SB)/8, $6184
+DATA bitrev_size16384_radix4_f64<>+0x5050(SB)/8, $10280
+DATA bitrev_size16384_radix4_f64<>+0x5058(SB)/8, $14376
+DATA bitrev_size16384_radix4_f64<>+0x5060(SB)/8, $3112
+DATA bitrev_size16384_radix4_f64<>+0x5068(SB)/8, $7208
+DATA bitrev_size16384_radix4_f64<>+0x5070(SB)/8, $11304
+DATA bitrev_size16384_radix4_f64<>+0x5078(SB)/8, $15400
+DATA bitrev_size16384_radix4_f64<>+0x5080(SB)/8, $296
+DATA bitrev_size16384_radix4_f64<>+0x5088(SB)/8, $4392
+DATA bitrev_size16384_radix4_f64<>+0x5090(SB)/8, $8488
+DATA bitrev_size16384_radix4_f64<>+0x5098(SB)/8, $12584
+DATA bitrev_size16384_radix4_f64<>+0x50A0(SB)/8, $1320
+DATA bitrev_size16384_radix4_f64<>+0x50A8(SB)/8, $5416
+DATA bitrev_size16384_radix4_f64<>+0x50B0(SB)/8, $9512
+DATA bitrev_size16384_radix4_f64<>+0x50B8(SB)/8, $13608
+DATA bitrev_size16384_radix4_f64<>+0x50C0(SB)/8, $2344
+DATA bitrev_size16384_radix4_f64<>+0x50C8(SB)/8, $6440
+DATA bitrev_size16384_radix4_f64<>+0x50D0(SB)/8, $10536
+DATA bitrev_size16384_radix4_f64<>+0x50D8(SB)/8, $14632
+DATA bitrev_size16384_radix4_f64<>+0x50E0(SB)/8, $3368
+DATA bitrev_size16384_radix4_f64<>+0x50E8(SB)/8, $7464
+DATA bitrev_size16384_radix4_f64<>+0x50F0(SB)/8, $11560
+DATA bitrev_size16384_radix4_f64<>+0x50F8(SB)/8, $15656
+DATA bitrev_size16384_radix4_f64<>+0x5100(SB)/8, $552
+DATA bitrev_size16384_radix4_f64<>+0x5108(SB)/8, $4648
+DATA bitrev_size16384_radix4_f64<>+0x5110(SB)/8, $8744
+DATA bitrev_size16384_radix4_f64<>+0x5118(SB)/8, $12840
+DATA bitrev_size16384_radix4_f64<>+0x5120(SB)/8, $1576
+DATA bitrev_size16384_radix4_f64<>+0x5128(SB)/8, $5672
+DATA bitrev_size16384_radix4_f64<>+0x5130(SB)/8, $9768
+DATA bitrev_size16384_radix4_f64<>+0x5138(SB)/8, $13864
+DATA bitrev_size16384_radix4_f64<>+0x5140(SB)/8, $2600
+DATA bitrev_size16384_radix4_f64<>+0x5148(SB)/8, $6696
+DATA bitrev_size16384_radix4_f64<>+0x5150(SB)/8, $10792
+DATA bitrev_size16384_radix4_f64<>+0x5158(SB)/8, $14888
+DATA bitrev_size16384_radix4_f64<>+0x5160(SB)/8, $3624
+DATA bitrev_size16384_radix4_f64<>+0x5168(SB)/8, $7720
+DATA bitrev_size16384_radix4_f64<>+0x5170(SB)/8, $11816
+DATA bitrev_size16384_radix4_f64<>+0x5178(SB)/8, $15912
+DATA bitrev_size16384_radix4_f64<>+0x5180(SB)/8, $808
+DATA bitrev_size16384_radix4_f64<>+0x5188(SB)/8, $4904
+DATA bitrev_size16384_radix4_f64<>+0x5190(SB)/8, $9000
+DATA bitrev_size16384_radix4_f64<>+0x5198(SB)/8, $13096
+DATA bitrev_size16384_radix4_f64<>+0x51A0(SB)/8, $1832
+DATA bitrev_size16384_radix4_f64<>+0x51A8(SB)/8, $5928
+DATA bitrev_size16384_radix4_f64<>+0x51B0(SB)/8, $10024
+DATA bitrev_size16384_radix4_f64<>+0x51B8(SB)/8, $14120
+DATA bitrev_size16384_radix4_f64<>+0x51C0(SB)/8, $2856
+DATA bitrev_size16384_radix4_f64<>+0x51C8(SB)/8, $6952
+DATA bitrev_size16384_radix4_f64<>+0x51D0(SB)/8, $11048
+DATA bitrev_size16384_radix4_f64<>+0x51D8(SB)/8, $15144
+DATA bitrev_size16384_radix4_f64<>+0x51E0(SB)/8, $3880
+DATA bitrev_size16384_radix4_f64<>+0x51E8(SB)/8, $7976
+DATA bitrev_size16384_radix4_f64<>+0x51F0(SB)/8, $12072
+DATA bitrev_size16384_radix4_f64<>+0x51F8(SB)/8, $16168
+DATA bitrev_size16384_radix4_f64<>+0x5200(SB)/8, $104
+DATA bitrev_size16384_radix4_f64<>+0x5208(SB)/8, $4200
+DATA bitrev_size16384_radix4_f64<>+0x5210(SB)/8, $8296
+DATA bitrev_size16384_radix4_f64<>+0x5218(SB)/8, $12392
+DATA bitrev_size16384_radix4_f64<>+0x5220(SB)/8, $1128
+DATA bitrev_size16384_radix4_f64<>+0x5228(SB)/8, $5224
+DATA bitrev_size16384_radix4_f64<>+0x5230(SB)/8, $9320
+DATA bitrev_size16384_radix4_f64<>+0x5238(SB)/8, $13416
+DATA bitrev_size16384_radix4_f64<>+0x5240(SB)/8, $2152
+DATA bitrev_size16384_radix4_f64<>+0x5248(SB)/8, $6248
+DATA bitrev_size16384_radix4_f64<>+0x5250(SB)/8, $10344
+DATA bitrev_size16384_radix4_f64<>+0x5258(SB)/8, $14440
+DATA bitrev_size16384_radix4_f64<>+0x5260(SB)/8, $3176
+DATA bitrev_size16384_radix4_f64<>+0x5268(SB)/8, $7272
+DATA bitrev_size16384_radix4_f64<>+0x5270(SB)/8, $11368
+DATA bitrev_size16384_radix4_f64<>+0x5278(SB)/8, $15464
+DATA bitrev_size16384_radix4_f64<>+0x5280(SB)/8, $360
+DATA bitrev_size16384_radix4_f64<>+0x5288(SB)/8, $4456
+DATA bitrev_size16384_radix4_f64<>+0x5290(SB)/8, $8552
+DATA bitrev_size16384_radix4_f64<>+0x5298(SB)/8, $12648
+DATA bitrev_size16384_radix4_f64<>+0x52A0(SB)/8, $1384
+DATA bitrev_size16384_radix4_f64<>+0x52A8(SB)/8, $5480
+DATA bitrev_size16384_radix4_f64<>+0x52B0(SB)/8, $9576
+DATA bitrev_size16384_radix4_f64<>+0x52B8(SB)/8, $13672
+DATA bitrev_size16384_radix4_f64<>+0x52C0(SB)/8, $2408
+DATA bitrev_size16384_radix4_f64<>+0x52C8(SB)/8, $6504
+DATA bitrev_size16384_radix4_f64<>+0x52D0(SB)/8, $10600
+DATA bitrev_size16384_radix4_f64<>+0x52D8(SB)/8, $14696
+DATA bitrev_size16384_radix4_f64<>+0x52E0(SB)/8, $3432
+DATA bitrev_size16384_radix4_f64<>+0x52E8(SB)/8, $7528
+DATA bitrev_size16384_radix4_f64<>+0x52F0(SB)/8, $11624
+DATA bitrev_size16384_radix4_f64<>+0x52F8(SB)/8, $15720
+DATA bitrev_size16384_radix4_f64<>+0x5300(SB)/8, $616
+DATA bitrev_size16384_radix4_f64<>+0x5308(SB)/8, $4712
+DATA bitrev_size16384_radix4_f64<>+0x5310(SB)/8, $8808
+DATA bitrev_size16384_radix4_f64<>+0x5318(SB)/8, $12904
+DATA bitrev_size16384_radix4_f64<>+0x5320(SB)/8, $1640
+DATA bitrev_size16384_radix4_f64<>+0x5328(SB)/8, $5736
+DATA bitrev_size16384_radix4_f64<>+0x5330(SB)/8, $9832
+DATA bitrev_size16384_radix4_f64<>+0x5338(SB)/8, $13928
+DATA bitrev_size16384_radix4_f64<>+0x5340(SB)/8, $2664
+DATA bitrev_size16384_radix4_f64<>+0x5348(SB)/8, $6760
+DATA bitrev_size16384_radix4_f64<>+0x5350(SB)/8, $10856
+DATA bitrev_size16384_radix4_f64<>+0x5358(SB)/8, $14952
+DATA bitrev_size16384_radix4_f64<>+0x5360(SB)/8, $3688
+DATA bitrev_size16384_radix4_f64<>+0x5368(SB)/8, $7784
+DATA bitrev_size16384_radix4_f64<>+0x5370(SB)/8, $11880
+DATA bitrev_size16384_radix4_f64<>+0x5378(SB)/8, $15976
+DATA bitrev_size16384_radix4_f64<>+0x5380(SB)/8, $872
+DATA bitrev_size16384_radix4_f64<>+0x5388(SB)/8, $4968
+DATA bitrev_size16384_radix4_f64<>+0x5390(SB)/8, $9064
+DATA bitrev_size16384_radix4_f64<>+0x5398(SB)/8, $13160
+DATA bitrev_size16384_radix4_f64<>+0x53A0(SB)/8, $1896
+DATA bitrev_size16384_radix4_f64<>+0x53A8(SB)/8, $5992
+DATA bitrev_size16384_radix4_f64<>+0x53B0(SB)/8, $10088
+DATA bitrev_size16384_radix4_f64<>+0x53B8(SB)/8, $14184
+DATA bitrev_size16384_radix4_f64<>+0x53C0(SB)/8, $2920
+DATA bitrev_size16384_radix4_f64<>+0x53C8(SB)/8, $7016
+DATA bitrev_size16384_radix4_f64<>+0x53D0(SB)/8, $11112
+DATA bitrev_size16384_radix4_f64<>+0x53D8(SB)/8, $15208
+DATA bitrev_size16384_radix4_f64<>+0x53E0(SB)/8, $3944
+DATA bitrev_size16384_radix4_f64<>+0x53E8(SB)/8, $8040
+DATA bitrev_size16384_radix4_f64<>+0x53F0(SB)/8, $12136
+DATA bitrev_size16384_radix4_f64<>+0x53F8(SB)/8, $16232
+DATA bitrev_size16384_radix4_f64<>+0x5400(SB)/8, $168
+DATA bitrev_size16384_radix4_f64<>+0x5408(SB)/8, $4264
+DATA bitrev_size16384_radix4_f64<>+0x5410(SB)/8, $8360
+DATA bitrev_size16384_radix4_f64<>+0x5418(SB)/8, $12456
+DATA bitrev_size16384_radix4_f64<>+0x5420(SB)/8, $1192
+DATA bitrev_size16384_radix4_f64<>+0x5428(SB)/8, $5288
+DATA bitrev_size16384_radix4_f64<>+0x5430(SB)/8, $9384
+DATA bitrev_size16384_radix4_f64<>+0x5438(SB)/8, $13480
+DATA bitrev_size16384_radix4_f64<>+0x5440(SB)/8, $2216
+DATA bitrev_size16384_radix4_f64<>+0x5448(SB)/8, $6312
+DATA bitrev_size16384_radix4_f64<>+0x5450(SB)/8, $10408
+DATA bitrev_size16384_radix4_f64<>+0x5458(SB)/8, $14504
+DATA bitrev_size16384_radix4_f64<>+0x5460(SB)/8, $3240
+DATA bitrev_size16384_radix4_f64<>+0x5468(SB)/8, $7336
+DATA bitrev_size16384_radix4_f64<>+0x5470(SB)/8, $11432
+DATA bitrev_size16384_radix4_f64<>+0x5478(SB)/8, $15528
+DATA bitrev_size16384_radix4_f64<>+0x5480(SB)/8, $424
+DATA bitrev_size16384_radix4_f64<>+0x5488(SB)/8, $4520
+DATA bitrev_size16384_radix4_f64<>+0x5490(SB)/8, $8616
+DATA bitrev_size16384_radix4_f64<>+0x5498(SB)/8, $12712
+DATA bitrev_size16384_radix4_f64<>+0x54A0(SB)/8, $1448
+DATA bitrev_size16384_radix4_f64<>+0x54A8(SB)/8, $5544
+DATA bitrev_size16384_radix4_f64<>+0x54B0(SB)/8, $9640
+DATA bitrev_size16384_radix4_f64<>+0x54B8(SB)/8, $13736
+DATA bitrev_size16384_radix4_f64<>+0x54C0(SB)/8, $2472
+DATA bitrev_size16384_radix4_f64<>+0x54C8(SB)/8, $6568
+DATA bitrev_size16384_radix4_f64<>+0x54D0(SB)/8, $10664
+DATA bitrev_size16384_radix4_f64<>+0x54D8(SB)/8, $14760
+DATA bitrev_size16384_radix4_f64<>+0x54E0(SB)/8, $3496
+DATA bitrev_size16384_radix4_f64<>+0x54E8(SB)/8, $7592
+DATA bitrev_size16384_radix4_f64<>+0x54F0(SB)/8, $11688
+DATA bitrev_size16384_radix4_f64<>+0x54F8(SB)/8, $15784
+DATA bitrev_size16384_radix4_f64<>+0x5500(SB)/8, $680
+DATA bitrev_size16384_radix4_f64<>+0x5508(SB)/8, $4776
+DATA bitrev_size16384_radix4_f64<>+0x5510(SB)/8, $8872
+DATA bitrev_size16384_radix4_f64<>+0x5518(SB)/8, $12968
+DATA bitrev_size16384_radix4_f64<>+0x5520(SB)/8, $1704
+DATA bitrev_size16384_radix4_f64<>+0x5528(SB)/8, $5800
+DATA bitrev_size16384_radix4_f64<>+0x5530(SB)/8, $9896
+DATA bitrev_size16384_radix4_f64<>+0x5538(SB)/8, $13992
+DATA bitrev_size16384_radix4_f64<>+0x5540(SB)/8, $2728
+DATA bitrev_size16384_radix4_f64<>+0x5548(SB)/8, $6824
+DATA bitrev_size16384_radix4_f64<>+0x5550(SB)/8, $10920
+DATA bitrev_size16384_radix4_f64<>+0x5558(SB)/8, $15016
+DATA bitrev_size16384_radix4_f64<>+0x5560(SB)/8, $3752
+DATA bitrev_size16384_radix4_f64<>+0x5568(SB)/8, $7848
+DATA bitrev_size16384_radix4_f64<>+0x5570(SB)/8, $11944
+DATA bitrev_size16384_radix4_f64<>+0x5578(SB)/8, $16040
+DATA bitrev_size16384_radix4_f64<>+0x5580(SB)/8, $936
+DATA bitrev_size16384_radix4_f64<>+0x5588(SB)/8, $5032
+DATA bitrev_size16384_radix4_f64<>+0x5590(SB)/8, $9128
+DATA bitrev_size16384_radix4_f64<>+0x5598(SB)/8, $13224
+DATA bitrev_size16384_radix4_f64<>+0x55A0(SB)/8, $1960
+DATA bitrev_size16384_radix4_f64<>+0x55A8(SB)/8, $6056
+DATA bitrev_size16384_radix4_f64<>+0x55B0(SB)/8, $10152
+DATA bitrev_size16384_radix4_f64<>+0x55B8(SB)/8, $14248
+DATA bitrev_size16384_radix4_f64<>+0x55C0(SB)/8, $2984
+DATA bitrev_size16384_radix4_f64<>+0x55C8(SB)/8, $7080
+DATA bitrev_size16384_radix4_f64<>+0x55D0(SB)/8, $11176
+DATA bitrev_size16384_radix4_f64<>+0x55D8(SB)/8, $15272
+DATA bitrev_size16384_radix4_f64<>+0x55E0(SB)/8, $4008
+DATA bitrev_size16384_radix4_f64<>+0x55E8(SB)/8, $8104
+DATA bitrev_size16384_radix4_f64<>+0x55F0(SB)/8, $12200
+DATA bitrev_size16384_radix4_f64<>+0x55F8(SB)/8, $16296
+DATA bitrev_size16384_radix4_f64<>+0x5600(SB)/8, $232
+DATA bitrev_size16384_radix4_f64<>+0x5608(SB)/8, $4328
+DATA bitrev_size16384_radix4_f64<>+0x5610(SB)/8, $8424
+DATA bitrev_size16384_radix4_f64<>+0x5618(SB)/8, $12520
+DATA bitrev_size16384_radix4_f64<>+0x5620(SB)/8, $1256
+DATA bitrev_size16384_radix4_f64<>+0x5628(SB)/8, $5352
+DATA bitrev_size16384_radix4_f64<>+0x5630(SB)/8, $9448
+DATA bitrev_size16384_radix4_f64<>+0x5638(SB)/8, $13544
+DATA bitrev_size16384_radix4_f64<>+0x5640(SB)/8, $2280
+DATA bitrev_size16384_radix4_f64<>+0x5648(SB)/8, $6376
+DATA bitrev_size16384_radix4_f64<>+0x5650(SB)/8, $10472
+DATA bitrev_size16384_radix4_f64<>+0x5658(SB)/8, $14568
+DATA bitrev_size16384_radix4_f64<>+0x5660(SB)/8, $3304
+DATA bitrev_size16384_radix4_f64<>+0x5668(SB)/8, $7400
+DATA bitrev_size16384_radix4_f64<>+0x5670(SB)/8, $11496
+DATA bitrev_size16384_radix4_f64<>+0x5678(SB)/8, $15592
+DATA bitrev_size16384_radix4_f64<>+0x5680(SB)/8, $488
+DATA bitrev_size16384_radix4_f64<>+0x5688(SB)/8, $4584
+DATA bitrev_size16384_radix4_f64<>+0x5690(SB)/8, $8680
+DATA bitrev_size16384_radix4_f64<>+0x5698(SB)/8, $12776
+DATA bitrev_size16384_radix4_f64<>+0x56A0(SB)/8, $1512
+DATA bitrev_size16384_radix4_f64<>+0x56A8(SB)/8, $5608
+DATA bitrev_size16384_radix4_f64<>+0x56B0(SB)/8, $9704
+DATA bitrev_size16384_radix4_f64<>+0x56B8(SB)/8, $13800
+DATA bitrev_size16384_radix4_f64<>+0x56C0(SB)/8, $2536
+DATA bitrev_size16384_radix4_f64<>+0x56C8(SB)/8, $6632
+DATA bitrev_size16384_radix4_f64<>+0x56D0(SB)/8, $10728
+DATA bitrev_size16384_radix4_f64<>+0x56D8(SB)/8, $14824
+DATA bitrev_size16384_radix4_f64<>+0x56E0(SB)/8, $3560
+DATA bitrev_size16384_radix4_f64<>+0x56E8(SB)/8, $7656
+DATA bitrev_size16384_radix4_f64<>+0x56F0(SB)/8, $11752
+DATA bitrev_size16384_radix4_f64<>+0x56F8(SB)/8, $15848
+DATA bitrev_size16384_radix4_f64<>+0x5700(SB)/8, $744
+DATA bitrev_size16384_radix4_f64<>+0x5708(SB)/8, $4840
+DATA bitrev_size16384_radix4_f64<>+0x5710(SB)/8, $8936
+DATA bitrev_size16384_radix4_f64<>+0x5718(SB)/8, $13032
+DATA bitrev_size16384_radix4_f64<>+0x5720(SB)/8, $1768
+DATA bitrev_size16384_radix4_f64<>+0x5728(SB)/8, $5864
+DATA bitrev_size16384_radix4_f64<>+0x5730(SB)/8, $9960
+DATA bitrev_size16384_radix4_f64<>+0x5738(SB)/8, $14056
+DATA bitrev_size16384_radix4_f64<>+0x5740(SB)/8, $2792
+DATA bitrev_size16384_radix4_f64<>+0x5748(SB)/8, $6888
+DATA bitrev_size16384_radix4_f64<>+0x5750(SB)/8, $10984
+DATA bitrev_size16384_radix4_f64<>+0x5758(SB)/8, $15080
+DATA bitrev_size16384_radix4_f64<>+0x5760(SB)/8, $3816
+DATA bitrev_size16384_radix4_f64<>+0x5768(SB)/8, $7912
+DATA bitrev_size16384_radix4_f64<>+0x5770(SB)/8, $12008
+DATA bitrev_size16384_radix4_f64<>+0x5778(SB)/8, $16104
+DATA bitrev_size16384_radix4_f64<>+0x5780(SB)/8, $1000
+DATA bitrev_size16384_radix4_f64<>+0x5788(SB)/8, $5096
+DATA bitrev_size16384_radix4_f64<>+0x5790(SB)/8, $9192
+DATA bitrev_size16384_radix4_f64<>+0x5798(SB)/8, $13288
+DATA bitrev_size16384_radix4_f64<>+0x57A0(SB)/8, $2024
+DATA bitrev_size16384_radix4_f64<>+0x57A8(SB)/8, $6120
+DATA bitrev_size16384_radix4_f64<>+0x57B0(SB)/8, $10216
+DATA bitrev_size16384_radix4_f64<>+0x57B8(SB)/8, $14312
+DATA bitrev_size16384_radix4_f64<>+0x57C0(SB)/8, $3048
+DATA bitrev_size16384_radix4_f64<>+0x57C8(SB)/8, $7144
+DATA bitrev_size16384_radix4_f64<>+0x57D0(SB)/8, $11240
+DATA bitrev_size16384_radix4_f64<>+0x57D8(SB)/8, $15336
+DATA bitrev_size16384_radix4_f64<>+0x57E0(SB)/8, $4072
+DATA bitrev_size16384_radix4_f64<>+0x57E8(SB)/8, $8168
+DATA bitrev_size16384_radix4_f64<>+0x57F0(SB)/8, $12264
+DATA bitrev_size16384_radix4_f64<>+0x57F8(SB)/8, $16360
+DATA bitrev_size16384_radix4_f64<>+0x5800(SB)/8, $56
+DATA bitrev_size16384_radix4_f64<>+0x5808(SB)/8, $4152
+DATA bitrev_size16384_radix4_f64<>+0x5810(SB)/8, $8248
+DATA bitrev_size16384_radix4_f64<>+0x5818(SB)/8, $12344
+DATA bitrev_size16384_radix4_f64<>+0x5820(SB)/8, $1080
+DATA bitrev_size16384_radix4_f64<>+0x5828(SB)/8, $5176
+DATA bitrev_size16384_radix4_f64<>+0x5830(SB)/8, $9272
+DATA bitrev_size16384_radix4_f64<>+0x5838(SB)/8, $13368
+DATA bitrev_size16384_radix4_f64<>+0x5840(SB)/8, $2104
+DATA bitrev_size16384_radix4_f64<>+0x5848(SB)/8, $6200
+DATA bitrev_size16384_radix4_f64<>+0x5850(SB)/8, $10296
+DATA bitrev_size16384_radix4_f64<>+0x5858(SB)/8, $14392
+DATA bitrev_size16384_radix4_f64<>+0x5860(SB)/8, $3128
+DATA bitrev_size16384_radix4_f64<>+0x5868(SB)/8, $7224
+DATA bitrev_size16384_radix4_f64<>+0x5870(SB)/8, $11320
+DATA bitrev_size16384_radix4_f64<>+0x5878(SB)/8, $15416
+DATA bitrev_size16384_radix4_f64<>+0x5880(SB)/8, $312
+DATA bitrev_size16384_radix4_f64<>+0x5888(SB)/8, $4408
+DATA bitrev_size16384_radix4_f64<>+0x5890(SB)/8, $8504
+DATA bitrev_size16384_radix4_f64<>+0x5898(SB)/8, $12600
+DATA bitrev_size16384_radix4_f64<>+0x58A0(SB)/8, $1336
+DATA bitrev_size16384_radix4_f64<>+0x58A8(SB)/8, $5432
+DATA bitrev_size16384_radix4_f64<>+0x58B0(SB)/8, $9528
+DATA bitrev_size16384_radix4_f64<>+0x58B8(SB)/8, $13624
+DATA bitrev_size16384_radix4_f64<>+0x58C0(SB)/8, $2360
+DATA bitrev_size16384_radix4_f64<>+0x58C8(SB)/8, $6456
+DATA bitrev_size16384_radix4_f64<>+0x58D0(SB)/8, $10552
+DATA bitrev_size16384_radix4_f64<>+0x58D8(SB)/8, $14648
+DATA bitrev_size16384_radix4_f64<>+0x58E0(SB)/8, $3384
+DATA bitrev_size16384_radix4_f64<>+0x58E8(SB)/8, $7480
+DATA bitrev_size16384_radix4_f64<>+0x58F0(SB)/8, $11576
+DATA bitrev_size16384_radix4_f64<>+0x58F8(SB)/8, $15672
+DATA bitrev_size16384_radix4_f64<>+0x5900(SB)/8, $568
+DATA bitrev_size16384_radix4_f64<>+0x5908(SB)/8, $4664
+DATA bitrev_size16384_radix4_f64<>+0x5910(SB)/8, $8760
+DATA bitrev_size16384_radix4_f64<>+0x5918(SB)/8, $12856
+DATA bitrev_size16384_radix4_f64<>+0x5920(SB)/8, $1592
+DATA bitrev_size16384_radix4_f64<>+0x5928(SB)/8, $5688
+DATA bitrev_size16384_radix4_f64<>+0x5930(SB)/8, $9784
+DATA bitrev_size16384_radix4_f64<>+0x5938(SB)/8, $13880
+DATA bitrev_size16384_radix4_f64<>+0x5940(SB)/8, $2616
+DATA bitrev_size16384_radix4_f64<>+0x5948(SB)/8, $6712
+DATA bitrev_size16384_radix4_f64<>+0x5950(SB)/8, $10808
+DATA bitrev_size16384_radix4_f64<>+0x5958(SB)/8, $14904
+DATA bitrev_size16384_radix4_f64<>+0x5960(SB)/8, $3640
+DATA bitrev_size16384_radix4_f64<>+0x5968(SB)/8, $7736
+DATA bitrev_size16384_radix4_f64<>+0x5970(SB)/8, $11832
+DATA bitrev_size16384_radix4_f64<>+0x5978(SB)/8, $15928
+DATA bitrev_size16384_radix4_f64<>+0x5980(SB)/8, $824
+DATA bitrev_size16384_radix4_f64<>+0x5988(SB)/8, $4920
+DATA bitrev_size16384_radix4_f64<>+0x5990(SB)/8, $9016
+DATA bitrev_size16384_radix4_f64<>+0x5998(SB)/8, $13112
+DATA bitrev_size16384_radix4_f64<>+0x59A0(SB)/8, $1848
+DATA bitrev_size16384_radix4_f64<>+0x59A8(SB)/8, $5944
+DATA bitrev_size16384_radix4_f64<>+0x59B0(SB)/8, $10040
+DATA bitrev_size16384_radix4_f64<>+0x59B8(SB)/8, $14136
+DATA bitrev_size16384_radix4_f64<>+0x59C0(SB)/8, $2872
+DATA bitrev_size16384_radix4_f64<>+0x59C8(SB)/8, $6968
+DATA bitrev_size16384_radix4_f64<>+0x59D0(SB)/8, $11064
+DATA bitrev_size16384_radix4_f64<>+0x59D8(SB)/8, $15160
+DATA bitrev_size16384_radix4_f64<>+0x59E0(SB)/8, $3896
+DATA bitrev_size16384_radix4_f64<>+0x59E8(SB)/8, $7992
+DATA bitrev_size16384_radix4_f64<>+0x59F0(SB)/8, $12088
+DATA bitrev_size16384_radix4_f64<>+0x59F8(SB)/8, $16184
+DATA bitrev_size16384_radix4_f64<>+0x5A00(SB)/8, $120
+DATA bitrev_size16384_radix4_f64<>+0x5A08(SB)/8, $4216
+DATA bitrev_size16384_radix4_f64<>+0x5A10(SB)/8, $8312
+DATA bitrev_size16384_radix4_f64<>+0x5A18(SB)/8, $12408
+DATA bitrev_size16384_radix4_f64<>+0x5A20(SB)/8, $1144
+DATA bitrev_size16384_radix4_f64<>+0x5A28(SB)/8, $5240
+DATA bitrev_size16384_radix4_f64<>+0x5A30(SB)/8, $9336
+DATA bitrev_size16384_radix4_f64<>+0x5A38(SB)/8, $13432
+DATA bitrev_size16384_radix4_f64<>+0x5A40(SB)/8, $2168
+DATA bitrev_size16384_radix4_f64<>+0x5A48(SB)/8, $6264
+DATA bitrev_size16384_radix4_f64<>+0x5A50(SB)/8, $10360
+DATA bitrev_size16384_radix4_f64<>+0x5A58(SB)/8, $14456
+DATA bitrev_size16384_radix4_f64<>+0x5A60(SB)/8, $3192
+DATA bitrev_size16384_radix4_f64<>+0x5A68(SB)/8, $7288
+DATA bitrev_size16384_radix4_f64<>+0x5A70(SB)/8, $11384
+DATA bitrev_size16384_radix4_f64<>+0x5A78(SB)/8, $15480
+DATA bitrev_size16384_radix4_f64<>+0x5A80(SB)/8, $376
+DATA bitrev_size16384_radix4_f64<>+0x5A88(SB)/8, $4472
+DATA bitrev_size16384_radix4_f64<>+0x5A90(SB)/8, $8568
+DATA bitrev_size16384_radix4_f64<>+0x5A98(SB)/8, $12664
+DATA bitrev_size16384_radix4_f64<>+0x5AA0(SB)/8, $1400
+DATA bitrev_size16384_radix4_f64<>+0x5AA8(SB)/8, $5496
+DATA bitrev_size16384_radix4_f64<>+0x5AB0(SB)/8, $9592
+DATA bitrev_size16384_radix4_f64<>+0x5AB8(SB)/8, $13688
+DATA bitrev_size16384_radix4_f64<>+0x5AC0(SB)/8, $2424
+DATA bitrev_size16384_radix4_f64<>+0x5AC8(SB)/8, $6520
+DATA bitrev_size16384_radix4_f64<>+0x5AD0(SB)/8, $10616
+DATA bitrev_size16384_radix4_f64<>+0x5AD8(SB)/8, $14712
+DATA bitrev_size16384_radix4_f64<>+0x5AE0(SB)/8, $3448
+DATA bitrev_size16384_radix4_f64<>+0x5AE8(SB)/8, $7544
+DATA bitrev_size16384_radix4_f64<>+0x5AF0(SB)/8, $11640
+DATA bitrev_size16384_radix4_f64<>+0x5AF8(SB)/8, $15736
+DATA bitrev_size16384_radix4_f64<>+0x5B00(SB)/8, $632
+DATA bitrev_size16384_radix4_f64<>+0x5B08(SB)/8, $4728
+DATA bitrev_size16384_radix4_f64<>+0x5B10(SB)/8, $8824
+DATA bitrev_size16384_radix4_f64<>+0x5B18(SB)/8, $12920
+DATA bitrev_size16384_radix4_f64<>+0x5B20(SB)/8, $1656
+DATA bitrev_size16384_radix4_f64<>+0x5B28(SB)/8, $5752
+DATA bitrev_size16384_radix4_f64<>+0x5B30(SB)/8, $9848
+DATA bitrev_size16384_radix4_f64<>+0x5B38(SB)/8, $13944
+DATA bitrev_size16384_radix4_f64<>+0x5B40(SB)/8, $2680
+DATA bitrev_size16384_radix4_f64<>+0x5B48(SB)/8, $6776
+DATA bitrev_size16384_radix4_f64<>+0x5B50(SB)/8, $10872
+DATA bitrev_size16384_radix4_f64<>+0x5B58(SB)/8, $14968
+DATA bitrev_size16384_radix4_f64<>+0x5B60(SB)/8, $3704
+DATA bitrev_size16384_radix4_f64<>+0x5B68(SB)/8, $7800
+DATA bitrev_size16384_radix4_f64<>+0x5B70(SB)/8, $11896
+DATA bitrev_size16384_radix4_f64<>+0x5B78(SB)/8, $15992
+DATA bitrev_size16384_radix4_f64<>+0x5B80(SB)/8, $888
+DATA bitrev_size16384_radix4_f64<>+0x5B88(SB)/8, $4984
+DATA bitrev_size16384_radix4_f64<>+0x5B90(SB)/8, $9080
+DATA bitrev_size16384_radix4_f64<>+0x5B98(SB)/8, $13176
+DATA bitrev_size16384_radix4_f64<>+0x5BA0(SB)/8, $1912
+DATA bitrev_size16384_radix4_f64<>+0x5BA8(SB)/8, $6008
+DATA bitrev_size16384_radix4_f64<>+0x5BB0(SB)/8, $10104
+DATA bitrev_size16384_radix4_f64<>+0x5BB8(SB)/8, $14200
+DATA bitrev_size16384_radix4_f64<>+0x5BC0(SB)/8, $2936
+DATA bitrev_size16384_radix4_f64<>+0x5BC8(SB)/8, $7032
+DATA bitrev_size16384_radix4_f64<>+0x5BD0(SB)/8, $11128
+DATA bitrev_size16384_radix4_f64<>+0x5BD8(SB)/8, $15224
+DATA bitrev_size16384_radix4_f64<>+0x5BE0(SB)/8, $3960
+DATA bitrev_size16384_radix4_f64<>+0x5BE8(SB)/8, $8056
+DATA bitrev_size16384_radix4_f64<>+0x5BF0(SB)/8, $12152
+DATA bitrev_size16384_radix4_f64<>+0x5BF8(SB)/8, $16248
+DATA bitrev_size16384_radix4_f64<>+0x5C00(SB)/8, $184
+DATA bitrev_size16384_radix4_f64<>+0x5C08(SB)/8, $4280
+DATA bitrev_size16384_radix4_f64<>+0x5C10(SB)/8, $8376
+DATA bitrev_size16384_radix4_f64<>+0x5C18(SB)/8, $12472
+DATA bitrev_size16384_radix4_f64<>+0x5C20(SB)/8, $1208
+DATA bitrev_size16384_radix4_f64<>+0x5C28(SB)/8, $5304
+DATA bitrev_size16384_radix4_f64<>+0x5C30(SB)/8, $9400
+DATA bitrev_size16384_radix4_f64<>+0x5C38(SB)/8, $13496
+DATA bitrev_size16384_radix4_f64<>+0x5C40(SB)/8, $2232
+DATA bitrev_size16384_radix4_f64<>+0x5C48(SB)/8, $6328
+DATA bitrev_size16384_radix4_f64<>+0x5C50(SB)/8, $10424
+DATA bitrev_size16384_radix4_f64<>+0x5C58(SB)/8, $14520
+DATA bitrev_size16384_radix4_f64<>+0x5C60(SB)/8, $3256
+DATA bitrev_size16384_radix4_f64<>+0x5C68(SB)/8, $7352
+DATA bitrev_size16384_radix4_f64<>+0x5C70(SB)/8, $11448
+DATA bitrev_size16384_radix4_f64<>+0x5C78(SB)/8, $15544
+DATA bitrev_size16384_radix4_f64<>+0x5C80(SB)/8, $440
+DATA bitrev_size16384_radix4_f64<>+0x5C88(SB)/8, $4536
+DATA bitrev_size16384_radix4_f64<>+0x5C90(SB)/8, $8632
+DATA bitrev_size16384_radix4_f64<>+0x5C98(SB)/8, $12728
+DATA bitrev_size16384_radix4_f64<>+0x5CA0(SB)/8, $1464
+DATA bitrev_size16384_radix4_f64<>+0x5CA8(SB)/8, $5560
+DATA bitrev_size16384_radix4_f64<>+0x5CB0(SB)/8, $9656
+DATA bitrev_size16384_radix4_f64<>+0x5CB8(SB)/8, $13752
+DATA bitrev_size16384_radix4_f64<>+0x5CC0(SB)/8, $2488
+DATA bitrev_size16384_radix4_f64<>+0x5CC8(SB)/8, $6584
+DATA bitrev_size16384_radix4_f64<>+0x5CD0(SB)/8, $10680
+DATA bitrev_size16384_radix4_f64<>+0x5CD8(SB)/8, $14776
+DATA bitrev_size16384_radix4_f64<>+0x5CE0(SB)/8, $3512
+DATA bitrev_size16384_radix4_f64<>+0x5CE8(SB)/8, $7608
+DATA bitrev_size16384_radix4_f64<>+0x5CF0(SB)/8, $11704
+DATA bitrev_size16384_radix4_f64<>+0x5CF8(SB)/8, $15800
+DATA bitrev_size16384_radix4_f64<>+0x5D00(SB)/8, $696
+DATA bitrev_size16384_radix4_f64<>+0x5D08(SB)/8, $4792
+DATA bitrev_size16384_radix4_f64<>+0x5D10(SB)/8, $8888
+DATA bitrev_size16384_radix4_f64<>+0x5D18(SB)/8, $12984
+DATA bitrev_size16384_radix4_f64<>+0x5D20(SB)/8, $1720
+DATA bitrev_size16384_radix4_f64<>+0x5D28(SB)/8, $5816
+DATA bitrev_size16384_radix4_f64<>+0x5D30(SB)/8, $9912
+DATA bitrev_size16384_radix4_f64<>+0x5D38(SB)/8, $14008
+DATA bitrev_size16384_radix4_f64<>+0x5D40(SB)/8, $2744
+DATA bitrev_size16384_radix4_f64<>+0x5D48(SB)/8, $6840
+DATA bitrev_size16384_radix4_f64<>+0x5D50(SB)/8, $10936
+DATA bitrev_size16384_radix4_f64<>+0x5D58(SB)/8, $15032
+DATA bitrev_size16384_radix4_f64<>+0x5D60(SB)/8, $3768
+DATA bitrev_size16384_radix4_f64<>+0x5D68(SB)/8, $7864
+DATA bitrev_size16384_radix4_f64<>+0x5D70(SB)/8, $11960
+DATA bitrev_size16384_radix4_f64<>+0x5D78(SB)/8, $16056
+DATA bitrev_size16384_radix4_f64<>+0x5D80(SB)/8, $952
+DATA bitrev_size16384_radix4_f64<>+0x5D88(SB)/8, $5048
+DATA bitrev_size16384_radix4_f64<>+0x5D90(SB)/8, $9144
+DATA bitrev_size16384_radix4_f64<>+0x5D98(SB)/8, $13240
+DATA bitrev_size16384_radix4_f64<>+0x5DA0(SB)/8, $1976
+DATA bitrev_size16384_radix4_f64<>+0x5DA8(SB)/8, $6072
+DATA bitrev_size16384_radix4_f64<>+0x5DB0(SB)/8, $10168
+DATA bitrev_size16384_radix4_f64<>+0x5DB8(SB)/8, $14264
+DATA bitrev_size16384_radix4_f64<>+0x5DC0(SB)/8, $3000
+DATA bitrev_size16384_radix4_f64<>+0x5DC8(SB)/8, $7096
+DATA bitrev_size16384_radix4_f64<>+0x5DD0(SB)/8, $11192
+DATA bitrev_size16384_radix4_f64<>+0x5DD8(SB)/8, $15288
+DATA bitrev_size16384_radix4_f64<>+0x5DE0(SB)/8, $4024
+DATA bitrev_size16384_radix4_f64<>+0x5DE8(SB)/8, $8120
+DATA bitrev_size16384_radix4_f64<>+0x5DF0(SB)/8, $12216
+DATA bitrev_size16384_radix4_f64<>+0x5DF8(SB)/8, $16312
+DATA bitrev_size16384_radix4_f64<>+0x5E00(SB)/8, $248
+DATA bitrev_size16384_radix4_f64<>+0x5E08(SB)/8, $4344
+DATA bitrev_size16384_radix4_f64<>+0x5E10(SB)/8, $8440
+DATA bitrev_size16384_radix4_f64<>+0x5E18(SB)/8, $12536
+DATA bitrev_size16384_radix4_f64<>+0x5E20(SB)/8, $1272
+DATA bitrev_size16384_radix4_f64<>+0x5E28(SB)/8, $5368
+DATA bitrev_size16384_radix4_f64<>+0x5E30(SB)/8, $9464
+DATA bitrev_size16384_radix4_f64<>+0x5E38(SB)/8, $13560
+DATA bitrev_size16384_radix4_f64<>+0x5E40(SB)/8, $2296
+DATA bitrev_size16384_radix4_f64<>+0x5E48(SB)/8, $6392
+DATA bitrev_size16384_radix4_f64<>+0x5E50(SB)/8, $10488
+DATA bitrev_size16384_radix4_f64<>+0x5E58(SB)/8, $14584
+DATA bitrev_size16384_radix4_f64<>+0x5E60(SB)/8, $3320
+DATA bitrev_size16384_radix4_f64<>+0x5E68(SB)/8, $7416
+DATA bitrev_size16384_radix4_f64<>+0x5E70(SB)/8, $11512
+DATA bitrev_size16384_radix4_f64<>+0x5E78(SB)/8, $15608
+DATA bitrev_size16384_radix4_f64<>+0x5E80(SB)/8, $504
+DATA bitrev_size16384_radix4_f64<>+0x5E88(SB)/8, $4600
+DATA bitrev_size16384_radix4_f64<>+0x5E90(SB)/8, $8696
+DATA bitrev_size16384_radix4_f64<>+0x5E98(SB)/8, $12792
+DATA bitrev_size16384_radix4_f64<>+0x5EA0(SB)/8, $1528
+DATA bitrev_size16384_radix4_f64<>+0x5EA8(SB)/8, $5624
+DATA bitrev_size16384_radix4_f64<>+0x5EB0(SB)/8, $9720
+DATA bitrev_size16384_radix4_f64<>+0x5EB8(SB)/8, $13816
+DATA bitrev_size16384_radix4_f64<>+0x5EC0(SB)/8, $2552
+DATA bitrev_size16384_radix4_f64<>+0x5EC8(SB)/8, $6648
+DATA bitrev_size16384_radix4_f64<>+0x5ED0(SB)/8, $10744
+DATA bitrev_size16384_radix4_f64<>+0x5ED8(SB)/8, $14840
+DATA bitrev_size16384_radix4_f64<>+0x5EE0(SB)/8, $3576
+DATA bitrev_size16384_radix4_f64<>+0x5EE8(SB)/8, $7672
+DATA bitrev_size16384_radix4_f64<>+0x5EF0(SB)/8, $11768
+DATA bitrev_size16384_radix4_f64<>+0x5EF8(SB)/8, $15864
+DATA bitrev_size16384_radix4_f64<>+0x5F00(SB)/8, $760
+DATA bitrev_size16384_radix4_f64<>+0x5F08(SB)/8, $4856
+DATA bitrev_size16384_radix4_f64<>+0x5F10(SB)/8, $8952
+DATA bitrev_size16384_radix4_f64<>+0x5F18(SB)/8, $13048
+DATA bitrev_size16384_radix4_f64<>+0x5F20(SB)/8, $1784
+DATA bitrev_size16384_radix4_f64<>+0x5F28(SB)/8, $5880
+DATA bitrev_size16384_radix4_f64<>+0x5F30(SB)/8, $9976
+DATA bitrev_size16384_radix4_f64<>+0x5F38(SB)/8, $14072
+DATA bitrev_size16384_radix4_f64<>+0x5F40(SB)/8, $2808
+DATA bitrev_size16384_radix4_f64<>+0x5F48(SB)/8, $6904
+DATA bitrev_size16384_radix4_f64<>+0x5F50(SB)/8, $11000
+DATA bitrev_size16384_radix4_f64<>+0x5F58(SB)/8, $15096
+DATA bitrev_size16384_radix4_f64<>+0x5F60(SB)/8, $3832
+DATA bitrev_size16384_radix4_f64<>+0x5F68(SB)/8, $7928
+DATA bitrev_size16384_radix4_f64<>+0x5F70(SB)/8, $12024
+DATA bitrev_size16384_radix4_f64<>+0x5F78(SB)/8, $16120
+DATA bitrev_size16384_radix4_f64<>+0x5F80(SB)/8, $1016
+DATA bitrev_size16384_radix4_f64<>+0x5F88(SB)/8, $5112
+DATA bitrev_size16384_radix4_f64<>+0x5F90(SB)/8, $9208
+DATA bitrev_size16384_radix4_f64<>+0x5F98(SB)/8, $13304
+DATA bitrev_size16384_radix4_f64<>+0x5FA0(SB)/8, $2040
+DATA bitrev_size16384_radix4_f64<>+0x5FA8(SB)/8, $6136
+DATA bitrev_size16384_radix4_f64<>+0x5FB0(SB)/8, $10232
+DATA bitrev_size16384_radix4_f64<>+0x5FB8(SB)/8, $14328
+DATA bitrev_size16384_radix4_f64<>+0x5FC0(SB)/8, $3064
+DATA bitrev_size16384_radix4_f64<>+0x5FC8(SB)/8, $7160
+DATA bitrev_size16384_radix4_f64<>+0x5FD0(SB)/8, $11256
+DATA bitrev_size16384_radix4_f64<>+0x5FD8(SB)/8, $15352
+DATA bitrev_size16384_radix4_f64<>+0x5FE0(SB)/8, $4088
+DATA bitrev_size16384_radix4_f64<>+0x5FE8(SB)/8, $8184
+DATA bitrev_size16384_radix4_f64<>+0x5FF0(SB)/8, $12280
+DATA bitrev_size16384_radix4_f64<>+0x5FF8(SB)/8, $16376
+DATA bitrev_size16384_radix4_f64<>+0x6000(SB)/8, $12
+DATA bitrev_size16384_radix4_f64<>+0x6008(SB)/8, $4108
+DATA bitrev_size16384_radix4_f64<>+0x6010(SB)/8, $8204
+DATA bitrev_size16384_radix4_f64<>+0x6018(SB)/8, $12300
+DATA bitrev_size16384_radix4_f64<>+0x6020(SB)/8, $1036
+DATA bitrev_size16384_radix4_f64<>+0x6028(SB)/8, $5132
+DATA bitrev_size16384_radix4_f64<>+0x6030(SB)/8, $9228
+DATA bitrev_size16384_radix4_f64<>+0x6038(SB)/8, $13324
+DATA bitrev_size16384_radix4_f64<>+0x6040(SB)/8, $2060
+DATA bitrev_size16384_radix4_f64<>+0x6048(SB)/8, $6156
+DATA bitrev_size16384_radix4_f64<>+0x6050(SB)/8, $10252
+DATA bitrev_size16384_radix4_f64<>+0x6058(SB)/8, $14348
+DATA bitrev_size16384_radix4_f64<>+0x6060(SB)/8, $3084
+DATA bitrev_size16384_radix4_f64<>+0x6068(SB)/8, $7180
+DATA bitrev_size16384_radix4_f64<>+0x6070(SB)/8, $11276
+DATA bitrev_size16384_radix4_f64<>+0x6078(SB)/8, $15372
+DATA bitrev_size16384_radix4_f64<>+0x6080(SB)/8, $268
+DATA bitrev_size16384_radix4_f64<>+0x6088(SB)/8, $4364
+DATA bitrev_size16384_radix4_f64<>+0x6090(SB)/8, $8460
+DATA bitrev_size16384_radix4_f64<>+0x6098(SB)/8, $12556
+DATA bitrev_size16384_radix4_f64<>+0x60A0(SB)/8, $1292
+DATA bitrev_size16384_radix4_f64<>+0x60A8(SB)/8, $5388
+DATA bitrev_size16384_radix4_f64<>+0x60B0(SB)/8, $9484
+DATA bitrev_size16384_radix4_f64<>+0x60B8(SB)/8, $13580
+DATA bitrev_size16384_radix4_f64<>+0x60C0(SB)/8, $2316
+DATA bitrev_size16384_radix4_f64<>+0x60C8(SB)/8, $6412
+DATA bitrev_size16384_radix4_f64<>+0x60D0(SB)/8, $10508
+DATA bitrev_size16384_radix4_f64<>+0x60D8(SB)/8, $14604
+DATA bitrev_size16384_radix4_f64<>+0x60E0(SB)/8, $3340
+DATA bitrev_size16384_radix4_f64<>+0x60E8(SB)/8, $7436
+DATA bitrev_size16384_radix4_f64<>+0x60F0(SB)/8, $11532
+DATA bitrev_size16384_radix4_f64<>+0x60F8(SB)/8, $15628
+DATA bitrev_size16384_radix4_f64<>+0x6100(SB)/8, $524
+DATA bitrev_size16384_radix4_f64<>+0x6108(SB)/8, $4620
+DATA bitrev_size16384_radix4_f64<>+0x6110(SB)/8, $8716
+DATA bitrev_size16384_radix4_f64<>+0x6118(SB)/8, $12812
+DATA bitrev_size16384_radix4_f64<>+0x6120(SB)/8, $1548
+DATA bitrev_size16384_radix4_f64<>+0x6128(SB)/8, $5644
+DATA bitrev_size16384_radix4_f64<>+0x6130(SB)/8, $9740
+DATA bitrev_size16384_radix4_f64<>+0x6138(SB)/8, $13836
+DATA bitrev_size16384_radix4_f64<>+0x6140(SB)/8, $2572
+DATA bitrev_size16384_radix4_f64<>+0x6148(SB)/8, $6668
+DATA bitrev_size16384_radix4_f64<>+0x6150(SB)/8, $10764
+DATA bitrev_size16384_radix4_f64<>+0x6158(SB)/8, $14860
+DATA bitrev_size16384_radix4_f64<>+0x6160(SB)/8, $3596
+DATA bitrev_size16384_radix4_f64<>+0x6168(SB)/8, $7692
+DATA bitrev_size16384_radix4_f64<>+0x6170(SB)/8, $11788
+DATA bitrev_size16384_radix4_f64<>+0x6178(SB)/8, $15884
+DATA bitrev_size16384_radix4_f64<>+0x6180(SB)/8, $780
+DATA bitrev_size16384_radix4_f64<>+0x6188(SB)/8, $4876
+DATA bitrev_size16384_radix4_f64<>+0x6190(SB)/8, $8972
+DATA bitrev_size16384_radix4_f64<>+0x6198(SB)/8, $13068
+DATA bitrev_size16384_radix4_f64<>+0x61A0(SB)/8, $1804
+DATA bitrev_size16384_radix4_f64<>+0x61A8(SB)/8, $5900
+DATA bitrev_size16384_radix4_f64<>+0x61B0(SB)/8, $9996
+DATA bitrev_size16384_radix4_f64<>+0x61B8(SB)/8, $14092
+DATA bitrev_size16384_radix4_f64<>+0x61C0(SB)/8, $2828
+DATA bitrev_size16384_radix4_f64<>+0x61C8(SB)/8, $6924
+DATA bitrev_size16384_radix4_f64<>+0x61D0(SB)/8, $11020
+DATA bitrev_size16384_radix4_f64<>+0x61D8(SB)/8, $15116
+DATA bitrev_size16384_radix4_f64<>+0x61E0(SB)/8, $3852
+DATA bitrev_size16384_radix4_f64<>+0x61E8(SB)/8, $7948
+DATA bitrev_size16384_radix4_f64<>+0x61F0(SB)/8, $12044
+DATA bitrev_size16384_radix4_f64<>+0x61F8(SB)/8, $16140
+DATA bitrev_size16384_radix4_f64<>+0x6200(SB)/8, $76
+DATA bitrev_size16384_radix4_f64<>+0x6208(SB)/8, $4172
+DATA bitrev_size16384_radix4_f64<>+0x6210(SB)/8, $8268
+DATA bitrev_size16384_radix4_f64<>+0x6218(SB)/8, $12364
+DATA bitrev_size16384_radix4_f64<>+0x6220(SB)/8, $1100
+DATA bitrev_size16384_radix4_f64<>+0x6228(SB)/8, $5196
+DATA bitrev_size16384_radix4_f64<>+0x6230(SB)/8, $9292
+DATA bitrev_size16384_radix4_f64<>+0x6238(SB)/8, $13388
+DATA bitrev_size16384_radix4_f64<>+0x6240(SB)/8, $2124
+DATA bitrev_size16384_radix4_f64<>+0x6248(SB)/8, $6220
+DATA bitrev_size16384_radix4_f64<>+0x6250(SB)/8, $10316
+DATA bitrev_size16384_radix4_f64<>+0x6258(SB)/8, $14412
+DATA bitrev_size16384_radix4_f64<>+0x6260(SB)/8, $3148
+DATA bitrev_size16384_radix4_f64<>+0x6268(SB)/8, $7244
+DATA bitrev_size16384_radix4_f64<>+0x6270(SB)/8, $11340
+DATA bitrev_size16384_radix4_f64<>+0x6278(SB)/8, $15436
+DATA bitrev_size16384_radix4_f64<>+0x6280(SB)/8, $332
+DATA bitrev_size16384_radix4_f64<>+0x6288(SB)/8, $4428
+DATA bitrev_size16384_radix4_f64<>+0x6290(SB)/8, $8524
+DATA bitrev_size16384_radix4_f64<>+0x6298(SB)/8, $12620
+DATA bitrev_size16384_radix4_f64<>+0x62A0(SB)/8, $1356
+DATA bitrev_size16384_radix4_f64<>+0x62A8(SB)/8, $5452
+DATA bitrev_size16384_radix4_f64<>+0x62B0(SB)/8, $9548
+DATA bitrev_size16384_radix4_f64<>+0x62B8(SB)/8, $13644
+DATA bitrev_size16384_radix4_f64<>+0x62C0(SB)/8, $2380
+DATA bitrev_size16384_radix4_f64<>+0x62C8(SB)/8, $6476
+DATA bitrev_size16384_radix4_f64<>+0x62D0(SB)/8, $10572
+DATA bitrev_size16384_radix4_f64<>+0x62D8(SB)/8, $14668
+DATA bitrev_size16384_radix4_f64<>+0x62E0(SB)/8, $3404
+DATA bitrev_size16384_radix4_f64<>+0x62E8(SB)/8, $7500
+DATA bitrev_size16384_radix4_f64<>+0x62F0(SB)/8, $11596
+DATA bitrev_size16384_radix4_f64<>+0x62F8(SB)/8, $15692
+DATA bitrev_size16384_radix4_f64<>+0x6300(SB)/8, $588
+DATA bitrev_size16384_radix4_f64<>+0x6308(SB)/8, $4684
+DATA bitrev_size16384_radix4_f64<>+0x6310(SB)/8, $8780
+DATA bitrev_size16384_radix4_f64<>+0x6318(SB)/8, $12876
+DATA bitrev_size16384_radix4_f64<>+0x6320(SB)/8, $1612
+DATA bitrev_size16384_radix4_f64<>+0x6328(SB)/8, $5708
+DATA bitrev_size16384_radix4_f64<>+0x6330(SB)/8, $9804
+DATA bitrev_size16384_radix4_f64<>+0x6338(SB)/8, $13900
+DATA bitrev_size16384_radix4_f64<>+0x6340(SB)/8, $2636
+DATA bitrev_size16384_radix4_f64<>+0x6348(SB)/8, $6732
+DATA bitrev_size16384_radix4_f64<>+0x6350(SB)/8, $10828
+DATA bitrev_size16384_radix4_f64<>+0x6358(SB)/8, $14924
+DATA bitrev_size16384_radix4_f64<>+0x6360(SB)/8, $3660
+DATA bitrev_size16384_radix4_f64<>+0x6368(SB)/8, $7756
+DATA bitrev_size16384_radix4_f64<>+0x6370(SB)/8, $11852
+DATA bitrev_size16384_radix4_f64<>+0x6378(SB)/8, $15948
+DATA bitrev_size16384_radix4_f64<>+0x6380(SB)/8, $844
+DATA bitrev_size16384_radix4_f64<>+0x6388(SB)/8, $4940
+DATA bitrev_size16384_radix4_f64<>+0x6390(SB)/8, $9036
+DATA bitrev_size16384_radix4_f64<>+0x6398(SB)/8, $13132
+DATA bitrev_size16384_radix4_f64<>+0x63A0(SB)/8, $1868
+DATA bitrev_size16384_radix4_f64<>+0x63A8(SB)/8, $5964
+DATA bitrev_size16384_radix4_f64<>+0x63B0(SB)/8, $10060
+DATA bitrev_size16384_radix4_f64<>+0x63B8(SB)/8, $14156
+DATA bitrev_size16384_radix4_f64<>+0x63C0(SB)/8, $2892
+DATA bitrev_size16384_radix4_f64<>+0x63C8(SB)/8, $6988
+DATA bitrev_size16384_radix4_f64<>+0x63D0(SB)/8, $11084
+DATA bitrev_size16384_radix4_f64<>+0x63D8(SB)/8, $15180
+DATA bitrev_size16384_radix4_f64<>+0x63E0(SB)/8, $3916
+DATA bitrev_size16384_radix4_f64<>+0x63E8(SB)/8, $8012
+DATA bitrev_size16384_radix4_f64<>+0x63F0(SB)/8, $12108
+DATA bitrev_size16384_radix4_f64<>+0x63F8(SB)/8, $16204
+DATA bitrev_size16384_radix4_f64<>+0x6400(SB)/8, $140
+DATA bitrev_size16384_radix4_f64<>+0x6408(SB)/8, $4236
+DATA bitrev_size16384_radix4_f64<>+0x6410(SB)/8, $8332
+DATA bitrev_size16384_radix4_f64<>+0x6418(SB)/8, $12428
+DATA bitrev_size16384_radix4_f64<>+0x6420(SB)/8, $1164
+DATA bitrev_size16384_radix4_f64<>+0x6428(SB)/8, $5260
+DATA bitrev_size16384_radix4_f64<>+0x6430(SB)/8, $9356
+DATA bitrev_size16384_radix4_f64<>+0x6438(SB)/8, $13452
+DATA bitrev_size16384_radix4_f64<>+0x6440(SB)/8, $2188
+DATA bitrev_size16384_radix4_f64<>+0x6448(SB)/8, $6284
+DATA bitrev_size16384_radix4_f64<>+0x6450(SB)/8, $10380
+DATA bitrev_size16384_radix4_f64<>+0x6458(SB)/8, $14476
+DATA bitrev_size16384_radix4_f64<>+0x6460(SB)/8, $3212
+DATA bitrev_size16384_radix4_f64<>+0x6468(SB)/8, $7308
+DATA bitrev_size16384_radix4_f64<>+0x6470(SB)/8, $11404
+DATA bitrev_size16384_radix4_f64<>+0x6478(SB)/8, $15500
+DATA bitrev_size16384_radix4_f64<>+0x6480(SB)/8, $396
+DATA bitrev_size16384_radix4_f64<>+0x6488(SB)/8, $4492
+DATA bitrev_size16384_radix4_f64<>+0x6490(SB)/8, $8588
+DATA bitrev_size16384_radix4_f64<>+0x6498(SB)/8, $12684
+DATA bitrev_size16384_radix4_f64<>+0x64A0(SB)/8, $1420
+DATA bitrev_size16384_radix4_f64<>+0x64A8(SB)/8, $5516
+DATA bitrev_size16384_radix4_f64<>+0x64B0(SB)/8, $9612
+DATA bitrev_size16384_radix4_f64<>+0x64B8(SB)/8, $13708
+DATA bitrev_size16384_radix4_f64<>+0x64C0(SB)/8, $2444
+DATA bitrev_size16384_radix4_f64<>+0x64C8(SB)/8, $6540
+DATA bitrev_size16384_radix4_f64<>+0x64D0(SB)/8, $10636
+DATA bitrev_size16384_radix4_f64<>+0x64D8(SB)/8, $14732
+DATA bitrev_size16384_radix4_f64<>+0x64E0(SB)/8, $3468
+DATA bitrev_size16384_radix4_f64<>+0x64E8(SB)/8, $7564
+DATA bitrev_size16384_radix4_f64<>+0x64F0(SB)/8, $11660
+DATA bitrev_size16384_radix4_f64<>+0x64F8(SB)/8, $15756
+DATA bitrev_size16384_radix4_f64<>+0x6500(SB)/8, $652
+DATA bitrev_size16384_radix4_f64<>+0x6508(SB)/8, $4748
+DATA bitrev_size16384_radix4_f64<>+0x6510(SB)/8, $8844
+DATA bitrev_size16384_radix4_f64<>+0x6518(SB)/8, $12940
+DATA bitrev_size16384_radix4_f64<>+0x6520(SB)/8, $1676
+DATA bitrev_size16384_radix4_f64<>+0x6528(SB)/8, $5772
+DATA bitrev_size16384_radix4_f64<>+0x6530(SB)/8, $9868
+DATA bitrev_size16384_radix4_f64<>+0x6538(SB)/8, $13964
+DATA bitrev_size16384_radix4_f64<>+0x6540(SB)/8, $2700
+DATA bitrev_size16384_radix4_f64<>+0x6548(SB)/8, $6796
+DATA bitrev_size16384_radix4_f64<>+0x6550(SB)/8, $10892
+DATA bitrev_size16384_radix4_f64<>+0x6558(SB)/8, $14988
+DATA bitrev_size16384_radix4_f64<>+0x6560(SB)/8, $3724
+DATA bitrev_size16384_radix4_f64<>+0x6568(SB)/8, $7820
+DATA bitrev_size16384_radix4_f64<>+0x6570(SB)/8, $11916
+DATA bitrev_size16384_radix4_f64<>+0x6578(SB)/8, $16012
+DATA bitrev_size16384_radix4_f64<>+0x6580(SB)/8, $908
+DATA bitrev_size16384_radix4_f64<>+0x6588(SB)/8, $5004
+DATA bitrev_size16384_radix4_f64<>+0x6590(SB)/8, $9100
+DATA bitrev_size16384_radix4_f64<>+0x6598(SB)/8, $13196
+DATA bitrev_size16384_radix4_f64<>+0x65A0(SB)/8, $1932
+DATA bitrev_size16384_radix4_f64<>+0x65A8(SB)/8, $6028
+DATA bitrev_size16384_radix4_f64<>+0x65B0(SB)/8, $10124
+DATA bitrev_size16384_radix4_f64<>+0x65B8(SB)/8, $14220
+DATA bitrev_size16384_radix4_f64<>+0x65C0(SB)/8, $2956
+DATA bitrev_size16384_radix4_f64<>+0x65C8(SB)/8, $7052
+DATA bitrev_size16384_radix4_f64<>+0x65D0(SB)/8, $11148
+DATA bitrev_size16384_radix4_f64<>+0x65D8(SB)/8, $15244
+DATA bitrev_size16384_radix4_f64<>+0x65E0(SB)/8, $3980
+DATA bitrev_size16384_radix4_f64<>+0x65E8(SB)/8, $8076
+DATA bitrev_size16384_radix4_f64<>+0x65F0(SB)/8, $12172
+DATA bitrev_size16384_radix4_f64<>+0x65F8(SB)/8, $16268
+DATA bitrev_size16384_radix4_f64<>+0x6600(SB)/8, $204
+DATA bitrev_size16384_radix4_f64<>+0x6608(SB)/8, $4300
+DATA bitrev_size16384_radix4_f64<>+0x6610(SB)/8, $8396
+DATA bitrev_size16384_radix4_f64<>+0x6618(SB)/8, $12492
+DATA bitrev_size16384_radix4_f64<>+0x6620(SB)/8, $1228
+DATA bitrev_size16384_radix4_f64<>+0x6628(SB)/8, $5324
+DATA bitrev_size16384_radix4_f64<>+0x6630(SB)/8, $9420
+DATA bitrev_size16384_radix4_f64<>+0x6638(SB)/8, $13516
+DATA bitrev_size16384_radix4_f64<>+0x6640(SB)/8, $2252
+DATA bitrev_size16384_radix4_f64<>+0x6648(SB)/8, $6348
+DATA bitrev_size16384_radix4_f64<>+0x6650(SB)/8, $10444
+DATA bitrev_size16384_radix4_f64<>+0x6658(SB)/8, $14540
+DATA bitrev_size16384_radix4_f64<>+0x6660(SB)/8, $3276
+DATA bitrev_size16384_radix4_f64<>+0x6668(SB)/8, $7372
+DATA bitrev_size16384_radix4_f64<>+0x6670(SB)/8, $11468
+DATA bitrev_size16384_radix4_f64<>+0x6678(SB)/8, $15564
+DATA bitrev_size16384_radix4_f64<>+0x6680(SB)/8, $460
+DATA bitrev_size16384_radix4_f64<>+0x6688(SB)/8, $4556
+DATA bitrev_size16384_radix4_f64<>+0x6690(SB)/8, $8652
+DATA bitrev_size16384_radix4_f64<>+0x6698(SB)/8, $12748
+DATA bitrev_size16384_radix4_f64<>+0x66A0(SB)/8, $1484
+DATA bitrev_size16384_radix4_f64<>+0x66A8(SB)/8, $5580
+DATA bitrev_size16384_radix4_f64<>+0x66B0(SB)/8, $9676
+DATA bitrev_size16384_radix4_f64<>+0x66B8(SB)/8, $13772
+DATA bitrev_size16384_radix4_f64<>+0x66C0(SB)/8, $2508
+DATA bitrev_size16384_radix4_f64<>+0x66C8(SB)/8, $6604
+DATA bitrev_size16384_radix4_f64<>+0x66D0(SB)/8, $10700
+DATA bitrev_size16384_radix4_f64<>+0x66D8(SB)/8, $14796
+DATA bitrev_size16384_radix4_f64<>+0x66E0(SB)/8, $3532
+DATA bitrev_size16384_radix4_f64<>+0x66E8(SB)/8, $7628
+DATA bitrev_size16384_radix4_f64<>+0x66F0(SB)/8, $11724
+DATA bitrev_size16384_radix4_f64<>+0x66F8(SB)/8, $15820
+DATA bitrev_size16384_radix4_f64<>+0x6700(SB)/8, $716
+DATA bitrev_size16384_radix4_f64<>+0x6708(SB)/8, $4812
+DATA bitrev_size16384_radix4_f64<>+0x6710(SB)/8, $8908
+DATA bitrev_size16384_radix4_f64<>+0x6718(SB)/8, $13004
+DATA bitrev_size16384_radix4_f64<>+0x6720(SB)/8, $1740
+DATA bitrev_size16384_radix4_f64<>+0x6728(SB)/8, $5836
+DATA bitrev_size16384_radix4_f64<>+0x6730(SB)/8, $9932
+DATA bitrev_size16384_radix4_f64<>+0x6738(SB)/8, $14028
+DATA bitrev_size16384_radix4_f64<>+0x6740(SB)/8, $2764
+DATA bitrev_size16384_radix4_f64<>+0x6748(SB)/8, $6860
+DATA bitrev_size16384_radix4_f64<>+0x6750(SB)/8, $10956
+DATA bitrev_size16384_radix4_f64<>+0x6758(SB)/8, $15052
+DATA bitrev_size16384_radix4_f64<>+0x6760(SB)/8, $3788
+DATA bitrev_size16384_radix4_f64<>+0x6768(SB)/8, $7884
+DATA bitrev_size16384_radix4_f64<>+0x6770(SB)/8, $11980
+DATA bitrev_size16384_radix4_f64<>+0x6778(SB)/8, $16076
+DATA bitrev_size16384_radix4_f64<>+0x6780(SB)/8, $972
+DATA bitrev_size16384_radix4_f64<>+0x6788(SB)/8, $5068
+DATA bitrev_size16384_radix4_f64<>+0x6790(SB)/8, $9164
+DATA bitrev_size16384_radix4_f64<>+0x6798(SB)/8, $13260
+DATA bitrev_size16384_radix4_f64<>+0x67A0(SB)/8, $1996
+DATA bitrev_size16384_radix4_f64<>+0x67A8(SB)/8, $6092
+DATA bitrev_size16384_radix4_f64<>+0x67B0(SB)/8, $10188
+DATA bitrev_size16384_radix4_f64<>+0x67B8(SB)/8, $14284
+DATA bitrev_size16384_radix4_f64<>+0x67C0(SB)/8, $3020
+DATA bitrev_size16384_radix4_f64<>+0x67C8(SB)/8, $7116
+DATA bitrev_size16384_radix4_f64<>+0x67D0(SB)/8, $11212
+DATA bitrev_size16384_radix4_f64<>+0x67D8(SB)/8, $15308
+DATA bitrev_size16384_radix4_f64<>+0x67E0(SB)/8, $4044
+DATA bitrev_size16384_radix4_f64<>+0x67E8(SB)/8, $8140
+DATA bitrev_size16384_radix4_f64<>+0x67F0(SB)/8, $12236
+DATA bitrev_size16384_radix4_f64<>+0x67F8(SB)/8, $16332
+DATA bitrev_size16384_radix4_f64<>+0x6800(SB)/8, $28
+DATA bitrev_size16384_radix4_f64<>+0x6808(SB)/8, $4124
+DATA bitrev_size16384_radix4_f64<>+0x6810(SB)/8, $8220
+DATA bitrev_size16384_radix4_f64<>+0x6818(SB)/8, $12316
+DATA bitrev_size16384_radix4_f64<>+0x6820(SB)/8, $1052
+DATA bitrev_size16384_radix4_f64<>+0x6828(SB)/8, $5148
+DATA bitrev_size16384_radix4_f64<>+0x6830(SB)/8, $9244
+DATA bitrev_size16384_radix4_f64<>+0x6838(SB)/8, $13340
+DATA bitrev_size16384_radix4_f64<>+0x6840(SB)/8, $2076
+DATA bitrev_size16384_radix4_f64<>+0x6848(SB)/8, $6172
+DATA bitrev_size16384_radix4_f64<>+0x6850(SB)/8, $10268
+DATA bitrev_size16384_radix4_f64<>+0x6858(SB)/8, $14364
+DATA bitrev_size16384_radix4_f64<>+0x6860(SB)/8, $3100
+DATA bitrev_size16384_radix4_f64<>+0x6868(SB)/8, $7196
+DATA bitrev_size16384_radix4_f64<>+0x6870(SB)/8, $11292
+DATA bitrev_size16384_radix4_f64<>+0x6878(SB)/8, $15388
+DATA bitrev_size16384_radix4_f64<>+0x6880(SB)/8, $284
+DATA bitrev_size16384_radix4_f64<>+0x6888(SB)/8, $4380
+DATA bitrev_size16384_radix4_f64<>+0x6890(SB)/8, $8476
+DATA bitrev_size16384_radix4_f64<>+0x6898(SB)/8, $12572
+DATA bitrev_size16384_radix4_f64<>+0x68A0(SB)/8, $1308
+DATA bitrev_size16384_radix4_f64<>+0x68A8(SB)/8, $5404
+DATA bitrev_size16384_radix4_f64<>+0x68B0(SB)/8, $9500
+DATA bitrev_size16384_radix4_f64<>+0x68B8(SB)/8, $13596
+DATA bitrev_size16384_radix4_f64<>+0x68C0(SB)/8, $2332
+DATA bitrev_size16384_radix4_f64<>+0x68C8(SB)/8, $6428
+DATA bitrev_size16384_radix4_f64<>+0x68D0(SB)/8, $10524
+DATA bitrev_size16384_radix4_f64<>+0x68D8(SB)/8, $14620
+DATA bitrev_size16384_radix4_f64<>+0x68E0(SB)/8, $3356
+DATA bitrev_size16384_radix4_f64<>+0x68E8(SB)/8, $7452
+DATA bitrev_size16384_radix4_f64<>+0x68F0(SB)/8, $11548
+DATA bitrev_size16384_radix4_f64<>+0x68F8(SB)/8, $15644
+DATA bitrev_size16384_radix4_f64<>+0x6900(SB)/8, $540
+DATA bitrev_size16384_radix4_f64<>+0x6908(SB)/8, $4636
+DATA bitrev_size16384_radix4_f64<>+0x6910(SB)/8, $8732
+DATA bitrev_size16384_radix4_f64<>+0x6918(SB)/8, $12828
+DATA bitrev_size16384_radix4_f64<>+0x6920(SB)/8, $1564
+DATA bitrev_size16384_radix4_f64<>+0x6928(SB)/8, $5660
+DATA bitrev_size16384_radix4_f64<>+0x6930(SB)/8, $9756
+DATA bitrev_size16384_radix4_f64<>+0x6938(SB)/8, $13852
+DATA bitrev_size16384_radix4_f64<>+0x6940(SB)/8, $2588
+DATA bitrev_size16384_radix4_f64<>+0x6948(SB)/8, $6684
+DATA bitrev_size16384_radix4_f64<>+0x6950(SB)/8, $10780
+DATA bitrev_size16384_radix4_f64<>+0x6958(SB)/8, $14876
+DATA bitrev_size16384_radix4_f64<>+0x6960(SB)/8, $3612
+DATA bitrev_size16384_radix4_f64<>+0x6968(SB)/8, $7708
+DATA bitrev_size16384_radix4_f64<>+0x6970(SB)/8, $11804
+DATA bitrev_size16384_radix4_f64<>+0x6978(SB)/8, $15900
+DATA bitrev_size16384_radix4_f64<>+0x6980(SB)/8, $796
+DATA bitrev_size16384_radix4_f64<>+0x6988(SB)/8, $4892
+DATA bitrev_size16384_radix4_f64<>+0x6990(SB)/8, $8988
+DATA bitrev_size16384_radix4_f64<>+0x6998(SB)/8, $13084
+DATA bitrev_size16384_radix4_f64<>+0x69A0(SB)/8, $1820
+DATA bitrev_size16384_radix4_f64<>+0x69A8(SB)/8, $5916
+DATA bitrev_size16384_radix4_f64<>+0x69B0(SB)/8, $10012
+DATA bitrev_size16384_radix4_f64<>+0x69B8(SB)/8, $14108
+DATA bitrev_size16384_radix4_f64<>+0x69C0(SB)/8, $2844
+DATA bitrev_size16384_radix4_f64<>+0x69C8(SB)/8, $6940
+DATA bitrev_size16384_radix4_f64<>+0x69D0(SB)/8, $11036
+DATA bitrev_size16384_radix4_f64<>+0x69D8(SB)/8, $15132
+DATA bitrev_size16384_radix4_f64<>+0x69E0(SB)/8, $3868
+DATA bitrev_size16384_radix4_f64<>+0x69E8(SB)/8, $7964
+DATA bitrev_size16384_radix4_f64<>+0x69F0(SB)/8, $12060
+DATA bitrev_size16384_radix4_f64<>+0x69F8(SB)/8, $16156
+DATA bitrev_size16384_radix4_f64<>+0x6A00(SB)/8, $92
+DATA bitrev_size16384_radix4_f64<>+0x6A08(SB)/8, $4188
+DATA bitrev_size16384_radix4_f64<>+0x6A10(SB)/8, $8284
+DATA bitrev_size16384_radix4_f64<>+0x6A18(SB)/8, $12380
+DATA bitrev_size16384_radix4_f64<>+0x6A20(SB)/8, $1116
+DATA bitrev_size16384_radix4_f64<>+0x6A28(SB)/8, $5212
+DATA bitrev_size16384_radix4_f64<>+0x6A30(SB)/8, $9308
+DATA bitrev_size16384_radix4_f64<>+0x6A38(SB)/8, $13404
+DATA bitrev_size16384_radix4_f64<>+0x6A40(SB)/8, $2140
+DATA bitrev_size16384_radix4_f64<>+0x6A48(SB)/8, $6236
+DATA bitrev_size16384_radix4_f64<>+0x6A50(SB)/8, $10332
+DATA bitrev_size16384_radix4_f64<>+0x6A58(SB)/8, $14428
+DATA bitrev_size16384_radix4_f64<>+0x6A60(SB)/8, $3164
+DATA bitrev_size16384_radix4_f64<>+0x6A68(SB)/8, $7260
+DATA bitrev_size16384_radix4_f64<>+0x6A70(SB)/8, $11356
+DATA bitrev_size16384_radix4_f64<>+0x6A78(SB)/8, $15452
+DATA bitrev_size16384_radix4_f64<>+0x6A80(SB)/8, $348
+DATA bitrev_size16384_radix4_f64<>+0x6A88(SB)/8, $4444
+DATA bitrev_size16384_radix4_f64<>+0x6A90(SB)/8, $8540
+DATA bitrev_size16384_radix4_f64<>+0x6A98(SB)/8, $12636
+DATA bitrev_size16384_radix4_f64<>+0x6AA0(SB)/8, $1372
+DATA bitrev_size16384_radix4_f64<>+0x6AA8(SB)/8, $5468
+DATA bitrev_size16384_radix4_f64<>+0x6AB0(SB)/8, $9564
+DATA bitrev_size16384_radix4_f64<>+0x6AB8(SB)/8, $13660
+DATA bitrev_size16384_radix4_f64<>+0x6AC0(SB)/8, $2396
+DATA bitrev_size16384_radix4_f64<>+0x6AC8(SB)/8, $6492
+DATA bitrev_size16384_radix4_f64<>+0x6AD0(SB)/8, $10588
+DATA bitrev_size16384_radix4_f64<>+0x6AD8(SB)/8, $14684
+DATA bitrev_size16384_radix4_f64<>+0x6AE0(SB)/8, $3420
+DATA bitrev_size16384_radix4_f64<>+0x6AE8(SB)/8, $7516
+DATA bitrev_size16384_radix4_f64<>+0x6AF0(SB)/8, $11612
+DATA bitrev_size16384_radix4_f64<>+0x6AF8(SB)/8, $15708
+DATA bitrev_size16384_radix4_f64<>+0x6B00(SB)/8, $604
+DATA bitrev_size16384_radix4_f64<>+0x6B08(SB)/8, $4700
+DATA bitrev_size16384_radix4_f64<>+0x6B10(SB)/8, $8796
+DATA bitrev_size16384_radix4_f64<>+0x6B18(SB)/8, $12892
+DATA bitrev_size16384_radix4_f64<>+0x6B20(SB)/8, $1628
+DATA bitrev_size16384_radix4_f64<>+0x6B28(SB)/8, $5724
+DATA bitrev_size16384_radix4_f64<>+0x6B30(SB)/8, $9820
+DATA bitrev_size16384_radix4_f64<>+0x6B38(SB)/8, $13916
+DATA bitrev_size16384_radix4_f64<>+0x6B40(SB)/8, $2652
+DATA bitrev_size16384_radix4_f64<>+0x6B48(SB)/8, $6748
+DATA bitrev_size16384_radix4_f64<>+0x6B50(SB)/8, $10844
+DATA bitrev_size16384_radix4_f64<>+0x6B58(SB)/8, $14940
+DATA bitrev_size16384_radix4_f64<>+0x6B60(SB)/8, $3676
+DATA bitrev_size16384_radix4_f64<>+0x6B68(SB)/8, $7772
+DATA bitrev_size16384_radix4_f64<>+0x6B70(SB)/8, $11868
+DATA bitrev_size16384_radix4_f64<>+0x6B78(SB)/8, $15964
+DATA bitrev_size16384_radix4_f64<>+0x6B80(SB)/8, $860
+DATA bitrev_size16384_radix4_f64<>+0x6B88(SB)/8, $4956
+DATA bitrev_size16384_radix4_f64<>+0x6B90(SB)/8, $9052
+DATA bitrev_size16384_radix4_f64<>+0x6B98(SB)/8, $13148
+DATA bitrev_size16384_radix4_f64<>+0x6BA0(SB)/8, $1884
+DATA bitrev_size16384_radix4_f64<>+0x6BA8(SB)/8, $5980
+DATA bitrev_size16384_radix4_f64<>+0x6BB0(SB)/8, $10076
+DATA bitrev_size16384_radix4_f64<>+0x6BB8(SB)/8, $14172
+DATA bitrev_size16384_radix4_f64<>+0x6BC0(SB)/8, $2908
+DATA bitrev_size16384_radix4_f64<>+0x6BC8(SB)/8, $7004
+DATA bitrev_size16384_radix4_f64<>+0x6BD0(SB)/8, $11100
+DATA bitrev_size16384_radix4_f64<>+0x6BD8(SB)/8, $15196
+DATA bitrev_size16384_radix4_f64<>+0x6BE0(SB)/8, $3932
+DATA bitrev_size16384_radix4_f64<>+0x6BE8(SB)/8, $8028
+DATA bitrev_size16384_radix4_f64<>+0x6BF0(SB)/8, $12124
+DATA bitrev_size16384_radix4_f64<>+0x6BF8(SB)/8, $16220
+DATA bitrev_size16384_radix4_f64<>+0x6C00(SB)/8, $156
+DATA bitrev_size16384_radix4_f64<>+0x6C08(SB)/8, $4252
+DATA bitrev_size16384_radix4_f64<>+0x6C10(SB)/8, $8348
+DATA bitrev_size16384_radix4_f64<>+0x6C18(SB)/8, $12444
+DATA bitrev_size16384_radix4_f64<>+0x6C20(SB)/8, $1180
+DATA bitrev_size16384_radix4_f64<>+0x6C28(SB)/8, $5276
+DATA bitrev_size16384_radix4_f64<>+0x6C30(SB)/8, $9372
+DATA bitrev_size16384_radix4_f64<>+0x6C38(SB)/8, $13468
+DATA bitrev_size16384_radix4_f64<>+0x6C40(SB)/8, $2204
+DATA bitrev_size16384_radix4_f64<>+0x6C48(SB)/8, $6300
+DATA bitrev_size16384_radix4_f64<>+0x6C50(SB)/8, $10396
+DATA bitrev_size16384_radix4_f64<>+0x6C58(SB)/8, $14492
+DATA bitrev_size16384_radix4_f64<>+0x6C60(SB)/8, $3228
+DATA bitrev_size16384_radix4_f64<>+0x6C68(SB)/8, $7324
+DATA bitrev_size16384_radix4_f64<>+0x6C70(SB)/8, $11420
+DATA bitrev_size16384_radix4_f64<>+0x6C78(SB)/8, $15516
+DATA bitrev_size16384_radix4_f64<>+0x6C80(SB)/8, $412
+DATA bitrev_size16384_radix4_f64<>+0x6C88(SB)/8, $4508
+DATA bitrev_size16384_radix4_f64<>+0x6C90(SB)/8, $8604
+DATA bitrev_size16384_radix4_f64<>+0x6C98(SB)/8, $12700
+DATA bitrev_size16384_radix4_f64<>+0x6CA0(SB)/8, $1436
+DATA bitrev_size16384_radix4_f64<>+0x6CA8(SB)/8, $5532
+DATA bitrev_size16384_radix4_f64<>+0x6CB0(SB)/8, $9628
+DATA bitrev_size16384_radix4_f64<>+0x6CB8(SB)/8, $13724
+DATA bitrev_size16384_radix4_f64<>+0x6CC0(SB)/8, $2460
+DATA bitrev_size16384_radix4_f64<>+0x6CC8(SB)/8, $6556
+DATA bitrev_size16384_radix4_f64<>+0x6CD0(SB)/8, $10652
+DATA bitrev_size16384_radix4_f64<>+0x6CD8(SB)/8, $14748
+DATA bitrev_size16384_radix4_f64<>+0x6CE0(SB)/8, $3484
+DATA bitrev_size16384_radix4_f64<>+0x6CE8(SB)/8, $7580
+DATA bitrev_size16384_radix4_f64<>+0x6CF0(SB)/8, $11676
+DATA bitrev_size16384_radix4_f64<>+0x6CF8(SB)/8, $15772
+DATA bitrev_size16384_radix4_f64<>+0x6D00(SB)/8, $668
+DATA bitrev_size16384_radix4_f64<>+0x6D08(SB)/8, $4764
+DATA bitrev_size16384_radix4_f64<>+0x6D10(SB)/8, $8860
+DATA bitrev_size16384_radix4_f64<>+0x6D18(SB)/8, $12956
+DATA bitrev_size16384_radix4_f64<>+0x6D20(SB)/8, $1692
+DATA bitrev_size16384_radix4_f64<>+0x6D28(SB)/8, $5788
+DATA bitrev_size16384_radix4_f64<>+0x6D30(SB)/8, $9884
+DATA bitrev_size16384_radix4_f64<>+0x6D38(SB)/8, $13980
+DATA bitrev_size16384_radix4_f64<>+0x6D40(SB)/8, $2716
+DATA bitrev_size16384_radix4_f64<>+0x6D48(SB)/8, $6812
+DATA bitrev_size16384_radix4_f64<>+0x6D50(SB)/8, $10908
+DATA bitrev_size16384_radix4_f64<>+0x6D58(SB)/8, $15004
+DATA bitrev_size16384_radix4_f64<>+0x6D60(SB)/8, $3740
+DATA bitrev_size16384_radix4_f64<>+0x6D68(SB)/8, $7836
+DATA bitrev_size16384_radix4_f64<>+0x6D70(SB)/8, $11932
+DATA bitrev_size16384_radix4_f64<>+0x6D78(SB)/8, $16028
+DATA bitrev_size16384_radix4_f64<>+0x6D80(SB)/8, $924
+DATA bitrev_size16384_radix4_f64<>+0x6D88(SB)/8, $5020
+DATA bitrev_size16384_radix4_f64<>+0x6D90(SB)/8, $9116
+DATA bitrev_size16384_radix4_f64<>+0x6D98(SB)/8, $13212
+DATA bitrev_size16384_radix4_f64<>+0x6DA0(SB)/8, $1948
+DATA bitrev_size16384_radix4_f64<>+0x6DA8(SB)/8, $6044
+DATA bitrev_size16384_radix4_f64<>+0x6DB0(SB)/8, $10140
+DATA bitrev_size16384_radix4_f64<>+0x6DB8(SB)/8, $14236
+DATA bitrev_size16384_radix4_f64<>+0x6DC0(SB)/8, $2972
+DATA bitrev_size16384_radix4_f64<>+0x6DC8(SB)/8, $7068
+DATA bitrev_size16384_radix4_f64<>+0x6DD0(SB)/8, $11164
+DATA bitrev_size16384_radix4_f64<>+0x6DD8(SB)/8, $15260
+DATA bitrev_size16384_radix4_f64<>+0x6DE0(SB)/8, $3996
+DATA bitrev_size16384_radix4_f64<>+0x6DE8(SB)/8, $8092
+DATA bitrev_size16384_radix4_f64<>+0x6DF0(SB)/8, $12188
+DATA bitrev_size16384_radix4_f64<>+0x6DF8(SB)/8, $16284
+DATA bitrev_size16384_radix4_f64<>+0x6E00(SB)/8, $220
+DATA bitrev_size16384_radix4_f64<>+0x6E08(SB)/8, $4316
+DATA bitrev_size16384_radix4_f64<>+0x6E10(SB)/8, $8412
+DATA bitrev_size16384_radix4_f64<>+0x6E18(SB)/8, $12508
+DATA bitrev_size16384_radix4_f64<>+0x6E20(SB)/8, $1244
+DATA bitrev_size16384_radix4_f64<>+0x6E28(SB)/8, $5340
+DATA bitrev_size16384_radix4_f64<>+0x6E30(SB)/8, $9436
+DATA bitrev_size16384_radix4_f64<>+0x6E38(SB)/8, $13532
+DATA bitrev_size16384_radix4_f64<>+0x6E40(SB)/8, $2268
+DATA bitrev_size16384_radix4_f64<>+0x6E48(SB)/8, $6364
+DATA bitrev_size16384_radix4_f64<>+0x6E50(SB)/8, $10460
+DATA bitrev_size16384_radix4_f64<>+0x6E58(SB)/8, $14556
+DATA bitrev_size16384_radix4_f64<>+0x6E60(SB)/8, $3292
+DATA bitrev_size16384_radix4_f64<>+0x6E68(SB)/8, $7388
+DATA bitrev_size16384_radix4_f64<>+0x6E70(SB)/8, $11484
+DATA bitrev_size16384_radix4_f64<>+0x6E78(SB)/8, $15580
+DATA bitrev_size16384_radix4_f64<>+0x6E80(SB)/8, $476
+DATA bitrev_size16384_radix4_f64<>+0x6E88(SB)/8, $4572
+DATA bitrev_size16384_radix4_f64<>+0x6E90(SB)/8, $8668
+DATA bitrev_size16384_radix4_f64<>+0x6E98(SB)/8, $12764
+DATA bitrev_size16384_radix4_f64<>+0x6EA0(SB)/8, $1500
+DATA bitrev_size16384_radix4_f64<>+0x6EA8(SB)/8, $5596
+DATA bitrev_size16384_radix4_f64<>+0x6EB0(SB)/8, $9692
+DATA bitrev_size16384_radix4_f64<>+0x6EB8(SB)/8, $13788
+DATA bitrev_size16384_radix4_f64<>+0x6EC0(SB)/8, $2524
+DATA bitrev_size16384_radix4_f64<>+0x6EC8(SB)/8, $6620
+DATA bitrev_size16384_radix4_f64<>+0x6ED0(SB)/8, $10716
+DATA bitrev_size16384_radix4_f64<>+0x6ED8(SB)/8, $14812
+DATA bitrev_size16384_radix4_f64<>+0x6EE0(SB)/8, $3548
+DATA bitrev_size16384_radix4_f64<>+0x6EE8(SB)/8, $7644
+DATA bitrev_size16384_radix4_f64<>+0x6EF0(SB)/8, $11740
+DATA bitrev_size16384_radix4_f64<>+0x6EF8(SB)/8, $15836
+DATA bitrev_size16384_radix4_f64<>+0x6F00(SB)/8, $732
+DATA bitrev_size16384_radix4_f64<>+0x6F08(SB)/8, $4828
+DATA bitrev_size16384_radix4_f64<>+0x6F10(SB)/8, $8924
+DATA bitrev_size16384_radix4_f64<>+0x6F18(SB)/8, $13020
+DATA bitrev_size16384_radix4_f64<>+0x6F20(SB)/8, $1756
+DATA bitrev_size16384_radix4_f64<>+0x6F28(SB)/8, $5852
+DATA bitrev_size16384_radix4_f64<>+0x6F30(SB)/8, $9948
+DATA bitrev_size16384_radix4_f64<>+0x6F38(SB)/8, $14044
+DATA bitrev_size16384_radix4_f64<>+0x6F40(SB)/8, $2780
+DATA bitrev_size16384_radix4_f64<>+0x6F48(SB)/8, $6876
+DATA bitrev_size16384_radix4_f64<>+0x6F50(SB)/8, $10972
+DATA bitrev_size16384_radix4_f64<>+0x6F58(SB)/8, $15068
+DATA bitrev_size16384_radix4_f64<>+0x6F60(SB)/8, $3804
+DATA bitrev_size16384_radix4_f64<>+0x6F68(SB)/8, $7900
+DATA bitrev_size16384_radix4_f64<>+0x6F70(SB)/8, $11996
+DATA bitrev_size16384_radix4_f64<>+0x6F78(SB)/8, $16092
+DATA bitrev_size16384_radix4_f64<>+0x6F80(SB)/8, $988
+DATA bitrev_size16384_radix4_f64<>+0x6F88(SB)/8, $5084
+DATA bitrev_size16384_radix4_f64<>+0x6F90(SB)/8, $9180
+DATA bitrev_size16384_radix4_f64<>+0x6F98(SB)/8, $13276
+DATA bitrev_size16384_radix4_f64<>+0x6FA0(SB)/8, $2012
+DATA bitrev_size16384_radix4_f64<>+0x6FA8(SB)/8, $6108
+DATA bitrev_size16384_radix4_f64<>+0x6FB0(SB)/8, $10204
+DATA bitrev_size16384_radix4_f64<>+0x6FB8(SB)/8, $14300
+DATA bitrev_size16384_radix4_f64<>+0x6FC0(SB)/8, $3036
+DATA bitrev_size16384_radix4_f64<>+0x6FC8(SB)/8, $7132
+DATA bitrev_size16384_radix4_f64<>+0x6FD0(SB)/8, $11228
+DATA bitrev_size16384_radix4_f64<>+0x6FD8(SB)/8, $15324
+DATA bitrev_size16384_radix4_f64<>+0x6FE0(SB)/8, $4060
+DATA bitrev_size16384_radix4_f64<>+0x6FE8(SB)/8, $8156
+DATA bitrev_size16384_radix4_f64<>+0x6FF0(SB)/8, $12252
+DATA bitrev_size16384_radix4_f64<>+0x6FF8(SB)/8, $16348
+DATA bitrev_size16384_radix4_f64<>+0x7000(SB)/8, $44
+DATA bitrev_size16384_radix4_f64<>+0x7008(SB)/8, $4140
+DATA bitrev_size16384_radix4_f64<>+0x7010(SB)/8, $8236
+DATA bitrev_size16384_radix4_f64<>+0x7018(SB)/8, $12332
+DATA bitrev_size16384_radix4_f64<>+0x7020(SB)/8, $1068
+DATA bitrev_size16384_radix4_f64<>+0x7028(SB)/8, $5164
+DATA bitrev_size16384_radix4_f64<>+0x7030(SB)/8, $9260
+DATA bitrev_size16384_radix4_f64<>+0x7038(SB)/8, $13356
+DATA bitrev_size16384_radix4_f64<>+0x7040(SB)/8, $2092
+DATA bitrev_size16384_radix4_f64<>+0x7048(SB)/8, $6188
+DATA bitrev_size16384_radix4_f64<>+0x7050(SB)/8, $10284
+DATA bitrev_size16384_radix4_f64<>+0x7058(SB)/8, $14380
+DATA bitrev_size16384_radix4_f64<>+0x7060(SB)/8, $3116
+DATA bitrev_size16384_radix4_f64<>+0x7068(SB)/8, $7212
+DATA bitrev_size16384_radix4_f64<>+0x7070(SB)/8, $11308
+DATA bitrev_size16384_radix4_f64<>+0x7078(SB)/8, $15404
+DATA bitrev_size16384_radix4_f64<>+0x7080(SB)/8, $300
+DATA bitrev_size16384_radix4_f64<>+0x7088(SB)/8, $4396
+DATA bitrev_size16384_radix4_f64<>+0x7090(SB)/8, $8492
+DATA bitrev_size16384_radix4_f64<>+0x7098(SB)/8, $12588
+DATA bitrev_size16384_radix4_f64<>+0x70A0(SB)/8, $1324
+DATA bitrev_size16384_radix4_f64<>+0x70A8(SB)/8, $5420
+DATA bitrev_size16384_radix4_f64<>+0x70B0(SB)/8, $9516
+DATA bitrev_size16384_radix4_f64<>+0x70B8(SB)/8, $13612
+DATA bitrev_size16384_radix4_f64<>+0x70C0(SB)/8, $2348
+DATA bitrev_size16384_radix4_f64<>+0x70C8(SB)/8, $6444
+DATA bitrev_size16384_radix4_f64<>+0x70D0(SB)/8, $10540
+DATA bitrev_size16384_radix4_f64<>+0x70D8(SB)/8, $14636
+DATA bitrev_size16384_radix4_f64<>+0x70E0(SB)/8, $3372
+DATA bitrev_size16384_radix4_f64<>+0x70E8(SB)/8, $7468
+DATA bitrev_size16384_radix4_f64<>+0x70F0(SB)/8, $11564
+DATA bitrev_size16384_radix4_f64<>+0x70F8(SB)/8, $15660
+DATA bitrev_size16384_radix4_f64<>+0x7100(SB)/8, $556
+DATA bitrev_size16384_radix4_f64<>+0x7108(SB)/8, $4652
+DATA bitrev_size16384_radix4_f64<>+0x7110(SB)/8, $8748
+DATA bitrev_size16384_radix4_f64<>+0x7118(SB)/8, $12844
+DATA bitrev_size16384_radix4_f64<>+0x7120(SB)/8, $1580
+DATA bitrev_size16384_radix4_f64<>+0x7128(SB)/8, $5676
+DATA bitrev_size16384_radix4_f64<>+0x7130(SB)/8, $9772
+DATA bitrev_size16384_radix4_f64<>+0x7138(SB)/8, $13868
+DATA bitrev_size16384_radix4_f64<>+0x7140(SB)/8, $2604
+DATA bitrev_size16384_radix4_f64<>+0x7148(SB)/8, $6700
+DATA bitrev_size16384_radix4_f64<>+0x7150(SB)/8, $10796
+DATA bitrev_size16384_radix4_f64<>+0x7158(SB)/8, $14892
+DATA bitrev_size16384_radix4_f64<>+0x7160(SB)/8, $3628
+DATA bitrev_size16384_radix4_f64<>+0x7168(SB)/8, $7724
+DATA bitrev_size16384_radix4_f64<>+0x7170(SB)/8, $11820
+DATA bitrev_size16384_radix4_f64<>+0x7178(SB)/8, $15916
+DATA bitrev_size16384_radix4_f64<>+0x7180(SB)/8, $812
+DATA bitrev_size16384_radix4_f64<>+0x7188(SB)/8, $4908
+DATA bitrev_size16384_radix4_f64<>+0x7190(SB)/8, $9004
+DATA bitrev_size16384_radix4_f64<>+0x7198(SB)/8, $13100
+DATA bitrev_size16384_radix4_f64<>+0x71A0(SB)/8, $1836
+DATA bitrev_size16384_radix4_f64<>+0x71A8(SB)/8, $5932
+DATA bitrev_size16384_radix4_f64<>+0x71B0(SB)/8, $10028
+DATA bitrev_size16384_radix4_f64<>+0x71B8(SB)/8, $14124
+DATA bitrev_size16384_radix4_f64<>+0x71C0(SB)/8, $2860
+DATA bitrev_size16384_radix4_f64<>+0x71C8(SB)/8, $6956
+DATA bitrev_size16384_radix4_f64<>+0x71D0(SB)/8, $11052
+DATA bitrev_size16384_radix4_f64<>+0x71D8(SB)/8, $15148
+DATA bitrev_size16384_radix4_f64<>+0x71E0(SB)/8, $3884
+DATA bitrev_size16384_radix4_f64<>+0x71E8(SB)/8, $7980
+DATA bitrev_size16384_radix4_f64<>+0x71F0(SB)/8, $12076
+DATA bitrev_size16384_radix4_f64<>+0x71F8(SB)/8, $16172
+DATA bitrev_size16384_radix4_f64<>+0x7200(SB)/8, $108
+DATA bitrev_size16384_radix4_f64<>+0x7208(SB)/8, $4204
+DATA bitrev_size16384_radix4_f64<>+0x7210(SB)/8, $8300
+DATA bitrev_size16384_radix4_f64<>+0x7218(SB)/8, $12396
+DATA bitrev_size16384_radix4_f64<>+0x7220(SB)/8, $1132
+DATA bitrev_size16384_radix4_f64<>+0x7228(SB)/8, $5228
+DATA bitrev_size16384_radix4_f64<>+0x7230(SB)/8, $9324
+DATA bitrev_size16384_radix4_f64<>+0x7238(SB)/8, $13420
+DATA bitrev_size16384_radix4_f64<>+0x7240(SB)/8, $2156
+DATA bitrev_size16384_radix4_f64<>+0x7248(SB)/8, $6252
+DATA bitrev_size16384_radix4_f64<>+0x7250(SB)/8, $10348
+DATA bitrev_size16384_radix4_f64<>+0x7258(SB)/8, $14444
+DATA bitrev_size16384_radix4_f64<>+0x7260(SB)/8, $3180
+DATA bitrev_size16384_radix4_f64<>+0x7268(SB)/8, $7276
+DATA bitrev_size16384_radix4_f64<>+0x7270(SB)/8, $11372
+DATA bitrev_size16384_radix4_f64<>+0x7278(SB)/8, $15468
+DATA bitrev_size16384_radix4_f64<>+0x7280(SB)/8, $364
+DATA bitrev_size16384_radix4_f64<>+0x7288(SB)/8, $4460
+DATA bitrev_size16384_radix4_f64<>+0x7290(SB)/8, $8556
+DATA bitrev_size16384_radix4_f64<>+0x7298(SB)/8, $12652
+DATA bitrev_size16384_radix4_f64<>+0x72A0(SB)/8, $1388
+DATA bitrev_size16384_radix4_f64<>+0x72A8(SB)/8, $5484
+DATA bitrev_size16384_radix4_f64<>+0x72B0(SB)/8, $9580
+DATA bitrev_size16384_radix4_f64<>+0x72B8(SB)/8, $13676
+DATA bitrev_size16384_radix4_f64<>+0x72C0(SB)/8, $2412
+DATA bitrev_size16384_radix4_f64<>+0x72C8(SB)/8, $6508
+DATA bitrev_size16384_radix4_f64<>+0x72D0(SB)/8, $10604
+DATA bitrev_size16384_radix4_f64<>+0x72D8(SB)/8, $14700
+DATA bitrev_size16384_radix4_f64<>+0x72E0(SB)/8, $3436
+DATA bitrev_size16384_radix4_f64<>+0x72E8(SB)/8, $7532
+DATA bitrev_size16384_radix4_f64<>+0x72F0(SB)/8, $11628
+DATA bitrev_size16384_radix4_f64<>+0x72F8(SB)/8, $15724
+DATA bitrev_size16384_radix4_f64<>+0x7300(SB)/8, $620
+DATA bitrev_size16384_radix4_f64<>+0x7308(SB)/8, $4716
+DATA bitrev_size16384_radix4_f64<>+0x7310(SB)/8, $8812
+DATA bitrev_size16384_radix4_f64<>+0x7318(SB)/8, $12908
+DATA bitrev_size16384_radix4_f64<>+0x7320(SB)/8, $1644
+DATA bitrev_size16384_radix4_f64<>+0x7328(SB)/8, $5740
+DATA bitrev_size16384_radix4_f64<>+0x7330(SB)/8, $9836
+DATA bitrev_size16384_radix4_f64<>+0x7338(SB)/8, $13932
+DATA bitrev_size16384_radix4_f64<>+0x7340(SB)/8, $2668
+DATA bitrev_size16384_radix4_f64<>+0x7348(SB)/8, $6764
+DATA bitrev_size16384_radix4_f64<>+0x7350(SB)/8, $10860
+DATA bitrev_size16384_radix4_f64<>+0x7358(SB)/8, $14956
+DATA bitrev_size16384_radix4_f64<>+0x7360(SB)/8, $3692
+DATA bitrev_size16384_radix4_f64<>+0x7368(SB)/8, $7788
+DATA bitrev_size16384_radix4_f64<>+0x7370(SB)/8, $11884
+DATA bitrev_size16384_radix4_f64<>+0x7378(SB)/8, $15980
+DATA bitrev_size16384_radix4_f64<>+0x7380(SB)/8, $876
+DATA bitrev_size16384_radix4_f64<>+0x7388(SB)/8, $4972
+DATA bitrev_size16384_radix4_f64<>+0x7390(SB)/8, $9068
+DATA bitrev_size16384_radix4_f64<>+0x7398(SB)/8, $13164
+DATA bitrev_size16384_radix4_f64<>+0x73A0(SB)/8, $1900
+DATA bitrev_size16384_radix4_f64<>+0x73A8(SB)/8, $5996
+DATA bitrev_size16384_radix4_f64<>+0x73B0(SB)/8, $10092
+DATA bitrev_size16384_radix4_f64<>+0x73B8(SB)/8, $14188
+DATA bitrev_size16384_radix4_f64<>+0x73C0(SB)/8, $2924
+DATA bitrev_size16384_radix4_f64<>+0x73C8(SB)/8, $7020
+DATA bitrev_size16384_radix4_f64<>+0x73D0(SB)/8, $11116
+DATA bitrev_size16384_radix4_f64<>+0x73D8(SB)/8, $15212
+DATA bitrev_size16384_radix4_f64<>+0x73E0(SB)/8, $3948
+DATA bitrev_size16384_radix4_f64<>+0x73E8(SB)/8, $8044
+DATA bitrev_size16384_radix4_f64<>+0x73F0(SB)/8, $12140
+DATA bitrev_size16384_radix4_f64<>+0x73F8(SB)/8, $16236
+DATA bitrev_size16384_radix4_f64<>+0x7400(SB)/8, $172
+DATA bitrev_size16384_radix4_f64<>+0x7408(SB)/8, $4268
+DATA bitrev_size16384_radix4_f64<>+0x7410(SB)/8, $8364
+DATA bitrev_size16384_radix4_f64<>+0x7418(SB)/8, $12460
+DATA bitrev_size16384_radix4_f64<>+0x7420(SB)/8, $1196
+DATA bitrev_size16384_radix4_f64<>+0x7428(SB)/8, $5292
+DATA bitrev_size16384_radix4_f64<>+0x7430(SB)/8, $9388
+DATA bitrev_size16384_radix4_f64<>+0x7438(SB)/8, $13484
+DATA bitrev_size16384_radix4_f64<>+0x7440(SB)/8, $2220
+DATA bitrev_size16384_radix4_f64<>+0x7448(SB)/8, $6316
+DATA bitrev_size16384_radix4_f64<>+0x7450(SB)/8, $10412
+DATA bitrev_size16384_radix4_f64<>+0x7458(SB)/8, $14508
+DATA bitrev_size16384_radix4_f64<>+0x7460(SB)/8, $3244
+DATA bitrev_size16384_radix4_f64<>+0x7468(SB)/8, $7340
+DATA bitrev_size16384_radix4_f64<>+0x7470(SB)/8, $11436
+DATA bitrev_size16384_radix4_f64<>+0x7478(SB)/8, $15532
+DATA bitrev_size16384_radix4_f64<>+0x7480(SB)/8, $428
+DATA bitrev_size16384_radix4_f64<>+0x7488(SB)/8, $4524
+DATA bitrev_size16384_radix4_f64<>+0x7490(SB)/8, $8620
+DATA bitrev_size16384_radix4_f64<>+0x7498(SB)/8, $12716
+DATA bitrev_size16384_radix4_f64<>+0x74A0(SB)/8, $1452
+DATA bitrev_size16384_radix4_f64<>+0x74A8(SB)/8, $5548
+DATA bitrev_size16384_radix4_f64<>+0x74B0(SB)/8, $9644
+DATA bitrev_size16384_radix4_f64<>+0x74B8(SB)/8, $13740
+DATA bitrev_size16384_radix4_f64<>+0x74C0(SB)/8, $2476
+DATA bitrev_size16384_radix4_f64<>+0x74C8(SB)/8, $6572
+DATA bitrev_size16384_radix4_f64<>+0x74D0(SB)/8, $10668
+DATA bitrev_size16384_radix4_f64<>+0x74D8(SB)/8, $14764
+DATA bitrev_size16384_radix4_f64<>+0x74E0(SB)/8, $3500
+DATA bitrev_size16384_radix4_f64<>+0x74E8(SB)/8, $7596
+DATA bitrev_size16384_radix4_f64<>+0x74F0(SB)/8, $11692
+DATA bitrev_size16384_radix4_f64<>+0x74F8(SB)/8, $15788
+DATA bitrev_size16384_radix4_f64<>+0x7500(SB)/8, $684
+DATA bitrev_size16384_radix4_f64<>+0x7508(SB)/8, $4780
+DATA bitrev_size16384_radix4_f64<>+0x7510(SB)/8, $8876
+DATA bitrev_size16384_radix4_f64<>+0x7518(SB)/8, $12972
+DATA bitrev_size16384_radix4_f64<>+0x7520(SB)/8, $1708
+DATA bitrev_size16384_radix4_f64<>+0x7528(SB)/8, $5804
+DATA bitrev_size16384_radix4_f64<>+0x7530(SB)/8, $9900
+DATA bitrev_size16384_radix4_f64<>+0x7538(SB)/8, $13996
+DATA bitrev_size16384_radix4_f64<>+0x7540(SB)/8, $2732
+DATA bitrev_size16384_radix4_f64<>+0x7548(SB)/8, $6828
+DATA bitrev_size16384_radix4_f64<>+0x7550(SB)/8, $10924
+DATA bitrev_size16384_radix4_f64<>+0x7558(SB)/8, $15020
+DATA bitrev_size16384_radix4_f64<>+0x7560(SB)/8, $3756
+DATA bitrev_size16384_radix4_f64<>+0x7568(SB)/8, $7852
+DATA bitrev_size16384_radix4_f64<>+0x7570(SB)/8, $11948
+DATA bitrev_size16384_radix4_f64<>+0x7578(SB)/8, $16044
+DATA bitrev_size16384_radix4_f64<>+0x7580(SB)/8, $940
+DATA bitrev_size16384_radix4_f64<>+0x7588(SB)/8, $5036
+DATA bitrev_size16384_radix4_f64<>+0x7590(SB)/8, $9132
+DATA bitrev_size16384_radix4_f64<>+0x7598(SB)/8, $13228
+DATA bitrev_size16384_radix4_f64<>+0x75A0(SB)/8, $1964
+DATA bitrev_size16384_radix4_f64<>+0x75A8(SB)/8, $6060
+DATA bitrev_size16384_radix4_f64<>+0x75B0(SB)/8, $10156
+DATA bitrev_size16384_radix4_f64<>+0x75B8(SB)/8, $14252
+DATA bitrev_size16384_radix4_f64<>+0x75C0(SB)/8, $2988
+DATA bitrev_size16384_radix4_f64<>+0x75C8(SB)/8, $7084
+DATA bitrev_size16384_radix4_f64<>+0x75D0(SB)/8, $11180
+DATA bitrev_size16384_radix4_f64<>+0x75D8(SB)/8, $15276
+DATA bitrev_size16384_radix4_f64<>+0x75E0(SB)/8, $4012
+DATA bitrev_size16384_radix4_f64<>+0x75E8(SB)/8, $8108
+DATA bitrev_size16384_radix4_f64<>+0x75F0(SB)/8, $12204
+DATA bitrev_size16384_radix4_f64<>+0x75F8(SB)/8, $16300
+DATA bitrev_size16384_radix4_f64<>+0x7600(SB)/8, $236
+DATA bitrev_size16384_radix4_f64<>+0x7608(SB)/8, $4332
+DATA bitrev_size16384_radix4_f64<>+0x7610(SB)/8, $8428
+DATA bitrev_size16384_radix4_f64<>+0x7618(SB)/8, $12524
+DATA bitrev_size16384_radix4_f64<>+0x7620(SB)/8, $1260
+DATA bitrev_size16384_radix4_f64<>+0x7628(SB)/8, $5356
+DATA bitrev_size16384_radix4_f64<>+0x7630(SB)/8, $9452
+DATA bitrev_size16384_radix4_f64<>+0x7638(SB)/8, $13548
+DATA bitrev_size16384_radix4_f64<>+0x7640(SB)/8, $2284
+DATA bitrev_size16384_radix4_f64<>+0x7648(SB)/8, $6380
+DATA bitrev_size16384_radix4_f64<>+0x7650(SB)/8, $10476
+DATA bitrev_size16384_radix4_f64<>+0x7658(SB)/8, $14572
+DATA bitrev_size16384_radix4_f64<>+0x7660(SB)/8, $3308
+DATA bitrev_size16384_radix4_f64<>+0x7668(SB)/8, $7404
+DATA bitrev_size16384_radix4_f64<>+0x7670(SB)/8, $11500
+DATA bitrev_size16384_radix4_f64<>+0x7678(SB)/8, $15596
+DATA bitrev_size16384_radix4_f64<>+0x7680(SB)/8, $492
+DATA bitrev_size16384_radix4_f64<>+0x7688(SB)/8, $4588
+DATA bitrev_size16384_radix4_f64<>+0x7690(SB)/8, $8684
+DATA bitrev_size16384_radix4_f64<>+0x7698(SB)/8, $12780
+DATA bitrev_size16384_radix4_f64<>+0x76A0(SB)/8, $1516
+DATA bitrev_size16384_radix4_f64<>+0x76A8(SB)/8, $5612
+DATA bitrev_size16384_radix4_f64<>+0x76B0(SB)/8, $9708
+DATA bitrev_size16384_radix4_f64<>+0x76B8(SB)/8, $13804
+DATA bitrev_size16384_radix4_f64<>+0x76C0(SB)/8, $2540
+DATA bitrev_size16384_radix4_f64<>+0x76C8(SB)/8, $6636
+DATA bitrev_size16384_radix4_f64<>+0x76D0(SB)/8, $10732
+DATA bitrev_size16384_radix4_f64<>+0x76D8(SB)/8, $14828
+DATA bitrev_size16384_radix4_f64<>+0x76E0(SB)/8, $3564
+DATA bitrev_size16384_radix4_f64<>+0x76E8(SB)/8, $7660
+DATA bitrev_size16384_radix4_f64<>+0x76F0(SB)/8, $11756
+DATA bitrev_size16384_radix4_f64<>+0x76F8(SB)/8, $15852
+DATA bitrev_size16384_radix4_f64<>+0x7700(SB)/8, $748
+DATA bitrev_size16384_radix4_f64<>+0x7708(SB)/8, $4844
+DATA bitrev_size16384_radix4_f64<>+0x7710(SB)/8, $8940
+DATA bitrev_size16384_radix4_f64<>+0x7718(SB)/8, $13036
+DATA bitrev_size16384_radix4_f64<>+0x7720(SB)/8, $1772
+DATA bitrev_size16384_radix4_f64<>+0x7728(SB)/8, $5868
+DATA bitrev_size16384_radix4_f64<>+0x7730(SB)/8, $9964
+DATA bitrev_size16384_radix4_f64<>+0x7738(SB)/8, $14060
+DATA bitrev_size16384_radix4_f64<>+0x7740(SB)/8, $2796
+DATA bitrev_size16384_radix4_f64<>+0x7748(SB)/8, $6892
+DATA bitrev_size16384_radix4_f64<>+0x7750(SB)/8, $10988
+DATA bitrev_size16384_radix4_f64<>+0x7758(SB)/8, $15084
+DATA bitrev_size16384_radix4_f64<>+0x7760(SB)/8, $3820
+DATA bitrev_size16384_radix4_f64<>+0x7768(SB)/8, $7916
+DATA bitrev_size16384_radix4_f64<>+0x7770(SB)/8, $12012
+DATA bitrev_size16384_radix4_f64<>+0x7778(SB)/8, $16108
+DATA bitrev_size16384_radix4_f64<>+0x7780(SB)/8, $1004
+DATA bitrev_size16384_radix4_f64<>+0x7788(SB)/8, $5100
+DATA bitrev_size16384_radix4_f64<>+0x7790(SB)/8, $9196
+DATA bitrev_size16384_radix4_f64<>+0x7798(SB)/8, $13292
+DATA bitrev_size16384_radix4_f64<>+0x77A0(SB)/8, $2028
+DATA bitrev_size16384_radix4_f64<>+0x77A8(SB)/8, $6124
+DATA bitrev_size16384_radix4_f64<>+0x77B0(SB)/8, $10220
+DATA bitrev_size16384_radix4_f64<>+0x77B8(SB)/8, $14316
+DATA bitrev_size16384_radix4_f64<>+0x77C0(SB)/8, $3052
+DATA bitrev_size16384_radix4_f64<>+0x77C8(SB)/8, $7148
+DATA bitrev_size16384_radix4_f64<>+0x77D0(SB)/8, $11244
+DATA bitrev_size16384_radix4_f64<>+0x77D8(SB)/8, $15340
+DATA bitrev_size16384_radix4_f64<>+0x77E0(SB)/8, $4076
+DATA bitrev_size16384_radix4_f64<>+0x77E8(SB)/8, $8172
+DATA bitrev_size16384_radix4_f64<>+0x77F0(SB)/8, $12268
+DATA bitrev_size16384_radix4_f64<>+0x77F8(SB)/8, $16364
+DATA bitrev_size16384_radix4_f64<>+0x7800(SB)/8, $60
+DATA bitrev_size16384_radix4_f64<>+0x7808(SB)/8, $4156
+DATA bitrev_size16384_radix4_f64<>+0x7810(SB)/8, $8252
+DATA bitrev_size16384_radix4_f64<>+0x7818(SB)/8, $12348
+DATA bitrev_size16384_radix4_f64<>+0x7820(SB)/8, $1084
+DATA bitrev_size16384_radix4_f64<>+0x7828(SB)/8, $5180
+DATA bitrev_size16384_radix4_f64<>+0x7830(SB)/8, $9276
+DATA bitrev_size16384_radix4_f64<>+0x7838(SB)/8, $13372
+DATA bitrev_size16384_radix4_f64<>+0x7840(SB)/8, $2108
+DATA bitrev_size16384_radix4_f64<>+0x7848(SB)/8, $6204
+DATA bitrev_size16384_radix4_f64<>+0x7850(SB)/8, $10300
+DATA bitrev_size16384_radix4_f64<>+0x7858(SB)/8, $14396
+DATA bitrev_size16384_radix4_f64<>+0x7860(SB)/8, $3132
+DATA bitrev_size16384_radix4_f64<>+0x7868(SB)/8, $7228
+DATA bitrev_size16384_radix4_f64<>+0x7870(SB)/8, $11324
+DATA bitrev_size16384_radix4_f64<>+0x7878(SB)/8, $15420
+DATA bitrev_size16384_radix4_f64<>+0x7880(SB)/8, $316
+DATA bitrev_size16384_radix4_f64<>+0x7888(SB)/8, $4412
+DATA bitrev_size16384_radix4_f64<>+0x7890(SB)/8, $8508
+DATA bitrev_size16384_radix4_f64<>+0x7898(SB)/8, $12604
+DATA bitrev_size16384_radix4_f64<>+0x78A0(SB)/8, $1340
+DATA bitrev_size16384_radix4_f64<>+0x78A8(SB)/8, $5436
+DATA bitrev_size16384_radix4_f64<>+0x78B0(SB)/8, $9532
+DATA bitrev_size16384_radix4_f64<>+0x78B8(SB)/8, $13628
+DATA bitrev_size16384_radix4_f64<>+0x78C0(SB)/8, $2364
+DATA bitrev_size16384_radix4_f64<>+0x78C8(SB)/8, $6460
+DATA bitrev_size16384_radix4_f64<>+0x78D0(SB)/8, $10556
+DATA bitrev_size16384_radix4_f64<>+0x78D8(SB)/8, $14652
+DATA bitrev_size16384_radix4_f64<>+0x78E0(SB)/8, $3388
+DATA bitrev_size16384_radix4_f64<>+0x78E8(SB)/8, $7484
+DATA bitrev_size16384_radix4_f64<>+0x78F0(SB)/8, $11580
+DATA bitrev_size16384_radix4_f64<>+0x78F8(SB)/8, $15676
+DATA bitrev_size16384_radix4_f64<>+0x7900(SB)/8, $572
+DATA bitrev_size16384_radix4_f64<>+0x7908(SB)/8, $4668
+DATA bitrev_size16384_radix4_f64<>+0x7910(SB)/8, $8764
+DATA bitrev_size16384_radix4_f64<>+0x7918(SB)/8, $12860
+DATA bitrev_size16384_radix4_f64<>+0x7920(SB)/8, $1596
+DATA bitrev_size16384_radix4_f64<>+0x7928(SB)/8, $5692
+DATA bitrev_size16384_radix4_f64<>+0x7930(SB)/8, $9788
+DATA bitrev_size16384_radix4_f64<>+0x7938(SB)/8, $13884
+DATA bitrev_size16384_radix4_f64<>+0x7940(SB)/8, $2620
+DATA bitrev_size16384_radix4_f64<>+0x7948(SB)/8, $6716
+DATA bitrev_size16384_radix4_f64<>+0x7950(SB)/8, $10812
+DATA bitrev_size16384_radix4_f64<>+0x7958(SB)/8, $14908
+DATA bitrev_size16384_radix4_f64<>+0x7960(SB)/8, $3644
+DATA bitrev_size16384_radix4_f64<>+0x7968(SB)/8, $7740
+DATA bitrev_size16384_radix4_f64<>+0x7970(SB)/8, $11836
+DATA bitrev_size16384_radix4_f64<>+0x7978(SB)/8, $15932
+DATA bitrev_size16384_radix4_f64<>+0x7980(SB)/8, $828
+DATA bitrev_size16384_radix4_f64<>+0x7988(SB)/8, $4924
+DATA bitrev_size16384_radix4_f64<>+0x7990(SB)/8, $9020
+DATA bitrev_size16384_radix4_f64<>+0x7998(SB)/8, $13116
+DATA bitrev_size16384_radix4_f64<>+0x79A0(SB)/8, $1852
+DATA bitrev_size16384_radix4_f64<>+0x79A8(SB)/8, $5948
+DATA bitrev_size16384_radix4_f64<>+0x79B0(SB)/8, $10044
+DATA bitrev_size16384_radix4_f64<>+0x79B8(SB)/8, $14140
+DATA bitrev_size16384_radix4_f64<>+0x79C0(SB)/8, $2876
+DATA bitrev_size16384_radix4_f64<>+0x79C8(SB)/8, $6972
+DATA bitrev_size16384_radix4_f64<>+0x79D0(SB)/8, $11068
+DATA bitrev_size16384_radix4_f64<>+0x79D8(SB)/8, $15164
+DATA bitrev_size16384_radix4_f64<>+0x79E0(SB)/8, $3900
+DATA bitrev_size16384_radix4_f64<>+0x79E8(SB)/8, $7996
+DATA bitrev_size16384_radix4_f64<>+0x79F0(SB)/8, $12092
+DATA bitrev_size16384_radix4_f64<>+0x79F8(SB)/8, $16188
+DATA bitrev_size16384_radix4_f64<>+0x7A00(SB)/8, $124
+DATA bitrev_size16384_radix4_f64<>+0x7A08(SB)/8, $4220
+DATA bitrev_size16384_radix4_f64<>+0x7A10(SB)/8, $8316
+DATA bitrev_size16384_radix4_f64<>+0x7A18(SB)/8, $12412
+DATA bitrev_size16384_radix4_f64<>+0x7A20(SB)/8, $1148
+DATA bitrev_size16384_radix4_f64<>+0x7A28(SB)/8, $5244
+DATA bitrev_size16384_radix4_f64<>+0x7A30(SB)/8, $9340
+DATA bitrev_size16384_radix4_f64<>+0x7A38(SB)/8, $13436
+DATA bitrev_size16384_radix4_f64<>+0x7A40(SB)/8, $2172
+DATA bitrev_size16384_radix4_f64<>+0x7A48(SB)/8, $6268
+DATA bitrev_size16384_radix4_f64<>+0x7A50(SB)/8, $10364
+DATA bitrev_size16384_radix4_f64<>+0x7A58(SB)/8, $14460
+DATA bitrev_size16384_radix4_f64<>+0x7A60(SB)/8, $3196
+DATA bitrev_size16384_radix4_f64<>+0x7A68(SB)/8, $7292
+DATA bitrev_size16384_radix4_f64<>+0x7A70(SB)/8, $11388
+DATA bitrev_size16384_radix4_f64<>+0x7A78(SB)/8, $15484
+DATA bitrev_size16384_radix4_f64<>+0x7A80(SB)/8, $380
+DATA bitrev_size16384_radix4_f64<>+0x7A88(SB)/8, $4476
+DATA bitrev_size16384_radix4_f64<>+0x7A90(SB)/8, $8572
+DATA bitrev_size16384_radix4_f64<>+0x7A98(SB)/8, $12668
+DATA bitrev_size16384_radix4_f64<>+0x7AA0(SB)/8, $1404
+DATA bitrev_size16384_radix4_f64<>+0x7AA8(SB)/8, $5500
+DATA bitrev_size16384_radix4_f64<>+0x7AB0(SB)/8, $9596
+DATA bitrev_size16384_radix4_f64<>+0x7AB8(SB)/8, $13692
+DATA bitrev_size16384_radix4_f64<>+0x7AC0(SB)/8, $2428
+DATA bitrev_size16384_radix4_f64<>+0x7AC8(SB)/8, $6524
+DATA bitrev_size16384_radix4_f64<>+0x7AD0(SB)/8, $10620
+DATA bitrev_size16384_radix4_f64<>+0x7AD8(SB)/8, $14716
+DATA bitrev_size16384_radix4_f64<>+0x7AE0(SB)/8, $3452
+DATA bitrev_size16384_radix4_f64<>+0x7AE8(SB)/8, $7548
+DATA bitrev_size16384_radix4_f64<>+0x7AF0(SB)/8, $11644
+DATA bitrev_size16384_radix4_f64<>+0x7AF8(SB)/8, $15740
+DATA bitrev_size16384_radix4_f64<>+0x7B00(SB)/8, $636
+DATA bitrev_size16384_radix4_f64<>+0x7B08(SB)/8, $4732
+DATA bitrev_size16384_radix4_f64<>+0x7B10(SB)/8, $8828
+DATA bitrev_size16384_radix4_f64<>+0x7B18(SB)/8, $12924
+DATA bitrev_size16384_radix4_f64<>+0x7B20(SB)/8, $1660
+DATA bitrev_size16384_radix4_f64<>+0x7B28(SB)/8, $5756
+DATA bitrev_size16384_radix4_f64<>+0x7B30(SB)/8, $9852
+DATA bitrev_size16384_radix4_f64<>+0x7B38(SB)/8, $13948
+DATA bitrev_size16384_radix4_f64<>+0x7B40(SB)/8, $2684
+DATA bitrev_size16384_radix4_f64<>+0x7B48(SB)/8, $6780
+DATA bitrev_size16384_radix4_f64<>+0x7B50(SB)/8, $10876
+DATA bitrev_size16384_radix4_f64<>+0x7B58(SB)/8, $14972
+DATA bitrev_size16384_radix4_f64<>+0x7B60(SB)/8, $3708
+DATA bitrev_size16384_radix4_f64<>+0x7B68(SB)/8, $7804
+DATA bitrev_size16384_radix4_f64<>+0x7B70(SB)/8, $11900
+DATA bitrev_size16384_radix4_f64<>+0x7B78(SB)/8, $15996
+DATA bitrev_size16384_radix4_f64<>+0x7B80(SB)/8, $892
+DATA bitrev_size16384_radix4_f64<>+0x7B88(SB)/8, $4988
+DATA bitrev_size16384_radix4_f64<>+0x7B90(SB)/8, $9084
+DATA bitrev_size16384_radix4_f64<>+0x7B98(SB)/8, $13180
+DATA bitrev_size16384_radix4_f64<>+0x7BA0(SB)/8, $1916
+DATA bitrev_size16384_radix4_f64<>+0x7BA8(SB)/8, $6012
+DATA bitrev_size16384_radix4_f64<>+0x7BB0(SB)/8, $10108
+DATA bitrev_size16384_radix4_f64<>+0x7BB8(SB)/8, $14204
+DATA bitrev_size16384_radix4_f64<>+0x7BC0(SB)/8, $2940
+DATA bitrev_size16384_radix4_f64<>+0x7BC8(SB)/8, $7036
+DATA bitrev_size16384_radix4_f64<>+0x7BD0(SB)/8, $11132
+DATA bitrev_size16384_radix4_f64<>+0x7BD8(SB)/8, $15228
+DATA bitrev_size16384_radix4_f64<>+0x7BE0(SB)/8, $3964
+DATA bitrev_size16384_radix4_f64<>+0x7BE8(SB)/8, $8060
+DATA bitrev_size16384_radix4_f64<>+0x7BF0(SB)/8, $12156
+DATA bitrev_size16384_radix4_f64<>+0x7BF8(SB)/8, $16252
+DATA bitrev_size16384_radix4_f64<>+0x7C00(SB)/8, $188
+DATA bitrev_size16384_radix4_f64<>+0x7C08(SB)/8, $4284
+DATA bitrev_size16384_radix4_f64<>+0x7C10(SB)/8, $8380
+DATA bitrev_size16384_radix4_f64<>+0x7C18(SB)/8, $12476
+DATA bitrev_size16384_radix4_f64<>+0x7C20(SB)/8, $1212
+DATA bitrev_size16384_radix4_f64<>+0x7C28(SB)/8, $5308
+DATA bitrev_size16384_radix4_f64<>+0x7C30(SB)/8, $9404
+DATA bitrev_size16384_radix4_f64<>+0x7C38(SB)/8, $13500
+DATA bitrev_size16384_radix4_f64<>+0x7C40(SB)/8, $2236
+DATA bitrev_size16384_radix4_f64<>+0x7C48(SB)/8, $6332
+DATA bitrev_size16384_radix4_f64<>+0x7C50(SB)/8, $10428
+DATA bitrev_size16384_radix4_f64<>+0x7C58(SB)/8, $14524
+DATA bitrev_size16384_radix4_f64<>+0x7C60(SB)/8, $3260
+DATA bitrev_size16384_radix4_f64<>+0x7C68(SB)/8, $7356
+DATA bitrev_size16384_radix4_f64<>+0x7C70(SB)/8, $11452
+DATA bitrev_size16384_radix4_f64<>+0x7C78(SB)/8, $15548
+DATA bitrev_size16384_radix4_f64<>+0x7C80(SB)/8, $444
+DATA bitrev_size16384_radix4_f64<>+0x7C88(SB)/8, $4540
+DATA bitrev_size16384_radix4_f64<>+0x7C90(SB)/8, $8636
+DATA bitrev_size16384_radix4_f64<>+0x7C98(SB)/8, $12732
+DATA bitrev_size16384_radix4_f64<>+0x7CA0(SB)/8, $1468
+DATA bitrev_size16384_radix4_f64<>+0x7CA8(SB)/8, $5564
+DATA bitrev_size16384_radix4_f64<>+0x7CB0(SB)/8, $9660
+DATA bitrev_size16384_radix4_f64<>+0x7CB8(SB)/8, $13756
+DATA bitrev_size16384_radix4_f64<>+0x7CC0(SB)/8, $2492
+DATA bitrev_size16384_radix4_f64<>+0x7CC8(SB)/8, $6588
+DATA bitrev_size16384_radix4_f64<>+0x7CD0(SB)/8, $10684
+DATA bitrev_size16384_radix4_f64<>+0x7CD8(SB)/8, $14780
+DATA bitrev_size16384_radix4_f64<>+0x7CE0(SB)/8, $3516
+DATA bitrev_size16384_radix4_f64<>+0x7CE8(SB)/8, $7612
+DATA bitrev_size16384_radix4_f64<>+0x7CF0(SB)/8, $11708
+DATA bitrev_size16384_radix4_f64<>+0x7CF8(SB)/8, $15804
+DATA bitrev_size16384_radix4_f64<>+0x7D00(SB)/8, $700
+DATA bitrev_size16384_radix4_f64<>+0x7D08(SB)/8, $4796
+DATA bitrev_size16384_radix4_f64<>+0x7D10(SB)/8, $8892
+DATA bitrev_size16384_radix4_f64<>+0x7D18(SB)/8, $12988
+DATA bitrev_size16384_radix4_f64<>+0x7D20(SB)/8, $1724
+DATA bitrev_size16384_radix4_f64<>+0x7D28(SB)/8, $5820
+DATA bitrev_size16384_radix4_f64<>+0x7D30(SB)/8, $9916
+DATA bitrev_size16384_radix4_f64<>+0x7D38(SB)/8, $14012
+DATA bitrev_size16384_radix4_f64<>+0x7D40(SB)/8, $2748
+DATA bitrev_size16384_radix4_f64<>+0x7D48(SB)/8, $6844
+DATA bitrev_size16384_radix4_f64<>+0x7D50(SB)/8, $10940
+DATA bitrev_size16384_radix4_f64<>+0x7D58(SB)/8, $15036
+DATA bitrev_size16384_radix4_f64<>+0x7D60(SB)/8, $3772
+DATA bitrev_size16384_radix4_f64<>+0x7D68(SB)/8, $7868
+DATA bitrev_size16384_radix4_f64<>+0x7D70(SB)/8, $11964
+DATA bitrev_size16384_radix4_f64<>+0x7D78(SB)/8, $16060
+DATA bitrev_size16384_radix4_f64<>+0x7D80(SB)/8, $956
+DATA bitrev_size16384_radix4_f64<>+0x7D88(SB)/8, $5052
+DATA bitrev_size16384_radix4_f64<>+0x7D90(SB)/8, $9148
+DATA bitrev_size16384_radix4_f64<>+0x7D98(SB)/8, $13244
+DATA bitrev_size16384_radix4_f64<>+0x7DA0(SB)/8, $1980
+DATA bitrev_size16384_radix4_f64<>+0x7DA8(SB)/8, $6076
+DATA bitrev_size16384_radix4_f64<>+0x7DB0(SB)/8, $10172
+DATA bitrev_size16384_radix4_f64<>+0x7DB8(SB)/8, $14268
+DATA bitrev_size16384_radix4_f64<>+0x7DC0(SB)/8, $3004
+DATA bitrev_size16384_radix4_f64<>+0x7DC8(SB)/8, $7100
+DATA bitrev_size16384_radix4_f64<>+0x7DD0(SB)/8, $11196
+DATA bitrev_size16384_radix4_f64<>+0x7DD8(SB)/8, $15292
+DATA bitrev_size16384_radix4_f64<>+0x7DE0(SB)/8, $4028
+DATA bitrev_size16384_radix4_f64<>+0x7DE8(SB)/8, $8124
+DATA bitrev_size16384_radix4_f64<>+0x7DF0(SB)/8, $12220
+DATA bitrev_size16384_radix4_f64<>+0x7DF8(SB)/8, $16316
+DATA bitrev_size16384_radix4_f64<>+0x7E00(SB)/8, $252
+DATA bitrev_size16384_radix4_f64<>+0x7E08(SB)/8, $4348
+DATA bitrev_size16384_radix4_f64<>+0x7E10(SB)/8, $8444
+DATA bitrev_size16384_radix4_f64<>+0x7E18(SB)/8, $12540
+DATA bitrev_size16384_radix4_f64<>+0x7E20(SB)/8, $1276
+DATA bitrev_size16384_radix4_f64<>+0x7E28(SB)/8, $5372
+DATA bitrev_size16384_radix4_f64<>+0x7E30(SB)/8, $9468
+DATA bitrev_size16384_radix4_f64<>+0x7E38(SB)/8, $13564
+DATA bitrev_size16384_radix4_f64<>+0x7E40(SB)/8, $2300
+DATA bitrev_size16384_radix4_f64<>+0x7E48(SB)/8, $6396
+DATA bitrev_size16384_radix4_f64<>+0x7E50(SB)/8, $10492
+DATA bitrev_size16384_radix4_f64<>+0x7E58(SB)/8, $14588
+DATA bitrev_size16384_radix4_f64<>+0x7E60(SB)/8, $3324
+DATA bitrev_size16384_radix4_f64<>+0x7E68(SB)/8, $7420
+DATA bitrev_size16384_radix4_f64<>+0x7E70(SB)/8, $11516
+DATA bitrev_size16384_radix4_f64<>+0x7E78(SB)/8, $15612
+DATA bitrev_size16384_radix4_f64<>+0x7E80(SB)/8, $508
+DATA bitrev_size16384_radix4_f64<>+0x7E88(SB)/8, $4604
+DATA bitrev_size16384_radix4_f64<>+0x7E90(SB)/8, $8700
+DATA bitrev_size16384_radix4_f64<>+0x7E98(SB)/8, $12796
+DATA bitrev_size16384_radix4_f64<>+0x7EA0(SB)/8, $1532
+DATA bitrev_size16384_radix4_f64<>+0x7EA8(SB)/8, $5628
+DATA bitrev_size16384_radix4_f64<>+0x7EB0(SB)/8, $9724
+DATA bitrev_size16384_radix4_f64<>+0x7EB8(SB)/8, $13820
+DATA bitrev_size16384_radix4_f64<>+0x7EC0(SB)/8, $2556
+DATA bitrev_size16384_radix4_f64<>+0x7EC8(SB)/8, $6652
+DATA bitrev_size16384_radix4_f64<>+0x7ED0(SB)/8, $10748
+DATA bitrev_size16384_radix4_f64<>+0x7ED8(SB)/8, $14844
+DATA bitrev_size16384_radix4_f64<>+0x7EE0(SB)/8, $3580
+DATA bitrev_size16384_radix4_f64<>+0x7EE8(SB)/8, $7676
+DATA bitrev_size16384_radix4_f64<>+0x7EF0(SB)/8, $11772
+DATA bitrev_size16384_radix4_f64<>+0x7EF8(SB)/8, $15868
+DATA bitrev_size16384_radix4_f64<>+0x7F00(SB)/8, $764
+DATA bitrev_size16384_radix4_f64<>+0x7F08(SB)/8, $4860
+DATA bitrev_size16384_radix4_f64<>+0x7F10(SB)/8, $8956
+DATA bitrev_size16384_radix4_f64<>+0x7F18(SB)/8, $13052
+DATA bitrev_size16384_radix4_f64<>+0x7F20(SB)/8, $1788
+DATA bitrev_size16384_radix4_f64<>+0x7F28(SB)/8, $5884
+DATA bitrev_size16384_radix4_f64<>+0x7F30(SB)/8, $9980
+DATA bitrev_size16384_radix4_f64<>+0x7F38(SB)/8, $14076
+DATA bitrev_size16384_radix4_f64<>+0x7F40(SB)/8, $2812
+DATA bitrev_size16384_radix4_f64<>+0x7F48(SB)/8, $6908
+DATA bitrev_size16384_radix4_f64<>+0x7F50(SB)/8, $11004
+DATA bitrev_size16384_radix4_f64<>+0x7F58(SB)/8, $15100
+DATA bitrev_size16384_radix4_f64<>+0x7F60(SB)/8, $3836
+DATA bitrev_size16384_radix4_f64<>+0x7F68(SB)/8, $7932
+DATA bitrev_size16384_radix4_f64<>+0x7F70(SB)/8, $12028
+DATA bitrev_size16384_radix4_f64<>+0x7F78(SB)/8, $16124
+DATA bitrev_size16384_radix4_f64<>+0x7F80(SB)/8, $1020
+DATA bitrev_size16384_radix4_f64<>+0x7F88(SB)/8, $5116
+DATA bitrev_size16384_radix4_f64<>+0x7F90(SB)/8, $9212
+DATA bitrev_size16384_radix4_f64<>+0x7F98(SB)/8, $13308
+DATA bitrev_size16384_radix4_f64<>+0x7FA0(SB)/8, $2044
+DATA bitrev_size16384_radix4_f64<>+0x7FA8(SB)/8, $6140
+DATA bitrev_size16384_radix4_f64<>+0x7FB0(SB)/8, $10236
+DATA bitrev_size16384_radix4_f64<>+0x7FB8(SB)/8, $14332
+DATA bitrev_size16384_radix4_f64<>+0x7FC0(SB)/8, $3068
+DATA bitrev_size16384_radix4_f64<>+0x7FC8(SB)/8, $7164
+DATA bitrev_size16384_radix4_f64<>+0x7FD0(SB)/8, $11260
+DATA bitrev_size16384_radix4_f64<>+0x7FD8(SB)/8, $15356
+DATA bitrev_size16384_radix4_f64<>+0x7FE0(SB)/8, $4092
+DATA bitrev_size16384_radix4_f64<>+0x7FE8(SB)/8, $8188
+DATA bitrev_size16384_radix4_f64<>+0x7FF0(SB)/8, $12284
+DATA bitrev_size16384_radix4_f64<>+0x7FF8(SB)/8, $16380
+DATA bitrev_size16384_radix4_f64<>+0x8000(SB)/8, $1
+DATA bitrev_size16384_radix4_f64<>+0x8008(SB)/8, $4097
+DATA bitrev_size16384_radix4_f64<>+0x8010(SB)/8, $8193
+DATA bitrev_size16384_radix4_f64<>+0x8018(SB)/8, $12289
+DATA bitrev_size16384_radix4_f64<>+0x8020(SB)/8, $1025
+DATA bitrev_size16384_radix4_f64<>+0x8028(SB)/8, $5121
+DATA bitrev_size16384_radix4_f64<>+0x8030(SB)/8, $9217
+DATA bitrev_size16384_radix4_f64<>+0x8038(SB)/8, $13313
+DATA bitrev_size16384_radix4_f64<>+0x8040(SB)/8, $2049
+DATA bitrev_size16384_radix4_f64<>+0x8048(SB)/8, $6145
+DATA bitrev_size16384_radix4_f64<>+0x8050(SB)/8, $10241
+DATA bitrev_size16384_radix4_f64<>+0x8058(SB)/8, $14337
+DATA bitrev_size16384_radix4_f64<>+0x8060(SB)/8, $3073
+DATA bitrev_size16384_radix4_f64<>+0x8068(SB)/8, $7169
+DATA bitrev_size16384_radix4_f64<>+0x8070(SB)/8, $11265
+DATA bitrev_size16384_radix4_f64<>+0x8078(SB)/8, $15361
+DATA bitrev_size16384_radix4_f64<>+0x8080(SB)/8, $257
+DATA bitrev_size16384_radix4_f64<>+0x8088(SB)/8, $4353
+DATA bitrev_size16384_radix4_f64<>+0x8090(SB)/8, $8449
+DATA bitrev_size16384_radix4_f64<>+0x8098(SB)/8, $12545
+DATA bitrev_size16384_radix4_f64<>+0x80A0(SB)/8, $1281
+DATA bitrev_size16384_radix4_f64<>+0x80A8(SB)/8, $5377
+DATA bitrev_size16384_radix4_f64<>+0x80B0(SB)/8, $9473
+DATA bitrev_size16384_radix4_f64<>+0x80B8(SB)/8, $13569
+DATA bitrev_size16384_radix4_f64<>+0x80C0(SB)/8, $2305
+DATA bitrev_size16384_radix4_f64<>+0x80C8(SB)/8, $6401
+DATA bitrev_size16384_radix4_f64<>+0x80D0(SB)/8, $10497
+DATA bitrev_size16384_radix4_f64<>+0x80D8(SB)/8, $14593
+DATA bitrev_size16384_radix4_f64<>+0x80E0(SB)/8, $3329
+DATA bitrev_size16384_radix4_f64<>+0x80E8(SB)/8, $7425
+DATA bitrev_size16384_radix4_f64<>+0x80F0(SB)/8, $11521
+DATA bitrev_size16384_radix4_f64<>+0x80F8(SB)/8, $15617
+DATA bitrev_size16384_radix4_f64<>+0x8100(SB)/8, $513
+DATA bitrev_size16384_radix4_f64<>+0x8108(SB)/8, $4609
+DATA bitrev_size16384_radix4_f64<>+0x8110(SB)/8, $8705
+DATA bitrev_size16384_radix4_f64<>+0x8118(SB)/8, $12801
+DATA bitrev_size16384_radix4_f64<>+0x8120(SB)/8, $1537
+DATA bitrev_size16384_radix4_f64<>+0x8128(SB)/8, $5633
+DATA bitrev_size16384_radix4_f64<>+0x8130(SB)/8, $9729
+DATA bitrev_size16384_radix4_f64<>+0x8138(SB)/8, $13825
+DATA bitrev_size16384_radix4_f64<>+0x8140(SB)/8, $2561
+DATA bitrev_size16384_radix4_f64<>+0x8148(SB)/8, $6657
+DATA bitrev_size16384_radix4_f64<>+0x8150(SB)/8, $10753
+DATA bitrev_size16384_radix4_f64<>+0x8158(SB)/8, $14849
+DATA bitrev_size16384_radix4_f64<>+0x8160(SB)/8, $3585
+DATA bitrev_size16384_radix4_f64<>+0x8168(SB)/8, $7681
+DATA bitrev_size16384_radix4_f64<>+0x8170(SB)/8, $11777
+DATA bitrev_size16384_radix4_f64<>+0x8178(SB)/8, $15873
+DATA bitrev_size16384_radix4_f64<>+0x8180(SB)/8, $769
+DATA bitrev_size16384_radix4_f64<>+0x8188(SB)/8, $4865
+DATA bitrev_size16384_radix4_f64<>+0x8190(SB)/8, $8961
+DATA bitrev_size16384_radix4_f64<>+0x8198(SB)/8, $13057
+DATA bitrev_size16384_radix4_f64<>+0x81A0(SB)/8, $1793
+DATA bitrev_size16384_radix4_f64<>+0x81A8(SB)/8, $5889
+DATA bitrev_size16384_radix4_f64<>+0x81B0(SB)/8, $9985
+DATA bitrev_size16384_radix4_f64<>+0x81B8(SB)/8, $14081
+DATA bitrev_size16384_radix4_f64<>+0x81C0(SB)/8, $2817
+DATA bitrev_size16384_radix4_f64<>+0x81C8(SB)/8, $6913
+DATA bitrev_size16384_radix4_f64<>+0x81D0(SB)/8, $11009
+DATA bitrev_size16384_radix4_f64<>+0x81D8(SB)/8, $15105
+DATA bitrev_size16384_radix4_f64<>+0x81E0(SB)/8, $3841
+DATA bitrev_size16384_radix4_f64<>+0x81E8(SB)/8, $7937
+DATA bitrev_size16384_radix4_f64<>+0x81F0(SB)/8, $12033
+DATA bitrev_size16384_radix4_f64<>+0x81F8(SB)/8, $16129
+DATA bitrev_size16384_radix4_f64<>+0x8200(SB)/8, $65
+DATA bitrev_size16384_radix4_f64<>+0x8208(SB)/8, $4161
+DATA bitrev_size16384_radix4_f64<>+0x8210(SB)/8, $8257
+DATA bitrev_size16384_radix4_f64<>+0x8218(SB)/8, $12353
+DATA bitrev_size16384_radix4_f64<>+0x8220(SB)/8, $1089
+DATA bitrev_size16384_radix4_f64<>+0x8228(SB)/8, $5185
+DATA bitrev_size16384_radix4_f64<>+0x8230(SB)/8, $9281
+DATA bitrev_size16384_radix4_f64<>+0x8238(SB)/8, $13377
+DATA bitrev_size16384_radix4_f64<>+0x8240(SB)/8, $2113
+DATA bitrev_size16384_radix4_f64<>+0x8248(SB)/8, $6209
+DATA bitrev_size16384_radix4_f64<>+0x8250(SB)/8, $10305
+DATA bitrev_size16384_radix4_f64<>+0x8258(SB)/8, $14401
+DATA bitrev_size16384_radix4_f64<>+0x8260(SB)/8, $3137
+DATA bitrev_size16384_radix4_f64<>+0x8268(SB)/8, $7233
+DATA bitrev_size16384_radix4_f64<>+0x8270(SB)/8, $11329
+DATA bitrev_size16384_radix4_f64<>+0x8278(SB)/8, $15425
+DATA bitrev_size16384_radix4_f64<>+0x8280(SB)/8, $321
+DATA bitrev_size16384_radix4_f64<>+0x8288(SB)/8, $4417
+DATA bitrev_size16384_radix4_f64<>+0x8290(SB)/8, $8513
+DATA bitrev_size16384_radix4_f64<>+0x8298(SB)/8, $12609
+DATA bitrev_size16384_radix4_f64<>+0x82A0(SB)/8, $1345
+DATA bitrev_size16384_radix4_f64<>+0x82A8(SB)/8, $5441
+DATA bitrev_size16384_radix4_f64<>+0x82B0(SB)/8, $9537
+DATA bitrev_size16384_radix4_f64<>+0x82B8(SB)/8, $13633
+DATA bitrev_size16384_radix4_f64<>+0x82C0(SB)/8, $2369
+DATA bitrev_size16384_radix4_f64<>+0x82C8(SB)/8, $6465
+DATA bitrev_size16384_radix4_f64<>+0x82D0(SB)/8, $10561
+DATA bitrev_size16384_radix4_f64<>+0x82D8(SB)/8, $14657
+DATA bitrev_size16384_radix4_f64<>+0x82E0(SB)/8, $3393
+DATA bitrev_size16384_radix4_f64<>+0x82E8(SB)/8, $7489
+DATA bitrev_size16384_radix4_f64<>+0x82F0(SB)/8, $11585
+DATA bitrev_size16384_radix4_f64<>+0x82F8(SB)/8, $15681
+DATA bitrev_size16384_radix4_f64<>+0x8300(SB)/8, $577
+DATA bitrev_size16384_radix4_f64<>+0x8308(SB)/8, $4673
+DATA bitrev_size16384_radix4_f64<>+0x8310(SB)/8, $8769
+DATA bitrev_size16384_radix4_f64<>+0x8318(SB)/8, $12865
+DATA bitrev_size16384_radix4_f64<>+0x8320(SB)/8, $1601
+DATA bitrev_size16384_radix4_f64<>+0x8328(SB)/8, $5697
+DATA bitrev_size16384_radix4_f64<>+0x8330(SB)/8, $9793
+DATA bitrev_size16384_radix4_f64<>+0x8338(SB)/8, $13889
+DATA bitrev_size16384_radix4_f64<>+0x8340(SB)/8, $2625
+DATA bitrev_size16384_radix4_f64<>+0x8348(SB)/8, $6721
+DATA bitrev_size16384_radix4_f64<>+0x8350(SB)/8, $10817
+DATA bitrev_size16384_radix4_f64<>+0x8358(SB)/8, $14913
+DATA bitrev_size16384_radix4_f64<>+0x8360(SB)/8, $3649
+DATA bitrev_size16384_radix4_f64<>+0x8368(SB)/8, $7745
+DATA bitrev_size16384_radix4_f64<>+0x8370(SB)/8, $11841
+DATA bitrev_size16384_radix4_f64<>+0x8378(SB)/8, $15937
+DATA bitrev_size16384_radix4_f64<>+0x8380(SB)/8, $833
+DATA bitrev_size16384_radix4_f64<>+0x8388(SB)/8, $4929
+DATA bitrev_size16384_radix4_f64<>+0x8390(SB)/8, $9025
+DATA bitrev_size16384_radix4_f64<>+0x8398(SB)/8, $13121
+DATA bitrev_size16384_radix4_f64<>+0x83A0(SB)/8, $1857
+DATA bitrev_size16384_radix4_f64<>+0x83A8(SB)/8, $5953
+DATA bitrev_size16384_radix4_f64<>+0x83B0(SB)/8, $10049
+DATA bitrev_size16384_radix4_f64<>+0x83B8(SB)/8, $14145
+DATA bitrev_size16384_radix4_f64<>+0x83C0(SB)/8, $2881
+DATA bitrev_size16384_radix4_f64<>+0x83C8(SB)/8, $6977
+DATA bitrev_size16384_radix4_f64<>+0x83D0(SB)/8, $11073
+DATA bitrev_size16384_radix4_f64<>+0x83D8(SB)/8, $15169
+DATA bitrev_size16384_radix4_f64<>+0x83E0(SB)/8, $3905
+DATA bitrev_size16384_radix4_f64<>+0x83E8(SB)/8, $8001
+DATA bitrev_size16384_radix4_f64<>+0x83F0(SB)/8, $12097
+DATA bitrev_size16384_radix4_f64<>+0x83F8(SB)/8, $16193
+DATA bitrev_size16384_radix4_f64<>+0x8400(SB)/8, $129
+DATA bitrev_size16384_radix4_f64<>+0x8408(SB)/8, $4225
+DATA bitrev_size16384_radix4_f64<>+0x8410(SB)/8, $8321
+DATA bitrev_size16384_radix4_f64<>+0x8418(SB)/8, $12417
+DATA bitrev_size16384_radix4_f64<>+0x8420(SB)/8, $1153
+DATA bitrev_size16384_radix4_f64<>+0x8428(SB)/8, $5249
+DATA bitrev_size16384_radix4_f64<>+0x8430(SB)/8, $9345
+DATA bitrev_size16384_radix4_f64<>+0x8438(SB)/8, $13441
+DATA bitrev_size16384_radix4_f64<>+0x8440(SB)/8, $2177
+DATA bitrev_size16384_radix4_f64<>+0x8448(SB)/8, $6273
+DATA bitrev_size16384_radix4_f64<>+0x8450(SB)/8, $10369
+DATA bitrev_size16384_radix4_f64<>+0x8458(SB)/8, $14465
+DATA bitrev_size16384_radix4_f64<>+0x8460(SB)/8, $3201
+DATA bitrev_size16384_radix4_f64<>+0x8468(SB)/8, $7297
+DATA bitrev_size16384_radix4_f64<>+0x8470(SB)/8, $11393
+DATA bitrev_size16384_radix4_f64<>+0x8478(SB)/8, $15489
+DATA bitrev_size16384_radix4_f64<>+0x8480(SB)/8, $385
+DATA bitrev_size16384_radix4_f64<>+0x8488(SB)/8, $4481
+DATA bitrev_size16384_radix4_f64<>+0x8490(SB)/8, $8577
+DATA bitrev_size16384_radix4_f64<>+0x8498(SB)/8, $12673
+DATA bitrev_size16384_radix4_f64<>+0x84A0(SB)/8, $1409
+DATA bitrev_size16384_radix4_f64<>+0x84A8(SB)/8, $5505
+DATA bitrev_size16384_radix4_f64<>+0x84B0(SB)/8, $9601
+DATA bitrev_size16384_radix4_f64<>+0x84B8(SB)/8, $13697
+DATA bitrev_size16384_radix4_f64<>+0x84C0(SB)/8, $2433
+DATA bitrev_size16384_radix4_f64<>+0x84C8(SB)/8, $6529
+DATA bitrev_size16384_radix4_f64<>+0x84D0(SB)/8, $10625
+DATA bitrev_size16384_radix4_f64<>+0x84D8(SB)/8, $14721
+DATA bitrev_size16384_radix4_f64<>+0x84E0(SB)/8, $3457
+DATA bitrev_size16384_radix4_f64<>+0x84E8(SB)/8, $7553
+DATA bitrev_size16384_radix4_f64<>+0x84F0(SB)/8, $11649
+DATA bitrev_size16384_radix4_f64<>+0x84F8(SB)/8, $15745
+DATA bitrev_size16384_radix4_f64<>+0x8500(SB)/8, $641
+DATA bitrev_size16384_radix4_f64<>+0x8508(SB)/8, $4737
+DATA bitrev_size16384_radix4_f64<>+0x8510(SB)/8, $8833
+DATA bitrev_size16384_radix4_f64<>+0x8518(SB)/8, $12929
+DATA bitrev_size16384_radix4_f64<>+0x8520(SB)/8, $1665
+DATA bitrev_size16384_radix4_f64<>+0x8528(SB)/8, $5761
+DATA bitrev_size16384_radix4_f64<>+0x8530(SB)/8, $9857
+DATA bitrev_size16384_radix4_f64<>+0x8538(SB)/8, $13953
+DATA bitrev_size16384_radix4_f64<>+0x8540(SB)/8, $2689
+DATA bitrev_size16384_radix4_f64<>+0x8548(SB)/8, $6785
+DATA bitrev_size16384_radix4_f64<>+0x8550(SB)/8, $10881
+DATA bitrev_size16384_radix4_f64<>+0x8558(SB)/8, $14977
+DATA bitrev_size16384_radix4_f64<>+0x8560(SB)/8, $3713
+DATA bitrev_size16384_radix4_f64<>+0x8568(SB)/8, $7809
+DATA bitrev_size16384_radix4_f64<>+0x8570(SB)/8, $11905
+DATA bitrev_size16384_radix4_f64<>+0x8578(SB)/8, $16001
+DATA bitrev_size16384_radix4_f64<>+0x8580(SB)/8, $897
+DATA bitrev_size16384_radix4_f64<>+0x8588(SB)/8, $4993
+DATA bitrev_size16384_radix4_f64<>+0x8590(SB)/8, $9089
+DATA bitrev_size16384_radix4_f64<>+0x8598(SB)/8, $13185
+DATA bitrev_size16384_radix4_f64<>+0x85A0(SB)/8, $1921
+DATA bitrev_size16384_radix4_f64<>+0x85A8(SB)/8, $6017
+DATA bitrev_size16384_radix4_f64<>+0x85B0(SB)/8, $10113
+DATA bitrev_size16384_radix4_f64<>+0x85B8(SB)/8, $14209
+DATA bitrev_size16384_radix4_f64<>+0x85C0(SB)/8, $2945
+DATA bitrev_size16384_radix4_f64<>+0x85C8(SB)/8, $7041
+DATA bitrev_size16384_radix4_f64<>+0x85D0(SB)/8, $11137
+DATA bitrev_size16384_radix4_f64<>+0x85D8(SB)/8, $15233
+DATA bitrev_size16384_radix4_f64<>+0x85E0(SB)/8, $3969
+DATA bitrev_size16384_radix4_f64<>+0x85E8(SB)/8, $8065
+DATA bitrev_size16384_radix4_f64<>+0x85F0(SB)/8, $12161
+DATA bitrev_size16384_radix4_f64<>+0x85F8(SB)/8, $16257
+DATA bitrev_size16384_radix4_f64<>+0x8600(SB)/8, $193
+DATA bitrev_size16384_radix4_f64<>+0x8608(SB)/8, $4289
+DATA bitrev_size16384_radix4_f64<>+0x8610(SB)/8, $8385
+DATA bitrev_size16384_radix4_f64<>+0x8618(SB)/8, $12481
+DATA bitrev_size16384_radix4_f64<>+0x8620(SB)/8, $1217
+DATA bitrev_size16384_radix4_f64<>+0x8628(SB)/8, $5313
+DATA bitrev_size16384_radix4_f64<>+0x8630(SB)/8, $9409
+DATA bitrev_size16384_radix4_f64<>+0x8638(SB)/8, $13505
+DATA bitrev_size16384_radix4_f64<>+0x8640(SB)/8, $2241
+DATA bitrev_size16384_radix4_f64<>+0x8648(SB)/8, $6337
+DATA bitrev_size16384_radix4_f64<>+0x8650(SB)/8, $10433
+DATA bitrev_size16384_radix4_f64<>+0x8658(SB)/8, $14529
+DATA bitrev_size16384_radix4_f64<>+0x8660(SB)/8, $3265
+DATA bitrev_size16384_radix4_f64<>+0x8668(SB)/8, $7361
+DATA bitrev_size16384_radix4_f64<>+0x8670(SB)/8, $11457
+DATA bitrev_size16384_radix4_f64<>+0x8678(SB)/8, $15553
+DATA bitrev_size16384_radix4_f64<>+0x8680(SB)/8, $449
+DATA bitrev_size16384_radix4_f64<>+0x8688(SB)/8, $4545
+DATA bitrev_size16384_radix4_f64<>+0x8690(SB)/8, $8641
+DATA bitrev_size16384_radix4_f64<>+0x8698(SB)/8, $12737
+DATA bitrev_size16384_radix4_f64<>+0x86A0(SB)/8, $1473
+DATA bitrev_size16384_radix4_f64<>+0x86A8(SB)/8, $5569
+DATA bitrev_size16384_radix4_f64<>+0x86B0(SB)/8, $9665
+DATA bitrev_size16384_radix4_f64<>+0x86B8(SB)/8, $13761
+DATA bitrev_size16384_radix4_f64<>+0x86C0(SB)/8, $2497
+DATA bitrev_size16384_radix4_f64<>+0x86C8(SB)/8, $6593
+DATA bitrev_size16384_radix4_f64<>+0x86D0(SB)/8, $10689
+DATA bitrev_size16384_radix4_f64<>+0x86D8(SB)/8, $14785
+DATA bitrev_size16384_radix4_f64<>+0x86E0(SB)/8, $3521
+DATA bitrev_size16384_radix4_f64<>+0x86E8(SB)/8, $7617
+DATA bitrev_size16384_radix4_f64<>+0x86F0(SB)/8, $11713
+DATA bitrev_size16384_radix4_f64<>+0x86F8(SB)/8, $15809
+DATA bitrev_size16384_radix4_f64<>+0x8700(SB)/8, $705
+DATA bitrev_size16384_radix4_f64<>+0x8708(SB)/8, $4801
+DATA bitrev_size16384_radix4_f64<>+0x8710(SB)/8, $8897
+DATA bitrev_size16384_radix4_f64<>+0x8718(SB)/8, $12993
+DATA bitrev_size16384_radix4_f64<>+0x8720(SB)/8, $1729
+DATA bitrev_size16384_radix4_f64<>+0x8728(SB)/8, $5825
+DATA bitrev_size16384_radix4_f64<>+0x8730(SB)/8, $9921
+DATA bitrev_size16384_radix4_f64<>+0x8738(SB)/8, $14017
+DATA bitrev_size16384_radix4_f64<>+0x8740(SB)/8, $2753
+DATA bitrev_size16384_radix4_f64<>+0x8748(SB)/8, $6849
+DATA bitrev_size16384_radix4_f64<>+0x8750(SB)/8, $10945
+DATA bitrev_size16384_radix4_f64<>+0x8758(SB)/8, $15041
+DATA bitrev_size16384_radix4_f64<>+0x8760(SB)/8, $3777
+DATA bitrev_size16384_radix4_f64<>+0x8768(SB)/8, $7873
+DATA bitrev_size16384_radix4_f64<>+0x8770(SB)/8, $11969
+DATA bitrev_size16384_radix4_f64<>+0x8778(SB)/8, $16065
+DATA bitrev_size16384_radix4_f64<>+0x8780(SB)/8, $961
+DATA bitrev_size16384_radix4_f64<>+0x8788(SB)/8, $5057
+DATA bitrev_size16384_radix4_f64<>+0x8790(SB)/8, $9153
+DATA bitrev_size16384_radix4_f64<>+0x8798(SB)/8, $13249
+DATA bitrev_size16384_radix4_f64<>+0x87A0(SB)/8, $1985
+DATA bitrev_size16384_radix4_f64<>+0x87A8(SB)/8, $6081
+DATA bitrev_size16384_radix4_f64<>+0x87B0(SB)/8, $10177
+DATA bitrev_size16384_radix4_f64<>+0x87B8(SB)/8, $14273
+DATA bitrev_size16384_radix4_f64<>+0x87C0(SB)/8, $3009
+DATA bitrev_size16384_radix4_f64<>+0x87C8(SB)/8, $7105
+DATA bitrev_size16384_radix4_f64<>+0x87D0(SB)/8, $11201
+DATA bitrev_size16384_radix4_f64<>+0x87D8(SB)/8, $15297
+DATA bitrev_size16384_radix4_f64<>+0x87E0(SB)/8, $4033
+DATA bitrev_size16384_radix4_f64<>+0x87E8(SB)/8, $8129
+DATA bitrev_size16384_radix4_f64<>+0x87F0(SB)/8, $12225
+DATA bitrev_size16384_radix4_f64<>+0x87F8(SB)/8, $16321
+DATA bitrev_size16384_radix4_f64<>+0x8800(SB)/8, $17
+DATA bitrev_size16384_radix4_f64<>+0x8808(SB)/8, $4113
+DATA bitrev_size16384_radix4_f64<>+0x8810(SB)/8, $8209
+DATA bitrev_size16384_radix4_f64<>+0x8818(SB)/8, $12305
+DATA bitrev_size16384_radix4_f64<>+0x8820(SB)/8, $1041
+DATA bitrev_size16384_radix4_f64<>+0x8828(SB)/8, $5137
+DATA bitrev_size16384_radix4_f64<>+0x8830(SB)/8, $9233
+DATA bitrev_size16384_radix4_f64<>+0x8838(SB)/8, $13329
+DATA bitrev_size16384_radix4_f64<>+0x8840(SB)/8, $2065
+DATA bitrev_size16384_radix4_f64<>+0x8848(SB)/8, $6161
+DATA bitrev_size16384_radix4_f64<>+0x8850(SB)/8, $10257
+DATA bitrev_size16384_radix4_f64<>+0x8858(SB)/8, $14353
+DATA bitrev_size16384_radix4_f64<>+0x8860(SB)/8, $3089
+DATA bitrev_size16384_radix4_f64<>+0x8868(SB)/8, $7185
+DATA bitrev_size16384_radix4_f64<>+0x8870(SB)/8, $11281
+DATA bitrev_size16384_radix4_f64<>+0x8878(SB)/8, $15377
+DATA bitrev_size16384_radix4_f64<>+0x8880(SB)/8, $273
+DATA bitrev_size16384_radix4_f64<>+0x8888(SB)/8, $4369
+DATA bitrev_size16384_radix4_f64<>+0x8890(SB)/8, $8465
+DATA bitrev_size16384_radix4_f64<>+0x8898(SB)/8, $12561
+DATA bitrev_size16384_radix4_f64<>+0x88A0(SB)/8, $1297
+DATA bitrev_size16384_radix4_f64<>+0x88A8(SB)/8, $5393
+DATA bitrev_size16384_radix4_f64<>+0x88B0(SB)/8, $9489
+DATA bitrev_size16384_radix4_f64<>+0x88B8(SB)/8, $13585
+DATA bitrev_size16384_radix4_f64<>+0x88C0(SB)/8, $2321
+DATA bitrev_size16384_radix4_f64<>+0x88C8(SB)/8, $6417
+DATA bitrev_size16384_radix4_f64<>+0x88D0(SB)/8, $10513
+DATA bitrev_size16384_radix4_f64<>+0x88D8(SB)/8, $14609
+DATA bitrev_size16384_radix4_f64<>+0x88E0(SB)/8, $3345
+DATA bitrev_size16384_radix4_f64<>+0x88E8(SB)/8, $7441
+DATA bitrev_size16384_radix4_f64<>+0x88F0(SB)/8, $11537
+DATA bitrev_size16384_radix4_f64<>+0x88F8(SB)/8, $15633
+DATA bitrev_size16384_radix4_f64<>+0x8900(SB)/8, $529
+DATA bitrev_size16384_radix4_f64<>+0x8908(SB)/8, $4625
+DATA bitrev_size16384_radix4_f64<>+0x8910(SB)/8, $8721
+DATA bitrev_size16384_radix4_f64<>+0x8918(SB)/8, $12817
+DATA bitrev_size16384_radix4_f64<>+0x8920(SB)/8, $1553
+DATA bitrev_size16384_radix4_f64<>+0x8928(SB)/8, $5649
+DATA bitrev_size16384_radix4_f64<>+0x8930(SB)/8, $9745
+DATA bitrev_size16384_radix4_f64<>+0x8938(SB)/8, $13841
+DATA bitrev_size16384_radix4_f64<>+0x8940(SB)/8, $2577
+DATA bitrev_size16384_radix4_f64<>+0x8948(SB)/8, $6673
+DATA bitrev_size16384_radix4_f64<>+0x8950(SB)/8, $10769
+DATA bitrev_size16384_radix4_f64<>+0x8958(SB)/8, $14865
+DATA bitrev_size16384_radix4_f64<>+0x8960(SB)/8, $3601
+DATA bitrev_size16384_radix4_f64<>+0x8968(SB)/8, $7697
+DATA bitrev_size16384_radix4_f64<>+0x8970(SB)/8, $11793
+DATA bitrev_size16384_radix4_f64<>+0x8978(SB)/8, $15889
+DATA bitrev_size16384_radix4_f64<>+0x8980(SB)/8, $785
+DATA bitrev_size16384_radix4_f64<>+0x8988(SB)/8, $4881
+DATA bitrev_size16384_radix4_f64<>+0x8990(SB)/8, $8977
+DATA bitrev_size16384_radix4_f64<>+0x8998(SB)/8, $13073
+DATA bitrev_size16384_radix4_f64<>+0x89A0(SB)/8, $1809
+DATA bitrev_size16384_radix4_f64<>+0x89A8(SB)/8, $5905
+DATA bitrev_size16384_radix4_f64<>+0x89B0(SB)/8, $10001
+DATA bitrev_size16384_radix4_f64<>+0x89B8(SB)/8, $14097
+DATA bitrev_size16384_radix4_f64<>+0x89C0(SB)/8, $2833
+DATA bitrev_size16384_radix4_f64<>+0x89C8(SB)/8, $6929
+DATA bitrev_size16384_radix4_f64<>+0x89D0(SB)/8, $11025
+DATA bitrev_size16384_radix4_f64<>+0x89D8(SB)/8, $15121
+DATA bitrev_size16384_radix4_f64<>+0x89E0(SB)/8, $3857
+DATA bitrev_size16384_radix4_f64<>+0x89E8(SB)/8, $7953
+DATA bitrev_size16384_radix4_f64<>+0x89F0(SB)/8, $12049
+DATA bitrev_size16384_radix4_f64<>+0x89F8(SB)/8, $16145
+DATA bitrev_size16384_radix4_f64<>+0x8A00(SB)/8, $81
+DATA bitrev_size16384_radix4_f64<>+0x8A08(SB)/8, $4177
+DATA bitrev_size16384_radix4_f64<>+0x8A10(SB)/8, $8273
+DATA bitrev_size16384_radix4_f64<>+0x8A18(SB)/8, $12369
+DATA bitrev_size16384_radix4_f64<>+0x8A20(SB)/8, $1105
+DATA bitrev_size16384_radix4_f64<>+0x8A28(SB)/8, $5201
+DATA bitrev_size16384_radix4_f64<>+0x8A30(SB)/8, $9297
+DATA bitrev_size16384_radix4_f64<>+0x8A38(SB)/8, $13393
+DATA bitrev_size16384_radix4_f64<>+0x8A40(SB)/8, $2129
+DATA bitrev_size16384_radix4_f64<>+0x8A48(SB)/8, $6225
+DATA bitrev_size16384_radix4_f64<>+0x8A50(SB)/8, $10321
+DATA bitrev_size16384_radix4_f64<>+0x8A58(SB)/8, $14417
+DATA bitrev_size16384_radix4_f64<>+0x8A60(SB)/8, $3153
+DATA bitrev_size16384_radix4_f64<>+0x8A68(SB)/8, $7249
+DATA bitrev_size16384_radix4_f64<>+0x8A70(SB)/8, $11345
+DATA bitrev_size16384_radix4_f64<>+0x8A78(SB)/8, $15441
+DATA bitrev_size16384_radix4_f64<>+0x8A80(SB)/8, $337
+DATA bitrev_size16384_radix4_f64<>+0x8A88(SB)/8, $4433
+DATA bitrev_size16384_radix4_f64<>+0x8A90(SB)/8, $8529
+DATA bitrev_size16384_radix4_f64<>+0x8A98(SB)/8, $12625
+DATA bitrev_size16384_radix4_f64<>+0x8AA0(SB)/8, $1361
+DATA bitrev_size16384_radix4_f64<>+0x8AA8(SB)/8, $5457
+DATA bitrev_size16384_radix4_f64<>+0x8AB0(SB)/8, $9553
+DATA bitrev_size16384_radix4_f64<>+0x8AB8(SB)/8, $13649
+DATA bitrev_size16384_radix4_f64<>+0x8AC0(SB)/8, $2385
+DATA bitrev_size16384_radix4_f64<>+0x8AC8(SB)/8, $6481
+DATA bitrev_size16384_radix4_f64<>+0x8AD0(SB)/8, $10577
+DATA bitrev_size16384_radix4_f64<>+0x8AD8(SB)/8, $14673
+DATA bitrev_size16384_radix4_f64<>+0x8AE0(SB)/8, $3409
+DATA bitrev_size16384_radix4_f64<>+0x8AE8(SB)/8, $7505
+DATA bitrev_size16384_radix4_f64<>+0x8AF0(SB)/8, $11601
+DATA bitrev_size16384_radix4_f64<>+0x8AF8(SB)/8, $15697
+DATA bitrev_size16384_radix4_f64<>+0x8B00(SB)/8, $593
+DATA bitrev_size16384_radix4_f64<>+0x8B08(SB)/8, $4689
+DATA bitrev_size16384_radix4_f64<>+0x8B10(SB)/8, $8785
+DATA bitrev_size16384_radix4_f64<>+0x8B18(SB)/8, $12881
+DATA bitrev_size16384_radix4_f64<>+0x8B20(SB)/8, $1617
+DATA bitrev_size16384_radix4_f64<>+0x8B28(SB)/8, $5713
+DATA bitrev_size16384_radix4_f64<>+0x8B30(SB)/8, $9809
+DATA bitrev_size16384_radix4_f64<>+0x8B38(SB)/8, $13905
+DATA bitrev_size16384_radix4_f64<>+0x8B40(SB)/8, $2641
+DATA bitrev_size16384_radix4_f64<>+0x8B48(SB)/8, $6737
+DATA bitrev_size16384_radix4_f64<>+0x8B50(SB)/8, $10833
+DATA bitrev_size16384_radix4_f64<>+0x8B58(SB)/8, $14929
+DATA bitrev_size16384_radix4_f64<>+0x8B60(SB)/8, $3665
+DATA bitrev_size16384_radix4_f64<>+0x8B68(SB)/8, $7761
+DATA bitrev_size16384_radix4_f64<>+0x8B70(SB)/8, $11857
+DATA bitrev_size16384_radix4_f64<>+0x8B78(SB)/8, $15953
+DATA bitrev_size16384_radix4_f64<>+0x8B80(SB)/8, $849
+DATA bitrev_size16384_radix4_f64<>+0x8B88(SB)/8, $4945
+DATA bitrev_size16384_radix4_f64<>+0x8B90(SB)/8, $9041
+DATA bitrev_size16384_radix4_f64<>+0x8B98(SB)/8, $13137
+DATA bitrev_size16384_radix4_f64<>+0x8BA0(SB)/8, $1873
+DATA bitrev_size16384_radix4_f64<>+0x8BA8(SB)/8, $5969
+DATA bitrev_size16384_radix4_f64<>+0x8BB0(SB)/8, $10065
+DATA bitrev_size16384_radix4_f64<>+0x8BB8(SB)/8, $14161
+DATA bitrev_size16384_radix4_f64<>+0x8BC0(SB)/8, $2897
+DATA bitrev_size16384_radix4_f64<>+0x8BC8(SB)/8, $6993
+DATA bitrev_size16384_radix4_f64<>+0x8BD0(SB)/8, $11089
+DATA bitrev_size16384_radix4_f64<>+0x8BD8(SB)/8, $15185
+DATA bitrev_size16384_radix4_f64<>+0x8BE0(SB)/8, $3921
+DATA bitrev_size16384_radix4_f64<>+0x8BE8(SB)/8, $8017
+DATA bitrev_size16384_radix4_f64<>+0x8BF0(SB)/8, $12113
+DATA bitrev_size16384_radix4_f64<>+0x8BF8(SB)/8, $16209
+DATA bitrev_size16384_radix4_f64<>+0x8C00(SB)/8, $145
+DATA bitrev_size16384_radix4_f64<>+0x8C08(SB)/8, $4241
+DATA bitrev_size16384_radix4_f64<>+0x8C10(SB)/8, $8337
+DATA bitrev_size16384_radix4_f64<>+0x8C18(SB)/8, $12433
+DATA bitrev_size16384_radix4_f64<>+0x8C20(SB)/8, $1169
+DATA bitrev_size16384_radix4_f64<>+0x8C28(SB)/8, $5265
+DATA bitrev_size16384_radix4_f64<>+0x8C30(SB)/8, $9361
+DATA bitrev_size16384_radix4_f64<>+0x8C38(SB)/8, $13457
+DATA bitrev_size16384_radix4_f64<>+0x8C40(SB)/8, $2193
+DATA bitrev_size16384_radix4_f64<>+0x8C48(SB)/8, $6289
+DATA bitrev_size16384_radix4_f64<>+0x8C50(SB)/8, $10385
+DATA bitrev_size16384_radix4_f64<>+0x8C58(SB)/8, $14481
+DATA bitrev_size16384_radix4_f64<>+0x8C60(SB)/8, $3217
+DATA bitrev_size16384_radix4_f64<>+0x8C68(SB)/8, $7313
+DATA bitrev_size16384_radix4_f64<>+0x8C70(SB)/8, $11409
+DATA bitrev_size16384_radix4_f64<>+0x8C78(SB)/8, $15505
+DATA bitrev_size16384_radix4_f64<>+0x8C80(SB)/8, $401
+DATA bitrev_size16384_radix4_f64<>+0x8C88(SB)/8, $4497
+DATA bitrev_size16384_radix4_f64<>+0x8C90(SB)/8, $8593
+DATA bitrev_size16384_radix4_f64<>+0x8C98(SB)/8, $12689
+DATA bitrev_size16384_radix4_f64<>+0x8CA0(SB)/8, $1425
+DATA bitrev_size16384_radix4_f64<>+0x8CA8(SB)/8, $5521
+DATA bitrev_size16384_radix4_f64<>+0x8CB0(SB)/8, $9617
+DATA bitrev_size16384_radix4_f64<>+0x8CB8(SB)/8, $13713
+DATA bitrev_size16384_radix4_f64<>+0x8CC0(SB)/8, $2449
+DATA bitrev_size16384_radix4_f64<>+0x8CC8(SB)/8, $6545
+DATA bitrev_size16384_radix4_f64<>+0x8CD0(SB)/8, $10641
+DATA bitrev_size16384_radix4_f64<>+0x8CD8(SB)/8, $14737
+DATA bitrev_size16384_radix4_f64<>+0x8CE0(SB)/8, $3473
+DATA bitrev_size16384_radix4_f64<>+0x8CE8(SB)/8, $7569
+DATA bitrev_size16384_radix4_f64<>+0x8CF0(SB)/8, $11665
+DATA bitrev_size16384_radix4_f64<>+0x8CF8(SB)/8, $15761
+DATA bitrev_size16384_radix4_f64<>+0x8D00(SB)/8, $657
+DATA bitrev_size16384_radix4_f64<>+0x8D08(SB)/8, $4753
+DATA bitrev_size16384_radix4_f64<>+0x8D10(SB)/8, $8849
+DATA bitrev_size16384_radix4_f64<>+0x8D18(SB)/8, $12945
+DATA bitrev_size16384_radix4_f64<>+0x8D20(SB)/8, $1681
+DATA bitrev_size16384_radix4_f64<>+0x8D28(SB)/8, $5777
+DATA bitrev_size16384_radix4_f64<>+0x8D30(SB)/8, $9873
+DATA bitrev_size16384_radix4_f64<>+0x8D38(SB)/8, $13969
+DATA bitrev_size16384_radix4_f64<>+0x8D40(SB)/8, $2705
+DATA bitrev_size16384_radix4_f64<>+0x8D48(SB)/8, $6801
+DATA bitrev_size16384_radix4_f64<>+0x8D50(SB)/8, $10897
+DATA bitrev_size16384_radix4_f64<>+0x8D58(SB)/8, $14993
+DATA bitrev_size16384_radix4_f64<>+0x8D60(SB)/8, $3729
+DATA bitrev_size16384_radix4_f64<>+0x8D68(SB)/8, $7825
+DATA bitrev_size16384_radix4_f64<>+0x8D70(SB)/8, $11921
+DATA bitrev_size16384_radix4_f64<>+0x8D78(SB)/8, $16017
+DATA bitrev_size16384_radix4_f64<>+0x8D80(SB)/8, $913
+DATA bitrev_size16384_radix4_f64<>+0x8D88(SB)/8, $5009
+DATA bitrev_size16384_radix4_f64<>+0x8D90(SB)/8, $9105
+DATA bitrev_size16384_radix4_f64<>+0x8D98(SB)/8, $13201
+DATA bitrev_size16384_radix4_f64<>+0x8DA0(SB)/8, $1937
+DATA bitrev_size16384_radix4_f64<>+0x8DA8(SB)/8, $6033
+DATA bitrev_size16384_radix4_f64<>+0x8DB0(SB)/8, $10129
+DATA bitrev_size16384_radix4_f64<>+0x8DB8(SB)/8, $14225
+DATA bitrev_size16384_radix4_f64<>+0x8DC0(SB)/8, $2961
+DATA bitrev_size16384_radix4_f64<>+0x8DC8(SB)/8, $7057
+DATA bitrev_size16384_radix4_f64<>+0x8DD0(SB)/8, $11153
+DATA bitrev_size16384_radix4_f64<>+0x8DD8(SB)/8, $15249
+DATA bitrev_size16384_radix4_f64<>+0x8DE0(SB)/8, $3985
+DATA bitrev_size16384_radix4_f64<>+0x8DE8(SB)/8, $8081
+DATA bitrev_size16384_radix4_f64<>+0x8DF0(SB)/8, $12177
+DATA bitrev_size16384_radix4_f64<>+0x8DF8(SB)/8, $16273
+DATA bitrev_size16384_radix4_f64<>+0x8E00(SB)/8, $209
+DATA bitrev_size16384_radix4_f64<>+0x8E08(SB)/8, $4305
+DATA bitrev_size16384_radix4_f64<>+0x8E10(SB)/8, $8401
+DATA bitrev_size16384_radix4_f64<>+0x8E18(SB)/8, $12497
+DATA bitrev_size16384_radix4_f64<>+0x8E20(SB)/8, $1233
+DATA bitrev_size16384_radix4_f64<>+0x8E28(SB)/8, $5329
+DATA bitrev_size16384_radix4_f64<>+0x8E30(SB)/8, $9425
+DATA bitrev_size16384_radix4_f64<>+0x8E38(SB)/8, $13521
+DATA bitrev_size16384_radix4_f64<>+0x8E40(SB)/8, $2257
+DATA bitrev_size16384_radix4_f64<>+0x8E48(SB)/8, $6353
+DATA bitrev_size16384_radix4_f64<>+0x8E50(SB)/8, $10449
+DATA bitrev_size16384_radix4_f64<>+0x8E58(SB)/8, $14545
+DATA bitrev_size16384_radix4_f64<>+0x8E60(SB)/8, $3281
+DATA bitrev_size16384_radix4_f64<>+0x8E68(SB)/8, $7377
+DATA bitrev_size16384_radix4_f64<>+0x8E70(SB)/8, $11473
+DATA bitrev_size16384_radix4_f64<>+0x8E78(SB)/8, $15569
+DATA bitrev_size16384_radix4_f64<>+0x8E80(SB)/8, $465
+DATA bitrev_size16384_radix4_f64<>+0x8E88(SB)/8, $4561
+DATA bitrev_size16384_radix4_f64<>+0x8E90(SB)/8, $8657
+DATA bitrev_size16384_radix4_f64<>+0x8E98(SB)/8, $12753
+DATA bitrev_size16384_radix4_f64<>+0x8EA0(SB)/8, $1489
+DATA bitrev_size16384_radix4_f64<>+0x8EA8(SB)/8, $5585
+DATA bitrev_size16384_radix4_f64<>+0x8EB0(SB)/8, $9681
+DATA bitrev_size16384_radix4_f64<>+0x8EB8(SB)/8, $13777
+DATA bitrev_size16384_radix4_f64<>+0x8EC0(SB)/8, $2513
+DATA bitrev_size16384_radix4_f64<>+0x8EC8(SB)/8, $6609
+DATA bitrev_size16384_radix4_f64<>+0x8ED0(SB)/8, $10705
+DATA bitrev_size16384_radix4_f64<>+0x8ED8(SB)/8, $14801
+DATA bitrev_size16384_radix4_f64<>+0x8EE0(SB)/8, $3537
+DATA bitrev_size16384_radix4_f64<>+0x8EE8(SB)/8, $7633
+DATA bitrev_size16384_radix4_f64<>+0x8EF0(SB)/8, $11729
+DATA bitrev_size16384_radix4_f64<>+0x8EF8(SB)/8, $15825
+DATA bitrev_size16384_radix4_f64<>+0x8F00(SB)/8, $721
+DATA bitrev_size16384_radix4_f64<>+0x8F08(SB)/8, $4817
+DATA bitrev_size16384_radix4_f64<>+0x8F10(SB)/8, $8913
+DATA bitrev_size16384_radix4_f64<>+0x8F18(SB)/8, $13009
+DATA bitrev_size16384_radix4_f64<>+0x8F20(SB)/8, $1745
+DATA bitrev_size16384_radix4_f64<>+0x8F28(SB)/8, $5841
+DATA bitrev_size16384_radix4_f64<>+0x8F30(SB)/8, $9937
+DATA bitrev_size16384_radix4_f64<>+0x8F38(SB)/8, $14033
+DATA bitrev_size16384_radix4_f64<>+0x8F40(SB)/8, $2769
+DATA bitrev_size16384_radix4_f64<>+0x8F48(SB)/8, $6865
+DATA bitrev_size16384_radix4_f64<>+0x8F50(SB)/8, $10961
+DATA bitrev_size16384_radix4_f64<>+0x8F58(SB)/8, $15057
+DATA bitrev_size16384_radix4_f64<>+0x8F60(SB)/8, $3793
+DATA bitrev_size16384_radix4_f64<>+0x8F68(SB)/8, $7889
+DATA bitrev_size16384_radix4_f64<>+0x8F70(SB)/8, $11985
+DATA bitrev_size16384_radix4_f64<>+0x8F78(SB)/8, $16081
+DATA bitrev_size16384_radix4_f64<>+0x8F80(SB)/8, $977
+DATA bitrev_size16384_radix4_f64<>+0x8F88(SB)/8, $5073
+DATA bitrev_size16384_radix4_f64<>+0x8F90(SB)/8, $9169
+DATA bitrev_size16384_radix4_f64<>+0x8F98(SB)/8, $13265
+DATA bitrev_size16384_radix4_f64<>+0x8FA0(SB)/8, $2001
+DATA bitrev_size16384_radix4_f64<>+0x8FA8(SB)/8, $6097
+DATA bitrev_size16384_radix4_f64<>+0x8FB0(SB)/8, $10193
+DATA bitrev_size16384_radix4_f64<>+0x8FB8(SB)/8, $14289
+DATA bitrev_size16384_radix4_f64<>+0x8FC0(SB)/8, $3025
+DATA bitrev_size16384_radix4_f64<>+0x8FC8(SB)/8, $7121
+DATA bitrev_size16384_radix4_f64<>+0x8FD0(SB)/8, $11217
+DATA bitrev_size16384_radix4_f64<>+0x8FD8(SB)/8, $15313
+DATA bitrev_size16384_radix4_f64<>+0x8FE0(SB)/8, $4049
+DATA bitrev_size16384_radix4_f64<>+0x8FE8(SB)/8, $8145
+DATA bitrev_size16384_radix4_f64<>+0x8FF0(SB)/8, $12241
+DATA bitrev_size16384_radix4_f64<>+0x8FF8(SB)/8, $16337
+DATA bitrev_size16384_radix4_f64<>+0x9000(SB)/8, $33
+DATA bitrev_size16384_radix4_f64<>+0x9008(SB)/8, $4129
+DATA bitrev_size16384_radix4_f64<>+0x9010(SB)/8, $8225
+DATA bitrev_size16384_radix4_f64<>+0x9018(SB)/8, $12321
+DATA bitrev_size16384_radix4_f64<>+0x9020(SB)/8, $1057
+DATA bitrev_size16384_radix4_f64<>+0x9028(SB)/8, $5153
+DATA bitrev_size16384_radix4_f64<>+0x9030(SB)/8, $9249
+DATA bitrev_size16384_radix4_f64<>+0x9038(SB)/8, $13345
+DATA bitrev_size16384_radix4_f64<>+0x9040(SB)/8, $2081
+DATA bitrev_size16384_radix4_f64<>+0x9048(SB)/8, $6177
+DATA bitrev_size16384_radix4_f64<>+0x9050(SB)/8, $10273
+DATA bitrev_size16384_radix4_f64<>+0x9058(SB)/8, $14369
+DATA bitrev_size16384_radix4_f64<>+0x9060(SB)/8, $3105
+DATA bitrev_size16384_radix4_f64<>+0x9068(SB)/8, $7201
+DATA bitrev_size16384_radix4_f64<>+0x9070(SB)/8, $11297
+DATA bitrev_size16384_radix4_f64<>+0x9078(SB)/8, $15393
+DATA bitrev_size16384_radix4_f64<>+0x9080(SB)/8, $289
+DATA bitrev_size16384_radix4_f64<>+0x9088(SB)/8, $4385
+DATA bitrev_size16384_radix4_f64<>+0x9090(SB)/8, $8481
+DATA bitrev_size16384_radix4_f64<>+0x9098(SB)/8, $12577
+DATA bitrev_size16384_radix4_f64<>+0x90A0(SB)/8, $1313
+DATA bitrev_size16384_radix4_f64<>+0x90A8(SB)/8, $5409
+DATA bitrev_size16384_radix4_f64<>+0x90B0(SB)/8, $9505
+DATA bitrev_size16384_radix4_f64<>+0x90B8(SB)/8, $13601
+DATA bitrev_size16384_radix4_f64<>+0x90C0(SB)/8, $2337
+DATA bitrev_size16384_radix4_f64<>+0x90C8(SB)/8, $6433
+DATA bitrev_size16384_radix4_f64<>+0x90D0(SB)/8, $10529
+DATA bitrev_size16384_radix4_f64<>+0x90D8(SB)/8, $14625
+DATA bitrev_size16384_radix4_f64<>+0x90E0(SB)/8, $3361
+DATA bitrev_size16384_radix4_f64<>+0x90E8(SB)/8, $7457
+DATA bitrev_size16384_radix4_f64<>+0x90F0(SB)/8, $11553
+DATA bitrev_size16384_radix4_f64<>+0x90F8(SB)/8, $15649
+DATA bitrev_size16384_radix4_f64<>+0x9100(SB)/8, $545
+DATA bitrev_size16384_radix4_f64<>+0x9108(SB)/8, $4641
+DATA bitrev_size16384_radix4_f64<>+0x9110(SB)/8, $8737
+DATA bitrev_size16384_radix4_f64<>+0x9118(SB)/8, $12833
+DATA bitrev_size16384_radix4_f64<>+0x9120(SB)/8, $1569
+DATA bitrev_size16384_radix4_f64<>+0x9128(SB)/8, $5665
+DATA bitrev_size16384_radix4_f64<>+0x9130(SB)/8, $9761
+DATA bitrev_size16384_radix4_f64<>+0x9138(SB)/8, $13857
+DATA bitrev_size16384_radix4_f64<>+0x9140(SB)/8, $2593
+DATA bitrev_size16384_radix4_f64<>+0x9148(SB)/8, $6689
+DATA bitrev_size16384_radix4_f64<>+0x9150(SB)/8, $10785
+DATA bitrev_size16384_radix4_f64<>+0x9158(SB)/8, $14881
+DATA bitrev_size16384_radix4_f64<>+0x9160(SB)/8, $3617
+DATA bitrev_size16384_radix4_f64<>+0x9168(SB)/8, $7713
+DATA bitrev_size16384_radix4_f64<>+0x9170(SB)/8, $11809
+DATA bitrev_size16384_radix4_f64<>+0x9178(SB)/8, $15905
+DATA bitrev_size16384_radix4_f64<>+0x9180(SB)/8, $801
+DATA bitrev_size16384_radix4_f64<>+0x9188(SB)/8, $4897
+DATA bitrev_size16384_radix4_f64<>+0x9190(SB)/8, $8993
+DATA bitrev_size16384_radix4_f64<>+0x9198(SB)/8, $13089
+DATA bitrev_size16384_radix4_f64<>+0x91A0(SB)/8, $1825
+DATA bitrev_size16384_radix4_f64<>+0x91A8(SB)/8, $5921
+DATA bitrev_size16384_radix4_f64<>+0x91B0(SB)/8, $10017
+DATA bitrev_size16384_radix4_f64<>+0x91B8(SB)/8, $14113
+DATA bitrev_size16384_radix4_f64<>+0x91C0(SB)/8, $2849
+DATA bitrev_size16384_radix4_f64<>+0x91C8(SB)/8, $6945
+DATA bitrev_size16384_radix4_f64<>+0x91D0(SB)/8, $11041
+DATA bitrev_size16384_radix4_f64<>+0x91D8(SB)/8, $15137
+DATA bitrev_size16384_radix4_f64<>+0x91E0(SB)/8, $3873
+DATA bitrev_size16384_radix4_f64<>+0x91E8(SB)/8, $7969
+DATA bitrev_size16384_radix4_f64<>+0x91F0(SB)/8, $12065
+DATA bitrev_size16384_radix4_f64<>+0x91F8(SB)/8, $16161
+DATA bitrev_size16384_radix4_f64<>+0x9200(SB)/8, $97
+DATA bitrev_size16384_radix4_f64<>+0x9208(SB)/8, $4193
+DATA bitrev_size16384_radix4_f64<>+0x9210(SB)/8, $8289
+DATA bitrev_size16384_radix4_f64<>+0x9218(SB)/8, $12385
+DATA bitrev_size16384_radix4_f64<>+0x9220(SB)/8, $1121
+DATA bitrev_size16384_radix4_f64<>+0x9228(SB)/8, $5217
+DATA bitrev_size16384_radix4_f64<>+0x9230(SB)/8, $9313
+DATA bitrev_size16384_radix4_f64<>+0x9238(SB)/8, $13409
+DATA bitrev_size16384_radix4_f64<>+0x9240(SB)/8, $2145
+DATA bitrev_size16384_radix4_f64<>+0x9248(SB)/8, $6241
+DATA bitrev_size16384_radix4_f64<>+0x9250(SB)/8, $10337
+DATA bitrev_size16384_radix4_f64<>+0x9258(SB)/8, $14433
+DATA bitrev_size16384_radix4_f64<>+0x9260(SB)/8, $3169
+DATA bitrev_size16384_radix4_f64<>+0x9268(SB)/8, $7265
+DATA bitrev_size16384_radix4_f64<>+0x9270(SB)/8, $11361
+DATA bitrev_size16384_radix4_f64<>+0x9278(SB)/8, $15457
+DATA bitrev_size16384_radix4_f64<>+0x9280(SB)/8, $353
+DATA bitrev_size16384_radix4_f64<>+0x9288(SB)/8, $4449
+DATA bitrev_size16384_radix4_f64<>+0x9290(SB)/8, $8545
+DATA bitrev_size16384_radix4_f64<>+0x9298(SB)/8, $12641
+DATA bitrev_size16384_radix4_f64<>+0x92A0(SB)/8, $1377
+DATA bitrev_size16384_radix4_f64<>+0x92A8(SB)/8, $5473
+DATA bitrev_size16384_radix4_f64<>+0x92B0(SB)/8, $9569
+DATA bitrev_size16384_radix4_f64<>+0x92B8(SB)/8, $13665
+DATA bitrev_size16384_radix4_f64<>+0x92C0(SB)/8, $2401
+DATA bitrev_size16384_radix4_f64<>+0x92C8(SB)/8, $6497
+DATA bitrev_size16384_radix4_f64<>+0x92D0(SB)/8, $10593
+DATA bitrev_size16384_radix4_f64<>+0x92D8(SB)/8, $14689
+DATA bitrev_size16384_radix4_f64<>+0x92E0(SB)/8, $3425
+DATA bitrev_size16384_radix4_f64<>+0x92E8(SB)/8, $7521
+DATA bitrev_size16384_radix4_f64<>+0x92F0(SB)/8, $11617
+DATA bitrev_size16384_radix4_f64<>+0x92F8(SB)/8, $15713
+DATA bitrev_size16384_radix4_f64<>+0x9300(SB)/8, $609
+DATA bitrev_size16384_radix4_f64<>+0x9308(SB)/8, $4705
+DATA bitrev_size16384_radix4_f64<>+0x9310(SB)/8, $8801
+DATA bitrev_size16384_radix4_f64<>+0x9318(SB)/8, $12897
+DATA bitrev_size16384_radix4_f64<>+0x9320(SB)/8, $1633
+DATA bitrev_size16384_radix4_f64<>+0x9328(SB)/8, $5729
+DATA bitrev_size16384_radix4_f64<>+0x9330(SB)/8, $9825
+DATA bitrev_size16384_radix4_f64<>+0x9338(SB)/8, $13921
+DATA bitrev_size16384_radix4_f64<>+0x9340(SB)/8, $2657
+DATA bitrev_size16384_radix4_f64<>+0x9348(SB)/8, $6753
+DATA bitrev_size16384_radix4_f64<>+0x9350(SB)/8, $10849
+DATA bitrev_size16384_radix4_f64<>+0x9358(SB)/8, $14945
+DATA bitrev_size16384_radix4_f64<>+0x9360(SB)/8, $3681
+DATA bitrev_size16384_radix4_f64<>+0x9368(SB)/8, $7777
+DATA bitrev_size16384_radix4_f64<>+0x9370(SB)/8, $11873
+DATA bitrev_size16384_radix4_f64<>+0x9378(SB)/8, $15969
+DATA bitrev_size16384_radix4_f64<>+0x9380(SB)/8, $865
+DATA bitrev_size16384_radix4_f64<>+0x9388(SB)/8, $4961
+DATA bitrev_size16384_radix4_f64<>+0x9390(SB)/8, $9057
+DATA bitrev_size16384_radix4_f64<>+0x9398(SB)/8, $13153
+DATA bitrev_size16384_radix4_f64<>+0x93A0(SB)/8, $1889
+DATA bitrev_size16384_radix4_f64<>+0x93A8(SB)/8, $5985
+DATA bitrev_size16384_radix4_f64<>+0x93B0(SB)/8, $10081
+DATA bitrev_size16384_radix4_f64<>+0x93B8(SB)/8, $14177
+DATA bitrev_size16384_radix4_f64<>+0x93C0(SB)/8, $2913
+DATA bitrev_size16384_radix4_f64<>+0x93C8(SB)/8, $7009
+DATA bitrev_size16384_radix4_f64<>+0x93D0(SB)/8, $11105
+DATA bitrev_size16384_radix4_f64<>+0x93D8(SB)/8, $15201
+DATA bitrev_size16384_radix4_f64<>+0x93E0(SB)/8, $3937
+DATA bitrev_size16384_radix4_f64<>+0x93E8(SB)/8, $8033
+DATA bitrev_size16384_radix4_f64<>+0x93F0(SB)/8, $12129
+DATA bitrev_size16384_radix4_f64<>+0x93F8(SB)/8, $16225
+DATA bitrev_size16384_radix4_f64<>+0x9400(SB)/8, $161
+DATA bitrev_size16384_radix4_f64<>+0x9408(SB)/8, $4257
+DATA bitrev_size16384_radix4_f64<>+0x9410(SB)/8, $8353
+DATA bitrev_size16384_radix4_f64<>+0x9418(SB)/8, $12449
+DATA bitrev_size16384_radix4_f64<>+0x9420(SB)/8, $1185
+DATA bitrev_size16384_radix4_f64<>+0x9428(SB)/8, $5281
+DATA bitrev_size16384_radix4_f64<>+0x9430(SB)/8, $9377
+DATA bitrev_size16384_radix4_f64<>+0x9438(SB)/8, $13473
+DATA bitrev_size16384_radix4_f64<>+0x9440(SB)/8, $2209
+DATA bitrev_size16384_radix4_f64<>+0x9448(SB)/8, $6305
+DATA bitrev_size16384_radix4_f64<>+0x9450(SB)/8, $10401
+DATA bitrev_size16384_radix4_f64<>+0x9458(SB)/8, $14497
+DATA bitrev_size16384_radix4_f64<>+0x9460(SB)/8, $3233
+DATA bitrev_size16384_radix4_f64<>+0x9468(SB)/8, $7329
+DATA bitrev_size16384_radix4_f64<>+0x9470(SB)/8, $11425
+DATA bitrev_size16384_radix4_f64<>+0x9478(SB)/8, $15521
+DATA bitrev_size16384_radix4_f64<>+0x9480(SB)/8, $417
+DATA bitrev_size16384_radix4_f64<>+0x9488(SB)/8, $4513
+DATA bitrev_size16384_radix4_f64<>+0x9490(SB)/8, $8609
+DATA bitrev_size16384_radix4_f64<>+0x9498(SB)/8, $12705
+DATA bitrev_size16384_radix4_f64<>+0x94A0(SB)/8, $1441
+DATA bitrev_size16384_radix4_f64<>+0x94A8(SB)/8, $5537
+DATA bitrev_size16384_radix4_f64<>+0x94B0(SB)/8, $9633
+DATA bitrev_size16384_radix4_f64<>+0x94B8(SB)/8, $13729
+DATA bitrev_size16384_radix4_f64<>+0x94C0(SB)/8, $2465
+DATA bitrev_size16384_radix4_f64<>+0x94C8(SB)/8, $6561
+DATA bitrev_size16384_radix4_f64<>+0x94D0(SB)/8, $10657
+DATA bitrev_size16384_radix4_f64<>+0x94D8(SB)/8, $14753
+DATA bitrev_size16384_radix4_f64<>+0x94E0(SB)/8, $3489
+DATA bitrev_size16384_radix4_f64<>+0x94E8(SB)/8, $7585
+DATA bitrev_size16384_radix4_f64<>+0x94F0(SB)/8, $11681
+DATA bitrev_size16384_radix4_f64<>+0x94F8(SB)/8, $15777
+DATA bitrev_size16384_radix4_f64<>+0x9500(SB)/8, $673
+DATA bitrev_size16384_radix4_f64<>+0x9508(SB)/8, $4769
+DATA bitrev_size16384_radix4_f64<>+0x9510(SB)/8, $8865
+DATA bitrev_size16384_radix4_f64<>+0x9518(SB)/8, $12961
+DATA bitrev_size16384_radix4_f64<>+0x9520(SB)/8, $1697
+DATA bitrev_size16384_radix4_f64<>+0x9528(SB)/8, $5793
+DATA bitrev_size16384_radix4_f64<>+0x9530(SB)/8, $9889
+DATA bitrev_size16384_radix4_f64<>+0x9538(SB)/8, $13985
+DATA bitrev_size16384_radix4_f64<>+0x9540(SB)/8, $2721
+DATA bitrev_size16384_radix4_f64<>+0x9548(SB)/8, $6817
+DATA bitrev_size16384_radix4_f64<>+0x9550(SB)/8, $10913
+DATA bitrev_size16384_radix4_f64<>+0x9558(SB)/8, $15009
+DATA bitrev_size16384_radix4_f64<>+0x9560(SB)/8, $3745
+DATA bitrev_size16384_radix4_f64<>+0x9568(SB)/8, $7841
+DATA bitrev_size16384_radix4_f64<>+0x9570(SB)/8, $11937
+DATA bitrev_size16384_radix4_f64<>+0x9578(SB)/8, $16033
+DATA bitrev_size16384_radix4_f64<>+0x9580(SB)/8, $929
+DATA bitrev_size16384_radix4_f64<>+0x9588(SB)/8, $5025
+DATA bitrev_size16384_radix4_f64<>+0x9590(SB)/8, $9121
+DATA bitrev_size16384_radix4_f64<>+0x9598(SB)/8, $13217
+DATA bitrev_size16384_radix4_f64<>+0x95A0(SB)/8, $1953
+DATA bitrev_size16384_radix4_f64<>+0x95A8(SB)/8, $6049
+DATA bitrev_size16384_radix4_f64<>+0x95B0(SB)/8, $10145
+DATA bitrev_size16384_radix4_f64<>+0x95B8(SB)/8, $14241
+DATA bitrev_size16384_radix4_f64<>+0x95C0(SB)/8, $2977
+DATA bitrev_size16384_radix4_f64<>+0x95C8(SB)/8, $7073
+DATA bitrev_size16384_radix4_f64<>+0x95D0(SB)/8, $11169
+DATA bitrev_size16384_radix4_f64<>+0x95D8(SB)/8, $15265
+DATA bitrev_size16384_radix4_f64<>+0x95E0(SB)/8, $4001
+DATA bitrev_size16384_radix4_f64<>+0x95E8(SB)/8, $8097
+DATA bitrev_size16384_radix4_f64<>+0x95F0(SB)/8, $12193
+DATA bitrev_size16384_radix4_f64<>+0x95F8(SB)/8, $16289
+DATA bitrev_size16384_radix4_f64<>+0x9600(SB)/8, $225
+DATA bitrev_size16384_radix4_f64<>+0x9608(SB)/8, $4321
+DATA bitrev_size16384_radix4_f64<>+0x9610(SB)/8, $8417
+DATA bitrev_size16384_radix4_f64<>+0x9618(SB)/8, $12513
+DATA bitrev_size16384_radix4_f64<>+0x9620(SB)/8, $1249
+DATA bitrev_size16384_radix4_f64<>+0x9628(SB)/8, $5345
+DATA bitrev_size16384_radix4_f64<>+0x9630(SB)/8, $9441
+DATA bitrev_size16384_radix4_f64<>+0x9638(SB)/8, $13537
+DATA bitrev_size16384_radix4_f64<>+0x9640(SB)/8, $2273
+DATA bitrev_size16384_radix4_f64<>+0x9648(SB)/8, $6369
+DATA bitrev_size16384_radix4_f64<>+0x9650(SB)/8, $10465
+DATA bitrev_size16384_radix4_f64<>+0x9658(SB)/8, $14561
+DATA bitrev_size16384_radix4_f64<>+0x9660(SB)/8, $3297
+DATA bitrev_size16384_radix4_f64<>+0x9668(SB)/8, $7393
+DATA bitrev_size16384_radix4_f64<>+0x9670(SB)/8, $11489
+DATA bitrev_size16384_radix4_f64<>+0x9678(SB)/8, $15585
+DATA bitrev_size16384_radix4_f64<>+0x9680(SB)/8, $481
+DATA bitrev_size16384_radix4_f64<>+0x9688(SB)/8, $4577
+DATA bitrev_size16384_radix4_f64<>+0x9690(SB)/8, $8673
+DATA bitrev_size16384_radix4_f64<>+0x9698(SB)/8, $12769
+DATA bitrev_size16384_radix4_f64<>+0x96A0(SB)/8, $1505
+DATA bitrev_size16384_radix4_f64<>+0x96A8(SB)/8, $5601
+DATA bitrev_size16384_radix4_f64<>+0x96B0(SB)/8, $9697
+DATA bitrev_size16384_radix4_f64<>+0x96B8(SB)/8, $13793
+DATA bitrev_size16384_radix4_f64<>+0x96C0(SB)/8, $2529
+DATA bitrev_size16384_radix4_f64<>+0x96C8(SB)/8, $6625
+DATA bitrev_size16384_radix4_f64<>+0x96D0(SB)/8, $10721
+DATA bitrev_size16384_radix4_f64<>+0x96D8(SB)/8, $14817
+DATA bitrev_size16384_radix4_f64<>+0x96E0(SB)/8, $3553
+DATA bitrev_size16384_radix4_f64<>+0x96E8(SB)/8, $7649
+DATA bitrev_size16384_radix4_f64<>+0x96F0(SB)/8, $11745
+DATA bitrev_size16384_radix4_f64<>+0x96F8(SB)/8, $15841
+DATA bitrev_size16384_radix4_f64<>+0x9700(SB)/8, $737
+DATA bitrev_size16384_radix4_f64<>+0x9708(SB)/8, $4833
+DATA bitrev_size16384_radix4_f64<>+0x9710(SB)/8, $8929
+DATA bitrev_size16384_radix4_f64<>+0x9718(SB)/8, $13025
+DATA bitrev_size16384_radix4_f64<>+0x9720(SB)/8, $1761
+DATA bitrev_size16384_radix4_f64<>+0x9728(SB)/8, $5857
+DATA bitrev_size16384_radix4_f64<>+0x9730(SB)/8, $9953
+DATA bitrev_size16384_radix4_f64<>+0x9738(SB)/8, $14049
+DATA bitrev_size16384_radix4_f64<>+0x9740(SB)/8, $2785
+DATA bitrev_size16384_radix4_f64<>+0x9748(SB)/8, $6881
+DATA bitrev_size16384_radix4_f64<>+0x9750(SB)/8, $10977
+DATA bitrev_size16384_radix4_f64<>+0x9758(SB)/8, $15073
+DATA bitrev_size16384_radix4_f64<>+0x9760(SB)/8, $3809
+DATA bitrev_size16384_radix4_f64<>+0x9768(SB)/8, $7905
+DATA bitrev_size16384_radix4_f64<>+0x9770(SB)/8, $12001
+DATA bitrev_size16384_radix4_f64<>+0x9778(SB)/8, $16097
+DATA bitrev_size16384_radix4_f64<>+0x9780(SB)/8, $993
+DATA bitrev_size16384_radix4_f64<>+0x9788(SB)/8, $5089
+DATA bitrev_size16384_radix4_f64<>+0x9790(SB)/8, $9185
+DATA bitrev_size16384_radix4_f64<>+0x9798(SB)/8, $13281
+DATA bitrev_size16384_radix4_f64<>+0x97A0(SB)/8, $2017
+DATA bitrev_size16384_radix4_f64<>+0x97A8(SB)/8, $6113
+DATA bitrev_size16384_radix4_f64<>+0x97B0(SB)/8, $10209
+DATA bitrev_size16384_radix4_f64<>+0x97B8(SB)/8, $14305
+DATA bitrev_size16384_radix4_f64<>+0x97C0(SB)/8, $3041
+DATA bitrev_size16384_radix4_f64<>+0x97C8(SB)/8, $7137
+DATA bitrev_size16384_radix4_f64<>+0x97D0(SB)/8, $11233
+DATA bitrev_size16384_radix4_f64<>+0x97D8(SB)/8, $15329
+DATA bitrev_size16384_radix4_f64<>+0x97E0(SB)/8, $4065
+DATA bitrev_size16384_radix4_f64<>+0x97E8(SB)/8, $8161
+DATA bitrev_size16384_radix4_f64<>+0x97F0(SB)/8, $12257
+DATA bitrev_size16384_radix4_f64<>+0x97F8(SB)/8, $16353
+DATA bitrev_size16384_radix4_f64<>+0x9800(SB)/8, $49
+DATA bitrev_size16384_radix4_f64<>+0x9808(SB)/8, $4145
+DATA bitrev_size16384_radix4_f64<>+0x9810(SB)/8, $8241
+DATA bitrev_size16384_radix4_f64<>+0x9818(SB)/8, $12337
+DATA bitrev_size16384_radix4_f64<>+0x9820(SB)/8, $1073
+DATA bitrev_size16384_radix4_f64<>+0x9828(SB)/8, $5169
+DATA bitrev_size16384_radix4_f64<>+0x9830(SB)/8, $9265
+DATA bitrev_size16384_radix4_f64<>+0x9838(SB)/8, $13361
+DATA bitrev_size16384_radix4_f64<>+0x9840(SB)/8, $2097
+DATA bitrev_size16384_radix4_f64<>+0x9848(SB)/8, $6193
+DATA bitrev_size16384_radix4_f64<>+0x9850(SB)/8, $10289
+DATA bitrev_size16384_radix4_f64<>+0x9858(SB)/8, $14385
+DATA bitrev_size16384_radix4_f64<>+0x9860(SB)/8, $3121
+DATA bitrev_size16384_radix4_f64<>+0x9868(SB)/8, $7217
+DATA bitrev_size16384_radix4_f64<>+0x9870(SB)/8, $11313
+DATA bitrev_size16384_radix4_f64<>+0x9878(SB)/8, $15409
+DATA bitrev_size16384_radix4_f64<>+0x9880(SB)/8, $305
+DATA bitrev_size16384_radix4_f64<>+0x9888(SB)/8, $4401
+DATA bitrev_size16384_radix4_f64<>+0x9890(SB)/8, $8497
+DATA bitrev_size16384_radix4_f64<>+0x9898(SB)/8, $12593
+DATA bitrev_size16384_radix4_f64<>+0x98A0(SB)/8, $1329
+DATA bitrev_size16384_radix4_f64<>+0x98A8(SB)/8, $5425
+DATA bitrev_size16384_radix4_f64<>+0x98B0(SB)/8, $9521
+DATA bitrev_size16384_radix4_f64<>+0x98B8(SB)/8, $13617
+DATA bitrev_size16384_radix4_f64<>+0x98C0(SB)/8, $2353
+DATA bitrev_size16384_radix4_f64<>+0x98C8(SB)/8, $6449
+DATA bitrev_size16384_radix4_f64<>+0x98D0(SB)/8, $10545
+DATA bitrev_size16384_radix4_f64<>+0x98D8(SB)/8, $14641
+DATA bitrev_size16384_radix4_f64<>+0x98E0(SB)/8, $3377
+DATA bitrev_size16384_radix4_f64<>+0x98E8(SB)/8, $7473
+DATA bitrev_size16384_radix4_f64<>+0x98F0(SB)/8, $11569
+DATA bitrev_size16384_radix4_f64<>+0x98F8(SB)/8, $15665
+DATA bitrev_size16384_radix4_f64<>+0x9900(SB)/8, $561
+DATA bitrev_size16384_radix4_f64<>+0x9908(SB)/8, $4657
+DATA bitrev_size16384_radix4_f64<>+0x9910(SB)/8, $8753
+DATA bitrev_size16384_radix4_f64<>+0x9918(SB)/8, $12849
+DATA bitrev_size16384_radix4_f64<>+0x9920(SB)/8, $1585
+DATA bitrev_size16384_radix4_f64<>+0x9928(SB)/8, $5681
+DATA bitrev_size16384_radix4_f64<>+0x9930(SB)/8, $9777
+DATA bitrev_size16384_radix4_f64<>+0x9938(SB)/8, $13873
+DATA bitrev_size16384_radix4_f64<>+0x9940(SB)/8, $2609
+DATA bitrev_size16384_radix4_f64<>+0x9948(SB)/8, $6705
+DATA bitrev_size16384_radix4_f64<>+0x9950(SB)/8, $10801
+DATA bitrev_size16384_radix4_f64<>+0x9958(SB)/8, $14897
+DATA bitrev_size16384_radix4_f64<>+0x9960(SB)/8, $3633
+DATA bitrev_size16384_radix4_f64<>+0x9968(SB)/8, $7729
+DATA bitrev_size16384_radix4_f64<>+0x9970(SB)/8, $11825
+DATA bitrev_size16384_radix4_f64<>+0x9978(SB)/8, $15921
+DATA bitrev_size16384_radix4_f64<>+0x9980(SB)/8, $817
+DATA bitrev_size16384_radix4_f64<>+0x9988(SB)/8, $4913
+DATA bitrev_size16384_radix4_f64<>+0x9990(SB)/8, $9009
+DATA bitrev_size16384_radix4_f64<>+0x9998(SB)/8, $13105
+DATA bitrev_size16384_radix4_f64<>+0x99A0(SB)/8, $1841
+DATA bitrev_size16384_radix4_f64<>+0x99A8(SB)/8, $5937
+DATA bitrev_size16384_radix4_f64<>+0x99B0(SB)/8, $10033
+DATA bitrev_size16384_radix4_f64<>+0x99B8(SB)/8, $14129
+DATA bitrev_size16384_radix4_f64<>+0x99C0(SB)/8, $2865
+DATA bitrev_size16384_radix4_f64<>+0x99C8(SB)/8, $6961
+DATA bitrev_size16384_radix4_f64<>+0x99D0(SB)/8, $11057
+DATA bitrev_size16384_radix4_f64<>+0x99D8(SB)/8, $15153
+DATA bitrev_size16384_radix4_f64<>+0x99E0(SB)/8, $3889
+DATA bitrev_size16384_radix4_f64<>+0x99E8(SB)/8, $7985
+DATA bitrev_size16384_radix4_f64<>+0x99F0(SB)/8, $12081
+DATA bitrev_size16384_radix4_f64<>+0x99F8(SB)/8, $16177
+DATA bitrev_size16384_radix4_f64<>+0x9A00(SB)/8, $113
+DATA bitrev_size16384_radix4_f64<>+0x9A08(SB)/8, $4209
+DATA bitrev_size16384_radix4_f64<>+0x9A10(SB)/8, $8305
+DATA bitrev_size16384_radix4_f64<>+0x9A18(SB)/8, $12401
+DATA bitrev_size16384_radix4_f64<>+0x9A20(SB)/8, $1137
+DATA bitrev_size16384_radix4_f64<>+0x9A28(SB)/8, $5233
+DATA bitrev_size16384_radix4_f64<>+0x9A30(SB)/8, $9329
+DATA bitrev_size16384_radix4_f64<>+0x9A38(SB)/8, $13425
+DATA bitrev_size16384_radix4_f64<>+0x9A40(SB)/8, $2161
+DATA bitrev_size16384_radix4_f64<>+0x9A48(SB)/8, $6257
+DATA bitrev_size16384_radix4_f64<>+0x9A50(SB)/8, $10353
+DATA bitrev_size16384_radix4_f64<>+0x9A58(SB)/8, $14449
+DATA bitrev_size16384_radix4_f64<>+0x9A60(SB)/8, $3185
+DATA bitrev_size16384_radix4_f64<>+0x9A68(SB)/8, $7281
+DATA bitrev_size16384_radix4_f64<>+0x9A70(SB)/8, $11377
+DATA bitrev_size16384_radix4_f64<>+0x9A78(SB)/8, $15473
+DATA bitrev_size16384_radix4_f64<>+0x9A80(SB)/8, $369
+DATA bitrev_size16384_radix4_f64<>+0x9A88(SB)/8, $4465
+DATA bitrev_size16384_radix4_f64<>+0x9A90(SB)/8, $8561
+DATA bitrev_size16384_radix4_f64<>+0x9A98(SB)/8, $12657
+DATA bitrev_size16384_radix4_f64<>+0x9AA0(SB)/8, $1393
+DATA bitrev_size16384_radix4_f64<>+0x9AA8(SB)/8, $5489
+DATA bitrev_size16384_radix4_f64<>+0x9AB0(SB)/8, $9585
+DATA bitrev_size16384_radix4_f64<>+0x9AB8(SB)/8, $13681
+DATA bitrev_size16384_radix4_f64<>+0x9AC0(SB)/8, $2417
+DATA bitrev_size16384_radix4_f64<>+0x9AC8(SB)/8, $6513
+DATA bitrev_size16384_radix4_f64<>+0x9AD0(SB)/8, $10609
+DATA bitrev_size16384_radix4_f64<>+0x9AD8(SB)/8, $14705
+DATA bitrev_size16384_radix4_f64<>+0x9AE0(SB)/8, $3441
+DATA bitrev_size16384_radix4_f64<>+0x9AE8(SB)/8, $7537
+DATA bitrev_size16384_radix4_f64<>+0x9AF0(SB)/8, $11633
+DATA bitrev_size16384_radix4_f64<>+0x9AF8(SB)/8, $15729
+DATA bitrev_size16384_radix4_f64<>+0x9B00(SB)/8, $625
+DATA bitrev_size16384_radix4_f64<>+0x9B08(SB)/8, $4721
+DATA bitrev_size16384_radix4_f64<>+0x9B10(SB)/8, $8817
+DATA bitrev_size16384_radix4_f64<>+0x9B18(SB)/8, $12913
+DATA bitrev_size16384_radix4_f64<>+0x9B20(SB)/8, $1649
+DATA bitrev_size16384_radix4_f64<>+0x9B28(SB)/8, $5745
+DATA bitrev_size16384_radix4_f64<>+0x9B30(SB)/8, $9841
+DATA bitrev_size16384_radix4_f64<>+0x9B38(SB)/8, $13937
+DATA bitrev_size16384_radix4_f64<>+0x9B40(SB)/8, $2673
+DATA bitrev_size16384_radix4_f64<>+0x9B48(SB)/8, $6769
+DATA bitrev_size16384_radix4_f64<>+0x9B50(SB)/8, $10865
+DATA bitrev_size16384_radix4_f64<>+0x9B58(SB)/8, $14961
+DATA bitrev_size16384_radix4_f64<>+0x9B60(SB)/8, $3697
+DATA bitrev_size16384_radix4_f64<>+0x9B68(SB)/8, $7793
+DATA bitrev_size16384_radix4_f64<>+0x9B70(SB)/8, $11889
+DATA bitrev_size16384_radix4_f64<>+0x9B78(SB)/8, $15985
+DATA bitrev_size16384_radix4_f64<>+0x9B80(SB)/8, $881
+DATA bitrev_size16384_radix4_f64<>+0x9B88(SB)/8, $4977
+DATA bitrev_size16384_radix4_f64<>+0x9B90(SB)/8, $9073
+DATA bitrev_size16384_radix4_f64<>+0x9B98(SB)/8, $13169
+DATA bitrev_size16384_radix4_f64<>+0x9BA0(SB)/8, $1905
+DATA bitrev_size16384_radix4_f64<>+0x9BA8(SB)/8, $6001
+DATA bitrev_size16384_radix4_f64<>+0x9BB0(SB)/8, $10097
+DATA bitrev_size16384_radix4_f64<>+0x9BB8(SB)/8, $14193
+DATA bitrev_size16384_radix4_f64<>+0x9BC0(SB)/8, $2929
+DATA bitrev_size16384_radix4_f64<>+0x9BC8(SB)/8, $7025
+DATA bitrev_size16384_radix4_f64<>+0x9BD0(SB)/8, $11121
+DATA bitrev_size16384_radix4_f64<>+0x9BD8(SB)/8, $15217
+DATA bitrev_size16384_radix4_f64<>+0x9BE0(SB)/8, $3953
+DATA bitrev_size16384_radix4_f64<>+0x9BE8(SB)/8, $8049
+DATA bitrev_size16384_radix4_f64<>+0x9BF0(SB)/8, $12145
+DATA bitrev_size16384_radix4_f64<>+0x9BF8(SB)/8, $16241
+DATA bitrev_size16384_radix4_f64<>+0x9C00(SB)/8, $177
+DATA bitrev_size16384_radix4_f64<>+0x9C08(SB)/8, $4273
+DATA bitrev_size16384_radix4_f64<>+0x9C10(SB)/8, $8369
+DATA bitrev_size16384_radix4_f64<>+0x9C18(SB)/8, $12465
+DATA bitrev_size16384_radix4_f64<>+0x9C20(SB)/8, $1201
+DATA bitrev_size16384_radix4_f64<>+0x9C28(SB)/8, $5297
+DATA bitrev_size16384_radix4_f64<>+0x9C30(SB)/8, $9393
+DATA bitrev_size16384_radix4_f64<>+0x9C38(SB)/8, $13489
+DATA bitrev_size16384_radix4_f64<>+0x9C40(SB)/8, $2225
+DATA bitrev_size16384_radix4_f64<>+0x9C48(SB)/8, $6321
+DATA bitrev_size16384_radix4_f64<>+0x9C50(SB)/8, $10417
+DATA bitrev_size16384_radix4_f64<>+0x9C58(SB)/8, $14513
+DATA bitrev_size16384_radix4_f64<>+0x9C60(SB)/8, $3249
+DATA bitrev_size16384_radix4_f64<>+0x9C68(SB)/8, $7345
+DATA bitrev_size16384_radix4_f64<>+0x9C70(SB)/8, $11441
+DATA bitrev_size16384_radix4_f64<>+0x9C78(SB)/8, $15537
+DATA bitrev_size16384_radix4_f64<>+0x9C80(SB)/8, $433
+DATA bitrev_size16384_radix4_f64<>+0x9C88(SB)/8, $4529
+DATA bitrev_size16384_radix4_f64<>+0x9C90(SB)/8, $8625
+DATA bitrev_size16384_radix4_f64<>+0x9C98(SB)/8, $12721
+DATA bitrev_size16384_radix4_f64<>+0x9CA0(SB)/8, $1457
+DATA bitrev_size16384_radix4_f64<>+0x9CA8(SB)/8, $5553
+DATA bitrev_size16384_radix4_f64<>+0x9CB0(SB)/8, $9649
+DATA bitrev_size16384_radix4_f64<>+0x9CB8(SB)/8, $13745
+DATA bitrev_size16384_radix4_f64<>+0x9CC0(SB)/8, $2481
+DATA bitrev_size16384_radix4_f64<>+0x9CC8(SB)/8, $6577
+DATA bitrev_size16384_radix4_f64<>+0x9CD0(SB)/8, $10673
+DATA bitrev_size16384_radix4_f64<>+0x9CD8(SB)/8, $14769
+DATA bitrev_size16384_radix4_f64<>+0x9CE0(SB)/8, $3505
+DATA bitrev_size16384_radix4_f64<>+0x9CE8(SB)/8, $7601
+DATA bitrev_size16384_radix4_f64<>+0x9CF0(SB)/8, $11697
+DATA bitrev_size16384_radix4_f64<>+0x9CF8(SB)/8, $15793
+DATA bitrev_size16384_radix4_f64<>+0x9D00(SB)/8, $689
+DATA bitrev_size16384_radix4_f64<>+0x9D08(SB)/8, $4785
+DATA bitrev_size16384_radix4_f64<>+0x9D10(SB)/8, $8881
+DATA bitrev_size16384_radix4_f64<>+0x9D18(SB)/8, $12977
+DATA bitrev_size16384_radix4_f64<>+0x9D20(SB)/8, $1713
+DATA bitrev_size16384_radix4_f64<>+0x9D28(SB)/8, $5809
+DATA bitrev_size16384_radix4_f64<>+0x9D30(SB)/8, $9905
+DATA bitrev_size16384_radix4_f64<>+0x9D38(SB)/8, $14001
+DATA bitrev_size16384_radix4_f64<>+0x9D40(SB)/8, $2737
+DATA bitrev_size16384_radix4_f64<>+0x9D48(SB)/8, $6833
+DATA bitrev_size16384_radix4_f64<>+0x9D50(SB)/8, $10929
+DATA bitrev_size16384_radix4_f64<>+0x9D58(SB)/8, $15025
+DATA bitrev_size16384_radix4_f64<>+0x9D60(SB)/8, $3761
+DATA bitrev_size16384_radix4_f64<>+0x9D68(SB)/8, $7857
+DATA bitrev_size16384_radix4_f64<>+0x9D70(SB)/8, $11953
+DATA bitrev_size16384_radix4_f64<>+0x9D78(SB)/8, $16049
+DATA bitrev_size16384_radix4_f64<>+0x9D80(SB)/8, $945
+DATA bitrev_size16384_radix4_f64<>+0x9D88(SB)/8, $5041
+DATA bitrev_size16384_radix4_f64<>+0x9D90(SB)/8, $9137
+DATA bitrev_size16384_radix4_f64<>+0x9D98(SB)/8, $13233
+DATA bitrev_size16384_radix4_f64<>+0x9DA0(SB)/8, $1969
+DATA bitrev_size16384_radix4_f64<>+0x9DA8(SB)/8, $6065
+DATA bitrev_size16384_radix4_f64<>+0x9DB0(SB)/8, $10161
+DATA bitrev_size16384_radix4_f64<>+0x9DB8(SB)/8, $14257
+DATA bitrev_size16384_radix4_f64<>+0x9DC0(SB)/8, $2993
+DATA bitrev_size16384_radix4_f64<>+0x9DC8(SB)/8, $7089
+DATA bitrev_size16384_radix4_f64<>+0x9DD0(SB)/8, $11185
+DATA bitrev_size16384_radix4_f64<>+0x9DD8(SB)/8, $15281
+DATA bitrev_size16384_radix4_f64<>+0x9DE0(SB)/8, $4017
+DATA bitrev_size16384_radix4_f64<>+0x9DE8(SB)/8, $8113
+DATA bitrev_size16384_radix4_f64<>+0x9DF0(SB)/8, $12209
+DATA bitrev_size16384_radix4_f64<>+0x9DF8(SB)/8, $16305
+DATA bitrev_size16384_radix4_f64<>+0x9E00(SB)/8, $241
+DATA bitrev_size16384_radix4_f64<>+0x9E08(SB)/8, $4337
+DATA bitrev_size16384_radix4_f64<>+0x9E10(SB)/8, $8433
+DATA bitrev_size16384_radix4_f64<>+0x9E18(SB)/8, $12529
+DATA bitrev_size16384_radix4_f64<>+0x9E20(SB)/8, $1265
+DATA bitrev_size16384_radix4_f64<>+0x9E28(SB)/8, $5361
+DATA bitrev_size16384_radix4_f64<>+0x9E30(SB)/8, $9457
+DATA bitrev_size16384_radix4_f64<>+0x9E38(SB)/8, $13553
+DATA bitrev_size16384_radix4_f64<>+0x9E40(SB)/8, $2289
+DATA bitrev_size16384_radix4_f64<>+0x9E48(SB)/8, $6385
+DATA bitrev_size16384_radix4_f64<>+0x9E50(SB)/8, $10481
+DATA bitrev_size16384_radix4_f64<>+0x9E58(SB)/8, $14577
+DATA bitrev_size16384_radix4_f64<>+0x9E60(SB)/8, $3313
+DATA bitrev_size16384_radix4_f64<>+0x9E68(SB)/8, $7409
+DATA bitrev_size16384_radix4_f64<>+0x9E70(SB)/8, $11505
+DATA bitrev_size16384_radix4_f64<>+0x9E78(SB)/8, $15601
+DATA bitrev_size16384_radix4_f64<>+0x9E80(SB)/8, $497
+DATA bitrev_size16384_radix4_f64<>+0x9E88(SB)/8, $4593
+DATA bitrev_size16384_radix4_f64<>+0x9E90(SB)/8, $8689
+DATA bitrev_size16384_radix4_f64<>+0x9E98(SB)/8, $12785
+DATA bitrev_size16384_radix4_f64<>+0x9EA0(SB)/8, $1521
+DATA bitrev_size16384_radix4_f64<>+0x9EA8(SB)/8, $5617
+DATA bitrev_size16384_radix4_f64<>+0x9EB0(SB)/8, $9713
+DATA bitrev_size16384_radix4_f64<>+0x9EB8(SB)/8, $13809
+DATA bitrev_size16384_radix4_f64<>+0x9EC0(SB)/8, $2545
+DATA bitrev_size16384_radix4_f64<>+0x9EC8(SB)/8, $6641
+DATA bitrev_size16384_radix4_f64<>+0x9ED0(SB)/8, $10737
+DATA bitrev_size16384_radix4_f64<>+0x9ED8(SB)/8, $14833
+DATA bitrev_size16384_radix4_f64<>+0x9EE0(SB)/8, $3569
+DATA bitrev_size16384_radix4_f64<>+0x9EE8(SB)/8, $7665
+DATA bitrev_size16384_radix4_f64<>+0x9EF0(SB)/8, $11761
+DATA bitrev_size16384_radix4_f64<>+0x9EF8(SB)/8, $15857
+DATA bitrev_size16384_radix4_f64<>+0x9F00(SB)/8, $753
+DATA bitrev_size16384_radix4_f64<>+0x9F08(SB)/8, $4849
+DATA bitrev_size16384_radix4_f64<>+0x9F10(SB)/8, $8945
+DATA bitrev_size16384_radix4_f64<>+0x9F18(SB)/8, $13041
+DATA bitrev_size16384_radix4_f64<>+0x9F20(SB)/8, $1777
+DATA bitrev_size16384_radix4_f64<>+0x9F28(SB)/8, $5873
+DATA bitrev_size16384_radix4_f64<>+0x9F30(SB)/8, $9969
+DATA bitrev_size16384_radix4_f64<>+0x9F38(SB)/8, $14065
+DATA bitrev_size16384_radix4_f64<>+0x9F40(SB)/8, $2801
+DATA bitrev_size16384_radix4_f64<>+0x9F48(SB)/8, $6897
+DATA bitrev_size16384_radix4_f64<>+0x9F50(SB)/8, $10993
+DATA bitrev_size16384_radix4_f64<>+0x9F58(SB)/8, $15089
+DATA bitrev_size16384_radix4_f64<>+0x9F60(SB)/8, $3825
+DATA bitrev_size16384_radix4_f64<>+0x9F68(SB)/8, $7921
+DATA bitrev_size16384_radix4_f64<>+0x9F70(SB)/8, $12017
+DATA bitrev_size16384_radix4_f64<>+0x9F78(SB)/8, $16113
+DATA bitrev_size16384_radix4_f64<>+0x9F80(SB)/8, $1009
+DATA bitrev_size16384_radix4_f64<>+0x9F88(SB)/8, $5105
+DATA bitrev_size16384_radix4_f64<>+0x9F90(SB)/8, $9201
+DATA bitrev_size16384_radix4_f64<>+0x9F98(SB)/8, $13297
+DATA bitrev_size16384_radix4_f64<>+0x9FA0(SB)/8, $2033
+DATA bitrev_size16384_radix4_f64<>+0x9FA8(SB)/8, $6129
+DATA bitrev_size16384_radix4_f64<>+0x9FB0(SB)/8, $10225
+DATA bitrev_size16384_radix4_f64<>+0x9FB8(SB)/8, $14321
+DATA bitrev_size16384_radix4_f64<>+0x9FC0(SB)/8, $3057
+DATA bitrev_size16384_radix4_f64<>+0x9FC8(SB)/8, $7153
+DATA bitrev_size16384_radix4_f64<>+0x9FD0(SB)/8, $11249
+DATA bitrev_size16384_radix4_f64<>+0x9FD8(SB)/8, $15345
+DATA bitrev_size16384_radix4_f64<>+0x9FE0(SB)/8, $4081
+DATA bitrev_size16384_radix4_f64<>+0x9FE8(SB)/8, $8177
+DATA bitrev_size16384_radix4_f64<>+0x9FF0(SB)/8, $12273
+DATA bitrev_size16384_radix4_f64<>+0x9FF8(SB)/8, $16369
+DATA bitrev_size16384_radix4_f64<>+0xA000(SB)/8, $5
+DATA bitrev_size16384_radix4_f64<>+0xA008(SB)/8, $4101
+DATA bitrev_size16384_radix4_f64<>+0xA010(SB)/8, $8197
+DATA bitrev_size16384_radix4_f64<>+0xA018(SB)/8, $12293
+DATA bitrev_size16384_radix4_f64<>+0xA020(SB)/8, $1029
+DATA bitrev_size16384_radix4_f64<>+0xA028(SB)/8, $5125
+DATA bitrev_size16384_radix4_f64<>+0xA030(SB)/8, $9221
+DATA bitrev_size16384_radix4_f64<>+0xA038(SB)/8, $13317
+DATA bitrev_size16384_radix4_f64<>+0xA040(SB)/8, $2053
+DATA bitrev_size16384_radix4_f64<>+0xA048(SB)/8, $6149
+DATA bitrev_size16384_radix4_f64<>+0xA050(SB)/8, $10245
+DATA bitrev_size16384_radix4_f64<>+0xA058(SB)/8, $14341
+DATA bitrev_size16384_radix4_f64<>+0xA060(SB)/8, $3077
+DATA bitrev_size16384_radix4_f64<>+0xA068(SB)/8, $7173
+DATA bitrev_size16384_radix4_f64<>+0xA070(SB)/8, $11269
+DATA bitrev_size16384_radix4_f64<>+0xA078(SB)/8, $15365
+DATA bitrev_size16384_radix4_f64<>+0xA080(SB)/8, $261
+DATA bitrev_size16384_radix4_f64<>+0xA088(SB)/8, $4357
+DATA bitrev_size16384_radix4_f64<>+0xA090(SB)/8, $8453
+DATA bitrev_size16384_radix4_f64<>+0xA098(SB)/8, $12549
+DATA bitrev_size16384_radix4_f64<>+0xA0A0(SB)/8, $1285
+DATA bitrev_size16384_radix4_f64<>+0xA0A8(SB)/8, $5381
+DATA bitrev_size16384_radix4_f64<>+0xA0B0(SB)/8, $9477
+DATA bitrev_size16384_radix4_f64<>+0xA0B8(SB)/8, $13573
+DATA bitrev_size16384_radix4_f64<>+0xA0C0(SB)/8, $2309
+DATA bitrev_size16384_radix4_f64<>+0xA0C8(SB)/8, $6405
+DATA bitrev_size16384_radix4_f64<>+0xA0D0(SB)/8, $10501
+DATA bitrev_size16384_radix4_f64<>+0xA0D8(SB)/8, $14597
+DATA bitrev_size16384_radix4_f64<>+0xA0E0(SB)/8, $3333
+DATA bitrev_size16384_radix4_f64<>+0xA0E8(SB)/8, $7429
+DATA bitrev_size16384_radix4_f64<>+0xA0F0(SB)/8, $11525
+DATA bitrev_size16384_radix4_f64<>+0xA0F8(SB)/8, $15621
+DATA bitrev_size16384_radix4_f64<>+0xA100(SB)/8, $517
+DATA bitrev_size16384_radix4_f64<>+0xA108(SB)/8, $4613
+DATA bitrev_size16384_radix4_f64<>+0xA110(SB)/8, $8709
+DATA bitrev_size16384_radix4_f64<>+0xA118(SB)/8, $12805
+DATA bitrev_size16384_radix4_f64<>+0xA120(SB)/8, $1541
+DATA bitrev_size16384_radix4_f64<>+0xA128(SB)/8, $5637
+DATA bitrev_size16384_radix4_f64<>+0xA130(SB)/8, $9733
+DATA bitrev_size16384_radix4_f64<>+0xA138(SB)/8, $13829
+DATA bitrev_size16384_radix4_f64<>+0xA140(SB)/8, $2565
+DATA bitrev_size16384_radix4_f64<>+0xA148(SB)/8, $6661
+DATA bitrev_size16384_radix4_f64<>+0xA150(SB)/8, $10757
+DATA bitrev_size16384_radix4_f64<>+0xA158(SB)/8, $14853
+DATA bitrev_size16384_radix4_f64<>+0xA160(SB)/8, $3589
+DATA bitrev_size16384_radix4_f64<>+0xA168(SB)/8, $7685
+DATA bitrev_size16384_radix4_f64<>+0xA170(SB)/8, $11781
+DATA bitrev_size16384_radix4_f64<>+0xA178(SB)/8, $15877
+DATA bitrev_size16384_radix4_f64<>+0xA180(SB)/8, $773
+DATA bitrev_size16384_radix4_f64<>+0xA188(SB)/8, $4869
+DATA bitrev_size16384_radix4_f64<>+0xA190(SB)/8, $8965
+DATA bitrev_size16384_radix4_f64<>+0xA198(SB)/8, $13061
+DATA bitrev_size16384_radix4_f64<>+0xA1A0(SB)/8, $1797
+DATA bitrev_size16384_radix4_f64<>+0xA1A8(SB)/8, $5893
+DATA bitrev_size16384_radix4_f64<>+0xA1B0(SB)/8, $9989
+DATA bitrev_size16384_radix4_f64<>+0xA1B8(SB)/8, $14085
+DATA bitrev_size16384_radix4_f64<>+0xA1C0(SB)/8, $2821
+DATA bitrev_size16384_radix4_f64<>+0xA1C8(SB)/8, $6917
+DATA bitrev_size16384_radix4_f64<>+0xA1D0(SB)/8, $11013
+DATA bitrev_size16384_radix4_f64<>+0xA1D8(SB)/8, $15109
+DATA bitrev_size16384_radix4_f64<>+0xA1E0(SB)/8, $3845
+DATA bitrev_size16384_radix4_f64<>+0xA1E8(SB)/8, $7941
+DATA bitrev_size16384_radix4_f64<>+0xA1F0(SB)/8, $12037
+DATA bitrev_size16384_radix4_f64<>+0xA1F8(SB)/8, $16133
+DATA bitrev_size16384_radix4_f64<>+0xA200(SB)/8, $69
+DATA bitrev_size16384_radix4_f64<>+0xA208(SB)/8, $4165
+DATA bitrev_size16384_radix4_f64<>+0xA210(SB)/8, $8261
+DATA bitrev_size16384_radix4_f64<>+0xA218(SB)/8, $12357
+DATA bitrev_size16384_radix4_f64<>+0xA220(SB)/8, $1093
+DATA bitrev_size16384_radix4_f64<>+0xA228(SB)/8, $5189
+DATA bitrev_size16384_radix4_f64<>+0xA230(SB)/8, $9285
+DATA bitrev_size16384_radix4_f64<>+0xA238(SB)/8, $13381
+DATA bitrev_size16384_radix4_f64<>+0xA240(SB)/8, $2117
+DATA bitrev_size16384_radix4_f64<>+0xA248(SB)/8, $6213
+DATA bitrev_size16384_radix4_f64<>+0xA250(SB)/8, $10309
+DATA bitrev_size16384_radix4_f64<>+0xA258(SB)/8, $14405
+DATA bitrev_size16384_radix4_f64<>+0xA260(SB)/8, $3141
+DATA bitrev_size16384_radix4_f64<>+0xA268(SB)/8, $7237
+DATA bitrev_size16384_radix4_f64<>+0xA270(SB)/8, $11333
+DATA bitrev_size16384_radix4_f64<>+0xA278(SB)/8, $15429
+DATA bitrev_size16384_radix4_f64<>+0xA280(SB)/8, $325
+DATA bitrev_size16384_radix4_f64<>+0xA288(SB)/8, $4421
+DATA bitrev_size16384_radix4_f64<>+0xA290(SB)/8, $8517
+DATA bitrev_size16384_radix4_f64<>+0xA298(SB)/8, $12613
+DATA bitrev_size16384_radix4_f64<>+0xA2A0(SB)/8, $1349
+DATA bitrev_size16384_radix4_f64<>+0xA2A8(SB)/8, $5445
+DATA bitrev_size16384_radix4_f64<>+0xA2B0(SB)/8, $9541
+DATA bitrev_size16384_radix4_f64<>+0xA2B8(SB)/8, $13637
+DATA bitrev_size16384_radix4_f64<>+0xA2C0(SB)/8, $2373
+DATA bitrev_size16384_radix4_f64<>+0xA2C8(SB)/8, $6469
+DATA bitrev_size16384_radix4_f64<>+0xA2D0(SB)/8, $10565
+DATA bitrev_size16384_radix4_f64<>+0xA2D8(SB)/8, $14661
+DATA bitrev_size16384_radix4_f64<>+0xA2E0(SB)/8, $3397
+DATA bitrev_size16384_radix4_f64<>+0xA2E8(SB)/8, $7493
+DATA bitrev_size16384_radix4_f64<>+0xA2F0(SB)/8, $11589
+DATA bitrev_size16384_radix4_f64<>+0xA2F8(SB)/8, $15685
+DATA bitrev_size16384_radix4_f64<>+0xA300(SB)/8, $581
+DATA bitrev_size16384_radix4_f64<>+0xA308(SB)/8, $4677
+DATA bitrev_size16384_radix4_f64<>+0xA310(SB)/8, $8773
+DATA bitrev_size16384_radix4_f64<>+0xA318(SB)/8, $12869
+DATA bitrev_size16384_radix4_f64<>+0xA320(SB)/8, $1605
+DATA bitrev_size16384_radix4_f64<>+0xA328(SB)/8, $5701
+DATA bitrev_size16384_radix4_f64<>+0xA330(SB)/8, $9797
+DATA bitrev_size16384_radix4_f64<>+0xA338(SB)/8, $13893
+DATA bitrev_size16384_radix4_f64<>+0xA340(SB)/8, $2629
+DATA bitrev_size16384_radix4_f64<>+0xA348(SB)/8, $6725
+DATA bitrev_size16384_radix4_f64<>+0xA350(SB)/8, $10821
+DATA bitrev_size16384_radix4_f64<>+0xA358(SB)/8, $14917
+DATA bitrev_size16384_radix4_f64<>+0xA360(SB)/8, $3653
+DATA bitrev_size16384_radix4_f64<>+0xA368(SB)/8, $7749
+DATA bitrev_size16384_radix4_f64<>+0xA370(SB)/8, $11845
+DATA bitrev_size16384_radix4_f64<>+0xA378(SB)/8, $15941
+DATA bitrev_size16384_radix4_f64<>+0xA380(SB)/8, $837
+DATA bitrev_size16384_radix4_f64<>+0xA388(SB)/8, $4933
+DATA bitrev_size16384_radix4_f64<>+0xA390(SB)/8, $9029
+DATA bitrev_size16384_radix4_f64<>+0xA398(SB)/8, $13125
+DATA bitrev_size16384_radix4_f64<>+0xA3A0(SB)/8, $1861
+DATA bitrev_size16384_radix4_f64<>+0xA3A8(SB)/8, $5957
+DATA bitrev_size16384_radix4_f64<>+0xA3B0(SB)/8, $10053
+DATA bitrev_size16384_radix4_f64<>+0xA3B8(SB)/8, $14149
+DATA bitrev_size16384_radix4_f64<>+0xA3C0(SB)/8, $2885
+DATA bitrev_size16384_radix4_f64<>+0xA3C8(SB)/8, $6981
+DATA bitrev_size16384_radix4_f64<>+0xA3D0(SB)/8, $11077
+DATA bitrev_size16384_radix4_f64<>+0xA3D8(SB)/8, $15173
+DATA bitrev_size16384_radix4_f64<>+0xA3E0(SB)/8, $3909
+DATA bitrev_size16384_radix4_f64<>+0xA3E8(SB)/8, $8005
+DATA bitrev_size16384_radix4_f64<>+0xA3F0(SB)/8, $12101
+DATA bitrev_size16384_radix4_f64<>+0xA3F8(SB)/8, $16197
+DATA bitrev_size16384_radix4_f64<>+0xA400(SB)/8, $133
+DATA bitrev_size16384_radix4_f64<>+0xA408(SB)/8, $4229
+DATA bitrev_size16384_radix4_f64<>+0xA410(SB)/8, $8325
+DATA bitrev_size16384_radix4_f64<>+0xA418(SB)/8, $12421
+DATA bitrev_size16384_radix4_f64<>+0xA420(SB)/8, $1157
+DATA bitrev_size16384_radix4_f64<>+0xA428(SB)/8, $5253
+DATA bitrev_size16384_radix4_f64<>+0xA430(SB)/8, $9349
+DATA bitrev_size16384_radix4_f64<>+0xA438(SB)/8, $13445
+DATA bitrev_size16384_radix4_f64<>+0xA440(SB)/8, $2181
+DATA bitrev_size16384_radix4_f64<>+0xA448(SB)/8, $6277
+DATA bitrev_size16384_radix4_f64<>+0xA450(SB)/8, $10373
+DATA bitrev_size16384_radix4_f64<>+0xA458(SB)/8, $14469
+DATA bitrev_size16384_radix4_f64<>+0xA460(SB)/8, $3205
+DATA bitrev_size16384_radix4_f64<>+0xA468(SB)/8, $7301
+DATA bitrev_size16384_radix4_f64<>+0xA470(SB)/8, $11397
+DATA bitrev_size16384_radix4_f64<>+0xA478(SB)/8, $15493
+DATA bitrev_size16384_radix4_f64<>+0xA480(SB)/8, $389
+DATA bitrev_size16384_radix4_f64<>+0xA488(SB)/8, $4485
+DATA bitrev_size16384_radix4_f64<>+0xA490(SB)/8, $8581
+DATA bitrev_size16384_radix4_f64<>+0xA498(SB)/8, $12677
+DATA bitrev_size16384_radix4_f64<>+0xA4A0(SB)/8, $1413
+DATA bitrev_size16384_radix4_f64<>+0xA4A8(SB)/8, $5509
+DATA bitrev_size16384_radix4_f64<>+0xA4B0(SB)/8, $9605
+DATA bitrev_size16384_radix4_f64<>+0xA4B8(SB)/8, $13701
+DATA bitrev_size16384_radix4_f64<>+0xA4C0(SB)/8, $2437
+DATA bitrev_size16384_radix4_f64<>+0xA4C8(SB)/8, $6533
+DATA bitrev_size16384_radix4_f64<>+0xA4D0(SB)/8, $10629
+DATA bitrev_size16384_radix4_f64<>+0xA4D8(SB)/8, $14725
+DATA bitrev_size16384_radix4_f64<>+0xA4E0(SB)/8, $3461
+DATA bitrev_size16384_radix4_f64<>+0xA4E8(SB)/8, $7557
+DATA bitrev_size16384_radix4_f64<>+0xA4F0(SB)/8, $11653
+DATA bitrev_size16384_radix4_f64<>+0xA4F8(SB)/8, $15749
+DATA bitrev_size16384_radix4_f64<>+0xA500(SB)/8, $645
+DATA bitrev_size16384_radix4_f64<>+0xA508(SB)/8, $4741
+DATA bitrev_size16384_radix4_f64<>+0xA510(SB)/8, $8837
+DATA bitrev_size16384_radix4_f64<>+0xA518(SB)/8, $12933
+DATA bitrev_size16384_radix4_f64<>+0xA520(SB)/8, $1669
+DATA bitrev_size16384_radix4_f64<>+0xA528(SB)/8, $5765
+DATA bitrev_size16384_radix4_f64<>+0xA530(SB)/8, $9861
+DATA bitrev_size16384_radix4_f64<>+0xA538(SB)/8, $13957
+DATA bitrev_size16384_radix4_f64<>+0xA540(SB)/8, $2693
+DATA bitrev_size16384_radix4_f64<>+0xA548(SB)/8, $6789
+DATA bitrev_size16384_radix4_f64<>+0xA550(SB)/8, $10885
+DATA bitrev_size16384_radix4_f64<>+0xA558(SB)/8, $14981
+DATA bitrev_size16384_radix4_f64<>+0xA560(SB)/8, $3717
+DATA bitrev_size16384_radix4_f64<>+0xA568(SB)/8, $7813
+DATA bitrev_size16384_radix4_f64<>+0xA570(SB)/8, $11909
+DATA bitrev_size16384_radix4_f64<>+0xA578(SB)/8, $16005
+DATA bitrev_size16384_radix4_f64<>+0xA580(SB)/8, $901
+DATA bitrev_size16384_radix4_f64<>+0xA588(SB)/8, $4997
+DATA bitrev_size16384_radix4_f64<>+0xA590(SB)/8, $9093
+DATA bitrev_size16384_radix4_f64<>+0xA598(SB)/8, $13189
+DATA bitrev_size16384_radix4_f64<>+0xA5A0(SB)/8, $1925
+DATA bitrev_size16384_radix4_f64<>+0xA5A8(SB)/8, $6021
+DATA bitrev_size16384_radix4_f64<>+0xA5B0(SB)/8, $10117
+DATA bitrev_size16384_radix4_f64<>+0xA5B8(SB)/8, $14213
+DATA bitrev_size16384_radix4_f64<>+0xA5C0(SB)/8, $2949
+DATA bitrev_size16384_radix4_f64<>+0xA5C8(SB)/8, $7045
+DATA bitrev_size16384_radix4_f64<>+0xA5D0(SB)/8, $11141
+DATA bitrev_size16384_radix4_f64<>+0xA5D8(SB)/8, $15237
+DATA bitrev_size16384_radix4_f64<>+0xA5E0(SB)/8, $3973
+DATA bitrev_size16384_radix4_f64<>+0xA5E8(SB)/8, $8069
+DATA bitrev_size16384_radix4_f64<>+0xA5F0(SB)/8, $12165
+DATA bitrev_size16384_radix4_f64<>+0xA5F8(SB)/8, $16261
+DATA bitrev_size16384_radix4_f64<>+0xA600(SB)/8, $197
+DATA bitrev_size16384_radix4_f64<>+0xA608(SB)/8, $4293
+DATA bitrev_size16384_radix4_f64<>+0xA610(SB)/8, $8389
+DATA bitrev_size16384_radix4_f64<>+0xA618(SB)/8, $12485
+DATA bitrev_size16384_radix4_f64<>+0xA620(SB)/8, $1221
+DATA bitrev_size16384_radix4_f64<>+0xA628(SB)/8, $5317
+DATA bitrev_size16384_radix4_f64<>+0xA630(SB)/8, $9413
+DATA bitrev_size16384_radix4_f64<>+0xA638(SB)/8, $13509
+DATA bitrev_size16384_radix4_f64<>+0xA640(SB)/8, $2245
+DATA bitrev_size16384_radix4_f64<>+0xA648(SB)/8, $6341
+DATA bitrev_size16384_radix4_f64<>+0xA650(SB)/8, $10437
+DATA bitrev_size16384_radix4_f64<>+0xA658(SB)/8, $14533
+DATA bitrev_size16384_radix4_f64<>+0xA660(SB)/8, $3269
+DATA bitrev_size16384_radix4_f64<>+0xA668(SB)/8, $7365
+DATA bitrev_size16384_radix4_f64<>+0xA670(SB)/8, $11461
+DATA bitrev_size16384_radix4_f64<>+0xA678(SB)/8, $15557
+DATA bitrev_size16384_radix4_f64<>+0xA680(SB)/8, $453
+DATA bitrev_size16384_radix4_f64<>+0xA688(SB)/8, $4549
+DATA bitrev_size16384_radix4_f64<>+0xA690(SB)/8, $8645
+DATA bitrev_size16384_radix4_f64<>+0xA698(SB)/8, $12741
+DATA bitrev_size16384_radix4_f64<>+0xA6A0(SB)/8, $1477
+DATA bitrev_size16384_radix4_f64<>+0xA6A8(SB)/8, $5573
+DATA bitrev_size16384_radix4_f64<>+0xA6B0(SB)/8, $9669
+DATA bitrev_size16384_radix4_f64<>+0xA6B8(SB)/8, $13765
+DATA bitrev_size16384_radix4_f64<>+0xA6C0(SB)/8, $2501
+DATA bitrev_size16384_radix4_f64<>+0xA6C8(SB)/8, $6597
+DATA bitrev_size16384_radix4_f64<>+0xA6D0(SB)/8, $10693
+DATA bitrev_size16384_radix4_f64<>+0xA6D8(SB)/8, $14789
+DATA bitrev_size16384_radix4_f64<>+0xA6E0(SB)/8, $3525
+DATA bitrev_size16384_radix4_f64<>+0xA6E8(SB)/8, $7621
+DATA bitrev_size16384_radix4_f64<>+0xA6F0(SB)/8, $11717
+DATA bitrev_size16384_radix4_f64<>+0xA6F8(SB)/8, $15813
+DATA bitrev_size16384_radix4_f64<>+0xA700(SB)/8, $709
+DATA bitrev_size16384_radix4_f64<>+0xA708(SB)/8, $4805
+DATA bitrev_size16384_radix4_f64<>+0xA710(SB)/8, $8901
+DATA bitrev_size16384_radix4_f64<>+0xA718(SB)/8, $12997
+DATA bitrev_size16384_radix4_f64<>+0xA720(SB)/8, $1733
+DATA bitrev_size16384_radix4_f64<>+0xA728(SB)/8, $5829
+DATA bitrev_size16384_radix4_f64<>+0xA730(SB)/8, $9925
+DATA bitrev_size16384_radix4_f64<>+0xA738(SB)/8, $14021
+DATA bitrev_size16384_radix4_f64<>+0xA740(SB)/8, $2757
+DATA bitrev_size16384_radix4_f64<>+0xA748(SB)/8, $6853
+DATA bitrev_size16384_radix4_f64<>+0xA750(SB)/8, $10949
+DATA bitrev_size16384_radix4_f64<>+0xA758(SB)/8, $15045
+DATA bitrev_size16384_radix4_f64<>+0xA760(SB)/8, $3781
+DATA bitrev_size16384_radix4_f64<>+0xA768(SB)/8, $7877
+DATA bitrev_size16384_radix4_f64<>+0xA770(SB)/8, $11973
+DATA bitrev_size16384_radix4_f64<>+0xA778(SB)/8, $16069
+DATA bitrev_size16384_radix4_f64<>+0xA780(SB)/8, $965
+DATA bitrev_size16384_radix4_f64<>+0xA788(SB)/8, $5061
+DATA bitrev_size16384_radix4_f64<>+0xA790(SB)/8, $9157
+DATA bitrev_size16384_radix4_f64<>+0xA798(SB)/8, $13253
+DATA bitrev_size16384_radix4_f64<>+0xA7A0(SB)/8, $1989
+DATA bitrev_size16384_radix4_f64<>+0xA7A8(SB)/8, $6085
+DATA bitrev_size16384_radix4_f64<>+0xA7B0(SB)/8, $10181
+DATA bitrev_size16384_radix4_f64<>+0xA7B8(SB)/8, $14277
+DATA bitrev_size16384_radix4_f64<>+0xA7C0(SB)/8, $3013
+DATA bitrev_size16384_radix4_f64<>+0xA7C8(SB)/8, $7109
+DATA bitrev_size16384_radix4_f64<>+0xA7D0(SB)/8, $11205
+DATA bitrev_size16384_radix4_f64<>+0xA7D8(SB)/8, $15301
+DATA bitrev_size16384_radix4_f64<>+0xA7E0(SB)/8, $4037
+DATA bitrev_size16384_radix4_f64<>+0xA7E8(SB)/8, $8133
+DATA bitrev_size16384_radix4_f64<>+0xA7F0(SB)/8, $12229
+DATA bitrev_size16384_radix4_f64<>+0xA7F8(SB)/8, $16325
+DATA bitrev_size16384_radix4_f64<>+0xA800(SB)/8, $21
+DATA bitrev_size16384_radix4_f64<>+0xA808(SB)/8, $4117
+DATA bitrev_size16384_radix4_f64<>+0xA810(SB)/8, $8213
+DATA bitrev_size16384_radix4_f64<>+0xA818(SB)/8, $12309
+DATA bitrev_size16384_radix4_f64<>+0xA820(SB)/8, $1045
+DATA bitrev_size16384_radix4_f64<>+0xA828(SB)/8, $5141
+DATA bitrev_size16384_radix4_f64<>+0xA830(SB)/8, $9237
+DATA bitrev_size16384_radix4_f64<>+0xA838(SB)/8, $13333
+DATA bitrev_size16384_radix4_f64<>+0xA840(SB)/8, $2069
+DATA bitrev_size16384_radix4_f64<>+0xA848(SB)/8, $6165
+DATA bitrev_size16384_radix4_f64<>+0xA850(SB)/8, $10261
+DATA bitrev_size16384_radix4_f64<>+0xA858(SB)/8, $14357
+DATA bitrev_size16384_radix4_f64<>+0xA860(SB)/8, $3093
+DATA bitrev_size16384_radix4_f64<>+0xA868(SB)/8, $7189
+DATA bitrev_size16384_radix4_f64<>+0xA870(SB)/8, $11285
+DATA bitrev_size16384_radix4_f64<>+0xA878(SB)/8, $15381
+DATA bitrev_size16384_radix4_f64<>+0xA880(SB)/8, $277
+DATA bitrev_size16384_radix4_f64<>+0xA888(SB)/8, $4373
+DATA bitrev_size16384_radix4_f64<>+0xA890(SB)/8, $8469
+DATA bitrev_size16384_radix4_f64<>+0xA898(SB)/8, $12565
+DATA bitrev_size16384_radix4_f64<>+0xA8A0(SB)/8, $1301
+DATA bitrev_size16384_radix4_f64<>+0xA8A8(SB)/8, $5397
+DATA bitrev_size16384_radix4_f64<>+0xA8B0(SB)/8, $9493
+DATA bitrev_size16384_radix4_f64<>+0xA8B8(SB)/8, $13589
+DATA bitrev_size16384_radix4_f64<>+0xA8C0(SB)/8, $2325
+DATA bitrev_size16384_radix4_f64<>+0xA8C8(SB)/8, $6421
+DATA bitrev_size16384_radix4_f64<>+0xA8D0(SB)/8, $10517
+DATA bitrev_size16384_radix4_f64<>+0xA8D8(SB)/8, $14613
+DATA bitrev_size16384_radix4_f64<>+0xA8E0(SB)/8, $3349
+DATA bitrev_size16384_radix4_f64<>+0xA8E8(SB)/8, $7445
+DATA bitrev_size16384_radix4_f64<>+0xA8F0(SB)/8, $11541
+DATA bitrev_size16384_radix4_f64<>+0xA8F8(SB)/8, $15637
+DATA bitrev_size16384_radix4_f64<>+0xA900(SB)/8, $533
+DATA bitrev_size16384_radix4_f64<>+0xA908(SB)/8, $4629
+DATA bitrev_size16384_radix4_f64<>+0xA910(SB)/8, $8725
+DATA bitrev_size16384_radix4_f64<>+0xA918(SB)/8, $12821
+DATA bitrev_size16384_radix4_f64<>+0xA920(SB)/8, $1557
+DATA bitrev_size16384_radix4_f64<>+0xA928(SB)/8, $5653
+DATA bitrev_size16384_radix4_f64<>+0xA930(SB)/8, $9749
+DATA bitrev_size16384_radix4_f64<>+0xA938(SB)/8, $13845
+DATA bitrev_size16384_radix4_f64<>+0xA940(SB)/8, $2581
+DATA bitrev_size16384_radix4_f64<>+0xA948(SB)/8, $6677
+DATA bitrev_size16384_radix4_f64<>+0xA950(SB)/8, $10773
+DATA bitrev_size16384_radix4_f64<>+0xA958(SB)/8, $14869
+DATA bitrev_size16384_radix4_f64<>+0xA960(SB)/8, $3605
+DATA bitrev_size16384_radix4_f64<>+0xA968(SB)/8, $7701
+DATA bitrev_size16384_radix4_f64<>+0xA970(SB)/8, $11797
+DATA bitrev_size16384_radix4_f64<>+0xA978(SB)/8, $15893
+DATA bitrev_size16384_radix4_f64<>+0xA980(SB)/8, $789
+DATA bitrev_size16384_radix4_f64<>+0xA988(SB)/8, $4885
+DATA bitrev_size16384_radix4_f64<>+0xA990(SB)/8, $8981
+DATA bitrev_size16384_radix4_f64<>+0xA998(SB)/8, $13077
+DATA bitrev_size16384_radix4_f64<>+0xA9A0(SB)/8, $1813
+DATA bitrev_size16384_radix4_f64<>+0xA9A8(SB)/8, $5909
+DATA bitrev_size16384_radix4_f64<>+0xA9B0(SB)/8, $10005
+DATA bitrev_size16384_radix4_f64<>+0xA9B8(SB)/8, $14101
+DATA bitrev_size16384_radix4_f64<>+0xA9C0(SB)/8, $2837
+DATA bitrev_size16384_radix4_f64<>+0xA9C8(SB)/8, $6933
+DATA bitrev_size16384_radix4_f64<>+0xA9D0(SB)/8, $11029
+DATA bitrev_size16384_radix4_f64<>+0xA9D8(SB)/8, $15125
+DATA bitrev_size16384_radix4_f64<>+0xA9E0(SB)/8, $3861
+DATA bitrev_size16384_radix4_f64<>+0xA9E8(SB)/8, $7957
+DATA bitrev_size16384_radix4_f64<>+0xA9F0(SB)/8, $12053
+DATA bitrev_size16384_radix4_f64<>+0xA9F8(SB)/8, $16149
+DATA bitrev_size16384_radix4_f64<>+0xAA00(SB)/8, $85
+DATA bitrev_size16384_radix4_f64<>+0xAA08(SB)/8, $4181
+DATA bitrev_size16384_radix4_f64<>+0xAA10(SB)/8, $8277
+DATA bitrev_size16384_radix4_f64<>+0xAA18(SB)/8, $12373
+DATA bitrev_size16384_radix4_f64<>+0xAA20(SB)/8, $1109
+DATA bitrev_size16384_radix4_f64<>+0xAA28(SB)/8, $5205
+DATA bitrev_size16384_radix4_f64<>+0xAA30(SB)/8, $9301
+DATA bitrev_size16384_radix4_f64<>+0xAA38(SB)/8, $13397
+DATA bitrev_size16384_radix4_f64<>+0xAA40(SB)/8, $2133
+DATA bitrev_size16384_radix4_f64<>+0xAA48(SB)/8, $6229
+DATA bitrev_size16384_radix4_f64<>+0xAA50(SB)/8, $10325
+DATA bitrev_size16384_radix4_f64<>+0xAA58(SB)/8, $14421
+DATA bitrev_size16384_radix4_f64<>+0xAA60(SB)/8, $3157
+DATA bitrev_size16384_radix4_f64<>+0xAA68(SB)/8, $7253
+DATA bitrev_size16384_radix4_f64<>+0xAA70(SB)/8, $11349
+DATA bitrev_size16384_radix4_f64<>+0xAA78(SB)/8, $15445
+DATA bitrev_size16384_radix4_f64<>+0xAA80(SB)/8, $341
+DATA bitrev_size16384_radix4_f64<>+0xAA88(SB)/8, $4437
+DATA bitrev_size16384_radix4_f64<>+0xAA90(SB)/8, $8533
+DATA bitrev_size16384_radix4_f64<>+0xAA98(SB)/8, $12629
+DATA bitrev_size16384_radix4_f64<>+0xAAA0(SB)/8, $1365
+DATA bitrev_size16384_radix4_f64<>+0xAAA8(SB)/8, $5461
+DATA bitrev_size16384_radix4_f64<>+0xAAB0(SB)/8, $9557
+DATA bitrev_size16384_radix4_f64<>+0xAAB8(SB)/8, $13653
+DATA bitrev_size16384_radix4_f64<>+0xAAC0(SB)/8, $2389
+DATA bitrev_size16384_radix4_f64<>+0xAAC8(SB)/8, $6485
+DATA bitrev_size16384_radix4_f64<>+0xAAD0(SB)/8, $10581
+DATA bitrev_size16384_radix4_f64<>+0xAAD8(SB)/8, $14677
+DATA bitrev_size16384_radix4_f64<>+0xAAE0(SB)/8, $3413
+DATA bitrev_size16384_radix4_f64<>+0xAAE8(SB)/8, $7509
+DATA bitrev_size16384_radix4_f64<>+0xAAF0(SB)/8, $11605
+DATA bitrev_size16384_radix4_f64<>+0xAAF8(SB)/8, $15701
+DATA bitrev_size16384_radix4_f64<>+0xAB00(SB)/8, $597
+DATA bitrev_size16384_radix4_f64<>+0xAB08(SB)/8, $4693
+DATA bitrev_size16384_radix4_f64<>+0xAB10(SB)/8, $8789
+DATA bitrev_size16384_radix4_f64<>+0xAB18(SB)/8, $12885
+DATA bitrev_size16384_radix4_f64<>+0xAB20(SB)/8, $1621
+DATA bitrev_size16384_radix4_f64<>+0xAB28(SB)/8, $5717
+DATA bitrev_size16384_radix4_f64<>+0xAB30(SB)/8, $9813
+DATA bitrev_size16384_radix4_f64<>+0xAB38(SB)/8, $13909
+DATA bitrev_size16384_radix4_f64<>+0xAB40(SB)/8, $2645
+DATA bitrev_size16384_radix4_f64<>+0xAB48(SB)/8, $6741
+DATA bitrev_size16384_radix4_f64<>+0xAB50(SB)/8, $10837
+DATA bitrev_size16384_radix4_f64<>+0xAB58(SB)/8, $14933
+DATA bitrev_size16384_radix4_f64<>+0xAB60(SB)/8, $3669
+DATA bitrev_size16384_radix4_f64<>+0xAB68(SB)/8, $7765
+DATA bitrev_size16384_radix4_f64<>+0xAB70(SB)/8, $11861
+DATA bitrev_size16384_radix4_f64<>+0xAB78(SB)/8, $15957
+DATA bitrev_size16384_radix4_f64<>+0xAB80(SB)/8, $853
+DATA bitrev_size16384_radix4_f64<>+0xAB88(SB)/8, $4949
+DATA bitrev_size16384_radix4_f64<>+0xAB90(SB)/8, $9045
+DATA bitrev_size16384_radix4_f64<>+0xAB98(SB)/8, $13141
+DATA bitrev_size16384_radix4_f64<>+0xABA0(SB)/8, $1877
+DATA bitrev_size16384_radix4_f64<>+0xABA8(SB)/8, $5973
+DATA bitrev_size16384_radix4_f64<>+0xABB0(SB)/8, $10069
+DATA bitrev_size16384_radix4_f64<>+0xABB8(SB)/8, $14165
+DATA bitrev_size16384_radix4_f64<>+0xABC0(SB)/8, $2901
+DATA bitrev_size16384_radix4_f64<>+0xABC8(SB)/8, $6997
+DATA bitrev_size16384_radix4_f64<>+0xABD0(SB)/8, $11093
+DATA bitrev_size16384_radix4_f64<>+0xABD8(SB)/8, $15189
+DATA bitrev_size16384_radix4_f64<>+0xABE0(SB)/8, $3925
+DATA bitrev_size16384_radix4_f64<>+0xABE8(SB)/8, $8021
+DATA bitrev_size16384_radix4_f64<>+0xABF0(SB)/8, $12117
+DATA bitrev_size16384_radix4_f64<>+0xABF8(SB)/8, $16213
+DATA bitrev_size16384_radix4_f64<>+0xAC00(SB)/8, $149
+DATA bitrev_size16384_radix4_f64<>+0xAC08(SB)/8, $4245
+DATA bitrev_size16384_radix4_f64<>+0xAC10(SB)/8, $8341
+DATA bitrev_size16384_radix4_f64<>+0xAC18(SB)/8, $12437
+DATA bitrev_size16384_radix4_f64<>+0xAC20(SB)/8, $1173
+DATA bitrev_size16384_radix4_f64<>+0xAC28(SB)/8, $5269
+DATA bitrev_size16384_radix4_f64<>+0xAC30(SB)/8, $9365
+DATA bitrev_size16384_radix4_f64<>+0xAC38(SB)/8, $13461
+DATA bitrev_size16384_radix4_f64<>+0xAC40(SB)/8, $2197
+DATA bitrev_size16384_radix4_f64<>+0xAC48(SB)/8, $6293
+DATA bitrev_size16384_radix4_f64<>+0xAC50(SB)/8, $10389
+DATA bitrev_size16384_radix4_f64<>+0xAC58(SB)/8, $14485
+DATA bitrev_size16384_radix4_f64<>+0xAC60(SB)/8, $3221
+DATA bitrev_size16384_radix4_f64<>+0xAC68(SB)/8, $7317
+DATA bitrev_size16384_radix4_f64<>+0xAC70(SB)/8, $11413
+DATA bitrev_size16384_radix4_f64<>+0xAC78(SB)/8, $15509
+DATA bitrev_size16384_radix4_f64<>+0xAC80(SB)/8, $405
+DATA bitrev_size16384_radix4_f64<>+0xAC88(SB)/8, $4501
+DATA bitrev_size16384_radix4_f64<>+0xAC90(SB)/8, $8597
+DATA bitrev_size16384_radix4_f64<>+0xAC98(SB)/8, $12693
+DATA bitrev_size16384_radix4_f64<>+0xACA0(SB)/8, $1429
+DATA bitrev_size16384_radix4_f64<>+0xACA8(SB)/8, $5525
+DATA bitrev_size16384_radix4_f64<>+0xACB0(SB)/8, $9621
+DATA bitrev_size16384_radix4_f64<>+0xACB8(SB)/8, $13717
+DATA bitrev_size16384_radix4_f64<>+0xACC0(SB)/8, $2453
+DATA bitrev_size16384_radix4_f64<>+0xACC8(SB)/8, $6549
+DATA bitrev_size16384_radix4_f64<>+0xACD0(SB)/8, $10645
+DATA bitrev_size16384_radix4_f64<>+0xACD8(SB)/8, $14741
+DATA bitrev_size16384_radix4_f64<>+0xACE0(SB)/8, $3477
+DATA bitrev_size16384_radix4_f64<>+0xACE8(SB)/8, $7573
+DATA bitrev_size16384_radix4_f64<>+0xACF0(SB)/8, $11669
+DATA bitrev_size16384_radix4_f64<>+0xACF8(SB)/8, $15765
+DATA bitrev_size16384_radix4_f64<>+0xAD00(SB)/8, $661
+DATA bitrev_size16384_radix4_f64<>+0xAD08(SB)/8, $4757
+DATA bitrev_size16384_radix4_f64<>+0xAD10(SB)/8, $8853
+DATA bitrev_size16384_radix4_f64<>+0xAD18(SB)/8, $12949
+DATA bitrev_size16384_radix4_f64<>+0xAD20(SB)/8, $1685
+DATA bitrev_size16384_radix4_f64<>+0xAD28(SB)/8, $5781
+DATA bitrev_size16384_radix4_f64<>+0xAD30(SB)/8, $9877
+DATA bitrev_size16384_radix4_f64<>+0xAD38(SB)/8, $13973
+DATA bitrev_size16384_radix4_f64<>+0xAD40(SB)/8, $2709
+DATA bitrev_size16384_radix4_f64<>+0xAD48(SB)/8, $6805
+DATA bitrev_size16384_radix4_f64<>+0xAD50(SB)/8, $10901
+DATA bitrev_size16384_radix4_f64<>+0xAD58(SB)/8, $14997
+DATA bitrev_size16384_radix4_f64<>+0xAD60(SB)/8, $3733
+DATA bitrev_size16384_radix4_f64<>+0xAD68(SB)/8, $7829
+DATA bitrev_size16384_radix4_f64<>+0xAD70(SB)/8, $11925
+DATA bitrev_size16384_radix4_f64<>+0xAD78(SB)/8, $16021
+DATA bitrev_size16384_radix4_f64<>+0xAD80(SB)/8, $917
+DATA bitrev_size16384_radix4_f64<>+0xAD88(SB)/8, $5013
+DATA bitrev_size16384_radix4_f64<>+0xAD90(SB)/8, $9109
+DATA bitrev_size16384_radix4_f64<>+0xAD98(SB)/8, $13205
+DATA bitrev_size16384_radix4_f64<>+0xADA0(SB)/8, $1941
+DATA bitrev_size16384_radix4_f64<>+0xADA8(SB)/8, $6037
+DATA bitrev_size16384_radix4_f64<>+0xADB0(SB)/8, $10133
+DATA bitrev_size16384_radix4_f64<>+0xADB8(SB)/8, $14229
+DATA bitrev_size16384_radix4_f64<>+0xADC0(SB)/8, $2965
+DATA bitrev_size16384_radix4_f64<>+0xADC8(SB)/8, $7061
+DATA bitrev_size16384_radix4_f64<>+0xADD0(SB)/8, $11157
+DATA bitrev_size16384_radix4_f64<>+0xADD8(SB)/8, $15253
+DATA bitrev_size16384_radix4_f64<>+0xADE0(SB)/8, $3989
+DATA bitrev_size16384_radix4_f64<>+0xADE8(SB)/8, $8085
+DATA bitrev_size16384_radix4_f64<>+0xADF0(SB)/8, $12181
+DATA bitrev_size16384_radix4_f64<>+0xADF8(SB)/8, $16277
+DATA bitrev_size16384_radix4_f64<>+0xAE00(SB)/8, $213
+DATA bitrev_size16384_radix4_f64<>+0xAE08(SB)/8, $4309
+DATA bitrev_size16384_radix4_f64<>+0xAE10(SB)/8, $8405
+DATA bitrev_size16384_radix4_f64<>+0xAE18(SB)/8, $12501
+DATA bitrev_size16384_radix4_f64<>+0xAE20(SB)/8, $1237
+DATA bitrev_size16384_radix4_f64<>+0xAE28(SB)/8, $5333
+DATA bitrev_size16384_radix4_f64<>+0xAE30(SB)/8, $9429
+DATA bitrev_size16384_radix4_f64<>+0xAE38(SB)/8, $13525
+DATA bitrev_size16384_radix4_f64<>+0xAE40(SB)/8, $2261
+DATA bitrev_size16384_radix4_f64<>+0xAE48(SB)/8, $6357
+DATA bitrev_size16384_radix4_f64<>+0xAE50(SB)/8, $10453
+DATA bitrev_size16384_radix4_f64<>+0xAE58(SB)/8, $14549
+DATA bitrev_size16384_radix4_f64<>+0xAE60(SB)/8, $3285
+DATA bitrev_size16384_radix4_f64<>+0xAE68(SB)/8, $7381
+DATA bitrev_size16384_radix4_f64<>+0xAE70(SB)/8, $11477
+DATA bitrev_size16384_radix4_f64<>+0xAE78(SB)/8, $15573
+DATA bitrev_size16384_radix4_f64<>+0xAE80(SB)/8, $469
+DATA bitrev_size16384_radix4_f64<>+0xAE88(SB)/8, $4565
+DATA bitrev_size16384_radix4_f64<>+0xAE90(SB)/8, $8661
+DATA bitrev_size16384_radix4_f64<>+0xAE98(SB)/8, $12757
+DATA bitrev_size16384_radix4_f64<>+0xAEA0(SB)/8, $1493
+DATA bitrev_size16384_radix4_f64<>+0xAEA8(SB)/8, $5589
+DATA bitrev_size16384_radix4_f64<>+0xAEB0(SB)/8, $9685
+DATA bitrev_size16384_radix4_f64<>+0xAEB8(SB)/8, $13781
+DATA bitrev_size16384_radix4_f64<>+0xAEC0(SB)/8, $2517
+DATA bitrev_size16384_radix4_f64<>+0xAEC8(SB)/8, $6613
+DATA bitrev_size16384_radix4_f64<>+0xAED0(SB)/8, $10709
+DATA bitrev_size16384_radix4_f64<>+0xAED8(SB)/8, $14805
+DATA bitrev_size16384_radix4_f64<>+0xAEE0(SB)/8, $3541
+DATA bitrev_size16384_radix4_f64<>+0xAEE8(SB)/8, $7637
+DATA bitrev_size16384_radix4_f64<>+0xAEF0(SB)/8, $11733
+DATA bitrev_size16384_radix4_f64<>+0xAEF8(SB)/8, $15829
+DATA bitrev_size16384_radix4_f64<>+0xAF00(SB)/8, $725
+DATA bitrev_size16384_radix4_f64<>+0xAF08(SB)/8, $4821
+DATA bitrev_size16384_radix4_f64<>+0xAF10(SB)/8, $8917
+DATA bitrev_size16384_radix4_f64<>+0xAF18(SB)/8, $13013
+DATA bitrev_size16384_radix4_f64<>+0xAF20(SB)/8, $1749
+DATA bitrev_size16384_radix4_f64<>+0xAF28(SB)/8, $5845
+DATA bitrev_size16384_radix4_f64<>+0xAF30(SB)/8, $9941
+DATA bitrev_size16384_radix4_f64<>+0xAF38(SB)/8, $14037
+DATA bitrev_size16384_radix4_f64<>+0xAF40(SB)/8, $2773
+DATA bitrev_size16384_radix4_f64<>+0xAF48(SB)/8, $6869
+DATA bitrev_size16384_radix4_f64<>+0xAF50(SB)/8, $10965
+DATA bitrev_size16384_radix4_f64<>+0xAF58(SB)/8, $15061
+DATA bitrev_size16384_radix4_f64<>+0xAF60(SB)/8, $3797
+DATA bitrev_size16384_radix4_f64<>+0xAF68(SB)/8, $7893
+DATA bitrev_size16384_radix4_f64<>+0xAF70(SB)/8, $11989
+DATA bitrev_size16384_radix4_f64<>+0xAF78(SB)/8, $16085
+DATA bitrev_size16384_radix4_f64<>+0xAF80(SB)/8, $981
+DATA bitrev_size16384_radix4_f64<>+0xAF88(SB)/8, $5077
+DATA bitrev_size16384_radix4_f64<>+0xAF90(SB)/8, $9173
+DATA bitrev_size16384_radix4_f64<>+0xAF98(SB)/8, $13269
+DATA bitrev_size16384_radix4_f64<>+0xAFA0(SB)/8, $2005
+DATA bitrev_size16384_radix4_f64<>+0xAFA8(SB)/8, $6101
+DATA bitrev_size16384_radix4_f64<>+0xAFB0(SB)/8, $10197
+DATA bitrev_size16384_radix4_f64<>+0xAFB8(SB)/8, $14293
+DATA bitrev_size16384_radix4_f64<>+0xAFC0(SB)/8, $3029
+DATA bitrev_size16384_radix4_f64<>+0xAFC8(SB)/8, $7125
+DATA bitrev_size16384_radix4_f64<>+0xAFD0(SB)/8, $11221
+DATA bitrev_size16384_radix4_f64<>+0xAFD8(SB)/8, $15317
+DATA bitrev_size16384_radix4_f64<>+0xAFE0(SB)/8, $4053
+DATA bitrev_size16384_radix4_f64<>+0xAFE8(SB)/8, $8149
+DATA bitrev_size16384_radix4_f64<>+0xAFF0(SB)/8, $12245
+DATA bitrev_size16384_radix4_f64<>+0xAFF8(SB)/8, $16341
+DATA bitrev_size16384_radix4_f64<>+0xB000(SB)/8, $37
+DATA bitrev_size16384_radix4_f64<>+0xB008(SB)/8, $4133
+DATA bitrev_size16384_radix4_f64<>+0xB010(SB)/8, $8229
+DATA bitrev_size16384_radix4_f64<>+0xB018(SB)/8, $12325
+DATA bitrev_size16384_radix4_f64<>+0xB020(SB)/8, $1061
+DATA bitrev_size16384_radix4_f64<>+0xB028(SB)/8, $5157
+DATA bitrev_size16384_radix4_f64<>+0xB030(SB)/8, $9253
+DATA bitrev_size16384_radix4_f64<>+0xB038(SB)/8, $13349
+DATA bitrev_size16384_radix4_f64<>+0xB040(SB)/8, $2085
+DATA bitrev_size16384_radix4_f64<>+0xB048(SB)/8, $6181
+DATA bitrev_size16384_radix4_f64<>+0xB050(SB)/8, $10277
+DATA bitrev_size16384_radix4_f64<>+0xB058(SB)/8, $14373
+DATA bitrev_size16384_radix4_f64<>+0xB060(SB)/8, $3109
+DATA bitrev_size16384_radix4_f64<>+0xB068(SB)/8, $7205
+DATA bitrev_size16384_radix4_f64<>+0xB070(SB)/8, $11301
+DATA bitrev_size16384_radix4_f64<>+0xB078(SB)/8, $15397
+DATA bitrev_size16384_radix4_f64<>+0xB080(SB)/8, $293
+DATA bitrev_size16384_radix4_f64<>+0xB088(SB)/8, $4389
+DATA bitrev_size16384_radix4_f64<>+0xB090(SB)/8, $8485
+DATA bitrev_size16384_radix4_f64<>+0xB098(SB)/8, $12581
+DATA bitrev_size16384_radix4_f64<>+0xB0A0(SB)/8, $1317
+DATA bitrev_size16384_radix4_f64<>+0xB0A8(SB)/8, $5413
+DATA bitrev_size16384_radix4_f64<>+0xB0B0(SB)/8, $9509
+DATA bitrev_size16384_radix4_f64<>+0xB0B8(SB)/8, $13605
+DATA bitrev_size16384_radix4_f64<>+0xB0C0(SB)/8, $2341
+DATA bitrev_size16384_radix4_f64<>+0xB0C8(SB)/8, $6437
+DATA bitrev_size16384_radix4_f64<>+0xB0D0(SB)/8, $10533
+DATA bitrev_size16384_radix4_f64<>+0xB0D8(SB)/8, $14629
+DATA bitrev_size16384_radix4_f64<>+0xB0E0(SB)/8, $3365
+DATA bitrev_size16384_radix4_f64<>+0xB0E8(SB)/8, $7461
+DATA bitrev_size16384_radix4_f64<>+0xB0F0(SB)/8, $11557
+DATA bitrev_size16384_radix4_f64<>+0xB0F8(SB)/8, $15653
+DATA bitrev_size16384_radix4_f64<>+0xB100(SB)/8, $549
+DATA bitrev_size16384_radix4_f64<>+0xB108(SB)/8, $4645
+DATA bitrev_size16384_radix4_f64<>+0xB110(SB)/8, $8741
+DATA bitrev_size16384_radix4_f64<>+0xB118(SB)/8, $12837
+DATA bitrev_size16384_radix4_f64<>+0xB120(SB)/8, $1573
+DATA bitrev_size16384_radix4_f64<>+0xB128(SB)/8, $5669
+DATA bitrev_size16384_radix4_f64<>+0xB130(SB)/8, $9765
+DATA bitrev_size16384_radix4_f64<>+0xB138(SB)/8, $13861
+DATA bitrev_size16384_radix4_f64<>+0xB140(SB)/8, $2597
+DATA bitrev_size16384_radix4_f64<>+0xB148(SB)/8, $6693
+DATA bitrev_size16384_radix4_f64<>+0xB150(SB)/8, $10789
+DATA bitrev_size16384_radix4_f64<>+0xB158(SB)/8, $14885
+DATA bitrev_size16384_radix4_f64<>+0xB160(SB)/8, $3621
+DATA bitrev_size16384_radix4_f64<>+0xB168(SB)/8, $7717
+DATA bitrev_size16384_radix4_f64<>+0xB170(SB)/8, $11813
+DATA bitrev_size16384_radix4_f64<>+0xB178(SB)/8, $15909
+DATA bitrev_size16384_radix4_f64<>+0xB180(SB)/8, $805
+DATA bitrev_size16384_radix4_f64<>+0xB188(SB)/8, $4901
+DATA bitrev_size16384_radix4_f64<>+0xB190(SB)/8, $8997
+DATA bitrev_size16384_radix4_f64<>+0xB198(SB)/8, $13093
+DATA bitrev_size16384_radix4_f64<>+0xB1A0(SB)/8, $1829
+DATA bitrev_size16384_radix4_f64<>+0xB1A8(SB)/8, $5925
+DATA bitrev_size16384_radix4_f64<>+0xB1B0(SB)/8, $10021
+DATA bitrev_size16384_radix4_f64<>+0xB1B8(SB)/8, $14117
+DATA bitrev_size16384_radix4_f64<>+0xB1C0(SB)/8, $2853
+DATA bitrev_size16384_radix4_f64<>+0xB1C8(SB)/8, $6949
+DATA bitrev_size16384_radix4_f64<>+0xB1D0(SB)/8, $11045
+DATA bitrev_size16384_radix4_f64<>+0xB1D8(SB)/8, $15141
+DATA bitrev_size16384_radix4_f64<>+0xB1E0(SB)/8, $3877
+DATA bitrev_size16384_radix4_f64<>+0xB1E8(SB)/8, $7973
+DATA bitrev_size16384_radix4_f64<>+0xB1F0(SB)/8, $12069
+DATA bitrev_size16384_radix4_f64<>+0xB1F8(SB)/8, $16165
+DATA bitrev_size16384_radix4_f64<>+0xB200(SB)/8, $101
+DATA bitrev_size16384_radix4_f64<>+0xB208(SB)/8, $4197
+DATA bitrev_size16384_radix4_f64<>+0xB210(SB)/8, $8293
+DATA bitrev_size16384_radix4_f64<>+0xB218(SB)/8, $12389
+DATA bitrev_size16384_radix4_f64<>+0xB220(SB)/8, $1125
+DATA bitrev_size16384_radix4_f64<>+0xB228(SB)/8, $5221
+DATA bitrev_size16384_radix4_f64<>+0xB230(SB)/8, $9317
+DATA bitrev_size16384_radix4_f64<>+0xB238(SB)/8, $13413
+DATA bitrev_size16384_radix4_f64<>+0xB240(SB)/8, $2149
+DATA bitrev_size16384_radix4_f64<>+0xB248(SB)/8, $6245
+DATA bitrev_size16384_radix4_f64<>+0xB250(SB)/8, $10341
+DATA bitrev_size16384_radix4_f64<>+0xB258(SB)/8, $14437
+DATA bitrev_size16384_radix4_f64<>+0xB260(SB)/8, $3173
+DATA bitrev_size16384_radix4_f64<>+0xB268(SB)/8, $7269
+DATA bitrev_size16384_radix4_f64<>+0xB270(SB)/8, $11365
+DATA bitrev_size16384_radix4_f64<>+0xB278(SB)/8, $15461
+DATA bitrev_size16384_radix4_f64<>+0xB280(SB)/8, $357
+DATA bitrev_size16384_radix4_f64<>+0xB288(SB)/8, $4453
+DATA bitrev_size16384_radix4_f64<>+0xB290(SB)/8, $8549
+DATA bitrev_size16384_radix4_f64<>+0xB298(SB)/8, $12645
+DATA bitrev_size16384_radix4_f64<>+0xB2A0(SB)/8, $1381
+DATA bitrev_size16384_radix4_f64<>+0xB2A8(SB)/8, $5477
+DATA bitrev_size16384_radix4_f64<>+0xB2B0(SB)/8, $9573
+DATA bitrev_size16384_radix4_f64<>+0xB2B8(SB)/8, $13669
+DATA bitrev_size16384_radix4_f64<>+0xB2C0(SB)/8, $2405
+DATA bitrev_size16384_radix4_f64<>+0xB2C8(SB)/8, $6501
+DATA bitrev_size16384_radix4_f64<>+0xB2D0(SB)/8, $10597
+DATA bitrev_size16384_radix4_f64<>+0xB2D8(SB)/8, $14693
+DATA bitrev_size16384_radix4_f64<>+0xB2E0(SB)/8, $3429
+DATA bitrev_size16384_radix4_f64<>+0xB2E8(SB)/8, $7525
+DATA bitrev_size16384_radix4_f64<>+0xB2F0(SB)/8, $11621
+DATA bitrev_size16384_radix4_f64<>+0xB2F8(SB)/8, $15717
+DATA bitrev_size16384_radix4_f64<>+0xB300(SB)/8, $613
+DATA bitrev_size16384_radix4_f64<>+0xB308(SB)/8, $4709
+DATA bitrev_size16384_radix4_f64<>+0xB310(SB)/8, $8805
+DATA bitrev_size16384_radix4_f64<>+0xB318(SB)/8, $12901
+DATA bitrev_size16384_radix4_f64<>+0xB320(SB)/8, $1637
+DATA bitrev_size16384_radix4_f64<>+0xB328(SB)/8, $5733
+DATA bitrev_size16384_radix4_f64<>+0xB330(SB)/8, $9829
+DATA bitrev_size16384_radix4_f64<>+0xB338(SB)/8, $13925
+DATA bitrev_size16384_radix4_f64<>+0xB340(SB)/8, $2661
+DATA bitrev_size16384_radix4_f64<>+0xB348(SB)/8, $6757
+DATA bitrev_size16384_radix4_f64<>+0xB350(SB)/8, $10853
+DATA bitrev_size16384_radix4_f64<>+0xB358(SB)/8, $14949
+DATA bitrev_size16384_radix4_f64<>+0xB360(SB)/8, $3685
+DATA bitrev_size16384_radix4_f64<>+0xB368(SB)/8, $7781
+DATA bitrev_size16384_radix4_f64<>+0xB370(SB)/8, $11877
+DATA bitrev_size16384_radix4_f64<>+0xB378(SB)/8, $15973
+DATA bitrev_size16384_radix4_f64<>+0xB380(SB)/8, $869
+DATA bitrev_size16384_radix4_f64<>+0xB388(SB)/8, $4965
+DATA bitrev_size16384_radix4_f64<>+0xB390(SB)/8, $9061
+DATA bitrev_size16384_radix4_f64<>+0xB398(SB)/8, $13157
+DATA bitrev_size16384_radix4_f64<>+0xB3A0(SB)/8, $1893
+DATA bitrev_size16384_radix4_f64<>+0xB3A8(SB)/8, $5989
+DATA bitrev_size16384_radix4_f64<>+0xB3B0(SB)/8, $10085
+DATA bitrev_size16384_radix4_f64<>+0xB3B8(SB)/8, $14181
+DATA bitrev_size16384_radix4_f64<>+0xB3C0(SB)/8, $2917
+DATA bitrev_size16384_radix4_f64<>+0xB3C8(SB)/8, $7013
+DATA bitrev_size16384_radix4_f64<>+0xB3D0(SB)/8, $11109
+DATA bitrev_size16384_radix4_f64<>+0xB3D8(SB)/8, $15205
+DATA bitrev_size16384_radix4_f64<>+0xB3E0(SB)/8, $3941
+DATA bitrev_size16384_radix4_f64<>+0xB3E8(SB)/8, $8037
+DATA bitrev_size16384_radix4_f64<>+0xB3F0(SB)/8, $12133
+DATA bitrev_size16384_radix4_f64<>+0xB3F8(SB)/8, $16229
+DATA bitrev_size16384_radix4_f64<>+0xB400(SB)/8, $165
+DATA bitrev_size16384_radix4_f64<>+0xB408(SB)/8, $4261
+DATA bitrev_size16384_radix4_f64<>+0xB410(SB)/8, $8357
+DATA bitrev_size16384_radix4_f64<>+0xB418(SB)/8, $12453
+DATA bitrev_size16384_radix4_f64<>+0xB420(SB)/8, $1189
+DATA bitrev_size16384_radix4_f64<>+0xB428(SB)/8, $5285
+DATA bitrev_size16384_radix4_f64<>+0xB430(SB)/8, $9381
+DATA bitrev_size16384_radix4_f64<>+0xB438(SB)/8, $13477
+DATA bitrev_size16384_radix4_f64<>+0xB440(SB)/8, $2213
+DATA bitrev_size16384_radix4_f64<>+0xB448(SB)/8, $6309
+DATA bitrev_size16384_radix4_f64<>+0xB450(SB)/8, $10405
+DATA bitrev_size16384_radix4_f64<>+0xB458(SB)/8, $14501
+DATA bitrev_size16384_radix4_f64<>+0xB460(SB)/8, $3237
+DATA bitrev_size16384_radix4_f64<>+0xB468(SB)/8, $7333
+DATA bitrev_size16384_radix4_f64<>+0xB470(SB)/8, $11429
+DATA bitrev_size16384_radix4_f64<>+0xB478(SB)/8, $15525
+DATA bitrev_size16384_radix4_f64<>+0xB480(SB)/8, $421
+DATA bitrev_size16384_radix4_f64<>+0xB488(SB)/8, $4517
+DATA bitrev_size16384_radix4_f64<>+0xB490(SB)/8, $8613
+DATA bitrev_size16384_radix4_f64<>+0xB498(SB)/8, $12709
+DATA bitrev_size16384_radix4_f64<>+0xB4A0(SB)/8, $1445
+DATA bitrev_size16384_radix4_f64<>+0xB4A8(SB)/8, $5541
+DATA bitrev_size16384_radix4_f64<>+0xB4B0(SB)/8, $9637
+DATA bitrev_size16384_radix4_f64<>+0xB4B8(SB)/8, $13733
+DATA bitrev_size16384_radix4_f64<>+0xB4C0(SB)/8, $2469
+DATA bitrev_size16384_radix4_f64<>+0xB4C8(SB)/8, $6565
+DATA bitrev_size16384_radix4_f64<>+0xB4D0(SB)/8, $10661
+DATA bitrev_size16384_radix4_f64<>+0xB4D8(SB)/8, $14757
+DATA bitrev_size16384_radix4_f64<>+0xB4E0(SB)/8, $3493
+DATA bitrev_size16384_radix4_f64<>+0xB4E8(SB)/8, $7589
+DATA bitrev_size16384_radix4_f64<>+0xB4F0(SB)/8, $11685
+DATA bitrev_size16384_radix4_f64<>+0xB4F8(SB)/8, $15781
+DATA bitrev_size16384_radix4_f64<>+0xB500(SB)/8, $677
+DATA bitrev_size16384_radix4_f64<>+0xB508(SB)/8, $4773
+DATA bitrev_size16384_radix4_f64<>+0xB510(SB)/8, $8869
+DATA bitrev_size16384_radix4_f64<>+0xB518(SB)/8, $12965
+DATA bitrev_size16384_radix4_f64<>+0xB520(SB)/8, $1701
+DATA bitrev_size16384_radix4_f64<>+0xB528(SB)/8, $5797
+DATA bitrev_size16384_radix4_f64<>+0xB530(SB)/8, $9893
+DATA bitrev_size16384_radix4_f64<>+0xB538(SB)/8, $13989
+DATA bitrev_size16384_radix4_f64<>+0xB540(SB)/8, $2725
+DATA bitrev_size16384_radix4_f64<>+0xB548(SB)/8, $6821
+DATA bitrev_size16384_radix4_f64<>+0xB550(SB)/8, $10917
+DATA bitrev_size16384_radix4_f64<>+0xB558(SB)/8, $15013
+DATA bitrev_size16384_radix4_f64<>+0xB560(SB)/8, $3749
+DATA bitrev_size16384_radix4_f64<>+0xB568(SB)/8, $7845
+DATA bitrev_size16384_radix4_f64<>+0xB570(SB)/8, $11941
+DATA bitrev_size16384_radix4_f64<>+0xB578(SB)/8, $16037
+DATA bitrev_size16384_radix4_f64<>+0xB580(SB)/8, $933
+DATA bitrev_size16384_radix4_f64<>+0xB588(SB)/8, $5029
+DATA bitrev_size16384_radix4_f64<>+0xB590(SB)/8, $9125
+DATA bitrev_size16384_radix4_f64<>+0xB598(SB)/8, $13221
+DATA bitrev_size16384_radix4_f64<>+0xB5A0(SB)/8, $1957
+DATA bitrev_size16384_radix4_f64<>+0xB5A8(SB)/8, $6053
+DATA bitrev_size16384_radix4_f64<>+0xB5B0(SB)/8, $10149
+DATA bitrev_size16384_radix4_f64<>+0xB5B8(SB)/8, $14245
+DATA bitrev_size16384_radix4_f64<>+0xB5C0(SB)/8, $2981
+DATA bitrev_size16384_radix4_f64<>+0xB5C8(SB)/8, $7077
+DATA bitrev_size16384_radix4_f64<>+0xB5D0(SB)/8, $11173
+DATA bitrev_size16384_radix4_f64<>+0xB5D8(SB)/8, $15269
+DATA bitrev_size16384_radix4_f64<>+0xB5E0(SB)/8, $4005
+DATA bitrev_size16384_radix4_f64<>+0xB5E8(SB)/8, $8101
+DATA bitrev_size16384_radix4_f64<>+0xB5F0(SB)/8, $12197
+DATA bitrev_size16384_radix4_f64<>+0xB5F8(SB)/8, $16293
+DATA bitrev_size16384_radix4_f64<>+0xB600(SB)/8, $229
+DATA bitrev_size16384_radix4_f64<>+0xB608(SB)/8, $4325
+DATA bitrev_size16384_radix4_f64<>+0xB610(SB)/8, $8421
+DATA bitrev_size16384_radix4_f64<>+0xB618(SB)/8, $12517
+DATA bitrev_size16384_radix4_f64<>+0xB620(SB)/8, $1253
+DATA bitrev_size16384_radix4_f64<>+0xB628(SB)/8, $5349
+DATA bitrev_size16384_radix4_f64<>+0xB630(SB)/8, $9445
+DATA bitrev_size16384_radix4_f64<>+0xB638(SB)/8, $13541
+DATA bitrev_size16384_radix4_f64<>+0xB640(SB)/8, $2277
+DATA bitrev_size16384_radix4_f64<>+0xB648(SB)/8, $6373
+DATA bitrev_size16384_radix4_f64<>+0xB650(SB)/8, $10469
+DATA bitrev_size16384_radix4_f64<>+0xB658(SB)/8, $14565
+DATA bitrev_size16384_radix4_f64<>+0xB660(SB)/8, $3301
+DATA bitrev_size16384_radix4_f64<>+0xB668(SB)/8, $7397
+DATA bitrev_size16384_radix4_f64<>+0xB670(SB)/8, $11493
+DATA bitrev_size16384_radix4_f64<>+0xB678(SB)/8, $15589
+DATA bitrev_size16384_radix4_f64<>+0xB680(SB)/8, $485
+DATA bitrev_size16384_radix4_f64<>+0xB688(SB)/8, $4581
+DATA bitrev_size16384_radix4_f64<>+0xB690(SB)/8, $8677
+DATA bitrev_size16384_radix4_f64<>+0xB698(SB)/8, $12773
+DATA bitrev_size16384_radix4_f64<>+0xB6A0(SB)/8, $1509
+DATA bitrev_size16384_radix4_f64<>+0xB6A8(SB)/8, $5605
+DATA bitrev_size16384_radix4_f64<>+0xB6B0(SB)/8, $9701
+DATA bitrev_size16384_radix4_f64<>+0xB6B8(SB)/8, $13797
+DATA bitrev_size16384_radix4_f64<>+0xB6C0(SB)/8, $2533
+DATA bitrev_size16384_radix4_f64<>+0xB6C8(SB)/8, $6629
+DATA bitrev_size16384_radix4_f64<>+0xB6D0(SB)/8, $10725
+DATA bitrev_size16384_radix4_f64<>+0xB6D8(SB)/8, $14821
+DATA bitrev_size16384_radix4_f64<>+0xB6E0(SB)/8, $3557
+DATA bitrev_size16384_radix4_f64<>+0xB6E8(SB)/8, $7653
+DATA bitrev_size16384_radix4_f64<>+0xB6F0(SB)/8, $11749
+DATA bitrev_size16384_radix4_f64<>+0xB6F8(SB)/8, $15845
+DATA bitrev_size16384_radix4_f64<>+0xB700(SB)/8, $741
+DATA bitrev_size16384_radix4_f64<>+0xB708(SB)/8, $4837
+DATA bitrev_size16384_radix4_f64<>+0xB710(SB)/8, $8933
+DATA bitrev_size16384_radix4_f64<>+0xB718(SB)/8, $13029
+DATA bitrev_size16384_radix4_f64<>+0xB720(SB)/8, $1765
+DATA bitrev_size16384_radix4_f64<>+0xB728(SB)/8, $5861
+DATA bitrev_size16384_radix4_f64<>+0xB730(SB)/8, $9957
+DATA bitrev_size16384_radix4_f64<>+0xB738(SB)/8, $14053
+DATA bitrev_size16384_radix4_f64<>+0xB740(SB)/8, $2789
+DATA bitrev_size16384_radix4_f64<>+0xB748(SB)/8, $6885
+DATA bitrev_size16384_radix4_f64<>+0xB750(SB)/8, $10981
+DATA bitrev_size16384_radix4_f64<>+0xB758(SB)/8, $15077
+DATA bitrev_size16384_radix4_f64<>+0xB760(SB)/8, $3813
+DATA bitrev_size16384_radix4_f64<>+0xB768(SB)/8, $7909
+DATA bitrev_size16384_radix4_f64<>+0xB770(SB)/8, $12005
+DATA bitrev_size16384_radix4_f64<>+0xB778(SB)/8, $16101
+DATA bitrev_size16384_radix4_f64<>+0xB780(SB)/8, $997
+DATA bitrev_size16384_radix4_f64<>+0xB788(SB)/8, $5093
+DATA bitrev_size16384_radix4_f64<>+0xB790(SB)/8, $9189
+DATA bitrev_size16384_radix4_f64<>+0xB798(SB)/8, $13285
+DATA bitrev_size16384_radix4_f64<>+0xB7A0(SB)/8, $2021
+DATA bitrev_size16384_radix4_f64<>+0xB7A8(SB)/8, $6117
+DATA bitrev_size16384_radix4_f64<>+0xB7B0(SB)/8, $10213
+DATA bitrev_size16384_radix4_f64<>+0xB7B8(SB)/8, $14309
+DATA bitrev_size16384_radix4_f64<>+0xB7C0(SB)/8, $3045
+DATA bitrev_size16384_radix4_f64<>+0xB7C8(SB)/8, $7141
+DATA bitrev_size16384_radix4_f64<>+0xB7D0(SB)/8, $11237
+DATA bitrev_size16384_radix4_f64<>+0xB7D8(SB)/8, $15333
+DATA bitrev_size16384_radix4_f64<>+0xB7E0(SB)/8, $4069
+DATA bitrev_size16384_radix4_f64<>+0xB7E8(SB)/8, $8165
+DATA bitrev_size16384_radix4_f64<>+0xB7F0(SB)/8, $12261
+DATA bitrev_size16384_radix4_f64<>+0xB7F8(SB)/8, $16357
+DATA bitrev_size16384_radix4_f64<>+0xB800(SB)/8, $53
+DATA bitrev_size16384_radix4_f64<>+0xB808(SB)/8, $4149
+DATA bitrev_size16384_radix4_f64<>+0xB810(SB)/8, $8245
+DATA bitrev_size16384_radix4_f64<>+0xB818(SB)/8, $12341
+DATA bitrev_size16384_radix4_f64<>+0xB820(SB)/8, $1077
+DATA bitrev_size16384_radix4_f64<>+0xB828(SB)/8, $5173
+DATA bitrev_size16384_radix4_f64<>+0xB830(SB)/8, $9269
+DATA bitrev_size16384_radix4_f64<>+0xB838(SB)/8, $13365
+DATA bitrev_size16384_radix4_f64<>+0xB840(SB)/8, $2101
+DATA bitrev_size16384_radix4_f64<>+0xB848(SB)/8, $6197
+DATA bitrev_size16384_radix4_f64<>+0xB850(SB)/8, $10293
+DATA bitrev_size16384_radix4_f64<>+0xB858(SB)/8, $14389
+DATA bitrev_size16384_radix4_f64<>+0xB860(SB)/8, $3125
+DATA bitrev_size16384_radix4_f64<>+0xB868(SB)/8, $7221
+DATA bitrev_size16384_radix4_f64<>+0xB870(SB)/8, $11317
+DATA bitrev_size16384_radix4_f64<>+0xB878(SB)/8, $15413
+DATA bitrev_size16384_radix4_f64<>+0xB880(SB)/8, $309
+DATA bitrev_size16384_radix4_f64<>+0xB888(SB)/8, $4405
+DATA bitrev_size16384_radix4_f64<>+0xB890(SB)/8, $8501
+DATA bitrev_size16384_radix4_f64<>+0xB898(SB)/8, $12597
+DATA bitrev_size16384_radix4_f64<>+0xB8A0(SB)/8, $1333
+DATA bitrev_size16384_radix4_f64<>+0xB8A8(SB)/8, $5429
+DATA bitrev_size16384_radix4_f64<>+0xB8B0(SB)/8, $9525
+DATA bitrev_size16384_radix4_f64<>+0xB8B8(SB)/8, $13621
+DATA bitrev_size16384_radix4_f64<>+0xB8C0(SB)/8, $2357
+DATA bitrev_size16384_radix4_f64<>+0xB8C8(SB)/8, $6453
+DATA bitrev_size16384_radix4_f64<>+0xB8D0(SB)/8, $10549
+DATA bitrev_size16384_radix4_f64<>+0xB8D8(SB)/8, $14645
+DATA bitrev_size16384_radix4_f64<>+0xB8E0(SB)/8, $3381
+DATA bitrev_size16384_radix4_f64<>+0xB8E8(SB)/8, $7477
+DATA bitrev_size16384_radix4_f64<>+0xB8F0(SB)/8, $11573
+DATA bitrev_size16384_radix4_f64<>+0xB8F8(SB)/8, $15669
+DATA bitrev_size16384_radix4_f64<>+0xB900(SB)/8, $565
+DATA bitrev_size16384_radix4_f64<>+0xB908(SB)/8, $4661
+DATA bitrev_size16384_radix4_f64<>+0xB910(SB)/8, $8757
+DATA bitrev_size16384_radix4_f64<>+0xB918(SB)/8, $12853
+DATA bitrev_size16384_radix4_f64<>+0xB920(SB)/8, $1589
+DATA bitrev_size16384_radix4_f64<>+0xB928(SB)/8, $5685
+DATA bitrev_size16384_radix4_f64<>+0xB930(SB)/8, $9781
+DATA bitrev_size16384_radix4_f64<>+0xB938(SB)/8, $13877
+DATA bitrev_size16384_radix4_f64<>+0xB940(SB)/8, $2613
+DATA bitrev_size16384_radix4_f64<>+0xB948(SB)/8, $6709
+DATA bitrev_size16384_radix4_f64<>+0xB950(SB)/8, $10805
+DATA bitrev_size16384_radix4_f64<>+0xB958(SB)/8, $14901
+DATA bitrev_size16384_radix4_f64<>+0xB960(SB)/8, $3637
+DATA bitrev_size16384_radix4_f64<>+0xB968(SB)/8, $7733
+DATA bitrev_size16384_radix4_f64<>+0xB970(SB)/8, $11829
+DATA bitrev_size16384_radix4_f64<>+0xB978(SB)/8, $15925
+DATA bitrev_size16384_radix4_f64<>+0xB980(SB)/8, $821
+DATA bitrev_size16384_radix4_f64<>+0xB988(SB)/8, $4917
+DATA bitrev_size16384_radix4_f64<>+0xB990(SB)/8, $9013
+DATA bitrev_size16384_radix4_f64<>+0xB998(SB)/8, $13109
+DATA bitrev_size16384_radix4_f64<>+0xB9A0(SB)/8, $1845
+DATA bitrev_size16384_radix4_f64<>+0xB9A8(SB)/8, $5941
+DATA bitrev_size16384_radix4_f64<>+0xB9B0(SB)/8, $10037
+DATA bitrev_size16384_radix4_f64<>+0xB9B8(SB)/8, $14133
+DATA bitrev_size16384_radix4_f64<>+0xB9C0(SB)/8, $2869
+DATA bitrev_size16384_radix4_f64<>+0xB9C8(SB)/8, $6965
+DATA bitrev_size16384_radix4_f64<>+0xB9D0(SB)/8, $11061
+DATA bitrev_size16384_radix4_f64<>+0xB9D8(SB)/8, $15157
+DATA bitrev_size16384_radix4_f64<>+0xB9E0(SB)/8, $3893
+DATA bitrev_size16384_radix4_f64<>+0xB9E8(SB)/8, $7989
+DATA bitrev_size16384_radix4_f64<>+0xB9F0(SB)/8, $12085
+DATA bitrev_size16384_radix4_f64<>+0xB9F8(SB)/8, $16181
+DATA bitrev_size16384_radix4_f64<>+0xBA00(SB)/8, $117
+DATA bitrev_size16384_radix4_f64<>+0xBA08(SB)/8, $4213
+DATA bitrev_size16384_radix4_f64<>+0xBA10(SB)/8, $8309
+DATA bitrev_size16384_radix4_f64<>+0xBA18(SB)/8, $12405
+DATA bitrev_size16384_radix4_f64<>+0xBA20(SB)/8, $1141
+DATA bitrev_size16384_radix4_f64<>+0xBA28(SB)/8, $5237
+DATA bitrev_size16384_radix4_f64<>+0xBA30(SB)/8, $9333
+DATA bitrev_size16384_radix4_f64<>+0xBA38(SB)/8, $13429
+DATA bitrev_size16384_radix4_f64<>+0xBA40(SB)/8, $2165
+DATA bitrev_size16384_radix4_f64<>+0xBA48(SB)/8, $6261
+DATA bitrev_size16384_radix4_f64<>+0xBA50(SB)/8, $10357
+DATA bitrev_size16384_radix4_f64<>+0xBA58(SB)/8, $14453
+DATA bitrev_size16384_radix4_f64<>+0xBA60(SB)/8, $3189
+DATA bitrev_size16384_radix4_f64<>+0xBA68(SB)/8, $7285
+DATA bitrev_size16384_radix4_f64<>+0xBA70(SB)/8, $11381
+DATA bitrev_size16384_radix4_f64<>+0xBA78(SB)/8, $15477
+DATA bitrev_size16384_radix4_f64<>+0xBA80(SB)/8, $373
+DATA bitrev_size16384_radix4_f64<>+0xBA88(SB)/8, $4469
+DATA bitrev_size16384_radix4_f64<>+0xBA90(SB)/8, $8565
+DATA bitrev_size16384_radix4_f64<>+0xBA98(SB)/8, $12661
+DATA bitrev_size16384_radix4_f64<>+0xBAA0(SB)/8, $1397
+DATA bitrev_size16384_radix4_f64<>+0xBAA8(SB)/8, $5493
+DATA bitrev_size16384_radix4_f64<>+0xBAB0(SB)/8, $9589
+DATA bitrev_size16384_radix4_f64<>+0xBAB8(SB)/8, $13685
+DATA bitrev_size16384_radix4_f64<>+0xBAC0(SB)/8, $2421
+DATA bitrev_size16384_radix4_f64<>+0xBAC8(SB)/8, $6517
+DATA bitrev_size16384_radix4_f64<>+0xBAD0(SB)/8, $10613
+DATA bitrev_size16384_radix4_f64<>+0xBAD8(SB)/8, $14709
+DATA bitrev_size16384_radix4_f64<>+0xBAE0(SB)/8, $3445
+DATA bitrev_size16384_radix4_f64<>+0xBAE8(SB)/8, $7541
+DATA bitrev_size16384_radix4_f64<>+0xBAF0(SB)/8, $11637
+DATA bitrev_size16384_radix4_f64<>+0xBAF8(SB)/8, $15733
+DATA bitrev_size16384_radix4_f64<>+0xBB00(SB)/8, $629
+DATA bitrev_size16384_radix4_f64<>+0xBB08(SB)/8, $4725
+DATA bitrev_size16384_radix4_f64<>+0xBB10(SB)/8, $8821
+DATA bitrev_size16384_radix4_f64<>+0xBB18(SB)/8, $12917
+DATA bitrev_size16384_radix4_f64<>+0xBB20(SB)/8, $1653
+DATA bitrev_size16384_radix4_f64<>+0xBB28(SB)/8, $5749
+DATA bitrev_size16384_radix4_f64<>+0xBB30(SB)/8, $9845
+DATA bitrev_size16384_radix4_f64<>+0xBB38(SB)/8, $13941
+DATA bitrev_size16384_radix4_f64<>+0xBB40(SB)/8, $2677
+DATA bitrev_size16384_radix4_f64<>+0xBB48(SB)/8, $6773
+DATA bitrev_size16384_radix4_f64<>+0xBB50(SB)/8, $10869
+DATA bitrev_size16384_radix4_f64<>+0xBB58(SB)/8, $14965
+DATA bitrev_size16384_radix4_f64<>+0xBB60(SB)/8, $3701
+DATA bitrev_size16384_radix4_f64<>+0xBB68(SB)/8, $7797
+DATA bitrev_size16384_radix4_f64<>+0xBB70(SB)/8, $11893
+DATA bitrev_size16384_radix4_f64<>+0xBB78(SB)/8, $15989
+DATA bitrev_size16384_radix4_f64<>+0xBB80(SB)/8, $885
+DATA bitrev_size16384_radix4_f64<>+0xBB88(SB)/8, $4981
+DATA bitrev_size16384_radix4_f64<>+0xBB90(SB)/8, $9077
+DATA bitrev_size16384_radix4_f64<>+0xBB98(SB)/8, $13173
+DATA bitrev_size16384_radix4_f64<>+0xBBA0(SB)/8, $1909
+DATA bitrev_size16384_radix4_f64<>+0xBBA8(SB)/8, $6005
+DATA bitrev_size16384_radix4_f64<>+0xBBB0(SB)/8, $10101
+DATA bitrev_size16384_radix4_f64<>+0xBBB8(SB)/8, $14197
+DATA bitrev_size16384_radix4_f64<>+0xBBC0(SB)/8, $2933
+DATA bitrev_size16384_radix4_f64<>+0xBBC8(SB)/8, $7029
+DATA bitrev_size16384_radix4_f64<>+0xBBD0(SB)/8, $11125
+DATA bitrev_size16384_radix4_f64<>+0xBBD8(SB)/8, $15221
+DATA bitrev_size16384_radix4_f64<>+0xBBE0(SB)/8, $3957
+DATA bitrev_size16384_radix4_f64<>+0xBBE8(SB)/8, $8053
+DATA bitrev_size16384_radix4_f64<>+0xBBF0(SB)/8, $12149
+DATA bitrev_size16384_radix4_f64<>+0xBBF8(SB)/8, $16245
+DATA bitrev_size16384_radix4_f64<>+0xBC00(SB)/8, $181
+DATA bitrev_size16384_radix4_f64<>+0xBC08(SB)/8, $4277
+DATA bitrev_size16384_radix4_f64<>+0xBC10(SB)/8, $8373
+DATA bitrev_size16384_radix4_f64<>+0xBC18(SB)/8, $12469
+DATA bitrev_size16384_radix4_f64<>+0xBC20(SB)/8, $1205
+DATA bitrev_size16384_radix4_f64<>+0xBC28(SB)/8, $5301
+DATA bitrev_size16384_radix4_f64<>+0xBC30(SB)/8, $9397
+DATA bitrev_size16384_radix4_f64<>+0xBC38(SB)/8, $13493
+DATA bitrev_size16384_radix4_f64<>+0xBC40(SB)/8, $2229
+DATA bitrev_size16384_radix4_f64<>+0xBC48(SB)/8, $6325
+DATA bitrev_size16384_radix4_f64<>+0xBC50(SB)/8, $10421
+DATA bitrev_size16384_radix4_f64<>+0xBC58(SB)/8, $14517
+DATA bitrev_size16384_radix4_f64<>+0xBC60(SB)/8, $3253
+DATA bitrev_size16384_radix4_f64<>+0xBC68(SB)/8, $7349
+DATA bitrev_size16384_radix4_f64<>+0xBC70(SB)/8, $11445
+DATA bitrev_size16384_radix4_f64<>+0xBC78(SB)/8, $15541
+DATA bitrev_size16384_radix4_f64<>+0xBC80(SB)/8, $437
+DATA bitrev_size16384_radix4_f64<>+0xBC88(SB)/8, $4533
+DATA bitrev_size16384_radix4_f64<>+0xBC90(SB)/8, $8629
+DATA bitrev_size16384_radix4_f64<>+0xBC98(SB)/8, $12725
+DATA bitrev_size16384_radix4_f64<>+0xBCA0(SB)/8, $1461
+DATA bitrev_size16384_radix4_f64<>+0xBCA8(SB)/8, $5557
+DATA bitrev_size16384_radix4_f64<>+0xBCB0(SB)/8, $9653
+DATA bitrev_size16384_radix4_f64<>+0xBCB8(SB)/8, $13749
+DATA bitrev_size16384_radix4_f64<>+0xBCC0(SB)/8, $2485
+DATA bitrev_size16384_radix4_f64<>+0xBCC8(SB)/8, $6581
+DATA bitrev_size16384_radix4_f64<>+0xBCD0(SB)/8, $10677
+DATA bitrev_size16384_radix4_f64<>+0xBCD8(SB)/8, $14773
+DATA bitrev_size16384_radix4_f64<>+0xBCE0(SB)/8, $3509
+DATA bitrev_size16384_radix4_f64<>+0xBCE8(SB)/8, $7605
+DATA bitrev_size16384_radix4_f64<>+0xBCF0(SB)/8, $11701
+DATA bitrev_size16384_radix4_f64<>+0xBCF8(SB)/8, $15797
+DATA bitrev_size16384_radix4_f64<>+0xBD00(SB)/8, $693
+DATA bitrev_size16384_radix4_f64<>+0xBD08(SB)/8, $4789
+DATA bitrev_size16384_radix4_f64<>+0xBD10(SB)/8, $8885
+DATA bitrev_size16384_radix4_f64<>+0xBD18(SB)/8, $12981
+DATA bitrev_size16384_radix4_f64<>+0xBD20(SB)/8, $1717
+DATA bitrev_size16384_radix4_f64<>+0xBD28(SB)/8, $5813
+DATA bitrev_size16384_radix4_f64<>+0xBD30(SB)/8, $9909
+DATA bitrev_size16384_radix4_f64<>+0xBD38(SB)/8, $14005
+DATA bitrev_size16384_radix4_f64<>+0xBD40(SB)/8, $2741
+DATA bitrev_size16384_radix4_f64<>+0xBD48(SB)/8, $6837
+DATA bitrev_size16384_radix4_f64<>+0xBD50(SB)/8, $10933
+DATA bitrev_size16384_radix4_f64<>+0xBD58(SB)/8, $15029
+DATA bitrev_size16384_radix4_f64<>+0xBD60(SB)/8, $3765
+DATA bitrev_size16384_radix4_f64<>+0xBD68(SB)/8, $7861
+DATA bitrev_size16384_radix4_f64<>+0xBD70(SB)/8, $11957
+DATA bitrev_size16384_radix4_f64<>+0xBD78(SB)/8, $16053
+DATA bitrev_size16384_radix4_f64<>+0xBD80(SB)/8, $949
+DATA bitrev_size16384_radix4_f64<>+0xBD88(SB)/8, $5045
+DATA bitrev_size16384_radix4_f64<>+0xBD90(SB)/8, $9141
+DATA bitrev_size16384_radix4_f64<>+0xBD98(SB)/8, $13237
+DATA bitrev_size16384_radix4_f64<>+0xBDA0(SB)/8, $1973
+DATA bitrev_size16384_radix4_f64<>+0xBDA8(SB)/8, $6069
+DATA bitrev_size16384_radix4_f64<>+0xBDB0(SB)/8, $10165
+DATA bitrev_size16384_radix4_f64<>+0xBDB8(SB)/8, $14261
+DATA bitrev_size16384_radix4_f64<>+0xBDC0(SB)/8, $2997
+DATA bitrev_size16384_radix4_f64<>+0xBDC8(SB)/8, $7093
+DATA bitrev_size16384_radix4_f64<>+0xBDD0(SB)/8, $11189
+DATA bitrev_size16384_radix4_f64<>+0xBDD8(SB)/8, $15285
+DATA bitrev_size16384_radix4_f64<>+0xBDE0(SB)/8, $4021
+DATA bitrev_size16384_radix4_f64<>+0xBDE8(SB)/8, $8117
+DATA bitrev_size16384_radix4_f64<>+0xBDF0(SB)/8, $12213
+DATA bitrev_size16384_radix4_f64<>+0xBDF8(SB)/8, $16309
+DATA bitrev_size16384_radix4_f64<>+0xBE00(SB)/8, $245
+DATA bitrev_size16384_radix4_f64<>+0xBE08(SB)/8, $4341
+DATA bitrev_size16384_radix4_f64<>+0xBE10(SB)/8, $8437
+DATA bitrev_size16384_radix4_f64<>+0xBE18(SB)/8, $12533
+DATA bitrev_size16384_radix4_f64<>+0xBE20(SB)/8, $1269
+DATA bitrev_size16384_radix4_f64<>+0xBE28(SB)/8, $5365
+DATA bitrev_size16384_radix4_f64<>+0xBE30(SB)/8, $9461
+DATA bitrev_size16384_radix4_f64<>+0xBE38(SB)/8, $13557
+DATA bitrev_size16384_radix4_f64<>+0xBE40(SB)/8, $2293
+DATA bitrev_size16384_radix4_f64<>+0xBE48(SB)/8, $6389
+DATA bitrev_size16384_radix4_f64<>+0xBE50(SB)/8, $10485
+DATA bitrev_size16384_radix4_f64<>+0xBE58(SB)/8, $14581
+DATA bitrev_size16384_radix4_f64<>+0xBE60(SB)/8, $3317
+DATA bitrev_size16384_radix4_f64<>+0xBE68(SB)/8, $7413
+DATA bitrev_size16384_radix4_f64<>+0xBE70(SB)/8, $11509
+DATA bitrev_size16384_radix4_f64<>+0xBE78(SB)/8, $15605
+DATA bitrev_size16384_radix4_f64<>+0xBE80(SB)/8, $501
+DATA bitrev_size16384_radix4_f64<>+0xBE88(SB)/8, $4597
+DATA bitrev_size16384_radix4_f64<>+0xBE90(SB)/8, $8693
+DATA bitrev_size16384_radix4_f64<>+0xBE98(SB)/8, $12789
+DATA bitrev_size16384_radix4_f64<>+0xBEA0(SB)/8, $1525
+DATA bitrev_size16384_radix4_f64<>+0xBEA8(SB)/8, $5621
+DATA bitrev_size16384_radix4_f64<>+0xBEB0(SB)/8, $9717
+DATA bitrev_size16384_radix4_f64<>+0xBEB8(SB)/8, $13813
+DATA bitrev_size16384_radix4_f64<>+0xBEC0(SB)/8, $2549
+DATA bitrev_size16384_radix4_f64<>+0xBEC8(SB)/8, $6645
+DATA bitrev_size16384_radix4_f64<>+0xBED0(SB)/8, $10741
+DATA bitrev_size16384_radix4_f64<>+0xBED8(SB)/8, $14837
+DATA bitrev_size16384_radix4_f64<>+0xBEE0(SB)/8, $3573
+DATA bitrev_size16384_radix4_f64<>+0xBEE8(SB)/8, $7669
+DATA bitrev_size16384_radix4_f64<>+0xBEF0(SB)/8, $11765
+DATA bitrev_size16384_radix4_f64<>+0xBEF8(SB)/8, $15861
+DATA bitrev_size16384_radix4_f64<>+0xBF00(SB)/8, $757
+DATA bitrev_size16384_radix4_f64<>+0xBF08(SB)/8, $4853
+DATA bitrev_size16384_radix4_f64<>+0xBF10(SB)/8, $8949
+DATA bitrev_size16384_radix4_f64<>+0xBF18(SB)/8, $13045
+DATA bitrev_size16384_radix4_f64<>+0xBF20(SB)/8, $1781
+DATA bitrev_size16384_radix4_f64<>+0xBF28(SB)/8, $5877
+DATA bitrev_size16384_radix4_f64<>+0xBF30(SB)/8, $9973
+DATA bitrev_size16384_radix4_f64<>+0xBF38(SB)/8, $14069
+DATA bitrev_size16384_radix4_f64<>+0xBF40(SB)/8, $2805
+DATA bitrev_size16384_radix4_f64<>+0xBF48(SB)/8, $6901
+DATA bitrev_size16384_radix4_f64<>+0xBF50(SB)/8, $10997
+DATA bitrev_size16384_radix4_f64<>+0xBF58(SB)/8, $15093
+DATA bitrev_size16384_radix4_f64<>+0xBF60(SB)/8, $3829
+DATA bitrev_size16384_radix4_f64<>+0xBF68(SB)/8, $7925
+DATA bitrev_size16384_radix4_f64<>+0xBF70(SB)/8, $12021
+DATA bitrev_size16384_radix4_f64<>+0xBF78(SB)/8, $16117
+DATA bitrev_size16384_radix4_f64<>+0xBF80(SB)/8, $1013
+DATA bitrev_size16384_radix4_f64<>+0xBF88(SB)/8, $5109
+DATA bitrev_size16384_radix4_f64<>+0xBF90(SB)/8, $9205
+DATA bitrev_size16384_radix4_f64<>+0xBF98(SB)/8, $13301
+DATA bitrev_size16384_radix4_f64<>+0xBFA0(SB)/8, $2037
+DATA bitrev_size16384_radix4_f64<>+0xBFA8(SB)/8, $6133
+DATA bitrev_size16384_radix4_f64<>+0xBFB0(SB)/8, $10229
+DATA bitrev_size16384_radix4_f64<>+0xBFB8(SB)/8, $14325
+DATA bitrev_size16384_radix4_f64<>+0xBFC0(SB)/8, $3061
+DATA bitrev_size16384_radix4_f64<>+0xBFC8(SB)/8, $7157
+DATA bitrev_size16384_radix4_f64<>+0xBFD0(SB)/8, $11253
+DATA bitrev_size16384_radix4_f64<>+0xBFD8(SB)/8, $15349
+DATA bitrev_size16384_radix4_f64<>+0xBFE0(SB)/8, $4085
+DATA bitrev_size16384_radix4_f64<>+0xBFE8(SB)/8, $8181
+DATA bitrev_size16384_radix4_f64<>+0xBFF0(SB)/8, $12277
+DATA bitrev_size16384_radix4_f64<>+0xBFF8(SB)/8, $16373
+DATA bitrev_size16384_radix4_f64<>+0xC000(SB)/8, $9
+DATA bitrev_size16384_radix4_f64<>+0xC008(SB)/8, $4105
+DATA bitrev_size16384_radix4_f64<>+0xC010(SB)/8, $8201
+DATA bitrev_size16384_radix4_f64<>+0xC018(SB)/8, $12297
+DATA bitrev_size16384_radix4_f64<>+0xC020(SB)/8, $1033
+DATA bitrev_size16384_radix4_f64<>+0xC028(SB)/8, $5129
+DATA bitrev_size16384_radix4_f64<>+0xC030(SB)/8, $9225
+DATA bitrev_size16384_radix4_f64<>+0xC038(SB)/8, $13321
+DATA bitrev_size16384_radix4_f64<>+0xC040(SB)/8, $2057
+DATA bitrev_size16384_radix4_f64<>+0xC048(SB)/8, $6153
+DATA bitrev_size16384_radix4_f64<>+0xC050(SB)/8, $10249
+DATA bitrev_size16384_radix4_f64<>+0xC058(SB)/8, $14345
+DATA bitrev_size16384_radix4_f64<>+0xC060(SB)/8, $3081
+DATA bitrev_size16384_radix4_f64<>+0xC068(SB)/8, $7177
+DATA bitrev_size16384_radix4_f64<>+0xC070(SB)/8, $11273
+DATA bitrev_size16384_radix4_f64<>+0xC078(SB)/8, $15369
+DATA bitrev_size16384_radix4_f64<>+0xC080(SB)/8, $265
+DATA bitrev_size16384_radix4_f64<>+0xC088(SB)/8, $4361
+DATA bitrev_size16384_radix4_f64<>+0xC090(SB)/8, $8457
+DATA bitrev_size16384_radix4_f64<>+0xC098(SB)/8, $12553
+DATA bitrev_size16384_radix4_f64<>+0xC0A0(SB)/8, $1289
+DATA bitrev_size16384_radix4_f64<>+0xC0A8(SB)/8, $5385
+DATA bitrev_size16384_radix4_f64<>+0xC0B0(SB)/8, $9481
+DATA bitrev_size16384_radix4_f64<>+0xC0B8(SB)/8, $13577
+DATA bitrev_size16384_radix4_f64<>+0xC0C0(SB)/8, $2313
+DATA bitrev_size16384_radix4_f64<>+0xC0C8(SB)/8, $6409
+DATA bitrev_size16384_radix4_f64<>+0xC0D0(SB)/8, $10505
+DATA bitrev_size16384_radix4_f64<>+0xC0D8(SB)/8, $14601
+DATA bitrev_size16384_radix4_f64<>+0xC0E0(SB)/8, $3337
+DATA bitrev_size16384_radix4_f64<>+0xC0E8(SB)/8, $7433
+DATA bitrev_size16384_radix4_f64<>+0xC0F0(SB)/8, $11529
+DATA bitrev_size16384_radix4_f64<>+0xC0F8(SB)/8, $15625
+DATA bitrev_size16384_radix4_f64<>+0xC100(SB)/8, $521
+DATA bitrev_size16384_radix4_f64<>+0xC108(SB)/8, $4617
+DATA bitrev_size16384_radix4_f64<>+0xC110(SB)/8, $8713
+DATA bitrev_size16384_radix4_f64<>+0xC118(SB)/8, $12809
+DATA bitrev_size16384_radix4_f64<>+0xC120(SB)/8, $1545
+DATA bitrev_size16384_radix4_f64<>+0xC128(SB)/8, $5641
+DATA bitrev_size16384_radix4_f64<>+0xC130(SB)/8, $9737
+DATA bitrev_size16384_radix4_f64<>+0xC138(SB)/8, $13833
+DATA bitrev_size16384_radix4_f64<>+0xC140(SB)/8, $2569
+DATA bitrev_size16384_radix4_f64<>+0xC148(SB)/8, $6665
+DATA bitrev_size16384_radix4_f64<>+0xC150(SB)/8, $10761
+DATA bitrev_size16384_radix4_f64<>+0xC158(SB)/8, $14857
+DATA bitrev_size16384_radix4_f64<>+0xC160(SB)/8, $3593
+DATA bitrev_size16384_radix4_f64<>+0xC168(SB)/8, $7689
+DATA bitrev_size16384_radix4_f64<>+0xC170(SB)/8, $11785
+DATA bitrev_size16384_radix4_f64<>+0xC178(SB)/8, $15881
+DATA bitrev_size16384_radix4_f64<>+0xC180(SB)/8, $777
+DATA bitrev_size16384_radix4_f64<>+0xC188(SB)/8, $4873
+DATA bitrev_size16384_radix4_f64<>+0xC190(SB)/8, $8969
+DATA bitrev_size16384_radix4_f64<>+0xC198(SB)/8, $13065
+DATA bitrev_size16384_radix4_f64<>+0xC1A0(SB)/8, $1801
+DATA bitrev_size16384_radix4_f64<>+0xC1A8(SB)/8, $5897
+DATA bitrev_size16384_radix4_f64<>+0xC1B0(SB)/8, $9993
+DATA bitrev_size16384_radix4_f64<>+0xC1B8(SB)/8, $14089
+DATA bitrev_size16384_radix4_f64<>+0xC1C0(SB)/8, $2825
+DATA bitrev_size16384_radix4_f64<>+0xC1C8(SB)/8, $6921
+DATA bitrev_size16384_radix4_f64<>+0xC1D0(SB)/8, $11017
+DATA bitrev_size16384_radix4_f64<>+0xC1D8(SB)/8, $15113
+DATA bitrev_size16384_radix4_f64<>+0xC1E0(SB)/8, $3849
+DATA bitrev_size16384_radix4_f64<>+0xC1E8(SB)/8, $7945
+DATA bitrev_size16384_radix4_f64<>+0xC1F0(SB)/8, $12041
+DATA bitrev_size16384_radix4_f64<>+0xC1F8(SB)/8, $16137
+DATA bitrev_size16384_radix4_f64<>+0xC200(SB)/8, $73
+DATA bitrev_size16384_radix4_f64<>+0xC208(SB)/8, $4169
+DATA bitrev_size16384_radix4_f64<>+0xC210(SB)/8, $8265
+DATA bitrev_size16384_radix4_f64<>+0xC218(SB)/8, $12361
+DATA bitrev_size16384_radix4_f64<>+0xC220(SB)/8, $1097
+DATA bitrev_size16384_radix4_f64<>+0xC228(SB)/8, $5193
+DATA bitrev_size16384_radix4_f64<>+0xC230(SB)/8, $9289
+DATA bitrev_size16384_radix4_f64<>+0xC238(SB)/8, $13385
+DATA bitrev_size16384_radix4_f64<>+0xC240(SB)/8, $2121
+DATA bitrev_size16384_radix4_f64<>+0xC248(SB)/8, $6217
+DATA bitrev_size16384_radix4_f64<>+0xC250(SB)/8, $10313
+DATA bitrev_size16384_radix4_f64<>+0xC258(SB)/8, $14409
+DATA bitrev_size16384_radix4_f64<>+0xC260(SB)/8, $3145
+DATA bitrev_size16384_radix4_f64<>+0xC268(SB)/8, $7241
+DATA bitrev_size16384_radix4_f64<>+0xC270(SB)/8, $11337
+DATA bitrev_size16384_radix4_f64<>+0xC278(SB)/8, $15433
+DATA bitrev_size16384_radix4_f64<>+0xC280(SB)/8, $329
+DATA bitrev_size16384_radix4_f64<>+0xC288(SB)/8, $4425
+DATA bitrev_size16384_radix4_f64<>+0xC290(SB)/8, $8521
+DATA bitrev_size16384_radix4_f64<>+0xC298(SB)/8, $12617
+DATA bitrev_size16384_radix4_f64<>+0xC2A0(SB)/8, $1353
+DATA bitrev_size16384_radix4_f64<>+0xC2A8(SB)/8, $5449
+DATA bitrev_size16384_radix4_f64<>+0xC2B0(SB)/8, $9545
+DATA bitrev_size16384_radix4_f64<>+0xC2B8(SB)/8, $13641
+DATA bitrev_size16384_radix4_f64<>+0xC2C0(SB)/8, $2377
+DATA bitrev_size16384_radix4_f64<>+0xC2C8(SB)/8, $6473
+DATA bitrev_size16384_radix4_f64<>+0xC2D0(SB)/8, $10569
+DATA bitrev_size16384_radix4_f64<>+0xC2D8(SB)/8, $14665
+DATA bitrev_size16384_radix4_f64<>+0xC2E0(SB)/8, $3401
+DATA bitrev_size16384_radix4_f64<>+0xC2E8(SB)/8, $7497
+DATA bitrev_size16384_radix4_f64<>+0xC2F0(SB)/8, $11593
+DATA bitrev_size16384_radix4_f64<>+0xC2F8(SB)/8, $15689
+DATA bitrev_size16384_radix4_f64<>+0xC300(SB)/8, $585
+DATA bitrev_size16384_radix4_f64<>+0xC308(SB)/8, $4681
+DATA bitrev_size16384_radix4_f64<>+0xC310(SB)/8, $8777
+DATA bitrev_size16384_radix4_f64<>+0xC318(SB)/8, $12873
+DATA bitrev_size16384_radix4_f64<>+0xC320(SB)/8, $1609
+DATA bitrev_size16384_radix4_f64<>+0xC328(SB)/8, $5705
+DATA bitrev_size16384_radix4_f64<>+0xC330(SB)/8, $9801
+DATA bitrev_size16384_radix4_f64<>+0xC338(SB)/8, $13897
+DATA bitrev_size16384_radix4_f64<>+0xC340(SB)/8, $2633
+DATA bitrev_size16384_radix4_f64<>+0xC348(SB)/8, $6729
+DATA bitrev_size16384_radix4_f64<>+0xC350(SB)/8, $10825
+DATA bitrev_size16384_radix4_f64<>+0xC358(SB)/8, $14921
+DATA bitrev_size16384_radix4_f64<>+0xC360(SB)/8, $3657
+DATA bitrev_size16384_radix4_f64<>+0xC368(SB)/8, $7753
+DATA bitrev_size16384_radix4_f64<>+0xC370(SB)/8, $11849
+DATA bitrev_size16384_radix4_f64<>+0xC378(SB)/8, $15945
+DATA bitrev_size16384_radix4_f64<>+0xC380(SB)/8, $841
+DATA bitrev_size16384_radix4_f64<>+0xC388(SB)/8, $4937
+DATA bitrev_size16384_radix4_f64<>+0xC390(SB)/8, $9033
+DATA bitrev_size16384_radix4_f64<>+0xC398(SB)/8, $13129
+DATA bitrev_size16384_radix4_f64<>+0xC3A0(SB)/8, $1865
+DATA bitrev_size16384_radix4_f64<>+0xC3A8(SB)/8, $5961
+DATA bitrev_size16384_radix4_f64<>+0xC3B0(SB)/8, $10057
+DATA bitrev_size16384_radix4_f64<>+0xC3B8(SB)/8, $14153
+DATA bitrev_size16384_radix4_f64<>+0xC3C0(SB)/8, $2889
+DATA bitrev_size16384_radix4_f64<>+0xC3C8(SB)/8, $6985
+DATA bitrev_size16384_radix4_f64<>+0xC3D0(SB)/8, $11081
+DATA bitrev_size16384_radix4_f64<>+0xC3D8(SB)/8, $15177
+DATA bitrev_size16384_radix4_f64<>+0xC3E0(SB)/8, $3913
+DATA bitrev_size16384_radix4_f64<>+0xC3E8(SB)/8, $8009
+DATA bitrev_size16384_radix4_f64<>+0xC3F0(SB)/8, $12105
+DATA bitrev_size16384_radix4_f64<>+0xC3F8(SB)/8, $16201
+DATA bitrev_size16384_radix4_f64<>+0xC400(SB)/8, $137
+DATA bitrev_size16384_radix4_f64<>+0xC408(SB)/8, $4233
+DATA bitrev_size16384_radix4_f64<>+0xC410(SB)/8, $8329
+DATA bitrev_size16384_radix4_f64<>+0xC418(SB)/8, $12425
+DATA bitrev_size16384_radix4_f64<>+0xC420(SB)/8, $1161
+DATA bitrev_size16384_radix4_f64<>+0xC428(SB)/8, $5257
+DATA bitrev_size16384_radix4_f64<>+0xC430(SB)/8, $9353
+DATA bitrev_size16384_radix4_f64<>+0xC438(SB)/8, $13449
+DATA bitrev_size16384_radix4_f64<>+0xC440(SB)/8, $2185
+DATA bitrev_size16384_radix4_f64<>+0xC448(SB)/8, $6281
+DATA bitrev_size16384_radix4_f64<>+0xC450(SB)/8, $10377
+DATA bitrev_size16384_radix4_f64<>+0xC458(SB)/8, $14473
+DATA bitrev_size16384_radix4_f64<>+0xC460(SB)/8, $3209
+DATA bitrev_size16384_radix4_f64<>+0xC468(SB)/8, $7305
+DATA bitrev_size16384_radix4_f64<>+0xC470(SB)/8, $11401
+DATA bitrev_size16384_radix4_f64<>+0xC478(SB)/8, $15497
+DATA bitrev_size16384_radix4_f64<>+0xC480(SB)/8, $393
+DATA bitrev_size16384_radix4_f64<>+0xC488(SB)/8, $4489
+DATA bitrev_size16384_radix4_f64<>+0xC490(SB)/8, $8585
+DATA bitrev_size16384_radix4_f64<>+0xC498(SB)/8, $12681
+DATA bitrev_size16384_radix4_f64<>+0xC4A0(SB)/8, $1417
+DATA bitrev_size16384_radix4_f64<>+0xC4A8(SB)/8, $5513
+DATA bitrev_size16384_radix4_f64<>+0xC4B0(SB)/8, $9609
+DATA bitrev_size16384_radix4_f64<>+0xC4B8(SB)/8, $13705
+DATA bitrev_size16384_radix4_f64<>+0xC4C0(SB)/8, $2441
+DATA bitrev_size16384_radix4_f64<>+0xC4C8(SB)/8, $6537
+DATA bitrev_size16384_radix4_f64<>+0xC4D0(SB)/8, $10633
+DATA bitrev_size16384_radix4_f64<>+0xC4D8(SB)/8, $14729
+DATA bitrev_size16384_radix4_f64<>+0xC4E0(SB)/8, $3465
+DATA bitrev_size16384_radix4_f64<>+0xC4E8(SB)/8, $7561
+DATA bitrev_size16384_radix4_f64<>+0xC4F0(SB)/8, $11657
+DATA bitrev_size16384_radix4_f64<>+0xC4F8(SB)/8, $15753
+DATA bitrev_size16384_radix4_f64<>+0xC500(SB)/8, $649
+DATA bitrev_size16384_radix4_f64<>+0xC508(SB)/8, $4745
+DATA bitrev_size16384_radix4_f64<>+0xC510(SB)/8, $8841
+DATA bitrev_size16384_radix4_f64<>+0xC518(SB)/8, $12937
+DATA bitrev_size16384_radix4_f64<>+0xC520(SB)/8, $1673
+DATA bitrev_size16384_radix4_f64<>+0xC528(SB)/8, $5769
+DATA bitrev_size16384_radix4_f64<>+0xC530(SB)/8, $9865
+DATA bitrev_size16384_radix4_f64<>+0xC538(SB)/8, $13961
+DATA bitrev_size16384_radix4_f64<>+0xC540(SB)/8, $2697
+DATA bitrev_size16384_radix4_f64<>+0xC548(SB)/8, $6793
+DATA bitrev_size16384_radix4_f64<>+0xC550(SB)/8, $10889
+DATA bitrev_size16384_radix4_f64<>+0xC558(SB)/8, $14985
+DATA bitrev_size16384_radix4_f64<>+0xC560(SB)/8, $3721
+DATA bitrev_size16384_radix4_f64<>+0xC568(SB)/8, $7817
+DATA bitrev_size16384_radix4_f64<>+0xC570(SB)/8, $11913
+DATA bitrev_size16384_radix4_f64<>+0xC578(SB)/8, $16009
+DATA bitrev_size16384_radix4_f64<>+0xC580(SB)/8, $905
+DATA bitrev_size16384_radix4_f64<>+0xC588(SB)/8, $5001
+DATA bitrev_size16384_radix4_f64<>+0xC590(SB)/8, $9097
+DATA bitrev_size16384_radix4_f64<>+0xC598(SB)/8, $13193
+DATA bitrev_size16384_radix4_f64<>+0xC5A0(SB)/8, $1929
+DATA bitrev_size16384_radix4_f64<>+0xC5A8(SB)/8, $6025
+DATA bitrev_size16384_radix4_f64<>+0xC5B0(SB)/8, $10121
+DATA bitrev_size16384_radix4_f64<>+0xC5B8(SB)/8, $14217
+DATA bitrev_size16384_radix4_f64<>+0xC5C0(SB)/8, $2953
+DATA bitrev_size16384_radix4_f64<>+0xC5C8(SB)/8, $7049
+DATA bitrev_size16384_radix4_f64<>+0xC5D0(SB)/8, $11145
+DATA bitrev_size16384_radix4_f64<>+0xC5D8(SB)/8, $15241
+DATA bitrev_size16384_radix4_f64<>+0xC5E0(SB)/8, $3977
+DATA bitrev_size16384_radix4_f64<>+0xC5E8(SB)/8, $8073
+DATA bitrev_size16384_radix4_f64<>+0xC5F0(SB)/8, $12169
+DATA bitrev_size16384_radix4_f64<>+0xC5F8(SB)/8, $16265
+DATA bitrev_size16384_radix4_f64<>+0xC600(SB)/8, $201
+DATA bitrev_size16384_radix4_f64<>+0xC608(SB)/8, $4297
+DATA bitrev_size16384_radix4_f64<>+0xC610(SB)/8, $8393
+DATA bitrev_size16384_radix4_f64<>+0xC618(SB)/8, $12489
+DATA bitrev_size16384_radix4_f64<>+0xC620(SB)/8, $1225
+DATA bitrev_size16384_radix4_f64<>+0xC628(SB)/8, $5321
+DATA bitrev_size16384_radix4_f64<>+0xC630(SB)/8, $9417
+DATA bitrev_size16384_radix4_f64<>+0xC638(SB)/8, $13513
+DATA bitrev_size16384_radix4_f64<>+0xC640(SB)/8, $2249
+DATA bitrev_size16384_radix4_f64<>+0xC648(SB)/8, $6345
+DATA bitrev_size16384_radix4_f64<>+0xC650(SB)/8, $10441
+DATA bitrev_size16384_radix4_f64<>+0xC658(SB)/8, $14537
+DATA bitrev_size16384_radix4_f64<>+0xC660(SB)/8, $3273
+DATA bitrev_size16384_radix4_f64<>+0xC668(SB)/8, $7369
+DATA bitrev_size16384_radix4_f64<>+0xC670(SB)/8, $11465
+DATA bitrev_size16384_radix4_f64<>+0xC678(SB)/8, $15561
+DATA bitrev_size16384_radix4_f64<>+0xC680(SB)/8, $457
+DATA bitrev_size16384_radix4_f64<>+0xC688(SB)/8, $4553
+DATA bitrev_size16384_radix4_f64<>+0xC690(SB)/8, $8649
+DATA bitrev_size16384_radix4_f64<>+0xC698(SB)/8, $12745
+DATA bitrev_size16384_radix4_f64<>+0xC6A0(SB)/8, $1481
+DATA bitrev_size16384_radix4_f64<>+0xC6A8(SB)/8, $5577
+DATA bitrev_size16384_radix4_f64<>+0xC6B0(SB)/8, $9673
+DATA bitrev_size16384_radix4_f64<>+0xC6B8(SB)/8, $13769
+DATA bitrev_size16384_radix4_f64<>+0xC6C0(SB)/8, $2505
+DATA bitrev_size16384_radix4_f64<>+0xC6C8(SB)/8, $6601
+DATA bitrev_size16384_radix4_f64<>+0xC6D0(SB)/8, $10697
+DATA bitrev_size16384_radix4_f64<>+0xC6D8(SB)/8, $14793
+DATA bitrev_size16384_radix4_f64<>+0xC6E0(SB)/8, $3529
+DATA bitrev_size16384_radix4_f64<>+0xC6E8(SB)/8, $7625
+DATA bitrev_size16384_radix4_f64<>+0xC6F0(SB)/8, $11721
+DATA bitrev_size16384_radix4_f64<>+0xC6F8(SB)/8, $15817
+DATA bitrev_size16384_radix4_f64<>+0xC700(SB)/8, $713
+DATA bitrev_size16384_radix4_f64<>+0xC708(SB)/8, $4809
+DATA bitrev_size16384_radix4_f64<>+0xC710(SB)/8, $8905
+DATA bitrev_size16384_radix4_f64<>+0xC718(SB)/8, $13001
+DATA bitrev_size16384_radix4_f64<>+0xC720(SB)/8, $1737
+DATA bitrev_size16384_radix4_f64<>+0xC728(SB)/8, $5833
+DATA bitrev_size16384_radix4_f64<>+0xC730(SB)/8, $9929
+DATA bitrev_size16384_radix4_f64<>+0xC738(SB)/8, $14025
+DATA bitrev_size16384_radix4_f64<>+0xC740(SB)/8, $2761
+DATA bitrev_size16384_radix4_f64<>+0xC748(SB)/8, $6857
+DATA bitrev_size16384_radix4_f64<>+0xC750(SB)/8, $10953
+DATA bitrev_size16384_radix4_f64<>+0xC758(SB)/8, $15049
+DATA bitrev_size16384_radix4_f64<>+0xC760(SB)/8, $3785
+DATA bitrev_size16384_radix4_f64<>+0xC768(SB)/8, $7881
+DATA bitrev_size16384_radix4_f64<>+0xC770(SB)/8, $11977
+DATA bitrev_size16384_radix4_f64<>+0xC778(SB)/8, $16073
+DATA bitrev_size16384_radix4_f64<>+0xC780(SB)/8, $969
+DATA bitrev_size16384_radix4_f64<>+0xC788(SB)/8, $5065
+DATA bitrev_size16384_radix4_f64<>+0xC790(SB)/8, $9161
+DATA bitrev_size16384_radix4_f64<>+0xC798(SB)/8, $13257
+DATA bitrev_size16384_radix4_f64<>+0xC7A0(SB)/8, $1993
+DATA bitrev_size16384_radix4_f64<>+0xC7A8(SB)/8, $6089
+DATA bitrev_size16384_radix4_f64<>+0xC7B0(SB)/8, $10185
+DATA bitrev_size16384_radix4_f64<>+0xC7B8(SB)/8, $14281
+DATA bitrev_size16384_radix4_f64<>+0xC7C0(SB)/8, $3017
+DATA bitrev_size16384_radix4_f64<>+0xC7C8(SB)/8, $7113
+DATA bitrev_size16384_radix4_f64<>+0xC7D0(SB)/8, $11209
+DATA bitrev_size16384_radix4_f64<>+0xC7D8(SB)/8, $15305
+DATA bitrev_size16384_radix4_f64<>+0xC7E0(SB)/8, $4041
+DATA bitrev_size16384_radix4_f64<>+0xC7E8(SB)/8, $8137
+DATA bitrev_size16384_radix4_f64<>+0xC7F0(SB)/8, $12233
+DATA bitrev_size16384_radix4_f64<>+0xC7F8(SB)/8, $16329
+DATA bitrev_size16384_radix4_f64<>+0xC800(SB)/8, $25
+DATA bitrev_size16384_radix4_f64<>+0xC808(SB)/8, $4121
+DATA bitrev_size16384_radix4_f64<>+0xC810(SB)/8, $8217
+DATA bitrev_size16384_radix4_f64<>+0xC818(SB)/8, $12313
+DATA bitrev_size16384_radix4_f64<>+0xC820(SB)/8, $1049
+DATA bitrev_size16384_radix4_f64<>+0xC828(SB)/8, $5145
+DATA bitrev_size16384_radix4_f64<>+0xC830(SB)/8, $9241
+DATA bitrev_size16384_radix4_f64<>+0xC838(SB)/8, $13337
+DATA bitrev_size16384_radix4_f64<>+0xC840(SB)/8, $2073
+DATA bitrev_size16384_radix4_f64<>+0xC848(SB)/8, $6169
+DATA bitrev_size16384_radix4_f64<>+0xC850(SB)/8, $10265
+DATA bitrev_size16384_radix4_f64<>+0xC858(SB)/8, $14361
+DATA bitrev_size16384_radix4_f64<>+0xC860(SB)/8, $3097
+DATA bitrev_size16384_radix4_f64<>+0xC868(SB)/8, $7193
+DATA bitrev_size16384_radix4_f64<>+0xC870(SB)/8, $11289
+DATA bitrev_size16384_radix4_f64<>+0xC878(SB)/8, $15385
+DATA bitrev_size16384_radix4_f64<>+0xC880(SB)/8, $281
+DATA bitrev_size16384_radix4_f64<>+0xC888(SB)/8, $4377
+DATA bitrev_size16384_radix4_f64<>+0xC890(SB)/8, $8473
+DATA bitrev_size16384_radix4_f64<>+0xC898(SB)/8, $12569
+DATA bitrev_size16384_radix4_f64<>+0xC8A0(SB)/8, $1305
+DATA bitrev_size16384_radix4_f64<>+0xC8A8(SB)/8, $5401
+DATA bitrev_size16384_radix4_f64<>+0xC8B0(SB)/8, $9497
+DATA bitrev_size16384_radix4_f64<>+0xC8B8(SB)/8, $13593
+DATA bitrev_size16384_radix4_f64<>+0xC8C0(SB)/8, $2329
+DATA bitrev_size16384_radix4_f64<>+0xC8C8(SB)/8, $6425
+DATA bitrev_size16384_radix4_f64<>+0xC8D0(SB)/8, $10521
+DATA bitrev_size16384_radix4_f64<>+0xC8D8(SB)/8, $14617
+DATA bitrev_size16384_radix4_f64<>+0xC8E0(SB)/8, $3353
+DATA bitrev_size16384_radix4_f64<>+0xC8E8(SB)/8, $7449
+DATA bitrev_size16384_radix4_f64<>+0xC8F0(SB)/8, $11545
+DATA bitrev_size16384_radix4_f64<>+0xC8F8(SB)/8, $15641
+DATA bitrev_size16384_radix4_f64<>+0xC900(SB)/8, $537
+DATA bitrev_size16384_radix4_f64<>+0xC908(SB)/8, $4633
+DATA bitrev_size16384_radix4_f64<>+0xC910(SB)/8, $8729
+DATA bitrev_size16384_radix4_f64<>+0xC918(SB)/8, $12825
+DATA bitrev_size16384_radix4_f64<>+0xC920(SB)/8, $1561
+DATA bitrev_size16384_radix4_f64<>+0xC928(SB)/8, $5657
+DATA bitrev_size16384_radix4_f64<>+0xC930(SB)/8, $9753
+DATA bitrev_size16384_radix4_f64<>+0xC938(SB)/8, $13849
+DATA bitrev_size16384_radix4_f64<>+0xC940(SB)/8, $2585
+DATA bitrev_size16384_radix4_f64<>+0xC948(SB)/8, $6681
+DATA bitrev_size16384_radix4_f64<>+0xC950(SB)/8, $10777
+DATA bitrev_size16384_radix4_f64<>+0xC958(SB)/8, $14873
+DATA bitrev_size16384_radix4_f64<>+0xC960(SB)/8, $3609
+DATA bitrev_size16384_radix4_f64<>+0xC968(SB)/8, $7705
+DATA bitrev_size16384_radix4_f64<>+0xC970(SB)/8, $11801
+DATA bitrev_size16384_radix4_f64<>+0xC978(SB)/8, $15897
+DATA bitrev_size16384_radix4_f64<>+0xC980(SB)/8, $793
+DATA bitrev_size16384_radix4_f64<>+0xC988(SB)/8, $4889
+DATA bitrev_size16384_radix4_f64<>+0xC990(SB)/8, $8985
+DATA bitrev_size16384_radix4_f64<>+0xC998(SB)/8, $13081
+DATA bitrev_size16384_radix4_f64<>+0xC9A0(SB)/8, $1817
+DATA bitrev_size16384_radix4_f64<>+0xC9A8(SB)/8, $5913
+DATA bitrev_size16384_radix4_f64<>+0xC9B0(SB)/8, $10009
+DATA bitrev_size16384_radix4_f64<>+0xC9B8(SB)/8, $14105
+DATA bitrev_size16384_radix4_f64<>+0xC9C0(SB)/8, $2841
+DATA bitrev_size16384_radix4_f64<>+0xC9C8(SB)/8, $6937
+DATA bitrev_size16384_radix4_f64<>+0xC9D0(SB)/8, $11033
+DATA bitrev_size16384_radix4_f64<>+0xC9D8(SB)/8, $15129
+DATA bitrev_size16384_radix4_f64<>+0xC9E0(SB)/8, $3865
+DATA bitrev_size16384_radix4_f64<>+0xC9E8(SB)/8, $7961
+DATA bitrev_size16384_radix4_f64<>+0xC9F0(SB)/8, $12057
+DATA bitrev_size16384_radix4_f64<>+0xC9F8(SB)/8, $16153
+DATA bitrev_size16384_radix4_f64<>+0xCA00(SB)/8, $89
+DATA bitrev_size16384_radix4_f64<>+0xCA08(SB)/8, $4185
+DATA bitrev_size16384_radix4_f64<>+0xCA10(SB)/8, $8281
+DATA bitrev_size16384_radix4_f64<>+0xCA18(SB)/8, $12377
+DATA bitrev_size16384_radix4_f64<>+0xCA20(SB)/8, $1113
+DATA bitrev_size16384_radix4_f64<>+0xCA28(SB)/8, $5209
+DATA bitrev_size16384_radix4_f64<>+0xCA30(SB)/8, $9305
+DATA bitrev_size16384_radix4_f64<>+0xCA38(SB)/8, $13401
+DATA bitrev_size16384_radix4_f64<>+0xCA40(SB)/8, $2137
+DATA bitrev_size16384_radix4_f64<>+0xCA48(SB)/8, $6233
+DATA bitrev_size16384_radix4_f64<>+0xCA50(SB)/8, $10329
+DATA bitrev_size16384_radix4_f64<>+0xCA58(SB)/8, $14425
+DATA bitrev_size16384_radix4_f64<>+0xCA60(SB)/8, $3161
+DATA bitrev_size16384_radix4_f64<>+0xCA68(SB)/8, $7257
+DATA bitrev_size16384_radix4_f64<>+0xCA70(SB)/8, $11353
+DATA bitrev_size16384_radix4_f64<>+0xCA78(SB)/8, $15449
+DATA bitrev_size16384_radix4_f64<>+0xCA80(SB)/8, $345
+DATA bitrev_size16384_radix4_f64<>+0xCA88(SB)/8, $4441
+DATA bitrev_size16384_radix4_f64<>+0xCA90(SB)/8, $8537
+DATA bitrev_size16384_radix4_f64<>+0xCA98(SB)/8, $12633
+DATA bitrev_size16384_radix4_f64<>+0xCAA0(SB)/8, $1369
+DATA bitrev_size16384_radix4_f64<>+0xCAA8(SB)/8, $5465
+DATA bitrev_size16384_radix4_f64<>+0xCAB0(SB)/8, $9561
+DATA bitrev_size16384_radix4_f64<>+0xCAB8(SB)/8, $13657
+DATA bitrev_size16384_radix4_f64<>+0xCAC0(SB)/8, $2393
+DATA bitrev_size16384_radix4_f64<>+0xCAC8(SB)/8, $6489
+DATA bitrev_size16384_radix4_f64<>+0xCAD0(SB)/8, $10585
+DATA bitrev_size16384_radix4_f64<>+0xCAD8(SB)/8, $14681
+DATA bitrev_size16384_radix4_f64<>+0xCAE0(SB)/8, $3417
+DATA bitrev_size16384_radix4_f64<>+0xCAE8(SB)/8, $7513
+DATA bitrev_size16384_radix4_f64<>+0xCAF0(SB)/8, $11609
+DATA bitrev_size16384_radix4_f64<>+0xCAF8(SB)/8, $15705
+DATA bitrev_size16384_radix4_f64<>+0xCB00(SB)/8, $601
+DATA bitrev_size16384_radix4_f64<>+0xCB08(SB)/8, $4697
+DATA bitrev_size16384_radix4_f64<>+0xCB10(SB)/8, $8793
+DATA bitrev_size16384_radix4_f64<>+0xCB18(SB)/8, $12889
+DATA bitrev_size16384_radix4_f64<>+0xCB20(SB)/8, $1625
+DATA bitrev_size16384_radix4_f64<>+0xCB28(SB)/8, $5721
+DATA bitrev_size16384_radix4_f64<>+0xCB30(SB)/8, $9817
+DATA bitrev_size16384_radix4_f64<>+0xCB38(SB)/8, $13913
+DATA bitrev_size16384_radix4_f64<>+0xCB40(SB)/8, $2649
+DATA bitrev_size16384_radix4_f64<>+0xCB48(SB)/8, $6745
+DATA bitrev_size16384_radix4_f64<>+0xCB50(SB)/8, $10841
+DATA bitrev_size16384_radix4_f64<>+0xCB58(SB)/8, $14937
+DATA bitrev_size16384_radix4_f64<>+0xCB60(SB)/8, $3673
+DATA bitrev_size16384_radix4_f64<>+0xCB68(SB)/8, $7769
+DATA bitrev_size16384_radix4_f64<>+0xCB70(SB)/8, $11865
+DATA bitrev_size16384_radix4_f64<>+0xCB78(SB)/8, $15961
+DATA bitrev_size16384_radix4_f64<>+0xCB80(SB)/8, $857
+DATA bitrev_size16384_radix4_f64<>+0xCB88(SB)/8, $4953
+DATA bitrev_size16384_radix4_f64<>+0xCB90(SB)/8, $9049
+DATA bitrev_size16384_radix4_f64<>+0xCB98(SB)/8, $13145
+DATA bitrev_size16384_radix4_f64<>+0xCBA0(SB)/8, $1881
+DATA bitrev_size16384_radix4_f64<>+0xCBA8(SB)/8, $5977
+DATA bitrev_size16384_radix4_f64<>+0xCBB0(SB)/8, $10073
+DATA bitrev_size16384_radix4_f64<>+0xCBB8(SB)/8, $14169
+DATA bitrev_size16384_radix4_f64<>+0xCBC0(SB)/8, $2905
+DATA bitrev_size16384_radix4_f64<>+0xCBC8(SB)/8, $7001
+DATA bitrev_size16384_radix4_f64<>+0xCBD0(SB)/8, $11097
+DATA bitrev_size16384_radix4_f64<>+0xCBD8(SB)/8, $15193
+DATA bitrev_size16384_radix4_f64<>+0xCBE0(SB)/8, $3929
+DATA bitrev_size16384_radix4_f64<>+0xCBE8(SB)/8, $8025
+DATA bitrev_size16384_radix4_f64<>+0xCBF0(SB)/8, $12121
+DATA bitrev_size16384_radix4_f64<>+0xCBF8(SB)/8, $16217
+DATA bitrev_size16384_radix4_f64<>+0xCC00(SB)/8, $153
+DATA bitrev_size16384_radix4_f64<>+0xCC08(SB)/8, $4249
+DATA bitrev_size16384_radix4_f64<>+0xCC10(SB)/8, $8345
+DATA bitrev_size16384_radix4_f64<>+0xCC18(SB)/8, $12441
+DATA bitrev_size16384_radix4_f64<>+0xCC20(SB)/8, $1177
+DATA bitrev_size16384_radix4_f64<>+0xCC28(SB)/8, $5273
+DATA bitrev_size16384_radix4_f64<>+0xCC30(SB)/8, $9369
+DATA bitrev_size16384_radix4_f64<>+0xCC38(SB)/8, $13465
+DATA bitrev_size16384_radix4_f64<>+0xCC40(SB)/8, $2201
+DATA bitrev_size16384_radix4_f64<>+0xCC48(SB)/8, $6297
+DATA bitrev_size16384_radix4_f64<>+0xCC50(SB)/8, $10393
+DATA bitrev_size16384_radix4_f64<>+0xCC58(SB)/8, $14489
+DATA bitrev_size16384_radix4_f64<>+0xCC60(SB)/8, $3225
+DATA bitrev_size16384_radix4_f64<>+0xCC68(SB)/8, $7321
+DATA bitrev_size16384_radix4_f64<>+0xCC70(SB)/8, $11417
+DATA bitrev_size16384_radix4_f64<>+0xCC78(SB)/8, $15513
+DATA bitrev_size16384_radix4_f64<>+0xCC80(SB)/8, $409
+DATA bitrev_size16384_radix4_f64<>+0xCC88(SB)/8, $4505
+DATA bitrev_size16384_radix4_f64<>+0xCC90(SB)/8, $8601
+DATA bitrev_size16384_radix4_f64<>+0xCC98(SB)/8, $12697
+DATA bitrev_size16384_radix4_f64<>+0xCCA0(SB)/8, $1433
+DATA bitrev_size16384_radix4_f64<>+0xCCA8(SB)/8, $5529
+DATA bitrev_size16384_radix4_f64<>+0xCCB0(SB)/8, $9625
+DATA bitrev_size16384_radix4_f64<>+0xCCB8(SB)/8, $13721
+DATA bitrev_size16384_radix4_f64<>+0xCCC0(SB)/8, $2457
+DATA bitrev_size16384_radix4_f64<>+0xCCC8(SB)/8, $6553
+DATA bitrev_size16384_radix4_f64<>+0xCCD0(SB)/8, $10649
+DATA bitrev_size16384_radix4_f64<>+0xCCD8(SB)/8, $14745
+DATA bitrev_size16384_radix4_f64<>+0xCCE0(SB)/8, $3481
+DATA bitrev_size16384_radix4_f64<>+0xCCE8(SB)/8, $7577
+DATA bitrev_size16384_radix4_f64<>+0xCCF0(SB)/8, $11673
+DATA bitrev_size16384_radix4_f64<>+0xCCF8(SB)/8, $15769
+DATA bitrev_size16384_radix4_f64<>+0xCD00(SB)/8, $665
+DATA bitrev_size16384_radix4_f64<>+0xCD08(SB)/8, $4761
+DATA bitrev_size16384_radix4_f64<>+0xCD10(SB)/8, $8857
+DATA bitrev_size16384_radix4_f64<>+0xCD18(SB)/8, $12953
+DATA bitrev_size16384_radix4_f64<>+0xCD20(SB)/8, $1689
+DATA bitrev_size16384_radix4_f64<>+0xCD28(SB)/8, $5785
+DATA bitrev_size16384_radix4_f64<>+0xCD30(SB)/8, $9881
+DATA bitrev_size16384_radix4_f64<>+0xCD38(SB)/8, $13977
+DATA bitrev_size16384_radix4_f64<>+0xCD40(SB)/8, $2713
+DATA bitrev_size16384_radix4_f64<>+0xCD48(SB)/8, $6809
+DATA bitrev_size16384_radix4_f64<>+0xCD50(SB)/8, $10905
+DATA bitrev_size16384_radix4_f64<>+0xCD58(SB)/8, $15001
+DATA bitrev_size16384_radix4_f64<>+0xCD60(SB)/8, $3737
+DATA bitrev_size16384_radix4_f64<>+0xCD68(SB)/8, $7833
+DATA bitrev_size16384_radix4_f64<>+0xCD70(SB)/8, $11929
+DATA bitrev_size16384_radix4_f64<>+0xCD78(SB)/8, $16025
+DATA bitrev_size16384_radix4_f64<>+0xCD80(SB)/8, $921
+DATA bitrev_size16384_radix4_f64<>+0xCD88(SB)/8, $5017
+DATA bitrev_size16384_radix4_f64<>+0xCD90(SB)/8, $9113
+DATA bitrev_size16384_radix4_f64<>+0xCD98(SB)/8, $13209
+DATA bitrev_size16384_radix4_f64<>+0xCDA0(SB)/8, $1945
+DATA bitrev_size16384_radix4_f64<>+0xCDA8(SB)/8, $6041
+DATA bitrev_size16384_radix4_f64<>+0xCDB0(SB)/8, $10137
+DATA bitrev_size16384_radix4_f64<>+0xCDB8(SB)/8, $14233
+DATA bitrev_size16384_radix4_f64<>+0xCDC0(SB)/8, $2969
+DATA bitrev_size16384_radix4_f64<>+0xCDC8(SB)/8, $7065
+DATA bitrev_size16384_radix4_f64<>+0xCDD0(SB)/8, $11161
+DATA bitrev_size16384_radix4_f64<>+0xCDD8(SB)/8, $15257
+DATA bitrev_size16384_radix4_f64<>+0xCDE0(SB)/8, $3993
+DATA bitrev_size16384_radix4_f64<>+0xCDE8(SB)/8, $8089
+DATA bitrev_size16384_radix4_f64<>+0xCDF0(SB)/8, $12185
+DATA bitrev_size16384_radix4_f64<>+0xCDF8(SB)/8, $16281
+DATA bitrev_size16384_radix4_f64<>+0xCE00(SB)/8, $217
+DATA bitrev_size16384_radix4_f64<>+0xCE08(SB)/8, $4313
+DATA bitrev_size16384_radix4_f64<>+0xCE10(SB)/8, $8409
+DATA bitrev_size16384_radix4_f64<>+0xCE18(SB)/8, $12505
+DATA bitrev_size16384_radix4_f64<>+0xCE20(SB)/8, $1241
+DATA bitrev_size16384_radix4_f64<>+0xCE28(SB)/8, $5337
+DATA bitrev_size16384_radix4_f64<>+0xCE30(SB)/8, $9433
+DATA bitrev_size16384_radix4_f64<>+0xCE38(SB)/8, $13529
+DATA bitrev_size16384_radix4_f64<>+0xCE40(SB)/8, $2265
+DATA bitrev_size16384_radix4_f64<>+0xCE48(SB)/8, $6361
+DATA bitrev_size16384_radix4_f64<>+0xCE50(SB)/8, $10457
+DATA bitrev_size16384_radix4_f64<>+0xCE58(SB)/8, $14553
+DATA bitrev_size16384_radix4_f64<>+0xCE60(SB)/8, $3289
+DATA bitrev_size16384_radix4_f64<>+0xCE68(SB)/8, $7385
+DATA bitrev_size16384_radix4_f64<>+0xCE70(SB)/8, $11481
+DATA bitrev_size16384_radix4_f64<>+0xCE78(SB)/8, $15577
+DATA bitrev_size16384_radix4_f64<>+0xCE80(SB)/8, $473
+DATA bitrev_size16384_radix4_f64<>+0xCE88(SB)/8, $4569
+DATA bitrev_size16384_radix4_f64<>+0xCE90(SB)/8, $8665
+DATA bitrev_size16384_radix4_f64<>+0xCE98(SB)/8, $12761
+DATA bitrev_size16384_radix4_f64<>+0xCEA0(SB)/8, $1497
+DATA bitrev_size16384_radix4_f64<>+0xCEA8(SB)/8, $5593
+DATA bitrev_size16384_radix4_f64<>+0xCEB0(SB)/8, $9689
+DATA bitrev_size16384_radix4_f64<>+0xCEB8(SB)/8, $13785
+DATA bitrev_size16384_radix4_f64<>+0xCEC0(SB)/8, $2521
+DATA bitrev_size16384_radix4_f64<>+0xCEC8(SB)/8, $6617
+DATA bitrev_size16384_radix4_f64<>+0xCED0(SB)/8, $10713
+DATA bitrev_size16384_radix4_f64<>+0xCED8(SB)/8, $14809
+DATA bitrev_size16384_radix4_f64<>+0xCEE0(SB)/8, $3545
+DATA bitrev_size16384_radix4_f64<>+0xCEE8(SB)/8, $7641
+DATA bitrev_size16384_radix4_f64<>+0xCEF0(SB)/8, $11737
+DATA bitrev_size16384_radix4_f64<>+0xCEF8(SB)/8, $15833
+DATA bitrev_size16384_radix4_f64<>+0xCF00(SB)/8, $729
+DATA bitrev_size16384_radix4_f64<>+0xCF08(SB)/8, $4825
+DATA bitrev_size16384_radix4_f64<>+0xCF10(SB)/8, $8921
+DATA bitrev_size16384_radix4_f64<>+0xCF18(SB)/8, $13017
+DATA bitrev_size16384_radix4_f64<>+0xCF20(SB)/8, $1753
+DATA bitrev_size16384_radix4_f64<>+0xCF28(SB)/8, $5849
+DATA bitrev_size16384_radix4_f64<>+0xCF30(SB)/8, $9945
+DATA bitrev_size16384_radix4_f64<>+0xCF38(SB)/8, $14041
+DATA bitrev_size16384_radix4_f64<>+0xCF40(SB)/8, $2777
+DATA bitrev_size16384_radix4_f64<>+0xCF48(SB)/8, $6873
+DATA bitrev_size16384_radix4_f64<>+0xCF50(SB)/8, $10969
+DATA bitrev_size16384_radix4_f64<>+0xCF58(SB)/8, $15065
+DATA bitrev_size16384_radix4_f64<>+0xCF60(SB)/8, $3801
+DATA bitrev_size16384_radix4_f64<>+0xCF68(SB)/8, $7897
+DATA bitrev_size16384_radix4_f64<>+0xCF70(SB)/8, $11993
+DATA bitrev_size16384_radix4_f64<>+0xCF78(SB)/8, $16089
+DATA bitrev_size16384_radix4_f64<>+0xCF80(SB)/8, $985
+DATA bitrev_size16384_radix4_f64<>+0xCF88(SB)/8, $5081
+DATA bitrev_size16384_radix4_f64<>+0xCF90(SB)/8, $9177
+DATA bitrev_size16384_radix4_f64<>+0xCF98(SB)/8, $13273
+DATA bitrev_size16384_radix4_f64<>+0xCFA0(SB)/8, $2009
+DATA bitrev_size16384_radix4_f64<>+0xCFA8(SB)/8, $6105
+DATA bitrev_size16384_radix4_f64<>+0xCFB0(SB)/8, $10201
+DATA bitrev_size16384_radix4_f64<>+0xCFB8(SB)/8, $14297
+DATA bitrev_size16384_radix4_f64<>+0xCFC0(SB)/8, $3033
+DATA bitrev_size16384_radix4_f64<>+0xCFC8(SB)/8, $7129
+DATA bitrev_size16384_radix4_f64<>+0xCFD0(SB)/8, $11225
+DATA bitrev_size16384_radix4_f64<>+0xCFD8(SB)/8, $15321
+DATA bitrev_size16384_radix4_f64<>+0xCFE0(SB)/8, $4057
+DATA bitrev_size16384_radix4_f64<>+0xCFE8(SB)/8, $8153
+DATA bitrev_size16384_radix4_f64<>+0xCFF0(SB)/8, $12249
+DATA bitrev_size16384_radix4_f64<>+0xCFF8(SB)/8, $16345
+DATA bitrev_size16384_radix4_f64<>+0xD000(SB)/8, $41
+DATA bitrev_size16384_radix4_f64<>+0xD008(SB)/8, $4137
+DATA bitrev_size16384_radix4_f64<>+0xD010(SB)/8, $8233
+DATA bitrev_size16384_radix4_f64<>+0xD018(SB)/8, $12329
+DATA bitrev_size16384_radix4_f64<>+0xD020(SB)/8, $1065
+DATA bitrev_size16384_radix4_f64<>+0xD028(SB)/8, $5161
+DATA bitrev_size16384_radix4_f64<>+0xD030(SB)/8, $9257
+DATA bitrev_size16384_radix4_f64<>+0xD038(SB)/8, $13353
+DATA bitrev_size16384_radix4_f64<>+0xD040(SB)/8, $2089
+DATA bitrev_size16384_radix4_f64<>+0xD048(SB)/8, $6185
+DATA bitrev_size16384_radix4_f64<>+0xD050(SB)/8, $10281
+DATA bitrev_size16384_radix4_f64<>+0xD058(SB)/8, $14377
+DATA bitrev_size16384_radix4_f64<>+0xD060(SB)/8, $3113
+DATA bitrev_size16384_radix4_f64<>+0xD068(SB)/8, $7209
+DATA bitrev_size16384_radix4_f64<>+0xD070(SB)/8, $11305
+DATA bitrev_size16384_radix4_f64<>+0xD078(SB)/8, $15401
+DATA bitrev_size16384_radix4_f64<>+0xD080(SB)/8, $297
+DATA bitrev_size16384_radix4_f64<>+0xD088(SB)/8, $4393
+DATA bitrev_size16384_radix4_f64<>+0xD090(SB)/8, $8489
+DATA bitrev_size16384_radix4_f64<>+0xD098(SB)/8, $12585
+DATA bitrev_size16384_radix4_f64<>+0xD0A0(SB)/8, $1321
+DATA bitrev_size16384_radix4_f64<>+0xD0A8(SB)/8, $5417
+DATA bitrev_size16384_radix4_f64<>+0xD0B0(SB)/8, $9513
+DATA bitrev_size16384_radix4_f64<>+0xD0B8(SB)/8, $13609
+DATA bitrev_size16384_radix4_f64<>+0xD0C0(SB)/8, $2345
+DATA bitrev_size16384_radix4_f64<>+0xD0C8(SB)/8, $6441
+DATA bitrev_size16384_radix4_f64<>+0xD0D0(SB)/8, $10537
+DATA bitrev_size16384_radix4_f64<>+0xD0D8(SB)/8, $14633
+DATA bitrev_size16384_radix4_f64<>+0xD0E0(SB)/8, $3369
+DATA bitrev_size16384_radix4_f64<>+0xD0E8(SB)/8, $7465
+DATA bitrev_size16384_radix4_f64<>+0xD0F0(SB)/8, $11561
+DATA bitrev_size16384_radix4_f64<>+0xD0F8(SB)/8, $15657
+DATA bitrev_size16384_radix4_f64<>+0xD100(SB)/8, $553
+DATA bitrev_size16384_radix4_f64<>+0xD108(SB)/8, $4649
+DATA bitrev_size16384_radix4_f64<>+0xD110(SB)/8, $8745
+DATA bitrev_size16384_radix4_f64<>+0xD118(SB)/8, $12841
+DATA bitrev_size16384_radix4_f64<>+0xD120(SB)/8, $1577
+DATA bitrev_size16384_radix4_f64<>+0xD128(SB)/8, $5673
+DATA bitrev_size16384_radix4_f64<>+0xD130(SB)/8, $9769
+DATA bitrev_size16384_radix4_f64<>+0xD138(SB)/8, $13865
+DATA bitrev_size16384_radix4_f64<>+0xD140(SB)/8, $2601
+DATA bitrev_size16384_radix4_f64<>+0xD148(SB)/8, $6697
+DATA bitrev_size16384_radix4_f64<>+0xD150(SB)/8, $10793
+DATA bitrev_size16384_radix4_f64<>+0xD158(SB)/8, $14889
+DATA bitrev_size16384_radix4_f64<>+0xD160(SB)/8, $3625
+DATA bitrev_size16384_radix4_f64<>+0xD168(SB)/8, $7721
+DATA bitrev_size16384_radix4_f64<>+0xD170(SB)/8, $11817
+DATA bitrev_size16384_radix4_f64<>+0xD178(SB)/8, $15913
+DATA bitrev_size16384_radix4_f64<>+0xD180(SB)/8, $809
+DATA bitrev_size16384_radix4_f64<>+0xD188(SB)/8, $4905
+DATA bitrev_size16384_radix4_f64<>+0xD190(SB)/8, $9001
+DATA bitrev_size16384_radix4_f64<>+0xD198(SB)/8, $13097
+DATA bitrev_size16384_radix4_f64<>+0xD1A0(SB)/8, $1833
+DATA bitrev_size16384_radix4_f64<>+0xD1A8(SB)/8, $5929
+DATA bitrev_size16384_radix4_f64<>+0xD1B0(SB)/8, $10025
+DATA bitrev_size16384_radix4_f64<>+0xD1B8(SB)/8, $14121
+DATA bitrev_size16384_radix4_f64<>+0xD1C0(SB)/8, $2857
+DATA bitrev_size16384_radix4_f64<>+0xD1C8(SB)/8, $6953
+DATA bitrev_size16384_radix4_f64<>+0xD1D0(SB)/8, $11049
+DATA bitrev_size16384_radix4_f64<>+0xD1D8(SB)/8, $15145
+DATA bitrev_size16384_radix4_f64<>+0xD1E0(SB)/8, $3881
+DATA bitrev_size16384_radix4_f64<>+0xD1E8(SB)/8, $7977
+DATA bitrev_size16384_radix4_f64<>+0xD1F0(SB)/8, $12073
+DATA bitrev_size16384_radix4_f64<>+0xD1F8(SB)/8, $16169
+DATA bitrev_size16384_radix4_f64<>+0xD200(SB)/8, $105
+DATA bitrev_size16384_radix4_f64<>+0xD208(SB)/8, $4201
+DATA bitrev_size16384_radix4_f64<>+0xD210(SB)/8, $8297
+DATA bitrev_size16384_radix4_f64<>+0xD218(SB)/8, $12393
+DATA bitrev_size16384_radix4_f64<>+0xD220(SB)/8, $1129
+DATA bitrev_size16384_radix4_f64<>+0xD228(SB)/8, $5225
+DATA bitrev_size16384_radix4_f64<>+0xD230(SB)/8, $9321
+DATA bitrev_size16384_radix4_f64<>+0xD238(SB)/8, $13417
+DATA bitrev_size16384_radix4_f64<>+0xD240(SB)/8, $2153
+DATA bitrev_size16384_radix4_f64<>+0xD248(SB)/8, $6249
+DATA bitrev_size16384_radix4_f64<>+0xD250(SB)/8, $10345
+DATA bitrev_size16384_radix4_f64<>+0xD258(SB)/8, $14441
+DATA bitrev_size16384_radix4_f64<>+0xD260(SB)/8, $3177
+DATA bitrev_size16384_radix4_f64<>+0xD268(SB)/8, $7273
+DATA bitrev_size16384_radix4_f64<>+0xD270(SB)/8, $11369
+DATA bitrev_size16384_radix4_f64<>+0xD278(SB)/8, $15465
+DATA bitrev_size16384_radix4_f64<>+0xD280(SB)/8, $361
+DATA bitrev_size16384_radix4_f64<>+0xD288(SB)/8, $4457
+DATA bitrev_size16384_radix4_f64<>+0xD290(SB)/8, $8553
+DATA bitrev_size16384_radix4_f64<>+0xD298(SB)/8, $12649
+DATA bitrev_size16384_radix4_f64<>+0xD2A0(SB)/8, $1385
+DATA bitrev_size16384_radix4_f64<>+0xD2A8(SB)/8, $5481
+DATA bitrev_size16384_radix4_f64<>+0xD2B0(SB)/8, $9577
+DATA bitrev_size16384_radix4_f64<>+0xD2B8(SB)/8, $13673
+DATA bitrev_size16384_radix4_f64<>+0xD2C0(SB)/8, $2409
+DATA bitrev_size16384_radix4_f64<>+0xD2C8(SB)/8, $6505
+DATA bitrev_size16384_radix4_f64<>+0xD2D0(SB)/8, $10601
+DATA bitrev_size16384_radix4_f64<>+0xD2D8(SB)/8, $14697
+DATA bitrev_size16384_radix4_f64<>+0xD2E0(SB)/8, $3433
+DATA bitrev_size16384_radix4_f64<>+0xD2E8(SB)/8, $7529
+DATA bitrev_size16384_radix4_f64<>+0xD2F0(SB)/8, $11625
+DATA bitrev_size16384_radix4_f64<>+0xD2F8(SB)/8, $15721
+DATA bitrev_size16384_radix4_f64<>+0xD300(SB)/8, $617
+DATA bitrev_size16384_radix4_f64<>+0xD308(SB)/8, $4713
+DATA bitrev_size16384_radix4_f64<>+0xD310(SB)/8, $8809
+DATA bitrev_size16384_radix4_f64<>+0xD318(SB)/8, $12905
+DATA bitrev_size16384_radix4_f64<>+0xD320(SB)/8, $1641
+DATA bitrev_size16384_radix4_f64<>+0xD328(SB)/8, $5737
+DATA bitrev_size16384_radix4_f64<>+0xD330(SB)/8, $9833
+DATA bitrev_size16384_radix4_f64<>+0xD338(SB)/8, $13929
+DATA bitrev_size16384_radix4_f64<>+0xD340(SB)/8, $2665
+DATA bitrev_size16384_radix4_f64<>+0xD348(SB)/8, $6761
+DATA bitrev_size16384_radix4_f64<>+0xD350(SB)/8, $10857
+DATA bitrev_size16384_radix4_f64<>+0xD358(SB)/8, $14953
+DATA bitrev_size16384_radix4_f64<>+0xD360(SB)/8, $3689
+DATA bitrev_size16384_radix4_f64<>+0xD368(SB)/8, $7785
+DATA bitrev_size16384_radix4_f64<>+0xD370(SB)/8, $11881
+DATA bitrev_size16384_radix4_f64<>+0xD378(SB)/8, $15977
+DATA bitrev_size16384_radix4_f64<>+0xD380(SB)/8, $873
+DATA bitrev_size16384_radix4_f64<>+0xD388(SB)/8, $4969
+DATA bitrev_size16384_radix4_f64<>+0xD390(SB)/8, $9065
+DATA bitrev_size16384_radix4_f64<>+0xD398(SB)/8, $13161
+DATA bitrev_size16384_radix4_f64<>+0xD3A0(SB)/8, $1897
+DATA bitrev_size16384_radix4_f64<>+0xD3A8(SB)/8, $5993
+DATA bitrev_size16384_radix4_f64<>+0xD3B0(SB)/8, $10089
+DATA bitrev_size16384_radix4_f64<>+0xD3B8(SB)/8, $14185
+DATA bitrev_size16384_radix4_f64<>+0xD3C0(SB)/8, $2921
+DATA bitrev_size16384_radix4_f64<>+0xD3C8(SB)/8, $7017
+DATA bitrev_size16384_radix4_f64<>+0xD3D0(SB)/8, $11113
+DATA bitrev_size16384_radix4_f64<>+0xD3D8(SB)/8, $15209
+DATA bitrev_size16384_radix4_f64<>+0xD3E0(SB)/8, $3945
+DATA bitrev_size16384_radix4_f64<>+0xD3E8(SB)/8, $8041
+DATA bitrev_size16384_radix4_f64<>+0xD3F0(SB)/8, $12137
+DATA bitrev_size16384_radix4_f64<>+0xD3F8(SB)/8, $16233
+DATA bitrev_size16384_radix4_f64<>+0xD400(SB)/8, $169
+DATA bitrev_size16384_radix4_f64<>+0xD408(SB)/8, $4265
+DATA bitrev_size16384_radix4_f64<>+0xD410(SB)/8, $8361
+DATA bitrev_size16384_radix4_f64<>+0xD418(SB)/8, $12457
+DATA bitrev_size16384_radix4_f64<>+0xD420(SB)/8, $1193
+DATA bitrev_size16384_radix4_f64<>+0xD428(SB)/8, $5289
+DATA bitrev_size16384_radix4_f64<>+0xD430(SB)/8, $9385
+DATA bitrev_size16384_radix4_f64<>+0xD438(SB)/8, $13481
+DATA bitrev_size16384_radix4_f64<>+0xD440(SB)/8, $2217
+DATA bitrev_size16384_radix4_f64<>+0xD448(SB)/8, $6313
+DATA bitrev_size16384_radix4_f64<>+0xD450(SB)/8, $10409
+DATA bitrev_size16384_radix4_f64<>+0xD458(SB)/8, $14505
+DATA bitrev_size16384_radix4_f64<>+0xD460(SB)/8, $3241
+DATA bitrev_size16384_radix4_f64<>+0xD468(SB)/8, $7337
+DATA bitrev_size16384_radix4_f64<>+0xD470(SB)/8, $11433
+DATA bitrev_size16384_radix4_f64<>+0xD478(SB)/8, $15529
+DATA bitrev_size16384_radix4_f64<>+0xD480(SB)/8, $425
+DATA bitrev_size16384_radix4_f64<>+0xD488(SB)/8, $4521
+DATA bitrev_size16384_radix4_f64<>+0xD490(SB)/8, $8617
+DATA bitrev_size16384_radix4_f64<>+0xD498(SB)/8, $12713
+DATA bitrev_size16384_radix4_f64<>+0xD4A0(SB)/8, $1449
+DATA bitrev_size16384_radix4_f64<>+0xD4A8(SB)/8, $5545
+DATA bitrev_size16384_radix4_f64<>+0xD4B0(SB)/8, $9641
+DATA bitrev_size16384_radix4_f64<>+0xD4B8(SB)/8, $13737
+DATA bitrev_size16384_radix4_f64<>+0xD4C0(SB)/8, $2473
+DATA bitrev_size16384_radix4_f64<>+0xD4C8(SB)/8, $6569
+DATA bitrev_size16384_radix4_f64<>+0xD4D0(SB)/8, $10665
+DATA bitrev_size16384_radix4_f64<>+0xD4D8(SB)/8, $14761
+DATA bitrev_size16384_radix4_f64<>+0xD4E0(SB)/8, $3497
+DATA bitrev_size16384_radix4_f64<>+0xD4E8(SB)/8, $7593
+DATA bitrev_size16384_radix4_f64<>+0xD4F0(SB)/8, $11689
+DATA bitrev_size16384_radix4_f64<>+0xD4F8(SB)/8, $15785
+DATA bitrev_size16384_radix4_f64<>+0xD500(SB)/8, $681
+DATA bitrev_size16384_radix4_f64<>+0xD508(SB)/8, $4777
+DATA bitrev_size16384_radix4_f64<>+0xD510(SB)/8, $8873
+DATA bitrev_size16384_radix4_f64<>+0xD518(SB)/8, $12969
+DATA bitrev_size16384_radix4_f64<>+0xD520(SB)/8, $1705
+DATA bitrev_size16384_radix4_f64<>+0xD528(SB)/8, $5801
+DATA bitrev_size16384_radix4_f64<>+0xD530(SB)/8, $9897
+DATA bitrev_size16384_radix4_f64<>+0xD538(SB)/8, $13993
+DATA bitrev_size16384_radix4_f64<>+0xD540(SB)/8, $2729
+DATA bitrev_size16384_radix4_f64<>+0xD548(SB)/8, $6825
+DATA bitrev_size16384_radix4_f64<>+0xD550(SB)/8, $10921
+DATA bitrev_size16384_radix4_f64<>+0xD558(SB)/8, $15017
+DATA bitrev_size16384_radix4_f64<>+0xD560(SB)/8, $3753
+DATA bitrev_size16384_radix4_f64<>+0xD568(SB)/8, $7849
+DATA bitrev_size16384_radix4_f64<>+0xD570(SB)/8, $11945
+DATA bitrev_size16384_radix4_f64<>+0xD578(SB)/8, $16041
+DATA bitrev_size16384_radix4_f64<>+0xD580(SB)/8, $937
+DATA bitrev_size16384_radix4_f64<>+0xD588(SB)/8, $5033
+DATA bitrev_size16384_radix4_f64<>+0xD590(SB)/8, $9129
+DATA bitrev_size16384_radix4_f64<>+0xD598(SB)/8, $13225
+DATA bitrev_size16384_radix4_f64<>+0xD5A0(SB)/8, $1961
+DATA bitrev_size16384_radix4_f64<>+0xD5A8(SB)/8, $6057
+DATA bitrev_size16384_radix4_f64<>+0xD5B0(SB)/8, $10153
+DATA bitrev_size16384_radix4_f64<>+0xD5B8(SB)/8, $14249
+DATA bitrev_size16384_radix4_f64<>+0xD5C0(SB)/8, $2985
+DATA bitrev_size16384_radix4_f64<>+0xD5C8(SB)/8, $7081
+DATA bitrev_size16384_radix4_f64<>+0xD5D0(SB)/8, $11177
+DATA bitrev_size16384_radix4_f64<>+0xD5D8(SB)/8, $15273
+DATA bitrev_size16384_radix4_f64<>+0xD5E0(SB)/8, $4009
+DATA bitrev_size16384_radix4_f64<>+0xD5E8(SB)/8, $8105
+DATA bitrev_size16384_radix4_f64<>+0xD5F0(SB)/8, $12201
+DATA bitrev_size16384_radix4_f64<>+0xD5F8(SB)/8, $16297
+DATA bitrev_size16384_radix4_f64<>+0xD600(SB)/8, $233
+DATA bitrev_size16384_radix4_f64<>+0xD608(SB)/8, $4329
+DATA bitrev_size16384_radix4_f64<>+0xD610(SB)/8, $8425
+DATA bitrev_size16384_radix4_f64<>+0xD618(SB)/8, $12521
+DATA bitrev_size16384_radix4_f64<>+0xD620(SB)/8, $1257
+DATA bitrev_size16384_radix4_f64<>+0xD628(SB)/8, $5353
+DATA bitrev_size16384_radix4_f64<>+0xD630(SB)/8, $9449
+DATA bitrev_size16384_radix4_f64<>+0xD638(SB)/8, $13545
+DATA bitrev_size16384_radix4_f64<>+0xD640(SB)/8, $2281
+DATA bitrev_size16384_radix4_f64<>+0xD648(SB)/8, $6377
+DATA bitrev_size16384_radix4_f64<>+0xD650(SB)/8, $10473
+DATA bitrev_size16384_radix4_f64<>+0xD658(SB)/8, $14569
+DATA bitrev_size16384_radix4_f64<>+0xD660(SB)/8, $3305
+DATA bitrev_size16384_radix4_f64<>+0xD668(SB)/8, $7401
+DATA bitrev_size16384_radix4_f64<>+0xD670(SB)/8, $11497
+DATA bitrev_size16384_radix4_f64<>+0xD678(SB)/8, $15593
+DATA bitrev_size16384_radix4_f64<>+0xD680(SB)/8, $489
+DATA bitrev_size16384_radix4_f64<>+0xD688(SB)/8, $4585
+DATA bitrev_size16384_radix4_f64<>+0xD690(SB)/8, $8681
+DATA bitrev_size16384_radix4_f64<>+0xD698(SB)/8, $12777
+DATA bitrev_size16384_radix4_f64<>+0xD6A0(SB)/8, $1513
+DATA bitrev_size16384_radix4_f64<>+0xD6A8(SB)/8, $5609
+DATA bitrev_size16384_radix4_f64<>+0xD6B0(SB)/8, $9705
+DATA bitrev_size16384_radix4_f64<>+0xD6B8(SB)/8, $13801
+DATA bitrev_size16384_radix4_f64<>+0xD6C0(SB)/8, $2537
+DATA bitrev_size16384_radix4_f64<>+0xD6C8(SB)/8, $6633
+DATA bitrev_size16384_radix4_f64<>+0xD6D0(SB)/8, $10729
+DATA bitrev_size16384_radix4_f64<>+0xD6D8(SB)/8, $14825
+DATA bitrev_size16384_radix4_f64<>+0xD6E0(SB)/8, $3561
+DATA bitrev_size16384_radix4_f64<>+0xD6E8(SB)/8, $7657
+DATA bitrev_size16384_radix4_f64<>+0xD6F0(SB)/8, $11753
+DATA bitrev_size16384_radix4_f64<>+0xD6F8(SB)/8, $15849
+DATA bitrev_size16384_radix4_f64<>+0xD700(SB)/8, $745
+DATA bitrev_size16384_radix4_f64<>+0xD708(SB)/8, $4841
+DATA bitrev_size16384_radix4_f64<>+0xD710(SB)/8, $8937
+DATA bitrev_size16384_radix4_f64<>+0xD718(SB)/8, $13033
+DATA bitrev_size16384_radix4_f64<>+0xD720(SB)/8, $1769
+DATA bitrev_size16384_radix4_f64<>+0xD728(SB)/8, $5865
+DATA bitrev_size16384_radix4_f64<>+0xD730(SB)/8, $9961
+DATA bitrev_size16384_radix4_f64<>+0xD738(SB)/8, $14057
+DATA bitrev_size16384_radix4_f64<>+0xD740(SB)/8, $2793
+DATA bitrev_size16384_radix4_f64<>+0xD748(SB)/8, $6889
+DATA bitrev_size16384_radix4_f64<>+0xD750(SB)/8, $10985
+DATA bitrev_size16384_radix4_f64<>+0xD758(SB)/8, $15081
+DATA bitrev_size16384_radix4_f64<>+0xD760(SB)/8, $3817
+DATA bitrev_size16384_radix4_f64<>+0xD768(SB)/8, $7913
+DATA bitrev_size16384_radix4_f64<>+0xD770(SB)/8, $12009
+DATA bitrev_size16384_radix4_f64<>+0xD778(SB)/8, $16105
+DATA bitrev_size16384_radix4_f64<>+0xD780(SB)/8, $1001
+DATA bitrev_size16384_radix4_f64<>+0xD788(SB)/8, $5097
+DATA bitrev_size16384_radix4_f64<>+0xD790(SB)/8, $9193
+DATA bitrev_size16384_radix4_f64<>+0xD798(SB)/8, $13289
+DATA bitrev_size16384_radix4_f64<>+0xD7A0(SB)/8, $2025
+DATA bitrev_size16384_radix4_f64<>+0xD7A8(SB)/8, $6121
+DATA bitrev_size16384_radix4_f64<>+0xD7B0(SB)/8, $10217
+DATA bitrev_size16384_radix4_f64<>+0xD7B8(SB)/8, $14313
+DATA bitrev_size16384_radix4_f64<>+0xD7C0(SB)/8, $3049
+DATA bitrev_size16384_radix4_f64<>+0xD7C8(SB)/8, $7145
+DATA bitrev_size16384_radix4_f64<>+0xD7D0(SB)/8, $11241
+DATA bitrev_size16384_radix4_f64<>+0xD7D8(SB)/8, $15337
+DATA bitrev_size16384_radix4_f64<>+0xD7E0(SB)/8, $4073
+DATA bitrev_size16384_radix4_f64<>+0xD7E8(SB)/8, $8169
+DATA bitrev_size16384_radix4_f64<>+0xD7F0(SB)/8, $12265
+DATA bitrev_size16384_radix4_f64<>+0xD7F8(SB)/8, $16361
+DATA bitrev_size16384_radix4_f64<>+0xD800(SB)/8, $57
+DATA bitrev_size16384_radix4_f64<>+0xD808(SB)/8, $4153
+DATA bitrev_size16384_radix4_f64<>+0xD810(SB)/8, $8249
+DATA bitrev_size16384_radix4_f64<>+0xD818(SB)/8, $12345
+DATA bitrev_size16384_radix4_f64<>+0xD820(SB)/8, $1081
+DATA bitrev_size16384_radix4_f64<>+0xD828(SB)/8, $5177
+DATA bitrev_size16384_radix4_f64<>+0xD830(SB)/8, $9273
+DATA bitrev_size16384_radix4_f64<>+0xD838(SB)/8, $13369
+DATA bitrev_size16384_radix4_f64<>+0xD840(SB)/8, $2105
+DATA bitrev_size16384_radix4_f64<>+0xD848(SB)/8, $6201
+DATA bitrev_size16384_radix4_f64<>+0xD850(SB)/8, $10297
+DATA bitrev_size16384_radix4_f64<>+0xD858(SB)/8, $14393
+DATA bitrev_size16384_radix4_f64<>+0xD860(SB)/8, $3129
+DATA bitrev_size16384_radix4_f64<>+0xD868(SB)/8, $7225
+DATA bitrev_size16384_radix4_f64<>+0xD870(SB)/8, $11321
+DATA bitrev_size16384_radix4_f64<>+0xD878(SB)/8, $15417
+DATA bitrev_size16384_radix4_f64<>+0xD880(SB)/8, $313
+DATA bitrev_size16384_radix4_f64<>+0xD888(SB)/8, $4409
+DATA bitrev_size16384_radix4_f64<>+0xD890(SB)/8, $8505
+DATA bitrev_size16384_radix4_f64<>+0xD898(SB)/8, $12601
+DATA bitrev_size16384_radix4_f64<>+0xD8A0(SB)/8, $1337
+DATA bitrev_size16384_radix4_f64<>+0xD8A8(SB)/8, $5433
+DATA bitrev_size16384_radix4_f64<>+0xD8B0(SB)/8, $9529
+DATA bitrev_size16384_radix4_f64<>+0xD8B8(SB)/8, $13625
+DATA bitrev_size16384_radix4_f64<>+0xD8C0(SB)/8, $2361
+DATA bitrev_size16384_radix4_f64<>+0xD8C8(SB)/8, $6457
+DATA bitrev_size16384_radix4_f64<>+0xD8D0(SB)/8, $10553
+DATA bitrev_size16384_radix4_f64<>+0xD8D8(SB)/8, $14649
+DATA bitrev_size16384_radix4_f64<>+0xD8E0(SB)/8, $3385
+DATA bitrev_size16384_radix4_f64<>+0xD8E8(SB)/8, $7481
+DATA bitrev_size16384_radix4_f64<>+0xD8F0(SB)/8, $11577
+DATA bitrev_size16384_radix4_f64<>+0xD8F8(SB)/8, $15673
+DATA bitrev_size16384_radix4_f64<>+0xD900(SB)/8, $569
+DATA bitrev_size16384_radix4_f64<>+0xD908(SB)/8, $4665
+DATA bitrev_size16384_radix4_f64<>+0xD910(SB)/8, $8761
+DATA bitrev_size16384_radix4_f64<>+0xD918(SB)/8, $12857
+DATA bitrev_size16384_radix4_f64<>+0xD920(SB)/8, $1593
+DATA bitrev_size16384_radix4_f64<>+0xD928(SB)/8, $5689
+DATA bitrev_size16384_radix4_f64<>+0xD930(SB)/8, $9785
+DATA bitrev_size16384_radix4_f64<>+0xD938(SB)/8, $13881
+DATA bitrev_size16384_radix4_f64<>+0xD940(SB)/8, $2617
+DATA bitrev_size16384_radix4_f64<>+0xD948(SB)/8, $6713
+DATA bitrev_size16384_radix4_f64<>+0xD950(SB)/8, $10809
+DATA bitrev_size16384_radix4_f64<>+0xD958(SB)/8, $14905
+DATA bitrev_size16384_radix4_f64<>+0xD960(SB)/8, $3641
+DATA bitrev_size16384_radix4_f64<>+0xD968(SB)/8, $7737
+DATA bitrev_size16384_radix4_f64<>+0xD970(SB)/8, $11833
+DATA bitrev_size16384_radix4_f64<>+0xD978(SB)/8, $15929
+DATA bitrev_size16384_radix4_f64<>+0xD980(SB)/8, $825
+DATA bitrev_size16384_radix4_f64<>+0xD988(SB)/8, $4921
+DATA bitrev_size16384_radix4_f64<>+0xD990(SB)/8, $9017
+DATA bitrev_size16384_radix4_f64<>+0xD998(SB)/8, $13113
+DATA bitrev_size16384_radix4_f64<>+0xD9A0(SB)/8, $1849
+DATA bitrev_size16384_radix4_f64<>+0xD9A8(SB)/8, $5945
+DATA bitrev_size16384_radix4_f64<>+0xD9B0(SB)/8, $10041
+DATA bitrev_size16384_radix4_f64<>+0xD9B8(SB)/8, $14137
+DATA bitrev_size16384_radix4_f64<>+0xD9C0(SB)/8, $2873
+DATA bitrev_size16384_radix4_f64<>+0xD9C8(SB)/8, $6969
+DATA bitrev_size16384_radix4_f64<>+0xD9D0(SB)/8, $11065
+DATA bitrev_size16384_radix4_f64<>+0xD9D8(SB)/8, $15161
+DATA bitrev_size16384_radix4_f64<>+0xD9E0(SB)/8, $3897
+DATA bitrev_size16384_radix4_f64<>+0xD9E8(SB)/8, $7993
+DATA bitrev_size16384_radix4_f64<>+0xD9F0(SB)/8, $12089
+DATA bitrev_size16384_radix4_f64<>+0xD9F8(SB)/8, $16185
+DATA bitrev_size16384_radix4_f64<>+0xDA00(SB)/8, $121
+DATA bitrev_size16384_radix4_f64<>+0xDA08(SB)/8, $4217
+DATA bitrev_size16384_radix4_f64<>+0xDA10(SB)/8, $8313
+DATA bitrev_size16384_radix4_f64<>+0xDA18(SB)/8, $12409
+DATA bitrev_size16384_radix4_f64<>+0xDA20(SB)/8, $1145
+DATA bitrev_size16384_radix4_f64<>+0xDA28(SB)/8, $5241
+DATA bitrev_size16384_radix4_f64<>+0xDA30(SB)/8, $9337
+DATA bitrev_size16384_radix4_f64<>+0xDA38(SB)/8, $13433
+DATA bitrev_size16384_radix4_f64<>+0xDA40(SB)/8, $2169
+DATA bitrev_size16384_radix4_f64<>+0xDA48(SB)/8, $6265
+DATA bitrev_size16384_radix4_f64<>+0xDA50(SB)/8, $10361
+DATA bitrev_size16384_radix4_f64<>+0xDA58(SB)/8, $14457
+DATA bitrev_size16384_radix4_f64<>+0xDA60(SB)/8, $3193
+DATA bitrev_size16384_radix4_f64<>+0xDA68(SB)/8, $7289
+DATA bitrev_size16384_radix4_f64<>+0xDA70(SB)/8, $11385
+DATA bitrev_size16384_radix4_f64<>+0xDA78(SB)/8, $15481
+DATA bitrev_size16384_radix4_f64<>+0xDA80(SB)/8, $377
+DATA bitrev_size16384_radix4_f64<>+0xDA88(SB)/8, $4473
+DATA bitrev_size16384_radix4_f64<>+0xDA90(SB)/8, $8569
+DATA bitrev_size16384_radix4_f64<>+0xDA98(SB)/8, $12665
+DATA bitrev_size16384_radix4_f64<>+0xDAA0(SB)/8, $1401
+DATA bitrev_size16384_radix4_f64<>+0xDAA8(SB)/8, $5497
+DATA bitrev_size16384_radix4_f64<>+0xDAB0(SB)/8, $9593
+DATA bitrev_size16384_radix4_f64<>+0xDAB8(SB)/8, $13689
+DATA bitrev_size16384_radix4_f64<>+0xDAC0(SB)/8, $2425
+DATA bitrev_size16384_radix4_f64<>+0xDAC8(SB)/8, $6521
+DATA bitrev_size16384_radix4_f64<>+0xDAD0(SB)/8, $10617
+DATA bitrev_size16384_radix4_f64<>+0xDAD8(SB)/8, $14713
+DATA bitrev_size16384_radix4_f64<>+0xDAE0(SB)/8, $3449
+DATA bitrev_size16384_radix4_f64<>+0xDAE8(SB)/8, $7545
+DATA bitrev_size16384_radix4_f64<>+0xDAF0(SB)/8, $11641
+DATA bitrev_size16384_radix4_f64<>+0xDAF8(SB)/8, $15737
+DATA bitrev_size16384_radix4_f64<>+0xDB00(SB)/8, $633
+DATA bitrev_size16384_radix4_f64<>+0xDB08(SB)/8, $4729
+DATA bitrev_size16384_radix4_f64<>+0xDB10(SB)/8, $8825
+DATA bitrev_size16384_radix4_f64<>+0xDB18(SB)/8, $12921
+DATA bitrev_size16384_radix4_f64<>+0xDB20(SB)/8, $1657
+DATA bitrev_size16384_radix4_f64<>+0xDB28(SB)/8, $5753
+DATA bitrev_size16384_radix4_f64<>+0xDB30(SB)/8, $9849
+DATA bitrev_size16384_radix4_f64<>+0xDB38(SB)/8, $13945
+DATA bitrev_size16384_radix4_f64<>+0xDB40(SB)/8, $2681
+DATA bitrev_size16384_radix4_f64<>+0xDB48(SB)/8, $6777
+DATA bitrev_size16384_radix4_f64<>+0xDB50(SB)/8, $10873
+DATA bitrev_size16384_radix4_f64<>+0xDB58(SB)/8, $14969
+DATA bitrev_size16384_radix4_f64<>+0xDB60(SB)/8, $3705
+DATA bitrev_size16384_radix4_f64<>+0xDB68(SB)/8, $7801
+DATA bitrev_size16384_radix4_f64<>+0xDB70(SB)/8, $11897
+DATA bitrev_size16384_radix4_f64<>+0xDB78(SB)/8, $15993
+DATA bitrev_size16384_radix4_f64<>+0xDB80(SB)/8, $889
+DATA bitrev_size16384_radix4_f64<>+0xDB88(SB)/8, $4985
+DATA bitrev_size16384_radix4_f64<>+0xDB90(SB)/8, $9081
+DATA bitrev_size16384_radix4_f64<>+0xDB98(SB)/8, $13177
+DATA bitrev_size16384_radix4_f64<>+0xDBA0(SB)/8, $1913
+DATA bitrev_size16384_radix4_f64<>+0xDBA8(SB)/8, $6009
+DATA bitrev_size16384_radix4_f64<>+0xDBB0(SB)/8, $10105
+DATA bitrev_size16384_radix4_f64<>+0xDBB8(SB)/8, $14201
+DATA bitrev_size16384_radix4_f64<>+0xDBC0(SB)/8, $2937
+DATA bitrev_size16384_radix4_f64<>+0xDBC8(SB)/8, $7033
+DATA bitrev_size16384_radix4_f64<>+0xDBD0(SB)/8, $11129
+DATA bitrev_size16384_radix4_f64<>+0xDBD8(SB)/8, $15225
+DATA bitrev_size16384_radix4_f64<>+0xDBE0(SB)/8, $3961
+DATA bitrev_size16384_radix4_f64<>+0xDBE8(SB)/8, $8057
+DATA bitrev_size16384_radix4_f64<>+0xDBF0(SB)/8, $12153
+DATA bitrev_size16384_radix4_f64<>+0xDBF8(SB)/8, $16249
+DATA bitrev_size16384_radix4_f64<>+0xDC00(SB)/8, $185
+DATA bitrev_size16384_radix4_f64<>+0xDC08(SB)/8, $4281
+DATA bitrev_size16384_radix4_f64<>+0xDC10(SB)/8, $8377
+DATA bitrev_size16384_radix4_f64<>+0xDC18(SB)/8, $12473
+DATA bitrev_size16384_radix4_f64<>+0xDC20(SB)/8, $1209
+DATA bitrev_size16384_radix4_f64<>+0xDC28(SB)/8, $5305
+DATA bitrev_size16384_radix4_f64<>+0xDC30(SB)/8, $9401
+DATA bitrev_size16384_radix4_f64<>+0xDC38(SB)/8, $13497
+DATA bitrev_size16384_radix4_f64<>+0xDC40(SB)/8, $2233
+DATA bitrev_size16384_radix4_f64<>+0xDC48(SB)/8, $6329
+DATA bitrev_size16384_radix4_f64<>+0xDC50(SB)/8, $10425
+DATA bitrev_size16384_radix4_f64<>+0xDC58(SB)/8, $14521
+DATA bitrev_size16384_radix4_f64<>+0xDC60(SB)/8, $3257
+DATA bitrev_size16384_radix4_f64<>+0xDC68(SB)/8, $7353
+DATA bitrev_size16384_radix4_f64<>+0xDC70(SB)/8, $11449
+DATA bitrev_size16384_radix4_f64<>+0xDC78(SB)/8, $15545
+DATA bitrev_size16384_radix4_f64<>+0xDC80(SB)/8, $441
+DATA bitrev_size16384_radix4_f64<>+0xDC88(SB)/8, $4537
+DATA bitrev_size16384_radix4_f64<>+0xDC90(SB)/8, $8633
+DATA bitrev_size16384_radix4_f64<>+0xDC98(SB)/8, $12729
+DATA bitrev_size16384_radix4_f64<>+0xDCA0(SB)/8, $1465
+DATA bitrev_size16384_radix4_f64<>+0xDCA8(SB)/8, $5561
+DATA bitrev_size16384_radix4_f64<>+0xDCB0(SB)/8, $9657
+DATA bitrev_size16384_radix4_f64<>+0xDCB8(SB)/8, $13753
+DATA bitrev_size16384_radix4_f64<>+0xDCC0(SB)/8, $2489
+DATA bitrev_size16384_radix4_f64<>+0xDCC8(SB)/8, $6585
+DATA bitrev_size16384_radix4_f64<>+0xDCD0(SB)/8, $10681
+DATA bitrev_size16384_radix4_f64<>+0xDCD8(SB)/8, $14777
+DATA bitrev_size16384_radix4_f64<>+0xDCE0(SB)/8, $3513
+DATA bitrev_size16384_radix4_f64<>+0xDCE8(SB)/8, $7609
+DATA bitrev_size16384_radix4_f64<>+0xDCF0(SB)/8, $11705
+DATA bitrev_size16384_radix4_f64<>+0xDCF8(SB)/8, $15801
+DATA bitrev_size16384_radix4_f64<>+0xDD00(SB)/8, $697
+DATA bitrev_size16384_radix4_f64<>+0xDD08(SB)/8, $4793
+DATA bitrev_size16384_radix4_f64<>+0xDD10(SB)/8, $8889
+DATA bitrev_size16384_radix4_f64<>+0xDD18(SB)/8, $12985
+DATA bitrev_size16384_radix4_f64<>+0xDD20(SB)/8, $1721
+DATA bitrev_size16384_radix4_f64<>+0xDD28(SB)/8, $5817
+DATA bitrev_size16384_radix4_f64<>+0xDD30(SB)/8, $9913
+DATA bitrev_size16384_radix4_f64<>+0xDD38(SB)/8, $14009
+DATA bitrev_size16384_radix4_f64<>+0xDD40(SB)/8, $2745
+DATA bitrev_size16384_radix4_f64<>+0xDD48(SB)/8, $6841
+DATA bitrev_size16384_radix4_f64<>+0xDD50(SB)/8, $10937
+DATA bitrev_size16384_radix4_f64<>+0xDD58(SB)/8, $15033
+DATA bitrev_size16384_radix4_f64<>+0xDD60(SB)/8, $3769
+DATA bitrev_size16384_radix4_f64<>+0xDD68(SB)/8, $7865
+DATA bitrev_size16384_radix4_f64<>+0xDD70(SB)/8, $11961
+DATA bitrev_size16384_radix4_f64<>+0xDD78(SB)/8, $16057
+DATA bitrev_size16384_radix4_f64<>+0xDD80(SB)/8, $953
+DATA bitrev_size16384_radix4_f64<>+0xDD88(SB)/8, $5049
+DATA bitrev_size16384_radix4_f64<>+0xDD90(SB)/8, $9145
+DATA bitrev_size16384_radix4_f64<>+0xDD98(SB)/8, $13241
+DATA bitrev_size16384_radix4_f64<>+0xDDA0(SB)/8, $1977
+DATA bitrev_size16384_radix4_f64<>+0xDDA8(SB)/8, $6073
+DATA bitrev_size16384_radix4_f64<>+0xDDB0(SB)/8, $10169
+DATA bitrev_size16384_radix4_f64<>+0xDDB8(SB)/8, $14265
+DATA bitrev_size16384_radix4_f64<>+0xDDC0(SB)/8, $3001
+DATA bitrev_size16384_radix4_f64<>+0xDDC8(SB)/8, $7097
+DATA bitrev_size16384_radix4_f64<>+0xDDD0(SB)/8, $11193
+DATA bitrev_size16384_radix4_f64<>+0xDDD8(SB)/8, $15289
+DATA bitrev_size16384_radix4_f64<>+0xDDE0(SB)/8, $4025
+DATA bitrev_size16384_radix4_f64<>+0xDDE8(SB)/8, $8121
+DATA bitrev_size16384_radix4_f64<>+0xDDF0(SB)/8, $12217
+DATA bitrev_size16384_radix4_f64<>+0xDDF8(SB)/8, $16313
+DATA bitrev_size16384_radix4_f64<>+0xDE00(SB)/8, $249
+DATA bitrev_size16384_radix4_f64<>+0xDE08(SB)/8, $4345
+DATA bitrev_size16384_radix4_f64<>+0xDE10(SB)/8, $8441
+DATA bitrev_size16384_radix4_f64<>+0xDE18(SB)/8, $12537
+DATA bitrev_size16384_radix4_f64<>+0xDE20(SB)/8, $1273
+DATA bitrev_size16384_radix4_f64<>+0xDE28(SB)/8, $5369
+DATA bitrev_size16384_radix4_f64<>+0xDE30(SB)/8, $9465
+DATA bitrev_size16384_radix4_f64<>+0xDE38(SB)/8, $13561
+DATA bitrev_size16384_radix4_f64<>+0xDE40(SB)/8, $2297
+DATA bitrev_size16384_radix4_f64<>+0xDE48(SB)/8, $6393
+DATA bitrev_size16384_radix4_f64<>+0xDE50(SB)/8, $10489
+DATA bitrev_size16384_radix4_f64<>+0xDE58(SB)/8, $14585
+DATA bitrev_size16384_radix4_f64<>+0xDE60(SB)/8, $3321
+DATA bitrev_size16384_radix4_f64<>+0xDE68(SB)/8, $7417
+DATA bitrev_size16384_radix4_f64<>+0xDE70(SB)/8, $11513
+DATA bitrev_size16384_radix4_f64<>+0xDE78(SB)/8, $15609
+DATA bitrev_size16384_radix4_f64<>+0xDE80(SB)/8, $505
+DATA bitrev_size16384_radix4_f64<>+0xDE88(SB)/8, $4601
+DATA bitrev_size16384_radix4_f64<>+0xDE90(SB)/8, $8697
+DATA bitrev_size16384_radix4_f64<>+0xDE98(SB)/8, $12793
+DATA bitrev_size16384_radix4_f64<>+0xDEA0(SB)/8, $1529
+DATA bitrev_size16384_radix4_f64<>+0xDEA8(SB)/8, $5625
+DATA bitrev_size16384_radix4_f64<>+0xDEB0(SB)/8, $9721
+DATA bitrev_size16384_radix4_f64<>+0xDEB8(SB)/8, $13817
+DATA bitrev_size16384_radix4_f64<>+0xDEC0(SB)/8, $2553
+DATA bitrev_size16384_radix4_f64<>+0xDEC8(SB)/8, $6649
+DATA bitrev_size16384_radix4_f64<>+0xDED0(SB)/8, $10745
+DATA bitrev_size16384_radix4_f64<>+0xDED8(SB)/8, $14841
+DATA bitrev_size16384_radix4_f64<>+0xDEE0(SB)/8, $3577
+DATA bitrev_size16384_radix4_f64<>+0xDEE8(SB)/8, $7673
+DATA bitrev_size16384_radix4_f64<>+0xDEF0(SB)/8, $11769
+DATA bitrev_size16384_radix4_f64<>+0xDEF8(SB)/8, $15865
+DATA bitrev_size16384_radix4_f64<>+0xDF00(SB)/8, $761
+DATA bitrev_size16384_radix4_f64<>+0xDF08(SB)/8, $4857
+DATA bitrev_size16384_radix4_f64<>+0xDF10(SB)/8, $8953
+DATA bitrev_size16384_radix4_f64<>+0xDF18(SB)/8, $13049
+DATA bitrev_size16384_radix4_f64<>+0xDF20(SB)/8, $1785
+DATA bitrev_size16384_radix4_f64<>+0xDF28(SB)/8, $5881
+DATA bitrev_size16384_radix4_f64<>+0xDF30(SB)/8, $9977
+DATA bitrev_size16384_radix4_f64<>+0xDF38(SB)/8, $14073
+DATA bitrev_size16384_radix4_f64<>+0xDF40(SB)/8, $2809
+DATA bitrev_size16384_radix4_f64<>+0xDF48(SB)/8, $6905
+DATA bitrev_size16384_radix4_f64<>+0xDF50(SB)/8, $11001
+DATA bitrev_size16384_radix4_f64<>+0xDF58(SB)/8, $15097
+DATA bitrev_size16384_radix4_f64<>+0xDF60(SB)/8, $3833
+DATA bitrev_size16384_radix4_f64<>+0xDF68(SB)/8, $7929
+DATA bitrev_size16384_radix4_f64<>+0xDF70(SB)/8, $12025
+DATA bitrev_size16384_radix4_f64<>+0xDF78(SB)/8, $16121
+DATA bitrev_size16384_radix4_f64<>+0xDF80(SB)/8, $1017
+DATA bitrev_size16384_radix4_f64<>+0xDF88(SB)/8, $5113
+DATA bitrev_size16384_radix4_f64<>+0xDF90(SB)/8, $9209
+DATA bitrev_size16384_radix4_f64<>+0xDF98(SB)/8, $13305
+DATA bitrev_size16384_radix4_f64<>+0xDFA0(SB)/8, $2041
+DATA bitrev_size16384_radix4_f64<>+0xDFA8(SB)/8, $6137
+DATA bitrev_size16384_radix4_f64<>+0xDFB0(SB)/8, $10233
+DATA bitrev_size16384_radix4_f64<>+0xDFB8(SB)/8, $14329
+DATA bitrev_size16384_radix4_f64<>+0xDFC0(SB)/8, $3065
+DATA bitrev_size16384_radix4_f64<>+0xDFC8(SB)/8, $7161
+DATA bitrev_size16384_radix4_f64<>+0xDFD0(SB)/8, $11257
+DATA bitrev_size16384_radix4_f64<>+0xDFD8(SB)/8, $15353
+DATA bitrev_size16384_radix4_f64<>+0xDFE0(SB)/8, $4089
+DATA bitrev_size16384_radix4_f64<>+0xDFE8(SB)/8, $8185
+DATA bitrev_size16384_radix4_f64<>+0xDFF0(SB)/8, $12281
+DATA bitrev_size16384_radix4_f64<>+0xDFF8(SB)/8, $16377
+DATA bitrev_size16384_radix4_f64<>+0xE000(SB)/8, $13
+DATA bitrev_size16384_radix4_f64<>+0xE008(SB)/8, $4109
+DATA bitrev_size16384_radix4_f64<>+0xE010(SB)/8, $8205
+DATA bitrev_size16384_radix4_f64<>+0xE018(SB)/8, $12301
+DATA bitrev_size16384_radix4_f64<>+0xE020(SB)/8, $1037
+DATA bitrev_size16384_radix4_f64<>+0xE028(SB)/8, $5133
+DATA bitrev_size16384_radix4_f64<>+0xE030(SB)/8, $9229
+DATA bitrev_size16384_radix4_f64<>+0xE038(SB)/8, $13325
+DATA bitrev_size16384_radix4_f64<>+0xE040(SB)/8, $2061
+DATA bitrev_size16384_radix4_f64<>+0xE048(SB)/8, $6157
+DATA bitrev_size16384_radix4_f64<>+0xE050(SB)/8, $10253
+DATA bitrev_size16384_radix4_f64<>+0xE058(SB)/8, $14349
+DATA bitrev_size16384_radix4_f64<>+0xE060(SB)/8, $3085
+DATA bitrev_size16384_radix4_f64<>+0xE068(SB)/8, $7181
+DATA bitrev_size16384_radix4_f64<>+0xE070(SB)/8, $11277
+DATA bitrev_size16384_radix4_f64<>+0xE078(SB)/8, $15373
+DATA bitrev_size16384_radix4_f64<>+0xE080(SB)/8, $269
+DATA bitrev_size16384_radix4_f64<>+0xE088(SB)/8, $4365
+DATA bitrev_size16384_radix4_f64<>+0xE090(SB)/8, $8461
+DATA bitrev_size16384_radix4_f64<>+0xE098(SB)/8, $12557
+DATA bitrev_size16384_radix4_f64<>+0xE0A0(SB)/8, $1293
+DATA bitrev_size16384_radix4_f64<>+0xE0A8(SB)/8, $5389
+DATA bitrev_size16384_radix4_f64<>+0xE0B0(SB)/8, $9485
+DATA bitrev_size16384_radix4_f64<>+0xE0B8(SB)/8, $13581
+DATA bitrev_size16384_radix4_f64<>+0xE0C0(SB)/8, $2317
+DATA bitrev_size16384_radix4_f64<>+0xE0C8(SB)/8, $6413
+DATA bitrev_size16384_radix4_f64<>+0xE0D0(SB)/8, $10509
+DATA bitrev_size16384_radix4_f64<>+0xE0D8(SB)/8, $14605
+DATA bitrev_size16384_radix4_f64<>+0xE0E0(SB)/8, $3341
+DATA bitrev_size16384_radix4_f64<>+0xE0E8(SB)/8, $7437
+DATA bitrev_size16384_radix4_f64<>+0xE0F0(SB)/8, $11533
+DATA bitrev_size16384_radix4_f64<>+0xE0F8(SB)/8, $15629
+DATA bitrev_size16384_radix4_f64<>+0xE100(SB)/8, $525
+DATA bitrev_size16384_radix4_f64<>+0xE108(SB)/8, $4621
+DATA bitrev_size16384_radix4_f64<>+0xE110(SB)/8, $8717
+DATA bitrev_size16384_radix4_f64<>+0xE118(SB)/8, $12813
+DATA bitrev_size16384_radix4_f64<>+0xE120(SB)/8, $1549
+DATA bitrev_size16384_radix4_f64<>+0xE128(SB)/8, $5645
+DATA bitrev_size16384_radix4_f64<>+0xE130(SB)/8, $9741
+DATA bitrev_size16384_radix4_f64<>+0xE138(SB)/8, $13837
+DATA bitrev_size16384_radix4_f64<>+0xE140(SB)/8, $2573
+DATA bitrev_size16384_radix4_f64<>+0xE148(SB)/8, $6669
+DATA bitrev_size16384_radix4_f64<>+0xE150(SB)/8, $10765
+DATA bitrev_size16384_radix4_f64<>+0xE158(SB)/8, $14861
+DATA bitrev_size16384_radix4_f64<>+0xE160(SB)/8, $3597
+DATA bitrev_size16384_radix4_f64<>+0xE168(SB)/8, $7693
+DATA bitrev_size16384_radix4_f64<>+0xE170(SB)/8, $11789
+DATA bitrev_size16384_radix4_f64<>+0xE178(SB)/8, $15885
+DATA bitrev_size16384_radix4_f64<>+0xE180(SB)/8, $781
+DATA bitrev_size16384_radix4_f64<>+0xE188(SB)/8, $4877
+DATA bitrev_size16384_radix4_f64<>+0xE190(SB)/8, $8973
+DATA bitrev_size16384_radix4_f64<>+0xE198(SB)/8, $13069
+DATA bitrev_size16384_radix4_f64<>+0xE1A0(SB)/8, $1805
+DATA bitrev_size16384_radix4_f64<>+0xE1A8(SB)/8, $5901
+DATA bitrev_size16384_radix4_f64<>+0xE1B0(SB)/8, $9997
+DATA bitrev_size16384_radix4_f64<>+0xE1B8(SB)/8, $14093
+DATA bitrev_size16384_radix4_f64<>+0xE1C0(SB)/8, $2829
+DATA bitrev_size16384_radix4_f64<>+0xE1C8(SB)/8, $6925
+DATA bitrev_size16384_radix4_f64<>+0xE1D0(SB)/8, $11021
+DATA bitrev_size16384_radix4_f64<>+0xE1D8(SB)/8, $15117
+DATA bitrev_size16384_radix4_f64<>+0xE1E0(SB)/8, $3853
+DATA bitrev_size16384_radix4_f64<>+0xE1E8(SB)/8, $7949
+DATA bitrev_size16384_radix4_f64<>+0xE1F0(SB)/8, $12045
+DATA bitrev_size16384_radix4_f64<>+0xE1F8(SB)/8, $16141
+DATA bitrev_size16384_radix4_f64<>+0xE200(SB)/8, $77
+DATA bitrev_size16384_radix4_f64<>+0xE208(SB)/8, $4173
+DATA bitrev_size16384_radix4_f64<>+0xE210(SB)/8, $8269
+DATA bitrev_size16384_radix4_f64<>+0xE218(SB)/8, $12365
+DATA bitrev_size16384_radix4_f64<>+0xE220(SB)/8, $1101
+DATA bitrev_size16384_radix4_f64<>+0xE228(SB)/8, $5197
+DATA bitrev_size16384_radix4_f64<>+0xE230(SB)/8, $9293
+DATA bitrev_size16384_radix4_f64<>+0xE238(SB)/8, $13389
+DATA bitrev_size16384_radix4_f64<>+0xE240(SB)/8, $2125
+DATA bitrev_size16384_radix4_f64<>+0xE248(SB)/8, $6221
+DATA bitrev_size16384_radix4_f64<>+0xE250(SB)/8, $10317
+DATA bitrev_size16384_radix4_f64<>+0xE258(SB)/8, $14413
+DATA bitrev_size16384_radix4_f64<>+0xE260(SB)/8, $3149
+DATA bitrev_size16384_radix4_f64<>+0xE268(SB)/8, $7245
+DATA bitrev_size16384_radix4_f64<>+0xE270(SB)/8, $11341
+DATA bitrev_size16384_radix4_f64<>+0xE278(SB)/8, $15437
+DATA bitrev_size16384_radix4_f64<>+0xE280(SB)/8, $333
+DATA bitrev_size16384_radix4_f64<>+0xE288(SB)/8, $4429
+DATA bitrev_size16384_radix4_f64<>+0xE290(SB)/8, $8525
+DATA bitrev_size16384_radix4_f64<>+0xE298(SB)/8, $12621
+DATA bitrev_size16384_radix4_f64<>+0xE2A0(SB)/8, $1357
+DATA bitrev_size16384_radix4_f64<>+0xE2A8(SB)/8, $5453
+DATA bitrev_size16384_radix4_f64<>+0xE2B0(SB)/8, $9549
+DATA bitrev_size16384_radix4_f64<>+0xE2B8(SB)/8, $13645
+DATA bitrev_size16384_radix4_f64<>+0xE2C0(SB)/8, $2381
+DATA bitrev_size16384_radix4_f64<>+0xE2C8(SB)/8, $6477
+DATA bitrev_size16384_radix4_f64<>+0xE2D0(SB)/8, $10573
+DATA bitrev_size16384_radix4_f64<>+0xE2D8(SB)/8, $14669
+DATA bitrev_size16384_radix4_f64<>+0xE2E0(SB)/8, $3405
+DATA bitrev_size16384_radix4_f64<>+0xE2E8(SB)/8, $7501
+DATA bitrev_size16384_radix4_f64<>+0xE2F0(SB)/8, $11597
+DATA bitrev_size16384_radix4_f64<>+0xE2F8(SB)/8, $15693
+DATA bitrev_size16384_radix4_f64<>+0xE300(SB)/8, $589
+DATA bitrev_size16384_radix4_f64<>+0xE308(SB)/8, $4685
+DATA bitrev_size16384_radix4_f64<>+0xE310(SB)/8, $8781
+DATA bitrev_size16384_radix4_f64<>+0xE318(SB)/8, $12877
+DATA bitrev_size16384_radix4_f64<>+0xE320(SB)/8, $1613
+DATA bitrev_size16384_radix4_f64<>+0xE328(SB)/8, $5709
+DATA bitrev_size16384_radix4_f64<>+0xE330(SB)/8, $9805
+DATA bitrev_size16384_radix4_f64<>+0xE338(SB)/8, $13901
+DATA bitrev_size16384_radix4_f64<>+0xE340(SB)/8, $2637
+DATA bitrev_size16384_radix4_f64<>+0xE348(SB)/8, $6733
+DATA bitrev_size16384_radix4_f64<>+0xE350(SB)/8, $10829
+DATA bitrev_size16384_radix4_f64<>+0xE358(SB)/8, $14925
+DATA bitrev_size16384_radix4_f64<>+0xE360(SB)/8, $3661
+DATA bitrev_size16384_radix4_f64<>+0xE368(SB)/8, $7757
+DATA bitrev_size16384_radix4_f64<>+0xE370(SB)/8, $11853
+DATA bitrev_size16384_radix4_f64<>+0xE378(SB)/8, $15949
+DATA bitrev_size16384_radix4_f64<>+0xE380(SB)/8, $845
+DATA bitrev_size16384_radix4_f64<>+0xE388(SB)/8, $4941
+DATA bitrev_size16384_radix4_f64<>+0xE390(SB)/8, $9037
+DATA bitrev_size16384_radix4_f64<>+0xE398(SB)/8, $13133
+DATA bitrev_size16384_radix4_f64<>+0xE3A0(SB)/8, $1869
+DATA bitrev_size16384_radix4_f64<>+0xE3A8(SB)/8, $5965
+DATA bitrev_size16384_radix4_f64<>+0xE3B0(SB)/8, $10061
+DATA bitrev_size16384_radix4_f64<>+0xE3B8(SB)/8, $14157
+DATA bitrev_size16384_radix4_f64<>+0xE3C0(SB)/8, $2893
+DATA bitrev_size16384_radix4_f64<>+0xE3C8(SB)/8, $6989
+DATA bitrev_size16384_radix4_f64<>+0xE3D0(SB)/8, $11085
+DATA bitrev_size16384_radix4_f64<>+0xE3D8(SB)/8, $15181
+DATA bitrev_size16384_radix4_f64<>+0xE3E0(SB)/8, $3917
+DATA bitrev_size16384_radix4_f64<>+0xE3E8(SB)/8, $8013
+DATA bitrev_size16384_radix4_f64<>+0xE3F0(SB)/8, $12109
+DATA bitrev_size16384_radix4_f64<>+0xE3F8(SB)/8, $16205
+DATA bitrev_size16384_radix4_f64<>+0xE400(SB)/8, $141
+DATA bitrev_size16384_radix4_f64<>+0xE408(SB)/8, $4237
+DATA bitrev_size16384_radix4_f64<>+0xE410(SB)/8, $8333
+DATA bitrev_size16384_radix4_f64<>+0xE418(SB)/8, $12429
+DATA bitrev_size16384_radix4_f64<>+0xE420(SB)/8, $1165
+DATA bitrev_size16384_radix4_f64<>+0xE428(SB)/8, $5261
+DATA bitrev_size16384_radix4_f64<>+0xE430(SB)/8, $9357
+DATA bitrev_size16384_radix4_f64<>+0xE438(SB)/8, $13453
+DATA bitrev_size16384_radix4_f64<>+0xE440(SB)/8, $2189
+DATA bitrev_size16384_radix4_f64<>+0xE448(SB)/8, $6285
+DATA bitrev_size16384_radix4_f64<>+0xE450(SB)/8, $10381
+DATA bitrev_size16384_radix4_f64<>+0xE458(SB)/8, $14477
+DATA bitrev_size16384_radix4_f64<>+0xE460(SB)/8, $3213
+DATA bitrev_size16384_radix4_f64<>+0xE468(SB)/8, $7309
+DATA bitrev_size16384_radix4_f64<>+0xE470(SB)/8, $11405
+DATA bitrev_size16384_radix4_f64<>+0xE478(SB)/8, $15501
+DATA bitrev_size16384_radix4_f64<>+0xE480(SB)/8, $397
+DATA bitrev_size16384_radix4_f64<>+0xE488(SB)/8, $4493
+DATA bitrev_size16384_radix4_f64<>+0xE490(SB)/8, $8589
+DATA bitrev_size16384_radix4_f64<>+0xE498(SB)/8, $12685
+DATA bitrev_size16384_radix4_f64<>+0xE4A0(SB)/8, $1421
+DATA bitrev_size16384_radix4_f64<>+0xE4A8(SB)/8, $5517
+DATA bitrev_size16384_radix4_f64<>+0xE4B0(SB)/8, $9613
+DATA bitrev_size16384_radix4_f64<>+0xE4B8(SB)/8, $13709
+DATA bitrev_size16384_radix4_f64<>+0xE4C0(SB)/8, $2445
+DATA bitrev_size16384_radix4_f64<>+0xE4C8(SB)/8, $6541
+DATA bitrev_size16384_radix4_f64<>+0xE4D0(SB)/8, $10637
+DATA bitrev_size16384_radix4_f64<>+0xE4D8(SB)/8, $14733
+DATA bitrev_size16384_radix4_f64<>+0xE4E0(SB)/8, $3469
+DATA bitrev_size16384_radix4_f64<>+0xE4E8(SB)/8, $7565
+DATA bitrev_size16384_radix4_f64<>+0xE4F0(SB)/8, $11661
+DATA bitrev_size16384_radix4_f64<>+0xE4F8(SB)/8, $15757
+DATA bitrev_size16384_radix4_f64<>+0xE500(SB)/8, $653
+DATA bitrev_size16384_radix4_f64<>+0xE508(SB)/8, $4749
+DATA bitrev_size16384_radix4_f64<>+0xE510(SB)/8, $8845
+DATA bitrev_size16384_radix4_f64<>+0xE518(SB)/8, $12941
+DATA bitrev_size16384_radix4_f64<>+0xE520(SB)/8, $1677
+DATA bitrev_size16384_radix4_f64<>+0xE528(SB)/8, $5773
+DATA bitrev_size16384_radix4_f64<>+0xE530(SB)/8, $9869
+DATA bitrev_size16384_radix4_f64<>+0xE538(SB)/8, $13965
+DATA bitrev_size16384_radix4_f64<>+0xE540(SB)/8, $2701
+DATA bitrev_size16384_radix4_f64<>+0xE548(SB)/8, $6797
+DATA bitrev_size16384_radix4_f64<>+0xE550(SB)/8, $10893
+DATA bitrev_size16384_radix4_f64<>+0xE558(SB)/8, $14989
+DATA bitrev_size16384_radix4_f64<>+0xE560(SB)/8, $3725
+DATA bitrev_size16384_radix4_f64<>+0xE568(SB)/8, $7821
+DATA bitrev_size16384_radix4_f64<>+0xE570(SB)/8, $11917
+DATA bitrev_size16384_radix4_f64<>+0xE578(SB)/8, $16013
+DATA bitrev_size16384_radix4_f64<>+0xE580(SB)/8, $909
+DATA bitrev_size16384_radix4_f64<>+0xE588(SB)/8, $5005
+DATA bitrev_size16384_radix4_f64<>+0xE590(SB)/8, $9101
+DATA bitrev_size16384_radix4_f64<>+0xE598(SB)/8, $13197
+DATA bitrev_size16384_radix4_f64<>+0xE5A0(SB)/8, $1933
+DATA bitrev_size16384_radix4_f64<>+0xE5A8(SB)/8, $6029
+DATA bitrev_size16384_radix4_f64<>+0xE5B0(SB)/8, $10125
+DATA bitrev_size16384_radix4_f64<>+0xE5B8(SB)/8, $14221
+DATA bitrev_size16384_radix4_f64<>+0xE5C0(SB)/8, $2957
+DATA bitrev_size16384_radix4_f64<>+0xE5C8(SB)/8, $7053
+DATA bitrev_size16384_radix4_f64<>+0xE5D0(SB)/8, $11149
+DATA bitrev_size16384_radix4_f64<>+0xE5D8(SB)/8, $15245
+DATA bitrev_size16384_radix4_f64<>+0xE5E0(SB)/8, $3981
+DATA bitrev_size16384_radix4_f64<>+0xE5E8(SB)/8, $8077
+DATA bitrev_size16384_radix4_f64<>+0xE5F0(SB)/8, $12173
+DATA bitrev_size16384_radix4_f64<>+0xE5F8(SB)/8, $16269
+DATA bitrev_size16384_radix4_f64<>+0xE600(SB)/8, $205
+DATA bitrev_size16384_radix4_f64<>+0xE608(SB)/8, $4301
+DATA bitrev_size16384_radix4_f64<>+0xE610(SB)/8, $8397
+DATA bitrev_size16384_radix4_f64<>+0xE618(SB)/8, $12493
+DATA bitrev_size16384_radix4_f64<>+0xE620(SB)/8, $1229
+DATA bitrev_size16384_radix4_f64<>+0xE628(SB)/8, $5325
+DATA bitrev_size16384_radix4_f64<>+0xE630(SB)/8, $9421
+DATA bitrev_size16384_radix4_f64<>+0xE638(SB)/8, $13517
+DATA bitrev_size16384_radix4_f64<>+0xE640(SB)/8, $2253
+DATA bitrev_size16384_radix4_f64<>+0xE648(SB)/8, $6349
+DATA bitrev_size16384_radix4_f64<>+0xE650(SB)/8, $10445
+DATA bitrev_size16384_radix4_f64<>+0xE658(SB)/8, $14541
+DATA bitrev_size16384_radix4_f64<>+0xE660(SB)/8, $3277
+DATA bitrev_size16384_radix4_f64<>+0xE668(SB)/8, $7373
+DATA bitrev_size16384_radix4_f64<>+0xE670(SB)/8, $11469
+DATA bitrev_size16384_radix4_f64<>+0xE678(SB)/8, $15565
+DATA bitrev_size16384_radix4_f64<>+0xE680(SB)/8, $461
+DATA bitrev_size16384_radix4_f64<>+0xE688(SB)/8, $4557
+DATA bitrev_size16384_radix4_f64<>+0xE690(SB)/8, $8653
+DATA bitrev_size16384_radix4_f64<>+0xE698(SB)/8, $12749
+DATA bitrev_size16384_radix4_f64<>+0xE6A0(SB)/8, $1485
+DATA bitrev_size16384_radix4_f64<>+0xE6A8(SB)/8, $5581
+DATA bitrev_size16384_radix4_f64<>+0xE6B0(SB)/8, $9677
+DATA bitrev_size16384_radix4_f64<>+0xE6B8(SB)/8, $13773
+DATA bitrev_size16384_radix4_f64<>+0xE6C0(SB)/8, $2509
+DATA bitrev_size16384_radix4_f64<>+0xE6C8(SB)/8, $6605
+DATA bitrev_size16384_radix4_f64<>+0xE6D0(SB)/8, $10701
+DATA bitrev_size16384_radix4_f64<>+0xE6D8(SB)/8, $14797
+DATA bitrev_size16384_radix4_f64<>+0xE6E0(SB)/8, $3533
+DATA bitrev_size16384_radix4_f64<>+0xE6E8(SB)/8, $7629
+DATA bitrev_size16384_radix4_f64<>+0xE6F0(SB)/8, $11725
+DATA bitrev_size16384_radix4_f64<>+0xE6F8(SB)/8, $15821
+DATA bitrev_size16384_radix4_f64<>+0xE700(SB)/8, $717
+DATA bitrev_size16384_radix4_f64<>+0xE708(SB)/8, $4813
+DATA bitrev_size16384_radix4_f64<>+0xE710(SB)/8, $8909
+DATA bitrev_size16384_radix4_f64<>+0xE718(SB)/8, $13005
+DATA bitrev_size16384_radix4_f64<>+0xE720(SB)/8, $1741
+DATA bitrev_size16384_radix4_f64<>+0xE728(SB)/8, $5837
+DATA bitrev_size16384_radix4_f64<>+0xE730(SB)/8, $9933
+DATA bitrev_size16384_radix4_f64<>+0xE738(SB)/8, $14029
+DATA bitrev_size16384_radix4_f64<>+0xE740(SB)/8, $2765
+DATA bitrev_size16384_radix4_f64<>+0xE748(SB)/8, $6861
+DATA bitrev_size16384_radix4_f64<>+0xE750(SB)/8, $10957
+DATA bitrev_size16384_radix4_f64<>+0xE758(SB)/8, $15053
+DATA bitrev_size16384_radix4_f64<>+0xE760(SB)/8, $3789
+DATA bitrev_size16384_radix4_f64<>+0xE768(SB)/8, $7885
+DATA bitrev_size16384_radix4_f64<>+0xE770(SB)/8, $11981
+DATA bitrev_size16384_radix4_f64<>+0xE778(SB)/8, $16077
+DATA bitrev_size16384_radix4_f64<>+0xE780(SB)/8, $973
+DATA bitrev_size16384_radix4_f64<>+0xE788(SB)/8, $5069
+DATA bitrev_size16384_radix4_f64<>+0xE790(SB)/8, $9165
+DATA bitrev_size16384_radix4_f64<>+0xE798(SB)/8, $13261
+DATA bitrev_size16384_radix4_f64<>+0xE7A0(SB)/8, $1997
+DATA bitrev_size16384_radix4_f64<>+0xE7A8(SB)/8, $6093
+DATA bitrev_size16384_radix4_f64<>+0xE7B0(SB)/8, $10189
+DATA bitrev_size16384_radix4_f64<>+0xE7B8(SB)/8, $14285
+DATA bitrev_size16384_radix4_f64<>+0xE7C0(SB)/8, $3021
+DATA bitrev_size16384_radix4_f64<>+0xE7C8(SB)/8, $7117
+DATA bitrev_size16384_radix4_f64<>+0xE7D0(SB)/8, $11213
+DATA bitrev_size16384_radix4_f64<>+0xE7D8(SB)/8, $15309
+DATA bitrev_size16384_radix4_f64<>+0xE7E0(SB)/8, $4045
+DATA bitrev_size16384_radix4_f64<>+0xE7E8(SB)/8, $8141
+DATA bitrev_size16384_radix4_f64<>+0xE7F0(SB)/8, $12237
+DATA bitrev_size16384_radix4_f64<>+0xE7F8(SB)/8, $16333
+DATA bitrev_size16384_radix4_f64<>+0xE800(SB)/8, $29
+DATA bitrev_size16384_radix4_f64<>+0xE808(SB)/8, $4125
+DATA bitrev_size16384_radix4_f64<>+0xE810(SB)/8, $8221
+DATA bitrev_size16384_radix4_f64<>+0xE818(SB)/8, $12317
+DATA bitrev_size16384_radix4_f64<>+0xE820(SB)/8, $1053
+DATA bitrev_size16384_radix4_f64<>+0xE828(SB)/8, $5149
+DATA bitrev_size16384_radix4_f64<>+0xE830(SB)/8, $9245
+DATA bitrev_size16384_radix4_f64<>+0xE838(SB)/8, $13341
+DATA bitrev_size16384_radix4_f64<>+0xE840(SB)/8, $2077
+DATA bitrev_size16384_radix4_f64<>+0xE848(SB)/8, $6173
+DATA bitrev_size16384_radix4_f64<>+0xE850(SB)/8, $10269
+DATA bitrev_size16384_radix4_f64<>+0xE858(SB)/8, $14365
+DATA bitrev_size16384_radix4_f64<>+0xE860(SB)/8, $3101
+DATA bitrev_size16384_radix4_f64<>+0xE868(SB)/8, $7197
+DATA bitrev_size16384_radix4_f64<>+0xE870(SB)/8, $11293
+DATA bitrev_size16384_radix4_f64<>+0xE878(SB)/8, $15389
+DATA bitrev_size16384_radix4_f64<>+0xE880(SB)/8, $285
+DATA bitrev_size16384_radix4_f64<>+0xE888(SB)/8, $4381
+DATA bitrev_size16384_radix4_f64<>+0xE890(SB)/8, $8477
+DATA bitrev_size16384_radix4_f64<>+0xE898(SB)/8, $12573
+DATA bitrev_size16384_radix4_f64<>+0xE8A0(SB)/8, $1309
+DATA bitrev_size16384_radix4_f64<>+0xE8A8(SB)/8, $5405
+DATA bitrev_size16384_radix4_f64<>+0xE8B0(SB)/8, $9501
+DATA bitrev_size16384_radix4_f64<>+0xE8B8(SB)/8, $13597
+DATA bitrev_size16384_radix4_f64<>+0xE8C0(SB)/8, $2333
+DATA bitrev_size16384_radix4_f64<>+0xE8C8(SB)/8, $6429
+DATA bitrev_size16384_radix4_f64<>+0xE8D0(SB)/8, $10525
+DATA bitrev_size16384_radix4_f64<>+0xE8D8(SB)/8, $14621
+DATA bitrev_size16384_radix4_f64<>+0xE8E0(SB)/8, $3357
+DATA bitrev_size16384_radix4_f64<>+0xE8E8(SB)/8, $7453
+DATA bitrev_size16384_radix4_f64<>+0xE8F0(SB)/8, $11549
+DATA bitrev_size16384_radix4_f64<>+0xE8F8(SB)/8, $15645
+DATA bitrev_size16384_radix4_f64<>+0xE900(SB)/8, $541
+DATA bitrev_size16384_radix4_f64<>+0xE908(SB)/8, $4637
+DATA bitrev_size16384_radix4_f64<>+0xE910(SB)/8, $8733
+DATA bitrev_size16384_radix4_f64<>+0xE918(SB)/8, $12829
+DATA bitrev_size16384_radix4_f64<>+0xE920(SB)/8, $1565
+DATA bitrev_size16384_radix4_f64<>+0xE928(SB)/8, $5661
+DATA bitrev_size16384_radix4_f64<>+0xE930(SB)/8, $9757
+DATA bitrev_size16384_radix4_f64<>+0xE938(SB)/8, $13853
+DATA bitrev_size16384_radix4_f64<>+0xE940(SB)/8, $2589
+DATA bitrev_size16384_radix4_f64<>+0xE948(SB)/8, $6685
+DATA bitrev_size16384_radix4_f64<>+0xE950(SB)/8, $10781
+DATA bitrev_size16384_radix4_f64<>+0xE958(SB)/8, $14877
+DATA bitrev_size16384_radix4_f64<>+0xE960(SB)/8, $3613
+DATA bitrev_size16384_radix4_f64<>+0xE968(SB)/8, $7709
+DATA bitrev_size16384_radix4_f64<>+0xE970(SB)/8, $11805
+DATA bitrev_size16384_radix4_f64<>+0xE978(SB)/8, $15901
+DATA bitrev_size16384_radix4_f64<>+0xE980(SB)/8, $797
+DATA bitrev_size16384_radix4_f64<>+0xE988(SB)/8, $4893
+DATA bitrev_size16384_radix4_f64<>+0xE990(SB)/8, $8989
+DATA bitrev_size16384_radix4_f64<>+0xE998(SB)/8, $13085
+DATA bitrev_size16384_radix4_f64<>+0xE9A0(SB)/8, $1821
+DATA bitrev_size16384_radix4_f64<>+0xE9A8(SB)/8, $5917
+DATA bitrev_size16384_radix4_f64<>+0xE9B0(SB)/8, $10013
+DATA bitrev_size16384_radix4_f64<>+0xE9B8(SB)/8, $14109
+DATA bitrev_size16384_radix4_f64<>+0xE9C0(SB)/8, $2845
+DATA bitrev_size16384_radix4_f64<>+0xE9C8(SB)/8, $6941
+DATA bitrev_size16384_radix4_f64<>+0xE9D0(SB)/8, $11037
+DATA bitrev_size16384_radix4_f64<>+0xE9D8(SB)/8, $15133
+DATA bitrev_size16384_radix4_f64<>+0xE9E0(SB)/8, $3869
+DATA bitrev_size16384_radix4_f64<>+0xE9E8(SB)/8, $7965
+DATA bitrev_size16384_radix4_f64<>+0xE9F0(SB)/8, $12061
+DATA bitrev_size16384_radix4_f64<>+0xE9F8(SB)/8, $16157
+DATA bitrev_size16384_radix4_f64<>+0xEA00(SB)/8, $93
+DATA bitrev_size16384_radix4_f64<>+0xEA08(SB)/8, $4189
+DATA bitrev_size16384_radix4_f64<>+0xEA10(SB)/8, $8285
+DATA bitrev_size16384_radix4_f64<>+0xEA18(SB)/8, $12381
+DATA bitrev_size16384_radix4_f64<>+0xEA20(SB)/8, $1117
+DATA bitrev_size16384_radix4_f64<>+0xEA28(SB)/8, $5213
+DATA bitrev_size16384_radix4_f64<>+0xEA30(SB)/8, $9309
+DATA bitrev_size16384_radix4_f64<>+0xEA38(SB)/8, $13405
+DATA bitrev_size16384_radix4_f64<>+0xEA40(SB)/8, $2141
+DATA bitrev_size16384_radix4_f64<>+0xEA48(SB)/8, $6237
+DATA bitrev_size16384_radix4_f64<>+0xEA50(SB)/8, $10333
+DATA bitrev_size16384_radix4_f64<>+0xEA58(SB)/8, $14429
+DATA bitrev_size16384_radix4_f64<>+0xEA60(SB)/8, $3165
+DATA bitrev_size16384_radix4_f64<>+0xEA68(SB)/8, $7261
+DATA bitrev_size16384_radix4_f64<>+0xEA70(SB)/8, $11357
+DATA bitrev_size16384_radix4_f64<>+0xEA78(SB)/8, $15453
+DATA bitrev_size16384_radix4_f64<>+0xEA80(SB)/8, $349
+DATA bitrev_size16384_radix4_f64<>+0xEA88(SB)/8, $4445
+DATA bitrev_size16384_radix4_f64<>+0xEA90(SB)/8, $8541
+DATA bitrev_size16384_radix4_f64<>+0xEA98(SB)/8, $12637
+DATA bitrev_size16384_radix4_f64<>+0xEAA0(SB)/8, $1373
+DATA bitrev_size16384_radix4_f64<>+0xEAA8(SB)/8, $5469
+DATA bitrev_size16384_radix4_f64<>+0xEAB0(SB)/8, $9565
+DATA bitrev_size16384_radix4_f64<>+0xEAB8(SB)/8, $13661
+DATA bitrev_size16384_radix4_f64<>+0xEAC0(SB)/8, $2397
+DATA bitrev_size16384_radix4_f64<>+0xEAC8(SB)/8, $6493
+DATA bitrev_size16384_radix4_f64<>+0xEAD0(SB)/8, $10589
+DATA bitrev_size16384_radix4_f64<>+0xEAD8(SB)/8, $14685
+DATA bitrev_size16384_radix4_f64<>+0xEAE0(SB)/8, $3421
+DATA bitrev_size16384_radix4_f64<>+0xEAE8(SB)/8, $7517
+DATA bitrev_size16384_radix4_f64<>+0xEAF0(SB)/8, $11613
+DATA bitrev_size16384_radix4_f64<>+0xEAF8(SB)/8, $15709
+DATA bitrev_size16384_radix4_f64<>+0xEB00(SB)/8, $605
+DATA bitrev_size16384_radix4_f64<>+0xEB08(SB)/8, $4701
+DATA bitrev_size16384_radix4_f64<>+0xEB10(SB)/8, $8797
+DATA bitrev_size16384_radix4_f64<>+0xEB18(SB)/8, $12893
+DATA bitrev_size16384_radix4_f64<>+0xEB20(SB)/8, $1629
+DATA bitrev_size16384_radix4_f64<>+0xEB28(SB)/8, $5725
+DATA bitrev_size16384_radix4_f64<>+0xEB30(SB)/8, $9821
+DATA bitrev_size16384_radix4_f64<>+0xEB38(SB)/8, $13917
+DATA bitrev_size16384_radix4_f64<>+0xEB40(SB)/8, $2653
+DATA bitrev_size16384_radix4_f64<>+0xEB48(SB)/8, $6749
+DATA bitrev_size16384_radix4_f64<>+0xEB50(SB)/8, $10845
+DATA bitrev_size16384_radix4_f64<>+0xEB58(SB)/8, $14941
+DATA bitrev_size16384_radix4_f64<>+0xEB60(SB)/8, $3677
+DATA bitrev_size16384_radix4_f64<>+0xEB68(SB)/8, $7773
+DATA bitrev_size16384_radix4_f64<>+0xEB70(SB)/8, $11869
+DATA bitrev_size16384_radix4_f64<>+0xEB78(SB)/8, $15965
+DATA bitrev_size16384_radix4_f64<>+0xEB80(SB)/8, $861
+DATA bitrev_size16384_radix4_f64<>+0xEB88(SB)/8, $4957
+DATA bitrev_size16384_radix4_f64<>+0xEB90(SB)/8, $9053
+DATA bitrev_size16384_radix4_f64<>+0xEB98(SB)/8, $13149
+DATA bitrev_size16384_radix4_f64<>+0xEBA0(SB)/8, $1885
+DATA bitrev_size16384_radix4_f64<>+0xEBA8(SB)/8, $5981
+DATA bitrev_size16384_radix4_f64<>+0xEBB0(SB)/8, $10077
+DATA bitrev_size16384_radix4_f64<>+0xEBB8(SB)/8, $14173
+DATA bitrev_size16384_radix4_f64<>+0xEBC0(SB)/8, $2909
+DATA bitrev_size16384_radix4_f64<>+0xEBC8(SB)/8, $7005
+DATA bitrev_size16384_radix4_f64<>+0xEBD0(SB)/8, $11101
+DATA bitrev_size16384_radix4_f64<>+0xEBD8(SB)/8, $15197
+DATA bitrev_size16384_radix4_f64<>+0xEBE0(SB)/8, $3933
+DATA bitrev_size16384_radix4_f64<>+0xEBE8(SB)/8, $8029
+DATA bitrev_size16384_radix4_f64<>+0xEBF0(SB)/8, $12125
+DATA bitrev_size16384_radix4_f64<>+0xEBF8(SB)/8, $16221
+DATA bitrev_size16384_radix4_f64<>+0xEC00(SB)/8, $157
+DATA bitrev_size16384_radix4_f64<>+0xEC08(SB)/8, $4253
+DATA bitrev_size16384_radix4_f64<>+0xEC10(SB)/8, $8349
+DATA bitrev_size16384_radix4_f64<>+0xEC18(SB)/8, $12445
+DATA bitrev_size16384_radix4_f64<>+0xEC20(SB)/8, $1181
+DATA bitrev_size16384_radix4_f64<>+0xEC28(SB)/8, $5277
+DATA bitrev_size16384_radix4_f64<>+0xEC30(SB)/8, $9373
+DATA bitrev_size16384_radix4_f64<>+0xEC38(SB)/8, $13469
+DATA bitrev_size16384_radix4_f64<>+0xEC40(SB)/8, $2205
+DATA bitrev_size16384_radix4_f64<>+0xEC48(SB)/8, $6301
+DATA bitrev_size16384_radix4_f64<>+0xEC50(SB)/8, $10397
+DATA bitrev_size16384_radix4_f64<>+0xEC58(SB)/8, $14493
+DATA bitrev_size16384_radix4_f64<>+0xEC60(SB)/8, $3229
+DATA bitrev_size16384_radix4_f64<>+0xEC68(SB)/8, $7325
+DATA bitrev_size16384_radix4_f64<>+0xEC70(SB)/8, $11421
+DATA bitrev_size16384_radix4_f64<>+0xEC78(SB)/8, $15517
+DATA bitrev_size16384_radix4_f64<>+0xEC80(SB)/8, $413
+DATA bitrev_size16384_radix4_f64<>+0xEC88(SB)/8, $4509
+DATA bitrev_size16384_radix4_f64<>+0xEC90(SB)/8, $8605
+DATA bitrev_size16384_radix4_f64<>+0xEC98(SB)/8, $12701
+DATA bitrev_size16384_radix4_f64<>+0xECA0(SB)/8, $1437
+DATA bitrev_size16384_radix4_f64<>+0xECA8(SB)/8, $5533
+DATA bitrev_size16384_radix4_f64<>+0xECB0(SB)/8, $9629
+DATA bitrev_size16384_radix4_f64<>+0xECB8(SB)/8, $13725
+DATA bitrev_size16384_radix4_f64<>+0xECC0(SB)/8, $2461
+DATA bitrev_size16384_radix4_f64<>+0xECC8(SB)/8, $6557
+DATA bitrev_size16384_radix4_f64<>+0xECD0(SB)/8, $10653
+DATA bitrev_size16384_radix4_f64<>+0xECD8(SB)/8, $14749
+DATA bitrev_size16384_radix4_f64<>+0xECE0(SB)/8, $3485
+DATA bitrev_size16384_radix4_f64<>+0xECE8(SB)/8, $7581
+DATA bitrev_size16384_radix4_f64<>+0xECF0(SB)/8, $11677
+DATA bitrev_size16384_radix4_f64<>+0xECF8(SB)/8, $15773
+DATA bitrev_size16384_radix4_f64<>+0xED00(SB)/8, $669
+DATA bitrev_size16384_radix4_f64<>+0xED08(SB)/8, $4765
+DATA bitrev_size16384_radix4_f64<>+0xED10(SB)/8, $8861
+DATA bitrev_size16384_radix4_f64<>+0xED18(SB)/8, $12957
+DATA bitrev_size16384_radix4_f64<>+0xED20(SB)/8, $1693
+DATA bitrev_size16384_radix4_f64<>+0xED28(SB)/8, $5789
+DATA bitrev_size16384_radix4_f64<>+0xED30(SB)/8, $9885
+DATA bitrev_size16384_radix4_f64<>+0xED38(SB)/8, $13981
+DATA bitrev_size16384_radix4_f64<>+0xED40(SB)/8, $2717
+DATA bitrev_size16384_radix4_f64<>+0xED48(SB)/8, $6813
+DATA bitrev_size16384_radix4_f64<>+0xED50(SB)/8, $10909
+DATA bitrev_size16384_radix4_f64<>+0xED58(SB)/8, $15005
+DATA bitrev_size16384_radix4_f64<>+0xED60(SB)/8, $3741
+DATA bitrev_size16384_radix4_f64<>+0xED68(SB)/8, $7837
+DATA bitrev_size16384_radix4_f64<>+0xED70(SB)/8, $11933
+DATA bitrev_size16384_radix4_f64<>+0xED78(SB)/8, $16029
+DATA bitrev_size16384_radix4_f64<>+0xED80(SB)/8, $925
+DATA bitrev_size16384_radix4_f64<>+0xED88(SB)/8, $5021
+DATA bitrev_size16384_radix4_f64<>+0xED90(SB)/8, $9117
+DATA bitrev_size16384_radix4_f64<>+0xED98(SB)/8, $13213
+DATA bitrev_size16384_radix4_f64<>+0xEDA0(SB)/8, $1949
+DATA bitrev_size16384_radix4_f64<>+0xEDA8(SB)/8, $6045
+DATA bitrev_size16384_radix4_f64<>+0xEDB0(SB)/8, $10141
+DATA bitrev_size16384_radix4_f64<>+0xEDB8(SB)/8, $14237
+DATA bitrev_size16384_radix4_f64<>+0xEDC0(SB)/8, $2973
+DATA bitrev_size16384_radix4_f64<>+0xEDC8(SB)/8, $7069
+DATA bitrev_size16384_radix4_f64<>+0xEDD0(SB)/8, $11165
+DATA bitrev_size16384_radix4_f64<>+0xEDD8(SB)/8, $15261
+DATA bitrev_size16384_radix4_f64<>+0xEDE0(SB)/8, $3997
+DATA bitrev_size16384_radix4_f64<>+0xEDE8(SB)/8, $8093
+DATA bitrev_size16384_radix4_f64<>+0xEDF0(SB)/8, $12189
+DATA bitrev_size16384_radix4_f64<>+0xEDF8(SB)/8, $16285
+DATA bitrev_size16384_radix4_f64<>+0xEE00(SB)/8, $221
+DATA bitrev_size16384_radix4_f64<>+0xEE08(SB)/8, $4317
+DATA bitrev_size16384_radix4_f64<>+0xEE10(SB)/8, $8413
+DATA bitrev_size16384_radix4_f64<>+0xEE18(SB)/8, $12509
+DATA bitrev_size16384_radix4_f64<>+0xEE20(SB)/8, $1245
+DATA bitrev_size16384_radix4_f64<>+0xEE28(SB)/8, $5341
+DATA bitrev_size16384_radix4_f64<>+0xEE30(SB)/8, $9437
+DATA bitrev_size16384_radix4_f64<>+0xEE38(SB)/8, $13533
+DATA bitrev_size16384_radix4_f64<>+0xEE40(SB)/8, $2269
+DATA bitrev_size16384_radix4_f64<>+0xEE48(SB)/8, $6365
+DATA bitrev_size16384_radix4_f64<>+0xEE50(SB)/8, $10461
+DATA bitrev_size16384_radix4_f64<>+0xEE58(SB)/8, $14557
+DATA bitrev_size16384_radix4_f64<>+0xEE60(SB)/8, $3293
+DATA bitrev_size16384_radix4_f64<>+0xEE68(SB)/8, $7389
+DATA bitrev_size16384_radix4_f64<>+0xEE70(SB)/8, $11485
+DATA bitrev_size16384_radix4_f64<>+0xEE78(SB)/8, $15581
+DATA bitrev_size16384_radix4_f64<>+0xEE80(SB)/8, $477
+DATA bitrev_size16384_radix4_f64<>+0xEE88(SB)/8, $4573
+DATA bitrev_size16384_radix4_f64<>+0xEE90(SB)/8, $8669
+DATA bitrev_size16384_radix4_f64<>+0xEE98(SB)/8, $12765
+DATA bitrev_size16384_radix4_f64<>+0xEEA0(SB)/8, $1501
+DATA bitrev_size16384_radix4_f64<>+0xEEA8(SB)/8, $5597
+DATA bitrev_size16384_radix4_f64<>+0xEEB0(SB)/8, $9693
+DATA bitrev_size16384_radix4_f64<>+0xEEB8(SB)/8, $13789
+DATA bitrev_size16384_radix4_f64<>+0xEEC0(SB)/8, $2525
+DATA bitrev_size16384_radix4_f64<>+0xEEC8(SB)/8, $6621
+DATA bitrev_size16384_radix4_f64<>+0xEED0(SB)/8, $10717
+DATA bitrev_size16384_radix4_f64<>+0xEED8(SB)/8, $14813
+DATA bitrev_size16384_radix4_f64<>+0xEEE0(SB)/8, $3549
+DATA bitrev_size16384_radix4_f64<>+0xEEE8(SB)/8, $7645
+DATA bitrev_size16384_radix4_f64<>+0xEEF0(SB)/8, $11741
+DATA bitrev_size16384_radix4_f64<>+0xEEF8(SB)/8, $15837
+DATA bitrev_size16384_radix4_f64<>+0xEF00(SB)/8, $733
+DATA bitrev_size16384_radix4_f64<>+0xEF08(SB)/8, $4829
+DATA bitrev_size16384_radix4_f64<>+0xEF10(SB)/8, $8925
+DATA bitrev_size16384_radix4_f64<>+0xEF18(SB)/8, $13021
+DATA bitrev_size16384_radix4_f64<>+0xEF20(SB)/8, $1757
+DATA bitrev_size16384_radix4_f64<>+0xEF28(SB)/8, $5853
+DATA bitrev_size16384_radix4_f64<>+0xEF30(SB)/8, $9949
+DATA bitrev_size16384_radix4_f64<>+0xEF38(SB)/8, $14045
+DATA bitrev_size16384_radix4_f64<>+0xEF40(SB)/8, $2781
+DATA bitrev_size16384_radix4_f64<>+0xEF48(SB)/8, $6877
+DATA bitrev_size16384_radix4_f64<>+0xEF50(SB)/8, $10973
+DATA bitrev_size16384_radix4_f64<>+0xEF58(SB)/8, $15069
+DATA bitrev_size16384_radix4_f64<>+0xEF60(SB)/8, $3805
+DATA bitrev_size16384_radix4_f64<>+0xEF68(SB)/8, $7901
+DATA bitrev_size16384_radix4_f64<>+0xEF70(SB)/8, $11997
+DATA bitrev_size16384_radix4_f64<>+0xEF78(SB)/8, $16093
+DATA bitrev_size16384_radix4_f64<>+0xEF80(SB)/8, $989
+DATA bitrev_size16384_radix4_f64<>+0xEF88(SB)/8, $5085
+DATA bitrev_size16384_radix4_f64<>+0xEF90(SB)/8, $9181
+DATA bitrev_size16384_radix4_f64<>+0xEF98(SB)/8, $13277
+DATA bitrev_size16384_radix4_f64<>+0xEFA0(SB)/8, $2013
+DATA bitrev_size16384_radix4_f64<>+0xEFA8(SB)/8, $6109
+DATA bitrev_size16384_radix4_f64<>+0xEFB0(SB)/8, $10205
+DATA bitrev_size16384_radix4_f64<>+0xEFB8(SB)/8, $14301
+DATA bitrev_size16384_radix4_f64<>+0xEFC0(SB)/8, $3037
+DATA bitrev_size16384_radix4_f64<>+0xEFC8(SB)/8, $7133
+DATA bitrev_size16384_radix4_f64<>+0xEFD0(SB)/8, $11229
+DATA bitrev_size16384_radix4_f64<>+0xEFD8(SB)/8, $15325
+DATA bitrev_size16384_radix4_f64<>+0xEFE0(SB)/8, $4061
+DATA bitrev_size16384_radix4_f64<>+0xEFE8(SB)/8, $8157
+DATA bitrev_size16384_radix4_f64<>+0xEFF0(SB)/8, $12253
+DATA bitrev_size16384_radix4_f64<>+0xEFF8(SB)/8, $16349
+DATA bitrev_size16384_radix4_f64<>+0xF000(SB)/8, $45
+DATA bitrev_size16384_radix4_f64<>+0xF008(SB)/8, $4141
+DATA bitrev_size16384_radix4_f64<>+0xF010(SB)/8, $8237
+DATA bitrev_size16384_radix4_f64<>+0xF018(SB)/8, $12333
+DATA bitrev_size16384_radix4_f64<>+0xF020(SB)/8, $1069
+DATA bitrev_size16384_radix4_f64<>+0xF028(SB)/8, $5165
+DATA bitrev_size16384_radix4_f64<>+0xF030(SB)/8, $9261
+DATA bitrev_size16384_radix4_f64<>+0xF038(SB)/8, $13357
+DATA bitrev_size16384_radix4_f64<>+0xF040(SB)/8, $2093
+DATA bitrev_size16384_radix4_f64<>+0xF048(SB)/8, $6189
+DATA bitrev_size16384_radix4_f64<>+0xF050(SB)/8, $10285
+DATA bitrev_size16384_radix4_f64<>+0xF058(SB)/8, $14381
+DATA bitrev_size16384_radix4_f64<>+0xF060(SB)/8, $3117
+DATA bitrev_size16384_radix4_f64<>+0xF068(SB)/8, $7213
+DATA bitrev_size16384_radix4_f64<>+0xF070(SB)/8, $11309
+DATA bitrev_size16384_radix4_f64<>+0xF078(SB)/8, $15405
+DATA bitrev_size16384_radix4_f64<>+0xF080(SB)/8, $301
+DATA bitrev_size16384_radix4_f64<>+0xF088(SB)/8, $4397
+DATA bitrev_size16384_radix4_f64<>+0xF090(SB)/8, $8493
+DATA bitrev_size16384_radix4_f64<>+0xF098(SB)/8, $12589
+DATA bitrev_size16384_radix4_f64<>+0xF0A0(SB)/8, $1325
+DATA bitrev_size16384_radix4_f64<>+0xF0A8(SB)/8, $5421
+DATA bitrev_size16384_radix4_f64<>+0xF0B0(SB)/8, $9517
+DATA bitrev_size16384_radix4_f64<>+0xF0B8(SB)/8, $13613
+DATA bitrev_size16384_radix4_f64<>+0xF0C0(SB)/8, $2349
+DATA bitrev_size16384_radix4_f64<>+0xF0C8(SB)/8, $6445
+DATA bitrev_size16384_radix4_f64<>+0xF0D0(SB)/8, $10541
+DATA bitrev_size16384_radix4_f64<>+0xF0D8(SB)/8, $14637
+DATA bitrev_size16384_radix4_f64<>+0xF0E0(SB)/8, $3373
+DATA bitrev_size16384_radix4_f64<>+0xF0E8(SB)/8, $7469
+DATA bitrev_size16384_radix4_f64<>+0xF0F0(SB)/8, $11565
+DATA bitrev_size16384_radix4_f64<>+0xF0F8(SB)/8, $15661
+DATA bitrev_size16384_radix4_f64<>+0xF100(SB)/8, $557
+DATA bitrev_size16384_radix4_f64<>+0xF108(SB)/8, $4653
+DATA bitrev_size16384_radix4_f64<>+0xF110(SB)/8, $8749
+DATA bitrev_size16384_radix4_f64<>+0xF118(SB)/8, $12845
+DATA bitrev_size16384_radix4_f64<>+0xF120(SB)/8, $1581
+DATA bitrev_size16384_radix4_f64<>+0xF128(SB)/8, $5677
+DATA bitrev_size16384_radix4_f64<>+0xF130(SB)/8, $9773
+DATA bitrev_size16384_radix4_f64<>+0xF138(SB)/8, $13869
+DATA bitrev_size16384_radix4_f64<>+0xF140(SB)/8, $2605
+DATA bitrev_size16384_radix4_f64<>+0xF148(SB)/8, $6701
+DATA bitrev_size16384_radix4_f64<>+0xF150(SB)/8, $10797
+DATA bitrev_size16384_radix4_f64<>+0xF158(SB)/8, $14893
+DATA bitrev_size16384_radix4_f64<>+0xF160(SB)/8, $3629
+DATA bitrev_size16384_radix4_f64<>+0xF168(SB)/8, $7725
+DATA bitrev_size16384_radix4_f64<>+0xF170(SB)/8, $11821
+DATA bitrev_size16384_radix4_f64<>+0xF178(SB)/8, $15917
+DATA bitrev_size16384_radix4_f64<>+0xF180(SB)/8, $813
+DATA bitrev_size16384_radix4_f64<>+0xF188(SB)/8, $4909
+DATA bitrev_size16384_radix4_f64<>+0xF190(SB)/8, $9005
+DATA bitrev_size16384_radix4_f64<>+0xF198(SB)/8, $13101
+DATA bitrev_size16384_radix4_f64<>+0xF1A0(SB)/8, $1837
+DATA bitrev_size16384_radix4_f64<>+0xF1A8(SB)/8, $5933
+DATA bitrev_size16384_radix4_f64<>+0xF1B0(SB)/8, $10029
+DATA bitrev_size16384_radix4_f64<>+0xF1B8(SB)/8, $14125
+DATA bitrev_size16384_radix4_f64<>+0xF1C0(SB)/8, $2861
+DATA bitrev_size16384_radix4_f64<>+0xF1C8(SB)/8, $6957
+DATA bitrev_size16384_radix4_f64<>+0xF1D0(SB)/8, $11053
+DATA bitrev_size16384_radix4_f64<>+0xF1D8(SB)/8, $15149
+DATA bitrev_size16384_radix4_f64<>+0xF1E0(SB)/8, $3885
+DATA bitrev_size16384_radix4_f64<>+0xF1E8(SB)/8, $7981
+DATA bitrev_size16384_radix4_f64<>+0xF1F0(SB)/8, $12077
+DATA bitrev_size16384_radix4_f64<>+0xF1F8(SB)/8, $16173
+DATA bitrev_size16384_radix4_f64<>+0xF200(SB)/8, $109
+DATA bitrev_size16384_radix4_f64<>+0xF208(SB)/8, $4205
+DATA bitrev_size16384_radix4_f64<>+0xF210(SB)/8, $8301
+DATA bitrev_size16384_radix4_f64<>+0xF218(SB)/8, $12397
+DATA bitrev_size16384_radix4_f64<>+0xF220(SB)/8, $1133
+DATA bitrev_size16384_radix4_f64<>+0xF228(SB)/8, $5229
+DATA bitrev_size16384_radix4_f64<>+0xF230(SB)/8, $9325
+DATA bitrev_size16384_radix4_f64<>+0xF238(SB)/8, $13421
+DATA bitrev_size16384_radix4_f64<>+0xF240(SB)/8, $2157
+DATA bitrev_size16384_radix4_f64<>+0xF248(SB)/8, $6253
+DATA bitrev_size16384_radix4_f64<>+0xF250(SB)/8, $10349
+DATA bitrev_size16384_radix4_f64<>+0xF258(SB)/8, $14445
+DATA bitrev_size16384_radix4_f64<>+0xF260(SB)/8, $3181
+DATA bitrev_size16384_radix4_f64<>+0xF268(SB)/8, $7277
+DATA bitrev_size16384_radix4_f64<>+0xF270(SB)/8, $11373
+DATA bitrev_size16384_radix4_f64<>+0xF278(SB)/8, $15469
+DATA bitrev_size16384_radix4_f64<>+0xF280(SB)/8, $365
+DATA bitrev_size16384_radix4_f64<>+0xF288(SB)/8, $4461
+DATA bitrev_size16384_radix4_f64<>+0xF290(SB)/8, $8557
+DATA bitrev_size16384_radix4_f64<>+0xF298(SB)/8, $12653
+DATA bitrev_size16384_radix4_f64<>+0xF2A0(SB)/8, $1389
+DATA bitrev_size16384_radix4_f64<>+0xF2A8(SB)/8, $5485
+DATA bitrev_size16384_radix4_f64<>+0xF2B0(SB)/8, $9581
+DATA bitrev_size16384_radix4_f64<>+0xF2B8(SB)/8, $13677
+DATA bitrev_size16384_radix4_f64<>+0xF2C0(SB)/8, $2413
+DATA bitrev_size16384_radix4_f64<>+0xF2C8(SB)/8, $6509
+DATA bitrev_size16384_radix4_f64<>+0xF2D0(SB)/8, $10605
+DATA bitrev_size16384_radix4_f64<>+0xF2D8(SB)/8, $14701
+DATA bitrev_size16384_radix4_f64<>+0xF2E0(SB)/8, $3437
+DATA bitrev_size16384_radix4_f64<>+0xF2E8(SB)/8, $7533
+DATA bitrev_size16384_radix4_f64<>+0xF2F0(SB)/8, $11629
+DATA bitrev_size16384_radix4_f64<>+0xF2F8(SB)/8, $15725
+DATA bitrev_size16384_radix4_f64<>+0xF300(SB)/8, $621
+DATA bitrev_size16384_radix4_f64<>+0xF308(SB)/8, $4717
+DATA bitrev_size16384_radix4_f64<>+0xF310(SB)/8, $8813
+DATA bitrev_size16384_radix4_f64<>+0xF318(SB)/8, $12909
+DATA bitrev_size16384_radix4_f64<>+0xF320(SB)/8, $1645
+DATA bitrev_size16384_radix4_f64<>+0xF328(SB)/8, $5741
+DATA bitrev_size16384_radix4_f64<>+0xF330(SB)/8, $9837
+DATA bitrev_size16384_radix4_f64<>+0xF338(SB)/8, $13933
+DATA bitrev_size16384_radix4_f64<>+0xF340(SB)/8, $2669
+DATA bitrev_size16384_radix4_f64<>+0xF348(SB)/8, $6765
+DATA bitrev_size16384_radix4_f64<>+0xF350(SB)/8, $10861
+DATA bitrev_size16384_radix4_f64<>+0xF358(SB)/8, $14957
+DATA bitrev_size16384_radix4_f64<>+0xF360(SB)/8, $3693
+DATA bitrev_size16384_radix4_f64<>+0xF368(SB)/8, $7789
+DATA bitrev_size16384_radix4_f64<>+0xF370(SB)/8, $11885
+DATA bitrev_size16384_radix4_f64<>+0xF378(SB)/8, $15981
+DATA bitrev_size16384_radix4_f64<>+0xF380(SB)/8, $877
+DATA bitrev_size16384_radix4_f64<>+0xF388(SB)/8, $4973
+DATA bitrev_size16384_radix4_f64<>+0xF390(SB)/8, $9069
+DATA bitrev_size16384_radix4_f64<>+0xF398(SB)/8, $13165
+DATA bitrev_size16384_radix4_f64<>+0xF3A0(SB)/8, $1901
+DATA bitrev_size16384_radix4_f64<>+0xF3A8(SB)/8, $5997
+DATA bitrev_size16384_radix4_f64<>+0xF3B0(SB)/8, $10093
+DATA bitrev_size16384_radix4_f64<>+0xF3B8(SB)/8, $14189
+DATA bitrev_size16384_radix4_f64<>+0xF3C0(SB)/8, $2925
+DATA bitrev_size16384_radix4_f64<>+0xF3C8(SB)/8, $7021
+DATA bitrev_size16384_radix4_f64<>+0xF3D0(SB)/8, $11117
+DATA bitrev_size16384_radix4_f64<>+0xF3D8(SB)/8, $15213
+DATA bitrev_size16384_radix4_f64<>+0xF3E0(SB)/8, $3949
+DATA bitrev_size16384_radix4_f64<>+0xF3E8(SB)/8, $8045
+DATA bitrev_size16384_radix4_f64<>+0xF3F0(SB)/8, $12141
+DATA bitrev_size16384_radix4_f64<>+0xF3F8(SB)/8, $16237
+DATA bitrev_size16384_radix4_f64<>+0xF400(SB)/8, $173
+DATA bitrev_size16384_radix4_f64<>+0xF408(SB)/8, $4269
+DATA bitrev_size16384_radix4_f64<>+0xF410(SB)/8, $8365
+DATA bitrev_size16384_radix4_f64<>+0xF418(SB)/8, $12461
+DATA bitrev_size16384_radix4_f64<>+0xF420(SB)/8, $1197
+DATA bitrev_size16384_radix4_f64<>+0xF428(SB)/8, $5293
+DATA bitrev_size16384_radix4_f64<>+0xF430(SB)/8, $9389
+DATA bitrev_size16384_radix4_f64<>+0xF438(SB)/8, $13485
+DATA bitrev_size16384_radix4_f64<>+0xF440(SB)/8, $2221
+DATA bitrev_size16384_radix4_f64<>+0xF448(SB)/8, $6317
+DATA bitrev_size16384_radix4_f64<>+0xF450(SB)/8, $10413
+DATA bitrev_size16384_radix4_f64<>+0xF458(SB)/8, $14509
+DATA bitrev_size16384_radix4_f64<>+0xF460(SB)/8, $3245
+DATA bitrev_size16384_radix4_f64<>+0xF468(SB)/8, $7341
+DATA bitrev_size16384_radix4_f64<>+0xF470(SB)/8, $11437
+DATA bitrev_size16384_radix4_f64<>+0xF478(SB)/8, $15533
+DATA bitrev_size16384_radix4_f64<>+0xF480(SB)/8, $429
+DATA bitrev_size16384_radix4_f64<>+0xF488(SB)/8, $4525
+DATA bitrev_size16384_radix4_f64<>+0xF490(SB)/8, $8621
+DATA bitrev_size16384_radix4_f64<>+0xF498(SB)/8, $12717
+DATA bitrev_size16384_radix4_f64<>+0xF4A0(SB)/8, $1453
+DATA bitrev_size16384_radix4_f64<>+0xF4A8(SB)/8, $5549
+DATA bitrev_size16384_radix4_f64<>+0xF4B0(SB)/8, $9645
+DATA bitrev_size16384_radix4_f64<>+0xF4B8(SB)/8, $13741
+DATA bitrev_size16384_radix4_f64<>+0xF4C0(SB)/8, $2477
+DATA bitrev_size16384_radix4_f64<>+0xF4C8(SB)/8, $6573
+DATA bitrev_size16384_radix4_f64<>+0xF4D0(SB)/8, $10669
+DATA bitrev_size16384_radix4_f64<>+0xF4D8(SB)/8, $14765
+DATA bitrev_size16384_radix4_f64<>+0xF4E0(SB)/8, $3501
+DATA bitrev_size16384_radix4_f64<>+0xF4E8(SB)/8, $7597
+DATA bitrev_size16384_radix4_f64<>+0xF4F0(SB)/8, $11693
+DATA bitrev_size16384_radix4_f64<>+0xF4F8(SB)/8, $15789
+DATA bitrev_size16384_radix4_f64<>+0xF500(SB)/8, $685
+DATA bitrev_size16384_radix4_f64<>+0xF508(SB)/8, $4781
+DATA bitrev_size16384_radix4_f64<>+0xF510(SB)/8, $8877
+DATA bitrev_size16384_radix4_f64<>+0xF518(SB)/8, $12973
+DATA bitrev_size16384_radix4_f64<>+0xF520(SB)/8, $1709
+DATA bitrev_size16384_radix4_f64<>+0xF528(SB)/8, $5805
+DATA bitrev_size16384_radix4_f64<>+0xF530(SB)/8, $9901
+DATA bitrev_size16384_radix4_f64<>+0xF538(SB)/8, $13997
+DATA bitrev_size16384_radix4_f64<>+0xF540(SB)/8, $2733
+DATA bitrev_size16384_radix4_f64<>+0xF548(SB)/8, $6829
+DATA bitrev_size16384_radix4_f64<>+0xF550(SB)/8, $10925
+DATA bitrev_size16384_radix4_f64<>+0xF558(SB)/8, $15021
+DATA bitrev_size16384_radix4_f64<>+0xF560(SB)/8, $3757
+DATA bitrev_size16384_radix4_f64<>+0xF568(SB)/8, $7853
+DATA bitrev_size16384_radix4_f64<>+0xF570(SB)/8, $11949
+DATA bitrev_size16384_radix4_f64<>+0xF578(SB)/8, $16045
+DATA bitrev_size16384_radix4_f64<>+0xF580(SB)/8, $941
+DATA bitrev_size16384_radix4_f64<>+0xF588(SB)/8, $5037
+DATA bitrev_size16384_radix4_f64<>+0xF590(SB)/8, $9133
+DATA bitrev_size16384_radix4_f64<>+0xF598(SB)/8, $13229
+DATA bitrev_size16384_radix4_f64<>+0xF5A0(SB)/8, $1965
+DATA bitrev_size16384_radix4_f64<>+0xF5A8(SB)/8, $6061
+DATA bitrev_size16384_radix4_f64<>+0xF5B0(SB)/8, $10157
+DATA bitrev_size16384_radix4_f64<>+0xF5B8(SB)/8, $14253
+DATA bitrev_size16384_radix4_f64<>+0xF5C0(SB)/8, $2989
+DATA bitrev_size16384_radix4_f64<>+0xF5C8(SB)/8, $7085
+DATA bitrev_size16384_radix4_f64<>+0xF5D0(SB)/8, $11181
+DATA bitrev_size16384_radix4_f64<>+0xF5D8(SB)/8, $15277
+DATA bitrev_size16384_radix4_f64<>+0xF5E0(SB)/8, $4013
+DATA bitrev_size16384_radix4_f64<>+0xF5E8(SB)/8, $8109
+DATA bitrev_size16384_radix4_f64<>+0xF5F0(SB)/8, $12205
+DATA bitrev_size16384_radix4_f64<>+0xF5F8(SB)/8, $16301
+DATA bitrev_size16384_radix4_f64<>+0xF600(SB)/8, $237
+DATA bitrev_size16384_radix4_f64<>+0xF608(SB)/8, $4333
+DATA bitrev_size16384_radix4_f64<>+0xF610(SB)/8, $8429
+DATA bitrev_size16384_radix4_f64<>+0xF618(SB)/8, $12525
+DATA bitrev_size16384_radix4_f64<>+0xF620(SB)/8, $1261
+DATA bitrev_size16384_radix4_f64<>+0xF628(SB)/8, $5357
+DATA bitrev_size16384_radix4_f64<>+0xF630(SB)/8, $9453
+DATA bitrev_size16384_radix4_f64<>+0xF638(SB)/8, $13549
+DATA bitrev_size16384_radix4_f64<>+0xF640(SB)/8, $2285
+DATA bitrev_size16384_radix4_f64<>+0xF648(SB)/8, $6381
+DATA bitrev_size16384_radix4_f64<>+0xF650(SB)/8, $10477
+DATA bitrev_size16384_radix4_f64<>+0xF658(SB)/8, $14573
+DATA bitrev_size16384_radix4_f64<>+0xF660(SB)/8, $3309
+DATA bitrev_size16384_radix4_f64<>+0xF668(SB)/8, $7405
+DATA bitrev_size16384_radix4_f64<>+0xF670(SB)/8, $11501
+DATA bitrev_size16384_radix4_f64<>+0xF678(SB)/8, $15597
+DATA bitrev_size16384_radix4_f64<>+0xF680(SB)/8, $493
+DATA bitrev_size16384_radix4_f64<>+0xF688(SB)/8, $4589
+DATA bitrev_size16384_radix4_f64<>+0xF690(SB)/8, $8685
+DATA bitrev_size16384_radix4_f64<>+0xF698(SB)/8, $12781
+DATA bitrev_size16384_radix4_f64<>+0xF6A0(SB)/8, $1517
+DATA bitrev_size16384_radix4_f64<>+0xF6A8(SB)/8, $5613
+DATA bitrev_size16384_radix4_f64<>+0xF6B0(SB)/8, $9709
+DATA bitrev_size16384_radix4_f64<>+0xF6B8(SB)/8, $13805
+DATA bitrev_size16384_radix4_f64<>+0xF6C0(SB)/8, $2541
+DATA bitrev_size16384_radix4_f64<>+0xF6C8(SB)/8, $6637
+DATA bitrev_size16384_radix4_f64<>+0xF6D0(SB)/8, $10733
+DATA bitrev_size16384_radix4_f64<>+0xF6D8(SB)/8, $14829
+DATA bitrev_size16384_radix4_f64<>+0xF6E0(SB)/8, $3565
+DATA bitrev_size16384_radix4_f64<>+0xF6E8(SB)/8, $7661
+DATA bitrev_size16384_radix4_f64<>+0xF6F0(SB)/8, $11757
+DATA bitrev_size16384_radix4_f64<>+0xF6F8(SB)/8, $15853
+DATA bitrev_size16384_radix4_f64<>+0xF700(SB)/8, $749
+DATA bitrev_size16384_radix4_f64<>+0xF708(SB)/8, $4845
+DATA bitrev_size16384_radix4_f64<>+0xF710(SB)/8, $8941
+DATA bitrev_size16384_radix4_f64<>+0xF718(SB)/8, $13037
+DATA bitrev_size16384_radix4_f64<>+0xF720(SB)/8, $1773
+DATA bitrev_size16384_radix4_f64<>+0xF728(SB)/8, $5869
+DATA bitrev_size16384_radix4_f64<>+0xF730(SB)/8, $9965
+DATA bitrev_size16384_radix4_f64<>+0xF738(SB)/8, $14061
+DATA bitrev_size16384_radix4_f64<>+0xF740(SB)/8, $2797
+DATA bitrev_size16384_radix4_f64<>+0xF748(SB)/8, $6893
+DATA bitrev_size16384_radix4_f64<>+0xF750(SB)/8, $10989
+DATA bitrev_size16384_radix4_f64<>+0xF758(SB)/8, $15085
+DATA bitrev_size16384_radix4_f64<>+0xF760(SB)/8, $3821
+DATA bitrev_size16384_radix4_f64<>+0xF768(SB)/8, $7917
+DATA bitrev_size16384_radix4_f64<>+0xF770(SB)/8, $12013
+DATA bitrev_size16384_radix4_f64<>+0xF778(SB)/8, $16109
+DATA bitrev_size16384_radix4_f64<>+0xF780(SB)/8, $1005
+DATA bitrev_size16384_radix4_f64<>+0xF788(SB)/8, $5101
+DATA bitrev_size16384_radix4_f64<>+0xF790(SB)/8, $9197
+DATA bitrev_size16384_radix4_f64<>+0xF798(SB)/8, $13293
+DATA bitrev_size16384_radix4_f64<>+0xF7A0(SB)/8, $2029
+DATA bitrev_size16384_radix4_f64<>+0xF7A8(SB)/8, $6125
+DATA bitrev_size16384_radix4_f64<>+0xF7B0(SB)/8, $10221
+DATA bitrev_size16384_radix4_f64<>+0xF7B8(SB)/8, $14317
+DATA bitrev_size16384_radix4_f64<>+0xF7C0(SB)/8, $3053
+DATA bitrev_size16384_radix4_f64<>+0xF7C8(SB)/8, $7149
+DATA bitrev_size16384_radix4_f64<>+0xF7D0(SB)/8, $11245
+DATA bitrev_size16384_radix4_f64<>+0xF7D8(SB)/8, $15341
+DATA bitrev_size16384_radix4_f64<>+0xF7E0(SB)/8, $4077
+DATA bitrev_size16384_radix4_f64<>+0xF7E8(SB)/8, $8173
+DATA bitrev_size16384_radix4_f64<>+0xF7F0(SB)/8, $12269
+DATA bitrev_size16384_radix4_f64<>+0xF7F8(SB)/8, $16365
+DATA bitrev_size16384_radix4_f64<>+0xF800(SB)/8, $61
+DATA bitrev_size16384_radix4_f64<>+0xF808(SB)/8, $4157
+DATA bitrev_size16384_radix4_f64<>+0xF810(SB)/8, $8253
+DATA bitrev_size16384_radix4_f64<>+0xF818(SB)/8, $12349
+DATA bitrev_size16384_radix4_f64<>+0xF820(SB)/8, $1085
+DATA bitrev_size16384_radix4_f64<>+0xF828(SB)/8, $5181
+DATA bitrev_size16384_radix4_f64<>+0xF830(SB)/8, $9277
+DATA bitrev_size16384_radix4_f64<>+0xF838(SB)/8, $13373
+DATA bitrev_size16384_radix4_f64<>+0xF840(SB)/8, $2109
+DATA bitrev_size16384_radix4_f64<>+0xF848(SB)/8, $6205
+DATA bitrev_size16384_radix4_f64<>+0xF850(SB)/8, $10301
+DATA bitrev_size16384_radix4_f64<>+0xF858(SB)/8, $14397
+DATA bitrev_size16384_radix4_f64<>+0xF860(SB)/8, $3133
+DATA bitrev_size16384_radix4_f64<>+0xF868(SB)/8, $7229
+DATA bitrev_size16384_radix4_f64<>+0xF870(SB)/8, $11325
+DATA bitrev_size16384_radix4_f64<>+0xF878(SB)/8, $15421
+DATA bitrev_size16384_radix4_f64<>+0xF880(SB)/8, $317
+DATA bitrev_size16384_radix4_f64<>+0xF888(SB)/8, $4413
+DATA bitrev_size16384_radix4_f64<>+0xF890(SB)/8, $8509
+DATA bitrev_size16384_radix4_f64<>+0xF898(SB)/8, $12605
+DATA bitrev_size16384_radix4_f64<>+0xF8A0(SB)/8, $1341
+DATA bitrev_size16384_radix4_f64<>+0xF8A8(SB)/8, $5437
+DATA bitrev_size16384_radix4_f64<>+0xF8B0(SB)/8, $9533
+DATA bitrev_size16384_radix4_f64<>+0xF8B8(SB)/8, $13629
+DATA bitrev_size16384_radix4_f64<>+0xF8C0(SB)/8, $2365
+DATA bitrev_size16384_radix4_f64<>+0xF8C8(SB)/8, $6461
+DATA bitrev_size16384_radix4_f64<>+0xF8D0(SB)/8, $10557
+DATA bitrev_size16384_radix4_f64<>+0xF8D8(SB)/8, $14653
+DATA bitrev_size16384_radix4_f64<>+0xF8E0(SB)/8, $3389
+DATA bitrev_size16384_radix4_f64<>+0xF8E8(SB)/8, $7485
+DATA bitrev_size16384_radix4_f64<>+0xF8F0(SB)/8, $11581
+DATA bitrev_size16384_radix4_f64<>+0xF8F8(SB)/8, $15677
+DATA bitrev_size16384_radix4_f64<>+0xF900(SB)/8, $573
+DATA bitrev_size16384_radix4_f64<>+0xF908(SB)/8, $4669
+DATA bitrev_size16384_radix4_f64<>+0xF910(SB)/8, $8765
+DATA bitrev_size16384_radix4_f64<>+0xF918(SB)/8, $12861
+DATA bitrev_size16384_radix4_f64<>+0xF920(SB)/8, $1597
+DATA bitrev_size16384_radix4_f64<>+0xF928(SB)/8, $5693
+DATA bitrev_size16384_radix4_f64<>+0xF930(SB)/8, $9789
+DATA bitrev_size16384_radix4_f64<>+0xF938(SB)/8, $13885
+DATA bitrev_size16384_radix4_f64<>+0xF940(SB)/8, $2621
+DATA bitrev_size16384_radix4_f64<>+0xF948(SB)/8, $6717
+DATA bitrev_size16384_radix4_f64<>+0xF950(SB)/8, $10813
+DATA bitrev_size16384_radix4_f64<>+0xF958(SB)/8, $14909
+DATA bitrev_size16384_radix4_f64<>+0xF960(SB)/8, $3645
+DATA bitrev_size16384_radix4_f64<>+0xF968(SB)/8, $7741
+DATA bitrev_size16384_radix4_f64<>+0xF970(SB)/8, $11837
+DATA bitrev_size16384_radix4_f64<>+0xF978(SB)/8, $15933
+DATA bitrev_size16384_radix4_f64<>+0xF980(SB)/8, $829
+DATA bitrev_size16384_radix4_f64<>+0xF988(SB)/8, $4925
+DATA bitrev_size16384_radix4_f64<>+0xF990(SB)/8, $9021
+DATA bitrev_size16384_radix4_f64<>+0xF998(SB)/8, $13117
+DATA bitrev_size16384_radix4_f64<>+0xF9A0(SB)/8, $1853
+DATA bitrev_size16384_radix4_f64<>+0xF9A8(SB)/8, $5949
+DATA bitrev_size16384_radix4_f64<>+0xF9B0(SB)/8, $10045
+DATA bitrev_size16384_radix4_f64<>+0xF9B8(SB)/8, $14141
+DATA bitrev_size16384_radix4_f64<>+0xF9C0(SB)/8, $2877
+DATA bitrev_size16384_radix4_f64<>+0xF9C8(SB)/8, $6973
+DATA bitrev_size16384_radix4_f64<>+0xF9D0(SB)/8, $11069
+DATA bitrev_size16384_radix4_f64<>+0xF9D8(SB)/8, $15165
+DATA bitrev_size16384_radix4_f64<>+0xF9E0(SB)/8, $3901
+DATA bitrev_size16384_radix4_f64<>+0xF9E8(SB)/8, $7997
+DATA bitrev_size16384_radix4_f64<>+0xF9F0(SB)/8, $12093
+DATA bitrev_size16384_radix4_f64<>+0xF9F8(SB)/8, $16189
+DATA bitrev_size16384_radix4_f64<>+0xFA00(SB)/8, $125
+DATA bitrev_size16384_radix4_f64<>+0xFA08(SB)/8, $4221
+DATA bitrev_size16384_radix4_f64<>+0xFA10(SB)/8, $8317
+DATA bitrev_size16384_radix4_f64<>+0xFA18(SB)/8, $12413
+DATA bitrev_size16384_radix4_f64<>+0xFA20(SB)/8, $1149
+DATA bitrev_size16384_radix4_f64<>+0xFA28(SB)/8, $5245
+DATA bitrev_size16384_radix4_f64<>+0xFA30(SB)/8, $9341
+DATA bitrev_size16384_radix4_f64<>+0xFA38(SB)/8, $13437
+DATA bitrev_size16384_radix4_f64<>+0xFA40(SB)/8, $2173
+DATA bitrev_size16384_radix4_f64<>+0xFA48(SB)/8, $6269
+DATA bitrev_size16384_radix4_f64<>+0xFA50(SB)/8, $10365
+DATA bitrev_size16384_radix4_f64<>+0xFA58(SB)/8, $14461
+DATA bitrev_size16384_radix4_f64<>+0xFA60(SB)/8, $3197
+DATA bitrev_size16384_radix4_f64<>+0xFA68(SB)/8, $7293
+DATA bitrev_size16384_radix4_f64<>+0xFA70(SB)/8, $11389
+DATA bitrev_size16384_radix4_f64<>+0xFA78(SB)/8, $15485
+DATA bitrev_size16384_radix4_f64<>+0xFA80(SB)/8, $381
+DATA bitrev_size16384_radix4_f64<>+0xFA88(SB)/8, $4477
+DATA bitrev_size16384_radix4_f64<>+0xFA90(SB)/8, $8573
+DATA bitrev_size16384_radix4_f64<>+0xFA98(SB)/8, $12669
+DATA bitrev_size16384_radix4_f64<>+0xFAA0(SB)/8, $1405
+DATA bitrev_size16384_radix4_f64<>+0xFAA8(SB)/8, $5501
+DATA bitrev_size16384_radix4_f64<>+0xFAB0(SB)/8, $9597
+DATA bitrev_size16384_radix4_f64<>+0xFAB8(SB)/8, $13693
+DATA bitrev_size16384_radix4_f64<>+0xFAC0(SB)/8, $2429
+DATA bitrev_size16384_radix4_f64<>+0xFAC8(SB)/8, $6525
+DATA bitrev_size16384_radix4_f64<>+0xFAD0(SB)/8, $10621
+DATA bitrev_size16384_radix4_f64<>+0xFAD8(SB)/8, $14717
+DATA bitrev_size16384_radix4_f64<>+0xFAE0(SB)/8, $3453
+DATA bitrev_size16384_radix4_f64<>+0xFAE8(SB)/8, $7549
+DATA bitrev_size16384_radix4_f64<>+0xFAF0(SB)/8, $11645
+DATA bitrev_size16384_radix4_f64<>+0xFAF8(SB)/8, $15741
+DATA bitrev_size16384_radix4_f64<>+0xFB00(SB)/8, $637
+DATA bitrev_size16384_radix4_f64<>+0xFB08(SB)/8, $4733
+DATA bitrev_size16384_radix4_f64<>+0xFB10(SB)/8, $8829
+DATA bitrev_size16384_radix4_f64<>+0xFB18(SB)/8, $12925
+DATA bitrev_size16384_radix4_f64<>+0xFB20(SB)/8, $1661
+DATA bitrev_size16384_radix4_f64<>+0xFB28(SB)/8, $5757
+DATA bitrev_size16384_radix4_f64<>+0xFB30(SB)/8, $9853
+DATA bitrev_size16384_radix4_f64<>+0xFB38(SB)/8, $13949
+DATA bitrev_size16384_radix4_f64<>+0xFB40(SB)/8, $2685
+DATA bitrev_size16384_radix4_f64<>+0xFB48(SB)/8, $6781
+DATA bitrev_size16384_radix4_f64<>+0xFB50(SB)/8, $10877
+DATA bitrev_size16384_radix4_f64<>+0xFB58(SB)/8, $14973
+DATA bitrev_size16384_radix4_f64<>+0xFB60(SB)/8, $3709
+DATA bitrev_size16384_radix4_f64<>+0xFB68(SB)/8, $7805
+DATA bitrev_size16384_radix4_f64<>+0xFB70(SB)/8, $11901
+DATA bitrev_size16384_radix4_f64<>+0xFB78(SB)/8, $15997
+DATA bitrev_size16384_radix4_f64<>+0xFB80(SB)/8, $893
+DATA bitrev_size16384_radix4_f64<>+0xFB88(SB)/8, $4989
+DATA bitrev_size16384_radix4_f64<>+0xFB90(SB)/8, $9085
+DATA bitrev_size16384_radix4_f64<>+0xFB98(SB)/8, $13181
+DATA bitrev_size16384_radix4_f64<>+0xFBA0(SB)/8, $1917
+DATA bitrev_size16384_radix4_f64<>+0xFBA8(SB)/8, $6013
+DATA bitrev_size16384_radix4_f64<>+0xFBB0(SB)/8, $10109
+DATA bitrev_size16384_radix4_f64<>+0xFBB8(SB)/8, $14205
+DATA bitrev_size16384_radix4_f64<>+0xFBC0(SB)/8, $2941
+DATA bitrev_size16384_radix4_f64<>+0xFBC8(SB)/8, $7037
+DATA bitrev_size16384_radix4_f64<>+0xFBD0(SB)/8, $11133
+DATA bitrev_size16384_radix4_f64<>+0xFBD8(SB)/8, $15229
+DATA bitrev_size16384_radix4_f64<>+0xFBE0(SB)/8, $3965
+DATA bitrev_size16384_radix4_f64<>+0xFBE8(SB)/8, $8061
+DATA bitrev_size16384_radix4_f64<>+0xFBF0(SB)/8, $12157
+DATA bitrev_size16384_radix4_f64<>+0xFBF8(SB)/8, $16253
+DATA bitrev_size16384_radix4_f64<>+0xFC00(SB)/8, $189
+DATA bitrev_size16384_radix4_f64<>+0xFC08(SB)/8, $4285
+DATA bitrev_size16384_radix4_f64<>+0xFC10(SB)/8, $8381
+DATA bitrev_size16384_radix4_f64<>+0xFC18(SB)/8, $12477
+DATA bitrev_size16384_radix4_f64<>+0xFC20(SB)/8, $1213
+DATA bitrev_size16384_radix4_f64<>+0xFC28(SB)/8, $5309
+DATA bitrev_size16384_radix4_f64<>+0xFC30(SB)/8, $9405
+DATA bitrev_size16384_radix4_f64<>+0xFC38(SB)/8, $13501
+DATA bitrev_size16384_radix4_f64<>+0xFC40(SB)/8, $2237
+DATA bitrev_size16384_radix4_f64<>+0xFC48(SB)/8, $6333
+DATA bitrev_size16384_radix4_f64<>+0xFC50(SB)/8, $10429
+DATA bitrev_size16384_radix4_f64<>+0xFC58(SB)/8, $14525
+DATA bitrev_size16384_radix4_f64<>+0xFC60(SB)/8, $3261
+DATA bitrev_size16384_radix4_f64<>+0xFC68(SB)/8, $7357
+DATA bitrev_size16384_radix4_f64<>+0xFC70(SB)/8, $11453
+DATA bitrev_size16384_radix4_f64<>+0xFC78(SB)/8, $15549
+DATA bitrev_size16384_radix4_f64<>+0xFC80(SB)/8, $445
+DATA bitrev_size16384_radix4_f64<>+0xFC88(SB)/8, $4541
+DATA bitrev_size16384_radix4_f64<>+0xFC90(SB)/8, $8637
+DATA bitrev_size16384_radix4_f64<>+0xFC98(SB)/8, $12733
+DATA bitrev_size16384_radix4_f64<>+0xFCA0(SB)/8, $1469
+DATA bitrev_size16384_radix4_f64<>+0xFCA8(SB)/8, $5565
+DATA bitrev_size16384_radix4_f64<>+0xFCB0(SB)/8, $9661
+DATA bitrev_size16384_radix4_f64<>+0xFCB8(SB)/8, $13757
+DATA bitrev_size16384_radix4_f64<>+0xFCC0(SB)/8, $2493
+DATA bitrev_size16384_radix4_f64<>+0xFCC8(SB)/8, $6589
+DATA bitrev_size16384_radix4_f64<>+0xFCD0(SB)/8, $10685
+DATA bitrev_size16384_radix4_f64<>+0xFCD8(SB)/8, $14781
+DATA bitrev_size16384_radix4_f64<>+0xFCE0(SB)/8, $3517
+DATA bitrev_size16384_radix4_f64<>+0xFCE8(SB)/8, $7613
+DATA bitrev_size16384_radix4_f64<>+0xFCF0(SB)/8, $11709
+DATA bitrev_size16384_radix4_f64<>+0xFCF8(SB)/8, $15805
+DATA bitrev_size16384_radix4_f64<>+0xFD00(SB)/8, $701
+DATA bitrev_size16384_radix4_f64<>+0xFD08(SB)/8, $4797
+DATA bitrev_size16384_radix4_f64<>+0xFD10(SB)/8, $8893
+DATA bitrev_size16384_radix4_f64<>+0xFD18(SB)/8, $12989
+DATA bitrev_size16384_radix4_f64<>+0xFD20(SB)/8, $1725
+DATA bitrev_size16384_radix4_f64<>+0xFD28(SB)/8, $5821
+DATA bitrev_size16384_radix4_f64<>+0xFD30(SB)/8, $9917
+DATA bitrev_size16384_radix4_f64<>+0xFD38(SB)/8, $14013
+DATA bitrev_size16384_radix4_f64<>+0xFD40(SB)/8, $2749
+DATA bitrev_size16384_radix4_f64<>+0xFD48(SB)/8, $6845
+DATA bitrev_size16384_radix4_f64<>+0xFD50(SB)/8, $10941
+DATA bitrev_size16384_radix4_f64<>+0xFD58(SB)/8, $15037
+DATA bitrev_size16384_radix4_f64<>+0xFD60(SB)/8, $3773
+DATA bitrev_size16384_radix4_f64<>+0xFD68(SB)/8, $7869
+DATA bitrev_size16384_radix4_f64<>+0xFD70(SB)/8, $11965
+DATA bitrev_size16384_radix4_f64<>+0xFD78(SB)/8, $16061
+DATA bitrev_size16384_radix4_f64<>+0xFD80(SB)/8, $957
+DATA bitrev_size16384_radix4_f64<>+0xFD88(SB)/8, $5053
+DATA bitrev_size16384_radix4_f64<>+0xFD90(SB)/8, $9149
+DATA bitrev_size16384_radix4_f64<>+0xFD98(SB)/8, $13245
+DATA bitrev_size16384_radix4_f64<>+0xFDA0(SB)/8, $1981
+DATA bitrev_size16384_radix4_f64<>+0xFDA8(SB)/8, $6077
+DATA bitrev_size16384_radix4_f64<>+0xFDB0(SB)/8, $10173
+DATA bitrev_size16384_radix4_f64<>+0xFDB8(SB)/8, $14269
+DATA bitrev_size16384_radix4_f64<>+0xFDC0(SB)/8, $3005
+DATA bitrev_size16384_radix4_f64<>+0xFDC8(SB)/8, $7101
+DATA bitrev_size16384_radix4_f64<>+0xFDD0(SB)/8, $11197
+DATA bitrev_size16384_radix4_f64<>+0xFDD8(SB)/8, $15293
+DATA bitrev_size16384_radix4_f64<>+0xFDE0(SB)/8, $4029
+DATA bitrev_size16384_radix4_f64<>+0xFDE8(SB)/8, $8125
+DATA bitrev_size16384_radix4_f64<>+0xFDF0(SB)/8, $12221
+DATA bitrev_size16384_radix4_f64<>+0xFDF8(SB)/8, $16317
+DATA bitrev_size16384_radix4_f64<>+0xFE00(SB)/8, $253
+DATA bitrev_size16384_radix4_f64<>+0xFE08(SB)/8, $4349
+DATA bitrev_size16384_radix4_f64<>+0xFE10(SB)/8, $8445
+DATA bitrev_size16384_radix4_f64<>+0xFE18(SB)/8, $12541
+DATA bitrev_size16384_radix4_f64<>+0xFE20(SB)/8, $1277
+DATA bitrev_size16384_radix4_f64<>+0xFE28(SB)/8, $5373
+DATA bitrev_size16384_radix4_f64<>+0xFE30(SB)/8, $9469
+DATA bitrev_size16384_radix4_f64<>+0xFE38(SB)/8, $13565
+DATA bitrev_size16384_radix4_f64<>+0xFE40(SB)/8, $2301
+DATA bitrev_size16384_radix4_f64<>+0xFE48(SB)/8, $6397
+DATA bitrev_size16384_radix4_f64<>+0xFE50(SB)/8, $10493
+DATA bitrev_size16384_radix4_f64<>+0xFE58(SB)/8, $14589
+DATA bitrev_size16384_radix4_f64<>+0xFE60(SB)/8, $3325
+DATA bitrev_size16384_radix4_f64<>+0xFE68(SB)/8, $7421
+DATA bitrev_size16384_radix4_f64<>+0xFE70(SB)/8, $11517
+DATA bitrev_size16384_radix4_f64<>+0xFE78(SB)/8, $15613
+DATA bitrev_size16384_radix4_f64<>+0xFE80(SB)/8, $509
+DATA bitrev_size16384_radix4_f64<>+0xFE88(SB)/8, $4605
+DATA bitrev_size16384_radix4_f64<>+0xFE90(SB)/8, $8701
+DATA bitrev_size16384_radix4_f64<>+0xFE98(SB)/8, $12797
+DATA bitrev_size16384_radix4_f64<>+0xFEA0(SB)/8, $1533
+DATA bitrev_size16384_radix4_f64<>+0xFEA8(SB)/8, $5629
+DATA bitrev_size16384_radix4_f64<>+0xFEB0(SB)/8, $9725
+DATA bitrev_size16384_radix4_f64<>+0xFEB8(SB)/8, $13821
+DATA bitrev_size16384_radix4_f64<>+0xFEC0(SB)/8, $2557
+DATA bitrev_size16384_radix4_f64<>+0xFEC8(SB)/8, $6653
+DATA bitrev_size16384_radix4_f64<>+0xFED0(SB)/8, $10749
+DATA bitrev_size16384_radix4_f64<>+0xFED8(SB)/8, $14845
+DATA bitrev_size16384_radix4_f64<>+0xFEE0(SB)/8, $3581
+DATA bitrev_size16384_radix4_f64<>+0xFEE8(SB)/8, $7677
+DATA bitrev_size16384_radix4_f64<>+0xFEF0(SB)/8, $11773
+DATA bitrev_size16384_radix4_f64<>+0xFEF8(SB)/8, $15869
+DATA bitrev_size16384_radix4_f64<>+0xFF00(SB)/8, $765
+DATA bitrev_size16384_radix4_f64<>+0xFF08(SB)/8, $4861
+DATA bitrev_size16384_radix4_f64<>+0xFF10(SB)/8, $8957
+DATA bitrev_size16384_radix4_f64<>+0xFF18(SB)/8, $13053
+DATA bitrev_size16384_radix4_f64<>+0xFF20(SB)/8, $1789
+DATA bitrev_size16384_radix4_f64<>+0xFF28(SB)/8, $5885
+DATA bitrev_size16384_radix4_f64<>+0xFF30(SB)/8, $9981
+DATA bitrev_size16384_radix4_f64<>+0xFF38(SB)/8, $14077
+DATA bitrev_size16384_radix4_f64<>+0xFF40(SB)/8, $2813
+DATA bitrev_size16384_radix4_f64<>+0xFF48(SB)/8, $6909
+DATA bitrev_size16384_radix4_f64<>+0xFF50(SB)/8, $11005
+DATA bitrev_size16384_radix4_f64<>+0xFF58(SB)/8, $15101
+DATA bitrev_size16384_radix4_f64<>+0xFF60(SB)/8, $3837
+DATA bitrev_size16384_radix4_f64<>+0xFF68(SB)/8, $7933
+DATA bitrev_size16384_radix4_f64<>+0xFF70(SB)/8, $12029
+DATA bitrev_size16384_radix4_f64<>+0xFF78(SB)/8, $16125
+DATA bitrev_size16384_radix4_f64<>+0xFF80(SB)/8, $1021
+DATA bitrev_size16384_radix4_f64<>+0xFF88(SB)/8, $5117
+DATA bitrev_size16384_radix4_f64<>+0xFF90(SB)/8, $9213
+DATA bitrev_size16384_radix4_f64<>+0xFF98(SB)/8, $13309
+DATA bitrev_size16384_radix4_f64<>+0xFFA0(SB)/8, $2045
+DATA bitrev_size16384_radix4_f64<>+0xFFA8(SB)/8, $6141
+DATA bitrev_size16384_radix4_f64<>+0xFFB0(SB)/8, $10237
+DATA bitrev_size16384_radix4_f64<>+0xFFB8(SB)/8, $14333
+DATA bitrev_size16384_radix4_f64<>+0xFFC0(SB)/8, $3069
+DATA bitrev_size16384_radix4_f64<>+0xFFC8(SB)/8, $7165
+DATA bitrev_size16384_radix4_f64<>+0xFFD0(SB)/8, $11261
+DATA bitrev_size16384_radix4_f64<>+0xFFD8(SB)/8, $15357
+DATA bitrev_size16384_radix4_f64<>+0xFFE0(SB)/8, $4093
+DATA bitrev_size16384_radix4_f64<>+0xFFE8(SB)/8, $8189
+DATA bitrev_size16384_radix4_f64<>+0xFFF0(SB)/8, $12285
+DATA bitrev_size16384_radix4_f64<>+0xFFF8(SB)/8, $16381
+DATA bitrev_size16384_radix4_f64<>+0x10000(SB)/8, $2
+DATA bitrev_size16384_radix4_f64<>+0x10008(SB)/8, $4098
+DATA bitrev_size16384_radix4_f64<>+0x10010(SB)/8, $8194
+DATA bitrev_size16384_radix4_f64<>+0x10018(SB)/8, $12290
+DATA bitrev_size16384_radix4_f64<>+0x10020(SB)/8, $1026
+DATA bitrev_size16384_radix4_f64<>+0x10028(SB)/8, $5122
+DATA bitrev_size16384_radix4_f64<>+0x10030(SB)/8, $9218
+DATA bitrev_size16384_radix4_f64<>+0x10038(SB)/8, $13314
+DATA bitrev_size16384_radix4_f64<>+0x10040(SB)/8, $2050
+DATA bitrev_size16384_radix4_f64<>+0x10048(SB)/8, $6146
+DATA bitrev_size16384_radix4_f64<>+0x10050(SB)/8, $10242
+DATA bitrev_size16384_radix4_f64<>+0x10058(SB)/8, $14338
+DATA bitrev_size16384_radix4_f64<>+0x10060(SB)/8, $3074
+DATA bitrev_size16384_radix4_f64<>+0x10068(SB)/8, $7170
+DATA bitrev_size16384_radix4_f64<>+0x10070(SB)/8, $11266
+DATA bitrev_size16384_radix4_f64<>+0x10078(SB)/8, $15362
+DATA bitrev_size16384_radix4_f64<>+0x10080(SB)/8, $258
+DATA bitrev_size16384_radix4_f64<>+0x10088(SB)/8, $4354
+DATA bitrev_size16384_radix4_f64<>+0x10090(SB)/8, $8450
+DATA bitrev_size16384_radix4_f64<>+0x10098(SB)/8, $12546
+DATA bitrev_size16384_radix4_f64<>+0x100A0(SB)/8, $1282
+DATA bitrev_size16384_radix4_f64<>+0x100A8(SB)/8, $5378
+DATA bitrev_size16384_radix4_f64<>+0x100B0(SB)/8, $9474
+DATA bitrev_size16384_radix4_f64<>+0x100B8(SB)/8, $13570
+DATA bitrev_size16384_radix4_f64<>+0x100C0(SB)/8, $2306
+DATA bitrev_size16384_radix4_f64<>+0x100C8(SB)/8, $6402
+DATA bitrev_size16384_radix4_f64<>+0x100D0(SB)/8, $10498
+DATA bitrev_size16384_radix4_f64<>+0x100D8(SB)/8, $14594
+DATA bitrev_size16384_radix4_f64<>+0x100E0(SB)/8, $3330
+DATA bitrev_size16384_radix4_f64<>+0x100E8(SB)/8, $7426
+DATA bitrev_size16384_radix4_f64<>+0x100F0(SB)/8, $11522
+DATA bitrev_size16384_radix4_f64<>+0x100F8(SB)/8, $15618
+DATA bitrev_size16384_radix4_f64<>+0x10100(SB)/8, $514
+DATA bitrev_size16384_radix4_f64<>+0x10108(SB)/8, $4610
+DATA bitrev_size16384_radix4_f64<>+0x10110(SB)/8, $8706
+DATA bitrev_size16384_radix4_f64<>+0x10118(SB)/8, $12802
+DATA bitrev_size16384_radix4_f64<>+0x10120(SB)/8, $1538
+DATA bitrev_size16384_radix4_f64<>+0x10128(SB)/8, $5634
+DATA bitrev_size16384_radix4_f64<>+0x10130(SB)/8, $9730
+DATA bitrev_size16384_radix4_f64<>+0x10138(SB)/8, $13826
+DATA bitrev_size16384_radix4_f64<>+0x10140(SB)/8, $2562
+DATA bitrev_size16384_radix4_f64<>+0x10148(SB)/8, $6658
+DATA bitrev_size16384_radix4_f64<>+0x10150(SB)/8, $10754
+DATA bitrev_size16384_radix4_f64<>+0x10158(SB)/8, $14850
+DATA bitrev_size16384_radix4_f64<>+0x10160(SB)/8, $3586
+DATA bitrev_size16384_radix4_f64<>+0x10168(SB)/8, $7682
+DATA bitrev_size16384_radix4_f64<>+0x10170(SB)/8, $11778
+DATA bitrev_size16384_radix4_f64<>+0x10178(SB)/8, $15874
+DATA bitrev_size16384_radix4_f64<>+0x10180(SB)/8, $770
+DATA bitrev_size16384_radix4_f64<>+0x10188(SB)/8, $4866
+DATA bitrev_size16384_radix4_f64<>+0x10190(SB)/8, $8962
+DATA bitrev_size16384_radix4_f64<>+0x10198(SB)/8, $13058
+DATA bitrev_size16384_radix4_f64<>+0x101A0(SB)/8, $1794
+DATA bitrev_size16384_radix4_f64<>+0x101A8(SB)/8, $5890
+DATA bitrev_size16384_radix4_f64<>+0x101B0(SB)/8, $9986
+DATA bitrev_size16384_radix4_f64<>+0x101B8(SB)/8, $14082
+DATA bitrev_size16384_radix4_f64<>+0x101C0(SB)/8, $2818
+DATA bitrev_size16384_radix4_f64<>+0x101C8(SB)/8, $6914
+DATA bitrev_size16384_radix4_f64<>+0x101D0(SB)/8, $11010
+DATA bitrev_size16384_radix4_f64<>+0x101D8(SB)/8, $15106
+DATA bitrev_size16384_radix4_f64<>+0x101E0(SB)/8, $3842
+DATA bitrev_size16384_radix4_f64<>+0x101E8(SB)/8, $7938
+DATA bitrev_size16384_radix4_f64<>+0x101F0(SB)/8, $12034
+DATA bitrev_size16384_radix4_f64<>+0x101F8(SB)/8, $16130
+DATA bitrev_size16384_radix4_f64<>+0x10200(SB)/8, $66
+DATA bitrev_size16384_radix4_f64<>+0x10208(SB)/8, $4162
+DATA bitrev_size16384_radix4_f64<>+0x10210(SB)/8, $8258
+DATA bitrev_size16384_radix4_f64<>+0x10218(SB)/8, $12354
+DATA bitrev_size16384_radix4_f64<>+0x10220(SB)/8, $1090
+DATA bitrev_size16384_radix4_f64<>+0x10228(SB)/8, $5186
+DATA bitrev_size16384_radix4_f64<>+0x10230(SB)/8, $9282
+DATA bitrev_size16384_radix4_f64<>+0x10238(SB)/8, $13378
+DATA bitrev_size16384_radix4_f64<>+0x10240(SB)/8, $2114
+DATA bitrev_size16384_radix4_f64<>+0x10248(SB)/8, $6210
+DATA bitrev_size16384_radix4_f64<>+0x10250(SB)/8, $10306
+DATA bitrev_size16384_radix4_f64<>+0x10258(SB)/8, $14402
+DATA bitrev_size16384_radix4_f64<>+0x10260(SB)/8, $3138
+DATA bitrev_size16384_radix4_f64<>+0x10268(SB)/8, $7234
+DATA bitrev_size16384_radix4_f64<>+0x10270(SB)/8, $11330
+DATA bitrev_size16384_radix4_f64<>+0x10278(SB)/8, $15426
+DATA bitrev_size16384_radix4_f64<>+0x10280(SB)/8, $322
+DATA bitrev_size16384_radix4_f64<>+0x10288(SB)/8, $4418
+DATA bitrev_size16384_radix4_f64<>+0x10290(SB)/8, $8514
+DATA bitrev_size16384_radix4_f64<>+0x10298(SB)/8, $12610
+DATA bitrev_size16384_radix4_f64<>+0x102A0(SB)/8, $1346
+DATA bitrev_size16384_radix4_f64<>+0x102A8(SB)/8, $5442
+DATA bitrev_size16384_radix4_f64<>+0x102B0(SB)/8, $9538
+DATA bitrev_size16384_radix4_f64<>+0x102B8(SB)/8, $13634
+DATA bitrev_size16384_radix4_f64<>+0x102C0(SB)/8, $2370
+DATA bitrev_size16384_radix4_f64<>+0x102C8(SB)/8, $6466
+DATA bitrev_size16384_radix4_f64<>+0x102D0(SB)/8, $10562
+DATA bitrev_size16384_radix4_f64<>+0x102D8(SB)/8, $14658
+DATA bitrev_size16384_radix4_f64<>+0x102E0(SB)/8, $3394
+DATA bitrev_size16384_radix4_f64<>+0x102E8(SB)/8, $7490
+DATA bitrev_size16384_radix4_f64<>+0x102F0(SB)/8, $11586
+DATA bitrev_size16384_radix4_f64<>+0x102F8(SB)/8, $15682
+DATA bitrev_size16384_radix4_f64<>+0x10300(SB)/8, $578
+DATA bitrev_size16384_radix4_f64<>+0x10308(SB)/8, $4674
+DATA bitrev_size16384_radix4_f64<>+0x10310(SB)/8, $8770
+DATA bitrev_size16384_radix4_f64<>+0x10318(SB)/8, $12866
+DATA bitrev_size16384_radix4_f64<>+0x10320(SB)/8, $1602
+DATA bitrev_size16384_radix4_f64<>+0x10328(SB)/8, $5698
+DATA bitrev_size16384_radix4_f64<>+0x10330(SB)/8, $9794
+DATA bitrev_size16384_radix4_f64<>+0x10338(SB)/8, $13890
+DATA bitrev_size16384_radix4_f64<>+0x10340(SB)/8, $2626
+DATA bitrev_size16384_radix4_f64<>+0x10348(SB)/8, $6722
+DATA bitrev_size16384_radix4_f64<>+0x10350(SB)/8, $10818
+DATA bitrev_size16384_radix4_f64<>+0x10358(SB)/8, $14914
+DATA bitrev_size16384_radix4_f64<>+0x10360(SB)/8, $3650
+DATA bitrev_size16384_radix4_f64<>+0x10368(SB)/8, $7746
+DATA bitrev_size16384_radix4_f64<>+0x10370(SB)/8, $11842
+DATA bitrev_size16384_radix4_f64<>+0x10378(SB)/8, $15938
+DATA bitrev_size16384_radix4_f64<>+0x10380(SB)/8, $834
+DATA bitrev_size16384_radix4_f64<>+0x10388(SB)/8, $4930
+DATA bitrev_size16384_radix4_f64<>+0x10390(SB)/8, $9026
+DATA bitrev_size16384_radix4_f64<>+0x10398(SB)/8, $13122
+DATA bitrev_size16384_radix4_f64<>+0x103A0(SB)/8, $1858
+DATA bitrev_size16384_radix4_f64<>+0x103A8(SB)/8, $5954
+DATA bitrev_size16384_radix4_f64<>+0x103B0(SB)/8, $10050
+DATA bitrev_size16384_radix4_f64<>+0x103B8(SB)/8, $14146
+DATA bitrev_size16384_radix4_f64<>+0x103C0(SB)/8, $2882
+DATA bitrev_size16384_radix4_f64<>+0x103C8(SB)/8, $6978
+DATA bitrev_size16384_radix4_f64<>+0x103D0(SB)/8, $11074
+DATA bitrev_size16384_radix4_f64<>+0x103D8(SB)/8, $15170
+DATA bitrev_size16384_radix4_f64<>+0x103E0(SB)/8, $3906
+DATA bitrev_size16384_radix4_f64<>+0x103E8(SB)/8, $8002
+DATA bitrev_size16384_radix4_f64<>+0x103F0(SB)/8, $12098
+DATA bitrev_size16384_radix4_f64<>+0x103F8(SB)/8, $16194
+DATA bitrev_size16384_radix4_f64<>+0x10400(SB)/8, $130
+DATA bitrev_size16384_radix4_f64<>+0x10408(SB)/8, $4226
+DATA bitrev_size16384_radix4_f64<>+0x10410(SB)/8, $8322
+DATA bitrev_size16384_radix4_f64<>+0x10418(SB)/8, $12418
+DATA bitrev_size16384_radix4_f64<>+0x10420(SB)/8, $1154
+DATA bitrev_size16384_radix4_f64<>+0x10428(SB)/8, $5250
+DATA bitrev_size16384_radix4_f64<>+0x10430(SB)/8, $9346
+DATA bitrev_size16384_radix4_f64<>+0x10438(SB)/8, $13442
+DATA bitrev_size16384_radix4_f64<>+0x10440(SB)/8, $2178
+DATA bitrev_size16384_radix4_f64<>+0x10448(SB)/8, $6274
+DATA bitrev_size16384_radix4_f64<>+0x10450(SB)/8, $10370
+DATA bitrev_size16384_radix4_f64<>+0x10458(SB)/8, $14466
+DATA bitrev_size16384_radix4_f64<>+0x10460(SB)/8, $3202
+DATA bitrev_size16384_radix4_f64<>+0x10468(SB)/8, $7298
+DATA bitrev_size16384_radix4_f64<>+0x10470(SB)/8, $11394
+DATA bitrev_size16384_radix4_f64<>+0x10478(SB)/8, $15490
+DATA bitrev_size16384_radix4_f64<>+0x10480(SB)/8, $386
+DATA bitrev_size16384_radix4_f64<>+0x10488(SB)/8, $4482
+DATA bitrev_size16384_radix4_f64<>+0x10490(SB)/8, $8578
+DATA bitrev_size16384_radix4_f64<>+0x10498(SB)/8, $12674
+DATA bitrev_size16384_radix4_f64<>+0x104A0(SB)/8, $1410
+DATA bitrev_size16384_radix4_f64<>+0x104A8(SB)/8, $5506
+DATA bitrev_size16384_radix4_f64<>+0x104B0(SB)/8, $9602
+DATA bitrev_size16384_radix4_f64<>+0x104B8(SB)/8, $13698
+DATA bitrev_size16384_radix4_f64<>+0x104C0(SB)/8, $2434
+DATA bitrev_size16384_radix4_f64<>+0x104C8(SB)/8, $6530
+DATA bitrev_size16384_radix4_f64<>+0x104D0(SB)/8, $10626
+DATA bitrev_size16384_radix4_f64<>+0x104D8(SB)/8, $14722
+DATA bitrev_size16384_radix4_f64<>+0x104E0(SB)/8, $3458
+DATA bitrev_size16384_radix4_f64<>+0x104E8(SB)/8, $7554
+DATA bitrev_size16384_radix4_f64<>+0x104F0(SB)/8, $11650
+DATA bitrev_size16384_radix4_f64<>+0x104F8(SB)/8, $15746
+DATA bitrev_size16384_radix4_f64<>+0x10500(SB)/8, $642
+DATA bitrev_size16384_radix4_f64<>+0x10508(SB)/8, $4738
+DATA bitrev_size16384_radix4_f64<>+0x10510(SB)/8, $8834
+DATA bitrev_size16384_radix4_f64<>+0x10518(SB)/8, $12930
+DATA bitrev_size16384_radix4_f64<>+0x10520(SB)/8, $1666
+DATA bitrev_size16384_radix4_f64<>+0x10528(SB)/8, $5762
+DATA bitrev_size16384_radix4_f64<>+0x10530(SB)/8, $9858
+DATA bitrev_size16384_radix4_f64<>+0x10538(SB)/8, $13954
+DATA bitrev_size16384_radix4_f64<>+0x10540(SB)/8, $2690
+DATA bitrev_size16384_radix4_f64<>+0x10548(SB)/8, $6786
+DATA bitrev_size16384_radix4_f64<>+0x10550(SB)/8, $10882
+DATA bitrev_size16384_radix4_f64<>+0x10558(SB)/8, $14978
+DATA bitrev_size16384_radix4_f64<>+0x10560(SB)/8, $3714
+DATA bitrev_size16384_radix4_f64<>+0x10568(SB)/8, $7810
+DATA bitrev_size16384_radix4_f64<>+0x10570(SB)/8, $11906
+DATA bitrev_size16384_radix4_f64<>+0x10578(SB)/8, $16002
+DATA bitrev_size16384_radix4_f64<>+0x10580(SB)/8, $898
+DATA bitrev_size16384_radix4_f64<>+0x10588(SB)/8, $4994
+DATA bitrev_size16384_radix4_f64<>+0x10590(SB)/8, $9090
+DATA bitrev_size16384_radix4_f64<>+0x10598(SB)/8, $13186
+DATA bitrev_size16384_radix4_f64<>+0x105A0(SB)/8, $1922
+DATA bitrev_size16384_radix4_f64<>+0x105A8(SB)/8, $6018
+DATA bitrev_size16384_radix4_f64<>+0x105B0(SB)/8, $10114
+DATA bitrev_size16384_radix4_f64<>+0x105B8(SB)/8, $14210
+DATA bitrev_size16384_radix4_f64<>+0x105C0(SB)/8, $2946
+DATA bitrev_size16384_radix4_f64<>+0x105C8(SB)/8, $7042
+DATA bitrev_size16384_radix4_f64<>+0x105D0(SB)/8, $11138
+DATA bitrev_size16384_radix4_f64<>+0x105D8(SB)/8, $15234
+DATA bitrev_size16384_radix4_f64<>+0x105E0(SB)/8, $3970
+DATA bitrev_size16384_radix4_f64<>+0x105E8(SB)/8, $8066
+DATA bitrev_size16384_radix4_f64<>+0x105F0(SB)/8, $12162
+DATA bitrev_size16384_radix4_f64<>+0x105F8(SB)/8, $16258
+DATA bitrev_size16384_radix4_f64<>+0x10600(SB)/8, $194
+DATA bitrev_size16384_radix4_f64<>+0x10608(SB)/8, $4290
+DATA bitrev_size16384_radix4_f64<>+0x10610(SB)/8, $8386
+DATA bitrev_size16384_radix4_f64<>+0x10618(SB)/8, $12482
+DATA bitrev_size16384_radix4_f64<>+0x10620(SB)/8, $1218
+DATA bitrev_size16384_radix4_f64<>+0x10628(SB)/8, $5314
+DATA bitrev_size16384_radix4_f64<>+0x10630(SB)/8, $9410
+DATA bitrev_size16384_radix4_f64<>+0x10638(SB)/8, $13506
+DATA bitrev_size16384_radix4_f64<>+0x10640(SB)/8, $2242
+DATA bitrev_size16384_radix4_f64<>+0x10648(SB)/8, $6338
+DATA bitrev_size16384_radix4_f64<>+0x10650(SB)/8, $10434
+DATA bitrev_size16384_radix4_f64<>+0x10658(SB)/8, $14530
+DATA bitrev_size16384_radix4_f64<>+0x10660(SB)/8, $3266
+DATA bitrev_size16384_radix4_f64<>+0x10668(SB)/8, $7362
+DATA bitrev_size16384_radix4_f64<>+0x10670(SB)/8, $11458
+DATA bitrev_size16384_radix4_f64<>+0x10678(SB)/8, $15554
+DATA bitrev_size16384_radix4_f64<>+0x10680(SB)/8, $450
+DATA bitrev_size16384_radix4_f64<>+0x10688(SB)/8, $4546
+DATA bitrev_size16384_radix4_f64<>+0x10690(SB)/8, $8642
+DATA bitrev_size16384_radix4_f64<>+0x10698(SB)/8, $12738
+DATA bitrev_size16384_radix4_f64<>+0x106A0(SB)/8, $1474
+DATA bitrev_size16384_radix4_f64<>+0x106A8(SB)/8, $5570
+DATA bitrev_size16384_radix4_f64<>+0x106B0(SB)/8, $9666
+DATA bitrev_size16384_radix4_f64<>+0x106B8(SB)/8, $13762
+DATA bitrev_size16384_radix4_f64<>+0x106C0(SB)/8, $2498
+DATA bitrev_size16384_radix4_f64<>+0x106C8(SB)/8, $6594
+DATA bitrev_size16384_radix4_f64<>+0x106D0(SB)/8, $10690
+DATA bitrev_size16384_radix4_f64<>+0x106D8(SB)/8, $14786
+DATA bitrev_size16384_radix4_f64<>+0x106E0(SB)/8, $3522
+DATA bitrev_size16384_radix4_f64<>+0x106E8(SB)/8, $7618
+DATA bitrev_size16384_radix4_f64<>+0x106F0(SB)/8, $11714
+DATA bitrev_size16384_radix4_f64<>+0x106F8(SB)/8, $15810
+DATA bitrev_size16384_radix4_f64<>+0x10700(SB)/8, $706
+DATA bitrev_size16384_radix4_f64<>+0x10708(SB)/8, $4802
+DATA bitrev_size16384_radix4_f64<>+0x10710(SB)/8, $8898
+DATA bitrev_size16384_radix4_f64<>+0x10718(SB)/8, $12994
+DATA bitrev_size16384_radix4_f64<>+0x10720(SB)/8, $1730
+DATA bitrev_size16384_radix4_f64<>+0x10728(SB)/8, $5826
+DATA bitrev_size16384_radix4_f64<>+0x10730(SB)/8, $9922
+DATA bitrev_size16384_radix4_f64<>+0x10738(SB)/8, $14018
+DATA bitrev_size16384_radix4_f64<>+0x10740(SB)/8, $2754
+DATA bitrev_size16384_radix4_f64<>+0x10748(SB)/8, $6850
+DATA bitrev_size16384_radix4_f64<>+0x10750(SB)/8, $10946
+DATA bitrev_size16384_radix4_f64<>+0x10758(SB)/8, $15042
+DATA bitrev_size16384_radix4_f64<>+0x10760(SB)/8, $3778
+DATA bitrev_size16384_radix4_f64<>+0x10768(SB)/8, $7874
+DATA bitrev_size16384_radix4_f64<>+0x10770(SB)/8, $11970
+DATA bitrev_size16384_radix4_f64<>+0x10778(SB)/8, $16066
+DATA bitrev_size16384_radix4_f64<>+0x10780(SB)/8, $962
+DATA bitrev_size16384_radix4_f64<>+0x10788(SB)/8, $5058
+DATA bitrev_size16384_radix4_f64<>+0x10790(SB)/8, $9154
+DATA bitrev_size16384_radix4_f64<>+0x10798(SB)/8, $13250
+DATA bitrev_size16384_radix4_f64<>+0x107A0(SB)/8, $1986
+DATA bitrev_size16384_radix4_f64<>+0x107A8(SB)/8, $6082
+DATA bitrev_size16384_radix4_f64<>+0x107B0(SB)/8, $10178
+DATA bitrev_size16384_radix4_f64<>+0x107B8(SB)/8, $14274
+DATA bitrev_size16384_radix4_f64<>+0x107C0(SB)/8, $3010
+DATA bitrev_size16384_radix4_f64<>+0x107C8(SB)/8, $7106
+DATA bitrev_size16384_radix4_f64<>+0x107D0(SB)/8, $11202
+DATA bitrev_size16384_radix4_f64<>+0x107D8(SB)/8, $15298
+DATA bitrev_size16384_radix4_f64<>+0x107E0(SB)/8, $4034
+DATA bitrev_size16384_radix4_f64<>+0x107E8(SB)/8, $8130
+DATA bitrev_size16384_radix4_f64<>+0x107F0(SB)/8, $12226
+DATA bitrev_size16384_radix4_f64<>+0x107F8(SB)/8, $16322
+DATA bitrev_size16384_radix4_f64<>+0x10800(SB)/8, $18
+DATA bitrev_size16384_radix4_f64<>+0x10808(SB)/8, $4114
+DATA bitrev_size16384_radix4_f64<>+0x10810(SB)/8, $8210
+DATA bitrev_size16384_radix4_f64<>+0x10818(SB)/8, $12306
+DATA bitrev_size16384_radix4_f64<>+0x10820(SB)/8, $1042
+DATA bitrev_size16384_radix4_f64<>+0x10828(SB)/8, $5138
+DATA bitrev_size16384_radix4_f64<>+0x10830(SB)/8, $9234
+DATA bitrev_size16384_radix4_f64<>+0x10838(SB)/8, $13330
+DATA bitrev_size16384_radix4_f64<>+0x10840(SB)/8, $2066
+DATA bitrev_size16384_radix4_f64<>+0x10848(SB)/8, $6162
+DATA bitrev_size16384_radix4_f64<>+0x10850(SB)/8, $10258
+DATA bitrev_size16384_radix4_f64<>+0x10858(SB)/8, $14354
+DATA bitrev_size16384_radix4_f64<>+0x10860(SB)/8, $3090
+DATA bitrev_size16384_radix4_f64<>+0x10868(SB)/8, $7186
+DATA bitrev_size16384_radix4_f64<>+0x10870(SB)/8, $11282
+DATA bitrev_size16384_radix4_f64<>+0x10878(SB)/8, $15378
+DATA bitrev_size16384_radix4_f64<>+0x10880(SB)/8, $274
+DATA bitrev_size16384_radix4_f64<>+0x10888(SB)/8, $4370
+DATA bitrev_size16384_radix4_f64<>+0x10890(SB)/8, $8466
+DATA bitrev_size16384_radix4_f64<>+0x10898(SB)/8, $12562
+DATA bitrev_size16384_radix4_f64<>+0x108A0(SB)/8, $1298
+DATA bitrev_size16384_radix4_f64<>+0x108A8(SB)/8, $5394
+DATA bitrev_size16384_radix4_f64<>+0x108B0(SB)/8, $9490
+DATA bitrev_size16384_radix4_f64<>+0x108B8(SB)/8, $13586
+DATA bitrev_size16384_radix4_f64<>+0x108C0(SB)/8, $2322
+DATA bitrev_size16384_radix4_f64<>+0x108C8(SB)/8, $6418
+DATA bitrev_size16384_radix4_f64<>+0x108D0(SB)/8, $10514
+DATA bitrev_size16384_radix4_f64<>+0x108D8(SB)/8, $14610
+DATA bitrev_size16384_radix4_f64<>+0x108E0(SB)/8, $3346
+DATA bitrev_size16384_radix4_f64<>+0x108E8(SB)/8, $7442
+DATA bitrev_size16384_radix4_f64<>+0x108F0(SB)/8, $11538
+DATA bitrev_size16384_radix4_f64<>+0x108F8(SB)/8, $15634
+DATA bitrev_size16384_radix4_f64<>+0x10900(SB)/8, $530
+DATA bitrev_size16384_radix4_f64<>+0x10908(SB)/8, $4626
+DATA bitrev_size16384_radix4_f64<>+0x10910(SB)/8, $8722
+DATA bitrev_size16384_radix4_f64<>+0x10918(SB)/8, $12818
+DATA bitrev_size16384_radix4_f64<>+0x10920(SB)/8, $1554
+DATA bitrev_size16384_radix4_f64<>+0x10928(SB)/8, $5650
+DATA bitrev_size16384_radix4_f64<>+0x10930(SB)/8, $9746
+DATA bitrev_size16384_radix4_f64<>+0x10938(SB)/8, $13842
+DATA bitrev_size16384_radix4_f64<>+0x10940(SB)/8, $2578
+DATA bitrev_size16384_radix4_f64<>+0x10948(SB)/8, $6674
+DATA bitrev_size16384_radix4_f64<>+0x10950(SB)/8, $10770
+DATA bitrev_size16384_radix4_f64<>+0x10958(SB)/8, $14866
+DATA bitrev_size16384_radix4_f64<>+0x10960(SB)/8, $3602
+DATA bitrev_size16384_radix4_f64<>+0x10968(SB)/8, $7698
+DATA bitrev_size16384_radix4_f64<>+0x10970(SB)/8, $11794
+DATA bitrev_size16384_radix4_f64<>+0x10978(SB)/8, $15890
+DATA bitrev_size16384_radix4_f64<>+0x10980(SB)/8, $786
+DATA bitrev_size16384_radix4_f64<>+0x10988(SB)/8, $4882
+DATA bitrev_size16384_radix4_f64<>+0x10990(SB)/8, $8978
+DATA bitrev_size16384_radix4_f64<>+0x10998(SB)/8, $13074
+DATA bitrev_size16384_radix4_f64<>+0x109A0(SB)/8, $1810
+DATA bitrev_size16384_radix4_f64<>+0x109A8(SB)/8, $5906
+DATA bitrev_size16384_radix4_f64<>+0x109B0(SB)/8, $10002
+DATA bitrev_size16384_radix4_f64<>+0x109B8(SB)/8, $14098
+DATA bitrev_size16384_radix4_f64<>+0x109C0(SB)/8, $2834
+DATA bitrev_size16384_radix4_f64<>+0x109C8(SB)/8, $6930
+DATA bitrev_size16384_radix4_f64<>+0x109D0(SB)/8, $11026
+DATA bitrev_size16384_radix4_f64<>+0x109D8(SB)/8, $15122
+DATA bitrev_size16384_radix4_f64<>+0x109E0(SB)/8, $3858
+DATA bitrev_size16384_radix4_f64<>+0x109E8(SB)/8, $7954
+DATA bitrev_size16384_radix4_f64<>+0x109F0(SB)/8, $12050
+DATA bitrev_size16384_radix4_f64<>+0x109F8(SB)/8, $16146
+DATA bitrev_size16384_radix4_f64<>+0x10A00(SB)/8, $82
+DATA bitrev_size16384_radix4_f64<>+0x10A08(SB)/8, $4178
+DATA bitrev_size16384_radix4_f64<>+0x10A10(SB)/8, $8274
+DATA bitrev_size16384_radix4_f64<>+0x10A18(SB)/8, $12370
+DATA bitrev_size16384_radix4_f64<>+0x10A20(SB)/8, $1106
+DATA bitrev_size16384_radix4_f64<>+0x10A28(SB)/8, $5202
+DATA bitrev_size16384_radix4_f64<>+0x10A30(SB)/8, $9298
+DATA bitrev_size16384_radix4_f64<>+0x10A38(SB)/8, $13394
+DATA bitrev_size16384_radix4_f64<>+0x10A40(SB)/8, $2130
+DATA bitrev_size16384_radix4_f64<>+0x10A48(SB)/8, $6226
+DATA bitrev_size16384_radix4_f64<>+0x10A50(SB)/8, $10322
+DATA bitrev_size16384_radix4_f64<>+0x10A58(SB)/8, $14418
+DATA bitrev_size16384_radix4_f64<>+0x10A60(SB)/8, $3154
+DATA bitrev_size16384_radix4_f64<>+0x10A68(SB)/8, $7250
+DATA bitrev_size16384_radix4_f64<>+0x10A70(SB)/8, $11346
+DATA bitrev_size16384_radix4_f64<>+0x10A78(SB)/8, $15442
+DATA bitrev_size16384_radix4_f64<>+0x10A80(SB)/8, $338
+DATA bitrev_size16384_radix4_f64<>+0x10A88(SB)/8, $4434
+DATA bitrev_size16384_radix4_f64<>+0x10A90(SB)/8, $8530
+DATA bitrev_size16384_radix4_f64<>+0x10A98(SB)/8, $12626
+DATA bitrev_size16384_radix4_f64<>+0x10AA0(SB)/8, $1362
+DATA bitrev_size16384_radix4_f64<>+0x10AA8(SB)/8, $5458
+DATA bitrev_size16384_radix4_f64<>+0x10AB0(SB)/8, $9554
+DATA bitrev_size16384_radix4_f64<>+0x10AB8(SB)/8, $13650
+DATA bitrev_size16384_radix4_f64<>+0x10AC0(SB)/8, $2386
+DATA bitrev_size16384_radix4_f64<>+0x10AC8(SB)/8, $6482
+DATA bitrev_size16384_radix4_f64<>+0x10AD0(SB)/8, $10578
+DATA bitrev_size16384_radix4_f64<>+0x10AD8(SB)/8, $14674
+DATA bitrev_size16384_radix4_f64<>+0x10AE0(SB)/8, $3410
+DATA bitrev_size16384_radix4_f64<>+0x10AE8(SB)/8, $7506
+DATA bitrev_size16384_radix4_f64<>+0x10AF0(SB)/8, $11602
+DATA bitrev_size16384_radix4_f64<>+0x10AF8(SB)/8, $15698
+DATA bitrev_size16384_radix4_f64<>+0x10B00(SB)/8, $594
+DATA bitrev_size16384_radix4_f64<>+0x10B08(SB)/8, $4690
+DATA bitrev_size16384_radix4_f64<>+0x10B10(SB)/8, $8786
+DATA bitrev_size16384_radix4_f64<>+0x10B18(SB)/8, $12882
+DATA bitrev_size16384_radix4_f64<>+0x10B20(SB)/8, $1618
+DATA bitrev_size16384_radix4_f64<>+0x10B28(SB)/8, $5714
+DATA bitrev_size16384_radix4_f64<>+0x10B30(SB)/8, $9810
+DATA bitrev_size16384_radix4_f64<>+0x10B38(SB)/8, $13906
+DATA bitrev_size16384_radix4_f64<>+0x10B40(SB)/8, $2642
+DATA bitrev_size16384_radix4_f64<>+0x10B48(SB)/8, $6738
+DATA bitrev_size16384_radix4_f64<>+0x10B50(SB)/8, $10834
+DATA bitrev_size16384_radix4_f64<>+0x10B58(SB)/8, $14930
+DATA bitrev_size16384_radix4_f64<>+0x10B60(SB)/8, $3666
+DATA bitrev_size16384_radix4_f64<>+0x10B68(SB)/8, $7762
+DATA bitrev_size16384_radix4_f64<>+0x10B70(SB)/8, $11858
+DATA bitrev_size16384_radix4_f64<>+0x10B78(SB)/8, $15954
+DATA bitrev_size16384_radix4_f64<>+0x10B80(SB)/8, $850
+DATA bitrev_size16384_radix4_f64<>+0x10B88(SB)/8, $4946
+DATA bitrev_size16384_radix4_f64<>+0x10B90(SB)/8, $9042
+DATA bitrev_size16384_radix4_f64<>+0x10B98(SB)/8, $13138
+DATA bitrev_size16384_radix4_f64<>+0x10BA0(SB)/8, $1874
+DATA bitrev_size16384_radix4_f64<>+0x10BA8(SB)/8, $5970
+DATA bitrev_size16384_radix4_f64<>+0x10BB0(SB)/8, $10066
+DATA bitrev_size16384_radix4_f64<>+0x10BB8(SB)/8, $14162
+DATA bitrev_size16384_radix4_f64<>+0x10BC0(SB)/8, $2898
+DATA bitrev_size16384_radix4_f64<>+0x10BC8(SB)/8, $6994
+DATA bitrev_size16384_radix4_f64<>+0x10BD0(SB)/8, $11090
+DATA bitrev_size16384_radix4_f64<>+0x10BD8(SB)/8, $15186
+DATA bitrev_size16384_radix4_f64<>+0x10BE0(SB)/8, $3922
+DATA bitrev_size16384_radix4_f64<>+0x10BE8(SB)/8, $8018
+DATA bitrev_size16384_radix4_f64<>+0x10BF0(SB)/8, $12114
+DATA bitrev_size16384_radix4_f64<>+0x10BF8(SB)/8, $16210
+DATA bitrev_size16384_radix4_f64<>+0x10C00(SB)/8, $146
+DATA bitrev_size16384_radix4_f64<>+0x10C08(SB)/8, $4242
+DATA bitrev_size16384_radix4_f64<>+0x10C10(SB)/8, $8338
+DATA bitrev_size16384_radix4_f64<>+0x10C18(SB)/8, $12434
+DATA bitrev_size16384_radix4_f64<>+0x10C20(SB)/8, $1170
+DATA bitrev_size16384_radix4_f64<>+0x10C28(SB)/8, $5266
+DATA bitrev_size16384_radix4_f64<>+0x10C30(SB)/8, $9362
+DATA bitrev_size16384_radix4_f64<>+0x10C38(SB)/8, $13458
+DATA bitrev_size16384_radix4_f64<>+0x10C40(SB)/8, $2194
+DATA bitrev_size16384_radix4_f64<>+0x10C48(SB)/8, $6290
+DATA bitrev_size16384_radix4_f64<>+0x10C50(SB)/8, $10386
+DATA bitrev_size16384_radix4_f64<>+0x10C58(SB)/8, $14482
+DATA bitrev_size16384_radix4_f64<>+0x10C60(SB)/8, $3218
+DATA bitrev_size16384_radix4_f64<>+0x10C68(SB)/8, $7314
+DATA bitrev_size16384_radix4_f64<>+0x10C70(SB)/8, $11410
+DATA bitrev_size16384_radix4_f64<>+0x10C78(SB)/8, $15506
+DATA bitrev_size16384_radix4_f64<>+0x10C80(SB)/8, $402
+DATA bitrev_size16384_radix4_f64<>+0x10C88(SB)/8, $4498
+DATA bitrev_size16384_radix4_f64<>+0x10C90(SB)/8, $8594
+DATA bitrev_size16384_radix4_f64<>+0x10C98(SB)/8, $12690
+DATA bitrev_size16384_radix4_f64<>+0x10CA0(SB)/8, $1426
+DATA bitrev_size16384_radix4_f64<>+0x10CA8(SB)/8, $5522
+DATA bitrev_size16384_radix4_f64<>+0x10CB0(SB)/8, $9618
+DATA bitrev_size16384_radix4_f64<>+0x10CB8(SB)/8, $13714
+DATA bitrev_size16384_radix4_f64<>+0x10CC0(SB)/8, $2450
+DATA bitrev_size16384_radix4_f64<>+0x10CC8(SB)/8, $6546
+DATA bitrev_size16384_radix4_f64<>+0x10CD0(SB)/8, $10642
+DATA bitrev_size16384_radix4_f64<>+0x10CD8(SB)/8, $14738
+DATA bitrev_size16384_radix4_f64<>+0x10CE0(SB)/8, $3474
+DATA bitrev_size16384_radix4_f64<>+0x10CE8(SB)/8, $7570
+DATA bitrev_size16384_radix4_f64<>+0x10CF0(SB)/8, $11666
+DATA bitrev_size16384_radix4_f64<>+0x10CF8(SB)/8, $15762
+DATA bitrev_size16384_radix4_f64<>+0x10D00(SB)/8, $658
+DATA bitrev_size16384_radix4_f64<>+0x10D08(SB)/8, $4754
+DATA bitrev_size16384_radix4_f64<>+0x10D10(SB)/8, $8850
+DATA bitrev_size16384_radix4_f64<>+0x10D18(SB)/8, $12946
+DATA bitrev_size16384_radix4_f64<>+0x10D20(SB)/8, $1682
+DATA bitrev_size16384_radix4_f64<>+0x10D28(SB)/8, $5778
+DATA bitrev_size16384_radix4_f64<>+0x10D30(SB)/8, $9874
+DATA bitrev_size16384_radix4_f64<>+0x10D38(SB)/8, $13970
+DATA bitrev_size16384_radix4_f64<>+0x10D40(SB)/8, $2706
+DATA bitrev_size16384_radix4_f64<>+0x10D48(SB)/8, $6802
+DATA bitrev_size16384_radix4_f64<>+0x10D50(SB)/8, $10898
+DATA bitrev_size16384_radix4_f64<>+0x10D58(SB)/8, $14994
+DATA bitrev_size16384_radix4_f64<>+0x10D60(SB)/8, $3730
+DATA bitrev_size16384_radix4_f64<>+0x10D68(SB)/8, $7826
+DATA bitrev_size16384_radix4_f64<>+0x10D70(SB)/8, $11922
+DATA bitrev_size16384_radix4_f64<>+0x10D78(SB)/8, $16018
+DATA bitrev_size16384_radix4_f64<>+0x10D80(SB)/8, $914
+DATA bitrev_size16384_radix4_f64<>+0x10D88(SB)/8, $5010
+DATA bitrev_size16384_radix4_f64<>+0x10D90(SB)/8, $9106
+DATA bitrev_size16384_radix4_f64<>+0x10D98(SB)/8, $13202
+DATA bitrev_size16384_radix4_f64<>+0x10DA0(SB)/8, $1938
+DATA bitrev_size16384_radix4_f64<>+0x10DA8(SB)/8, $6034
+DATA bitrev_size16384_radix4_f64<>+0x10DB0(SB)/8, $10130
+DATA bitrev_size16384_radix4_f64<>+0x10DB8(SB)/8, $14226
+DATA bitrev_size16384_radix4_f64<>+0x10DC0(SB)/8, $2962
+DATA bitrev_size16384_radix4_f64<>+0x10DC8(SB)/8, $7058
+DATA bitrev_size16384_radix4_f64<>+0x10DD0(SB)/8, $11154
+DATA bitrev_size16384_radix4_f64<>+0x10DD8(SB)/8, $15250
+DATA bitrev_size16384_radix4_f64<>+0x10DE0(SB)/8, $3986
+DATA bitrev_size16384_radix4_f64<>+0x10DE8(SB)/8, $8082
+DATA bitrev_size16384_radix4_f64<>+0x10DF0(SB)/8, $12178
+DATA bitrev_size16384_radix4_f64<>+0x10DF8(SB)/8, $16274
+DATA bitrev_size16384_radix4_f64<>+0x10E00(SB)/8, $210
+DATA bitrev_size16384_radix4_f64<>+0x10E08(SB)/8, $4306
+DATA bitrev_size16384_radix4_f64<>+0x10E10(SB)/8, $8402
+DATA bitrev_size16384_radix4_f64<>+0x10E18(SB)/8, $12498
+DATA bitrev_size16384_radix4_f64<>+0x10E20(SB)/8, $1234
+DATA bitrev_size16384_radix4_f64<>+0x10E28(SB)/8, $5330
+DATA bitrev_size16384_radix4_f64<>+0x10E30(SB)/8, $9426
+DATA bitrev_size16384_radix4_f64<>+0x10E38(SB)/8, $13522
+DATA bitrev_size16384_radix4_f64<>+0x10E40(SB)/8, $2258
+DATA bitrev_size16384_radix4_f64<>+0x10E48(SB)/8, $6354
+DATA bitrev_size16384_radix4_f64<>+0x10E50(SB)/8, $10450
+DATA bitrev_size16384_radix4_f64<>+0x10E58(SB)/8, $14546
+DATA bitrev_size16384_radix4_f64<>+0x10E60(SB)/8, $3282
+DATA bitrev_size16384_radix4_f64<>+0x10E68(SB)/8, $7378
+DATA bitrev_size16384_radix4_f64<>+0x10E70(SB)/8, $11474
+DATA bitrev_size16384_radix4_f64<>+0x10E78(SB)/8, $15570
+DATA bitrev_size16384_radix4_f64<>+0x10E80(SB)/8, $466
+DATA bitrev_size16384_radix4_f64<>+0x10E88(SB)/8, $4562
+DATA bitrev_size16384_radix4_f64<>+0x10E90(SB)/8, $8658
+DATA bitrev_size16384_radix4_f64<>+0x10E98(SB)/8, $12754
+DATA bitrev_size16384_radix4_f64<>+0x10EA0(SB)/8, $1490
+DATA bitrev_size16384_radix4_f64<>+0x10EA8(SB)/8, $5586
+DATA bitrev_size16384_radix4_f64<>+0x10EB0(SB)/8, $9682
+DATA bitrev_size16384_radix4_f64<>+0x10EB8(SB)/8, $13778
+DATA bitrev_size16384_radix4_f64<>+0x10EC0(SB)/8, $2514
+DATA bitrev_size16384_radix4_f64<>+0x10EC8(SB)/8, $6610
+DATA bitrev_size16384_radix4_f64<>+0x10ED0(SB)/8, $10706
+DATA bitrev_size16384_radix4_f64<>+0x10ED8(SB)/8, $14802
+DATA bitrev_size16384_radix4_f64<>+0x10EE0(SB)/8, $3538
+DATA bitrev_size16384_radix4_f64<>+0x10EE8(SB)/8, $7634
+DATA bitrev_size16384_radix4_f64<>+0x10EF0(SB)/8, $11730
+DATA bitrev_size16384_radix4_f64<>+0x10EF8(SB)/8, $15826
+DATA bitrev_size16384_radix4_f64<>+0x10F00(SB)/8, $722
+DATA bitrev_size16384_radix4_f64<>+0x10F08(SB)/8, $4818
+DATA bitrev_size16384_radix4_f64<>+0x10F10(SB)/8, $8914
+DATA bitrev_size16384_radix4_f64<>+0x10F18(SB)/8, $13010
+DATA bitrev_size16384_radix4_f64<>+0x10F20(SB)/8, $1746
+DATA bitrev_size16384_radix4_f64<>+0x10F28(SB)/8, $5842
+DATA bitrev_size16384_radix4_f64<>+0x10F30(SB)/8, $9938
+DATA bitrev_size16384_radix4_f64<>+0x10F38(SB)/8, $14034
+DATA bitrev_size16384_radix4_f64<>+0x10F40(SB)/8, $2770
+DATA bitrev_size16384_radix4_f64<>+0x10F48(SB)/8, $6866
+DATA bitrev_size16384_radix4_f64<>+0x10F50(SB)/8, $10962
+DATA bitrev_size16384_radix4_f64<>+0x10F58(SB)/8, $15058
+DATA bitrev_size16384_radix4_f64<>+0x10F60(SB)/8, $3794
+DATA bitrev_size16384_radix4_f64<>+0x10F68(SB)/8, $7890
+DATA bitrev_size16384_radix4_f64<>+0x10F70(SB)/8, $11986
+DATA bitrev_size16384_radix4_f64<>+0x10F78(SB)/8, $16082
+DATA bitrev_size16384_radix4_f64<>+0x10F80(SB)/8, $978
+DATA bitrev_size16384_radix4_f64<>+0x10F88(SB)/8, $5074
+DATA bitrev_size16384_radix4_f64<>+0x10F90(SB)/8, $9170
+DATA bitrev_size16384_radix4_f64<>+0x10F98(SB)/8, $13266
+DATA bitrev_size16384_radix4_f64<>+0x10FA0(SB)/8, $2002
+DATA bitrev_size16384_radix4_f64<>+0x10FA8(SB)/8, $6098
+DATA bitrev_size16384_radix4_f64<>+0x10FB0(SB)/8, $10194
+DATA bitrev_size16384_radix4_f64<>+0x10FB8(SB)/8, $14290
+DATA bitrev_size16384_radix4_f64<>+0x10FC0(SB)/8, $3026
+DATA bitrev_size16384_radix4_f64<>+0x10FC8(SB)/8, $7122
+DATA bitrev_size16384_radix4_f64<>+0x10FD0(SB)/8, $11218
+DATA bitrev_size16384_radix4_f64<>+0x10FD8(SB)/8, $15314
+DATA bitrev_size16384_radix4_f64<>+0x10FE0(SB)/8, $4050
+DATA bitrev_size16384_radix4_f64<>+0x10FE8(SB)/8, $8146
+DATA bitrev_size16384_radix4_f64<>+0x10FF0(SB)/8, $12242
+DATA bitrev_size16384_radix4_f64<>+0x10FF8(SB)/8, $16338
+DATA bitrev_size16384_radix4_f64<>+0x11000(SB)/8, $34
+DATA bitrev_size16384_radix4_f64<>+0x11008(SB)/8, $4130
+DATA bitrev_size16384_radix4_f64<>+0x11010(SB)/8, $8226
+DATA bitrev_size16384_radix4_f64<>+0x11018(SB)/8, $12322
+DATA bitrev_size16384_radix4_f64<>+0x11020(SB)/8, $1058
+DATA bitrev_size16384_radix4_f64<>+0x11028(SB)/8, $5154
+DATA bitrev_size16384_radix4_f64<>+0x11030(SB)/8, $9250
+DATA bitrev_size16384_radix4_f64<>+0x11038(SB)/8, $13346
+DATA bitrev_size16384_radix4_f64<>+0x11040(SB)/8, $2082
+DATA bitrev_size16384_radix4_f64<>+0x11048(SB)/8, $6178
+DATA bitrev_size16384_radix4_f64<>+0x11050(SB)/8, $10274
+DATA bitrev_size16384_radix4_f64<>+0x11058(SB)/8, $14370
+DATA bitrev_size16384_radix4_f64<>+0x11060(SB)/8, $3106
+DATA bitrev_size16384_radix4_f64<>+0x11068(SB)/8, $7202
+DATA bitrev_size16384_radix4_f64<>+0x11070(SB)/8, $11298
+DATA bitrev_size16384_radix4_f64<>+0x11078(SB)/8, $15394
+DATA bitrev_size16384_radix4_f64<>+0x11080(SB)/8, $290
+DATA bitrev_size16384_radix4_f64<>+0x11088(SB)/8, $4386
+DATA bitrev_size16384_radix4_f64<>+0x11090(SB)/8, $8482
+DATA bitrev_size16384_radix4_f64<>+0x11098(SB)/8, $12578
+DATA bitrev_size16384_radix4_f64<>+0x110A0(SB)/8, $1314
+DATA bitrev_size16384_radix4_f64<>+0x110A8(SB)/8, $5410
+DATA bitrev_size16384_radix4_f64<>+0x110B0(SB)/8, $9506
+DATA bitrev_size16384_radix4_f64<>+0x110B8(SB)/8, $13602
+DATA bitrev_size16384_radix4_f64<>+0x110C0(SB)/8, $2338
+DATA bitrev_size16384_radix4_f64<>+0x110C8(SB)/8, $6434
+DATA bitrev_size16384_radix4_f64<>+0x110D0(SB)/8, $10530
+DATA bitrev_size16384_radix4_f64<>+0x110D8(SB)/8, $14626
+DATA bitrev_size16384_radix4_f64<>+0x110E0(SB)/8, $3362
+DATA bitrev_size16384_radix4_f64<>+0x110E8(SB)/8, $7458
+DATA bitrev_size16384_radix4_f64<>+0x110F0(SB)/8, $11554
+DATA bitrev_size16384_radix4_f64<>+0x110F8(SB)/8, $15650
+DATA bitrev_size16384_radix4_f64<>+0x11100(SB)/8, $546
+DATA bitrev_size16384_radix4_f64<>+0x11108(SB)/8, $4642
+DATA bitrev_size16384_radix4_f64<>+0x11110(SB)/8, $8738
+DATA bitrev_size16384_radix4_f64<>+0x11118(SB)/8, $12834
+DATA bitrev_size16384_radix4_f64<>+0x11120(SB)/8, $1570
+DATA bitrev_size16384_radix4_f64<>+0x11128(SB)/8, $5666
+DATA bitrev_size16384_radix4_f64<>+0x11130(SB)/8, $9762
+DATA bitrev_size16384_radix4_f64<>+0x11138(SB)/8, $13858
+DATA bitrev_size16384_radix4_f64<>+0x11140(SB)/8, $2594
+DATA bitrev_size16384_radix4_f64<>+0x11148(SB)/8, $6690
+DATA bitrev_size16384_radix4_f64<>+0x11150(SB)/8, $10786
+DATA bitrev_size16384_radix4_f64<>+0x11158(SB)/8, $14882
+DATA bitrev_size16384_radix4_f64<>+0x11160(SB)/8, $3618
+DATA bitrev_size16384_radix4_f64<>+0x11168(SB)/8, $7714
+DATA bitrev_size16384_radix4_f64<>+0x11170(SB)/8, $11810
+DATA bitrev_size16384_radix4_f64<>+0x11178(SB)/8, $15906
+DATA bitrev_size16384_radix4_f64<>+0x11180(SB)/8, $802
+DATA bitrev_size16384_radix4_f64<>+0x11188(SB)/8, $4898
+DATA bitrev_size16384_radix4_f64<>+0x11190(SB)/8, $8994
+DATA bitrev_size16384_radix4_f64<>+0x11198(SB)/8, $13090
+DATA bitrev_size16384_radix4_f64<>+0x111A0(SB)/8, $1826
+DATA bitrev_size16384_radix4_f64<>+0x111A8(SB)/8, $5922
+DATA bitrev_size16384_radix4_f64<>+0x111B0(SB)/8, $10018
+DATA bitrev_size16384_radix4_f64<>+0x111B8(SB)/8, $14114
+DATA bitrev_size16384_radix4_f64<>+0x111C0(SB)/8, $2850
+DATA bitrev_size16384_radix4_f64<>+0x111C8(SB)/8, $6946
+DATA bitrev_size16384_radix4_f64<>+0x111D0(SB)/8, $11042
+DATA bitrev_size16384_radix4_f64<>+0x111D8(SB)/8, $15138
+DATA bitrev_size16384_radix4_f64<>+0x111E0(SB)/8, $3874
+DATA bitrev_size16384_radix4_f64<>+0x111E8(SB)/8, $7970
+DATA bitrev_size16384_radix4_f64<>+0x111F0(SB)/8, $12066
+DATA bitrev_size16384_radix4_f64<>+0x111F8(SB)/8, $16162
+DATA bitrev_size16384_radix4_f64<>+0x11200(SB)/8, $98
+DATA bitrev_size16384_radix4_f64<>+0x11208(SB)/8, $4194
+DATA bitrev_size16384_radix4_f64<>+0x11210(SB)/8, $8290
+DATA bitrev_size16384_radix4_f64<>+0x11218(SB)/8, $12386
+DATA bitrev_size16384_radix4_f64<>+0x11220(SB)/8, $1122
+DATA bitrev_size16384_radix4_f64<>+0x11228(SB)/8, $5218
+DATA bitrev_size16384_radix4_f64<>+0x11230(SB)/8, $9314
+DATA bitrev_size16384_radix4_f64<>+0x11238(SB)/8, $13410
+DATA bitrev_size16384_radix4_f64<>+0x11240(SB)/8, $2146
+DATA bitrev_size16384_radix4_f64<>+0x11248(SB)/8, $6242
+DATA bitrev_size16384_radix4_f64<>+0x11250(SB)/8, $10338
+DATA bitrev_size16384_radix4_f64<>+0x11258(SB)/8, $14434
+DATA bitrev_size16384_radix4_f64<>+0x11260(SB)/8, $3170
+DATA bitrev_size16384_radix4_f64<>+0x11268(SB)/8, $7266
+DATA bitrev_size16384_radix4_f64<>+0x11270(SB)/8, $11362
+DATA bitrev_size16384_radix4_f64<>+0x11278(SB)/8, $15458
+DATA bitrev_size16384_radix4_f64<>+0x11280(SB)/8, $354
+DATA bitrev_size16384_radix4_f64<>+0x11288(SB)/8, $4450
+DATA bitrev_size16384_radix4_f64<>+0x11290(SB)/8, $8546
+DATA bitrev_size16384_radix4_f64<>+0x11298(SB)/8, $12642
+DATA bitrev_size16384_radix4_f64<>+0x112A0(SB)/8, $1378
+DATA bitrev_size16384_radix4_f64<>+0x112A8(SB)/8, $5474
+DATA bitrev_size16384_radix4_f64<>+0x112B0(SB)/8, $9570
+DATA bitrev_size16384_radix4_f64<>+0x112B8(SB)/8, $13666
+DATA bitrev_size16384_radix4_f64<>+0x112C0(SB)/8, $2402
+DATA bitrev_size16384_radix4_f64<>+0x112C8(SB)/8, $6498
+DATA bitrev_size16384_radix4_f64<>+0x112D0(SB)/8, $10594
+DATA bitrev_size16384_radix4_f64<>+0x112D8(SB)/8, $14690
+DATA bitrev_size16384_radix4_f64<>+0x112E0(SB)/8, $3426
+DATA bitrev_size16384_radix4_f64<>+0x112E8(SB)/8, $7522
+DATA bitrev_size16384_radix4_f64<>+0x112F0(SB)/8, $11618
+DATA bitrev_size16384_radix4_f64<>+0x112F8(SB)/8, $15714
+DATA bitrev_size16384_radix4_f64<>+0x11300(SB)/8, $610
+DATA bitrev_size16384_radix4_f64<>+0x11308(SB)/8, $4706
+DATA bitrev_size16384_radix4_f64<>+0x11310(SB)/8, $8802
+DATA bitrev_size16384_radix4_f64<>+0x11318(SB)/8, $12898
+DATA bitrev_size16384_radix4_f64<>+0x11320(SB)/8, $1634
+DATA bitrev_size16384_radix4_f64<>+0x11328(SB)/8, $5730
+DATA bitrev_size16384_radix4_f64<>+0x11330(SB)/8, $9826
+DATA bitrev_size16384_radix4_f64<>+0x11338(SB)/8, $13922
+DATA bitrev_size16384_radix4_f64<>+0x11340(SB)/8, $2658
+DATA bitrev_size16384_radix4_f64<>+0x11348(SB)/8, $6754
+DATA bitrev_size16384_radix4_f64<>+0x11350(SB)/8, $10850
+DATA bitrev_size16384_radix4_f64<>+0x11358(SB)/8, $14946
+DATA bitrev_size16384_radix4_f64<>+0x11360(SB)/8, $3682
+DATA bitrev_size16384_radix4_f64<>+0x11368(SB)/8, $7778
+DATA bitrev_size16384_radix4_f64<>+0x11370(SB)/8, $11874
+DATA bitrev_size16384_radix4_f64<>+0x11378(SB)/8, $15970
+DATA bitrev_size16384_radix4_f64<>+0x11380(SB)/8, $866
+DATA bitrev_size16384_radix4_f64<>+0x11388(SB)/8, $4962
+DATA bitrev_size16384_radix4_f64<>+0x11390(SB)/8, $9058
+DATA bitrev_size16384_radix4_f64<>+0x11398(SB)/8, $13154
+DATA bitrev_size16384_radix4_f64<>+0x113A0(SB)/8, $1890
+DATA bitrev_size16384_radix4_f64<>+0x113A8(SB)/8, $5986
+DATA bitrev_size16384_radix4_f64<>+0x113B0(SB)/8, $10082
+DATA bitrev_size16384_radix4_f64<>+0x113B8(SB)/8, $14178
+DATA bitrev_size16384_radix4_f64<>+0x113C0(SB)/8, $2914
+DATA bitrev_size16384_radix4_f64<>+0x113C8(SB)/8, $7010
+DATA bitrev_size16384_radix4_f64<>+0x113D0(SB)/8, $11106
+DATA bitrev_size16384_radix4_f64<>+0x113D8(SB)/8, $15202
+DATA bitrev_size16384_radix4_f64<>+0x113E0(SB)/8, $3938
+DATA bitrev_size16384_radix4_f64<>+0x113E8(SB)/8, $8034
+DATA bitrev_size16384_radix4_f64<>+0x113F0(SB)/8, $12130
+DATA bitrev_size16384_radix4_f64<>+0x113F8(SB)/8, $16226
+DATA bitrev_size16384_radix4_f64<>+0x11400(SB)/8, $162
+DATA bitrev_size16384_radix4_f64<>+0x11408(SB)/8, $4258
+DATA bitrev_size16384_radix4_f64<>+0x11410(SB)/8, $8354
+DATA bitrev_size16384_radix4_f64<>+0x11418(SB)/8, $12450
+DATA bitrev_size16384_radix4_f64<>+0x11420(SB)/8, $1186
+DATA bitrev_size16384_radix4_f64<>+0x11428(SB)/8, $5282
+DATA bitrev_size16384_radix4_f64<>+0x11430(SB)/8, $9378
+DATA bitrev_size16384_radix4_f64<>+0x11438(SB)/8, $13474
+DATA bitrev_size16384_radix4_f64<>+0x11440(SB)/8, $2210
+DATA bitrev_size16384_radix4_f64<>+0x11448(SB)/8, $6306
+DATA bitrev_size16384_radix4_f64<>+0x11450(SB)/8, $10402
+DATA bitrev_size16384_radix4_f64<>+0x11458(SB)/8, $14498
+DATA bitrev_size16384_radix4_f64<>+0x11460(SB)/8, $3234
+DATA bitrev_size16384_radix4_f64<>+0x11468(SB)/8, $7330
+DATA bitrev_size16384_radix4_f64<>+0x11470(SB)/8, $11426
+DATA bitrev_size16384_radix4_f64<>+0x11478(SB)/8, $15522
+DATA bitrev_size16384_radix4_f64<>+0x11480(SB)/8, $418
+DATA bitrev_size16384_radix4_f64<>+0x11488(SB)/8, $4514
+DATA bitrev_size16384_radix4_f64<>+0x11490(SB)/8, $8610
+DATA bitrev_size16384_radix4_f64<>+0x11498(SB)/8, $12706
+DATA bitrev_size16384_radix4_f64<>+0x114A0(SB)/8, $1442
+DATA bitrev_size16384_radix4_f64<>+0x114A8(SB)/8, $5538
+DATA bitrev_size16384_radix4_f64<>+0x114B0(SB)/8, $9634
+DATA bitrev_size16384_radix4_f64<>+0x114B8(SB)/8, $13730
+DATA bitrev_size16384_radix4_f64<>+0x114C0(SB)/8, $2466
+DATA bitrev_size16384_radix4_f64<>+0x114C8(SB)/8, $6562
+DATA bitrev_size16384_radix4_f64<>+0x114D0(SB)/8, $10658
+DATA bitrev_size16384_radix4_f64<>+0x114D8(SB)/8, $14754
+DATA bitrev_size16384_radix4_f64<>+0x114E0(SB)/8, $3490
+DATA bitrev_size16384_radix4_f64<>+0x114E8(SB)/8, $7586
+DATA bitrev_size16384_radix4_f64<>+0x114F0(SB)/8, $11682
+DATA bitrev_size16384_radix4_f64<>+0x114F8(SB)/8, $15778
+DATA bitrev_size16384_radix4_f64<>+0x11500(SB)/8, $674
+DATA bitrev_size16384_radix4_f64<>+0x11508(SB)/8, $4770
+DATA bitrev_size16384_radix4_f64<>+0x11510(SB)/8, $8866
+DATA bitrev_size16384_radix4_f64<>+0x11518(SB)/8, $12962
+DATA bitrev_size16384_radix4_f64<>+0x11520(SB)/8, $1698
+DATA bitrev_size16384_radix4_f64<>+0x11528(SB)/8, $5794
+DATA bitrev_size16384_radix4_f64<>+0x11530(SB)/8, $9890
+DATA bitrev_size16384_radix4_f64<>+0x11538(SB)/8, $13986
+DATA bitrev_size16384_radix4_f64<>+0x11540(SB)/8, $2722
+DATA bitrev_size16384_radix4_f64<>+0x11548(SB)/8, $6818
+DATA bitrev_size16384_radix4_f64<>+0x11550(SB)/8, $10914
+DATA bitrev_size16384_radix4_f64<>+0x11558(SB)/8, $15010
+DATA bitrev_size16384_radix4_f64<>+0x11560(SB)/8, $3746
+DATA bitrev_size16384_radix4_f64<>+0x11568(SB)/8, $7842
+DATA bitrev_size16384_radix4_f64<>+0x11570(SB)/8, $11938
+DATA bitrev_size16384_radix4_f64<>+0x11578(SB)/8, $16034
+DATA bitrev_size16384_radix4_f64<>+0x11580(SB)/8, $930
+DATA bitrev_size16384_radix4_f64<>+0x11588(SB)/8, $5026
+DATA bitrev_size16384_radix4_f64<>+0x11590(SB)/8, $9122
+DATA bitrev_size16384_radix4_f64<>+0x11598(SB)/8, $13218
+DATA bitrev_size16384_radix4_f64<>+0x115A0(SB)/8, $1954
+DATA bitrev_size16384_radix4_f64<>+0x115A8(SB)/8, $6050
+DATA bitrev_size16384_radix4_f64<>+0x115B0(SB)/8, $10146
+DATA bitrev_size16384_radix4_f64<>+0x115B8(SB)/8, $14242
+DATA bitrev_size16384_radix4_f64<>+0x115C0(SB)/8, $2978
+DATA bitrev_size16384_radix4_f64<>+0x115C8(SB)/8, $7074
+DATA bitrev_size16384_radix4_f64<>+0x115D0(SB)/8, $11170
+DATA bitrev_size16384_radix4_f64<>+0x115D8(SB)/8, $15266
+DATA bitrev_size16384_radix4_f64<>+0x115E0(SB)/8, $4002
+DATA bitrev_size16384_radix4_f64<>+0x115E8(SB)/8, $8098
+DATA bitrev_size16384_radix4_f64<>+0x115F0(SB)/8, $12194
+DATA bitrev_size16384_radix4_f64<>+0x115F8(SB)/8, $16290
+DATA bitrev_size16384_radix4_f64<>+0x11600(SB)/8, $226
+DATA bitrev_size16384_radix4_f64<>+0x11608(SB)/8, $4322
+DATA bitrev_size16384_radix4_f64<>+0x11610(SB)/8, $8418
+DATA bitrev_size16384_radix4_f64<>+0x11618(SB)/8, $12514
+DATA bitrev_size16384_radix4_f64<>+0x11620(SB)/8, $1250
+DATA bitrev_size16384_radix4_f64<>+0x11628(SB)/8, $5346
+DATA bitrev_size16384_radix4_f64<>+0x11630(SB)/8, $9442
+DATA bitrev_size16384_radix4_f64<>+0x11638(SB)/8, $13538
+DATA bitrev_size16384_radix4_f64<>+0x11640(SB)/8, $2274
+DATA bitrev_size16384_radix4_f64<>+0x11648(SB)/8, $6370
+DATA bitrev_size16384_radix4_f64<>+0x11650(SB)/8, $10466
+DATA bitrev_size16384_radix4_f64<>+0x11658(SB)/8, $14562
+DATA bitrev_size16384_radix4_f64<>+0x11660(SB)/8, $3298
+DATA bitrev_size16384_radix4_f64<>+0x11668(SB)/8, $7394
+DATA bitrev_size16384_radix4_f64<>+0x11670(SB)/8, $11490
+DATA bitrev_size16384_radix4_f64<>+0x11678(SB)/8, $15586
+DATA bitrev_size16384_radix4_f64<>+0x11680(SB)/8, $482
+DATA bitrev_size16384_radix4_f64<>+0x11688(SB)/8, $4578
+DATA bitrev_size16384_radix4_f64<>+0x11690(SB)/8, $8674
+DATA bitrev_size16384_radix4_f64<>+0x11698(SB)/8, $12770
+DATA bitrev_size16384_radix4_f64<>+0x116A0(SB)/8, $1506
+DATA bitrev_size16384_radix4_f64<>+0x116A8(SB)/8, $5602
+DATA bitrev_size16384_radix4_f64<>+0x116B0(SB)/8, $9698
+DATA bitrev_size16384_radix4_f64<>+0x116B8(SB)/8, $13794
+DATA bitrev_size16384_radix4_f64<>+0x116C0(SB)/8, $2530
+DATA bitrev_size16384_radix4_f64<>+0x116C8(SB)/8, $6626
+DATA bitrev_size16384_radix4_f64<>+0x116D0(SB)/8, $10722
+DATA bitrev_size16384_radix4_f64<>+0x116D8(SB)/8, $14818
+DATA bitrev_size16384_radix4_f64<>+0x116E0(SB)/8, $3554
+DATA bitrev_size16384_radix4_f64<>+0x116E8(SB)/8, $7650
+DATA bitrev_size16384_radix4_f64<>+0x116F0(SB)/8, $11746
+DATA bitrev_size16384_radix4_f64<>+0x116F8(SB)/8, $15842
+DATA bitrev_size16384_radix4_f64<>+0x11700(SB)/8, $738
+DATA bitrev_size16384_radix4_f64<>+0x11708(SB)/8, $4834
+DATA bitrev_size16384_radix4_f64<>+0x11710(SB)/8, $8930
+DATA bitrev_size16384_radix4_f64<>+0x11718(SB)/8, $13026
+DATA bitrev_size16384_radix4_f64<>+0x11720(SB)/8, $1762
+DATA bitrev_size16384_radix4_f64<>+0x11728(SB)/8, $5858
+DATA bitrev_size16384_radix4_f64<>+0x11730(SB)/8, $9954
+DATA bitrev_size16384_radix4_f64<>+0x11738(SB)/8, $14050
+DATA bitrev_size16384_radix4_f64<>+0x11740(SB)/8, $2786
+DATA bitrev_size16384_radix4_f64<>+0x11748(SB)/8, $6882
+DATA bitrev_size16384_radix4_f64<>+0x11750(SB)/8, $10978
+DATA bitrev_size16384_radix4_f64<>+0x11758(SB)/8, $15074
+DATA bitrev_size16384_radix4_f64<>+0x11760(SB)/8, $3810
+DATA bitrev_size16384_radix4_f64<>+0x11768(SB)/8, $7906
+DATA bitrev_size16384_radix4_f64<>+0x11770(SB)/8, $12002
+DATA bitrev_size16384_radix4_f64<>+0x11778(SB)/8, $16098
+DATA bitrev_size16384_radix4_f64<>+0x11780(SB)/8, $994
+DATA bitrev_size16384_radix4_f64<>+0x11788(SB)/8, $5090
+DATA bitrev_size16384_radix4_f64<>+0x11790(SB)/8, $9186
+DATA bitrev_size16384_radix4_f64<>+0x11798(SB)/8, $13282
+DATA bitrev_size16384_radix4_f64<>+0x117A0(SB)/8, $2018
+DATA bitrev_size16384_radix4_f64<>+0x117A8(SB)/8, $6114
+DATA bitrev_size16384_radix4_f64<>+0x117B0(SB)/8, $10210
+DATA bitrev_size16384_radix4_f64<>+0x117B8(SB)/8, $14306
+DATA bitrev_size16384_radix4_f64<>+0x117C0(SB)/8, $3042
+DATA bitrev_size16384_radix4_f64<>+0x117C8(SB)/8, $7138
+DATA bitrev_size16384_radix4_f64<>+0x117D0(SB)/8, $11234
+DATA bitrev_size16384_radix4_f64<>+0x117D8(SB)/8, $15330
+DATA bitrev_size16384_radix4_f64<>+0x117E0(SB)/8, $4066
+DATA bitrev_size16384_radix4_f64<>+0x117E8(SB)/8, $8162
+DATA bitrev_size16384_radix4_f64<>+0x117F0(SB)/8, $12258
+DATA bitrev_size16384_radix4_f64<>+0x117F8(SB)/8, $16354
+DATA bitrev_size16384_radix4_f64<>+0x11800(SB)/8, $50
+DATA bitrev_size16384_radix4_f64<>+0x11808(SB)/8, $4146
+DATA bitrev_size16384_radix4_f64<>+0x11810(SB)/8, $8242
+DATA bitrev_size16384_radix4_f64<>+0x11818(SB)/8, $12338
+DATA bitrev_size16384_radix4_f64<>+0x11820(SB)/8, $1074
+DATA bitrev_size16384_radix4_f64<>+0x11828(SB)/8, $5170
+DATA bitrev_size16384_radix4_f64<>+0x11830(SB)/8, $9266
+DATA bitrev_size16384_radix4_f64<>+0x11838(SB)/8, $13362
+DATA bitrev_size16384_radix4_f64<>+0x11840(SB)/8, $2098
+DATA bitrev_size16384_radix4_f64<>+0x11848(SB)/8, $6194
+DATA bitrev_size16384_radix4_f64<>+0x11850(SB)/8, $10290
+DATA bitrev_size16384_radix4_f64<>+0x11858(SB)/8, $14386
+DATA bitrev_size16384_radix4_f64<>+0x11860(SB)/8, $3122
+DATA bitrev_size16384_radix4_f64<>+0x11868(SB)/8, $7218
+DATA bitrev_size16384_radix4_f64<>+0x11870(SB)/8, $11314
+DATA bitrev_size16384_radix4_f64<>+0x11878(SB)/8, $15410
+DATA bitrev_size16384_radix4_f64<>+0x11880(SB)/8, $306
+DATA bitrev_size16384_radix4_f64<>+0x11888(SB)/8, $4402
+DATA bitrev_size16384_radix4_f64<>+0x11890(SB)/8, $8498
+DATA bitrev_size16384_radix4_f64<>+0x11898(SB)/8, $12594
+DATA bitrev_size16384_radix4_f64<>+0x118A0(SB)/8, $1330
+DATA bitrev_size16384_radix4_f64<>+0x118A8(SB)/8, $5426
+DATA bitrev_size16384_radix4_f64<>+0x118B0(SB)/8, $9522
+DATA bitrev_size16384_radix4_f64<>+0x118B8(SB)/8, $13618
+DATA bitrev_size16384_radix4_f64<>+0x118C0(SB)/8, $2354
+DATA bitrev_size16384_radix4_f64<>+0x118C8(SB)/8, $6450
+DATA bitrev_size16384_radix4_f64<>+0x118D0(SB)/8, $10546
+DATA bitrev_size16384_radix4_f64<>+0x118D8(SB)/8, $14642
+DATA bitrev_size16384_radix4_f64<>+0x118E0(SB)/8, $3378
+DATA bitrev_size16384_radix4_f64<>+0x118E8(SB)/8, $7474
+DATA bitrev_size16384_radix4_f64<>+0x118F0(SB)/8, $11570
+DATA bitrev_size16384_radix4_f64<>+0x118F8(SB)/8, $15666
+DATA bitrev_size16384_radix4_f64<>+0x11900(SB)/8, $562
+DATA bitrev_size16384_radix4_f64<>+0x11908(SB)/8, $4658
+DATA bitrev_size16384_radix4_f64<>+0x11910(SB)/8, $8754
+DATA bitrev_size16384_radix4_f64<>+0x11918(SB)/8, $12850
+DATA bitrev_size16384_radix4_f64<>+0x11920(SB)/8, $1586
+DATA bitrev_size16384_radix4_f64<>+0x11928(SB)/8, $5682
+DATA bitrev_size16384_radix4_f64<>+0x11930(SB)/8, $9778
+DATA bitrev_size16384_radix4_f64<>+0x11938(SB)/8, $13874
+DATA bitrev_size16384_radix4_f64<>+0x11940(SB)/8, $2610
+DATA bitrev_size16384_radix4_f64<>+0x11948(SB)/8, $6706
+DATA bitrev_size16384_radix4_f64<>+0x11950(SB)/8, $10802
+DATA bitrev_size16384_radix4_f64<>+0x11958(SB)/8, $14898
+DATA bitrev_size16384_radix4_f64<>+0x11960(SB)/8, $3634
+DATA bitrev_size16384_radix4_f64<>+0x11968(SB)/8, $7730
+DATA bitrev_size16384_radix4_f64<>+0x11970(SB)/8, $11826
+DATA bitrev_size16384_radix4_f64<>+0x11978(SB)/8, $15922
+DATA bitrev_size16384_radix4_f64<>+0x11980(SB)/8, $818
+DATA bitrev_size16384_radix4_f64<>+0x11988(SB)/8, $4914
+DATA bitrev_size16384_radix4_f64<>+0x11990(SB)/8, $9010
+DATA bitrev_size16384_radix4_f64<>+0x11998(SB)/8, $13106
+DATA bitrev_size16384_radix4_f64<>+0x119A0(SB)/8, $1842
+DATA bitrev_size16384_radix4_f64<>+0x119A8(SB)/8, $5938
+DATA bitrev_size16384_radix4_f64<>+0x119B0(SB)/8, $10034
+DATA bitrev_size16384_radix4_f64<>+0x119B8(SB)/8, $14130
+DATA bitrev_size16384_radix4_f64<>+0x119C0(SB)/8, $2866
+DATA bitrev_size16384_radix4_f64<>+0x119C8(SB)/8, $6962
+DATA bitrev_size16384_radix4_f64<>+0x119D0(SB)/8, $11058
+DATA bitrev_size16384_radix4_f64<>+0x119D8(SB)/8, $15154
+DATA bitrev_size16384_radix4_f64<>+0x119E0(SB)/8, $3890
+DATA bitrev_size16384_radix4_f64<>+0x119E8(SB)/8, $7986
+DATA bitrev_size16384_radix4_f64<>+0x119F0(SB)/8, $12082
+DATA bitrev_size16384_radix4_f64<>+0x119F8(SB)/8, $16178
+DATA bitrev_size16384_radix4_f64<>+0x11A00(SB)/8, $114
+DATA bitrev_size16384_radix4_f64<>+0x11A08(SB)/8, $4210
+DATA bitrev_size16384_radix4_f64<>+0x11A10(SB)/8, $8306
+DATA bitrev_size16384_radix4_f64<>+0x11A18(SB)/8, $12402
+DATA bitrev_size16384_radix4_f64<>+0x11A20(SB)/8, $1138
+DATA bitrev_size16384_radix4_f64<>+0x11A28(SB)/8, $5234
+DATA bitrev_size16384_radix4_f64<>+0x11A30(SB)/8, $9330
+DATA bitrev_size16384_radix4_f64<>+0x11A38(SB)/8, $13426
+DATA bitrev_size16384_radix4_f64<>+0x11A40(SB)/8, $2162
+DATA bitrev_size16384_radix4_f64<>+0x11A48(SB)/8, $6258
+DATA bitrev_size16384_radix4_f64<>+0x11A50(SB)/8, $10354
+DATA bitrev_size16384_radix4_f64<>+0x11A58(SB)/8, $14450
+DATA bitrev_size16384_radix4_f64<>+0x11A60(SB)/8, $3186
+DATA bitrev_size16384_radix4_f64<>+0x11A68(SB)/8, $7282
+DATA bitrev_size16384_radix4_f64<>+0x11A70(SB)/8, $11378
+DATA bitrev_size16384_radix4_f64<>+0x11A78(SB)/8, $15474
+DATA bitrev_size16384_radix4_f64<>+0x11A80(SB)/8, $370
+DATA bitrev_size16384_radix4_f64<>+0x11A88(SB)/8, $4466
+DATA bitrev_size16384_radix4_f64<>+0x11A90(SB)/8, $8562
+DATA bitrev_size16384_radix4_f64<>+0x11A98(SB)/8, $12658
+DATA bitrev_size16384_radix4_f64<>+0x11AA0(SB)/8, $1394
+DATA bitrev_size16384_radix4_f64<>+0x11AA8(SB)/8, $5490
+DATA bitrev_size16384_radix4_f64<>+0x11AB0(SB)/8, $9586
+DATA bitrev_size16384_radix4_f64<>+0x11AB8(SB)/8, $13682
+DATA bitrev_size16384_radix4_f64<>+0x11AC0(SB)/8, $2418
+DATA bitrev_size16384_radix4_f64<>+0x11AC8(SB)/8, $6514
+DATA bitrev_size16384_radix4_f64<>+0x11AD0(SB)/8, $10610
+DATA bitrev_size16384_radix4_f64<>+0x11AD8(SB)/8, $14706
+DATA bitrev_size16384_radix4_f64<>+0x11AE0(SB)/8, $3442
+DATA bitrev_size16384_radix4_f64<>+0x11AE8(SB)/8, $7538
+DATA bitrev_size16384_radix4_f64<>+0x11AF0(SB)/8, $11634
+DATA bitrev_size16384_radix4_f64<>+0x11AF8(SB)/8, $15730
+DATA bitrev_size16384_radix4_f64<>+0x11B00(SB)/8, $626
+DATA bitrev_size16384_radix4_f64<>+0x11B08(SB)/8, $4722
+DATA bitrev_size16384_radix4_f64<>+0x11B10(SB)/8, $8818
+DATA bitrev_size16384_radix4_f64<>+0x11B18(SB)/8, $12914
+DATA bitrev_size16384_radix4_f64<>+0x11B20(SB)/8, $1650
+DATA bitrev_size16384_radix4_f64<>+0x11B28(SB)/8, $5746
+DATA bitrev_size16384_radix4_f64<>+0x11B30(SB)/8, $9842
+DATA bitrev_size16384_radix4_f64<>+0x11B38(SB)/8, $13938
+DATA bitrev_size16384_radix4_f64<>+0x11B40(SB)/8, $2674
+DATA bitrev_size16384_radix4_f64<>+0x11B48(SB)/8, $6770
+DATA bitrev_size16384_radix4_f64<>+0x11B50(SB)/8, $10866
+DATA bitrev_size16384_radix4_f64<>+0x11B58(SB)/8, $14962
+DATA bitrev_size16384_radix4_f64<>+0x11B60(SB)/8, $3698
+DATA bitrev_size16384_radix4_f64<>+0x11B68(SB)/8, $7794
+DATA bitrev_size16384_radix4_f64<>+0x11B70(SB)/8, $11890
+DATA bitrev_size16384_radix4_f64<>+0x11B78(SB)/8, $15986
+DATA bitrev_size16384_radix4_f64<>+0x11B80(SB)/8, $882
+DATA bitrev_size16384_radix4_f64<>+0x11B88(SB)/8, $4978
+DATA bitrev_size16384_radix4_f64<>+0x11B90(SB)/8, $9074
+DATA bitrev_size16384_radix4_f64<>+0x11B98(SB)/8, $13170
+DATA bitrev_size16384_radix4_f64<>+0x11BA0(SB)/8, $1906
+DATA bitrev_size16384_radix4_f64<>+0x11BA8(SB)/8, $6002
+DATA bitrev_size16384_radix4_f64<>+0x11BB0(SB)/8, $10098
+DATA bitrev_size16384_radix4_f64<>+0x11BB8(SB)/8, $14194
+DATA bitrev_size16384_radix4_f64<>+0x11BC0(SB)/8, $2930
+DATA bitrev_size16384_radix4_f64<>+0x11BC8(SB)/8, $7026
+DATA bitrev_size16384_radix4_f64<>+0x11BD0(SB)/8, $11122
+DATA bitrev_size16384_radix4_f64<>+0x11BD8(SB)/8, $15218
+DATA bitrev_size16384_radix4_f64<>+0x11BE0(SB)/8, $3954
+DATA bitrev_size16384_radix4_f64<>+0x11BE8(SB)/8, $8050
+DATA bitrev_size16384_radix4_f64<>+0x11BF0(SB)/8, $12146
+DATA bitrev_size16384_radix4_f64<>+0x11BF8(SB)/8, $16242
+DATA bitrev_size16384_radix4_f64<>+0x11C00(SB)/8, $178
+DATA bitrev_size16384_radix4_f64<>+0x11C08(SB)/8, $4274
+DATA bitrev_size16384_radix4_f64<>+0x11C10(SB)/8, $8370
+DATA bitrev_size16384_radix4_f64<>+0x11C18(SB)/8, $12466
+DATA bitrev_size16384_radix4_f64<>+0x11C20(SB)/8, $1202
+DATA bitrev_size16384_radix4_f64<>+0x11C28(SB)/8, $5298
+DATA bitrev_size16384_radix4_f64<>+0x11C30(SB)/8, $9394
+DATA bitrev_size16384_radix4_f64<>+0x11C38(SB)/8, $13490
+DATA bitrev_size16384_radix4_f64<>+0x11C40(SB)/8, $2226
+DATA bitrev_size16384_radix4_f64<>+0x11C48(SB)/8, $6322
+DATA bitrev_size16384_radix4_f64<>+0x11C50(SB)/8, $10418
+DATA bitrev_size16384_radix4_f64<>+0x11C58(SB)/8, $14514
+DATA bitrev_size16384_radix4_f64<>+0x11C60(SB)/8, $3250
+DATA bitrev_size16384_radix4_f64<>+0x11C68(SB)/8, $7346
+DATA bitrev_size16384_radix4_f64<>+0x11C70(SB)/8, $11442
+DATA bitrev_size16384_radix4_f64<>+0x11C78(SB)/8, $15538
+DATA bitrev_size16384_radix4_f64<>+0x11C80(SB)/8, $434
+DATA bitrev_size16384_radix4_f64<>+0x11C88(SB)/8, $4530
+DATA bitrev_size16384_radix4_f64<>+0x11C90(SB)/8, $8626
+DATA bitrev_size16384_radix4_f64<>+0x11C98(SB)/8, $12722
+DATA bitrev_size16384_radix4_f64<>+0x11CA0(SB)/8, $1458
+DATA bitrev_size16384_radix4_f64<>+0x11CA8(SB)/8, $5554
+DATA bitrev_size16384_radix4_f64<>+0x11CB0(SB)/8, $9650
+DATA bitrev_size16384_radix4_f64<>+0x11CB8(SB)/8, $13746
+DATA bitrev_size16384_radix4_f64<>+0x11CC0(SB)/8, $2482
+DATA bitrev_size16384_radix4_f64<>+0x11CC8(SB)/8, $6578
+DATA bitrev_size16384_radix4_f64<>+0x11CD0(SB)/8, $10674
+DATA bitrev_size16384_radix4_f64<>+0x11CD8(SB)/8, $14770
+DATA bitrev_size16384_radix4_f64<>+0x11CE0(SB)/8, $3506
+DATA bitrev_size16384_radix4_f64<>+0x11CE8(SB)/8, $7602
+DATA bitrev_size16384_radix4_f64<>+0x11CF0(SB)/8, $11698
+DATA bitrev_size16384_radix4_f64<>+0x11CF8(SB)/8, $15794
+DATA bitrev_size16384_radix4_f64<>+0x11D00(SB)/8, $690
+DATA bitrev_size16384_radix4_f64<>+0x11D08(SB)/8, $4786
+DATA bitrev_size16384_radix4_f64<>+0x11D10(SB)/8, $8882
+DATA bitrev_size16384_radix4_f64<>+0x11D18(SB)/8, $12978
+DATA bitrev_size16384_radix4_f64<>+0x11D20(SB)/8, $1714
+DATA bitrev_size16384_radix4_f64<>+0x11D28(SB)/8, $5810
+DATA bitrev_size16384_radix4_f64<>+0x11D30(SB)/8, $9906
+DATA bitrev_size16384_radix4_f64<>+0x11D38(SB)/8, $14002
+DATA bitrev_size16384_radix4_f64<>+0x11D40(SB)/8, $2738
+DATA bitrev_size16384_radix4_f64<>+0x11D48(SB)/8, $6834
+DATA bitrev_size16384_radix4_f64<>+0x11D50(SB)/8, $10930
+DATA bitrev_size16384_radix4_f64<>+0x11D58(SB)/8, $15026
+DATA bitrev_size16384_radix4_f64<>+0x11D60(SB)/8, $3762
+DATA bitrev_size16384_radix4_f64<>+0x11D68(SB)/8, $7858
+DATA bitrev_size16384_radix4_f64<>+0x11D70(SB)/8, $11954
+DATA bitrev_size16384_radix4_f64<>+0x11D78(SB)/8, $16050
+DATA bitrev_size16384_radix4_f64<>+0x11D80(SB)/8, $946
+DATA bitrev_size16384_radix4_f64<>+0x11D88(SB)/8, $5042
+DATA bitrev_size16384_radix4_f64<>+0x11D90(SB)/8, $9138
+DATA bitrev_size16384_radix4_f64<>+0x11D98(SB)/8, $13234
+DATA bitrev_size16384_radix4_f64<>+0x11DA0(SB)/8, $1970
+DATA bitrev_size16384_radix4_f64<>+0x11DA8(SB)/8, $6066
+DATA bitrev_size16384_radix4_f64<>+0x11DB0(SB)/8, $10162
+DATA bitrev_size16384_radix4_f64<>+0x11DB8(SB)/8, $14258
+DATA bitrev_size16384_radix4_f64<>+0x11DC0(SB)/8, $2994
+DATA bitrev_size16384_radix4_f64<>+0x11DC8(SB)/8, $7090
+DATA bitrev_size16384_radix4_f64<>+0x11DD0(SB)/8, $11186
+DATA bitrev_size16384_radix4_f64<>+0x11DD8(SB)/8, $15282
+DATA bitrev_size16384_radix4_f64<>+0x11DE0(SB)/8, $4018
+DATA bitrev_size16384_radix4_f64<>+0x11DE8(SB)/8, $8114
+DATA bitrev_size16384_radix4_f64<>+0x11DF0(SB)/8, $12210
+DATA bitrev_size16384_radix4_f64<>+0x11DF8(SB)/8, $16306
+DATA bitrev_size16384_radix4_f64<>+0x11E00(SB)/8, $242
+DATA bitrev_size16384_radix4_f64<>+0x11E08(SB)/8, $4338
+DATA bitrev_size16384_radix4_f64<>+0x11E10(SB)/8, $8434
+DATA bitrev_size16384_radix4_f64<>+0x11E18(SB)/8, $12530
+DATA bitrev_size16384_radix4_f64<>+0x11E20(SB)/8, $1266
+DATA bitrev_size16384_radix4_f64<>+0x11E28(SB)/8, $5362
+DATA bitrev_size16384_radix4_f64<>+0x11E30(SB)/8, $9458
+DATA bitrev_size16384_radix4_f64<>+0x11E38(SB)/8, $13554
+DATA bitrev_size16384_radix4_f64<>+0x11E40(SB)/8, $2290
+DATA bitrev_size16384_radix4_f64<>+0x11E48(SB)/8, $6386
+DATA bitrev_size16384_radix4_f64<>+0x11E50(SB)/8, $10482
+DATA bitrev_size16384_radix4_f64<>+0x11E58(SB)/8, $14578
+DATA bitrev_size16384_radix4_f64<>+0x11E60(SB)/8, $3314
+DATA bitrev_size16384_radix4_f64<>+0x11E68(SB)/8, $7410
+DATA bitrev_size16384_radix4_f64<>+0x11E70(SB)/8, $11506
+DATA bitrev_size16384_radix4_f64<>+0x11E78(SB)/8, $15602
+DATA bitrev_size16384_radix4_f64<>+0x11E80(SB)/8, $498
+DATA bitrev_size16384_radix4_f64<>+0x11E88(SB)/8, $4594
+DATA bitrev_size16384_radix4_f64<>+0x11E90(SB)/8, $8690
+DATA bitrev_size16384_radix4_f64<>+0x11E98(SB)/8, $12786
+DATA bitrev_size16384_radix4_f64<>+0x11EA0(SB)/8, $1522
+DATA bitrev_size16384_radix4_f64<>+0x11EA8(SB)/8, $5618
+DATA bitrev_size16384_radix4_f64<>+0x11EB0(SB)/8, $9714
+DATA bitrev_size16384_radix4_f64<>+0x11EB8(SB)/8, $13810
+DATA bitrev_size16384_radix4_f64<>+0x11EC0(SB)/8, $2546
+DATA bitrev_size16384_radix4_f64<>+0x11EC8(SB)/8, $6642
+DATA bitrev_size16384_radix4_f64<>+0x11ED0(SB)/8, $10738
+DATA bitrev_size16384_radix4_f64<>+0x11ED8(SB)/8, $14834
+DATA bitrev_size16384_radix4_f64<>+0x11EE0(SB)/8, $3570
+DATA bitrev_size16384_radix4_f64<>+0x11EE8(SB)/8, $7666
+DATA bitrev_size16384_radix4_f64<>+0x11EF0(SB)/8, $11762
+DATA bitrev_size16384_radix4_f64<>+0x11EF8(SB)/8, $15858
+DATA bitrev_size16384_radix4_f64<>+0x11F00(SB)/8, $754
+DATA bitrev_size16384_radix4_f64<>+0x11F08(SB)/8, $4850
+DATA bitrev_size16384_radix4_f64<>+0x11F10(SB)/8, $8946
+DATA bitrev_size16384_radix4_f64<>+0x11F18(SB)/8, $13042
+DATA bitrev_size16384_radix4_f64<>+0x11F20(SB)/8, $1778
+DATA bitrev_size16384_radix4_f64<>+0x11F28(SB)/8, $5874
+DATA bitrev_size16384_radix4_f64<>+0x11F30(SB)/8, $9970
+DATA bitrev_size16384_radix4_f64<>+0x11F38(SB)/8, $14066
+DATA bitrev_size16384_radix4_f64<>+0x11F40(SB)/8, $2802
+DATA bitrev_size16384_radix4_f64<>+0x11F48(SB)/8, $6898
+DATA bitrev_size16384_radix4_f64<>+0x11F50(SB)/8, $10994
+DATA bitrev_size16384_radix4_f64<>+0x11F58(SB)/8, $15090
+DATA bitrev_size16384_radix4_f64<>+0x11F60(SB)/8, $3826
+DATA bitrev_size16384_radix4_f64<>+0x11F68(SB)/8, $7922
+DATA bitrev_size16384_radix4_f64<>+0x11F70(SB)/8, $12018
+DATA bitrev_size16384_radix4_f64<>+0x11F78(SB)/8, $16114
+DATA bitrev_size16384_radix4_f64<>+0x11F80(SB)/8, $1010
+DATA bitrev_size16384_radix4_f64<>+0x11F88(SB)/8, $5106
+DATA bitrev_size16384_radix4_f64<>+0x11F90(SB)/8, $9202
+DATA bitrev_size16384_radix4_f64<>+0x11F98(SB)/8, $13298
+DATA bitrev_size16384_radix4_f64<>+0x11FA0(SB)/8, $2034
+DATA bitrev_size16384_radix4_f64<>+0x11FA8(SB)/8, $6130
+DATA bitrev_size16384_radix4_f64<>+0x11FB0(SB)/8, $10226
+DATA bitrev_size16384_radix4_f64<>+0x11FB8(SB)/8, $14322
+DATA bitrev_size16384_radix4_f64<>+0x11FC0(SB)/8, $3058
+DATA bitrev_size16384_radix4_f64<>+0x11FC8(SB)/8, $7154
+DATA bitrev_size16384_radix4_f64<>+0x11FD0(SB)/8, $11250
+DATA bitrev_size16384_radix4_f64<>+0x11FD8(SB)/8, $15346
+DATA bitrev_size16384_radix4_f64<>+0x11FE0(SB)/8, $4082
+DATA bitrev_size16384_radix4_f64<>+0x11FE8(SB)/8, $8178
+DATA bitrev_size16384_radix4_f64<>+0x11FF0(SB)/8, $12274
+DATA bitrev_size16384_radix4_f64<>+0x11FF8(SB)/8, $16370
+DATA bitrev_size16384_radix4_f64<>+0x12000(SB)/8, $6
+DATA bitrev_size16384_radix4_f64<>+0x12008(SB)/8, $4102
+DATA bitrev_size16384_radix4_f64<>+0x12010(SB)/8, $8198
+DATA bitrev_size16384_radix4_f64<>+0x12018(SB)/8, $12294
+DATA bitrev_size16384_radix4_f64<>+0x12020(SB)/8, $1030
+DATA bitrev_size16384_radix4_f64<>+0x12028(SB)/8, $5126
+DATA bitrev_size16384_radix4_f64<>+0x12030(SB)/8, $9222
+DATA bitrev_size16384_radix4_f64<>+0x12038(SB)/8, $13318
+DATA bitrev_size16384_radix4_f64<>+0x12040(SB)/8, $2054
+DATA bitrev_size16384_radix4_f64<>+0x12048(SB)/8, $6150
+DATA bitrev_size16384_radix4_f64<>+0x12050(SB)/8, $10246
+DATA bitrev_size16384_radix4_f64<>+0x12058(SB)/8, $14342
+DATA bitrev_size16384_radix4_f64<>+0x12060(SB)/8, $3078
+DATA bitrev_size16384_radix4_f64<>+0x12068(SB)/8, $7174
+DATA bitrev_size16384_radix4_f64<>+0x12070(SB)/8, $11270
+DATA bitrev_size16384_radix4_f64<>+0x12078(SB)/8, $15366
+DATA bitrev_size16384_radix4_f64<>+0x12080(SB)/8, $262
+DATA bitrev_size16384_radix4_f64<>+0x12088(SB)/8, $4358
+DATA bitrev_size16384_radix4_f64<>+0x12090(SB)/8, $8454
+DATA bitrev_size16384_radix4_f64<>+0x12098(SB)/8, $12550
+DATA bitrev_size16384_radix4_f64<>+0x120A0(SB)/8, $1286
+DATA bitrev_size16384_radix4_f64<>+0x120A8(SB)/8, $5382
+DATA bitrev_size16384_radix4_f64<>+0x120B0(SB)/8, $9478
+DATA bitrev_size16384_radix4_f64<>+0x120B8(SB)/8, $13574
+DATA bitrev_size16384_radix4_f64<>+0x120C0(SB)/8, $2310
+DATA bitrev_size16384_radix4_f64<>+0x120C8(SB)/8, $6406
+DATA bitrev_size16384_radix4_f64<>+0x120D0(SB)/8, $10502
+DATA bitrev_size16384_radix4_f64<>+0x120D8(SB)/8, $14598
+DATA bitrev_size16384_radix4_f64<>+0x120E0(SB)/8, $3334
+DATA bitrev_size16384_radix4_f64<>+0x120E8(SB)/8, $7430
+DATA bitrev_size16384_radix4_f64<>+0x120F0(SB)/8, $11526
+DATA bitrev_size16384_radix4_f64<>+0x120F8(SB)/8, $15622
+DATA bitrev_size16384_radix4_f64<>+0x12100(SB)/8, $518
+DATA bitrev_size16384_radix4_f64<>+0x12108(SB)/8, $4614
+DATA bitrev_size16384_radix4_f64<>+0x12110(SB)/8, $8710
+DATA bitrev_size16384_radix4_f64<>+0x12118(SB)/8, $12806
+DATA bitrev_size16384_radix4_f64<>+0x12120(SB)/8, $1542
+DATA bitrev_size16384_radix4_f64<>+0x12128(SB)/8, $5638
+DATA bitrev_size16384_radix4_f64<>+0x12130(SB)/8, $9734
+DATA bitrev_size16384_radix4_f64<>+0x12138(SB)/8, $13830
+DATA bitrev_size16384_radix4_f64<>+0x12140(SB)/8, $2566
+DATA bitrev_size16384_radix4_f64<>+0x12148(SB)/8, $6662
+DATA bitrev_size16384_radix4_f64<>+0x12150(SB)/8, $10758
+DATA bitrev_size16384_radix4_f64<>+0x12158(SB)/8, $14854
+DATA bitrev_size16384_radix4_f64<>+0x12160(SB)/8, $3590
+DATA bitrev_size16384_radix4_f64<>+0x12168(SB)/8, $7686
+DATA bitrev_size16384_radix4_f64<>+0x12170(SB)/8, $11782
+DATA bitrev_size16384_radix4_f64<>+0x12178(SB)/8, $15878
+DATA bitrev_size16384_radix4_f64<>+0x12180(SB)/8, $774
+DATA bitrev_size16384_radix4_f64<>+0x12188(SB)/8, $4870
+DATA bitrev_size16384_radix4_f64<>+0x12190(SB)/8, $8966
+DATA bitrev_size16384_radix4_f64<>+0x12198(SB)/8, $13062
+DATA bitrev_size16384_radix4_f64<>+0x121A0(SB)/8, $1798
+DATA bitrev_size16384_radix4_f64<>+0x121A8(SB)/8, $5894
+DATA bitrev_size16384_radix4_f64<>+0x121B0(SB)/8, $9990
+DATA bitrev_size16384_radix4_f64<>+0x121B8(SB)/8, $14086
+DATA bitrev_size16384_radix4_f64<>+0x121C0(SB)/8, $2822
+DATA bitrev_size16384_radix4_f64<>+0x121C8(SB)/8, $6918
+DATA bitrev_size16384_radix4_f64<>+0x121D0(SB)/8, $11014
+DATA bitrev_size16384_radix4_f64<>+0x121D8(SB)/8, $15110
+DATA bitrev_size16384_radix4_f64<>+0x121E0(SB)/8, $3846
+DATA bitrev_size16384_radix4_f64<>+0x121E8(SB)/8, $7942
+DATA bitrev_size16384_radix4_f64<>+0x121F0(SB)/8, $12038
+DATA bitrev_size16384_radix4_f64<>+0x121F8(SB)/8, $16134
+DATA bitrev_size16384_radix4_f64<>+0x12200(SB)/8, $70
+DATA bitrev_size16384_radix4_f64<>+0x12208(SB)/8, $4166
+DATA bitrev_size16384_radix4_f64<>+0x12210(SB)/8, $8262
+DATA bitrev_size16384_radix4_f64<>+0x12218(SB)/8, $12358
+DATA bitrev_size16384_radix4_f64<>+0x12220(SB)/8, $1094
+DATA bitrev_size16384_radix4_f64<>+0x12228(SB)/8, $5190
+DATA bitrev_size16384_radix4_f64<>+0x12230(SB)/8, $9286
+DATA bitrev_size16384_radix4_f64<>+0x12238(SB)/8, $13382
+DATA bitrev_size16384_radix4_f64<>+0x12240(SB)/8, $2118
+DATA bitrev_size16384_radix4_f64<>+0x12248(SB)/8, $6214
+DATA bitrev_size16384_radix4_f64<>+0x12250(SB)/8, $10310
+DATA bitrev_size16384_radix4_f64<>+0x12258(SB)/8, $14406
+DATA bitrev_size16384_radix4_f64<>+0x12260(SB)/8, $3142
+DATA bitrev_size16384_radix4_f64<>+0x12268(SB)/8, $7238
+DATA bitrev_size16384_radix4_f64<>+0x12270(SB)/8, $11334
+DATA bitrev_size16384_radix4_f64<>+0x12278(SB)/8, $15430
+DATA bitrev_size16384_radix4_f64<>+0x12280(SB)/8, $326
+DATA bitrev_size16384_radix4_f64<>+0x12288(SB)/8, $4422
+DATA bitrev_size16384_radix4_f64<>+0x12290(SB)/8, $8518
+DATA bitrev_size16384_radix4_f64<>+0x12298(SB)/8, $12614
+DATA bitrev_size16384_radix4_f64<>+0x122A0(SB)/8, $1350
+DATA bitrev_size16384_radix4_f64<>+0x122A8(SB)/8, $5446
+DATA bitrev_size16384_radix4_f64<>+0x122B0(SB)/8, $9542
+DATA bitrev_size16384_radix4_f64<>+0x122B8(SB)/8, $13638
+DATA bitrev_size16384_radix4_f64<>+0x122C0(SB)/8, $2374
+DATA bitrev_size16384_radix4_f64<>+0x122C8(SB)/8, $6470
+DATA bitrev_size16384_radix4_f64<>+0x122D0(SB)/8, $10566
+DATA bitrev_size16384_radix4_f64<>+0x122D8(SB)/8, $14662
+DATA bitrev_size16384_radix4_f64<>+0x122E0(SB)/8, $3398
+DATA bitrev_size16384_radix4_f64<>+0x122E8(SB)/8, $7494
+DATA bitrev_size16384_radix4_f64<>+0x122F0(SB)/8, $11590
+DATA bitrev_size16384_radix4_f64<>+0x122F8(SB)/8, $15686
+DATA bitrev_size16384_radix4_f64<>+0x12300(SB)/8, $582
+DATA bitrev_size16384_radix4_f64<>+0x12308(SB)/8, $4678
+DATA bitrev_size16384_radix4_f64<>+0x12310(SB)/8, $8774
+DATA bitrev_size16384_radix4_f64<>+0x12318(SB)/8, $12870
+DATA bitrev_size16384_radix4_f64<>+0x12320(SB)/8, $1606
+DATA bitrev_size16384_radix4_f64<>+0x12328(SB)/8, $5702
+DATA bitrev_size16384_radix4_f64<>+0x12330(SB)/8, $9798
+DATA bitrev_size16384_radix4_f64<>+0x12338(SB)/8, $13894
+DATA bitrev_size16384_radix4_f64<>+0x12340(SB)/8, $2630
+DATA bitrev_size16384_radix4_f64<>+0x12348(SB)/8, $6726
+DATA bitrev_size16384_radix4_f64<>+0x12350(SB)/8, $10822
+DATA bitrev_size16384_radix4_f64<>+0x12358(SB)/8, $14918
+DATA bitrev_size16384_radix4_f64<>+0x12360(SB)/8, $3654
+DATA bitrev_size16384_radix4_f64<>+0x12368(SB)/8, $7750
+DATA bitrev_size16384_radix4_f64<>+0x12370(SB)/8, $11846
+DATA bitrev_size16384_radix4_f64<>+0x12378(SB)/8, $15942
+DATA bitrev_size16384_radix4_f64<>+0x12380(SB)/8, $838
+DATA bitrev_size16384_radix4_f64<>+0x12388(SB)/8, $4934
+DATA bitrev_size16384_radix4_f64<>+0x12390(SB)/8, $9030
+DATA bitrev_size16384_radix4_f64<>+0x12398(SB)/8, $13126
+DATA bitrev_size16384_radix4_f64<>+0x123A0(SB)/8, $1862
+DATA bitrev_size16384_radix4_f64<>+0x123A8(SB)/8, $5958
+DATA bitrev_size16384_radix4_f64<>+0x123B0(SB)/8, $10054
+DATA bitrev_size16384_radix4_f64<>+0x123B8(SB)/8, $14150
+DATA bitrev_size16384_radix4_f64<>+0x123C0(SB)/8, $2886
+DATA bitrev_size16384_radix4_f64<>+0x123C8(SB)/8, $6982
+DATA bitrev_size16384_radix4_f64<>+0x123D0(SB)/8, $11078
+DATA bitrev_size16384_radix4_f64<>+0x123D8(SB)/8, $15174
+DATA bitrev_size16384_radix4_f64<>+0x123E0(SB)/8, $3910
+DATA bitrev_size16384_radix4_f64<>+0x123E8(SB)/8, $8006
+DATA bitrev_size16384_radix4_f64<>+0x123F0(SB)/8, $12102
+DATA bitrev_size16384_radix4_f64<>+0x123F8(SB)/8, $16198
+DATA bitrev_size16384_radix4_f64<>+0x12400(SB)/8, $134
+DATA bitrev_size16384_radix4_f64<>+0x12408(SB)/8, $4230
+DATA bitrev_size16384_radix4_f64<>+0x12410(SB)/8, $8326
+DATA bitrev_size16384_radix4_f64<>+0x12418(SB)/8, $12422
+DATA bitrev_size16384_radix4_f64<>+0x12420(SB)/8, $1158
+DATA bitrev_size16384_radix4_f64<>+0x12428(SB)/8, $5254
+DATA bitrev_size16384_radix4_f64<>+0x12430(SB)/8, $9350
+DATA bitrev_size16384_radix4_f64<>+0x12438(SB)/8, $13446
+DATA bitrev_size16384_radix4_f64<>+0x12440(SB)/8, $2182
+DATA bitrev_size16384_radix4_f64<>+0x12448(SB)/8, $6278
+DATA bitrev_size16384_radix4_f64<>+0x12450(SB)/8, $10374
+DATA bitrev_size16384_radix4_f64<>+0x12458(SB)/8, $14470
+DATA bitrev_size16384_radix4_f64<>+0x12460(SB)/8, $3206
+DATA bitrev_size16384_radix4_f64<>+0x12468(SB)/8, $7302
+DATA bitrev_size16384_radix4_f64<>+0x12470(SB)/8, $11398
+DATA bitrev_size16384_radix4_f64<>+0x12478(SB)/8, $15494
+DATA bitrev_size16384_radix4_f64<>+0x12480(SB)/8, $390
+DATA bitrev_size16384_radix4_f64<>+0x12488(SB)/8, $4486
+DATA bitrev_size16384_radix4_f64<>+0x12490(SB)/8, $8582
+DATA bitrev_size16384_radix4_f64<>+0x12498(SB)/8, $12678
+DATA bitrev_size16384_radix4_f64<>+0x124A0(SB)/8, $1414
+DATA bitrev_size16384_radix4_f64<>+0x124A8(SB)/8, $5510
+DATA bitrev_size16384_radix4_f64<>+0x124B0(SB)/8, $9606
+DATA bitrev_size16384_radix4_f64<>+0x124B8(SB)/8, $13702
+DATA bitrev_size16384_radix4_f64<>+0x124C0(SB)/8, $2438
+DATA bitrev_size16384_radix4_f64<>+0x124C8(SB)/8, $6534
+DATA bitrev_size16384_radix4_f64<>+0x124D0(SB)/8, $10630
+DATA bitrev_size16384_radix4_f64<>+0x124D8(SB)/8, $14726
+DATA bitrev_size16384_radix4_f64<>+0x124E0(SB)/8, $3462
+DATA bitrev_size16384_radix4_f64<>+0x124E8(SB)/8, $7558
+DATA bitrev_size16384_radix4_f64<>+0x124F0(SB)/8, $11654
+DATA bitrev_size16384_radix4_f64<>+0x124F8(SB)/8, $15750
+DATA bitrev_size16384_radix4_f64<>+0x12500(SB)/8, $646
+DATA bitrev_size16384_radix4_f64<>+0x12508(SB)/8, $4742
+DATA bitrev_size16384_radix4_f64<>+0x12510(SB)/8, $8838
+DATA bitrev_size16384_radix4_f64<>+0x12518(SB)/8, $12934
+DATA bitrev_size16384_radix4_f64<>+0x12520(SB)/8, $1670
+DATA bitrev_size16384_radix4_f64<>+0x12528(SB)/8, $5766
+DATA bitrev_size16384_radix4_f64<>+0x12530(SB)/8, $9862
+DATA bitrev_size16384_radix4_f64<>+0x12538(SB)/8, $13958
+DATA bitrev_size16384_radix4_f64<>+0x12540(SB)/8, $2694
+DATA bitrev_size16384_radix4_f64<>+0x12548(SB)/8, $6790
+DATA bitrev_size16384_radix4_f64<>+0x12550(SB)/8, $10886
+DATA bitrev_size16384_radix4_f64<>+0x12558(SB)/8, $14982
+DATA bitrev_size16384_radix4_f64<>+0x12560(SB)/8, $3718
+DATA bitrev_size16384_radix4_f64<>+0x12568(SB)/8, $7814
+DATA bitrev_size16384_radix4_f64<>+0x12570(SB)/8, $11910
+DATA bitrev_size16384_radix4_f64<>+0x12578(SB)/8, $16006
+DATA bitrev_size16384_radix4_f64<>+0x12580(SB)/8, $902
+DATA bitrev_size16384_radix4_f64<>+0x12588(SB)/8, $4998
+DATA bitrev_size16384_radix4_f64<>+0x12590(SB)/8, $9094
+DATA bitrev_size16384_radix4_f64<>+0x12598(SB)/8, $13190
+DATA bitrev_size16384_radix4_f64<>+0x125A0(SB)/8, $1926
+DATA bitrev_size16384_radix4_f64<>+0x125A8(SB)/8, $6022
+DATA bitrev_size16384_radix4_f64<>+0x125B0(SB)/8, $10118
+DATA bitrev_size16384_radix4_f64<>+0x125B8(SB)/8, $14214
+DATA bitrev_size16384_radix4_f64<>+0x125C0(SB)/8, $2950
+DATA bitrev_size16384_radix4_f64<>+0x125C8(SB)/8, $7046
+DATA bitrev_size16384_radix4_f64<>+0x125D0(SB)/8, $11142
+DATA bitrev_size16384_radix4_f64<>+0x125D8(SB)/8, $15238
+DATA bitrev_size16384_radix4_f64<>+0x125E0(SB)/8, $3974
+DATA bitrev_size16384_radix4_f64<>+0x125E8(SB)/8, $8070
+DATA bitrev_size16384_radix4_f64<>+0x125F0(SB)/8, $12166
+DATA bitrev_size16384_radix4_f64<>+0x125F8(SB)/8, $16262
+DATA bitrev_size16384_radix4_f64<>+0x12600(SB)/8, $198
+DATA bitrev_size16384_radix4_f64<>+0x12608(SB)/8, $4294
+DATA bitrev_size16384_radix4_f64<>+0x12610(SB)/8, $8390
+DATA bitrev_size16384_radix4_f64<>+0x12618(SB)/8, $12486
+DATA bitrev_size16384_radix4_f64<>+0x12620(SB)/8, $1222
+DATA bitrev_size16384_radix4_f64<>+0x12628(SB)/8, $5318
+DATA bitrev_size16384_radix4_f64<>+0x12630(SB)/8, $9414
+DATA bitrev_size16384_radix4_f64<>+0x12638(SB)/8, $13510
+DATA bitrev_size16384_radix4_f64<>+0x12640(SB)/8, $2246
+DATA bitrev_size16384_radix4_f64<>+0x12648(SB)/8, $6342
+DATA bitrev_size16384_radix4_f64<>+0x12650(SB)/8, $10438
+DATA bitrev_size16384_radix4_f64<>+0x12658(SB)/8, $14534
+DATA bitrev_size16384_radix4_f64<>+0x12660(SB)/8, $3270
+DATA bitrev_size16384_radix4_f64<>+0x12668(SB)/8, $7366
+DATA bitrev_size16384_radix4_f64<>+0x12670(SB)/8, $11462
+DATA bitrev_size16384_radix4_f64<>+0x12678(SB)/8, $15558
+DATA bitrev_size16384_radix4_f64<>+0x12680(SB)/8, $454
+DATA bitrev_size16384_radix4_f64<>+0x12688(SB)/8, $4550
+DATA bitrev_size16384_radix4_f64<>+0x12690(SB)/8, $8646
+DATA bitrev_size16384_radix4_f64<>+0x12698(SB)/8, $12742
+DATA bitrev_size16384_radix4_f64<>+0x126A0(SB)/8, $1478
+DATA bitrev_size16384_radix4_f64<>+0x126A8(SB)/8, $5574
+DATA bitrev_size16384_radix4_f64<>+0x126B0(SB)/8, $9670
+DATA bitrev_size16384_radix4_f64<>+0x126B8(SB)/8, $13766
+DATA bitrev_size16384_radix4_f64<>+0x126C0(SB)/8, $2502
+DATA bitrev_size16384_radix4_f64<>+0x126C8(SB)/8, $6598
+DATA bitrev_size16384_radix4_f64<>+0x126D0(SB)/8, $10694
+DATA bitrev_size16384_radix4_f64<>+0x126D8(SB)/8, $14790
+DATA bitrev_size16384_radix4_f64<>+0x126E0(SB)/8, $3526
+DATA bitrev_size16384_radix4_f64<>+0x126E8(SB)/8, $7622
+DATA bitrev_size16384_radix4_f64<>+0x126F0(SB)/8, $11718
+DATA bitrev_size16384_radix4_f64<>+0x126F8(SB)/8, $15814
+DATA bitrev_size16384_radix4_f64<>+0x12700(SB)/8, $710
+DATA bitrev_size16384_radix4_f64<>+0x12708(SB)/8, $4806
+DATA bitrev_size16384_radix4_f64<>+0x12710(SB)/8, $8902
+DATA bitrev_size16384_radix4_f64<>+0x12718(SB)/8, $12998
+DATA bitrev_size16384_radix4_f64<>+0x12720(SB)/8, $1734
+DATA bitrev_size16384_radix4_f64<>+0x12728(SB)/8, $5830
+DATA bitrev_size16384_radix4_f64<>+0x12730(SB)/8, $9926
+DATA bitrev_size16384_radix4_f64<>+0x12738(SB)/8, $14022
+DATA bitrev_size16384_radix4_f64<>+0x12740(SB)/8, $2758
+DATA bitrev_size16384_radix4_f64<>+0x12748(SB)/8, $6854
+DATA bitrev_size16384_radix4_f64<>+0x12750(SB)/8, $10950
+DATA bitrev_size16384_radix4_f64<>+0x12758(SB)/8, $15046
+DATA bitrev_size16384_radix4_f64<>+0x12760(SB)/8, $3782
+DATA bitrev_size16384_radix4_f64<>+0x12768(SB)/8, $7878
+DATA bitrev_size16384_radix4_f64<>+0x12770(SB)/8, $11974
+DATA bitrev_size16384_radix4_f64<>+0x12778(SB)/8, $16070
+DATA bitrev_size16384_radix4_f64<>+0x12780(SB)/8, $966
+DATA bitrev_size16384_radix4_f64<>+0x12788(SB)/8, $5062
+DATA bitrev_size16384_radix4_f64<>+0x12790(SB)/8, $9158
+DATA bitrev_size16384_radix4_f64<>+0x12798(SB)/8, $13254
+DATA bitrev_size16384_radix4_f64<>+0x127A0(SB)/8, $1990
+DATA bitrev_size16384_radix4_f64<>+0x127A8(SB)/8, $6086
+DATA bitrev_size16384_radix4_f64<>+0x127B0(SB)/8, $10182
+DATA bitrev_size16384_radix4_f64<>+0x127B8(SB)/8, $14278
+DATA bitrev_size16384_radix4_f64<>+0x127C0(SB)/8, $3014
+DATA bitrev_size16384_radix4_f64<>+0x127C8(SB)/8, $7110
+DATA bitrev_size16384_radix4_f64<>+0x127D0(SB)/8, $11206
+DATA bitrev_size16384_radix4_f64<>+0x127D8(SB)/8, $15302
+DATA bitrev_size16384_radix4_f64<>+0x127E0(SB)/8, $4038
+DATA bitrev_size16384_radix4_f64<>+0x127E8(SB)/8, $8134
+DATA bitrev_size16384_radix4_f64<>+0x127F0(SB)/8, $12230
+DATA bitrev_size16384_radix4_f64<>+0x127F8(SB)/8, $16326
+DATA bitrev_size16384_radix4_f64<>+0x12800(SB)/8, $22
+DATA bitrev_size16384_radix4_f64<>+0x12808(SB)/8, $4118
+DATA bitrev_size16384_radix4_f64<>+0x12810(SB)/8, $8214
+DATA bitrev_size16384_radix4_f64<>+0x12818(SB)/8, $12310
+DATA bitrev_size16384_radix4_f64<>+0x12820(SB)/8, $1046
+DATA bitrev_size16384_radix4_f64<>+0x12828(SB)/8, $5142
+DATA bitrev_size16384_radix4_f64<>+0x12830(SB)/8, $9238
+DATA bitrev_size16384_radix4_f64<>+0x12838(SB)/8, $13334
+DATA bitrev_size16384_radix4_f64<>+0x12840(SB)/8, $2070
+DATA bitrev_size16384_radix4_f64<>+0x12848(SB)/8, $6166
+DATA bitrev_size16384_radix4_f64<>+0x12850(SB)/8, $10262
+DATA bitrev_size16384_radix4_f64<>+0x12858(SB)/8, $14358
+DATA bitrev_size16384_radix4_f64<>+0x12860(SB)/8, $3094
+DATA bitrev_size16384_radix4_f64<>+0x12868(SB)/8, $7190
+DATA bitrev_size16384_radix4_f64<>+0x12870(SB)/8, $11286
+DATA bitrev_size16384_radix4_f64<>+0x12878(SB)/8, $15382
+DATA bitrev_size16384_radix4_f64<>+0x12880(SB)/8, $278
+DATA bitrev_size16384_radix4_f64<>+0x12888(SB)/8, $4374
+DATA bitrev_size16384_radix4_f64<>+0x12890(SB)/8, $8470
+DATA bitrev_size16384_radix4_f64<>+0x12898(SB)/8, $12566
+DATA bitrev_size16384_radix4_f64<>+0x128A0(SB)/8, $1302
+DATA bitrev_size16384_radix4_f64<>+0x128A8(SB)/8, $5398
+DATA bitrev_size16384_radix4_f64<>+0x128B0(SB)/8, $9494
+DATA bitrev_size16384_radix4_f64<>+0x128B8(SB)/8, $13590
+DATA bitrev_size16384_radix4_f64<>+0x128C0(SB)/8, $2326
+DATA bitrev_size16384_radix4_f64<>+0x128C8(SB)/8, $6422
+DATA bitrev_size16384_radix4_f64<>+0x128D0(SB)/8, $10518
+DATA bitrev_size16384_radix4_f64<>+0x128D8(SB)/8, $14614
+DATA bitrev_size16384_radix4_f64<>+0x128E0(SB)/8, $3350
+DATA bitrev_size16384_radix4_f64<>+0x128E8(SB)/8, $7446
+DATA bitrev_size16384_radix4_f64<>+0x128F0(SB)/8, $11542
+DATA bitrev_size16384_radix4_f64<>+0x128F8(SB)/8, $15638
+DATA bitrev_size16384_radix4_f64<>+0x12900(SB)/8, $534
+DATA bitrev_size16384_radix4_f64<>+0x12908(SB)/8, $4630
+DATA bitrev_size16384_radix4_f64<>+0x12910(SB)/8, $8726
+DATA bitrev_size16384_radix4_f64<>+0x12918(SB)/8, $12822
+DATA bitrev_size16384_radix4_f64<>+0x12920(SB)/8, $1558
+DATA bitrev_size16384_radix4_f64<>+0x12928(SB)/8, $5654
+DATA bitrev_size16384_radix4_f64<>+0x12930(SB)/8, $9750
+DATA bitrev_size16384_radix4_f64<>+0x12938(SB)/8, $13846
+DATA bitrev_size16384_radix4_f64<>+0x12940(SB)/8, $2582
+DATA bitrev_size16384_radix4_f64<>+0x12948(SB)/8, $6678
+DATA bitrev_size16384_radix4_f64<>+0x12950(SB)/8, $10774
+DATA bitrev_size16384_radix4_f64<>+0x12958(SB)/8, $14870
+DATA bitrev_size16384_radix4_f64<>+0x12960(SB)/8, $3606
+DATA bitrev_size16384_radix4_f64<>+0x12968(SB)/8, $7702
+DATA bitrev_size16384_radix4_f64<>+0x12970(SB)/8, $11798
+DATA bitrev_size16384_radix4_f64<>+0x12978(SB)/8, $15894
+DATA bitrev_size16384_radix4_f64<>+0x12980(SB)/8, $790
+DATA bitrev_size16384_radix4_f64<>+0x12988(SB)/8, $4886
+DATA bitrev_size16384_radix4_f64<>+0x12990(SB)/8, $8982
+DATA bitrev_size16384_radix4_f64<>+0x12998(SB)/8, $13078
+DATA bitrev_size16384_radix4_f64<>+0x129A0(SB)/8, $1814
+DATA bitrev_size16384_radix4_f64<>+0x129A8(SB)/8, $5910
+DATA bitrev_size16384_radix4_f64<>+0x129B0(SB)/8, $10006
+DATA bitrev_size16384_radix4_f64<>+0x129B8(SB)/8, $14102
+DATA bitrev_size16384_radix4_f64<>+0x129C0(SB)/8, $2838
+DATA bitrev_size16384_radix4_f64<>+0x129C8(SB)/8, $6934
+DATA bitrev_size16384_radix4_f64<>+0x129D0(SB)/8, $11030
+DATA bitrev_size16384_radix4_f64<>+0x129D8(SB)/8, $15126
+DATA bitrev_size16384_radix4_f64<>+0x129E0(SB)/8, $3862
+DATA bitrev_size16384_radix4_f64<>+0x129E8(SB)/8, $7958
+DATA bitrev_size16384_radix4_f64<>+0x129F0(SB)/8, $12054
+DATA bitrev_size16384_radix4_f64<>+0x129F8(SB)/8, $16150
+DATA bitrev_size16384_radix4_f64<>+0x12A00(SB)/8, $86
+DATA bitrev_size16384_radix4_f64<>+0x12A08(SB)/8, $4182
+DATA bitrev_size16384_radix4_f64<>+0x12A10(SB)/8, $8278
+DATA bitrev_size16384_radix4_f64<>+0x12A18(SB)/8, $12374
+DATA bitrev_size16384_radix4_f64<>+0x12A20(SB)/8, $1110
+DATA bitrev_size16384_radix4_f64<>+0x12A28(SB)/8, $5206
+DATA bitrev_size16384_radix4_f64<>+0x12A30(SB)/8, $9302
+DATA bitrev_size16384_radix4_f64<>+0x12A38(SB)/8, $13398
+DATA bitrev_size16384_radix4_f64<>+0x12A40(SB)/8, $2134
+DATA bitrev_size16384_radix4_f64<>+0x12A48(SB)/8, $6230
+DATA bitrev_size16384_radix4_f64<>+0x12A50(SB)/8, $10326
+DATA bitrev_size16384_radix4_f64<>+0x12A58(SB)/8, $14422
+DATA bitrev_size16384_radix4_f64<>+0x12A60(SB)/8, $3158
+DATA bitrev_size16384_radix4_f64<>+0x12A68(SB)/8, $7254
+DATA bitrev_size16384_radix4_f64<>+0x12A70(SB)/8, $11350
+DATA bitrev_size16384_radix4_f64<>+0x12A78(SB)/8, $15446
+DATA bitrev_size16384_radix4_f64<>+0x12A80(SB)/8, $342
+DATA bitrev_size16384_radix4_f64<>+0x12A88(SB)/8, $4438
+DATA bitrev_size16384_radix4_f64<>+0x12A90(SB)/8, $8534
+DATA bitrev_size16384_radix4_f64<>+0x12A98(SB)/8, $12630
+DATA bitrev_size16384_radix4_f64<>+0x12AA0(SB)/8, $1366
+DATA bitrev_size16384_radix4_f64<>+0x12AA8(SB)/8, $5462
+DATA bitrev_size16384_radix4_f64<>+0x12AB0(SB)/8, $9558
+DATA bitrev_size16384_radix4_f64<>+0x12AB8(SB)/8, $13654
+DATA bitrev_size16384_radix4_f64<>+0x12AC0(SB)/8, $2390
+DATA bitrev_size16384_radix4_f64<>+0x12AC8(SB)/8, $6486
+DATA bitrev_size16384_radix4_f64<>+0x12AD0(SB)/8, $10582
+DATA bitrev_size16384_radix4_f64<>+0x12AD8(SB)/8, $14678
+DATA bitrev_size16384_radix4_f64<>+0x12AE0(SB)/8, $3414
+DATA bitrev_size16384_radix4_f64<>+0x12AE8(SB)/8, $7510
+DATA bitrev_size16384_radix4_f64<>+0x12AF0(SB)/8, $11606
+DATA bitrev_size16384_radix4_f64<>+0x12AF8(SB)/8, $15702
+DATA bitrev_size16384_radix4_f64<>+0x12B00(SB)/8, $598
+DATA bitrev_size16384_radix4_f64<>+0x12B08(SB)/8, $4694
+DATA bitrev_size16384_radix4_f64<>+0x12B10(SB)/8, $8790
+DATA bitrev_size16384_radix4_f64<>+0x12B18(SB)/8, $12886
+DATA bitrev_size16384_radix4_f64<>+0x12B20(SB)/8, $1622
+DATA bitrev_size16384_radix4_f64<>+0x12B28(SB)/8, $5718
+DATA bitrev_size16384_radix4_f64<>+0x12B30(SB)/8, $9814
+DATA bitrev_size16384_radix4_f64<>+0x12B38(SB)/8, $13910
+DATA bitrev_size16384_radix4_f64<>+0x12B40(SB)/8, $2646
+DATA bitrev_size16384_radix4_f64<>+0x12B48(SB)/8, $6742
+DATA bitrev_size16384_radix4_f64<>+0x12B50(SB)/8, $10838
+DATA bitrev_size16384_radix4_f64<>+0x12B58(SB)/8, $14934
+DATA bitrev_size16384_radix4_f64<>+0x12B60(SB)/8, $3670
+DATA bitrev_size16384_radix4_f64<>+0x12B68(SB)/8, $7766
+DATA bitrev_size16384_radix4_f64<>+0x12B70(SB)/8, $11862
+DATA bitrev_size16384_radix4_f64<>+0x12B78(SB)/8, $15958
+DATA bitrev_size16384_radix4_f64<>+0x12B80(SB)/8, $854
+DATA bitrev_size16384_radix4_f64<>+0x12B88(SB)/8, $4950
+DATA bitrev_size16384_radix4_f64<>+0x12B90(SB)/8, $9046
+DATA bitrev_size16384_radix4_f64<>+0x12B98(SB)/8, $13142
+DATA bitrev_size16384_radix4_f64<>+0x12BA0(SB)/8, $1878
+DATA bitrev_size16384_radix4_f64<>+0x12BA8(SB)/8, $5974
+DATA bitrev_size16384_radix4_f64<>+0x12BB0(SB)/8, $10070
+DATA bitrev_size16384_radix4_f64<>+0x12BB8(SB)/8, $14166
+DATA bitrev_size16384_radix4_f64<>+0x12BC0(SB)/8, $2902
+DATA bitrev_size16384_radix4_f64<>+0x12BC8(SB)/8, $6998
+DATA bitrev_size16384_radix4_f64<>+0x12BD0(SB)/8, $11094
+DATA bitrev_size16384_radix4_f64<>+0x12BD8(SB)/8, $15190
+DATA bitrev_size16384_radix4_f64<>+0x12BE0(SB)/8, $3926
+DATA bitrev_size16384_radix4_f64<>+0x12BE8(SB)/8, $8022
+DATA bitrev_size16384_radix4_f64<>+0x12BF0(SB)/8, $12118
+DATA bitrev_size16384_radix4_f64<>+0x12BF8(SB)/8, $16214
+DATA bitrev_size16384_radix4_f64<>+0x12C00(SB)/8, $150
+DATA bitrev_size16384_radix4_f64<>+0x12C08(SB)/8, $4246
+DATA bitrev_size16384_radix4_f64<>+0x12C10(SB)/8, $8342
+DATA bitrev_size16384_radix4_f64<>+0x12C18(SB)/8, $12438
+DATA bitrev_size16384_radix4_f64<>+0x12C20(SB)/8, $1174
+DATA bitrev_size16384_radix4_f64<>+0x12C28(SB)/8, $5270
+DATA bitrev_size16384_radix4_f64<>+0x12C30(SB)/8, $9366
+DATA bitrev_size16384_radix4_f64<>+0x12C38(SB)/8, $13462
+DATA bitrev_size16384_radix4_f64<>+0x12C40(SB)/8, $2198
+DATA bitrev_size16384_radix4_f64<>+0x12C48(SB)/8, $6294
+DATA bitrev_size16384_radix4_f64<>+0x12C50(SB)/8, $10390
+DATA bitrev_size16384_radix4_f64<>+0x12C58(SB)/8, $14486
+DATA bitrev_size16384_radix4_f64<>+0x12C60(SB)/8, $3222
+DATA bitrev_size16384_radix4_f64<>+0x12C68(SB)/8, $7318
+DATA bitrev_size16384_radix4_f64<>+0x12C70(SB)/8, $11414
+DATA bitrev_size16384_radix4_f64<>+0x12C78(SB)/8, $15510
+DATA bitrev_size16384_radix4_f64<>+0x12C80(SB)/8, $406
+DATA bitrev_size16384_radix4_f64<>+0x12C88(SB)/8, $4502
+DATA bitrev_size16384_radix4_f64<>+0x12C90(SB)/8, $8598
+DATA bitrev_size16384_radix4_f64<>+0x12C98(SB)/8, $12694
+DATA bitrev_size16384_radix4_f64<>+0x12CA0(SB)/8, $1430
+DATA bitrev_size16384_radix4_f64<>+0x12CA8(SB)/8, $5526
+DATA bitrev_size16384_radix4_f64<>+0x12CB0(SB)/8, $9622
+DATA bitrev_size16384_radix4_f64<>+0x12CB8(SB)/8, $13718
+DATA bitrev_size16384_radix4_f64<>+0x12CC0(SB)/8, $2454
+DATA bitrev_size16384_radix4_f64<>+0x12CC8(SB)/8, $6550
+DATA bitrev_size16384_radix4_f64<>+0x12CD0(SB)/8, $10646
+DATA bitrev_size16384_radix4_f64<>+0x12CD8(SB)/8, $14742
+DATA bitrev_size16384_radix4_f64<>+0x12CE0(SB)/8, $3478
+DATA bitrev_size16384_radix4_f64<>+0x12CE8(SB)/8, $7574
+DATA bitrev_size16384_radix4_f64<>+0x12CF0(SB)/8, $11670
+DATA bitrev_size16384_radix4_f64<>+0x12CF8(SB)/8, $15766
+DATA bitrev_size16384_radix4_f64<>+0x12D00(SB)/8, $662
+DATA bitrev_size16384_radix4_f64<>+0x12D08(SB)/8, $4758
+DATA bitrev_size16384_radix4_f64<>+0x12D10(SB)/8, $8854
+DATA bitrev_size16384_radix4_f64<>+0x12D18(SB)/8, $12950
+DATA bitrev_size16384_radix4_f64<>+0x12D20(SB)/8, $1686
+DATA bitrev_size16384_radix4_f64<>+0x12D28(SB)/8, $5782
+DATA bitrev_size16384_radix4_f64<>+0x12D30(SB)/8, $9878
+DATA bitrev_size16384_radix4_f64<>+0x12D38(SB)/8, $13974
+DATA bitrev_size16384_radix4_f64<>+0x12D40(SB)/8, $2710
+DATA bitrev_size16384_radix4_f64<>+0x12D48(SB)/8, $6806
+DATA bitrev_size16384_radix4_f64<>+0x12D50(SB)/8, $10902
+DATA bitrev_size16384_radix4_f64<>+0x12D58(SB)/8, $14998
+DATA bitrev_size16384_radix4_f64<>+0x12D60(SB)/8, $3734
+DATA bitrev_size16384_radix4_f64<>+0x12D68(SB)/8, $7830
+DATA bitrev_size16384_radix4_f64<>+0x12D70(SB)/8, $11926
+DATA bitrev_size16384_radix4_f64<>+0x12D78(SB)/8, $16022
+DATA bitrev_size16384_radix4_f64<>+0x12D80(SB)/8, $918
+DATA bitrev_size16384_radix4_f64<>+0x12D88(SB)/8, $5014
+DATA bitrev_size16384_radix4_f64<>+0x12D90(SB)/8, $9110
+DATA bitrev_size16384_radix4_f64<>+0x12D98(SB)/8, $13206
+DATA bitrev_size16384_radix4_f64<>+0x12DA0(SB)/8, $1942
+DATA bitrev_size16384_radix4_f64<>+0x12DA8(SB)/8, $6038
+DATA bitrev_size16384_radix4_f64<>+0x12DB0(SB)/8, $10134
+DATA bitrev_size16384_radix4_f64<>+0x12DB8(SB)/8, $14230
+DATA bitrev_size16384_radix4_f64<>+0x12DC0(SB)/8, $2966
+DATA bitrev_size16384_radix4_f64<>+0x12DC8(SB)/8, $7062
+DATA bitrev_size16384_radix4_f64<>+0x12DD0(SB)/8, $11158
+DATA bitrev_size16384_radix4_f64<>+0x12DD8(SB)/8, $15254
+DATA bitrev_size16384_radix4_f64<>+0x12DE0(SB)/8, $3990
+DATA bitrev_size16384_radix4_f64<>+0x12DE8(SB)/8, $8086
+DATA bitrev_size16384_radix4_f64<>+0x12DF0(SB)/8, $12182
+DATA bitrev_size16384_radix4_f64<>+0x12DF8(SB)/8, $16278
+DATA bitrev_size16384_radix4_f64<>+0x12E00(SB)/8, $214
+DATA bitrev_size16384_radix4_f64<>+0x12E08(SB)/8, $4310
+DATA bitrev_size16384_radix4_f64<>+0x12E10(SB)/8, $8406
+DATA bitrev_size16384_radix4_f64<>+0x12E18(SB)/8, $12502
+DATA bitrev_size16384_radix4_f64<>+0x12E20(SB)/8, $1238
+DATA bitrev_size16384_radix4_f64<>+0x12E28(SB)/8, $5334
+DATA bitrev_size16384_radix4_f64<>+0x12E30(SB)/8, $9430
+DATA bitrev_size16384_radix4_f64<>+0x12E38(SB)/8, $13526
+DATA bitrev_size16384_radix4_f64<>+0x12E40(SB)/8, $2262
+DATA bitrev_size16384_radix4_f64<>+0x12E48(SB)/8, $6358
+DATA bitrev_size16384_radix4_f64<>+0x12E50(SB)/8, $10454
+DATA bitrev_size16384_radix4_f64<>+0x12E58(SB)/8, $14550
+DATA bitrev_size16384_radix4_f64<>+0x12E60(SB)/8, $3286
+DATA bitrev_size16384_radix4_f64<>+0x12E68(SB)/8, $7382
+DATA bitrev_size16384_radix4_f64<>+0x12E70(SB)/8, $11478
+DATA bitrev_size16384_radix4_f64<>+0x12E78(SB)/8, $15574
+DATA bitrev_size16384_radix4_f64<>+0x12E80(SB)/8, $470
+DATA bitrev_size16384_radix4_f64<>+0x12E88(SB)/8, $4566
+DATA bitrev_size16384_radix4_f64<>+0x12E90(SB)/8, $8662
+DATA bitrev_size16384_radix4_f64<>+0x12E98(SB)/8, $12758
+DATA bitrev_size16384_radix4_f64<>+0x12EA0(SB)/8, $1494
+DATA bitrev_size16384_radix4_f64<>+0x12EA8(SB)/8, $5590
+DATA bitrev_size16384_radix4_f64<>+0x12EB0(SB)/8, $9686
+DATA bitrev_size16384_radix4_f64<>+0x12EB8(SB)/8, $13782
+DATA bitrev_size16384_radix4_f64<>+0x12EC0(SB)/8, $2518
+DATA bitrev_size16384_radix4_f64<>+0x12EC8(SB)/8, $6614
+DATA bitrev_size16384_radix4_f64<>+0x12ED0(SB)/8, $10710
+DATA bitrev_size16384_radix4_f64<>+0x12ED8(SB)/8, $14806
+DATA bitrev_size16384_radix4_f64<>+0x12EE0(SB)/8, $3542
+DATA bitrev_size16384_radix4_f64<>+0x12EE8(SB)/8, $7638
+DATA bitrev_size16384_radix4_f64<>+0x12EF0(SB)/8, $11734
+DATA bitrev_size16384_radix4_f64<>+0x12EF8(SB)/8, $15830
+DATA bitrev_size16384_radix4_f64<>+0x12F00(SB)/8, $726
+DATA bitrev_size16384_radix4_f64<>+0x12F08(SB)/8, $4822
+DATA bitrev_size16384_radix4_f64<>+0x12F10(SB)/8, $8918
+DATA bitrev_size16384_radix4_f64<>+0x12F18(SB)/8, $13014
+DATA bitrev_size16384_radix4_f64<>+0x12F20(SB)/8, $1750
+DATA bitrev_size16384_radix4_f64<>+0x12F28(SB)/8, $5846
+DATA bitrev_size16384_radix4_f64<>+0x12F30(SB)/8, $9942
+DATA bitrev_size16384_radix4_f64<>+0x12F38(SB)/8, $14038
+DATA bitrev_size16384_radix4_f64<>+0x12F40(SB)/8, $2774
+DATA bitrev_size16384_radix4_f64<>+0x12F48(SB)/8, $6870
+DATA bitrev_size16384_radix4_f64<>+0x12F50(SB)/8, $10966
+DATA bitrev_size16384_radix4_f64<>+0x12F58(SB)/8, $15062
+DATA bitrev_size16384_radix4_f64<>+0x12F60(SB)/8, $3798
+DATA bitrev_size16384_radix4_f64<>+0x12F68(SB)/8, $7894
+DATA bitrev_size16384_radix4_f64<>+0x12F70(SB)/8, $11990
+DATA bitrev_size16384_radix4_f64<>+0x12F78(SB)/8, $16086
+DATA bitrev_size16384_radix4_f64<>+0x12F80(SB)/8, $982
+DATA bitrev_size16384_radix4_f64<>+0x12F88(SB)/8, $5078
+DATA bitrev_size16384_radix4_f64<>+0x12F90(SB)/8, $9174
+DATA bitrev_size16384_radix4_f64<>+0x12F98(SB)/8, $13270
+DATA bitrev_size16384_radix4_f64<>+0x12FA0(SB)/8, $2006
+DATA bitrev_size16384_radix4_f64<>+0x12FA8(SB)/8, $6102
+DATA bitrev_size16384_radix4_f64<>+0x12FB0(SB)/8, $10198
+DATA bitrev_size16384_radix4_f64<>+0x12FB8(SB)/8, $14294
+DATA bitrev_size16384_radix4_f64<>+0x12FC0(SB)/8, $3030
+DATA bitrev_size16384_radix4_f64<>+0x12FC8(SB)/8, $7126
+DATA bitrev_size16384_radix4_f64<>+0x12FD0(SB)/8, $11222
+DATA bitrev_size16384_radix4_f64<>+0x12FD8(SB)/8, $15318
+DATA bitrev_size16384_radix4_f64<>+0x12FE0(SB)/8, $4054
+DATA bitrev_size16384_radix4_f64<>+0x12FE8(SB)/8, $8150
+DATA bitrev_size16384_radix4_f64<>+0x12FF0(SB)/8, $12246
+DATA bitrev_size16384_radix4_f64<>+0x12FF8(SB)/8, $16342
+DATA bitrev_size16384_radix4_f64<>+0x13000(SB)/8, $38
+DATA bitrev_size16384_radix4_f64<>+0x13008(SB)/8, $4134
+DATA bitrev_size16384_radix4_f64<>+0x13010(SB)/8, $8230
+DATA bitrev_size16384_radix4_f64<>+0x13018(SB)/8, $12326
+DATA bitrev_size16384_radix4_f64<>+0x13020(SB)/8, $1062
+DATA bitrev_size16384_radix4_f64<>+0x13028(SB)/8, $5158
+DATA bitrev_size16384_radix4_f64<>+0x13030(SB)/8, $9254
+DATA bitrev_size16384_radix4_f64<>+0x13038(SB)/8, $13350
+DATA bitrev_size16384_radix4_f64<>+0x13040(SB)/8, $2086
+DATA bitrev_size16384_radix4_f64<>+0x13048(SB)/8, $6182
+DATA bitrev_size16384_radix4_f64<>+0x13050(SB)/8, $10278
+DATA bitrev_size16384_radix4_f64<>+0x13058(SB)/8, $14374
+DATA bitrev_size16384_radix4_f64<>+0x13060(SB)/8, $3110
+DATA bitrev_size16384_radix4_f64<>+0x13068(SB)/8, $7206
+DATA bitrev_size16384_radix4_f64<>+0x13070(SB)/8, $11302
+DATA bitrev_size16384_radix4_f64<>+0x13078(SB)/8, $15398
+DATA bitrev_size16384_radix4_f64<>+0x13080(SB)/8, $294
+DATA bitrev_size16384_radix4_f64<>+0x13088(SB)/8, $4390
+DATA bitrev_size16384_radix4_f64<>+0x13090(SB)/8, $8486
+DATA bitrev_size16384_radix4_f64<>+0x13098(SB)/8, $12582
+DATA bitrev_size16384_radix4_f64<>+0x130A0(SB)/8, $1318
+DATA bitrev_size16384_radix4_f64<>+0x130A8(SB)/8, $5414
+DATA bitrev_size16384_radix4_f64<>+0x130B0(SB)/8, $9510
+DATA bitrev_size16384_radix4_f64<>+0x130B8(SB)/8, $13606
+DATA bitrev_size16384_radix4_f64<>+0x130C0(SB)/8, $2342
+DATA bitrev_size16384_radix4_f64<>+0x130C8(SB)/8, $6438
+DATA bitrev_size16384_radix4_f64<>+0x130D0(SB)/8, $10534
+DATA bitrev_size16384_radix4_f64<>+0x130D8(SB)/8, $14630
+DATA bitrev_size16384_radix4_f64<>+0x130E0(SB)/8, $3366
+DATA bitrev_size16384_radix4_f64<>+0x130E8(SB)/8, $7462
+DATA bitrev_size16384_radix4_f64<>+0x130F0(SB)/8, $11558
+DATA bitrev_size16384_radix4_f64<>+0x130F8(SB)/8, $15654
+DATA bitrev_size16384_radix4_f64<>+0x13100(SB)/8, $550
+DATA bitrev_size16384_radix4_f64<>+0x13108(SB)/8, $4646
+DATA bitrev_size16384_radix4_f64<>+0x13110(SB)/8, $8742
+DATA bitrev_size16384_radix4_f64<>+0x13118(SB)/8, $12838
+DATA bitrev_size16384_radix4_f64<>+0x13120(SB)/8, $1574
+DATA bitrev_size16384_radix4_f64<>+0x13128(SB)/8, $5670
+DATA bitrev_size16384_radix4_f64<>+0x13130(SB)/8, $9766
+DATA bitrev_size16384_radix4_f64<>+0x13138(SB)/8, $13862
+DATA bitrev_size16384_radix4_f64<>+0x13140(SB)/8, $2598
+DATA bitrev_size16384_radix4_f64<>+0x13148(SB)/8, $6694
+DATA bitrev_size16384_radix4_f64<>+0x13150(SB)/8, $10790
+DATA bitrev_size16384_radix4_f64<>+0x13158(SB)/8, $14886
+DATA bitrev_size16384_radix4_f64<>+0x13160(SB)/8, $3622
+DATA bitrev_size16384_radix4_f64<>+0x13168(SB)/8, $7718
+DATA bitrev_size16384_radix4_f64<>+0x13170(SB)/8, $11814
+DATA bitrev_size16384_radix4_f64<>+0x13178(SB)/8, $15910
+DATA bitrev_size16384_radix4_f64<>+0x13180(SB)/8, $806
+DATA bitrev_size16384_radix4_f64<>+0x13188(SB)/8, $4902
+DATA bitrev_size16384_radix4_f64<>+0x13190(SB)/8, $8998
+DATA bitrev_size16384_radix4_f64<>+0x13198(SB)/8, $13094
+DATA bitrev_size16384_radix4_f64<>+0x131A0(SB)/8, $1830
+DATA bitrev_size16384_radix4_f64<>+0x131A8(SB)/8, $5926
+DATA bitrev_size16384_radix4_f64<>+0x131B0(SB)/8, $10022
+DATA bitrev_size16384_radix4_f64<>+0x131B8(SB)/8, $14118
+DATA bitrev_size16384_radix4_f64<>+0x131C0(SB)/8, $2854
+DATA bitrev_size16384_radix4_f64<>+0x131C8(SB)/8, $6950
+DATA bitrev_size16384_radix4_f64<>+0x131D0(SB)/8, $11046
+DATA bitrev_size16384_radix4_f64<>+0x131D8(SB)/8, $15142
+DATA bitrev_size16384_radix4_f64<>+0x131E0(SB)/8, $3878
+DATA bitrev_size16384_radix4_f64<>+0x131E8(SB)/8, $7974
+DATA bitrev_size16384_radix4_f64<>+0x131F0(SB)/8, $12070
+DATA bitrev_size16384_radix4_f64<>+0x131F8(SB)/8, $16166
+DATA bitrev_size16384_radix4_f64<>+0x13200(SB)/8, $102
+DATA bitrev_size16384_radix4_f64<>+0x13208(SB)/8, $4198
+DATA bitrev_size16384_radix4_f64<>+0x13210(SB)/8, $8294
+DATA bitrev_size16384_radix4_f64<>+0x13218(SB)/8, $12390
+DATA bitrev_size16384_radix4_f64<>+0x13220(SB)/8, $1126
+DATA bitrev_size16384_radix4_f64<>+0x13228(SB)/8, $5222
+DATA bitrev_size16384_radix4_f64<>+0x13230(SB)/8, $9318
+DATA bitrev_size16384_radix4_f64<>+0x13238(SB)/8, $13414
+DATA bitrev_size16384_radix4_f64<>+0x13240(SB)/8, $2150
+DATA bitrev_size16384_radix4_f64<>+0x13248(SB)/8, $6246
+DATA bitrev_size16384_radix4_f64<>+0x13250(SB)/8, $10342
+DATA bitrev_size16384_radix4_f64<>+0x13258(SB)/8, $14438
+DATA bitrev_size16384_radix4_f64<>+0x13260(SB)/8, $3174
+DATA bitrev_size16384_radix4_f64<>+0x13268(SB)/8, $7270
+DATA bitrev_size16384_radix4_f64<>+0x13270(SB)/8, $11366
+DATA bitrev_size16384_radix4_f64<>+0x13278(SB)/8, $15462
+DATA bitrev_size16384_radix4_f64<>+0x13280(SB)/8, $358
+DATA bitrev_size16384_radix4_f64<>+0x13288(SB)/8, $4454
+DATA bitrev_size16384_radix4_f64<>+0x13290(SB)/8, $8550
+DATA bitrev_size16384_radix4_f64<>+0x13298(SB)/8, $12646
+DATA bitrev_size16384_radix4_f64<>+0x132A0(SB)/8, $1382
+DATA bitrev_size16384_radix4_f64<>+0x132A8(SB)/8, $5478
+DATA bitrev_size16384_radix4_f64<>+0x132B0(SB)/8, $9574
+DATA bitrev_size16384_radix4_f64<>+0x132B8(SB)/8, $13670
+DATA bitrev_size16384_radix4_f64<>+0x132C0(SB)/8, $2406
+DATA bitrev_size16384_radix4_f64<>+0x132C8(SB)/8, $6502
+DATA bitrev_size16384_radix4_f64<>+0x132D0(SB)/8, $10598
+DATA bitrev_size16384_radix4_f64<>+0x132D8(SB)/8, $14694
+DATA bitrev_size16384_radix4_f64<>+0x132E0(SB)/8, $3430
+DATA bitrev_size16384_radix4_f64<>+0x132E8(SB)/8, $7526
+DATA bitrev_size16384_radix4_f64<>+0x132F0(SB)/8, $11622
+DATA bitrev_size16384_radix4_f64<>+0x132F8(SB)/8, $15718
+DATA bitrev_size16384_radix4_f64<>+0x13300(SB)/8, $614
+DATA bitrev_size16384_radix4_f64<>+0x13308(SB)/8, $4710
+DATA bitrev_size16384_radix4_f64<>+0x13310(SB)/8, $8806
+DATA bitrev_size16384_radix4_f64<>+0x13318(SB)/8, $12902
+DATA bitrev_size16384_radix4_f64<>+0x13320(SB)/8, $1638
+DATA bitrev_size16384_radix4_f64<>+0x13328(SB)/8, $5734
+DATA bitrev_size16384_radix4_f64<>+0x13330(SB)/8, $9830
+DATA bitrev_size16384_radix4_f64<>+0x13338(SB)/8, $13926
+DATA bitrev_size16384_radix4_f64<>+0x13340(SB)/8, $2662
+DATA bitrev_size16384_radix4_f64<>+0x13348(SB)/8, $6758
+DATA bitrev_size16384_radix4_f64<>+0x13350(SB)/8, $10854
+DATA bitrev_size16384_radix4_f64<>+0x13358(SB)/8, $14950
+DATA bitrev_size16384_radix4_f64<>+0x13360(SB)/8, $3686
+DATA bitrev_size16384_radix4_f64<>+0x13368(SB)/8, $7782
+DATA bitrev_size16384_radix4_f64<>+0x13370(SB)/8, $11878
+DATA bitrev_size16384_radix4_f64<>+0x13378(SB)/8, $15974
+DATA bitrev_size16384_radix4_f64<>+0x13380(SB)/8, $870
+DATA bitrev_size16384_radix4_f64<>+0x13388(SB)/8, $4966
+DATA bitrev_size16384_radix4_f64<>+0x13390(SB)/8, $9062
+DATA bitrev_size16384_radix4_f64<>+0x13398(SB)/8, $13158
+DATA bitrev_size16384_radix4_f64<>+0x133A0(SB)/8, $1894
+DATA bitrev_size16384_radix4_f64<>+0x133A8(SB)/8, $5990
+DATA bitrev_size16384_radix4_f64<>+0x133B0(SB)/8, $10086
+DATA bitrev_size16384_radix4_f64<>+0x133B8(SB)/8, $14182
+DATA bitrev_size16384_radix4_f64<>+0x133C0(SB)/8, $2918
+DATA bitrev_size16384_radix4_f64<>+0x133C8(SB)/8, $7014
+DATA bitrev_size16384_radix4_f64<>+0x133D0(SB)/8, $11110
+DATA bitrev_size16384_radix4_f64<>+0x133D8(SB)/8, $15206
+DATA bitrev_size16384_radix4_f64<>+0x133E0(SB)/8, $3942
+DATA bitrev_size16384_radix4_f64<>+0x133E8(SB)/8, $8038
+DATA bitrev_size16384_radix4_f64<>+0x133F0(SB)/8, $12134
+DATA bitrev_size16384_radix4_f64<>+0x133F8(SB)/8, $16230
+DATA bitrev_size16384_radix4_f64<>+0x13400(SB)/8, $166
+DATA bitrev_size16384_radix4_f64<>+0x13408(SB)/8, $4262
+DATA bitrev_size16384_radix4_f64<>+0x13410(SB)/8, $8358
+DATA bitrev_size16384_radix4_f64<>+0x13418(SB)/8, $12454
+DATA bitrev_size16384_radix4_f64<>+0x13420(SB)/8, $1190
+DATA bitrev_size16384_radix4_f64<>+0x13428(SB)/8, $5286
+DATA bitrev_size16384_radix4_f64<>+0x13430(SB)/8, $9382
+DATA bitrev_size16384_radix4_f64<>+0x13438(SB)/8, $13478
+DATA bitrev_size16384_radix4_f64<>+0x13440(SB)/8, $2214
+DATA bitrev_size16384_radix4_f64<>+0x13448(SB)/8, $6310
+DATA bitrev_size16384_radix4_f64<>+0x13450(SB)/8, $10406
+DATA bitrev_size16384_radix4_f64<>+0x13458(SB)/8, $14502
+DATA bitrev_size16384_radix4_f64<>+0x13460(SB)/8, $3238
+DATA bitrev_size16384_radix4_f64<>+0x13468(SB)/8, $7334
+DATA bitrev_size16384_radix4_f64<>+0x13470(SB)/8, $11430
+DATA bitrev_size16384_radix4_f64<>+0x13478(SB)/8, $15526
+DATA bitrev_size16384_radix4_f64<>+0x13480(SB)/8, $422
+DATA bitrev_size16384_radix4_f64<>+0x13488(SB)/8, $4518
+DATA bitrev_size16384_radix4_f64<>+0x13490(SB)/8, $8614
+DATA bitrev_size16384_radix4_f64<>+0x13498(SB)/8, $12710
+DATA bitrev_size16384_radix4_f64<>+0x134A0(SB)/8, $1446
+DATA bitrev_size16384_radix4_f64<>+0x134A8(SB)/8, $5542
+DATA bitrev_size16384_radix4_f64<>+0x134B0(SB)/8, $9638
+DATA bitrev_size16384_radix4_f64<>+0x134B8(SB)/8, $13734
+DATA bitrev_size16384_radix4_f64<>+0x134C0(SB)/8, $2470
+DATA bitrev_size16384_radix4_f64<>+0x134C8(SB)/8, $6566
+DATA bitrev_size16384_radix4_f64<>+0x134D0(SB)/8, $10662
+DATA bitrev_size16384_radix4_f64<>+0x134D8(SB)/8, $14758
+DATA bitrev_size16384_radix4_f64<>+0x134E0(SB)/8, $3494
+DATA bitrev_size16384_radix4_f64<>+0x134E8(SB)/8, $7590
+DATA bitrev_size16384_radix4_f64<>+0x134F0(SB)/8, $11686
+DATA bitrev_size16384_radix4_f64<>+0x134F8(SB)/8, $15782
+DATA bitrev_size16384_radix4_f64<>+0x13500(SB)/8, $678
+DATA bitrev_size16384_radix4_f64<>+0x13508(SB)/8, $4774
+DATA bitrev_size16384_radix4_f64<>+0x13510(SB)/8, $8870
+DATA bitrev_size16384_radix4_f64<>+0x13518(SB)/8, $12966
+DATA bitrev_size16384_radix4_f64<>+0x13520(SB)/8, $1702
+DATA bitrev_size16384_radix4_f64<>+0x13528(SB)/8, $5798
+DATA bitrev_size16384_radix4_f64<>+0x13530(SB)/8, $9894
+DATA bitrev_size16384_radix4_f64<>+0x13538(SB)/8, $13990
+DATA bitrev_size16384_radix4_f64<>+0x13540(SB)/8, $2726
+DATA bitrev_size16384_radix4_f64<>+0x13548(SB)/8, $6822
+DATA bitrev_size16384_radix4_f64<>+0x13550(SB)/8, $10918
+DATA bitrev_size16384_radix4_f64<>+0x13558(SB)/8, $15014
+DATA bitrev_size16384_radix4_f64<>+0x13560(SB)/8, $3750
+DATA bitrev_size16384_radix4_f64<>+0x13568(SB)/8, $7846
+DATA bitrev_size16384_radix4_f64<>+0x13570(SB)/8, $11942
+DATA bitrev_size16384_radix4_f64<>+0x13578(SB)/8, $16038
+DATA bitrev_size16384_radix4_f64<>+0x13580(SB)/8, $934
+DATA bitrev_size16384_radix4_f64<>+0x13588(SB)/8, $5030
+DATA bitrev_size16384_radix4_f64<>+0x13590(SB)/8, $9126
+DATA bitrev_size16384_radix4_f64<>+0x13598(SB)/8, $13222
+DATA bitrev_size16384_radix4_f64<>+0x135A0(SB)/8, $1958
+DATA bitrev_size16384_radix4_f64<>+0x135A8(SB)/8, $6054
+DATA bitrev_size16384_radix4_f64<>+0x135B0(SB)/8, $10150
+DATA bitrev_size16384_radix4_f64<>+0x135B8(SB)/8, $14246
+DATA bitrev_size16384_radix4_f64<>+0x135C0(SB)/8, $2982
+DATA bitrev_size16384_radix4_f64<>+0x135C8(SB)/8, $7078
+DATA bitrev_size16384_radix4_f64<>+0x135D0(SB)/8, $11174
+DATA bitrev_size16384_radix4_f64<>+0x135D8(SB)/8, $15270
+DATA bitrev_size16384_radix4_f64<>+0x135E0(SB)/8, $4006
+DATA bitrev_size16384_radix4_f64<>+0x135E8(SB)/8, $8102
+DATA bitrev_size16384_radix4_f64<>+0x135F0(SB)/8, $12198
+DATA bitrev_size16384_radix4_f64<>+0x135F8(SB)/8, $16294
+DATA bitrev_size16384_radix4_f64<>+0x13600(SB)/8, $230
+DATA bitrev_size16384_radix4_f64<>+0x13608(SB)/8, $4326
+DATA bitrev_size16384_radix4_f64<>+0x13610(SB)/8, $8422
+DATA bitrev_size16384_radix4_f64<>+0x13618(SB)/8, $12518
+DATA bitrev_size16384_radix4_f64<>+0x13620(SB)/8, $1254
+DATA bitrev_size16384_radix4_f64<>+0x13628(SB)/8, $5350
+DATA bitrev_size16384_radix4_f64<>+0x13630(SB)/8, $9446
+DATA bitrev_size16384_radix4_f64<>+0x13638(SB)/8, $13542
+DATA bitrev_size16384_radix4_f64<>+0x13640(SB)/8, $2278
+DATA bitrev_size16384_radix4_f64<>+0x13648(SB)/8, $6374
+DATA bitrev_size16384_radix4_f64<>+0x13650(SB)/8, $10470
+DATA bitrev_size16384_radix4_f64<>+0x13658(SB)/8, $14566
+DATA bitrev_size16384_radix4_f64<>+0x13660(SB)/8, $3302
+DATA bitrev_size16384_radix4_f64<>+0x13668(SB)/8, $7398
+DATA bitrev_size16384_radix4_f64<>+0x13670(SB)/8, $11494
+DATA bitrev_size16384_radix4_f64<>+0x13678(SB)/8, $15590
+DATA bitrev_size16384_radix4_f64<>+0x13680(SB)/8, $486
+DATA bitrev_size16384_radix4_f64<>+0x13688(SB)/8, $4582
+DATA bitrev_size16384_radix4_f64<>+0x13690(SB)/8, $8678
+DATA bitrev_size16384_radix4_f64<>+0x13698(SB)/8, $12774
+DATA bitrev_size16384_radix4_f64<>+0x136A0(SB)/8, $1510
+DATA bitrev_size16384_radix4_f64<>+0x136A8(SB)/8, $5606
+DATA bitrev_size16384_radix4_f64<>+0x136B0(SB)/8, $9702
+DATA bitrev_size16384_radix4_f64<>+0x136B8(SB)/8, $13798
+DATA bitrev_size16384_radix4_f64<>+0x136C0(SB)/8, $2534
+DATA bitrev_size16384_radix4_f64<>+0x136C8(SB)/8, $6630
+DATA bitrev_size16384_radix4_f64<>+0x136D0(SB)/8, $10726
+DATA bitrev_size16384_radix4_f64<>+0x136D8(SB)/8, $14822
+DATA bitrev_size16384_radix4_f64<>+0x136E0(SB)/8, $3558
+DATA bitrev_size16384_radix4_f64<>+0x136E8(SB)/8, $7654
+DATA bitrev_size16384_radix4_f64<>+0x136F0(SB)/8, $11750
+DATA bitrev_size16384_radix4_f64<>+0x136F8(SB)/8, $15846
+DATA bitrev_size16384_radix4_f64<>+0x13700(SB)/8, $742
+DATA bitrev_size16384_radix4_f64<>+0x13708(SB)/8, $4838
+DATA bitrev_size16384_radix4_f64<>+0x13710(SB)/8, $8934
+DATA bitrev_size16384_radix4_f64<>+0x13718(SB)/8, $13030
+DATA bitrev_size16384_radix4_f64<>+0x13720(SB)/8, $1766
+DATA bitrev_size16384_radix4_f64<>+0x13728(SB)/8, $5862
+DATA bitrev_size16384_radix4_f64<>+0x13730(SB)/8, $9958
+DATA bitrev_size16384_radix4_f64<>+0x13738(SB)/8, $14054
+DATA bitrev_size16384_radix4_f64<>+0x13740(SB)/8, $2790
+DATA bitrev_size16384_radix4_f64<>+0x13748(SB)/8, $6886
+DATA bitrev_size16384_radix4_f64<>+0x13750(SB)/8, $10982
+DATA bitrev_size16384_radix4_f64<>+0x13758(SB)/8, $15078
+DATA bitrev_size16384_radix4_f64<>+0x13760(SB)/8, $3814
+DATA bitrev_size16384_radix4_f64<>+0x13768(SB)/8, $7910
+DATA bitrev_size16384_radix4_f64<>+0x13770(SB)/8, $12006
+DATA bitrev_size16384_radix4_f64<>+0x13778(SB)/8, $16102
+DATA bitrev_size16384_radix4_f64<>+0x13780(SB)/8, $998
+DATA bitrev_size16384_radix4_f64<>+0x13788(SB)/8, $5094
+DATA bitrev_size16384_radix4_f64<>+0x13790(SB)/8, $9190
+DATA bitrev_size16384_radix4_f64<>+0x13798(SB)/8, $13286
+DATA bitrev_size16384_radix4_f64<>+0x137A0(SB)/8, $2022
+DATA bitrev_size16384_radix4_f64<>+0x137A8(SB)/8, $6118
+DATA bitrev_size16384_radix4_f64<>+0x137B0(SB)/8, $10214
+DATA bitrev_size16384_radix4_f64<>+0x137B8(SB)/8, $14310
+DATA bitrev_size16384_radix4_f64<>+0x137C0(SB)/8, $3046
+DATA bitrev_size16384_radix4_f64<>+0x137C8(SB)/8, $7142
+DATA bitrev_size16384_radix4_f64<>+0x137D0(SB)/8, $11238
+DATA bitrev_size16384_radix4_f64<>+0x137D8(SB)/8, $15334
+DATA bitrev_size16384_radix4_f64<>+0x137E0(SB)/8, $4070
+DATA bitrev_size16384_radix4_f64<>+0x137E8(SB)/8, $8166
+DATA bitrev_size16384_radix4_f64<>+0x137F0(SB)/8, $12262
+DATA bitrev_size16384_radix4_f64<>+0x137F8(SB)/8, $16358
+DATA bitrev_size16384_radix4_f64<>+0x13800(SB)/8, $54
+DATA bitrev_size16384_radix4_f64<>+0x13808(SB)/8, $4150
+DATA bitrev_size16384_radix4_f64<>+0x13810(SB)/8, $8246
+DATA bitrev_size16384_radix4_f64<>+0x13818(SB)/8, $12342
+DATA bitrev_size16384_radix4_f64<>+0x13820(SB)/8, $1078
+DATA bitrev_size16384_radix4_f64<>+0x13828(SB)/8, $5174
+DATA bitrev_size16384_radix4_f64<>+0x13830(SB)/8, $9270
+DATA bitrev_size16384_radix4_f64<>+0x13838(SB)/8, $13366
+DATA bitrev_size16384_radix4_f64<>+0x13840(SB)/8, $2102
+DATA bitrev_size16384_radix4_f64<>+0x13848(SB)/8, $6198
+DATA bitrev_size16384_radix4_f64<>+0x13850(SB)/8, $10294
+DATA bitrev_size16384_radix4_f64<>+0x13858(SB)/8, $14390
+DATA bitrev_size16384_radix4_f64<>+0x13860(SB)/8, $3126
+DATA bitrev_size16384_radix4_f64<>+0x13868(SB)/8, $7222
+DATA bitrev_size16384_radix4_f64<>+0x13870(SB)/8, $11318
+DATA bitrev_size16384_radix4_f64<>+0x13878(SB)/8, $15414
+DATA bitrev_size16384_radix4_f64<>+0x13880(SB)/8, $310
+DATA bitrev_size16384_radix4_f64<>+0x13888(SB)/8, $4406
+DATA bitrev_size16384_radix4_f64<>+0x13890(SB)/8, $8502
+DATA bitrev_size16384_radix4_f64<>+0x13898(SB)/8, $12598
+DATA bitrev_size16384_radix4_f64<>+0x138A0(SB)/8, $1334
+DATA bitrev_size16384_radix4_f64<>+0x138A8(SB)/8, $5430
+DATA bitrev_size16384_radix4_f64<>+0x138B0(SB)/8, $9526
+DATA bitrev_size16384_radix4_f64<>+0x138B8(SB)/8, $13622
+DATA bitrev_size16384_radix4_f64<>+0x138C0(SB)/8, $2358
+DATA bitrev_size16384_radix4_f64<>+0x138C8(SB)/8, $6454
+DATA bitrev_size16384_radix4_f64<>+0x138D0(SB)/8, $10550
+DATA bitrev_size16384_radix4_f64<>+0x138D8(SB)/8, $14646
+DATA bitrev_size16384_radix4_f64<>+0x138E0(SB)/8, $3382
+DATA bitrev_size16384_radix4_f64<>+0x138E8(SB)/8, $7478
+DATA bitrev_size16384_radix4_f64<>+0x138F0(SB)/8, $11574
+DATA bitrev_size16384_radix4_f64<>+0x138F8(SB)/8, $15670
+DATA bitrev_size16384_radix4_f64<>+0x13900(SB)/8, $566
+DATA bitrev_size16384_radix4_f64<>+0x13908(SB)/8, $4662
+DATA bitrev_size16384_radix4_f64<>+0x13910(SB)/8, $8758
+DATA bitrev_size16384_radix4_f64<>+0x13918(SB)/8, $12854
+DATA bitrev_size16384_radix4_f64<>+0x13920(SB)/8, $1590
+DATA bitrev_size16384_radix4_f64<>+0x13928(SB)/8, $5686
+DATA bitrev_size16384_radix4_f64<>+0x13930(SB)/8, $9782
+DATA bitrev_size16384_radix4_f64<>+0x13938(SB)/8, $13878
+DATA bitrev_size16384_radix4_f64<>+0x13940(SB)/8, $2614
+DATA bitrev_size16384_radix4_f64<>+0x13948(SB)/8, $6710
+DATA bitrev_size16384_radix4_f64<>+0x13950(SB)/8, $10806
+DATA bitrev_size16384_radix4_f64<>+0x13958(SB)/8, $14902
+DATA bitrev_size16384_radix4_f64<>+0x13960(SB)/8, $3638
+DATA bitrev_size16384_radix4_f64<>+0x13968(SB)/8, $7734
+DATA bitrev_size16384_radix4_f64<>+0x13970(SB)/8, $11830
+DATA bitrev_size16384_radix4_f64<>+0x13978(SB)/8, $15926
+DATA bitrev_size16384_radix4_f64<>+0x13980(SB)/8, $822
+DATA bitrev_size16384_radix4_f64<>+0x13988(SB)/8, $4918
+DATA bitrev_size16384_radix4_f64<>+0x13990(SB)/8, $9014
+DATA bitrev_size16384_radix4_f64<>+0x13998(SB)/8, $13110
+DATA bitrev_size16384_radix4_f64<>+0x139A0(SB)/8, $1846
+DATA bitrev_size16384_radix4_f64<>+0x139A8(SB)/8, $5942
+DATA bitrev_size16384_radix4_f64<>+0x139B0(SB)/8, $10038
+DATA bitrev_size16384_radix4_f64<>+0x139B8(SB)/8, $14134
+DATA bitrev_size16384_radix4_f64<>+0x139C0(SB)/8, $2870
+DATA bitrev_size16384_radix4_f64<>+0x139C8(SB)/8, $6966
+DATA bitrev_size16384_radix4_f64<>+0x139D0(SB)/8, $11062
+DATA bitrev_size16384_radix4_f64<>+0x139D8(SB)/8, $15158
+DATA bitrev_size16384_radix4_f64<>+0x139E0(SB)/8, $3894
+DATA bitrev_size16384_radix4_f64<>+0x139E8(SB)/8, $7990
+DATA bitrev_size16384_radix4_f64<>+0x139F0(SB)/8, $12086
+DATA bitrev_size16384_radix4_f64<>+0x139F8(SB)/8, $16182
+DATA bitrev_size16384_radix4_f64<>+0x13A00(SB)/8, $118
+DATA bitrev_size16384_radix4_f64<>+0x13A08(SB)/8, $4214
+DATA bitrev_size16384_radix4_f64<>+0x13A10(SB)/8, $8310
+DATA bitrev_size16384_radix4_f64<>+0x13A18(SB)/8, $12406
+DATA bitrev_size16384_radix4_f64<>+0x13A20(SB)/8, $1142
+DATA bitrev_size16384_radix4_f64<>+0x13A28(SB)/8, $5238
+DATA bitrev_size16384_radix4_f64<>+0x13A30(SB)/8, $9334
+DATA bitrev_size16384_radix4_f64<>+0x13A38(SB)/8, $13430
+DATA bitrev_size16384_radix4_f64<>+0x13A40(SB)/8, $2166
+DATA bitrev_size16384_radix4_f64<>+0x13A48(SB)/8, $6262
+DATA bitrev_size16384_radix4_f64<>+0x13A50(SB)/8, $10358
+DATA bitrev_size16384_radix4_f64<>+0x13A58(SB)/8, $14454
+DATA bitrev_size16384_radix4_f64<>+0x13A60(SB)/8, $3190
+DATA bitrev_size16384_radix4_f64<>+0x13A68(SB)/8, $7286
+DATA bitrev_size16384_radix4_f64<>+0x13A70(SB)/8, $11382
+DATA bitrev_size16384_radix4_f64<>+0x13A78(SB)/8, $15478
+DATA bitrev_size16384_radix4_f64<>+0x13A80(SB)/8, $374
+DATA bitrev_size16384_radix4_f64<>+0x13A88(SB)/8, $4470
+DATA bitrev_size16384_radix4_f64<>+0x13A90(SB)/8, $8566
+DATA bitrev_size16384_radix4_f64<>+0x13A98(SB)/8, $12662
+DATA bitrev_size16384_radix4_f64<>+0x13AA0(SB)/8, $1398
+DATA bitrev_size16384_radix4_f64<>+0x13AA8(SB)/8, $5494
+DATA bitrev_size16384_radix4_f64<>+0x13AB0(SB)/8, $9590
+DATA bitrev_size16384_radix4_f64<>+0x13AB8(SB)/8, $13686
+DATA bitrev_size16384_radix4_f64<>+0x13AC0(SB)/8, $2422
+DATA bitrev_size16384_radix4_f64<>+0x13AC8(SB)/8, $6518
+DATA bitrev_size16384_radix4_f64<>+0x13AD0(SB)/8, $10614
+DATA bitrev_size16384_radix4_f64<>+0x13AD8(SB)/8, $14710
+DATA bitrev_size16384_radix4_f64<>+0x13AE0(SB)/8, $3446
+DATA bitrev_size16384_radix4_f64<>+0x13AE8(SB)/8, $7542
+DATA bitrev_size16384_radix4_f64<>+0x13AF0(SB)/8, $11638
+DATA bitrev_size16384_radix4_f64<>+0x13AF8(SB)/8, $15734
+DATA bitrev_size16384_radix4_f64<>+0x13B00(SB)/8, $630
+DATA bitrev_size16384_radix4_f64<>+0x13B08(SB)/8, $4726
+DATA bitrev_size16384_radix4_f64<>+0x13B10(SB)/8, $8822
+DATA bitrev_size16384_radix4_f64<>+0x13B18(SB)/8, $12918
+DATA bitrev_size16384_radix4_f64<>+0x13B20(SB)/8, $1654
+DATA bitrev_size16384_radix4_f64<>+0x13B28(SB)/8, $5750
+DATA bitrev_size16384_radix4_f64<>+0x13B30(SB)/8, $9846
+DATA bitrev_size16384_radix4_f64<>+0x13B38(SB)/8, $13942
+DATA bitrev_size16384_radix4_f64<>+0x13B40(SB)/8, $2678
+DATA bitrev_size16384_radix4_f64<>+0x13B48(SB)/8, $6774
+DATA bitrev_size16384_radix4_f64<>+0x13B50(SB)/8, $10870
+DATA bitrev_size16384_radix4_f64<>+0x13B58(SB)/8, $14966
+DATA bitrev_size16384_radix4_f64<>+0x13B60(SB)/8, $3702
+DATA bitrev_size16384_radix4_f64<>+0x13B68(SB)/8, $7798
+DATA bitrev_size16384_radix4_f64<>+0x13B70(SB)/8, $11894
+DATA bitrev_size16384_radix4_f64<>+0x13B78(SB)/8, $15990
+DATA bitrev_size16384_radix4_f64<>+0x13B80(SB)/8, $886
+DATA bitrev_size16384_radix4_f64<>+0x13B88(SB)/8, $4982
+DATA bitrev_size16384_radix4_f64<>+0x13B90(SB)/8, $9078
+DATA bitrev_size16384_radix4_f64<>+0x13B98(SB)/8, $13174
+DATA bitrev_size16384_radix4_f64<>+0x13BA0(SB)/8, $1910
+DATA bitrev_size16384_radix4_f64<>+0x13BA8(SB)/8, $6006
+DATA bitrev_size16384_radix4_f64<>+0x13BB0(SB)/8, $10102
+DATA bitrev_size16384_radix4_f64<>+0x13BB8(SB)/8, $14198
+DATA bitrev_size16384_radix4_f64<>+0x13BC0(SB)/8, $2934
+DATA bitrev_size16384_radix4_f64<>+0x13BC8(SB)/8, $7030
+DATA bitrev_size16384_radix4_f64<>+0x13BD0(SB)/8, $11126
+DATA bitrev_size16384_radix4_f64<>+0x13BD8(SB)/8, $15222
+DATA bitrev_size16384_radix4_f64<>+0x13BE0(SB)/8, $3958
+DATA bitrev_size16384_radix4_f64<>+0x13BE8(SB)/8, $8054
+DATA bitrev_size16384_radix4_f64<>+0x13BF0(SB)/8, $12150
+DATA bitrev_size16384_radix4_f64<>+0x13BF8(SB)/8, $16246
+DATA bitrev_size16384_radix4_f64<>+0x13C00(SB)/8, $182
+DATA bitrev_size16384_radix4_f64<>+0x13C08(SB)/8, $4278
+DATA bitrev_size16384_radix4_f64<>+0x13C10(SB)/8, $8374
+DATA bitrev_size16384_radix4_f64<>+0x13C18(SB)/8, $12470
+DATA bitrev_size16384_radix4_f64<>+0x13C20(SB)/8, $1206
+DATA bitrev_size16384_radix4_f64<>+0x13C28(SB)/8, $5302
+DATA bitrev_size16384_radix4_f64<>+0x13C30(SB)/8, $9398
+DATA bitrev_size16384_radix4_f64<>+0x13C38(SB)/8, $13494
+DATA bitrev_size16384_radix4_f64<>+0x13C40(SB)/8, $2230
+DATA bitrev_size16384_radix4_f64<>+0x13C48(SB)/8, $6326
+DATA bitrev_size16384_radix4_f64<>+0x13C50(SB)/8, $10422
+DATA bitrev_size16384_radix4_f64<>+0x13C58(SB)/8, $14518
+DATA bitrev_size16384_radix4_f64<>+0x13C60(SB)/8, $3254
+DATA bitrev_size16384_radix4_f64<>+0x13C68(SB)/8, $7350
+DATA bitrev_size16384_radix4_f64<>+0x13C70(SB)/8, $11446
+DATA bitrev_size16384_radix4_f64<>+0x13C78(SB)/8, $15542
+DATA bitrev_size16384_radix4_f64<>+0x13C80(SB)/8, $438
+DATA bitrev_size16384_radix4_f64<>+0x13C88(SB)/8, $4534
+DATA bitrev_size16384_radix4_f64<>+0x13C90(SB)/8, $8630
+DATA bitrev_size16384_radix4_f64<>+0x13C98(SB)/8, $12726
+DATA bitrev_size16384_radix4_f64<>+0x13CA0(SB)/8, $1462
+DATA bitrev_size16384_radix4_f64<>+0x13CA8(SB)/8, $5558
+DATA bitrev_size16384_radix4_f64<>+0x13CB0(SB)/8, $9654
+DATA bitrev_size16384_radix4_f64<>+0x13CB8(SB)/8, $13750
+DATA bitrev_size16384_radix4_f64<>+0x13CC0(SB)/8, $2486
+DATA bitrev_size16384_radix4_f64<>+0x13CC8(SB)/8, $6582
+DATA bitrev_size16384_radix4_f64<>+0x13CD0(SB)/8, $10678
+DATA bitrev_size16384_radix4_f64<>+0x13CD8(SB)/8, $14774
+DATA bitrev_size16384_radix4_f64<>+0x13CE0(SB)/8, $3510
+DATA bitrev_size16384_radix4_f64<>+0x13CE8(SB)/8, $7606
+DATA bitrev_size16384_radix4_f64<>+0x13CF0(SB)/8, $11702
+DATA bitrev_size16384_radix4_f64<>+0x13CF8(SB)/8, $15798
+DATA bitrev_size16384_radix4_f64<>+0x13D00(SB)/8, $694
+DATA bitrev_size16384_radix4_f64<>+0x13D08(SB)/8, $4790
+DATA bitrev_size16384_radix4_f64<>+0x13D10(SB)/8, $8886
+DATA bitrev_size16384_radix4_f64<>+0x13D18(SB)/8, $12982
+DATA bitrev_size16384_radix4_f64<>+0x13D20(SB)/8, $1718
+DATA bitrev_size16384_radix4_f64<>+0x13D28(SB)/8, $5814
+DATA bitrev_size16384_radix4_f64<>+0x13D30(SB)/8, $9910
+DATA bitrev_size16384_radix4_f64<>+0x13D38(SB)/8, $14006
+DATA bitrev_size16384_radix4_f64<>+0x13D40(SB)/8, $2742
+DATA bitrev_size16384_radix4_f64<>+0x13D48(SB)/8, $6838
+DATA bitrev_size16384_radix4_f64<>+0x13D50(SB)/8, $10934
+DATA bitrev_size16384_radix4_f64<>+0x13D58(SB)/8, $15030
+DATA bitrev_size16384_radix4_f64<>+0x13D60(SB)/8, $3766
+DATA bitrev_size16384_radix4_f64<>+0x13D68(SB)/8, $7862
+DATA bitrev_size16384_radix4_f64<>+0x13D70(SB)/8, $11958
+DATA bitrev_size16384_radix4_f64<>+0x13D78(SB)/8, $16054
+DATA bitrev_size16384_radix4_f64<>+0x13D80(SB)/8, $950
+DATA bitrev_size16384_radix4_f64<>+0x13D88(SB)/8, $5046
+DATA bitrev_size16384_radix4_f64<>+0x13D90(SB)/8, $9142
+DATA bitrev_size16384_radix4_f64<>+0x13D98(SB)/8, $13238
+DATA bitrev_size16384_radix4_f64<>+0x13DA0(SB)/8, $1974
+DATA bitrev_size16384_radix4_f64<>+0x13DA8(SB)/8, $6070
+DATA bitrev_size16384_radix4_f64<>+0x13DB0(SB)/8, $10166
+DATA bitrev_size16384_radix4_f64<>+0x13DB8(SB)/8, $14262
+DATA bitrev_size16384_radix4_f64<>+0x13DC0(SB)/8, $2998
+DATA bitrev_size16384_radix4_f64<>+0x13DC8(SB)/8, $7094
+DATA bitrev_size16384_radix4_f64<>+0x13DD0(SB)/8, $11190
+DATA bitrev_size16384_radix4_f64<>+0x13DD8(SB)/8, $15286
+DATA bitrev_size16384_radix4_f64<>+0x13DE0(SB)/8, $4022
+DATA bitrev_size16384_radix4_f64<>+0x13DE8(SB)/8, $8118
+DATA bitrev_size16384_radix4_f64<>+0x13DF0(SB)/8, $12214
+DATA bitrev_size16384_radix4_f64<>+0x13DF8(SB)/8, $16310
+DATA bitrev_size16384_radix4_f64<>+0x13E00(SB)/8, $246
+DATA bitrev_size16384_radix4_f64<>+0x13E08(SB)/8, $4342
+DATA bitrev_size16384_radix4_f64<>+0x13E10(SB)/8, $8438
+DATA bitrev_size16384_radix4_f64<>+0x13E18(SB)/8, $12534
+DATA bitrev_size16384_radix4_f64<>+0x13E20(SB)/8, $1270
+DATA bitrev_size16384_radix4_f64<>+0x13E28(SB)/8, $5366
+DATA bitrev_size16384_radix4_f64<>+0x13E30(SB)/8, $9462
+DATA bitrev_size16384_radix4_f64<>+0x13E38(SB)/8, $13558
+DATA bitrev_size16384_radix4_f64<>+0x13E40(SB)/8, $2294
+DATA bitrev_size16384_radix4_f64<>+0x13E48(SB)/8, $6390
+DATA bitrev_size16384_radix4_f64<>+0x13E50(SB)/8, $10486
+DATA bitrev_size16384_radix4_f64<>+0x13E58(SB)/8, $14582
+DATA bitrev_size16384_radix4_f64<>+0x13E60(SB)/8, $3318
+DATA bitrev_size16384_radix4_f64<>+0x13E68(SB)/8, $7414
+DATA bitrev_size16384_radix4_f64<>+0x13E70(SB)/8, $11510
+DATA bitrev_size16384_radix4_f64<>+0x13E78(SB)/8, $15606
+DATA bitrev_size16384_radix4_f64<>+0x13E80(SB)/8, $502
+DATA bitrev_size16384_radix4_f64<>+0x13E88(SB)/8, $4598
+DATA bitrev_size16384_radix4_f64<>+0x13E90(SB)/8, $8694
+DATA bitrev_size16384_radix4_f64<>+0x13E98(SB)/8, $12790
+DATA bitrev_size16384_radix4_f64<>+0x13EA0(SB)/8, $1526
+DATA bitrev_size16384_radix4_f64<>+0x13EA8(SB)/8, $5622
+DATA bitrev_size16384_radix4_f64<>+0x13EB0(SB)/8, $9718
+DATA bitrev_size16384_radix4_f64<>+0x13EB8(SB)/8, $13814
+DATA bitrev_size16384_radix4_f64<>+0x13EC0(SB)/8, $2550
+DATA bitrev_size16384_radix4_f64<>+0x13EC8(SB)/8, $6646
+DATA bitrev_size16384_radix4_f64<>+0x13ED0(SB)/8, $10742
+DATA bitrev_size16384_radix4_f64<>+0x13ED8(SB)/8, $14838
+DATA bitrev_size16384_radix4_f64<>+0x13EE0(SB)/8, $3574
+DATA bitrev_size16384_radix4_f64<>+0x13EE8(SB)/8, $7670
+DATA bitrev_size16384_radix4_f64<>+0x13EF0(SB)/8, $11766
+DATA bitrev_size16384_radix4_f64<>+0x13EF8(SB)/8, $15862
+DATA bitrev_size16384_radix4_f64<>+0x13F00(SB)/8, $758
+DATA bitrev_size16384_radix4_f64<>+0x13F08(SB)/8, $4854
+DATA bitrev_size16384_radix4_f64<>+0x13F10(SB)/8, $8950
+DATA bitrev_size16384_radix4_f64<>+0x13F18(SB)/8, $13046
+DATA bitrev_size16384_radix4_f64<>+0x13F20(SB)/8, $1782
+DATA bitrev_size16384_radix4_f64<>+0x13F28(SB)/8, $5878
+DATA bitrev_size16384_radix4_f64<>+0x13F30(SB)/8, $9974
+DATA bitrev_size16384_radix4_f64<>+0x13F38(SB)/8, $14070
+DATA bitrev_size16384_radix4_f64<>+0x13F40(SB)/8, $2806
+DATA bitrev_size16384_radix4_f64<>+0x13F48(SB)/8, $6902
+DATA bitrev_size16384_radix4_f64<>+0x13F50(SB)/8, $10998
+DATA bitrev_size16384_radix4_f64<>+0x13F58(SB)/8, $15094
+DATA bitrev_size16384_radix4_f64<>+0x13F60(SB)/8, $3830
+DATA bitrev_size16384_radix4_f64<>+0x13F68(SB)/8, $7926
+DATA bitrev_size16384_radix4_f64<>+0x13F70(SB)/8, $12022
+DATA bitrev_size16384_radix4_f64<>+0x13F78(SB)/8, $16118
+DATA bitrev_size16384_radix4_f64<>+0x13F80(SB)/8, $1014
+DATA bitrev_size16384_radix4_f64<>+0x13F88(SB)/8, $5110
+DATA bitrev_size16384_radix4_f64<>+0x13F90(SB)/8, $9206
+DATA bitrev_size16384_radix4_f64<>+0x13F98(SB)/8, $13302
+DATA bitrev_size16384_radix4_f64<>+0x13FA0(SB)/8, $2038
+DATA bitrev_size16384_radix4_f64<>+0x13FA8(SB)/8, $6134
+DATA bitrev_size16384_radix4_f64<>+0x13FB0(SB)/8, $10230
+DATA bitrev_size16384_radix4_f64<>+0x13FB8(SB)/8, $14326
+DATA bitrev_size16384_radix4_f64<>+0x13FC0(SB)/8, $3062
+DATA bitrev_size16384_radix4_f64<>+0x13FC8(SB)/8, $7158
+DATA bitrev_size16384_radix4_f64<>+0x13FD0(SB)/8, $11254
+DATA bitrev_size16384_radix4_f64<>+0x13FD8(SB)/8, $15350
+DATA bitrev_size16384_radix4_f64<>+0x13FE0(SB)/8, $4086
+DATA bitrev_size16384_radix4_f64<>+0x13FE8(SB)/8, $8182
+DATA bitrev_size16384_radix4_f64<>+0x13FF0(SB)/8, $12278
+DATA bitrev_size16384_radix4_f64<>+0x13FF8(SB)/8, $16374
+DATA bitrev_size16384_radix4_f64<>+0x14000(SB)/8, $10
+DATA bitrev_size16384_radix4_f64<>+0x14008(SB)/8, $4106
+DATA bitrev_size16384_radix4_f64<>+0x14010(SB)/8, $8202
+DATA bitrev_size16384_radix4_f64<>+0x14018(SB)/8, $12298
+DATA bitrev_size16384_radix4_f64<>+0x14020(SB)/8, $1034
+DATA bitrev_size16384_radix4_f64<>+0x14028(SB)/8, $5130
+DATA bitrev_size16384_radix4_f64<>+0x14030(SB)/8, $9226
+DATA bitrev_size16384_radix4_f64<>+0x14038(SB)/8, $13322
+DATA bitrev_size16384_radix4_f64<>+0x14040(SB)/8, $2058
+DATA bitrev_size16384_radix4_f64<>+0x14048(SB)/8, $6154
+DATA bitrev_size16384_radix4_f64<>+0x14050(SB)/8, $10250
+DATA bitrev_size16384_radix4_f64<>+0x14058(SB)/8, $14346
+DATA bitrev_size16384_radix4_f64<>+0x14060(SB)/8, $3082
+DATA bitrev_size16384_radix4_f64<>+0x14068(SB)/8, $7178
+DATA bitrev_size16384_radix4_f64<>+0x14070(SB)/8, $11274
+DATA bitrev_size16384_radix4_f64<>+0x14078(SB)/8, $15370
+DATA bitrev_size16384_radix4_f64<>+0x14080(SB)/8, $266
+DATA bitrev_size16384_radix4_f64<>+0x14088(SB)/8, $4362
+DATA bitrev_size16384_radix4_f64<>+0x14090(SB)/8, $8458
+DATA bitrev_size16384_radix4_f64<>+0x14098(SB)/8, $12554
+DATA bitrev_size16384_radix4_f64<>+0x140A0(SB)/8, $1290
+DATA bitrev_size16384_radix4_f64<>+0x140A8(SB)/8, $5386
+DATA bitrev_size16384_radix4_f64<>+0x140B0(SB)/8, $9482
+DATA bitrev_size16384_radix4_f64<>+0x140B8(SB)/8, $13578
+DATA bitrev_size16384_radix4_f64<>+0x140C0(SB)/8, $2314
+DATA bitrev_size16384_radix4_f64<>+0x140C8(SB)/8, $6410
+DATA bitrev_size16384_radix4_f64<>+0x140D0(SB)/8, $10506
+DATA bitrev_size16384_radix4_f64<>+0x140D8(SB)/8, $14602
+DATA bitrev_size16384_radix4_f64<>+0x140E0(SB)/8, $3338
+DATA bitrev_size16384_radix4_f64<>+0x140E8(SB)/8, $7434
+DATA bitrev_size16384_radix4_f64<>+0x140F0(SB)/8, $11530
+DATA bitrev_size16384_radix4_f64<>+0x140F8(SB)/8, $15626
+DATA bitrev_size16384_radix4_f64<>+0x14100(SB)/8, $522
+DATA bitrev_size16384_radix4_f64<>+0x14108(SB)/8, $4618
+DATA bitrev_size16384_radix4_f64<>+0x14110(SB)/8, $8714
+DATA bitrev_size16384_radix4_f64<>+0x14118(SB)/8, $12810
+DATA bitrev_size16384_radix4_f64<>+0x14120(SB)/8, $1546
+DATA bitrev_size16384_radix4_f64<>+0x14128(SB)/8, $5642
+DATA bitrev_size16384_radix4_f64<>+0x14130(SB)/8, $9738
+DATA bitrev_size16384_radix4_f64<>+0x14138(SB)/8, $13834
+DATA bitrev_size16384_radix4_f64<>+0x14140(SB)/8, $2570
+DATA bitrev_size16384_radix4_f64<>+0x14148(SB)/8, $6666
+DATA bitrev_size16384_radix4_f64<>+0x14150(SB)/8, $10762
+DATA bitrev_size16384_radix4_f64<>+0x14158(SB)/8, $14858
+DATA bitrev_size16384_radix4_f64<>+0x14160(SB)/8, $3594
+DATA bitrev_size16384_radix4_f64<>+0x14168(SB)/8, $7690
+DATA bitrev_size16384_radix4_f64<>+0x14170(SB)/8, $11786
+DATA bitrev_size16384_radix4_f64<>+0x14178(SB)/8, $15882
+DATA bitrev_size16384_radix4_f64<>+0x14180(SB)/8, $778
+DATA bitrev_size16384_radix4_f64<>+0x14188(SB)/8, $4874
+DATA bitrev_size16384_radix4_f64<>+0x14190(SB)/8, $8970
+DATA bitrev_size16384_radix4_f64<>+0x14198(SB)/8, $13066
+DATA bitrev_size16384_radix4_f64<>+0x141A0(SB)/8, $1802
+DATA bitrev_size16384_radix4_f64<>+0x141A8(SB)/8, $5898
+DATA bitrev_size16384_radix4_f64<>+0x141B0(SB)/8, $9994
+DATA bitrev_size16384_radix4_f64<>+0x141B8(SB)/8, $14090
+DATA bitrev_size16384_radix4_f64<>+0x141C0(SB)/8, $2826
+DATA bitrev_size16384_radix4_f64<>+0x141C8(SB)/8, $6922
+DATA bitrev_size16384_radix4_f64<>+0x141D0(SB)/8, $11018
+DATA bitrev_size16384_radix4_f64<>+0x141D8(SB)/8, $15114
+DATA bitrev_size16384_radix4_f64<>+0x141E0(SB)/8, $3850
+DATA bitrev_size16384_radix4_f64<>+0x141E8(SB)/8, $7946
+DATA bitrev_size16384_radix4_f64<>+0x141F0(SB)/8, $12042
+DATA bitrev_size16384_radix4_f64<>+0x141F8(SB)/8, $16138
+DATA bitrev_size16384_radix4_f64<>+0x14200(SB)/8, $74
+DATA bitrev_size16384_radix4_f64<>+0x14208(SB)/8, $4170
+DATA bitrev_size16384_radix4_f64<>+0x14210(SB)/8, $8266
+DATA bitrev_size16384_radix4_f64<>+0x14218(SB)/8, $12362
+DATA bitrev_size16384_radix4_f64<>+0x14220(SB)/8, $1098
+DATA bitrev_size16384_radix4_f64<>+0x14228(SB)/8, $5194
+DATA bitrev_size16384_radix4_f64<>+0x14230(SB)/8, $9290
+DATA bitrev_size16384_radix4_f64<>+0x14238(SB)/8, $13386
+DATA bitrev_size16384_radix4_f64<>+0x14240(SB)/8, $2122
+DATA bitrev_size16384_radix4_f64<>+0x14248(SB)/8, $6218
+DATA bitrev_size16384_radix4_f64<>+0x14250(SB)/8, $10314
+DATA bitrev_size16384_radix4_f64<>+0x14258(SB)/8, $14410
+DATA bitrev_size16384_radix4_f64<>+0x14260(SB)/8, $3146
+DATA bitrev_size16384_radix4_f64<>+0x14268(SB)/8, $7242
+DATA bitrev_size16384_radix4_f64<>+0x14270(SB)/8, $11338
+DATA bitrev_size16384_radix4_f64<>+0x14278(SB)/8, $15434
+DATA bitrev_size16384_radix4_f64<>+0x14280(SB)/8, $330
+DATA bitrev_size16384_radix4_f64<>+0x14288(SB)/8, $4426
+DATA bitrev_size16384_radix4_f64<>+0x14290(SB)/8, $8522
+DATA bitrev_size16384_radix4_f64<>+0x14298(SB)/8, $12618
+DATA bitrev_size16384_radix4_f64<>+0x142A0(SB)/8, $1354
+DATA bitrev_size16384_radix4_f64<>+0x142A8(SB)/8, $5450
+DATA bitrev_size16384_radix4_f64<>+0x142B0(SB)/8, $9546
+DATA bitrev_size16384_radix4_f64<>+0x142B8(SB)/8, $13642
+DATA bitrev_size16384_radix4_f64<>+0x142C0(SB)/8, $2378
+DATA bitrev_size16384_radix4_f64<>+0x142C8(SB)/8, $6474
+DATA bitrev_size16384_radix4_f64<>+0x142D0(SB)/8, $10570
+DATA bitrev_size16384_radix4_f64<>+0x142D8(SB)/8, $14666
+DATA bitrev_size16384_radix4_f64<>+0x142E0(SB)/8, $3402
+DATA bitrev_size16384_radix4_f64<>+0x142E8(SB)/8, $7498
+DATA bitrev_size16384_radix4_f64<>+0x142F0(SB)/8, $11594
+DATA bitrev_size16384_radix4_f64<>+0x142F8(SB)/8, $15690
+DATA bitrev_size16384_radix4_f64<>+0x14300(SB)/8, $586
+DATA bitrev_size16384_radix4_f64<>+0x14308(SB)/8, $4682
+DATA bitrev_size16384_radix4_f64<>+0x14310(SB)/8, $8778
+DATA bitrev_size16384_radix4_f64<>+0x14318(SB)/8, $12874
+DATA bitrev_size16384_radix4_f64<>+0x14320(SB)/8, $1610
+DATA bitrev_size16384_radix4_f64<>+0x14328(SB)/8, $5706
+DATA bitrev_size16384_radix4_f64<>+0x14330(SB)/8, $9802
+DATA bitrev_size16384_radix4_f64<>+0x14338(SB)/8, $13898
+DATA bitrev_size16384_radix4_f64<>+0x14340(SB)/8, $2634
+DATA bitrev_size16384_radix4_f64<>+0x14348(SB)/8, $6730
+DATA bitrev_size16384_radix4_f64<>+0x14350(SB)/8, $10826
+DATA bitrev_size16384_radix4_f64<>+0x14358(SB)/8, $14922
+DATA bitrev_size16384_radix4_f64<>+0x14360(SB)/8, $3658
+DATA bitrev_size16384_radix4_f64<>+0x14368(SB)/8, $7754
+DATA bitrev_size16384_radix4_f64<>+0x14370(SB)/8, $11850
+DATA bitrev_size16384_radix4_f64<>+0x14378(SB)/8, $15946
+DATA bitrev_size16384_radix4_f64<>+0x14380(SB)/8, $842
+DATA bitrev_size16384_radix4_f64<>+0x14388(SB)/8, $4938
+DATA bitrev_size16384_radix4_f64<>+0x14390(SB)/8, $9034
+DATA bitrev_size16384_radix4_f64<>+0x14398(SB)/8, $13130
+DATA bitrev_size16384_radix4_f64<>+0x143A0(SB)/8, $1866
+DATA bitrev_size16384_radix4_f64<>+0x143A8(SB)/8, $5962
+DATA bitrev_size16384_radix4_f64<>+0x143B0(SB)/8, $10058
+DATA bitrev_size16384_radix4_f64<>+0x143B8(SB)/8, $14154
+DATA bitrev_size16384_radix4_f64<>+0x143C0(SB)/8, $2890
+DATA bitrev_size16384_radix4_f64<>+0x143C8(SB)/8, $6986
+DATA bitrev_size16384_radix4_f64<>+0x143D0(SB)/8, $11082
+DATA bitrev_size16384_radix4_f64<>+0x143D8(SB)/8, $15178
+DATA bitrev_size16384_radix4_f64<>+0x143E0(SB)/8, $3914
+DATA bitrev_size16384_radix4_f64<>+0x143E8(SB)/8, $8010
+DATA bitrev_size16384_radix4_f64<>+0x143F0(SB)/8, $12106
+DATA bitrev_size16384_radix4_f64<>+0x143F8(SB)/8, $16202
+DATA bitrev_size16384_radix4_f64<>+0x14400(SB)/8, $138
+DATA bitrev_size16384_radix4_f64<>+0x14408(SB)/8, $4234
+DATA bitrev_size16384_radix4_f64<>+0x14410(SB)/8, $8330
+DATA bitrev_size16384_radix4_f64<>+0x14418(SB)/8, $12426
+DATA bitrev_size16384_radix4_f64<>+0x14420(SB)/8, $1162
+DATA bitrev_size16384_radix4_f64<>+0x14428(SB)/8, $5258
+DATA bitrev_size16384_radix4_f64<>+0x14430(SB)/8, $9354
+DATA bitrev_size16384_radix4_f64<>+0x14438(SB)/8, $13450
+DATA bitrev_size16384_radix4_f64<>+0x14440(SB)/8, $2186
+DATA bitrev_size16384_radix4_f64<>+0x14448(SB)/8, $6282
+DATA bitrev_size16384_radix4_f64<>+0x14450(SB)/8, $10378
+DATA bitrev_size16384_radix4_f64<>+0x14458(SB)/8, $14474
+DATA bitrev_size16384_radix4_f64<>+0x14460(SB)/8, $3210
+DATA bitrev_size16384_radix4_f64<>+0x14468(SB)/8, $7306
+DATA bitrev_size16384_radix4_f64<>+0x14470(SB)/8, $11402
+DATA bitrev_size16384_radix4_f64<>+0x14478(SB)/8, $15498
+DATA bitrev_size16384_radix4_f64<>+0x14480(SB)/8, $394
+DATA bitrev_size16384_radix4_f64<>+0x14488(SB)/8, $4490
+DATA bitrev_size16384_radix4_f64<>+0x14490(SB)/8, $8586
+DATA bitrev_size16384_radix4_f64<>+0x14498(SB)/8, $12682
+DATA bitrev_size16384_radix4_f64<>+0x144A0(SB)/8, $1418
+DATA bitrev_size16384_radix4_f64<>+0x144A8(SB)/8, $5514
+DATA bitrev_size16384_radix4_f64<>+0x144B0(SB)/8, $9610
+DATA bitrev_size16384_radix4_f64<>+0x144B8(SB)/8, $13706
+DATA bitrev_size16384_radix4_f64<>+0x144C0(SB)/8, $2442
+DATA bitrev_size16384_radix4_f64<>+0x144C8(SB)/8, $6538
+DATA bitrev_size16384_radix4_f64<>+0x144D0(SB)/8, $10634
+DATA bitrev_size16384_radix4_f64<>+0x144D8(SB)/8, $14730
+DATA bitrev_size16384_radix4_f64<>+0x144E0(SB)/8, $3466
+DATA bitrev_size16384_radix4_f64<>+0x144E8(SB)/8, $7562
+DATA bitrev_size16384_radix4_f64<>+0x144F0(SB)/8, $11658
+DATA bitrev_size16384_radix4_f64<>+0x144F8(SB)/8, $15754
+DATA bitrev_size16384_radix4_f64<>+0x14500(SB)/8, $650
+DATA bitrev_size16384_radix4_f64<>+0x14508(SB)/8, $4746
+DATA bitrev_size16384_radix4_f64<>+0x14510(SB)/8, $8842
+DATA bitrev_size16384_radix4_f64<>+0x14518(SB)/8, $12938
+DATA bitrev_size16384_radix4_f64<>+0x14520(SB)/8, $1674
+DATA bitrev_size16384_radix4_f64<>+0x14528(SB)/8, $5770
+DATA bitrev_size16384_radix4_f64<>+0x14530(SB)/8, $9866
+DATA bitrev_size16384_radix4_f64<>+0x14538(SB)/8, $13962
+DATA bitrev_size16384_radix4_f64<>+0x14540(SB)/8, $2698
+DATA bitrev_size16384_radix4_f64<>+0x14548(SB)/8, $6794
+DATA bitrev_size16384_radix4_f64<>+0x14550(SB)/8, $10890
+DATA bitrev_size16384_radix4_f64<>+0x14558(SB)/8, $14986
+DATA bitrev_size16384_radix4_f64<>+0x14560(SB)/8, $3722
+DATA bitrev_size16384_radix4_f64<>+0x14568(SB)/8, $7818
+DATA bitrev_size16384_radix4_f64<>+0x14570(SB)/8, $11914
+DATA bitrev_size16384_radix4_f64<>+0x14578(SB)/8, $16010
+DATA bitrev_size16384_radix4_f64<>+0x14580(SB)/8, $906
+DATA bitrev_size16384_radix4_f64<>+0x14588(SB)/8, $5002
+DATA bitrev_size16384_radix4_f64<>+0x14590(SB)/8, $9098
+DATA bitrev_size16384_radix4_f64<>+0x14598(SB)/8, $13194
+DATA bitrev_size16384_radix4_f64<>+0x145A0(SB)/8, $1930
+DATA bitrev_size16384_radix4_f64<>+0x145A8(SB)/8, $6026
+DATA bitrev_size16384_radix4_f64<>+0x145B0(SB)/8, $10122
+DATA bitrev_size16384_radix4_f64<>+0x145B8(SB)/8, $14218
+DATA bitrev_size16384_radix4_f64<>+0x145C0(SB)/8, $2954
+DATA bitrev_size16384_radix4_f64<>+0x145C8(SB)/8, $7050
+DATA bitrev_size16384_radix4_f64<>+0x145D0(SB)/8, $11146
+DATA bitrev_size16384_radix4_f64<>+0x145D8(SB)/8, $15242
+DATA bitrev_size16384_radix4_f64<>+0x145E0(SB)/8, $3978
+DATA bitrev_size16384_radix4_f64<>+0x145E8(SB)/8, $8074
+DATA bitrev_size16384_radix4_f64<>+0x145F0(SB)/8, $12170
+DATA bitrev_size16384_radix4_f64<>+0x145F8(SB)/8, $16266
+DATA bitrev_size16384_radix4_f64<>+0x14600(SB)/8, $202
+DATA bitrev_size16384_radix4_f64<>+0x14608(SB)/8, $4298
+DATA bitrev_size16384_radix4_f64<>+0x14610(SB)/8, $8394
+DATA bitrev_size16384_radix4_f64<>+0x14618(SB)/8, $12490
+DATA bitrev_size16384_radix4_f64<>+0x14620(SB)/8, $1226
+DATA bitrev_size16384_radix4_f64<>+0x14628(SB)/8, $5322
+DATA bitrev_size16384_radix4_f64<>+0x14630(SB)/8, $9418
+DATA bitrev_size16384_radix4_f64<>+0x14638(SB)/8, $13514
+DATA bitrev_size16384_radix4_f64<>+0x14640(SB)/8, $2250
+DATA bitrev_size16384_radix4_f64<>+0x14648(SB)/8, $6346
+DATA bitrev_size16384_radix4_f64<>+0x14650(SB)/8, $10442
+DATA bitrev_size16384_radix4_f64<>+0x14658(SB)/8, $14538
+DATA bitrev_size16384_radix4_f64<>+0x14660(SB)/8, $3274
+DATA bitrev_size16384_radix4_f64<>+0x14668(SB)/8, $7370
+DATA bitrev_size16384_radix4_f64<>+0x14670(SB)/8, $11466
+DATA bitrev_size16384_radix4_f64<>+0x14678(SB)/8, $15562
+DATA bitrev_size16384_radix4_f64<>+0x14680(SB)/8, $458
+DATA bitrev_size16384_radix4_f64<>+0x14688(SB)/8, $4554
+DATA bitrev_size16384_radix4_f64<>+0x14690(SB)/8, $8650
+DATA bitrev_size16384_radix4_f64<>+0x14698(SB)/8, $12746
+DATA bitrev_size16384_radix4_f64<>+0x146A0(SB)/8, $1482
+DATA bitrev_size16384_radix4_f64<>+0x146A8(SB)/8, $5578
+DATA bitrev_size16384_radix4_f64<>+0x146B0(SB)/8, $9674
+DATA bitrev_size16384_radix4_f64<>+0x146B8(SB)/8, $13770
+DATA bitrev_size16384_radix4_f64<>+0x146C0(SB)/8, $2506
+DATA bitrev_size16384_radix4_f64<>+0x146C8(SB)/8, $6602
+DATA bitrev_size16384_radix4_f64<>+0x146D0(SB)/8, $10698
+DATA bitrev_size16384_radix4_f64<>+0x146D8(SB)/8, $14794
+DATA bitrev_size16384_radix4_f64<>+0x146E0(SB)/8, $3530
+DATA bitrev_size16384_radix4_f64<>+0x146E8(SB)/8, $7626
+DATA bitrev_size16384_radix4_f64<>+0x146F0(SB)/8, $11722
+DATA bitrev_size16384_radix4_f64<>+0x146F8(SB)/8, $15818
+DATA bitrev_size16384_radix4_f64<>+0x14700(SB)/8, $714
+DATA bitrev_size16384_radix4_f64<>+0x14708(SB)/8, $4810
+DATA bitrev_size16384_radix4_f64<>+0x14710(SB)/8, $8906
+DATA bitrev_size16384_radix4_f64<>+0x14718(SB)/8, $13002
+DATA bitrev_size16384_radix4_f64<>+0x14720(SB)/8, $1738
+DATA bitrev_size16384_radix4_f64<>+0x14728(SB)/8, $5834
+DATA bitrev_size16384_radix4_f64<>+0x14730(SB)/8, $9930
+DATA bitrev_size16384_radix4_f64<>+0x14738(SB)/8, $14026
+DATA bitrev_size16384_radix4_f64<>+0x14740(SB)/8, $2762
+DATA bitrev_size16384_radix4_f64<>+0x14748(SB)/8, $6858
+DATA bitrev_size16384_radix4_f64<>+0x14750(SB)/8, $10954
+DATA bitrev_size16384_radix4_f64<>+0x14758(SB)/8, $15050
+DATA bitrev_size16384_radix4_f64<>+0x14760(SB)/8, $3786
+DATA bitrev_size16384_radix4_f64<>+0x14768(SB)/8, $7882
+DATA bitrev_size16384_radix4_f64<>+0x14770(SB)/8, $11978
+DATA bitrev_size16384_radix4_f64<>+0x14778(SB)/8, $16074
+DATA bitrev_size16384_radix4_f64<>+0x14780(SB)/8, $970
+DATA bitrev_size16384_radix4_f64<>+0x14788(SB)/8, $5066
+DATA bitrev_size16384_radix4_f64<>+0x14790(SB)/8, $9162
+DATA bitrev_size16384_radix4_f64<>+0x14798(SB)/8, $13258
+DATA bitrev_size16384_radix4_f64<>+0x147A0(SB)/8, $1994
+DATA bitrev_size16384_radix4_f64<>+0x147A8(SB)/8, $6090
+DATA bitrev_size16384_radix4_f64<>+0x147B0(SB)/8, $10186
+DATA bitrev_size16384_radix4_f64<>+0x147B8(SB)/8, $14282
+DATA bitrev_size16384_radix4_f64<>+0x147C0(SB)/8, $3018
+DATA bitrev_size16384_radix4_f64<>+0x147C8(SB)/8, $7114
+DATA bitrev_size16384_radix4_f64<>+0x147D0(SB)/8, $11210
+DATA bitrev_size16384_radix4_f64<>+0x147D8(SB)/8, $15306
+DATA bitrev_size16384_radix4_f64<>+0x147E0(SB)/8, $4042
+DATA bitrev_size16384_radix4_f64<>+0x147E8(SB)/8, $8138
+DATA bitrev_size16384_radix4_f64<>+0x147F0(SB)/8, $12234
+DATA bitrev_size16384_radix4_f64<>+0x147F8(SB)/8, $16330
+DATA bitrev_size16384_radix4_f64<>+0x14800(SB)/8, $26
+DATA bitrev_size16384_radix4_f64<>+0x14808(SB)/8, $4122
+DATA bitrev_size16384_radix4_f64<>+0x14810(SB)/8, $8218
+DATA bitrev_size16384_radix4_f64<>+0x14818(SB)/8, $12314
+DATA bitrev_size16384_radix4_f64<>+0x14820(SB)/8, $1050
+DATA bitrev_size16384_radix4_f64<>+0x14828(SB)/8, $5146
+DATA bitrev_size16384_radix4_f64<>+0x14830(SB)/8, $9242
+DATA bitrev_size16384_radix4_f64<>+0x14838(SB)/8, $13338
+DATA bitrev_size16384_radix4_f64<>+0x14840(SB)/8, $2074
+DATA bitrev_size16384_radix4_f64<>+0x14848(SB)/8, $6170
+DATA bitrev_size16384_radix4_f64<>+0x14850(SB)/8, $10266
+DATA bitrev_size16384_radix4_f64<>+0x14858(SB)/8, $14362
+DATA bitrev_size16384_radix4_f64<>+0x14860(SB)/8, $3098
+DATA bitrev_size16384_radix4_f64<>+0x14868(SB)/8, $7194
+DATA bitrev_size16384_radix4_f64<>+0x14870(SB)/8, $11290
+DATA bitrev_size16384_radix4_f64<>+0x14878(SB)/8, $15386
+DATA bitrev_size16384_radix4_f64<>+0x14880(SB)/8, $282
+DATA bitrev_size16384_radix4_f64<>+0x14888(SB)/8, $4378
+DATA bitrev_size16384_radix4_f64<>+0x14890(SB)/8, $8474
+DATA bitrev_size16384_radix4_f64<>+0x14898(SB)/8, $12570
+DATA bitrev_size16384_radix4_f64<>+0x148A0(SB)/8, $1306
+DATA bitrev_size16384_radix4_f64<>+0x148A8(SB)/8, $5402
+DATA bitrev_size16384_radix4_f64<>+0x148B0(SB)/8, $9498
+DATA bitrev_size16384_radix4_f64<>+0x148B8(SB)/8, $13594
+DATA bitrev_size16384_radix4_f64<>+0x148C0(SB)/8, $2330
+DATA bitrev_size16384_radix4_f64<>+0x148C8(SB)/8, $6426
+DATA bitrev_size16384_radix4_f64<>+0x148D0(SB)/8, $10522
+DATA bitrev_size16384_radix4_f64<>+0x148D8(SB)/8, $14618
+DATA bitrev_size16384_radix4_f64<>+0x148E0(SB)/8, $3354
+DATA bitrev_size16384_radix4_f64<>+0x148E8(SB)/8, $7450
+DATA bitrev_size16384_radix4_f64<>+0x148F0(SB)/8, $11546
+DATA bitrev_size16384_radix4_f64<>+0x148F8(SB)/8, $15642
+DATA bitrev_size16384_radix4_f64<>+0x14900(SB)/8, $538
+DATA bitrev_size16384_radix4_f64<>+0x14908(SB)/8, $4634
+DATA bitrev_size16384_radix4_f64<>+0x14910(SB)/8, $8730
+DATA bitrev_size16384_radix4_f64<>+0x14918(SB)/8, $12826
+DATA bitrev_size16384_radix4_f64<>+0x14920(SB)/8, $1562
+DATA bitrev_size16384_radix4_f64<>+0x14928(SB)/8, $5658
+DATA bitrev_size16384_radix4_f64<>+0x14930(SB)/8, $9754
+DATA bitrev_size16384_radix4_f64<>+0x14938(SB)/8, $13850
+DATA bitrev_size16384_radix4_f64<>+0x14940(SB)/8, $2586
+DATA bitrev_size16384_radix4_f64<>+0x14948(SB)/8, $6682
+DATA bitrev_size16384_radix4_f64<>+0x14950(SB)/8, $10778
+DATA bitrev_size16384_radix4_f64<>+0x14958(SB)/8, $14874
+DATA bitrev_size16384_radix4_f64<>+0x14960(SB)/8, $3610
+DATA bitrev_size16384_radix4_f64<>+0x14968(SB)/8, $7706
+DATA bitrev_size16384_radix4_f64<>+0x14970(SB)/8, $11802
+DATA bitrev_size16384_radix4_f64<>+0x14978(SB)/8, $15898
+DATA bitrev_size16384_radix4_f64<>+0x14980(SB)/8, $794
+DATA bitrev_size16384_radix4_f64<>+0x14988(SB)/8, $4890
+DATA bitrev_size16384_radix4_f64<>+0x14990(SB)/8, $8986
+DATA bitrev_size16384_radix4_f64<>+0x14998(SB)/8, $13082
+DATA bitrev_size16384_radix4_f64<>+0x149A0(SB)/8, $1818
+DATA bitrev_size16384_radix4_f64<>+0x149A8(SB)/8, $5914
+DATA bitrev_size16384_radix4_f64<>+0x149B0(SB)/8, $10010
+DATA bitrev_size16384_radix4_f64<>+0x149B8(SB)/8, $14106
+DATA bitrev_size16384_radix4_f64<>+0x149C0(SB)/8, $2842
+DATA bitrev_size16384_radix4_f64<>+0x149C8(SB)/8, $6938
+DATA bitrev_size16384_radix4_f64<>+0x149D0(SB)/8, $11034
+DATA bitrev_size16384_radix4_f64<>+0x149D8(SB)/8, $15130
+DATA bitrev_size16384_radix4_f64<>+0x149E0(SB)/8, $3866
+DATA bitrev_size16384_radix4_f64<>+0x149E8(SB)/8, $7962
+DATA bitrev_size16384_radix4_f64<>+0x149F0(SB)/8, $12058
+DATA bitrev_size16384_radix4_f64<>+0x149F8(SB)/8, $16154
+DATA bitrev_size16384_radix4_f64<>+0x14A00(SB)/8, $90
+DATA bitrev_size16384_radix4_f64<>+0x14A08(SB)/8, $4186
+DATA bitrev_size16384_radix4_f64<>+0x14A10(SB)/8, $8282
+DATA bitrev_size16384_radix4_f64<>+0x14A18(SB)/8, $12378
+DATA bitrev_size16384_radix4_f64<>+0x14A20(SB)/8, $1114
+DATA bitrev_size16384_radix4_f64<>+0x14A28(SB)/8, $5210
+DATA bitrev_size16384_radix4_f64<>+0x14A30(SB)/8, $9306
+DATA bitrev_size16384_radix4_f64<>+0x14A38(SB)/8, $13402
+DATA bitrev_size16384_radix4_f64<>+0x14A40(SB)/8, $2138
+DATA bitrev_size16384_radix4_f64<>+0x14A48(SB)/8, $6234
+DATA bitrev_size16384_radix4_f64<>+0x14A50(SB)/8, $10330
+DATA bitrev_size16384_radix4_f64<>+0x14A58(SB)/8, $14426
+DATA bitrev_size16384_radix4_f64<>+0x14A60(SB)/8, $3162
+DATA bitrev_size16384_radix4_f64<>+0x14A68(SB)/8, $7258
+DATA bitrev_size16384_radix4_f64<>+0x14A70(SB)/8, $11354
+DATA bitrev_size16384_radix4_f64<>+0x14A78(SB)/8, $15450
+DATA bitrev_size16384_radix4_f64<>+0x14A80(SB)/8, $346
+DATA bitrev_size16384_radix4_f64<>+0x14A88(SB)/8, $4442
+DATA bitrev_size16384_radix4_f64<>+0x14A90(SB)/8, $8538
+DATA bitrev_size16384_radix4_f64<>+0x14A98(SB)/8, $12634
+DATA bitrev_size16384_radix4_f64<>+0x14AA0(SB)/8, $1370
+DATA bitrev_size16384_radix4_f64<>+0x14AA8(SB)/8, $5466
+DATA bitrev_size16384_radix4_f64<>+0x14AB0(SB)/8, $9562
+DATA bitrev_size16384_radix4_f64<>+0x14AB8(SB)/8, $13658
+DATA bitrev_size16384_radix4_f64<>+0x14AC0(SB)/8, $2394
+DATA bitrev_size16384_radix4_f64<>+0x14AC8(SB)/8, $6490
+DATA bitrev_size16384_radix4_f64<>+0x14AD0(SB)/8, $10586
+DATA bitrev_size16384_radix4_f64<>+0x14AD8(SB)/8, $14682
+DATA bitrev_size16384_radix4_f64<>+0x14AE0(SB)/8, $3418
+DATA bitrev_size16384_radix4_f64<>+0x14AE8(SB)/8, $7514
+DATA bitrev_size16384_radix4_f64<>+0x14AF0(SB)/8, $11610
+DATA bitrev_size16384_radix4_f64<>+0x14AF8(SB)/8, $15706
+DATA bitrev_size16384_radix4_f64<>+0x14B00(SB)/8, $602
+DATA bitrev_size16384_radix4_f64<>+0x14B08(SB)/8, $4698
+DATA bitrev_size16384_radix4_f64<>+0x14B10(SB)/8, $8794
+DATA bitrev_size16384_radix4_f64<>+0x14B18(SB)/8, $12890
+DATA bitrev_size16384_radix4_f64<>+0x14B20(SB)/8, $1626
+DATA bitrev_size16384_radix4_f64<>+0x14B28(SB)/8, $5722
+DATA bitrev_size16384_radix4_f64<>+0x14B30(SB)/8, $9818
+DATA bitrev_size16384_radix4_f64<>+0x14B38(SB)/8, $13914
+DATA bitrev_size16384_radix4_f64<>+0x14B40(SB)/8, $2650
+DATA bitrev_size16384_radix4_f64<>+0x14B48(SB)/8, $6746
+DATA bitrev_size16384_radix4_f64<>+0x14B50(SB)/8, $10842
+DATA bitrev_size16384_radix4_f64<>+0x14B58(SB)/8, $14938
+DATA bitrev_size16384_radix4_f64<>+0x14B60(SB)/8, $3674
+DATA bitrev_size16384_radix4_f64<>+0x14B68(SB)/8, $7770
+DATA bitrev_size16384_radix4_f64<>+0x14B70(SB)/8, $11866
+DATA bitrev_size16384_radix4_f64<>+0x14B78(SB)/8, $15962
+DATA bitrev_size16384_radix4_f64<>+0x14B80(SB)/8, $858
+DATA bitrev_size16384_radix4_f64<>+0x14B88(SB)/8, $4954
+DATA bitrev_size16384_radix4_f64<>+0x14B90(SB)/8, $9050
+DATA bitrev_size16384_radix4_f64<>+0x14B98(SB)/8, $13146
+DATA bitrev_size16384_radix4_f64<>+0x14BA0(SB)/8, $1882
+DATA bitrev_size16384_radix4_f64<>+0x14BA8(SB)/8, $5978
+DATA bitrev_size16384_radix4_f64<>+0x14BB0(SB)/8, $10074
+DATA bitrev_size16384_radix4_f64<>+0x14BB8(SB)/8, $14170
+DATA bitrev_size16384_radix4_f64<>+0x14BC0(SB)/8, $2906
+DATA bitrev_size16384_radix4_f64<>+0x14BC8(SB)/8, $7002
+DATA bitrev_size16384_radix4_f64<>+0x14BD0(SB)/8, $11098
+DATA bitrev_size16384_radix4_f64<>+0x14BD8(SB)/8, $15194
+DATA bitrev_size16384_radix4_f64<>+0x14BE0(SB)/8, $3930
+DATA bitrev_size16384_radix4_f64<>+0x14BE8(SB)/8, $8026
+DATA bitrev_size16384_radix4_f64<>+0x14BF0(SB)/8, $12122
+DATA bitrev_size16384_radix4_f64<>+0x14BF8(SB)/8, $16218
+DATA bitrev_size16384_radix4_f64<>+0x14C00(SB)/8, $154
+DATA bitrev_size16384_radix4_f64<>+0x14C08(SB)/8, $4250
+DATA bitrev_size16384_radix4_f64<>+0x14C10(SB)/8, $8346
+DATA bitrev_size16384_radix4_f64<>+0x14C18(SB)/8, $12442
+DATA bitrev_size16384_radix4_f64<>+0x14C20(SB)/8, $1178
+DATA bitrev_size16384_radix4_f64<>+0x14C28(SB)/8, $5274
+DATA bitrev_size16384_radix4_f64<>+0x14C30(SB)/8, $9370
+DATA bitrev_size16384_radix4_f64<>+0x14C38(SB)/8, $13466
+DATA bitrev_size16384_radix4_f64<>+0x14C40(SB)/8, $2202
+DATA bitrev_size16384_radix4_f64<>+0x14C48(SB)/8, $6298
+DATA bitrev_size16384_radix4_f64<>+0x14C50(SB)/8, $10394
+DATA bitrev_size16384_radix4_f64<>+0x14C58(SB)/8, $14490
+DATA bitrev_size16384_radix4_f64<>+0x14C60(SB)/8, $3226
+DATA bitrev_size16384_radix4_f64<>+0x14C68(SB)/8, $7322
+DATA bitrev_size16384_radix4_f64<>+0x14C70(SB)/8, $11418
+DATA bitrev_size16384_radix4_f64<>+0x14C78(SB)/8, $15514
+DATA bitrev_size16384_radix4_f64<>+0x14C80(SB)/8, $410
+DATA bitrev_size16384_radix4_f64<>+0x14C88(SB)/8, $4506
+DATA bitrev_size16384_radix4_f64<>+0x14C90(SB)/8, $8602
+DATA bitrev_size16384_radix4_f64<>+0x14C98(SB)/8, $12698
+DATA bitrev_size16384_radix4_f64<>+0x14CA0(SB)/8, $1434
+DATA bitrev_size16384_radix4_f64<>+0x14CA8(SB)/8, $5530
+DATA bitrev_size16384_radix4_f64<>+0x14CB0(SB)/8, $9626
+DATA bitrev_size16384_radix4_f64<>+0x14CB8(SB)/8, $13722
+DATA bitrev_size16384_radix4_f64<>+0x14CC0(SB)/8, $2458
+DATA bitrev_size16384_radix4_f64<>+0x14CC8(SB)/8, $6554
+DATA bitrev_size16384_radix4_f64<>+0x14CD0(SB)/8, $10650
+DATA bitrev_size16384_radix4_f64<>+0x14CD8(SB)/8, $14746
+DATA bitrev_size16384_radix4_f64<>+0x14CE0(SB)/8, $3482
+DATA bitrev_size16384_radix4_f64<>+0x14CE8(SB)/8, $7578
+DATA bitrev_size16384_radix4_f64<>+0x14CF0(SB)/8, $11674
+DATA bitrev_size16384_radix4_f64<>+0x14CF8(SB)/8, $15770
+DATA bitrev_size16384_radix4_f64<>+0x14D00(SB)/8, $666
+DATA bitrev_size16384_radix4_f64<>+0x14D08(SB)/8, $4762
+DATA bitrev_size16384_radix4_f64<>+0x14D10(SB)/8, $8858
+DATA bitrev_size16384_radix4_f64<>+0x14D18(SB)/8, $12954
+DATA bitrev_size16384_radix4_f64<>+0x14D20(SB)/8, $1690
+DATA bitrev_size16384_radix4_f64<>+0x14D28(SB)/8, $5786
+DATA bitrev_size16384_radix4_f64<>+0x14D30(SB)/8, $9882
+DATA bitrev_size16384_radix4_f64<>+0x14D38(SB)/8, $13978
+DATA bitrev_size16384_radix4_f64<>+0x14D40(SB)/8, $2714
+DATA bitrev_size16384_radix4_f64<>+0x14D48(SB)/8, $6810
+DATA bitrev_size16384_radix4_f64<>+0x14D50(SB)/8, $10906
+DATA bitrev_size16384_radix4_f64<>+0x14D58(SB)/8, $15002
+DATA bitrev_size16384_radix4_f64<>+0x14D60(SB)/8, $3738
+DATA bitrev_size16384_radix4_f64<>+0x14D68(SB)/8, $7834
+DATA bitrev_size16384_radix4_f64<>+0x14D70(SB)/8, $11930
+DATA bitrev_size16384_radix4_f64<>+0x14D78(SB)/8, $16026
+DATA bitrev_size16384_radix4_f64<>+0x14D80(SB)/8, $922
+DATA bitrev_size16384_radix4_f64<>+0x14D88(SB)/8, $5018
+DATA bitrev_size16384_radix4_f64<>+0x14D90(SB)/8, $9114
+DATA bitrev_size16384_radix4_f64<>+0x14D98(SB)/8, $13210
+DATA bitrev_size16384_radix4_f64<>+0x14DA0(SB)/8, $1946
+DATA bitrev_size16384_radix4_f64<>+0x14DA8(SB)/8, $6042
+DATA bitrev_size16384_radix4_f64<>+0x14DB0(SB)/8, $10138
+DATA bitrev_size16384_radix4_f64<>+0x14DB8(SB)/8, $14234
+DATA bitrev_size16384_radix4_f64<>+0x14DC0(SB)/8, $2970
+DATA bitrev_size16384_radix4_f64<>+0x14DC8(SB)/8, $7066
+DATA bitrev_size16384_radix4_f64<>+0x14DD0(SB)/8, $11162
+DATA bitrev_size16384_radix4_f64<>+0x14DD8(SB)/8, $15258
+DATA bitrev_size16384_radix4_f64<>+0x14DE0(SB)/8, $3994
+DATA bitrev_size16384_radix4_f64<>+0x14DE8(SB)/8, $8090
+DATA bitrev_size16384_radix4_f64<>+0x14DF0(SB)/8, $12186
+DATA bitrev_size16384_radix4_f64<>+0x14DF8(SB)/8, $16282
+DATA bitrev_size16384_radix4_f64<>+0x14E00(SB)/8, $218
+DATA bitrev_size16384_radix4_f64<>+0x14E08(SB)/8, $4314
+DATA bitrev_size16384_radix4_f64<>+0x14E10(SB)/8, $8410
+DATA bitrev_size16384_radix4_f64<>+0x14E18(SB)/8, $12506
+DATA bitrev_size16384_radix4_f64<>+0x14E20(SB)/8, $1242
+DATA bitrev_size16384_radix4_f64<>+0x14E28(SB)/8, $5338
+DATA bitrev_size16384_radix4_f64<>+0x14E30(SB)/8, $9434
+DATA bitrev_size16384_radix4_f64<>+0x14E38(SB)/8, $13530
+DATA bitrev_size16384_radix4_f64<>+0x14E40(SB)/8, $2266
+DATA bitrev_size16384_radix4_f64<>+0x14E48(SB)/8, $6362
+DATA bitrev_size16384_radix4_f64<>+0x14E50(SB)/8, $10458
+DATA bitrev_size16384_radix4_f64<>+0x14E58(SB)/8, $14554
+DATA bitrev_size16384_radix4_f64<>+0x14E60(SB)/8, $3290
+DATA bitrev_size16384_radix4_f64<>+0x14E68(SB)/8, $7386
+DATA bitrev_size16384_radix4_f64<>+0x14E70(SB)/8, $11482
+DATA bitrev_size16384_radix4_f64<>+0x14E78(SB)/8, $15578
+DATA bitrev_size16384_radix4_f64<>+0x14E80(SB)/8, $474
+DATA bitrev_size16384_radix4_f64<>+0x14E88(SB)/8, $4570
+DATA bitrev_size16384_radix4_f64<>+0x14E90(SB)/8, $8666
+DATA bitrev_size16384_radix4_f64<>+0x14E98(SB)/8, $12762
+DATA bitrev_size16384_radix4_f64<>+0x14EA0(SB)/8, $1498
+DATA bitrev_size16384_radix4_f64<>+0x14EA8(SB)/8, $5594
+DATA bitrev_size16384_radix4_f64<>+0x14EB0(SB)/8, $9690
+DATA bitrev_size16384_radix4_f64<>+0x14EB8(SB)/8, $13786
+DATA bitrev_size16384_radix4_f64<>+0x14EC0(SB)/8, $2522
+DATA bitrev_size16384_radix4_f64<>+0x14EC8(SB)/8, $6618
+DATA bitrev_size16384_radix4_f64<>+0x14ED0(SB)/8, $10714
+DATA bitrev_size16384_radix4_f64<>+0x14ED8(SB)/8, $14810
+DATA bitrev_size16384_radix4_f64<>+0x14EE0(SB)/8, $3546
+DATA bitrev_size16384_radix4_f64<>+0x14EE8(SB)/8, $7642
+DATA bitrev_size16384_radix4_f64<>+0x14EF0(SB)/8, $11738
+DATA bitrev_size16384_radix4_f64<>+0x14EF8(SB)/8, $15834
+DATA bitrev_size16384_radix4_f64<>+0x14F00(SB)/8, $730
+DATA bitrev_size16384_radix4_f64<>+0x14F08(SB)/8, $4826
+DATA bitrev_size16384_radix4_f64<>+0x14F10(SB)/8, $8922
+DATA bitrev_size16384_radix4_f64<>+0x14F18(SB)/8, $13018
+DATA bitrev_size16384_radix4_f64<>+0x14F20(SB)/8, $1754
+DATA bitrev_size16384_radix4_f64<>+0x14F28(SB)/8, $5850
+DATA bitrev_size16384_radix4_f64<>+0x14F30(SB)/8, $9946
+DATA bitrev_size16384_radix4_f64<>+0x14F38(SB)/8, $14042
+DATA bitrev_size16384_radix4_f64<>+0x14F40(SB)/8, $2778
+DATA bitrev_size16384_radix4_f64<>+0x14F48(SB)/8, $6874
+DATA bitrev_size16384_radix4_f64<>+0x14F50(SB)/8, $10970
+DATA bitrev_size16384_radix4_f64<>+0x14F58(SB)/8, $15066
+DATA bitrev_size16384_radix4_f64<>+0x14F60(SB)/8, $3802
+DATA bitrev_size16384_radix4_f64<>+0x14F68(SB)/8, $7898
+DATA bitrev_size16384_radix4_f64<>+0x14F70(SB)/8, $11994
+DATA bitrev_size16384_radix4_f64<>+0x14F78(SB)/8, $16090
+DATA bitrev_size16384_radix4_f64<>+0x14F80(SB)/8, $986
+DATA bitrev_size16384_radix4_f64<>+0x14F88(SB)/8, $5082
+DATA bitrev_size16384_radix4_f64<>+0x14F90(SB)/8, $9178
+DATA bitrev_size16384_radix4_f64<>+0x14F98(SB)/8, $13274
+DATA bitrev_size16384_radix4_f64<>+0x14FA0(SB)/8, $2010
+DATA bitrev_size16384_radix4_f64<>+0x14FA8(SB)/8, $6106
+DATA bitrev_size16384_radix4_f64<>+0x14FB0(SB)/8, $10202
+DATA bitrev_size16384_radix4_f64<>+0x14FB8(SB)/8, $14298
+DATA bitrev_size16384_radix4_f64<>+0x14FC0(SB)/8, $3034
+DATA bitrev_size16384_radix4_f64<>+0x14FC8(SB)/8, $7130
+DATA bitrev_size16384_radix4_f64<>+0x14FD0(SB)/8, $11226
+DATA bitrev_size16384_radix4_f64<>+0x14FD8(SB)/8, $15322
+DATA bitrev_size16384_radix4_f64<>+0x14FE0(SB)/8, $4058
+DATA bitrev_size16384_radix4_f64<>+0x14FE8(SB)/8, $8154
+DATA bitrev_size16384_radix4_f64<>+0x14FF0(SB)/8, $12250
+DATA bitrev_size16384_radix4_f64<>+0x14FF8(SB)/8, $16346
+DATA bitrev_size16384_radix4_f64<>+0x15000(SB)/8, $42
+DATA bitrev_size16384_radix4_f64<>+0x15008(SB)/8, $4138
+DATA bitrev_size16384_radix4_f64<>+0x15010(SB)/8, $8234
+DATA bitrev_size16384_radix4_f64<>+0x15018(SB)/8, $12330
+DATA bitrev_size16384_radix4_f64<>+0x15020(SB)/8, $1066
+DATA bitrev_size16384_radix4_f64<>+0x15028(SB)/8, $5162
+DATA bitrev_size16384_radix4_f64<>+0x15030(SB)/8, $9258
+DATA bitrev_size16384_radix4_f64<>+0x15038(SB)/8, $13354
+DATA bitrev_size16384_radix4_f64<>+0x15040(SB)/8, $2090
+DATA bitrev_size16384_radix4_f64<>+0x15048(SB)/8, $6186
+DATA bitrev_size16384_radix4_f64<>+0x15050(SB)/8, $10282
+DATA bitrev_size16384_radix4_f64<>+0x15058(SB)/8, $14378
+DATA bitrev_size16384_radix4_f64<>+0x15060(SB)/8, $3114
+DATA bitrev_size16384_radix4_f64<>+0x15068(SB)/8, $7210
+DATA bitrev_size16384_radix4_f64<>+0x15070(SB)/8, $11306
+DATA bitrev_size16384_radix4_f64<>+0x15078(SB)/8, $15402
+DATA bitrev_size16384_radix4_f64<>+0x15080(SB)/8, $298
+DATA bitrev_size16384_radix4_f64<>+0x15088(SB)/8, $4394
+DATA bitrev_size16384_radix4_f64<>+0x15090(SB)/8, $8490
+DATA bitrev_size16384_radix4_f64<>+0x15098(SB)/8, $12586
+DATA bitrev_size16384_radix4_f64<>+0x150A0(SB)/8, $1322
+DATA bitrev_size16384_radix4_f64<>+0x150A8(SB)/8, $5418
+DATA bitrev_size16384_radix4_f64<>+0x150B0(SB)/8, $9514
+DATA bitrev_size16384_radix4_f64<>+0x150B8(SB)/8, $13610
+DATA bitrev_size16384_radix4_f64<>+0x150C0(SB)/8, $2346
+DATA bitrev_size16384_radix4_f64<>+0x150C8(SB)/8, $6442
+DATA bitrev_size16384_radix4_f64<>+0x150D0(SB)/8, $10538
+DATA bitrev_size16384_radix4_f64<>+0x150D8(SB)/8, $14634
+DATA bitrev_size16384_radix4_f64<>+0x150E0(SB)/8, $3370
+DATA bitrev_size16384_radix4_f64<>+0x150E8(SB)/8, $7466
+DATA bitrev_size16384_radix4_f64<>+0x150F0(SB)/8, $11562
+DATA bitrev_size16384_radix4_f64<>+0x150F8(SB)/8, $15658
+DATA bitrev_size16384_radix4_f64<>+0x15100(SB)/8, $554
+DATA bitrev_size16384_radix4_f64<>+0x15108(SB)/8, $4650
+DATA bitrev_size16384_radix4_f64<>+0x15110(SB)/8, $8746
+DATA bitrev_size16384_radix4_f64<>+0x15118(SB)/8, $12842
+DATA bitrev_size16384_radix4_f64<>+0x15120(SB)/8, $1578
+DATA bitrev_size16384_radix4_f64<>+0x15128(SB)/8, $5674
+DATA bitrev_size16384_radix4_f64<>+0x15130(SB)/8, $9770
+DATA bitrev_size16384_radix4_f64<>+0x15138(SB)/8, $13866
+DATA bitrev_size16384_radix4_f64<>+0x15140(SB)/8, $2602
+DATA bitrev_size16384_radix4_f64<>+0x15148(SB)/8, $6698
+DATA bitrev_size16384_radix4_f64<>+0x15150(SB)/8, $10794
+DATA bitrev_size16384_radix4_f64<>+0x15158(SB)/8, $14890
+DATA bitrev_size16384_radix4_f64<>+0x15160(SB)/8, $3626
+DATA bitrev_size16384_radix4_f64<>+0x15168(SB)/8, $7722
+DATA bitrev_size16384_radix4_f64<>+0x15170(SB)/8, $11818
+DATA bitrev_size16384_radix4_f64<>+0x15178(SB)/8, $15914
+DATA bitrev_size16384_radix4_f64<>+0x15180(SB)/8, $810
+DATA bitrev_size16384_radix4_f64<>+0x15188(SB)/8, $4906
+DATA bitrev_size16384_radix4_f64<>+0x15190(SB)/8, $9002
+DATA bitrev_size16384_radix4_f64<>+0x15198(SB)/8, $13098
+DATA bitrev_size16384_radix4_f64<>+0x151A0(SB)/8, $1834
+DATA bitrev_size16384_radix4_f64<>+0x151A8(SB)/8, $5930
+DATA bitrev_size16384_radix4_f64<>+0x151B0(SB)/8, $10026
+DATA bitrev_size16384_radix4_f64<>+0x151B8(SB)/8, $14122
+DATA bitrev_size16384_radix4_f64<>+0x151C0(SB)/8, $2858
+DATA bitrev_size16384_radix4_f64<>+0x151C8(SB)/8, $6954
+DATA bitrev_size16384_radix4_f64<>+0x151D0(SB)/8, $11050
+DATA bitrev_size16384_radix4_f64<>+0x151D8(SB)/8, $15146
+DATA bitrev_size16384_radix4_f64<>+0x151E0(SB)/8, $3882
+DATA bitrev_size16384_radix4_f64<>+0x151E8(SB)/8, $7978
+DATA bitrev_size16384_radix4_f64<>+0x151F0(SB)/8, $12074
+DATA bitrev_size16384_radix4_f64<>+0x151F8(SB)/8, $16170
+DATA bitrev_size16384_radix4_f64<>+0x15200(SB)/8, $106
+DATA bitrev_size16384_radix4_f64<>+0x15208(SB)/8, $4202
+DATA bitrev_size16384_radix4_f64<>+0x15210(SB)/8, $8298
+DATA bitrev_size16384_radix4_f64<>+0x15218(SB)/8, $12394
+DATA bitrev_size16384_radix4_f64<>+0x15220(SB)/8, $1130
+DATA bitrev_size16384_radix4_f64<>+0x15228(SB)/8, $5226
+DATA bitrev_size16384_radix4_f64<>+0x15230(SB)/8, $9322
+DATA bitrev_size16384_radix4_f64<>+0x15238(SB)/8, $13418
+DATA bitrev_size16384_radix4_f64<>+0x15240(SB)/8, $2154
+DATA bitrev_size16384_radix4_f64<>+0x15248(SB)/8, $6250
+DATA bitrev_size16384_radix4_f64<>+0x15250(SB)/8, $10346
+DATA bitrev_size16384_radix4_f64<>+0x15258(SB)/8, $14442
+DATA bitrev_size16384_radix4_f64<>+0x15260(SB)/8, $3178
+DATA bitrev_size16384_radix4_f64<>+0x15268(SB)/8, $7274
+DATA bitrev_size16384_radix4_f64<>+0x15270(SB)/8, $11370
+DATA bitrev_size16384_radix4_f64<>+0x15278(SB)/8, $15466
+DATA bitrev_size16384_radix4_f64<>+0x15280(SB)/8, $362
+DATA bitrev_size16384_radix4_f64<>+0x15288(SB)/8, $4458
+DATA bitrev_size16384_radix4_f64<>+0x15290(SB)/8, $8554
+DATA bitrev_size16384_radix4_f64<>+0x15298(SB)/8, $12650
+DATA bitrev_size16384_radix4_f64<>+0x152A0(SB)/8, $1386
+DATA bitrev_size16384_radix4_f64<>+0x152A8(SB)/8, $5482
+DATA bitrev_size16384_radix4_f64<>+0x152B0(SB)/8, $9578
+DATA bitrev_size16384_radix4_f64<>+0x152B8(SB)/8, $13674
+DATA bitrev_size16384_radix4_f64<>+0x152C0(SB)/8, $2410
+DATA bitrev_size16384_radix4_f64<>+0x152C8(SB)/8, $6506
+DATA bitrev_size16384_radix4_f64<>+0x152D0(SB)/8, $10602
+DATA bitrev_size16384_radix4_f64<>+0x152D8(SB)/8, $14698
+DATA bitrev_size16384_radix4_f64<>+0x152E0(SB)/8, $3434
+DATA bitrev_size16384_radix4_f64<>+0x152E8(SB)/8, $7530
+DATA bitrev_size16384_radix4_f64<>+0x152F0(SB)/8, $11626
+DATA bitrev_size16384_radix4_f64<>+0x152F8(SB)/8, $15722
+DATA bitrev_size16384_radix4_f64<>+0x15300(SB)/8, $618
+DATA bitrev_size16384_radix4_f64<>+0x15308(SB)/8, $4714
+DATA bitrev_size16384_radix4_f64<>+0x15310(SB)/8, $8810
+DATA bitrev_size16384_radix4_f64<>+0x15318(SB)/8, $12906
+DATA bitrev_size16384_radix4_f64<>+0x15320(SB)/8, $1642
+DATA bitrev_size16384_radix4_f64<>+0x15328(SB)/8, $5738
+DATA bitrev_size16384_radix4_f64<>+0x15330(SB)/8, $9834
+DATA bitrev_size16384_radix4_f64<>+0x15338(SB)/8, $13930
+DATA bitrev_size16384_radix4_f64<>+0x15340(SB)/8, $2666
+DATA bitrev_size16384_radix4_f64<>+0x15348(SB)/8, $6762
+DATA bitrev_size16384_radix4_f64<>+0x15350(SB)/8, $10858
+DATA bitrev_size16384_radix4_f64<>+0x15358(SB)/8, $14954
+DATA bitrev_size16384_radix4_f64<>+0x15360(SB)/8, $3690
+DATA bitrev_size16384_radix4_f64<>+0x15368(SB)/8, $7786
+DATA bitrev_size16384_radix4_f64<>+0x15370(SB)/8, $11882
+DATA bitrev_size16384_radix4_f64<>+0x15378(SB)/8, $15978
+DATA bitrev_size16384_radix4_f64<>+0x15380(SB)/8, $874
+DATA bitrev_size16384_radix4_f64<>+0x15388(SB)/8, $4970
+DATA bitrev_size16384_radix4_f64<>+0x15390(SB)/8, $9066
+DATA bitrev_size16384_radix4_f64<>+0x15398(SB)/8, $13162
+DATA bitrev_size16384_radix4_f64<>+0x153A0(SB)/8, $1898
+DATA bitrev_size16384_radix4_f64<>+0x153A8(SB)/8, $5994
+DATA bitrev_size16384_radix4_f64<>+0x153B0(SB)/8, $10090
+DATA bitrev_size16384_radix4_f64<>+0x153B8(SB)/8, $14186
+DATA bitrev_size16384_radix4_f64<>+0x153C0(SB)/8, $2922
+DATA bitrev_size16384_radix4_f64<>+0x153C8(SB)/8, $7018
+DATA bitrev_size16384_radix4_f64<>+0x153D0(SB)/8, $11114
+DATA bitrev_size16384_radix4_f64<>+0x153D8(SB)/8, $15210
+DATA bitrev_size16384_radix4_f64<>+0x153E0(SB)/8, $3946
+DATA bitrev_size16384_radix4_f64<>+0x153E8(SB)/8, $8042
+DATA bitrev_size16384_radix4_f64<>+0x153F0(SB)/8, $12138
+DATA bitrev_size16384_radix4_f64<>+0x153F8(SB)/8, $16234
+DATA bitrev_size16384_radix4_f64<>+0x15400(SB)/8, $170
+DATA bitrev_size16384_radix4_f64<>+0x15408(SB)/8, $4266
+DATA bitrev_size16384_radix4_f64<>+0x15410(SB)/8, $8362
+DATA bitrev_size16384_radix4_f64<>+0x15418(SB)/8, $12458
+DATA bitrev_size16384_radix4_f64<>+0x15420(SB)/8, $1194
+DATA bitrev_size16384_radix4_f64<>+0x15428(SB)/8, $5290
+DATA bitrev_size16384_radix4_f64<>+0x15430(SB)/8, $9386
+DATA bitrev_size16384_radix4_f64<>+0x15438(SB)/8, $13482
+DATA bitrev_size16384_radix4_f64<>+0x15440(SB)/8, $2218
+DATA bitrev_size16384_radix4_f64<>+0x15448(SB)/8, $6314
+DATA bitrev_size16384_radix4_f64<>+0x15450(SB)/8, $10410
+DATA bitrev_size16384_radix4_f64<>+0x15458(SB)/8, $14506
+DATA bitrev_size16384_radix4_f64<>+0x15460(SB)/8, $3242
+DATA bitrev_size16384_radix4_f64<>+0x15468(SB)/8, $7338
+DATA bitrev_size16384_radix4_f64<>+0x15470(SB)/8, $11434
+DATA bitrev_size16384_radix4_f64<>+0x15478(SB)/8, $15530
+DATA bitrev_size16384_radix4_f64<>+0x15480(SB)/8, $426
+DATA bitrev_size16384_radix4_f64<>+0x15488(SB)/8, $4522
+DATA bitrev_size16384_radix4_f64<>+0x15490(SB)/8, $8618
+DATA bitrev_size16384_radix4_f64<>+0x15498(SB)/8, $12714
+DATA bitrev_size16384_radix4_f64<>+0x154A0(SB)/8, $1450
+DATA bitrev_size16384_radix4_f64<>+0x154A8(SB)/8, $5546
+DATA bitrev_size16384_radix4_f64<>+0x154B0(SB)/8, $9642
+DATA bitrev_size16384_radix4_f64<>+0x154B8(SB)/8, $13738
+DATA bitrev_size16384_radix4_f64<>+0x154C0(SB)/8, $2474
+DATA bitrev_size16384_radix4_f64<>+0x154C8(SB)/8, $6570
+DATA bitrev_size16384_radix4_f64<>+0x154D0(SB)/8, $10666
+DATA bitrev_size16384_radix4_f64<>+0x154D8(SB)/8, $14762
+DATA bitrev_size16384_radix4_f64<>+0x154E0(SB)/8, $3498
+DATA bitrev_size16384_radix4_f64<>+0x154E8(SB)/8, $7594
+DATA bitrev_size16384_radix4_f64<>+0x154F0(SB)/8, $11690
+DATA bitrev_size16384_radix4_f64<>+0x154F8(SB)/8, $15786
+DATA bitrev_size16384_radix4_f64<>+0x15500(SB)/8, $682
+DATA bitrev_size16384_radix4_f64<>+0x15508(SB)/8, $4778
+DATA bitrev_size16384_radix4_f64<>+0x15510(SB)/8, $8874
+DATA bitrev_size16384_radix4_f64<>+0x15518(SB)/8, $12970
+DATA bitrev_size16384_radix4_f64<>+0x15520(SB)/8, $1706
+DATA bitrev_size16384_radix4_f64<>+0x15528(SB)/8, $5802
+DATA bitrev_size16384_radix4_f64<>+0x15530(SB)/8, $9898
+DATA bitrev_size16384_radix4_f64<>+0x15538(SB)/8, $13994
+DATA bitrev_size16384_radix4_f64<>+0x15540(SB)/8, $2730
+DATA bitrev_size16384_radix4_f64<>+0x15548(SB)/8, $6826
+DATA bitrev_size16384_radix4_f64<>+0x15550(SB)/8, $10922
+DATA bitrev_size16384_radix4_f64<>+0x15558(SB)/8, $15018
+DATA bitrev_size16384_radix4_f64<>+0x15560(SB)/8, $3754
+DATA bitrev_size16384_radix4_f64<>+0x15568(SB)/8, $7850
+DATA bitrev_size16384_radix4_f64<>+0x15570(SB)/8, $11946
+DATA bitrev_size16384_radix4_f64<>+0x15578(SB)/8, $16042
+DATA bitrev_size16384_radix4_f64<>+0x15580(SB)/8, $938
+DATA bitrev_size16384_radix4_f64<>+0x15588(SB)/8, $5034
+DATA bitrev_size16384_radix4_f64<>+0x15590(SB)/8, $9130
+DATA bitrev_size16384_radix4_f64<>+0x15598(SB)/8, $13226
+DATA bitrev_size16384_radix4_f64<>+0x155A0(SB)/8, $1962
+DATA bitrev_size16384_radix4_f64<>+0x155A8(SB)/8, $6058
+DATA bitrev_size16384_radix4_f64<>+0x155B0(SB)/8, $10154
+DATA bitrev_size16384_radix4_f64<>+0x155B8(SB)/8, $14250
+DATA bitrev_size16384_radix4_f64<>+0x155C0(SB)/8, $2986
+DATA bitrev_size16384_radix4_f64<>+0x155C8(SB)/8, $7082
+DATA bitrev_size16384_radix4_f64<>+0x155D0(SB)/8, $11178
+DATA bitrev_size16384_radix4_f64<>+0x155D8(SB)/8, $15274
+DATA bitrev_size16384_radix4_f64<>+0x155E0(SB)/8, $4010
+DATA bitrev_size16384_radix4_f64<>+0x155E8(SB)/8, $8106
+DATA bitrev_size16384_radix4_f64<>+0x155F0(SB)/8, $12202
+DATA bitrev_size16384_radix4_f64<>+0x155F8(SB)/8, $16298
+DATA bitrev_size16384_radix4_f64<>+0x15600(SB)/8, $234
+DATA bitrev_size16384_radix4_f64<>+0x15608(SB)/8, $4330
+DATA bitrev_size16384_radix4_f64<>+0x15610(SB)/8, $8426
+DATA bitrev_size16384_radix4_f64<>+0x15618(SB)/8, $12522
+DATA bitrev_size16384_radix4_f64<>+0x15620(SB)/8, $1258
+DATA bitrev_size16384_radix4_f64<>+0x15628(SB)/8, $5354
+DATA bitrev_size16384_radix4_f64<>+0x15630(SB)/8, $9450
+DATA bitrev_size16384_radix4_f64<>+0x15638(SB)/8, $13546
+DATA bitrev_size16384_radix4_f64<>+0x15640(SB)/8, $2282
+DATA bitrev_size16384_radix4_f64<>+0x15648(SB)/8, $6378
+DATA bitrev_size16384_radix4_f64<>+0x15650(SB)/8, $10474
+DATA bitrev_size16384_radix4_f64<>+0x15658(SB)/8, $14570
+DATA bitrev_size16384_radix4_f64<>+0x15660(SB)/8, $3306
+DATA bitrev_size16384_radix4_f64<>+0x15668(SB)/8, $7402
+DATA bitrev_size16384_radix4_f64<>+0x15670(SB)/8, $11498
+DATA bitrev_size16384_radix4_f64<>+0x15678(SB)/8, $15594
+DATA bitrev_size16384_radix4_f64<>+0x15680(SB)/8, $490
+DATA bitrev_size16384_radix4_f64<>+0x15688(SB)/8, $4586
+DATA bitrev_size16384_radix4_f64<>+0x15690(SB)/8, $8682
+DATA bitrev_size16384_radix4_f64<>+0x15698(SB)/8, $12778
+DATA bitrev_size16384_radix4_f64<>+0x156A0(SB)/8, $1514
+DATA bitrev_size16384_radix4_f64<>+0x156A8(SB)/8, $5610
+DATA bitrev_size16384_radix4_f64<>+0x156B0(SB)/8, $9706
+DATA bitrev_size16384_radix4_f64<>+0x156B8(SB)/8, $13802
+DATA bitrev_size16384_radix4_f64<>+0x156C0(SB)/8, $2538
+DATA bitrev_size16384_radix4_f64<>+0x156C8(SB)/8, $6634
+DATA bitrev_size16384_radix4_f64<>+0x156D0(SB)/8, $10730
+DATA bitrev_size16384_radix4_f64<>+0x156D8(SB)/8, $14826
+DATA bitrev_size16384_radix4_f64<>+0x156E0(SB)/8, $3562
+DATA bitrev_size16384_radix4_f64<>+0x156E8(SB)/8, $7658
+DATA bitrev_size16384_radix4_f64<>+0x156F0(SB)/8, $11754
+DATA bitrev_size16384_radix4_f64<>+0x156F8(SB)/8, $15850
+DATA bitrev_size16384_radix4_f64<>+0x15700(SB)/8, $746
+DATA bitrev_size16384_radix4_f64<>+0x15708(SB)/8, $4842
+DATA bitrev_size16384_radix4_f64<>+0x15710(SB)/8, $8938
+DATA bitrev_size16384_radix4_f64<>+0x15718(SB)/8, $13034
+DATA bitrev_size16384_radix4_f64<>+0x15720(SB)/8, $1770
+DATA bitrev_size16384_radix4_f64<>+0x15728(SB)/8, $5866
+DATA bitrev_size16384_radix4_f64<>+0x15730(SB)/8, $9962
+DATA bitrev_size16384_radix4_f64<>+0x15738(SB)/8, $14058
+DATA bitrev_size16384_radix4_f64<>+0x15740(SB)/8, $2794
+DATA bitrev_size16384_radix4_f64<>+0x15748(SB)/8, $6890
+DATA bitrev_size16384_radix4_f64<>+0x15750(SB)/8, $10986
+DATA bitrev_size16384_radix4_f64<>+0x15758(SB)/8, $15082
+DATA bitrev_size16384_radix4_f64<>+0x15760(SB)/8, $3818
+DATA bitrev_size16384_radix4_f64<>+0x15768(SB)/8, $7914
+DATA bitrev_size16384_radix4_f64<>+0x15770(SB)/8, $12010
+DATA bitrev_size16384_radix4_f64<>+0x15778(SB)/8, $16106
+DATA bitrev_size16384_radix4_f64<>+0x15780(SB)/8, $1002
+DATA bitrev_size16384_radix4_f64<>+0x15788(SB)/8, $5098
+DATA bitrev_size16384_radix4_f64<>+0x15790(SB)/8, $9194
+DATA bitrev_size16384_radix4_f64<>+0x15798(SB)/8, $13290
+DATA bitrev_size16384_radix4_f64<>+0x157A0(SB)/8, $2026
+DATA bitrev_size16384_radix4_f64<>+0x157A8(SB)/8, $6122
+DATA bitrev_size16384_radix4_f64<>+0x157B0(SB)/8, $10218
+DATA bitrev_size16384_radix4_f64<>+0x157B8(SB)/8, $14314
+DATA bitrev_size16384_radix4_f64<>+0x157C0(SB)/8, $3050
+DATA bitrev_size16384_radix4_f64<>+0x157C8(SB)/8, $7146
+DATA bitrev_size16384_radix4_f64<>+0x157D0(SB)/8, $11242
+DATA bitrev_size16384_radix4_f64<>+0x157D8(SB)/8, $15338
+DATA bitrev_size16384_radix4_f64<>+0x157E0(SB)/8, $4074
+DATA bitrev_size16384_radix4_f64<>+0x157E8(SB)/8, $8170
+DATA bitrev_size16384_radix4_f64<>+0x157F0(SB)/8, $12266
+DATA bitrev_size16384_radix4_f64<>+0x157F8(SB)/8, $16362
+DATA bitrev_size16384_radix4_f64<>+0x15800(SB)/8, $58
+DATA bitrev_size16384_radix4_f64<>+0x15808(SB)/8, $4154
+DATA bitrev_size16384_radix4_f64<>+0x15810(SB)/8, $8250
+DATA bitrev_size16384_radix4_f64<>+0x15818(SB)/8, $12346
+DATA bitrev_size16384_radix4_f64<>+0x15820(SB)/8, $1082
+DATA bitrev_size16384_radix4_f64<>+0x15828(SB)/8, $5178
+DATA bitrev_size16384_radix4_f64<>+0x15830(SB)/8, $9274
+DATA bitrev_size16384_radix4_f64<>+0x15838(SB)/8, $13370
+DATA bitrev_size16384_radix4_f64<>+0x15840(SB)/8, $2106
+DATA bitrev_size16384_radix4_f64<>+0x15848(SB)/8, $6202
+DATA bitrev_size16384_radix4_f64<>+0x15850(SB)/8, $10298
+DATA bitrev_size16384_radix4_f64<>+0x15858(SB)/8, $14394
+DATA bitrev_size16384_radix4_f64<>+0x15860(SB)/8, $3130
+DATA bitrev_size16384_radix4_f64<>+0x15868(SB)/8, $7226
+DATA bitrev_size16384_radix4_f64<>+0x15870(SB)/8, $11322
+DATA bitrev_size16384_radix4_f64<>+0x15878(SB)/8, $15418
+DATA bitrev_size16384_radix4_f64<>+0x15880(SB)/8, $314
+DATA bitrev_size16384_radix4_f64<>+0x15888(SB)/8, $4410
+DATA bitrev_size16384_radix4_f64<>+0x15890(SB)/8, $8506
+DATA bitrev_size16384_radix4_f64<>+0x15898(SB)/8, $12602
+DATA bitrev_size16384_radix4_f64<>+0x158A0(SB)/8, $1338
+DATA bitrev_size16384_radix4_f64<>+0x158A8(SB)/8, $5434
+DATA bitrev_size16384_radix4_f64<>+0x158B0(SB)/8, $9530
+DATA bitrev_size16384_radix4_f64<>+0x158B8(SB)/8, $13626
+DATA bitrev_size16384_radix4_f64<>+0x158C0(SB)/8, $2362
+DATA bitrev_size16384_radix4_f64<>+0x158C8(SB)/8, $6458
+DATA bitrev_size16384_radix4_f64<>+0x158D0(SB)/8, $10554
+DATA bitrev_size16384_radix4_f64<>+0x158D8(SB)/8, $14650
+DATA bitrev_size16384_radix4_f64<>+0x158E0(SB)/8, $3386
+DATA bitrev_size16384_radix4_f64<>+0x158E8(SB)/8, $7482
+DATA bitrev_size16384_radix4_f64<>+0x158F0(SB)/8, $11578
+DATA bitrev_size16384_radix4_f64<>+0x158F8(SB)/8, $15674
+DATA bitrev_size16384_radix4_f64<>+0x15900(SB)/8, $570
+DATA bitrev_size16384_radix4_f64<>+0x15908(SB)/8, $4666
+DATA bitrev_size16384_radix4_f64<>+0x15910(SB)/8, $8762
+DATA bitrev_size16384_radix4_f64<>+0x15918(SB)/8, $12858
+DATA bitrev_size16384_radix4_f64<>+0x15920(SB)/8, $1594
+DATA bitrev_size16384_radix4_f64<>+0x15928(SB)/8, $5690
+DATA bitrev_size16384_radix4_f64<>+0x15930(SB)/8, $9786
+DATA bitrev_size16384_radix4_f64<>+0x15938(SB)/8, $13882
+DATA bitrev_size16384_radix4_f64<>+0x15940(SB)/8, $2618
+DATA bitrev_size16384_radix4_f64<>+0x15948(SB)/8, $6714
+DATA bitrev_size16384_radix4_f64<>+0x15950(SB)/8, $10810
+DATA bitrev_size16384_radix4_f64<>+0x15958(SB)/8, $14906
+DATA bitrev_size16384_radix4_f64<>+0x15960(SB)/8, $3642
+DATA bitrev_size16384_radix4_f64<>+0x15968(SB)/8, $7738
+DATA bitrev_size16384_radix4_f64<>+0x15970(SB)/8, $11834
+DATA bitrev_size16384_radix4_f64<>+0x15978(SB)/8, $15930
+DATA bitrev_size16384_radix4_f64<>+0x15980(SB)/8, $826
+DATA bitrev_size16384_radix4_f64<>+0x15988(SB)/8, $4922
+DATA bitrev_size16384_radix4_f64<>+0x15990(SB)/8, $9018
+DATA bitrev_size16384_radix4_f64<>+0x15998(SB)/8, $13114
+DATA bitrev_size16384_radix4_f64<>+0x159A0(SB)/8, $1850
+DATA bitrev_size16384_radix4_f64<>+0x159A8(SB)/8, $5946
+DATA bitrev_size16384_radix4_f64<>+0x159B0(SB)/8, $10042
+DATA bitrev_size16384_radix4_f64<>+0x159B8(SB)/8, $14138
+DATA bitrev_size16384_radix4_f64<>+0x159C0(SB)/8, $2874
+DATA bitrev_size16384_radix4_f64<>+0x159C8(SB)/8, $6970
+DATA bitrev_size16384_radix4_f64<>+0x159D0(SB)/8, $11066
+DATA bitrev_size16384_radix4_f64<>+0x159D8(SB)/8, $15162
+DATA bitrev_size16384_radix4_f64<>+0x159E0(SB)/8, $3898
+DATA bitrev_size16384_radix4_f64<>+0x159E8(SB)/8, $7994
+DATA bitrev_size16384_radix4_f64<>+0x159F0(SB)/8, $12090
+DATA bitrev_size16384_radix4_f64<>+0x159F8(SB)/8, $16186
+DATA bitrev_size16384_radix4_f64<>+0x15A00(SB)/8, $122
+DATA bitrev_size16384_radix4_f64<>+0x15A08(SB)/8, $4218
+DATA bitrev_size16384_radix4_f64<>+0x15A10(SB)/8, $8314
+DATA bitrev_size16384_radix4_f64<>+0x15A18(SB)/8, $12410
+DATA bitrev_size16384_radix4_f64<>+0x15A20(SB)/8, $1146
+DATA bitrev_size16384_radix4_f64<>+0x15A28(SB)/8, $5242
+DATA bitrev_size16384_radix4_f64<>+0x15A30(SB)/8, $9338
+DATA bitrev_size16384_radix4_f64<>+0x15A38(SB)/8, $13434
+DATA bitrev_size16384_radix4_f64<>+0x15A40(SB)/8, $2170
+DATA bitrev_size16384_radix4_f64<>+0x15A48(SB)/8, $6266
+DATA bitrev_size16384_radix4_f64<>+0x15A50(SB)/8, $10362
+DATA bitrev_size16384_radix4_f64<>+0x15A58(SB)/8, $14458
+DATA bitrev_size16384_radix4_f64<>+0x15A60(SB)/8, $3194
+DATA bitrev_size16384_radix4_f64<>+0x15A68(SB)/8, $7290
+DATA bitrev_size16384_radix4_f64<>+0x15A70(SB)/8, $11386
+DATA bitrev_size16384_radix4_f64<>+0x15A78(SB)/8, $15482
+DATA bitrev_size16384_radix4_f64<>+0x15A80(SB)/8, $378
+DATA bitrev_size16384_radix4_f64<>+0x15A88(SB)/8, $4474
+DATA bitrev_size16384_radix4_f64<>+0x15A90(SB)/8, $8570
+DATA bitrev_size16384_radix4_f64<>+0x15A98(SB)/8, $12666
+DATA bitrev_size16384_radix4_f64<>+0x15AA0(SB)/8, $1402
+DATA bitrev_size16384_radix4_f64<>+0x15AA8(SB)/8, $5498
+DATA bitrev_size16384_radix4_f64<>+0x15AB0(SB)/8, $9594
+DATA bitrev_size16384_radix4_f64<>+0x15AB8(SB)/8, $13690
+DATA bitrev_size16384_radix4_f64<>+0x15AC0(SB)/8, $2426
+DATA bitrev_size16384_radix4_f64<>+0x15AC8(SB)/8, $6522
+DATA bitrev_size16384_radix4_f64<>+0x15AD0(SB)/8, $10618
+DATA bitrev_size16384_radix4_f64<>+0x15AD8(SB)/8, $14714
+DATA bitrev_size16384_radix4_f64<>+0x15AE0(SB)/8, $3450
+DATA bitrev_size16384_radix4_f64<>+0x15AE8(SB)/8, $7546
+DATA bitrev_size16384_radix4_f64<>+0x15AF0(SB)/8, $11642
+DATA bitrev_size16384_radix4_f64<>+0x15AF8(SB)/8, $15738
+DATA bitrev_size16384_radix4_f64<>+0x15B00(SB)/8, $634
+DATA bitrev_size16384_radix4_f64<>+0x15B08(SB)/8, $4730
+DATA bitrev_size16384_radix4_f64<>+0x15B10(SB)/8, $8826
+DATA bitrev_size16384_radix4_f64<>+0x15B18(SB)/8, $12922
+DATA bitrev_size16384_radix4_f64<>+0x15B20(SB)/8, $1658
+DATA bitrev_size16384_radix4_f64<>+0x15B28(SB)/8, $5754
+DATA bitrev_size16384_radix4_f64<>+0x15B30(SB)/8, $9850
+DATA bitrev_size16384_radix4_f64<>+0x15B38(SB)/8, $13946
+DATA bitrev_size16384_radix4_f64<>+0x15B40(SB)/8, $2682
+DATA bitrev_size16384_radix4_f64<>+0x15B48(SB)/8, $6778
+DATA bitrev_size16384_radix4_f64<>+0x15B50(SB)/8, $10874
+DATA bitrev_size16384_radix4_f64<>+0x15B58(SB)/8, $14970
+DATA bitrev_size16384_radix4_f64<>+0x15B60(SB)/8, $3706
+DATA bitrev_size16384_radix4_f64<>+0x15B68(SB)/8, $7802
+DATA bitrev_size16384_radix4_f64<>+0x15B70(SB)/8, $11898
+DATA bitrev_size16384_radix4_f64<>+0x15B78(SB)/8, $15994
+DATA bitrev_size16384_radix4_f64<>+0x15B80(SB)/8, $890
+DATA bitrev_size16384_radix4_f64<>+0x15B88(SB)/8, $4986
+DATA bitrev_size16384_radix4_f64<>+0x15B90(SB)/8, $9082
+DATA bitrev_size16384_radix4_f64<>+0x15B98(SB)/8, $13178
+DATA bitrev_size16384_radix4_f64<>+0x15BA0(SB)/8, $1914
+DATA bitrev_size16384_radix4_f64<>+0x15BA8(SB)/8, $6010
+DATA bitrev_size16384_radix4_f64<>+0x15BB0(SB)/8, $10106
+DATA bitrev_size16384_radix4_f64<>+0x15BB8(SB)/8, $14202
+DATA bitrev_size16384_radix4_f64<>+0x15BC0(SB)/8, $2938
+DATA bitrev_size16384_radix4_f64<>+0x15BC8(SB)/8, $7034
+DATA bitrev_size16384_radix4_f64<>+0x15BD0(SB)/8, $11130
+DATA bitrev_size16384_radix4_f64<>+0x15BD8(SB)/8, $15226
+DATA bitrev_size16384_radix4_f64<>+0x15BE0(SB)/8, $3962
+DATA bitrev_size16384_radix4_f64<>+0x15BE8(SB)/8, $8058
+DATA bitrev_size16384_radix4_f64<>+0x15BF0(SB)/8, $12154
+DATA bitrev_size16384_radix4_f64<>+0x15BF8(SB)/8, $16250
+DATA bitrev_size16384_radix4_f64<>+0x15C00(SB)/8, $186
+DATA bitrev_size16384_radix4_f64<>+0x15C08(SB)/8, $4282
+DATA bitrev_size16384_radix4_f64<>+0x15C10(SB)/8, $8378
+DATA bitrev_size16384_radix4_f64<>+0x15C18(SB)/8, $12474
+DATA bitrev_size16384_radix4_f64<>+0x15C20(SB)/8, $1210
+DATA bitrev_size16384_radix4_f64<>+0x15C28(SB)/8, $5306
+DATA bitrev_size16384_radix4_f64<>+0x15C30(SB)/8, $9402
+DATA bitrev_size16384_radix4_f64<>+0x15C38(SB)/8, $13498
+DATA bitrev_size16384_radix4_f64<>+0x15C40(SB)/8, $2234
+DATA bitrev_size16384_radix4_f64<>+0x15C48(SB)/8, $6330
+DATA bitrev_size16384_radix4_f64<>+0x15C50(SB)/8, $10426
+DATA bitrev_size16384_radix4_f64<>+0x15C58(SB)/8, $14522
+DATA bitrev_size16384_radix4_f64<>+0x15C60(SB)/8, $3258
+DATA bitrev_size16384_radix4_f64<>+0x15C68(SB)/8, $7354
+DATA bitrev_size16384_radix4_f64<>+0x15C70(SB)/8, $11450
+DATA bitrev_size16384_radix4_f64<>+0x15C78(SB)/8, $15546
+DATA bitrev_size16384_radix4_f64<>+0x15C80(SB)/8, $442
+DATA bitrev_size16384_radix4_f64<>+0x15C88(SB)/8, $4538
+DATA bitrev_size16384_radix4_f64<>+0x15C90(SB)/8, $8634
+DATA bitrev_size16384_radix4_f64<>+0x15C98(SB)/8, $12730
+DATA bitrev_size16384_radix4_f64<>+0x15CA0(SB)/8, $1466
+DATA bitrev_size16384_radix4_f64<>+0x15CA8(SB)/8, $5562
+DATA bitrev_size16384_radix4_f64<>+0x15CB0(SB)/8, $9658
+DATA bitrev_size16384_radix4_f64<>+0x15CB8(SB)/8, $13754
+DATA bitrev_size16384_radix4_f64<>+0x15CC0(SB)/8, $2490
+DATA bitrev_size16384_radix4_f64<>+0x15CC8(SB)/8, $6586
+DATA bitrev_size16384_radix4_f64<>+0x15CD0(SB)/8, $10682
+DATA bitrev_size16384_radix4_f64<>+0x15CD8(SB)/8, $14778
+DATA bitrev_size16384_radix4_f64<>+0x15CE0(SB)/8, $3514
+DATA bitrev_size16384_radix4_f64<>+0x15CE8(SB)/8, $7610
+DATA bitrev_size16384_radix4_f64<>+0x15CF0(SB)/8, $11706
+DATA bitrev_size16384_radix4_f64<>+0x15CF8(SB)/8, $15802
+DATA bitrev_size16384_radix4_f64<>+0x15D00(SB)/8, $698
+DATA bitrev_size16384_radix4_f64<>+0x15D08(SB)/8, $4794
+DATA bitrev_size16384_radix4_f64<>+0x15D10(SB)/8, $8890
+DATA bitrev_size16384_radix4_f64<>+0x15D18(SB)/8, $12986
+DATA bitrev_size16384_radix4_f64<>+0x15D20(SB)/8, $1722
+DATA bitrev_size16384_radix4_f64<>+0x15D28(SB)/8, $5818
+DATA bitrev_size16384_radix4_f64<>+0x15D30(SB)/8, $9914
+DATA bitrev_size16384_radix4_f64<>+0x15D38(SB)/8, $14010
+DATA bitrev_size16384_radix4_f64<>+0x15D40(SB)/8, $2746
+DATA bitrev_size16384_radix4_f64<>+0x15D48(SB)/8, $6842
+DATA bitrev_size16384_radix4_f64<>+0x15D50(SB)/8, $10938
+DATA bitrev_size16384_radix4_f64<>+0x15D58(SB)/8, $15034
+DATA bitrev_size16384_radix4_f64<>+0x15D60(SB)/8, $3770
+DATA bitrev_size16384_radix4_f64<>+0x15D68(SB)/8, $7866
+DATA bitrev_size16384_radix4_f64<>+0x15D70(SB)/8, $11962
+DATA bitrev_size16384_radix4_f64<>+0x15D78(SB)/8, $16058
+DATA bitrev_size16384_radix4_f64<>+0x15D80(SB)/8, $954
+DATA bitrev_size16384_radix4_f64<>+0x15D88(SB)/8, $5050
+DATA bitrev_size16384_radix4_f64<>+0x15D90(SB)/8, $9146
+DATA bitrev_size16384_radix4_f64<>+0x15D98(SB)/8, $13242
+DATA bitrev_size16384_radix4_f64<>+0x15DA0(SB)/8, $1978
+DATA bitrev_size16384_radix4_f64<>+0x15DA8(SB)/8, $6074
+DATA bitrev_size16384_radix4_f64<>+0x15DB0(SB)/8, $10170
+DATA bitrev_size16384_radix4_f64<>+0x15DB8(SB)/8, $14266
+DATA bitrev_size16384_radix4_f64<>+0x15DC0(SB)/8, $3002
+DATA bitrev_size16384_radix4_f64<>+0x15DC8(SB)/8, $7098
+DATA bitrev_size16384_radix4_f64<>+0x15DD0(SB)/8, $11194
+DATA bitrev_size16384_radix4_f64<>+0x15DD8(SB)/8, $15290
+DATA bitrev_size16384_radix4_f64<>+0x15DE0(SB)/8, $4026
+DATA bitrev_size16384_radix4_f64<>+0x15DE8(SB)/8, $8122
+DATA bitrev_size16384_radix4_f64<>+0x15DF0(SB)/8, $12218
+DATA bitrev_size16384_radix4_f64<>+0x15DF8(SB)/8, $16314
+DATA bitrev_size16384_radix4_f64<>+0x15E00(SB)/8, $250
+DATA bitrev_size16384_radix4_f64<>+0x15E08(SB)/8, $4346
+DATA bitrev_size16384_radix4_f64<>+0x15E10(SB)/8, $8442
+DATA bitrev_size16384_radix4_f64<>+0x15E18(SB)/8, $12538
+DATA bitrev_size16384_radix4_f64<>+0x15E20(SB)/8, $1274
+DATA bitrev_size16384_radix4_f64<>+0x15E28(SB)/8, $5370
+DATA bitrev_size16384_radix4_f64<>+0x15E30(SB)/8, $9466
+DATA bitrev_size16384_radix4_f64<>+0x15E38(SB)/8, $13562
+DATA bitrev_size16384_radix4_f64<>+0x15E40(SB)/8, $2298
+DATA bitrev_size16384_radix4_f64<>+0x15E48(SB)/8, $6394
+DATA bitrev_size16384_radix4_f64<>+0x15E50(SB)/8, $10490
+DATA bitrev_size16384_radix4_f64<>+0x15E58(SB)/8, $14586
+DATA bitrev_size16384_radix4_f64<>+0x15E60(SB)/8, $3322
+DATA bitrev_size16384_radix4_f64<>+0x15E68(SB)/8, $7418
+DATA bitrev_size16384_radix4_f64<>+0x15E70(SB)/8, $11514
+DATA bitrev_size16384_radix4_f64<>+0x15E78(SB)/8, $15610
+DATA bitrev_size16384_radix4_f64<>+0x15E80(SB)/8, $506
+DATA bitrev_size16384_radix4_f64<>+0x15E88(SB)/8, $4602
+DATA bitrev_size16384_radix4_f64<>+0x15E90(SB)/8, $8698
+DATA bitrev_size16384_radix4_f64<>+0x15E98(SB)/8, $12794
+DATA bitrev_size16384_radix4_f64<>+0x15EA0(SB)/8, $1530
+DATA bitrev_size16384_radix4_f64<>+0x15EA8(SB)/8, $5626
+DATA bitrev_size16384_radix4_f64<>+0x15EB0(SB)/8, $9722
+DATA bitrev_size16384_radix4_f64<>+0x15EB8(SB)/8, $13818
+DATA bitrev_size16384_radix4_f64<>+0x15EC0(SB)/8, $2554
+DATA bitrev_size16384_radix4_f64<>+0x15EC8(SB)/8, $6650
+DATA bitrev_size16384_radix4_f64<>+0x15ED0(SB)/8, $10746
+DATA bitrev_size16384_radix4_f64<>+0x15ED8(SB)/8, $14842
+DATA bitrev_size16384_radix4_f64<>+0x15EE0(SB)/8, $3578
+DATA bitrev_size16384_radix4_f64<>+0x15EE8(SB)/8, $7674
+DATA bitrev_size16384_radix4_f64<>+0x15EF0(SB)/8, $11770
+DATA bitrev_size16384_radix4_f64<>+0x15EF8(SB)/8, $15866
+DATA bitrev_size16384_radix4_f64<>+0x15F00(SB)/8, $762
+DATA bitrev_size16384_radix4_f64<>+0x15F08(SB)/8, $4858
+DATA bitrev_size16384_radix4_f64<>+0x15F10(SB)/8, $8954
+DATA bitrev_size16384_radix4_f64<>+0x15F18(SB)/8, $13050
+DATA bitrev_size16384_radix4_f64<>+0x15F20(SB)/8, $1786
+DATA bitrev_size16384_radix4_f64<>+0x15F28(SB)/8, $5882
+DATA bitrev_size16384_radix4_f64<>+0x15F30(SB)/8, $9978
+DATA bitrev_size16384_radix4_f64<>+0x15F38(SB)/8, $14074
+DATA bitrev_size16384_radix4_f64<>+0x15F40(SB)/8, $2810
+DATA bitrev_size16384_radix4_f64<>+0x15F48(SB)/8, $6906
+DATA bitrev_size16384_radix4_f64<>+0x15F50(SB)/8, $11002
+DATA bitrev_size16384_radix4_f64<>+0x15F58(SB)/8, $15098
+DATA bitrev_size16384_radix4_f64<>+0x15F60(SB)/8, $3834
+DATA bitrev_size16384_radix4_f64<>+0x15F68(SB)/8, $7930
+DATA bitrev_size16384_radix4_f64<>+0x15F70(SB)/8, $12026
+DATA bitrev_size16384_radix4_f64<>+0x15F78(SB)/8, $16122
+DATA bitrev_size16384_radix4_f64<>+0x15F80(SB)/8, $1018
+DATA bitrev_size16384_radix4_f64<>+0x15F88(SB)/8, $5114
+DATA bitrev_size16384_radix4_f64<>+0x15F90(SB)/8, $9210
+DATA bitrev_size16384_radix4_f64<>+0x15F98(SB)/8, $13306
+DATA bitrev_size16384_radix4_f64<>+0x15FA0(SB)/8, $2042
+DATA bitrev_size16384_radix4_f64<>+0x15FA8(SB)/8, $6138
+DATA bitrev_size16384_radix4_f64<>+0x15FB0(SB)/8, $10234
+DATA bitrev_size16384_radix4_f64<>+0x15FB8(SB)/8, $14330
+DATA bitrev_size16384_radix4_f64<>+0x15FC0(SB)/8, $3066
+DATA bitrev_size16384_radix4_f64<>+0x15FC8(SB)/8, $7162
+DATA bitrev_size16384_radix4_f64<>+0x15FD0(SB)/8, $11258
+DATA bitrev_size16384_radix4_f64<>+0x15FD8(SB)/8, $15354
+DATA bitrev_size16384_radix4_f64<>+0x15FE0(SB)/8, $4090
+DATA bitrev_size16384_radix4_f64<>+0x15FE8(SB)/8, $8186
+DATA bitrev_size16384_radix4_f64<>+0x15FF0(SB)/8, $12282
+DATA bitrev_size16384_radix4_f64<>+0x15FF8(SB)/8, $16378
+DATA bitrev_size16384_radix4_f64<>+0x16000(SB)/8, $14
+DATA bitrev_size16384_radix4_f64<>+0x16008(SB)/8, $4110
+DATA bitrev_size16384_radix4_f64<>+0x16010(SB)/8, $8206
+DATA bitrev_size16384_radix4_f64<>+0x16018(SB)/8, $12302
+DATA bitrev_size16384_radix4_f64<>+0x16020(SB)/8, $1038
+DATA bitrev_size16384_radix4_f64<>+0x16028(SB)/8, $5134
+DATA bitrev_size16384_radix4_f64<>+0x16030(SB)/8, $9230
+DATA bitrev_size16384_radix4_f64<>+0x16038(SB)/8, $13326
+DATA bitrev_size16384_radix4_f64<>+0x16040(SB)/8, $2062
+DATA bitrev_size16384_radix4_f64<>+0x16048(SB)/8, $6158
+DATA bitrev_size16384_radix4_f64<>+0x16050(SB)/8, $10254
+DATA bitrev_size16384_radix4_f64<>+0x16058(SB)/8, $14350
+DATA bitrev_size16384_radix4_f64<>+0x16060(SB)/8, $3086
+DATA bitrev_size16384_radix4_f64<>+0x16068(SB)/8, $7182
+DATA bitrev_size16384_radix4_f64<>+0x16070(SB)/8, $11278
+DATA bitrev_size16384_radix4_f64<>+0x16078(SB)/8, $15374
+DATA bitrev_size16384_radix4_f64<>+0x16080(SB)/8, $270
+DATA bitrev_size16384_radix4_f64<>+0x16088(SB)/8, $4366
+DATA bitrev_size16384_radix4_f64<>+0x16090(SB)/8, $8462
+DATA bitrev_size16384_radix4_f64<>+0x16098(SB)/8, $12558
+DATA bitrev_size16384_radix4_f64<>+0x160A0(SB)/8, $1294
+DATA bitrev_size16384_radix4_f64<>+0x160A8(SB)/8, $5390
+DATA bitrev_size16384_radix4_f64<>+0x160B0(SB)/8, $9486
+DATA bitrev_size16384_radix4_f64<>+0x160B8(SB)/8, $13582
+DATA bitrev_size16384_radix4_f64<>+0x160C0(SB)/8, $2318
+DATA bitrev_size16384_radix4_f64<>+0x160C8(SB)/8, $6414
+DATA bitrev_size16384_radix4_f64<>+0x160D0(SB)/8, $10510
+DATA bitrev_size16384_radix4_f64<>+0x160D8(SB)/8, $14606
+DATA bitrev_size16384_radix4_f64<>+0x160E0(SB)/8, $3342
+DATA bitrev_size16384_radix4_f64<>+0x160E8(SB)/8, $7438
+DATA bitrev_size16384_radix4_f64<>+0x160F0(SB)/8, $11534
+DATA bitrev_size16384_radix4_f64<>+0x160F8(SB)/8, $15630
+DATA bitrev_size16384_radix4_f64<>+0x16100(SB)/8, $526
+DATA bitrev_size16384_radix4_f64<>+0x16108(SB)/8, $4622
+DATA bitrev_size16384_radix4_f64<>+0x16110(SB)/8, $8718
+DATA bitrev_size16384_radix4_f64<>+0x16118(SB)/8, $12814
+DATA bitrev_size16384_radix4_f64<>+0x16120(SB)/8, $1550
+DATA bitrev_size16384_radix4_f64<>+0x16128(SB)/8, $5646
+DATA bitrev_size16384_radix4_f64<>+0x16130(SB)/8, $9742
+DATA bitrev_size16384_radix4_f64<>+0x16138(SB)/8, $13838
+DATA bitrev_size16384_radix4_f64<>+0x16140(SB)/8, $2574
+DATA bitrev_size16384_radix4_f64<>+0x16148(SB)/8, $6670
+DATA bitrev_size16384_radix4_f64<>+0x16150(SB)/8, $10766
+DATA bitrev_size16384_radix4_f64<>+0x16158(SB)/8, $14862
+DATA bitrev_size16384_radix4_f64<>+0x16160(SB)/8, $3598
+DATA bitrev_size16384_radix4_f64<>+0x16168(SB)/8, $7694
+DATA bitrev_size16384_radix4_f64<>+0x16170(SB)/8, $11790
+DATA bitrev_size16384_radix4_f64<>+0x16178(SB)/8, $15886
+DATA bitrev_size16384_radix4_f64<>+0x16180(SB)/8, $782
+DATA bitrev_size16384_radix4_f64<>+0x16188(SB)/8, $4878
+DATA bitrev_size16384_radix4_f64<>+0x16190(SB)/8, $8974
+DATA bitrev_size16384_radix4_f64<>+0x16198(SB)/8, $13070
+DATA bitrev_size16384_radix4_f64<>+0x161A0(SB)/8, $1806
+DATA bitrev_size16384_radix4_f64<>+0x161A8(SB)/8, $5902
+DATA bitrev_size16384_radix4_f64<>+0x161B0(SB)/8, $9998
+DATA bitrev_size16384_radix4_f64<>+0x161B8(SB)/8, $14094
+DATA bitrev_size16384_radix4_f64<>+0x161C0(SB)/8, $2830
+DATA bitrev_size16384_radix4_f64<>+0x161C8(SB)/8, $6926
+DATA bitrev_size16384_radix4_f64<>+0x161D0(SB)/8, $11022
+DATA bitrev_size16384_radix4_f64<>+0x161D8(SB)/8, $15118
+DATA bitrev_size16384_radix4_f64<>+0x161E0(SB)/8, $3854
+DATA bitrev_size16384_radix4_f64<>+0x161E8(SB)/8, $7950
+DATA bitrev_size16384_radix4_f64<>+0x161F0(SB)/8, $12046
+DATA bitrev_size16384_radix4_f64<>+0x161F8(SB)/8, $16142
+DATA bitrev_size16384_radix4_f64<>+0x16200(SB)/8, $78
+DATA bitrev_size16384_radix4_f64<>+0x16208(SB)/8, $4174
+DATA bitrev_size16384_radix4_f64<>+0x16210(SB)/8, $8270
+DATA bitrev_size16384_radix4_f64<>+0x16218(SB)/8, $12366
+DATA bitrev_size16384_radix4_f64<>+0x16220(SB)/8, $1102
+DATA bitrev_size16384_radix4_f64<>+0x16228(SB)/8, $5198
+DATA bitrev_size16384_radix4_f64<>+0x16230(SB)/8, $9294
+DATA bitrev_size16384_radix4_f64<>+0x16238(SB)/8, $13390
+DATA bitrev_size16384_radix4_f64<>+0x16240(SB)/8, $2126
+DATA bitrev_size16384_radix4_f64<>+0x16248(SB)/8, $6222
+DATA bitrev_size16384_radix4_f64<>+0x16250(SB)/8, $10318
+DATA bitrev_size16384_radix4_f64<>+0x16258(SB)/8, $14414
+DATA bitrev_size16384_radix4_f64<>+0x16260(SB)/8, $3150
+DATA bitrev_size16384_radix4_f64<>+0x16268(SB)/8, $7246
+DATA bitrev_size16384_radix4_f64<>+0x16270(SB)/8, $11342
+DATA bitrev_size16384_radix4_f64<>+0x16278(SB)/8, $15438
+DATA bitrev_size16384_radix4_f64<>+0x16280(SB)/8, $334
+DATA bitrev_size16384_radix4_f64<>+0x16288(SB)/8, $4430
+DATA bitrev_size16384_radix4_f64<>+0x16290(SB)/8, $8526
+DATA bitrev_size16384_radix4_f64<>+0x16298(SB)/8, $12622
+DATA bitrev_size16384_radix4_f64<>+0x162A0(SB)/8, $1358
+DATA bitrev_size16384_radix4_f64<>+0x162A8(SB)/8, $5454
+DATA bitrev_size16384_radix4_f64<>+0x162B0(SB)/8, $9550
+DATA bitrev_size16384_radix4_f64<>+0x162B8(SB)/8, $13646
+DATA bitrev_size16384_radix4_f64<>+0x162C0(SB)/8, $2382
+DATA bitrev_size16384_radix4_f64<>+0x162C8(SB)/8, $6478
+DATA bitrev_size16384_radix4_f64<>+0x162D0(SB)/8, $10574
+DATA bitrev_size16384_radix4_f64<>+0x162D8(SB)/8, $14670
+DATA bitrev_size16384_radix4_f64<>+0x162E0(SB)/8, $3406
+DATA bitrev_size16384_radix4_f64<>+0x162E8(SB)/8, $7502
+DATA bitrev_size16384_radix4_f64<>+0x162F0(SB)/8, $11598
+DATA bitrev_size16384_radix4_f64<>+0x162F8(SB)/8, $15694
+DATA bitrev_size16384_radix4_f64<>+0x16300(SB)/8, $590
+DATA bitrev_size16384_radix4_f64<>+0x16308(SB)/8, $4686
+DATA bitrev_size16384_radix4_f64<>+0x16310(SB)/8, $8782
+DATA bitrev_size16384_radix4_f64<>+0x16318(SB)/8, $12878
+DATA bitrev_size16384_radix4_f64<>+0x16320(SB)/8, $1614
+DATA bitrev_size16384_radix4_f64<>+0x16328(SB)/8, $5710
+DATA bitrev_size16384_radix4_f64<>+0x16330(SB)/8, $9806
+DATA bitrev_size16384_radix4_f64<>+0x16338(SB)/8, $13902
+DATA bitrev_size16384_radix4_f64<>+0x16340(SB)/8, $2638
+DATA bitrev_size16384_radix4_f64<>+0x16348(SB)/8, $6734
+DATA bitrev_size16384_radix4_f64<>+0x16350(SB)/8, $10830
+DATA bitrev_size16384_radix4_f64<>+0x16358(SB)/8, $14926
+DATA bitrev_size16384_radix4_f64<>+0x16360(SB)/8, $3662
+DATA bitrev_size16384_radix4_f64<>+0x16368(SB)/8, $7758
+DATA bitrev_size16384_radix4_f64<>+0x16370(SB)/8, $11854
+DATA bitrev_size16384_radix4_f64<>+0x16378(SB)/8, $15950
+DATA bitrev_size16384_radix4_f64<>+0x16380(SB)/8, $846
+DATA bitrev_size16384_radix4_f64<>+0x16388(SB)/8, $4942
+DATA bitrev_size16384_radix4_f64<>+0x16390(SB)/8, $9038
+DATA bitrev_size16384_radix4_f64<>+0x16398(SB)/8, $13134
+DATA bitrev_size16384_radix4_f64<>+0x163A0(SB)/8, $1870
+DATA bitrev_size16384_radix4_f64<>+0x163A8(SB)/8, $5966
+DATA bitrev_size16384_radix4_f64<>+0x163B0(SB)/8, $10062
+DATA bitrev_size16384_radix4_f64<>+0x163B8(SB)/8, $14158
+DATA bitrev_size16384_radix4_f64<>+0x163C0(SB)/8, $2894
+DATA bitrev_size16384_radix4_f64<>+0x163C8(SB)/8, $6990
+DATA bitrev_size16384_radix4_f64<>+0x163D0(SB)/8, $11086
+DATA bitrev_size16384_radix4_f64<>+0x163D8(SB)/8, $15182
+DATA bitrev_size16384_radix4_f64<>+0x163E0(SB)/8, $3918
+DATA bitrev_size16384_radix4_f64<>+0x163E8(SB)/8, $8014
+DATA bitrev_size16384_radix4_f64<>+0x163F0(SB)/8, $12110
+DATA bitrev_size16384_radix4_f64<>+0x163F8(SB)/8, $16206
+DATA bitrev_size16384_radix4_f64<>+0x16400(SB)/8, $142
+DATA bitrev_size16384_radix4_f64<>+0x16408(SB)/8, $4238
+DATA bitrev_size16384_radix4_f64<>+0x16410(SB)/8, $8334
+DATA bitrev_size16384_radix4_f64<>+0x16418(SB)/8, $12430
+DATA bitrev_size16384_radix4_f64<>+0x16420(SB)/8, $1166
+DATA bitrev_size16384_radix4_f64<>+0x16428(SB)/8, $5262
+DATA bitrev_size16384_radix4_f64<>+0x16430(SB)/8, $9358
+DATA bitrev_size16384_radix4_f64<>+0x16438(SB)/8, $13454
+DATA bitrev_size16384_radix4_f64<>+0x16440(SB)/8, $2190
+DATA bitrev_size16384_radix4_f64<>+0x16448(SB)/8, $6286
+DATA bitrev_size16384_radix4_f64<>+0x16450(SB)/8, $10382
+DATA bitrev_size16384_radix4_f64<>+0x16458(SB)/8, $14478
+DATA bitrev_size16384_radix4_f64<>+0x16460(SB)/8, $3214
+DATA bitrev_size16384_radix4_f64<>+0x16468(SB)/8, $7310
+DATA bitrev_size16384_radix4_f64<>+0x16470(SB)/8, $11406
+DATA bitrev_size16384_radix4_f64<>+0x16478(SB)/8, $15502
+DATA bitrev_size16384_radix4_f64<>+0x16480(SB)/8, $398
+DATA bitrev_size16384_radix4_f64<>+0x16488(SB)/8, $4494
+DATA bitrev_size16384_radix4_f64<>+0x16490(SB)/8, $8590
+DATA bitrev_size16384_radix4_f64<>+0x16498(SB)/8, $12686
+DATA bitrev_size16384_radix4_f64<>+0x164A0(SB)/8, $1422
+DATA bitrev_size16384_radix4_f64<>+0x164A8(SB)/8, $5518
+DATA bitrev_size16384_radix4_f64<>+0x164B0(SB)/8, $9614
+DATA bitrev_size16384_radix4_f64<>+0x164B8(SB)/8, $13710
+DATA bitrev_size16384_radix4_f64<>+0x164C0(SB)/8, $2446
+DATA bitrev_size16384_radix4_f64<>+0x164C8(SB)/8, $6542
+DATA bitrev_size16384_radix4_f64<>+0x164D0(SB)/8, $10638
+DATA bitrev_size16384_radix4_f64<>+0x164D8(SB)/8, $14734
+DATA bitrev_size16384_radix4_f64<>+0x164E0(SB)/8, $3470
+DATA bitrev_size16384_radix4_f64<>+0x164E8(SB)/8, $7566
+DATA bitrev_size16384_radix4_f64<>+0x164F0(SB)/8, $11662
+DATA bitrev_size16384_radix4_f64<>+0x164F8(SB)/8, $15758
+DATA bitrev_size16384_radix4_f64<>+0x16500(SB)/8, $654
+DATA bitrev_size16384_radix4_f64<>+0x16508(SB)/8, $4750
+DATA bitrev_size16384_radix4_f64<>+0x16510(SB)/8, $8846
+DATA bitrev_size16384_radix4_f64<>+0x16518(SB)/8, $12942
+DATA bitrev_size16384_radix4_f64<>+0x16520(SB)/8, $1678
+DATA bitrev_size16384_radix4_f64<>+0x16528(SB)/8, $5774
+DATA bitrev_size16384_radix4_f64<>+0x16530(SB)/8, $9870
+DATA bitrev_size16384_radix4_f64<>+0x16538(SB)/8, $13966
+DATA bitrev_size16384_radix4_f64<>+0x16540(SB)/8, $2702
+DATA bitrev_size16384_radix4_f64<>+0x16548(SB)/8, $6798
+DATA bitrev_size16384_radix4_f64<>+0x16550(SB)/8, $10894
+DATA bitrev_size16384_radix4_f64<>+0x16558(SB)/8, $14990
+DATA bitrev_size16384_radix4_f64<>+0x16560(SB)/8, $3726
+DATA bitrev_size16384_radix4_f64<>+0x16568(SB)/8, $7822
+DATA bitrev_size16384_radix4_f64<>+0x16570(SB)/8, $11918
+DATA bitrev_size16384_radix4_f64<>+0x16578(SB)/8, $16014
+DATA bitrev_size16384_radix4_f64<>+0x16580(SB)/8, $910
+DATA bitrev_size16384_radix4_f64<>+0x16588(SB)/8, $5006
+DATA bitrev_size16384_radix4_f64<>+0x16590(SB)/8, $9102
+DATA bitrev_size16384_radix4_f64<>+0x16598(SB)/8, $13198
+DATA bitrev_size16384_radix4_f64<>+0x165A0(SB)/8, $1934
+DATA bitrev_size16384_radix4_f64<>+0x165A8(SB)/8, $6030
+DATA bitrev_size16384_radix4_f64<>+0x165B0(SB)/8, $10126
+DATA bitrev_size16384_radix4_f64<>+0x165B8(SB)/8, $14222
+DATA bitrev_size16384_radix4_f64<>+0x165C0(SB)/8, $2958
+DATA bitrev_size16384_radix4_f64<>+0x165C8(SB)/8, $7054
+DATA bitrev_size16384_radix4_f64<>+0x165D0(SB)/8, $11150
+DATA bitrev_size16384_radix4_f64<>+0x165D8(SB)/8, $15246
+DATA bitrev_size16384_radix4_f64<>+0x165E0(SB)/8, $3982
+DATA bitrev_size16384_radix4_f64<>+0x165E8(SB)/8, $8078
+DATA bitrev_size16384_radix4_f64<>+0x165F0(SB)/8, $12174
+DATA bitrev_size16384_radix4_f64<>+0x165F8(SB)/8, $16270
+DATA bitrev_size16384_radix4_f64<>+0x16600(SB)/8, $206
+DATA bitrev_size16384_radix4_f64<>+0x16608(SB)/8, $4302
+DATA bitrev_size16384_radix4_f64<>+0x16610(SB)/8, $8398
+DATA bitrev_size16384_radix4_f64<>+0x16618(SB)/8, $12494
+DATA bitrev_size16384_radix4_f64<>+0x16620(SB)/8, $1230
+DATA bitrev_size16384_radix4_f64<>+0x16628(SB)/8, $5326
+DATA bitrev_size16384_radix4_f64<>+0x16630(SB)/8, $9422
+DATA bitrev_size16384_radix4_f64<>+0x16638(SB)/8, $13518
+DATA bitrev_size16384_radix4_f64<>+0x16640(SB)/8, $2254
+DATA bitrev_size16384_radix4_f64<>+0x16648(SB)/8, $6350
+DATA bitrev_size16384_radix4_f64<>+0x16650(SB)/8, $10446
+DATA bitrev_size16384_radix4_f64<>+0x16658(SB)/8, $14542
+DATA bitrev_size16384_radix4_f64<>+0x16660(SB)/8, $3278
+DATA bitrev_size16384_radix4_f64<>+0x16668(SB)/8, $7374
+DATA bitrev_size16384_radix4_f64<>+0x16670(SB)/8, $11470
+DATA bitrev_size16384_radix4_f64<>+0x16678(SB)/8, $15566
+DATA bitrev_size16384_radix4_f64<>+0x16680(SB)/8, $462
+DATA bitrev_size16384_radix4_f64<>+0x16688(SB)/8, $4558
+DATA bitrev_size16384_radix4_f64<>+0x16690(SB)/8, $8654
+DATA bitrev_size16384_radix4_f64<>+0x16698(SB)/8, $12750
+DATA bitrev_size16384_radix4_f64<>+0x166A0(SB)/8, $1486
+DATA bitrev_size16384_radix4_f64<>+0x166A8(SB)/8, $5582
+DATA bitrev_size16384_radix4_f64<>+0x166B0(SB)/8, $9678
+DATA bitrev_size16384_radix4_f64<>+0x166B8(SB)/8, $13774
+DATA bitrev_size16384_radix4_f64<>+0x166C0(SB)/8, $2510
+DATA bitrev_size16384_radix4_f64<>+0x166C8(SB)/8, $6606
+DATA bitrev_size16384_radix4_f64<>+0x166D0(SB)/8, $10702
+DATA bitrev_size16384_radix4_f64<>+0x166D8(SB)/8, $14798
+DATA bitrev_size16384_radix4_f64<>+0x166E0(SB)/8, $3534
+DATA bitrev_size16384_radix4_f64<>+0x166E8(SB)/8, $7630
+DATA bitrev_size16384_radix4_f64<>+0x166F0(SB)/8, $11726
+DATA bitrev_size16384_radix4_f64<>+0x166F8(SB)/8, $15822
+DATA bitrev_size16384_radix4_f64<>+0x16700(SB)/8, $718
+DATA bitrev_size16384_radix4_f64<>+0x16708(SB)/8, $4814
+DATA bitrev_size16384_radix4_f64<>+0x16710(SB)/8, $8910
+DATA bitrev_size16384_radix4_f64<>+0x16718(SB)/8, $13006
+DATA bitrev_size16384_radix4_f64<>+0x16720(SB)/8, $1742
+DATA bitrev_size16384_radix4_f64<>+0x16728(SB)/8, $5838
+DATA bitrev_size16384_radix4_f64<>+0x16730(SB)/8, $9934
+DATA bitrev_size16384_radix4_f64<>+0x16738(SB)/8, $14030
+DATA bitrev_size16384_radix4_f64<>+0x16740(SB)/8, $2766
+DATA bitrev_size16384_radix4_f64<>+0x16748(SB)/8, $6862
+DATA bitrev_size16384_radix4_f64<>+0x16750(SB)/8, $10958
+DATA bitrev_size16384_radix4_f64<>+0x16758(SB)/8, $15054
+DATA bitrev_size16384_radix4_f64<>+0x16760(SB)/8, $3790
+DATA bitrev_size16384_radix4_f64<>+0x16768(SB)/8, $7886
+DATA bitrev_size16384_radix4_f64<>+0x16770(SB)/8, $11982
+DATA bitrev_size16384_radix4_f64<>+0x16778(SB)/8, $16078
+DATA bitrev_size16384_radix4_f64<>+0x16780(SB)/8, $974
+DATA bitrev_size16384_radix4_f64<>+0x16788(SB)/8, $5070
+DATA bitrev_size16384_radix4_f64<>+0x16790(SB)/8, $9166
+DATA bitrev_size16384_radix4_f64<>+0x16798(SB)/8, $13262
+DATA bitrev_size16384_radix4_f64<>+0x167A0(SB)/8, $1998
+DATA bitrev_size16384_radix4_f64<>+0x167A8(SB)/8, $6094
+DATA bitrev_size16384_radix4_f64<>+0x167B0(SB)/8, $10190
+DATA bitrev_size16384_radix4_f64<>+0x167B8(SB)/8, $14286
+DATA bitrev_size16384_radix4_f64<>+0x167C0(SB)/8, $3022
+DATA bitrev_size16384_radix4_f64<>+0x167C8(SB)/8, $7118
+DATA bitrev_size16384_radix4_f64<>+0x167D0(SB)/8, $11214
+DATA bitrev_size16384_radix4_f64<>+0x167D8(SB)/8, $15310
+DATA bitrev_size16384_radix4_f64<>+0x167E0(SB)/8, $4046
+DATA bitrev_size16384_radix4_f64<>+0x167E8(SB)/8, $8142
+DATA bitrev_size16384_radix4_f64<>+0x167F0(SB)/8, $12238
+DATA bitrev_size16384_radix4_f64<>+0x167F8(SB)/8, $16334
+DATA bitrev_size16384_radix4_f64<>+0x16800(SB)/8, $30
+DATA bitrev_size16384_radix4_f64<>+0x16808(SB)/8, $4126
+DATA bitrev_size16384_radix4_f64<>+0x16810(SB)/8, $8222
+DATA bitrev_size16384_radix4_f64<>+0x16818(SB)/8, $12318
+DATA bitrev_size16384_radix4_f64<>+0x16820(SB)/8, $1054
+DATA bitrev_size16384_radix4_f64<>+0x16828(SB)/8, $5150
+DATA bitrev_size16384_radix4_f64<>+0x16830(SB)/8, $9246
+DATA bitrev_size16384_radix4_f64<>+0x16838(SB)/8, $13342
+DATA bitrev_size16384_radix4_f64<>+0x16840(SB)/8, $2078
+DATA bitrev_size16384_radix4_f64<>+0x16848(SB)/8, $6174
+DATA bitrev_size16384_radix4_f64<>+0x16850(SB)/8, $10270
+DATA bitrev_size16384_radix4_f64<>+0x16858(SB)/8, $14366
+DATA bitrev_size16384_radix4_f64<>+0x16860(SB)/8, $3102
+DATA bitrev_size16384_radix4_f64<>+0x16868(SB)/8, $7198
+DATA bitrev_size16384_radix4_f64<>+0x16870(SB)/8, $11294
+DATA bitrev_size16384_radix4_f64<>+0x16878(SB)/8, $15390
+DATA bitrev_size16384_radix4_f64<>+0x16880(SB)/8, $286
+DATA bitrev_size16384_radix4_f64<>+0x16888(SB)/8, $4382
+DATA bitrev_size16384_radix4_f64<>+0x16890(SB)/8, $8478
+DATA bitrev_size16384_radix4_f64<>+0x16898(SB)/8, $12574
+DATA bitrev_size16384_radix4_f64<>+0x168A0(SB)/8, $1310
+DATA bitrev_size16384_radix4_f64<>+0x168A8(SB)/8, $5406
+DATA bitrev_size16384_radix4_f64<>+0x168B0(SB)/8, $9502
+DATA bitrev_size16384_radix4_f64<>+0x168B8(SB)/8, $13598
+DATA bitrev_size16384_radix4_f64<>+0x168C0(SB)/8, $2334
+DATA bitrev_size16384_radix4_f64<>+0x168C8(SB)/8, $6430
+DATA bitrev_size16384_radix4_f64<>+0x168D0(SB)/8, $10526
+DATA bitrev_size16384_radix4_f64<>+0x168D8(SB)/8, $14622
+DATA bitrev_size16384_radix4_f64<>+0x168E0(SB)/8, $3358
+DATA bitrev_size16384_radix4_f64<>+0x168E8(SB)/8, $7454
+DATA bitrev_size16384_radix4_f64<>+0x168F0(SB)/8, $11550
+DATA bitrev_size16384_radix4_f64<>+0x168F8(SB)/8, $15646
+DATA bitrev_size16384_radix4_f64<>+0x16900(SB)/8, $542
+DATA bitrev_size16384_radix4_f64<>+0x16908(SB)/8, $4638
+DATA bitrev_size16384_radix4_f64<>+0x16910(SB)/8, $8734
+DATA bitrev_size16384_radix4_f64<>+0x16918(SB)/8, $12830
+DATA bitrev_size16384_radix4_f64<>+0x16920(SB)/8, $1566
+DATA bitrev_size16384_radix4_f64<>+0x16928(SB)/8, $5662
+DATA bitrev_size16384_radix4_f64<>+0x16930(SB)/8, $9758
+DATA bitrev_size16384_radix4_f64<>+0x16938(SB)/8, $13854
+DATA bitrev_size16384_radix4_f64<>+0x16940(SB)/8, $2590
+DATA bitrev_size16384_radix4_f64<>+0x16948(SB)/8, $6686
+DATA bitrev_size16384_radix4_f64<>+0x16950(SB)/8, $10782
+DATA bitrev_size16384_radix4_f64<>+0x16958(SB)/8, $14878
+DATA bitrev_size16384_radix4_f64<>+0x16960(SB)/8, $3614
+DATA bitrev_size16384_radix4_f64<>+0x16968(SB)/8, $7710
+DATA bitrev_size16384_radix4_f64<>+0x16970(SB)/8, $11806
+DATA bitrev_size16384_radix4_f64<>+0x16978(SB)/8, $15902
+DATA bitrev_size16384_radix4_f64<>+0x16980(SB)/8, $798
+DATA bitrev_size16384_radix4_f64<>+0x16988(SB)/8, $4894
+DATA bitrev_size16384_radix4_f64<>+0x16990(SB)/8, $8990
+DATA bitrev_size16384_radix4_f64<>+0x16998(SB)/8, $13086
+DATA bitrev_size16384_radix4_f64<>+0x169A0(SB)/8, $1822
+DATA bitrev_size16384_radix4_f64<>+0x169A8(SB)/8, $5918
+DATA bitrev_size16384_radix4_f64<>+0x169B0(SB)/8, $10014
+DATA bitrev_size16384_radix4_f64<>+0x169B8(SB)/8, $14110
+DATA bitrev_size16384_radix4_f64<>+0x169C0(SB)/8, $2846
+DATA bitrev_size16384_radix4_f64<>+0x169C8(SB)/8, $6942
+DATA bitrev_size16384_radix4_f64<>+0x169D0(SB)/8, $11038
+DATA bitrev_size16384_radix4_f64<>+0x169D8(SB)/8, $15134
+DATA bitrev_size16384_radix4_f64<>+0x169E0(SB)/8, $3870
+DATA bitrev_size16384_radix4_f64<>+0x169E8(SB)/8, $7966
+DATA bitrev_size16384_radix4_f64<>+0x169F0(SB)/8, $12062
+DATA bitrev_size16384_radix4_f64<>+0x169F8(SB)/8, $16158
+DATA bitrev_size16384_radix4_f64<>+0x16A00(SB)/8, $94
+DATA bitrev_size16384_radix4_f64<>+0x16A08(SB)/8, $4190
+DATA bitrev_size16384_radix4_f64<>+0x16A10(SB)/8, $8286
+DATA bitrev_size16384_radix4_f64<>+0x16A18(SB)/8, $12382
+DATA bitrev_size16384_radix4_f64<>+0x16A20(SB)/8, $1118
+DATA bitrev_size16384_radix4_f64<>+0x16A28(SB)/8, $5214
+DATA bitrev_size16384_radix4_f64<>+0x16A30(SB)/8, $9310
+DATA bitrev_size16384_radix4_f64<>+0x16A38(SB)/8, $13406
+DATA bitrev_size16384_radix4_f64<>+0x16A40(SB)/8, $2142
+DATA bitrev_size16384_radix4_f64<>+0x16A48(SB)/8, $6238
+DATA bitrev_size16384_radix4_f64<>+0x16A50(SB)/8, $10334
+DATA bitrev_size16384_radix4_f64<>+0x16A58(SB)/8, $14430
+DATA bitrev_size16384_radix4_f64<>+0x16A60(SB)/8, $3166
+DATA bitrev_size16384_radix4_f64<>+0x16A68(SB)/8, $7262
+DATA bitrev_size16384_radix4_f64<>+0x16A70(SB)/8, $11358
+DATA bitrev_size16384_radix4_f64<>+0x16A78(SB)/8, $15454
+DATA bitrev_size16384_radix4_f64<>+0x16A80(SB)/8, $350
+DATA bitrev_size16384_radix4_f64<>+0x16A88(SB)/8, $4446
+DATA bitrev_size16384_radix4_f64<>+0x16A90(SB)/8, $8542
+DATA bitrev_size16384_radix4_f64<>+0x16A98(SB)/8, $12638
+DATA bitrev_size16384_radix4_f64<>+0x16AA0(SB)/8, $1374
+DATA bitrev_size16384_radix4_f64<>+0x16AA8(SB)/8, $5470
+DATA bitrev_size16384_radix4_f64<>+0x16AB0(SB)/8, $9566
+DATA bitrev_size16384_radix4_f64<>+0x16AB8(SB)/8, $13662
+DATA bitrev_size16384_radix4_f64<>+0x16AC0(SB)/8, $2398
+DATA bitrev_size16384_radix4_f64<>+0x16AC8(SB)/8, $6494
+DATA bitrev_size16384_radix4_f64<>+0x16AD0(SB)/8, $10590
+DATA bitrev_size16384_radix4_f64<>+0x16AD8(SB)/8, $14686
+DATA bitrev_size16384_radix4_f64<>+0x16AE0(SB)/8, $3422
+DATA bitrev_size16384_radix4_f64<>+0x16AE8(SB)/8, $7518
+DATA bitrev_size16384_radix4_f64<>+0x16AF0(SB)/8, $11614
+DATA bitrev_size16384_radix4_f64<>+0x16AF8(SB)/8, $15710
+DATA bitrev_size16384_radix4_f64<>+0x16B00(SB)/8, $606
+DATA bitrev_size16384_radix4_f64<>+0x16B08(SB)/8, $4702
+DATA bitrev_size16384_radix4_f64<>+0x16B10(SB)/8, $8798
+DATA bitrev_size16384_radix4_f64<>+0x16B18(SB)/8, $12894
+DATA bitrev_size16384_radix4_f64<>+0x16B20(SB)/8, $1630
+DATA bitrev_size16384_radix4_f64<>+0x16B28(SB)/8, $5726
+DATA bitrev_size16384_radix4_f64<>+0x16B30(SB)/8, $9822
+DATA bitrev_size16384_radix4_f64<>+0x16B38(SB)/8, $13918
+DATA bitrev_size16384_radix4_f64<>+0x16B40(SB)/8, $2654
+DATA bitrev_size16384_radix4_f64<>+0x16B48(SB)/8, $6750
+DATA bitrev_size16384_radix4_f64<>+0x16B50(SB)/8, $10846
+DATA bitrev_size16384_radix4_f64<>+0x16B58(SB)/8, $14942
+DATA bitrev_size16384_radix4_f64<>+0x16B60(SB)/8, $3678
+DATA bitrev_size16384_radix4_f64<>+0x16B68(SB)/8, $7774
+DATA bitrev_size16384_radix4_f64<>+0x16B70(SB)/8, $11870
+DATA bitrev_size16384_radix4_f64<>+0x16B78(SB)/8, $15966
+DATA bitrev_size16384_radix4_f64<>+0x16B80(SB)/8, $862
+DATA bitrev_size16384_radix4_f64<>+0x16B88(SB)/8, $4958
+DATA bitrev_size16384_radix4_f64<>+0x16B90(SB)/8, $9054
+DATA bitrev_size16384_radix4_f64<>+0x16B98(SB)/8, $13150
+DATA bitrev_size16384_radix4_f64<>+0x16BA0(SB)/8, $1886
+DATA bitrev_size16384_radix4_f64<>+0x16BA8(SB)/8, $5982
+DATA bitrev_size16384_radix4_f64<>+0x16BB0(SB)/8, $10078
+DATA bitrev_size16384_radix4_f64<>+0x16BB8(SB)/8, $14174
+DATA bitrev_size16384_radix4_f64<>+0x16BC0(SB)/8, $2910
+DATA bitrev_size16384_radix4_f64<>+0x16BC8(SB)/8, $7006
+DATA bitrev_size16384_radix4_f64<>+0x16BD0(SB)/8, $11102
+DATA bitrev_size16384_radix4_f64<>+0x16BD8(SB)/8, $15198
+DATA bitrev_size16384_radix4_f64<>+0x16BE0(SB)/8, $3934
+DATA bitrev_size16384_radix4_f64<>+0x16BE8(SB)/8, $8030
+DATA bitrev_size16384_radix4_f64<>+0x16BF0(SB)/8, $12126
+DATA bitrev_size16384_radix4_f64<>+0x16BF8(SB)/8, $16222
+DATA bitrev_size16384_radix4_f64<>+0x16C00(SB)/8, $158
+DATA bitrev_size16384_radix4_f64<>+0x16C08(SB)/8, $4254
+DATA bitrev_size16384_radix4_f64<>+0x16C10(SB)/8, $8350
+DATA bitrev_size16384_radix4_f64<>+0x16C18(SB)/8, $12446
+DATA bitrev_size16384_radix4_f64<>+0x16C20(SB)/8, $1182
+DATA bitrev_size16384_radix4_f64<>+0x16C28(SB)/8, $5278
+DATA bitrev_size16384_radix4_f64<>+0x16C30(SB)/8, $9374
+DATA bitrev_size16384_radix4_f64<>+0x16C38(SB)/8, $13470
+DATA bitrev_size16384_radix4_f64<>+0x16C40(SB)/8, $2206
+DATA bitrev_size16384_radix4_f64<>+0x16C48(SB)/8, $6302
+DATA bitrev_size16384_radix4_f64<>+0x16C50(SB)/8, $10398
+DATA bitrev_size16384_radix4_f64<>+0x16C58(SB)/8, $14494
+DATA bitrev_size16384_radix4_f64<>+0x16C60(SB)/8, $3230
+DATA bitrev_size16384_radix4_f64<>+0x16C68(SB)/8, $7326
+DATA bitrev_size16384_radix4_f64<>+0x16C70(SB)/8, $11422
+DATA bitrev_size16384_radix4_f64<>+0x16C78(SB)/8, $15518
+DATA bitrev_size16384_radix4_f64<>+0x16C80(SB)/8, $414
+DATA bitrev_size16384_radix4_f64<>+0x16C88(SB)/8, $4510
+DATA bitrev_size16384_radix4_f64<>+0x16C90(SB)/8, $8606
+DATA bitrev_size16384_radix4_f64<>+0x16C98(SB)/8, $12702
+DATA bitrev_size16384_radix4_f64<>+0x16CA0(SB)/8, $1438
+DATA bitrev_size16384_radix4_f64<>+0x16CA8(SB)/8, $5534
+DATA bitrev_size16384_radix4_f64<>+0x16CB0(SB)/8, $9630
+DATA bitrev_size16384_radix4_f64<>+0x16CB8(SB)/8, $13726
+DATA bitrev_size16384_radix4_f64<>+0x16CC0(SB)/8, $2462
+DATA bitrev_size16384_radix4_f64<>+0x16CC8(SB)/8, $6558
+DATA bitrev_size16384_radix4_f64<>+0x16CD0(SB)/8, $10654
+DATA bitrev_size16384_radix4_f64<>+0x16CD8(SB)/8, $14750
+DATA bitrev_size16384_radix4_f64<>+0x16CE0(SB)/8, $3486
+DATA bitrev_size16384_radix4_f64<>+0x16CE8(SB)/8, $7582
+DATA bitrev_size16384_radix4_f64<>+0x16CF0(SB)/8, $11678
+DATA bitrev_size16384_radix4_f64<>+0x16CF8(SB)/8, $15774
+DATA bitrev_size16384_radix4_f64<>+0x16D00(SB)/8, $670
+DATA bitrev_size16384_radix4_f64<>+0x16D08(SB)/8, $4766
+DATA bitrev_size16384_radix4_f64<>+0x16D10(SB)/8, $8862
+DATA bitrev_size16384_radix4_f64<>+0x16D18(SB)/8, $12958
+DATA bitrev_size16384_radix4_f64<>+0x16D20(SB)/8, $1694
+DATA bitrev_size16384_radix4_f64<>+0x16D28(SB)/8, $5790
+DATA bitrev_size16384_radix4_f64<>+0x16D30(SB)/8, $9886
+DATA bitrev_size16384_radix4_f64<>+0x16D38(SB)/8, $13982
+DATA bitrev_size16384_radix4_f64<>+0x16D40(SB)/8, $2718
+DATA bitrev_size16384_radix4_f64<>+0x16D48(SB)/8, $6814
+DATA bitrev_size16384_radix4_f64<>+0x16D50(SB)/8, $10910
+DATA bitrev_size16384_radix4_f64<>+0x16D58(SB)/8, $15006
+DATA bitrev_size16384_radix4_f64<>+0x16D60(SB)/8, $3742
+DATA bitrev_size16384_radix4_f64<>+0x16D68(SB)/8, $7838
+DATA bitrev_size16384_radix4_f64<>+0x16D70(SB)/8, $11934
+DATA bitrev_size16384_radix4_f64<>+0x16D78(SB)/8, $16030
+DATA bitrev_size16384_radix4_f64<>+0x16D80(SB)/8, $926
+DATA bitrev_size16384_radix4_f64<>+0x16D88(SB)/8, $5022
+DATA bitrev_size16384_radix4_f64<>+0x16D90(SB)/8, $9118
+DATA bitrev_size16384_radix4_f64<>+0x16D98(SB)/8, $13214
+DATA bitrev_size16384_radix4_f64<>+0x16DA0(SB)/8, $1950
+DATA bitrev_size16384_radix4_f64<>+0x16DA8(SB)/8, $6046
+DATA bitrev_size16384_radix4_f64<>+0x16DB0(SB)/8, $10142
+DATA bitrev_size16384_radix4_f64<>+0x16DB8(SB)/8, $14238
+DATA bitrev_size16384_radix4_f64<>+0x16DC0(SB)/8, $2974
+DATA bitrev_size16384_radix4_f64<>+0x16DC8(SB)/8, $7070
+DATA bitrev_size16384_radix4_f64<>+0x16DD0(SB)/8, $11166
+DATA bitrev_size16384_radix4_f64<>+0x16DD8(SB)/8, $15262
+DATA bitrev_size16384_radix4_f64<>+0x16DE0(SB)/8, $3998
+DATA bitrev_size16384_radix4_f64<>+0x16DE8(SB)/8, $8094
+DATA bitrev_size16384_radix4_f64<>+0x16DF0(SB)/8, $12190
+DATA bitrev_size16384_radix4_f64<>+0x16DF8(SB)/8, $16286
+DATA bitrev_size16384_radix4_f64<>+0x16E00(SB)/8, $222
+DATA bitrev_size16384_radix4_f64<>+0x16E08(SB)/8, $4318
+DATA bitrev_size16384_radix4_f64<>+0x16E10(SB)/8, $8414
+DATA bitrev_size16384_radix4_f64<>+0x16E18(SB)/8, $12510
+DATA bitrev_size16384_radix4_f64<>+0x16E20(SB)/8, $1246
+DATA bitrev_size16384_radix4_f64<>+0x16E28(SB)/8, $5342
+DATA bitrev_size16384_radix4_f64<>+0x16E30(SB)/8, $9438
+DATA bitrev_size16384_radix4_f64<>+0x16E38(SB)/8, $13534
+DATA bitrev_size16384_radix4_f64<>+0x16E40(SB)/8, $2270
+DATA bitrev_size16384_radix4_f64<>+0x16E48(SB)/8, $6366
+DATA bitrev_size16384_radix4_f64<>+0x16E50(SB)/8, $10462
+DATA bitrev_size16384_radix4_f64<>+0x16E58(SB)/8, $14558
+DATA bitrev_size16384_radix4_f64<>+0x16E60(SB)/8, $3294
+DATA bitrev_size16384_radix4_f64<>+0x16E68(SB)/8, $7390
+DATA bitrev_size16384_radix4_f64<>+0x16E70(SB)/8, $11486
+DATA bitrev_size16384_radix4_f64<>+0x16E78(SB)/8, $15582
+DATA bitrev_size16384_radix4_f64<>+0x16E80(SB)/8, $478
+DATA bitrev_size16384_radix4_f64<>+0x16E88(SB)/8, $4574
+DATA bitrev_size16384_radix4_f64<>+0x16E90(SB)/8, $8670
+DATA bitrev_size16384_radix4_f64<>+0x16E98(SB)/8, $12766
+DATA bitrev_size16384_radix4_f64<>+0x16EA0(SB)/8, $1502
+DATA bitrev_size16384_radix4_f64<>+0x16EA8(SB)/8, $5598
+DATA bitrev_size16384_radix4_f64<>+0x16EB0(SB)/8, $9694
+DATA bitrev_size16384_radix4_f64<>+0x16EB8(SB)/8, $13790
+DATA bitrev_size16384_radix4_f64<>+0x16EC0(SB)/8, $2526
+DATA bitrev_size16384_radix4_f64<>+0x16EC8(SB)/8, $6622
+DATA bitrev_size16384_radix4_f64<>+0x16ED0(SB)/8, $10718
+DATA bitrev_size16384_radix4_f64<>+0x16ED8(SB)/8, $14814
+DATA bitrev_size16384_radix4_f64<>+0x16EE0(SB)/8, $3550
+DATA bitrev_size16384_radix4_f64<>+0x16EE8(SB)/8, $7646
+DATA bitrev_size16384_radix4_f64<>+0x16EF0(SB)/8, $11742
+DATA bitrev_size16384_radix4_f64<>+0x16EF8(SB)/8, $15838
+DATA bitrev_size16384_radix4_f64<>+0x16F00(SB)/8, $734
+DATA bitrev_size16384_radix4_f64<>+0x16F08(SB)/8, $4830
+DATA bitrev_size16384_radix4_f64<>+0x16F10(SB)/8, $8926
+DATA bitrev_size16384_radix4_f64<>+0x16F18(SB)/8, $13022
+DATA bitrev_size16384_radix4_f64<>+0x16F20(SB)/8, $1758
+DATA bitrev_size16384_radix4_f64<>+0x16F28(SB)/8, $5854
+DATA bitrev_size16384_radix4_f64<>+0x16F30(SB)/8, $9950
+DATA bitrev_size16384_radix4_f64<>+0x16F38(SB)/8, $14046
+DATA bitrev_size16384_radix4_f64<>+0x16F40(SB)/8, $2782
+DATA bitrev_size16384_radix4_f64<>+0x16F48(SB)/8, $6878
+DATA bitrev_size16384_radix4_f64<>+0x16F50(SB)/8, $10974
+DATA bitrev_size16384_radix4_f64<>+0x16F58(SB)/8, $15070
+DATA bitrev_size16384_radix4_f64<>+0x16F60(SB)/8, $3806
+DATA bitrev_size16384_radix4_f64<>+0x16F68(SB)/8, $7902
+DATA bitrev_size16384_radix4_f64<>+0x16F70(SB)/8, $11998
+DATA bitrev_size16384_radix4_f64<>+0x16F78(SB)/8, $16094
+DATA bitrev_size16384_radix4_f64<>+0x16F80(SB)/8, $990
+DATA bitrev_size16384_radix4_f64<>+0x16F88(SB)/8, $5086
+DATA bitrev_size16384_radix4_f64<>+0x16F90(SB)/8, $9182
+DATA bitrev_size16384_radix4_f64<>+0x16F98(SB)/8, $13278
+DATA bitrev_size16384_radix4_f64<>+0x16FA0(SB)/8, $2014
+DATA bitrev_size16384_radix4_f64<>+0x16FA8(SB)/8, $6110
+DATA bitrev_size16384_radix4_f64<>+0x16FB0(SB)/8, $10206
+DATA bitrev_size16384_radix4_f64<>+0x16FB8(SB)/8, $14302
+DATA bitrev_size16384_radix4_f64<>+0x16FC0(SB)/8, $3038
+DATA bitrev_size16384_radix4_f64<>+0x16FC8(SB)/8, $7134
+DATA bitrev_size16384_radix4_f64<>+0x16FD0(SB)/8, $11230
+DATA bitrev_size16384_radix4_f64<>+0x16FD8(SB)/8, $15326
+DATA bitrev_size16384_radix4_f64<>+0x16FE0(SB)/8, $4062
+DATA bitrev_size16384_radix4_f64<>+0x16FE8(SB)/8, $8158
+DATA bitrev_size16384_radix4_f64<>+0x16FF0(SB)/8, $12254
+DATA bitrev_size16384_radix4_f64<>+0x16FF8(SB)/8, $16350
+DATA bitrev_size16384_radix4_f64<>+0x17000(SB)/8, $46
+DATA bitrev_size16384_radix4_f64<>+0x17008(SB)/8, $4142
+DATA bitrev_size16384_radix4_f64<>+0x17010(SB)/8, $8238
+DATA bitrev_size16384_radix4_f64<>+0x17018(SB)/8, $12334
+DATA bitrev_size16384_radix4_f64<>+0x17020(SB)/8, $1070
+DATA bitrev_size16384_radix4_f64<>+0x17028(SB)/8, $5166
+DATA bitrev_size16384_radix4_f64<>+0x17030(SB)/8, $9262
+DATA bitrev_size16384_radix4_f64<>+0x17038(SB)/8, $13358
+DATA bitrev_size16384_radix4_f64<>+0x17040(SB)/8, $2094
+DATA bitrev_size16384_radix4_f64<>+0x17048(SB)/8, $6190
+DATA bitrev_size16384_radix4_f64<>+0x17050(SB)/8, $10286
+DATA bitrev_size16384_radix4_f64<>+0x17058(SB)/8, $14382
+DATA bitrev_size16384_radix4_f64<>+0x17060(SB)/8, $3118
+DATA bitrev_size16384_radix4_f64<>+0x17068(SB)/8, $7214
+DATA bitrev_size16384_radix4_f64<>+0x17070(SB)/8, $11310
+DATA bitrev_size16384_radix4_f64<>+0x17078(SB)/8, $15406
+DATA bitrev_size16384_radix4_f64<>+0x17080(SB)/8, $302
+DATA bitrev_size16384_radix4_f64<>+0x17088(SB)/8, $4398
+DATA bitrev_size16384_radix4_f64<>+0x17090(SB)/8, $8494
+DATA bitrev_size16384_radix4_f64<>+0x17098(SB)/8, $12590
+DATA bitrev_size16384_radix4_f64<>+0x170A0(SB)/8, $1326
+DATA bitrev_size16384_radix4_f64<>+0x170A8(SB)/8, $5422
+DATA bitrev_size16384_radix4_f64<>+0x170B0(SB)/8, $9518
+DATA bitrev_size16384_radix4_f64<>+0x170B8(SB)/8, $13614
+DATA bitrev_size16384_radix4_f64<>+0x170C0(SB)/8, $2350
+DATA bitrev_size16384_radix4_f64<>+0x170C8(SB)/8, $6446
+DATA bitrev_size16384_radix4_f64<>+0x170D0(SB)/8, $10542
+DATA bitrev_size16384_radix4_f64<>+0x170D8(SB)/8, $14638
+DATA bitrev_size16384_radix4_f64<>+0x170E0(SB)/8, $3374
+DATA bitrev_size16384_radix4_f64<>+0x170E8(SB)/8, $7470
+DATA bitrev_size16384_radix4_f64<>+0x170F0(SB)/8, $11566
+DATA bitrev_size16384_radix4_f64<>+0x170F8(SB)/8, $15662
+DATA bitrev_size16384_radix4_f64<>+0x17100(SB)/8, $558
+DATA bitrev_size16384_radix4_f64<>+0x17108(SB)/8, $4654
+DATA bitrev_size16384_radix4_f64<>+0x17110(SB)/8, $8750
+DATA bitrev_size16384_radix4_f64<>+0x17118(SB)/8, $12846
+DATA bitrev_size16384_radix4_f64<>+0x17120(SB)/8, $1582
+DATA bitrev_size16384_radix4_f64<>+0x17128(SB)/8, $5678
+DATA bitrev_size16384_radix4_f64<>+0x17130(SB)/8, $9774
+DATA bitrev_size16384_radix4_f64<>+0x17138(SB)/8, $13870
+DATA bitrev_size16384_radix4_f64<>+0x17140(SB)/8, $2606
+DATA bitrev_size16384_radix4_f64<>+0x17148(SB)/8, $6702
+DATA bitrev_size16384_radix4_f64<>+0x17150(SB)/8, $10798
+DATA bitrev_size16384_radix4_f64<>+0x17158(SB)/8, $14894
+DATA bitrev_size16384_radix4_f64<>+0x17160(SB)/8, $3630
+DATA bitrev_size16384_radix4_f64<>+0x17168(SB)/8, $7726
+DATA bitrev_size16384_radix4_f64<>+0x17170(SB)/8, $11822
+DATA bitrev_size16384_radix4_f64<>+0x17178(SB)/8, $15918
+DATA bitrev_size16384_radix4_f64<>+0x17180(SB)/8, $814
+DATA bitrev_size16384_radix4_f64<>+0x17188(SB)/8, $4910
+DATA bitrev_size16384_radix4_f64<>+0x17190(SB)/8, $9006
+DATA bitrev_size16384_radix4_f64<>+0x17198(SB)/8, $13102
+DATA bitrev_size16384_radix4_f64<>+0x171A0(SB)/8, $1838
+DATA bitrev_size16384_radix4_f64<>+0x171A8(SB)/8, $5934
+DATA bitrev_size16384_radix4_f64<>+0x171B0(SB)/8, $10030
+DATA bitrev_size16384_radix4_f64<>+0x171B8(SB)/8, $14126
+DATA bitrev_size16384_radix4_f64<>+0x171C0(SB)/8, $2862
+DATA bitrev_size16384_radix4_f64<>+0x171C8(SB)/8, $6958
+DATA bitrev_size16384_radix4_f64<>+0x171D0(SB)/8, $11054
+DATA bitrev_size16384_radix4_f64<>+0x171D8(SB)/8, $15150
+DATA bitrev_size16384_radix4_f64<>+0x171E0(SB)/8, $3886
+DATA bitrev_size16384_radix4_f64<>+0x171E8(SB)/8, $7982
+DATA bitrev_size16384_radix4_f64<>+0x171F0(SB)/8, $12078
+DATA bitrev_size16384_radix4_f64<>+0x171F8(SB)/8, $16174
+DATA bitrev_size16384_radix4_f64<>+0x17200(SB)/8, $110
+DATA bitrev_size16384_radix4_f64<>+0x17208(SB)/8, $4206
+DATA bitrev_size16384_radix4_f64<>+0x17210(SB)/8, $8302
+DATA bitrev_size16384_radix4_f64<>+0x17218(SB)/8, $12398
+DATA bitrev_size16384_radix4_f64<>+0x17220(SB)/8, $1134
+DATA bitrev_size16384_radix4_f64<>+0x17228(SB)/8, $5230
+DATA bitrev_size16384_radix4_f64<>+0x17230(SB)/8, $9326
+DATA bitrev_size16384_radix4_f64<>+0x17238(SB)/8, $13422
+DATA bitrev_size16384_radix4_f64<>+0x17240(SB)/8, $2158
+DATA bitrev_size16384_radix4_f64<>+0x17248(SB)/8, $6254
+DATA bitrev_size16384_radix4_f64<>+0x17250(SB)/8, $10350
+DATA bitrev_size16384_radix4_f64<>+0x17258(SB)/8, $14446
+DATA bitrev_size16384_radix4_f64<>+0x17260(SB)/8, $3182
+DATA bitrev_size16384_radix4_f64<>+0x17268(SB)/8, $7278
+DATA bitrev_size16384_radix4_f64<>+0x17270(SB)/8, $11374
+DATA bitrev_size16384_radix4_f64<>+0x17278(SB)/8, $15470
+DATA bitrev_size16384_radix4_f64<>+0x17280(SB)/8, $366
+DATA bitrev_size16384_radix4_f64<>+0x17288(SB)/8, $4462
+DATA bitrev_size16384_radix4_f64<>+0x17290(SB)/8, $8558
+DATA bitrev_size16384_radix4_f64<>+0x17298(SB)/8, $12654
+DATA bitrev_size16384_radix4_f64<>+0x172A0(SB)/8, $1390
+DATA bitrev_size16384_radix4_f64<>+0x172A8(SB)/8, $5486
+DATA bitrev_size16384_radix4_f64<>+0x172B0(SB)/8, $9582
+DATA bitrev_size16384_radix4_f64<>+0x172B8(SB)/8, $13678
+DATA bitrev_size16384_radix4_f64<>+0x172C0(SB)/8, $2414
+DATA bitrev_size16384_radix4_f64<>+0x172C8(SB)/8, $6510
+DATA bitrev_size16384_radix4_f64<>+0x172D0(SB)/8, $10606
+DATA bitrev_size16384_radix4_f64<>+0x172D8(SB)/8, $14702
+DATA bitrev_size16384_radix4_f64<>+0x172E0(SB)/8, $3438
+DATA bitrev_size16384_radix4_f64<>+0x172E8(SB)/8, $7534
+DATA bitrev_size16384_radix4_f64<>+0x172F0(SB)/8, $11630
+DATA bitrev_size16384_radix4_f64<>+0x172F8(SB)/8, $15726
+DATA bitrev_size16384_radix4_f64<>+0x17300(SB)/8, $622
+DATA bitrev_size16384_radix4_f64<>+0x17308(SB)/8, $4718
+DATA bitrev_size16384_radix4_f64<>+0x17310(SB)/8, $8814
+DATA bitrev_size16384_radix4_f64<>+0x17318(SB)/8, $12910
+DATA bitrev_size16384_radix4_f64<>+0x17320(SB)/8, $1646
+DATA bitrev_size16384_radix4_f64<>+0x17328(SB)/8, $5742
+DATA bitrev_size16384_radix4_f64<>+0x17330(SB)/8, $9838
+DATA bitrev_size16384_radix4_f64<>+0x17338(SB)/8, $13934
+DATA bitrev_size16384_radix4_f64<>+0x17340(SB)/8, $2670
+DATA bitrev_size16384_radix4_f64<>+0x17348(SB)/8, $6766
+DATA bitrev_size16384_radix4_f64<>+0x17350(SB)/8, $10862
+DATA bitrev_size16384_radix4_f64<>+0x17358(SB)/8, $14958
+DATA bitrev_size16384_radix4_f64<>+0x17360(SB)/8, $3694
+DATA bitrev_size16384_radix4_f64<>+0x17368(SB)/8, $7790
+DATA bitrev_size16384_radix4_f64<>+0x17370(SB)/8, $11886
+DATA bitrev_size16384_radix4_f64<>+0x17378(SB)/8, $15982
+DATA bitrev_size16384_radix4_f64<>+0x17380(SB)/8, $878
+DATA bitrev_size16384_radix4_f64<>+0x17388(SB)/8, $4974
+DATA bitrev_size16384_radix4_f64<>+0x17390(SB)/8, $9070
+DATA bitrev_size16384_radix4_f64<>+0x17398(SB)/8, $13166
+DATA bitrev_size16384_radix4_f64<>+0x173A0(SB)/8, $1902
+DATA bitrev_size16384_radix4_f64<>+0x173A8(SB)/8, $5998
+DATA bitrev_size16384_radix4_f64<>+0x173B0(SB)/8, $10094
+DATA bitrev_size16384_radix4_f64<>+0x173B8(SB)/8, $14190
+DATA bitrev_size16384_radix4_f64<>+0x173C0(SB)/8, $2926
+DATA bitrev_size16384_radix4_f64<>+0x173C8(SB)/8, $7022
+DATA bitrev_size16384_radix4_f64<>+0x173D0(SB)/8, $11118
+DATA bitrev_size16384_radix4_f64<>+0x173D8(SB)/8, $15214
+DATA bitrev_size16384_radix4_f64<>+0x173E0(SB)/8, $3950
+DATA bitrev_size16384_radix4_f64<>+0x173E8(SB)/8, $8046
+DATA bitrev_size16384_radix4_f64<>+0x173F0(SB)/8, $12142
+DATA bitrev_size16384_radix4_f64<>+0x173F8(SB)/8, $16238
+DATA bitrev_size16384_radix4_f64<>+0x17400(SB)/8, $174
+DATA bitrev_size16384_radix4_f64<>+0x17408(SB)/8, $4270
+DATA bitrev_size16384_radix4_f64<>+0x17410(SB)/8, $8366
+DATA bitrev_size16384_radix4_f64<>+0x17418(SB)/8, $12462
+DATA bitrev_size16384_radix4_f64<>+0x17420(SB)/8, $1198
+DATA bitrev_size16384_radix4_f64<>+0x17428(SB)/8, $5294
+DATA bitrev_size16384_radix4_f64<>+0x17430(SB)/8, $9390
+DATA bitrev_size16384_radix4_f64<>+0x17438(SB)/8, $13486
+DATA bitrev_size16384_radix4_f64<>+0x17440(SB)/8, $2222
+DATA bitrev_size16384_radix4_f64<>+0x17448(SB)/8, $6318
+DATA bitrev_size16384_radix4_f64<>+0x17450(SB)/8, $10414
+DATA bitrev_size16384_radix4_f64<>+0x17458(SB)/8, $14510
+DATA bitrev_size16384_radix4_f64<>+0x17460(SB)/8, $3246
+DATA bitrev_size16384_radix4_f64<>+0x17468(SB)/8, $7342
+DATA bitrev_size16384_radix4_f64<>+0x17470(SB)/8, $11438
+DATA bitrev_size16384_radix4_f64<>+0x17478(SB)/8, $15534
+DATA bitrev_size16384_radix4_f64<>+0x17480(SB)/8, $430
+DATA bitrev_size16384_radix4_f64<>+0x17488(SB)/8, $4526
+DATA bitrev_size16384_radix4_f64<>+0x17490(SB)/8, $8622
+DATA bitrev_size16384_radix4_f64<>+0x17498(SB)/8, $12718
+DATA bitrev_size16384_radix4_f64<>+0x174A0(SB)/8, $1454
+DATA bitrev_size16384_radix4_f64<>+0x174A8(SB)/8, $5550
+DATA bitrev_size16384_radix4_f64<>+0x174B0(SB)/8, $9646
+DATA bitrev_size16384_radix4_f64<>+0x174B8(SB)/8, $13742
+DATA bitrev_size16384_radix4_f64<>+0x174C0(SB)/8, $2478
+DATA bitrev_size16384_radix4_f64<>+0x174C8(SB)/8, $6574
+DATA bitrev_size16384_radix4_f64<>+0x174D0(SB)/8, $10670
+DATA bitrev_size16384_radix4_f64<>+0x174D8(SB)/8, $14766
+DATA bitrev_size16384_radix4_f64<>+0x174E0(SB)/8, $3502
+DATA bitrev_size16384_radix4_f64<>+0x174E8(SB)/8, $7598
+DATA bitrev_size16384_radix4_f64<>+0x174F0(SB)/8, $11694
+DATA bitrev_size16384_radix4_f64<>+0x174F8(SB)/8, $15790
+DATA bitrev_size16384_radix4_f64<>+0x17500(SB)/8, $686
+DATA bitrev_size16384_radix4_f64<>+0x17508(SB)/8, $4782
+DATA bitrev_size16384_radix4_f64<>+0x17510(SB)/8, $8878
+DATA bitrev_size16384_radix4_f64<>+0x17518(SB)/8, $12974
+DATA bitrev_size16384_radix4_f64<>+0x17520(SB)/8, $1710
+DATA bitrev_size16384_radix4_f64<>+0x17528(SB)/8, $5806
+DATA bitrev_size16384_radix4_f64<>+0x17530(SB)/8, $9902
+DATA bitrev_size16384_radix4_f64<>+0x17538(SB)/8, $13998
+DATA bitrev_size16384_radix4_f64<>+0x17540(SB)/8, $2734
+DATA bitrev_size16384_radix4_f64<>+0x17548(SB)/8, $6830
+DATA bitrev_size16384_radix4_f64<>+0x17550(SB)/8, $10926
+DATA bitrev_size16384_radix4_f64<>+0x17558(SB)/8, $15022
+DATA bitrev_size16384_radix4_f64<>+0x17560(SB)/8, $3758
+DATA bitrev_size16384_radix4_f64<>+0x17568(SB)/8, $7854
+DATA bitrev_size16384_radix4_f64<>+0x17570(SB)/8, $11950
+DATA bitrev_size16384_radix4_f64<>+0x17578(SB)/8, $16046
+DATA bitrev_size16384_radix4_f64<>+0x17580(SB)/8, $942
+DATA bitrev_size16384_radix4_f64<>+0x17588(SB)/8, $5038
+DATA bitrev_size16384_radix4_f64<>+0x17590(SB)/8, $9134
+DATA bitrev_size16384_radix4_f64<>+0x17598(SB)/8, $13230
+DATA bitrev_size16384_radix4_f64<>+0x175A0(SB)/8, $1966
+DATA bitrev_size16384_radix4_f64<>+0x175A8(SB)/8, $6062
+DATA bitrev_size16384_radix4_f64<>+0x175B0(SB)/8, $10158
+DATA bitrev_size16384_radix4_f64<>+0x175B8(SB)/8, $14254
+DATA bitrev_size16384_radix4_f64<>+0x175C0(SB)/8, $2990
+DATA bitrev_size16384_radix4_f64<>+0x175C8(SB)/8, $7086
+DATA bitrev_size16384_radix4_f64<>+0x175D0(SB)/8, $11182
+DATA bitrev_size16384_radix4_f64<>+0x175D8(SB)/8, $15278
+DATA bitrev_size16384_radix4_f64<>+0x175E0(SB)/8, $4014
+DATA bitrev_size16384_radix4_f64<>+0x175E8(SB)/8, $8110
+DATA bitrev_size16384_radix4_f64<>+0x175F0(SB)/8, $12206
+DATA bitrev_size16384_radix4_f64<>+0x175F8(SB)/8, $16302
+DATA bitrev_size16384_radix4_f64<>+0x17600(SB)/8, $238
+DATA bitrev_size16384_radix4_f64<>+0x17608(SB)/8, $4334
+DATA bitrev_size16384_radix4_f64<>+0x17610(SB)/8, $8430
+DATA bitrev_size16384_radix4_f64<>+0x17618(SB)/8, $12526
+DATA bitrev_size16384_radix4_f64<>+0x17620(SB)/8, $1262
+DATA bitrev_size16384_radix4_f64<>+0x17628(SB)/8, $5358
+DATA bitrev_size16384_radix4_f64<>+0x17630(SB)/8, $9454
+DATA bitrev_size16384_radix4_f64<>+0x17638(SB)/8, $13550
+DATA bitrev_size16384_radix4_f64<>+0x17640(SB)/8, $2286
+DATA bitrev_size16384_radix4_f64<>+0x17648(SB)/8, $6382
+DATA bitrev_size16384_radix4_f64<>+0x17650(SB)/8, $10478
+DATA bitrev_size16384_radix4_f64<>+0x17658(SB)/8, $14574
+DATA bitrev_size16384_radix4_f64<>+0x17660(SB)/8, $3310
+DATA bitrev_size16384_radix4_f64<>+0x17668(SB)/8, $7406
+DATA bitrev_size16384_radix4_f64<>+0x17670(SB)/8, $11502
+DATA bitrev_size16384_radix4_f64<>+0x17678(SB)/8, $15598
+DATA bitrev_size16384_radix4_f64<>+0x17680(SB)/8, $494
+DATA bitrev_size16384_radix4_f64<>+0x17688(SB)/8, $4590
+DATA bitrev_size16384_radix4_f64<>+0x17690(SB)/8, $8686
+DATA bitrev_size16384_radix4_f64<>+0x17698(SB)/8, $12782
+DATA bitrev_size16384_radix4_f64<>+0x176A0(SB)/8, $1518
+DATA bitrev_size16384_radix4_f64<>+0x176A8(SB)/8, $5614
+DATA bitrev_size16384_radix4_f64<>+0x176B0(SB)/8, $9710
+DATA bitrev_size16384_radix4_f64<>+0x176B8(SB)/8, $13806
+DATA bitrev_size16384_radix4_f64<>+0x176C0(SB)/8, $2542
+DATA bitrev_size16384_radix4_f64<>+0x176C8(SB)/8, $6638
+DATA bitrev_size16384_radix4_f64<>+0x176D0(SB)/8, $10734
+DATA bitrev_size16384_radix4_f64<>+0x176D8(SB)/8, $14830
+DATA bitrev_size16384_radix4_f64<>+0x176E0(SB)/8, $3566
+DATA bitrev_size16384_radix4_f64<>+0x176E8(SB)/8, $7662
+DATA bitrev_size16384_radix4_f64<>+0x176F0(SB)/8, $11758
+DATA bitrev_size16384_radix4_f64<>+0x176F8(SB)/8, $15854
+DATA bitrev_size16384_radix4_f64<>+0x17700(SB)/8, $750
+DATA bitrev_size16384_radix4_f64<>+0x17708(SB)/8, $4846
+DATA bitrev_size16384_radix4_f64<>+0x17710(SB)/8, $8942
+DATA bitrev_size16384_radix4_f64<>+0x17718(SB)/8, $13038
+DATA bitrev_size16384_radix4_f64<>+0x17720(SB)/8, $1774
+DATA bitrev_size16384_radix4_f64<>+0x17728(SB)/8, $5870
+DATA bitrev_size16384_radix4_f64<>+0x17730(SB)/8, $9966
+DATA bitrev_size16384_radix4_f64<>+0x17738(SB)/8, $14062
+DATA bitrev_size16384_radix4_f64<>+0x17740(SB)/8, $2798
+DATA bitrev_size16384_radix4_f64<>+0x17748(SB)/8, $6894
+DATA bitrev_size16384_radix4_f64<>+0x17750(SB)/8, $10990
+DATA bitrev_size16384_radix4_f64<>+0x17758(SB)/8, $15086
+DATA bitrev_size16384_radix4_f64<>+0x17760(SB)/8, $3822
+DATA bitrev_size16384_radix4_f64<>+0x17768(SB)/8, $7918
+DATA bitrev_size16384_radix4_f64<>+0x17770(SB)/8, $12014
+DATA bitrev_size16384_radix4_f64<>+0x17778(SB)/8, $16110
+DATA bitrev_size16384_radix4_f64<>+0x17780(SB)/8, $1006
+DATA bitrev_size16384_radix4_f64<>+0x17788(SB)/8, $5102
+DATA bitrev_size16384_radix4_f64<>+0x17790(SB)/8, $9198
+DATA bitrev_size16384_radix4_f64<>+0x17798(SB)/8, $13294
+DATA bitrev_size16384_radix4_f64<>+0x177A0(SB)/8, $2030
+DATA bitrev_size16384_radix4_f64<>+0x177A8(SB)/8, $6126
+DATA bitrev_size16384_radix4_f64<>+0x177B0(SB)/8, $10222
+DATA bitrev_size16384_radix4_f64<>+0x177B8(SB)/8, $14318
+DATA bitrev_size16384_radix4_f64<>+0x177C0(SB)/8, $3054
+DATA bitrev_size16384_radix4_f64<>+0x177C8(SB)/8, $7150
+DATA bitrev_size16384_radix4_f64<>+0x177D0(SB)/8, $11246
+DATA bitrev_size16384_radix4_f64<>+0x177D8(SB)/8, $15342
+DATA bitrev_size16384_radix4_f64<>+0x177E0(SB)/8, $4078
+DATA bitrev_size16384_radix4_f64<>+0x177E8(SB)/8, $8174
+DATA bitrev_size16384_radix4_f64<>+0x177F0(SB)/8, $12270
+DATA bitrev_size16384_radix4_f64<>+0x177F8(SB)/8, $16366
+DATA bitrev_size16384_radix4_f64<>+0x17800(SB)/8, $62
+DATA bitrev_size16384_radix4_f64<>+0x17808(SB)/8, $4158
+DATA bitrev_size16384_radix4_f64<>+0x17810(SB)/8, $8254
+DATA bitrev_size16384_radix4_f64<>+0x17818(SB)/8, $12350
+DATA bitrev_size16384_radix4_f64<>+0x17820(SB)/8, $1086
+DATA bitrev_size16384_radix4_f64<>+0x17828(SB)/8, $5182
+DATA bitrev_size16384_radix4_f64<>+0x17830(SB)/8, $9278
+DATA bitrev_size16384_radix4_f64<>+0x17838(SB)/8, $13374
+DATA bitrev_size16384_radix4_f64<>+0x17840(SB)/8, $2110
+DATA bitrev_size16384_radix4_f64<>+0x17848(SB)/8, $6206
+DATA bitrev_size16384_radix4_f64<>+0x17850(SB)/8, $10302
+DATA bitrev_size16384_radix4_f64<>+0x17858(SB)/8, $14398
+DATA bitrev_size16384_radix4_f64<>+0x17860(SB)/8, $3134
+DATA bitrev_size16384_radix4_f64<>+0x17868(SB)/8, $7230
+DATA bitrev_size16384_radix4_f64<>+0x17870(SB)/8, $11326
+DATA bitrev_size16384_radix4_f64<>+0x17878(SB)/8, $15422
+DATA bitrev_size16384_radix4_f64<>+0x17880(SB)/8, $318
+DATA bitrev_size16384_radix4_f64<>+0x17888(SB)/8, $4414
+DATA bitrev_size16384_radix4_f64<>+0x17890(SB)/8, $8510
+DATA bitrev_size16384_radix4_f64<>+0x17898(SB)/8, $12606
+DATA bitrev_size16384_radix4_f64<>+0x178A0(SB)/8, $1342
+DATA bitrev_size16384_radix4_f64<>+0x178A8(SB)/8, $5438
+DATA bitrev_size16384_radix4_f64<>+0x178B0(SB)/8, $9534
+DATA bitrev_size16384_radix4_f64<>+0x178B8(SB)/8, $13630
+DATA bitrev_size16384_radix4_f64<>+0x178C0(SB)/8, $2366
+DATA bitrev_size16384_radix4_f64<>+0x178C8(SB)/8, $6462
+DATA bitrev_size16384_radix4_f64<>+0x178D0(SB)/8, $10558
+DATA bitrev_size16384_radix4_f64<>+0x178D8(SB)/8, $14654
+DATA bitrev_size16384_radix4_f64<>+0x178E0(SB)/8, $3390
+DATA bitrev_size16384_radix4_f64<>+0x178E8(SB)/8, $7486
+DATA bitrev_size16384_radix4_f64<>+0x178F0(SB)/8, $11582
+DATA bitrev_size16384_radix4_f64<>+0x178F8(SB)/8, $15678
+DATA bitrev_size16384_radix4_f64<>+0x17900(SB)/8, $574
+DATA bitrev_size16384_radix4_f64<>+0x17908(SB)/8, $4670
+DATA bitrev_size16384_radix4_f64<>+0x17910(SB)/8, $8766
+DATA bitrev_size16384_radix4_f64<>+0x17918(SB)/8, $12862
+DATA bitrev_size16384_radix4_f64<>+0x17920(SB)/8, $1598
+DATA bitrev_size16384_radix4_f64<>+0x17928(SB)/8, $5694
+DATA bitrev_size16384_radix4_f64<>+0x17930(SB)/8, $9790
+DATA bitrev_size16384_radix4_f64<>+0x17938(SB)/8, $13886
+DATA bitrev_size16384_radix4_f64<>+0x17940(SB)/8, $2622
+DATA bitrev_size16384_radix4_f64<>+0x17948(SB)/8, $6718
+DATA bitrev_size16384_radix4_f64<>+0x17950(SB)/8, $10814
+DATA bitrev_size16384_radix4_f64<>+0x17958(SB)/8, $14910
+DATA bitrev_size16384_radix4_f64<>+0x17960(SB)/8, $3646
+DATA bitrev_size16384_radix4_f64<>+0x17968(SB)/8, $7742
+DATA bitrev_size16384_radix4_f64<>+0x17970(SB)/8, $11838
+DATA bitrev_size16384_radix4_f64<>+0x17978(SB)/8, $15934
+DATA bitrev_size16384_radix4_f64<>+0x17980(SB)/8, $830
+DATA bitrev_size16384_radix4_f64<>+0x17988(SB)/8, $4926
+DATA bitrev_size16384_radix4_f64<>+0x17990(SB)/8, $9022
+DATA bitrev_size16384_radix4_f64<>+0x17998(SB)/8, $13118
+DATA bitrev_size16384_radix4_f64<>+0x179A0(SB)/8, $1854
+DATA bitrev_size16384_radix4_f64<>+0x179A8(SB)/8, $5950
+DATA bitrev_size16384_radix4_f64<>+0x179B0(SB)/8, $10046
+DATA bitrev_size16384_radix4_f64<>+0x179B8(SB)/8, $14142
+DATA bitrev_size16384_radix4_f64<>+0x179C0(SB)/8, $2878
+DATA bitrev_size16384_radix4_f64<>+0x179C8(SB)/8, $6974
+DATA bitrev_size16384_radix4_f64<>+0x179D0(SB)/8, $11070
+DATA bitrev_size16384_radix4_f64<>+0x179D8(SB)/8, $15166
+DATA bitrev_size16384_radix4_f64<>+0x179E0(SB)/8, $3902
+DATA bitrev_size16384_radix4_f64<>+0x179E8(SB)/8, $7998
+DATA bitrev_size16384_radix4_f64<>+0x179F0(SB)/8, $12094
+DATA bitrev_size16384_radix4_f64<>+0x179F8(SB)/8, $16190
+DATA bitrev_size16384_radix4_f64<>+0x17A00(SB)/8, $126
+DATA bitrev_size16384_radix4_f64<>+0x17A08(SB)/8, $4222
+DATA bitrev_size16384_radix4_f64<>+0x17A10(SB)/8, $8318
+DATA bitrev_size16384_radix4_f64<>+0x17A18(SB)/8, $12414
+DATA bitrev_size16384_radix4_f64<>+0x17A20(SB)/8, $1150
+DATA bitrev_size16384_radix4_f64<>+0x17A28(SB)/8, $5246
+DATA bitrev_size16384_radix4_f64<>+0x17A30(SB)/8, $9342
+DATA bitrev_size16384_radix4_f64<>+0x17A38(SB)/8, $13438
+DATA bitrev_size16384_radix4_f64<>+0x17A40(SB)/8, $2174
+DATA bitrev_size16384_radix4_f64<>+0x17A48(SB)/8, $6270
+DATA bitrev_size16384_radix4_f64<>+0x17A50(SB)/8, $10366
+DATA bitrev_size16384_radix4_f64<>+0x17A58(SB)/8, $14462
+DATA bitrev_size16384_radix4_f64<>+0x17A60(SB)/8, $3198
+DATA bitrev_size16384_radix4_f64<>+0x17A68(SB)/8, $7294
+DATA bitrev_size16384_radix4_f64<>+0x17A70(SB)/8, $11390
+DATA bitrev_size16384_radix4_f64<>+0x17A78(SB)/8, $15486
+DATA bitrev_size16384_radix4_f64<>+0x17A80(SB)/8, $382
+DATA bitrev_size16384_radix4_f64<>+0x17A88(SB)/8, $4478
+DATA bitrev_size16384_radix4_f64<>+0x17A90(SB)/8, $8574
+DATA bitrev_size16384_radix4_f64<>+0x17A98(SB)/8, $12670
+DATA bitrev_size16384_radix4_f64<>+0x17AA0(SB)/8, $1406
+DATA bitrev_size16384_radix4_f64<>+0x17AA8(SB)/8, $5502
+DATA bitrev_size16384_radix4_f64<>+0x17AB0(SB)/8, $9598
+DATA bitrev_size16384_radix4_f64<>+0x17AB8(SB)/8, $13694
+DATA bitrev_size16384_radix4_f64<>+0x17AC0(SB)/8, $2430
+DATA bitrev_size16384_radix4_f64<>+0x17AC8(SB)/8, $6526
+DATA bitrev_size16384_radix4_f64<>+0x17AD0(SB)/8, $10622
+DATA bitrev_size16384_radix4_f64<>+0x17AD8(SB)/8, $14718
+DATA bitrev_size16384_radix4_f64<>+0x17AE0(SB)/8, $3454
+DATA bitrev_size16384_radix4_f64<>+0x17AE8(SB)/8, $7550
+DATA bitrev_size16384_radix4_f64<>+0x17AF0(SB)/8, $11646
+DATA bitrev_size16384_radix4_f64<>+0x17AF8(SB)/8, $15742
+DATA bitrev_size16384_radix4_f64<>+0x17B00(SB)/8, $638
+DATA bitrev_size16384_radix4_f64<>+0x17B08(SB)/8, $4734
+DATA bitrev_size16384_radix4_f64<>+0x17B10(SB)/8, $8830
+DATA bitrev_size16384_radix4_f64<>+0x17B18(SB)/8, $12926
+DATA bitrev_size16384_radix4_f64<>+0x17B20(SB)/8, $1662
+DATA bitrev_size16384_radix4_f64<>+0x17B28(SB)/8, $5758
+DATA bitrev_size16384_radix4_f64<>+0x17B30(SB)/8, $9854
+DATA bitrev_size16384_radix4_f64<>+0x17B38(SB)/8, $13950
+DATA bitrev_size16384_radix4_f64<>+0x17B40(SB)/8, $2686
+DATA bitrev_size16384_radix4_f64<>+0x17B48(SB)/8, $6782
+DATA bitrev_size16384_radix4_f64<>+0x17B50(SB)/8, $10878
+DATA bitrev_size16384_radix4_f64<>+0x17B58(SB)/8, $14974
+DATA bitrev_size16384_radix4_f64<>+0x17B60(SB)/8, $3710
+DATA bitrev_size16384_radix4_f64<>+0x17B68(SB)/8, $7806
+DATA bitrev_size16384_radix4_f64<>+0x17B70(SB)/8, $11902
+DATA bitrev_size16384_radix4_f64<>+0x17B78(SB)/8, $15998
+DATA bitrev_size16384_radix4_f64<>+0x17B80(SB)/8, $894
+DATA bitrev_size16384_radix4_f64<>+0x17B88(SB)/8, $4990
+DATA bitrev_size16384_radix4_f64<>+0x17B90(SB)/8, $9086
+DATA bitrev_size16384_radix4_f64<>+0x17B98(SB)/8, $13182
+DATA bitrev_size16384_radix4_f64<>+0x17BA0(SB)/8, $1918
+DATA bitrev_size16384_radix4_f64<>+0x17BA8(SB)/8, $6014
+DATA bitrev_size16384_radix4_f64<>+0x17BB0(SB)/8, $10110
+DATA bitrev_size16384_radix4_f64<>+0x17BB8(SB)/8, $14206
+DATA bitrev_size16384_radix4_f64<>+0x17BC0(SB)/8, $2942
+DATA bitrev_size16384_radix4_f64<>+0x17BC8(SB)/8, $7038
+DATA bitrev_size16384_radix4_f64<>+0x17BD0(SB)/8, $11134
+DATA bitrev_size16384_radix4_f64<>+0x17BD8(SB)/8, $15230
+DATA bitrev_size16384_radix4_f64<>+0x17BE0(SB)/8, $3966
+DATA bitrev_size16384_radix4_f64<>+0x17BE8(SB)/8, $8062
+DATA bitrev_size16384_radix4_f64<>+0x17BF0(SB)/8, $12158
+DATA bitrev_size16384_radix4_f64<>+0x17BF8(SB)/8, $16254
+DATA bitrev_size16384_radix4_f64<>+0x17C00(SB)/8, $190
+DATA bitrev_size16384_radix4_f64<>+0x17C08(SB)/8, $4286
+DATA bitrev_size16384_radix4_f64<>+0x17C10(SB)/8, $8382
+DATA bitrev_size16384_radix4_f64<>+0x17C18(SB)/8, $12478
+DATA bitrev_size16384_radix4_f64<>+0x17C20(SB)/8, $1214
+DATA bitrev_size16384_radix4_f64<>+0x17C28(SB)/8, $5310
+DATA bitrev_size16384_radix4_f64<>+0x17C30(SB)/8, $9406
+DATA bitrev_size16384_radix4_f64<>+0x17C38(SB)/8, $13502
+DATA bitrev_size16384_radix4_f64<>+0x17C40(SB)/8, $2238
+DATA bitrev_size16384_radix4_f64<>+0x17C48(SB)/8, $6334
+DATA bitrev_size16384_radix4_f64<>+0x17C50(SB)/8, $10430
+DATA bitrev_size16384_radix4_f64<>+0x17C58(SB)/8, $14526
+DATA bitrev_size16384_radix4_f64<>+0x17C60(SB)/8, $3262
+DATA bitrev_size16384_radix4_f64<>+0x17C68(SB)/8, $7358
+DATA bitrev_size16384_radix4_f64<>+0x17C70(SB)/8, $11454
+DATA bitrev_size16384_radix4_f64<>+0x17C78(SB)/8, $15550
+DATA bitrev_size16384_radix4_f64<>+0x17C80(SB)/8, $446
+DATA bitrev_size16384_radix4_f64<>+0x17C88(SB)/8, $4542
+DATA bitrev_size16384_radix4_f64<>+0x17C90(SB)/8, $8638
+DATA bitrev_size16384_radix4_f64<>+0x17C98(SB)/8, $12734
+DATA bitrev_size16384_radix4_f64<>+0x17CA0(SB)/8, $1470
+DATA bitrev_size16384_radix4_f64<>+0x17CA8(SB)/8, $5566
+DATA bitrev_size16384_radix4_f64<>+0x17CB0(SB)/8, $9662
+DATA bitrev_size16384_radix4_f64<>+0x17CB8(SB)/8, $13758
+DATA bitrev_size16384_radix4_f64<>+0x17CC0(SB)/8, $2494
+DATA bitrev_size16384_radix4_f64<>+0x17CC8(SB)/8, $6590
+DATA bitrev_size16384_radix4_f64<>+0x17CD0(SB)/8, $10686
+DATA bitrev_size16384_radix4_f64<>+0x17CD8(SB)/8, $14782
+DATA bitrev_size16384_radix4_f64<>+0x17CE0(SB)/8, $3518
+DATA bitrev_size16384_radix4_f64<>+0x17CE8(SB)/8, $7614
+DATA bitrev_size16384_radix4_f64<>+0x17CF0(SB)/8, $11710
+DATA bitrev_size16384_radix4_f64<>+0x17CF8(SB)/8, $15806
+DATA bitrev_size16384_radix4_f64<>+0x17D00(SB)/8, $702
+DATA bitrev_size16384_radix4_f64<>+0x17D08(SB)/8, $4798
+DATA bitrev_size16384_radix4_f64<>+0x17D10(SB)/8, $8894
+DATA bitrev_size16384_radix4_f64<>+0x17D18(SB)/8, $12990
+DATA bitrev_size16384_radix4_f64<>+0x17D20(SB)/8, $1726
+DATA bitrev_size16384_radix4_f64<>+0x17D28(SB)/8, $5822
+DATA bitrev_size16384_radix4_f64<>+0x17D30(SB)/8, $9918
+DATA bitrev_size16384_radix4_f64<>+0x17D38(SB)/8, $14014
+DATA bitrev_size16384_radix4_f64<>+0x17D40(SB)/8, $2750
+DATA bitrev_size16384_radix4_f64<>+0x17D48(SB)/8, $6846
+DATA bitrev_size16384_radix4_f64<>+0x17D50(SB)/8, $10942
+DATA bitrev_size16384_radix4_f64<>+0x17D58(SB)/8, $15038
+DATA bitrev_size16384_radix4_f64<>+0x17D60(SB)/8, $3774
+DATA bitrev_size16384_radix4_f64<>+0x17D68(SB)/8, $7870
+DATA bitrev_size16384_radix4_f64<>+0x17D70(SB)/8, $11966
+DATA bitrev_size16384_radix4_f64<>+0x17D78(SB)/8, $16062
+DATA bitrev_size16384_radix4_f64<>+0x17D80(SB)/8, $958
+DATA bitrev_size16384_radix4_f64<>+0x17D88(SB)/8, $5054
+DATA bitrev_size16384_radix4_f64<>+0x17D90(SB)/8, $9150
+DATA bitrev_size16384_radix4_f64<>+0x17D98(SB)/8, $13246
+DATA bitrev_size16384_radix4_f64<>+0x17DA0(SB)/8, $1982
+DATA bitrev_size16384_radix4_f64<>+0x17DA8(SB)/8, $6078
+DATA bitrev_size16384_radix4_f64<>+0x17DB0(SB)/8, $10174
+DATA bitrev_size16384_radix4_f64<>+0x17DB8(SB)/8, $14270
+DATA bitrev_size16384_radix4_f64<>+0x17DC0(SB)/8, $3006
+DATA bitrev_size16384_radix4_f64<>+0x17DC8(SB)/8, $7102
+DATA bitrev_size16384_radix4_f64<>+0x17DD0(SB)/8, $11198
+DATA bitrev_size16384_radix4_f64<>+0x17DD8(SB)/8, $15294
+DATA bitrev_size16384_radix4_f64<>+0x17DE0(SB)/8, $4030
+DATA bitrev_size16384_radix4_f64<>+0x17DE8(SB)/8, $8126
+DATA bitrev_size16384_radix4_f64<>+0x17DF0(SB)/8, $12222
+DATA bitrev_size16384_radix4_f64<>+0x17DF8(SB)/8, $16318
+DATA bitrev_size16384_radix4_f64<>+0x17E00(SB)/8, $254
+DATA bitrev_size16384_radix4_f64<>+0x17E08(SB)/8, $4350
+DATA bitrev_size16384_radix4_f64<>+0x17E10(SB)/8, $8446
+DATA bitrev_size16384_radix4_f64<>+0x17E18(SB)/8, $12542
+DATA bitrev_size16384_radix4_f64<>+0x17E20(SB)/8, $1278
+DATA bitrev_size16384_radix4_f64<>+0x17E28(SB)/8, $5374
+DATA bitrev_size16384_radix4_f64<>+0x17E30(SB)/8, $9470
+DATA bitrev_size16384_radix4_f64<>+0x17E38(SB)/8, $13566
+DATA bitrev_size16384_radix4_f64<>+0x17E40(SB)/8, $2302
+DATA bitrev_size16384_radix4_f64<>+0x17E48(SB)/8, $6398
+DATA bitrev_size16384_radix4_f64<>+0x17E50(SB)/8, $10494
+DATA bitrev_size16384_radix4_f64<>+0x17E58(SB)/8, $14590
+DATA bitrev_size16384_radix4_f64<>+0x17E60(SB)/8, $3326
+DATA bitrev_size16384_radix4_f64<>+0x17E68(SB)/8, $7422
+DATA bitrev_size16384_radix4_f64<>+0x17E70(SB)/8, $11518
+DATA bitrev_size16384_radix4_f64<>+0x17E78(SB)/8, $15614
+DATA bitrev_size16384_radix4_f64<>+0x17E80(SB)/8, $510
+DATA bitrev_size16384_radix4_f64<>+0x17E88(SB)/8, $4606
+DATA bitrev_size16384_radix4_f64<>+0x17E90(SB)/8, $8702
+DATA bitrev_size16384_radix4_f64<>+0x17E98(SB)/8, $12798
+DATA bitrev_size16384_radix4_f64<>+0x17EA0(SB)/8, $1534
+DATA bitrev_size16384_radix4_f64<>+0x17EA8(SB)/8, $5630
+DATA bitrev_size16384_radix4_f64<>+0x17EB0(SB)/8, $9726
+DATA bitrev_size16384_radix4_f64<>+0x17EB8(SB)/8, $13822
+DATA bitrev_size16384_radix4_f64<>+0x17EC0(SB)/8, $2558
+DATA bitrev_size16384_radix4_f64<>+0x17EC8(SB)/8, $6654
+DATA bitrev_size16384_radix4_f64<>+0x17ED0(SB)/8, $10750
+DATA bitrev_size16384_radix4_f64<>+0x17ED8(SB)/8, $14846
+DATA bitrev_size16384_radix4_f64<>+0x17EE0(SB)/8, $3582
+DATA bitrev_size16384_radix4_f64<>+0x17EE8(SB)/8, $7678
+DATA bitrev_size16384_radix4_f64<>+0x17EF0(SB)/8, $11774
+DATA bitrev_size16384_radix4_f64<>+0x17EF8(SB)/8, $15870
+DATA bitrev_size16384_radix4_f64<>+0x17F00(SB)/8, $766
+DATA bitrev_size16384_radix4_f64<>+0x17F08(SB)/8, $4862
+DATA bitrev_size16384_radix4_f64<>+0x17F10(SB)/8, $8958
+DATA bitrev_size16384_radix4_f64<>+0x17F18(SB)/8, $13054
+DATA bitrev_size16384_radix4_f64<>+0x17F20(SB)/8, $1790
+DATA bitrev_size16384_radix4_f64<>+0x17F28(SB)/8, $5886
+DATA bitrev_size16384_radix4_f64<>+0x17F30(SB)/8, $9982
+DATA bitrev_size16384_radix4_f64<>+0x17F38(SB)/8, $14078
+DATA bitrev_size16384_radix4_f64<>+0x17F40(SB)/8, $2814
+DATA bitrev_size16384_radix4_f64<>+0x17F48(SB)/8, $6910
+DATA bitrev_size16384_radix4_f64<>+0x17F50(SB)/8, $11006
+DATA bitrev_size16384_radix4_f64<>+0x17F58(SB)/8, $15102
+DATA bitrev_size16384_radix4_f64<>+0x17F60(SB)/8, $3838
+DATA bitrev_size16384_radix4_f64<>+0x17F68(SB)/8, $7934
+DATA bitrev_size16384_radix4_f64<>+0x17F70(SB)/8, $12030
+DATA bitrev_size16384_radix4_f64<>+0x17F78(SB)/8, $16126
+DATA bitrev_size16384_radix4_f64<>+0x17F80(SB)/8, $1022
+DATA bitrev_size16384_radix4_f64<>+0x17F88(SB)/8, $5118
+DATA bitrev_size16384_radix4_f64<>+0x17F90(SB)/8, $9214
+DATA bitrev_size16384_radix4_f64<>+0x17F98(SB)/8, $13310
+DATA bitrev_size16384_radix4_f64<>+0x17FA0(SB)/8, $2046
+DATA bitrev_size16384_radix4_f64<>+0x17FA8(SB)/8, $6142
+DATA bitrev_size16384_radix4_f64<>+0x17FB0(SB)/8, $10238
+DATA bitrev_size16384_radix4_f64<>+0x17FB8(SB)/8, $14334
+DATA bitrev_size16384_radix4_f64<>+0x17FC0(SB)/8, $3070
+DATA bitrev_size16384_radix4_f64<>+0x17FC8(SB)/8, $7166
+DATA bitrev_size16384_radix4_f64<>+0x17FD0(SB)/8, $11262
+DATA bitrev_size16384_radix4_f64<>+0x17FD8(SB)/8, $15358
+DATA bitrev_size16384_radix4_f64<>+0x17FE0(SB)/8, $4094
+DATA bitrev_size16384_radix4_f64<>+0x17FE8(SB)/8, $8190
+DATA bitrev_size16384_radix4_f64<>+0x17FF0(SB)/8, $12286
+DATA bitrev_size16384_radix4_f64<>+0x17FF8(SB)/8, $16382
+DATA bitrev_size16384_radix4_f64<>+0x18000(SB)/8, $3
+DATA bitrev_size16384_radix4_f64<>+0x18008(SB)/8, $4099
+DATA bitrev_size16384_radix4_f64<>+0x18010(SB)/8, $8195
+DATA bitrev_size16384_radix4_f64<>+0x18018(SB)/8, $12291
+DATA bitrev_size16384_radix4_f64<>+0x18020(SB)/8, $1027
+DATA bitrev_size16384_radix4_f64<>+0x18028(SB)/8, $5123
+DATA bitrev_size16384_radix4_f64<>+0x18030(SB)/8, $9219
+DATA bitrev_size16384_radix4_f64<>+0x18038(SB)/8, $13315
+DATA bitrev_size16384_radix4_f64<>+0x18040(SB)/8, $2051
+DATA bitrev_size16384_radix4_f64<>+0x18048(SB)/8, $6147
+DATA bitrev_size16384_radix4_f64<>+0x18050(SB)/8, $10243
+DATA bitrev_size16384_radix4_f64<>+0x18058(SB)/8, $14339
+DATA bitrev_size16384_radix4_f64<>+0x18060(SB)/8, $3075
+DATA bitrev_size16384_radix4_f64<>+0x18068(SB)/8, $7171
+DATA bitrev_size16384_radix4_f64<>+0x18070(SB)/8, $11267
+DATA bitrev_size16384_radix4_f64<>+0x18078(SB)/8, $15363
+DATA bitrev_size16384_radix4_f64<>+0x18080(SB)/8, $259
+DATA bitrev_size16384_radix4_f64<>+0x18088(SB)/8, $4355
+DATA bitrev_size16384_radix4_f64<>+0x18090(SB)/8, $8451
+DATA bitrev_size16384_radix4_f64<>+0x18098(SB)/8, $12547
+DATA bitrev_size16384_radix4_f64<>+0x180A0(SB)/8, $1283
+DATA bitrev_size16384_radix4_f64<>+0x180A8(SB)/8, $5379
+DATA bitrev_size16384_radix4_f64<>+0x180B0(SB)/8, $9475
+DATA bitrev_size16384_radix4_f64<>+0x180B8(SB)/8, $13571
+DATA bitrev_size16384_radix4_f64<>+0x180C0(SB)/8, $2307
+DATA bitrev_size16384_radix4_f64<>+0x180C8(SB)/8, $6403
+DATA bitrev_size16384_radix4_f64<>+0x180D0(SB)/8, $10499
+DATA bitrev_size16384_radix4_f64<>+0x180D8(SB)/8, $14595
+DATA bitrev_size16384_radix4_f64<>+0x180E0(SB)/8, $3331
+DATA bitrev_size16384_radix4_f64<>+0x180E8(SB)/8, $7427
+DATA bitrev_size16384_radix4_f64<>+0x180F0(SB)/8, $11523
+DATA bitrev_size16384_radix4_f64<>+0x180F8(SB)/8, $15619
+DATA bitrev_size16384_radix4_f64<>+0x18100(SB)/8, $515
+DATA bitrev_size16384_radix4_f64<>+0x18108(SB)/8, $4611
+DATA bitrev_size16384_radix4_f64<>+0x18110(SB)/8, $8707
+DATA bitrev_size16384_radix4_f64<>+0x18118(SB)/8, $12803
+DATA bitrev_size16384_radix4_f64<>+0x18120(SB)/8, $1539
+DATA bitrev_size16384_radix4_f64<>+0x18128(SB)/8, $5635
+DATA bitrev_size16384_radix4_f64<>+0x18130(SB)/8, $9731
+DATA bitrev_size16384_radix4_f64<>+0x18138(SB)/8, $13827
+DATA bitrev_size16384_radix4_f64<>+0x18140(SB)/8, $2563
+DATA bitrev_size16384_radix4_f64<>+0x18148(SB)/8, $6659
+DATA bitrev_size16384_radix4_f64<>+0x18150(SB)/8, $10755
+DATA bitrev_size16384_radix4_f64<>+0x18158(SB)/8, $14851
+DATA bitrev_size16384_radix4_f64<>+0x18160(SB)/8, $3587
+DATA bitrev_size16384_radix4_f64<>+0x18168(SB)/8, $7683
+DATA bitrev_size16384_radix4_f64<>+0x18170(SB)/8, $11779
+DATA bitrev_size16384_radix4_f64<>+0x18178(SB)/8, $15875
+DATA bitrev_size16384_radix4_f64<>+0x18180(SB)/8, $771
+DATA bitrev_size16384_radix4_f64<>+0x18188(SB)/8, $4867
+DATA bitrev_size16384_radix4_f64<>+0x18190(SB)/8, $8963
+DATA bitrev_size16384_radix4_f64<>+0x18198(SB)/8, $13059
+DATA bitrev_size16384_radix4_f64<>+0x181A0(SB)/8, $1795
+DATA bitrev_size16384_radix4_f64<>+0x181A8(SB)/8, $5891
+DATA bitrev_size16384_radix4_f64<>+0x181B0(SB)/8, $9987
+DATA bitrev_size16384_radix4_f64<>+0x181B8(SB)/8, $14083
+DATA bitrev_size16384_radix4_f64<>+0x181C0(SB)/8, $2819
+DATA bitrev_size16384_radix4_f64<>+0x181C8(SB)/8, $6915
+DATA bitrev_size16384_radix4_f64<>+0x181D0(SB)/8, $11011
+DATA bitrev_size16384_radix4_f64<>+0x181D8(SB)/8, $15107
+DATA bitrev_size16384_radix4_f64<>+0x181E0(SB)/8, $3843
+DATA bitrev_size16384_radix4_f64<>+0x181E8(SB)/8, $7939
+DATA bitrev_size16384_radix4_f64<>+0x181F0(SB)/8, $12035
+DATA bitrev_size16384_radix4_f64<>+0x181F8(SB)/8, $16131
+DATA bitrev_size16384_radix4_f64<>+0x18200(SB)/8, $67
+DATA bitrev_size16384_radix4_f64<>+0x18208(SB)/8, $4163
+DATA bitrev_size16384_radix4_f64<>+0x18210(SB)/8, $8259
+DATA bitrev_size16384_radix4_f64<>+0x18218(SB)/8, $12355
+DATA bitrev_size16384_radix4_f64<>+0x18220(SB)/8, $1091
+DATA bitrev_size16384_radix4_f64<>+0x18228(SB)/8, $5187
+DATA bitrev_size16384_radix4_f64<>+0x18230(SB)/8, $9283
+DATA bitrev_size16384_radix4_f64<>+0x18238(SB)/8, $13379
+DATA bitrev_size16384_radix4_f64<>+0x18240(SB)/8, $2115
+DATA bitrev_size16384_radix4_f64<>+0x18248(SB)/8, $6211
+DATA bitrev_size16384_radix4_f64<>+0x18250(SB)/8, $10307
+DATA bitrev_size16384_radix4_f64<>+0x18258(SB)/8, $14403
+DATA bitrev_size16384_radix4_f64<>+0x18260(SB)/8, $3139
+DATA bitrev_size16384_radix4_f64<>+0x18268(SB)/8, $7235
+DATA bitrev_size16384_radix4_f64<>+0x18270(SB)/8, $11331
+DATA bitrev_size16384_radix4_f64<>+0x18278(SB)/8, $15427
+DATA bitrev_size16384_radix4_f64<>+0x18280(SB)/8, $323
+DATA bitrev_size16384_radix4_f64<>+0x18288(SB)/8, $4419
+DATA bitrev_size16384_radix4_f64<>+0x18290(SB)/8, $8515
+DATA bitrev_size16384_radix4_f64<>+0x18298(SB)/8, $12611
+DATA bitrev_size16384_radix4_f64<>+0x182A0(SB)/8, $1347
+DATA bitrev_size16384_radix4_f64<>+0x182A8(SB)/8, $5443
+DATA bitrev_size16384_radix4_f64<>+0x182B0(SB)/8, $9539
+DATA bitrev_size16384_radix4_f64<>+0x182B8(SB)/8, $13635
+DATA bitrev_size16384_radix4_f64<>+0x182C0(SB)/8, $2371
+DATA bitrev_size16384_radix4_f64<>+0x182C8(SB)/8, $6467
+DATA bitrev_size16384_radix4_f64<>+0x182D0(SB)/8, $10563
+DATA bitrev_size16384_radix4_f64<>+0x182D8(SB)/8, $14659
+DATA bitrev_size16384_radix4_f64<>+0x182E0(SB)/8, $3395
+DATA bitrev_size16384_radix4_f64<>+0x182E8(SB)/8, $7491
+DATA bitrev_size16384_radix4_f64<>+0x182F0(SB)/8, $11587
+DATA bitrev_size16384_radix4_f64<>+0x182F8(SB)/8, $15683
+DATA bitrev_size16384_radix4_f64<>+0x18300(SB)/8, $579
+DATA bitrev_size16384_radix4_f64<>+0x18308(SB)/8, $4675
+DATA bitrev_size16384_radix4_f64<>+0x18310(SB)/8, $8771
+DATA bitrev_size16384_radix4_f64<>+0x18318(SB)/8, $12867
+DATA bitrev_size16384_radix4_f64<>+0x18320(SB)/8, $1603
+DATA bitrev_size16384_radix4_f64<>+0x18328(SB)/8, $5699
+DATA bitrev_size16384_radix4_f64<>+0x18330(SB)/8, $9795
+DATA bitrev_size16384_radix4_f64<>+0x18338(SB)/8, $13891
+DATA bitrev_size16384_radix4_f64<>+0x18340(SB)/8, $2627
+DATA bitrev_size16384_radix4_f64<>+0x18348(SB)/8, $6723
+DATA bitrev_size16384_radix4_f64<>+0x18350(SB)/8, $10819
+DATA bitrev_size16384_radix4_f64<>+0x18358(SB)/8, $14915
+DATA bitrev_size16384_radix4_f64<>+0x18360(SB)/8, $3651
+DATA bitrev_size16384_radix4_f64<>+0x18368(SB)/8, $7747
+DATA bitrev_size16384_radix4_f64<>+0x18370(SB)/8, $11843
+DATA bitrev_size16384_radix4_f64<>+0x18378(SB)/8, $15939
+DATA bitrev_size16384_radix4_f64<>+0x18380(SB)/8, $835
+DATA bitrev_size16384_radix4_f64<>+0x18388(SB)/8, $4931
+DATA bitrev_size16384_radix4_f64<>+0x18390(SB)/8, $9027
+DATA bitrev_size16384_radix4_f64<>+0x18398(SB)/8, $13123
+DATA bitrev_size16384_radix4_f64<>+0x183A0(SB)/8, $1859
+DATA bitrev_size16384_radix4_f64<>+0x183A8(SB)/8, $5955
+DATA bitrev_size16384_radix4_f64<>+0x183B0(SB)/8, $10051
+DATA bitrev_size16384_radix4_f64<>+0x183B8(SB)/8, $14147
+DATA bitrev_size16384_radix4_f64<>+0x183C0(SB)/8, $2883
+DATA bitrev_size16384_radix4_f64<>+0x183C8(SB)/8, $6979
+DATA bitrev_size16384_radix4_f64<>+0x183D0(SB)/8, $11075
+DATA bitrev_size16384_radix4_f64<>+0x183D8(SB)/8, $15171
+DATA bitrev_size16384_radix4_f64<>+0x183E0(SB)/8, $3907
+DATA bitrev_size16384_radix4_f64<>+0x183E8(SB)/8, $8003
+DATA bitrev_size16384_radix4_f64<>+0x183F0(SB)/8, $12099
+DATA bitrev_size16384_radix4_f64<>+0x183F8(SB)/8, $16195
+DATA bitrev_size16384_radix4_f64<>+0x18400(SB)/8, $131
+DATA bitrev_size16384_radix4_f64<>+0x18408(SB)/8, $4227
+DATA bitrev_size16384_radix4_f64<>+0x18410(SB)/8, $8323
+DATA bitrev_size16384_radix4_f64<>+0x18418(SB)/8, $12419
+DATA bitrev_size16384_radix4_f64<>+0x18420(SB)/8, $1155
+DATA bitrev_size16384_radix4_f64<>+0x18428(SB)/8, $5251
+DATA bitrev_size16384_radix4_f64<>+0x18430(SB)/8, $9347
+DATA bitrev_size16384_radix4_f64<>+0x18438(SB)/8, $13443
+DATA bitrev_size16384_radix4_f64<>+0x18440(SB)/8, $2179
+DATA bitrev_size16384_radix4_f64<>+0x18448(SB)/8, $6275
+DATA bitrev_size16384_radix4_f64<>+0x18450(SB)/8, $10371
+DATA bitrev_size16384_radix4_f64<>+0x18458(SB)/8, $14467
+DATA bitrev_size16384_radix4_f64<>+0x18460(SB)/8, $3203
+DATA bitrev_size16384_radix4_f64<>+0x18468(SB)/8, $7299
+DATA bitrev_size16384_radix4_f64<>+0x18470(SB)/8, $11395
+DATA bitrev_size16384_radix4_f64<>+0x18478(SB)/8, $15491
+DATA bitrev_size16384_radix4_f64<>+0x18480(SB)/8, $387
+DATA bitrev_size16384_radix4_f64<>+0x18488(SB)/8, $4483
+DATA bitrev_size16384_radix4_f64<>+0x18490(SB)/8, $8579
+DATA bitrev_size16384_radix4_f64<>+0x18498(SB)/8, $12675
+DATA bitrev_size16384_radix4_f64<>+0x184A0(SB)/8, $1411
+DATA bitrev_size16384_radix4_f64<>+0x184A8(SB)/8, $5507
+DATA bitrev_size16384_radix4_f64<>+0x184B0(SB)/8, $9603
+DATA bitrev_size16384_radix4_f64<>+0x184B8(SB)/8, $13699
+DATA bitrev_size16384_radix4_f64<>+0x184C0(SB)/8, $2435
+DATA bitrev_size16384_radix4_f64<>+0x184C8(SB)/8, $6531
+DATA bitrev_size16384_radix4_f64<>+0x184D0(SB)/8, $10627
+DATA bitrev_size16384_radix4_f64<>+0x184D8(SB)/8, $14723
+DATA bitrev_size16384_radix4_f64<>+0x184E0(SB)/8, $3459
+DATA bitrev_size16384_radix4_f64<>+0x184E8(SB)/8, $7555
+DATA bitrev_size16384_radix4_f64<>+0x184F0(SB)/8, $11651
+DATA bitrev_size16384_radix4_f64<>+0x184F8(SB)/8, $15747
+DATA bitrev_size16384_radix4_f64<>+0x18500(SB)/8, $643
+DATA bitrev_size16384_radix4_f64<>+0x18508(SB)/8, $4739
+DATA bitrev_size16384_radix4_f64<>+0x18510(SB)/8, $8835
+DATA bitrev_size16384_radix4_f64<>+0x18518(SB)/8, $12931
+DATA bitrev_size16384_radix4_f64<>+0x18520(SB)/8, $1667
+DATA bitrev_size16384_radix4_f64<>+0x18528(SB)/8, $5763
+DATA bitrev_size16384_radix4_f64<>+0x18530(SB)/8, $9859
+DATA bitrev_size16384_radix4_f64<>+0x18538(SB)/8, $13955
+DATA bitrev_size16384_radix4_f64<>+0x18540(SB)/8, $2691
+DATA bitrev_size16384_radix4_f64<>+0x18548(SB)/8, $6787
+DATA bitrev_size16384_radix4_f64<>+0x18550(SB)/8, $10883
+DATA bitrev_size16384_radix4_f64<>+0x18558(SB)/8, $14979
+DATA bitrev_size16384_radix4_f64<>+0x18560(SB)/8, $3715
+DATA bitrev_size16384_radix4_f64<>+0x18568(SB)/8, $7811
+DATA bitrev_size16384_radix4_f64<>+0x18570(SB)/8, $11907
+DATA bitrev_size16384_radix4_f64<>+0x18578(SB)/8, $16003
+DATA bitrev_size16384_radix4_f64<>+0x18580(SB)/8, $899
+DATA bitrev_size16384_radix4_f64<>+0x18588(SB)/8, $4995
+DATA bitrev_size16384_radix4_f64<>+0x18590(SB)/8, $9091
+DATA bitrev_size16384_radix4_f64<>+0x18598(SB)/8, $13187
+DATA bitrev_size16384_radix4_f64<>+0x185A0(SB)/8, $1923
+DATA bitrev_size16384_radix4_f64<>+0x185A8(SB)/8, $6019
+DATA bitrev_size16384_radix4_f64<>+0x185B0(SB)/8, $10115
+DATA bitrev_size16384_radix4_f64<>+0x185B8(SB)/8, $14211
+DATA bitrev_size16384_radix4_f64<>+0x185C0(SB)/8, $2947
+DATA bitrev_size16384_radix4_f64<>+0x185C8(SB)/8, $7043
+DATA bitrev_size16384_radix4_f64<>+0x185D0(SB)/8, $11139
+DATA bitrev_size16384_radix4_f64<>+0x185D8(SB)/8, $15235
+DATA bitrev_size16384_radix4_f64<>+0x185E0(SB)/8, $3971
+DATA bitrev_size16384_radix4_f64<>+0x185E8(SB)/8, $8067
+DATA bitrev_size16384_radix4_f64<>+0x185F0(SB)/8, $12163
+DATA bitrev_size16384_radix4_f64<>+0x185F8(SB)/8, $16259
+DATA bitrev_size16384_radix4_f64<>+0x18600(SB)/8, $195
+DATA bitrev_size16384_radix4_f64<>+0x18608(SB)/8, $4291
+DATA bitrev_size16384_radix4_f64<>+0x18610(SB)/8, $8387
+DATA bitrev_size16384_radix4_f64<>+0x18618(SB)/8, $12483
+DATA bitrev_size16384_radix4_f64<>+0x18620(SB)/8, $1219
+DATA bitrev_size16384_radix4_f64<>+0x18628(SB)/8, $5315
+DATA bitrev_size16384_radix4_f64<>+0x18630(SB)/8, $9411
+DATA bitrev_size16384_radix4_f64<>+0x18638(SB)/8, $13507
+DATA bitrev_size16384_radix4_f64<>+0x18640(SB)/8, $2243
+DATA bitrev_size16384_radix4_f64<>+0x18648(SB)/8, $6339
+DATA bitrev_size16384_radix4_f64<>+0x18650(SB)/8, $10435
+DATA bitrev_size16384_radix4_f64<>+0x18658(SB)/8, $14531
+DATA bitrev_size16384_radix4_f64<>+0x18660(SB)/8, $3267
+DATA bitrev_size16384_radix4_f64<>+0x18668(SB)/8, $7363
+DATA bitrev_size16384_radix4_f64<>+0x18670(SB)/8, $11459
+DATA bitrev_size16384_radix4_f64<>+0x18678(SB)/8, $15555
+DATA bitrev_size16384_radix4_f64<>+0x18680(SB)/8, $451
+DATA bitrev_size16384_radix4_f64<>+0x18688(SB)/8, $4547
+DATA bitrev_size16384_radix4_f64<>+0x18690(SB)/8, $8643
+DATA bitrev_size16384_radix4_f64<>+0x18698(SB)/8, $12739
+DATA bitrev_size16384_radix4_f64<>+0x186A0(SB)/8, $1475
+DATA bitrev_size16384_radix4_f64<>+0x186A8(SB)/8, $5571
+DATA bitrev_size16384_radix4_f64<>+0x186B0(SB)/8, $9667
+DATA bitrev_size16384_radix4_f64<>+0x186B8(SB)/8, $13763
+DATA bitrev_size16384_radix4_f64<>+0x186C0(SB)/8, $2499
+DATA bitrev_size16384_radix4_f64<>+0x186C8(SB)/8, $6595
+DATA bitrev_size16384_radix4_f64<>+0x186D0(SB)/8, $10691
+DATA bitrev_size16384_radix4_f64<>+0x186D8(SB)/8, $14787
+DATA bitrev_size16384_radix4_f64<>+0x186E0(SB)/8, $3523
+DATA bitrev_size16384_radix4_f64<>+0x186E8(SB)/8, $7619
+DATA bitrev_size16384_radix4_f64<>+0x186F0(SB)/8, $11715
+DATA bitrev_size16384_radix4_f64<>+0x186F8(SB)/8, $15811
+DATA bitrev_size16384_radix4_f64<>+0x18700(SB)/8, $707
+DATA bitrev_size16384_radix4_f64<>+0x18708(SB)/8, $4803
+DATA bitrev_size16384_radix4_f64<>+0x18710(SB)/8, $8899
+DATA bitrev_size16384_radix4_f64<>+0x18718(SB)/8, $12995
+DATA bitrev_size16384_radix4_f64<>+0x18720(SB)/8, $1731
+DATA bitrev_size16384_radix4_f64<>+0x18728(SB)/8, $5827
+DATA bitrev_size16384_radix4_f64<>+0x18730(SB)/8, $9923
+DATA bitrev_size16384_radix4_f64<>+0x18738(SB)/8, $14019
+DATA bitrev_size16384_radix4_f64<>+0x18740(SB)/8, $2755
+DATA bitrev_size16384_radix4_f64<>+0x18748(SB)/8, $6851
+DATA bitrev_size16384_radix4_f64<>+0x18750(SB)/8, $10947
+DATA bitrev_size16384_radix4_f64<>+0x18758(SB)/8, $15043
+DATA bitrev_size16384_radix4_f64<>+0x18760(SB)/8, $3779
+DATA bitrev_size16384_radix4_f64<>+0x18768(SB)/8, $7875
+DATA bitrev_size16384_radix4_f64<>+0x18770(SB)/8, $11971
+DATA bitrev_size16384_radix4_f64<>+0x18778(SB)/8, $16067
+DATA bitrev_size16384_radix4_f64<>+0x18780(SB)/8, $963
+DATA bitrev_size16384_radix4_f64<>+0x18788(SB)/8, $5059
+DATA bitrev_size16384_radix4_f64<>+0x18790(SB)/8, $9155
+DATA bitrev_size16384_radix4_f64<>+0x18798(SB)/8, $13251
+DATA bitrev_size16384_radix4_f64<>+0x187A0(SB)/8, $1987
+DATA bitrev_size16384_radix4_f64<>+0x187A8(SB)/8, $6083
+DATA bitrev_size16384_radix4_f64<>+0x187B0(SB)/8, $10179
+DATA bitrev_size16384_radix4_f64<>+0x187B8(SB)/8, $14275
+DATA bitrev_size16384_radix4_f64<>+0x187C0(SB)/8, $3011
+DATA bitrev_size16384_radix4_f64<>+0x187C8(SB)/8, $7107
+DATA bitrev_size16384_radix4_f64<>+0x187D0(SB)/8, $11203
+DATA bitrev_size16384_radix4_f64<>+0x187D8(SB)/8, $15299
+DATA bitrev_size16384_radix4_f64<>+0x187E0(SB)/8, $4035
+DATA bitrev_size16384_radix4_f64<>+0x187E8(SB)/8, $8131
+DATA bitrev_size16384_radix4_f64<>+0x187F0(SB)/8, $12227
+DATA bitrev_size16384_radix4_f64<>+0x187F8(SB)/8, $16323
+DATA bitrev_size16384_radix4_f64<>+0x18800(SB)/8, $19
+DATA bitrev_size16384_radix4_f64<>+0x18808(SB)/8, $4115
+DATA bitrev_size16384_radix4_f64<>+0x18810(SB)/8, $8211
+DATA bitrev_size16384_radix4_f64<>+0x18818(SB)/8, $12307
+DATA bitrev_size16384_radix4_f64<>+0x18820(SB)/8, $1043
+DATA bitrev_size16384_radix4_f64<>+0x18828(SB)/8, $5139
+DATA bitrev_size16384_radix4_f64<>+0x18830(SB)/8, $9235
+DATA bitrev_size16384_radix4_f64<>+0x18838(SB)/8, $13331
+DATA bitrev_size16384_radix4_f64<>+0x18840(SB)/8, $2067
+DATA bitrev_size16384_radix4_f64<>+0x18848(SB)/8, $6163
+DATA bitrev_size16384_radix4_f64<>+0x18850(SB)/8, $10259
+DATA bitrev_size16384_radix4_f64<>+0x18858(SB)/8, $14355
+DATA bitrev_size16384_radix4_f64<>+0x18860(SB)/8, $3091
+DATA bitrev_size16384_radix4_f64<>+0x18868(SB)/8, $7187
+DATA bitrev_size16384_radix4_f64<>+0x18870(SB)/8, $11283
+DATA bitrev_size16384_radix4_f64<>+0x18878(SB)/8, $15379
+DATA bitrev_size16384_radix4_f64<>+0x18880(SB)/8, $275
+DATA bitrev_size16384_radix4_f64<>+0x18888(SB)/8, $4371
+DATA bitrev_size16384_radix4_f64<>+0x18890(SB)/8, $8467
+DATA bitrev_size16384_radix4_f64<>+0x18898(SB)/8, $12563
+DATA bitrev_size16384_radix4_f64<>+0x188A0(SB)/8, $1299
+DATA bitrev_size16384_radix4_f64<>+0x188A8(SB)/8, $5395
+DATA bitrev_size16384_radix4_f64<>+0x188B0(SB)/8, $9491
+DATA bitrev_size16384_radix4_f64<>+0x188B8(SB)/8, $13587
+DATA bitrev_size16384_radix4_f64<>+0x188C0(SB)/8, $2323
+DATA bitrev_size16384_radix4_f64<>+0x188C8(SB)/8, $6419
+DATA bitrev_size16384_radix4_f64<>+0x188D0(SB)/8, $10515
+DATA bitrev_size16384_radix4_f64<>+0x188D8(SB)/8, $14611
+DATA bitrev_size16384_radix4_f64<>+0x188E0(SB)/8, $3347
+DATA bitrev_size16384_radix4_f64<>+0x188E8(SB)/8, $7443
+DATA bitrev_size16384_radix4_f64<>+0x188F0(SB)/8, $11539
+DATA bitrev_size16384_radix4_f64<>+0x188F8(SB)/8, $15635
+DATA bitrev_size16384_radix4_f64<>+0x18900(SB)/8, $531
+DATA bitrev_size16384_radix4_f64<>+0x18908(SB)/8, $4627
+DATA bitrev_size16384_radix4_f64<>+0x18910(SB)/8, $8723
+DATA bitrev_size16384_radix4_f64<>+0x18918(SB)/8, $12819
+DATA bitrev_size16384_radix4_f64<>+0x18920(SB)/8, $1555
+DATA bitrev_size16384_radix4_f64<>+0x18928(SB)/8, $5651
+DATA bitrev_size16384_radix4_f64<>+0x18930(SB)/8, $9747
+DATA bitrev_size16384_radix4_f64<>+0x18938(SB)/8, $13843
+DATA bitrev_size16384_radix4_f64<>+0x18940(SB)/8, $2579
+DATA bitrev_size16384_radix4_f64<>+0x18948(SB)/8, $6675
+DATA bitrev_size16384_radix4_f64<>+0x18950(SB)/8, $10771
+DATA bitrev_size16384_radix4_f64<>+0x18958(SB)/8, $14867
+DATA bitrev_size16384_radix4_f64<>+0x18960(SB)/8, $3603
+DATA bitrev_size16384_radix4_f64<>+0x18968(SB)/8, $7699
+DATA bitrev_size16384_radix4_f64<>+0x18970(SB)/8, $11795
+DATA bitrev_size16384_radix4_f64<>+0x18978(SB)/8, $15891
+DATA bitrev_size16384_radix4_f64<>+0x18980(SB)/8, $787
+DATA bitrev_size16384_radix4_f64<>+0x18988(SB)/8, $4883
+DATA bitrev_size16384_radix4_f64<>+0x18990(SB)/8, $8979
+DATA bitrev_size16384_radix4_f64<>+0x18998(SB)/8, $13075
+DATA bitrev_size16384_radix4_f64<>+0x189A0(SB)/8, $1811
+DATA bitrev_size16384_radix4_f64<>+0x189A8(SB)/8, $5907
+DATA bitrev_size16384_radix4_f64<>+0x189B0(SB)/8, $10003
+DATA bitrev_size16384_radix4_f64<>+0x189B8(SB)/8, $14099
+DATA bitrev_size16384_radix4_f64<>+0x189C0(SB)/8, $2835
+DATA bitrev_size16384_radix4_f64<>+0x189C8(SB)/8, $6931
+DATA bitrev_size16384_radix4_f64<>+0x189D0(SB)/8, $11027
+DATA bitrev_size16384_radix4_f64<>+0x189D8(SB)/8, $15123
+DATA bitrev_size16384_radix4_f64<>+0x189E0(SB)/8, $3859
+DATA bitrev_size16384_radix4_f64<>+0x189E8(SB)/8, $7955
+DATA bitrev_size16384_radix4_f64<>+0x189F0(SB)/8, $12051
+DATA bitrev_size16384_radix4_f64<>+0x189F8(SB)/8, $16147
+DATA bitrev_size16384_radix4_f64<>+0x18A00(SB)/8, $83
+DATA bitrev_size16384_radix4_f64<>+0x18A08(SB)/8, $4179
+DATA bitrev_size16384_radix4_f64<>+0x18A10(SB)/8, $8275
+DATA bitrev_size16384_radix4_f64<>+0x18A18(SB)/8, $12371
+DATA bitrev_size16384_radix4_f64<>+0x18A20(SB)/8, $1107
+DATA bitrev_size16384_radix4_f64<>+0x18A28(SB)/8, $5203
+DATA bitrev_size16384_radix4_f64<>+0x18A30(SB)/8, $9299
+DATA bitrev_size16384_radix4_f64<>+0x18A38(SB)/8, $13395
+DATA bitrev_size16384_radix4_f64<>+0x18A40(SB)/8, $2131
+DATA bitrev_size16384_radix4_f64<>+0x18A48(SB)/8, $6227
+DATA bitrev_size16384_radix4_f64<>+0x18A50(SB)/8, $10323
+DATA bitrev_size16384_radix4_f64<>+0x18A58(SB)/8, $14419
+DATA bitrev_size16384_radix4_f64<>+0x18A60(SB)/8, $3155
+DATA bitrev_size16384_radix4_f64<>+0x18A68(SB)/8, $7251
+DATA bitrev_size16384_radix4_f64<>+0x18A70(SB)/8, $11347
+DATA bitrev_size16384_radix4_f64<>+0x18A78(SB)/8, $15443
+DATA bitrev_size16384_radix4_f64<>+0x18A80(SB)/8, $339
+DATA bitrev_size16384_radix4_f64<>+0x18A88(SB)/8, $4435
+DATA bitrev_size16384_radix4_f64<>+0x18A90(SB)/8, $8531
+DATA bitrev_size16384_radix4_f64<>+0x18A98(SB)/8, $12627
+DATA bitrev_size16384_radix4_f64<>+0x18AA0(SB)/8, $1363
+DATA bitrev_size16384_radix4_f64<>+0x18AA8(SB)/8, $5459
+DATA bitrev_size16384_radix4_f64<>+0x18AB0(SB)/8, $9555
+DATA bitrev_size16384_radix4_f64<>+0x18AB8(SB)/8, $13651
+DATA bitrev_size16384_radix4_f64<>+0x18AC0(SB)/8, $2387
+DATA bitrev_size16384_radix4_f64<>+0x18AC8(SB)/8, $6483
+DATA bitrev_size16384_radix4_f64<>+0x18AD0(SB)/8, $10579
+DATA bitrev_size16384_radix4_f64<>+0x18AD8(SB)/8, $14675
+DATA bitrev_size16384_radix4_f64<>+0x18AE0(SB)/8, $3411
+DATA bitrev_size16384_radix4_f64<>+0x18AE8(SB)/8, $7507
+DATA bitrev_size16384_radix4_f64<>+0x18AF0(SB)/8, $11603
+DATA bitrev_size16384_radix4_f64<>+0x18AF8(SB)/8, $15699
+DATA bitrev_size16384_radix4_f64<>+0x18B00(SB)/8, $595
+DATA bitrev_size16384_radix4_f64<>+0x18B08(SB)/8, $4691
+DATA bitrev_size16384_radix4_f64<>+0x18B10(SB)/8, $8787
+DATA bitrev_size16384_radix4_f64<>+0x18B18(SB)/8, $12883
+DATA bitrev_size16384_radix4_f64<>+0x18B20(SB)/8, $1619
+DATA bitrev_size16384_radix4_f64<>+0x18B28(SB)/8, $5715
+DATA bitrev_size16384_radix4_f64<>+0x18B30(SB)/8, $9811
+DATA bitrev_size16384_radix4_f64<>+0x18B38(SB)/8, $13907
+DATA bitrev_size16384_radix4_f64<>+0x18B40(SB)/8, $2643
+DATA bitrev_size16384_radix4_f64<>+0x18B48(SB)/8, $6739
+DATA bitrev_size16384_radix4_f64<>+0x18B50(SB)/8, $10835
+DATA bitrev_size16384_radix4_f64<>+0x18B58(SB)/8, $14931
+DATA bitrev_size16384_radix4_f64<>+0x18B60(SB)/8, $3667
+DATA bitrev_size16384_radix4_f64<>+0x18B68(SB)/8, $7763
+DATA bitrev_size16384_radix4_f64<>+0x18B70(SB)/8, $11859
+DATA bitrev_size16384_radix4_f64<>+0x18B78(SB)/8, $15955
+DATA bitrev_size16384_radix4_f64<>+0x18B80(SB)/8, $851
+DATA bitrev_size16384_radix4_f64<>+0x18B88(SB)/8, $4947
+DATA bitrev_size16384_radix4_f64<>+0x18B90(SB)/8, $9043
+DATA bitrev_size16384_radix4_f64<>+0x18B98(SB)/8, $13139
+DATA bitrev_size16384_radix4_f64<>+0x18BA0(SB)/8, $1875
+DATA bitrev_size16384_radix4_f64<>+0x18BA8(SB)/8, $5971
+DATA bitrev_size16384_radix4_f64<>+0x18BB0(SB)/8, $10067
+DATA bitrev_size16384_radix4_f64<>+0x18BB8(SB)/8, $14163
+DATA bitrev_size16384_radix4_f64<>+0x18BC0(SB)/8, $2899
+DATA bitrev_size16384_radix4_f64<>+0x18BC8(SB)/8, $6995
+DATA bitrev_size16384_radix4_f64<>+0x18BD0(SB)/8, $11091
+DATA bitrev_size16384_radix4_f64<>+0x18BD8(SB)/8, $15187
+DATA bitrev_size16384_radix4_f64<>+0x18BE0(SB)/8, $3923
+DATA bitrev_size16384_radix4_f64<>+0x18BE8(SB)/8, $8019
+DATA bitrev_size16384_radix4_f64<>+0x18BF0(SB)/8, $12115
+DATA bitrev_size16384_radix4_f64<>+0x18BF8(SB)/8, $16211
+DATA bitrev_size16384_radix4_f64<>+0x18C00(SB)/8, $147
+DATA bitrev_size16384_radix4_f64<>+0x18C08(SB)/8, $4243
+DATA bitrev_size16384_radix4_f64<>+0x18C10(SB)/8, $8339
+DATA bitrev_size16384_radix4_f64<>+0x18C18(SB)/8, $12435
+DATA bitrev_size16384_radix4_f64<>+0x18C20(SB)/8, $1171
+DATA bitrev_size16384_radix4_f64<>+0x18C28(SB)/8, $5267
+DATA bitrev_size16384_radix4_f64<>+0x18C30(SB)/8, $9363
+DATA bitrev_size16384_radix4_f64<>+0x18C38(SB)/8, $13459
+DATA bitrev_size16384_radix4_f64<>+0x18C40(SB)/8, $2195
+DATA bitrev_size16384_radix4_f64<>+0x18C48(SB)/8, $6291
+DATA bitrev_size16384_radix4_f64<>+0x18C50(SB)/8, $10387
+DATA bitrev_size16384_radix4_f64<>+0x18C58(SB)/8, $14483
+DATA bitrev_size16384_radix4_f64<>+0x18C60(SB)/8, $3219
+DATA bitrev_size16384_radix4_f64<>+0x18C68(SB)/8, $7315
+DATA bitrev_size16384_radix4_f64<>+0x18C70(SB)/8, $11411
+DATA bitrev_size16384_radix4_f64<>+0x18C78(SB)/8, $15507
+DATA bitrev_size16384_radix4_f64<>+0x18C80(SB)/8, $403
+DATA bitrev_size16384_radix4_f64<>+0x18C88(SB)/8, $4499
+DATA bitrev_size16384_radix4_f64<>+0x18C90(SB)/8, $8595
+DATA bitrev_size16384_radix4_f64<>+0x18C98(SB)/8, $12691
+DATA bitrev_size16384_radix4_f64<>+0x18CA0(SB)/8, $1427
+DATA bitrev_size16384_radix4_f64<>+0x18CA8(SB)/8, $5523
+DATA bitrev_size16384_radix4_f64<>+0x18CB0(SB)/8, $9619
+DATA bitrev_size16384_radix4_f64<>+0x18CB8(SB)/8, $13715
+DATA bitrev_size16384_radix4_f64<>+0x18CC0(SB)/8, $2451
+DATA bitrev_size16384_radix4_f64<>+0x18CC8(SB)/8, $6547
+DATA bitrev_size16384_radix4_f64<>+0x18CD0(SB)/8, $10643
+DATA bitrev_size16384_radix4_f64<>+0x18CD8(SB)/8, $14739
+DATA bitrev_size16384_radix4_f64<>+0x18CE0(SB)/8, $3475
+DATA bitrev_size16384_radix4_f64<>+0x18CE8(SB)/8, $7571
+DATA bitrev_size16384_radix4_f64<>+0x18CF0(SB)/8, $11667
+DATA bitrev_size16384_radix4_f64<>+0x18CF8(SB)/8, $15763
+DATA bitrev_size16384_radix4_f64<>+0x18D00(SB)/8, $659
+DATA bitrev_size16384_radix4_f64<>+0x18D08(SB)/8, $4755
+DATA bitrev_size16384_radix4_f64<>+0x18D10(SB)/8, $8851
+DATA bitrev_size16384_radix4_f64<>+0x18D18(SB)/8, $12947
+DATA bitrev_size16384_radix4_f64<>+0x18D20(SB)/8, $1683
+DATA bitrev_size16384_radix4_f64<>+0x18D28(SB)/8, $5779
+DATA bitrev_size16384_radix4_f64<>+0x18D30(SB)/8, $9875
+DATA bitrev_size16384_radix4_f64<>+0x18D38(SB)/8, $13971
+DATA bitrev_size16384_radix4_f64<>+0x18D40(SB)/8, $2707
+DATA bitrev_size16384_radix4_f64<>+0x18D48(SB)/8, $6803
+DATA bitrev_size16384_radix4_f64<>+0x18D50(SB)/8, $10899
+DATA bitrev_size16384_radix4_f64<>+0x18D58(SB)/8, $14995
+DATA bitrev_size16384_radix4_f64<>+0x18D60(SB)/8, $3731
+DATA bitrev_size16384_radix4_f64<>+0x18D68(SB)/8, $7827
+DATA bitrev_size16384_radix4_f64<>+0x18D70(SB)/8, $11923
+DATA bitrev_size16384_radix4_f64<>+0x18D78(SB)/8, $16019
+DATA bitrev_size16384_radix4_f64<>+0x18D80(SB)/8, $915
+DATA bitrev_size16384_radix4_f64<>+0x18D88(SB)/8, $5011
+DATA bitrev_size16384_radix4_f64<>+0x18D90(SB)/8, $9107
+DATA bitrev_size16384_radix4_f64<>+0x18D98(SB)/8, $13203
+DATA bitrev_size16384_radix4_f64<>+0x18DA0(SB)/8, $1939
+DATA bitrev_size16384_radix4_f64<>+0x18DA8(SB)/8, $6035
+DATA bitrev_size16384_radix4_f64<>+0x18DB0(SB)/8, $10131
+DATA bitrev_size16384_radix4_f64<>+0x18DB8(SB)/8, $14227
+DATA bitrev_size16384_radix4_f64<>+0x18DC0(SB)/8, $2963
+DATA bitrev_size16384_radix4_f64<>+0x18DC8(SB)/8, $7059
+DATA bitrev_size16384_radix4_f64<>+0x18DD0(SB)/8, $11155
+DATA bitrev_size16384_radix4_f64<>+0x18DD8(SB)/8, $15251
+DATA bitrev_size16384_radix4_f64<>+0x18DE0(SB)/8, $3987
+DATA bitrev_size16384_radix4_f64<>+0x18DE8(SB)/8, $8083
+DATA bitrev_size16384_radix4_f64<>+0x18DF0(SB)/8, $12179
+DATA bitrev_size16384_radix4_f64<>+0x18DF8(SB)/8, $16275
+DATA bitrev_size16384_radix4_f64<>+0x18E00(SB)/8, $211
+DATA bitrev_size16384_radix4_f64<>+0x18E08(SB)/8, $4307
+DATA bitrev_size16384_radix4_f64<>+0x18E10(SB)/8, $8403
+DATA bitrev_size16384_radix4_f64<>+0x18E18(SB)/8, $12499
+DATA bitrev_size16384_radix4_f64<>+0x18E20(SB)/8, $1235
+DATA bitrev_size16384_radix4_f64<>+0x18E28(SB)/8, $5331
+DATA bitrev_size16384_radix4_f64<>+0x18E30(SB)/8, $9427
+DATA bitrev_size16384_radix4_f64<>+0x18E38(SB)/8, $13523
+DATA bitrev_size16384_radix4_f64<>+0x18E40(SB)/8, $2259
+DATA bitrev_size16384_radix4_f64<>+0x18E48(SB)/8, $6355
+DATA bitrev_size16384_radix4_f64<>+0x18E50(SB)/8, $10451
+DATA bitrev_size16384_radix4_f64<>+0x18E58(SB)/8, $14547
+DATA bitrev_size16384_radix4_f64<>+0x18E60(SB)/8, $3283
+DATA bitrev_size16384_radix4_f64<>+0x18E68(SB)/8, $7379
+DATA bitrev_size16384_radix4_f64<>+0x18E70(SB)/8, $11475
+DATA bitrev_size16384_radix4_f64<>+0x18E78(SB)/8, $15571
+DATA bitrev_size16384_radix4_f64<>+0x18E80(SB)/8, $467
+DATA bitrev_size16384_radix4_f64<>+0x18E88(SB)/8, $4563
+DATA bitrev_size16384_radix4_f64<>+0x18E90(SB)/8, $8659
+DATA bitrev_size16384_radix4_f64<>+0x18E98(SB)/8, $12755
+DATA bitrev_size16384_radix4_f64<>+0x18EA0(SB)/8, $1491
+DATA bitrev_size16384_radix4_f64<>+0x18EA8(SB)/8, $5587
+DATA bitrev_size16384_radix4_f64<>+0x18EB0(SB)/8, $9683
+DATA bitrev_size16384_radix4_f64<>+0x18EB8(SB)/8, $13779
+DATA bitrev_size16384_radix4_f64<>+0x18EC0(SB)/8, $2515
+DATA bitrev_size16384_radix4_f64<>+0x18EC8(SB)/8, $6611
+DATA bitrev_size16384_radix4_f64<>+0x18ED0(SB)/8, $10707
+DATA bitrev_size16384_radix4_f64<>+0x18ED8(SB)/8, $14803
+DATA bitrev_size16384_radix4_f64<>+0x18EE0(SB)/8, $3539
+DATA bitrev_size16384_radix4_f64<>+0x18EE8(SB)/8, $7635
+DATA bitrev_size16384_radix4_f64<>+0x18EF0(SB)/8, $11731
+DATA bitrev_size16384_radix4_f64<>+0x18EF8(SB)/8, $15827
+DATA bitrev_size16384_radix4_f64<>+0x18F00(SB)/8, $723
+DATA bitrev_size16384_radix4_f64<>+0x18F08(SB)/8, $4819
+DATA bitrev_size16384_radix4_f64<>+0x18F10(SB)/8, $8915
+DATA bitrev_size16384_radix4_f64<>+0x18F18(SB)/8, $13011
+DATA bitrev_size16384_radix4_f64<>+0x18F20(SB)/8, $1747
+DATA bitrev_size16384_radix4_f64<>+0x18F28(SB)/8, $5843
+DATA bitrev_size16384_radix4_f64<>+0x18F30(SB)/8, $9939
+DATA bitrev_size16384_radix4_f64<>+0x18F38(SB)/8, $14035
+DATA bitrev_size16384_radix4_f64<>+0x18F40(SB)/8, $2771
+DATA bitrev_size16384_radix4_f64<>+0x18F48(SB)/8, $6867
+DATA bitrev_size16384_radix4_f64<>+0x18F50(SB)/8, $10963
+DATA bitrev_size16384_radix4_f64<>+0x18F58(SB)/8, $15059
+DATA bitrev_size16384_radix4_f64<>+0x18F60(SB)/8, $3795
+DATA bitrev_size16384_radix4_f64<>+0x18F68(SB)/8, $7891
+DATA bitrev_size16384_radix4_f64<>+0x18F70(SB)/8, $11987
+DATA bitrev_size16384_radix4_f64<>+0x18F78(SB)/8, $16083
+DATA bitrev_size16384_radix4_f64<>+0x18F80(SB)/8, $979
+DATA bitrev_size16384_radix4_f64<>+0x18F88(SB)/8, $5075
+DATA bitrev_size16384_radix4_f64<>+0x18F90(SB)/8, $9171
+DATA bitrev_size16384_radix4_f64<>+0x18F98(SB)/8, $13267
+DATA bitrev_size16384_radix4_f64<>+0x18FA0(SB)/8, $2003
+DATA bitrev_size16384_radix4_f64<>+0x18FA8(SB)/8, $6099
+DATA bitrev_size16384_radix4_f64<>+0x18FB0(SB)/8, $10195
+DATA bitrev_size16384_radix4_f64<>+0x18FB8(SB)/8, $14291
+DATA bitrev_size16384_radix4_f64<>+0x18FC0(SB)/8, $3027
+DATA bitrev_size16384_radix4_f64<>+0x18FC8(SB)/8, $7123
+DATA bitrev_size16384_radix4_f64<>+0x18FD0(SB)/8, $11219
+DATA bitrev_size16384_radix4_f64<>+0x18FD8(SB)/8, $15315
+DATA bitrev_size16384_radix4_f64<>+0x18FE0(SB)/8, $4051
+DATA bitrev_size16384_radix4_f64<>+0x18FE8(SB)/8, $8147
+DATA bitrev_size16384_radix4_f64<>+0x18FF0(SB)/8, $12243
+DATA bitrev_size16384_radix4_f64<>+0x18FF8(SB)/8, $16339
+DATA bitrev_size16384_radix4_f64<>+0x19000(SB)/8, $35
+DATA bitrev_size16384_radix4_f64<>+0x19008(SB)/8, $4131
+DATA bitrev_size16384_radix4_f64<>+0x19010(SB)/8, $8227
+DATA bitrev_size16384_radix4_f64<>+0x19018(SB)/8, $12323
+DATA bitrev_size16384_radix4_f64<>+0x19020(SB)/8, $1059
+DATA bitrev_size16384_radix4_f64<>+0x19028(SB)/8, $5155
+DATA bitrev_size16384_radix4_f64<>+0x19030(SB)/8, $9251
+DATA bitrev_size16384_radix4_f64<>+0x19038(SB)/8, $13347
+DATA bitrev_size16384_radix4_f64<>+0x19040(SB)/8, $2083
+DATA bitrev_size16384_radix4_f64<>+0x19048(SB)/8, $6179
+DATA bitrev_size16384_radix4_f64<>+0x19050(SB)/8, $10275
+DATA bitrev_size16384_radix4_f64<>+0x19058(SB)/8, $14371
+DATA bitrev_size16384_radix4_f64<>+0x19060(SB)/8, $3107
+DATA bitrev_size16384_radix4_f64<>+0x19068(SB)/8, $7203
+DATA bitrev_size16384_radix4_f64<>+0x19070(SB)/8, $11299
+DATA bitrev_size16384_radix4_f64<>+0x19078(SB)/8, $15395
+DATA bitrev_size16384_radix4_f64<>+0x19080(SB)/8, $291
+DATA bitrev_size16384_radix4_f64<>+0x19088(SB)/8, $4387
+DATA bitrev_size16384_radix4_f64<>+0x19090(SB)/8, $8483
+DATA bitrev_size16384_radix4_f64<>+0x19098(SB)/8, $12579
+DATA bitrev_size16384_radix4_f64<>+0x190A0(SB)/8, $1315
+DATA bitrev_size16384_radix4_f64<>+0x190A8(SB)/8, $5411
+DATA bitrev_size16384_radix4_f64<>+0x190B0(SB)/8, $9507
+DATA bitrev_size16384_radix4_f64<>+0x190B8(SB)/8, $13603
+DATA bitrev_size16384_radix4_f64<>+0x190C0(SB)/8, $2339
+DATA bitrev_size16384_radix4_f64<>+0x190C8(SB)/8, $6435
+DATA bitrev_size16384_radix4_f64<>+0x190D0(SB)/8, $10531
+DATA bitrev_size16384_radix4_f64<>+0x190D8(SB)/8, $14627
+DATA bitrev_size16384_radix4_f64<>+0x190E0(SB)/8, $3363
+DATA bitrev_size16384_radix4_f64<>+0x190E8(SB)/8, $7459
+DATA bitrev_size16384_radix4_f64<>+0x190F0(SB)/8, $11555
+DATA bitrev_size16384_radix4_f64<>+0x190F8(SB)/8, $15651
+DATA bitrev_size16384_radix4_f64<>+0x19100(SB)/8, $547
+DATA bitrev_size16384_radix4_f64<>+0x19108(SB)/8, $4643
+DATA bitrev_size16384_radix4_f64<>+0x19110(SB)/8, $8739
+DATA bitrev_size16384_radix4_f64<>+0x19118(SB)/8, $12835
+DATA bitrev_size16384_radix4_f64<>+0x19120(SB)/8, $1571
+DATA bitrev_size16384_radix4_f64<>+0x19128(SB)/8, $5667
+DATA bitrev_size16384_radix4_f64<>+0x19130(SB)/8, $9763
+DATA bitrev_size16384_radix4_f64<>+0x19138(SB)/8, $13859
+DATA bitrev_size16384_radix4_f64<>+0x19140(SB)/8, $2595
+DATA bitrev_size16384_radix4_f64<>+0x19148(SB)/8, $6691
+DATA bitrev_size16384_radix4_f64<>+0x19150(SB)/8, $10787
+DATA bitrev_size16384_radix4_f64<>+0x19158(SB)/8, $14883
+DATA bitrev_size16384_radix4_f64<>+0x19160(SB)/8, $3619
+DATA bitrev_size16384_radix4_f64<>+0x19168(SB)/8, $7715
+DATA bitrev_size16384_radix4_f64<>+0x19170(SB)/8, $11811
+DATA bitrev_size16384_radix4_f64<>+0x19178(SB)/8, $15907
+DATA bitrev_size16384_radix4_f64<>+0x19180(SB)/8, $803
+DATA bitrev_size16384_radix4_f64<>+0x19188(SB)/8, $4899
+DATA bitrev_size16384_radix4_f64<>+0x19190(SB)/8, $8995
+DATA bitrev_size16384_radix4_f64<>+0x19198(SB)/8, $13091
+DATA bitrev_size16384_radix4_f64<>+0x191A0(SB)/8, $1827
+DATA bitrev_size16384_radix4_f64<>+0x191A8(SB)/8, $5923
+DATA bitrev_size16384_radix4_f64<>+0x191B0(SB)/8, $10019
+DATA bitrev_size16384_radix4_f64<>+0x191B8(SB)/8, $14115
+DATA bitrev_size16384_radix4_f64<>+0x191C0(SB)/8, $2851
+DATA bitrev_size16384_radix4_f64<>+0x191C8(SB)/8, $6947
+DATA bitrev_size16384_radix4_f64<>+0x191D0(SB)/8, $11043
+DATA bitrev_size16384_radix4_f64<>+0x191D8(SB)/8, $15139
+DATA bitrev_size16384_radix4_f64<>+0x191E0(SB)/8, $3875
+DATA bitrev_size16384_radix4_f64<>+0x191E8(SB)/8, $7971
+DATA bitrev_size16384_radix4_f64<>+0x191F0(SB)/8, $12067
+DATA bitrev_size16384_radix4_f64<>+0x191F8(SB)/8, $16163
+DATA bitrev_size16384_radix4_f64<>+0x19200(SB)/8, $99
+DATA bitrev_size16384_radix4_f64<>+0x19208(SB)/8, $4195
+DATA bitrev_size16384_radix4_f64<>+0x19210(SB)/8, $8291
+DATA bitrev_size16384_radix4_f64<>+0x19218(SB)/8, $12387
+DATA bitrev_size16384_radix4_f64<>+0x19220(SB)/8, $1123
+DATA bitrev_size16384_radix4_f64<>+0x19228(SB)/8, $5219
+DATA bitrev_size16384_radix4_f64<>+0x19230(SB)/8, $9315
+DATA bitrev_size16384_radix4_f64<>+0x19238(SB)/8, $13411
+DATA bitrev_size16384_radix4_f64<>+0x19240(SB)/8, $2147
+DATA bitrev_size16384_radix4_f64<>+0x19248(SB)/8, $6243
+DATA bitrev_size16384_radix4_f64<>+0x19250(SB)/8, $10339
+DATA bitrev_size16384_radix4_f64<>+0x19258(SB)/8, $14435
+DATA bitrev_size16384_radix4_f64<>+0x19260(SB)/8, $3171
+DATA bitrev_size16384_radix4_f64<>+0x19268(SB)/8, $7267
+DATA bitrev_size16384_radix4_f64<>+0x19270(SB)/8, $11363
+DATA bitrev_size16384_radix4_f64<>+0x19278(SB)/8, $15459
+DATA bitrev_size16384_radix4_f64<>+0x19280(SB)/8, $355
+DATA bitrev_size16384_radix4_f64<>+0x19288(SB)/8, $4451
+DATA bitrev_size16384_radix4_f64<>+0x19290(SB)/8, $8547
+DATA bitrev_size16384_radix4_f64<>+0x19298(SB)/8, $12643
+DATA bitrev_size16384_radix4_f64<>+0x192A0(SB)/8, $1379
+DATA bitrev_size16384_radix4_f64<>+0x192A8(SB)/8, $5475
+DATA bitrev_size16384_radix4_f64<>+0x192B0(SB)/8, $9571
+DATA bitrev_size16384_radix4_f64<>+0x192B8(SB)/8, $13667
+DATA bitrev_size16384_radix4_f64<>+0x192C0(SB)/8, $2403
+DATA bitrev_size16384_radix4_f64<>+0x192C8(SB)/8, $6499
+DATA bitrev_size16384_radix4_f64<>+0x192D0(SB)/8, $10595
+DATA bitrev_size16384_radix4_f64<>+0x192D8(SB)/8, $14691
+DATA bitrev_size16384_radix4_f64<>+0x192E0(SB)/8, $3427
+DATA bitrev_size16384_radix4_f64<>+0x192E8(SB)/8, $7523
+DATA bitrev_size16384_radix4_f64<>+0x192F0(SB)/8, $11619
+DATA bitrev_size16384_radix4_f64<>+0x192F8(SB)/8, $15715
+DATA bitrev_size16384_radix4_f64<>+0x19300(SB)/8, $611
+DATA bitrev_size16384_radix4_f64<>+0x19308(SB)/8, $4707
+DATA bitrev_size16384_radix4_f64<>+0x19310(SB)/8, $8803
+DATA bitrev_size16384_radix4_f64<>+0x19318(SB)/8, $12899
+DATA bitrev_size16384_radix4_f64<>+0x19320(SB)/8, $1635
+DATA bitrev_size16384_radix4_f64<>+0x19328(SB)/8, $5731
+DATA bitrev_size16384_radix4_f64<>+0x19330(SB)/8, $9827
+DATA bitrev_size16384_radix4_f64<>+0x19338(SB)/8, $13923
+DATA bitrev_size16384_radix4_f64<>+0x19340(SB)/8, $2659
+DATA bitrev_size16384_radix4_f64<>+0x19348(SB)/8, $6755
+DATA bitrev_size16384_radix4_f64<>+0x19350(SB)/8, $10851
+DATA bitrev_size16384_radix4_f64<>+0x19358(SB)/8, $14947
+DATA bitrev_size16384_radix4_f64<>+0x19360(SB)/8, $3683
+DATA bitrev_size16384_radix4_f64<>+0x19368(SB)/8, $7779
+DATA bitrev_size16384_radix4_f64<>+0x19370(SB)/8, $11875
+DATA bitrev_size16384_radix4_f64<>+0x19378(SB)/8, $15971
+DATA bitrev_size16384_radix4_f64<>+0x19380(SB)/8, $867
+DATA bitrev_size16384_radix4_f64<>+0x19388(SB)/8, $4963
+DATA bitrev_size16384_radix4_f64<>+0x19390(SB)/8, $9059
+DATA bitrev_size16384_radix4_f64<>+0x19398(SB)/8, $13155
+DATA bitrev_size16384_radix4_f64<>+0x193A0(SB)/8, $1891
+DATA bitrev_size16384_radix4_f64<>+0x193A8(SB)/8, $5987
+DATA bitrev_size16384_radix4_f64<>+0x193B0(SB)/8, $10083
+DATA bitrev_size16384_radix4_f64<>+0x193B8(SB)/8, $14179
+DATA bitrev_size16384_radix4_f64<>+0x193C0(SB)/8, $2915
+DATA bitrev_size16384_radix4_f64<>+0x193C8(SB)/8, $7011
+DATA bitrev_size16384_radix4_f64<>+0x193D0(SB)/8, $11107
+DATA bitrev_size16384_radix4_f64<>+0x193D8(SB)/8, $15203
+DATA bitrev_size16384_radix4_f64<>+0x193E0(SB)/8, $3939
+DATA bitrev_size16384_radix4_f64<>+0x193E8(SB)/8, $8035
+DATA bitrev_size16384_radix4_f64<>+0x193F0(SB)/8, $12131
+DATA bitrev_size16384_radix4_f64<>+0x193F8(SB)/8, $16227
+DATA bitrev_size16384_radix4_f64<>+0x19400(SB)/8, $163
+DATA bitrev_size16384_radix4_f64<>+0x19408(SB)/8, $4259
+DATA bitrev_size16384_radix4_f64<>+0x19410(SB)/8, $8355
+DATA bitrev_size16384_radix4_f64<>+0x19418(SB)/8, $12451
+DATA bitrev_size16384_radix4_f64<>+0x19420(SB)/8, $1187
+DATA bitrev_size16384_radix4_f64<>+0x19428(SB)/8, $5283
+DATA bitrev_size16384_radix4_f64<>+0x19430(SB)/8, $9379
+DATA bitrev_size16384_radix4_f64<>+0x19438(SB)/8, $13475
+DATA bitrev_size16384_radix4_f64<>+0x19440(SB)/8, $2211
+DATA bitrev_size16384_radix4_f64<>+0x19448(SB)/8, $6307
+DATA bitrev_size16384_radix4_f64<>+0x19450(SB)/8, $10403
+DATA bitrev_size16384_radix4_f64<>+0x19458(SB)/8, $14499
+DATA bitrev_size16384_radix4_f64<>+0x19460(SB)/8, $3235
+DATA bitrev_size16384_radix4_f64<>+0x19468(SB)/8, $7331
+DATA bitrev_size16384_radix4_f64<>+0x19470(SB)/8, $11427
+DATA bitrev_size16384_radix4_f64<>+0x19478(SB)/8, $15523
+DATA bitrev_size16384_radix4_f64<>+0x19480(SB)/8, $419
+DATA bitrev_size16384_radix4_f64<>+0x19488(SB)/8, $4515
+DATA bitrev_size16384_radix4_f64<>+0x19490(SB)/8, $8611
+DATA bitrev_size16384_radix4_f64<>+0x19498(SB)/8, $12707
+DATA bitrev_size16384_radix4_f64<>+0x194A0(SB)/8, $1443
+DATA bitrev_size16384_radix4_f64<>+0x194A8(SB)/8, $5539
+DATA bitrev_size16384_radix4_f64<>+0x194B0(SB)/8, $9635
+DATA bitrev_size16384_radix4_f64<>+0x194B8(SB)/8, $13731
+DATA bitrev_size16384_radix4_f64<>+0x194C0(SB)/8, $2467
+DATA bitrev_size16384_radix4_f64<>+0x194C8(SB)/8, $6563
+DATA bitrev_size16384_radix4_f64<>+0x194D0(SB)/8, $10659
+DATA bitrev_size16384_radix4_f64<>+0x194D8(SB)/8, $14755
+DATA bitrev_size16384_radix4_f64<>+0x194E0(SB)/8, $3491
+DATA bitrev_size16384_radix4_f64<>+0x194E8(SB)/8, $7587
+DATA bitrev_size16384_radix4_f64<>+0x194F0(SB)/8, $11683
+DATA bitrev_size16384_radix4_f64<>+0x194F8(SB)/8, $15779
+DATA bitrev_size16384_radix4_f64<>+0x19500(SB)/8, $675
+DATA bitrev_size16384_radix4_f64<>+0x19508(SB)/8, $4771
+DATA bitrev_size16384_radix4_f64<>+0x19510(SB)/8, $8867
+DATA bitrev_size16384_radix4_f64<>+0x19518(SB)/8, $12963
+DATA bitrev_size16384_radix4_f64<>+0x19520(SB)/8, $1699
+DATA bitrev_size16384_radix4_f64<>+0x19528(SB)/8, $5795
+DATA bitrev_size16384_radix4_f64<>+0x19530(SB)/8, $9891
+DATA bitrev_size16384_radix4_f64<>+0x19538(SB)/8, $13987
+DATA bitrev_size16384_radix4_f64<>+0x19540(SB)/8, $2723
+DATA bitrev_size16384_radix4_f64<>+0x19548(SB)/8, $6819
+DATA bitrev_size16384_radix4_f64<>+0x19550(SB)/8, $10915
+DATA bitrev_size16384_radix4_f64<>+0x19558(SB)/8, $15011
+DATA bitrev_size16384_radix4_f64<>+0x19560(SB)/8, $3747
+DATA bitrev_size16384_radix4_f64<>+0x19568(SB)/8, $7843
+DATA bitrev_size16384_radix4_f64<>+0x19570(SB)/8, $11939
+DATA bitrev_size16384_radix4_f64<>+0x19578(SB)/8, $16035
+DATA bitrev_size16384_radix4_f64<>+0x19580(SB)/8, $931
+DATA bitrev_size16384_radix4_f64<>+0x19588(SB)/8, $5027
+DATA bitrev_size16384_radix4_f64<>+0x19590(SB)/8, $9123
+DATA bitrev_size16384_radix4_f64<>+0x19598(SB)/8, $13219
+DATA bitrev_size16384_radix4_f64<>+0x195A0(SB)/8, $1955
+DATA bitrev_size16384_radix4_f64<>+0x195A8(SB)/8, $6051
+DATA bitrev_size16384_radix4_f64<>+0x195B0(SB)/8, $10147
+DATA bitrev_size16384_radix4_f64<>+0x195B8(SB)/8, $14243
+DATA bitrev_size16384_radix4_f64<>+0x195C0(SB)/8, $2979
+DATA bitrev_size16384_radix4_f64<>+0x195C8(SB)/8, $7075
+DATA bitrev_size16384_radix4_f64<>+0x195D0(SB)/8, $11171
+DATA bitrev_size16384_radix4_f64<>+0x195D8(SB)/8, $15267
+DATA bitrev_size16384_radix4_f64<>+0x195E0(SB)/8, $4003
+DATA bitrev_size16384_radix4_f64<>+0x195E8(SB)/8, $8099
+DATA bitrev_size16384_radix4_f64<>+0x195F0(SB)/8, $12195
+DATA bitrev_size16384_radix4_f64<>+0x195F8(SB)/8, $16291
+DATA bitrev_size16384_radix4_f64<>+0x19600(SB)/8, $227
+DATA bitrev_size16384_radix4_f64<>+0x19608(SB)/8, $4323
+DATA bitrev_size16384_radix4_f64<>+0x19610(SB)/8, $8419
+DATA bitrev_size16384_radix4_f64<>+0x19618(SB)/8, $12515
+DATA bitrev_size16384_radix4_f64<>+0x19620(SB)/8, $1251
+DATA bitrev_size16384_radix4_f64<>+0x19628(SB)/8, $5347
+DATA bitrev_size16384_radix4_f64<>+0x19630(SB)/8, $9443
+DATA bitrev_size16384_radix4_f64<>+0x19638(SB)/8, $13539
+DATA bitrev_size16384_radix4_f64<>+0x19640(SB)/8, $2275
+DATA bitrev_size16384_radix4_f64<>+0x19648(SB)/8, $6371
+DATA bitrev_size16384_radix4_f64<>+0x19650(SB)/8, $10467
+DATA bitrev_size16384_radix4_f64<>+0x19658(SB)/8, $14563
+DATA bitrev_size16384_radix4_f64<>+0x19660(SB)/8, $3299
+DATA bitrev_size16384_radix4_f64<>+0x19668(SB)/8, $7395
+DATA bitrev_size16384_radix4_f64<>+0x19670(SB)/8, $11491
+DATA bitrev_size16384_radix4_f64<>+0x19678(SB)/8, $15587
+DATA bitrev_size16384_radix4_f64<>+0x19680(SB)/8, $483
+DATA bitrev_size16384_radix4_f64<>+0x19688(SB)/8, $4579
+DATA bitrev_size16384_radix4_f64<>+0x19690(SB)/8, $8675
+DATA bitrev_size16384_radix4_f64<>+0x19698(SB)/8, $12771
+DATA bitrev_size16384_radix4_f64<>+0x196A0(SB)/8, $1507
+DATA bitrev_size16384_radix4_f64<>+0x196A8(SB)/8, $5603
+DATA bitrev_size16384_radix4_f64<>+0x196B0(SB)/8, $9699
+DATA bitrev_size16384_radix4_f64<>+0x196B8(SB)/8, $13795
+DATA bitrev_size16384_radix4_f64<>+0x196C0(SB)/8, $2531
+DATA bitrev_size16384_radix4_f64<>+0x196C8(SB)/8, $6627
+DATA bitrev_size16384_radix4_f64<>+0x196D0(SB)/8, $10723
+DATA bitrev_size16384_radix4_f64<>+0x196D8(SB)/8, $14819
+DATA bitrev_size16384_radix4_f64<>+0x196E0(SB)/8, $3555
+DATA bitrev_size16384_radix4_f64<>+0x196E8(SB)/8, $7651
+DATA bitrev_size16384_radix4_f64<>+0x196F0(SB)/8, $11747
+DATA bitrev_size16384_radix4_f64<>+0x196F8(SB)/8, $15843
+DATA bitrev_size16384_radix4_f64<>+0x19700(SB)/8, $739
+DATA bitrev_size16384_radix4_f64<>+0x19708(SB)/8, $4835
+DATA bitrev_size16384_radix4_f64<>+0x19710(SB)/8, $8931
+DATA bitrev_size16384_radix4_f64<>+0x19718(SB)/8, $13027
+DATA bitrev_size16384_radix4_f64<>+0x19720(SB)/8, $1763
+DATA bitrev_size16384_radix4_f64<>+0x19728(SB)/8, $5859
+DATA bitrev_size16384_radix4_f64<>+0x19730(SB)/8, $9955
+DATA bitrev_size16384_radix4_f64<>+0x19738(SB)/8, $14051
+DATA bitrev_size16384_radix4_f64<>+0x19740(SB)/8, $2787
+DATA bitrev_size16384_radix4_f64<>+0x19748(SB)/8, $6883
+DATA bitrev_size16384_radix4_f64<>+0x19750(SB)/8, $10979
+DATA bitrev_size16384_radix4_f64<>+0x19758(SB)/8, $15075
+DATA bitrev_size16384_radix4_f64<>+0x19760(SB)/8, $3811
+DATA bitrev_size16384_radix4_f64<>+0x19768(SB)/8, $7907
+DATA bitrev_size16384_radix4_f64<>+0x19770(SB)/8, $12003
+DATA bitrev_size16384_radix4_f64<>+0x19778(SB)/8, $16099
+DATA bitrev_size16384_radix4_f64<>+0x19780(SB)/8, $995
+DATA bitrev_size16384_radix4_f64<>+0x19788(SB)/8, $5091
+DATA bitrev_size16384_radix4_f64<>+0x19790(SB)/8, $9187
+DATA bitrev_size16384_radix4_f64<>+0x19798(SB)/8, $13283
+DATA bitrev_size16384_radix4_f64<>+0x197A0(SB)/8, $2019
+DATA bitrev_size16384_radix4_f64<>+0x197A8(SB)/8, $6115
+DATA bitrev_size16384_radix4_f64<>+0x197B0(SB)/8, $10211
+DATA bitrev_size16384_radix4_f64<>+0x197B8(SB)/8, $14307
+DATA bitrev_size16384_radix4_f64<>+0x197C0(SB)/8, $3043
+DATA bitrev_size16384_radix4_f64<>+0x197C8(SB)/8, $7139
+DATA bitrev_size16384_radix4_f64<>+0x197D0(SB)/8, $11235
+DATA bitrev_size16384_radix4_f64<>+0x197D8(SB)/8, $15331
+DATA bitrev_size16384_radix4_f64<>+0x197E0(SB)/8, $4067
+DATA bitrev_size16384_radix4_f64<>+0x197E8(SB)/8, $8163
+DATA bitrev_size16384_radix4_f64<>+0x197F0(SB)/8, $12259
+DATA bitrev_size16384_radix4_f64<>+0x197F8(SB)/8, $16355
+DATA bitrev_size16384_radix4_f64<>+0x19800(SB)/8, $51
+DATA bitrev_size16384_radix4_f64<>+0x19808(SB)/8, $4147
+DATA bitrev_size16384_radix4_f64<>+0x19810(SB)/8, $8243
+DATA bitrev_size16384_radix4_f64<>+0x19818(SB)/8, $12339
+DATA bitrev_size16384_radix4_f64<>+0x19820(SB)/8, $1075
+DATA bitrev_size16384_radix4_f64<>+0x19828(SB)/8, $5171
+DATA bitrev_size16384_radix4_f64<>+0x19830(SB)/8, $9267
+DATA bitrev_size16384_radix4_f64<>+0x19838(SB)/8, $13363
+DATA bitrev_size16384_radix4_f64<>+0x19840(SB)/8, $2099
+DATA bitrev_size16384_radix4_f64<>+0x19848(SB)/8, $6195
+DATA bitrev_size16384_radix4_f64<>+0x19850(SB)/8, $10291
+DATA bitrev_size16384_radix4_f64<>+0x19858(SB)/8, $14387
+DATA bitrev_size16384_radix4_f64<>+0x19860(SB)/8, $3123
+DATA bitrev_size16384_radix4_f64<>+0x19868(SB)/8, $7219
+DATA bitrev_size16384_radix4_f64<>+0x19870(SB)/8, $11315
+DATA bitrev_size16384_radix4_f64<>+0x19878(SB)/8, $15411
+DATA bitrev_size16384_radix4_f64<>+0x19880(SB)/8, $307
+DATA bitrev_size16384_radix4_f64<>+0x19888(SB)/8, $4403
+DATA bitrev_size16384_radix4_f64<>+0x19890(SB)/8, $8499
+DATA bitrev_size16384_radix4_f64<>+0x19898(SB)/8, $12595
+DATA bitrev_size16384_radix4_f64<>+0x198A0(SB)/8, $1331
+DATA bitrev_size16384_radix4_f64<>+0x198A8(SB)/8, $5427
+DATA bitrev_size16384_radix4_f64<>+0x198B0(SB)/8, $9523
+DATA bitrev_size16384_radix4_f64<>+0x198B8(SB)/8, $13619
+DATA bitrev_size16384_radix4_f64<>+0x198C0(SB)/8, $2355
+DATA bitrev_size16384_radix4_f64<>+0x198C8(SB)/8, $6451
+DATA bitrev_size16384_radix4_f64<>+0x198D0(SB)/8, $10547
+DATA bitrev_size16384_radix4_f64<>+0x198D8(SB)/8, $14643
+DATA bitrev_size16384_radix4_f64<>+0x198E0(SB)/8, $3379
+DATA bitrev_size16384_radix4_f64<>+0x198E8(SB)/8, $7475
+DATA bitrev_size16384_radix4_f64<>+0x198F0(SB)/8, $11571
+DATA bitrev_size16384_radix4_f64<>+0x198F8(SB)/8, $15667
+DATA bitrev_size16384_radix4_f64<>+0x19900(SB)/8, $563
+DATA bitrev_size16384_radix4_f64<>+0x19908(SB)/8, $4659
+DATA bitrev_size16384_radix4_f64<>+0x19910(SB)/8, $8755
+DATA bitrev_size16384_radix4_f64<>+0x19918(SB)/8, $12851
+DATA bitrev_size16384_radix4_f64<>+0x19920(SB)/8, $1587
+DATA bitrev_size16384_radix4_f64<>+0x19928(SB)/8, $5683
+DATA bitrev_size16384_radix4_f64<>+0x19930(SB)/8, $9779
+DATA bitrev_size16384_radix4_f64<>+0x19938(SB)/8, $13875
+DATA bitrev_size16384_radix4_f64<>+0x19940(SB)/8, $2611
+DATA bitrev_size16384_radix4_f64<>+0x19948(SB)/8, $6707
+DATA bitrev_size16384_radix4_f64<>+0x19950(SB)/8, $10803
+DATA bitrev_size16384_radix4_f64<>+0x19958(SB)/8, $14899
+DATA bitrev_size16384_radix4_f64<>+0x19960(SB)/8, $3635
+DATA bitrev_size16384_radix4_f64<>+0x19968(SB)/8, $7731
+DATA bitrev_size16384_radix4_f64<>+0x19970(SB)/8, $11827
+DATA bitrev_size16384_radix4_f64<>+0x19978(SB)/8, $15923
+DATA bitrev_size16384_radix4_f64<>+0x19980(SB)/8, $819
+DATA bitrev_size16384_radix4_f64<>+0x19988(SB)/8, $4915
+DATA bitrev_size16384_radix4_f64<>+0x19990(SB)/8, $9011
+DATA bitrev_size16384_radix4_f64<>+0x19998(SB)/8, $13107
+DATA bitrev_size16384_radix4_f64<>+0x199A0(SB)/8, $1843
+DATA bitrev_size16384_radix4_f64<>+0x199A8(SB)/8, $5939
+DATA bitrev_size16384_radix4_f64<>+0x199B0(SB)/8, $10035
+DATA bitrev_size16384_radix4_f64<>+0x199B8(SB)/8, $14131
+DATA bitrev_size16384_radix4_f64<>+0x199C0(SB)/8, $2867
+DATA bitrev_size16384_radix4_f64<>+0x199C8(SB)/8, $6963
+DATA bitrev_size16384_radix4_f64<>+0x199D0(SB)/8, $11059
+DATA bitrev_size16384_radix4_f64<>+0x199D8(SB)/8, $15155
+DATA bitrev_size16384_radix4_f64<>+0x199E0(SB)/8, $3891
+DATA bitrev_size16384_radix4_f64<>+0x199E8(SB)/8, $7987
+DATA bitrev_size16384_radix4_f64<>+0x199F0(SB)/8, $12083
+DATA bitrev_size16384_radix4_f64<>+0x199F8(SB)/8, $16179
+DATA bitrev_size16384_radix4_f64<>+0x19A00(SB)/8, $115
+DATA bitrev_size16384_radix4_f64<>+0x19A08(SB)/8, $4211
+DATA bitrev_size16384_radix4_f64<>+0x19A10(SB)/8, $8307
+DATA bitrev_size16384_radix4_f64<>+0x19A18(SB)/8, $12403
+DATA bitrev_size16384_radix4_f64<>+0x19A20(SB)/8, $1139
+DATA bitrev_size16384_radix4_f64<>+0x19A28(SB)/8, $5235
+DATA bitrev_size16384_radix4_f64<>+0x19A30(SB)/8, $9331
+DATA bitrev_size16384_radix4_f64<>+0x19A38(SB)/8, $13427
+DATA bitrev_size16384_radix4_f64<>+0x19A40(SB)/8, $2163
+DATA bitrev_size16384_radix4_f64<>+0x19A48(SB)/8, $6259
+DATA bitrev_size16384_radix4_f64<>+0x19A50(SB)/8, $10355
+DATA bitrev_size16384_radix4_f64<>+0x19A58(SB)/8, $14451
+DATA bitrev_size16384_radix4_f64<>+0x19A60(SB)/8, $3187
+DATA bitrev_size16384_radix4_f64<>+0x19A68(SB)/8, $7283
+DATA bitrev_size16384_radix4_f64<>+0x19A70(SB)/8, $11379
+DATA bitrev_size16384_radix4_f64<>+0x19A78(SB)/8, $15475
+DATA bitrev_size16384_radix4_f64<>+0x19A80(SB)/8, $371
+DATA bitrev_size16384_radix4_f64<>+0x19A88(SB)/8, $4467
+DATA bitrev_size16384_radix4_f64<>+0x19A90(SB)/8, $8563
+DATA bitrev_size16384_radix4_f64<>+0x19A98(SB)/8, $12659
+DATA bitrev_size16384_radix4_f64<>+0x19AA0(SB)/8, $1395
+DATA bitrev_size16384_radix4_f64<>+0x19AA8(SB)/8, $5491
+DATA bitrev_size16384_radix4_f64<>+0x19AB0(SB)/8, $9587
+DATA bitrev_size16384_radix4_f64<>+0x19AB8(SB)/8, $13683
+DATA bitrev_size16384_radix4_f64<>+0x19AC0(SB)/8, $2419
+DATA bitrev_size16384_radix4_f64<>+0x19AC8(SB)/8, $6515
+DATA bitrev_size16384_radix4_f64<>+0x19AD0(SB)/8, $10611
+DATA bitrev_size16384_radix4_f64<>+0x19AD8(SB)/8, $14707
+DATA bitrev_size16384_radix4_f64<>+0x19AE0(SB)/8, $3443
+DATA bitrev_size16384_radix4_f64<>+0x19AE8(SB)/8, $7539
+DATA bitrev_size16384_radix4_f64<>+0x19AF0(SB)/8, $11635
+DATA bitrev_size16384_radix4_f64<>+0x19AF8(SB)/8, $15731
+DATA bitrev_size16384_radix4_f64<>+0x19B00(SB)/8, $627
+DATA bitrev_size16384_radix4_f64<>+0x19B08(SB)/8, $4723
+DATA bitrev_size16384_radix4_f64<>+0x19B10(SB)/8, $8819
+DATA bitrev_size16384_radix4_f64<>+0x19B18(SB)/8, $12915
+DATA bitrev_size16384_radix4_f64<>+0x19B20(SB)/8, $1651
+DATA bitrev_size16384_radix4_f64<>+0x19B28(SB)/8, $5747
+DATA bitrev_size16384_radix4_f64<>+0x19B30(SB)/8, $9843
+DATA bitrev_size16384_radix4_f64<>+0x19B38(SB)/8, $13939
+DATA bitrev_size16384_radix4_f64<>+0x19B40(SB)/8, $2675
+DATA bitrev_size16384_radix4_f64<>+0x19B48(SB)/8, $6771
+DATA bitrev_size16384_radix4_f64<>+0x19B50(SB)/8, $10867
+DATA bitrev_size16384_radix4_f64<>+0x19B58(SB)/8, $14963
+DATA bitrev_size16384_radix4_f64<>+0x19B60(SB)/8, $3699
+DATA bitrev_size16384_radix4_f64<>+0x19B68(SB)/8, $7795
+DATA bitrev_size16384_radix4_f64<>+0x19B70(SB)/8, $11891
+DATA bitrev_size16384_radix4_f64<>+0x19B78(SB)/8, $15987
+DATA bitrev_size16384_radix4_f64<>+0x19B80(SB)/8, $883
+DATA bitrev_size16384_radix4_f64<>+0x19B88(SB)/8, $4979
+DATA bitrev_size16384_radix4_f64<>+0x19B90(SB)/8, $9075
+DATA bitrev_size16384_radix4_f64<>+0x19B98(SB)/8, $13171
+DATA bitrev_size16384_radix4_f64<>+0x19BA0(SB)/8, $1907
+DATA bitrev_size16384_radix4_f64<>+0x19BA8(SB)/8, $6003
+DATA bitrev_size16384_radix4_f64<>+0x19BB0(SB)/8, $10099
+DATA bitrev_size16384_radix4_f64<>+0x19BB8(SB)/8, $14195
+DATA bitrev_size16384_radix4_f64<>+0x19BC0(SB)/8, $2931
+DATA bitrev_size16384_radix4_f64<>+0x19BC8(SB)/8, $7027
+DATA bitrev_size16384_radix4_f64<>+0x19BD0(SB)/8, $11123
+DATA bitrev_size16384_radix4_f64<>+0x19BD8(SB)/8, $15219
+DATA bitrev_size16384_radix4_f64<>+0x19BE0(SB)/8, $3955
+DATA bitrev_size16384_radix4_f64<>+0x19BE8(SB)/8, $8051
+DATA bitrev_size16384_radix4_f64<>+0x19BF0(SB)/8, $12147
+DATA bitrev_size16384_radix4_f64<>+0x19BF8(SB)/8, $16243
+DATA bitrev_size16384_radix4_f64<>+0x19C00(SB)/8, $179
+DATA bitrev_size16384_radix4_f64<>+0x19C08(SB)/8, $4275
+DATA bitrev_size16384_radix4_f64<>+0x19C10(SB)/8, $8371
+DATA bitrev_size16384_radix4_f64<>+0x19C18(SB)/8, $12467
+DATA bitrev_size16384_radix4_f64<>+0x19C20(SB)/8, $1203
+DATA bitrev_size16384_radix4_f64<>+0x19C28(SB)/8, $5299
+DATA bitrev_size16384_radix4_f64<>+0x19C30(SB)/8, $9395
+DATA bitrev_size16384_radix4_f64<>+0x19C38(SB)/8, $13491
+DATA bitrev_size16384_radix4_f64<>+0x19C40(SB)/8, $2227
+DATA bitrev_size16384_radix4_f64<>+0x19C48(SB)/8, $6323
+DATA bitrev_size16384_radix4_f64<>+0x19C50(SB)/8, $10419
+DATA bitrev_size16384_radix4_f64<>+0x19C58(SB)/8, $14515
+DATA bitrev_size16384_radix4_f64<>+0x19C60(SB)/8, $3251
+DATA bitrev_size16384_radix4_f64<>+0x19C68(SB)/8, $7347
+DATA bitrev_size16384_radix4_f64<>+0x19C70(SB)/8, $11443
+DATA bitrev_size16384_radix4_f64<>+0x19C78(SB)/8, $15539
+DATA bitrev_size16384_radix4_f64<>+0x19C80(SB)/8, $435
+DATA bitrev_size16384_radix4_f64<>+0x19C88(SB)/8, $4531
+DATA bitrev_size16384_radix4_f64<>+0x19C90(SB)/8, $8627
+DATA bitrev_size16384_radix4_f64<>+0x19C98(SB)/8, $12723
+DATA bitrev_size16384_radix4_f64<>+0x19CA0(SB)/8, $1459
+DATA bitrev_size16384_radix4_f64<>+0x19CA8(SB)/8, $5555
+DATA bitrev_size16384_radix4_f64<>+0x19CB0(SB)/8, $9651
+DATA bitrev_size16384_radix4_f64<>+0x19CB8(SB)/8, $13747
+DATA bitrev_size16384_radix4_f64<>+0x19CC0(SB)/8, $2483
+DATA bitrev_size16384_radix4_f64<>+0x19CC8(SB)/8, $6579
+DATA bitrev_size16384_radix4_f64<>+0x19CD0(SB)/8, $10675
+DATA bitrev_size16384_radix4_f64<>+0x19CD8(SB)/8, $14771
+DATA bitrev_size16384_radix4_f64<>+0x19CE0(SB)/8, $3507
+DATA bitrev_size16384_radix4_f64<>+0x19CE8(SB)/8, $7603
+DATA bitrev_size16384_radix4_f64<>+0x19CF0(SB)/8, $11699
+DATA bitrev_size16384_radix4_f64<>+0x19CF8(SB)/8, $15795
+DATA bitrev_size16384_radix4_f64<>+0x19D00(SB)/8, $691
+DATA bitrev_size16384_radix4_f64<>+0x19D08(SB)/8, $4787
+DATA bitrev_size16384_radix4_f64<>+0x19D10(SB)/8, $8883
+DATA bitrev_size16384_radix4_f64<>+0x19D18(SB)/8, $12979
+DATA bitrev_size16384_radix4_f64<>+0x19D20(SB)/8, $1715
+DATA bitrev_size16384_radix4_f64<>+0x19D28(SB)/8, $5811
+DATA bitrev_size16384_radix4_f64<>+0x19D30(SB)/8, $9907
+DATA bitrev_size16384_radix4_f64<>+0x19D38(SB)/8, $14003
+DATA bitrev_size16384_radix4_f64<>+0x19D40(SB)/8, $2739
+DATA bitrev_size16384_radix4_f64<>+0x19D48(SB)/8, $6835
+DATA bitrev_size16384_radix4_f64<>+0x19D50(SB)/8, $10931
+DATA bitrev_size16384_radix4_f64<>+0x19D58(SB)/8, $15027
+DATA bitrev_size16384_radix4_f64<>+0x19D60(SB)/8, $3763
+DATA bitrev_size16384_radix4_f64<>+0x19D68(SB)/8, $7859
+DATA bitrev_size16384_radix4_f64<>+0x19D70(SB)/8, $11955
+DATA bitrev_size16384_radix4_f64<>+0x19D78(SB)/8, $16051
+DATA bitrev_size16384_radix4_f64<>+0x19D80(SB)/8, $947
+DATA bitrev_size16384_radix4_f64<>+0x19D88(SB)/8, $5043
+DATA bitrev_size16384_radix4_f64<>+0x19D90(SB)/8, $9139
+DATA bitrev_size16384_radix4_f64<>+0x19D98(SB)/8, $13235
+DATA bitrev_size16384_radix4_f64<>+0x19DA0(SB)/8, $1971
+DATA bitrev_size16384_radix4_f64<>+0x19DA8(SB)/8, $6067
+DATA bitrev_size16384_radix4_f64<>+0x19DB0(SB)/8, $10163
+DATA bitrev_size16384_radix4_f64<>+0x19DB8(SB)/8, $14259
+DATA bitrev_size16384_radix4_f64<>+0x19DC0(SB)/8, $2995
+DATA bitrev_size16384_radix4_f64<>+0x19DC8(SB)/8, $7091
+DATA bitrev_size16384_radix4_f64<>+0x19DD0(SB)/8, $11187
+DATA bitrev_size16384_radix4_f64<>+0x19DD8(SB)/8, $15283
+DATA bitrev_size16384_radix4_f64<>+0x19DE0(SB)/8, $4019
+DATA bitrev_size16384_radix4_f64<>+0x19DE8(SB)/8, $8115
+DATA bitrev_size16384_radix4_f64<>+0x19DF0(SB)/8, $12211
+DATA bitrev_size16384_radix4_f64<>+0x19DF8(SB)/8, $16307
+DATA bitrev_size16384_radix4_f64<>+0x19E00(SB)/8, $243
+DATA bitrev_size16384_radix4_f64<>+0x19E08(SB)/8, $4339
+DATA bitrev_size16384_radix4_f64<>+0x19E10(SB)/8, $8435
+DATA bitrev_size16384_radix4_f64<>+0x19E18(SB)/8, $12531
+DATA bitrev_size16384_radix4_f64<>+0x19E20(SB)/8, $1267
+DATA bitrev_size16384_radix4_f64<>+0x19E28(SB)/8, $5363
+DATA bitrev_size16384_radix4_f64<>+0x19E30(SB)/8, $9459
+DATA bitrev_size16384_radix4_f64<>+0x19E38(SB)/8, $13555
+DATA bitrev_size16384_radix4_f64<>+0x19E40(SB)/8, $2291
+DATA bitrev_size16384_radix4_f64<>+0x19E48(SB)/8, $6387
+DATA bitrev_size16384_radix4_f64<>+0x19E50(SB)/8, $10483
+DATA bitrev_size16384_radix4_f64<>+0x19E58(SB)/8, $14579
+DATA bitrev_size16384_radix4_f64<>+0x19E60(SB)/8, $3315
+DATA bitrev_size16384_radix4_f64<>+0x19E68(SB)/8, $7411
+DATA bitrev_size16384_radix4_f64<>+0x19E70(SB)/8, $11507
+DATA bitrev_size16384_radix4_f64<>+0x19E78(SB)/8, $15603
+DATA bitrev_size16384_radix4_f64<>+0x19E80(SB)/8, $499
+DATA bitrev_size16384_radix4_f64<>+0x19E88(SB)/8, $4595
+DATA bitrev_size16384_radix4_f64<>+0x19E90(SB)/8, $8691
+DATA bitrev_size16384_radix4_f64<>+0x19E98(SB)/8, $12787
+DATA bitrev_size16384_radix4_f64<>+0x19EA0(SB)/8, $1523
+DATA bitrev_size16384_radix4_f64<>+0x19EA8(SB)/8, $5619
+DATA bitrev_size16384_radix4_f64<>+0x19EB0(SB)/8, $9715
+DATA bitrev_size16384_radix4_f64<>+0x19EB8(SB)/8, $13811
+DATA bitrev_size16384_radix4_f64<>+0x19EC0(SB)/8, $2547
+DATA bitrev_size16384_radix4_f64<>+0x19EC8(SB)/8, $6643
+DATA bitrev_size16384_radix4_f64<>+0x19ED0(SB)/8, $10739
+DATA bitrev_size16384_radix4_f64<>+0x19ED8(SB)/8, $14835
+DATA bitrev_size16384_radix4_f64<>+0x19EE0(SB)/8, $3571
+DATA bitrev_size16384_radix4_f64<>+0x19EE8(SB)/8, $7667
+DATA bitrev_size16384_radix4_f64<>+0x19EF0(SB)/8, $11763
+DATA bitrev_size16384_radix4_f64<>+0x19EF8(SB)/8, $15859
+DATA bitrev_size16384_radix4_f64<>+0x19F00(SB)/8, $755
+DATA bitrev_size16384_radix4_f64<>+0x19F08(SB)/8, $4851
+DATA bitrev_size16384_radix4_f64<>+0x19F10(SB)/8, $8947
+DATA bitrev_size16384_radix4_f64<>+0x19F18(SB)/8, $13043
+DATA bitrev_size16384_radix4_f64<>+0x19F20(SB)/8, $1779
+DATA bitrev_size16384_radix4_f64<>+0x19F28(SB)/8, $5875
+DATA bitrev_size16384_radix4_f64<>+0x19F30(SB)/8, $9971
+DATA bitrev_size16384_radix4_f64<>+0x19F38(SB)/8, $14067
+DATA bitrev_size16384_radix4_f64<>+0x19F40(SB)/8, $2803
+DATA bitrev_size16384_radix4_f64<>+0x19F48(SB)/8, $6899
+DATA bitrev_size16384_radix4_f64<>+0x19F50(SB)/8, $10995
+DATA bitrev_size16384_radix4_f64<>+0x19F58(SB)/8, $15091
+DATA bitrev_size16384_radix4_f64<>+0x19F60(SB)/8, $3827
+DATA bitrev_size16384_radix4_f64<>+0x19F68(SB)/8, $7923
+DATA bitrev_size16384_radix4_f64<>+0x19F70(SB)/8, $12019
+DATA bitrev_size16384_radix4_f64<>+0x19F78(SB)/8, $16115
+DATA bitrev_size16384_radix4_f64<>+0x19F80(SB)/8, $1011
+DATA bitrev_size16384_radix4_f64<>+0x19F88(SB)/8, $5107
+DATA bitrev_size16384_radix4_f64<>+0x19F90(SB)/8, $9203
+DATA bitrev_size16384_radix4_f64<>+0x19F98(SB)/8, $13299
+DATA bitrev_size16384_radix4_f64<>+0x19FA0(SB)/8, $2035
+DATA bitrev_size16384_radix4_f64<>+0x19FA8(SB)/8, $6131
+DATA bitrev_size16384_radix4_f64<>+0x19FB0(SB)/8, $10227
+DATA bitrev_size16384_radix4_f64<>+0x19FB8(SB)/8, $14323
+DATA bitrev_size16384_radix4_f64<>+0x19FC0(SB)/8, $3059
+DATA bitrev_size16384_radix4_f64<>+0x19FC8(SB)/8, $7155
+DATA bitrev_size16384_radix4_f64<>+0x19FD0(SB)/8, $11251
+DATA bitrev_size16384_radix4_f64<>+0x19FD8(SB)/8, $15347
+DATA bitrev_size16384_radix4_f64<>+0x19FE0(SB)/8, $4083
+DATA bitrev_size16384_radix4_f64<>+0x19FE8(SB)/8, $8179
+DATA bitrev_size16384_radix4_f64<>+0x19FF0(SB)/8, $12275
+DATA bitrev_size16384_radix4_f64<>+0x19FF8(SB)/8, $16371
+DATA bitrev_size16384_radix4_f64<>+0x1A000(SB)/8, $7
+DATA bitrev_size16384_radix4_f64<>+0x1A008(SB)/8, $4103
+DATA bitrev_size16384_radix4_f64<>+0x1A010(SB)/8, $8199
+DATA bitrev_size16384_radix4_f64<>+0x1A018(SB)/8, $12295
+DATA bitrev_size16384_radix4_f64<>+0x1A020(SB)/8, $1031
+DATA bitrev_size16384_radix4_f64<>+0x1A028(SB)/8, $5127
+DATA bitrev_size16384_radix4_f64<>+0x1A030(SB)/8, $9223
+DATA bitrev_size16384_radix4_f64<>+0x1A038(SB)/8, $13319
+DATA bitrev_size16384_radix4_f64<>+0x1A040(SB)/8, $2055
+DATA bitrev_size16384_radix4_f64<>+0x1A048(SB)/8, $6151
+DATA bitrev_size16384_radix4_f64<>+0x1A050(SB)/8, $10247
+DATA bitrev_size16384_radix4_f64<>+0x1A058(SB)/8, $14343
+DATA bitrev_size16384_radix4_f64<>+0x1A060(SB)/8, $3079
+DATA bitrev_size16384_radix4_f64<>+0x1A068(SB)/8, $7175
+DATA bitrev_size16384_radix4_f64<>+0x1A070(SB)/8, $11271
+DATA bitrev_size16384_radix4_f64<>+0x1A078(SB)/8, $15367
+DATA bitrev_size16384_radix4_f64<>+0x1A080(SB)/8, $263
+DATA bitrev_size16384_radix4_f64<>+0x1A088(SB)/8, $4359
+DATA bitrev_size16384_radix4_f64<>+0x1A090(SB)/8, $8455
+DATA bitrev_size16384_radix4_f64<>+0x1A098(SB)/8, $12551
+DATA bitrev_size16384_radix4_f64<>+0x1A0A0(SB)/8, $1287
+DATA bitrev_size16384_radix4_f64<>+0x1A0A8(SB)/8, $5383
+DATA bitrev_size16384_radix4_f64<>+0x1A0B0(SB)/8, $9479
+DATA bitrev_size16384_radix4_f64<>+0x1A0B8(SB)/8, $13575
+DATA bitrev_size16384_radix4_f64<>+0x1A0C0(SB)/8, $2311
+DATA bitrev_size16384_radix4_f64<>+0x1A0C8(SB)/8, $6407
+DATA bitrev_size16384_radix4_f64<>+0x1A0D0(SB)/8, $10503
+DATA bitrev_size16384_radix4_f64<>+0x1A0D8(SB)/8, $14599
+DATA bitrev_size16384_radix4_f64<>+0x1A0E0(SB)/8, $3335
+DATA bitrev_size16384_radix4_f64<>+0x1A0E8(SB)/8, $7431
+DATA bitrev_size16384_radix4_f64<>+0x1A0F0(SB)/8, $11527
+DATA bitrev_size16384_radix4_f64<>+0x1A0F8(SB)/8, $15623
+DATA bitrev_size16384_radix4_f64<>+0x1A100(SB)/8, $519
+DATA bitrev_size16384_radix4_f64<>+0x1A108(SB)/8, $4615
+DATA bitrev_size16384_radix4_f64<>+0x1A110(SB)/8, $8711
+DATA bitrev_size16384_radix4_f64<>+0x1A118(SB)/8, $12807
+DATA bitrev_size16384_radix4_f64<>+0x1A120(SB)/8, $1543
+DATA bitrev_size16384_radix4_f64<>+0x1A128(SB)/8, $5639
+DATA bitrev_size16384_radix4_f64<>+0x1A130(SB)/8, $9735
+DATA bitrev_size16384_radix4_f64<>+0x1A138(SB)/8, $13831
+DATA bitrev_size16384_radix4_f64<>+0x1A140(SB)/8, $2567
+DATA bitrev_size16384_radix4_f64<>+0x1A148(SB)/8, $6663
+DATA bitrev_size16384_radix4_f64<>+0x1A150(SB)/8, $10759
+DATA bitrev_size16384_radix4_f64<>+0x1A158(SB)/8, $14855
+DATA bitrev_size16384_radix4_f64<>+0x1A160(SB)/8, $3591
+DATA bitrev_size16384_radix4_f64<>+0x1A168(SB)/8, $7687
+DATA bitrev_size16384_radix4_f64<>+0x1A170(SB)/8, $11783
+DATA bitrev_size16384_radix4_f64<>+0x1A178(SB)/8, $15879
+DATA bitrev_size16384_radix4_f64<>+0x1A180(SB)/8, $775
+DATA bitrev_size16384_radix4_f64<>+0x1A188(SB)/8, $4871
+DATA bitrev_size16384_radix4_f64<>+0x1A190(SB)/8, $8967
+DATA bitrev_size16384_radix4_f64<>+0x1A198(SB)/8, $13063
+DATA bitrev_size16384_radix4_f64<>+0x1A1A0(SB)/8, $1799
+DATA bitrev_size16384_radix4_f64<>+0x1A1A8(SB)/8, $5895
+DATA bitrev_size16384_radix4_f64<>+0x1A1B0(SB)/8, $9991
+DATA bitrev_size16384_radix4_f64<>+0x1A1B8(SB)/8, $14087
+DATA bitrev_size16384_radix4_f64<>+0x1A1C0(SB)/8, $2823
+DATA bitrev_size16384_radix4_f64<>+0x1A1C8(SB)/8, $6919
+DATA bitrev_size16384_radix4_f64<>+0x1A1D0(SB)/8, $11015
+DATA bitrev_size16384_radix4_f64<>+0x1A1D8(SB)/8, $15111
+DATA bitrev_size16384_radix4_f64<>+0x1A1E0(SB)/8, $3847
+DATA bitrev_size16384_radix4_f64<>+0x1A1E8(SB)/8, $7943
+DATA bitrev_size16384_radix4_f64<>+0x1A1F0(SB)/8, $12039
+DATA bitrev_size16384_radix4_f64<>+0x1A1F8(SB)/8, $16135
+DATA bitrev_size16384_radix4_f64<>+0x1A200(SB)/8, $71
+DATA bitrev_size16384_radix4_f64<>+0x1A208(SB)/8, $4167
+DATA bitrev_size16384_radix4_f64<>+0x1A210(SB)/8, $8263
+DATA bitrev_size16384_radix4_f64<>+0x1A218(SB)/8, $12359
+DATA bitrev_size16384_radix4_f64<>+0x1A220(SB)/8, $1095
+DATA bitrev_size16384_radix4_f64<>+0x1A228(SB)/8, $5191
+DATA bitrev_size16384_radix4_f64<>+0x1A230(SB)/8, $9287
+DATA bitrev_size16384_radix4_f64<>+0x1A238(SB)/8, $13383
+DATA bitrev_size16384_radix4_f64<>+0x1A240(SB)/8, $2119
+DATA bitrev_size16384_radix4_f64<>+0x1A248(SB)/8, $6215
+DATA bitrev_size16384_radix4_f64<>+0x1A250(SB)/8, $10311
+DATA bitrev_size16384_radix4_f64<>+0x1A258(SB)/8, $14407
+DATA bitrev_size16384_radix4_f64<>+0x1A260(SB)/8, $3143
+DATA bitrev_size16384_radix4_f64<>+0x1A268(SB)/8, $7239
+DATA bitrev_size16384_radix4_f64<>+0x1A270(SB)/8, $11335
+DATA bitrev_size16384_radix4_f64<>+0x1A278(SB)/8, $15431
+DATA bitrev_size16384_radix4_f64<>+0x1A280(SB)/8, $327
+DATA bitrev_size16384_radix4_f64<>+0x1A288(SB)/8, $4423
+DATA bitrev_size16384_radix4_f64<>+0x1A290(SB)/8, $8519
+DATA bitrev_size16384_radix4_f64<>+0x1A298(SB)/8, $12615
+DATA bitrev_size16384_radix4_f64<>+0x1A2A0(SB)/8, $1351
+DATA bitrev_size16384_radix4_f64<>+0x1A2A8(SB)/8, $5447
+DATA bitrev_size16384_radix4_f64<>+0x1A2B0(SB)/8, $9543
+DATA bitrev_size16384_radix4_f64<>+0x1A2B8(SB)/8, $13639
+DATA bitrev_size16384_radix4_f64<>+0x1A2C0(SB)/8, $2375
+DATA bitrev_size16384_radix4_f64<>+0x1A2C8(SB)/8, $6471
+DATA bitrev_size16384_radix4_f64<>+0x1A2D0(SB)/8, $10567
+DATA bitrev_size16384_radix4_f64<>+0x1A2D8(SB)/8, $14663
+DATA bitrev_size16384_radix4_f64<>+0x1A2E0(SB)/8, $3399
+DATA bitrev_size16384_radix4_f64<>+0x1A2E8(SB)/8, $7495
+DATA bitrev_size16384_radix4_f64<>+0x1A2F0(SB)/8, $11591
+DATA bitrev_size16384_radix4_f64<>+0x1A2F8(SB)/8, $15687
+DATA bitrev_size16384_radix4_f64<>+0x1A300(SB)/8, $583
+DATA bitrev_size16384_radix4_f64<>+0x1A308(SB)/8, $4679
+DATA bitrev_size16384_radix4_f64<>+0x1A310(SB)/8, $8775
+DATA bitrev_size16384_radix4_f64<>+0x1A318(SB)/8, $12871
+DATA bitrev_size16384_radix4_f64<>+0x1A320(SB)/8, $1607
+DATA bitrev_size16384_radix4_f64<>+0x1A328(SB)/8, $5703
+DATA bitrev_size16384_radix4_f64<>+0x1A330(SB)/8, $9799
+DATA bitrev_size16384_radix4_f64<>+0x1A338(SB)/8, $13895
+DATA bitrev_size16384_radix4_f64<>+0x1A340(SB)/8, $2631
+DATA bitrev_size16384_radix4_f64<>+0x1A348(SB)/8, $6727
+DATA bitrev_size16384_radix4_f64<>+0x1A350(SB)/8, $10823
+DATA bitrev_size16384_radix4_f64<>+0x1A358(SB)/8, $14919
+DATA bitrev_size16384_radix4_f64<>+0x1A360(SB)/8, $3655
+DATA bitrev_size16384_radix4_f64<>+0x1A368(SB)/8, $7751
+DATA bitrev_size16384_radix4_f64<>+0x1A370(SB)/8, $11847
+DATA bitrev_size16384_radix4_f64<>+0x1A378(SB)/8, $15943
+DATA bitrev_size16384_radix4_f64<>+0x1A380(SB)/8, $839
+DATA bitrev_size16384_radix4_f64<>+0x1A388(SB)/8, $4935
+DATA bitrev_size16384_radix4_f64<>+0x1A390(SB)/8, $9031
+DATA bitrev_size16384_radix4_f64<>+0x1A398(SB)/8, $13127
+DATA bitrev_size16384_radix4_f64<>+0x1A3A0(SB)/8, $1863
+DATA bitrev_size16384_radix4_f64<>+0x1A3A8(SB)/8, $5959
+DATA bitrev_size16384_radix4_f64<>+0x1A3B0(SB)/8, $10055
+DATA bitrev_size16384_radix4_f64<>+0x1A3B8(SB)/8, $14151
+DATA bitrev_size16384_radix4_f64<>+0x1A3C0(SB)/8, $2887
+DATA bitrev_size16384_radix4_f64<>+0x1A3C8(SB)/8, $6983
+DATA bitrev_size16384_radix4_f64<>+0x1A3D0(SB)/8, $11079
+DATA bitrev_size16384_radix4_f64<>+0x1A3D8(SB)/8, $15175
+DATA bitrev_size16384_radix4_f64<>+0x1A3E0(SB)/8, $3911
+DATA bitrev_size16384_radix4_f64<>+0x1A3E8(SB)/8, $8007
+DATA bitrev_size16384_radix4_f64<>+0x1A3F0(SB)/8, $12103
+DATA bitrev_size16384_radix4_f64<>+0x1A3F8(SB)/8, $16199
+DATA bitrev_size16384_radix4_f64<>+0x1A400(SB)/8, $135
+DATA bitrev_size16384_radix4_f64<>+0x1A408(SB)/8, $4231
+DATA bitrev_size16384_radix4_f64<>+0x1A410(SB)/8, $8327
+DATA bitrev_size16384_radix4_f64<>+0x1A418(SB)/8, $12423
+DATA bitrev_size16384_radix4_f64<>+0x1A420(SB)/8, $1159
+DATA bitrev_size16384_radix4_f64<>+0x1A428(SB)/8, $5255
+DATA bitrev_size16384_radix4_f64<>+0x1A430(SB)/8, $9351
+DATA bitrev_size16384_radix4_f64<>+0x1A438(SB)/8, $13447
+DATA bitrev_size16384_radix4_f64<>+0x1A440(SB)/8, $2183
+DATA bitrev_size16384_radix4_f64<>+0x1A448(SB)/8, $6279
+DATA bitrev_size16384_radix4_f64<>+0x1A450(SB)/8, $10375
+DATA bitrev_size16384_radix4_f64<>+0x1A458(SB)/8, $14471
+DATA bitrev_size16384_radix4_f64<>+0x1A460(SB)/8, $3207
+DATA bitrev_size16384_radix4_f64<>+0x1A468(SB)/8, $7303
+DATA bitrev_size16384_radix4_f64<>+0x1A470(SB)/8, $11399
+DATA bitrev_size16384_radix4_f64<>+0x1A478(SB)/8, $15495
+DATA bitrev_size16384_radix4_f64<>+0x1A480(SB)/8, $391
+DATA bitrev_size16384_radix4_f64<>+0x1A488(SB)/8, $4487
+DATA bitrev_size16384_radix4_f64<>+0x1A490(SB)/8, $8583
+DATA bitrev_size16384_radix4_f64<>+0x1A498(SB)/8, $12679
+DATA bitrev_size16384_radix4_f64<>+0x1A4A0(SB)/8, $1415
+DATA bitrev_size16384_radix4_f64<>+0x1A4A8(SB)/8, $5511
+DATA bitrev_size16384_radix4_f64<>+0x1A4B0(SB)/8, $9607
+DATA bitrev_size16384_radix4_f64<>+0x1A4B8(SB)/8, $13703
+DATA bitrev_size16384_radix4_f64<>+0x1A4C0(SB)/8, $2439
+DATA bitrev_size16384_radix4_f64<>+0x1A4C8(SB)/8, $6535
+DATA bitrev_size16384_radix4_f64<>+0x1A4D0(SB)/8, $10631
+DATA bitrev_size16384_radix4_f64<>+0x1A4D8(SB)/8, $14727
+DATA bitrev_size16384_radix4_f64<>+0x1A4E0(SB)/8, $3463
+DATA bitrev_size16384_radix4_f64<>+0x1A4E8(SB)/8, $7559
+DATA bitrev_size16384_radix4_f64<>+0x1A4F0(SB)/8, $11655
+DATA bitrev_size16384_radix4_f64<>+0x1A4F8(SB)/8, $15751
+DATA bitrev_size16384_radix4_f64<>+0x1A500(SB)/8, $647
+DATA bitrev_size16384_radix4_f64<>+0x1A508(SB)/8, $4743
+DATA bitrev_size16384_radix4_f64<>+0x1A510(SB)/8, $8839
+DATA bitrev_size16384_radix4_f64<>+0x1A518(SB)/8, $12935
+DATA bitrev_size16384_radix4_f64<>+0x1A520(SB)/8, $1671
+DATA bitrev_size16384_radix4_f64<>+0x1A528(SB)/8, $5767
+DATA bitrev_size16384_radix4_f64<>+0x1A530(SB)/8, $9863
+DATA bitrev_size16384_radix4_f64<>+0x1A538(SB)/8, $13959
+DATA bitrev_size16384_radix4_f64<>+0x1A540(SB)/8, $2695
+DATA bitrev_size16384_radix4_f64<>+0x1A548(SB)/8, $6791
+DATA bitrev_size16384_radix4_f64<>+0x1A550(SB)/8, $10887
+DATA bitrev_size16384_radix4_f64<>+0x1A558(SB)/8, $14983
+DATA bitrev_size16384_radix4_f64<>+0x1A560(SB)/8, $3719
+DATA bitrev_size16384_radix4_f64<>+0x1A568(SB)/8, $7815
+DATA bitrev_size16384_radix4_f64<>+0x1A570(SB)/8, $11911
+DATA bitrev_size16384_radix4_f64<>+0x1A578(SB)/8, $16007
+DATA bitrev_size16384_radix4_f64<>+0x1A580(SB)/8, $903
+DATA bitrev_size16384_radix4_f64<>+0x1A588(SB)/8, $4999
+DATA bitrev_size16384_radix4_f64<>+0x1A590(SB)/8, $9095
+DATA bitrev_size16384_radix4_f64<>+0x1A598(SB)/8, $13191
+DATA bitrev_size16384_radix4_f64<>+0x1A5A0(SB)/8, $1927
+DATA bitrev_size16384_radix4_f64<>+0x1A5A8(SB)/8, $6023
+DATA bitrev_size16384_radix4_f64<>+0x1A5B0(SB)/8, $10119
+DATA bitrev_size16384_radix4_f64<>+0x1A5B8(SB)/8, $14215
+DATA bitrev_size16384_radix4_f64<>+0x1A5C0(SB)/8, $2951
+DATA bitrev_size16384_radix4_f64<>+0x1A5C8(SB)/8, $7047
+DATA bitrev_size16384_radix4_f64<>+0x1A5D0(SB)/8, $11143
+DATA bitrev_size16384_radix4_f64<>+0x1A5D8(SB)/8, $15239
+DATA bitrev_size16384_radix4_f64<>+0x1A5E0(SB)/8, $3975
+DATA bitrev_size16384_radix4_f64<>+0x1A5E8(SB)/8, $8071
+DATA bitrev_size16384_radix4_f64<>+0x1A5F0(SB)/8, $12167
+DATA bitrev_size16384_radix4_f64<>+0x1A5F8(SB)/8, $16263
+DATA bitrev_size16384_radix4_f64<>+0x1A600(SB)/8, $199
+DATA bitrev_size16384_radix4_f64<>+0x1A608(SB)/8, $4295
+DATA bitrev_size16384_radix4_f64<>+0x1A610(SB)/8, $8391
+DATA bitrev_size16384_radix4_f64<>+0x1A618(SB)/8, $12487
+DATA bitrev_size16384_radix4_f64<>+0x1A620(SB)/8, $1223
+DATA bitrev_size16384_radix4_f64<>+0x1A628(SB)/8, $5319
+DATA bitrev_size16384_radix4_f64<>+0x1A630(SB)/8, $9415
+DATA bitrev_size16384_radix4_f64<>+0x1A638(SB)/8, $13511
+DATA bitrev_size16384_radix4_f64<>+0x1A640(SB)/8, $2247
+DATA bitrev_size16384_radix4_f64<>+0x1A648(SB)/8, $6343
+DATA bitrev_size16384_radix4_f64<>+0x1A650(SB)/8, $10439
+DATA bitrev_size16384_radix4_f64<>+0x1A658(SB)/8, $14535
+DATA bitrev_size16384_radix4_f64<>+0x1A660(SB)/8, $3271
+DATA bitrev_size16384_radix4_f64<>+0x1A668(SB)/8, $7367
+DATA bitrev_size16384_radix4_f64<>+0x1A670(SB)/8, $11463
+DATA bitrev_size16384_radix4_f64<>+0x1A678(SB)/8, $15559
+DATA bitrev_size16384_radix4_f64<>+0x1A680(SB)/8, $455
+DATA bitrev_size16384_radix4_f64<>+0x1A688(SB)/8, $4551
+DATA bitrev_size16384_radix4_f64<>+0x1A690(SB)/8, $8647
+DATA bitrev_size16384_radix4_f64<>+0x1A698(SB)/8, $12743
+DATA bitrev_size16384_radix4_f64<>+0x1A6A0(SB)/8, $1479
+DATA bitrev_size16384_radix4_f64<>+0x1A6A8(SB)/8, $5575
+DATA bitrev_size16384_radix4_f64<>+0x1A6B0(SB)/8, $9671
+DATA bitrev_size16384_radix4_f64<>+0x1A6B8(SB)/8, $13767
+DATA bitrev_size16384_radix4_f64<>+0x1A6C0(SB)/8, $2503
+DATA bitrev_size16384_radix4_f64<>+0x1A6C8(SB)/8, $6599
+DATA bitrev_size16384_radix4_f64<>+0x1A6D0(SB)/8, $10695
+DATA bitrev_size16384_radix4_f64<>+0x1A6D8(SB)/8, $14791
+DATA bitrev_size16384_radix4_f64<>+0x1A6E0(SB)/8, $3527
+DATA bitrev_size16384_radix4_f64<>+0x1A6E8(SB)/8, $7623
+DATA bitrev_size16384_radix4_f64<>+0x1A6F0(SB)/8, $11719
+DATA bitrev_size16384_radix4_f64<>+0x1A6F8(SB)/8, $15815
+DATA bitrev_size16384_radix4_f64<>+0x1A700(SB)/8, $711
+DATA bitrev_size16384_radix4_f64<>+0x1A708(SB)/8, $4807
+DATA bitrev_size16384_radix4_f64<>+0x1A710(SB)/8, $8903
+DATA bitrev_size16384_radix4_f64<>+0x1A718(SB)/8, $12999
+DATA bitrev_size16384_radix4_f64<>+0x1A720(SB)/8, $1735
+DATA bitrev_size16384_radix4_f64<>+0x1A728(SB)/8, $5831
+DATA bitrev_size16384_radix4_f64<>+0x1A730(SB)/8, $9927
+DATA bitrev_size16384_radix4_f64<>+0x1A738(SB)/8, $14023
+DATA bitrev_size16384_radix4_f64<>+0x1A740(SB)/8, $2759
+DATA bitrev_size16384_radix4_f64<>+0x1A748(SB)/8, $6855
+DATA bitrev_size16384_radix4_f64<>+0x1A750(SB)/8, $10951
+DATA bitrev_size16384_radix4_f64<>+0x1A758(SB)/8, $15047
+DATA bitrev_size16384_radix4_f64<>+0x1A760(SB)/8, $3783
+DATA bitrev_size16384_radix4_f64<>+0x1A768(SB)/8, $7879
+DATA bitrev_size16384_radix4_f64<>+0x1A770(SB)/8, $11975
+DATA bitrev_size16384_radix4_f64<>+0x1A778(SB)/8, $16071
+DATA bitrev_size16384_radix4_f64<>+0x1A780(SB)/8, $967
+DATA bitrev_size16384_radix4_f64<>+0x1A788(SB)/8, $5063
+DATA bitrev_size16384_radix4_f64<>+0x1A790(SB)/8, $9159
+DATA bitrev_size16384_radix4_f64<>+0x1A798(SB)/8, $13255
+DATA bitrev_size16384_radix4_f64<>+0x1A7A0(SB)/8, $1991
+DATA bitrev_size16384_radix4_f64<>+0x1A7A8(SB)/8, $6087
+DATA bitrev_size16384_radix4_f64<>+0x1A7B0(SB)/8, $10183
+DATA bitrev_size16384_radix4_f64<>+0x1A7B8(SB)/8, $14279
+DATA bitrev_size16384_radix4_f64<>+0x1A7C0(SB)/8, $3015
+DATA bitrev_size16384_radix4_f64<>+0x1A7C8(SB)/8, $7111
+DATA bitrev_size16384_radix4_f64<>+0x1A7D0(SB)/8, $11207
+DATA bitrev_size16384_radix4_f64<>+0x1A7D8(SB)/8, $15303
+DATA bitrev_size16384_radix4_f64<>+0x1A7E0(SB)/8, $4039
+DATA bitrev_size16384_radix4_f64<>+0x1A7E8(SB)/8, $8135
+DATA bitrev_size16384_radix4_f64<>+0x1A7F0(SB)/8, $12231
+DATA bitrev_size16384_radix4_f64<>+0x1A7F8(SB)/8, $16327
+DATA bitrev_size16384_radix4_f64<>+0x1A800(SB)/8, $23
+DATA bitrev_size16384_radix4_f64<>+0x1A808(SB)/8, $4119
+DATA bitrev_size16384_radix4_f64<>+0x1A810(SB)/8, $8215
+DATA bitrev_size16384_radix4_f64<>+0x1A818(SB)/8, $12311
+DATA bitrev_size16384_radix4_f64<>+0x1A820(SB)/8, $1047
+DATA bitrev_size16384_radix4_f64<>+0x1A828(SB)/8, $5143
+DATA bitrev_size16384_radix4_f64<>+0x1A830(SB)/8, $9239
+DATA bitrev_size16384_radix4_f64<>+0x1A838(SB)/8, $13335
+DATA bitrev_size16384_radix4_f64<>+0x1A840(SB)/8, $2071
+DATA bitrev_size16384_radix4_f64<>+0x1A848(SB)/8, $6167
+DATA bitrev_size16384_radix4_f64<>+0x1A850(SB)/8, $10263
+DATA bitrev_size16384_radix4_f64<>+0x1A858(SB)/8, $14359
+DATA bitrev_size16384_radix4_f64<>+0x1A860(SB)/8, $3095
+DATA bitrev_size16384_radix4_f64<>+0x1A868(SB)/8, $7191
+DATA bitrev_size16384_radix4_f64<>+0x1A870(SB)/8, $11287
+DATA bitrev_size16384_radix4_f64<>+0x1A878(SB)/8, $15383
+DATA bitrev_size16384_radix4_f64<>+0x1A880(SB)/8, $279
+DATA bitrev_size16384_radix4_f64<>+0x1A888(SB)/8, $4375
+DATA bitrev_size16384_radix4_f64<>+0x1A890(SB)/8, $8471
+DATA bitrev_size16384_radix4_f64<>+0x1A898(SB)/8, $12567
+DATA bitrev_size16384_radix4_f64<>+0x1A8A0(SB)/8, $1303
+DATA bitrev_size16384_radix4_f64<>+0x1A8A8(SB)/8, $5399
+DATA bitrev_size16384_radix4_f64<>+0x1A8B0(SB)/8, $9495
+DATA bitrev_size16384_radix4_f64<>+0x1A8B8(SB)/8, $13591
+DATA bitrev_size16384_radix4_f64<>+0x1A8C0(SB)/8, $2327
+DATA bitrev_size16384_radix4_f64<>+0x1A8C8(SB)/8, $6423
+DATA bitrev_size16384_radix4_f64<>+0x1A8D0(SB)/8, $10519
+DATA bitrev_size16384_radix4_f64<>+0x1A8D8(SB)/8, $14615
+DATA bitrev_size16384_radix4_f64<>+0x1A8E0(SB)/8, $3351
+DATA bitrev_size16384_radix4_f64<>+0x1A8E8(SB)/8, $7447
+DATA bitrev_size16384_radix4_f64<>+0x1A8F0(SB)/8, $11543
+DATA bitrev_size16384_radix4_f64<>+0x1A8F8(SB)/8, $15639
+DATA bitrev_size16384_radix4_f64<>+0x1A900(SB)/8, $535
+DATA bitrev_size16384_radix4_f64<>+0x1A908(SB)/8, $4631
+DATA bitrev_size16384_radix4_f64<>+0x1A910(SB)/8, $8727
+DATA bitrev_size16384_radix4_f64<>+0x1A918(SB)/8, $12823
+DATA bitrev_size16384_radix4_f64<>+0x1A920(SB)/8, $1559
+DATA bitrev_size16384_radix4_f64<>+0x1A928(SB)/8, $5655
+DATA bitrev_size16384_radix4_f64<>+0x1A930(SB)/8, $9751
+DATA bitrev_size16384_radix4_f64<>+0x1A938(SB)/8, $13847
+DATA bitrev_size16384_radix4_f64<>+0x1A940(SB)/8, $2583
+DATA bitrev_size16384_radix4_f64<>+0x1A948(SB)/8, $6679
+DATA bitrev_size16384_radix4_f64<>+0x1A950(SB)/8, $10775
+DATA bitrev_size16384_radix4_f64<>+0x1A958(SB)/8, $14871
+DATA bitrev_size16384_radix4_f64<>+0x1A960(SB)/8, $3607
+DATA bitrev_size16384_radix4_f64<>+0x1A968(SB)/8, $7703
+DATA bitrev_size16384_radix4_f64<>+0x1A970(SB)/8, $11799
+DATA bitrev_size16384_radix4_f64<>+0x1A978(SB)/8, $15895
+DATA bitrev_size16384_radix4_f64<>+0x1A980(SB)/8, $791
+DATA bitrev_size16384_radix4_f64<>+0x1A988(SB)/8, $4887
+DATA bitrev_size16384_radix4_f64<>+0x1A990(SB)/8, $8983
+DATA bitrev_size16384_radix4_f64<>+0x1A998(SB)/8, $13079
+DATA bitrev_size16384_radix4_f64<>+0x1A9A0(SB)/8, $1815
+DATA bitrev_size16384_radix4_f64<>+0x1A9A8(SB)/8, $5911
+DATA bitrev_size16384_radix4_f64<>+0x1A9B0(SB)/8, $10007
+DATA bitrev_size16384_radix4_f64<>+0x1A9B8(SB)/8, $14103
+DATA bitrev_size16384_radix4_f64<>+0x1A9C0(SB)/8, $2839
+DATA bitrev_size16384_radix4_f64<>+0x1A9C8(SB)/8, $6935
+DATA bitrev_size16384_radix4_f64<>+0x1A9D0(SB)/8, $11031
+DATA bitrev_size16384_radix4_f64<>+0x1A9D8(SB)/8, $15127
+DATA bitrev_size16384_radix4_f64<>+0x1A9E0(SB)/8, $3863
+DATA bitrev_size16384_radix4_f64<>+0x1A9E8(SB)/8, $7959
+DATA bitrev_size16384_radix4_f64<>+0x1A9F0(SB)/8, $12055
+DATA bitrev_size16384_radix4_f64<>+0x1A9F8(SB)/8, $16151
+DATA bitrev_size16384_radix4_f64<>+0x1AA00(SB)/8, $87
+DATA bitrev_size16384_radix4_f64<>+0x1AA08(SB)/8, $4183
+DATA bitrev_size16384_radix4_f64<>+0x1AA10(SB)/8, $8279
+DATA bitrev_size16384_radix4_f64<>+0x1AA18(SB)/8, $12375
+DATA bitrev_size16384_radix4_f64<>+0x1AA20(SB)/8, $1111
+DATA bitrev_size16384_radix4_f64<>+0x1AA28(SB)/8, $5207
+DATA bitrev_size16384_radix4_f64<>+0x1AA30(SB)/8, $9303
+DATA bitrev_size16384_radix4_f64<>+0x1AA38(SB)/8, $13399
+DATA bitrev_size16384_radix4_f64<>+0x1AA40(SB)/8, $2135
+DATA bitrev_size16384_radix4_f64<>+0x1AA48(SB)/8, $6231
+DATA bitrev_size16384_radix4_f64<>+0x1AA50(SB)/8, $10327
+DATA bitrev_size16384_radix4_f64<>+0x1AA58(SB)/8, $14423
+DATA bitrev_size16384_radix4_f64<>+0x1AA60(SB)/8, $3159
+DATA bitrev_size16384_radix4_f64<>+0x1AA68(SB)/8, $7255
+DATA bitrev_size16384_radix4_f64<>+0x1AA70(SB)/8, $11351
+DATA bitrev_size16384_radix4_f64<>+0x1AA78(SB)/8, $15447
+DATA bitrev_size16384_radix4_f64<>+0x1AA80(SB)/8, $343
+DATA bitrev_size16384_radix4_f64<>+0x1AA88(SB)/8, $4439
+DATA bitrev_size16384_radix4_f64<>+0x1AA90(SB)/8, $8535
+DATA bitrev_size16384_radix4_f64<>+0x1AA98(SB)/8, $12631
+DATA bitrev_size16384_radix4_f64<>+0x1AAA0(SB)/8, $1367
+DATA bitrev_size16384_radix4_f64<>+0x1AAA8(SB)/8, $5463
+DATA bitrev_size16384_radix4_f64<>+0x1AAB0(SB)/8, $9559
+DATA bitrev_size16384_radix4_f64<>+0x1AAB8(SB)/8, $13655
+DATA bitrev_size16384_radix4_f64<>+0x1AAC0(SB)/8, $2391
+DATA bitrev_size16384_radix4_f64<>+0x1AAC8(SB)/8, $6487
+DATA bitrev_size16384_radix4_f64<>+0x1AAD0(SB)/8, $10583
+DATA bitrev_size16384_radix4_f64<>+0x1AAD8(SB)/8, $14679
+DATA bitrev_size16384_radix4_f64<>+0x1AAE0(SB)/8, $3415
+DATA bitrev_size16384_radix4_f64<>+0x1AAE8(SB)/8, $7511
+DATA bitrev_size16384_radix4_f64<>+0x1AAF0(SB)/8, $11607
+DATA bitrev_size16384_radix4_f64<>+0x1AAF8(SB)/8, $15703
+DATA bitrev_size16384_radix4_f64<>+0x1AB00(SB)/8, $599
+DATA bitrev_size16384_radix4_f64<>+0x1AB08(SB)/8, $4695
+DATA bitrev_size16384_radix4_f64<>+0x1AB10(SB)/8, $8791
+DATA bitrev_size16384_radix4_f64<>+0x1AB18(SB)/8, $12887
+DATA bitrev_size16384_radix4_f64<>+0x1AB20(SB)/8, $1623
+DATA bitrev_size16384_radix4_f64<>+0x1AB28(SB)/8, $5719
+DATA bitrev_size16384_radix4_f64<>+0x1AB30(SB)/8, $9815
+DATA bitrev_size16384_radix4_f64<>+0x1AB38(SB)/8, $13911
+DATA bitrev_size16384_radix4_f64<>+0x1AB40(SB)/8, $2647
+DATA bitrev_size16384_radix4_f64<>+0x1AB48(SB)/8, $6743
+DATA bitrev_size16384_radix4_f64<>+0x1AB50(SB)/8, $10839
+DATA bitrev_size16384_radix4_f64<>+0x1AB58(SB)/8, $14935
+DATA bitrev_size16384_radix4_f64<>+0x1AB60(SB)/8, $3671
+DATA bitrev_size16384_radix4_f64<>+0x1AB68(SB)/8, $7767
+DATA bitrev_size16384_radix4_f64<>+0x1AB70(SB)/8, $11863
+DATA bitrev_size16384_radix4_f64<>+0x1AB78(SB)/8, $15959
+DATA bitrev_size16384_radix4_f64<>+0x1AB80(SB)/8, $855
+DATA bitrev_size16384_radix4_f64<>+0x1AB88(SB)/8, $4951
+DATA bitrev_size16384_radix4_f64<>+0x1AB90(SB)/8, $9047
+DATA bitrev_size16384_radix4_f64<>+0x1AB98(SB)/8, $13143
+DATA bitrev_size16384_radix4_f64<>+0x1ABA0(SB)/8, $1879
+DATA bitrev_size16384_radix4_f64<>+0x1ABA8(SB)/8, $5975
+DATA bitrev_size16384_radix4_f64<>+0x1ABB0(SB)/8, $10071
+DATA bitrev_size16384_radix4_f64<>+0x1ABB8(SB)/8, $14167
+DATA bitrev_size16384_radix4_f64<>+0x1ABC0(SB)/8, $2903
+DATA bitrev_size16384_radix4_f64<>+0x1ABC8(SB)/8, $6999
+DATA bitrev_size16384_radix4_f64<>+0x1ABD0(SB)/8, $11095
+DATA bitrev_size16384_radix4_f64<>+0x1ABD8(SB)/8, $15191
+DATA bitrev_size16384_radix4_f64<>+0x1ABE0(SB)/8, $3927
+DATA bitrev_size16384_radix4_f64<>+0x1ABE8(SB)/8, $8023
+DATA bitrev_size16384_radix4_f64<>+0x1ABF0(SB)/8, $12119
+DATA bitrev_size16384_radix4_f64<>+0x1ABF8(SB)/8, $16215
+DATA bitrev_size16384_radix4_f64<>+0x1AC00(SB)/8, $151
+DATA bitrev_size16384_radix4_f64<>+0x1AC08(SB)/8, $4247
+DATA bitrev_size16384_radix4_f64<>+0x1AC10(SB)/8, $8343
+DATA bitrev_size16384_radix4_f64<>+0x1AC18(SB)/8, $12439
+DATA bitrev_size16384_radix4_f64<>+0x1AC20(SB)/8, $1175
+DATA bitrev_size16384_radix4_f64<>+0x1AC28(SB)/8, $5271
+DATA bitrev_size16384_radix4_f64<>+0x1AC30(SB)/8, $9367
+DATA bitrev_size16384_radix4_f64<>+0x1AC38(SB)/8, $13463
+DATA bitrev_size16384_radix4_f64<>+0x1AC40(SB)/8, $2199
+DATA bitrev_size16384_radix4_f64<>+0x1AC48(SB)/8, $6295
+DATA bitrev_size16384_radix4_f64<>+0x1AC50(SB)/8, $10391
+DATA bitrev_size16384_radix4_f64<>+0x1AC58(SB)/8, $14487
+DATA bitrev_size16384_radix4_f64<>+0x1AC60(SB)/8, $3223
+DATA bitrev_size16384_radix4_f64<>+0x1AC68(SB)/8, $7319
+DATA bitrev_size16384_radix4_f64<>+0x1AC70(SB)/8, $11415
+DATA bitrev_size16384_radix4_f64<>+0x1AC78(SB)/8, $15511
+DATA bitrev_size16384_radix4_f64<>+0x1AC80(SB)/8, $407
+DATA bitrev_size16384_radix4_f64<>+0x1AC88(SB)/8, $4503
+DATA bitrev_size16384_radix4_f64<>+0x1AC90(SB)/8, $8599
+DATA bitrev_size16384_radix4_f64<>+0x1AC98(SB)/8, $12695
+DATA bitrev_size16384_radix4_f64<>+0x1ACA0(SB)/8, $1431
+DATA bitrev_size16384_radix4_f64<>+0x1ACA8(SB)/8, $5527
+DATA bitrev_size16384_radix4_f64<>+0x1ACB0(SB)/8, $9623
+DATA bitrev_size16384_radix4_f64<>+0x1ACB8(SB)/8, $13719
+DATA bitrev_size16384_radix4_f64<>+0x1ACC0(SB)/8, $2455
+DATA bitrev_size16384_radix4_f64<>+0x1ACC8(SB)/8, $6551
+DATA bitrev_size16384_radix4_f64<>+0x1ACD0(SB)/8, $10647
+DATA bitrev_size16384_radix4_f64<>+0x1ACD8(SB)/8, $14743
+DATA bitrev_size16384_radix4_f64<>+0x1ACE0(SB)/8, $3479
+DATA bitrev_size16384_radix4_f64<>+0x1ACE8(SB)/8, $7575
+DATA bitrev_size16384_radix4_f64<>+0x1ACF0(SB)/8, $11671
+DATA bitrev_size16384_radix4_f64<>+0x1ACF8(SB)/8, $15767
+DATA bitrev_size16384_radix4_f64<>+0x1AD00(SB)/8, $663
+DATA bitrev_size16384_radix4_f64<>+0x1AD08(SB)/8, $4759
+DATA bitrev_size16384_radix4_f64<>+0x1AD10(SB)/8, $8855
+DATA bitrev_size16384_radix4_f64<>+0x1AD18(SB)/8, $12951
+DATA bitrev_size16384_radix4_f64<>+0x1AD20(SB)/8, $1687
+DATA bitrev_size16384_radix4_f64<>+0x1AD28(SB)/8, $5783
+DATA bitrev_size16384_radix4_f64<>+0x1AD30(SB)/8, $9879
+DATA bitrev_size16384_radix4_f64<>+0x1AD38(SB)/8, $13975
+DATA bitrev_size16384_radix4_f64<>+0x1AD40(SB)/8, $2711
+DATA bitrev_size16384_radix4_f64<>+0x1AD48(SB)/8, $6807
+DATA bitrev_size16384_radix4_f64<>+0x1AD50(SB)/8, $10903
+DATA bitrev_size16384_radix4_f64<>+0x1AD58(SB)/8, $14999
+DATA bitrev_size16384_radix4_f64<>+0x1AD60(SB)/8, $3735
+DATA bitrev_size16384_radix4_f64<>+0x1AD68(SB)/8, $7831
+DATA bitrev_size16384_radix4_f64<>+0x1AD70(SB)/8, $11927
+DATA bitrev_size16384_radix4_f64<>+0x1AD78(SB)/8, $16023
+DATA bitrev_size16384_radix4_f64<>+0x1AD80(SB)/8, $919
+DATA bitrev_size16384_radix4_f64<>+0x1AD88(SB)/8, $5015
+DATA bitrev_size16384_radix4_f64<>+0x1AD90(SB)/8, $9111
+DATA bitrev_size16384_radix4_f64<>+0x1AD98(SB)/8, $13207
+DATA bitrev_size16384_radix4_f64<>+0x1ADA0(SB)/8, $1943
+DATA bitrev_size16384_radix4_f64<>+0x1ADA8(SB)/8, $6039
+DATA bitrev_size16384_radix4_f64<>+0x1ADB0(SB)/8, $10135
+DATA bitrev_size16384_radix4_f64<>+0x1ADB8(SB)/8, $14231
+DATA bitrev_size16384_radix4_f64<>+0x1ADC0(SB)/8, $2967
+DATA bitrev_size16384_radix4_f64<>+0x1ADC8(SB)/8, $7063
+DATA bitrev_size16384_radix4_f64<>+0x1ADD0(SB)/8, $11159
+DATA bitrev_size16384_radix4_f64<>+0x1ADD8(SB)/8, $15255
+DATA bitrev_size16384_radix4_f64<>+0x1ADE0(SB)/8, $3991
+DATA bitrev_size16384_radix4_f64<>+0x1ADE8(SB)/8, $8087
+DATA bitrev_size16384_radix4_f64<>+0x1ADF0(SB)/8, $12183
+DATA bitrev_size16384_radix4_f64<>+0x1ADF8(SB)/8, $16279
+DATA bitrev_size16384_radix4_f64<>+0x1AE00(SB)/8, $215
+DATA bitrev_size16384_radix4_f64<>+0x1AE08(SB)/8, $4311
+DATA bitrev_size16384_radix4_f64<>+0x1AE10(SB)/8, $8407
+DATA bitrev_size16384_radix4_f64<>+0x1AE18(SB)/8, $12503
+DATA bitrev_size16384_radix4_f64<>+0x1AE20(SB)/8, $1239
+DATA bitrev_size16384_radix4_f64<>+0x1AE28(SB)/8, $5335
+DATA bitrev_size16384_radix4_f64<>+0x1AE30(SB)/8, $9431
+DATA bitrev_size16384_radix4_f64<>+0x1AE38(SB)/8, $13527
+DATA bitrev_size16384_radix4_f64<>+0x1AE40(SB)/8, $2263
+DATA bitrev_size16384_radix4_f64<>+0x1AE48(SB)/8, $6359
+DATA bitrev_size16384_radix4_f64<>+0x1AE50(SB)/8, $10455
+DATA bitrev_size16384_radix4_f64<>+0x1AE58(SB)/8, $14551
+DATA bitrev_size16384_radix4_f64<>+0x1AE60(SB)/8, $3287
+DATA bitrev_size16384_radix4_f64<>+0x1AE68(SB)/8, $7383
+DATA bitrev_size16384_radix4_f64<>+0x1AE70(SB)/8, $11479
+DATA bitrev_size16384_radix4_f64<>+0x1AE78(SB)/8, $15575
+DATA bitrev_size16384_radix4_f64<>+0x1AE80(SB)/8, $471
+DATA bitrev_size16384_radix4_f64<>+0x1AE88(SB)/8, $4567
+DATA bitrev_size16384_radix4_f64<>+0x1AE90(SB)/8, $8663
+DATA bitrev_size16384_radix4_f64<>+0x1AE98(SB)/8, $12759
+DATA bitrev_size16384_radix4_f64<>+0x1AEA0(SB)/8, $1495
+DATA bitrev_size16384_radix4_f64<>+0x1AEA8(SB)/8, $5591
+DATA bitrev_size16384_radix4_f64<>+0x1AEB0(SB)/8, $9687
+DATA bitrev_size16384_radix4_f64<>+0x1AEB8(SB)/8, $13783
+DATA bitrev_size16384_radix4_f64<>+0x1AEC0(SB)/8, $2519
+DATA bitrev_size16384_radix4_f64<>+0x1AEC8(SB)/8, $6615
+DATA bitrev_size16384_radix4_f64<>+0x1AED0(SB)/8, $10711
+DATA bitrev_size16384_radix4_f64<>+0x1AED8(SB)/8, $14807
+DATA bitrev_size16384_radix4_f64<>+0x1AEE0(SB)/8, $3543
+DATA bitrev_size16384_radix4_f64<>+0x1AEE8(SB)/8, $7639
+DATA bitrev_size16384_radix4_f64<>+0x1AEF0(SB)/8, $11735
+DATA bitrev_size16384_radix4_f64<>+0x1AEF8(SB)/8, $15831
+DATA bitrev_size16384_radix4_f64<>+0x1AF00(SB)/8, $727
+DATA bitrev_size16384_radix4_f64<>+0x1AF08(SB)/8, $4823
+DATA bitrev_size16384_radix4_f64<>+0x1AF10(SB)/8, $8919
+DATA bitrev_size16384_radix4_f64<>+0x1AF18(SB)/8, $13015
+DATA bitrev_size16384_radix4_f64<>+0x1AF20(SB)/8, $1751
+DATA bitrev_size16384_radix4_f64<>+0x1AF28(SB)/8, $5847
+DATA bitrev_size16384_radix4_f64<>+0x1AF30(SB)/8, $9943
+DATA bitrev_size16384_radix4_f64<>+0x1AF38(SB)/8, $14039
+DATA bitrev_size16384_radix4_f64<>+0x1AF40(SB)/8, $2775
+DATA bitrev_size16384_radix4_f64<>+0x1AF48(SB)/8, $6871
+DATA bitrev_size16384_radix4_f64<>+0x1AF50(SB)/8, $10967
+DATA bitrev_size16384_radix4_f64<>+0x1AF58(SB)/8, $15063
+DATA bitrev_size16384_radix4_f64<>+0x1AF60(SB)/8, $3799
+DATA bitrev_size16384_radix4_f64<>+0x1AF68(SB)/8, $7895
+DATA bitrev_size16384_radix4_f64<>+0x1AF70(SB)/8, $11991
+DATA bitrev_size16384_radix4_f64<>+0x1AF78(SB)/8, $16087
+DATA bitrev_size16384_radix4_f64<>+0x1AF80(SB)/8, $983
+DATA bitrev_size16384_radix4_f64<>+0x1AF88(SB)/8, $5079
+DATA bitrev_size16384_radix4_f64<>+0x1AF90(SB)/8, $9175
+DATA bitrev_size16384_radix4_f64<>+0x1AF98(SB)/8, $13271
+DATA bitrev_size16384_radix4_f64<>+0x1AFA0(SB)/8, $2007
+DATA bitrev_size16384_radix4_f64<>+0x1AFA8(SB)/8, $6103
+DATA bitrev_size16384_radix4_f64<>+0x1AFB0(SB)/8, $10199
+DATA bitrev_size16384_radix4_f64<>+0x1AFB8(SB)/8, $14295
+DATA bitrev_size16384_radix4_f64<>+0x1AFC0(SB)/8, $3031
+DATA bitrev_size16384_radix4_f64<>+0x1AFC8(SB)/8, $7127
+DATA bitrev_size16384_radix4_f64<>+0x1AFD0(SB)/8, $11223
+DATA bitrev_size16384_radix4_f64<>+0x1AFD8(SB)/8, $15319
+DATA bitrev_size16384_radix4_f64<>+0x1AFE0(SB)/8, $4055
+DATA bitrev_size16384_radix4_f64<>+0x1AFE8(SB)/8, $8151
+DATA bitrev_size16384_radix4_f64<>+0x1AFF0(SB)/8, $12247
+DATA bitrev_size16384_radix4_f64<>+0x1AFF8(SB)/8, $16343
+DATA bitrev_size16384_radix4_f64<>+0x1B000(SB)/8, $39
+DATA bitrev_size16384_radix4_f64<>+0x1B008(SB)/8, $4135
+DATA bitrev_size16384_radix4_f64<>+0x1B010(SB)/8, $8231
+DATA bitrev_size16384_radix4_f64<>+0x1B018(SB)/8, $12327
+DATA bitrev_size16384_radix4_f64<>+0x1B020(SB)/8, $1063
+DATA bitrev_size16384_radix4_f64<>+0x1B028(SB)/8, $5159
+DATA bitrev_size16384_radix4_f64<>+0x1B030(SB)/8, $9255
+DATA bitrev_size16384_radix4_f64<>+0x1B038(SB)/8, $13351
+DATA bitrev_size16384_radix4_f64<>+0x1B040(SB)/8, $2087
+DATA bitrev_size16384_radix4_f64<>+0x1B048(SB)/8, $6183
+DATA bitrev_size16384_radix4_f64<>+0x1B050(SB)/8, $10279
+DATA bitrev_size16384_radix4_f64<>+0x1B058(SB)/8, $14375
+DATA bitrev_size16384_radix4_f64<>+0x1B060(SB)/8, $3111
+DATA bitrev_size16384_radix4_f64<>+0x1B068(SB)/8, $7207
+DATA bitrev_size16384_radix4_f64<>+0x1B070(SB)/8, $11303
+DATA bitrev_size16384_radix4_f64<>+0x1B078(SB)/8, $15399
+DATA bitrev_size16384_radix4_f64<>+0x1B080(SB)/8, $295
+DATA bitrev_size16384_radix4_f64<>+0x1B088(SB)/8, $4391
+DATA bitrev_size16384_radix4_f64<>+0x1B090(SB)/8, $8487
+DATA bitrev_size16384_radix4_f64<>+0x1B098(SB)/8, $12583
+DATA bitrev_size16384_radix4_f64<>+0x1B0A0(SB)/8, $1319
+DATA bitrev_size16384_radix4_f64<>+0x1B0A8(SB)/8, $5415
+DATA bitrev_size16384_radix4_f64<>+0x1B0B0(SB)/8, $9511
+DATA bitrev_size16384_radix4_f64<>+0x1B0B8(SB)/8, $13607
+DATA bitrev_size16384_radix4_f64<>+0x1B0C0(SB)/8, $2343
+DATA bitrev_size16384_radix4_f64<>+0x1B0C8(SB)/8, $6439
+DATA bitrev_size16384_radix4_f64<>+0x1B0D0(SB)/8, $10535
+DATA bitrev_size16384_radix4_f64<>+0x1B0D8(SB)/8, $14631
+DATA bitrev_size16384_radix4_f64<>+0x1B0E0(SB)/8, $3367
+DATA bitrev_size16384_radix4_f64<>+0x1B0E8(SB)/8, $7463
+DATA bitrev_size16384_radix4_f64<>+0x1B0F0(SB)/8, $11559
+DATA bitrev_size16384_radix4_f64<>+0x1B0F8(SB)/8, $15655
+DATA bitrev_size16384_radix4_f64<>+0x1B100(SB)/8, $551
+DATA bitrev_size16384_radix4_f64<>+0x1B108(SB)/8, $4647
+DATA bitrev_size16384_radix4_f64<>+0x1B110(SB)/8, $8743
+DATA bitrev_size16384_radix4_f64<>+0x1B118(SB)/8, $12839
+DATA bitrev_size16384_radix4_f64<>+0x1B120(SB)/8, $1575
+DATA bitrev_size16384_radix4_f64<>+0x1B128(SB)/8, $5671
+DATA bitrev_size16384_radix4_f64<>+0x1B130(SB)/8, $9767
+DATA bitrev_size16384_radix4_f64<>+0x1B138(SB)/8, $13863
+DATA bitrev_size16384_radix4_f64<>+0x1B140(SB)/8, $2599
+DATA bitrev_size16384_radix4_f64<>+0x1B148(SB)/8, $6695
+DATA bitrev_size16384_radix4_f64<>+0x1B150(SB)/8, $10791
+DATA bitrev_size16384_radix4_f64<>+0x1B158(SB)/8, $14887
+DATA bitrev_size16384_radix4_f64<>+0x1B160(SB)/8, $3623
+DATA bitrev_size16384_radix4_f64<>+0x1B168(SB)/8, $7719
+DATA bitrev_size16384_radix4_f64<>+0x1B170(SB)/8, $11815
+DATA bitrev_size16384_radix4_f64<>+0x1B178(SB)/8, $15911
+DATA bitrev_size16384_radix4_f64<>+0x1B180(SB)/8, $807
+DATA bitrev_size16384_radix4_f64<>+0x1B188(SB)/8, $4903
+DATA bitrev_size16384_radix4_f64<>+0x1B190(SB)/8, $8999
+DATA bitrev_size16384_radix4_f64<>+0x1B198(SB)/8, $13095
+DATA bitrev_size16384_radix4_f64<>+0x1B1A0(SB)/8, $1831
+DATA bitrev_size16384_radix4_f64<>+0x1B1A8(SB)/8, $5927
+DATA bitrev_size16384_radix4_f64<>+0x1B1B0(SB)/8, $10023
+DATA bitrev_size16384_radix4_f64<>+0x1B1B8(SB)/8, $14119
+DATA bitrev_size16384_radix4_f64<>+0x1B1C0(SB)/8, $2855
+DATA bitrev_size16384_radix4_f64<>+0x1B1C8(SB)/8, $6951
+DATA bitrev_size16384_radix4_f64<>+0x1B1D0(SB)/8, $11047
+DATA bitrev_size16384_radix4_f64<>+0x1B1D8(SB)/8, $15143
+DATA bitrev_size16384_radix4_f64<>+0x1B1E0(SB)/8, $3879
+DATA bitrev_size16384_radix4_f64<>+0x1B1E8(SB)/8, $7975
+DATA bitrev_size16384_radix4_f64<>+0x1B1F0(SB)/8, $12071
+DATA bitrev_size16384_radix4_f64<>+0x1B1F8(SB)/8, $16167
+DATA bitrev_size16384_radix4_f64<>+0x1B200(SB)/8, $103
+DATA bitrev_size16384_radix4_f64<>+0x1B208(SB)/8, $4199
+DATA bitrev_size16384_radix4_f64<>+0x1B210(SB)/8, $8295
+DATA bitrev_size16384_radix4_f64<>+0x1B218(SB)/8, $12391
+DATA bitrev_size16384_radix4_f64<>+0x1B220(SB)/8, $1127
+DATA bitrev_size16384_radix4_f64<>+0x1B228(SB)/8, $5223
+DATA bitrev_size16384_radix4_f64<>+0x1B230(SB)/8, $9319
+DATA bitrev_size16384_radix4_f64<>+0x1B238(SB)/8, $13415
+DATA bitrev_size16384_radix4_f64<>+0x1B240(SB)/8, $2151
+DATA bitrev_size16384_radix4_f64<>+0x1B248(SB)/8, $6247
+DATA bitrev_size16384_radix4_f64<>+0x1B250(SB)/8, $10343
+DATA bitrev_size16384_radix4_f64<>+0x1B258(SB)/8, $14439
+DATA bitrev_size16384_radix4_f64<>+0x1B260(SB)/8, $3175
+DATA bitrev_size16384_radix4_f64<>+0x1B268(SB)/8, $7271
+DATA bitrev_size16384_radix4_f64<>+0x1B270(SB)/8, $11367
+DATA bitrev_size16384_radix4_f64<>+0x1B278(SB)/8, $15463
+DATA bitrev_size16384_radix4_f64<>+0x1B280(SB)/8, $359
+DATA bitrev_size16384_radix4_f64<>+0x1B288(SB)/8, $4455
+DATA bitrev_size16384_radix4_f64<>+0x1B290(SB)/8, $8551
+DATA bitrev_size16384_radix4_f64<>+0x1B298(SB)/8, $12647
+DATA bitrev_size16384_radix4_f64<>+0x1B2A0(SB)/8, $1383
+DATA bitrev_size16384_radix4_f64<>+0x1B2A8(SB)/8, $5479
+DATA bitrev_size16384_radix4_f64<>+0x1B2B0(SB)/8, $9575
+DATA bitrev_size16384_radix4_f64<>+0x1B2B8(SB)/8, $13671
+DATA bitrev_size16384_radix4_f64<>+0x1B2C0(SB)/8, $2407
+DATA bitrev_size16384_radix4_f64<>+0x1B2C8(SB)/8, $6503
+DATA bitrev_size16384_radix4_f64<>+0x1B2D0(SB)/8, $10599
+DATA bitrev_size16384_radix4_f64<>+0x1B2D8(SB)/8, $14695
+DATA bitrev_size16384_radix4_f64<>+0x1B2E0(SB)/8, $3431
+DATA bitrev_size16384_radix4_f64<>+0x1B2E8(SB)/8, $7527
+DATA bitrev_size16384_radix4_f64<>+0x1B2F0(SB)/8, $11623
+DATA bitrev_size16384_radix4_f64<>+0x1B2F8(SB)/8, $15719
+DATA bitrev_size16384_radix4_f64<>+0x1B300(SB)/8, $615
+DATA bitrev_size16384_radix4_f64<>+0x1B308(SB)/8, $4711
+DATA bitrev_size16384_radix4_f64<>+0x1B310(SB)/8, $8807
+DATA bitrev_size16384_radix4_f64<>+0x1B318(SB)/8, $12903
+DATA bitrev_size16384_radix4_f64<>+0x1B320(SB)/8, $1639
+DATA bitrev_size16384_radix4_f64<>+0x1B328(SB)/8, $5735
+DATA bitrev_size16384_radix4_f64<>+0x1B330(SB)/8, $9831
+DATA bitrev_size16384_radix4_f64<>+0x1B338(SB)/8, $13927
+DATA bitrev_size16384_radix4_f64<>+0x1B340(SB)/8, $2663
+DATA bitrev_size16384_radix4_f64<>+0x1B348(SB)/8, $6759
+DATA bitrev_size16384_radix4_f64<>+0x1B350(SB)/8, $10855
+DATA bitrev_size16384_radix4_f64<>+0x1B358(SB)/8, $14951
+DATA bitrev_size16384_radix4_f64<>+0x1B360(SB)/8, $3687
+DATA bitrev_size16384_radix4_f64<>+0x1B368(SB)/8, $7783
+DATA bitrev_size16384_radix4_f64<>+0x1B370(SB)/8, $11879
+DATA bitrev_size16384_radix4_f64<>+0x1B378(SB)/8, $15975
+DATA bitrev_size16384_radix4_f64<>+0x1B380(SB)/8, $871
+DATA bitrev_size16384_radix4_f64<>+0x1B388(SB)/8, $4967
+DATA bitrev_size16384_radix4_f64<>+0x1B390(SB)/8, $9063
+DATA bitrev_size16384_radix4_f64<>+0x1B398(SB)/8, $13159
+DATA bitrev_size16384_radix4_f64<>+0x1B3A0(SB)/8, $1895
+DATA bitrev_size16384_radix4_f64<>+0x1B3A8(SB)/8, $5991
+DATA bitrev_size16384_radix4_f64<>+0x1B3B0(SB)/8, $10087
+DATA bitrev_size16384_radix4_f64<>+0x1B3B8(SB)/8, $14183
+DATA bitrev_size16384_radix4_f64<>+0x1B3C0(SB)/8, $2919
+DATA bitrev_size16384_radix4_f64<>+0x1B3C8(SB)/8, $7015
+DATA bitrev_size16384_radix4_f64<>+0x1B3D0(SB)/8, $11111
+DATA bitrev_size16384_radix4_f64<>+0x1B3D8(SB)/8, $15207
+DATA bitrev_size16384_radix4_f64<>+0x1B3E0(SB)/8, $3943
+DATA bitrev_size16384_radix4_f64<>+0x1B3E8(SB)/8, $8039
+DATA bitrev_size16384_radix4_f64<>+0x1B3F0(SB)/8, $12135
+DATA bitrev_size16384_radix4_f64<>+0x1B3F8(SB)/8, $16231
+DATA bitrev_size16384_radix4_f64<>+0x1B400(SB)/8, $167
+DATA bitrev_size16384_radix4_f64<>+0x1B408(SB)/8, $4263
+DATA bitrev_size16384_radix4_f64<>+0x1B410(SB)/8, $8359
+DATA bitrev_size16384_radix4_f64<>+0x1B418(SB)/8, $12455
+DATA bitrev_size16384_radix4_f64<>+0x1B420(SB)/8, $1191
+DATA bitrev_size16384_radix4_f64<>+0x1B428(SB)/8, $5287
+DATA bitrev_size16384_radix4_f64<>+0x1B430(SB)/8, $9383
+DATA bitrev_size16384_radix4_f64<>+0x1B438(SB)/8, $13479
+DATA bitrev_size16384_radix4_f64<>+0x1B440(SB)/8, $2215
+DATA bitrev_size16384_radix4_f64<>+0x1B448(SB)/8, $6311
+DATA bitrev_size16384_radix4_f64<>+0x1B450(SB)/8, $10407
+DATA bitrev_size16384_radix4_f64<>+0x1B458(SB)/8, $14503
+DATA bitrev_size16384_radix4_f64<>+0x1B460(SB)/8, $3239
+DATA bitrev_size16384_radix4_f64<>+0x1B468(SB)/8, $7335
+DATA bitrev_size16384_radix4_f64<>+0x1B470(SB)/8, $11431
+DATA bitrev_size16384_radix4_f64<>+0x1B478(SB)/8, $15527
+DATA bitrev_size16384_radix4_f64<>+0x1B480(SB)/8, $423
+DATA bitrev_size16384_radix4_f64<>+0x1B488(SB)/8, $4519
+DATA bitrev_size16384_radix4_f64<>+0x1B490(SB)/8, $8615
+DATA bitrev_size16384_radix4_f64<>+0x1B498(SB)/8, $12711
+DATA bitrev_size16384_radix4_f64<>+0x1B4A0(SB)/8, $1447
+DATA bitrev_size16384_radix4_f64<>+0x1B4A8(SB)/8, $5543
+DATA bitrev_size16384_radix4_f64<>+0x1B4B0(SB)/8, $9639
+DATA bitrev_size16384_radix4_f64<>+0x1B4B8(SB)/8, $13735
+DATA bitrev_size16384_radix4_f64<>+0x1B4C0(SB)/8, $2471
+DATA bitrev_size16384_radix4_f64<>+0x1B4C8(SB)/8, $6567
+DATA bitrev_size16384_radix4_f64<>+0x1B4D0(SB)/8, $10663
+DATA bitrev_size16384_radix4_f64<>+0x1B4D8(SB)/8, $14759
+DATA bitrev_size16384_radix4_f64<>+0x1B4E0(SB)/8, $3495
+DATA bitrev_size16384_radix4_f64<>+0x1B4E8(SB)/8, $7591
+DATA bitrev_size16384_radix4_f64<>+0x1B4F0(SB)/8, $11687
+DATA bitrev_size16384_radix4_f64<>+0x1B4F8(SB)/8, $15783
+DATA bitrev_size16384_radix4_f64<>+0x1B500(SB)/8, $679
+DATA bitrev_size16384_radix4_f64<>+0x1B508(SB)/8, $4775
+DATA bitrev_size16384_radix4_f64<>+0x1B510(SB)/8, $8871
+DATA bitrev_size16384_radix4_f64<>+0x1B518(SB)/8, $12967
+DATA bitrev_size16384_radix4_f64<>+0x1B520(SB)/8, $1703
+DATA bitrev_size16384_radix4_f64<>+0x1B528(SB)/8, $5799
+DATA bitrev_size16384_radix4_f64<>+0x1B530(SB)/8, $9895
+DATA bitrev_size16384_radix4_f64<>+0x1B538(SB)/8, $13991
+DATA bitrev_size16384_radix4_f64<>+0x1B540(SB)/8, $2727
+DATA bitrev_size16384_radix4_f64<>+0x1B548(SB)/8, $6823
+DATA bitrev_size16384_radix4_f64<>+0x1B550(SB)/8, $10919
+DATA bitrev_size16384_radix4_f64<>+0x1B558(SB)/8, $15015
+DATA bitrev_size16384_radix4_f64<>+0x1B560(SB)/8, $3751
+DATA bitrev_size16384_radix4_f64<>+0x1B568(SB)/8, $7847
+DATA bitrev_size16384_radix4_f64<>+0x1B570(SB)/8, $11943
+DATA bitrev_size16384_radix4_f64<>+0x1B578(SB)/8, $16039
+DATA bitrev_size16384_radix4_f64<>+0x1B580(SB)/8, $935
+DATA bitrev_size16384_radix4_f64<>+0x1B588(SB)/8, $5031
+DATA bitrev_size16384_radix4_f64<>+0x1B590(SB)/8, $9127
+DATA bitrev_size16384_radix4_f64<>+0x1B598(SB)/8, $13223
+DATA bitrev_size16384_radix4_f64<>+0x1B5A0(SB)/8, $1959
+DATA bitrev_size16384_radix4_f64<>+0x1B5A8(SB)/8, $6055
+DATA bitrev_size16384_radix4_f64<>+0x1B5B0(SB)/8, $10151
+DATA bitrev_size16384_radix4_f64<>+0x1B5B8(SB)/8, $14247
+DATA bitrev_size16384_radix4_f64<>+0x1B5C0(SB)/8, $2983
+DATA bitrev_size16384_radix4_f64<>+0x1B5C8(SB)/8, $7079
+DATA bitrev_size16384_radix4_f64<>+0x1B5D0(SB)/8, $11175
+DATA bitrev_size16384_radix4_f64<>+0x1B5D8(SB)/8, $15271
+DATA bitrev_size16384_radix4_f64<>+0x1B5E0(SB)/8, $4007
+DATA bitrev_size16384_radix4_f64<>+0x1B5E8(SB)/8, $8103
+DATA bitrev_size16384_radix4_f64<>+0x1B5F0(SB)/8, $12199
+DATA bitrev_size16384_radix4_f64<>+0x1B5F8(SB)/8, $16295
+DATA bitrev_size16384_radix4_f64<>+0x1B600(SB)/8, $231
+DATA bitrev_size16384_radix4_f64<>+0x1B608(SB)/8, $4327
+DATA bitrev_size16384_radix4_f64<>+0x1B610(SB)/8, $8423
+DATA bitrev_size16384_radix4_f64<>+0x1B618(SB)/8, $12519
+DATA bitrev_size16384_radix4_f64<>+0x1B620(SB)/8, $1255
+DATA bitrev_size16384_radix4_f64<>+0x1B628(SB)/8, $5351
+DATA bitrev_size16384_radix4_f64<>+0x1B630(SB)/8, $9447
+DATA bitrev_size16384_radix4_f64<>+0x1B638(SB)/8, $13543
+DATA bitrev_size16384_radix4_f64<>+0x1B640(SB)/8, $2279
+DATA bitrev_size16384_radix4_f64<>+0x1B648(SB)/8, $6375
+DATA bitrev_size16384_radix4_f64<>+0x1B650(SB)/8, $10471
+DATA bitrev_size16384_radix4_f64<>+0x1B658(SB)/8, $14567
+DATA bitrev_size16384_radix4_f64<>+0x1B660(SB)/8, $3303
+DATA bitrev_size16384_radix4_f64<>+0x1B668(SB)/8, $7399
+DATA bitrev_size16384_radix4_f64<>+0x1B670(SB)/8, $11495
+DATA bitrev_size16384_radix4_f64<>+0x1B678(SB)/8, $15591
+DATA bitrev_size16384_radix4_f64<>+0x1B680(SB)/8, $487
+DATA bitrev_size16384_radix4_f64<>+0x1B688(SB)/8, $4583
+DATA bitrev_size16384_radix4_f64<>+0x1B690(SB)/8, $8679
+DATA bitrev_size16384_radix4_f64<>+0x1B698(SB)/8, $12775
+DATA bitrev_size16384_radix4_f64<>+0x1B6A0(SB)/8, $1511
+DATA bitrev_size16384_radix4_f64<>+0x1B6A8(SB)/8, $5607
+DATA bitrev_size16384_radix4_f64<>+0x1B6B0(SB)/8, $9703
+DATA bitrev_size16384_radix4_f64<>+0x1B6B8(SB)/8, $13799
+DATA bitrev_size16384_radix4_f64<>+0x1B6C0(SB)/8, $2535
+DATA bitrev_size16384_radix4_f64<>+0x1B6C8(SB)/8, $6631
+DATA bitrev_size16384_radix4_f64<>+0x1B6D0(SB)/8, $10727
+DATA bitrev_size16384_radix4_f64<>+0x1B6D8(SB)/8, $14823
+DATA bitrev_size16384_radix4_f64<>+0x1B6E0(SB)/8, $3559
+DATA bitrev_size16384_radix4_f64<>+0x1B6E8(SB)/8, $7655
+DATA bitrev_size16384_radix4_f64<>+0x1B6F0(SB)/8, $11751
+DATA bitrev_size16384_radix4_f64<>+0x1B6F8(SB)/8, $15847
+DATA bitrev_size16384_radix4_f64<>+0x1B700(SB)/8, $743
+DATA bitrev_size16384_radix4_f64<>+0x1B708(SB)/8, $4839
+DATA bitrev_size16384_radix4_f64<>+0x1B710(SB)/8, $8935
+DATA bitrev_size16384_radix4_f64<>+0x1B718(SB)/8, $13031
+DATA bitrev_size16384_radix4_f64<>+0x1B720(SB)/8, $1767
+DATA bitrev_size16384_radix4_f64<>+0x1B728(SB)/8, $5863
+DATA bitrev_size16384_radix4_f64<>+0x1B730(SB)/8, $9959
+DATA bitrev_size16384_radix4_f64<>+0x1B738(SB)/8, $14055
+DATA bitrev_size16384_radix4_f64<>+0x1B740(SB)/8, $2791
+DATA bitrev_size16384_radix4_f64<>+0x1B748(SB)/8, $6887
+DATA bitrev_size16384_radix4_f64<>+0x1B750(SB)/8, $10983
+DATA bitrev_size16384_radix4_f64<>+0x1B758(SB)/8, $15079
+DATA bitrev_size16384_radix4_f64<>+0x1B760(SB)/8, $3815
+DATA bitrev_size16384_radix4_f64<>+0x1B768(SB)/8, $7911
+DATA bitrev_size16384_radix4_f64<>+0x1B770(SB)/8, $12007
+DATA bitrev_size16384_radix4_f64<>+0x1B778(SB)/8, $16103
+DATA bitrev_size16384_radix4_f64<>+0x1B780(SB)/8, $999
+DATA bitrev_size16384_radix4_f64<>+0x1B788(SB)/8, $5095
+DATA bitrev_size16384_radix4_f64<>+0x1B790(SB)/8, $9191
+DATA bitrev_size16384_radix4_f64<>+0x1B798(SB)/8, $13287
+DATA bitrev_size16384_radix4_f64<>+0x1B7A0(SB)/8, $2023
+DATA bitrev_size16384_radix4_f64<>+0x1B7A8(SB)/8, $6119
+DATA bitrev_size16384_radix4_f64<>+0x1B7B0(SB)/8, $10215
+DATA bitrev_size16384_radix4_f64<>+0x1B7B8(SB)/8, $14311
+DATA bitrev_size16384_radix4_f64<>+0x1B7C0(SB)/8, $3047
+DATA bitrev_size16384_radix4_f64<>+0x1B7C8(SB)/8, $7143
+DATA bitrev_size16384_radix4_f64<>+0x1B7D0(SB)/8, $11239
+DATA bitrev_size16384_radix4_f64<>+0x1B7D8(SB)/8, $15335
+DATA bitrev_size16384_radix4_f64<>+0x1B7E0(SB)/8, $4071
+DATA bitrev_size16384_radix4_f64<>+0x1B7E8(SB)/8, $8167
+DATA bitrev_size16384_radix4_f64<>+0x1B7F0(SB)/8, $12263
+DATA bitrev_size16384_radix4_f64<>+0x1B7F8(SB)/8, $16359
+DATA bitrev_size16384_radix4_f64<>+0x1B800(SB)/8, $55
+DATA bitrev_size16384_radix4_f64<>+0x1B808(SB)/8, $4151
+DATA bitrev_size16384_radix4_f64<>+0x1B810(SB)/8, $8247
+DATA bitrev_size16384_radix4_f64<>+0x1B818(SB)/8, $12343
+DATA bitrev_size16384_radix4_f64<>+0x1B820(SB)/8, $1079
+DATA bitrev_size16384_radix4_f64<>+0x1B828(SB)/8, $5175
+DATA bitrev_size16384_radix4_f64<>+0x1B830(SB)/8, $9271
+DATA bitrev_size16384_radix4_f64<>+0x1B838(SB)/8, $13367
+DATA bitrev_size16384_radix4_f64<>+0x1B840(SB)/8, $2103
+DATA bitrev_size16384_radix4_f64<>+0x1B848(SB)/8, $6199
+DATA bitrev_size16384_radix4_f64<>+0x1B850(SB)/8, $10295
+DATA bitrev_size16384_radix4_f64<>+0x1B858(SB)/8, $14391
+DATA bitrev_size16384_radix4_f64<>+0x1B860(SB)/8, $3127
+DATA bitrev_size16384_radix4_f64<>+0x1B868(SB)/8, $7223
+DATA bitrev_size16384_radix4_f64<>+0x1B870(SB)/8, $11319
+DATA bitrev_size16384_radix4_f64<>+0x1B878(SB)/8, $15415
+DATA bitrev_size16384_radix4_f64<>+0x1B880(SB)/8, $311
+DATA bitrev_size16384_radix4_f64<>+0x1B888(SB)/8, $4407
+DATA bitrev_size16384_radix4_f64<>+0x1B890(SB)/8, $8503
+DATA bitrev_size16384_radix4_f64<>+0x1B898(SB)/8, $12599
+DATA bitrev_size16384_radix4_f64<>+0x1B8A0(SB)/8, $1335
+DATA bitrev_size16384_radix4_f64<>+0x1B8A8(SB)/8, $5431
+DATA bitrev_size16384_radix4_f64<>+0x1B8B0(SB)/8, $9527
+DATA bitrev_size16384_radix4_f64<>+0x1B8B8(SB)/8, $13623
+DATA bitrev_size16384_radix4_f64<>+0x1B8C0(SB)/8, $2359
+DATA bitrev_size16384_radix4_f64<>+0x1B8C8(SB)/8, $6455
+DATA bitrev_size16384_radix4_f64<>+0x1B8D0(SB)/8, $10551
+DATA bitrev_size16384_radix4_f64<>+0x1B8D8(SB)/8, $14647
+DATA bitrev_size16384_radix4_f64<>+0x1B8E0(SB)/8, $3383
+DATA bitrev_size16384_radix4_f64<>+0x1B8E8(SB)/8, $7479
+DATA bitrev_size16384_radix4_f64<>+0x1B8F0(SB)/8, $11575
+DATA bitrev_size16384_radix4_f64<>+0x1B8F8(SB)/8, $15671
+DATA bitrev_size16384_radix4_f64<>+0x1B900(SB)/8, $567
+DATA bitrev_size16384_radix4_f64<>+0x1B908(SB)/8, $4663
+DATA bitrev_size16384_radix4_f64<>+0x1B910(SB)/8, $8759
+DATA bitrev_size16384_radix4_f64<>+0x1B918(SB)/8, $12855
+DATA bitrev_size16384_radix4_f64<>+0x1B920(SB)/8, $1591
+DATA bitrev_size16384_radix4_f64<>+0x1B928(SB)/8, $5687
+DATA bitrev_size16384_radix4_f64<>+0x1B930(SB)/8, $9783
+DATA bitrev_size16384_radix4_f64<>+0x1B938(SB)/8, $13879
+DATA bitrev_size16384_radix4_f64<>+0x1B940(SB)/8, $2615
+DATA bitrev_size16384_radix4_f64<>+0x1B948(SB)/8, $6711
+DATA bitrev_size16384_radix4_f64<>+0x1B950(SB)/8, $10807
+DATA bitrev_size16384_radix4_f64<>+0x1B958(SB)/8, $14903
+DATA bitrev_size16384_radix4_f64<>+0x1B960(SB)/8, $3639
+DATA bitrev_size16384_radix4_f64<>+0x1B968(SB)/8, $7735
+DATA bitrev_size16384_radix4_f64<>+0x1B970(SB)/8, $11831
+DATA bitrev_size16384_radix4_f64<>+0x1B978(SB)/8, $15927
+DATA bitrev_size16384_radix4_f64<>+0x1B980(SB)/8, $823
+DATA bitrev_size16384_radix4_f64<>+0x1B988(SB)/8, $4919
+DATA bitrev_size16384_radix4_f64<>+0x1B990(SB)/8, $9015
+DATA bitrev_size16384_radix4_f64<>+0x1B998(SB)/8, $13111
+DATA bitrev_size16384_radix4_f64<>+0x1B9A0(SB)/8, $1847
+DATA bitrev_size16384_radix4_f64<>+0x1B9A8(SB)/8, $5943
+DATA bitrev_size16384_radix4_f64<>+0x1B9B0(SB)/8, $10039
+DATA bitrev_size16384_radix4_f64<>+0x1B9B8(SB)/8, $14135
+DATA bitrev_size16384_radix4_f64<>+0x1B9C0(SB)/8, $2871
+DATA bitrev_size16384_radix4_f64<>+0x1B9C8(SB)/8, $6967
+DATA bitrev_size16384_radix4_f64<>+0x1B9D0(SB)/8, $11063
+DATA bitrev_size16384_radix4_f64<>+0x1B9D8(SB)/8, $15159
+DATA bitrev_size16384_radix4_f64<>+0x1B9E0(SB)/8, $3895
+DATA bitrev_size16384_radix4_f64<>+0x1B9E8(SB)/8, $7991
+DATA bitrev_size16384_radix4_f64<>+0x1B9F0(SB)/8, $12087
+DATA bitrev_size16384_radix4_f64<>+0x1B9F8(SB)/8, $16183
+DATA bitrev_size16384_radix4_f64<>+0x1BA00(SB)/8, $119
+DATA bitrev_size16384_radix4_f64<>+0x1BA08(SB)/8, $4215
+DATA bitrev_size16384_radix4_f64<>+0x1BA10(SB)/8, $8311
+DATA bitrev_size16384_radix4_f64<>+0x1BA18(SB)/8, $12407
+DATA bitrev_size16384_radix4_f64<>+0x1BA20(SB)/8, $1143
+DATA bitrev_size16384_radix4_f64<>+0x1BA28(SB)/8, $5239
+DATA bitrev_size16384_radix4_f64<>+0x1BA30(SB)/8, $9335
+DATA bitrev_size16384_radix4_f64<>+0x1BA38(SB)/8, $13431
+DATA bitrev_size16384_radix4_f64<>+0x1BA40(SB)/8, $2167
+DATA bitrev_size16384_radix4_f64<>+0x1BA48(SB)/8, $6263
+DATA bitrev_size16384_radix4_f64<>+0x1BA50(SB)/8, $10359
+DATA bitrev_size16384_radix4_f64<>+0x1BA58(SB)/8, $14455
+DATA bitrev_size16384_radix4_f64<>+0x1BA60(SB)/8, $3191
+DATA bitrev_size16384_radix4_f64<>+0x1BA68(SB)/8, $7287
+DATA bitrev_size16384_radix4_f64<>+0x1BA70(SB)/8, $11383
+DATA bitrev_size16384_radix4_f64<>+0x1BA78(SB)/8, $15479
+DATA bitrev_size16384_radix4_f64<>+0x1BA80(SB)/8, $375
+DATA bitrev_size16384_radix4_f64<>+0x1BA88(SB)/8, $4471
+DATA bitrev_size16384_radix4_f64<>+0x1BA90(SB)/8, $8567
+DATA bitrev_size16384_radix4_f64<>+0x1BA98(SB)/8, $12663
+DATA bitrev_size16384_radix4_f64<>+0x1BAA0(SB)/8, $1399
+DATA bitrev_size16384_radix4_f64<>+0x1BAA8(SB)/8, $5495
+DATA bitrev_size16384_radix4_f64<>+0x1BAB0(SB)/8, $9591
+DATA bitrev_size16384_radix4_f64<>+0x1BAB8(SB)/8, $13687
+DATA bitrev_size16384_radix4_f64<>+0x1BAC0(SB)/8, $2423
+DATA bitrev_size16384_radix4_f64<>+0x1BAC8(SB)/8, $6519
+DATA bitrev_size16384_radix4_f64<>+0x1BAD0(SB)/8, $10615
+DATA bitrev_size16384_radix4_f64<>+0x1BAD8(SB)/8, $14711
+DATA bitrev_size16384_radix4_f64<>+0x1BAE0(SB)/8, $3447
+DATA bitrev_size16384_radix4_f64<>+0x1BAE8(SB)/8, $7543
+DATA bitrev_size16384_radix4_f64<>+0x1BAF0(SB)/8, $11639
+DATA bitrev_size16384_radix4_f64<>+0x1BAF8(SB)/8, $15735
+DATA bitrev_size16384_radix4_f64<>+0x1BB00(SB)/8, $631
+DATA bitrev_size16384_radix4_f64<>+0x1BB08(SB)/8, $4727
+DATA bitrev_size16384_radix4_f64<>+0x1BB10(SB)/8, $8823
+DATA bitrev_size16384_radix4_f64<>+0x1BB18(SB)/8, $12919
+DATA bitrev_size16384_radix4_f64<>+0x1BB20(SB)/8, $1655
+DATA bitrev_size16384_radix4_f64<>+0x1BB28(SB)/8, $5751
+DATA bitrev_size16384_radix4_f64<>+0x1BB30(SB)/8, $9847
+DATA bitrev_size16384_radix4_f64<>+0x1BB38(SB)/8, $13943
+DATA bitrev_size16384_radix4_f64<>+0x1BB40(SB)/8, $2679
+DATA bitrev_size16384_radix4_f64<>+0x1BB48(SB)/8, $6775
+DATA bitrev_size16384_radix4_f64<>+0x1BB50(SB)/8, $10871
+DATA bitrev_size16384_radix4_f64<>+0x1BB58(SB)/8, $14967
+DATA bitrev_size16384_radix4_f64<>+0x1BB60(SB)/8, $3703
+DATA bitrev_size16384_radix4_f64<>+0x1BB68(SB)/8, $7799
+DATA bitrev_size16384_radix4_f64<>+0x1BB70(SB)/8, $11895
+DATA bitrev_size16384_radix4_f64<>+0x1BB78(SB)/8, $15991
+DATA bitrev_size16384_radix4_f64<>+0x1BB80(SB)/8, $887
+DATA bitrev_size16384_radix4_f64<>+0x1BB88(SB)/8, $4983
+DATA bitrev_size16384_radix4_f64<>+0x1BB90(SB)/8, $9079
+DATA bitrev_size16384_radix4_f64<>+0x1BB98(SB)/8, $13175
+DATA bitrev_size16384_radix4_f64<>+0x1BBA0(SB)/8, $1911
+DATA bitrev_size16384_radix4_f64<>+0x1BBA8(SB)/8, $6007
+DATA bitrev_size16384_radix4_f64<>+0x1BBB0(SB)/8, $10103
+DATA bitrev_size16384_radix4_f64<>+0x1BBB8(SB)/8, $14199
+DATA bitrev_size16384_radix4_f64<>+0x1BBC0(SB)/8, $2935
+DATA bitrev_size16384_radix4_f64<>+0x1BBC8(SB)/8, $7031
+DATA bitrev_size16384_radix4_f64<>+0x1BBD0(SB)/8, $11127
+DATA bitrev_size16384_radix4_f64<>+0x1BBD8(SB)/8, $15223
+DATA bitrev_size16384_radix4_f64<>+0x1BBE0(SB)/8, $3959
+DATA bitrev_size16384_radix4_f64<>+0x1BBE8(SB)/8, $8055
+DATA bitrev_size16384_radix4_f64<>+0x1BBF0(SB)/8, $12151
+DATA bitrev_size16384_radix4_f64<>+0x1BBF8(SB)/8, $16247
+DATA bitrev_size16384_radix4_f64<>+0x1BC00(SB)/8, $183
+DATA bitrev_size16384_radix4_f64<>+0x1BC08(SB)/8, $4279
+DATA bitrev_size16384_radix4_f64<>+0x1BC10(SB)/8, $8375
+DATA bitrev_size16384_radix4_f64<>+0x1BC18(SB)/8, $12471
+DATA bitrev_size16384_radix4_f64<>+0x1BC20(SB)/8, $1207
+DATA bitrev_size16384_radix4_f64<>+0x1BC28(SB)/8, $5303
+DATA bitrev_size16384_radix4_f64<>+0x1BC30(SB)/8, $9399
+DATA bitrev_size16384_radix4_f64<>+0x1BC38(SB)/8, $13495
+DATA bitrev_size16384_radix4_f64<>+0x1BC40(SB)/8, $2231
+DATA bitrev_size16384_radix4_f64<>+0x1BC48(SB)/8, $6327
+DATA bitrev_size16384_radix4_f64<>+0x1BC50(SB)/8, $10423
+DATA bitrev_size16384_radix4_f64<>+0x1BC58(SB)/8, $14519
+DATA bitrev_size16384_radix4_f64<>+0x1BC60(SB)/8, $3255
+DATA bitrev_size16384_radix4_f64<>+0x1BC68(SB)/8, $7351
+DATA bitrev_size16384_radix4_f64<>+0x1BC70(SB)/8, $11447
+DATA bitrev_size16384_radix4_f64<>+0x1BC78(SB)/8, $15543
+DATA bitrev_size16384_radix4_f64<>+0x1BC80(SB)/8, $439
+DATA bitrev_size16384_radix4_f64<>+0x1BC88(SB)/8, $4535
+DATA bitrev_size16384_radix4_f64<>+0x1BC90(SB)/8, $8631
+DATA bitrev_size16384_radix4_f64<>+0x1BC98(SB)/8, $12727
+DATA bitrev_size16384_radix4_f64<>+0x1BCA0(SB)/8, $1463
+DATA bitrev_size16384_radix4_f64<>+0x1BCA8(SB)/8, $5559
+DATA bitrev_size16384_radix4_f64<>+0x1BCB0(SB)/8, $9655
+DATA bitrev_size16384_radix4_f64<>+0x1BCB8(SB)/8, $13751
+DATA bitrev_size16384_radix4_f64<>+0x1BCC0(SB)/8, $2487
+DATA bitrev_size16384_radix4_f64<>+0x1BCC8(SB)/8, $6583
+DATA bitrev_size16384_radix4_f64<>+0x1BCD0(SB)/8, $10679
+DATA bitrev_size16384_radix4_f64<>+0x1BCD8(SB)/8, $14775
+DATA bitrev_size16384_radix4_f64<>+0x1BCE0(SB)/8, $3511
+DATA bitrev_size16384_radix4_f64<>+0x1BCE8(SB)/8, $7607
+DATA bitrev_size16384_radix4_f64<>+0x1BCF0(SB)/8, $11703
+DATA bitrev_size16384_radix4_f64<>+0x1BCF8(SB)/8, $15799
+DATA bitrev_size16384_radix4_f64<>+0x1BD00(SB)/8, $695
+DATA bitrev_size16384_radix4_f64<>+0x1BD08(SB)/8, $4791
+DATA bitrev_size16384_radix4_f64<>+0x1BD10(SB)/8, $8887
+DATA bitrev_size16384_radix4_f64<>+0x1BD18(SB)/8, $12983
+DATA bitrev_size16384_radix4_f64<>+0x1BD20(SB)/8, $1719
+DATA bitrev_size16384_radix4_f64<>+0x1BD28(SB)/8, $5815
+DATA bitrev_size16384_radix4_f64<>+0x1BD30(SB)/8, $9911
+DATA bitrev_size16384_radix4_f64<>+0x1BD38(SB)/8, $14007
+DATA bitrev_size16384_radix4_f64<>+0x1BD40(SB)/8, $2743
+DATA bitrev_size16384_radix4_f64<>+0x1BD48(SB)/8, $6839
+DATA bitrev_size16384_radix4_f64<>+0x1BD50(SB)/8, $10935
+DATA bitrev_size16384_radix4_f64<>+0x1BD58(SB)/8, $15031
+DATA bitrev_size16384_radix4_f64<>+0x1BD60(SB)/8, $3767
+DATA bitrev_size16384_radix4_f64<>+0x1BD68(SB)/8, $7863
+DATA bitrev_size16384_radix4_f64<>+0x1BD70(SB)/8, $11959
+DATA bitrev_size16384_radix4_f64<>+0x1BD78(SB)/8, $16055
+DATA bitrev_size16384_radix4_f64<>+0x1BD80(SB)/8, $951
+DATA bitrev_size16384_radix4_f64<>+0x1BD88(SB)/8, $5047
+DATA bitrev_size16384_radix4_f64<>+0x1BD90(SB)/8, $9143
+DATA bitrev_size16384_radix4_f64<>+0x1BD98(SB)/8, $13239
+DATA bitrev_size16384_radix4_f64<>+0x1BDA0(SB)/8, $1975
+DATA bitrev_size16384_radix4_f64<>+0x1BDA8(SB)/8, $6071
+DATA bitrev_size16384_radix4_f64<>+0x1BDB0(SB)/8, $10167
+DATA bitrev_size16384_radix4_f64<>+0x1BDB8(SB)/8, $14263
+DATA bitrev_size16384_radix4_f64<>+0x1BDC0(SB)/8, $2999
+DATA bitrev_size16384_radix4_f64<>+0x1BDC8(SB)/8, $7095
+DATA bitrev_size16384_radix4_f64<>+0x1BDD0(SB)/8, $11191
+DATA bitrev_size16384_radix4_f64<>+0x1BDD8(SB)/8, $15287
+DATA bitrev_size16384_radix4_f64<>+0x1BDE0(SB)/8, $4023
+DATA bitrev_size16384_radix4_f64<>+0x1BDE8(SB)/8, $8119
+DATA bitrev_size16384_radix4_f64<>+0x1BDF0(SB)/8, $12215
+DATA bitrev_size16384_radix4_f64<>+0x1BDF8(SB)/8, $16311
+DATA bitrev_size16384_radix4_f64<>+0x1BE00(SB)/8, $247
+DATA bitrev_size16384_radix4_f64<>+0x1BE08(SB)/8, $4343
+DATA bitrev_size16384_radix4_f64<>+0x1BE10(SB)/8, $8439
+DATA bitrev_size16384_radix4_f64<>+0x1BE18(SB)/8, $12535
+DATA bitrev_size16384_radix4_f64<>+0x1BE20(SB)/8, $1271
+DATA bitrev_size16384_radix4_f64<>+0x1BE28(SB)/8, $5367
+DATA bitrev_size16384_radix4_f64<>+0x1BE30(SB)/8, $9463
+DATA bitrev_size16384_radix4_f64<>+0x1BE38(SB)/8, $13559
+DATA bitrev_size16384_radix4_f64<>+0x1BE40(SB)/8, $2295
+DATA bitrev_size16384_radix4_f64<>+0x1BE48(SB)/8, $6391
+DATA bitrev_size16384_radix4_f64<>+0x1BE50(SB)/8, $10487
+DATA bitrev_size16384_radix4_f64<>+0x1BE58(SB)/8, $14583
+DATA bitrev_size16384_radix4_f64<>+0x1BE60(SB)/8, $3319
+DATA bitrev_size16384_radix4_f64<>+0x1BE68(SB)/8, $7415
+DATA bitrev_size16384_radix4_f64<>+0x1BE70(SB)/8, $11511
+DATA bitrev_size16384_radix4_f64<>+0x1BE78(SB)/8, $15607
+DATA bitrev_size16384_radix4_f64<>+0x1BE80(SB)/8, $503
+DATA bitrev_size16384_radix4_f64<>+0x1BE88(SB)/8, $4599
+DATA bitrev_size16384_radix4_f64<>+0x1BE90(SB)/8, $8695
+DATA bitrev_size16384_radix4_f64<>+0x1BE98(SB)/8, $12791
+DATA bitrev_size16384_radix4_f64<>+0x1BEA0(SB)/8, $1527
+DATA bitrev_size16384_radix4_f64<>+0x1BEA8(SB)/8, $5623
+DATA bitrev_size16384_radix4_f64<>+0x1BEB0(SB)/8, $9719
+DATA bitrev_size16384_radix4_f64<>+0x1BEB8(SB)/8, $13815
+DATA bitrev_size16384_radix4_f64<>+0x1BEC0(SB)/8, $2551
+DATA bitrev_size16384_radix4_f64<>+0x1BEC8(SB)/8, $6647
+DATA bitrev_size16384_radix4_f64<>+0x1BED0(SB)/8, $10743
+DATA bitrev_size16384_radix4_f64<>+0x1BED8(SB)/8, $14839
+DATA bitrev_size16384_radix4_f64<>+0x1BEE0(SB)/8, $3575
+DATA bitrev_size16384_radix4_f64<>+0x1BEE8(SB)/8, $7671
+DATA bitrev_size16384_radix4_f64<>+0x1BEF0(SB)/8, $11767
+DATA bitrev_size16384_radix4_f64<>+0x1BEF8(SB)/8, $15863
+DATA bitrev_size16384_radix4_f64<>+0x1BF00(SB)/8, $759
+DATA bitrev_size16384_radix4_f64<>+0x1BF08(SB)/8, $4855
+DATA bitrev_size16384_radix4_f64<>+0x1BF10(SB)/8, $8951
+DATA bitrev_size16384_radix4_f64<>+0x1BF18(SB)/8, $13047
+DATA bitrev_size16384_radix4_f64<>+0x1BF20(SB)/8, $1783
+DATA bitrev_size16384_radix4_f64<>+0x1BF28(SB)/8, $5879
+DATA bitrev_size16384_radix4_f64<>+0x1BF30(SB)/8, $9975
+DATA bitrev_size16384_radix4_f64<>+0x1BF38(SB)/8, $14071
+DATA bitrev_size16384_radix4_f64<>+0x1BF40(SB)/8, $2807
+DATA bitrev_size16384_radix4_f64<>+0x1BF48(SB)/8, $6903
+DATA bitrev_size16384_radix4_f64<>+0x1BF50(SB)/8, $10999
+DATA bitrev_size16384_radix4_f64<>+0x1BF58(SB)/8, $15095
+DATA bitrev_size16384_radix4_f64<>+0x1BF60(SB)/8, $3831
+DATA bitrev_size16384_radix4_f64<>+0x1BF68(SB)/8, $7927
+DATA bitrev_size16384_radix4_f64<>+0x1BF70(SB)/8, $12023
+DATA bitrev_size16384_radix4_f64<>+0x1BF78(SB)/8, $16119
+DATA bitrev_size16384_radix4_f64<>+0x1BF80(SB)/8, $1015
+DATA bitrev_size16384_radix4_f64<>+0x1BF88(SB)/8, $5111
+DATA bitrev_size16384_radix4_f64<>+0x1BF90(SB)/8, $9207
+DATA bitrev_size16384_radix4_f64<>+0x1BF98(SB)/8, $13303
+DATA bitrev_size16384_radix4_f64<>+0x1BFA0(SB)/8, $2039
+DATA bitrev_size16384_radix4_f64<>+0x1BFA8(SB)/8, $6135
+DATA bitrev_size16384_radix4_f64<>+0x1BFB0(SB)/8, $10231
+DATA bitrev_size16384_radix4_f64<>+0x1BFB8(SB)/8, $14327
+DATA bitrev_size16384_radix4_f64<>+0x1BFC0(SB)/8, $3063
+DATA bitrev_size16384_radix4_f64<>+0x1BFC8(SB)/8, $7159
+DATA bitrev_size16384_radix4_f64<>+0x1BFD0(SB)/8, $11255
+DATA bitrev_size16384_radix4_f64<>+0x1BFD8(SB)/8, $15351
+DATA bitrev_size16384_radix4_f64<>+0x1BFE0(SB)/8, $4087
+DATA bitrev_size16384_radix4_f64<>+0x1BFE8(SB)/8, $8183
+DATA bitrev_size16384_radix4_f64<>+0x1BFF0(SB)/8, $12279
+DATA bitrev_size16384_radix4_f64<>+0x1BFF8(SB)/8, $16375
+DATA bitrev_size16384_radix4_f64<>+0x1C000(SB)/8, $11
+DATA bitrev_size16384_radix4_f64<>+0x1C008(SB)/8, $4107
+DATA bitrev_size16384_radix4_f64<>+0x1C010(SB)/8, $8203
+DATA bitrev_size16384_radix4_f64<>+0x1C018(SB)/8, $12299
+DATA bitrev_size16384_radix4_f64<>+0x1C020(SB)/8, $1035
+DATA bitrev_size16384_radix4_f64<>+0x1C028(SB)/8, $5131
+DATA bitrev_size16384_radix4_f64<>+0x1C030(SB)/8, $9227
+DATA bitrev_size16384_radix4_f64<>+0x1C038(SB)/8, $13323
+DATA bitrev_size16384_radix4_f64<>+0x1C040(SB)/8, $2059
+DATA bitrev_size16384_radix4_f64<>+0x1C048(SB)/8, $6155
+DATA bitrev_size16384_radix4_f64<>+0x1C050(SB)/8, $10251
+DATA bitrev_size16384_radix4_f64<>+0x1C058(SB)/8, $14347
+DATA bitrev_size16384_radix4_f64<>+0x1C060(SB)/8, $3083
+DATA bitrev_size16384_radix4_f64<>+0x1C068(SB)/8, $7179
+DATA bitrev_size16384_radix4_f64<>+0x1C070(SB)/8, $11275
+DATA bitrev_size16384_radix4_f64<>+0x1C078(SB)/8, $15371
+DATA bitrev_size16384_radix4_f64<>+0x1C080(SB)/8, $267
+DATA bitrev_size16384_radix4_f64<>+0x1C088(SB)/8, $4363
+DATA bitrev_size16384_radix4_f64<>+0x1C090(SB)/8, $8459
+DATA bitrev_size16384_radix4_f64<>+0x1C098(SB)/8, $12555
+DATA bitrev_size16384_radix4_f64<>+0x1C0A0(SB)/8, $1291
+DATA bitrev_size16384_radix4_f64<>+0x1C0A8(SB)/8, $5387
+DATA bitrev_size16384_radix4_f64<>+0x1C0B0(SB)/8, $9483
+DATA bitrev_size16384_radix4_f64<>+0x1C0B8(SB)/8, $13579
+DATA bitrev_size16384_radix4_f64<>+0x1C0C0(SB)/8, $2315
+DATA bitrev_size16384_radix4_f64<>+0x1C0C8(SB)/8, $6411
+DATA bitrev_size16384_radix4_f64<>+0x1C0D0(SB)/8, $10507
+DATA bitrev_size16384_radix4_f64<>+0x1C0D8(SB)/8, $14603
+DATA bitrev_size16384_radix4_f64<>+0x1C0E0(SB)/8, $3339
+DATA bitrev_size16384_radix4_f64<>+0x1C0E8(SB)/8, $7435
+DATA bitrev_size16384_radix4_f64<>+0x1C0F0(SB)/8, $11531
+DATA bitrev_size16384_radix4_f64<>+0x1C0F8(SB)/8, $15627
+DATA bitrev_size16384_radix4_f64<>+0x1C100(SB)/8, $523
+DATA bitrev_size16384_radix4_f64<>+0x1C108(SB)/8, $4619
+DATA bitrev_size16384_radix4_f64<>+0x1C110(SB)/8, $8715
+DATA bitrev_size16384_radix4_f64<>+0x1C118(SB)/8, $12811
+DATA bitrev_size16384_radix4_f64<>+0x1C120(SB)/8, $1547
+DATA bitrev_size16384_radix4_f64<>+0x1C128(SB)/8, $5643
+DATA bitrev_size16384_radix4_f64<>+0x1C130(SB)/8, $9739
+DATA bitrev_size16384_radix4_f64<>+0x1C138(SB)/8, $13835
+DATA bitrev_size16384_radix4_f64<>+0x1C140(SB)/8, $2571
+DATA bitrev_size16384_radix4_f64<>+0x1C148(SB)/8, $6667
+DATA bitrev_size16384_radix4_f64<>+0x1C150(SB)/8, $10763
+DATA bitrev_size16384_radix4_f64<>+0x1C158(SB)/8, $14859
+DATA bitrev_size16384_radix4_f64<>+0x1C160(SB)/8, $3595
+DATA bitrev_size16384_radix4_f64<>+0x1C168(SB)/8, $7691
+DATA bitrev_size16384_radix4_f64<>+0x1C170(SB)/8, $11787
+DATA bitrev_size16384_radix4_f64<>+0x1C178(SB)/8, $15883
+DATA bitrev_size16384_radix4_f64<>+0x1C180(SB)/8, $779
+DATA bitrev_size16384_radix4_f64<>+0x1C188(SB)/8, $4875
+DATA bitrev_size16384_radix4_f64<>+0x1C190(SB)/8, $8971
+DATA bitrev_size16384_radix4_f64<>+0x1C198(SB)/8, $13067
+DATA bitrev_size16384_radix4_f64<>+0x1C1A0(SB)/8, $1803
+DATA bitrev_size16384_radix4_f64<>+0x1C1A8(SB)/8, $5899
+DATA bitrev_size16384_radix4_f64<>+0x1C1B0(SB)/8, $9995
+DATA bitrev_size16384_radix4_f64<>+0x1C1B8(SB)/8, $14091
+DATA bitrev_size16384_radix4_f64<>+0x1C1C0(SB)/8, $2827
+DATA bitrev_size16384_radix4_f64<>+0x1C1C8(SB)/8, $6923
+DATA bitrev_size16384_radix4_f64<>+0x1C1D0(SB)/8, $11019
+DATA bitrev_size16384_radix4_f64<>+0x1C1D8(SB)/8, $15115
+DATA bitrev_size16384_radix4_f64<>+0x1C1E0(SB)/8, $3851
+DATA bitrev_size16384_radix4_f64<>+0x1C1E8(SB)/8, $7947
+DATA bitrev_size16384_radix4_f64<>+0x1C1F0(SB)/8, $12043
+DATA bitrev_size16384_radix4_f64<>+0x1C1F8(SB)/8, $16139
+DATA bitrev_size16384_radix4_f64<>+0x1C200(SB)/8, $75
+DATA bitrev_size16384_radix4_f64<>+0x1C208(SB)/8, $4171
+DATA bitrev_size16384_radix4_f64<>+0x1C210(SB)/8, $8267
+DATA bitrev_size16384_radix4_f64<>+0x1C218(SB)/8, $12363
+DATA bitrev_size16384_radix4_f64<>+0x1C220(SB)/8, $1099
+DATA bitrev_size16384_radix4_f64<>+0x1C228(SB)/8, $5195
+DATA bitrev_size16384_radix4_f64<>+0x1C230(SB)/8, $9291
+DATA bitrev_size16384_radix4_f64<>+0x1C238(SB)/8, $13387
+DATA bitrev_size16384_radix4_f64<>+0x1C240(SB)/8, $2123
+DATA bitrev_size16384_radix4_f64<>+0x1C248(SB)/8, $6219
+DATA bitrev_size16384_radix4_f64<>+0x1C250(SB)/8, $10315
+DATA bitrev_size16384_radix4_f64<>+0x1C258(SB)/8, $14411
+DATA bitrev_size16384_radix4_f64<>+0x1C260(SB)/8, $3147
+DATA bitrev_size16384_radix4_f64<>+0x1C268(SB)/8, $7243
+DATA bitrev_size16384_radix4_f64<>+0x1C270(SB)/8, $11339
+DATA bitrev_size16384_radix4_f64<>+0x1C278(SB)/8, $15435
+DATA bitrev_size16384_radix4_f64<>+0x1C280(SB)/8, $331
+DATA bitrev_size16384_radix4_f64<>+0x1C288(SB)/8, $4427
+DATA bitrev_size16384_radix4_f64<>+0x1C290(SB)/8, $8523
+DATA bitrev_size16384_radix4_f64<>+0x1C298(SB)/8, $12619
+DATA bitrev_size16384_radix4_f64<>+0x1C2A0(SB)/8, $1355
+DATA bitrev_size16384_radix4_f64<>+0x1C2A8(SB)/8, $5451
+DATA bitrev_size16384_radix4_f64<>+0x1C2B0(SB)/8, $9547
+DATA bitrev_size16384_radix4_f64<>+0x1C2B8(SB)/8, $13643
+DATA bitrev_size16384_radix4_f64<>+0x1C2C0(SB)/8, $2379
+DATA bitrev_size16384_radix4_f64<>+0x1C2C8(SB)/8, $6475
+DATA bitrev_size16384_radix4_f64<>+0x1C2D0(SB)/8, $10571
+DATA bitrev_size16384_radix4_f64<>+0x1C2D8(SB)/8, $14667
+DATA bitrev_size16384_radix4_f64<>+0x1C2E0(SB)/8, $3403
+DATA bitrev_size16384_radix4_f64<>+0x1C2E8(SB)/8, $7499
+DATA bitrev_size16384_radix4_f64<>+0x1C2F0(SB)/8, $11595
+DATA bitrev_size16384_radix4_f64<>+0x1C2F8(SB)/8, $15691
+DATA bitrev_size16384_radix4_f64<>+0x1C300(SB)/8, $587
+DATA bitrev_size16384_radix4_f64<>+0x1C308(SB)/8, $4683
+DATA bitrev_size16384_radix4_f64<>+0x1C310(SB)/8, $8779
+DATA bitrev_size16384_radix4_f64<>+0x1C318(SB)/8, $12875
+DATA bitrev_size16384_radix4_f64<>+0x1C320(SB)/8, $1611
+DATA bitrev_size16384_radix4_f64<>+0x1C328(SB)/8, $5707
+DATA bitrev_size16384_radix4_f64<>+0x1C330(SB)/8, $9803
+DATA bitrev_size16384_radix4_f64<>+0x1C338(SB)/8, $13899
+DATA bitrev_size16384_radix4_f64<>+0x1C340(SB)/8, $2635
+DATA bitrev_size16384_radix4_f64<>+0x1C348(SB)/8, $6731
+DATA bitrev_size16384_radix4_f64<>+0x1C350(SB)/8, $10827
+DATA bitrev_size16384_radix4_f64<>+0x1C358(SB)/8, $14923
+DATA bitrev_size16384_radix4_f64<>+0x1C360(SB)/8, $3659
+DATA bitrev_size16384_radix4_f64<>+0x1C368(SB)/8, $7755
+DATA bitrev_size16384_radix4_f64<>+0x1C370(SB)/8, $11851
+DATA bitrev_size16384_radix4_f64<>+0x1C378(SB)/8, $15947
+DATA bitrev_size16384_radix4_f64<>+0x1C380(SB)/8, $843
+DATA bitrev_size16384_radix4_f64<>+0x1C388(SB)/8, $4939
+DATA bitrev_size16384_radix4_f64<>+0x1C390(SB)/8, $9035
+DATA bitrev_size16384_radix4_f64<>+0x1C398(SB)/8, $13131
+DATA bitrev_size16384_radix4_f64<>+0x1C3A0(SB)/8, $1867
+DATA bitrev_size16384_radix4_f64<>+0x1C3A8(SB)/8, $5963
+DATA bitrev_size16384_radix4_f64<>+0x1C3B0(SB)/8, $10059
+DATA bitrev_size16384_radix4_f64<>+0x1C3B8(SB)/8, $14155
+DATA bitrev_size16384_radix4_f64<>+0x1C3C0(SB)/8, $2891
+DATA bitrev_size16384_radix4_f64<>+0x1C3C8(SB)/8, $6987
+DATA bitrev_size16384_radix4_f64<>+0x1C3D0(SB)/8, $11083
+DATA bitrev_size16384_radix4_f64<>+0x1C3D8(SB)/8, $15179
+DATA bitrev_size16384_radix4_f64<>+0x1C3E0(SB)/8, $3915
+DATA bitrev_size16384_radix4_f64<>+0x1C3E8(SB)/8, $8011
+DATA bitrev_size16384_radix4_f64<>+0x1C3F0(SB)/8, $12107
+DATA bitrev_size16384_radix4_f64<>+0x1C3F8(SB)/8, $16203
+DATA bitrev_size16384_radix4_f64<>+0x1C400(SB)/8, $139
+DATA bitrev_size16384_radix4_f64<>+0x1C408(SB)/8, $4235
+DATA bitrev_size16384_radix4_f64<>+0x1C410(SB)/8, $8331
+DATA bitrev_size16384_radix4_f64<>+0x1C418(SB)/8, $12427
+DATA bitrev_size16384_radix4_f64<>+0x1C420(SB)/8, $1163
+DATA bitrev_size16384_radix4_f64<>+0x1C428(SB)/8, $5259
+DATA bitrev_size16384_radix4_f64<>+0x1C430(SB)/8, $9355
+DATA bitrev_size16384_radix4_f64<>+0x1C438(SB)/8, $13451
+DATA bitrev_size16384_radix4_f64<>+0x1C440(SB)/8, $2187
+DATA bitrev_size16384_radix4_f64<>+0x1C448(SB)/8, $6283
+DATA bitrev_size16384_radix4_f64<>+0x1C450(SB)/8, $10379
+DATA bitrev_size16384_radix4_f64<>+0x1C458(SB)/8, $14475
+DATA bitrev_size16384_radix4_f64<>+0x1C460(SB)/8, $3211
+DATA bitrev_size16384_radix4_f64<>+0x1C468(SB)/8, $7307
+DATA bitrev_size16384_radix4_f64<>+0x1C470(SB)/8, $11403
+DATA bitrev_size16384_radix4_f64<>+0x1C478(SB)/8, $15499
+DATA bitrev_size16384_radix4_f64<>+0x1C480(SB)/8, $395
+DATA bitrev_size16384_radix4_f64<>+0x1C488(SB)/8, $4491
+DATA bitrev_size16384_radix4_f64<>+0x1C490(SB)/8, $8587
+DATA bitrev_size16384_radix4_f64<>+0x1C498(SB)/8, $12683
+DATA bitrev_size16384_radix4_f64<>+0x1C4A0(SB)/8, $1419
+DATA bitrev_size16384_radix4_f64<>+0x1C4A8(SB)/8, $5515
+DATA bitrev_size16384_radix4_f64<>+0x1C4B0(SB)/8, $9611
+DATA bitrev_size16384_radix4_f64<>+0x1C4B8(SB)/8, $13707
+DATA bitrev_size16384_radix4_f64<>+0x1C4C0(SB)/8, $2443
+DATA bitrev_size16384_radix4_f64<>+0x1C4C8(SB)/8, $6539
+DATA bitrev_size16384_radix4_f64<>+0x1C4D0(SB)/8, $10635
+DATA bitrev_size16384_radix4_f64<>+0x1C4D8(SB)/8, $14731
+DATA bitrev_size16384_radix4_f64<>+0x1C4E0(SB)/8, $3467
+DATA bitrev_size16384_radix4_f64<>+0x1C4E8(SB)/8, $7563
+DATA bitrev_size16384_radix4_f64<>+0x1C4F0(SB)/8, $11659
+DATA bitrev_size16384_radix4_f64<>+0x1C4F8(SB)/8, $15755
+DATA bitrev_size16384_radix4_f64<>+0x1C500(SB)/8, $651
+DATA bitrev_size16384_radix4_f64<>+0x1C508(SB)/8, $4747
+DATA bitrev_size16384_radix4_f64<>+0x1C510(SB)/8, $8843
+DATA bitrev_size16384_radix4_f64<>+0x1C518(SB)/8, $12939
+DATA bitrev_size16384_radix4_f64<>+0x1C520(SB)/8, $1675
+DATA bitrev_size16384_radix4_f64<>+0x1C528(SB)/8, $5771
+DATA bitrev_size16384_radix4_f64<>+0x1C530(SB)/8, $9867
+DATA bitrev_size16384_radix4_f64<>+0x1C538(SB)/8, $13963
+DATA bitrev_size16384_radix4_f64<>+0x1C540(SB)/8, $2699
+DATA bitrev_size16384_radix4_f64<>+0x1C548(SB)/8, $6795
+DATA bitrev_size16384_radix4_f64<>+0x1C550(SB)/8, $10891
+DATA bitrev_size16384_radix4_f64<>+0x1C558(SB)/8, $14987
+DATA bitrev_size16384_radix4_f64<>+0x1C560(SB)/8, $3723
+DATA bitrev_size16384_radix4_f64<>+0x1C568(SB)/8, $7819
+DATA bitrev_size16384_radix4_f64<>+0x1C570(SB)/8, $11915
+DATA bitrev_size16384_radix4_f64<>+0x1C578(SB)/8, $16011
+DATA bitrev_size16384_radix4_f64<>+0x1C580(SB)/8, $907
+DATA bitrev_size16384_radix4_f64<>+0x1C588(SB)/8, $5003
+DATA bitrev_size16384_radix4_f64<>+0x1C590(SB)/8, $9099
+DATA bitrev_size16384_radix4_f64<>+0x1C598(SB)/8, $13195
+DATA bitrev_size16384_radix4_f64<>+0x1C5A0(SB)/8, $1931
+DATA bitrev_size16384_radix4_f64<>+0x1C5A8(SB)/8, $6027
+DATA bitrev_size16384_radix4_f64<>+0x1C5B0(SB)/8, $10123
+DATA bitrev_size16384_radix4_f64<>+0x1C5B8(SB)/8, $14219
+DATA bitrev_size16384_radix4_f64<>+0x1C5C0(SB)/8, $2955
+DATA bitrev_size16384_radix4_f64<>+0x1C5C8(SB)/8, $7051
+DATA bitrev_size16384_radix4_f64<>+0x1C5D0(SB)/8, $11147
+DATA bitrev_size16384_radix4_f64<>+0x1C5D8(SB)/8, $15243
+DATA bitrev_size16384_radix4_f64<>+0x1C5E0(SB)/8, $3979
+DATA bitrev_size16384_radix4_f64<>+0x1C5E8(SB)/8, $8075
+DATA bitrev_size16384_radix4_f64<>+0x1C5F0(SB)/8, $12171
+DATA bitrev_size16384_radix4_f64<>+0x1C5F8(SB)/8, $16267
+DATA bitrev_size16384_radix4_f64<>+0x1C600(SB)/8, $203
+DATA bitrev_size16384_radix4_f64<>+0x1C608(SB)/8, $4299
+DATA bitrev_size16384_radix4_f64<>+0x1C610(SB)/8, $8395
+DATA bitrev_size16384_radix4_f64<>+0x1C618(SB)/8, $12491
+DATA bitrev_size16384_radix4_f64<>+0x1C620(SB)/8, $1227
+DATA bitrev_size16384_radix4_f64<>+0x1C628(SB)/8, $5323
+DATA bitrev_size16384_radix4_f64<>+0x1C630(SB)/8, $9419
+DATA bitrev_size16384_radix4_f64<>+0x1C638(SB)/8, $13515
+DATA bitrev_size16384_radix4_f64<>+0x1C640(SB)/8, $2251
+DATA bitrev_size16384_radix4_f64<>+0x1C648(SB)/8, $6347
+DATA bitrev_size16384_radix4_f64<>+0x1C650(SB)/8, $10443
+DATA bitrev_size16384_radix4_f64<>+0x1C658(SB)/8, $14539
+DATA bitrev_size16384_radix4_f64<>+0x1C660(SB)/8, $3275
+DATA bitrev_size16384_radix4_f64<>+0x1C668(SB)/8, $7371
+DATA bitrev_size16384_radix4_f64<>+0x1C670(SB)/8, $11467
+DATA bitrev_size16384_radix4_f64<>+0x1C678(SB)/8, $15563
+DATA bitrev_size16384_radix4_f64<>+0x1C680(SB)/8, $459
+DATA bitrev_size16384_radix4_f64<>+0x1C688(SB)/8, $4555
+DATA bitrev_size16384_radix4_f64<>+0x1C690(SB)/8, $8651
+DATA bitrev_size16384_radix4_f64<>+0x1C698(SB)/8, $12747
+DATA bitrev_size16384_radix4_f64<>+0x1C6A0(SB)/8, $1483
+DATA bitrev_size16384_radix4_f64<>+0x1C6A8(SB)/8, $5579
+DATA bitrev_size16384_radix4_f64<>+0x1C6B0(SB)/8, $9675
+DATA bitrev_size16384_radix4_f64<>+0x1C6B8(SB)/8, $13771
+DATA bitrev_size16384_radix4_f64<>+0x1C6C0(SB)/8, $2507
+DATA bitrev_size16384_radix4_f64<>+0x1C6C8(SB)/8, $6603
+DATA bitrev_size16384_radix4_f64<>+0x1C6D0(SB)/8, $10699
+DATA bitrev_size16384_radix4_f64<>+0x1C6D8(SB)/8, $14795
+DATA bitrev_size16384_radix4_f64<>+0x1C6E0(SB)/8, $3531
+DATA bitrev_size16384_radix4_f64<>+0x1C6E8(SB)/8, $7627
+DATA bitrev_size16384_radix4_f64<>+0x1C6F0(SB)/8, $11723
+DATA bitrev_size16384_radix4_f64<>+0x1C6F8(SB)/8, $15819
+DATA bitrev_size16384_radix4_f64<>+0x1C700(SB)/8, $715
+DATA bitrev_size16384_radix4_f64<>+0x1C708(SB)/8, $4811
+DATA bitrev_size16384_radix4_f64<>+0x1C710(SB)/8, $8907
+DATA bitrev_size16384_radix4_f64<>+0x1C718(SB)/8, $13003
+DATA bitrev_size16384_radix4_f64<>+0x1C720(SB)/8, $1739
+DATA bitrev_size16384_radix4_f64<>+0x1C728(SB)/8, $5835
+DATA bitrev_size16384_radix4_f64<>+0x1C730(SB)/8, $9931
+DATA bitrev_size16384_radix4_f64<>+0x1C738(SB)/8, $14027
+DATA bitrev_size16384_radix4_f64<>+0x1C740(SB)/8, $2763
+DATA bitrev_size16384_radix4_f64<>+0x1C748(SB)/8, $6859
+DATA bitrev_size16384_radix4_f64<>+0x1C750(SB)/8, $10955
+DATA bitrev_size16384_radix4_f64<>+0x1C758(SB)/8, $15051
+DATA bitrev_size16384_radix4_f64<>+0x1C760(SB)/8, $3787
+DATA bitrev_size16384_radix4_f64<>+0x1C768(SB)/8, $7883
+DATA bitrev_size16384_radix4_f64<>+0x1C770(SB)/8, $11979
+DATA bitrev_size16384_radix4_f64<>+0x1C778(SB)/8, $16075
+DATA bitrev_size16384_radix4_f64<>+0x1C780(SB)/8, $971
+DATA bitrev_size16384_radix4_f64<>+0x1C788(SB)/8, $5067
+DATA bitrev_size16384_radix4_f64<>+0x1C790(SB)/8, $9163
+DATA bitrev_size16384_radix4_f64<>+0x1C798(SB)/8, $13259
+DATA bitrev_size16384_radix4_f64<>+0x1C7A0(SB)/8, $1995
+DATA bitrev_size16384_radix4_f64<>+0x1C7A8(SB)/8, $6091
+DATA bitrev_size16384_radix4_f64<>+0x1C7B0(SB)/8, $10187
+DATA bitrev_size16384_radix4_f64<>+0x1C7B8(SB)/8, $14283
+DATA bitrev_size16384_radix4_f64<>+0x1C7C0(SB)/8, $3019
+DATA bitrev_size16384_radix4_f64<>+0x1C7C8(SB)/8, $7115
+DATA bitrev_size16384_radix4_f64<>+0x1C7D0(SB)/8, $11211
+DATA bitrev_size16384_radix4_f64<>+0x1C7D8(SB)/8, $15307
+DATA bitrev_size16384_radix4_f64<>+0x1C7E0(SB)/8, $4043
+DATA bitrev_size16384_radix4_f64<>+0x1C7E8(SB)/8, $8139
+DATA bitrev_size16384_radix4_f64<>+0x1C7F0(SB)/8, $12235
+DATA bitrev_size16384_radix4_f64<>+0x1C7F8(SB)/8, $16331
+DATA bitrev_size16384_radix4_f64<>+0x1C800(SB)/8, $27
+DATA bitrev_size16384_radix4_f64<>+0x1C808(SB)/8, $4123
+DATA bitrev_size16384_radix4_f64<>+0x1C810(SB)/8, $8219
+DATA bitrev_size16384_radix4_f64<>+0x1C818(SB)/8, $12315
+DATA bitrev_size16384_radix4_f64<>+0x1C820(SB)/8, $1051
+DATA bitrev_size16384_radix4_f64<>+0x1C828(SB)/8, $5147
+DATA bitrev_size16384_radix4_f64<>+0x1C830(SB)/8, $9243
+DATA bitrev_size16384_radix4_f64<>+0x1C838(SB)/8, $13339
+DATA bitrev_size16384_radix4_f64<>+0x1C840(SB)/8, $2075
+DATA bitrev_size16384_radix4_f64<>+0x1C848(SB)/8, $6171
+DATA bitrev_size16384_radix4_f64<>+0x1C850(SB)/8, $10267
+DATA bitrev_size16384_radix4_f64<>+0x1C858(SB)/8, $14363
+DATA bitrev_size16384_radix4_f64<>+0x1C860(SB)/8, $3099
+DATA bitrev_size16384_radix4_f64<>+0x1C868(SB)/8, $7195
+DATA bitrev_size16384_radix4_f64<>+0x1C870(SB)/8, $11291
+DATA bitrev_size16384_radix4_f64<>+0x1C878(SB)/8, $15387
+DATA bitrev_size16384_radix4_f64<>+0x1C880(SB)/8, $283
+DATA bitrev_size16384_radix4_f64<>+0x1C888(SB)/8, $4379
+DATA bitrev_size16384_radix4_f64<>+0x1C890(SB)/8, $8475
+DATA bitrev_size16384_radix4_f64<>+0x1C898(SB)/8, $12571
+DATA bitrev_size16384_radix4_f64<>+0x1C8A0(SB)/8, $1307
+DATA bitrev_size16384_radix4_f64<>+0x1C8A8(SB)/8, $5403
+DATA bitrev_size16384_radix4_f64<>+0x1C8B0(SB)/8, $9499
+DATA bitrev_size16384_radix4_f64<>+0x1C8B8(SB)/8, $13595
+DATA bitrev_size16384_radix4_f64<>+0x1C8C0(SB)/8, $2331
+DATA bitrev_size16384_radix4_f64<>+0x1C8C8(SB)/8, $6427
+DATA bitrev_size16384_radix4_f64<>+0x1C8D0(SB)/8, $10523
+DATA bitrev_size16384_radix4_f64<>+0x1C8D8(SB)/8, $14619
+DATA bitrev_size16384_radix4_f64<>+0x1C8E0(SB)/8, $3355
+DATA bitrev_size16384_radix4_f64<>+0x1C8E8(SB)/8, $7451
+DATA bitrev_size16384_radix4_f64<>+0x1C8F0(SB)/8, $11547
+DATA bitrev_size16384_radix4_f64<>+0x1C8F8(SB)/8, $15643
+DATA bitrev_size16384_radix4_f64<>+0x1C900(SB)/8, $539
+DATA bitrev_size16384_radix4_f64<>+0x1C908(SB)/8, $4635
+DATA bitrev_size16384_radix4_f64<>+0x1C910(SB)/8, $8731
+DATA bitrev_size16384_radix4_f64<>+0x1C918(SB)/8, $12827
+DATA bitrev_size16384_radix4_f64<>+0x1C920(SB)/8, $1563
+DATA bitrev_size16384_radix4_f64<>+0x1C928(SB)/8, $5659
+DATA bitrev_size16384_radix4_f64<>+0x1C930(SB)/8, $9755
+DATA bitrev_size16384_radix4_f64<>+0x1C938(SB)/8, $13851
+DATA bitrev_size16384_radix4_f64<>+0x1C940(SB)/8, $2587
+DATA bitrev_size16384_radix4_f64<>+0x1C948(SB)/8, $6683
+DATA bitrev_size16384_radix4_f64<>+0x1C950(SB)/8, $10779
+DATA bitrev_size16384_radix4_f64<>+0x1C958(SB)/8, $14875
+DATA bitrev_size16384_radix4_f64<>+0x1C960(SB)/8, $3611
+DATA bitrev_size16384_radix4_f64<>+0x1C968(SB)/8, $7707
+DATA bitrev_size16384_radix4_f64<>+0x1C970(SB)/8, $11803
+DATA bitrev_size16384_radix4_f64<>+0x1C978(SB)/8, $15899
+DATA bitrev_size16384_radix4_f64<>+0x1C980(SB)/8, $795
+DATA bitrev_size16384_radix4_f64<>+0x1C988(SB)/8, $4891
+DATA bitrev_size16384_radix4_f64<>+0x1C990(SB)/8, $8987
+DATA bitrev_size16384_radix4_f64<>+0x1C998(SB)/8, $13083
+DATA bitrev_size16384_radix4_f64<>+0x1C9A0(SB)/8, $1819
+DATA bitrev_size16384_radix4_f64<>+0x1C9A8(SB)/8, $5915
+DATA bitrev_size16384_radix4_f64<>+0x1C9B0(SB)/8, $10011
+DATA bitrev_size16384_radix4_f64<>+0x1C9B8(SB)/8, $14107
+DATA bitrev_size16384_radix4_f64<>+0x1C9C0(SB)/8, $2843
+DATA bitrev_size16384_radix4_f64<>+0x1C9C8(SB)/8, $6939
+DATA bitrev_size16384_radix4_f64<>+0x1C9D0(SB)/8, $11035
+DATA bitrev_size16384_radix4_f64<>+0x1C9D8(SB)/8, $15131
+DATA bitrev_size16384_radix4_f64<>+0x1C9E0(SB)/8, $3867
+DATA bitrev_size16384_radix4_f64<>+0x1C9E8(SB)/8, $7963
+DATA bitrev_size16384_radix4_f64<>+0x1C9F0(SB)/8, $12059
+DATA bitrev_size16384_radix4_f64<>+0x1C9F8(SB)/8, $16155
+DATA bitrev_size16384_radix4_f64<>+0x1CA00(SB)/8, $91
+DATA bitrev_size16384_radix4_f64<>+0x1CA08(SB)/8, $4187
+DATA bitrev_size16384_radix4_f64<>+0x1CA10(SB)/8, $8283
+DATA bitrev_size16384_radix4_f64<>+0x1CA18(SB)/8, $12379
+DATA bitrev_size16384_radix4_f64<>+0x1CA20(SB)/8, $1115
+DATA bitrev_size16384_radix4_f64<>+0x1CA28(SB)/8, $5211
+DATA bitrev_size16384_radix4_f64<>+0x1CA30(SB)/8, $9307
+DATA bitrev_size16384_radix4_f64<>+0x1CA38(SB)/8, $13403
+DATA bitrev_size16384_radix4_f64<>+0x1CA40(SB)/8, $2139
+DATA bitrev_size16384_radix4_f64<>+0x1CA48(SB)/8, $6235
+DATA bitrev_size16384_radix4_f64<>+0x1CA50(SB)/8, $10331
+DATA bitrev_size16384_radix4_f64<>+0x1CA58(SB)/8, $14427
+DATA bitrev_size16384_radix4_f64<>+0x1CA60(SB)/8, $3163
+DATA bitrev_size16384_radix4_f64<>+0x1CA68(SB)/8, $7259
+DATA bitrev_size16384_radix4_f64<>+0x1CA70(SB)/8, $11355
+DATA bitrev_size16384_radix4_f64<>+0x1CA78(SB)/8, $15451
+DATA bitrev_size16384_radix4_f64<>+0x1CA80(SB)/8, $347
+DATA bitrev_size16384_radix4_f64<>+0x1CA88(SB)/8, $4443
+DATA bitrev_size16384_radix4_f64<>+0x1CA90(SB)/8, $8539
+DATA bitrev_size16384_radix4_f64<>+0x1CA98(SB)/8, $12635
+DATA bitrev_size16384_radix4_f64<>+0x1CAA0(SB)/8, $1371
+DATA bitrev_size16384_radix4_f64<>+0x1CAA8(SB)/8, $5467
+DATA bitrev_size16384_radix4_f64<>+0x1CAB0(SB)/8, $9563
+DATA bitrev_size16384_radix4_f64<>+0x1CAB8(SB)/8, $13659
+DATA bitrev_size16384_radix4_f64<>+0x1CAC0(SB)/8, $2395
+DATA bitrev_size16384_radix4_f64<>+0x1CAC8(SB)/8, $6491
+DATA bitrev_size16384_radix4_f64<>+0x1CAD0(SB)/8, $10587
+DATA bitrev_size16384_radix4_f64<>+0x1CAD8(SB)/8, $14683
+DATA bitrev_size16384_radix4_f64<>+0x1CAE0(SB)/8, $3419
+DATA bitrev_size16384_radix4_f64<>+0x1CAE8(SB)/8, $7515
+DATA bitrev_size16384_radix4_f64<>+0x1CAF0(SB)/8, $11611
+DATA bitrev_size16384_radix4_f64<>+0x1CAF8(SB)/8, $15707
+DATA bitrev_size16384_radix4_f64<>+0x1CB00(SB)/8, $603
+DATA bitrev_size16384_radix4_f64<>+0x1CB08(SB)/8, $4699
+DATA bitrev_size16384_radix4_f64<>+0x1CB10(SB)/8, $8795
+DATA bitrev_size16384_radix4_f64<>+0x1CB18(SB)/8, $12891
+DATA bitrev_size16384_radix4_f64<>+0x1CB20(SB)/8, $1627
+DATA bitrev_size16384_radix4_f64<>+0x1CB28(SB)/8, $5723
+DATA bitrev_size16384_radix4_f64<>+0x1CB30(SB)/8, $9819
+DATA bitrev_size16384_radix4_f64<>+0x1CB38(SB)/8, $13915
+DATA bitrev_size16384_radix4_f64<>+0x1CB40(SB)/8, $2651
+DATA bitrev_size16384_radix4_f64<>+0x1CB48(SB)/8, $6747
+DATA bitrev_size16384_radix4_f64<>+0x1CB50(SB)/8, $10843
+DATA bitrev_size16384_radix4_f64<>+0x1CB58(SB)/8, $14939
+DATA bitrev_size16384_radix4_f64<>+0x1CB60(SB)/8, $3675
+DATA bitrev_size16384_radix4_f64<>+0x1CB68(SB)/8, $7771
+DATA bitrev_size16384_radix4_f64<>+0x1CB70(SB)/8, $11867
+DATA bitrev_size16384_radix4_f64<>+0x1CB78(SB)/8, $15963
+DATA bitrev_size16384_radix4_f64<>+0x1CB80(SB)/8, $859
+DATA bitrev_size16384_radix4_f64<>+0x1CB88(SB)/8, $4955
+DATA bitrev_size16384_radix4_f64<>+0x1CB90(SB)/8, $9051
+DATA bitrev_size16384_radix4_f64<>+0x1CB98(SB)/8, $13147
+DATA bitrev_size16384_radix4_f64<>+0x1CBA0(SB)/8, $1883
+DATA bitrev_size16384_radix4_f64<>+0x1CBA8(SB)/8, $5979
+DATA bitrev_size16384_radix4_f64<>+0x1CBB0(SB)/8, $10075
+DATA bitrev_size16384_radix4_f64<>+0x1CBB8(SB)/8, $14171
+DATA bitrev_size16384_radix4_f64<>+0x1CBC0(SB)/8, $2907
+DATA bitrev_size16384_radix4_f64<>+0x1CBC8(SB)/8, $7003
+DATA bitrev_size16384_radix4_f64<>+0x1CBD0(SB)/8, $11099
+DATA bitrev_size16384_radix4_f64<>+0x1CBD8(SB)/8, $15195
+DATA bitrev_size16384_radix4_f64<>+0x1CBE0(SB)/8, $3931
+DATA bitrev_size16384_radix4_f64<>+0x1CBE8(SB)/8, $8027
+DATA bitrev_size16384_radix4_f64<>+0x1CBF0(SB)/8, $12123
+DATA bitrev_size16384_radix4_f64<>+0x1CBF8(SB)/8, $16219
+DATA bitrev_size16384_radix4_f64<>+0x1CC00(SB)/8, $155
+DATA bitrev_size16384_radix4_f64<>+0x1CC08(SB)/8, $4251
+DATA bitrev_size16384_radix4_f64<>+0x1CC10(SB)/8, $8347
+DATA bitrev_size16384_radix4_f64<>+0x1CC18(SB)/8, $12443
+DATA bitrev_size16384_radix4_f64<>+0x1CC20(SB)/8, $1179
+DATA bitrev_size16384_radix4_f64<>+0x1CC28(SB)/8, $5275
+DATA bitrev_size16384_radix4_f64<>+0x1CC30(SB)/8, $9371
+DATA bitrev_size16384_radix4_f64<>+0x1CC38(SB)/8, $13467
+DATA bitrev_size16384_radix4_f64<>+0x1CC40(SB)/8, $2203
+DATA bitrev_size16384_radix4_f64<>+0x1CC48(SB)/8, $6299
+DATA bitrev_size16384_radix4_f64<>+0x1CC50(SB)/8, $10395
+DATA bitrev_size16384_radix4_f64<>+0x1CC58(SB)/8, $14491
+DATA bitrev_size16384_radix4_f64<>+0x1CC60(SB)/8, $3227
+DATA bitrev_size16384_radix4_f64<>+0x1CC68(SB)/8, $7323
+DATA bitrev_size16384_radix4_f64<>+0x1CC70(SB)/8, $11419
+DATA bitrev_size16384_radix4_f64<>+0x1CC78(SB)/8, $15515
+DATA bitrev_size16384_radix4_f64<>+0x1CC80(SB)/8, $411
+DATA bitrev_size16384_radix4_f64<>+0x1CC88(SB)/8, $4507
+DATA bitrev_size16384_radix4_f64<>+0x1CC90(SB)/8, $8603
+DATA bitrev_size16384_radix4_f64<>+0x1CC98(SB)/8, $12699
+DATA bitrev_size16384_radix4_f64<>+0x1CCA0(SB)/8, $1435
+DATA bitrev_size16384_radix4_f64<>+0x1CCA8(SB)/8, $5531
+DATA bitrev_size16384_radix4_f64<>+0x1CCB0(SB)/8, $9627
+DATA bitrev_size16384_radix4_f64<>+0x1CCB8(SB)/8, $13723
+DATA bitrev_size16384_radix4_f64<>+0x1CCC0(SB)/8, $2459
+DATA bitrev_size16384_radix4_f64<>+0x1CCC8(SB)/8, $6555
+DATA bitrev_size16384_radix4_f64<>+0x1CCD0(SB)/8, $10651
+DATA bitrev_size16384_radix4_f64<>+0x1CCD8(SB)/8, $14747
+DATA bitrev_size16384_radix4_f64<>+0x1CCE0(SB)/8, $3483
+DATA bitrev_size16384_radix4_f64<>+0x1CCE8(SB)/8, $7579
+DATA bitrev_size16384_radix4_f64<>+0x1CCF0(SB)/8, $11675
+DATA bitrev_size16384_radix4_f64<>+0x1CCF8(SB)/8, $15771
+DATA bitrev_size16384_radix4_f64<>+0x1CD00(SB)/8, $667
+DATA bitrev_size16384_radix4_f64<>+0x1CD08(SB)/8, $4763
+DATA bitrev_size16384_radix4_f64<>+0x1CD10(SB)/8, $8859
+DATA bitrev_size16384_radix4_f64<>+0x1CD18(SB)/8, $12955
+DATA bitrev_size16384_radix4_f64<>+0x1CD20(SB)/8, $1691
+DATA bitrev_size16384_radix4_f64<>+0x1CD28(SB)/8, $5787
+DATA bitrev_size16384_radix4_f64<>+0x1CD30(SB)/8, $9883
+DATA bitrev_size16384_radix4_f64<>+0x1CD38(SB)/8, $13979
+DATA bitrev_size16384_radix4_f64<>+0x1CD40(SB)/8, $2715
+DATA bitrev_size16384_radix4_f64<>+0x1CD48(SB)/8, $6811
+DATA bitrev_size16384_radix4_f64<>+0x1CD50(SB)/8, $10907
+DATA bitrev_size16384_radix4_f64<>+0x1CD58(SB)/8, $15003
+DATA bitrev_size16384_radix4_f64<>+0x1CD60(SB)/8, $3739
+DATA bitrev_size16384_radix4_f64<>+0x1CD68(SB)/8, $7835
+DATA bitrev_size16384_radix4_f64<>+0x1CD70(SB)/8, $11931
+DATA bitrev_size16384_radix4_f64<>+0x1CD78(SB)/8, $16027
+DATA bitrev_size16384_radix4_f64<>+0x1CD80(SB)/8, $923
+DATA bitrev_size16384_radix4_f64<>+0x1CD88(SB)/8, $5019
+DATA bitrev_size16384_radix4_f64<>+0x1CD90(SB)/8, $9115
+DATA bitrev_size16384_radix4_f64<>+0x1CD98(SB)/8, $13211
+DATA bitrev_size16384_radix4_f64<>+0x1CDA0(SB)/8, $1947
+DATA bitrev_size16384_radix4_f64<>+0x1CDA8(SB)/8, $6043
+DATA bitrev_size16384_radix4_f64<>+0x1CDB0(SB)/8, $10139
+DATA bitrev_size16384_radix4_f64<>+0x1CDB8(SB)/8, $14235
+DATA bitrev_size16384_radix4_f64<>+0x1CDC0(SB)/8, $2971
+DATA bitrev_size16384_radix4_f64<>+0x1CDC8(SB)/8, $7067
+DATA bitrev_size16384_radix4_f64<>+0x1CDD0(SB)/8, $11163
+DATA bitrev_size16384_radix4_f64<>+0x1CDD8(SB)/8, $15259
+DATA bitrev_size16384_radix4_f64<>+0x1CDE0(SB)/8, $3995
+DATA bitrev_size16384_radix4_f64<>+0x1CDE8(SB)/8, $8091
+DATA bitrev_size16384_radix4_f64<>+0x1CDF0(SB)/8, $12187
+DATA bitrev_size16384_radix4_f64<>+0x1CDF8(SB)/8, $16283
+DATA bitrev_size16384_radix4_f64<>+0x1CE00(SB)/8, $219
+DATA bitrev_size16384_radix4_f64<>+0x1CE08(SB)/8, $4315
+DATA bitrev_size16384_radix4_f64<>+0x1CE10(SB)/8, $8411
+DATA bitrev_size16384_radix4_f64<>+0x1CE18(SB)/8, $12507
+DATA bitrev_size16384_radix4_f64<>+0x1CE20(SB)/8, $1243
+DATA bitrev_size16384_radix4_f64<>+0x1CE28(SB)/8, $5339
+DATA bitrev_size16384_radix4_f64<>+0x1CE30(SB)/8, $9435
+DATA bitrev_size16384_radix4_f64<>+0x1CE38(SB)/8, $13531
+DATA bitrev_size16384_radix4_f64<>+0x1CE40(SB)/8, $2267
+DATA bitrev_size16384_radix4_f64<>+0x1CE48(SB)/8, $6363
+DATA bitrev_size16384_radix4_f64<>+0x1CE50(SB)/8, $10459
+DATA bitrev_size16384_radix4_f64<>+0x1CE58(SB)/8, $14555
+DATA bitrev_size16384_radix4_f64<>+0x1CE60(SB)/8, $3291
+DATA bitrev_size16384_radix4_f64<>+0x1CE68(SB)/8, $7387
+DATA bitrev_size16384_radix4_f64<>+0x1CE70(SB)/8, $11483
+DATA bitrev_size16384_radix4_f64<>+0x1CE78(SB)/8, $15579
+DATA bitrev_size16384_radix4_f64<>+0x1CE80(SB)/8, $475
+DATA bitrev_size16384_radix4_f64<>+0x1CE88(SB)/8, $4571
+DATA bitrev_size16384_radix4_f64<>+0x1CE90(SB)/8, $8667
+DATA bitrev_size16384_radix4_f64<>+0x1CE98(SB)/8, $12763
+DATA bitrev_size16384_radix4_f64<>+0x1CEA0(SB)/8, $1499
+DATA bitrev_size16384_radix4_f64<>+0x1CEA8(SB)/8, $5595
+DATA bitrev_size16384_radix4_f64<>+0x1CEB0(SB)/8, $9691
+DATA bitrev_size16384_radix4_f64<>+0x1CEB8(SB)/8, $13787
+DATA bitrev_size16384_radix4_f64<>+0x1CEC0(SB)/8, $2523
+DATA bitrev_size16384_radix4_f64<>+0x1CEC8(SB)/8, $6619
+DATA bitrev_size16384_radix4_f64<>+0x1CED0(SB)/8, $10715
+DATA bitrev_size16384_radix4_f64<>+0x1CED8(SB)/8, $14811
+DATA bitrev_size16384_radix4_f64<>+0x1CEE0(SB)/8, $3547
+DATA bitrev_size16384_radix4_f64<>+0x1CEE8(SB)/8, $7643
+DATA bitrev_size16384_radix4_f64<>+0x1CEF0(SB)/8, $11739
+DATA bitrev_size16384_radix4_f64<>+0x1CEF8(SB)/8, $15835
+DATA bitrev_size16384_radix4_f64<>+0x1CF00(SB)/8, $731
+DATA bitrev_size16384_radix4_f64<>+0x1CF08(SB)/8, $4827
+DATA bitrev_size16384_radix4_f64<>+0x1CF10(SB)/8, $8923
+DATA bitrev_size16384_radix4_f64<>+0x1CF18(SB)/8, $13019
+DATA bitrev_size16384_radix4_f64<>+0x1CF20(SB)/8, $1755
+DATA bitrev_size16384_radix4_f64<>+0x1CF28(SB)/8, $5851
+DATA bitrev_size16384_radix4_f64<>+0x1CF30(SB)/8, $9947
+DATA bitrev_size16384_radix4_f64<>+0x1CF38(SB)/8, $14043
+DATA bitrev_size16384_radix4_f64<>+0x1CF40(SB)/8, $2779
+DATA bitrev_size16384_radix4_f64<>+0x1CF48(SB)/8, $6875
+DATA bitrev_size16384_radix4_f64<>+0x1CF50(SB)/8, $10971
+DATA bitrev_size16384_radix4_f64<>+0x1CF58(SB)/8, $15067
+DATA bitrev_size16384_radix4_f64<>+0x1CF60(SB)/8, $3803
+DATA bitrev_size16384_radix4_f64<>+0x1CF68(SB)/8, $7899
+DATA bitrev_size16384_radix4_f64<>+0x1CF70(SB)/8, $11995
+DATA bitrev_size16384_radix4_f64<>+0x1CF78(SB)/8, $16091
+DATA bitrev_size16384_radix4_f64<>+0x1CF80(SB)/8, $987
+DATA bitrev_size16384_radix4_f64<>+0x1CF88(SB)/8, $5083
+DATA bitrev_size16384_radix4_f64<>+0x1CF90(SB)/8, $9179
+DATA bitrev_size16384_radix4_f64<>+0x1CF98(SB)/8, $13275
+DATA bitrev_size16384_radix4_f64<>+0x1CFA0(SB)/8, $2011
+DATA bitrev_size16384_radix4_f64<>+0x1CFA8(SB)/8, $6107
+DATA bitrev_size16384_radix4_f64<>+0x1CFB0(SB)/8, $10203
+DATA bitrev_size16384_radix4_f64<>+0x1CFB8(SB)/8, $14299
+DATA bitrev_size16384_radix4_f64<>+0x1CFC0(SB)/8, $3035
+DATA bitrev_size16384_radix4_f64<>+0x1CFC8(SB)/8, $7131
+DATA bitrev_size16384_radix4_f64<>+0x1CFD0(SB)/8, $11227
+DATA bitrev_size16384_radix4_f64<>+0x1CFD8(SB)/8, $15323
+DATA bitrev_size16384_radix4_f64<>+0x1CFE0(SB)/8, $4059
+DATA bitrev_size16384_radix4_f64<>+0x1CFE8(SB)/8, $8155
+DATA bitrev_size16384_radix4_f64<>+0x1CFF0(SB)/8, $12251
+DATA bitrev_size16384_radix4_f64<>+0x1CFF8(SB)/8, $16347
+DATA bitrev_size16384_radix4_f64<>+0x1D000(SB)/8, $43
+DATA bitrev_size16384_radix4_f64<>+0x1D008(SB)/8, $4139
+DATA bitrev_size16384_radix4_f64<>+0x1D010(SB)/8, $8235
+DATA bitrev_size16384_radix4_f64<>+0x1D018(SB)/8, $12331
+DATA bitrev_size16384_radix4_f64<>+0x1D020(SB)/8, $1067
+DATA bitrev_size16384_radix4_f64<>+0x1D028(SB)/8, $5163
+DATA bitrev_size16384_radix4_f64<>+0x1D030(SB)/8, $9259
+DATA bitrev_size16384_radix4_f64<>+0x1D038(SB)/8, $13355
+DATA bitrev_size16384_radix4_f64<>+0x1D040(SB)/8, $2091
+DATA bitrev_size16384_radix4_f64<>+0x1D048(SB)/8, $6187
+DATA bitrev_size16384_radix4_f64<>+0x1D050(SB)/8, $10283
+DATA bitrev_size16384_radix4_f64<>+0x1D058(SB)/8, $14379
+DATA bitrev_size16384_radix4_f64<>+0x1D060(SB)/8, $3115
+DATA bitrev_size16384_radix4_f64<>+0x1D068(SB)/8, $7211
+DATA bitrev_size16384_radix4_f64<>+0x1D070(SB)/8, $11307
+DATA bitrev_size16384_radix4_f64<>+0x1D078(SB)/8, $15403
+DATA bitrev_size16384_radix4_f64<>+0x1D080(SB)/8, $299
+DATA bitrev_size16384_radix4_f64<>+0x1D088(SB)/8, $4395
+DATA bitrev_size16384_radix4_f64<>+0x1D090(SB)/8, $8491
+DATA bitrev_size16384_radix4_f64<>+0x1D098(SB)/8, $12587
+DATA bitrev_size16384_radix4_f64<>+0x1D0A0(SB)/8, $1323
+DATA bitrev_size16384_radix4_f64<>+0x1D0A8(SB)/8, $5419
+DATA bitrev_size16384_radix4_f64<>+0x1D0B0(SB)/8, $9515
+DATA bitrev_size16384_radix4_f64<>+0x1D0B8(SB)/8, $13611
+DATA bitrev_size16384_radix4_f64<>+0x1D0C0(SB)/8, $2347
+DATA bitrev_size16384_radix4_f64<>+0x1D0C8(SB)/8, $6443
+DATA bitrev_size16384_radix4_f64<>+0x1D0D0(SB)/8, $10539
+DATA bitrev_size16384_radix4_f64<>+0x1D0D8(SB)/8, $14635
+DATA bitrev_size16384_radix4_f64<>+0x1D0E0(SB)/8, $3371
+DATA bitrev_size16384_radix4_f64<>+0x1D0E8(SB)/8, $7467
+DATA bitrev_size16384_radix4_f64<>+0x1D0F0(SB)/8, $11563
+DATA bitrev_size16384_radix4_f64<>+0x1D0F8(SB)/8, $15659
+DATA bitrev_size16384_radix4_f64<>+0x1D100(SB)/8, $555
+DATA bitrev_size16384_radix4_f64<>+0x1D108(SB)/8, $4651
+DATA bitrev_size16384_radix4_f64<>+0x1D110(SB)/8, $8747
+DATA bitrev_size16384_radix4_f64<>+0x1D118(SB)/8, $12843
+DATA bitrev_size16384_radix4_f64<>+0x1D120(SB)/8, $1579
+DATA bitrev_size16384_radix4_f64<>+0x1D128(SB)/8, $5675
+DATA bitrev_size16384_radix4_f64<>+0x1D130(SB)/8, $9771
+DATA bitrev_size16384_radix4_f64<>+0x1D138(SB)/8, $13867
+DATA bitrev_size16384_radix4_f64<>+0x1D140(SB)/8, $2603
+DATA bitrev_size16384_radix4_f64<>+0x1D148(SB)/8, $6699
+DATA bitrev_size16384_radix4_f64<>+0x1D150(SB)/8, $10795
+DATA bitrev_size16384_radix4_f64<>+0x1D158(SB)/8, $14891
+DATA bitrev_size16384_radix4_f64<>+0x1D160(SB)/8, $3627
+DATA bitrev_size16384_radix4_f64<>+0x1D168(SB)/8, $7723
+DATA bitrev_size16384_radix4_f64<>+0x1D170(SB)/8, $11819
+DATA bitrev_size16384_radix4_f64<>+0x1D178(SB)/8, $15915
+DATA bitrev_size16384_radix4_f64<>+0x1D180(SB)/8, $811
+DATA bitrev_size16384_radix4_f64<>+0x1D188(SB)/8, $4907
+DATA bitrev_size16384_radix4_f64<>+0x1D190(SB)/8, $9003
+DATA bitrev_size16384_radix4_f64<>+0x1D198(SB)/8, $13099
+DATA bitrev_size16384_radix4_f64<>+0x1D1A0(SB)/8, $1835
+DATA bitrev_size16384_radix4_f64<>+0x1D1A8(SB)/8, $5931
+DATA bitrev_size16384_radix4_f64<>+0x1D1B0(SB)/8, $10027
+DATA bitrev_size16384_radix4_f64<>+0x1D1B8(SB)/8, $14123
+DATA bitrev_size16384_radix4_f64<>+0x1D1C0(SB)/8, $2859
+DATA bitrev_size16384_radix4_f64<>+0x1D1C8(SB)/8, $6955
+DATA bitrev_size16384_radix4_f64<>+0x1D1D0(SB)/8, $11051
+DATA bitrev_size16384_radix4_f64<>+0x1D1D8(SB)/8, $15147
+DATA bitrev_size16384_radix4_f64<>+0x1D1E0(SB)/8, $3883
+DATA bitrev_size16384_radix4_f64<>+0x1D1E8(SB)/8, $7979
+DATA bitrev_size16384_radix4_f64<>+0x1D1F0(SB)/8, $12075
+DATA bitrev_size16384_radix4_f64<>+0x1D1F8(SB)/8, $16171
+DATA bitrev_size16384_radix4_f64<>+0x1D200(SB)/8, $107
+DATA bitrev_size16384_radix4_f64<>+0x1D208(SB)/8, $4203
+DATA bitrev_size16384_radix4_f64<>+0x1D210(SB)/8, $8299
+DATA bitrev_size16384_radix4_f64<>+0x1D218(SB)/8, $12395
+DATA bitrev_size16384_radix4_f64<>+0x1D220(SB)/8, $1131
+DATA bitrev_size16384_radix4_f64<>+0x1D228(SB)/8, $5227
+DATA bitrev_size16384_radix4_f64<>+0x1D230(SB)/8, $9323
+DATA bitrev_size16384_radix4_f64<>+0x1D238(SB)/8, $13419
+DATA bitrev_size16384_radix4_f64<>+0x1D240(SB)/8, $2155
+DATA bitrev_size16384_radix4_f64<>+0x1D248(SB)/8, $6251
+DATA bitrev_size16384_radix4_f64<>+0x1D250(SB)/8, $10347
+DATA bitrev_size16384_radix4_f64<>+0x1D258(SB)/8, $14443
+DATA bitrev_size16384_radix4_f64<>+0x1D260(SB)/8, $3179
+DATA bitrev_size16384_radix4_f64<>+0x1D268(SB)/8, $7275
+DATA bitrev_size16384_radix4_f64<>+0x1D270(SB)/8, $11371
+DATA bitrev_size16384_radix4_f64<>+0x1D278(SB)/8, $15467
+DATA bitrev_size16384_radix4_f64<>+0x1D280(SB)/8, $363
+DATA bitrev_size16384_radix4_f64<>+0x1D288(SB)/8, $4459
+DATA bitrev_size16384_radix4_f64<>+0x1D290(SB)/8, $8555
+DATA bitrev_size16384_radix4_f64<>+0x1D298(SB)/8, $12651
+DATA bitrev_size16384_radix4_f64<>+0x1D2A0(SB)/8, $1387
+DATA bitrev_size16384_radix4_f64<>+0x1D2A8(SB)/8, $5483
+DATA bitrev_size16384_radix4_f64<>+0x1D2B0(SB)/8, $9579
+DATA bitrev_size16384_radix4_f64<>+0x1D2B8(SB)/8, $13675
+DATA bitrev_size16384_radix4_f64<>+0x1D2C0(SB)/8, $2411
+DATA bitrev_size16384_radix4_f64<>+0x1D2C8(SB)/8, $6507
+DATA bitrev_size16384_radix4_f64<>+0x1D2D0(SB)/8, $10603
+DATA bitrev_size16384_radix4_f64<>+0x1D2D8(SB)/8, $14699
+DATA bitrev_size16384_radix4_f64<>+0x1D2E0(SB)/8, $3435
+DATA bitrev_size16384_radix4_f64<>+0x1D2E8(SB)/8, $7531
+DATA bitrev_size16384_radix4_f64<>+0x1D2F0(SB)/8, $11627
+DATA bitrev_size16384_radix4_f64<>+0x1D2F8(SB)/8, $15723
+DATA bitrev_size16384_radix4_f64<>+0x1D300(SB)/8, $619
+DATA bitrev_size16384_radix4_f64<>+0x1D308(SB)/8, $4715
+DATA bitrev_size16384_radix4_f64<>+0x1D310(SB)/8, $8811
+DATA bitrev_size16384_radix4_f64<>+0x1D318(SB)/8, $12907
+DATA bitrev_size16384_radix4_f64<>+0x1D320(SB)/8, $1643
+DATA bitrev_size16384_radix4_f64<>+0x1D328(SB)/8, $5739
+DATA bitrev_size16384_radix4_f64<>+0x1D330(SB)/8, $9835
+DATA bitrev_size16384_radix4_f64<>+0x1D338(SB)/8, $13931
+DATA bitrev_size16384_radix4_f64<>+0x1D340(SB)/8, $2667
+DATA bitrev_size16384_radix4_f64<>+0x1D348(SB)/8, $6763
+DATA bitrev_size16384_radix4_f64<>+0x1D350(SB)/8, $10859
+DATA bitrev_size16384_radix4_f64<>+0x1D358(SB)/8, $14955
+DATA bitrev_size16384_radix4_f64<>+0x1D360(SB)/8, $3691
+DATA bitrev_size16384_radix4_f64<>+0x1D368(SB)/8, $7787
+DATA bitrev_size16384_radix4_f64<>+0x1D370(SB)/8, $11883
+DATA bitrev_size16384_radix4_f64<>+0x1D378(SB)/8, $15979
+DATA bitrev_size16384_radix4_f64<>+0x1D380(SB)/8, $875
+DATA bitrev_size16384_radix4_f64<>+0x1D388(SB)/8, $4971
+DATA bitrev_size16384_radix4_f64<>+0x1D390(SB)/8, $9067
+DATA bitrev_size16384_radix4_f64<>+0x1D398(SB)/8, $13163
+DATA bitrev_size16384_radix4_f64<>+0x1D3A0(SB)/8, $1899
+DATA bitrev_size16384_radix4_f64<>+0x1D3A8(SB)/8, $5995
+DATA bitrev_size16384_radix4_f64<>+0x1D3B0(SB)/8, $10091
+DATA bitrev_size16384_radix4_f64<>+0x1D3B8(SB)/8, $14187
+DATA bitrev_size16384_radix4_f64<>+0x1D3C0(SB)/8, $2923
+DATA bitrev_size16384_radix4_f64<>+0x1D3C8(SB)/8, $7019
+DATA bitrev_size16384_radix4_f64<>+0x1D3D0(SB)/8, $11115
+DATA bitrev_size16384_radix4_f64<>+0x1D3D8(SB)/8, $15211
+DATA bitrev_size16384_radix4_f64<>+0x1D3E0(SB)/8, $3947
+DATA bitrev_size16384_radix4_f64<>+0x1D3E8(SB)/8, $8043
+DATA bitrev_size16384_radix4_f64<>+0x1D3F0(SB)/8, $12139
+DATA bitrev_size16384_radix4_f64<>+0x1D3F8(SB)/8, $16235
+DATA bitrev_size16384_radix4_f64<>+0x1D400(SB)/8, $171
+DATA bitrev_size16384_radix4_f64<>+0x1D408(SB)/8, $4267
+DATA bitrev_size16384_radix4_f64<>+0x1D410(SB)/8, $8363
+DATA bitrev_size16384_radix4_f64<>+0x1D418(SB)/8, $12459
+DATA bitrev_size16384_radix4_f64<>+0x1D420(SB)/8, $1195
+DATA bitrev_size16384_radix4_f64<>+0x1D428(SB)/8, $5291
+DATA bitrev_size16384_radix4_f64<>+0x1D430(SB)/8, $9387
+DATA bitrev_size16384_radix4_f64<>+0x1D438(SB)/8, $13483
+DATA bitrev_size16384_radix4_f64<>+0x1D440(SB)/8, $2219
+DATA bitrev_size16384_radix4_f64<>+0x1D448(SB)/8, $6315
+DATA bitrev_size16384_radix4_f64<>+0x1D450(SB)/8, $10411
+DATA bitrev_size16384_radix4_f64<>+0x1D458(SB)/8, $14507
+DATA bitrev_size16384_radix4_f64<>+0x1D460(SB)/8, $3243
+DATA bitrev_size16384_radix4_f64<>+0x1D468(SB)/8, $7339
+DATA bitrev_size16384_radix4_f64<>+0x1D470(SB)/8, $11435
+DATA bitrev_size16384_radix4_f64<>+0x1D478(SB)/8, $15531
+DATA bitrev_size16384_radix4_f64<>+0x1D480(SB)/8, $427
+DATA bitrev_size16384_radix4_f64<>+0x1D488(SB)/8, $4523
+DATA bitrev_size16384_radix4_f64<>+0x1D490(SB)/8, $8619
+DATA bitrev_size16384_radix4_f64<>+0x1D498(SB)/8, $12715
+DATA bitrev_size16384_radix4_f64<>+0x1D4A0(SB)/8, $1451
+DATA bitrev_size16384_radix4_f64<>+0x1D4A8(SB)/8, $5547
+DATA bitrev_size16384_radix4_f64<>+0x1D4B0(SB)/8, $9643
+DATA bitrev_size16384_radix4_f64<>+0x1D4B8(SB)/8, $13739
+DATA bitrev_size16384_radix4_f64<>+0x1D4C0(SB)/8, $2475
+DATA bitrev_size16384_radix4_f64<>+0x1D4C8(SB)/8, $6571
+DATA bitrev_size16384_radix4_f64<>+0x1D4D0(SB)/8, $10667
+DATA bitrev_size16384_radix4_f64<>+0x1D4D8(SB)/8, $14763
+DATA bitrev_size16384_radix4_f64<>+0x1D4E0(SB)/8, $3499
+DATA bitrev_size16384_radix4_f64<>+0x1D4E8(SB)/8, $7595
+DATA bitrev_size16384_radix4_f64<>+0x1D4F0(SB)/8, $11691
+DATA bitrev_size16384_radix4_f64<>+0x1D4F8(SB)/8, $15787
+DATA bitrev_size16384_radix4_f64<>+0x1D500(SB)/8, $683
+DATA bitrev_size16384_radix4_f64<>+0x1D508(SB)/8, $4779
+DATA bitrev_size16384_radix4_f64<>+0x1D510(SB)/8, $8875
+DATA bitrev_size16384_radix4_f64<>+0x1D518(SB)/8, $12971
+DATA bitrev_size16384_radix4_f64<>+0x1D520(SB)/8, $1707
+DATA bitrev_size16384_radix4_f64<>+0x1D528(SB)/8, $5803
+DATA bitrev_size16384_radix4_f64<>+0x1D530(SB)/8, $9899
+DATA bitrev_size16384_radix4_f64<>+0x1D538(SB)/8, $13995
+DATA bitrev_size16384_radix4_f64<>+0x1D540(SB)/8, $2731
+DATA bitrev_size16384_radix4_f64<>+0x1D548(SB)/8, $6827
+DATA bitrev_size16384_radix4_f64<>+0x1D550(SB)/8, $10923
+DATA bitrev_size16384_radix4_f64<>+0x1D558(SB)/8, $15019
+DATA bitrev_size16384_radix4_f64<>+0x1D560(SB)/8, $3755
+DATA bitrev_size16384_radix4_f64<>+0x1D568(SB)/8, $7851
+DATA bitrev_size16384_radix4_f64<>+0x1D570(SB)/8, $11947
+DATA bitrev_size16384_radix4_f64<>+0x1D578(SB)/8, $16043
+DATA bitrev_size16384_radix4_f64<>+0x1D580(SB)/8, $939
+DATA bitrev_size16384_radix4_f64<>+0x1D588(SB)/8, $5035
+DATA bitrev_size16384_radix4_f64<>+0x1D590(SB)/8, $9131
+DATA bitrev_size16384_radix4_f64<>+0x1D598(SB)/8, $13227
+DATA bitrev_size16384_radix4_f64<>+0x1D5A0(SB)/8, $1963
+DATA bitrev_size16384_radix4_f64<>+0x1D5A8(SB)/8, $6059
+DATA bitrev_size16384_radix4_f64<>+0x1D5B0(SB)/8, $10155
+DATA bitrev_size16384_radix4_f64<>+0x1D5B8(SB)/8, $14251
+DATA bitrev_size16384_radix4_f64<>+0x1D5C0(SB)/8, $2987
+DATA bitrev_size16384_radix4_f64<>+0x1D5C8(SB)/8, $7083
+DATA bitrev_size16384_radix4_f64<>+0x1D5D0(SB)/8, $11179
+DATA bitrev_size16384_radix4_f64<>+0x1D5D8(SB)/8, $15275
+DATA bitrev_size16384_radix4_f64<>+0x1D5E0(SB)/8, $4011
+DATA bitrev_size16384_radix4_f64<>+0x1D5E8(SB)/8, $8107
+DATA bitrev_size16384_radix4_f64<>+0x1D5F0(SB)/8, $12203
+DATA bitrev_size16384_radix4_f64<>+0x1D5F8(SB)/8, $16299
+DATA bitrev_size16384_radix4_f64<>+0x1D600(SB)/8, $235
+DATA bitrev_size16384_radix4_f64<>+0x1D608(SB)/8, $4331
+DATA bitrev_size16384_radix4_f64<>+0x1D610(SB)/8, $8427
+DATA bitrev_size16384_radix4_f64<>+0x1D618(SB)/8, $12523
+DATA bitrev_size16384_radix4_f64<>+0x1D620(SB)/8, $1259
+DATA bitrev_size16384_radix4_f64<>+0x1D628(SB)/8, $5355
+DATA bitrev_size16384_radix4_f64<>+0x1D630(SB)/8, $9451
+DATA bitrev_size16384_radix4_f64<>+0x1D638(SB)/8, $13547
+DATA bitrev_size16384_radix4_f64<>+0x1D640(SB)/8, $2283
+DATA bitrev_size16384_radix4_f64<>+0x1D648(SB)/8, $6379
+DATA bitrev_size16384_radix4_f64<>+0x1D650(SB)/8, $10475
+DATA bitrev_size16384_radix4_f64<>+0x1D658(SB)/8, $14571
+DATA bitrev_size16384_radix4_f64<>+0x1D660(SB)/8, $3307
+DATA bitrev_size16384_radix4_f64<>+0x1D668(SB)/8, $7403
+DATA bitrev_size16384_radix4_f64<>+0x1D670(SB)/8, $11499
+DATA bitrev_size16384_radix4_f64<>+0x1D678(SB)/8, $15595
+DATA bitrev_size16384_radix4_f64<>+0x1D680(SB)/8, $491
+DATA bitrev_size16384_radix4_f64<>+0x1D688(SB)/8, $4587
+DATA bitrev_size16384_radix4_f64<>+0x1D690(SB)/8, $8683
+DATA bitrev_size16384_radix4_f64<>+0x1D698(SB)/8, $12779
+DATA bitrev_size16384_radix4_f64<>+0x1D6A0(SB)/8, $1515
+DATA bitrev_size16384_radix4_f64<>+0x1D6A8(SB)/8, $5611
+DATA bitrev_size16384_radix4_f64<>+0x1D6B0(SB)/8, $9707
+DATA bitrev_size16384_radix4_f64<>+0x1D6B8(SB)/8, $13803
+DATA bitrev_size16384_radix4_f64<>+0x1D6C0(SB)/8, $2539
+DATA bitrev_size16384_radix4_f64<>+0x1D6C8(SB)/8, $6635
+DATA bitrev_size16384_radix4_f64<>+0x1D6D0(SB)/8, $10731
+DATA bitrev_size16384_radix4_f64<>+0x1D6D8(SB)/8, $14827
+DATA bitrev_size16384_radix4_f64<>+0x1D6E0(SB)/8, $3563
+DATA bitrev_size16384_radix4_f64<>+0x1D6E8(SB)/8, $7659
+DATA bitrev_size16384_radix4_f64<>+0x1D6F0(SB)/8, $11755
+DATA bitrev_size16384_radix4_f64<>+0x1D6F8(SB)/8, $15851
+DATA bitrev_size16384_radix4_f64<>+0x1D700(SB)/8, $747
+DATA bitrev_size16384_radix4_f64<>+0x1D708(SB)/8, $4843
+DATA bitrev_size16384_radix4_f64<>+0x1D710(SB)/8, $8939
+DATA bitrev_size16384_radix4_f64<>+0x1D718(SB)/8, $13035
+DATA bitrev_size16384_radix4_f64<>+0x1D720(SB)/8, $1771
+DATA bitrev_size16384_radix4_f64<>+0x1D728(SB)/8, $5867
+DATA bitrev_size16384_radix4_f64<>+0x1D730(SB)/8, $9963
+DATA bitrev_size16384_radix4_f64<>+0x1D738(SB)/8, $14059
+DATA bitrev_size16384_radix4_f64<>+0x1D740(SB)/8, $2795
+DATA bitrev_size16384_radix4_f64<>+0x1D748(SB)/8, $6891
+DATA bitrev_size16384_radix4_f64<>+0x1D750(SB)/8, $10987
+DATA bitrev_size16384_radix4_f64<>+0x1D758(SB)/8, $15083
+DATA bitrev_size16384_radix4_f64<>+0x1D760(SB)/8, $3819
+DATA bitrev_size16384_radix4_f64<>+0x1D768(SB)/8, $7915
+DATA bitrev_size16384_radix4_f64<>+0x1D770(SB)/8, $12011
+DATA bitrev_size16384_radix4_f64<>+0x1D778(SB)/8, $16107
+DATA bitrev_size16384_radix4_f64<>+0x1D780(SB)/8, $1003
+DATA bitrev_size16384_radix4_f64<>+0x1D788(SB)/8, $5099
+DATA bitrev_size16384_radix4_f64<>+0x1D790(SB)/8, $9195
+DATA bitrev_size16384_radix4_f64<>+0x1D798(SB)/8, $13291
+DATA bitrev_size16384_radix4_f64<>+0x1D7A0(SB)/8, $2027
+DATA bitrev_size16384_radix4_f64<>+0x1D7A8(SB)/8, $6123
+DATA bitrev_size16384_radix4_f64<>+0x1D7B0(SB)/8, $10219
+DATA bitrev_size16384_radix4_f64<>+0x1D7B8(SB)/8, $14315
+DATA bitrev_size16384_radix4_f64<>+0x1D7C0(SB)/8, $3051
+DATA bitrev_size16384_radix4_f64<>+0x1D7C8(SB)/8, $7147
+DATA bitrev_size16384_radix4_f64<>+0x1D7D0(SB)/8, $11243
+DATA bitrev_size16384_radix4_f64<>+0x1D7D8(SB)/8, $15339
+DATA bitrev_size16384_radix4_f64<>+0x1D7E0(SB)/8, $4075
+DATA bitrev_size16384_radix4_f64<>+0x1D7E8(SB)/8, $8171
+DATA bitrev_size16384_radix4_f64<>+0x1D7F0(SB)/8, $12267
+DATA bitrev_size16384_radix4_f64<>+0x1D7F8(SB)/8, $16363
+DATA bitrev_size16384_radix4_f64<>+0x1D800(SB)/8, $59
+DATA bitrev_size16384_radix4_f64<>+0x1D808(SB)/8, $4155
+DATA bitrev_size16384_radix4_f64<>+0x1D810(SB)/8, $8251
+DATA bitrev_size16384_radix4_f64<>+0x1D818(SB)/8, $12347
+DATA bitrev_size16384_radix4_f64<>+0x1D820(SB)/8, $1083
+DATA bitrev_size16384_radix4_f64<>+0x1D828(SB)/8, $5179
+DATA bitrev_size16384_radix4_f64<>+0x1D830(SB)/8, $9275
+DATA bitrev_size16384_radix4_f64<>+0x1D838(SB)/8, $13371
+DATA bitrev_size16384_radix4_f64<>+0x1D840(SB)/8, $2107
+DATA bitrev_size16384_radix4_f64<>+0x1D848(SB)/8, $6203
+DATA bitrev_size16384_radix4_f64<>+0x1D850(SB)/8, $10299
+DATA bitrev_size16384_radix4_f64<>+0x1D858(SB)/8, $14395
+DATA bitrev_size16384_radix4_f64<>+0x1D860(SB)/8, $3131
+DATA bitrev_size16384_radix4_f64<>+0x1D868(SB)/8, $7227
+DATA bitrev_size16384_radix4_f64<>+0x1D870(SB)/8, $11323
+DATA bitrev_size16384_radix4_f64<>+0x1D878(SB)/8, $15419
+DATA bitrev_size16384_radix4_f64<>+0x1D880(SB)/8, $315
+DATA bitrev_size16384_radix4_f64<>+0x1D888(SB)/8, $4411
+DATA bitrev_size16384_radix4_f64<>+0x1D890(SB)/8, $8507
+DATA bitrev_size16384_radix4_f64<>+0x1D898(SB)/8, $12603
+DATA bitrev_size16384_radix4_f64<>+0x1D8A0(SB)/8, $1339
+DATA bitrev_size16384_radix4_f64<>+0x1D8A8(SB)/8, $5435
+DATA bitrev_size16384_radix4_f64<>+0x1D8B0(SB)/8, $9531
+DATA bitrev_size16384_radix4_f64<>+0x1D8B8(SB)/8, $13627
+DATA bitrev_size16384_radix4_f64<>+0x1D8C0(SB)/8, $2363
+DATA bitrev_size16384_radix4_f64<>+0x1D8C8(SB)/8, $6459
+DATA bitrev_size16384_radix4_f64<>+0x1D8D0(SB)/8, $10555
+DATA bitrev_size16384_radix4_f64<>+0x1D8D8(SB)/8, $14651
+DATA bitrev_size16384_radix4_f64<>+0x1D8E0(SB)/8, $3387
+DATA bitrev_size16384_radix4_f64<>+0x1D8E8(SB)/8, $7483
+DATA bitrev_size16384_radix4_f64<>+0x1D8F0(SB)/8, $11579
+DATA bitrev_size16384_radix4_f64<>+0x1D8F8(SB)/8, $15675
+DATA bitrev_size16384_radix4_f64<>+0x1D900(SB)/8, $571
+DATA bitrev_size16384_radix4_f64<>+0x1D908(SB)/8, $4667
+DATA bitrev_size16384_radix4_f64<>+0x1D910(SB)/8, $8763
+DATA bitrev_size16384_radix4_f64<>+0x1D918(SB)/8, $12859
+DATA bitrev_size16384_radix4_f64<>+0x1D920(SB)/8, $1595
+DATA bitrev_size16384_radix4_f64<>+0x1D928(SB)/8, $5691
+DATA bitrev_size16384_radix4_f64<>+0x1D930(SB)/8, $9787
+DATA bitrev_size16384_radix4_f64<>+0x1D938(SB)/8, $13883
+DATA bitrev_size16384_radix4_f64<>+0x1D940(SB)/8, $2619
+DATA bitrev_size16384_radix4_f64<>+0x1D948(SB)/8, $6715
+DATA bitrev_size16384_radix4_f64<>+0x1D950(SB)/8, $10811
+DATA bitrev_size16384_radix4_f64<>+0x1D958(SB)/8, $14907
+DATA bitrev_size16384_radix4_f64<>+0x1D960(SB)/8, $3643
+DATA bitrev_size16384_radix4_f64<>+0x1D968(SB)/8, $7739
+DATA bitrev_size16384_radix4_f64<>+0x1D970(SB)/8, $11835
+DATA bitrev_size16384_radix4_f64<>+0x1D978(SB)/8, $15931
+DATA bitrev_size16384_radix4_f64<>+0x1D980(SB)/8, $827
+DATA bitrev_size16384_radix4_f64<>+0x1D988(SB)/8, $4923
+DATA bitrev_size16384_radix4_f64<>+0x1D990(SB)/8, $9019
+DATA bitrev_size16384_radix4_f64<>+0x1D998(SB)/8, $13115
+DATA bitrev_size16384_radix4_f64<>+0x1D9A0(SB)/8, $1851
+DATA bitrev_size16384_radix4_f64<>+0x1D9A8(SB)/8, $5947
+DATA bitrev_size16384_radix4_f64<>+0x1D9B0(SB)/8, $10043
+DATA bitrev_size16384_radix4_f64<>+0x1D9B8(SB)/8, $14139
+DATA bitrev_size16384_radix4_f64<>+0x1D9C0(SB)/8, $2875
+DATA bitrev_size16384_radix4_f64<>+0x1D9C8(SB)/8, $6971
+DATA bitrev_size16384_radix4_f64<>+0x1D9D0(SB)/8, $11067
+DATA bitrev_size16384_radix4_f64<>+0x1D9D8(SB)/8, $15163
+DATA bitrev_size16384_radix4_f64<>+0x1D9E0(SB)/8, $3899
+DATA bitrev_size16384_radix4_f64<>+0x1D9E8(SB)/8, $7995
+DATA bitrev_size16384_radix4_f64<>+0x1D9F0(SB)/8, $12091
+DATA bitrev_size16384_radix4_f64<>+0x1D9F8(SB)/8, $16187
+DATA bitrev_size16384_radix4_f64<>+0x1DA00(SB)/8, $123
+DATA bitrev_size16384_radix4_f64<>+0x1DA08(SB)/8, $4219
+DATA bitrev_size16384_radix4_f64<>+0x1DA10(SB)/8, $8315
+DATA bitrev_size16384_radix4_f64<>+0x1DA18(SB)/8, $12411
+DATA bitrev_size16384_radix4_f64<>+0x1DA20(SB)/8, $1147
+DATA bitrev_size16384_radix4_f64<>+0x1DA28(SB)/8, $5243
+DATA bitrev_size16384_radix4_f64<>+0x1DA30(SB)/8, $9339
+DATA bitrev_size16384_radix4_f64<>+0x1DA38(SB)/8, $13435
+DATA bitrev_size16384_radix4_f64<>+0x1DA40(SB)/8, $2171
+DATA bitrev_size16384_radix4_f64<>+0x1DA48(SB)/8, $6267
+DATA bitrev_size16384_radix4_f64<>+0x1DA50(SB)/8, $10363
+DATA bitrev_size16384_radix4_f64<>+0x1DA58(SB)/8, $14459
+DATA bitrev_size16384_radix4_f64<>+0x1DA60(SB)/8, $3195
+DATA bitrev_size16384_radix4_f64<>+0x1DA68(SB)/8, $7291
+DATA bitrev_size16384_radix4_f64<>+0x1DA70(SB)/8, $11387
+DATA bitrev_size16384_radix4_f64<>+0x1DA78(SB)/8, $15483
+DATA bitrev_size16384_radix4_f64<>+0x1DA80(SB)/8, $379
+DATA bitrev_size16384_radix4_f64<>+0x1DA88(SB)/8, $4475
+DATA bitrev_size16384_radix4_f64<>+0x1DA90(SB)/8, $8571
+DATA bitrev_size16384_radix4_f64<>+0x1DA98(SB)/8, $12667
+DATA bitrev_size16384_radix4_f64<>+0x1DAA0(SB)/8, $1403
+DATA bitrev_size16384_radix4_f64<>+0x1DAA8(SB)/8, $5499
+DATA bitrev_size16384_radix4_f64<>+0x1DAB0(SB)/8, $9595
+DATA bitrev_size16384_radix4_f64<>+0x1DAB8(SB)/8, $13691
+DATA bitrev_size16384_radix4_f64<>+0x1DAC0(SB)/8, $2427
+DATA bitrev_size16384_radix4_f64<>+0x1DAC8(SB)/8, $6523
+DATA bitrev_size16384_radix4_f64<>+0x1DAD0(SB)/8, $10619
+DATA bitrev_size16384_radix4_f64<>+0x1DAD8(SB)/8, $14715
+DATA bitrev_size16384_radix4_f64<>+0x1DAE0(SB)/8, $3451
+DATA bitrev_size16384_radix4_f64<>+0x1DAE8(SB)/8, $7547
+DATA bitrev_size16384_radix4_f64<>+0x1DAF0(SB)/8, $11643
+DATA bitrev_size16384_radix4_f64<>+0x1DAF8(SB)/8, $15739
+DATA bitrev_size16384_radix4_f64<>+0x1DB00(SB)/8, $635
+DATA bitrev_size16384_radix4_f64<>+0x1DB08(SB)/8, $4731
+DATA bitrev_size16384_radix4_f64<>+0x1DB10(SB)/8, $8827
+DATA bitrev_size16384_radix4_f64<>+0x1DB18(SB)/8, $12923
+DATA bitrev_size16384_radix4_f64<>+0x1DB20(SB)/8, $1659
+DATA bitrev_size16384_radix4_f64<>+0x1DB28(SB)/8, $5755
+DATA bitrev_size16384_radix4_f64<>+0x1DB30(SB)/8, $9851
+DATA bitrev_size16384_radix4_f64<>+0x1DB38(SB)/8, $13947
+DATA bitrev_size16384_radix4_f64<>+0x1DB40(SB)/8, $2683
+DATA bitrev_size16384_radix4_f64<>+0x1DB48(SB)/8, $6779
+DATA bitrev_size16384_radix4_f64<>+0x1DB50(SB)/8, $10875
+DATA bitrev_size16384_radix4_f64<>+0x1DB58(SB)/8, $14971
+DATA bitrev_size16384_radix4_f64<>+0x1DB60(SB)/8, $3707
+DATA bitrev_size16384_radix4_f64<>+0x1DB68(SB)/8, $7803
+DATA bitrev_size16384_radix4_f64<>+0x1DB70(SB)/8, $11899
+DATA bitrev_size16384_radix4_f64<>+0x1DB78(SB)/8, $15995
+DATA bitrev_size16384_radix4_f64<>+0x1DB80(SB)/8, $891
+DATA bitrev_size16384_radix4_f64<>+0x1DB88(SB)/8, $4987
+DATA bitrev_size16384_radix4_f64<>+0x1DB90(SB)/8, $9083
+DATA bitrev_size16384_radix4_f64<>+0x1DB98(SB)/8, $13179
+DATA bitrev_size16384_radix4_f64<>+0x1DBA0(SB)/8, $1915
+DATA bitrev_size16384_radix4_f64<>+0x1DBA8(SB)/8, $6011
+DATA bitrev_size16384_radix4_f64<>+0x1DBB0(SB)/8, $10107
+DATA bitrev_size16384_radix4_f64<>+0x1DBB8(SB)/8, $14203
+DATA bitrev_size16384_radix4_f64<>+0x1DBC0(SB)/8, $2939
+DATA bitrev_size16384_radix4_f64<>+0x1DBC8(SB)/8, $7035
+DATA bitrev_size16384_radix4_f64<>+0x1DBD0(SB)/8, $11131
+DATA bitrev_size16384_radix4_f64<>+0x1DBD8(SB)/8, $15227
+DATA bitrev_size16384_radix4_f64<>+0x1DBE0(SB)/8, $3963
+DATA bitrev_size16384_radix4_f64<>+0x1DBE8(SB)/8, $8059
+DATA bitrev_size16384_radix4_f64<>+0x1DBF0(SB)/8, $12155
+DATA bitrev_size16384_radix4_f64<>+0x1DBF8(SB)/8, $16251
+DATA bitrev_size16384_radix4_f64<>+0x1DC00(SB)/8, $187
+DATA bitrev_size16384_radix4_f64<>+0x1DC08(SB)/8, $4283
+DATA bitrev_size16384_radix4_f64<>+0x1DC10(SB)/8, $8379
+DATA bitrev_size16384_radix4_f64<>+0x1DC18(SB)/8, $12475
+DATA bitrev_size16384_radix4_f64<>+0x1DC20(SB)/8, $1211
+DATA bitrev_size16384_radix4_f64<>+0x1DC28(SB)/8, $5307
+DATA bitrev_size16384_radix4_f64<>+0x1DC30(SB)/8, $9403
+DATA bitrev_size16384_radix4_f64<>+0x1DC38(SB)/8, $13499
+DATA bitrev_size16384_radix4_f64<>+0x1DC40(SB)/8, $2235
+DATA bitrev_size16384_radix4_f64<>+0x1DC48(SB)/8, $6331
+DATA bitrev_size16384_radix4_f64<>+0x1DC50(SB)/8, $10427
+DATA bitrev_size16384_radix4_f64<>+0x1DC58(SB)/8, $14523
+DATA bitrev_size16384_radix4_f64<>+0x1DC60(SB)/8, $3259
+DATA bitrev_size16384_radix4_f64<>+0x1DC68(SB)/8, $7355
+DATA bitrev_size16384_radix4_f64<>+0x1DC70(SB)/8, $11451
+DATA bitrev_size16384_radix4_f64<>+0x1DC78(SB)/8, $15547
+DATA bitrev_size16384_radix4_f64<>+0x1DC80(SB)/8, $443
+DATA bitrev_size16384_radix4_f64<>+0x1DC88(SB)/8, $4539
+DATA bitrev_size16384_radix4_f64<>+0x1DC90(SB)/8, $8635
+DATA bitrev_size16384_radix4_f64<>+0x1DC98(SB)/8, $12731
+DATA bitrev_size16384_radix4_f64<>+0x1DCA0(SB)/8, $1467
+DATA bitrev_size16384_radix4_f64<>+0x1DCA8(SB)/8, $5563
+DATA bitrev_size16384_radix4_f64<>+0x1DCB0(SB)/8, $9659
+DATA bitrev_size16384_radix4_f64<>+0x1DCB8(SB)/8, $13755
+DATA bitrev_size16384_radix4_f64<>+0x1DCC0(SB)/8, $2491
+DATA bitrev_size16384_radix4_f64<>+0x1DCC8(SB)/8, $6587
+DATA bitrev_size16384_radix4_f64<>+0x1DCD0(SB)/8, $10683
+DATA bitrev_size16384_radix4_f64<>+0x1DCD8(SB)/8, $14779
+DATA bitrev_size16384_radix4_f64<>+0x1DCE0(SB)/8, $3515
+DATA bitrev_size16384_radix4_f64<>+0x1DCE8(SB)/8, $7611
+DATA bitrev_size16384_radix4_f64<>+0x1DCF0(SB)/8, $11707
+DATA bitrev_size16384_radix4_f64<>+0x1DCF8(SB)/8, $15803
+DATA bitrev_size16384_radix4_f64<>+0x1DD00(SB)/8, $699
+DATA bitrev_size16384_radix4_f64<>+0x1DD08(SB)/8, $4795
+DATA bitrev_size16384_radix4_f64<>+0x1DD10(SB)/8, $8891
+DATA bitrev_size16384_radix4_f64<>+0x1DD18(SB)/8, $12987
+DATA bitrev_size16384_radix4_f64<>+0x1DD20(SB)/8, $1723
+DATA bitrev_size16384_radix4_f64<>+0x1DD28(SB)/8, $5819
+DATA bitrev_size16384_radix4_f64<>+0x1DD30(SB)/8, $9915
+DATA bitrev_size16384_radix4_f64<>+0x1DD38(SB)/8, $14011
+DATA bitrev_size16384_radix4_f64<>+0x1DD40(SB)/8, $2747
+DATA bitrev_size16384_radix4_f64<>+0x1DD48(SB)/8, $6843
+DATA bitrev_size16384_radix4_f64<>+0x1DD50(SB)/8, $10939
+DATA bitrev_size16384_radix4_f64<>+0x1DD58(SB)/8, $15035
+DATA bitrev_size16384_radix4_f64<>+0x1DD60(SB)/8, $3771
+DATA bitrev_size16384_radix4_f64<>+0x1DD68(SB)/8, $7867
+DATA bitrev_size16384_radix4_f64<>+0x1DD70(SB)/8, $11963
+DATA bitrev_size16384_radix4_f64<>+0x1DD78(SB)/8, $16059
+DATA bitrev_size16384_radix4_f64<>+0x1DD80(SB)/8, $955
+DATA bitrev_size16384_radix4_f64<>+0x1DD88(SB)/8, $5051
+DATA bitrev_size16384_radix4_f64<>+0x1DD90(SB)/8, $9147
+DATA bitrev_size16384_radix4_f64<>+0x1DD98(SB)/8, $13243
+DATA bitrev_size16384_radix4_f64<>+0x1DDA0(SB)/8, $1979
+DATA bitrev_size16384_radix4_f64<>+0x1DDA8(SB)/8, $6075
+DATA bitrev_size16384_radix4_f64<>+0x1DDB0(SB)/8, $10171
+DATA bitrev_size16384_radix4_f64<>+0x1DDB8(SB)/8, $14267
+DATA bitrev_size16384_radix4_f64<>+0x1DDC0(SB)/8, $3003
+DATA bitrev_size16384_radix4_f64<>+0x1DDC8(SB)/8, $7099
+DATA bitrev_size16384_radix4_f64<>+0x1DDD0(SB)/8, $11195
+DATA bitrev_size16384_radix4_f64<>+0x1DDD8(SB)/8, $15291
+DATA bitrev_size16384_radix4_f64<>+0x1DDE0(SB)/8, $4027
+DATA bitrev_size16384_radix4_f64<>+0x1DDE8(SB)/8, $8123
+DATA bitrev_size16384_radix4_f64<>+0x1DDF0(SB)/8, $12219
+DATA bitrev_size16384_radix4_f64<>+0x1DDF8(SB)/8, $16315
+DATA bitrev_size16384_radix4_f64<>+0x1DE00(SB)/8, $251
+DATA bitrev_size16384_radix4_f64<>+0x1DE08(SB)/8, $4347
+DATA bitrev_size16384_radix4_f64<>+0x1DE10(SB)/8, $8443
+DATA bitrev_size16384_radix4_f64<>+0x1DE18(SB)/8, $12539
+DATA bitrev_size16384_radix4_f64<>+0x1DE20(SB)/8, $1275
+DATA bitrev_size16384_radix4_f64<>+0x1DE28(SB)/8, $5371
+DATA bitrev_size16384_radix4_f64<>+0x1DE30(SB)/8, $9467
+DATA bitrev_size16384_radix4_f64<>+0x1DE38(SB)/8, $13563
+DATA bitrev_size16384_radix4_f64<>+0x1DE40(SB)/8, $2299
+DATA bitrev_size16384_radix4_f64<>+0x1DE48(SB)/8, $6395
+DATA bitrev_size16384_radix4_f64<>+0x1DE50(SB)/8, $10491
+DATA bitrev_size16384_radix4_f64<>+0x1DE58(SB)/8, $14587
+DATA bitrev_size16384_radix4_f64<>+0x1DE60(SB)/8, $3323
+DATA bitrev_size16384_radix4_f64<>+0x1DE68(SB)/8, $7419
+DATA bitrev_size16384_radix4_f64<>+0x1DE70(SB)/8, $11515
+DATA bitrev_size16384_radix4_f64<>+0x1DE78(SB)/8, $15611
+DATA bitrev_size16384_radix4_f64<>+0x1DE80(SB)/8, $507
+DATA bitrev_size16384_radix4_f64<>+0x1DE88(SB)/8, $4603
+DATA bitrev_size16384_radix4_f64<>+0x1DE90(SB)/8, $8699
+DATA bitrev_size16384_radix4_f64<>+0x1DE98(SB)/8, $12795
+DATA bitrev_size16384_radix4_f64<>+0x1DEA0(SB)/8, $1531
+DATA bitrev_size16384_radix4_f64<>+0x1DEA8(SB)/8, $5627
+DATA bitrev_size16384_radix4_f64<>+0x1DEB0(SB)/8, $9723
+DATA bitrev_size16384_radix4_f64<>+0x1DEB8(SB)/8, $13819
+DATA bitrev_size16384_radix4_f64<>+0x1DEC0(SB)/8, $2555
+DATA bitrev_size16384_radix4_f64<>+0x1DEC8(SB)/8, $6651
+DATA bitrev_size16384_radix4_f64<>+0x1DED0(SB)/8, $10747
+DATA bitrev_size16384_radix4_f64<>+0x1DED8(SB)/8, $14843
+DATA bitrev_size16384_radix4_f64<>+0x1DEE0(SB)/8, $3579
+DATA bitrev_size16384_radix4_f64<>+0x1DEE8(SB)/8, $7675
+DATA bitrev_size16384_radix4_f64<>+0x1DEF0(SB)/8, $11771
+DATA bitrev_size16384_radix4_f64<>+0x1DEF8(SB)/8, $15867
+DATA bitrev_size16384_radix4_f64<>+0x1DF00(SB)/8, $763
+DATA bitrev_size16384_radix4_f64<>+0x1DF08(SB)/8, $4859
+DATA bitrev_size16384_radix4_f64<>+0x1DF10(SB)/8, $8955
+DATA bitrev_size16384_radix4_f64<>+0x1DF18(SB)/8, $13051
+DATA bitrev_size16384_radix4_f64<>+0x1DF20(SB)/8, $1787
+DATA bitrev_size16384_radix4_f64<>+0x1DF28(SB)/8, $5883
+DATA bitrev_size16384_radix4_f64<>+0x1DF30(SB)/8, $9979
+DATA bitrev_size16384_radix4_f64<>+0x1DF38(SB)/8, $14075
+DATA bitrev_size16384_radix4_f64<>+0x1DF40(SB)/8, $2811
+DATA bitrev_size16384_radix4_f64<>+0x1DF48(SB)/8, $6907
+DATA bitrev_size16384_radix4_f64<>+0x1DF50(SB)/8, $11003
+DATA bitrev_size16384_radix4_f64<>+0x1DF58(SB)/8, $15099
+DATA bitrev_size16384_radix4_f64<>+0x1DF60(SB)/8, $3835
+DATA bitrev_size16384_radix4_f64<>+0x1DF68(SB)/8, $7931
+DATA bitrev_size16384_radix4_f64<>+0x1DF70(SB)/8, $12027
+DATA bitrev_size16384_radix4_f64<>+0x1DF78(SB)/8, $16123
+DATA bitrev_size16384_radix4_f64<>+0x1DF80(SB)/8, $1019
+DATA bitrev_size16384_radix4_f64<>+0x1DF88(SB)/8, $5115
+DATA bitrev_size16384_radix4_f64<>+0x1DF90(SB)/8, $9211
+DATA bitrev_size16384_radix4_f64<>+0x1DF98(SB)/8, $13307
+DATA bitrev_size16384_radix4_f64<>+0x1DFA0(SB)/8, $2043
+DATA bitrev_size16384_radix4_f64<>+0x1DFA8(SB)/8, $6139
+DATA bitrev_size16384_radix4_f64<>+0x1DFB0(SB)/8, $10235
+DATA bitrev_size16384_radix4_f64<>+0x1DFB8(SB)/8, $14331
+DATA bitrev_size16384_radix4_f64<>+0x1DFC0(SB)/8, $3067
+DATA bitrev_size16384_radix4_f64<>+0x1DFC8(SB)/8, $7163
+DATA bitrev_size16384_radix4_f64<>+0x1DFD0(SB)/8, $11259
+DATA bitrev_size16384_radix4_f64<>+0x1DFD8(SB)/8, $15355
+DATA bitrev_size16384_radix4_f64<>+0x1DFE0(SB)/8, $4091
+DATA bitrev_size16384_radix4_f64<>+0x1DFE8(SB)/8, $8187
+DATA bitrev_size16384_radix4_f64<>+0x1DFF0(SB)/8, $12283
+DATA bitrev_size16384_radix4_f64<>+0x1DFF8(SB)/8, $16379
+DATA bitrev_size16384_radix4_f64<>+0x1E000(SB)/8, $15
+DATA bitrev_size16384_radix4_f64<>+0x1E008(SB)/8, $4111
+DATA bitrev_size16384_radix4_f64<>+0x1E010(SB)/8, $8207
+DATA bitrev_size16384_radix4_f64<>+0x1E018(SB)/8, $12303
+DATA bitrev_size16384_radix4_f64<>+0x1E020(SB)/8, $1039
+DATA bitrev_size16384_radix4_f64<>+0x1E028(SB)/8, $5135
+DATA bitrev_size16384_radix4_f64<>+0x1E030(SB)/8, $9231
+DATA bitrev_size16384_radix4_f64<>+0x1E038(SB)/8, $13327
+DATA bitrev_size16384_radix4_f64<>+0x1E040(SB)/8, $2063
+DATA bitrev_size16384_radix4_f64<>+0x1E048(SB)/8, $6159
+DATA bitrev_size16384_radix4_f64<>+0x1E050(SB)/8, $10255
+DATA bitrev_size16384_radix4_f64<>+0x1E058(SB)/8, $14351
+DATA bitrev_size16384_radix4_f64<>+0x1E060(SB)/8, $3087
+DATA bitrev_size16384_radix4_f64<>+0x1E068(SB)/8, $7183
+DATA bitrev_size16384_radix4_f64<>+0x1E070(SB)/8, $11279
+DATA bitrev_size16384_radix4_f64<>+0x1E078(SB)/8, $15375
+DATA bitrev_size16384_radix4_f64<>+0x1E080(SB)/8, $271
+DATA bitrev_size16384_radix4_f64<>+0x1E088(SB)/8, $4367
+DATA bitrev_size16384_radix4_f64<>+0x1E090(SB)/8, $8463
+DATA bitrev_size16384_radix4_f64<>+0x1E098(SB)/8, $12559
+DATA bitrev_size16384_radix4_f64<>+0x1E0A0(SB)/8, $1295
+DATA bitrev_size16384_radix4_f64<>+0x1E0A8(SB)/8, $5391
+DATA bitrev_size16384_radix4_f64<>+0x1E0B0(SB)/8, $9487
+DATA bitrev_size16384_radix4_f64<>+0x1E0B8(SB)/8, $13583
+DATA bitrev_size16384_radix4_f64<>+0x1E0C0(SB)/8, $2319
+DATA bitrev_size16384_radix4_f64<>+0x1E0C8(SB)/8, $6415
+DATA bitrev_size16384_radix4_f64<>+0x1E0D0(SB)/8, $10511
+DATA bitrev_size16384_radix4_f64<>+0x1E0D8(SB)/8, $14607
+DATA bitrev_size16384_radix4_f64<>+0x1E0E0(SB)/8, $3343
+DATA bitrev_size16384_radix4_f64<>+0x1E0E8(SB)/8, $7439
+DATA bitrev_size16384_radix4_f64<>+0x1E0F0(SB)/8, $11535
+DATA bitrev_size16384_radix4_f64<>+0x1E0F8(SB)/8, $15631
+DATA bitrev_size16384_radix4_f64<>+0x1E100(SB)/8, $527
+DATA bitrev_size16384_radix4_f64<>+0x1E108(SB)/8, $4623
+DATA bitrev_size16384_radix4_f64<>+0x1E110(SB)/8, $8719
+DATA bitrev_size16384_radix4_f64<>+0x1E118(SB)/8, $12815
+DATA bitrev_size16384_radix4_f64<>+0x1E120(SB)/8, $1551
+DATA bitrev_size16384_radix4_f64<>+0x1E128(SB)/8, $5647
+DATA bitrev_size16384_radix4_f64<>+0x1E130(SB)/8, $9743
+DATA bitrev_size16384_radix4_f64<>+0x1E138(SB)/8, $13839
+DATA bitrev_size16384_radix4_f64<>+0x1E140(SB)/8, $2575
+DATA bitrev_size16384_radix4_f64<>+0x1E148(SB)/8, $6671
+DATA bitrev_size16384_radix4_f64<>+0x1E150(SB)/8, $10767
+DATA bitrev_size16384_radix4_f64<>+0x1E158(SB)/8, $14863
+DATA bitrev_size16384_radix4_f64<>+0x1E160(SB)/8, $3599
+DATA bitrev_size16384_radix4_f64<>+0x1E168(SB)/8, $7695
+DATA bitrev_size16384_radix4_f64<>+0x1E170(SB)/8, $11791
+DATA bitrev_size16384_radix4_f64<>+0x1E178(SB)/8, $15887
+DATA bitrev_size16384_radix4_f64<>+0x1E180(SB)/8, $783
+DATA bitrev_size16384_radix4_f64<>+0x1E188(SB)/8, $4879
+DATA bitrev_size16384_radix4_f64<>+0x1E190(SB)/8, $8975
+DATA bitrev_size16384_radix4_f64<>+0x1E198(SB)/8, $13071
+DATA bitrev_size16384_radix4_f64<>+0x1E1A0(SB)/8, $1807
+DATA bitrev_size16384_radix4_f64<>+0x1E1A8(SB)/8, $5903
+DATA bitrev_size16384_radix4_f64<>+0x1E1B0(SB)/8, $9999
+DATA bitrev_size16384_radix4_f64<>+0x1E1B8(SB)/8, $14095
+DATA bitrev_size16384_radix4_f64<>+0x1E1C0(SB)/8, $2831
+DATA bitrev_size16384_radix4_f64<>+0x1E1C8(SB)/8, $6927
+DATA bitrev_size16384_radix4_f64<>+0x1E1D0(SB)/8, $11023
+DATA bitrev_size16384_radix4_f64<>+0x1E1D8(SB)/8, $15119
+DATA bitrev_size16384_radix4_f64<>+0x1E1E0(SB)/8, $3855
+DATA bitrev_size16384_radix4_f64<>+0x1E1E8(SB)/8, $7951
+DATA bitrev_size16384_radix4_f64<>+0x1E1F0(SB)/8, $12047
+DATA bitrev_size16384_radix4_f64<>+0x1E1F8(SB)/8, $16143
+DATA bitrev_size16384_radix4_f64<>+0x1E200(SB)/8, $79
+DATA bitrev_size16384_radix4_f64<>+0x1E208(SB)/8, $4175
+DATA bitrev_size16384_radix4_f64<>+0x1E210(SB)/8, $8271
+DATA bitrev_size16384_radix4_f64<>+0x1E218(SB)/8, $12367
+DATA bitrev_size16384_radix4_f64<>+0x1E220(SB)/8, $1103
+DATA bitrev_size16384_radix4_f64<>+0x1E228(SB)/8, $5199
+DATA bitrev_size16384_radix4_f64<>+0x1E230(SB)/8, $9295
+DATA bitrev_size16384_radix4_f64<>+0x1E238(SB)/8, $13391
+DATA bitrev_size16384_radix4_f64<>+0x1E240(SB)/8, $2127
+DATA bitrev_size16384_radix4_f64<>+0x1E248(SB)/8, $6223
+DATA bitrev_size16384_radix4_f64<>+0x1E250(SB)/8, $10319
+DATA bitrev_size16384_radix4_f64<>+0x1E258(SB)/8, $14415
+DATA bitrev_size16384_radix4_f64<>+0x1E260(SB)/8, $3151
+DATA bitrev_size16384_radix4_f64<>+0x1E268(SB)/8, $7247
+DATA bitrev_size16384_radix4_f64<>+0x1E270(SB)/8, $11343
+DATA bitrev_size16384_radix4_f64<>+0x1E278(SB)/8, $15439
+DATA bitrev_size16384_radix4_f64<>+0x1E280(SB)/8, $335
+DATA bitrev_size16384_radix4_f64<>+0x1E288(SB)/8, $4431
+DATA bitrev_size16384_radix4_f64<>+0x1E290(SB)/8, $8527
+DATA bitrev_size16384_radix4_f64<>+0x1E298(SB)/8, $12623
+DATA bitrev_size16384_radix4_f64<>+0x1E2A0(SB)/8, $1359
+DATA bitrev_size16384_radix4_f64<>+0x1E2A8(SB)/8, $5455
+DATA bitrev_size16384_radix4_f64<>+0x1E2B0(SB)/8, $9551
+DATA bitrev_size16384_radix4_f64<>+0x1E2B8(SB)/8, $13647
+DATA bitrev_size16384_radix4_f64<>+0x1E2C0(SB)/8, $2383
+DATA bitrev_size16384_radix4_f64<>+0x1E2C8(SB)/8, $6479
+DATA bitrev_size16384_radix4_f64<>+0x1E2D0(SB)/8, $10575
+DATA bitrev_size16384_radix4_f64<>+0x1E2D8(SB)/8, $14671
+DATA bitrev_size16384_radix4_f64<>+0x1E2E0(SB)/8, $3407
+DATA bitrev_size16384_radix4_f64<>+0x1E2E8(SB)/8, $7503
+DATA bitrev_size16384_radix4_f64<>+0x1E2F0(SB)/8, $11599
+DATA bitrev_size16384_radix4_f64<>+0x1E2F8(SB)/8, $15695
+DATA bitrev_size16384_radix4_f64<>+0x1E300(SB)/8, $591
+DATA bitrev_size16384_radix4_f64<>+0x1E308(SB)/8, $4687
+DATA bitrev_size16384_radix4_f64<>+0x1E310(SB)/8, $8783
+DATA bitrev_size16384_radix4_f64<>+0x1E318(SB)/8, $12879
+DATA bitrev_size16384_radix4_f64<>+0x1E320(SB)/8, $1615
+DATA bitrev_size16384_radix4_f64<>+0x1E328(SB)/8, $5711
+DATA bitrev_size16384_radix4_f64<>+0x1E330(SB)/8, $9807
+DATA bitrev_size16384_radix4_f64<>+0x1E338(SB)/8, $13903
+DATA bitrev_size16384_radix4_f64<>+0x1E340(SB)/8, $2639
+DATA bitrev_size16384_radix4_f64<>+0x1E348(SB)/8, $6735
+DATA bitrev_size16384_radix4_f64<>+0x1E350(SB)/8, $10831
+DATA bitrev_size16384_radix4_f64<>+0x1E358(SB)/8, $14927
+DATA bitrev_size16384_radix4_f64<>+0x1E360(SB)/8, $3663
+DATA bitrev_size16384_radix4_f64<>+0x1E368(SB)/8, $7759
+DATA bitrev_size16384_radix4_f64<>+0x1E370(SB)/8, $11855
+DATA bitrev_size16384_radix4_f64<>+0x1E378(SB)/8, $15951
+DATA bitrev_size16384_radix4_f64<>+0x1E380(SB)/8, $847
+DATA bitrev_size16384_radix4_f64<>+0x1E388(SB)/8, $4943
+DATA bitrev_size16384_radix4_f64<>+0x1E390(SB)/8, $9039
+DATA bitrev_size16384_radix4_f64<>+0x1E398(SB)/8, $13135
+DATA bitrev_size16384_radix4_f64<>+0x1E3A0(SB)/8, $1871
+DATA bitrev_size16384_radix4_f64<>+0x1E3A8(SB)/8, $5967
+DATA bitrev_size16384_radix4_f64<>+0x1E3B0(SB)/8, $10063
+DATA bitrev_size16384_radix4_f64<>+0x1E3B8(SB)/8, $14159
+DATA bitrev_size16384_radix4_f64<>+0x1E3C0(SB)/8, $2895
+DATA bitrev_size16384_radix4_f64<>+0x1E3C8(SB)/8, $6991
+DATA bitrev_size16384_radix4_f64<>+0x1E3D0(SB)/8, $11087
+DATA bitrev_size16384_radix4_f64<>+0x1E3D8(SB)/8, $15183
+DATA bitrev_size16384_radix4_f64<>+0x1E3E0(SB)/8, $3919
+DATA bitrev_size16384_radix4_f64<>+0x1E3E8(SB)/8, $8015
+DATA bitrev_size16384_radix4_f64<>+0x1E3F0(SB)/8, $12111
+DATA bitrev_size16384_radix4_f64<>+0x1E3F8(SB)/8, $16207
+DATA bitrev_size16384_radix4_f64<>+0x1E400(SB)/8, $143
+DATA bitrev_size16384_radix4_f64<>+0x1E408(SB)/8, $4239
+DATA bitrev_size16384_radix4_f64<>+0x1E410(SB)/8, $8335
+DATA bitrev_size16384_radix4_f64<>+0x1E418(SB)/8, $12431
+DATA bitrev_size16384_radix4_f64<>+0x1E420(SB)/8, $1167
+DATA bitrev_size16384_radix4_f64<>+0x1E428(SB)/8, $5263
+DATA bitrev_size16384_radix4_f64<>+0x1E430(SB)/8, $9359
+DATA bitrev_size16384_radix4_f64<>+0x1E438(SB)/8, $13455
+DATA bitrev_size16384_radix4_f64<>+0x1E440(SB)/8, $2191
+DATA bitrev_size16384_radix4_f64<>+0x1E448(SB)/8, $6287
+DATA bitrev_size16384_radix4_f64<>+0x1E450(SB)/8, $10383
+DATA bitrev_size16384_radix4_f64<>+0x1E458(SB)/8, $14479
+DATA bitrev_size16384_radix4_f64<>+0x1E460(SB)/8, $3215
+DATA bitrev_size16384_radix4_f64<>+0x1E468(SB)/8, $7311
+DATA bitrev_size16384_radix4_f64<>+0x1E470(SB)/8, $11407
+DATA bitrev_size16384_radix4_f64<>+0x1E478(SB)/8, $15503
+DATA bitrev_size16384_radix4_f64<>+0x1E480(SB)/8, $399
+DATA bitrev_size16384_radix4_f64<>+0x1E488(SB)/8, $4495
+DATA bitrev_size16384_radix4_f64<>+0x1E490(SB)/8, $8591
+DATA bitrev_size16384_radix4_f64<>+0x1E498(SB)/8, $12687
+DATA bitrev_size16384_radix4_f64<>+0x1E4A0(SB)/8, $1423
+DATA bitrev_size16384_radix4_f64<>+0x1E4A8(SB)/8, $5519
+DATA bitrev_size16384_radix4_f64<>+0x1E4B0(SB)/8, $9615
+DATA bitrev_size16384_radix4_f64<>+0x1E4B8(SB)/8, $13711
+DATA bitrev_size16384_radix4_f64<>+0x1E4C0(SB)/8, $2447
+DATA bitrev_size16384_radix4_f64<>+0x1E4C8(SB)/8, $6543
+DATA bitrev_size16384_radix4_f64<>+0x1E4D0(SB)/8, $10639
+DATA bitrev_size16384_radix4_f64<>+0x1E4D8(SB)/8, $14735
+DATA bitrev_size16384_radix4_f64<>+0x1E4E0(SB)/8, $3471
+DATA bitrev_size16384_radix4_f64<>+0x1E4E8(SB)/8, $7567
+DATA bitrev_size16384_radix4_f64<>+0x1E4F0(SB)/8, $11663
+DATA bitrev_size16384_radix4_f64<>+0x1E4F8(SB)/8, $15759
+DATA bitrev_size16384_radix4_f64<>+0x1E500(SB)/8, $655
+DATA bitrev_size16384_radix4_f64<>+0x1E508(SB)/8, $4751
+DATA bitrev_size16384_radix4_f64<>+0x1E510(SB)/8, $8847
+DATA bitrev_size16384_radix4_f64<>+0x1E518(SB)/8, $12943
+DATA bitrev_size16384_radix4_f64<>+0x1E520(SB)/8, $1679
+DATA bitrev_size16384_radix4_f64<>+0x1E528(SB)/8, $5775
+DATA bitrev_size16384_radix4_f64<>+0x1E530(SB)/8, $9871
+DATA bitrev_size16384_radix4_f64<>+0x1E538(SB)/8, $13967
+DATA bitrev_size16384_radix4_f64<>+0x1E540(SB)/8, $2703
+DATA bitrev_size16384_radix4_f64<>+0x1E548(SB)/8, $6799
+DATA bitrev_size16384_radix4_f64<>+0x1E550(SB)/8, $10895
+DATA bitrev_size16384_radix4_f64<>+0x1E558(SB)/8, $14991
+DATA bitrev_size16384_radix4_f64<>+0x1E560(SB)/8, $3727
+DATA bitrev_size16384_radix4_f64<>+0x1E568(SB)/8, $7823
+DATA bitrev_size16384_radix4_f64<>+0x1E570(SB)/8, $11919
+DATA bitrev_size16384_radix4_f64<>+0x1E578(SB)/8, $16015
+DATA bitrev_size16384_radix4_f64<>+0x1E580(SB)/8, $911
+DATA bitrev_size16384_radix4_f64<>+0x1E588(SB)/8, $5007
+DATA bitrev_size16384_radix4_f64<>+0x1E590(SB)/8, $9103
+DATA bitrev_size16384_radix4_f64<>+0x1E598(SB)/8, $13199
+DATA bitrev_size16384_radix4_f64<>+0x1E5A0(SB)/8, $1935
+DATA bitrev_size16384_radix4_f64<>+0x1E5A8(SB)/8, $6031
+DATA bitrev_size16384_radix4_f64<>+0x1E5B0(SB)/8, $10127
+DATA bitrev_size16384_radix4_f64<>+0x1E5B8(SB)/8, $14223
+DATA bitrev_size16384_radix4_f64<>+0x1E5C0(SB)/8, $2959
+DATA bitrev_size16384_radix4_f64<>+0x1E5C8(SB)/8, $7055
+DATA bitrev_size16384_radix4_f64<>+0x1E5D0(SB)/8, $11151
+DATA bitrev_size16384_radix4_f64<>+0x1E5D8(SB)/8, $15247
+DATA bitrev_size16384_radix4_f64<>+0x1E5E0(SB)/8, $3983
+DATA bitrev_size16384_radix4_f64<>+0x1E5E8(SB)/8, $8079
+DATA bitrev_size16384_radix4_f64<>+0x1E5F0(SB)/8, $12175
+DATA bitrev_size16384_radix4_f64<>+0x1E5F8(SB)/8, $16271
+DATA bitrev_size16384_radix4_f64<>+0x1E600(SB)/8, $207
+DATA bitrev_size16384_radix4_f64<>+0x1E608(SB)/8, $4303
+DATA bitrev_size16384_radix4_f64<>+0x1E610(SB)/8, $8399
+DATA bitrev_size16384_radix4_f64<>+0x1E618(SB)/8, $12495
+DATA bitrev_size16384_radix4_f64<>+0x1E620(SB)/8, $1231
+DATA bitrev_size16384_radix4_f64<>+0x1E628(SB)/8, $5327
+DATA bitrev_size16384_radix4_f64<>+0x1E630(SB)/8, $9423
+DATA bitrev_size16384_radix4_f64<>+0x1E638(SB)/8, $13519
+DATA bitrev_size16384_radix4_f64<>+0x1E640(SB)/8, $2255
+DATA bitrev_size16384_radix4_f64<>+0x1E648(SB)/8, $6351
+DATA bitrev_size16384_radix4_f64<>+0x1E650(SB)/8, $10447
+DATA bitrev_size16384_radix4_f64<>+0x1E658(SB)/8, $14543
+DATA bitrev_size16384_radix4_f64<>+0x1E660(SB)/8, $3279
+DATA bitrev_size16384_radix4_f64<>+0x1E668(SB)/8, $7375
+DATA bitrev_size16384_radix4_f64<>+0x1E670(SB)/8, $11471
+DATA bitrev_size16384_radix4_f64<>+0x1E678(SB)/8, $15567
+DATA bitrev_size16384_radix4_f64<>+0x1E680(SB)/8, $463
+DATA bitrev_size16384_radix4_f64<>+0x1E688(SB)/8, $4559
+DATA bitrev_size16384_radix4_f64<>+0x1E690(SB)/8, $8655
+DATA bitrev_size16384_radix4_f64<>+0x1E698(SB)/8, $12751
+DATA bitrev_size16384_radix4_f64<>+0x1E6A0(SB)/8, $1487
+DATA bitrev_size16384_radix4_f64<>+0x1E6A8(SB)/8, $5583
+DATA bitrev_size16384_radix4_f64<>+0x1E6B0(SB)/8, $9679
+DATA bitrev_size16384_radix4_f64<>+0x1E6B8(SB)/8, $13775
+DATA bitrev_size16384_radix4_f64<>+0x1E6C0(SB)/8, $2511
+DATA bitrev_size16384_radix4_f64<>+0x1E6C8(SB)/8, $6607
+DATA bitrev_size16384_radix4_f64<>+0x1E6D0(SB)/8, $10703
+DATA bitrev_size16384_radix4_f64<>+0x1E6D8(SB)/8, $14799
+DATA bitrev_size16384_radix4_f64<>+0x1E6E0(SB)/8, $3535
+DATA bitrev_size16384_radix4_f64<>+0x1E6E8(SB)/8, $7631
+DATA bitrev_size16384_radix4_f64<>+0x1E6F0(SB)/8, $11727
+DATA bitrev_size16384_radix4_f64<>+0x1E6F8(SB)/8, $15823
+DATA bitrev_size16384_radix4_f64<>+0x1E700(SB)/8, $719
+DATA bitrev_size16384_radix4_f64<>+0x1E708(SB)/8, $4815
+DATA bitrev_size16384_radix4_f64<>+0x1E710(SB)/8, $8911
+DATA bitrev_size16384_radix4_f64<>+0x1E718(SB)/8, $13007
+DATA bitrev_size16384_radix4_f64<>+0x1E720(SB)/8, $1743
+DATA bitrev_size16384_radix4_f64<>+0x1E728(SB)/8, $5839
+DATA bitrev_size16384_radix4_f64<>+0x1E730(SB)/8, $9935
+DATA bitrev_size16384_radix4_f64<>+0x1E738(SB)/8, $14031
+DATA bitrev_size16384_radix4_f64<>+0x1E740(SB)/8, $2767
+DATA bitrev_size16384_radix4_f64<>+0x1E748(SB)/8, $6863
+DATA bitrev_size16384_radix4_f64<>+0x1E750(SB)/8, $10959
+DATA bitrev_size16384_radix4_f64<>+0x1E758(SB)/8, $15055
+DATA bitrev_size16384_radix4_f64<>+0x1E760(SB)/8, $3791
+DATA bitrev_size16384_radix4_f64<>+0x1E768(SB)/8, $7887
+DATA bitrev_size16384_radix4_f64<>+0x1E770(SB)/8, $11983
+DATA bitrev_size16384_radix4_f64<>+0x1E778(SB)/8, $16079
+DATA bitrev_size16384_radix4_f64<>+0x1E780(SB)/8, $975
+DATA bitrev_size16384_radix4_f64<>+0x1E788(SB)/8, $5071
+DATA bitrev_size16384_radix4_f64<>+0x1E790(SB)/8, $9167
+DATA bitrev_size16384_radix4_f64<>+0x1E798(SB)/8, $13263
+DATA bitrev_size16384_radix4_f64<>+0x1E7A0(SB)/8, $1999
+DATA bitrev_size16384_radix4_f64<>+0x1E7A8(SB)/8, $6095
+DATA bitrev_size16384_radix4_f64<>+0x1E7B0(SB)/8, $10191
+DATA bitrev_size16384_radix4_f64<>+0x1E7B8(SB)/8, $14287
+DATA bitrev_size16384_radix4_f64<>+0x1E7C0(SB)/8, $3023
+DATA bitrev_size16384_radix4_f64<>+0x1E7C8(SB)/8, $7119
+DATA bitrev_size16384_radix4_f64<>+0x1E7D0(SB)/8, $11215
+DATA bitrev_size16384_radix4_f64<>+0x1E7D8(SB)/8, $15311
+DATA bitrev_size16384_radix4_f64<>+0x1E7E0(SB)/8, $4047
+DATA bitrev_size16384_radix4_f64<>+0x1E7E8(SB)/8, $8143
+DATA bitrev_size16384_radix4_f64<>+0x1E7F0(SB)/8, $12239
+DATA bitrev_size16384_radix4_f64<>+0x1E7F8(SB)/8, $16335
+DATA bitrev_size16384_radix4_f64<>+0x1E800(SB)/8, $31
+DATA bitrev_size16384_radix4_f64<>+0x1E808(SB)/8, $4127
+DATA bitrev_size16384_radix4_f64<>+0x1E810(SB)/8, $8223
+DATA bitrev_size16384_radix4_f64<>+0x1E818(SB)/8, $12319
+DATA bitrev_size16384_radix4_f64<>+0x1E820(SB)/8, $1055
+DATA bitrev_size16384_radix4_f64<>+0x1E828(SB)/8, $5151
+DATA bitrev_size16384_radix4_f64<>+0x1E830(SB)/8, $9247
+DATA bitrev_size16384_radix4_f64<>+0x1E838(SB)/8, $13343
+DATA bitrev_size16384_radix4_f64<>+0x1E840(SB)/8, $2079
+DATA bitrev_size16384_radix4_f64<>+0x1E848(SB)/8, $6175
+DATA bitrev_size16384_radix4_f64<>+0x1E850(SB)/8, $10271
+DATA bitrev_size16384_radix4_f64<>+0x1E858(SB)/8, $14367
+DATA bitrev_size16384_radix4_f64<>+0x1E860(SB)/8, $3103
+DATA bitrev_size16384_radix4_f64<>+0x1E868(SB)/8, $7199
+DATA bitrev_size16384_radix4_f64<>+0x1E870(SB)/8, $11295
+DATA bitrev_size16384_radix4_f64<>+0x1E878(SB)/8, $15391
+DATA bitrev_size16384_radix4_f64<>+0x1E880(SB)/8, $287
+DATA bitrev_size16384_radix4_f64<>+0x1E888(SB)/8, $4383
+DATA bitrev_size16384_radix4_f64<>+0x1E890(SB)/8, $8479
+DATA bitrev_size16384_radix4_f64<>+0x1E898(SB)/8, $12575
+DATA bitrev_size16384_radix4_f64<>+0x1E8A0(SB)/8, $1311
+DATA bitrev_size16384_radix4_f64<>+0x1E8A8(SB)/8, $5407
+DATA bitrev_size16384_radix4_f64<>+0x1E8B0(SB)/8, $9503
+DATA bitrev_size16384_radix4_f64<>+0x1E8B8(SB)/8, $13599
+DATA bitrev_size16384_radix4_f64<>+0x1E8C0(SB)/8, $2335
+DATA bitrev_size16384_radix4_f64<>+0x1E8C8(SB)/8, $6431
+DATA bitrev_size16384_radix4_f64<>+0x1E8D0(SB)/8, $10527
+DATA bitrev_size16384_radix4_f64<>+0x1E8D8(SB)/8, $14623
+DATA bitrev_size16384_radix4_f64<>+0x1E8E0(SB)/8, $3359
+DATA bitrev_size16384_radix4_f64<>+0x1E8E8(SB)/8, $7455
+DATA bitrev_size16384_radix4_f64<>+0x1E8F0(SB)/8, $11551
+DATA bitrev_size16384_radix4_f64<>+0x1E8F8(SB)/8, $15647
+DATA bitrev_size16384_radix4_f64<>+0x1E900(SB)/8, $543
+DATA bitrev_size16384_radix4_f64<>+0x1E908(SB)/8, $4639
+DATA bitrev_size16384_radix4_f64<>+0x1E910(SB)/8, $8735
+DATA bitrev_size16384_radix4_f64<>+0x1E918(SB)/8, $12831
+DATA bitrev_size16384_radix4_f64<>+0x1E920(SB)/8, $1567
+DATA bitrev_size16384_radix4_f64<>+0x1E928(SB)/8, $5663
+DATA bitrev_size16384_radix4_f64<>+0x1E930(SB)/8, $9759
+DATA bitrev_size16384_radix4_f64<>+0x1E938(SB)/8, $13855
+DATA bitrev_size16384_radix4_f64<>+0x1E940(SB)/8, $2591
+DATA bitrev_size16384_radix4_f64<>+0x1E948(SB)/8, $6687
+DATA bitrev_size16384_radix4_f64<>+0x1E950(SB)/8, $10783
+DATA bitrev_size16384_radix4_f64<>+0x1E958(SB)/8, $14879
+DATA bitrev_size16384_radix4_f64<>+0x1E960(SB)/8, $3615
+DATA bitrev_size16384_radix4_f64<>+0x1E968(SB)/8, $7711
+DATA bitrev_size16384_radix4_f64<>+0x1E970(SB)/8, $11807
+DATA bitrev_size16384_radix4_f64<>+0x1E978(SB)/8, $15903
+DATA bitrev_size16384_radix4_f64<>+0x1E980(SB)/8, $799
+DATA bitrev_size16384_radix4_f64<>+0x1E988(SB)/8, $4895
+DATA bitrev_size16384_radix4_f64<>+0x1E990(SB)/8, $8991
+DATA bitrev_size16384_radix4_f64<>+0x1E998(SB)/8, $13087
+DATA bitrev_size16384_radix4_f64<>+0x1E9A0(SB)/8, $1823
+DATA bitrev_size16384_radix4_f64<>+0x1E9A8(SB)/8, $5919
+DATA bitrev_size16384_radix4_f64<>+0x1E9B0(SB)/8, $10015
+DATA bitrev_size16384_radix4_f64<>+0x1E9B8(SB)/8, $14111
+DATA bitrev_size16384_radix4_f64<>+0x1E9C0(SB)/8, $2847
+DATA bitrev_size16384_radix4_f64<>+0x1E9C8(SB)/8, $6943
+DATA bitrev_size16384_radix4_f64<>+0x1E9D0(SB)/8, $11039
+DATA bitrev_size16384_radix4_f64<>+0x1E9D8(SB)/8, $15135
+DATA bitrev_size16384_radix4_f64<>+0x1E9E0(SB)/8, $3871
+DATA bitrev_size16384_radix4_f64<>+0x1E9E8(SB)/8, $7967
+DATA bitrev_size16384_radix4_f64<>+0x1E9F0(SB)/8, $12063
+DATA bitrev_size16384_radix4_f64<>+0x1E9F8(SB)/8, $16159
+DATA bitrev_size16384_radix4_f64<>+0x1EA00(SB)/8, $95
+DATA bitrev_size16384_radix4_f64<>+0x1EA08(SB)/8, $4191
+DATA bitrev_size16384_radix4_f64<>+0x1EA10(SB)/8, $8287
+DATA bitrev_size16384_radix4_f64<>+0x1EA18(SB)/8, $12383
+DATA bitrev_size16384_radix4_f64<>+0x1EA20(SB)/8, $1119
+DATA bitrev_size16384_radix4_f64<>+0x1EA28(SB)/8, $5215
+DATA bitrev_size16384_radix4_f64<>+0x1EA30(SB)/8, $9311
+DATA bitrev_size16384_radix4_f64<>+0x1EA38(SB)/8, $13407
+DATA bitrev_size16384_radix4_f64<>+0x1EA40(SB)/8, $2143
+DATA bitrev_size16384_radix4_f64<>+0x1EA48(SB)/8, $6239
+DATA bitrev_size16384_radix4_f64<>+0x1EA50(SB)/8, $10335
+DATA bitrev_size16384_radix4_f64<>+0x1EA58(SB)/8, $14431
+DATA bitrev_size16384_radix4_f64<>+0x1EA60(SB)/8, $3167
+DATA bitrev_size16384_radix4_f64<>+0x1EA68(SB)/8, $7263
+DATA bitrev_size16384_radix4_f64<>+0x1EA70(SB)/8, $11359
+DATA bitrev_size16384_radix4_f64<>+0x1EA78(SB)/8, $15455
+DATA bitrev_size16384_radix4_f64<>+0x1EA80(SB)/8, $351
+DATA bitrev_size16384_radix4_f64<>+0x1EA88(SB)/8, $4447
+DATA bitrev_size16384_radix4_f64<>+0x1EA90(SB)/8, $8543
+DATA bitrev_size16384_radix4_f64<>+0x1EA98(SB)/8, $12639
+DATA bitrev_size16384_radix4_f64<>+0x1EAA0(SB)/8, $1375
+DATA bitrev_size16384_radix4_f64<>+0x1EAA8(SB)/8, $5471
+DATA bitrev_size16384_radix4_f64<>+0x1EAB0(SB)/8, $9567
+DATA bitrev_size16384_radix4_f64<>+0x1EAB8(SB)/8, $13663
+DATA bitrev_size16384_radix4_f64<>+0x1EAC0(SB)/8, $2399
+DATA bitrev_size16384_radix4_f64<>+0x1EAC8(SB)/8, $6495
+DATA bitrev_size16384_radix4_f64<>+0x1EAD0(SB)/8, $10591
+DATA bitrev_size16384_radix4_f64<>+0x1EAD8(SB)/8, $14687
+DATA bitrev_size16384_radix4_f64<>+0x1EAE0(SB)/8, $3423
+DATA bitrev_size16384_radix4_f64<>+0x1EAE8(SB)/8, $7519
+DATA bitrev_size16384_radix4_f64<>+0x1EAF0(SB)/8, $11615
+DATA bitrev_size16384_radix4_f64<>+0x1EAF8(SB)/8, $15711
+DATA bitrev_size16384_radix4_f64<>+0x1EB00(SB)/8, $607
+DATA bitrev_size16384_radix4_f64<>+0x1EB08(SB)/8, $4703
+DATA bitrev_size16384_radix4_f64<>+0x1EB10(SB)/8, $8799
+DATA bitrev_size16384_radix4_f64<>+0x1EB18(SB)/8, $12895
+DATA bitrev_size16384_radix4_f64<>+0x1EB20(SB)/8, $1631
+DATA bitrev_size16384_radix4_f64<>+0x1EB28(SB)/8, $5727
+DATA bitrev_size16384_radix4_f64<>+0x1EB30(SB)/8, $9823
+DATA bitrev_size16384_radix4_f64<>+0x1EB38(SB)/8, $13919
+DATA bitrev_size16384_radix4_f64<>+0x1EB40(SB)/8, $2655
+DATA bitrev_size16384_radix4_f64<>+0x1EB48(SB)/8, $6751
+DATA bitrev_size16384_radix4_f64<>+0x1EB50(SB)/8, $10847
+DATA bitrev_size16384_radix4_f64<>+0x1EB58(SB)/8, $14943
+DATA bitrev_size16384_radix4_f64<>+0x1EB60(SB)/8, $3679
+DATA bitrev_size16384_radix4_f64<>+0x1EB68(SB)/8, $7775
+DATA bitrev_size16384_radix4_f64<>+0x1EB70(SB)/8, $11871
+DATA bitrev_size16384_radix4_f64<>+0x1EB78(SB)/8, $15967
+DATA bitrev_size16384_radix4_f64<>+0x1EB80(SB)/8, $863
+DATA bitrev_size16384_radix4_f64<>+0x1EB88(SB)/8, $4959
+DATA bitrev_size16384_radix4_f64<>+0x1EB90(SB)/8, $9055
+DATA bitrev_size16384_radix4_f64<>+0x1EB98(SB)/8, $13151
+DATA bitrev_size16384_radix4_f64<>+0x1EBA0(SB)/8, $1887
+DATA bitrev_size16384_radix4_f64<>+0x1EBA8(SB)/8, $5983
+DATA bitrev_size16384_radix4_f64<>+0x1EBB0(SB)/8, $10079
+DATA bitrev_size16384_radix4_f64<>+0x1EBB8(SB)/8, $14175
+DATA bitrev_size16384_radix4_f64<>+0x1EBC0(SB)/8, $2911
+DATA bitrev_size16384_radix4_f64<>+0x1EBC8(SB)/8, $7007
+DATA bitrev_size16384_radix4_f64<>+0x1EBD0(SB)/8, $11103
+DATA bitrev_size16384_radix4_f64<>+0x1EBD8(SB)/8, $15199
+DATA bitrev_size16384_radix4_f64<>+0x1EBE0(SB)/8, $3935
+DATA bitrev_size16384_radix4_f64<>+0x1EBE8(SB)/8, $8031
+DATA bitrev_size16384_radix4_f64<>+0x1EBF0(SB)/8, $12127
+DATA bitrev_size16384_radix4_f64<>+0x1EBF8(SB)/8, $16223
+DATA bitrev_size16384_radix4_f64<>+0x1EC00(SB)/8, $159
+DATA bitrev_size16384_radix4_f64<>+0x1EC08(SB)/8, $4255
+DATA bitrev_size16384_radix4_f64<>+0x1EC10(SB)/8, $8351
+DATA bitrev_size16384_radix4_f64<>+0x1EC18(SB)/8, $12447
+DATA bitrev_size16384_radix4_f64<>+0x1EC20(SB)/8, $1183
+DATA bitrev_size16384_radix4_f64<>+0x1EC28(SB)/8, $5279
+DATA bitrev_size16384_radix4_f64<>+0x1EC30(SB)/8, $9375
+DATA bitrev_size16384_radix4_f64<>+0x1EC38(SB)/8, $13471
+DATA bitrev_size16384_radix4_f64<>+0x1EC40(SB)/8, $2207
+DATA bitrev_size16384_radix4_f64<>+0x1EC48(SB)/8, $6303
+DATA bitrev_size16384_radix4_f64<>+0x1EC50(SB)/8, $10399
+DATA bitrev_size16384_radix4_f64<>+0x1EC58(SB)/8, $14495
+DATA bitrev_size16384_radix4_f64<>+0x1EC60(SB)/8, $3231
+DATA bitrev_size16384_radix4_f64<>+0x1EC68(SB)/8, $7327
+DATA bitrev_size16384_radix4_f64<>+0x1EC70(SB)/8, $11423
+DATA bitrev_size16384_radix4_f64<>+0x1EC78(SB)/8, $15519
+DATA bitrev_size16384_radix4_f64<>+0x1EC80(SB)/8, $415
+DATA bitrev_size16384_radix4_f64<>+0x1EC88(SB)/8, $4511
+DATA bitrev_size16384_radix4_f64<>+0x1EC90(SB)/8, $8607
+DATA bitrev_size16384_radix4_f64<>+0x1EC98(SB)/8, $12703
+DATA bitrev_size16384_radix4_f64<>+0x1ECA0(SB)/8, $1439
+DATA bitrev_size16384_radix4_f64<>+0x1ECA8(SB)/8, $5535
+DATA bitrev_size16384_radix4_f64<>+0x1ECB0(SB)/8, $9631
+DATA bitrev_size16384_radix4_f64<>+0x1ECB8(SB)/8, $13727
+DATA bitrev_size16384_radix4_f64<>+0x1ECC0(SB)/8, $2463
+DATA bitrev_size16384_radix4_f64<>+0x1ECC8(SB)/8, $6559
+DATA bitrev_size16384_radix4_f64<>+0x1ECD0(SB)/8, $10655
+DATA bitrev_size16384_radix4_f64<>+0x1ECD8(SB)/8, $14751
+DATA bitrev_size16384_radix4_f64<>+0x1ECE0(SB)/8, $3487
+DATA bitrev_size16384_radix4_f64<>+0x1ECE8(SB)/8, $7583
+DATA bitrev_size16384_radix4_f64<>+0x1ECF0(SB)/8, $11679
+DATA bitrev_size16384_radix4_f64<>+0x1ECF8(SB)/8, $15775
+DATA bitrev_size16384_radix4_f64<>+0x1ED00(SB)/8, $671
+DATA bitrev_size16384_radix4_f64<>+0x1ED08(SB)/8, $4767
+DATA bitrev_size16384_radix4_f64<>+0x1ED10(SB)/8, $8863
+DATA bitrev_size16384_radix4_f64<>+0x1ED18(SB)/8, $12959
+DATA bitrev_size16384_radix4_f64<>+0x1ED20(SB)/8, $1695
+DATA bitrev_size16384_radix4_f64<>+0x1ED28(SB)/8, $5791
+DATA bitrev_size16384_radix4_f64<>+0x1ED30(SB)/8, $9887
+DATA bitrev_size16384_radix4_f64<>+0x1ED38(SB)/8, $13983
+DATA bitrev_size16384_radix4_f64<>+0x1ED40(SB)/8, $2719
+DATA bitrev_size16384_radix4_f64<>+0x1ED48(SB)/8, $6815
+DATA bitrev_size16384_radix4_f64<>+0x1ED50(SB)/8, $10911
+DATA bitrev_size16384_radix4_f64<>+0x1ED58(SB)/8, $15007
+DATA bitrev_size16384_radix4_f64<>+0x1ED60(SB)/8, $3743
+DATA bitrev_size16384_radix4_f64<>+0x1ED68(SB)/8, $7839
+DATA bitrev_size16384_radix4_f64<>+0x1ED70(SB)/8, $11935
+DATA bitrev_size16384_radix4_f64<>+0x1ED78(SB)/8, $16031
+DATA bitrev_size16384_radix4_f64<>+0x1ED80(SB)/8, $927
+DATA bitrev_size16384_radix4_f64<>+0x1ED88(SB)/8, $5023
+DATA bitrev_size16384_radix4_f64<>+0x1ED90(SB)/8, $9119
+DATA bitrev_size16384_radix4_f64<>+0x1ED98(SB)/8, $13215
+DATA bitrev_size16384_radix4_f64<>+0x1EDA0(SB)/8, $1951
+DATA bitrev_size16384_radix4_f64<>+0x1EDA8(SB)/8, $6047
+DATA bitrev_size16384_radix4_f64<>+0x1EDB0(SB)/8, $10143
+DATA bitrev_size16384_radix4_f64<>+0x1EDB8(SB)/8, $14239
+DATA bitrev_size16384_radix4_f64<>+0x1EDC0(SB)/8, $2975
+DATA bitrev_size16384_radix4_f64<>+0x1EDC8(SB)/8, $7071
+DATA bitrev_size16384_radix4_f64<>+0x1EDD0(SB)/8, $11167
+DATA bitrev_size16384_radix4_f64<>+0x1EDD8(SB)/8, $15263
+DATA bitrev_size16384_radix4_f64<>+0x1EDE0(SB)/8, $3999
+DATA bitrev_size16384_radix4_f64<>+0x1EDE8(SB)/8, $8095
+DATA bitrev_size16384_radix4_f64<>+0x1EDF0(SB)/8, $12191
+DATA bitrev_size16384_radix4_f64<>+0x1EDF8(SB)/8, $16287
+DATA bitrev_size16384_radix4_f64<>+0x1EE00(SB)/8, $223
+DATA bitrev_size16384_radix4_f64<>+0x1EE08(SB)/8, $4319
+DATA bitrev_size16384_radix4_f64<>+0x1EE10(SB)/8, $8415
+DATA bitrev_size16384_radix4_f64<>+0x1EE18(SB)/8, $12511
+DATA bitrev_size16384_radix4_f64<>+0x1EE20(SB)/8, $1247
+DATA bitrev_size16384_radix4_f64<>+0x1EE28(SB)/8, $5343
+DATA bitrev_size16384_radix4_f64<>+0x1EE30(SB)/8, $9439
+DATA bitrev_size16384_radix4_f64<>+0x1EE38(SB)/8, $13535
+DATA bitrev_size16384_radix4_f64<>+0x1EE40(SB)/8, $2271
+DATA bitrev_size16384_radix4_f64<>+0x1EE48(SB)/8, $6367
+DATA bitrev_size16384_radix4_f64<>+0x1EE50(SB)/8, $10463
+DATA bitrev_size16384_radix4_f64<>+0x1EE58(SB)/8, $14559
+DATA bitrev_size16384_radix4_f64<>+0x1EE60(SB)/8, $3295
+DATA bitrev_size16384_radix4_f64<>+0x1EE68(SB)/8, $7391
+DATA bitrev_size16384_radix4_f64<>+0x1EE70(SB)/8, $11487
+DATA bitrev_size16384_radix4_f64<>+0x1EE78(SB)/8, $15583
+DATA bitrev_size16384_radix4_f64<>+0x1EE80(SB)/8, $479
+DATA bitrev_size16384_radix4_f64<>+0x1EE88(SB)/8, $4575
+DATA bitrev_size16384_radix4_f64<>+0x1EE90(SB)/8, $8671
+DATA bitrev_size16384_radix4_f64<>+0x1EE98(SB)/8, $12767
+DATA bitrev_size16384_radix4_f64<>+0x1EEA0(SB)/8, $1503
+DATA bitrev_size16384_radix4_f64<>+0x1EEA8(SB)/8, $5599
+DATA bitrev_size16384_radix4_f64<>+0x1EEB0(SB)/8, $9695
+DATA bitrev_size16384_radix4_f64<>+0x1EEB8(SB)/8, $13791
+DATA bitrev_size16384_radix4_f64<>+0x1EEC0(SB)/8, $2527
+DATA bitrev_size16384_radix4_f64<>+0x1EEC8(SB)/8, $6623
+DATA bitrev_size16384_radix4_f64<>+0x1EED0(SB)/8, $10719
+DATA bitrev_size16384_radix4_f64<>+0x1EED8(SB)/8, $14815
+DATA bitrev_size16384_radix4_f64<>+0x1EEE0(SB)/8, $3551
+DATA bitrev_size16384_radix4_f64<>+0x1EEE8(SB)/8, $7647
+DATA bitrev_size16384_radix4_f64<>+0x1EEF0(SB)/8, $11743
+DATA bitrev_size16384_radix4_f64<>+0x1EEF8(SB)/8, $15839
+DATA bitrev_size16384_radix4_f64<>+0x1EF00(SB)/8, $735
+DATA bitrev_size16384_radix4_f64<>+0x1EF08(SB)/8, $4831
+DATA bitrev_size16384_radix4_f64<>+0x1EF10(SB)/8, $8927
+DATA bitrev_size16384_radix4_f64<>+0x1EF18(SB)/8, $13023
+DATA bitrev_size16384_radix4_f64<>+0x1EF20(SB)/8, $1759
+DATA bitrev_size16384_radix4_f64<>+0x1EF28(SB)/8, $5855
+DATA bitrev_size16384_radix4_f64<>+0x1EF30(SB)/8, $9951
+DATA bitrev_size16384_radix4_f64<>+0x1EF38(SB)/8, $14047
+DATA bitrev_size16384_radix4_f64<>+0x1EF40(SB)/8, $2783
+DATA bitrev_size16384_radix4_f64<>+0x1EF48(SB)/8, $6879
+DATA bitrev_size16384_radix4_f64<>+0x1EF50(SB)/8, $10975
+DATA bitrev_size16384_radix4_f64<>+0x1EF58(SB)/8, $15071
+DATA bitrev_size16384_radix4_f64<>+0x1EF60(SB)/8, $3807
+DATA bitrev_size16384_radix4_f64<>+0x1EF68(SB)/8, $7903
+DATA bitrev_size16384_radix4_f64<>+0x1EF70(SB)/8, $11999
+DATA bitrev_size16384_radix4_f64<>+0x1EF78(SB)/8, $16095
+DATA bitrev_size16384_radix4_f64<>+0x1EF80(SB)/8, $991
+DATA bitrev_size16384_radix4_f64<>+0x1EF88(SB)/8, $5087
+DATA bitrev_size16384_radix4_f64<>+0x1EF90(SB)/8, $9183
+DATA bitrev_size16384_radix4_f64<>+0x1EF98(SB)/8, $13279
+DATA bitrev_size16384_radix4_f64<>+0x1EFA0(SB)/8, $2015
+DATA bitrev_size16384_radix4_f64<>+0x1EFA8(SB)/8, $6111
+DATA bitrev_size16384_radix4_f64<>+0x1EFB0(SB)/8, $10207
+DATA bitrev_size16384_radix4_f64<>+0x1EFB8(SB)/8, $14303
+DATA bitrev_size16384_radix4_f64<>+0x1EFC0(SB)/8, $3039
+DATA bitrev_size16384_radix4_f64<>+0x1EFC8(SB)/8, $7135
+DATA bitrev_size16384_radix4_f64<>+0x1EFD0(SB)/8, $11231
+DATA bitrev_size16384_radix4_f64<>+0x1EFD8(SB)/8, $15327
+DATA bitrev_size16384_radix4_f64<>+0x1EFE0(SB)/8, $4063
+DATA bitrev_size16384_radix4_f64<>+0x1EFE8(SB)/8, $8159
+DATA bitrev_size16384_radix4_f64<>+0x1EFF0(SB)/8, $12255
+DATA bitrev_size16384_radix4_f64<>+0x1EFF8(SB)/8, $16351
+DATA bitrev_size16384_radix4_f64<>+0x1F000(SB)/8, $47
+DATA bitrev_size16384_radix4_f64<>+0x1F008(SB)/8, $4143
+DATA bitrev_size16384_radix4_f64<>+0x1F010(SB)/8, $8239
+DATA bitrev_size16384_radix4_f64<>+0x1F018(SB)/8, $12335
+DATA bitrev_size16384_radix4_f64<>+0x1F020(SB)/8, $1071
+DATA bitrev_size16384_radix4_f64<>+0x1F028(SB)/8, $5167
+DATA bitrev_size16384_radix4_f64<>+0x1F030(SB)/8, $9263
+DATA bitrev_size16384_radix4_f64<>+0x1F038(SB)/8, $13359
+DATA bitrev_size16384_radix4_f64<>+0x1F040(SB)/8, $2095
+DATA bitrev_size16384_radix4_f64<>+0x1F048(SB)/8, $6191
+DATA bitrev_size16384_radix4_f64<>+0x1F050(SB)/8, $10287
+DATA bitrev_size16384_radix4_f64<>+0x1F058(SB)/8, $14383
+DATA bitrev_size16384_radix4_f64<>+0x1F060(SB)/8, $3119
+DATA bitrev_size16384_radix4_f64<>+0x1F068(SB)/8, $7215
+DATA bitrev_size16384_radix4_f64<>+0x1F070(SB)/8, $11311
+DATA bitrev_size16384_radix4_f64<>+0x1F078(SB)/8, $15407
+DATA bitrev_size16384_radix4_f64<>+0x1F080(SB)/8, $303
+DATA bitrev_size16384_radix4_f64<>+0x1F088(SB)/8, $4399
+DATA bitrev_size16384_radix4_f64<>+0x1F090(SB)/8, $8495
+DATA bitrev_size16384_radix4_f64<>+0x1F098(SB)/8, $12591
+DATA bitrev_size16384_radix4_f64<>+0x1F0A0(SB)/8, $1327
+DATA bitrev_size16384_radix4_f64<>+0x1F0A8(SB)/8, $5423
+DATA bitrev_size16384_radix4_f64<>+0x1F0B0(SB)/8, $9519
+DATA bitrev_size16384_radix4_f64<>+0x1F0B8(SB)/8, $13615
+DATA bitrev_size16384_radix4_f64<>+0x1F0C0(SB)/8, $2351
+DATA bitrev_size16384_radix4_f64<>+0x1F0C8(SB)/8, $6447
+DATA bitrev_size16384_radix4_f64<>+0x1F0D0(SB)/8, $10543
+DATA bitrev_size16384_radix4_f64<>+0x1F0D8(SB)/8, $14639
+DATA bitrev_size16384_radix4_f64<>+0x1F0E0(SB)/8, $3375
+DATA bitrev_size16384_radix4_f64<>+0x1F0E8(SB)/8, $7471
+DATA bitrev_size16384_radix4_f64<>+0x1F0F0(SB)/8, $11567
+DATA bitrev_size16384_radix4_f64<>+0x1F0F8(SB)/8, $15663
+DATA bitrev_size16384_radix4_f64<>+0x1F100(SB)/8, $559
+DATA bitrev_size16384_radix4_f64<>+0x1F108(SB)/8, $4655
+DATA bitrev_size16384_radix4_f64<>+0x1F110(SB)/8, $8751
+DATA bitrev_size16384_radix4_f64<>+0x1F118(SB)/8, $12847
+DATA bitrev_size16384_radix4_f64<>+0x1F120(SB)/8, $1583
+DATA bitrev_size16384_radix4_f64<>+0x1F128(SB)/8, $5679
+DATA bitrev_size16384_radix4_f64<>+0x1F130(SB)/8, $9775
+DATA bitrev_size16384_radix4_f64<>+0x1F138(SB)/8, $13871
+DATA bitrev_size16384_radix4_f64<>+0x1F140(SB)/8, $2607
+DATA bitrev_size16384_radix4_f64<>+0x1F148(SB)/8, $6703
+DATA bitrev_size16384_radix4_f64<>+0x1F150(SB)/8, $10799
+DATA bitrev_size16384_radix4_f64<>+0x1F158(SB)/8, $14895
+DATA bitrev_size16384_radix4_f64<>+0x1F160(SB)/8, $3631
+DATA bitrev_size16384_radix4_f64<>+0x1F168(SB)/8, $7727
+DATA bitrev_size16384_radix4_f64<>+0x1F170(SB)/8, $11823
+DATA bitrev_size16384_radix4_f64<>+0x1F178(SB)/8, $15919
+DATA bitrev_size16384_radix4_f64<>+0x1F180(SB)/8, $815
+DATA bitrev_size16384_radix4_f64<>+0x1F188(SB)/8, $4911
+DATA bitrev_size16384_radix4_f64<>+0x1F190(SB)/8, $9007
+DATA bitrev_size16384_radix4_f64<>+0x1F198(SB)/8, $13103
+DATA bitrev_size16384_radix4_f64<>+0x1F1A0(SB)/8, $1839
+DATA bitrev_size16384_radix4_f64<>+0x1F1A8(SB)/8, $5935
+DATA bitrev_size16384_radix4_f64<>+0x1F1B0(SB)/8, $10031
+DATA bitrev_size16384_radix4_f64<>+0x1F1B8(SB)/8, $14127
+DATA bitrev_size16384_radix4_f64<>+0x1F1C0(SB)/8, $2863
+DATA bitrev_size16384_radix4_f64<>+0x1F1C8(SB)/8, $6959
+DATA bitrev_size16384_radix4_f64<>+0x1F1D0(SB)/8, $11055
+DATA bitrev_size16384_radix4_f64<>+0x1F1D8(SB)/8, $15151
+DATA bitrev_size16384_radix4_f64<>+0x1F1E0(SB)/8, $3887
+DATA bitrev_size16384_radix4_f64<>+0x1F1E8(SB)/8, $7983
+DATA bitrev_size16384_radix4_f64<>+0x1F1F0(SB)/8, $12079
+DATA bitrev_size16384_radix4_f64<>+0x1F1F8(SB)/8, $16175
+DATA bitrev_size16384_radix4_f64<>+0x1F200(SB)/8, $111
+DATA bitrev_size16384_radix4_f64<>+0x1F208(SB)/8, $4207
+DATA bitrev_size16384_radix4_f64<>+0x1F210(SB)/8, $8303
+DATA bitrev_size16384_radix4_f64<>+0x1F218(SB)/8, $12399
+DATA bitrev_size16384_radix4_f64<>+0x1F220(SB)/8, $1135
+DATA bitrev_size16384_radix4_f64<>+0x1F228(SB)/8, $5231
+DATA bitrev_size16384_radix4_f64<>+0x1F230(SB)/8, $9327
+DATA bitrev_size16384_radix4_f64<>+0x1F238(SB)/8, $13423
+DATA bitrev_size16384_radix4_f64<>+0x1F240(SB)/8, $2159
+DATA bitrev_size16384_radix4_f64<>+0x1F248(SB)/8, $6255
+DATA bitrev_size16384_radix4_f64<>+0x1F250(SB)/8, $10351
+DATA bitrev_size16384_radix4_f64<>+0x1F258(SB)/8, $14447
+DATA bitrev_size16384_radix4_f64<>+0x1F260(SB)/8, $3183
+DATA bitrev_size16384_radix4_f64<>+0x1F268(SB)/8, $7279
+DATA bitrev_size16384_radix4_f64<>+0x1F270(SB)/8, $11375
+DATA bitrev_size16384_radix4_f64<>+0x1F278(SB)/8, $15471
+DATA bitrev_size16384_radix4_f64<>+0x1F280(SB)/8, $367
+DATA bitrev_size16384_radix4_f64<>+0x1F288(SB)/8, $4463
+DATA bitrev_size16384_radix4_f64<>+0x1F290(SB)/8, $8559
+DATA bitrev_size16384_radix4_f64<>+0x1F298(SB)/8, $12655
+DATA bitrev_size16384_radix4_f64<>+0x1F2A0(SB)/8, $1391
+DATA bitrev_size16384_radix4_f64<>+0x1F2A8(SB)/8, $5487
+DATA bitrev_size16384_radix4_f64<>+0x1F2B0(SB)/8, $9583
+DATA bitrev_size16384_radix4_f64<>+0x1F2B8(SB)/8, $13679
+DATA bitrev_size16384_radix4_f64<>+0x1F2C0(SB)/8, $2415
+DATA bitrev_size16384_radix4_f64<>+0x1F2C8(SB)/8, $6511
+DATA bitrev_size16384_radix4_f64<>+0x1F2D0(SB)/8, $10607
+DATA bitrev_size16384_radix4_f64<>+0x1F2D8(SB)/8, $14703
+DATA bitrev_size16384_radix4_f64<>+0x1F2E0(SB)/8, $3439
+DATA bitrev_size16384_radix4_f64<>+0x1F2E8(SB)/8, $7535
+DATA bitrev_size16384_radix4_f64<>+0x1F2F0(SB)/8, $11631
+DATA bitrev_size16384_radix4_f64<>+0x1F2F8(SB)/8, $15727
+DATA bitrev_size16384_radix4_f64<>+0x1F300(SB)/8, $623
+DATA bitrev_size16384_radix4_f64<>+0x1F308(SB)/8, $4719
+DATA bitrev_size16384_radix4_f64<>+0x1F310(SB)/8, $8815
+DATA bitrev_size16384_radix4_f64<>+0x1F318(SB)/8, $12911
+DATA bitrev_size16384_radix4_f64<>+0x1F320(SB)/8, $1647
+DATA bitrev_size16384_radix4_f64<>+0x1F328(SB)/8, $5743
+DATA bitrev_size16384_radix4_f64<>+0x1F330(SB)/8, $9839
+DATA bitrev_size16384_radix4_f64<>+0x1F338(SB)/8, $13935
+DATA bitrev_size16384_radix4_f64<>+0x1F340(SB)/8, $2671
+DATA bitrev_size16384_radix4_f64<>+0x1F348(SB)/8, $6767
+DATA bitrev_size16384_radix4_f64<>+0x1F350(SB)/8, $10863
+DATA bitrev_size16384_radix4_f64<>+0x1F358(SB)/8, $14959
+DATA bitrev_size16384_radix4_f64<>+0x1F360(SB)/8, $3695
+DATA bitrev_size16384_radix4_f64<>+0x1F368(SB)/8, $7791
+DATA bitrev_size16384_radix4_f64<>+0x1F370(SB)/8, $11887
+DATA bitrev_size16384_radix4_f64<>+0x1F378(SB)/8, $15983
+DATA bitrev_size16384_radix4_f64<>+0x1F380(SB)/8, $879
+DATA bitrev_size16384_radix4_f64<>+0x1F388(SB)/8, $4975
+DATA bitrev_size16384_radix4_f64<>+0x1F390(SB)/8, $9071
+DATA bitrev_size16384_radix4_f64<>+0x1F398(SB)/8, $13167
+DATA bitrev_size16384_radix4_f64<>+0x1F3A0(SB)/8, $1903
+DATA bitrev_size16384_radix4_f64<>+0x1F3A8(SB)/8, $5999
+DATA bitrev_size16384_radix4_f64<>+0x1F3B0(SB)/8, $10095
+DATA bitrev_size16384_radix4_f64<>+0x1F3B8(SB)/8, $14191
+DATA bitrev_size16384_radix4_f64<>+0x1F3C0(SB)/8, $2927
+DATA bitrev_size16384_radix4_f64<>+0x1F3C8(SB)/8, $7023
+DATA bitrev_size16384_radix4_f64<>+0x1F3D0(SB)/8, $11119
+DATA bitrev_size16384_radix4_f64<>+0x1F3D8(SB)/8, $15215
+DATA bitrev_size16384_radix4_f64<>+0x1F3E0(SB)/8, $3951
+DATA bitrev_size16384_radix4_f64<>+0x1F3E8(SB)/8, $8047
+DATA bitrev_size16384_radix4_f64<>+0x1F3F0(SB)/8, $12143
+DATA bitrev_size16384_radix4_f64<>+0x1F3F8(SB)/8, $16239
+DATA bitrev_size16384_radix4_f64<>+0x1F400(SB)/8, $175
+DATA bitrev_size16384_radix4_f64<>+0x1F408(SB)/8, $4271
+DATA bitrev_size16384_radix4_f64<>+0x1F410(SB)/8, $8367
+DATA bitrev_size16384_radix4_f64<>+0x1F418(SB)/8, $12463
+DATA bitrev_size16384_radix4_f64<>+0x1F420(SB)/8, $1199
+DATA bitrev_size16384_radix4_f64<>+0x1F428(SB)/8, $5295
+DATA bitrev_size16384_radix4_f64<>+0x1F430(SB)/8, $9391
+DATA bitrev_size16384_radix4_f64<>+0x1F438(SB)/8, $13487
+DATA bitrev_size16384_radix4_f64<>+0x1F440(SB)/8, $2223
+DATA bitrev_size16384_radix4_f64<>+0x1F448(SB)/8, $6319
+DATA bitrev_size16384_radix4_f64<>+0x1F450(SB)/8, $10415
+DATA bitrev_size16384_radix4_f64<>+0x1F458(SB)/8, $14511
+DATA bitrev_size16384_radix4_f64<>+0x1F460(SB)/8, $3247
+DATA bitrev_size16384_radix4_f64<>+0x1F468(SB)/8, $7343
+DATA bitrev_size16384_radix4_f64<>+0x1F470(SB)/8, $11439
+DATA bitrev_size16384_radix4_f64<>+0x1F478(SB)/8, $15535
+DATA bitrev_size16384_radix4_f64<>+0x1F480(SB)/8, $431
+DATA bitrev_size16384_radix4_f64<>+0x1F488(SB)/8, $4527
+DATA bitrev_size16384_radix4_f64<>+0x1F490(SB)/8, $8623
+DATA bitrev_size16384_radix4_f64<>+0x1F498(SB)/8, $12719
+DATA bitrev_size16384_radix4_f64<>+0x1F4A0(SB)/8, $1455
+DATA bitrev_size16384_radix4_f64<>+0x1F4A8(SB)/8, $5551
+DATA bitrev_size16384_radix4_f64<>+0x1F4B0(SB)/8, $9647
+DATA bitrev_size16384_radix4_f64<>+0x1F4B8(SB)/8, $13743
+DATA bitrev_size16384_radix4_f64<>+0x1F4C0(SB)/8, $2479
+DATA bitrev_size16384_radix4_f64<>+0x1F4C8(SB)/8, $6575
+DATA bitrev_size16384_radix4_f64<>+0x1F4D0(SB)/8, $10671
+DATA bitrev_size16384_radix4_f64<>+0x1F4D8(SB)/8, $14767
+DATA bitrev_size16384_radix4_f64<>+0x1F4E0(SB)/8, $3503
+DATA bitrev_size16384_radix4_f64<>+0x1F4E8(SB)/8, $7599
+DATA bitrev_size16384_radix4_f64<>+0x1F4F0(SB)/8, $11695
+DATA bitrev_size16384_radix4_f64<>+0x1F4F8(SB)/8, $15791
+DATA bitrev_size16384_radix4_f64<>+0x1F500(SB)/8, $687
+DATA bitrev_size16384_radix4_f64<>+0x1F508(SB)/8, $4783
+DATA bitrev_size16384_radix4_f64<>+0x1F510(SB)/8, $8879
+DATA bitrev_size16384_radix4_f64<>+0x1F518(SB)/8, $12975
+DATA bitrev_size16384_radix4_f64<>+0x1F520(SB)/8, $1711
+DATA bitrev_size16384_radix4_f64<>+0x1F528(SB)/8, $5807
+DATA bitrev_size16384_radix4_f64<>+0x1F530(SB)/8, $9903
+DATA bitrev_size16384_radix4_f64<>+0x1F538(SB)/8, $13999
+DATA bitrev_size16384_radix4_f64<>+0x1F540(SB)/8, $2735
+DATA bitrev_size16384_radix4_f64<>+0x1F548(SB)/8, $6831
+DATA bitrev_size16384_radix4_f64<>+0x1F550(SB)/8, $10927
+DATA bitrev_size16384_radix4_f64<>+0x1F558(SB)/8, $15023
+DATA bitrev_size16384_radix4_f64<>+0x1F560(SB)/8, $3759
+DATA bitrev_size16384_radix4_f64<>+0x1F568(SB)/8, $7855
+DATA bitrev_size16384_radix4_f64<>+0x1F570(SB)/8, $11951
+DATA bitrev_size16384_radix4_f64<>+0x1F578(SB)/8, $16047
+DATA bitrev_size16384_radix4_f64<>+0x1F580(SB)/8, $943
+DATA bitrev_size16384_radix4_f64<>+0x1F588(SB)/8, $5039
+DATA bitrev_size16384_radix4_f64<>+0x1F590(SB)/8, $9135
+DATA bitrev_size16384_radix4_f64<>+0x1F598(SB)/8, $13231
+DATA bitrev_size16384_radix4_f64<>+0x1F5A0(SB)/8, $1967
+DATA bitrev_size16384_radix4_f64<>+0x1F5A8(SB)/8, $6063
+DATA bitrev_size16384_radix4_f64<>+0x1F5B0(SB)/8, $10159
+DATA bitrev_size16384_radix4_f64<>+0x1F5B8(SB)/8, $14255
+DATA bitrev_size16384_radix4_f64<>+0x1F5C0(SB)/8, $2991
+DATA bitrev_size16384_radix4_f64<>+0x1F5C8(SB)/8, $7087
+DATA bitrev_size16384_radix4_f64<>+0x1F5D0(SB)/8, $11183
+DATA bitrev_size16384_radix4_f64<>+0x1F5D8(SB)/8, $15279
+DATA bitrev_size16384_radix4_f64<>+0x1F5E0(SB)/8, $4015
+DATA bitrev_size16384_radix4_f64<>+0x1F5E8(SB)/8, $8111
+DATA bitrev_size16384_radix4_f64<>+0x1F5F0(SB)/8, $12207
+DATA bitrev_size16384_radix4_f64<>+0x1F5F8(SB)/8, $16303
+DATA bitrev_size16384_radix4_f64<>+0x1F600(SB)/8, $239
+DATA bitrev_size16384_radix4_f64<>+0x1F608(SB)/8, $4335
+DATA bitrev_size16384_radix4_f64<>+0x1F610(SB)/8, $8431
+DATA bitrev_size16384_radix4_f64<>+0x1F618(SB)/8, $12527
+DATA bitrev_size16384_radix4_f64<>+0x1F620(SB)/8, $1263
+DATA bitrev_size16384_radix4_f64<>+0x1F628(SB)/8, $5359
+DATA bitrev_size16384_radix4_f64<>+0x1F630(SB)/8, $9455
+DATA bitrev_size16384_radix4_f64<>+0x1F638(SB)/8, $13551
+DATA bitrev_size16384_radix4_f64<>+0x1F640(SB)/8, $2287
+DATA bitrev_size16384_radix4_f64<>+0x1F648(SB)/8, $6383
+DATA bitrev_size16384_radix4_f64<>+0x1F650(SB)/8, $10479
+DATA bitrev_size16384_radix4_f64<>+0x1F658(SB)/8, $14575
+DATA bitrev_size16384_radix4_f64<>+0x1F660(SB)/8, $3311
+DATA bitrev_size16384_radix4_f64<>+0x1F668(SB)/8, $7407
+DATA bitrev_size16384_radix4_f64<>+0x1F670(SB)/8, $11503
+DATA bitrev_size16384_radix4_f64<>+0x1F678(SB)/8, $15599
+DATA bitrev_size16384_radix4_f64<>+0x1F680(SB)/8, $495
+DATA bitrev_size16384_radix4_f64<>+0x1F688(SB)/8, $4591
+DATA bitrev_size16384_radix4_f64<>+0x1F690(SB)/8, $8687
+DATA bitrev_size16384_radix4_f64<>+0x1F698(SB)/8, $12783
+DATA bitrev_size16384_radix4_f64<>+0x1F6A0(SB)/8, $1519
+DATA bitrev_size16384_radix4_f64<>+0x1F6A8(SB)/8, $5615
+DATA bitrev_size16384_radix4_f64<>+0x1F6B0(SB)/8, $9711
+DATA bitrev_size16384_radix4_f64<>+0x1F6B8(SB)/8, $13807
+DATA bitrev_size16384_radix4_f64<>+0x1F6C0(SB)/8, $2543
+DATA bitrev_size16384_radix4_f64<>+0x1F6C8(SB)/8, $6639
+DATA bitrev_size16384_radix4_f64<>+0x1F6D0(SB)/8, $10735
+DATA bitrev_size16384_radix4_f64<>+0x1F6D8(SB)/8, $14831
+DATA bitrev_size16384_radix4_f64<>+0x1F6E0(SB)/8, $3567
+DATA bitrev_size16384_radix4_f64<>+0x1F6E8(SB)/8, $7663
+DATA bitrev_size16384_radix4_f64<>+0x1F6F0(SB)/8, $11759
+DATA bitrev_size16384_radix4_f64<>+0x1F6F8(SB)/8, $15855
+DATA bitrev_size16384_radix4_f64<>+0x1F700(SB)/8, $751
+DATA bitrev_size16384_radix4_f64<>+0x1F708(SB)/8, $4847
+DATA bitrev_size16384_radix4_f64<>+0x1F710(SB)/8, $8943
+DATA bitrev_size16384_radix4_f64<>+0x1F718(SB)/8, $13039
+DATA bitrev_size16384_radix4_f64<>+0x1F720(SB)/8, $1775
+DATA bitrev_size16384_radix4_f64<>+0x1F728(SB)/8, $5871
+DATA bitrev_size16384_radix4_f64<>+0x1F730(SB)/8, $9967
+DATA bitrev_size16384_radix4_f64<>+0x1F738(SB)/8, $14063
+DATA bitrev_size16384_radix4_f64<>+0x1F740(SB)/8, $2799
+DATA bitrev_size16384_radix4_f64<>+0x1F748(SB)/8, $6895
+DATA bitrev_size16384_radix4_f64<>+0x1F750(SB)/8, $10991
+DATA bitrev_size16384_radix4_f64<>+0x1F758(SB)/8, $15087
+DATA bitrev_size16384_radix4_f64<>+0x1F760(SB)/8, $3823
+DATA bitrev_size16384_radix4_f64<>+0x1F768(SB)/8, $7919
+DATA bitrev_size16384_radix4_f64<>+0x1F770(SB)/8, $12015
+DATA bitrev_size16384_radix4_f64<>+0x1F778(SB)/8, $16111
+DATA bitrev_size16384_radix4_f64<>+0x1F780(SB)/8, $1007
+DATA bitrev_size16384_radix4_f64<>+0x1F788(SB)/8, $5103
+DATA bitrev_size16384_radix4_f64<>+0x1F790(SB)/8, $9199
+DATA bitrev_size16384_radix4_f64<>+0x1F798(SB)/8, $13295
+DATA bitrev_size16384_radix4_f64<>+0x1F7A0(SB)/8, $2031
+DATA bitrev_size16384_radix4_f64<>+0x1F7A8(SB)/8, $6127
+DATA bitrev_size16384_radix4_f64<>+0x1F7B0(SB)/8, $10223
+DATA bitrev_size16384_radix4_f64<>+0x1F7B8(SB)/8, $14319
+DATA bitrev_size16384_radix4_f64<>+0x1F7C0(SB)/8, $3055
+DATA bitrev_size16384_radix4_f64<>+0x1F7C8(SB)/8, $7151
+DATA bitrev_size16384_radix4_f64<>+0x1F7D0(SB)/8, $11247
+DATA bitrev_size16384_radix4_f64<>+0x1F7D8(SB)/8, $15343
+DATA bitrev_size16384_radix4_f64<>+0x1F7E0(SB)/8, $4079
+DATA bitrev_size16384_radix4_f64<>+0x1F7E8(SB)/8, $8175
+DATA bitrev_size16384_radix4_f64<>+0x1F7F0(SB)/8, $12271
+DATA bitrev_size16384_radix4_f64<>+0x1F7F8(SB)/8, $16367
+DATA bitrev_size16384_radix4_f64<>+0x1F800(SB)/8, $63
+DATA bitrev_size16384_radix4_f64<>+0x1F808(SB)/8, $4159
+DATA bitrev_size16384_radix4_f64<>+0x1F810(SB)/8, $8255
+DATA bitrev_size16384_radix4_f64<>+0x1F818(SB)/8, $12351
+DATA bitrev_size16384_radix4_f64<>+0x1F820(SB)/8, $1087
+DATA bitrev_size16384_radix4_f64<>+0x1F828(SB)/8, $5183
+DATA bitrev_size16384_radix4_f64<>+0x1F830(SB)/8, $9279
+DATA bitrev_size16384_radix4_f64<>+0x1F838(SB)/8, $13375
+DATA bitrev_size16384_radix4_f64<>+0x1F840(SB)/8, $2111
+DATA bitrev_size16384_radix4_f64<>+0x1F848(SB)/8, $6207
+DATA bitrev_size16384_radix4_f64<>+0x1F850(SB)/8, $10303
+DATA bitrev_size16384_radix4_f64<>+0x1F858(SB)/8, $14399
+DATA bitrev_size16384_radix4_f64<>+0x1F860(SB)/8, $3135
+DATA bitrev_size16384_radix4_f64<>+0x1F868(SB)/8, $7231
+DATA bitrev_size16384_radix4_f64<>+0x1F870(SB)/8, $11327
+DATA bitrev_size16384_radix4_f64<>+0x1F878(SB)/8, $15423
+DATA bitrev_size16384_radix4_f64<>+0x1F880(SB)/8, $319
+DATA bitrev_size16384_radix4_f64<>+0x1F888(SB)/8, $4415
+DATA bitrev_size16384_radix4_f64<>+0x1F890(SB)/8, $8511
+DATA bitrev_size16384_radix4_f64<>+0x1F898(SB)/8, $12607
+DATA bitrev_size16384_radix4_f64<>+0x1F8A0(SB)/8, $1343
+DATA bitrev_size16384_radix4_f64<>+0x1F8A8(SB)/8, $5439
+DATA bitrev_size16384_radix4_f64<>+0x1F8B0(SB)/8, $9535
+DATA bitrev_size16384_radix4_f64<>+0x1F8B8(SB)/8, $13631
+DATA bitrev_size16384_radix4_f64<>+0x1F8C0(SB)/8, $2367
+DATA bitrev_size16384_radix4_f64<>+0x1F8C8(SB)/8, $6463
+DATA bitrev_size16384_radix4_f64<>+0x1F8D0(SB)/8, $10559
+DATA bitrev_size16384_radix4_f64<>+0x1F8D8(SB)/8, $14655
+DATA bitrev_size16384_radix4_f64<>+0x1F8E0(SB)/8, $3391
+DATA bitrev_size16384_radix4_f64<>+0x1F8E8(SB)/8, $7487
+DATA bitrev_size16384_radix4_f64<>+0x1F8F0(SB)/8, $11583
+DATA bitrev_size16384_radix4_f64<>+0x1F8F8(SB)/8, $15679
+DATA bitrev_size16384_radix4_f64<>+0x1F900(SB)/8, $575
+DATA bitrev_size16384_radix4_f64<>+0x1F908(SB)/8, $4671
+DATA bitrev_size16384_radix4_f64<>+0x1F910(SB)/8, $8767
+DATA bitrev_size16384_radix4_f64<>+0x1F918(SB)/8, $12863
+DATA bitrev_size16384_radix4_f64<>+0x1F920(SB)/8, $1599
+DATA bitrev_size16384_radix4_f64<>+0x1F928(SB)/8, $5695
+DATA bitrev_size16384_radix4_f64<>+0x1F930(SB)/8, $9791
+DATA bitrev_size16384_radix4_f64<>+0x1F938(SB)/8, $13887
+DATA bitrev_size16384_radix4_f64<>+0x1F940(SB)/8, $2623
+DATA bitrev_size16384_radix4_f64<>+0x1F948(SB)/8, $6719
+DATA bitrev_size16384_radix4_f64<>+0x1F950(SB)/8, $10815
+DATA bitrev_size16384_radix4_f64<>+0x1F958(SB)/8, $14911
+DATA bitrev_size16384_radix4_f64<>+0x1F960(SB)/8, $3647
+DATA bitrev_size16384_radix4_f64<>+0x1F968(SB)/8, $7743
+DATA bitrev_size16384_radix4_f64<>+0x1F970(SB)/8, $11839
+DATA bitrev_size16384_radix4_f64<>+0x1F978(SB)/8, $15935
+DATA bitrev_size16384_radix4_f64<>+0x1F980(SB)/8, $831
+DATA bitrev_size16384_radix4_f64<>+0x1F988(SB)/8, $4927
+DATA bitrev_size16384_radix4_f64<>+0x1F990(SB)/8, $9023
+DATA bitrev_size16384_radix4_f64<>+0x1F998(SB)/8, $13119
+DATA bitrev_size16384_radix4_f64<>+0x1F9A0(SB)/8, $1855
+DATA bitrev_size16384_radix4_f64<>+0x1F9A8(SB)/8, $5951
+DATA bitrev_size16384_radix4_f64<>+0x1F9B0(SB)/8, $10047
+DATA bitrev_size16384_radix4_f64<>+0x1F9B8(SB)/8, $14143
+DATA bitrev_size16384_radix4_f64<>+0x1F9C0(SB)/8, $2879
+DATA bitrev_size16384_radix4_f64<>+0x1F9C8(SB)/8, $6975
+DATA bitrev_size16384_radix4_f64<>+0x1F9D0(SB)/8, $11071
+DATA bitrev_size16384_radix4_f64<>+0x1F9D8(SB)/8, $15167
+DATA bitrev_size16384_radix4_f64<>+0x1F9E0(SB)/8, $3903
+DATA bitrev_size16384_radix4_f64<>+0x1F9E8(SB)/8, $7999
+DATA bitrev_size16384_radix4_f64<>+0x1F9F0(SB)/8, $12095
+DATA bitrev_size16384_radix4_f64<>+0x1F9F8(SB)/8, $16191
+DATA bitrev_size16384_radix4_f64<>+0x1FA00(SB)/8, $127
+DATA bitrev_size16384_radix4_f64<>+0x1FA08(SB)/8, $4223
+DATA bitrev_size16384_radix4_f64<>+0x1FA10(SB)/8, $8319
+DATA bitrev_size16384_radix4_f64<>+0x1FA18(SB)/8, $12415
+DATA bitrev_size16384_radix4_f64<>+0x1FA20(SB)/8, $1151
+DATA bitrev_size16384_radix4_f64<>+0x1FA28(SB)/8, $5247
+DATA bitrev_size16384_radix4_f64<>+0x1FA30(SB)/8, $9343
+DATA bitrev_size16384_radix4_f64<>+0x1FA38(SB)/8, $13439
+DATA bitrev_size16384_radix4_f64<>+0x1FA40(SB)/8, $2175
+DATA bitrev_size16384_radix4_f64<>+0x1FA48(SB)/8, $6271
+DATA bitrev_size16384_radix4_f64<>+0x1FA50(SB)/8, $10367
+DATA bitrev_size16384_radix4_f64<>+0x1FA58(SB)/8, $14463
+DATA bitrev_size16384_radix4_f64<>+0x1FA60(SB)/8, $3199
+DATA bitrev_size16384_radix4_f64<>+0x1FA68(SB)/8, $7295
+DATA bitrev_size16384_radix4_f64<>+0x1FA70(SB)/8, $11391
+DATA bitrev_size16384_radix4_f64<>+0x1FA78(SB)/8, $15487
+DATA bitrev_size16384_radix4_f64<>+0x1FA80(SB)/8, $383
+DATA bitrev_size16384_radix4_f64<>+0x1FA88(SB)/8, $4479
+DATA bitrev_size16384_radix4_f64<>+0x1FA90(SB)/8, $8575
+DATA bitrev_size16384_radix4_f64<>+0x1FA98(SB)/8, $12671
+DATA bitrev_size16384_radix4_f64<>+0x1FAA0(SB)/8, $1407
+DATA bitrev_size16384_radix4_f64<>+0x1FAA8(SB)/8, $5503
+DATA bitrev_size16384_radix4_f64<>+0x1FAB0(SB)/8, $9599
+DATA bitrev_size16384_radix4_f64<>+0x1FAB8(SB)/8, $13695
+DATA bitrev_size16384_radix4_f64<>+0x1FAC0(SB)/8, $2431
+DATA bitrev_size16384_radix4_f64<>+0x1FAC8(SB)/8, $6527
+DATA bitrev_size16384_radix4_f64<>+0x1FAD0(SB)/8, $10623
+DATA bitrev_size16384_radix4_f64<>+0x1FAD8(SB)/8, $14719
+DATA bitrev_size16384_radix4_f64<>+0x1FAE0(SB)/8, $3455
+DATA bitrev_size16384_radix4_f64<>+0x1FAE8(SB)/8, $7551
+DATA bitrev_size16384_radix4_f64<>+0x1FAF0(SB)/8, $11647
+DATA bitrev_size16384_radix4_f64<>+0x1FAF8(SB)/8, $15743
+DATA bitrev_size16384_radix4_f64<>+0x1FB00(SB)/8, $639
+DATA bitrev_size16384_radix4_f64<>+0x1FB08(SB)/8, $4735
+DATA bitrev_size16384_radix4_f64<>+0x1FB10(SB)/8, $8831
+DATA bitrev_size16384_radix4_f64<>+0x1FB18(SB)/8, $12927
+DATA bitrev_size16384_radix4_f64<>+0x1FB20(SB)/8, $1663
+DATA bitrev_size16384_radix4_f64<>+0x1FB28(SB)/8, $5759
+DATA bitrev_size16384_radix4_f64<>+0x1FB30(SB)/8, $9855
+DATA bitrev_size16384_radix4_f64<>+0x1FB38(SB)/8, $13951
+DATA bitrev_size16384_radix4_f64<>+0x1FB40(SB)/8, $2687
+DATA bitrev_size16384_radix4_f64<>+0x1FB48(SB)/8, $6783
+DATA bitrev_size16384_radix4_f64<>+0x1FB50(SB)/8, $10879
+DATA bitrev_size16384_radix4_f64<>+0x1FB58(SB)/8, $14975
+DATA bitrev_size16384_radix4_f64<>+0x1FB60(SB)/8, $3711
+DATA bitrev_size16384_radix4_f64<>+0x1FB68(SB)/8, $7807
+DATA bitrev_size16384_radix4_f64<>+0x1FB70(SB)/8, $11903
+DATA bitrev_size16384_radix4_f64<>+0x1FB78(SB)/8, $15999
+DATA bitrev_size16384_radix4_f64<>+0x1FB80(SB)/8, $895
+DATA bitrev_size16384_radix4_f64<>+0x1FB88(SB)/8, $4991
+DATA bitrev_size16384_radix4_f64<>+0x1FB90(SB)/8, $9087
+DATA bitrev_size16384_radix4_f64<>+0x1FB98(SB)/8, $13183
+DATA bitrev_size16384_radix4_f64<>+0x1FBA0(SB)/8, $1919
+DATA bitrev_size16384_radix4_f64<>+0x1FBA8(SB)/8, $6015
+DATA bitrev_size16384_radix4_f64<>+0x1FBB0(SB)/8, $10111
+DATA bitrev_size16384_radix4_f64<>+0x1FBB8(SB)/8, $14207
+DATA bitrev_size16384_radix4_f64<>+0x1FBC0(SB)/8, $2943
+DATA bitrev_size16384_radix4_f64<>+0x1FBC8(SB)/8, $7039
+DATA bitrev_size16384_radix4_f64<>+0x1FBD0(SB)/8, $11135
+DATA bitrev_size16384_radix4_f64<>+0x1FBD8(SB)/8, $15231
+DATA bitrev_size16384_radix4_f64<>+0x1FBE0(SB)/8, $3967
+DATA bitrev_size16384_radix4_f64<>+0x1FBE8(SB)/8, $8063
+DATA bitrev_size16384_radix4_f64<>+0x1FBF0(SB)/8, $12159
+DATA bitrev_size16384_radix4_f64<>+0x1FBF8(SB)/8, $16255
+DATA bitrev_size16384_radix4_f64<>+0x1FC00(SB)/8, $191
+DATA bitrev_size16384_radix4_f64<>+0x1FC08(SB)/8, $4287
+DATA bitrev_size16384_radix4_f64<>+0x1FC10(SB)/8, $8383
+DATA bitrev_size16384_radix4_f64<>+0x1FC18(SB)/8, $12479
+DATA bitrev_size16384_radix4_f64<>+0x1FC20(SB)/8, $1215
+DATA bitrev_size16384_radix4_f64<>+0x1FC28(SB)/8, $5311
+DATA bitrev_size16384_radix4_f64<>+0x1FC30(SB)/8, $9407
+DATA bitrev_size16384_radix4_f64<>+0x1FC38(SB)/8, $13503
+DATA bitrev_size16384_radix4_f64<>+0x1FC40(SB)/8, $2239
+DATA bitrev_size16384_radix4_f64<>+0x1FC48(SB)/8, $6335
+DATA bitrev_size16384_radix4_f64<>+0x1FC50(SB)/8, $10431
+DATA bitrev_size16384_radix4_f64<>+0x1FC58(SB)/8, $14527
+DATA bitrev_size16384_radix4_f64<>+0x1FC60(SB)/8, $3263
+DATA bitrev_size16384_radix4_f64<>+0x1FC68(SB)/8, $7359
+DATA bitrev_size16384_radix4_f64<>+0x1FC70(SB)/8, $11455
+DATA bitrev_size16384_radix4_f64<>+0x1FC78(SB)/8, $15551
+DATA bitrev_size16384_radix4_f64<>+0x1FC80(SB)/8, $447
+DATA bitrev_size16384_radix4_f64<>+0x1FC88(SB)/8, $4543
+DATA bitrev_size16384_radix4_f64<>+0x1FC90(SB)/8, $8639
+DATA bitrev_size16384_radix4_f64<>+0x1FC98(SB)/8, $12735
+DATA bitrev_size16384_radix4_f64<>+0x1FCA0(SB)/8, $1471
+DATA bitrev_size16384_radix4_f64<>+0x1FCA8(SB)/8, $5567
+DATA bitrev_size16384_radix4_f64<>+0x1FCB0(SB)/8, $9663
+DATA bitrev_size16384_radix4_f64<>+0x1FCB8(SB)/8, $13759
+DATA bitrev_size16384_radix4_f64<>+0x1FCC0(SB)/8, $2495
+DATA bitrev_size16384_radix4_f64<>+0x1FCC8(SB)/8, $6591
+DATA bitrev_size16384_radix4_f64<>+0x1FCD0(SB)/8, $10687
+DATA bitrev_size16384_radix4_f64<>+0x1FCD8(SB)/8, $14783
+DATA bitrev_size16384_radix4_f64<>+0x1FCE0(SB)/8, $3519
+DATA bitrev_size16384_radix4_f64<>+0x1FCE8(SB)/8, $7615
+DATA bitrev_size16384_radix4_f64<>+0x1FCF0(SB)/8, $11711
+DATA bitrev_size16384_radix4_f64<>+0x1FCF8(SB)/8, $15807
+DATA bitrev_size16384_radix4_f64<>+0x1FD00(SB)/8, $703
+DATA bitrev_size16384_radix4_f64<>+0x1FD08(SB)/8, $4799
+DATA bitrev_size16384_radix4_f64<>+0x1FD10(SB)/8, $8895
+DATA bitrev_size16384_radix4_f64<>+0x1FD18(SB)/8, $12991
+DATA bitrev_size16384_radix4_f64<>+0x1FD20(SB)/8, $1727
+DATA bitrev_size16384_radix4_f64<>+0x1FD28(SB)/8, $5823
+DATA bitrev_size16384_radix4_f64<>+0x1FD30(SB)/8, $9919
+DATA bitrev_size16384_radix4_f64<>+0x1FD38(SB)/8, $14015
+DATA bitrev_size16384_radix4_f64<>+0x1FD40(SB)/8, $2751
+DATA bitrev_size16384_radix4_f64<>+0x1FD48(SB)/8, $6847
+DATA bitrev_size16384_radix4_f64<>+0x1FD50(SB)/8, $10943
+DATA bitrev_size16384_radix4_f64<>+0x1FD58(SB)/8, $15039
+DATA bitrev_size16384_radix4_f64<>+0x1FD60(SB)/8, $3775
+DATA bitrev_size16384_radix4_f64<>+0x1FD68(SB)/8, $7871
+DATA bitrev_size16384_radix4_f64<>+0x1FD70(SB)/8, $11967
+DATA bitrev_size16384_radix4_f64<>+0x1FD78(SB)/8, $16063
+DATA bitrev_size16384_radix4_f64<>+0x1FD80(SB)/8, $959
+DATA bitrev_size16384_radix4_f64<>+0x1FD88(SB)/8, $5055
+DATA bitrev_size16384_radix4_f64<>+0x1FD90(SB)/8, $9151
+DATA bitrev_size16384_radix4_f64<>+0x1FD98(SB)/8, $13247
+DATA bitrev_size16384_radix4_f64<>+0x1FDA0(SB)/8, $1983
+DATA bitrev_size16384_radix4_f64<>+0x1FDA8(SB)/8, $6079
+DATA bitrev_size16384_radix4_f64<>+0x1FDB0(SB)/8, $10175
+DATA bitrev_size16384_radix4_f64<>+0x1FDB8(SB)/8, $14271
+DATA bitrev_size16384_radix4_f64<>+0x1FDC0(SB)/8, $3007
+DATA bitrev_size16384_radix4_f64<>+0x1FDC8(SB)/8, $7103
+DATA bitrev_size16384_radix4_f64<>+0x1FDD0(SB)/8, $11199
+DATA bitrev_size16384_radix4_f64<>+0x1FDD8(SB)/8, $15295
+DATA bitrev_size16384_radix4_f64<>+0x1FDE0(SB)/8, $4031
+DATA bitrev_size16384_radix4_f64<>+0x1FDE8(SB)/8, $8127
+DATA bitrev_size16384_radix4_f64<>+0x1FDF0(SB)/8, $12223
+DATA bitrev_size16384_radix4_f64<>+0x1FDF8(SB)/8, $16319
+DATA bitrev_size16384_radix4_f64<>+0x1FE00(SB)/8, $255
+DATA bitrev_size16384_radix4_f64<>+0x1FE08(SB)/8, $4351
+DATA bitrev_size16384_radix4_f64<>+0x1FE10(SB)/8, $8447
+DATA bitrev_size16384_radix4_f64<>+0x1FE18(SB)/8, $12543
+DATA bitrev_size16384_radix4_f64<>+0x1FE20(SB)/8, $1279
+DATA bitrev_size16384_radix4_f64<>+0x1FE28(SB)/8, $5375
+DATA bitrev_size16384_radix4_f64<>+0x1FE30(SB)/8, $9471
+DATA bitrev_size16384_radix4_f64<>+0x1FE38(SB)/8, $13567
+DATA bitrev_size16384_radix4_f64<>+0x1FE40(SB)/8, $2303
+DATA bitrev_size16384_radix4_f64<>+0x1FE48(SB)/8, $6399
+DATA bitrev_size16384_radix4_f64<>+0x1FE50(SB)/8, $10495
+DATA bitrev_size16384_radix4_f64<>+0x1FE58(SB)/8, $14591
+DATA bitrev_size16384_radix4_f64<>+0x1FE60(SB)/8, $3327
+DATA bitrev_size16384_radix4_f64<>+0x1FE68(SB)/8, $7423
+DATA bitrev_size16384_radix4_f64<>+0x1FE70(SB)/8, $11519
+DATA bitrev_size16384_radix4_f64<>+0x1FE78(SB)/8, $15615
+DATA bitrev_size16384_radix4_f64<>+0x1FE80(SB)/8, $511
+DATA bitrev_size16384_radix4_f64<>+0x1FE88(SB)/8, $4607
+DATA bitrev_size16384_radix4_f64<>+0x1FE90(SB)/8, $8703
+DATA bitrev_size16384_radix4_f64<>+0x1FE98(SB)/8, $12799
+DATA bitrev_size16384_radix4_f64<>+0x1FEA0(SB)/8, $1535
+DATA bitrev_size16384_radix4_f64<>+0x1FEA8(SB)/8, $5631
+DATA bitrev_size16384_radix4_f64<>+0x1FEB0(SB)/8, $9727
+DATA bitrev_size16384_radix4_f64<>+0x1FEB8(SB)/8, $13823
+DATA bitrev_size16384_radix4_f64<>+0x1FEC0(SB)/8, $2559
+DATA bitrev_size16384_radix4_f64<>+0x1FEC8(SB)/8, $6655
+DATA bitrev_size16384_radix4_f64<>+0x1FED0(SB)/8, $10751
+DATA bitrev_size16384_radix4_f64<>+0x1FED8(SB)/8, $14847
+DATA bitrev_size16384_radix4_f64<>+0x1FEE0(SB)/8, $3583
+DATA bitrev_size16384_radix4_f64<>+0x1FEE8(SB)/8, $7679
+DATA bitrev_size16384_radix4_f64<>+0x1FEF0(SB)/8, $11775
+DATA bitrev_size16384_radix4_f64<>+0x1FEF8(SB)/8, $15871
+DATA bitrev_size16384_radix4_f64<>+0x1FF00(SB)/8, $767
+DATA bitrev_size16384_radix4_f64<>+0x1FF08(SB)/8, $4863
+DATA bitrev_size16384_radix4_f64<>+0x1FF10(SB)/8, $8959
+DATA bitrev_size16384_radix4_f64<>+0x1FF18(SB)/8, $13055
+DATA bitrev_size16384_radix4_f64<>+0x1FF20(SB)/8, $1791
+DATA bitrev_size16384_radix4_f64<>+0x1FF28(SB)/8, $5887
+DATA bitrev_size16384_radix4_f64<>+0x1FF30(SB)/8, $9983
+DATA bitrev_size16384_radix4_f64<>+0x1FF38(SB)/8, $14079
+DATA bitrev_size16384_radix4_f64<>+0x1FF40(SB)/8, $2815
+DATA bitrev_size16384_radix4_f64<>+0x1FF48(SB)/8, $6911
+DATA bitrev_size16384_radix4_f64<>+0x1FF50(SB)/8, $11007
+DATA bitrev_size16384_radix4_f64<>+0x1FF58(SB)/8, $15103
+DATA bitrev_size16384_radix4_f64<>+0x1FF60(SB)/8, $3839
+DATA bitrev_size16384_radix4_f64<>+0x1FF68(SB)/8, $7935
+DATA bitrev_size16384_radix4_f64<>+0x1FF70(SB)/8, $12031
+DATA bitrev_size16384_radix4_f64<>+0x1FF78(SB)/8, $16127
+DATA bitrev_size16384_radix4_f64<>+0x1FF80(SB)/8, $1023
+DATA bitrev_size16384_radix4_f64<>+0x1FF88(SB)/8, $5119
+DATA bitrev_size16384_radix4_f64<>+0x1FF90(SB)/8, $9215
+DATA bitrev_size16384_radix4_f64<>+0x1FF98(SB)/8, $13311
+DATA bitrev_size16384_radix4_f64<>+0x1FFA0(SB)/8, $2047
+DATA bitrev_size16384_radix4_f64<>+0x1FFA8(SB)/8, $6143
+DATA bitrev_size16384_radix4_f64<>+0x1FFB0(SB)/8, $10239
+DATA bitrev_size16384_radix4_f64<>+0x1FFB8(SB)/8, $14335
+DATA bitrev_size16384_radix4_f64<>+0x1FFC0(SB)/8, $3071
+DATA bitrev_size16384_radix4_f64<>+0x1FFC8(SB)/8, $7167
+DATA bitrev_size16384_radix4_f64<>+0x1FFD0(SB)/8, $11263
+DATA bitrev_size16384_radix4_f64<>+0x1FFD8(SB)/8, $15359
+DATA bitrev_size16384_radix4_f64<>+0x1FFE0(SB)/8, $4095
+DATA bitrev_size16384_radix4_f64<>+0x1FFE8(SB)/8, $8191
+DATA bitrev_size16384_radix4_f64<>+0x1FFF0(SB)/8, $12287
+DATA bitrev_size16384_radix4_f64<>+0x1FFF8(SB)/8, $16383
+GLOBL bitrev_size16384_radix4_f64<>(SB), RODATA, $131072

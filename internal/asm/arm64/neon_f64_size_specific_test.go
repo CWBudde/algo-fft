@@ -8,6 +8,7 @@ package arm64
 
 import (
 	"math"
+	"os"
 	"testing"
 
 	"github.com/cwbudde/algo-fft/internal/reference"
@@ -47,6 +48,9 @@ func TestNEONComplex128SizeSpecificKernels(t *testing.T) {
 		{"Size1024_Radix4", 1024, ForwardNEONSize1024Radix4Complex128Asm, InverseNEONSize1024Radix4Complex128Asm},
 		{"Size2048_Radix4Then2", 2048, ForwardNEONSize2048Radix4Then2Complex128Asm, InverseNEONSize2048Radix4Then2Complex128Asm},
 		{"Size4096_Radix4", 4096, ForwardNEONSize4096Radix4Complex128Asm, InverseNEONSize4096Radix4Complex128Asm},
+		{"Size8192_Radix4Then2", 8192, ForwardNEONSize8192Radix4Then2Complex128Asm, InverseNEONSize8192Radix4Then2Complex128Asm},
+		{"Size16384_Radix4", 16384, ForwardNEONSize16384Radix4Complex128Asm, InverseNEONSize16384Radix4Complex128Asm},
+		{"Size32768_Radix4Then2", 32768, ForwardNEONSize32768Radix4Then2Complex128Asm, InverseNEONSize32768Radix4Then2Complex128Asm},
 	}
 
 	// Size 1024 involves 5 FFT stages with larger-magnitude accumulated sums
@@ -55,27 +59,37 @@ func TestNEONComplex128SizeSpecificKernels(t *testing.T) {
 	// tol=1e-9 relative bound used by codelet_reference_all_test.go for
 	// complex128).
 	//
-	// Sizes 2048 and 4096 add further stages on top of that; each extra stage
+	// Sizes 2048 and up add further stages on top of that; each extra stage
 	// of summation grows the absolute error while the error relative to the
 	// operand magnitude stays flat (~8e-13 at 2048, comfortably within the
 	// relative tol=1e-9 bound of the registry tests). Measured max absolute
-	// errors: ~1.7e-9 at 2048, ~3.8e-9 at 4096. They get their own,
-	// size-scaled tolerances below (with headroom above the measured values)
-	// instead of widening the shared constant for every smaller kernel. The
-	// registry-driven reference tests in internal/kernels remain the
-	// authoritative correctness check.
+	// errors: ~1.7e-9 at 2048, ~3.8e-9 at 4096; the larger sizes get
+	// tolerances extrapolated on the same growth curve, all with generous
+	// headroom above the expected values, instead of widening the shared
+	// constant for every smaller kernel. The registry-driven reference tests
+	// in internal/kernels remain the authoritative correctness check.
 	const tol = 1e-9
-	const tol2048 = 5e-9
-	const tol4096 = 2e-8
+	sizeTol := map[int]float64{
+		2048:  5e-9,
+		4096:  2e-8,
+		8192:  5e-8, // passed at this bound (QEMU, 2026-07)
+		16384: 1e-7, // passed at this bound (QEMU, 2026-07)
+		32768: 1e-6, // measured max ~2.5e-7 (QEMU, 2026-07); relative ~4e-12
+	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			// The naive O(n²) DFT reference at 8192+ takes minutes under QEMU
+			// emulation; skip there (mirroring skipNaiveReferenceIfSlow in
+			// internal/kernels) and rely on the registry sweep's analytic
+			// patterns for those sizes. On real arm64 hardware this runs fully.
+			if tc.size >= 8192 && (testing.Short() || os.Getenv("ALGOFFT_QEMU") == "1") {
+				t.Skip("skipping naive reference for large size under QEMU/-short")
+			}
+
 			tcTol := tol
-			switch tc.size {
-			case 2048:
-				tcTol = tol2048
-			case 4096:
-				tcTol = tol4096
+			if st, ok := sizeTol[tc.size]; ok {
+				tcTol = st
 			}
 
 			src := make([]complex128, tc.size)
