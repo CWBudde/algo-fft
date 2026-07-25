@@ -24,8 +24,8 @@ func TestFastConvolutionLength(t *testing.T) {
 		{448, 448},   // 7-smooth, pow2 part 64: passes the mixed-radix gate, kept
 		{14, 16},     // 7-smooth but gated out (pow2 part 2): padded
 		{31, 32},     // prime: padded
-		{131, 256},   // prime: padded (5-smooth candidate 135 loses on penalty)
-		{257, 512},   // Rader-eligible prime: padded
+		{131, 256},   // prime: padded (pad 2^8 is below the 3*2^(k-2) threshold)
+		{257, 384},   // Rader-eligible prime: padded to 3*2^7
 		{511, 512},   // 7*73: padded
 		{1009, 1024}, // prime: padded
 		{2047, 2048}, // 23*89: padded

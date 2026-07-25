@@ -8,31 +8,85 @@ import (
 
 	"github.com/cwbudde/algo-fft/internal/fft"
 	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/planner"
 	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
-// TestBluesteinPadSize checks the plan-time pad chooser. With the current
-// calibration (see bluesteinSubFFTPenalty) the size-dispatched power-of-two
-// sub-FFT wins at every size, so the chooser must return the next power of
-// two >= 2n-1 — while still satisfying the structural invariants that hold
-// for any calibration.
+// TestBluesteinPadSize checks the plan-time pad chooser against the calibrated
+// shape whitelist (see padShapes): 3*2^(k-2) is taken once the power-of-two pad
+// reaches 2^9 and 15*2^(k-4) once it reaches 2^13, each only when it still
+// covers the required 2n-1; otherwise the power of two stands.
 func TestBluesteinPadSize(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{2, 7, 11, 13, 127, 251, 257, 499, 509, 677, 997, 1009, 1021, 2531, 4099} {
-		got := bluesteinPadSize(n)
+	tests := []struct {
+		n    int
+		want int
+	}{
+		{n: 2, want: 4},          // pad 2^2, below the 3*2^(k-2) threshold
+		{n: 7, want: 16},         // pad 2^4, below the threshold
+		{n: 11, want: 32},        // pad 2^5, below the threshold
+		{n: 13, want: 32},        // pad 2^5, below the threshold
+		{n: 127, want: 256},      // pad 2^8, one window below the threshold
+		{n: 251, want: 512},      // pad 2^9: 384 < 2n-1 = 501, power of two stands
+		{n: 257, want: 768},      // pad 2^10: 768 >= 513
+		{n: 499, want: 1024},     // pad 2^10: 768 < 997
+		{n: 509, want: 1024},     // pad 2^10: 768 < 1017
+		{n: 677, want: 1536},     // pad 2^11: 1536 >= 1353
+		{n: 997, want: 2048},     // pad 2^11: 1536 < 1993
+		{n: 1009, want: 2048},    // pad 2^11: 1536 < 2017
+		{n: 1021, want: 2048},    // pad 2^11: 1536 < 2041
+		{n: 2531, want: 6144},    // pad 2^13: 6144 >= 5061
+		{n: 3079, want: 7680},    // pad 2^13: 6144 < 6157, 15*2^(k-4) = 7680 covers it
+		{n: 4001, want: 8192},    // pad 2^13: 7680 < 8001, power of two stands
+		{n: 4099, want: 12288},   // pad 2^14: 12288 >= 8197
+		{n: 6151, want: 15360},   // pad 2^14: 12288 < 12301, 15360 covers it
+		{n: 65537, want: 196608}, // pad 2^18: 3*2^16 >= 131073
+	}
 
-		if got < 2*n-1 {
-			t.Errorf("bluesteinPadSize(%d) = %d < 2n-1 = %d", n, got, 2*n-1)
+	for _, tt := range tests {
+		got := bluesteinPadSize(tt.n)
+
+		if got < 2*tt.n-1 {
+			t.Errorf("bluesteinPadSize(%d) = %d < 2n-1 = %d", tt.n, got, 2*tt.n-1)
 		}
 
 		if !m.IsHighlyComposite(got) {
-			t.Errorf("bluesteinPadSize(%d) = %d is not executable by the mixed-radix engine", n, got)
+			t.Errorf("bluesteinPadSize(%d) = %d is not executable by the mixed-radix engine", tt.n, got)
 		}
 
-		if want := m.NextPowerOfTwo(2*n - 1); got != want {
-			t.Errorf("bluesteinPadSize(%d) = %d, want %d (current calibration always picks the power of two)",
-				n, got, want)
+		if got != tt.want {
+			t.Errorf("bluesteinPadSize(%d) = %d, want %d", tt.n, got, tt.want)
+		}
+	}
+}
+
+// TestBluesteinPadSize_Invariants sweeps every length up to a few thousand and
+// pins the properties that must hold whatever the calibration says: the pad
+// covers the cyclic convolution, never exceeds the power of two it replaces,
+// and is a length both the raw mixed-radix engine and the planner accept — the
+// latter because fastConvolutionLength turns the same value into a plan length.
+func TestBluesteinPadSize_Invariants(t *testing.T) {
+	t.Parallel()
+
+	for n := 2; n <= 5000; n++ {
+		got := bluesteinPadSize(n)
+		minM := 2*n - 1
+
+		if got < minM {
+			t.Fatalf("bluesteinPadSize(%d) = %d < 2n-1 = %d", n, got, minM)
+		}
+
+		if pow2 := m.NextPowerOfTwo(minM); got > pow2 {
+			t.Fatalf("bluesteinPadSize(%d) = %d > next power of two %d", n, got, pow2)
+		}
+
+		if !m.IsMixedRadixSmooth(got) {
+			t.Fatalf("bluesteinPadSize(%d) = %d is not mixed-radix executable", n, got)
+		}
+
+		if !m.IsPowerOf2(got) && !planner.MixedRadixEligible(got) {
+			t.Fatalf("bluesteinPadSize(%d) = %d would not be routed to the mixed-radix engine", n, got)
 		}
 	}
 }
@@ -141,16 +195,19 @@ func TestBluestein_SmoothPadMatchesReference(t *testing.T) {
 	}
 }
 
-// TestBluestein_LargePrimesMatchReference validates the (size-dispatched)
-// power-of-two Bluestein sub-FFT against the naive DFT at padded sizes that
-// engage the optimized kernels (m = 1024, 2048) and the generic fallback
-// above the dispatch bound (m = 16384). The pre-existing reference tests
-// stop at n=31 (m=64); the round-trip-only large-prime tests would not catch
-// a systematically wrong spectrum.
+// TestBluestein_LargePrimesMatchReference validates the Bluestein sub-FFT
+// against the naive DFT at padded sizes that engage the optimized kernels
+// (m = 1024, 2048) and at the mixed-radix padded sizes the shape-aware pad
+// model selects. The pre-existing reference tests stop at n=31 (m=64); the
+// round-trip-only large-prime tests would not catch a systematically wrong
+// spectrum.
 func TestBluestein_LargePrimesMatchReference(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{509, 1021, 4099} {
+	// 509 and 1021 keep a power-of-two pad; 2531 pads to 6144 = 2^11·3 and
+	// 4099 to 12288 = 2^12·3, so both directions of the mixed-radix padded
+	// path are checked against the reference spectrum.
+	for _, n := range []int{509, 1021, 2531, 4099} {
 		// Shared complex128 reference; the naive complex64 DFT accumulates too
 		// much rounding error of its own at these sizes to serve as ground truth.
 		src128 := make([]complex128, n)

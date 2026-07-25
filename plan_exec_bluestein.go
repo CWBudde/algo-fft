@@ -10,7 +10,7 @@ import (
 // convolution against the precomputed frequency-domain filter, and demodulate.
 type bluesteinExecutor[T Complex] struct {
 	n int // Logical transform length
-	m int // Padded sub-FFT size M >= 2N-1 (power of two or 5-smooth; see bluesteinPadSize)
+	m int // Padded sub-FFT size M >= 2N-1 (power of two or mixed-radix; see bluesteinPadSize)
 
 	chirp     []T // Size N
 	chirpInv  []T // Size N
@@ -18,8 +18,8 @@ type bluesteinExecutor[T Complex] struct {
 	filterInv []T // Size M
 	twiddle   []T // Size M (sub-FFT twiddles)
 
-	// bitrev feeds only the power-of-two DIT sub-FFT path; nil for 5-smooth
-	// padded sizes, which run through the mixed-radix engine.
+	// bitrev feeds only the power-of-two DIT sub-FFT path; nil for the
+	// mixed-radix padded sizes, which run through the mixed-radix engine.
 	bitrev []int
 }
 

@@ -8,8 +8,8 @@ import (
 )
 
 // ComputeBluesteinFilter computes the frequency-domain Bluestein filter for
-// padded size m. Power-of-two m runs the radix-2 DIT sub-FFT; other 5-smooth
-// m (see math.NextHighlyComposite) runs through the mixed-radix engine.
+// padded size m. Power-of-two m runs the radix-2 DIT sub-FFT; any other m the
+// pad chooser selects runs through the mixed-radix engine.
 func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, scratch []T) []T {
 	if mathpkg.IsPowerOf2(m) {
 		return kernels.ComputeBluesteinFilter[T](n, m, chirp, twiddles, scratch)
@@ -23,8 +23,8 @@ func ComputeBluesteinFilter[T Complex](n, m int, chirp []T, twiddles []T, scratc
 
 // BluesteinConvolution performs the cyclic convolution y = x * b via a padded
 // sub-FFT of size m = len(filter). Power-of-two m uses the radix-2 DIT kernels
-// with the precomputed bitrev table; other 5-smooth m dispatches to the
-// mixed-radix engine (which ignores bitrev).
+// with the precomputed bitrev table; any other m dispatches to the mixed-radix
+// engine (which ignores bitrev).
 func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T, bitrev []int) {
 	m := len(filter)
 	if mathpkg.IsPowerOf2(m) {
@@ -42,8 +42,8 @@ func BluesteinConvolution[T Complex](dst, x, filter, twiddles, scratch []T, bitr
 }
 
 // mustMixedRadix panics when the mixed-radix engine rejects a Bluestein
-// sub-FFT size. Plan construction only selects 5-smooth padded sizes, which
-// the engine schedules unconditionally, so a failure here is a
+// sub-FFT size. Plan construction only selects padded sizes the engine
+// schedules unconditionally (see padShapes), so a failure here is a
 // planner/engine contract violation — returning would leave dst partially
 // written and surface as a silent wrong answer.
 func mustMixedRadix(ok bool, m int) {

@@ -12,10 +12,10 @@ import (
 // candidate padded sizes m: powers of two run the size-dispatched DIT
 // kernels, other 5-smooth sizes run the mixed-radix engine.
 //
-// This is the calibration benchmark for bluesteinSubFFTPenalty in the root
-// package (see PLAN.md P4.1): compare a 5-smooth candidate against the next
-// power of two (e.g. 540 vs 1024, 2025 vs 2048) on both the default and
-// -tags purego builds before touching that constant.
+// It predates the shape-aware pad model and is kept as a spot check for
+// individual sizes; BenchmarkBluesteinPadShapes and
+// BenchmarkBluesteinPadFamilies are the calibration benchmarks for padShapes
+// in the root package (see PLAN.md P4.1).
 func BenchmarkBluesteinPadCandidates(b *testing.B) {
 	sizes := []int{24, 32, 45, 64, 540, 1000, 1024, 1440, 2000, 2025, 2048, 4050, 4096, 6075, 8192}
 

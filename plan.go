@@ -1,7 +1,6 @@
 package algofft
 
 import (
-	stdmath "math"
 	"math/bits"
 	"strings"
 
@@ -197,51 +196,8 @@ func standardScratchSize(n int, algorithm string) int {
 // arithmetic in bluesteinPadSize would silently wrap.
 const maxBluesteinLength = 1 << (bits.UintSize - 3)
 
-// bluesteinSubFFTPenalty weights the estimated per-point cost of the
-// mixed-radix sub-FFT relative to the size-dispatched power-of-two DIT
-// sub-FFT. Measured with BenchmarkBluesteinPadCandidates (internal/fft) on
-// an AVX2/AVX-512 Xeon: ~2.2x on the purego build and ~4.5x on the default
-// (SIMD) build. Because a 5-smooth pad can undercut the next power of two by
-// at most ~2x in m·log2(m) work (m is confined to [2n-1, 2·(2n-1))), any
-// penalty above ~2.1 means the power of two wins at every size — which is
-// what the measurements show for the current kernels, so this constant
-// intentionally disables 5-smooth pads. The chooser and the mixed-radix
-// sub-FFT path are kept wired up: if the mixed-radix engine gets faster
-// (e.g. SIMD radix-3/5 butterflies), re-run the benchmark on both builds and
-// lower this constant to re-enable them.
-const bluesteinSubFFTPenalty = 2.2
-
-// cheapestPaddedLength returns the cheapest FFT length m >= minM the engine
-// can execute exactly. The next 5-smooth size (2^a·3^b·5^c, handled by the
-// mixed-radix engine) is frequently much smaller than the next power of two
-// (e.g. minM=2017: 2025 vs 4096), so both are costed as m·log2(m) with the
-// mixed-radix penalty applied and the cheaper one wins. This is the shared
-// pad cost model for Bluestein sub-FFTs and fast convolution lengths; the
-// choice is a pure function of minM.
-func cheapestPaddedLength(minM int) int {
-	pow2 := m.NextPowerOfTwo(minM)
-
-	smooth := m.NextHighlyComposite(minM)
-	if smooth >= pow2 || smooth < 2 {
-		return pow2
-	}
-
-	costPow2 := float64(pow2) * stdmath.Log2(float64(pow2))
-	costSmooth := bluesteinSubFFTPenalty * float64(smooth) * stdmath.Log2(float64(smooth))
-
-	if costSmooth < costPow2 {
-		return smooth
-	}
-
-	return pow2
-}
-
-// bluesteinPadSize returns the padded sub-FFT length for a Bluestein plan of
-// logical length n: the cyclic convolution needs any length m >= 2n-1, costed
-// via the shared pad model (see cheapestPaddedLength).
-func bluesteinPadSize(n int) int {
-	return cheapestPaddedLength(2*n - 1)
-}
+// The padded sub-FFT length for Bluestein plans is chosen by the shared pad
+// cost model in plan_padsize.go (bluesteinPadSize / cheapestPaddedLength).
 
 // planStrategyConfig computes the strategy-specific plan configuration: the
 // Bluestein padded sub-FFT size (rejecting lengths whose pad size >= 2n-1
@@ -357,8 +313,8 @@ func computeBluesteinTables[T Complex](n, padM int, scratch []T) (
 
 	twiddle = m.ComputeTwiddleFactors[T](padM)
 
-	// bitrev feeds only the power-of-two DIT sub-FFT path; 5-smooth padded
-	// sizes run through the mixed-radix engine, which does not use it.
+	// bitrev feeds only the power-of-two DIT sub-FFT path; the mixed-radix
+	// padded sizes run through the mixed-radix engine, which does not use it.
 	if m.IsPowerOf2(padM) {
 		bitrev = m.ComputeBitReversalIndices(padM)
 	}

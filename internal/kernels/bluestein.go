@@ -39,7 +39,7 @@ func ComputeChirpSequence[T Complex](n int) []T {
 //
 // with the middle zero-padded. The caller FFTs it to obtain the
 // frequency-domain filter (see ComputeBluesteinFilter for the power-of-two
-// path; internal/fft handles 5-smooth padded sizes via mixed-radix).
+// path; internal/fft handles the other padded sizes via mixed-radix).
 func BuildBluesteinSequence[T Complex](n, m int, chirp []T) []T {
 	b := make([]T, m)
 
