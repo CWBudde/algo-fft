@@ -10,16 +10,25 @@ import (
 )
 
 // raderTestPrimes are prime lengths the planner upgrades from Bluestein to
-// Rader's algorithm (n-1 is 5-smooth and a measured win; see
-// fft.RaderEligible). 17/257 exercise the power-of-two sub-FFT path, the
-// rest the mixed-radix path with a codelet leaf (97 -> [3, 32],
-// 1153 -> [3, 3, 128], ...).
-var raderTestPrimes = []int{17, 97, 257, 401, 641, 769, 1153, 1601}
+// Rader's algorithm (the mixed-radix engine executes n-1 exactly and the
+// shape is a measured win; see fft.RaderEligible). 17/257 exercise the
+// power-of-two sub-FFT path, 97..1601 the 5-smooth mixed-radix path with a
+// codelet leaf (97 -> [3, 32], 1153 -> [3, 3, 128], ...), and 113..2269 the
+// radix-7/11 stages (113 -> [7, 16], 353 -> [11, 32], 2269 -> [7, 4, 3, 3,
+// 3, 3]).
+var raderTestPrimes = []int{
+	17, 97, 257, 401, 641, 769, 1153, 1601,
+	113, 353, 449, 673, 1409, 2113, 2269,
+}
 
-// raderFallbackPrimes stay on Bluestein: either n-1 is not 5-smooth (23, 29,
-// 47, 1009) or the exact sub-FFT measured slower than the padded one (31,
-// 101, 151, 251: power-of-two part of n-1 is <= 4).
-var raderFallbackPrimes = []int{23, 29, 31, 47, 101, 151, 251, 1009}
+// raderFallbackPrimes stay on Bluestein: either the mixed-radix engine cannot
+// execute n-1 at all (47: 46 = 2*23) or the exact sub-FFT measured slower
+// than the padded one — power-of-two part of n-1 <= 4 (31, 101, 151, 251,
+// 23, 29, 127, 463, 2311), or a radix-7/11 schedule below 2048 that is too
+// shallow (281, 1321) or too odd-heavy (881, 1009, 2017).
+var raderFallbackPrimes = []int{
+	23, 29, 31, 47, 101, 127, 151, 251, 281, 463, 881, 1009, 1321, 2017, 2311,
+}
 
 func randomComplex64(n int, seed int64) []complex64 {
 	rng := rand.New(rand.NewSource(seed)) //nolint:gosec // deterministic test data
@@ -326,6 +335,90 @@ func BenchmarkRaderVsBluestein(b *testing.B) {
 		})
 		b.Run("Bluestein_"+strconv.Itoa(n), func(b *testing.B) {
 			run64(b, n, PlanOptions{Strategy: KernelBluestein})
+		})
+	}
+}
+
+// rader7And11BenchPrimes are primes whose n-1 is 7/11-smooth but not 5-smooth,
+// grouped by the power-of-two part of n-1 — the shape parameter both win gates
+// (raderConvolutionWins, planner.mixedRadix7And11Wins) turn on. The list spans
+// small/mid/large at each shape so the gate is fitted, not guessed.
+//
+//	n-1 pow2 part 2:  127, 463, 2311, 22051
+//	n-1 pow2 part 4:  197, 701, 2269, 9901
+//	n-1 pow2 part 8:  89, 281, 1321, 4201, 12601
+//	n-1 pow2 part 16: 113, 881, 2801, 7057, 15121
+//	n-1 pow2 part 32: 353, 673, 2017, 7393, 30241
+//	n-1 pow2 part 64: 449, 2113, 6337, 12097
+//	n-1 pow2 part >=128: 1409, 2689, 4481, 9857, 14081
+//
+//nolint:gochecknoglobals // benchmark input table
+var rader7And11BenchPrimes = []int{
+	89, 113, 127, 197, 281, 353, 449, 463, 673, 701, 881,
+	1321, 1409, 2017, 2113, 2269, 2311, 2689, 2801, 4201, 4481,
+	6337, 7057, 7393, 9857, 9901, 12097, 12601, 14081, 15121, 22051, 30241,
+}
+
+// BenchmarkRader7And11VsBluestein is the measurement behind the 7/11-smooth
+// half of the raderConvolutionWins gate: it compares the auto-selected path
+// against a forced Bluestein plan at primes whose n-1 needs a radix-7/11
+// stage. Sizes the gate rejects still run here — their "Rader_" arm is then
+// the Bluestein path too, so a ~1.0 ratio is the expected signature of a
+// correctly gated-out shape. To re-fit the gate, widen
+// raderConvolutionWins to accept every shape and re-run.
+func BenchmarkRader7And11VsBluestein(b *testing.B) {
+	run64 := func(b *testing.B, n int, opts PlanOptions) {
+		b.Helper()
+
+		plan, err := NewPlanWithOptions[complex64](n, opts)
+		if err != nil {
+			b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
+		}
+
+		src := randomComplex64(n, int64(n))
+		dst := make([]complex64, n)
+
+		b.ReportAllocs()
+		b.SetBytes(int64(n * 8))
+		b.ResetTimer()
+
+		for range b.N {
+			_ = plan.Forward(dst, src)
+		}
+	}
+
+	run128 := func(b *testing.B, n int, opts PlanOptions) {
+		b.Helper()
+
+		plan, err := NewPlanWithOptions[complex128](n, opts)
+		if err != nil {
+			b.Fatalf("NewPlan[complex128](%d) failed: %v", n, err)
+		}
+
+		src := randomComplex128(n, int64(n))
+		dst := make([]complex128, n)
+
+		b.ReportAllocs()
+		b.SetBytes(int64(n * 16))
+		b.ResetTimer()
+
+		for range b.N {
+			_ = plan.Forward(dst, src)
+		}
+	}
+
+	for _, n := range rader7And11BenchPrimes {
+		b.Run("Rader_"+strconv.Itoa(n), func(b *testing.B) {
+			run64(b, n, PlanOptions{})
+		})
+		b.Run("Bluestein_"+strconv.Itoa(n), func(b *testing.B) {
+			run64(b, n, PlanOptions{Strategy: KernelBluestein})
+		})
+		b.Run("Rader128_"+strconv.Itoa(n), func(b *testing.B) {
+			run128(b, n, PlanOptions{})
+		})
+		b.Run("Bluestein128_"+strconv.Itoa(n), func(b *testing.B) {
+			run128(b, n, PlanOptions{Strategy: KernelBluestein})
 		})
 	}
 }

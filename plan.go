@@ -255,8 +255,8 @@ func bluesteinPadSize(n int) int {
 func planStrategyConfig(n int, useBluestein, useRader, useRecursive bool) (int, *transform.DecomposeStrategy, error) {
 	switch {
 	case useRader:
-		// Rader's cyclic convolution runs at exactly n-1 (5-smooth by
-		// eligibility), no padding needed.
+		// Rader's cyclic convolution runs at exactly n-1 (mixed-radix
+		// executable by eligibility), no padding needed.
 		return n - 1, nil, nil
 	case useBluestein:
 		if n > maxBluesteinLength {
@@ -480,9 +480,10 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	useRecursive := estimate.Strategy == fftypes.KernelRecursive
 	strategy := estimate.Strategy
 
-	// Prime lengths whose n-1 is 5-smooth upgrade from Bluestein to Rader's
-	// algorithm (exact length-(n-1) convolution instead of one padded to
-	// >= 2n-1). An explicitly forced KernelBluestein is honored as-is.
+	// Prime lengths whose n-1 the mixed-radix engine executes exactly upgrade
+	// from Bluestein to Rader's algorithm (exact length-(n-1) convolution
+	// instead of one padded to >= 2n-1). An explicitly forced
+	// KernelBluestein is honored as-is.
 	useRader := useBluestein && opts.Strategy != KernelBluestein && fft.RaderEligible(n)
 
 	bluesteinM, decompStrategy, err := planStrategyConfig(n, useBluestein, useRader, useRecursive)

@@ -486,6 +486,34 @@ references are to the current tree.
       measured as losses and stay on Bluestein. Remaining follow-up: padded Rader for
       non-smooth p−1 is a wash vs Bluestein (pad ≥ 2p−3 vs ≥ 2p−1), so it
       was intentionally skipped.
+      _Update 2026-07-25:_ the follow-up "extend `RaderEligible` to primes
+      with 7/11-smooth p−1" is done. Since the radix-7/11 item below landed,
+      the mixed-radix engine executes p−1 exactly for those primes too, so
+      `RaderEligible` now gates on `IsMixedRadixSmooth(p−1)`; the sub-FFT,
+      table, scratch and zero-alloc paths needed no change (verified vs
+      `reference.NaiveDFT` + round-trip at 42 primes spanning every p−1
+      shape, and `TestRader_ZeroAlloc` extended to 353 → [11, 32] and
+      2269 → [7, 4, 3, 3, 3, 3]). Radix-7/11 stages are full-matrix DFT
+      butterflies, so they needed their own win gate rather than the
+      5-smooth one — `rader7Or11Wins`, fitted on
+      `BenchmarkRader7And11VsBluestein` (32 primes × both precisions,
+      i7-1255U/AVX2) and consistent with all 32 measured shapes:
+      p−1 ≥ 2048 wins whenever its power-of-two part is ≥ 4 (2113, 2269,
+      2689, 2801, 4201, 4481, 6337, 7057, 7393, 9857, 9901, 12097, 12601,
+      14081, 15121, 30241: 1.1–3.4×), while below 2048 only a single
+      radix-7/11 stage — optionally with one radix-3 — on a deep power-of-two
+      chain wins (113, 353, 449, 673, 1409: 1.1–2.0×). Everything shallower
+      or odd-heavier measured 0.34–1.06× and stays on Bluestein
+      (power-of-two part ≤ 2 at any size: 23, 127, 463, 2311, 22051;
+      ≤ 4 below 2048: 29, 197, 701; 8 below 2048: 89, 281, 1321; odd part > 33 below 2048: 881, 1009, 2017). Purego spot-check on the thinnest
+      newly-eligible margins (rule 4): 1.14–2.05× at 113/449/673/7057/9901/
+      15121 across both precisions, with 881 and 2017 as controls measuring
+      0.99–1.00× (the gate leaves them on Bluestein, as intended). One
+      exception is recorded rather than papered over: 7393 regressed 9% on
+      purego complex64 (its complex128 arm won 1.27× and both AVX2 arms won
+      1.11–1.36×); tightening the gate to exclude odd-heavy shapes would
+      also discard 9901's 2.05× purego win, so it stays in. Still skipped
+      for the same reason as before: padded Rader for non-smooth p−1.
 - [x] **Split-radix (conjugate-pair) kernels.** _(2026-07)_ Generic
       split-radix (2/4) DIT landed in `internal/kernels/splitradix.go`
       (recursive, natural-order output, no bit-reversal pass; per-precision

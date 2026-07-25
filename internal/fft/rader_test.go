@@ -9,6 +9,12 @@ func TestRaderEligible(t *testing.T) {
 		17, 257, 65537, // n-1 a power of two
 		97, 769, 1153, 3001, // n-1 5-smooth, power-of-two part >= 8
 		401, 641, 1601, 4001, 12289, 18433, 40961,
+		// n-1 needs a radix-7/11 stage, n-1 < 2048 with power-of-two part
+		// >= 16 and a single odd stage (see rader7Or11Wins).
+		113, 353, 449, 673, 1409,
+		// n-1 needs a radix-7/11 stage, n-1 >= 2048 with power-of-two
+		// part >= 4.
+		2113, 2269, 2689, 2801, 4201, 4481, 9901, 14081, 30241,
 	}
 	for _, n := range eligible {
 		if !RaderEligible(n) {
@@ -18,10 +24,15 @@ func TestRaderEligible(t *testing.T) {
 
 	ineligible := []int{
 		1, 2, 3, 4, 5, 6, 8, 16, // too small / not on the Bluestein path
-		23, 29, 47, 59, 1009, // prime but n-1 not 5-smooth
+		47, 59, 83, // prime but n-1 has a factor > 11
 		25, 121, 256, 1000, // not prime
 		7, 11, 13, 31, 41, 61, // n-1 too small; measured slower than Bluestein
 		101, 151, 251, // n-1 power-of-two part <= 4: measured slower
+		// n-1 needs a radix-7/11 stage but the shape measured slower:
+		// power-of-two part <= 2 (23, 127, 463, 2311, 22051),
+		// <= 4 below 2048 (29, 197, 701), 8 below 2048 (89, 281, 1321),
+		// or an odd part above 33 below 2048 (881, 1009, 2017).
+		23, 29, 89, 127, 197, 281, 463, 701, 881, 1009, 1321, 2017, 2311, 22051,
 	}
 	for _, n := range ineligible {
 		if RaderEligible(n) {

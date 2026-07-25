@@ -117,7 +117,8 @@ func IsHighlyComposite(n int) bool {
 // factors — exactly the radices the mixed-radix engine can execute without
 // falling back to Bluestein. IsHighlyComposite (5-smooth) remains the
 // predicate for contexts where factors 7/11 are not acceptable, such as
-// Bluestein pad sizes and Rader sub-FFT lengths.
+// Bluestein pad sizes (NextHighlyComposite only enumerates 5-smooth
+// candidates).
 //
 // Like IsHighlyComposite, it divides factors out in place so it stays
 // allocation-free on the per-transform dispatch hot path.

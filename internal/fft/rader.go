@@ -21,16 +21,16 @@ import (
 // of a length-~4p one.
 
 // RaderEligible reports whether a length-n transform should use Rader's
-// algorithm: n must be prime with n-1 5-smooth (so the length-(n-1) cyclic
-// convolution runs directly through the power-of-two DIT or mixed-radix
-// engines) and the sub-FFT must be a measured win over Bluestein's padded
-// power-of-two sub-FFT (see raderConvolutionWins). Primes below 7 are
-// excluded because they are themselves 5-smooth and never reach the
-// arbitrary-length path.
+// algorithm: n must be prime with n-1 executable by the mixed-radix engine
+// (2/3/5/7/11-smooth, so the length-(n-1) cyclic convolution runs directly
+// through the power-of-two DIT or mixed-radix engines) and the sub-FFT must
+// be a measured win over Bluestein's padded power-of-two sub-FFT (see
+// raderConvolutionWins). Primes below 7 are excluded because they are
+// themselves 5-smooth and never reach the arbitrary-length path.
 func RaderEligible(n int) bool {
 	l := n - 1
 
-	return n >= 7 && mathpkg.IsHighlyComposite(l) && raderConvolutionWins(l) && mathpkg.IsPrime(n)
+	return n >= 7 && mathpkg.IsMixedRadixSmooth(l) && raderConvolutionWins(l) && mathpkg.IsPrime(n)
 }
 
 // raderConvolutionWins reports whether an exact length-l sub-FFT beats
@@ -47,12 +47,49 @@ func RaderEligible(n int) bool {
 //   - shapes whose power-of-two part is <= 4 keep the odd combine stages
 //     dominant and measured as losses (31, 61, 101, 151, 251), as did tiny
 //     l (7..41) where fixed overheads dominate. Those stay on Bluestein.
+//
+// l bearing a factor 7 or 11 has its own shape rule, see rader7Or11Wins.
 func raderConvolutionWins(l int) bool {
 	if mathpkg.IsPowerOf2(l) {
 		return true
 	}
 
+	if !mathpkg.IsHighlyComposite(l) {
+		return rader7Or11Wins(l)
+	}
+
 	return l >= 96 && l&-l >= 8
+}
+
+// rader7Or11Wins is the win gate for sub-FFT lengths that need a radix-7 or
+// radix-11 stage. Those stages are full-matrix DFT butterflies (see
+// internal/kernels/radix{7,11}.go), so the schedule's odd tail weighs much
+// more than it does for the 3/5 stages the 5-smooth rule above was fitted on.
+// Measured with BenchmarkRader7And11VsBluestein (i7-1255U, AVX2, forward,
+// both precisions; pow2 is the power-of-two part of l and o = l/pow2):
+//
+//   - l >= 2048: Bluestein's pad (>= 2l+1, measured 2.0-3.9x l here) lands on
+//     a large power-of-two sub-FFT, so the exact sub-FFT wins at every shape
+//     with pow2 >= 4 (2112, 2268, 2688, 2800, 4200, 4480, 6336, 7056, 7392,
+//     9856, 9900, 12096, 12600, 14080, 15120, 30240: 1.1-3.4x). pow2 == 2
+//     stays a wash or a loss (2310: 0.96/1.01x, 22050: 0.87/1.03x) — the
+//     strided radix-2 tail cancels the smaller length, the same pattern the
+//     5-smooth rule and planner.mixedRadix7And11Wins both show.
+//   - l < 2048: the odd stages dominate the whole transform, and only a
+//     single radix-7/11 stage (optionally with one radix-3) on top of a deep
+//     power-of-two chain wins at both precisions: 112, 352, 448, 672, 1408
+//     at 1.1-2.0x. Every shallower or odd-heavier shape measured 0.34-1.17x,
+//     i.e. no win that holds across precisions (88 pow2 8; 196, 700 pow2 4;
+//     126, 462 pow2 2; 280 pow2 8; 880 o=55; 1320 pow2 8; 2016 o=63), and
+//     stays on Bluestein.
+func rader7Or11Wins(l int) bool {
+	pow2 := l & -l
+
+	if l >= 2048 {
+		return pow2 >= 4
+	}
+
+	return pow2 >= 16 && l/pow2 <= 33
 }
 
 // ComputeRaderTables precomputes the plan-time tables for a Rader transform
@@ -111,7 +148,7 @@ func ComputeRaderTables[T Complex](p int, scratch []T) (
 // raderFilterFFT runs the plan-time forward FFT of a Rader filter sequence in
 // place, dispatching on the sub-FFT length exactly like the runtime
 // convolution (BluesteinConvolution): power-of-two lengths through the DIT
-// driver, other 5-smooth lengths through the mixed-radix engine.
+// driver, other smooth lengths through the mixed-radix engine.
 func raderFilterFFT[T Complex](buf, twiddle, scratch []T) {
 	if mathpkg.IsPowerOf2(len(buf)) {
 		if !kernels.DITForward(buf, buf, twiddle, scratch) {

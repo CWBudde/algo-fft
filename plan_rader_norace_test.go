@@ -5,9 +5,10 @@ package algofft
 import "testing"
 
 // TestRader_ZeroAlloc checks the transform hot path stays allocation-free for
-// both the power-of-two (257) and mixed-radix (641) sub-FFT variants.
+// the power-of-two (257), 5-smooth mixed-radix (641), and radix-7/11
+// mixed-radix (353 -> [11, 32], 2269 -> [7, 4, 3, 3, 3, 3]) sub-FFT variants.
 func TestRader_ZeroAlloc(t *testing.T) {
-	for _, n := range []int{257, 641} {
+	for _, n := range []int{257, 641, 353, 2269} {
 		plan, err := NewPlan[complex64](n)
 		if err != nil {
 			t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
