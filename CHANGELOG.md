@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-25
+
+Documentation only — the code is byte-identical to `v0.7.0`. Released so
+that a tag exists whose `CHANGELOG.md` describes what `v0.7.0` actually
+shipped; benchmark results measured against `v0.7.0` remain valid.
+
+### Fixed
+
+- The `v0.7.0` changelog entry, which was written from a stale reading of
+  the tree and was wrong in three places: it documented a `Meta()`
+  introspection method and a `PlanRealT` type that the generics refactor
+  had already removed (the surface is `PlanInfo` — `Len`,
+  `KernelStrategies`, `Algorithms`, `String`, `Close`); it claimed the
+  5-smooth Bluestein pad sizes were computed but inert, after the shape
+  whitelist in `plan_padsize.go` had enabled them; and it claimed
+  auto-selection routed power-of-two squares in [2^18, 2^22) to
+  split-radix, a rule that had been reverted the same day as measured
+  losses. It also omitted most of the release — four-step, radix-8, the
+  cache-blocked transpose, the size-32768 codelets, the SSE and NEON
+  ladders, the AVX2 complex128 Stockham assembly, the codelet priority
+  retune, odd-length real FFT, the SIMD real-FFT recombination, fast-size
+  convolution padding, the Rader 7/11 extension, the FMA and wisdom CPU
+  feature fixes, and the removal of the `asm` build tag
+
 ## [0.7.0] - 2026-07-25
 
 ### Added
