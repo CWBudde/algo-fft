@@ -1144,6 +1144,153 @@ references are to the current tree.
 
 ---
 
+## Priority 5 — Comparative Benchmark Findings (2026-07-25)
+
+Everything above was measured against algo-fft's own history: is this build
+faster than the last one? This section comes from measuring against **other
+libraries**, which asks a different and less comfortable question, and it
+found things the internal benchmarks structurally cannot see.
+
+Source: [`go-fft-bench`](https://github.com/CWBudde/go-fft-bench) at
+`a1fa607` — a full sweep of algo-fft `v0.7.0` against FFTW3, gonum, go-dsp
+and takatoh over powers of two 8–32768 plus 23 hand-picked
+non-power-of-two lengths, both precisions, both directions, default and
+`purego` builds. Reproduce with `just sweep && just plot`; the raw JSON and
+charts are committed there. Machine: i7-1255U, Go 1.26.1, `GOAMD64=v3`.
+
+**Standing caveat for every number below**: one laptop, one sweep. The
+harness interleaves libraries per length so thermal drift lands on all of
+them equally — treat the _ratios_ as real and the absolute figures as
+indicative. Anything acted on here gets re-measured with `benchstat` under
+the §3 methodology, before and after.
+
+Headline: at powers of two algo-fft is 0.63× FFTW3 (geomean) and roughly 8×
+the rest of the Go field. At non-power-of-two lengths that lead collapses,
+and the three items in P5.0 are defects rather than missing optimizations.
+
+### P5.0 Defects — fix before any of the optimization items
+
+- [ ] **complex64 is _slower_ than complex128 at 20 of 23 non-power-of-two
+      lengths** (ratios 0.68–0.95; worst 12000 at 0.68, then 257 at 0.70,
+      704 and 1000 at 0.74). A half-width type cannot legitimately cost
+      more, so this is a defect in the non-power-of-two complex64 paths, not
+      a tuning gap. The same symptom was already recorded locally for size
+      384 in P4.2 ("c64 fwd ~2.3 µs is _slower than c128_ at the same size,
+      which should not happen") — the sweep shows it is not local to 384 but
+      systemic across the mixed-radix, Bluestein and Rader routes. The 384
+      diagnosis is the likely template: dead or unwired complex64 assembly,
+      scalar Go doing work its complex128 twin does in asm, and per-call
+      scratch that the complex128 path pools. Audit the c64 side of the
+      `internal/fft` mixed-radix, Bluestein and Rader glue for those three
+      causes before optimizing anything else in this section.
+- [ ] **The power-of-two complex64 _forward_ path underperforms its own
+      inverse.** Splitting the c64/c128 ratio by direction on the same run:
+      at 128, forward gains 1.23× where inverse gains 3.36×; at 256, 1.67×
+      vs 4.19×; at 4096, 1.14× vs 2.12×; at 8192, 1.07× vs 1.81×. The
+      inverse codelets are extracting the width benefit the forward ones are
+      not, at the same sizes, from the same registry. Whatever the inverse
+      does differently is the fix — a like-for-like comparison inside one
+      build should be cheap to localize.
+- [ ] **algo-fft loses to gonum at n = 44100** — 4.00 ms against gonum's
+      2.59 ms (FFTW3: 236 µs). That is the canonical audio sample rate, in
+      the FFT library of a DSP suite, and it is the worst result in the
+      sweep at 0.06× FFTW3. 44100 = 2²·3²·5²·7² is fully factorable by the
+      mixed-radix engine, but `MixedRadixEligible` routes it to Bluestein
+      because its power-of-two part is 4, below the `mixedRadix7And11Wins`
+      threshold (`internal/planner/utils.go`). That gate was fitted on
+      shapes up to ~14080; 44100 is 3× larger and the Bluestein pad it falls
+      back to is ≥ 88199, so the extrapolation is well outside the data it
+      was derived from. Measure both routes at 44100 before touching the
+      gate — and note that 2205 (= 3²·5·7²) _does_ take the mixed-radix
+      route and still only reaches 0.07× FFTW3, so neither path is currently
+      good at these shapes and the gate may not be the whole answer.
+
+### P5.1 The mixed-radix engine is now the weak link
+
+Rader, the newest algorithm work, reaches 0.65× FFTW3 (geomean) and 0.93×
+at n = 12289 — near parity. The mixed-radix engine, extended with radix-7/11
+this cycle but never retuned, sits at 0.20× for 5-smooth and 0.13× for
+7/11-smooth lengths. That ordering is the reverse of the naive expectation
+and says plainly where the next round of work goes.
+
+- [ ] **Give the mixed-radix leaves a tuned path.** Six of the weakest
+      lengths in the sweep resolve to `dit_fallback` — 96 (0.12× FFTW3),
+      448 (0.10×), 480 (0.20×), 704 (0.12×), 768 (0.23×) and 1000 (0.11×) —
+      the generic driver with no size-specific leaf. Their SIMD-over-purego
+      ratios are correspondingly poor (1.39–3.32× against 4–6× for
+      well-served power-of-two sizes), which is the same signal from the
+      other side: there is little assembly on these paths to accelerate.
+      The odd-first schedule (P4.1) already arranges a power-of-two codelet
+      leaf where one is reachable; these are the shapes where it is not.
+      Candidates: SIMD radix-3/5/7/11 butterflies, or per-size codelets for
+      the most common composite lengths.
+- [ ] **Add practical DSP lengths to the internal benchmark set.** The
+      lengths where algo-fft's lead over gonum nearly vanishes are exactly
+      the ones a DSP user picks: 44100 (loses), 2205 (1.49×), 1000 (1.54×),
+      3600 (1.51×), 12000 (1.68×) — against ~8× at powers of two. None of
+      them appear in `plan_bench_test.go`, which is why the internal numbers
+      looked healthy throughout. Add them so a regression here is visible
+      without an external harness.
+- [ ] **Re-derive the radix-7/11 win gates over a wider range.**
+      `mixedRadix7And11Wins` and `rader7Or11Wins` were both fitted on the
+      shapes measured at the time; the 44100 result shows at least one
+      extrapolation failing outside that range. Re-run
+      `BenchmarkMixedRadix7And11VsBluestein` with the practical lengths
+      included and check whether the "power-of-two part ≥ 8" rule holds at
+      large n or needs an n-dependent term.
+
+### P5.2 Power-of-two soft spots
+
+The curve against FFTW3 is not smooth. Two dips are large enough to be
+structural rather than noise, and both reproduce in each direction:
+
+- [ ] **The n = 64 cliff.** 0.97× FFTW3 at n = 32 drops to 0.36× at n = 64
+      (0.33× inverse), and no larger size recovers the n = 32 level.
+      `dit64_radix4_avx2` also has the _lowest_ SIMD-over-purego ratio in
+      the entire power-of-two ladder — 2.19× against 4–6× for its
+      neighbours — so the codelet is barely beating pure Go. Two suspects to
+      separate: the codelet itself, and the decomposition it uses. n = 32
+      runs `dit32_radix4_then2_avx2` and is fine, so a radix-4-then-2
+      variant at 64 is the obvious first experiment.
+- [ ] **The n = 2048 local minimum.** 0.29× FFTW3 forward, 0.31× inverse —
+      the worst power-of-two point in the sweep, with 1024 (0.43×) and 4096
+      (0.45×) either side of it. `dit2048_radix4_then2_avx2` is the
+      incumbent. The AVX-512 item in P4.2 mentions reclaiming size 2048;
+      this is the AVX2 tier and independent of that.
+- [ ] **complex64 buys nothing between 1024 and 16384.** The c64/c128 ratio
+      runs 1.10, 1.02, 1.14, 1.07, 1.08 across 1024–16384, against 1.6–2.1×
+      at 256/512 and 1.58× at 32768. Part of that band is genuinely
+      memory-bound, but 1.02 at n = 2048 is not a bandwidth story — it is
+      the forward-path weakness from P5.0, and these five sizes are where it
+      costs the most.
+
+### P5.3 The SIMD build is slower than purego at two Bluestein primes
+
+- [ ] **n = 1009 and n = 2003 regress under SIMD** — both at 0.86×, i.e. the
+      default build is ~16% _slower_ than `-tags purego` for the same
+      transform. n = 9973, the third rough prime measured, goes the right way
+      (1.79×), so this is size-dependent rather than a blanket Bluestein
+      problem. Both regressing lengths pad to a smaller power of two than
+      9973 does; a plausible cause is a codelet selected for the padded
+      sub-FFT whose fixed overhead is not amortized at that pad size, but
+      that is a guess and wants a profile. Cheap to chase, and it violates
+      §3 rule 4 (no regressions on the purego build) in the opposite
+      direction from the usual.
+
+### P5.4 Keep the comparison running
+
+- [ ] **Put an external comparison in the release checklist.** Every finding
+      in this section was invisible to the internal suite, because "faster
+      than last week" and "faster than FFTW3" are different questions, and
+      only the second one notices that a whole class of lengths never got
+      the attention the power-of-two ladder did. Running `go-fft-bench`
+      before a tag — even manually, even on one laptop — is cheap next to
+      shipping another release in which 44100 loses to gonum. The harness
+      refuses to start on a loaded machine, so the results are at least not
+      accidentally measuring a compile storm.
+
+---
+
 ## Post-v1.0 Future (unchanged)
 
 **Features**: DCT, Hilbert transform, STFT/spectrograms, audio/image examples,
