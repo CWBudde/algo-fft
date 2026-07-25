@@ -891,8 +891,45 @@ references are to the current tree.
 - [ ] **AVX-512 higher-radix / per-size-tuned variants** (carried over from
       P2.4). The shipped AVX-512 tier is generic radix-2; a radix-4 AVX-512
       kernel should widen the 1.2–2.4× gap and could reclaim size 2048 and
-      the complex128 sizes where AVX2 codelets still win. Needs AVX-512
-      CI/bench hardware for regression tracking.
+      the complex128 sizes where AVX2 codelets still win.
+
+      **No longer blocked on hardware (2026-07-25).** An AVX-512 host is
+      now reachable — Intel Xeon Gold 5218 (Cascade Lake; `avx512f`,
+      `avx512dq`, `avx512cd`, `avx512bw`, `avx512vl`, `avx512_vnni`) — and
+      the AVX-512 assembly ran there for the first time. Until now every
+      AVX-512 test had been skipping at runtime via `cpu.DetectFeatures()`,
+      so `internal/asm/amd64/avx512_f{32,64}_generic.s` had **never
+      executed**, on any machine. Result: the whole AVX-512 test set passes
+      with zero skips, and `go test ./...` is green on that host. The
+      assembly is correct; what follows is purely a tuning question.
+
+      Measured against the best AVX2 codelet at each registered size
+      (complex64, `BenchmarkCodeletCandidates64`, pinned, idle host):
+
+      | size  | AVX-512 fwd | best AVX2 fwd | fwd Δ  | AVX-512 inv | best AVX2 inv | inv Δ      |
+      | ----- | ----------- | ------------- | ------ | ----------- | ------------- | ---------- |
+      | 1024  | 9151 ns     | 8210 ns       | +11.5% | 10662 ns    | 10141 ns      | +5.1%      |
+      | 4096  | 40786 ns    | 39726 ns      | +2.7%  | 45995 ns    | 50651 ns      | **−9.2%**  |
+      | 8192  | 89129 ns    | 83269 ns      | +7.0%  | 96315 ns    | 102567 ns     | **−6.1%**  |
+      | 16384 | 199838 ns   | 188084 ns     | +6.2%  | 221941 ns   | 233577 ns     | **−5.0%**  |
+
+      Three things follow. (1) The AVX-512 codelets are registered at
+      **Priority 10** against 24–28 for AVX2, so the registry never selects
+      them even on an AVX-512 CPU — for _forward_ that is currently the
+      right call, but it discards a real 5–9% on _inverse_ at ≥ 4096.
+      (2) The AVX-512 codelet is **radix-2** while every AVX2 winner here is
+      **radix-4**, so this table is measuring an algorithm gap, not a vector
+      width gap — which is exactly what the radix-4 work above is for, and
+      raises the prior that it will pay off. (3) Coverage is complex64 only,
+      at 1024/4096/8192/16384; `cmd/gencodelets/specs.go` has **no
+      `Target: "avx512"` rows for complex128** at all.
+
+      Caveat on the host: Cascade Lake downclocks under AVX-512, so this is
+      a pessimistic machine for the tier — a client Ice Lake or later part
+      would likely flatter it. Do not retune priorities from this host
+      alone. It is also a 2-vCPU VM with no gcc, so it cannot build the cgo
+      FFTW baseline; comparisons there are algo-fft-internal only.
+
 - [ ] **ARMv8.3 FCMLA complex-arithmetic kernels.** `internal/cpu` detects
       only `HasNEON`; ARMv8.3's `FCMLA`/`FCADD` do a full complex
       multiply-accumulate in two instructions (vs 4 mul + 2 add today —
@@ -1177,7 +1214,7 @@ and the three items in P5.0 are defects rather than missing optimizations.
       `complex64 * complex64` in single precision.** It widens all four
       float32 components to float64, multiplies in double precision and
       rounds the two results back — `CVTSS2SD ×4, MULSD ×3, VFMADD231SD,
-    SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
+SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       expression on complex128 (verified in the emitted assembly; addition,
       subtraction and conjugation are unaffected — only the multiply
       promotes). So any FFT stage written as scalar Go is _structurally_
@@ -1238,6 +1275,19 @@ and the three items in P5.0 are defects rather than missing optimizations.
       engine, so their residual deficit is not in the glue this item covers —
       it is the power-of-two forward path, which is the next item.
 
+      _Confirmed off-laptop (2026-07-25)._ Re-run on a 64-core SSE-only host
+      (no AVX at all, so every codelet resolves to the SSE2/SSE3 or generic
+      tier), pre-fix and post-fix trees built side by side and run ABBA-
+      interleaved, four rounds each. complex64 improved at **all ten**
+      lengths tested (p = 0.029 each, −4% to −31%); complex128 showed **no
+      significant change at any length**, which is the signature the fix
+      predicts, since the c128 twin's `MulComplex128` is still the plain
+      operator. The c64/c128 ratio moved 1.14–1.46 → 0.97–1.04 at 704, 1000,
+      2205, 3600, 9973, 12000 and 44100. The three that stayed high are 257
+      (1.46 → 1.41), 1009 (1.45 → 1.36) and 2003 (1.28 → 1.18) — all three
+      route through a power-of-two sub-FFT, so 2003 is a _third_
+      reproduction of the next item rather than a miss in this one.
+
 - [ ] **The same promotion still costs the pure-Go power-of-two codelets.**
       The fix above deliberately stopped at the paths P5.0 named. The
       generic radix-2/4 DIT codelets in `internal/kernels` are still written
@@ -1260,7 +1310,24 @@ and the three items in P5.0 are defects rather than missing optimizations.
       where complex64 is still slower than complex128 are 257 (1.41×) and
       1009 (1.25×) — the two whose sub-FFT is a power-of-two DIT rather than
       the mixed-radix engine. They are this item seen through the
-      arbitrary-length routes, and give it two extra reproductions.
+      arbitrary-length routes, and give it two extra reproductions (2003
+      makes a third; see the first item).
+
+      **It does not reproduce on any other machine (2026-07-25).** Checked on
+      two further hosts: a 64-core SSE-only host (no AVX, so the SSE2/SSE3
+      tier is what dispatch actually selects) and an idle Xeon Gold 5218
+      (AVX2 + AVX-512). On both, forward is _faster_ than its own inverse at
+      every power-of-two size — plan-level and codelet-level, complex64 and
+      complex128 — which is the expected ordering, since the inverse carries
+      the 1/N scaling. The SSE host measured c64 forward/inverse at
+      0.84–0.97 across 8…8192. Since the algorithm and the Go code are
+      identical across all three machines and only the selected SIMD tier
+      differs, the anomaly localizes to **the laptop's AVX2 codelets**, not
+      to the forward path in general. Re-confirm it on the laptop before
+      spending time in the Go layer, and treat "which AVX2 codelet wins
+      selection for forward vs inverse at these sizes" as the first place to
+      look — the registry can pick a different codelet per direction.
+
 - [ ] **algo-fft loses to gonum at n = 44100** — 4.00 ms against gonum's
       2.59 ms (FFTW3: 236 µs). That is the canonical audio sample rate, in
       the FFT library of a DSP suite, and it is the worst result in the
@@ -1274,6 +1341,132 @@ and the three items in P5.0 are defects rather than missing optimizations.
       gate — and note that 2205 (= 3²·5·7²) _does_ take the mixed-radix
       route and still only reaches 0.07× FFTW3, so neither path is currently
       good at these shapes and the gate may not be the whole answer.
+
+      _Worse than the laptop sweep showed (2026-07-25)._ On the SSE-only
+      host, where FFTW loses its AVX2 too and the comparison is therefore
+      closer to like-for-like, 44100 measured **7.49 ms against FFTW's
+      311 µs (24×) and gonum's 2.12 ms (3.5×)**. The same sweep put
+      algo-fft at only 1.1–1.9× FFTW across the whole power-of-two ladder
+      (8…8192) and 6.9–13.3× at the 5-smooth lengths. A deficit that
+      survives removing SIMD from _both_ sides is algorithmic, not a
+      missing-codelet problem — which is the strongest evidence yet that
+      P5.1, not more assembly, is where the non-power-of-two work belongs.
+
+- [x] **`KernelRecursive` falls off a cliff above 2048, and allocates.**
+      Found incidentally while benchmarking on an idle AVX2/AVX-512 host
+      (2026-07-25), but it is not machine-specific and should reproduce
+      anywhere. Plan-level complex64, `BenchmarkPlanForward_*_Recursive`:
+
+      | n     | Recursive  | allocs/op | default path | ratio     |
+      | ----- | ---------- | --------- | ------------ | --------- |
+      | 1024  | 16.9 µs    | 6         | 8.97 µs      | 1.9×      |
+      | 2048  | 35.1 µs    | 6         | 15.9 µs      | 2.2×      |
+      | 4096  | **1.39 ms** | 11       | 38.6 µs      | **36×**   |
+      | 8192  | **5.41 ms** | 531      | 87.3 µs      | **62×**   |
+      | 16384 | **23.2 ms** | 547      | 198 µs       | **117×**  |
+
+      Two separate problems in one signature. The 40× jump between 2048 and
+      4096 says the recursion stops finding codelet leaves and falls back to
+      something quadratic-ish; the allocation count going 6 → 531 at 8192
+      says it also starts allocating _per call_, in a library whose stated
+      contract is zero allocations after plan creation. The inverse
+      direction is identical, so it is in the shared decomposition, not the
+      direction-specific glue. `KernelRecursive` is opt-in via
+      `PlanOptions.Strategy` and `KernelAuto` never selects it, which is why
+      this has stayed invisible — but it is reachable from the public API,
+      so it is a defect rather than a tuning gap. Start at the leaf-size cut
+      in `internal/transform` and check what happens when the remaining
+      factor stops matching a registered codelet.
+
+      _Fixed 2026-07-25._ The investigation turned up **a silent wrong-answer
+      bug underneath the performance one**, which was the more serious of the
+      two. Three findings:
+
+      1. **Leaf codelets were fed the wrong twiddle table.** A
+         `registry.CodeletEntry` may declare a SIMD-friendly twiddle layout
+         via `TwiddleSize`/`PrepareTwiddle`; the normal plan path materializes
+         those tables (`plan_alloc.go`), but `internal/transform/recursive.go`
+         always handed leaves the standard length-n DIT table.
+         `dit256_radix16_avx2` asks for 748 elements and got 256, so
+         **complex128 `KernelRecursive` at n = 1024 returned a wrong
+         spectrum** — max abs error 2.6e5 against the reference, and
+         `Inverse(Forward(x)) != x`. Leaf lookup now goes through
+         `leafCodelet`, which only binds codelets using the standard layout
+         and otherwise falls back to the generic DIT.
+
+         This escaped the test suite because every recursive correctness test
+         transformed an **impulse** (`input[0] = 1`), whose spectrum is
+         all-ones — an input that is blind to twiddle errors, because every
+         twiddle multiplies a zero. Parseval and linearity are likewise
+         insensitive. Plan-level coverage of `KernelRecursive` also stopped at
+         n = 64. `plan_recursive_test.go` now cross-checks against the default
+         plan with a real signal at 1024…16384 in both precisions, plus a
+         round-trip.
+
+      2. **The decomposition chose radices with no butterfly.** The scorer's
+         +10000 "sub-size has a codelet" bonus outweighed its penalty on wide
+         radices, so 8192 split 16-way and 16384 split 32-way to reach a
+         512-point leaf in one level. Radix 16 and 32 have no butterfly: they
+         land in `combineGeneral`, a naive size-radix DFT costing O(radix²)
+         complex multiplies **per output element**, with `sin`/`cos`
+         recomputed inside the innermost loop. That is the entire cliff — cost
+         scaled exactly as radix²·subSize (1.39 ms → 5.41 ms → 23.2 ms is 4×
+         per step, matching 8² → 16² → 32²). `combineRadices` now restricts
+         splits to radix 4 and 2, the only two with a real butterfly, so the
+         tree goes deep instead of wide (16384 = 4×4096 → 4×1024 → 4×256).
+         Radix 8 is excluded too: `combineRadix8` is a direct 8-point DFT, not
+         a butterfly, and measured 34–44% slower than reaching the same size
+         through two radix-4 levels.
+
+      3. **The allocations were slice plumbing, not data.** Every recursion
+         node built `[][]T` views and one `make([]T, subSize)` input buffer
+         per sub-FFT, and `combineGeneral` allocated a temporary per output
+         element — 512 of the 531 allocs at 8192. The scratch and twiddle
+         blocks were *already* flat in `[r][k]` order, so the views were pure
+         overhead: the combine functions now index the flat blocks directly,
+         one reused decimation buffer serves all sub-FFTs at a level, and the
+         DIT fallback takes a leaf bit-reversal table precomputed at plan time
+         (`LeafBitrev`) instead of rebuilding it per call.
+
+      Result, same benchmark, ABBA-interleaved against HEAD (n≥4096 all
+      p=0.000; 1024/2048 are unchanged-tree controls and read `~`):
+
+      | n     | before      | after   | Δ          | allocs/op | vs default |
+      | ----- | ----------- | ------- | ---------- | --------- | ---------- |
+      | 1024  | 12.5 µs     | 9.4 µs  | ~          | 6 → **0** | 1.02×      |
+      | 2048  | 23.7 µs     | 19.8 µs | ~          | 6 → **0** | 1.20×      |
+      | 4096  | 506 µs      | 46.8 µs | **−90.8%** | 11 → **0** | 2.03×     |
+      | 8192  | 2.23 ms     | 76.5 µs | **−96.6%** | 531 → **0** | 1.72×    |
+      | 16384 | 8.87 ms     | 204 µs  | **−97.7%** | 547 → **0** | 2.69×    |
+
+      Inverse tracks forward (−88.0%, −94.7%, −96.3%). The 36×/62×/117×
+      penalty against the default path is now a flat 1.7–2.7×, which is the
+      expected cost of 256/512-point codelet leaves versus a full-size tuned
+      kernel — a tuning gap, not a cliff.
+
+- [ ] **Let recursive leaves use prepared-twiddle codelets.** Follow-up to the
+      fix above: `leafCodelet` currently declines any codelet declaring
+      `TwiddleSize`/`PrepareTwiddle` and falls back to the generic DIT, which
+      costs the best leaf on some size/precision pairs — on this laptop,
+      complex128 at n = 256 (`dit256_radix16_avx2`). Binding them needs
+      per-leaf forward _and_ inverse tables built at plan time, since
+      `PrepareTwiddle` takes an `inverse` flag while the recursive executor
+      currently shares one table across both directions. Worth measuring
+      before building: the leaf is one of two levels, so the ceiling is
+      modest, and it only matters for the sizes where a prepared-twiddle
+      codelet wins.
+
+- [ ] **Audit the other recursive tests for permutation/twiddle-blind inputs.**
+      The impulse-input problem in `internal/transform/recursive_integration_test.go`
+      hid a wrong-answer bug at every size ≥ 1024 for an entire precision.
+      An impulse cannot detect a wrong twiddle (they all multiply zeros) and
+      cannot detect a wrong output ordering (its spectrum is all-ones);
+      Parseval and linearity are insensitive to both. Those tests are still
+      worth keeping, but each needs a companion case driven by a broadband
+      signal and compared bin-by-bin against `internal/reference`. The same
+      question should be asked of the Bluestein, Rader and mixed-radix test
+      vectors, since the reflex to test with an impulse is not specific to
+      this file.
 
 ### P5.1 The mixed-radix engine is now the weak link
 
@@ -1358,6 +1551,36 @@ structural rather than noise, and both reproduce in each direction:
       shipping another release in which 44100 loses to gonum. The harness
       refuses to start on a loaded machine, so the results are at least not
       accidentally measuring a compile storm.
+
+- [ ] **Use the three hardware tiers deliberately.** As of 2026-07 three
+      machines are reachable, and they are complementary rather than
+      redundant — several findings in this section exist only because a
+      result differed between them:
+
+      - **Dev laptop (i7-1255U, AVX2, no AVX-512).** The only one with FFTW
+        installed, so the only place the external gap can be measured. It
+        thermally throttles hard, so interleave arms and trust ratios over
+        absolutes (see the benchmarking protocol in §3).
+      - **64-core host with no AVX at all** (SSE4.2 ceiling). Valuable
+        _because_ it is limited: it is the only place the SSE2/SSE3 codelet
+        tier is what dispatch actually selects. On any AVX2 machine those
+        codelets lose the priority ladder and are exercised only by
+        forced-strategy tests, so they ship effectively unbenchmarked in
+        situ. Also a good proxy for the scalar-Go paths that dominate
+        `purego` and WASM. Shared with other tenants — ratios, not
+        absolutes.
+      - **Xeon Gold 5218 (AVX2 + AVX-512).** The only AVX-512 hardware; see
+        the AVX-512 item in P4.2. Doubles as a second, non-throttling AVX2
+        reference, which is how the forward-vs-inverse anomaly in P5.0 got
+        localized to the laptop. Small (2 vCPU, ~1.5 GB free) and has no
+        gcc, so no cgo and no FFTW baseline.
+
+      Access to the two servers is weekend-only, so none of this belongs in
+      CI as-is; treat them as periodic validation sweeps, not routine
+      iteration. FFTW can be used there without installing anything by
+      shipping `libfftw3{,f}.so.3` plus `fftw3.h` from a matching distro
+      release and pointing `CGO_CFLAGS`/`CGO_LDFLAGS`/`LD_LIBRARY_PATH` at
+      them — but that needs a gcc on the target.
 
 ---
 

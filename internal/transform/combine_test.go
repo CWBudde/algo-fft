@@ -270,25 +270,24 @@ func TestCombineGeneral(t *testing.T) {
 	subSize := 2
 	n := radix * subSize // = 6
 
-	subResults := make([][]complex64, radix)
+	// Sub-results and twiddles are flat blocks in [r][k] order.
+	subResults := make([]complex64, n)
 	for i := range radix {
-		subResults[i] = make([]complex64, subSize)
 		for j := range subSize {
-			subResults[i][j] = complex(float32(i+1), 0) // [1, 1], [2, 2], [3, 3]
+			subResults[i*subSize+j] = complex(float32(i+1), 0) // [1, 1], [2, 2], [3, 3]
 		}
 	}
 
-	twiddles := make([][]complex64, radix)
+	twiddles := make([]complex64, n)
 	for r := range radix {
-		twiddles[r] = make([]complex64, subSize)
 		for k := range subSize {
 			angle := -2.0 * math.Pi * float64(r*k) / float64(n)
-			twiddles[r][k] = complex(float32(math.Cos(angle)), float32(math.Sin(angle)))
+			twiddles[r*subSize+k] = complex(float32(math.Cos(angle)), float32(math.Sin(angle)))
 		}
 	}
 
 	dst := make([]complex64, n)
-	combineGeneral(dst, subResults, twiddles, radix)
+	combineGeneral(dst, subResults, twiddles, subSize, radix)
 
 	t.Logf("General radix-%d combine output: %v", radix, dst)
 

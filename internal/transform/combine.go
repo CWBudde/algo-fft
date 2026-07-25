@@ -75,69 +75,76 @@ func combineRadix4[T Complex](
 
 // combineRadix8 combines eight N/8-point FFTs into an N-point FFT.
 // This is the radix-8 decimation-in-time combine step.
+//
+// subs and twiddles are flat blocks in [r][k] order: element (r, k) lives at
+// r*subSize+k. That is already how the recursive scratch and twiddle tables
+// are laid out, so no per-call slice-of-slice views are needed.
 func combineRadix8[T Complex](
 	dst []T, // Output buffer (size N)
-	subs [][]T, // Eight N/8 sub-results (subs[0] to subs[7])
-	twiddles [][]T, // Twiddle factors: twiddles[r][k] = W^(r*k) for r=0..7
+	subs []T, // Eight N/8 sub-results, flat [r][k]
+	twiddles []T, // Twiddle factors W^(r*k), flat [r][k]
+	subSize int, // N/8
 ) {
-	eighth := len(subs[0])
+	// W_8^j for j = 0..7. These depend only on the radix, so they are built
+	// once per call; computing them inside the element loop cost 64 sin/cos
+	// pairs per output element and dominated the whole transform.
+	var roots [8]T
 
-	for k := range eighth {
-		// Apply twiddle factors
-		t := make([]T, 8)
+	for j := range roots {
+		angle := -imath.TwoPi * float64(j) / 8.0
+		roots[j] = T(complex(cos64(angle), sin64(angle)))
+	}
 
-		t[0] = subs[0][k] // W^0 = 1, no multiplication needed
+	var t [8]T
+
+	for k := range subSize {
+		t[0] = subs[k] // W^0 = 1, no multiplication needed
 		for r := 1; r < 8; r++ {
-			t[r] = twiddles[r][k] * subs[r][k]
+			t[r] = twiddles[r*subSize+k] * subs[r*subSize+k]
 		}
 
-		// Radix-8 butterfly (can be optimized further with radix-2 + radix-4 decomposition)
-		// For now, use direct DFT formula for radix-8
+		// Radix-8 butterfly, evaluated as a direct 8-point DFT over t.
 		for bin := range 8 {
-			sum := T(0)
-
-			for r := range 8 {
-				// W_8^(bin*r) rotation
-				angle := -imath.TwoPi * float64(bin*r) / 8.0
-				w := T(complex(cos64(angle), sin64(angle)))
-				sum += w * t[r]
+			sum := t[0]
+			for r := 1; r < 8; r++ {
+				sum += roots[(bin*r)&7] * t[r]
 			}
 
-			dst[k+bin*eighth] = sum
+			dst[k+bin*subSize] = sum
 		}
 	}
 }
 
 // combineGeneral combines an arbitrary number of sub-FFTs.
-// This is a fallback for unusual radix values.
+//
+// This is a fallback for radices without a dedicated butterfly.
+// PlanDecomposition never emits one (see combineRadices), so it serves only
+// hand-built strategies; it stays allocation-free and evaluates each rotation
+// once per call rather than once per output element.
 func combineGeneral[T Complex](
 	dst []T, // Output buffer (size N)
-	subs [][]T, // Radix sub-results (each of size N/radix)
-	twiddles [][]T, // Twiddle factors: twiddles[r][k] = W^(r*k)
+	subs []T, // Radix sub-results, flat [r][k]
+	twiddles []T, // Twiddle factors W^(r*k), flat [r][k]
+	subSize int, // N/radix
 	radix int,
 ) {
-	subSize := len(subs[0])
+	// Bin-outer ordering: the rotation W_radix^(bin*r) is loop-invariant in k,
+	// so it is computed radix^2 times per call instead of per element. The
+	// r == 0 term has W^0 = 1 and seeds the accumulator.
+	for bin := range radix {
+		out := dst[bin*subSize : (bin+1)*subSize]
+		copy(out, subs[:subSize])
 
-	for k := range subSize {
-		// Apply twiddle factors
-		t := make([]T, radix)
-
-		t[0] = subs[0][k]
 		for r := 1; r < radix; r++ {
-			t[r] = twiddles[r][k] * subs[r][k]
-		}
+			angle := -imath.TwoPi * float64((bin*r)%radix) / float64(radix)
+			w := T(complex(cos64(angle), sin64(angle)))
 
-		// General DFT for this radix
-		for bin := range radix {
-			sum := T(0)
+			tw := twiddles[r*subSize : (r+1)*subSize]
+			sub := subs[r*subSize : (r+1)*subSize]
 
-			for r := range radix {
-				angle := -imath.TwoPi * float64(bin*r) / float64(radix)
-				w := T(complex(cos64(angle), sin64(angle)))
-				sum += w * t[r]
+			for k := range subSize {
+				out[k] += w * (tw[k] * sub[k])
 			}
-
-			dst[k+bin*subSize] = sum
 		}
 	}
 }

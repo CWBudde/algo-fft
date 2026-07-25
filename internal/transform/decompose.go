@@ -4,14 +4,52 @@ import (
 	"sort"
 )
 
+// combineRadices lists the split factors PlanDecomposition may choose, largest
+// first so the scorer's "prefer fewer stages" bias is evaluated in that order.
+//
+// Only radix 2 and 4 have a real butterfly (combineRadix2/combineRadix4).
+// Every other radix is combined by evaluating a size-radix DFT directly —
+// O(radix^2) complex multiplies per output element — which erases the point of
+// decomposing at all. Bounding the radix is what keeps the strategy tree deep
+// rather than wide: 16384 becomes 4x4096 -> 4x1024 -> 4x256-codelet instead of
+// a single 32x512 split whose combine dominated the entire transform.
+//
+// Radix 8 is deliberately absent even though combineRadix8 exists: it is a
+// direct 8-point DFT, not a butterfly, and splitting 8-way measured 34-44%
+// slower than reaching the same size through two radix-4 levels (ABBA-
+// interleaved, n=4096 and n=16384, both directions).
+var combineRadices = [...]int{4, 2}
+
 // DecomposeStrategy describes how to split an FFT recursively.
 type DecomposeStrategy struct {
 	Size        int                // Total FFT size
-	SplitFactor int                // Radix (2, 4, 8, or composite like 32)
+	SplitFactor int                // Radix chosen by the planner (see combineRadices)
 	SubSize     int                // Size of each sub-FFT
 	NumSubs     int                // Number of sub-FFTs (equal to SplitFactor)
 	UseCodelet  bool               // True if this size has a codelet
 	Recursive   *DecomposeStrategy // Strategy for sub-problems (nil if codelet)
+
+	// LeafBitrev is the radix-2 bit-reversal permutation for a leaf of this
+	// size, precomputed so the generic DIT fallback stays allocation-free.
+	// It is set only on leaf nodes of power-of-two size, and is nil elsewhere
+	// (ditForwardBitrev then computes the permutation itself).
+	LeafBitrev []int
+}
+
+// newLeafStrategy builds a leaf node, precomputing the bit-reversal table the
+// generic DIT fallback needs. Every leaf of a given tree has the same size, so
+// this table is computed once per plan and shared by all leaf invocations.
+func newLeafStrategy(n int) *DecomposeStrategy {
+	leaf := &DecomposeStrategy{
+		Size:       n,
+		UseCodelet: true,
+	}
+
+	if IsPowerOf2(n) {
+		leaf.LeafBitrev = ComputeBitReversalIndices(n)
+	}
+
+	return leaf
 }
 
 // PlanDecomposition finds the optimal split strategy for an FFT of size n.
@@ -26,31 +64,27 @@ type DecomposeStrategy struct {
 func PlanDecomposition(n int, codeletSizes []int, cacheSize int) *DecomposeStrategy {
 	// Base case: n is a codelet size
 	if hasCodelet(n, codeletSizes) {
-		return &DecomposeStrategy{
-			Size:       n,
-			UseCodelet: true,
-		}
+		return newLeafStrategy(n)
 	}
 
 	// Special case: very small sizes (< smallest codelet) are treated as codelets
 	// These will fall back to generic DIT implementation
 	if len(codeletSizes) > 0 && n < codeletSizes[0] {
-		return &DecomposeStrategy{
-			Size:       n,
-			UseCodelet: true, // Will use fallback generic DIT
-		}
+		return newLeafStrategy(n)
 	}
 
-	// Find all possible factorizations of n
-	factors := findFactors(n)
-
-	// Score each factorization based on cache fit, codelet availability,
-	// radix size, and SIMD width
+	// Score each candidate split based on cache fit, codelet availability,
+	// radix size, and SIMD width. Only radices with a dedicated combine are
+	// considered (see combineRadices).
 	bestScore := -1
 
 	var bestStrategy *DecomposeStrategy
 
-	for _, radix := range factors {
+	for _, radix := range combineRadices {
+		if radix >= n || n%radix != 0 {
+			continue
+		}
+
 		subSize := n / radix
 
 		score := scoreStrategy(radix, subSize, codeletSizes, cacheSize)
@@ -68,7 +102,7 @@ func PlanDecomposition(n int, codeletSizes []int, cacheSize int) *DecomposeStrat
 	}
 
 	// Fallback: if no strategy found, use radix-2 split
-	if bestStrategy == nil && len(factors) > 0 {
+	if bestStrategy == nil && n > 2 && n%2 == 0 {
 		radix := 2
 		subSize := n / radix
 		bestStrategy = &DecomposeStrategy{

@@ -183,9 +183,12 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 	combineBlock := twiddle[:blockSize]
 	offset := blockSize
 
-	subResults := make([][]complex64, radix)
+	// Sub-results are flat in [r][k] order, matching what the combine step
+	// consumes (see combineRadix8/combineGeneral).
+	subResults := make([]complex64, blockSize)
+
 	for i := range radix {
-		subResults[i] = make([]complex64, subSize)
+		sub := subResults[i*subSize : (i+1)*subSize]
 
 		subInput := make([]complex64, subSize)
 		for j := range subSize {
@@ -195,11 +198,11 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 		subTwiddle := twiddle[offset : offset+subSize]
 		offset += subSize
 
-		codelet := registry.Registry64.Lookup(subSize, features)
+		codelet := leafCodelet(registry.Registry64, subSize, features)
 		if codelet != nil {
-			codelet.Forward(subResults[i], subInput, subTwiddle, make([]complex64, subSize))
+			codelet.Forward(sub, subInput, subTwiddle, make([]complex64, subSize))
 		} else {
-			ditForward(subResults[i], subInput, subTwiddle, make([]complex64, subSize))
+			ditForward(sub, subInput, subTwiddle, make([]complex64, subSize))
 		}
 	}
 
@@ -208,18 +211,19 @@ func TestRecursiveDebug_Size1024_Combine(t *testing.T) {
 	switch radix {
 	case 2:
 		tw := combineBlock[subSize : 2*subSize]
-		combineRadix2(output, subResults[0], subResults[1], tw)
+		combineRadix2(output, subResults[:subSize], subResults[subSize:2*subSize], tw)
 	case 4:
 		tw1 := combineBlock[subSize : 2*subSize]
 		tw2 := combineBlock[2*subSize : 3*subSize]
 		tw3 := combineBlock[3*subSize : 4*subSize]
-		combineRadix4(output, subResults[0], subResults[1], subResults[2], subResults[3], tw1, tw2, tw3)
+		combineRadix4(output,
+			subResults[:subSize], subResults[subSize:2*subSize],
+			subResults[2*subSize:3*subSize], subResults[3*subSize:4*subSize],
+			tw1, tw2, tw3)
 	case 8:
-		twiddles := splitTwiddleBlock(combineBlock, radix, subSize)
-		combineRadix8(output, subResults, twiddles)
+		combineRadix8(output, subResults, combineBlock, subSize)
 	default:
-		twiddles := splitTwiddleBlock(combineBlock, radix, subSize)
-		combineGeneral(output, subResults, twiddles, radix)
+		combineGeneral(output, subResults, combineBlock, subSize, radix)
 	}
 
 	expected := reference.NaiveDFT(input)

@@ -8,6 +8,34 @@ import (
 
 // recursive.go implements the recursive FFT algorithm using decomposition strategies.
 
+// leafCodelet returns the registered codelet for a leaf of size n, but only
+// when that codelet consumes the standard length-n DIT twiddle table.
+//
+// Codelets may instead declare a SIMD-friendly twiddle layout through
+// TwiddleSize/PrepareTwiddle (registry.CodeletEntry); the non-recursive plan
+// path materializes those tables up front (see plan_alloc.go). The recursive
+// decomposition carries one standard table laid out by estimateTwiddleSize,
+// so handing such a codelet that table would transform against the wrong
+// factors and silently return a wrong spectrum — dit256_radix16_avx2, for
+// example, asks for 748 elements where the leaf slice supplies 256.
+//
+// Returning nil routes the leaf to the generic DIT fallback, which is correct
+// for every size. Binding prepared-twiddle codelets here would need per-leaf
+// forward and inverse tables built at plan time; that is a performance
+// opportunity, not a correctness requirement.
+func leafCodelet[T Complex](
+	reg *registry.CodeletRegistry[T],
+	n int,
+	features cpu.Features,
+) *registry.CodeletEntry[T] {
+	entry := reg.Lookup(n, features)
+	if entry == nil || entry.TwiddleSize != nil || entry.PrepareTwiddle != nil {
+		return nil
+	}
+
+	return entry
+}
+
 // RecursiveForward executes a forward FFT using recursive decomposition.
 // It splits the problem according to the strategy, calls codelets for base cases,
 // and combines results using twiddle factors.
@@ -54,9 +82,9 @@ func recursiveForwardWithTwiddle[T Complex](
 		// Kernels are self-contained and handle permutation internally.
 		// A codelet reports false when it bailed without doing any work;
 		// fall back to generic DIT then (as when no codelet is registered).
-		codelet := registry.Lookup(n, features)
+		codelet := leafCodelet(registry, n, features)
 		if codelet == nil || !codelet.Forward(dst, src, twiddleSlice, scratch) {
-			ditForward(dst, src, twiddleSlice, scratch)
+			ditForwardBitrev(dst, src, twiddleSlice, scratch, strategy.LeafBitrev)
 		}
 
 		return twiddleOffset + n
@@ -65,43 +93,25 @@ func recursiveForwardWithTwiddle[T Complex](
 	// Recursive case: split and combine
 	radix := strategy.SplitFactor
 	subSize := strategy.SubSize
-
-	// Allocate sub-result buffers from scratch space
-	// Layout: [sub0 | sub1 | ... | subN | remaining scratch]
-	subResults := make([][]T, radix)
-	for i := range radix {
-		subResults[i] = scratch[i*subSize : (i+1)*subSize]
-	}
-
-	remainingScratch := scratch[radix*subSize:]
-	subScratchSize := ScratchSizeRecursive(strategy.Recursive)
-	subScratch := remainingScratch[:subScratchSize]
-
-	// Allocate sub-input buffers (temporary, could optimize with in-place decimation)
-	subInputs := make([][]T, radix)
-	for i := range radix {
-		subInputs[i] = make([]T, subSize)
-	}
-
-	// Decimate input: extract strided sub-sequences
-	// For radix-2: even/odd indices
-	// For radix-4: indices mod 4
-	// General: indices mod radix
-	for i := range radix {
-		for j := range subSize {
-			subInputs[i][j] = src[i+j*radix]
-		}
-	}
-
 	blockSize := radix * subSize
+
+	subResults, subInput, subScratch := splitScratch(scratch, strategy)
+
 	combineBlock := twiddle[twiddleOffset : twiddleOffset+blockSize]
 	twiddleOffset += blockSize
 
-	// Recursively compute sub-FFTs
+	// Decimate and transform one sub-sequence at a time: extract the strided
+	// sub-sequence (indices congruent to i mod radix), then recurse on it.
+	// subInput is reused across the radix passes because each sub-FFT fully
+	// consumes its input before the next decimation overwrites it.
 	for i := range radix {
+		for j := range subSize {
+			subInput[j] = src[i+j*radix]
+		}
+
 		twiddleOffset = recursiveForwardWithTwiddle(
-			subResults[i],
-			subInputs[i],
+			subResults[i*subSize:(i+1)*subSize],
+			subInput,
 			strategy.Recursive,
 			twiddle,
 			twiddleOffset,
@@ -115,21 +125,44 @@ func recursiveForwardWithTwiddle[T Complex](
 	switch radix {
 	case 2:
 		tw := combineBlock[subSize : 2*subSize]
-		combineRadix2(dst, subResults[0], subResults[1], tw)
+		combineRadix2(dst, subResults[:subSize], subResults[subSize:2*subSize], tw)
 	case 4:
 		tw1 := combineBlock[subSize : 2*subSize]
 		tw2 := combineBlock[2*subSize : 3*subSize]
 		tw3 := combineBlock[3*subSize : 4*subSize]
-		combineRadix4(dst, subResults[0], subResults[1], subResults[2], subResults[3], tw1, tw2, tw3)
+		combineRadix4(dst,
+			subResults[:subSize], subResults[subSize:2*subSize],
+			subResults[2*subSize:3*subSize], subResults[3*subSize:4*subSize],
+			tw1, tw2, tw3)
 	case 8:
-		twiddles := splitTwiddleBlock(combineBlock, radix, subSize)
-		combineRadix8(dst, subResults, twiddles)
+		combineRadix8(dst, subResults, combineBlock, subSize)
 	default:
-		twiddles := splitTwiddleBlock(combineBlock, radix, subSize)
-		combineGeneral(dst, subResults, twiddles, radix)
+		combineGeneral(dst, subResults, combineBlock, subSize, radix)
 	}
 
 	return twiddleOffset
+}
+
+// splitScratch carves one recursion level's working set out of scratch,
+// matching the layout ScratchSizeRecursive reserves:
+//
+//	[0 : radix*subSize)          sub-FFT results, flat in [r][k] order
+//	[radix*subSize : +subSize)   decimated input for the sub-FFT in flight
+//	[remainder]                  scratch for the sub-FFT itself
+//
+// Only one decimated-input buffer is needed because sub-FFTs run one at a
+// time. The three regions are disjoint, so a sub-FFT may write its results
+// while reading its input.
+//
+// The returned slices are, in order: sub-results, decimated input, sub-scratch.
+func splitScratch[T Complex](scratch []T, strategy *DecomposeStrategy) ([]T, []T, []T) {
+	blockSize := strategy.SplitFactor * strategy.SubSize
+
+	subResults := scratch[:blockSize]
+	subInput := scratch[blockSize : blockSize+strategy.SubSize]
+	subScratch := scratch[blockSize+strategy.SubSize:][:ScratchSizeRecursive(strategy.Recursive)]
+
+	return subResults, subInput, subScratch
 }
 
 // RecursiveInverse executes an inverse FFT using recursive decomposition.
@@ -175,9 +208,9 @@ func recursiveInverseWithTwiddle[T Complex](
 
 		// See the forward path: fall back to generic DIT when the codelet is
 		// missing or bailed without doing any work.
-		codelet := registry.Lookup(n, features)
+		codelet := leafCodelet(registry, n, features)
 		if codelet == nil || !codelet.Inverse(dst, src, twiddleSlice, scratch) {
-			ditInverse(dst, src, twiddleSlice, scratch)
+			ditInverseBitrev(dst, src, twiddleSlice, scratch, strategy.LeafBitrev)
 		}
 
 		return twiddleOffset + n
@@ -187,36 +220,23 @@ func recursiveInverseWithTwiddle[T Complex](
 	radix := strategy.SplitFactor
 	subSize := strategy.SubSize
 
-	subResults := make([][]T, radix)
-	for i := range radix {
-		subResults[i] = scratch[i*subSize : (i+1)*subSize]
-	}
-
-	remainingScratch := scratch[radix*subSize:]
-	subScratchSize := ScratchSizeRecursive(strategy.Recursive)
-	subScratch := remainingScratch[:subScratchSize]
-
-	subInputs := make([][]T, radix)
-	for i := range radix {
-		subInputs[i] = make([]T, subSize)
-	}
-
-	// Decimate input
-	for i := range radix {
-		for j := range subSize {
-			subInputs[i][j] = src[i+j*radix]
-		}
-	}
-
 	blockSize := radix * subSize
+
+	subResults, subInput, subScratch := splitScratch(scratch, strategy)
+
 	combineBlock := twiddle[twiddleOffset : twiddleOffset+blockSize]
 	twiddleOffset += blockSize
 
-	// Recursively compute sub-IFFTs
+	// Decimate and transform one sub-sequence at a time; see the forward path
+	// for why a single reused input buffer is sufficient.
 	for i := range radix {
+		for j := range subSize {
+			subInput[j] = src[i+j*radix]
+		}
+
 		twiddleOffset = recursiveInverseWithTwiddle(
-			subResults[i],
-			subInputs[i],
+			subResults[i*subSize:(i+1)*subSize],
+			subInput,
 			strategy.Recursive,
 			twiddle,
 			twiddleOffset,
@@ -230,33 +250,24 @@ func recursiveInverseWithTwiddle[T Complex](
 	switch radix {
 	case 2:
 		tw := combineBlock[subSize : 2*subSize]
-		combineRadix2Conj(dst, subResults[0], subResults[1], tw)
+		combineRadix2Conj(dst, subResults[:subSize], subResults[subSize:2*subSize], tw)
 	case 4:
 		tw1 := combineBlock[subSize : 2*subSize]
 		tw2 := combineBlock[2*subSize : 3*subSize]
 		tw3 := combineBlock[3*subSize : 4*subSize]
-		combineRadix4Conj(dst, subResults[0], subResults[1], subResults[2], subResults[3], tw1, tw2, tw3)
+		combineRadix4Conj(dst,
+			subResults[:subSize], subResults[subSize:2*subSize],
+			subResults[2*subSize:3*subSize], subResults[3*subSize:4*subSize],
+			tw1, tw2, tw3)
 	case 8:
-		twiddles := splitTwiddleBlock(combineBlock, radix, subSize)
-		combineRadix8Conj(dst, subResults, twiddles)
+		combineRadix8Conj(dst, subResults, combineBlock, subSize)
 	default:
-		twiddles := splitTwiddleBlock(combineBlock, radix, subSize)
-		combineGeneralConj(dst, subResults, twiddles, radix)
+		combineGeneralConj(dst, subResults, combineBlock, subSize, radix)
 	}
 
 	scaleComplexSlice(dst, 1.0/float64(radix))
 
 	return twiddleOffset
-}
-
-func splitTwiddleBlock[T Complex](block []T, radix, subSize int) [][]T {
-	twiddles := make([][]T, radix)
-	for r := range radix {
-		start := r * subSize
-		twiddles[r] = block[start : start+subSize]
-	}
-
-	return twiddles
 }
 
 func combineRadix2Conj[T Complex](dst []T, sub0, sub1 []T, twiddle []T) {
@@ -294,52 +305,52 @@ func combineRadix4Conj[T Complex](
 	}
 }
 
-func combineRadix8Conj[T Complex](dst []T, subs [][]T, twiddles [][]T) {
-	eighth := len(subs[0])
+// combineRadix8Conj mirrors combineRadix8 with conjugated twiddles and
+// rotations. subs and twiddles are flat blocks in [r][k] order.
+func combineRadix8Conj[T Complex](dst, subs, twiddles []T, subSize int) {
+	var roots [8]T
 
-	for k := range eighth {
-		t := make([]T, 8)
+	for j := range roots {
+		angle := imath.TwoPi * float64(j) / 8.0
+		roots[j] = T(complex(cos64(angle), sin64(angle)))
+	}
 
-		t[0] = subs[0][k]
+	var t [8]T
+
+	for k := range subSize {
+		t[0] = subs[k]
 		for r := 1; r < 8; r++ {
-			t[r] = conj(twiddles[r][k]) * subs[r][k]
+			t[r] = conj(twiddles[r*subSize+k]) * subs[r*subSize+k]
 		}
 
 		for bin := range 8 {
-			sum := T(0)
-
-			for r := range 8 {
-				angle := imath.TwoPi * float64(bin*r) / 8.0
-				w := T(complex(cos64(angle), sin64(angle)))
-				sum += w * t[r]
+			sum := t[0]
+			for r := 1; r < 8; r++ {
+				sum += roots[(bin*r)&7] * t[r]
 			}
 
-			dst[k+bin*eighth] = sum
+			dst[k+bin*subSize] = sum
 		}
 	}
 }
 
-func combineGeneralConj[T Complex](dst []T, subs [][]T, twiddles [][]T, radix int) {
-	subSize := len(subs[0])
+// combineGeneralConj mirrors combineGeneral with conjugated twiddles and
+// rotations. See combineGeneral for the loop ordering rationale.
+func combineGeneralConj[T Complex](dst, subs, twiddles []T, subSize, radix int) {
+	for bin := range radix {
+		out := dst[bin*subSize : (bin+1)*subSize]
+		copy(out, subs[:subSize])
 
-	for k := range subSize {
-		t := make([]T, radix)
-
-		t[0] = subs[0][k]
 		for r := 1; r < radix; r++ {
-			t[r] = conj(twiddles[r][k]) * subs[r][k]
-		}
+			angle := imath.TwoPi * float64((bin*r)%radix) / float64(radix)
+			w := T(complex(cos64(angle), sin64(angle)))
 
-		for bin := range radix {
-			sum := T(0)
+			tw := twiddles[r*subSize : (r+1)*subSize]
+			sub := subs[r*subSize : (r+1)*subSize]
 
-			for r := range radix {
-				angle := imath.TwoPi * float64(bin*r) / float64(radix)
-				w := T(complex(cos64(angle), sin64(angle)))
-				sum += w * t[r]
+			for k := range subSize {
+				out[k] += w * (conj(tw[k]) * sub[k])
 			}
-
-			dst[k+bin*subSize] = sum
 		}
 	}
 }

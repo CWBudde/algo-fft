@@ -25,8 +25,12 @@ func ditForward[T Complex](dst, src, twiddle, scratch []T) bool {
 	return kernels.DITForward(dst, src, twiddle, scratch)
 }
 
-func ditInverse[T Complex](dst, src, twiddle, scratch []T) bool {
-	return kernels.DITInverse(dst, src, twiddle, scratch)
+func ditForwardBitrev[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+	return kernels.DITForwardBitrev(dst, src, twiddle, scratch, bitrev)
+}
+
+func ditInverseBitrev[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+	return kernels.DITInverseBitrev(dst, src, twiddle, scratch, bitrev)
 }
 
 func sameSlice[T any](a, b []T) bool {

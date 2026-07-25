@@ -345,6 +345,19 @@ func DITInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 	return ditInverse(dst, src, twiddle, scratch)
 }
 
+// DITForwardBitrev is DITForward with a caller-supplied bit-reversal table.
+// Passing a table of at least len(src) entries keeps the call allocation-free;
+// a nil or short slice falls back to computing the permutation locally.
+func DITForwardBitrev[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+	return ditForwardBitrev(dst, src, twiddle, scratch, bitrev)
+}
+
+// DITInverseBitrev is DITInverse with a caller-supplied bit-reversal table.
+// See DITForwardBitrev.
+func DITInverseBitrev[T Complex](dst, src, twiddle, scratch []T, bitrev []int) bool {
+	return ditInverseBitrev(dst, src, twiddle, scratch, bitrev)
+}
+
 // Precision-specific exports.
 var (
 	ForwardDITComplex64  = forwardDITComplex64

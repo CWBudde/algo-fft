@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `PlanOptions{Strategy: KernelRecursive}` returned a **wrong spectrum** for
+  complex128 at every length whose decomposition bottomed out in a leaf whose
+  best codelet uses a prepared twiddle layout — on AVX2 hosts, n = 1024 and
+  any multiple that reaches a 256-point leaf. Codelets may declare a
+  SIMD-friendly twiddle layout through `TwiddleSize`/`PrepareTwiddle`, which
+  the ordinary plan path materializes, but the recursive executor always
+  passed leaves the standard length-n DIT table; `dit256_radix16_avx2` reads
+  748 elements where it received 256. The transform silently produced garbage
+  (max abs error 2.6e5 against the reference at n = 1024) and
+  `Inverse(Forward(x))` did not round-trip. Recursive leaves now bind only
+  codelets that consume the standard layout and fall back to the generic DIT
+  otherwise. The regression escaped testing because the recursive correctness
+  tests transformed an impulse, whose all-ones spectrum cannot detect a wrong
+  twiddle factor; plan-level tests now cross-check a broadband signal against
+  the default plan at 1024–16384 in both precisions.
+
+- `KernelRecursive` fell off a performance cliff above n = 2048 and allocated
+  on every transform, in a library whose contract is zero allocations after
+  plan creation. The decomposition scorer preferred reaching a codelet-sized
+  sub-problem in a single split, choosing 16-way and 32-way splits at 8192 and
+  16384; those radices have no butterfly and were combined by evaluating a
+  naive size-radix DFT per output element, with `sin`/`cos` recomputed in the
+  innermost loop. Splits are now restricted to radix 4 and 2 — the radices
+  with a real butterfly — so the strategy tree goes deep rather than wide.
+  Separately, each recursion node allocated `[][]T` views plus a decimation
+  buffer per sub-FFT, and the general combine allocated a temporary per output
+  element; the combine steps now index the already-flat scratch and twiddle
+  blocks directly, one reused decimation buffer serves every sub-FFT at a
+  level, and the DIT fallback takes a bit-reversal table precomputed at plan
+  time. Forward transforms are 90.8% / 96.6% / 97.7% faster at 4096 / 8192 /
+  16384 (inverse 88.0% / 94.7% / 96.3%), and all sizes are allocation-free
+  (16384 went from 547 allocs/op to 0). Relative to the default strategy, the
+  recursive path went from 36×/62×/117× slower to a flat 1.7–2.7×.
+
+- complex64 was slower than complex128 at most non-power-of-two lengths
+  (measured at 20 of 23 in an external sweep; worst 0.68× at n = 12000).
+  Go's compiler implements scalar `complex64 * complex64` by widening both
+  operands to complex128, multiplying in double precision and rounding
+  back — twelve instructions where the complex128 multiply needs six — so
+  every FFT stage written as scalar Go cost more in the narrower type.
+  Power-of-two lengths were unaffected because they run inside float32 SIMD
+  codelets; the mixed-radix, Bluestein and Rader routes could not, since
+  their odd-radix stages and pointwise products are scalar Go. Scalar
+  complex64 multiplication now goes through `math.MulComplex64`, which stays
+  in single precision, and the chirp/filter products route through the
+  existing SIMD element-wise entrypoints. Every complex64 function on the
+  non-power-of-two path is now free of the widening (mixed-radix driver
+  92 → 0 conversion instructions, Bluestein executor 100 → 0, Rader inverse
+  30 → 0). The c64/c128 forward ratio at the mixed-radix lengths went from
+  1.18–1.27 (complex64 slower) to 0.90–0.98 (complex64 faster, as it should
+  be), worth 21–32% in absolute complex64 time at 1000, 2205, 3600 and
+  12000, with no significant change to complex128. Accuracy against a
+  float64 reference is neutral-to-better across the affected lengths —
+  improved at 8 of 12 sizes, unchanged or marginally worse at the rest, all
+  within the documented ~10⁻⁶ complex64 band — and the pure-Go paths now
+  round the same way the SIMD codelets do. Two lengths keep a complex64
+  deficit (257 at 1.41, 1009 at 1.25); both have a power-of-two sub-FFT, so
+  what remains there is the separately-tracked power-of-two forward-path
+  weakness, not this defect. The generic power-of-two codelets used by
+  `purego`/WASM builds still carry the widening; also tracked separately
+
+### Added
+
+- `fft.ComplexMulArray` and `fft.ScaleInPlace`: generic wrappers over the
+  existing SIMD element-wise product and real-scalar scale, matching the
+  `fft.ComplexMulArrayInPlace` that was already there
+
 ## [0.7.1] - 2026-07-25
 
 Documentation only — the code is byte-identical to `v0.7.0`. Released so
@@ -157,8 +226,7 @@ shipped; benchmark results measured against `v0.7.0` remain valid.
 - Batch and strided transform APIs
 - Convolution and correlation helpers (complex and real, both precisions)
 - complex64 and complex128 precision throughout
-- SIMD kernels (AVX-512/AVX2/SSE2/SSE3 on amd64, NEON on arm64, SSE on
-  386) selected at runtime via CPU detection; on AVX-512 CPUs the generic
+- SIMD kernels (AVX-512/AVX2/SSE2/SSE3 on amd64, NEON on arm64, SSE on 386) selected at runtime via CPU detection; on AVX-512 CPUs the generic
   AVX-512 kernel also serves as the complex64 codelet at sizes
   1024/4096/8192/16384 (1.2–2.4× over the AVX2 codelets it replaces)
 - Wisdom: persist and reuse plan-tuning decisions
