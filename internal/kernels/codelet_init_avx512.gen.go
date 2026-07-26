@@ -138,6 +138,28 @@ func registerAVX512DITCodelets64() {
 // registerAVX512DITCodelets128 registers the AVX512 complex128 DIT codelets.
 func registerAVX512DITCodelets128() {
 	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       4,
+		Forward:    amd64.ForwardAVX512Size4Radix4Complex128Asm,
+		Inverse:    amd64.InverseAVX512Size4Radix4Complex128Asm,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDAVX512,
+		Signature:  "dit4_radix4_avx512",
+		Priority:   -1,
+		KernelType: fftypes.KernelTypeCore,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       8,
+		Forward:    amd64.ForwardAVX512Size8Radix8Complex128Asm,
+		Inverse:    amd64.InverseAVX512Size8Radix8Complex128Asm,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDAVX512,
+		Signature:  "dit8_radix8_avx512",
+		Priority:   10,
+		KernelType: fftypes.KernelTypeCore,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
 		Size:       16,
 		Forward:    amd64.ForwardAVX512Size16Radix4Complex128Asm,
 		Inverse:    amd64.InverseAVX512Size16Radix4Complex128Asm,

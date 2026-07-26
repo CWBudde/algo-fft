@@ -817,6 +817,34 @@ var codeletSpecs = []codeletSpec{
 	// these transforms are likewise fully register-resident and never spill
 	// between stages. Before this set, complex128 had no AVX-512 codelets at
 	// all; see internal/asm/amd64/avx512_f64_size*.s.
+	// Size 4 is DISABLED (negative priority) on purpose. Measured on a Xeon Gold
+	// 5218, median of 7 x 300ms on an idle host: forward 11.54 ns vs 8.27 ns for
+	// the pure-Go codelet (10.86 ns for SSE2), inverse 12.07 ns vs 11.18 ns.
+	// The kernel is only 11 vector ops with no multiply, so this is not an
+	// instruction-count problem: a 4-point butterfly network over the four lanes
+	// of one ZMM needs two levels of lane-crossing VSHUFF64X2 (3 cycles each),
+	// while the SSE2 kernel keeps each complex128 in its own XMM and needs no
+	// shuffle at all for stage 1. Packing n = 4 into one register trades free
+	// register-level parallelism for ~7 cycles of serial shuffle latency, and at
+	// 64 bytes there is no data-movement win to pay for it. Codelet selection
+	// prefers the higher SIMD level over priority, so registering this would
+	// make AVX-512 hosts slower; the row is kept so the kernel is not lost.
+	// NOTE: negative-priority rows are skipped by the behavioural sweeps, so this
+	// kernel was verified at a positive priority before being disabled.
+	{
+		Target: "avx512", Prec: 128, Size: 4,
+		Forward:   "amd64.ForwardAVX512Size4Radix4Complex128Asm",
+		Inverse:   "amd64.InverseAVX512Size4Radix4Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeCore",
+		Signature: "dit4_radix4_avx512", Priority: -1,
+	},
+	{
+		Target: "avx512", Prec: 128, Size: 8,
+		Forward:   "amd64.ForwardAVX512Size8Radix8Complex128Asm",
+		Inverse:   "amd64.InverseAVX512Size8Radix8Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeCore",
+		Signature: "dit8_radix8_avx512", Priority: 10,
+	},
 	{
 		Target: "avx512", Prec: 128, Size: 16,
 		Forward:   "amd64.ForwardAVX512Size16Radix4Complex128Asm",

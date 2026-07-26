@@ -60,11 +60,11 @@ pure-Go fallback.
 
 |  Size | Algorithm       | Go  | SSE2 | SSE3 | AVX2 | AVX-512 | NEON |
 | ----: | --------------- | :-: | :--: | :--: | :--: | :-----: | :--: |
-|     4 | Radix-4         |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
+|     4 | Radix-4         |  ✓  |  ✓   |  -   |  ✓   |    ✓    |  ✓   |
 |     8 | Mixed-2/4       |  ✓  |  -   |  -   |  -   |    -    |  -   |
 |     8 | Radix-2         |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
 |     8 | Radix-4         |  -  |  ✓   |  -   |  ✓   |    -    |  ✓   |
-|     8 | Radix-8         |  ✓  |  ✓   |  -   |  ✓   |    -    |  -   |
+|     8 | Radix-8         |  ✓  |  ✓   |  -   |  ✓   |    ✓    |  -   |
 |    16 | Radix-16        |  ✓  |  -   |  -   |  -   |    -    |  -   |
 |    16 | Radix-2         |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
 |    16 | Radix-4         |  ✓  |  ✓   |  -   |  ✓   |    ✓    |  ✓   |
@@ -104,11 +104,11 @@ pure-Go fallback.
 | ------- | ------------------ | --------: | ---------: | ----: |
 | generic | `(all builds)`     |        32 |         32 |    64 |
 | avx2    | `amd64 && !purego` |        33 |         26 |    59 |
-| avx512  | `amd64 && !purego` |        11 |          4 |    15 |
+| avx512  | `amd64 && !purego` |        11 |          6 |    17 |
 | sse2    | `amd64 && !purego` |        22 |         22 |    44 |
 | neon    | `arm64 && !purego` |        22 |         22 |    44 |
 
-Total registered codelets: **226**.
+Total registered codelets: **228**.
 
 ## Beyond the Codelet Registry
 
