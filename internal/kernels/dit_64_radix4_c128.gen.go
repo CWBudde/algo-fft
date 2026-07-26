@@ -2,6 +2,10 @@
 
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT64Radix4Complex128 computes a 64-point forward FFT using the
 // radix-4 Decimation-in-Time (DIT) algorithm for complex128 data.
 // This uses 3 stages of radix-4 butterflies instead of 6 stages of radix-2.
@@ -53,9 +57,9 @@ func forwardDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 			w3 := tw[3*j*4]
 
 			a0 := stage1[idx0]
-			a1 := w1 * stage1[idx1]
-			a2 := w2 * stage1[idx2]
-			a3 := w3 * stage1[idx3]
+			a1 := mathpkg.MulComplex128(w1, stage1[idx1])
+			a2 := mathpkg.MulComplex128(w2, stage1[idx2])
+			a3 := mathpkg.MulComplex128(w3, stage1[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -88,9 +92,9 @@ func forwardDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 		w3 := tw[3*j]
 
 		a0 := stage2[idx0]
-		a1 := w1 * stage2[idx1]
-		a2 := w2 * stage2[idx2]
-		a3 := w3 * stage2[idx3]
+		a1 := mathpkg.MulComplex128(w1, stage2[idx1])
+		a2 := mathpkg.MulComplex128(w2, stage2[idx2])
+		a3 := mathpkg.MulComplex128(w3, stage2[idx3])
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -162,9 +166,9 @@ func inverseDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 			w3 := complex(real(tw[3*j*4]), -imag(tw[3*j*4]))
 
 			a0 := stage1[idx0]
-			a1 := w1 * stage1[idx1]
-			a2 := w2 * stage1[idx2]
-			a3 := w3 * stage1[idx3]
+			a1 := mathpkg.MulComplex128(w1, stage1[idx1])
+			a2 := mathpkg.MulComplex128(w2, stage1[idx2])
+			a3 := mathpkg.MulComplex128(w3, stage1[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -197,9 +201,9 @@ func inverseDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 		w3 := complex(real(tw[3*j]), -imag(tw[3*j]))
 
 		a0 := stage2[idx0]
-		a1 := w1 * stage2[idx1]
-		a2 := w2 * stage2[idx2]
-		a3 := w3 * stage2[idx3]
+		a1 := mathpkg.MulComplex128(w1, stage2[idx1])
+		a2 := mathpkg.MulComplex128(w2, stage2[idx2])
+		a3 := mathpkg.MulComplex128(w3, stage2[idx3])
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -220,7 +224,7 @@ func inverseDIT64Radix4Complex128(dst, src, twiddle, scratch []complex128) bool 
 	// Apply 1/N scaling for inverse transform
 	scale := complex(1.0/float64(n), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex128(dst[i], scale)
 	}
 
 	return true

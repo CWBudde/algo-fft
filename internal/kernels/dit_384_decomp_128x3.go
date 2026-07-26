@@ -31,8 +31,8 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Step 2: Apply twiddle factors W_384^(n1*k2).
 	for n1 := range stride {
-		work[stride+n1] *= twiddle[n1]
-		work[2*stride+n1] *= twiddle[2*n1]
+		work[stride+n1] = mathpkg.MulComplex64(work[stride+n1], twiddle[n1])
+		work[2*stride+n1] = mathpkg.MulComplex64(work[2*stride+n1], twiddle[2*n1])
 	}
 
 	// Step 3: Compute 3 independent 128-point FFTs.
@@ -115,8 +115,8 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	copy(work, dst[:n])
 
 	for n1 := range stride {
-		work[stride+n1] *= mathpkg.Conj(twiddle[n1])
-		work[2*stride+n1] *= mathpkg.Conj(twiddle[2*n1])
+		work[stride+n1] = mathpkg.MulComplex64(work[stride+n1], mathpkg.Conj(twiddle[n1]))
+		work[2*stride+n1] = mathpkg.MulComplex64(work[2*stride+n1], mathpkg.Conj(twiddle[2*n1]))
 	}
 
 	// Step 4: Compute 128 radix-3 inverse column butterflies.
@@ -127,9 +127,9 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 		a1 := work[n1+stride]
 		a2 := work[n1+2*stride]
 		y0, y1, y2 := butterfly3InverseComplex64(a0, a1, a2)
-		dst[n1] = y0 * scale
-		dst[n1+stride] = y1 * scale
-		dst[n1+2*stride] = y2 * scale
+		dst[n1] = mathpkg.MulComplex64(y0, scale)
+		dst[n1+stride] = mathpkg.MulComplex64(y1, scale)
+		dst[n1+2*stride] = mathpkg.MulComplex64(y2, scale)
 	}
 
 	return true

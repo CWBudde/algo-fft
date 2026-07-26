@@ -6,7 +6,7 @@ func forwardRadix4Then2Complex128(dst, src, twiddle, scratch []complex128) bool 
 	// NOTE: The previous radix-4-then-2 implementation for odd log2 sizes was
 	// incorrect and produced wrong results (e.g., impulse DC bin doubled for n=2048).
 	// For correctness, delegate to the proven radix-2 DIT implementation.
-	return ditForward[complex128](dst, src, twiddle, scratch)
+	return ditForwardComplex128(dst, src, twiddle, scratch)
 }
 
 func inverseRadix4Then2Complex128(dst, src, twiddle, scratch []complex128) bool {

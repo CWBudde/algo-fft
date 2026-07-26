@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT16Radix16Complex64 computes a 16-point forward FFT using a single
 // radix-16 stage for complex64 data (bit-reversed input -> natural output).
 func forwardDIT16Radix16Complex64(dst, src, twiddle, scratch []complex64) bool {
@@ -88,22 +92,22 @@ func inverseDIT16Radix16Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	const scale = 1.0 / 16.0
 
-	dst[0] = v0 * scale
-	dst[1] = v1 * scale
-	dst[2] = v2 * scale
-	dst[3] = v3 * scale
-	dst[4] = v4 * scale
-	dst[5] = v5 * scale
-	dst[6] = v6 * scale
-	dst[7] = v7 * scale
-	dst[8] = v8 * scale
-	dst[9] = v9 * scale
-	dst[10] = v10 * scale
-	dst[11] = v11 * scale
-	dst[12] = v12 * scale
-	dst[13] = v13 * scale
-	dst[14] = v14 * scale
-	dst[15] = v15 * scale
+	dst[0] = mathpkg.MulComplex64(v0, scale)
+	dst[1] = mathpkg.MulComplex64(v1, scale)
+	dst[2] = mathpkg.MulComplex64(v2, scale)
+	dst[3] = mathpkg.MulComplex64(v3, scale)
+	dst[4] = mathpkg.MulComplex64(v4, scale)
+	dst[5] = mathpkg.MulComplex64(v5, scale)
+	dst[6] = mathpkg.MulComplex64(v6, scale)
+	dst[7] = mathpkg.MulComplex64(v7, scale)
+	dst[8] = mathpkg.MulComplex64(v8, scale)
+	dst[9] = mathpkg.MulComplex64(v9, scale)
+	dst[10] = mathpkg.MulComplex64(v10, scale)
+	dst[11] = mathpkg.MulComplex64(v11, scale)
+	dst[12] = mathpkg.MulComplex64(v12, scale)
+	dst[13] = mathpkg.MulComplex64(v13, scale)
+	dst[14] = mathpkg.MulComplex64(v14, scale)
+	dst[15] = mathpkg.MulComplex64(v15, scale)
 
 	return true
 }

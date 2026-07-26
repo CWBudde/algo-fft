@@ -23,8 +23,8 @@ import (
 //nolint:gochecknoglobals
 var (
 	radix3Half64     = complex64(-0.5 + 0i)
-	radix3CoefFwd64  = complex64(0 - 1i*complex(float32(math.Sqrt(3)/2), 0))
-	radix3CoefInv64  = complex64(0 + 1i*complex(float32(math.Sqrt(3)/2), 0))
+	radix3CoefFwd64  = complex64(0 - m.MulComplex64(1i, complex(float32(math.Sqrt(3)/2), 0)))
+	radix3CoefInv64  = complex64(0 + m.MulComplex64(1i, complex(float32(math.Sqrt(3)/2), 0)))
 	radix3Half128    = complex128(-0.5 + 0i)
 	radix3CoefFwd128 = complex128(0 - 1i*complex(math.Sqrt(3)/2, 0))
 	radix3CoefInv128 = complex128(0 + 1i*complex(math.Sqrt(3)/2, 0))

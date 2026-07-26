@@ -2,6 +2,10 @@
 
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT1024Radix4Complex128 computes a 1024-point forward FFT using the
 // radix-4 Decimation-in-Time (DIT) algorithm for complex128 data.
 // 1024 = 4^5, so this uses 5 radix-4 stages instead of 10 radix-2 stages.
@@ -70,9 +74,9 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 
 		// j=0
 		a0 := stage1[base]
-		a1 := w1_0 * stage1[base+4]
-		a2 := w2_0 * stage1[base+8]
-		a3 := w3_0 * stage1[base+12]
+		a1 := mathpkg.MulComplex128(w1_0, stage1[base+4])
+		a2 := mathpkg.MulComplex128(w2_0, stage1[base+8])
+		a3 := mathpkg.MulComplex128(w3_0, stage1[base+12])
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
@@ -84,9 +88,9 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 
 		// j=1
 		a0 = stage1[base+1]
-		a1 = w1_1 * stage1[base+5]
-		a2 = w2_1 * stage1[base+9]
-		a3 = w3_1 * stage1[base+13]
+		a1 = mathpkg.MulComplex128(w1_1, stage1[base+5])
+		a2 = mathpkg.MulComplex128(w2_1, stage1[base+9])
+		a3 = mathpkg.MulComplex128(w3_1, stage1[base+13])
 		t0 = a0 + a2
 		t1 = a0 - a2
 		t2 = a1 + a3
@@ -98,9 +102,9 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 
 		// j=2
 		a0 = stage1[base+2]
-		a1 = w1_2 * stage1[base+6]
-		a2 = w2_2 * stage1[base+10]
-		a3 = w3_2 * stage1[base+14]
+		a1 = mathpkg.MulComplex128(w1_2, stage1[base+6])
+		a2 = mathpkg.MulComplex128(w2_2, stage1[base+10])
+		a3 = mathpkg.MulComplex128(w3_2, stage1[base+14])
 		t0 = a0 + a2
 		t1 = a0 - a2
 		t2 = a1 + a3
@@ -112,9 +116,9 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 
 		// j=3
 		a0 = stage1[base+3]
-		a1 = w1_3 * stage1[base+7]
-		a2 = w2_3 * stage1[base+11]
-		a3 = w3_3 * stage1[base+15]
+		a1 = mathpkg.MulComplex128(w1_3, stage1[base+7])
+		a2 = mathpkg.MulComplex128(w2_3, stage1[base+11])
+		a3 = mathpkg.MulComplex128(w3_3, stage1[base+15])
 		t0 = a0 + a2
 		t1 = a0 - a2
 		t2 = a1 + a3
@@ -140,9 +144,9 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 			idx3 := base + j + 48
 
 			a0 := stage2[idx0]
-			a1 := w1 * stage2[idx1]
-			a2 := w2 * stage2[idx2]
-			a3 := w3 * stage2[idx3]
+			a1 := mathpkg.MulComplex128(w1, stage2[idx1])
+			a2 := mathpkg.MulComplex128(w2, stage2[idx2])
+			a3 := mathpkg.MulComplex128(w3, stage2[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -171,9 +175,9 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 			idx3 := base + j + 192
 
 			a0 := stage3[idx0]
-			a1 := w1 * stage3[idx1]
-			a2 := w2 * stage3[idx2]
-			a3 := w3 * stage3[idx3]
+			a1 := mathpkg.MulComplex128(w1, stage3[idx1])
+			a2 := mathpkg.MulComplex128(w2, stage3[idx2])
+			a3 := mathpkg.MulComplex128(w3, stage3[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -207,9 +211,9 @@ func forwardDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 		idx3 := j + 768
 
 		a0 := stage4[idx0]
-		a1 := w1 * stage4[idx1]
-		a2 := w2 * stage4[idx2]
-		a3 := w3 * stage4[idx3]
+		a1 := mathpkg.MulComplex128(w1, stage4[idx1])
+		a2 := mathpkg.MulComplex128(w2, stage4[idx2])
+		a3 := mathpkg.MulComplex128(w3, stage4[idx3])
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -290,9 +294,9 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 
 		// j=0
 		a0 := stage1[base]
-		a1 := w1_0 * stage1[base+4]
-		a2 := w2_0 * stage1[base+8]
-		a3 := w3_0 * stage1[base+12]
+		a1 := mathpkg.MulComplex128(w1_0, stage1[base+4])
+		a2 := mathpkg.MulComplex128(w2_0, stage1[base+8])
+		a3 := mathpkg.MulComplex128(w3_0, stage1[base+12])
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
@@ -304,9 +308,9 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 
 		// j=1
 		a0 = stage1[base+1]
-		a1 = w1_1 * stage1[base+5]
-		a2 = w2_1 * stage1[base+9]
-		a3 = w3_1 * stage1[base+13]
+		a1 = mathpkg.MulComplex128(w1_1, stage1[base+5])
+		a2 = mathpkg.MulComplex128(w2_1, stage1[base+9])
+		a3 = mathpkg.MulComplex128(w3_1, stage1[base+13])
 		t0 = a0 + a2
 		t1 = a0 - a2
 		t2 = a1 + a3
@@ -318,9 +322,9 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 
 		// j=2
 		a0 = stage1[base+2]
-		a1 = w1_2 * stage1[base+6]
-		a2 = w2_2 * stage1[base+10]
-		a3 = w3_2 * stage1[base+14]
+		a1 = mathpkg.MulComplex128(w1_2, stage1[base+6])
+		a2 = mathpkg.MulComplex128(w2_2, stage1[base+10])
+		a3 = mathpkg.MulComplex128(w3_2, stage1[base+14])
 		t0 = a0 + a2
 		t1 = a0 - a2
 		t2 = a1 + a3
@@ -332,9 +336,9 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 
 		// j=3
 		a0 = stage1[base+3]
-		a1 = w1_3 * stage1[base+7]
-		a2 = w2_3 * stage1[base+11]
-		a3 = w3_3 * stage1[base+15]
+		a1 = mathpkg.MulComplex128(w1_3, stage1[base+7])
+		a2 = mathpkg.MulComplex128(w2_3, stage1[base+11])
+		a3 = mathpkg.MulComplex128(w3_3, stage1[base+15])
 		t0 = a0 + a2
 		t1 = a0 - a2
 		t2 = a1 + a3
@@ -360,9 +364,9 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 			idx3 := base + j + 48
 
 			a0 := stage2[idx0]
-			a1 := w1 * stage2[idx1]
-			a2 := w2 * stage2[idx2]
-			a3 := w3 * stage2[idx3]
+			a1 := mathpkg.MulComplex128(w1, stage2[idx1])
+			a2 := mathpkg.MulComplex128(w2, stage2[idx2])
+			a3 := mathpkg.MulComplex128(w3, stage2[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -391,9 +395,9 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 			idx3 := base + j + 192
 
 			a0 := stage3[idx0]
-			a1 := w1 * stage3[idx1]
-			a2 := w2 * stage3[idx2]
-			a3 := w3 * stage3[idx3]
+			a1 := mathpkg.MulComplex128(w1, stage3[idx1])
+			a2 := mathpkg.MulComplex128(w2, stage3[idx2])
+			a3 := mathpkg.MulComplex128(w3, stage3[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -426,9 +430,9 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 		idx3 := j + 768
 
 		a0 := stage4[idx0]
-		a1 := w1 * stage4[idx1]
-		a2 := w2 * stage4[idx2]
-		a3 := w3 * stage4[idx3]
+		a1 := mathpkg.MulComplex128(w1, stage4[idx1])
+		a2 := mathpkg.MulComplex128(w2, stage4[idx2])
+		a3 := mathpkg.MulComplex128(w3, stage4[idx3])
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -449,7 +453,7 @@ func inverseDIT1024Radix4Complex128(dst, src, twiddle, scratch []complex128) boo
 	// Apply 1/N scaling for inverse transform
 	scale := complex(1.0/float64(n), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex128(dst[i], scale)
 	}
 
 	return true

@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT32Radix32Complex64 computes a 32-point forward FFT using a single
 // radix-32 pass (direct DFT) for complex64 data. This kernel performs the full
 // transform without bit-reversal and returns false if any slice is too small.
@@ -24,7 +28,7 @@ func forwardDIT32Radix32Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 		for j := range n {
 			idx := (j * k) & (n - 1)
-			sum += s[j] * twiddle[idx]
+			sum += mathpkg.MulComplex64(s[j], twiddle[idx])
 		}
 
 		work[k] = sum
@@ -63,7 +67,7 @@ func inverseDIT32Radix32Complex64(dst, src, twiddle, scratch []complex64) bool {
 			idx := (j * k) & (n - 1)
 			w := twiddle[idx]
 			w = complex(real(w), -imag(w))
-			sum += s[j] * w
+			sum += mathpkg.MulComplex64(s[j], w)
 		}
 
 		work[k] = sum
@@ -75,7 +79,7 @@ func inverseDIT32Radix32Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true

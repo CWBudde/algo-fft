@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 func radix5TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []int, inverse bool) bool {
 	n := len(src)
 	if n == 0 {
@@ -84,14 +88,14 @@ func radix5TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 
 					a0[0] = work[idx0]
 					a0[1] = work[idx0b]
-					a1[0] = w1a * work[idx1]
-					a1[1] = w1b * work[idx1b]
-					a2[0] = w2a * work[idx2]
-					a2[1] = w2b * work[idx2b]
-					a3[0] = w3a * work[idx3]
-					a3[1] = w3b * work[idx3b]
-					a4[0] = w4a * work[idx4]
-					a4[1] = w4b * work[idx4b]
+					a1[0] = mathpkg.MulComplex64(w1a, work[idx1])
+					a1[1] = mathpkg.MulComplex64(w1b, work[idx1b])
+					a2[0] = mathpkg.MulComplex64(w2a, work[idx2])
+					a2[1] = mathpkg.MulComplex64(w2b, work[idx2b])
+					a3[0] = mathpkg.MulComplex64(w3a, work[idx3])
+					a3[1] = mathpkg.MulComplex64(w3b, work[idx3b])
+					a4[0] = mathpkg.MulComplex64(w4a, work[idx4])
+					a4[1] = mathpkg.MulComplex64(w4b, work[idx4b])
 
 					var (
 						y0 [2]complex64
@@ -146,10 +150,10 @@ func radix5TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 				}
 
 				a0 := work[idx0]
-				a1 := w1 * work[idx1]
-				a2 := w2 * work[idx2]
-				a3 := w3 * work[idx3]
-				a4 := w4 * work[idx4]
+				a1 := mathpkg.MulComplex64(w1, work[idx1])
+				a2 := mathpkg.MulComplex64(w2, work[idx2])
+				a3 := mathpkg.MulComplex64(w3, work[idx3])
+				a4 := mathpkg.MulComplex64(w4, work[idx4])
 
 				var y0, y1, y2, y3, y4 complex64
 				if inverse {
@@ -174,7 +178,7 @@ func radix5TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 	if inverse {
 		scale := complex(float32(1.0/float32(n)), 0)
 		for i := range dst {
-			dst[i] *= scale
+			dst[i] = mathpkg.MulComplex64(dst[i], scale)
 		}
 	}
 

@@ -237,7 +237,7 @@ func stockhamInverseComplex64(dst, src, twiddle, scratch []complex64) bool {
 				tw := twiddle[j*step]
 				tw = complex(real(tw), -imag(tw))
 				outLo[j] = a + b
-				outHi[j] = (a - b) * tw
+				outHi[j] = mathpkg.MulComplex64(a-b, tw)
 			}
 		}
 
@@ -261,7 +261,7 @@ func stockhamInverseComplex64(dst, src, twiddle, scratch []complex64) bool {
 
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true

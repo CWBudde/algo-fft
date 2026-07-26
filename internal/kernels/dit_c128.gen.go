@@ -51,7 +51,7 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 		}
 	}
 
-	return ditForward[complex128](dst, src, twiddle, scratch)
+	return ditForwardComplex128(dst, src, twiddle, scratch)
 }
 
 func inverseDITComplex128(dst, src, twiddle, scratch []complex128) bool {
@@ -102,6 +102,69 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 	return ditInverseComplex128(dst, src, twiddle, scratch)
 }
 
+// ditForwardComplex128 is the monomorphized twin of ditForward, mirroring
+// ditInverseComplex128. It exists so the complex128 fallback path multiplies in
+// single precision (see butterfly2Complex128); the generic instantiation cannot.
+func ditForwardComplex128(dst, src, twiddle, scratch []complex128) bool {
+	n := len(src)
+	if n == 0 {
+		return true
+	}
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n {
+		return false
+	}
+
+	if n == 1 {
+		dst[0] = src[0]
+		return true
+	}
+
+	if !mathpkg.IsPowerOf2(n) {
+		return false
+	}
+
+	work := dst
+	workIsDst := true
+
+	if sameSlice(dst, src) {
+		work = scratch
+		workIsDst = false
+	}
+
+	work = work[:n]
+	src = src[:n]
+	twiddle = twiddle[:n]
+
+	bitrev := mathpkg.ComputeBitReversalIndices(n)
+
+	for i := range n {
+		work[i] = src[bitrev[i]]
+	}
+
+	for size := 2; size <= n; size <<= 1 {
+		half := size >> 1
+
+		step := n / size
+		for base := 0; base < n; base += size {
+			block := work[base : base+size]
+
+			for j := range half {
+				tw := twiddle[j*step]
+				a, b := butterfly2Complex128(block[j], block[j+half], tw)
+				block[j] = a
+				block[j+half] = b
+			}
+		}
+	}
+
+	if !workIsDst {
+		copy(dst, work)
+	}
+
+	return true
+}
+
 func ditInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
 	n := len(src)
 	if n == 0 {
@@ -149,7 +212,7 @@ func ditInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
 			for j := range half {
 				tw := twiddle[j*step]
 				tw = complex(real(tw), -imag(tw))
-				a, b := butterfly2(block[j], block[j+half], tw)
+				a, b := butterfly2Complex128(block[j], block[j+half], tw)
 				block[j] = a
 				block[j+half] = b
 			}
@@ -162,10 +225,19 @@ func ditInverseComplex128(dst, src, twiddle, scratch []complex128) bool {
 
 	scale := complex(1.0/float64(n), 0)
 	for i := range dst {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex128(dst[i], scale)
 	}
 
 	return true
+}
+
+// butterfly2Complex128 is the monomorphized twin of butterfly2. The generic
+// form cannot avoid the float32->float64 promotion Go emits for scalar
+// complex128 multiplication (see mathpkg.MulComplex128), because `w * b` there
+// has type T; the complex128 codelets call this instead.
+func butterfly2Complex128(a, b, w complex128) (complex128, complex128) {
+	t := mathpkg.MulComplex128(w, b)
+	return a + t, a - t
 }
 
 // Internal wrappers for sizes that now handle bit-reversal internally.

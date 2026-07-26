@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT8Radix8Complex64 computes an 8-point forward FFT using a single
 // radix-8 butterfly for complex64 data. Fully unrolled for maximum performance.
 // Returns false if any slice is too small.
@@ -45,15 +49,15 @@ func forwardDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	work[0] = e0 + o0
 	work[4] = e0 - o0
 
-	t := w1 * o1
+	t := mathpkg.MulComplex64(w1, o1)
 	work[1] = e1 + t
 	work[5] = e1 - t
 
-	t = w2 * o2
+	t = mathpkg.MulComplex64(w2, o2)
 	work[2] = e2 + t
 	work[6] = e2 - t
 
-	t = w3 * o3
+	t = mathpkg.MulComplex64(w3, o3)
 	work[3] = e3 + t
 	work[7] = e3 - t
 
@@ -114,15 +118,15 @@ func inverseDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	work[0] = e0 + o0
 	work[4] = e0 - o0
 
-	t := w1 * o1
+	t := mathpkg.MulComplex64(w1, o1)
 	work[1] = e1 + t
 	work[5] = e1 - t
 
-	t = w2 * o2
+	t = mathpkg.MulComplex64(w2, o2)
 	work[2] = e2 + t
 	work[6] = e2 - t
 
-	t = w3 * o3
+	t = mathpkg.MulComplex64(w3, o3)
 	work[3] = e3 + t
 	work[7] = e3 - t
 
@@ -132,7 +136,7 @@ func inverseDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true

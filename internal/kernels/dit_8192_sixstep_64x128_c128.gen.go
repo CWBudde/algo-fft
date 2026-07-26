@@ -2,6 +2,10 @@
 
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT8192SixStep64x128Complex128 computes an 8192-point forward FFT using
 // a 64×128 matrix decomposition (six-step algorithm).
 //
@@ -70,7 +74,7 @@ func forwardDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 	for i := range rows {
 		for j := range cols {
 			tw := twiddle[(i*j)%n]
-			work2[i*cols+j] = work[j*rows+i] * tw
+			work2[i*cols+j] = mathpkg.MulComplex128(work[j*rows+i], tw)
 		}
 	}
 
@@ -155,7 +159,7 @@ func inverseDIT8192SixStep64x128Complex128(dst, src, twiddle, scratch []complex1
 		for j := range cols {
 			tw := twiddle[(i*j)%n]
 			twConj := complex(real(tw), -imag(tw))
-			work2[i*cols+j] = work[j*rows+i] * twConj
+			work2[i*cols+j] = mathpkg.MulComplex128(work[j*rows+i], twConj)
 		}
 	}
 

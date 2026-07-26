@@ -67,8 +67,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   round the same way the SIMD codelets do. Two lengths keep a complex64
   deficit (257 at 1.41, 1009 at 1.25); both have a power-of-two sub-FFT, so
   what remains there is the separately-tracked power-of-two forward-path
-  weakness, not this defect. The generic power-of-two codelets used by
-  `purego`/WASM builds still carry the widening; also tracked separately
+  weakness, not this defect. The general-purpose power-of-two codelets used
+  by `purego`/WASM builds carried the same widening; see the entry below.
+
+- The same `complex64` widening also cost the pure-Go power-of-two codelets,
+  which are dead weight on the default build (the AVX2 codelets win kernel
+  selection) but _are_ the transform on `purego` and WASM. 1378 scalar
+  products across 39 codelet sources now multiply through
+  `math.MulComplex64`. Three hot spots could not be fixed by swapping the
+  operator, because they sit in `[T Complex]` bodies where the multiply has
+  type `T`; they were monomorphized instead, following the existing
+  `radix3TransformComplex64`/`radix5TransformComplex64` precedent:
+  `butterfly2Complex64` (used by the 128- and 512-point radix-2 codelets),
+  `radix4TransformComplex64` (the power-of-4 fallback, which also stops
+  dispatching its butterfly through an `any()` type switch), and
+  `ditForwardComplex64` — the last of which corrects an asymmetry where
+  `inverseRadix4Then2Complex64` delegated to a monomorphized inverse while
+  its forward twin delegated to the generic implementation. Measured
+  float32→float64 conversion instructions in `internal/kernels` drop from
+  4622 to 162, with none left in any non-test function reachable from a
+  complex64 codelet. On the `purego` build this is worth 21–37% at every
+  power-of-two size from 32 to 16384 in both directions (geomean −24.4% over
+  the 8–16384 ladder); the default build and complex128 are unchanged, as
+  expected. The accuracy cost is 3–9% more relative L2 error against a
+  float64 reference (n = 2048: 1.10e-07 → 1.20e-07), all of it still at
+  float32 epsilon, with the peak-normalised error unchanged.
 
 ### Added
 

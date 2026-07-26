@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT4096Radix4Complex64 computes a 4096-point forward FFT using the
 // radix-4 Decimation-in-Time (DIT) algorithm for complex64 data.
 // 4096 = 4^6, so this uses 6 radix-4 stages instead of 12 radix-2 stages.
@@ -79,9 +83,9 @@ func forwardDIT4096Radix4Complex64(dst, src, twiddle, scratch []complex64) bool 
 				idx3 := idx2 + quarter
 
 				a0 := current[idx0]
-				a1 := w1 * current[idx1]
-				a2 := w2 * current[idx2]
-				a3 := w3 * current[idx3]
+				a1 := mathpkg.MulComplex64(w1, current[idx1])
+				a2 := mathpkg.MulComplex64(w2, current[idx2])
+				a3 := mathpkg.MulComplex64(w3, current[idx3])
 
 				t0 := a0 + a2
 				t1 := a0 - a2
@@ -118,9 +122,9 @@ func forwardDIT4096Radix4Complex64(dst, src, twiddle, scratch []complex64) bool 
 		idx3 := j + 3072
 
 		a0 := current[idx0]
-		a1 := w1 * current[idx1]
-		a2 := w2 * current[idx2]
-		a3 := w3 * current[idx3]
+		a1 := mathpkg.MulComplex64(w1, current[idx1])
+		a2 := mathpkg.MulComplex64(w2, current[idx2])
+		a3 := mathpkg.MulComplex64(w3, current[idx3])
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -213,9 +217,9 @@ func inverseDIT4096Radix4Complex64(dst, src, twiddle, scratch []complex64) bool 
 				idx3 := idx2 + quarter
 
 				a0 := current[idx0]
-				a1 := w1 * current[idx1]
-				a2 := w2 * current[idx2]
-				a3 := w3 * current[idx3]
+				a1 := mathpkg.MulComplex64(w1, current[idx1])
+				a2 := mathpkg.MulComplex64(w2, current[idx2])
+				a3 := mathpkg.MulComplex64(w3, current[idx3])
 
 				t0 := a0 + a2
 				t1 := a0 - a2
@@ -251,9 +255,9 @@ func inverseDIT4096Radix4Complex64(dst, src, twiddle, scratch []complex64) bool 
 		idx3 := j + 3072
 
 		a0 := current[idx0]
-		a1 := w1 * current[idx1]
-		a2 := w2 * current[idx2]
-		a3 := w3 * current[idx3]
+		a1 := mathpkg.MulComplex64(w1, current[idx1])
+		a2 := mathpkg.MulComplex64(w2, current[idx2])
+		a3 := mathpkg.MulComplex64(w3, current[idx3])
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -274,7 +278,7 @@ func inverseDIT4096Radix4Complex64(dst, src, twiddle, scratch []complex64) bool 
 	// Apply 1/N scaling for inverse transform
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true

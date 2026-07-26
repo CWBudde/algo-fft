@@ -2,6 +2,10 @@
 
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT256Radix16Complex128 is an optimized radix-16 DIT FFT for size-256.
 // It decomposes the 256-point FFT into a 16x16 matrix (2 stages of radix-16).
 func forwardDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128) bool {
@@ -62,49 +66,49 @@ func forwardDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128) boo
 		v0 := out[j]
 
 		// k=1: Col 8. W^8j
-		v1 := out[j+16] * tw[8*j]
+		v1 := mathpkg.MulComplex128(out[j+16], tw[8*j])
 
 		// k=2: Col 4. W^4j
-		v2 := out[j+32] * tw[4*j]
+		v2 := mathpkg.MulComplex128(out[j+32], tw[4*j])
 
 		// k=3: Col 12. W^12j
-		v3 := out[j+48] * tw[12*j]
+		v3 := mathpkg.MulComplex128(out[j+48], tw[12*j])
 
 		// k=4: Col 2. W^2j
-		v4 := out[j+64] * tw[2*j]
+		v4 := mathpkg.MulComplex128(out[j+64], tw[2*j])
 
 		// k=5: Col 10. W^10j
-		v5 := out[j+80] * tw[10*j]
+		v5 := mathpkg.MulComplex128(out[j+80], tw[10*j])
 
 		// k=6: Col 6. W^6j
-		v6 := out[j+96] * tw[6*j]
+		v6 := mathpkg.MulComplex128(out[j+96], tw[6*j])
 
 		// k=7: Col 14. W^14j
-		v7 := out[j+112] * tw[14*j]
+		v7 := mathpkg.MulComplex128(out[j+112], tw[14*j])
 
 		// k=8: Col 1. W^j
-		v8 := out[j+128] * tw[j]
+		v8 := mathpkg.MulComplex128(out[j+128], tw[j])
 
 		// k=9: Col 9. W^9j
-		v9 := out[j+144] * tw[9*j]
+		v9 := mathpkg.MulComplex128(out[j+144], tw[9*j])
 
 		// k=10: Col 5. W^5j
-		v10 := out[j+160] * tw[5*j]
+		v10 := mathpkg.MulComplex128(out[j+160], tw[5*j])
 
 		// k=11: Col 13. W^13j
-		v11 := out[j+176] * tw[13*j]
+		v11 := mathpkg.MulComplex128(out[j+176], tw[13*j])
 
 		// k=12: Col 3. W^3j
-		v12 := out[j+192] * tw[3*j]
+		v12 := mathpkg.MulComplex128(out[j+192], tw[3*j])
 
 		// k=13: Col 11. W^11j
-		v13 := out[j+208] * tw[11*j]
+		v13 := mathpkg.MulComplex128(out[j+208], tw[11*j])
 
 		// k=14: Col 7. W^7j
-		v14 := out[j+224] * tw[7*j]
+		v14 := mathpkg.MulComplex128(out[j+224], tw[7*j])
 
 		// k=15: Col 15. W^15j
-		v15 := out[j+240] * tw[15*j]
+		v15 := mathpkg.MulComplex128(out[j+240], tw[15*j])
 
 		// Perform Size-16 FFT
 		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex128(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
@@ -324,42 +328,42 @@ func inverseDIT256Radix16Complex128(dst, src, twiddle, scratch []complex128) boo
 	// Stage 2
 	for j := range 16 {
 		v0 := out[j]
-		v1 := out[j+16] * complex(real(tw[(8*j)%256]), -imag(tw[(8*j)%256]))
-		v2 := out[j+32] * complex(real(tw[(4*j)%256]), -imag(tw[(4*j)%256]))
-		v3 := out[j+48] * complex(real(tw[(12*j)%256]), -imag(tw[(12*j)%256]))
-		v4 := out[j+64] * complex(real(tw[(2*j)%256]), -imag(tw[(2*j)%256]))
-		v5 := out[j+80] * complex(real(tw[(10*j)%256]), -imag(tw[(10*j)%256]))
-		v6 := out[j+96] * complex(real(tw[(6*j)%256]), -imag(tw[(6*j)%256]))
-		v7 := out[j+112] * complex(real(tw[(14*j)%256]), -imag(tw[(14*j)%256]))
-		v8 := out[j+128] * complex(real(tw[j]), -imag(tw[j]))
-		v9 := out[j+144] * complex(real(tw[(9*j)%256]), -imag(tw[(9*j)%256]))
-		v10 := out[j+160] * complex(real(tw[(5*j)%256]), -imag(tw[(5*j)%256]))
-		v11 := out[j+176] * complex(real(tw[(13*j)%256]), -imag(tw[(13*j)%256]))
-		v12 := out[j+192] * complex(real(tw[(3*j)%256]), -imag(tw[(3*j)%256]))
-		v13 := out[j+208] * complex(real(tw[(11*j)%256]), -imag(tw[(11*j)%256]))
-		v14 := out[j+224] * complex(real(tw[(7*j)%256]), -imag(tw[(7*j)%256]))
-		v15 := out[j+240] * complex(real(tw[(15*j)%256]), -imag(tw[(15*j)%256]))
+		v1 := mathpkg.MulComplex128(out[j+16], complex(real(tw[(8*j)%256]), -imag(tw[(8*j)%256])))
+		v2 := mathpkg.MulComplex128(out[j+32], complex(real(tw[(4*j)%256]), -imag(tw[(4*j)%256])))
+		v3 := mathpkg.MulComplex128(out[j+48], complex(real(tw[(12*j)%256]), -imag(tw[(12*j)%256])))
+		v4 := mathpkg.MulComplex128(out[j+64], complex(real(tw[(2*j)%256]), -imag(tw[(2*j)%256])))
+		v5 := mathpkg.MulComplex128(out[j+80], complex(real(tw[(10*j)%256]), -imag(tw[(10*j)%256])))
+		v6 := mathpkg.MulComplex128(out[j+96], complex(real(tw[(6*j)%256]), -imag(tw[(6*j)%256])))
+		v7 := mathpkg.MulComplex128(out[j+112], complex(real(tw[(14*j)%256]), -imag(tw[(14*j)%256])))
+		v8 := mathpkg.MulComplex128(out[j+128], complex(real(tw[j]), -imag(tw[j])))
+		v9 := mathpkg.MulComplex128(out[j+144], complex(real(tw[(9*j)%256]), -imag(tw[(9*j)%256])))
+		v10 := mathpkg.MulComplex128(out[j+160], complex(real(tw[(5*j)%256]), -imag(tw[(5*j)%256])))
+		v11 := mathpkg.MulComplex128(out[j+176], complex(real(tw[(13*j)%256]), -imag(tw[(13*j)%256])))
+		v12 := mathpkg.MulComplex128(out[j+192], complex(real(tw[(3*j)%256]), -imag(tw[(3*j)%256])))
+		v13 := mathpkg.MulComplex128(out[j+208], complex(real(tw[(11*j)%256]), -imag(tw[(11*j)%256])))
+		v14 := mathpkg.MulComplex128(out[j+224], complex(real(tw[(7*j)%256]), -imag(tw[(7*j)%256])))
+		v15 := mathpkg.MulComplex128(out[j+240], complex(real(tw[(15*j)%256]), -imag(tw[(15*j)%256])))
 
 		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex128Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
 		const scale = 1.0 / 256.0
 
-		dst[j] = v0 * scale
-		dst[j+16] = v1 * scale
-		dst[j+32] = v2 * scale
-		dst[j+48] = v3 * scale
-		dst[j+64] = v4 * scale
-		dst[j+80] = v5 * scale
-		dst[j+96] = v6 * scale
-		dst[j+112] = v7 * scale
-		dst[j+128] = v8 * scale
-		dst[j+144] = v9 * scale
-		dst[j+160] = v10 * scale
-		dst[j+176] = v11 * scale
-		dst[j+192] = v12 * scale
-		dst[j+208] = v13 * scale
-		dst[j+224] = v14 * scale
-		dst[j+240] = v15 * scale
+		dst[j] = mathpkg.MulComplex128(v0, scale)
+		dst[j+16] = mathpkg.MulComplex128(v1, scale)
+		dst[j+32] = mathpkg.MulComplex128(v2, scale)
+		dst[j+48] = mathpkg.MulComplex128(v3, scale)
+		dst[j+64] = mathpkg.MulComplex128(v4, scale)
+		dst[j+80] = mathpkg.MulComplex128(v5, scale)
+		dst[j+96] = mathpkg.MulComplex128(v6, scale)
+		dst[j+112] = mathpkg.MulComplex128(v7, scale)
+		dst[j+128] = mathpkg.MulComplex128(v8, scale)
+		dst[j+144] = mathpkg.MulComplex128(v9, scale)
+		dst[j+160] = mathpkg.MulComplex128(v10, scale)
+		dst[j+176] = mathpkg.MulComplex128(v11, scale)
+		dst[j+192] = mathpkg.MulComplex128(v12, scale)
+		dst[j+208] = mathpkg.MulComplex128(v13, scale)
+		dst[j+224] = mathpkg.MulComplex128(v14, scale)
+		dst[j+240] = mathpkg.MulComplex128(v15, scale)
 	}
 
 	return true

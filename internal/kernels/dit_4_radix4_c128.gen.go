@@ -2,6 +2,10 @@
 
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT4Radix4Complex128 computes a 4-point forward FFT using the
 // radix-4 algorithm for complex128 data. For size 4, this is just a single
 // radix-4 butterfly with no twiddle factors needed (all W^0 = 1).
@@ -77,10 +81,10 @@ func inverseDIT4Radix4Complex128(dst, src, twiddle, scratch []complex128) bool {
 	// Fold 1/N scaling (N=4) into the stores.
 	const s complex128 = 0.25
 
-	work[0] = (t0 + t2) * s
-	work[1] = (t1 + t3PosI) * s
-	work[2] = (t0 - t2) * s
-	work[3] = (t1 - t3PosI) * s
+	work[0] = mathpkg.MulComplex128(t0+t2, s)
+	work[1] = mathpkg.MulComplex128(t1+t3PosI, s)
+	work[2] = mathpkg.MulComplex128(t0-t2, s)
+	work[3] = mathpkg.MulComplex128(t1-t3PosI, s)
 
 	if inPlace {
 		copy(dst[:n], work)

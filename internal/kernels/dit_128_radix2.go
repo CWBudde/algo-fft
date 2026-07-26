@@ -45,7 +45,7 @@ func forwardDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	for base := 0; base < n; base += 4 {
 		for j := range 2 {
 			tw := twiddle[j*32]
-			a, b := butterfly2(work[base+j], work[base+j+2], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+2], tw)
 			work[base+j] = a
 			work[base+j+2] = b
 		}
@@ -55,7 +55,7 @@ func forwardDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	for base := 0; base < n; base += 8 {
 		for j := range 4 {
 			tw := twiddle[j*16]
-			a, b := butterfly2(work[base+j], work[base+j+4], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+4], tw)
 			work[base+j] = a
 			work[base+j+4] = b
 		}
@@ -65,7 +65,7 @@ func forwardDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	for base := 0; base < n; base += 16 {
 		for j := range 8 {
 			tw := twiddle[j*8]
-			a, b := butterfly2(work[base+j], work[base+j+8], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+8], tw)
 			work[base+j] = a
 			work[base+j+8] = b
 		}
@@ -75,7 +75,7 @@ func forwardDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	for base := 0; base < n; base += 32 {
 		for j := range 16 {
 			tw := twiddle[j*4]
-			a, b := butterfly2(work[base+j], work[base+j+16], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+16], tw)
 			work[base+j] = a
 			work[base+j+16] = b
 		}
@@ -85,7 +85,7 @@ func forwardDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	for base := 0; base < n; base += 64 {
 		for j := range 32 {
 			tw := twiddle[j*2]
-			a, b := butterfly2(work[base+j], work[base+j+32], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+32], tw)
 			work[base+j] = a
 			work[base+j+32] = b
 		}
@@ -94,7 +94,7 @@ func forwardDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	// Stage 7: 1 radix-2 butterfly, stride=128 (full array)
 	for j := range 64 {
 		tw := twiddle[j]
-		a, b := butterfly2(work[j], work[j+64], tw)
+		a, b := butterfly2Complex64(work[j], work[j+64], tw)
 		work[j] = a
 		work[j+64] = b
 	}
@@ -144,7 +144,7 @@ func inverseDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 		for j := range 2 {
 			tw := twiddle[j*32]
 			tw = complex(real(tw), -imag(tw))
-			a, b := butterfly2(work[base+j], work[base+j+2], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+2], tw)
 			work[base+j] = a
 			work[base+j+2] = b
 		}
@@ -155,7 +155,7 @@ func inverseDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 		for j := range 4 {
 			tw := twiddle[j*16]
 			tw = complex(real(tw), -imag(tw))
-			a, b := butterfly2(work[base+j], work[base+j+4], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+4], tw)
 			work[base+j] = a
 			work[base+j+4] = b
 		}
@@ -166,7 +166,7 @@ func inverseDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 		for j := range 8 {
 			tw := twiddle[j*8]
 			tw = complex(real(tw), -imag(tw))
-			a, b := butterfly2(work[base+j], work[base+j+8], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+8], tw)
 			work[base+j] = a
 			work[base+j+8] = b
 		}
@@ -177,7 +177,7 @@ func inverseDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 		for j := range 16 {
 			tw := twiddle[j*4]
 			tw = complex(real(tw), -imag(tw))
-			a, b := butterfly2(work[base+j], work[base+j+16], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+16], tw)
 			work[base+j] = a
 			work[base+j+16] = b
 		}
@@ -188,7 +188,7 @@ func inverseDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 		for j := range 32 {
 			tw := twiddle[j*2]
 			tw = complex(real(tw), -imag(tw))
-			a, b := butterfly2(work[base+j], work[base+j+32], tw)
+			a, b := butterfly2Complex64(work[base+j], work[base+j+32], tw)
 			work[base+j] = a
 			work[base+j+32] = b
 		}
@@ -198,7 +198,7 @@ func inverseDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	for j := range 64 {
 		tw := twiddle[j]
 		tw = complex(real(tw), -imag(tw))
-		a, b := butterfly2(work[j], work[j+64], tw)
+		a, b := butterfly2Complex64(work[j], work[j+64], tw)
 		work[j] = a
 		work[j+64] = b
 	}
@@ -210,7 +210,7 @@ func inverseDIT128Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	// Apply 1/N scaling for inverse transform
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true

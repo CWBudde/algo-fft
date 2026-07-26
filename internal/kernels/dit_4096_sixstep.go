@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT4096SixStepComplex64 computes a 4096-point forward FFT using the
 // six-step (64×64 matrix) algorithm for complex64 data.
 //
@@ -64,7 +68,7 @@ func forwardDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64) bool
 	for i := range m {
 		for j := range m {
 			idx := i * j // W_4096^(i*j), indices 0..3969
-			work[i*m+j] *= twiddle[idx%n]
+			work[i*m+j] = mathpkg.MulComplex64(work[i*m+j], twiddle[idx%n])
 		}
 	}
 
@@ -140,7 +144,7 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64) bool
 		for j := range m {
 			idx := i * j
 			tw := twiddle[idx%n]
-			work[i*m+j] *= complex(real(tw), -imag(tw)) // Conjugate
+			work[i*m+j] = mathpkg.MulComplex64(work[i*m+j], complex(real(tw), -imag(tw))) // Conjugate
 		}
 	}
 
@@ -162,7 +166,7 @@ func inverseDIT4096SixStepComplex64(dst, src, twiddle, scratch []complex64) bool
 	// Apply 1/N scaling and copy back
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range n {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true
@@ -217,9 +221,9 @@ func inverseDIT64Radix4Complex64NoScale(dst, src, twiddle, scratch []complex64) 
 			idx3 := idx2 + 4
 
 			a0 := stage1[idx0]
-			a1 := w1 * stage1[idx1]
-			a2 := w2 * stage1[idx2]
-			a3 := w3 * stage1[idx3]
+			a1 := mathpkg.MulComplex64(w1, stage1[idx1])
+			a2 := mathpkg.MulComplex64(w2, stage1[idx2])
+			a3 := mathpkg.MulComplex64(w3, stage1[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -252,9 +256,9 @@ func inverseDIT64Radix4Complex64NoScale(dst, src, twiddle, scratch []complex64) 
 		idx3 := j + 48
 
 		a0 := stage2[idx0]
-		a1 := w1 * stage2[idx1]
-		a2 := w2 * stage2[idx2]
-		a3 := w3 * stage2[idx3]
+		a1 := mathpkg.MulComplex64(w1, stage2[idx1])
+		a2 := mathpkg.MulComplex64(w2, stage2[idx2])
+		a3 := mathpkg.MulComplex64(w3, stage2[idx3])
 
 		t0 := a0 + a2
 		t1 := a0 - a2

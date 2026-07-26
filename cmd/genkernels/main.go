@@ -24,10 +24,13 @@ import (
 
 // excludedFuncs are Complex64 functions whose Complex128 counterparts are
 // deliberately not textual twins and stay hand-written:
-//   - the radix-3/radix-5 entry points: the complex128 side delegates to the
-//     generic implementations instead of the monomorphized complex64 copies
-//   - radix3/5TransformComplex64: the complex64-only monomorphizations backing
-//     those entry points
+//   - the radix-3/radix-4/radix-5 entry points: the complex128 side delegates
+//     to the generic implementations instead of the monomorphized complex64
+//     copies
+//   - radix3/4/5TransformComplex64: the complex64-only monomorphizations
+//     backing those entry points. They exist because Go compiles scalar
+//     complex64 multiplication in double precision (see math.MulComplex64) and
+//     a `[T Complex]` body cannot opt out; complex128 has nothing to gain
 //   - the test helpers, whose float32 randomization/tolerances differ
 //   - the 16384-point radix-4 kernel: its [16384]complexN stage arrays sit
 //     exactly at the compiler's 128 KiB explicit-declaration stack limit as
@@ -40,9 +43,12 @@ import (
 var excludedFuncs = map[string]bool{
 	"forwardRadix3Complex64":         true,
 	"inverseRadix3Complex64":         true,
+	"forwardRadix4Complex64":         true,
+	"inverseRadix4Complex64":         true,
 	"forwardRadix5Complex64":         true,
 	"inverseRadix5Complex64":         true,
 	"radix3TransformComplex64":       true,
+	"radix4TransformComplex64":       true,
 	"radix5TransformComplex64":       true,
 	"randomComplex64":                true,
 	"assertComplex64Close":           true,

@@ -2,14 +2,6 @@
 
 package kernels
 
-func forwardRadix4Complex128(dst, src, twiddle, scratch []complex128) bool {
-	return radix4Forward[complex128](dst, src, twiddle, scratch)
-}
-
-func inverseRadix4Complex128(dst, src, twiddle, scratch []complex128) bool {
-	return radix4Inverse[complex128](dst, src, twiddle, scratch)
-}
-
 func butterfly4ForwardComplex128(a0, a1, a2, a3 complex128) (complex128, complex128, complex128, complex128) {
 	t0 := a0 + a2
 	t1 := a0 - a2

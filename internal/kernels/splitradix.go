@@ -76,8 +76,8 @@ func splitRadixForwardRecurseComplex64(dst, src []complex64, stride, step int, t
 	for k := 1; k < quarter; k++ {
 		w1 := twiddle[k*step]
 		w3 := twiddle[3*k*step]
-		a := w1 * dst[half+k]
-		b := w3 * dst[half+quarter+k]
+		a := mathpkg.MulComplex64(w1, dst[half+k])
+		b := mathpkg.MulComplex64(w3, dst[half+quarter+k])
 		t1 := a + b
 		d := a - b
 		t2 := complex(imag(d), -real(d))
@@ -137,8 +137,8 @@ func splitRadixInverseRecurseComplex64(dst, src []complex64, stride, step int, t
 	for k := 1; k < quarter; k++ {
 		w1 := mathpkg.Conj(twiddle[k*step])
 		w3 := mathpkg.Conj(twiddle[3*k*step])
-		a := w1 * dst[half+k]
-		b := w3 * dst[half+quarter+k]
+		a := mathpkg.MulComplex64(w1, dst[half+k])
+		b := mathpkg.MulComplex64(w3, dst[half+quarter+k])
 		t1 := a + b
 		d := a - b
 		t2 := complex(-imag(d), real(d))
@@ -206,7 +206,7 @@ func InverseSplitRadixComplex64(dst, src, twiddle, scratch []complex64) bool {
 
 	scale := complex(float32(1)/float32(n), 0)
 	for i, v := range work {
-		dst[i] = v * scale
+		dst[i] = mathpkg.MulComplex64(v, scale)
 	}
 
 	return true

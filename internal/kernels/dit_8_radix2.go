@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT8Radix2Complex64 computes an 8-point forward FFT using the
 // Decimation-in-Time (DIT) algorithm with radix-2 stages for complex64 data.
 // Fully unrolled for maximum performance.
@@ -34,10 +38,10 @@ func forwardDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Stage 2: 2 radix-2 butterflies, stride=4
 	b0, b2 := a0+a2, a0-a2
-	t := w2 * a3
+	t := mathpkg.MulComplex64(w2, a3)
 	b1, b3 := a1+t, a1-t
 	b4, b6 := a4+a6, a4-a6
-	t = w2 * a7
+	t = mathpkg.MulComplex64(w2, a7)
 	b5, b7 := a5+t, a5-t
 
 	// Stage 3: 1 radix-2 butterfly, stride=8 (full array)
@@ -49,11 +53,11 @@ func forwardDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	work = work[:n]
 	work[0], work[4] = b0+b4, b0-b4
-	t = w1 * b5
+	t = mathpkg.MulComplex64(w1, b5)
 	work[1], work[5] = b1+t, b1-t
-	t = w2 * b6
+	t = mathpkg.MulComplex64(w2, b6)
 	work[2], work[6] = b2+t, b2-t
-	t = w3 * b7
+	t = mathpkg.MulComplex64(w3, b7)
 	work[3], work[7] = b3+t, b3-t
 
 	// Copy result back if we used scratch buffer
@@ -104,10 +108,10 @@ func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	// Stage 2: 2 radix-2 butterflies, stride=4
 	b0, b2 := a0+a2, a0-a2
-	t := w2 * a3
+	t := mathpkg.MulComplex64(w2, a3)
 	b1, b3 := a1+t, a1-t
 	b4, b6 := a4+a6, a4-a6
-	t = w2 * a7
+	t = mathpkg.MulComplex64(w2, a7)
 	b5, b7 := a5+t, a5-t
 
 	// Stage 3: 1 radix-2 butterfly, stride=8 (full array)
@@ -119,11 +123,11 @@ func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	work = work[:n]
 	work[0], work[4] = b0+b4, b0-b4
-	t = w1 * b5
+	t = mathpkg.MulComplex64(w1, b5)
 	work[1], work[5] = b1+t, b1-t
-	t = w2 * b6
+	t = mathpkg.MulComplex64(w2, b6)
 	work[2], work[6] = b2+t, b2-t
-	t = w3 * b7
+	t = mathpkg.MulComplex64(w3, b7)
 	work[3], work[7] = b3+t, b3-t
 
 	// Copy result back if we used scratch buffer
@@ -134,7 +138,7 @@ func inverseDIT8Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	// Apply 1/N scaling for inverse transform
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true

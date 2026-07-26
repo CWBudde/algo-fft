@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT32768Radix4Then2Complex64 computes a 32768-point forward FFT using
 // radix-4-then-2 Decimation-in-Time (DIT) algorithm for complex64 data.
 //
@@ -59,9 +63,9 @@ func forwardDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 12
 
 			a0 := bufA[idx0]
-			a1 := w1 * bufA[idx1]
-			a2 := w2 * bufA[idx2]
-			a3 := w3 * bufA[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufA[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufA[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufA[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -88,9 +92,9 @@ func forwardDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 48
 
 			a0 := bufB[idx0]
-			a1 := w1 * bufB[idx1]
-			a2 := w2 * bufB[idx2]
-			a3 := w3 * bufB[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufB[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufB[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufB[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -117,9 +121,9 @@ func forwardDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 192
 
 			a0 := bufA[idx0]
-			a1 := w1 * bufA[idx1]
-			a2 := w2 * bufA[idx2]
-			a3 := w3 * bufA[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufA[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufA[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufA[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -146,9 +150,9 @@ func forwardDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 768
 
 			a0 := bufB[idx0]
-			a1 := w1 * bufB[idx1]
-			a2 := w2 * bufB[idx2]
-			a3 := w3 * bufB[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufB[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufB[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufB[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -175,9 +179,9 @@ func forwardDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 3072
 
 			a0 := bufA[idx0]
-			a1 := w1 * bufA[idx1]
-			a2 := w2 * bufA[idx2]
-			a3 := w3 * bufA[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufA[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufA[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufA[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -204,9 +208,9 @@ func forwardDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 12288
 
 			a0 := bufB[idx0]
-			a1 := w1 * bufB[idx1]
-			a2 := w2 * bufB[idx2]
-			a3 := w3 * bufB[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufB[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufB[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufB[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -224,7 +228,7 @@ func forwardDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 	for j := range 16384 {
 		w := tw[j]
 		a := bufA[j]
-		b := w * bufA[j+16384]
+		b := mathpkg.MulComplex64(w, bufA[j+16384])
 		bufB[j] = a + b
 		bufB[j+16384] = a - b
 	}
@@ -282,9 +286,9 @@ func inverseDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 12
 
 			a0 := bufA[idx0]
-			a1 := w1 * bufA[idx1]
-			a2 := w2 * bufA[idx2]
-			a3 := w3 * bufA[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufA[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufA[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufA[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -311,9 +315,9 @@ func inverseDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 48
 
 			a0 := bufB[idx0]
-			a1 := w1 * bufB[idx1]
-			a2 := w2 * bufB[idx2]
-			a3 := w3 * bufB[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufB[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufB[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufB[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -340,9 +344,9 @@ func inverseDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 192
 
 			a0 := bufA[idx0]
-			a1 := w1 * bufA[idx1]
-			a2 := w2 * bufA[idx2]
-			a3 := w3 * bufA[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufA[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufA[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufA[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -369,9 +373,9 @@ func inverseDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 768
 
 			a0 := bufB[idx0]
-			a1 := w1 * bufB[idx1]
-			a2 := w2 * bufB[idx2]
-			a3 := w3 * bufB[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufB[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufB[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufB[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -398,9 +402,9 @@ func inverseDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 3072
 
 			a0 := bufA[idx0]
-			a1 := w1 * bufA[idx1]
-			a2 := w2 * bufA[idx2]
-			a3 := w3 * bufA[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufA[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufA[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufA[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -427,9 +431,9 @@ func inverseDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 			idx3 := idx0 + 12288
 
 			a0 := bufB[idx0]
-			a1 := w1 * bufB[idx1]
-			a2 := w2 * bufB[idx2]
-			a3 := w3 * bufB[idx3]
+			a1 := mathpkg.MulComplex64(w1, bufB[idx1])
+			a2 := mathpkg.MulComplex64(w2, bufB[idx2])
+			a3 := mathpkg.MulComplex64(w3, bufB[idx3])
 
 			t0 := a0 + a2
 			t1 := a0 - a2
@@ -447,7 +451,7 @@ func inverseDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 	for j := range 16384 {
 		w := complex(real(tw[j]), -imag(tw[j]))
 		a := bufA[j]
-		b := w * bufA[j+16384]
+		b := mathpkg.MulComplex64(w, bufA[j+16384])
 		bufB[j] = a + b
 		bufB[j+16384] = a - b
 	}
@@ -455,7 +459,7 @@ func inverseDIT32768Radix4Then2Complex64(dst, src, twiddle, scratch []complex64)
 	// Apply 1/N scaling
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true

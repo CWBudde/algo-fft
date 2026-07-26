@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 func radix3TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []int, inverse bool) bool {
 	n := len(src)
 	if n == 0 {
@@ -63,8 +67,8 @@ func radix3TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 						}
 
 						a0[lane] = work[idx0+lane]
-						a1[lane] = w1 * work[idx1+lane]
-						a2[lane] = w2 * work[idx2+lane]
+						a1[lane] = mathpkg.MulComplex64(w1, work[idx1+lane])
+						a2[lane] = mathpkg.MulComplex64(w2, work[idx2+lane])
 					}
 
 					var (
@@ -101,8 +105,8 @@ func radix3TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 				}
 
 				a0 := work[idx0]
-				a1 := w1 * work[idx1]
-				a2 := w2 * work[idx2]
+				a1 := mathpkg.MulComplex64(w1, work[idx1])
+				a2 := mathpkg.MulComplex64(w2, work[idx2])
 
 				var y0, y1, y2 complex64
 				if inverse {
@@ -125,7 +129,7 @@ func radix3TransformComplex64(dst, src, twiddle, scratch []complex64, bitrev []i
 	if inverse {
 		scale := complex(float32(1.0/float32(n)), 0)
 		for i := range dst {
-			dst[i] *= scale
+			dst[i] = mathpkg.MulComplex64(dst[i], scale)
 		}
 	}
 

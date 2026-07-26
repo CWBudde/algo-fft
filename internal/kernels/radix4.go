@@ -1,11 +1,19 @@
 package kernels
 
 func forwardRadix4Complex64(dst, src, twiddle, scratch []complex64) bool {
-	return radix4Forward[complex64](dst, src, twiddle, scratch)
+	return radix4TransformComplex64(dst, src, twiddle, scratch, false)
 }
 
 func inverseRadix4Complex64(dst, src, twiddle, scratch []complex64) bool {
-	return radix4Inverse[complex64](dst, src, twiddle, scratch)
+	return radix4TransformComplex64(dst, src, twiddle, scratch, true)
+}
+
+func forwardRadix4Complex128(dst, src, twiddle, scratch []complex128) bool {
+	return radix4Forward[complex128](dst, src, twiddle, scratch)
+}
+
+func inverseRadix4Complex128(dst, src, twiddle, scratch []complex128) bool {
+	return radix4Inverse[complex128](dst, src, twiddle, scratch)
 }
 
 func radix4Forward[T Complex](dst, src, twiddle, scratch []T) bool {

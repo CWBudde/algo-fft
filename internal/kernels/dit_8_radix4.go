@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT8Radix4Complex64 computes an 8-point forward FFT using a mixed-radix
 // approach: one radix-4 stage followed by one radix-2 stage for complex64 data.
 // Fully unrolled for maximum performance.
@@ -75,15 +79,15 @@ func forwardDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	work[0] = a0 + a4 // w^0 = 1
 	work[4] = a0 - a4
 
-	t := w1 * a5
+	t := mathpkg.MulComplex64(w1, a5)
 	work[1] = a1 + t
 	work[5] = a1 - t
 
-	t = w2 * a6
+	t = mathpkg.MulComplex64(w2, a6)
 	work[2] = a2 + t
 	work[6] = a2 - t
 
-	t = w3 * a7
+	t = mathpkg.MulComplex64(w3, a7)
 	work[3] = a3 + t
 	work[7] = a3 - t
 
@@ -166,15 +170,15 @@ func inverseDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	work[0] = a0 + a4
 	work[4] = a0 - a4
 
-	t := w1 * a5
+	t := mathpkg.MulComplex64(w1, a5)
 	work[1] = a1 + t
 	work[5] = a1 - t
 
-	t = w2 * a6
+	t = mathpkg.MulComplex64(w2, a6)
 	work[2] = a2 + t
 	work[6] = a2 - t
 
-	t = w3 * a7
+	t = mathpkg.MulComplex64(w3, a7)
 	work[3] = a3 + t
 	work[7] = a3 - t
 
@@ -186,7 +190,7 @@ func inverseDIT8Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
 	// Apply 1/N scaling for inverse transform
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true

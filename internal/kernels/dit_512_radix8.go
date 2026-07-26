@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT512Radix8Complex64 computes a 512-point forward FFT using
 // pure radix-8 Decimation-in-Time (DIT) algorithm for complex64 data.
 // 512 = 8 * 8 * 8 (3 stages).
@@ -54,12 +58,12 @@ func forwardDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 		stage1[base] = e0 + o0
 		stage1[base+4] = e0 - o0
-		stage1[base+1] = e1 + w1_8*o1
-		stage1[base+5] = e1 - w1_8*o1
-		stage1[base+2] = e2 + w2_8*o2
-		stage1[base+6] = e2 - w2_8*o2
-		stage1[base+3] = e3 + w3_8*o3
-		stage1[base+7] = e3 - w3_8*o3
+		stage1[base+1] = e1 + mathpkg.MulComplex64(w1_8, o1)
+		stage1[base+5] = e1 - mathpkg.MulComplex64(w1_8, o1)
+		stage1[base+2] = e2 + mathpkg.MulComplex64(w2_8, o2)
+		stage1[base+6] = e2 - mathpkg.MulComplex64(w2_8, o2)
+		stage1[base+3] = e3 + mathpkg.MulComplex64(w3_8, o3)
+		stage1[base+7] = e3 - mathpkg.MulComplex64(w3_8, o3)
 	}
 
 	// Stage 2: 8 groups, 8 radix-8 butterflies each
@@ -78,13 +82,13 @@ func forwardDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 			tw7 := tw[j*56]
 
 			x0 := stage1[base+j]
-			x1 := tw1 * stage1[base+j+8]
-			x2 := tw2 * stage1[base+j+16]
-			x3 := tw3 * stage1[base+j+24]
-			x4 := tw4 * stage1[base+j+32]
-			x5 := tw5 * stage1[base+j+40]
-			x6 := tw6 * stage1[base+j+48]
-			x7 := tw7 * stage1[base+j+56]
+			x1 := mathpkg.MulComplex64(tw1, stage1[base+j+8])
+			x2 := mathpkg.MulComplex64(tw2, stage1[base+j+16])
+			x3 := mathpkg.MulComplex64(tw3, stage1[base+j+24])
+			x4 := mathpkg.MulComplex64(tw4, stage1[base+j+32])
+			x5 := mathpkg.MulComplex64(tw5, stage1[base+j+40])
+			x6 := mathpkg.MulComplex64(tw6, stage1[base+j+48])
+			x7 := mathpkg.MulComplex64(tw7, stage1[base+j+56])
 
 			// 8-point DFT
 			a0 := x0 + x4
@@ -108,12 +112,12 @@ func forwardDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 			stage2[base+j] = e0 + o0
 			stage2[base+j+32] = e0 - o0
-			stage2[base+j+8] = e1 + w1_8*o1
-			stage2[base+j+40] = e1 - w1_8*o1
-			stage2[base+j+16] = e2 + w2_8*o2
-			stage2[base+j+48] = e2 - w2_8*o2
-			stage2[base+j+24] = e3 + w3_8*o3
-			stage2[base+j+56] = e3 - w3_8*o3
+			stage2[base+j+8] = e1 + mathpkg.MulComplex64(w1_8, o1)
+			stage2[base+j+40] = e1 - mathpkg.MulComplex64(w1_8, o1)
+			stage2[base+j+16] = e2 + mathpkg.MulComplex64(w2_8, o2)
+			stage2[base+j+48] = e2 - mathpkg.MulComplex64(w2_8, o2)
+			stage2[base+j+24] = e3 + mathpkg.MulComplex64(w3_8, o3)
+			stage2[base+j+56] = e3 - mathpkg.MulComplex64(w3_8, o3)
 		}
 	}
 
@@ -137,13 +141,13 @@ func forwardDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 		tw7 := tw[7*j]
 
 		x0 := stage2[j]
-		x1 := tw1 * stage2[j+64]
-		x2 := tw2 * stage2[j+128]
-		x3 := tw3 * stage2[j+192]
-		x4 := tw4 * stage2[j+256]
-		x5 := tw5 * stage2[j+320]
-		x6 := tw6 * stage2[j+384]
-		x7 := tw7 * stage2[j+448]
+		x1 := mathpkg.MulComplex64(tw1, stage2[j+64])
+		x2 := mathpkg.MulComplex64(tw2, stage2[j+128])
+		x3 := mathpkg.MulComplex64(tw3, stage2[j+192])
+		x4 := mathpkg.MulComplex64(tw4, stage2[j+256])
+		x5 := mathpkg.MulComplex64(tw5, stage2[j+320])
+		x6 := mathpkg.MulComplex64(tw6, stage2[j+384])
+		x7 := mathpkg.MulComplex64(tw7, stage2[j+448])
 
 		// 8-point DFT
 		a0 := x0 + x4
@@ -167,12 +171,12 @@ func forwardDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 		work[j] = e0 + o0
 		work[j+256] = e0 - o0
-		work[j+64] = e1 + w1_8*o1
-		work[j+320] = e1 - w1_8*o1
-		work[j+128] = e2 + w2_8*o2
-		work[j+384] = e2 - w2_8*o2
-		work[j+192] = e3 + w3_8*o3
-		work[j+448] = e3 - w3_8*o3
+		work[j+64] = e1 + mathpkg.MulComplex64(w1_8, o1)
+		work[j+320] = e1 - mathpkg.MulComplex64(w1_8, o1)
+		work[j+128] = e2 + mathpkg.MulComplex64(w2_8, o2)
+		work[j+384] = e2 - mathpkg.MulComplex64(w2_8, o2)
+		work[j+192] = e3 + mathpkg.MulComplex64(w3_8, o3)
+		work[j+448] = e3 - mathpkg.MulComplex64(w3_8, o3)
 	}
 
 	if &work[0] != &dst[0] {
@@ -235,12 +239,12 @@ func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 		stage1[base] = e0 + o0
 		stage1[base+4] = e0 - o0
-		stage1[base+1] = e1 + w1_8*o1
-		stage1[base+5] = e1 - w1_8*o1
-		stage1[base+2] = e2 + w2_8*o2
-		stage1[base+6] = e2 - w2_8*o2
-		stage1[base+3] = e3 + w3_8*o3
-		stage1[base+7] = e3 - w3_8*o3
+		stage1[base+1] = e1 + mathpkg.MulComplex64(w1_8, o1)
+		stage1[base+5] = e1 - mathpkg.MulComplex64(w1_8, o1)
+		stage1[base+2] = e2 + mathpkg.MulComplex64(w2_8, o2)
+		stage1[base+6] = e2 - mathpkg.MulComplex64(w2_8, o2)
+		stage1[base+3] = e3 + mathpkg.MulComplex64(w3_8, o3)
+		stage1[base+7] = e3 - mathpkg.MulComplex64(w3_8, o3)
 	}
 
 	// Stage 2: 8 groups, 8 radix-8 butterflies each
@@ -257,13 +261,13 @@ func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 			tw7 := complex(real(tw[j*56]), -imag(tw[j*56]))
 
 			x0 := stage1[base+j]
-			x1 := tw1 * stage1[base+j+8]
-			x2 := tw2 * stage1[base+j+16]
-			x3 := tw3 * stage1[base+j+24]
-			x4 := tw4 * stage1[base+j+32]
-			x5 := tw5 * stage1[base+j+40]
-			x6 := tw6 * stage1[base+j+48]
-			x7 := tw7 * stage1[base+j+56]
+			x1 := mathpkg.MulComplex64(tw1, stage1[base+j+8])
+			x2 := mathpkg.MulComplex64(tw2, stage1[base+j+16])
+			x3 := mathpkg.MulComplex64(tw3, stage1[base+j+24])
+			x4 := mathpkg.MulComplex64(tw4, stage1[base+j+32])
+			x5 := mathpkg.MulComplex64(tw5, stage1[base+j+40])
+			x6 := mathpkg.MulComplex64(tw6, stage1[base+j+48])
+			x7 := mathpkg.MulComplex64(tw7, stage1[base+j+56])
 
 			a0 := x0 + x4
 			a1 := x0 - x4
@@ -286,12 +290,12 @@ func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 			stage2[base+j] = e0 + o0
 			stage2[base+j+32] = e0 - o0
-			stage2[base+j+8] = e1 + w1_8*o1
-			stage2[base+j+40] = e1 - w1_8*o1
-			stage2[base+j+16] = e2 + w2_8*o2
-			stage2[base+j+48] = e2 - w2_8*o2
-			stage2[base+j+24] = e3 + w3_8*o3
-			stage2[base+j+56] = e3 - w3_8*o3
+			stage2[base+j+8] = e1 + mathpkg.MulComplex64(w1_8, o1)
+			stage2[base+j+40] = e1 - mathpkg.MulComplex64(w1_8, o1)
+			stage2[base+j+16] = e2 + mathpkg.MulComplex64(w2_8, o2)
+			stage2[base+j+48] = e2 - mathpkg.MulComplex64(w2_8, o2)
+			stage2[base+j+24] = e3 + mathpkg.MulComplex64(w3_8, o3)
+			stage2[base+j+56] = e3 - mathpkg.MulComplex64(w3_8, o3)
 		}
 	}
 
@@ -313,13 +317,13 @@ func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 		tw7 := complex(real(tw[7*j]), -imag(tw[7*j]))
 
 		x0 := stage2[j]
-		x1 := tw1 * stage2[j+64]
-		x2 := tw2 * stage2[j+128]
-		x3 := tw3 * stage2[j+192]
-		x4 := tw4 * stage2[j+256]
-		x5 := tw5 * stage2[j+320]
-		x6 := tw6 * stage2[j+384]
-		x7 := tw7 * stage2[j+448]
+		x1 := mathpkg.MulComplex64(tw1, stage2[j+64])
+		x2 := mathpkg.MulComplex64(tw2, stage2[j+128])
+		x3 := mathpkg.MulComplex64(tw3, stage2[j+192])
+		x4 := mathpkg.MulComplex64(tw4, stage2[j+256])
+		x5 := mathpkg.MulComplex64(tw5, stage2[j+320])
+		x6 := mathpkg.MulComplex64(tw6, stage2[j+384])
+		x7 := mathpkg.MulComplex64(tw7, stage2[j+448])
 
 		a0 := x0 + x4
 		a1 := x0 - x4
@@ -342,12 +346,12 @@ func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 		work[j] = e0 + o0
 		work[j+256] = e0 - o0
-		work[j+64] = e1 + w1_8*o1
-		work[j+320] = e1 - w1_8*o1
-		work[j+128] = e2 + w2_8*o2
-		work[j+384] = e2 - w2_8*o2
-		work[j+192] = e3 + w3_8*o3
-		work[j+448] = e3 - w3_8*o3
+		work[j+64] = e1 + mathpkg.MulComplex64(w1_8, o1)
+		work[j+320] = e1 - mathpkg.MulComplex64(w1_8, o1)
+		work[j+128] = e2 + mathpkg.MulComplex64(w2_8, o2)
+		work[j+384] = e2 - mathpkg.MulComplex64(w2_8, o2)
+		work[j+192] = e3 + mathpkg.MulComplex64(w3_8, o3)
+		work[j+448] = e3 - mathpkg.MulComplex64(w3_8, o3)
 	}
 
 	if &work[0] != &dst[0] {
@@ -357,7 +361,7 @@ func inverseDIT512Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 	// Apply 1/N scaling
 	scale := complex(float32(1.0/float64(n)), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex64(dst[i], scale)
 	}
 
 	return true

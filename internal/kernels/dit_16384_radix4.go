@@ -1,5 +1,9 @@
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT16384Radix4Complex64 computes a 16384-point forward FFT using the
 // radix-4 Decimation-in-Time (DIT) algorithm for complex64 data.
 // 16384 = 4^7, so this uses 7 radix-4 stages instead of 14 radix-2 stages.
@@ -81,9 +85,9 @@ func forwardDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64) bool
 				idx3 := idx2 + quarter
 
 				a0 := current[idx0]
-				a1 := w1 * current[idx1]
-				a2 := w2 * current[idx2]
-				a3 := w3 * current[idx3]
+				a1 := mathpkg.MulComplex64(w1, current[idx1])
+				a2 := mathpkg.MulComplex64(w2, current[idx2])
+				a3 := mathpkg.MulComplex64(w3, current[idx3])
 
 				t0 := a0 + a2
 				t1 := a0 - a2
@@ -118,9 +122,9 @@ func forwardDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64) bool
 		idx3 := idx2 + quarter
 
 		a0 := current[idx0]
-		a1 := w1 * current[idx1]
-		a2 := w2 * current[idx2]
-		a3 := w3 * current[idx3]
+		a1 := mathpkg.MulComplex64(w1, current[idx1])
+		a2 := mathpkg.MulComplex64(w2, current[idx2])
+		a3 := mathpkg.MulComplex64(w3, current[idx3])
 
 		t0 := a0 + a2
 		t1 := a0 - a2
@@ -211,9 +215,9 @@ func inverseDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64) bool
 				idx3 := idx2 + quarter
 
 				a0 := current[idx0]
-				a1 := w1 * current[idx1]
-				a2 := w2 * current[idx2]
-				a3 := w3 * current[idx3]
+				a1 := mathpkg.MulComplex64(w1, current[idx1])
+				a2 := mathpkg.MulComplex64(w2, current[idx2])
+				a3 := mathpkg.MulComplex64(w3, current[idx3])
 
 				t0 := a0 + a2
 				t1 := a0 - a2
@@ -250,19 +254,19 @@ func inverseDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64) bool
 		idx3 := idx2 + quarter
 
 		a0 := current[idx0]
-		a1 := w1 * current[idx1]
-		a2 := w2 * current[idx2]
-		a3 := w3 * current[idx3]
+		a1 := mathpkg.MulComplex64(w1, current[idx1])
+		a2 := mathpkg.MulComplex64(w2, current[idx2])
+		a3 := mathpkg.MulComplex64(w3, current[idx3])
 
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		work[idx0] = scale * (t0 + t2)
-		work[idx2] = scale * (t0 - t2)
-		work[idx1] = scale * (t1 + complex(-imag(t3), real(t3)))
-		work[idx3] = scale * (t1 + complex(imag(t3), -real(t3)))
+		work[idx0] = mathpkg.MulComplex64(scale, t0+t2)
+		work[idx2] = mathpkg.MulComplex64(scale, t0-t2)
+		work[idx1] = mathpkg.MulComplex64(scale, t1+complex(-imag(t3), real(t3)))
+		work[idx3] = mathpkg.MulComplex64(scale, t1+complex(imag(t3), -real(t3)))
 	}
 
 	if &work[0] != &dst[0] {

@@ -55,8 +55,8 @@ func splitRadixForwardRecurseComplex128(dst, src []complex128, stride, step int,
 	for k := 1; k < quarter; k++ {
 		w1 := twiddle[k*step]
 		w3 := twiddle[3*k*step]
-		a := w1 * dst[half+k]
-		b := w3 * dst[half+quarter+k]
+		a := mathpkg.MulComplex128(w1, dst[half+k])
+		b := mathpkg.MulComplex128(w3, dst[half+quarter+k])
 		t1 := a + b
 		d := a - b
 		t2 := complex(imag(d), -real(d))
@@ -116,8 +116,8 @@ func splitRadixInverseRecurseComplex128(dst, src []complex128, stride, step int,
 	for k := 1; k < quarter; k++ {
 		w1 := mathpkg.Conj(twiddle[k*step])
 		w3 := mathpkg.Conj(twiddle[3*k*step])
-		a := w1 * dst[half+k]
-		b := w3 * dst[half+quarter+k]
+		a := mathpkg.MulComplex128(w1, dst[half+k])
+		b := mathpkg.MulComplex128(w3, dst[half+quarter+k])
 		t1 := a + b
 		d := a - b
 		t2 := complex(-imag(d), real(d))
@@ -170,7 +170,7 @@ func InverseSplitRadixComplex128(dst, src, twiddle, scratch []complex128) bool {
 
 	scale := complex(1/float64(n), 0)
 	for i, v := range work {
-		dst[i] = v * scale
+		dst[i] = mathpkg.MulComplex128(v, scale)
 	}
 
 	return true

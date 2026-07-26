@@ -2,6 +2,10 @@
 
 package kernels
 
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
 // forwardDIT256Complex128 computes a 256-point forward FFT using the
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex128 data.
 // The algorithm performs 8 stages of butterfly operations (log2(256) = 8).
@@ -60,7 +64,7 @@ func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 		work[base], work[base+2] = x0+x2, x0-x2
 		// j=1: tw = w64
 		x1, x3 := work[base+1], work[base+3]
-		t := w64 * x3
+		t := mathpkg.MulComplex128(w64, x3)
 		work[base+1], work[base+3] = x1+t, x1-t
 	}
 
@@ -73,15 +77,15 @@ func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 		work[base], work[base+4] = x0+x4, x0-x4
 		// j=1: tw = w32
 		x1, x5 := work[base+1], work[base+5]
-		t := w32 * x5
+		t := mathpkg.MulComplex128(w32, x5)
 		work[base+1], work[base+5] = x1+t, x1-t
 		// j=2: tw = w64
 		x2, x6 := work[base+2], work[base+6]
-		t = w64 * x6
+		t = mathpkg.MulComplex128(w64, x6)
 		work[base+2], work[base+6] = x2+t, x2-t
 		// j=3: tw = w96
 		x3, x7 := work[base+3], work[base+7]
-		t = w96 * x7
+		t = mathpkg.MulComplex128(w96, x7)
 		work[base+3], work[base+7] = x3+t, x3-t
 	}
 
@@ -93,31 +97,31 @@ func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 		work[base], work[base+8] = x+y, x-y
 		// j=1: tw = w16
 		x, y = work[base+1], work[base+9]
-		t := w16 * y
+		t := mathpkg.MulComplex128(w16, y)
 		work[base+1], work[base+9] = x+t, x-t
 		// j=2: tw = w32
 		x, y = work[base+2], work[base+10]
-		t = w32 * y
+		t = mathpkg.MulComplex128(w32, y)
 		work[base+2], work[base+10] = x+t, x-t
 		// j=3: tw = w48
 		x, y = work[base+3], work[base+11]
-		t = w48 * y
+		t = mathpkg.MulComplex128(w48, y)
 		work[base+3], work[base+11] = x+t, x-t
 		// j=4: tw = w64
 		x, y = work[base+4], work[base+12]
-		t = w64 * y
+		t = mathpkg.MulComplex128(w64, y)
 		work[base+4], work[base+12] = x+t, x-t
 		// j=5: tw = w80
 		x, y = work[base+5], work[base+13]
-		t = w80 * y
+		t = mathpkg.MulComplex128(w80, y)
 		work[base+5], work[base+13] = x+t, x-t
 		// j=6: tw = w96
 		x, y = work[base+6], work[base+14]
-		t = w96 * y
+		t = mathpkg.MulComplex128(w96, y)
 		work[base+6], work[base+14] = x+t, x-t
 		// j=7: tw = w112
 		x, y = work[base+7], work[base+15]
-		t = w112 * y
+		t = mathpkg.MulComplex128(w112, y)
 		work[base+7], work[base+15] = x+t, x-t
 	}
 
@@ -131,7 +135,7 @@ func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 			x1, y1 := work[base+j+1], work[base+j+17]
 			x2, y2 := work[base+j+2], work[base+j+18]
 			x3, y3 := work[base+j+3], work[base+j+19]
-			t0, t1, t2, t3 := tw0*y0, tw1*y1, tw2*y2, tw3*y3
+			t0, t1, t2, t3 := mathpkg.MulComplex128(tw0, y0), mathpkg.MulComplex128(tw1, y1), mathpkg.MulComplex128(tw2, y2), mathpkg.MulComplex128(tw3, y3)
 			work[base+j], work[base+j+16] = x0+t0, x0-t0
 			work[base+j+1], work[base+j+17] = x1+t1, x1-t1
 			work[base+j+2], work[base+j+18] = x2+t2, x2-t2
@@ -149,7 +153,7 @@ func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 			x1, y1 := work[base+j+1], work[base+j+33]
 			x2, y2 := work[base+j+2], work[base+j+34]
 			x3, y3 := work[base+j+3], work[base+j+35]
-			t0, t1, t2, t3 := tw0*y0, tw1*y1, tw2*y2, tw3*y3
+			t0, t1, t2, t3 := mathpkg.MulComplex128(tw0, y0), mathpkg.MulComplex128(tw1, y1), mathpkg.MulComplex128(tw2, y2), mathpkg.MulComplex128(tw3, y3)
 			work[base+j], work[base+j+32] = x0+t0, x0-t0
 			work[base+j+1], work[base+j+33] = x1+t1, x1-t1
 			work[base+j+2], work[base+j+34] = x2+t2, x2-t2
@@ -167,7 +171,7 @@ func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 			x1, y1 := work[base+j+1], work[base+j+65]
 			x2, y2 := work[base+j+2], work[base+j+66]
 			x3, y3 := work[base+j+3], work[base+j+67]
-			t0, t1, t2, t3 := tw0*y0, tw1*y1, tw2*y2, tw3*y3
+			t0, t1, t2, t3 := mathpkg.MulComplex128(tw0, y0), mathpkg.MulComplex128(tw1, y1), mathpkg.MulComplex128(tw2, y2), mathpkg.MulComplex128(tw3, y3)
 			work[base+j], work[base+j+64] = x0+t0, x0-t0
 			work[base+j+1], work[base+j+65] = x1+t1, x1-t1
 			work[base+j+2], work[base+j+66] = x2+t2, x2-t2
@@ -183,7 +187,7 @@ func forwardDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 		x1, y1 := work[j+1], work[j+129]
 		x2, y2 := work[j+2], work[j+130]
 		x3, y3 := work[j+3], work[j+131]
-		t0, t1, t2, t3 := tw0*y0, tw1*y1, tw2*y2, tw3*y3
+		t0, t1, t2, t3 := mathpkg.MulComplex128(tw0, y0), mathpkg.MulComplex128(tw1, y1), mathpkg.MulComplex128(tw2, y2), mathpkg.MulComplex128(tw3, y3)
 		work[j], work[j+128] = x0+t0, x0-t0
 		work[j+1], work[j+129] = x1+t1, x1-t1
 		work[j+2], work[j+130] = x2+t2, x2-t2
@@ -255,7 +259,7 @@ func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 		work[base], work[base+2] = x0+x2, x0-x2
 		// j=1: tw = conj(w64)
 		x1, x3 := work[base+1], work[base+3]
-		t := w64 * x3
+		t := mathpkg.MulComplex128(w64, x3)
 		work[base+1], work[base+3] = x1+t, x1-t
 	}
 
@@ -267,15 +271,15 @@ func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 		work[base], work[base+4] = x0+x4, x0-x4
 		// j=1: tw = conj(w32)
 		x1, x5 := work[base+1], work[base+5]
-		t := w32 * x5
+		t := mathpkg.MulComplex128(w32, x5)
 		work[base+1], work[base+5] = x1+t, x1-t
 		// j=2: tw = conj(w64)
 		x2, x6 := work[base+2], work[base+6]
-		t = w64 * x6
+		t = mathpkg.MulComplex128(w64, x6)
 		work[base+2], work[base+6] = x2+t, x2-t
 		// j=3: tw = conj(w96)
 		x3, x7 := work[base+3], work[base+7]
-		t = w96 * x7
+		t = mathpkg.MulComplex128(w96, x7)
 		work[base+3], work[base+7] = x3+t, x3-t
 	}
 
@@ -287,31 +291,31 @@ func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 		work[base], work[base+8] = x+y, x-y
 		// j=1: tw = conj(w16)
 		x, y = work[base+1], work[base+9]
-		t := w16 * y
+		t := mathpkg.MulComplex128(w16, y)
 		work[base+1], work[base+9] = x+t, x-t
 		// j=2: tw = conj(w32)
 		x, y = work[base+2], work[base+10]
-		t = w32 * y
+		t = mathpkg.MulComplex128(w32, y)
 		work[base+2], work[base+10] = x+t, x-t
 		// j=3: tw = conj(w48)
 		x, y = work[base+3], work[base+11]
-		t = w48 * y
+		t = mathpkg.MulComplex128(w48, y)
 		work[base+3], work[base+11] = x+t, x-t
 		// j=4: tw = conj(w64)
 		x, y = work[base+4], work[base+12]
-		t = w64 * y
+		t = mathpkg.MulComplex128(w64, y)
 		work[base+4], work[base+12] = x+t, x-t
 		// j=5: tw = conj(w80)
 		x, y = work[base+5], work[base+13]
-		t = w80 * y
+		t = mathpkg.MulComplex128(w80, y)
 		work[base+5], work[base+13] = x+t, x-t
 		// j=6: tw = conj(w96)
 		x, y = work[base+6], work[base+14]
-		t = w96 * y
+		t = mathpkg.MulComplex128(w96, y)
 		work[base+6], work[base+14] = x+t, x-t
 		// j=7: tw = conj(w112)
 		x, y = work[base+7], work[base+15]
-		t = w112 * y
+		t = mathpkg.MulComplex128(w112, y)
 		work[base+7], work[base+15] = x+t, x-t
 	}
 
@@ -327,7 +331,7 @@ func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 			x1, y1 := work[base+j+1], work[base+j+17]
 			x2, y2 := work[base+j+2], work[base+j+18]
 			x3, y3 := work[base+j+3], work[base+j+19]
-			t0, t1, t2, t3 := tw0*y0, tw1*y1, tw2*y2, tw3*y3
+			t0, t1, t2, t3 := mathpkg.MulComplex128(tw0, y0), mathpkg.MulComplex128(tw1, y1), mathpkg.MulComplex128(tw2, y2), mathpkg.MulComplex128(tw3, y3)
 			work[base+j], work[base+j+16] = x0+t0, x0-t0
 			work[base+j+1], work[base+j+17] = x1+t1, x1-t1
 			work[base+j+2], work[base+j+18] = x2+t2, x2-t2
@@ -347,7 +351,7 @@ func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 			x1, y1 := work[base+j+1], work[base+j+33]
 			x2, y2 := work[base+j+2], work[base+j+34]
 			x3, y3 := work[base+j+3], work[base+j+35]
-			t0, t1, t2, t3 := tw0*y0, tw1*y1, tw2*y2, tw3*y3
+			t0, t1, t2, t3 := mathpkg.MulComplex128(tw0, y0), mathpkg.MulComplex128(tw1, y1), mathpkg.MulComplex128(tw2, y2), mathpkg.MulComplex128(tw3, y3)
 			work[base+j], work[base+j+32] = x0+t0, x0-t0
 			work[base+j+1], work[base+j+33] = x1+t1, x1-t1
 			work[base+j+2], work[base+j+34] = x2+t2, x2-t2
@@ -367,7 +371,7 @@ func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 			x1, y1 := work[base+j+1], work[base+j+65]
 			x2, y2 := work[base+j+2], work[base+j+66]
 			x3, y3 := work[base+j+3], work[base+j+67]
-			t0, t1, t2, t3 := tw0*y0, tw1*y1, tw2*y2, tw3*y3
+			t0, t1, t2, t3 := mathpkg.MulComplex128(tw0, y0), mathpkg.MulComplex128(tw1, y1), mathpkg.MulComplex128(tw2, y2), mathpkg.MulComplex128(tw3, y3)
 			work[base+j], work[base+j+64] = x0+t0, x0-t0
 			work[base+j+1], work[base+j+65] = x1+t1, x1-t1
 			work[base+j+2], work[base+j+66] = x2+t2, x2-t2
@@ -386,7 +390,7 @@ func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 		x1, y1 := work[j+1], work[j+129]
 		x2, y2 := work[j+2], work[j+130]
 		x3, y3 := work[j+3], work[j+131]
-		t0, t1, t2, t3 := tw0*y0, tw1*y1, tw2*y2, tw3*y3
+		t0, t1, t2, t3 := mathpkg.MulComplex128(tw0, y0), mathpkg.MulComplex128(tw1, y1), mathpkg.MulComplex128(tw2, y2), mathpkg.MulComplex128(tw3, y3)
 		work[j], work[j+128] = x0+t0, x0-t0
 		work[j+1], work[j+129] = x1+t1, x1-t1
 		work[j+2], work[j+130] = x2+t2, x2-t2
@@ -401,7 +405,7 @@ func inverseDIT256Complex128(dst, src, twiddle, scratch []complex128) bool {
 	// Apply 1/N scaling for inverse transform
 	scale := complex(1.0/float64(n), 0)
 	for i := range dst[:n] {
-		dst[i] *= scale
+		dst[i] = mathpkg.MulComplex128(dst[i], scale)
 	}
 
 	return true
