@@ -40,6 +40,7 @@ var variantNames = map[string]string{
 	"radix32":             "Radix-32",
 	"radix4_then2":        "Mixed-2/4",
 	"radix4_then2_params": "Mixed-2/4",
+	"radix8_then2":        "Mixed-8/2",
 	"mixedradix":          "Mixed-2/4",
 	"radix16x32":          "Radix-16×32",
 	"radix32x32":          "Radix-32×32",
