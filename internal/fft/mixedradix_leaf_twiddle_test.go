@@ -127,32 +127,8 @@ func TestMixedRadixLeafTwiddleMatchesReference(t *testing.T) {
 	}
 }
 
-// TestLeafTwiddleUsable pins the invariant that makes the cached size-n table
-// interchangeable with a stride-step gather. A table longer than n*step
-// encodes different roots of unity, so the driver must fall back to gathering.
-func TestLeafTwiddleUsable(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		n, step, tableLen int
-		want              bool
-	}{
-		{n: 32, step: 3, tableLen: 96, want: true},   // leaf of the n=96 schedule
-		{n: 256, step: 3, tableLen: 768, want: true}, // leaf of the n=768 schedule
-		{n: 96, step: 1, tableLen: 96, want: true},   // root node
-		{n: 32, step: 3, tableLen: 192, want: false}, // oversized table
-		{n: 32, step: 3, tableLen: 95, want: false},  // short table
-		{n: 0, step: 1, tableLen: 0, want: false},
-		{n: 32, step: 0, tableLen: 0, want: false},
-	}
-
-	for _, c := range cases {
-		if got := leafTwiddleUsable(c.n, c.step, c.tableLen); got != c.want {
-			t.Errorf("leafTwiddleUsable(%d, %d, %d) = %v, want %v",
-				c.n, c.step, c.tableLen, got, c.want)
-		}
-	}
-}
+// leafTwiddleUsable itself is tested in mixedradix_stage_twiddle_test.go,
+// alongside the portable code it now lives in.
 
 // TestLeafTwiddleTableValues checks that the cached tables really are the
 // standard size-n twiddle factors and that repeated lookups share one table.

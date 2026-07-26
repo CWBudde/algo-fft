@@ -320,7 +320,30 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 		input = work
 	}
 
-	// Apply radix-r butterfly with type-specific functions
+	// Preferred path: apply the stage's twiddles as one contiguous array
+	// multiply, then run a twiddle-free butterfly loop. Available whenever the
+	// recursion invariant holds and the radix is one the stage can execute;
+	// see mixedradix_stage_twiddle.go.
+	if table := stageTwiddle64(n, radix, step, len(twiddle), inverse); table != nil {
+		mixedRadixStageComplex64(dst, input, table, n, span, radix, inverse)
+
+		return
+	}
+
+	// Fallback: the scalar stage, which reads each twiddle from the root
+	// table with stride j*step.
+	// Fallback: the scalar stage, which reads each twiddle from the root
+	// table with stride j*step. Radices 7, 8 and 11 live in their own function;
+	// radices 2-5 stay inline because the deep schedules that miss the
+	// vectorised path pay a call per stage otherwise -- n = 2205 = [5 7 7 3 3]
+	// runs 980 span-1 and span-3 radix-3 stages, and extracting them cost it
+	// about 5 percent.
+	if radix == 7 || radix == 8 || radix == 11 {
+		mixedRadixWideScalarStageComplex64(dst, input, twiddle, span, step, radix, inverse)
+
+		return
+	}
+
 	for k := range span {
 		switch radix {
 		case 2:
@@ -415,6 +438,23 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			dst[2*span+k] = y2
 			dst[3*span+k] = y3
 			dst[4*span+k] = y4
+		default:
+			// A radix the driver cannot execute means the scheduler and the
+			// recursion hook disagree — a programming error, never a runtime
+			// input error. Returning here would leave dst partially written
+			// and surface as a wrong answer with a nil error.
+			panic("algofft: mixed-radix driver cannot execute radix " + strconv.Itoa(radix) +
+				" (scheduler/driver contract violation)")
+		}
+	}
+}
+
+// mixedRadixWideScalarStageComplex64 applies the scalar radix-7, -8 and -11
+// butterfly stages. They are split out of the driver because they carry most of
+// its cyclomatic complexity while running far less often than radices 2-5.
+func mixedRadixWideScalarStageComplex64(dst, input, twiddle []complex64, span, step, radix int, inverse bool) {
+	for k := range span {
+		switch radix {
 		case 7:
 			var a [7]complex64
 
@@ -504,7 +544,7 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 			dst[7*span+k] = y7
 		default:
 			// A radix the driver cannot execute means the scheduler and the
-			// recursion hook disagree — a programming error, never a runtime
+			// recursion hook disagree - a programming error, never a runtime
 			// input error. Returning here would leave dst partially written
 			// and surface as a wrong answer with a nil error.
 			panic("algofft: mixed-radix driver cannot execute radix " + strconv.Itoa(radix) +
@@ -542,7 +582,27 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 		input = work
 	}
 
-	// Apply radix-r butterfly with type-specific functions
+	// See the complex64 twin for why this path is preferred.
+	if table := stageTwiddle128(n, radix, step, len(twiddle), inverse); table != nil {
+		mixedRadixStageComplex128(dst, input, table, n, span, radix, inverse)
+
+		return
+	}
+
+	// Fallback: the scalar stage, which reads each twiddle from the root
+	// table with stride j*step.
+	// Fallback: the scalar stage, which reads each twiddle from the root
+	// table with stride j*step. Radices 7, 8 and 11 live in their own function;
+	// radices 2-5 stay inline because the deep schedules that miss the
+	// vectorised path pay a call per stage otherwise -- n = 2205 = [5 7 7 3 3]
+	// runs 980 span-1 and span-3 radix-3 stages, and extracting them cost it
+	// about 5 percent.
+	if radix == 7 || radix == 8 || radix == 11 {
+		mixedRadixWideScalarStageComplex128(dst, input, twiddle, span, step, radix, inverse)
+
+		return
+	}
+
 	for k := range span {
 		switch radix {
 		case 2:
@@ -637,6 +697,23 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			dst[2*span+k] = y2
 			dst[3*span+k] = y3
 			dst[4*span+k] = y4
+		default:
+			// A radix the driver cannot execute means the scheduler and the
+			// recursion hook disagree — a programming error, never a runtime
+			// input error. Returning here would leave dst partially written
+			// and surface as a wrong answer with a nil error.
+			panic("algofft: mixed-radix driver cannot execute radix " + strconv.Itoa(radix) +
+				" (scheduler/driver contract violation)")
+		}
+	}
+}
+
+// mixedRadixWideScalarStageComplex128 applies the scalar radix-7, -8 and -11
+// butterfly stages. They are split out of the driver because they carry most of
+// its cyclomatic complexity while running far less often than radices 2-5.
+func mixedRadixWideScalarStageComplex128(dst, input, twiddle []complex128, span, step, radix int, inverse bool) {
+	for k := range span {
+		switch radix {
 		case 7:
 			var a [7]complex128
 
@@ -726,7 +803,7 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 			dst[7*span+k] = y7
 		default:
 			// A radix the driver cannot execute means the scheduler and the
-			// recursion hook disagree — a programming error, never a runtime
+			// recursion hook disagree - a programming error, never a runtime
 			// input error. Returning here would leave dst partially written
 			// and surface as a wrong answer with a nil error.
 			panic("algofft: mixed-radix driver cannot execute radix " + strconv.Itoa(radix) +

@@ -33,11 +33,9 @@ var (
 	leafTwiddleCache128 sync.Map // map[int][]complex128
 )
 
-// leafTwiddleUsable reports whether the size-n standard twiddle table is
-// interchangeable with a stride-step gather from a table of length tableLen.
-func leafTwiddleUsable(n, step, tableLen int) bool {
-	return n > 0 && step > 0 && n*step == tableLen
-}
+// leafTwiddleUsable, the guard for the substitution described above, lives in
+// mixedradix_stage_twiddle.go: the per-stage tables there rest on the same
+// recursion invariant and are not architecture-gated.
 
 func leafTwiddle64(n int) []complex64 {
 	if v, ok := leafTwiddleCache64.Load(n); ok {

@@ -2363,14 +2363,45 @@ and says plainly where the next round of work goes.
       `butterfly5ForwardComplex64` + 17% recursion driver — i.e. the scalar
       odd-radix stages, not dispatch. Two follow-ups, in order:
 
-      - **Vectorise the odd-radix butterfly stages.** The `for k := range span`
-        loop runs `span` independent radix-r butterflies whose operands
-        `input[j*span+k]` are contiguous in k, so the stage is r contiguous
-        streams — a natural fit for the existing `ComplexMulArray` /
-        `ScaleInPlace` helpers or dedicated asm. The obstacle is the twiddle
-        operand: `twiddle[j*k*step]` is a stride-`j*step` gather per j, so a
-        contiguous per-stage twiddle layout has to be prepared somewhere the
-        driver can reach (it has no plan context today).
+      - **Vectorise the odd-radix butterfly stages.** _Done 2026-07-27, with a
+        smaller payoff than the profile suggested._ The stride-`j*step` twiddle
+        gather that blocked vectorisation is removable: the same invariant
+        `n*step == len(twiddle)` gives `twiddle[j*k*step] == W_n^(j*k)`, so a
+        stage's twiddles are a permutation of the size-n table and can be
+        materialised in the data's own layout (entry `j*span+k`), keyed by
+        stage shape rather than by plan — which is what lets the recursion
+        reach them without plan context. The stage then becomes one in-place
+        `ComplexMulArrayInPlace` over `input[span:n]` plus a twiddle-free
+        butterfly loop with the radix switch hoisted out of it
+        (`internal/fft/mixedradix_stage_twiddle.go`).
+
+        Two gates had to be measured in, both as interleaved sweeps against
+        the same binary with the path disabled:
+
+        - **`n - span >= 64`.** Ungated, deep schedules over small factors
+          collapse — n = 2205 = `[5 7 7 3 3]` ends in 245 span-3 and 735
+          span-1 stages and ran **+80%** (complex64). The scalar stage is not
+          slow in absolute terms: its strided twiddle operand stays inside an
+          L1-resident table, so the vectorised form must win on issue width
+          alone and needs enough elements to do it.
+        - **Radix 7 excluded.** It lost at every threshold from 16 to 256:
+          n = 448 = `[7 64]` has one radix-7 stage with 384 multiplies and ran
+          +6…+8% slower vectorised. Radix 11 is the opposite (n = 704 =
+          `[11 64]`, −7%) and is kept.
+
+        Net over the mixed-radix benchmark set (i7-1255U, AVX2, interleaved
+        arms, 10 rounds, both precisions): geomean **−4.8%**, no size
+        significantly slower. 480 −12.4%, 704 −10.1%, 768 −9.2%/−8.8%
+        (c64/c128), 3600 c128 −9.4%, 12000 −7.8%/−5.6%, 1000 c64 −4.0%;
+        96, 448 and 2205 neutral. (The gate sweep, which toggles only the new
+        path inside one binary, put the path itself at −3.2%; the rest comes
+        from splitting the scalar radix-7/8/11 stages out of the driver.)
+        Even so this is far short of the ~34% the profile attributed to
+        `math.MulComplex64`, which says the scalar twiddle multiply was mostly
+        overlapping with the butterfly rather than serialising behind it.
+        Beating it properly needs a radix-r stage kernel in assembly that
+        keeps the r streams in registers across the multiply and the
+        butterfly, not two passes over memory.
       - **Hoist the leaf codelet resolution out of the recursion.** The
         dispatch fires exactly when the node's remaining schedule is a single
         composite radix, so the entry could be resolved once per transform

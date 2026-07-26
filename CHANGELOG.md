@@ -54,6 +54,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The mixed-radix butterfly stage now applies its twiddles as one contiguous
+  in-place array multiply instead of per-element inside the `k` loop, so the
+  multiply reaches the SIMD `ComplexMulArrayInPlace` path and the butterfly
+  loop that follows carries no twiddle arithmetic and no per-element radix
+  switch. What made this possible is the recursion invariant
+  `n*step == len(twiddle)`: it gives `twiddle[j*k*step] == W_n^(j*k)`, so a
+  stage's twiddles are a permutation of the standard size-n table and can be
+  materialised in the data's own layout, cached by stage shape rather than by
+  plan.
+
+  The path is gated on two thresholds measured as interleaved sweeps against
+  the same binary with it disabled (i7-1255U, AVX2, 8 rounds, both
+  precisions). It is taken only for stages with at least 64 twiddle
+  multiplies — ungated, deep schedules over small factors such as
+  n = 2205 = `[5 7 7 3 3]`, which ends in 245 span-3 and 735 span-1 stages,
+  ran +80% slower — and never for radix 7, which lost 6–8% at every threshold
+  tried while radix 11 gained 7%.
+
+  Net over the mixed-radix benchmark set (interleaved arms, 10 rounds): geomean
+  **−4.8%**, with no size significantly slower — 480 −12.4%, 704 −10.1%, 768
+  −9.2%/−8.8% (complex64/complex128), 3600 −9.4%, 12000 −7.8%/−5.6%; 96, 448
+  and 2205 unchanged.
+  Stage twiddles are computed at size n rather than subsampled from the root
+  table, the same last-ulp difference as the leaf tables below.
+
 - `MixedRadixEligible` now routes lengths with factors 7/11 by one criterion for
   every parity: the mixed-radix engine is used when Bluestein's padded sub-FFT
   would be ≥ ~2.5n. The previous rule additionally excluded all lengths whose
