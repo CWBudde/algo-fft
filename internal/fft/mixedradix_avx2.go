@@ -109,13 +109,30 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 				}
 			}
 
-			// 2. Prepare Twiddles (pooled: reused across sub-transforms)
-			twPtr := getMRScratch64(n)
-			defer mrScratchPool64.Put(twPtr)
+			// 2. Prepare Twiddles.
+			//
+			// Order matters: a codelet that declares a prepared layout ignores
+			// the standard table entirely, so gathering one first would be pure
+			// waste. Failing that, the cached size-n table is interchangeable
+			// with the stride-step gather whenever the recursion invariant
+			// n*step == len(twiddle) holds — which it does at every node the
+			// driver reaches. The gather below is the guarded fallback for a
+			// caller that passes an oversized table.
+			codeletTwiddle := kernels.GetPreparedTwiddle64(entry, n, inverse)
+			if codeletTwiddle == nil {
+				if leafTwiddleUsable(n, step, len(twiddle)) {
+					codeletTwiddle = leafTwiddle64(n)
+				} else {
+					twPtr := getMRScratch64(n)
+					defer mrScratchPool64.Put(twPtr)
 
-			twiddleBuf := *twPtr
-			for i := range n {
-				twiddleBuf[i] = twiddle[i*step]
+					twiddleBuf := *twPtr
+					for i := range n {
+						twiddleBuf[i] = twiddle[i*step]
+					}
+
+					codeletTwiddle = twiddleBuf
+				}
 			}
 
 			// 3. Prepare Scratch for kernels.Kernel (pooled)
@@ -123,12 +140,6 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 			defer mrScratchPool64.Put(scrPtr)
 
 			kernelScratch := *scrPtr
-
-			// 4. Call kernels.Kernel
-			codeletTwiddle := twiddleBuf
-			if prepared := kernels.GetPreparedTwiddle64(entry, n, inverse); prepared != nil {
-				codeletTwiddle = prepared
-			}
 
 			// A codelet reports false when it bailed without doing any work;
 			// fall through to the pure-Go implementation then.
@@ -168,23 +179,29 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 				}
 			}
 
-			twPtr := getMRScratch128(n)
-			defer mrScratchPool128.Put(twPtr)
+			// See the complex64 twin for why the prepared-layout check comes
+			// first and when the cached size-n table replaces the gather.
+			codeletTwiddle := kernels.GetPreparedTwiddle128(entry, n, inverse)
+			if codeletTwiddle == nil {
+				if leafTwiddleUsable(n, step, len(twiddle)) {
+					codeletTwiddle = leafTwiddle128(n)
+				} else {
+					twPtr := getMRScratch128(n)
+					defer mrScratchPool128.Put(twPtr)
 
-			twiddleBuf := *twPtr
-			for i := range n {
-				twiddleBuf[i] = twiddle[i*step]
+					twiddleBuf := *twPtr
+					for i := range n {
+						twiddleBuf[i] = twiddle[i*step]
+					}
+
+					codeletTwiddle = twiddleBuf
+				}
 			}
 
 			scrPtr := getMRScratch128(n)
 			defer mrScratchPool128.Put(scrPtr)
 
 			kernelScratch := *scrPtr
-
-			codeletTwiddle := twiddleBuf
-			if prepared := kernels.GetPreparedTwiddle128(entry, n, inverse); prepared != nil {
-				codeletTwiddle = prepared
-			}
 
 			// A codelet reports false when it bailed without doing any work;
 			// fall through to the pure-Go implementation then.

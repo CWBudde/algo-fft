@@ -6,8 +6,10 @@
 package registry
 
 import (
+	"maps"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fftypes"
@@ -41,16 +43,38 @@ type CodeletEntry[T fftypes.Complex] struct {
 // CodeletRegistry provides size-indexed codelet lookup.
 // Codelets are organized by size, with multiple implementations per size
 // (e.g., generic, AVX2, NEON variants).
+//
+// The size map is copy-on-write: Register publishes a fresh map under mu, and
+// readers take an atomic snapshot without locking. Registration happens at
+// package init (and in a handful of tests); lookups happen on the per-node
+// path of the mixed-radix recursion driver, hundreds of times per transform.
+// The RWMutex this replaces cost 12% of runtime at n = 1000 (complex64) in
+// atomic contention alone. Copy-on-write also makes the *CodeletEntry that
+// Lookup returns stable: it points into a slice no later Register will sort
+// or reallocate in place.
 type CodeletRegistry[T fftypes.Complex] struct {
-	mu       sync.RWMutex
-	codelets map[int][]CodeletEntry[T] // size -> codelets (sorted by preference)
+	mu       sync.Mutex // serializes writers only
+	codelets atomic.Pointer[map[int][]CodeletEntry[T]]
 }
 
 // NewCodeletRegistry creates a new empty codelet registry.
 func NewCodeletRegistry[T fftypes.Complex]() *CodeletRegistry[T] {
-	return &CodeletRegistry[T]{
-		codelets: make(map[int][]CodeletEntry[T]),
+	r := &CodeletRegistry[T]{}
+	empty := make(map[int][]CodeletEntry[T])
+	r.codelets.Store(&empty)
+
+	return r
+}
+
+// snapshot returns the current size map. The returned map must be treated as
+// read-only: writers replace it wholesale rather than mutating it in place.
+func (r *CodeletRegistry[T]) snapshot() map[int][]CodeletEntry[T] {
+	m := r.codelets.Load()
+	if m == nil {
+		return nil
 	}
+
+	return *m
 }
 
 // Register adds a codelet to the registry.
@@ -60,7 +84,17 @@ func (r *CodeletRegistry[T]) Register(entry CodeletEntry[T]) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entries := r.codelets[entry.Size]
+	current := r.snapshot()
+
+	// Copy-on-write: build a fresh map and entry slice so concurrent readers
+	// (and any *CodeletEntry they already hold) keep seeing a consistent,
+	// immutable snapshot.
+	updated := make(map[int][]CodeletEntry[T], len(current)+1)
+	maps.Copy(updated, current)
+
+	existing := current[entry.Size]
+	entries := make([]CodeletEntry[T], len(existing), len(existing)+1)
+	copy(entries, existing)
 	entries = append(entries, entry)
 
 	// Sort by SIMD level (higher = better) then priority
@@ -72,7 +106,8 @@ func (r *CodeletRegistry[T]) Register(entry CodeletEntry[T]) {
 		return entries[i].Priority > entries[j].Priority
 	})
 
-	r.codelets[entry.Size] = entries
+	updated[entry.Size] = entries
+	r.codelets.Store(&updated)
 }
 
 // Lookup finds the best codelet for a given size and CPU features.
@@ -80,10 +115,7 @@ func (r *CodeletRegistry[T]) Register(entry CodeletEntry[T]) {
 // The lookup prefers higher SIMD levels that the CPU supports.
 // Codelets with negative priority are skipped (disabled codelets).
 func (r *CodeletRegistry[T]) Lookup(size int, features cpu.Features) *CodeletEntry[T] {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	return r.lookupUnlocked(size, features)
+	return lookupIn(r.snapshot(), size, features)
 }
 
 // LookupBySignature finds a codelet by its signature.
@@ -95,10 +127,7 @@ func (r *CodeletRegistry[T]) Lookup(size int, features cpu.Features) *CodeletEnt
 // stale wisdom entry would resurrect a codelet that was deliberately measured
 // to be slower than its alternatives.
 func (r *CodeletRegistry[T]) LookupBySignature(size int, signature string) *CodeletEntry[T] {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	entries := r.codelets[size]
+	entries := r.snapshot()[size]
 	for i := range entries {
 		// Skip disabled codelets (negative priority)
 		if entries[i].Priority < 0 {
@@ -115,11 +144,10 @@ func (r *CodeletRegistry[T]) LookupBySignature(size int, signature string) *Code
 
 // Sizes returns all sizes that have registered codelets.
 func (r *CodeletRegistry[T]) Sizes() []int {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	current := r.snapshot()
 
-	sizes := make([]int, 0, len(r.codelets))
-	for size := range r.codelets {
+	sizes := make([]int, 0, len(current))
+	for size := range current {
 		sizes = append(sizes, size)
 	}
 
@@ -128,19 +156,13 @@ func (r *CodeletRegistry[T]) Sizes() []int {
 
 // Has returns true if there are any registered codelets for the given size.
 func (r *CodeletRegistry[T]) Has(size int) bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	return len(r.codelets[size]) > 0
+	return len(r.snapshot()[size]) > 0
 }
 
 // GetAllForSize returns all registered codelets for a given size, regardless of CPU features.
 // This is useful for testing all variants of a codelet.
 func (r *CodeletRegistry[T]) GetAllForSize(size int) []CodeletEntry[T] {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	entries := r.codelets[size]
+	entries := r.snapshot()[size]
 	if len(entries) == 0 {
 		return nil
 	}
@@ -155,13 +177,12 @@ func (r *CodeletRegistry[T]) GetAllForSize(size int) []CodeletEntry[T] {
 // GetAvailableSizes returns all sizes with registered codelets that are
 // compatible with the given CPU features. The returned slice is sorted in ascending order.
 func (r *CodeletRegistry[T]) GetAvailableSizes(features cpu.Features) []int {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	current := r.snapshot()
 
-	sizes := make([]int, 0, len(r.codelets))
-	for size := range r.codelets {
+	sizes := make([]int, 0, len(current))
+	for size := range current {
 		// Check if there's a codelet compatible with CPU features
-		if r.lookupUnlocked(size, features) != nil {
+		if lookupIn(current, size, features) != nil {
 			sizes = append(sizes, size)
 		}
 	}
@@ -171,12 +192,12 @@ func (r *CodeletRegistry[T]) GetAvailableSizes(features cpu.Features) []int {
 	return sizes
 }
 
-// lookupUnlocked is an internal version of Lookup without locking.
-// Caller must hold r.mu (read or write lock). It skips disabled codelets
+// lookupIn resolves a codelet against an already-taken snapshot, so callers
+// that scan many sizes take the snapshot once. It skips disabled codelets
 // (negative priority) so that GetAvailableSizes never advertises a size that
 // a subsequent Lookup would reject.
-func (r *CodeletRegistry[T]) lookupUnlocked(size int, features cpu.Features) *CodeletEntry[T] {
-	entries := r.codelets[size]
+func lookupIn[T fftypes.Complex](codelets map[int][]CodeletEntry[T], size int, features cpu.Features) *CodeletEntry[T] {
+	entries := codelets[size]
 	if len(entries) == 0 {
 		return nil
 	}

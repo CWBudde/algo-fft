@@ -2313,6 +2313,72 @@ and says plainly where the next round of work goes.
       leaf where one is reachable; these are the shapes where it is not.
       Candidates: SIMD radix-3/5/7/11 butterflies, or per-size codelets for
       the most common composite lengths.
+
+      _Partly addressed 2026-07-27 — and the premise above was wrong._ Every
+      one of the six lengths **does** reach an assembly codelet leaf; the
+      odd-first schedule places one at all of them:
+
+      | n    | schedule    | n    | schedule      |
+      | ---- | ----------- | ---- | ------------- |
+      | 96   | `[3 32]`    | 704  | `[11 64]`     |
+      | 448  | `[7 64]`    | 768  | `[3 256]`     |
+      | 480  | `[5 3 32]`  | 1000 | `[5 5 5 8]`   |
+
+      What was slow is the *dispatch wrapper* around the codelet, which the
+      driver re-paid at every recursion node. A CPU profile at n = 1000
+      (complex64) put only **1.9%** of runtime in the codelet assembly and
+      ~40% in dispatch overhead: `cpu.DetectFeatures` took an RWMutex *and* an
+      exclusive Mutex on every call (13%), `registry.Lookup` an RWMutex (12%),
+      and each leaf gathered a twiddle table into a `sync.Pool` buffer (15% in
+      pool traffic) that the codelet then discarded whenever it declared a
+      prepared layout. Three fixes landed:
+
+      - `internal/cpu`: features cached in an `atomic.Pointer`, so the steady
+        state is two atomic loads and no lock.
+      - `internal/registry`: the size map is copy-on-write behind an
+        `atomic.Pointer` (writers are init-time only), making `Lookup`
+        lock-free. This also makes the returned `*CodeletEntry` stable — the
+        previous version handed out a pointer into a slice a later `Register`
+        could sort or reallocate in place.
+      - `internal/fft`: the leaf twiddle gather is gone. The recursion keeps
+        `n*step == len(twiddle)`, so `twiddle[i*step] == W_n^i` — the gather
+        always rebuilt the standard size-n table, which is now cached by size
+        (`mixedradix_leaf_twiddle.go`). The prepared-layout check moved ahead
+        of it so codelets that ignore the standard table build nothing.
+
+      Measured on the i7-1255U (AVX2), interleaved arms, 6 rounds, forward,
+      both precisions — geomean **−15.0%**: 96 −27.6/−23.5% (c64/c128),
+      448 −6.1/−12.1%, 480 −11.8/−9.6%, 704 ~/−4.2%, 768 −10.6/−14.8%,
+      1000 −22.8/−24.4%. All p ≤ 0.015 except 704 c64 (p = 0.18, same sign).
+
+      One hypothesis was tested and **rejected**: raising
+      `mixedRadixCodeletMinSize` from 5 to 8, so the 125 size-8 leaves of
+      n = 1000 use the inline Go radix-8 butterfly instead of dispatching,
+      costs **+25.6%** at n = 1000 and is neutral elsewhere. Even with the
+      dispatch overhead the size-8 assembly codelet is the better leaf; the
+      threshold stays at 5.
+
+      What remains is the real leaf work the item name asks for. After the
+      above, n = 1000 profiles as 34% `math.MulComplex64` + 15%
+      `butterfly5ForwardComplex64` + 17% recursion driver — i.e. the scalar
+      odd-radix stages, not dispatch. Two follow-ups, in order:
+
+      - **Vectorise the odd-radix butterfly stages.** The `for k := range span`
+        loop runs `span` independent radix-r butterflies whose operands
+        `input[j*span+k]` are contiguous in k, so the stage is r contiguous
+        streams — a natural fit for the existing `ComplexMulArray` /
+        `ScaleInPlace` helpers or dedicated asm. The obstacle is the twiddle
+        operand: `twiddle[j*k*step]` is a stride-`j*step` gather per j, so a
+        contiguous per-stage twiddle layout has to be prepared somewhere the
+        driver can reach (it has no plan context today).
+      - **Hoist the leaf codelet resolution out of the recursion.** The
+        dispatch fires exactly when the node's remaining schedule is a single
+        composite radix, so the entry could be resolved once per transform
+        from `radices[stageCount-1]` and threaded through the hook instead of
+        looked up per node. Worth ~12% more at n = 1000 (the residual
+        `registry.Lookup` cost) but needs a signature change on the four
+        recursion hooks.
+
 - [ ] **Add practical DSP lengths to the internal benchmark set.** The
       lengths where algo-fft's lead over gonum nearly vanishes are exactly
       the ones a DSP user picks: 44100 (loses), 2205 (1.49×), 1000 (1.54×),

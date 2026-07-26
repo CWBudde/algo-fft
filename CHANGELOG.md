@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The mixed-radix codelet dispatch re-paid its setup at every recursion node.
+  A CPU profile at n = 1000 (complex64, AVX2) found only **1.9%** of runtime in
+  the codelet assembly and roughly 40% in dispatch overhead. Three causes, all
+  fixed:
+  - `cpu.DetectFeatures` took an RWMutex _and_ an exclusive Mutex per call
+    (13% of runtime). Features are now published in an `atomic.Pointer`, so a
+    cached read is two atomic loads and no lock.
+  - `registry.Lookup` took an RWMutex per call (12%). The registry's size map
+    is now copy-on-write behind an `atomic.Pointer` — writers are init-time
+    only — making lookups lock-free. This also fixes a latent hazard: the
+    `*CodeletEntry` returned by `Lookup` used to point into a slice that a
+    later `Register` could sort or reallocate in place.
+  - Each leaf gathered a twiddle table into a pooled buffer (15% in
+    `sync.Pool` traffic) and then discarded it whenever the codelet declared a
+    prepared layout. The prepared-layout check now runs first, and the gather
+    is gone: the recursion keeps `n*step == len(twiddle)`, so
+    `twiddle[i*step] == W_n^i` — the gather always rebuilt the standard size-n
+    table, which is now cached by size.
+
+  Forward mixed-radix transforms measured 4–28% faster at the lengths P5.1
+  calls out (96, 448, 480, 704, 768, 1000), geomean **−15.0%** across both
+  precisions on an i7-1255U (interleaved arms, 6 rounds). Lengths whose
+  schedule has no codelet leaf are unaffected. Results are bit-identical except
+  for leaf twiddles, which are now computed directly at size n rather than
+  subsampled from the size-N table — a last-ulp difference, if any, in the more
+  accurate direction.
+
 - The AVX2 mixed-radix drivers dispatched **every** sub-transform larger than
   one point to a codelet, including the size-2/3/4/5 recursion leaves that have
   a pure-Go butterfly. The scheduler has always required `n > 5` before emitting

@@ -4,7 +4,8 @@
 // on the current processor and caches the results for efficient querying.
 //
 // Detection is performed lazily on the first call to DetectFeatures() and the
-// results are cached for subsequent calls using sync.Once for thread-safety.
+// results are cached for subsequent calls in an atomic pointer, so the steady
+// state costs two atomic loads and no lock.
 //
 // For testing purposes, feature detection can be overridden using SetForcedFeatures()
 // and reset to actual hardware detection using ResetDetection().
@@ -12,6 +13,7 @@ package cpu
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 // Features describes CPU capabilities relevant to FFT kernel selection.
@@ -40,24 +42,27 @@ type Features struct {
 	Architecture string // runtime.GOARCH (e.g., "amd64", "arm64")
 }
 
+// The two caches below hold *immutable* Features values: a pointer is published
+// once and never mutated afterwards, so readers need no lock. This matters
+// because DetectFeatures is on the per-node path of the mixed-radix recursion
+// driver (internal/fft) — it runs hundreds of times per transform at composite
+// lengths, where the previous RWMutex + Mutex pair cost more than the codelet
+// lookup it guards (13% of runtime at n = 1000, complex64).
+//
 //nolint:gochecknoglobals
 var (
-	// detectedFeatures holds the cached CPU features detected on this system.
-	detectedFeatures Features
-
-	// detectOnce ensures feature detection runs exactly once, thread-safely.
-	detectOnce sync.Once
-
-	// detectMutex serializes access to detectOnce/detectedFeatures so ResetDetection
-	// can safely clear the cache even when tests run in parallel.
-	detectMutex sync.Mutex
+	// detectedFeatures caches the CPU features detected on this system.
+	// nil means "not yet detected"; ResetDetection stores nil to force
+	// re-detection.
+	detectedFeatures atomic.Pointer[Features]
 
 	// forcedFeatures allows overriding actual hardware detection for testing.
 	// When non-nil, DetectFeatures() returns this value instead of real detection.
-	forcedFeatures *Features
+	forcedFeatures atomic.Pointer[Features]
 
-	// forcedMutex protects forcedFeatures from concurrent access during testing.
-	forcedMutex sync.RWMutex
+	// detectMutex serializes the slow path so detectFeaturesImpl runs once per
+	// cache generation. Readers never take it.
+	detectMutex sync.Mutex
 )
 
 // DetectFeatures returns the CPU features available on the current system.
@@ -67,24 +72,30 @@ var (
 //
 // For testing, use SetForcedFeatures() to override the detected features.
 func DetectFeatures() Features {
-	forcedMutex.RLock()
-
-	forced := forcedFeatures
-
-	forcedMutex.RUnlock()
-
-	if forced != nil {
+	if forced := forcedFeatures.Load(); forced != nil {
 		return *forced
 	}
 
+	if features := detectedFeatures.Load(); features != nil {
+		return *features
+	}
+
+	return detectFeaturesSlow()
+}
+
+// detectFeaturesSlow performs (and publishes) the one-time hardware detection.
+// It is split out so the cached path above stays small enough to inline.
+func detectFeaturesSlow() Features {
 	detectMutex.Lock()
-	detectOnce.Do(func() {
-		detectedFeatures = detectFeaturesImpl()
-	})
+	defer detectMutex.Unlock()
 
-	features := detectedFeatures
+	// Another goroutine may have populated the cache while we waited.
+	if features := detectedFeatures.Load(); features != nil {
+		return *features
+	}
 
-	detectMutex.Unlock()
+	features := detectFeaturesImpl()
+	detectedFeatures.Store(&features)
 
 	return features
 }
@@ -173,11 +184,8 @@ func ForceSSEOnlyForTests() {
 // This function is thread-safe but should not be called concurrently with
 // ResetDetection() or other SetForcedFeatures() calls.
 func SetForcedFeatures(f Features) {
-	forcedMutex.Lock()
-	defer forcedMutex.Unlock()
-
 	forced := f
-	forcedFeatures = &forced
+	forcedFeatures.Store(&forced)
 }
 
 // ResetDetection clears any forced features set by SetForcedFeatures() and
@@ -189,16 +197,10 @@ func SetForcedFeatures(f Features) {
 // This function is thread-safe but should not be called concurrently with
 // SetForcedFeatures() or other ResetDetection() calls.
 func ResetDetection() {
-	forcedMutex.Lock()
-
-	forcedFeatures = nil
-
-	forcedMutex.Unlock()
+	forcedFeatures.Store(nil)
 
 	detectMutex.Lock()
+	defer detectMutex.Unlock()
 
-	detectOnce = sync.Once{}
-	detectedFeatures = Features{}
-
-	detectMutex.Unlock()
+	detectedFeatures.Store(nil)
 }
