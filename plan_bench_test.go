@@ -408,6 +408,19 @@ func BenchmarkPlanForward_8192_Complex128_Focus(b *testing.B) {
 	benchmarkPlanForwardComplex128Focus(b, 8192)
 }
 
+// 256 and 4096 complete the set of sizes at which the complex64/complex128
+// ratio is compared per direction. The complex64 side has had
+// BenchmarkPlan{Forward,Inverse}_{256,4096} all along; without these two the
+// ratio could only be taken at 128, 512 and 8192, which is why it was first
+// measured out-of-tree.
+func BenchmarkPlanForward_256_Complex128_Focus(b *testing.B) {
+	benchmarkPlanForwardComplex128Focus(b, 256)
+}
+
+func BenchmarkPlanForward_4096_Complex128_Focus(b *testing.B) {
+	benchmarkPlanForwardComplex128Focus(b, 4096)
+}
+
 func BenchmarkPlanInverse_128_Complex128_Focus(b *testing.B) {
 	benchmarkPlanInverseComplex128Focus(b, 128)
 }
@@ -418,6 +431,14 @@ func BenchmarkPlanInverse_512_Complex128_Focus(b *testing.B) {
 
 func BenchmarkPlanInverse_8192_Complex128_Focus(b *testing.B) {
 	benchmarkPlanInverseComplex128Focus(b, 8192)
+}
+
+func BenchmarkPlanInverse_256_Complex128_Focus(b *testing.B) {
+	benchmarkPlanInverseComplex128Focus(b, 256)
+}
+
+func BenchmarkPlanInverse_4096_Complex128_Focus(b *testing.B) {
+	benchmarkPlanInverseComplex128Focus(b, 4096)
 }
 
 func benchmarkPlanForwardComplex128Focus(b *testing.B, fftSize int) {

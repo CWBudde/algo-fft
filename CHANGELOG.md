@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The pure-Go radix-16 inverse codelets no longer apply their 1/n scaling as a
+  complex multiply by `complex(1/n, 0)`, which spent two products against a zero
+  imaginary part plus an add and a subtract per output. The compiler does not
+  fold those away even though the factor is a compile-time constant: at n = 16
+  they were the codelet's entire float-op count (96 operations, now 32). The
+  rewrite is component-wise and bit-identical, and makes the inverse codelet
+  16–20% faster at n = 16 and 12% faster at n = 256 for complex128. This is
+  visible on `purego` and WebAssembly builds, where these are the selected
+  codelets at those sizes; the default build uses AVX2 assembly at both sizes
+  and is unaffected.
+
+- The same rewrite was applied to the remaining real-factor scaling sites — the
+  384-point mixed-radix codelet (both build variants and both precisions) and
+  the split-radix inverse — for consistency. Both measured flat: split-radix
+  scales in a separate memory-bound pass over the output, and the 384 codelet's
+  radix-3 column loop is dominated by its three 128-point sub-IFFTs. Removing
+  arithmetic only pays where scaling is a large share of a small compute-bound
+  kernel.
+
+### Added
+
+- Benchmarks for three previously unmeasured paths: the size-16 radix-16 Go
+  codelet (the selected `purego` codelet at n = 16, which had none),
+  `BenchmarkSplitRadixComplex{64,128}` over 256–65536, and
+  `BenchmarkPlan{Forward,Inverse}_384` for a plain `NewPlan(384)` — previously
+  only the forced-Bluestein route at that length was benchmarked.
+
 ### Fixed
 
 - The size-64 radix-2 DIT codelet applied its 1/n inverse scaling as 64
