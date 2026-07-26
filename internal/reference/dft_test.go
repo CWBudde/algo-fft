@@ -62,6 +62,112 @@ func TestNaiveDFT_Empty(t *testing.T) {
 	}
 }
 
+func TestNaiveDFTWide_Empty(t *testing.T) {
+	t.Parallel()
+
+	result := NaiveDFTWide(nil)
+	if result != nil {
+		t.Errorf("NaiveDFTWide(nil) = %v, want nil", result)
+	}
+
+	result = NaiveDFTWide([]complex64{})
+	if result != nil {
+		t.Errorf("NaiveDFTWide([]) = %v, want nil", result)
+	}
+}
+
+// TestNaiveDFTWide_KnownSignals checks NaiveDFTWide at float64 tolerance. The
+// tight bound is the point: a variant that narrowed to complex64 anywhere would
+// still pass at the package's 1e-5 tolerance.
+func TestNaiveDFTWide_KnownSignals(t *testing.T) {
+	t.Parallel()
+
+	const tol = 1e-12
+
+	testCases := []struct {
+		name  string
+		input []complex64
+		want  []complex128
+	}{
+		{"impulse", []complex64{1, 0, 0, 0}, []complex128{1, 1, 1, 1}},
+		{"constant", []complex64{1, 1, 1, 1}, []complex128{4, 0, 0, 0}},
+		{"alternating", []complex64{1, -1, 1, -1}, []complex128{0, 0, 4, 0}},
+		{"single", []complex64{3 + 4i}, []complex128{3 + 4i}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := NaiveDFTWide(testCase.input)
+			if len(got) != len(testCase.want) {
+				t.Fatalf("NaiveDFTWide returned %d elements, want %d", len(got), len(testCase.want))
+			}
+
+			for i := range got {
+				if !complex128NearlyEqual(got[i], testCase.want[i], tol) {
+					t.Errorf("NaiveDFTWide(%s)[%d] = %v, want %v", testCase.name, i, got[i], testCase.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestNaiveDFTWide_MatchesNaiveDFT pins the refactor that made NaiveDFT a
+// narrowing wrapper around NaiveDFTWide. The comparison is exact, not
+// tolerance-based: ~131 test call sites across the tree use NaiveDFT as their
+// baseline, so a future edit to the now-shared loop must not move them.
+func TestNaiveDFTWide_MatchesNaiveDFT(t *testing.T) {
+	t.Parallel()
+
+	for _, length := range []int{1, 2, 3, 4, 7, 8, 13, 16, 32} {
+		input := generateRandomSignal(length, uint64(length)*7919)
+
+		wide := NaiveDFTWide(input)
+		narrow := NaiveDFT(input)
+
+		if len(wide) != len(narrow) {
+			t.Fatalf("n=%d: NaiveDFTWide returned %d elements, NaiveDFT returned %d",
+				length, len(wide), len(narrow))
+		}
+
+		for i := range wide {
+			if complex64(wide[i]) != narrow[i] {
+				t.Errorf("n=%d: complex64(NaiveDFTWide[%d]) = %v, NaiveDFT[%d] = %v (want bit-identical)",
+					length, i, complex64(wide[i]), i, narrow[i])
+			}
+		}
+	}
+}
+
+// TestNaiveDFTWide_MatchesNaiveDFT128 documents the property cmd/measure_correctness
+// relies on: because widening float32 to float64 is exact, referencing a
+// float32 vector through NaiveDFTWide is the same computation as widening it and
+// calling NaiveDFT128. Both precision arms of an accuracy measurement therefore
+// see the identical mathematical input vector.
+func TestNaiveDFTWide_MatchesNaiveDFT128(t *testing.T) {
+	t.Parallel()
+
+	for _, length := range []int{1, 2, 5, 8, 16, 32} {
+		src32 := generateRandomSignal(length, uint64(length)*104729)
+
+		src128 := make([]complex128, length)
+		for i, v := range src32 {
+			src128[i] = complex128(v)
+		}
+
+		wide := NaiveDFTWide(src32)
+		direct := NaiveDFT128(src128)
+
+		for i := range wide {
+			if wide[i] != direct[i] {
+				t.Errorf("n=%d: NaiveDFTWide[%d] = %v, NaiveDFT128(widened)[%d] = %v (want bit-identical)",
+					length, i, wide[i], i, direct[i])
+			}
+		}
+	}
+}
+
 func TestNaiveIDFT_Empty(t *testing.T) {
 	t.Parallel()
 

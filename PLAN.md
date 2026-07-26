@@ -689,6 +689,12 @@ references are to the current tree.
       (−38.2%); c128 sizes 8/256 moved by +1.4%/+0.5% in the last digits and
       every other size was bit-identical. This is the expected one-rounding-
       instead-of-two effect.
+      _(Metric caveat, added with the `measure_correctness` fix in P5.0 below:
+      these figures came from that tool's old per-bin max-relative metric, which
+      divides each bin by its own magnitude and is unstable. The direction is
+      right — one rounding instead of two — and the c128 bit-identity result
+      stands, but the absolute values are not comparable to the relative-L2
+      figures reported elsewhere in this document.)_
       **Performance: not demonstrated.** Three benchstat attempts on the
       i7-1255U were inconclusive — the package hits 86–98 °C under sustained
       benchmarking and throttles, giving ±30–90% run-to-run variance that
@@ -1252,41 +1258,41 @@ SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       one float32 ulp of headroom, so it was passing on luck; it is now
       relative to the bin magnitude.
 
-            Measured c64/c128 forward ratio (>1 = c64 slower, i.e. the defect),
-            median of 14 process runs, ratio taken _within_ each run so thermal
-            drift cancels — the machine was contended throughout, so treat the
-            ratios as sound and the absolute times as indicative:
+                  Measured c64/c128 forward ratio (>1 = c64 slower, i.e. the defect),
+                  median of 14 process runs, ratio taken _within_ each run so thermal
+                  drift cancels — the machine was contended throughout, so treat the
+                  ratios as sound and the absolute times as indicative:
 
-            | n     | route                        | before | after    |
-            | ----- | ---------------------------- | ------ | -------- |
-            | 704   | mixed-radix `[11,64]`        | 1.27   | **0.98** |
-            | 1000  | mixed-radix `[5,5,5,8]`      | 1.26   | **0.91** |
-            | 2205  | mixed-radix `[5,7,7,3,3]`    | 1.18   | **0.96** |
-            | 3600  | mixed-radix `[5,5,3,3,16]`   | 1.19   | **0.91** |
-            | 12000 | mixed-radix `[5,5,5,3,32]`   | 1.27   | **0.90** |
-            | 257   | Rader, power-of-two sub-FFT  | 1.46   | 1.41     |
-            | 1009  | Bluestein, power-of-two pad  | 1.29   | 1.25     |
+                  | n     | route                        | before | after    |
+                  | ----- | ---------------------------- | ------ | -------- |
+                  | 704   | mixed-radix `[11,64]`        | 1.27   | **0.98** |
+                  | 1000  | mixed-radix `[5,5,5,8]`      | 1.26   | **0.91** |
+                  | 2205  | mixed-radix `[5,7,7,3,3]`    | 1.18   | **0.96** |
+                  | 3600  | mixed-radix `[5,5,3,3,16]`   | 1.19   | **0.91** |
+                  | 12000 | mixed-radix `[5,5,5,3,32]`   | 1.27   | **0.90** |
+                  | 257   | Rader, power-of-two sub-FFT  | 1.46   | 1.41     |
+                  | 1009  | Bluestein, power-of-two pad  | 1.29   | 1.25     |
 
-            In absolute terms the complex64 arm gained 21–32% at 1000, 2205, 3600
-            and 12000 (p ≤ 0.04, `benchstat`, consistent across two independent
-            run orderings) while complex128 showed no significant change at any
-            length. Note what did _not_ move: 257 and 1009 are exactly the two
-            lengths whose sub-FFT is a power-of-two DIT rather than the mixed-radix
-            engine, so their residual deficit is not in the glue this item covers —
-            it is the power-of-two forward path, which is the next item.
+                  In absolute terms the complex64 arm gained 21–32% at 1000, 2205, 3600
+                  and 12000 (p ≤ 0.04, `benchstat`, consistent across two independent
+                  run orderings) while complex128 showed no significant change at any
+                  length. Note what did _not_ move: 257 and 1009 are exactly the two
+                  lengths whose sub-FFT is a power-of-two DIT rather than the mixed-radix
+                  engine, so their residual deficit is not in the glue this item covers —
+                  it is the power-of-two forward path, which is the next item.
 
-            _Confirmed off-laptop (2026-07-25)._ Re-run on a 64-core SSE-only host
-            (no AVX at all, so every codelet resolves to the SSE2/SSE3 or generic
-            tier), pre-fix and post-fix trees built side by side and run ABBA-
-            interleaved, four rounds each. complex64 improved at **all ten**
-            lengths tested (p = 0.029 each, −4% to −31%); complex128 showed **no
-            significant change at any length**, which is the signature the fix
-            predicts, since the c128 twin's `MulComplex128` is still the plain
-            operator. The c64/c128 ratio moved 1.14–1.46 → 0.97–1.04 at 704, 1000,
-            2205, 3600, 9973, 12000 and 44100. The three that stayed high are 257
-            (1.46 → 1.41), 1009 (1.45 → 1.36) and 2003 (1.28 → 1.18) — all three
-            route through a power-of-two sub-FFT, so 2003 is a _third_
-            reproduction of the next item rather than a miss in this one.
+                  _Confirmed off-laptop (2026-07-25)._ Re-run on a 64-core SSE-only host
+                  (no AVX at all, so every codelet resolves to the SSE2/SSE3 or generic
+                  tier), pre-fix and post-fix trees built side by side and run ABBA-
+                  interleaved, four rounds each. complex64 improved at **all ten**
+                  lengths tested (p = 0.029 each, −4% to −31%); complex128 showed **no
+                  significant change at any length**, which is the signature the fix
+                  predicts, since the c128 twin's `MulComplex128` is still the plain
+                  operator. The c64/c128 ratio moved 1.14–1.46 → 0.97–1.04 at 704, 1000,
+                  2205, 3600, 9973, 12000 and 44100. The three that stayed high are 257
+                  (1.46 → 1.41), 1009 (1.45 → 1.36) and 2003 (1.28 → 1.18) — all three
+                  route through a power-of-two sub-FFT, so 2003 is a _third_
+                  reproduction of the next item rather than a miss in this one.
 
 - [x] **The same promotion still costs the pure-Go power-of-two codelets.**
       The fix above deliberately stopped at the paths P5.0 named. The
@@ -1392,7 +1398,7 @@ SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       _lower_ after the change at n = 1024. complex128 is bit-identical before
       and after at every size. That is a real but sub-ulp cost for 21–37%.
 
-- [ ] **`cmd/measure_correctness` reports a misleading number and should be
+- [x] **`cmd/measure_correctness` reports a misleading number and should be
       fixed or removed.** Measured with it instead, the change above looks like
       a 3× accuracy regression (n = 128: 3.95e-05 → 1.12e-04) — which is an
       artifact, and it nearly caused the work to be reverted. Two flaws:
@@ -1415,6 +1421,100 @@ SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       `[]complex64` for this; there is currently no float64 reference for a
       complex64 transform anywhere in the tree, which is why the tool ended up
       comparing complex64 against complex64 in the first place.
+
+      _Fixed 2026-07-26._ Both metric and reference replaced. The new reference
+      is `reference.NaiveDFTWide(src []complex64) []complex128` — **not**
+      `NaiveDFT128`, as this item asked: that name is already taken by the
+      `[]complex128`-input form and Go has no overloading. `NaiveDFT` is now a
+      narrowing wrapper around it, which deletes a duplicated O(n²) loop; the
+      loop moved verbatim, so its ~131 test call sites see bit-identical values,
+      and `TestNaiveDFTWide_MatchesNaiveDFT` pins that with an exact `==`
+      comparison rather than a tolerance so a future edit to the shared loop
+      cannot silently move every reference baseline in the tree.
+
+      The tool now reports, per trial, `relL2 = ||got-want||₂/||want||₂`
+      aggregated as mean **and** max over trials, plus a peak-normalized
+      `max|got-want| / max|want|` kept as a max. Both normalize by a
+      whole-vector quantity, so the `1e-10`/`1e-15` bin-skipping thresholds are
+      gone — they were the symptom, the per-bin normalization was the disease.
+      The peak-normalized column earns its place because relL2 averages over `n`
+      bins and so attenuates a single wrong bin by ~1/√n, which is exactly the
+      failure a broken codelet produces (see the `KernelRecursive` twiddle-layout
+      bug at the top of the CHANGELOG); it follows the existing
+      `maxNormalizedError` idiom in
+      `internal/kernels/codelet_reference_all_test.go`.
+
+      Three further flaws turned up while fixing the two this item named:
+
+      - The two precision arms drew from **separate RNG streams** (`Float32` in
+        one, `Float64` in the other), so the columns were computed over different
+        input vectors and could not be compared to each other. One draw now feeds
+        both: rounded to float32 once, then widened back for the complex128 arm,
+        which is exact. The complex64 arm is referenced against the *rounded*
+        vector — referencing the unrounded draw would fold input quantization
+        (~ε₃₂/√12 ≈ 3.4e-08, the same order as the transform's own error) into
+        the budget and install an irreducible ~3.4e-08 floor under the very
+        3–9% effects the tool exists to resolve.
+      - `%.2e` could not resolve those effects either (1.11e-07 and 1.19e-07 both
+        print as `1.1e-07`). Now `%.3e`.
+      - The tool printed **no build configuration**, which is why this item's own
+        `3.95e-05 → 1.12e-04` reads as a contradiction: HEAD still measures
+        3.95e-05 at n = 128 on the default build, because the previous item
+        changed only the pure-Go codelets that the default build never runs. The
+        header now prints `arch`/`simd`/`purego`.
+
+      Flags `-sizes`/`-trials`/`-seed` were added following `benchkernels`'
+      conventions, since every accuracy question in P5.0 concerned lengths
+      (257, 1009, 2205, 3600, 12000) the hardcoded power-of-two list cannot
+      express. Seeding is per size, so probing one length reproduces its row from
+      a full run — verified: `-sizes 16 -trials 100` reprints the full ladder's
+      n = 16 row to every digit in both precisions, and two successive runs are
+      byte-identical.
+
+      **Validation.** complex64 `relL2 mean`, 100 trials, seed 42, on the
+      `purego` build — the build the figures at lines 1382–1388 above were
+      measured on, since that item's change only affects the pure-Go codelets —
+      against those figures, which came from a separately written harness at 200
+      trials:
+
+      | n    | measured  | independent | Δ     |
+      | ---- | --------- | ----------- | ----- |
+      | 32   | 7.644e-08 | 7.562e-08   | +1.1% |
+      | 128  | 9.146e-08 | 9.295e-08   | −1.6% |
+      | 512  | 1.066e-07 | 1.067e-07   | −0.1% |
+      | 1024 | 1.122e-07 | 1.122e-07   | 0.0%  |
+      | 2048 | 1.196e-07 | 1.196e-07   | 0.0%  |
+
+      Two independently written harnesses agreeing to within 1.6%, two of them to
+      four significant figures, is the acceptance criterion met: the metric is not
+      merely different from the old one, it reproduces a number that was arrived
+      at another way. A wrong input recipe — referencing the unrounded float64
+      draw — would instead show a systematic ~+7% inflation at every size. (The
+      default AVX2 build reads 3–5% lower at the same sizes: 7.087e-08, 8.855e-08,
+      1.082e-07, 1.074e-07, 1.144e-07. Different codelets, different rounding;
+      this is the difference the new header exists to disambiguate.)
+
+      The full default-build ladder runs
+      0.41 → 1.00 × float32 ε monotonically from n = 8 to 4096 (one 0.7% dip at
+      1024, inside trial noise), against the old metric's 3× zig-zag — and
+      `relL2 max / relL2 mean` falls from 1.7 at n = 8 to 1.02 at n = 4096, i.e.
+      the statistic tightens as the norm averages more bins, which is what a
+      stable metric does and what the old extreme-value one could not.
+
+      **One finding worth recording: the complex128 column measures the
+      reference, not the FFT.** It grows as **O(n)** — 2.00× per doubling across
+      seven consecutive doublings, 8.6e-16 at n = 8 to 6.7e-13 at n = 4096 —
+      because `NaiveDFT128` builds each twiddle from an un-reduced angle
+      `-2πkm/n` whose magnitude reaches ~2πn, so the phase argument's own
+      rounding grows in proportion. The FFT alone would sit near float64 ε and
+      grow like √(log n). This is flaw 2 again, one precision up, and it is
+      documented in the tool's own output rather than fixed: a genuinely
+      higher-precision reference means `math/big` at O(n²), which is hours, and
+      compensated summation inside `NaiveDFT128` would move reference values for
+      its existing test callers. It also bounds the complex64 arm's validity —
+      the reference contributes ~1e-16·n there, negligible against ε₃₂ until
+      n ≈ 10⁸. A possible follow-up, not urgent: an angle-reduced or compensated
+      float64 reference would make the complex128 column mean something.
 
 - [ ] **Finish the promotion sweep outside `internal/kernels`.** The
       rewriter, run over the whole module, still reports scalar complex64

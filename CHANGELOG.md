@@ -93,7 +93,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   float64 reference (n = 2048: 1.10e-07 → 1.20e-07), all of it still at
   float32 epsilon, with the peak-normalised error unchanged.
 
+- `cmd/measure_correctness` reported a number that could not be compared across
+  runs, and it nearly caused the change above to be reverted as a 3× accuracy
+  regression that did not exist. Two independent flaws: it maxed a _per-bin_
+  relative error `|got-want| / |want|` over every bin of every trial, an
+  extreme-value statistic over a quantity that explodes wherever a bin's
+  magnitude approaches zero; and its complex64 "reference" was
+  `reference.NaiveDFT`, which narrows its result back to complex64 and therefore
+  carries a comparable error of its own, so the tool partly measured the
+  divergence between two implementations. It now reports relative L2 error over
+  the whole spectrum as a mean and max over trials, plus a peak-normalized
+  max-per-bin error, against a genuine float64 reference; both precision arms
+  transform the same input vector, and the build configuration is printed because
+  the default and `purego` builds legitimately differ. **Accuracy figures from
+  the old metric run 2–3 orders of magnitude higher and are not comparable** —
+  at n = 128 it reported 3.95e-05 where the true relative L2 error is 9.0e-08.
+
 ### Added
+
+- `reference.NaiveDFTWide`: a float64 DFT of a complex64 input, returning the
+  complex128 accumulator un-narrowed. This is the float64 reference a complex64
+  transform's error can be measured against; there was none in the tree before,
+  which is why `cmd/measure_correctness` ended up comparing complex64 against
+  complex64. `reference.NaiveDFT` is now a narrowing wrapper around it and
+  returns bit-identical values.
 
 - `fft.ComplexMulArray` and `fft.ScaleInPlace`: generic wrappers over the
   existing SIMD element-wise product and real-scalar scale, matching the

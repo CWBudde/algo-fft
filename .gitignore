@@ -51,6 +51,8 @@ benchstat.txt
 /benchkernels
 /bench_compare
 /gencodelets
+/genkernels
+/measure_correctness
 cmd/*/bench_compare
 cmd/*/benchkernels
 cmd/*/measure_correctness

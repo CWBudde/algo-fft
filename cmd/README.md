@@ -19,15 +19,39 @@ polluting the main module.
 
 ### measure_correctness
 
-Measures maximum relative error vs the reference DFT implementation across
-multiple random test vectors.
+Measures FFT accuracy against a float64 naive DFT, in both precisions, over many
+random vectors per size. Reports relative L2 error (`||got-want||₂ / ||want||₂`)
+as a mean and a max over trials, plus a peak-normalized max-per-bin error
+(`max|got-want| / max|want|`).
+
+The complex64 reference is `reference.NaiveDFTWide`, a float64 DFT of the same
+float32-rounded input vector, so the reported error is the transform's own and
+does not fold in input quantization. The complex128 column is compared against
+`reference.NaiveDFT128`, which is also float64 — above n ≈ 64 the reference's own
+accumulation dominates, so read that column as a fixed-reference regression
+tripwire rather than as a measurement of the FFT's error.
+
+Both metrics normalize by a whole-vector quantity. Neither is the per-bin
+`|got-want| / |want|` this tool reported before: that divided each bin by its own
+magnitude, so it was decided by whichever bin landed nearest a zero and swung 3×
+on changes that moved the true error by 8%. Numbers from the old metric run 2–3
+orders of magnitude higher and are not comparable.
 
 ```bash
 go run ./cmd/measure_correctness
+go run ./cmd/measure_correctness -sizes 257,1009,2205 -trials 20 -seed 7
 ```
 
-**Output**: Shows max relative error for both complex64 and complex128 across
-various FFT sizes.
+**Flags**: `-sizes` (comma-separated, any length the planner accepts), `-trials`,
+`-seed` (re-applied per size, so a single `-sizes` value reproduces its row from a
+full run).
+
+**Output**: One block per precision, one row per size, with `relL2 mean`,
+`relL2 max` and `peak max` columns, headed by the build configuration
+(`arch`/`simd`/`purego`) — the same tree reports different complex64 numbers on
+the default and `purego` builds because different codelets run, so a pasted table
+is not interpretable without it. Runtime is dominated by the O(n²) reference; use
+`-trials` to keep large sizes tractable.
 
 ### benchkernels
 
