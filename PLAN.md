@@ -1219,8 +1219,7 @@ and the three items in P5.0 are defects rather than missing optimizations.
       the three suspected: **Go's compiler does not implement scalar
       `complex64 * complex64` in single precision.** It widens all four
       float32 components to float64, multiplies in double precision and
-      rounds the two results back — `CVTSS2SD ×4, MULSD ×3, VFMADD231SD,
-SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
+      rounds the two results back — `CVTSS2SD ×4, MULSD ×3, VFMADD231SD, SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       expression on complex128 (verified in the emitted assembly; addition,
       subtraction and conjugation are unaffected — only the multiply
       promotes). So any FFT stage written as scalar Go is _structurally_
