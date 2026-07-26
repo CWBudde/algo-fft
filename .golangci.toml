@@ -21,6 +21,10 @@ disable = [
     'gochecknoinits',
     'godoclint',
     'gomoddirectives',
+    # gomodguard: deprecated since golangci-lint v2.12.0 in favour of
+    # gomodguard_v2, which default = 'all' already enables. Disabling the old
+    # one silences the deprecation warning without losing the check.
+    'gomodguard',
     'gosec',
     'ireturn',
     'musttag',
