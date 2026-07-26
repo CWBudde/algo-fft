@@ -88,12 +88,23 @@ func (r *CodeletRegistry[T]) Lookup(size int, features cpu.Features) *CodeletEnt
 
 // LookupBySignature finds a codelet by its signature.
 // Used primarily for wisdom system lookups.
+//
+// Disabled codelets (negative priority) are skipped, matching Lookup. Wisdom
+// entries are persisted by signature and can outlive a retuning that disables
+// a codelet — or be imported from another machine — so without this filter a
+// stale wisdom entry would resurrect a codelet that was deliberately measured
+// to be slower than its alternatives.
 func (r *CodeletRegistry[T]) LookupBySignature(size int, signature string) *CodeletEntry[T] {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	entries := r.codelets[size]
 	for i := range entries {
+		// Skip disabled codelets (negative priority)
+		if entries[i].Priority < 0 {
+			continue
+		}
+
 		if entries[i].Signature == signature {
 			return &entries[i]
 		}

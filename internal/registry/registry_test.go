@@ -267,6 +267,46 @@ func TestCodeletRegistryLookupBySignature(t *testing.T) {
 	}
 }
 
+// TestCodeletRegistryLookupBySignatureSkipsDisabled verifies that a codelet
+// disabled via negative priority is not reachable by signature. The wisdom
+// binder in internal/planner resolves persisted algorithm names through
+// LookupBySignature, so without this filter a stale or imported wisdom entry
+// could resurrect a codelet that was deliberately measured to be slower.
+func TestCodeletRegistryLookupBySignatureSkipsDisabled(t *testing.T) {
+	t.Parallel()
+
+	registry := NewCodeletRegistry[complex64]()
+
+	registry.Register(CodeletEntry[complex64]{
+		Size:      16,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
+		Signature: "dit16_disabled",
+		Priority:  -1,
+	})
+
+	if got := registry.LookupBySignature(16, "dit16_disabled"); got != nil {
+		t.Errorf("expected disabled codelet to be unreachable by signature, got %v", got)
+	}
+
+	// A disabled entry must not shadow an enabled one at the same size.
+	registry.Register(CodeletEntry[complex64]{
+		Size:      16,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
+		Signature: "dit16_enabled",
+		Priority:  1,
+	})
+
+	if got := registry.LookupBySignature(16, "dit16_enabled"); got == nil {
+		t.Error("expected enabled codelet to remain reachable by signature")
+	}
+}
+
 // TestCodeletRegistrySizes tests retrieval of registered sizes.
 func TestCodeletRegistrySizes(t *testing.T) {
 	t.Parallel()

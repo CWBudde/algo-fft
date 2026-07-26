@@ -28,8 +28,16 @@ jobs:
           # Install treefmt
           curl -fsSL https://github.com/numtide/treefmt/releases/download/v2.1.1/treefmt_2.1.1_linux_amd64.tar.gz | sudo tar -C /usr/local/bin -xz treefmt
 
-          # Install prettier
-          npm install -g prettier markdownlint-cli
+          # Install prettier and markdownlint.
+          #
+          # Versions are pinned deliberately. prettier 3.9.0 introduced a
+          # regression that makes markdown formatting non-idempotent on this
+          # repo: it re-indents deeply nested list content and grows PLAN.md by
+          # ~2.9 KB on every pass without ever reaching a fixed point, so
+          # `treefmt --fail-on-change` can never succeed. 3.8.5 is the newest
+          # release that is a clean no-op across all tracked markdown.
+          # Re-check 3.9.x before unpinning.
+          npm install -g prettier@3.8.5 markdownlint-cli@0.49.1
 
           # Install gofumpt
           go install mvdan.cc/gofumpt@latest

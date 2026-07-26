@@ -748,6 +748,131 @@ var codeletSpecs = []codeletSpec{
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_radix2_avx512", Priority: 10,
 	},
+	// Size-specific AVX-512 complex64 codelets. A ZMM holds 8 complex64, so at
+	// these lengths the whole transform is register-resident: the kernels load
+	// once, run every stage in registers and store once, never touching
+	// scratch. The input permutation is absorbed into which load lands in which
+	// register, so none of them needs a bit-reversal table. All are AVX512F
+	// only. Measured on a Xeon Gold 5218 against the best pre-existing codelet
+	// at each size; see docs/AVX512_CODELETS.md.
+	{
+		Target: "avx512", Prec: 64, Size: 8,
+		Forward:   "amd64.ForwardAVX512Size8Radix8Complex64Asm",
+		Inverse:   "amd64.InverseAVX512Size8Radix8Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeCore",
+		Signature: "dit8_radix8_avx512", Priority: 9,
+	},
+	{
+		Target: "avx512", Prec: 64, Size: 16,
+		Forward:   "amd64.ForwardAVX512Size16Radix16Complex64Asm",
+		Inverse:   "amd64.InverseAVX512Size16Radix16Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit16_radix16_avx512", Priority: 50,
+	},
+	{
+		Target: "avx512", Prec: 64, Size: 32,
+		Forward:   "amd64.ForwardAVX512Size32Radix4Then2Complex64Asm",
+		Inverse:   "amd64.InverseAVX512Size32Radix4Then2Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit32_radix4_then2_avx512", Priority: 22,
+	},
+	// The two size-64 kernels are 8x8 four-step transforms differing only in how
+	// the vertical 8-point sub-FFT is decomposed; they emit the same 148
+	// instructions and measure the same within 2%, so radix2 holds the higher
+	// priority arbitrarily. Note the suffixes name that sub-FFT decomposition,
+	// not three literal radix-4 stages (not expressible over 8 registers x 8
+	// lanes); the file headers state the real algorithm.
+	{
+		Target: "avx512", Prec: 64, Size: 64,
+		Forward:   "amd64.ForwardAVX512Size64Radix2Complex64Asm",
+		Inverse:   "amd64.InverseAVX512Size64Radix2Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit64_radix2_avx512", Priority: 30,
+	},
+	{
+		Target: "avx512", Prec: 64, Size: 64,
+		Forward:   "amd64.ForwardAVX512Size64Radix4Complex64Asm",
+		Inverse:   "amd64.InverseAVX512Size64Radix4Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit64_radix4_avx512", Priority: 25,
+	},
+	// Register-resident radix-2 DIT with a fused in-register radix-8 leaf. Size
+	// 128 keeps all 16 ZMM of data live from load to store; size 256 runs two
+	// such sub-transforms plus a final radix-2 stage.
+	{
+		Target: "avx512", Prec: 64, Size: 128,
+		Forward:   "amd64.ForwardAVX512Size128Radix8Then2Complex64Asm",
+		Inverse:   "amd64.InverseAVX512Size128Radix8Then2Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit128_radix8_then2_avx512", Priority: 30,
+	},
+	{
+		Target: "avx512", Prec: 64, Size: 256,
+		Forward:   "amd64.ForwardAVX512Size256Radix8Then2Complex64Asm",
+		Inverse:   "amd64.InverseAVX512Size256Radix8Then2Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit256_radix8_then2_avx512", Priority: 30,
+	},
+	// Size-specific AVX-512 complex128 codelets. A ZMM holds 4 complex128, so
+	// these transforms are likewise fully register-resident and never spill
+	// between stages. Before this set, complex128 had no AVX-512 codelets at
+	// all; see internal/asm/amd64/avx512_f64_size*.s.
+	// Size 4 is DISABLED (negative priority) on purpose. Measured on a Xeon Gold
+	// 5218, median of 7 x 300ms on an idle host: forward 11.54 ns vs 8.27 ns for
+	// the pure-Go codelet (10.86 ns for SSE2), inverse 12.07 ns vs 11.18 ns.
+	// The kernel is only 11 vector ops with no multiply, so this is not an
+	// instruction-count problem: a 4-point butterfly network over the four lanes
+	// of one ZMM needs two levels of lane-crossing VSHUFF64X2 (3 cycles each),
+	// while the SSE2 kernel keeps each complex128 in its own XMM and needs no
+	// shuffle at all for stage 1. Packing n = 4 into one register trades free
+	// register-level parallelism for ~7 cycles of serial shuffle latency, and at
+	// 64 bytes there is no data-movement win to pay for it. Codelet selection
+	// prefers the higher SIMD level over priority, so registering this would
+	// make AVX-512 hosts slower; the row is kept so the kernel is not lost.
+	// NOTE: negative-priority rows are skipped by the behavioural sweeps, so this
+	// kernel was verified at a positive priority before being disabled.
+	{
+		Target: "avx512", Prec: 128, Size: 4,
+		Forward:   "amd64.ForwardAVX512Size4Radix4Complex128Asm",
+		Inverse:   "amd64.InverseAVX512Size4Radix4Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeCore",
+		Signature: "dit4_radix4_avx512", Priority: -1,
+	},
+	{
+		Target: "avx512", Prec: 128, Size: 8,
+		Forward:   "amd64.ForwardAVX512Size8Radix8Complex128Asm",
+		Inverse:   "amd64.InverseAVX512Size8Radix8Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeCore",
+		Signature: "dit8_radix8_avx512", Priority: 10,
+	},
+	{
+		Target: "avx512", Prec: 128, Size: 16,
+		Forward:   "amd64.ForwardAVX512Size16Radix4Complex128Asm",
+		Inverse:   "amd64.InverseAVX512Size16Radix4Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit16_radix4_avx512", Priority: 30,
+	},
+	{
+		Target: "avx512", Prec: 128, Size: 32,
+		Forward:   "amd64.ForwardAVX512Size32Radix4Then2Complex128Asm",
+		Inverse:   "amd64.InverseAVX512Size32Radix4Then2Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit32_radix4_then2_avx512", Priority: 22,
+	},
+	{
+		Target: "avx512", Prec: 128, Size: 64,
+		Forward:   "amd64.ForwardAVX512Size64Radix4Complex128Asm",
+		Inverse:   "amd64.InverseAVX512Size64Radix4Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit64_radix4_avx512", Priority: 25,
+	},
+	{
+		Target: "avx512", Prec: 128, Size: 128,
+		Forward:   "amd64.ForwardAVX512Size128Radix4Then2Complex128Asm",
+		Inverse:   "amd64.InverseAVX512Size128Radix4Then2Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
+		Signature: "dit128_radix4_then2_avx512", Priority: 25,
+	},
 	{
 		Target: "avx2", Prec: 128, Size: 384,
 		Forward:   "forwardDIT384MixedComplex128",
