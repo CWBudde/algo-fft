@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The size-64 radix-2 DIT codelet applied its 1/n inverse scaling as 64
+  complex multiplies by `complex(1/64, 0)`, spending two dead products per
+  output. Naming the unscaled butterfly results for that also cost 32 extra
+  temporaries, and together they pushed the fully-unrolled function past the
+  node count above which Go's inliner falls back to its big-function cost
+  budget — so all 193 of its `math.MulComplex64` products compiled to real
+  `CALL`s, which were every un-inlined `MulComplex` call in the module. The
+  scaling is now applied component-wise in one pass, which is bit-identical
+  and restores inlining (193 calls → 0; the inverse codelet is 21% faster for
+  complex64 and 28% for complex128). No user-visible change: at n = 64 the
+  registry selects the radix-4 codelet, which remains ~1.8× faster.
+
 - `PlanOptions{Strategy: KernelRecursive}` returned a **wrong spectrum** for
   complex128 at every length whose decomposition bottomed out in a leaf whose
   best codelet uses a prepared twiddle layout — on AVX2 hosts, n = 1024 and

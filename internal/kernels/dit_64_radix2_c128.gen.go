@@ -880,104 +880,87 @@ func inverseDIT64Radix2Complex128(dst, src, twiddle, scratch []complex128) bool 
 	w29 := complex(real(tw29), -imag(tw29))
 	w31 := complex(real(tw31), -imag(tw31))
 
-	scale := complex(1.0/64.0, 0)
 	work = work[:n]
 
-	f0, f32 := e0+e32, e0-e32
-	work[0], work[32] = mathpkg.MulComplex128(f0, scale), mathpkg.MulComplex128(f32, scale)
+	work[0], work[32] = e0+e32, e0-e32
 	t1 = mathpkg.MulComplex128(w1, e33)
-	f1, f33 := e1+t1, e1-t1
-	work[1], work[33] = mathpkg.MulComplex128(f1, scale), mathpkg.MulComplex128(f33, scale)
+	work[1], work[33] = e1+t1, e1-t1
 	t2 = mathpkg.MulComplex128(w2, e34)
-	f2, f34 := e2+t2, e2-t2
-	work[2], work[34] = mathpkg.MulComplex128(f2, scale), mathpkg.MulComplex128(f34, scale)
+	work[2], work[34] = e2+t2, e2-t2
 	t3 = mathpkg.MulComplex128(w3, e35)
-	f3, f35 := e3+t3, e3-t3
-	work[3], work[35] = mathpkg.MulComplex128(f3, scale), mathpkg.MulComplex128(f35, scale)
+	work[3], work[35] = e3+t3, e3-t3
 	t4 = mathpkg.MulComplex128(w4, e36)
-	f4, f36 := e4+t4, e4-t4
-	work[4], work[36] = mathpkg.MulComplex128(f4, scale), mathpkg.MulComplex128(f36, scale)
+	work[4], work[36] = e4+t4, e4-t4
 	t5 = mathpkg.MulComplex128(w5, e37)
-	f5, f37 := e5+t5, e5-t5
-	work[5], work[37] = mathpkg.MulComplex128(f5, scale), mathpkg.MulComplex128(f37, scale)
+	work[5], work[37] = e5+t5, e5-t5
 	t6 = mathpkg.MulComplex128(w6, e38)
-	f6, f38 := e6+t6, e6-t6
-	work[6], work[38] = mathpkg.MulComplex128(f6, scale), mathpkg.MulComplex128(f38, scale)
+	work[6], work[38] = e6+t6, e6-t6
 	t7 = mathpkg.MulComplex128(w7, e39)
-	f7, f39 := e7+t7, e7-t7
-	work[7], work[39] = mathpkg.MulComplex128(f7, scale), mathpkg.MulComplex128(f39, scale)
+	work[7], work[39] = e7+t7, e7-t7
 	t8 = mathpkg.MulComplex128(w8, e40)
-	f8, f40 := e8+t8, e8-t8
-	work[8], work[40] = mathpkg.MulComplex128(f8, scale), mathpkg.MulComplex128(f40, scale)
+	work[8], work[40] = e8+t8, e8-t8
 	t9 = mathpkg.MulComplex128(w9, e41)
-	f9, f41 := e9+t9, e9-t9
-	work[9], work[41] = mathpkg.MulComplex128(f9, scale), mathpkg.MulComplex128(f41, scale)
+	work[9], work[41] = e9+t9, e9-t9
 	t10 = mathpkg.MulComplex128(w10, e42)
-	f10, f42 := e10+t10, e10-t10
-	work[10], work[42] = mathpkg.MulComplex128(f10, scale), mathpkg.MulComplex128(f42, scale)
+	work[10], work[42] = e10+t10, e10-t10
 	t11 = mathpkg.MulComplex128(w11, e43)
-	f11, f43 := e11+t11, e11-t11
-	work[11], work[43] = mathpkg.MulComplex128(f11, scale), mathpkg.MulComplex128(f43, scale)
+	work[11], work[43] = e11+t11, e11-t11
 	t12 = mathpkg.MulComplex128(w12, e44)
-	f12, f44 := e12+t12, e12-t12
-	work[12], work[44] = mathpkg.MulComplex128(f12, scale), mathpkg.MulComplex128(f44, scale)
+	work[12], work[44] = e12+t12, e12-t12
 	t13 = mathpkg.MulComplex128(w13, e45)
-	f13, f45 := e13+t13, e13-t13
-	work[13], work[45] = mathpkg.MulComplex128(f13, scale), mathpkg.MulComplex128(f45, scale)
+	work[13], work[45] = e13+t13, e13-t13
 	t14 = mathpkg.MulComplex128(w14, e46)
-	f14, f46 := e14+t14, e14-t14
-	work[14], work[46] = mathpkg.MulComplex128(f14, scale), mathpkg.MulComplex128(f46, scale)
+	work[14], work[46] = e14+t14, e14-t14
 	t15 = mathpkg.MulComplex128(w15, e47)
-	f15, f47 := e15+t15, e15-t15
-	work[15], work[47] = mathpkg.MulComplex128(f15, scale), mathpkg.MulComplex128(f47, scale)
+	work[15], work[47] = e15+t15, e15-t15
 	t16 := mathpkg.MulComplex128(w16, e48)
-	f16, f48 := e16+t16, e16-t16
-	work[16], work[48] = mathpkg.MulComplex128(f16, scale), mathpkg.MulComplex128(f48, scale)
+	work[16], work[48] = e16+t16, e16-t16
 	t17 = mathpkg.MulComplex128(w17, e49)
-	f17, f49 := e17+t17, e17-t17
-	work[17], work[49] = mathpkg.MulComplex128(f17, scale), mathpkg.MulComplex128(f49, scale)
+	work[17], work[49] = e17+t17, e17-t17
 	t18 = mathpkg.MulComplex128(w18, e50)
-	f18, f50 := e18+t18, e18-t18
-	work[18], work[50] = mathpkg.MulComplex128(f18, scale), mathpkg.MulComplex128(f50, scale)
+	work[18], work[50] = e18+t18, e18-t18
 	t19 = mathpkg.MulComplex128(w19, e51)
-	f19, f51 := e19+t19, e19-t19
-	work[19], work[51] = mathpkg.MulComplex128(f19, scale), mathpkg.MulComplex128(f51, scale)
+	work[19], work[51] = e19+t19, e19-t19
 	t20 = mathpkg.MulComplex128(w20, e52)
-	f20, f52 := e20+t20, e20-t20
-	work[20], work[52] = mathpkg.MulComplex128(f20, scale), mathpkg.MulComplex128(f52, scale)
+	work[20], work[52] = e20+t20, e20-t20
 	t21 = mathpkg.MulComplex128(w21, e53)
-	f21, f53 := e21+t21, e21-t21
-	work[21], work[53] = mathpkg.MulComplex128(f21, scale), mathpkg.MulComplex128(f53, scale)
+	work[21], work[53] = e21+t21, e21-t21
 	t22 = mathpkg.MulComplex128(w22, e54)
-	f22, f54 := e22+t22, e22-t22
-	work[22], work[54] = mathpkg.MulComplex128(f22, scale), mathpkg.MulComplex128(f54, scale)
+	work[22], work[54] = e22+t22, e22-t22
 	t23 = mathpkg.MulComplex128(w23, e55)
-	f23, f55 := e23+t23, e23-t23
-	work[23], work[55] = mathpkg.MulComplex128(f23, scale), mathpkg.MulComplex128(f55, scale)
+	work[23], work[55] = e23+t23, e23-t23
 	t24 := mathpkg.MulComplex128(w24, e56)
-	f24, f56 := e24+t24, e24-t24
-	work[24], work[56] = mathpkg.MulComplex128(f24, scale), mathpkg.MulComplex128(f56, scale)
+	work[24], work[56] = e24+t24, e24-t24
 	t25 = mathpkg.MulComplex128(w25, e57)
-	f25, f57 := e25+t25, e25-t25
-	work[25], work[57] = mathpkg.MulComplex128(f25, scale), mathpkg.MulComplex128(f57, scale)
+	work[25], work[57] = e25+t25, e25-t25
 	t26 = mathpkg.MulComplex128(w26, e58)
-	f26, f58 := e26+t26, e26-t26
-	work[26], work[58] = mathpkg.MulComplex128(f26, scale), mathpkg.MulComplex128(f58, scale)
+	work[26], work[58] = e26+t26, e26-t26
 	t27 = mathpkg.MulComplex128(w27, e59)
-	f27, f59 := e27+t27, e27-t27
-	work[27], work[59] = mathpkg.MulComplex128(f27, scale), mathpkg.MulComplex128(f59, scale)
+	work[27], work[59] = e27+t27, e27-t27
 	t28 := mathpkg.MulComplex128(w28, e60)
-	f28, f60 := e28+t28, e28-t28
-	work[28], work[60] = mathpkg.MulComplex128(f28, scale), mathpkg.MulComplex128(f60, scale)
+	work[28], work[60] = e28+t28, e28-t28
 	t29 = mathpkg.MulComplex128(w29, e61)
-	f29, f61 := e29+t29, e29-t29
-	work[29], work[61] = mathpkg.MulComplex128(f29, scale), mathpkg.MulComplex128(f61, scale)
+	work[29], work[61] = e29+t29, e29-t29
 	t30 := mathpkg.MulComplex128(w30, e62)
-	f30, f62 := e30+t30, e30-t30
-	work[30], work[62] = mathpkg.MulComplex128(f30, scale), mathpkg.MulComplex128(f62, scale)
+	work[30], work[62] = e30+t30, e30-t30
 	t31 := mathpkg.MulComplex128(w31, e63)
-	f31, f63 := e31+t31, e31-t31
-	work[31], work[63] = mathpkg.MulComplex128(f31, scale), mathpkg.MulComplex128(f63, scale)
+	work[31], work[63] = e31+t31, e31-t31
+
+	// The 1/n scaling is a multiply by a *real* factor, so it is applied
+	// component-wise in one pass over work rather than folded into the 64
+	// stage-6 writes as a multiply by complex(1/n, 0). Folding it in spent two
+	// dead products per output, and naming the unscaled butterfly results took
+	// 32 extra temporaries, which together grew this fully-unrolled function
+	// past the node count above which Go's inliner switches to its
+	// big-function cost budget. That is expensive here: every twiddle product
+	// in the function goes through a helper that has to inline to be worth
+	// using at all. Stage 6 of the forward codelet above has the same shape
+	// without the scaling. See PLAN.md P5.0 for the measurement.
+	const scale = 1.0 / 64.0
+
+	for i := range work {
+		work[i] = complex(real(work[i])*scale, imag(work[i])*scale)
+	}
 
 	if !workIsDst {
 		copy(dst, work)
