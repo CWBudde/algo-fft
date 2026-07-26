@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The three AVX-2 complex64 codelet priorities at n = 256 are now 35 / 30 / 25
+  instead of 135 / 130 / 120. The old magnitudes were an order of magnitude
+  outside the band used at every other size, left over from an earlier tuning
+  round; only their relative order ever affected selection. A canary-gated
+  sweep confirmed that order is the measured one (`dit256_radix2_avx2` <
+  `dit256_radix16_avx2` < `dit256_radix4_avx2`, in both directions), so the
+  rewrite is order-preserving: the codelet bound at every power-of-two size, in
+  both precisions, is unchanged. No behavioural change.
+
+- `BenchmarkCodeletCandidates{64,128}` now drive their input from a seeded RNG
+  rather than the period-35 pattern `complex(i%7-3, i%5-2)`, whose spectrum is
+  almost entirely zero and which made the benchmark partly time cancellation
+  and denormal behaviour that differs per candidate. The values are generated
+  once as `float64` and narrowed for the complex64 arm, so both precisions see
+  numerically identical input. Absolute numbers from these benchmarks are not
+  comparable across this change.
+
 - The pure-Go radix-16 inverse codelets no longer apply their 1/n scaling as a
   complex multiply by `complex(1/n, 0)`, which spent two products against a zero
   imaginary part plus an add and a subtract per output. The compiler does not
@@ -29,6 +46,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kernel.
 
 ### Added
+
+- `scripts/bench_gated.sh` and `scripts/bench_gated_analyze.sh` (plus a
+  `just bench-gated` recipe and a BENCHMARKS.md section), a canary-gated
+  codelet-candidate sweep for registry priority tuning on thermally limited or
+  shared hosts. Each group of cells is bracketed by a canary of known
+  quiet-machine cost before _and_ after it, so a window that degrades mid-group
+  is rejected rather than averaged in; a group is one (precision, size) with
+  all of its candidates back-to-back, so a candidate ranking is always taken
+  under a single thermal state. Previously this protocol existed only as an
+  ad-hoc script outside the repo, which made the tuning numbers cited in
+  PLAN.md unreproducible.
 
 - Benchmarks for three previously unmeasured paths: the size-16 radix-16 Go
   codelet (the selected `purego` codelet at n = 16, which had none),

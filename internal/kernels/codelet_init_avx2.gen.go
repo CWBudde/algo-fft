@@ -174,7 +174,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit256_radix2_avx2",
-		Priority:   135,
+		Priority:   35,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -185,7 +185,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit256_radix4_avx2",
-		Priority:   120,
+		Priority:   25,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -196,7 +196,7 @@ func registerAVX2DITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit256_radix16_avx2",
-		Priority:   130,
+		Priority:   30,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 

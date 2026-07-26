@@ -10,6 +10,12 @@ test:
 bench:
     go test -bench=. -benchmem -run=^$ ./...
 
+# Canary-gated codelet-candidate sweep for registry priority tuning.
+# Measures only inside verified-quiet windows; see BENCHMARKS.md.
+bench-gated *sizes:
+    ./scripts/bench_gated.sh {{ sizes }}
+    ./scripts/bench_gated_analyze.sh
+
 # Run linters
 lint:
     golangci-lint run

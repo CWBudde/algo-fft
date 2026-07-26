@@ -47,6 +47,9 @@ benchstat.txt
 
 # Profiler
 *.pprof
+
+# Raw output of scripts/bench_gated.sh — per-host, per-run, not a baseline
+/benchmarks/gated/
 # Compiled Go binaries (extensionless build outputs)
 /benchkernels
 /bench_compare

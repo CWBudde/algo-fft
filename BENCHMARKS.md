@@ -26,6 +26,44 @@ scripts/bench_md.sh benchmarks/baseline-ubuntu-latest.txt > /tmp/benchmarks.md
    committed table covers the root-package plan-level benchmarks; the full
    run lives in the baseline file), and record the date, Go version, and CPU.
 
+## Measuring on a Thermally Limited or Shared Host
+
+The baseline flow above assumes a machine whose timings are trustworthy. Per-codelet
+tuning decisions — "is the registry's selected candidate still the fastest one?" —
+are 5–15% effects, and on a laptop or a shared box that is well inside the noise.
+Two failure modes bite specifically:
+
+- **Thermal throttling.** Sustained benchmarking drives package temperature up
+  until the clock drops, so cells measured late in a run are systematically
+  slower than cells measured early. Ordering cells by name is enough to turn
+  this into a fake result: in one tuning round it clustered a whole precision
+  arm into the hot window and inflated it ~13×.
+- **Contention.** Another tenant's build arriving mid-run cannot be cooled away.
+  A once-per-pass canary does not catch it — a long pass gives contention plenty
+  of time to arrive after the canary has already passed.
+
+`scripts/bench_gated.sh` measures only inside verified-quiet windows instead of
+measuring continuously:
+
+```bash
+just bench-gated 256 512 8192        # or: scripts/bench_gated.sh 256 512 8192
+scripts/bench_gated_analyze.sh       # reads benchmarks/gated/
+```
+
+Every group of cells is bracketed by a canary cell of known quiet-machine cost;
+the group runs only once the leading canary is within `GATE` of `GOOD`, and the
+trailing canary is recorded so the analyzer can reject a group whose window
+degraded while it ran. A group is one (precision, size) with all of its
+registered candidates back-to-back, so the candidate ranking is taken under a
+single thermal state. Group and cell order rotate per pass. The analyzer
+reports each candidate as a ratio to the incumbent computed _within_ each
+accepted group and then medianed — never a ratio of medians — and prints the
+accepted/rejected group counts so thin evidence is visible as such.
+
+`GOOD` defaults to a value measured on an idle i7-1255U; recalibrate it for
+another host by timing the canary
+(`BenchmarkDITComplex128/Size256/Radix16/Forward`) on a quiet machine.
+
 ## Baseline Results
 
 **Date**: 2026-07-15  

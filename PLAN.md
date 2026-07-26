@@ -1976,8 +1976,11 @@ and the three items in P5.0 are defects rather than missing optimizations.
       kept the codelet, pass every correctness test, and surface only as an
       unexplained forward/inverse asymmetry — exactly the shape of this item.
 
-- [ ] **Audit whether each power-of-two incumbent is still the fastest
-      registered candidate, per direction.** Fell out of the item above, which
+- [x] **Audit whether each power-of-two incumbent is still the fastest
+      registered candidate, per direction.** _Done 2026-07-26 for n = 256, 512
+      and 8192 — all six incumbents confirmed, in both directions. The only
+      code change is a cosmetic priority normalisation; see the resolution at
+      the end of this entry._ Fell out of the item above, which
       ruled out its own stated lead and left this as the live question. The
       complex64 priorities at n = 256 are 135 / 130 / 120 — outliers from an
       earlier tuning round, an order of magnitude above the 10–40 used
@@ -2003,6 +2006,92 @@ and the three items in P5.0 are defects rather than missing optimizations.
 
       Run on an idle machine, and re-check `internal/registry`'s descending
       priority order against the result rather than the other way round.
+
+      **Both preconditions fixed first.** `BenchmarkCodeletCandidates{64,128}`
+      now fills from a seeded RNG, generated once as `float64` and narrowed for
+      the complex64 arm so both precisions see numerically identical input and
+      their ratio stays like-for-like; it also enumerates sizes through the
+      sorted `GetAvailableSizes` rather than unsorted map keys. Any
+      `BenchmarkCodeletCandidates` number recorded before this is no longer
+      comparable. And the canary-gated protocol, which existed only as a
+      scratchpad script the previous item cited, is now in-tree as
+      `scripts/bench_gated.sh` + `scripts/bench_gated_analyze.sh`, with a
+      `just bench-gated` recipe and a BENCHMARKS.md section — the numbers below
+      are reproducible from the repo. One design change against the scratchpad
+      version: a group is one **(precision, size) with all of its candidates
+      back-to-back**, not one signature, so the whole ranking is taken inside a
+      single verified-quiet window and drift cancels within the comparison.
+
+      **Measured: 85 accepted groups against 11 rejected** (9 over gate, 2 on
+      drift), 12–15 groups behind every cell, `-benchtime=0.5s`, 16 passes,
+      i7-1255U / AVX2+FMA / no AVX-512. `GOOD` recalibrated to 1650 ns from the
+      1810 the previous round used. Ratios are to the incumbent, taken within
+      each group and then medianed. Incumbents were read off the runtime
+      registry, not off the priority table.
+
+      | n    | prec | incumbent (all confirmed)          | runner-up                     | fwd rel | inv rel |
+      | ---- | ---- | ---------------------------------- | ----------------------------- | ------- | ------- |
+      | 256  | c64  | `dit256_radix2_avx2`               | `dit256_radix16_avx2`         | 1.303   | 1.488   |
+      | 256  | c128 | `dit256_radix16_avx2`              | `dit256_radix4_avx2`          | 1.144   | 1.445   |
+      | 512  | c64  | `dit512_radix2_avx2`               | `dit512_radix8_avx2`          | 1.256   | 1.317   |
+      | 512  | c128 | `dit512_radix8_avx2`               | `dit512_radix4_then2_avx2`    | 1.277   | 1.284   |
+      | 8192 | c64  | `dit8192_radix4_then2_params_avx2` | `dit8192_radix4_then2_avx2`   | 0.993   | 1.009   |
+      | 8192 | c128 | `dit8192_radix4_then2_avx2`        | `dit8192_radix4_then2_sse2`   | 0.990   | 1.000   |
+
+      At 256 and 512 the incumbent wins both directions by 14–30 %, so those
+      four are settled. The two at 8192 are dead heats, and the pre-registered
+      rule was that anything inside ±3 % is a tie and the incumbent stays.
+
+      **The 135 / 130 / 120 outliers encoded the right order.** Measured
+      forward and inverse ranking at n = 256 complex64 is radix2 < radix16 <
+      radix4 — exactly the order those priorities expressed. Only their
+      magnitudes were wrong, so they are now 35 / 30 / 25, inside the band used
+      everywhere else. Verified order-preserving: the bound codelet is
+      unchanged at all 14 power-of-two sizes in both precisions, and the
+      generated diff is three priority lines.
+
+      **Selection differing by precision is correct at both sizes.** At n = 256
+      the complex128 winner `dit256_radix16_avx2` is 1.30× faster than radix16
+      is for complex64, where radix2 wins instead — the split is real, not a
+      tuning accident. At n = 8192 the split is a coin-flip rather than a
+      preference (below).
+
+      **Two findings that the priority mechanism cannot express, recorded
+      rather than acted on:**
+
+      - At n = 8192 complex64 the `params` incumbent and the plain
+        `dit8192_radix4_then2_avx2` are within ±1 % and **swap by direction**
+        (plain is 0.7 % faster forward, 0.9 % slower inverse). The `params`
+        entry is the only AVX2 complex64 codelet carrying a custom twiddle
+        layout (`TwiddleSize` / `PrepareTwiddle`), so it costs extra plan
+        memory and prepare-time work for no measurable transform gain at this
+        size. A simplification candidate, not a performance one. One priority
+        governs both directions — `CodeletEntry` holds `Forward` and `Inverse`
+        in one struct — so a per-direction split like this is not expressible
+        even in principle.
+      - At n = 8192 complex128 the SSE2 codelet **matches** the AVX2 one
+        (0.990 forward, 1.000 inverse): AVX2 buys nothing at this size in this
+        precision. This echoes the standing c128-16384 suspicion recorded
+        earlier. It is also not a priority question — `Register` sorts
+        SIMD-level-major (`internal/registry/registry.go:65-72`), so an SSE
+        entry can never outrank an AVX2 one; the only lever is a negative
+        priority disabling the AVX2 entry, which a 1 % margin does not justify.
+
+      Also noted: at n = 512 complex64 the second and third candidates
+      (`dit512_radix8_avx2`, `dit512_radix4_then2_avx2`) swap rank between
+      directions. Irrelevant to selection, since the incumbent wins both.
+
+      **A methodological data point for the host itself.** During canary
+      calibration one reading blew up to 24 µs against a ~1.7 µs floor — 13× —
+      while package temperature *fell* from 92 °C to 61 °C. The cause was
+      another process (`trufflehog`) at 111 % CPU. Contention and heat are
+      independent failure modes, they move the canary in the same direction,
+      and cooling does not address the first; a protocol that only waits for a
+      temperature threshold would have accepted that window.
+
+      Still unaudited: 4–128, 1024, 2048, 4096, 16384, 32768. Nothing in this
+      round suggests a mis-tuned incumbent is likely there, but nothing rules
+      it out either — the sweep is now a `just bench-gated <sizes>` away.
 
 - [ ] **algo-fft loses to gonum at n = 44100** — 4.00 ms against gonum's
       2.59 ms (FFTW3: 236 µs). That is the canonical audio sample rate, in

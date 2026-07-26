@@ -586,21 +586,27 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size256Radix2Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size256Radix2Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix2_avx2", Priority: 135,
+		// 35/30/25 across the three AVX2 c64 entries at this size reproduces the
+		// measured forward and inverse ordering (radix2 < radix16 < radix4, both
+		// directions, 13 canary-gated groups). They previously read 135/130/120,
+		// an order of magnitude outside the 5-50 band used everywhere else and a
+		// leftover from an earlier tuning round; only their relative order ever
+		// mattered.
+		Signature: "dit256_radix2_avx2", Priority: 35,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 256,
 		Forward:   "forwardAVX2Size256Radix4Complex64Safe",
 		Inverse:   "amd64.InverseAVX2Size256Radix4Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix4_avx2", Priority: 120,
+		Signature: "dit256_radix4_avx2", Priority: 25,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 256,
 		Forward:   "amd64.ForwardAVX2Size256Radix16Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size256Radix16Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix16_avx2", Priority: 130,
+		Signature: "dit256_radix16_avx2", Priority: 30,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 512,
