@@ -1,6 +1,7 @@
 package algofft
 
 import (
+	"math"
 	"math/cmplx"
 	"strconv"
 	"testing"
@@ -13,7 +14,7 @@ import (
 // mixed-radix engine (they pass the planner.MixedRadixEligible win gate).
 //
 //nolint:gochecknoglobals
-var mixedRadix7And11PlanSizes = []int{11, 21, 33, 35, 49, 77, 385, 448, 704, 1344}
+var mixedRadix7And11PlanSizes = []int{11, 21, 33, 35, 44, 49, 77, 308, 385, 448, 704, 1100, 1344, 2156}
 
 // TestNewPlan_MixedRadix7And11 locks in the routing: sizes whose factors are
 // all in {2,3,5,7,11} are served by the mixed-radix engine (not Bluestein),
@@ -71,13 +72,15 @@ func TestNewPlan_MixedRadix7And11(t *testing.T) {
 }
 
 // TestNewPlan_7And11GateKeepsBluestein locks in the other side of the win
-// gate: 7/11-smooth shapes that measured as losses against Bluestein's padded
-// sub-FFT (tiny odd sizes with a pad under ~2.5n, and power-of-two parts of
-// 2 or 4) keep their previous Bluestein routing.
+// gate: 7/11-smooth shapes whose Bluestein pad stays under ~2.5n, so the
+// padded power-of-two sub-FFT lands on an unusually effective codelet and
+// measured at or ahead of the mixed-radix engine. 22, 44 and 308 used to be
+// listed here on the power-of-two-part rule; they now pad to >= 2.5n and
+// route to mixed-radix (see TestNewPlan_MixedRadix7And11).
 func TestNewPlan_7And11GateKeepsBluestein(t *testing.T) {
 	t.Parallel()
 
-	for _, n := range []int{7, 14, 22, 28, 63, 121, 231, 308, 462, 847, 924} {
+	for _, n := range []int{7, 14, 28, 63, 121, 231, 462, 847, 924} {
 		plan, err := NewPlan[complex64](n)
 		if err != nil {
 			t.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
@@ -86,6 +89,79 @@ func TestNewPlan_7And11GateKeepsBluestein(t *testing.T) {
 		if got := plan.KernelStrategy(); got != KernelBluestein {
 			t.Errorf("NewPlan[complex64](%d): KernelStrategy() = %v, want KernelBluestein", n, got)
 		}
+	}
+}
+
+// TestNewPlan_MixedRadixAudioRates covers the large 7-smooth lengths the win
+// gate started routing to the mixed-radix engine in 2026-07 — 44100 above all,
+// the canonical audio sample rate and the worst result in the v0.7.0 external
+// sweep. They are too large for reference.NaiveDFT (44100 would be 1.9e9
+// operations), so each is cross-checked bin-by-bin against the Bluestein route
+// it used to take, which is itself reference-validated at smaller sizes.
+//
+// The input is broadband on purpose. An impulse would pass over a wrong
+// twiddle table or a wrong output ordering, which is exactly how a silent
+// wrong-answer defect survived in the recursive decomposition (PLAN.md P5.0).
+func TestNewPlan_MixedRadixAudioRates(t *testing.T) {
+	t.Parallel()
+
+	for _, n := range []int{4900, 6300, 8820, 22050, 44100} {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
+			t.Parallel()
+
+			mixed, err := NewPlan[complex128](n)
+			if err != nil {
+				t.Fatalf("NewPlan[complex128](%d) failed: %v", n, err)
+			}
+
+			if got := mixed.KernelStrategy(); got == KernelBluestein {
+				t.Fatalf("NewPlan[complex128](%d) resolved to Bluestein, want mixed-radix", n)
+			}
+
+			blue, err := NewPlanWithOptions[complex128](n, PlanOptions{Strategy: KernelBluestein})
+			if err != nil {
+				t.Fatalf("NewPlanWithOptions(%d, Bluestein) failed: %v", n, err)
+			}
+
+			src := randomComplex128(n, int64(n))
+			got := make([]complex128, n)
+			want := make([]complex128, n)
+
+			if err := mixed.Forward(got, src); err != nil {
+				t.Fatalf("mixed-radix Forward failed: %v", err)
+			}
+
+			if err := blue.Forward(want, src); err != nil {
+				t.Fatalf("Bluestein Forward failed: %v", err)
+			}
+
+			var peak float64
+			for _, v := range want {
+				peak = math.Max(peak, cmplx.Abs(v))
+			}
+
+			// Both routes accumulate float64 rounding over ~log(n) stages; the
+			// bound is relative to the spectrum peak, not to each bin, so
+			// near-zero bins do not set an unreachable target.
+			tol := 1e-9 * peak
+			for i := range got {
+				if diff := cmplx.Abs(got[i] - want[i]); diff > tol {
+					t.Fatalf("n=%d bin %d: mixed-radix %v, Bluestein %v (diff %.3e > %.3e)",
+						n, i, got[i], want[i], diff, tol)
+				}
+			}
+
+			back := make([]complex128, n)
+			if err := mixed.Inverse(back, got); err != nil {
+				t.Fatalf("mixed-radix Inverse failed: %v", err)
+			}
+
+			for i := range back {
+				if diff := cmplx.Abs(back[i] - src[i]); diff > 1e-11*float64(n) {
+					t.Fatalf("n=%d: round-trip mismatch at %d: got %v want %v", n, i, back[i], src[i])
+				}
+			}
+		})
 	}
 }
 

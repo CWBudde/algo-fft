@@ -95,7 +95,7 @@ func mixedRadixCodelet128(n int) *registry.CodeletEntry[complex128] {
 func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, stride, step int, radices []int, twiddle []complex64, inverse bool) {
 	// Optimization: dispatch whole sub-transforms to AVX2 codelets when
 	// available. Uses the same lookup as the scheduling predicate.
-	if n > 1 {
+	if n > mixedRadixCodeletMinSize {
 		if entry := mixedRadixCodelet64(n); entry != nil {
 			// 1. Prepare Input
 			var inputBuf []complex64
@@ -156,7 +156,7 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 
 // mixedRadixRecursivePingPongComplex128AVX2 is the complex128 version.
 func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, stride, step int, radices []int, twiddle []complex128, inverse bool) {
-	if n > 1 {
+	if n > mixedRadixCodeletMinSize {
 		if entry := mixedRadixCodelet128(n); entry != nil {
 			var inputBuf []complex128
 			if stride == 1 {

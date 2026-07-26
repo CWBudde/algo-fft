@@ -59,34 +59,37 @@ func MixedRadixEligible(n int) bool {
 //
 //   - power-of-two part >= 8 wins 1.3-6x at every size (56 ... 14080): the
 //     schedule strips the odd factors first and lands the pow2 part in
-//     radix-8 passes or a tuned codelet leaf;
-//   - power-of-two part 2 or 4 measured as losses (14, 22, 28, 44, 308, 462,
-//     924): the strided radix-2/4 tail stages dominate, as they did for the
-//     Rader gate (see raderConvolutionWins);
-//   - odd lengths win when Bluestein's padded power-of-two sub-FFT is
-//     >= ~2.5n (11, 33, 35, 49, 77, 165, 385, 539, 693, 1155, 2401 at
-//     1.2-3.4x) and wash or lose below that (7, 55, 63, 105, 121, 231, 847),
-//     where the ~2x pad lands on an unusually effective codelet.
+//     radix-8 passes or a tuned codelet leaf, which the pad-ratio rule below
+//     cannot see (448, 3584, 7168 and 14080 all pad to only ~2.3n yet win);
+//   - every other length wins when Bluestein's padded power-of-two sub-FFT is
+//     >= ~2.5n (11, 33, 35, 44, 49, 77, 165, 308, 385, 539, 693, 1100, 1155,
+//     2156, 2401, 4900, 6300, 8820, 22050, 44100 at 1.2-3.4x) and washes or
+//     loses below that (7, 14, 55, 63, 105, 121, 231, 462, 847, 924), where
+//     the ~2x pad lands on an unusually effective codelet.
+//
+// The pad-ratio rule applies to even and odd lengths alike. It used to be
+// gated to odd n, with power-of-two parts of 2 and 4 excluded outright as
+// measured losses; re-measurement in 2026-07 showed that exclusion was fitted
+// on a mixed-radix driver pathology (tiny sub-transforms dispatched to
+// codelets, see mixedRadixCodeletMinSize in internal/fft) rather than on the
+// algorithm. With that fixed, mixed-radix wins 23-102% at 308, 1100, 2156,
+// 4900, 6300, 8820, 22050 and 44100 — all of which the old rule sent to
+// Bluestein.
 func mixedRadix7And11Wins(n int) bool {
 	if n > maxExactLength {
 		return true
 	}
 
-	pow2 := n & -n
-	if pow2 >= 8 {
+	if pow2 := n & -n; pow2 >= 8 {
 		return true
 	}
 
-	if pow2 > 1 {
-		return false
-	}
-
-	// Odd: Bluestein pads to the next power of two >= 2n-1; require
-	// pad >= 2.5n. With n odd this is exactly pad-2n >= (n+1)/2, phrased so
-	// no intermediate exceeds 2^(UintSize-2): the direct 2*pad and 5*n forms
-	// overflow 32-bit int for n near maxExactLength and could flip the
-	// comparison. pad-2n >= -1 always (pad >= 2n-1), so the left side is
-	// safe too.
+	// Bluestein pads to the next power of two >= 2n-1; require pad >= 2.5n.
+	// That is exactly pad-2n >= (n+1)/2 — for even n the +1 rounds away, and
+	// for odd n it rounds the half up. The comparison is phrased so no
+	// intermediate exceeds 2^(UintSize-2): the direct 2*pad and 5*n forms
+	// overflow 32-bit int for n near maxExactLength and could flip it.
+	// pad-2n >= -1 always (pad >= 2n-1), so the left side is safe too.
 	pad := m.NextPowerOfTwo(2*n - 1)
 
 	return pad-2*n >= (n+1)/2

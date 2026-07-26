@@ -7,7 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The AVX2 mixed-radix drivers dispatched **every** sub-transform larger than
+  one point to a codelet, including the size-2/3/4/5 recursion leaves that have
+  a pure-Go butterfly. The scheduler has always required `n > 5` before emitting
+  a codelet-backed radix, so any schedule ending in a small radix paid a codelet
+  call, a strided twiddle gather and two `sync.Pool` round-trips per leaf to do
+  a handful of butterflies — 1225 of them per transform at n = 4900. The
+  drivers now use the scheduler's own bound. Mixed-radix transforms are 18–58%
+  faster at every length measured (n = 21, 33, 693, 1100, 1155, 1920, 2156,
+  4900, 6300, 8820, 22050, 44100, both precisions, both directions). The
+  `purego` build never had the hooks and is unaffected.
+
+  The defect showed up as complex64 running 1.6× slower than complex128 on the
+  identical route at exactly the lengths whose schedule ends in radix 4, where
+  complex64's size-4 codelet is an assembly call and complex128's is a Go
+  function.
+
 ### Changed
+
+- `MixedRadixEligible` now routes lengths with factors 7/11 by one criterion for
+  every parity: the mixed-radix engine is used when Bluestein's padded sub-FFT
+  would be ≥ ~2.5n. The previous rule additionally excluded all lengths whose
+  power-of-two part is 2 or 4; re-measurement showed that exclusion was fitted
+  on the driver defect above rather than on the algorithm. **n = 44100**, the
+  canonical audio sample rate, is 44% faster in complex128 and 22% in complex64
+  as a result, moving from behind gonum to ahead of it; 44, 308, 1100, 2156,
+  4900, 6300, 8820 and 22050 are rerouted with it (+23…+102%). Lengths with a
+  power-of-two part ≥ 8 keep their own branch — they land a tuned codelet leaf
+  the pad ratio cannot see. At 22050 the complex64 inverse is ~11% slower as a
+  documented cost; the gate distinguishes neither precision nor direction.
 
 - The three AVX-2 complex64 codelet priorities at n = 256 are now 35 / 30 / 25
   instead of 135 / 130 / 120. The old magnitudes were an order of magnitude

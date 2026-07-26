@@ -305,12 +305,23 @@ func TestMixedRadixEligible(t *testing.T) {
 		{n: 616, want: true},
 		{n: 704, want: true},
 		{n: 1344, want: true},
-		// Power-of-two part 2 or 4: measured losses, keep Bluestein.
+		// Power-of-two part 2 or 4: the pad-ratio rule decides, same as for
+		// odd lengths. 44 pads to 2.9n and 308 to 3.3n (wins); 14, 28, 462
+		// and 924 pad to ~2.3n and stay on Bluestein.
 		{n: 14, want: false},
 		{n: 28, want: false},
-		{n: 308, want: false},
+		{n: 44, want: true},
+		{n: 308, want: true},
 		{n: 462, want: false},
 		{n: 924, want: false},
+		// The large audio-rate shapes the gate previously sent to Bluestein.
+		{n: 1100, want: true},
+		{n: 2156, want: true},
+		{n: 4900, want: true},
+		{n: 6300, want: true},
+		{n: 8820, want: true},
+		{n: 22050, want: true},
+		{n: 44100, want: true},
 		// Odd: eligible when the Bluestein pad is >= ~2.5n.
 		{n: 7, want: false},
 		{n: 11, want: true},

@@ -165,6 +165,20 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, inverse bool
 	return true
 }
 
+// mixedRadixCodeletMinSize is the smallest sub-transform the drivers will hand
+// to a codelet. Radices at or below it (2, 3, 4, 5) have a pure-Go butterfly
+// that the recursion executes inline; routing them through a codelet instead
+// costs a call, a strided twiddle gather and two sync.Pool round-trips to do a
+// handful of butterflies. The scheduler has always used this bound when
+// deciding whether to emit a composite radix, so matching it in the dispatch
+// hooks keeps dispatch a superset of what the schedule can emit — the
+// invariant that stops a scheduled composite radix from reaching the pure-Go
+// butterfly, which panics on radices it cannot execute.
+//
+// Measured at n = 4900 = [5,5,7,7,4] (complex64, AVX2), where the trailing
+// radix-4 leaf ran 1225 codelet dispatches per transform.
+const mixedRadixCodeletMinSize = 5
+
 func mixedRadixSchedule(n int, radices *[mixedRadixMaxStages]int, hasCodelet func(int) bool) int {
 	if n < 2 {
 		return 0

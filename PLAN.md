@@ -2093,7 +2093,7 @@ and the three items in P5.0 are defects rather than missing optimizations.
       round suggests a mis-tuned incumbent is likely there, but nothing rules
       it out either — the sweep is now a `just bench-gated <sizes>` away.
 
-- [ ] **algo-fft loses to gonum at n = 44100** — 4.00 ms against gonum's
+- [x] **algo-fft loses to gonum at n = 44100** — 4.00 ms against gonum's
       2.59 ms (FFTW3: 236 µs). That is the canonical audio sample rate, in
       the FFT library of a DSP suite, and it is the worst result in the
       sweep at 0.06× FFTW3. 44100 = 2²·3²·5²·7² is fully factorable by the
@@ -2116,6 +2116,67 @@ and the three items in P5.0 are defects rather than missing optimizations.
           survives removing SIMD from _both_ sides is algorithmic, not a
           missing-codelet problem — which is the strongest evidence yet that
           P5.1, not more assembly, is where the non-power-of-two work belongs.
+
+      _Fixed 2026-07-26/27._ The gate was **not** the whole answer, as the item
+      suspected — but the reason is better than expected: the pow2-part rule was
+      fitted on a mixed-radix **driver defect**, not on the algorithm. Measuring
+      both routes first (as the item instructed) is what exposed it.
+
+      1. **The driver dispatched 4-point sub-transforms to codelets.** The AVX2
+         mixed-radix drivers guarded their codelet-dispatch hook with `n > 1`,
+         while the scheduler has always required `n > 5` before emitting a
+         codelet-backed composite radix. Any schedule ending in radix 2/3/4/5
+         therefore sent every leaf through a full codelet call — a strided
+         twiddle gather, two `sync.Pool` round-trips and a `defer` — to do a
+         handful of butterflies. At n = 4900 = `[5,5,7,7,4]` that is 1225
+         dispatches per transform, and a CPU profile put **32% of complex64 time
+         inside `ForwardAVX2Size4Radix4Complex64Asm`** alone. Both drivers now
+         use the scheduler's own bound (`mixedRadixCodeletMinSize`), which keeps
+         dispatch a superset of what the schedule can emit.
+
+         The symptom that led there was a precision asymmetry: complex64 ran
+         **1.6× slower than complex128 on the identical route** at 308, 1100,
+         2156 and 4900, and only there. Those are exactly the schedules ending
+         in radix 4 — complex64's size-4 codelet is an assembly call where
+         complex128's is a Go function. (The tempting correlation, that all four
+         lack a factor 3, was a coincidence of this size set.)
+
+         Mixed-radix got 18–58% faster at every length measured, including ones
+         that were **already** eligible and therefore never in scope for the
+         gate: 693 −29%, 1155 −28/−31%, 1920 −37%, 21 −20/−31%, 33 −31/−26%.
+         Sizes whose schedules contain no radix ≤ 5 (3584, 7168, 11264, 49, 77,
+         96, 385) were unaffected and served as the noise control. `purego` is
+         untouched — the hooks exist only in the AVX2 drivers.
+
+      2. **The win gate collapses to one criterion.** With the pathology gone,
+         re-measurement across the gate's whole excluded set (7, 14, 22, 28, 44,
+         55, 63, 105, 121, 231, 308, 462, 847, 924, plus 1100 … 44100; both
+         precisions; forward and inverse; 8–10 counts) showed the existing
+         **odd-length rule generalizes to every parity**: mixed-radix wins where
+         Bluestein's pad is ≥ ~2.5n and washes or loses below it. Predicted vs
+         measured agrees at 19 of 21 shapes; the two misses are conservative
+         (28 and 22, both tiny). So the `pow2 ∈ {2,4} → lose` branch is simply
+         deleted — and because `(n+1)/2 == n/2` for even n, the surviving
+         expression needed no change at all. The `pow2 ≥ 8 → win` branch stays:
+         it encodes a tuned power-of-two codelet leaf that the pad ratio cannot
+         see (448, 3584, 7168 and 14080 pad to only ~2.3n yet win 1.3–6×).
+
+      Plan-level result at 44100 (public API, forward): complex128 **3.40 ms →
+      1.89 ms (−44%)**, complex64 2.41 ms → 1.88 ms (−22%); inverse −56% and
+      −6%. Against the figures that opened this item, algo-fft now sits **ahead
+      of gonum's 2.59 ms** at 44100 rather than 1.5× behind it. Newly rerouted
+      with it: 308, 1100, 2156, 4900, 6300, 8820, 22050 and 44 (+23…+102%
+      forward).
+
+      One documented cost: at 22050 complex64 the forward is a tie and the
+      **inverse regresses ~11%**, while complex128 gains 24–36%. The gate sees
+      neither precision nor direction, and carving out one size is exactly the
+      overfitting that produced the rule being replaced, so 22050 stays
+      eligible on the pad-ratio criterion.
+
+      Still open, and unchanged by this: FFTW3 is at 236 µs. Closing 1.89 ms →
+      236 µs is P5.1 (mixed-radix engine quality), not routing — the item's own
+      2205 observation stands.
 
 - [x] **`KernelRecursive` falls off a cliff above 2048, and allocates.**
       Found incidentally while benchmarking on an idle AVX2/AVX-512 host
