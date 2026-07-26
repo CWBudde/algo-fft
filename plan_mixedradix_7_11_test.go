@@ -236,3 +236,59 @@ func BenchmarkMixedRadix7And11VsBluestein(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkMixedRadixInverse covers the mixed-radix inverse at non-power-of-two
+// lengths. BenchmarkMixedRadix7And11VsBluestein above measures only the forward
+// direction, which leaves the inverse-only tail of the mixed-radix driver — the
+// loop that undoes a codelet's built-in 1/n scaling
+// (mixedRadixRecursivePingPong*AVX2 in internal/fft) — with no benchmark at all.
+func BenchmarkMixedRadixInverse(b *testing.B) {
+	// Mixed-radix-eligible lengths spanning one codelet-sized sub-transform up
+	// to several: 385 = 5·7·11, 1155 = 3·5·7·11, 3584 = 2^9·7, 7168 = 2^10·7.
+	sizes := []int{385, 1155, 3584, 7168}
+
+	run64 := func(b *testing.B, n int) {
+		b.Helper()
+
+		plan, err := NewPlan[complex64](n)
+		if err != nil {
+			b.Fatalf("NewPlan[complex64](%d) failed: %v", n, err)
+		}
+
+		src := randomComplex64(n, int64(n))
+		dst := make([]complex64, n)
+
+		b.ReportAllocs()
+		b.SetBytes(int64(n * 8))
+		b.ResetTimer()
+
+		for range b.N {
+			_ = plan.Inverse(dst, src)
+		}
+	}
+
+	run128 := func(b *testing.B, n int) {
+		b.Helper()
+
+		plan, err := NewPlan[complex128](n)
+		if err != nil {
+			b.Fatalf("NewPlan[complex128](%d) failed: %v", n, err)
+		}
+
+		src := randomComplex128(n, int64(n))
+		dst := make([]complex128, n)
+
+		b.ReportAllocs()
+		b.SetBytes(int64(n * 16))
+		b.ResetTimer()
+
+		for range b.N {
+			_ = plan.Inverse(dst, src)
+		}
+	}
+
+	for _, n := range sizes {
+		b.Run("Complex64_"+strconv.Itoa(n), func(b *testing.B) { run64(b, n) })
+		b.Run("Complex128_"+strconv.Itoa(n), func(b *testing.B) { run128(b, n) })
+	}
+}

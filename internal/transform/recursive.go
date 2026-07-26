@@ -355,17 +355,24 @@ func combineGeneralConj[T Complex](dst, subs, twiddles []T, subSize, radix int) 
 	}
 }
 
+// scaleComplexSlice multiplies every element of dst by the real factor scale.
+//
+// Both branches scale component-wise rather than multiplying by
+// complex(scale, 0): that is the same two products without the operator's two
+// zero-valued ones, and on complex64 it also avoids widening each component to
+// float64 and rounding back (see math.MulComplex64). Both branches are compiled
+// into both shape instantiations, so the complex64 promotion cost the
+// complex128 instantiation too.
 func scaleComplexSlice[T Complex](dst []T, scale float64) {
 	switch dt := any(dst).(type) {
 	case []complex64:
-		s := complex(float32(scale), 0)
+		s := float32(scale)
 		for i := range dt {
-			dt[i] *= s
+			dt[i] = complex(real(dt[i])*s, imag(dt[i])*s)
 		}
 	case []complex128:
-		s := complex(scale, 0)
 		for i := range dt {
-			dt[i] *= s
+			dt[i] = complex(real(dt[i])*scale, imag(dt[i])*scale)
 		}
 	default:
 		panic("unsupported complex type")

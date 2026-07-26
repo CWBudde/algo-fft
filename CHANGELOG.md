@@ -109,6 +109,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the old metric run 2–3 orders of magnitude higher and are not comparable** —
   at n = 128 it reported 3.95e-05 where the true relative L2 error is 9.0e-08.
 
+- The `complex64` widening also affected the real-FFT recombination, the
+  packed radix-4 Stockham engine, the recursive combine steps and the AVX2
+  mixed-radix driver — the code outside `internal/kernels` that the two
+  entries above did not reach. All of it now multiplies through
+  `math.MulComplex64`, scales by a real factor component-wise, and rotates by
+  ±i with a component swap instead of a multiply; float32→float64 conversion
+  instructions across the module drop from 997 to 733. The scalar inverse
+  real-FFT repack loop is **2.6× faster** (six promoting products per bin,
+  −60% to −62% from half = 128 to 8192) and the forward recombination
+  −22% to −25%; on a `purego` build, where these loops are the whole
+  recombination rather than a SIMD tail, `PlanReal` inverse is 26–35% faster
+  at N = 256…16384 and forward 7% faster at N = 1024 and 4096. The packed
+  Stockham engine — the Stockham route on `purego` and WASM builds — is
+  29–31% faster forward and 34–38% faster inverse at 4K/64K/1M (complex64
+  geomean −32.8%). `KernelRecursive` is 12–14% faster forward and 25–29%
+  faster inverse at 2048 and 8192. The AVX2 mixed-radix inverse is 15–17%
+  faster at 3584 and 7168. `complex128` is unchanged everywhere except the
+  inverse repack loop, which gains 3–5% because `1 - 2*u` was a full complex
+  multiply where doubling the components needs half the products.
+
 ### Added
 
 - `reference.NaiveDFTWide`: a float64 DFT of a complex64 input, returning the

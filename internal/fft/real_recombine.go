@@ -1,5 +1,7 @@
 package fft
 
+import mathpkg "github.com/cwbudde/algo-fft/internal/math"
+
 // RecombineForwardComplex64 performs the forward real-FFT recombination step.
 // Given the FFT Y of the packed even/odd input in src (length half) and the
 // precomputed weights U (length >= half), it writes
@@ -41,7 +43,11 @@ func recombineForwardComplex64Generic(dst, src, weight []complex64, start int) {
 		bSrc := src[half-k]
 		b := complex(real(bSrc), -imag(bSrc)) // conj(Y[half-k])
 
-		c := weight[k] * (a - b)
+		// mathpkg.MulComplex64 rather than `*`: the operator widens both
+		// operands to complex128 and rounds back (see math.MulComplex64), which
+		// is also a different rounding from the AVX2/SSE3 kernels that handle
+		// the leading bins of this same loop.
+		c := mathpkg.MulComplex64(weight[k], a-b)
 		dst[k] = a - c
 	}
 }
@@ -53,7 +59,9 @@ func recombineForwardComplex128Generic(dst, src, weight []complex128, start int)
 		bSrc := src[half-k]
 		b := complex(real(bSrc), -imag(bSrc)) // conj(Y[half-k])
 
-		c := weight[k] * (a - b)
+		// MulComplex128 is the plain operator; it keeps this loop
+		// line-for-line comparable with its complex64 twin above.
+		c := mathpkg.MulComplex128(weight[k], a-b)
 		dst[k] = a - c
 	}
 }

@@ -122,6 +122,40 @@ func BenchmarkRepackInverseComplex128(b *testing.B) {
 	}
 }
 
+// BenchmarkRepackInverseComplex64Generic measures the scalar loop directly, as
+// its complex128 twin below does. Going through RepackInverseComplex64 would
+// measure nothing on a SIMD build: the AVX2/SSE2 pre-pass covers k = 1..half/2
+// and reports half/2+1 as the first unprocessed bin, but every k above half/2
+// hits the `k > m` skip, so the generic loop does no work at all there. It is
+// the whole loop on purego and WASM builds.
+func BenchmarkRepackInverseComplex64Generic(b *testing.B) {
+	for _, half := range []int{128, 512, 2048, 8192} {
+		b.Run(fmt.Sprintf("half=%d", half), func(b *testing.B) {
+			src := make([]complex64, half+1)
+			for i := range src {
+				src[i] = complex(float32(i%17)-8, float32(i%13)-6)
+			}
+
+			src[0] = complex(real(src[0]), 0)
+			src[half] = complex(real(src[half]), 0)
+
+			weight := recombineWeights64(half)
+			dst := make([]complex64, half)
+
+			b.ReportAllocs()
+			b.SetBytes(int64(half * 8))
+			b.ResetTimer()
+
+			for range b.N {
+				x0 := real(src[0])
+				xh := real(src[half])
+				dst[0] = complex(0.5*(x0+xh), 0.5*(x0-xh))
+				inverseRepackComplex64Generic(dst, src, weight, 1)
+			}
+		})
+	}
+}
+
 func BenchmarkRepackInverseComplex128Generic(b *testing.B) {
 	for _, half := range []int{128, 512, 2048, 8192} {
 		b.Run(fmt.Sprintf("half=%d", half), func(b *testing.B) {

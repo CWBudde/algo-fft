@@ -1,5 +1,7 @@
 package transform
 
+import imath "github.com/cwbudde/algo-fft/internal/math"
+
 // This file owns the packed mixed-radix Stockham engine: radix-4 (plus one
 // radix-2 stage for odd log2) with precomputed packed twiddles, gated by the
 // per-build stockhamPackedEnabled toggle. It is a different algorithm from
@@ -201,9 +203,12 @@ func stockhamPackedComplex64(dst, src, twiddle, scratch []complex64, packed *Pac
 	}
 
 	if inverse {
+		// Component-wise: `*= complex(scale, 0)` is a complex64 multiply, which
+		// widens both components to float64 and rounds back (see
+		// math.MulComplex64) for the same two products.
 		scale := float32(1.0 / float64(n))
 		for i := range dst {
-			dst[i] *= complex(scale, 0)
+			dst[i] = complex(real(dst[i])*scale, imag(dst[i])*scale)
 		}
 	}
 
@@ -311,9 +316,11 @@ func stockhamPackedComplex128(dst, src, twiddle, scratch []complex128, packed *P
 	}
 
 	if inverse {
+		// Component-wise, as in the complex64 twin: two products instead of
+		// the operator's four.
 		scale := 1.0 / float64(n)
 		for i := range dst {
-			dst[i] *= complex(scale, 0)
+			dst[i] = complex(real(dst[i])*scale, imag(dst[i])*scale)
 		}
 	}
 
@@ -348,7 +355,9 @@ func stockhamRadix2StageComplex64(in, out, twiddle []complex64, n, m int, invers
 			}
 
 			outLo[j] = a + b
-			outHi[j] = (a - b) * tw
+			// imath.MulComplex64 rather than `*`: the operator promotes the
+			// product to complex128 and rounds back (see math.MulComplex64).
+			outHi[j] = imath.MulComplex64(a-b, tw)
 		}
 	}
 
@@ -383,7 +392,9 @@ func stockhamRadix2StageComplex128(in, out, twiddle []complex128, n, m int, inve
 			}
 
 			outLo[j] = a + b
-			outHi[j] = (a - b) * tw
+			// MulComplex128 is the plain operator; it keeps this stage
+			// line-for-line comparable with its complex64 twin.
+			outHi[j] = imath.MulComplex128(a-b, tw)
 		}
 	}
 
@@ -444,9 +455,13 @@ func stockhamRadix4StageComplex64(in, out, packed []complex64, n, m, stageOffset
 			}
 
 			out0[j] = y0
-			out1[j] = y1 * w1
-			out2[j] = y2 * w2
-			out3[j] = y3 * w3
+			// imath.MulComplex64 rather than `*`: the operator promotes each of
+			// these three products to complex128 and rounds back (see
+			// math.MulComplex64). This is the innermost loop of the pure-Go
+			// Stockham route, so it is where that costs the most.
+			out1[j] = imath.MulComplex64(y1, w1)
+			out2[j] = imath.MulComplex64(y2, w2)
+			out3[j] = imath.MulComplex64(y3, w3)
 		}
 	}
 
@@ -507,9 +522,11 @@ func stockhamRadix4StageComplex128(in, out, packed []complex128, n, m, stageOffs
 			}
 
 			out0[j] = y0
-			out1[j] = y1 * w1
-			out2[j] = y2 * w2
-			out3[j] = y3 * w3
+			// MulComplex128 is the plain operator; it keeps this stage
+			// line-for-line comparable with its complex64 twin.
+			out1[j] = imath.MulComplex128(y1, w1)
+			out2[j] = imath.MulComplex128(y2, w2)
+			out3[j] = imath.MulComplex128(y3, w3)
 		}
 	}
 

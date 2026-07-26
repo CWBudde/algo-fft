@@ -1258,41 +1258,41 @@ SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       one float32 ulp of headroom, so it was passing on luck; it is now
       relative to the bin magnitude.
 
-                  Measured c64/c128 forward ratio (>1 = c64 slower, i.e. the defect),
-                  median of 14 process runs, ratio taken _within_ each run so thermal
-                  drift cancels — the machine was contended throughout, so treat the
-                  ratios as sound and the absolute times as indicative:
+                      Measured c64/c128 forward ratio (>1 = c64 slower, i.e. the defect),
+                      median of 14 process runs, ratio taken _within_ each run so thermal
+                      drift cancels — the machine was contended throughout, so treat the
+                      ratios as sound and the absolute times as indicative:
 
-                  | n     | route                        | before | after    |
-                  | ----- | ---------------------------- | ------ | -------- |
-                  | 704   | mixed-radix `[11,64]`        | 1.27   | **0.98** |
-                  | 1000  | mixed-radix `[5,5,5,8]`      | 1.26   | **0.91** |
-                  | 2205  | mixed-radix `[5,7,7,3,3]`    | 1.18   | **0.96** |
-                  | 3600  | mixed-radix `[5,5,3,3,16]`   | 1.19   | **0.91** |
-                  | 12000 | mixed-radix `[5,5,5,3,32]`   | 1.27   | **0.90** |
-                  | 257   | Rader, power-of-two sub-FFT  | 1.46   | 1.41     |
-                  | 1009  | Bluestein, power-of-two pad  | 1.29   | 1.25     |
+                      | n     | route                        | before | after    |
+                      | ----- | ---------------------------- | ------ | -------- |
+                      | 704   | mixed-radix `[11,64]`        | 1.27   | **0.98** |
+                      | 1000  | mixed-radix `[5,5,5,8]`      | 1.26   | **0.91** |
+                      | 2205  | mixed-radix `[5,7,7,3,3]`    | 1.18   | **0.96** |
+                      | 3600  | mixed-radix `[5,5,3,3,16]`   | 1.19   | **0.91** |
+                      | 12000 | mixed-radix `[5,5,5,3,32]`   | 1.27   | **0.90** |
+                      | 257   | Rader, power-of-two sub-FFT  | 1.46   | 1.41     |
+                      | 1009  | Bluestein, power-of-two pad  | 1.29   | 1.25     |
 
-                  In absolute terms the complex64 arm gained 21–32% at 1000, 2205, 3600
-                  and 12000 (p ≤ 0.04, `benchstat`, consistent across two independent
-                  run orderings) while complex128 showed no significant change at any
-                  length. Note what did _not_ move: 257 and 1009 are exactly the two
-                  lengths whose sub-FFT is a power-of-two DIT rather than the mixed-radix
-                  engine, so their residual deficit is not in the glue this item covers —
-                  it is the power-of-two forward path, which is the next item.
+                      In absolute terms the complex64 arm gained 21–32% at 1000, 2205, 3600
+                      and 12000 (p ≤ 0.04, `benchstat`, consistent across two independent
+                      run orderings) while complex128 showed no significant change at any
+                      length. Note what did _not_ move: 257 and 1009 are exactly the two
+                      lengths whose sub-FFT is a power-of-two DIT rather than the mixed-radix
+                      engine, so their residual deficit is not in the glue this item covers —
+                      it is the power-of-two forward path, which is the next item.
 
-                  _Confirmed off-laptop (2026-07-25)._ Re-run on a 64-core SSE-only host
-                  (no AVX at all, so every codelet resolves to the SSE2/SSE3 or generic
-                  tier), pre-fix and post-fix trees built side by side and run ABBA-
-                  interleaved, four rounds each. complex64 improved at **all ten**
-                  lengths tested (p = 0.029 each, −4% to −31%); complex128 showed **no
-                  significant change at any length**, which is the signature the fix
-                  predicts, since the c128 twin's `MulComplex128` is still the plain
-                  operator. The c64/c128 ratio moved 1.14–1.46 → 0.97–1.04 at 704, 1000,
-                  2205, 3600, 9973, 12000 and 44100. The three that stayed high are 257
-                  (1.46 → 1.41), 1009 (1.45 → 1.36) and 2003 (1.28 → 1.18) — all three
-                  route through a power-of-two sub-FFT, so 2003 is a _third_
-                  reproduction of the next item rather than a miss in this one.
+                      _Confirmed off-laptop (2026-07-25)._ Re-run on a 64-core SSE-only host
+                      (no AVX at all, so every codelet resolves to the SSE2/SSE3 or generic
+                      tier), pre-fix and post-fix trees built side by side and run ABBA-
+                      interleaved, four rounds each. complex64 improved at **all ten**
+                      lengths tested (p = 0.029 each, −4% to −31%); complex128 showed **no
+                      significant change at any length**, which is the signature the fix
+                      predicts, since the c128 twin's `MulComplex128` is still the plain
+                      operator. The c64/c128 ratio moved 1.14–1.46 → 0.97–1.04 at 704, 1000,
+                      2205, 3600, 9973, 12000 and 44100. The three that stayed high are 257
+                      (1.46 → 1.41), 1009 (1.45 → 1.36) and 2003 (1.28 → 1.18) — all three
+                      route through a power-of-two sub-FFT, so 2003 is a _third_
+                      reproduction of the next item rather than a miss in this one.
 
 - [x] **The same promotion still costs the pure-Go power-of-two codelets.**
       The fix above deliberately stopped at the paths P5.0 named. The
@@ -1516,7 +1516,7 @@ SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       n ≈ 10⁸. A possible follow-up, not urgent: an angle-reduced or compensated
       float64 reference would make the complex128 column mean something.
 
-- [ ] **Finish the promotion sweep outside `internal/kernels`.** The
+- [x] **Finish the promotion sweep outside `internal/kernels`.** The
       rewriter, run over the whole module, still reports scalar complex64
       products in three places the two P5.0 items never covered. They were
       left out deliberately: each needs its own benchmark to justify and
@@ -1543,6 +1543,149 @@ SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       `purego` 8192 and 16384 forward benchmarks puts 100% of samples in the
       monomorphized codelets plus inlined `MulComplex64`. Establish that a
       given one is hot before duplicating a function for it.
+
+      _Done 2026-07-26._ All 17 sites fixed. Module-wide `CVTSS2SD` count
+      **997 → 733** (−264, −26.5%); no function anywhere got worse. Complex
+      products go through `math.MulComplex64`; real scaling is component-wise
+      (`internal/fft` uses the SIMD-backed `ScaleComplex64InPlace` instead,
+      being in the same package); `multiplyByI`/`multiplyByNegI` became
+      swap-and-negate and now do no multiplying at all. Each `complex128` twin
+      was mirrored through `MulComplex128` so the hand-written pairs stay
+      line-for-line comparable, following `internal/fft/mixedradix.go`.
+
+      Measured per area, 5 interleaved passes per arm with a cooldown before
+      _each_ arm, because this laptop throttles hard under sustained
+      benchmarking (the caveat recorded against the AVX2 FMA-fusion round
+      above). Every table below has a negative control that came out flat,
+      which is what says these are not thermal artifacts.
+
+      **`internal/fft/real_repack.go` was indeed the highest-value of the
+      three, by a wide margin.** Isolated on the scalar loop
+      (`BenchmarkRepackInverseComplex64Generic`, added — the complex128 twin
+      already existed):
+
+      | half | 128    | 512    | 2048   | 8192   |
+      | ---- | ------ | ------ | ------ | ------ |
+      | c64  | −60.5% | −62.2% | −62.0% | −62.5% |
+      | c128 | −4.0%  | −2.9%  | −4.8%  | ~      |
+
+      Six promoting products per bin, so the loop runs **2.6× faster**. The
+      complex128 side improves too — small but real (p ≤ 0.032 at three of
+      four sizes): `det := 1 - 2*u` was a full complex multiply by `(2+0i)`,
+      four products where component-wise doubling needs two. That was worth
+      recording because it is the one place in this sweep where a
+      `complex128` path was not already optimal.
+
+      `real_recombine.go`, one product per bin, on the same footing
+      (`BenchmarkRecombineForwardComplex64Generic`, already present):
+      **−24.5% / −24.1% / −22.3% / −23.3%** at half = 128/512/2048/8192, with
+      the complex128 twin flat at every size — the control that says the
+      complex64 delta is the promotion and nothing else.
+
+      End-to-end on `purego`, where these two loops are the whole
+      recombination rather than a tail:
+
+      | `PlanReal*/Real`    | 256    | 1024   | 4096   | 16384  |
+      | ------------------- | ------ | ------ | ------ | ------ |
+      | Forward (recombine) | ~      | −7.0%  | −7.0%  | ~      |
+      | Inverse (repack)    | −34.8% | −30.9% | −26.2% | −26.7% |
+
+      (`PlanRealForward/Complex_N=*`, the complex-FFT comparison arm of the
+      same benchmark, is flat at all four sizes — the negative control.)
+
+      **`internal/transform/stockham_packed.go`** — the packed radix-4
+      Stockham engine, which is the Stockham route on `purego` and WASM and
+      disabled on SIMD builds. Its benchmarks call the engine directly, so
+      these are default-build numbers that hold on every build:
+
+      | n              | 4K     | 64K    | 1M     |
+      | -------------- | ------ | ------ | ------ |
+      | forward c64    | −28.6% | −31.0% | −28.7% |
+      | inverse c64    | −38.5% | −35.9% | −33.6% |
+      | c128 (control) | ~      | ~      | ~      |
+
+      complex64 geomean **−32.8%** across the six. The inverse gains more
+      because it also carries the 1/n scaling loop.
+
+      **`internal/transform/combine.go` + `recursive.go`** — `KernelRecursive`,
+      all builds: forward **−13.8%** (2048) and **−12.4%** (8192), inverse
+      **−24.5%** and **−28.6%**; geomean −20.1%, still allocation-free.
+
+      **`internal/fft/mixedradix_avx2.go`** — default AVX2 build, complex64
+      **−17.0%** at 3584 and **−14.8%** at 7168, flat at 385 and 1155 (odd-radix
+      dominated, so the codelet-scaling loop is a smaller share), complex128
+      unchanged. This path had **no benchmark at all**:
+      `BenchmarkMixedRadix7And11VsBluestein` measures only the forward
+      direction, and the loop in question is inverse-only.
+      `BenchmarkMixedRadixInverse` was added to cover it, which also gives the
+      44100 item below a handle on the inverse direction.
+
+      **Correction to this item's premise: part of the "separately"
+      list _was_ reachable by an operator swap.** Three of the 17 sites
+      (`multiplyByI`, `multiplyByNegI`, `scaleComplexSlice`) are the concrete
+      branches of `any(x).(type)` switches inside generic functions — and Go
+      compiles *every* branch of a type switch into *every* shape
+      instantiation. So each `complex64` branch was charging its promotion to
+      the `complex128` instantiation as well. Fixing those three zeroed four
+      functions from the "needs monomorphizing" list outright —
+      `combineRadix4[c128]` 20 → 0, `combineRadix4Conj[c128]` 40 → 0,
+      `recursiveInverseWithTwiddle[c64]` and `[c128]` 15 → 0 each — and cut
+      `combineRadix4Conj[c64]` 100 → 60 and `combineRadix4[c64]` 80 → 60.
+      Worth remembering as a general rule: a type switch is a place where
+      concrete-typed code hides inside a generic body, so it is reachable
+      without monomorphizing.
+
+      What genuinely still needs monomorphizing is the type-parameter
+      multiply `twiddle[k] * sub1[k]`, whose operands have type `T`. The
+      remaining census, so the next attempt need not rebuild it
+      (`CVTSS2SD` per function, default build; all are
+      `[go.shape.complex64]` instantiations):
+
+      | function                                         | count |
+      | ------------------------------------------------ | ----- |
+      | `transform.combineRadix4` / `combineRadix4Conj`   | 60 ea |
+      | `fft.ditInverseStrided`                           | 48    |
+      | `transform.combineRadix8` / `Conj`                | 40 ea |
+      | `transform.combineGeneral` / `Conj`               | 40 ea |
+      | `kernels.ditInverseBitrev`                        | 40    |
+      | `kernels.Butterfly2` / `butterfly2`               | 24 ea |
+      | `fft.ditForwardStrided`                           | 24    |
+      | `transform.recursiveForwardWithTwiddle`           | 20    |
+      | `transform.combineRadix2` / `Conj`                | 20 ea |
+      | `kernels.ditForwardBitrev`                        | 20    |
+      | `fft.mixedRadixTransform`                         | 20    |
+      | `kernels.BluesteinConvolution`                    | 16    |
+      | `fft.ComplexMulArray{,InPlace}` + `*Generic`      | 16 ea |
+      | `fft.ScaleInPlace`                                | 16    |
+      | `kernels.stockhamInverse`                         | 8     |
+      | `kernels.{stockham,sixStep,eightStep,fourStep}*`  | 4 ea  |
+
+      Two of these are free: `fft.ScaleInPlace`'s 16 are in its `default:`
+      branch, which is unreachable under the `Complex` constraint, and the
+      `ComplexMulArray*` counts are in generic fallbacks whose complex64
+      callers already reach the SIMD entrypoints. The rest need the
+      `radix3TransformComplex64` treatment.
+
+- [ ] **One fully-unrolled codelet is over the inliner's big-function
+      threshold and pays a real `CALL` per complex multiply.**
+      `internal/kernels.inverseDIT64Radix2Complex64` contains **193 `CALL`
+      instructions to `math.MulComplex64`** — every un-inlined
+      `MulComplex64` call in the entire module is inside that one function.
+      The helper is inlinable (`-gcflags=-m` says `can inline MulComplex64`),
+      but Go's inliner falls back to a much smaller cost budget inside very
+      large callers, and this codelet is fully unrolled for n = 64, so the
+      call survives. That partly undoes the second P5.0 item _inside this one
+      function_: a call plus argument shuffling per product instead of four
+      instructions. `forwardDIT64Radix2Complex64`, in the same file with 129
+      `MulComplex64` products against the inverse's 161, has **zero** — so the
+      threshold sits between them, which should make it cheap to find how much
+      the inverse has to shed. Predates this sweep and is unchanged by
+      it — the count is identical before and after — so it is not a
+      regression, but it is worth either hand-expanding the products in that
+      codelet or splitting it until the inliner engages. Benchmark
+      `BenchmarkGoInverse_64`/the n = 64 codelet benchmarks on `purego`
+      before and after; check whether any other unrolled codelet crosses the
+      same threshold with `grep -c 'CALL.*MulComplex'` per function.
 
 - [ ] **The power-of-two complex64 _forward_ path underperforms its own
       inverse.** Splitting the c64/c128 ratio by direction on the same run:

@@ -151,17 +151,23 @@ func combineGeneral[T Complex](
 
 // multiplyByI multiplies a complex number by i (90° rotation).
 // i * (a + bi) = -b + ai.
+//
+// A 90° rotation is a component swap with one negation, so both branches build
+// the result directly instead of multiplying by complex(0, ±1). That is not just
+// cheaper than the four products the operator emits: on complex64 the operator
+// also widens each component to float64 and rounds back (see
+// math.MulComplex64), and a type switch's branches are compiled into *both*
+// shape instantiations, so the complex64 promotion was showing up in the
+// complex128 one too.
 func multiplyByI[T Complex](x T) T {
-	// Multiply by i: rotate 90 degrees counterclockwise
-	// This is equivalent to: x * complex(0, 1)
 	switch xv := any(x).(type) {
 	case complex64:
-		res := xv * complex(0, 1)
+		res := complex(-imag(xv), real(xv))
 		rv, _ := any(res).(T)
 
 		return rv
 	case complex128:
-		res := xv * complex(0, 1)
+		res := complex(-imag(xv), real(xv))
 		rv, _ := any(res).(T)
 
 		return rv
@@ -172,17 +178,17 @@ func multiplyByI[T Complex](x T) T {
 
 // multiplyByNegI multiplies a complex number by -i (-90° rotation).
 // -i * (a + bi) = b - ai.
+//
+// See multiplyByI for why this is a swap-and-negate rather than a multiply.
 func multiplyByNegI[T Complex](x T) T {
-	// Multiply by -i: rotate 90 degrees clockwise
-	// This is equivalent to: x * complex(0, -1)
 	switch xv := any(x).(type) {
 	case complex64:
-		res := xv * complex(0, -1)
+		res := complex(imag(xv), -real(xv))
 		rv, _ := any(res).(T)
 
 		return rv
 	case complex128:
-		res := xv * complex(0, -1)
+		res := complex(imag(xv), -real(xv))
 		rv, _ := any(res).(T)
 
 		return rv

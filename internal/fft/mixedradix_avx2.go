@@ -134,11 +134,13 @@ func mixedRadixRecursivePingPongComplex64AVX2(dst, src, work []complex64, n, str
 			// fall through to the pure-Go implementation then.
 			if inverse {
 				if entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch) {
-					// Undo built-in scaling of the Inverse codelet (1/n)
-					scale := complex64(complex(float32(n), 0))
-					for i := range n {
-						dst[i] *= scale
-					}
+					// Undo built-in scaling of the Inverse codelet (1/n).
+					// ScaleComplex64InPlace multiplies by the real factor
+					// component-wise and takes the SIMD path when available;
+					// `dst[i] *= complex(float32(n), 0)` instead widened every
+					// element to complex128 for the same two products (see
+					// math.MulComplex64).
+					ScaleComplex64InPlace(dst[:n], float32(n))
 
 					return
 				}
@@ -188,11 +190,9 @@ func mixedRadixRecursivePingPongComplex128AVX2(dst, src, work []complex128, n, s
 			// fall through to the pure-Go implementation then.
 			if inverse {
 				if entry.Inverse(dst[:n], inputBuf, codeletTwiddle, kernelScratch) {
-					// Undo built-in scaling of the Inverse codelet (1/n)
-					scale := complex128(complex(float64(n), 0))
-					for i := range n {
-						dst[i] *= scale
-					}
+					// Undo built-in scaling of the Inverse codelet (1/n); the
+					// SIMD-backed helper, as in the complex64 twin.
+					ScaleComplex128InPlace(dst[:n], float64(n))
 
 					return
 				}
