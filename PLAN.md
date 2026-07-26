@@ -1258,41 +1258,41 @@ SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       one float32 ulp of headroom, so it was passing on luck; it is now
       relative to the bin magnitude.
 
-                              Measured c64/c128 forward ratio (>1 = c64 slower, i.e. the defect),
-                                  median of 14 process runs, ratio taken _within_ each run so thermal
-                                  drift cancels — the machine was contended throughout, so treat the
-                                  ratios as sound and the absolute times as indicative:
+                                Measured c64/c128 forward ratio (>1 = c64 slower, i.e. the defect),
+                                    median of 14 process runs, ratio taken _within_ each run so thermal
+                                    drift cancels — the machine was contended throughout, so treat the
+                                    ratios as sound and the absolute times as indicative:
 
-                                  | n     | route                        | before | after    |
-                                  | ----- | ---------------------------- | ------ | -------- |
-                                  | 704   | mixed-radix `[11,64]`        | 1.27   | **0.98** |
-                                  | 1000  | mixed-radix `[5,5,5,8]`      | 1.26   | **0.91** |
-                                  | 2205  | mixed-radix `[5,7,7,3,3]`    | 1.18   | **0.96** |
-                                  | 3600  | mixed-radix `[5,5,3,3,16]`   | 1.19   | **0.91** |
-                                  | 12000 | mixed-radix `[5,5,5,3,32]`   | 1.27   | **0.90** |
-                                  | 257   | Rader, power-of-two sub-FFT  | 1.46   | 1.41     |
-                                  | 1009  | Bluestein, power-of-two pad  | 1.29   | 1.25     |
+                                    | n     | route                        | before | after    |
+                                    | ----- | ---------------------------- | ------ | -------- |
+                                    | 704   | mixed-radix `[11,64]`        | 1.27   | **0.98** |
+                                    | 1000  | mixed-radix `[5,5,5,8]`      | 1.26   | **0.91** |
+                                    | 2205  | mixed-radix `[5,7,7,3,3]`    | 1.18   | **0.96** |
+                                    | 3600  | mixed-radix `[5,5,3,3,16]`   | 1.19   | **0.91** |
+                                    | 12000 | mixed-radix `[5,5,5,3,32]`   | 1.27   | **0.90** |
+                                    | 257   | Rader, power-of-two sub-FFT  | 1.46   | 1.41     |
+                                    | 1009  | Bluestein, power-of-two pad  | 1.29   | 1.25     |
 
-                                  In absolute terms the complex64 arm gained 21–32% at 1000, 2205, 3600
-                                  and 12000 (p ≤ 0.04, `benchstat`, consistent across two independent
-                                  run orderings) while complex128 showed no significant change at any
-                                  length. Note what did _not_ move: 257 and 1009 are exactly the two
-                                  lengths whose sub-FFT is a power-of-two DIT rather than the mixed-radix
-                                  engine, so their residual deficit is not in the glue this item covers —
-                                  it is the power-of-two forward path, which is the next item.
+                                    In absolute terms the complex64 arm gained 21–32% at 1000, 2205, 3600
+                                    and 12000 (p ≤ 0.04, `benchstat`, consistent across two independent
+                                    run orderings) while complex128 showed no significant change at any
+                                    length. Note what did _not_ move: 257 and 1009 are exactly the two
+                                    lengths whose sub-FFT is a power-of-two DIT rather than the mixed-radix
+                                    engine, so their residual deficit is not in the glue this item covers —
+                                    it is the power-of-two forward path, which is the next item.
 
-                                  _Confirmed off-laptop (2026-07-25)._ Re-run on a 64-core SSE-only host
-                                  (no AVX at all, so every codelet resolves to the SSE2/SSE3 or generic
-                                  tier), pre-fix and post-fix trees built side by side and run ABBA-
-                                  interleaved, four rounds each. complex64 improved at **all ten**
-                                  lengths tested (p = 0.029 each, −4% to −31%); complex128 showed **no
-                                  significant change at any length**, which is the signature the fix
-                                  predicts, since the c128 twin's `MulComplex128` is still the plain
-                                  operator. The c64/c128 ratio moved 1.14–1.46 → 0.97–1.04 at 704, 1000,
-                                  2205, 3600, 9973, 12000 and 44100. The three that stayed high are 257
-                                  (1.46 → 1.41), 1009 (1.45 → 1.36) and 2003 (1.28 → 1.18) — all three
-                                  route through a power-of-two sub-FFT, so 2003 is a _third_
-                                  reproduction of the next item rather than a miss in this one.
+                                    _Confirmed off-laptop (2026-07-25)._ Re-run on a 64-core SSE-only host
+                                    (no AVX at all, so every codelet resolves to the SSE2/SSE3 or generic
+                                    tier), pre-fix and post-fix trees built side by side and run ABBA-
+                                    interleaved, four rounds each. complex64 improved at **all ten**
+                                    lengths tested (p = 0.029 each, −4% to −31%); complex128 showed **no
+                                    significant change at any length**, which is the signature the fix
+                                    predicts, since the c128 twin's `MulComplex128` is still the plain
+                                    operator. The c64/c128 ratio moved 1.14–1.46 → 0.97–1.04 at 704, 1000,
+                                    2205, 3600, 9973, 12000 and 44100. The three that stayed high are 257
+                                    (1.46 → 1.41), 1009 (1.45 → 1.36) and 2003 (1.28 → 1.18) — all three
+                                    route through a power-of-two sub-FFT, so 2003 is a _third_
+                                    reproduction of the next item rather than a miss in this one.
 
 - [x] **The same promotion still costs the pure-Go power-of-two codelets.**
       The fix above deliberately stopped at the paths P5.0 named. The
@@ -1844,8 +1844,10 @@ SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       `Size16/Radix16` to both DIT tables, `BenchmarkSplitRadixComplex{64,128}`
       over 256…65536, and `BenchmarkPlan{Forward,Inverse}_384`.
 
-- [ ] **The power-of-two complex64 _forward_ path underperforms its own
-      inverse.** Splitting the c64/c128 ratio by direction on the same run:
+- [x] **The power-of-two complex64 _forward_ path underperforms its own
+      inverse.** _Not reproduced — closed 2026-07-26; the effect was a
+      measurement artifact. See the resolution at the end of this entry._
+      Splitting the c64/c128 ratio by direction on the same run:
       at 128, forward gains 1.23× where inverse gains 3.36×; at 256, 1.67×
       vs 4.19×; at 4096, 1.14× vs 2.12×; at 8192, 1.07× vs 1.81×. The
       inverse codelets are extracting the width benefit the forward ones are
@@ -1904,31 +1906,104 @@ SUBSD, CVTSD2SS ×2`, twelve instructions against six for the same
       machines measured. The lone exception is n = 256 complex128 radix-16
       (forward 764, inverse 601).
 
-      **Still open: the laptop re-confirmation this item asks for first.** Two
-      attempts were discarded rather than written up. The first ordered cells
-      with `sort -u`, which sorts every `Candidates128` cell ahead of every
-      `Candidates64` cell and so ran the whole complex128 arm in the hot window
-      left by a long test run — inflating it ~13× (one cell read 26730 ns there
-      and 2031 ns cooled). That would have manufactured a spectacular fake
-      precision asymmetry; it was caught only because the number disagreed with
-      a previously measured value for the same function. The second attempt died
-      to contention: another tenant's Go suite at 99% CPU plus a runaway plugin
-      process took the canary cell from 1895 ns to 61746 ns mid-run, at load
-      average 26 on 12 threads.
+      **Measured on the laptop, and it does not reproduce here either.**
+      Canary-gated sweep, 36 accepted groups against 4 rejected; plan-level and
+      codelet-level figures agree to within ~1% at every size, which is what
+      makes them trustworthy. Forward against its own inverse (< 1 = forward
+      faster = the expected ordering, since the inverse carries the 1/n scaling):
 
-      A canary-gated harness now exists (scratchpad `p47/gated.sh`): it times a
-      cell with a known quiet-machine value before each group and records only
-      windows within 25% of it, so contention yields _missing_ data rather than
-      wrong data, and each group runs both precisions and both directions
-      back-to-back so every ratio comes from one thermal window. Run it on an
-      idle machine. Two caveats for whoever does: `BenchmarkCodeletCandidates*`
-      drives its input from `complex(float32(i%7)-3, float32(i%5)-2)`, a
-      period-35 pattern with an almost entirely zero spectrum, so it partly
-      times cancellation behaviour that differs per strategy; and the four
-      plan-level sizes only became measurable in-tree once
-      `BenchmarkPlan{Forward,Inverse}_{256,4096}_Complex128_Focus` were added
-      here — complex128 previously had plan benchmarks at 128, 512 and 8192
-      only, which is why this item's ratios came from an out-of-tree sweep.
+      | n    | c64 plan | c64 codelet | c128 plan | c128 codelet |
+      | ---- | -------- | ----------- | --------- | ------------ |
+      | 128  | 0.89     | 0.89        | 0.93      | 0.94         |
+      | 256  | 0.92     | 0.85        | 1.08      | 0.95         |
+      | 4096 | 1.03     | 0.97        | 0.94      | 0.95         |
+      | 8192 | 0.95     | 0.96        | 0.94      | 0.99         |
+
+      Forward is faster than its own inverse at every size in both precisions.
+      The only two cells above 1.0 are marginal and each is contradicted by its
+      own codelet-level twin. The laptop now agrees with the SSE-only host and
+      the Xeon: there is no forward-path defect on any machine tested.
+
+      **The original numbers were half right, and the wrong half was the
+      inverse.** Re-measuring the c64/c128 gain per direction:
+
+      | n    | item fwd | measured | item inv | measured |
+      | ---- | -------- | -------- | -------- | -------- |
+      | 128  | 1.23     | **1.28** | 3.36     | **1.17** |
+      | 256  | 1.67     | **1.69** | 4.19     | **1.39** |
+      | 4096 | 1.14     | 1.36     | 2.12     | **1.47** |
+      | 8192 | 1.07     | 1.51     | 1.81     | **1.54** |
+
+      The forward column reproduces almost exactly at 128 and 256; the inverse
+      column collapses to roughly a third of what was claimed. "The inverse
+      codelets are extracting the width benefit the forward ones are not" was
+      reading a contended _inverse_ arm as signal — consistent with the source
+      sweep's own standing caveat that the machine was contended throughout.
+      What survives is that the c64/c128 gain is a fairly uniform 1.2–1.7×
+      across both directions rather than the ~2× the register width suggests,
+      and that belongs to the "complex64 buys nothing between 1024 and 16384"
+      item below, not here.
+
+      **Consequence for the arbitrary-length items.** This item claimed 257
+      (1.41×) and 1009 (1.25×) were "this item seen through the arbitrary-length
+      routes", with 2003 a third reproduction. That link is void: there is no
+      forward-path defect for them to be a reproduction of. Their residual
+      complex64 deficit needs its own cause — the one property they still share
+      is a power-of-two DIT sub-FFT rather than the mixed-radix engine.
+
+      **Two measurement lessons, each of which cost a discarded run.** Ordering
+      benchmark cells with `sort -u` puts every `Candidates128` cell ahead of
+      every `Candidates64` cell, which ran the whole complex128 arm inside the
+      hot window left by a long test run and inflated it ~13× (one cell read
+      26730 ns there against 2031 ns cooled) — a fake precision asymmetry,
+      caught only because the figure disagreed with a value the previous item
+      had already measured for that same function. And **a once-per-pass canary
+      is not enough**: a 94-cell pass takes 5–13 minutes, so contention arriving
+      mid-pass goes unseen, and 3 of 5 nominally-clean passes were contaminated,
+      one by 50×. Only per-group bracketing — a canary cell with a known
+      quiet-machine value timed before _and after_ each group, as in scratchpad
+      `p47/gated.sh` — rejects that. It is how the tables above were obtained,
+      with each group running both precisions and both directions back-to-back
+      so every ratio comes from a single thermal window.
+
+      Benchmark gap closed:
+      `BenchmarkPlan{Forward,Inverse}_{256,4096}_Complex128_Focus`. complex128
+      previously had plan benchmarks at 128, 512 and 8192 only, so two of this
+      item's four sizes could not be measured in-tree at all — which is why its
+      ratios came from an out-of-tree sweep to begin with. Also added
+      `TestCodeletsRegisterBothDirections{64,128}`, which locks in the
+      direction-symmetry property established above: a half-registered codelet
+      would send one direction down the generic kernel ladder while the other
+      kept the codelet, pass every correctness test, and surface only as an
+      unexplained forward/inverse asymmetry — exactly the shape of this item.
+
+- [ ] **Audit whether each power-of-two incumbent is still the fastest
+      registered candidate, per direction.** Fell out of the item above, which
+      ruled out its own stated lead and left this as the live question. The
+      complex64 priorities at n = 256 are 135 / 130 / 120 — outliers from an
+      earlier tuning round, an order of magnitude above the 10–40 used
+      everywhere else — and selection differs by _precision_ at two sizes:
+      n = 256 binds `dit256_radix2_avx2` for complex64 but `dit256_radix16_avx2`
+      for complex128, n = 8192 binds `dit8192_radix4_then2_params_avx2` against
+      plain `dit8192_radix4_then2_avx2`. Neither difference is wrong on its face;
+      neither has been re-measured since the priorities were set.
+
+      `BenchmarkCodeletCandidates{64,128}` already times every registered
+      candidate per size and direction, so this is a measurement job rather than
+      a code one — but two things must be fixed before its output can be
+      trusted:
+
+      - the 94-cell sweep needs **per-group canary bracketing** (see the item
+        above: a once-per-pass canary let 3 of 5 passes through contaminated,
+        one of them by 50×, and the resulting candidate ordering was garbage);
+      - the harness drives its input from
+        `complex(float32(i%7)-3, float32(i%5)-2)`, a period-35 pattern whose
+        spectrum is almost entirely zero, so it partly times cancellation and
+        denormal behaviour that differs per strategy. Switch it to random input
+        before trusting any per-candidate ordering.
+
+      Run on an idle machine, and re-check `internal/registry`'s descending
+      priority order against the result rather than the other way round.
 
 - [ ] **algo-fft loses to gonum at n = 44100** — 4.00 ms against gonum's
       2.59 ms (FFTW3: 236 µs). That is the canonical audio sample rate, in

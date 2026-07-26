@@ -36,6 +36,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BenchmarkPlan{Forward,Inverse}_384` for a plain `NewPlan(384)` — previously
   only the forced-Bluestein route at that length was benchmarked.
 
+- `BenchmarkPlan{Forward,Inverse}_{256,4096}_Complex128_Focus`. complex128 had
+  plan benchmarks at 128, 512 and 8192 only, so the complex64/complex128 ratio
+  could not be taken in-tree at two of the four power-of-two sizes where it was
+  under investigation.
+
+- `TestCodeletsRegisterBothDirections{64,128}`, asserting that no registered
+  codelet supplies only one direction. A registry entry carries `Forward` and
+  `Inverse` together, so a half-registered entry would quietly run one direction
+  through the codelet and the other through the generic kernel ladder — correct
+  in both cases, and therefore invisible to every existing test, surfacing only
+  as an unexplained forward/inverse performance asymmetry.
+
 ### Fixed
 
 - The size-64 radix-2 DIT codelet applied its 1/n inverse scaling as 64
