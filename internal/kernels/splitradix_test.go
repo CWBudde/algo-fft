@@ -3,6 +3,7 @@ package kernels
 import (
 	"math/cmplx"
 	"math/rand"
+	"strconv"
 	"testing"
 
 	mathpkg "github.com/cwbudde/algo-fft/internal/math"
@@ -129,4 +130,43 @@ func TestSplitRadix_InPlaceAndRejects(t *testing.T) {
 		mathpkg.ComputeTwiddleFactors[complex128](16), make([]complex128, 16)) {
 		t.Fatal("short dst accepted, want reject")
 	}
+}
+
+// splitRadixBenchSizes span cache-resident to memory-bound, because the 1/n
+// scaling pass in the inverse is a separate O(n) sweep over the output: whether
+// removing arithmetic from it shows up at all depends on which side of the
+// cache boundary the transform sits.
+//
+//nolint:gochecknoglobals // benchmark input table
+var splitRadixBenchSizes = []int{256, 1024, 4096, 65536}
+
+// BenchmarkSplitRadixComplex64 benchmarks the split-radix kernels for
+// complex64. The forward direction applies no scaling and serves as the control
+// for changes to the inverse's scaling pass.
+func BenchmarkSplitRadixComplex64(b *testing.B) {
+	for _, n := range splitRadixBenchSizes {
+		b.Run(sizeLabel(n)+"/Forward", func(b *testing.B) {
+			runBenchComplex64(b, n, ForwardSplitRadixComplex64)
+		})
+		b.Run(sizeLabel(n)+"/Inverse", func(b *testing.B) {
+			runBenchComplex64(b, n, InverseSplitRadixComplex64)
+		})
+	}
+}
+
+// BenchmarkSplitRadixComplex128 is the complex128 counterpart of
+// BenchmarkSplitRadixComplex64.
+func BenchmarkSplitRadixComplex128(b *testing.B) {
+	for _, n := range splitRadixBenchSizes {
+		b.Run(sizeLabel(n)+"/Forward", func(b *testing.B) {
+			runBenchComplex128(b, n, ForwardSplitRadixComplex128)
+		})
+		b.Run(sizeLabel(n)+"/Inverse", func(b *testing.B) {
+			runBenchComplex128(b, n, InverseSplitRadixComplex128)
+		})
+	}
+}
+
+func sizeLabel(n int) string {
+	return "Size" + strconv.Itoa(n)
 }

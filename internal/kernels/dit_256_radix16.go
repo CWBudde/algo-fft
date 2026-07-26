@@ -344,24 +344,30 @@ func inverseDIT256Radix16Complex64(dst, src, twiddle, scratch []complex64) bool 
 
 		v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = fft16Complex64Inverse(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15)
 
+		// Scaling by the *real* factor 1/n is done component-wise rather than
+		// through the complex-multiply helper, which would spend two products
+		// against a zero imaginary part plus an add and a subtract per output.
+		// The compiler does not fold those away: these 16 writes accounted for
+		// 64 of the function's 124 float multiplies and all 32 of the
+		// add/subtracts the forward direction does not have.
 		const scale = 1.0 / 256.0
 
-		dst[j] = mathpkg.MulComplex64(v0, scale)
-		dst[j+16] = mathpkg.MulComplex64(v1, scale)
-		dst[j+32] = mathpkg.MulComplex64(v2, scale)
-		dst[j+48] = mathpkg.MulComplex64(v3, scale)
-		dst[j+64] = mathpkg.MulComplex64(v4, scale)
-		dst[j+80] = mathpkg.MulComplex64(v5, scale)
-		dst[j+96] = mathpkg.MulComplex64(v6, scale)
-		dst[j+112] = mathpkg.MulComplex64(v7, scale)
-		dst[j+128] = mathpkg.MulComplex64(v8, scale)
-		dst[j+144] = mathpkg.MulComplex64(v9, scale)
-		dst[j+160] = mathpkg.MulComplex64(v10, scale)
-		dst[j+176] = mathpkg.MulComplex64(v11, scale)
-		dst[j+192] = mathpkg.MulComplex64(v12, scale)
-		dst[j+208] = mathpkg.MulComplex64(v13, scale)
-		dst[j+224] = mathpkg.MulComplex64(v14, scale)
-		dst[j+240] = mathpkg.MulComplex64(v15, scale)
+		dst[j] = complex(real(v0)*scale, imag(v0)*scale)
+		dst[j+16] = complex(real(v1)*scale, imag(v1)*scale)
+		dst[j+32] = complex(real(v2)*scale, imag(v2)*scale)
+		dst[j+48] = complex(real(v3)*scale, imag(v3)*scale)
+		dst[j+64] = complex(real(v4)*scale, imag(v4)*scale)
+		dst[j+80] = complex(real(v5)*scale, imag(v5)*scale)
+		dst[j+96] = complex(real(v6)*scale, imag(v6)*scale)
+		dst[j+112] = complex(real(v7)*scale, imag(v7)*scale)
+		dst[j+128] = complex(real(v8)*scale, imag(v8)*scale)
+		dst[j+144] = complex(real(v9)*scale, imag(v9)*scale)
+		dst[j+160] = complex(real(v10)*scale, imag(v10)*scale)
+		dst[j+176] = complex(real(v11)*scale, imag(v11)*scale)
+		dst[j+192] = complex(real(v12)*scale, imag(v12)*scale)
+		dst[j+208] = complex(real(v13)*scale, imag(v13)*scale)
+		dst[j+224] = complex(real(v14)*scale, imag(v14)*scale)
+		dst[j+240] = complex(real(v15)*scale, imag(v15)*scale)
 	}
 
 	return true

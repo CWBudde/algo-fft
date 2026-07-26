@@ -2,10 +2,6 @@
 
 package kernels
 
-import (
-	mathpkg "github.com/cwbudde/algo-fft/internal/math"
-)
-
 // forwardDIT16Radix16Complex128 computes a 16-point forward FFT using a single
 // radix-16 stage for complex128 data (bit-reversed input -> natural output).
 func forwardDIT16Radix16Complex128(dst, src, twiddle, scratch []complex128) bool {
@@ -92,24 +88,30 @@ func inverseDIT16Radix16Complex128(dst, src, twiddle, scratch []complex128) bool
 		v8, v9, v10, v11, v12, v13, v14, v15,
 	)
 
+	// The 1/n scaling is a multiply by a *real* factor, so it is applied
+	// component-wise. Routing it through the complex-multiply helper instead
+	// spends two products against a zero imaginary part plus an add and a
+	// subtract per output, and the compiler does not fold them away: before
+	// this change the whole function compiled to 64 float multiplies and 32
+	// add/subtracts, all of them from these 16 writes.
 	const scale = 1.0 / 16.0
 
-	dst[0] = mathpkg.MulComplex128(v0, scale)
-	dst[1] = mathpkg.MulComplex128(v1, scale)
-	dst[2] = mathpkg.MulComplex128(v2, scale)
-	dst[3] = mathpkg.MulComplex128(v3, scale)
-	dst[4] = mathpkg.MulComplex128(v4, scale)
-	dst[5] = mathpkg.MulComplex128(v5, scale)
-	dst[6] = mathpkg.MulComplex128(v6, scale)
-	dst[7] = mathpkg.MulComplex128(v7, scale)
-	dst[8] = mathpkg.MulComplex128(v8, scale)
-	dst[9] = mathpkg.MulComplex128(v9, scale)
-	dst[10] = mathpkg.MulComplex128(v10, scale)
-	dst[11] = mathpkg.MulComplex128(v11, scale)
-	dst[12] = mathpkg.MulComplex128(v12, scale)
-	dst[13] = mathpkg.MulComplex128(v13, scale)
-	dst[14] = mathpkg.MulComplex128(v14, scale)
-	dst[15] = mathpkg.MulComplex128(v15, scale)
+	dst[0] = complex(real(v0)*scale, imag(v0)*scale)
+	dst[1] = complex(real(v1)*scale, imag(v1)*scale)
+	dst[2] = complex(real(v2)*scale, imag(v2)*scale)
+	dst[3] = complex(real(v3)*scale, imag(v3)*scale)
+	dst[4] = complex(real(v4)*scale, imag(v4)*scale)
+	dst[5] = complex(real(v5)*scale, imag(v5)*scale)
+	dst[6] = complex(real(v6)*scale, imag(v6)*scale)
+	dst[7] = complex(real(v7)*scale, imag(v7)*scale)
+	dst[8] = complex(real(v8)*scale, imag(v8)*scale)
+	dst[9] = complex(real(v9)*scale, imag(v9)*scale)
+	dst[10] = complex(real(v10)*scale, imag(v10)*scale)
+	dst[11] = complex(real(v11)*scale, imag(v11)*scale)
+	dst[12] = complex(real(v12)*scale, imag(v12)*scale)
+	dst[13] = complex(real(v13)*scale, imag(v13)*scale)
+	dst[14] = complex(real(v14)*scale, imag(v14)*scale)
+	dst[15] = complex(real(v15)*scale, imag(v15)*scale)
 
 	return true
 }

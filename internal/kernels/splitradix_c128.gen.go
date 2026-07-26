@@ -168,9 +168,13 @@ func InverseSplitRadixComplex128(dst, src, twiddle, scratch []complex128) bool {
 
 	splitRadixInverseRecurseComplex128(work, src[:n], 1, len(twiddle)/n, twiddle)
 
-	scale := complex(1/float64(n), 0)
+	// Scaling by the *real* factor 1/n is done component-wise: the
+	// complex-multiply helper would spend two products against a zero
+	// imaginary part plus an add and a subtract on every element of every
+	// split-radix transform, and the compiler does not fold them away.
+	scale := 1 / float64(n)
 	for i, v := range work {
-		dst[i] = mathpkg.MulComplex128(v, scale)
+		dst[i] = complex(real(v)*scale, imag(v)*scale)
 	}
 
 	return true

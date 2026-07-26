@@ -110,6 +110,14 @@ func BenchmarkPlanInverse_16384_Recursive(b *testing.B) {
 	benchmarkPlanInverseWithOptions(b, 16384, PlanOptions{Strategy: KernelRecursive})
 }
 
+// Size 384 = 2^7 x 3 is the one non-power-of-two length with a dedicated
+// codelet (dit384_mixed), and that codelet is the only registered candidate at
+// its size, so it is selected on every build and both precisions. These measure
+// it through the public API; BenchmarkBluestein_{Forward,Inverse}_384 measures
+// the same length forced down the Bluestein route instead.
+func BenchmarkPlanForward_384(b *testing.B) { benchmarkPlanForward(b, 384) }
+func BenchmarkPlanInverse_384(b *testing.B) { benchmarkPlanInverse(b, 384) }
+
 // Plan creation benchmarks (additional sizes - 64, 1024, 65536 are in plan_test.go).
 func BenchmarkNewPlan_16(b *testing.B)    { benchmarkNewPlan(b, 16) }
 func BenchmarkNewPlan_256(b *testing.B)   { benchmarkNewPlan(b, 256) }

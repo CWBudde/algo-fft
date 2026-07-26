@@ -188,15 +188,20 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 		work[2*stride+n1] = mathpkg.MulComplex64(work[2*stride+n1], mathpkg.Conj(twiddle[2*n1]))
 	}
 
-	scale := complex64(complex(1.0/3.0, 0)) // Additional scaling (128-pt IFFT did 1/128)
+	// Additional scaling (128-pt IFFT did 1/128). 1/3 is a *real* factor, so it
+	// is applied component-wise: routing it through the complex-multiply helper
+	// spends two products against a zero imaginary part plus an add and a
+	// subtract per output, and the compiler does not fold them away.
+	const scale = float32(1.0 / 3.0)
+
 	for n1 := range stride {
 		a0 := work[n1]
 		a1 := work[n1+stride]
 		a2 := work[n1+2*stride]
 		y0, y1, y2 := butterfly3InverseComplex64(a0, a1, a2)
-		dst[n1] = mathpkg.MulComplex64(y0, scale)
-		dst[n1+stride] = mathpkg.MulComplex64(y1, scale)
-		dst[n1+2*stride] = mathpkg.MulComplex64(y2, scale)
+		dst[n1] = complex(real(y0)*scale, imag(y0)*scale)
+		dst[n1+stride] = complex(real(y1)*scale, imag(y1)*scale)
+		dst[n1+2*stride] = complex(real(y2)*scale, imag(y2)*scale)
 	}
 
 	return true
@@ -307,10 +312,15 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	// Step 4: Compute 128 radix-3 inverse column butterflies
 	amd64.Radix3Butterflies384InverseComplex128Asm(work)
 
-	// Scale and copy to dst
-	scale := complex128(complex(1.0/3.0, 0))
+	// Scale and copy to dst. 1/3 is a *real* factor, so it is applied
+	// component-wise rather than as a complex multiply by complex(1/3, 0): the
+	// latter spends two products against a zero imaginary part plus an add and
+	// a subtract per output, and the compiler does not fold them away even
+	// though scale is a constant.
+	const scale = float64(1.0 / 3.0)
+
 	for i := range n {
-		dst[i] = work[i] * scale
+		dst[i] = complex(real(work[i])*scale, imag(work[i])*scale)
 	}
 
 	return true
