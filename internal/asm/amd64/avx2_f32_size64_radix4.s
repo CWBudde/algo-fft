@@ -572,9 +572,9 @@ r4_64_inv_scale:
 	// ==================================================================
 	// Apply 1/N scaling for inverse transform (1/64)
 	// ==================================================================
-	MOVL ·sixtyFourth32(SB), AX         // 1/64 = 0.015625
-	MOVD AX, X8
-	VBROADCASTSS X8, Y8
+	// Broadcast straight from memory: the legacy-SSE MOVD form writes X8 while
+	// the upper YMM state is dirty, which costs an AVX-SSE transition.
+	VBROADCASTSS ·sixtyFourth32(SB), Y8 // 1/64 = 0.015625
 
 	XORQ CX, CX
 

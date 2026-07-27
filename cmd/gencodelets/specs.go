@@ -558,7 +558,9 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size64Radix2Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size64Radix2Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit64_radix2_avx2", Priority: 19,
+		// 54.6/56.5 ns vs 124.6/133.0 for dit64_radix4_avx2 (i7-1255U, AVX2):
+		// this is the only size-64 codelet that is genuinely 256-bit wide.
+		Signature: "dit64_radix2_avx2", Priority: 26,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 64,
@@ -947,14 +949,16 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size64Radix2Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size64Radix2Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit64_radix2_avx2", Priority: 20,
+		// SSE-width in practice; loses to dit64_radix4_sse2 -> stay below it.
+		Signature: "dit64_radix2_avx2", Priority: 14,
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 64,
 		Forward:   "amd64.ForwardAVX2Size64Radix4Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size64Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit64_radix4_avx2", Priority: 25,
+		// SSE-width in practice; loses to dit64_radix4_sse2 -> stay below it.
+		Signature: "dit64_radix4_avx2", Priority: 15,
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 128,
@@ -1285,7 +1289,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardSSE2Size64Radix4Complex128Asm",
 		Inverse:   "amd64.InverseSSE2Size64Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDSSE2", KernelType: "KernelTypeDIT",
-		Signature: "dit64_radix4_sse2", Priority: 18,
+		Signature: "dit64_radix4_sse2", Priority: 19,
 	},
 	{
 		Target: "sse2", Prec: 128, Size: 128,

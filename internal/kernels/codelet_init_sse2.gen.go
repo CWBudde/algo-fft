@@ -364,7 +364,7 @@ func registerSSE2DITCodelets128() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDSSE2,
 		Signature:  "dit64_radix4_sse2",
-		Priority:   18,
+		Priority:   19,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 

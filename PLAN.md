@@ -2765,7 +2765,7 @@ and says plainly where the next round of work goes.
 The curve against FFTW3 is not smooth. Two dips are large enough to be
 structural rather than noise, and both reproduce in each direction:
 
-- [ ] **The n = 64 cliff.** 0.97× FFTW3 at n = 32 drops to 0.36× at n = 64
+- [x] **The n = 64 cliff.** 0.97× FFTW3 at n = 32 drops to 0.36× at n = 64
       (0.33× inverse), and no larger size recovers the n = 32 level.
       `dit64_radix4_avx2` also has the _lowest_ SIMD-over-purego ratio in
       the entire power-of-two ladder — 2.19× against 4–6× for its
@@ -2773,6 +2773,99 @@ structural rather than noise, and both reproduce in each direction:
       separate: the codelet itself, and the decomposition it uses. n = 32
       runs `dit32_radix4_then2_avx2` and is fine, so a radix-4-then-2
       variant at 64 is the obvious first experiment.
+
+      _Done 2026-07-27._ It was the codelet, not the decomposition — and no new
+          codelet was needed. Two defects, both found by reading the asm rather
+          than by benchmarking variants:
+
+          1. **`dit64_radix4_avx2` is not vectorised.** Every load and store in
+             all three stages is `VMOVSD` — one complex64 per 128-bit register.
+             It is AVX2 by name only, which is exactly the 2.19× ratio the item
+             reports. Its complex128 twins are the same story: 4 `Y` register
+             references each, all in the scale loop.
+          2. **`dit64_radix2_avx2` already was a full-width 256-bit kernel** and
+             its forward ran 2.2× faster than the incumbent, but it sat at
+             priority 19 behind radix-4's 25 — because its *inverse* measured
+             179 ns against the forward's 63 ns and dragged the pair down.
+
+          The inverse asymmetry is the interesting part, because the two
+          functions are byte-identical bar 48 `VFMADDSUB231PS`↔`VFMSUBADD231PS`
+          sites. It was **one legacy-SSE instruction**: `MOVD AX, X8` in the
+          `1/n` scale prologue, which Go assembles as the non-VEX `movq
+          %rax,%xmm8`. Executing it with the upper YMM state dirty triggers the
+          AVX↔SSE transition penalty, and that single instruction cost ~100 ns —
+          three times the rest of the kernel. `VBROADCASTSS ·sixtyFourth32(SB),
+          Y8` (broadcast straight from memory, no GPR round trip) removes it.
+
+          Ruled out along the way, each with a measurement rather than an
+          argument: the instruction pair itself (swapped `VFMSUBADD` for
+          `VFMADDSUB` — no change), the input data (fed the inverse the
+          forward's own output — no change), the memory layout (carved src/dst/
+          scratch from one slab at fixed offsets — no change), and code
+          placement (padded the inverse's start address in 16-byte steps, and
+          benchmarked a byte-identical *copy* of the fast forward placed after
+          the slow inverse — the copy was fast). The decisive run put all four
+          arms in one process: forward 55 ns, inverse-with-`VBROADCASTSS` 55 ns,
+          inverse-with-`MOVD` 157 ns.
+
+          Worth knowing for anyone repeating this: the gap does **not** appear on
+          the E-cores of this hybrid part (both directions ~150 ns on CPU 4),
+          because the penalty is a P-core frontend/state effect. An unpinned
+          benchmark can therefore land on either side of it. Pin with `taskset`.
+
+          Landed:
+
+          - `avx2_f32_size64_radix2.s` — folded the `1/64` scale into the
+            stage-6 stores (stage 6 writes all 64 outputs exactly once, so the
+            separate pass only re-read what it had just stored) and replaced the
+            `MOVL`/`MOVD`/`VBROADCASTSS` prologue with a memory broadcast.
+          - `avx2_f32_size64_radix4.s` — same prologue fix.
+          - `avx2_f64_size64_radix2.s`, `avx2_f64_size64_radix4.s` — 374 legacy
+            `MOVUPD` → `VMOVUPD` (1:1, same operand order).
+          - Priorities: complex64 `dit64_radix2_avx2` 19 → **26** (now the
+            winner); complex128 `dit64_radix2_avx2` 20 → 14 and
+            `dit64_radix4_avx2` 25 → 15, with `dit64_radix4_sse2` 18 → 19, so
+            the real SSE2 codelet wins over the SSE-width "AVX2" ones. AVX-512
+            hosts are unaffected (their size-64 entry stays at 25).
+
+          Measured on the i7-1255U, pinned to CPU 0/1, `-count=6`
+          (`BenchmarkCodeletCandidates`):
+
+          | codelet | before fwd/inv | after fwd/inv |
+          | --- | --- | --- |
+          | c64 `dit64_radix2_avx2` | 63.2 / 179.5 ns | **54.6 / 56.5 ns** |
+          | c64 `dit64_radix4_avx2` (was incumbent) | 137.0 / 143.0 ns | 124.6 / 133.0 ns |
+          | c128 winner at 64 | `dit64_radix4_avx2` 226 / 235 ns | `dit64_radix4_sse2` **174 / 193 ns** |
+
+          End to end, `BenchmarkPlanForward_64` / `_64` inverse over three
+          interleaved before/after rounds: **348–408 → 147–170 ns** forward and
+          **369–401 → 153–166 ns** inverse, i.e. ~2.3–2.4× in both directions.
+
+          Two follow-ups this opened, both filed below: the legacy-SSE sweep
+          across the rest of the AVX2 tree, and the ~100 ns of plan-level
+          overhead that now dominates a 55 ns size-64 codelet.
+
+- [ ] **Sweep legacy-SSE encodings out of the AVX2/AVX-512 asm tree.** The
+      n = 64 fix above was worth 3× on one kernel and it was a _single_
+      instruction. A census of `internal/asm/amd64/avx*.s` finds **106
+      functions that mix VEX and legacy-SSE vector instructions** and 5204
+      legacy vector-register lines in total. The heavy hitters are the
+      complex128 radix-2 files (`Forward/InverseAVX2Size512Radix2Complex128Asm`
+      alone has 554 legacy `MOVUPD` against 325 VEX instructions), the
+      `Size1024Radix32x32` pair in both precisions (`ADDSS`/`MULSS`/`MOVSS`
+      mixed straight into VEX code), and every c128 `radix4`/`radix4_then2`
+      codelet from 1024 up to 32768 — which is precisely the 1024–16384 band
+      the item below is about, and includes n = 2048. Most of the volume is
+      `MOVUPD`/`MOVSD`/`MOVSS`, a 1:1 rename to the `V` form; the scalar
+      arithmetic (`MULSS`, `ADDSD`, …) needs the 3-operand VEX form and wants
+      more care. Do it file by file with the codelet-candidates benchmark as
+      the gate, largest mixers first. Note the E-core caveat above when
+      measuring.
+- [ ] **Plan-level overhead now dominates small transforms.** With the size-64
+      codelet at 55 ns, `BenchmarkPlanForward_64` still reports ~155 ns — about
+      100 ns of dispatch/validation per call that used to hide behind a 137 ns
+      codelet. The same overhead sits on every size; it is simply invisible
+      above ~1024. Profile the path from `Plan.Forward` to the codelet call.
 - [ ] **The n = 2048 local minimum.** 0.29× FFTW3 forward, 0.31× inverse —
       the worst power-of-two point in the sweep, with 1024 (0.43×) and 4096
       (0.45×) either side of it. `dit2048_radix4_then2_avx2` is the

@@ -2052,7 +2052,13 @@ inv_size64_bitrev:
 	VMOVUPS Y3, 352(R8)
 	VMOVUPS Y4, 480(R8)
 
-	// =======================================================================
+		// 1/N scaling for the inverse is folded into the stage-6 stores below:
+	// stage 6 writes every one of the 64 outputs exactly once, so a separate
+	// scaling pass would only re-read what was just stored (store-to-load
+	// forwarding stalls on all 16 lines).
+	VBROADCASTSS ·sixtyFourth32(SB), Y15 // Y15 = 1/64 broadcast
+
+// =======================================================================
 	// STAGE 6: size=64, half=32, step=1
 	// =======================================================================
 	// Pairs: indices 0-31 with 32-63
@@ -2072,6 +2078,8 @@ inv_size64_bitrev:
 	VFMSUBADD231PS Y10, Y1, Y2
 	VADDPS Y2, Y0, Y3
 	VSUBPS Y2, Y0, Y4
+	VMULPS Y15, Y3, Y3        // fold 1/64
+	VMULPS Y15, Y4, Y4        // fold 1/64
 	VMOVUPS Y3, (R8)
 	VMOVUPS Y4, 256(R8)
 
@@ -2085,6 +2093,8 @@ inv_size64_bitrev:
 	VFMSUBADD231PS Y10, Y1, Y2
 	VADDPS Y2, Y0, Y3
 	VSUBPS Y2, Y0, Y4
+	VMULPS Y15, Y3, Y3        // fold 1/64
+	VMULPS Y15, Y4, Y4        // fold 1/64
 	VMOVUPS Y3, 32(R8)
 	VMOVUPS Y4, 288(R8)
 
@@ -2102,6 +2112,8 @@ inv_size64_bitrev:
 	VFMSUBADD231PS Y10, Y1, Y2
 	VADDPS Y2, Y0, Y3
 	VSUBPS Y2, Y0, Y4
+	VMULPS Y15, Y3, Y3        // fold 1/64
+	VMULPS Y15, Y4, Y4        // fold 1/64
 	VMOVUPS Y3, 64(R8)
 	VMOVUPS Y4, 320(R8)
 
@@ -2115,6 +2127,8 @@ inv_size64_bitrev:
 	VFMSUBADD231PS Y10, Y1, Y2
 	VADDPS Y2, Y0, Y3
 	VSUBPS Y2, Y0, Y4
+	VMULPS Y15, Y3, Y3        // fold 1/64
+	VMULPS Y15, Y4, Y4        // fold 1/64
 	VMOVUPS Y3, 96(R8)
 	VMOVUPS Y4, 352(R8)
 
@@ -2132,6 +2146,8 @@ inv_size64_bitrev:
 	VFMSUBADD231PS Y10, Y1, Y2
 	VADDPS Y2, Y0, Y3
 	VSUBPS Y2, Y0, Y4
+	VMULPS Y15, Y3, Y3        // fold 1/64
+	VMULPS Y15, Y4, Y4        // fold 1/64
 	VMOVUPS Y3, 128(R8)
 	VMOVUPS Y4, 384(R8)
 
@@ -2145,6 +2161,8 @@ inv_size64_bitrev:
 	VFMSUBADD231PS Y10, Y1, Y2
 	VADDPS Y2, Y0, Y3
 	VSUBPS Y2, Y0, Y4
+	VMULPS Y15, Y3, Y3        // fold 1/64
+	VMULPS Y15, Y4, Y4        // fold 1/64
 	VMOVUPS Y3, 160(R8)
 	VMOVUPS Y4, 416(R8)
 
@@ -2162,6 +2180,8 @@ inv_size64_bitrev:
 	VFMSUBADD231PS Y10, Y1, Y2
 	VADDPS Y2, Y0, Y3
 	VSUBPS Y2, Y0, Y4
+	VMULPS Y15, Y3, Y3        // fold 1/64
+	VMULPS Y15, Y4, Y4        // fold 1/64
 	VMOVUPS Y3, 192(R8)
 	VMOVUPS Y4, 448(R8)
 
@@ -2175,24 +2195,10 @@ inv_size64_bitrev:
 	VFMSUBADD231PS Y10, Y1, Y2
 	VADDPS Y2, Y0, Y3
 	VSUBPS Y2, Y0, Y4
+	VMULPS Y15, Y3, Y3        // fold 1/64
+	VMULPS Y15, Y4, Y4        // fold 1/64
 	VMOVUPS Y3, 224(R8)
 	VMOVUPS Y4, 480(R8)
-
-	// =======================================================================
-	// Apply 1/N scaling for inverse transform (1/64)
-	// =======================================================================
-	MOVL ·sixtyFourth32(SB), AX
-	MOVD AX, X8
-	VBROADCASTSS X8, Y8
-
-	XORQ CX, CX
-inv_size64_scale_loop:
-	VMOVUPS (R8)(CX*1), Y0
-	VMULPS Y8, Y0, Y0
-	VMOVUPS Y0, (R8)(CX*1)
-	ADDQ $32, CX
-	CMPQ CX, $512
-	JL   inv_size64_scale_loop
 
 	// =======================================================================
 	// Copy results to dst if we used scratch buffer
