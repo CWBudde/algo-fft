@@ -75,7 +75,7 @@ func runPureMixedRadix64(dst, src, twiddle, scratch []complex64, inverse bool) b
 		return false
 	}
 
-	mixedRadixRecursivePingPongComplex64(dst, src, scratch, n, 1, 1, radices[:count], twiddle, inverse)
+	mixedRadixRecursivePingPongComplex64(dst, src, scratch, n, 1, 1, radices[:count], twiddle, inverse, nil)
 
 	if inverse {
 		scale := complex(float32(1.0/float64(n)), 0)
@@ -97,7 +97,7 @@ func runPureMixedRadix128(dst, src, twiddle, scratch []complex128, inverse bool)
 		return false
 	}
 
-	mixedRadixRecursivePingPongComplex128(dst, src, scratch, n, 1, 1, radices[:count], twiddle, inverse)
+	mixedRadixRecursivePingPongComplex128(dst, src, scratch, n, 1, 1, radices[:count], twiddle, inverse, nil)
 
 	if inverse {
 		scale := complex(1.0/float64(n), 0)
@@ -328,7 +328,7 @@ func BenchmarkMixedRadixRadix8Schedule(b *testing.B) {
 			b.SetBytes(int64(n * 8))
 
 			for range b.N {
-				mixedRadixRecursivePingPongComplex64(dst, src, scratch, n, 1, 1, oldRadices[:oldCount], twiddle, false)
+				mixedRadixRecursivePingPongComplex64(dst, src, scratch, n, 1, 1, oldRadices[:oldCount], twiddle, false, nil)
 			}
 		})
 
@@ -337,7 +337,7 @@ func BenchmarkMixedRadixRadix8Schedule(b *testing.B) {
 			b.SetBytes(int64(n * 8))
 
 			for range b.N {
-				mixedRadixRecursivePingPongComplex64(dst, src, scratch, n, 1, 1, newRadices[:newCount], twiddle, false)
+				mixedRadixRecursivePingPongComplex64(dst, src, scratch, n, 1, 1, newRadices[:newCount], twiddle, false, nil)
 			}
 		})
 	}
@@ -364,7 +364,7 @@ func BenchmarkMixedRadixRadix8ScheduleComplex128(b *testing.B) {
 			b.SetBytes(int64(n * 16))
 
 			for range b.N {
-				mixedRadixRecursivePingPongComplex128(dst, src, scratch, n, 1, 1, oldRadices[:oldCount], twiddle, false)
+				mixedRadixRecursivePingPongComplex128(dst, src, scratch, n, 1, 1, oldRadices[:oldCount], twiddle, false, nil)
 			}
 		})
 
@@ -373,7 +373,7 @@ func BenchmarkMixedRadixRadix8ScheduleComplex128(b *testing.B) {
 			b.SetBytes(int64(n * 16))
 
 			for range b.N {
-				mixedRadixRecursivePingPongComplex128(dst, src, scratch, n, 1, 1, newRadices[:newCount], twiddle, false)
+				mixedRadixRecursivePingPongComplex128(dst, src, scratch, n, 1, 1, newRadices[:newCount], twiddle, false, nil)
 			}
 		})
 	}

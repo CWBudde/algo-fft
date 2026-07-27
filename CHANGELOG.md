@@ -54,6 +54,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The mixed-radix recursion now resolves its leaf codelet once per transform
+  instead of once per node. The scheduler emits a composite radix only as the
+  schedule's final stage, and checks the registry for the remaining size at
+  every step before that, so a codelet can only ever match at a leaf -- and
+  every leaf of one transform has the same size. The entry is looked up from
+  `radices[stageCount-1]` and threaded through the recursion hooks, removing a
+  CPU feature detection, a map lookup and a priority scan from every node: at
+  n = 1000 = [5 5 5 8] that is 156 registry lookups per transform down to 1.
+  Measured geomean -1.9% over practical DSP lengths, with the win tracking the
+  leaf count (n = 1000 -9.4%/-6.6% c64/c128, n = 3600 -7.6%/-4.4%,
+  n = 2205 -4.2%/-3.0%). n = 768 = [3 256] regresses +6.8%/+4.4% for reasons
+  that could not be pinned down on the available hardware; it has only 3
+  leaves, so no win was available there in any case.
 - The mixed-radix butterfly stage now applies its twiddles as one contiguous
   in-place array multiply instead of per-element inside the `k` loop, so the
   multiply reaches the SIMD `ComplexMulArrayInPlace` path and the butterfly

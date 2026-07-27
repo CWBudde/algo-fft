@@ -7,6 +7,7 @@ import (
 
 	"github.com/cwbudde/algo-fft/internal/kernels"
 	m "github.com/cwbudde/algo-fft/internal/math"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 const mixedRadixMaxStages = 64
@@ -50,9 +51,27 @@ func mixedRadixInverse[T Complex](dst, src, twiddle, scratch []T) bool {
 // Recursion hooks for SIMD acceleration.
 // By default, these point to the pure Go implementations.
 // SIMD-optimized files (like mixedradix_avx2.go) can override these in init().
+//
+// The trailing leaf parameter carries the codelet the schedule's final stage
+// resolves to, or nil when that stage has none; see leafCodelet64/128.
 var (
-	recursiveStep64  func(dst, src, work []complex64, n, stride, step int, radices []int, twiddle []complex64, inverse bool)
-	recursiveStep128 func(dst, src, work []complex128, n, stride, step int, radices []int, twiddle []complex128, inverse bool)
+	recursiveStep64  func(dst, src, work []complex64, n, stride, step int, radices []int, twiddle []complex64, inverse bool, leaf *registry.CodeletEntry[complex64])
+	recursiveStep128 func(dst, src, work []complex128, n, stride, step int, radices []int, twiddle []complex128, inverse bool, leaf *registry.CodeletEntry[complex128])
+)
+
+// leafCodelet64/128 resolve the codelet a leaf sub-transform of the given radix
+// will be dispatched to, or nil when the pure Go butterfly must handle it.
+//
+// This is the same lookup codeletSchedulable64/128 wraps, hoisted out of the
+// recursion: the scheduler emits a composite radix only as the schedule's final
+// stage, and checks the registry for the remaining size at every step before
+// that, so a codelet can only ever match at a leaf — every leaf of one transform
+// has the same size, and therefore the same entry. Resolving it once per
+// transform instead of once per node removes a feature detection, a map lookup
+// and a priority scan from each of the (up to n/radix) leaf dispatches.
+var (
+	leafCodelet64  func(radix int) *registry.CodeletEntry[complex64]
+	leafCodelet128 func(radix int) *registry.CodeletEntry[complex128]
 )
 
 // codeletSchedulable64/128 report whether the installed recursion driver can
@@ -73,6 +92,8 @@ func init() {
 	recursiveStep128 = mixedRadixRecursivePingPongComplex128
 	codeletSchedulable64 = func(int) bool { return false }
 	codeletSchedulable128 = func(int) bool { return false }
+	leafCodelet64 = func(int) *registry.CodeletEntry[complex64] { return nil }
+	leafCodelet128 = func(int) *registry.CodeletEntry[complex128] { return nil }
 }
 
 func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, inverse bool) bool {
@@ -128,24 +149,38 @@ func mixedRadixTransform[T Complex](dst, src, twiddle, scratch []T, inverse bool
 	}
 
 	// Call through recursion hooks.
+	// Resolve the leaf codelet once, from the schedule's final stage, and thread
+	// it down the recursion (see leafCodelet64/128).
+	leafRadix := radices[stageCount-1]
+
 	switch any(zero).(type) {
 	case complex64:
+		var leaf *registry.CodeletEntry[complex64]
+		if leafRadix > mixedRadixCodeletMinSize {
+			leaf = leafCodelet64(leafRadix)
+		}
+
 		recursiveStep64(
 			any(work).([]complex64),    //nolint:forcetypeassert
 			any(src).([]complex64),     //nolint:forcetypeassert
 			any(scratch).([]complex64), //nolint:forcetypeassert
 			n, 1, 1, radices[:stageCount],
 			any(twiddle).([]complex64), //nolint:forcetypeassert
-			inverse,
+			inverse, leaf,
 		)
 	case complex128:
+		var leaf *registry.CodeletEntry[complex128]
+		if leafRadix > mixedRadixCodeletMinSize {
+			leaf = leafCodelet128(leafRadix)
+		}
+
 		recursiveStep128(
 			any(work).([]complex128),    //nolint:forcetypeassert
 			any(src).([]complex128),     //nolint:forcetypeassert
 			any(scratch).([]complex128), //nolint:forcetypeassert
 			n, 1, 1, radices[:stageCount],
 			any(twiddle).([]complex128), //nolint:forcetypeassert
-			inverse,
+			inverse, leaf,
 		)
 	default:
 		return false
@@ -293,7 +328,7 @@ func radix8Profitable(n int) bool {
 
 // mixedRadixRecursivePingPongComplex64 is a specialized complex64 version that calls
 // type-specific butterfly functions to avoid generic overhead.
-func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride, step int, radices []int, twiddle []complex64, inverse bool) {
+func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride, step int, radices []int, twiddle []complex64, inverse bool, leaf *registry.CodeletEntry[complex64]) {
 	if n == 1 {
 		dst[0] = src[0]
 		return
@@ -308,7 +343,7 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 		if len(nextRadices) == 0 {
 			dst[j*span] = src[j*stride]
 		} else {
-			recursiveStep64(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
+			recursiveStep64(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse, leaf)
 		}
 	}
 
@@ -330,8 +365,6 @@ func mixedRadixRecursivePingPongComplex64(dst, src, work []complex64, n, stride,
 		return
 	}
 
-	// Fallback: the scalar stage, which reads each twiddle from the root
-	// table with stride j*step.
 	// Fallback: the scalar stage, which reads each twiddle from the root
 	// table with stride j*step. Radices 7, 8 and 11 live in their own function;
 	// radices 2-5 stay inline because the deep schedules that miss the
@@ -555,7 +588,7 @@ func mixedRadixWideScalarStageComplex64(dst, input, twiddle []complex64, span, s
 
 // mixedRadixRecursivePingPongComplex128 is a specialized complex128 version that calls
 // type-specific butterfly functions to avoid generic overhead.
-func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, stride, step int, radices []int, twiddle []complex128, inverse bool) {
+func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, stride, step int, radices []int, twiddle []complex128, inverse bool, leaf *registry.CodeletEntry[complex128]) {
 	if n == 1 {
 		dst[0] = src[0]
 		return
@@ -570,7 +603,7 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 		if len(nextRadices) == 0 {
 			dst[j*span] = src[j*stride]
 		} else {
-			recursiveStep128(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse)
+			recursiveStep128(work[j*span:], src[j*stride:], dst[j*span:], span, stride*radix, step*radix, nextRadices, twiddle, inverse, leaf)
 		}
 	}
 
@@ -589,14 +622,7 @@ func mixedRadixRecursivePingPongComplex128(dst, src, work []complex128, n, strid
 		return
 	}
 
-	// Fallback: the scalar stage, which reads each twiddle from the root
-	// table with stride j*step.
-	// Fallback: the scalar stage, which reads each twiddle from the root
-	// table with stride j*step. Radices 7, 8 and 11 live in their own function;
-	// radices 2-5 stay inline because the deep schedules that miss the
-	// vectorised path pay a call per stage otherwise -- n = 2205 = [5 7 7 3 3]
-	// runs 980 span-1 and span-3 radix-3 stages, and extracting them cost it
-	// about 5 percent.
+	// See the complex64 twin for why radices 2-5 stay inline here.
 	if radix == 7 || radix == 8 || radix == 11 {
 		mixedRadixWideScalarStageComplex128(dst, input, twiddle, span, step, radix, inverse)
 

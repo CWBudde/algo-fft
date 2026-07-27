@@ -2402,13 +2402,44 @@ and says plainly where the next round of work goes.
         Beating it properly needs a radix-r stage kernel in assembly that
         keeps the r streams in registers across the multiply and the
         butterfly, not two passes over memory.
-      - **Hoist the leaf codelet resolution out of the recursion.** The
-        dispatch fires exactly when the node's remaining schedule is a single
-        composite radix, so the entry could be resolved once per transform
-        from `radices[stageCount-1]` and threaded through the hook instead of
-        looked up per node. Worth ~12% more at n = 1000 (the residual
-        `registry.Lookup` cost) but needs a signature change on the four
-        recursion hooks.
+      - **Hoist the leaf codelet resolution out of the recursion.**
+        _Done 2026-07-27._ The dispatch fires exactly when the node's
+        remaining schedule is a single composite radix: the scheduler checks
+        the registry for the remaining size at every step and returns as soon
+        as it emits a composite radix, so a codelet can only ever match at a
+        leaf, and every leaf of one transform has the same size. The entry is
+        therefore resolved once per transform from `radices[stageCount-1]`
+        (`leafCodelet64/128`) and threaded through the four recursion hooks as
+        a trailing parameter; the AVX2 drivers dispatch what they are handed,
+        gated on `len(radices) == 1`, instead of running
+        `cpu.DetectFeatures()` + `registry.Lookup` + a priority scan per node.
+        At n = 1000 = [5 5 5 8] that is 156 lookups per transform down to 1.
+
+        Measured (i7-1255U, AVX2, interleaved arms, 14 rounds, clean builds
+        both sides, vs 8298983): **geomean -1.9%**, and the win tracks the
+        leaf count exactly as the mechanism predicts -- n = 1000 -9.4%/-6.6%
+        (125 leaves), n = 3600 -7.6%/-4.4% (225 leaves), 2205 -4.2%/-3.0%,
+        448 -4.4% (c64), 480 -4.1% (c64), 704 -3.0% (c64).
+
+        Two caveats, both honest:
+
+        - **n = 768 regresses +6.8%/+4.4% and is unexplained.** 768 = [3 256]
+          has only 3 leaves, so there is no win available there, but the loss
+          is real: it reproduced across three independent builds. It is not
+          allocations (0 B/op both sides) and it is not the added parameter --
+          a variant carrying the signature change but keeping the per-node
+          lookup measures neutral at 768. That leaves the guard change or
+          code layout, and the two could not be separated on this machine.
+        - The measurement machine could not be quiesced (85-100 C, competing
+          load), so these are ±1-4% numbers from interleaved arms with
+          alternating order, not quiet-machine numbers.
+
+        A same-binary knob sweep during this work also put the *previous*
+        subtask's vectorised stage at only about -0.9% once this hoist is in
+        place, well under the -4.8% recorded for it above. That figure was
+        taken against a different baseline and is not directly comparable, but
+        the vectorised stage's value is worth re-deriving before more is built
+        on it.
 
 - [ ] **Add practical DSP lengths to the internal benchmark set.** The
       lengths where algo-fft's lead over gonum nearly vanishes are exactly
