@@ -118,6 +118,75 @@ func BenchmarkPlanInverse_16384_Recursive(b *testing.B) {
 func BenchmarkPlanForward_384(b *testing.B) { benchmarkPlanForward(b, 384) }
 func BenchmarkPlanInverse_384(b *testing.B) { benchmarkPlanInverse(b, 384) }
 
+// Practical DSP lengths. Every size above is a length a signal-processing user
+// actually picks — audio sample rates and their decimations — and they are the
+// lengths at which algo-fft's margin over other Go FFT libraries is thinnest
+// (roughly 1.5-1.7x, against ~8x at powers of two; 44100 was behind entirely
+// until the mixed-radix routing work of 2026-07). None of them are powers of
+// two, so none were covered by the size sweep above, and the internal numbers
+// looked healthy throughout while these were the weak spot. They are here so a
+// regression on the mixed-radix path is visible without an external harness.
+//
+//	 1000 = 2^3 x 5^3        3600 = 2^4 x 3^2 x 5^2
+//	 2205 = 3^2 x 5 x 7^2   12000 = 2^5 x 3 x 5^3
+//	44100 = 2^2 x 3^2 x 5^2 x 7^2
+//
+// Both precisions are measured: the two are separate kernel paths at these
+// lengths (complex64 leaves are assembly codelets where complex128 leaves may
+// be Go), and past mixed-radix defects have shown up as a precision asymmetry
+// rather than as a slowdown in both.
+func BenchmarkPlanForward_1000(b *testing.B)  { benchmarkPlanForward(b, 1000) }
+func BenchmarkPlanForward_2205(b *testing.B)  { benchmarkPlanForward(b, 2205) }
+func BenchmarkPlanForward_3600(b *testing.B)  { benchmarkPlanForward(b, 3600) }
+func BenchmarkPlanForward_12000(b *testing.B) { benchmarkPlanForward(b, 12000) }
+func BenchmarkPlanForward_44100(b *testing.B) { benchmarkPlanForward(b, 44100) }
+
+func BenchmarkPlanInverse_1000(b *testing.B)  { benchmarkPlanInverse(b, 1000) }
+func BenchmarkPlanInverse_2205(b *testing.B)  { benchmarkPlanInverse(b, 2205) }
+func BenchmarkPlanInverse_3600(b *testing.B)  { benchmarkPlanInverse(b, 3600) }
+func BenchmarkPlanInverse_12000(b *testing.B) { benchmarkPlanInverse(b, 12000) }
+func BenchmarkPlanInverse_44100(b *testing.B) { benchmarkPlanInverse(b, 44100) }
+
+func BenchmarkPlanForward_1000_Complex128(b *testing.B) {
+	benchmarkPlanForwardComplex128Focus(b, 1000)
+}
+
+func BenchmarkPlanForward_2205_Complex128(b *testing.B) {
+	benchmarkPlanForwardComplex128Focus(b, 2205)
+}
+
+func BenchmarkPlanForward_3600_Complex128(b *testing.B) {
+	benchmarkPlanForwardComplex128Focus(b, 3600)
+}
+
+func BenchmarkPlanForward_12000_Complex128(b *testing.B) {
+	benchmarkPlanForwardComplex128Focus(b, 12000)
+}
+
+func BenchmarkPlanForward_44100_Complex128(b *testing.B) {
+	benchmarkPlanForwardComplex128Focus(b, 44100)
+}
+
+func BenchmarkPlanInverse_1000_Complex128(b *testing.B) {
+	benchmarkPlanInverseComplex128Focus(b, 1000)
+}
+
+func BenchmarkPlanInverse_2205_Complex128(b *testing.B) {
+	benchmarkPlanInverseComplex128Focus(b, 2205)
+}
+
+func BenchmarkPlanInverse_3600_Complex128(b *testing.B) {
+	benchmarkPlanInverseComplex128Focus(b, 3600)
+}
+
+func BenchmarkPlanInverse_12000_Complex128(b *testing.B) {
+	benchmarkPlanInverseComplex128Focus(b, 12000)
+}
+
+func BenchmarkPlanInverse_44100_Complex128(b *testing.B) {
+	benchmarkPlanInverseComplex128Focus(b, 44100)
+}
+
 // Plan creation benchmarks (additional sizes - 64, 1024, 65536 are in plan_test.go).
 func BenchmarkNewPlan_16(b *testing.B)    { benchmarkNewPlan(b, 16) }
 func BenchmarkNewPlan_256(b *testing.B)   { benchmarkNewPlan(b, 256) }

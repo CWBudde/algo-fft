@@ -142,6 +142,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Benchmarks for the practical DSP lengths — 1000, 2205, 3600, 12000 and 44100
+  — forward and inverse, in both precisions. These are exactly the lengths at
+  which the library's margin over other Go FFT libraries is thinnest (~1.5–1.7×
+  against ~8× at powers of two, and 44100 was behind entirely until the
+  mixed-radix routing work), and none of them were measured in-tree: the whole
+  existing size sweep is powers of two, so the internal numbers looked healthy
+  while these were the weak spot. A regression on the mixed-radix path is now
+  visible without an external harness. The complex128 variants log the plan
+  they resolved to, which makes a change of route visible as well as a change
+  of speed.
+
 - `scripts/bench_gated.sh` and `scripts/bench_gated_analyze.sh` (plus a
   `just bench-gated` recipe and a BENCHMARKS.md section), a canary-gated
   codelet-candidate sweep for registry priority tuning on thermally limited or

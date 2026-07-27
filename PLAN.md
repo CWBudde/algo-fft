@@ -2441,13 +2441,41 @@ and says plainly where the next round of work goes.
         the vectorised stage's value is worth re-deriving before more is built
         on it.
 
-- [ ] **Add practical DSP lengths to the internal benchmark set.** The
+- [x] **Add practical DSP lengths to the internal benchmark set.** The
       lengths where algo-fft's lead over gonum nearly vanishes are exactly
       the ones a DSP user picks: 44100 (loses), 2205 (1.49×), 1000 (1.54×),
       3600 (1.51×), 12000 (1.68×) — against ~8× at powers of two. None of
       them appear in `plan_bench_test.go`, which is why the internal numbers
       looked healthy throughout. Add them so a regression here is visible
       without an external harness.
+
+      _Done 2026-07-27._ All five lengths are in `plan_bench_test.go`, forward
+      and inverse, both precisions — 20 benchmarks. The complex128 side reuses
+      the `*Complex128Focus` helpers, so each logs the plan it resolved to,
+      which is what makes a change of *route* visible and not just a change of
+      speed.
+
+      Adding them surfaced a reporting defect worth fixing separately: **the
+      logged strategy/algorithm is wrong at all five lengths.** 1000 reports
+      `dit_fallback` and 2205/3600/12000/44100 report
+      `strategy=Stockham algorithm=stockham`, but none of them execute either.
+      In `autoKernelComplex64`/`128` (`internal/fft/kernels_fallback.go`) the
+      `!IsPowerOf2 && IsMixedRadixSmooth` branch runs *before* the strategy
+      switch and takes mixed-radix unconditionally; the label is whatever
+      `ResolveKernelStrategy` would have picked for a power of two of that
+      size, and is never consulted. Verified directly: all five are
+      `IsMixedRadixSmooth` and non-power-of-two. So `plan.algorithm` cannot be
+      used to identify the route of a non-power-of-two length — which matters
+      for the gate re-derivation below, and for anyone bisecting a routing
+      regression with exactly the log these benchmarks emit.
+
+      Steady-state allocations were checked while adding them and the
+      zero-allocation contract holds at all five: 0 allocs/op in both
+      directions and both precisions. (At `-benchtime=1x` they report 8–33
+      allocs/op, which is plan warm-up amortised over a single iteration, not a
+      per-transform allocation — worth knowing before anyone reads a 1x run as
+      a regression.)
+
 - [ ] **Re-derive the radix-7/11 win gates over a wider range.**
       `mixedRadix7And11Wins` and `rader7Or11Wins` were both fitted on the
       shapes measured at the time; the 44100 result shows at least one
