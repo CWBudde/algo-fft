@@ -190,6 +190,13 @@ func stageTwiddle128(n, radix, step, tableLen int, inverse bool) []complex128 {
 // never src, and each k touches only the r positions j*span+k, reading all of
 // them before writing any — so dst may alias input, as it does at a leaf node.
 func mixedRadixStageComplex64(dst, input, table []complex64, n, span, radix int, inverse bool) {
+	// Preferred: one fused assembly pass that never writes the twiddled rows
+	// back to memory. Available for a subset of the radices this function can
+	// execute; see mixedradix_stage_asm_amd64.go.
+	if mixedRadixStageAsm64(dst, input, table, n, span, radix, inverse) {
+		return
+	}
+
 	ComplexMulArrayInPlaceComplex64(input[span:n], table[span:n])
 
 	switch radix {
@@ -287,6 +294,11 @@ func mixedRadixStageComplex64(dst, input, table []complex64, n, span, radix int,
 // mixedRadixStageComplex128 is the complex128 counterpart of
 // mixedRadixStageComplex64. See it for why the in-place multiply is safe.
 func mixedRadixStageComplex128(dst, input, table []complex128, n, span, radix int, inverse bool) {
+	// See the complex64 twin for why the fused kernel comes first.
+	if mixedRadixStageAsm128(dst, input, table, n, span, radix, inverse) {
+		return
+	}
+
 	ComplexMulArrayInPlaceComplex128(input[span:n], table[span:n])
 
 	switch radix {

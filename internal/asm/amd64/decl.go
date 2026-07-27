@@ -928,3 +928,35 @@ func Radix3Butterflies384ForwardComplex128Asm(data []complex128)
 //
 //go:noescape
 func Radix3Butterflies384InverseComplex128Asm(data []complex128)
+
+// MixedRadixStage3Complex64AVX2Asm runs one radix-3 mixed-radix stage with the
+// twiddle multiply and the butterfly fused into a single pass:
+//
+//	dst[j*span+k] = butterfly3(input[k], input[span+k]*table[span+k],
+//	                           input[2*span+k]*table[2*span+k])[j]
+//
+// table is laid out like the data (entry j*span+k holds W_n^(j*k)); row 0 is
+// all ones and is never read. dst may alias input exactly, or be disjoint from
+// it; a partial overlap is not supported. Only the first span&^3 values of k
+// are processed — the caller must handle the remaining 0-3 in Go.
+//
+//go:noescape
+func MixedRadixStage3Complex64AVX2Asm(dst, input, table []complex64, span int, inverse bool)
+
+// MixedRadixStage5Complex64AVX2Asm is the radix-5 counterpart of
+// MixedRadixStage3Complex64AVX2Asm; the same contract applies.
+//
+//go:noescape
+func MixedRadixStage5Complex64AVX2Asm(dst, input, table []complex64, span int, inverse bool)
+
+// MixedRadixStage3Complex128AVX2Asm is the complex128 counterpart of
+// MixedRadixStage3Complex64AVX2Asm. It processes the first span&^1 values of k.
+//
+//go:noescape
+func MixedRadixStage3Complex128AVX2Asm(dst, input, table []complex128, span int, inverse bool)
+
+// MixedRadixStage5Complex128AVX2Asm is the complex128 counterpart of
+// MixedRadixStage5Complex64AVX2Asm. It processes the first span&^1 values of k.
+//
+//go:noescape
+func MixedRadixStage5Complex128AVX2Asm(dst, input, table []complex128, span int, inverse bool)
