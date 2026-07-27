@@ -3,8 +3,6 @@
 package fft
 
 import (
-	"os"
-
 	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/kernels"
@@ -39,9 +37,6 @@ import (
 // every radix here, so it is a floor, not a tuning knob.
 const mixedRadixStageAsmMinSpan = 4
 
-// TEMPORARY tuning knob -- delete before committing.
-var zzFusedOff = os.Getenv("ALGOFFT_FUSED_STAGE") == "0"
-
 // mixedRadixStageAsm64 runs one whole stage with a fused assembly kernel and
 // reports whether it did. A false result means the caller must run the
 // two-pass Go stage; nothing has been written to dst in that case.
@@ -50,10 +45,6 @@ var zzFusedOff = os.Getenv("ALGOFFT_FUSED_STAGE") == "0"
 // input, table and dst up to n-1 without bounds checks of their own.
 func mixedRadixStageAsm64(dst, input, table []complex64, n, span, radix int, inverse bool) bool {
 	if span < mixedRadixStageAsmMinSpan || len(dst) < n || len(input) < n || len(table) < n {
-		return false
-	}
-
-	if zzFusedOff {
 		return false
 	}
 
@@ -119,10 +110,6 @@ func mixedRadixStageTail64(dst, input, table []complex64, span, radix int, inver
 // mixedRadixStageAsm128 is the complex128 counterpart of mixedRadixStageAsm64.
 func mixedRadixStageAsm128(dst, input, table []complex128, n, span, radix int, inverse bool) bool {
 	if span < mixedRadixStageAsmMinSpan || len(dst) < n || len(input) < n || len(table) < n {
-		return false
-	}
-
-	if zzFusedOff {
 		return false
 	}
 
