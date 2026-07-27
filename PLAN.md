@@ -2551,15 +2551,49 @@ and says plainly where the next round of work goes.
                 1.89 ms before the fused path existed. FFTW3's 236 µs is still
                 3.3x away, but the gap has closed from 8.0x.
 
-          - [ ] **Re-derive `mixedRadixStageMinMuls` for the fused path.** The
-                `n - span >= 64` gate was fitted to the two-pass stage, which had
-                to overcome a table lookup, an extra pass and a call into the
-                array multiply before it broke even. The fused kernel pays none
-                of those, so the threshold is likely too conservative for it —
-                and it is what currently keeps 1000's third radix-5 level
-                (n = 40, span = 8) and 44100's two radix-3 levels out of the
-                vectorised path. Needs the single-binary env-knob sweep on a
-                quiet machine, not a guess.
+          - [x] **Re-derive `mixedRadixStageMinMuls` for the fused path.**
+                _Done 2026-07-27 — the hypothesis is refuted and 64 stays._ The
+                item expected a kernel that pays none of the two-pass form's
+                fixed costs to break even sooner. It does not: 64 is a local
+                optimum for the fused path as well, and one threshold serves
+                both. Single-binary env-knob sweep, 6 canary-gated interleaved
+                rounds (floor 3275 ns, every pre/post bracket within 1.15×, no
+                round rejected), five lengths × both precisions × both
+                directions, geomean against 64 — **32: +8.9%, 48: +1.5%,
+                128: +2.7%**. Nothing beat it in either direction.
+
+                The attribution is what makes that a result rather than noise:
+                each arm regressed exactly the lengths whose stage set it
+                changes and left every other length inside ±2.5%.
+
+                | arm | stages it changes | what moved |
+                | --- | ----------------- | ---------- |
+                | 48  | +2205 `r=7 span=9` | 2205 only, +2.9…+7.4% |
+                | 32  | + 1000 `r=5 span=8`, 3600 `r=3 span=16` | 1000 +20…+38%, 3600 +7.5…+14% |
+                | 128 | −3600 (96 muls), −12000 (64 muls) | those two only, +6.4…+11.7% |
+
+                Two corrections to the item's own premise, from enumerating the
+                schedules rather than assuming them. **44100's radix-3 levels
+                cannot be admitted at any threshold** — they are span 3 and
+                span 1, below the fused kernel's span ≥ 4 floor, so
+                `mixedRadixStageFused` rejects them before the multiply count is
+                consulted; the only 44100 stage the threshold excludes is level
+                4, radix 4, which has no fused kernel at all. And 1000's third
+                radix-5 level, the item's other example, is precisely the stage
+                whose admission costs +37% forward.
+
+                The mechanism: the fused kernel did not shed the fixed cost so
+                much as replace it. Its prologue broadcasts up to six constants
+                and derives up to six row offsets before the vector loop starts,
+                and at span 8 that loop runs twice — so the break-even sits
+                where the prologue amortises, not where a second pass over
+                memory would have. Recorded in the constant's doc comment so the
+                next reader does not re-run it.
+
+                Behaviour is unchanged; `mixedRadixStageVectorizable` was
+                restructured to hoist the shared size test out of the radix
+                switch, which is the shape the split threshold would have needed
+                and reads better without it.
 
 - [x] **Add practical DSP lengths to the internal benchmark set.** The
       lengths where algo-fft's lead over gonum nearly vanishes are exactly

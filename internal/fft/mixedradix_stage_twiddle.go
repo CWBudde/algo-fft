@@ -81,6 +81,25 @@ func leafTwiddleUsable(n, step, tableLen int) bool {
 //     mixedRadixStageVectorizable, which admits radix 7 exactly when the
 //     fused kernel will execute it. Radix 11 is the opposite case and is kept
 //     unconditionally (n = 704 = [11 64], -7% complex64).
+//
+// The threshold was re-derived for the fused assembly stage (2026-07-27), on
+// the expectation that a kernel paying none of those fixed costs would break
+// even sooner. It does not: 64 is a local optimum for the fused path too, and
+// one threshold serves both. Single-binary env-knob sweep, 6 canary-gated
+// interleaved rounds, five lengths × both precisions × both directions,
+// geomean against this value — 32: +8.9%, 48: +1.5%, 128: +2.7%. Each arm
+// regressed exactly the lengths whose stage set it changed and left the others
+// inside ±2.5%, which is what says the numbers are the threshold and not the
+// machine: 48 admits only n = 2205's radix-7 span-9 stage and moves only 2205
+// (+2.9…+7.4%); 32 also admits n = 1000's radix-5 span-8 stage (+20…+38%) and
+// n = 3600's radix-3 span-16 stage (+7.5…+14%); 128 drops n = 3600's 96-multiply
+// and n = 12000's 64-multiply stages and regresses those two alone (+6.4…+11.7%).
+//
+// The reason is that the fused kernel did not shed the fixed cost so much as
+// replace it. Its prologue broadcasts up to six constants and derives up to six
+// row offsets before the vector loop starts, and at span 8 that loop runs twice
+// — so the break-even sits where the prologue amortises, not where a second
+// pass over memory would have.
 const mixedRadixStageMinMuls = 64
 
 // mixedRadixStageVectorizable reports whether the butterfly loop below can
@@ -89,17 +108,24 @@ const mixedRadixStageMinMuls = 64
 // back to the scalar stage — which owns the panic that reports a
 // scheduler/driver contract violation — instead of building a table no one
 // reads.
+//
+// Radix 7 is admitted only where the fused kernel will run it: its two-pass
+// form is a measured regression (see mixedRadixStageMinMuls), so the size
+// threshold alone is not enough to justify leaving the scalar stage — the extra
+// pass over memory is what it loses on, and only the fused kernel removes that
+// pass.
 func mixedRadixStageVectorizable(n, radix int) bool {
+	span := n / radix
+
+	if n-span < mixedRadixStageMinMuls {
+		return false
+	}
+
 	switch radix {
 	case 2, 3, 4, 5, 8, 11:
-		return n-n/radix >= mixedRadixStageMinMuls
+		return true
 	case 7:
-		// Radix 7 is admitted only where the fused kernel will run it. Its
-		// two-pass form is a measured regression (see mixedRadixStageMinMuls),
-		// so the size threshold alone is not enough to justify leaving the
-		// scalar stage — the extra pass over memory is what it loses on, and
-		// only the fused kernel removes that pass.
-		return mixedRadixStageFused(n/radix, radix) && n-n/radix >= mixedRadixStageMinMuls
+		return mixedRadixStageFused(span, radix)
 	default:
 		return false
 	}
