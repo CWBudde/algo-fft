@@ -972,3 +972,15 @@ func MixedRadixStage7Complex64AVX2Asm(dst, input, table []complex64, span int, i
 //
 //go:noescape
 func MixedRadixStage7Complex128AVX2Asm(dst, input, table []complex128, span int, inverse bool)
+
+// MixedRadixStage11Complex64AVX2Asm is the radix-11 counterpart of
+// MixedRadixStage3Complex64AVX2Asm; the same contract applies.
+//
+//go:noescape
+func MixedRadixStage11Complex64AVX2Asm(dst, input, table []complex64, span int, inverse bool)
+
+// MixedRadixStage11Complex128AVX2Asm is the complex128 counterpart of
+// MixedRadixStage11Complex64AVX2Asm. It processes the first span&^1 values of k.
+//
+//go:noescape
+func MixedRadixStage11Complex128AVX2Asm(dst, input, table []complex128, span int, inverse bool)

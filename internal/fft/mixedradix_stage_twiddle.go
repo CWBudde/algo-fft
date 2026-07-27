@@ -100,6 +100,42 @@ func leafTwiddleUsable(n, step, tableLen int) bool {
 // row offsets before the vector loop starts, and at span 8 that loop runs twice
 // — so the break-even sits where the prologue amortises, not where a second
 // pass over memory would have.
+//
+// The two-pass form's own value was re-derived on top of the dispatch hoist
+// (2026-07-27), because the -3.2% and -7% above predate both the hoist and the
+// fused kernels. It is gone. Three arms from one binary — fused where
+// available, every stage forced two-pass, and no vectorised stage at all — over
+// ten mixed-radix lengths in both precisions, 7 canary-gated interleaved rounds:
+//
+//   - The vectorised stage is worth -34% overall, and forcing the two-pass form
+//     gives up +49.7% of that, so the fused kernels carry essentially all of it.
+//   - The two-pass form alone is worth -1.5% on AVX2 and +1.3% on SSE2 (i.e. it
+//     costs time there). n = 704 has no fused stage, so its two arms are the
+//     same code and its cell measures the noise floor: +-2%. Neither figure
+//     clears it, and per-cell they straddle zero (-7.5% at 448/c128, +9.9% at
+//     768/c64).
+//
+// So the radix set below is no longer carrying a measurable win on amd64: on
+// this hardware only n = 704's radix-11 stage still reached the two-pass path
+// at all, and admitting it was worth +0.2%/-0.3%. It is kept because the same
+// code is the only vectorised stage on the tiers that have no fused kernels
+// (NEON, WASM, purego), which this machine cannot measure — not because it pays
+// here.
+//
+// That last stage went fused too (2026-07-27, avx2_*_mixedradix_stage11.s), and
+// it is the largest single win the fused kernels have produced: n = 704 dropped
+// 10244 -> 2609 ns (complex64) and 11597 -> 4191 ns (complex128), i.e. -74% and
+// -64%. Same protocol, 8 canary-gated rounds, all accepted; the eighteen cells
+// with no radix-11 stage spanned -2.2%…+5.4%, so the effect is 30-60x the floor.
+// Radix 11 needs no gate change for it: the size threshold already admitted it,
+// and the fused kernel simply takes over where AVX2 is present.
+//
+// Note what that measurement is not. Roughly a 1.6x of the 3.9x is the
+// conjugate-pair butterfly rather than the fusion — kernels.Butterfly11* is the
+// full 11x11 matrix (100 complex multiplies against the pair form's 50 real-by-
+// complex ones), and the same swap written in plain Go benchmarks 113.6 -> 72.1
+// ns. That half is still on the table for every tier without a fused kernel;
+// see PLAN.md P5.1.
 const mixedRadixStageMinMuls = 64
 
 // mixedRadixStageVectorizable reports whether the butterfly loop below can

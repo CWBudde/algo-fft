@@ -85,7 +85,7 @@ func stageInputs64(span, radix int, inverse bool) (input, table []complex64) {
 }
 
 func TestMixedRadixStageAsmComplex64(t *testing.T) {
-	for _, radix := range []int{3, 5, 7} {
+	for _, radix := range []int{3, 5, 7, 11} {
 		for _, span := range []int{4, 7, 16, 19, 64, 65, 253} {
 			for _, inverse := range []bool{false, true} {
 				input, table := stageInputs64(span, radix, inverse)
@@ -113,7 +113,7 @@ func TestMixedRadixStageAsmComplex64(t *testing.T) {
 // hits most often: dst and input are the same slice. Every k must read all r
 // of its rows before it writes any of them.
 func TestMixedRadixStageAsmAliasComplex64(t *testing.T) {
-	for _, radix := range []int{3, 5, 7} {
+	for _, radix := range []int{3, 5, 7, 11} {
 		for _, span := range []int{19, 64} {
 			input, table := stageInputs64(span, radix, false)
 			want := stageReference64(input, table, span, radix, false)
@@ -199,7 +199,7 @@ func stageInputs128(span, radix int, inverse bool) (input, table []complex128) {
 }
 
 func TestMixedRadixStageAsmComplex128(t *testing.T) {
-	for _, radix := range []int{3, 5, 7} {
+	for _, radix := range []int{3, 5, 7, 11} {
 		for _, span := range []int{4, 7, 16, 19, 64, 65, 253} {
 			for _, inverse := range []bool{false, true} {
 				input, table := stageInputs128(span, radix, inverse)
@@ -224,7 +224,7 @@ func TestMixedRadixStageAsmComplex128(t *testing.T) {
 }
 
 func TestMixedRadixStageAsmAliasComplex128(t *testing.T) {
-	for _, radix := range []int{3, 5, 7} {
+	for _, radix := range []int{3, 5, 7, 11} {
 		for _, span := range []int{19, 64} {
 			input, table := stageInputs128(span, radix, false)
 			want := stageReference128(input, table, span, radix, false)

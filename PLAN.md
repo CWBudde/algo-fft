@@ -2441,16 +2441,127 @@ and says plainly where the next round of work goes.
             the vectorised stage's value is worth re-deriving before more is built
             on it.
 
-          - [ ] **Re-derive the vectorised odd-radix stage's value on top of the
-                hoist.** Raised by the subtask above and not yet acted on. The
-                −4.8% recorded for it was measured against a pre-hoist baseline; a
-                same-binary knob sweep taken while the hoist was being landed put
-                it at about −0.9% once the hoist is in place. The two figures are
-                not directly comparable, but the gap is large enough that the
-                gates fitted with it (`n - span >= 64`, radix 7 excluded) may no
-                longer sit where they should. Re-measure before building anything
-                further on `mixedradix_stage_twiddle.go`. Needs a quiet machine —
-                the effect is inside the ±1–4% band this laptop currently has.
+          - [x] **Re-derive the vectorised odd-radix stage's value on top of the
+                hoist.** _Done 2026-07-27 — the −0.9% estimate was right and the
+                −4.8% is gone. The two-pass form no longer earns anything on
+                amd64; the fused kernels are the whole win._
+
+                Enumerating the stage shapes first narrowed the question sharply:
+                across all ten mixed-radix bench lengths, **exactly one stage
+                still takes the two-pass path** — n = 704's radix-11 span-64
+                stage. Every other vectorised stage is fused, everything else is
+                scalar. So the −4.8% had already been absorbed by the fused
+                kernels before this was measured.
+
+                Three arms from one binary — `full` (fused where available),
+                `nofused` (same stage set, every stage forced two-pass) and `off`
+                (no vectorised stage at all) — over ten lengths × both
+                precisions, 8 canary-gated interleaved rounds with rotating arm
+                order. Round 7 was rejected (post-canary 9669 ns against an
+                884 ns floor, a 10× disturbance); the other seven bracketed
+                inside the 1.20× gate.
+
+                | comparison           | geomean | reading                             |
+                | -------------------- | ------- | ----------------------------------- |
+                | `off` vs `full`      | +50.9%  | the vectorised stage is worth −34%  |
+                | `nofused` vs `full`  | +49.7%  | the fused kernels carry ~all of it  |
+                | `off` vs `nofused`   | +1.5%   | two-pass alone is worth −1.5%       |
+
+                **n = 704 is a built-in null control**: it has no fused stage, so
+                its `full` and `nofused` arms are the same code. That cell reads
+                −2.2%/+0.2%, which pins the run's noise floor at ±2% — and the
+                two-pass path's −1.5% does not clear it. Per-cell it straddles
+                zero: it loses 7.5% at 448/c128 and 6.6% at 96/c128, wins 9.9% at
+                768/c64.
+
+                A second gated sweep (8 rounds, all accepted) forced the binary to
+                the SSE2 tier via `cpu.SetForcedFeatures`, where no fused kernel
+                exists and the two-pass form is the only vectorised path. There it
+                is a net **loss**: `off` vs `nofused` = **−1.3%** geomean, i.e.
+                the two-pass stage costs time, best case +1.8% (704/c128), worst
+                −5.3% (12000/c64).
+
+                So the gates the item worried about are fine, but for a different
+                reason than they were fitted for: `n - span >= 64` was already
+                re-derived for the fused path (see above, 64 is a local optimum
+                there too), and "radix 7 excluded from two-pass" turns out to be
+                the general rule rather than a radix-7 quirk. Nothing was changed
+                — the two-pass code is retained because it is the only vectorised
+                stage on NEON/WASM/purego, tiers this machine cannot measure, and
+                deleting it on an amd64 wash would regress them untested. The
+                stale −3.2%/−7% figures in `mixedRadixStageMinMuls` are now marked
+                as pre-hoist.
+
+          - [x] **Fused radix-11 stage kernel.** _Done 2026-07-27 — the largest
+                single win the fused kernels have produced. n = 704 dropped
+                10244 → 2609 ns (complex64, −74.5%) and 11597 → 4191 ns
+                (complex128, −63.9%)._
+
+                Fallout from the re-derivation above. n = 704 = `[11 64]` is one
+                of the six weakest lengths in the sweep (0.12× FFTW3) and its L0
+                is a radix-11 span-64 stage with 640 twiddle multiplies — the
+                single largest stage in the set with no fused kernel. Admitting
+                it to the two-pass path bought +0.2%/−0.3%, i.e. nothing, so 704
+                was running that stage at scalar-equivalent speed.
+
+                `avx2_f32_mixedradix_stage11.s` and its complex128 twin follow
+                the radix-7 kernels, but radix 11 no longer fits the register
+                file, and both departures follow from that:
+
+                - `t1..t5` and `u1..u5` are live across the whole output half,
+                  which spends ten YMM registers before any constant. So the ten
+                  butterfly constants sit pre-broadcast in RODATA and are read as
+                  FMA memory operands — 320 bytes, L1-hot after the first block,
+                  and an FMA with a memory source stays one fused uop.
+                - Ten row offsets would need ten index registers; the SIB scale
+                  supplies the even multiples, so holding 1×, 3×, 5×, 7× and 9×
+                  the row stride reaches all ten rows. That also shortens the
+                  prologue, which is where the break-even sits at these spans.
+
+                Verified before any assembly was written: the conjugate-pair
+                decomposition was checked against `kernels.Butterfly11*` (the
+                11×11 matrix form) in both directions, then the kernels against
+                the definition-based stage reference at spans 4, 7, 16, 19, 64,
+                65 and 253 — so both the vector body and the Go tail — in both
+                precisions, both directions, and with `dst == input` aliasing.
+
+                Measured with the same single-binary env-knob protocol, 8
+                canary-gated rounds, all 8 accepted (canary 975–1144 against a
+                994.7 floor). The eighteen cells with no radix-11 stage spanned
+                −2.2%…+5.4%, which is this run's noise floor; the n = 704 effect
+                is 30–60× that.
+
+                Two things did _not_ go the way this item predicted:
+
+                - **No gate change.** The item expected
+                  `mixedRadixStageVectorizable` to start treating radix 11 like
+                  radix 7. It should not. Radix 7's two-pass form was a measured
+                  regression, which is why it is admitted only where the fused
+                  kernel runs; radix 11's is a wash on amd64 and is the only
+                  vectorised stage on NEON/WASM/purego. Gating it on the fused
+                  kernel would drop those tiers to scalar to buy nothing here.
+                  The size threshold already admitted radix 11, so the fused
+                  kernel simply takes over where AVX2 is present.
+                - **The fusion is not the whole win.** About 1.6× of the 3.9× is
+                  the conjugate-pair butterfly, not the fusion:
+                  `kernels.Butterfly11*` is the full 11×11 matrix — 100 complex
+                  multiplies against the pair form's 50 real-by-complex ones —
+                  and the same swap written in plain Go benchmarks 113.6 → 72.1
+                  ns. See the next item.
+
+          - [ ] **Give `Butterfly11` the conjugate-pair form.** Raised by the
+                subtask above. `kernels.Butterfly11ForwardComplex64` and its
+                three siblings evaluate the full 11×11 DFT matrix, which is the
+                only radix in the set still doing O(r²) complex multiplies —
+                radix 3/5/7 all have hand-written butterflies. The fused AVX2
+                kernel now sidesteps it, so this is dead weight on amd64, but it
+                is still what runs every radix-11 stage on SSE2, NEON, WASM and
+                purego, and what the fused kernels' own Go tails call. A
+                throwaway pair-form implementation measured 113.6 → 72.1 ns
+                against it (−37%) without being tuned; the derivation and the
+                index tables are written out in the header of
+                `avx2_f32_mixedradix_stage11.s`. Cheap, arch-independent, and the
+                registry-driven reference tests already cover it.
 
           - [ ] **Explain the +6.8%/+4.4% regression at n = 768.** Left open by
                 the hoist subtask. 768 = `[3 256]` has 3 leaves so no win was
