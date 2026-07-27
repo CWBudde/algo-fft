@@ -48,14 +48,14 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 
 	// Load input in natural order (complex128 = 16 bytes each)
 	// Radix-8 on size-8 is a single butterfly with identity permutation
-	MOVUPD 0(R9), X0    // x0
-	MOVUPD 16(R9), X1   // x1
-	MOVUPD 32(R9), X2   // x2
-	MOVUPD 48(R9), X3   // x3
-	MOVUPD 64(R9), X4   // x4
-	MOVUPD 80(R9), X5   // x5
-	MOVUPD 96(R9), X6   // x6
-	MOVUPD 112(R9), X7  // x7
+	VMOVUPD 0(R9), X0    // x0
+	VMOVUPD 16(R9), X1   // x1
+	VMOVUPD 32(R9), X2   // x2
+	VMOVUPD 48(R9), X3   // x3
+	VMOVUPD 64(R9), X4   // x4
+	VMOVUPD 80(R9), X5   // x5
+	VMOVUPD 96(R9), X6   // x6
+	VMOVUPD 112(R9), X7  // x7
 
 	// a0..a7
 	VADDPD X4, X0, X8   // a0 = x0 + x4
@@ -100,7 +100,7 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	VSUBPD X4, X0, X12  // out4
 
 	// t1 = w1 * o1
-	MOVUPD 16(R10), X10
+	VMOVUPD 16(R10), X10
 	VMOVDDUP X10, X11          // w1_re
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10          // w1_im
@@ -111,7 +111,7 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	VSUBPD X13, X1, X13        // out5 = e1 - t1
 
 	// t2 = w2 * o2
-	MOVUPD 32(R10), X10
+	VMOVUPD 32(R10), X10
 	VMOVDDUP X10, X11
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10
@@ -122,7 +122,7 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	VSUBPD X0, X2, X14         // out6 (reuse X14)
 
 	// t3 = w3 * o3
-	MOVUPD 48(R10), X0
+	VMOVUPD 48(R10), X0
 	VMOVDDUP X0, X11
 	VPERMILPD $1, X0, X0
 	VMOVDDUP X0, X0
@@ -133,14 +133,14 @@ TEXT ·ForwardAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	VSUBPD X2, X3, X15         // out7 (reuse X15)
 
 	// Store results to dst
-	MOVUPD X8, 0(R8)
-	MOVUPD X9, 16(R8)
-	MOVUPD X10, 32(R8)
-	MOVUPD X11, 48(R8)
-	MOVUPD X12, 64(R8)
-	MOVUPD X13, 80(R8)
-	MOVUPD X14, 96(R8)
-	MOVUPD X15, 112(R8)
+	VMOVUPD X8, 0(R8)
+	VMOVUPD X9, 16(R8)
+	VMOVUPD X10, 32(R8)
+	VMOVUPD X11, 48(R8)
+	VMOVUPD X12, 64(R8)
+	VMOVUPD X13, 80(R8)
+	VMOVUPD X14, 96(R8)
+	VMOVUPD X15, 112(R8)
 
 	VZEROUPPER
 	MOVB $1, ret+96(FP)
@@ -188,14 +188,14 @@ TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 
 	// Load input in natural order (complex128 = 16 bytes each)
 	// Radix-8 on size-8 is a single butterfly with identity permutation
-	MOVUPD 0(R9), X0    // x0
-	MOVUPD 16(R9), X1   // x1
-	MOVUPD 32(R9), X2   // x2
-	MOVUPD 48(R9), X3   // x3
-	MOVUPD 64(R9), X4   // x4
-	MOVUPD 80(R9), X5   // x5
-	MOVUPD 96(R9), X6   // x6
-	MOVUPD 112(R9), X7  // x7
+	VMOVUPD 0(R9), X0    // x0
+	VMOVUPD 16(R9), X1   // x1
+	VMOVUPD 32(R9), X2   // x2
+	VMOVUPD 48(R9), X3   // x3
+	VMOVUPD 64(R9), X4   // x4
+	VMOVUPD 80(R9), X5   // x5
+	VMOVUPD 96(R9), X6   // x6
+	VMOVUPD 112(R9), X7  // x7
 
 	// a0..a7
 	VADDPD X4, X0, X8
@@ -240,7 +240,7 @@ TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	VSUBPD X4, X0, X12
 
 	// t1 = conj(w1) * o1
-	MOVUPD 16(R10), X10
+	VMOVUPD 16(R10), X10
 	VMOVDDUP X10, X11
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10
@@ -251,7 +251,7 @@ TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	VSUBPD X13, X1, X13
 
 	// t2 = conj(w2) * o2
-	MOVUPD 32(R10), X10
+	VMOVUPD 32(R10), X10
 	VMOVDDUP X10, X11
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10
@@ -262,7 +262,7 @@ TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	VSUBPD X0, X2, X14
 
 	// t3 = conj(w3) * o3
-	MOVUPD 48(R10), X0
+	VMOVUPD 48(R10), X0
 	VMOVDDUP X0, X11
 	VPERMILPD $1, X0, X0
 	VMOVDDUP X0, X0
@@ -286,14 +286,14 @@ TEXT ·InverseAVX2Size8Radix8Complex128Asm(SB), NOSPLIT, $0-97
 	VMULPD X0, X15, X15
 
 	// Store results to dst
-	MOVUPD X8, 0(R8)
-	MOVUPD X9, 16(R8)
-	MOVUPD X10, 32(R8)
-	MOVUPD X11, 48(R8)
-	MOVUPD X12, 64(R8)
-	MOVUPD X13, 80(R8)
-	MOVUPD X14, 96(R8)
-	MOVUPD X15, 112(R8)
+	VMOVUPD X8, 0(R8)
+	VMOVUPD X9, 16(R8)
+	VMOVUPD X10, 32(R8)
+	VMOVUPD X11, 48(R8)
+	VMOVUPD X12, 64(R8)
+	VMOVUPD X13, 80(R8)
+	VMOVUPD X14, 96(R8)
+	VMOVUPD X15, 112(R8)
 
 	VZEROUPPER
 	MOVB $1, ret+96(FP)

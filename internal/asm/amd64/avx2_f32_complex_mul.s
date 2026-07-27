@@ -118,23 +118,23 @@ cmul64_scalar_loop:
 	SHLQ $3, R9              // R9 = i * 8 (shift left by 3 = multiply by 8)
 
 	// Load single complex64 (8 bytes)
-	MOVSD (SI)(R9*1), X0     // X0 = a[i] (load 8 bytes)
-	MOVSD (DX)(R9*1), X1     // X1 = b[i] (load 8 bytes)
+	VMOVSD (SI)(R9*1), X0     // X0 = a[i] (load 8 bytes)
+	VMOVSD (DX)(R9*1), X1     // X1 = b[i] (load 8 bytes)
 
 	// Complex multiply using SSE
-	MOVSLDUP X0, X2          // X2 = [a.r, a.r] - Duplicate low (real) parts
-	MOVSHDUP X0, X3          // X3 = [a.i, a.i] - Duplicate high (imag) parts
-	MOVAPS X1, X4            // Copy b to X4
-	SHUFPS $0xB1, X4, X4     // X4 = [b.i, b.r] - Swap adjacent pairs (0xB1 = 10110001)
-	MULPS X3, X4             // X4 = a.i * [b.i, b.r] = [a.i*b.i, a.i*b.r]
+	VMOVSLDUP X0, X2          // X2 = [a.r, a.r] - Duplicate low (real) parts
+	VMOVSHDUP X0, X3          // X3 = [a.i, a.i] - Duplicate high (imag) parts
+	VMOVAPS X1, X4            // Copy b to X4
+	VSHUFPS $0xB1, X4, X4, X4     // X4 = [b.i, b.r] - Swap adjacent pairs (0xB1 = 10110001)
+	VMULPS X3, X4, X4             // X4 = a.i * [b.i, b.r] = [a.i*b.i, a.i*b.r]
 
 	// We need: [a.r*b.r - a.i*b.i, a.r*b.i + a.i*b.r]
 	// SSE3 ADDSUBPS does: even lanes sub, odd lanes add
-	MULPS X2, X1             // X1 = a.r * [b.r, b.i] = [a.r*b.r, a.r*b.i]
-	ADDSUBPS X4, X1          // X1 = X1 -/+ X4 = [a.r*b.r - a.i*b.i, a.r*b.i + a.i*b.r]
+	VMULPS X2, X1, X1             // X1 = a.r * [b.r, b.i] = [a.r*b.r, a.r*b.i]
+	VADDSUBPS X4, X1, X1          // X1 = X1 -/+ X4 = [a.r*b.r - a.i*b.i, a.r*b.i + a.i*b.r]
 
 	// Store result
-	MOVSD X1, (DI)(R9*1)     // dst[i] = result (store 8 bytes)
+	VMOVSD X1, (DI)(R9*1)     // dst[i] = result (store 8 bytes)
 
 	INCQ AX                  // i++ (increment element counter)
 	CMPQ AX, CX              // Compare i with n
@@ -196,19 +196,19 @@ cmul64ip_scalar_loop:
 	MOVQ AX, R9              // Copy index to R9
 	SHLQ $3, R9              // R9 = i * 8 (byte offset)
 
-	MOVSD (DI)(R9*1), X0     // X0 = dst[i] (load 8 bytes)
-	MOVSD (SI)(R9*1), X1     // X1 = src[i] (load 8 bytes)
+	VMOVSD (DI)(R9*1), X0     // X0 = dst[i] (load 8 bytes)
+	VMOVSD (SI)(R9*1), X1     // X1 = src[i] (load 8 bytes)
 
 	// Complex multiply: dst = dst * src
-	MOVSLDUP X0, X2          // X2 = [dst.r, dst.r] - Duplicate low (real) parts
-	MOVSHDUP X0, X3          // X3 = [dst.i, dst.i] - Duplicate high (imag) parts
-	MOVAPS X1, X4            // Copy src to X4
-	SHUFPS $0xB1, X4, X4     // X4 = [src.i, src.r] - Swap adjacent pairs
-	MULPS X3, X4             // X4 = dst.i * [src.i, src.r] = [dst.i*src.i, dst.i*src.r]
-	MULPS X2, X1             // X1 = dst.r * [src.r, src.i] = [dst.r*src.r, dst.r*src.i]
-	ADDSUBPS X4, X1          // X1 = X1 -/+ X4 = [dst.r*src.r - dst.i*src.i, dst.r*src.i + dst.i*src.r]
+	VMOVSLDUP X0, X2          // X2 = [dst.r, dst.r] - Duplicate low (real) parts
+	VMOVSHDUP X0, X3          // X3 = [dst.i, dst.i] - Duplicate high (imag) parts
+	VMOVAPS X1, X4            // Copy src to X4
+	VSHUFPS $0xB1, X4, X4, X4     // X4 = [src.i, src.r] - Swap adjacent pairs
+	VMULPS X3, X4, X4             // X4 = dst.i * [src.i, src.r] = [dst.i*src.i, dst.i*src.r]
+	VMULPS X2, X1, X1             // X1 = dst.r * [src.r, src.i] = [dst.r*src.r, dst.r*src.i]
+	VADDSUBPS X4, X1, X1          // X1 = X1 -/+ X4 = [dst.r*src.r - dst.i*src.i, dst.r*src.i + dst.i*src.r]
 
-	MOVSD X1, (DI)(R9*1)     // dst[i] = result (store 8 bytes)
+	VMOVSD X1, (DI)(R9*1)     // dst[i] = result (store 8 bytes)
 
 	INCQ AX                  // i++ (increment element counter)
 	CMPQ AX, CX              // Compare i with n

@@ -832,7 +832,7 @@ r4_256_inv_scale:
 	// Apply 1/N scaling for inverse transform
 	// ==================================================================
 	MOVL ·twoFiftySixth32(SB), AX         // 1/256 = 0.00390625
-	MOVD AX, X8
+	VMOVQ AX, X8
 	VBROADCASTSS X8, Y8
 
 	XORQ CX, CX

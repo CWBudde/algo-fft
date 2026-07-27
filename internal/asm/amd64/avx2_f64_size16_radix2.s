@@ -50,41 +50,41 @@ size16_128_use_dst:
 	// -----------------------------------------------------------------------
 	// For size 16, bitrev = [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]
 	// complex128 is 16 bytes
-	MOVUPD 0(R9), X0         // src[0]
-	MOVUPD X0, 0(R8)
-	MOVUPD 128(R9), X0       // src[8]
-	MOVUPD X0, 16(R8)
-	MOVUPD 64(R9), X0        // src[4]
-	MOVUPD X0, 32(R8)
-	MOVUPD 192(R9), X0       // src[12]
-	MOVUPD X0, 48(R8)
+	VMOVUPD 0(R9), X0         // src[0]
+	VMOVUPD X0, 0(R8)
+	VMOVUPD 128(R9), X0       // src[8]
+	VMOVUPD X0, 16(R8)
+	VMOVUPD 64(R9), X0        // src[4]
+	VMOVUPD X0, 32(R8)
+	VMOVUPD 192(R9), X0       // src[12]
+	VMOVUPD X0, 48(R8)
 
-	MOVUPD 32(R9), X0        // src[2]
-	MOVUPD X0, 64(R8)
-	MOVUPD 160(R9), X0       // src[10]
-	MOVUPD X0, 80(R8)
-	MOVUPD 96(R9), X0        // src[6]
-	MOVUPD X0, 96(R8)
-	MOVUPD 224(R9), X0       // src[14]
-	MOVUPD X0, 112(R8)
+	VMOVUPD 32(R9), X0        // src[2]
+	VMOVUPD X0, 64(R8)
+	VMOVUPD 160(R9), X0       // src[10]
+	VMOVUPD X0, 80(R8)
+	VMOVUPD 96(R9), X0        // src[6]
+	VMOVUPD X0, 96(R8)
+	VMOVUPD 224(R9), X0       // src[14]
+	VMOVUPD X0, 112(R8)
 
-	MOVUPD 16(R9), X0        // src[1]
-	MOVUPD X0, 128(R8)
-	MOVUPD 144(R9), X0       // src[9]
-	MOVUPD X0, 144(R8)
-	MOVUPD 80(R9), X0        // src[5]
-	MOVUPD X0, 160(R8)
-	MOVUPD 208(R9), X0       // src[13]
-	MOVUPD X0, 176(R8)
+	VMOVUPD 16(R9), X0        // src[1]
+	VMOVUPD X0, 128(R8)
+	VMOVUPD 144(R9), X0       // src[9]
+	VMOVUPD X0, 144(R8)
+	VMOVUPD 80(R9), X0        // src[5]
+	VMOVUPD X0, 160(R8)
+	VMOVUPD 208(R9), X0       // src[13]
+	VMOVUPD X0, 176(R8)
 
-	MOVUPD 48(R9), X0        // src[3]
-	MOVUPD X0, 192(R8)
-	MOVUPD 176(R9), X0       // src[11]
-	MOVUPD X0, 208(R8)
-	MOVUPD 112(R9), X0       // src[7]
-	MOVUPD X0, 224(R8)
-	MOVUPD 240(R9), X0       // src[15]
-	MOVUPD X0, 240(R8)
+	VMOVUPD 48(R9), X0        // src[3]
+	VMOVUPD X0, 192(R8)
+	VMOVUPD 176(R9), X0       // src[11]
+	VMOVUPD X0, 208(R8)
+	VMOVUPD 112(R9), X0       // src[7]
+	VMOVUPD X0, 224(R8)
+	VMOVUPD 240(R9), X0       // src[15]
+	VMOVUPD X0, 240(R8)
 
 size16_128_stage1:
 	// -----------------------------------------------------------------------
@@ -102,12 +102,12 @@ size16_128_stage1_base:
 	MOVQ CX, DI
 	INCQ DI
 	SHLQ $4, DI
-	MOVUPD (R8)(SI*1), X0    // a
-	MOVUPD (R8)(DI*1), X1    // b
+	VMOVUPD (R8)(SI*1), X0    // a
+	VMOVUPD (R8)(DI*1), X1    // b
 	VADDPD X1, X0, X2
 	VSUBPD X1, X0, X3
-	MOVUPD X2, (R8)(SI*1)
-	MOVUPD X3, (R8)(DI*1)
+	VMOVUPD X2, (R8)(SI*1)
+	VMOVUPD X3, (R8)(DI*1)
 
 	ADDQ $2, CX
 	JMP  size16_128_stage1_base
@@ -138,14 +138,14 @@ size16_128_stage2_j:
 	ADDQ $2, DI              // +half
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0    // a
-	MOVUPD (R8)(DI*1), X1    // b
+	VMOVUPD (R8)(SI*1), X0    // a
+	VMOVUPD (R8)(DI*1), X1    // b
 
 	// Load twiddle w = twiddle[j*step]
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	// t = w * b
 	VMOVDDUP X2, X3          // [w.r, w.r]
@@ -157,8 +157,8 @@ size16_128_stage2_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size16_128_stage2_j
@@ -192,13 +192,13 @@ size16_128_stage3_j:
 	ADDQ $4, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -209,8 +209,8 @@ size16_128_stage3_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size16_128_stage3_j
@@ -239,12 +239,12 @@ size16_128_stage4_j:
 	ADDQ $8, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX              // j*step (step=1)
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -255,8 +255,8 @@ size16_128_stage4_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size16_128_stage4_j
@@ -321,41 +321,41 @@ size16_inv_128_use_dst:
 	// Bit-reversal permutation
 	// For size 16, bitrev = [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15]
 	// complex128 is 16 bytes
-	MOVUPD 0(R9), X0         // src[0]
-	MOVUPD X0, 0(R8)
-	MOVUPD 128(R9), X0       // src[8]
-	MOVUPD X0, 16(R8)
-	MOVUPD 64(R9), X0        // src[4]
-	MOVUPD X0, 32(R8)
-	MOVUPD 192(R9), X0       // src[12]
-	MOVUPD X0, 48(R8)
+	VMOVUPD 0(R9), X0         // src[0]
+	VMOVUPD X0, 0(R8)
+	VMOVUPD 128(R9), X0       // src[8]
+	VMOVUPD X0, 16(R8)
+	VMOVUPD 64(R9), X0        // src[4]
+	VMOVUPD X0, 32(R8)
+	VMOVUPD 192(R9), X0       // src[12]
+	VMOVUPD X0, 48(R8)
 
-	MOVUPD 32(R9), X0        // src[2]
-	MOVUPD X0, 64(R8)
-	MOVUPD 160(R9), X0       // src[10]
-	MOVUPD X0, 80(R8)
-	MOVUPD 96(R9), X0        // src[6]
-	MOVUPD X0, 96(R8)
-	MOVUPD 224(R9), X0       // src[14]
-	MOVUPD X0, 112(R8)
+	VMOVUPD 32(R9), X0        // src[2]
+	VMOVUPD X0, 64(R8)
+	VMOVUPD 160(R9), X0       // src[10]
+	VMOVUPD X0, 80(R8)
+	VMOVUPD 96(R9), X0        // src[6]
+	VMOVUPD X0, 96(R8)
+	VMOVUPD 224(R9), X0       // src[14]
+	VMOVUPD X0, 112(R8)
 
-	MOVUPD 16(R9), X0        // src[1]
-	MOVUPD X0, 128(R8)
-	MOVUPD 144(R9), X0       // src[9]
-	MOVUPD X0, 144(R8)
-	MOVUPD 80(R9), X0        // src[5]
-	MOVUPD X0, 160(R8)
-	MOVUPD 208(R9), X0       // src[13]
-	MOVUPD X0, 176(R8)
+	VMOVUPD 16(R9), X0        // src[1]
+	VMOVUPD X0, 128(R8)
+	VMOVUPD 144(R9), X0       // src[9]
+	VMOVUPD X0, 144(R8)
+	VMOVUPD 80(R9), X0        // src[5]
+	VMOVUPD X0, 160(R8)
+	VMOVUPD 208(R9), X0       // src[13]
+	VMOVUPD X0, 176(R8)
 
-	MOVUPD 48(R9), X0        // src[3]
-	MOVUPD X0, 192(R8)
-	MOVUPD 176(R9), X0       // src[11]
-	MOVUPD X0, 208(R8)
-	MOVUPD 112(R9), X0       // src[7]
-	MOVUPD X0, 224(R8)
-	MOVUPD 240(R9), X0       // src[15]
-	MOVUPD X0, 240(R8)
+	VMOVUPD 48(R9), X0        // src[3]
+	VMOVUPD X0, 192(R8)
+	VMOVUPD 176(R9), X0       // src[11]
+	VMOVUPD X0, 208(R8)
+	VMOVUPD 112(R9), X0       // src[7]
+	VMOVUPD X0, 224(R8)
+	VMOVUPD 240(R9), X0       // src[15]
+	VMOVUPD X0, 240(R8)
 
 size16_inv_128_stage1:
 	// Stage 1: size=2, half=1, step=8 (twiddle[0]=1)
@@ -369,12 +369,12 @@ size16_inv_128_stage1_base:
 	MOVQ CX, DI
 	INCQ DI
 	SHLQ $4, DI
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 	VADDPD X1, X0, X2
 	VSUBPD X1, X0, X3
-	MOVUPD X2, (R8)(SI*1)
-	MOVUPD X3, (R8)(DI*1)
+	VMOVUPD X2, (R8)(SI*1)
+	VMOVUPD X3, (R8)(DI*1)
 	ADDQ $2, CX
 	JMP  size16_inv_128_stage1_base
 
@@ -399,13 +399,13 @@ size16_inv_128_stage2_j:
 	ADDQ $2, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -416,8 +416,8 @@ size16_inv_128_stage2_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size16_inv_128_stage2_j
@@ -447,13 +447,13 @@ size16_inv_128_stage3_j:
 	ADDQ $4, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -464,8 +464,8 @@ size16_inv_128_stage3_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size16_inv_128_stage3_j
@@ -491,12 +491,12 @@ size16_inv_128_stage4_j:
 	ADDQ $8, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -507,8 +507,8 @@ size16_inv_128_stage4_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size16_inv_128_stage4_j
@@ -525,9 +525,9 @@ size16_inv_128_scale_loop:
 	JGE  size16_inv_128_finalize
 	MOVQ CX, SI
 	SHLQ $4, SI
-	MOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(SI*1), X0
 	VMULPD X9, X0, X0
-	MOVUPD X0, (R8)(SI*1)
+	VMOVUPD X0, (R8)(SI*1)
 	INCQ CX
 	JMP  size16_inv_128_scale_loop
 

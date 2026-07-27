@@ -363,7 +363,7 @@ size8_inv_start:
 	// Apply 1/n scaling (1/8 = 0.125)
 	// =======================================================================
 	MOVL ·eighth32(SB), AX     // 0.125f in IEEE-754
-	MOVD AX, X4
+	VMOVQ AX, X4
 	VBROADCASTSS X4, Y4      // Y4 = [0.125, 0.125, ...]
 	VMULPS Y4, Y2, Y2
 	VMULPS Y4, Y3, Y3

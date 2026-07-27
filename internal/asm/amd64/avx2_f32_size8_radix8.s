@@ -96,7 +96,7 @@ size8_r8_fwd_use_dst:
 
 	// Build mask for multiply by -i: [0, sign, 0, sign]
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X9
+	VMOVQ AX, X9
 	VBROADCASTSS X9, X9
 	VXORPD X0, X0, X0
 	VBLENDPS $0xAA, X9, X0, X9
@@ -250,7 +250,7 @@ size8_r8_inv_use_dst:
 
 	// Build mask for multiply by +i: [sign, 0, sign, 0]
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X9
+	VMOVQ AX, X9
 	VBROADCASTSS X9, X9
 	VXORPD X0, X0, X0
 	VBLENDPS $0x55, X9, X0, X9
@@ -321,7 +321,7 @@ size8_r8_inv_use_dst:
 
 	// Apply 1/8 scaling
 	MOVL ·eighth32(SB), AX
-	MOVD AX, X2
+	VMOVQ AX, X2
 	VBROADCASTSS X2, Y2
 	VMULPS Y2, Y0, Y0
 	VMULPS Y2, Y1, Y1

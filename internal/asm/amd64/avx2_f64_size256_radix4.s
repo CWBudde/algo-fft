@@ -883,7 +883,7 @@ size256_r4_f64_inv_stage4_loop:
 
 size256_r4_f64_inv_scale:
 	// Scale by 1/256 and copy to dst
-	MOVSD ·twoFiftySixth64(SB), X15
+	VMOVSD ·twoFiftySixth64(SB), X15
 	VSHUFPD $0, X15, X15, X15
 	MOVQ $256, CX
 	MOVQ R8, SI

@@ -57,8 +57,8 @@ m24_32_avx2_fwd_use_dst:
 	XORQ CX, CX
 m24_32_avx2_fwd_bitrev_loop:
 	MOVQ (R12)(CX*8), DX
-	MOVSD (R9)(DX*8), X0
-	MOVSD X0, (R8)(CX*8)
+	VMOVSD (R9)(DX*8), X0
+	VMOVSD X0, (R8)(CX*8)
 	INCQ CX
 	CMPQ CX, $32
 	JL   m24_32_avx2_fwd_bitrev_loop
@@ -132,10 +132,10 @@ m24_32_avx2_fwd_stage1_loop:
 
 m24_32_avx2_fwd_stage2_loop:
 	// j=0 (w=1)
-	MOVSD (SI), X0
-	MOVSD 32(SI), X1
-	MOVSD 64(SI), X2
-	MOVSD 96(SI), X3
+	VMOVSD (SI), X0
+	VMOVSD 32(SI), X1
+	VMOVSD 64(SI), X2
+	VMOVSD 96(SI), X3
 	// Butterfly 4 (no twiddles)
 	VMOVAPS X0, X4
 	VADDPS  X2, X4, X4 // t0
@@ -160,20 +160,20 @@ m24_32_avx2_fwd_stage2_loop:
 	VXORPS  X14, X9, X9 // i*t3
 	VMOVAPS X5, X3
 	VADDPS  X9, X3, X3 // y3
-	MOVSD X0, (SI)
-	MOVSD X1, 32(SI)
-	MOVSD X2, 64(SI)
-	MOVSD X3, 96(SI)
+	VMOVSD X0, (SI)
+	VMOVSD X1, 32(SI)
+	VMOVSD X2, 64(SI)
+	VMOVSD X3, 96(SI)
 
 	// j=1 (twiddle[2], twiddle[4], twiddle[6])
-	MOVSD 8(SI), X0
-	MOVSD 40(SI), X1
-	MOVSD 72(SI), X2
-	MOVSD 104(SI), X3
+	VMOVSD 8(SI), X0
+	VMOVSD 40(SI), X1
+	VMOVSD 72(SI), X2
+	VMOVSD 104(SI), X3
 	// Load twiddles
-	MOVSD 16(R10), X10 // twiddle[2]
-	MOVSD 32(R10), X11 // twiddle[4]
-	MOVSD 48(R10), X12 // twiddle[6]
+	VMOVSD 16(R10), X10 // twiddle[2]
+	VMOVSD 32(R10), X11 // twiddle[4]
+	VMOVSD 48(R10), X12 // twiddle[6]
 	// t1 = X1 * w2
 	VMOVAPS X10, X13
 	VSHUFPS $0x00, X13, X13, X13
@@ -228,19 +228,19 @@ m24_32_avx2_fwd_stage2_loop:
 	VXORPS  X14, X9, X9
 	VMOVAPS X5, X3
 	VADDPS  X9, X3, X3
-	MOVSD X0, 8(SI)
-	MOVSD X1, 40(SI)
-	MOVSD X2, 72(SI)
-	MOVSD X3, 104(SI)
+	VMOVSD X0, 8(SI)
+	VMOVSD X1, 40(SI)
+	VMOVSD X2, 72(SI)
+	VMOVSD X3, 104(SI)
 
 	// j=2 (twiddle[4], twiddle[8], twiddle[12])
-	MOVSD 16(SI), X0
-	MOVSD 48(SI), X1
-	MOVSD 80(SI), X2
-	MOVSD 112(SI), X3
-	MOVSD 32(R10), X10 // twiddle[4]
-	MOVSD 64(R10), X11 // twiddle[8]
-	MOVSD 96(R10), X12 // twiddle[12]
+	VMOVSD 16(SI), X0
+	VMOVSD 48(SI), X1
+	VMOVSD 80(SI), X2
+	VMOVSD 112(SI), X3
+	VMOVSD 32(R10), X10 // twiddle[4]
+	VMOVSD 64(R10), X11 // twiddle[8]
+	VMOVSD 96(R10), X12 // twiddle[12]
 	// t1
 	VMOVAPS X10, X13
 	VSHUFPS $0x00, X13, X13, X13
@@ -295,19 +295,19 @@ m24_32_avx2_fwd_stage2_loop:
 	VXORPS  X14, X9, X9
 	VMOVAPS X5, X3
 	VADDPS  X9, X3, X3
-	MOVSD X0, 16(SI)
-	MOVSD X1, 48(SI)
-	MOVSD X2, 80(SI)
-	MOVSD X3, 112(SI)
+	VMOVSD X0, 16(SI)
+	VMOVSD X1, 48(SI)
+	VMOVSD X2, 80(SI)
+	VMOVSD X3, 112(SI)
 
 	// j=3 (twiddle[6], twiddle[12], twiddle[18])
-	MOVSD 24(SI), X0
-	MOVSD 56(SI), X1
-	MOVSD 88(SI), X2
-	MOVSD 120(SI), X3
-	MOVSD 48(R10), X10 // twiddle[6]
-	MOVSD 96(R10), X11 // twiddle[12]
-	MOVSD 144(R10), X12 // twiddle[18]
+	VMOVSD 24(SI), X0
+	VMOVSD 56(SI), X1
+	VMOVSD 88(SI), X2
+	VMOVSD 120(SI), X3
+	VMOVSD 48(R10), X10 // twiddle[6]
+	VMOVSD 96(R10), X11 // twiddle[12]
+	VMOVSD 144(R10), X12 // twiddle[18]
 	// t1
 	VMOVAPS X10, X13
 	VSHUFPS $0x00, X13, X13, X13
@@ -362,10 +362,10 @@ m24_32_avx2_fwd_stage2_loop:
 	VXORPS  X14, X9, X9
 	VMOVAPS X5, X3
 	VADDPS  X9, X3, X3
-	MOVSD X0, 24(SI)
-	MOVSD X1, 56(SI)
-	MOVSD X2, 88(SI)
-	MOVSD X3, 120(SI)
+	VMOVSD X0, 24(SI)
+	VMOVSD X1, 56(SI)
+	VMOVSD X2, 88(SI)
+	VMOVSD X3, 120(SI)
 
 	ADDQ $128, SI
 	DECQ CX
@@ -378,14 +378,14 @@ m24_32_avx2_fwd_stage2_loop:
 	MOVQ $16, CX // 16 butterflies
 
 m24_32_avx2_fwd_stage3_loop:
-	MOVSD (SI), X0 // a
-	MOVSD 128(SI), X1 // b
+	VMOVSD (SI), X0 // a
+	VMOVSD 128(SI), X1 // b
 	// twiddle[CX]
 	// CX starts at 16, but we need twiddle[0..15]
 	// Actually we need twiddle[16-CX]
 	MOVQ $16, AX
 	SUBQ CX, AX // AX = 0, 1, 2...
-	MOVSD (R10)(AX*8), X10
+	VMOVSD (R10)(AX*8), X10
 	// t = X1 * X10
 	VMOVAPS X10, X11
 	VSHUFPS $0x00, X11, X11, X11
@@ -401,8 +401,8 @@ m24_32_avx2_fwd_stage3_loop:
 	VADDPS  X1, X0, X0
 	VSUBPS  X1, X2, X2
 	
-	MOVSD X0, (SI)
-	MOVSD X2, 128(SI)
+	VMOVSD X0, (SI)
+	VMOVSD X2, 128(SI)
 	
 	ADDQ $8, SI
 	DECQ CX
@@ -474,8 +474,8 @@ m24_32_avx2_inv_use_dst:
 	XORQ CX, CX
 m24_32_avx2_inv_bitrev_loop:
 	MOVQ (R12)(CX*8), DX
-	MOVSD (R9)(DX*8), X0
-	MOVSD X0, (R8)(CX*8)
+	VMOVSD (R9)(DX*8), X0
+	VMOVSD X0, (R8)(CX*8)
 	INCQ CX
 	CMPQ CX, $32
 	JL   m24_32_avx2_inv_bitrev_loop
@@ -538,10 +538,10 @@ m24_32_avx2_inv_stage1_loop:
 
 m24_32_avx2_inv_stage2_loop:
 	// j=0
-	MOVSD (SI), X0
-	MOVSD 32(SI), X1
-	MOVSD 64(SI), X2
-	MOVSD 96(SI), X3
+	VMOVSD (SI), X0
+	VMOVSD 32(SI), X1
+	VMOVSD 64(SI), X2
+	VMOVSD 96(SI), X3
 	VMOVAPS X0, X4
 	VADDPS  X2, X4, X4
 	VMOVAPS X0, X5
@@ -565,21 +565,21 @@ m24_32_avx2_inv_stage2_loop:
 	VXORPS  X15, X9, X9 // -i*t3
 	VMOVAPS X5, X3
 	VADDPS  X9, X3, X3
-	MOVSD X0, (SI)
-	MOVSD X1, 32(SI)
-	MOVSD X2, 64(SI)
-	MOVSD X3, 96(SI)
+	VMOVSD X0, (SI)
+	VMOVSD X1, 32(SI)
+	VMOVSD X2, 64(SI)
+	VMOVSD X3, 96(SI)
 
 	// j=1
-	MOVSD 8(SI), X0
-	MOVSD 40(SI), X1
-	MOVSD 72(SI), X2
-	MOVSD 104(SI), X3
-	MOVSD 16(R10), X10
+	VMOVSD 8(SI), X0
+	VMOVSD 40(SI), X1
+	VMOVSD 72(SI), X2
+	VMOVSD 104(SI), X3
+	VMOVSD 16(R10), X10
 	VXORPS X15, X10, X10 // conj(w2)
-	MOVSD 32(R10), X11
+	VMOVSD 32(R10), X11
 	VXORPS X15, X11, X11 // conj(w4)
-	MOVSD 48(R10), X12
+	VMOVSD 48(R10), X12
 	VXORPS X15, X12, X12 // conj(w6)
 	// t1
 	VMOVAPS X10, X13
@@ -635,21 +635,21 @@ m24_32_avx2_inv_stage2_loop:
 	VXORPS  X15, X9, X9
 	VMOVAPS X5, X3
 	VADDPS  X9, X3, X3
-	MOVSD X0, 8(SI)
-	MOVSD X1, 40(SI)
-	MOVSD X2, 72(SI)
-	MOVSD X3, 104(SI)
+	VMOVSD X0, 8(SI)
+	VMOVSD X1, 40(SI)
+	VMOVSD X2, 72(SI)
+	VMOVSD X3, 104(SI)
 
 	// j=2
-	MOVSD 16(SI), X0
-	MOVSD 48(SI), X1
-	MOVSD 80(SI), X2
-	MOVSD 112(SI), X3
-	MOVSD 32(R10), X10
+	VMOVSD 16(SI), X0
+	VMOVSD 48(SI), X1
+	VMOVSD 80(SI), X2
+	VMOVSD 112(SI), X3
+	VMOVSD 32(R10), X10
 	VXORPS X15, X10, X10
-	MOVSD 64(R10), X11
+	VMOVSD 64(R10), X11
 	VXORPS X15, X11, X11
-	MOVSD 96(R10), X12
+	VMOVSD 96(R10), X12
 	VXORPS X15, X12, X12
 	// t1
 	VMOVAPS X10, X13
@@ -705,21 +705,21 @@ m24_32_avx2_inv_stage2_loop:
 	VXORPS  X15, X9, X9
 	VMOVAPS X5, X3
 	VADDPS  X9, X3, X3
-	MOVSD X0, 16(SI)
-	MOVSD X1, 48(SI)
-	MOVSD X2, 80(SI)
-	MOVSD X3, 112(SI)
+	VMOVSD X0, 16(SI)
+	VMOVSD X1, 48(SI)
+	VMOVSD X2, 80(SI)
+	VMOVSD X3, 112(SI)
 
 	// j=3
-	MOVSD 24(SI), X0
-	MOVSD 56(SI), X1
-	MOVSD 88(SI), X2
-	MOVSD 120(SI), X3
-	MOVSD 48(R10), X10
+	VMOVSD 24(SI), X0
+	VMOVSD 56(SI), X1
+	VMOVSD 88(SI), X2
+	VMOVSD 120(SI), X3
+	VMOVSD 48(R10), X10
 	VXORPS X15, X10, X10
-	MOVSD 96(R10), X11
+	VMOVSD 96(R10), X11
 	VXORPS X15, X11, X11
-	MOVSD 144(R10), X12
+	VMOVSD 144(R10), X12
 	VXORPS X15, X12, X12
 	// t1
 	VMOVAPS X10, X13
@@ -775,10 +775,10 @@ m24_32_avx2_inv_stage2_loop:
 	VXORPS  X15, X9, X9
 	VMOVAPS X5, X3
 	VADDPS  X9, X3, X3
-	MOVSD X0, 24(SI)
-	MOVSD X1, 56(SI)
-	MOVSD X2, 88(SI)
-	MOVSD X3, 120(SI)
+	VMOVSD X0, 24(SI)
+	VMOVSD X1, 56(SI)
+	VMOVSD X2, 88(SI)
+	VMOVSD X3, 120(SI)
 
 	ADDQ $128, SI
 	DECQ CX
@@ -789,11 +789,11 @@ m24_32_avx2_inv_stage2_loop:
 	MOVQ $16, CX
 
 m24_32_avx2_inv_stage3_loop:
-	MOVSD (SI), X0
-	MOVSD 128(SI), X1
+	VMOVSD (SI), X0
+	VMOVSD 128(SI), X1
 	MOVQ $16, AX
 	SUBQ CX, AX
-	MOVSD (R10)(AX*8), X10
+	VMOVSD (R10)(AX*8), X10
 	VXORPS X15, X10, X10 // conj
 	// t = X1 * X10
 	VMOVAPS X10, X11
@@ -808,14 +808,14 @@ m24_32_avx2_inv_stage3_loop:
 	VMOVAPS X0, X2
 	VADDPS  X1, X0, X0
 	VSUBPS  X1, X2, X2
-	MOVSD X0, (SI)
-	MOVSD X2, 128(SI)
+	VMOVSD X0, (SI)
+	VMOVSD X2, 128(SI)
 	ADDQ $8, SI
 	DECQ CX
 	JNZ  m24_32_avx2_inv_stage3_loop
 
 	// Scale by 1/32
-	MOVSS ·thirtySecond32(SB), X15
+	VMOVSS ·thirtySecond32(SB), X15
 	VSHUFPS $0x00, X15, X15, X15
 	MOVQ $16, CX
 	MOVQ R8, SI

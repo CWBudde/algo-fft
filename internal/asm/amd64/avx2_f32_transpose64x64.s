@@ -332,9 +332,9 @@ TEXT ·TransposeTwiddleConj64x64Complex64AVX2Asm(SB), NOSPLIT, $0-73
     // Sign mask for conjugation: negate imaginary parts
     // For complex64: [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0]
     MOVL $0x3F800000, AX     // AX = 1.0f (IEEE 754 representation)
-    MOVD AX, X0              // X0 = [1.0, ?, ?, ?]
+    VMOVQ AX, X0              // X0 = [1.0, ?, ?, ?]
     MOVL $0xBF800000, AX     // AX = -1.0f (IEEE 754 representation)
-    MOVD AX, X1              // X1 = [-1.0, ?, ?, ?]
+    VMOVQ AX, X1              // X1 = [-1.0, ?, ?, ?]
     VPUNPCKLDQ X1, X0, X2    // X2 = [1.0, -1.0, 0, 0] (interleave double words)
     VBROADCASTSD X2, Y15     // Y15 = [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0] (broadcast sign mask)
 

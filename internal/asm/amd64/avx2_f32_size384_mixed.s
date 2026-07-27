@@ -267,12 +267,12 @@ TEXT ·Radix3Butterflies384ForwardComplex64Asm(SB), NOSPLIT, $0-24
 	// Load constants
 	// half = -0.5 (broadcast to all lanes)
 	MOVL $0xBF000000, AX     // -0.5 in float32 IEEE 754
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y8      // Y8 = [-0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5]
 
 	// sqrt(3)/2 = 0.866025403784
 	MOVL $0x3F5DB3D7, AX     // sqrt(3)/2 in float32 IEEE 754
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y9      // Y9 = [sqrt3_2, sqrt3_2, ...]
 
 	// Sign flip mask for negating imaginary parts: [0, -0, 0, -0, ...]
@@ -328,7 +328,7 @@ radix3_384_fwd_loop:
 	// Create sign mask: [0, 0x80000000, 0, 0x80000000, ...]
 	VXORPS Y10, Y10, Y10
 	MOVL $0x80000000, AX
-	MOVD AX, X11
+	VMOVQ AX, X11
 	VPBROADCASTD X11, Y11    // Y11 = [0x80000000, ...]
 	VBLENDPS $0xAA, Y11, Y10, Y10 // Y10 = [0, 0x80, 0, 0x80, 0, 0x80, 0, 0x80]
 
@@ -374,12 +374,12 @@ TEXT ·Radix3Butterflies384InverseComplex64Asm(SB), NOSPLIT, $0-24
 	// Load constants
 	// half = -0.5
 	MOVL $0xBF000000, AX
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y8      // Y8 = [-0.5, ...]
 
 	// sqrt(3)/2
 	MOVL $0x3F5DB3D7, AX
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y9      // Y9 = [sqrt3_2, ...]
 
 	// Process 4 butterflies at a time
@@ -425,7 +425,7 @@ radix3_384_inv_loop:
 
 	VXORPS Y10, Y10, Y10
 	MOVL $0x80000000, AX
-	MOVD AX, X11
+	VMOVQ AX, X11
 	VPBROADCASTD X11, Y11
 	VBLENDPS $0x55, Y11, Y10, Y10 // Y10 = [0x80, 0, 0x80, 0, ...]
 

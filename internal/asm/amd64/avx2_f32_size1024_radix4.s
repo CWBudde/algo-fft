@@ -906,7 +906,7 @@ r4_1024_inv_stage5_loop:
 r4_1024_inv_scale:
 	// 1/1024 = 0.0009765625
 	MOVL ·oneThousandTwentyFourth32(SB), AX
-	MOVD AX, X8
+	VMOVQ AX, X8
 	VBROADCASTSS X8, Y8
 
 	XORQ CX, CX

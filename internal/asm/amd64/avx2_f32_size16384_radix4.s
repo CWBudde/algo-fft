@@ -1265,7 +1265,7 @@ r4_16384_inv_stage7_loop:
 r4_16384_inv_scale:
 	// 1/16384
 	MOVL ·oneSixteenThousandThreeHundredEightyFourth32(SB), AX
-	MOVD AX, X8
+	VMOVQ AX, X8
 	VBROADCASTSS X8, Y8
 
 	XORQ CX, CX

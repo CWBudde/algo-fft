@@ -51,84 +51,84 @@ size32_128_use_dst:
 	//                        1,17,9,25,5,21,13,29,3,19,11,27,7,23,15,31]
 	// complex128 is 16 bytes
 	// Group 0: work[0..3] = src[0,16,8,24]
-	MOVUPD 0(R9), X0         // src[0]
-	MOVUPD X0, 0(R8)
-	MOVUPD 256(R9), X0       // src[16]
-	MOVUPD X0, 16(R8)
-	MOVUPD 128(R9), X0       // src[8]
-	MOVUPD X0, 32(R8)
-	MOVUPD 384(R9), X0       // src[24]
-	MOVUPD X0, 48(R8)
+	VMOVUPD 0(R9), X0         // src[0]
+	VMOVUPD X0, 0(R8)
+	VMOVUPD 256(R9), X0       // src[16]
+	VMOVUPD X0, 16(R8)
+	VMOVUPD 128(R9), X0       // src[8]
+	VMOVUPD X0, 32(R8)
+	VMOVUPD 384(R9), X0       // src[24]
+	VMOVUPD X0, 48(R8)
 
 	// Group 1: work[4..7] = src[4,20,12,28]
-	MOVUPD 64(R9), X0        // src[4]
-	MOVUPD X0, 64(R8)
-	MOVUPD 320(R9), X0       // src[20]
-	MOVUPD X0, 80(R8)
-	MOVUPD 192(R9), X0       // src[12]
-	MOVUPD X0, 96(R8)
-	MOVUPD 448(R9), X0       // src[28]
-	MOVUPD X0, 112(R8)
+	VMOVUPD 64(R9), X0        // src[4]
+	VMOVUPD X0, 64(R8)
+	VMOVUPD 320(R9), X0       // src[20]
+	VMOVUPD X0, 80(R8)
+	VMOVUPD 192(R9), X0       // src[12]
+	VMOVUPD X0, 96(R8)
+	VMOVUPD 448(R9), X0       // src[28]
+	VMOVUPD X0, 112(R8)
 
 	// Group 2: work[8..11] = src[2,18,10,26]
-	MOVUPD 32(R9), X0        // src[2]
-	MOVUPD X0, 128(R8)
-	MOVUPD 288(R9), X0       // src[18]
-	MOVUPD X0, 144(R8)
-	MOVUPD 160(R9), X0       // src[10]
-	MOVUPD X0, 160(R8)
-	MOVUPD 416(R9), X0       // src[26]
-	MOVUPD X0, 176(R8)
+	VMOVUPD 32(R9), X0        // src[2]
+	VMOVUPD X0, 128(R8)
+	VMOVUPD 288(R9), X0       // src[18]
+	VMOVUPD X0, 144(R8)
+	VMOVUPD 160(R9), X0       // src[10]
+	VMOVUPD X0, 160(R8)
+	VMOVUPD 416(R9), X0       // src[26]
+	VMOVUPD X0, 176(R8)
 
 	// Group 3: work[12..15] = src[6,22,14,30]
-	MOVUPD 96(R9), X0        // src[6]
-	MOVUPD X0, 192(R8)
-	MOVUPD 352(R9), X0       // src[22]
-	MOVUPD X0, 208(R8)
-	MOVUPD 224(R9), X0       // src[14]
-	MOVUPD X0, 224(R8)
-	MOVUPD 480(R9), X0       // src[30]
-	MOVUPD X0, 240(R8)
+	VMOVUPD 96(R9), X0        // src[6]
+	VMOVUPD X0, 192(R8)
+	VMOVUPD 352(R9), X0       // src[22]
+	VMOVUPD X0, 208(R8)
+	VMOVUPD 224(R9), X0       // src[14]
+	VMOVUPD X0, 224(R8)
+	VMOVUPD 480(R9), X0       // src[30]
+	VMOVUPD X0, 240(R8)
 
 	// Group 4: work[16..19] = src[1,17,9,25]
-	MOVUPD 16(R9), X0        // src[1]
-	MOVUPD X0, 256(R8)
-	MOVUPD 272(R9), X0       // src[17]
-	MOVUPD X0, 272(R8)
-	MOVUPD 144(R9), X0       // src[9]
-	MOVUPD X0, 288(R8)
-	MOVUPD 400(R9), X0       // src[25]
-	MOVUPD X0, 304(R8)
+	VMOVUPD 16(R9), X0        // src[1]
+	VMOVUPD X0, 256(R8)
+	VMOVUPD 272(R9), X0       // src[17]
+	VMOVUPD X0, 272(R8)
+	VMOVUPD 144(R9), X0       // src[9]
+	VMOVUPD X0, 288(R8)
+	VMOVUPD 400(R9), X0       // src[25]
+	VMOVUPD X0, 304(R8)
 
 	// Group 5: work[20..23] = src[5,21,13,29]
-	MOVUPD 80(R9), X0        // src[5]
-	MOVUPD X0, 320(R8)
-	MOVUPD 336(R9), X0       // src[21]
-	MOVUPD X0, 336(R8)
-	MOVUPD 208(R9), X0       // src[13]
-	MOVUPD X0, 352(R8)
-	MOVUPD 464(R9), X0       // src[29]
-	MOVUPD X0, 368(R8)
+	VMOVUPD 80(R9), X0        // src[5]
+	VMOVUPD X0, 320(R8)
+	VMOVUPD 336(R9), X0       // src[21]
+	VMOVUPD X0, 336(R8)
+	VMOVUPD 208(R9), X0       // src[13]
+	VMOVUPD X0, 352(R8)
+	VMOVUPD 464(R9), X0       // src[29]
+	VMOVUPD X0, 368(R8)
 
 	// Group 6: work[24..27] = src[3,19,11,27]
-	MOVUPD 48(R9), X0        // src[3]
-	MOVUPD X0, 384(R8)
-	MOVUPD 304(R9), X0       // src[19]
-	MOVUPD X0, 400(R8)
-	MOVUPD 176(R9), X0       // src[11]
-	MOVUPD X0, 416(R8)
-	MOVUPD 432(R9), X0       // src[27]
-	MOVUPD X0, 432(R8)
+	VMOVUPD 48(R9), X0        // src[3]
+	VMOVUPD X0, 384(R8)
+	VMOVUPD 304(R9), X0       // src[19]
+	VMOVUPD X0, 400(R8)
+	VMOVUPD 176(R9), X0       // src[11]
+	VMOVUPD X0, 416(R8)
+	VMOVUPD 432(R9), X0       // src[27]
+	VMOVUPD X0, 432(R8)
 
 	// Group 7: work[28..31] = src[7,23,15,31]
-	MOVUPD 112(R9), X0       // src[7]
-	MOVUPD X0, 448(R8)
-	MOVUPD 368(R9), X0       // src[23]
-	MOVUPD X0, 464(R8)
-	MOVUPD 240(R9), X0       // src[15]
-	MOVUPD X0, 480(R8)
-	MOVUPD 496(R9), X0       // src[31]
-	MOVUPD X0, 496(R8)
+	VMOVUPD 112(R9), X0       // src[7]
+	VMOVUPD X0, 448(R8)
+	VMOVUPD 368(R9), X0       // src[23]
+	VMOVUPD X0, 464(R8)
+	VMOVUPD 240(R9), X0       // src[15]
+	VMOVUPD X0, 480(R8)
+	VMOVUPD 496(R9), X0       // src[31]
+	VMOVUPD X0, 496(R8)
 
 size32_128_stage1:
 	// -----------------------------------------------------------------------
@@ -146,12 +146,12 @@ size32_128_stage1_base:
 	MOVQ CX, DI
 	INCQ DI
 	SHLQ $4, DI
-	MOVUPD (R8)(SI*1), X0    // a
-	MOVUPD (R8)(DI*1), X1    // b
+	VMOVUPD (R8)(SI*1), X0    // a
+	VMOVUPD (R8)(DI*1), X1    // b
 	VADDPD X1, X0, X2
 	VSUBPD X1, X0, X3
-	MOVUPD X2, (R8)(SI*1)
-	MOVUPD X3, (R8)(DI*1)
+	VMOVUPD X2, (R8)(SI*1)
+	VMOVUPD X3, (R8)(DI*1)
 
 	ADDQ $2, CX
 	JMP  size32_128_stage1_base
@@ -182,14 +182,14 @@ size32_128_stage2_j:
 	ADDQ $2, DI              // +half
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0    // a
-	MOVUPD (R8)(DI*1), X1    // b
+	VMOVUPD (R8)(SI*1), X0    // a
+	VMOVUPD (R8)(DI*1), X1    // b
 
 	// Load twiddle w = twiddle[j*step]
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	// t = w * b
 	VMOVDDUP X2, X3          // [w.r, w.r]
@@ -201,8 +201,8 @@ size32_128_stage2_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size32_128_stage2_j
@@ -236,13 +236,13 @@ size32_128_stage3_j:
 	ADDQ $4, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -253,8 +253,8 @@ size32_128_stage3_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size32_128_stage3_j
@@ -288,13 +288,13 @@ size32_128_stage4_j:
 	ADDQ $8, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -305,8 +305,8 @@ size32_128_stage4_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size32_128_stage4_j
@@ -335,12 +335,12 @@ size32_128_stage5_j:
 	ADDQ $16, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX              // j*step (step=1)
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -351,8 +351,8 @@ size32_128_stage5_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size32_128_stage5_j
@@ -419,84 +419,84 @@ size32_inv_128_use_dst:
 	//                        1,17,9,25,5,21,13,29,3,19,11,27,7,23,15,31]
 	// complex128 is 16 bytes
 	// Group 0: work[0..3] = src[0,16,8,24]
-	MOVUPD 0(R9), X0         // src[0]
-	MOVUPD X0, 0(R8)
-	MOVUPD 256(R9), X0       // src[16]
-	MOVUPD X0, 16(R8)
-	MOVUPD 128(R9), X0       // src[8]
-	MOVUPD X0, 32(R8)
-	MOVUPD 384(R9), X0       // src[24]
-	MOVUPD X0, 48(R8)
+	VMOVUPD 0(R9), X0         // src[0]
+	VMOVUPD X0, 0(R8)
+	VMOVUPD 256(R9), X0       // src[16]
+	VMOVUPD X0, 16(R8)
+	VMOVUPD 128(R9), X0       // src[8]
+	VMOVUPD X0, 32(R8)
+	VMOVUPD 384(R9), X0       // src[24]
+	VMOVUPD X0, 48(R8)
 
 	// Group 1: work[4..7] = src[4,20,12,28]
-	MOVUPD 64(R9), X0        // src[4]
-	MOVUPD X0, 64(R8)
-	MOVUPD 320(R9), X0       // src[20]
-	MOVUPD X0, 80(R8)
-	MOVUPD 192(R9), X0       // src[12]
-	MOVUPD X0, 96(R8)
-	MOVUPD 448(R9), X0       // src[28]
-	MOVUPD X0, 112(R8)
+	VMOVUPD 64(R9), X0        // src[4]
+	VMOVUPD X0, 64(R8)
+	VMOVUPD 320(R9), X0       // src[20]
+	VMOVUPD X0, 80(R8)
+	VMOVUPD 192(R9), X0       // src[12]
+	VMOVUPD X0, 96(R8)
+	VMOVUPD 448(R9), X0       // src[28]
+	VMOVUPD X0, 112(R8)
 
 	// Group 2: work[8..11] = src[2,18,10,26]
-	MOVUPD 32(R9), X0        // src[2]
-	MOVUPD X0, 128(R8)
-	MOVUPD 288(R9), X0       // src[18]
-	MOVUPD X0, 144(R8)
-	MOVUPD 160(R9), X0       // src[10]
-	MOVUPD X0, 160(R8)
-	MOVUPD 416(R9), X0       // src[26]
-	MOVUPD X0, 176(R8)
+	VMOVUPD 32(R9), X0        // src[2]
+	VMOVUPD X0, 128(R8)
+	VMOVUPD 288(R9), X0       // src[18]
+	VMOVUPD X0, 144(R8)
+	VMOVUPD 160(R9), X0       // src[10]
+	VMOVUPD X0, 160(R8)
+	VMOVUPD 416(R9), X0       // src[26]
+	VMOVUPD X0, 176(R8)
 
 	// Group 3: work[12..15] = src[6,22,14,30]
-	MOVUPD 96(R9), X0        // src[6]
-	MOVUPD X0, 192(R8)
-	MOVUPD 352(R9), X0       // src[22]
-	MOVUPD X0, 208(R8)
-	MOVUPD 224(R9), X0       // src[14]
-	MOVUPD X0, 224(R8)
-	MOVUPD 480(R9), X0       // src[30]
-	MOVUPD X0, 240(R8)
+	VMOVUPD 96(R9), X0        // src[6]
+	VMOVUPD X0, 192(R8)
+	VMOVUPD 352(R9), X0       // src[22]
+	VMOVUPD X0, 208(R8)
+	VMOVUPD 224(R9), X0       // src[14]
+	VMOVUPD X0, 224(R8)
+	VMOVUPD 480(R9), X0       // src[30]
+	VMOVUPD X0, 240(R8)
 
 	// Group 4: work[16..19] = src[1,17,9,25]
-	MOVUPD 16(R9), X0        // src[1]
-	MOVUPD X0, 256(R8)
-	MOVUPD 272(R9), X0       // src[17]
-	MOVUPD X0, 272(R8)
-	MOVUPD 144(R9), X0       // src[9]
-	MOVUPD X0, 288(R8)
-	MOVUPD 400(R9), X0       // src[25]
-	MOVUPD X0, 304(R8)
+	VMOVUPD 16(R9), X0        // src[1]
+	VMOVUPD X0, 256(R8)
+	VMOVUPD 272(R9), X0       // src[17]
+	VMOVUPD X0, 272(R8)
+	VMOVUPD 144(R9), X0       // src[9]
+	VMOVUPD X0, 288(R8)
+	VMOVUPD 400(R9), X0       // src[25]
+	VMOVUPD X0, 304(R8)
 
 	// Group 5: work[20..23] = src[5,21,13,29]
-	MOVUPD 80(R9), X0        // src[5]
-	MOVUPD X0, 320(R8)
-	MOVUPD 336(R9), X0       // src[21]
-	MOVUPD X0, 336(R8)
-	MOVUPD 208(R9), X0       // src[13]
-	MOVUPD X0, 352(R8)
-	MOVUPD 464(R9), X0       // src[29]
-	MOVUPD X0, 368(R8)
+	VMOVUPD 80(R9), X0        // src[5]
+	VMOVUPD X0, 320(R8)
+	VMOVUPD 336(R9), X0       // src[21]
+	VMOVUPD X0, 336(R8)
+	VMOVUPD 208(R9), X0       // src[13]
+	VMOVUPD X0, 352(R8)
+	VMOVUPD 464(R9), X0       // src[29]
+	VMOVUPD X0, 368(R8)
 
 	// Group 6: work[24..27] = src[3,19,11,27]
-	MOVUPD 48(R9), X0        // src[3]
-	MOVUPD X0, 384(R8)
-	MOVUPD 304(R9), X0       // src[19]
-	MOVUPD X0, 400(R8)
-	MOVUPD 176(R9), X0       // src[11]
-	MOVUPD X0, 416(R8)
-	MOVUPD 432(R9), X0       // src[27]
-	MOVUPD X0, 432(R8)
+	VMOVUPD 48(R9), X0        // src[3]
+	VMOVUPD X0, 384(R8)
+	VMOVUPD 304(R9), X0       // src[19]
+	VMOVUPD X0, 400(R8)
+	VMOVUPD 176(R9), X0       // src[11]
+	VMOVUPD X0, 416(R8)
+	VMOVUPD 432(R9), X0       // src[27]
+	VMOVUPD X0, 432(R8)
 
 	// Group 7: work[28..31] = src[7,23,15,31]
-	MOVUPD 112(R9), X0       // src[7]
-	MOVUPD X0, 448(R8)
-	MOVUPD 368(R9), X0       // src[23]
-	MOVUPD X0, 464(R8)
-	MOVUPD 240(R9), X0       // src[15]
-	MOVUPD X0, 480(R8)
-	MOVUPD 496(R9), X0       // src[31]
-	MOVUPD X0, 496(R8)
+	VMOVUPD 112(R9), X0       // src[7]
+	VMOVUPD X0, 448(R8)
+	VMOVUPD 368(R9), X0       // src[23]
+	VMOVUPD X0, 464(R8)
+	VMOVUPD 240(R9), X0       // src[15]
+	VMOVUPD X0, 480(R8)
+	VMOVUPD 496(R9), X0       // src[31]
+	VMOVUPD X0, 496(R8)
 
 size32_inv_128_stage1:
 	// Stage 1: size=2, half=1, step=16 (twiddle[0]=1)
@@ -510,12 +510,12 @@ size32_inv_128_stage1_base:
 	MOVQ CX, DI
 	INCQ DI
 	SHLQ $4, DI
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 	VADDPD X1, X0, X2
 	VSUBPD X1, X0, X3
-	MOVUPD X2, (R8)(SI*1)
-	MOVUPD X3, (R8)(DI*1)
+	VMOVUPD X2, (R8)(SI*1)
+	VMOVUPD X3, (R8)(DI*1)
 	ADDQ $2, CX
 	JMP  size32_inv_128_stage1_base
 
@@ -540,13 +540,13 @@ size32_inv_128_stage2_j:
 	ADDQ $2, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -557,8 +557,8 @@ size32_inv_128_stage2_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size32_inv_128_stage2_j
@@ -588,13 +588,13 @@ size32_inv_128_stage3_j:
 	ADDQ $4, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -605,8 +605,8 @@ size32_inv_128_stage3_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size32_inv_128_stage3_j
@@ -636,13 +636,13 @@ size32_inv_128_stage4_j:
 	ADDQ $8, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -653,8 +653,8 @@ size32_inv_128_stage4_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size32_inv_128_stage4_j
@@ -680,12 +680,12 @@ size32_inv_128_stage5_j:
 	ADDQ $16, DI
 	SHLQ $4, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VPERMILPD $1, X2, X4
@@ -696,8 +696,8 @@ size32_inv_128_stage5_j:
 
 	VADDPD X6, X0, X7
 	VSUBPD X6, X0, X8
-	MOVUPD X7, (R8)(SI*1)
-	MOVUPD X8, (R8)(DI*1)
+	VMOVUPD X7, (R8)(SI*1)
+	VMOVUPD X8, (R8)(DI*1)
 
 	INCQ DX
 	JMP  size32_inv_128_stage5_j
@@ -714,9 +714,9 @@ size32_inv_128_scale_loop:
 	JGE  size32_inv_128_finalize
 	MOVQ CX, SI
 	SHLQ $4, SI
-	MOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(SI*1), X0
 	VMULPD X9, X0, X0
-	MOVUPD X0, (R8)(SI*1)
+	VMOVUPD X0, (R8)(SI*1)
 	INCQ CX
 	JMP  size32_inv_128_scale_loop
 

@@ -552,7 +552,7 @@ size16_inv_bitrev:
 	// Apply 1/n scaling (1/16 = 0.0625)
 	// =======================================================================
 	MOVL ·sixteenth32(SB), AX     // 0.0625f in IEEE-754
-	MOVD AX, X4
+	VMOVQ AX, X4
 	VBROADCASTSS X4, Y4      // Y4 = [0.0625, 0.0625, ...]
 	VMULPS Y4, Y12, Y12
 	VMULPS Y4, Y10, Y10

@@ -1633,7 +1633,7 @@ inv_final_transpose_row_loop:
 	CMPQ CX, $4                   // rowBlock < 4?
 	JL   inv_final_transpose_row_loop // loop over rowBlock
 	MOVL ·twoFiftySixth32(SB), AX // AX = 1/256 as float32 bits (0.00390625)
-	MOVD AX, X8                   // X8 = scalar scale (float32 in low lane)
+	VMOVQ AX, X8                   // X8 = scalar scale (float32 in low lane)
 	VBROADCASTSS X8, Y8           // Y8 = broadcast(scale) to all lanes
 	VXORPS Y9, Y9, Y9             // Y9 = 0 (prepare for mask broadcast)
 	VMOVUPS ·maskNegHiPS(SB), X9  // X9 = 128-bit conjugation sign-mask

@@ -109,22 +109,22 @@ TEXT ·MixedRadixStage7Complex64AVX2Asm(SB), NOSPLIT, $0-81
 
 	// Butterfly constants, broadcast once.
 	MOVL $0x3F1F9D07, AX     // c1 =  0.62348980 (cos 2pi/7)
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y9
 	MOVL $0xBE63DC87, AX     // c2 = -0.22252093 (cos 4pi/7)
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y10
 	MOVL $0xBF66A5E5, AX     // c3 = -0.90096887 (cos 6pi/7)
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y11
 	MOVL $0x3F48261C, AX     // s1 =  0.78183150 (sin 2pi/7)
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y12
 	MOVL $0x3F7994E0, AX     // s2 =  0.97492790 (sin 4pi/7)
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y13
 	MOVL $0x3EDE2602, AX     // s3 =  0.43388373 (sin 6pi/7)
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y14
 
 	// Direction: forward multiplies by -i (negate imag), inverse by +i

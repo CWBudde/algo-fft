@@ -217,12 +217,12 @@ TEXT ·Radix3Butterflies384ForwardComplex128Asm(SB), NOSPLIT, $0-24
 	// Load constants
 	// half = -0.5
 	MOVQ $0xBFE0000000000000, R15 // -0.5 double
-	MOVQ R15, X0
+	VMOVQ R15, X0
 	VBROADCASTSD X0, Y8      // Y8 = [-0.5, -0.5, -0.5, -0.5]
 
 	// sqrt(3)/2 = 0.8660254037844386
 	MOVQ $0x3FEBB67AE8584CAA, R15 // sqrt(3)/2 double
-	MOVQ R15, X0
+	VMOVQ R15, X0
 	VBROADCASTSD X0, Y9      // Y9 = [sqrt3_2, ...]
 
 	// Prepare sign masks for Forward transform
@@ -230,7 +230,7 @@ TEXT ·Radix3Butterflies384ForwardComplex128Asm(SB), NOSPLIT, $0-24
 	// Need to negate indices 1 and 3 (real part after swap)
 	// Mask = [0, Sign, 0, Sign]
 	MOVQ $0x8000000000000000, R15
-	MOVQ R15, X11
+	VMOVQ R15, X11
 	VPBROADCASTQ X11, Y11    // Y11 = [Sign, Sign, Sign, Sign]
 	VXORPD Y10, Y10, Y10     // Y10 = 0
 	// Blend: 1010 = 0x0A. Select from Y11 if bit set.
@@ -315,11 +315,11 @@ TEXT ·Radix3Butterflies384InverseComplex128Asm(SB), NOSPLIT, $0-24
 
 	// Constants
 	MOVQ $0xBFE0000000000000, R15
-	MOVQ R15, X0
+	VMOVQ R15, X0
 	VBROADCASTSD X0, Y8      // Y8 = -0.5
 
 	MOVQ $0x3FEBB67AE8584CAA, R15
-	MOVQ R15, X0
+	VMOVQ R15, X0
 	VBROADCASTSD X0, Y9      // Y9 = sqrt3_2
 
 	// Sign mask for Inverse
@@ -328,7 +328,7 @@ TEXT ·Radix3Butterflies384InverseComplex128Asm(SB), NOSPLIT, $0-24
 	// Swap gives (imag, real)
 	// Negate index 0 and 2
 	MOVQ $0x8000000000000000, R15
-	MOVQ R15, X11
+	VMOVQ R15, X11
 	VPBROADCASTQ X11, Y11
 	VXORPD Y10, Y10, Y10
 	// Blend 0101 = 0x05

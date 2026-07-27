@@ -60,10 +60,10 @@ TEXT ·ForwardAVX2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	// bitrev is unused for size-4 radix-4; allow nil/empty.
 
 	// Load x0..x3
-	MOVUPD (R9), X0
-	MOVUPD 16(R9), X1
-	MOVUPD 32(R9), X2
-	MOVUPD 48(R9), X3
+	VMOVUPD (R9), X0
+	VMOVUPD 16(R9), X1
+	VMOVUPD 32(R9), X2
+	VMOVUPD 48(R9), X3
 
 	// t0 = x0 + x2, t1 = x0 - x2
 	VADDPD X2, X0, X4
@@ -84,10 +84,10 @@ TEXT ·ForwardAVX2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	VSUBPD X8, X5, X12
 
 	// Store results
-	MOVUPD X9, (R14)
-	MOVUPD X11, 16(R14)
-	MOVUPD X10, 32(R14)
-	MOVUPD X12, 48(R14)
+	VMOVUPD X9, (R14)
+	VMOVUPD X11, 16(R14)
+	VMOVUPD X10, 32(R14)
+	VMOVUPD X12, 48(R14)
 
 	VZEROUPPER
 	MOVB $1, ret+96(FP)
@@ -127,10 +127,10 @@ TEXT ·InverseAVX2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	JL   size4_128_inv_return_false
 
 	// Load x0..x3
-	MOVUPD (R9), X0
-	MOVUPD 16(R9), X1
-	MOVUPD 32(R9), X2
-	MOVUPD 48(R9), X3
+	VMOVUPD (R9), X0
+	VMOVUPD 16(R9), X1
+	VMOVUPD 32(R9), X2
+	VMOVUPD 48(R9), X3
 
 	// t0 = x0 + x2, t1 = x0 - x2
 	VADDPD X2, X0, X4
@@ -151,7 +151,7 @@ TEXT ·InverseAVX2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	VSUBPD X8, X5, X12
 
 	// Scale by 1/4
-	MOVSD ·quarter64(SB), X15
+	VMOVSD ·quarter64(SB), X15
 	VMOVDDUP X15, X15
 	VMULPD X15, X9, X9
 	VMULPD X15, X11, X11
@@ -159,10 +159,10 @@ TEXT ·InverseAVX2Size4Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	VMULPD X15, X12, X12
 
 	// Store results
-	MOVUPD X9, (R14)
-	MOVUPD X11, 16(R14)
-	MOVUPD X10, 32(R14)
-	MOVUPD X12, 48(R14)
+	VMOVUPD X9, (R14)
+	VMOVUPD X11, 16(R14)
+	VMOVUPD X10, 32(R14)
+	VMOVUPD X12, 48(R14)
 
 	VZEROUPPER
 	MOVB $1, ret+96(FP)

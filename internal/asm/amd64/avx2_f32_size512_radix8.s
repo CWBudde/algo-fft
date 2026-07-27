@@ -43,7 +43,7 @@ size512_r8_fwd_use_dst:
 	LEAQ 0(SP), R14                  // R14 = stage1 base pointer
 
 	MOVL ·signbit32(SB), AX          // AX = float32 sign bit
-	MOVD AX, X12                     // X12 = sign bit scalar
+	VMOVQ AX, X12                     // X12 = sign bit scalar
 	VBROADCASTSS X12, X12            // X12 = [sign, sign, sign, sign]
 	VXORPS X0, X0, X0                // X0 = 0
 	VBLENDPS $0xAA, X12, X0, X12     // X12 = [0, sign, 0, sign]
@@ -510,7 +510,7 @@ size512_r8_inv_use_dst:
 	LEAQ 0(SP), R14                  // R14 = stage1 base pointer
 
 	MOVL ·signbit32(SB), AX          // AX = float32 sign bit
-	MOVD AX, X12                     // X12 = sign bit scalar
+	VMOVQ AX, X12                     // X12 = sign bit scalar
 	VBROADCASTSS X12, X12            // X12 = [sign, sign, sign, sign]
 	VXORPS X0, X0, X0                // X0 = 0
 	VBLENDPS $0xAA, X12, X0, X12     // X12 = [0, sign, 0, sign]
@@ -958,7 +958,7 @@ size512_r8_inv_copy_loop:
 
 size512_r8_inv_scale:
 	MOVL $0x3B000000, AX             // AX = 1/512 as float32
-	MOVD AX, X0                      // X0 = scale scalar
+	VMOVQ AX, X0                      // X0 = scale scalar
 	VBROADCASTSS X0, X0              // X0 = [scale, scale, scale, scale]
 	MOVQ dst+0(FP), R9               // R9 = dst pointer
 	XORQ CX, CX                      // i = 0

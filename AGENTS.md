@@ -255,6 +255,21 @@ Generic implementations are instantiated for both precisions, with type-specific
 - Remember Plan9/Go asm uses src, dst operand order (opposite of Intel’s dst, src)
 - Subtractions like VSUBPS b, a, dst → dst = a - b
 - add comments after instructions for clarity
+- In `avx*.s`, use VEX encodings throughout. **Never mix VEX and legacy-SSE
+  vector instructions in one function** — a partially converted hot loop
+  measured 152× slower than the same loop left uniformly legacy. Convert a
+  function completely or not at all.
+- Watch the `1/n` inverse prologue: `MOVL`/`MOVD`/`VBROADCASTSS` costs a fixed
+  ~100 ns. Use `VBROADCASTSS ·const(SB), Yn` (broadcast from memory) instead.
+  Because the cost is per call, not per instruction, it only shows up on small
+  kernels — and it silently mis-ranks them in the codelet registry.
+- Go's `MOVD AX, X0` assembles as a **64-bit** `movq` (Go's `AX` is RAX), so its
+  VEX form is `VMOVQ`, not `VMOVD`. VEX writes also zero bits [255:128], which
+  legacy forms preserve — only safe where the upper half is dead.
+- Gate any bulk asm rewrite on a disassembly diff: `objdump -d` from binutils
+  (Go's `go tool objdump` misdecodes AVX), normalized for the `v` prefix, the
+  VEX merge operand, shifted addresses, and `int3` padding. It catches encoding
+  bugs the reference tests pass straight over.
 
 ### Delegating Codelet Work to Subagents (Model Choice)
 

@@ -987,19 +987,19 @@ inv_r4_copy_loop:
 
 inv_r4_scale:
 	// scale by 1/n (inverse FFT normalization)
-	CVTSQ2SS R13, X0          // X0 = float32(n) (convert n to float)
-	MOVSS    ·one32(SB), X1   // X1 = 1.0 (load constant)
-	DIVSS    X0, X1           // X1 = 1.0 / n (compute scale factor)
-	SHUFPS   $0x00, X1, X1    // X1 = [1/n, 1/n, 1/n, 1/n] (broadcast to all lanes)
+	VCVTSI2SSQ R13, X0, X0          // X0 = float32(n) (convert n to float)
+	VMOVSS   ·one32(SB), X1   // X1 = 1.0 (load constant)
+	VDIVSS   X0, X1, X1           // X1 = 1.0 / n (compute scale factor)
+	VSHUFPS  $0x00, X1, X1, X1    // X1 = [1/n, 1/n, 1/n, 1/n] (broadcast to all lanes)
 
 	XORQ CX, CX               // CX = 0 (scale index)
 
 inv_r4_scale_loop:
 	CMPQ CX, R13              // Check if CX >= n (all elements scaled?)
 	JGE  inv_r4_return_true   // If done, return success
-	MOVSD (AX)(CX*8), X0      // X0 = load one complex64 value (8 bytes)
-	MULPS X1, X0              // X0 *= [1/n, 1/n] (scale both real and imaginary parts)
-	MOVSD X0, (AX)(CX*8)      // Store scaled value back to dst
+	VMOVSD (AX)(CX*8), X0      // X0 = load one complex64 value (8 bytes)
+	VMULPS X1, X0, X0              // X0 *= [1/n, 1/n] (scale both real and imaginary parts)
+	VMOVSD X0, (AX)(CX*8)      // Store scaled value back to dst
 	INCQ CX                   // CX++ (next element)
 	JMP  inv_r4_scale_loop    // Continue scaling loop
 

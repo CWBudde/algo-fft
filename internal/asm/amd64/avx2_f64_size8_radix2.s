@@ -47,14 +47,14 @@ TEXT ·ForwardAVX2Size8Radix2Complex128Asm(SB), NOSPLIT, $0-97
 size8_128_fwd_use_dst:
 	// Bit-reversal: work[i] = src[bitrev[i]]
 	// complex128 is 16 bytes
-	MOVUPD 0(R9), X0         // src[0]
-	MOVUPD 64(R9), X1        // src[4]
-	MOVUPD 32(R9), X2        // src[2]
-	MOVUPD 96(R9), X3        // src[6]
-	MOVUPD 16(R9), X4        // src[1]
-	MOVUPD 80(R9), X5        // src[5]
-	MOVUPD 48(R9), X6        // src[3]
-	MOVUPD 112(R9), X7       // src[7]
+	VMOVUPD 0(R9), X0         // src[0]
+	VMOVUPD 64(R9), X1        // src[4]
+	VMOVUPD 32(R9), X2        // src[2]
+	VMOVUPD 96(R9), X3        // src[6]
+	VMOVUPD 16(R9), X4        // src[1]
+	VMOVUPD 80(R9), X5        // src[5]
+	VMOVUPD 48(R9), X6        // src[3]
+	VMOVUPD 112(R9), X7       // src[7]
 
 	// Stage 1: size=2, half=1, step=2
 	// (0,1), (2,3), (4,5), (6,7) - all twiddle[0]=1
@@ -77,7 +77,7 @@ size8_128_fwd_use_dst:
 	VSUBPD X14, X12, X6      // y6
 	
 	// j=1: twiddle[2]
-	MOVUPD 32(R10), X10      // w2
+	VMOVUPD 32(R10), X10      // w2
 	VMOVDDUP X10, X8         // w2_re
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10        // w2_im
@@ -102,10 +102,10 @@ size8_128_fwd_use_dst:
 	// j=0: twiddle[0]=1
 	VADDPD X4, X0, X8        // z0
 	VSUBPD X4, X0, X12       // z4
-	MOVUPD X12, X4           // save z4 (X12 will be reused as a temp)
+	VMOVUPD X12, X4           // save z4 (X12 will be reused as a temp)
 	
 	// j=1: twiddle[1]
-	MOVUPD 16(R10), X10      // w1
+	VMOVUPD 16(R10), X10      // w1
 	VMOVDDUP X10, X11        // w1_re
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10        // w1_im
@@ -116,7 +116,7 @@ size8_128_fwd_use_dst:
 	VSUBPD X0, X1, X13       // z5
 	
 	// j=2: twiddle[2]
-	MOVUPD 32(R10), X10      // w2
+	VMOVUPD 32(R10), X10      // w2
 	VMOVDDUP X10, X11        // w2_re
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10        // w2_im
@@ -127,7 +127,7 @@ size8_128_fwd_use_dst:
 	VSUBPD X0, X2, X14       // z6
 	
 	// j=3: twiddle[3]
-	MOVUPD 48(R10), X0       // w3
+	VMOVUPD 48(R10), X0       // w3
 	VMOVDDUP X0, X11         // w3_re
 	VPERMILPD $1, X0, X0
 	VMOVDDUP X0, X0          // w3_im
@@ -138,14 +138,14 @@ size8_128_fwd_use_dst:
 	VSUBPD X6, X3, X15       // z7
 	
 	// Store results
-	MOVUPD X8, (R14)
-	MOVUPD X9, 16(R14)
-	MOVUPD X10, 32(R14)
-	MOVUPD X11, 48(R14)
-	MOVUPD X4, 64(R14)
-	MOVUPD X13, 80(R14)
-	MOVUPD X14, 96(R14)
-	MOVUPD X15, 112(R14)
+	VMOVUPD X8, (R14)
+	VMOVUPD X9, 16(R14)
+	VMOVUPD X10, 32(R14)
+	VMOVUPD X11, 48(R14)
+	VMOVUPD X4, 64(R14)
+	VMOVUPD X13, 80(R14)
+	VMOVUPD X14, 96(R14)
+	VMOVUPD X15, 112(R14)
 
 	VZEROUPPER
 	MOVB $1, ret+96(FP)
@@ -191,14 +191,14 @@ TEXT ·InverseAVX2Size8Radix2Complex128Asm(SB), NOSPLIT, $0-97
 
 size8_128_inv_use_dst:
 	// Bit-reversal
-	MOVUPD 0(R9), X0         // src[0]
-	MOVUPD 64(R9), X1        // src[4]
-	MOVUPD 32(R9), X2        // src[2]
-	MOVUPD 96(R9), X3        // src[6]
-	MOVUPD 16(R9), X4        // src[1]
-	MOVUPD 80(R9), X5        // src[5]
-	MOVUPD 48(R9), X6        // src[3]
-	MOVUPD 112(R9), X7       // src[7]
+	VMOVUPD 0(R9), X0         // src[0]
+	VMOVUPD 64(R9), X1        // src[4]
+	VMOVUPD 32(R9), X2        // src[2]
+	VMOVUPD 96(R9), X3        // src[6]
+	VMOVUPD 16(R9), X4        // src[1]
+	VMOVUPD 80(R9), X5        // src[5]
+	VMOVUPD 48(R9), X6        // src[3]
+	VMOVUPD 112(R9), X7       // src[7]
 
 	// Stage 1: size=2, half=1, step=2
 	VADDPD X1, X0, X8
@@ -218,7 +218,7 @@ size8_128_inv_use_dst:
 	VSUBPD X14, X12, X6
 	
 	// j=1: twiddle[2]
-	MOVUPD 32(R10), X10
+	VMOVUPD 32(R10), X10
 	VMOVDDUP X10, X8
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10
@@ -241,10 +241,10 @@ size8_128_inv_use_dst:
 	// j=0
 	VADDPD X4, X0, X8
 	VSUBPD X4, X0, X12
-	MOVUPD X12, X4           // save z4 (X12 will be reused as a temp)
+	VMOVUPD X12, X4           // save z4 (X12 will be reused as a temp)
 	
 	// j=1: twiddle[1]
-	MOVUPD 16(R10), X10
+	VMOVUPD 16(R10), X10
 	VMOVDDUP X10, X11
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10
@@ -255,7 +255,7 @@ size8_128_inv_use_dst:
 	VSUBPD X0, X1, X13
 	
 	// j=2: twiddle[2]
-	MOVUPD 32(R10), X10
+	VMOVUPD 32(R10), X10
 	VMOVDDUP X10, X11
 	VPERMILPD $1, X10, X10
 	VMOVDDUP X10, X10
@@ -266,7 +266,7 @@ size8_128_inv_use_dst:
 	VSUBPD X0, X2, X14
 	
 	// j=3: twiddle[3]
-	MOVUPD 48(R10), X0
+	VMOVUPD 48(R10), X0
 	VMOVDDUP X0, X11
 	VPERMILPD $1, X0, X0
 	VMOVDDUP X0, X0
@@ -290,14 +290,14 @@ size8_128_inv_use_dst:
 	VMULPD X0, X15, X15
 
 	// Store results
-	MOVUPD X8, (R14)
-	MOVUPD X9, 16(R14)
-	MOVUPD X10, 32(R14)
-	MOVUPD X11, 48(R14)
-	MOVUPD X12, 64(R14)
-	MOVUPD X13, 80(R14)
-	MOVUPD X14, 96(R14)
-	MOVUPD X15, 112(R14)
+	VMOVUPD X8, (R14)
+	VMOVUPD X9, 16(R14)
+	VMOVUPD X10, 32(R14)
+	VMOVUPD X11, 48(R14)
+	VMOVUPD X12, 64(R14)
+	VMOVUPD X13, 80(R14)
+	VMOVUPD X14, 96(R14)
+	VMOVUPD X15, 112(R14)
 
 	VZEROUPPER
 	MOVB $1, ret+96(FP)

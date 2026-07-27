@@ -1050,7 +1050,7 @@ size512_r2_inv_stage9_loop:
 	// =======================================================================
 	// scale = 1/512 = 0.001953125
 	MOVL ·fiveHundredTwelfth32(SB), AX
-	MOVD AX, X8
+	VMOVQ AX, X8
 	VBROADCASTSS X8, Y8
 
 	XORQ CX, CX

@@ -97,7 +97,7 @@ size8_r4_fwd_bitrev:
 	// =======================================================================
 	// Build masks for complex ops
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X8
+	VMOVQ AX, X8
 	VBROADCASTSS X8, X8
 	VXORPS X9, X9, X9
 	VBLENDPS $0xAA, X8, X9, X10 // maskNegImag  (lanes 1,3)
@@ -105,21 +105,21 @@ size8_r4_fwd_bitrev:
 
 	// Load x0..x7 into X0..X7 (lower 64 bits)
 	VXORPS X0, X0, X0
-	MOVQ (R8), X0
+	VMOVQ (R8), X0
 	VXORPS X1, X1, X1
-	MOVQ 8(R8), X1
+	VMOVQ 8(R8), X1
 	VXORPS X2, X2, X2
-	MOVQ 16(R8), X2
+	VMOVQ 16(R8), X2
 	VXORPS X3, X3, X3
-	MOVQ 24(R8), X3
+	VMOVQ 24(R8), X3
 	VXORPS X4, X4, X4
-	MOVQ 32(R8), X4
+	VMOVQ 32(R8), X4
 	VXORPS X5, X5, X5
-	MOVQ 40(R8), X5
+	VMOVQ 40(R8), X5
 	VXORPS X6, X6, X6
-	MOVQ 48(R8), X6
+	VMOVQ 48(R8), X6
 	VXORPS X7, X7, X7
-	MOVQ 56(R8), X7
+	VMOVQ 56(R8), X7
 
 	// Radix-4 butterfly 1: [x0, x1, x2, x3]
 	VADDPS X2, X0, X12   // t0
@@ -153,7 +153,7 @@ size8_r4_fwd_bitrev:
 	VSUBPS X4, X0, X13   // y4
 
 	// w1 * a5 (FMA: w1 = (+sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
-	MOVQ 8(R10), X8            // w1
+	VMOVQ 8(R10), X8            // w1
 	VMOVSLDUP X8, X9           // Xre = broadcast real(w1)
 	VMOVSHDUP X8, X10          // Xim = broadcast imag(w1)
 	VPERMILPS $0xB1, X5, X11   // Xswap = swap(a5)
@@ -163,14 +163,14 @@ size8_r4_fwd_bitrev:
 	VSUBPS X14, X1, X9         // y5
 
 	// w2 * a6
-	MOVQ 16(R10), X10
+	VMOVQ 16(R10), X10
 	VSHUFPS $0x00, X10, X10, X11
 	VSHUFPS $0x55, X10, X10, X14
 	VSHUFPS $0xB1, X6, X6, X15
 	VMULPS X11, X6, X10
 	VMULPS X14, X15, X11
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X14
+	VMOVQ AX, X14
 	VBROADCASTSS X14, X14
 	VXORPS X15, X15, X15
 	VBLENDPS $0x55, X14, X15, X14
@@ -180,7 +180,7 @@ size8_r4_fwd_bitrev:
 	VSUBPS X14, X2, X11        // y6
 
 	// w3 * a7 (FMA: w3 = (-sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
-	MOVQ 24(R10), X14          // w3
+	VMOVQ 24(R10), X14          // w3
 	VMOVSLDUP X14, X15         // Xre = broadcast real(w3)
 	VMOVSHDUP X14, X4          // Xim = broadcast imag(w3)
 	VPERMILPS $0xB1, X7, X5    // Xswap = swap(a7)
@@ -190,14 +190,14 @@ size8_r4_fwd_bitrev:
 	VSUBPS X4, X3, X4          // y7
 
 	// Store results to work buffer
-	MOVQ X12, (R8)
-	MOVQ X8, 8(R8)
-	MOVQ X10, 16(R8)
-	MOVQ X15, 24(R8)
-	MOVQ X13, 32(R8)
-	MOVQ X9, 40(R8)
-	MOVQ X11, 48(R8)
-	MOVQ X4, 56(R8)
+	VMOVQ X12, (R8)
+	VMOVQ X8, 8(R8)
+	VMOVQ X10, 16(R8)
+	VMOVQ X15, 24(R8)
+	VMOVQ X13, 32(R8)
+	VMOVQ X9, 40(R8)
+	VMOVQ X11, 48(R8)
+	VMOVQ X4, 56(R8)
 
 	MOVQ dst+0(FP), R9
 	CMPQ R8, R9
@@ -297,7 +297,7 @@ size8_r4_inv_bitrev:
 	// Scalar-style mixed-radix computation (inverse)
 	// =======================================================================
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X8
+	VMOVQ AX, X8
 	VBROADCASTSS X8, X8
 	VXORPS X9, X9, X9
 	VBLENDPS $0xAA, X8, X9, X10 // maskNegImag  (lanes 1,3)
@@ -305,21 +305,21 @@ size8_r4_inv_bitrev:
 
 	// Load x0..x7
 	VXORPS X0, X0, X0
-	MOVQ (R8), X0
+	VMOVQ (R8), X0
 	VXORPS X1, X1, X1
-	MOVQ 8(R8), X1
+	VMOVQ 8(R8), X1
 	VXORPS X2, X2, X2
-	MOVQ 16(R8), X2
+	VMOVQ 16(R8), X2
 	VXORPS X3, X3, X3
-	MOVQ 24(R8), X3
+	VMOVQ 24(R8), X3
 	VXORPS X4, X4, X4
-	MOVQ 32(R8), X4
+	VMOVQ 32(R8), X4
 	VXORPS X5, X5, X5
-	MOVQ 40(R8), X5
+	VMOVQ 40(R8), X5
 	VXORPS X6, X6, X6
-	MOVQ 48(R8), X6
+	VMOVQ 48(R8), X6
 	VXORPS X7, X7, X7
-	MOVQ 56(R8), X7
+	VMOVQ 56(R8), X7
 
 	// Radix-4 butterfly 1 (+i)
 	VADDPS X2, X0, X12
@@ -355,11 +355,11 @@ size8_r4_inv_bitrev:
 	// NOTE: X10/X11 hold the maskNegImag/maskNegReal masks still needed by
 	// the untouched conj(w2) site below, and X12/X13 hold y0/y4 (not stored
 	// until the end of this function), so this site avoids all four.
-	MOVQ 8(R10), X14             // w1
+	VMOVQ 8(R10), X14             // w1
 	VMOVSLDUP X14, X9            // Xre = broadcast real(w1) (same for conj)
 	VMOVSHDUP X14, X15           // Xim0 = broadcast imag(w1)
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X14
+	VMOVQ AX, X14
 	VBROADCASTSS X14, X14        // negate-all mask (reuses X14 after w1 consumed)
 	VXORPS X14, X15, X15         // Xim = imag(conj(w1)) = -imag(w1)
 	VPERMILPS $0xB1, X5, X14     // Xswap = swap(a5) (reuses X14 after mask consumed)
@@ -369,7 +369,7 @@ size8_r4_inv_bitrev:
 	VSUBPS X0, X1, X9            // y5
 
 	// conj(w2) * a6
-	MOVQ 16(R10), X14
+	VMOVQ 16(R10), X14
 	VXORPS X10, X14, X14
 	VSHUFPS $0x00, X14, X14, X15
 	VSHUFPS $0x55, X14, X14, X1
@@ -382,11 +382,11 @@ size8_r4_inv_bitrev:
 	VSUBPS X14, X2, X11       // y6
 
 	// conj(w3) * a7 (FMA: w3 = (-sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
-	MOVQ 24(R10), X14           // w3
+	VMOVQ 24(R10), X14           // w3
 	VMOVSLDUP X14, X15          // Xre = broadcast real(w3) (same for conj)
 	VMOVSHDUP X14, X4           // Xim0 = broadcast imag(w3)
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X1
+	VMOVQ AX, X1
 	VBROADCASTSS X1, X1         // negate-all mask
 	VXORPS X1, X4, X4           // Xim = imag(conj(w3)) = -imag(w3)
 	VPERMILPS $0xB1, X7, X1     // Xswap = swap(a7)
@@ -397,7 +397,7 @@ size8_r4_inv_bitrev:
 
 	// Apply 1/8 scaling
 	MOVL ·eighth32(SB), AX
-	MOVD AX, X2
+	VMOVQ AX, X2
 	VBROADCASTSS X2, X2
 	VMULPS X2, X12, X12
 	VMULPS X2, X8, X8
@@ -409,14 +409,14 @@ size8_r4_inv_bitrev:
 	VMULPS X2, X4, X4
 
 	// Store results to work buffer
-	MOVQ X12, (R8)
-	MOVQ X8, 8(R8)
-	MOVQ X10, 16(R8)
-	MOVQ X15, 24(R8)
-	MOVQ X13, 32(R8)
-	MOVQ X9, 40(R8)
-	MOVQ X11, 48(R8)
-	MOVQ X4, 56(R8)
+	VMOVQ X12, (R8)
+	VMOVQ X8, 8(R8)
+	VMOVQ X10, 16(R8)
+	VMOVQ X15, 24(R8)
+	VMOVQ X13, 32(R8)
+	VMOVQ X9, 40(R8)
+	VMOVQ X11, 48(R8)
+	VMOVQ X4, 56(R8)
 
 	MOVQ dst+0(FP), R9
 	CMPQ R8, R9

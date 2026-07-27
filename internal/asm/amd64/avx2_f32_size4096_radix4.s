@@ -1086,7 +1086,7 @@ r4_4096_inv_stage6_loop:
 r4_4096_inv_scale:
 	// 1/4096 = 0.000244140625
 	MOVL ·oneFourThousandNinetySixth32(SB), AX
-	MOVD AX, X8
+	VMOVQ AX, X8
 	VBROADCASTSS X8, Y8
 
 	XORQ CX, CX

@@ -771,7 +771,7 @@ size128_r4_inv_scale:
 	// This completes the inverse FFT: IFFT(x) = conjugate(FFT(conjugate(x))) / N
 	// ==================================================================
 	MOVL ·oneTwentyEighth32(SB), AX     // Load 1/128 constant (0.0078125 in float32)
-	MOVD AX, X8               // Move to XMM register
+	VMOVQ AX, X8               // Move to XMM register
 	VBROADCASTSS X8, Y8       // Broadcast to YMM register for vector scaling
 
 	XORQ CX, CX              // CX = byte offset (0, 32, 64, ...)

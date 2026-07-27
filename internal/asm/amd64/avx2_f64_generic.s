@@ -108,8 +108,8 @@ TEXT ·ForwardAVX2Complex128Asm(SB), NOSPLIT, $0-121
 	// Trivial case: n=1
 	CMPQ R13, $1
 	JNE  check_pow2_128
-	MOVUPS (R9), X0          // Load 16 bytes (1 complex128)
-	MOVUPS X0, (R8)
+	VMOVUPS (R9), X0          // Load 16 bytes (1 complex128)
+	VMOVUPS X0, (R8)
 	JMP  return_true_128
 
 check_pow2_128:
@@ -147,10 +147,10 @@ bitrev_loop_128:
 	JGE  bitrev_done_128
 	MOVQ (R12)(CX*8), DX     // DX = bitrev[i]
 	SHLQ $4, DX              // DX = bitrev[i] * 16 bytes
-	MOVUPS (R9)(DX*1), X0    // Load 16 bytes
+	VMOVUPS (R9)(DX*1), X0    // Load 16 bytes
 	MOVQ CX, SI
 	SHLQ $4, SI              // SI = i * 16 bytes
-	MOVUPS X0, (R8)(SI*1)
+	VMOVUPS X0, (R8)(SI*1)
 	INCQ CX
 	JMP  bitrev_loop_128
 
@@ -318,14 +318,14 @@ scalar_loop_128:
 	ADDQ SI, DI
 
 	// Load single complex128 (16 bytes into XMM)
-	MOVUPD (R8)(SI*1), X0    // a
-	MOVUPD (R8)(DI*1), X1    // b
+	VMOVUPD (R8)(SI*1), X0    // a
+	VMOVUPD (R8)(DI*1), X1    // b
 
 	// Load twiddle with stride
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2   // w
+	VMOVUPD (R10)(AX*1), X2   // w
 
 	// -----------------------------------------------------------------------
 	// XMM Complex128 Multiply: t = w * b
@@ -347,8 +347,8 @@ scalar_loop_128:
 	VADDPD X6, X0, X3        // a'
 	VSUBPD X6, X0, X4        // b'
 
-	MOVUPD X3, (R8)(SI*1)
-	MOVUPD X4, (R8)(DI*1)
+	VMOVUPD X3, (R8)(SI*1)
+	VMOVUPD X4, (R8)(DI*1)
 
 	INCQ DX
 	JMP scalar_rem_128
@@ -388,8 +388,8 @@ done_128:
 copy_loop_128:
 	CMPQ CX, DX                 // for offset := 0; offset < n*16; offset += 16
 	JGE  return_true_128
-	MOVUPS (R8)(CX*1), X0       // Load complex128 from working buffer
-	MOVUPS X0, (AX)(CX*1)       // Store to dst
+	VMOVUPS (R8)(CX*1), X0       // Load complex128 from working buffer
+	VMOVUPS X0, (AX)(CX*1)       // Store to dst
 	ADDQ $16, CX                // offset += 16
 	JMP  copy_loop_128
 
@@ -466,8 +466,8 @@ TEXT ·InverseAVX2Complex128Asm(SB), NOSPLIT, $0-121
 	// Handle n=1 specially: just copy and scale by 1/1 = 1.0 (no-op scale)
 	CMPQ R13, $1
 	JNE  inv_check_pow2_128
-	MOVUPS (R9), X0             // Load single complex128 (16 bytes)
-	MOVUPS X0, (R8)             // Store to dst (scaling by 1 is identity)
+	VMOVUPS (R9), X0             // Load single complex128 (16 bytes)
+	VMOVUPS X0, (R8)             // Store to dst (scaling by 1 is identity)
 	JMP  inv_scale_128          // Jump to scaling phase
 
 inv_check_pow2_128:
@@ -503,8 +503,8 @@ inv_bitrev_loop_128:
 	JGE  inv_bitrev_done_128
 	MOVQ (R12)(CX*8), DX        // DX = bitrev[i] (8 bytes per int)
 	SHLQ $4, DX                 // DX = bitrev[i] * 16 (byte offset)
-	MOVUPS (R9)(DX*1), X0       // Load src[bitrev[i]] (16 bytes)
-	MOVUPS X0, (R8)(SI*1)       // Store to dst[i]
+	VMOVUPS (R9)(DX*1), X0       // Load src[bitrev[i]] (16 bytes)
+	VMOVUPS X0, (R8)(SI*1)       // Store to dst[i]
 	INCQ CX                     // i++
 	ADDQ $16, SI                // dst offset += 16
 	JMP  inv_bitrev_loop_128
@@ -693,14 +693,14 @@ inv_scalar_loop_128:
 	ADDQ SI, DI                 // DI = offset for b element
 
 	// Load single butterfly pair (one complex128 each)
-	MOVUPD (R8)(SI*1), X0       // X0 = a (single complex128)
-	MOVUPD (R8)(DI*1), X1       // X1 = b
+	VMOVUPD (R8)(SI*1), X0       // X0 = a (single complex128)
+	VMOVUPD (R8)(DI*1), X1       // X1 = b
 
 	// Load twiddle factor: w[j * step]
 	MOVQ DX, AX
 	IMULQ BX, AX                // AX = j * step
 	SHLQ $4, AX                 // AX = j * step * 16 bytes
-	MOVUPD (R10)(AX*1), X2      // X2 = w
+	VMOVUPD (R10)(AX*1), X2      // X2 = w
 
 	// Scalar conjugate complex multiply: t = conj(w) * b
 	//   t.real = w.r * b.r + w.i * b.i
@@ -718,8 +718,8 @@ inv_scalar_loop_128:
 	VSUBPD X6, X0, X4           // X4 = a - t
 
 	// Store results
-	MOVUPD X3, (R8)(SI*1)       // Store a'
-	MOVUPD X4, (R8)(DI*1)       // Store b'
+	VMOVUPD X3, (R8)(SI*1)       // Store a'
+	VMOVUPD X4, (R8)(DI*1)       // Store b'
 
 	INCQ DX                     // j++
 	JMP inv_scalar_rem_128
@@ -756,8 +756,8 @@ inv_done_128:
 inv_copy_128:
 	CMPQ CX, DX                 // for offset := 0; offset < n*16; offset += 16
 	JGE  inv_scale_128
-	MOVUPS (R8)(CX*1), X0       // Load complex128
-	MOVUPS X0, (AX)(CX*1)       // Store to dst
+	VMOVUPS (R8)(CX*1), X0       // Load complex128
+	VMOVUPS X0, (AX)(CX*1)       // Store to dst
 	ADDQ $16, CX                // offset += 16
 	JMP  inv_copy_128
 
@@ -770,9 +770,9 @@ inv_copy_128:
 // ===========================================================================
 inv_scale_128:
 	MOVQ dst+0(FP), R8          // Ensure R8 points to dst for scaling
-	CVTSQ2SD R13, X0            // X0 = (double)n
-	MOVSD ·one64(SB), X1        // X1 = 1.0
-	DIVSD X0, X1                // X1 = 1.0 / n (scalar scale factor)
+	VCVTSI2SDQ R13, X0, X0            // X0 = (double)n
+	VMOVSD ·one64(SB), X1        // X1 = 1.0
+	VDIVSD X0, X1, X1                // X1 = 1.0 / n (scalar scale factor)
 	VBROADCASTSD X1, Y1         // Y1 = [scale, scale, scale, scale]
 
 	// Use byte offsets since scale 16 is not valid in Go assembler
@@ -796,9 +796,9 @@ inv_scale_rem_128:
 	// Scalar remainder: process one complex128 at a time
 	CMPQ CX, DX
 	JGE  inv_ret_true_128
-	MOVUPD (R8)(CX*1), X0       // Load single complex128
+	VMOVUPD (R8)(CX*1), X0       // Load single complex128
 	VMULPD X1, X0, X0           // Scale (X1 low 128-bit has [scale, scale])
-	MOVUPD X0, (R8)(CX*1)       // Store
+	VMOVUPD X0, (R8)(CX*1)       // Store
 	ADDQ $16, CX                // offset += 16
 	JMP inv_scale_rem_128
 

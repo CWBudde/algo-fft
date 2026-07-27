@@ -1083,7 +1083,7 @@ m24_2048_inv_scale:
 	// Apply 1/N scaling for inverse transform (N=2048, so 1/2048)
 	// ==================================================================
 	MOVL ·twoThousandFortyEighth32(SB), AX // Load 1/2048 as float32
-	MOVD AX, X8                           // Move to XMM register
+	VMOVQ AX, X8                           // Move to XMM register
 	VBROADCASTSS X8, Y8                   // Broadcast to YMM register
 
 	XORQ CX, CX

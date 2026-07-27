@@ -49,14 +49,14 @@ size8_128_r4_fwd_use_dst:
 	// Bit-reversal permutation: work[i] = src[bitrev[i]]
 	// =======================================================================
 	// complex128 is 16 bytes, use SHLQ $4 for indexing
-	MOVUPD 0(R9), X0         // src[0]
-	MOVUPD 32(R9), X1        // src[2]
-	MOVUPD 64(R9), X2        // src[4]
-	MOVUPD 96(R9), X3        // src[6]
-	MOVUPD 16(R9), X4        // src[1]
-	MOVUPD 48(R9), X5        // src[3]
-	MOVUPD 80(R9), X6        // src[5]
-	MOVUPD 112(R9), X7       // src[7]
+	VMOVUPD 0(R9), X0         // src[0]
+	VMOVUPD 32(R9), X1        // src[2]
+	VMOVUPD 64(R9), X2        // src[4]
+	VMOVUPD 96(R9), X3        // src[6]
+	VMOVUPD 16(R9), X4        // src[1]
+	VMOVUPD 48(R9), X5        // src[3]
+	VMOVUPD 80(R9), X6        // src[5]
+	VMOVUPD 112(R9), X7       // src[7]
 	// Now: X0=x0, X1=x1, X2=x2, X3=x3, X4=x4, X5=x5, X6=x6, X7=x7
 
 	// =======================================================================
@@ -94,11 +94,11 @@ size8_128_r4_fwd_use_dst:
 	// Stage 2: radix-2 with twiddles
 	VADDPD X4, X0, X11       // y0
 	VSUBPD X4, X0, X12       // y4
-	MOVUPD X11, (R8)
-	MOVUPD X12, 64(R8)
+	VMOVUPD X11, (R8)
+	VMOVUPD X12, 64(R8)
 
 	// w1 * a5 (FMA: w1 = (+sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
-	MOVUPD 16(R10), X8       // w1
+	VMOVUPD 16(R10), X8       // w1
 	VMOVDDUP X8, X9          // Xre = broadcast real(w1)
 	VPERMILPD $1, X8, X12    // tmp = swap(w1)
 	VMOVDDUP X12, X12        // Xim = broadcast imag(w1)
@@ -107,15 +107,15 @@ size8_128_r4_fwd_use_dst:
 	VFMADDSUB231PD X9, X5, X14 // Xacc = Xre*a5 -/+ Xacc = w1*a5
 	VADDPD X14, X1, X0       // y1
 	VSUBPD X14, X1, X1       // y5
-	MOVUPD X0, 16(R8)
-	MOVUPD X1, 80(R8)
+	VMOVUPD X0, 16(R8)
+	VMOVUPD X1, 80(R8)
 
 	// Save a2, a3 before overwriting
 	VMOVAPD X2, X10
 	VMOVAPD X3, X11
 
 	// w2 * a6
-	MOVUPD 32(R10), X8       // w2
+	VMOVUPD 32(R10), X8       // w2
 	VPERMILPD $1, X8, X9
 	VMULPD X8, X6, X13
 	VMULPD X9, X6, X14
@@ -126,11 +126,11 @@ size8_128_r4_fwd_use_dst:
 	VUNPCKLPD X14, X13, X13  // w2*a6
 	VADDPD X13, X10, X2      // y2
 	VSUBPD X13, X10, X3      // y6
-	MOVUPD X2, 32(R8)
-	MOVUPD X3, 96(R8)
+	VMOVUPD X2, 32(R8)
+	VMOVUPD X3, 96(R8)
 
 	// w3 * a7 (FMA: w3 = (-sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
-	MOVUPD 48(R10), X8       // w3
+	VMOVUPD 48(R10), X8       // w3
 	VMOVDDUP X8, X9          // Xre = broadcast real(w3)
 	VPERMILPD $1, X8, X12    // tmp = swap(w3)
 	VMOVDDUP X12, X12        // Xim = broadcast imag(w3)
@@ -139,29 +139,29 @@ size8_128_r4_fwd_use_dst:
 	VFMADDSUB231PD X9, X7, X14 // Xacc = Xre*a7 -/+ Xacc = w3*a7
 	VADDPD X14, X11, X4      // y3
 	VSUBPD X14, X11, X5      // y7
-	MOVUPD X4, 48(R8)
-	MOVUPD X5, 112(R8)
+	VMOVUPD X4, 48(R8)
+	VMOVUPD X5, 112(R8)
 
 	// Copy to dst if needed
 	CMPQ R8, R14
 	JE   size8_128_r4_fwd_done
 
-	MOVUPD (R8), X0
-	MOVUPD X0, (R14)
-	MOVUPD 16(R8), X0
-	MOVUPD X0, 16(R14)
-	MOVUPD 32(R8), X0
-	MOVUPD X0, 32(R14)
-	MOVUPD 48(R8), X0
-	MOVUPD X0, 48(R14)
-	MOVUPD 64(R8), X0
-	MOVUPD X0, 64(R14)
-	MOVUPD 80(R8), X0
-	MOVUPD X0, 80(R14)
-	MOVUPD 96(R8), X0
-	MOVUPD X0, 96(R14)
-	MOVUPD 112(R8), X0
-	MOVUPD X0, 112(R14)
+	VMOVUPD (R8), X0
+	VMOVUPD X0, (R14)
+	VMOVUPD 16(R8), X0
+	VMOVUPD X0, 16(R14)
+	VMOVUPD 32(R8), X0
+	VMOVUPD X0, 32(R14)
+	VMOVUPD 48(R8), X0
+	VMOVUPD X0, 48(R14)
+	VMOVUPD 64(R8), X0
+	VMOVUPD X0, 64(R14)
+	VMOVUPD 80(R8), X0
+	VMOVUPD X0, 80(R14)
+	VMOVUPD 96(R8), X0
+	VMOVUPD X0, 96(R14)
+	VMOVUPD 112(R8), X0
+	VMOVUPD X0, 112(R14)
 
 size8_128_r4_fwd_done:
 	VZEROUPPER
@@ -209,14 +209,14 @@ TEXT ·InverseAVX2Size8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 
 size8_128_r4_inv_use_dst:
 	// Bit-reversal permutation
-	MOVUPD 0(R9), X0         // src[0]
-	MOVUPD 32(R9), X1        // src[2]
-	MOVUPD 64(R9), X2        // src[4]
-	MOVUPD 96(R9), X3        // src[6]
-	MOVUPD 16(R9), X4        // src[1]
-	MOVUPD 48(R9), X5        // src[3]
-	MOVUPD 80(R9), X6        // src[5]
-	MOVUPD 112(R9), X7       // src[7]
+	VMOVUPD 0(R9), X0         // src[0]
+	VMOVUPD 32(R9), X1        // src[2]
+	VMOVUPD 64(R9), X2        // src[4]
+	VMOVUPD 96(R9), X3        // src[6]
+	VMOVUPD 16(R9), X4        // src[1]
+	VMOVUPD 48(R9), X5        // src[3]
+	VMOVUPD 80(R9), X6        // src[5]
+	VMOVUPD 112(R9), X7       // src[7]
 
 	// Scalar-style mixed-radix computation (inverse)
 	// Build sign masks: X15 = [0, signbit] for -i, X14 = [signbit, 0] for +i
@@ -258,11 +258,11 @@ size8_128_r4_inv_use_dst:
 	VMOVDDUP X8, X8
 	VMULPD X8, X11, X11
 	VMULPD X8, X12, X12
-	MOVUPD X11, (R8)
-	MOVUPD X12, 64(R8)
+	VMOVUPD X11, (R8)
+	VMOVUPD X12, 64(R8)
 
 	// conj(w1) * a5 (FMA: w1 = (+sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
-	MOVUPD 16(R10), X8       // w1
+	VMOVUPD 16(R10), X8       // w1
 	VMOVDDUP X8, X9          // Xre = broadcast real(w1) (same for conj)
 	VPERMILPD $1, X8, X12    // tmp = swap(w1)
 	VMOVDDUP X12, X12        // Xim0 = broadcast imag(w1)
@@ -280,15 +280,15 @@ size8_128_r4_inv_use_dst:
 	VMOVDDUP X8, X8
 	VMULPD X8, X0, X0
 	VMULPD X8, X1, X1
-	MOVUPD X0, 16(R8)
-	MOVUPD X1, 80(R8)
+	VMOVUPD X0, 16(R8)
+	VMOVUPD X1, 80(R8)
 
 	// Save a2, a3 before overwriting
 	VMOVAPD X2, X10
 	VMOVAPD X3, X11
 
 	// conj(w2) * a6
-	MOVUPD 32(R10), X8
+	VMOVUPD 32(R10), X8
 	MOVQ ·signbit64(SB), AX
 	VMOVQ AX, X9
 	VPERMILPD $1, X9, X9
@@ -308,11 +308,11 @@ size8_128_r4_inv_use_dst:
 	VMOVDDUP X8, X8
 	VMULPD X8, X2, X2
 	VMULPD X8, X3, X3
-	MOVUPD X2, 32(R8)
-	MOVUPD X3, 96(R8)
+	VMOVUPD X2, 32(R8)
+	VMOVUPD X3, 96(R8)
 
 	// conj(w3) * a7 (FMA: w3 = (-sqrt2/2, -sqrt2/2), not a trivial twiddle -> fuse)
-	MOVUPD 48(R10), X8       // w3
+	VMOVUPD 48(R10), X8       // w3
 	VMOVDDUP X8, X9          // Xre = broadcast real(w3) (same for conj)
 	VPERMILPD $1, X8, X12    // tmp = swap(w3)
 	VMOVDDUP X12, X12        // Xim0 = broadcast imag(w3)
@@ -330,29 +330,29 @@ size8_128_r4_inv_use_dst:
 	VMOVDDUP X8, X8
 	VMULPD X8, X4, X4
 	VMULPD X8, X5, X5
-	MOVUPD X4, 48(R8)
-	MOVUPD X5, 112(R8)
+	VMOVUPD X4, 48(R8)
+	VMOVUPD X5, 112(R8)
 
 	// Copy to dst if needed
 	CMPQ R8, R14
 	JE   size8_128_r4_inv_done
 
-	MOVUPD (R8), X0
-	MOVUPD X0, (R14)
-	MOVUPD 16(R8), X0
-	MOVUPD X0, 16(R14)
-	MOVUPD 32(R8), X0
-	MOVUPD X0, 32(R14)
-	MOVUPD 48(R8), X0
-	MOVUPD X0, 48(R14)
-	MOVUPD 64(R8), X0
-	MOVUPD X0, 64(R14)
-	MOVUPD 80(R8), X0
-	MOVUPD X0, 80(R14)
-	MOVUPD 96(R8), X0
-	MOVUPD X0, 96(R14)
-	MOVUPD 112(R8), X0
-	MOVUPD X0, 112(R14)
+	VMOVUPD (R8), X0
+	VMOVUPD X0, (R14)
+	VMOVUPD 16(R8), X0
+	VMOVUPD X0, 16(R14)
+	VMOVUPD 32(R8), X0
+	VMOVUPD X0, 32(R14)
+	VMOVUPD 48(R8), X0
+	VMOVUPD X0, 48(R14)
+	VMOVUPD 64(R8), X0
+	VMOVUPD X0, 64(R14)
+	VMOVUPD 80(R8), X0
+	VMOVUPD X0, 80(R14)
+	VMOVUPD 96(R8), X0
+	VMOVUPD X0, 96(R14)
+	VMOVUPD 112(R8), X0
+	VMOVUPD X0, 112(R14)
 
 size8_128_r4_inv_done:
 	VZEROUPPER

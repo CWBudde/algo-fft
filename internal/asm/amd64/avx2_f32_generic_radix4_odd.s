@@ -974,19 +974,19 @@ inv_r4m_copy_loop:
 
 inv_r4m_scale:
 	// scale by 1/n
-	CVTSQ2SS R13, X0
-	MOVSS    ·one32(SB), X1
-	DIVSS    X0, X1
-	SHUFPS   $0x00, X1, X1
+	VCVTSI2SSQ R13, X0, X0
+	VMOVSS   ·one32(SB), X1
+	VDIVSS   X0, X1, X1
+	VSHUFPS  $0x00, X1, X1, X1
 
 	XORQ CX, CX
 
 inv_r4m_scale_loop:
 	CMPQ CX, R13
 	JGE  inv_r4m_return_true
-	MOVSD (AX)(CX*8), X0
-	MULPS X1, X0
-	MOVSD X0, (AX)(CX*8)
+	VMOVSD (AX)(CX*8), X0
+	VMULPS X1, X0, X0
+	VMOVSD X0, (AX)(CX*8)
 	INCQ CX
 	JMP  inv_r4m_scale_loop
 

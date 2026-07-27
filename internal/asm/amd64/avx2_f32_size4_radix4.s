@@ -158,7 +158,7 @@ size4_r4_fwd_load:
 
 	// Negate the "imaginary" part (which after swap is the real part, in positions 1, 3)
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X12
+	VMOVQ AX, X12
 	VBROADCASTSS X12, X12      // X12 = [sign, sign, sign, sign]
 	VXORPD X15, X15, X15       // X15 = [0, 0, 0, 0]
 	VBLENDPS $0xAA, X12, X15, X12  // X12 = [0, sign, 0, sign]
@@ -276,7 +276,7 @@ size4_r4_inv_load:
 
 	// Create mask to negate real parts (which are now in positions 0, 2 after swap)
 	MOVL ·signbit32(SB), AX
-	MOVD AX, X12
+	VMOVQ AX, X12
 	VBROADCASTSS X12, X12      // X12 = [sign, sign, sign, sign]
 	VXORPD X15, X15, X15       // X15 = [0, 0, 0, 0]
 	VBLENDPS $0x55, X12, X15, X12  // X12 = [sign, 0, sign, 0]
@@ -296,7 +296,7 @@ size4_r4_inv_load:
 	// Apply 1/4 scaling for inverse transform
 	// =======================================================================
 	MOVL ·quarter32(SB), AX       // 0.25f in IEEE-754
-	MOVD AX, X3
+	VMOVQ AX, X3
 	VBROADCASTSS X3, Y3        // Y3 = [0.25, 0.25, ...]
 	VMULPS Y3, Y0, Y0          // Y0 *= 0.25
 

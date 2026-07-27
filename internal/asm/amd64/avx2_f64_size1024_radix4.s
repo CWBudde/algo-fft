@@ -63,10 +63,10 @@ r4_1024f64_use_dst:
 r4_1024f64_bitrev_loop:
 	MOVQ (R12)(CX*8), DX     // DX = bitrev[i]
 	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X0    // load src[bitrev[i]]
+	VMOVUPD (R9)(DX*1), X0    // load src[bitrev[i]]
 	MOVQ CX, AX
 	SHLQ $4, AX
-	MOVUPD X0, (R8)(AX*1)    // work[i] = src[bitrev[i]]
+	VMOVUPD X0, (R8)(AX*1)    // work[i] = src[bitrev[i]]
 	INCQ CX
 	CMPQ CX, $1024
 	JL   r4_1024f64_bitrev_loop
@@ -79,10 +79,10 @@ r4_1024f64_stage1:
 	MOVQ $256, CX
 
 r4_1024f64_stage1_loop:
-	MOVUPD (SI), X0          // a0
-	MOVUPD 16(SI), X1        // a1
-	MOVUPD 32(SI), X2        // a2
-	MOVUPD 48(SI), X3        // a3
+	VMOVUPD (SI), X0          // a0
+	VMOVUPD 16(SI), X1        // a1
+	VMOVUPD 32(SI), X2        // a2
+	VMOVUPD 48(SI), X3        // a3
 
 	VADDPD X0, X2, X4        // t0 = a0 + a2
 	VSUBPD X2, X0, X5        // t1 = a0 - a2
@@ -97,10 +97,10 @@ r4_1024f64_stage1_loop:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X8, X5, X3        // y3 = t1 - (-i)*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, 16(SI)
-	MOVUPD X2, 32(SI)
-	MOVUPD X3, 48(SI)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X2, 32(SI)
+	VMOVUPD X3, 48(SI)
 
 	ADDQ $64, SI
 	DECQ CX
@@ -125,13 +125,13 @@ r4_1024f64_stage2_inner:
 	// Twiddles: w[j*64], w[2*j*64], w[3*j*64]
 	MOVQ DX, AX
 	IMULQ $1024, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 	MOVQ DX, AX
 	IMULQ $2048, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 	MOVQ DX, AX
 	IMULQ $3072, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	// Data pointers (byte addressing)
 	MOVQ BX, R13
@@ -144,10 +144,10 @@ r4_1024f64_stage2_inner:
 	LEAQ 128(SI), R14
 	LEAQ 192(SI), R15
 
-	MOVUPD (SI), X0
-	MOVUPD (DI), X1
-	MOVUPD (R14), X2
-	MOVUPD (R15), X3
+	VMOVUPD (SI), X0
+	VMOVUPD (DI), X1
+	VMOVUPD (R14), X2
+	VMOVUPD (R15), X3
 
 	// complex multiply X1 *= X8
 	VMOVDDUP X8, X11
@@ -185,10 +185,10 @@ r4_1024f64_stage2_inner:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X14, X5, X3       // y3 = t1 - (-i)*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, (DI)
-	MOVUPD X2, (R14)
-	MOVUPD X3, (R15)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, (DI)
+	VMOVUPD X2, (R14)
+	VMOVUPD X3, (R15)
 
 	INCQ DX
 	JMP  r4_1024f64_stage2_inner
@@ -216,13 +216,13 @@ r4_1024f64_stage3_inner:
 	// Twiddles: w[j*16], w[2*j*16], w[3*j*16]
 	MOVQ DX, AX
 	IMULQ $256, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 	MOVQ DX, AX
 	IMULQ $512, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 	MOVQ DX, AX
 	IMULQ $768, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	// Data pointers (byte addressing)
 	MOVQ BX, R13
@@ -235,10 +235,10 @@ r4_1024f64_stage3_inner:
 	LEAQ 512(SI), R14
 	LEAQ 768(SI), R15
 
-	MOVUPD (SI), X0
-	MOVUPD (DI), X1
-	MOVUPD (R14), X2
-	MOVUPD (R15), X3
+	VMOVUPD (SI), X0
+	VMOVUPD (DI), X1
+	VMOVUPD (R14), X2
+	VMOVUPD (R15), X3
 
 	// complex multiply X1 *= X8
 	VMOVDDUP X8, X11
@@ -276,10 +276,10 @@ r4_1024f64_stage3_inner:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X14, X5, X3       // y3 = t1 - (-i)*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, (DI)
-	MOVUPD X2, (R14)
-	MOVUPD X3, (R15)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, (DI)
+	VMOVUPD X2, (R14)
+	VMOVUPD X3, (R15)
 
 	INCQ DX
 	JMP  r4_1024f64_stage3_inner
@@ -307,13 +307,13 @@ r4_1024f64_stage4_inner:
 	// Twiddles: w[j*4], w[2*j*4], w[3*j*4]
 	MOVQ DX, AX
 	IMULQ $64, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 	MOVQ DX, AX
 	IMULQ $128, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 	MOVQ DX, AX
 	IMULQ $192, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	// Data pointers (byte addressing)
 	MOVQ BX, R13
@@ -326,10 +326,10 @@ r4_1024f64_stage4_inner:
 	LEAQ 2048(SI), R14
 	LEAQ 3072(SI), R15
 
-	MOVUPD (SI), X0
-	MOVUPD (DI), X1
-	MOVUPD (R14), X2
-	MOVUPD (R15), X3
+	VMOVUPD (SI), X0
+	VMOVUPD (DI), X1
+	VMOVUPD (R14), X2
+	VMOVUPD (R15), X3
 
 	// complex multiply X1 *= X8
 	VMOVDDUP X8, X11
@@ -367,10 +367,10 @@ r4_1024f64_stage4_inner:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X14, X5, X3       // y3 = t1 - (-i)*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, (DI)
-	MOVUPD X2, (R14)
-	MOVUPD X3, (R15)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, (DI)
+	VMOVUPD X2, (R14)
+	VMOVUPD X3, (R15)
 
 	INCQ DX
 	JMP  r4_1024f64_stage4_inner
@@ -392,13 +392,13 @@ r4_1024f64_stage5_loop:
 	// Twiddles: w[j], w[2*j], w[3*j]
 	MOVQ DX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 	MOVQ DX, AX
 	SHLQ $5, AX              // 2*j*16
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 	MOVQ DX, AX
 	IMULQ $48, AX            // 3*j*16
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	// Data pointers (byte addressing)
 	MOVQ DX, SI
@@ -408,10 +408,10 @@ r4_1024f64_stage5_loop:
 	LEAQ 8192(SI), R14
 	LEAQ 12288(SI), R15
 
-	MOVUPD (SI), X0
-	MOVUPD (DI), X1
-	MOVUPD (R14), X2
-	MOVUPD (R15), X3
+	VMOVUPD (SI), X0
+	VMOVUPD (DI), X1
+	VMOVUPD (R14), X2
+	VMOVUPD (R15), X3
 
 	// complex multiply X1 *= X8
 	VMOVDDUP X8, X11
@@ -449,10 +449,10 @@ r4_1024f64_stage5_loop:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X14, X5, X3       // y3 = t1 - (-i)*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, (DI)
-	MOVUPD X2, (R14)
-	MOVUPD X3, (R15)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, (DI)
+	VMOVUPD X2, (R14)
+	VMOVUPD X3, (R15)
 
 	INCQ DX
 	JMP  r4_1024f64_stage5_loop
@@ -527,10 +527,10 @@ r4_1024f64_inv_use_dst:
 r4_1024f64_inv_bitrev_loop:
 	MOVQ (R12)(CX*8), DX     // DX = bitrev[i]
 	SHLQ $4, DX
-	MOVUPD (R9)(DX*1), X0    // load src[bitrev[i]]
+	VMOVUPD (R9)(DX*1), X0    // load src[bitrev[i]]
 	MOVQ CX, AX
 	SHLQ $4, AX
-	MOVUPD X0, (R8)(AX*1)    // work[i] = src[bitrev[i]]
+	VMOVUPD X0, (R8)(AX*1)    // work[i] = src[bitrev[i]]
 	INCQ CX
 	CMPQ CX, $1024
 	JL   r4_1024f64_inv_bitrev_loop
@@ -543,10 +543,10 @@ r4_1024f64_inv_stage1:
 	MOVQ $256, CX
 
 r4_1024f64_inv_stage1_loop:
-	MOVUPD (SI), X0          // a0
-	MOVUPD 16(SI), X1        // a1
-	MOVUPD 32(SI), X2        // a2
-	MOVUPD 48(SI), X3        // a3
+	VMOVUPD (SI), X0          // a0
+	VMOVUPD 16(SI), X1        // a1
+	VMOVUPD 32(SI), X2        // a2
+	VMOVUPD 48(SI), X3        // a3
 
 	VADDPD X0, X2, X4        // t0 = a0 + a2
 	VSUBPD X2, X0, X5        // t1 = a0 - a2
@@ -561,10 +561,10 @@ r4_1024f64_inv_stage1_loop:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X8, X5, X3        // y3 = t1 - i*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, 16(SI)
-	MOVUPD X2, 32(SI)
-	MOVUPD X3, 48(SI)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X2, 32(SI)
+	VMOVUPD X3, 48(SI)
 
 	ADDQ $64, SI
 	DECQ CX
@@ -589,13 +589,13 @@ r4_1024f64_inv_stage2_inner:
 	// Twiddles: w[j*64], w[2*j*64], w[3*j*64]
 	MOVQ DX, AX
 	IMULQ $1024, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 	MOVQ DX, AX
 	IMULQ $2048, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 	MOVQ DX, AX
 	IMULQ $3072, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	// Data pointers (byte addressing)
 	MOVQ BX, R13
@@ -608,10 +608,10 @@ r4_1024f64_inv_stage2_inner:
 	LEAQ 128(SI), R14
 	LEAQ 192(SI), R15
 
-	MOVUPD (SI), X0
-	MOVUPD (DI), X1
-	MOVUPD (R14), X2
-	MOVUPD (R15), X3
+	VMOVUPD (SI), X0
+	VMOVUPD (DI), X1
+	VMOVUPD (R14), X2
+	VMOVUPD (R15), X3
 
 	// complex multiply X1 *= X8
 	VMOVDDUP X8, X11
@@ -649,10 +649,10 @@ r4_1024f64_inv_stage2_inner:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X14, X5, X3       // y3 = t1 - i*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, (DI)
-	MOVUPD X2, (R14)
-	MOVUPD X3, (R15)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, (DI)
+	VMOVUPD X2, (R14)
+	VMOVUPD X3, (R15)
 
 	INCQ DX
 	JMP  r4_1024f64_inv_stage2_inner
@@ -680,13 +680,13 @@ r4_1024f64_inv_stage3_inner:
 	// Twiddles: w[j*16], w[2*j*16], w[3*j*16]
 	MOVQ DX, AX
 	IMULQ $256, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 	MOVQ DX, AX
 	IMULQ $512, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 	MOVQ DX, AX
 	IMULQ $768, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	// Data pointers (byte addressing)
 	MOVQ BX, R13
@@ -699,10 +699,10 @@ r4_1024f64_inv_stage3_inner:
 	LEAQ 512(SI), R14
 	LEAQ 768(SI), R15
 
-	MOVUPD (SI), X0
-	MOVUPD (DI), X1
-	MOVUPD (R14), X2
-	MOVUPD (R15), X3
+	VMOVUPD (SI), X0
+	VMOVUPD (DI), X1
+	VMOVUPD (R14), X2
+	VMOVUPD (R15), X3
 
 	// complex multiply X1 *= X8
 	VMOVDDUP X8, X11
@@ -740,10 +740,10 @@ r4_1024f64_inv_stage3_inner:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X14, X5, X3       // y3 = t1 - i*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, (DI)
-	MOVUPD X2, (R14)
-	MOVUPD X3, (R15)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, (DI)
+	VMOVUPD X2, (R14)
+	VMOVUPD X3, (R15)
 
 	INCQ DX
 	JMP  r4_1024f64_inv_stage3_inner
@@ -771,13 +771,13 @@ r4_1024f64_inv_stage4_inner:
 	// Twiddles: w[j*4], w[2*j*4], w[3*j*4]
 	MOVQ DX, AX
 	IMULQ $64, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 	MOVQ DX, AX
 	IMULQ $128, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 	MOVQ DX, AX
 	IMULQ $192, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	// Data pointers (byte addressing)
 	MOVQ BX, R13
@@ -790,10 +790,10 @@ r4_1024f64_inv_stage4_inner:
 	LEAQ 2048(SI), R14
 	LEAQ 3072(SI), R15
 
-	MOVUPD (SI), X0
-	MOVUPD (DI), X1
-	MOVUPD (R14), X2
-	MOVUPD (R15), X3
+	VMOVUPD (SI), X0
+	VMOVUPD (DI), X1
+	VMOVUPD (R14), X2
+	VMOVUPD (R15), X3
 
 	// complex multiply X1 *= X8
 	VMOVDDUP X8, X11
@@ -831,10 +831,10 @@ r4_1024f64_inv_stage4_inner:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X14, X5, X3       // y3 = t1 - i*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, (DI)
-	MOVUPD X2, (R14)
-	MOVUPD X3, (R15)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, (DI)
+	VMOVUPD X2, (R14)
+	VMOVUPD X3, (R15)
 
 	INCQ DX
 	JMP  r4_1024f64_inv_stage4_inner
@@ -856,13 +856,13 @@ r4_1024f64_inv_stage5_loop:
 	// Twiddles: w[j], w[2*j], w[3*j]
 	MOVQ DX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 	MOVQ DX, AX
 	SHLQ $5, AX              // 2*j*16
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 	MOVQ DX, AX
 	IMULQ $48, AX            // 3*j*16
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	// Data pointers (byte addressing)
 	MOVQ DX, SI
@@ -872,10 +872,10 @@ r4_1024f64_inv_stage5_loop:
 	LEAQ 8192(SI), R14
 	LEAQ 12288(SI), R15
 
-	MOVUPD (SI), X0
-	MOVUPD (DI), X1
-	MOVUPD (R14), X2
-	MOVUPD (R15), X3
+	VMOVUPD (SI), X0
+	VMOVUPD (DI), X1
+	VMOVUPD (R14), X2
+	VMOVUPD (R15), X3
 
 	// complex multiply X1 *= X8
 	VMOVDDUP X8, X11
@@ -913,17 +913,17 @@ r4_1024f64_inv_stage5_loop:
 	VSUBPD X6, X4, X2        // y2 = t0 - t2
 	VSUBPD X14, X5, X3       // y3 = t1 - i*t3
 
-	MOVUPD X0, (SI)
-	MOVUPD X1, (DI)
-	MOVUPD X2, (R14)
-	MOVUPD X3, (R15)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, (DI)
+	VMOVUPD X2, (R14)
+	VMOVUPD X3, (R15)
 
 	INCQ DX
 	JMP  r4_1024f64_inv_stage5_loop
 
 r4_1024f64_inv_scale:
 	// 1/1024 scaling
-	MOVSD ·oneThousandTwentyFourth64(SB), X8
+	VMOVSD ·oneThousandTwentyFourth64(SB), X8
 	VBROADCASTSD X8, Y8
 
 	XORQ CX, CX

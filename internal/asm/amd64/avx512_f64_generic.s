@@ -77,8 +77,8 @@ TEXT ·ForwardAVX512Complex128Asm(SB), NOSPLIT, $0-121
 
 	CMPQ R13, $1
 	JNE  check_power_of_2
-	MOVUPS (R9), X0          // n == 1: copy single complex128 (16 bytes)
-	MOVUPS X0, (R8)
+	VMOVUPS (R9), X0          // n == 1: copy single complex128 (16 bytes)
+	VMOVUPS X0, (R8)
 	JMP  return_true
 
 check_power_of_2:
@@ -106,8 +106,8 @@ bitrev_loop:
 	JGE  bitrev_done
 	MOVQ (R12)(CX*8), DX     // DX = bitrev[i]
 	SHLQ $4, DX              // DX = bitrev[i] * 16 bytes
-	MOVUPS (R9)(DX*1), X0    // X0 = src[bitrev[i]]
-	MOVUPS X0, (R8)(SI*1)    // work[i] = src[bitrev[i]]
+	VMOVUPS (R9)(DX*1), X0    // X0 = src[bitrev[i]]
+	VMOVUPS X0, (R8)(SI*1)    // work[i] = src[bitrev[i]]
 	ADDQ $16, SI
 	INCQ CX
 	JMP  bitrev_loop
@@ -246,13 +246,13 @@ scalar_remainder_loop:
 	SHLQ $4, DI
 	ADDQ SI, DI              // DI = (base + j + half) * 16
 
-	MOVUPD (R8)(SI*1), X0    // a
-	MOVUPD (R8)(DI*1), X1    // b
+	VMOVUPD (R8)(SI*1), X0    // a
+	VMOVUPD (R8)(DI*1), X1    // b
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2   // w = twiddle[j*step]
+	VMOVUPD (R10)(AX*1), X2   // w = twiddle[j*step]
 
 	// t = w * b via 128-bit VEX FMA
 	VMOVDDUP X2, X3           // [w.r, w.r]
@@ -263,8 +263,8 @@ scalar_remainder_loop:
 	VADDPD X6, X0, X3         // a'
 	VSUBPD X6, X0, X4         // b'
 
-	MOVUPD X3, (R8)(SI*1)
-	MOVUPD X4, (R8)(DI*1)
+	VMOVUPD X3, (R8)(SI*1)
+	VMOVUPD X4, (R8)(DI*1)
 
 	INCQ DX
 	CMPQ DX, R15
@@ -290,13 +290,13 @@ scalar_loop:
 	SHLQ $4, DI
 	ADDQ SI, DI
 
-	MOVUPD (R8)(SI*1), X0    // a
-	MOVUPD (R8)(DI*1), X1    // b
+	VMOVUPD (R8)(SI*1), X0    // a
+	VMOVUPD (R8)(DI*1), X1    // b
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2   // w
+	VMOVUPD (R10)(AX*1), X2   // w
 
 	VMOVDDUP X2, X3
 	VSHUFPD $0x3, X2, X2, X4
@@ -306,8 +306,8 @@ scalar_loop:
 	VADDPD X6, X0, X3         // a'
 	VSUBPD X6, X0, X4         // b'
 
-	MOVUPD X3, (R8)(SI*1)
-	MOVUPD X4, (R8)(DI*1)
+	VMOVUPD X3, (R8)(SI*1)
+	VMOVUPD X4, (R8)(DI*1)
 
 	INCQ DX
 	JMP  scalar_loop
@@ -331,8 +331,8 @@ transform_done:
 copy_loop:
 	CMPQ CX, DX
 	JGE  return_true
-	MOVUPS (R8)(CX*1), X0
-	MOVUPS X0, (AX)(CX*1)
+	VMOVUPS (R8)(CX*1), X0
+	VMOVUPS X0, (AX)(CX*1)
 	ADDQ $16, CX
 	JMP  copy_loop
 
@@ -381,8 +381,8 @@ TEXT ·InverseAVX512Complex128Asm(SB), NOSPLIT, $0-121
 
 	CMPQ R13, $1
 	JNE  inv_check_power_of_2
-	MOVUPS (R9), X0
-	MOVUPS X0, (R8)
+	VMOVUPS (R9), X0
+	VMOVUPS X0, (R8)
 	JMP  inv_return_true
 
 inv_check_power_of_2:
@@ -410,8 +410,8 @@ inv_bitrev_loop:
 	JGE  inv_bitrev_done
 	MOVQ (R12)(CX*8), DX     // DX = bitrev[i]
 	SHLQ $4, DX              // DX = bitrev[i] * 16 bytes
-	MOVUPS (R9)(DX*1), X0    // X0 = src[bitrev[i]]
-	MOVUPS X0, (R8)(SI*1)    // work[i] = src[bitrev[i]]
+	VMOVUPS (R9)(DX*1), X0    // X0 = src[bitrev[i]]
+	VMOVUPS X0, (R8)(SI*1)    // work[i] = src[bitrev[i]]
 	ADDQ $16, SI
 	INCQ CX
 	JMP  inv_bitrev_loop
@@ -545,13 +545,13 @@ inv_scalar_remainder_loop:
 	SHLQ $4, DI
 	ADDQ SI, DI
 
-	MOVUPD (R8)(SI*1), X0    // a
-	MOVUPD (R8)(DI*1), X1    // b
+	VMOVUPD (R8)(SI*1), X0    // a
+	VMOVUPD (R8)(DI*1), X1    // b
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2   // w
+	VMOVUPD (R10)(AX*1), X2   // w
 
 	// t = conj(w) * b via 128-bit VEX FMA
 	VMOVDDUP X2, X3
@@ -562,8 +562,8 @@ inv_scalar_remainder_loop:
 	VADDPD X6, X0, X3         // a'
 	VSUBPD X6, X0, X4         // b'
 
-	MOVUPD X3, (R8)(SI*1)
-	MOVUPD X4, (R8)(DI*1)
+	VMOVUPD X3, (R8)(SI*1)
+	VMOVUPD X4, (R8)(DI*1)
 
 	INCQ DX
 	CMPQ DX, R15
@@ -588,13 +588,13 @@ inv_scalar_loop:
 	SHLQ $4, DI
 	ADDQ SI, DI
 
-	MOVUPD (R8)(SI*1), X0
-	MOVUPD (R8)(DI*1), X1
+	VMOVUPD (R8)(SI*1), X0
+	VMOVUPD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X2
+	VMOVUPD (R10)(AX*1), X2
 
 	VMOVDDUP X2, X3
 	VSHUFPD $0x3, X2, X2, X4
@@ -604,8 +604,8 @@ inv_scalar_loop:
 	VADDPD X6, X0, X3
 	VSUBPD X6, X0, X4
 
-	MOVUPD X3, (R8)(SI*1)
-	MOVUPD X4, (R8)(DI*1)
+	VMOVUPD X3, (R8)(SI*1)
+	VMOVUPD X4, (R8)(DI*1)
 
 	INCQ DX
 	JMP  inv_scalar_loop
@@ -629,8 +629,8 @@ inv_transform_done:
 inv_copy_loop:
 	CMPQ CX, DX
 	JGE  inv_scale
-	MOVUPS (R8)(CX*1), X0
-	MOVUPS X0, (AX)(CX*1)
+	VMOVUPS (R8)(CX*1), X0
+	VMOVUPS X0, (AX)(CX*1)
 	ADDQ $16, CX
 	JMP  inv_copy_loop
 
@@ -639,9 +639,9 @@ inv_scale:
 	// power of two >= 16, so there is never a remainder)
 	MOVQ dst+0(FP), R8
 
-	CVTSQ2SD R13, X0         // X0 = (float64)n
-	MOVSD ·one64(SB), X1     // X1 = 1.0
-	DIVSD X0, X1             // X1 = 1.0 / n
+	VCVTSI2SDQ R13, X0, X0         // X0 = (float64)n
+	VMOVSD ·one64(SB), X1     // X1 = 1.0
+	VDIVSD X0, X1, X1             // X1 = 1.0 / n
 	VBROADCASTSD X1, Z1      // Z1 = [scale x8]
 
 	XORQ CX, CX              // CX = byte offset

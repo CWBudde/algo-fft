@@ -289,13 +289,13 @@ scalar_remainder_loop:
 	SHLQ $3, DI
 	ADDQ SI, DI              // DI = (base + j + half) * 8
 
-	MOVSD (R8)(SI*1), X0     // a
-	MOVSD (R8)(DI*1), X1     // b
+	VMOVSD (R8)(SI*1), X0     // a
+	VMOVSD (R8)(DI*1), X1     // b
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $3, AX
-	MOVSD (R10)(AX*1), X2    // w = twiddle[j*step]
+	VMOVSD (R10)(AX*1), X2    // w = twiddle[j*step]
 
 	// t = w * b via 128-bit VEX FMA (same lane recipe as the vector path)
 	VMOVSLDUP X2, X3          // [w.r, w.r]
@@ -306,8 +306,8 @@ scalar_remainder_loop:
 	VADDPS X6, X0, X3         // a'
 	VSUBPS X6, X0, X4         // b'
 
-	MOVSD X3, (R8)(SI*1)
-	MOVSD X4, (R8)(DI*1)
+	VMOVSD X3, (R8)(SI*1)
+	VMOVSD X4, (R8)(DI*1)
 
 	INCQ DX
 	CMPQ DX, R15
@@ -333,13 +333,13 @@ scalar_loop:
 	SHLQ $3, DI
 	ADDQ SI, DI
 
-	MOVSD (R8)(SI*1), X0     // a
-	MOVSD (R8)(DI*1), X1     // b
+	VMOVSD (R8)(SI*1), X0     // a
+	VMOVSD (R8)(DI*1), X1     // b
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $3, AX
-	MOVSD (R10)(AX*1), X2    // w
+	VMOVSD (R10)(AX*1), X2    // w
 
 	VMOVSLDUP X2, X3
 	VMOVSHDUP X2, X4
@@ -349,8 +349,8 @@ scalar_loop:
 	VADDPS X6, X0, X3         // a'
 	VSUBPS X6, X0, X4         // b'
 
-	MOVSD X3, (R8)(SI*1)
-	MOVSD X4, (R8)(DI*1)
+	VMOVSD X3, (R8)(SI*1)
+	VMOVSD X4, (R8)(DI*1)
 
 	INCQ DX
 	JMP  scalar_loop
@@ -597,13 +597,13 @@ inv_scalar_remainder_loop:
 	SHLQ $3, DI
 	ADDQ SI, DI
 
-	MOVSD (R8)(SI*1), X0     // a
-	MOVSD (R8)(DI*1), X1     // b
+	VMOVSD (R8)(SI*1), X0     // a
+	VMOVSD (R8)(DI*1), X1     // b
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $3, AX
-	MOVSD (R10)(AX*1), X2    // w
+	VMOVSD (R10)(AX*1), X2    // w
 
 	// t = conj(w) * b via 128-bit VEX FMA
 	VMOVSLDUP X2, X3
@@ -614,8 +614,8 @@ inv_scalar_remainder_loop:
 	VADDPS X6, X0, X3         // a'
 	VSUBPS X6, X0, X4         // b'
 
-	MOVSD X3, (R8)(SI*1)
-	MOVSD X4, (R8)(DI*1)
+	VMOVSD X3, (R8)(SI*1)
+	VMOVSD X4, (R8)(DI*1)
 
 	INCQ DX
 	CMPQ DX, R15
@@ -640,13 +640,13 @@ inv_scalar_loop:
 	SHLQ $3, DI
 	ADDQ SI, DI
 
-	MOVSD (R8)(SI*1), X0
-	MOVSD (R8)(DI*1), X1
+	VMOVSD (R8)(SI*1), X0
+	VMOVSD (R8)(DI*1), X1
 
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $3, AX
-	MOVSD (R10)(AX*1), X2
+	VMOVSD (R10)(AX*1), X2
 
 	VMOVSLDUP X2, X3
 	VMOVSHDUP X2, X4
@@ -656,8 +656,8 @@ inv_scalar_loop:
 	VADDPS X6, X0, X3
 	VSUBPS X6, X0, X4
 
-	MOVSD X3, (R8)(SI*1)
-	MOVSD X4, (R8)(DI*1)
+	VMOVSD X3, (R8)(SI*1)
+	VMOVSD X4, (R8)(DI*1)
 
 	INCQ DX
 	JMP  inv_scalar_loop
@@ -689,9 +689,9 @@ inv_scale:
 	// power of two >= 16, so there is never a remainder)
 	MOVQ dst+0(FP), R8
 
-	CVTSQ2SS R13, X0         // X0 = (float32)n
-	MOVSS    ·one32(SB), X1  // X1 = 1.0f
-	DIVSS    X0, X1          // X1 = 1.0f / n
+	VCVTSI2SSQ R13, X0, X0         // X0 = (float32)n
+	VMOVSS   ·one32(SB), X1  // X1 = 1.0f
+	VDIVSS   X0, X1, X1          // X1 = 1.0f / n
 	VBROADCASTSS X1, Z1      // Z1 = [scale x16]
 
 	XORQ CX, CX              // CX = byte offset

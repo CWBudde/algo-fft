@@ -2845,22 +2845,102 @@ structural rather than noise, and both reproduce in each direction:
           across the rest of the AVX2 tree, and the ~100 ns of plan-level
           overhead that now dominates a 55 ns size-64 codelet.
 
-- [ ] **Sweep legacy-SSE encodings out of the AVX2/AVX-512 asm tree.** The
-      n = 64 fix above was worth 3× on one kernel and it was a _single_
-      instruction. A census of `internal/asm/amd64/avx*.s` finds **106
-      functions that mix VEX and legacy-SSE vector instructions** and 5204
-      legacy vector-register lines in total. The heavy hitters are the
-      complex128 radix-2 files (`Forward/InverseAVX2Size512Radix2Complex128Asm`
-      alone has 554 legacy `MOVUPD` against 325 VEX instructions), the
-      `Size1024Radix32x32` pair in both precisions (`ADDSS`/`MULSS`/`MOVSS`
-      mixed straight into VEX code), and every c128 `radix4`/`radix4_then2`
-      codelet from 1024 up to 32768 — which is precisely the 1024–16384 band
-      the item below is about, and includes n = 2048. Most of the volume is
-      `MOVUPD`/`MOVSD`/`MOVSS`, a 1:1 rename to the `V` form; the scalar
-      arithmetic (`MULSS`, `ADDSD`, …) needs the 3-operand VEX form and wants
-      more care. Do it file by file with the codelet-candidates benchmark as
-      the gate, largest mixers first. Note the E-core caveat above when
-      measuring.
+- [x] **Sweep legacy-SSE encodings out of the AVX2/AVX-512 asm tree.**
+      _Done 2026-07-28._ **4089 legacy instructions converted to VEX across 59
+      files**; 10 functions deliberately left untouched (see the all-or-nothing
+      rule below). The sweep is **end-to-end performance-neutral** — the
+      hypothesis that it would fix the 1024–16384 soft spots was **wrong** —
+      but it removes a latent hazard class and it uncovered six badly
+      mis-measured codelets.
+
+      What the sweep is actually worth:
+
+      | complex64 codelet         |  before fwd/inv |  after fwd/inv |
+      | ------------------------- | --------------: | -------------: |
+      | `dit4_radix4_avx2`        | 102.9 / 204.9   |    5.0 / 4.6   |
+      | `dit8_radix2_avx2`        |   6.0 / 109.2   |    6.0 / 6.0   |
+      | `dit8_radix8_avx2`        |   7.0 / 111.6   |    7.3 / 7.6   |
+      | `dit16_radix2_avx2`       |  10.8 / 115.8   |   10.3 / 11.2  |
+      | `dit32_radix2_avx2`       |  23.7 / 130.1   |   24.6 / 24.3  |
+
+      Note the signature: before the fix every one of those sat at 102–205 ns
+      **regardless of transform size**. That is a _fixed_ per-call cost, not a
+      size-dependent one — the same ~100 ns `MOVL`/`MOVD`/`VBROADCASTSS` 1/n
+      prologue that caused the n = 64 cliff. Everything else measured neutral:
+      over 116 AVX2 codelet benchmarks the before/after ratio had median 1.00,
+      p25 0.97, p75 1.03, **max 1.14, and zero regressions above 1.3×**.
+      Plan-level benchmarks at 8–128 moved 0.95–1.14× (noise). The bulk of the
+      edits (3648 `MOVUPD`, 89% of the total) are genuinely free: the
+      MOVUPD-heavy c128 kernels measured 2569.5 → 2572.2 ns at n = 512.
+
+      **The rule that matters: convert a function completely or not at all.**
+      A partial conversion is catastrophic. Converting only the arithmetic in
+      `ForwardAVX2Size1024Radix32x32Complex64Asm` took it from **7.1 µs to
+      1.08 ms (152×)**; converting everything the liveness pass allowed still
+      left it at **97 µs (14×)**, reproducible to 1% and confirmed through two
+      independent measurement paths. Interleaving VEX and legacy encodings in a
+      hot loop is far worse than leaving the loop uniformly legacy. The sweep
+      therefore skips any function it cannot convert entirely.
+
+      Method (the tooling is worth rebuilding if this is ever revisited):
+
+      - A **liveness pass** decides safety. A VEX write zeroes bits [255:128]
+        of its destination where the legacy form preserves them, so conversion
+        is legal exactly when the upper half of that register number is dead.
+        A backward fixpoint over a per-`TEXT` CFG found 68 instructions (in 10
+        functions) where it is live — e.g. `Size1024Radix32x32` builds `Y8` via
+        `VINSERTF128 $0, X8, Y8, Y8`, so its `MOVSS …, X8` really is a merge.
+        Guard the analysis with an unresolved-jump-target check: two labels can
+        share one instruction (an empty label body falling through), and
+        silently dropping that edge makes the verdict unsound.
+      - **Verify at the machine-code level, not the source level.** Disassemble
+        before and after with binutils `objdump` (not `go tool objdump`, which
+        misdecodes AVX), normalize away the `v` prefix, the VEX merge operand,
+        and addresses that shift because VEX encodings are longer, then diff per
+        symbol. All **457 asm symbols decoded to an identical instruction
+        stream**. This caught two real bugs a passing test suite did not:
+        Go's `MOVD AX, X12` assembles as a **64-bit** `movq %rax,%xmm12` (Go's
+        `AX` is RAX), so its faithful VEX form is `VMOVQ`, not the 32-bit
+        `VMOVD`; and inter-function `int3` padding is attributed to the
+        preceding symbol and must be filtered before comparing.
+      - Conversion classes: `MOVUPD`/`MOVUPS`/`MOVAPS`/`MOVDQU`/`MOVQ`/
+        `MOVDDUP`/`MOVS[HL]DUP` are 1:1; `MOVSS`/`MOVSD` are 1:1 for mem↔reg
+        but need the 3-operand merge form for reg,reg; `MOVHPS`/`MOVLPS` need it
+        for the load form only; all two-operand arithmetic becomes
+        `VOP src, dst, dst`; `SHUFPS $imm` becomes 4-operand; `CVTSQ2SD` becomes
+        `VCVTSI2SDQ src, dst, dst`.
+      - Scope the rewrite to functions that **already contain VEX**. They
+        would fault on a non-AVX CPU, so adding VEX cannot change which
+        hardware can run them — which is the airtight argument for not touching
+        the real `sse2_*.s`/`sse3_*.s` files.
+
+- [ ] **Retune complex64 priorities at sizes 8/16/32 after the sweep.** The six
+      codelets above were mis-ranked _because_ of the penalty they carried, the
+      same way `dit64_radix2_avx2` was at n = 64. Measured on the swept tree
+      (median of 3, pinned), `dit32_radix2_avx2` (23.7/24.3) now beats the
+      registered winner `dit32_radix32_avx2` (30.3/35.2) by ~30%;
+      `dit16_radix2_avx2` (10.4/11.0) beats `dit16_radix16_avx2` (12.9/13.4) by
+      ~20%; `dit8_radix2_avx2` (5.9/5.9) beats `dit8_radix4_avx2` (8.1/8.5) by
+      ~20%. complex128 is unaffected — its small-size ranking did not move.
+      Raise `radix2_avx2` rather than lowering its siblings, and raise
+      `dit16_radix16_avx512` (50) in step so AVX-512 hosts keep their current
+      choice. **Confirm on an idle machine first** — these were taken while
+      another process was saturating the CPU.
+- [ ] **Make the 10 remaining mixed functions uniformly VEX.** The sweep left
+      `Forward/InverseAVX2Complex64Asm`, both `AVX2Stockham` pairs, and the
+      `Size1024Radix32x32` pair in both precisions mixed, because each has a
+      legacy write whose upper half is live. Given that partial mixing is worth
+      up to 152×, these are worth restructuring (renumber the aliased register
+      so `Xn`/`Yn` no longer collide, then convert). Suggestive:
+      `dit1024_radix32x32_avx2` measures 7.1 µs against `dit1024_radix4_avx2` at
+      3.5 µs — it may already be paying a mixing penalty.
+- [ ] **134 YMM/ZMM-using functions never execute `VZEROUPPER`.** Separate from
+      the encoding sweep and untested so far: these return with the upper state
+      dirty, so the cost lands on the _caller_ — Go's own SSE2-generated float
+      code, and any pure-SSE2 codelet selected afterwards (e.g. the c128 n = 64
+      winner `dit64_radix4_sse2`). 57 of the 151 amd64 asm files contain no
+      `VZEROUPPER` at all. Measure a kernel-then-SSE2-kernel sequence before
+      changing anything.
 - [ ] **Plan-level overhead now dominates small transforms.** With the size-64
       codelet at 55 ns, `BenchmarkPlanForward_64` still reports ~155 ns — about
       100 ns of dispatch/validation per call that used to hide behind a 137 ns

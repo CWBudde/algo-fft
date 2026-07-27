@@ -1045,7 +1045,7 @@ size32_inv_start:
 
 	// Create scale factor: 1/32 = 0.03125 = 0x3D000000 in IEEE-754
 	MOVL ·thirtySecond32(SB), AX     // Load 0.03125 constant
-	MOVD AX, X8              // Move to X8
+	VMOVQ AX, X8              // Move to X8
 	VBROADCASTSS X8, Y8      // Y8 = [0.03125, 0.03125, ...] (broadcast to all 8 elements)
 
 	// Scale all 8 registers by 1/32

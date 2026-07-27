@@ -66,16 +66,16 @@ m24_128_stage1_loop:
 	// Load input values
 	MOVQ DX, AX
 	SHLQ $4, AX
-	MOVUPD (R9)(AX*1), X0
+	VMOVUPD (R9)(AX*1), X0
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD (R9)(AX*1), X1
+	VMOVUPD (R9)(AX*1), X1
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD (R9)(AX*1), X2
+	VMOVUPD (R9)(AX*1), X2
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD (R9)(AX*1), X3
+	VMOVUPD (R9)(AX*1), X3
 
 	// Radix-4 butterfly
 	VADDPD X0, X2, X4
@@ -100,10 +100,10 @@ m24_128_stage1_loop:
 	MOVQ CX, AX
 	SHLQ $4, AX
 	LEAQ (R8)(AX*1), SI
-	MOVUPD X0, (SI)
-	MOVUPD X1, 16(SI)
-	MOVUPD X2, 32(SI)
-	MOVUPD X3, 48(SI)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X2, 32(SI)
+	VMOVUPD X3, 48(SI)
 
 	ADDQ $4, CX
 	JMP  m24_128_stage1_loop
@@ -136,31 +136,31 @@ m24_128_stage2_inner:
 	SHLQ $3, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 
 	MOVQ R15, R13
 	SHLQ $1, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 
 	ADDQ R13, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X0
+	VMOVUPD (R8)(AX*1), X0
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X1
+	VMOVUPD (R8)(AX*1), X1
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X2
+	VMOVUPD (R8)(AX*1), X2
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X3
+	VMOVUPD (R8)(AX*1), X3
 
 	// Complex multiply a1*w1, a2*w2, a3*w3
 	VMOVDDUP X8, X11
@@ -205,16 +205,16 @@ m24_128_stage2_inner:
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD X0, (R8)(AX*1)
+	VMOVUPD X0, (R8)(AX*1)
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD X1, (R8)(AX*1)
+	VMOVUPD X1, (R8)(AX*1)
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD X2, (R8)(AX*1)
+	VMOVUPD X2, (R8)(AX*1)
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD X3, (R8)(AX*1)
+	VMOVUPD X3, (R8)(AX*1)
 
 	INCQ DX
 	JMP  m24_128_stage2_inner
@@ -250,31 +250,31 @@ m24_128_stage3_inner:
 	SHLQ $1, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 
 	MOVQ R15, R13
 	SHLQ $1, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 
 	ADDQ R13, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X0
+	VMOVUPD (R8)(AX*1), X0
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X1
+	VMOVUPD (R8)(AX*1), X1
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X2
+	VMOVUPD (R8)(AX*1), X2
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X3
+	VMOVUPD (R8)(AX*1), X3
 
 	VMOVDDUP X8, X11
 	VPERMILPD $1, X8, X12
@@ -318,16 +318,16 @@ m24_128_stage3_inner:
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD X0, (R8)(AX*1)
+	VMOVUPD X0, (R8)(AX*1)
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD X1, (R8)(AX*1)
+	VMOVUPD X1, (R8)(AX*1)
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD X2, (R8)(AX*1)
+	VMOVUPD X2, (R8)(AX*1)
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD X3, (R8)(AX*1)
+	VMOVUPD X3, (R8)(AX*1)
 
 	INCQ DX
 	JMP  m24_128_stage3_inner
@@ -351,13 +351,13 @@ m24_128_stage4_loop:
 
 	MOVQ CX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X8   // twiddle
+	VMOVUPD (R10)(AX*1), X8   // twiddle
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X0    // a
+	VMOVUPD (R8)(AX*1), X0    // a
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X1    // b
+	VMOVUPD (R8)(AX*1), X1    // b
 
 	// b = b * w
 	VMOVDDUP X8, X11
@@ -373,10 +373,10 @@ m24_128_stage4_loop:
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD X2, (R8)(AX*1)
+	VMOVUPD X2, (R8)(AX*1)
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD X3, (R8)(AX*1)
+	VMOVUPD X3, (R8)(AX*1)
 
 	INCQ CX
 	JMP  m24_128_stage4_loop
@@ -459,16 +459,16 @@ m24_128_inv_stage1_loop:
 
 	MOVQ DX, AX
 	SHLQ $4, AX
-	MOVUPD (R9)(AX*1), X0
+	VMOVUPD (R9)(AX*1), X0
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD (R9)(AX*1), X1
+	VMOVUPD (R9)(AX*1), X1
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD (R9)(AX*1), X2
+	VMOVUPD (R9)(AX*1), X2
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD (R9)(AX*1), X3
+	VMOVUPD (R9)(AX*1), X3
 
 	VADDPD X0, X2, X4
 	VSUBPD X2, X0, X5
@@ -491,10 +491,10 @@ m24_128_inv_stage1_loop:
 	MOVQ CX, AX
 	SHLQ $4, AX
 	LEAQ (R8)(AX*1), SI
-	MOVUPD X0, (SI)
-	MOVUPD X1, 16(SI)
-	MOVUPD X2, 32(SI)
-	MOVUPD X3, 48(SI)
+	VMOVUPD X0, (SI)
+	VMOVUPD X1, 16(SI)
+	VMOVUPD X2, 32(SI)
+	VMOVUPD X3, 48(SI)
 
 	ADDQ $4, CX
 	JMP  m24_128_inv_stage1_loop
@@ -525,31 +525,31 @@ m24_128_inv_stage2_inner:
 	SHLQ $3, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 
 	MOVQ R15, R13
 	SHLQ $1, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 
 	ADDQ R13, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X0
+	VMOVUPD (R8)(AX*1), X0
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X1
+	VMOVUPD (R8)(AX*1), X1
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X2
+	VMOVUPD (R8)(AX*1), X2
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X3
+	VMOVUPD (R8)(AX*1), X3
 
 	// Conjugated complex multiply
 	VMOVDDUP X8, X11
@@ -594,16 +594,16 @@ m24_128_inv_stage2_inner:
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD X0, (R8)(AX*1)
+	VMOVUPD X0, (R8)(AX*1)
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD X1, (R8)(AX*1)
+	VMOVUPD X1, (R8)(AX*1)
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD X2, (R8)(AX*1)
+	VMOVUPD X2, (R8)(AX*1)
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD X3, (R8)(AX*1)
+	VMOVUPD X3, (R8)(AX*1)
 
 	INCQ DX
 	JMP  m24_128_inv_stage2_inner
@@ -638,31 +638,31 @@ m24_128_inv_stage3_inner:
 	SHLQ $1, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 
 	MOVQ R15, R13
 	SHLQ $1, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X9
+	VMOVUPD (R10)(AX*1), X9
 
 	ADDQ R13, R15
 	MOVQ R15, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X10
+	VMOVUPD (R10)(AX*1), X10
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X0
+	VMOVUPD (R8)(AX*1), X0
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X1
+	VMOVUPD (R8)(AX*1), X1
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X2
+	VMOVUPD (R8)(AX*1), X2
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X3
+	VMOVUPD (R8)(AX*1), X3
 
 	VMOVDDUP X8, X11
 	VPERMILPD $1, X8, X12
@@ -706,16 +706,16 @@ m24_128_inv_stage3_inner:
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD X0, (R8)(AX*1)
+	VMOVUPD X0, (R8)(AX*1)
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD X1, (R8)(AX*1)
+	VMOVUPD X1, (R8)(AX*1)
 	MOVQ DI, AX
 	SHLQ $4, AX
-	MOVUPD X2, (R8)(AX*1)
+	VMOVUPD X2, (R8)(AX*1)
 	MOVQ R14, AX
 	SHLQ $4, AX
-	MOVUPD X3, (R8)(AX*1)
+	VMOVUPD X3, (R8)(AX*1)
 
 	INCQ DX
 	JMP  m24_128_inv_stage3_inner
@@ -739,13 +739,13 @@ m24_128_inv_stage4_loop:
 
 	MOVQ CX, AX
 	SHLQ $4, AX
-	MOVUPD (R10)(AX*1), X8
+	VMOVUPD (R10)(AX*1), X8
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X0
+	VMOVUPD (R8)(AX*1), X0
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD (R8)(AX*1), X1
+	VMOVUPD (R8)(AX*1), X1
 
 	VMOVDDUP X8, X11
 	VPERMILPD $1, X8, X12
@@ -760,10 +760,10 @@ m24_128_inv_stage4_loop:
 
 	MOVQ BX, AX
 	SHLQ $4, AX
-	MOVUPD X2, (R8)(AX*1)
+	VMOVUPD X2, (R8)(AX*1)
 	MOVQ SI, AX
 	SHLQ $4, AX
-	MOVUPD X3, (R8)(AX*1)
+	VMOVUPD X3, (R8)(AX*1)
 
 	INCQ CX
 	JMP  m24_128_inv_stage4_loop
@@ -772,7 +772,7 @@ m24_128_inv_scale:
 	// ==================================================================
 	// Apply 1/N scaling for inverse transform
 	// ==================================================================
-	MOVSD ·oneTwentyEighth64(SB), X8
+	VMOVSD ·oneTwentyEighth64(SB), X8
 	VBROADCASTSD X8, Y8
 
 	XORQ CX, CX

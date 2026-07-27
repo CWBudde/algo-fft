@@ -827,7 +827,7 @@ m24_512_inv_scale:
 	// Apply 1/N scaling for inverse transform
 	// ==================================================================
 	MOVL ·fiveHundredTwelfth32(SB), AX
-	MOVD AX, X8
+	VMOVQ AX, X8
 	VBROADCASTSS X8, Y8
 
 	XORQ CX, CX

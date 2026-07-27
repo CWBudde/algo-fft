@@ -66,10 +66,10 @@ TEXT ·MixedRadixStage3Complex64AVX2Asm(SB), NOSPLIT, $0-81
 	ADDQ R8, R9              // R9 = span*16 (row 2 offset)
 
 	MOVL $0xBF000000, AX     // -0.5
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y11
 	MOVL $0x3F5DB3D7, AX     // sqrt(3)/2 = 0.8660254
-	MOVD AX, X0
+	VMOVQ AX, X0
 	VBROADCASTSS X0, Y12
 
 	MOVBLZX inverse+80(FP), AX
