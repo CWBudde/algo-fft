@@ -73,11 +73,14 @@ func leafTwiddleUsable(n, step, tableLen int) bool {
 //   - Ungated, deep schedules over small factors collapse: n = 2205 =
 //     [5 7 7 3 3] ends in 245 span-3 and 735 span-1 stages and cost +80%
 //     (complex64). Any threshold from 16 up removes that.
-//   - Radix 7 loses at every threshold tried (16 … 256): n = 448 = [7 64] has
-//     one radix-7 stage with 384 multiplies and ran +6 to +8% slower with it
-//     vectorised. Excluding radix 7 and keeping the rest moved the geomean
-//     over the mixed-radix benchmark set from -2.3% to -3.2%. Radix 11 is the
-//     opposite case and is kept (n = 704 = [11 64], -7% complex64).
+//   - Radix 7 loses at every threshold tried (16 … 256) *in the two-pass
+//     form*: n = 448 = [7 64] has one radix-7 stage with 384 multiplies and
+//     ran +6 to +8% slower with it vectorised. Excluding radix 7 and keeping
+//     the rest moved the geomean over the mixed-radix benchmark set from
+//     -2.3% to -3.2%. That measurement is about the two-pass form only — see
+//     mixedRadixStageVectorizable, which admits radix 7 exactly when the
+//     fused kernel will execute it. Radix 11 is the opposite case and is kept
+//     unconditionally (n = 704 = [11 64], -7% complex64).
 const mixedRadixStageMinMuls = 64
 
 // mixedRadixStageVectorizable reports whether the butterfly loop below can
@@ -90,9 +93,14 @@ func mixedRadixStageVectorizable(n, radix int) bool {
 	switch radix {
 	case 2, 3, 4, 5, 8, 11:
 		return n-n/radix >= mixedRadixStageMinMuls
+	case 7:
+		// Radix 7 is admitted only where the fused kernel will run it. Its
+		// two-pass form is a measured regression (see mixedRadixStageMinMuls),
+		// so the size threshold alone is not enough to justify leaving the
+		// scalar stage — the extra pass over memory is what it loses on, and
+		// only the fused kernel removes that pass.
+		return mixedRadixStageFused(n/radix, radix) && n-n/radix >= mixedRadixStageMinMuls
 	default:
-		// Radix 7 is deliberately absent even though the scalar stage
-		// executes it: see mixedRadixStageMinMuls.
 		return false
 	}
 }
@@ -266,6 +274,29 @@ func mixedRadixStageComplex64(dst, input, table []complex64, n, span, radix int,
 			dst[k], dst[span+k], dst[2*span+k], dst[3*span+k] = y0, y1, y2, y3
 			dst[4*span+k], dst[5*span+k], dst[6*span+k], dst[7*span+k] = y4, y5, y6, y7
 		}
+	case 7:
+		// Reachable only on the fallback side of the fused kernel: the gate in
+		// mixedRadixStageVectorizable admits radix 7 only when
+		// mixedRadixStageFused is true, but that predicate can go stale
+		// relative to a given call (forced CPU features in a test, a span the
+		// kernel's vector loop cannot cover). Executing the stage is the
+		// correct response; panicking here would be a crash on a legal input.
+		for k := range span {
+			var a [7]complex64
+			for j := range 7 {
+				a[j] = input[j*span+k]
+			}
+
+			if inverse {
+				kernels.Butterfly7InverseComplex64(&a)
+			} else {
+				kernels.Butterfly7ForwardComplex64(&a)
+			}
+
+			for j := range 7 {
+				dst[j*span+k] = a[j]
+			}
+		}
 	case 11:
 		for k := range span {
 			var a [11]complex64
@@ -367,6 +398,29 @@ func mixedRadixStageComplex128(dst, input, table []complex128, n, span, radix in
 
 			dst[k], dst[span+k], dst[2*span+k], dst[3*span+k] = y0, y1, y2, y3
 			dst[4*span+k], dst[5*span+k], dst[6*span+k], dst[7*span+k] = y4, y5, y6, y7
+		}
+	case 7:
+		// Reachable only on the fallback side of the fused kernel: the gate in
+		// mixedRadixStageVectorizable admits radix 7 only when
+		// mixedRadixStageFused is true, but that predicate can go stale
+		// relative to a given call (forced CPU features in a test, a span the
+		// kernel's vector loop cannot cover). Executing the stage is the
+		// correct response; panicking here would be a crash on a legal input.
+		for k := range span {
+			var a [7]complex128
+			for j := range 7 {
+				a[j] = input[j*span+k]
+			}
+
+			if inverse {
+				kernels.Butterfly7InverseComplex128(&a)
+			} else {
+				kernels.Butterfly7ForwardComplex128(&a)
+			}
+
+			for j := range 7 {
+				dst[j*span+k] = a[j]
+			}
 		}
 	case 11:
 		for k := range span {

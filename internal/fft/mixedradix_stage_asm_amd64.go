@@ -23,11 +23,11 @@ import (
 // twiddle multiply and the butterfly are also independent chains for adjacent
 // k, which is what lets one loop body issue both.
 //
-// Only radices 3 and 5 have kernels. They cover the stages that matter for the
+// Radices 3, 5 and 7 have kernels. Together they cover every odd stage of the
 // practical DSP lengths: 1000 = [5 5 5 8], 3600 = [5 5 3 3 16],
-// 12000 = [5 5 5 3 32] and 44100 = [5 5 7 7 4 3 3] are radix-3/5 at every
-// stage the vectorised path is allowed to take. Radix 2/4/8/11 stages fall
-// through to the two-pass Go stage, which is unchanged.
+// 12000 = [5 5 5 3 32], 2205 = [5 7 7 3 3] and 44100 = [5 5 7 7 4 3 3].
+// Radix 2/4/8/11 stages fall through to the two-pass Go stage, which is
+// unchanged.
 
 // mixedRadixStageAsmMinSpan is the smallest span for which a fused kernel is
 // dispatched. Below it the kernel's vector loop has no whole block to run and
@@ -36,6 +36,28 @@ import (
 // mixedRadixStageVectorizable already implies a larger span than this for
 // every radix here, so it is a floor, not a tuning knob.
 const mixedRadixStageAsmMinSpan = 4
+
+// mixedRadixStageFused reports whether a fused kernel would run for a stage of
+// this shape. It exists for radices whose two-pass form is a measured
+// regression, where admitting the stage to the vectorised path is only correct
+// if the fused kernel is the one that will execute it — see
+// mixedRadixStageVectorizable.
+//
+// It must agree with the guards in mixedRadixStageAsm64/128 below. The span
+// bound is the complex64 one (4) for both precisions: it is the stricter of
+// the two, so a true result is safe for either.
+func mixedRadixStageFused(span, radix int) bool {
+	if span < mixedRadixStageAsmMinSpan {
+		return false
+	}
+
+	switch radix {
+	case 3, 5, 7:
+		return cpu.DetectFeatures().HasAVX2
+	default:
+		return false
+	}
+}
 
 // mixedRadixStageAsm64 runs one whole stage with a fused assembly kernel and
 // reports whether it did. A false result means the caller must run the
@@ -57,6 +79,8 @@ func mixedRadixStageAsm64(dst, input, table []complex64, n, span, radix int, inv
 		amd64.MixedRadixStage3Complex64AVX2Asm(dst, input, table, span, inverse)
 	case 5:
 		amd64.MixedRadixStage5Complex64AVX2Asm(dst, input, table, span, inverse)
+	case 7:
+		amd64.MixedRadixStage7Complex64AVX2Asm(dst, input, table, span, inverse)
 	default:
 		return false
 	}
@@ -103,6 +127,23 @@ func mixedRadixStageTail64(dst, input, table []complex64, span, radix int, inver
 
 			dst[k], dst[span+k], dst[2*span+k] = y0, y1, y2
 			dst[3*span+k], dst[4*span+k] = y3, y4
+		case 7:
+			var a [7]complex64
+
+			a[0] = input[k]
+			for j := 1; j < 7; j++ {
+				a[j] = m.MulComplex64(input[j*span+k], table[j*span+k])
+			}
+
+			if inverse {
+				kernels.Butterfly7InverseComplex64(&a)
+			} else {
+				kernels.Butterfly7ForwardComplex64(&a)
+			}
+
+			for j := range 7 {
+				dst[j*span+k] = a[j]
+			}
 		}
 	}
 }
@@ -122,6 +163,8 @@ func mixedRadixStageAsm128(dst, input, table []complex128, n, span, radix int, i
 		amd64.MixedRadixStage3Complex128AVX2Asm(dst, input, table, span, inverse)
 	case 5:
 		amd64.MixedRadixStage5Complex128AVX2Asm(dst, input, table, span, inverse)
+	case 7:
+		amd64.MixedRadixStage7Complex128AVX2Asm(dst, input, table, span, inverse)
 	default:
 		return false
 	}
@@ -167,6 +210,23 @@ func mixedRadixStageTail128(dst, input, table []complex128, span, radix int, inv
 
 			dst[k], dst[span+k], dst[2*span+k] = y0, y1, y2
 			dst[3*span+k], dst[4*span+k] = y3, y4
+		case 7:
+			var a [7]complex128
+
+			a[0] = input[k]
+			for j := 1; j < 7; j++ {
+				a[j] = input[j*span+k] * table[j*span+k]
+			}
+
+			if inverse {
+				kernels.Butterfly7InverseComplex128(&a)
+			} else {
+				kernels.Butterfly7ForwardComplex128(&a)
+			}
+
+			for j := range 7 {
+				dst[j*span+k] = a[j]
+			}
 		}
 	}
 }

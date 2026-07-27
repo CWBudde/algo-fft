@@ -2496,23 +2496,60 @@ and says plainly where the next round of work goes.
                 `math.MulComplex64` never converted into a matching win because
                 the multiply was not the serialising part.
 
-                Remaining upside is in the two follow-ups below; 44100 is now
-                1.27 ms against FFTW3's 236 µs.
+                Remaining upside is in the follow-ups below; 44100 is now
+                1.27 ms against FFTW3's 236 µs (and 781 µs once the radix-7
+                kernel below landed).
 
-          - [ ] **Extend the fused stage kernel to radix 7.** The largest
-                uncovered stage. 44100 = [5 5 7 7 4 3 3] and 2205 = [5 7 7 3 3]
-                spend two of their levels in radix 7, and radix 7 currently
-                reaches neither the fused nor the two-pass path — it is excluded
-                from `mixedRadixStageVectorizable` because the *two-pass* form
-                measured +6…+8% there, and so falls through to
-                `mixedRadixWideScalarStageComplex64`. The fused form has a
-                different cost profile and that exclusion should not be inherited
-                blindly; admitting radix 7 needs the gate made conditional on a
-                fused kernel existing (otherwise non-AVX2 builds pick up the
-                two-pass regression) and a `case 7` added to the two-pass switch
-                so the `span < 4` fallback cannot reach its panic.
-                `kernels.Butterfly7{Forward,Inverse}Complex{64,128}` already
-                exist in the `*[7]T` form the radix-11 case uses.
+          - [x] **Extend the fused stage kernel to radix 7.** _Done 2026-07-27._
+                `avx2_f32_mixedradix_stage7.s` / `avx2_f64_mixedradix_stage7.s`,
+                with the same fused shape as radix 3/5: three conjugate output
+                pairs, cosine rows the `c[j*m mod 7]` index map and sine rows
+                the same map with `s[7-k] = -s[k]` folded in. Derived and
+                checked against the direct DFT (max error 3.6e-15, both
+                directions) before any assembly was written.
+
+                Two things differ from the radix-5 kernel. Six constants plus
+                the sign mask leave nine YMMs for nine live values plus scratch,
+                one short of also holding `a0`, so `a0` stays in memory and is
+                re-read four times and the complex multiply uses its own
+                destination as the third scratch register. That in turn forces
+                the store order: `dst` row 0 is written last, after the final
+                read of input row 0, or the documented `dst == input` aliasing
+                would corrupt it.
+
+                The gate is now conditional, as this item anticipated:
+                `mixedRadixStageFused(span, radix)` (build-tagged, false in the
+                stub) is what `mixedRadixStageVectorizable` consults for radix
+                7, so the +6…+8% two-pass regression cannot reach a non-AVX2 or
+                purego build. `case 7` was added to the two-pass switch in both
+                precisions so the fallback executes the stage rather than
+                hitting the `default:` panic.
+
+                Coverage is what the win is made of. Fused calls per forward
+                transform went 6 → 206 at 44100 (`5:6, 7:200`) and 1 → 6 at
+                2205 — the two lengths that were the weakest cells of the
+                radix-3/5 round for exactly this reason.
+
+                Measured over 7 canary-gated interleaved rounds from one binary
+                (round 6 rejected: its post-round canary came back at 1.59x the
+                floor). Median-of-rounds, with min-of-rounds agreeing to within
+                a point:
+
+                | length | c64 fwd | c64 inv | c128 fwd | c128 inv |
+                | ------ | ------- | ------- | -------- | -------- |
+                | 44100  | -41.7%  | -38.3%  | -38.3%   | -38.3%   |
+                | 2205   | -21.9%  | -21.8%  | -20.4%   | -20.4%   |
+
+                Geomean over the radix-7 lengths -30.7%; every one of the 28
+                paired cells improved in all 7 rounds, on-arm CV 1-3%. The
+                controls (1000, 3600, 12000 — no radix-7 stage at any level)
+                came back at -0.3% geomean with a +-3% spread and no consistent
+                sign, which is the check that the number is the kernel and not
+                the machine.
+
+                44100 is now 781 µs, from 1.34 ms in this sweep's baseline and
+                1.89 ms before the fused path existed. FFTW3's 236 µs is still
+                3.3x away, but the gap has closed from 8.0x.
 
           - [ ] **Re-derive `mixedRadixStageMinMuls` for the fused path.** The
                 `n - span >= 64` gate was fitted to the two-pass stage, which had

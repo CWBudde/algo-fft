@@ -144,10 +144,17 @@ func TestStageTwiddleRejectsUnusableShapes(t *testing.T) {
 		t.Error("mixedRadixStageVectorizable(169, 13) = true")
 	}
 
-	// Radix 7 is executable by the scalar stage but measured slower
-	// vectorised, so it must stay off this path at any size.
-	if mixedRadixStageVectorizable(448, 7) {
-		t.Error("mixedRadixStageVectorizable(448, 7) = true")
+	// Radix 7 is admitted only where the fused kernel will execute it: the
+	// two-pass form it would otherwise fall into measured slower than the
+	// scalar stage at every size tried. Assert the coupling rather than a
+	// fixed answer, since it is the machine that decides.
+	if got, want := mixedRadixStageVectorizable(448, 7), mixedRadixStageFused(64, 7); got != want {
+		t.Errorf("mixedRadixStageVectorizable(448, 7) = %v, want %v (fused kernel available)", got, want)
+	}
+
+	// The size gate still applies on top: n = 21 has 18 multiplies.
+	if mixedRadixStageVectorizable(21, 7) {
+		t.Error("mixedRadixStageVectorizable(21, 7) = true")
 	}
 
 	// Stage too small to be worth vectorising: n = 3, radix 3 is the span-1
@@ -168,7 +175,7 @@ func TestStageTwiddleRejectsUnusableShapes(t *testing.T) {
 func TestMixedRadixStageMatchesScalar(t *testing.T) {
 	t.Parallel()
 
-	for _, radix := range []int{2, 3, 4, 5, 8, 11} {
+	for _, radix := range []int{2, 3, 4, 5, 7, 8, 11} {
 		for _, inverse := range []bool{false, true} {
 			name := "r" + strconv.Itoa(radix)
 			if inverse {
@@ -179,6 +186,14 @@ func TestMixedRadixStageMatchesScalar(t *testing.T) {
 				t.Parallel()
 
 				const span = 64
+
+				// Radix 7 only reaches this path where the fused kernel runs
+				// it; elsewhere stageTwiddle64 correctly returns nil and the
+				// stage stays scalar. TestMixedRadixStageGoRadix7 covers the
+				// two-pass arm on every build.
+				if radix == 7 && !mixedRadixStageFused(span, radix) {
+					t.Skip("no fused radix-7 kernel on this build")
+				}
 
 				n := radix * span
 				rng := rand.New(rand.NewSource(int64(n))) //nolint:gosec // deterministic test vector
@@ -285,6 +300,18 @@ func scalarButterfly64(t *testing.T, a []complex64, inverse bool) []complex64 {
 		)
 
 		return []complex64{y0, y1, y2, y3, y4, y5, y6, y7}
+	case 7:
+		var buf [7]complex64
+
+		copy(buf[:], a)
+
+		if inverse {
+			kernels.Butterfly7InverseComplex64(&buf)
+		} else {
+			kernels.Butterfly7ForwardComplex64(&buf)
+		}
+
+		return buf[:]
 	case 11:
 		var buf [11]complex64
 

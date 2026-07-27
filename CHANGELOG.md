@@ -162,6 +162,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stages, non-AVX2 machines and `purego` builds are unchanged and still take
   the two-pass path.
 
+- A fused AVX2 mixed-radix stage kernel for radix 7, in both precisions,
+  closing the gap the radix-3/5 kernels left at 44100 and 2205. Its butterfly
+  is the radix-7 symmetry reduction — three conjugate output pairs, cosine rows
+  the `c[j*m mod 7]` index map and sine rows the same map with `s[7-k] = -s[k]`
+  folded in. Six constants plus the sign mask leave the kernel one register
+  short of also holding `a0`, so `a0` is re-read from L1 and row 0 of `dst` is
+  written last, which is what keeps the documented `dst == input` aliasing
+  intact.
+
+  Radix 7 was previously excluded from the vectorised path entirely, because
+  its two-pass form measured +6…+8% slower than the scalar stage. It is now
+  admitted only where the fused kernel will actually execute it, so non-AVX2
+  and `purego` builds keep the scalar stage and cannot pick up that regression.
+
+  Measured on an i7-1255U over 7 canary-gated interleaved rounds from a single
+  binary: −42%/−38% at 44100 and −22%/−20% at 2205 (forward/inverse, both
+  precisions within a point of each other), geomean −31% over those lengths,
+  with every paired cell improving in every round. Lengths with no radix-7
+  level — 1000, 3600, 12000 — came back at −0.3% geomean, i.e. unchanged.
+  Fused stage calls per forward transform go from 6 to 206 at 44100 and from
+  1 to 6 at 2205; 44100 is now 781 µs, down from 1.89 ms before the fused path
+  existed.
+
 - Benchmarks for the practical DSP lengths — 1000, 2205, 3600, 12000 and 44100
   — forward and inverse, in both precisions. These are exactly the lengths at
   which the library's margin over other Go FFT libraries is thinnest (~1.5–1.7×

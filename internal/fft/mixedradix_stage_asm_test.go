@@ -85,7 +85,7 @@ func stageInputs64(span, radix int, inverse bool) (input, table []complex64) {
 }
 
 func TestMixedRadixStageAsmComplex64(t *testing.T) {
-	for _, radix := range []int{3, 5} {
+	for _, radix := range []int{3, 5, 7} {
 		for _, span := range []int{4, 7, 16, 19, 64, 65, 253} {
 			for _, inverse := range []bool{false, true} {
 				input, table := stageInputs64(span, radix, inverse)
@@ -113,7 +113,7 @@ func TestMixedRadixStageAsmComplex64(t *testing.T) {
 // hits most often: dst and input are the same slice. Every k must read all r
 // of its rows before it writes any of them.
 func TestMixedRadixStageAsmAliasComplex64(t *testing.T) {
-	for _, radix := range []int{3, 5} {
+	for _, radix := range []int{3, 5, 7} {
 		for _, span := range []int{19, 64} {
 			input, table := stageInputs64(span, radix, false)
 			want := stageReference64(input, table, span, radix, false)
@@ -199,7 +199,7 @@ func stageInputs128(span, radix int, inverse bool) (input, table []complex128) {
 }
 
 func TestMixedRadixStageAsmComplex128(t *testing.T) {
-	for _, radix := range []int{3, 5} {
+	for _, radix := range []int{3, 5, 7} {
 		for _, span := range []int{4, 7, 16, 19, 64, 65, 253} {
 			for _, inverse := range []bool{false, true} {
 				input, table := stageInputs128(span, radix, inverse)
@@ -224,7 +224,7 @@ func TestMixedRadixStageAsmComplex128(t *testing.T) {
 }
 
 func TestMixedRadixStageAsmAliasComplex128(t *testing.T) {
-	for _, radix := range []int{3, 5} {
+	for _, radix := range []int{3, 5, 7} {
 		for _, span := range []int{19, 64} {
 			input, table := stageInputs128(span, radix, false)
 			want := stageReference128(input, table, span, radix, false)
@@ -241,6 +241,48 @@ func TestMixedRadixStageAsmAliasComplex128(t *testing.T) {
 				if d := cmplx.Abs(inPlace[i] - want[i]); d > 1e-9 {
 					t.Fatalf("radix=%d span=%d aliased: index %d = %v, want %v", radix, span, i, inPlace[i], want[i])
 				}
+			}
+		}
+	}
+}
+
+// TestMixedRadixStageGoRadix7 covers the radix-7 arm of the two-pass Go stage.
+// The gate in mixedRadixStageVectorizable admits radix 7 only where the fused
+// kernel runs, so this arm is a fallback rather than a normal route — but it
+// is reachable (a span the vector loop cannot cover, forced CPU features in a
+// test) and used to be a panic, so it needs a reference check of its own.
+func TestMixedRadixStageGoRadix7(t *testing.T) {
+	const (
+		radix = 7
+		span  = 2 // below mixedRadixStageAsmMinSpan: the fused kernel declines
+	)
+
+	for _, inverse := range []bool{false, true} {
+		if mixedRadixStageAsm64(nil, nil, nil, 0, span, radix, inverse) {
+			t.Fatalf("span %d unexpectedly reached the fused kernel", span)
+		}
+
+		input, table := stageInputs64(span, radix, inverse)
+		want := stageReference64(input, table, span, radix, inverse)
+
+		n := span * radix
+		got := make([]complex64, n)
+		mixedRadixStageComplex64(got, input, table, n, span, radix, inverse)
+
+		for i := range want {
+			if d := cmplx.Abs(complex128(got[i]) - complex128(want[i])); d > 1e-4 {
+				t.Fatalf("complex64 inverse=%v: index %d = %v, want %v", inverse, i, got[i], want[i])
+			}
+		}
+
+		input128, table128 := stageInputs128(span, radix, inverse)
+		want128 := stageReference128(input128, table128, span, radix, inverse)
+		got128 := make([]complex128, n)
+		mixedRadixStageComplex128(got128, input128, table128, n, span, radix, inverse)
+
+		for i := range want128 {
+			if d := cmplx.Abs(got128[i] - want128[i]); d > 1e-9 {
+				t.Fatalf("complex128 inverse=%v: index %d = %v, want %v", inverse, i, got128[i], want128[i])
 			}
 		}
 	}
