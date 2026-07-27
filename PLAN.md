@@ -2463,17 +2463,66 @@ and says plainly where the next round of work goes.
                 binary. A `perf stat` comparison (branch misses, I-cache) on a
                 quiet machine would settle it without needing a third build.
 
-          - [ ] **Write a radix-r stage kernel in assembly.** The endpoint the
-                vectorisation subtask stopped short of. The two-pass form
-                (`ComplexMulArrayInPlace` over `input[span:n]`, then a
-                twiddle-free butterfly loop) still crosses memory twice; the
-                profile's ~34% in `math.MulComplex64` did not convert into a
-                matching win, which says the scalar multiply was largely
-                overlapping the butterfly rather than serialising behind it. A
-                kernel holding the r streams in registers across both the multiply
-                and the butterfly is what would actually beat it. Largest
-                remaining item on this path and the one with real upside — 1.89 ms
-                vs FFTW3's 236 µs at 44100 is still the open gap.
+          - [x] **Write a radix-r stage kernel in assembly.** _Done 2026-07-27._
+                Fused AVX2 stage kernels for radix 3 and 5, both precisions
+                (`internal/asm/amd64/avx2_f{32,64}_mixedradix_stage{3,5}.s`,
+                dispatched from `internal/fft/mixedradix_stage_asm_amd64.go`).
+                One pass: rows 1..r-1 are multiplied by the stage table and stay
+                in registers through the butterfly, so they are never written
+                back. The k index is the vector axis — every YMM lane is a
+                different k running the same butterfly — so the butterfly needs
+                no cross-lane movement at all; the only shuffles are inside the
+                complex multiply and the two multiply-by-i steps. Direction costs
+                one register: forward's `-i` and inverse's `+i` are the same pair
+                swap with a different XOR mask.
+
+                Canary-gated A/B, 8 interleaved rounds from one binary, all 160
+                paired cells negative (per-cell CV 1–3%): **geomean −30%**
+                (c64 −32%, c128 −28%). Per length: 12000 −47…−58%, 3600
+                −36…−45%, 1000 −24…−28%, 44100 −15…−17%, 2205 −8…−10%.
+
+                The spread tracks coverage exactly, which is the check that the
+                number means what it says: 12000 = [5 5 5 3 32] gets 156 fused
+                calls per transform, 44100 = [5 5 7 7 4 3 3] gets 6 (its radix-7
+                levels are excluded from the vectorised path and its radix-3
+                levels fall under the `n - span >= 64` gate), and 2205 gets 1.
+
+                The win is larger than the saved memory pass alone would give,
+                because the two-pass form only ever vectorised its *multiply* —
+                `ComplexMulArrayInPlace` took the SIMD path while the butterfly
+                loop that followed stayed fully scalar, one complex per
+                iteration. The fused kernel vectorises the butterfly too. That
+                also resolves the puzzle recorded above: the profile's ~34% in
+                `math.MulComplex64` never converted into a matching win because
+                the multiply was not the serialising part.
+
+                Remaining upside is in the two follow-ups below; 44100 is now
+                1.27 ms against FFTW3's 236 µs.
+
+          - [ ] **Extend the fused stage kernel to radix 7.** The largest
+                uncovered stage. 44100 = [5 5 7 7 4 3 3] and 2205 = [5 7 7 3 3]
+                spend two of their levels in radix 7, and radix 7 currently
+                reaches neither the fused nor the two-pass path — it is excluded
+                from `mixedRadixStageVectorizable` because the *two-pass* form
+                measured +6…+8% there, and so falls through to
+                `mixedRadixWideScalarStageComplex64`. The fused form has a
+                different cost profile and that exclusion should not be inherited
+                blindly; admitting radix 7 needs the gate made conditional on a
+                fused kernel existing (otherwise non-AVX2 builds pick up the
+                two-pass regression) and a `case 7` added to the two-pass switch
+                so the `span < 4` fallback cannot reach its panic.
+                `kernels.Butterfly7{Forward,Inverse}Complex{64,128}` already
+                exist in the `*[7]T` form the radix-11 case uses.
+
+          - [ ] **Re-derive `mixedRadixStageMinMuls` for the fused path.** The
+                `n - span >= 64` gate was fitted to the two-pass stage, which had
+                to overcome a table lookup, an extra pass and a call into the
+                array multiply before it broke even. The fused kernel pays none
+                of those, so the threshold is likely too conservative for it —
+                and it is what currently keeps 1000's third radix-5 level
+                (n = 40, span = 8) and 44100's two radix-3 levels out of the
+                vectorised path. Needs the single-binary env-knob sweep on a
+                quiet machine, not a guess.
 
 - [x] **Add practical DSP lengths to the internal benchmark set.** The
       lengths where algo-fft's lead over gonum nearly vanishes are exactly

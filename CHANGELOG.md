@@ -142,6 +142,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Fused AVX2 mixed-radix stage kernels for radix 3 and 5, in both precisions.
+  A stage used to run as two passes — an in-place array multiply applying the
+  stage twiddles, then a twiddle-free butterfly loop — of which only the
+  multiply was vectorised; the butterfly loop ran one complex value per
+  iteration. The kernels do the whole stage in one pass, holding the r twiddled
+  rows in registers across the butterfly so they are never written back, and
+  vectorise the butterfly as well: the k index is the vector axis, so every
+  lane of a YMM is a different k running the same butterfly and no cross-lane
+  movement is needed. Forward and inverse share one kernel, differing only in
+  the XOR mask that turns the pair-swap into a multiply by -i or +i.
+
+  Measured on an i7-1255U over 8 canary-gated interleaved rounds from a single
+  binary, all 160 paired cells improved: geomean −30% (complex64 −32%,
+  complex128 −28%) across the DSP-length benchmarks. The gain tracks how much
+  of each schedule the kernels cover — 12000 = [5 5 5 3 32] is −47…−58%,
+  44100 = [5 5 7 7 4 3 3] only −15…−17% because its radix-7 levels are not yet
+  covered and its radix-3 levels fall under the stage-size gate. Radix 2/4/8/11
+  stages, non-AVX2 machines and `purego` builds are unchanged and still take
+  the two-pass path.
+
 - Benchmarks for the practical DSP lengths — 1000, 2205, 3600, 12000 and 44100
   — forward and inverse, in both precisions. These are exactly the lengths at
   which the library's margin over other Go FFT libraries is thinnest (~1.5–1.7×
