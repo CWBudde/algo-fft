@@ -2914,18 +2914,103 @@ structural rather than noise, and both reproduce in each direction:
         hardware can run them — which is the airtight argument for not touching
         the real `sse2_*.s`/`sse3_*.s` files.
 
-- [ ] **Retune complex64 priorities at sizes 8/16/32 after the sweep.** The six
-      codelets above were mis-ranked _because_ of the penalty they carried, the
-      same way `dit64_radix2_avx2` was at n = 64. Measured on the swept tree
-      (median of 3, pinned), `dit32_radix2_avx2` (23.7/24.3) now beats the
-      registered winner `dit32_radix32_avx2` (30.3/35.2) by ~30%;
-      `dit16_radix2_avx2` (10.4/11.0) beats `dit16_radix16_avx2` (12.9/13.4) by
-      ~20%; `dit8_radix2_avx2` (5.9/5.9) beats `dit8_radix4_avx2` (8.1/8.5) by
-      ~20%. complex128 is unaffected — its small-size ranking did not move.
-      Raise `radix2_avx2` rather than lowering its siblings, and raise
-      `dit16_radix16_avx512` (50) in step so AVX-512 hosts keep their current
-      choice. **Confirm on an idle machine first** — these were taken while
-      another process was saturating the CPU.
+- [x] **Retune complex64 priorities at sizes 8/16/32 after the sweep.** The six
+      codelets were mis-ranked _because_ of the penalty they carried, the same
+      way `dit64_radix2_avx2` was at n = 64. Re-measured on an idle, cooled
+      machine (load 0.14, package 62 °C, pinned to a P-core, median of 41
+      interleaved rounds with the order rotated each round; p25/p75 within ~3%
+      of the median on every arm), which confirmed the contended numbers:
+
+      | n   | old winner                     | new winner (fwd/inv ns) | gain    |
+      | --- | ------------------------------ | ----------------------- | ------- |
+      | 8   | `dit8_radix4_avx2` (7.34/8.41)  | `dit8_radix2_avx2` 5.51/5.67  | 25/33 % |
+      | 16  | `dit16_radix16_avx2` (13.16/13.82) | `dit16_radix2_avx2` 10.12/10.57 | 23/24 % |
+      | 32  | `dit32_radix32_avx2` (30.06/33.37) | `dit32_radix2_avx2` 24.46/23.56 | 19/29 % |
+
+      Priorities raised (siblings untouched): `dit8_radix2_avx2` 7 → 12,
+      `dit8_radix8_avx2` 9 → 11 (it also beat `dit8_radix4_avx2`, 6.74/7.17 vs
+      7.34/8.41, and had been ranked below it), `dit16_radix2_avx2` 20 → 55,
+      `dit32_radix2_avx2` 20 → 30. complex128 was confirmed unaffected: its
+      AVX2 winners at 8/16/32 (`radix4`, `radix4`, `radix4_then2`) still measure
+      best or tied, and they served as the run's canary arms.
+
+      The "raise `dit16_radix16_avx512` in step" caveat turned out to be
+      unnecessary: `CodeletRegistry.Register` sorts by **SIMD level first** and
+      priority only within a level, so an AVX-512 entry always outranks any
+      AVX2 entry on an AVX-512 host regardless of priority. AVX2 priorities can
+      be tuned in isolation.
+
+- [x] **A few complex128 SSE2 codelets beat their AVX2 siblings but can never
+      be selected.** Fallout of the same SIMD-level-dominates-priority rule
+      above. Re-measured on an idle, cooled machine (same protocol as the
+      retune: single process, pinned to a P-core, median of 41 interleaved
+      rounds with the order rotated), which **refuted the two cases originally
+      cited** — they were contended-run artifacts:
+
+      | c128 | selected AVX2 (fwd/inv ns)          | best SSE2 (fwd/inv ns)         | verdict          |
+      | ---- | ----------------------------------- | ------------------------------ | ---------------- |
+      | 16   | `dit16_radix4_avx2` 22.41/28.79     | `dit16_radix2_sse2` 22.65/28.36 | tie (±1 %)       |
+      | 32   | `dit32_radix4_then2_avx2` 65.7/69.4 | `dit32_radix2_sse2` 70.4/80.2   | AVX2 wins        |
+      | 64   | `dit64_radix4_avx2` 198.0/217.6     | `dit64_radix4_sse2` 149.5/164.2 | **SSE2 by 25 %** |
+
+      But the underlying gap is real and the n = 64 instance is far bigger than
+      the ones the item was filed for. Better still, the intent was **already
+      written down and silently ignored**: both complex128 n = 64 AVX2 rows in
+      `cmd/gencodelets/specs.go` carried the comment _"SSE-width in practice;
+      loses to dit64_radix4_sse2 -> stay below it"_ and had been given
+      priorities 14/15 against the SSE2 codelet's 19 — which does nothing,
+      because priority is only compared within a SIMD level. A hand-tuned
+      decision had been inert since it was made.
+
+      Fixed by splitting the two jobs `SIMDLevel` was doing. It stays the
+      **eligibility** gate; a new optional `RankLevel` on `CodeletEntry` sets
+      the level used for **ordering** only (unset = rank at `SIMDLevel`, so
+      every other codelet is unaffected). The two complex128 n = 64 AVX2 rows
+      now carry `RankLevel: SIMDSSE2`, which puts their 14/15 into the same
+      ordering group as the SSE2 codelet's 19 and finally makes the comment
+      true. `Lookup` for complex128 n = 64 returns `dit64_radix4_sse2`; every
+      other size and both precisions are unchanged. Two regression tests pin
+      the behaviour (`TestCodeletRegistryRankLevelDemotes` and
+      `…UnsetKeepsSIMDOrder`).
+
+      End to end the win survives plan overhead almost intact: `Plan.Forward`
+      at complex128 n = 64 measures **158 ns** after the change (four pinned
+      plans in one process all resolved to the new winner — see the wisdom item
+      below — so they are four samples of the same path, spread 1.8 %). Against
+      a 149.5 ns codelet that puts plan overhead at ~9 ns, so the pre-change
+      path was ≈ 207 ns: **~24 % faster**.
+
+      Use `RankLevel` to **demote**, not promote: promoting a narrow codelet
+      also moves it ahead of its own tier's siblings on CPUs that have nothing
+      better, whereas demoting a wide-ISA codelet only affects hosts that could
+      already run it.
+
+      Two side findings from the same run:
+
+      - **complex64 needs no change** — the item's suspicion was right. At
+        n = 16/32/64 the AVX2 codelets win by 2×+ (e.g. n = 16: 9.70 ns AVX2 vs
+        20.68 ns SSE3).
+      - **No measurable AVX↔SSE transition penalty** for picking a narrower
+        codelet in AVX2 surroundings. An AVX2 n = 64 codelet followed by each
+        n = 16 candidate cost 218 ns with the SSE2 codelet vs 228 ns with the
+        AVX2 one — the SSE2 arm was, if anything, cheaper. So the outstanding
+        `VZEROUPPER` item does not block this kind of cross-tier selection.
+      - `dit16_radix4_generic` forward (20.93 ns) beats every SIMD codelet at
+        complex128 n = 16, but its inverse (32.29) is the worst of the tuned
+        ones. Not acted on — the registry has one priority per entry, not one
+        per direction. Worth a look if per-direction ranking ever lands.
+
+- [ ] **Wisdom can never override a codelet-covered size.** Found while trying
+      to pin a codelet for an end-to-end A/B. `planner.EstimatePlan` tries the
+      registry (step 1) _before_ the wisdom cache (step 2), and the registry
+      hits for every size with a codelet — i.e. all powers of two from 4 to 4096. A `PlanOptions.Wisdom` entry naming a specific codelet signature is
+      silently ignored there; all four pinned plans in the experiment resolved
+      to the registry winner. This makes `LookupBySignature`'s careful
+      "skip disabled codelets so a stale wisdom entry cannot resurrect one"
+      logic unreachable for exactly the sizes it was written for. Decide which
+      is intended — wisdom as an override (swap the order) or wisdom as a
+      fallback (say so in the docs and drop the dead guard) — and align the
+      code with it.
 - [ ] **Make the 10 remaining mixed functions uniformly VEX.** The sweep left
       `Forward/InverseAVX2Complex64Asm`, both `AVX2Stockham` pairs, and the
       `Size1024Radix32x32` pair in both precisions mixed, because each has a

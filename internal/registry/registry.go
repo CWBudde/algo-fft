@@ -32,12 +32,44 @@ type CodeletEntry[T fftypes.Complex] struct {
 	Algorithm  fftypes.KernelStrategy // DIT, Stockham, etc.
 	SIMDLevel  fftypes.SIMDLevel      // Required CPU features
 	Signature  string                 // Human-readable name: "dit8_avx2"
-	Priority   int                    // Higher priority = preferred (for same SIMD level)
+	Priority   int                    // Higher priority = preferred (within a rank level)
 	KernelType fftypes.KernelType     // How the kernel handles permutation
+
+	// RankLevel overrides the SIMD level used for *ordering* only; SIMDLevel
+	// alone still decides whether a CPU may run the codelet. Zero means "rank
+	// at SIMDLevel", which is the case for every codelet that does not need
+	// this.
+	//
+	// The two are separate because a codelet's instruction set is a poor proxy
+	// for its speed. Some AVX2-encoded codelets are SSE-width in practice
+	// (they never fill a YMM register), so they belong in the SSE2 tier's
+	// ranking even though they fault on a pre-AVX2 CPU. Without this, the
+	// SIMD-level-dominates-priority rule below makes them unbeatable by a
+	// genuinely faster SSE2 sibling no matter how the priorities are set —
+	// which silently defeated the hand-tuned priorities on the complex128
+	// n = 64 codelets for as long as they carried a "stay below
+	// dit64_radix4_sse2" comment.
+	//
+	// Set it to demote (rank a wide-ISA codelet into a narrower tier) rather
+	// than to promote: promoting a narrow codelet also moves it ahead of its
+	// own tier's siblings on CPUs that have nothing better.
+	RankLevel fftypes.SIMDLevel
 
 	// Codelet twiddle preparation (nil = use standard twiddle layout)
 	TwiddleSize    TwiddleSizeFunc       // Returns element count for codelet twiddles
 	PrepareTwiddle PrepareTwiddleFunc[T] // Prepares twiddle layout for the codelet
+}
+
+// rank returns the SIMD level this entry is ordered by. An unset RankLevel
+// (fftypes.SIMDNone, the zero value) means "rank at SIMDLevel"; ranking a
+// codelet explicitly into the generic tier is therefore not expressible, which
+// is fine because a generic codelet already ranks there.
+func (e *CodeletEntry[T]) rank() fftypes.SIMDLevel {
+	if e.RankLevel == fftypes.SIMDNone {
+		return e.SIMDLevel
+	}
+
+	return e.RankLevel
 }
 
 // CodeletRegistry provides size-indexed codelet lookup.
@@ -97,10 +129,11 @@ func (r *CodeletRegistry[T]) Register(entry CodeletEntry[T]) {
 	copy(entries, existing)
 	entries = append(entries, entry)
 
-	// Sort by SIMD level (higher = better) then priority
+	// Sort by rank level (higher = better) then priority
 	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].SIMDLevel != entries[j].SIMDLevel {
-			return entries[i].SIMDLevel > entries[j].SIMDLevel
+		li, lj := entries[i].rank(), entries[j].rank()
+		if li != lj {
+			return li > lj
 		}
 
 		return entries[i].Priority > entries[j].Priority

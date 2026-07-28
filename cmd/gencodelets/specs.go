@@ -25,8 +25,13 @@ type codeletSpec struct {
 	KernelType string
 	// Signature is the human-readable codelet name (used for wisdom lookups).
 	Signature string
-	// Priority breaks ties within a (Size, SIMDLevel); higher wins, negative disables.
+	// Priority breaks ties within a (Size, rank level); higher wins, negative disables.
 	Priority int
+	// RankLevel optionally overrides the SIMD level used for ordering only
+	// (see registry.CodeletEntry.RankLevel). Empty = rank at SIMDLevel. Use it
+	// to demote an AVX2-encoded but SSE-width codelet into the SSE2 tier so
+	// its priority is actually comparable with the SSE2 codelets it loses to.
+	RankLevel string
 	// TwiddleSize / PrepareTwiddle are optional identifiers for codelets that
 	// need a custom twiddle layout; empty when unused.
 	TwiddleSize    string
@@ -495,7 +500,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size8Radix2Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size8Radix2Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit8_radix2_avx2", Priority: 7,
+		Signature: "dit8_radix2_avx2", Priority: 12,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 8,
@@ -509,14 +514,14 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size8Radix8Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size8Radix8Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeCore",
-		Signature: "dit8_radix8_avx2", Priority: 9,
+		Signature: "dit8_radix8_avx2", Priority: 11,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 16,
 		Forward:   "amd64.ForwardAVX2Size16Radix2Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size16Radix2Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit16_radix2_avx2", Priority: 20,
+		Signature: "dit16_radix2_avx2", Priority: 55,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 16,
@@ -544,7 +549,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size32Radix2Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size32Radix2Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit32_radix2_avx2", Priority: 20,
+		Signature: "dit32_radix2_avx2", Priority: 30,
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 32,
@@ -949,7 +954,10 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size64Radix2Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size64Radix2Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		// SSE-width in practice; loses to dit64_radix4_sse2 -> stay below it.
+		// SSE-width in practice; loses to dit64_radix4_sse2 -> rank in the SSE2
+		// tier so Priority is actually compared against it (measured 181/205 ns
+		// vs 149/164 ns for dit64_radix4_sse2).
+		RankLevel: "SIMDSSE2",
 		Signature: "dit64_radix2_avx2", Priority: 14,
 	},
 	{
@@ -957,7 +965,10 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size64Radix4Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size64Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		// SSE-width in practice; loses to dit64_radix4_sse2 -> stay below it.
+		// SSE-width in practice; loses to dit64_radix4_sse2 -> rank in the SSE2
+		// tier so Priority is actually compared against it (measured 198/218 ns
+		// vs 149/164 ns for dit64_radix4_sse2).
+		RankLevel: "SIMDSSE2",
 		Signature: "dit64_radix4_avx2", Priority: 15,
 	},
 	{

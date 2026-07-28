@@ -565,3 +565,84 @@ func TestCPUSupports(t *testing.T) {
 		}
 	}
 }
+
+// TestCodeletRegistryRankLevelDemotes verifies that RankLevel moves an entry
+// into another tier for ordering while leaving eligibility on SIMDLevel. This
+// is what lets a genuinely faster SSE2 codelet beat an AVX2-encoded but
+// SSE-width sibling, which plain priorities cannot express.
+func TestCodeletRegistryRankLevelDemotes(t *testing.T) {
+	t.Parallel()
+
+	reg := NewCodeletRegistry[complex64]()
+
+	// AVX2-encoded but SSE-width: ranked into the SSE2 tier, below the SSE2
+	// codelet that measures faster.
+	reg.Register(CodeletEntry[complex64]{
+		Size:      64,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDAVX2,
+		RankLevel: fftypes.SIMDSSE2,
+		Signature: "narrow_avx2",
+		Priority:  15,
+	})
+	reg.Register(CodeletEntry[complex64]{
+		Size:      64,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDSSE2,
+		Signature: "fast_sse2",
+		Priority:  19,
+	})
+
+	avx2 := cpu.Features{HasSSE2: true, HasAVX2: true, HasFMA: true}
+	if got := reg.Lookup(64, avx2); got == nil || got.Signature != "fast_sse2" {
+		t.Fatalf("AVX2 host: got %v, want fast_sse2", got)
+	}
+
+	// Eligibility is untouched: the demoted entry still requires AVX2, so an
+	// SSE2-only host must never reach it — here it also picks fast_sse2, so
+	// check the demoted entry is rejected on its own.
+	sse2Only := cpu.Features{HasSSE2: true}
+	if CPUSupports(sse2Only, fftypes.SIMDAVX2) {
+		t.Fatal("SSE2-only host must not satisfy an AVX2 requirement")
+	}
+
+	if got := reg.Lookup(64, sse2Only); got == nil || got.Signature != "fast_sse2" {
+		t.Fatalf("SSE2 host: got %v, want fast_sse2", got)
+	}
+}
+
+// TestCodeletRegistryRankLevelUnsetKeepsSIMDOrder pins the default: with
+// RankLevel unset, ordering is by SIMDLevel exactly as before.
+func TestCodeletRegistryRankLevelUnsetKeepsSIMDOrder(t *testing.T) {
+	t.Parallel()
+
+	reg := NewCodeletRegistry[complex64]()
+
+	reg.Register(CodeletEntry[complex64]{
+		Size:      64,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDSSE2,
+		Signature: "sse2",
+		Priority:  100,
+	})
+	reg.Register(CodeletEntry[complex64]{
+		Size:      64,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDAVX2,
+		Signature: "avx2",
+		Priority:  1,
+	})
+
+	avx2 := cpu.Features{HasSSE2: true, HasAVX2: true, HasFMA: true}
+	if got := reg.Lookup(64, avx2); got == nil || got.Signature != "avx2" {
+		t.Fatalf("got %v, want avx2 (SIMD level still dominates priority)", got)
+	}
+}
