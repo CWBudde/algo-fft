@@ -35,27 +35,25 @@ type PlanEstimate[T Complex] struct {
 
 // EstimatePlan determines the best kernel/codelet for the given size.
 // It checks in order:
-//  1. Wisdom naming a concrete codelet signature (zero dispatch)
+//  1. Wisdom, naming either a codelet signature (zero dispatch) or a strategy
 //  2. Codelet registry (zero dispatch)
-//  3. Wisdom naming a kernel strategy
-//  4. Heuristic strategy selection (fallback)
+//  3. Heuristic strategy selection (fallback)
 //
-// Wisdom deliberately straddles the registry rather than sitting wholly above
-// or below it, because its two kinds of entry carry very different evidence:
+// Wisdom outranks the registry because the two express the same choice with
+// different evidence: a wisdom entry was measured on this machine, while the
+// registry's order is a compile-time priority constant. Ranking wisdom below
+// the registry instead — as this did until the v3 wisdom format — made every
+// entry unreachable for the sizes that have a codelet (all powers of two from
+// 4 to 4096), which for a signature entry is the only set of sizes where it can
+// exist at all; it also made registry.LookupBySignature's stale-entry guard
+// dead code, and it broke the measure/replay round trip, since a plan measured
+// under PlannerMeasure could not be reproduced from the wisdom it recorded.
 //
-//   - A signature entry ("dit64_radix4_sse2") names the same kind of thing the
-//     registry does — one specific codelet for this size — but was measured on
-//     this machine, whereas the registry's order is a compile-time priority
-//     constant. The measurement wins. Ranking wisdom below the registry instead
-//     made signature entries unreachable for every size that has a codelet
-//     (all powers of two from 4 to 4096), which is exactly the set of sizes
-//     where a signature can exist at all — it also made
-//     registry.LookupBySignature's stale-entry guard dead code.
-//   - A strategy entry ("stockham") is not comparable with a codelet. The
-//     measurement behind it (internal/fft.benchmarkStrategy) times only the
-//     kernel path and never the codelet, so letting it displace a codelet would
-//     act on a comparison that was never made. It therefore stays a fallback
-//     for sizes the registry does not cover.
+// A strategy entry ("stockham") outranks a codelet on the same footing, but
+// only because internal/fft.MeasureAndSelect now times the registry's codelets
+// as candidates alongside the kernel strategies. Under the v2 format it did
+// not, so a v2 strategy entry recorded a comparison that never involved the
+// codelet — which is why v2 files are rejected rather than reinterpreted.
 //
 // The returned PlanEstimate contains either:
 //   - Direct codelet bindings (zero dispatch) if a codelet is registered for the size
@@ -76,28 +74,31 @@ func EstimatePlan[T Complex](
 		}
 	}
 
-	algorithm, haveWisdom := wisdomAlgorithm[T](n, features, wisdom)
+	// 1. Wisdom: a measured decision for this size on this machine.
+	haveStrategyWisdom := false
 
-	// 1. A wisdom entry naming a codelet outranks the registry's static order.
-	if haveWisdom {
+	if algorithm, ok := wisdomAlgorithm[T](n, features, wisdom); ok {
 		if est := bindWisdomCodelet[T](n, features, algorithm, forcedStrategy); est != nil {
 			return *est
+		}
+
+		// Not a usable codelet signature: try it as a strategy name. Applied
+		// after the registry check below, so that a wisdom entry naming a
+		// codelet that has since been disabled or become unrunnable falls back
+		// to the registry rather than to a generic kernel.
+		if wisStrat, ok := wisdomStrategy(algorithm, forcedStrategy); ok {
+			strategy, haveStrategyWisdom = wisStrat, true
 		}
 	}
 
 	// 2. Try the codelet registry (zero dispatch)
-	if est := tryRegistry[T](n, features, forcedStrategy); est != nil {
-		return *est
-	}
-
-	// 3. A wisdom entry naming a strategy applies only where no codelet ran.
-	if haveWisdom {
-		if wisStrat, ok := wisdomStrategy(algorithm, forcedStrategy); ok {
-			strategy = wisStrat
+	if !haveStrategyWisdom {
+		if est := tryRegistry[T](n, features, forcedStrategy); est != nil {
+			return *est
 		}
 	}
 
-	// 4. Fall back to heuristic kernel selection
+	// 3. Fall back to heuristic kernel selection
 	algorithmName := StrategyToAlgorithmName(strategy)
 
 	return PlanEstimate[T]{

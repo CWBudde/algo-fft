@@ -3,12 +3,13 @@ package fft
 import (
 	"runtime"
 	"slices"
-	"sort"
 	"time"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fftypes"
+	"github.com/cwbudde/algo-fft/internal/kernels"
 	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+	mem "github.com/cwbudde/algo-fft/internal/memory"
 	"github.com/cwbudde/algo-fft/internal/planner"
 	"github.com/cwbudde/algo-fft/internal/registry"
 )
@@ -99,8 +100,29 @@ func selectStrategiesToTest(mode PlannerMode, n int) []fftypes.KernelStrategy {
 	return []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham}
 }
 
-// MeasureAndSelect benchmarks multiple strategies and returns the best one.
-// It optionally records the result to the provided wisdom recorder.
+// measureCandidate is one implementation the planner can time: either a kernel
+// strategy, or a specific codelet from the registry (entry non-nil).
+type measureCandidate[T Complex] struct {
+	entry     *registry.CodeletEntry[T]
+	algorithm string
+	strategy  fftypes.KernelStrategy
+}
+
+// MeasureAndSelect benchmarks the candidate implementations for a size and
+// returns the best one. It optionally records the result to the provided
+// wisdom recorder.
+//
+// Codelets are timed alongside the kernel strategies, not assumed. Timing only
+// the strategies used to let measure mode return a plan worse than
+// PlannerEstimate's: the strategy winner was applied through
+// estimateWithStrategy, which substitutes a codelet only when the winning
+// strategy happens to match the top-ranked codelet's own algorithm, so at
+// complex64 n = 1024 (Stockham kernel beats DIT kernel) measurement discarded
+// the dit1024_radix4_avx2 codelet that the unmeasured path would have used.
+//
+// Because codelets now take part, the winner fully determines the returned
+// estimate — a strategy that wins is honored as a kernel plan even where a
+// codelet exists, since the codelet was measured and lost.
 func MeasureAndSelect[T Complex](
 	n int,
 	features cpu.Features,
@@ -118,41 +140,150 @@ func MeasureAndSelect[T Complex](
 		return estimateWithStrategy[T](n, features, fftypes.KernelAuto)
 	}
 
-	// Single strategy? Just use it directly
-	if len(strategies) == 1 {
+	candidates := measureCandidates[T](mode, n, features, strategies)
+
+	// Nothing to compare (a single strategy and no codelet, e.g. Bluestein):
+	// applying it directly avoids the benchmarking cost.
+	if len(candidates) == 1 {
 		return estimateWithStrategy[T](n, features, strategies[0])
 	}
 
 	config := getMeasureConfig(mode)
-	results := make([]MeasureResult, 0, len(strategies))
 
-	for _, strategy := range strategies {
-		elapsed := benchmarkStrategy[T](n, features, strategy, config)
-		if elapsed > 0 {
-			results = append(results, MeasureResult{
-				Strategy:  strategy,
-				Algorithm: planner.StrategyToAlgorithmName(strategy),
-				NsPerOp:   float64(elapsed.Nanoseconds()) / float64(config.iters),
-			})
+	best := -1
+	bestNsPerOp := 0.0
+
+	for i := range candidates {
+		elapsed := benchmarkCandidate(n, features, candidates[i], config)
+		if elapsed <= 0 {
+			continue // Candidate declined this size (kernel or codelet returned false).
+		}
+
+		nsPerOp := float64(elapsed.Nanoseconds()) / float64(config.iters)
+		if best < 0 || nsPerOp < bestNsPerOp {
+			best, bestNsPerOp = i, nsPerOp
 		}
 	}
 
-	// If no strategy succeeded, fall back to heuristics
-	if len(results) == 0 {
+	// If no candidate succeeded, fall back to heuristics
+	if best < 0 {
 		return planner.EstimatePlan[T](n, features, nil, fftypes.KernelAuto)
 	}
 
-	// Sort by performance (fastest first)
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].NsPerOp < results[j].NsPerOp
-	})
+	winner := candidates[best]
 
-	best := results[0]
+	// Record to wisdom if recorder is provided. The recorded name is the
+	// codelet signature when a codelet won, which planner.EstimatePlan binds
+	// directly on the next run — so a measured decision is reproduced rather
+	// than re-derived from the registry's static order.
+	recordToWisdom[T](n, features, wisdom, winner.algorithm)
 
-	// Record to wisdom if recorder is provided
-	recordToWisdom[T](n, features, wisdom, best.Algorithm)
+	if winner.entry != nil {
+		return codeletEstimate(*winner.entry)
+	}
 
-	return estimateWithStrategy[T](n, features, best.Strategy)
+	return planner.PlanEstimate[T]{
+		Strategy:  winner.strategy,
+		Algorithm: winner.algorithm,
+	}
+}
+
+// measureCandidates builds the candidate list: one entry per kernel strategy
+// plus the codelets worth timing for this size.
+func measureCandidates[T Complex](
+	mode PlannerMode, n int, features cpu.Features, strategies []fftypes.KernelStrategy,
+) []measureCandidate[T] {
+	codelets := codeletCandidates[T](mode, n, features)
+	candidates := make([]measureCandidate[T], 0, len(strategies)+len(codelets))
+
+	for _, strategy := range strategies {
+		candidates = append(candidates, measureCandidate[T]{
+			entry:     nil,
+			algorithm: planner.StrategyToAlgorithmName(strategy),
+			strategy:  strategy,
+		})
+	}
+
+	for i := range codelets {
+		candidates = append(candidates, measureCandidate[T]{
+			entry:     &codelets[i],
+			algorithm: codelets[i].Signature,
+			strategy:  codelets[i].Algorithm,
+		})
+	}
+
+	return candidates
+}
+
+// codeletCandidates returns the codelets to time for this size. The quick mode
+// times only the registry's own winner — the one the plan would otherwise take
+// unmeasured — while the deeper modes time every enabled codelet the CPU can
+// run, which is what lets measurement disagree with the registry's static
+// priority order and record the disagreement as wisdom.
+func codeletCandidates[T Complex](mode PlannerMode, n int, features cpu.Features) []registry.CodeletEntry[T] {
+	reg := registry.GetRegistry[T]()
+	if reg == nil {
+		return nil
+	}
+
+	if mode != PlannerPatient && mode != PlannerExhaustive {
+		entry := reg.Lookup(n, features)
+		if entry == nil {
+			return nil
+		}
+
+		return []registry.CodeletEntry[T]{*entry}
+	}
+
+	all := reg.GetAllForSize(n)
+	out := make([]registry.CodeletEntry[T], 0, len(all))
+
+	for i := range all {
+		// Mirror Lookup: disabled codelets stay disabled, and a codelet the CPU
+		// cannot run would fault rather than report a time.
+		if all[i].Priority < 0 || !registry.CPUSupports(features, all[i].SIMDLevel) {
+			continue
+		}
+
+		out = append(out, all[i])
+	}
+
+	return out
+}
+
+// candidateForward returns the forward transform to time for a candidate, plus
+// the twiddle table to feed it. A codelet that wants a packed twiddle layout
+// gets one prepared here exactly as the plan would; handed the plain table it
+// would fail its own length check and report "not implemented" instead of a
+// time.
+func candidateForward[T Complex](
+	n int, features cpu.Features, cand measureCandidate[T], twiddle []T,
+) (kernels.Kernel[T], []T) {
+	if cand.entry == nil {
+		return SelectKernelsWithStrategy[T](features, cand.strategy).Forward, twiddle
+	}
+
+	if cand.entry.TwiddleSize != nil && cand.entry.PrepareTwiddle != nil {
+		if size := cand.entry.TwiddleSize(n); size > 0 {
+			packed, _ := mem.AllocAligned[T](size)
+			cand.entry.PrepareTwiddle(n, false, packed)
+			twiddle = packed
+		}
+	}
+
+	return kernels.Kernel[T](cand.entry.Forward), twiddle
+}
+
+// codeletEstimate builds a plan estimate bound directly to one codelet.
+func codeletEstimate[T Complex](entry registry.CodeletEntry[T]) planner.PlanEstimate[T] {
+	return planner.PlanEstimate[T]{
+		ForwardCodelet: entry.Forward,
+		InverseCodelet: entry.Inverse,
+		Algorithm:      entry.Signature,
+		Strategy:       entry.Algorithm,
+		TwiddleSize:    entry.TwiddleSize,
+		PrepareTwiddle: entry.PrepareTwiddle,
+	}
 }
 
 func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecorder, algorithm string) {
@@ -192,14 +323,14 @@ func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecord
 	wisdom.Store(entry)
 }
 
-// benchmarkStrategy runs a micro-benchmark for a single strategy.
-// It runs config.trials independent trials of config.iters iterations each and
-// returns the median trial's elapsed time, rejecting outlier trials. Returns 0 if
-// the strategy is not implemented for this size.
-func benchmarkStrategy[T Complex](
+// benchmarkCandidate runs a micro-benchmark for a single candidate (kernel
+// strategy or codelet). It runs config.trials independent trials of
+// config.iters iterations each and returns the median trial's elapsed time,
+// rejecting outlier trials. Returns 0 if the candidate declines this size.
+func benchmarkCandidate[T Complex](
 	n int,
 	features cpu.Features,
-	strategy fftypes.KernelStrategy,
+	cand measureCandidate[T],
 	config measureConfig,
 ) time.Duration {
 	// Prepare data buffers
@@ -213,14 +344,13 @@ func benchmarkStrategy[T Complex](
 		src[i] = complexFromFloat64[T](float64(i%16)/16.0, float64((i+1)%16)/16.0)
 	}
 
-	// Get kernel for this strategy
-	kern := SelectKernelsWithStrategy[T](features, strategy)
+	forward, twiddle := candidateForward(n, features, cand, twiddle)
 
-	// Warmup: verify the kernel works and warm up CPU caches
+	// Warmup: verify the candidate works and warm up CPU caches
 	for range config.warmup {
-		ok := kern.Forward(dst, src, twiddle, scratch)
+		ok := forward(dst, src, twiddle, scratch)
 		if !ok {
-			return 0 // Strategy not implemented
+			return 0 // Not implemented for this size
 		}
 	}
 
@@ -235,7 +365,7 @@ func benchmarkStrategy[T Complex](
 		startCycles := cpu.ReadCycleCounter()
 
 		for range config.iters {
-			kern.Forward(dst, src, twiddle, scratch)
+			forward(dst, src, twiddle, scratch)
 		}
 
 		elapsedNanos := cpu.CyclesToNanoseconds(cpu.CyclesSince(startCycles))

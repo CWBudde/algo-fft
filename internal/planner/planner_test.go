@@ -329,11 +329,12 @@ func TestEstimatePlanWisdomOutranksRegistry(t *testing.T) {
 	}
 }
 
-// TestEstimatePlanStrategyWisdomYieldsToCodelet is the other half of the
-// ordering: a wisdom entry naming a *strategy* must not displace a codelet. The
-// measurement behind such an entry (internal/fft.benchmarkStrategy) only ever
-// times the kernel path, so it carries no evidence about the codelet.
-func TestEstimatePlanStrategyWisdomYieldsToCodelet(t *testing.T) {
+// TestEstimatePlanStrategyWisdomOutranksCodelet covers the other kind of entry:
+// a wisdom entry naming a *strategy* also outranks a codelet, because
+// internal/fft.MeasureAndSelect times the registry's codelets as candidates, so
+// a recorded strategy is one that beat them. (Under the v2 wisdom format it was
+// not, which is why v2 files are rejected — see wisdomMagic.)
+func TestEstimatePlanStrategyWisdomOutranksCodelet(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -364,8 +365,17 @@ func TestEstimatePlanStrategyWisdomYieldsToCodelet(t *testing.T) {
 	features := cpu.Features{Architecture: "amd64", HasSSE2: true}
 
 	got := EstimatePlan[complex64](size, features, wisdom, KernelAuto)
-	if got.Algorithm != sig {
-		t.Errorf("algorithm = %q, want the codelet %q", got.Algorithm, sig)
+	if got.Strategy != KernelStockham {
+		t.Errorf("strategy = %v, want KernelStockham from wisdom (algorithm %q)", got.Strategy, got.Algorithm)
+	}
+
+	if got.ForwardCodelet != nil {
+		t.Errorf("strategy wisdom left the codelet %q bound", got.Algorithm)
+	}
+
+	// Without the wisdom entry the codelet is what the registry hands back.
+	if base := EstimatePlan[complex64](size, features, nil, KernelAuto); base.Algorithm != sig {
+		t.Errorf("without wisdom: algorithm = %q, want %q", base.Algorithm, sig)
 	}
 }
 

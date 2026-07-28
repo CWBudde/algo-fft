@@ -3009,30 +3009,36 @@ structural rather than noise, and both reproduce in each direction:
       "skip disabled codelets so a stale wisdom entry cannot resurrect one"
       logic unreachable for exactly the sizes it was written for.
 
-      Resolved as **neither of the two options the item proposed**: wisdom now
-      straddles the registry rather than sitting wholly above or below it,
-      because its two kinds of entry carry different evidence.
+      Resolved as **wisdom above the registry**, but only after the follow-up
+      item below removed the objection to it. A first pass had wisdom straddle
+      the registry — signature entries above, strategy entries below — on the
+      grounds that a strategy entry's measurement
+      (`internal/fft.benchmarkStrategy`) timed only the kernel path and never
+      the codelet, so it carried no evidence against one. That was the correct
+      reading of the code as it stood, and it is why the naive "swap the order"
+      fix would have been a regression: every codelet-covered size that had been
+      through `PlannerMeasure` carried a strategy-name entry recorded without
+      ever comparing against the codelet.
 
-      - A **signature** entry (`dit64_radix4_sse2`) names the same kind of
-        thing the registry does — one specific codelet for one size — but was
-        measured on this machine, against a registry order that is a
-        compile-time constant. It now runs _before_ the registry
-        (`bindWisdomCodelet`), which is what makes signature entries reachable
-        at all and the disabled-codelet guard live.
-      - A **strategy** entry (`stockham`) now stays _after_ the registry. The
-        measurement behind it (`internal/fft.benchmarkStrategy`) times only the
-        kernel path via `SelectKernelsWithStrategy` and never the codelet, so
-        letting it displace a codelet would act on a comparison that was never
-        made. This is also why the naive "swap the order" fix would have been a
-        regression: every codelet-covered size that has ever been through
-        `PlannerMeasure` has a strategy-name entry in its wisdom, and the swap
-        would have routed all of them off the codelet and onto a generic kernel.
+      Making the measurement include codelets (next item) removed that premise,
+      so the final rule is the simple one: a wisdom entry outranks the registry
+      whatever it names, because it was measured on this machine while the
+      registry's order is a compile-time constant. A signature entry binds the
+      codelet directly (`bindWisdomCodelet`), which is what makes signature
+      entries reachable at all and the disabled-codelet guard live; a strategy
+      entry selects that strategy even where a codelet exists.
+
+      The wisdom file format is bumped **v2 → v3** for this. The syntax is
+      unchanged; the meaning of a record is not, since a v2 strategy entry
+      records a comparison that never involved the codelet it would now
+      displace. v2 files are rejected by the existing header check rather than
+      reinterpreted — re-measure to regenerate.
 
       Verified end to end: with `dit64_radix2_avx2` pinned for complex128
       n = 64, `Plan.Algorithm()` reports the pinned codelet while an unpinned
       plan still reports the registry winner `dit64_radix4_sse2`. Three
       regression tests in `internal/planner/planner_test.go` pin the ordering
-      in both directions plus the stale-signature case.
+      for both kinds of entry plus the stale-signature case.
 
       Side fix found on the way: `internal/fft.estimateWithStrategy` (the
       measure-mode and forced-strategy path) built its `PlanEstimate` without
@@ -3044,16 +3050,48 @@ structural rather than noise, and both reproduce in each direction:
       escaped only because their top-ranked codelets need no prepared twiddles.
       The magnitude is untimed — the box was under load when it was found.
 
-- [ ] **`PlannerMeasure` can pick a worse plan than `PlannerEstimate`.** Found
-      while resolving the item above. `MeasureAndSelect` benchmarks kernel
-      _strategies_ only; codelets are never a candidate. It then calls
-      `estimateWithStrategy` with the winning strategy, which takes a codelet
-      only if the top-ranked codelet's own algorithm happens to match. At
+- [x] **`PlannerMeasure` can pick a worse plan than `PlannerEstimate`.** Found
+      while resolving the item above. `MeasureAndSelect` benchmarked kernel
+      _strategies_ only; codelets were never a candidate. It then called
+      `estimateWithStrategy` with the winning strategy, which took a codelet
+      only if the top-ranked codelet's own algorithm happened to match. At
       complex64 n = 1024 the Stockham kernel beats the DIT kernel, so measure
-      mode returns `stockham` where `PlannerEstimate` returns
-      `dit1024_radix4_avx2` — a codelet that is very likely faster than either
-      kernel. The fix is to enter the registry winner as an additional
-      candidate in the measurement, and to record what actually won.
+      mode returned `stockham` where `PlannerEstimate` returns
+      `dit1024_radix4_avx2` — measuring made the plan worse.
+
+      Codelets are now candidates in their own right (`measureCandidate`), so
+      the winner fully determines the plan and a kernel strategy can only be
+      chosen after beating the codelet. How many codelets are timed follows the
+      existing mode hierarchy: `PlannerMeasure` times the registry's own winner
+      — the one the plan would otherwise have taken unmeasured — while
+      `PlannerPatient`/`PlannerExhaustive` time every enabled codelet the CPU
+      can run, which is what lets measurement disagree with the static priority
+      order. Roughly doubles planning time for the deep modes at sizes with
+      several codelets.
+
+      The recorded wisdom is now the implementation that actually won, so
+      measure → record → replay reproduces the same plan. That round trip is
+      what forced the ordering rule in the item above to be simplified: while
+      strategy entries ranked below the registry, a size where a kernel beat
+      every codelet could not be replayed at all — the registry silently handed
+      back the codelet the measurement had just rejected.
+
+      Measured on an AVX2 laptop (loaded, so the absolute numbers are inflated
+      and only the ordering is meaningful): at complex64 n = 1024 the codelet
+      lands at 12.6 µs against 22.4 µs for the best kernel strategy
+      (split-radix), so measure mode now keeps it. At n = 16384 the Stockham
+      kernel came out ahead of `dit16384_radix4_avx2` (258 vs 329 µs) — worth
+      re-checking on an idle machine, since it would mean the largest codelet
+      is not paying for itself.
+
+      Tests: `internal/fft/measure_codelet_test.go` pins the candidate list per
+      mode (including that a disabled codelet and a codelet above the CPU's
+      SIMD level are never timed) and that a winning codelet keeps its twiddle
+      callbacks; `plan_planner_mode_test.go` checks every planner mode against
+      the naive DFT — measuring modes can now bind any codelet in the registry,
+      so a mis-bound twiddle layout would surface as a wrong spectrum rather
+      than as a silent fallback — and pins the measure/replay round trip.
+
 - [ ] **Make the 10 remaining mixed functions uniformly VEX.** The sweep left
       `Forward/InverseAVX2Complex64Asm`, both `AVX2Stockham` pairs, and the
       `Size1024Radix32x32` pair in both precisions mixed, because each has a

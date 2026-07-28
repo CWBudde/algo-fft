@@ -8,7 +8,7 @@ import (
 	"github.com/cwbudde/algo-fft/internal/fftypes"
 )
 
-// TestBenchmarkStrategyNeverReturnsZero verifies that benchmarkStrategy
+// TestBenchmarkStrategyNeverReturnsZero verifies that benchmarkCandidate
 // always returns a non-zero duration, even for very small FFT sizes.
 // This test was added to ensure the cycle counter implementation fixes
 // the Windows timer resolution issue that could cause zero durations.
@@ -26,16 +26,16 @@ func TestBenchmarkStrategyNeverReturnsZero(t *testing.T) {
 
 	for _, n := range sizes {
 		t.Run("Complex64", func(t *testing.T) {
-			elapsed := benchmarkStrategy[complex64](n, features, fftypes.KernelDIT, config)
+			elapsed := benchmarkCandidate(n, features, measureCandidate[complex64]{strategy: fftypes.KernelDIT}, config)
 			if elapsed == 0 {
-				t.Errorf("benchmarkStrategy returned zero duration for size %d (complex64)", n)
+				t.Errorf("benchmarkCandidate returned zero duration for size %d (complex64)", n)
 			}
 		})
 
 		t.Run("Complex128", func(t *testing.T) {
-			elapsed := benchmarkStrategy[complex128](n, features, fftypes.KernelDIT, config)
+			elapsed := benchmarkCandidate(n, features, measureCandidate[complex128]{strategy: fftypes.KernelDIT}, config)
 			if elapsed == 0 {
-				t.Errorf("benchmarkStrategy returned zero duration for size %d (complex128)", n)
+				t.Errorf("benchmarkCandidate returned zero duration for size %d (complex128)", n)
 			}
 		})
 	}

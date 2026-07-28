@@ -217,7 +217,8 @@ func TestWisdomImportHeader(t *testing.T) {
 	}{
 		{"missing_header", valid, true},
 		{"wrong_header", "# algofft-wisdom v1\n" + valid, true},
-		{"future_header", "# algofft-wisdom v3\n" + valid, true},
+		{"superseded_header", "# algofft-wisdom v2\n" + valid, true},
+		{"future_header", "# algofft-wisdom v4\n" + valid, true},
 		{"only_comments_no_magic", "# just a comment\n" + valid, true},
 		{"valid_header", wisdomMagic + "\n" + valid, false},
 		{"blank_lines_before_header", "\n\n" + wisdomMagic + "\n" + valid, false},

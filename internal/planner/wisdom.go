@@ -98,7 +98,14 @@ func (w *Wisdom) Len() int {
 // marker and a version header: Import rejects any file that does not start with
 // this exact line, so unversioned or future-format files fail loudly instead of
 // being mis-parsed.
-const wisdomMagic = "# algofft-wisdom v2"
+//
+// v3 has the same syntax as v2 but a different meaning, which is why v2 files
+// are rejected rather than read. A wisdom entry now outranks the codelet
+// registry (see EstimatePlan), and that is only sound because
+// internal/fft.MeasureAndSelect times the registry's codelets as candidates.
+// It did not under v2, so a v2 strategy entry records a comparison that never
+// included the codelet it would now displace. Re-measure to regenerate.
+const wisdomMagic = "# algofft-wisdom v3"
 
 // wisdomLegend is a human-readable column legend written after the magic header.
 const wisdomLegend = "# size:precision:features:algorithm:timestamp"

@@ -10,8 +10,15 @@ import "time"
 //   - PlannerPatient: Moderate benchmark including SixStep
 //   - PlannerExhaustive: Thorough benchmark testing all strategies
 //
+// The measuring modes benchmark size-specific codelets alongside the kernel
+// strategies, so the plan they choose is never worse than PlannerEstimate's
+// without having measured it to be better. PlannerMeasure times the codelet
+// the estimate would have used; the deeper modes time every codelet available
+// for the size, which is what lets them disagree with the built-in preference
+// order — at roughly double the planning time of strategies alone.
+//
 // When using PlannerMeasure or higher with a WisdomStore, the planner
-// automatically records benchmark results for future plan creations.
+// automatically records the winner for future plan creations.
 type PlannerMode uint8
 
 const (
@@ -50,14 +57,13 @@ type PlanOptions struct {
 	// stored to this cache. When creating plans, cached decisions are used
 	// to skip benchmarking for previously-measured sizes.
 	//
-	// An entry naming a specific codelet signature (e.g. "dit64_radix4_sse2")
-	// overrides the built-in codelet preference order for that size, precision
-	// and CPU feature set — that is the way to pin one codelet against another.
-	// An entry naming a kernel strategy (e.g. "stockham") applies only to sizes
-	// with no codelet, since the strategy benchmark never compares against one.
-	// Either kind is ignored when Strategy forces a conflicting strategy, and a
-	// signature is ignored if that codelet has since been disabled or the CPU
-	// cannot run it.
+	// A wisdom entry overrides the built-in preference order for its size,
+	// precision and CPU feature set — naming a codelet signature (e.g.
+	// "dit64_radix4_sse2") is the way to pin one codelet against another, and
+	// naming a kernel strategy (e.g. "stockham") selects that strategy even
+	// where a codelet exists. An entry is ignored when Strategy forces a
+	// conflicting strategy, or when it names a codelet that has since been
+	// disabled or that this CPU cannot run.
 	Wisdom WisdomStore
 }
 

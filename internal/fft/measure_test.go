@@ -113,7 +113,7 @@ func TestGetMeasureConfig(t *testing.T) {
 	}
 }
 
-// TestBenchmarkStrategy tests the benchmarkStrategy function.
+// TestBenchmarkStrategy tests the benchmarkCandidate function on a strategy.
 func TestBenchmarkStrategy(t *testing.T) {
 	t.Parallel()
 
@@ -141,11 +141,11 @@ func TestBenchmarkStrategy(t *testing.T) {
 			t.Parallel()
 
 			config := measureConfig{warmup: 1, iters: 3}
-			elapsed := benchmarkStrategy[complex64](tt.n, features, tt.strategy, config)
+			elapsed := benchmarkCandidate(tt.n, features, measureCandidate[complex64]{strategy: tt.strategy}, config)
 
 			// Should complete without panicking and return positive duration
 			if elapsed <= 0 {
-				t.Errorf("benchmarkStrategy returned %v, expected positive duration", elapsed)
+				t.Errorf("benchmarkCandidate returned %v, expected positive duration", elapsed)
 			}
 		})
 	}
