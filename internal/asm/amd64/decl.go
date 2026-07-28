@@ -420,12 +420,6 @@ func InverseAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch []com
 // in as bitrev (32768 entries) instead of being embedded as a DATA table.
 
 //go:noescape
-func ForwardAVX2Size32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-
-//go:noescape
-func InverseAVX2Size32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-
-//go:noescape
 func ForwardAVX2Size1024Radix32x32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
@@ -458,36 +452,6 @@ func ForwardAVX2Size1024Radix32x32Complex128Asm(dst, src, twiddle, scratch []com
 
 //go:noescape
 func InverseAVX2Size1024Radix32x32Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardAVX2Size2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardAVX2Size1024Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size1024Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardAVX2Size4096Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size4096Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardAVX2Size16384Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size16384Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // ============================================================================
 // Matrix Transpose Operations (for Six-Step FFT)
@@ -701,22 +665,10 @@ func ForwardAVX2Size128Radix2Complex128Asm(dst, src, twiddle, scratch []complex1
 func InverseAVX2Size128Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardAVX2Size128Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size128Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
 func ForwardAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
 func InverseAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardAVX2Size256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
 func ForwardAVX2Size256Radix16Complex128Asm(dst, src, twiddle, scratch []complex128) bool
@@ -966,3 +918,16 @@ func MixedRadixStage11Complex128AVX2Asm(dst, input, table []complex128, span int
 //
 //go:noescape
 func Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, idx []int32, r4End int, inverse bool, scale float32) bool
+
+// Radix4Complex128Asm is the complex128 counterpart of Radix4Complex64Asm:
+// the same size-generic radix-4 DIT in 256-bit registers, two butterflies per
+// instruction instead of four.
+//
+// twiddle must hold the packed twiddle-plane elements produced by
+// prepareTwiddleRadix4AVX2Complex128, and idx the n/4 stage-1 group indices
+// (the permutation is precision-independent, so both kernels share one table).
+// inverse selects the conjugated butterfly, and scale (1/n for the inverse, 1
+// for the forward) is folded into stage 1.
+//
+//go:noescape
+func Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, idx []int32, r4End int, inverse bool, scale float64) bool

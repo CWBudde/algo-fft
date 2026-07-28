@@ -3128,9 +3128,14 @@ structural rather than noise, and both reproduce in each direction:
       the forward-path weakness from P5.0, and these five sizes are where it
       costs the most. See the item below: every codelet serving this band was
       XMM-width, so complex64 and complex128 moved the same 128 bits per
-      instruction and a ratio near 1.0 is exactly what that predicts. The
-      complex64 side is now 256-bit; **re-measure this ratio**, and expect the
-      complex128 side to become the laggard until it gets the same treatment.
+      instruction and a ratio near 1.0 is exactly what that predicts.
+
+      Both precisions are now 256-bit, and at the codelet level the ratio has
+      moved to where it should be: 1.64, 2.09, 2.43, 2.27, 1.85 across
+      1024–16384 (`dit*_radix4_avx2`, forward, pinned). **Still to do:**
+      re-measure the plan-level ratio and the FFTW comparison, which is what
+      this item actually tracks — the codelet is only one part of that path,
+      and the P5.0 forward-path weakness above is untouched.
 
 - [x] **The AVX2 radix-4 codelet family was XMM-width, not 256-bit.** Every
       `avx2_f32_size*_radix4*.s` file — sizes 16, 64, 256, 512, 1024, 2048,
@@ -3218,14 +3223,97 @@ structural rather than noise, and both reproduce in each direction:
 
       Follow-ups this opens:
 
-- [ ] **The complex128 radix-4 family is still XMM-width — and now it is 128-bit
-      against a 256-bit complex64 twin.** The same `avx2_f64_size*_radix4*.s`
-      files have the same problem, and a YMM complex128 kernel holds two
-      butterflies per register instead of four. The Go side
-      (`radix4_avx2_amd64.go`) is precision-agnostic apart from the element
-      type, so this is mostly a matter of porting the `.s` file with 128-bit
-      lanes: `VMOVDDUP`/`VPERMILPD` replace `VMOVSLDUP`/`VSHUFPS`, and the
-      stage-1 transpose becomes a 2×2. Expect ~2× rather than ~3×.
+- [x] **The complex128 radix-4 family was XMM-width too.** Fixed by
+      `internal/asm/amd64/avx2_f64_radix4.s`, the complex128 twin of the kernel
+      above: same twiddle-plane layout, same stage-1 group index table (the
+      permutation is precision-independent, so both kernels share
+      `radix4GroupIndices`), two butterflies per instruction instead of four.
+      Measured best-of-5, pinned to a P-core (`TestRadix4AVX2Complex128Ranking`,
+      forward, ns):
+
+      | n | previous best | radix4\_avx2 c128 | speedup |
+      |---|---|---|---|
+      | 16 | 21 (`radix4_generic`) | 14 | 1.5× |
+      | 32 | 64 (`radix4_then2_avx2`) | 30 | 2.1× |
+      | 64 | 156 (`radix4_sse2`) | 55 | 2.8× |
+      | 128 | 367 (`radix4_then2_avx2`) | 129 | 2.8× |
+      | 256 | 644 (`radix16_avx2`) | 262 | 2.5× |
+      | 512 | 1478 (`radix8_avx2`) | 607 | 2.4× |
+      | 1024 | 3698 (`radix4_avx2`) | 1324 | 2.8× |
+      | 2048 | 9403 (`radix4_then2_sse2`) | 3637 | 2.6× |
+      | 4096 | 20234 (`radix4_sse2`) | 9165 | 2.2× |
+      | 8192 | 45673 (`radix4_then2_sse2`) | 20533 | 2.2× |
+      | 16384 | 98044 (`radix4_sse2`) | 39375 | 2.5× |
+      | 32768 | 239257 (`radix4_then2_sse2`) | 105224 | 2.3× |
+      | 65536 | no codelet existed (Stockham) | 334106 | — |
+
+      Two differences from the complex64 side, both forced by the width:
+
+      - **No `VPGATHERDQ` in stage 1.** There is no 128-bit-element gather, so
+        each group's four inputs load as `VMOVUPD` into `X` and the second
+        group folds in with `VINSERTF128` — 8 instructions per iteration
+        against 4 gathers. The permutation stays fused into stage 1, which is
+        where the win actually came from; only the gather itself is absent.
+        The output transpose is a 2×2 of 128-bit lanes, so four `VPERM2F128`
+        replace the 4×4 `VUNPCK`/`VPERM2F128` sequence.
+      - **No hoisted m = 4 stage.** At this width that stage's three twiddle
+        planes need two `Y` each; six broadcast registers plus the two rotation
+        masks leave too few for the butterfly. The general stage loop starts at
+        m = 4 instead.
+
+      Registered down to n = 16, unlike the complex64 side which starts at 128:
+      the codelets it replaces are relatively weaker at this precision, so
+      stage 1's fixed overhead still amortizes at the small sizes. n = 16 is
+      logged but not asserted by the ranking test — its 1.4× margin is inside
+      the tolerance the test must allow for a contended machine, and it does
+      invert when the whole suite runs in parallel.
+
+      Eight `.s` files are deleted (`size{128,256,1024,2048,4096,8192,16384,
+      32768}_radix4*`), along with `dit_32768_radix4_then2_amd64_avx2.go` and
+      the two test files that only exercised them. Sizes 4/8/16/32/64/512 stay
+      for the same reason as on the complex64 side: `KernelStrategy` dispatch in
+      `internal/fft/kernels_amd64_size_specific.go` reaches them and cannot
+      supply a prepared twiddle table.
+
+- [x] **Twiddle broadcasts belong on the load ports, not port 5.** Found while
+      porting, and it applies to both precisions. The inner loop broadcast each
+      twiddle's real and imaginary part with the _register_ form of
+      `VMOVSLDUP`/`VMOVSHDUP` (f32) or `VMOVDDUP`/`VPERMILPD` (f64) — six
+      port-5 shuffles per iteration, on the one port the loop is bound by. The
+      **memory** forms of `VMOVSLDUP`/`VMOVSHDUP`/`VMOVDDUP` are pure load
+      uops, so all six become loads, which have spare slots. For f64 the
+      imaginary broadcast needs no separate instruction either: `VMOVDDUP`
+      duplicates the low float64 of each 128-bit lane, so offsetting the
+      address by 8 bytes duplicates the high one instead. That reads 8 bytes
+      past the last plane, which the `n+4` twiddle padding already covers —
+      and the kernel's length check enforces rather than assumes it.
+
+      A second, smaller one: both ±i rotations permute the *same* `t3`, so the
+      permute happens once and the two masks branch off it with `VXOR`, which
+      can issue away from port 5. That was a redundant shuffle in every loop of
+      both kernels.
+
+      Together this takes port-5 traffic from 11 to 4 ops per inner iteration.
+      Measured on complex64 by rebuilding both variants and running them
+      interleaved, three rounds, pinned (best of 3, forward, ns):
+
+      | n | before | after | |
+      |---|---|---|---|
+      | 128 | 88 | 82 | −7% |
+      | 256 | 189 | 171 | −10% |
+      | 512 | 424 | 391 | −8% |
+      | 1024 | 885 | 809 | −9% |
+      | 2048 | 2004 | 1744 | −13% |
+      | 4096 | 4348 | 3773 | −13% |
+      | 8192 | 9526 | 9057 | −5% |
+      | 16384 | 23021 | 21256 | −8% |
+      | 32768 | 52272 | 49996 | −4% |
+      | 65536 | 119633 | 114771 | −4% |
+
+      Every round agreed on the direction at every size. The complex128 kernel
+      gained 20–24% at 256–16384 from the same change, measured before it was
+      registered. The pattern is worth checking in the other AVX2 kernels that
+      broadcast from a twiddle table — the mixed-radix stages do the same thing.
 
 - [x] **Cost breakdown, and why per-size specialisation is not the lever.** At
       n = 16384 the isolated costs were: permutation pass 9.5 µs, stage 1

@@ -146,15 +146,14 @@ r4_stage1_loop:
 	VADDPS Y1, Y3, Y6 // t2 = a1 + a3
 	VSUBPS Y3, Y1, Y7 // t3 = a1 - a3
 
-	VPERMILPS $0xB1, Y7, Y11 // swap re/im
-	VXORPS    Y14, Y11, Y11  // -i*t3 (forward)
-	VPERMILPS $0xB1, Y7, Y12
-	VXORPS    Y15, Y12, Y12  // +i*t3 (forward)
+	VPERMILPS $0xB1, Y7, Y11 // swap re/im, shared by both rotations
+	VXORPS    Y14, Y11, Y12  // -i*t3 (forward)
+	VXORPS    Y15, Y11, Y11  // +i*t3 (forward)
 
 	VADDPS Y4, Y6, Y0  // y0 = t0 + t2
-	VADDPS Y5, Y11, Y1 // y1 = t1 - i*t3
+	VADDPS Y5, Y12, Y1 // y1 = t1 - i*t3
 	VSUBPS Y6, Y4, Y2  // y2 = t0 - t2
-	VADDPS Y5, Y12, Y3 // y3 = t1 + i*t3
+	VADDPS Y5, Y11, Y3 // y3 = t1 + i*t3
 
 	// Fold the inverse 1/n here: exact for a power of two, and it saves a
 	// separate streaming pass over the whole buffer.
@@ -230,10 +229,9 @@ r4_m4_loop:
 	VADDPS Y1, Y3, Y6 // t2
 	VSUBPS Y3, Y1, Y7 // t3
 
-	VPERMILPS $0xB1, Y7, Y2
-	VXORPS    Y14, Y2, Y2 // -i*t3
-	VPERMILPS $0xB1, Y7, Y3
-	VXORPS    Y15, Y3, Y3 // +i*t3
+	VPERMILPS $0xB1, Y7, Y2 // shared by both rotations
+	VXORPS    Y15, Y2, Y3  // +i*t3
+	VXORPS    Y14, Y2, Y2  // -i*t3
 
 	VADDPS Y4, Y6, Y0 // y0
 	VADDPS Y5, Y2, Y1 // y1
@@ -277,51 +275,53 @@ r4_group_loop:
 	MOVQ BX, DX           // DX = butterflies remaining in this group
 
 r4_inner_loop:
-	VMOVUPS (CX), Y8         // w1[j..j+3]
-	VMOVUPS (CX)(AX*1), Y9   // w2[j..j+3]
-	VMOVUPS (CX)(AX*2), Y10  // w3[j..j+3]
+	// The twiddle broadcasts come straight from memory: VMOVSLDUP/VMOVSHDUP
+	// with a 256-bit memory source are pure load uops, where the register
+	// forms are port-5 shuffles. That takes six shuffles per iteration off
+	// the critical port and costs three extra loads, which have spare slots.
+	VMOVSLDUP (CX), Y8         // [w1.re, w1.re, ...]
+	VMOVSHDUP (CX), Y9         // [w1.im, w1.im, ...]
+	VMOVSLDUP (CX)(AX*1), Y10  // w2.re
+	VMOVSHDUP (CX)(AX*1), Y11  // w2.im
 
 	VMOVUPS (SI), Y0        // a0
 	VMOVUPS (SI)(AX*1), Y1  // a1
 	VMOVUPS (DI), Y2        // a2
 	VMOVUPS (DI)(AX*1), Y3  // a3
 
-	// a1 *= w1. VFMADDSUB213PS gives dst = Y11*dst -/+ Y13, i.e.
+	// a1 *= w1. VFMADDSUB213PS gives dst = Y8*dst -/+ Y13, i.e.
 	// re = a.re*w.re - a.im*w.im, im = a.im*w.re + a.re*w.im.
-	VMOVSLDUP      Y8, Y11       // [w1.re, w1.re, ...]
-	VMOVSHDUP      Y8, Y12       // [w1.im, w1.im, ...]
 	VSHUFPS        $0xB1, Y1, Y1, Y13
-	VMULPS         Y12, Y13, Y13
-	VFMADDSUB213PS Y13, Y11, Y1
+	VMULPS         Y9, Y13, Y13
+	VFMADDSUB213PS Y13, Y8, Y1
 
 	// a2 *= w2
-	VMOVSLDUP      Y9, Y11
-	VMOVSHDUP      Y9, Y12
 	VSHUFPS        $0xB1, Y2, Y2, Y13
-	VMULPS         Y12, Y13, Y13
-	VFMADDSUB213PS Y13, Y11, Y2
+	VMULPS         Y11, Y13, Y13
+	VFMADDSUB213PS Y13, Y10, Y2
 
 	// a3 *= w3
-	VMOVSLDUP      Y10, Y11
-	VMOVSHDUP      Y10, Y12
+	VMOVSLDUP      (CX)(AX*2), Y8
+	VMOVSHDUP      (CX)(AX*2), Y9
 	VSHUFPS        $0xB1, Y3, Y3, Y13
-	VMULPS         Y12, Y13, Y13
-	VFMADDSUB213PS Y13, Y11, Y3
+	VMULPS         Y9, Y13, Y13
+	VFMADDSUB213PS Y13, Y8, Y3
 
 	VADDPS Y0, Y2, Y4 // t0 = a0 + a2
 	VSUBPS Y2, Y0, Y5 // t1 = a0 - a2
 	VADDPS Y1, Y3, Y6 // t2 = a1 + a3
 	VSUBPS Y3, Y1, Y7 // t3 = a1 - a3
 
+	// Both rotations permute the same t3, so permute once and branch on the
+	// mask: two XORs can issue away from port 5, a second permute cannot.
 	VPERMILPS $0xB1, Y7, Y11
-	VXORPS    Y14, Y11, Y11 // -i*t3 (forward)
-	VPERMILPS $0xB1, Y7, Y12
-	VXORPS    Y15, Y12, Y12 // +i*t3 (forward)
+	VXORPS    Y14, Y11, Y12 // -i*t3 (forward)
+	VXORPS    Y15, Y11, Y11 // +i*t3 (forward)
 
 	VADDPS Y4, Y6, Y0  // y0
-	VADDPS Y5, Y11, Y1 // y1
+	VADDPS Y5, Y12, Y1 // y1
 	VSUBPS Y6, Y4, Y2  // y2
-	VADDPS Y5, Y12, Y3 // y3
+	VADDPS Y5, Y11, Y3 // y3
 
 	VMOVUPS Y0, (SI)
 	VMOVUPS Y1, (SI)(AX*1)
@@ -368,12 +368,11 @@ r4_radix2_tail:
 	XORQ CX, CX
 
 r4_tail_loop:
-	VMOVUPS (R10)(CX*1), Y8 // w[j..j+3]
+	VMOVSLDUP (R10)(CX*1), Y11 // w.re, broadcast by the load itself
+	VMOVSHDUP (R10)(CX*1), Y12 // w.im
 	VMOVUPS (SI)(CX*1), Y0  // a0
 	VMOVUPS (DI)(CX*1), Y1  // a1
 
-	VMOVSLDUP      Y8, Y11
-	VMOVSHDUP      Y8, Y12
 	VSHUFPS        $0xB1, Y1, Y1, Y13
 	VMULPS         Y12, Y13, Y13
 	VFMADDSUB213PS Y13, Y11, Y1 // a1 *= w

@@ -233,9 +233,10 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 	}
 
 	// The planner should select the best size-512 codelet for the build:
-	//   * amd64 AVX2 builds: the radix-8 AVX2 codelet ("dit512_radix8_avx2"),
-	//     which benchmarks fastest at size 512 c128 and outranks the AVX2
-	//     radix-4-then-2 override.
+	//   * amd64 AVX2 builds: the size-generic 256-bit radix-4 kernel
+	//     ("dit512_radix4_avx2"), which superseded both the radix-4-then-2
+	//     override and the radix-8 codelet that used to win here
+	//     ("dit512_radix8_avx2", still accepted for builds without it).
 	//   * other amd64 builds (SSE2-only or purego) and generic builds: the
 	//     radix-4-then-2 codelet (its SSE2 override or the generic scalar one).
 	//   * arm64 SIMD builds: the NEON radix-4-then-2 codelet
@@ -246,14 +247,15 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 	//     higher-priority scalar codelet.
 	algo := plan.Algorithm()
 	ok := strings.HasPrefix(algo, "dit512_radix4_then2") ||
+		algo == "dit512_radix4_avx2" ||
 		algo == "dit512_radix8_avx2"
 	if runtime.GOARCH == "arm64" {
 		ok = ok || algo == "dit512_generic_neon"
 	}
 
 	if !ok {
-		t.Fatalf("Algorithm() = %q, want %q, prefix %q, or %q on arm64 SIMD builds",
-			algo, "dit512_radix8_avx2", "dit512_radix4_then2", "dit512_generic_neon")
+		t.Fatalf("Algorithm() = %q, want %q, %q, prefix %q, or %q on arm64 SIMD builds",
+			algo, "dit512_radix4_avx2", "dit512_radix8_avx2", "dit512_radix4_then2", "dit512_generic_neon")
 	}
 }
 

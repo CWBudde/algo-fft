@@ -950,25 +950,11 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit16_radix2_avx2", Priority: 20,
 	},
 	{
-		Target: "avx2", Prec: 128, Size: 16,
-		Forward:   "amd64.ForwardAVX2Size16Radix4Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size16Radix4Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit16_radix4_avx2", Priority: 30,
-	},
-	{
 		Target: "avx2", Prec: 128, Size: 32,
 		Forward:   "amd64.ForwardAVX2Size32Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size32Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit32_radix2_avx2", Priority: 20,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 32,
-		Forward:   "amd64.ForwardAVX2Size32Radix4Then2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size32Radix4Then2Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit32_radix4_then2_avx2", Priority: 22,
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 64,
@@ -982,17 +968,6 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit64_radix2_avx2", Priority: 14,
 	},
 	{
-		Target: "avx2", Prec: 128, Size: 64,
-		Forward:   "amd64.ForwardAVX2Size64Radix4Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size64Radix4Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		// SSE-width in practice; loses to dit64_radix4_sse2 -> rank in the SSE2
-		// tier so Priority is actually compared against it (measured 198/218 ns
-		// vs 149/164 ns for dit64_radix4_sse2).
-		RankLevel: "SIMDSSE2",
-		Signature: "dit64_radix4_avx2", Priority: 15,
-	},
-	{
 		Target: "avx2", Prec: 128, Size: 128,
 		Forward:   "amd64.ForwardAVX2Size128Radix2Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size128Radix2Complex128Asm",
@@ -1000,25 +975,11 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit128_radix2_avx2", Priority: 20,
 	},
 	{
-		Target: "avx2", Prec: 128, Size: 128,
-		Forward:   "amd64.ForwardAVX2Size128Radix4Then2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size128Radix4Then2Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit128_radix4_then2_avx2", Priority: 25,
-	},
-	{
 		Target: "avx2", Prec: 128, Size: 256,
 		Forward:   "amd64.ForwardAVX2Size256Radix2Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size256Radix2Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit256_radix2_avx2", Priority: 25,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 256,
-		Forward:   "amd64.ForwardAVX2Size256Radix4Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size256Radix4Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix4_avx2", Priority: 40,
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 256,
@@ -1037,13 +998,6 @@ var codeletSpecs = []codeletSpec{
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 512,
-		Forward:   "amd64.ForwardAVX2Size512Radix4Then2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size512Radix4Then2Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix4_then2_avx2", Priority: 25,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 512,
 		Forward:   "amd64.ForwardAVX2Size512Radix8Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size512Radix8Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
@@ -1057,47 +1011,120 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit1024_radix32x32_avx2", Priority: -1,
 		TwiddleSize: "twiddleSize1024Radix32x32AVX2", PrepareTwiddle: "prepareTwiddle1024Radix32x32AVX2",
 	},
+	// The AVX2 complex128 radix-4 DIT (internal/asm/amd64/avx2_f64_radix4.s):
+	// the complex128 twin of the size-generic kernel above, replacing the
+	// per-size dit*_radix4*_avx2 files it superseded. Those were VEX-encoded
+	// but XMM-width -- one complex128 per operation -- where this one runs two
+	// butterflies per instruction in Y registers, measured 1.4-2.5x faster at
+	// every size here (see TestRadix4AVX2Complex128Ranking in
+	// internal/kernels).
+	//
+	// Unlike the complex64 side, this one is registered down to n = 16: the
+	// codelets it replaces are relatively weaker at this precision, so stage
+	// 1's fixed overhead still amortises at the small sizes.
+	{
+		Target: "avx2", Prec: 128, Size: 16,
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit16_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
+	{
+		Target: "avx2", Prec: 128, Size: 32,
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit32_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
+	{
+		Target: "avx2", Prec: 128, Size: 64,
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit64_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
+	{
+		Target: "avx2", Prec: 128, Size: 128,
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit128_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
+	{
+		Target: "avx2", Prec: 128, Size: 256,
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit256_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
+	{
+		Target: "avx2", Prec: 128, Size: 512,
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit512_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
 	{
 		Target: "avx2", Prec: 128, Size: 1024,
-		Forward:   "amd64.ForwardAVX2Size1024Radix4Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size1024Radix4Complex128Asm",
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix4_avx2", Priority: 35,
+		Signature: "dit1024_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 2048,
-		Forward:   "amd64.ForwardAVX2Size2048Radix4Then2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size2048Radix4Then2Complex128Asm",
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit2048_radix4_then2_avx2", Priority: 25,
+		Signature: "dit2048_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 4096,
-		Forward:   "amd64.ForwardAVX2Size4096Radix4Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size4096Radix4Complex128Asm",
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit4096_radix4_avx2", Priority: 30,
+		Signature: "dit4096_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 8192,
-		Forward:   "amd64.ForwardAVX2Size8192Radix4Then2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size8192Radix4Then2Complex128Asm",
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit8192_radix4_then2_avx2", Priority: 25,
+		Signature: "dit8192_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 16384,
-		Forward:   "amd64.ForwardAVX2Size16384Radix4Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size16384Radix4Complex128Asm",
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit16384_radix4_avx2", Priority: 30,
+		Signature: "dit16384_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 32768,
-		Forward:   "forwardDIT32768Radix4Then2AVX2Complex128",
-		Inverse:   "inverseDIT32768Radix4Then2AVX2Complex128",
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit32768_radix4_then2_avx2", Priority: 25,
+		Signature: "dit32768_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
+	{
+		Target: "avx2", Prec: 128, Size: 65536,
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit65536_radix4_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{
 		Target: "sse2", Prec: 64, Size: 4,
