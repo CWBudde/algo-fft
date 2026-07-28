@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.2] - 2026-07-28
+## [0.7.3] - 2026-07-28
+
+### Added
+
+- A generic AVX2 radix-4 DIT kernel for complex128, mirroring the complex64
+  kernel that already existed. One kernel now covers every power-of-two length
+  from 32 to 65536, sharing the shape handling (`radix4AVX2Limit`), the stage-1
+  permutation table (`radix4GroupIndices`) and the three-plane packed twiddle
+  layout with the complex64 side — those are properties of n alone, not of the
+  element type. The twiddle table is generated at complex128 rather than
+  widened from the complex64 one, so the factors are computed in double
+  precision throughout. A YMM holds two complex128 instead of four complex64,
+  so the kernel retires half as many butterflies per instruction; everything
+  else, including the fused permutation and the folded 1/n, carries over.
+
+### Removed
+
+- The eight generated per-size complex128 AVX2 codelets (`size128`, `size256`,
+  `size1024`, `size2048`, `size4096`, `size8192`, `size16384`, `size32768`),
+  superseded by the generic kernel above. This is ~10.8k lines of unrolled
+  assembly replaced by ~1.2k, and it extends AVX2 coverage to 65536, which no
+  per-size codelet reached. No public API is affected: these were internal
+  registry entries selected by the planner, never named by callers.
 
 ### Fixed
 
