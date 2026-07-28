@@ -3000,17 +3000,60 @@ structural rather than noise, and both reproduce in each direction:
         ones. Not acted on — the registry has one priority per entry, not one
         per direction. Worth a look if per-direction ranking ever lands.
 
-- [ ] **Wisdom can never override a codelet-covered size.** Found while trying
-      to pin a codelet for an end-to-end A/B. `planner.EstimatePlan` tries the
+- [x] **Wisdom can never override a codelet-covered size.** Found while trying
+      to pin a codelet for an end-to-end A/B. `planner.EstimatePlan` tried the
       registry (step 1) _before_ the wisdom cache (step 2), and the registry
-      hits for every size with a codelet — i.e. all powers of two from 4 to 4096. A `PlanOptions.Wisdom` entry naming a specific codelet signature is
+      hits for every size with a codelet — i.e. all powers of two from 4 to 4096. A `PlanOptions.Wisdom` entry naming a specific codelet signature was
       silently ignored there; all four pinned plans in the experiment resolved
-      to the registry winner. This makes `LookupBySignature`'s careful
+      to the registry winner. This made `LookupBySignature`'s careful
       "skip disabled codelets so a stale wisdom entry cannot resurrect one"
-      logic unreachable for exactly the sizes it was written for. Decide which
-      is intended — wisdom as an override (swap the order) or wisdom as a
-      fallback (say so in the docs and drop the dead guard) — and align the
-      code with it.
+      logic unreachable for exactly the sizes it was written for.
+
+      Resolved as **neither of the two options the item proposed**: wisdom now
+      straddles the registry rather than sitting wholly above or below it,
+      because its two kinds of entry carry different evidence.
+
+      - A **signature** entry (`dit64_radix4_sse2`) names the same kind of
+        thing the registry does — one specific codelet for one size — but was
+        measured on this machine, against a registry order that is a
+        compile-time constant. It now runs _before_ the registry
+        (`bindWisdomCodelet`), which is what makes signature entries reachable
+        at all and the disabled-codelet guard live.
+      - A **strategy** entry (`stockham`) now stays _after_ the registry. The
+        measurement behind it (`internal/fft.benchmarkStrategy`) times only the
+        kernel path via `SelectKernelsWithStrategy` and never the codelet, so
+        letting it displace a codelet would act on a comparison that was never
+        made. This is also why the naive "swap the order" fix would have been a
+        regression: every codelet-covered size that has ever been through
+        `PlannerMeasure` has a strategy-name entry in its wisdom, and the swap
+        would have routed all of them off the codelet and onto a generic kernel.
+
+      Verified end to end: with `dit64_radix2_avx2` pinned for complex128
+      n = 64, `Plan.Algorithm()` reports the pinned codelet while an unpinned
+      plan still reports the registry winner `dit64_radix4_sse2`. Three
+      regression tests in `internal/planner/planner_test.go` pin the ordering
+      in both directions plus the stale-signature case.
+
+      Side fix found on the way: `internal/fft.estimateWithStrategy` (the
+      measure-mode and forced-strategy path) built its `PlanEstimate` without
+      `TwiddleSize`/`PrepareTwiddle`. A codelet that wants a packed twiddle
+      layout then got the plain table, failed its own length check and returned
+      false, so the plan silently ran the fallback kernel while still reporting
+      the codelet signature. On this CPU that hit
+      `dit8192_radix4_then2_params_avx2` under `PlannerMeasure`; 256 and 1024
+      escaped only because their top-ranked codelets need no prepared twiddles.
+      The magnitude is untimed — the box was under load when it was found.
+
+- [ ] **`PlannerMeasure` can pick a worse plan than `PlannerEstimate`.** Found
+      while resolving the item above. `MeasureAndSelect` benchmarks kernel
+      _strategies_ only; codelets are never a candidate. It then calls
+      `estimateWithStrategy` with the winning strategy, which takes a codelet
+      only if the top-ranked codelet's own algorithm happens to match. At
+      complex64 n = 1024 the Stockham kernel beats the DIT kernel, so measure
+      mode returns `stockham` where `PlannerEstimate` returns
+      `dit1024_radix4_avx2` — a codelet that is very likely faster than either
+      kernel. The fix is to enter the registry winner as an additional
+      candidate in the measurement, and to record what actually won.
 - [ ] **Make the 10 remaining mixed functions uniformly VEX.** The sweep left
       `Forward/InverseAVX2Complex64Asm`, both `AVX2Stockham` pairs, and the
       `Size1024Radix32x32` pair in both precisions mixed, because each has a

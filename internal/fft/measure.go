@@ -270,11 +270,17 @@ func estimateWithStrategy[T Complex](
 	if registry != nil {
 		entry := registry.Lookup(n, features)
 		if entry != nil && (strategy == fftypes.KernelAuto || entry.Algorithm == strategy) {
+			// The twiddle callbacks must be carried over: a codelet that wants a
+			// packed layout (n = 256/1024/8192) is handed the plain twiddle table
+			// without them, bails on its length check, and silently runs the
+			// fallback kernel while the plan still reports the codelet signature.
 			return planner.PlanEstimate[T]{
 				ForwardCodelet: entry.Forward,
 				InverseCodelet: entry.Inverse,
 				Algorithm:      entry.Signature,
 				Strategy:       entry.Algorithm,
+				TwiddleSize:    entry.TwiddleSize,
+				PrepareTwiddle: entry.PrepareTwiddle,
 			}
 		}
 	}

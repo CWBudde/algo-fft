@@ -247,22 +247,172 @@ func TestResolveWisdomRejectsUnsupportedCodelet(t *testing.T) {
 		HasAVX2:      true,
 	}
 
-	est, _, found := resolveWisdom[complex64](size, noFMA, wisdom, KernelAuto)
-	if found || est != nil {
-		t.Errorf("resolveWisdom bound CPU-incompatible codelet: est=%v, found=%v", est, found)
+	algorithm, ok := wisdomAlgorithm[complex64](size, noFMA, wisdom)
+	if !ok {
+		t.Fatalf("wisdomAlgorithm did not find the stored entry")
+	}
+
+	est := bindWisdomCodelet[complex64](size, noFMA, algorithm, KernelAuto)
+	if est != nil {
+		t.Errorf("bindWisdomCodelet bound CPU-incompatible codelet: est=%v", est)
 	}
 
 	// Sanity check: with FMA available the same wisdom entry binds the codelet.
 	withFMA := noFMA
 	withFMA.HasFMA = true
 
-	est, _, found = resolveWisdom[complex64](size, withFMA, wisdom, KernelAuto)
-	if !found || est == nil {
-		t.Fatalf("resolveWisdom did not bind supported codelet: est=%v, found=%v", est, found)
+	est = bindWisdomCodelet[complex64](size, withFMA, algorithm, KernelAuto)
+	if est == nil {
+		t.Fatalf("bindWisdomCodelet did not bind supported codelet")
 	}
 
 	if est.Algorithm != sig {
-		t.Errorf("resolveWisdom algorithm = %q, want %q", est.Algorithm, sig)
+		t.Errorf("bindWisdomCodelet algorithm = %q, want %q", est.Algorithm, sig)
+	}
+}
+
+// TestEstimatePlanWisdomOutranksRegistry pins the ordering that makes wisdom
+// usable at all: a wisdom entry naming a codelet signature must win over the
+// registry's static priority order for the same size. Before this, the registry
+// was consulted first and hit for every size that has a codelet — i.e. every
+// size for which a signature can exist — so signature-level wisdom was
+// unreachable in practice.
+func TestEstimatePlanWisdomOutranksRegistry(t *testing.T) {
+	t.Parallel()
+
+	const (
+		size    = 1 << 20
+		bestSig = "wisdomrank_best"
+		pinned  = "wisdomrank_pinned"
+	)
+
+	reg := registry.GetRegistry[complex64]()
+	for _, e := range []struct {
+		sig      string
+		priority int
+	}{{bestSig, 90}, {pinned, 10}} {
+		reg.Register(registry.CodeletEntry[complex64]{
+			Size:      size,
+			Forward:   dummyCodelet[complex64],
+			Inverse:   dummyCodelet[complex64],
+			Algorithm: KernelDIT,
+			SIMDLevel: fftypes.SIMDNone,
+			Signature: e.sig,
+			Priority:  e.priority,
+		})
+	}
+
+	features := cpu.Features{Architecture: "amd64", HasSSE2: true}
+
+	// No wisdom: the registry's own order decides.
+	if got := EstimatePlan[complex64](size, features, nil, KernelAuto); got.Algorithm != bestSig {
+		t.Errorf("without wisdom: algorithm = %q, want %q", got.Algorithm, bestSig)
+	}
+
+	wisdom := NewWisdom()
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
+			Size:        size,
+			Precision:   PrecisionComplex64,
+			CPUFeatures: CPUFeatureMask(true, false, false, false, false),
+		},
+		Algorithm: pinned,
+	})
+
+	got := EstimatePlan[complex64](size, features, wisdom, KernelAuto)
+	if got.Algorithm != pinned {
+		t.Errorf("with wisdom: algorithm = %q, want %q", got.Algorithm, pinned)
+	}
+
+	if got.ForwardCodelet == nil || got.InverseCodelet == nil {
+		t.Error("wisdom-bound estimate has no codelet bindings")
+	}
+}
+
+// TestEstimatePlanStrategyWisdomYieldsToCodelet is the other half of the
+// ordering: a wisdom entry naming a *strategy* must not displace a codelet. The
+// measurement behind such an entry (internal/fft.benchmarkStrategy) only ever
+// times the kernel path, so it carries no evidence about the codelet.
+func TestEstimatePlanStrategyWisdomYieldsToCodelet(t *testing.T) {
+	t.Parallel()
+
+	const (
+		size = 1 << 21
+		sig  = "wisdomstrat_codelet"
+	)
+
+	registry.GetRegistry[complex64]().Register(registry.CodeletEntry[complex64]{
+		Size:      size,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
+		Signature: sig,
+		Priority:  1,
+	})
+
+	wisdom := NewWisdom()
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
+			Size:        size,
+			Precision:   PrecisionComplex64,
+			CPUFeatures: CPUFeatureMask(true, false, false, false, false),
+		},
+		Algorithm: algoStockham,
+	})
+
+	features := cpu.Features{Architecture: "amd64", HasSSE2: true}
+
+	got := EstimatePlan[complex64](size, features, wisdom, KernelAuto)
+	if got.Algorithm != sig {
+		t.Errorf("algorithm = %q, want the codelet %q", got.Algorithm, sig)
+	}
+}
+
+// TestEstimatePlanWisdomSkipsDisabledCodelet verifies that the stale-entry
+// guard in registry.LookupBySignature is actually reachable: a wisdom entry
+// naming a codelet that has since been disabled (negative priority) must not
+// resurrect it.
+func TestEstimatePlanWisdomSkipsDisabledCodelet(t *testing.T) {
+	t.Parallel()
+
+	const (
+		size       = 1 << 22
+		enabledSig = "wisdomdisabled_enabled"
+		staleSig   = "wisdomdisabled_stale"
+	)
+
+	reg := registry.GetRegistry[complex64]()
+	for _, e := range []struct {
+		sig      string
+		priority int
+	}{{enabledSig, 5}, {staleSig, -1}} {
+		reg.Register(registry.CodeletEntry[complex64]{
+			Size:      size,
+			Forward:   dummyCodelet[complex64],
+			Inverse:   dummyCodelet[complex64],
+			Algorithm: KernelDIT,
+			SIMDLevel: fftypes.SIMDNone,
+			Signature: e.sig,
+			Priority:  e.priority,
+		})
+	}
+
+	wisdom := NewWisdom()
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
+			Size:        size,
+			Precision:   PrecisionComplex64,
+			CPUFeatures: CPUFeatureMask(true, false, false, false, false),
+		},
+		Algorithm: staleSig,
+	})
+
+	features := cpu.Features{Architecture: "amd64", HasSSE2: true}
+
+	got := EstimatePlan[complex64](size, features, wisdom, KernelAuto)
+	if got.Algorithm != enabledSig {
+		t.Errorf("algorithm = %q, want the enabled codelet %q", got.Algorithm, enabledSig)
 	}
 }
 

@@ -49,6 +49,15 @@ type PlanOptions struct {
 	// When using PlannerMeasure or higher, benchmark results are automatically
 	// stored to this cache. When creating plans, cached decisions are used
 	// to skip benchmarking for previously-measured sizes.
+	//
+	// An entry naming a specific codelet signature (e.g. "dit64_radix4_sse2")
+	// overrides the built-in codelet preference order for that size, precision
+	// and CPU feature set — that is the way to pin one codelet against another.
+	// An entry naming a kernel strategy (e.g. "stockham") applies only to sizes
+	// with no codelet, since the strategy benchmark never compares against one.
+	// Either kind is ignored when Strategy forces a conflicting strategy, and a
+	// signature is ignored if that codelet has since been disabled or the CPU
+	// cannot run it.
 	Wisdom WisdomStore
 }
 
