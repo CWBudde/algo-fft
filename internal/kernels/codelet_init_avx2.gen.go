@@ -147,17 +147,6 @@ func registerAVX2DITCodelets64() {
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       128,
-		Forward:    amd64.ForwardAVX2Size128Radix4Then2Complex64Asm,
-		Inverse:    amd64.InverseAVX2Size128Radix4Then2Complex64Asm,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDAVX2,
-		Signature:  "dit128_radix4_then2_avx2",
-		Priority:   25,
-		KernelType: fftypes.KernelTypeDIT,
-	})
-
-	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       128,
 		Forward:    amd64.ForwardAVX2Size128Radix2Complex64Asm,
 		Inverse:    amd64.InverseAVX2Size128Radix2Complex64Asm,
 		Algorithm:  fftypes.KernelDIT,
@@ -180,17 +169,6 @@ func registerAVX2DITCodelets64() {
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       256,
-		Forward:    forwardAVX2Size256Radix4Complex64Safe,
-		Inverse:    amd64.InverseAVX2Size256Radix4Complex64Asm,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDAVX2,
-		Signature:  "dit256_radix4_avx2",
-		Priority:   25,
-		KernelType: fftypes.KernelTypeDIT,
-	})
-
-	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       256,
 		Forward:    amd64.ForwardAVX2Size256Radix16Complex64Asm,
 		Inverse:    amd64.InverseAVX2Size256Radix16Complex64Asm,
 		Algorithm:  fftypes.KernelDIT,
@@ -208,17 +186,6 @@ func registerAVX2DITCodelets64() {
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit512_radix2_avx2",
 		Priority:   35,
-		KernelType: fftypes.KernelTypeDIT,
-	})
-
-	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       512,
-		Forward:    amd64.ForwardAVX2Size512Radix4Then2Complex64Asm,
-		Inverse:    amd64.InverseAVX2Size512Radix4Then2Complex64Asm,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDAVX2,
-		Signature:  "dit512_radix4_then2_avx2",
-		Priority:   25,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -256,58 +223,12 @@ func registerAVX2DITCodelets64() {
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       2048,
-		Forward:    amd64.ForwardAVX2Size2048Radix4Then2Complex64Asm,
-		Inverse:    amd64.InverseAVX2Size2048Radix4Then2Complex64Asm,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDAVX2,
-		Signature:  "dit2048_radix4_then2_avx2",
-		Priority:   25,
-		KernelType: fftypes.KernelTypeDIT,
-	})
-
-	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       8192,
-		Forward:    amd64.ForwardAVX2Size8192Radix4Then2Complex64Asm,
-		Inverse:    amd64.InverseAVX2Size8192Radix4Then2Complex64Asm,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDAVX2,
-		Signature:  "dit8192_radix4_then2_avx2",
-		Priority:   25,
-		KernelType: fftypes.KernelTypeDIT,
-	})
-
-	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:           8192,
-		Forward:        amd64.ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm,
-		Inverse:        amd64.InverseAVX2Size8192Radix4Then2ParamsComplex64Asm,
-		Algorithm:      fftypes.KernelDIT,
-		SIMDLevel:      fftypes.SIMDAVX2,
-		Signature:      "dit8192_radix4_then2_params_avx2",
-		Priority:       40,
-		KernelType:     fftypes.KernelTypeDIT,
-		TwiddleSize:    twiddleSize8192Radix4Then2AVX2,
-		PrepareTwiddle: prepareTwiddle8192Radix4Then2AVX2,
-	})
-
-	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       8192,
 		Forward:    forwardDIT8192SixStep64x128AVX2Complex64,
 		Inverse:    inverseDIT8192SixStep64x128AVX2Complex64,
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit8192_sixstep64x128_avx2",
-		Priority:   35,
-		KernelType: fftypes.KernelTypeDIT,
-	})
-
-	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       1024,
-		Forward:    amd64.ForwardAVX2Size1024Radix4Complex64Asm,
-		Inverse:    amd64.InverseAVX2Size1024Radix4Complex64Asm,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDAVX2,
-		Signature:  "dit1024_radix4_avx2",
 		Priority:   35,
 		KernelType: fftypes.KernelTypeDIT,
 	})
@@ -325,34 +246,12 @@ func registerAVX2DITCodelets64() {
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       4096,
-		Forward:    amd64.ForwardAVX2Size4096Radix4Complex64Asm,
-		Inverse:    amd64.InverseAVX2Size4096Radix4Complex64Asm,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDAVX2,
-		Signature:  "dit4096_radix4_avx2",
-		Priority:   40,
-		KernelType: fftypes.KernelTypeDIT,
-	})
-
-	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       4096,
 		Forward:    forwardDIT4096SixStepAVX2Complex64,
 		Inverse:    inverseDIT4096SixStepAVX2Complex64,
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit4096_sixstep_avx2",
 		Priority:   35,
-		KernelType: fftypes.KernelTypeDIT,
-	})
-
-	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       16384,
-		Forward:    amd64.ForwardAVX2Size16384Radix4Complex64Asm,
-		Inverse:    amd64.InverseAVX2Size16384Radix4Complex64Asm,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDAVX2,
-		Signature:  "dit16384_radix4_avx2",
-		Priority:   40,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -368,14 +267,133 @@ func registerAVX2DITCodelets64() {
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       32768,
-		Forward:    forwardDIT32768Radix4Then2AVX2Complex64,
-		Inverse:    inverseDIT32768Radix4Then2AVX2Complex64,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDAVX2,
-		Signature:  "dit32768_radix4_then2_avx2",
-		Priority:   25,
-		KernelType: fftypes.KernelTypeDIT,
+		Size:           256,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit256_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           1024,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit1024_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           4096,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit4096_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           16384,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit16384_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           128,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit128_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           512,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit512_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           2048,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit2048_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           8192,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit8192_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           32768,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit32768_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           65536,
+		Forward:        forwardRadix4AVX2Complex64,
+		Inverse:        inverseRadix4AVX2Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDAVX2,
+		Signature:      "dit65536_radix4_avx2",
+		Priority:       90,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix4AVX2,
+		PrepareTwiddle: prepareTwiddleRadix4AVX2,
 	})
 }
 

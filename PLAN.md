@@ -3080,9 +3080,13 @@ structural rather than noise, and both reproduce in each direction:
       and only the ordering is meaningful): at complex64 n = 1024 the codelet
       lands at 12.6 µs against 22.4 µs for the best kernel strategy
       (split-radix), so measure mode now keeps it. At n = 16384 the Stockham
-      kernel came out ahead of `dit16384_radix4_avx2` (258 vs 329 µs) — worth
-      re-checking on an idle machine, since it would mean the largest codelet
-      is not paying for itself.
+      kernel appeared to come out ahead of `dit16384_radix4_avx2` (258 vs
+      329 µs), but that was a contention artifact: re-measured idle and pinned
+      to a P-core, the codelet wins at 73.7 µs against 94.3 µs for Stockham
+      and 86.3 µs for the DIT fallback. The registry order is correct here.
+      This is a good illustration of why timings taken under load must not be
+      trusted even ordinally — the two candidates did not merely shrink, they
+      swapped places.
 
       Tests: `internal/fft/measure_codelet_test.go` pins the candidate list per
       mode (including that a disabled codelet and a codelet above the CPU's
@@ -3122,7 +3126,152 @@ structural rather than noise, and both reproduce in each direction:
       at 256/512 and 1.58× at 32768. Part of that band is genuinely
       memory-bound, but 1.02 at n = 2048 is not a bandwidth story — it is
       the forward-path weakness from P5.0, and these five sizes are where it
-      costs the most.
+      costs the most. See the item below: every codelet serving this band was
+      XMM-width, so complex64 and complex128 moved the same 128 bits per
+      instruction and a ratio near 1.0 is exactly what that predicts. The
+      complex64 side is now 256-bit; **re-measure this ratio**, and expect the
+      complex128 side to become the laggard until it gets the same treatment.
+
+- [x] **The AVX2 radix-4 codelet family was XMM-width, not 256-bit.** Every
+      `avx2_f32_size*_radix4*.s` file — sizes 16, 64, 256, 512, 1024, 2048,
+      4096, 8192, 16384, 32768 — loads operands with `VMOVSD` (one complex64,
+      64 bits) and does all butterfly arithmetic in `X` registers. The `Y`
+      registers appear only in the trailing copy loop and the inverse `1/n`
+      scaling loop: grepping YMM arithmetic gives 0–2 hits per file, against
+      100–560 for the kernels that are genuinely vectorized
+      (`size256_radix16`, `size1024_radix32x32`, the `radix2` family). These
+      are scalar radix-4 kernels in VEX clothing — they get the three-operand
+      form and freedom from the AVX/SSE transition penalty, but none of the
+      width. The 8192 "params" variant removes the twiddle index math but is
+      also XMM-width, so it did not address this.
+
+      **Fixed for complex64** by `internal/asm/amd64/avx2_f32_radix4.s`, one
+      size-generic kernel replacing the whole per-size family rather than ten
+      more hand-rolled files. Measured best-of-5, pinned to a P-core
+      (`TestRadix4AVX2Ranking`, forward, ns):
+
+      | n | previous best | radix4\_ymm | speedup |
+      |---|---|---|---|
+      | 128 | 320 (`radix4_then2_avx2`) | 88 | 3.6× |
+      | 256 | 426 (`radix2_avx2`) | 199 | 2.1× |
+      | 512 | 797 (`radix2_avx2`) | 430 | 1.9× |
+      | 1024 | 3200 (`radix4_avx2`) | 918 | 3.5× |
+      | 2048 | 6446 (`radix4_then2_avx2`) | 2022 | 3.2× |
+      | 4096 | 16848 (`radix4_avx2`) | 4320 | 3.9× |
+      | 8192 | 33337 (`radix4_then2_params_avx2`) | 10077 | 3.3× |
+      | 16384 | 73712 (`radix4_avx2`) | 23599 | 3.1× |
+      | 32768 | 165683 (`radix4_then2_avx2`) | 56318 | 2.9× |
+      | 65536 | 519000 (Stockham; no codelet existed) | 130594 | 4.0× |
+
+      Design notes, since they are what made one kernel cover every size:
+
+      - The twiddle for butterfly `j` of a stage depends only on `j`, not on the
+        group, so each stage needs `3*m` twiddles held as three contiguous
+        planes. Every twiddle load is then a plain 256-bit read and the
+        per-butterfly index arithmetic disappears. Total is `n-4` elements —
+        the same order as the standard table it replaces.
+      - Stage 1 has one butterfly per group, so it cannot vectorize *within* a
+        group. It loads four groups (16 complex64) and does a 4×4 transpose of
+        64-bit lanes with `VUNPCKLPD`/`VUNPCKHPD`/`VPERM2F128`, which is its
+        own inverse, so the same eight instructions serve both directions.
+      - `n = 2*4^k` needs no separate kernel: running the radix-4 stages only
+        to `n/2` transforms the even- and odd-indexed halves independently,
+        and one radix-2 tail combines them. So 32/128/512/2048/8192/32768 and
+        64/256/1024/4096/16384/65536 share one code path.
+      - The permutation table stores only `p[4g]`, using
+        `p[4g+d] = p[4g] + d*(n/4)`, and stores it as `int32`: 16 KiB at
+        n = 16384 against the 128 KiB `DATA` blob the old kernel embedded in
+        the binary. It is taken from `internal/math` rather than rederived —
+        a self-derived permutation table is the one bug class that has
+        actually escaped review here.
+      - The ±i rotation is `permute + xor` against a sign mask (2 ops) instead
+        of `permute + xor-zero + sub + blend` (4 ops). Forward and inverse
+        differ *only* in which mask feeds which output, so both directions
+        share one loop body; the inverse `1/n` is exact (n is a power of two)
+        and folds into stage 1 rather than costing a pass over the data.
+
+      Not registered at n = 32 or 64: the permutation pass and stage-1
+      transpose are fixed overhead that does not amortize there, and
+      `dit32_radix2_avx2` (22 vs 34 ns) and `dit64_radix2_avx2` (50 vs 53 ns)
+      stay ahead. `TestRadix4AVX2Ranking` re-derives this ordering from
+      measurement so the `Priority` values in `cmd/gencodelets/specs.go` cannot
+      silently rot.
+
+      The old complex64 codelets it dominates are **removed**, not left
+      registered alongside: the ten `dit*_radix4*_avx2` rows at 128–32768 are
+      gone from `cmd/gencodelets/specs.go`, and five `.s` files with no other
+      consumer are deleted outright (`size1024_radix4`, `size4096_radix4`,
+      `size16384_radix4`, `size32768_radix4_then2`,
+      `size8192_radix4_then2_params`), together with the 8192 "params" twiddle
+      layout in `params_avx2.go`. Their shared `bitrev{1024,4096,16384}_r4`
+      tables move to `internal/asm/amd64/bitrev_radix4_tables.s`, since the SSE3
+      complex64 and AVX2/SSE2 complex128 kernels still reference them by symbol.
+
+      Four complex64 files stay because something other than the registry calls
+      them — `size128_radix4_then2` (the 8192/16384 six-step row FFTs and the
+      size-384 decomposition), and `size256_radix4`, `size512_radix4_then2`,
+      `size2048_radix4_then2`, `size8192_radix4_then2` (the strategy dispatch in
+      `internal/fft/kernels_amd64_size_specific.go`, which selects by
+      `KernelStrategy` rather than through the codelet registry and so has no
+      way to obtain a prepared twiddle table). Pointing that path at the new
+      kernel is what would let the last of the family go.
+
+      Follow-ups this opens:
+
+- [ ] **The complex128 radix-4 family is still XMM-width — and now it is 128-bit
+      against a 256-bit complex64 twin.** The same `avx2_f64_size*_radix4*.s`
+      files have the same problem, and a YMM complex128 kernel holds two
+      butterflies per register instead of four. The Go side
+      (`radix4_avx2_amd64.go`) is precision-agnostic apart from the element
+      type, so this is mostly a matter of porting the `.s` file with 128-bit
+      lanes: `VMOVDDUP`/`VPERMILPD` replace `VMOVSLDUP`/`VSHUFPS`, and the
+      stage-1 transpose becomes a 2×2. Expect ~2× rather than ~3×.
+
+- [x] **Cost breakdown, and why per-size specialisation is not the lever.** At
+      n = 16384 the isolated costs were: permutation pass 9.5 µs, stage 1
+      4.6 µs, one twiddle stage 3.2 µs (×6). The permutation — which does no
+      arithmetic at all — was a third of the kernel, and stage 1 cost _more_
+      than a twiddle stage because of its 16 transpose instructions. Two
+      changes followed, both inside the one kernel:
+
+      - **Permutation fused into stage 1 with `VPGATHERDQ`.** The four inputs
+        of group g are `src[idx[g] + d*q]`, so four consecutive groups share
+        one index vector and differ only in base pointer. That removes a full
+        store-then-load of the buffer *and* the input transpose, since the
+        gather delivers a0..a3 already separated. Prototype: 13.9 → 9.7 µs for
+        the two parts combined, bit-exact against the separate path. Stage 1's
+        arithmetic ends up entirely hidden behind gather latency.
+      - **Twiddle broadcasts hoisted at m = 4.** That stage exists for every
+        supported n and its three planes are four elements each, identical for
+        every group, so both broadcasts lift out of the loop: 2.54 → 1.91 µs.
+        Larger m cannot do this — the planes stop fitting in registers — which
+        is why only this one stage is special-cased.
+
+      Net at n = 16384: 29.1 → 23.6 µs (−19%). The win is concentrated at
+      n ≤ 16384; 32768 and 65536 are memory-bound and came out flat.
+
+      **A dedicated `.s` file per size would buy very little.** The measurement
+      that settles it: `stage2Generic` (m = 4, 1024 group iterations) and
+      `stage7YMM` (m = 4096, one group) cost the same 2.5–2.6 µs for the same
+      4096 butterflies, so the group/inner loop structure costs essentially
+      nothing and constant-folding the bounds has nothing to reclaim. The 25%
+      that specialising stage 2 *did* deliver was the twiddle hoist, and that
+      is a property of m = 4 rather than of n — now captured in the generic
+      kernel. Remaining headroom from per-size files is on the order of 2–3%,
+      against ten more files to maintain and cross-check.
+
+- [ ] **Re-check the gather balance on AMD.** The fusion above assumes
+      `VPGATHERDQ` throughput comparable to Alder Lake's. Gather is
+      historically much weaker on Zen, and the fused path has no fallback, so
+      the 13.9 → 9.7 µs result should be reproduced on a Zen part before it is
+      treated as universal. If it inverts there, the separate permutation pass
+      is still in git history and the two differ only in this one block.
+
+- [ ] **Retune the strategy thresholds around the new codelet.** `ditAutoThreshold`
+      and the six-step/four-step crossovers were calibrated against kernels
+      that are now 3× faster, so the size at which DIT stops winning has moved.
+      The Stockham comparison at n = 16384 that opened this investigation is
+      the clearest case: 94 µs against what is now 29 µs.
 
 ### P5.3 The SIMD build is slower than purego at two Bluestein primes
 

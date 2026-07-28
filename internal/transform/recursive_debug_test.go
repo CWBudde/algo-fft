@@ -297,10 +297,12 @@ func TestRecursiveDebug_DITComparison(t *testing.T) {
 	}
 
 	output2 := make([]complex64, size)
-	twiddle2 := ComputeTwiddleFactors[complex64](size)
+	twiddle2, _ := codeletTwiddleTables(codelet, size)
 	scratch2 := make([]complex64, size)
 
-	codelet.Forward(output2, input, twiddle2, scratch2)
+	if !codelet.Forward(output2, input, twiddle2, scratch2) {
+		t.Fatal("codelet forward declined")
+	}
 
 	t.Logf("Codelet call: output[0] = %v", output2[0])
 
@@ -353,11 +355,17 @@ func TestRecursiveDebug_InverseSize512(t *testing.T) {
 
 	forwardCodelet := make([]complex64, size)
 	inverseCodelet := make([]complex64, size)
-	twiddleDirect := ComputeTwiddleFactors[complex64](size)
 	scratch := make([]complex64, size)
 
-	codelet.Forward(forwardCodelet, input, twiddleDirect, scratch)
-	codelet.Inverse(inverseCodelet, forwardCodelet, twiddleDirect, scratch)
+	forwardTwiddle, inverseTwiddle := codeletTwiddleTables(codelet, size)
+
+	if !codelet.Forward(forwardCodelet, input, forwardTwiddle, scratch) {
+		t.Fatal("codelet forward declined")
+	}
+
+	if !codelet.Inverse(inverseCodelet, forwardCodelet, inverseTwiddle, scratch) {
+		t.Fatal("codelet inverse declined")
+	}
 
 	err = compareComplexSlices(inverseCodelet, input, 1e-3)
 	if err != nil {
@@ -392,4 +400,35 @@ func TestRecursiveDebug_InverseSize512(t *testing.T) {
 	}
 
 	t.Logf("recursive vs codelet max diff=%v at index %d", maxDiff, maxIndex)
+}
+
+// codeletTwiddleTables returns the forward and inverse twiddle tables a codelet
+// expects.
+//
+// A codelet may declare a SIMD-friendly twiddle layout through
+// TwiddleSize/PrepareTwiddle instead of consuming the standard length-n DIT
+// table (see leafCodelet). Handing such a codelet the plain table makes it
+// transform against the wrong factors, so build whichever table the entry asks
+// for, exactly as the plan path does.
+func codeletTwiddleTables(
+	codelet *registry.CodeletEntry[complex64],
+	size int,
+) (forward, inverse []complex64) {
+	plain := ComputeTwiddleFactors[complex64](size)
+	if codelet.TwiddleSize == nil || codelet.PrepareTwiddle == nil {
+		return plain, plain
+	}
+
+	packedSize := codelet.TwiddleSize(size)
+	if packedSize <= 0 {
+		return plain, plain
+	}
+
+	forward = make([]complex64, packedSize)
+	codelet.PrepareTwiddle(size, false, forward)
+
+	inverse = make([]complex64, packedSize)
+	codelet.PrepareTwiddle(size, true, inverse)
+
+	return forward, inverse
 }

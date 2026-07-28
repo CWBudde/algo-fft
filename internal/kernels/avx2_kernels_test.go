@@ -223,17 +223,6 @@ var avx2TestCases = []avx2TestCase{
 		inverseKernel: inverseAVX2Size512Radix16x32Complex64,
 	},
 	{
-		name:          "Size1024/Radix4",
-		size:          1024,
-		radix:         4,
-		tolerance:     2e-5,
-		forwardSeed:   0x8899AABB,
-		inverseSeed:   0xCCDDEEFF,
-		roundTripSeed: 0x00112233,
-		forwardKernel: amd64.ForwardAVX2Size1024Radix4Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size1024Radix4Complex64Asm,
-	},
-	{
 		name:          "Size1024/Radix32x32",
 		size:          1024,
 		radix:         32, // actually 32x32
@@ -256,17 +245,6 @@ var avx2TestCases = []avx2TestCase{
 		inverseKernel: amd64.InverseAVX2Size2048Radix4Then2Complex64Asm,
 	},
 	{
-		name:          "Size4096/Radix4",
-		size:          4096,
-		radix:         4,
-		tolerance:     3e-5,
-		forwardSeed:   0xAABBCCDD,
-		inverseSeed:   0xEEFF0011,
-		roundTripSeed: 0x22334455,
-		forwardKernel: amd64.ForwardAVX2Size4096Radix4Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size4096Radix4Complex64Asm,
-	},
-	{
 		name:          "Size8192/Radix4Then2",
 		size:          8192,
 		radix:         -24,
@@ -276,17 +254,6 @@ var avx2TestCases = []avx2TestCase{
 		roundTripSeed: 0x33445566,
 		forwardKernel: amd64.ForwardAVX2Size8192Radix4Then2Complex64Asm,
 		inverseKernel: amd64.InverseAVX2Size8192Radix4Then2Complex64Asm,
-	},
-	{
-		name:          "Size16384/Radix4",
-		size:          16384,
-		radix:         4,
-		tolerance:     5e-5,
-		forwardSeed:   0xCCDDEEFF,
-		inverseSeed:   0x00112233,
-		roundTripSeed: 0x44556677,
-		forwardKernel: amd64.ForwardAVX2Size16384Radix4Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size16384Radix4Complex64Asm,
 	},
 }
 

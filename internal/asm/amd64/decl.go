@@ -420,50 +420,16 @@ func InverseAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch []com
 // in as bitrev (32768 entries) instead of being embedded as a DATA table.
 
 //go:noescape
-func ForwardAVX2Size32768Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-
-//go:noescape
-func InverseAVX2Size32768Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-
-//go:noescape
 func ForwardAVX2Size32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
 //go:noescape
 func InverseAVX2Size32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
-
-// Params-enabled variants for size 8192: use pre-broadcast twiddle data for improved SIMD efficiency.
-// The twiddle slice contains pre-broadcast factors for stages 2-7, eliminating runtime
-// index computation and scalar-to-vector broadcasts in the hot loop.
-
-//go:noescape
-func ForwardAVX2Size8192Radix4Then2ParamsComplex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseAVX2Size8192Radix4Then2ParamsComplex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func ForwardAVX2Size1024Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseAVX2Size1024Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
 func ForwardAVX2Size1024Radix32x32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 //go:noescape
 func InverseAVX2Size1024Radix32x32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func ForwardAVX2Size4096Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseAVX2Size4096Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func ForwardAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
 // ============================================================================
 // Size-Specific FFT Kernels (Complex128)
@@ -984,3 +950,19 @@ func MixedRadixStage11Complex64AVX2Asm(dst, input, table []complex64, span int, 
 //
 //go:noescape
 func MixedRadixStage11Complex128AVX2Asm(dst, input, table []complex128, span int, inverse bool)
+
+// ============================================================================
+// Size-generic 256-bit radix-4 DIT kernel
+// ============================================================================
+
+// Radix4Complex64Asm runs a radix-4 decimation-in-time FFT of length
+// n = 4^k (k >= 2) entirely in 256-bit registers, four butterflies per
+// instruction.
+//
+// twiddle must hold the n-4 packed twiddle-plane elements produced by
+// prepareTwiddleRadix4AVX2, and idx the n/4 stage-1 group indices. inverse
+// selects the conjugated butterfly, and scale (1/n for the inverse, 1 for the
+// forward) is folded into stage 1.
+//
+//go:noescape
+func Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, idx []int32, r4End int, inverse bool, scale float32) bool

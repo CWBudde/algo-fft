@@ -147,8 +147,8 @@ func TestForwardDIT16384SixStepAVX2_Complex64(t *testing.T) {
 		t.Fatal("forwardDIT16384SixStepAVX2Complex64 returned false")
 	}
 
-	if !amd64.ForwardAVX2Size16384Radix4Complex64Asm(dstRadix4, src, twiddle, scratch) {
-		t.Fatal("ForwardAVX2Size16384Radix4Complex64Asm returned false")
+	if !radix4AVX2Reference(dstRadix4, src, twiddle, scratch) {
+		t.Fatal("radix4AVX2Reference returned false")
 	}
 
 	// Log DC and Nyquist for both
@@ -250,7 +250,7 @@ func TestForwardDIT16384SixStepAVX2_VsRadix4(t *testing.T) {
 	}
 
 	// Run radix-4
-	if !amd64.ForwardAVX2Size16384Radix4Complex64Asm(dstRadix4, src, twiddle, scratch) {
+	if !radix4AVX2Reference(dstRadix4, src, twiddle, scratch) {
 		t.Fatal("radix-4 forward returned false")
 	}
 
@@ -488,7 +488,7 @@ func TestForwardDIT4096SixStepAVX2_VsRadix4(t *testing.T) {
 	}
 
 	// Run radix-4
-	if !amd64.ForwardAVX2Size4096Radix4Complex64Asm(dstRadix4, src, twiddle, scratch) {
+	if !radix4AVX2Reference(dstRadix4, src, twiddle, scratch) {
 		t.Fatal("radix-4 forward returned false")
 	}
 
@@ -613,6 +613,6 @@ func BenchmarkForwardDIT16384Radix4AVX2_Complex64(b *testing.B) {
 	b.ResetTimer()
 	b.SetBytes(int64(n) * 8)
 	for b.Loop() {
-		amd64.ForwardAVX2Size16384Radix4Complex64Asm(dst, src, twiddle, scratch)
+		radix4AVX2Reference(dst, src, twiddle, scratch)
 	}
 }
