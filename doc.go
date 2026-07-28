@@ -283,6 +283,16 @@
 // contains: size:precision:features:algorithm:timestamp. Files without a
 // recognized header are rejected rather than mis-parsed.
 //
+// An entry overrides the built-in preference order for its size, precision and
+// CPU feature set: an algorithm field naming a codelet signature pins that
+// codelet, and one naming a kernel strategy selects that strategy even where a
+// codelet exists. Entries come from the measuring planner modes
+// (PlannerMeasure and up), which benchmark the size's codelets alongside the
+// kernel strategies and record whichever won. The header moved from v2 to v3
+// when wisdom gained that override: the syntax is unchanged, but a v2 entry was
+// recorded without ever being compared against the codelet it would now
+// displace, so v2 files are rejected rather than reinterpreted.
+//
 // Wisdom management:
 //
 //	// Clear all wisdom entries

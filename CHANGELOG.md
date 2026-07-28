@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `PlannerMeasure` and the deeper planner modes could return a _worse_ plan
+  than `PlannerEstimate`. They benchmarked kernel strategies only and then
+  applied the winner through a path that kept a codelet just when the winning
+  strategy happened to match the codelet's own algorithm. At complex64
+  n = 1024 the Stockham kernel beats the DIT kernel, so measuring discarded the
+  `dit1024_radix4_avx2` codelet that the unmeasured path uses. Codelets are now
+  candidates in their own right, so a kernel strategy can only win after
+  actually beating them.
+- The measuring and forced-strategy planner path built its plan estimate
+  without the codelet's twiddle-preparation callbacks. A codelet wanting a
+  packed twiddle layout was handed the plain table, failed its own length check
+  and silently ran the fallback kernel while the plan still reported the
+  codelet's signature — `dit8192_radix4_then2_params_avx2` under
+  `PlannerMeasure` on AVX2. Results were never wrong, only slower than
+  advertised.
 - The mixed-radix codelet dispatch re-paid its setup at every recursion node.
   A CPU profile at n = 1000 (complex64, AVX2) found only **1.9%** of runtime in
   the codelet assembly and roughly 40% in dispatch overhead. Three causes, all
@@ -54,6 +69,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Wisdom entries now override the built-in codelet preference order**, and
+  the file format is bumped **v2 -> v3** because of it. Previously
+  `planner.EstimatePlan` consulted the codelet registry _before_ the wisdom
+  cache, and the registry hits for every size that has a codelet — so a wisdom
+  entry naming a codelet signature was silently ignored for exactly the sizes
+  where such a signature can exist, and `registry.LookupBySignature`'s
+  stale-entry guard was unreachable. Naming a codelet signature now pins that
+  codelet; naming a kernel strategy selects that strategy even where a codelet
+  exists. An entry is still ignored when `PlanOptions.Strategy` forces a
+  conflicting strategy, or when it names a codelet that has since been disabled
+  or that the CPU cannot run.
+
+  The v3 syntax is identical to v2, but the meaning of a record is not: a v2
+  strategy entry was recorded by a measurement that never compared against the
+  codelet it would now displace. **v2 files are therefore rejected on import**
+  by the existing header check rather than reinterpreted — re-measure with
+  `PlannerMeasure` or higher to regenerate them.
+
+- The measuring planner modes now benchmark size-specific codelets alongside
+  the kernel strategies, and record the implementation that actually won.
+  `PlannerMeasure` times the codelet the estimate would otherwise have used;
+  `PlannerPatient`/`PlannerExhaustive` time every enabled codelet the CPU can
+  run, at roughly double the planning time where a size has several. This makes
+  measure -> record -> replay reproduce the same plan.
 - The mixed-radix recursion now resolves its leaf codelet once per transform
   instead of once per node. The scheduler emits a composite radix only as the
   schedule's final stage, and checks the registry for the remaining size at
