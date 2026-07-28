@@ -61,10 +61,12 @@ type PlanEstimate[T Complex] struct {
 func EstimatePlan[T Complex](
 	n int, features cpu.Features, wisdom WisdomStore, forcedStrategy KernelStrategy,
 ) PlanEstimate[T] {
-	strategy := ResolveKernelStrategy(n)
-	if forcedStrategy != KernelAuto {
-		strategy = forcedStrategy
-	}
+	// Resolve the forced strategy rather than adopting it verbatim: the kernel
+	// dispatch applies the same guards (mixed-radix for non-power-of-two
+	// lengths, the six/eight-step square rule, four-step's power-of-two
+	// requirement), so a verbatim forced value would name a route that never
+	// executes.
+	strategy := ResolveKernelStrategyWithDefault(n, forcedStrategy)
 
 	// For Bluestein, there are no codelets
 	if !IsPowerOf2(n) && !MixedRadixEligible(n) {
@@ -87,7 +89,11 @@ func EstimatePlan[T Complex](
 		// codelet that has since been disabled or become unrunnable falls back
 		// to the registry rather than to a generic kernel.
 		if wisStrat, ok := wisdomStrategy(algorithm, forcedStrategy); ok {
-			strategy, haveStrategyWisdom = wisStrat, true
+			// Resolved for the same reason the forced strategy is: an entry
+			// recorded before a size's route was named honestly (every
+			// non-power-of-two smooth length used to record "stockham" or
+			// "dit_fallback") must not resurrect that label.
+			strategy, haveStrategyWisdom = ResolveKernelStrategyWithDefault(n, wisStrat), true
 		}
 	}
 

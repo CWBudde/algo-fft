@@ -103,11 +103,24 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 
 	results := make([]benchResult, 0, len(strategies))
 
+	// Results are labeled by the strategy the plan resolved to, not the one
+	// requested: at a non-power-of-two length every request above resolves to
+	// the mixed-radix engine, so timing them all would report one transform
+	// five times under four names that never run.
+	seen := make(map[algofft.KernelStrategy]bool, len(strategies))
+
 	for _, strategy := range strategies {
 		plan, err := algofft.NewPlanWithOptions[complex64](n, algofft.PlanOptions{Strategy: strategy})
 		if err != nil {
 			continue
 		}
+
+		resolved := plan.KernelStrategy()
+		if seen[resolved] {
+			continue
+		}
+
+		seen[resolved] = true
 
 		ok := true
 
@@ -150,7 +163,7 @@ func benchmarkSize(rnd *rand.Rand, n, iters, warmup int, mode string) []benchRes
 		elapsedNanos := cpu.CyclesToNanoseconds(elapsedCycles)
 
 		results = append(results, benchResult{
-			strategy: strategy,
+			strategy: resolved,
 			nsPerOp:  float64(elapsedNanos) / float64(iters),
 		})
 	}
@@ -283,6 +296,8 @@ func strategyToAlgorithmName(strategy algofft.KernelStrategy) string {
 		return "recursive"
 	case algofft.KernelFourStep:
 		return "fourstep"
+	case algofft.KernelMixedRadix:
+		return "mixedradix"
 	case algofft.KernelAuto:
 		return "unknown"
 	default:

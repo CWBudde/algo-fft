@@ -201,8 +201,9 @@ The library supports multiple FFT algorithms via `KernelStrategy` (defined in `i
 - `KernelFourStep`: Rectangular six-step with the n1×n2 split chosen from detected L1d/L2 cache sizes (any power-of-two length)
 - `KernelBluestein`: Arbitrary-length transforms
 - `KernelRecursive`: Recursive decomposition with codelet leaves
+- `KernelMixedRadix`: The mixed-radix engine (factors 2/3/5/7/11) — the route every non-power-of-two length outside Bluestein takes. Planner-resolved rather than forced: the kernel dispatch checks the length before the strategy, so a plan reports this whenever it is what runs, and forcing it at a length it is not the route for falls back to the size heuristic.
 
-Force a strategy per-plan via `PlanOptions.Strategy` (default `KernelAuto` lets the planner choose by size). There is no process-global strategy override; empirically-tuned per-size/precision choices are persisted and reused via the Wisdom cache (`PlanOptions.Wisdom`).
+Force a strategy per-plan via `PlanOptions.Strategy` (default `KernelAuto` lets the planner choose by size). The reported `KernelStrategy()`/`Algorithm()` always name the route that executes: a forced strategy the dispatch cannot honor at that length (six-step on a non-square, four-step on a non-power-of-two, anything power-of-two on a smooth length) is resolved to the route that runs, not echoed back. There is no process-global strategy override; empirically-tuned per-size/precision choices are persisted and reused via the Wisdom cache (`PlanOptions.Wisdom`).
 
 #### 3. Zero-Allocation Transforms
 

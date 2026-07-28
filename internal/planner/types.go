@@ -21,4 +21,5 @@ const (
 	KernelRecursive  = fftypes.KernelRecursive
 	KernelSplitRadix = fftypes.KernelSplitRadix
 	KernelFourStep   = fftypes.KernelFourStep
+	KernelMixedRadix = fftypes.KernelMixedRadix
 )

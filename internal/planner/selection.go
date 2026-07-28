@@ -8,7 +8,7 @@ const ditAutoThreshold = 1024
 
 // ResolveKernelStrategy returns the heuristically-selected strategy for size n.
 // Selection order for KernelAuto:
-//  1. Non-power-of-two square sizes: prefer six/eight-step for large sizes
+//  1. Non-power-of-two lengths the mixed-radix engine executes: mixed-radix
 //  2. Size threshold: DIT for <= ditAutoThreshold, Stockham otherwise
 //
 // Per-plan overrides are supplied via PlanOptions.Strategy (threaded through as the
@@ -26,12 +26,32 @@ func ResolveKernelStrategyWithDefault(n int, defaultStrategy KernelStrategy) Ker
 func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy {
 	strategy := defaultStrategy
 
+	// Non-power-of-two lengths the mixed-radix engine executes take that
+	// engine unconditionally: the kernel dispatch (internal/fft's
+	// autoKernelComplex64/128) checks the length before it looks at the
+	// strategy, so no power-of-two strategy — forced or heuristic — ever runs
+	// here. Reporting one would name a route that never executes. The
+	// exception is an explicitly forced Bluestein, which the plan layer
+	// honors and really does run, and a forced Recursive, which plan
+	// construction rejects for these lengths rather than silently rerouting.
+	if !IsPowerOf2(n) && MixedRadixEligible(n) &&
+		strategy != KernelBluestein && strategy != KernelRecursive {
+		return KernelMixedRadix
+	}
+
 	if strategy != KernelAuto {
 		if !isSquareSize(n) && (strategy == KernelSixStep || strategy == KernelEightStep) {
 			return fallbackKernelStrategy(n)
 		}
 
 		if strategy == KernelFourStep && (n < 4 || !IsPowerOf2(n)) {
+			return fallbackKernelStrategy(n)
+		}
+
+		if strategy == KernelMixedRadix {
+			// A forced mixed-radix at a length the engine is not the route
+			// for (power of two, or Bluestein-bound) would be as dishonest in
+			// the other direction.
 			return fallbackKernelStrategy(n)
 		}
 
@@ -61,19 +81,13 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 	// split-radix it replaces there by 1.6x. Wisdom/measure modes pick per
 	// machine where it matters (see selectStrategiesToTest in internal/fft).
 	//
-	// Non-power-of-two squares keep six/eight-step: they execute through the
-	// mixed-radix engine, split-radix declines them, and they were not part of
-	// this measurement.
-	m := intSqrt(n)
-	if m*m == n && !IsPowerOf2(n) {
-		if n >= 1<<22 {
-			return KernelEightStep
-		}
-
-		if n >= 1<<18 {
-			return KernelSixStep
-		}
-	}
+	// A non-power-of-two square rule used to live here, returning six/eight-step
+	// above 2^18 on the grounds that "they execute through the mixed-radix
+	// engine". They do — which is exactly why the rule was a label and never a
+	// route: the six-step kernel was never called for those lengths. Every
+	// square it could reach is either mixed-radix executable (returned above)
+	// or Bluestein-bound (EstimatePlan answers before asking here), so the rule
+	// was unreachable in effect and is gone.
 
 	if n <= ditAutoThreshold {
 		return KernelDIT

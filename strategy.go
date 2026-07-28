@@ -20,6 +20,11 @@ const (
 	KernelRecursive                        // Recursive decomposition with codelet leaves
 	KernelSplitRadix                       // Split-radix (2/4) DIT (power-of-two lengths)
 	KernelFourStep                         // Four-step (cache-blocked rectangular six-step, power-of-two lengths)
+	// KernelMixedRadix is the mixed-radix engine (factors 2/3/5/7/11). Plans
+	// report it for every non-power-of-two length that does not run Bluestein;
+	// forcing it at a length it is not the route for falls back to the size
+	// heuristic, since the reported strategy always names the executed route.
+	KernelMixedRadix
 )
 
 // String returns a human-readable name for the strategy.
@@ -43,6 +48,8 @@ func (s KernelStrategy) String() string {
 		return strategyNameSplitRadix
 	case KernelFourStep:
 		return strategyNameFourStep
+	case KernelMixedRadix:
+		return strategyNameMixedRadix
 	default:
 		return "unknown"
 	}
@@ -67,6 +74,8 @@ func (s KernelStrategy) internal() fftypes.KernelStrategy {
 		return fftypes.KernelSplitRadix
 	case KernelFourStep:
 		return fftypes.KernelFourStep
+	case KernelMixedRadix:
+		return fftypes.KernelMixedRadix
 	case KernelAuto:
 		return fftypes.KernelAuto
 	default:
@@ -94,6 +103,8 @@ func kernelStrategyFromInternal(s fftypes.KernelStrategy) KernelStrategy {
 		return KernelSplitRadix
 	case fftypes.KernelFourStep:
 		return KernelFourStep
+	case fftypes.KernelMixedRadix:
+		return KernelMixedRadix
 	case fftypes.KernelAuto:
 		return KernelAuto
 	default:

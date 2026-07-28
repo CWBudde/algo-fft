@@ -11,6 +11,7 @@ func TestStrategyAlgorithmNameRoundTrip(t *testing.T) {
 	strategies := []KernelStrategy{
 		KernelDIT, KernelStockham, KernelSixStep, KernelEightStep,
 		KernelBluestein, KernelSplitRadix, KernelRecursive,
+		KernelFourStep, KernelMixedRadix,
 	}
 
 	seen := make(map[string]KernelStrategy)

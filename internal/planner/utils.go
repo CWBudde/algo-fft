@@ -148,6 +148,7 @@ const (
 	algoSplitRadix  = "splitradix"
 	algoRecursive   = "recursive"
 	algoFourStep    = "fourstep"
+	algoMixedRadix  = "mixedradix"
 
 	// algoUnknown is returned for strategies with no table entry (KernelAuto).
 	algoUnknown = "unknown"
@@ -168,6 +169,7 @@ var strategyAlgorithmNames = map[KernelStrategy]string{
 	KernelSplitRadix: algoSplitRadix,
 	KernelRecursive:  algoRecursive,
 	KernelFourStep:   algoFourStep,
+	KernelMixedRadix: algoMixedRadix,
 }
 
 // algorithmNameStrategies is the reverse of strategyAlgorithmNames, built at

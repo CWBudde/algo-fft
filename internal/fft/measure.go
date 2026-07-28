@@ -70,9 +70,15 @@ func getMeasureConfig(mode PlannerMode) measureConfig {
 
 // selectStrategiesToTest returns the strategies to benchmark based on planner mode.
 func selectStrategiesToTest(mode PlannerMode, n int) []fftypes.KernelStrategy {
-	// For non-power-of-two sizes not eligible for the mixed-radix engine,
-	// only Bluestein is available.
-	if !mathpkg.IsPowerOf2(n) && !planner.MixedRadixEligible(n) {
+	// Non-power-of-two sizes have exactly one route each: the mixed-radix
+	// engine when it can execute the length, Bluestein otherwise. Timing the
+	// power-of-two strategies here would time the same mixed-radix transform
+	// once per candidate and record the winner under a name that never runs.
+	if !mathpkg.IsPowerOf2(n) {
+		if planner.MixedRadixEligible(n) {
+			return []fftypes.KernelStrategy{fftypes.KernelMixedRadix}
+		}
+
 		return []fftypes.KernelStrategy{fftypes.KernelBluestein}
 	}
 
@@ -415,10 +421,11 @@ func estimateWithStrategy[T Complex](
 		}
 	}
 
-	// Fall back to kernel-based estimate
-	if strategy == fftypes.KernelAuto {
-		strategy = planner.ResolveKernelStrategy(n)
-	}
+	// Fall back to kernel-based estimate. Resolving (rather than adopting the
+	// forced value verbatim) keeps the reported strategy equal to the route the
+	// dispatch takes — a forced power-of-two strategy at a mixed-radix length
+	// resolves to KernelMixedRadix, which is what actually runs.
+	strategy = planner.ResolveKernelStrategyWithDefault(n, strategy)
 
 	return planner.PlanEstimate[T]{
 		ForwardCodelet: nil,

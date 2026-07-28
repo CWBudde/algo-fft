@@ -143,11 +143,12 @@ func TestFallbackKernelStrategy(t *testing.T) {
 	}
 }
 
-// TestSixStepEightStepSquareSizes tests strategy selection for square sizes under
-// the auto heuristic. Power-of-two squares are not special-cased: the plain
-// size heuristic (Stockham) measured faster than every alternative at the sizes
-// the square branch can reach, so only non-power-of-two squares take
-// six/eight-step. See the rationale in resolveKernelStrategy.
+// TestSixStepEightStepSquareSizes tests strategy selection for square sizes
+// under the auto heuristic. No square size is special-cased any more: the
+// power-of-two ones measured no better under six/eight-step than under the
+// plain size heuristic (Stockham), and the non-power-of-two ones run on the
+// mixed-radix engine whatever the strategy says. See the rationale in
+// resolveKernelStrategy.
 func TestSixStepEightStepSquareSizes(t *testing.T) {
 	t.Parallel()
 
@@ -156,9 +157,9 @@ func TestSixStepEightStepSquareSizes(t *testing.T) {
 		size int
 		want KernelStrategy
 	}{
-		{"2100x2100", 2100 * 2100, KernelEightStep}, // non-pow2 square >= 1<<22
-		{"900x900", 900 * 900, KernelSixStep},       // non-pow2 square in [1<<18, 1<<22)
-		{"2048x2048", 2048 * 2048, KernelStockham},  // pow2 square: no special case
+		{"2100x2100", 2100 * 2100, KernelMixedRadix}, // non-pow2, 5-smooth: engine route
+		{"900x900", 900 * 900, KernelMixedRadix},     // non-pow2, 5-smooth: engine route
+		{"2048x2048", 2048 * 2048, KernelStockham},   // pow2 square: no special case
 		{"512x512", 512 * 512, KernelStockham},
 		{"1024x1024", 1024 * 1024, KernelStockham},
 		{"256x256", 256 * 256, KernelStockham}, // 65536 is square but < 1<<18

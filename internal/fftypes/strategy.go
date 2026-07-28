@@ -13,6 +13,11 @@ const (
 	KernelRecursive  // Recursive decomposition with codelet leaves
 	KernelSplitRadix // Split-radix (2/4) DIT, power-of-two sizes only
 	KernelFourStep   // Four-step (cache-blocked rectangular six-step), power-of-two sizes
+	// KernelMixedRadix is the mixed-radix engine (factors 2/3/5/7/11), the
+	// route every non-power-of-two length outside Bluestein actually takes.
+	// Plans report it instead of a power-of-two strategy that cannot execute
+	// their length; it is resolved by the planner rather than forced.
+	KernelMixedRadix
 )
 
 // SIMDLevel describes the minimum required CPU features for a codelet.
