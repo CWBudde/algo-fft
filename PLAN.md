@@ -3312,8 +3312,31 @@ structural rather than noise, and both reproduce in each direction:
 
       Every round agreed on the direction at every size. The complex128 kernel
       gained 20–24% at 256–16384 from the same change, measured before it was
-      registered. The pattern is worth checking in the other AVX2 kernels that
-      broadcast from a twiddle table — the mixed-radix stages do the same thing.
+      registered.
+
+- [x] **The same pattern does _not_ transfer to the fused mixed-radix stages.**
+      Tried and reverted (2026-07-28). `avx2_f{32,64}_mixedradix_stage{3,5,7,11}.s`
+      run the same three-shuffle complex-multiply idiom per row, so they looked
+      like the same opportunity, but two things differ:
+
+      - The dup source is the _data_, not a scalar twiddle. One input vector
+        feeds both `VMOVSLDUP` and `VMOVSHDUP`, so a memory-operand form does
+        not replace a load — it adds one. And `VMOVSLDUP ymm, m256` is not a
+        load-only uop the way a 64-bit broadcast is: the in-lane duplication
+        still issues on port 5, so nothing moves off it either. Measured
+        (best-of-3, interleaved, `taskset -c 0`, radices 3/5/7/11 × spans
+        64…4096, both precisions): 2–28% _slower_, all 32 cases regressing,
+        worst on radix-11 where the row count multiplies the extra loads.
+      - Port 5 is not the bottleneck here anyway. A probe that deleted the ten
+        table swaps from the radix-11 stage outright — wrong results, right
+        instruction mix, 30 shuffles per iteration down to 20 — moved the time
+        by 0–7% with no consistent sign. The radix-4 kernel is shuffle-bound
+        because it retires many butterflies per load out of a small working
+        set; these stages are streaming kernels at 2 reads + 1 write per row,
+        bound by memory traffic across 2·radix strided streams.
+
+      Do not retry it on a kernel whose broadcast operand comes from the data
+      stream; the win needs a scalar twiddle that is re-broadcast per iteration.
 
 - [x] **Cost breakdown, and why per-size specialisation is not the lever.** At
       n = 16384 the isolated costs were: permutation pass 9.5 µs, stage 1
