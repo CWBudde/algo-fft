@@ -3,97 +3,234 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>algofft WASM Benchmark</title>
+    <title>Benchmarks — algofft / WASM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght,wdth@0,100..900,62..125&family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="stylesheet" href="style.css" />
-    <style>
-      .bench-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1rem;
-        font-family: "Space Grotesk", sans-serif;
-      }
-      .bench-table th,
-      .bench-table td {
-        padding: 0.75rem;
-        text-align: left;
-        border-bottom: 1px solid rgba(12, 123, 110, 0.15);
-      }
-      .bench-table th {
-        font-weight: 600;
-        color: #0c7b6e;
-      }
-      .bench-table td {
-        color: #1e1a12;
-      }
-      .bench-table tr:last-child td {
-        border-bottom: none;
-      }
-      .bench-controls {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        margin-bottom: 2rem;
-      }
-    </style>
+
+    <!--
+      DOM CONTRACT for bench.js / bench-worker.js / bench-chart.js:
+        #status            status readout, data-state="ready|error|loading|running"
+        #run-bench         run <button>
+        #stop-bench        stop <button>; keeps whatever rows already landed
+        #results-body      <tbody>, built with DOM APIs (never innerHTML)
+        #bench-chart       canvas
+        #bench-modes       chart mode buttons, data-mode + aria-pressed
+        #bench-legend      per-series legend buttons, aria-pressed
+        #bench-tooltip     HTML tooltip (no canvas text)
+        #timerGranularity  probed browser timer granularity readout
+        #bench-estimate    run-time estimate shown before running
+        #bench-progress    determinate progress bar, role=progressbar
+
+      This page's styling lives in style.css. The block below is only for the
+      controls this work package added; it is scoped to the benchmark page and
+      uses the same tokens rather than introducing any new colour.
+    -->
   </head>
   <body>
-    <div class="page">
+    <div class="rack" id="rack" data-boot="ready">
+      <div class="rail-top">
+        <p class="brand">ALGOFFT <small>· WASM</small></p>
+        <nav class="site-nav" aria-label="Site">
+          <a href="index.html">Signal Lab</a>
+          <span class="sep">|</span>
+          <a href="benchmark.html" aria-current="page">Benchmarks</a>
+        </nav>
+        <span class="status" id="status" data-state="loading"
+          >Starting worker&hellip;</span
+        >
+      </div>
+
       <header class="hero">
-        <div>
-          <p class="eyebrow">algofft / wasm</p>
-          <h1>FFT Benchmark</h1>
+        <div class="hero__text">
+          <p class="eyebrow">GO · WEBASSEMBLY · NO CGO</p>
+          <h1>What it costs to transform</h1>
           <p class="lede">
-            Measure the performance of algofft running in your browser via
-            WebAssembly.
+            Measured in this tab, in a dedicated worker, so the UI thread never
+            skews the clock and Stop can actually stop. No SIMD and no threads
+            under WebAssembly — read these numbers as the portable Go path, not
+            algofft's AVX2/NEON peak.
           </p>
         </div>
-        <div class="status" id="status">Initializing WASM…</div>
       </header>
 
-      <section class="panel">
-        <div class="bench-controls">
-          <button id="run-bench">Run Benchmark</button>
-          <a href="index.html" class="ghost">Back to Signal Lab</a>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                <h2>Results</h2>
-                <p>Average time per forward transform (complex64).</p>
-            </div>
-            <table class="bench-table">
-            <thead>
-                <tr>
-                <th>Size (N)</th>
-                <th>Avg Time (µs)</th>
-                <th>Throughput (Op/s)</th>
-                <th>Throughput (MB/s)</th>
-                </tr>
-            </thead>
-            <tbody id="results-body">
-                <tr>
-                <td colspan="4" style="text-align: center; color: #666;">
-                    Click "Run Benchmark" to start.
-                </td>
-                </tr>
-            </tbody>
-            </table>
-        </div>
-      </section>
+      <form class="bench-form" id="bench-form" autocomplete="off">
+        <fieldset>
+          <legend>Effort</legend>
+          <div class="chips" id="effort-chips" role="group" aria-label="Effort preset">
+            <button type="button" class="chip" data-effort="quick" aria-pressed="false">
+              Quick
+            </button>
+            <button type="button" class="chip" data-effort="standard" aria-pressed="true">
+              Standard
+            </button>
+            <button type="button" class="chip" data-effort="thorough" aria-pressed="false">
+              Thorough
+            </button>
+          </div>
+          <span class="bench-readout" id="effort-detail">&mdash;</span>
+        </fieldset>
 
-      <footer class="footer">
-        <p>Built with algofft / Go 1.25 / WebAssembly.</p>
+        <fieldset style="grid-column: 1 / -1">
+          <legend>Sizes (n)</legend>
+          <div class="chips" id="size-chips" role="group" aria-label="Transform sizes"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Precision</legend>
+          <div class="chips" id="precision-chips" role="group" aria-label="Precision"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Strategy</legend>
+          <div class="chips" id="strategy-chips" role="group" aria-label="Kernel strategy"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Planner</legend>
+          <select id="planner-select"></select>
+        </fieldset>
+      </form>
+
+      <div class="bench-controls">
+        <div class="bench-run" style="flex: 1 1 100%">
+          <button type="button" id="run-bench" disabled>Run benchmark</button>
+          <button type="button" id="stop-bench" class="ghost" disabled>Stop</button>
+          <div
+            class="progress-track"
+            id="bench-progress"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            aria-label="Benchmark progress"
+          >
+            <div class="progress-fill" id="bench-progress-fill"></div>
+          </div>
+          <span class="bench-readout" id="bench-estimate">&mdash;</span>
+        </div>
+        <span class="bench-readout">
+          timer granularity <b id="timerGranularity">&mdash;</b> · cases
+          <b id="case-count">0</b> · done <b id="done-count">0</b>
+        </span>
+        <span style="margin-left: auto; display: flex; gap: 8px">
+          <button type="button" id="export-csv" class="ghost" disabled>CSV</button>
+          <button type="button" id="export-json" class="ghost" disabled>JSON</button>
+        </span>
+      </div>
+
+      <p class="visually-hidden" id="live-region" aria-live="polite"></p>
+
+      <div class="bench-chart-wrap">
+        <canvas id="bench-chart" width="1200" height="320" role="img"
+          aria-label="Benchmark results plot"></canvas>
+        <div class="bench-tooltip" id="bench-tooltip" hidden></div>
+        <div class="bench-modes" id="bench-modes" role="group" aria-label="Chart mode">
+          <button type="button" data-mode="time" aria-pressed="true">
+            time vs n (log–log)
+          </button>
+          <button type="button" data-mode="normalized" aria-pressed="false">
+            ns / (n·log₂n) — flat = O(n log n)
+          </button>
+          <button type="button" data-mode="throughput" aria-pressed="false">
+            throughput MB/s
+          </button>
+        </div>
+        <div class="bench-legend" id="bench-legend"></div>
+      </div>
+
+      <div class="bench-table-wrap">
+        <table class="bench-table">
+          <caption>
+            Forward transform, median of the configured trial count. Plan
+            construction is excluded from the timed region and reported
+            separately. Rows in magenta never cleared 200 × the probed timer
+            granularity and should not be read as measurements.
+          </caption>
+          <thead>
+            <tr id="results-head">
+              <th scope="col" aria-sort="ascending" data-key="size" data-numeric="true">
+                <button type="button">n</button>
+              </th>
+              <th scope="col" data-key="precision">
+                <button type="button">precision</button>
+              </th>
+              <th scope="col" data-key="strategy">
+                <button type="button">strategy req → resolved</button>
+              </th>
+              <th scope="col" data-key="algorithm">
+                <button type="button">algorithm</button>
+              </th>
+              <th scope="col" data-key="medianNs" data-numeric="true">
+                <button type="button">median / transform</button>
+              </th>
+              <th scope="col" data-key="relStddev" data-numeric="true">
+                <button type="button">rel σ</button>
+              </th>
+              <th scope="col" data-key="iterations" data-numeric="true">
+                <button type="button">iters</button>
+              </th>
+              <th scope="col" data-key="throughput" data-numeric="true">
+                <button type="button">MB/s</button>
+              </th>
+              <th scope="col" data-key="normalized" data-numeric="true">
+                <button type="button">ns / (n·log₂n)</button>
+              </th>
+              <th scope="col" data-key="planNs" data-numeric="true">
+                <button type="button">plan build</button>
+              </th>
+              <th scope="col" data-key="planWisdomNs" data-numeric="true">
+                <button type="button">plan (wisdom)</button>
+              </th>
+              <th scope="col" data-key="reliable">
+                <button type="button">reliable</button>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="results-body">
+            <tr>
+              <td colspan="12" style="text-align: center; color: var(--dim)">
+                Run the benchmark to populate this table.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="methodology mono">
+        <strong>Methodology.</strong> WebAssembly runs the portable Go kernels
+        only — <span id="method-simd">no SIMD</span> and no threads, so these
+        figures are a floor for algofft, not its AVX2/NEON peak. Browsers clamp
+        <code>performance.now()</code> as a Spectre mitigation (Chrome ~100&nbsp;µs,
+        Firefox/Safari ~1&nbsp;ms) and GitHub Pages cannot send the COOP/COEP
+        headers that would lift the clamp; the granularity actually probed in
+        this browser is <b id="method-granularity">&mdash;</b>. Nothing is timed
+        once: each case is calibrated by doubling an iteration count until one
+        batch clears that floor, then timed over
+        <b id="method-trials">&mdash;</b> batches and reported as the median per
+        transform, with the relative standard deviation alongside. Plan
+        construction is measured separately and excluded from the transform
+        time; the second build of the same plan is reported next to it, which is
+        what the wisdom cache buys. Rows whose batches never reach
+        <code>200 × granularity</code> are flagged rather than hidden. The
+        benchmark runs in a dedicated worker: the loop lives in JavaScript and
+        calls into Go one bounded chunk at a time, because a synchronous Go call
+        blocks the worker's event loop and a queued Stop cannot dispatch until
+        it returns.
+      </div>
+
+      <footer class="rack-footer mono">
+        <span>algofft · Go · WebAssembly</span>
+        <a href="https://github.com/MeKo-Tech/algo-fft">Source</a>
       </footer>
     </div>
 
-    <script src="wasm_exec.js"></script>
+    <script src="bench-chart.js"></script>
     <script src="bench.js"></script>
   </body>
 </html>

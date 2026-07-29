@@ -1,212 +1,784 @@
+/* ==========================================================================
+   algofft — Signal Lab
+   Instrument-rack visual system. One dark look, no light variant.
+   Signature idea: phase is hue — a cyclic ramp encodes FFT bin phase
+   everywhere (spectrum, 2D map, correlation, the phase wheel legend).
+   ========================================================================== */
+
 :root {
-  --bg: #f6f2e8;
-  --ink: #1e1a12;
-  --muted: #6c6151;
-  --accent: #0c7b6e;
-  --accent-strong: #0a5c52;
-  --accent-warm: #d36b34;
-  --card: #fffaf1;
-  --stroke: #d7cbb6;
-  --shadow: 0 24px 60px rgba(28, 19, 6, 0.12);
+  /* ---- ground tokens ---- */
+  --void: #0b0e1f; /* page ground */
+  --rack: #141830; /* panel fill */
+  --rule: #262c4e; /* hairlines — the only separator device */
+  --dim: #8189b8; /* labels, ticks, secondary readouts */
+  --lume: #e8ecff; /* primary text */
+
+  /* ---- cyclic phase ramp — the page's only source of accent color ---- */
+  /* JS reads these via getComputedStyle; keep them real custom properties. */
+  --phase-0: #ff5fa2; /* 0      magenta */
+  --phase-90: #ffc24b; /* π/2   amber   */
+  --phase-180: #39e5c8; /* π     cyan    */
+  --phase-270: #6c6bff; /* 3π/2  violet  → wraps to magenta */
+
+  --ramp: conic-gradient(
+    from 0deg,
+    var(--phase-0) 0deg,
+    var(--phase-90) 90deg,
+    var(--phase-180) 180deg,
+    var(--phase-270) 270deg,
+    var(--phase-0) 360deg
+  );
+
+  /* interactive states draw from the ramp, not a brand color */
+  --action: var(--phase-0);
+  --action-hi: var(--phase-270);
+  --armed: var(--phase-180);
+
+  /* ---- type ---- */
+  --font-display: "Archivo", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Consolas, monospace;
+
+  /* ---- rhythm ---- */
+  --gutter: 24px;
+  --rack-max: 1280px;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  color: var(--ink);
-  background:
-    radial-gradient(circle at top, #fefaf1 0%, #f6f2e8 45%, #efe6d6 100%),
-    repeating-linear-gradient(135deg, rgba(12, 123, 110, 0.05) 0 12px, transparent 12px 24px);
+  background: var(--void);
+  color: var(--lume);
+  font-family: var(--font-display);
+  font-feature-settings: "ss01" on;
+  -webkit-font-smoothing: antialiased;
 }
 
-.page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 48px 24px 64px;
+a {
+  color: inherit;
 }
 
-.hero {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 32px 36px;
-  border: 1px solid var(--stroke);
-  border-radius: 24px;
-  background: var(--card);
-  box-shadow: var(--shadow);
-  animation: rise 600ms ease-out;
+/* ==========================================================================
+   Primitives
+   ========================================================================== */
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .eyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.32em;
   font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--accent);
-  margin: 0 0 8px;
+  color: var(--dim);
 }
 
-.hero h1 {
-  font-family: "Fraunces", "Georgia", serif;
-  font-size: clamp(2.2rem, 4vw, 3.4rem);
-  margin: 0 0 12px;
+/* corner label — mono uppercase tag pinned to a panel's top-left,
+   the way a scope labels its channels */
+.corner-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
 }
 
-.lede {
-  max-width: 520px;
-  font-size: 1rem;
-  color: var(--muted);
+/* ==========================================================================
+   Site nav — shared between index.html and benchmark.html
+   ========================================================================== */
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.site-nav a {
+  padding: 6px 10px;
+  text-decoration: none;
+  color: var(--dim);
+  border: 1px solid transparent;
+}
+
+.site-nav a:hover {
+  color: var(--lume);
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--lume);
+  border-color: var(--rule);
+}
+
+.site-nav .sep {
+  color: var(--rule);
+}
+
+/* ==========================================================================
+   Rack shell
+   ========================================================================== */
+
+.rack {
+  max-width: var(--rack-max);
+  margin: 0 auto;
+  border-left: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+  min-height: 100vh;
+  background: var(--rack);
+}
+
+/* ---- top rail ---- */
+
+.rail-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gutter);
+  padding: 14px var(--gutter);
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.95rem;
   margin: 0;
 }
 
-.status {
-  font-weight: 600;
-  padding: 12px 18px;
-  border-radius: 999px;
-  background: rgba(12, 123, 110, 0.12);
-  color: var(--accent-strong);
-  border: 1px solid rgba(12, 123, 110, 0.25);
+.brand small {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  text-transform: none;
 }
 
-.panel {
-  margin: 32px 0;
-  padding: 24px 28px;
-  border-radius: 20px;
-  border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: var(--shadow);
-  animation: rise 700ms ease-out;
+/* phase wheel: boot indicator, then legend. One shape earns its curve. */
+.phase-wheel {
+  --boot-progress: 0;
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex: none;
 }
+
+.phase-wheel__ramp {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--ramp);
+  opacity: 0.22;
+}
+
+.phase-wheel__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--ramp);
+  -webkit-mask-image: conic-gradient(
+    from -90deg,
+    #000 calc(var(--boot-progress) * 360deg),
+    transparent 0
+  );
+  mask-image: conic-gradient(
+    from -90deg,
+    #000 calc(var(--boot-progress) * 360deg),
+    transparent 0
+  );
+  transition: mask-image 120ms linear;
+}
+
+.phase-wheel[data-state="ready"] .phase-wheel__fill {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.phase-wheel__hub {
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: var(--rack);
+  display: grid;
+  place-items: center;
+}
+
+.phase-wheel__hub svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* ==========================================================================
+   Hero — the live spectrum IS the header, not an image beside one
+   ========================================================================== */
+
+.hero {
+  padding: 40px var(--gutter) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.hero__text {
+  max-width: 640px;
+  margin-bottom: 28px;
+}
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.06;
+  margin: 10px 0 14px;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  margin: 0;
+  max-width: 56ch;
+  color: var(--dim);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.hero__stage {
+  position: relative;
+  border-top: 1px solid var(--rule);
+}
+
+#spectrum {
+  display: block;
+  width: 100%;
+  height: 340px;
+}
+
+.status {
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border: 1px solid var(--rule);
+}
+
+/* inside the hero stage, the status pins to its top-right corner like an
+   instrument readout rather than sitting in normal flow */
+.hero__stage .status {
+  position: absolute;
+  top: 12px;
+  right: 0;
+  border-top: none;
+  border-right: none;
+  border-left: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.status[data-state="ready"] {
+  color: var(--armed);
+}
+
+.status[data-state="error"] {
+  color: var(--phase-0);
+}
+
+/* mono telemetry strip: real instrument readout, not marketing copy */
+.telemetry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.telemetry__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px var(--gutter);
+  border-right: 1px solid var(--rule);
+}
+
+.telemetry__item:last-child {
+  border-right: none;
+}
+
+.telemetry__label {
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.68rem;
+}
+
+.telemetry__value {
+  color: var(--lume);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Control rail — SIGNAL / TRANSFORM / ANALYSIS
+   ========================================================================== */
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--rule);
 }
 
-.control {
+.control-group {
+  position: relative;
+  padding: 34px var(--gutter) 22px;
+  border-right: 1px solid var(--rule);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-size: 0.95rem;
+  gap: 16px;
 }
 
-.control label {
-  font-weight: 600;
+.control-group:last-child {
+  border-right: none;
 }
 
-.control input[type="range"] {
-  accent-color: var(--accent);
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.control select {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--stroke);
-  background: white;
-  font-family: inherit;
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.control .value {
+.field label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.field .value {
+  margin-left: auto;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  color: var(--accent-strong);
-  font-weight: 600;
+  color: var(--lume);
+  font-size: 0.78rem;
+}
+
+select,
+input[type="number"],
+input[type="text"] {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--lume);
+  background: var(--void);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 7px 9px;
+}
+
+select:focus-visible,
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--action-hi);
+  outline-offset: 2px;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  background: var(--rule);
+  border-radius: 0;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--action);
+  cursor: pointer;
+  margin-top: -5px;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: var(--action);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 2px;
+  background: var(--rule);
 }
 
 .toggle {
   flex-direction: row;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
 }
 
-.actions {
-  margin-top: 20px;
+.toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--action);
+}
+
+/* preset chips (arbitrary-n panel) */
+.chips {
   display: flex;
-  gap: 12px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
-button, .button {
-  font-family: inherit;
-  border: none;
-  border-radius: 999px;
-  padding: 12px 20px;
-  font-weight: 600;
-  background: var(--accent);
-  color: white;
-  box-shadow: 0 10px 24px rgba(12, 123, 110, 0.3);
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--rule);
+  padding: 5px 9px;
   cursor: pointer;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.chip:hover {
+  color: var(--lume);
+  border-color: var(--dim);
+}
+
+.chip[aria-pressed="true"] {
+  color: var(--void);
+  background: var(--action);
+  border-color: var(--action);
+}
+
+.chip[data-badge="rader"]::after {
+  content: " ·R";
+  color: var(--armed);
+}
+
+.chip[data-badge="mixed"]::after {
+  content: " ·M";
+  color: var(--phase-90);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+button,
+.button {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--action);
+  border-radius: 0;
+  background: var(--action);
+  color: var(--void);
+  padding: 9px 16px;
+  cursor: pointer;
   text-decoration: none;
   display: inline-flex;
-  justify-content: center;
   align-items: center;
-  font-size: 0.9rem;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
 }
 
-button:hover, .button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 28px rgba(12, 123, 110, 0.35);
+button:hover,
+.button:hover {
+  background: var(--action-hi);
+  border-color: var(--action-hi);
 }
 
-button.ghost, .button.ghost {
+button.ghost,
+.button.ghost {
   background: transparent;
-  color: var(--accent-strong);
-  border: 1px solid var(--accent);
-  box-shadow: none;
+  color: var(--lume);
+  border-color: var(--rule);
 }
 
-.viz {
+button.ghost:hover,
+.button.ghost:hover {
+  color: var(--lume);
+  border-color: var(--dim);
+  background: transparent;
+}
+
+button[aria-pressed="true"] {
+  background: var(--armed);
+  border-color: var(--armed);
+}
+
+/* ==========================================================================
+   Panels — waveform / reconstruction / 2D map / convolution
+   ========================================================================== */
+
+.panels {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
+  grid-template-columns: 1fr 1fr;
 }
 
-.card {
-  padding: 20px 24px 28px;
-  border-radius: 20px;
-  border: 1px solid var(--stroke);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  animation: rise 800ms ease-out;
+.panel {
+  position: relative;
+  padding: 40px var(--gutter) 24px;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
 }
 
-.card-header h2 {
-  margin: 0 0 4px;
-  font-family: "Fraunces", "Georgia", serif;
+.panel:nth-child(2n) {
+  border-right: none;
 }
 
-.card-header p {
-  margin: 0 0 16px;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-canvas {
-  width: 100%;
-  height: auto;
-  border-radius: 16px;
-  border: 1px solid rgba(12, 123, 110, 0.2);
-  background: linear-gradient(130deg, rgba(12, 123, 110, 0.07), rgba(211, 107, 52, 0.05));
-}
-
-.footer {
-  margin-top: 32px;
-  text-align: center;
-  color: var(--muted);
+.panel p.panel-note {
+  margin: 0 0 12px;
+  color: var(--dim);
   font-size: 0.85rem;
+  max-width: 60ch;
 }
 
-@keyframes rise {
+.panel canvas {
+  display: block;
+  width: 100%;
+  height: 220px;
+  background: var(--void);
+  border: 1px solid var(--rule);
+}
+
+/* The 2D frequency map is square data. Constraining the element itself to a
+   square keeps the renderer from centering a small square inside a wide box
+   and leaving dead space either side of it. */
+.panel canvas#grid {
+  width: auto;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  max-width: min(100%, 320px);
+  margin-inline: auto;
+}
+
+.panel-foot {
+  display: flex;
+  gap: var(--gutter);
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--dim);
+}
+
+.panel-foot strong {
+  color: var(--lume);
+  font-weight: 400;
+}
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+
+.rack-footer {
+  padding: 18px var(--gutter);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gutter);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--dim);
+  flex-wrap: wrap;
+}
+
+.rack-footer a {
+  color: var(--dim);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.rack-footer a:hover {
+  color: var(--lume);
+}
+
+/* ==========================================================================
+   Benchmark page
+   ========================================================================== */
+
+.bench-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 24px var(--gutter);
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+
+.methodology {
+  padding: 20px var(--gutter);
+  border-bottom: 1px solid var(--rule);
+  color: var(--dim);
+  font-size: 0.85rem;
+  max-width: 80ch;
+  line-height: 1.6;
+}
+
+.methodology strong {
+  color: var(--lume);
+  font-weight: 400;
+}
+
+.bench-table-wrap {
+  padding: 0 var(--gutter) 32px;
+  overflow-x: auto;
+}
+
+.bench-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.bench-table caption {
+  text-align: left;
+  color: var(--dim);
+  font-size: 0.78rem;
+  padding: 16px 0 10px;
+}
+
+.bench-table th,
+.bench-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  font-variant-numeric: tabular-nums;
+}
+
+.bench-table th {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+  color: var(--dim);
+  font-weight: 400;
+  border-bottom: 1px solid var(--dim);
+}
+
+.bench-table tr:last-child td {
+  border-bottom: none;
+}
+
+.bench-table td[data-reliable="false"] {
+  color: var(--phase-0);
+}
+
+.bench-chart-wrap {
+  padding: 0 var(--gutter) 8px;
+  border-bottom: 1px solid var(--rule);
+}
+
+#bench-chart {
+  display: block;
+  width: 100%;
+  height: 320px;
+  background: var(--void);
+  border: 1px solid var(--rule);
+}
+
+.bench-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 0 24px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--dim);
+}
+
+.bench-legend button {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--dim);
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 5px 10px;
+}
+
+.bench-legend button[aria-pressed="true"] {
+  color: var(--lume);
+  border-color: var(--dim);
+  background: transparent;
+}
+
+/* ==========================================================================
+   Motion
+   ========================================================================== */
+
+/* Structure is always visible without JS. The reveal is additive: it only
+   plays once data-boot flips to "ready", and if that attribute is never
+   set (script failure, not just a WASM load failure) the page still reads
+   as a complete static layout rather than a permanent blank gap. */
+
+.rack[data-boot="ready"] .hero__stage {
+  animation: sweep-in 700ms ease-out forwards;
+}
+
+.rack[data-boot="ready"] .controls {
+  animation: fade-up 420ms ease-out 120ms forwards;
+}
+
+.rack[data-boot="ready"] .panels {
+  animation: fade-up 420ms ease-out 220ms forwards;
+}
+
+@keyframes sweep-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -214,12 +786,222 @@ canvas {
   }
 }
 
-@media (max-width: 720px) {
-  .hero {
-    padding: 24px;
+@media (prefers-reduced-motion: reduce) {
+  .rack[data-boot="ready"] .hero__stage,
+  .rack[data-boot="ready"] .controls,
+  .rack[data-boot="ready"] .panels {
+    opacity: 1;
+    animation: none;
+    clip-path: none;
+    transform: none;
+  }
+
+  .phase-wheel__fill {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   Responsive — collapse to a single column at 375px
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .controls {
+    grid-template-columns: 1fr;
+  }
+
+  .control-group {
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .control-group:last-child {
+    border-bottom: none;
+  }
+
+  .panels {
+    grid-template-columns: 1fr;
   }
 
   .panel {
-    padding: 20px;
+    border-right: none;
   }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --gutter: 16px;
+  }
+
+  .rail-top {
+    flex-wrap: wrap;
+  }
+
+  .hero h1 {
+    font-size: 1.7rem;
+  }
+
+  .telemetry {
+    flex-direction: column;
+  }
+
+  .telemetry__item {
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .telemetry__item:last-child {
+    border-bottom: none;
+  }
+
+  #spectrum {
+    height: 220px;
+  }
+
+  .panel canvas {
+    height: 180px;
+  }
+
+  .bench-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+
+/* ---------------------------------------------------------------
+   Benchmark page components. Kept in the shared sheet so both pages
+   are styled from one place.
+   --------------------------------------------------------------- */
+
+.bench-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 20px 26px;
+  padding: 24px var(--gutter);
+  border-bottom: 1px solid var(--rule);
+}
+.bench-form fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.bench-form legend {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding: 0 0 6px;
+}
+.bench-form .chips {
+  gap: 5px;
+}
+.bench-run {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.progress-track {
+  flex: 1 1 220px;
+  min-width: 160px;
+  height: 6px;
+  background: var(--rule);
+  position: relative;
+  overflow: hidden;
+}
+.progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  background: var(--armed);
+  transition: width 120ms linear;
+}
+.bench-readout {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.bench-readout b {
+  color: var(--lume);
+  font-weight: 500;
+}
+.bench-chart-wrap {
+  position: relative;
+}
+.bench-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--rack);
+  border: 1px solid var(--dim);
+  color: var(--lume);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  padding: 7px 10px;
+  z-index: 4;
+  white-space: nowrap;
+}
+.bench-modes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 0 0;
+}
+/* Mode switches are a view choice, not the page's primary action, so
+   they take the quiet outline treatment rather than the filled one the
+   global button rule applies. */
+.bench-modes button {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--dim);
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 5px 10px;
+  font-size: 0.74rem;
+}
+.bench-modes button:hover {
+  background: transparent;
+  color: var(--lume);
+  border-color: var(--dim);
+}
+.bench-modes button[aria-pressed="true"] {
+  background: transparent;
+  color: var(--lume);
+  border-color: var(--armed);
+}
+.bench-table th button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.bench-table th[aria-sort="ascending"] button::after {
+  content: " ▲";
+}
+.bench-table th[aria-sort="descending"] button::after {
+  content: " ▼";
+}
+.bench-table td.warn {
+  color: var(--phase-0);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

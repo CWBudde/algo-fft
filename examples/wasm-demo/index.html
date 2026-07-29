@@ -3,33 +3,161 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>algofft WASM FFT Lab</title>
+    <title>Signal Lab — algofft / WASM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght,wdth@0,100..900,62..125&family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="stylesheet" href="style.css" />
+
+    <!--
+      DOM CONTRACT — read this before touching app.js / render.js.
+
+      Ids app.js already binds to (must never be removed or renamed):
+        #status            status readout, gets data-state="ready|error|loading"
+        #wave              waveform canvas
+        #spectrum          hero spectrum canvas (phase-colored)
+        #grid              2D frequency map canvas
+        #size              FFT size <select>
+        #gridSize          2D grid size <select>
+        #freqA             tone A <input type=range>
+        #freqB             tone B <input type=range>
+        #noise             noise <input type=range>
+        #animate           "animate phase" <input type=checkbox>
+        #play              play/loop <button>
+        #randomize         randomize <button>
+        [data-value="freqA"], [data-value="freqB"], [data-value="noise"]
+                            live readout <span>s next to the sliders above
+
+      New ids/attributes for the WP1/WP3/WP4 work landing alongside this:
+        #phaseWheel         .phase-wheel element; JS sets --boot-progress
+                            (0..1 custom property) while streaming, then
+                            sets data-state="ready" to switch to legend mode
+        #telemetryN          resolved FFT size
+        #telemetryWindow     active window function name
+        #telemetryAlgorithm  Algorithm() string the planner actually chose
+        #telemetryTime       measured transform time
+        #telemetryRoundtrip  forward→inverse round-trip error
+        #signalType          signal generator <select> (tone / chirp / impulse / square / saw / am / fm / close-tones)
+        #window              window function <select> (rect / hann / hamming / blackman)
+        #precision            precision toggle <select> (complex64 / complex128)
+        #strategy             kernel strategy <select> (auto / dit / stockham / six-step / eight-step / four-step / bluestein / recursive)
+        #customN               arbitrary-length <input type=number>
+        #nPresets               preset chip container; buttons carry data-n="1024|1000|1009|4096"
+        #reconstruction         inverse-transform reconstruction canvas
+        #reconError              round-trip error readout <span>
+        #convolution             convolution/correlation canvas
+        #convKernel              convolution kernel <select>
+        #magScale                spectrum magnitude scale <select> (db / linear)
+        #freqScale               spectrum frequency scale <select> (linear / log)
+    -->
   </head>
   <body>
-    <div class="page">
+    <div class="rack" id="rack" data-boot="loading">
+      <div class="rail-top">
+        <p class="brand">
+          ALGOFFT <small>· WASM</small>
+        </p>
+        <nav class="site-nav" aria-label="Site">
+          <a href="index.html" aria-current="page">Signal Lab</a>
+          <span class="sep">|</span>
+          <a href="benchmark.html">Benchmarks</a>
+        </nav>
+        <div class="phase-wheel" id="phaseWheel" data-state="loading" role="img" aria-label="Phase legend: magenta 0, amber quarter turn, cyan half turn, violet three-quarter turn. Also the WASM boot indicator.">
+          <div class="phase-wheel__ramp"></div>
+          <div class="phase-wheel__fill"></div>
+          <div class="phase-wheel__hub"><span class="mono" style="font-size:8px;color:var(--dim)">◔</span></div>
+        </div>
+      </div>
+
       <header class="hero">
-        <div>
-          <p class="eyebrow">algofft / wasm</p>
-          <h1>FFT Signal Lab</h1>
+        <div class="hero__text">
+          <p class="eyebrow">GO · WEBASSEMBLY · NO CGO</p>
+          <h1>The whole complex spectrum</h1>
           <p class="lede">
-            Shape a synthetic audio mix, then watch the spectrum snap into
-            place. The FFT runs inside Go on WebAssembly.
+            Most spectrum plots throw the phase away. This one keeps it — hue
+            is phase, height is magnitude. Every transform below runs algofft
+            compiled to WebAssembly, in this tab.
           </p>
         </div>
-        <div class="status" id="status">Initializing WASM…</div>
+        <div class="hero__stage">
+          <span class="status" id="status" data-state="loading">Initializing WASM&hellip;</span>
+          <canvas id="spectrum" width="1200" height="340"></canvas>
+        </div>
       </header>
 
-      <section class="panel">
-        <div class="controls">
-          <div class="control">
+      <div class="telemetry mono" id="telemetry">
+        <span class="telemetry__item">
+          <span class="telemetry__label">n</span>
+          <span class="telemetry__value" id="telemetryN">&mdash;</span>
+        </span>
+        <span class="telemetry__item">
+          <span class="telemetry__label">window</span>
+          <span class="telemetry__value" id="telemetryWindow">&mdash;</span>
+        </span>
+        <span class="telemetry__item">
+          <span class="telemetry__label">algorithm</span>
+          <span class="telemetry__value" id="telemetryAlgorithm">&mdash;</span>
+        </span>
+        <span class="telemetry__item">
+          <span class="telemetry__label">transform</span>
+          <span class="telemetry__value" id="telemetryTime">&mdash;</span>
+        </span>
+        <span class="telemetry__item">
+          <span class="telemetry__label">round-trip</span>
+          <span class="telemetry__value" id="telemetryRoundtrip">&mdash;</span>
+        </span>
+      </div>
+
+      <section class="controls">
+        <div class="control-group">
+          <span class="corner-label">Signal</span>
+          <div class="field">
+            <label for="signalType">Waveform</label>
+            <select id="signalType">
+              <option value="tone" selected>Two tones</option>
+              <option value="chirp">Chirp</option>
+              <option value="impulse">Impulse</option>
+              <option value="square">Square</option>
+              <option value="saw">Sawtooth</option>
+              <option value="am">AM</option>
+              <option value="fm">FM</option>
+              <option value="close">Close tones</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="field-row">
+              <label for="freqA">Tone A</label>
+              <span class="value mono" data-value="freqA">6</span>
+            </div>
+            <input id="freqA" type="range" min="1" max="64" value="6" />
+          </div>
+          <div class="field">
+            <div class="field-row">
+              <label for="freqB">Tone B</label>
+              <span class="value mono" data-value="freqB">20</span>
+            </div>
+            <input id="freqB" type="range" min="4" max="128" value="20" />
+          </div>
+          <div class="field">
+            <div class="field-row">
+              <label for="noise">Noise</label>
+              <span class="value mono" data-value="noise">0.08</span>
+            </div>
+            <input id="noise" type="range" min="0" max="0.4" step="0.01" value="0.08" />
+          </div>
+          <div class="field toggle">
+            <label for="animate">Animate phase</label>
+            <input id="animate" type="checkbox" checked />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <span class="corner-label">Transform</span>
+          <div class="field">
             <label for="size">FFT size</label>
             <select id="size">
               <option value="256">256</option>
@@ -39,7 +167,66 @@
               <option value="4096">4096</option>
             </select>
           </div>
-          <div class="control">
+          <div class="field">
+            <label for="customN">Arbitrary n</label>
+            <div class="field-row">
+              <input id="customN" type="number" min="2" max="1048576" placeholder="e.g. 1009" />
+            </div>
+            <div class="chips" id="nPresets">
+              <button type="button" class="chip" data-n="1024">1024</button>
+              <button type="button" class="chip" data-badge="mixed" data-n="1000">1000</button>
+              <button type="button" class="chip" data-badge="rader" data-n="1009">1009</button>
+              <button type="button" class="chip" data-n="4096">4096</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="strategy">Strategy</label>
+            <select id="strategy">
+              <option value="auto" selected>Auto</option>
+              <option value="dit">DIT</option>
+              <option value="stockham">Stockham</option>
+              <option value="four-step">Four-step</option>
+              <option value="six-step">Six-step</option>
+              <option value="eight-step">Eight-step</option>
+              <option value="bluestein">Bluestein</option>
+              <option value="recursive">Recursive</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="precision">Precision</label>
+            <select id="precision">
+              <option value="64" selected>complex64</option>
+              <option value="128">complex128</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="window">Window</label>
+            <select id="window">
+              <option value="rect" selected>Rectangular</option>
+              <option value="hann">Hann</option>
+              <option value="hamming">Hamming</option>
+              <option value="blackman">Blackman</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <span class="corner-label">Analysis</span>
+          <div class="field">
+            <label for="magScale">Magnitude</label>
+            <select id="magScale">
+              <option value="db" selected>Decibels</option>
+              <option value="linear">Linear</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="freqScale">Frequency</label>
+            <select id="freqScale">
+              <option value="linear" selected>Linear</option>
+              <option value="log">Logarithmic</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="gridSize">2D grid</label>
             <select id="gridSize">
               <option value="32">32 × 32</option>
@@ -48,70 +235,55 @@
               <option value="128">128 × 128</option>
             </select>
           </div>
-          <div class="control">
-            <label for="freqA">Tone A</label>
-            <input id="freqA" type="range" min="1" max="64" value="6" />
-            <span class="value" data-value="freqA">6</span>
+          <div class="field">
+            <label for="convKernel">Convolution kernel</label>
+            <select id="convKernel">
+              <option value="lowpass" selected>Low-pass</option>
+              <option value="highpass">High-pass</option>
+              <option value="edge">Edge detect</option>
+            </select>
           </div>
-          <div class="control">
-            <label for="freqB">Tone B</label>
-            <input id="freqB" type="range" min="4" max="128" value="20" />
-            <span class="value" data-value="freqB">20</span>
+          <div class="actions">
+            <button id="play">Play loop</button>
+            <button id="randomize" class="ghost">Randomize</button>
           </div>
-          <div class="control">
-            <label for="noise">Noise</label>
-            <input
-              id="noise"
-              type="range"
-              min="0"
-              max="0.4"
-              step="0.01"
-              value="0.08"
-            />
-            <span class="value" data-value="noise">0.08</span>
-          </div>
-          <div class="control toggle">
-            <label for="animate">Animate phase</label>
-            <input id="animate" type="checkbox" checked />
-          </div>
-        </div>
-        <div class="actions">
-          <button id="play">Play loop</button>
-          <button id="randomize" class="ghost">Randomize</button>
-          <a href="benchmark.html" class="button ghost">Benchmarks</a>
         </div>
       </section>
 
-      <section class="viz">
-        <div class="card">
-          <div class="card-header">
-            <h2>Waveform</h2>
-            <p>Time domain snapshot.</p>
-          </div>
-          <canvas id="wave" width="800" height="240"></canvas>
+      <section class="panels">
+        <div class="panel">
+          <span class="corner-label">Waveform</span>
+          <p class="panel-note">Time domain snapshot, windowed before transform.</p>
+          <canvas id="wave" width="800" height="220"></canvas>
         </div>
-        <div class="card">
-          <div class="card-header">
-            <h2>Spectrum</h2>
-            <p>Magnitude of the FFT bins.</p>
+        <div class="panel">
+          <span class="corner-label">Reconstruction</span>
+          <p class="panel-note">Inverse of the forward transform, overlaid on the source signal.</p>
+          <canvas id="reconstruction" width="800" height="220"></canvas>
+          <div class="panel-foot">
+            <span>round-trip error <strong id="reconError" class="mono">&mdash;</strong></span>
           </div>
-          <canvas id="spectrum" width="800" height="240"></canvas>
         </div>
-        <div class="card">
-          <div class="card-header">
-            <h2>2D Frequency Map</h2>
-            <p>FFT of a generated spatial texture.</p>
-          </div>
-          <canvas id="grid" width="800" height="320"></canvas>
+        <div class="panel">
+          <span class="corner-label">2D frequency map</span>
+          <p class="panel-note">FFT of a generated spatial texture. Hue is phase, lightness is log magnitude.</p>
+          <canvas id="grid" width="640" height="640"></canvas>
+        </div>
+        <div class="panel">
+          <span class="corner-label">Convolution / correlation</span>
+          <p class="panel-note">FFT-based convolution against a naive O(N·M) reference.</p>
+          <canvas id="convolution" width="800" height="220"></canvas>
         </div>
       </section>
 
-      <footer class="footer">
-        <p>Built with algofft / Go 1.25 / WebAssembly.</p>
+      <footer class="rack-footer mono">
+        <span>algofft · Go · WebAssembly</span>
+        <a href="https://github.com/MeKo-Tech/algo-fft">Source</a>
       </footer>
     </div>
 
     <script src="wasm_exec.js"></script>
+    <script src="render.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
