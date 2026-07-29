@@ -970,6 +970,41 @@ It caught one real defect during the round — the four-operand `vshufps` case
 above — before any test ran. `cmd/measure_correctness` is **bit-identical** to
 the parent commit at every size and both precisions.
 
+**Performance: no change, as the byte-equivalence implies.** Eight interleaved
+ABBA rounds against a pristine worktree at the parent commit, pinned to
+`taskset -c 0`, put all four `Size1024Radix32x32` kernels at 0.98–1.01× — inside
+the noise. Two measurement notes for next time:
+
+- A plain `A,B,A,B` loop showed **+4% on an unchanged control** because one arm
+  always ran on the hotter half of each round. Alternating the order (ABBA)
+  removed it. §2.2 says to interleave; interleaving is not enough, the _order_
+  has to alternate too.
+- Even under ABBA, `dit1024_radix4_avx2` — code this round did not touch, and
+  which the gate proved byte-identical — moved 0.87×, with one round at 0.61×
+  and visibly asymmetric variance between the arms. That is a code-placement or
+  contention artifact, not a result. **Any cross-binary claim smaller than ~15%
+  on this box needs a control benchmark to be believable.**
+
+**The 32×32 codelet is not worth keeping, and the mixing penalty was never why.**
+Measured order-free _within one binary_ (median of 5 rounds, pinned), size 1024
+complex64:
+
+| codelet                      | forward            | inverse            |
+| ---------------------------- | ------------------ | ------------------ |
+| `dit1024_radix4_avx2`        | 849 ns (1.00×)     | 836 ns (1.00×)     |
+| `dit1024_radix4_sse3`        | 4174 ns (4.9×)     | 4696 ns (5.6×)     |
+| `dit1024_radix4_generic`     | 5820 ns (6.9×)     | 5793 ns (6.9×)     |
+| `dit1024_radix32x32_generic` | 6277 ns (7.4×)     | 7432 ns (8.9×)     |
+| `dit1024_radix32x32_avx2`    | **6943 ns (8.2×)** | **8233 ns (9.9×)** |
+
+The AVX2 32×32 kernel is the **slowest candidate at its size — 11% slower than
+its own pure-Go twin**, in both directions. This item hoped the 7.1 µs vs 3.5 µs
+gap was the mixing penalty; it is not. The kernel vectorises only one of its two
+stages (the complex64 forward runs stage 2 scalar, the inverse runs stage 1
+scalar), so it does half its work one complex number at a time whatever the
+encoding. Its registry priority of 30 against radix-4's 90 was correct, and the
+complex128 side was already disabled at `-1`. See the follow-up item in §4.
+
 ---
 
 ## 2. Working method
@@ -1319,6 +1354,20 @@ which invalidates several constants and leaves a few threads hanging.
       The premise this item was written on turned out to be wrong: no `Yn` upper
       half is live across any of the legacy blocks, so no renumbering was needed
       (and none was possible for six of the ten anyway).
+- [ ] **Delete the size-1024 radix-32×32 codelets.** Now that they are uniformly
+      VEX, §1.16 measures `dit1024_radix32x32_avx2` as the **slowest candidate at
+      its size in both directions** — 8.2×/9.9× `dit1024_radix4_avx2` and 11%
+      slower than its own pure-Go twin — because only one of its two stages is
+      vectorised. It is already shadowed (priority 30 vs 90 at complex64,
+      disabled at `-1` for complex128), so nothing selects it. Per §2.4's
+      replace-don't-shadow rule that makes ~2500 lines of assembly plus a
+      `PrepareTwiddle` layout dead weight: remove `avx2_f32_size1024_radix32x32.s`,
+      `avx2_f64_size1024_radix32x32.s`, their `decl.go` declarations, both
+      `specs.go` rows and the tests. Consumers are registry-only — there is no
+      `KernelStrategy` dispatch site to untangle. Check `·bitrev32<>` is not
+      referenced across files before deleting (it is `<>`-scoped and defined once
+      per file, so it should not be). The pure-Go `dit1024_radix32x32_generic`
+      loses to `dit1024_radix4_generic` too and is a candidate in the same sweep.
 - [ ] **134 YMM/ZMM-using functions never execute `VZEROUPPER`.** Separate from
       the encoding sweep and untested so far: these return with the upper state
       dirty, so the cost lands on the _caller_ — Go's own SSE2-generated float

@@ -25,7 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   symbols across the `internal/kernels` and `internal/fft` test binaries decode
   identically to the previous commit under a per-symbol binutils-`objdump`
   normalizer, and `cmd/measure_correctness` is bit-identical at every size and
-  both precisions.
+  both precisions. **No performance change** (0.98–1.01× over eight interleaved
+  pinned rounds), which the byte-equivalence implies — the hypothesis that the
+  size-1024 radix-32×32 codelet's poor showing was a mixing penalty was wrong.
+  Measured within one binary, that codelet is the slowest candidate at its size
+  in both directions (8.2×/9.9× `dit1024_radix4_avx2`, and 11% slower than its
+  own pure-Go twin) because only one of its two stages is vectorised. It is
+  already shadowed in the registry; removing it is tracked as a follow-up.
 
 ### Removed
 
