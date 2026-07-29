@@ -6,28 +6,59 @@ import (
 	"sync"
 
 	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
-	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
-// The 384-point codelets decompose into three 128-point sub-FFTs. The sub-FFT
-// twiddle table depends only on the fixed sub-size (128), so it is computed once
-// at package load rather than on every transform (it is read-only and shared
-// across all calls); W_128^k == W_384^(3k), so it is exactly the stride-3 gather
-// from the 384-point table it replaces. The per-call output and scratch buffers
-// are pooled: the codelet runs as a synchronous leaf (its 128-point sub-FFTs are
-// assembly, never re-entering Go codelets), so recycling the buffers keeps the
-// codelet allocation-free after warm-up while staying safe for concurrent use.
+// The 384-point codelets decompose into three 128-point sub-FFTs, which run on
+// the size-generic 256-bit radix-4 kernel: 128 = 2*4^3, so that kernel runs its
+// radix-4 stages to 64 and combines the two halves with a radix-2 tail — a
+// radix-4-then-2 at this size, by construction rather than by having a file
+// named for it.
+//
+// That kernel takes a *prepared* twiddle table (packed per-stage planes, length
+// n+4) rather than the plain length-n DIT table, and it conjugates at prepare
+// time, so forward and inverse need separate tables. All four depend only on the
+// fixed sub-size, so they are built once at package load rather than per
+// transform; they are read-only and shared across all calls.
+//
+// The per-call output and scratch buffers are pooled: the codelet runs as a
+// synchronous leaf (its 128-point sub-FFTs go straight to assembly, never
+// re-entering the codelet registry), so recycling the buffers keeps the codelet
+// allocation-free after warm-up while staying safe for concurrent use.
 //
 //nolint:gochecknoglobals
 var (
-	dit384Sub128TwiddleC64  = mathpkg.ComputeTwiddleFactors[complex64](128)
-	dit384OutPoolC64        = sync.Pool{New: func() any { return new([384]complex64) }}
-	dit384SubScratchPoolC64 = sync.Pool{New: func() any { return new([128]complex64) }}
+	dit384Sub128FwdTwiddleC64 = newDIT384Sub128TwiddleC64(false)
+	dit384Sub128InvTwiddleC64 = newDIT384Sub128TwiddleC64(true)
+	dit384OutPoolC64          = sync.Pool{New: func() any { return new([384]complex64) }}
+	dit384SubScratchPoolC64   = sync.Pool{New: func() any { return new([128]complex64) }}
 
-	dit384Sub128TwiddleC128  = mathpkg.ComputeTwiddleFactors[complex128](128)
-	dit384OutPoolC128        = sync.Pool{New: func() any { return new([384]complex128) }}
-	dit384SubScratchPoolC128 = sync.Pool{New: func() any { return new([128]complex128) }}
+	dit384Sub128FwdTwiddleC128 = newDIT384Sub128TwiddleC128(false)
+	dit384Sub128InvTwiddleC128 = newDIT384Sub128TwiddleC128(true)
+	dit384OutPoolC128          = sync.Pool{New: func() any { return new([384]complex128) }}
+	dit384SubScratchPoolC128   = sync.Pool{New: func() any { return new([128]complex128) }}
 )
+
+// dit384SubSize is the sub-FFT length of the 128x3 decomposition. It is also the
+// stride between the three sub-FFT rows.
+const dit384SubSize = 128
+
+// newDIT384Sub128TwiddleC64 builds the packed radix-4 twiddle table for one
+// direction of the 128-point sub-FFT.
+func newDIT384Sub128TwiddleC64(inverse bool) []complex64 {
+	table := make([]complex64, twiddleSizeRadix4AVX2(dit384SubSize))
+	prepareTwiddleRadix4AVX2(dit384SubSize, inverse, table)
+
+	return table
+}
+
+// newDIT384Sub128TwiddleC128 is the complex128 twin of
+// newDIT384Sub128TwiddleC64.
+func newDIT384Sub128TwiddleC128(inverse bool) []complex128 {
+	table := make([]complex128, twiddleSizeRadix4AVX2Complex128(dit384SubSize))
+	prepareTwiddleRadix4AVX2Complex128(dit384SubSize, inverse, table)
+
+	return table
+}
 
 // forwardDIT384MixedComplex64 computes a 384-point forward FFT using the
 // 128×3 decomposition (radix-3 first, then 128-point FFTs).
@@ -50,7 +81,7 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	amd64.ApplyTwiddle384Complex64Asm(work, twiddle)
 
 	// Prepare for 128-point sub-FFTs (twiddle precomputed, buffers pooled)
-	twiddle128 := dit384Sub128TwiddleC64
+	twiddle128 := dit384Sub128FwdTwiddleC64
 
 	subPtr := dit384SubScratchPoolC64.Get().(*[128]complex64) //nolint:forcetypeassert
 	defer dit384SubScratchPoolC64.Put(subPtr)
@@ -65,7 +96,7 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	// Step 3: Compute 3 independent 128-point FFTs.
 	for k2 := range 3 {
 		rowStart := k2 * stride
-		if !amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(
+		if !forwardRadix4AVX2Complex64(
 			fftOut[rowStart:rowStart+stride],
 			work[rowStart:rowStart+stride],
 			twiddle128, subScratch,
@@ -108,7 +139,7 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	// Prepare for 128-point sub-IFFTs (twiddle precomputed, buffers pooled)
-	twiddle128 := dit384Sub128TwiddleC64
+	twiddle128 := dit384Sub128InvTwiddleC64
 
 	subPtr := dit384SubScratchPoolC64.Get().(*[128]complex64) //nolint:forcetypeassert
 	defer dit384SubScratchPoolC64.Put(subPtr)
@@ -118,7 +149,7 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 	// Step 2: Compute 3 independent 128-point IFFTs.
 	for k2 := range 3 {
 		rowStart := k2 * stride
-		if !amd64.InverseAVX2Size128Radix4Then2Complex64Asm(
+		if !inverseRadix4AVX2Complex64(
 			work[rowStart:rowStart+stride],
 			ifftIn[rowStart:rowStart+stride],
 			twiddle128, subScratch,
@@ -164,7 +195,7 @@ func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	amd64.ApplyTwiddle384Complex128Asm(scratch, twiddle)
 
 	// Prepare for 128-point sub-FFTs (twiddle precomputed, buffers pooled)
-	twiddle128 := dit384Sub128TwiddleC128
+	twiddle128 := dit384Sub128FwdTwiddleC128
 
 	subPtr := dit384SubScratchPoolC128.Get().(*[128]complex128) //nolint:forcetypeassert
 	defer dit384SubScratchPoolC128.Put(subPtr)
@@ -179,7 +210,7 @@ func forwardDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	// Step 3: Compute 3 independent 128-point FFTs
 	for k2 := range 3 {
 		rowStart := k2 * stride
-		if !amd64.ForwardAVX2Size128Radix2Complex128Asm(
+		if !forwardRadix4AVX2Complex128(
 			fftOut[rowStart:rowStart+stride],
 			scratch[rowStart:rowStart+stride],
 			twiddle128, subScratch,
@@ -222,7 +253,7 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	}
 
 	// Prepare for 128-point sub-IFFTs (twiddle precomputed, buffers pooled)
-	twiddle128 := dit384Sub128TwiddleC128
+	twiddle128 := dit384Sub128InvTwiddleC128
 
 	subPtr := dit384SubScratchPoolC128.Get().(*[128]complex128) //nolint:forcetypeassert
 	defer dit384SubScratchPoolC128.Put(subPtr)
@@ -232,7 +263,7 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	// Step 2: Compute 3 independent 128-point IFFTs
 	for k2 := range 3 {
 		rowStart := k2 * stride
-		if !amd64.InverseAVX2Size128Radix2Complex128Asm(
+		if !inverseRadix4AVX2Complex128(
 			work[rowStart:rowStart+stride],
 			ifftIn[rowStart:rowStart+stride],
 			twiddle128, subScratch,

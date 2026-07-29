@@ -5,8 +5,8 @@ This roadmap is the source of truth for status and direction.
 - **§1** — where the library stands, and a condensed record of what has landed.
 - **§2** — the working method every item below is held to (correctness gates,
   measurement protocol, hardware tiers, standing lessons).
-- **§3–§9** — the open work, in execution order. §3 gates the v1.0 tag in §4;
-  everything after it is post-tag.
+- **§3–§9** — the open work, in execution order. §3 is closed; §4–§8 are the
+  performance and coverage rounds, and the v1.0 tag in §9 comes after them.
 - **§10** — post-v1.0 wishlist.
 
 Completed items are compressed to their outcome, the numbers that justify a
@@ -24,16 +24,18 @@ into `docs/IMPLEMENTATION_INVENTORY.md` via `go generate ./internal/kernels/...`
 
 The v1.0 engineering work is **complete** — the API is settled and nothing in
 the remaining backlog changes a signature. The correctness debt in §3 that
-gated the tag is now **closed** (§1.13, §1.14), so what remains before tagging
-is release mechanics only (§4); §5 onward is post-v1.0 optimization and
-coverage.
+gated the tag is now **closed** (§1.13, §1.14), so nothing is left that a
+signature change could fix. The tag has nevertheless been moved behind the
+performance and coverage work in §4–§8: §9 is now the last section before the
+wishlist, and shipping waits on those rounds rather than on release mechanics
+alone.
 
 **Where the library sits against others** (i7-1255U, `go-fft-bench` @ `a1fa607`,
 v0.7.0 baseline): powers of two are 0.63× FFTW3 by geomean and ~8× the rest of
 the Go field. Non-power-of-two lengths were far weaker and are where most of
 the 2026-07 work went — 44100 has gone from losing to gonum (4.00 ms vs
 2.59 ms) to 781 µs, against FFTW3's 236 µs. The remaining gap is concentrated
-in the mixed-radix engine (§6) and a handful of power-of-two soft spots (§5).
+in the mixed-radix engine (§5) and a handful of power-of-two soft spots (§4).
 
 ### 1.1 v1.0 engineering (2026-07)
 
@@ -158,7 +160,7 @@ no deprecation shims, no transition aliases.
   an FMA-masked VM falls back instead of faulting. _Performance was never
   demonstrated_ — three benchstat attempts were swamped by thermal throttling;
   treat that pass as instruction-count and accuracy work. Remaining scope is in
-  §5.
+  §4.
 - **Codelet priority retune.** `BenchmarkCodeletCandidates64/128` exposed
   systematic mis-selection: the priority-favored six-step / radix-32×32 /
   radix-16 / radix-8 codelets lost to the plain radix-4 family at every size
@@ -173,7 +175,7 @@ no deprecation shims, no transition aliases.
   −15…−47% vs the generic codelets they displace.
 - **NEON ladder completed 4 → 32768** in both precisions across three subagent
   delegation rounds, matching the amd64 SSE3 tier. Priorities are
-  ladder-mirrored, **not** tuned — QEMU timing is meaningless (§7).
+  ladder-mirrored, **not** tuned — QEMU timing is meaningless (§6).
 - **SSE2 tier breadth**: size-2048, 4096 and 8192 kernels in both precisions
   (1.4–2.0× over the generic codelets), plus a registry entry for the
   already-existing SSE3 size-256 complex64 kernel, which had been wired into
@@ -477,7 +479,7 @@ the registry calls them — the six-step row FFTs, the size-384 decomposition,
 and the `KernelStrategy` dispatch in
 `internal/fft/kernels_amd64_size_specific.go`, which selects by strategy rather
 than through the registry and so has no way to obtain a prepared twiddle table
-(§5).
+(§4).
 
 **The port-5 pattern does not transfer to the fused mixed-radix stages.** Tried
 and reverted 2026-07-28. Those kernels run the same three-shuffle
@@ -692,7 +694,7 @@ already provides such a pair, read it before trusting any single delta. Serial
 before/after runs on this laptop drifted by more than the effect being chased
 (§2.3); only the interleaved two-binary A/B was stable.
 
-Not fixed, moved to §5: the c128 sub-FFT still runs radix-2, because the AVX2
+Not fixed, moved to §4: the c128 sub-FFT still runs radix-2, because the AVX2
 c128 radix-4-then-2 that §3 assumed existed does not.
 
 ### 1.13 The Bluestein sub-FFT never reached the registry (2026-07-29)
@@ -827,7 +829,7 @@ measurement does not support the claim.
 Only the AVX2 row is filled in. SSE/AVX-512/NEON stay off: §2.1 rule 5 forbids
 landing a route unmeasured on its own tier, and of the four only AVX2 is
 measurable here (§2.3). Their uncovered range is one octave wider, since their
-codelet ladder stops at 32768 — so that is a real follow-up, in §7.
+codelet ladder stops at 32768 — so that is a real follow-up, in §6.
 
 Side effects worth noting:
 
@@ -927,6 +929,13 @@ Each of these cost a real investigation. The assembly ones are also in
   symptom was two builds measuring the _same_ — which is the same tell as §1.12's
   "an optimisation that changes nothing". Before profiling a path that looks
   slow, check that the fast version of it runs at all.
+- **A size-generic kernel silently closes per-size gaps the plan still lists as
+  open.** §4's opening item asked for a file that will never exist; the kernel
+  is `avx2_f64_radix4.s`, which covers every `n = 2*4^k` as a radix-4-then-2.
+  Ask "does the generic kernel's shape rule cover n?", never "is there a file
+  named for it?" — a name-based search returns the stale premise as
+  confirmation. This is the same failure as the two below, one level up: the
+  plan file itself carried the wrong assumption for a week.
 - **A dispatch toggle's stated reason must be re-derived, not inherited.** The
   packed-Stockham toggle claims the codelet path supersedes it; every codelet is
   registered as `KernelDIT`, so the strategy check upstream had already excluded
@@ -972,48 +981,66 @@ section gated the tag.
 codelet registry) and §1.14 (packed Stockham was compiled out of SIMD builds).
 They turned out to be the same bug twice: a fast path that existed, was
 correct, and was unreachable, in both cases behind a dispatch decision whose
-stated justification had never been re-derived. Nothing here blocks §4.
-
-## 4. Ship v1.0
-
-The API-shape work that actually gated the tag landed in §1.2, so what remains
-is §3 plus the release mechanics. Everything from §5 on is post-tag: it changes
-speed, not signatures, and holding a v1.0 for performance parity with FFTW3
-would hold it indefinitely.
-
-- [ ] **Tag `v1.0.0`** with GitHub release notes. Issue/PR templates are in
-      place.
-- [ ] **Put an external comparison in the release checklist.** Every finding in
-      §1.6–§1.9 was invisible to the internal suite, because "faster than last
-      week" and "faster than FFTW3" are different questions, and only the second
-      notices that a whole class of lengths never got the attention the
-      power-of-two ladder did. Running `go-fft-bench` before a tag — even
-      manually, even on one laptop — is cheap next to shipping another release
-      in which 44100 loses to gonum. The harness refuses to start on a loaded
-      machine, so the results are at least not accidentally measuring a compile
-      storm.
+stated justification had never been re-derived. Nothing here blocks §9.
 
 ---
 
-## 5. amd64: finish the radix-4 round and the remaining soft spots
+## 4. amd64: finish the radix-4 round and the remaining soft spots
 
 The 256-bit radix-4 kernels (§1.9) changed the cost of every power-of-two size,
 which invalidates several constants and leaves a few threads hanging.
 
-- [ ] **No AVX2 complex128 radix-4-then-2 kernel at size 128.** The size-384
-      c128 codelet runs its three 128-point sub-FFTs on
-      `ForwardAVX2Size128Radix2Complex128Asm` — plain radix-2, seven stages —
-      while the c64 side uses a radix-4-then-2. §3 recorded this as an oversight
-      on the assumption that the c128 radix-4-then-2 was already written; it is
-      not. It exists for SSE2 (`dit128_radix4_then2_sse2`) and AVX-512, and the
-      AVX2 tier has only the radix-2. So the 384 path is already calling the
-      best AVX2-level kernel available, and the registry agrees
-      (`dit128_radix2_avx2` at priority 20 over the SSE2 radix-4-then-2 at 18).
-      Calling the SSE2 kernel instead is not a shortcut: it would put a
-      legacy-SSE callee inside an all-VEX kernel. Writing the missing kernel is
-      the fix — template from `avx2_f32_size128_radix4_then2.s` for the AVX2
-      idiom and from the AVX-512 c128 variant for the radix-4 form at this
-      precision. It lifts size 128 as well as 384.
+- [x] **The size-384 sub-FFTs were bound to superseded 128-point kernels**
+      (2026-07-29). This item used to read "no AVX2 complex128 radix-4-then-2
+      kernel at size 128 — writing it is the fix". **The kernel already
+      existed.** §1.9 had replaced the per-size radix-4 family with the
+      size-generic `avx2_f64_radix4.s`, and 128 = 2·4³, so that kernel runs its
+      radix-4 stages to 64 and combines with a radix-2 tail — a radix-4-then-2
+      at this size, by construction. It is registered as `dit128_radix4_avx2`
+      (priority 90, above `dit128_radix2_avx2` at 20 in the same tier), size 128
+      was already lifted 367 → 129 ns, and `TestRadix4AVX2Complex128Ranking` was
+      already asserting the ordering at n = 128. The item survived because it
+      was phrased in **file names**, and no file is named
+      `avx2_f64_size128_radix4_then2.s` — a name-based search reproduces the
+      stale premise instead of correcting it (§2.4).
+
+      What was actually open was **binding**, at the one call site that does not
+      go through the registry: `dit_384_decomp_128x3_amd64_asm.go` calls its
+      128-point sub-FFT symbol directly, and **both** precisions were on a
+      superseded kernel — c128 on the plain radix-2, and c64 on the _pre-§1.9
+      XMM-width_ `avx2_f32_size128_radix4_then2.s` (320 ns against the new
+      kernel's 88). So the c64 side, which §1.12 had signed off because its
+      kernel was _named_ radix-4-then-2, was the larger of the two misses. It
+      had not been switched because the generic kernel wants a prepared twiddle
+      table rather than the plain length-n one — trivial to supply here, since
+      the sub-size is a constant, and the four tables (two precisions × two
+      directions) are built once at package load.
+
+      No new assembly, no spec-table row. Measured, `benchstat` n = 6 on the
+      laptop:
+
+      | cell         | before | after | delta |
+      | ------------ | -----: | ----: | ----: |
+      | c64 forward  |   1601 |   644 |  −60% |
+      | c64 inverse  |   2297 |   806 |  −65% |
+      | c128 forward |   2284 |   916 |  −60% |
+      | c128 inverse |   2613 |  1115 |  −57% |
+
+      Geomean −58%, zero-alloc preserved. Far outside §1.12's ~15% noise floor
+      here, and the free identical-code control pair (`generic`/`avx2`, the same
+      function registered twice) sat within 5% of itself in the new run.
+
+- [ ] **The six-step row FFTs are still on the pre-§1.9 128-point kernel.**
+      Found while closing the item above, and it is the same fix again: six call
+      sites in `dit_16384_sixstep_amd64_avx2.go` (lines 50/64/112/126) and
+      `dit_8192_sixstep_64x128_amd64_avx2.go` (83/162) call
+      `{Forward,Inverse}AVX2Size128Radix4Then2Complex64Asm` for their row
+      transforms — the XMM-width kernel at 320 ns where the generic one is 88.
+      Harder than the 384 case only in that the row FFTs run in-place with a
+      per-row twiddle table, so check the prepared table can be hoisted the same
+      way before assuming the win transfers. These two files are also the last
+      non-test callers of that `.s` file apart from the `KernelStrategy`
+      dispatch below; clearing all three is what lets it be deleted per §1.9.
 - [ ] **Re-measure the plan-level c64/c128 ratio and the FFTW comparison.** The
       c64/c128 ratio ran 1.10, 1.02, 1.14, 1.07, 1.08 across 1024–16384 against
       1.6–2.1× at 256/512 — because every codelet serving that band was
@@ -1047,7 +1074,7 @@ which invalidates several constants and leaves a few threads hanging.
 - [ ] **The n = 2048 local minimum.** 0.29× FFTW3 forward, 0.31× inverse — the
       worst power-of-two point in the sweep, with 1024 (0.43×) and 4096 (0.45×)
       either side of it. Re-check against the new radix-4 kernel before
-      investigating further; the AVX-512 item in §7 mentions reclaiming 2048,
+      investigating further; the AVX-512 item in §6 mentions reclaiming 2048,
       but this is the AVX2 tier and independent of it.
 - [ ] **Make the 10 remaining mixed functions uniformly VEX.** The sweep left
       `Forward/InverseAVX2Complex64Asm`, both `AVX2Stockham` pairs and the
@@ -1087,7 +1114,7 @@ which invalidates several constants and leaves a few threads hanging.
 
 ---
 
-## 6. The mixed-radix engine
+## 5. The mixed-radix engine
 
 Still the weak link against FFTW3 despite the −30% rounds in §1.7: 44100 sits
 at 781 µs against 236 µs. The fused stage kernels closed the dispatch and
@@ -1134,7 +1161,7 @@ ends.
 
 ---
 
-## 7. Coverage on other ISAs
+## 6. Coverage on other ISAs
 
 - [ ] **NEON priority tuning on real arm64 hardware.** The size-specific ladder
       now runs 4 → 32768 in both precisions, but every priority from 512 up was
@@ -1213,7 +1240,7 @@ ends.
 
 ---
 
-## 8. Throughput and scale
+## 7. Throughput and scale
 
 Opt-in parallelism and layout work. All of it keeps the single-threaded,
 zero-allocation default.
@@ -1249,7 +1276,7 @@ zero-allocation default.
 
 ---
 
-## 9. DSP layer
+## 8. DSP layer
 
 - [ ] **Buffer reuse in one-shot DSP helpers.** The one-shots allocate 5
       temporaries per call; route them through the pooled resident-cache scratch
@@ -1276,6 +1303,29 @@ zero-allocation default.
 
 ---
 
+## 9. Ship v1.0
+
+The API-shape work that actually gated the tag landed in §1.2 and the
+correctness debt closed in §3, so nothing here is blocked on code that changes
+a signature. What this section now waits on is §4–§8: none of it changes the
+API, but the mixed-radix gap against FFTW3 (§5) and the open power-of-two soft
+spots (§4) are wide enough that tagging over them would ship a v1.0 whose
+performance story needs an asterisk.
+
+- [ ] **Tag `v1.0.0`** with GitHub release notes. Issue/PR templates are in
+      place.
+- [ ] **Put an external comparison in the release checklist.** Every finding in
+      §1.6–§1.9 was invisible to the internal suite, because "faster than last
+      week" and "faster than FFTW3" are different questions, and only the second
+      notices that a whole class of lengths never got the attention the
+      power-of-two ladder did. Running `go-fft-bench` before a tag — even
+      manually, even on one laptop — is cheap next to shipping another release
+      in which 44100 loses to gonum. The harness refuses to start on a loaded
+      machine, so the results are at least not accidentally measuring a compile
+      storm.
+
+---
+
 ## 10. Post-v1.0 future
 
 **Features**: DCT, Hilbert transform, STFT/spectrograms, audio/image examples,
@@ -1283,7 +1333,7 @@ Gonum ecosystem integration, optional GPU backends (kept out of the pure-Go
 core).
 
 **Community**: `CODE_OF_CONDUCT.md`, Dependabot, native ARM64 CI runner
-(unblocks the NEON benchmarking items in §7).
+(unblocks the NEON benchmarking items in §6).
 
 **Explicitly kept as-is** (reviewed, deliberate): the benchmark-cited selection
 thresholds in `internal/planner` (compile-time constants are fine
