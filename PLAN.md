@@ -1030,17 +1030,76 @@ which invalidates several constants and leaves a few threads hanging.
       here, and the free identical-code control pair (`generic`/`avx2`, the same
       function registered twice) sat within 5% of itself in the new run.
 
-- [ ] **The six-step row FFTs are still on the pre-§1.9 128-point kernel.**
-      Found while closing the item above, and it is the same fix again: six call
-      sites in `dit_16384_sixstep_amd64_avx2.go` (lines 50/64/112/126) and
-      `dit_8192_sixstep_64x128_amd64_avx2.go` (83/162) call
+- [x] **The six-step row FFTs were still on the pre-§1.9 128-point kernel**
+      (2026-07-29). Found while closing the item above, and it was the same fix
+      again: six call sites in `dit_16384_sixstep_amd64_avx2.go` and
+      `dit_8192_sixstep_64x128_amd64_avx2.go` called
       `{Forward,Inverse}AVX2Size128Radix4Then2Complex64Asm` for their row
       transforms — the XMM-width kernel at 320 ns where the generic one is 88.
-      Harder than the 384 case only in that the row FFTs run in-place with a
-      per-row twiddle table, so check the prepared table can be hoisted the same
-      way before assuming the win transfers. These two files are also the last
-      non-test callers of that `.s` file apart from the `KernelStrategy`
-      dispatch below; clearing all three is what lets it be deleted per §1.9.
+
+      The two worries did not materialise. **In-place is fine**: the generic
+      kernel is a registered codelet at size 128 and `TestInPlaceAllCodelets64`
+      already sweeps `dst == src` for it, so `row, row` needed no thought.
+      **The per-row twiddle hoists better than in the 384 case**: the six-step
+      files were gathering their length-128 row table out of the caller's
+      length-n table on _every_ transform (a stride-128 loop at 16384, stride-64
+      at 8192, four such loops across the two files). Two package-load tables —
+      `sixStepRow128{Fwd,Inv}TwiddleC64`, forward and inverse separate because
+      `prepareTwiddleRadix4AVX2` conjugates at prepare time — replace all four,
+      so the swap _removes_ per-call work rather than adding a table.
+
+      No new assembly. Measured, `benchstat` n = 6, two test binaries
+      interleaved with the order rotated per round, pinned to one core:
+
+      | cell            | before | after | delta |
+      | --------------- | -----: | ----: | ----: |
+      | 16384 forward   |  141.3 |  70.9 |  −50% |
+      | 16384 inverse   |  156.6 |  71.9 |  −54% |
+      | 8192 forward    |   85.9 |  68.0 |  −21% |
+      | 8192 inverse    |  100.2 |  69.7 |  −30% |
+
+      (µs, c64.) Geomean −33%, zero-alloc preserved. The null control
+      (`ForwardDIT16384Radix4AVX2_Complex64`, code the change cannot reach) sat
+      at p = 1.000, which is what makes the ±15–47% spread on the old arm
+      readable at all. No inverse benchmark existed for either six-step; both
+      were added _before_ the baseline binary was built, so the inverse side is
+      measured rather than assumed.
+
+      Two things this did **not** do. The size-64 row kernels in the 8192/4096
+      files stay — that symbol is still the registry incumbent at n = 64 c64, so
+      swapping it is a separate benchmark, not a cleanup. And the `.s` file is
+      **still not deletable**: the `KernelStrategy` dispatch below
+      (`internal/fft/asm_amd64.go:158,246`) is now its only non-test caller, so
+      that item alone gates the deletion.
+
+      **It also made `TestRadix4AVX2Ranking` flaky, which is the interesting
+      part.** The test fails the radix-4 kernel if it measures more than 1.5×
+      the fastest codelet at that size — so the tolerance it actually grants is
+      relative to the _runner-up_. Speeding the six-step up at n = 16384 pulled
+      the runner-up from ~141 µs to ~60 µs, which tightened the contention
+      headroom on radix-4 from ~211 µs to ~90 µs without a line of the test
+      changing. One `go test ./...` then read radix-4 at 86 µs against six-step
+      at 56 and called it a regression; the gated sweep on the same tree says
+      26.3 vs 59.9 µs, so radix-4 still wins by 2.3× and the ranking was simply
+      contended. The baseline tree passes the same parallel run, so this was
+      genuinely introduced here rather than pre-existing.
+
+      Fixed by re-measuring before failing (`rankingAttempts = 3`): a real
+      regression reproduces on every pass, a contended window does not. Note
+      the failure mode the retry addresses — a burst covering all five rounds
+      of _one_ candidate and none of the next inflates a single codelet rather
+      than the group, so it surfaces as a ranking change, not as uniformly
+      slower numbers. Best-of-N within a pass cannot see that; only a repeated
+      pass can. **A speedup can break a threshold test that measures nothing it
+      touched**, whenever the threshold is expressed relative to a peer.
+
+      Note what this does and does not move at the plan level: the generic
+      radix-4 codelet already outranks the six-step entries in the registry
+      (priority 90 against 35) at c64 4096/8192/16384, so nothing that goes
+      through the registry changes. The win lands on the forced-`KernelSixStep`
+      route — which is exactly the population §1.13/§1.14 are about, a correct
+      path that had quietly stopped being the fast one.
+
 - [ ] **Re-measure the plan-level c64/c128 ratio and the FFTW comparison.** The
       c64/c128 ratio ran 1.10, 1.02, 1.14, 1.07, 1.08 across 1024–16384 against
       1.6–2.1× at 256/512 — because every codelet serving that band was

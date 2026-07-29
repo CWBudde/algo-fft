@@ -69,18 +69,12 @@ func forwardDIT8192SixStep64x128AVX2Complex64(dst, src, twiddle, scratch []compl
 		}
 	}
 
-	// Precompute row twiddles for size-128 FFT
-	var rowTwiddle128 [128]complex64
-	for k := range 128 {
-		rowTwiddle128[k] = twiddle[k*rows]
-	}
-
 	var rowScratch128 [128]complex64
 
-	// Step 4: 64 parallel FFT-128 using AVX2
+	// Step 4: 64 parallel FFT-128 using the size-generic radix-4 kernel
 	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
-		if !amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle128[:], rowScratch128[:]) {
+		if !forwardRadix4AVX2Complex64(row, row, sixStepRow128FwdTwiddleC64, rowScratch128[:]) {
 			return false
 		}
 	}
@@ -148,18 +142,12 @@ func inverseDIT8192SixStep64x128AVX2Complex64(dst, src, twiddle, scratch []compl
 		}
 	}
 
-	// Precompute row twiddles for size-128 IFFT
-	var rowTwiddle128 [128]complex64
-	for k := range 128 {
-		rowTwiddle128[k] = twiddle[k*rows]
-	}
-
 	var rowScratch128 [128]complex64
 
-	// Step 4: 64 parallel IFFT-128 using AVX2
+	// Step 4: 64 parallel IFFT-128 using the size-generic radix-4 kernel
 	for r := range rows {
 		row := work2[r*cols : (r+1)*cols]
-		if !amd64.InverseAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle128[:], rowScratch128[:]) {
+		if !inverseRadix4AVX2Complex64(row, row, sixStepRow128InvTwiddleC64, rowScratch128[:]) {
 			return false
 		}
 	}

@@ -6,13 +6,41 @@ import (
 	"github.com/cwbudde/algo-fft/internal/asm/amd64"
 )
 
+// The row FFTs of the six-step decompositions run at a fixed sub-size of 128,
+// so the twiddle table the size-generic radix-4 kernel wants can be prepared
+// once at package load instead of gathered from the caller's length-n table on
+// every transform. 128 = 2·4³, so that kernel runs its radix-4 stages to 64 and
+// combines with a radix-2 tail — a radix-4-then-2 at this size by construction
+// rather than by having a file named for it.
+//
+// The table is the packed per-stage plane layout of prepareTwiddleRadix4AVX2,
+// length n+4, and it conjugates at prepare time — so forward and inverse need
+// separate tables. Shared with dit_8192_sixstep_64x128_amd64_avx2.go.
+//
+//nolint:gochecknoglobals // twiddle tables, built once at package load
+var (
+	sixStepRow128FwdTwiddleC64 = newSixStepRow128TwiddleC64(false)
+	sixStepRow128InvTwiddleC64 = newSixStepRow128TwiddleC64(true)
+)
+
+// sixStepRow128Size is the row-FFT length shared by the 8192 (64×128) and
+// 16384 (128×128) six-step decompositions.
+const sixStepRow128Size = 128
+
+func newSixStepRow128TwiddleC64(inverse bool) []complex64 {
+	table := make([]complex64, twiddleSizeRadix4AVX2(sixStepRow128Size))
+	prepareTwiddleRadix4AVX2(sixStepRow128Size, inverse, table)
+
+	return table
+}
+
 // forwardDIT16384SixStepAVX2Complex64 computes a 16384-point forward FFT using the
 // six-step (128×128 matrix) algorithm with AVX2-accelerated operations.
 //
 // This implementation uses:
 // - AVX2 assembly for transpose operations (Steps 1, 6)
 // - AVX2 assembly for fused transpose+twiddle (Steps 3+4)
-// - Existing ForwardAVX2Size128Radix4Then2Complex64Asm kernel (radix-4-then-2) for row FFTs (Steps 2, 5).
+// - The size-generic 256-bit radix-4 kernel for the row FFTs (Steps 2, 5).
 func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	const (
 		n = 16384
@@ -36,18 +64,12 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 		return false
 	}
 
-	// Precompute row twiddles for size-128 FFT (stride by 128 to get W_128^k from W_16384^(k*128))
-	var rowTwiddle [128]complex64
-	for k := range m {
-		rowTwiddle[k] = twiddle[k*m]
-	}
-
 	var rowScratch [128]complex64
 
-	// Step 2: Row FFTs using size-128 AVX2 mixed-radix kernel (128 FFTs of size 128)
+	// Step 2: Row FFTs using the size-generic radix-4 kernel (128 FFTs of size 128)
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !forwardRadix4AVX2Complex64(row, row, sixStepRow128FwdTwiddleC64, rowScratch[:]) {
 			return false
 		}
 	}
@@ -58,10 +80,10 @@ func forwardDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 		return false
 	}
 
-	// Step 5: Row FFTs using size-128 AVX2 mixed-radix kernel (128 FFTs of size 128)
+	// Step 5: Row FFTs using the size-generic radix-4 kernel (128 FFTs of size 128)
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !forwardRadix4AVX2Complex64(row, row, sixStepRow128FwdTwiddleC64, rowScratch[:]) {
 			return false
 		}
 	}
@@ -98,18 +120,12 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 		return false
 	}
 
-	// Precompute row twiddles
-	var rowTwiddle [128]complex64
-	for k := range m {
-		rowTwiddle[k] = twiddle[k*m]
-	}
-
 	var rowScratch [128]complex64
 
-	// Step 2: Row IFFTs using size-128 AVX2 mixed-radix kernel
+	// Step 2: Row IFFTs using the size-generic radix-4 kernel
 	for r := range m {
 		row := dst[r*m : (r+1)*m]
-		if !amd64.InverseAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !inverseRadix4AVX2Complex64(row, row, sixStepRow128InvTwiddleC64, rowScratch[:]) {
 			return false
 		}
 	}
@@ -120,10 +136,10 @@ func inverseDIT16384SixStepAVX2Complex64(dst, src, twiddle, scratch []complex64)
 		return false
 	}
 
-	// Step 5: Row IFFTs using size-128 AVX2 mixed-radix kernel
+	// Step 5: Row IFFTs using the size-generic radix-4 kernel
 	for r := range m {
 		row := work[r*m : (r+1)*m]
-		if !amd64.InverseAVX2Size128Radix4Then2Complex64Asm(row, row, rowTwiddle[:], rowScratch[:]) {
+		if !inverseRadix4AVX2Complex64(row, row, sixStepRow128InvTwiddleC64, rowScratch[:]) {
 			return false
 		}
 	}

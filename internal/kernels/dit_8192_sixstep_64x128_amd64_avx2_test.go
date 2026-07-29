@@ -163,3 +163,27 @@ func BenchmarkForwardDIT8192SixStep64x128AVX2_Complex64(b *testing.B) {
 		forwardDIT8192SixStep64x128AVX2Complex64(dst, src, twiddle, scratch)
 	}
 }
+
+// BenchmarkInverseDIT8192SixStep64x128AVX2_Complex64 benchmarks the AVX2 inverse.
+func BenchmarkInverseDIT8192SixStep64x128AVX2_Complex64(b *testing.B) {
+	requireAVX2(b)
+
+	const n = 8192
+
+	src := make([]complex64, n)
+	dst := make([]complex64, n)
+	twiddle := mathpkg.ComputeTwiddleFactors[complex64](n)
+	scratch := make([]complex64, 2*n)
+
+	rng := rand.New(rand.NewSource(42))
+	for i := range src {
+		src[i] = complex(rng.Float32()*2-1, rng.Float32()*2-1)
+	}
+
+	b.ResetTimer()
+	b.SetBytes(int64(n) * 8)
+
+	for b.Loop() {
+		inverseDIT8192SixStep64x128AVX2Complex64(dst, src, twiddle, scratch)
+	}
+}

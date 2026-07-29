@@ -23,6 +23,17 @@ import (
 // rather than informative.
 const rankingTolerance = 1.5
 
+// rankingAttempts is how many independent timing passes a size gets before the
+// test calls a breach real.
+//
+// Each pass is already a best-of-5, but the whole pass is only a few
+// milliseconds wide at the larger sizes, so a burst of interference can cover
+// all five rounds of one candidate and none of the next -- which inflates a
+// single codelet rather than the group, and so shows up as a ranking change
+// rather than as uniformly slower numbers. A real regression reproduces on
+// every pass; a contended window does not. See PLAN.md 2.2.
+const rankingAttempts = 3
+
 // TestRadix4AVX2Ranking times every codelet registered for each size the 256-bit
 // radix-4 kernel claims, so the Priority given to it in cmd/gencodelets/specs.go
 // rests on a measurement rather than an assumption.
@@ -40,35 +51,50 @@ func TestRadix4AVX2Ranking(t *testing.T) {
 	for _, n := range []int{128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536} {
 		want := fmt.Sprintf("dit%d_radix4_avx2", n)
 
-		results := timeCodelets(t, n, features)
-		if len(results) == 0 {
-			t.Errorf("n=%d: no codelet ran", n)
-			continue
-		}
+		var breach string
 
-		report := make([]string, 0, len(results))
-		for i, r := range results {
-			report = append(report, fmt.Sprintf("\n  %2d. %-34s %9.0f ns", i+1, r.sig, r.ns))
-		}
+		for attempt := range rankingAttempts {
+			results := timeCodelets(t, n, features)
+			if len(results) == 0 {
+				t.Errorf("n=%d: no codelet ran", n)
 
-		t.Logf("n=%6d%s", n, strings.Join(report, ""))
-
-		ours := 0.0
-
-		for _, r := range results {
-			if r.sig == want {
-				ours = r.ns
+				break
 			}
-		}
 
-		if ours == 0 {
-			t.Errorf("n=%d: %s is not registered", n, want)
-			continue
-		}
+			report := make([]string, 0, len(results))
+			for i, r := range results {
+				report = append(report, fmt.Sprintf("\n  %2d. %-34s %9.0f ns", i+1, r.sig, r.ns))
+			}
 
-		if best := results[0].ns; ours > best*rankingTolerance {
-			t.Errorf("n=%d: %s took %.0f ns, more than %.1fx the fastest codelet %s at %.0f ns",
+			t.Logf("n=%6d (pass %d)%s", n, attempt+1, strings.Join(report, ""))
+
+			ours := 0.0
+
+			for _, r := range results {
+				if r.sig == want {
+					ours = r.ns
+				}
+			}
+
+			if ours == 0 {
+				t.Errorf("n=%d: %s is not registered", n, want)
+
+				break
+			}
+
+			best := results[0].ns
+			if ours <= best*rankingTolerance {
+				breach = ""
+
+				break
+			}
+
+			breach = fmt.Sprintf("n=%d: %s took %.0f ns, more than %.1fx the fastest codelet %s at %.0f ns",
 				n, want, ours, rankingTolerance, results[0].sig, best)
+		}
+
+		if breach != "" {
+			t.Errorf("%s (reproduced on all %d passes)", breach, rankingAttempts)
 		}
 	}
 }
