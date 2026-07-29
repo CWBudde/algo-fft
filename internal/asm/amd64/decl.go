@@ -789,22 +789,17 @@ func Butterfly5InverseAVX2Complex64(y0, y1, y2, y3, y4, a0, a1, a2, a3, a4 []com
 // Size-384 Mixed-Radix (128×3) FFT Operations
 // ============================================================================
 
-// ForwardAVX2Size384MixedComplex64Asm validates parameters for size-384 FFT.
-// Returns true if the kernel can handle this size, false otherwise.
-//
-//go:noescape
-func ForwardAVX2Size384MixedComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-
-// InverseAVX2Size384MixedComplex64Asm validates parameters for size-384 IFFT.
-//
-//go:noescape
-func InverseAVX2Size384MixedComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-
 // ApplyTwiddle384Complex64Asm applies twiddle factors for 384-point mixed-radix FFT.
 // Multiplies data[128+k] by twiddle[k] and data[256+k] by twiddle[2*k] for k=0..127.
 //
 //go:noescape
 func ApplyTwiddle384Complex64Asm(data, twiddle []complex64)
+
+// ApplyConjTwiddle384Complex64Asm is the inverse-direction twin of
+// ApplyTwiddle384Complex64Asm: it multiplies by the conjugate of each twiddle.
+//
+//go:noescape
+func ApplyConjTwiddle384Complex64Asm(data, twiddle []complex64)
 
 // Radix3Butterflies384ForwardComplex64Asm performs 128 radix-3 forward butterflies
 // across the three 128-element sub-arrays of a 384-element array.
@@ -818,22 +813,17 @@ func Radix3Butterflies384ForwardComplex64Asm(data []complex64)
 //go:noescape
 func Radix3Butterflies384InverseComplex64Asm(data []complex64)
 
-// ForwardAVX2Size384MixedComplex128Asm validates parameters for size-384 FFT.
-// Returns true if the kernel can handle this size, false otherwise.
-//
-//go:noescape
-func ForwardAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-// InverseAVX2Size384MixedComplex128Asm validates parameters for size-384 IFFT.
-//
-//go:noescape
-func InverseAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128) bool
-
 // ApplyTwiddle384Complex128Asm applies twiddle factors for 384-point mixed-radix FFT.
 // Multiplies data[128+k] by twiddle[k] and data[256+k] by twiddle[2*k] for k=0..127.
 //
 //go:noescape
 func ApplyTwiddle384Complex128Asm(data, twiddle []complex128)
+
+// ApplyConjTwiddle384Complex128Asm is the inverse-direction twin of
+// ApplyTwiddle384Complex128Asm: it multiplies by the conjugate of each twiddle.
+//
+//go:noescape
+func ApplyConjTwiddle384Complex128Asm(data, twiddle []complex128)
 
 // Radix3Butterflies384ForwardComplex128Asm performs 128 radix-3 forward butterflies
 // across the three 128-element sub-arrays of a 384-element array.

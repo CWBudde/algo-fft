@@ -18,81 +18,13 @@
 
 #include "textflag.h"
 
-// ============================================================================
-// Forward Transform: Size 384, Complex128, Mixed-Radix 128×3 (AVX2)
-// ============================================================================
-//
-// func ForwardAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128) bool
-TEXT ·ForwardAVX2Size384MixedComplex128Asm(SB), NOSPLIT, $0-97
-	// Load parameters
-	MOVQ dst+0(FP), R8       // R8  = dst pointer
-	MOVQ src+24(FP), R9      // R9  = src pointer
-	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
-	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src_len+32(FP), R13     // R13 = n (should be 384)
-
-	// Verify n == 384
-	CMPQ R13, $384
-	JNE  size384_return_false
-
-	// Validate slice lengths (all must be >= 384)
-	MOVQ dst_len+8(FP), AX
-	CMPQ AX, $384
-	JL   size384_return_false
-
-	MOVQ twiddle_len+56(FP), AX
-	CMPQ AX, $384
-	JL   size384_return_false
-
-	MOVQ scratch_len+80(FP), AX
-	CMPQ AX, $384
-	JL   size384_return_false
-
-	// Return true
-	MOVB $1, ret+96(FP)
-	RET
-
-size384_return_false:
-	MOVB $0, ret+96(FP)
-	RET
-
-// ============================================================================
-// Inverse Transform: Size 384, Complex128, Mixed-Radix 128×3 (AVX2)
-// ============================================================================
-//
-// func InverseAVX2Size384MixedComplex128Asm(dst, src, twiddle, scratch []complex128) bool
-TEXT ·InverseAVX2Size384MixedComplex128Asm(SB), NOSPLIT, $0-97
-	// Load parameters
-	MOVQ dst+0(FP), R8       // R8  = dst pointer
-	MOVQ src+24(FP), R9      // R9  = src pointer
-	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer
-	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ src_len+32(FP), R13     // R13 = n (should be 384)
-
-	// Verify n == 384
-	CMPQ R13, $384
-	JNE  size384_inv_return_false
-
-	// Validate slice lengths (all must be >= 384)
-	MOVQ dst_len+8(FP), AX
-	CMPQ AX, $384
-	JL   size384_inv_return_false
-
-	MOVQ twiddle_len+56(FP), AX
-	CMPQ AX, $384
-	JL   size384_inv_return_false
-
-	MOVQ scratch_len+80(FP), AX
-	CMPQ AX, $384
-	JL   size384_inv_return_false
-
-	// Return true
-	MOVB $1, ret+96(FP)
-	RET
-
-size384_inv_return_false:
-	MOVB $0, ret+96(FP)
-	RET
+// Sign mask that flips the imaginary component of 2 packed complex128, i.e.
+// conjugation by VXORPD. Odd float64 lanes carry the float64 sign bit.
+GLOBL ·conjMask384f64<>(SB), RODATA|NOPTR, $32
+DATA ·conjMask384f64<>+0(SB)/8,  $0x0000000000000000
+DATA ·conjMask384f64<>+8(SB)/8,  $0x8000000000000000
+DATA ·conjMask384f64<>+16(SB)/8, $0x0000000000000000
+DATA ·conjMask384f64<>+24(SB)/8, $0x8000000000000000
 
 // ============================================================================
 // Twiddle Application: Apply twiddle factors to sub-arrays 1 and 2
@@ -198,6 +130,95 @@ twiddle384_subarray2_loop:
 	JMP  twiddle384_subarray2_loop
 
 twiddle384_done:
+	VZEROUPPER
+	RET
+
+// ============================================================================
+// Conjugate Twiddle Application: the inverse-direction twin of the above
+// ============================================================================
+//
+//   dst[128+k] *= conj(twiddle[k])       for k = 0..127
+//   dst[256+k] *= conj(twiddle[2*k])     for k = 0..127
+//
+// Identical to ApplyTwiddle384Complex128Asm except that each loaded twiddle
+// vector is conjugated with a single VXORPD against conjMask384f64 before the
+// multiply. Conjugating the twiddle is one instruction; conjugating the product
+// instead is not, because VFMADDSUB's fixed even-subtract/odd-add pattern gives
+// the wrong sign on the imaginary term for a conjugated multiply.
+//
+// func ApplyConjTwiddle384Complex128Asm(data, twiddle []complex128)
+TEXT ·ApplyConjTwiddle384Complex128Asm(SB), NOSPLIT, $0-48
+	MOVQ data+0(FP), R8      // R8 = data pointer
+	MOVQ data_len+8(FP), R9  // R9 = data length
+	MOVQ twiddle+24(FP), R10 // R10 = twiddle pointer
+
+	// Verify length >= 384
+	CMPQ R9, $384
+	JL   conjtwiddle384_done
+
+	VMOVUPD ·conjMask384f64<>(SB), Y7 // Y7 = imaginary-lane sign mask
+
+	// Process sub-array 1: data[128..255] *= conj(twiddle[0..127])
+	XORQ CX, CX
+
+conjtwiddle384_subarray1_loop:
+	CMPQ CX, $128
+	JGE  conjtwiddle384_subarray2
+
+	MOVQ CX, R14
+	SHLQ $4, R14             // R14 = CX * 16 bytes
+	LEAQ 2048(R8)(R14*1), SI
+	VMOVUPD (SI), Y0         // Y0 = data[128+CX : 128+CX+2]
+
+	LEAQ (R10)(R14*1), DI
+	VMOVUPD (DI), Y1         // Y1 = twiddle[CX : CX+2]
+	VXORPD Y7, Y1, Y1        // Y1 = conj(twiddle)
+
+	VPERMPD $0xA0, Y0, Y2    // Reals
+	VPERMPD $0xF5, Y0, Y3    // Imags
+	VPERMPD $0xB1, Y1, Y5    // Swap twiddle
+	VMULPD Y3, Y5, Y6        // Imag * swapped
+	VFMADDSUB231PD Y2, Y1, Y6 // Complex product
+
+	VMOVUPD Y6, (SI)
+
+	ADDQ $2, CX
+	JMP  conjtwiddle384_subarray1_loop
+
+conjtwiddle384_subarray2:
+	// Process sub-array 2: data[256..383] *= conj(twiddle[2*k])
+	XORQ CX, CX
+
+conjtwiddle384_subarray2_loop:
+	CMPQ CX, $128
+	JGE  conjtwiddle384_done
+
+	MOVQ CX, R14
+	SHLQ $4, R14
+	LEAQ 4096(R8)(R14*1), SI
+	VMOVUPD (SI), Y0
+
+	MOVQ CX, DX
+	SHLQ $5, DX              // DX = 2 * CX * 16 bytes
+	LEAQ (R10)(DX*1), DI     // DI = &twiddle[2*CX]
+
+	VMOVUPD (DI), X1         // X1 = twiddle[2*CX]
+	VMOVUPD 32(DI), X2       // X2 = twiddle[2*CX+2]
+	VINSERTF128 $1, X2, Y1, Y1 // Y1 = [tw[2*CX], tw[2*CX+2]]
+	VXORPD Y7, Y1, Y1        // Y1 = conj(twiddle)
+
+	VPERMPD $0xA0, Y0, Y2
+	VPERMPD $0xF5, Y0, Y3
+	VPERMPD $0xB1, Y1, Y5
+	VMULPD Y3, Y5, Y6
+	VFMADDSUB231PD Y2, Y1, Y6
+
+	VMOVUPD Y6, (SI)
+
+	ADDQ $2, CX
+	JMP  conjtwiddle384_subarray2_loop
+
+conjtwiddle384_done:
 	VZEROUPPER
 	RET
 

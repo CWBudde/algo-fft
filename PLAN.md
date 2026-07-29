@@ -621,6 +621,79 @@ bin-by-bin against the reference), plan-level Bluestein (`i² + i·j`) and
 `TestPrecisionRoundTripSweep` (random). The remaining impulse uses are in tests
 of plan lifecycle, pooling and allocation counts, where the input is irrelevant.
 
+### 1.12 The size-384 path (2026-07-29)
+
+384 was the worst ns/point in the registry, and the headline symptom was that
+c64 forward was _slower_ than c128 at the same size — impossible for a
+half-width type unless the c64 path is doing something the c128 path is not. It
+was: the complex64 codelet did its radix-3 column DFT and twiddle multiply in
+scalar Go, through `mathpkg.MulComplex64` and therefore through the widening
+defect of §1.6, while the complex128 twin called assembly for both. The AVX2
+assembly for the c64 side had been written, assembled and declared, and never
+called.
+
+**The assembly was also wrong.** `ApplyTwiddle384Complex64Asm` builds the
+strided `twiddle[2k]` vector for the third sub-array, and it did so with
+`VINSERTPS $0x10`, which moves a single float32: it overwrote the imaginary part
+of each even twiddle and left two lanes undefined. The correct instruction is
+`VMOVLHPS`, which moves a whole 64-bit lane. All 128 elements of that sub-array
+were wrong; the other 256 were fine. A direct test of the helper against the
+scalar loop it replaces catches it immediately (`dit_384_asm_helpers_amd64_test.go`),
+and that test now exists for all four twiddle helpers and both radix-3
+directions.
+
+The lesson generalises past this file: **declared-but-uncalled assembly is
+untested assembly**, and nothing in the suite reports it, because the
+registry-driven reference tests only reach a function once something calls it.
+There was a signal and it was not followed: an earlier round FMA-fused this file
+and measured no benchmark change at all. "An optimisation that changes nothing"
+should be read as "this code does not run" before it is read as "the optimisation
+did not help". Worth a sweep for other `.s` symbols whose only reference is
+`decl.go`.
+
+What changed:
+
+- The c64 codelet now calls `Radix3Butterflies384{Forward,Inverse}Complex64Asm`
+  and the twiddle helpers, mirroring the c128 body.
+- Four `{Forward,Inverse}AVX2Size384Mixed{Complex64,Complex128}Asm` symbols were
+  deleted. They looked like kernels and were named like kernels; their bodies
+  only length-checked the arguments and returned true. Nothing called them.
+- New `ApplyConjTwiddle384Complex{64,128}Asm` for the inverse direction.
+  Conjugating the twiddle costs one `VXORPS`/`VXORPD` against a sign mask;
+  conjugating the product does not work, because `VFMADDSUB`'s fixed
+  even-subtract/odd-add pattern gives the wrong sign on the imaginary term.
+- The c64 path precomputes the 128-point sub-twiddle at package load
+  (`W_128^k == W_384^(3k)`, so it is exactly the stride-3 gather it replaces) and
+  pools its two buffers, as the c128 path already did. Two `make` calls per
+  transform are gone from each direction.
+- The `MOVL`/`VMOVQ`/`VBROADCASTSS` constant prologues in the radix-3 functions
+  became `VBROADCASTSS ·const(SB)` per §2.4.
+
+Measured (min of 6, `old` and `new` test binaries interleaved in one session —
+see below for why that matters), ns/op:
+
+| codelet          | before | after | change |
+| ---------------- | -----: | ----: | -----: |
+| c64 384 forward  |   1865 |  1310 |   −30% |
+| c64 384 inverse  |   2016 |  1399 |   −31% |
+| c128 384 forward |   1785 |  2036 |    n/r |
+| c128 384 inverse |   2444 |  2334 |    n/r |
+
+The c128 forward path is **unchanged code**, so its 14% apparent regression is
+pure measurement noise, and that is the point: it calibrates the run. Better
+still, size 384 registers the same function twice, under the `generic` and
+`avx2` signatures, which gives a free identical-code control pair inside every
+run — they differed by 430 ns in the baseline binary and 258 ns in the new one.
+So the noise floor here is ~15%, the c64 results sit far outside it, and the
+c128 conjugate-twiddle change cannot be resolved either way on this machine.
+**Two identical benchmarks are worth more than a repeat count**; where a registry
+already provides such a pair, read it before trusting any single delta. Serial
+before/after runs on this laptop drifted by more than the effect being chased
+(§2.3); only the interleaved two-binary A/B was stable.
+
+Not fixed, moved to §5: the c128 sub-FFT still runs radix-2, because the AVX2
+c128 radix-4-then-2 that §3 assumed existed does not.
+
 ---
 
 ## 2. Working method
@@ -740,35 +813,6 @@ _forces_ a wait, but every item is something a v1.0 would ship knowingly
 broken. Cheap enough that tagging around it is not worth the note in the
 release announcement.
 
-- [ ] **Size-384 path cleanup (both precisions).** 384 is by far the worst
-      ns/point in the registry — c128 forward ~2.2 µs against ~0.7 µs at size
-      256, and c64 forward ~2.3 µs is _slower than c128_ at the same size, which
-      should not happen for a half-width type. Three separate causes:
-
-      1. **The complex64 AVX2 asm for 384 is dead code.**
-         `ApplyTwiddle384Complex64Asm`,
-         `Radix3Butterflies384{Forward,Inverse}Complex64Asm` and
-         `{Forward,Inverse}AVX2Size384MixedComplex64Asm` are defined in
-         `internal/asm/amd64/avx2_f32_size384_mixed.s` and declared in
-         `decl.go`, but have **zero callers** outside `decl.go` — confirmed by
-         grep, and confirmed empirically (FMA-fusing that file changed the
-         benchmark by nothing). `forwardDIT384MixedComplex64` in
-         `internal/kernels/dit_384_decomp_128x3_amd64_asm.go` instead does the
-         radix-3 column DFT and the twiddle multiply in **scalar Go**. The
-         complex128 twins _are_ wired up. Either wire the c64 asm in or delete
-         it.
-      2. **complex128 uses the slower 128-point sub-kernel.** The c128 path
-         calls `amd64.ForwardAVX2Size128Radix2Complex128Asm` (plain radix-2,
-         7 stages) for its three 128-point sub-FFTs, while the c64 path
-         correctly uses `...Size128Radix4Then2Complex64Asm`. The c128
-         radix-4-then-2 variant exists and is declared — this looks like a
-         straight oversight.
-      3. **complex64 rebuilds per-call scratch.** The c64 path does
-         `make([]complex64, stride)` twice per transform; these currently stay
-         on the stack so the zero-alloc tests still pass, but the c128 path
-         precomputes the 128-point twiddle once at init and pools both buffers
-         via `sync.Pool`. Mirror that.
-
 - [ ] **The SIMD build is slower than purego at two Bluestein primes.**
       n = 1009 and n = 2003 both measure 0.86×, i.e. the default build is ~16%
       _slower_ than `-tags purego` for the same transform. n = 9973, the third
@@ -826,6 +870,20 @@ would hold it indefinitely.
 The 256-bit radix-4 kernels (§1.9) changed the cost of every power-of-two size,
 which invalidates several constants and leaves a few threads hanging.
 
+- [ ] **No AVX2 complex128 radix-4-then-2 kernel at size 128.** The size-384
+      c128 codelet runs its three 128-point sub-FFTs on
+      `ForwardAVX2Size128Radix2Complex128Asm` — plain radix-2, seven stages —
+      while the c64 side uses a radix-4-then-2. §3 recorded this as an oversight
+      on the assumption that the c128 radix-4-then-2 was already written; it is
+      not. It exists for SSE2 (`dit128_radix4_then2_sse2`) and AVX-512, and the
+      AVX2 tier has only the radix-2. So the 384 path is already calling the
+      best AVX2-level kernel available, and the registry agrees
+      (`dit128_radix2_avx2` at priority 20 over the SSE2 radix-4-then-2 at 18).
+      Calling the SSE2 kernel instead is not a shortcut: it would put a
+      legacy-SSE callee inside an all-VEX kernel. Writing the missing kernel is
+      the fix — template from `avx2_f32_size128_radix4_then2.s` for the AVX2
+      idiom and from the AVX-512 c128 variant for the radix-4 form at this
+      precision. It lifts size 128 as well as 384.
 - [ ] **Re-measure the plan-level c64/c128 ratio and the FFTW comparison.** The
       c64/c128 ratio ran 1.10, 1.02, 1.14, 1.07, 1.08 across 1024–16384 against
       1.6–2.1× at 256/512 — because every codelet serving that band was

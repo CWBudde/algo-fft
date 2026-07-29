@@ -6,14 +6,15 @@
 //
 // Size 384 = 128 × 3 = 2^7 × 3
 //
-// Algorithm: Decompose as radix-3 outer, size-128 inner
-//   Step 1: Perform 3 independent 128-point FFTs on sub-arrays
+// Algorithm: Decompose as radix-3 outer, size-128 inner. Forward order is
+//   Step 1: Perform 128 radix-3 butterflies across the 3 sub-arrays
 //   Step 2: Apply twiddle factors to elements 128-383
-//   Step 3: Perform 128 radix-3 butterflies across the 3 sub-arrays
+//   Step 3: Perform 3 independent 128-point FFTs on the sub-arrays
+// and the inverse runs it backwards, with conjugated twiddles.
 //
-// This implementation delegates the 128-point sub-FFTs to the existing
-// AVX2 size-128 kernel, then performs twiddle application and radix-3
-// butterflies using AVX2 SIMD instructions.
+// The Go caller (forwardDIT384MixedComplex64 in internal/kernels) orchestrates:
+// it delegates the 128-point sub-FFTs to the existing AVX2 size-128 kernel and
+// the twiddle application and radix-3 butterflies to this file.
 //
 // Twiddle factors for 384-point FFT:
 //   W_384^k = exp(-2πik/384) for k = 0..383
@@ -27,103 +28,26 @@
 
 #include "textflag.h"
 
-// ============================================================================
-// Forward Transform: Size 384, Complex64, Mixed-Radix 128×3 (AVX2)
-// ============================================================================
-//
-// This is a Go-callable stub that validates parameters.
-// The actual transform is performed by the Go wrapper which calls:
-//   1. ForwardAVX2Size128Radix4Then2Complex64Asm for each 128-point sub-FFT
-//   2. This assembly for twiddle multiplication and radix-3 butterflies
-//
-// For size-384, we implement the final radix-3 stage in assembly.
-// The Go wrapper handles orchestration.
-//
-// func ForwardAVX2Size384MixedComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-TEXT ·ForwardAVX2Size384MixedComplex64Asm(SB), NOSPLIT, $0-121
-	// Load parameters
-	MOVQ dst+0(FP), R8       // R8  = dst pointer
-	MOVQ src+24(FP), R9      // R9  = src pointer
-	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer (size-384 twiddles)
-	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
-	MOVQ src_len+32(FP), R13     // R13 = n (should be 384)
+// Radix-3 butterfly constants, broadcast straight from memory. The
+// MOVL/VMOVQ/VBROADCASTSS round trip through a GPR that this replaced costs a
+// fixed ~100 ns per call, which is invisible on a large kernel and material on
+// a 384-point one.
 
-	// Verify n == 384
-	CMPQ R13, $384
-	JNE  size384_return_false
+// float32(-0.5)
+GLOBL ·r3Half384<>(SB), RODATA|NOPTR, $4
+DATA ·r3Half384<>(SB)/4, $0xBF000000
 
-	// Validate slice lengths (all must be >= 384)
-	MOVQ dst_len+8(FP), AX
-	CMPQ AX, $384
-	JL   size384_return_false
+// float32(sqrt(3)/2) = 0.8660254
+GLOBL ·r3Sqrt3Half384<>(SB), RODATA|NOPTR, $4
+DATA ·r3Sqrt3Half384<>(SB)/4, $0x3F5DB3D7
 
-	MOVQ twiddle_len+56(FP), AX
-	CMPQ AX, $384
-	JL   size384_return_false
-
-	MOVQ scratch_len+80(FP), AX
-	CMPQ AX, $384
-	JL   size384_return_false
-
-	MOVQ bitrev_len+104(FP), AX
-	CMPQ AX, $384
-	JL   size384_return_false
-
-	// Return true to indicate this kernel handles size 384
-	// The actual FFT is performed by the Go wrapper which:
-	// 1. Calls 3x size-128 FFTs
-	// 2. Applies twiddle factors
-	// 3. Performs radix-3 butterflies
-	MOVB $1, ret+120(FP)
-	RET
-
-size384_return_false:
-	MOVB $0, ret+120(FP)
-	RET
-
-// ============================================================================
-// Inverse Transform: Size 384, Complex64, Mixed-Radix 128×3 (AVX2)
-// ============================================================================
-//
-// func InverseAVX2Size384MixedComplex64Asm(dst, src, twiddle, scratch []complex64, bitrev []int) bool
-TEXT ·InverseAVX2Size384MixedComplex64Asm(SB), NOSPLIT, $0-121
-	// Load parameters
-	MOVQ dst+0(FP), R8       // R8  = dst pointer
-	MOVQ src+24(FP), R9      // R9  = src pointer
-	MOVQ twiddle+48(FP), R10 // R10 = twiddle pointer (size-384 twiddles)
-	MOVQ scratch+72(FP), R11 // R11 = scratch pointer
-	MOVQ bitrev+96(FP), R12  // R12 = bitrev pointer
-	MOVQ src_len+32(FP), R13     // R13 = n (should be 384)
-
-	// Verify n == 384
-	CMPQ R13, $384
-	JNE  size384_inv_return_false
-
-	// Validate slice lengths (all must be >= 384)
-	MOVQ dst_len+8(FP), AX
-	CMPQ AX, $384
-	JL   size384_inv_return_false
-
-	MOVQ twiddle_len+56(FP), AX
-	CMPQ AX, $384
-	JL   size384_inv_return_false
-
-	MOVQ scratch_len+80(FP), AX
-	CMPQ AX, $384
-	JL   size384_inv_return_false
-
-	MOVQ bitrev_len+104(FP), AX
-	CMPQ AX, $384
-	JL   size384_inv_return_false
-
-	// Return true to indicate this kernel handles size 384
-	MOVB $1, ret+120(FP)
-	RET
-
-size384_inv_return_false:
-	MOVB $0, ret+120(FP)
-	RET
+// Sign mask that flips the imaginary component of 4 packed complex64, i.e.
+// conjugation by VXORPS. Odd float32 lanes carry the float32 sign bit.
+GLOBL ·conjMask384<>(SB), RODATA|NOPTR, $32
+DATA ·conjMask384<>+0(SB)/8,  $0x8000000000000000
+DATA ·conjMask384<>+8(SB)/8,  $0x8000000000000000
+DATA ·conjMask384<>+16(SB)/8, $0x8000000000000000
+DATA ·conjMask384<>+24(SB)/8, $0x8000000000000000
 
 // ============================================================================
 // Twiddle Application: Apply twiddle factors to sub-arrays 1 and 2
@@ -215,8 +139,10 @@ twiddle384_subarray2_loop:
 	VMOVSD 48(DI), X4        // X4 = twiddle[2*CX+6]
 
 	// Combine into Y1: [tw0, tw2, tw4, tw6]
-	VINSERTPS $0x10, X2, X1, X1  // X1 = [tw0_r, tw0_i, tw2_r, tw2_i]
-	VINSERTPS $0x10, X4, X3, X3  // X3 = [tw4_r, tw4_i, tw6_r, tw6_i]
+	// VMOVLHPS moves a whole 64-bit lane (one complex64); VINSERTPS, which was
+	// used here before, moves a single float32 and clobbered the imaginary part.
+	VMOVLHPS X2, X1, X1          // X1 = [tw0_r, tw0_i, tw2_r, tw2_i]
+	VMOVLHPS X4, X3, X3          // X3 = [tw4_r, tw4_i, tw6_r, tw6_i]
 	VINSERTF128 $1, X3, Y1, Y1   // Y1 = [tw0, tw2, tw4, tw6]
 
 	// Complex multiply: Y0 = Y0 * Y1 (FMA-fused multiply-addsub)
@@ -233,6 +159,97 @@ twiddle384_subarray2_loop:
 	JMP  twiddle384_subarray2_loop
 
 twiddle384_done:
+	VZEROUPPER
+	RET
+
+// ============================================================================
+// Conjugate Twiddle Application: the inverse-direction twin of the above
+// ============================================================================
+//
+//   dst[128+k] *= conj(twiddle[k])       for k = 0..127
+//   dst[256+k] *= conj(twiddle[2*k])     for k = 0..127
+//
+// Identical to ApplyTwiddle384Complex64Asm except that each loaded twiddle
+// vector is conjugated with a single VXORPS against conjMask384 before the
+// multiply. Conjugating the twiddle is one instruction; conjugating the product
+// instead is not, because VFMADDSUB's fixed even-subtract/odd-add pattern gives
+// the wrong sign on the imaginary term for a conjugated multiply.
+//
+// func ApplyConjTwiddle384Complex64Asm(data, twiddle []complex64)
+TEXT ·ApplyConjTwiddle384Complex64Asm(SB), NOSPLIT, $0-48
+	MOVQ data+0(FP), R8      // R8 = data pointer
+	MOVQ data_len+8(FP), R9  // R9 = data length
+	MOVQ twiddle+24(FP), R10 // R10 = twiddle pointer
+
+	// Verify length >= 384
+	CMPQ R9, $384
+	JL   conjtwiddle384_done
+
+	VMOVUPS ·conjMask384<>(SB), Y7 // Y7 = imaginary-lane sign mask
+
+	// Process sub-array 1: data[128..255] *= conj(twiddle[0..127])
+	XORQ CX, CX              // CX = offset in elements (0, 4, 8, ..., 124)
+
+conjtwiddle384_subarray1_loop:
+	CMPQ CX, $128
+	JGE  conjtwiddle384_subarray2
+
+	LEAQ 1024(R8)(CX*8), SI  // SI = &data[128 + CX]
+	VMOVUPS (SI), Y0         // Y0 = data[128+CX : 128+CX+4]
+
+	LEAQ (R10)(CX*8), DI     // DI = &twiddle[CX]
+	VMOVUPS (DI), Y1         // Y1 = twiddle[CX : CX+4]
+	VXORPS Y7, Y1, Y1        // Y1 = conj(twiddle)
+
+	VMOVSLDUP Y0, Y2         // Y2 = duplicate reals
+	VMOVSHDUP Y0, Y3         // Y3 = duplicate imags
+	VSHUFPS $0xB1, Y1, Y1, Y5 // Y5 = swap twiddle pairs
+	VMULPS Y3, Y5, Y6        // Y6 = imag * swapped twiddle
+	VFMADDSUB231PS Y2, Y1, Y6 // Y6 = complex product
+
+	VMOVUPS Y6, (SI)
+
+	ADDQ $4, CX
+	JMP  conjtwiddle384_subarray1_loop
+
+conjtwiddle384_subarray2:
+	// Process sub-array 2: data[256..383] *= conj(twiddle[2*k])
+	XORQ CX, CX
+
+conjtwiddle384_subarray2_loop:
+	CMPQ CX, $128
+	JGE  conjtwiddle384_done
+
+	LEAQ 2048(R8)(CX*8), SI  // SI = &data[256 + CX]
+	VMOVUPS (SI), Y0         // Y0 = data[256+CX : 256+CX+4]
+
+	// Gather twiddle[2*CX], [2*CX+2], [2*CX+4], [2*CX+6]
+	MOVQ CX, DX
+	SHLQ $1, DX              // DX = 2*CX
+	LEAQ (R10)(DX*8), DI     // DI = &twiddle[2*CX]
+
+	VMOVSD (DI), X1
+	VMOVSD 16(DI), X2
+	VMOVSD 32(DI), X3
+	VMOVSD 48(DI), X4
+
+	VMOVLHPS X2, X1, X1          // X1 = [tw0, tw2]
+	VMOVLHPS X4, X3, X3          // X3 = [tw4, tw6]
+	VINSERTF128 $1, X3, Y1, Y1   // Y1 = [tw0, tw2, tw4, tw6]
+	VXORPS Y7, Y1, Y1            // Y1 = conj(twiddle)
+
+	VMOVSLDUP Y0, Y2
+	VMOVSHDUP Y0, Y3
+	VSHUFPS $0xB1, Y1, Y1, Y5
+	VMULPS Y3, Y5, Y6
+	VFMADDSUB231PS Y2, Y1, Y6
+
+	VMOVUPS Y6, (SI)
+
+	ADDQ $4, CX
+	JMP  conjtwiddle384_subarray2_loop
+
+conjtwiddle384_done:
 	VZEROUPPER
 	RET
 
@@ -264,16 +281,9 @@ TEXT ·Radix3Butterflies384ForwardComplex64Asm(SB), NOSPLIT, $0-24
 	CMPQ R9, $384
 	JL   radix3_384_fwd_done
 
-	// Load constants
-	// half = -0.5 (broadcast to all lanes)
-	MOVL $0xBF000000, AX     // -0.5 in float32 IEEE 754
-	VMOVQ AX, X0
-	VBROADCASTSS X0, Y8      // Y8 = [-0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5]
-
-	// sqrt(3)/2 = 0.866025403784
-	MOVL $0x3F5DB3D7, AX     // sqrt(3)/2 in float32 IEEE 754
-	VMOVQ AX, X0
-	VBROADCASTSS X0, Y9      // Y9 = [sqrt3_2, sqrt3_2, ...]
+	// Load constants (broadcast from memory, no GPR round trip)
+	VBROADCASTSS ·r3Half384<>(SB), Y8      // Y8 = [-0.5, ...]
+	VBROADCASTSS ·r3Sqrt3Half384<>(SB), Y9 // Y9 = [sqrt3_2, ...]
 
 	// Sign flip mask for negating imaginary parts: [0, -0, 0, -0, ...]
 	// Used for: (a+bi) * (0 - ci) = bc - aci = (bc) + (-ac)i
@@ -371,16 +381,9 @@ TEXT ·Radix3Butterflies384InverseComplex64Asm(SB), NOSPLIT, $0-24
 	CMPQ R9, $384
 	JL   radix3_384_inv_done
 
-	// Load constants
-	// half = -0.5
-	MOVL $0xBF000000, AX
-	VMOVQ AX, X0
-	VBROADCASTSS X0, Y8      // Y8 = [-0.5, ...]
-
-	// sqrt(3)/2
-	MOVL $0x3F5DB3D7, AX
-	VMOVQ AX, X0
-	VBROADCASTSS X0, Y9      // Y9 = [sqrt3_2, ...]
+	// Load constants (broadcast from memory, no GPR round trip)
+	VBROADCASTSS ·r3Half384<>(SB), Y8      // Y8 = [-0.5, ...]
+	VBROADCASTSS ·r3Sqrt3Half384<>(SB), Y9 // Y9 = [sqrt3_2, ...]
 
 	// Process 4 butterflies at a time
 	XORQ CX, CX

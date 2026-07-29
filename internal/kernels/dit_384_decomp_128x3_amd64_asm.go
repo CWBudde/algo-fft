@@ -9,16 +9,21 @@ import (
 	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
-// The 384-point complex128 codelet decomposes into three 128-point sub-FFTs.
-// The sub-FFT twiddle table depends only on the fixed sub-size (128), so it is
-// computed once at package load rather than on every transform (it is read-only
-// and shared across all calls). The per-call output and scratch buffers are
-// pooled: the codelet runs as a synchronous leaf (its 128-point sub-FFTs are
+// The 384-point codelets decompose into three 128-point sub-FFTs. The sub-FFT
+// twiddle table depends only on the fixed sub-size (128), so it is computed once
+// at package load rather than on every transform (it is read-only and shared
+// across all calls); W_128^k == W_384^(3k), so it is exactly the stride-3 gather
+// from the 384-point table it replaces. The per-call output and scratch buffers
+// are pooled: the codelet runs as a synchronous leaf (its 128-point sub-FFTs are
 // assembly, never re-entering Go codelets), so recycling the buffers keeps the
 // codelet allocation-free after warm-up while staying safe for concurrent use.
 //
 //nolint:gochecknoglobals
 var (
+	dit384Sub128TwiddleC64  = mathpkg.ComputeTwiddleFactors[complex64](128)
+	dit384OutPoolC64        = sync.Pool{New: func() any { return new([384]complex64) }}
+	dit384SubScratchPoolC64 = sync.Pool{New: func() any { return new([128]complex64) }}
+
 	dit384Sub128TwiddleC128  = mathpkg.ComputeTwiddleFactors[complex128](128)
 	dit384OutPoolC128        = sync.Pool{New: func() any { return new([384]complex128) }}
 	dit384SubScratchPoolC128 = sync.Pool{New: func() any { return new([128]complex128) }}
@@ -34,97 +39,45 @@ func forwardDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 		return false
 	}
 
-	// We need scratch space for:
-	// 1. work buffer (384 elements) - passed as scratch
-	// 2. sub-transform twiddles (128 elements)
-	// 3. sub-transform scratch (128 elements)
-	// The provided scratch is usually size N (384).
-	// We might need more if we want to store twiddles there.
-	// However, we can reuse dst as the work buffer for Step 1 & 2 if we are careful,
-	// or assume the caller provides enough scratch.
-	// For now, we will assume scratch is at least N.
-	// To avoid allocating twiddles, we can try to use a part of scratch if it's large enough,
-	// or we accept a small allocation for twiddles/bitrev which is much smaller than full N.
-	// Ideally, the Plan should provide ample scratch.
-	// Let's use the provided scratch for the main work.
+	work := scratch[:n]
 
-	work := scratch // Size 384
+	// Step 1: Compute 128 radix-3 column DFTs.
+	// Input viewed as a 128×3 matrix: x[n1, n2] = src[n1 + n2*128].
+	copy(work, src[:n])
+	amd64.Radix3Butterflies384ForwardComplex64Asm(work)
 
-	// Step 1: Compute 128 radix-3 column DFTs
-	// Input viewed as 128×3 matrix: x[n1, n2] = src[n1 + n2*128]
-	for n1 := range stride {
-		a0 := src[n1]
-		a1 := src[n1+stride]
-		a2 := src[n1+2*stride]
-		y0, y1, y2 := butterfly3ForwardComplex64(a0, a1, a2)
-		work[n1] = y0
-		work[n1+stride] = y1
-		work[n1+2*stride] = y2
-	}
+	// Step 2: Apply twiddle factors W_384^(n1*k2).
+	amd64.ApplyTwiddle384Complex64Asm(work, twiddle)
 
-	// Step 2: Apply twiddle factors W_384^(n1*k2)
-	for n1 := range stride {
-		work[stride+n1] = mathpkg.MulComplex64(work[stride+n1], twiddle[n1])
-	}
-	for n1 := range stride {
-		work[2*stride+n1] = mathpkg.MulComplex64(work[2*stride+n1], twiddle[2*n1])
-	}
+	// Prepare for 128-point sub-FFTs (twiddle precomputed, buffers pooled)
+	twiddle128 := dit384Sub128TwiddleC64
 
-	// Step 3: Compute 3 independent 128-point FFTs
-	// We need 128-point twiddles. These are a subset of W_384.
-	// W_128^k = W_384^(3k).
-	// We can gather them into a temp buffer.
+	subPtr := dit384SubScratchPoolC64.Get().(*[128]complex64) //nolint:forcetypeassert
+	defer dit384SubScratchPoolC64.Put(subPtr)
 
-	// Fast allocation (small stack-allocated-like arrays would be better, but slices work)
-	// We need 128 complex64s for twiddles.
-	// We reuse 'dst' as temporary storage for twiddles and bitrev since we overwrite dst in Step 4.
-	// BUT Step 3 writes to 'dst' (or we need an intermediate).
-	// Let's use a small local buffer for twiddles to avoid 'mathpkg' recompute overhead.
-	// Note: We really should have these precomputed, but gathering from 'twiddle' is fast O(N).
+	subScratch := subPtr[:]
 
-	subTwiddle := make([]complex64, stride)
-	for k := range stride {
-		subTwiddle[k] = twiddle[k*3]
-	}
+	outPtr := dit384OutPoolC64.Get().(*[384]complex64) //nolint:forcetypeassert
+	defer dit384OutPoolC64.Put(outPtr)
 
-	// We need scratch for the sub-transform.
-	subScratch := make([]complex64, stride)
+	fftOut := outPtr[:]
 
-	// Step 3: Compute 3 independent 128-point FFTs
-	// We process rows from 'work' and write to 'dst' temporarily (interleaved later?)
-	// The original code used 'fftOut' temp buffer.
-	// We can use 'dst' to store the FFT results, but the order in 'dst' will be [row0, row1, row2].
-	// Step 4 expects to read from that and write to 'dst' interleaved.
-	// This implies we cannot write directly to final 'dst' positions in Step 3 easily
-	// because Step 4 reads randomly.
-	// So we keep results in 'work' (in-place FFT?) or write to 'dst' then copy back?
-	// The AVX2 kernel is out-of-place (dst, src).
-	// Let's write result back to 'work' region? No, AVX2 inputs/outputs shouldn't overlap if not safe.
-	// We can write to 'dst[0:128]', 'dst[128:256]', 'dst[256:384]'.
-
+	// Step 3: Compute 3 independent 128-point FFTs.
 	for k2 := range 3 {
 		rowStart := k2 * stride
-		// Input from work, Output to dst (temporarily stored as rows)
 		if !amd64.ForwardAVX2Size128Radix4Then2Complex64Asm(
-			dst[rowStart:rowStart+stride],
+			fftOut[rowStart:rowStart+stride],
 			work[rowStart:rowStart+stride],
-			subTwiddle, subScratch,
+			twiddle128, subScratch,
 		) {
 			return false
 		}
 	}
 
-	// Step 4: Interleave output
-	// Current 'dst' contains [FFT(row0), FFT(row1), FFT(row2)]
-	// We need to permute this into final 'dst' order.
-	// X[k1*3 + k2] = FFT_result[k2][k1]
-	// We can do this in-place by copying 'dst' back to 'work' first, or swapping?
-	// Copying 'dst' to 'work' is safe.
-	copy(work, dst)
-
+	// Step 4: Interleave output — X[k1*3 + k2] = FFT_result[k2][k1].
 	for k1 := range stride {
 		for k2 := range 3 {
-			dst[k1*3+k2] = work[k2*stride+k1]
+			dst[k1*3+k2] = fftOut[k2*stride+k1]
 		}
 	}
 
@@ -140,68 +93,55 @@ func inverseDIT384MixedComplex64(dst, src, twiddle, scratch []complex64) bool {
 		return false
 	}
 
-	work := scratch // Size 384
+	work := scratch[:n]
 
-	// Step 1: De-interleave input
-	// src[k1*3 + k2] → work[k2*128 + k1] (using work as temp buffer)
+	inPtr := dit384OutPoolC64.Get().(*[384]complex64) //nolint:forcetypeassert
+	defer dit384OutPoolC64.Put(inPtr)
+
+	ifftIn := inPtr[:]
+
+	// Step 1: De-interleave input — src[k1*3 + k2] → ifftIn[k2*128 + k1].
 	for k1 := range stride {
 		for k2 := range 3 {
-			work[k2*stride+k1] = src[k1*3+k2]
+			ifftIn[k2*stride+k1] = src[k1*3+k2]
 		}
 	}
 
-	// Prepare for 128-point sub-IFFTs
-	// Gather twiddles (stride 3)
-	subTwiddle := make([]complex64, stride)
-	for k := range stride {
-		subTwiddle[k] = twiddle[k*3]
-	}
+	// Prepare for 128-point sub-IFFTs (twiddle precomputed, buffers pooled)
+	twiddle128 := dit384Sub128TwiddleC64
 
-	subScratch := make([]complex64, stride)
+	subPtr := dit384SubScratchPoolC64.Get().(*[128]complex64) //nolint:forcetypeassert
+	defer dit384SubScratchPoolC64.Put(subPtr)
 
-	// Step 2: Compute 3 independent 128-point IFFTs
-	// Input from work, Output to dst (temporarily as rows)
+	subScratch := subPtr[:]
+
+	// Step 2: Compute 3 independent 128-point IFFTs.
 	for k2 := range 3 {
 		rowStart := k2 * stride
 		if !amd64.InverseAVX2Size128Radix4Then2Complex64Asm(
-			dst[rowStart:rowStart+stride],
 			work[rowStart:rowStart+stride],
-			subTwiddle, subScratch,
+			ifftIn[rowStart:rowStart+stride],
+			twiddle128, subScratch,
 		) {
 			return false
 		}
 	}
 
-	// Step 3 & 4: Apply conjugate twiddles and Compute 128 radix-3 inverse column butterflies
-	// We read from 'dst' (rows) and write to 'dst' (final)
-	// But Step 4 output indices: dst[n1], dst[n1+stride], dst[n1+2*stride]
-	// Step 3 inputs are at same locations.
-	// So we can do this in-place in 'dst' IF we are careful.
-	// Actually, let's copy 'dst' back to 'work' to be safe and clean.
-	copy(work, dst)
+	// Step 3: Apply conjugate twiddle factors.
+	amd64.ApplyConjTwiddle384Complex64Asm(work, twiddle)
 
-	// Apply conjugate twiddle factors to 'work'
-	for n1 := range stride {
-		work[stride+n1] = mathpkg.MulComplex64(work[stride+n1], mathpkg.Conj(twiddle[n1]))
-	}
-	for n1 := range stride {
-		work[2*stride+n1] = mathpkg.MulComplex64(work[2*stride+n1], mathpkg.Conj(twiddle[2*n1]))
-	}
+	// Step 4: Compute 128 radix-3 inverse column butterflies.
+	amd64.Radix3Butterflies384InverseComplex64Asm(work)
 
-	// Additional scaling (128-pt IFFT did 1/128). 1/3 is a *real* factor, so it
-	// is applied component-wise: routing it through the complex-multiply helper
-	// spends two products against a zero imaginary part plus an add and a
-	// subtract per output, and the compiler does not fold them away.
+	// Scale and copy to dst. Additional scaling (the 128-point IFFT did 1/128).
+	// 1/3 is a *real* factor, so it is applied component-wise: routing it through
+	// the complex-multiply helper spends two products against a zero imaginary
+	// part plus an add and a subtract per output, and the compiler does not fold
+	// them away even though scale is a constant.
 	const scale = float32(1.0 / 3.0)
 
-	for n1 := range stride {
-		a0 := work[n1]
-		a1 := work[n1+stride]
-		a2 := work[n1+2*stride]
-		y0, y1, y2 := butterfly3InverseComplex64(a0, a1, a2)
-		dst[n1] = complex(real(y0)*scale, imag(y0)*scale)
-		dst[n1+stride] = complex(real(y1)*scale, imag(y1)*scale)
-		dst[n1+2*stride] = complex(real(y2)*scale, imag(y2)*scale)
+	for i := range n {
+		dst[i] = complex(real(work[i])*scale, imag(work[i])*scale)
 	}
 
 	return true
@@ -302,12 +242,7 @@ func inverseDIT384MixedComplex128(dst, src, twiddle, scratch []complex128) bool 
 	}
 
 	// Step 3: Apply conjugate twiddle factors
-	for n1 := range stride {
-		work[stride+n1] *= mathpkg.Conj(twiddle[n1])
-	}
-	for n1 := range stride {
-		work[2*stride+n1] *= mathpkg.Conj(twiddle[2*n1])
-	}
+	amd64.ApplyConjTwiddle384Complex128Asm(work, twiddle)
 
 	// Step 4: Compute 128 radix-3 inverse column butterflies
 	amd64.Radix3Butterflies384InverseComplex128Asm(work)
