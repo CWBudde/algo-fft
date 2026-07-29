@@ -49,7 +49,12 @@ func TestRadix4AVX2Ranking(t *testing.T) {
 	features := cpu.DetectFeatures()
 
 	for _, n := range []int{128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536} {
+		// n = 128 and n = 2048 register the fused-tail variant instead; see
+		// forwardRadix4AVX2FusedComplex64 for why the choice is per size.
 		want := fmt.Sprintf("dit%d_radix4_avx2", n)
+		if n == 128 || n == 2048 {
+			want = fmt.Sprintf("dit%d_radix4fused_avx2", n)
+		}
 
 		var breach string
 

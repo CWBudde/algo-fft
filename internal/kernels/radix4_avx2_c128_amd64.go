@@ -113,3 +113,33 @@ func inverseRadix4AVX2Complex128(dst, src, twiddle, scratch []complex128) bool {
 
 	return amd64.Radix4Complex128Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, true, false, scale)
 }
+
+// forwardRadix4AVX2FusedComplex128 folds the n = 2*4^k radix-2 tail into the
+// last radix-4 stage. See forwardRadix4AVX2FusedComplex64 for the measured
+// per-size table and why the choice is made per size rather than per shape --
+// at this precision it wins only at n = 128 and is 11% worse at n = 2048.
+func forwardRadix4AVX2FusedComplex128(dst, src, twiddle, scratch []complex128) bool {
+	n := len(src)
+
+	limit, ok := radix4AVX2Limit(n)
+	if !ok {
+		return false
+	}
+
+	return amd64.Radix4Complex128Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, false, true, 1)
+}
+
+// inverseRadix4AVX2FusedComplex128 is the inverse twin of
+// forwardRadix4AVX2FusedComplex128.
+func inverseRadix4AVX2FusedComplex128(dst, src, twiddle, scratch []complex128) bool {
+	n := len(src)
+
+	limit, ok := radix4AVX2Limit(n)
+	if !ok {
+		return false
+	}
+
+	scale := float64(1) / float64(n)
+
+	return amd64.Radix4Complex128Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, true, true, scale)
+}

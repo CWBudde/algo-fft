@@ -30,7 +30,12 @@ func TestRadix4AVX2Complex128Ranking(t *testing.T) {
 	features := cpu.DetectFeatures()
 
 	for _, n := range []int{16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536} {
+		// n = 128 registers the fused-tail variant instead; see
+		// forwardRadix4AVX2FusedComplex64 for why the choice is per size.
 		want := fmt.Sprintf("dit%d_radix4_avx2", n)
+		if n == 128 {
+			want = fmt.Sprintf("dit%d_radix4fused_avx2", n)
+		}
 
 		results := timeCodelets128(t, n, features)
 		if len(results) == 0 {

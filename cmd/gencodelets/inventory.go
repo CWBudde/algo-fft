@@ -35,6 +35,7 @@ var simdColumnNames = map[string]string{
 var variantNames = map[string]string{
 	"radix2":              "Radix-2",
 	"radix4":              "Radix-4",
+	"radix4fused":         "Radix-4 (fused tail)",
 	"radix8":              "Radix-8",
 	"radix16":             "Radix-16",
 	"radix32":             "Radix-32",

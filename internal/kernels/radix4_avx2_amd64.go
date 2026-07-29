@@ -211,3 +211,59 @@ func inverseRadix4AVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 	return amd64.Radix4Complex64Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, true, false, scale)
 }
+
+// The fused-tail variants.
+//
+// For n = 2*4^k the kernel runs a separate radix-2 pass over the whole buffer
+// after the radix-4 stages. Measured against a probe that skips that pass
+// outright, it costs 9-15% of the kernel at every such size -- so folding it
+// into the last radix-4 stage, where both of its operands are already in
+// registers, looked like a uniform win. It is not, and the reason is worth
+// keeping: fusing doubles the number of live streams from four to eight, and
+// past a point that costs more than the pass it saves.
+//
+// Canary-gated sweep on the i7-1255U (AVX2), fused as a ratio to the separate
+// tail, forward/inverse, 7-10 accepted groups per cell:
+//
+//	n      stride   complex64      complex128
+//	128    128/256B 0.955 / 0.979  0.935 / 0.934
+//	512    512B/1K  0.971 / 1.005  1.002 / 1.020
+//	2048   2K/4K    0.943 / 0.974  1.110 / 1.104
+//	8192   8K/16K   1.034 / 1.021  1.006 / 1.077
+//	32768  32K/64K  1.004 / 1.013  1.020 / 1.000
+//
+// (stride is the last stage's m*sizeof(T), the distance between the eight
+// streams.) The worst cell is complex128 at n = 2048, where the stride is
+// exactly 4 KiB and every stream lands on one L1 set -- which is the size the
+// fusion was written for. It is therefore selected per size from this table
+// rather than applied wherever the shape allows: see the Priority rows in
+// cmd/gencodelets/specs.go, which is where every other per-size measured fact
+// in this library lives. Sizes not listed there keep the separate tail.
+//
+// Re-measure with `just bench-gated <sizes>` after building the candidate
+// sweep with -tags fftprobe, which registers both variants side by side.
+func forwardRadix4AVX2FusedComplex64(dst, src, twiddle, scratch []complex64) bool {
+	n := len(src)
+
+	limit, ok := radix4AVX2Limit(n)
+	if !ok {
+		return false
+	}
+
+	return amd64.Radix4Complex64Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, false, true, 1)
+}
+
+// inverseRadix4AVX2FusedComplex64 is the inverse twin of
+// forwardRadix4AVX2FusedComplex64.
+func inverseRadix4AVX2FusedComplex64(dst, src, twiddle, scratch []complex64) bool {
+	n := len(src)
+
+	limit, ok := radix4AVX2Limit(n)
+	if !ok {
+		return false
+	}
+
+	scale := float32(1) / float32(n)
+
+	return amd64.Radix4Complex64Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, true, true, scale)
+}

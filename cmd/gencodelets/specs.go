@@ -700,11 +700,16 @@ var codeletSpecs = []codeletSpec{
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
 	},
 	{
+		// Fused tail: measured 0.955/0.979 against the separate-tail variant
+		// (see forwardRadix4AVX2FusedComplex64 for the whole table). Only
+		// n = 128 and n = 2048 take it at this precision; the fused loop holds
+		// eight live streams instead of four and loses that trade at the
+		// larger strides.
 		Target: "avx2", Prec: 64, Size: 128,
-		Forward:   "forwardRadix4AVX2Complex64",
-		Inverse:   "inverseRadix4AVX2Complex64",
+		Forward:   "forwardRadix4AVX2FusedComplex64",
+		Inverse:   "inverseRadix4AVX2FusedComplex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit128_radix4_avx2", Priority: 90,
+		Signature: "dit128_radix4fused_avx2", Priority: 90,
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
 	},
 	{
@@ -716,11 +721,14 @@ var codeletSpecs = []codeletSpec{
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
 	},
 	{
+		// Fused tail: measured 0.943/0.974. The complex128 row at this size
+		// deliberately does NOT fuse -- there the stride is exactly 4 KiB and
+		// fusing costs 11%.
 		Target: "avx2", Prec: 64, Size: 2048,
-		Forward:   "forwardRadix4AVX2Complex64",
-		Inverse:   "inverseRadix4AVX2Complex64",
+		Forward:   "forwardRadix4AVX2FusedComplex64",
+		Inverse:   "inverseRadix4AVX2FusedComplex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit2048_radix4_avx2", Priority: 90,
+		Signature: "dit2048_radix4fused_avx2", Priority: 90,
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
 	},
 	{
@@ -1047,11 +1055,13 @@ var codeletSpecs = []codeletSpec{
 		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{
+		// Fused tail: measured 0.935/0.934, the largest fusion win in either
+		// precision. n = 128 is the only complex128 size that takes it.
 		Target: "avx2", Prec: 128, Size: 128,
-		Forward:   "forwardRadix4AVX2Complex128",
-		Inverse:   "inverseRadix4AVX2Complex128",
+		Forward:   "forwardRadix4AVX2FusedComplex128",
+		Inverse:   "inverseRadix4AVX2FusedComplex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit128_radix4_avx2", Priority: 90,
+		Signature: "dit128_radix4fused_avx2", Priority: 90,
 		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{

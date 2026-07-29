@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The `n = 2*4^k` radix-2 tail can now be fused into the last radix-4 stage,
+  and three sizes take it.** For lengths that are twice a power of four, the
+  size-generic AVX2 radix-4 kernel transformed the even and odd halves
+  independently and then made a _separate full pass_ over the buffer to combine
+  them. Measured against a probe that skips that pass outright, it costs
+  roughly **8–15% of the kernel** at those sizes (up to 20% at n = 128) — a tax
+  on every odd power of two, and the reason n = 2048 costs six passes for eleven
+  butterfly levels where 1024 costs five for ten. The last stage always has exactly two groups,
+  so running them in lockstep leaves both operands of four radix-2 butterflies
+  in registers and the extra pass disappears; output addresses, the permutation
+  table and the packed twiddle layout are unchanged. Fusing is **not** a
+  uniform win, because it doubles the live streams from four to eight: it gains
+  4–6% at n = 128 in both precisions and at n = 2048 complex64, and _loses_ up
+  to 11% at n = 2048 complex128, where the last-stage stride is exactly 4 KiB
+  and all eight streams land on one L1 set. It is therefore selected per size
+  in `cmd/gencodelets/specs.go` — `dit128_radix4fused_avx2` in both precisions
+  and `dit2048_radix4fused_avx2` at complex64 — rather than applied wherever the
+  shape allows. Correctness is cheap to state and was checked that way: fusing
+  reorders no arithmetic, so the fused and separate-tail kernels must agree
+  **bit for bit**, and they do at every size 16…32768 in both directions.
+  Sweeps are canary-gated and pinned; see PLAN.md §1.17 for the full table and
+  the `-tags fftprobe` harness that re-derives it. Also discharges the incumbent
+  audit at 128/512/1024/2048/4096/8192/32768 in both precisions: every incumbent
+  confirmed except the three rows this change itself replaced.
+
 - **The last ten mixed VEX/legacy-SSE assembly functions are now uniformly
   VEX-encoded.** The 2026-07-28 sweep converted 4089 instructions across 59
   files but skipped `Forward`/`InverseAVX2Complex64Asm`, both `AVX2Stockham`
