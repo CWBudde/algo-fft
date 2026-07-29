@@ -151,12 +151,9 @@ func TestStockhamPacked(t *testing.T) {
 func testStockhamPacked64(t *testing.T, n int) {
 	t.Helper()
 
-	// Check if packed Stockham is available
-	if !transform.StockhamPackedAvailable() {
-		t.Skipf("Packed Stockham not available for n=%d", n)
-		return
-	}
-
+	// No availability check: the packed engine is compiled in on every build.
+	// This used to skip whenever the old dispatch toggle was off, which meant
+	// it never ran on a SIMD build at all.
 	src := randomComplex64(n, uint64(n+123))
 	want := reference.NaiveDFT(src)
 
@@ -206,11 +203,6 @@ func testStockhamPacked64(t *testing.T, n int) {
 
 func testStockhamPacked128(t *testing.T, n int) {
 	t.Helper()
-
-	if !transform.StockhamPackedAvailable() {
-		t.Skipf("Packed Stockham not available for n=%d", n)
-		return
-	}
 
 	src := randomComplex128(n, uint64(n+456))
 	want := reference.NaiveDFT128(src)

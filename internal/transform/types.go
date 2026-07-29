@@ -41,8 +41,6 @@ func IsPowerOf2(n int) bool {
 	return m.IsPowerOf2(n)
 }
 
-// stockhamPackedEnabled is defined in stockham_packed_toggle_*.go files
-
 // Helper functions for tests.
 var (
 	forwardStockhamComplex64  = kernels.ForwardStockhamComplex64

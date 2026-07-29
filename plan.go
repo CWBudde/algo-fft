@@ -445,10 +445,10 @@ func kernelSelectionStrategy(n int, requested, estimated fftypes.KernelStrategy)
 
 // newKernelExecutor builds the codelet/kernel executor: codelet bindings and
 // their twiddle layouts from the plan estimate, the strategy-dispatched
-// fallback kernels, and the packed Stockham tables when that route is enabled
-// for this build and strategy.
+// fallback kernels, and the packed Stockham tables when that route wins at this
+// size, precision and instruction-set tier.
 func newKernelExecutor[T Complex](
-	n int, twiddle []T, kern kernels.Kernels[T], estimate planner.PlanEstimate[T],
+	n int, twiddle []T, kern kernels.Kernels[T], estimate planner.PlanEstimate[T], features cpu.Features,
 ) *kernelExecutor[T] {
 	e := &kernelExecutor[T]{
 		forwardCodelet: estimate.ForwardCodelet,
@@ -461,11 +461,26 @@ func newKernelExecutor[T Complex](
 	e.codeletTwiddleForward, e.codeletTwiddleInverse,
 		e.codeletTwiddleForwardBacking, e.codeletTwiddleInverseBacking = prepareCodeletTwiddles(n, twiddle, estimate)
 
-	if estimate.Strategy == fftypes.KernelStockham && transform.StockhamPackedAvailable() {
+	// The ForwardCodelet check is redundant today and deliberately kept: every
+	// registered codelet carries Algorithm: KernelDIT, so an estimate that
+	// bound one never reports KernelStockham. It pins that invariant rather
+	// than relying on it silently — if a Stockham codelet is ever registered,
+	// this keeps the packed table from being allocated behind it.
+	if estimate.Strategy == fftypes.KernelStockham && estimate.ForwardCodelet == nil &&
+		transform.PackedStockhamEnabled(n, isWideComplex[T](), features) {
 		e.packed = transform.ComputePackedTwiddles[T](n, 4, twiddle)
 	}
 
 	return e
+}
+
+// isWideComplex reports whether T is complex128. It is a single type assertion
+// rather than a type switch with concrete bodies in a generic function, which
+// Go compiles into every shape instantiation (PLAN.md 2.4).
+func isWideComplex[T Complex]() bool {
+	_, wide := any(*new(T)).(complex128)
+
+	return wide
 }
 
 // newConvolutionExecutor builds the executor for the arbitrary-length
@@ -578,7 +593,7 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 		// Fallback kernels serve transforms when no codelet is bound (or a
 		// codelet bails); only the kernel executor needs them.
 		kern := fft.SelectKernelsWithStrategy[T](features, kernelSelectionStrategy(n, opts.Strategy.internal(), strategy))
-		ke = newKernelExecutor[T](n, twiddle, kern, estimate)
+		ke = newKernelExecutor[T](n, twiddle, kern, estimate, features)
 		exec = ke
 	}
 
@@ -647,7 +662,7 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 		copy(bitrev, computed)
 	}
 
-	ke := newKernelExecutor[T](n, twiddle, kern, estimate)
+	ke := newKernelExecutor[T](n, twiddle, kern, estimate, features)
 
 	return &Plan[T]{
 		n:                     n,

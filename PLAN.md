@@ -23,8 +23,9 @@ into `docs/IMPLEMENTATION_INVENTORY.md` via `go generate ./internal/kernels/...`
 ## 1. Status
 
 The v1.0 engineering work is **complete** — the API is settled and nothing in
-the remaining backlog changes a signature. What stands between here and the tag
-is the correctness debt in §3; §5 onward is post-v1.0 optimization and
+the remaining backlog changes a signature. The correctness debt in §3 that
+gated the tag is now **closed** (§1.13, §1.14), so what remains before tagging
+is release mechanics only (§4); §5 onward is post-v1.0 optimization and
 coverage.
 
 **Where the library sits against others** (i7-1255U, `go-fft-bench` @ `a1fa607`,
@@ -763,6 +764,84 @@ _Not done:_ Rader still passes `nil` — its length-(n−1) convolution takes th
 same unbound route when n−1 is a power of two (5-smooth but non-power-of-two
 n−1 already runs the SIMD mixed-radix engine). Same fix, separate measurement.
 
+### 1.14 Packed Stockham was compiled out of SIMD builds (2026-07-29)
+
+`internal/transform/stockham_packed_toggle_simd.go` set
+`stockhamPackedEnabled = false` for amd64/arm64/386, on the stated grounds that
+"the hand-written codelet path is checked first and supersedes it".
+
+**That rationale was false as written, and the item's proposed alternative fix
+was a no-op.** Every registered codelet carries `Algorithm: KernelDIT`, and
+`tryRegistry` returns an estimate with `Strategy: entry.Algorithm`, so for an
+auto plan the `estimate.Strategy == KernelStockham` test in `newKernelExecutor`
+is already false wherever a codelet binds. Codelet and packed were never in
+competition, so reordering the two executor branches — the fix §3 offered —
+would have changed nothing. What the constant actually suppressed was the sizes
+with _no_ codelet, where the SIMD build fell through to a radix-2 Stockham
+kernel while the radix-4 route it had disabled was up to 2.7× faster.
+
+Two further corrections that shaped the fix:
+
+- **The boundary is not the codelet ceiling.** The toggle also suppressed
+  explicitly forced `KernelStockham` at _any_ size ≥ 4, because `tryRegistry`
+  returns nil when the forced strategy does not match the entry's algorithm. A
+  plain size threshold covers auto, wisdom and forced plans alike.
+- **purego cannot be detected from CPU features.**
+  `internal/cpu/detect_amd64.go` is tagged `//go:build amd64` with no
+  `!purego`, so a purego amd64 build still reports `HasAVX2: true`. The
+  build-tagged constant survives as a _tier selector_
+  (`packedBuildHasSIMDKernels`), not an on/off switch.
+
+Replaced by a runtime policy (`internal/transform/stockham_packed_policy.go`):
+a tier × precision threshold table, plus `SetPackedStockhamOverride` so both
+arms of the measurement live in one binary rather than in two builds (§2.2).
+The old `stockhamPacked` guard is gone — the engine is now always compiled in
+and always runs when called, and the _route_ decision moved to plan
+construction.
+
+Measured on the i7-1255U, pinned, forced Stockham, 5 interleaved rounds, as the
+median of the **within-round** packed/kernel ratio. That statistic is not
+optional here: the null control's round-to-round spread reached **1.69**, so a
+cross-round median would have been measuring the machine. Ratios < 1 favor
+packed:
+
+|          |  2^16 |  2^17 |  2^18 |  2^19 |  2^20 |  2^21 |
+| -------- | ----: | ----: | ----: | ----: | ----: | ----: |
+| c64 fwd  | 1.625 | 1.518 | 1.175 | 0.934 | 0.672 | 0.515 |
+| c64 inv  | 1.647 | 1.513 | 1.176 | 0.976 | 0.729 | 0.514 |
+| c128 fwd | 0.972 | 0.803 | 0.626 | 0.565 | 0.437 | 0.374 |
+| c128 inv | 1.009 | 0.831 | 0.625 | 0.514 | 0.481 | 0.397 |
+
+Thresholds: **complex128 from 2^17** (1.25×/1.20×), **complex64 from 2^20**
+(1.49×/1.37×). The precision axis is what the data demands — c128 wins at 2^17
+where c64 still _loses_ by 1.5×, so the `padShapes` convention of admitting a
+shape only where it wins at both precisions would have forfeited most of the
+benefit.
+
+**2^19 complex64 is deliberately given up.** Its first five rounds averaged
+0.900/0.950, nominally clearing the 0.95 bar. Ten further rounds put the ratios
+at 0.474–1.245 and 0.429–1.220, medians 0.934/0.976 — a wash. It is the one
+size where the table concedes something real, and it concedes it because the
+measurement does not support the claim.
+
+Only the AVX2 row is filled in. SSE/AVX-512/NEON stay off: §2.1 rule 5 forbids
+landing a route unmeasured on its own tier, and of the four only AVX2 is
+measurable here (§2.3). Their uncovered range is one octave wider, since their
+codelet ladder stops at 32768 — so that is a real follow-up, in §7.
+
+Side effects worth noting:
+
+- `internal/fft/recursive_test.go` had two `t.Skip`s keyed on the old toggle,
+  so its packed-Stockham correctness tests **never ran on a SIMD build**. They
+  now do.
+- `ComputePackedTwiddles` grew `Values` from a zero-capacity slice, ending at up
+  to ~2× the used capacity. It now preallocates exactly, via the new
+  `PackedTwiddleLen` (also the closed form documenting the cost: `n-1` values
+  for `n = 4^k`, `n/2-1` for `n = 2·4^k`). The table is roughly a second full
+  twiddle table — 8 MiB at the c64 threshold, 2 MiB at the c128 one, and 64 MiB
+  at 2^22 complex128. That cost is why the thresholds are set from measured
+  wins rather than from "wherever it is merely correct".
+
 ---
 
 ## 2. Working method
@@ -887,72 +966,13 @@ Each of these cost a real investigation. The assembly ones are also in
 ## 3. Correctness and honesty debt
 
 Things that are wrong, silently misreport, or violate a stated contract. This
-section gates the tag: none of it is an API-shape problem, so none of it
-_forces_ a wait, but every item is something a v1.0 would ship knowingly
-broken. Cheap enough that tagging around it is not worth the note in the
-release announcement.
+section gated the tag.
 
-- [x] **The SIMD build is slower than purego at two Bluestein primes.** Fixed;
-      see §1.13. The guess in this item — "a codelet whose fixed overhead is not
-      amortized at that pad size" — was wrong in an instructive way: no codelet
-      was selected at all. The padded power-of-two sub-FFT never consulted the
-      registry, so both builds ran the same pure-Go kernel for ~96% of the work.
-- [ ] **Packed Stockham is disabled on SIMD builds above the codelet range.**
-      `internal/transform/stockham_packed_toggle_simd.go` sets
-      `stockhamPackedEnabled = false` for amd64/arm64/386, reasoning that "the
-      hand-written codelet path is checked first and supersedes it". That holds
-      only up to 32768 — the largest registered codelet. Above it a
-      Stockham-resolved plan on a SIMD build has no codelet to supersede
-      anything and falls through to the generic SIMD Stockham kernel, which is
-      slower than the pure-Go packed radix-4 route the toggle disabled. Same
-      benchmark, same machine, forced Stockham, SIMD vs purego ns/op: 2^18 c64
-      3.39 vs 5.26 (SIMD wins) — but 2^18 c128 6.71 vs 3.84 (**1.75× loss**),
-      2^20 c64 31.0 vs 23.5, 2^20 c128 49.7 vs 20.2 (**2.46×**), 2^22 c64 157
-      vs 102. Fix is not simply flipping the toggle — the executor checks packed
-      _before_ the bound kernel (`kernelExecutor.forward`), so enabling it
-      wholesale would regress 2^18 complex64. Wants a measured per-precision/
-      size crossover, then a size gate. Affects every Stockham-resolved size
-      above the codelet ceiling on amd64/arm64/386, which since the square-rule
-      change includes the power-of-two squares.
-
-      Three corrections to the framing above, found while scoping the fix:
-
-      - **"A reordering of the two branches" is a no-op.** Every registered
-        codelet carries `Algorithm: KernelDIT`, and `tryRegistry` returns an
-        estimate with `Strategy: entry.Algorithm`, so for an _auto_ plan the
-        `estimate.Strategy == KernelStockham` test in `newKernelExecutor` is
-        already false wherever a codelet binds. Codelet and packed are mutually
-        exclusive by construction, and the toggle's stated rationale — "the
-        codelet path is checked first and supersedes it" — is false as written.
-      - **The boundary is not the codelet ceiling.** What the toggle actually
-        suppresses is (a) auto plans above the ceiling, (b) wisdom-selected
-        `stockham`, and (c) **explicitly forced `KernelStockham` at any size
-        ≥ 4**, because `tryRegistry` returns nil when the forced strategy does
-        not match the entry's algorithm. A plain size threshold covers all
-        three. The ceiling is also no longer 32768:
-        `cmd/gencodelets/specs.go` registers `dit65536_radix4_avx2` in both
-        precisions (§1.9), so on AVX2 the first uncovered power of two is 2^17.
-      - **purego cannot be detected from CPU features.**
-        `internal/cpu/detect_amd64.go` is tagged `//go:build amd64` with no
-        `!purego`, so a purego amd64 build still reports `HasAVX2: true`. A
-        predicate keyed only on features would silently change purego behaviour
-        (§2.1 rule 4); the build-tagged constant must survive as a tier
-        selector, not an on/off switch.
-
-      Measure it with the runtime override in one binary rather than a
-      SIMD-vs-purego build comparison (§2.2), and use forced `KernelSixStep` as
-      the null control — a codelet-covered size under _forced_ Stockham **is**
-      reachable by the change, so it is not a control.
-
-      Weigh the memory: the packed table holds `n-1` values for `n = 4^k` and
-      `n/2 - 1` for `n = 2·4^k` — roughly a second full twiddle table, i.e.
-      **64.0 MiB at 2^22 complex128**. Do not spend that for a 5% win; fold a
-      minimum margin into the threshold rule rather than deferring it to a knob.
-      (Landed already, independent of the gate: `PackedTwiddleLen` plus exact
-      preallocation in `ComputePackedTwiddles`, which previously grew from a
-      zero-capacity slice and could end at ~2× the used capacity.)
-
----
+**Both items are closed** — see §1.13 (the Bluestein sub-FFT never reached the
+codelet registry) and §1.14 (packed Stockham was compiled out of SIMD builds).
+They turned out to be the same bug twice: a fast path that existed, was
+correct, and was unreachable, in both cases behind a dispatch decision whose
+stated justification had never been re-derived. Nothing here blocks §4.
 
 ## 4. Ship v1.0
 
@@ -1168,6 +1188,16 @@ ends.
       radix-4 kernels, which moved the AVX2 column substantially — re-measure
       before acting. Do not retune priorities from this host alone (§2.3).
 
+- [ ] **Measure the packed-Stockham crossover on the SSE, NEON and AVX-512
+      tiers.** §1.14 filled in only the AVX2 row of
+      `packedStockhamMinSize`; the other three are `packedOff`, i.e. those tiers
+      keep today's behaviour and forgo a win worth up to 2.7× on AVX2. Their
+      uncovered range is **one octave wider**, since their codelet ladder stops
+      at 32768 against AVX2's 65536. The harness is already in place and needs
+      no porting: run `BenchmarkPackedGate64`/`128` on the target host and read
+      the median within-round packed/kernel ratio. Do not extrapolate the AVX2
+      thresholds — the competing kernel is a different one on each tier, which
+      is the whole reason the table has a tier axis.
 - [ ] **Validate the SSE2/SSE3 tier on genuine SSE-only hardware.** All the
       2048/4096/8192/16384/32768 measurements forced the SSE path on an
       AVX2-capable i7-1255U. Spot-check the speedups — and the

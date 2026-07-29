@@ -62,11 +62,16 @@ type kernelExecutor[T Complex] struct {
 	forwardKernel kernels.Kernel[T]
 	inverseKernel kernels.Kernel[T]
 
-	// packed enables the pure-Go packed radix-4 Stockham route; both
-	// directions share it — the inverse conjugates the twiddles on load. It
-	// is non-nil only for Stockham plans on builds where
-	// transform.StockhamPackedAvailable() reports true (SIMD builds use the
-	// codelet path instead; see internal/transform/stockham_packed_toggle_*.go).
+	// packed enables the packed radix-4 Stockham route; both directions share
+	// it — the inverse conjugates the twiddles on load. It is non-nil only for
+	// Stockham-resolved plans at sizes where that route was measured to beat
+	// the bound kernel on this instruction-set tier and precision (see
+	// transform.PackedStockhamEnabled).
+	//
+	// It can never coexist with a bound codelet: every registered codelet is
+	// Algorithm: KernelDIT, so an estimate that bound one does not report
+	// KernelStockham. The codelet-first ordering below is therefore not what
+	// keeps the two apart, despite what the old build toggle claimed.
 	packed *transform.PackedTwiddles[T]
 }
 

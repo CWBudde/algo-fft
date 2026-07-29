@@ -3,23 +3,20 @@ package transform
 import imath "github.com/cwbudde/algo-fft/internal/math"
 
 // This file owns the packed mixed-radix Stockham engine: radix-4 (plus one
-// radix-2 stage for odd log2) with precomputed packed twiddles, gated by the
-// per-build stockhamPackedEnabled toggle. It is a different algorithm from
-// the plain radix-2 Stockham autosort, whose canonical home is
-// internal/kernels (StockhamForward/StockhamInverse); the two are not
-// interchangeable — this one needs a PackedTwiddles table and is only wired
-// up on builds where it beats the SIMD codelet path.
-
-// StockhamPackedAvailable reports whether packed Stockham is enabled in this build.
-// The stockhamPackedEnabled constant is defined in stockham_packed_toggle_*.go files.
-func StockhamPackedAvailable() bool {
-	return stockhamPackedEnabled
-}
+// radix-2 stage for odd log2) with precomputed packed twiddles. It is a
+// different algorithm from the plain radix-2 Stockham autosort, whose canonical
+// home is internal/kernels (StockhamForward/StockhamInverse); the two are not
+// interchangeable — this one needs a PackedTwiddles table.
+//
+// The engine is correct and compiled in on every build. Whether a plan *takes*
+// this route is decided by PackedStockhamEnabled in
+// stockham_packed_policy.go, at plan construction: a nil packed table means the
+// route was not selected, so there is no second guard here.
 
 // ForwardStockhamPacked executes a mixed-radix (radix-4 + optional radix-2) Stockham FFT
 // using packed radix-4 twiddles when available.
 func ForwardStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T]) bool {
-	return stockhamPacked(dst, src, twiddle, scratch, packed, false)
+	return stockhamPackedRun(dst, src, twiddle, scratch, packed, false)
 }
 
 // InverseStockhamPacked executes a mixed-radix (radix-4 + optional radix-2) Stockham inverse FFT
@@ -27,20 +24,12 @@ func ForwardStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *Pa
 // table as ForwardStockhamPacked and conjugates the twiddles on load, so both
 // directions share one table.
 func InverseStockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T]) bool {
-	return stockhamPacked(dst, src, twiddle, scratch, packed, true)
+	return stockhamPackedRun(dst, src, twiddle, scratch, packed, true)
 }
 
-func stockhamPacked[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T], inverse bool) bool {
-	if !stockhamPackedEnabled {
-		return false
-	}
-
-	return stockhamPackedRun(dst, src, twiddle, scratch, packed, inverse)
-}
-
-// stockhamPackedRun is the toggle-independent engine behind stockhamPacked.
-// Tests call it directly so the implementation is exercised on every build,
-// including SIMD builds where the dispatch toggle is off.
+// stockhamPackedRun is the engine behind both directions. Tests and benchmarks
+// call it directly, which is how it stayed covered on builds where the old
+// dispatch toggle compiled the route out entirely.
 func stockhamPackedRun[T Complex](dst, src, twiddle, scratch []T, packed *PackedTwiddles[T], inverse bool) bool {
 	switch any(*new(T)).(type) {
 	case complex64:

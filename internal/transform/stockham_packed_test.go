@@ -170,9 +170,11 @@ func TestStockhamPackedMatchesStockhamComplex128(t *testing.T) {
 	}
 }
 
-// TestStockhamPackedToggleGatesPublicAPI locks in the dispatch contract: the
-// exported entry points succeed exactly when the per-build toggle is on.
-func TestStockhamPackedToggleGatesPublicAPI(t *testing.T) {
+// TestStockhamPackedHandlesEveryBuild locks in the contract that replaced the
+// per-build toggle: the exported entry points always run a valid call. Whether
+// a *plan* takes this route is now decided at plan construction by
+// PackedStockhamEnabled, not by the engine refusing to execute.
+func TestStockhamPackedHandlesEveryBuild(t *testing.T) {
 	t.Parallel()
 
 	const n = 16
@@ -188,13 +190,11 @@ func TestStockhamPackedToggleGatesPublicAPI(t *testing.T) {
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
 
-	got := ForwardStockhamPacked(dst, src, twiddle, scratch, packed)
-	if got != StockhamPackedAvailable() {
-		t.Errorf("ForwardStockhamPacked handled=%v, want %v (toggle)", got, StockhamPackedAvailable())
+	if !ForwardStockhamPacked(dst, src, twiddle, scratch, packed) {
+		t.Error("ForwardStockhamPacked declined a valid call")
 	}
 
-	got = InverseStockhamPacked(dst, src, twiddle, scratch, packed)
-	if got != StockhamPackedAvailable() {
-		t.Errorf("InverseStockhamPacked handled=%v, want %v (toggle)", got, StockhamPackedAvailable())
+	if !InverseStockhamPacked(dst, src, twiddle, scratch, packed) {
+		t.Error("InverseStockhamPacked declined a valid call")
 	}
 }
