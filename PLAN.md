@@ -694,6 +694,75 @@ before/after runs on this laptop drifted by more than the effect being chased
 Not fixed, moved to §5: the c128 sub-FFT still runs radix-2, because the AVX2
 c128 radix-4-then-2 that §3 assumed existed does not.
 
+### 1.13 The Bluestein sub-FFT never reached the registry (2026-07-29)
+
+The default build was ~4% _slower_ than `-tags purego` at n = 1009 and n = 2003
+— the wrong direction for §2.1 rule 4, and recorded in §3 as wanting a profile
+on the theory that a codelet had been selected whose fixed overhead the pad size
+could not amortize.
+
+**No codelet had been selected.** `internal/fft/bluestein.go` splits on
+`IsPowerOf2(m)`: a non-power-of-two pad runs the mixed-radix engine, which is
+fully SIMD-dispatched, while a power-of-two pad called
+`kernels.BluesteinConvolution` → `bluesteinSubForward` → the hardcoded size
+switch in `internal/kernels/dit.go`, which never consults the codelet registry
+and has no build tags. So at those two lengths **both builds ran the identical
+pure-Go kernel for ~96% of the work**, and the measured deficit was the chirp
+modulation's SIMD call overhead sitting on a path that got no benefit from it.
+`dit2048_radix4_avx2`, `dit4096_radix4_avx2` and their complex128 twins were
+registered and unreachable. n = 9973 pads to 24576 — not a power of two — which
+is the only reason it went the right way.
+
+That the split was on pad _shape_ rather than pad _size_ is what hid it: the two
+regressing lengths were not a size class, they were the branch that had no
+dispatch.
+
+Fixed by binding the padded sub-FFT at plan time (`newBluesteinSubFFT` in
+`plan.go`, `fft.BluesteinSubFFT`), reusing the machinery `kernelExecutor`
+already uses: `planner.EstimatePlan` for the padded size, then
+`prepareCodeletTwiddles` — which is the part a call-time fix could not have
+done, since a codelet may need a prepared twiddle layout and preparing one is
+plan-time work. The filter pointwise multiply moved to the SIMD
+`ComplexMulArrayInPlace` the mixed-radix branch already used.
+
+Measured on the i7-1255U, three interleaved rounds of two test binaries, medians
+in ns/op (n = 9973 is the null control — it keeps the unbound route):
+
+| cell              | before |  after | change |
+| ----------------- | -----: | -----: | -----: |
+| c64 1009 forward  |  32763 |   5951 |   5.5× |
+| c64 1009 inverse  |  32344 |   6401 |   5.1× |
+| c128 1009 forward |  32065 |  10885 |   2.9× |
+| c64 2003 forward  |  90122 |  12481 |   7.2× |
+| c64 2003 inverse  |  89702 |  12837 |   7.0× |
+| c128 2003 forward | 103164 |  24916 |   4.1× |
+| c64 9973 fwd/inv  | 224310 | 224168 |   1.00 |
+
+The SIMD/purego ratio at 1009 went 0.96 → 5.9 and at 2003 0.96 → 7.6. That the
+_baseline_ ratio was ~1.0 rather than the 0.86 originally recorded is itself the
+confirmation: two builds measuring the same because they were running the same
+code.
+
+Two things worth keeping:
+
+- **Bind only where the registry has a codelet.** The first version fell back to
+  the strategy-dispatched kernels when no codelet existed, and that cost ~4% on
+  purego at n = 1009 — the unbound size switch is hand-tuned per size, while
+  `EstimatePlan`'s heuristic answers Stockham for everything above
+  `ditAutoThreshold`, so a codelet-less pad of 2048 traded a tuned
+  radix-4-then-2 DIT for plain Stockham. With the binding restricted to a real
+  registry hit, purego is flat at 1009 and **15–18% faster** at 2003, where the
+  generic codelet beats the switch.
+- **A bail is a contract violation here, not a fallback.** The caller passes
+  `dst` aliasing `x`, so a kernel that bailed part-way has already destroyed the
+  input needed to re-run it. Plan construction verifies the binding end-to-end
+  (`fft.VerifyBluesteinSub`) and degrades to the unbound route _there_; the
+  transform-time path panics, like `mustMixedRadix`.
+
+_Not done:_ Rader still passes `nil` — its length-(n−1) convolution takes the
+same unbound route when n−1 is a power of two (5-smooth but non-power-of-two
+n−1 already runs the SIMD mixed-radix engine). Same fix, separate measurement.
+
 ---
 
 ## 2. Working method
@@ -773,6 +842,16 @@ the target.
 Each of these cost a real investigation. The assembly ones are also in
 `AGENTS.md`.
 
+- **A registered fast path is not a reachable one.** Codelets for exactly the
+  sizes the Bluestein pad produces sat in the registry, correct and never
+  called, because that route entered a hardcoded size switch instead. The
+  symptom was two builds measuring the _same_ — which is the same tell as §1.12's
+  "an optimisation that changes nothing". Before profiling a path that looks
+  slow, check that the fast version of it runs at all.
+- **A dispatch toggle's stated reason must be re-derived, not inherited.** The
+  packed-Stockham toggle claims the codelet path supersedes it; every codelet is
+  registered as `KernelDIT`, so the strategy check upstream had already excluded
+  it and the toggle only ever suppressed the sizes with no codelet at all.
 - **Test vectors must not be blind.** An impulse cannot detect a wrong twiddle
   (they all multiply zeros) or a wrong output ordering (its spectrum is
   all-ones); Parseval and linearity are insensitive to both. That combination
@@ -813,16 +892,11 @@ _forces_ a wait, but every item is something a v1.0 would ship knowingly
 broken. Cheap enough that tagging around it is not worth the note in the
 release announcement.
 
-- [ ] **The SIMD build is slower than purego at two Bluestein primes.**
-      n = 1009 and n = 2003 both measure 0.86×, i.e. the default build is ~16%
-      _slower_ than `-tags purego` for the same transform. n = 9973, the third
-      rough prime measured, goes the right way (1.79×), so this is
-      size-dependent rather than a blanket Bluestein problem. Both regressing
-      lengths pad to a smaller power of two than 9973 does; a plausible cause is
-      a codelet selected for the padded sub-FFT whose fixed overhead is not
-      amortized at that pad size, but that is a guess and wants a profile. Cheap
-      to chase, and it violates §2.1 rule 4 in the opposite direction from the
-      usual.
+- [x] **The SIMD build is slower than purego at two Bluestein primes.** Fixed;
+      see §1.13. The guess in this item — "a codelet whose fixed overhead is not
+      amortized at that pad size" — was wrong in an instructive way: no codelet
+      was selected at all. The padded power-of-two sub-FFT never consulted the
+      registry, so both builds ran the same pure-Go kernel for ~96% of the work.
 - [ ] **Packed Stockham is disabled on SIMD builds above the codelet range.**
       `internal/transform/stockham_packed_toggle_simd.go` sets
       `stockhamPackedEnabled = false` for amd64/arm64/386, reasoning that "the
@@ -837,10 +911,46 @@ release announcement.
       vs 102. Fix is not simply flipping the toggle — the executor checks packed
       _before_ the bound kernel (`kernelExecutor.forward`), so enabling it
       wholesale would regress 2^18 complex64. Wants a measured per-precision/
-      size crossover, then either a size gate or a reordering of the two
-      branches. Affects every Stockham-resolved size above 32768 on
-      amd64/arm64/386, which since the square-rule change includes the
-      power-of-two squares.
+      size crossover, then a size gate. Affects every Stockham-resolved size
+      above the codelet ceiling on amd64/arm64/386, which since the square-rule
+      change includes the power-of-two squares.
+
+      Three corrections to the framing above, found while scoping the fix:
+
+      - **"A reordering of the two branches" is a no-op.** Every registered
+        codelet carries `Algorithm: KernelDIT`, and `tryRegistry` returns an
+        estimate with `Strategy: entry.Algorithm`, so for an _auto_ plan the
+        `estimate.Strategy == KernelStockham` test in `newKernelExecutor` is
+        already false wherever a codelet binds. Codelet and packed are mutually
+        exclusive by construction, and the toggle's stated rationale — "the
+        codelet path is checked first and supersedes it" — is false as written.
+      - **The boundary is not the codelet ceiling.** What the toggle actually
+        suppresses is (a) auto plans above the ceiling, (b) wisdom-selected
+        `stockham`, and (c) **explicitly forced `KernelStockham` at any size
+        ≥ 4**, because `tryRegistry` returns nil when the forced strategy does
+        not match the entry's algorithm. A plain size threshold covers all
+        three. The ceiling is also no longer 32768:
+        `cmd/gencodelets/specs.go` registers `dit65536_radix4_avx2` in both
+        precisions (§1.9), so on AVX2 the first uncovered power of two is 2^17.
+      - **purego cannot be detected from CPU features.**
+        `internal/cpu/detect_amd64.go` is tagged `//go:build amd64` with no
+        `!purego`, so a purego amd64 build still reports `HasAVX2: true`. A
+        predicate keyed only on features would silently change purego behaviour
+        (§2.1 rule 4); the build-tagged constant must survive as a tier
+        selector, not an on/off switch.
+
+      Measure it with the runtime override in one binary rather than a
+      SIMD-vs-purego build comparison (§2.2), and use forced `KernelSixStep` as
+      the null control — a codelet-covered size under _forced_ Stockham **is**
+      reachable by the change, so it is not a control.
+
+      Weigh the memory: the packed table holds `n-1` values for `n = 4^k` and
+      `n/2 - 1` for `n = 2·4^k` — roughly a second full twiddle table, i.e.
+      **64.0 MiB at 2^22 complex128**. Do not spend that for a 5% win; fold a
+      minimum margin into the threshold rule rather than deferring it to a knob.
+      (Landed already, independent of the gate: `PackedTwiddleLen` plus exact
+      preallocation in `ComputePackedTwiddles`, which previously grew from a
+      zero-capacity slice and could end at ~2× the used capacity.)
 
 ---
 

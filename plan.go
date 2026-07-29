@@ -276,12 +276,24 @@ type convolutionTables[T Complex] struct {
 	bitrev            []int
 	raderPermIn       []int
 	raderPermOut      []int
+
+	// sub is the plan-time binding of the padded power-of-two sub-FFT; nil
+	// selects the unbound route. See newBluesteinSubFFT.
+	sub *fft.BluesteinSubFFT[T]
+
+	// subTwiddleBacking retains the aligned backing arrays of any prepared
+	// codelet twiddle layouts so they stay reachable for the plan's lifetime.
+	subTwiddleForwardBacking []byte
+	subTwiddleInverseBacking []byte
 }
 
 // computeConvolutionTables fills the Rader or Bluestein tables for an
 // arbitrary-length plan of size n with sub-FFT size m; other strategies
-// return the zero value. scratch must have length >= m.
-func computeConvolutionTables[T Complex](n, m int, useBluestein, useRader bool, scratch []T) convolutionTables[T] {
+// return the zero value. Both scratch buffers must have length >= m; probe is
+// used only during setup, to verify the candidate sub-FFT binding.
+func computeConvolutionTables[T Complex](
+	n, m int, useBluestein, useRader bool, features cpu.Features, probe, scratch []T,
+) convolutionTables[T] {
 	var tables convolutionTables[T]
 
 	switch {
@@ -289,41 +301,100 @@ func computeConvolutionTables[T Complex](n, m int, useBluestein, useRader bool, 
 		tables.raderPermIn, tables.raderPermOut, tables.filter, tables.filterInv,
 			tables.twiddle, tables.bitrev = fft.ComputeRaderTables[T](n, scratch)
 	case useBluestein:
-		tables.chirp, tables.chirpInv, tables.filter, tables.filterInv,
-			tables.twiddle, tables.bitrev = computeBluesteinTables[T](n, m, scratch)
+		tables = computeBluesteinTables[T](n, m, features, probe, scratch)
 	}
 
 	return tables
 }
 
 // computeBluesteinTables precomputes the chirp sequences, sub-FFT twiddles,
-// bit-reversal indices, and forward/inverse filters for a Bluestein plan of
-// length n with padded sub-FFT size padM.
-//
-//nolint:nonamedreturns // six related tables; names document the tuple
-func computeBluesteinTables[T Complex](n, padM int, scratch []T) (
-	chirp, chirpInv, filter, filterInv, twiddle []T, bitrev []int,
-) {
-	chirp = kernels.ComputeChirpSequence[T](n)
+// bit-reversal indices, the bound sub-FFT, and the forward/inverse filters for
+// a Bluestein plan of length n with padded sub-FFT size padM.
+func computeBluesteinTables[T Complex](
+	n, padM int, features cpu.Features, probe, scratch []T,
+) convolutionTables[T] {
+	var tables convolutionTables[T]
 
-	chirpInv = make([]T, n)
-	for i, v := range chirp {
-		chirpInv[i] = m.ConjugateOf(v)
+	tables.chirp = kernels.ComputeChirpSequence[T](n)
+
+	tables.chirpInv = make([]T, n)
+	for i, v := range tables.chirp {
+		tables.chirpInv[i] = m.ConjugateOf(v)
 	}
 
-	twiddle = m.ComputeTwiddleFactors[T](padM)
+	tables.twiddle = m.ComputeTwiddleFactors[T](padM)
 
-	// bitrev feeds only the power-of-two DIT sub-FFT path; the mixed-radix
-	// padded sizes run through the mixed-radix engine, which does not use it.
+	// bitrev feeds only the unbound power-of-two DIT sub-FFT path; the
+	// mixed-radix padded sizes run through the mixed-radix engine, and the
+	// bound codelets carry their own layouts.
 	if m.IsPowerOf2(padM) {
-		bitrev = m.ComputeBitReversalIndices(padM)
+		tables.bitrev = m.ComputeBitReversalIndices(padM)
+
+		sub, fwdBacking, invBacking := newBluesteinSubFFT[T](padM, tables.twiddle, features, probe, scratch)
+		tables.sub = sub
+		tables.subTwiddleForwardBacking = fwdBacking
+		tables.subTwiddleInverseBacking = invBacking
 	}
 
 	// Compute filters using the pre-allocated scratch buffer.
-	filter = fft.ComputeBluesteinFilter(n, padM, chirp, twiddle, scratch)
-	filterInv = fft.ComputeBluesteinFilter(n, padM, chirpInv, twiddle, scratch)
+	tables.filter = fft.ComputeBluesteinFilter(n, padM, tables.chirp, tables.twiddle, scratch, tables.sub)
+	tables.filterInv = fft.ComputeBluesteinFilter(n, padM, tables.chirpInv, tables.twiddle, scratch, tables.sub)
 
-	return chirp, chirpInv, filter, filterInv, twiddle, bitrev
+	return tables
+}
+
+// newBluesteinSubFFT binds the padded power-of-two sub-FFT of a Bluestein plan
+// to the best kernel the registry and dispatch offer at that size, including a
+// codelet with a prepared twiddle layout.
+//
+// It exists because the unbound route reaches none of them: it enters
+// internal/kernels' hardcoded size switch, which never consults the codelet
+// registry, so the sub-FFT — ~96% of a Bluestein transform's work — ran in pure
+// Go on every build (PLAN.md P3). Binding here rather than at call time is what
+// makes a prepared layout possible at all.
+//
+// The candidate is verified end-to-end before it is installed: a kernel that
+// declines the size, or whose prepared layout it rejects, yields a nil binding
+// and the caller keeps the unbound route. That check is also what lets the
+// transform-time path treat a bail as a contract violation rather than
+// attempting a fallback it could not perform safely (dst aliases the input).
+func newBluesteinSubFFT[T Complex](
+	padM int, twiddle []T, features cpu.Features, probe, scratch []T,
+) (*fft.BluesteinSubFFT[T], []byte, []byte) {
+	// The sub-FFT is an ordinary power-of-two transform, so it gets the
+	// ordinary estimate: registry codelet first, heuristic strategy otherwise.
+	// No wisdom store and no forced strategy — the padded size is an internal
+	// implementation detail of this plan, not a length the user asked for.
+	estimate := planner.EstimatePlan[T](padM, features, nil, fftypes.KernelAuto)
+
+	// Bind only when the registry actually has a codelet for the padded size.
+	//
+	// Falling back to the strategy-dispatched kernels here would be a
+	// regression, not a neutral default: the unbound route's size switch
+	// (internal/kernels/dit.go) is hand-tuned per size, while EstimatePlan's
+	// heuristic answers Stockham for everything above ditAutoThreshold — so a
+	// codelet-less pad of 2048 would trade a tuned radix-4-then-2 DIT for plain
+	// Stockham. Measured on -tags purego at n = 1009, that cost ~4%. The point
+	// of binding is to reach the registry; where the registry has nothing, the
+	// incumbent stays.
+	if estimate.ForwardCodelet == nil || estimate.InverseCodelet == nil {
+		return nil, nil, nil
+	}
+
+	twiddleForward, twiddleInverse, forwardBacking, inverseBacking := prepareCodeletTwiddles(padM, twiddle, estimate)
+
+	sub := &fft.BluesteinSubFFT[T]{
+		Forward:        kernels.Kernel[T](estimate.ForwardCodelet),
+		Inverse:        kernels.Kernel[T](estimate.InverseCodelet),
+		TwiddleForward: twiddleForward,
+		TwiddleInverse: twiddleInverse,
+	}
+
+	if !fft.VerifyBluesteinSub(sub, padM, probe, scratch) {
+		return nil, nil, nil
+	}
+
+	return sub, forwardBacking, inverseBacking
 }
 
 // selectPlanEstimate chooses the plan estimate according to the planner mode:
@@ -422,6 +493,10 @@ func newConvolutionExecutor[T Complex](n, m int, useRader bool, tables convoluti
 		filterInv: tables.filterInv,
 		twiddle:   tables.twiddle,
 		bitrev:    tables.bitrev,
+		sub:       tables.sub,
+
+		subTwiddleForwardBacking: tables.subTwiddleForwardBacking,
+		subTwiddleInverseBacking: tables.subTwiddleInverseBacking,
 	}
 }
 
@@ -456,7 +531,12 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	scratchLen, subScratchLen := planScratchSizes(n, strategy, bluesteinM, decompStrategy, estimate.Algorithm)
 	setupScratch := allocateScratchSet[T](n, scratchLen, subScratchLen)
 
-	tables := computeConvolutionTables[T](n, bluesteinM, useBluestein, useRader, setupScratch.subScratch)
+	// setupScratch.scratch doubles as the sub-FFT verification probe during
+	// setup: for Bluestein plans planScratchSizes gives it length >= bluesteinM,
+	// and no transform has run yet.
+	tables := computeConvolutionTables[T](
+		n, bluesteinM, useBluestein, useRader, features, setupScratch.scratch, setupScratch.subScratch,
+	)
 
 	var (
 		twiddle        []T

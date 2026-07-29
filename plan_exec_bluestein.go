@@ -24,9 +24,22 @@ type bluesteinExecutor[T Complex] struct {
 	filterInv []T // Size M
 	twiddle   []T // Size M (sub-FFT twiddles)
 
-	// bitrev feeds only the power-of-two DIT sub-FFT path; nil for the
-	// mixed-radix padded sizes, which run through the mixed-radix engine.
+	// bitrev feeds only the *unbound* power-of-two DIT sub-FFT path; nil for
+	// the mixed-radix padded sizes, which run through the mixed-radix engine.
 	bitrev []int
+
+	// sub is the plan-time-bound padded sub-FFT. It is what gives the
+	// power-of-two padded sizes access to the codelet registry — the unbound
+	// route enters a hardcoded size switch in internal/kernels that never
+	// consults it, which is why those lengths got no SIMD at all and measured
+	// slower on the default build than under -tags purego (PLAN.md P3).
+	// nil selects the unbound route.
+	sub *fft.BluesteinSubFFT[T]
+
+	// subTwiddle*Backing retain the aligned backing arrays of the bound
+	// kernel's prepared twiddle layouts, mirroring kernelExecutor.
+	subTwiddleForwardBacking []byte
+	subTwiddleInverseBacking []byte
 }
 
 func (e *bluesteinExecutor[T]) forward(dst, src, scratch, sub []T) {
@@ -37,7 +50,7 @@ func (e *bluesteinExecutor[T]) forward(dst, src, scratch, sub []T) {
 		scratch[i] = zero
 	}
 
-	fft.BluesteinConvolution(scratch, scratch, e.filter, e.twiddle, sub, e.bitrev)
+	fft.BluesteinConvolution(scratch, scratch, e.filter, e.twiddle, sub, e.bitrev, e.sub)
 
 	fft.ComplexMulArray(dst[:e.n], scratch[:e.n], e.chirp)
 }
@@ -50,7 +63,7 @@ func (e *bluesteinExecutor[T]) inverse(dst, src, scratch, sub []T) {
 		scratch[i] = zero
 	}
 
-	fft.BluesteinConvolution(scratch, scratch, e.filterInv, e.twiddle, sub, e.bitrev)
+	fft.BluesteinConvolution(scratch, scratch, e.filterInv, e.twiddle, sub, e.bitrev, e.sub)
 
 	fft.ComplexMulArray(dst[:e.n], scratch[:e.n], e.chirpInv)
 	fft.ScaleInPlace(dst[:e.n], 1.0/float64(e.n))

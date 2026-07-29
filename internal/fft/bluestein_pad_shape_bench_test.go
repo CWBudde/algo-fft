@@ -111,13 +111,13 @@ func benchPadSizes[T Complex](b *testing.B, sizes []int) {
 			}
 
 			// Warm the mixed-radix scratch pools so steady state is measured.
-			BluesteinConvolution(work, work, filter, twiddle, scratch, bitrev)
+			BluesteinConvolution(work, work, filter, twiddle, scratch, bitrev, nil)
 
 			b.ReportAllocs()
 			b.ResetTimer()
 
 			for range b.N {
-				BluesteinConvolution(work, work, filter, twiddle, scratch, bitrev)
+				BluesteinConvolution(work, work, filter, twiddle, scratch, bitrev, nil)
 			}
 
 			// Report the model's cost unit so the penalty can be read off

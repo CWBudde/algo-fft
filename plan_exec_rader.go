@@ -41,7 +41,11 @@ func (e *raderExecutor[T]) forward(dst, src, scratch, sub []T) {
 		sum += v
 	}
 
-	fft.BluesteinConvolution(scratch[:l], scratch[:l], e.filter, e.twiddle, sub[:l], e.bitrev)
+	// nil sub: Rader does not bind its length-(n-1) sub-FFT yet. Where n-1 is
+	// 5-smooth but not a power of two the convolution already runs the
+	// SIMD mixed-radix engine; the power-of-two p-1 case still takes the
+	// unbound route and is a follow-up (PLAN.md).
+	fft.BluesteinConvolution(scratch[:l], scratch[:l], e.filter, e.twiddle, sub[:l], e.bitrev, nil)
 
 	dst[0] = sum
 	for i, k := range e.permOut {
@@ -60,7 +64,7 @@ func (e *raderExecutor[T]) inverse(dst, src, scratch, sub []T) {
 		sum += v
 	}
 
-	fft.BluesteinConvolution(scratch[:l], scratch[:l], e.filterInv, e.twiddle, sub[:l], e.bitrev)
+	fft.BluesteinConvolution(scratch[:l], scratch[:l], e.filterInv, e.twiddle, sub[:l], e.bitrev, nil)
 
 	// Scatter unscaled, then apply the real 1/N factor over the whole output
 	// through the SIMD scale helper. Folding the factor into the scatter loop

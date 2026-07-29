@@ -47,14 +47,14 @@ func BenchmarkBluesteinPadCandidates(b *testing.B) {
 			}
 
 			// Warm the mixed-radix scratch pools so steady-state is measured.
-			BluesteinConvolution(work, work, filter, twiddle, scratch, bitrev)
+			BluesteinConvolution(work, work, filter, twiddle, scratch, bitrev, nil)
 
 			b.ReportAllocs()
 			b.SetBytes(int64(m * 8))
 			b.ResetTimer()
 
 			for range b.N {
-				BluesteinConvolution(work, work, filter, twiddle, scratch, bitrev)
+				BluesteinConvolution(work, work, filter, twiddle, scratch, bitrev, nil)
 			}
 		})
 	}

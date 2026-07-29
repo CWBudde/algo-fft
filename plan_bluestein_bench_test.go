@@ -1,6 +1,7 @@
 package algofft
 
 import (
+	"strconv"
 	"testing"
 )
 
@@ -40,6 +41,30 @@ func BenchmarkBluestein_Forward_384_Complex128(b *testing.B) { benchmarkBluestei
 func BenchmarkBluestein_Forward_1000_Complex128(b *testing.B) { benchmarkBluesteinForward128(b, 1000) }
 
 func BenchmarkBluestein_Forward_3000_Complex128(b *testing.B) { benchmarkBluesteinForward128(b, 3000) }
+
+// Rough primes: the lengths that expose whether the padded sub-FFT reaches the
+// codelet registry at all. Every pre-existing Bluestein benchmark above uses a
+// smooth or near-smooth length, which is why the default build being *slower*
+// than -tags purego at 1009 and 2003 went unnoticed (PLAN.md P3).
+//
+// 1009 pads to 2048 and 2003 to 4096 — both bound to registered codelets.
+// 9973 pads to 24576, a non-power-of-two, and stays on the mixed-radix engine:
+// it is the null control, and it must not move.
+//
+// Compare the two builds with interleaved binaries rather than serial runs
+// (PLAN.md 1.12):
+//
+//	go test -c -o /tmp/simd.test . && go test -c -o /tmp/purego.test -tags purego .
+//	then alternate: <bin> -test.run='^$' -test.bench=BenchmarkBluesteinRoughPrime
+func BenchmarkBluesteinRoughPrime(b *testing.B) {
+	for _, n := range []int{1009, 2003, 9973} {
+		size := strconv.Itoa(n)
+
+		b.Run("complex64/"+size+"/fwd", func(b *testing.B) { benchmarkBluesteinForward(b, n) })
+		b.Run("complex64/"+size+"/inv", func(b *testing.B) { benchmarkBluesteinInverse(b, n) })
+		b.Run("complex128/"+size+"/fwd", func(b *testing.B) { benchmarkBluesteinForward128(b, n) })
+	}
+}
 
 // Comparison benchmarks: Bluestein vs nearest power-of-2
 // This helps understand the overhead of Bluestein vs padding to next power of 2.

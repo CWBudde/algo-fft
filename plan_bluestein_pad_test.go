@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/fft"
 	m "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/planner"
@@ -140,10 +141,20 @@ func TestBluestein_SmoothPadMatchesReference(t *testing.T) {
 			t.Parallel()
 
 			scratch := make([]complex128, tc.m)
-			chirp, chirpInv, filter, filterInv, twiddle, bitrev := computeBluesteinTables[complex128](tc.n, tc.m, scratch)
+			probe := make([]complex128, tc.m)
+			tables := computeBluesteinTables[complex128](tc.n, tc.m, cpu.DetectFeatures(), probe, scratch)
+			chirp, chirpInv := tables.chirp, tables.chirpInv
+			filter, filterInv := tables.filter, tables.filterInv
+			twiddle, bitrev := tables.twiddle, tables.bitrev
 
 			if bitrev != nil {
 				t.Errorf("bitrev table computed for non-power-of-two m=%d", tc.m)
+			}
+
+			// Non-power-of-two pads run the mixed-radix engine, which is
+			// already SIMD-dispatched and takes no bound sub-FFT.
+			if tables.sub != nil {
+				t.Errorf("sub-FFT bound for non-power-of-two m=%d", tc.m)
 			}
 
 			src := make([]complex128, tc.n)
@@ -158,7 +169,7 @@ func TestBluestein_SmoothPadMatchesReference(t *testing.T) {
 			}
 
 			bsScratch := make([]complex128, tc.m)
-			fft.BluesteinConvolution(work, work, filter, twiddle, bsScratch, bitrev)
+			fft.BluesteinConvolution(work, work, filter, twiddle, bsScratch, bitrev, tables.sub)
 
 			dst := make([]complex128, tc.n)
 			for i := range dst {
@@ -181,7 +192,7 @@ func TestBluestein_SmoothPadMatchesReference(t *testing.T) {
 				work[i] = dst[i] * chirpInv[i]
 			}
 
-			fft.BluesteinConvolution(work, work, filterInv, twiddle, bsScratch, bitrev)
+			fft.BluesteinConvolution(work, work, filterInv, twiddle, bsScratch, bitrev, tables.sub)
 
 			scale := complex(1.0/float64(tc.n), 0)
 

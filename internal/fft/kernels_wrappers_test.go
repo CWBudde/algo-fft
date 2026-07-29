@@ -105,7 +105,7 @@ func TestBluesteinWrappers(t *testing.T) {
 	scratch := make([]complex64, m)
 
 	// Filter
-	filter := ComputeBluesteinFilter[complex64](n, m, chirp, twiddles, scratch)
+	filter := ComputeBluesteinFilter[complex64](n, m, chirp, twiddles, scratch, nil)
 	if len(filter) != m {
 		t.Errorf("ComputeBluesteinFilter len=%d want %d", len(filter), m)
 	}
@@ -113,7 +113,7 @@ func TestBluesteinWrappers(t *testing.T) {
 	// Convolution
 	x := make([]complex64, m)
 	dst := make([]complex64, m)
-	BluesteinConvolution(dst, x, filter, twiddles, scratch, nil)
+	BluesteinConvolution(dst, x, filter, twiddles, scratch, nil, nil)
 }
 
 func TestBluesteinWrappers128(t *testing.T) {
@@ -126,12 +126,12 @@ func TestBluesteinWrappers128(t *testing.T) {
 	twiddles := mathpkg.ComputeTwiddleFactors[complex128](m)
 	scratch := make([]complex128, m)
 
-	filter := ComputeBluesteinFilter[complex128](n, m, chirp, twiddles, scratch)
+	filter := ComputeBluesteinFilter[complex128](n, m, chirp, twiddles, scratch, nil)
 	if len(filter) != m {
 		t.Errorf("ComputeBluesteinFilter len=%d want %d", len(filter), m)
 	}
 
 	x := make([]complex128, m)
 	dst := make([]complex128, m)
-	BluesteinConvolution(dst, x, filter, twiddles, scratch, nil)
+	BluesteinConvolution(dst, x, filter, twiddles, scratch, nil, nil)
 }
