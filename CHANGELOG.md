@@ -7,6 +7,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-07-29
+
+Three fast paths that existed, were correct, and were unreachable, plus the
+size-384 codelet's assembly finally being called (and, once called, found to be
+wrong). No API change.
+
+### Fixed
+
+- **The Bluestein sub-FFT never reached the codelet registry.** A power-of-two
+  Bluestein pad went through a hardcoded size switch in `internal/kernels/dit.go`
+  that consults no registry and carries no build tags, so at those lengths the
+  default build and `-tags purego` ran the identical pure-Go kernel for ~96% of
+  the work — the default build measured ~4% _slower_, since it paid the chirp
+  modulation's SIMD call overhead for no benefit. The padded sub-FFT is now
+  bound at plan time (`newBluesteinSubFFT`, `fft.BluesteinSubFFT`), through
+  `planner.EstimatePlan` plus `prepareCodeletTwiddles` — a codelet may need a
+  prepared twiddle layout, which is plan-time work a call-time fix could not
+  have done. Binding happens only where the registry actually has a codelet:
+  falling back to the strategy-dispatched kernels traded a hand-tuned
+  radix-4-then-2 for plain Stockham and cost ~4% on `purego`. Measured on an
+  i7-1255U: complex64 n = 1009 **5.5×** forward / 5.1× inverse, n = 2003
+  **7.2× / 7.0×**; complex128 2.9× and 4.1× forward; `purego` flat at 1009 and
+  15–18% faster at 2003. n = 9973 (a non-power-of-two pad, so untouched) is
+  unchanged at 1.00, which is what makes the rest readable. Rader still passes
+  `nil` — its length-(n−1) convolution takes the unbound route when n−1 is a
+  power of two.
+- **The packed Stockham engine was compiled out of every SIMD build.**
+  `stockhamPackedEnabled = false` on amd64/arm64/386, justified by "the
+  hand-written codelet path is checked first and supersedes it" — but every
+  registered codelet carries `Algorithm: KernelDIT`, so the strategy test
+  upstream had already excluded packed wherever a codelet binds. The two were
+  never in competition; what the constant actually suppressed was the sizes with
+  _no_ codelet, where the build fell through to a radix-2 Stockham kernel while
+  the radix-4 route it had disabled was up to 2.7× faster. It also suppressed
+  an explicitly forced `KernelStockham` at any size ≥ 4. Replaced by a runtime
+  tier × precision threshold table (`internal/transform/stockham_packed_policy.go`):
+  packed is taken from 2^17 at complex128 and 2^20 at complex64 on AVX2, the
+  sizes where it measured 1.20–1.49× ahead. Other tiers stay off until they can
+  be measured on their own hardware. Related: `ComputePackedTwiddles` grew its
+  `Values` slice from zero capacity, ending at up to ~2× the needed allocation;
+  it now preallocates exactly via the new `PackedTwiddleLen`.
+- **`ApplyTwiddle384Complex64Asm` produced wrong results for a third of the
+  transform.** It built the strided `twiddle[2k]` vector with `VINSERTPS $0x10`,
+  which moves a single float32: it overwrote the imaginary part of each even
+  twiddle and left two lanes undefined. The fix is `VMOVLHPS`, which moves a
+  whole 64-bit lane. The bug had never been observable because the helper was
+  declared-but-uncalled — the complex64 size-384 codelet did its radix-3 column
+  DFT and twiddle multiply in scalar Go while its complex128 twin called
+  assembly for both. Direct tests of all four twiddle helpers against the scalar
+  loops they replace now exist (`dit_384_asm_helpers_amd64_test.go`).
+
+### Changed
+
+- The complex64 size-384 codelet now calls the assembly its complex128 twin
+  already used, precomputes the 128-point sub-twiddle at package load
+  (`W_128^k == W_384^(3k)`) and pools its buffers: **−30% forward, −31%
+  inverse**. New `ApplyConjTwiddle384Complex{64,128}Asm` for the inverse
+  direction — conjugating the twiddle costs one xor, while conjugating the
+  product does not work against `VFMADDSUB`'s fixed sign pattern.
+- The size-384 decomposition's 128-point sub-FFT is bound to the size-generic
+  radix-4 kernel of v0.7.3 (128 = 2·4³, so it runs radix-4 stages to 64 and
+  combines with a radix-2 tail). Both precisions had been on superseded kernels
+  — complex128 on plain radix-2, complex64 on the pre-v0.7.3 XMM-width kernel at
+  320 ns against the generic one's 88. Plan-level: **−60% / −65%** complex64
+  forward/inverse, **−60% / −57%** complex128, geomean −58%, zero-alloc
+  preserved.
+- The six-step row FFTs at n = 8192 and 16384 likewise moved off the XMM-width
+  128-point kernel. Their length-128 row twiddles were being gathered out of the
+  caller's length-n table on _every_ transform (four such loops across the two
+  files); two package-load tables replace them, so the swap removes per-call
+  work rather than adding a table. complex64: **−50% / −54%** at 16384
+  forward/inverse, **−21% / −30%** at 8192. This lands on the forced
+  `KernelSixStep` route — the registry already prefers the generic radix-4
+  codelet at these sizes.
+- Four `{Forward,Inverse}AVX2Size384Mixed{Complex64,Complex128}Asm` symbols were
+  deleted: they were named like kernels and had no callers, and their bodies
+  only length-checked their arguments and returned true.
+- `TestRadix4AVX2Ranking` re-measures before failing (`rankingAttempts = 3`).
+  Speeding up the six-step tightened the headroom the test grants — its
+  tolerance is relative to the runner-up, not absolute — so a contended window
+  could read as a regression. A real regression reproduces on every pass.
+
+### Added
+
+- `KernelMixedRadix`, so a plan reports the route that actually executes.
+  The kernel dispatch checks the length before the strategy switch and takes
+  the mixed-radix engine unconditionally at non-power-of-two lengths, while
+  `KernelStrategy()`/`Algorithm()` carried whatever had been requested. A
+  forced strategy the dispatch cannot honour at that length now resolves to the
+  route that runs rather than being echoed back.
+- Broadband-signal reference tests across the strategy matrix, Bluestein
+  convolution, clone/pool and recursive paths. An impulse cannot detect a wrong
+  twiddle (they all multiply zeros) or a wrong output ordering (its spectrum is
+  all-ones), and Parseval and linearity are insensitive to both — that
+  combination had hidden a wrong-answer bug at every size ≥ 1024 for a whole
+  precision.
+- A WASM demo (`examples/wasm-demo`): canvas rendering with phase-to-hue
+  mapping, synthetic waveform generation, window functions, and a
+  complex64/complex128 round-trip error comparison.
+
 ## [0.7.3] - 2026-07-28
 
 ### Added
