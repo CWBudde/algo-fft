@@ -1,7 +1,10 @@
 package algofft
 
 import (
+	"math"
 	"testing"
+
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // Clone is the concurrent-use story for Plan: each goroutine transforms
@@ -37,9 +40,11 @@ func TestClone_Forward(t *testing.T) {
 
 	clone := plan.Clone()
 
-	// Test with impulse signal
-	src := make([]complex128, 128)
-	src[0] = 1
+	// Broadband, not an impulse: an impulse would transform to all ones for
+	// any twiddle table and any bin order, so it could not tell a clone that
+	// carries the parent's tables from one that lost them.
+	src := broadbandSrc128(128)
+	want := reference.NaiveDFT128(src)
 
 	dst := make([]complex128, 128)
 
@@ -48,11 +53,14 @@ func TestClone_Forward(t *testing.T) {
 		t.Fatalf("clone.Forward() failed: %v", err)
 	}
 
-	// Impulse should produce all ones in frequency domain
+	var peak float64
+	for _, v := range want {
+		peak = math.Max(peak, absComplex128(v))
+	}
+
 	for i, v := range dst {
-		expected := complex(1, 0)
-		if absComplex128(v-expected) > 1e-10 {
-			t.Errorf("dst[%d] = %v, want %v", i, v, expected)
+		if diff := absComplex128(v - want[i]); diff > 1e-11*peak {
+			t.Errorf("dst[%d] = %v, want %v (diff %.3e)", i, v, want[i], diff)
 		}
 	}
 }
@@ -110,9 +118,11 @@ func TestClone_InPlaceRoundTrip(t *testing.T) {
 
 	clone := plan.Clone()
 
-	// In-place round-trip: start with impulse
+	// In-place round-trip on a broadband signal: an impulse round-trips
+	// trivially, so it checks neither direction's twiddles.
+	src := broadbandSrc128(128)
 	data := make([]complex128, 128)
-	data[0] = 1
+	copy(data, src)
 
 	err = clone.ForwardInPlace(data)
 	if err != nil {
@@ -125,14 +135,9 @@ func TestClone_InPlaceRoundTrip(t *testing.T) {
 	}
 
 	// Verify round-trip (Inverse automatically normalizes by 1/N)
-	expectedFirst := complex(1, 0)
-	if absComplex128(data[0]-expectedFirst) > 1e-10 {
-		t.Errorf("data[0] = %v, want %v", data[0], expectedFirst)
-	}
-
-	for i := 1; i < len(data); i++ {
-		if absComplex128(data[i]) > 1e-10 {
-			t.Errorf("data[%d] = %v, want ~0", i, data[i])
+	for i := range data {
+		if diff := absComplex128(data[i] - src[i]); diff > 1e-12 {
+			t.Errorf("data[%d] = %v, want %v (diff %.3e)", i, data[i], src[i], diff)
 		}
 	}
 }

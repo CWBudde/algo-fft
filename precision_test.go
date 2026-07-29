@@ -251,15 +251,21 @@ func TestPrecisionRoundTripSweep(t *testing.T) {
 
 func testPrecisionComparison(t *testing.T, n int) {
 	t.Helper()
-	// Generate test signals: sine wave
+
+	// Broadband test signal. This used to be a real sine at bin 5 — a lattice
+	// frequency, whose spectrum is two nonzero bins and n-2 zeros. Since the
+	// relative-difference loop below skips bins under 1e-10, that input left
+	// the comparison checking two bins out of n, and left every twiddle in the
+	// transform multiplying a value that rounds away.
 	input64 := make([]complex64, n)
 	input128 := make([]complex128, n)
 
-	freq := 5.0 // 5 cycles
 	for i := range input64 {
-		val := math.Sin(2 * math.Pi * freq * float64(i) / float64(n))
-		input64[i] = complex(float32(val), 0)
-		input128[i] = complex(val, 0)
+		f := float64(i)
+		re := math.Cos(0.7*f) + 0.3*math.Sin(2.9*f) + 0.05*math.Sqrt(f)
+		im := math.Sin(1.3*f) - 0.4*math.Cos(0.11*f)
+		input64[i] = complex(float32(re), float32(im))
+		input128[i] = complex(re, im)
 	}
 
 	// Perform FFT with both precisions
@@ -288,7 +294,7 @@ func testPrecisionComparison(t *testing.T, n int) {
 	}
 
 	// Compare results
-	var maxAbsDiff, maxRelDiff float64
+	var maxAbsDiff, maxRelDiff, peak float64
 
 	for i := range output64 {
 		diff := cmplx.Abs(complex128(output64[i]) - output128[i])
@@ -297,6 +303,8 @@ func testPrecisionComparison(t *testing.T, n int) {
 		}
 
 		mag128 := cmplx.Abs(output128[i])
+		peak = math.Max(peak, mag128)
+
 		if mag128 > 1e-10 {
 			relDiff := diff / mag128
 			if relDiff > maxRelDiff {
@@ -305,12 +313,15 @@ func testPrecisionComparison(t *testing.T, n int) {
 		}
 	}
 
-	t.Logf("Size %d: max abs diff = %e, max rel diff = %e", n, maxAbsDiff, maxRelDiff)
+	t.Logf("Size %d: max abs diff = %e, max rel diff = %e, peak = %e", n, maxAbsDiff, maxRelDiff, peak)
 
-	// complex64 should have ~6-7 decimal digits of precision (float32)
-	// Expect relative error around 1e-6 to 1e-7
-	if maxRelDiff > 1e-5 {
-		t.Errorf("Precision difference too large: max relative diff %e", maxRelDiff)
+	// Bound relative to the spectrum peak. Now that every bin carries energy,
+	// a per-bin relative bound would be set by whichever bin happens to be
+	// smallest, which says nothing about the transform: float32 carries ~7
+	// decimal digits of the largest term it accumulated, not of each output.
+	if maxAbsDiff > 1e-5*peak {
+		t.Errorf("Precision difference too large: max abs diff %e vs peak %e (rel %e)",
+			maxAbsDiff, peak, maxAbsDiff/peak)
 	}
 }
 
@@ -332,13 +343,48 @@ func TestPrecisionLargeFFT(t *testing.T) {
 	}
 }
 
+// testLargePrecision checks the spectrum at sizes the O(n²) reference cannot
+// reach. The input is a sum of complex exponentials at distinct bins, whose
+// forward transform is known in closed form (n·amplitude at those bins, zero
+// everywhere else) and costs O(n) to construct.
+//
+// It used to be an impulse, asserting the spectrum was all ones. That measured
+// nothing: an impulse multiplies every twiddle by zero, and every permutation
+// of an all-ones vector is still all-ones, so a wrong twiddle table and a wrong
+// bin order both produce a "max error" of 0.
 func testLargePrecision(t *testing.T, n int) {
 	t.Helper()
-	// Generate simple signal: impulse at position 0
-	data := make([]complex128, n)
-	data[0] = complex(1.0, 0.0)
 
-	// Expected FFT output: all ones (DC component)
+	tones := []struct {
+		k int
+		a complex128
+	}{
+		{1, complex(1, 0)},
+		{5, complex(0, -2)},
+		{n/4 + 3, complex(0.5, 0.25)},
+		{n / 2, complex(-1.5, 0)},
+		{n - 9, complex(0.75, 1.25)},
+	}
+
+	data := make([]complex128, n)
+	expected := make([]complex128, n)
+
+	for _, tone := range tones {
+		for j := range data {
+			// Reduce k*j modulo n before scaling to radians: at these sizes
+			// the unreduced angle reaches ~1e6 rad, where argument reduction
+			// alone costs ~1e-10 of relative phase accuracy and the "exact"
+			// expected spectrum stops being exact.
+			phase := 2 * math.Pi * float64((int64(tone.k)*int64(j))%int64(n)) / float64(n)
+			data[j] += tone.a * cmplx.Exp(complex(0, phase))
+		}
+
+		expected[tone.k] += tone.a * complex(float64(n), 0)
+	}
+
+	src := make([]complex128, n)
+	copy(src, data)
+
 	plan, err := NewPlan64(n)
 	if err != nil {
 		t.Fatalf("failed to create plan: %v", err)
@@ -351,29 +397,28 @@ func testLargePrecision(t *testing.T, n int) {
 		t.Fatalf("Forward failed: %v", err)
 	}
 
-	// Check that all elements are approximately 1.0
+	// The spikes are n·amplitude, so the achievable absolute error scales with
+	// n: float64 carries ~16 digits of the largest term accumulated. Measured
+	// headroom at 262144 is ~40x.
+	tol := 5e-14 * float64(n)
+
 	var maxError float64
 
-	expected := complex(1.0, 0.0)
 	for i, val := range output {
-		err := cmplx.Abs(val - expected)
-		if err > maxError {
-			maxError = err
+		diff := cmplx.Abs(val - expected[i])
+		if diff > maxError {
+			maxError = diff
 		}
 
-		if i < 10 && err > 1e-10 {
-			t.Logf("data[%d] = %v, expected %v, error = %e", i, val, expected, err)
+		if diff > tol {
+			t.Errorf("size %d: bin %d = %v, want %v (error %e > %e)", n, i, val, expected[i], diff, tol)
+			break
 		}
 	}
 
-	t.Logf("Size %d: max error = %e", n, maxError)
+	t.Logf("Size %d: max error = %e (tolerance %e)", n, maxError, tol)
 
-	// For complex128, expect error < 1e-12
-	if maxError > 1e-11 {
-		t.Errorf("Large FFT precision error %e exceeds threshold 1e-11", maxError)
-	}
-
-	// Test round-trip
+	// Test round-trip against the same broadband signal.
 	roundtrip := make([]complex128, n)
 
 	err = plan.Inverse(roundtrip, output)
@@ -381,25 +426,17 @@ func testLargePrecision(t *testing.T, n int) {
 		t.Fatalf("Inverse failed: %v", err)
 	}
 
-	data = roundtrip
+	var maxRoundTripError float64
 
-	impulseError := cmplx.Abs(data[0] - complex(1.0, 0.0))
-	if impulseError > 1e-10 {
-		t.Errorf("Round-trip error at impulse position: %e", impulseError)
-	}
-
-	// Check other positions are near zero
-	var maxNoiseError float64
-
-	for i := 1; i < n; i++ {
-		err := cmplx.Abs(data[i])
-		if err > maxNoiseError {
-			maxNoiseError = err
+	for i := range roundtrip {
+		diff := cmplx.Abs(roundtrip[i] - src[i])
+		if diff > maxRoundTripError {
+			maxRoundTripError = diff
 		}
 	}
 
-	if maxNoiseError > 1e-10 {
-		t.Errorf("Round-trip noise error %e exceeds threshold 1e-10", maxNoiseError)
+	if maxRoundTripError > 1e-10 {
+		t.Errorf("Round-trip error %e exceeds threshold 1e-10", maxRoundTripError)
 	}
 }
 

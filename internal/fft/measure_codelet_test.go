@@ -18,6 +18,15 @@ func measureTestCodelet(dst, src, _, _ []complex64) bool {
 
 // registerMeasureCodelets registers entries at a size no real codelet uses, so
 // the candidate list for that size is exactly what these tests put there.
+//
+// WARNING: the codelet registry is process-global and append-only — there is no
+// way to unregister. Every size passed here (1155 and 1331 below) is therefore
+// identity-mapped for the whole test binary: any later transform at that length
+// dispatches to measureTestCodelet, copies its input to its output and reports
+// success. A correctness test that happens to pick one of those lengths fails in
+// a full package run and passes under -run, which is a slow thing to diagnose.
+// Keep the sizes here odd-looking, keep this list short, and pick new ones that
+// no transform test would reach for.
 func registerMeasureCodelets(t *testing.T, size int, entries ...registry.CodeletEntry[complex64]) {
 	t.Helper()
 

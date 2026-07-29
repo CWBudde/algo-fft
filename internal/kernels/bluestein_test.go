@@ -3,7 +3,10 @@ package kernels
 import (
 	"math"
 	"math/cmplx"
+	"strconv"
 	"testing"
+
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 func TestComputeChirpSequence(t *testing.T) {
@@ -84,45 +87,68 @@ func validateChirp[T Complex](t *testing.T, chirp []T, n int) {
 	}
 }
 
+// TestBluesteinHelper drives ComputeBluesteinFilter and BluesteinConvolution
+// through the full Bluestein assembly (pre-chirp, cyclic convolution,
+// post-chirp) and compares the resulting spectrum bin-by-bin against the naive
+// DFT.
+//
+// It used to assert only that the convolution output was not all zeros, which
+// no wrong filter, wrong twiddle table or wrong output ordering could ever
+// fail. The pre/post chirp multiplies live in internal/fft (which imports this
+// package, so the test does them inline), but without them the convolution
+// result is not comparable to anything and the test cannot check a value.
 func TestBluesteinHelper(t *testing.T) {
 	t.Parallel()
 
-	// Simple test for ComputeBluesteinFilter and BluesteinConvolution
-	// We won't verify the full convolution result correctness here rigorously (that's for integration tests),
-	// but we'll check that it runs and produces output.
-	n := 3
-	m := 8 // Power of 2 >= 2*3-1 = 5
+	for _, tc := range []struct{ n, m int }{
+		{3, 8},   // m = 8 >= 2*3-1
+		{5, 16},  // odd n, larger pad
+		{12, 32}, // composite n
+	} {
+		t.Run("n"+strconv.Itoa(tc.n), func(t *testing.T) {
+			t.Parallel()
 
-	chirp := ComputeChirpSequence[complex128](n)
-	twiddles := ComputeTwiddleFactors[complex128](m)
+			n, m := tc.n, tc.m
 
-	scratch := make([]complex128, m)
+			chirp := ComputeChirpSequence[complex128](n)
+			twiddles := ComputeTwiddleFactors[complex128](m)
+			scratch := make([]complex128, m)
 
-	filter := ComputeBluesteinFilter(n, m, chirp, twiddles, scratch)
-	if len(filter) != m {
-		t.Errorf("Filter length mismatch: got %d, want %d", len(filter), m)
-	}
+			filter := ComputeBluesteinFilter(n, m, chirp, twiddles, scratch)
+			if len(filter) != m {
+				t.Fatalf("filter length mismatch: got %d, want %d", len(filter), m)
+			}
 
-	x := make([]complex128, m)
-	x[0] = 1
-	x[1] = 2
-	x[2] = 3
+			// Broadband input: every bin of the reference spectrum is
+			// nonzero, so a wrong chirp, filter or bin ordering shows up.
+			src := make([]complex128, n)
+			for j := range src {
+				src[j] = complex(math.Cos(0.7*float64(j))+0.25*float64(j),
+					math.Sin(1.3*float64(j))-0.4)
+			}
 
-	dst := make([]complex128, m)
+			// Pre-chirp into the zero-padded convolution input.
+			x := make([]complex128, m)
+			for j := range src {
+				x[j] = src[j] * chirp[j]
+			}
 
-	BluesteinConvolution(dst, x, filter, twiddles, scratch, nil)
+			dst := make([]complex128, m)
+			BluesteinConvolution(dst, x, filter, twiddles, scratch, nil)
 
-	// Basic check: output should not be all zeros (unless inputs determine so, which they don't)
-	allZero := true
+			// Post-chirp; only the first n samples are the spectrum.
+			got := make([]complex128, n)
+			for k := range got {
+				got[k] = dst[k] * chirp[k]
+			}
 
-	for _, v := range dst {
-		if v != 0 {
-			allZero = false
-			break
-		}
-	}
-
-	if allZero {
-		t.Errorf("Convolution output is all zeros")
+			want := reference.NaiveDFT128(src)
+			for k := range want {
+				if diff := cmplx.Abs(got[k] - want[k]); diff > 1e-10 {
+					t.Errorf("n=%d bin %d: Bluestein %v, naive %v (diff %.3e)",
+						n, k, got[k], want[k], diff)
+				}
+			}
+		})
 	}
 }

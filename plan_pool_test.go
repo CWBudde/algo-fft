@@ -2,8 +2,11 @@ package algofft
 
 import (
 	"errors"
+	"math"
 	"strconv"
 	"testing"
+
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 func TestNewPlanPooled_Complex64(t *testing.T) {
@@ -270,9 +273,16 @@ func TestPlan_Clone(t *testing.T) {
 		t.Errorf("Clone Len mismatch: got %d, want %d", clone.Len(), original.Len())
 	}
 
-	// Verify clone produces same results
+	// Verify clone produces same results. Broadband, not an impulse: a clone
+	// that lost the parent's prepared twiddle layout and fell back to a
+	// generic kernel still produces an all-ones spectrum for an impulse, so
+	// the comparison below would not see it.
+	wide := broadbandSrc128(256)
 	src := make([]complex64, 256)
-	src[0] = 1 // impulse
+
+	for i, v := range wide {
+		src[i] = complex64(v)
+	}
 
 	dstOriginal := make([]complex64, 256)
 	dstClone := make([]complex64, 256)
@@ -333,14 +343,27 @@ func TestPlan_Clone_Complex128(t *testing.T) {
 		t.Errorf("Clone Len mismatch: got %d, want %d", clone.Len(), original.Len())
 	}
 
-	// Verify transform works
-	src := make([]complex128, 128)
+	// Verify the transform works, against the reference rather than against
+	// the absence of an error.
+	src := broadbandSrc128(128)
 	dst := make([]complex128, 128)
-	src[0] = 1
 
 	err = clone.Forward(dst, src)
 	if err != nil {
 		t.Fatalf("clone.Forward failed: %v", err)
+	}
+
+	want := reference.NaiveDFT128(src)
+
+	var peak float64
+	for _, v := range want {
+		peak = math.Max(peak, absComplex128(v))
+	}
+
+	for i := range dst {
+		if diff := absComplex128(dst[i] - want[i]); diff > 1e-11*peak {
+			t.Fatalf("clone bin %d = %v, want %v (diff %.3e)", i, dst[i], want[i], diff)
+		}
 	}
 }
 

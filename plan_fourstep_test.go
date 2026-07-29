@@ -1,9 +1,12 @@
 package algofft
 
 import (
+	"math"
 	"math/cmplx"
 	"strconv"
 	"testing"
+
+	"github.com/cwbudde/algo-fft/internal/reference"
 )
 
 // TestFourStepStrategyPlan verifies a forced four-step plan resolves to the
@@ -108,18 +111,35 @@ func TestFourStepStrategyFallsBack(t *testing.T) {
 			t.Fatalf("NewPlanWithOptions(%d): %v", n, err)
 		}
 
-		// An impulse transforms to an all-ones spectrum regardless of kernel.
+		// Broadband, not an impulse: an impulse transforms to an all-ones
+		// spectrum regardless of kernel, so it cannot tell a correct fallback
+		// route from one with wrong twiddles or a wrong bin order.
 		src := make([]complex64, n)
-		src[0] = 1
+		for i := range src {
+			f := float64(i)
+			src[i] = complex(
+				float32(math.Cos(0.7*f)+0.3*math.Sin(2.9*f)),
+				float32(math.Sin(1.3*f)-0.4),
+			)
+		}
 
 		dst := make([]complex64, n)
 		if err := plan.Forward(dst, src); err != nil {
 			t.Fatalf("n=%d: Forward after fallback: %v", n, err)
 		}
 
+		want := reference.NaiveDFTWide(src)
+
+		var peak float64
+		for _, v := range want {
+			peak = math.Max(peak, cmplx.Abs(v))
+		}
+
+		tol := 1e-5 * peak
 		for i, v := range dst {
-			if cmplx.Abs(complex128(v)-1) > 1e-4 {
-				t.Fatalf("n=%d: bin %d = %v, want 1", n, i, v)
+			if diff := cmplx.Abs(complex128(v) - want[i]); diff > tol {
+				t.Fatalf("n=%d algo=%s: bin %d = %v, want %v (diff %.3e > %.3e)",
+					n, plan.Algorithm(), i, v, want[i], diff, tol)
 			}
 		}
 	}
