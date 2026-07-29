@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The last ten mixed VEX/legacy-SSE assembly functions are now uniformly
+  VEX-encoded.** The 2026-07-28 sweep converted 4089 instructions across 59
+  files but skipped `Forward`/`InverseAVX2Complex64Asm`, both `AVX2Stockham`
+  pairs and the `Size1024Radix32x32` pair in both precisions, on the belief that
+  each held a legacy write whose aliased `Yn` upper half was live. Re-reading all
+  ten showed that is not the case: every YMM is fully redefined by a 256-bit VEX
+  write at the head of each vector-loop iteration, and every path from a legacy
+  block back into vector code passes through such a redefinition. The legacy
+  blocks are scalar remainder loops that run after the vector work, so the
+  registers they alias are dead. Of 730 legacy instructions, 611 were converted
+  and 119 deleted as unreachable (below); no register renumbering was needed —
+  and none was available, since the Stockham scalar cores occupy `X0`–`X13`
+  against `Y0`–`Y7` of VEX code. Verified at the machine-code level: all 9967
+  symbols across the `internal/kernels` and `internal/fft` test binaries decode
+  identically to the previous commit under a per-symbol binutils-`objdump`
+  normalizer, and `cmd/measure_correctness` is bit-identical at every size and
+  both precisions.
+
+### Removed
+
+- **Dead assembly in the size-1024 radix-32×32 kernels.** The complex128
+  forward carried a complete 221-line scalar `fwd_fft32` helper that no branch
+  reached — that function vectorises stage 2 as well, which orphaned it — plus
+  two inert return labels. The complex64 inverse carried a
+  `MOVSS ·scale1024f32<>(SB), X14` whose value is never read. 235 lines removed
+  with no behaviour change.
+
 ## [0.7.4] - 2026-07-29
 
 Three fast paths that existed, were correct, and were unreachable, plus the

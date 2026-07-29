@@ -902,6 +902,74 @@ rejected run as IFFT +8% against IFFT32 +62%. Taking it as the **median of
 within-round ratios** over interleaved rounds fixes it, and is the same
 statistic §1.14 needed for the same reason.
 
+### 1.16 The last ten mixed VEX/SSE functions (2026-07-29)
+
+The §1.8 sweep converted 4089 legacy-SSE encodings to VEX and left ten functions
+alone — `Forward`/`InverseAVX2Complex64Asm`, both `AVX2Stockham` pairs and the
+`Size1024Radix32x32` pair in both precisions — recording that "each has a legacy
+write whose upper half is live". **That premise was wrong, and it is the main
+finding of this round.**
+
+Re-reading all ten end to end: in every one, the legacy block is a _scalar
+remainder loop_ that runs after the vector work, and every YMM the vector code
+uses is fully redefined by a 256-bit VEX write at the head of each vector-loop
+iteration. Every path from a legacy block back into vector code (the six
+legacy→VEX back edges: `avx2_f32_generic.s` 610→260, 1422→1138, 967→788,
+1820→1639; `avx2_f64_stockham.s` 269→96, 560→385) passes through such a
+redefinition. So no `Yn` upper half is live across any legacy write, and a
+straight mnemonic conversion is data-flow safe. The sweep's liveness pass was
+conservative, not correct.
+
+That matters because the remedy this item proposed — renumber the aliased
+register — was **not available**: the four Stockham scalar cores need `X0`–`X13`
+against `Y0`–`Y7` of VEX code, leaving only numbers 14 and 15 free. Had the
+premise been true, the fix would have had to be rematerialization, not
+renumbering.
+
+Two blocks turned out to be dead rather than mixed:
+
+- `·ForwardAVX2Size1024Radix32x32Complex128Asm` carried a complete 221-line
+  scalar `fwd_fft32` helper that **no branch reaches**. The complex128 forward
+  vectorises stage 2 as well (2 rows at a time via `VINSERTF128`), which
+  orphaned the helper; the complex64 forward has not had that treatment and
+  still calls its scalar helper for stage 2. Deleting it made that function
+  100% VEX outright.
+- `·InverseAVX2Size1024Radix32x32Complex64Asm` opened with
+  `MOVSS ·scale1024f32<>(SB), X14` whose value is never read — `Y14` is fully
+  redefined at the top of `inv_fft32x4` and the scale is carried by `Y15`.
+
+Totals: of 730 legacy instructions across the four files, **611 converted, 119
+deleted**; 235 lines removed net.
+
+**Mechanics worth reusing.** Three translation traps, none of which is visible
+in a source-level diff:
+
+- **Register-to-register `MOVSS`/`MOVSD` merges** — legacy preserves
+  `dst[127:32]`, so a two-operand `VMOVSS Xa, Xb` is a different instruction.
+  Use the three-operand `VMOVSS Xa, Xb, Xb` rather than `VMOVAPS`: it is exactly
+  equivalent _and_ it normalizes back to `movss a,b` under the disassembly gate,
+  so the check stays meaningful. There were 8 such moves per Stockham function.
+- **Go spells the VEX conversion mnemonics differently.** `CVTSQ2SD` →
+  `VCVTSI2SDQ`, `CVTSQ2SS` → `VCVTSI2SSQ`; a mechanical `V`-prefix rewrite fails
+  to assemble, which is the benign failure mode.
+- **`FWDBFLY`/`INVBFLY` in `avx2_f64_size512_radix8.s` are macro invocations**,
+  not instructions. Any regex census of "non-`V` mnemonic with an X/Y/Z operand"
+  flags them; they are the only two false positives in the tree.
+
+**Verification.** The §1.8 harness was never committed, so it was rebuilt: a
+throwaway per-symbol normalizer over binutils `objdump -d` output, collapsing
+the `v` prefix, the VEX merge operand (applied repeatedly, so the four-operand
+`vshufps $i,a,b,b` reduces to the same string as its two-operand legacy form),
+RIP displacements (replaced by the symbol objdump names), branch targets
+(replaced by the target's instruction index within its symbol, which is
+shift-invariant) and `int3` padding. Locked against a pristine `git worktree` at
+the parent commit and proven deterministic across rebuilds first. Result: **all
+9967 symbols across the `internal/kernels` and `internal/fft` test binaries
+decoded identically**, bar the two where instructions were deliberately deleted.
+It caught one real defect during the round — the four-operand `vshufps` case
+above — before any test ran. `cmd/measure_correctness` is **bit-identical** to
+the parent commit at every size and both precisions.
+
 ---
 
 ## 2. Working method
@@ -1247,15 +1315,10 @@ which invalidates several constants and leaves a few threads hanging.
       which still points at the route rather than at the arithmetic. The
       AVX-512 item in §6 mentions reclaiming 2048; this is the AVX2 tier and
       independent of it.
-- [ ] **Make the 10 remaining mixed functions uniformly VEX.** The sweep left
-      `Forward/InverseAVX2Complex64Asm`, both `AVX2Stockham` pairs and the
-      `Size1024Radix32x32` pair in both precisions mixed, because each has a
-      legacy write whose upper half is live. Given that partial mixing is worth
-      up to 152×, these are worth restructuring (renumber the aliased register
-      so `Xn`/`Yn` no longer collide, then convert). Suggestive:
-      `dit1024_radix32x32_avx2` measures 7.1 µs against
-      `dit1024_radix4_avx2` at 3.5 µs — it may already be paying a mixing
-      penalty.
+- [x] **Make the 10 remaining mixed functions uniformly VEX.** Done — see §1.16.
+      The premise this item was written on turned out to be wrong: no `Yn` upper
+      half is live across any of the legacy blocks, so no renumbering was needed
+      (and none was possible for six of the ten anyway).
 - [ ] **134 YMM/ZMM-using functions never execute `VZEROUPPER`.** Separate from
       the encoding sweep and untested so far: these return with the upper state
       dirty, so the cost lands on the _caller_ — Go's own SSE2-generated float
