@@ -42,7 +42,7 @@ DATA ·r4NegEven<>+8(SB)/8,  $0x0000000080000000
 DATA ·r4NegEven<>+16(SB)/8, $0x0000000080000000
 DATA ·r4NegEven<>+24(SB)/8, $0x0000000080000000
 
-// func Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, idx []int32, r4End int, inverse bool, scale float32) bool
+// func Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, idx []int32, r4End int, inverse, fuse bool, scale float32) bool
 TEXT ·Radix4Complex64Asm(SB), NOSPLIT, $0-137
 	MOVQ dst+0(FP), R8       // R8  = working buffer (dst, or scratch when in-place)
 	MOVQ src+24(FP), R9      // R9  = src
@@ -268,6 +268,23 @@ r4_stage_setup:
 	SHLQ $2, R15 // R15 = 4*m*8, the byte stride between groups
 	MOVQ R8, R14 // R14 = group base
 
+	// Take the fused path when this is the last radix-4 stage of a shape that
+	// has a tail. Both conditions are read off the loop bounds, not off n:
+	// a tail exists iff r4End < n, and this stage is the last iff the next one
+	// (span 16m) would overrun r4End. n = 32 is the one shape that reaches the
+	// tail without entering this loop at all -- there the hoisted m = 4 stage
+	// is the last one -- and it keeps the separate tail below.
+	MOVBLZX fuse+129(FP), DX
+	TESTL   DX, DX
+	JZ      r4_group_loop
+	MOVQ    r4End+120(FP), DX
+	CMPQ    DX, R13
+	JGE     r4_group_loop // r4End == n: power of four, no tail
+	MOVQ    BX, DX
+	SHLQ    $4, DX
+	CMPQ    DX, r4End+120(FP)
+	JG      r4_fused_last
+
 r4_group_loop:
 	MOVQ R14, SI          // SI = &a0
 	LEAQ (R14)(AX*2), DI  // DI = &a2
@@ -347,6 +364,173 @@ r4_inner_loop:
 	SHLQ $2, DX
 	CMPQ DX, r4End+120(FP)
 	JLE  r4_stage_setup
+
+	JMP r4_radix2_tail // the fused block below is only reached by its guard
+
+r4_fused_last:
+	// =====================================================================
+	// Last radix-4 stage with the radix-2 tail fused in. See the f64 twin for
+	// the full argument; in short, the last stage always has 4m = r4End = n/2
+	// and therefore exactly two groups -- the even half and the odd half --
+	// and the tail pairs one output of each at the same position. Running the
+	// groups in lockstep leaves both operands in registers, so the tail's
+	// separate pass over the whole buffer disappears.
+	//
+	// Y0..Y3 hold group 0's outputs across group 1's whole computation and
+	// Y4..Y7 group 1's, which leaves only Y8..Y13 as scratch (Y14/Y15 are the
+	// rotation masks). Group 1 therefore re-loads the three twiddle
+	// broadcasts rather than keeping them: they are L1-hot pure load uops on a
+	// loop bound by port 5.
+	// =====================================================================
+	MOVQ R8, SI          // SI = &a0, group 0
+	LEAQ (R8)(AX*2), DI  // DI = &a2, group 0
+	LEAQ (SI)(R15*1), R9 // R9 = &a0, group 1 (one half further on)
+	LEAQ (DI)(R15*1), R11
+	MOVQ R10, CX         // CX = &w1[0] for this stage
+	LEAQ (R10)(AX*2), R12
+	ADDQ AX, R12         // R12 = the tail's n/2 twiddles, just past 3*m planes
+	MOVQ BX, DX          // DX = butterflies remaining in a group
+
+r4_fused_loop:
+	// ---- group 0: the even half -------------------------------------
+	VMOVSLDUP (CX), Y8
+	VMOVSHDUP (CX), Y9
+	VMOVSLDUP (CX)(AX*1), Y10
+	VMOVSHDUP (CX)(AX*1), Y11
+
+	VMOVUPS (SI), Y0       // a0
+	VMOVUPS (SI)(AX*1), Y1 // a1
+	VMOVUPS (DI), Y2       // a2
+	VMOVUPS (DI)(AX*1), Y3 // a3
+
+	VSHUFPS        $0xB1, Y1, Y1, Y13
+	VMULPS         Y9, Y13, Y13
+	VFMADDSUB213PS Y13, Y8, Y1 // a1 *= w1
+
+	VSHUFPS        $0xB1, Y2, Y2, Y13
+	VMULPS         Y11, Y13, Y13
+	VFMADDSUB213PS Y13, Y10, Y2 // a2 *= w2
+
+	VMOVSLDUP      (CX)(AX*2), Y8
+	VMOVSHDUP      (CX)(AX*2), Y9
+	VSHUFPS        $0xB1, Y3, Y3, Y13
+	VMULPS         Y9, Y13, Y13
+	VFMADDSUB213PS Y13, Y8, Y3 // a3 *= w3
+
+	VADDPS Y0, Y2, Y4 // t0 = a0 + a2
+	VSUBPS Y2, Y0, Y5 // t1 = a0 - a2
+	VADDPS Y1, Y3, Y6 // t2 = a1 + a3
+	VSUBPS Y3, Y1, Y7 // t3 = a1 - a3
+
+	VPERMILPS $0xB1, Y7, Y11
+	VXORPS    Y14, Y11, Y12 // -i*t3 (forward)
+	VXORPS    Y15, Y11, Y11 // +i*t3 (forward)
+
+	VADDPS Y4, Y6, Y0  // y0
+	VADDPS Y5, Y12, Y1 // y1
+	VSUBPS Y6, Y4, Y2  // y2
+	VADDPS Y5, Y11, Y3 // y3
+
+	// ---- group 1: the odd half, same twiddle planes -----------------
+	VMOVSLDUP (CX), Y8
+	VMOVSHDUP (CX), Y9
+	VMOVSLDUP (CX)(AX*1), Y10
+	VMOVSHDUP (CX)(AX*1), Y11
+
+	VMOVUPS (R9), Y4        // a0
+	VMOVUPS (R9)(AX*1), Y5  // a1
+	VMOVUPS (R11), Y6       // a2
+	VMOVUPS (R11)(AX*1), Y7 // a3
+
+	VSHUFPS        $0xB1, Y5, Y5, Y13
+	VMULPS         Y9, Y13, Y13
+	VFMADDSUB213PS Y13, Y8, Y5 // a1 *= w1
+
+	VSHUFPS        $0xB1, Y6, Y6, Y13
+	VMULPS         Y11, Y13, Y13
+	VFMADDSUB213PS Y13, Y10, Y6 // a2 *= w2
+
+	VMOVSLDUP      (CX)(AX*2), Y8
+	VMOVSHDUP      (CX)(AX*2), Y9
+	VSHUFPS        $0xB1, Y7, Y7, Y13
+	VMULPS         Y9, Y13, Y13
+	VFMADDSUB213PS Y13, Y8, Y7 // a3 *= w3
+
+	// t0..t3 land in Y8..Y11: Y0..Y3 are group 0's outputs and Y4..Y7 become
+	// group 1's, so the scratch bank is the only place left.
+	VADDPS Y4, Y6, Y8  // t0 = a0 + a2
+	VSUBPS Y6, Y4, Y9  // t1 = a0 - a2
+	VADDPS Y5, Y7, Y10 // t2 = a1 + a3
+	VSUBPS Y7, Y5, Y11 // t3 = a1 - a3
+
+	VPERMILPS $0xB1, Y11, Y12
+	VXORPS    Y14, Y12, Y13 // -i*t3 (forward)
+	VXORPS    Y15, Y12, Y12 // +i*t3 (forward)
+
+	VADDPS Y8, Y10, Y4 // z0
+	VADDPS Y9, Y13, Y5 // z1
+	VSUBPS Y10, Y8, Y6 // z2
+	VADDPS Y9, Y12, Y7 // z3
+
+	// ---- the fused radix-2 tail: four butterflies (y_d, z_d) --------
+	// The tail twiddle for the output at offset j + d*m is W_n^(j+d*m), so
+	// the four are at the same d*m stride the stage already addresses with AX.
+	LEAQ (R12)(AX*2), R14 // &w[j + 2m], so d=3 is (R14)(AX*1)
+
+	// d = 0
+	VMOVSLDUP      (R12), Y8
+	VMOVSHDUP      (R12), Y9
+	VSHUFPS        $0xB1, Y4, Y4, Y10
+	VMULPS         Y9, Y10, Y10
+	VFMADDSUB213PS Y10, Y8, Y4 // z0 *= w
+	VADDPS         Y4, Y0, Y11
+	VSUBPS         Y4, Y0, Y12
+	VMOVUPS        Y11, (SI)
+	VMOVUPS        Y12, (R9)
+
+	// d = 1
+	VMOVSLDUP      (R12)(AX*1), Y8
+	VMOVSHDUP      (R12)(AX*1), Y9
+	VSHUFPS        $0xB1, Y5, Y5, Y10
+	VMULPS         Y9, Y10, Y10
+	VFMADDSUB213PS Y10, Y8, Y5
+	VADDPS         Y5, Y1, Y11
+	VSUBPS         Y5, Y1, Y12
+	VMOVUPS        Y11, (SI)(AX*1)
+	VMOVUPS        Y12, (R9)(AX*1)
+
+	// d = 2
+	VMOVSLDUP      (R12)(AX*2), Y8
+	VMOVSHDUP      (R12)(AX*2), Y9
+	VSHUFPS        $0xB1, Y6, Y6, Y10
+	VMULPS         Y9, Y10, Y10
+	VFMADDSUB213PS Y10, Y8, Y6
+	VADDPS         Y6, Y2, Y11
+	VSUBPS         Y6, Y2, Y12
+	VMOVUPS        Y11, (DI)
+	VMOVUPS        Y12, (R11)
+
+	// d = 3
+	VMOVSLDUP      (R14)(AX*1), Y8
+	VMOVSHDUP      (R14)(AX*1), Y9
+	VSHUFPS        $0xB1, Y7, Y7, Y10
+	VMULPS         Y9, Y10, Y10
+	VFMADDSUB213PS Y10, Y8, Y7
+	VADDPS         Y7, Y3, Y11
+	VSUBPS         Y7, Y3, Y12
+	VMOVUPS        Y11, (DI)(AX*1)
+	VMOVUPS        Y12, (R11)(AX*1)
+
+	ADDQ $32, SI
+	ADDQ $32, DI
+	ADDQ $32, R9
+	ADDQ $32, R11
+	ADDQ $32, CX
+	ADDQ $32, R12
+	SUBQ $4, DX
+	JNZ  r4_fused_loop
+
+	JMP r4_copy_out
 
 r4_radix2_tail:
 	// =====================================================================

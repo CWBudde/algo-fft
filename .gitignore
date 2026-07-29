@@ -48,8 +48,10 @@ benchstat.txt
 # Profiler
 *.pprof
 
-# Raw output of scripts/bench_gated.sh — per-host, per-run, not a baseline
-/benchmarks/gated/
+# Raw output of scripts/bench_gated.sh — per-host, per-run, not a baseline.
+# The glob covers custom OUTDIRs too: a round that sweeps two variants needs a
+# directory per variant, and only the default one used to be ignored.
+/benchmarks/gated*/
 # Compiled Go binaries (extensionless build outputs)
 /benchkernels
 /bench_compare

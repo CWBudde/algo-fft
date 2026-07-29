@@ -906,8 +906,14 @@ func MixedRadixStage11Complex128AVX2Asm(dst, input, table []complex128, span int
 // selects the conjugated butterfly, and scale (1/n for the inverse, 1 for the
 // forward) is folded into stage 1.
 //
+// fuse folds the n = 2*4^k radix-2 tail into the last radix-4 stage instead of
+// running it as a separate pass. It is a temporary A/B knob for the n = 2048
+// round and is ignored for n = 4^k, which has no tail.
+//
 //go:noescape
-func Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, idx []int32, r4End int, inverse bool, scale float32) bool
+func Radix4Complex64Asm(
+	dst, src, twiddle, scratch []complex64, idx []int32, r4End int, inverse, fuse bool, scale float32,
+) bool
 
 // Radix4Complex128Asm is the complex128 counterpart of Radix4Complex64Asm:
 // the same size-generic radix-4 DIT in 256-bit registers, two butterflies per
@@ -917,7 +923,9 @@ func Radix4Complex64Asm(dst, src, twiddle, scratch []complex64, idx []int32, r4E
 // prepareTwiddleRadix4AVX2Complex128, and idx the n/4 stage-1 group indices
 // (the permutation is precision-independent, so both kernels share one table).
 // inverse selects the conjugated butterfly, and scale (1/n for the inverse, 1
-// for the forward) is folded into stage 1.
+// for the forward) is folded into stage 1. fuse is as for the complex64 twin.
 //
 //go:noescape
-func Radix4Complex128Asm(dst, src, twiddle, scratch []complex128, idx []int32, r4End int, inverse bool, scale float64) bool
+func Radix4Complex128Asm(
+	dst, src, twiddle, scratch []complex128, idx []int32, r4End int, inverse, fuse bool, scale float64,
+) bool

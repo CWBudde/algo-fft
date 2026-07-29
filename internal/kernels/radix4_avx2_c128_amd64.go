@@ -95,7 +95,7 @@ func forwardRadix4AVX2Complex128(dst, src, twiddle, scratch []complex128) bool {
 		return false
 	}
 
-	return amd64.Radix4Complex128Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, false, 1)
+	return amd64.Radix4Complex128Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, false, false, 1)
 }
 
 // inverseRadix4AVX2Complex128 is the CodeletFunc entry point for the inverse
@@ -111,5 +111,5 @@ func inverseRadix4AVX2Complex128(dst, src, twiddle, scratch []complex128) bool {
 
 	scale := float64(1) / float64(n)
 
-	return amd64.Radix4Complex128Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, true, scale)
+	return amd64.Radix4Complex128Asm(dst, src, twiddle, scratch, radix4GroupIndices(n), limit, true, false, scale)
 }
