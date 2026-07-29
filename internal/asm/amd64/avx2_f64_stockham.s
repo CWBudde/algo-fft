@@ -53,8 +53,8 @@ TEXT ·ForwardAVX2StockhamComplex128Asm(SB), NOSPLIT, $0-97
 	// Trivial case: n=1, just copy
 	CMPQ R13, $1
 	JNE  stockham128_check_power
-	MOVUPS (R9), X0
-	MOVUPS X0, (R8)
+	VMOVUPS (R9), X0
+	VMOVUPS X0, (R8)
 	JMP  stockham128_return_true
 
 stockham128_check_power:
@@ -217,44 +217,44 @@ stockham128_scalar_core:
 	JLE  stockham128_k_done
 
 stockham128_scalar_loop:
-	MOVSD (BP), X0            // a.r (ptrA)
-	MOVSD 8(BP), X1           // a.i
-	MOVSD (AX), X2            // b.r (ptrB)
-	MOVSD 8(AX), X3           // b.i
+	VMOVSD (BP), X0  // a.r (ptrA)
+	VMOVSD 8(BP), X1 // a.i
+	VMOVSD (AX), X2  // b.r (ptrB)
+	VMOVSD 8(AX), X3 // b.i
 
 	// sum = a + b
-	MOVSD X0, X4
-	ADDSD X2, X4
-	MOVSD X1, X5
-	ADDSD X3, X5
-	MOVSD X4, (R9)
-	MOVSD X5, 8(R9)
+	VMOVSD X0, X4, X4
+	VADDSD X2, X4, X4
+	VMOVSD X1, X5, X5
+	VADDSD X3, X5, X5
+	VMOVSD X4, (R9)
+	VMOVSD X5, 8(R9)
 
 	// diff = a - b
-	MOVSD X0, X6
-	SUBSD X2, X6
-	MOVSD X1, X7
-	SUBSD X3, X7
+	VMOVSD X0, X6, X6
+	VSUBSD X2, X6, X6
+	VMOVSD X1, X7, X7
+	VSUBSD X3, X7, X7
 
 	// twiddle (strided)
-	MOVSD (R10)(R11*1), X8
-	MOVSD 8(R10)(R11*1), X9
+	VMOVSD (R10)(R11*1), X8
+	VMOVSD 8(R10)(R11*1), X9
 
 	// t = diff * w
-	MOVSD X6, X10
-	MULSD X8, X10
-	MOVSD X7, X11
-	MULSD X9, X11
-	SUBSD X11, X10
+	VMOVSD X6, X10, X10
+	VMULSD X8, X10, X10
+	VMOVSD X7, X11, X11
+	VMULSD X9, X11, X11
+	VSUBSD X11, X10, X10
 
-	MOVSD X7, X12
-	MULSD X8, X12
-	MOVSD X6, X13
-	MULSD X9, X13
-	ADDSD X13, X12
+	VMOVSD X7, X12, X12
+	VMULSD X8, X12, X12
+	VMOVSD X6, X13, X13
+	VMULSD X9, X13, X13
+	VADDSD X13, X12, X12
 
-	MOVSD X10, (R12)
-	MOVSD X12, 8(R12)
+	VMOVSD X10, (R12)
+	VMOVSD X12, 8(R12)
 
 	ADDQ $16, BP
 	ADDQ $16, AX
@@ -297,8 +297,8 @@ stockham128_copy_loop:
 	JGE    stockham128_return_true
 	MOVQ   CX, DX
 	SHLQ   $4, DX
-	MOVUPS (SI)(DX*1), X0
-	MOVUPS X0, (AX)(DX*1)
+	VMOVUPS (SI)(DX*1), X0
+	VMOVUPS X0, (AX)(DX*1)
 	INCQ   CX
 	JMP    stockham128_copy_loop
 
@@ -342,8 +342,8 @@ TEXT ·InverseAVX2StockhamComplex128Asm(SB), NOSPLIT, $0-97
 	// Trivial case: n=1, just copy
 	CMPQ R13, $1
 	JNE  inv_stockham128_check_power
-	MOVUPS (R9), X0
-	MOVUPS X0, (R8)
+	VMOVUPS (R9), X0
+	VMOVUPS X0, (R8)
 	JMP  inv_stockham128_return_true
 
 inv_stockham128_check_power:
@@ -508,44 +508,44 @@ inv_stockham128_scalar_core:
 	JLE  inv_stockham128_k_done
 
 inv_stockham128_scalar_loop:
-	MOVSD (BP), X0            // a.r (ptrA)
-	MOVSD 8(BP), X1           // a.i
-	MOVSD (AX), X2            // b.r (ptrB)
-	MOVSD 8(AX), X3           // b.i
+	VMOVSD (BP), X0  // a.r (ptrA)
+	VMOVSD 8(BP), X1 // a.i
+	VMOVSD (AX), X2  // b.r (ptrB)
+	VMOVSD 8(AX), X3 // b.i
 
 	// sum = a + b
-	MOVSD X0, X4
-	ADDSD X2, X4
-	MOVSD X1, X5
-	ADDSD X3, X5
-	MOVSD X4, (R9)
-	MOVSD X5, 8(R9)
+	VMOVSD X0, X4, X4
+	VADDSD X2, X4, X4
+	VMOVSD X1, X5, X5
+	VADDSD X3, X5, X5
+	VMOVSD X4, (R9)
+	VMOVSD X5, 8(R9)
 
 	// diff = a - b
-	MOVSD X0, X6
-	SUBSD X2, X6
-	MOVSD X1, X7
-	SUBSD X3, X7
+	VMOVSD X0, X6, X6
+	VSUBSD X2, X6, X6
+	VMOVSD X1, X7, X7
+	VSUBSD X3, X7, X7
 
 	// twiddle (conjugate, strided)
-	MOVSD (R10)(R11*1), X8
-	MOVSD 8(R10)(R11*1), X9
+	VMOVSD (R10)(R11*1), X8
+	VMOVSD 8(R10)(R11*1), X9
 
 	// t = diff * conj(w)
-	MOVSD X6, X10
-	MULSD X8, X10
-	MOVSD X7, X11
-	MULSD X9, X11
-	ADDSD X11, X10
+	VMOVSD X6, X10, X10
+	VMULSD X8, X10, X10
+	VMOVSD X7, X11, X11
+	VMULSD X9, X11, X11
+	VADDSD X11, X10, X10
 
-	MOVSD X7, X12
-	MULSD X8, X12
-	MOVSD X6, X13
-	MULSD X9, X13
-	SUBSD X13, X12
+	VMOVSD X7, X12, X12
+	VMULSD X8, X12, X12
+	VMOVSD X6, X13, X13
+	VMULSD X9, X13, X13
+	VSUBSD X13, X12, X12
 
-	MOVSD X10, (R12)
-	MOVSD X12, 8(R12)
+	VMOVSD X10, (R12)
+	VMOVSD X12, 8(R12)
 
 	ADDQ $16, BP
 	ADDQ $16, AX
@@ -588,17 +588,17 @@ inv_stockham128_copy_loop:
 	JGE    inv_stockham128_scale
 	MOVQ   CX, DX
 	SHLQ   $4, DX
-	MOVUPS (SI)(DX*1), X0
-	MOVUPS X0, (AX)(DX*1)
+	VMOVUPS (SI)(DX*1), X0
+	VMOVUPS X0, (AX)(DX*1)
 	INCQ   CX
 	JMP    inv_stockham128_copy_loop
 
 inv_stockham128_scale:
 	// scale by 1/n
-	CVTSQ2SD R13, X0
-	MOVSD    ·one64(SB), X1
-	DIVSD    X0, X1
-	MOVDDUP  X1, X1
+	VCVTSI2SDQ R13, X0, X0
+	VMOVSD ·one64(SB), X1
+	VDIVSD X0, X1, X1
+	VMOVDDUP X1, X1
 
 	XORQ CX, CX
 
@@ -607,9 +607,9 @@ inv_stockham128_scale_loop:
 	JGE    inv_stockham128_return_true
 	MOVQ   CX, DX
 	SHLQ   $4, DX
-	MOVUPS (AX)(DX*1), X0
-	MULPD  X1, X0
-	MOVUPS X0, (AX)(DX*1)
+	VMOVUPS (AX)(DX*1), X0
+	VMULPD X1, X0, X0
+	VMOVUPS X0, (AX)(DX*1)
 	INCQ   CX
 	JMP    inv_stockham128_scale_loop
 

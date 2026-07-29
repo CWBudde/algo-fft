@@ -117,8 +117,6 @@ fwd_do_fft_col:
 	JMP  fwd_fft32x4
 fwd_fft32x4_return_col:
 
-fwd_fft32_return_col:
-
 	// apply inter-stage twiddle and store 2 columns to work
 	XORQ R14, R14 // k2=0
 fwd_store_work_loop:
@@ -207,7 +205,6 @@ fwd_do_fft_row:
 	MOVQ $1, BP               // return selector 1
 	JMP  fwd_fft32x4
 fwd_fft32x4_return_row:
-fwd_fft32_return_row:
 
 	XORQ R13, R13 // k1=0
 	MOVQ R14, DX
@@ -441,237 +438,6 @@ fwd_fft32x4_ret:
 	JEQ  fwd_fft32x4_return_row
 	JMP  fwd_fft32x4_return_col
 
-	// =======================================================================
-	// Local helper: iterative radix-2 DIT FFT-32 on buf (forward)
-	// Expects:
-	//   R12 = &buf[0]
-	//   R10 = twiddle base (W_1024) where W_32^p == W_1024^(p*32)
-	//   BP  = selector (0->return_col, 1->return_row)
-	// =======================================================================
-
-	// ---- forward FFT32 (DIT, twiddle W_32) ----
-fwd_fft32:
-	// Stage m=2 (tw=1)
-	XORQ AX, AX
-fwd_s1_kloop:
-	CMPQ AX, $32
-	JGE  fwd_s2
-	MOVQ AX, BX
-	SHLQ $4, BX
-	LEAQ (R12)(BX*1), SI
-	LEAQ 16(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	ADDSD X2, X0
-	ADDSD X3, X1
-	MOVSD 0(SI), X4
-	MOVSD 8(SI), X5
-	SUBSD X2, X4
-	SUBSD X3, X5
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X4, 0(DI)
-	MOVSD X5, 8(DI)
-	ADDQ $2, AX
-	JMP  fwd_s1_kloop
-
-fwd_s2:
-	// Stage m=4: tw offset = j*4096 bytes (W_32^{j*8})
-	XORQ CX, CX
-fwd_s2_jloop:
-	CMPQ CX, $2
-	JGE  fwd_s3
-	MOVQ CX, DX
-	SHLQ $12, DX
-	LEAQ (R10)(DX*1), R15
-	MOVSD 0(R15), X8
-	MOVSD 8(R15), X9
-	MOVQ CX, AX
-fwd_s2_kloop:
-	CMPQ AX, $32
-	JGE  fwd_s2_nextj
-	MOVQ AX, BX
-	SHLQ $4, BX
-	LEAQ (R12)(BX*1), SI
-	LEAQ 32(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	MOVSD X2, X4
-	MULSD X8, X4
-	MOVSD X3, X5
-	MULSD X9, X5
-	SUBSD X5, X4
-	MOVSD X2, X6
-	MULSD X9, X6
-	MOVSD X3, X7
-	MULSD X8, X7
-	ADDSD X7, X6
-	ADDSD X4, X0
-	ADDSD X6, X1
-	MOVSD 0(SI), X2
-	MOVSD 8(SI), X3
-	SUBSD X4, X2
-	SUBSD X6, X3
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X2, 0(DI)
-	MOVSD X3, 8(DI)
-	ADDQ $4, AX
-	JMP  fwd_s2_kloop
-fwd_s2_nextj:
-	INCQ CX
-	JMP  fwd_s2_jloop
-
-fwd_s3:
-	// Stage m=8: tw offset = j*2048 bytes (W_32^{j*4})
-	XORQ CX, CX
-fwd_s3_jloop:
-	CMPQ CX, $4
-	JGE  fwd_s4
-	MOVQ CX, DX
-	SHLQ $11, DX
-	LEAQ (R10)(DX*1), R15
-	MOVSD 0(R15), X8
-	MOVSD 8(R15), X9
-	MOVQ CX, AX
-fwd_s3_kloop:
-	CMPQ AX, $32
-	JGE  fwd_s3_nextj
-	MOVQ AX, BX
-	SHLQ $4, BX
-	LEAQ (R12)(BX*1), SI
-	LEAQ 64(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	MOVSD X2, X4
-	MULSD X8, X4
-	MOVSD X3, X5
-	MULSD X9, X5
-	SUBSD X5, X4
-	MOVSD X2, X6
-	MULSD X9, X6
-	MOVSD X3, X7
-	MULSD X8, X7
-	ADDSD X7, X6
-	ADDSD X4, X0
-	ADDSD X6, X1
-	MOVSD 0(SI), X2
-	MOVSD 8(SI), X3
-	SUBSD X4, X2
-	SUBSD X6, X3
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X2, 0(DI)
-	MOVSD X3, 8(DI)
-	ADDQ $8, AX
-	JMP  fwd_s3_kloop
-fwd_s3_nextj:
-	INCQ CX
-	JMP  fwd_s3_jloop
-
-fwd_s4:
-	// Stage m=16: tw offset = j*1024 bytes (W_32^{j*2})
-	XORQ CX, CX
-fwd_s4_jloop:
-	CMPQ CX, $8
-	JGE  fwd_s5
-	MOVQ CX, DX
-	SHLQ $10, DX
-	LEAQ (R10)(DX*1), R15
-	MOVSD 0(R15), X8
-	MOVSD 8(R15), X9
-	MOVQ CX, AX
-fwd_s4_kloop:
-	CMPQ AX, $32
-	JGE  fwd_s4_nextj
-	MOVQ AX, BX
-	SHLQ $4, BX
-	LEAQ (R12)(BX*1), SI
-	LEAQ 128(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	MOVSD X2, X4
-	MULSD X8, X4
-	MOVSD X3, X5
-	MULSD X9, X5
-	SUBSD X5, X4
-	MOVSD X2, X6
-	MULSD X9, X6
-	MOVSD X3, X7
-	MULSD X8, X7
-	ADDSD X7, X6
-	ADDSD X4, X0
-	ADDSD X6, X1
-	MOVSD 0(SI), X2
-	MOVSD 8(SI), X3
-	SUBSD X4, X2
-	SUBSD X6, X3
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X2, 0(DI)
-	MOVSD X3, 8(DI)
-	ADDQ $16, AX
-	JMP  fwd_s4_kloop
-fwd_s4_nextj:
-	INCQ CX
-	JMP  fwd_s4_jloop
-
-fwd_s5:
-	// Stage m=32: tw offset = j*512 bytes (W_32^{j})
-	XORQ CX, CX
-fwd_s5_jloop:
-	CMPQ CX, $16
-	JGE  fwd_fft32_ret
-	MOVQ CX, DX
-	SHLQ $9, DX
-	LEAQ (R10)(DX*1), R15
-	MOVSD 0(R15), X8
-	MOVSD 8(R15), X9
-	MOVQ CX, AX
-	MOVQ AX, BX
-	SHLQ $4, BX
-	LEAQ (R12)(BX*1), SI
-	LEAQ 256(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	MOVSD X2, X4
-	MULSD X8, X4
-	MOVSD X3, X5
-	MULSD X9, X5
-	SUBSD X5, X4
-	MOVSD X2, X6
-	MULSD X9, X6
-	MOVSD X3, X7
-	MULSD X8, X7
-	ADDSD X7, X6
-	ADDSD X4, X0
-	ADDSD X6, X1
-	MOVSD 0(SI), X2
-	MOVSD 8(SI), X3
-	SUBSD X4, X2
-	SUBSD X6, X3
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X2, 0(DI)
-	MOVSD X3, 8(DI)
-	INCQ CX
-	JMP  fwd_s5_jloop
-
-fwd_fft32_ret:
-	CMPQ BP, $1
-	JEQ  fwd_fft32_return_row
-	JMP  fwd_fft32_return_col
-
 fwd_ok:
 	VZEROUPPER
 	MOVB $1, ret+96(FP)
@@ -729,10 +495,10 @@ inv_gather_row_loop:
 	MOVQ R14, DX
 	SHLQ $4, DX               // k2*16
 	ADDQ DX, CX
-	MOVUPD (R9)(CX*1), X0
+	VMOVUPD (R9)(CX*1), X0
 	MOVQ AX, SI
 	SHLQ $4, SI               // i*16
-	MOVUPD X0, (R12)(SI*1)
+	VMOVUPD X0, (R12)(SI*1)
 	INCQ AX
 	JMP  inv_gather_row_loop
 
@@ -742,7 +508,7 @@ inv_do_ifft_row:
 inv_fft32x4_return_row:
 inv_fft32_return_row:
 
-	MOVUPD ·signMaskF64x2<>(SB), X14
+	VMOVUPD ·signMaskF64x2<>(SB), X14
 	XORQ R13, R13 // n1=0
 inv_store_work_loop:
 	CMPQ R13, $32
@@ -751,28 +517,28 @@ inv_store_work_loop:
 	MOVQ R13, SI
 	SHLQ $4, SI
 	LEAQ (R12)(SI*1), DI
-	MOVSD 0(DI), X0
-	MOVSD 8(DI), X1
+	VMOVSD 0(DI), X0
+	VMOVSD 8(DI), X1
 
 	MOVQ R14, AX
 	IMULQ R13, AX
 	SHLQ $4, AX
 	LEAQ (R10)(AX*1), SI
-	MOVSD 0(SI), X2
-	MOVSD 8(SI), X3
-	XORPD X14, X3
+	VMOVSD 0(SI), X2
+	VMOVSD 8(SI), X3
+	VXORPD X14, X3, X3
 
 	// (x+iy)*(c-di)
-	MOVAPD X0, X4
-	MULSD X2, X4
-	MOVAPD X1, X5
-	MULSD X3, X5
-	ADDSD X5, X4
-	MOVAPD X1, X6
-	MULSD X2, X6
-	MOVAPD X0, X7
-	MULSD X3, X7
-	SUBSD X7, X6
+	VMOVAPD X0, X4
+	VMULSD X2, X4, X4
+	VMOVAPD X1, X5
+	VMULSD X3, X5, X5
+	VADDSD X5, X4, X4
+	VMOVAPD X1, X6
+	VMULSD X2, X6, X6
+	VMOVAPD X0, X7
+	VMULSD X3, X7, X7
+	VSUBSD X7, X6, X6
 
 	MOVQ R14, AX
 	SHLQ $9, AX               // k2*512
@@ -780,8 +546,8 @@ inv_store_work_loop:
 	SHLQ $4, BX               // n1*16
 	ADDQ BX, AX
 	LEAQ (R11)(AX*1), DI
-	MOVSD X4, 0(DI)
-	MOVSD X6, 8(DI)
+	VMOVSD X4, 0(DI)
+	VMOVSD X6, 8(DI)
 
 	INCQ R13
 	JMP  inv_store_work_loop
@@ -1078,20 +844,20 @@ inv_s1_kloop:
 	SHLQ $4, BX
 	LEAQ (R12)(BX*1), SI
 	LEAQ 16(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	ADDSD X2, X0
-	ADDSD X3, X1
-	MOVSD 0(SI), X4
-	MOVSD 8(SI), X5
-	SUBSD X2, X4
-	SUBSD X3, X5
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X4, 0(DI)
-	MOVSD X5, 8(DI)
+	VMOVSD 0(SI), X0
+	VMOVSD 8(SI), X1
+	VMOVSD 0(DI), X2
+	VMOVSD 8(DI), X3
+	VADDSD X2, X0, X0
+	VADDSD X3, X1, X1
+	VMOVSD 0(SI), X4
+	VMOVSD 8(SI), X5
+	VSUBSD X2, X4, X4
+	VSUBSD X3, X5, X5
+	VMOVSD X0, 0(SI)
+	VMOVSD X1, 8(SI)
+	VMOVSD X4, 0(DI)
+	VMOVSD X5, 8(DI)
 	ADDQ $2, AX
 	JMP  inv_s1_kloop
 
@@ -1104,8 +870,8 @@ inv_s2_jloop:
 	MOVQ CX, DX
 	SHLQ $12, DX
 	LEAQ (R10)(DX*1), R15
-	MOVSD 0(R15), X8
-	MOVSD 8(R15), X9
+	VMOVSD 0(R15), X8
+	VMOVSD 8(R15), X9
 	MOVQ CX, AX
 inv_s2_kloop:
 	CMPQ AX, $32
@@ -1114,30 +880,30 @@ inv_s2_kloop:
 	SHLQ $4, BX
 	LEAQ (R12)(BX*1), SI
 	LEAQ 32(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	MOVSD X2, X4
-	MULSD X8, X4
-	MOVSD X3, X5
-	MULSD X9, X5
-	ADDSD X5, X4
-	MOVSD X3, X6
-	MULSD X8, X6
-	MOVSD X2, X7
-	MULSD X9, X7
-	SUBSD X7, X6
-	ADDSD X4, X0
-	ADDSD X6, X1
-	MOVSD 0(SI), X2
-	MOVSD 8(SI), X3
-	SUBSD X4, X2
-	SUBSD X6, X3
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X2, 0(DI)
-	MOVSD X3, 8(DI)
+	VMOVSD 0(SI), X0
+	VMOVSD 8(SI), X1
+	VMOVSD 0(DI), X2
+	VMOVSD 8(DI), X3
+	VMOVSD X2, X4, X4
+	VMULSD X8, X4, X4
+	VMOVSD X3, X5, X5
+	VMULSD X9, X5, X5
+	VADDSD X5, X4, X4
+	VMOVSD X3, X6, X6
+	VMULSD X8, X6, X6
+	VMOVSD X2, X7, X7
+	VMULSD X9, X7, X7
+	VSUBSD X7, X6, X6
+	VADDSD X4, X0, X0
+	VADDSD X6, X1, X1
+	VMOVSD 0(SI), X2
+	VMOVSD 8(SI), X3
+	VSUBSD X4, X2, X2
+	VSUBSD X6, X3, X3
+	VMOVSD X0, 0(SI)
+	VMOVSD X1, 8(SI)
+	VMOVSD X2, 0(DI)
+	VMOVSD X3, 8(DI)
 	ADDQ $4, AX
 	JMP  inv_s2_kloop
 inv_s2_nextj:
@@ -1153,8 +919,8 @@ inv_s3_jloop:
 	MOVQ CX, DX
 	SHLQ $11, DX
 	LEAQ (R10)(DX*1), R15
-	MOVSD 0(R15), X8
-	MOVSD 8(R15), X9
+	VMOVSD 0(R15), X8
+	VMOVSD 8(R15), X9
 	MOVQ CX, AX
 inv_s3_kloop:
 	CMPQ AX, $32
@@ -1163,30 +929,30 @@ inv_s3_kloop:
 	SHLQ $4, BX
 	LEAQ (R12)(BX*1), SI
 	LEAQ 64(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	MOVSD X2, X4
-	MULSD X8, X4
-	MOVSD X3, X5
-	MULSD X9, X5
-	ADDSD X5, X4
-	MOVSD X3, X6
-	MULSD X8, X6
-	MOVSD X2, X7
-	MULSD X9, X7
-	SUBSD X7, X6
-	ADDSD X4, X0
-	ADDSD X6, X1
-	MOVSD 0(SI), X2
-	MOVSD 8(SI), X3
-	SUBSD X4, X2
-	SUBSD X6, X3
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X2, 0(DI)
-	MOVSD X3, 8(DI)
+	VMOVSD 0(SI), X0
+	VMOVSD 8(SI), X1
+	VMOVSD 0(DI), X2
+	VMOVSD 8(DI), X3
+	VMOVSD X2, X4, X4
+	VMULSD X8, X4, X4
+	VMOVSD X3, X5, X5
+	VMULSD X9, X5, X5
+	VADDSD X5, X4, X4
+	VMOVSD X3, X6, X6
+	VMULSD X8, X6, X6
+	VMOVSD X2, X7, X7
+	VMULSD X9, X7, X7
+	VSUBSD X7, X6, X6
+	VADDSD X4, X0, X0
+	VADDSD X6, X1, X1
+	VMOVSD 0(SI), X2
+	VMOVSD 8(SI), X3
+	VSUBSD X4, X2, X2
+	VSUBSD X6, X3, X3
+	VMOVSD X0, 0(SI)
+	VMOVSD X1, 8(SI)
+	VMOVSD X2, 0(DI)
+	VMOVSD X3, 8(DI)
 	ADDQ $8, AX
 	JMP  inv_s3_kloop
 inv_s3_nextj:
@@ -1202,8 +968,8 @@ inv_s4_jloop:
 	MOVQ CX, DX
 	SHLQ $10, DX
 	LEAQ (R10)(DX*1), R15
-	MOVSD 0(R15), X8
-	MOVSD 8(R15), X9
+	VMOVSD 0(R15), X8
+	VMOVSD 8(R15), X9
 	MOVQ CX, AX
 inv_s4_kloop:
 	CMPQ AX, $32
@@ -1212,30 +978,30 @@ inv_s4_kloop:
 	SHLQ $4, BX
 	LEAQ (R12)(BX*1), SI
 	LEAQ 128(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	MOVSD X2, X4
-	MULSD X8, X4
-	MOVSD X3, X5
-	MULSD X9, X5
-	ADDSD X5, X4
-	MOVSD X3, X6
-	MULSD X8, X6
-	MOVSD X2, X7
-	MULSD X9, X7
-	SUBSD X7, X6
-	ADDSD X4, X0
-	ADDSD X6, X1
-	MOVSD 0(SI), X2
-	MOVSD 8(SI), X3
-	SUBSD X4, X2
-	SUBSD X6, X3
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X2, 0(DI)
-	MOVSD X3, 8(DI)
+	VMOVSD 0(SI), X0
+	VMOVSD 8(SI), X1
+	VMOVSD 0(DI), X2
+	VMOVSD 8(DI), X3
+	VMOVSD X2, X4, X4
+	VMULSD X8, X4, X4
+	VMOVSD X3, X5, X5
+	VMULSD X9, X5, X5
+	VADDSD X5, X4, X4
+	VMOVSD X3, X6, X6
+	VMULSD X8, X6, X6
+	VMOVSD X2, X7, X7
+	VMULSD X9, X7, X7
+	VSUBSD X7, X6, X6
+	VADDSD X4, X0, X0
+	VADDSD X6, X1, X1
+	VMOVSD 0(SI), X2
+	VMOVSD 8(SI), X3
+	VSUBSD X4, X2, X2
+	VSUBSD X6, X3, X3
+	VMOVSD X0, 0(SI)
+	VMOVSD X1, 8(SI)
+	VMOVSD X2, 0(DI)
+	VMOVSD X3, 8(DI)
 	ADDQ $16, AX
 	JMP  inv_s4_kloop
 inv_s4_nextj:
@@ -1251,37 +1017,37 @@ inv_s5_jloop:
 	MOVQ CX, DX
 	SHLQ $9, DX
 	LEAQ (R10)(DX*1), R15
-	MOVSD 0(R15), X8
-	MOVSD 8(R15), X9
+	VMOVSD 0(R15), X8
+	VMOVSD 8(R15), X9
 	MOVQ CX, AX
 	MOVQ AX, BX
 	SHLQ $4, BX
 	LEAQ (R12)(BX*1), SI
 	LEAQ 256(SI), DI
-	MOVSD 0(SI), X0
-	MOVSD 8(SI), X1
-	MOVSD 0(DI), X2
-	MOVSD 8(DI), X3
-	MOVSD X2, X4
-	MULSD X8, X4
-	MOVSD X3, X5
-	MULSD X9, X5
-	ADDSD X5, X4
-	MOVSD X3, X6
-	MULSD X8, X6
-	MOVSD X2, X7
-	MULSD X9, X7
-	SUBSD X7, X6
-	ADDSD X4, X0
-	ADDSD X6, X1
-	MOVSD 0(SI), X2
-	MOVSD 8(SI), X3
-	SUBSD X4, X2
-	SUBSD X6, X3
-	MOVSD X0, 0(SI)
-	MOVSD X1, 8(SI)
-	MOVSD X2, 0(DI)
-	MOVSD X3, 8(DI)
+	VMOVSD 0(SI), X0
+	VMOVSD 8(SI), X1
+	VMOVSD 0(DI), X2
+	VMOVSD 8(DI), X3
+	VMOVSD X2, X4, X4
+	VMULSD X8, X4, X4
+	VMOVSD X3, X5, X5
+	VMULSD X9, X5, X5
+	VADDSD X5, X4, X4
+	VMOVSD X3, X6, X6
+	VMULSD X8, X6, X6
+	VMOVSD X2, X7, X7
+	VMULSD X9, X7, X7
+	VSUBSD X7, X6, X6
+	VADDSD X4, X0, X0
+	VADDSD X6, X1, X1
+	VMOVSD 0(SI), X2
+	VMOVSD 8(SI), X3
+	VSUBSD X4, X2, X2
+	VSUBSD X6, X3, X3
+	VMOVSD X0, 0(SI)
+	VMOVSD X1, 8(SI)
+	VMOVSD X2, 0(DI)
+	VMOVSD X3, 8(DI)
 	INCQ CX
 	JMP  inv_s5_jloop
 

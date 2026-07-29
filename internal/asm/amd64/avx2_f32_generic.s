@@ -561,14 +561,14 @@ scalar_remainder_loop:
 	ADDQ SI, DI                  // DI = (base + j + half) * 8
 
 	// Load single butterfly inputs (complex64 = 8 bytes)
-	MOVSD (R8)(SI*1), X0         // X0 = a = work[index1]
-	MOVSD (R8)(DI*1), X1         // X1 = b = work[index2]
+	VMOVSD (R8)(SI*1), X0 // X0 = a = work[index1]
+	VMOVSD (R8)(DI*1), X1 // X1 = b = work[index2]
 
 	// Load twiddle with stride: twiddle[j * step]
 	MOVQ DX, AX
-	IMULQ BX, AX                 // AX = j * step
-	SHLQ $3, AX                  // AX = (j * step) * 8 bytes
-	MOVSD (R10)(AX*1), X2        // X2 = w = twiddle[j * step]
+	IMULQ BX, AX           // AX = j * step
+	SHLQ $3, AX            // AX = (j * step) * 8 bytes
+	VMOVSD (R10)(AX*1), X2 // X2 = w = twiddle[j * step]
 
 	// -----------------------------------------------------------------------
 	// SSE Complex multiply: t = w * b
@@ -576,29 +576,29 @@ scalar_remainder_loop:
 	// Same algorithm as AVX2 but using XMM registers (128-bit)
 	// Only the lower 64 bits contain valid data
 
-	MOVSLDUP X2, X3              // X3 = [w.r, w.r, ...] (duplicate low float)
-	MOVSHDUP X2, X4              // X4 = [w.i, w.i, ...] (duplicate high float)
+	VMOVSLDUP X2, X3 // X3 = [w.r, w.r, ...] (duplicate low float)
+	VMOVSHDUP X2, X4 // X4 = [w.i, w.i, ...] (duplicate high float)
 
-	MOVAPS X1, X5
-	MULPS  X3, X5                // X5 = [b.r*w.r, b.i*w.r, ...]
+	VMOVAPS X1, X5
+	VMULPS X3, X5, X5 // X5 = [b.r*w.r, b.i*w.r, ...]
 
-	MOVAPS X1, X6
-	SHUFPS $0xB1, X6, X6         // X6 = [b.i, b.r, ...] (swap pairs)
-	MULPS  X4, X6                // X6 = [b.i*w.i, b.r*w.i, ...]
+	VMOVAPS X1, X6
+	VSHUFPS $0xB1, X6, X6, X6 // X6 = [b.i, b.r, ...] (swap pairs)
+	VMULPS X4, X6, X6         // X6 = [b.i*w.i, b.r*w.i, ...]
 
 	// ADDSUBPS: adds odd lanes, subtracts even lanes
 	// Result: [b.r*w.r - b.i*w.i, b.i*w.r + b.r*w.i, ...] = t
-	ADDSUBPS X6, X5              // X5 = t = w * b
+	VADDSUBPS X6, X5, X5 // X5 = t = w * b
 
 	// Butterfly
-	MOVAPS X0, X3
-	ADDPS  X5, X3                // X3 = a + t = a'
-	MOVAPS X0, X4
-	SUBPS  X5, X4                // X4 = a - t = b'
+	VMOVAPS X0, X3
+	VADDPS X5, X3, X3 // X3 = a + t = a'
+	VMOVAPS X0, X4
+	VSUBPS X5, X4, X4 // X4 = a - t = b'
 
 	// Store single complex64 (lower 64 bits)
-	MOVSD X3, (R8)(SI*1)         // work[index1] = a'
-	MOVSD X4, (R8)(DI*1)         // work[index2] = b'
+	VMOVSD X3, (R8)(SI*1) // work[index1] = a'
+	VMOVSD X4, (R8)(DI*1) // work[index2] = b'
 
 	INCQ DX                      // j++
 	CMPQ DX, R15
@@ -631,36 +631,36 @@ scalar_loop:
 	ADDQ SI, DI
 
 	// Load inputs
-	MOVSD (R8)(SI*1), X0         // a
-	MOVSD (R8)(DI*1), X1         // b
+	VMOVSD (R8)(SI*1), X0 // a
+	VMOVSD (R8)(DI*1), X1 // b
 
 	// Load twiddle with stride
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $3, AX
-	MOVSD (R10)(AX*1), X2        // w
+	VMOVSD (R10)(AX*1), X2 // w
 
 	// Complex multiply: t = w * b
-	MOVSLDUP X2, X3
-	MOVSHDUP X2, X4
+	VMOVSLDUP X2, X3
+	VMOVSHDUP X2, X4
 
-	MOVAPS X1, X5
-	MULPS  X3, X5
+	VMOVAPS X1, X5
+	VMULPS X3, X5, X5
 
-	MOVAPS X1, X6
-	SHUFPS $0xB1, X6, X6
-	MULPS  X4, X6
+	VMOVAPS X1, X6
+	VSHUFPS $0xB1, X6, X6, X6
+	VMULPS X4, X6, X6
 
-	ADDSUBPS X6, X5              // t
+	VADDSUBPS X6, X5, X5 // t
 
 	// Butterfly
-	MOVAPS X0, X3
-	ADDPS  X5, X3                // a'
-	MOVAPS X0, X4
-	SUBPS  X5, X4                // b'
+	VMOVAPS X0, X3
+	VADDPS X5, X3, X3 // a'
+	VMOVAPS X0, X4
+	VSUBPS X5, X4, X4 // b'
 
-	MOVSD X3, (R8)(SI*1)
-	MOVSD X4, (R8)(DI*1)
+	VMOVSD X3, (R8)(SI*1)
+	VMOVSD X4, (R8)(DI*1)
 
 	INCQ DX
 	JMP  scalar_loop
@@ -915,44 +915,44 @@ stockham_scalar_core:
 	JLE  stockham_k_done
 
 stockham_scalar_loop:
-	MOVSS (BP), X0           // a.r (ptrA)
-	MOVSS 4(BP), X1          // a.i
-	MOVSS (AX), X2           // b.r (ptrB)
-	MOVSS 4(AX), X3          // b.i
+	VMOVSS (BP), X0  // a.r (ptrA)
+	VMOVSS 4(BP), X1 // a.i
+	VMOVSS (AX), X2  // b.r (ptrB)
+	VMOVSS 4(AX), X3 // b.i
 
 	// sum = a + b
-	MOVSS X0, X4
-	ADDSS X2, X4
-	MOVSS X1, X5
-	ADDSS X3, X5
-	MOVSS X4, (R9)
-	MOVSS X5, 4(R9)
+	VMOVSS X0, X4, X4
+	VADDSS X2, X4, X4
+	VMOVSS X1, X5, X5
+	VADDSS X3, X5, X5
+	VMOVSS X4, (R9)
+	VMOVSS X5, 4(R9)
 
 	// diff = a - b
-	MOVSS X0, X6
-	SUBSS X2, X6
-	MOVSS X1, X7
-	SUBSS X3, X7
+	VMOVSS X0, X6, X6
+	VSUBSS X2, X6, X6
+	VMOVSS X1, X7, X7
+	VSUBSS X3, X7, X7
 
 	// twiddle (strided)
-	MOVSS (R10)(R11*1), X8
-	MOVSS 4(R10)(R11*1), X9
+	VMOVSS (R10)(R11*1), X8
+	VMOVSS 4(R10)(R11*1), X9
 
 	// t = diff * w
-	MOVSS X6, X10
-	MULSS X8, X10
-	MOVSS X7, X11
-	MULSS X9, X11
-	SUBSS X11, X10
+	VMOVSS X6, X10, X10
+	VMULSS X8, X10, X10
+	VMOVSS X7, X11, X11
+	VMULSS X9, X11, X11
+	VSUBSS X11, X10, X10
 
-	MOVSS X7, X12
-	MULSS X8, X12
-	MOVSS X6, X13
-	MULSS X9, X13
-	ADDSS X13, X12
+	VMOVSS X7, X12, X12
+	VMULSS X8, X12, X12
+	VMOVSS X6, X13, X13
+	VMULSS X9, X13, X13
+	VADDSS X13, X12, X12
 
-	MOVSS X10, (R12)
-	MOVSS X12, 4(R12)
+	VMOVSS X10, (R12)
+	VMOVSS X12, 4(R12)
 
 	ADDQ $8, BP
 	ADDQ $8, AX
@@ -1357,14 +1357,14 @@ inv_scalar_remainder_loop:
 	ADDQ SI, DI
 
 	// Load butterfly inputs
-	MOVSD (R8)(SI*1), X0     // a
-	MOVSD (R8)(DI*1), X1     // b
+	VMOVSD (R8)(SI*1), X0 // a
+	VMOVSD (R8)(DI*1), X1 // b
 
 	// Load twiddle with stride
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $3, AX
-	MOVSD (R10)(AX*1), X2    // w
+	VMOVSD (R10)(AX*1), X2 // w
 
 	// -----------------------------------------------------------------------
 	// SSE Scalar Conjugate Complex Multiply: t = conj(w) * b
@@ -1376,15 +1376,15 @@ inv_scalar_remainder_loop:
 	// Since SSE3 ADDSUBPS has wrong sign pattern for conjugate multiply,
 	// we compute both ADD and SUB, then blend the correct lanes.
 
-	MOVSLDUP X2, X3          // X3 = [w.r, w.r]
-	MOVSHDUP X2, X4          // X4 = [w.i, w.i]
+	VMOVSLDUP X2, X3 // X3 = [w.r, w.r]
+	VMOVSHDUP X2, X4 // X4 = [w.i, w.i]
 
-	MOVAPS X1, X5
-	MULPS  X3, X5            // X5 = [b.r*w.r, b.i*w.r]
+	VMOVAPS X1, X5
+	VMULPS X3, X5, X5 // X5 = [b.r*w.r, b.i*w.r]
 
-	MOVAPS X1, X6
-	SHUFPS $0xB1, X6, X6     // X6 = [b.i, b.r]
-	MULPS  X4, X6            // X6 = [b.i*w.i, b.r*w.i]
+	VMOVAPS X1, X6
+	VSHUFPS $0xB1, X6, X6, X6 // X6 = [b.i, b.r]
+	VMULPS X4, X6, X6         // X6 = [b.i*w.i, b.r*w.i]
 
 	// We need: real = b.r*w.r + b.i*w.i, imag = b.i*w.r - b.r*w.i
 	//   X5 = [b.r*w.r, b.i*w.r], X6 = [b.i*w.i, b.r*w.i]
@@ -1392,26 +1392,26 @@ inv_scalar_remainder_loop:
 	//   X5-X6: [wrong_real, correct_imag]
 	// We need to blend: take lane 0 from ADD, lane 1 from SUB
 
-	MOVAPS X5, X7
-	ADDPS  X6, X7            // X7 = [real_OK, imag_WRONG]
-	MOVAPS X5, X3
-	SUBPS  X6, X3            // X3 = [real_WRONG, imag_OK]
+	VMOVAPS X5, X7
+	VADDPS X6, X7, X7 // X7 = [real_OK, imag_WRONG]
+	VMOVAPS X5, X3
+	VSUBPS X6, X3, X3 // X3 = [real_WRONG, imag_OK]
 
 	// Blend X7[0] with X3[1] using UNPCKLPS + SHUFPS
-	UNPCKLPS X3, X7          // X7 = [X7[0], X3[0], X7[1], X3[1]]
+	VUNPCKLPS X3, X7, X7 // X7 = [X7[0], X3[0], X7[1], X3[1]]
 	                         //    = [real_OK, garbage, garbage, imag_OK]
-	SHUFPS $0x0C, X7, X7     // imm = 0b00001100 = 0x0C
+	VSHUFPS $0x0C, X7, X7, X7 // imm = 0b00001100 = 0x0C
 	                         // X7 = [X7[0], X7[3], ...] = [real_OK, imag_OK]
-	MOVAPS X7, X5            // X5 = t = conj(w) * b
+	VMOVAPS X7, X5 // X5 = t = conj(w) * b
 
 	// Butterfly
-	MOVAPS X0, X3
-	ADDPS  X5, X3            // a' = a + t
-	MOVAPS X0, X4
-	SUBPS  X5, X4            // b' = a - t
+	VMOVAPS X0, X3
+	VADDPS X5, X3, X3 // a' = a + t
+	VMOVAPS X0, X4
+	VSUBPS X5, X4, X4 // b' = a - t
 
-	MOVSD X3, (R8)(SI*1)
-	MOVSD X4, (R8)(DI*1)
+	VMOVSD X3, (R8)(SI*1)
+	VMOVSD X4, (R8)(DI*1)
 
 	INCQ DX
 	CMPQ DX, R15
@@ -1442,43 +1442,43 @@ inv_scalar_loop:
 	ADDQ SI, DI
 
 	// Load inputs
-	MOVSD (R8)(SI*1), X0     // a
-	MOVSD (R8)(DI*1), X1     // b
+	VMOVSD (R8)(SI*1), X0 // a
+	VMOVSD (R8)(DI*1), X1 // b
 
 	// Load twiddle
 	MOVQ DX, AX
 	IMULQ BX, AX
 	SHLQ $3, AX
-	MOVSD (R10)(AX*1), X2    // w
+	VMOVSD (R10)(AX*1), X2 // w
 
 	// Conjugate multiply: t = conj(w) * b
-	MOVSLDUP X2, X3
-	MOVSHDUP X2, X4
+	VMOVSLDUP X2, X3
+	VMOVSHDUP X2, X4
 
-	MOVAPS X1, X5
-	MULPS  X3, X5            // [b.r*w.r, b.i*w.r]
+	VMOVAPS X1, X5
+	VMULPS X3, X5, X5 // [b.r*w.r, b.i*w.r]
 
-	MOVAPS X1, X6
-	SHUFPS $0xB1, X6, X6
-	MULPS  X4, X6            // [b.i*w.i, b.r*w.i]
+	VMOVAPS X1, X6
+	VSHUFPS $0xB1, X6, X6, X6
+	VMULPS X4, X6, X6 // [b.i*w.i, b.r*w.i]
 
 	// Blend for conjugate: ADD[0] with SUB[1]
-	MOVAPS X5, X7
-	ADDPS  X6, X7
-	MOVAPS X5, X3
-	SUBPS  X6, X3
-	UNPCKLPS X3, X7
-	SHUFPS $0x0C, X7, X7     // [real, imag, ...]
-	MOVAPS X7, X5            // t
+	VMOVAPS X5, X7
+	VADDPS X6, X7, X7
+	VMOVAPS X5, X3
+	VSUBPS X6, X3, X3
+	VUNPCKLPS X3, X7, X7
+	VSHUFPS $0x0C, X7, X7, X7 // [real, imag, ...]
+	VMOVAPS X7, X5            // t
 
 	// Butterfly
-	MOVAPS X0, X3
-	ADDPS  X5, X3            // a'
-	MOVAPS X0, X4
-	SUBPS  X5, X4            // b'
+	VMOVAPS X0, X3
+	VADDPS X5, X3, X3 // a'
+	VMOVAPS X0, X4
+	VSUBPS X5, X4, X4 // b'
 
-	MOVSD X3, (R8)(SI*1)
-	MOVSD X4, (R8)(DI*1)
+	VMOVSD X3, (R8)(SI*1)
+	VMOVSD X4, (R8)(DI*1)
 
 	INCQ DX
 	JMP  inv_scalar_loop
@@ -1520,12 +1520,12 @@ inv_scale:
 	MOVQ dst+0(FP), R8       // Reload dst (may have been clobbered)
 
 	// Compute 1/n as float32
-	CVTSQ2SS R13, X0         // X0 = (float32)n
-	MOVSS    ·one32(SB), X1  // X1 = 1.0f
-	DIVSS    X0, X1          // X1 = 1.0f / n
+	VCVTSI2SSQ R13, X0, X0 // X0 = (float32)n
+	VMOVSS ·one32(SB), X1  // X1 = 1.0f
+	VDIVSS X0, X1, X1      // X1 = 1.0f / n
 
 	// Broadcast scale factor to all 4 lanes
-	SHUFPS   $0x00, X1, X1   // X1 = [scale, scale, scale, scale]
+	VSHUFPS $0x00, X1, X1, X1 // X1 = [scale, scale, scale, scale]
 
 	// Scale each element: dst[i] *= scale (both real and imag)
 	XORQ CX, CX
@@ -1535,14 +1535,14 @@ inv_scale_loop:
 	JGE  inv_return_true
 
 	// Load one complex64 (8 bytes = 64 bits)
-	MOVSD (R8)(CX*8), X0
+	VMOVSD (R8)(CX*8), X0
 
 	// Multiply both real and imag by scale
 	// Since we broadcast scale to all lanes, this works correctly
-	MULPS X1, X0
+	VMULPS X1, X0, X0
 
 	// Store back
-	MOVSD X0, (R8)(CX*8)
+	VMOVSD X0, (R8)(CX*8)
 
 	INCQ CX
 	JMP  inv_scale_loop
@@ -1768,44 +1768,44 @@ inv_stockham_scalar_core:
 	JLE  inv_stockham_k_done
 
 inv_stockham_scalar_loop:
-	MOVSS (BP), X0           // a.r (ptrA)
-	MOVSS 4(BP), X1          // a.i
-	MOVSS (AX), X2           // b.r (ptrB)
-	MOVSS 4(AX), X3          // b.i
+	VMOVSS (BP), X0  // a.r (ptrA)
+	VMOVSS 4(BP), X1 // a.i
+	VMOVSS (AX), X2  // b.r (ptrB)
+	VMOVSS 4(AX), X3 // b.i
 
 	// sum = a + b
-	MOVSS X0, X4
-	ADDSS X2, X4
-	MOVSS X1, X5
-	ADDSS X3, X5
-	MOVSS X4, (R9)
-	MOVSS X5, 4(R9)
+	VMOVSS X0, X4, X4
+	VADDSS X2, X4, X4
+	VMOVSS X1, X5, X5
+	VADDSS X3, X5, X5
+	VMOVSS X4, (R9)
+	VMOVSS X5, 4(R9)
 
 	// diff = a - b
-	MOVSS X0, X6
-	SUBSS X2, X6
-	MOVSS X1, X7
-	SUBSS X3, X7
+	VMOVSS X0, X6, X6
+	VSUBSS X2, X6, X6
+	VMOVSS X1, X7, X7
+	VSUBSS X3, X7, X7
 
 	// twiddle (conjugate, strided)
-	MOVSS (R10)(R11*1), X8
-	MOVSS 4(R10)(R11*1), X9
+	VMOVSS (R10)(R11*1), X8
+	VMOVSS 4(R10)(R11*1), X9
 
 	// t = diff * conj(w)
-	MOVSS X6, X10
-	MULSS X8, X10
-	MOVSS X7, X11
-	MULSS X9, X11
-	ADDSS X11, X10
+	VMOVSS X6, X10, X10
+	VMULSS X8, X10, X10
+	VMOVSS X7, X11, X11
+	VMULSS X9, X11, X11
+	VADDSS X11, X10, X10
 
-	MOVSS X7, X12
-	MULSS X8, X12
-	MOVSS X6, X13
-	MULSS X9, X13
-	SUBSS X13, X12
+	VMOVSS X7, X12, X12
+	VMULSS X8, X12, X12
+	VMOVSS X6, X13, X13
+	VMULSS X9, X13, X13
+	VSUBSS X13, X12, X12
 
-	MOVSS X10, (R12)
-	MOVSS X12, 4(R12)
+	VMOVSS X10, (R12)
+	VMOVSS X12, 4(R12)
 
 	ADDQ $8, BP
 	ADDQ $8, AX
@@ -1853,19 +1853,19 @@ inv_stockham_copy_loop:
 
 inv_stockham_scale:
 	// scale by 1/n
-	CVTSQ2SS R13, X0
-	MOVSS    ·one32(SB), X1
-	DIVSS    X0, X1
-	SHUFPS   $0x00, X1, X1
+	VCVTSI2SSQ R13, X0, X0
+	VMOVSS ·one32(SB), X1
+	VDIVSS X0, X1, X1
+	VSHUFPS $0x00, X1, X1, X1
 
 	XORQ CX, CX
 
 inv_stockham_scale_loop:
 	CMPQ CX, R13
 	JGE  inv_stockham_return_true
-	MOVSD (AX)(CX*8), X0
-	MULPS X1, X0
-	MOVSD X0, (AX)(CX*8)
+	VMOVSD (AX)(CX*8), X0
+	VMULPS X1, X0, X0
+	VMOVSD X0, (AX)(CX*8)
 	INCQ CX
 	JMP  inv_stockham_scale_loop
 
