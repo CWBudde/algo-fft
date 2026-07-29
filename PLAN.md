@@ -30,12 +30,15 @@ performance and coverage work in §4–§8: §9 is now the last section before t
 wishlist, and shipping waits on those rounds rather than on release mechanics
 alone.
 
-**Where the library sits against others** (i7-1255U, `go-fft-bench` @ `a1fa607`,
-v0.7.0 baseline): powers of two are 0.63× FFTW3 by geomean and ~8× the rest of
-the Go field. Non-power-of-two lengths were far weaker and are where most of
-the 2026-07 work went — 44100 has gone from losing to gonum (4.00 ms vs
-2.59 ms) to 781 µs, against FFTW3's 236 µs. The remaining gap is concentrated
-in the mixed-radix engine (§5) and a handful of power-of-two soft spots (§4).
+**Where the library sits against others** (i7-1255U, `go-fft-bench`, v0.7.4,
+2026-07-29): powers of two are **1.36× FFTW3** forward and 1.34× inverse by
+geomean, and ~8× the rest of the Go field. That is an inversion — the figure
+here read 0.63× until it was re-measured (§1.15), against a v0.7.0 baseline
+that predated the 256-bit radix-4 kernels. Non-power-of-two lengths remain the
+weak half at 0.60× by geomean: 44100 has gone from losing to gonum (4.00 ms vs
+2.59 ms) to 786 µs, but FFTW3 does it in 185 µs. The remaining gap is
+concentrated in the mixed-radix engine (§5) and a handful of power-of-two soft
+spots (§4).
 
 ### 1.1 v1.0 engineering (2026-07)
 
@@ -340,8 +343,9 @@ lengths — worse than Rader, which is the newer algorithm.
   and none of them were benchmarked in-tree — which is why the internal numbers
   looked healthy throughout.
 
-44100 is now 781 µs against FFTW3's 236 µs; the gap has closed from 8.0× to
-3.3×.
+44100 is now 786 µs against FFTW3's 185 µs (§1.15 re-measurement; the 236 µs
+recorded here earlier was FFTW measured in a slower window). The gap has closed
+from 8.0× to 4.3×.
 
 ### 1.8 Power-of-two soft spots (2026-07)
 
@@ -844,6 +848,60 @@ Side effects worth noting:
   at 2^22 complex128. That cost is why the thresholds are set from measured
   wins rather than from "wherever it is merely correct".
 
+### 1.15 The external comparison had drifted by a factor of two (2026-07-29)
+
+§4 asked for a re-measurement of the plan-level c64/c128 ratio and the FFTW
+comparison. Both had moved, but the headline in §1 had moved further than the
+item did: it read **0.63× FFTW3** at power-of-two lengths, and the measured
+value is **1.36×**. The library had overtaken FFTW3 there at some point during
+the 2026-07 rounds and nothing in this file said so.
+
+The cause is structural rather than an oversight. The cross-library sweep lives
+in a **different repository** (`go-fft-bench`), which pins algo-fft to a
+released tag; each sweep is committed there against its tag, and nothing pulls
+the result back here. So §1's number aged against a v0.7.0 baseline through
+four releases while every §1.x round below it was measured and current. **A
+number that lives in another repository is not maintained by editing this
+one** — quote it with the tag it came from, or re-measure it.
+
+The round itself: tag v0.7.4, sweep, compare. The v0.7.4-vs-v0.7.3 delta is
+**flat** at power-of-two lengths in both precisions (medians 0.88–1.07, 6
+rounds, order rotated, two pinned test binaries), which is correct — the nine
+commits touch the 384 path, the forced six-step route, Bluestein pads and
+packed Stockham above 2^17, and none of those is the default power-of-two route
+in the benchmarked band. The numbers in §4 are a correction of the record.
+
+Two things about measurement came out of it, and they cost the first sweep:
+
+- **The drift control did its job, and the sweep had to be discarded.**
+  `go-fft-bench` requires that the unchanged libraries be checked as a control
+  before any delta is quoted. They came out **+28…+36%** by geomean — FFTW,
+  gonum, go-dsp and takatoh alike — so the run had measured the machine, and
+  every algo-fft delta in it was wrong by about that much. Nothing from it was
+  used. Worth noting what it looked like from inside: the complex64 arm showed
+  a plausible-looking regression (n = 1024 at 1591 ns against 896, complex64
+  _slower_ than complex128 — the exact signature of §1.6) which a two-binary
+  A/B then showed to be entirely absent. **A contaminated run does not merely
+  add noise; it manufactures findings that look like the ones you already know
+  how to explain.**
+- **`~/.local/bin/go` on this laptop is a wrapper** that runs the toolchain as
+  `nice -n 10 taskset -c 0-$(nproc-2)`. Every benchmark ever run here through
+  `go test` has therefore been _de-prioritised below the desktop_, which is why
+  contention does not merely add a few percent but collapses whole runs
+  whenever a browser or Teams is busy. Invoking `/usr/local/go/bin/go` directly
+  under `taskset -c 0` reproduced the committed v0.7.3 sweep to within 2–12% on
+  a machine whose load average was 4.4 — i.e. the pinned, un-niced run was
+  clean while the ordinary one was not. The wrapper is a sensible default for
+  compiling; it is not one for measuring. (It also explains the "0--1" taskset
+  error if you wrap it: `nproc` reports 1 inside the pin.)
+
+The ratio measurement needed one further change of statistic. `FFT` and `FFT32`
+are separate top-level benchmarks, so a c64/c128 ratio taken from one sweep
+compares arms measured minutes apart — §2.2's warning, and visible in the
+rejected run as IFFT +8% against IFFT32 +62%. Taking it as the **median of
+within-round ratios** over interleaved rounds fixes it, and is the same
+statistic §1.14 needed for the same reason.
+
 ---
 
 ## 2. Working method
@@ -902,6 +960,9 @@ periodic validation sweeps.
 - **Dev laptop (i7-1255U, AVX2, no AVX-512).** The only one with FFTW
   installed, so the only place the external gap can be measured. Throttles
   hard (86–98 °C under sustained benchmarking) — interleave arms, trust ratios.
+  `go` here is a wrapper (`nice -n 10 taskset -c 0-$(nproc-2)`): benchmark with
+  `/usr/local/go/bin/go` under `taskset -c 0` or the desktop preempts the run
+  (§1.15).
 - **64-core host, no AVX at all** (SSE4.2 ceiling). Valuable _because_ it is
   limited: the only place the SSE2/SSE3 codelet tier is what dispatch actually
   selects. On any AVX2 machine those codelets lose the priority ladder and ship
@@ -923,6 +984,18 @@ the target.
 Each of these cost a real investigation. The assembly ones are also in
 `AGENTS.md`.
 
+- **A number measured in another repository is not maintained by editing this
+  one.** §1's headline FFTW ratio aged through four releases while every round
+  below it stayed current, because the sweep is committed in `go-fft-bench`
+  against a pinned tag and nothing pulls it back. It was wrong by a factor of
+  two and in the wrong _direction_ — the library had overtaken FFTW3 at powers
+  of two and this file still said 0.63×. Quote such a number with the tag it
+  came from, or re-measure it (§1.15).
+- **Check the toolchain wrapper before blaming the machine.** `go` on the dev
+  laptop resolves to a wrapper that runs `nice -n 10 taskset -c 0-$(nproc-2)`,
+  so benchmarks yield to the desktop; the same sweep is clean pinned and
+  un-niced at load 4.4 and unusable through the wrapper. Measure with
+  `/usr/local/go/bin/go` under `taskset -c 0` (§1.15, §2.3).
 - **A registered fast path is not a reachable one.** Codelets for exactly the
   sizes the Bluestein pad produces sat in the registry, correct and never
   called, because that route entered a hardcoded size switch instead. The
@@ -1100,14 +1173,48 @@ which invalidates several constants and leaves a few threads hanging.
       route — which is exactly the population §1.13/§1.14 are about, a correct
       path that had quietly stopped being the fast one.
 
-- [ ] **Re-measure the plan-level c64/c128 ratio and the FFTW comparison.** The
-      c64/c128 ratio ran 1.10, 1.02, 1.14, 1.07, 1.08 across 1024–16384 against
-      1.6–2.1× at 256/512 — because every codelet serving that band was
-      XMM-width, so both precisions moved the same 128 bits per instruction and
-      a ratio near 1.0 is exactly what that predicts. At the codelet level it
-      has now moved to 1.64, 2.09, 2.43, 2.27, 1.85. **Still to do:** re-measure
-      the plan-level ratio and the external comparison, which is what this
-      actually tracks — the codelet is only one part of that path.
+- [x] **Re-measured the plan-level c64/c128 ratio and the FFTW comparison**
+      (2026-07-29, v0.7.4). Both had moved much further than this item claimed,
+      and the plan file was the last place still carrying the old numbers — see
+      §1.15 for the round, including why the first sweep had to be thrown away.
+
+      The **plan-level ratio now tracks the codelet-level one**, which is the
+      result the item was actually asking about — the plan layer is no longer
+      masking the precision difference:
+
+      | n              |  1024 |  2048 |  4096 |  8192 | 16384 |
+      | -------------- | ----: | ----: | ----: | ----: | ----: |
+      | was, plan      |  1.10 |  1.02 |  1.14 |  1.07 |  1.08 |
+      | now, plan fwd  |  1.57 |  1.73 |  1.91 |  1.96 |  1.77 |
+      | now, plan inv  |  1.59 |  1.76 |  2.01 |  2.02 |  1.80 |
+      | codelet (§1.9) |  1.64 |  2.09 |  2.43 |  2.27 |  1.85 |
+
+      Plan-level sits just below codelet-level at every size, which is what the
+      ~100 ns of per-call dispatch predicts: that cost is precision-independent,
+      so it dilutes the ratio, and dilutes it most where the transform is
+      cheapest. At 256/512 the ratio is now 1.40/1.55 forward against the
+      1.6–2.1× recorded before — the one place it moved _down_, because the
+      complex128 side gained more there than complex64 did.
+
+      **Against FFTW3 the power-of-two picture has inverted.** Not 0.63× but
+      **1.36× forward, 1.34× inverse** by geomean over 8…32768 (complex128,
+      median of within-round ratios, 6 interleaved rounds, pinned):
+
+      | n   |   8 |  16 |  32 |  64 |  128 |  256 |  512 | 1024 | 2048 | 4096 | 8192 | 16384 | 32768 |
+      | --- | --: | --: | --: | --: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ----: | ----: |
+      | fwd | 5.2 | 2.4 | 1.9 | 1.3 | 1.03 | 1.07 | 0.97 | 0.97 | 0.91 | 1.16 | 1.24 |  1.19 |  1.03 |
+      | inv | 4.3 | 2.6 | 1.9 | 1.4 | 1.02 | 1.02 | 0.94 | 1.01 | 0.91 | 1.10 | 1.15 |  1.28 |  1.07 |
+
+      Non-power-of-two is **0.60×** by geomean (was 0.25× at v0.7.0), and 44100
+      is 786 µs against FFTW's 185 µs. §5 remains the gap.
+
+      The nine commits since v0.7.3 are **flat** at power-of-two lengths in both
+      precisions (medians 0.88–1.07 over a 6-round, order-rotated, two-binary
+      A/B) — which is what they should be: they touch the 384 path, the forced
+      six-step route, Bluestein pads and packed Stockham above 2^17, none of
+      which is the default power-of-two route in this band. The numbers above
+      are therefore a correction of the record, not a new win.
+
 - [ ] **Retune the strategy thresholds around the new codelet.**
       `ditAutoThreshold` and the six-step/four-step crossovers were calibrated
       against kernels that are now 2–4× faster, so the size at which DIT stops
@@ -1130,11 +1237,16 @@ which invalidates several constants and leaves a few threads hanging.
       100 ns of dispatch/validation per call that used to hide behind a 137 ns
       codelet. The same overhead sits on every size; it is simply invisible
       above ~1024. Profile the path from `Plan.Forward` to the codelet call.
-- [ ] **The n = 2048 local minimum.** 0.29× FFTW3 forward, 0.31× inverse — the
-      worst power-of-two point in the sweep, with 1024 (0.43×) and 4096 (0.45×)
-      either side of it. Re-check against the new radix-4 kernel before
-      investigating further; the AVX-512 item in §6 mentions reclaiming 2048,
-      but this is the AVX2 tier and independent of it.
+- [ ] **The n = 2048 local minimum.** Re-measured, not worked (§1.15). It is
+      **still the local minimum and still the only size below 1.0 in both
+      directions** — 0.91× FFTW3 forward and inverse, against 0.97/1.01 at 1024
+      and 1.16/1.10 at 4096 — but the level has moved by a factor of three from
+      the 0.29×/0.31× this item used to quote, so it is now a ~10% shortfall
+      rather than a cliff. 512 (0.97/0.94) joins it as marginally sub-parity.
+      What has not changed is the shape: a dip bracketed by wins on both sides,
+      which still points at the route rather than at the arithmetic. The
+      AVX-512 item in §6 mentions reclaiming 2048; this is the AVX2 tier and
+      independent of it.
 - [ ] **Make the 10 remaining mixed functions uniformly VEX.** The sweep left
       `Forward/InverseAVX2Complex64Asm`, both `AVX2Stockham` pairs and the
       `Size1024Radix32x32` pair in both precisions mixed, because each has a
@@ -1176,9 +1288,10 @@ which invalidates several constants and leaves a few threads hanging.
 ## 5. The mixed-radix engine
 
 Still the weak link against FFTW3 despite the −30% rounds in §1.7: 44100 sits
-at 781 µs against 236 µs. The fused stage kernels closed the dispatch and
-butterfly costs; what remains is the odd-radix arithmetic itself and two loose
-ends.
+at 786 µs against 185 µs, and the non-power-of-two geomean is 0.60× where
+powers of two now run 1.36× (§1.15). This is the whole of the remaining
+external gap. The fused stage kernels closed the dispatch and butterfly costs;
+what remains is the odd-radix arithmetic itself and two loose ends.
 
 - [ ] **Give `Butterfly11` the conjugate-pair form.**
       `kernels.Butterfly11ForwardComplex64` and its three siblings evaluate the
