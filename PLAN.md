@@ -347,25 +347,51 @@ from the outcome:
       contradicted and should never have been read. Still on probe: 64 and 128
       (both precisions), 1024 c128, 32768 (both precisions).
 
-- [ ] **A size-generic AVX2 radix-8 stage.** Now justified rather than
-      speculative: the pure-Go ladder above wins on pass count alone, and SIMD
-      shifts the balance further toward passes. Reuse `prepareTwiddleRadix8` and
-      `radix8GroupIndices` — they are arch-neutral for exactly this. Model the
-      assembly on `avx2_f{32,64}_generic_radix4_{even,odd}.s` (1.0–1.4k lines
-      each; expect 1.5–2× that). Two known risks: register pressure, since
-      8 live data YMM plus `VMOVSLDUP`/`VMOVSHDUP` broadcast forms of each
-      twiddle is tight against 16 — `avx512_f32_size128_radix8_then2.s` holds
-      16 ZMM of data and is the existence proof the schedule closes; and stage 1,
-      which is an 8×8 digit-reversed transpose rather than radix-4's 4×4, so a
-      row spans two YMM at complex64. Measure stage 1 in isolation first.
+- [x] **A size-generic AVX2 radix-8 stage** (2026-07-30). Written:
+      `internal/asm/amd64/avx2_f{32,64}_radix8.s`, ~1,000 lines rather than the
+      4–5k estimated, because Phase 1 was built arch-neutral and the assembly
+      therefore derives no permutation table, no twiddle layout and no shape
+      classifier of its own — it consumes `radix8Limit`, `twiddleSizeRadix8`,
+      `prepareTwiddleRadix8Complex{64,128}` and `radix8GroupIndices` unchanged.
+      Correct at every supported size in both precisions on the first run,
+      against the naive DFT, against Stockham, in-place, and pinned per-size
+      against the pure-Go ladder.
 
-      **Block the last stage.** n = 32768 is the ladder's only forward loss
-      (1.06/1.08) despite the best pass ratio of the set, 5 against 8: its final
-      radix-8 stage holds eight streams 4096 elements apart — 32 KiB at
-      complex64, 64 KiB at complex128 — and all eight land on the same L1 sets.
-      That is the collision `forwardRadix4AVX2FusedComplex64` documents at
-      n = 2048 complex128 with a 4 KiB stride. Fixing it in the Go ladder is the
-      cheap way to find out whether the assembly needs the same treatment.
+      Both anticipated risks turned out to be non-issues. Register pressure
+      closes exactly: eight live streams plus two rotation masks plus the
+      `√2/2` broadcast is 11, leaving five scratch YMM, which is precisely a
+      butterfly's peak and precisely a twiddle multiply's broadcast pair — at
+      the cost of re-broadcasting the planes from memory each iteration rather
+      than hoisting them. And stage 1 is not an 8×8 transpose: the outputs
+      split into two independent 4×4 transposes of 64-bit lanes, one for
+      digits 0–3 and one for 4–7, interleaved 32 bytes apart at the store.
+
+      The eighth-root multiplies also collapse into the rotation the butterfly
+      already does — `W_8^1·p = c(p + (−i)p)`, `W_8^3·q = c((−i)q − q)`, and
+      conjugating both is all the inverse is — so they reuse the same mask as
+      the first ±i rotation, cost 4 ops each, need no second constant, and let
+      one loop body serve both directions.
+
+      **Result: seven of sixteen cells won**; see `docs/CODELET_BENCHMARKS.md`.
+      The pure-Go result did not transfer wholesale, which is the expected
+      outcome of swapping a weak opponent for a strong one. The complex64
+      column is decided entirely by the last stage's stride — every cell at
+      ≤ 512 B wins, every cell at ≥ 4 KiB loses, no exceptions — confirming the
+      L1-set collision predicted below before the sweep ran.
+
+- [ ] **Block the last radix-8 stage.** Now the sharpest remaining lever, and
+      the measurement above pins it precisely: eight streams a multiple of
+      4 KiB apart map to one L1 set, and that alone accounts for every AVX2
+      complex64 loss (4096/8192/16384 stride 4 KiB, 32768 stride 32 KiB) as
+      well as the pure-Go ladder's n = 32768 loss. Below 512 B the ladder wins
+      every cell it is registered for. If blocking recovers those five
+      complex64 cells and complex128's 8192, radix-8 takes the whole
+      power-of-two range rather than half of it.
+
+      The complex128 exception is the thing to explain first: n = 32768 wins at
+      a 64 KiB stride, where the working set is far past L2 and passes decide.
+      So the rule is "conflict misses dominate until memory traffic does", and
+      blocking should help exactly the middle band.
 
       The `±(1±i)/√2` derivation shares its shape with the twiddle-free radix-8
       first stage proposed in the n = 2048 item above; the two should still be

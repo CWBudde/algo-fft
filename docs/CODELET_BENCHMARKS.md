@@ -157,6 +157,88 @@ Size 4 registers exactly one candidate per tier, so it has nothing to rank.
 - **Nothing at 256, 512 or 1024 needed a priority change.** All six incumbents
   reconfirmed, by 2.1x or more over every other candidate.
 
+### The size-generic AVX2 radix-8 ladder
+
+`internal/asm/amd64/avx2_f{32,64}_radix8.s`, swept 2026-07-30 against each
+size's registered incumbent: 16 groups (8 sizes x 2 precisions) x 8 passes,
+**118 accepted, 10 rejected (5 over gate, 5 drift), 0 incomplete** — which is
+the full 128, so nothing went unaccounted for. Canary floor 1600 ns at gate
+1.12, load 1.3 at start, 47-49 C. Ratios are within-group, forward / inverse.
+
+|     n | complex64         | complex128        |
+| ----: | ----------------- | ----------------- |
+|   256 | **0.953 / 0.940** | 1.000 / 0.998     |
+|   512 | **0.903 / 0.934** | **0.933 / 0.979** |
+|  1024 | **0.983 / 0.940** | 0.982 / 1.025     |
+|  2048 | **0.953 / 0.946** | **0.942 / 0.922** |
+|  4096 | 1.067 / 1.075     | 0.973 / 1.007     |
+|  8192 | 1.078 / 1.034     | 1.038 / 1.017     |
+| 16384 | 1.016 / 1.042     | 1.012 / 0.996     |
+| 32768 | 1.011 / 1.030     | **0.931 / 0.985** |
+
+Bold cells took a spec row at priority 95. Seven of sixteen: the pure-Go
+result did **not** transfer wholesale, and it was never safe to assume it
+would — the pure-Go radix-4 the prototype beat is a much weaker opponent than
+the 256-bit radix-4 kernel here.
+
+**The complex64 column is decided entirely by the last stage's stride.**
+Writing out `m * 8` bytes between the eight streams of the final radix-8 stage:
+
+|     n | last m | stride | result |
+| ----: | -----: | -----: | -----: |
+|   256 |      8 |   64 B |    win |
+|   512 |     64 |  512 B |    win |
+|  1024 |     64 |  512 B |    win |
+|  2048 |     64 |  512 B |    win |
+|  4096 |    512 |  4 KiB |   loss |
+|  8192 |    512 |  4 KiB |   loss |
+| 16384 |    512 |  4 KiB |   loss |
+| 32768 |   4096 | 32 KiB |   loss |
+
+Every cell at or below 512 B wins and every cell at or above 4 KiB loses, with
+no exceptions in either direction. Eight streams a multiple of 4 KiB apart all
+map to one L1 set — the same collision `forwardRadix4AVX2FusedComplex64`
+documents at n = 2048 complex128, and radix-8 is twice as exposed because it
+doubles the live streams from four to eight. This is a prediction the probe's
+header made before the sweep ran, not a story fitted afterwards.
+
+complex128 does **not** follow the rule cleanly: n = 32768 wins at a 64 KiB
+stride. At 512 KiB the working set is far past L2, so the cell is decided by
+memory traffic, where the ladder's third fewer passes wins outright. Treat the
+stride rule as established for complex64 and as a hypothesis for complex128.
+
+#### n = 32768 re-checked
+
+That cell was worth a second run: it is the only complex128 win at a large
+stride, its inverse margin was thin, and a single-shot non-interleaved ranking
+pass (`TestRadix4AVX2Complex128Ranking`, taken at load 11.5) disagreed with it,
+putting `dit32768_radix4_avx2` ahead at 104550 ns against 108709. Re-swept
+alone at 12 passes, load 1.15, **24 of 24 groups accepted, none rejected** —
+and with radix-8 now the incumbent, so the ratio is read in the other
+direction:
+
+|     n | prec | `dit32768_radix4_avx2` vs the ladder |
+| ----: | ---- | ------------------------------------ |
+| 32768 | c128 | 1.045 fwd / 1.013 inv — ladder wins  |
+| 32768 | c64  | ladder 0.999 fwd / 1.012 inv — a tie |
+
+So the complex128 promotion holds, at 4.5% forward rather than the first
+sweep's 6.9%; two gated runs agree on sign and roughly on size, and the
+single-shot ranking pass was the outlier. The complex64 cell at this size
+firms up from a 1.011/1.030 loss to a tie, which is still not a win — it stays
+on the probe list.
+
+The lesson is the one the ranking test's own comment already carries: a
+sequential in-process ranking pass and a canary-gated interleaved sweep are not
+the same instrument, and where they disagree by single-digit percent the gated
+sweep is the one to believe.
+
+Incidental, and unchanged by this round: `dit<N>_radix4_notail_avx2` — the
+probe that skips the tail combine and therefore computes the wrong answer, and
+exists only to bound the question — is still the fastest cell at 512, 2048,
+8192 and 32768 in both precisions, at 0.84-0.93. The tail is still 7-16% of
+those kernels and nothing has recovered it.
+
 ### Shadowed AVX2 candidates above 1.5x the winner
 
 These are the deletion candidates in `PLAN.md` §4. None of them can be selected

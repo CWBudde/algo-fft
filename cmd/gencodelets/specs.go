@@ -699,12 +699,44 @@ var codeletSpecs = []codeletSpec{
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
 	},
 	{
+		// The size-generic AVX2 radix-8 ladder (internal/asm/amd64/avx2_f32_radix8.s).
+		//
+		// It wins exactly the complex64 cells whose last radix-8 stage strides
+		// 512 bytes or less between its eight streams, and loses every cell
+		// that strides 4 KiB or more -- 256/512/1024/2048 against
+		// 4096/8192/16384/32768, with no exceptions either way. Eight streams a
+		// multiple of 4 KiB apart all land on one L1 set; that is the same
+		// collision forwardRadix4AVX2FusedComplex64 documents, and radix-8 is
+		// twice as exposed to it because it doubles the live streams.
+		//
+		// Measured 0.953 forward / 0.940 inverse here, in the 2026-07-30
+		// canary-gated sweep (118/128 groups accepted; 6 for this cell).
+		Target: "avx2", Prec: 64, Size: 256,
+		Forward:   "forwardRadix8AVX2Complex64",
+		Inverse:   "inverseRadix8AVX2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit256_radix8ladder_avx2", Priority: 95,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
 		Target: "avx2", Prec: 64, Size: 1024,
 		Forward:   "forwardRadix4AVX2Complex64",
 		Inverse:   "inverseRadix4AVX2Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit1024_radix4_avx2", Priority: 90,
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
+	},
+	{
+		// Measured 0.983 forward / 0.940 inverse. The forward column is inside
+		// noise on its own; the inverse win is what carries the cell, and both
+		// sides of the comparison fold 1/n into stage 1, so the two directions
+		// differ only in the butterfly.
+		Target: "avx2", Prec: 64, Size: 1024,
+		Forward:   "forwardRadix8AVX2Complex64",
+		Inverse:   "inverseRadix8AVX2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit1024_radix8ladder_avx2", Priority: 95,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 4096,
@@ -744,6 +776,16 @@ var codeletSpecs = []codeletSpec{
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
 	},
 	{
+		// Measured 0.903 forward / 0.934 inverse -- the ladder's best complex64
+		// cell, and it also clears dit512_radix4fused_avx2 (0.952/0.987).
+		Target: "avx2", Prec: 64, Size: 512,
+		Forward:   "forwardRadix8AVX2Complex64",
+		Inverse:   "inverseRadix8AVX2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit512_radix8ladder_avx2", Priority: 95,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
 		// Fused tail: measured 0.943/0.974. The complex128 row at this size
 		// deliberately does NOT fuse -- there the stride is exactly 4 KiB and
 		// fusing costs 11%.
@@ -753,6 +795,17 @@ var codeletSpecs = []codeletSpec{
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit2048_radix4fused_avx2", Priority: 90,
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
+	},
+	{
+		// Measured 0.953 forward / 0.946 inverse against dit2048_radix4fused_avx2,
+		// which is itself the tuned incumbent here rather than the plain
+		// radix-4 row.
+		Target: "avx2", Prec: 64, Size: 2048,
+		Forward:   "forwardRadix8AVX2Complex64",
+		Inverse:   "inverseRadix8AVX2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit2048_radix8ladder_avx2", Priority: 95,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 8192,
@@ -1041,6 +1094,17 @@ var codeletSpecs = []codeletSpec{
 		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{
+		// Measured 0.933 forward / 0.979 inverse against dit512_radix4_avx2.
+		// It also beats dit512_radix4fused_avx2 (0.940/0.961), so the fused
+		// variant is not the row that should have been here either.
+		Target: "avx2", Prec: 128, Size: 512,
+		Forward:   "forwardRadix8AVX2Complex128",
+		Inverse:   "inverseRadix8AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit512_radix8ladder_avx2", Priority: 95,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
 		Target: "avx2", Prec: 128, Size: 1024,
 		Forward:   "forwardRadix4AVX2Complex128",
 		Inverse:   "inverseRadix4AVX2Complex128",
@@ -1055,6 +1119,17 @@ var codeletSpecs = []codeletSpec{
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit2048_radix4_avx2", Priority: 90,
 		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
+	{
+		// Measured 0.942 forward / 0.922 inverse against dit2048_radix4_avx2 in
+		// the 2026-07-30 canary-gated AVX2 radix-8 sweep (118/128 groups
+		// accepted, 8 groups this cell).
+		Target: "avx2", Prec: 128, Size: 2048,
+		Forward:   "forwardRadix8AVX2Complex128",
+		Inverse:   "inverseRadix8AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit2048_radix8ladder_avx2", Priority: 95,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 4096,
@@ -1087,6 +1162,22 @@ var codeletSpecs = []codeletSpec{
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit32768_radix4_avx2", Priority: 90,
 		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
+	{
+		// Measured 0.931 forward / 0.985 inverse against dit32768_radix4_avx2,
+		// and ahead of dit32768_radix4fused_avx2 (0.963/0.994) as well.
+		//
+		// This is the one complex128 cell that wins at a large last-stage
+		// stride (m = 4096, so 64 KiB between the eight streams). At 512 KiB the
+		// working set is far past L2 and the ladder's third fewer passes over
+		// the buffer decides the cell on memory traffic alone -- which is the
+		// opposite regime from the 4-8 KiB strides that lose.
+		Target: "avx2", Prec: 128, Size: 32768,
+		Forward:   "forwardRadix8AVX2Complex128",
+		Inverse:   "inverseRadix8AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_radix8ladder_avx2", Priority: 95,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 65536,

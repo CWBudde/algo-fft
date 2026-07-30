@@ -34,21 +34,21 @@ pure-Go fallback.
 |   256 | Mixed-8/2            |  -  |  -   |  -   |  -   |    ✓    |  -   |
 |   256 | Radix-2              |  ✓  |  -   |  ✓   |  -   |    -    |  ✓   |
 |   256 | Radix-4              |  ✓  |  -   |  ✓   |  ✓   |    -    |  ✓   |
-|   256 | radix8ladder         |  ✓  |  -   |  -   |  -   |    -    |  -   |
+|   256 | radix8ladder         |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 |   384 | Mixed 128×3          |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 |   512 | Mixed-2/4            |  ✓  |  -   |  ✓   |  -   |    -    |  ✓   |
 |   512 | Radix-16×32          |  ✓  |  -   |  -   |  -   |    -    |  -   |
 |   512 | Radix-2              |  ✓  |  -   |  ✓   |  -   |    -    |  ✓   |
 |   512 | Radix-4              |  -  |  -   |  -   |  ✓   |    -    |  -   |
 |   512 | Radix-8              |  ✓  |  -   |  -   |  -   |    -    |  -   |
-|   512 | radix8ladder         |  ✓  |  -   |  -   |  -   |    -    |  -   |
+|   512 | radix8ladder         |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 |  1024 | Radix-2              |  -  |  -   |  -   |  -   |    ✓    |  ✓   |
 |  1024 | Radix-32×32          |  ✓  |  -   |  -   |  -   |    -    |  -   |
 |  1024 | Radix-4              |  ✓  |  -   |  ✓   |  ✓   |    -    |  ✓   |
-|  1024 | radix8ladder         |  ✓  |  -   |  -   |  -   |    -    |  -   |
+|  1024 | radix8ladder         |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 |  2048 | Mixed-2/4            |  ✓  |  -   |  ✓   |  -   |    -    |  ✓   |
 |  2048 | Radix-4 (fused tail) |  -  |  -   |  -   |  ✓   |    -    |  -   |
-|  2048 | radix8ladder         |  ✓  |  -   |  -   |  -   |    -    |  -   |
+|  2048 | radix8ladder         |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 |  4096 | Radix-2              |  -  |  -   |  -   |  -   |    ✓    |  -   |
 |  4096 | Radix-4              |  ✓  |  -   |  ✓   |  ✓   |    -    |  ✓   |
 |  4096 | Six-step             |  ✓  |  -   |  -   |  -   |    -    |  -   |
@@ -100,12 +100,12 @@ pure-Go fallback.
 |   512 | Radix-2              |  ✓  |  ✓   |  -   |  -   |    -    |  -   |
 |   512 | Radix-4              |  -  |  -   |  -   |  ✓   |    -    |  -   |
 |   512 | Radix-8              |  ✓  |  -   |  -   |  -   |    -    |  -   |
-|   512 | radix8ladder         |  ✓  |  -   |  -   |  -   |    -    |  -   |
+|   512 | radix8ladder         |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 |  1024 | Radix-32×32          |  ✓  |  -   |  -   |  -   |    -    |  -   |
 |  1024 | Radix-4              |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
 |  2048 | Mixed-2/4            |  ✓  |  ✓   |  -   |  -   |    -    |  ✓   |
 |  2048 | Radix-4              |  -  |  -   |  -   |  ✓   |    -    |  -   |
-|  2048 | radix8ladder         |  ✓  |  -   |  -   |  -   |    -    |  -   |
+|  2048 | radix8ladder         |  ✓  |  -   |  -   |  ✓   |    -    |  -   |
 |  4096 | Radix-4              |  ✓  |  ✓   |  -   |  ✓   |    -    |  ✓   |
 |  4096 | Six-step             |  ✓  |  -   |  -   |  -   |    -    |  -   |
 |  4096 | radix8ladder         |  ✓  |  -   |  -   |  -   |    -    |  -   |
@@ -118,6 +118,7 @@ pure-Go fallback.
 | 16384 | radix8ladder         |  ✓  |  -   |  -   |  -   |    -    |  -   |
 | 32768 | Mixed-2/4            |  ✓  |  ✓   |  -   |  -   |    -    |  ✓   |
 | 32768 | Radix-4              |  -  |  -   |  -   |  ✓   |    -    |  -   |
+| 32768 | radix8ladder         |  -  |  -   |  -   |  ✓   |    -    |  -   |
 | 65536 | Radix-4              |  -  |  -   |  -   |  ✓   |    -    |  -   |
 
 ✓ = registered codelet (forward + inverse); - = not registered.
@@ -127,12 +128,12 @@ pure-Go fallback.
 | Target  | Build constraint   | complex64 | complex128 | Total |
 | ------- | ------------------ | --------: | ---------: | ----: |
 | generic | `(all builds)`     |        38 |         37 |    75 |
-| avx2    | `amd64 && !purego` |        20 |         18 |    38 |
+| avx2    | `amd64 && !purego` |        24 |         21 |    45 |
 | avx512  | `amd64 && !purego` |        11 |          6 |    17 |
 | sse2    | `amd64 && !purego` |        22 |         22 |    44 |
 | neon    | `arm64 && !purego` |        22 |         22 |    44 |
 
-Total registered codelets: **218**.
+Total registered codelets: **225**.
 
 ## Beyond the Codelet Registry
 

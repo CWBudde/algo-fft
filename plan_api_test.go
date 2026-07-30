@@ -233,10 +233,13 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 	}
 
 	// The planner should select the best size-512 codelet for the build:
-	//   * amd64 AVX2 builds: the size-generic 256-bit radix-4 kernel
-	//     ("dit512_radix4_avx2"), which superseded both the radix-4-then-2
-	//     override and the radix-8 codelet that used to win here
-	//     ("dit512_radix8_avx2", still accepted for builds without it).
+	//   * amd64 AVX2 builds: the size-generic 256-bit radix-8 ladder
+	//     ("dit512_radix8ladder_avx2"), which took this row on 2026-07-30 at
+	//     0.933 forward / 0.979 inverse against the size-generic radix-4
+	//     kernel. That kernel ("dit512_radix4_avx2") is still accepted, for
+	//     builds predating the ladder, as is the per-size radix-8 codelet it
+	//     had itself superseded ("dit512_radix8_avx2") -- which is a different
+	//     and XMM-width kernel despite the similar name.
 	//   * amd64 SSE2-only builds: the radix-4-then-2 SSE2 override.
 	//   * purego and generic builds: the size-generic radix-8 ladder
 	//     ("dit512_radix8ladder_generic"), which took this row on 2026-07-30 at
@@ -250,6 +253,7 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 	//     higher-priority scalar codelet.
 	algo := plan.Algorithm()
 	ok := strings.HasPrefix(algo, "dit512_radix4_then2") ||
+		algo == "dit512_radix8ladder_avx2" ||
 		algo == "dit512_radix4_avx2" ||
 		algo == "dit512_radix8_avx2" ||
 		algo == "dit512_radix8ladder_generic"

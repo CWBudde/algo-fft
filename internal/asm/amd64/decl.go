@@ -902,3 +902,36 @@ func Radix4Complex64Asm(
 func Radix4Complex128Asm(
 	dst, src, twiddle, scratch []complex128, idx []int32, r4End int, inverse, fuse bool, scale float64,
 ) bool
+
+// ============================================================================
+// Size-generic 256-bit radix-8 DIT kernel
+// ============================================================================
+
+// Radix8Complex64Asm runs a radix-8 decimation-in-time FFT of length
+// n = 8^k, 2*8^k or 4*8^k (n >= 32) entirely in 256-bit registers, four
+// butterflies per instruction.
+//
+// twiddle must hold the n+8 packed twiddle-plane elements produced by
+// prepareTwiddleRadix8Complex64, and idx the n/8 stage-1 group indices. limit
+// is the largest span the radix-8 stages may cover (n, n/2 or n/4); the
+// quotient n/limit selects the single radix-2 or radix-4 tail stage that
+// finishes the shapes that need one. inverse selects the conjugated butterfly,
+// and scale (1/n for the inverse, 1 for the forward) is folded into stage 1.
+//
+//go:noescape
+func Radix8Complex64Asm(
+	dst, src, twiddle, scratch []complex64, idx []int32, limit int, inverse bool, scale float32,
+) bool
+
+// Radix8Complex128Asm is the complex128 counterpart of Radix8Complex64Asm:
+// the same size-generic radix-8 DIT in 256-bit registers, two butterflies per
+// instruction instead of four.
+//
+// twiddle must hold the packed twiddle-plane elements produced by
+// prepareTwiddleRadix8Complex128, and idx the n/8 stage-1 group indices (the
+// permutation is precision-independent, so both kernels share one table).
+//
+//go:noescape
+func Radix8Complex128Asm(
+	dst, src, twiddle, scratch []complex128, idx []int32, limit int, inverse bool, scale float64,
+) bool

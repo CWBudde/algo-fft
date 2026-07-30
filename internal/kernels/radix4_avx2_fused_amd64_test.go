@@ -112,21 +112,48 @@ func checkFusedMatches64(t *testing.T, n int, inverse bool) {
 	}
 }
 
-// TestRadix4AVX2FusedSelection pins which sizes take the fused tail.
+// TestRadix4AVX2FusedSelection pins which codelet actually wins each of the
+// n = 2*4^k sizes, fused tail included.
 //
-// The choice is empirical -- fusing holds eight live streams instead of four
-// and only pays off where they stay small -- so nothing about the code implies
-// it, and a regenerate that dropped or widened a row would otherwise be
-// invisible. complex128 at n = 2048 is the row that matters most: fusing costs
-// 11% exactly there, which is the size the fusion was written for.
+// Every one of these choices is empirical and nothing about the code implies
+// it, so a regenerate that dropped or widened a row would otherwise be
+// invisible. Two independent decisions are pinned here:
+//
+//   - Fused against separate radix-4 tail. Fusing holds eight live streams
+//     instead of four and only pays off where they stay small. complex128 at
+//     n = 2048 was the row that mattered most -- fusing costs 11% exactly
+//     there, the size the fusion was written for -- though radix-8 has since
+//     taken that row outright.
+//   - Radix-8 against radix-4. The size-generic radix-8 ladder took 512 (both
+//     precisions), 2048 (both) and 32768 complex128 in the 2026-07-30 sweep,
+//     and lost 8192 (both) and 32768 complex64. That split is not arbitrary:
+//     radix-8 wins where its last stage strides 512 bytes or less between its
+//     eight streams and loses at 4 KiB or more, where they collide on one L1
+//     set. See docs/CODELET_BENCHMARKS.md.
+//
+// Expected signatures are spelled out rather than derived, so that changing
+// the answer requires editing the answer.
 func TestRadix4AVX2FusedSelection(t *testing.T) {
 	features := cpu.DetectFeatures()
 	if !features.HasAVX2 {
 		t.Skip("AVX2 not available")
 	}
 
-	fused64 := map[int]bool{128: true, 2048: true}
-	fused128 := map[int]bool{128: true}
+	want64 := map[int]string{
+		128:   "dit128_radix4fused_avx2",
+		512:   "dit512_radix8ladder_avx2",
+		2048:  "dit2048_radix8ladder_avx2",
+		8192:  "dit8192_radix4_avx2",
+		32768: "dit32768_radix4_avx2",
+	}
+
+	want128 := map[int]string{
+		128:   "dit128_radix4fused_avx2",
+		512:   "dit512_radix8ladder_avx2",
+		2048:  "dit2048_radix8ladder_avx2",
+		8192:  "dit8192_radix4_avx2",
+		32768: "dit32768_radix8ladder_avx2",
+	}
 
 	for _, n := range []int{128, 512, 2048, 8192, 32768} {
 		entry := registry.Registry64.Lookup(n, features)
@@ -134,8 +161,8 @@ func TestRadix4AVX2FusedSelection(t *testing.T) {
 			t.Fatalf("complex64 n=%d: no codelet", n)
 		}
 
-		if want := signatureFor(n, fused64[n]); entry.Signature != want {
-			t.Errorf("complex64 n=%d: signature %q, want %q", n, entry.Signature, want)
+		if entry.Signature != want64[n] {
+			t.Errorf("complex64 n=%d: signature %q, want %q", n, entry.Signature, want64[n])
 		}
 
 		entry128 := registry.Registry128.Lookup(n, features)
@@ -143,16 +170,8 @@ func TestRadix4AVX2FusedSelection(t *testing.T) {
 			t.Fatalf("complex128 n=%d: no codelet", n)
 		}
 
-		if want := signatureFor(n, fused128[n]); entry128.Signature != want {
-			t.Errorf("complex128 n=%d: signature %q, want %q", n, entry128.Signature, want)
+		if entry128.Signature != want128[n] {
+			t.Errorf("complex128 n=%d: signature %q, want %q", n, entry128.Signature, want128[n])
 		}
 	}
-}
-
-func signatureFor(n int, fused bool) string {
-	if fused {
-		return "dit" + strconv.Itoa(n) + "_radix4fused_avx2"
-	}
-
-	return "dit" + strconv.Itoa(n) + "_radix4_avx2"
 }
