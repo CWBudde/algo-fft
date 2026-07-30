@@ -1,5 +1,10 @@
 # Float64 Real FFT Implementation Summary
 
+> **Archived historical record** of the 2025-12 "Phase 11.4 — Generic Real FFT
+> API" round. Preserved for its rationale; the API has since been reworked into
+> the generic `NewPlanReal[F, C]` form. For current status see
+> [`../PLAN.md`](../PLAN.md).
+
 ## ✅ Implementation Complete
 
 **Date:** 2025-12-27

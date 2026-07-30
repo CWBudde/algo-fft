@@ -223,17 +223,6 @@ var avx2TestCases = []avx2TestCase{
 		inverseKernel: inverseAVX2Size512Radix16x32Complex64,
 	},
 	{
-		name:          "Size1024/Radix32x32",
-		size:          1024,
-		radix:         32, // actually 32x32
-		tolerance:     2e-5,
-		forwardSeed:   0x1122AABB,
-		inverseSeed:   0x3344CCDD,
-		roundTripSeed: 0x5566EEFF,
-		forwardKernel: amd64.ForwardAVX2Size1024Radix32x32Complex64Asm,
-		inverseKernel: amd64.InverseAVX2Size1024Radix32x32Complex64Asm,
-	},
-	{
 		name:          "Size2048/Radix4Then2",
 		size:          2048,
 		radix:         -24,

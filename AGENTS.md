@@ -271,6 +271,36 @@ Generic implementations are instantiated for both precisions, with type-specific
   (Go's `go tool objdump` misdecodes AVX), normalized for the `v` prefix, the
   VEX merge operand, shifted addresses, and `int3` padding. It catches encoding
   bugs the reference tests pass straight over.
+- **Declared-but-uncalled assembly is untested assembly**, and nothing in the
+  suite reports it: the registry-driven reference tests only reach a function
+  once something calls it. The tell is an optimisation that measures no change
+  at all — read "this code does not run" before "the optimisation did not help".
+  A wrong `VINSERTPS`-vs-`VMOVLHPS` in the size-384 c64 path survived assembling,
+  declaring and an FMA-fusion round this way.
+
+#### Legacy-SSE → VEX conversion: three traps invisible in a source diff
+
+- **Register-to-register `MOVSS`/`MOVSD` merges** — legacy preserves
+  `dst[127:32]`, so a two-operand `VMOVSS Xa, Xb` is a different instruction.
+  Use the three-operand `VMOVSS Xa, Xb, Xb` rather than `VMOVAPS`: it is exactly
+  equivalent _and_ it normalizes back to `movss a,b` under the disassembly gate,
+  so the check stays meaningful.
+- **Go spells the VEX conversion mnemonics differently.** `CVTSQ2SD` →
+  `VCVTSI2SDQ`, `CVTSQ2SS` → `VCVTSI2SSQ`; a mechanical `V`-prefix rewrite fails
+  to assemble, which is the benign failure mode.
+- **`FWDBFLY`/`INVBFLY` in `avx2_f64_size512_radix8.s` are macro invocations**,
+  not instructions. Any regex census of "non-`V` mnemonic with an X/Y/Z operand"
+  flags them; they are the only two false positives in the tree.
+
+The disassembly gate that proved the last bulk sweep: a throwaway per-symbol
+normalizer over binutils `objdump -d`, collapsing the `v` prefix, the VEX merge
+operand (applied repeatedly, so a four-operand `vshufps $i,a,b,b` reduces to the
+same string as its two-operand legacy form), RIP displacements (replaced by the
+symbol objdump names), branch targets (replaced by the target's instruction
+index within its symbol, which is shift-invariant) and `int3` padding. Lock it
+against a pristine `git worktree` at the parent commit and prove it
+deterministic across rebuilds _before_ trusting a diff. It caught a real
+four-operand `vshufps` defect before any test ran.
 
 ### Delegating Codelet Work to Subagents (Model Choice)
 

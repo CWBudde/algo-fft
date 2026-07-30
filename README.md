@@ -222,33 +222,42 @@ Benefits:
 - **Time Complexity**: O(n log n) for power-of-2 sizes
 - **Memory**: Single Plan object with pre-allocated workspace
 - **Allocations**: Zero steady-state allocations during transforms
-- **Codelets**: Sizes 8, 16, 32, 64, 128 use zero-dispatch codelets for maximum performance
-  - Size 8: ~30 ns/op
-  - Size 16: ~58 ns/op
-  - Size 32: ~198 ns/op
-  - Size 64: ~490 ns/op
-  - Size 128: ~1028 ns/op
+- **Codelets**: sizes 4 … 65536 have size-specific zero-dispatch codelets. Kernel-level
+  complex64 forward times on an i7-1255U (AVX2), measured with the canary-gated
+  sweep described in [docs/CODELET_BENCHMARKS.md](docs/CODELET_BENCHMARKS.md):
+
+  | Size  |   8 |   16 |  32 |  64 | 128 | 512 | 1024 | 4096 |
+  | ----- | --: | ---: | --: | --: | --: | --: | ---: | ---: |
+  | ns/op | 5.8 | 10.5 |  24 |  54 |  89 | 409 |  914 | 5293 |
+
+  Add roughly 100 ns of per-call plan dispatch and validation to reach
+  `Plan.Forward` timings — a fixed cost, so it dominates below ~1024 and is
+  invisible above it.
 
 For detailed performance numbers, see [BENCHMARKS.md](BENCHMARKS.md).
 
-### Performance Comparison: algofft vs gonum
+### Performance Comparison
 
-The table below shows performance comparison with gonum's FFT implementation for power-of-2 sizes:
+Against FFTW3 and the rest of the Go field, from the cross-library harness in
+[go-fft-bench](https://github.com/cwbudde/go-fft-bench) (i7-1255U, complex128,
+**algofft v0.7.4**):
 
-| Size | algofft  | gonum     | Speedup |
-| ---- | -------- | --------- | ------- |
-| 8    | 30 ns    | 516 ns    | 17.2x   |
-| 16   | 75 ns    | 994 ns    | 13.3x   |
-| 32   | 207 ns   | 766 ns    | 3.7x    |
-| 64   | 436 ns   | 1.55 µs   | 3.6x    |
-| 128  | 976 ns   | 5.73 µs   | 5.9x    |
-| 256  | 2.98 µs  | 10.11 µs  | 3.4x    |
-| 512  | 5.70 µs  | 17.00 µs  | 3.0x    |
-| 1024 | 14.71 µs | 38.28 µs  | 2.6x    |
-| 2048 | 30.68 µs | 93.93 µs  | 3.1x    |
-| 4096 | 95.84 µs | 310.53 µs | 3.2x    |
+| n                 |    8 |   16 |   32 |   64 |   128 |   256 |   512 |  1024 |  2048 |  4096 |  8192 | 16384 | 32768 |
+| ----------------- | ---: | ---: | ---: | ---: | ----: | ----: | ----: | ----: | ----: | ----: | ----: | ----: | ----: |
+| vs FFTW3, forward | 5.3× | 2.4× | 1.9× | 1.3× | 1.03× | 1.07× | 0.97× | 0.97× | 0.91× | 1.16× | 1.24× | 1.19× | 1.03× |
 
-_Benchmarked on Linux/amd64 with AVX2 acceleration (default build)_
+Geomean over that range is **1.36× FFTW3 forward, 1.34× inverse** — and roughly
+8–15× the other Go FFT libraries (gonum, go-dsp, takatoh), which sit at
+0.02–0.12× FFTW3.
+
+Non-power-of-two lengths are the weak half at **0.60×** by geomean. Rader-routed
+primes are healthy (0.78–1.58×, with outright wins), Bluestein sits at
+0.42–0.62×, and composite smooth lengths with a shallow power-of-two part are
+the worst case (44100 at 0.25×). Closing that is the main open work; see
+[PLAN.md](PLAN.md) §5.
+
+_Quote these figures with the tag. They are measured in a separate repository
+against a pinned release, so they lag the tip of this one._
 
 ## Correctness
 
@@ -359,4 +368,7 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ## Status
 
-Early development - API subject to change before v1.0 release.
+Pre-v1.0, but the API is settled: the v1.0 engineering work is complete and
+nothing in the remaining backlog changes a signature. What the tag waits on is
+performance and coverage work — chiefly the non-power-of-two gap above. See
+[PLAN.md](PLAN.md) for the roadmap and current status.

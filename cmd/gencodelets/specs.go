@@ -525,13 +525,6 @@ var codeletSpecs = []codeletSpec{
 	},
 	{
 		Target: "avx2", Prec: 64, Size: 16,
-		Forward:   "amd64.ForwardAVX2Size16Radix4Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size16Radix4Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit16_radix4_avx2", Priority: 30,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 16,
 		Forward:   "amd64.ForwardAVX2Size16Radix16Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size16Radix16Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
@@ -552,13 +545,6 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit32_radix2_avx2", Priority: 30,
 	},
 	{
-		Target: "avx2", Prec: 64, Size: 32,
-		Forward:   "amd64.ForwardAVX2Size32Radix4Then2Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size32Radix4Then2Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit32_radix4_then2_avx2", Priority: 22,
-	},
-	{
 		Target: "avx2", Prec: 64, Size: 64,
 		Forward:   "amd64.ForwardAVX2Size64Radix2Complex64Asm",
 		Inverse:   "amd64.InverseAVX2Size64Radix2Complex64Asm",
@@ -568,94 +554,11 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit64_radix2_avx2", Priority: 26,
 	},
 	{
-		Target: "avx2", Prec: 64, Size: 64,
-		Forward:   "amd64.ForwardAVX2Size64Radix4Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size64Radix4Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit64_radix4_avx2", Priority: 25,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 128,
-		Forward:   "amd64.ForwardAVX2Size128Radix2Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size128Radix2Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit128_radix2_avx2", Priority: 20,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 256,
-		Forward:   "amd64.ForwardAVX2Size256Radix2Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size256Radix2Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		// 35/30/25 across the three AVX2 c64 entries at this size reproduces the
-		// measured forward and inverse ordering (radix2 < radix16 < radix4, both
-		// directions, 13 canary-gated groups). They previously read 135/130/120,
-		// an order of magnitude outside the 5-50 band used everywhere else and a
-		// leftover from an earlier tuning round; only their relative order ever
-		// mattered.
-		Signature: "dit256_radix2_avx2", Priority: 35,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 256,
-		Forward:   "amd64.ForwardAVX2Size256Radix16Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size256Radix16Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix16_avx2", Priority: 30,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 512,
-		Forward:   "amd64.ForwardAVX2Size512Radix2Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size512Radix2Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix2_avx2", Priority: 35,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 512,
-		Forward:   "amd64.ForwardAVX2Size512Radix8Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size512Radix8Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix8_avx2", Priority: 30,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 512,
-		Forward:   "amd64.ForwardAVX2Size512Radix16x32Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size512Radix16x32Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix16x32_avx2", Priority: 20,
-	},
-	{
 		Target: "avx2", Prec: 64, Size: 384,
 		Forward:   "forwardDIT384MixedComplex64",
 		Inverse:   "inverseDIT384MixedComplex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit384_mixed_avx2", Priority: 25,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 8192,
-		Forward:   "forwardDIT8192SixStep64x128AVX2Complex64",
-		Inverse:   "inverseDIT8192SixStep64x128AVX2Complex64",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit8192_sixstep64x128_avx2", Priority: 35,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 1024,
-		Forward:   "amd64.ForwardAVX2Size1024Radix32x32Complex64Asm",
-		Inverse:   "amd64.InverseAVX2Size1024Radix32x32Complex64Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix32x32_avx2", Priority: 30,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 4096,
-		Forward:   "forwardDIT4096SixStepAVX2Complex64",
-		Inverse:   "inverseDIT4096SixStepAVX2Complex64",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit4096_sixstep_avx2", Priority: 35,
-	},
-	{
-		Target: "avx2", Prec: 64, Size: 16384,
-		Forward:   "forwardDIT16384SixStepAVX2Complex64",
-		Inverse:   "inverseDIT16384SixStepAVX2Complex64",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit16384_sixstep_avx2", Priority: 35,
 	},
 	// The AVX2 complex64 radix-4 DIT (internal/asm/amd64/avx2_f32_radix4.s):
 	// one size-generic kernel for every n = 4^k and n = 2*4^k below, replacing
@@ -796,7 +699,7 @@ var codeletSpecs = []codeletSpec{
 	// scratch. The input permutation is absorbed into which load lands in which
 	// register, so none of them needs a bit-reversal table. All are AVX512F
 	// only. Measured on a Xeon Gold 5218 against the best pre-existing codelet
-	// at each size; see docs/AVX512_CODELETS.md.
+	// at each size; see docs/CODELET_BENCHMARKS.md.
 	{
 		Target: "avx512", Prec: 64, Size: 8,
 		Forward:   "amd64.ForwardAVX512Size8Radix8Complex64Asm",
@@ -955,75 +858,6 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "amd64.InverseAVX2Size8Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit8_radix4_avx2", Priority: 30,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 16,
-		Forward:   "amd64.ForwardAVX2Size16Radix2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size16Radix2Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit16_radix2_avx2", Priority: 20,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 32,
-		Forward:   "amd64.ForwardAVX2Size32Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size32Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit32_radix2_avx2", Priority: 20,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 64,
-		Forward:   "amd64.ForwardAVX2Size64Radix2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size64Radix2Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		// SSE-width in practice; loses to dit64_radix4_sse2 -> rank in the SSE2
-		// tier so Priority is actually compared against it (measured 181/205 ns
-		// vs 149/164 ns for dit64_radix4_sse2).
-		RankLevel: "SIMDSSE2",
-		Signature: "dit64_radix2_avx2", Priority: 14,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 128,
-		Forward:   "amd64.ForwardAVX2Size128Radix2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size128Radix2Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit128_radix2_avx2", Priority: 20,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 256,
-		Forward:   "amd64.ForwardAVX2Size256Radix2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size256Radix2Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix2_avx2", Priority: 25,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 256,
-		Forward:   "amd64.ForwardAVX2Size256Radix16Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size256Radix16Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix16_avx2", Priority: 45,
-		TwiddleSize: "twiddleSize256Radix16AVX2", PrepareTwiddle: "prepareTwiddle256Radix16AVX2",
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 512,
-		Forward:   "amd64.ForwardAVX2Size512Radix2Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size512Radix2Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix2_avx2", Priority: 10,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 512,
-		Forward:   "amd64.ForwardAVX2Size512Radix8Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size512Radix8Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix8_avx2", Priority: 30,
-	},
-	{
-		Target: "avx2", Prec: 128, Size: 1024,
-		Forward:   "amd64.ForwardAVX2Size1024Radix32x32Complex128Asm",
-		Inverse:   "amd64.InverseAVX2Size1024Radix32x32Complex128Asm",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix32x32_avx2", Priority: -1,
-		TwiddleSize: "twiddleSize1024Radix32x32AVX2", PrepareTwiddle: "prepareTwiddle1024Radix32x32AVX2",
 	},
 	// The AVX2 complex128 radix-4 DIT (internal/asm/amd64/avx2_f64_radix4.s):
 	// the complex128 twin of the size-generic kernel above, replacing the

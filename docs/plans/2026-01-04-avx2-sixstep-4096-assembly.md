@@ -1,5 +1,11 @@
 # AVX2 Six-Step 4096 FFT Assembly Implementation Plan
 
+> **Archived — superseded.** This plan was executed, but the kernel it produced
+> lost its size: `dit4096_sixstep_avx2` measures ~4.6x the incumbent
+> `dit4096_radix4_avx2` in the canary-gated sweep (see
+> [`../CODELET_BENCHMARKS.md`](../CODELET_BENCHMARKS.md)). Do not execute this
+> plan; do not use it as a template without reading that result first.
+>
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement a fully AVX2-optimized 4096-point FFT using the six-step (64x64 matrix) algorithm entirely in Plan9 assembly for maximum performance.

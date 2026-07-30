@@ -416,15 +416,6 @@ func ForwardAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch []com
 //go:noescape
 func InverseAVX2Size8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
-// Size-32768 radix-4-then-2 kernels. The mixed digit-reversal table is passed
-// in as bitrev (32768 entries) instead of being embedded as a DATA table.
-
-//go:noescape
-func ForwardAVX2Size1024Radix32x32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseAVX2Size1024Radix32x32Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
 // ============================================================================
 // Size-Specific FFT Kernels (Complex128)
 // ============================================================================
@@ -440,18 +431,6 @@ func ForwardAVX2Size512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []com
 
 //go:noescape
 func InverseAVX2Size512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardAVX2Size512Radix8Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size512Radix8Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardAVX2Size1024Radix32x32Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size1024Radix32x32Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // ============================================================================
 // Matrix Transpose Operations (for Six-Step FFT)
@@ -669,12 +648,6 @@ func ForwardAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex1
 
 //go:noescape
 func InverseAVX2Size256Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardAVX2Size256Radix16Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseAVX2Size256Radix16Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 // ============================================================================
 // Element-wise Operations

@@ -1,11 +1,122 @@
-# AVX-512 Codelets
+# Codelet benchmarks
 
-Benchmark record for the size-specific AVX-512 codelets registered in
-`cmd/gencodelets/specs.go`. These numbers are the evidence behind the
-`Priority` values of the `SIMDAVX512` rows, including the one entry that is
-deliberately disabled.
+The measurement record behind every `Priority` and `RankLevel` in
+`cmd/gencodelets/specs.go`. When a spec row changes, the evidence for it belongs
+here.
 
-## Measurement setup
+Two harnesses produce everything below, and both run **all candidates for a size
+inside one process**, because only same-process ratios survive a shared or
+thermally-limited host:
+
+- `BenchmarkCodeletCandidates64/128` (`internal/kernels/codelet_compare_bench_test.go`)
+  walks the runtime registry, skipping `Priority < 0` and CPU-unsupported rows,
+  and times both directions from a seeded RNG so runs are comparable across days.
+- `scripts/bench_gated.sh` + `scripts/bench_gated_analyze.sh` (`just bench-gated
+<sizes...>`) wrap that benchmark in a canary-gated sweep: each (precision,
+  size) group is bracketed by a canary cell of known quiet-machine cost, group
+  and cell order rotate per pass, and the analyser rejects any group whose two
+  canaries disagree. Ratios are taken **within** a group and then medianed —
+  never a ratio of medians. See `PLAN.md` §2.2 for why.
+
+Two standing traps:
+
+- `bench_gated.sh` reads `OUTDIR` from the environment; `bench_gated_analyze.sh`
+  takes the directory as a **positional argument** and ignores `OUTDIR`. Passing
+  `OUTDIR=` to the analyser silently analyses a stale directory. Check that
+  accepted + rejected equals groups × passes before reading a single ratio.
+- Recalibrate `GOOD` from the observed canary floor each round rather than
+  reusing the previous value. A stale floor does not bias the ratios, but it
+  lets in windows that should have been rejected.
+
+Do not compare absolute figures across runs or hosts. Only the ratios travel.
+
+## AVX2 tier (i7-1255U) — incumbent audit
+
+Canary-gated sweeps, i7-1255U (Alder Lake, AVX2, no AVX-512), pinned to core 0.
+Every registered power-of-two size has now been ranked. Each cell is the
+**median within-group ratio to that size's incumbent**, forward; `< 1.00` means
+the candidate beats the row the registry currently selects.
+
+| sizes                       | date       | groups accepted | conditions                              |
+| --------------------------- | ---------- | --------------- | --------------------------------------- |
+| 8, 16, 32, 64, 16384        | 2026-07-30 | 159 / 160       | canary floor 1565 ns, 48-49 C           |
+| 256, 512, 1024              | 2026-07-30 | 93 / 96         | canary floor 1593 ns, 50-51 C           |
+| 128, 32768                  | 2026-07-29 | 30 / 32         |                                         |
+| 512, 1024, 2048, 4096, 8192 | 2026-07-29 | 92 / 100        | superseded at 512/1024 by the row above |
+
+Size 4 registers exactly one candidate per tier, so it has nothing to rank.
+
+### What the audit changed
+
+- **complex128 at n = 8 was mis-tuned.** `dit8_radix4_avx2` was the registered
+  choice; `dit8_radix8_avx2` beats it at 0.970 forward / 0.859 inverse over 16
+  groups and took the row. Reading it honestly: the forward gap is 0.2 ns and
+  would not justify a change on its own, and the ~100 ns per-call plan dispatch
+  swamps the whole difference; the inverse gap, 8.2 -> 7.0 ns, is the
+  substantive part. `dit8_radix2_avx2` ties on inverse but loses forward, so
+  radix-8 wins both directions rather than trading them. Two SSE2 rows also beat
+  the old incumbent on forward, but registry ordering is SIMD-level major, so
+  they could never be selected on an AVX2 host.
+- **The no-tail radix-4 variant has been folded into the default kernel.** The
+  2026-07-29 sweeps ranked `dit{512,2048,8192,32768}_radix4_notail_avx2` at
+  0.86-0.93 of the then-incumbent, and `dit128_radix4fused_avx2` at 0.93-0.96.
+  Those `notail` signatures no longer exist: the behaviour is now what
+  `dit<N>_radix4_avx2` does, which is visible in the re-sweep — complex64 at
+  n = 512 measures 415 ns where the old incumbent was 433 and the old `notail`
+  candidate 409. `radix4fused` remains a separate row at 128 (both precisions)
+  and 2048 complex64, where the fusion is a different trade.
+- **Nothing at 256, 512 or 1024 needed a priority change.** All six incumbents
+  reconfirmed, by 2.1x or more over every other candidate.
+
+### Shadowed AVX2 candidates above 1.5x the winner
+
+These are the deletion candidates in `PLAN.md` §4. None of them can be selected
+on any amd64 CPU today.
+
+|     n | prec | candidate                    |  fwd |  inv | note                                              |
+| ----: | ---- | ---------------------------- | ---: | ---: | ------------------------------------------------- |
+|    16 | c64  | `dit16_radix4_avx2`          | 1.74 | 1.76 |                                                   |
+|    32 | c64  | `dit32_radix4_then2_avx2`    | 2.56 | 2.74 | loses to `..._sse3` (2.44)                        |
+|    64 | c64  | `dit64_radix4_avx2`          | 2.29 | 2.36 |                                                   |
+|   128 | c64  | `dit128_radix2_avx2`         | 3.99 | 4.25 |                                                   |
+|   256 | c64  | `dit256_radix2_avx2`         | 2.10 | 2.21 |                                                   |
+|   256 | c64  | `dit256_radix16_avx2`        | 3.13 | 3.29 |                                                   |
+|   512 | c64  | `dit512_radix2_avx2`         | 2.13 | 2.21 |                                                   |
+|   512 | c64  | `dit512_radix8_avx2`         | 3.01 | 3.71 |                                                   |
+|   512 | c64  | `dit512_radix16x32_avx2`     | 3.78 | 4.18 |                                                   |
+|  1024 | c64  | `dit1024_radix32x32_avx2`    | 8.06 | 9.81 | slower than its own pure-Go twin (7.40)           |
+|  4096 | c64  | `dit4096_sixstep_avx2`       | 4.61 | 4.57 | stale crossover, not a bad kernel                 |
+|  8192 | c64  | `dit8192_sixstep64x128_avx2` | 5.24 | 5.26 | stale crossover                                   |
+| 16384 | c64  | `dit16384_sixstep_avx2`      | 2.37 | 2.38 | stale crossover                                   |
+|    16 | c128 | `dit16_radix2_avx2`          | 2.38 | 2.79 | **loses to pure Go (1.97)** and to both SSE2 rows |
+|    32 | c128 | `dit32_radix2_avx2`          | 3.02 | 3.55 | loses to both SSE2 rows                           |
+|    64 | c128 | `dit64_radix2_avx2`          | 3.40 | 3.89 | loses to both SSE2 rows                           |
+|   128 | c128 | `dit128_radix2_avx2`         | 3.41 | 3.92 | loses to `dit128_radix2_sse2` (3.14)              |
+|   256 | c128 | `dit256_radix16_avx2`        | 2.61 | 2.40 |                                                   |
+|   256 | c128 | `dit256_radix2_avx2`         | 3.95 | 4.47 | loses to `dit256_radix2_sse2` (3.70)              |
+|   512 | c128 | `dit512_radix8_avx2`         | 2.49 | 2.66 |                                                   |
+|   512 | c128 | `dit512_radix2_avx2`         | 3.99 | 4.32 |                                                   |
+
+The `*_radix2_avx2` group is **structurally dominated, not badly written**:
+radix-2 makes `log2 n` full passes where radix-4 makes half as many, and at
+complex128 a 256-bit register holds only two elements, so there is no width left
+to recover the difference. That several of them lose to their own SSE2 twins is
+the symptom, not a second defect.
+
+The higher-radix group is **implementation-limited**: `dit256_radix16_avx2`
+loses at 2.6-3.1x despite radix-16 needing a quarter of radix-4's passes, and
+only one of
+`dit1024_radix32x32_avx2`'s two stages is vectorised, and the two size-512
+kernels are the same shape. That result does not test whether a properly
+vectorised radix-8 would win — see the `PLAN.md` §4 item that proposes one.
+
+## AVX-512 tier (Xeon Gold 5218)
+
+Evidence behind the `SIMDAVX512` rows, including the one deliberately disabled
+entry. This is the only AVX-512 hardware reachable; Cascade Lake downclocks
+under AVX-512, so it is a pessimistic machine for the tier.
+
+### Measurement setup
 
 |            |                                                                                                                            |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -26,7 +137,7 @@ AVX2/SSE2/pure-Go rows reproduced the pre-merge baseline to within ~3%.
 Do not compare absolute figures here against numbers measured in a different
 run or on a different host.
 
-## complex64
+### complex64
 
 "Best other" is the fastest non-AVX-512 candidate registered at that size.
 
@@ -46,7 +157,7 @@ sub-FFT decompositions; they emit the same 148 instructions and measure within
 cannot separate them: the candidate benchmarked **first** in a process is
 consistently ~3% slower, and registry order follows priority.
 
-## complex128
+### complex128
 
 Before this set, complex128 had no AVX-512 codelets at all.
 
@@ -62,7 +173,7 @@ Note that at sizes 8, 16, 64 and 128 the fastest pre-existing codelet is an
 **SSE2** one, not the AVX2 one registered at higher priority — the complex128
 AVX2 codelets are weaker than their priorities imply.
 
-## The disabled entry: complex128 size 4
+### The disabled entry: complex128 size 4
 
 `dit4_radix4_avx512` is registered with `Priority: -1`.
 
@@ -89,7 +200,7 @@ are **skipped by the behavioural test sweeps**
 `TestCodeletsZeroAlloc*` all `continue` on `Priority < 0`), so this kernel was
 verified at a positive priority before being disabled.
 
-## Why these kernels are fast
+### Why these kernels are fast
 
 A ZMM holds 8 complex64 or 4 complex128, so at every size above the transform
 is register-resident: 2 to 32 ZMM out of 32. The kernels **load once, run every
@@ -123,7 +234,7 @@ instructions per body) and 7x more accurate.
 Cascade Lake's 512-bit downclock did not erase these wins: on this Gold 5218 the
 AVX-512 turbo is only about one bin below AVX2.
 
-## Instruction set constraint
+### Instruction set constraint
 
 All of these kernels use **AVX512F only**. `internal/cpu` derives
 `Features.HasAVX512` from `golang.org/x/sys/cpu.X86.HasAVX512`, which is
@@ -162,7 +273,7 @@ Two further notes for anyone extending these kernels:
   `VBROADCASTSS ·sym(SB), Zn`. Embedded broadcast is spelled
   `VMULPS.BCST ·sym(SB), Zsrc, Zdst`.
 
-## Sizes without a size-specific codelet
+### Sizes without a size-specific codelet
 
 Power-of-two sizes with no registered AVX-512 codelet are still served on
 AVX-512 hosts by the generic AVX-512 radix-2 DIT kernel
@@ -170,3 +281,22 @@ AVX-512 hosts by the generic AVX-512 radix-2 DIT kernel
 dispatch tier in `internal/fft/kernels_amd64_avx512.go`. That kernel is
 additionally bound as a complex64 codelet at sizes 1024, 4096, 8192 and 16384;
 see `internal/kernels/dit_avx512_amd64.go`.
+
+### AVX-512 against the best AVX2 codelet (complex64)
+
+Pinned, idle host. **These numbers predate the 256-bit AVX2 radix-4 kernels**,
+which moved the AVX2 column substantially; re-measure before acting on them.
+The AVX-512 codelet is radix-2 while every AVX2 winner here is radix-4, so this
+is an algorithm comparison, not a vector-width one.
+
+| size  | AVX-512 fwd | best AVX2 fwd | fwd Δ  | AVX-512 inv | best AVX2 inv | inv Δ     |
+| ----- | ----------- | ------------- | ------ | ----------- | ------------- | --------- |
+| 1024  | 9151 ns     | 8210 ns       | +11.5% | 10662 ns    | 10141 ns      | +5.1%     |
+| 4096  | 40786 ns    | 39726 ns      | +2.7%  | 45995 ns    | 50651 ns      | **−9.2%** |
+| 8192  | 89129 ns    | 83269 ns      | +7.0%  | 96315 ns    | 102567 ns     | **−6.1%** |
+| 16384 | 199838 ns   | 188084 ns     | +6.2%  | 221941 ns   | 233577 ns     | **−5.0%** |
+
+Consequence: the AVX-512 rows sit at `Priority 10` against 24–28 for AVX2, so
+the registry never selects them even on an AVX-512 CPU. For forward that is
+currently right; it discards a real 5–9% on inverse at n >= 4096. See `PLAN.md`
+§6 for the open item.

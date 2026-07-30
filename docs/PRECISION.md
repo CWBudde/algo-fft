@@ -229,6 +229,42 @@ for i := range original {
 
 See `precision_test.go` for more comprehensive examples.
 
+## Two accuracy findings from the 2026-07 rounds
+
+**Component-wise complex64 multiplication costs 3–9% relative-L2 error, i.e.
+sub-ulp.** Go's compiler does not implement scalar `complex64 * complex64` in
+single precision — it widens all four components to float64, multiplies in
+double precision and rounds back. Replacing those products with
+`math.MulComplex64` (component-wise: `MULSS` ×3, `VFMADD231SS`, `SUBSS`) is a
+large speed win but gives up the accidental double-precision accumulation.
+Everything stays at ~10⁻⁷ (float32 ε is 1.19e-07) and the peak-normalized error
+is unchanged or lower. complex128 is bit-identical.
+
+**FMA fusion improves accuracy where the twiddle work is densest**, as
+one-rounding-instead-of-two predicts: fusing the AVX2 codelets the registry
+actually selects moved max relative error by −28.5% at complex64 size 16 and
+−38.2% at size 32.
+
+### Reading `cmd/measure_correctness` correctly
+
+The tool reports **relative L2** against `reference.NaiveDFTWide` (float64
+output for float32 input), mean and max over trials, plus a peak-normalized
+column. It also prints the build configuration, which is what makes its numbers
+comparable at all, and seeds with a fixed `rand.NewSource(42)` so an A/B over a
+code change compares identical input vectors.
+
+Two things to know before quoting it:
+
+- It used to max a **per-bin** relative error against a **complex64** reference
+  — an extreme-value statistic over an unstable quantity — and that misleading
+  number nearly caused good work to be reverted. Do not reintroduce it.
+- Relative L2 attenuates a single wrong bin by ~1/√n, which is exactly the
+  failure a broken codelet produces. That is why the peak-normalized column
+  exists; read both.
+- **Its complex128 column measures the reference, not the FFT.**
+  `NaiveDFT128` builds twiddles from un-reduced angles, so its own error grows
+  as O(n). Recorded, not fixed.
+
 ## References
 
 - IEEE 754 Standard for Floating-Point Arithmetic

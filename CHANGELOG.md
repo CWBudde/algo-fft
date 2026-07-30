@@ -34,8 +34,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   does, in every build, which is also what backs the `-race` reference cap
   above.
 
+### Removed
+
+- **22 shadowed AVX2 codelet rows.** With the incumbent audit complete, every
+  registered power-of-two size has a canary-gated ranking, and it showed a large
+  tail of AVX2 candidates that the registry could never select on any amd64 CPU
+  — several losing to their own SSE2/SSE3 twin, and `dit16_radix2_avx2`
+  (complex128) losing to pure Go. Everything measured above **1.5× its size's
+  winner** is gone: the AVX2 tier went from 33 + 27 to 20 + 18 registrations and
+  the inventory total from 229 to 207. The rows fall into three groups and only
+  one of them is a code defect — `*_radix2_avx2` at n >= 16 is structurally
+  dominated (radix-2 makes twice radix-4's passes, and at complex128 a 256-bit
+  register holds two elements, so there is no width left to recover it); the
+  higher-radix rows (`radix8`, `radix16`, `radix16x32`, `radix32x32`) are
+  partially-vectorised and _do_ leave a hypothesis untested, now tracked as a
+  size-generic AVX2 radix-8 stage in `PLAN.md` §4; and the `sixstep` rows were a
+  stale crossover that the faster radix-4 kernels moved out from under. The
+  six-step kernels themselves stay for the forced-`KernelSixStep` route.
+  Rankings and reasoning: `docs/CODELET_BENCHMARKS.md`.
+- **Four dead assembly files, 4,854 lines** — `avx2_f{32,64}_size1024_radix32x32.s`,
+  `avx2_f64_size512_radix8.s`, `avx2_f64_size256_radix16.s` — whose only
+  remaining callers were tests, together with `internal/kernels/params_avx2.go`
+  (the twiddle-preparation helpers for those kernels, left reachable only by
+  their own tests) and the two test files that exercised them. amd64 assembly
+  files: 141 → 137. The assembly behind the other pruned rows cannot follow yet:
+  19,815 lines of it are still reached from the forced-`KernelStrategy`
+  dispatch, which is now tracked as the gate on ~39,000 lines rather than on
+  ~19,000.
+
 ### Changed
 
+- **Documentation restructured; `PLAN.md` went from 1845 to ~900 lines.** Two
+  thirds of it was completed round-by-round history, which had started to crowd
+  out the open work and to carry stale facts. The post-mortems moved into
+  topic-scoped documents and `PLAN.md` §1 became a one-line-per-round ledger
+  linking to them: new `docs/AVX2_RADIX4.md` (the 256-bit radix-4 kernels and
+  the `n = 2·4^k` radix-2 tail), `docs/MIXED_RADIX.md` (mixed-radix engine,
+  Bluestein pad model, Rader gates), `docs/TESTING.md` (the test-vector
+  blindness audit), and `docs/AVX512_CODELETS.md` renamed to
+  `docs/CODELET_BENCHMARKS.md` and generalised into the standing evidence file
+  behind every `Priority` in `cmd/gencodelets/specs.go`. Accuracy findings were
+  appended to `docs/PRECISION.md` and the reusable assembly lessons to
+  `AGENTS.md`. Four superseded documents gained archive banners, one of them
+  (`docs/REAL_FFT_STATUS.md`) because it claimed float64 real-FFT support was
+  missing when `NewPlanReal64` has existed for some time. `README.md`'s
+  performance section was replaced — it quoted "Size 64: ~490 ns/op" against a
+  measured 54 ns codelet, and a gonum comparison table predating the whole
+  2026-07 round.
 - **`dit8_radix8_avx2` replaces `dit8_radix4_avx2` as the complex128 size-8
   codelet.** The last unaudited sizes (8/16/32/64 and 16384, both precisions)
   were swept canary-gated — 159 of 160 groups accepted, 0 drift — closing the

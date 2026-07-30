@@ -1,5 +1,11 @@
 # Real FFT Implementation Status
 
+> **Archived — superseded and partly wrong.** This file predates the generic
+> real-FFT API. Its "Missing: `float64` precision support" claim is no longer
+> true (`NewPlanReal64` is defined in `plan_real_constructors.go`), and the
+> implementation proposal below describes work that already shipped. Kept for
+> the history only. For current status see [`../PLAN.md`](../PLAN.md).
+
 ## TL;DR
 
 ✅ **Real FFT IS ALREADY IMPLEMENTED!** You can use it today for 4096-sample FFTs.

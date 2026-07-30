@@ -1,5 +1,11 @@
 # SSE2/SSE3 x86 Port - Initial Implementation Summary
 
+> **Archived historical record** of the initial 386 port. The porting _method_
+> is still current and lives in
+> [`PORTING_AMD64_TO_X86.md`](PORTING_AMD64_TO_X86.md); this file is the
+> snapshot of what the first round covered. For current coverage see
+> [`IMPLEMENTATION_INVENTORY.md`](IMPLEMENTATION_INVENTORY.md).
+
 ## Overview
 
 Successfully ported SSE3 size-8 radix-2 FFT kernels from AMD64 (64-bit) to x86/386 (32-bit) architecture as a template for future ports. This establishes the foundation and patterns for porting additional SSE2/SSE3 kernels to 32-bit systems.
