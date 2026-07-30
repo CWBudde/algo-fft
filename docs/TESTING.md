@@ -5,7 +5,7 @@ use instead, and the tolerance conventions. `CONTRIBUTING.md` carries the
 process; this file carries the reasoning.
 
 Moved out of `PLAN.md` on 2026-07-30. The one-line rule ("test vectors
-must not be blind") stays in `PLAN.md` §2.4.
+must not be blind") stays in `PLAN.md` §2.3.
 
 ## Test-vector blindness audit (2026-07-29)
 

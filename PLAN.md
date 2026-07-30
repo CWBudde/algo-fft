@@ -1,19 +1,18 @@
 # PLAN.md — algofft Roadmap
 
-This roadmap is the source of truth for status and direction.
+This roadmap is the source of truth for status and direction. It carries the
+**open work**; everything already shipped lives in `docs/`.
 
-- **§1** — where the library stands, and a one-line-per-round record of what has
-  landed. The detailed post-mortems now live in `docs/`; §1 links to them.
-- **§2** — the working method every item below is held to (correctness gates,
-  measurement protocol, hardware tiers, standing lessons).
+- **§1** — where the library stands today.
+- **§2** — the working method every item below is held to.
 - **§3–§9** — the open work, in execution order. §3 is closed; §4–§8 are the
   performance and coverage rounds, and the v1.0 tag in §9 comes after them.
 - **§10** — post-v1.0 wishlist.
 
-Where to find the detail behind §1:
-
 | Topic                                                             | Document                                                               |
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **What has shipped, round by round**                              | [`docs/HISTORY.md`](docs/HISTORY.md)                                   |
+| **How to take a number worth acting on**                          | [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md)                         |
 | Per-size codelet rankings, the evidence behind every `Priority`   | [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md)             |
 | The 256-bit AVX2 radix-4 kernels and the `n = 2·4^k` radix-2 tail | [`docs/AVX2_RADIX4.md`](docs/AVX2_RADIX4.md)                           |
 | Mixed-radix engine, Bluestein pad model, Rader gates              | [`docs/MIXED_RADIX.md`](docs/MIXED_RADIX.md)                           |
@@ -34,6 +33,13 @@ The v1.0 engineering work is **complete** — the API is settled and nothing in
 the remaining backlog changes a signature. The correctness debt that gated the
 tag is closed (§3). What the tag now waits on is §4–§8; the reasoning is in §9.
 
+Core transforms (DIT, Stockham, split-radix, mixed-radix, Rader, Bluestein,
+six/eight/four-step), real FFT, 2D/3D/N-D, both precisions, zero-allocation
+transforms, the Wisdom cache and the WASM target all ship. SIMD coverage is
+AVX2 broad in both precisions, an SSE2/SSE3 tier to 32768, a size-specific NEON
+ladder 4–32768, and a first AVX-512 tier. [`docs/HISTORY.md`](docs/HISTORY.md)
+has the round-by-round record.
+
 **Where the library sits against others** (i7-1255U, `go-fft-bench`, **tag
 v0.7.4**, measured 2026-07-29):
 
@@ -44,10 +50,10 @@ v0.7.4**, measured 2026-07-29):
 | Non-power-of-two       | **0.60×**        | complex128 only — see below                 |
 
 Quote these **with the tag**. They live in a different repository, which pins a
-released tag and does not pull results back here; §1's headline once aged four
+released tag and does not pull results back here; this headline once aged four
 releases and was wrong by a factor of two _in the wrong direction_. Several
-rounds have landed since v0.7.4 (the 2026-07-30 entries below), so the figures
-are a floor, not a current reading.
+rounds have landed since v0.7.4, so the figures are a floor, not a current
+reading.
 
 Two caveats worth carrying:
 
@@ -60,188 +66,6 @@ Two caveats worth carrying:
   worst cells are exactly the shapes whose power-of-two part is too shallow to
   reach a tuned codelet leaf — 2205 at 0.16×, 96 at 0.20×, 1000 at 0.23×, 44100
   at 0.25×, 1920 at 0.26×. §5 is the whole of the remaining external gap.
-
-### 1.1 What has shipped
-
-One line per round. Follow the links for the measurements and the reasoning.
-
-**Foundations (2026-07).**
-
-- **Correctness & build integrity.** SIMD build compiles and is CI-gated on
-  amd64/386/arm64; ~3.9k lines of dead code deleted; all plan types
-  concurrency-safe under `-race`; unschedulable radices panic rather than
-  return a wrong answer; every registered codelet verified per-direction against
-  `reference.NaiveDFT`.
-- **Architecture consolidation.** One kernel contract (`CodeletFunc` returns
-  `bool`; every call site honors the bail signal). One precision scheme —
-  `NewPlan[T]`, `NewPlanReal[F, C]`, `PlanReal2D/3D[F, C]` — which closed the
-  missing float64 real-2D/3D gap. One plan interface (`PlanInfo`). Public types
-  owned by the root package, no aliases into `internal/*`. `Plan2D`/`Plan3D` are
-  thin wrappers over `PlanND`. New leaf package `internal/registry` so `kernels`
-  no longer registers _upward_ into `planner`. `Plan[T]` split into four
-  `planExecutor` implementations (kernel/Bluestein/Rader/recursive), 40 fields →
-  21, with the codelet binding cached as a zero-dispatch fast path because
-  interface dispatch cost ~20 ns at n = 8. One deliberate global remains: the
-  default Wisdom cache, with per-consumer isolation via `PlanOptions.Wisdom`.
-- **complex128 kernel twins generated.** `cmd/genkernels` emits
-  `<base>_c128.gen.go` from the complex64 sources (42 files, 108 functions);
-  ~9.9k hand-written lines deleted. A pre-generation audit found 16 twins had
-  drifted — the complex64 side had been optimized later — so generating them was
-  itself a free win (1024/radix4 −27%/−18%). Deliberately still hand-written:
-  the radix-3/5 c128 entry points and `dit_16384_radix4`'s c128 pair, whose
-  `[16384]complex128` stage arrays exceed the compiler's 128 KiB stack limit.
-- **Kernel strategy is per-plan** (`PlanOptions.Strategy`), no process-global
-  state; tuning persists via the versioned Wisdom cache (v3; v2 files are
-  rejected, not reinterpreted). Zero-allocation parity across
-  1D/2D/3D/ND/real/mixed-radix on both default and SIMD paths, locked by
-  `AllocsPerRun` guards.
-- **Testing & CI.** Every arch matrix leg builds, vets and tests both the
-  default and `purego` builds; lint green; coverage gated at 90%; nightly
-  benchmarks against a committed baseline; continuous fuzzing with committed
-  corpus; property tests (Parseval/linearity/shift) across all dispatch
-  families.
-
-**Algorithms (2026-07).** See [`docs/MIXED_RADIX.md`](docs/MIXED_RADIX.md).
-
-- **Shape-aware Bluestein padding.** A single scalar penalty could never be
-  right: a mixed-radix sub-FFT's cost per `m·log2(m)` spans ~7× on shape alone.
-  The model is a whitelist (`padShapes`, `plan_padsize.go`), each shape admitted
-  only above the pad size where it wins at **both** precisions: `3·2^(k-2)` from
-  2^9, `15·2^(k-4)` from 2^13; `7·2^(k-3)` is dominated outright. End-to-end
-  −15…−57% at the affected lengths.
-- **Rader's algorithm**, gated on measured wins rather than on `p−1` being
-  smooth. Power-of-two `p−1` wins 4–5×; 5-smooth `p−1 ≥ 96` with pow2 part ≥ 8
-  wins 1.1–5.6×. Padded Rader for non-smooth `p−1` is intentionally skipped
-  (pad ≥ `2p−3` vs Bluestein's `2p−1` is a wash).
-- **Split-radix (conjugate-pair) DIT** with full strategy plumbing; beats the
-  auto path at every power of two ≥ 256 on purego (+11–34%, 2.1× at 262144). No
-  longer auto-selected anywhere after the square-rule re-measure.
-- **Radix-8 stage for the generic DIT driver**, gated to the no-codelet path:
-  geomean −16.9% across 32…12288 on purego, so it benefits purego, SSE-only
-  amd64 and arm64 without touching AVX2 schedules.
-- **Radix-7 / radix-11 butterflies** extend exact coverage to
-  `2^a·3^b·5^c·7^d·11^e`.
-- **Real-FFT for odd/multi-factor lengths.** `NewPlanReal*` accepts any n ≥ 2;
-  odd lengths run an internal full-size complex FFT with DC-only spectrum
-  validation.
-- **The mixed-radix engine went from 0.20×/0.13× FFTW3 to today's figures.** The
-  largest single cause was a **driver defect**, not a routing one: the AVX2
-  drivers guarded codelet dispatch with `n > 1` while the scheduler requires
-  `n > 5`, so every schedule ending in radix 2/3/4/5 sent each leaf through a
-  full codelet call — 1225 dispatches per transform at n = 4900. Fused AVX2
-  stage kernels for radix 3/5/7/11 then gave geomean −30%, with n = 704 dropping
-  10244 → 2609 ns.
-
-**Memory & cache (2026-07).**
-
-- **Cache-blocked transpose** — the O(n²) swap-pair index table is gone;
-  `math.TransposeSquare` tiles in place with edge 8. Transpose −70…−82%;
-  six-step/eight-step −10…−23% at n ≥ 65536; square `Plan2D` −34.6% geomean.
-- **Four-step** (`KernelFourStep`), the rectangular generalization of six-step,
-  with the `n1×n2` split chosen by a cache-residency model over the L1d/L2 sizes
-  `internal/cpu` detects. Beats split-radix at 2^21…2^23.
-- **Power-of-two squares are no longer special-cased.** Measured across all
-  candidate strategies at 2^18/2^20/2^22, both directions, precisions and
-  builds: Stockham wins or ties every arm bar one. One dissenting arm is
-  accepted knowingly (2^20 c128 forward prefers six-step) because a
-  precision- and direction-blind rule cannot capture it.
-- **Twiddle-table bandwidth.** Radix-4 stages conjugate on load, halving
-  per-plan packed-table memory for free. Quarter-table symmetry was evaluated
-  and **declined** for the scalar path — an L1-resident tiny-table experiment
-  put the cache-footprint share at only ~4–8%, so octant-decode ALU would be a
-  net loss. Revisit only inside SIMD kernels.
-
-**The complex64 scalar-multiply defect (2026-07).** The single most valuable
-finding of the comparative sweep, and the reason complex64 was _slower_ than
-complex128 at 20 of 23 non-power-of-two lengths. **Go's compiler does not
-implement scalar `complex64 * complex64` in single precision** — it widens all
-four components to float64, multiplies in double precision and rounds back:
-twelve instructions against six for the same expression on complex128. Only the
-multiply promotes, so any FFT stage written as scalar Go is _structurally_ more
-expensive in complex64. Powers of two hid it inside float32 SIMD codelets; the
-arbitrary-length routes could not. Fixed in three rounds with
-`math.MulComplex64` — arbitrary-length glue (c64/c128 ratio 1.18–1.27 → 0.90–0.98),
-1378 products across 39 pure-Go codelet sources rewritten by a `go/types`-driven
-tool (purego geomean **−24.4%** over the 8…16384 ladder), and 17 remaining
-sites. Two independent hosts three generations apart agreed on the codelet
-round's geomean to within 0.3% _and_ on which sizes did not move — the signature
-of a code change rather than a measurement artifact. Accuracy cost is sub-ulp;
-see [`docs/PRECISION.md`](docs/PRECISION.md). Standing rules from this round are
-in §2.4.
-
-**SIMD kernels (2026-07).** Coverage: AVX2 broad in both precisions, SSE2/SSE3
-tier to 32768, NEON size-specific 4–32768 both precisions, a first AVX-512 tier.
-
-- **SIMD ships in the default build** behind runtime CPU detection (`-tags
-purego` opts out; `-tags asm` is a no-op). All known-incorrect kernels fixed;
-  ~1,000 `asmdecl` findings resolved and vet-gated.
-- **The 256-bit radix-4 kernels** replaced a whole AVX2 codelet family that was
-  XMM-width in VEX clothing — see [`docs/AVX2_RADIX4.md`](docs/AVX2_RADIX4.md).
-  This is the change that made powers of two competitive with FFTW3.
-- **Legacy-SSE encodings swept out of the AVX2/AVX-512 tree**: 4089 instructions
-  converted to VEX across 59 files, then the last ten functions in a second
-  round. End-to-end performance-neutral, but it uncovered six codelets carrying
-  a fixed ~100 ns transition-penalty prologue regardless of transform size
-  (`dit4_radix4_avx2` 102.9 → 5.0 ns) — which is what had mis-ranked them in the
-  registry. The n = 64 cliff (0.36× FFTW3) was one legacy `MOVD AX, X8`.
-  Method and traps are in [`AGENTS.md`](AGENTS.md).
-- **FMA audit, two passes.** Every AVX2 codelet the registry actually _selects_
-  is now fused (97 sites in the second pass alone). The tier is gated on
-  `HasAVX2 && HasFMA`, so an FMA-masked VM falls back instead of faulting.
-  _Performance was never demonstrated_ — three benchstat attempts were swamped
-  by thermal throttling; treat that pass as instruction-count and accuracy work.
-  Remaining scope in §4.
-- **AVX2 complex128 Stockham asm** for every Stockham-resolved c128 size above
-  the codelet range: kernel-level −16…−50%, 65536 end-to-end 1.44 → 1.02 ms.
-- **SSE tier extended to 16384/32768** in both precisions, emitted by a one-off
-  generator validated by byte-reproducing the existing 4096/8192 files.
-- **NEON ladder completed 4 → 32768** in both precisions across three subagent
-  delegation rounds. Priorities are ladder-mirrored, **not** tuned — QEMU timing
-  is meaningless (§6).
-- **Real-FFT forward recombination in SIMD**: the kernel is 4.5–8× the scalar
-  loop, `BenchmarkPlanRealForward` −34.7% geomean.
-
-**Three unreachable fast paths (2026-07-29).** The same bug three times — a
-correct, registered, faster path that nothing called, each behind a dispatch
-decision whose stated justification had never been re-derived.
-
-- **The size-384 path.** The AVX2 assembly for the c64 side had been written,
-  assembled, declared and never called — and it was also _wrong_
-  (`VINSERTPS $0x10` where `VMOVLHPS` was needed). Separately, both precisions'
-  128-point sub-FFTs were bound to superseded kernels. Fixing the binding alone,
-  with no new assembly, gave geomean **−58%**.
-- **The six-step row FFTs** were still on the pre-radix-4 128-point kernel at
-  six call sites — 320 ns where the generic kernel is 88. The swap also _removed_
-  per-call work, because those files had been gathering their length-128 row
-  table out of the caller's table on every transform. Geomean **−33%**.
-- **The Bluestein sub-FFT never reached the registry**, so the default build was
-  ~4% _slower_ than `-tags purego` at n = 1009 and 2003 — both builds ran the
-  identical pure-Go kernel for ~96% of the work. See
-  [`docs/MIXED_RADIX.md`](docs/MIXED_RADIX.md).
-- **Packed Stockham was compiled out of SIMD builds** on the stated grounds that
-  the codelet path superseded it. Every codelet is registered as `KernelDIT`, so
-  the strategy check upstream had already excluded it; what the constant actually
-  suppressed was the sizes with _no_ codelet, where the SIMD build fell through
-  to a radix-2 Stockham kernel while the radix-4 route it had disabled was up to
-  2.7× faster.
-
-**Reporting and hygiene (2026-07-28 … 07-30).**
-
-- **Plans report the route they take.** Non-power-of-two lengths used to name a
-  strategy that never executed (1000 said `dit_fallback`; 2205/3600/12000/44100
-  said `stockham`). `KernelMixedRadix` is now a first-class strategy resolved
-  before anything else, and the rule is that the reported strategy always equals
-  the executed one.
-- **Test-vector blindness audit.** Four tests were checking nothing and one
-  whole precision was uncovered above n = 16. See
-  [`docs/TESTING.md`](docs/TESTING.md).
-- **The race suite could not finish.** `internal/kernels` took 1499.7 s under
-  `-race` against Go's 10-minute default, which neither `just test` nor CI
-  overrode — a gate that had been red repo-wide. Details in `CHANGELOG.md`.
-- **Incumbent audits.** Every registered power-of-two size has now been ranked
-  under the canary-gated sweep. Results, including the one mis-tuned row it
-  found (complex128 at n = 8), are in
-  [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md).
 
 ---
 
@@ -271,149 +95,53 @@ Every item below is held to these:
 
 ### 2.2 Measurement protocol
 
-Most of the wrong conclusions in this file's history came from trusting a
-number taken under load. What works:
+Full protocol, the three hardware tiers and the lessons behind them:
+[`docs/BENCHMARKING.md`](docs/BENCHMARKING.md). The rules that most often decide
+whether a result is real:
 
-- **Interleave the arms** in one process, with the order rotated per round, and
-  report medians. Arms run minutes apart are measuring the machine.
-- **Canary-bracket every group**, not every pass. A 94-cell pass takes 5–13
-  minutes, so contention arriving mid-pass goes unseen: 3 of 5 nominally clean
-  passes were contaminated, one by 50×. In-tree as `scripts/bench_gated.sh` +
-  `scripts/bench_gated_analyze.sh` / `just bench-gated`. A group is one
-  (precision, size) with all its candidates back-to-back, so a whole ranking is
-  taken inside a single verified-quiet window.
-- **Recalibrate the canary each round** from the observed floor. A stale `GOOD`
-  does not bias the ratios — those are taken within a group — but it lets in
-  windows that should have been rejected. The default 1810 has been stale twice
-  over; the floor has measured 1565 and ~1590.
-- **Check the arithmetic before reading a ratio.** `bench_gated.sh` takes its
-  output directory from `OUTDIR`; `bench_gated_analyze.sh` takes it as a
-  **positional argument** and ignores `OUTDIR`. Invoking the analyser with
-  `OUTDIR=` once silently analysed a stale directory and produced a
-  plausible-looking result from the wrong data. Accepted + rejected must equal
-  groups × passes.
-- **Pin with `taskset`.** On a hybrid part an unpinned benchmark lands on
-  P-cores or E-cores arbitrarily, and some effects (the AVX↔SSE transition
-  penalty) exist only on one of them.
-- **Contention and heat are independent failure modes.** One reading blew up
-  13× while package temperature _fell_ 92 → 61 °C; another process was at 111%
-  CPU. A protocol that only waits on a temperature threshold accepts that
-  window.
-- **Contention can invert an ordering, not merely inflate it.** At n = 16384
-  Stockham appeared to beat the codelet 258 vs 329 µs under load; idle and
-  pinned the codelet wins 73.7 vs 94.3.
-- **Prefer a single binary with an env knob** over two builds when isolating a
-  path — it removes code layout as a variable, which is otherwise inseparable.
-- **Include a null control**: a cell the change cannot reach. If it moves, the
-  run is measuring the machine.
-- **A speedup can break a threshold test that measures nothing it touched**,
-  whenever the threshold is expressed relative to a peer.
-  `TestRadix4AVX2Ranking` fails radix-4 above 1.5× the _fastest_ codelet at that
-  size, so speeding the runner-up up at n = 16384 tightened radix-4's headroom
-  from ~211 µs to ~90 µs without a line of the test changing. Fixed by
-  re-measuring before failing (`rankingAttempts = 3`): a real regression
-  reproduces on every pass, a contended window does not. Note the failure mode
-  the retry addresses — a burst covering all rounds of _one_ candidate inflates
-  a single codelet rather than the group, so it surfaces as a ranking change,
-  not as uniformly slower numbers. Best-of-N within a pass cannot see that.
+- **Interleave the arms** in one process and report medians; **canary-bracket
+  every group** (`scripts/bench_gated.sh`, `just bench-gated`), and recalibrate
+  the canary each round from the observed floor.
+- **Pin with `taskset -c 0`** and use `/usr/local/go/bin/go`, never the `go` on
+  `PATH` — it is a `nice`/`taskset` wrapper that yields to the desktop.
+- **Contention and heat are independent failure modes**, and contention can
+  invert an ordering rather than merely inflate it. Include a null control.
+- Ratios are taken **within** a group, never as a ratio of medians.
 
-### 2.3 Hardware tiers
+### 2.3 Standing lessons
 
-Three machines are reachable, and they are complementary rather than redundant
-— several findings above exist only because a result differed between them.
-Server access is weekend-only, so none of this belongs in CI; treat them as
-periodic validation sweeps.
+Design and correctness lessons that each cost a real investigation. Assembly and
+registry lessons are in [`AGENTS.md`](AGENTS.md); measurement ones in
+[`docs/BENCHMARKING.md`](docs/BENCHMARKING.md).
 
-- **Dev laptop (i7-1255U, AVX2, no AVX-512).** The only one with FFTW
-  installed, so the only place the external gap can be measured. Throttles
-  hard (86–98 °C under sustained benchmarking) — interleave arms, trust ratios.
-  Benchmark with `/usr/local/go/bin/go` under `taskset -c 0`, never the `go` on
-  `PATH` (see §2.4). A 2+8 hybrid: `cpu0-3` are P-cores at 4.7 GHz, `cpu4-11`
-  E-cores at 3.5 GHz.
-- **64-core host, no AVX at all** (SSE4.2 ceiling). Valuable _because_ it is
-  limited: the only place the SSE2/SSE3 codelet tier is what dispatch actually
-  selects. On any AVX2 machine those codelets lose the priority ladder and ship
-  effectively unbenchmarked in situ. Also a good proxy for the scalar-Go paths
-  that dominate purego and WASM. Shared with other tenants — ratios only.
-- **Xeon Gold 5218 (AVX2 + AVX-512).** The only AVX-512 hardware. Doubles as a
-  second, non-throttling AVX2 reference, which is how the forward-vs-inverse
-  anomaly got localized to the laptop. 2 vCPU, no gcc — no cgo, no FFTW
-  baseline. Cascade Lake downclocks under AVX-512, so it is a pessimistic
-  machine for that tier.
-
-FFTW can be used on the servers without installing anything by shipping
-`libfftw3{,f}.so.3` plus `fftw3.h` from a matching distro release and pointing
-`CGO_CFLAGS`/`CGO_LDFLAGS`/`LD_LIBRARY_PATH` at them — but that needs a gcc on
-the target.
-
-### 2.4 Standing lessons
-
-Each of these cost a real investigation. The assembly ones are also in
-`AGENTS.md`.
-
-- **A number measured in another repository is not maintained by editing this
-  one.** §1's headline FFTW ratio aged through four releases while every round
-  below it stayed current, because the sweep is committed in `go-fft-bench`
-  against a pinned tag and nothing pulls it back. It was wrong by a factor of
-  two and in the wrong _direction_ — the library had overtaken FFTW3 at powers
-  of two and this file still said 0.63×. Quote such a number with the tag it
-  came from, or re-measure it.
-- **Check the toolchain wrapper before blaming the machine.** `go` on the dev
-  laptop resolves to a wrapper that runs `nice -n 10 taskset -c 0-$(nproc-2)`,
-  so benchmarks yield to the desktop; the same sweep is clean pinned and
-  un-niced at load 4.4 and unusable through the wrapper. (`taskset -c 0 go ...`
-  fails with `CPU list ... 0--1` — that error means you are wrapping the
-  wrapper.)
-- **A registered fast path is not a reachable one.** Codelets for exactly the
-  sizes the Bluestein pad produces sat in the registry, correct and never
-  called, because that route entered a hardcoded size switch instead. The
-  symptom was two builds measuring the _same_ — the same tell as "an
-  optimisation that changes nothing". Before profiling a path that looks slow,
-  check that the fast version of it runs at all.
-- **Declared-but-uncalled assembly is untested assembly**, and nothing in the
-  suite reports it — the registry-driven reference tests only reach a function
-  once something calls it. A wrong instruction in the size-384 c64 path survived
-  assembling, declaring and an FMA-fusion round this way.
-- **A size-generic kernel silently closes per-size gaps the plan still lists as
-  open.** §4's opening item asked for a file that will never exist; the kernel
-  is `avx2_f64_radix4.s`, which covers every `n = 2*4^k` as a radix-4-then-2.
-  Ask "does the generic kernel's shape rule cover n?", never "is there a file
-  named for it?" — a name-based search returns the stale premise as
-  confirmation. This is the same failure as the two above, one level up: the
-  plan file itself carried the wrong assumption for a week.
-- **A dispatch toggle's stated reason must be re-derived, not inherited.** The
-  packed-Stockham toggle claims the codelet path supersedes it; every codelet is
-  registered as `KernelDIT`, so the strategy check upstream had already excluded
-  it and the toggle only ever suppressed the sizes with no codelet at all.
+- **A registered fast path is not a reachable one**, and **declared-but-uncalled
+  assembly is untested assembly.** The tell for both is a change that measures
+  nothing at all. Before profiling a path that looks slow, check that the fast
+  version of it runs.
+- **A dispatch toggle's stated reason must be re-derived, not inherited** — and
+  **a size-generic kernel silently closes per-size gaps this file still lists as
+  open.** Ask "does the generic kernel's shape rule cover n?", never "is there a
+  file named for it?"
 - **Test vectors must not be blind.** An impulse cannot detect a wrong twiddle
   (they all multiply zeros) or a wrong output ordering (its spectrum is
   all-ones); Parseval and linearity are insensitive to both. That combination
   hid a wrong-answer bug at every size ≥ 1024 for an entire precision.
-- **Scaling by a real factor must never be written as a complex multiply** —
-  it spends two dead products per element, and folding one into a
-  fully-unrolled stage can cross the inliner's big-function threshold and
-  silently un-inline _every_ helper in the function.
+- **A speedup can break a threshold test expressed relative to a peer.**
+  `TestRadix4AVX2Ranking` fails radix-4 above 1.5× the fastest codelet at that
+  size, so speeding the runner-up up tightened radix-4's headroom without a line
+  of the test changing. It re-measures before failing (`rankingAttempts = 3`).
+- **Go's compiler widens scalar `complex64 * complex64` to float64** — twelve
+  instructions against six for the same expression on complex128. Any FFT stage
+  written as scalar Go is structurally more expensive in complex64; use
+  `math.MulComplex64`.
+- **Scaling by a real factor must never be written as a complex multiply** — it
+  spends two dead products per element, and folding one into a fully-unrolled
+  stage can cross the inliner's big-function threshold and silently un-inline
+  _every_ helper in the function.
 - **A type switch inside a generic body is concrete-typed code reachable
-  without monomorphizing** — and Go compiles _every_ branch into _every_ shape
+  without monomorphizing** — Go compiles _every_ branch into _every_ shape
   instantiation, so a `complex64` branch charges its cost to the `complex128`
   instantiation too.
-- **Never mix VEX and legacy-SSE vector instructions in one function.** A
-  partially converted hot loop measured **152× slower** than the same loop left
-  uniformly legacy. Convert a function completely or not at all.
-- **Watch the 1/n inverse prologue.** `MOVL`/`MOVD`/`VBROADCASTSS` costs a
-  fixed ~100 ns via the transition penalty. Because the cost is per call, it
-  only shows up on small kernels — where it silently mis-ranks them in the
-  registry.
-- **Gate any bulk asm rewrite on a disassembly diff** from binutils `objdump`
-  (Go's `go tool objdump` misdecodes AVX), normalized for the `v` prefix, the
-  VEX merge operand, shifted addresses and `int3` padding.
-- **Registry ordering is SIMD-level major**, priority only within a level. Use
-  `RankLevel` to demote a wide-ISA codelet; never to promote a narrow one.
-- **Permutation tables are precision-independent.** Copy the twin file's table
-  or `internal/math`'s helper; a self-derived one is the only correctness bug
-  that has reached a test run here.
-- **Don't move a broadcast to a memory operand when its source is the data
-  stream** — see [`docs/AVX2_RADIX4.md`](docs/AVX2_RADIX4.md).
 
 ---
 
@@ -422,7 +150,7 @@ Each of these cost a real investigation. The assembly ones are also in
 **Closed.** Both items were the same bug twice — a fast path that existed, was
 correct, and was unreachable, in both cases behind a dispatch decision whose
 stated justification had never been re-derived (the Bluestein sub-FFT and packed
-Stockham; see §1.1). Nothing here blocks §9.
+Stockham; see [`docs/HISTORY.md`](docs/HISTORY.md)). Nothing here blocks §9.
 
 ---
 
@@ -432,7 +160,7 @@ The 256-bit radix-4 kernels ([`docs/AVX2_RADIX4.md`](docs/AVX2_RADIX4.md))
 changed the cost of every power-of-two size, which invalidates several constants
 and leaves a few threads hanging.
 
-**Closed in this section** (detail in §1.1 and the linked docs): the size-384
+**Closed in this section** (detail in [`docs/HISTORY.md`](docs/HISTORY.md) and the linked docs): the size-384
 sub-FFT binding and the six-step row FFTs, both geomean −58% / −33% with no new
 assembly; the re-measurement of the plan-level c64/c128 ratio and the FFTW
 comparison; making the last ten mixed VEX/SSE functions uniformly VEX; and the
@@ -604,7 +332,7 @@ from the outcome:
       anything, _cheaper_ than followed by the AVX2 one — so this does not block
       cross-tier selection.)
 
-- [ ] **Finish the FMA audit.** Two pieces remain from the second pass (§1.1):
+- [ ] **Finish the FMA audit.** Two pieces remain from the second pass ([`docs/HISTORY.md`](docs/HISTORY.md)):
       (a) the non-codelet AVX2 dispatch sites
       (`internal/fft/complex_mul_amd64.go`, `kernels_amd64_asm.go`,
       `scale_amd64.go`, `internal/kernels/radix5_avx2.go`) still gate on
@@ -704,7 +432,7 @@ what follows is the arithmetic and the missing leaves.
       consults no registry and has no build tags — whenever `p−1` is a power of
       two. That is exactly the case Rader wins 4–5× on, running a pure-Go kernel
       for the bulk of the work on a SIMD build. This is the same defect as the
-      Bluestein sub-FFT binding (§1.1) and the same fix; it was recorded in that
+      Bluestein sub-FFT binding ([`docs/HISTORY.md`](docs/HISTORY.md)) and the same fix; it was recorded in that
       round's write-up as "not done" and never became a tracked item. Needs its
       own measurement.
 - [ ] **Widen the Bluestein pad whitelist.** `plan_padsize.go` admits only
@@ -795,7 +523,7 @@ what follows is the arithmetic and the missing leaves.
       `cmd/gencodelets/specs.go` has **no `Target: "avx512"` rows for
       complex128** at all. The numbers predate the 256-bit AVX2 radix-4 kernels,
       which moved the AVX2 column substantially — re-measure before acting, and
-      do not retune priorities from that host alone (§2.3).
+      do not retune priorities from that host alone ([`docs/BENCHMARKING.md`](docs/BENCHMARKING.md)).
 
 - [ ] **Measure the packed-Stockham crossover on the SSE, NEON and AVX-512
       tiers.** The packed-Stockham round filled in only the AVX2 row of
@@ -889,7 +617,7 @@ zero-allocation default.
 
 ## 9. Ship v1.0
 
-The API-shape work that actually gated the tag landed in §1.1 and the
+The API-shape work that actually gated the tag landed in [`docs/HISTORY.md`](docs/HISTORY.md) and the
 correctness debt closed in §3, so nothing here is blocked on code that changes
 a signature. What this section now waits on is §4–§8: none of it changes the
 API, but the mixed-radix gap against FFTW3 (§5) and the open power-of-two soft
@@ -899,7 +627,7 @@ performance story needs an asterisk.
 - [ ] **Tag `v1.0.0`** with GitHub release notes. Issue/PR templates are in
       place.
 - [ ] **Put an external comparison in the release checklist.** Every finding in
-      §1.1 was invisible to the internal suite, because "faster than last
+      [`docs/HISTORY.md`](docs/HISTORY.md) was invisible to the internal suite, because "faster than last
       week" and "faster than FFTW3" are different questions, and only the second
       notices that a whole class of lengths never got the attention the
       power-of-two ladder did. Running `go-fft-bench` before a tag — even

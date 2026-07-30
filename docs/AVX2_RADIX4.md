@@ -185,7 +185,7 @@ library already lives. `TestRadix4AVX2FusedSelection` pins the choice so a
 regenerate cannot widen it silently, and the existing ranking tests re-derive it
 from measurement. The `-tags fftprobe` harness stays in tree and registers both
 variants plus the no-tail probe side by side, so the table above can be
-re-derived on other hardware instead of being trusted (`PLAN.md` §2.4's rule about numbers
+re-derived on other hardware instead of being trusted (the rule in `BENCHMARKING.md` about numbers
 that cannot be re-measured where they are quoted).
 
 _Not fixed:_ complex128 at n = 2048, the item this round was opened for, is

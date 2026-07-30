@@ -158,7 +158,7 @@ func packedTierFor(features cpu.Features) packedTier {
 //
 // wide selects the complex128 column. Callers pass it explicitly rather than
 // having this function be generic: a type switch inside a generic body compiles
-// every branch into every shape instantiation (§2.4).
+// every branch into every shape instantiation (PLAN.md §2.3).
 func PackedStockhamEnabled(n int, wide bool, features cpu.Features) bool {
 	switch PackedStockhamOverride() {
 	case PackedOverrideForceOn:

@@ -91,7 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inverse gap is 8.2 ns → 7.0 ns and the forward gap is 0.2 ns, so at plan
   level the ~100 ns per-call dispatch swamps it entirely; the row is corrected
   because the registry should record what measurement says, not because
-  callers will notice. See PLAN.md §1.19.
+  callers will notice. See docs/CODELET_BENCHMARKS.md.
 
 - **Two Stockham cross-check tolerances were nearly blind and are now
   calibrated.** Both tests passed, so a green run said nothing about what they
@@ -124,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shape allows. Correctness is cheap to state and was checked that way: fusing
   reorders no arithmetic, so the fused and separate-tail kernels must agree
   **bit for bit**, and they do at every size 16…32768 in both directions.
-  Sweeps are canary-gated and pinned; see PLAN.md §1.17 for the full table and
+  Sweeps are canary-gated and pinned; see docs/AVX2_RADIX4.md for the full table and
   the `-tags fftprobe` harness that re-derives it. Also discharges the incumbent
   audit at 128/512/1024/2048/4096/8192/32768 in both precisions: every incumbent
   confirmed except the three rows this change itself replaced.

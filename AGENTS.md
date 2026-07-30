@@ -277,6 +277,11 @@ Generic implementations are instantiated for both precisions, with type-specific
   at all — read "this code does not run" before "the optimisation did not help".
   A wrong `VINSERTPS`-vs-`VMOVLHPS` in the size-384 c64 path survived assembling,
   declaring and an FMA-fusion round this way.
+- **Don't move a broadcast to a memory operand when its source is the data
+  stream** — the win in the `1/n` prologue above comes from the constant being
+  static. See [`docs/AVX2_RADIX4.md`](docs/AVX2_RADIX4.md).
+- **Registry ordering is SIMD-level major**, priority only within a level. Use
+  `RankLevel` to demote a wide-ISA codelet; never to promote a narrow one.
 
 #### Legacy-SSE → VEX conversion: three traps invisible in a source diff
 
