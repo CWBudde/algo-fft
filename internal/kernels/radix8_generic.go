@@ -277,12 +277,12 @@ func forwardRadix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 
 		e0 := a0 + a2
 		e2 := a0 - a2
-		e1 := a1 + complex(imag(a3), -real(a3))  // a1 - i*a3
-		e3 := a1 + complex(-imag(a3), real(a3))  // a1 + i*a3
+		e1 := a1 + complex(imag(a3), -real(a3)) // a1 - i*a3
+		e3 := a1 + complex(-imag(a3), real(a3)) // a1 + i*a3
 		o0 := a4 + a6
 		o2 := a4 - a6
-		o1 := a5 + complex(imag(a7), -real(a7))  // a5 - i*a7
-		o3 := a5 + complex(-imag(a7), real(a7))  // a5 + i*a7
+		o1 := a5 + complex(imag(a7), -real(a7)) // a5 - i*a7
+		o3 := a5 + complex(-imag(a7), real(a7)) // a5 + i*a7
 
 		t1 := complex(root2Over2*(real(o1)+imag(o1)), root2Over2*(imag(o1)-real(o1)))
 		t2 := complex(imag(o2), -real(o2))

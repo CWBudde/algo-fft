@@ -43,6 +43,18 @@ func TestTransformFunc_InverseScaling(t *testing.T) {
 			want: `scale := complex(1/float64(n), 0)`,
 		},
 		{
+			// gofmt spaces the operator once the conversion is a statement-level
+			// initialiser rather than a call argument.
+			name: "real scale, spaced",
+			in:   `scale := float32(1.0 / float64(n))`,
+			want: `scale := 1.0 / float64(n)`,
+		},
+		{
+			name: "real scale over float32 n",
+			in:   `scale := float32(1.0 / float32(n))`,
+			want: `scale := 1.0/float64(n)`,
+		},
+		{
 			name: "float32 literal ratio",
 			in:   `const scale = float32(1.0 / 1024.0)`,
 			want: `const scale = 1.0 / 1024.0`,

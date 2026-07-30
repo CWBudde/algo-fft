@@ -137,7 +137,17 @@ registry lessons are in [`AGENTS.md`](AGENTS.md); measurement ones in
 - **Scaling by a real factor must never be written as a complex multiply** — it
   spends two dead products per element, and folding one into a fully-unrolled
   stage can cross the inliner's big-function threshold and silently un-inline
-  _every_ helper in the function.
+  _every_ helper in the function. Recording a lesson is not the same as
+  enforcing it: this one sat here while **28 kernel files** still ended the
+  inverse with a whole extra pass doing
+  `dst[i] = MulComplex64(dst[i], complex(1/n, 0))`, swept out on 2026-07-30.
+  Grep for the pattern when the lesson is added, not only when it is written up.
+- **Speeding up a kernel invalidates every ratio measured against it.** The
+  `1/n` sweep above made the inverse incumbents faster, which retroactively
+  voided the inverse column of a radix-8 ranking taken the same morning and cost
+  four promotions that had rested on it. When two changes land in one round,
+  re-measure the ranking after the one that moves the baseline — or promote only
+  on the direction the other change cannot touch.
 - **A type switch inside a generic body is concrete-typed code reachable
   without monomorphizing** — Go compiles _every_ branch into _every_ shape
   instantiation, so a `complex64` branch charges its cost to the `complex128`
@@ -303,18 +313,64 @@ from the outcome:
       titled as if the 32×32 removal already shipped — it removed only dead
       assembly *inside* those files.
 
-- [ ] **A size-generic AVX2 radix-8 stage.** The per-size radix-8 and
-      radix-16×32 codelets lose to radix-4 by 2.6–3.8×, but they are all
-      partially-vectorised hand-rolled kernels, so that result does not test the
-      algorithm. Fewer passes over the buffer is exactly what made radix-4 win,
-      and the mid-band is where the remaining power-of-two softness sits —
-      512/1024/2048 run 0.91–0.97× FFTW3 forward where 8192/16384 run 1.19–1.24×.
-      Do this the way radix-4 was done: one size-generic kernel per precision
-      covering `n = 8^k` (and
-      `2·8^k`, `4·8^k` via a tail), not another twenty per-size files. Needs the
-      `±(1±i)/√2` rotations; the derivation shares its shape with the
-      twiddle-free radix-8 first stage proposed in the n = 2048 item above, and
-      the two should be attempted together.
+- [x] **Test the radix-8 hypothesis in pure Go first** (2026-07-30). It was
+      never tested. Every kernel that said radix-8 loses is broken somewhere
+      unrelated to the algorithm: `avx2_f32_size512_radix8.s` has **1,902
+      X-register operands and zero Y instructions** — its header promises
+      "Y0–Y7: 8 complex64 vectors … 4 parallel 8-pt butterflies" and that design
+      was never written; `avx2_f32_size512_radix16x32.s` is the same (3,858 X,
+      zero Y); `avx2_f32_size256_radix16.s` _is_ 256-bit but is a 16×16 matrix
+      factorisation with two full transposes through scratch, so it tests
+      four-step, not high radix; and the pure-Go `dit512_radix8_generic` spends
+      a full complex multiply on `W_8^2 = −i` and computes each internal
+      rotation twice per butterfly.
+
+      `internal/kernels/radix8_generic.go` is the honest test: one size-generic
+      ladder per precision over `8^k`, `2·8^k` and `4·8^k` (so every power of
+      two from 8 to 65536), every stage in place, arch-neutral so the AVX2
+      driver can share its twiddle layout and group-index table. **Forward
+      geomean 0.87 against the pure-Go incumbents**, best where the pass ratio
+      is best: 0.790 at 16384 c64, 0.807 at 512 c64, 0.792 at 4096 c128. Nine
+      rows promoted; the full table and the four cells held back are in
+      [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md).
+
+- [x] **Re-measure the four held-back generic rows on a quiet machine**
+      (2026-07-30). 256 and 2048 complex64, 256 and 512 complex128 — held back
+      because the ladder tied them on forward and won them only on an inverse
+      margin measured against incumbents that were still paying a separate
+      `MulComplex64(dst[i], complex(1/n, 0))` pass. Re-run after that pass was
+      gone, so both sides were current: `GOOD=1700`, `GATE=1.15`, `PASSES=8`,
+      46 of 48 groups accepted. All four still win — forward 0.968–1.014,
+      inverse 0.764–0.888 — and all four are promoted, bringing the ladder to
+      thirteen production rows. The contended partial re-sweep that had put
+      `dit512_radix4_then2_generic` back in front at n = 512 c128 is
+      contradicted and should never have been read. Still on probe: 64 and 128
+      (both precisions), 1024 c128, 32768 (both precisions).
+
+- [ ] **A size-generic AVX2 radix-8 stage.** Now justified rather than
+      speculative: the pure-Go ladder above wins on pass count alone, and SIMD
+      shifts the balance further toward passes. Reuse `prepareTwiddleRadix8` and
+      `radix8GroupIndices` — they are arch-neutral for exactly this. Model the
+      assembly on `avx2_f{32,64}_generic_radix4_{even,odd}.s` (1.0–1.4k lines
+      each; expect 1.5–2× that). Two known risks: register pressure, since
+      8 live data YMM plus `VMOVSLDUP`/`VMOVSHDUP` broadcast forms of each
+      twiddle is tight against 16 — `avx512_f32_size128_radix8_then2.s` holds
+      16 ZMM of data and is the existence proof the schedule closes; and stage 1,
+      which is an 8×8 digit-reversed transpose rather than radix-4's 4×4, so a
+      row spans two YMM at complex64. Measure stage 1 in isolation first.
+
+      **Block the last stage.** n = 32768 is the ladder's only forward loss
+      (1.06/1.08) despite the best pass ratio of the set, 5 against 8: its final
+      radix-8 stage holds eight streams 4096 elements apart — 32 KiB at
+      complex64, 64 KiB at complex128 — and all eight land on the same L1 sets.
+      That is the collision `forwardRadix4AVX2FusedComplex64` documents at
+      n = 2048 complex128 with a 4 KiB stride. Fixing it in the Go ladder is the
+      cheap way to find out whether the assembly needs the same treatment.
+
+      The `±(1±i)/√2` derivation shares its shape with the twiddle-free radix-8
+      first stage proposed in the n = 2048 item above; the two should still be
+      attempted together.
+
 - [ ] **`VZEROUPPER` on the early-return paths.** This item used to read "134
       YMM/ZMM-using functions never execute `VZEROUPPER`; 57 of the 151 amd64 asm
       files contain none at all". Re-counted against the tree (2026-07-30), that

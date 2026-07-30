@@ -361,9 +361,9 @@ func inverseDIT512Radix8Complex128(dst, src, twiddle, scratch []complex128) bool
 	}
 
 	// Apply 1/N scaling
-	scale := complex(1.0/float64(n), 0)
+	scale := 1.0 / float64(n)
 	for i := range dst[:n] {
-		dst[i] = mathpkg.MulComplex128(dst[i], scale)
+		dst[i] = complex(real(dst[i])*scale, imag(dst[i])*scale)
 	}
 
 	return true

@@ -348,8 +348,7 @@ func TestRadix8LadderMatchesButterfly(t *testing.T) {
 
 	var want [n]complex64
 
-	want[0], want[1], want[2], want[3], want[4], want[5], want[6], want[7] =
-		butterfly8ForwardComplex64(src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7])
+	want[0], want[1], want[2], want[3], want[4], want[5], want[6], want[7] = butterfly8ForwardComplex64(src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7])
 
 	for i := range n {
 		if got[i] != want[i] {
@@ -374,9 +373,8 @@ func TestRadix8LadderMatchesButterfly(t *testing.T) {
 
 	var invWant [n]complex64
 
-	invWant[0], invWant[1], invWant[2], invWant[3], invWant[4], invWant[5], invWant[6], invWant[7] =
-		butterfly8InverseComplex64(scaled[0], scaled[1], scaled[2], scaled[3],
-			scaled[4], scaled[5], scaled[6], scaled[7])
+	invWant[0], invWant[1], invWant[2], invWant[3], invWant[4], invWant[5], invWant[6], invWant[7] = butterfly8InverseComplex64(scaled[0], scaled[1], scaled[2], scaled[3],
+		scaled[4], scaled[5], scaled[6], scaled[7])
 
 	for i := range n {
 		if invGot[i] != invWant[i] {

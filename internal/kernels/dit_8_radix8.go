@@ -134,9 +134,9 @@ func inverseDIT8Radix8Complex64(dst, src, twiddle, scratch []complex64) bool {
 		copy(dst, work)
 	}
 
-	scale := complex(float32(1.0/float64(n)), 0)
+	scale := float32(1.0 / float64(n))
 	for i := range dst[:n] {
-		dst[i] = mathpkg.MulComplex64(dst[i], scale)
+		dst[i] = complex(real(dst[i])*scale, imag(dst[i])*scale)
 	}
 
 	return true

@@ -184,32 +184,52 @@ func inverseDIT16Radix2Complex64(dst, src, twiddle, scratch []complex64) bool {
 	t = mathpkg.MulComplex64(complex(real(w6), -imag(w6)), work2[15])
 	work1[11], work1[15] = work2[11]+t, work2[11]-t
 
-	// Stage 4: 1 radix-2 butterfly, stride=16 (full array)
-	scale := complex(float32(1.0/float64(n)), 0)
+	// Stage 4: 1 radix-2 butterfly, stride=16 (full array), with the 1/n
+	// normalisation folded in. Each butterfly's two operands are scaled once
+	// rather than each of its two results, and by a real factor rather than by
+	// complex(1/n, 0): four real multiplies per pair instead of eight plus four
+	// adds. 1/n is a power of two here, so this is exact.
+	scale := float32(1.0 / float64(n))
 	w1, w3, w5, w7 := twiddle[1], twiddle[3], twiddle[5], twiddle[7]
-	work2[0] = mathpkg.MulComplex64(work1[0]+work1[8], scale)
-	work2[8] = mathpkg.MulComplex64(work1[0]-work1[8], scale)
+
+	a := complex(real(work1[0])*scale, imag(work1[0])*scale)
+	b := complex(real(work1[8])*scale, imag(work1[8])*scale)
+	work2[0], work2[8] = a+b, a-b
+
 	t = mathpkg.MulComplex64(complex(real(w1), -imag(w1)), work1[9])
-	work2[1] = mathpkg.MulComplex64(work1[1]+t, scale)
-	work2[9] = mathpkg.MulComplex64(work1[1]-t, scale)
+	a = complex(real(work1[1])*scale, imag(work1[1])*scale)
+	b = complex(real(t)*scale, imag(t)*scale)
+	work2[1], work2[9] = a+b, a-b
+
 	t = mathpkg.MulComplex64(complex(real(w2), -imag(w2)), work1[10])
-	work2[2] = mathpkg.MulComplex64(work1[2]+t, scale)
-	work2[10] = mathpkg.MulComplex64(work1[2]-t, scale)
+	a = complex(real(work1[2])*scale, imag(work1[2])*scale)
+	b = complex(real(t)*scale, imag(t)*scale)
+	work2[2], work2[10] = a+b, a-b
+
 	t = mathpkg.MulComplex64(complex(real(w3), -imag(w3)), work1[11])
-	work2[3] = mathpkg.MulComplex64(work1[3]+t, scale)
-	work2[11] = mathpkg.MulComplex64(work1[3]-t, scale)
+	a = complex(real(work1[3])*scale, imag(work1[3])*scale)
+	b = complex(real(t)*scale, imag(t)*scale)
+	work2[3], work2[11] = a+b, a-b
+
 	t = mathpkg.MulComplex64(complex(real(w4), -imag(w4)), work1[12])
-	work2[4] = mathpkg.MulComplex64(work1[4]+t, scale)
-	work2[12] = mathpkg.MulComplex64(work1[4]-t, scale)
+	a = complex(real(work1[4])*scale, imag(work1[4])*scale)
+	b = complex(real(t)*scale, imag(t)*scale)
+	work2[4], work2[12] = a+b, a-b
+
 	t = mathpkg.MulComplex64(complex(real(w5), -imag(w5)), work1[13])
-	work2[5] = mathpkg.MulComplex64(work1[5]+t, scale)
-	work2[13] = mathpkg.MulComplex64(work1[5]-t, scale)
+	a = complex(real(work1[5])*scale, imag(work1[5])*scale)
+	b = complex(real(t)*scale, imag(t)*scale)
+	work2[5], work2[13] = a+b, a-b
+
 	t = mathpkg.MulComplex64(complex(real(w6), -imag(w6)), work1[14])
-	work2[6] = mathpkg.MulComplex64(work1[6]+t, scale)
-	work2[14] = mathpkg.MulComplex64(work1[6]-t, scale)
+	a = complex(real(work1[6])*scale, imag(work1[6])*scale)
+	b = complex(real(t)*scale, imag(t)*scale)
+	work2[6], work2[14] = a+b, a-b
+
 	t = mathpkg.MulComplex64(complex(real(w7), -imag(w7)), work1[15])
-	work2[7] = mathpkg.MulComplex64(work1[7]+t, scale)
-	work2[15] = mathpkg.MulComplex64(work1[7]-t, scale)
+	a = complex(real(work1[7])*scale, imag(work1[7])*scale)
+	b = complex(real(t)*scale, imag(t)*scale)
+	work2[7], work2[15] = a+b, a-b
 
 	return true
 }

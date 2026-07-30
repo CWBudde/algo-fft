@@ -1,9 +1,5 @@
 package kernels
 
-import (
-	mathpkg "github.com/cwbudde/algo-fft/internal/math"
-)
-
 // forwardDIT512Complex64 computes a 512-point forward FFT using the
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex64 data.
 // The algorithm performs 9 stages of butterfly operations (log2(512) = 9).
@@ -252,9 +248,9 @@ func inverseDIT512Complex64(dst, src, twiddle, scratch []complex64) bool {
 	}
 
 	// Apply 1/N scaling for inverse transform
-	scale := complex(float32(1.0/float64(n)), 0)
+	scale := float32(1.0 / float64(n))
 	for i := range dst[:n] {
-		dst[i] = mathpkg.MulComplex64(dst[i], scale)
+		dst[i] = complex(real(dst[i])*scale, imag(dst[i])*scale)
 	}
 
 	return true

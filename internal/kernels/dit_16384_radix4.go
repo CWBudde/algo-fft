@@ -240,7 +240,7 @@ func inverseDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64) bool
 		work = scratch
 	}
 
-	scale := complex64(1.0 / n)
+	scale := float32(1.0 / n)
 
 	quarter := 4096
 	for j := range quarter {
@@ -258,15 +258,24 @@ func inverseDIT16384Radix4Complex64(dst, src, twiddle, scratch []complex64) bool
 		a2 := mathpkg.MulComplex64(w2, current[idx2])
 		a3 := mathpkg.MulComplex64(w3, current[idx3])
 
+		// 1/n folded in on the way into the butterfly rather than as four
+		// multiplies on the way out: scaling these four by a real factor is
+		// eight real multiplies where a complex multiply on the four results
+		// is sixteen plus eight adds. 1/n is a power of two, so this is exact.
+		a0 = complex(real(a0)*scale, imag(a0)*scale)
+		a1 = complex(real(a1)*scale, imag(a1)*scale)
+		a2 = complex(real(a2)*scale, imag(a2)*scale)
+		a3 = complex(real(a3)*scale, imag(a3)*scale)
+
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		work[idx0] = mathpkg.MulComplex64(scale, t0+t2)
-		work[idx2] = mathpkg.MulComplex64(scale, t0-t2)
-		work[idx1] = mathpkg.MulComplex64(scale, t1+complex(-imag(t3), real(t3)))
-		work[idx3] = mathpkg.MulComplex64(scale, t1+complex(imag(t3), -real(t3)))
+		work[idx0] = t0 + t2
+		work[idx2] = t0 - t2
+		work[idx1] = t1 + complex(-imag(t3), real(t3))
+		work[idx3] = t1 + complex(imag(t3), -real(t3))
 	}
 
 	if &work[0] != &dst[0] {
@@ -486,7 +495,7 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128) bo
 		work = scratch
 	}
 
-	scale := complex128(1.0 / n)
+	scale := float64(1.0 / n)
 
 	quarter := 4096
 	for j := range quarter {
@@ -504,15 +513,24 @@ func inverseDIT16384Radix4Complex128(dst, src, twiddle, scratch []complex128) bo
 		a2 := w2 * current[idx2]
 		a3 := w3 * current[idx3]
 
+		// 1/n folded in on the way into the butterfly rather than as four
+		// multiplies on the way out: scaling these four by a real factor is
+		// eight real multiplies where a complex multiply on the four results
+		// is sixteen plus eight adds. 1/n is a power of two, so this is exact.
+		a0 = complex(real(a0)*scale, imag(a0)*scale)
+		a1 = complex(real(a1)*scale, imag(a1)*scale)
+		a2 = complex(real(a2)*scale, imag(a2)*scale)
+		a3 = complex(real(a3)*scale, imag(a3)*scale)
+
 		t0 := a0 + a2
 		t1 := a0 - a2
 		t2 := a1 + a3
 		t3 := a1 - a3
 
-		work[idx0] = scale * (t0 + t2)
-		work[idx2] = scale * (t0 - t2)
-		work[idx1] = scale * (t1 + complex(-imag(t3), real(t3)))
-		work[idx3] = scale * (t1 + complex(imag(t3), -real(t3)))
+		work[idx0] = t0 + t2
+		work[idx2] = t0 - t2
+		work[idx1] = t1 + complex(-imag(t3), real(t3))
+		work[idx3] = t1 + complex(imag(t3), -real(t3))
 	}
 
 	if &work[0] != &dst[0] {

@@ -30,6 +30,95 @@ Two standing traps:
 
 Do not compare absolute figures across runs or hosts. Only the ratios travel.
 
+## Generic tier (i7-1255U, `-tags purego`) — the radix-8 ladder
+
+Evidence behind the nine `dit<N>_radix8ladder_generic` rows and behind deleting
+`dit256_radix16_generic`. Sweep of 2026-07-30: `GOOD=1660` from the observed
+floor, `PASSES=8`, `-tags fftprobe,purego`, 51–52 °C, **110 of 112 groups
+accepted** (a second sweep covering 64/128/256 accepted 48 of 48). Each cell is
+the median within-group ratio to that size's pure-Go incumbent; `< 1.00` means
+the ladder beat the row the registry then selected.
+
+|     n | passes 8 : 4 |   c64 fwd | c64 inv† |  c128 fwd | c128 inv† |
+| ----: | ------------ | --------: | -------: | --------: | --------: |
+|    64 | 1:2          |     1.112 |    0.894 |     1.110 |     0.875 |
+|   128 | 2:3          |     1.054 |    0.881 |     1.112 |     0.896 |
+|   256 | 2:4          |     1.004 |    0.724 |     1.005 |     0.852 |
+|   512 | 3:5          | **0.807** |    0.823 |     0.986 |     0.867 |
+|  1024 | 4:5          | **0.900** |    0.933 |     1.097 |     0.913 |
+|  2048 | 4:6          |     0.988 |    0.737 | **0.928** |     0.829 |
+|  4096 | 4:6          | **0.859** |    0.766 | **0.792** |     0.738 |
+|  8192 | 5:7          | **0.889** |    0.882 | **0.934** |     0.835 |
+| 16384 | 5:7          | **0.790** |    0.773 | **0.834** |     0.807 |
+| 32768 | 5:8          |     1.062 |    0.961 |     1.084 |     0.931 |
+
+† **The inverse column is stale and must not be used to justify a row.** It was
+taken before the `1/n` scaling sweep, when the incumbents still finished the
+inverse with a separate pass doing `MulComplex64(dst[i], complex(1/n, 0))` while
+the ladder already folded `1/n` into stage 1. Removing that pass from the
+incumbents erased most of the gap: a partial re-sweep (contended, 18 of 48
+groups rejected — not usable for a decision) put
+`dit512_radix4_then2_generic` back in front at n = 512 complex128 at 0.921
+forward / 1.001 inverse. The **forward** column is unaffected, because the
+scaling sweep touched no forward path.
+
+So nine rows were promoted immediately, being exactly those the ladder wins on
+forward alone: 512/1024/4096/8192/16384 complex64 and 2048/4096/8192/16384
+complex128. The four cells where forward is a tie and the case rested on the
+inverse — 256 and 2048 complex64, 256 and 512 complex128 — were held back for a
+clean re-measurement, which follows.
+
+### The four tie rows, re-measured after the scaling sweep
+
+Same day, once the `1/n` sweep had landed, so **both sides of every comparison
+are current** and the inverse column is usable again. `GOOD=1700` from a fresh
+canary floor of 1693, `GATE=1.15`, `PASSES=8`, `-tags fftprobe,purego`, 53 °C,
+core 0, **46 of 48 groups accepted** (2 over gate, 0 drift, 0 incomplete).
+
+|    n | prec |   fwd rel |   inv rel | incumbent                      |
+| ---: | ---- | --------: | --------: | ------------------------------ |
+|  256 | c64  |     1.014 | **0.784** | `dit256_radix4_generic`        |
+| 2048 | c64  | **0.968** | **0.764** | `dit2048_radix4_then2_generic` |
+|  256 | c128 |     1.003 | **0.888** | `dit256_radix4_generic`        |
+|  512 | c128 |     1.002 | **0.886** | `dit512_radix4_then2_generic`  |
+
+All four are promoted. Forward is a tie within noise at three of them and a win
+at 2048 complex64; the inverse win of 11–22% is what carries them, and this time
+it is measured against an incumbent that no longer pays the trailing scaling
+pass. That kills the earlier partial re-sweep's 0.921 forward for
+`dit512_radix4_then2_generic` at n = 512 complex128 — that run was contended and
+should not have been read at all.
+
+The same sweep re-confirms two of the nine earlier promotions from the other
+direction, now that the ladder is the incumbent: at n = 512 complex64
+`dit512_radix4_then2_generic` measures 1.224/1.100 against it, and at n = 2048
+complex128 1.074/1.187.
+
+Thirteen of the ladder's twenty registered cells are therefore production rows.
+What remains under `-tags fftprobe` is 64 and 128 (both precisions), 1024
+complex128, and 32768 (both precisions).
+
+Three findings the sweep produced beyond the ranking:
+
+- **The butterfly was the whole problem, not the radix.** At n = 512 complex64
+  the old `dit512_radix8_generic` measures 2714/3220 ns against the ladder's
+  2371/2469 — same radix, same pass count, 13%/23% apart. The old kernel spends
+  a full complex multiply on `W_8^2 = −i`, which is a free swap-and-negate, and
+  on `W_8^{1,3}`, which cost half that, and computes each of those three
+  products twice per butterfly.
+- **n = 32768 loses forward while having the best pass ratio (5:8).** Its last
+  radix-8 stage holds eight live streams 4096 elements apart — 32 KiB at
+  complex64, 64 KiB at complex128 — so all eight map to the same L1 sets. Same
+  collision the radix-4 fused tail hits at n = 2048 complex128 with a 4 KiB
+  stride (see `forwardRadix4AVX2FusedComplex64`). Blocking the stage would test
+  it.
+- **`dit256_radix16_generic` was mis-tuned in both precisions.** At complex64 it
+  was the _selected_ row while losing to plain `dit256_radix4_generic` at 0.682
+  forward; at complex128 it sat at 1.677. Both spec rows are deleted per §2.1
+  rule 6. The kernel functions stay: `BenchmarkDITComplex128/Size256/Radix16/Forward`
+  is the canary every gated sweep here is calibrated against, so removing the
+  code would invalidate `GOOD`.
+
 ## AVX2 tier (i7-1255U) — incumbent audit
 
 Canary-gated sweeps, i7-1255U (Alder Lake, AVX2, no AVX-512), pinned to core 0.

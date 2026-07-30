@@ -2,10 +2,6 @@
 
 package kernels
 
-import (
-	mathpkg "github.com/cwbudde/algo-fft/internal/math"
-)
-
 // forwardDIT128Radix2Complex128 computes a 128-point forward FFT using the
 // Decimation-in-Time (DIT) Cooley-Tukey algorithm for complex128 data.
 // The algorithm performs 7 stages of butterfly operations (log2(128) = 7).
@@ -207,9 +203,9 @@ func inverseDIT128Radix2Complex128(dst, src, twiddle, scratch []complex128) bool
 	}
 
 	// Apply 1/N scaling for inverse transform
-	scale := complex(1.0/float64(n), 0)
+	scale := 1.0 / float64(n)
 	for i := range dst[:n] {
-		dst[i] = mathpkg.MulComplex128(dst[i], scale)
+		dst[i] = complex(real(dst[i])*scale, imag(dst[i])*scale)
 	}
 
 	return true

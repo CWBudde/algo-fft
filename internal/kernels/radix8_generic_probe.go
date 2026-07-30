@@ -34,34 +34,62 @@ import (
 )
 
 // radix8ProbePriority sits below every production generic row (the highest is
-// 45, at n = 512), so the ladder can never be selected by Lookup.
+// 50, the promoted ladder itself), so the probe can never be selected by
+// Lookup.
 const radix8ProbePriority = 1
 
-// radix8ProbeSizes are the sizes with a pure-Go radix-4 peer to compare
-// against. All three ladder shapes are represented: 8^k (64, 512, 4096,
-// 32768), 2*8^k (128, 1024, 8192) and 4*8^k (256, 2048, 16384).
+// Every size the ladder won now carries a real spec row in
+// cmd/gencodelets/specs.go and is not registered here -- a second registration
+// would put the same signature in a sweep group twice. What remains are the
+// sizes it lost, kept registered so they stay measurable:
 //
-//nolint:gochecknoglobals // probe-only table
-var radix8ProbeSizes = []int{64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768}
+//	64, 128     forward 1.05-1.11 (both precisions)
+//	1024 c128   forward 1.097
+//	32768       forward 1.06/1.08 (both precisions)
+//
+// The four sizes that tied on forward -- 256 and 2048 complex64, 256 and 512
+// complex128 -- were re-measured on 2026-07-30 after the 1/n scaling sweep had
+// removed the incumbents' trailing complex-multiply pass, so that both sides of
+// the comparison were current. All four still won on inverse by 11-22% while
+// tying on forward, and all four are now promoted. (An intermediate partial
+// re-sweep put radix-4-then-2 back in front at 512 complex128; it was taken on
+// a contended machine and the gated run contradicts it.)
+//
+// n = 32768 is the interesting loss: it has the best pass ratio of the ladder
+// (5 against 8) and still loses forward. Its last radix-8 stage holds eight
+// streams 4096 elements apart -- 32 KiB at complex64, 64 KiB at complex128 --
+// so all eight land on the same L1 sets. That is the same collision the
+// radix-4 fused tail hits at n = 2048 complex128 with a 4 KiB stride; see
+// forwardRadix4AVX2FusedComplex64. Blocking the stage would test it.
+//
+//nolint:gochecknoglobals // probe-only tables
+var (
+	radix8ProbeSizes    = []int{64, 128, 32768}
+	radix8ProbeSizes128 = []int{64, 128, 1024, 32768}
+)
 
 //nolint:gochecknoinits // matches the generated codelet registration files
 func init() {
+	// "ladder" distinguishes this from the existing per-size
+	// dit512_radix8_generic row, which is a different kernel.
 	for _, size := range radix8ProbeSizes {
-		// "ladder" distinguishes this from the existing per-size
-		// dit512_radix8_generic row, which is a different kernel.
-		name := "dit" + itoa(size) + "_radix8ladder_generic"
-
 		registry.Registry64.Register(registry.CodeletEntry[complex64]{
 			Size: size, Forward: forwardRadix8Complex64, Inverse: inverseRadix8Complex64,
 			Algorithm: fftypes.KernelDIT, SIMDLevel: fftypes.SIMDNone,
-			Signature: name, Priority: radix8ProbePriority, KernelType: fftypes.KernelTypeDIT,
+			Signature:   "dit" + itoa(size) + "_radix8ladder_generic",
+			Priority:    radix8ProbePriority,
+			KernelType:  fftypes.KernelTypeDIT,
 			TwiddleSize: twiddleSizeRadix8, PrepareTwiddle: prepareTwiddleRadix8Complex64,
 		})
+	}
 
+	for _, size := range radix8ProbeSizes128 {
 		registry.Registry128.Register(registry.CodeletEntry[complex128]{
 			Size: size, Forward: forwardRadix8Complex128, Inverse: inverseRadix8Complex128,
 			Algorithm: fftypes.KernelDIT, SIMDLevel: fftypes.SIMDNone,
-			Signature: name, Priority: radix8ProbePriority, KernelType: fftypes.KernelTypeDIT,
+			Signature:   "dit" + itoa(size) + "_radix8ladder_generic",
+			Priority:    radix8ProbePriority,
+			KernelType:  fftypes.KernelTypeDIT,
 			TwiddleSize: twiddleSizeRadix8, PrepareTwiddle: prepareTwiddleRadix8Complex128,
 		})
 	}

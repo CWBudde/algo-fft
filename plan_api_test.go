@@ -237,8 +237,11 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 	//     ("dit512_radix4_avx2"), which superseded both the radix-4-then-2
 	//     override and the radix-8 codelet that used to win here
 	//     ("dit512_radix8_avx2", still accepted for builds without it).
-	//   * other amd64 builds (SSE2-only or purego) and generic builds: the
-	//     radix-4-then-2 codelet (its SSE2 override or the generic scalar one).
+	//   * amd64 SSE2-only builds: the radix-4-then-2 SSE2 override.
+	//   * purego and generic builds: the size-generic radix-8 ladder
+	//     ("dit512_radix8ladder_generic"), which took this row on 2026-07-30 at
+	//     0.986 forward / 0.867 inverse against the radix-4-then-2 scalar
+	//     codelet (still accepted, for builds predating the ladder).
 	//   * arm64 SIMD builds: the NEON radix-4-then-2 codelet
 	//     ("dit512_radix4_then2_neon") wins via the shared prefix check; the
 	//     size-512 generic NEON codelet ("dit512_generic_neon") is also
@@ -248,7 +251,8 @@ func TestPlanAlgorithmSize512Radix4Then2Complex128(t *testing.T) {
 	algo := plan.Algorithm()
 	ok := strings.HasPrefix(algo, "dit512_radix4_then2") ||
 		algo == "dit512_radix4_avx2" ||
-		algo == "dit512_radix8_avx2"
+		algo == "dit512_radix8_avx2" ||
+		algo == "dit512_radix8ladder_generic"
 	if runtime.GOARCH == "arm64" {
 		ok = ok || algo == "dit512_generic_neon"
 	}

@@ -405,9 +405,9 @@ func inverseDIT32Radix4Then2Complex128(dst, src, twiddle, scratch []complex128) 
 		copy(dst[:n], work)
 	}
 
-	scale := complexFromFloat64[complex128](1.0/float64(n), 0)
+	scale := 1.0 / float64(n)
 	for i := range n {
-		dst[i] = mathpkg.MulComplex128(dst[i], scale)
+		dst[i] = complex(real(dst[i])*scale, imag(dst[i])*scale)
 	}
 
 	return true

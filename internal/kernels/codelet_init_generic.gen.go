@@ -187,14 +187,16 @@ func registerDITCodelets64() {
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
-		Size:       256,
-		Forward:    forwardDIT256Radix16Complex64,
-		Inverse:    inverseDIT256Radix16Complex64,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDNone,
-		Signature:  "dit256_radix16_generic",
-		Priority:   30,
-		KernelType: fftypes.KernelTypeDIT,
+		Size:           256,
+		Forward:        forwardRadix8Complex64,
+		Inverse:        inverseRadix8Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit256_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
@@ -253,6 +255,19 @@ func registerDITCodelets64() {
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           512,
+		Forward:        forwardRadix8Complex64,
+		Inverse:        inverseRadix8Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit512_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       1024,
 		Forward:    forwardDIT1024Radix4Complex64,
 		Inverse:    inverseDIT1024Radix4Complex64,
@@ -275,6 +290,19 @@ func registerDITCodelets64() {
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           1024,
+		Forward:        forwardRadix8Complex64,
+		Inverse:        inverseRadix8Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit1024_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       2048,
 		Forward:    forwardDIT2048Radix4Then2Complex64,
 		Inverse:    inverseDIT2048Radix4Then2Complex64,
@@ -283,6 +311,19 @@ func registerDITCodelets64() {
 		Signature:  "dit2048_radix4_then2_generic",
 		Priority:   20,
 		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           2048,
+		Forward:        forwardRadix8Complex64,
+		Inverse:        inverseRadix8Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit2048_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
@@ -308,6 +349,19 @@ func registerDITCodelets64() {
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           4096,
+		Forward:        forwardRadix8Complex64,
+		Inverse:        inverseRadix8Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit4096_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       8192,
 		Forward:    forwardDIT8192Radix4Then2Complex64,
 		Inverse:    inverseDIT8192Radix4Then2Complex64,
@@ -330,6 +384,19 @@ func registerDITCodelets64() {
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           8192,
+		Forward:        forwardRadix8Complex64,
+		Inverse:        inverseRadix8Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit8192_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
 		Size:       16384,
 		Forward:    forwardDIT16384Radix4Complex64,
 		Inverse:    inverseDIT16384Radix4Complex64,
@@ -349,6 +416,19 @@ func registerDITCodelets64() {
 		Signature:  "dit16384_sixstep_generic",
 		Priority:   25,
 		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           16384,
+		Forward:        forwardRadix8Complex64,
+		Inverse:        inverseRadix8Complex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit16384_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
@@ -542,14 +622,16 @@ func registerDITCodelets128() {
 	})
 
 	registry.Registry128.Register(registry.CodeletEntry[complex128]{
-		Size:       256,
-		Forward:    forwardDIT256Radix16Complex128,
-		Inverse:    inverseDIT256Radix16Complex128,
-		Algorithm:  fftypes.KernelDIT,
-		SIMDLevel:  fftypes.SIMDNone,
-		Signature:  "dit256_radix16_generic",
-		Priority:   15,
-		KernelType: fftypes.KernelTypeDIT,
+		Size:           256,
+		Forward:        forwardRadix8Complex128,
+		Inverse:        inverseRadix8Complex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit256_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
 	})
 
 	registry.Registry128.Register(registry.CodeletEntry[complex128]{
@@ -608,6 +690,19 @@ func registerDITCodelets128() {
 	})
 
 	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           512,
+		Forward:        forwardRadix8Complex128,
+		Inverse:        inverseRadix8Complex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit512_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
 		Size:       1024,
 		Forward:    forwardDIT1024Radix4Complex128,
 		Inverse:    inverseDIT1024Radix4Complex128,
@@ -641,6 +736,19 @@ func registerDITCodelets128() {
 	})
 
 	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           2048,
+		Forward:        forwardRadix8Complex128,
+		Inverse:        inverseRadix8Complex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit2048_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
 		Size:       4096,
 		Forward:    forwardDIT4096Radix4Complex128,
 		Inverse:    inverseDIT4096Radix4Complex128,
@@ -660,6 +768,19 @@ func registerDITCodelets128() {
 		Signature:  "dit4096_sixstep_generic",
 		Priority:   25,
 		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           4096,
+		Forward:        forwardRadix8Complex128,
+		Inverse:        inverseRadix8Complex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit4096_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
 	})
 
 	registry.Registry128.Register(registry.CodeletEntry[complex128]{
@@ -685,6 +806,19 @@ func registerDITCodelets128() {
 	})
 
 	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           8192,
+		Forward:        forwardRadix8Complex128,
+		Inverse:        inverseRadix8Complex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit8192_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
 		Size:       16384,
 		Forward:    forwardDIT16384Radix4Complex128,
 		Inverse:    inverseDIT16384Radix4Complex128,
@@ -704,6 +838,19 @@ func registerDITCodelets128() {
 		Signature:  "dit16384_sixstep_generic",
 		Priority:   25,
 		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           16384,
+		Forward:        forwardRadix8Complex128,
+		Inverse:        inverseRadix8Complex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNone,
+		Signature:      "dit16384_radix8ladder_generic",
+		Priority:       50,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
 	})
 
 	registry.Registry128.Register(registry.CodeletEntry[complex128]{

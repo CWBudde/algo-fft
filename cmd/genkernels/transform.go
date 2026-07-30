@@ -23,8 +23,14 @@ var float32Rules = []struct {
 }{
 	// float32(1)/float32(n) -> 1/float64(n)
 	{regexp.MustCompile(`float32\(1\)\s*/\s*float32\(n\)`), "1/float64(n)"},
-	// float32(1.0/float64(n)) -> 1.0/float64(n)
-	{regexp.MustCompile(`float32\((1(\.0)?/float64\(n\))\)`), "$1"},
+	// float32(1.0/float32(n)) -> 1.0/float64(n). The inner conversion has to go
+	// too, or the twin would narrow to float32 and then fail to multiply a
+	// float64 component.
+	{regexp.MustCompile(`float32\((1(?:\.0)?)\s*/\s*float32\(n\)\)`), "$1/float64(n)"},
+	// float32(1.0/float64(n)) -> 1.0/float64(n). gofmt spaces the operator when
+	// this appears at statement level (`scale := float32(1.0 / float64(n))`) but
+	// not inside a call argument, so both spacings have to match.
+	{regexp.MustCompile(`float32\((1(?:\.0)?\s*/\s*float64\(n\))\)`), "$1"},
 	// float32(1.0 / 1024.0) -> 1.0 / 1024.0
 	{regexp.MustCompile(`float32\((1(\.0)?\s*/\s*[0-9]+(\.[0-9]+)?)\)`), "$1"},
 	// float32(0.38268…) -> 0.38268…

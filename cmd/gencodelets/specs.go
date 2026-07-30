@@ -153,11 +153,16 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit256_radix4_generic", Priority: 20,
 	},
 	{
+		// Measured 1.014 forward / 0.784 inverse against dit256_radix4_generic in
+		// the 2026-07-30 canary-gated purego re-sweep (46/48 groups accepted, both
+		// sides post-scaling-sweep). Forward is a tie inside noise; the inverse
+		// win pays for it. See docs/CODELET_BENCHMARKS.md.
 		Target: "generic", Prec: 64, Size: 256,
-		Forward:   "forwardDIT256Radix16Complex64",
-		Inverse:   "inverseDIT256Radix16Complex64",
+		Forward:   "forwardRadix8Complex64",
+		Inverse:   "inverseRadix8Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix16_generic", Priority: 30,
+		Signature: "dit256_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
 	},
 	{
 		Target: "generic", Prec: 64, Size: 384,
@@ -195,6 +200,16 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit512_radix16x32_generic", Priority: 35,
 	},
 	{
+		// Measured 0.807 forward / 0.823 inverse against dit512_radix4_then2_generic
+		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 64, Size: 512,
+		Forward:   "forwardRadix8Complex64",
+		Inverse:   "inverseRadix8Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit512_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
 		Target: "generic", Prec: 64, Size: 1024,
 		Forward:   "forwardDIT1024Radix4Complex64",
 		Inverse:   "inverseDIT1024Radix4Complex64",
@@ -209,11 +224,31 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit1024_radix32x32_generic", Priority: 25,
 	},
 	{
+		// Measured 0.900 forward / 0.933 inverse against dit1024_radix4_generic
+		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 64, Size: 1024,
+		Forward:   "forwardRadix8Complex64",
+		Inverse:   "inverseRadix8Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit1024_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
 		Target: "generic", Prec: 64, Size: 2048,
 		Forward:   "forwardDIT2048Radix4Then2Complex64",
 		Inverse:   "inverseDIT2048Radix4Then2Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit2048_radix4_then2_generic", Priority: 20,
+	},
+	{
+		// Measured 0.968 forward / 0.764 inverse against dit2048_radix4_then2_generic
+		// in the 2026-07-30 canary-gated purego re-sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 64, Size: 2048,
+		Forward:   "forwardRadix8Complex64",
+		Inverse:   "inverseRadix8Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit2048_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
 	},
 	{
 		Target: "generic", Prec: 64, Size: 4096,
@@ -230,6 +265,16 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit4096_sixstep_generic", Priority: 25,
 	},
 	{
+		// Measured 0.859 forward / 0.766 inverse against dit4096_radix4_generic
+		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 64, Size: 4096,
+		Forward:   "forwardRadix8Complex64",
+		Inverse:   "inverseRadix8Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit4096_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
 		Target: "generic", Prec: 64, Size: 8192,
 		Forward:   "forwardDIT8192Radix4Then2Complex64",
 		Inverse:   "inverseDIT8192Radix4Then2Complex64",
@@ -244,6 +289,16 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit8192_sixstep64x128_generic", Priority: 30,
 	},
 	{
+		// Measured 0.889 forward / 0.882 inverse against dit8192_radix4_then2_generic
+		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 64, Size: 8192,
+		Forward:   "forwardRadix8Complex64",
+		Inverse:   "inverseRadix8Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit8192_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
 		Target: "generic", Prec: 64, Size: 16384,
 		Forward:   "forwardDIT16384Radix4Complex64",
 		Inverse:   "inverseDIT16384Radix4Complex64",
@@ -256,6 +311,16 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT16384SixStepComplex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_sixstep_generic", Priority: 25,
+	},
+	{
+		// Measured 0.790 forward / 0.773 inverse against dit16384_radix4_generic
+		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 64, Size: 16384,
+		Forward:   "forwardRadix8Complex64",
+		Inverse:   "inverseRadix8Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit16384_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
 	},
 	{
 		Target: "generic", Prec: 64, Size: 32768,
@@ -377,11 +442,14 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit256_radix4_generic", Priority: 20,
 	},
 	{
+		// Measured 1.003 forward / 0.888 inverse against dit256_radix4_generic in
+		// the 2026-07-30 canary-gated purego re-sweep; see docs/CODELET_BENCHMARKS.md.
 		Target: "generic", Prec: 128, Size: 256,
-		Forward:   "forwardDIT256Radix16Complex128",
-		Inverse:   "inverseDIT256Radix16Complex128",
+		Forward:   "forwardRadix8Complex128",
+		Inverse:   "inverseRadix8Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit256_radix16_generic", Priority: 15,
+		Signature: "dit256_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
 	},
 	{
 		Target: "generic", Prec: 128, Size: 384,
@@ -419,6 +487,18 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit512_radix16x32_generic", Priority: 30,
 	},
 	{
+		// Measured 1.002 forward / 0.886 inverse against dit512_radix4_then2_generic
+		// in the 2026-07-30 canary-gated purego re-sweep. An earlier partial re-sweep
+		// put radix-4-then-2 ahead here (0.921 forward); that run was taken on a
+		// contended machine and only this gated one is trustworthy.
+		Target: "generic", Prec: 128, Size: 512,
+		Forward:   "forwardRadix8Complex128",
+		Inverse:   "inverseRadix8Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit512_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
 		Target: "generic", Prec: 128, Size: 1024,
 		Forward:   "forwardDIT1024Radix4Complex128",
 		Inverse:   "inverseDIT1024Radix4Complex128",
@@ -440,6 +520,16 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit2048_radix4_then2_generic", Priority: 20,
 	},
 	{
+		// Measured 0.928 forward / 0.829 inverse against dit2048_radix4_then2_generic
+		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 128, Size: 2048,
+		Forward:   "forwardRadix8Complex128",
+		Inverse:   "inverseRadix8Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit2048_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
 		Target: "generic", Prec: 128, Size: 4096,
 		Forward:   "forwardDIT4096Radix4Complex128",
 		Inverse:   "inverseDIT4096Radix4Complex128",
@@ -452,6 +542,16 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT4096SixStepComplex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit4096_sixstep_generic", Priority: 25,
+	},
+	{
+		// Measured 0.792 forward / 0.738 inverse against dit4096_radix4_generic
+		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 128, Size: 4096,
+		Forward:   "forwardRadix8Complex128",
+		Inverse:   "inverseRadix8Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit4096_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
 	},
 	{
 		Target: "generic", Prec: 128, Size: 8192,
@@ -468,6 +568,16 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit8192_sixstep64x128_generic", Priority: 30,
 	},
 	{
+		// Measured 0.934 forward / 0.835 inverse against dit8192_radix4_then2_generic
+		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 128, Size: 8192,
+		Forward:   "forwardRadix8Complex128",
+		Inverse:   "inverseRadix8Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit8192_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
 		Target: "generic", Prec: 128, Size: 16384,
 		Forward:   "forwardDIT16384Radix4Complex128",
 		Inverse:   "inverseDIT16384Radix4Complex128",
@@ -480,6 +590,16 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT16384SixStepComplex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_sixstep_generic", Priority: 25,
+	},
+	{
+		// Measured 0.834 forward / 0.807 inverse against dit16384_radix4_generic
+		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
+		Target: "generic", Prec: 128, Size: 16384,
+		Forward:   "forwardRadix8Complex128",
+		Inverse:   "inverseRadix8Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit16384_radix8ladder_generic", Priority: 50,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
 	},
 	{
 		Target: "generic", Prec: 128, Size: 32768,
