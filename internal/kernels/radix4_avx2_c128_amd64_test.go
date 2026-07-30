@@ -3,6 +3,7 @@
 package kernels
 
 import (
+	"math"
 	"math/cmplx"
 	"testing"
 
@@ -23,7 +24,7 @@ func maxAbsDiff128(got, want []complex128) float64 {
 }
 
 func TestRadix4AVX2Complex128ForwardMatchesReference(t *testing.T) {
-	for _, n := range radix4AVX2Sizes() {
+	for _, n := range naiveReferenceSizes(t, radix4AVX2Sizes()) {
 		src := randomComplex128(n, uint64(n))
 		want := reference.NaiveDFT128(src)
 
@@ -46,7 +47,7 @@ func TestRadix4AVX2Complex128ForwardMatchesReference(t *testing.T) {
 }
 
 func TestRadix4AVX2Complex128InverseMatchesReference(t *testing.T) {
-	for _, n := range radix4AVX2Sizes() {
+	for _, n := range naiveReferenceSizes(t, radix4AVX2Sizes()) {
 		src := randomComplex128(n, uint64(n)+7)
 		want := reference.NaiveIDFT128(src)
 
@@ -67,26 +68,34 @@ func TestRadix4AVX2Complex128InverseMatchesReference(t *testing.T) {
 }
 
 // TestRadix4AVX2Complex128InPlace exercises the dst == src path, which routes
-// the transform through scratch and copies back.
+// the transform through scratch and copies back. It asserts bit-for-bit
+// equality with the out-of-place kernel; see the complex64 twin
+// (TestRadix4AVX2InPlace) for why that oracle is both cheaper and stronger
+// than the naive DFT here.
 func TestRadix4AVX2Complex128InPlace(t *testing.T) {
 	for _, n := range radix4AVX2Sizes() {
 		src := randomComplex128(n, uint64(n)+13)
-		want := reference.NaiveDFT128(src)
+
+		twiddle := make([]complex128, twiddleSizeRadix4AVX2Complex128(n))
+		prepareTwiddleRadix4AVX2Complex128(n, false, twiddle)
+
+		want := make([]complex128, n)
+		if !forwardRadix4AVX2Complex128(want, src, twiddle, make([]complex128, n)) {
+			t.Fatalf("n=%d: out-of-place forward kernel declined", n)
+		}
 
 		buf := make([]complex128, n)
 		copy(buf, src)
 
-		twiddle := make([]complex128, twiddleSizeRadix4AVX2Complex128(n))
-		scratch := make([]complex128, n)
-		prepareTwiddleRadix4AVX2Complex128(n, false, twiddle)
-
-		if !forwardRadix4AVX2Complex128(buf, buf, twiddle, scratch) {
+		if !forwardRadix4AVX2Complex128(buf, buf, twiddle, make([]complex128, n)) {
 			t.Fatalf("n=%d: in-place forward kernel declined", n)
 		}
 
-		tol := 1e-12 * float64(n)
-		if d := maxAbsDiff128(buf, want); d > tol {
-			t.Errorf("n=%d: in-place forward max |diff| = %g, tol %g", n, d, tol)
+		for i := range buf {
+			if buf[i] != want[i] {
+				t.Fatalf("n=%d: in-place differs from out-of-place at %d: got %v, want %v",
+					n, i, buf[i], want[i])
+			}
 		}
 	}
 }
@@ -113,7 +122,14 @@ func TestRadix4AVX2Complex128MatchesStockham(t *testing.T) {
 			t.Fatalf("n=%d: kernel declined", n)
 		}
 
-		tol := 1e-9 * float64(n)
+		// Both sides are O(n log n) in float64, so disagreement grows as
+		// sqrt(n). Measured: 1.3e-13 at n=8192 rising to 4.3e-13 at n=65536,
+		// which this bound clears by ~10x. The previous 1e-9*n bound was ~1e8x
+		// looser than the observed error -- it would have accepted a kernel
+		// that was wrong in the 5th significant digit. That matters more now
+		// than when it was written: this test, not the naive DFT, is what
+		// covers these sizes under -race (see naiveReferenceRaceMaxSize).
+		tol := 1.5e-14 * math.Sqrt(float64(n))
 		if d := maxAbsDiff128(got, want); d > tol {
 			t.Errorf("n=%d: max |diff| vs stockham = %g, tol %g", n, d, tol)
 		}

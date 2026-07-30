@@ -7,7 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The race-detector test run could not finish, and now takes a tenth as
+  long.** `internal/kernels` took **1499.7 s** under `-race` against Go's
+  10-minute default timeout, which neither `just test` nor any CI workflow
+  overrode — so that gate was red repo-wide, independently of any kernel
+  change. Measured per-test under `-race` (not extrapolated from an untagged
+  profile, which ranks tests the race build already skips), the cost was
+  fourteen naive O(n²) reference DFTs: six AVX2 sweeps at ~207 s each and eight
+  fixed-size DIT tests at 100–152 s, with nothing else above 40 s. The
+  reference grows as n² while the kernels it checks grow as n·log n. The
+  in-place tests now use the out-of-place kernel as their oracle and assert
+  bit-for-bit equality — cheaper _and_ stronger than a naive DFT with a
+  tolerance wide enough to accept a real aliasing defect as rounding — and the
+  reference sweeps cap at n ≤ 4096 under `-race` only, keeping both kernel
+  shapes and logging what they drop. **1499.7 s → 147.8 s.** `-timeout=20m` is
+  in `justfile` and the `-race` CI steps as a backstop, not as the fix.
+
+### Added
+
+- **`TestRadix4AVX2MatchesStockham`, a large-size cross-check for complex64.**
+  The complex128 kernel had been cross-validated against Stockham — an
+  independent algorithm with no shared permutation table — at 8192…65536 for
+  some time; the complex64 kernel had no large-size cross-check at all. It now
+  does, in every build, which is also what backs the `-race` reference cap
+  above.
+
 ### Changed
+
+- **Two Stockham cross-check tolerances were nearly blind and are now
+  calibrated.** Both tests passed, so a green run said nothing about what they
+  would reject. The complex64 bound (`2e-4*n`, copied from the neighbouring
+  naive-DFT tests) sat 4.3e4–9.1e4× above the measured agreement, and the
+  pre-existing complex128 bound (`1e-9*n`) sat 6.2e7–1.5e8× above it — loose
+  enough to accept a kernel wrong in the fifth significant digit. Both now
+  scale as `sqrt(n)`, which is how two O(n·log n) implementations actually
+  diverge, and clear their measured agreement by ~8–10×. The `2e-4*n`
+  convention remains correct where it originated, against the naive DFT, which
+  is itself the inaccurate side of that comparison.
 
 - **The `n = 2*4^k` radix-2 tail can now be fused into the last radix-4 stage,
   and three sizes take it.** For lengths that are twice a power of four, the

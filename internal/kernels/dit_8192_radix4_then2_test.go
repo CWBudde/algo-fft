@@ -17,6 +17,8 @@ func TestForwardDIT8192Radix4Then2Complex64(t *testing.T) {
 
 	const n = 8192
 
+	skipNaiveReferenceAtSize(t, n)
+
 	src := randomComplex64(n, 0xDEADBEEF)
 	dst := make([]complex64, n)
 	scratch := make([]complex64, n)
@@ -35,6 +37,8 @@ func TestInverseDIT8192Radix4Then2Complex64(t *testing.T) {
 	t.Parallel()
 
 	const n = 8192
+
+	skipNaiveReferenceAtSize(t, n)
 
 	src := randomComplex64(n, 0xCAFEBABE)
 	fwd := make([]complex64, n)
@@ -83,6 +87,8 @@ func TestForwardDIT8192Radix4Then2Complex128(t *testing.T) {
 
 	const n = 8192
 
+	skipNaiveReferenceAtSize(t, n)
+
 	src := randomComplex128(n, 0xBEEFCAFE)
 	dst := make([]complex128, n)
 	scratch := make([]complex128, n)
@@ -101,6 +107,8 @@ func TestInverseDIT8192Radix4Then2Complex128(t *testing.T) {
 	t.Parallel()
 
 	const n = 8192
+
+	skipNaiveReferenceAtSize(t, n)
 
 	src := randomComplex128(n, 0xDEADCAFE)
 	fwd := make([]complex128, n)

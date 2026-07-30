@@ -3,8 +3,12 @@ build:
     go build -v ./...
 
 # Run all tests
+# -timeout is a backstop, not a target: the race detector's instrumentation
+# makes the O(n^2) reference DFTs in internal/kernels far more expensive than
+# the kernels they check, so that package sets its own size cap (see
+# naiveReferenceRaceMaxSize). Go's 10m default left no headroom at all.
 test:
-    go test -v -race -count=1 ./...
+    go test -v -race -count=1 -timeout=20m ./...
 
 # Run benchmarks
 bench:

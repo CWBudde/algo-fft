@@ -1109,6 +1109,70 @@ deletion item.
 
 ---
 
+### 1.18 The race suite could not finish, and why (2026-07-30)
+
+`internal/kernels` took **1499.7 s** under `-race` against Go's 10-minute
+default timeout, which neither `just test` nor any CI workflow overrode. The
+package therefore could not complete under the race detector at all — a gate
+that had been red repo-wide, independently of any kernel change.
+
+**Where the time went**, measured per-test under `-race` rather than
+extrapolated from an untagged profile: six AVX2 sweeps at ~207 s each and eight
+fixed-size DIT tests at 100–152 s. All fourteen are naive O(n²) reference DFTs.
+Nothing else in the package exceeded 40 s. The reference grows as n² while the
+kernels it validates grow as n·log n, and every load and store in that double
+loop is instrumented, so n = 32768 alone was ~78% of each affected sweep
+(n² = 1.07e9 against 1.42e9 for the whole size list).
+
+The first instrument was wrong and worth recording: an untagged `-v` profile
+ranks the four n = 32768 tests at the top, but those are _already_ skipped
+under `-race` by the pre-existing `raceDetectorEnabled` guard
+(`dit_32768_radix4_then2_test.go`). Profiling the build you are not fixing
+names tests that never run.
+
+**The fix is not a bigger timeout**, and mostly not a skip either:
+
+- `TestRadix4AVX2InPlace` and its complex128 twin no longer touch the naive
+  DFT. What they test is that aliasing `dst` to `src` changes nothing, and both
+  paths run identical arithmetic in identical order — so the oracle is the
+  out-of-place kernel, asserted bit-for-bit. That is cheaper _and_ stronger:
+  the old `2e-4*n` float32 tolerance was wide enough to accept a real aliasing
+  defect as rounding. Full size coverage retained in every build.
+- The four `MatchesReference` sweeps cap at `naiveReferenceRaceMaxSize = 4096`
+  under `-race`, keeping both kernel shapes (`4^k` and `2·4^k`) with their
+  distinct permutation, twiddle and tail paths, and dropping only the three
+  sizes that repeat those shapes at quadratic reference cost. The filter logs
+  what it dropped, so a shrunken sweep cannot read as full coverage.
+- `TestRadix4AVX2MatchesStockham` is **new**. The complex128 file already
+  cross-checked 8192–65536 against Stockham — an independent algorithm, no
+  shared permutation table — but complex64 had no large-size cross-check at
+  all. The sizes now capped under `-race` are covered by this test in every
+  build, so the complex64 kernel is better covered after the change than
+  before it.
+
+Result: **1499.7 s → 147.8 s**, a 10.1× reduction, comfortably inside the
+default timeout. `-timeout=20m` went into `justfile` and the three `-race` CI
+invocations as a backstop rather than as the fix.
+
+**Two tolerances were nearly blind, found by testing the tests.** Both Stockham
+cross-checks passed, so a green run proved nothing about their sensitivity.
+Measuring the margin between the asserted bound and the actual agreement:
+
+| test                                                                    | bound    | measured agreement | margin         |
+| ----------------------------------------------------------------------- | -------- | ------------------ | -------------- |
+| c64 vs Stockham (as first written, copying the neighbouring convention) | `2e-4·n` | 3.8e-5 → 1.4e-4    | 4.3e4 – 9.1e4× |
+| c128 vs Stockham (pre-existing)                                         | `1e-9·n` | 1.3e-13 → 4.3e-13  | 6.2e7 – 1.5e8× |
+
+A defect perturbing one output bin by 1% of peak magnitude produced a diff of
+~0.06 — still 20–200× under the c64 bound. Both now scale as `sqrt(n)`, which
+is how two O(n·log n) implementations actually diverge (random-walk rounding),
+and clear their measured agreement by ~8–10×. The `2e-4·n` convention is
+correct where it came from — against the _naive_ DFT, which is itself the
+inaccurate side — and wrong when carried over to a comparison where it is not.
+Per §1.11, a passing test is not evidence until you know what it would reject.
+
+---
+
 ## 2. Working method
 
 ### 2.1 Correctness gates

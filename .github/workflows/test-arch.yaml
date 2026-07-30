@@ -92,7 +92,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           ALGOFFT_QEMU: ${{ matrix.use_qemu && '1' || '' }}
-        run: go test -v -race -count=1 ./...
+        run: go test -v -race -count=1 -timeout=20m ./...
 
       - name: Run tests (without race detector)
         if: ${{ !matrix.race }}
