@@ -1173,6 +1173,47 @@ Per §1.11, a passing test is not evidence until you know what it would reject.
 
 ---
 
+### 1.19 The incumbent audit at n = 8…64 and 16384 (2026-07-30)
+
+This closes §4's remaining audit sizes. One canary-gated sweep, 10 groups /
+138 cells / 16 passes, pinned to core 0: **159 of 160 groups accepted, 1 over
+gate, 0 drift** — the cleanest window any round has had, and worth noting why.
+The default `GOOD=1810` is stale twice over: the canary floor measured **1565
+ns** here (7 of 8 samples in 1565–1596), below even the ~1650 recorded after
+the last recalibration. Sweeping against a stale floor does not bias the
+ratios — those are taken within a group — but it does let in windows that
+should have been rejected, so recalibrating first is not optional.
+
+**Eight of nine incumbents confirmed**, most by wide margins: the AVX2 row wins
+its size by 1.2–10.8× over every other candidate at 16/32/64/16384 in both
+precisions and at n = 8 complex64.
+
+**One incumbent was wrong: complex128 at n = 8.** `dit8_radix4_avx2` was the
+registered choice; `dit8_radix8_avx2` beats it at **0.970 forward / 0.859
+inverse**, medianed over 16 groups, and is now the row. Reading the numbers
+honestly: the forward gap is 0.2 ns and would not on its own justify a change,
+and at plan level the ~100 ns per-call dispatch (§4) swamps the whole
+difference. The inverse gap — 8.2 ns to 7.0 ns — is the substantive part.
+`dit8_radix2_avx2` ties it on inverse (0.866) but loses forward, so radix-8
+wins both directions rather than trading them. Two SSE2 rows also beat the old
+incumbent on forward, but registry ordering is SIMD-level major, so they could
+never have been selected on an AVX2 host and are not candidates for the row.
+
+The size-4 rows need no audit at all: every tier registers exactly one
+candidate there, so there is nothing to rank.
+
+**A tooling trap cost a false conclusion first.** `bench_gated.sh` takes its
+output directory from `OUTDIR`, but `bench_gated_analyze.sh` takes it as a
+**positional argument** and ignores `OUTDIR`. Invoking the analyser with
+`OUTDIR=...` silently analysed a stale directory from the previous round and
+reported "27 accepted, 5 over gate" with only the sizes that happened to
+overlap — a plausible-looking result computed from the wrong data. What
+exposed it was the arithmetic not adding up: 10 groups × 16 passes is 160
+group-instances, and 27 + 5 is 32. Check that a sweep's accepted+rejected
+equals the group count you asked for before reading a single ratio.
+
+---
+
 ## 2. Working method
 
 ### 2.1 Correctness gates
@@ -1564,12 +1605,15 @@ which invalidates several constants and leaves a few threads hanging.
       `avx2_f{32,64}_size4_radix4.s`) — fusing those only matters if a priority
       retune brings them back into play. The generic radix-4/Stockham kernels
       need no pass; they are already fused.
-- [ ] **Finish the incumbent audit.** §1.8 confirmed n = 256/512/8192; §1.17
-      added 128, 1024, 2048, 4096 and 32768 in both precisions — confirmed
-      except at 128 (both) and 2048 complex64, where it replaced the incumbent
-      with the fused-tail variant. Still unaudited: 4–64 and 16384. Nothing suggests a mis-tuned incumbent is
-      likely there, but nothing rules it out either. The sweep is a
-      `just bench-gated <sizes>` away.
+- [x] **Finish the incumbent audit** (2026-07-30). §1.8 confirmed
+      n = 256/512/8192; §1.17 added 128, 1024, 2048, 4096 and 32768 in both
+      precisions — confirmed except at 128 (both) and 2048 complex64, where it
+      replaced the incumbent with the fused-tail variant. §1.19 closes the
+      remainder: 8/16/32/64 and 16384 in both precisions, 159 of 160 groups
+      accepted. Eight of nine incumbents confirmed; **complex128 at n = 8 was
+      mis-tuned** and `dit8_radix8_avx2` took the row (0.970 fwd / 0.859 inv).
+      Size 4 registers one candidate per tier, so it has nothing to rank.
+      Every registered power-of-two size is now audited.
 
 ---
 

@@ -428,7 +428,7 @@ func registerAVX2DITCodelets128() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDAVX2,
 		Signature:  "dit8_radix8_avx2",
-		Priority:   9,
+		Priority:   35,
 		KernelType: fftypes.KernelTypeCore,
 	})
 

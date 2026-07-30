@@ -36,6 +36,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`dit8_radix8_avx2` replaces `dit8_radix4_avx2` as the complex128 size-8
+  codelet.** The last unaudited sizes (8/16/32/64 and 16384, both precisions)
+  were swept canary-gated — 159 of 160 groups accepted, 0 drift — closing the
+  incumbent audit for every registered power-of-two size. Eight of the nine
+  incumbents were confirmed, most by 1.2–10.8× over the next candidate. The
+  ninth was mis-tuned: radix-8 beats the registered radix-4 row at **0.970
+  forward / 0.859 inverse**, medianed over 16 groups. In absolute terms the
+  inverse gap is 8.2 ns → 7.0 ns and the forward gap is 0.2 ns, so at plan
+  level the ~100 ns per-call dispatch swamps it entirely; the row is corrected
+  because the registry should record what measurement says, not because
+  callers will notice. See PLAN.md §1.19.
+
 - **Two Stockham cross-check tolerances were nearly blind and are now
   calibrated.** Both tests passed, so a green run said nothing about what they
   would reject. The complex64 bound (`2e-4*n`, copied from the neighbouring

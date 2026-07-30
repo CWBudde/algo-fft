@@ -934,7 +934,13 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "amd64.ForwardAVX2Size8Radix8Complex128Asm",
 		Inverse:   "amd64.InverseAVX2Size8Radix8Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeCore",
-		Signature: "dit8_radix8_avx2", Priority: 9,
+		// Promoted over dit8_radix4_avx2 by the 2026-07-30 incumbent audit
+		// (PLAN.md §1.19): 0.970 forward / 0.859 inverse against it, medianed
+		// over 16 canary-gated groups. The inverse gap is the substantive one
+		// -- 8.2 ns to 7.0 ns; the forward gap is 0.2 ns and on its own would
+		// not justify a change. dit8_radix2_avx2 is a near-tie on inverse
+		// (0.866) but loses forward, so radix-8 wins both directions.
+		Signature: "dit8_radix8_avx2", Priority: 35,
 	},
 	{
 		Target: "avx2", Prec: 128, Size: 8,
