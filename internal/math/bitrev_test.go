@@ -1,6 +1,7 @@
 package math
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -361,6 +362,111 @@ func TestComputeBitReversalIndicesRadix4Then2(t *testing.T) {
 				t.Errorf("want: %v", tt.expect)
 			}
 		})
+	}
+}
+
+// TestComputeBitReversalIndicesRadix8Split tests the radix-8 ladders whose
+// widest stage is a single radix-2 or radix-4 combine.
+func TestComputeBitReversalIndicesRadix8Split(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		got    []int
+		expect []int
+	}{
+		// n = 2*8^1: one base-8 digit, so the sub-sequences are the plain
+		// even and odd samples.
+		{"then2 n=16", ComputeBitReversalIndicesRadix8Then2(16), []int{
+			0, 2, 4, 6, 8, 10, 12, 14,
+			1, 3, 5, 7, 9, 11, 13, 15,
+		}},
+		// n = 4*8^1: the four residue classes mod 4, each in input order.
+		{"then4 n=32", ComputeBitReversalIndicesRadix8Then4(32), []int{
+			0, 4, 8, 12, 16, 20, 24, 28,
+			1, 5, 9, 13, 17, 21, 25, 29,
+			2, 6, 10, 14, 18, 22, 26, 30,
+			3, 7, 11, 15, 19, 23, 27, 31,
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if !slicesEqual(tt.got, tt.expect) {
+				t.Errorf("got:  %v", tt.got)
+				t.Errorf("want: %v", tt.expect)
+			}
+		})
+	}
+}
+
+// TestComputeBitReversalIndicesRadix8SplitShape checks the structural
+// invariants at the sizes too large to write out: the permutation is a
+// bijection, and block d holds exactly the inputs congruent to d.
+func TestComputeBitReversalIndicesRadix8SplitShape(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		n     int
+		split int
+		idx   []int
+	}{
+		{128, 2, ComputeBitReversalIndicesRadix8Then2(128)},
+		{1024, 2, ComputeBitReversalIndicesRadix8Then2(1024)},
+		{256, 4, ComputeBitReversalIndicesRadix8Then4(256)},
+		{2048, 4, ComputeBitReversalIndicesRadix8Then4(2048)},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("n=%d/split=%d", tc.n, tc.split), func(t *testing.T) {
+			t.Parallel()
+
+			if len(tc.idx) != tc.n {
+				t.Fatalf("length %d, want %d", len(tc.idx), tc.n)
+			}
+
+			seen := make([]bool, tc.n)
+			block := tc.n / tc.split
+
+			for i, v := range tc.idx {
+				if v < 0 || v >= tc.n {
+					t.Fatalf("index %d out of range: %d", i, v)
+				}
+
+				if seen[v] {
+					t.Fatalf("index %d repeats value %d: not a bijection", i, v)
+				}
+
+				seen[v] = true
+
+				if d := i / block; v%tc.split != d {
+					t.Fatalf("index %d: value %d is in residue class %d, want %d",
+						i, v, v%tc.split, d)
+				}
+			}
+		})
+	}
+}
+
+// TestComputeBitReversalIndicesRadix8SplitRejects checks that shapes the
+// ladders cannot handle return nil rather than a wrong table.
+func TestComputeBitReversalIndicesRadix8SplitRejects(t *testing.T) {
+	t.Parallel()
+
+	// 2*8^k rejects a power of two that is not twice a power of eight, and
+	// 4*8^k likewise. 16 = 2*8 is valid for then2 but not for then4.
+	for _, n := range []int{0, 8, 32, 64, 96, 512} {
+		if got := ComputeBitReversalIndicesRadix8Then2(n); got != nil {
+			t.Errorf("Radix8Then2(%d) = %v, want nil", n, got)
+		}
+	}
+
+	for _, n := range []int{0, 8, 16, 64, 96, 512} {
+		if got := ComputeBitReversalIndicesRadix8Then4(n); got != nil {
+			t.Errorf("Radix8Then4(%d) = %v, want nil", n, got)
+		}
 	}
 }
 

@@ -108,59 +108,58 @@ func reverseDigits(x, digits, radix, bitsPerDigit int) int {
 	return result
 }
 
-// computeRadix4Then2 computes bit-reversal for mixed radix-2/4 FFT.
-// n must be 2 * 4^k for some k >= 1.
-func computeRadix4Then2(n int) []int {
-	if n <= 0 || n%2 != 0 {
+// computeSplitThenDigitReversal computes the permutation for a DIT ladder that
+// decimates the input by `split` at the outermost level and then runs a
+// base-`radix` digit-reversed ladder over each of the `split` sub-sequences.
+//
+// The outermost decimation is the ladder's *last* (widest) stage, so its
+// sub-sequences are the residue classes of the input index modulo `split`, and
+// the permuted array holds them as `split` contiguous blocks:
+//
+//	indices[d*block + t] = reverseDigits(t, radix)*split + d,  block = n/split
+//
+// n must be `split * radix^k` for some k >= 1; nil is returned otherwise.
+func computeSplitThenDigitReversal(n, radix, split int) []int {
+	if n <= 0 || radix <= 1 || split <= 1 || n%split != 0 {
 		return nil
 	}
 
-	m := n / 2 // m should be a power of 4
-	if m < 4 || (m&(m-1)) != 0 {
-		return nil
-	}
+	block := n / split
 
-	// Check that m is a power of 4
-	temp := m
+	// block must be a power of radix, and at least one full digit.
+	digits := 0
+
+	temp := block
 	for temp > 1 {
-		if temp%4 != 0 {
+		if temp%radix != 0 {
 			return nil
 		}
 
-		temp /= 4
+		digits++
+		temp /= radix
 	}
 
-	// Count quaternary digits
-	quatDigits := 0
-
-	temp = m
-	for temp > 1 {
-		quatDigits++
-		temp /= 4
+	if digits == 0 {
+		return nil
 	}
 
 	indices := make([]int, n)
-	half := n / 2
+	bitsPerDigit := bits.Len(uint(radix - 1))
 
 	for i := range n {
-		// Split i into: binary_bit (MSB) and quaternary part (k digits)
-		binaryBit := i / half // 0 or 1
-		quatIndex := i % half // 0 to half-1
+		d := i / block // residue class, 0..split-1
+		t := i % block // position within the sub-sequence
 
-		// Reverse the quaternary digits
-		revQuat := 0
-
-		q := quatIndex
-		for range quatDigits {
-			revQuat = (revQuat << 2) | (q & 0x3)
-			q >>= 2
-		}
-
-		// Reconstruct with binary bit in LSB position
-		indices[i] = (revQuat << 1) | binaryBit
+		indices[i] = reverseDigits(t, digits, radix, bitsPerDigit)*split + d
 	}
 
 	return indices
+}
+
+// computeRadix4Then2 computes bit-reversal for mixed radix-2/4 FFT.
+// n must be 2 * 4^k for some k >= 1.
+func computeRadix4Then2(n int) []int {
+	return computeSplitThenDigitReversal(n, 4, 2)
 }
 
 // ComputeBitReversalIndices returns the bit-reversal permutation indices
@@ -186,6 +185,18 @@ func ComputeBitReversalIndicesRadix4(n int) []int {
 // This is a convenience wrapper around ComputePermutationIndices(n, 8).
 func ComputeBitReversalIndicesRadix8(n int) []int {
 	return ComputePermutationIndices(n, 8)
+}
+
+// ComputeBitReversalIndicesRadix8Then2 returns the permutation for a radix-8
+// ladder whose widest stage is a single radix-2 combine: n must be 2 * 8^k.
+func ComputeBitReversalIndicesRadix8Then2(n int) []int {
+	return computeSplitThenDigitReversal(n, 8, 2)
+}
+
+// ComputeBitReversalIndicesRadix8Then4 returns the permutation for a radix-8
+// ladder whose widest stage is a single radix-4 combine: n must be 4 * 8^k.
+func ComputeBitReversalIndicesRadix8Then4(n int) []int {
+	return computeSplitThenDigitReversal(n, 8, 4)
 }
 
 // ComputeBitReversalIndicesRadix32 returns digit-reversal permutation for radix-32 FFT.
