@@ -833,38 +833,39 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit65536_radix4_avx2", Priority: 90,
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
 	},
-	// AVX-512 codelets: the generic AVX-512 radix-2 DIT kernel, registered only
-	// at the sizes where it beats the best AVX2 codelet (codelet selection
-	// prefers the higher SIMD level, so an entry here always outranks the AVX2
-	// ones on AVX-512 hosts). Benchmarks and the complex128 rationale live in
-	// internal/kernels/dit_avx512_amd64.go.
+	// AVX-512 codelets: the generic AVX-512 radix-2 DIT kernel. Registered at
+	// the sizes where it once beat the best AVX2 codelet; measured on a Xeon
+	// Gold 5218 it now loses to plain AVX2 by 2.9-4.1x at all four, so each is
+	// demoted with RankLevel (ordering only -- SIMDLevel still gates execution).
+	// Do not delete without re-measuring: only Skylake-SP has been seen. Evidence
+	// in docs/CODELET_BENCHMARKS.md; kernel notes in dit_avx512_amd64.go.
 	{
 		Target: "avx512", Prec: 64, Size: 1024,
 		Forward:   "forwardAVX512Radix2Complex64",
 		Inverse:   "inverseAVX512Radix2Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix2_avx512", Priority: 10,
+		Signature: "dit1024_radix2_avx512", Priority: 10, RankLevel: "SIMDAVX2",
 	},
 	{
 		Target: "avx512", Prec: 64, Size: 4096,
 		Forward:   "forwardAVX512Radix2Complex64",
 		Inverse:   "inverseAVX512Radix2Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
-		Signature: "dit4096_radix2_avx512", Priority: 10,
+		Signature: "dit4096_radix2_avx512", Priority: 10, RankLevel: "SIMDAVX2",
 	},
 	{
 		Target: "avx512", Prec: 64, Size: 8192,
 		Forward:   "forwardAVX512Radix2Complex64",
 		Inverse:   "inverseAVX512Radix2Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
-		Signature: "dit8192_radix2_avx512", Priority: 10,
+		Signature: "dit8192_radix2_avx512", Priority: 10, RankLevel: "SIMDAVX2",
 	},
 	{
 		Target: "avx512", Prec: 64, Size: 16384,
 		Forward:   "forwardAVX512Radix2Complex64",
 		Inverse:   "inverseAVX512Radix2Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX512", KernelType: "KernelTypeDIT",
-		Signature: "dit16384_radix2_avx512", Priority: 10,
+		Signature: "dit16384_radix2_avx512", Priority: 10, RankLevel: "SIMDAVX2",
 	},
 	// Size-specific AVX-512 complex64 codelets. A ZMM holds 8 complex64, so at
 	// these lengths the whole transform is register-resident: the kernels load

@@ -22,6 +22,7 @@ func registerAVX512DITCodelets64() {
 		Signature:  "dit1024_radix2_avx512",
 		Priority:   10,
 		KernelType: fftypes.KernelTypeDIT,
+		RankLevel:  fftypes.SIMDAVX2,
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
@@ -33,6 +34,7 @@ func registerAVX512DITCodelets64() {
 		Signature:  "dit4096_radix2_avx512",
 		Priority:   10,
 		KernelType: fftypes.KernelTypeDIT,
+		RankLevel:  fftypes.SIMDAVX2,
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
@@ -44,6 +46,7 @@ func registerAVX512DITCodelets64() {
 		Signature:  "dit8192_radix2_avx512",
 		Priority:   10,
 		KernelType: fftypes.KernelTypeDIT,
+		RankLevel:  fftypes.SIMDAVX2,
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{
@@ -55,6 +58,7 @@ func registerAVX512DITCodelets64() {
 		Signature:  "dit16384_radix2_avx512",
 		Priority:   10,
 		KernelType: fftypes.KernelTypeDIT,
+		RankLevel:  fftypes.SIMDAVX2,
 	})
 
 	registry.Registry64.Register(registry.CodeletEntry[complex64]{

@@ -367,6 +367,92 @@ Evidence behind the `SIMDAVX512` rows, including the one deliberately disabled
 entry. This is the only AVX-512 hardware reachable; Cascade Lake downclocks
 under AVX-512, so it is a pessimistic machine for the tier.
 
+### The generic radix-2 AVX-512 rows were selecting a 3-4x loss (2026-07-31)
+
+`dit{1024,4096,8192,16384}_radix2_avx512` were registered as "the sizes where it
+beats the best AVX2 codelet". That was true when written and is false now: the
+size-generic AVX2 radix-4 kernel and the radix-8 ladder both landed afterwards,
+and neither could be compared against these on the development laptop, which has
+no AVX-512. Because registry ordering is SIMD-level major, these outranked every
+AVX2 row **on level alone**, so an AVX-512 host ran a codelet 3-4x slower than
+one sitting in the same registry.
+
+Canary-gated sweep on the idle Xeon (load 0.05), `-tags fftprobe`, 8 passes,
+`GOOD=11298` from `CALIBRATE=1`, `GATE=1.20`, **112 of 112 groups accepted, 0
+rejected** — complex64, forward:
+
+|     n | `radix2_avx512` | best AVX2 at that size |    gap |
+| ----: | --------------: | ---------------------- | -----: |
+|  1024 |         8903 ns | `radix4_avx2` 2193 ns  | 4.06 x |
+|  4096 |        38654 ns | `radix4_avx2` 11990 ns | 3.22 x |
+|  8192 |        87682 ns | `radix4_avx2` 28734 ns | 3.05 x |
+| 16384 |       198990 ns | `radix4_avx2` 68608 ns | 2.90 x |
+
+Two causes compound: radix-2 runs ~2x the passes of radix-4 (13 vs 6.5 at
+n = 8192), and Skylake-SP drops core frequency under 512-bit work.
+
+Fixed with `RankLevel: SIMDAVX2` rather than deletion. `SIMDLevel` stays
+`SIMDAVX512`, so the rows still execute only where legal; ranking them at AVX2
+with `Priority 10` puts them below every AVX2 row (priority 90) and still above
+SSE3 — which is what the measurement says, since they do beat SSE3 (8903 vs
+10127 ns at n = 1024). Deleting them would over-generalise from one
+microarchitecture: a part without Skylake-SP's AVX-512 downclocking may rank
+differently. Re-measure before removing or re-promoting.
+
+Only those four rows are demoted, and a second sweep over 8/16/32/64/128/256
+(**96 of 96 groups accepted**) is what bounds it: at every one of those sizes the
+_per-size assembly_ AVX-512 codelet is genuinely the fastest candidate in its
+group, so the tier is healthy where it is hand-written.
+
+| n (c64) | AVX-512 incumbent          | best AVX2 behind it |    gap |
+| ------: | -------------------------- | ------------------- | -----: |
+|      64 | `dit64_radix2_avx512` 46.2 | `radix8ladder` 115  | 2.50 x |
+|     128 | `radix8_then2_avx512` 176  | `radix4_notail` 205 | 1.16 x |
+|     256 | `radix8_then2_avx512` 371  | `radix8ladder` 454  | 1.22 x |
+
+So the split is not AVX-512 vs AVX2 but hand-written-per-size vs size-generic
+radix-2: `dit64_radix2_avx512` is itself radix-2 and wins comfortably. Radix-2
+is not the problem at small n, where ZMM width dominates; it becomes the problem
+at large n, where its pass count and Skylake-SP's downclocking compound.
+
+**The general trap:** a codelet at a higher SIMD level is selected on level
+before priority, so it silently keeps its slot as the tier below it improves.
+Any row justified by "it beats the level below" needs re-measuring whenever that
+level gains a kernel — and on a machine that can actually run it.
+
+### The radix-8 ladder on Skylake-SP — and the stride rule failing to transfer
+
+Same sweep, ladder ÷ `radix4_avx2` within group, forward:
+
+|     n |       c64 |      c128 |
+| ----: | --------: | --------: |
+|   512 | **0.934** | **0.749** |
+|  1024 |     0.992 | **0.843** |
+|  2048 |     1.013 | **0.722** |
+|  4096 |     1.143 | **0.928** |
+|  8192 |     1.197 | **0.912** |
+| 16384 |     1.082 | **0.851** |
+| 32768 |     1.151 | **0.840** |
+
+complex128 wins at every size by 7-28%; complex64 wins only at 512, ties at
+1024, and loses from 2048 up.
+
+This **refutes the byte-stride rule** recorded for the i7-1255U (radix-8 wins
+where its widest stage strides ≤ 512 B, loses at ≥ 4 KiB). complex128 has twice
+the byte stride of complex64 at equal n, so under that rule it should fail
+earlier and harder — and n = 32768 complex128, whose widest stage strides 64 KiB,
+should be the worst cell on the board. It is a 16% win. The complex64 crossover
+also moved, to 2048 here from 4096 on the laptop.
+
+So the stride correlation is real on one machine and is not the mechanism. The
+better-supported reading is the compute-to-memory ratio: complex128 does twice
+the work per byte through the same 256-bit path, so the ladder's fewer passes
+pay while its access pattern costs less. Together with the failed blocking
+experiment (below), that closes the conflict-miss story for good.
+
+Do not fold these figures into the i7-1255U tables below — different
+microarchitecture, different cache geometry, and a different incumbent per size.
+
 ### Measurement setup
 
 |            |                                                                                                                            |
