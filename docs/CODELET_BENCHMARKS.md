@@ -24,9 +24,20 @@ Two standing traps:
   takes the directory as a **positional argument** and ignores `OUTDIR`. Passing
   `OUTDIR=` to the analyser silently analyses a stale directory. Check that
   accepted + rejected equals groups × passes before reading a single ratio.
-- Recalibrate `GOOD` from the observed canary floor each round rather than
-  reusing the previous value. A stale floor does not bias the ratios, but it
-  lets in windows that should have been rejected.
+- `GOOD` is per (host, toolchain, canary) and is no longer a literal in the
+  script. Derive it on an **idle** machine by running the sweep script with
+  `CALIBRATE=1`, which takes the minimum over `CALREPS` samples and records it
+  in `benchmarks/canary-calibration.tsv`; the sweep refuses to run rather than
+  inherit a floor that does not belong to the machine. A stale floor
+  does not bias the ratios, but it lets in windows that should have been
+  rejected — and it fails silently in that direction, which is why calibrating
+  under load is worse than not calibrating at all.
+
+  **`GOOD` values quoted in the sections below are not comparable to today's.**
+  Everything before 2026-07-31 was calibrated against the old canary,
+  `BenchmarkDITComplex128/Size256/Radix16/Forward` (~1.6 µs); the canary is now
+  the frozen `BenchmarkGateCanary` (~13 µs), so only the gate _ratios_ carry
+  across the change.
 
 Do not compare absolute figures across runs or hosts. Only the ratios travel.
 
@@ -115,9 +126,17 @@ Three findings the sweep produced beyond the ranking:
 - **`dit256_radix16_generic` was mis-tuned in both precisions.** At complex64 it
   was the _selected_ row while losing to plain `dit256_radix4_generic` at 0.682
   forward; at complex128 it sat at 1.677. Both spec rows are deleted per §2.1
-  rule 6. The kernel functions stay: `BenchmarkDITComplex128/Size256/Radix16/Forward`
-  is the canary every gated sweep here is calibrated against, so removing the
-  code would invalidate `GOOD`.
+  rule 6. The kernel functions stayed at the time, because
+  `BenchmarkDITComplex128/Size256/Radix16/Forward` was then the canary every
+  gated sweep was calibrated against and removing the code would have
+  invalidated `GOOD`.
+
+  That reason expired on 2026-07-31. Using a codelet from the package under test
+  as the canary is precisely what let `GOOD` go stale twice — every successful
+  optimisation moved the reference — so the canary is now the frozen,
+  dependency-free `BenchmarkGateCanary`. The size-16 radix kernels are no longer
+  load-bearing for measurement; whether they still earn their place is an
+  ordinary dead-code question, not a measurement constraint.
 
 ## AVX2 tier (i7-1255U) — incumbent audit
 
@@ -146,14 +165,32 @@ Size 4 registers exactly one candidate per tier, so it has nothing to rank.
   radix-8 wins both directions rather than trading them. Two SSE2 rows also beat
   the old incumbent on forward, but registry ordering is SIMD-level major, so
   they could never be selected on an AVX2 host.
-- **The no-tail radix-4 variant has been folded into the default kernel.** The
-  2026-07-29 sweeps ranked `dit{512,2048,8192,32768}_radix4_notail_avx2` at
-  0.86-0.93 of the then-incumbent, and `dit128_radix4fused_avx2` at 0.93-0.96.
-  Those `notail` signatures no longer exist: the behaviour is now what
-  `dit<N>_radix4_avx2` does, which is visible in the re-sweep — complex64 at
-  n = 512 measures 415 ns where the old incumbent was 433 and the old `notail`
-  candidate 409. `radix4fused` remains a separate row at 128 (both precisions)
-  and 2048 complex64, where the fusion is a different trade.
+- **The default radix-4 kernel absorbed most of the tail gap — but the no-tail
+  probe was not folded in, and cannot be.** The 2026-07-29 sweeps ranked
+  `dit{512,2048,8192,32768}_radix4_notail_avx2` at 0.86-0.93 of the
+  then-incumbent, and `dit128_radix4fused_avx2` at 0.93-0.96. The default kernel
+  then got materially faster: complex64 at n = 512 measures 415 ns in the
+  re-sweep where the old incumbent was 433 and the old `notail` candidate 409.
+  `radix4fused` remains a separate row at 128 (both precisions) and 2048
+  complex64, where the fusion is a different trade.
+
+  What did **not** happen is the `notail` behaviour becoming the default. That
+  probe skips the tail combine and therefore computes the wrong answer on
+  purpose — it is a bound on what any fusion could recover, never a shippable
+  candidate. Its signatures still exist
+  (`internal/kernels/radix4_avx2_tail_probe_amd64.go`, registered only under
+  `-tags fftprobe` at priority 85, below the incumbent's 90, so `registry.Lookup`
+  never returns it). The stage speedup lifted the probe and the default kernel
+  together, which is why the _ratio_ barely moved even though every absolute
+  number dropped: the later re-check below still finds `notail` fastest at 512,
+  2048, 8192 and 32768 in both precisions, at 0.84-0.93.
+
+  Practical consequence, because it costs a debugging detour every time: a
+  `-tags fftprobe` correctness run **fails by design** on
+  `dit<N>_radix4_notail_avx2` at 128/512/2048/8192/32768 in both precisions.
+  That is the probe working as intended, not a regression in whatever you just
+  changed.
+
 - **Nothing at 256, 512 or 1024 needed a priority change.** All six incumbents
   reconfirmed, by 2.1x or more over every other candidate.
 
