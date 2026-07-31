@@ -207,6 +207,49 @@ stride. At 512 KiB the working set is far past L2, so the cell is decided by
 memory traffic, where the ladder's third fewer passes wins outright. Treat the
 stride rule as established for complex64 and as a hypothesis for complex128.
 
+#### Blocking the wide stages does not work — and the stride rule is not about conflicts
+
+The obvious reading of that table is that the far-apart streams collide in one
+L1 set, so the fix is to stop interleaving them. Written and measured
+2026-07-30, **it is not.**
+
+The tiled version walks j in chunks of 64, copies each stream's chunk into a
+contiguous tile — applying that stream's twiddle during the gather, so a copy
+run touches two streams instead of the fifteen a stage really interleaves
+(eight data plus seven twiddle planes, all m apart) — runs the butterflies
+inside the tile and copies back. Arithmetic identical, bit for bit. Swept
+against the unblocked ladder in the same group, `-tags fftprobe,purego`, 8
+groups x 12 passes, **96 accepted, 0 rejected**, canary floor 1580 ns at gate
+1.12, 48-50 C. Ratios are blocked / unblocked, so above 1.00 means blocking
+cost time:
+
+|     n | complex64 fwd / inv | complex128 fwd / inv |
+| ----: | ------------------- | -------------------- |
+|  4096 | 1.078 / 1.083       | 1.115 / 1.105        |
+|  8192 | 1.065 / 1.073       | 1.118 / 1.087        |
+| 16384 | 1.074 / 1.065       | 1.102 / 1.088        |
+| 32768 | 1.103 / 1.132       | 1.138 / 1.141        |
+
+Blocking costs 6.5-14%, every cell, both precisions, both directions. It is
+worst at n = 32768, which is exactly the cell the collision story predicted it
+would rescue.
+
+The reason is simple once seen: **a single FFT stage has no reuse to capture.**
+Every element is read once and written once. Blocking is a technique for
+turning repeated traversals of a large working set into repeated traversals of
+a small one; applied to a loop that already touches each datum once, it cannot
+remove any traffic and can only add the tile's extra read and write. The
+measured 6.5-14% is about the size of one extra pass through L1, which is what
+it is.
+
+So the stride rule stands as an empirical correlation and its _explanation_ does
+not. The 4 KiB threshold is more likely plain capacity — at m\*sizeof(T) = 4 KiB
+the stage's eight streams span 32 KiB, which is the whole of L1, while at 512 B
+they span 4 KiB and stay resident — than conflict misses or 4K store-to-load
+aliasing. A capacity limit is not something a tile fixes; it wants a
+decomposition that shrinks the span, which is what four-step and six-step
+already do. The blocked code was reverted; only this note remains.
+
 #### n = 32768 re-checked
 
 That cell was worth a second run: it is the only complex128 win at a large

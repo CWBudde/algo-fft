@@ -379,19 +379,32 @@ from the outcome:
       ≤ 512 B wins, every cell at ≥ 4 KiB loses, no exceptions — confirming the
       L1-set collision predicted below before the sweep ran.
 
-- [ ] **Block the last radix-8 stage.** Now the sharpest remaining lever, and
-      the measurement above pins it precisely: eight streams a multiple of
-      4 KiB apart map to one L1 set, and that alone accounts for every AVX2
-      complex64 loss (4096/8192/16384 stride 4 KiB, 32768 stride 32 KiB) as
-      well as the pure-Go ladder's n = 32768 loss. Below 512 B the ladder wins
-      every cell it is registered for. If blocking recovers those five
-      complex64 cells and complex128's 8192, radix-8 takes the whole
-      power-of-two range rather than half of it.
+- [x] **Block the wide radix-8 stages — tried, measured, reverted (2026-07-30).**
+      This looked like the sharpest remaining lever: eight streams a multiple of
+      4 KiB apart map to one L1 set, which correlated perfectly with every AVX2
+      complex64 loss and with the pure-Go ladder's n = 32768 loss. The tiled
+      version gathers 64 butterflies at a time into a contiguous stack tile,
+      twiddling on the way in (a stage really interleaves fifteen streams, not
+      eight — the seven twiddle planes are m apart too), butterflies inside the
+      tile and copies back, bit-identically.
 
-      The complex128 exception is the thing to explain first: n = 32768 wins at
-      a 64 KiB stride, where the working set is far past L2 and passes decide.
-      So the rule is "conflict misses dominate until memory traffic does", and
-      blocking should help exactly the middle band.
+      It loses **every cell by 6.5–14%** — 8 groups × 12 passes, 96 accepted, 0
+      rejected — and loses worst at n = 32768, the cell the collision story
+      predicted it would rescue. Numbers in `docs/CODELET_BENCHMARKS.md`.
+
+      The lesson is general enough to keep: **a single FFT stage has no reuse to
+      capture.** Each element is read once and written once, so blocking cannot
+      remove traffic and can only add the tile's extra read and write. Blocking
+      is for repeated traversals of a large working set; a stage is one
+      traversal.
+
+      What survives is that the stride rule is an empirical correlation whose
+      *explanation* is still open. Capacity is now the better guess than
+      conflicts: at a 4 KiB element stride the stage's eight streams span 32 KiB,
+      the whole of L1, where at 512 B they span 4 KiB and stay resident. A
+      capacity limit wants a decomposition that shrinks the span — four-step and
+      six-step already do that — not a tile. Anyone returning to the AVX2
+      radix-8 losses should start there and not re-derive the collision story.
 
       The `±(1±i)/√2` derivation shares its shape with the twiddle-free radix-8
       first stage proposed in the n = 2048 item above; the two should still be
