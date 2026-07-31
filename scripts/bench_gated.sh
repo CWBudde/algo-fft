@@ -254,8 +254,15 @@ done
 inc="$OUTDIR/incumbents.txt"
 : >"$inc"
 for g in "${groups[@]}"; do
-  first="$(printf '%s\n' "${cells_of[$g]}" | head -1)"
-  echo "$g $(printf '%s\n' "$first" | cut -d/ -f3)" >>"$inc"
+  # Take the first line with parameter expansion, not `| head -1`. head exits
+  # after one line, and whether printf has finished writing by then is a race:
+  # when it has not, printf dies of SIGPIPE, pipefail propagates 141, and `set
+  # -e` kills the sweep silently, mid-loop, with a partial incumbents.txt and
+  # nothing in the log. That is the same failure that once truncated the canary
+  # reader; it is load-dependent, so it strikes on a busy host and never on an
+  # idle one.
+  first="${cells_of[$g]%%$'\n'*}"
+  echo "$g $(cut -d/ -f3 <<<"$first")" >>"$inc"
 done
 echo "incumbents:" | tee -a "$log"
 sed 's/^/  /' "$inc" | tee -a "$log"

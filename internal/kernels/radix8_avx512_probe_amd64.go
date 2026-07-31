@@ -29,16 +29,32 @@ package kernels
 //	  taskset -c 0 ./scripts/bench_gated.sh 64 128 256 512 1024 2048 4096 8192 16384 32768
 //	scripts/bench_gated_analyze.sh benchmarks/gated
 //
-// radix8AVX512ProbePriority sits below every production AVX-512 row, so
-// registry.Lookup is unaffected and only the candidate sweep sees these
-// entries.
+// Keeping the probe out of the incumbent slot takes RankLevel, not Priority.
+// Registry ordering is SIMD-level major and Priority only orders within a
+// level, so an entry registered at SIMDAVX512 outranks every AVX2 row no matter
+// how low its Priority is -- and at 512, 2048 and 32768 there is no production
+// AVX-512 row at all, while the radix-2 rows at 1024/4096/8192/16384 are
+// themselves RankLevel-demoted to SIMDAVX2. A probe registered in the AVX-512
+// tier would therefore *be* the incumbent at ten of the eleven sizes here, and
+// the sweep would dutifully report it as 1.000 against itself. The first run of
+// this sweep did exactly that.
+//
+// RankLevel: SIMDSSE2 sorts the probe below every AVX2 and AVX-512 row while
+// SIMDLevel: SIMDAVX512 still gates execution, which is the sanctioned
+// direction for RankLevel -- demote a wide-ISA codelet, never promote a narrow
+// one. It is SSE2 rather than SIMDNone because SIMDNone is the zero value and
+// registry.rank() reads it as "unset", falling straight back to SIMDLevel: the
+// demotion would silently do nothing. SSE2 is the lowest level that is not the
+// zero value, and the size-generic AVX2 radix-4 rows cover every size swept
+// here, so the incumbent is always a real codelet. Priority then only orders
+// the probe within the SSE2 tier, and is set below those rows too.
 
 import (
 	"github.com/cwbudde/algo-fft/internal/fftypes"
 	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
-const radix8AVX512ProbePriority = 80
+const radix8AVX512ProbePriority = 5
 
 // Every size each kernel accepts. Nothing is held back: no cell of this
 // ladder has been measured yet, and the sizes below 512 are where the
@@ -57,6 +73,7 @@ func init() {
 		registry.Registry64.Register(registry.CodeletEntry[complex64]{
 			Size: size, Forward: forwardRadix8AVX512Complex64, Inverse: inverseRadix8AVX512Complex64,
 			Algorithm: fftypes.KernelDIT, SIMDLevel: fftypes.SIMDAVX512,
+			RankLevel:   fftypes.SIMDSSE2,
 			Signature:   "dit" + itoa(size) + "_radix8ladder_avx512",
 			Priority:    radix8AVX512ProbePriority,
 			KernelType:  fftypes.KernelTypeDIT,
@@ -68,6 +85,7 @@ func init() {
 		registry.Registry128.Register(registry.CodeletEntry[complex128]{
 			Size: size, Forward: forwardRadix8AVX512Complex128, Inverse: inverseRadix8AVX512Complex128,
 			Algorithm: fftypes.KernelDIT, SIMDLevel: fftypes.SIMDAVX512,
+			RankLevel:   fftypes.SIMDSSE2,
 			Signature:   "dit" + itoa(size) + "_radix8ladder_avx512",
 			Priority:    radix8AVX512ProbePriority,
 			KernelType:  fftypes.KernelTypeDIT,
