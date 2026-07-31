@@ -450,6 +450,45 @@ the work per byte through the same 256-bit path, so the ladder's fewer passes
 pay while its access pattern costs less. Together with the failed blocking
 experiment (below), that closes the conflict-miss story for good.
 
+#### Why the radix-8 stage costs more per pass — it is registers, not cache
+
+Normalising the same sweep by pass count (ladder shapes: `8^k` / `2·8^k` /
+`4·8^k`, so n = 8192 is 4 radix-8 stages plus a radix-2 tail against radix-4's
+6 + 1), complex64 forward:
+
+|     n |  KB | ladder ns/pass | radix-4 ns/pass | ratio |
+| ----: | --: | -------------: | --------------: | ----: |
+|   512 |   4 |            317 |             204 |  1.56 |
+|  1024 |   8 |            544 |             439 |  1.24 |
+|  2048 |  16 |           1318 |             868 |  1.52 |
+|  4096 |  32 |           3425 |            1998 |  1.71 |
+|  8192 |  64 |           6877 |            4105 |  1.67 |
+| 32768 | 256 |          37549 |           20389 |  1.84 |
+
+L1d is 32 KiB here, so n ≤ 2048 is fully resident — and the penalty is already
+1.24–1.56x there. It is not a memory effect. Most of the rest is expected
+(radix-8 does proportionally more work per pass: 7/5 at n = 8192); normalised
+per operation, radix-8 is only ~1.2x less efficient, while total op counts
+slightly favour it (4.08 vs 4.25 N·log2 N).
+
+That residual is a register-budget effect, and the kernel's own header
+(`internal/asm/amd64/avx2_f32_radix8.s`) names it: eight live streams plus two
+rotation masks and the sqrt(2)/2 broadcast leave **five** scratch YMM of 16,
+"exactly enough" for one butterfly. It never spills — frame `$0`, no `(SP)`
+references anywhere — but it has no slack either, so it re-broadcasts the
+twiddle planes from memory every iteration and cannot keep a second butterfly in
+flight to cover a radix-8's 3-level dependency chain (radix-4 is 2 levels and
+has registers to spare). Extra load uops plus exposed latency, with no spill to
+make it visible.
+
+This is the thing to fix, and it is what makes an AVX-512 radix-8 worth writing:
+32 ZMM leaves 21 scratch rather than 5, and embedded broadcast (`{1to16}`)
+folds the re-broadcast into the instruction encoding — the exact workaround the
+header describes. Predicted 1.4–1.7x over `radix4_avx2` at n = 8192, the low end
+being the pass-count bound (5/7) if the result turns out memory-bound, the high
+end assuming width and register slack recover the per-op gap net of Skylake-SP's
+AVX-512 downclocking.
+
 Do not fold these figures into the i7-1255U tables below — different
 microarchitecture, different cache geometry, and a different incumbent per size.
 
