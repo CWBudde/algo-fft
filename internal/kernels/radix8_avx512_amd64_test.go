@@ -37,10 +37,45 @@ func radix8AVX512Sizes128() []int {
 	return append([]int{32}, radix8AVX512Sizes64()...)
 }
 
+// naiveReferenceCap bounds the sizes handed to the O(n²) reference DFT.
+//
+// The reference sweeps below are the only tests in this file that cost more
+// than milliseconds, and their cost is dominated entirely by their largest
+// entry: over 64..32768 the term n² sums to 1.42e9, of which n = 32768 alone is
+// 1.07e9 and everything up to 4096 is 1.5%. Four such sweeps (two directions x
+// two precisions) added roughly 200 s to a package that already sat near Go's
+// 10-minute default timeout, and pushed it past on a two-core host.
+//
+// Capping here costs no coverage, because it is the division of labour the
+// large-size tests below already assume: 8192, 16384 and 32768 are cross-checked
+// against Stockham, an independent implementation with a different data flow and
+// no shared permutation table, which is stronger evidence at those sizes than a
+// slower copy of the same assertion. What the naive sweep uniquely provides is
+// ground truth that shares nothing with any FFT in this tree, and 64/128/256
+// already exercise all three ladder shapes -- 8^k, 2*8^k and 4*8^k -- with their
+// distinct tail stages.
+const naiveReferenceCap = 4096
+
+// radix8AVX512NaiveSizes filters a size list down to what the O(n²) reference
+// can afford.
+func radix8AVX512NaiveSizes(t *testing.T, sizes []int) []int {
+	t.Helper()
+
+	kept := make([]int, 0, len(sizes))
+
+	for _, n := range sizes {
+		if n <= naiveReferenceCap {
+			kept = append(kept, n)
+		}
+	}
+
+	return naiveReferenceSizes(t, kept)
+}
+
 func TestRadix8AVX512ForwardMatchesReference(t *testing.T) {
 	requireAVX512(t)
 
-	for _, n := range naiveReferenceSizes(t, radix8AVX512Sizes64()) {
+	for _, n := range radix8AVX512NaiveSizes(t, radix8AVX512Sizes64()) {
 		src := randomComplex64(n, uint64(n))
 		want := reference.NaiveDFT(src)
 
@@ -62,7 +97,7 @@ func TestRadix8AVX512ForwardMatchesReference(t *testing.T) {
 func TestRadix8AVX512InverseMatchesReference(t *testing.T) {
 	requireAVX512(t)
 
-	for _, n := range naiveReferenceSizes(t, radix8AVX512Sizes64()) {
+	for _, n := range radix8AVX512NaiveSizes(t, radix8AVX512Sizes64()) {
 		src := randomComplex64(n, uint64(n)+7)
 		want := reference.NaiveIDFT(src)
 
@@ -84,7 +119,7 @@ func TestRadix8AVX512InverseMatchesReference(t *testing.T) {
 func TestRadix8AVX512Complex128ForwardMatchesReference(t *testing.T) {
 	requireAVX512(t)
 
-	for _, n := range naiveReferenceSizes(t, radix8AVX512Sizes128()) {
+	for _, n := range radix8AVX512NaiveSizes(t, radix8AVX512Sizes128()) {
 		src := randomComplex128(n, uint64(n)+3)
 		want := reference.NaiveDFT128(src)
 
@@ -106,7 +141,7 @@ func TestRadix8AVX512Complex128ForwardMatchesReference(t *testing.T) {
 func TestRadix8AVX512Complex128InverseMatchesReference(t *testing.T) {
 	requireAVX512(t)
 
-	for _, n := range naiveReferenceSizes(t, radix8AVX512Sizes128()) {
+	for _, n := range radix8AVX512NaiveSizes(t, radix8AVX512Sizes128()) {
 		src := randomComplex128(n, uint64(n)+11)
 		want := reference.NaiveIDFT128(src)
 
@@ -153,6 +188,35 @@ func TestRadix8AVX512LargeSizesMatchStockham(t *testing.T) {
 		// sqrt(n) rather than as n; the same bound the AVX2 twin uses.
 		tol := 4e-6 * math.Sqrt(float64(n))
 		if d := maxAbsDiff64(got, want); d > tol {
+			t.Errorf("n=%d: max |diff| vs stockham = %g, tol %g", n, d, tol)
+		}
+	}
+}
+
+// TestRadix8AVX512Complex128LargeSizesMatchStockham is the complex128 twin,
+// and carries the large-size ground truth that naiveReferenceCap removes from
+// the reference sweep above.
+func TestRadix8AVX512Complex128LargeSizesMatchStockham(t *testing.T) {
+	requireAVX512(t)
+
+	for _, n := range []int{8192, 16384, 32768} {
+		src := randomComplex128(n, uint64(n)+31)
+
+		want := make([]complex128, n)
+		if !forwardStockhamComplex128(want, src, m.ComputeTwiddleFactors[complex128](n), make([]complex128, 2*n)) {
+			t.Fatalf("n=%d: stockham reference declined", n)
+		}
+
+		got := make([]complex128, n)
+		twiddle := make([]complex128, twiddleSizeRadix8(n))
+		prepareTwiddleRadix8Complex128(n, false, twiddle)
+
+		if !forwardRadix8AVX512Complex128(got, src, twiddle, make([]complex128, n)) {
+			t.Fatalf("n=%d: kernel declined", n)
+		}
+
+		tol := 1e-13 * math.Sqrt(float64(n))
+		if d := maxAbsDiff128(got, want); d > tol {
 			t.Errorf("n=%d: max |diff| vs stockham = %g, tol %g", n, d, tol)
 		}
 	}
