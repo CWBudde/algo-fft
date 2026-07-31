@@ -73,9 +73,9 @@ func TestRadix4AVX2Complex128Ranking(t *testing.T) {
 			continue
 		}
 
-		if best := results[0].ns; ours > best*rankingTolerance {
+		if rival, ok := fastestUpToAVX2(results); ok && ours > rival.ns*rankingTolerance {
 			t.Errorf("n=%d: %s took %.0f ns, more than %.1fx the fastest codelet %s at %.0f ns",
-				n, want, ours, rankingTolerance, results[0].sig, best)
+				n, want, ours, rankingTolerance, rival.sig, rival.ns)
 		}
 	}
 }
@@ -127,7 +127,7 @@ func timeCodelets128(t *testing.T, n int, features cpu.Features) []codeletTiming
 			}
 		}
 
-		results = append(results, codeletTiming{entry.Signature, best})
+		results = append(results, codeletTiming{entry.Signature, best, entry.SIMDLevel})
 	}
 
 	sort.Slice(results, func(a, b int) bool { return results[a].ns < results[b].ns })

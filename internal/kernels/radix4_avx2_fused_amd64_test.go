@@ -139,6 +139,16 @@ func TestRadix4AVX2FusedSelection(t *testing.T) {
 		t.Skip("AVX2 not available")
 	}
 
+	// Registry ordering is SIMD-level major, so on an AVX-512 host Lookup
+	// returns AVX-512 rows and none of the AVX2 signatures below can be
+	// selected at all -- the assertion would be testing the host's ISA rather
+	// than the per-size AVX2 tuning it exists to pin. Verified on the Xeon Gold
+	// 5218, idle: n=128 selects dit128_radix8_then2_avx512 (c64) and
+	// dit128_radix4_then2_avx512 (c128), n=8192 selects dit8192_radix2_avx512.
+	if features.HasAVX512 {
+		t.Skip("AVX-512 host: the registry selects AVX-512 rows, not the AVX2 rows pinned here")
+	}
+
 	want64 := map[int]string{
 		128:   "dit128_radix4fused_avx2",
 		512:   "dit512_radix8ladder_avx2",

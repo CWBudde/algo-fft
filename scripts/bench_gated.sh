@@ -267,6 +267,19 @@ done
 echo "groups: ${#groups[@]}  cells: $total  passes: $PASSES  benchtime: $BT" | tee -a "$log"
 echo "canary: $CANARY  GOOD=$GOOD ns  GATE=$GATE  ($cal_host, $cal_go)" | tee -a "$log"
 
+# Record the gate parameters alongside the results so the analyser reads THIS
+# sweep's numbers instead of keeping its own copy. They used to be hardcoded in
+# both scripts, which silently rejected every group of the first sweep run after
+# the canary changed: the producer gated against ~11300 ns and the analyser
+# against a stale 1810, so all 112 groups came back "over gate".
+{
+  echo "canary=$CANARY"
+  echo "good=$GOOD"
+  echo "gate=$GATE"
+  echo "host=$cal_host"
+  echo "go=$cal_go"
+} >"$OUTDIR/gate.meta"
+
 for ((pass = 1; pass <= PASSES; pass++)); do
   echo "=== pass $pass/$PASSES $(date +%H:%M:%S) ===" >>"$log"
   out="$OUTDIR/pass$pass.txt"

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cwbudde/algo-fft/internal/cpu"
+	"github.com/cwbudde/algo-fft/internal/fftypes"
 	m "github.com/cwbudde/algo-fft/internal/math"
 	"github.com/cwbudde/algo-fft/internal/registry"
 )
@@ -87,15 +88,21 @@ func TestRadix4AVX2Ranking(t *testing.T) {
 				break
 			}
 
-			best := results[0].ns
-			if ours <= best*rankingTolerance {
+			rival, ok := fastestUpToAVX2(results)
+			if !ok {
+				breach = ""
+
+				break
+			}
+
+			if ours <= rival.ns*rankingTolerance {
 				breach = ""
 
 				break
 			}
 
 			breach = fmt.Sprintf("n=%d: %s took %.0f ns, more than %.1fx the fastest codelet %s at %.0f ns",
-				n, want, ours, rankingTolerance, results[0].sig, best)
+				n, want, ours, rankingTolerance, rival.sig, rival.ns)
 		}
 
 		if breach != "" {
@@ -105,8 +112,29 @@ func TestRadix4AVX2Ranking(t *testing.T) {
 }
 
 type codeletTiming struct {
-	sig string
-	ns  float64
+	sig   string
+	ns    float64
+	level fftypes.SIMDLevel
+}
+
+// fastestUpToAVX2 returns the quickest timing among codelets at AVX2 level or
+// below, and whether there was one.
+//
+// The assertion these ranking tests make is that the 256-bit radix-4 kernel is
+// not badly beaten by a codelet it could be selected over. Registry ordering is
+// SIMD-level major, so an AVX-512 row outranks every AVX2 row regardless of
+// time -- comparing against it measures the ISA gap, not a tuning mistake. On
+// the Xeon Gold 5218 that is a real 1.7-1.8x at small sizes, which failed the
+// 1.5x tolerance on a completely idle machine. Timing and logging still cover
+// every codelet; only the comparison is restricted.
+func fastestUpToAVX2(results []codeletTiming) (codeletTiming, bool) {
+	for _, r := range results {
+		if r.level <= fftypes.SIMDAVX2 {
+			return r, true
+		}
+	}
+
+	return codeletTiming{}, false
 }
 
 // timeCodelets returns every runnable codelet for size n, fastest first. Each
@@ -156,7 +184,7 @@ func timeCodelets(t *testing.T, n int, features cpu.Features) []codeletTiming {
 			}
 		}
 
-		results = append(results, codeletTiming{entry.Signature, best})
+		results = append(results, codeletTiming{entry.Signature, best, entry.SIMDLevel})
 	}
 
 	sort.Slice(results, func(a, b int) bool { return results[a].ns < results[b].ns })

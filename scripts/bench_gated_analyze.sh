@@ -13,16 +13,44 @@
 #
 # Usage: scripts/bench_gated_analyze.sh [outdir]      # default benchmarks/gated
 #
-# Environment: GOOD, GATE, DRIFT (defaults 1810, 1.25, 1.25)
+# GOOD and GATE are read from the sweep's own $outdir/gate.meta, so this script
+# never keeps a second opinion about the gate. It used to default GOOD to 1810 --
+# the value of a canary that no longer exists -- and when the canary changed,
+# every group of the next sweep was rejected as "over gate" while the sweep
+# itself had accepted them all. An explicit GOOD= in the environment still wins,
+# for re-analysing an old directory.
+#
+# Environment: GOOD, GATE, DRIFT (DRIFT default 1.25)
 set -euo pipefail
 
 outdir="${1:-benchmarks/gated}"
-GOOD="${GOOD:-1810}"
-GATE="${GATE:-1.25}"
 DRIFT="${DRIFT:-1.25}"
 
 if [[ ! -d $outdir ]]; then
   echo "bench_gated_analyze: no such directory: $outdir" >&2
+  exit 1
+fi
+
+meta="$outdir/gate.meta"
+meta_good="" meta_gate=""
+if [[ -r $meta ]]; then
+  meta_good="$(awk -F= '$1 == "good" { print $2 }' "$meta")"
+  meta_gate="$(awk -F= '$1 == "gate" { print $2 }' "$meta")"
+fi
+
+GOOD="${GOOD:-$meta_good}"
+GATE="${GATE:-$meta_gate}"
+
+if [[ -z $GOOD || -z $GATE ]]; then
+  cat >&2 <<EOF
+bench_gated_analyze: no gate parameters for $outdir.
+
+$outdir/gate.meta is missing (a sweep from before it was recorded), so the gate
+this run was measured against is unknown. Rather than guess -- guessing is what
+made a whole sweep read as 100% rejected -- pass the values the sweep used:
+
+  GOOD=<ns> GATE=<factor> $0 $outdir
+EOF
   exit 1
 fi
 
