@@ -412,12 +412,41 @@ tail), radix-8 ladder, mixed-2/4, radix-16, radix-32 and the `32×32` / `16×32`
 decompositions, split-radix (conjugate-pair), Stockham (plain and packed),
 six-step, eight-step, four-step, recursive-with-codelet-leaves.
 
-- [ ] **Write the matrix down first, from the tree, before touching a kernel.**
-      A single table in `docs/CODELET_BENCHMARKS.md`: family × precision × ISA →
-      verdict + evidence link. Most cells already have an answer scattered across
-      that document and `docs/HISTORY.md`; the work is collecting them and
-      marking the blanks. Deliverable is the table with every cell filled or
-      explicitly marked `untested`.
+- [ ] **Generate the matrix skeleton; hand-write only the verdicts.** The
+      original form of this task was "collect the scattered answers into a table
+      in `docs/CODELET_BENCHMARKS.md`". That table would have more cells than any
+      artifact §1.1 had to repair, and §1.1's whole finding is that a hand-typed
+      inventory rots —`internal/fft/inventory_check.go` and two paragraphs in
+      this file each rotted the same way. So split it: enumeration is generated,
+      judgment is written.
+
+      **All three axes are already derivable.** Precision and ISA come from the
+      spec table. The family axis is the union of two sources the generator
+      already has: the codelet families encoded in each spec `Signature`
+      (`dit128_radix4_then2_sse3` → `radix4_then2`), which yields 16 today —
+      `radix4` 72 rows, `radix2` 52, `radix4_then2` 39, `radix8ladder` 36, then
+      radix8, radix16, radix32, `radix4fused`, `radix8_then2`, `radix32x32`,
+      `radix16x32`, sixstep, `sixstep64x128`, mixed, mixedradix, generic — and
+      the `Family` column of the tier table (`cmd/gencodelets/tiers.go`), which
+      supplies the families that have **no codelet rows at all**: split-radix,
+      Stockham, eight-step, four-step, Rader, Bluestein, recursive. That union is
+      the point. Split-radix — §1.2's "single largest untested cell" — is
+      invisible to a specs-only scan precisely *because* it is the gap.
+
+      **Deliverable.** `cmd/gencodelets` emits the family × precision × ISA grid
+      into `docs/IMPLEMENTATION_INVENTORY.md` with each cell pre-filled from the
+      registry as has-rows / probe-only / none, reusing the `✓ · p ✗ —`
+      vocabulary of the existing grids. `docs/CODELET_BENCHMARKS.md` keeps the
+      verdict and evidence link per family, hand-written, and a gate closes the
+      loop both ways — as the probe and disposition gates do: a family present in
+      the tree with no verdict fails, and a verdict naming a family that no
+      longer exists fails.
+
+      **What this task is not.** The skeleton is enumeration; it decides nothing.
+      Every remaining item in §1.2 is the judgment, and a generated grid of
+      mostly-blank verdict cells is a truer picture of how much is undecided than
+      a hand-collected table that quietly omits the families nobody has measured.
+
 - [ ] **Close out the two settled families in the matrix.** Radix-16 is closed
       for every ISA (pass advantage real, entirely consumed by the butterfly;
       AVX-512's 32 ZMM leave it structurally where AVX2 radix-8 already lost) and
@@ -516,8 +545,14 @@ unmeasured and unmaintainable.
       `forwardSSESize{8,16}…Asm` thunks in `internal/fft/asm_386.go` that nothing
       calls — the same 1:1-thunk shape as the nine files reclassified in the last
       round. Their SSE2/SSE3 twins at the same sizes are live, so the likely
-      answer is that these are superseded; confirm against the 386 dispatch
-      before removing.
+      answer is that these are superseded. **The confirmation this asked for is
+      now generated**: the tier table reports the 386 SSE1 dispatch switch
+      covering only n = 2 and 4, so nothing can reach n = 8 or 16 on that tier
+      whatever the thunks say. This is a deletion task, not an investigation —
+      run the deletion checklist below. Note the census ratchet keeps it honest:
+      the four symbols carry `tracked` dispositions quoting this checkbox, so
+      ticking it while the files remain fails
+      `TestTrackedDispositionsNameAnOpenPlanTask`.
 - [ ] **Record the deletion mechanics as a checklist in `AGENTS.md`.** Per file:
       the `.s`, its `decl.go` declaration, the wrappers in
       `internal/fft/asm_amd64.go`, the test/bench tables, any `plan_api_test.go`
@@ -579,9 +614,18 @@ unmeasured and unmaintainable.
 The AVX2 tier is the tuned one. The rest are where "good coverage of available
 algorithms" is actually missing.
 
-- [ ] **AVX-512: add complex128 spec rows.** `cmd/gencodelets/specs.go` has
-      **no `Target: "avx512"` rows for complex128** at all, against 21 for AVX2.
-      That is the single largest ISA gap in the inventory.
+- [ ] **AVX-512: close the three uncovered sizes.** The old text here claimed
+      there were **no** complex128 AVX-512 rows at all; the generated gap table
+      says **13**, the same as complex64's 13-of-16, so that framing was stale by
+      a full round. The real shape of the gap is identical at both precisions:
+      the tier covers 8–32768 and misses exactly `{4, 384, 65536}`. Size 4 is
+      below where the generic AVX-512 dispatch even engages (n ≥ 16) and is
+      almost certainly not worth a row — record that verdict rather than a
+      kernel. 384 is missed by **every** tier except AVX2 and belongs with the
+      item below. That leaves 65536 as the only genuine AVX-512 kernel gap here,
+      which makes this a much smaller task than it was written as. Re-derive the
+      numbers from the inventory before starting; do not trust this paragraph
+      either.
 - [ ] **AVX-512: a radix-4 kernel.** The shipped tier is generic **radix-2**
       while every AVX2 winner at those sizes is radix-4, so the existing
       comparison table measures an algorithm gap, not a vector-width gap. This is
@@ -617,9 +661,19 @@ algorithms" is actually missing.
       a complex64 tier for SSE2-without-SSE3 hardware — the complex multiply idiom
       needs `ADDSUBPS`, and SSE3 has been universal since ~2005; such machines
       keep the generic Go path.)
-- [ ] **SSE2/SSE3 and NEON: extend the ladder to 65536.** Both tiers stop at
-      32768 where AVX2 reaches 65536, so their uncovered range is one octave
-      wider — which also widens what the packed-Stockham item below is worth.
+- [ ] **Every tier but AVX2: extend the ladder to 65536.** The gap table makes
+      this one item, not three: SSE2-c128, SSE3, NEON **and AVX-512** all stop at
+      32768 where AVX2 reaches 65536, so four tiers share one uncovered octave —
+      which also widens what the packed-Stockham item below is worth.
+- [ ] **Decide n = 384 once, for all four tiers.** 384 is the only size AVX2
+      covers that **no other tier does** — SSE2, SSE3, AVX-512 and NEON each show
+      it as their single hole below their own ceiling. It is also the only
+      non-power-of-two in the codelet table, reached through the Go
+      `forwardDIT384MixedComplex64/128` decomposition (128×3), so the question is
+      whether the other tiers want the same decomposition or none at all. One
+      verdict covering all four, not four separate items — and if the answer is
+      "none", record it so the hole stops reading as an oversight in every future
+      gap table.
 - [ ] **NEON: priority tuning on real arm64 hardware.** The ladder runs 4 → 32768
       in both precisions, but every priority from 512 up was **mirrored from
       smaller sizes, not measured** — QEMU timing is meaningless and CI has no
