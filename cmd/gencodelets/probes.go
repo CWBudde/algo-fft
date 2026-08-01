@@ -19,11 +19,11 @@ import (
 // probeStatus values. These describe what the last sweep concluded, not
 // whether the file compiles.
 const (
-	probeOpen      = "open"             // the question is live; no sweep has answered it
-	probePartial   = "partly promoted"  // some cells won and became spec rows; the rest stay here
-	probeClosed    = "closed — lost"    // swept and lost everywhere; kept only to stay re-measurable
-	probeSupport   = "support"          // shared helpers, not a kernel
-	probeUndocumen = "UNDOCUMENTED"     // scanned from the tree with no note here
+	probeOpen      = "open"            // the question is live; no sweep has answered it
+	probePartial   = "partly promoted" // some cells won and became spec rows; the rest stay here
+	probeClosed    = "closed — lost"   // swept and lost everywhere; kept only to stay re-measurable
+	probeSupport   = "support"         // shared helpers, not a kernel
+	probeUndocumen = "UNDOCUMENTED"    // scanned from the tree with no note here
 )
 
 // probeNote is the authored half of a probe entry: what the file measures,

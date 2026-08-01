@@ -3,8 +3,9 @@
 package kernels
 
 import (
-	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 	"math"
+
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
 )
 
 // prepareTwiddleRadix16Complex128 fills dst with the per-stage twiddle planes
