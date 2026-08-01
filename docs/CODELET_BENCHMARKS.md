@@ -555,16 +555,16 @@ Both hosts, same compiled `-tags fftprobe` binary, `taskset -c 0`,
 per-rep ratios**, `s` is the spread (max - min) across the 7 reps. Under 1.00
 means radix-4 wins.
 
-|  size | fwd Xeon         | fwd i7-1255U | inv Xeon     | inv i7-1255U |
-| ----: | :--------------- | :----------- | :----------- | :----------- |
-|    64 | 0.989 (s0.08)    | 1.084 (s0.21) | 1.129 (s0.03) | 1.249 (s0.22) |
-|   128 | **0.834** (s0.09) | 1.138 (s0.17) | 0.991 (s0.11) | 1.224 (s0.08) |
-|   256 | 1.045 (s0.14)    | 1.543 (s0.33) | 1.233 (s0.01) | 1.538 (s0.27) |
-|   512 | **0.892** (s0.13) | 1.331 (s0.31) | 1.111 (s0.03) | 1.280 (s0.12) |
-|    1K | 1.042 (s0.03)    | 1.335 (s0.29) | 1.264 (s0.09) | 1.368 (s0.31) |
-|    2K | **0.904** (s0.02) | 1.203 (s0.45) | 1.143 (s0.02) | 1.303 (s0.30) |
-|    4K | 1.018 (s0.04)    | 1.267 (s0.30) | 1.264 (s0.03) | 1.286 (s0.14) |
-|    8K | **0.918** (s0.06) | 1.209 (s0.28) | 1.164 (s0.02) | 1.254 (s0.22) |
+| size | fwd Xeon          | fwd i7-1255U  | inv Xeon      | inv i7-1255U  |
+| ---: | :---------------- | :------------ | :------------ | :------------ |
+|   64 | 0.989 (s0.08)     | 1.084 (s0.21) | 1.129 (s0.03) | 1.249 (s0.22) |
+|  128 | **0.834** (s0.09) | 1.138 (s0.17) | 0.991 (s0.11) | 1.224 (s0.08) |
+|  256 | 1.045 (s0.14)     | 1.543 (s0.33) | 1.233 (s0.01) | 1.538 (s0.27) |
+|  512 | **0.892** (s0.13) | 1.331 (s0.31) | 1.111 (s0.03) | 1.280 (s0.12) |
+|   1K | 1.042 (s0.03)     | 1.335 (s0.29) | 1.264 (s0.09) | 1.368 (s0.31) |
+|   2K | **0.904** (s0.02) | 1.203 (s0.45) | 1.143 (s0.02) | 1.303 (s0.30) |
+|   4K | 1.018 (s0.04)     | 1.267 (s0.30) | 1.264 (s0.03) | 1.286 (s0.14) |
+|   8K | **0.918** (s0.06) | 1.209 (s0.28) | 1.164 (s0.02) | 1.254 (s0.22) |
 
 The forward column splits **exactly by shape**, which is why this is a result
 and not noise. 128 / 512 / 2K / 8K are the odd exponents — the `_mixed`
@@ -774,6 +774,52 @@ AVX-512 downclocking.
 
 Do not fold these figures into the i7-1255U tables below — different
 microarchitecture, different cache geometry, and a different incumbent per size.
+
+#### The AVX-512 radix-8 ladder: prediction half right, 16 rows promoted
+
+Sweep of 2026-07-31, Xeon Gold 5218, 8 passes × 20 groups, **160 accepted / 0
+rejected**, `benchmarks/gated-avx512r8`. Ratios are the ladder against the
+incumbent each size then selected, median within group. Under 1.00 wins.
+
+|     n |   c64 fwd |   c64 inv |  c128 fwd |  c128 inv |
+| ----: | --------: | --------: | --------: | --------: |
+|    64 |     1.968 |     1.861 |     1.464 |     1.455 |
+|   128 |     1.039 |     0.997 |     1.256 |     1.283 |
+|   256 | **0.947** | **0.921** | **0.708** | **0.743** |
+|   512 | **0.777** | **0.774** | **0.814** | **0.766** |
+|  1024 | **0.740** | **0.748** | **0.697** | **0.753** |
+|  2048 | **0.703** | **0.751** | **0.884** | **0.882** |
+|  4096 | **0.790** | **0.807** | **0.702** | **0.695** |
+|  8192 | **0.900** | **0.890** | **0.700** | **0.696** |
+| 16384 | **0.808** | **0.813** | **0.708** | **0.711** |
+| 32768 | **0.883** | **0.887** | **0.869** | **0.865** |
+
+**The register-budget diagnosis above is confirmed for complex128 and only
+complex128.** The stated bar was 1.4–1.7× over `dit8192_radix4_avx2` at
+n = 8192: complex128 lands 1.43× (0.700), inside the predicted band; complex64
+lands 1.11× (0.900), well short. The likely reason for the split is stage 1 —
+complex64 needs a `VPGATHERDQ` 8×8 transpose that complex128 gets from plain XMM
+loads — so the c64 ladder pays a gather the c128 ladder does not, on top of the
+same win.
+
+Sizes 256–32768 are promoted to production rows in both precisions
+(`cmd/gencodelets/specs_avx512.go`, Priority 50, ranked at `SIMDAVX512`).
+n = 64 and n = 128 are **not**: 64 loses outright in both precisions, and 128 is
+a c128 loss with c64 at parity (1.039/0.997 — a tie is not a promotion). Both
+stay in `radix8_avx512_probe_amd64.go`, whose size lists were trimmed to exactly
+the unpromoted cells so no signature is registered twice.
+
+Two things the sweep does not establish, and which the ratios above must not be
+read as covering:
+
+- The rows were promoted from a sweep taken while the ladder was
+  `RankLevel`-demoted to `SIMDSSE2`. Promotion makes it the incumbent, so the
+  comparison it won is no longer the comparison the registry makes. Nothing in
+  the numbers changes, but a re-sweep now reports the ladder against _itself_ at
+  these sizes unless the old incumbent is temporarily re-promoted.
+- Only `n = 8192` had a stated bar. The other nine sizes were measured, not
+  predicted, and 2048 c128 (0.884) and 32768 (0.869/0.883) are visibly weaker
+  than the ~0.70 the rest of the c128 column holds — unexplained.
 
 ### Measurement setup
 

@@ -480,6 +480,23 @@ nobody here owns.
       file selects a _different_ codelet at some size than the compiled-in
       priority does, and that the plan actually runs it. Until this is
       demonstrated once, the whole retuning story is untested.
+
+      **A concrete case now exists, measured 2026-08-01**: the complex128
+      generic AVX2 `_mixed` (radix-4-then-2) kernel wins forward by 8-17% at
+      n = 128/512/2K/8K on the Xeon Gold 5218 and loses the same four cells by
+      14-33% on the i7-1255U. Same kernel, same ISA tier, opposite verdict — see
+      `docs/CODELET_BENCHMARKS.md`, "complex128 generic AVX2: radix-2 wins on
+      the i7-1255U, loses on the Xeon". Use this as the flip to demonstrate.
+
+      Blocker specific to it: this pair is reached from the hardcoded preamble
+      chain in `forwardAVX2Complex128Asm`, not from the codelet registry, so
+      wisdom cannot select it at all today. Either the generic AVX2 c128 entry
+      points get registry rows (§2.2 disposition "registered, low priority" —
+      the laptop loss at the four odd-exponent sizes is 1.14-1.33×, inside the
+      1.5× bar), or the preamble learns to consult wisdom. **The choice changes
+      production dispatch on every amd64 host, so it is not a side effect of a
+      measurement round.**
+
 - [ ] **Document the tuning workflow in `docs/BENCHMARKING.md`.** How to tune, what
       the file contains, how to check which codelet a plan chose, and what to do
       when a tuned choice regresses.

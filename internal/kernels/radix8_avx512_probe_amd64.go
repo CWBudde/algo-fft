@@ -56,15 +56,26 @@ import (
 
 const radix8AVX512ProbePriority = 5
 
-// Every size each kernel accepts. Nothing is held back: no cell of this
-// ladder has been measured yet, and the sizes below 512 are where the
-// per-size AVX-512 codelets are strongest, so they are the ones most likely to
-// say no.
+// The sizes that measured a LOSS on the Xeon Gold 5218 (2026-07-31 sweep,
+// 160 accepted / 0 rejected) and are therefore kept here rather than promoted.
+//
+//	n = 64    c64 1.968/1.861, c128 1.464/1.455 -- dit64_radix2_avx512 and
+//	          dit64_radix4_avx512 win outright
+//	n = 128   c128 1.256/1.283 loss to dit128_radix4_then2_avx512;
+//	          c64 1.039/0.997 is parity, not a win
+//	n = 32    c128 only, never measured (no group in the sweep)
+//
+// Every size from 256 up won and is now a production row in
+// cmd/gencodelets/specs_avx512.go. Those sizes were REMOVED from the lists
+// below on 2026-08-01: a size registered both here and as a spec row puts the
+// same signature in a sweep group twice and reports it against itself, which is
+// the mistake radix8_avx2_probe_amd64.go's header records costing a full sweep.
+// If a promoted size is ever demoted, move it back here rather than adding it.
 //
 //nolint:gochecknoglobals // probe-only tables
 var (
-	radix8AVX512ProbeSizes64  = []int{64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768}
-	radix8AVX512ProbeSizes128 = []int{32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768}
+	radix8AVX512ProbeSizes64  = []int{64, 128}
+	radix8AVX512ProbeSizes128 = []int{32, 64, 128}
 )
 
 //nolint:gochecknoinits // matches the generated codelet registration files
