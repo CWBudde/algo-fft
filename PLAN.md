@@ -252,19 +252,53 @@ change to `cmd/gencodelets`, not to the Markdown.
       reached only through thunks in `internal/fft/asm_386.go` that nothing
       calls. Each needs a §2.2 disposition — none is a deletion yet.
 
-- [ ] **List the probe-gated kernels.** Everything behind `-tags fftprobe`
-      (`radix8_generic_probe.go`, `radix16_generic_probe.go`,
-      `radix8_avx2_probe_amd64.go`, `radix8_avx512_probe_amd64.go`,
-      `radix4_avx2_tail_probe_amd64.go`, `internal/fft/radix4_c128_probe_amd64.go`)
-      with its verdict and a link to the sweep that produced it. A probe not
-      listed here is folklore in waiting.
-- [ ] **Add a per-cell verdict column to the codelet tables.** `✓` today means
-      "registered"; split it into `✓` selectable, `·` registered candidate (low
-      priority, wisdom-reachable), `p` probe-only, `—` never existed, `✗`
-      structurally closed. The generator has `Priority` already, and the census
-      supplies the asm-side half (a codelet whose kernel is `unreachable` cannot
-      be `✓` whatever its row says); what is still missing is the verdict for
-      kernels with no spec row — a new field on `codeletSpec` or a sibling table.
+- [x] **List the probe-gated kernels** (2026-08-01). `cmd/gencodelets/probes.go`
+      renders a "Probe-Gated Kernels" section: what each file measures, its
+      build constraint, the verdict of the sweep that produced it, where that
+      sweep is written down, and the command that takes the number again. All
+      six harnesses plus `probe_util.go` are covered — one closed
+      (radix-16, loses every cell), three partly promoted (the radix-8 ladders,
+      whose winning cells are spec rows and whose losses stay registered), two
+      open (the radix-4 tail table, a standing harness; the complex128 AVX2
+      radix-4 pair, awaiting the Xeon).
+
+      The file list is **scanned from the build constraints**, not typed: the
+      table above was already stale by one file (`probe_util.go`), which is
+      exactly the failure mode. `TestProbeNotesCoverTree` fails when a new
+      `fftprobe` file has no verdict, `TestProbeNotesHaveNoStaleEntries` fails
+      when a verdict outlives its file, and `TestProbeNotesAreComplete` fails a
+      verdict with no record or a measurement probe with no re-derive command —
+      a claim with no evidence and a number nobody can retake being the two
+      ways a probe rots. Unlike the census ratchet below, this gate goes in
+      with zero violations, so it is a gate on day one.
+
+- [x] **Add a per-cell verdict column to the codelet tables** (2026-08-01).
+      `cmd/gencodelets/verdict.go` replaces the "registered / not registered"
+      tick with `✓` selectable (top of its size × rank tier, so `registry.Lookup`
+      returns it on any host whose best supported tier is that one), `·`
+      registered candidate (outranked in its own tier — never selected by the
+      compiled ranking, reachable only through wisdom, which is exactly what
+      §2.2 keeps such rows for), `p` probe-only, `✗` disabled (negative
+      priority) and `—` no kernel. `RankLevel` is honoured, so a demoted
+      AVX2-encoded codelet competes in the tier it was demoted into. Probe cells
+      come from the `Cells` field added to the probe table above rather than a
+      second hand-maintained list.
+
+      Three gates came with it. `TestProbeCellsDoNotShadowSpecRows` refuses a
+      probe cell that duplicates a spec row — the double-registration mistake
+      the AVX-512 probe header records costing a full sweep, where the group
+      reports a kernel against itself at exactly 1.000.
+      `TestProbeCellsMatchTheirFile` checks each cell's size and signature
+      fragment against the probe source. `TestRankLevelDemotesOnly` enforces
+      the AGENTS.md rule that `RankLevel` demotes and never promotes.
+
+      **Found on the way in:** `dit128_radix4_then2_sse3` and
+      `dit128_radix2_sse3` are both registered at Priority 17, and
+      `registry.Register` sorts with an unstable `sort.Slice` — so which of the
+      two runs is arbitrary. Allowlisted in `knownPriorityTies` and carried as
+      a §1.5 task; the grid would otherwise have printed two `✓` in one tier and
+      claimed something the registry cannot do.
+
 - [ ] **Ratchet the census once the current 14 are dispositioned.** A test that
       fails when a new `orphan`/`test-only`/`unreachable` symbol appears without
       an allowlist entry naming its disposition. Deferred on purpose: a ratchet
@@ -479,6 +513,17 @@ algorithms" is actually missing.
       directions. Do **not** retune shipped priorities from that host alone
       ([`docs/BENCHMARKING.md`](docs/BENCHMARKING.md)) — feed it into §1.6
       instead.
+- [ ] **SSE3 complex64 n = 128: break the priority tie.**
+      `dit128_radix4_then2_sse3` and `dit128_radix2_sse3` are both registered at
+      Priority 17, and `registry.Register` sorts with `sort.Slice`, which is
+      **not stable** — so which of the two runs is arbitrary rather than
+      decided. The complex128 SSE2 pair at the same size prefers
+      `radix4_then2` (18 over 17), which is a hint and not a number. Measure the
+      pair and give the loser a lower priority; the tie is allowlisted in
+      `knownPriorityTies` (`cmd/gencodelets/verdict_test.go`) meanwhile, and the
+      test fails if the list grows or if the entry outlives the tie. Worth
+      fixing generally too: a stable sort would at least make "first registered
+      wins" a rule rather than an accident.
 - [ ] **SSE2/SSE3: validate on genuine SSE-only hardware.** All the
       2048/4096/8192/16384/32768 measurements forced the SSE path on an
       AVX2-capable i7-1255U. Spot-check the speedups and the DIT-vs-six-step

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ import (
 const (
 	probeOpen      = "open"            // the question is live; no sweep has answered it
 	probePartial   = "partly promoted" // some cells won and became spec rows; the rest stay here
-	probeClosed    = "closed — lost"   // swept and lost everywhere; kept only to stay re-measurable
+	probeClosed    = "closed"          // swept and lost everywhere; kept only to stay re-measurable
 	probeSupport   = "support"         // shared helpers, not a kernel
 	probeUndocumen = "UNDOCUMENTED"    // scanned from the tree with no note here
 )
@@ -34,6 +35,61 @@ type probeNote struct {
 	Verdict string // what the last sweep returned, and what is still registered
 	Record  string // where the sweep is written down
 	Rederiv string // the command that reproduces it, "" for support files
+	// Cells are the registry cells this file registers under -tags fftprobe,
+	// which the quick-reference grids mark `p`. Empty for a probe that
+	// registers nothing (a benchmark harness over the dispatch path) and for
+	// support files. The registrations are not machine-extracted — the tail
+	// probe picks its variant per size through a conditional that only a Go
+	// evaluator would resolve — so TestProbeCellsMatchTheirFile checks each
+	// cell's size and signature fragment against the file text instead.
+	Cells []probeCell
+}
+
+// probeCell is one (precision, size, ISA tier) the probe registers a codelet
+// at. Variant is the signature's middle token, e.g. "radix8ladder".
+type probeCell struct {
+	Prec    int
+	Size    int
+	Level   string // a simdColumns entry: the grid column the cell lands in
+	Variant string
+}
+
+// signatureISA maps a SIMD level to the suffix the codelet signatures use.
+//
+//nolint:gochecknoglobals // static configuration for the inventory renderer
+var signatureISA = map[string]string{
+	"SIMDNone":   "generic",
+	"SIMDSSE2":   "sse2",
+	"SIMDSSE3":   "sse3",
+	"SIMDAVX2":   "avx2",
+	"SIMDAVX512": "avx512",
+	"SIMDNEON":   "neon",
+}
+
+// signature reconstructs the registered signature, so a probe cell is named
+// exactly the way the registry and the sweep name it.
+func (c probeCell) signature() string {
+	return "dit" + strconv.Itoa(c.Size) + "_" + c.Variant + "_" + signatureISA[c.Level]
+}
+
+// probeCells expands one (precision, tier, variant) across a list of sizes.
+func probeCells(prec int, level, variant string, sizes ...int) []probeCell {
+	out := make([]probeCell, 0, len(sizes))
+	for _, size := range sizes {
+		out = append(out, probeCell{Prec: prec, Size: size, Level: level, Variant: variant})
+	}
+
+	return out
+}
+
+// concatCells joins the per-precision groups of a probe's registrations.
+func concatCells(groups ...[]probeCell) []probeCell {
+	var out []probeCell
+	for _, g := range groups {
+		out = append(out, g...)
+	}
+
+	return out
 }
 
 // probeNotes is keyed by module-relative path.
@@ -54,6 +110,10 @@ var probeNotes = map[string]probeNote{
 		Record: "docs/CODELET_BENCHMARKS.md, \"Generic tier (i7-1255U, `-tags purego`) — the radix-8 ladder\"",
 		Rederiv: "GOFLAGS=-tags=fftprobe,purego GOOD=<canary floor> " +
 			"taskset -c 0 ./scripts/bench_gated.sh 512 1024 2048 4096 8192 16384 32768",
+		Cells: concatCells(
+			probeCells(64, "SIMDNone", "radix8ladder", 64, 128, 32768),
+			probeCells(128, "SIMDNone", "radix8ladder", 64, 128, 1024, 32768),
+		),
 	},
 	"internal/kernels/radix16_generic_probe.go": {
 		Subject: "size-generic pure-Go radix-16 ladder against the pure-Go radix-8 ladder",
@@ -69,6 +129,10 @@ var probeNotes = map[string]probeNote{
 		Record: "docs/CODELET_BENCHMARKS.md, \"Generic tier — the radix-16 ladder, and where the radix ladder stops\"",
 		Rederiv: "GOFLAGS=-tags=fftprobe,purego GOOD=<canary floor> " +
 			"taskset -c 0 ./scripts/bench_gated.sh 256 512 1024 2048 4096 8192 16384 32768 65536",
+		Cells: concatCells(
+			probeCells(64, "SIMDNone", "radix16ladder", 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536),
+			probeCells(128, "SIMDNone", "radix16ladder", 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536),
+		),
 	},
 	"internal/kernels/radix8_avx2_probe_amd64.go": {
 		Subject: "size-generic AVX2 radix-8 ladder against the AVX2 radix-4 rows",
@@ -84,6 +148,10 @@ var probeNotes = map[string]probeNote{
 			"\"n = 128 closed, and the odd-exponent question settled (2026-08-01)\"",
 		Rederiv: "GOFLAGS=-tags=fftprobe GOOD=<canary floor> " +
 			"taskset -c 0 ./scripts/bench_gated.sh 512 1024 2048 4096 8192 16384 32768",
+		Cells: concatCells(
+			probeCells(64, "SIMDAVX2", "radix8ladder", 32, 64, 128, 4096, 8192, 16384, 32768),
+			probeCells(128, "SIMDAVX2", "radix8ladder", 32, 64, 128, 256, 1024, 4096, 8192, 16384),
+		),
 	},
 	"internal/kernels/radix8_avx512_probe_amd64.go": {
 		Subject: "size-generic AVX-512 radix-8 ladder against the AVX2 radix-4 rows",
@@ -94,25 +162,40 @@ var probeNotes = map[string]probeNote{
 			"here is n = 64 (complex64 1.968/1.861, complex128 1.464/1.455), n = 128 (complex128 " +
 			"1.256/1.283 loss; complex64 1.039/0.997 is parity, not a win) and n = 32 complex128, " +
 			"never measured. Note the `RankLevel: SIMDSSE2` demotion: registry order is " +
-			"SIMD-level major, so an AVX-512 probe would otherwise *be* the incumbent and the " +
+			"SIMD-level major, so an AVX-512 probe would otherwise _be_ the incumbent and the " +
 			"sweep would report it 1.000 against itself — which the first run did.",
 		Record: "docs/CODELET_BENCHMARKS.md, \"AVX-512 tier (Xeon Gold 5218)\" and " +
 			"\"The radix-8 ladder on Skylake-SP — and the stride rule failing to transfer\"",
 		Rederiv: "GOFLAGS=-tags=fftprobe taskset -c 0 ./scripts/bench_gated.sh " +
 			"64 128 256 512 1024 2048 4096 8192 16384 32768   # AVX-512 host",
+		Cells: concatCells(
+			probeCells(64, "SIMDAVX512", "radix8ladder", 64, 128),
+			probeCells(128, "SIMDAVX512", "radix8ladder", 32, 64, 128),
+		),
 	},
 	"internal/kernels/radix4_avx2_tail_probe_amd64.go": {
-		Subject: "the n = 2*4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass",
+		Subject: "the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass",
 		Status:  probeOpen,
 		Verdict: "Standing harness rather than a one-shot question — the fused/unfused choice in " +
 			"`cmd/gencodelets/specs.go` is empirical, and an empirical constant with no way to " +
-			"re-derive it rots. At every 2*4^k size it registers the variant production does " +
-			"*not* use, so the comparison is available in both directions, plus a no-tail probe " +
+			"re-derive it rots. At every 2·4^k size it registers the variant production does " +
+			"_not_ use, so the comparison is available in both directions, plus a no-tail probe " +
 			"that **computes the wrong answer on purpose**: the gap to the incumbent is the whole " +
 			"cost of the tail and therefore the most any fusion could ever recover — 9-15% " +
 			"measured, against the 4-6% the fusion actually gets where it wins.",
 		Record:  "docs/CODELET_BENCHMARKS.md, \"n = 128 closed, and the odd-exponent question settled (2026-08-01)\"",
 		Rederiv: "GOFLAGS=-tags=fftprobe GOOD=<canary floor> taskset -c 0 ./scripts/bench_gated.sh 128 512 2048 8192 32768",
+		// The alternate variant is the one production does NOT use at that
+		// size, so these never collide with a spec row —
+		// TestProbeCellsDoNotShadowSpecRows is what keeps that true.
+		Cells: concatCells(
+			probeCells(64, "SIMDAVX2", "radix4", 128, 2048),
+			probeCells(64, "SIMDAVX2", "radix4fused", 512, 8192, 32768),
+			probeCells(64, "SIMDAVX2", "radix4_notail", 128, 512, 2048, 8192, 32768),
+			probeCells(128, "SIMDAVX2", "radix4", 128),
+			probeCells(128, "SIMDAVX2", "radix4fused", 512, 2048, 8192, 32768),
+			probeCells(128, "SIMDAVX2", "radix4_notail", 128, 512, 2048, 8192, 32768),
+		),
 	},
 	"internal/fft/radix4_c128_probe_amd64.go": {
 		Subject: "complex128 generic AVX2 radix-4 / radix-4-then-2 against the generic AVX2 radix-2 dispatch",
@@ -132,7 +215,7 @@ var probeNotes = map[string]probeNote{
 			"-benchtime=0.5s -count=5 ./internal/fft/",
 	},
 	"internal/kernels/probe_util.go": {
-		Subject: "shared helpers for the harnesses above (no kernel of its own)",
+		Subject: "shared helpers for the harnesses in this section (no kernel of its own)",
 		Status:  probeSupport,
 		Verdict: "Not a measurement. `itoa` builds the per-size signature strings without " +
 			"pulling `strconv` into a probe file.",

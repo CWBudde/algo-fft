@@ -36,6 +36,9 @@ var variantNames = map[string]string{
 	"radix2":              "Radix-2",
 	"radix4":              "Radix-4",
 	"radix4fused":         "Radix-4 (fused tail)",
+	"radix4_notail":       "Radix-4 (no tail — wrong result by design)",
+	"radix8ladder":        "Radix-8 (ladder)",
+	"radix16ladder":       "Radix-16 (ladder)",
 	"radix8":              "Radix-8",
 	"radix16":             "Radix-16",
 	"radix32":             "Radix-32",
@@ -127,7 +130,7 @@ unreachable.
   package-level initializer.
 - **unreachable** — referenced only from non-test Go code that is itself
   unreachable (the second-order case: a live-looking thunk with no live caller).
-- **test-only** — referenced only from _test.go files. Declared-but-uncalled
+- **test-only** — referenced only from `+"`_test.go`"+` files. Declared-but-uncalled
   assembly is untested assembly; these run only when a test names them.
 - **orphan** — declared and referenced by nothing at all.
 
@@ -148,8 +151,8 @@ func renderProbes(b *bytes.Buffer, probes []probeEntry) {
 	b.WriteString(strings.TrimLeft(`
 ## Probe-Gated Kernels
 
-Kernels behind `+"`-tags fftprobe`"+` are in the tree but outside every production
-build and every registry lookup, so they cost nothing at runtime. A kernel is
+Anything behind `+"`-tags fftprobe`"+` is in the tree but outside every production
+build and every registry lookup, so it costs nothing at runtime. A kernel is
 kept this way when it lost a measurement rather than a structural argument
 (PLAN.md §2.2): deleting the file is what would make the second measurement
 impossible, and an unlisted probe is a question on its way back to folklore.
@@ -326,23 +329,11 @@ func renderCensusShared(b *bytes.Buffer, c *census) {
 
 // renderGrid writes the size × SIMD-level grid for one precision.
 func renderGrid(b *bytes.Buffer, prec int) {
-	cells := map[gridKey]map[string]bool{}
+	cells := cellVerdicts(prec)
 
-	var keys []gridKey
-
-	for _, s := range codeletSpecs {
-		if s.Prec != prec {
-			continue
-		}
-
-		k := gridKey{size: s.Size, variant: variantOf(s.Signature)}
-		if cells[k] == nil {
-			cells[k] = map[string]bool{}
-
-			keys = append(keys, k)
-		}
-
-		cells[k][s.SIMDLevel] = true
+	keys := make([]gridKey, 0, len(cells))
+	for k := range cells {
+		keys = append(keys, k)
 	}
 
 	sort.Slice(keys, func(i, j int) bool {
@@ -371,9 +362,9 @@ func renderGrid(b *bytes.Buffer, prec int) {
 		fmt.Fprintf(b, "| %d | %s |", k.size, k.variant)
 
 		for _, c := range simdColumns {
-			mark := "-"
-			if cells[k][c] {
-				mark = "✓"
+			mark := cellAbsent
+			if v := cells[k][c]; v != "" {
+				mark = v
 			}
 
 			fmt.Fprintf(b, " %s |", mark)
@@ -382,7 +373,27 @@ func renderGrid(b *bytes.Buffer, prec int) {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("\n✓ = registered codelet (forward + inverse); - = not registered.\n\n")
+	b.WriteString(strings.TrimLeft(`
+`+cellSelectable+` selectable — the highest-ranked codelet for its size within its own rank
+tier, so `+"`registry.Lookup`"+` returns it on any host whose top supported tier is
+that one.
+`+cellCandidate+` registered candidate — outranked by a peer in the same tier, so the
+compiled ranking never selects it. It is carried because the wisdom tuner can
+still pick it on a host with different cache geometry (PLAN.md §2.2), and it
+costs one arm of a wisdom measurement.
+`+cellProbe+` probe-only — registered exclusively under `+"`-tags fftprobe`"+`; absent from
+every production build. See the probe section for the verdict.
+`+cellDisabled+` disabled — a row kept for the record at a negative priority. Never
+selected, and not wisdom-reachable either.
+`+cellAbsent+` no kernel at this size and tier.
+
+Ranking is SIMD-level major and priority only orders within a level, so `+cellSelectable+`
+appears once per (size, rank tier) and a cell can be selectable in the SSE2
+column while an AVX2 cell one column over is selectable too — they win on
+different hosts. `+"`RankLevel`"+` is taken into account: a demoted AVX2-encoded
+codelet competes in the tier it was demoted into, not the one it executes in.
+
+`, "\n"))
 }
 
 // renderCounts writes the per-target registration counts.
