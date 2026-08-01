@@ -3,15 +3,65 @@
 // ===========================================================================
 // NEON Size-4 Radix-4 FFT Kernels for ARM64
 // ===========================================================================
+//
+// This replaced an earlier scalar implementation that, despite the "NEON"
+// name, contained no vector instructions at all — plain FMOVS/FADDS/FSUBS —
+// and measured 3.23x SLOWER (inverse) than the pure-Go codelet on an Apple
+// M5. See docs/CODELET_BENCHMARKS.md.
+//
+// n = 4 complex64 is only 32 bytes = 2 Q registers — too small for the 4x4
+// vertical decomposition the size-16 kernel uses (VLD2 split layout, DFT4
+// across four vectors, transpose). Instead this works directly on the raw
+// interleaved (re,im,re,im,...) layout loaded as two S4 vectors:
+//
+//   V0 = [x0r, x0i, x1r, x1i]   V1 = [x2r, x2i, x3r, x3i]
+//
+// Radix-4 DIT butterfly:
+//   t0 = x0+x2   t1 = x0-x2   t2 = x1+x3   t3 = x1-x3
+//   X0 = t0+t2   X2 = t0-t2
+//   X1 = t1 - i*t3   X3 = t1 + i*t3            (forward, W4 = -i)
+//   X1 = t1 + i*t3   X3 = t1 - i*t3            (inverse, W4 = +i)
+//
+// A = t0,t2 (VADDF of V0,V1); B = t1,t3 (VSUBF of V0,V1). A D2-zip pair
+// regroups these into C = [t0, t1] and D = [t2, t3]. A VREV64 + single-lane
+// blend turns D into E = [t2r, t2i, t3i, t3r]; negating one lane (chosen by
+// direction) yields ±i*t3 in the upper half, so Dp = [t2, ±i*t3] and
+// C±Dp gives all four outputs directly, laid out as two consecutive
+// complex pairs ready for a plain VST1.
+//
+// The twiddle argument is unused (all n=4 factors are trivial) but its
+// length is still validated to keep the accepted-input contract unchanged.
+//
+// dst may alias src: both source vectors are loaded into registers before
+// the first store, so nothing needs a scratch copy-back.
+//
+// Go's arm64 assembler has NO vector FADD/FSUB/FMUL — VFMLA and VFMLS are
+// the only vector FP arithmetic mnemonics it accepts. Addition and
+// subtraction are synthesized against a vector of 1.0 (·neonOnes), exactly
+// as neon_f32_generic.s and neon_f32_size16_radix4.s do.
+//
+// ===========================================================================
 
 #include "textflag.h"
 
-// Forward transform, size 4, radix-4 (no bit-reversal needed).
+// V31 permanently holds [1.0, 1.0, 1.0, 1.0]; the add/sub macros depend on it.
+#define ONES V31
+
+// d = a + b, d = a - b (a, b, d are V-register names without arrangement).
+#define VADDF(a, b, d) \
+	VMOV  a.B16, d.B16    \
+	VFMLA b.S4, ONES.S4, d.S4
+
+#define VSUBF(a, b, d) \
+	VMOV  a.B16, d.B16    \
+	VFMLS b.S4, ONES.S4, d.S4
+
+// ---------------------------------------------------------------------------
+// func ForwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+// ---------------------------------------------------------------------------
 TEXT ·ForwardNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
-	MOVD twiddle+48(FP), R10
-	MOVD scratch+72(FP), R11
 	MOVD src_len+32(FP), R13
 
 	CMP  $4, R13
@@ -29,68 +79,37 @@ TEXT ·ForwardNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $4, R0
 	BLT  neon4r4_return_false
 
-	MOVD R8, R20
-	CMP  R8, R9
-	BNE  neon4r4_use_dst
-	MOVD R11, R8
+	MOVD $·neonOnes(SB), R0
+	VLD1 (R0), [ONES.S4]
 
-neon4r4_use_dst:
-	FMOVS 0(R9), F0
-	FMOVS 4(R9), F1
-	FMOVS 8(R9), F2
-	FMOVS 12(R9), F3
-	FMOVS 16(R9), F4
-	FMOVS 20(R9), F5
-	FMOVS 24(R9), F6
-	FMOVS 28(R9), F7
+	// Raw interleaved load: V0 = x0,x1  V1 = x2,x3.
+	VLD1 (R9), [V0.S4, V1.S4]
 
-	FSUBS F4, F0, F8
-	FSUBS F5, F1, F9
-	FADDS F4, F0, F10
-	FADDS F5, F1, F11
+	// A = [t0, t2] = x0+x2, x1+x3.  B = [t1, t3] = x0-x2, x1-x3.
+	VADDF(V0, V1, V2)
+	VSUBF(V0, V1, V3)
 
-	FSUBS F6, F2, F12
-	FSUBS F7, F3, F13
-	FADDS F6, F2, F14
-	FADDS F7, F3, F15
+	// C = [t0, t1]  D = [t2, t3].
+	VZIP1 V3.D2, V2.D2, V4.D2
+	VZIP2 V3.D2, V2.D2, V5.D2
 
-	FMOVS F13, F16
-	FNEGS F12, F17
+	// E = [t2i, t2r, t3i, t3r]; blend D's low half with E's high half to
+	// get Dp = [t2r, t2i, t3i, t3r], then negate lane 3 (t3r -> -t3r) so
+	// the upper half becomes -i*t3 = (t3i, -t3r).
+	VREV64 V5.S4, V6.S4
+	VMOV   V5.B16, V7.B16
+	VMOV   V6.D[1], V7.D[1]
 
-	FADDS F14, F10, F18
-	FADDS F15, F11, F19
-	FADDS F16, F8, F20
-	FADDS F17, F9, F21
-	FSUBS F14, F10, F22
-	FSUBS F15, F11, F23
-	FSUBS F16, F8, F24
-	FSUBS F17, F9, F25
+	MOVD $·neonSignLane3F32(SB), R0
+	VLD1 (R0), [V16.S4]
+	VEOR V16.B16, V7.B16, V7.B16
 
-	FMOVS F18, 0(R8)
-	FMOVS F19, 4(R8)
-	FMOVS F20, 8(R8)
-	FMOVS F21, 12(R8)
-	FMOVS F22, 16(R8)
-	FMOVS F23, 20(R8)
-	FMOVS F24, 24(R8)
-	FMOVS F25, 28(R8)
+	// X_lo = C+Dp = [X0, X1]   X_hi = C-Dp = [X2, X3].
+	VADDF(V4, V7, V8)
+	VSUBF(V4, V7, V9)
 
-	CMP  R8, R20
-	BEQ  neon4r4_return_true
+	VST1 [V8.S4, V9.S4], (R8)
 
-	MOVD $0, R0
-neon4r4_copy_loop:
-	CMP  $4, R0
-	BGE  neon4r4_return_true
-	LSL  $3, R0, R1
-	ADD  R8, R1, R2
-	MOVD (R2), R2
-	ADD  R20, R1, R3
-	MOVD R2, (R3)
-	ADD  $1, R0, R0
-	B    neon4r4_copy_loop
-
-neon4r4_return_true:
 	MOVD $1, R0
 	MOVB R0, ret+96(FP)
 	RET
@@ -100,12 +119,12 @@ neon4r4_return_false:
 	MOVB R0, ret+96(FP)
 	RET
 
-// Inverse transform, size 4, radix-4 (no bit-reversal needed).
+// ---------------------------------------------------------------------------
+// func InverseNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+// ---------------------------------------------------------------------------
 TEXT ·InverseNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
-	MOVD twiddle+48(FP), R10
-	MOVD scratch+72(FP), R11
 	MOVD src_len+32(FP), R13
 
 	CMP  $4, R13
@@ -123,87 +142,48 @@ TEXT ·InverseNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $4, R0
 	BLT  neon4r4_inv_return_false
 
-	MOVD R8, R20
-	CMP  R8, R9
-	BNE  neon4r4_inv_use_dst
-	MOVD R11, R8
+	MOVD $·neonOnes(SB), R0
+	VLD1 (R0), [ONES.S4]
 
-neon4r4_inv_use_dst:
-	FMOVS 0(R9), F0
-	FMOVS 4(R9), F1
-	FMOVS 8(R9), F2
-	FMOVS 12(R9), F3
-	FMOVS 16(R9), F4
-	FMOVS 20(R9), F5
-	FMOVS 24(R9), F6
-	FMOVS 28(R9), F7
+	// Raw interleaved load: V0 = x0,x1  V1 = x2,x3.
+	VLD1 (R9), [V0.S4, V1.S4]
 
-	FSUBS F4, F0, F8
-	FSUBS F5, F1, F9
-	FADDS F4, F0, F10
-	FADDS F5, F1, F11
+	// A = [t0, t2] = x0+x2, x1+x3.  B = [t1, t3] = x0-x2, x1-x3.
+	VADDF(V0, V1, V2)
+	VSUBF(V0, V1, V3)
 
-	FSUBS F6, F2, F12
-	FSUBS F7, F3, F13
-	FADDS F6, F2, F14
-	FADDS F7, F3, F15
+	// C = [t0, t1]  D = [t2, t3].
+	VZIP1 V3.D2, V2.D2, V4.D2
+	VZIP2 V3.D2, V2.D2, V5.D2
 
-	FNEGS F13, F16
-	FMOVS F12, F17
+	// E = [t2i, t2r, t3i, t3r]; blend D's low half with E's high half to
+	// get Dp = [t2r, t2i, t3i, t3r], then negate lane 2 (t3i -> -t3i) so
+	// the upper half becomes +i*t3 = (-t3i, t3r).
+	VREV64 V5.S4, V6.S4
+	VMOV   V5.B16, V7.B16
+	VMOV   V6.D[1], V7.D[1]
 
-	FADDS F14, F10, F18
-	FADDS F15, F11, F19
-	FADDS F16, F8, F20
-	FADDS F17, F9, F21
-	FSUBS F14, F10, F22
-	FSUBS F15, F11, F23
-	FSUBS F16, F8, F24
-	FSUBS F17, F9, F25
+	MOVD $·neonSignLane2F32(SB), R0
+	VLD1 (R0), [V16.S4]
+	VEOR V16.B16, V7.B16, V7.B16
 
-	FMOVS F18, 0(R8)
-	FMOVS F19, 4(R8)
-	FMOVS F20, 8(R8)
-	FMOVS F21, 12(R8)
-	FMOVS F22, 16(R8)
-	FMOVS F23, 20(R8)
-	FMOVS F24, 24(R8)
-	FMOVS F25, 28(R8)
+	// X_lo = C+Dp = [X0, X1]   X_hi = C-Dp = [X2, X3].
+	VADDF(V4, V7, V8)
+	VSUBF(V4, V7, V9)
 
-	CMP  R8, R20
-	BEQ  neon4r4_inv_scale
+	// Scale by 1/4. Broadcast from memory — a register broadcast of a
+	// scalar constant costs a fixed ~100ns and would dominate a kernel
+	// this small.
+	MOVD  $·neonInv4(SB), R0
+	VLD1R (R0), [V17.S4]
 
-	MOVD $0, R0
-neon4r4_inv_copy_loop:
-	CMP  $4, R0
-	BGE  neon4r4_inv_scale
-	LSL  $3, R0, R1
-	ADD  R8, R1, R2
-	MOVD (R2), R2
-	ADD  R20, R1, R3
-	MOVD R2, (R3)
-	ADD  $1, R0, R0
-	B    neon4r4_inv_copy_loop
+	VEOR  V10.B16, V10.B16, V10.B16
+	VFMLA V8.S4, V17.S4, V10.S4
+	VEOR  V11.B16, V11.B16, V11.B16
+	VFMLA V9.S4, V17.S4, V11.S4
 
-neon4r4_inv_scale:
-	MOVD $·neonInv4(SB), R1
-	FMOVS (R1), F0
-	MOVD $0, R0
+	VST1 [V10.S4, V11.S4], (R8)
 
-neon4r4_inv_scale_loop:
-	CMP  $4, R0
-	BGE  neon4r4_inv_return_true
-	LSL  $3, R0, R1
-	ADD  R20, R1, R1
-	FMOVS 0(R1), F2
-	FMOVS 4(R1), F3
-	FMULS F0, F2, F2
-	FMULS F0, F3, F3
-	FMOVS F2, 0(R1)
-	FMOVS F3, 4(R1)
-	ADD  $1, R0, R0
-	B    neon4r4_inv_scale_loop
-
-neon4r4_inv_return_true:
 	MOVD $1, R0
 	MOVB R0, ret+96(FP)
 	RET
@@ -212,3 +192,17 @@ neon4r4_inv_return_false:
 	MOVD $0, R0
 	MOVB R0, ret+96(FP)
 	RET
+
+// Sign masks for the ±i*t3 blend: negate a single lane (the low 32 bits of
+// the D-lane holding t3's real or imaginary part) via VEOR.
+DATA ·neonSignLane3F32+0(SB)/4, $0x00000000
+DATA ·neonSignLane3F32+4(SB)/4, $0x00000000
+DATA ·neonSignLane3F32+8(SB)/4, $0x00000000
+DATA ·neonSignLane3F32+12(SB)/4, $0x80000000
+GLOBL ·neonSignLane3F32(SB), RODATA, $16
+
+DATA ·neonSignLane2F32+0(SB)/4, $0x00000000
+DATA ·neonSignLane2F32+4(SB)/4, $0x00000000
+DATA ·neonSignLane2F32+8(SB)/4, $0x80000000
+DATA ·neonSignLane2F32+12(SB)/4, $0x00000000
+GLOBL ·neonSignLane2F32(SB), RODATA, $16

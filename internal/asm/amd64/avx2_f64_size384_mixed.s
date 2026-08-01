@@ -6,6 +6,16 @@
 //
 // Size 384 = 128 × 3 = 2^7 × 3
 //
+// REACHABILITY -- read before including this file in any size-specific sweep.
+// It carries no row in cmd/gencodelets/specs.go, which is the same shape as the
+// sixteen size-specific AVX2 files PLAN.md §1.3 is retiring, and it is NOT one
+// of them. This file is reached through the Go codelet
+// forwardDIT384MixedComplex128 / inverseDIT384MixedComplex128, not through the
+// KernelStrategy switch in internal/fft/kernels_amd64_size_specific.go, so the
+// §1.3 measurement says nothing about it and deleting it on that result would
+// break a live path. The census in docs/IMPLEMENTATION_INVENTORY.md reports its
+// symbols live for exactly this reason.
+//
 // Algorithm: Decompose as radix-3 outer, size-128 inner
 //   Step 1: Perform 3 independent 128-point FFTs on sub-arrays
 //   Step 2: Apply twiddle factors to elements 128-383

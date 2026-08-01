@@ -196,6 +196,36 @@ Deleting the file is also what makes the second measurement impossible: the
 sanctioned route to the Xeon is commit + push then `git pull` there, so code
 that is not in the tree cannot be measured on it.
 
+### Retiring a kernel: the mechanical checklist
+
+Once §2.2 has actually justified removal, the edit is the same every time. It
+has been re-derived per round and has broken the build at least once, so:
+
+1. **Relocate any shared `GLOBL` data first, in its own step.** A `.s` file that
+   hosts a `DATA`/`GLOBL` table another kernel references cannot be deleted with
+   it — the link fails with "relocation target not defined", and the failure is
+   at link time, so a package that compiles proves nothing. Shared tables live
+   in `internal/asm/amd64/bitrev_radix4_tables.s`. Find them with
+   `grep -l '<symbol>' internal/asm/*/*.s` and check the count is 1 before
+   assuming a table is private.
+2. The `.s` file itself.
+3. Its declaration in `internal/asm/<arch>/decl.go`.
+   `internal/asm/decl_text_test.go` catches an orphaned declaration; the linker
+   catches an orphaned `TEXT`.
+4. The thin wrappers in `internal/fft/asm_<arch>.go`, and any dispatch `case`
+   that named them (`internal/fft/kernels_amd64_size_specific.go`).
+5. The spec row in `cmd/gencodelets/specs*.go`, then
+   `go generate ./internal/kernels/...` — never hand-edit `*_c128.gen.go`,
+   `codelet_init_*.gen.go` or `docs/IMPLEMENTATION_INVENTORY.md`.
+6. Test and benchmark tables that name the symbol, and any
+   `plan_api_test.go` signature allowlist entry.
+7. Any `cmd/gencodelets/dispositions.go` entry — it is a gate, not a note: an
+   entry whose symbol no longer exists fails the build's tests just as a dark
+   symbol without one does.
+
+Scope every `grep` to the real tree. Leftover `.claude/worktrees/` copies
+inflate caller counts and have made a dead symbol look live.
+
 ### Before Committing
 
 ```bash

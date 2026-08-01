@@ -56,6 +56,14 @@ const (
 	// fallback arm directly below it so the two are adjacent in the sweep.
 	sizeSpecificProbePriority         = 4
 	sizeSpecificFallbackProbePriority = 3
+
+	// The generic AVX2 kernels decline below these lengths, so the switch's
+	// fallback arm does not exist at complex64 n = 8 or complex128 n = 4: those
+	// two cases return false and dispatch walks on to a narrower tier. Registering
+	// a declining codelet would fail the reference test with a untouched dst,
+	// which is how these two were found.
+	sizeSpecificFallbackMinSize64  = 16
+	sizeSpecificFallbackMinSize128 = 8
 )
 
 // probeBitrev memoises the plain bit-reversal table the complex128 generic
@@ -196,6 +204,10 @@ func init() {
 			KernelType: fftypes.KernelTypeDIT,
 		})
 
+		if p.size < sizeSpecificFallbackMinSize64 {
+			continue
+		}
+
 		registry.Registry64.Register(registry.CodeletEntry[complex64]{
 			Size: p.size, Forward: probeFallbackForwardComplex64, Inverse: probeFallbackInverseComplex64,
 			Algorithm: fftypes.KernelDIT, SIMDLevel: fftypes.SIMDAVX2,
@@ -215,6 +227,10 @@ func init() {
 			Priority:   sizeSpecificProbePriority,
 			KernelType: fftypes.KernelTypeDIT,
 		})
+
+		if p.size < sizeSpecificFallbackMinSize128 {
+			continue
+		}
 
 		registry.Registry128.Register(registry.CodeletEntry[complex128]{
 			Size: p.size, Forward: probeFallbackForwardComplex128, Inverse: probeFallbackInverseComplex128,

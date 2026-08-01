@@ -4,680 +4,340 @@
 // NEON Size-8 Radix-4 FFT Kernels for ARM64 (complex128)
 // ===========================================================================
 //
-// Size 8 = 4 * 2, mixed-radix (radix-4 + radix-2) algorithm:
-//   Stage 1: 2 radix-4 butterflies (no twiddles)
-//   Stage 2: radix-2 butterflies with twiddles
+// This replaced an earlier scalar implementation that, despite the "NEON"
+// name, contained no vector instructions at all — plain FMOVD/FADDD/FMULD
+// with a bit-reversal loop — and measured 3.76x (forward) / 3.69x (inverse)
+// SLOWER than the pure-Go codelet on an Apple M5, the single worst cell in
+// the whole NEON codelet table. See docs/CODELET_BENCHMARKS.md.
 //
-// Each complex128 element is 16 bytes (real f64 + imag f64).
+// Algorithm — a 2x4 Cooley-Tukey, natural order in, natural order out, no
+// bit-reversal pass. A Q register holds 2 float64, so a VLD2 pair holds 2
+// complex128 with re/im split; n = 8 complex128 = 128 bytes = 4 such pairs.
 //
-// Register allocation:
-//   R8  = working dst pointer (may point to scratch if src==dst)
-//   R9  = src pointer
-//   R10 = twiddle pointer
-//   R11 = scratch pointer
-//   R12 = bit-reversal table pointer
-//   R13 = n (size, should be 8)
-//   R20 = original dst pointer (preserved)
+// With n = n1 + 2*n2 (n1 in {0,1} = lane, n2 in {0,1,2,3} = vector) and
+// k = 4*k1 + k2 (k1 in {0,1}, k2 in {0,1,2,3}):
+//
+//   X[4k1+k2] = SUM_{n1} W2^(n1*k1) * W8^(n1*k2) * [ SUM_{n2} x[n1+2*n2] * W4^(n2*k2) ]
+//
+//   A) DFT4 over n2   — vertical across the four vector pairs, lane = n1.
+//      Afterwards the vector index means k2, the lane still means n1.
+//   B) twiddle by W8^(n1*k2) — lane n1=0 gets factor 1, lane n1=1 gets
+//      W8^k2. k2 = 0 is all-ones and is skipped.
+//   C) pair up k2 vectors two at a time and DFT2 over n1, which is the
+//      *lane* index: pairing turns the horizontal DFT2 into a vertical one
+//      and lands two consecutive outputs per register in the same step.
+//   D) store — four VST2s of two consecutive outputs each.
+//
+// Every input is loaded into registers before the first store, so dst may
+// alias src and no scratch buffer or copy-back is needed.
+//
+// Go's arm64 assembler has NO vector FADD/FSUB/FMUL — VFMLA and VFMLS are the
+// only vector FP arithmetic mnemonics it accepts. Addition and subtraction are
+// therefore synthesized against a vector of 1.0 and multiplication against a
+// VEOR-zeroed accumulator, exactly as neon_f64_size4_radix4.s does. There is
+// no float64 ·neonOnes; ·neonOne64 (core.s) is one 8-byte 1.0, broadcast to
+// both lanes with VLD1R.
 //
 // ===========================================================================
 
 #include "textflag.h"
 
-// Note: neonInv8F64 is defined in neon_f64_size8_radix2.s to avoid duplicate symbols
+// Note: neonInv8F64 is defined in neon_f64_size8_radix2.s to avoid duplicate
+// symbols.
 
-// Forward transform, size 8, complex128, radix-4 variant
+// V31 permanently holds [1.0, 1.0]; the add/sub macros depend on it.
+#define ONES V31
+
+// d = a + b, d = a - b (a, b, d are V-register names without arrangement).
+#define VADDF(a, b, d) \
+	VMOV  a.B16, d.B16    \
+	VFMLA b.D2, ONES.D2, d.D2
+
+#define VSUBF(a, b, d) \
+	VMOV  a.B16, d.B16    \
+	VFMLS b.D2, ONES.D2, d.D2
+
+// Forward DFT4 across four vectors (W4 = -i):
+//   X0 = t0+t2   X2 = t0-t2   X1 = t1 - i*t3   X3 = t1 + i*t3
+// where t0 = a0+a2, t1 = a0-a2, t2 = a1+a3, t3 = a1-a3.
+// Operates on real parts ar0..ar3 and imaginary parts ai0..ai3 in place,
+// clobbering the eight temporaries.
+#define VDFT4_FWD(ar0, ar1, ar2, ar3, ai0, ai1, ai2, ai3, t0r, t1r, t2r, t3r, t0i, t1i, t2i, t3i) \
+	VADDF(ar0, ar2, t0r) \
+	VSUBF(ar0, ar2, t1r) \
+	VADDF(ar1, ar3, t2r) \
+	VSUBF(ar1, ar3, t3r) \
+	VADDF(ai0, ai2, t0i) \
+	VSUBF(ai0, ai2, t1i) \
+	VADDF(ai1, ai3, t2i) \
+	VSUBF(ai1, ai3, t3i) \
+	VADDF(t0r, t2r, ar0) \
+	VADDF(t0i, t2i, ai0) \
+	VSUBF(t0r, t2r, ar2) \
+	VSUBF(t0i, t2i, ai2) \
+	VADDF(t1r, t3i, ar1) \
+	VSUBF(t1i, t3r, ai1) \
+	VSUBF(t1r, t3i, ar3) \
+	VADDF(t1i, t3r, ai3)
+
+// Inverse DFT4 across four vectors (W4 = +i): X1 and X3 swap relative to fwd.
+#define VDFT4_INV(ar0, ar1, ar2, ar3, ai0, ai1, ai2, ai3, t0r, t1r, t2r, t3r, t0i, t1i, t2i, t3i) \
+	VADDF(ar0, ar2, t0r) \
+	VSUBF(ar0, ar2, t1r) \
+	VADDF(ar1, ar3, t2r) \
+	VSUBF(ar1, ar3, t3r) \
+	VADDF(ai0, ai2, t0i) \
+	VSUBF(ai0, ai2, t1i) \
+	VADDF(ai1, ai3, t2i) \
+	VSUBF(ai1, ai3, t3i) \
+	VADDF(t0r, t2r, ar0) \
+	VADDF(t0i, t2i, ai0) \
+	VSUBF(t0r, t2r, ar2) \
+	VSUBF(t0i, t2i, ai2) \
+	VSUBF(t1r, t3i, ar1) \
+	VADDF(t1i, t3r, ai1) \
+	VADDF(t1r, t3i, ar3) \
+	VSUBF(t1i, t3r, ai3)
+
+// dr,di *= (wr + i*wi), result back in dr,di; clobbers p, q.
+#define VCMUL_FWD(dr, di, wr, wi, p, q) \
+	VEOR  p.B16, p.B16, p.B16 \
+	VFMLA dr.D2, wr.D2, p.D2  \
+	VFMLS di.D2, wi.D2, p.D2  \
+	VEOR  q.B16, q.B16, q.B16 \
+	VFMLA dr.D2, wi.D2, q.D2  \
+	VFMLA di.D2, wr.D2, q.D2  \
+	VMOV  p.B16, dr.B16       \
+	VMOV  q.B16, di.B16
+
+// dr,di *= conj(wr + i*wi) — the inverse twiddle.
+#define VCMUL_INV(dr, di, wr, wi, p, q) \
+	VEOR  p.B16, p.B16, p.B16 \
+	VFMLA dr.D2, wr.D2, p.D2  \
+	VFMLA di.D2, wi.D2, p.D2  \
+	VEOR  q.B16, q.B16, q.B16 \
+	VFMLA di.D2, wr.D2, q.D2  \
+	VFMLS dr.D2, wi.D2, q.D2  \
+	VMOV  p.B16, dr.B16       \
+	VMOV  q.B16, di.B16
+
+// ---------------------------------------------------------------------------
 // func ForwardNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+// ---------------------------------------------------------------------------
 TEXT ·ForwardNEONSize8Radix4Complex128Asm(SB), NOSPLIT, $0-97
-	// Load slice headers from stack
-	MOVD dst+0(FP), R8          // R8 = dst.data
-	MOVD src+24(FP), R9         // R9 = src.data
-	MOVD twiddle+48(FP), R10    // R10 = twiddle.data
-	MOVD scratch+72(FP), R11    // R11 = scratch.data
-	MOVD src_len+32(FP), R13        // R13 = src.len (n)
+	MOVD dst+0(FP), R8
+	MOVD src+24(FP), R9
+	MOVD twiddle+48(FP), R10
+	MOVD src_len+32(FP), R13
 
-	// Validate n == 8
-	CMP  $8, R13                // n must be exactly 8
+	CMP  $8, R13
 	BNE  neon8r4f64_return_false
 
-	// Validate dst capacity >= 8
-	MOVD dst_len+8(FP), R0          // R0 = dst.len
+	MOVD dst_len+8(FP), R0
 	CMP  $8, R0
 	BLT  neon8r4f64_return_false
 
-	// Validate twiddle capacity >= 8
-	MOVD twiddle_len+56(FP), R0     // R0 = twiddle.len
+	MOVD twiddle_len+56(FP), R0
 	CMP  $8, R0
 	BLT  neon8r4f64_return_false
 
-	// Validate scratch capacity >= 8
-	MOVD scratch_len+80(FP), R0     // R0 = scratch.len
-	CMP  $8, R0
-	BLT  neon8r4f64_return_false
+	MOVD  $·neonOne64(SB), R0
+	VLD1R (R0), [ONES.D2]
+	VEOR  V30.B16, V30.B16, V30.B16 // V30 = [0.0, 0.0], used to build wi
 
-	// Load bit-reversal table address
-	MOVD $bitrev_size8_radix4_f64<>(SB), R12
+	// Load x[n1 + 2*n2]: vector n2, lane n1. VLD2 deinterleaves re/im, and its
+	// register list must be contiguous, so re/im pairs are adjacent:
+	// re[n2] = V0,V2,V4,V6   im[n2] = V1,V3,V5,V7
+	VLD2 (R9), [V0.D2, V1.D2]
+	ADD  $32, R9, R1
+	VLD2 (R1), [V2.D2, V3.D2]
+	ADD  $64, R9, R1
+	VLD2 (R1), [V4.D2, V5.D2]
+	ADD  $96, R9, R1
+	VLD2 (R1), [V6.D2, V7.D2]
 
-	// Save original dst pointer
-	MOVD R8, R20                // R20 = original dst
+	// (A) DFT4 over n2. Vector index becomes k2.
+	VDFT4_FWD(V0, V2, V4, V6, V1, V3, V5, V7, V8, V9, V10, V11, V12, V13, V14, V15)
 
-	// If src == dst, use scratch as working buffer to avoid aliasing
-	CMP  R8, R9                 // compare dst and src pointers
-	BNE  neon8r4f64_use_dst     // if different, use dst directly
-	MOVD R11, R8                // src==dst: use scratch as working buffer
+	// (B) twiddle by W8^(n1*k2). k2 = 0 is all-ones, so it is skipped.
+	ADD  $16, R10, R2
+	VLD1R (R2), [V16.D2]     // t = Re(W8^1)
+	VZIP1 V16.D2, ONES.D2, V17.D2 // wr = [1.0, Re(W8^1)]
+	ADD  $8, R2, R3
+	VLD1R (R3), [V16.D2]     // t = Im(W8^1)
+	VZIP1 V16.D2, V30.D2, V18.D2  // wi = [0.0, Im(W8^1)]
+	VCMUL_FWD(V2, V3, V17, V18, V8, V9)
 
-neon8r4f64_use_dst:
-	// =========================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
-	// =========================================================================
-	MOVD $0, R0                 // R0 = loop counter i
+	ADD  $32, R10, R2
+	VLD1R (R2), [V16.D2]     // t = Re(W8^2)
+	VZIP1 V16.D2, ONES.D2, V17.D2 // wr = [1.0, Re(W8^2)]
+	ADD  $8, R2, R3
+	VLD1R (R3), [V16.D2]     // t = Im(W8^2)
+	VZIP1 V16.D2, V30.D2, V18.D2  // wi = [0.0, Im(W8^2)]
+	VCMUL_FWD(V4, V5, V17, V18, V8, V9)
 
-neon8r4f64_bitrev_loop:
-	CMP  $8, R0                 // while i < 8
-	BGE  neon8r4f64_stage1
+	ADD  $48, R10, R2
+	VLD1R (R2), [V16.D2]     // t = Re(W8^3)
+	VZIP1 V16.D2, ONES.D2, V17.D2 // wr = [1.0, Re(W8^3)]
+	ADD  $8, R2, R3
+	VLD1R (R3), [V16.D2]     // t = Im(W8^3)
+	VZIP1 V16.D2, V30.D2, V18.D2  // wi = [0.0, Im(W8^3)]
+	VCMUL_FWD(V6, V7, V17, V18, V8, V9)
 
-	LSL  $3, R0, R1             // R1 = i * 8 (offset into bitrev table)
-	ADD  R12, R1, R1            // R1 = &bitrev[i]
-	MOVD (R1), R2               // R2 = bitrev[i] (source index)
+	// (C) pair k2=0,1 -> DFT2 over n1 (the lane index). p = n1=0, q = n1=1.
+	VZIP1 V2.D2, V0.D2, V20.D2 // p_re = [A0(n1=0), A1(n1=0)]
+	VZIP2 V2.D2, V0.D2, V21.D2 // q_re = [A0(n1=1), A1(n1=1)]
+	VZIP1 V3.D2, V1.D2, V22.D2 // p_im
+	VZIP2 V3.D2, V1.D2, V23.D2 // q_im
+	VADDF(V20, V21, V24)       // X0,X1 (k1=0) real
+	VADDF(V22, V23, V25)       // X0,X1 imag
+	VSUBF(V20, V21, V26)       // X4,X5 (k1=1) real
+	VSUBF(V22, V23, V27)       // X4,X5 imag
 
-	LSL  $4, R2, R3             // R3 = bitrev[i] * 16 (complex128 is 16 bytes)
-	ADD  R9, R3, R3             // R3 = &src[bitrev[i]]
-	MOVD (R3), R4               // R4 = src[bitrev[i]].real (as bits)
-	MOVD 8(R3), R5              // R5 = src[bitrev[i]].imag (as bits)
+	VST2 [V24.D2, V25.D2], (R8)
+	ADD  $64, R8, R1
+	VST2 [V26.D2, V27.D2], (R1)
 
-	LSL  $4, R0, R3             // R3 = i * 16
-	ADD  R8, R3, R3             // R3 = &work[i]
-	MOVD R4, (R3)               // work[i].real = src[bitrev[i]].real
-	MOVD R5, 8(R3)              // work[i].imag = src[bitrev[i]].imag
+	// pair k2=2,3 -> DFT2 over n1, giving X2,X3 (k1=0) and X6,X7 (k1=1).
+	VZIP1 V6.D2, V4.D2, V20.D2
+	VZIP2 V6.D2, V4.D2, V21.D2
+	VZIP1 V7.D2, V5.D2, V22.D2
+	VZIP2 V7.D2, V5.D2, V23.D2
+	VADDF(V20, V21, V24)
+	VADDF(V22, V23, V25)
+	VSUBF(V20, V21, V26)
+	VSUBF(V22, V23, V27)
 
-	ADD  $1, R0, R0             // i++
-	B    neon8r4f64_bitrev_loop
+	ADD  $32, R8, R1
+	VST2 [V24.D2, V25.D2], (R1)
+	ADD  $96, R8, R1
+	VST2 [V26.D2, V27.D2], (R1)
 
-neon8r4f64_stage1:
-	// =========================================================================
-	// Stage 1: Two radix-4 butterflies (no twiddles)
-	// Process elements [0,1,2,3] and [4,5,6,7]
-	// =========================================================================
-
-	// --- First radix-4 butterfly: elements 0,1,2,3 ---
-	// Load x0,x1,x2,x3 from work[0..3]
-	FMOVD 0(R8), F0             // x0.real
-	FMOVD 8(R8), F1             // x0.imag
-	FMOVD 16(R8), F2            // x1.real
-	FMOVD 24(R8), F3            // x1.imag
-	FMOVD 32(R8), F4            // x2.real
-	FMOVD 40(R8), F5            // x2.imag
-	FMOVD 48(R8), F6            // x3.real
-	FMOVD 56(R8), F7            // x3.imag
-
-	// t0 = x0 + x2, t1 = x0 - x2
-	FADDD F4, F0, F8            // t0.real = x0.r + x2.r
-	FADDD F5, F1, F9            // t0.imag = x0.i + x2.i
-	FSUBD F4, F0, F10           // t1.real = x0.r - x2.r
-	FSUBD F5, F1, F11           // t1.imag = x0.i - x2.i
-
-	// t2 = x1 + x3, t3 = x1 - x3
-	FADDD F6, F2, F12           // t2.real = x1.r + x3.r
-	FADDD F7, F3, F13           // t2.imag = x1.i + x3.i
-	FSUBD F6, F2, F14           // t3.real = x1.r - x3.r
-	FSUBD F7, F3, F15           // t3.imag = x1.i - x3.i
-
-	// a0 = t0 + t2, a2 = t0 - t2
-	FADDD F12, F8, F16          // a0.real = t0.r + t2.r
-	FADDD F13, F9, F17          // a0.imag = t0.i + t2.i
-	FSUBD F12, F8, F18          // a2.real = t0.r - t2.r
-	FSUBD F13, F9, F19          // a2.imag = t0.i - t2.i
-
-	// (-i) * t3 => (t3.imag, -t3.real)
-	FMOVD F15, F20              // (-i)*t3.real = t3.imag
-	FNEGD F14, F21              // (-i)*t3.imag = -t3.real
-
-	// a1 = t1 + (-i)*t3
-	FADDD F20, F10, F22         // a1.real = t1.r + t3.i
-	FADDD F21, F11, F23         // a1.imag = t1.i - t3.r
-
-	// i * t3 => (-t3.imag, t3.real)
-	FNEGD F15, F24              // i*t3.real = -t3.imag
-	FMOVD F14, F25              // i*t3.imag = t3.real
-
-	// a3 = t1 + i*t3
-	FADDD F24, F10, F26         // a3.real = t1.r - t3.i
-	FADDD F25, F11, F27         // a3.imag = t1.i + t3.r
-
-	// Store a0,a1,a2,a3 to work[0..3]
-	FMOVD F16, 0(R8)            // work[0].real = a0.r
-	FMOVD F17, 8(R8)            // work[0].imag = a0.i
-	FMOVD F22, 16(R8)           // work[1].real = a1.r
-	FMOVD F23, 24(R8)           // work[1].imag = a1.i
-	FMOVD F18, 32(R8)           // work[2].real = a2.r
-	FMOVD F19, 40(R8)           // work[2].imag = a2.i
-	FMOVD F26, 48(R8)           // work[3].real = a3.r
-	FMOVD F27, 56(R8)           // work[3].imag = a3.i
-
-	// --- Second radix-4 butterfly: elements 4,5,6,7 ---
-	// Load x4,x5,x6,x7 from work[4..7]
-	FMOVD 64(R8), F0            // x4.real
-	FMOVD 72(R8), F1            // x4.imag
-	FMOVD 80(R8), F2            // x5.real
-	FMOVD 88(R8), F3            // x5.imag
-	FMOVD 96(R8), F4            // x6.real
-	FMOVD 104(R8), F5           // x6.imag
-	FMOVD 112(R8), F6           // x7.real
-	FMOVD 120(R8), F7           // x7.imag
-
-	// t0 = x4 + x6, t1 = x4 - x6
-	FADDD F4, F0, F8            // t0.real
-	FADDD F5, F1, F9            // t0.imag
-	FSUBD F4, F0, F10           // t1.real
-	FSUBD F5, F1, F11           // t1.imag
-
-	// t2 = x5 + x7, t3 = x5 - x7
-	FADDD F6, F2, F12           // t2.real
-	FADDD F7, F3, F13           // t2.imag
-	FSUBD F6, F2, F14           // t3.real
-	FSUBD F7, F3, F15           // t3.imag
-
-	// a4 = t0 + t2, a6 = t0 - t2
-	FADDD F12, F8, F16          // a4.real
-	FADDD F13, F9, F17          // a4.imag
-	FSUBD F12, F8, F18          // a6.real
-	FSUBD F13, F9, F19          // a6.imag
-
-	// (-i) * t3 => (t3.imag, -t3.real)
-	FMOVD F15, F20              // (-i)*t3.real = t3.imag
-	FNEGD F14, F21              // (-i)*t3.imag = -t3.real
-
-	// a5 = t1 + (-i)*t3
-	FADDD F20, F10, F22         // a5.real
-	FADDD F21, F11, F23         // a5.imag
-
-	// i * t3 => (-t3.imag, t3.real)
-	FNEGD F15, F24              // i*t3.real = -t3.imag
-	FMOVD F14, F25              // i*t3.imag = t3.real
-
-	// a7 = t1 + i*t3
-	FADDD F24, F10, F26         // a7.real
-	FADDD F25, F11, F27         // a7.imag
-
-	// Store a4,a5,a6,a7 to work[4..7]
-	FMOVD F16, 64(R8)           // work[4]
-	FMOVD F17, 72(R8)
-	FMOVD F22, 80(R8)           // work[5]
-	FMOVD F23, 88(R8)
-	FMOVD F18, 96(R8)           // work[6]
-	FMOVD F19, 104(R8)
-	FMOVD F26, 112(R8)          // work[7]
-	FMOVD F27, 120(R8)
-
-neon8r4f64_stage2:
-	// =========================================================================
-	// Stage 2: radix-2 butterflies with twiddles
-	// Pairs: (0,4), (1,5), (2,6), (3,7) with twiddles w0=1, w1, w2, w3
-	// =========================================================================
-
-	// Load twiddles w1, w2, w3 from twiddle[1], twiddle[2], twiddle[3]
-	FMOVD 16(R10), F0           // w1.real (twiddle[1])
-	FMOVD 24(R10), F1           // w1.imag
-	FMOVD 32(R10), F2           // w2.real (twiddle[2])
-	FMOVD 40(R10), F3           // w2.imag
-	FMOVD 48(R10), F4           // w3.real (twiddle[3])
-	FMOVD 56(R10), F5           // w3.imag
-
-	// --- Butterfly (0, 4): w0 = 1, no multiplication needed ---
-	FMOVD 0(R8), F6             // a0.real
-	FMOVD 8(R8), F7             // a0.imag
-	FMOVD 64(R8), F8            // a4.real
-	FMOVD 72(R8), F9            // a4.imag
-
-	FADDD F8, F6, F10           // out0.real = a0.r + a4.r
-	FADDD F9, F7, F11           // out0.imag = a0.i + a4.i
-	FSUBD F8, F6, F12           // out4.real = a0.r - a4.r
-	FSUBD F9, F7, F13           // out4.imag = a0.i - a4.i
-
-	FMOVD F10, 0(R8)            // store out0
-	FMOVD F11, 8(R8)
-	FMOVD F12, 64(R8)           // store out4
-	FMOVD F13, 72(R8)
-
-	// --- Butterfly (1, 5): multiply a5 by w1 ---
-	FMOVD 16(R8), F6            // a1.real
-	FMOVD 24(R8), F7            // a1.imag
-	FMOVD 80(R8), F8            // a5.real
-	FMOVD 88(R8), F9            // a5.imag
-
-	// w1 * a5 = (w1.r*a5.r - w1.i*a5.i, w1.r*a5.i + w1.i*a5.r)
-	FMULD F0, F8, F14           // w1.r * a5.r
-	FMULD F1, F9, F15           // w1.i * a5.i
-	FSUBD F15, F14, F14         // wb.real = w1.r*a5.r - w1.i*a5.i
-	FMULD F0, F9, F15           // w1.r * a5.i
-	FMULD F1, F8, F16           // w1.i * a5.r
-	FADDD F16, F15, F15         // wb.imag = w1.r*a5.i + w1.i*a5.r
-
-	FADDD F14, F6, F10          // out1.real = a1.r + wb.r
-	FADDD F15, F7, F11          // out1.imag = a1.i + wb.i
-	FSUBD F14, F6, F12          // out5.real = a1.r - wb.r
-	FSUBD F15, F7, F13          // out5.imag = a1.i - wb.i
-
-	FMOVD F10, 16(R8)           // store out1
-	FMOVD F11, 24(R8)
-	FMOVD F12, 80(R8)           // store out5
-	FMOVD F13, 88(R8)
-
-	// --- Butterfly (2, 6): multiply a6 by w2 ---
-	FMOVD 32(R8), F6            // a2.real
-	FMOVD 40(R8), F7            // a2.imag
-	FMOVD 96(R8), F8            // a6.real
-	FMOVD 104(R8), F9           // a6.imag
-
-	// w2 * a6
-	FMULD F2, F8, F14           // w2.r * a6.r
-	FMULD F3, F9, F15           // w2.i * a6.i
-	FSUBD F15, F14, F14         // wb.real
-	FMULD F2, F9, F15           // w2.r * a6.i
-	FMULD F3, F8, F16           // w2.i * a6.r
-	FADDD F16, F15, F15         // wb.imag
-
-	FADDD F14, F6, F10          // out2.real
-	FADDD F15, F7, F11          // out2.imag
-	FSUBD F14, F6, F12          // out6.real
-	FSUBD F15, F7, F13          // out6.imag
-
-	FMOVD F10, 32(R8)           // store out2
-	FMOVD F11, 40(R8)
-	FMOVD F12, 96(R8)           // store out6
-	FMOVD F13, 104(R8)
-
-	// --- Butterfly (3, 7): multiply a7 by w3 ---
-	FMOVD 48(R8), F6            // a3.real
-	FMOVD 56(R8), F7            // a3.imag
-	FMOVD 112(R8), F8           // a7.real
-	FMOVD 120(R8), F9           // a7.imag
-
-	// w3 * a7
-	FMULD F4, F8, F14           // w3.r * a7.r
-	FMULD F5, F9, F15           // w3.i * a7.i
-	FSUBD F15, F14, F14         // wb.real
-	FMULD F4, F9, F15           // w3.r * a7.i
-	FMULD F5, F8, F16           // w3.i * a7.r
-	FADDD F16, F15, F15         // wb.imag
-
-	FADDD F14, F6, F10          // out3.real
-	FADDD F15, F7, F11          // out3.imag
-	FSUBD F14, F6, F12          // out7.real
-	FSUBD F15, F7, F13          // out7.imag
-
-	FMOVD F10, 48(R8)           // store out3
-	FMOVD F11, 56(R8)
-	FMOVD F12, 112(R8)          // store out7
-	FMOVD F13, 120(R8)
-
-neon8r4f64_done:
-	// =========================================================================
-	// Copy back from scratch to dst if we used scratch buffer
-	// =========================================================================
-	CMP  R8, R20                // did we use scratch? (R8 != R20)
-	BEQ  neon8r4f64_return_true // no, result already in dst
-
-	MOVD $0, R0                 // R0 = loop counter
-neon8r4f64_copy_loop:
-	CMP  $8, R0                 // while i < 8
-	BGE  neon8r4f64_return_true
-	LSL  $4, R0, R1             // R1 = i * 16
-	ADD  R8, R1, R2             // R2 = &scratch[i]
-	MOVD (R2), R3               // R3 = scratch[i].real (as bits)
-	MOVD 8(R2), R4              // R4 = scratch[i].imag (as bits)
-	ADD  R20, R1, R5            // R5 = &dst[i]
-	MOVD R3, (R5)               // dst[i].real = scratch[i].real
-	MOVD R4, 8(R5)              // dst[i].imag = scratch[i].imag
-	ADD  $1, R0, R0             // i++
-	B    neon8r4f64_copy_loop
-
-neon8r4f64_return_true:
-	MOVD $1, R0                 // return true
+	MOVD $1, R0
 	MOVB R0, ret+96(FP)
 	RET
 
 neon8r4f64_return_false:
-	MOVD $0, R0                 // return false
-	MOVB R0, ret+96(FP)
+	MOVB ZR, ret+96(FP)
 	RET
 
-// ===========================================================================
-// Inverse transform, size 8, complex128, radix-4 variant
-// Same as forward but with conjugated twiddles and 1/N scaling
-// ===========================================================================
+// ---------------------------------------------------------------------------
+// func InverseNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+// ---------------------------------------------------------------------------
 TEXT ·InverseNEONSize8Radix4Complex128Asm(SB), NOSPLIT, $0-97
-	// Load slice headers from stack
-	MOVD dst+0(FP), R8          // R8 = dst.data
-	MOVD src+24(FP), R9         // R9 = src.data
-	MOVD twiddle+48(FP), R10    // R10 = twiddle.data
-	MOVD scratch+72(FP), R11    // R11 = scratch.data
-	MOVD src_len+32(FP), R13        // R13 = src.len (n)
+	MOVD dst+0(FP), R8
+	MOVD src+24(FP), R9
+	MOVD twiddle+48(FP), R10
+	MOVD src_len+32(FP), R13
 
-	// Validate n == 8
 	CMP  $8, R13
 	BNE  neon8r4f64_inv_return_false
 
-	// Validate dst capacity >= 8
 	MOVD dst_len+8(FP), R0
 	CMP  $8, R0
 	BLT  neon8r4f64_inv_return_false
 
-	// Validate twiddle capacity >= 8
 	MOVD twiddle_len+56(FP), R0
 	CMP  $8, R0
 	BLT  neon8r4f64_inv_return_false
 
-	// Validate scratch capacity >= 8
-	MOVD scratch_len+80(FP), R0
-	CMP  $8, R0
-	BLT  neon8r4f64_inv_return_false
+	MOVD  $·neonOne64(SB), R0
+	VLD1R (R0), [ONES.D2]
+	VEOR  V30.B16, V30.B16, V30.B16 // V30 = [0.0, 0.0], used to build wi
 
-	// Load bit-reversal table address
-	MOVD $bitrev_size8_radix4_f64<>(SB), R12
+	// Load x[n1 + 2*n2]: vector n2, lane n1.
+	VLD2 (R9), [V0.D2, V1.D2]
+	ADD  $32, R9, R1
+	VLD2 (R1), [V2.D2, V3.D2]
+	ADD  $64, R9, R1
+	VLD2 (R1), [V4.D2, V5.D2]
+	ADD  $96, R9, R1
+	VLD2 (R1), [V6.D2, V7.D2]
 
-	// Save original dst pointer
-	MOVD R8, R20
+	// (A) DFT4 over n2. Vector index becomes k2.
+	VDFT4_INV(V0, V2, V4, V6, V1, V3, V5, V7, V8, V9, V10, V11, V12, V13, V14, V15)
 
-	// If src == dst, use scratch as working buffer
-	CMP  R8, R9
-	BNE  neon8r4f64_inv_use_dst
-	MOVD R11, R8
+	// (B) twiddle by W8^(n1*k2), conjugated by VCMUL_INV. k2 = 0 skipped.
+	ADD  $16, R10, R2
+	VLD1R (R2), [V16.D2]
+	VZIP1 V16.D2, ONES.D2, V17.D2
+	ADD  $8, R2, R3
+	VLD1R (R3), [V16.D2]
+	VZIP1 V16.D2, V30.D2, V18.D2
+	VCMUL_INV(V2, V3, V17, V18, V8, V9)
 
-neon8r4f64_inv_use_dst:
-	// =========================================================================
-	// Bit-reversal permutation
-	// =========================================================================
-	MOVD $0, R0
+	ADD  $32, R10, R2
+	VLD1R (R2), [V16.D2]
+	VZIP1 V16.D2, ONES.D2, V17.D2
+	ADD  $8, R2, R3
+	VLD1R (R3), [V16.D2]
+	VZIP1 V16.D2, V30.D2, V18.D2
+	VCMUL_INV(V4, V5, V17, V18, V8, V9)
 
-neon8r4f64_inv_bitrev_loop:
-	CMP  $8, R0
-	BGE  neon8r4f64_inv_stage1
+	ADD  $48, R10, R2
+	VLD1R (R2), [V16.D2]
+	VZIP1 V16.D2, ONES.D2, V17.D2
+	ADD  $8, R2, R3
+	VLD1R (R3), [V16.D2]
+	VZIP1 V16.D2, V30.D2, V18.D2
+	VCMUL_INV(V6, V7, V17, V18, V8, V9)
 
-	LSL  $3, R0, R1             // offset into bitrev table
-	ADD  R12, R1, R1
-	MOVD (R1), R2               // R2 = bitrev[i]
+	// (C) pair k2=0,1 -> DFT2 over n1.
+	VZIP1 V2.D2, V0.D2, V20.D2
+	VZIP2 V2.D2, V0.D2, V21.D2
+	VZIP1 V3.D2, V1.D2, V22.D2
+	VZIP2 V3.D2, V1.D2, V23.D2
+	VADDF(V20, V21, V24) // X0,X1 real
+	VADDF(V22, V23, V25) // X0,X1 imag
+	VSUBF(V20, V21, V26) // X4,X5 real
+	VSUBF(V22, V23, V27) // X4,X5 imag
 
-	LSL  $4, R2, R3             // source offset (16 bytes per complex128)
-	ADD  R9, R3, R3
-	MOVD (R3), R4               // load real part
-	MOVD 8(R3), R5              // load imag part
+	// pair k2=2,3 -> DFT2 over n1.
+	VZIP1 V6.D2, V4.D2, V0.D2
+	VZIP2 V6.D2, V4.D2, V1.D2
+	VZIP1 V7.D2, V5.D2, V2.D2
+	VZIP2 V7.D2, V5.D2, V3.D2
+	VADDF(V0, V1, V4) // X2,X3 real
+	VADDF(V2, V3, V5) // X2,X3 imag
+	VSUBF(V0, V1, V6) // X6,X7 real
+	VSUBF(V2, V3, V7) // X6,X7 imag
 
-	LSL  $4, R0, R3             // dest offset
-	ADD  R8, R3, R3
-	MOVD R4, (R3)               // store real part
-	MOVD R5, 8(R3)              // store imag part
+	// Scale by 1/8. Broadcast from memory — a register broadcast of a scalar
+	// constant costs a fixed ~100ns and would dominate a kernel this small.
+	MOVD  $·neonInv8F64(SB), R0
+	VLD1R (R0), [V29.D2]
 
-	ADD  $1, R0, R0
-	B    neon8r4f64_inv_bitrev_loop
+	VEOR  V8.B16, V8.B16, V8.B16
+	VFMLA V24.D2, V29.D2, V8.D2
+	VEOR  V9.B16, V9.B16, V9.B16
+	VFMLA V25.D2, V29.D2, V9.D2
+	VST2  [V8.D2, V9.D2], (R8) // X0,X1
 
-neon8r4f64_inv_stage1:
-	// =========================================================================
-	// Stage 1: Two radix-4 butterflies (same as forward)
-	// =========================================================================
+	VEOR  V10.B16, V10.B16, V10.B16
+	VFMLA V4.D2, V29.D2, V10.D2
+	VEOR  V11.B16, V11.B16, V11.B16
+	VFMLA V5.D2, V29.D2, V11.D2
+	ADD   $32, R8, R1
+	VST2  [V10.D2, V11.D2], (R1) // X2,X3
 
-	// --- First radix-4 butterfly: elements 0,1,2,3 ---
-	FMOVD 0(R8), F0
-	FMOVD 8(R8), F1
-	FMOVD 16(R8), F2
-	FMOVD 24(R8), F3
-	FMOVD 32(R8), F4
-	FMOVD 40(R8), F5
-	FMOVD 48(R8), F6
-	FMOVD 56(R8), F7
+	VEOR  V12.B16, V12.B16, V12.B16
+	VFMLA V26.D2, V29.D2, V12.D2
+	VEOR  V13.B16, V13.B16, V13.B16
+	VFMLA V27.D2, V29.D2, V13.D2
+	ADD   $64, R8, R1
+	VST2  [V12.D2, V13.D2], (R1) // X4,X5
 
-	FADDD F4, F0, F8
-	FADDD F5, F1, F9
-	FSUBD F4, F0, F10
-	FSUBD F5, F1, F11
+	VEOR  V14.B16, V14.B16, V14.B16
+	VFMLA V6.D2, V29.D2, V14.D2
+	VEOR  V15.B16, V15.B16, V15.B16
+	VFMLA V7.D2, V29.D2, V15.D2
+	ADD   $96, R8, R1
+	VST2  [V14.D2, V15.D2], (R1) // X6,X7
 
-	FADDD F6, F2, F12
-	FADDD F7, F3, F13
-	FSUBD F6, F2, F14
-	FSUBD F7, F3, F15
-
-	FADDD F12, F8, F16
-	FADDD F13, F9, F17
-	FSUBD F12, F8, F18
-	FSUBD F13, F9, F19
-
-	// For inverse: i * t3 => (-t3.imag, t3.real) for a1
-	FNEGD F15, F20              // i*t3.real = -t3.imag
-	FMOVD F14, F21              // i*t3.imag = t3.real
-
-	FADDD F20, F10, F22         // a1 = t1 + i*t3
-	FADDD F21, F11, F23
-
-	// For inverse: (-i) * t3 => (t3.imag, -t3.real) for a3
-	FMOVD F15, F24              // (-i)*t3.real = t3.imag
-	FNEGD F14, F25              // (-i)*t3.imag = -t3.real
-
-	FADDD F24, F10, F26         // a3 = t1 + (-i)*t3
-	FADDD F25, F11, F27
-
-	FMOVD F16, 0(R8)
-	FMOVD F17, 8(R8)
-	FMOVD F22, 16(R8)
-	FMOVD F23, 24(R8)
-	FMOVD F18, 32(R8)
-	FMOVD F19, 40(R8)
-	FMOVD F26, 48(R8)
-	FMOVD F27, 56(R8)
-
-	// --- Second radix-4 butterfly: elements 4,5,6,7 ---
-	FMOVD 64(R8), F0
-	FMOVD 72(R8), F1
-	FMOVD 80(R8), F2
-	FMOVD 88(R8), F3
-	FMOVD 96(R8), F4
-	FMOVD 104(R8), F5
-	FMOVD 112(R8), F6
-	FMOVD 120(R8), F7
-
-	FADDD F4, F0, F8
-	FADDD F5, F1, F9
-	FSUBD F4, F0, F10
-	FSUBD F5, F1, F11
-
-	FADDD F6, F2, F12
-	FADDD F7, F3, F13
-	FSUBD F6, F2, F14
-	FSUBD F7, F3, F15
-
-	FADDD F12, F8, F16
-	FADDD F13, F9, F17
-	FSUBD F12, F8, F18
-	FSUBD F13, F9, F19
-
-	// For inverse: i * t3
-	FNEGD F15, F20
-	FMOVD F14, F21
-
-	FADDD F20, F10, F22
-	FADDD F21, F11, F23
-
-	// For inverse: (-i) * t3
-	FMOVD F15, F24
-	FNEGD F14, F25
-
-	FADDD F24, F10, F26
-	FADDD F25, F11, F27
-
-	FMOVD F16, 64(R8)
-	FMOVD F17, 72(R8)
-	FMOVD F22, 80(R8)
-	FMOVD F23, 88(R8)
-	FMOVD F18, 96(R8)
-	FMOVD F19, 104(R8)
-	FMOVD F26, 112(R8)
-	FMOVD F27, 120(R8)
-
-neon8r4f64_inv_stage2:
-	// =========================================================================
-	// Stage 2: radix-2 butterflies with conjugated twiddles
-	// =========================================================================
-
-	// Load twiddles w1, w2, w3 and conjugate (negate imaginary)
-	FMOVD 16(R10), F0           // w1.real
-	FMOVD 24(R10), F1           // w1.imag
-	FNEGD F1, F1                // conjugate
-	FMOVD 32(R10), F2           // w2.real
-	FMOVD 40(R10), F3           // w2.imag
-	FNEGD F3, F3                // conjugate
-	FMOVD 48(R10), F4           // w3.real
-	FMOVD 56(R10), F5           // w3.imag
-	FNEGD F5, F5                // conjugate
-
-	// --- Butterfly (0, 4): w0 = 1 ---
-	FMOVD 0(R8), F6
-	FMOVD 8(R8), F7
-	FMOVD 64(R8), F8
-	FMOVD 72(R8), F9
-
-	FADDD F8, F6, F10
-	FADDD F9, F7, F11
-	FSUBD F8, F6, F12
-	FSUBD F9, F7, F13
-
-	FMOVD F10, 0(R8)
-	FMOVD F11, 8(R8)
-	FMOVD F12, 64(R8)
-	FMOVD F13, 72(R8)
-
-	// --- Butterfly (1, 5): multiply a5 by w1* ---
-	FMOVD 16(R8), F6
-	FMOVD 24(R8), F7
-	FMOVD 80(R8), F8
-	FMOVD 88(R8), F9
-
-	FMULD F0, F8, F14
-	FMULD F1, F9, F15
-	FSUBD F15, F14, F14
-	FMULD F0, F9, F15
-	FMULD F1, F8, F16
-	FADDD F16, F15, F15
-
-	FADDD F14, F6, F10
-	FADDD F15, F7, F11
-	FSUBD F14, F6, F12
-	FSUBD F15, F7, F13
-
-	FMOVD F10, 16(R8)
-	FMOVD F11, 24(R8)
-	FMOVD F12, 80(R8)
-	FMOVD F13, 88(R8)
-
-	// --- Butterfly (2, 6): multiply a6 by w2* ---
-	FMOVD 32(R8), F6
-	FMOVD 40(R8), F7
-	FMOVD 96(R8), F8
-	FMOVD 104(R8), F9
-
-	FMULD F2, F8, F14
-	FMULD F3, F9, F15
-	FSUBD F15, F14, F14
-	FMULD F2, F9, F15
-	FMULD F3, F8, F16
-	FADDD F16, F15, F15
-
-	FADDD F14, F6, F10
-	FADDD F15, F7, F11
-	FSUBD F14, F6, F12
-	FSUBD F15, F7, F13
-
-	FMOVD F10, 32(R8)
-	FMOVD F11, 40(R8)
-	FMOVD F12, 96(R8)
-	FMOVD F13, 104(R8)
-
-	// --- Butterfly (3, 7): multiply a7 by w3* ---
-	FMOVD 48(R8), F6
-	FMOVD 56(R8), F7
-	FMOVD 112(R8), F8
-	FMOVD 120(R8), F9
-
-	FMULD F4, F8, F14
-	FMULD F5, F9, F15
-	FSUBD F15, F14, F14
-	FMULD F4, F9, F15
-	FMULD F5, F8, F16
-	FADDD F16, F15, F15
-
-	FADDD F14, F6, F10
-	FADDD F15, F7, F11
-	FSUBD F14, F6, F12
-	FSUBD F15, F7, F13
-
-	FMOVD F10, 48(R8)
-	FMOVD F11, 56(R8)
-	FMOVD F12, 112(R8)
-	FMOVD F13, 120(R8)
-
-neon8r4f64_inv_done:
-	// =========================================================================
-	// Copy back if we used scratch
-	// =========================================================================
-	CMP  R8, R20
-	BEQ  neon8r4f64_inv_scale
-
-	MOVD $0, R0
-neon8r4f64_inv_copy_loop:
-	CMP  $8, R0
-	BGE  neon8r4f64_inv_scale
-	LSL  $4, R0, R1
-	ADD  R8, R1, R2
-	MOVD (R2), R3
-	MOVD 8(R2), R4
-	ADD  R20, R1, R5
-	MOVD R3, (R5)
-	MOVD R4, 8(R5)
-	ADD  $1, R0, R0
-	B    neon8r4f64_inv_copy_loop
-
-neon8r4f64_inv_scale:
-	// =========================================================================
-	// Apply 1/N scaling for inverse transform
-	// =========================================================================
-	MOVD $·neonInv8F64(SB), R1  // R1 = &(1/8)
-	FMOVD (R1), F0              // F0 = 1/8 = 0.125
-	MOVD $0, R0                 // R0 = loop counter
-
-neon8r4f64_inv_scale_loop:
-	CMP  $8, R0
-	BGE  neon8r4f64_inv_return_true
-	LSL  $4, R0, R1             // R1 = i * 16
-	ADD  R20, R1, R1            // R1 = &dst[i]
-	FMOVD 0(R1), F2             // F2 = dst[i].real
-	FMOVD 8(R1), F3             // F3 = dst[i].imag
-	FMULD F0, F2, F2            // F2 = dst[i].real / 8
-	FMULD F0, F3, F3            // F3 = dst[i].imag / 8
-	FMOVD F2, 0(R1)             // store scaled real
-	FMOVD F3, 8(R1)             // store scaled imag
-	ADD  $1, R0, R0             // i++
-	B    neon8r4f64_inv_scale_loop
-
-neon8r4f64_inv_return_true:
 	MOVD $1, R0
 	MOVB R0, ret+96(FP)
 	RET
 
 neon8r4f64_inv_return_false:
-	MOVD $0, R0
-	MOVB R0, ret+96(FP)
+	MOVB ZR, ret+96(FP)
 	RET
-
-// ===========================================================================
-// Data Section - Bit-reversal permutation table for size 8 radix-4
-// ===========================================================================
-// Each entry is 8 bytes (uint64), total 8 entries = 64 bytes
-// For radix-4 decomposition of size 8: [0,2,4,6,1,3,5,7]
-// This groups even indices first (for first radix-4), then odd (for second)
-
-DATA bitrev_size8_radix4_f64<>+0x000(SB)/8, $0   // bitrev[0] = 0
-DATA bitrev_size8_radix4_f64<>+0x008(SB)/8, $2   // bitrev[1] = 2
-DATA bitrev_size8_radix4_f64<>+0x010(SB)/8, $4   // bitrev[2] = 4
-DATA bitrev_size8_radix4_f64<>+0x018(SB)/8, $6   // bitrev[3] = 6
-DATA bitrev_size8_radix4_f64<>+0x020(SB)/8, $1   // bitrev[4] = 1
-DATA bitrev_size8_radix4_f64<>+0x028(SB)/8, $3   // bitrev[5] = 3
-DATA bitrev_size8_radix4_f64<>+0x030(SB)/8, $5   // bitrev[6] = 5
-DATA bitrev_size8_radix4_f64<>+0x038(SB)/8, $7   // bitrev[7] = 7
-GLOBL bitrev_size8_radix4_f64<>(SB), RODATA, $64
