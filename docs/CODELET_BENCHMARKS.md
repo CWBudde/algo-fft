@@ -1100,7 +1100,7 @@ subtract against a vector of 1.0 (`·neonOnes`) with `VFMLA`/`VFMLS` — costs
 **two instructions per add or subtract**, a register for the constant, and two
 prologue instructions to load it. The claim that "on Apple cores FMA has the
 same throughput as FADD, so this costs nothing" was wrong: the throughput claim
-is true, but it is not the issue — the instruction *count* is. A radix-4
+is true, but it is not the issue — the instruction _count_ is. A radix-4
 butterfly is sixteen adds and subtracts.
 
 The macros take register **numbers**, not names, because the encoding embeds the
