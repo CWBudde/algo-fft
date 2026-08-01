@@ -343,8 +343,18 @@ func TestRadix16GenericInPlace(t *testing.T) {
 // the radix. That leaves four hand-unrolled copies, and this is what stops them
 // drifting from the definition the reference tests validated.
 //
-// At n = 16 the ladder is exactly one twiddle-free stage-1 butterfly with no
-// tail, so the forward comparison is exact rather than approximate.
+// At n = 16 the ladder is one twiddle-free stage-1 butterfly with no tail, so
+// the two sides perform the same arithmetic — but that does NOT make a bitwise
+// comparison portable. Go's arm64 backend contracts mul+add into FMADD, and it
+// makes that choice per expression, so the ladder's hand-unrolled copy and the
+// readable original can fuse differently and land one ulp apart. This test
+// asserted exact equality and consequently failed on every arm64 host (real
+// hardware and QEMU alike) with a 1.1e-7 discrepancy on a bin whose real part
+// is the cancellation of two ~2.7 terms — well under one ulp at that magnitude.
+//
+// The tolerance is the same magnitude-scaled one the rest of this file uses.
+// It is still ~160x tighter than the smallest error a genuinely drifted
+// butterfly copy could produce, so the drift-catching purpose is intact.
 func TestRadix16LadderMatchesButterfly(t *testing.T) {
 	t.Parallel()
 
@@ -364,11 +374,7 @@ func TestRadix16LadderMatchesButterfly(t *testing.T) {
 			t.Fatal("forwardRadix16Complex64 refused the call")
 		}
 
-		for i := range got {
-			if got[i] != fwd[i] {
-				t.Fatalf("seed %d, forward bin %d: ladder %v vs butterfly %v", seed, i, got[i], fwd[i])
-			}
-		}
+		assertComplex64Close(t, got, fwd[:], radix16Tol64(n))
 
 		// The ladder folds 1/n into the inverse; the butterfly does not, so
 		// this side carries the rounding of one extra multiply.

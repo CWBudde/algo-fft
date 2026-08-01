@@ -536,28 +536,34 @@ and see PLAN.md §2.2 for when an unreachable kernel should be probe-gated
 
 ### Symbols not reachable from a production build
 
-| Symbol                                        | Status      | Defined in                             | Declared in                  |
-| --------------------------------------------- | ----------- | -------------------------------------- | ---------------------------- |
-| `Butterfly3ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` |
-| `Butterfly3InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` |
-| `Butterfly5ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` |
-| `Butterfly5InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` |
-| `Transpose128x128Complex64AVX2Asm`            | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` |
-| `TransposeTwiddle128x128Complex64AVX2Asm`     | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` |
-| `TransposeTwiddleConj128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` |
-| `Transpose64x64Complex64AVX2Asm`              | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` |
-| `TransposeTwiddle64x64Complex64AVX2Asm`       | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` |
-| `TransposeTwiddleConj64x64Complex64AVX2Asm`   | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` |
-| `ForwardAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` |
-| `InverseAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` |
-| `ForwardAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` |
-| `InverseAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` |
-| `stubAsm`                                     | unreachable | `stub_amd64.s`                         | `internal/asm/stub_arm64.go` |
-| `stubAsm`                                     | unreachable | `stub_arm64.s`                         | `internal/asm/stub_arm64.go` |
-| `ForwardSSESize16Radix4Complex64Asm`          | unreachable | `x86/sse_f32_size16_radix4_386.s`      | `internal/asm/x86/decl.go`   |
-| `InverseSSESize16Radix4Complex64Asm`          | unreachable | `x86/sse_f32_size16_radix4_386.s`      | `internal/asm/x86/decl.go`   |
-| `ForwardSSESize8Radix2Complex64Asm`           | unreachable | `x86/sse_f32_size8_radix2_386.s`       | `internal/asm/x86/decl.go`   |
-| `InverseSSESize8Radix2Complex64Asm`           | unreachable | `x86/sse_f32_size8_radix2_386.s`       | `internal/asm/x86/decl.go`   |
+The Disposition column is generated from `cmd/gencodelets/dispositions.go`,
+which is a gate rather than a note: a symbol that goes dark without an
+entry fails the build's tests, a _tracked_ entry must quote an **open**
+PLAN.md checkbox, and an entry whose symbol became live again is a failure
+too.
+
+| Symbol                                        | Status      | Defined in                             | Declared in                  | Disposition                                                                                        |
+| --------------------------------------------- | ----------- | -------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| `Butterfly3ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
+| `Butterfly3InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
+| `Butterfly5ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
+| `Butterfly5InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
+| `Transpose128x128Complex64AVX2Asm`            | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` | tracked: Wire or probe-gate the AVX2 transposes                                                    |
+| `TransposeTwiddle128x128Complex64AVX2Asm`     | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` | tracked: Wire or probe-gate the AVX2 transposes                                                    |
+| `TransposeTwiddleConj128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` | tracked: Wire or probe-gate the AVX2 transposes                                                    |
+| `Transpose64x64Complex64AVX2Asm`              | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` | tracked: Wire or probe-gate the AVX2 transposes                                                    |
+| `TransposeTwiddle64x64Complex64AVX2Asm`       | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` | tracked: Wire or probe-gate the AVX2 transposes                                                    |
+| `TransposeTwiddleConj64x64Complex64AVX2Asm`   | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` | tracked: Wire or probe-gate the AVX2 transposes                                                    |
+| `ForwardAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
+| `InverseAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
+| `ForwardAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
+| `InverseAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
+| `stubAsm`                                     | unreachable | `stub_amd64.s`                         | `internal/asm/stub_arm64.go` | keep: assembly-linkage smoke test for package asm; unreachable by construction                     |
+| `stubAsm`                                     | unreachable | `stub_arm64.s`                         | `internal/asm/stub_arm64.go` | keep: assembly-linkage smoke test for package asm; unreachable by construction                     |
+| `ForwardSSESize16Radix4Complex64Asm`          | unreachable | `x86/sse_f32_size16_radix4_386.s`      | `internal/asm/x86/decl.go`   | tracked: Give the 386 size-8/16 kernels a disposition                                              |
+| `InverseSSESize16Radix4Complex64Asm`          | unreachable | `x86/sse_f32_size16_radix4_386.s`      | `internal/asm/x86/decl.go`   | tracked: Give the 386 size-8/16 kernels a disposition                                              |
+| `ForwardSSESize8Radix2Complex64Asm`           | unreachable | `x86/sse_f32_size8_radix2_386.s`       | `internal/asm/x86/decl.go`   | tracked: Give the 386 size-8/16 kernels a disposition                                              |
+| `InverseSSESize8Radix2Complex64Asm`           | unreachable | `x86/sse_f32_size8_radix2_386.s`       | `internal/asm/x86/decl.go`   | tracked: Give the 386 size-8/16 kernels a disposition                                              |
 
 ### Data symbols shared across files
 

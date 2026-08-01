@@ -299,11 +299,36 @@ change to `cmd/gencodelets`, not to the Markdown.
       a §1.5 task; the grid would otherwise have printed two `✓` in one tier and
       claimed something the registry cannot do.
 
-- [ ] **Ratchet the census once the current 14 are dispositioned.** A test that
-      fails when a new `orphan`/`test-only`/`unreachable` symbol appears without
-      an allowlist entry naming its disposition. Deferred on purpose: a ratchet
-      installed over 14 known violations is an allowlist, not a gate. This is
-      what stops the class of defect from regrowing between audits.
+- [x] **Ratchet the census** (2026-08-01). `cmd/gencodelets/dispositions.go`
+      names all 20 non-live symbols, and four tests turn that list into a gate.
+      `TestEveryDarkSymbolHasADisposition` fails when a symbol goes dark without
+      an entry — the class of defect that made every previous audit round
+      rediscover the same symbols. `TestNoStaleDispositions` fails when an entry
+      outlives its symbol, so the list can shrink but not silently grow.
+      `TestDispositionsAreWellFormed` checks the shape.
+
+      **What answers the deferral.** The objection was that a list installed
+      over 20 open violations is an allowlist, not a gate — true if an entry is
+      free to write, so entries are not free. An entry is admissible two ways
+      only: _terminal_, which states why the symbol is unreachable **on purpose**
+      (the four probe-gated c128 radix-4 kernels; the two `stubAsm` linkage
+      smoke tests), or _tracked_, which must quote an **open** PLAN.md checkbox
+      verbatim. `TestTrackedDispositionsNameAnOpenPlanTask` fails on a fragment
+      matching no task, on one matching several (quote more of it), and — the
+      load-bearing case — on a task that has since been **checked off**. So
+      closing a §1.3 item forces the symbol to actually be resolved rather than
+      the entry re-parked, and a tracked entry is debt with a creditor.
+      `TestPlanTaskScannerSeesBothStates` keeps that from going vacuous through
+      a parser that only saw open tasks or dropped continuation lines.
+
+      All four mutation-tested: deleting the `stubAsm` entry, inventing a
+      symbol, rewording a tracked fragment, and flipping the 386 task to `[x]`
+      each fail the intended test and only that one. The 14 tracked symbols map
+      onto exactly three §1.3 items (radix-3/5 butterflies, AVX2 transposes, 386
+      size-8/16), which is now generated rather than asserted: the inventory's
+      non-live table carries a Disposition column, so it says what happens to a
+      dark symbol and not merely that it is dark.
+
 - [x] **Emit the size × ISA coverage gaps explicitly** (2026-08-01).
       `cmd/gencodelets/gaps.go` renders a "Size × ISA Coverage Gaps" section by
       **replaying `registry.Lookup` from the spec table**, which is the only way

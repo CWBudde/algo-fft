@@ -263,9 +263,24 @@ func renderCensusUnreached(b *bytes.Buffer, c *census) {
 	b.WriteString("and see PLAN.md §2.2 for when an unreachable kernel should be probe-gated\n")
 	b.WriteString("(`-tags fftprobe`) rather than removed.\n\n")
 
+	renderCensusNonLive(b, c)
+}
+
+// renderCensusNonLive lists every symbol that is not live, together with the
+// disposition dispositions.go records for it. Without that column the table
+// says a symbol is dark but not what is to be done about it, which is how the
+// same fourteen symbols got re-audited round after round.
+func renderCensusNonLive(b *bytes.Buffer, c *census) {
+	index := dispositionIndex()
+
 	b.WriteString("### Symbols not reachable from a production build\n\n")
-	b.WriteString("| Symbol | Status | Defined in | Declared in |\n")
-	b.WriteString("|---|---|---|---|\n")
+	b.WriteString("The Disposition column is generated from `cmd/gencodelets/dispositions.go`,\n")
+	b.WriteString("which is a gate rather than a note: a symbol that goes dark without an\n")
+	b.WriteString("entry fails the build's tests, a _tracked_ entry must quote an **open**\n")
+	b.WriteString("PLAN.md checkbox, and an entry whose symbol became live again is a failure\n")
+	b.WriteString("too.\n\n")
+	b.WriteString("| Symbol | Status | Defined in | Declared in | Disposition |\n")
+	b.WriteString("|---|---|---|---|---|\n")
 
 	for _, f := range c.Files {
 		for _, s := range f.Symbols {
@@ -278,8 +293,13 @@ func renderCensusUnreached(b *bytes.Buffer, c *census) {
 				decl = "`" + s.DeclFile + "`"
 			}
 
-			fmt.Fprintf(b, "| `%s` | %s | `%s` | %s |\n",
-				s.Name, s.Status, strings.TrimPrefix(s.File, "internal/asm/"), decl)
+			disp := "**none — see dispositions.go**"
+			if d, ok := index[dispositionKey{s.Name, s.File}]; ok {
+				disp = d.Label()
+			}
+
+			fmt.Fprintf(b, "| `%s` | %s | `%s` | %s | %s |\n",
+				s.Name, s.Status, strings.TrimPrefix(s.File, "internal/asm/"), decl, disp)
 		}
 	}
 
