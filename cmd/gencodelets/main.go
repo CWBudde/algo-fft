@@ -62,7 +62,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = os.WriteFile(*inventoryPath, renderInventory(c), 0o644) //nolint:gosec
+		probes, err := scanProbeFiles(root)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "gencodelets: probes: %v\n", err)
+			os.Exit(1)
+		}
+
+		err = os.WriteFile(*inventoryPath, renderInventory(c, probes), 0o644) //nolint:gosec
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "gencodelets: write %s: %v\n", *inventoryPath, err)
 			os.Exit(1)

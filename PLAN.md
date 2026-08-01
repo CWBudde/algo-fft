@@ -261,8 +261,15 @@ change to `cmd/gencodelets`, not to the Markdown.
 - [ ] **Add a per-cell verdict column to the codelet tables.** `✓` today means
       "registered"; split it into `✓` selectable, `·` registered candidate (low
       priority, wisdom-reachable), `p` probe-only, `—` never existed, `✗`
-      structurally closed. The generator has `Priority` already; the verdict for
-      unregistered kernels needs a new field on `codeletSpec` or a sibling table.
+      structurally closed. The generator has `Priority` already, and the census
+      supplies the asm-side half (a codelet whose kernel is `unreachable` cannot
+      be `✓` whatever its row says); what is still missing is the verdict for
+      kernels with no spec row — a new field on `codeletSpec` or a sibling table.
+- [ ] **Ratchet the census once the current 14 are dispositioned.** A test that
+      fails when a new `orphan`/`test-only`/`unreachable` symbol appears without
+      an allowlist entry naming its disposition. Deferred on purpose: a ratchet
+      installed over 14 known violations is an allowlist, not a gate. This is
+      what stops the class of defect from regrowing between audits.
 - [ ] **Emit the size × ISA coverage gaps explicitly.** A short "not covered"
       section derived from the table — e.g. AVX-512 has 6 complex128
       registrations against AVX2's 21; SSE2 and NEON stop at 32768 where AVX2
@@ -327,6 +334,12 @@ six-step, eight-step, four-step, recursive-with-codelet-leaves.
 
 ### 1.3 Resolve the unreachable assembly
 
+The census (§1.1) is now the source of truth for what is reachable; work from
+its generated tables, not from a hand count. It confirms the premise below —
+the sixteen size-specific files are all `live`, reached exactly through the
+strategy switch — and turns up three further groups the older audit missed,
+tracked as their own items at the end of this subphase.
+
 Sixteen size-specific AVX2 `.s` files (~26,000 lines) are in limbo: no spec row,
 so the registry cannot pick them, but still called from
 `internal/fft/kernels_amd64_size_specific.go`, which selects by `KernelStrategy`
@@ -360,6 +373,31 @@ unmeasured and unmaintainable.
       carry no spec row but are reached through the Go
       `forwardDIT384MixedComplex64/128` codelet. Add a comment in each file
       saying so, so the next reachability pass does not have to re-derive it.
+- [ ] **Wire or probe-gate the AVX2 transposes.** `avx2_f32_transpose{64x64,128x128}.s`
+      were restored, tested and verified correct last round, and the census says
+      no production path reaches them: the only route in,
+      `math.TransposeSquareOutOfPlaceComplex64`, has no non-test caller. The
+      substantive task is in Phase 3 (use them in six-step/four-step); this item
+      is closed either by that landing or by moving them behind `-tags fftprobe`.
+      Until one of the two happens they are, by the standing lesson, untested
+      assembly with a passing test suite.
+- [ ] **Give the AVX2 radix-3/radix-5 butterflies a disposition.**
+      `avx2_f32_radix{3,5}.s` are unreachable, and not because of a dispatch
+      toggle: `{forward,inverse}Radix3Complex64` in `internal/kernels/radix3.go`
+      has **no caller anywhere in non-test code**, so the whole
+      `radix3TransformComplex64` → `butterfly3ForwardAVX2Complex64Slices` chain
+      below it is dark. Decide what the whole-transform radix-3/5 entry points
+      are _for_ — the mixed-radix engine reaches radix 3 and 5 through the fused
+      stage kernels, not through these — and then either wire them or drop them.
+      Relevant to Phase 2, which assumes radix 3/5 have a working butterfly path
+      on every tier.
+- [ ] **Give the 386 size-8/16 kernels a disposition.**
+      `x86/sse_f32_size{8_radix2,16_radix4}_386.s` are reached only through
+      `forwardSSESize{8,16}…Asm` thunks in `internal/fft/asm_386.go` that nothing
+      calls — the same 1:1-thunk shape as the nine files reclassified in the last
+      round. Their SSE2/SSE3 twins at the same sizes are live, so the likely
+      answer is that these are superseded; confirm against the 386 dispatch
+      before removing.
 - [ ] **Record the deletion mechanics as a checklist in `AGENTS.md`.** Per file:
       the `.s`, its `decl.go` declaration, the wrappers in
       `internal/fft/asm_amd64.go`, the test/bench tables, any `plan_api_test.go`
@@ -611,7 +649,10 @@ shapes).
       and purego, and what the fused kernels' own Go tails call.
 - [ ] **Audit radix 3/5 butterflies for the same defect** while the derivation is
       fresh — they have hand-written forms, but nobody has checked whether they
-      recompute rotations the way `dit512_radix8_generic` did.
+      recompute rotations the way `dit512_radix8_generic` did. Audit what the
+      engine actually calls: the whole-transform entry points in `radix3.go` /
+      `radix5.go` and the AVX2 butterflies under them are unreachable
+      (§1.3), so measuring those would measure code no length runs.
 
 ### 2.3 Rader and Bluestein
 
@@ -698,6 +739,14 @@ zero-allocation default.
       batch-FFT, twiddle, transpose, batch-FFT) pipeline; run the inner batch-FFT
       stages on the worker pool for n ≳ 2²⁰. Depends on the cache-blocked
       transpose so the serial transpose does not dominate.
+- [ ] **Use the AVX2 transposes that already exist.** `Transpose{64x64,128x128}Complex64AVX2Asm`
+      and their fused transpose+twiddle / transpose+conj-twiddle variants are
+      written, correct and verified — and reached by nothing, because
+      `math.TransposeSquareOutOfPlaceComplex64` has no production caller
+      (census, §1.1). Six-step at n = 4096 and 16384 transposes exactly 64×64 and
+      128×128, which is the shape these kernels were written for. Measure the
+      six-step path with them bound; this is a wiring change, not a kernel, and
+      it should precede writing any new transpose assembly.
 - [ ] **SIMD 8×8 complex tile kernel for the transpose** (AVX2
       `VPERM2F128`/`VUNPCK`, NEON `TRN1`/`TRN2`). The tiled walk removed the index
       table and its O(n²) cache; this is the remaining constant factor, and it is

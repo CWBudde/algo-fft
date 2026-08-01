@@ -261,7 +261,7 @@ func TestRenderInventoryIncludesCensus(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	doc := string(renderInventory(c))
+	doc := string(renderInventory(c, nil))
 	for _, want := range []string{
 		"## Assembly Symbol Census",
 		"### Files with no live symbol",

@@ -72,7 +72,7 @@ type gridKey struct {
 	variant string
 }
 
-func renderInventory(c *census) []byte {
+func renderInventory(c *census, probes []probeEntry) []byte {
 	var b bytes.Buffer
 
 	b.WriteString("# FFT Implementation Inventory\n\n")
@@ -93,6 +93,7 @@ func renderInventory(c *census) []byte {
 
 	renderCounts(&b)
 	renderCensus(&b, c)
+	renderProbes(&b, probes)
 	renderStaticSections(&b)
 
 	return b.Bytes()
@@ -138,6 +139,60 @@ unreachable.
 
 	renderCensusUnreached(b, c)
 	renderCensusShared(b, c)
+}
+
+// renderProbes writes the probe-gated kernel section: every `-tags fftprobe`
+// file in the tree, with the verdict of the sweep that produced it and the
+// command that takes the number again.
+func renderProbes(b *bytes.Buffer, probes []probeEntry) {
+	b.WriteString(strings.TrimLeft(`
+## Probe-Gated Kernels
+
+Kernels behind `+"`-tags fftprobe`"+` are in the tree but outside every production
+build and every registry lookup, so they cost nothing at runtime. A kernel is
+kept this way when it lost a measurement rather than a structural argument
+(PLAN.md §2.2): deleting the file is what would make the second measurement
+impossible, and an unlisted probe is a question on its way back to folklore.
+
+The file list is scanned from the build constraints; the verdicts are authored
+in `+"`cmd/gencodelets/probes.go`"+`, and a probe file with no verdict fails the
+generator's tests.
+
+`, "\n"))
+
+	if len(probes) == 0 {
+		b.WriteString("None: no file in the tree carries the `fftprobe` constraint.\n\n")
+
+		return
+	}
+
+	b.WriteString("| File | Build tag | Measures | Status |\n")
+	b.WriteString("|---|---|---|---|\n")
+
+	for _, p := range probes {
+		fmt.Fprintf(b, "| `%s` | `%s` | %s | %s |\n",
+			p.Path, p.Constraint, p.Note.Subject, p.Note.Status)
+	}
+
+	b.WriteString("\n")
+
+	for _, p := range probes {
+		fmt.Fprintf(b, "**`%s`** — %s\n\n", p.Path, p.Note.Status)
+
+		if p.Note.Verdict != "" {
+			fmt.Fprintf(b, "%s\n\n", p.Note.Verdict)
+		}
+
+		if p.Note.Record != "" {
+			fmt.Fprintf(b, "- Recorded in: %s\n", p.Note.Record)
+		}
+
+		if p.Note.Rederiv != "" {
+			fmt.Fprintf(b, "- Re-derive: `PATH=/usr/local/go/bin:$PATH %s`\n", p.Note.Rederiv)
+		}
+
+		b.WriteString("\n")
+	}
 }
 
 // renderCensusGroup writes the per-file table for one architecture directory.
