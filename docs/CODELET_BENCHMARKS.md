@@ -1151,34 +1151,42 @@ algorithm, only the instruction idiom changed — took it to **6.22 / 6.76 ns**,
 i.e. **1.95x / 1.99x** vs the best pure-Go candidate. That is ~15% off an
 already-winning kernel purely from not synthesizing adds.
 
-### Sizes 4 and 8 — vectorized, and mostly still losing
+### Sizes 4, 8 and 16 — five more kernels, and where the crossover is
 
-Four more kernels were rewritten the same way (`neon_f32_size4_radix4.s`,
+Five further kernels were rewritten: `neon_f32_size4_radix4.s`,
 `neon_f32_size8_radix8.s`, `neon_f64_size4_radix4.s`,
-`neon_f64_size8_radix4.s`). Each is dramatically faster than the scalar code it
-replaced — c128 size 8 forward went from a 3.76x loss to 1.61x, c64 size 4
-inverse from 3.23x to 1.41x — but **only one of the eight cells actually wins**:
+`neon_f64_size8_radix4.s` and `neon_f64_size16_radix4.s`, all in the
+`WORD`-encoded idiom. State after that round (M5, `count=10`, same process,
+mean ns/op, ratio against the best non-NEON candidate at the cell):
 
-| cell            | best pure-Go | NEON | verdict       |
-| --------------- | -----------: | ---: | ------------- |
-| c64 size 4 fwd  |         1.87 | 2.93 | loss 1.56x    |
-| c64 size 4 inv  |         2.13 | 3.00 | loss 1.41x    |
-| c64 size 8 fwd  |         3.62 | 4.29 | loss 1.19x    |
-| c64 size 8 inv  |         5.78 | 4.84 | **win 1.20x** |
-| c128 size 4 fwd |         1.77 | 3.80 | loss 2.15x    |
-| c128 size 4 inv |         2.09 | 4.00 | loss 1.91x    |
-| c128 size 8 fwd |         3.62 | 5.84 | loss 1.61x    |
-| c128 size 8 inv |         5.82 | 6.38 | loss 1.10x    |
+| cell             | best pure-Go |      NEON | verdict       |
+| ---------------- | -----------: | --------: | ------------- |
+| c64 size 16 fwd  |        11.99 |  **6.19** | **win 1.94x** |
+| c64 size 16 inv  |        13.41 |  **6.51** | **win 2.06x** |
+| c128 size 16 fwd |        12.23 | **10.58** | **win 1.16x** |
+| c128 size 16 inv |        13.61 | **11.59** | **win 1.17x** |
+| c64 size 8 fwd   |         3.75 |      4.05 | loss 1.08x    |
+| c64 size 8 inv   |         5.88 |  **4.23** | **win 1.39x** |
+| c128 size 8 fwd  |         3.64 |      5.16 | loss 1.42x    |
+| c128 size 8 inv  |         5.76 |  **5.36** | **win 1.07x** |
+| c64 size 4 fwd   |         1.78 |      2.86 | loss 1.61x    |
+| c64 size 4 inv   |         2.09 |      2.94 | loss 1.40x    |
+| c128 size 4 fwd  |         1.76 |      3.64 | loss 2.07x    |
+| c128 size 4 inv  |         2.13 |      3.80 | loss 1.78x    |
 
-(Measured before the `WORD` conversion reached these four, so they still carry
-the 2x add/subtract penalty; expect them to improve.)
+c128 size 16 is the notable one: it went from a **1.95x / 2.36x loss to a
+1.16x / 1.17x win**, and since it was already selected, that loss was a live
+regression rather than a missed opportunity.
 
-The structural point stands regardless: at n=4 the whole transform is sixteen
-real adds, which the pure-Go codelet does in 1.8 ns with **no call boundary** —
-the Go compiler inlines it. An assembly codelet pays a call, a length-validation
-preamble, and its prologue before doing any arithmetic. There is a size below
-which asm cannot win no matter how good the kernel is, and on this host it is
-somewhere between 8 and 16.
+**Size 4 looks structural.** The whole transform is sixteen real adds, which the
+pure-Go codelet does in 1.8 ns with **no call boundary** — the Go compiler
+inlines it. An assembly codelet pays a call, a length-validation preamble and
+its prologue before doing any arithmetic, and on this host that is most of the
+budget. Both precisions lose at size 4 and both are selected. The crossover
+where assembly can win at all sits between 8 and 16 here. This is an argument
+of exactly the mechanistic kind §2.2 warns about, so it wants a second host
+before anyone acts on it — but unlike the usual case it is corroborated by the
+measurement rather than substituting for one.
 
 ### The selection problem this exposes
 
