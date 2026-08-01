@@ -407,51 +407,82 @@ The inventory above records _what is there_. This subphase decides _what should
 be_. One task per algorithm family; each ends with a verdict row per precision ×
 ISA and, where a gap is worth closing, either a kernel or a probe.
 
-Families in the tree today: radix-2, radix-4 (plain / `-then-2` tail / fused
-tail), radix-8 ladder, mixed-2/4, radix-16, radix-32 and the `32×32` / `16×32`
-decompositions, split-radix (conjugate-pair), Stockham (plain and packed),
-six-step, eight-step, four-step, recursive-with-codelet-leaves.
+The families in the tree are no longer listed here — a hand-typed list of them
+is the §1.1 failure mode one level up. `docs/IMPLEMENTATION_INVENTORY.md`
+§"Algorithm × Precision × ISA" is generated from the spec table and the tier
+table, and its gates fail when a family arrives without a verdict or a verdict
+outlives its family.
 
-- [ ] **Generate the matrix skeleton; hand-write only the verdicts.** The
-      original form of this task was "collect the scattered answers into a table
-      in `docs/CODELET_BENCHMARKS.md`". That table would have more cells than any
-      artifact §1.1 had to repair, and §1.1's whole finding is that a hand-typed
-      inventory rots —`internal/fft/inventory_check.go` and two paragraphs in
-      this file each rotted the same way. So split it: enumeration is generated,
-      judgment is written.
+- [x] **Generate the matrix skeleton; hand-write only the verdicts.**
+      (2026-08-01) `cmd/gencodelets/matrix.go` emits an
+      "Algorithm × Precision × ISA" section into
+      `docs/IMPLEMENTATION_INVENTORY.md`: **26 families × 2 precisions × 6 ISA
+      columns**, each cell carrying the size grids' `✓ · p ✗ —` plus a new `t`
+      for a family reached through a kernel tier rather than the codelet
+      registry (it has no registry ranking, so it cannot be a `✓`).
 
-      **All three axes are already derivable.** Precision and ISA come from the
-      spec table. The family axis is the union of two sources the generator
-      already has: the codelet families encoded in each spec `Signature`
-      (`dit128_radix4_then2_sse3` → `radix4_then2`), which yields 16 today —
-      `radix4` 72 rows, `radix2` 52, `radix4_then2` 39, `radix8ladder` 36, then
-      radix8, radix16, radix32, `radix4fused`, `radix8_then2`, `radix32x32`,
-      `radix16x32`, sixstep, `sixstep64x128`, mixed, mixedradix, generic — and
-      the `Family` column of the tier table (`cmd/gencodelets/tiers.go`), which
-      supplies the families that have **no codelet rows at all**: split-radix,
-      Stockham, eight-step, four-step, Rader, Bluestein, recursive. That union is
-      the point. Split-radix — §1.2's "single largest untested cell" — is
-      invisible to a specs-only scan precisely *because* it is the gap.
+      **The union held.** Split-radix, eight-step, four-step, Rader, Bluestein
+      and recursive have **zero** codelet rows and appear only via the tier
+      table's new `Algo` column; `TestMatrixUnionIncludesTierOnlyFamilies`
+      asserts both halves of that, so wiring only the specs source fails rather
+      than silently omitting §1.2's largest open cell.
 
-      **Deliverable.** `cmd/gencodelets` emits the family × precision × ISA grid
-      into `docs/IMPLEMENTATION_INVENTORY.md` with each cell pre-filled from the
-      registry as has-rows / probe-only / none, reusing the `✓ · p ✗ —`
-      vocabulary of the existing grids. `docs/CODELET_BENCHMARKS.md` keeps the
-      verdict and evidence link per family, hand-written, and a gate closes the
-      loop both ways — as the probe and disposition gates do: a family present in
-      the tree with no verdict fails, and a verdict naming a family that no
-      longer exists fails.
+      **Where the verdicts live — a deviation from this task as written.** The
+      original text put them in `docs/CODELET_BENCHMARKS.md`, hand-written. A
+      verdict in prose cannot be gated, which is the §1.1 failure mode again, so
+      they are a table in `matrix.go` and render into the inventory. What
+      `CODELET_BENCHMARKS.md` keeps is the *evidence*: a settled verdict cites a
+      `doc, heading` pair and `TestFamilyEvidenceResolves` fails when that
+      heading is renamed away.
 
-      **What this task is not.** The skeleton is enumeration; it decides nothing.
-      Every remaining item in §1.2 is the judgment, and a generated grid of
-      mostly-blank verdict cells is a truer picture of how much is undecided than
-      a hand-collected table that quietly omits the families nobody has measured.
+      **Four gates, matching the probe and disposition ratchets.** A family in
+      the tree with no verdict fails; a verdict for a vanished family fails; a
+      status must carry what it claims (evidence / an owning task / a phase);
+      and an `open` family must quote exactly one **open** PLAN.md checkbox —
+      reusing `planTasks` from §1.1, so checking off a §1.2 item forces its
+      families to be answered instead of re-parked. A fifth,
+      `TestMatrixCellsAgreeWithTheSizeGrids`, cross-checks the derived family
+      cells against the independently computed per-size grids.
 
-- [ ] **Close out the two settled families in the matrix.** Radix-16 is closed
-      for every ISA (pass advantage real, entirely consumed by the butterfly;
-      AVX-512's 32 ZMM leave it structurally where AVX2 radix-8 already lost) and
-      `*_radix2_avx2` at n ≥ 16 is structurally dominated. Record both as `✗`
-      with the link, so neither gets re-attempted.
+      **What the skeleton found.** Only **3 of 26** families are settled
+      (radix-4 and the radix-8 ladder tuned, the radix-16 ladder closed); 3 are
+      deferred to Phase 2; 1 is an instrument (`radix4_notail`, wrong by
+      design); the remaining **19 are open**. Seven of those had no §1.2 item at
+      all — folded into the new "unowned families" item below rather than seven
+      new items.
+
+- [x] **Close out the two settled families in the matrix** (2026-08-01) — **and
+      both halves of the premise were wrong.** The task said to record radix-16
+      and radix-2 as `✗`. The generated grid says otherwise, and the numbers
+      behind it are already in the tree:
+
+      - **Radix-16 is not closed; the radix-16 _ladder_ is.** Those are two
+        families. The flat n = 16 leaf `dit16_radix16_*` is the **selected** row
+        in the pure-Go (prio 30), SSE3 (40) and AVX-512 (50) complex64 tiers and
+        in pure-Go complex128. It is outranked in exactly one tier, AVX2, where
+        `dit16_radix2_avx2` holds 55 — an ordering the 2026-07-30 incumbent
+        audit produced by ranking every registered candidate at that size. The
+        size-generic ladder carries its own `closed` verdict already.
+      - **`*_radix2_avx2` at n ≥ 16 is the incumbent, not dominated.** It is the
+        selected AVX2 complex64 row at 16, 32 _and_ 64, and `specs.go` records
+        why at each: 22 vs 34 ns against radix-4 at 32, and 54.6/56.5 vs
+        124.6/133.0 at 64, where the comment calls it "the only size-64 codelet
+        that is genuinely 256-bit wide". Recording it `✗` would have disabled
+        three winning rows.
+
+      The real result is a **per-precision** split, now the family's verdict:
+      complex64 radix-2 is tuned and holds those rows; complex128 radix-2 is
+      never selected at any n ≥ 16 in any tier, which is the dominance the task
+      meant — one precision, not both. Both families move to `tuned` in
+      `matrix.go` citing the AVX2 incumbent audit.
+
+      **Why this was worth doing before any measurement.** Three of the four
+      §1.2/§1.5 premises audited since §1.1 landed have been stale in the same
+      direction: written when the claim was true, left standing after the
+      radix-4 and AVX2 rewrites moved the rankings. That is the argument for the
+      matrix being generated. It is also the argument for reading the grid
+      before acting on a task that says "record this as closed".
+
 - [ ] **Re-derive the six-step / eight-step / four-step crossovers.** Their
       registry rows were pulled as a _stale crossover_, not a bad kernel —
       radix-4 got 2–4× faster and moved the crossing point up. Find where each
@@ -474,6 +505,16 @@ six-step, eight-step, four-step, recursive-with-codelet-leaves.
       re-measure, or close the family as `✗` with that reasoning — but do not
       leave it as a registered loser. It is the last family whose verdict rests
       on a kernel nobody defends.
+- [ ] **Give the unowned power-of-two families a verdict.** The generated
+      skeleton's finding: seven families had **no §1.2 item at all** — flat
+      `radix8` (the size-8 leaf, distinct from the ladder, six ISAs, never
+      compared against radix-2 or radix-4 at that size), `radix32`, the two NEON
+      `generic` rows that register the size-generic kernel _as_ a codelet,
+      `mixed` (n = 384, the only non-power-of-two in the codelet table), and the
+      pure-Go DIT, Stockham and recursive-with-codelet-leaves families. None is
+      likely to be a large win; the point is that each was undecided without
+      anyone having decided it, which is the whole failure mode §1.2 exists to
+      close. One verdict each, `untested` allowed as an answer.
 - [ ] **Fill the `-then-2` tail row of the matrix.** The tail costs 6.7–13.3%
       (`dit<N>_radix4_notail_avx2` measures 0.867–0.933 across all six groups),
       fusion recovers 4–6% at 128 and 2048 c64 and _loses_ 11% at 2048 c128. The
@@ -510,18 +551,24 @@ unmeasured and unmaintainable.
       Forward and inverse must stay separate because `prepareTwiddleRadix4AVX2`
       conjugates at prepare time. This converts the sixteen files from
       unreachable to registry-rankable, which is the Phase 1 outcome.
-- [ ] **Relocate the two shared `GLOBL` tables before any deletion.**
-      `bitrev8192_m24` in `avx2_f32_size8192_radix4_then2.s` is needed by
-      `sse2_f64_size8192_radix4_then2.s` and `sse3_f32_size8192_radix4_then2.s`;
-      `bitrev256_r2` in `avx2_f32_size256_radix2.s` by
-      `sse3_f32_size256_radix2.s`. Shared tables belong in
-      `internal/asm/amd64/bitrev_radix4_tables.s`. This has broken the build
-      once. Do this **first** — it is independent of which way the measurement
-      above goes.
-- [ ] **Keep `avx2_f{32,64}_size384_mixed.s` out of every sweep here.** They also
-      carry no spec row but are reached through the Go
-      `forwardDIT384MixedComplex64/128` codelet. Add a comment in each file
-      saying so, so the next reachability pass does not have to re-derive it.
+- [x] **Relocate the two shared `GLOBL` tables before any deletion**
+      (2026-08-01). `bitrev8192_m24` (8192 entries, 65 536 B) moved out of
+      `avx2_f32_size8192_radix4_then2.s`, which drops that file from 9427 to
+      1232 lines; `bitrev256_r2` (256 entries, 2048 B) out of
+      `avx2_f32_size256_radix2.s`, 1246 to 987. Both now sit in
+      `internal/asm/amd64/bitrev_radix4_tables.s`, whose header was widened from
+      "shared radix-4 tables" to state the entry criterion: a table referenced
+      from a file other than its host, because that is what makes the host
+      undeletable. Link, `go vet`, and the full `internal/kernels` reference
+      suite pass. Note the accounting — those 8451 lines are data the SSE2/SSE3
+      kernels still need, so they are **not** part of the ~26 000 that the
+      measurement below could retire.
+- [x] **Keep `avx2_f{32,64}_size384_mixed.s` out of every sweep here**
+      (2026-08-01). Both files now carry a `REACHABILITY` block at the top of
+      the header saying they are reached through the Go
+      `forwardDIT384MixedComplex64/128` codelet rather than the `KernelStrategy`
+      switch, that the §1.3 measurement therefore says nothing about them, and
+      that the census reports their symbols live for that reason.
 - [ ] **Wire or probe-gate the AVX2 transposes.** `avx2_f32_transpose{64x64,128x128}.s`
       were restored, tested and verified correct last round, and the census says
       no production path reaches them: the only route in,

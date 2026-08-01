@@ -42,18 +42,7 @@ type rankGroup struct {
 // cell of one precision's grid, merging the registered spec rows with the
 // probe-only registrations authored in probes.go.
 func cellVerdicts(prec int) map[gridKey]map[string]string {
-	best := map[rankGroup]int{}
-
-	for _, s := range codeletSpecs {
-		if s.Prec != prec || s.Priority < 0 {
-			continue
-		}
-
-		g := rankGroup{prec: s.Prec, size: s.Size, level: rankLevelOf(s)}
-		if p, ok := best[g]; !ok || s.Priority > p {
-			best[g] = s.Priority
-		}
-	}
+	best := bestPriorityByGroup()
 
 	out := map[gridKey]map[string]string{}
 

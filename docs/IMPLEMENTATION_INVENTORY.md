@@ -582,11 +582,11 @@ established home).
 | `avx512f32Radix8W64`                            | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
 | `avx512f32Radix8W8`                             | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
 | `bitrev16384_r4`                                | `amd64/bitrev_radix4_tables.s`            | `amd64/sse2_f64_size16384_radix4.s`, `amd64/sse3_f32_size16384_radix4.s`                                                       |
-| `bitrev256_r2`                                  | `amd64/avx2_f32_size256_radix2.s`         | `amd64/sse3_f32_size256_radix2.s`                                                                                              |
+| `bitrev256_r2`                                  | `amd64/bitrev_radix4_tables.s`            | `amd64/avx2_f32_size256_radix2.s`, `amd64/sse3_f32_size256_radix2.s`                                                           |
 | `bitrev4096_r4`                                 | `amd64/bitrev_radix4_tables.s`            | `amd64/sse2_f64_size4096_radix4.s`, `amd64/sse3_f32_size4096_radix4.s`                                                         |
 | `bitrev512_m24`                                 | `amd64/avx2_f32_size512_radix4_then2.s`   | `amd64/avx2_f64_size512_radix4_then2.s`                                                                                        |
 | `bitrev512_r2`                                  | `amd64/bitrev_f64_tables.s`               | `amd64/avx2_f32_size512_radix2.s`                                                                                              |
-| `bitrev8192_m24`                                | `amd64/avx2_f32_size8192_radix4_then2.s`  | `amd64/sse2_f64_size8192_radix4_then2.s`, `amd64/sse3_f32_size8192_radix4_then2.s`                                             |
+| `bitrev8192_m24`                                | `amd64/bitrev_radix4_tables.s`            | `amd64/avx2_f32_size8192_radix4_then2.s`, `amd64/sse2_f64_size8192_radix4_then2.s`, `amd64/sse3_f32_size8192_radix4_then2.s`   |
 | `complex64ImagSignMaskY`                        | `amd64/avx2_real_repack.s`                | `amd64/avx2_real_recombine.s`, `amd64/sse3_real_recombine.s`                                                                   |
 | `eightThousandOneHundredThirtySecond32`         | `amd64/core.s`                            | `amd64/avx2_f32_size8192_radix4_then2.s`, `amd64/sse3_f32_size8192_radix4_then2.s`                                             |
 | `eightThousandOneHundredThirtySecond64`         | `amd64/core.s`                            | `amd64/sse2_f64_size8192_radix4_then2.s`                                                                                       |
@@ -610,8 +610,8 @@ established home).
 | `neonInv4`                                      | `arm64/core.s`                            | `arm64/neon_f32_size4_radix4.s`                                                                                                |
 | `neonInv8`                                      | `arm64/core.s`                            | `arm64/neon_f32_size8_radix2.s`, `arm64/neon_f32_size8_radix4.s`, `arm64/neon_f32_size8_radix8.s`                              |
 | `neonInv8F64`                                   | `arm64/neon_f64_size8_radix2.s`           | `arm64/neon_f64_size8_radix4.s`                                                                                                |
-| `neonOne64`                                     | `arm64/core.s`                            | `arm64/neon_f64_generic.s`                                                                                                     |
-| `neonOnes`                                      | `arm64/core.s`                            | `arm64/neon_f32_generic.s`, `arm64/neon_f32_size16_radix4.s`                                                                   |
+| `neonOne64`                                     | `arm64/core.s`                            | `arm64/neon_f64_generic.s`, `arm64/neon_f64_size4_radix4.s`, `arm64/neon_f64_size8_radix4.s`                                   |
+| `neonOnes`                                      | `arm64/core.s`                            | `arm64/neon_f32_generic.s`, `arm64/neon_f32_size4_radix4.s`, `arm64/neon_f32_size8_radix8.s`                                   |
 | `neonSignImag`                                  | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
 | `one32`                                         | `x86/core.s`                              | `amd64/avx2_f32_generic.s`, `amd64/avx2_f32_generic_radix4_even.s`, `amd64/avx2_f32_generic_radix4_odd.s` + 6 more             |
 | `one64`                                         | `x86/core.s`                              | `amd64/avx2_f64_generic.s`, `amd64/avx2_f64_stockham.s`, `amd64/avx512_f64_generic.s` + 1 more                                 |
@@ -652,15 +652,16 @@ The file list is scanned from the build constraints; the verdicts are authored
 in `cmd/gencodelets/probes.go`, and a probe file with no verdict fails the
 generator's tests.
 
-| File                                               | Build tag                      | Measures                                                                                   | Status          |
-| -------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ | --------------- |
-| `internal/fft/radix4_c128_probe_amd64.go`          | `amd64 && !purego && fftprobe` | complex128 generic AVX2 radix-4 / radix-4-then-2 against the generic AVX2 radix-2 dispatch | open            |
-| `internal/kernels/probe_util.go`                   | `fftprobe`                     | shared helpers for the harnesses in this section (no kernel of its own)                    | support         |
-| `internal/kernels/radix16_generic_probe.go`        | `fftprobe`                     | size-generic pure-Go radix-16 ladder against the pure-Go radix-8 ladder                    | closed          |
-| `internal/kernels/radix4_avx2_tail_probe_amd64.go` | `amd64 && !purego && fftprobe` | the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass          | open            |
-| `internal/kernels/radix8_avx2_probe_amd64.go`      | `amd64 && !purego && fftprobe` | size-generic AVX2 radix-8 ladder against the AVX2 radix-4 rows                             | partly promoted |
-| `internal/kernels/radix8_avx512_probe_amd64.go`    | `amd64 && !purego && fftprobe` | size-generic AVX-512 radix-8 ladder against the AVX2 radix-4 rows                          | partly promoted |
-| `internal/kernels/radix8_generic_probe.go`         | `fftprobe`                     | size-generic pure-Go radix-8 ladder against the pure-Go radix-4 ladder                     | partly promoted |
+| File                                                 | Build tag                      | Measures                                                                                   | Status          |
+| ---------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ | --------------- |
+| `internal/fft/radix4_c128_probe_amd64.go`            | `amd64 && !purego && fftprobe` | complex128 generic AVX2 radix-4 / radix-4-then-2 against the generic AVX2 radix-2 dispatch | open            |
+| `internal/kernels/avx2_size_specific_probe_amd64.go` | `amd64 && !purego && fftprobe` | no entry in cmd/gencodelets/probes.go                                                      | UNDOCUMENTED    |
+| `internal/kernels/probe_util.go`                     | `fftprobe`                     | shared helpers for the harnesses in this section (no kernel of its own)                    | support         |
+| `internal/kernels/radix16_generic_probe.go`          | `fftprobe`                     | size-generic pure-Go radix-16 ladder against the pure-Go radix-8 ladder                    | closed          |
+| `internal/kernels/radix4_avx2_tail_probe_amd64.go`   | `amd64 && !purego && fftprobe` | the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass          | open            |
+| `internal/kernels/radix8_avx2_probe_amd64.go`        | `amd64 && !purego && fftprobe` | size-generic AVX2 radix-8 ladder against the AVX2 radix-4 rows                             | partly promoted |
+| `internal/kernels/radix8_avx512_probe_amd64.go`      | `amd64 && !purego && fftprobe` | size-generic AVX-512 radix-8 ladder against the AVX2 radix-4 rows                          | partly promoted |
+| `internal/kernels/radix8_generic_probe.go`           | `fftprobe`                     | size-generic pure-Go radix-8 ladder against the pure-Go radix-4 ladder                     | partly promoted |
 
 **`internal/fft/radix4_c128_probe_amd64.go`** — open
 
@@ -668,6 +669,8 @@ Wired into the production dispatch on 2026-08-01, verified against `reference.Na
 
 - Recorded in: docs/CODELET_BENCHMARKS.md, "complex128 generic AVX2: radix-2 wins on the i7-1255U, loses on the Xeon"
 - Re-derive: `PATH=/usr/local/go/bin:$PATH taskset -c 0 go test -tags fftprobe -run '^$' -bench 'BenchmarkC128Radix[24]' -benchtime=0.5s -count=5 ./internal/fft/`
+
+**`internal/kernels/avx2_size_specific_probe_amd64.go`** — UNDOCUMENTED
 
 **`internal/kernels/probe_util.go`** — support
 
@@ -747,6 +750,111 @@ to a registry codelet never enters it. Higher plan-level features (real FFT,
 | Rader                       | `internal/fft.ComputeRaderTables`                     | both       | any        | prime lengths passing `RaderEligible`.                                                                                                                                                                           |
 | Bluestein                   | `internal/fft.BluesteinConvolution`                   | both       | any        | arbitrary lengths; padded to a power of two the tiers above can serve.                                                                                                                                           |
 | Recursive decomposition     | `internal/transform.PlanDecomposition`                | both       | any        | powers of two, bottoming out in registered codelet leaves.                                                                                                                                                       |
+
+## Algorithm × Precision × ISA
+
+The grids above are indexed by size, which answers "what runs at n = 2048" but
+not "has anyone measured split-radix anywhere". This is the second question,
+one row per algorithm family — PLAN.md §1.2.
+
+The family axis is the union of two derived sets: the families encoded in each
+codelet `Signature`, and the `Algo` column of the tier table below, which
+supplies every family that has **no codelet rows at all**. Split-radix is in
+this table only because of the second source, and it is §1.2's largest open
+cell — a specs-only scan would have omitted exactly the thing it exists to find.
+
+Cells use the size grids' glyphs, plus `t` for a family reached through a
+kernel tier rather than the codelet registry (it has no registry ranking, so it
+is not a `✓`).
+
+| Family                                     | complex | Go  | SSE2 | SSE3 | AVX2 | AVX-512 | NEON | Rows | Status     |
+| ------------------------------------------ | ------: | :-: | :--: | :--: | :--: | :-----: | :--: | ---: | ---------- |
+| Bluestein                                  |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | deferred   |
+| Bluestein                                  |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | deferred   |
+| DIT                                        |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| DIT                                        |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Eight-step                                 |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Eight-step                                 |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Four-step                                  |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Four-step                                  |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Generic radix-2                            |      64 |  —  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Generic radix-2                            |     128 |  —  |  —   |  —   |  —   |    —    |  ·   |    2 | open       |
+| Mixed 128×3                                |      64 |  ✓  |  —   |  —   |  ✓   |    —    |  —   |    2 | open       |
+| Mixed 128×3                                |     128 |  ✓  |  —   |  —   |  ✓   |    —    |  —   |    2 | open       |
+| Mixed-2/4                                  |      64 |  ✓  |  —   |  ✓   |  —   |    ✓    |  ✓   |   20 | open       |
+| Mixed-2/4                                  |     128 |  ✓  |  ✓   |  —   |  —   |    ✓    |  ✓   |   21 | open       |
+| Mixed-8/2                                  |      64 |  —  |  —   |  —   |  —   |    ✓    |  —   |    2 | open       |
+| Mixed-8/2                                  |     128 |  —  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Mixed-radix engine                         |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | deferred   |
+| Mixed-radix engine                         |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | deferred   |
+| Rader                                      |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | deferred   |
+| Rader                                      |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | deferred   |
+| Radix-16                                   |      64 |  ✓  |  —   |  ✓   |  ·   |    ✓    |  —   |    4 | tuned      |
+| Radix-16                                   |     128 |  ✓  |  —   |  —   |  —   |    —    |  —   |    1 | tuned      |
+| Radix-16 (ladder)                          |      64 |  p  |  —   |  —   |  —   |    —    |  —   |    0 | closed     |
+| Radix-16 (ladder)                          |     128 |  p  |  —   |  —   |  —   |    —    |  —   |    0 | closed     |
+| Radix-16×32                                |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
+| Radix-16×32                                |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
+| Radix-2                                    |      64 |  ·  |  —   |  ✓   |  ✓   |    ✓    |  ✓   |   31 | tuned      |
+| Radix-2                                    |     128 |  ·  |  ·   |  —   |  ·   |    —    |  ·   |   21 | tuned      |
+| Radix-32                                   |      64 |  ·  |  —   |  —   |  ·   |    —    |  —   |    2 | open       |
+| Radix-32                                   |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
+| Radix-32×32                                |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
+| Radix-32×32                                |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
+| Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   32 | tuned      |
+| Radix-4                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |   40 | tuned      |
+| Radix-4 (fused tail)                       |      64 |  —  |  —   |  —   |  ✓   |    —    |  —   |    2 | open       |
+| Radix-4 (fused tail)                       |     128 |  —  |  —   |  —   |  ✓   |    —    |  —   |    1 | open       |
+| Radix-4 (no tail — wrong result by design) |      64 |  —  |  —   |  —   |  p   |    —    |  —   |    0 | instrument |
+| Radix-4 (no tail — wrong result by design) |     128 |  —  |  —   |  —   |  p   |    —    |  —   |    0 | instrument |
+| Radix-8                                    |      64 |  ✓  |  —   |  ✓   |  ·   |    ✓    |  ✓   |    6 | open       |
+| Radix-8                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  —   |    5 | open       |
+| Radix-8 (ladder)                           |      64 |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |   19 | tuned      |
+| Radix-8 (ladder)                           |     128 |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |   17 | tuned      |
+| Recursive                                  |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Recursive                                  |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Six-step                                   |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    2 | open       |
+| Six-step                                   |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    2 | open       |
+| Six-step 64×128                            |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
+| Six-step 64×128                            |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
+| Split-radix                                |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Split-radix                                |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Stockham                                   |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Stockham                                   |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+
+### Family verdicts
+
+Hand-written, and gated in both directions: a family in the tree with no
+verdict fails the generator's tests, and a verdict naming a family that is
+no longer there fails too. An `open` family must quote an **open** PLAN.md
+task, so the question has an owner rather than a shrug.
+
+- **Bluestein** (deferred) — mediocre at 0.42–0.62× vs FFTW3; the pad model is the lever. Owned by Phase 2
+- **DIT** (open) — the engine the codelet leaves hang off; `ditAutoThreshold` was calibrated against kernels now 2–4× faster. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Eight-step** (open) — pure-Go only, no codelet rows at any ISA; crossover never re-derived after the radix-4 rewrite. Tracked by PLAN.md: Re-derive the six-step / eight-step / four-step crossovers
+- **Four-step** (open) — pure-Go only; splits n1×n2 from detected cache sizes, which is exactly the parameter a second host would move. Tracked by PLAN.md: Re-derive the six-step / eight-step / four-step crossovers
+- **Generic radix-2** (open) — two NEON rows using the size-generic kernel as a codelet; whether that is a win or a placeholder is unmeasured, and NEON priorities above 512 were mirrored rather than taken. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Mixed 128×3** (open) — the only non-power-of-two in the codelet table (n = 384, 128×3) and the only size AVX2 covers that no other tier does. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Mixed-2/4** (open) — the `-then-2` tail costs 6.7–13.3%; whether plain, fused or radix-8 is the candidate is cache-geometry-dependent and therefore a per-cell answer. Tracked by PLAN.md: Fill the -then-2 tail row of the matrix
+- **Mixed-8/2** (open) — the radix-8 spelling of the same tail question, registered at two cells only. Tracked by PLAN.md: Fill the -then-2 tail row of the matrix
+- **Mixed-radix engine** (deferred) — the route every smooth non-power-of-two takes, and the worst external cells (2205 at 0.16×, 96 at 0.20×). Owned by Phase 2
+- **Rader** (deferred) — healthy at 0.78–1.58× vs FFTW3 with outright wins at 641, 4001 and 12289. Owned by Phase 2
+- **Radix-16** (tuned) — not closed — the flat n = 16 leaf is the selected row in the pure-Go, SSE3 and AVX-512 complex64 tiers and in pure-Go complex128; it is outranked only on AVX2, where the 2026-07-30 audit ranked every n = 16 candidate and radix-2 took the row. What is closed is the size-generic radix-16 ladder, which is a different family. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
+- **Radix-16 (ladder)** (closed) — swept and lost every cell; the pass advantage is real and entirely consumed by the butterfly, and AVX-512's 32 ZMM leave it where AVX2 radix-8 already lost. Evidence: docs/CODELET_BENCHMARKS.md, Generic tier — the radix-16 ladder, and where the radix ladder stops
+- **Radix-16×32** (open) — same unvectorised second stage as its 32×32 sibling; same open question. Tracked by PLAN.md: Decide the 32×32 / 16×32 decomposition family on merit
+- **Radix-2** (tuned) — splits by precision, and not the way §1.2 assumed. complex64: it is the _incumbent_ at n = 16, 32 and 64 on AVX2 (54.6 vs 124.6 ns at 64 — the only genuinely 256-bit size-64 codelet) and at n = 64 on AVX-512 and NEON. complex128: never selected at any n ≥ 16 in any tier, so it is dominated there. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
+- **Radix-32** (open) — three rows at n = 32 and no measurement distinguishing it from radix-4 there. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Radix-32×32** (open) — lost as implementation-limited — only one of two stages vectorised — which per AGENTS.md disqualifies the file, not the algorithm. Tracked by PLAN.md: Decide the 32×32 / 16×32 decomposition family on merit
+- **Radix-4** (tuned) — the incumbent at nearly every size and ISA; the 256-bit AVX2 rewrite made it 2–4× faster and moved every crossover above it. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
+- **Radix-4 (fused tail)** (open) — recovers 4–6% at 128 and 2048 complex64 and loses 11% at 2048 complex128 — the clearest evidence that this row is per-cell, not per-family. Tracked by PLAN.md: Fill the -then-2 tail row of the matrix
+- **Radix-4 (no tail — wrong result by design)** (instrument) — measures what the separate `-then-2` tail pass costs by omitting it; 0.867–0.933 across all six groups. Owned by the -then-2 tail item, as its measuring instrument
+- **Radix-8** (open) — the flat size-8 leaf, distinct from the ladder, registered at six ISAs and never compared against radix-2 or radix-4 at that size. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Radix-8 (ladder)** (tuned) — wins the generic tier and, on Skylake-SP, 16 AVX-512 cells; loses to radix-4 at the small sizes and on the i7-1255U above 2048 for complex128. Evidence: docs/CODELET_BENCHMARKS.md, The AVX-512 radix-8 ladder: prediction half right, 16 rows promoted
+- **Recursive** (open) — recursive decomposition with codelet leaves; listed as a Phase 1 family and never measured against the flat ladders. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Six-step** (open) — rows pulled as a stale crossover, not a bad kernel; the crossing point moved up when radix-4 got faster. Tracked by PLAN.md: Re-derive the six-step / eight-step / four-step crossovers
+- **Six-step 64×128** (open) — the rectangular split of the same family; shares the crossover question. Tracked by PLAN.md: Re-derive the six-step / eight-step / four-step crossovers
+- **Split-radix** (open) — the largest untested cell in the matrix: beat the auto path at every power of two ≥ 256 on purego, has no codelet row and no SIMD kernel at any ISA, and is auto-selected nowhere. Tracked by PLAN.md: Give split-radix a fair measurement
+- **Stockham** (open) — pure Go plus a packed variant; the packed gate is filled for AVX2 only, and the plain form's crossover against DIT predates the radix-4 rewrite. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
 
 ## Testing
 

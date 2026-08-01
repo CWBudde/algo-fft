@@ -99,6 +99,7 @@ func renderInventory(c *census, probes []probeEntry, root string) []byte {
 	renderCensus(&b, c)
 	renderProbes(&b, probes)
 	renderTiers(&b, root)
+	renderMatrix(&b)
 	renderStaticSections(&b)
 
 	return b.Bytes()

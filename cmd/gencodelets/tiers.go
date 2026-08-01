@@ -25,10 +25,18 @@ import (
 // tierRow is one dispatch tier outside the codelet registry.
 type tierRow struct {
 	Family string
-	Pkg    string // module-relative package directory
-	Entry  string // the identifier a reader should start from
-	Prec   string
-	ISA    string
+	// Algo names the algorithm family this row implements, when that family
+	// exists *only* here and has no codelet rows to derive it from — the pure-Go
+	// families and the arbitrary-length engines. Empty for the per-ISA dispatch
+	// rows, which are routes into the codelet registry rather than families of
+	// their own. This is the second half of the family axis in matrix.go: a
+	// specs-only scan cannot see split-radix precisely because having no
+	// codelet row is what makes it a gap.
+	Algo  string
+	Pkg   string // module-relative package directory
+	Entry string // the identifier a reader should start from
+	Prec  string
+	ISA   string
 	// SizeFuncs are functions whose `switch n` case labels define the tier's
 	// size-specific coverage. Empty means the tier is size-generic and Rule
 	// describes it instead.
@@ -109,56 +117,56 @@ var tierRows = []tierRow{
 			"only through thunks nothing calls — this switch is why.",
 	},
 	{
-		Family: "DIT (pure Go)", Pkg: "internal/kernels",
+		Family: "DIT (pure Go)", Algo: "DIT", Pkg: "internal/kernels",
 		Entry: "ForwardDITComplex64", Prec: "both", ISA: "any",
 		Rule: "any power of two; the auto heuristic picks it up to " +
 			"`ditAutoThreshold` (internal/planner/selection.go).",
 	},
 	{
-		Family: "Stockham (pure Go)", Pkg: "internal/kernels",
+		Family: "Stockham (pure Go)", Algo: "Stockham", Pkg: "internal/kernels",
 		Entry: "ForwardStockhamComplex64", Prec: "both", ISA: "any",
 		Rule: "any power of two; the auto heuristic picks it above the DIT threshold.",
 	},
 	{
-		Family: "Split-radix (pure Go)", Pkg: "internal/kernels",
+		Family: "Split-radix (pure Go)", Algo: "Split-radix", Pkg: "internal/kernels",
 		Entry: "ForwardSplitRadixComplex64", Prec: "both", ISA: "any",
 		Rule: "any power of two, reachable only through a forced " +
 			"`KernelSplitRadix` — the auto heuristic never selects it.",
 	},
 	{
-		Family: "Six-step (pure Go)", Pkg: "internal/kernels",
+		Family: "Six-step (pure Go)", Algo: "Six-step", Pkg: "internal/kernels",
 		Entry: "ForwardSixStepComplex64", Prec: "both", ISA: "any",
 		Rule: "perfect squares only (even exponent); declines every other length.",
 	},
 	{
-		Family: "Eight-step (pure Go)", Pkg: "internal/kernels",
+		Family: "Eight-step (pure Go)", Algo: "Eight-step", Pkg: "internal/kernels",
 		Entry: "ForwardEightStepComplex64", Prec: "both", ISA: "any",
 		Rule: "perfect squares only, as six-step.",
 	},
 	{
-		Family: "Four-step (pure Go)", Pkg: "internal/kernels",
+		Family: "Four-step (pure Go)", Algo: "Four-step", Pkg: "internal/kernels",
 		Entry: "ForwardFourStepComplex64", Prec: "both", ISA: "any",
 		Rule: "any power of two — the rectangular n1×n2 split covers the odd " +
 			"exponents six-step declines, tilted by the detected L1d/L2 sizes.",
 	},
 	{
-		Family: "Mixed-radix engine", Pkg: "internal/fft",
+		Family: "Mixed-radix engine", Algo: "Mixed-radix engine", Pkg: "internal/fft",
 		Entry: "forwardMixedRadixComplex64", Prec: "both", ISA: "any",
 		Rule: "smooth lengths with factors 2/3/5/7/11 (`math.IsMixedRadixSmooth`); " +
 			"the route every non-power-of-two outside Bluestein takes.",
 	},
 	{
-		Family: "Rader", Pkg: "internal/fft",
+		Family: "Rader", Algo: "Rader", Pkg: "internal/fft",
 		Entry: "ComputeRaderTables", Prec: "both", ISA: "any",
 		Rule: "prime lengths passing `RaderEligible`.",
 	},
 	{
-		Family: "Bluestein", Pkg: "internal/fft",
+		Family: "Bluestein", Algo: "Bluestein", Pkg: "internal/fft",
 		Entry: "BluesteinConvolution", Prec: "both", ISA: "any",
 		Rule: "arbitrary lengths; padded to a power of two the tiers above can serve.",
 	},
 	{
-		Family: "Recursive decomposition", Pkg: "internal/transform",
+		Family: "Recursive decomposition", Algo: "Recursive", Pkg: "internal/transform",
 		Entry: "PlanDecomposition", Prec: "both", ISA: "any",
 		Rule: "powers of two, bottoming out in registered codelet leaves.",
 	},
