@@ -605,7 +605,7 @@ established home).
 | `neonInv8`                                      | `arm64/core.s`                            | `arm64/neon_f32_size8_radix2.s`, `arm64/neon_f32_size8_radix4.s`, `arm64/neon_f32_size8_radix8.s`                              |
 | `neonInv8F64`                                   | `arm64/neon_f64_size8_radix2.s`           | `arm64/neon_f64_size8_radix4.s`                                                                                                |
 | `neonOne64`                                     | `arm64/core.s`                            | `arm64/neon_f64_generic.s`                                                                                                     |
-| `neonOnes`                                      | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
+| `neonOnes`                                      | `arm64/core.s`                            | `arm64/neon_f32_generic.s`, `arm64/neon_f32_size16_radix4.s`                                                                   |
 | `neonSignImag`                                  | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
 | `one32`                                         | `x86/core.s`                              | `amd64/avx2_f32_generic.s`, `amd64/avx2_f32_generic_radix4_even.s`, `amd64/avx2_f32_generic_radix4_odd.s` + 6 more             |
 | `one64`                                         | `x86/core.s`                              | `amd64/avx2_f64_generic.s`, `amd64/avx2_f64_stockham.s`, `amd64/avx512_f64_generic.s` + 1 more                                 |
@@ -706,24 +706,41 @@ Forward geomean **0.87** over n = 512..32768 (2026-07-30). Thirteen of twenty ce
 
 ## Beyond the Codelet Registry
 
-Codelets cover the tuned size-specific fast paths. Everything else is served
-by these tiers, in dispatch order:
+Codelets cover the tuned size-specific fast paths. Every other length is served
+by the tiers below. _Entry point_ is the identifier to read first; the
+generator's tests fail if it is not declared in the package named. _Sizes_ is
+read out of the tier's `switch n` where it has one, so it cannot drift from the
+dispatch it describes.
 
-1. **Generic SIMD kernels** (internal/fft dispatch, internal/asm):
-   size-generic DIT and Stockham kernels for AVX-512 / AVX2 / SSE3 / SSE2 on
-   amd64, NEON on arm64, and SSE2/SSE3 on 386. These serve every power-of-two
-   size without a registered codelet (on amd64 the AVX-512 tier also serves
-   all Stockham-resolved sizes; see internal/fft/kernels_amd64_avx512.go).
-2. **386 size-specific kernels** (internal/asm/x86, dispatched via
-   internal/fft/kernels_386_asm.go): SSE2/SSE3 kernels for sizes 2/4/8/16,
-   including the size-16 radix-16 variant.
-3. **Pure-Go algorithm families** (internal/kernels, internal/transform):
-   DIT, Stockham, mixed-radix 2/3/5/7/11, Bluestein (arbitrary lengths),
-   six-step/eight-step (large sizes), and recursive decomposition — both
-   precisions, every platform, and the only tier under -tags purego.
+On amd64 the chain is tried widest-first (AVX-512 → AVX2 size-specific → AVX2
+generic → SSE3 → SSE2 → pure Go), each tier declining to the next; a plan bound
+to a registry codelet never enters it. Higher plan-level features (real FFT,
+2D/3D/N-D, batch/strided, convolution) compose these 1D kernels.
 
-Higher plan-level features (real FFT, 2D/3D/N-D, batch/strided, convolution)
-compose these 1D kernels; see README.md and PLAN.md.
+| Family                      | Entry point                                           | Precision  | ISA        | Sizes                                                                                                                                                                                                            |
+| --------------------------- | ----------------------------------------------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AVX-512 generic radix-2 DIT | `internal/fft.avx512FirstKernel`                      | both       | AVX-512    | any power of two n ≥ 16; declines below that. Yields to the AVX2 size-specific sizes below and to an explicitly forced Stockham.                                                                                 |
+| AVX2 size-specific DIT      | `internal/fft.avx2SizeSpecificOrGenericDITComplex64`  | complex64  | AVX2       | size-specific: 8, 16, 32, 64, 128, 256, 512, 2048, 8192                                                                                                                                                          |
+| AVX2 size-specific DIT      | `internal/fft.avx2SizeSpecificOrGenericDITComplex128` | complex128 | AVX2       | size-specific: 4, 8, 16, 32, 64, 512                                                                                                                                                                             |
+| AVX2 generic DIT / Stockham | `internal/fft.avx2KernelComplex64`                    | both       | AVX2       | any power of two; DIT or Stockham per the resolved strategy.                                                                                                                                                     |
+| SSE3 size-specific DIT      | `internal/fft.sse3TrySizeSpecificForwardComplex64`    | complex64  | SSE3       | size-specific: 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384                                                                                                                                    |
+| SSE2 generic radix-2 DIT    | `internal/fft.forwardSSE2Complex64`                   | both       | SSE2       | any power of two. This is the whole complex128 SSE tier — amd64 has no SSE3 complex128 dispatch at all.                                                                                                          |
+| NEON size-specific DIT      | `internal/fft.neonSizeSpecificOrGenericDITComplex64`  | complex64  | NEON       | size-specific: 4, 8, 16, 32, 64, 128, 256                                                                                                                                                                        |
+| NEON size-specific DIT      | `internal/fft.neonSizeSpecificOrGenericDITComplex128` | complex128 | NEON       | size-specific: 4, 8, 16, 32                                                                                                                                                                                      |
+| NEON generic DIT            | `internal/fft.forwardNEONComplex64`                   | both       | NEON       | any power of two; the complex128 side delegates to pure Go.                                                                                                                                                      |
+| 386 SSE3 dispatch           | `internal/fft.forwardSSE3Complex64`                   | complex64  | SSE3 (386) | size-specific: 2, 4, 8, 16; larger powers of two fall through to the generic SSE2 kernel.                                                                                                                        |
+| 386 SSE2 dispatch           | `internal/fft.forwardSSE2Complex128`                  | complex128 | SSE2 (386) | size-specific: 2, 4, 8, 16; no generic SSE2 complex128 kernel: every other size declines.                                                                                                                        |
+| 386 SSE1 dispatch           | `internal/fft.forwardSSEComplex64`                    | complex64  | SSE (386)  | size-specific: 2, 4; larger powers of two fall through to the generic SSE kernel. The census reports the size-8 and size-16 386 SSE symbols as reachable only through thunks nothing calls — this switch is why. |
+| DIT (pure Go)               | `internal/kernels.ForwardDITComplex64`                | both       | any        | any power of two; the auto heuristic picks it up to `ditAutoThreshold` (internal/planner/selection.go).                                                                                                          |
+| Stockham (pure Go)          | `internal/kernels.ForwardStockhamComplex64`           | both       | any        | any power of two; the auto heuristic picks it above the DIT threshold.                                                                                                                                           |
+| Split-radix (pure Go)       | `internal/kernels.ForwardSplitRadixComplex64`         | both       | any        | any power of two, reachable only through a forced `KernelSplitRadix` — the auto heuristic never selects it.                                                                                                      |
+| Six-step (pure Go)          | `internal/kernels.ForwardSixStepComplex64`            | both       | any        | perfect squares only (even exponent); declines every other length.                                                                                                                                               |
+| Eight-step (pure Go)        | `internal/kernels.ForwardEightStepComplex64`          | both       | any        | perfect squares only, as six-step.                                                                                                                                                                               |
+| Four-step (pure Go)         | `internal/kernels.ForwardFourStepComplex64`           | both       | any        | any power of two — the rectangular n1×n2 split covers the odd exponents six-step declines, tilted by the detected L1d/L2 sizes.                                                                                  |
+| Mixed-radix engine          | `internal/fft.forwardMixedRadixComplex64`             | both       | any        | smooth lengths with factors 2/3/5/7/11 (`math.IsMixedRadixSmooth`); the route every non-power-of-two outside Bluestein takes.                                                                                    |
+| Rader                       | `internal/fft.ComputeRaderTables`                     | both       | any        | prime lengths passing `RaderEligible`.                                                                                                                                                                           |
+| Bluestein                   | `internal/fft.BluesteinConvolution`                   | both       | any        | arbitrary lengths; padded to a power of two the tiers above can serve.                                                                                                                                           |
+| Recursive decomposition     | `internal/transform.PlanDecomposition`                | both       | any        | powers of two, bottoming out in registered codelet leaves.                                                                                                                                                       |
 
 ## Testing
 

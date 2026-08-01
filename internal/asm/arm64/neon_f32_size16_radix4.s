@@ -4,631 +4,327 @@
 // NEON Size-16 Radix-4 FFT Kernels for ARM64
 // ===========================================================================
 //
-// Size 16 = 4^2, radix-4 algorithm uses 2 stages:
-//   Stage 1: 4 radix-4 butterflies, stride=4
-//   Stage 2: 1 group, 4 butterflies, twiddle step=1
+// This replaced an earlier scalar implementation that, despite the "NEON"
+// name, contained no vector instructions at all — plain FMOVS/FADDS/FMULS
+// with a bit-reversal loop — and measured 1.83x (forward) / 2.19x (inverse)
+// SLOWER than the pure-Go codelet on an Apple M5. This version is 3.76x /
+// 3.69x faster than that one and 1.71x / 1.70x faster than the best pure-Go
+// candidate. See docs/CODELET_BENCHMARKS.md.
+//
+// Algorithm — 4x4 Cooley-Tukey, natural order in, natural order out, no
+// bit-reversal pass. With n = n1 + 4*n2 and k = 4*k1 + k2:
+//
+//   X[4k1+k2] = sum_{n1} W4^{n1 k1} W16^{n1 k2} sum_{n2} x[n1+4n2] W4^{n2 k2}
+//
+//   A) 4 DFT4s over n2      — vertical across 4 vectors, lane = n1
+//   B) multiply by W16^{n1 k2}
+//   C) 4x4 transpose        — lane becomes k2, vector becomes n1
+//   D) 4 DFT4s over n1      — vertical again, vector = k1, lane = k2
+//
+// Step D leaves vector k1 holding X[4k1+0..3], i.e. four *consecutive*
+// outputs, so each store is a single VST2. Every input is loaded into
+// registers before the first store, so dst may alias src and no scratch
+// buffer or copy-back is needed.
+//
+// Go's arm64 assembler has NO vector FADD/FSUB/FMUL — VFMLA and VFMLS are the
+// only vector FP arithmetic mnemonics it accepts. Addition and subtraction are
+// therefore synthesized against a vector of 1.0 (·neonOnes) and multiplication
+// against a VEOR-zeroed accumulator, exactly as neon_f32_generic.s does. On
+// Apple cores FMA has the same throughput as FADD, so this costs nothing.
 //
 // ===========================================================================
 
 #include "textflag.h"
 
-DATA ·neonInv16+0(SB)/4, $0x3d800000 // 1/16
-GLOBL ·neonInv16(SB), RODATA, $4
+// V31 permanently holds [1.0, 1.0, 1.0, 1.0]; the add/sub macros depend on it.
+#define ONES V31
 
-// Forward transform, size 16, complex64, radix-4 variant
+// d = a + b, d = a - b (a, b, d are V-register names without arrangement).
+#define VADDF(a, b, d) \
+	VMOV  a.B16, d.B16    \
+	VFMLA b.S4, ONES.S4, d.S4
+
+#define VSUBF(a, b, d) \
+	VMOV  a.B16, d.B16    \
+	VFMLS b.S4, ONES.S4, d.S4
+
+// 4x4 float32 transpose of rows r0..r3 into o0..o3, clobbering t0..t3.
+#define VTRANSPOSE4(r0, r1, r2, r3, t0, t1, t2, t3, o0, o1, o2, o3) \
+	VTRN1 r1.S4, r0.S4, t0.S4 \
+	VTRN2 r1.S4, r0.S4, t1.S4 \
+	VTRN1 r3.S4, r2.S4, t2.S4 \
+	VTRN2 r3.S4, r2.S4, t3.S4 \
+	VZIP1 t2.D2, t0.D2, o0.D2 \
+	VZIP1 t3.D2, t1.D2, o1.D2 \
+	VZIP2 t2.D2, t0.D2, o2.D2 \
+	VZIP2 t3.D2, t1.D2, o3.D2
+
+// Forward DFT4 across four vectors (W4 = -i):
+//   X0 = t0+t2   X2 = t0-t2   X1 = t1 - i*t3   X3 = t1 + i*t3
+// where t0 = a0+a2, t1 = a0-a2, t2 = a1+a3, t3 = a1-a3.
+// Operates on real parts ar0..ar3 and imaginary parts ai0..ai3 in place,
+// clobbering the eight temporaries.
+#define VDFT4_FWD(ar0, ar1, ar2, ar3, ai0, ai1, ai2, ai3, t0r, t1r, t2r, t3r, t0i, t1i, t2i, t3i) \
+	VADDF(ar0, ar2, t0r) \
+	VSUBF(ar0, ar2, t1r) \
+	VADDF(ar1, ar3, t2r) \
+	VSUBF(ar1, ar3, t3r) \
+	VADDF(ai0, ai2, t0i) \
+	VSUBF(ai0, ai2, t1i) \
+	VADDF(ai1, ai3, t2i) \
+	VSUBF(ai1, ai3, t3i) \
+	VADDF(t0r, t2r, ar0) \
+	VADDF(t0i, t2i, ai0) \
+	VSUBF(t0r, t2r, ar2) \
+	VSUBF(t0i, t2i, ai2) \
+	VADDF(t1r, t3i, ar1) \
+	VSUBF(t1i, t3r, ai1) \
+	VSUBF(t1r, t3i, ar3) \
+	VADDF(t1i, t3r, ai3)
+
+// Inverse DFT4 across four vectors (W4 = +i): X1 and X3 swap relative to fwd.
+#define VDFT4_INV(ar0, ar1, ar2, ar3, ai0, ai1, ai2, ai3, t0r, t1r, t2r, t3r, t0i, t1i, t2i, t3i) \
+	VADDF(ar0, ar2, t0r) \
+	VSUBF(ar0, ar2, t1r) \
+	VADDF(ar1, ar3, t2r) \
+	VSUBF(ar1, ar3, t3r) \
+	VADDF(ai0, ai2, t0i) \
+	VSUBF(ai0, ai2, t1i) \
+	VADDF(ai1, ai3, t2i) \
+	VSUBF(ai1, ai3, t3i) \
+	VADDF(t0r, t2r, ar0) \
+	VADDF(t0i, t2i, ai0) \
+	VSUBF(t0r, t2r, ar2) \
+	VSUBF(t0i, t2i, ai2) \
+	VSUBF(t1r, t3i, ar1) \
+	VADDF(t1i, t3r, ai1) \
+	VADDF(t1r, t3i, ar3) \
+	VSUBF(t1i, t3r, ai3)
+
+// dr,di *= (wr + i*wi), result back in dr,di; clobbers p, q.
+#define VCMUL_FWD(dr, di, wr, wi, p, q) \
+	VEOR  p.B16, p.B16, p.B16 \
+	VFMLA dr.S4, wr.S4, p.S4  \
+	VFMLS di.S4, wi.S4, p.S4  \
+	VEOR  q.B16, q.B16, q.B16 \
+	VFMLA dr.S4, wi.S4, q.S4  \
+	VFMLA di.S4, wr.S4, q.S4  \
+	VMOV  p.B16, dr.B16       \
+	VMOV  q.B16, di.B16
+
+// dr,di *= conj(wr + i*wi) — the inverse twiddle.
+#define VCMUL_INV(dr, di, wr, wi, p, q) \
+	VEOR  p.B16, p.B16, p.B16 \
+	VFMLA dr.S4, wr.S4, p.S4  \
+	VFMLA di.S4, wi.S4, p.S4  \
+	VEOR  q.B16, q.B16, q.B16 \
+	VFMLA di.S4, wr.S4, q.S4  \
+	VFMLS dr.S4, wi.S4, q.S4  \
+	VMOV  p.B16, dr.B16       \
+	VMOV  q.B16, di.B16
+
+// Gather the twiddle vector for column k2 = 3: [tw0, tw3, tw6, tw9].
+// Stride 3 has no shuffle form, so it is a scalar gather into lanes.
+#define VGATHER_TW3(base, wr, wi) \
+	MOVW 0(base), R1    \
+	MOVW 4(base), R2    \
+	VMOV R1, wr.S[0]    \
+	VMOV R2, wi.S[0]    \
+	MOVW 24(base), R1   \
+	MOVW 28(base), R2   \
+	VMOV R1, wr.S[1]    \
+	VMOV R2, wi.S[1]    \
+	MOVW 48(base), R1   \
+	MOVW 52(base), R2   \
+	VMOV R1, wr.S[2]    \
+	VMOV R2, wi.S[2]    \
+	MOVW 72(base), R1   \
+	MOVW 76(base), R2   \
+	VMOV R1, wr.S[3]    \
+	VMOV R2, wi.S[3]
+
+// ---------------------------------------------------------------------------
+// func ForwardNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+// ---------------------------------------------------------------------------
 TEXT ·ForwardNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-97
-	// Load parameters
-	MOVD dst+0(FP), R8           // R8  = dst pointer
-	MOVD src+24(FP), R9          // R9  = src pointer
-	MOVD twiddle+48(FP), R10     // R10 = twiddle pointer
-	MOVD scratch+72(FP), R11     // R11 = scratch pointer
-	MOVD src_len+32(FP), R13         // R13 = n (should be 16)
-
-	// Verify n == 16
-	CMP  $16, R13
-	BNE  neon16r4_return_false
-
-	// Validate all slice lengths >= 16
-	MOVD dst_len+8(FP), R0
-	CMP  $16, R0
-	BLT  neon16r4_return_false
-
-	MOVD twiddle_len+56(FP), R0
-	CMP  $16, R0
-	BLT  neon16r4_return_false
-
-	MOVD scratch_len+80(FP), R0
-	CMP  $16, R0
-	BLT  neon16r4_return_false
-
-	// Load static bit-reversal table
-	MOVD $bitrev_size16_radix4<>(SB), R12
-
-	// Preserve dst pointer
-	MOVD R8, R20
-
-	// Select working buffer
-	CMP  R8, R9
-	BNE  neon16r4_use_dst
-	MOVD R11, R8
-
-neon16r4_use_dst:
-	// =======================================================================
-	// Bit-reversal permutation: work[i] = src[bitrev[i]]
-	// =======================================================================
-	MOVD $0, R0
-
-neon16r4_bitrev_loop:
-	CMP  $16, R0
-	BGE  neon16r4_stage1
-
-	LSL  $3, R0, R1
-	ADD  R12, R1, R1
-	MOVD (R1), R2
-
-	LSL  $3, R2, R3
-	ADD  R9, R3, R3
-	MOVD (R3), R4
-
-	LSL  $3, R0, R3
-	ADD  R8, R3, R3
-	MOVD R4, (R3)
-
-	ADD  $1, R0, R0
-	B    neon16r4_bitrev_loop
-
-neon16r4_stage1:
-	// =======================================================================
-	// Stage 1: 4 radix-4 butterflies, stride=4
-	// =======================================================================
-	MOVD $0, R0
-
-neon16r4_stage1_loop:
-	CMP  $16, R0
-	BGE  neon16r4_stage2
-
-	// addr = &work[base]
-	LSL  $3, R0, R1
-	ADD  R8, R1, R1
-
-	// Load a0..a3
-	FMOVS 0(R1), F0
-	FMOVS 4(R1), F1
-	FMOVS 8(R1), F2
-	FMOVS 12(R1), F3
-	FMOVS 16(R1), F4
-	FMOVS 20(R1), F5
-	FMOVS 24(R1), F6
-	FMOVS 28(R1), F7
-
-	// t0 = a0 + a2, t1 = a0 - a2
-	FADDS F4, F0, F8
-	FADDS F5, F1, F9
-	FSUBS F4, F0, F10
-	FSUBS F5, F1, F11
-
-	// t2 = a1 + a3, t3 = a1 - a3
-	FADDS F6, F2, F12
-	FADDS F7, F3, F13
-	FSUBS F6, F2, F14
-	FSUBS F7, F3, F15
-
-	// b0 = t0 + t2, b2 = t0 - t2
-	FADDS F12, F8, F16
-	FADDS F13, F9, F17
-	FSUBS F12, F8, F18
-	FSUBS F13, F9, F19
-
-	// (-i) * t3 => (t3.imag, -t3.real)
-	FMOVS F15, F20
-	FNEGS  F14, F21
-
-	// b1 = t1 + (-i)*t3
-	FADDS F20, F10, F22
-	FADDS F21, F11, F23
-
-	// i * t3 => (-t3.imag, t3.real)
-	FNEGS  F15, F24
-	FMOVS F14, F25
-
-	// b3 = t1 + i*t3
-	FADDS F24, F10, F26
-	FADDS F25, F11, F27
-
-	// Store results
-	FMOVS F16, 0(R1)
-	FMOVS F17, 4(R1)
-	FMOVS F22, 8(R1)
-	FMOVS F23, 12(R1)
-	FMOVS F18, 16(R1)
-	FMOVS F19, 20(R1)
-	FMOVS F26, 24(R1)
-	FMOVS F27, 28(R1)
-
-	ADD  $4, R0, R0
-	B    neon16r4_stage1_loop
-
-neon16r4_stage2:
-	// =======================================================================
-	// Stage 2: 1 group, 4 butterflies, twiddle step=1
-	// =======================================================================
-	MOVD $0, R0
-
-neon16r4_stage2_loop:
-	CMP  $4, R0
-	BGE  neon16r4_done
-
-	// idx0=j, idx1=j+4, idx2=j+8, idx3=j+12
-	MOVD R0, R1                // R1 = j
-	ADD  $4, R1, R2            // R2 = j+4
-	ADD  $8, R1, R3            // R3 = j+8
-	ADD  $12, R1, R4           // R4 = j+12
-
-	// Load twiddles: w1=tw[j], w2=tw[2j], w3=tw[3j]
-	LSL  $3, R1, R5
-	ADD  R10, R5, R5
-	FMOVS 0(R5), F0
-	FMOVS 4(R5), F1
-
-	LSL  $1, R1, R6
-	ADD  R6, R1, R7
-	LSL  $3, R6, R6
-	ADD  R10, R6, R6
-	FMOVS 0(R6), F2
-	FMOVS 4(R6), F3
-
-	LSL  $3, R7, R7
-	ADD  R10, R7, R7            // R7 = &tw[3j]
-	FMOVS 0(R7), F4
-	FMOVS 4(R7), F5
-
-	// Load a0
-	LSL  $3, R1, R5
-	ADD  R8, R5, R5
-	FMOVS 0(R5), F6
-	FMOVS 4(R5), F7
-
-	// Load a1
-	LSL  $3, R2, R5
-	ADD  R8, R5, R5
-	FMOVS 0(R5), F8
-	FMOVS 4(R5), F9
-
-	// Load a2
-	LSL  $3, R3, R5
-	ADD  R8, R5, R5
-	FMOVS 0(R5), F10
-	FMOVS 4(R5), F11
-
-	// Load a3
-	LSL  $3, R4, R5
-	ADD  R8, R5, R5
-	FMOVS 0(R5), F12
-	FMOVS 4(R5), F13
-
-	// a1 = w1 * a1
-	FMULS F0, F8, F14
-	FMULS F1, F9, F15
-	FSUBS F15, F14, F14
-	FMULS F0, F9, F15
-	FMULS F1, F8, F16
-	FADDS F16, F15, F15
-	FMOVS F14, F8
-	FMOVS F15, F9
-
-	// a2 = w2 * a2
-	FMULS F2, F10, F14
-	FMULS F3, F11, F15
-	FSUBS F15, F14, F14
-	FMULS F2, F11, F15
-	FMULS F3, F10, F16
-	FADDS F16, F15, F15
-	FMOVS F14, F10
-	FMOVS F15, F11
-
-	// a3 = w3 * a3
-	FMULS F4, F12, F14
-	FMULS F5, F13, F15
-	FSUBS F15, F14, F14
-	FMULS F4, F13, F15
-	FMULS F5, F12, F16
-	FADDS F16, F15, F15
-	FMOVS F14, F12
-	FMOVS F15, F13
-
-	// t0 = a0 + a2, t1 = a0 - a2
-	FADDS F10, F6, F14
-	FADDS F11, F7, F15
-	FSUBS F10, F6, F16
-	FSUBS F11, F7, F17
-
-	// t2 = a1 + a3, t3 = a1 - a3
-	FADDS F12, F8, F18
-	FADDS F13, F9, F19
-	FSUBS F12, F8, F20
-	FSUBS F13, F9, F21
-
-	// b0 = t0 + t2, b2 = t0 - t2
-	FADDS F18, F14, F22
-	FADDS F19, F15, F23
-	FSUBS F18, F14, F24
-	FSUBS F19, F15, F25
-
-	// (-i) * t3
-	FMOVS F21, F26
-	FNEGS  F20, F27
-
-	// b1 = t1 + (-i)*t3
-	FADDS F26, F16, F28
-	FADDS F27, F17, F29
-
-	// i * t3
-	FNEGS  F21, F30
-	FMOVS F20, F31
-
-	// b3 = t1 + i*t3
-	FADDS F30, F16, F20
-	FADDS F31, F17, F21
-
-	// Store results
-	LSL  $3, R1, R5
-	ADD  R8, R5, R5
-	FMOVS F22, 0(R5)
-	FMOVS F23, 4(R5)
-
-	LSL  $3, R2, R5
-	ADD  R8, R5, R5
-	FMOVS F28, 0(R5)
-	FMOVS F29, 4(R5)
-
-	LSL  $3, R3, R5
-	ADD  R8, R5, R5
-	FMOVS F24, 0(R5)
-	FMOVS F25, 4(R5)
-
-	LSL  $3, R4, R5
-	ADD  R8, R5, R5
-	FMOVS F20, 0(R5)
-	FMOVS F21, 4(R5)
-
-	ADD  $1, R0, R0
-	B    neon16r4_stage2_loop
-
-neon16r4_done:
-	// Copy back if we used scratch
-	CMP  R8, R20
-	BEQ  neon16r4_return_true
-
-	MOVD $0, R0
-neon16r4_copy_loop:
-	CMP  $16, R0
-	BGE  neon16r4_return_true
-	LSL  $3, R0, R1
-	ADD  R8, R1, R2
-	MOVD (R2), R2
-	ADD  R20, R1, R3
-	MOVD R2, (R3)
-	ADD  $1, R0, R0
-	B    neon16r4_copy_loop
-
-neon16r4_return_true:
-	MOVD $1, R0
-	MOVB R0, ret+96(FP)
-	RET
-
-neon16r4_return_false:
-	MOVD $0, R0
-	MOVB R0, ret+96(FP)
-	RET
-
-// Inverse transform, size 16, complex64, radix-4 variant
-TEXT ·InverseNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-97
-	// Load parameters
 	MOVD dst+0(FP), R8
 	MOVD src+24(FP), R9
 	MOVD twiddle+48(FP), R10
-	MOVD scratch+72(FP), R11
 	MOVD src_len+32(FP), R13
 
 	CMP  $16, R13
-	BNE  neon16r4_inv_return_false
+	BNE  neon16r4_false
 
 	MOVD dst_len+8(FP), R0
 	CMP  $16, R0
-	BLT  neon16r4_inv_return_false
+	BLT  neon16r4_false
 
 	MOVD twiddle_len+56(FP), R0
 	CMP  $16, R0
-	BLT  neon16r4_inv_return_false
+	BLT  neon16r4_false
 
-	MOVD scratch_len+80(FP), R0
-	CMP  $16, R0
-	BLT  neon16r4_inv_return_false
+	MOVD $·neonOnes(SB), R0
+	VLD1 (R0), [ONES.S4]
 
-	// Load static bit-reversal table
-	MOVD $bitrev_size16_radix4<>(SB), R12
+	// Load x[n1 + 4*n2]: vector n2, lane n1. VLD2 deinterleaves re/im, and its
+	// register list must be contiguous, so re/im pairs are adjacent:
+	// re[n2] = V0,V2,V4,V6   im[n2] = V1,V3,V5,V7
+	VLD2 (R9), [V0.S4, V1.S4]
+	ADD  $32, R9, R1
+	VLD2 (R1), [V2.S4, V3.S4]
+	ADD  $64, R9, R1
+	VLD2 (R1), [V4.S4, V5.S4]
+	ADD  $96, R9, R1
+	VLD2 (R1), [V6.S4, V7.S4]
 
-	MOVD R8, R20
+	// (A) DFT4 over n2. Vector index becomes k2.
+	VDFT4_FWD(V0, V2, V4, V6, V1, V3, V5, V7, V8, V9, V10, V11, V12, V13, V14, V15)
 
-	CMP  R8, R9
-	BNE  neon16r4_inv_use_dst
-	MOVD R11, R8
+	// (B) twiddle by W16^(n1*k2). k2 = 0 is all-ones, so it is skipped.
+	// k2 = 1: [tw0, tw1, tw2, tw3] — four consecutive entries.
+	VLD2 (R10), [V16.S4, V17.S4]
+	VCMUL_FWD(V2, V3, V16, V17, V8, V9)
 
-neon16r4_inv_use_dst:
-	// Bit-reversal permutation
-	MOVD $0, R0
+	// k2 = 2: [tw0, tw2, tw4, tw6] — the even entries of tw[0..7].
+	VLD2 (R10), [V18.S4, V19.S4]
+	ADD  $32, R10, R1
+	VLD2 (R1), [V20.S4, V21.S4]
+	VUZP1 V20.S4, V18.S4, V22.S4
+	VUZP1 V21.S4, V19.S4, V23.S4
+	VCMUL_FWD(V4, V5, V22, V23, V8, V9)
 
-neon16r4_inv_bitrev_loop:
-	CMP  $16, R0
-	BGE  neon16r4_inv_stage1
+	// k2 = 3: [tw0, tw3, tw6, tw9].
+	VGATHER_TW3(R10, V25, V26)
+	VCMUL_FWD(V6, V7, V25, V26, V8, V9)
 
-	LSL  $3, R0, R1
-	ADD  R12, R1, R1
-	MOVD (R1), R2
+	// (C) transpose: lane becomes k2, vector becomes n1. Outputs are laid out
+	// as adjacent re/im pairs again so the stores can be VST2.
+	VTRANSPOSE4(V0, V2, V4, V6, V8, V9, V10, V11, V16, V18, V20, V22)
+	VTRANSPOSE4(V1, V3, V5, V7, V8, V9, V10, V11, V17, V19, V21, V23)
 
-	LSL  $3, R2, R3
-	ADD  R9, R3, R3
-	MOVD (R3), R4
+	// (D) DFT4 over n1. Vector index becomes k1, lane stays k2.
+	VDFT4_FWD(V16, V18, V20, V22, V17, V19, V21, V23, V8, V9, V10, V11, V12, V13, V14, V15)
 
-	LSL  $3, R0, R3
-	ADD  R8, R3, R3
-	MOVD R4, (R3)
+	// Vector k1 holds X[4k1 + 0..3] — four consecutive outputs.
+	VST2 [V16.S4, V17.S4], (R8)
+	ADD  $32, R8, R1
+	VST2 [V18.S4, V19.S4], (R1)
+	ADD  $64, R8, R1
+	VST2 [V20.S4, V21.S4], (R1)
+	ADD  $96, R8, R1
+	VST2 [V22.S4, V23.S4], (R1)
 
-	ADD  $1, R0, R0
-	B    neon16r4_inv_bitrev_loop
-
-neon16r4_inv_stage1:
-	// Stage 1 (same as forward)
-	MOVD $0, R0
-
-neon16r4_inv_stage1_loop:
-	CMP  $16, R0
-	BGE  neon16r4_inv_stage2
-
-	LSL  $3, R0, R1
-	ADD  R8, R1, R1
-
-	FMOVS 0(R1), F0
-	FMOVS 4(R1), F1
-	FMOVS 8(R1), F2
-	FMOVS 12(R1), F3
-	FMOVS 16(R1), F4
-	FMOVS 20(R1), F5
-	FMOVS 24(R1), F6
-	FMOVS 28(R1), F7
-
-	FADDS F4, F0, F8
-	FADDS F5, F1, F9
-	FSUBS F4, F0, F10
-	FSUBS F5, F1, F11
-
-	FADDS F6, F2, F12
-	FADDS F7, F3, F13
-	FSUBS F6, F2, F14
-	FSUBS F7, F3, F15
-
-	FADDS F12, F8, F16
-	FADDS F13, F9, F17
-	FSUBS F12, F8, F18
-	FSUBS F13, F9, F19
-
-	FNEGS F15, F20
-	FMOVS F14, F21
-	FADDS F20, F10, F22
-	FADDS F21, F11, F23
-
-	FMOVS F15, F24
-	FNEGS F14, F25
-	FADDS F24, F10, F26
-	FADDS F25, F11, F27
-
-	FMOVS F16, 0(R1)
-	FMOVS F17, 4(R1)
-	FMOVS F22, 8(R1)
-	FMOVS F23, 12(R1)
-	FMOVS F18, 16(R1)
-	FMOVS F19, 20(R1)
-	FMOVS F26, 24(R1)
-	FMOVS F27, 28(R1)
-
-	ADD  $4, R0, R0
-	B    neon16r4_inv_stage1_loop
-
-neon16r4_inv_stage2:
-	// Stage 2 with conjugated twiddles
-	MOVD $0, R0
-
-neon16r4_inv_stage2_loop:
-	CMP  $4, R0
-	BGE  neon16r4_inv_done
-
-	MOVD R0, R1
-	ADD  $4, R1, R2
-	ADD  $8, R1, R3
-	ADD  $12, R1, R4
-
-	LSL  $3, R1, R5
-	ADD  R10, R5, R5
-	FMOVS 0(R5), F0
-	FMOVS 4(R5), F1
-	FNEGS  F1, F1
-
-	LSL  $1, R1, R6
-	ADD  R6, R1, R7
-	LSL  $3, R6, R6
-	ADD  R10, R6, R6
-	FMOVS 0(R6), F2
-	FMOVS 4(R6), F3
-	FNEGS  F3, F3
-
-	LSL  $3, R7, R7
-	ADD  R10, R7, R7
-	FMOVS 0(R7), F4
-	FMOVS 4(R7), F5
-	FNEGS  F5, F5
-
-	LSL  $3, R1, R5
-	ADD  R8, R5, R5
-	FMOVS 0(R5), F6
-	FMOVS 4(R5), F7
-
-	LSL  $3, R2, R5
-	ADD  R8, R5, R5
-	FMOVS 0(R5), F8
-	FMOVS 4(R5), F9
-
-	LSL  $3, R3, R5
-	ADD  R8, R5, R5
-	FMOVS 0(R5), F10
-	FMOVS 4(R5), F11
-
-	LSL  $3, R4, R5
-	ADD  R8, R5, R5
-	FMOVS 0(R5), F12
-	FMOVS 4(R5), F13
-
-	// a1 = w1 * a1
-	FMULS F0, F8, F14
-	FMULS F1, F9, F15
-	FSUBS F15, F14, F14
-	FMULS F0, F9, F15
-	FMULS F1, F8, F16
-	FADDS F16, F15, F15
-	FMOVS F14, F8
-	FMOVS F15, F9
-
-	// a2 = w2 * a2
-	FMULS F2, F10, F14
-	FMULS F3, F11, F15
-	FSUBS F15, F14, F14
-	FMULS F2, F11, F15
-	FMULS F3, F10, F16
-	FADDS F16, F15, F15
-	FMOVS F14, F10
-	FMOVS F15, F11
-
-	// a3 = w3 * a3
-	FMULS F4, F12, F14
-	FMULS F5, F13, F15
-	FSUBS F15, F14, F14
-	FMULS F4, F13, F15
-	FMULS F5, F12, F16
-	FADDS F16, F15, F15
-	FMOVS F14, F12
-	FMOVS F15, F13
-
-	FADDS F10, F6, F14
-	FADDS F11, F7, F15
-	FSUBS F10, F6, F16
-	FSUBS F11, F7, F17
-
-	FADDS F12, F8, F18
-	FADDS F13, F9, F19
-	FSUBS F12, F8, F20
-	FSUBS F13, F9, F21
-
-	FADDS F18, F14, F22
-	FADDS F19, F15, F23
-	FSUBS F18, F14, F24
-	FSUBS F19, F15, F25
-
-	FNEGS F21, F26
-	FMOVS F20, F27
-	FADDS F26, F16, F28
-	FADDS F27, F17, F29
-
-	FMOVS F21, F30
-	FNEGS F20, F31
-	FADDS F30, F16, F20
-	FADDS F31, F17, F21
-
-	LSL  $3, R1, R5
-	ADD  R8, R5, R5
-	FMOVS F22, 0(R5)
-	FMOVS F23, 4(R5)
-
-	LSL  $3, R2, R5
-	ADD  R8, R5, R5
-	FMOVS F28, 0(R5)
-	FMOVS F29, 4(R5)
-
-	LSL  $3, R3, R5
-	ADD  R8, R5, R5
-	FMOVS F24, 0(R5)
-	FMOVS F25, 4(R5)
-
-	LSL  $3, R4, R5
-	ADD  R8, R5, R5
-	FMOVS F20, 0(R5)
-	FMOVS F21, 4(R5)
-
-	ADD  $1, R0, R0
-	B    neon16r4_inv_stage2_loop
-
-neon16r4_inv_done:
-	// Copy back if we used scratch
-	CMP  R8, R20
-	BEQ  neon16r4_inv_scale
-
-	MOVD $0, R0
-neon16r4_inv_copy_loop:
-	CMP  $16, R0
-	BGE  neon16r4_inv_scale
-	LSL  $3, R0, R1
-	ADD  R8, R1, R2
-	MOVD (R2), R2
-	ADD  R20, R1, R3
-	MOVD R2, (R3)
-	ADD  $1, R0, R0
-	B    neon16r4_inv_copy_loop
-
-neon16r4_inv_scale:
-	// Apply 1/16 scaling
-	MOVD $·neonInv16(SB), R1
-	FMOVS (R1), F0
-	MOVD $0, R0
-
-neon16r4_inv_scale_loop:
-	CMP  $16, R0
-	BGE  neon16r4_inv_return_true
-	LSL  $3, R0, R1
-	ADD  R20, R1, R1
-	FMOVS 0(R1), F2
-	FMOVS 4(R1), F3
-	FMULS F0, F2, F2
-	FMULS F0, F3, F3
-	FMOVS F2, 0(R1)
-	FMOVS F3, 4(R1)
-	ADD  $1, R0, R0
-	B    neon16r4_inv_scale_loop
-
-neon16r4_inv_return_true:
 	MOVD $1, R0
 	MOVB R0, ret+96(FP)
 	RET
 
-neon16r4_inv_return_false:
-	MOVD $0, R0
+neon16r4_false:
+	MOVB ZR, ret+96(FP)
+	RET
+
+// ---------------------------------------------------------------------------
+// func InverseNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+// ---------------------------------------------------------------------------
+TEXT ·InverseNEONSize16Radix4Complex64Asm(SB), NOSPLIT, $0-97
+	MOVD dst+0(FP), R8
+	MOVD src+24(FP), R9
+	MOVD twiddle+48(FP), R10
+	MOVD src_len+32(FP), R13
+
+	CMP  $16, R13
+	BNE  neon16r4_inv_false
+
+	MOVD dst_len+8(FP), R0
+	CMP  $16, R0
+	BLT  neon16r4_inv_false
+
+	MOVD twiddle_len+56(FP), R0
+	CMP  $16, R0
+	BLT  neon16r4_inv_false
+
+	MOVD $·neonOnes(SB), R0
+	VLD1 (R0), [ONES.S4]
+
+	// Load x[n1 + 4*n2]: vector n2, lane n1. VLD2 deinterleaves re/im, and its
+	// register list must be contiguous, so re/im pairs are adjacent:
+	// re[n2] = V0,V2,V4,V6   im[n2] = V1,V3,V5,V7
+	VLD2 (R9), [V0.S4, V1.S4]
+	ADD  $32, R9, R1
+	VLD2 (R1), [V2.S4, V3.S4]
+	ADD  $64, R9, R1
+	VLD2 (R1), [V4.S4, V5.S4]
+	ADD  $96, R9, R1
+	VLD2 (R1), [V6.S4, V7.S4]
+
+	// (A) DFT4 over n2. Vector index becomes k2.
+	VDFT4_INV(V0, V2, V4, V6, V1, V3, V5, V7, V8, V9, V10, V11, V12, V13, V14, V15)
+
+	// (B) twiddle by W16^(n1*k2). k2 = 0 is all-ones, so it is skipped.
+	// k2 = 1: [tw0, tw1, tw2, tw3] — four consecutive entries.
+	VLD2 (R10), [V16.S4, V17.S4]
+	VCMUL_INV(V2, V3, V16, V17, V8, V9)
+
+	// k2 = 2: [tw0, tw2, tw4, tw6] — the even entries of tw[0..7].
+	VLD2 (R10), [V18.S4, V19.S4]
+	ADD  $32, R10, R1
+	VLD2 (R1), [V20.S4, V21.S4]
+	VUZP1 V20.S4, V18.S4, V22.S4
+	VUZP1 V21.S4, V19.S4, V23.S4
+	VCMUL_INV(V4, V5, V22, V23, V8, V9)
+
+	// k2 = 3: [tw0, tw3, tw6, tw9].
+	VGATHER_TW3(R10, V25, V26)
+	VCMUL_INV(V6, V7, V25, V26, V8, V9)
+
+	// (C) transpose: lane becomes k2, vector becomes n1. Outputs are laid out
+	// as adjacent re/im pairs again so the stores can be VST2.
+	VTRANSPOSE4(V0, V2, V4, V6, V8, V9, V10, V11, V16, V18, V20, V22)
+	VTRANSPOSE4(V1, V3, V5, V7, V8, V9, V10, V11, V17, V19, V21, V23)
+
+	// (D) DFT4 over n1. Vector index becomes k1, lane stays k2.
+	VDFT4_INV(V16, V18, V20, V22, V17, V19, V21, V23, V8, V9, V10, V11, V12, V13, V14, V15)
+
+	// Scale by 1/16. Broadcast from memory — a register broadcast of a scalar
+	// constant costs a fixed ~100ns and would dominate a kernel this small.
+	MOVD $·neonInv16(SB), R0
+	VLD1R (R0), [V24.S4]
+
+	VEOR V8.B16, V8.B16, V8.B16
+	VFMLA V16.S4, V24.S4, V8.S4
+	VEOR V9.B16, V9.B16, V9.B16
+	VFMLA V17.S4, V24.S4, V9.S4
+	VST2 [V8.S4, V9.S4], (R8)
+
+	VEOR V10.B16, V10.B16, V10.B16
+	VFMLA V18.S4, V24.S4, V10.S4
+	VEOR V11.B16, V11.B16, V11.B16
+	VFMLA V19.S4, V24.S4, V11.S4
+	ADD  $32, R8, R1
+	VST2 [V10.S4, V11.S4], (R1)
+
+	VEOR V12.B16, V12.B16, V12.B16
+	VFMLA V20.S4, V24.S4, V12.S4
+	VEOR V13.B16, V13.B16, V13.B16
+	VFMLA V21.S4, V24.S4, V13.S4
+	ADD  $64, R8, R1
+	VST2 [V12.S4, V13.S4], (R1)
+
+	VEOR V14.B16, V14.B16, V14.B16
+	VFMLA V22.S4, V24.S4, V14.S4
+	VEOR V15.B16, V15.B16, V15.B16
+	VFMLA V23.S4, V24.S4, V15.S4
+	ADD  $96, R8, R1
+	VST2 [V14.S4, V15.S4], (R1)
+
+	MOVD $1, R0
 	MOVB R0, ret+96(FP)
 	RET
 
-// Bit-reversal lookup table for size-16 radix-4
-// Pattern: [0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]
-DATA bitrev_size16_radix4<>+0x00(SB)/8, $0   // bitrev[0] = 0
-DATA bitrev_size16_radix4<>+0x08(SB)/8, $4   // bitrev[1] = 4
-DATA bitrev_size16_radix4<>+0x10(SB)/8, $8   // bitrev[2] = 8
-DATA bitrev_size16_radix4<>+0x18(SB)/8, $12  // bitrev[3] = 12
-DATA bitrev_size16_radix4<>+0x20(SB)/8, $1   // bitrev[4] = 1
-DATA bitrev_size16_radix4<>+0x28(SB)/8, $5   // bitrev[5] = 5
-DATA bitrev_size16_radix4<>+0x30(SB)/8, $9   // bitrev[6] = 9
-DATA bitrev_size16_radix4<>+0x38(SB)/8, $13  // bitrev[7] = 13
-DATA bitrev_size16_radix4<>+0x40(SB)/8, $2   // bitrev[8] = 2
-DATA bitrev_size16_radix4<>+0x48(SB)/8, $6   // bitrev[9] = 6
-DATA bitrev_size16_radix4<>+0x50(SB)/8, $10  // bitrev[10] = 10
-DATA bitrev_size16_radix4<>+0x58(SB)/8, $14  // bitrev[11] = 14
-DATA bitrev_size16_radix4<>+0x60(SB)/8, $3   // bitrev[12] = 3
-DATA bitrev_size16_radix4<>+0x68(SB)/8, $7   // bitrev[13] = 7
-DATA bitrev_size16_radix4<>+0x70(SB)/8, $11  // bitrev[14] = 11
-DATA bitrev_size16_radix4<>+0x78(SB)/8, $15  // bitrev[15] = 15
+neon16r4_inv_false:
+	MOVB ZR, ret+96(FP)
+	RET
 
-GLOBL bitrev_size16_radix4<>(SB), RODATA, $128
+// 1/16, the inverse normalization. Also referenced by neon_f32_size16_radix2.s,
+// which is why the definition lives here rather than beside its only user.
+DATA ·neonInv16+0(SB)/4, $0x3d800000 // 1/16
+GLOBL ·neonInv16(SB), RODATA, $4

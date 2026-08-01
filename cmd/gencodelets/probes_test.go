@@ -111,7 +111,7 @@ func TestRenderProbesIncludesEveryFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	doc := string(renderInventory(c, probes))
+	doc := string(renderInventory(c, probes, root))
 	if !strings.Contains(doc, "## Probe-Gated Kernels") {
 		t.Fatal("inventory is missing the probe section")
 	}

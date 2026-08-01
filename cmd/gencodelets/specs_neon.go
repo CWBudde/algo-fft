@@ -43,6 +43,9 @@ var codeletSpecsNEON = []codeletSpec{
 	},
 	{
 		Target: "neon", Prec: 64, Size: 16,
+		// Vectorized (4x4 Cooley-Tukey, VLD2/VST2 + vertical DFT4). On an Apple
+		// M5 this beats the best pure-Go candidate 1.71x forward / 1.70x
+		// inverse; the scalar implementation it replaced lost 1.83x / 2.19x.
 		Forward:   "arm64.ForwardNEONSize16Radix4Complex64Asm",
 		Inverse:   "arm64.InverseNEONSize16Radix4Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",

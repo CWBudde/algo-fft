@@ -1005,3 +1005,63 @@ Consequence: the AVX-512 rows sit at `Priority 10` against 24–28 for AVX2, so
 the registry never selects them even on an AVX-512 CPU. For forward that is
 currently right; it discards a real 5–9% on inverse at n >= 4096. See `PLAN.md`
 §6 for the open item.
+
+## NEON tier (Apple M5, darwin/arm64) — the codelets contain no NEON
+
+First measurement of the NEON ladder on real arm64 hardware (2026-08-01). Every
+prior NEON priority was ladder-mirrored from x86 and QEMU-verified for
+correctness only, so nothing in this file covered them. Host: Apple M5, 4P+6E,
+darwin 25.6, cross-compiled test binary (`go test -c`), `BenchmarkCodeletCandidates64/128`,
+`benchtime=500ms`, `count=6`. Ratios are same-process, within-size, against the
+best non-NEON candidate at that size — the only figure that travels.
+
+**Every registered NEON codelet lost**: 55 of 56 (precision × size × direction)
+cells, ratios **1.09–3.76**, median ~1.6. The lone win was c128/size32/inverse
+(0.92). Worst cells: c128 size 8 forward 3.76×, c64 size 4 inverse 3.23×, c64
+size 64 forward 2.54×.
+
+The cause is not microarchitectural. A mnemonic census of all 42 size-specific
+`neon_f*_size*.s` files finds **zero vector instructions** — they are scalar
+`FMOVS/FADDS/FMULS/FSUBS/FNEGS` throughout, with no `FMLA`/`FMLS` either, plus
+dead weight like 281 register-to-register `FMOVS` in `neon_f32_size1024_radix4.s`
+and a scalar bit-reversal loop. Only `neon_f32_generic.s` is genuinely
+vectorized; `neon_f64_generic.s` is scalar too.
+
+The reason the files came out that way is a real toolchain constraint worth
+recording: **Go's arm64 assembler has no vector FP add, subtract or multiply.**
+`VFADD`/`VFSUB`/`VFMUL` are "unrecognized instruction"; `VFMLA` and `VFMLS` are
+the only vector FP arithmetic mnemonics it accepts, and `VADD`/`VSUB` are
+integer-only. The workaround is the one `neon_f32_generic.s` already uses:
+synthesize multiply as `VEOR`-zero + `VFMLA`, and add/sub against a vector of
+1.0 (`·neonOnes`) with `VFMLA`/`VFMLS`. On Apple cores FMA has the same
+throughput as FADD, so this costs nothing. Two further traps: `VLD2`/`VST2`
+register lists must be **contiguous** (`[V0,V1]`, never `[V0,V4]`), and
+`RankLevel` cannot demote below the generic tier because the registry reads
+`RankLevel == SIMDNone` as unset.
+
+### Size 16, complex64 — first vectorized rewrite
+
+`neon_f32_size16_radix4_v2.s` (`dit16_radix4_neon_v2`) replaces the scalar v1
+with a 4×4 Cooley-Tukey decomposition: `VLD2` deinterleaves four complex per
+register, two rounds of vertical DFT4 sandwich a `VTRN1/VTRN2` + `VZIP1/VZIP2`
+4×4 transpose, and each store is a single `VST2` of four consecutive outputs.
+It needs no bit-reversal pass and no scratch buffer — every input is in
+registers before the first store, so `dst` may alias `src`.
+
+`count=8`, same process, mean ns/op:
+
+| candidate                |  forward |   inverse |
+| ------------------------ | -------: | --------: |
+| **dit16_radix4_neon_v2** | **9.50** | **10.44** |
+| dit16_radix16_generic    |    16.23 |     17.74 |
+| dit16_radix4_generic     |    16.25 |     20.49 |
+| dit16_radix4_neon (v1)   |    35.68 |     38.53 |
+| dit16_radix2_neon        |    61.78 |     68.84 |
+
+v2 is **3.76× / 3.69×** faster than v1 and **1.71× / 1.70×** faster than the
+best pure-Go candidate — the same size v1 lost by 1.83× / 2.19×. v2 is now
+Priority 28; v1 drops to Priority 1, keeping it under the reference tests and
+re-measurable on other arm64 hosts rather than deleted on one machine's number.
+
+Correctness: naive-DFT cross-check, round-trip and in-place all pass under both
+QEMU and the M5. The remaining 41 files are unconverted and still lose.

@@ -75,7 +75,7 @@ type gridKey struct {
 	variant string
 }
 
-func renderInventory(c *census, probes []probeEntry) []byte {
+func renderInventory(c *census, probes []probeEntry, root string) []byte {
 	var b bytes.Buffer
 
 	b.WriteString("# FFT Implementation Inventory\n\n")
@@ -98,6 +98,7 @@ func renderInventory(c *census, probes []probeEntry) []byte {
 	renderGaps(&b)
 	renderCensus(&b, c)
 	renderProbes(&b, probes)
+	renderTiers(&b, root)
 	renderStaticSections(&b)
 
 	return b.Bytes()
@@ -425,27 +426,6 @@ func renderCounts(b *bytes.Buffer) {
 // codelet registry. Keep this in sync with internal/fft dispatch.
 func renderStaticSections(b *bytes.Buffer) {
 	b.WriteString(strings.TrimLeft(`
-## Beyond the Codelet Registry
-
-Codelets cover the tuned size-specific fast paths. Everything else is served
-by these tiers, in dispatch order:
-
-1. **Generic SIMD kernels** (internal/fft dispatch, internal/asm):
-   size-generic DIT and Stockham kernels for AVX-512 / AVX2 / SSE3 / SSE2 on
-   amd64, NEON on arm64, and SSE2/SSE3 on 386. These serve every power-of-two
-   size without a registered codelet (on amd64 the AVX-512 tier also serves
-   all Stockham-resolved sizes; see internal/fft/kernels_amd64_avx512.go).
-2. **386 size-specific kernels** (internal/asm/x86, dispatched via
-   internal/fft/kernels_386_asm.go): SSE2/SSE3 kernels for sizes 2/4/8/16,
-   including the size-16 radix-16 variant.
-3. **Pure-Go algorithm families** (internal/kernels, internal/transform):
-   DIT, Stockham, mixed-radix 2/3/5/7/11, Bluestein (arbitrary lengths),
-   six-step/eight-step (large sizes), and recursive decomposition — both
-   precisions, every platform, and the only tier under -tags purego.
-
-Higher plan-level features (real FFT, 2D/3D/N-D, batch/strided, convolution)
-compose these 1D kernels; see README.md and PLAN.md.
-
 ## Testing
 
 Every registered codelet is validated per-direction against the naive

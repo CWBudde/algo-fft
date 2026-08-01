@@ -339,11 +339,42 @@ change to `cmd/gencodelets`, not to the Markdown.
       sizes per precision. Each of these is now a generated number that moves
       when the specs move, which is what §1.2 needs as input.
 
-- [ ] **Cover the non-codelet tiers by name, not by prose.** The "Beyond the
-      Codelet Registry" section lists tiers in a paragraph; make it a table of
-      (family, entry point, precisions, ISAs, size rule) so a reader can tell
-      whether a given `n` reaches a size-generic AVX2 radix-4 or a pure-Go
-      Stockham.
+- [x] **Cover the non-codelet tiers by name, not by prose** (2026-08-01).
+      `cmd/gencodelets/tiers.go` replaces the three-paragraph "Beyond the
+      Codelet Registry" section with 22 rows of (family, entry point, precision,
+      ISA, size rule) covering the amd64 / arm64 / 386 dispatch chains and every
+      pure-Go family. Two things are read from the tree rather than typed: the
+      **size rule of any size-dispatching tier is scanned out of its
+      `switch n`** case labels via `go/ast`, and `TestTierEntryPointsExist`
+      fails if a row's entry point is not declared in the package the row names.
+
+      The precedent for insisting on that: `internal/fft/inventory_check.go` was
+      a hand-typed `//go:build ignore` inventory tool claiming AVX2 complex128
+      was "NOT IMPLEMENTED — all sizes" and that only sizes 4–256 existed at
+      all. Nothing referenced it and nothing checked it. **Deleted** with this
+      change; it is the generated document's job now.
+
+      The scanner loads each package across all build tags, since the per-arch
+      dispatch files are mutually exclusive — so a name resolves to a *list* of
+      declarations (`forwardSSE2Complex128` is one real 386 switch plus purego
+      stubs). Merging two real dispatches into one row is refused rather than
+      silently unioned.
+
+      **Two gates that check comments nothing else checks.**
+      `TestAVX512CoversMatchesTheAVX2Switch` enforces the "Keep in sync with
+      that switch" note in `kernels_amd64_avx512.go`: `avx2SizeSpecificDIT*Covers`
+      decides when the AVX-512 tier steps aside for a tuned AVX2 codelet, and
+      drift either hides a codelet from an AVX-512 host or hands a size to AVX2
+      that has nothing for it. Dropping 8192 from the c64 list fails it; both
+      lists are in sync today. `TestDispatchDirectionsAgree` checks the five
+      forward/inverse dispatch pairs cover the same sizes — a one-directional
+      gap is invisible in a forward benchmark. Both pass as written.
+
+      The table also corroborates §1.1's gap finding from the other side: amd64
+      has an SSE3 dispatch for complex64 and **none** for complex128, and the
+      386 SSE1 switch covers only n = 2 and 4, which is exactly why the census
+      reports the size-8/16 386 SSE symbols as reachable only through thunks
+      nothing calls (§1.3).
 
 ### 1.2 The algorithm × ISA coverage matrix
 
