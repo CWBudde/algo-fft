@@ -95,6 +95,7 @@ func renderInventory(c *census, probes []probeEntry) []byte {
 	}
 
 	renderCounts(&b)
+	renderGaps(&b)
 	renderCensus(&b, c)
 	renderProbes(&b, probes)
 	renderStaticSections(&b)
