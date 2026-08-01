@@ -199,6 +199,30 @@ func ComputeBitReversalIndicesRadix8Then4(n int) []int {
 	return computeSplitThenDigitReversal(n, 8, 4)
 }
 
+// ComputeBitReversalIndicesRadix16 returns digit-reversal permutation for radix-16 FFT.
+// This is a convenience wrapper around ComputePermutationIndices(n, 16).
+func ComputeBitReversalIndicesRadix16(n int) []int {
+	return ComputePermutationIndices(n, 16)
+}
+
+// ComputeBitReversalIndicesRadix16Then2 returns the permutation for a radix-16
+// ladder whose widest stage is a single radix-2 combine: n must be 2 * 16^k.
+func ComputeBitReversalIndicesRadix16Then2(n int) []int {
+	return computeSplitThenDigitReversal(n, 16, 2)
+}
+
+// ComputeBitReversalIndicesRadix16Then4 returns the permutation for a radix-16
+// ladder whose widest stage is a single radix-4 combine: n must be 4 * 16^k.
+func ComputeBitReversalIndicesRadix16Then4(n int) []int {
+	return computeSplitThenDigitReversal(n, 16, 4)
+}
+
+// ComputeBitReversalIndicesRadix16Then8 returns the permutation for a radix-16
+// ladder whose widest stage is a single radix-8 combine: n must be 8 * 16^k.
+func ComputeBitReversalIndicesRadix16Then8(n int) []int {
+	return computeSplitThenDigitReversal(n, 16, 8)
+}
+
 // ComputeBitReversalIndicesRadix32 returns digit-reversal permutation for radix-32 FFT.
 // This is a convenience wrapper around ComputePermutationIndices(n, 32).
 func ComputeBitReversalIndicesRadix32(n int) []int {

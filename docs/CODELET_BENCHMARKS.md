@@ -361,6 +361,59 @@ only one of
 kernels are the same shape. That result does not test whether a properly
 vectorised radix-8 would win — see the `PLAN.md` §4 item that proposes one.
 
+**Update (2026-08-01): "implementation-limited" was half right.** The radix-8
+half of that claim held — a correct ladder won 0.87 geomean in pure Go and
+seven of sixteen AVX2 cells. The radix-16 half did not. A correct pure-Go
+radix-16 ladder loses every cell (see below), so `dit256_radix16_avx2` was a bad
+implementation _of an algorithm that also does not pay_. The two defects were
+independent, and fixing the first would not have rescued it.
+
+## Generic tier — the radix-16 ladder, and where the radix ladder stops
+
+Sweep of 2026-08-01, `-tags fftprobe,purego`, `GOOD=5216` recalibrated on an
+idle i7-1255U at 46 °C, 18 groups x 16 passes, 282 accepted + 6 over gate = 288
+(full accounting). Ratios are radix-16 against the pure-Go radix-8 ladder,
+taken **within** each group.
+
+|     n | passes 16:8 | c64 fwd | c64 inv | c128 fwd | c128 inv |
+| ----: | ----------: | ------: | ------: | -------: | -------: |
+|   256 |         2:3 |   1.158 |   1.221 |    1.163 |    1.225 |
+|   512 |         3:3 |   1.138 |   1.166 |    1.163 |    1.158 |
+|  1024 |         3:4 |   1.024 |   1.101 |    1.018 |    1.029 |
+|  2048 |         3:4 |   1.114 |   1.115 |    1.107 |    1.110 |
+|  4096 |         3:4 |   1.139 |   1.166 |    1.305 |    1.356 |
+|  8192 |         4:5 |   1.128 |   1.197 |    1.298 |    1.332 |
+| 16384 |         4:5 |   1.122 |   1.138 |    1.294 |    1.303 |
+| 32768 |         4:5 |   1.126 |   1.128 |    1.253 |    1.278 |
+
+Not one cell wins, in either precision or either direction, while making 25-33%
+fewer passes at every size except 512. The pass advantage is real and is
+delivered; the butterfly consumes all of it. Radix-8 won 0.87 geomean on this
+same harness, so the protocol is not insensitive — the radix is.
+
+Three costs grow as the pass count shrinks, which is what makes this the end of
+the ladder rather than one bad rung:
+
+- **Diminishing passes.** `log2(n)/4` against radix-8's `log2(n)/3` is 25%
+  fewer, where radix-8 bought 33% over radix-4.
+- **Growing twiddle cost.** 15 planes per stage against 7, so the table
+  streamed per stage roughly doubles while the passes saved shrink.
+- **Growing gather cost.** Stage 1 is a 16x16 digit-reversed transpose against
+  8x8 — quadratic in the radix.
+
+This closes radix-16 for every instruction set, not only the generic tier. AVX2
+has 16 YMM against radix-16's 16 live streams; AVX-512's 32 ZMM leave ~12
+scratch, which is structurally the position AVX2 radix-8 was measured in at
+1.24-1.56x per pass. A radix that cannot win where registers are free will not
+win where they are scarce.
+
+n = 65536 is the one uncompared cell: no radix-8 or radix-4 row is registered
+there, so the probe is its own incumbent and its 1.000 means nothing. The
+corroborating signal from the AVX-512 sweep is at n = 8192 complex64, where the
+_simplified_ `dit8192_radix4_notail_avx2` scored 0.906 against the AVX-512
+radix-8 ladder's 0.900 — a pure simplification within half a percent of an
+entire new ISA tier.
+
 ## AVX-512 tier (Xeon Gold 5218)
 
 Evidence behind the `SIMDAVX512` rows, including the one deliberately disabled

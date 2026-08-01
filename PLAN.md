@@ -292,14 +292,40 @@ from the outcome:
       assembly, plus `internal/kernels/params_avx2.go` and the two test files
       that were the only remaining users of its twiddle-preparation helpers).
 
-      **The other fifteen — 19,815 lines — are still called from
-      `internal/fft/kernels_amd64_size_specific.go` and `internal/fft/asm_amd64.go`,
-      i.e. the forced-`KernelStrategy` route.** So that dispatch item is not a
-      side quest worth ~19k lines on its own; it is the gate on essentially the
-      whole per-size AVX2 family. Two consumers are not the strategy dispatch and
-      need handling separately: `dit_4096_sixstep_amd64_avx2.go` and
-      `dit_8192_sixstep_64x128_amd64_avx2.go` both call the size-64 c64 row
-      kernel.
+      **Tier 1 is done (2026-08-01): 15,191 lines, 24 files, no insertions.** A
+      second-order reachability pass — for each 1:1 thunk in
+      `internal/fft/asm_amd64.go`, is the *thunk* called from non-test code? —
+      reclassified nine `.s` files (12,983 lines) from "still called" to
+      test-only, and they needed no dispatch change at all:
+      `avx2_f32_size{512_radix16x32,256_radix16,512_radix8}.s`,
+      `avx2_f64_size{256_radix2,128_radix2}.s`,
+      `avx2_f64_generic_radix4_{even,odd}.s` and
+      `avx2_f32_transpose{64x64,128x128}.s`. With them went
+      `internal/kernels/avx2_wrappers.go` (all four functions test-only), the
+      three unregistered AVX2 six-step files and their tests, and 20 `decl.go`
+      declarations.
+
+      Two findings the earlier audit missed. **The c128 generic radix-4 pair
+      (2,779 lines) is unreachable**: unlike its c64 twin,
+      `forwardAVX2Complex128Asm` calls `ForwardAVX2Complex128Asm` directly with
+      no radix cascade, so `…Complex128Radix4{,Mixed}Asm` had no production
+      caller. And **the AVX2 six-step files were never the forced-six-step
+      route** — `simdTierServesStrategy` sends a forced `KernelSixStep` to the
+      size-generic *pure-Go* `kernels.ForwardSixStepComplex64`, so deleting the
+      AVX2 ones cost no reachable path. `InverseAVX2Size128Radix2Complex128Asm`
+      was declared and called by nothing at all, not even a test.
+
+      **What remains — the other sixteen, ~26,000 lines — are still called from
+      `internal/fft/kernels_amd64_size_specific.go` via the `asm_amd64.go`
+      thunks.** That file passes the plan's *raw* twiddle table straight through
+      and the size-specific asm indexes it directly (`twiddle[j]`,
+      `twiddle[2j]`, `twiddle[3j]`), whereas the size-generic radix-4 kernels
+      need `prepareTwiddleRadix4AVX2` layout — that mismatch is the actual gate,
+      not the registry. Note the switch already has a raw-twiddle generic
+      fallback at every size (`forwardAVX2Complex64Asm`), so dropping the
+      size-specific cases outright is a cheaper alternative to building prepared
+      tables at load time; it needs a measurement first. This path only executes
+      when no codelet bound, which for power-of-two sizes is close to never.
 
       Mechanics per file: delete the `.s`, its `decl.go` declaration, the
       wrappers in `internal/kernels/avx2_wrappers.go` and
@@ -309,7 +335,12 @@ from the outcome:
       **Check `GLOBL ·bitrev*` before deleting any complex64 `.s`** — those DATA
       tables are referenced by symbol from the SSE3 c64 and AVX2/SSE2 c128
       kernels, and this has broken the build once; shared ones belong in
-      `internal/asm/amd64/bitrev_radix4_tables.s`. Note commit `628486b` is
+      `internal/asm/amd64/bitrev_radix4_tables.s`. Tier 1 was verified
+      `GLOBL`-clean before deletion, but **tier 2 is not**: `bitrev8192_m24` in
+      `avx2_f32_size8192_radix4_then2.s` is needed by
+      `sse2_f64_size8192_radix4_then2.s` and `sse3_f32_size8192_radix4_then2.s`,
+      and `bitrev256_r2` in `avx2_f32_size256_radix2.s` by
+      `sse3_f32_size256_radix2.s`. Both must be relocated first. Note commit `628486b` is
       titled as if the 32×32 removal already shipped — it removed only dead
       assembly *inside* those files.
 
@@ -409,6 +440,72 @@ from the outcome:
       The `±(1±i)/√2` derivation shares its shape with the twiddle-free radix-8
       first stage proposed in the n = 2048 item above; the two should still be
       attempted together.
+
+- [x] **Radix-16: measured in pure Go, and closed (2026-08-01).** The same
+      protocol that vindicated radix-8, applied one radix further up, to decide
+      whether to spend assembly on it. The answer is no, and it cost a day
+      instead of the ~4–5k lines an AVX-512 attempt would have.
+
+      `internal/kernels/radix16_generic.go` is the honest test: one size-generic
+      ladder per precision over `16^k`, `2·16^k`, `4·16^k` and `8·16^k` (so
+      every power of two from 16 to 65536), built to mirror
+      `radix8_generic.go` stage for stage so the comparison measures the radix
+      and not the scaffolding. The butterfly is factored 4×4 — 9 complex
+      multiplies rather than the flat form's 120, of which `W_16^4 = −i` is
+      free, `W_16^{2,6}` are two real multiplies each, and `W_16^9 = −W_16^1`
+      — and all four unrolled copies are pinned against the readable original
+      by `TestRadix16LadderMatchesButterfly`.
+
+      Sweep of 2026-08-01, `-tags fftprobe,purego`, `GOOD=5216` recalibrated on
+      an idle machine at 46 °C, 18 groups × 16 passes, **282 accepted + 6 over
+      gate = 288, full accounting**. Ratios taken within a group:
+
+      | n | passes 16:8 | c64 fwd | c64 inv | c128 fwd | c128 inv |
+      | ---: | ---: | ---: | ---: | ---: | ---: |
+      | 256 | 2:3 | 1.158 | 1.221 | 1.163 | 1.225 |
+      | 512 | 3:3 | 1.138 | 1.166 | 1.163 | 1.158 |
+      | 1024 | 3:4 | 1.024 | 1.101 | 1.018 | 1.029 |
+      | 2048 | 3:4 | 1.114 | 1.115 | 1.107 | 1.110 |
+      | 4096 | 3:4 | 1.139 | 1.166 | 1.305 | 1.356 |
+      | 8192 | 4:5 | 1.128 | 1.197 | 1.298 | 1.332 |
+      | 16384 | 4:5 | 1.122 | 1.138 | 1.294 | 1.303 |
+      | 32768 | 4:5 | 1.126 | 1.128 | 1.253 | 1.278 |
+
+      **Not one cell wins**, in either precision or either direction — while
+      making 25–33% fewer passes at every size except 512. That is the whole
+      finding: the pass advantage is real, is delivered, and is still entirely
+      consumed by the butterfly. Radix-8's pure-Go run won 0.87 geomean on the
+      same harness, so the protocol is not insensitive; the radix is.
+
+      Where it goes is worth recording, because it is the shape of a curve
+      flattening rather than an implementation defect:
+
+      - **Diminishing passes.** log2(n)/4 against radix-8's log2(n)/3 is 25%
+        fewer, where radix-8 bought 33% over radix-4. Each rung buys less.
+      - **Growing twiddle cost.** 15 planes per stage against 7 — the table
+        streamed per stage roughly doubles while the passes saved shrink.
+      - **Growing gather cost.** Stage 1 is a 16×16 digit-reversed transpose
+        against 8×8, quadratic in the radix.
+
+      The near-parity at n = 1024 (1.018–1.024 forward) is the ceiling, not a
+      lead worth chasing: it is the one size where radix-16's shape is maximally
+      favourable, and it still loses the inverse.
+
+      This closes radix-16 for **every** instruction set, not just the pure-Go
+      tier. AVX2 has 16 YMM against radix-16's 16 live streams, which is
+      hopeless outright; AVX-512's 32 ZMM leave ~12 scratch, structurally the
+      same losing position AVX2 radix-8 was measured in (1.24–1.56× per pass).
+      A radix that cannot win where registers are free will not win where they
+      are scarce. The `docs/CODELET_BENCHMARKS.md` note that
+      `dit256_radix16_avx2` is "implementation-limited" is now settled the other
+      way: the implementation was bad *and* the algorithm does not pay.
+
+      The ladder and its probe registration stay in the tree behind
+      `-tags fftprobe`, unregistered in any production build — the same
+      disposition as the radix-8 probe's losing sizes, so the result stays
+      re-measurable rather than becoming folklore. n = 65536 is the one
+      uncompared cell: no radix-8 or radix-4 row is registered there, so the
+      probe is its own incumbent and its 1.000 means nothing.
 
 - [ ] **`VZEROUPPER` on the early-return paths.** This item used to read "134
       YMM/ZMM-using functions never execute `VZEROUPPER`; 57 of the 151 amd64 asm

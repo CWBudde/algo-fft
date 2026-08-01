@@ -26,11 +26,8 @@ func BenchmarkAVX2Complex64(b *testing.B) {
 		{"Size128/Radix4Then2", 128, amd64.ForwardAVX2Size128Radix4Then2Complex64Asm, amd64.InverseAVX2Size128Radix4Then2Complex64Asm},
 		{"Size256/Radix2", 256, amd64.ForwardAVX2Size256Radix2Complex64Asm, amd64.InverseAVX2Size256Radix2Complex64Asm},
 		{"Size256/Radix4", 256, amd64.ForwardAVX2Size256Radix4Complex64Asm, amd64.InverseAVX2Size256Radix4Complex64Asm},
-		{"Size256/Radix16", 256, amd64.ForwardAVX2Size256Radix16Complex64Asm, amd64.InverseAVX2Size256Radix16Complex64Asm},
 		{"Size512/Radix2", 512, amd64.ForwardAVX2Size512Radix2Complex64Asm, amd64.InverseAVX2Size512Radix2Complex64Asm},
-		{"Size512/Radix8", 512, forwardAVX2Size512Radix8Complex64, inverseAVX2Size512Radix8Complex64},
 		{"Size512/Radix4Then2", 512, amd64.ForwardAVX2Size512Radix4Then2Complex64Asm, amd64.InverseAVX2Size512Radix4Then2Complex64Asm},
-		{"Size512/Radix16x32", 512, forwardAVX2Size512Radix16x32Complex64, inverseAVX2Size512Radix16x32Complex64},
 	}
 
 	for _, tc := range cases {
@@ -45,30 +42,6 @@ func BenchmarkAVX2Complex64(b *testing.B) {
 				b.Skip("Not implemented")
 			}
 			runBenchComplex64(b, tc.n, tc.inverse)
-		})
-	}
-}
-
-// BenchmarkAVX2Complex128 benchmarks AVX2 kernels for complex128.
-func BenchmarkAVX2Complex128(b *testing.B) {
-	requireAVX2(b)
-
-	cases := []benchCase128{
-		{"Size256/Radix2", 256, amd64.ForwardAVX2Size256Radix2Complex128Asm, amd64.InverseAVX2Size256Radix2Complex128Asm},
-	}
-
-	for _, tc := range cases {
-		b.Run(tc.name+"/Forward", func(b *testing.B) {
-			if tc.forward == nil {
-				b.Skip("Not implemented")
-			}
-			runBenchComplex128(b, tc.n, tc.forward)
-		})
-		b.Run(tc.name+"/Inverse", func(b *testing.B) {
-			if tc.inverse == nil {
-				b.Skip("Not implemented")
-			}
-			runBenchComplex128(b, tc.n, tc.inverse)
 		})
 	}
 }

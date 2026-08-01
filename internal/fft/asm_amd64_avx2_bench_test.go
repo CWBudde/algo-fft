@@ -38,8 +38,6 @@ func BenchmarkAVX2DITComplex64(b *testing.B) {
 		{"Size256/Radix4", 256, forwardAVX2Size256Radix4Complex64Asm},
 		{"Size512/Radix4Then2", 512, forwardAVX2Size512Radix4Then2Complex64Asm},
 		{"Size512/Radix2", 512, forwardAVX2Size512Radix2Complex64Asm},
-		{"Size512/Radix8", 512, forwardAVX2Size512Radix8Complex64Asm},
-		{"Size512/Radix16x32", 512, forwardAVX2Size512Radix16x32Complex64Asm},
 		{"Size2048/Radix4Then2", 2048, forwardAVX2Size2048Radix4Then2Complex64Asm},
 		{"Size8192/Radix4Then2", 8192, forwardAVX2Size8192Radix4Then2Complex64Asm},
 	}
@@ -80,10 +78,8 @@ func BenchmarkAVX2DITComplex128(b *testing.B) {
 		{"Size16/Radix2", 16, forwardAVX2Size16Radix2Complex128Asm},
 		{"Size16/Radix4", 16, forwardAVX2Size16Radix4Complex128Asm},
 		{"Size32/Radix2", 32, forwardAVX2Size32Complex128Asm},
-		{"Size128/Radix2", 128, forwardAVX2Size128Radix2Complex128Asm},
 		{"Size64/Radix2", 64, forwardAVX2Size64Radix2Complex128Asm},
 		{"Size64/Radix4", 64, forwardAVX2Size64Radix4Complex128Asm},
-		{"Size256/Radix2", 256, forwardAVX2Size256Radix2Complex128Asm},
 		{"Size512/Radix2", 512, forwardAVX2Size512Radix2Complex128Asm},
 		{"Size512/Radix4Then2", 512, forwardAVX2Size512Radix4Then2Complex128Asm},
 	}
@@ -687,102 +683,6 @@ func BenchmarkAVX2GenericRadix4Mixed_VsRadix2(b *testing.B) {
 // =============================================================================
 // Complex128 Radix-4 Generic Benchmarks
 // =============================================================================
-
-// BenchmarkAVX2GenericRadix4Complex128 benchmarks the generic radix-4 Complex128 kernel.
-// Tests power-of-4 sizes (even log2): 64, 256, 1024, 4096.
-func BenchmarkAVX2GenericRadix4Complex128(b *testing.B) {
-	sizes := []int{64, 256, 1024, 4096}
-
-	for _, n := range sizes {
-		b.Run("Forward/"+sizeString(n), func(b *testing.B) {
-			src := make([]complex128, n)
-			for i := range src {
-				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
-			}
-
-			dst := make([]complex128, n)
-			twiddle, scratch := prepareFFTData[complex128](n)
-
-			if !forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch) {
-				b.Skip("AVX2 radix-4 complex128 not available")
-			}
-			b.ReportAllocs()
-			b.SetBytes(int64(n * 16))
-			b.ResetTimer()
-			for range b.N {
-				forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch)
-			}
-		})
-
-		b.Run("Inverse/"+sizeString(n), func(b *testing.B) {
-			src := make([]complex128, n)
-			for i := range src {
-				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
-			}
-
-			dst := make([]complex128, n)
-			twiddle, scratch := prepareFFTData[complex128](n)
-
-			if !inverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch) {
-				b.Skip("AVX2 inverse radix-4 complex128 not available")
-			}
-			b.ReportAllocs()
-			b.SetBytes(int64(n * 16))
-			b.ResetTimer()
-			for range b.N {
-				inverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch)
-			}
-		})
-	}
-}
-
-// BenchmarkAVX2GenericRadix4MixedComplex128 benchmarks the mixed radix-4 Complex128 kernel.
-// Tests odd log2 sizes: 32, 128, 512, 2048.
-func BenchmarkAVX2GenericRadix4MixedComplex128(b *testing.B) {
-	sizes := []int{32, 128, 512, 2048}
-
-	for _, n := range sizes {
-		b.Run("Forward/"+sizeString(n), func(b *testing.B) {
-			src := make([]complex128, n)
-			for i := range src {
-				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
-			}
-
-			dst := make([]complex128, n)
-			twiddle, scratch := prepareFFTData[complex128](n)
-
-			if !forwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch) {
-				b.Skip("AVX2 radix-4 mixed complex128 not available")
-			}
-			b.ReportAllocs()
-			b.SetBytes(int64(n * 16))
-			b.ResetTimer()
-			for range b.N {
-				forwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch)
-			}
-		})
-
-		b.Run("Inverse/"+sizeString(n), func(b *testing.B) {
-			src := make([]complex128, n)
-			for i := range src {
-				src[i] = complex(float64(i)/float64(n), float64(i%4)/4)
-			}
-
-			dst := make([]complex128, n)
-			twiddle, scratch := prepareFFTData[complex128](n)
-
-			if !inverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch) {
-				b.Skip("AVX2 inverse radix-4 mixed complex128 not available")
-			}
-			b.ReportAllocs()
-			b.SetBytes(int64(n * 16))
-			b.ResetTimer()
-			for range b.N {
-				inverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch)
-			}
-		})
-	}
-}
 
 // =============================================================================
 // Stockham complex128 Benchmarks (AVX2 asm vs pure-Go)

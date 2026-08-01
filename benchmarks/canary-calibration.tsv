@@ -1,0 +1,2 @@
+# host	cpu	go	canary	floor_ns	date
+PLAPTOP2333002	12th Gen Intel(R) Core(TM) i7-1255U	go1.26.1	BenchmarkGateCanary	5216	2026-08-01

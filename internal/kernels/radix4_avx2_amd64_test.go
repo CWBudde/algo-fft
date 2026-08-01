@@ -252,16 +252,3 @@ func TestRadix4AVX2RoundTrip65536(t *testing.T) {
 		t.Errorf("round-trip max |diff| = %g", d)
 	}
 }
-
-// radix4AVX2Reference adapts the 256-bit radix-4 kernel to the plain
-// (dst, src, twiddle, scratch) shape by preparing its own twiddle table. Tests
-// that used the removed per-size radix-4 codelets as an independent cross-check
-// call this instead; the twiddle argument is ignored.
-func radix4AVX2Reference(dst, src, _, scratch []complex64) bool {
-	n := len(src)
-
-	twiddle := make([]complex64, twiddleSizeRadix4AVX2(n))
-	prepareTwiddleRadix4AVX2(n, false, twiddle)
-
-	return forwardRadix4AVX2Complex64(dst, src, twiddle, scratch)
-}
