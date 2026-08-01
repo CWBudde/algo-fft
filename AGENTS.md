@@ -421,6 +421,14 @@ Process notes that mattered more than model tier:
 - Agents tend to background long QEMU runs and then stop to "wait" for them,
   which stalls the round; instruct them to run all verification in the
   foreground with generous timeouts.
+- **Commit your own uncommitted work before dispatching a round, and forbid
+  `git checkout`/`git restore`/`git stash` in the brief.** An agent whose
+  `just fmt-check` reformatted a doc outside its scope "tidied up" with
+  `git checkout -- <file>` and destroyed a half-finished documentation edit
+  that was never on disk anywhere else. The agent had been told not to revert
+  changes it did not create; it reverted them anyway, reasoning that the file
+  was outside its scope. Treat the rule as unenforceable and remove the
+  opportunity instead — anything uncommitted when a round starts is at risk.
 - Have agents generate repetitive asm with a throwaway Go generator and
   validate it by byte-reproducing the existing template size first — this
   caught every would-be bug in rounds 3–4 before a single test ran. Tell
