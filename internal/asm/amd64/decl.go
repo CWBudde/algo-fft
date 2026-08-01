@@ -44,6 +44,14 @@ func ForwardAVX2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []
 //go:noescape
 func InverseAVX2Complex128Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 
+// The complex128 generic radix-4 pair. Not reachable from any production
+// dispatch: it lost to the radix-2 kernel on the i7-1255U (see
+// docs/CODELET_BENCHMARKS.md, "complex128 generic AVX2"). It is kept because
+// that is a one-machine result in the one precision this project has already
+// caught failing to transfer between hosts — the Skylake-SP sweep refuted the
+// i7-1255U byte-stride rule outright for complex128. Exercised and measured by
+// internal/fft's `fftprobe`-tagged harness.
+//
 //go:noescape
 func ForwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch []complex128, bitrev []int) bool
 

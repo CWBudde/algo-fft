@@ -62,61 +62,11 @@ func inverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch []complex64) boo
 	return kasm.InverseAVX2StockhamComplex64Asm(dst, src, twiddle, scratch, cachedBitReversalIndices(len(src)))
 }
 
-func forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch []complex128) bool {
-	return kasm.ForwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch, nil)
-}
-
-func inverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch []complex128) bool {
-	return kasm.InverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch, nil)
-}
-
-func forwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch []complex128) bool {
-	return kasm.ForwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch, nil)
-}
-
-func inverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch []complex128) bool {
-	return kasm.InverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch, nil)
-}
-
-// forwardAVX2Complex128Asm and inverseAVX2Complex128Asm mirror the complex64
-// dispatch order: try radix-4 first (power-of-4 lengths get the pure radix-4
-// kernel, other power-of-2 lengths get the radix-4-then-2 "mixed" kernel),
-// and only fall back to the radix-2 kernel for lengths the radix-4 kernels
-// reject. Radix-4 halves the number of butterfly passes versus radix-2
-// (log2(n)/2 vs log2(n)), so this preamble is a straight throughput win
-// wherever the radix-4 kernels accept the length; radix-2 remains correct
-// (if slower) for everything else.
 func forwardAVX2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	if len(src) >= 64 && m.IsPowerOf4(len(src)) {
-		if forwardAVX2Complex128Radix4Asm(dst, src, twiddle, scratch) {
-			return true
-		}
-	}
-	if len(src) >= 64 && m.IsPowerOf2(len(src)) {
-		if forwardAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch) {
-			return true
-		}
-	}
 	return kasm.ForwardAVX2Complex128Asm(dst, src, twiddle, scratch, cachedBitReversalIndices(len(src)))
 }
 
-// inverseAVX2Complex128Asm's radix-4 kernels (unlike their radix-2 and c64
-// counterparts) do not apply the 1/n inverse-FFT normalization themselves, so
-// this wrapper scales dst explicitly on those two paths before returning.
 func inverseAVX2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	n := len(src)
-	if n >= 64 && m.IsPowerOf4(n) {
-		if inverseAVX2Complex128Radix4Asm(dst, src, twiddle, scratch) {
-			ScaleComplex128InPlace(dst, 1.0/float64(n))
-			return true
-		}
-	}
-	if n >= 64 && m.IsPowerOf2(n) {
-		if inverseAVX2Complex128Radix4MixedAsm(dst, src, twiddle, scratch) {
-			ScaleComplex128InPlace(dst, 1.0/float64(n))
-			return true
-		}
-	}
 	return kasm.InverseAVX2Complex128Asm(dst, src, twiddle, scratch, cachedBitReversalIndices(len(src)))
 }
 

@@ -319,6 +319,50 @@ exists only to bound the question — is still the fastest cell at 512, 2048,
 8192 and 32768 in both precisions, at 0.84-0.93. The tail is still 7-16% of
 those kernels and nothing has recovered it.
 
+### n = 128 closed, and the odd-exponent question settled (2026-08-01)
+
+The radix-8 ladder's remaining unmeasured cells were 128 in both precisions.
+Motivation: an odd-exponent length n = 2*4^k is also 8*4^(k-1), so radix-8
+_removes_ the radix-2 tail where the radix-4 kernel can at best fuse it. That
+is the principled "specialise the odd exponent" kernel, and it needs no new
+assembly.
+
+`GOOD=5216`, `GATE=1.25`, 16 passes, `-tags fftprobe`, core 0, 42 C throughout,
+**95 accepted + 1 drift = 96**, full accounting. Ratios to each group's
+incumbent:
+
+| cell      |   fwd |   inv | incumbent                 | outcome                |
+| --------- | ----: | ----: | ------------------------- | ---------------------- |
+| 128 c64   | 0.984 | 0.989 | `dit128_radix4fused_avx2` | 1.1-1.6%, not promoted |
+| 128 c128  | 1.026 | 1.037 | `dit128_radix4fused_avx2` | lost                   |
+| 8192 c64  | 1.068 | 1.078 | `dit8192_radix4_avx2`     | lost (re-derived)      |
+| 8192 c128 | 0.979 | 1.012 | `dit8192_radix4_avx2`     | fwd win, inv loss      |
+| 32768 c64 | 1.017 | 1.004 | `dit32768_radix4_avx2`    | tie/lost (re-derived)  |
+
+No cell is promoted. The 128 complex64 margin is the only arguable one and it
+is 1.1-1.6% in the single group that lost a pass to drift — against a bar that
+has been 11-22% for every radix-8 promotion so far.
+
+Two independent checks came free. The complex64 8192/32768 losses re-derive to
+1.068 and 1.017, inside the 1.011-1.078 range recorded on 2026-07-30, so the
+harness agrees with itself across five weeks. And the complex128 32768 group,
+where radix-8 is already the incumbent, confirms that row from the other
+direction: radix-4 measures 1.052/1.058 against it.
+
+**The tail is the whole remaining prize at these sizes.**
+`dit<N>_radix4_notail_avx2` measures 0.867-0.933 across all six groups — a
+6.7-13.3% cost that neither fusion nor radix-8 recovers. At n = 128 the fused
+variant is _already_ the incumbent and notail still shows 9-13% left on the
+table. Anything further at odd-exponent sizes should attack the combine, not
+the radix.
+
+A process note worth keeping: this sweep registered a second probe file for
+sizes `radix8_avx2_probe_amd64.go` already covered, so every affected group
+ranked the same signature twice. It cost a full sweep to notice and changed no
+ratio (a duplicated candidate does not bias a within-group comparison), but the
+sync test written to prevent exactly this checked `cmd/gencodelets/specs.go`
+and not the sibling probe files. Check both.
+
 ### Shadowed AVX2 candidates above 1.5x the winner
 
 These are the deletion candidates in `PLAN.md` §4. None of them can be selected
@@ -372,12 +416,18 @@ independent, and fixing the first would not have rescued it.
 
 Commit `1f7977b` ("feat: Add radix-16 FFT implementation and associated
 tests") deleted ~15,200 lines out of the AVX2 tier alongside adding the
-pure-Go radix-16 ladder below. Four of those files were restored afterward for
-reuse elsewhere and are **not** part of this record: `avx2_f32_transpose{64x64,128x128}.s`
-(six symbols — plain transpose plus fused transpose+twiddle and
-transpose+conj-twiddle) and `avx2_f64_generic_radix4_{even,odd}.s` (complex128
-generic AVX2 radix-4). The rest were audited on 2026-08-01 and stay dead;
-nothing below should be revived without re-running the same census.
+pure-Go radix-16 ladder below. Two of those files were restored afterward for
+reuse elsewhere and are **not** part of this record:
+`avx2_f32_transpose{64x64,128x128}.s` (six symbols — plain transpose plus
+fused transpose+twiddle and transpose+conj-twiddle), now reachable through
+`internal/math`'s out-of-place transpose API.
+
+`avx2_f64_generic_radix4_{even,odd}.s` was restored too, measured, and **kept
+in-tree behind `-tags fftprobe`** rather than deleted — it lost on the
+i7-1255U, which is a one-host result in the one precision this project has
+caught failing to transfer. See "complex128 generic AVX2 on the i7-1255U"
+below. The rest were audited on 2026-08-01 and stay dead; nothing below should
+be revived without re-running the same census.
 
 | file                                                                                                                                     | evidence                                                                                                                                                                                                                                                                                                                        | verdict  |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
@@ -420,6 +470,75 @@ anyone ever needs to re-examine them — for example
 `git show bd87b0e:internal/asm/amd64/avx2_f32_size512_radix8.s`. `bd87b0e` is
 the last commit before the `1f7977b` deletion, so its content is
 byte-identical to what `1f7977b` removed.
+
+### complex128 generic AVX2 on the i7-1255U: radix-2 beats radix-4
+
+A sixth file, `avx2_f64_generic_radix4_{even,odd}.s`, was restored on the
+strength of two arguments that both turned out to be wrong, and is recorded
+here rather than in the table above because it was **measured**, not censused.
+
+The reasoning for restoring it: it is a genuine 256-bit kernel (586 `Y` vs 445
+`X`, with FMA) and radix-4 makes `log2(n)/2` passes against radix-2's
+`log2(n)`. Its complex64 twins are live in production, so complex128 was left
+running radix-2 alone — an apparent oversight.
+
+It was wired into `forwardAVX2Complex128Asm`/`inverseAVX2Complex128Asm` with
+the same radix-4 → radix-4-mixed → radix-2 preamble the complex64 path uses,
+validated against `reference.NaiveDFT128`/`NaiveIDFT128`, and confirmed by an
+instrumented run to actually fire rather than fall through — pure radix-4 at
+n = 64/256/1024, mixed at 128/512/32768. Then it lost every size. Ratios to the
+radix-2 kernel, median of 3, same process, `taskset -c 0`:
+
+|         |   64 |  128 |  256 |  512 |   1K |   2K |   4K |   8K |
+| ------- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| forward | 1.08 | 1.12 | 1.56 | 1.54 | 1.30 | 1.24 | 1.32 | 1.16 |
+| inverse | 1.15 | 1.10 | 1.19 | 0.90 | 1.70 | 2.71 | 2.76 | 2.61 |
+
+The same harness against the **complex64** pair, which shares the dispatch
+shape, gives 0.87 / 0.72 / 0.71 / 0.59 / 0.58 / 0.54 at 256…8192 — radix-4
+winning by up to 1.9x. So the protocol is not insensitive, and the existing
+complex64 dispatch is confirmed correct as a side effect.
+
+The cause is register width, not the algorithm. A YMM holds four complex64 but
+only **two** complex128, so radix-4's 4-way butterfly has no width left to
+exploit at double precision while radix-2 keeps its lanes full. The same
+mechanism that makes radix-2 structurally hopeless for complex128 in the table
+above works _for_ it here, once the competitor needs four elements per lane.
+
+Two confounders were ruled out before accepting the result: both precisions
+pass `nil` for `bitrev`, so the radix-2 path's `cachedBitReversalIndices` is
+not the source of the gap; and the inverse penalty survives independently of
+the trailing `1/n` scaling pass that the complex128 radix-4 asm — unlike its
+complex64 twin's `inv_r4_scale` loop — omits and the Go wrapper had to supply.
+
+Caveat on precision: the host was thermally noisy (package 76–100 °C at load
+~2.0), so these ratios are not trustworthy at the few-percent level. They do
+not need to be — the effects are 1.2x–2.8x. A 5% claim from this run would be
+worthless; a 2x one is not.
+
+The complex128 dispatch is back to radix-2 only, and no production build
+reaches these kernels. **The `.s` files stay in the tree** behind
+`internal/fft/radix4_c128_probe_amd64.go` (`-tags fftprobe`), with their own
+correctness tests and a same-process comparison benchmark.
+
+That is deliberate, and it is the general rule for this repo: a **structural**
+loss — XMM-width against a 256-bit peer, a constant table rebuilt per call —
+justifies deleting a kernel, because it cannot win anywhere. A **measured** loss
+on one host does not. These two are the second kind, and this document already
+records complex128 on AVX2 as the precision where microarchitecture has been
+observed to dominate: see "The radix-8 ladder on Skylake-SP — and the stride
+rule failing to transfer", where complex128 wins at every size on the Xeon while
+losing from 2048 up on the i7-1255U.
+
+The mechanistic argument for deleting anyway — a YMM holds four complex64 but
+only two complex128, so radix-4 has no width left to exploit — predicts a loss
+on any AVX2 host. It is also the same species of argument as the pass-count and
+`Y`-operand-census predictions that were both wrong about this very kernel, so
+it does not get to close the question alone.
+
+What closes it: a sweep on the Xeon. Deleting the files is precisely what would
+prevent that, since the sanctioned route to that host is commit + push then
+`git pull` there.
 
 ## Generic tier — the radix-16 ladder, and where the radix ladder stops
 

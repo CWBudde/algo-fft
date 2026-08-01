@@ -150,6 +150,44 @@ The library uses multiple testing layers:
 5. **Benchmark**: Confirm speedup with `benchstat`
 6. **Document**: Update comments with performance characteristics
 
+### Losing on one machine is not grounds for deletion
+
+A kernel that measures slower **here** may still win on another host. Only
+delete on evidence that cannot be host-specific.
+
+- **Structural loss — delete.** The kernel cannot win anywhere, for a reason
+  visible without a benchmark: it is XMM-width where a 256-bit peer exists, it
+  rebuilds a constant table per call, it makes strictly more passes doing
+  strictly more work. This is what
+  PLAN.md §2.1 rule 6 is about —
+  a registry of permanent losers is dead weight.
+- **Measured loss on one host — keep, unregistered.** Move it behind
+  `//go:build fftprobe` with its own correctness test and a comparison
+  benchmark, exactly as `radix8_avx2_probe_amd64.go`, `radix16_generic_probe.go`
+  and `radix4_c128_probe_amd64.go` do. It leaves every production build and
+  every registry lookup, so it costs nothing at runtime, and the question stays
+  re-measurable instead of becoming folklore.
+
+Rule 6 says do not leave a beaten codelet **registered**. It does not say
+delete the code. Unregistering and deleting are different actions, and only the
+first is justified by a one-machine number.
+
+**This project has already been burned by assuming a result transfers.** The
+Skylake-SP sweep has the radix-8 ladder winning complex128 at every size by
+7-28% while the i7-1255U has it losing from 2048 up —
+`docs/CODELET_BENCHMARKS.md` records that as refuting the i7-1255U byte-stride
+rule outright. complex128 on AVX2 is where microarchitecture has been observed
+to dominate, so treat a complex128 result from a single host as provisional.
+
+A mechanistic argument for why a loss _must_ generalise ("a YMM holds only two
+complex128, so radix-4 has no width to exploit") is not a substitute for the
+second measurement. Pass-count and `Y`-operand-census arguments of exactly that
+form have each predicted the wrong winner here.
+
+Deleting the file is also what makes the second measurement impossible: the
+sanctioned route to the Xeon is commit + push then `git pull` there, so code
+that is not in the tree cannot be measured on it.
+
 ### Before Committing
 
 ```bash

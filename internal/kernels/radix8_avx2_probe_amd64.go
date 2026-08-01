@@ -39,10 +39,29 @@ const radix8AVX2ProbePriority = 80
 // remains is where it lost or tied, kept registered so the decision stays
 // re-derivable:
 //
-//	complex64   32, 64, 128 (never measured), 4096/8192/16384/32768 (lost,
-//	            1.011-1.078 forward: eight streams 4 KiB or more apart)
-//	complex128  32, 64, 128 (never measured), 256 (1.000 tie), 1024 and 4096
-//	            (forward win, inverse loss), 8192 (lost), 16384 (1.012 tie)
+//	complex64   32, 64 (never measured), 128 (0.984/0.989 -- see below),
+//	            4096/8192/16384/32768 (lost, 1.011-1.078 forward: eight streams
+//	            4 KiB or more apart)
+//	complex128  32, 64 (never measured), 128 (1.026/1.037 -- lost), 256 (1.000
+//	            tie), 1024 and 4096 (forward win, inverse loss), 8192 (lost),
+//	            16384 (1.012 tie)
+//
+// n = 128 was swept on 2026-08-01 (GOOD=5216, GATE=1.25, 16 passes, 6 groups,
+// 95 accepted + 1 drift = 96, 42 C throughout) and stays unpromoted in both
+// precisions. complex128 loses outright at 1.026/1.037. complex64 measures
+// 0.984/0.989 against `dit128_radix4fused_avx2`, which is a 1.1-1.6% margin in
+// the one group that lost a pass to drift -- below anything this project has
+// promoted on, where the bar has been 11-22%.
+//
+// The same sweep re-derived the complex64 8192/32768 losses at 1.068/1.078 and
+// 1.017/1.004, inside the range recorded on 2026-07-30, so the two runs agree
+// across five weeks. It also confirmed the existing complex128 32768 radix-8
+// spec row from the other direction: radix-4 measures 1.052/1.058 against it.
+//
+// Do not add a second probe file for these sizes. The lists below already cover
+// every 2*4^k cell without a spec row; a sibling probe registering the same
+// signature puts the kernel in a sweep group twice, which is what happened on
+// 2026-08-01 and cost a full sweep to notice.
 //
 //nolint:gochecknoglobals // probe-only tables
 var (

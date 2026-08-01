@@ -344,14 +344,23 @@ from the outcome:
       titled as if the 32×32 removal already shipped — it removed only dead
       assembly *inside* those files.
 
-- [x] **Audit the `1f7977b` deletions — four restored, the rest closed**
+- [x] **Audit the `1f7977b` deletions — two restored, the rest closed**
       (2026-08-01). `1f7977b` deleted ~15,200 lines of AVX2 assembly alongside
       adding the pure-Go radix-16 ladder below; nine of those `.s` files were
-      the Tier 1 "test-only" set from the item above. Four are restored and
-      being wired back up: `avx2_f32_transpose{64x64,128x128}.s` (plain
-      transpose plus fused transpose+twiddle and transpose+conj-twiddle) and
-      `avx2_f64_generic_radix4_{even,odd}.s` (complex128 generic AVX2
-      radix-4). The other five are closed dead:
+      the Tier 1 "test-only" set from the item above. Two are restored and
+      wired up: `avx2_f32_transpose{64x64,128x128}.s` (plain transpose plus
+      fused transpose+twiddle and transpose+conj-twiddle), now reachable
+      through the out-of-place transpose API in `internal/math` and covered by
+      direct tests for the first time — all six symbols verified correct, the
+      plain transpose bit-exact against a naive reference.
+
+      `avx2_f64_generic_radix4_{even,odd}.s` (complex128 generic AVX2 radix-4)
+      was also restored and wired, then measured — it lost on this host, so it
+      is **unregistered but kept in-tree** behind `-tags fftprobe`
+      (`internal/fft/radix4_c128_probe_amd64.go`), with its own correctness
+      tests and comparison benchmark. See "complex128 generic AVX2 on the
+      i7-1255U" below. The other five
+      are closed dead:
       `avx2_f32_size{512_radix16x32,512_radix8,256_radix16}.s` and
       `avx2_f64_size{128_radix2,256_radix2}.s` — none was a working 256-bit
       kernel (`Y`-vs-`X` operand census in
@@ -359,6 +368,68 @@ from the outcome:
       and radix-16 itself is independently ruled out by the item below. The
       three AVX2 six-step drivers deleted in the same commit are **not** part
       of this closed set — see the next item.
+
+- [x] **complex128 generic AVX2: radix-2 beats radix-4 _on this host_**
+      (2026-08-01). The restored `avx2_f64_generic_radix4_{even,odd}.s`
+      were wired into `forwardAVX2Complex128Asm`/`inverseAVX2Complex128Asm` with
+      the same radix-4 → radix-4-mixed → radix-2 preamble the complex64 twins
+      use, verified correct against `reference.NaiveDFT128`, and confirmed by an
+      instrumented run to actually fire (pure radix-4 at 64/256/1024, mixed at
+      128/512/32768). They then lost every size. Ratios to the radix-2 kernel,
+      median of 3, same process, core 0:
+
+      |         |   64 |  128 |  256 |  512 |   1K |   2K |   4K |   8K |
+      | ------- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+      | forward | 1.08 | 1.12 | 1.56 | 1.54 | 1.30 | 1.24 | 1.32 | 1.16 |
+      | inverse | 1.15 | 1.10 | 1.19 | 0.90 | 1.70 | 2.71 | 2.76 | 2.61 |
+
+      The same harness run against the **complex64** pair shows radix-4 winning
+      decisively — 0.87 / 0.72 / 0.71 / 0.59 / 0.58 / 0.54 at 256…8192 — so the
+      protocol is not insensitive and the existing complex64 dispatch is
+      confirmed correct. The difference is register width, not the algorithm: a
+      YMM holds four complex64 but only **two** complex128, so radix-4's 4-way
+      butterfly has no width left to exploit at double precision while radix-2
+      keeps its lanes full. Two candidate confounders were ruled out — both
+      precisions pass `nil` for `bitrev` (so the radix-2 path's cached
+      permutation is not the cause), and the inverse penalty survives
+      independently of the `1/n` scaling pass the complex128 radix-4 asm omits.
+
+      The dispatch is back to radix-2 only and no production build reaches the
+      kernels, but the `.s` files stay: a **structural** loss (XMM-width against
+      a 256-bit peer) justifies deletion, a **measured** loss on one host does
+      not — §2.1 rule 6 says do not leave a beaten codelet _registered_, which
+      is a different action from deleting it. complex128 on AVX2 is exactly
+      where this project has already caught a result failing to transfer
+      between the i7-1255U and the Xeon ("the stride rule failing to transfer").
+      The mechanistic argument for deleting anyway is the same species as the
+      pass-count and `Y`-operand arguments that both predicted a win here and
+      were both wrong. A Xeon sweep closes it; deleting the files is what would
+      prevent that sweep.
+
+- [x] **The odd-exponent question is settled: it is the tail, not the radix**
+      (2026-08-01). An odd-exponent length n = 2\*4^k is also 8\*4^(k-1), so the
+      principled "specialise the odd exponent" kernel is the existing radix-8
+      ladder, which removes the radix-2 tail where radix-4 can at best fuse it.
+      Swept at the last unmeasured cells (128 both precisions, plus a re-derive
+      of 8192/32768): `GOOD=5216`, 16 passes, 42 C, **95 accepted + 1 drift =
+      96**. Nothing promotes — 128 complex128 loses at 1.026/1.037, and 128
+      complex64's 0.984/0.989 is 1.1–1.6% in the one drift-affected group,
+      against a bar that has been 11–22% for every prior radix-8 promotion. The
+      complex64 8192/32768 losses re-derive inside their 2026-07-30 range, and
+      the complex128 32768 group confirms that radix-8 spec row from the other
+      side. Full table in
+      [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md#n--128-closed-and-the-odd-exponent-question-settled-2026-08-01).
+
+      Two things worth carrying forward. **The tail is the whole remaining
+      prize**: `dit<N>_radix4_notail_avx2` measures 0.867–0.933 across all six
+      groups, a 6.7–13.3% cost that neither fusion nor radix-8 recovers, and at
+      n = 128 the fused variant is already the incumbent with 9–13% still on the
+      table. Attack the combine, not the radix. And **deriving an even/odd split
+      of the general radix-4 is not the lever**: `inverse` is tested once per
+      call in the prologue, `r4End`/`fuse` once per stage, and the hot loops
+      (`r4_group_loop`, `r4_fused_loop`) carry no knob branches at all, so a
+      specialised variant would remove ~8 predicted branches against ~26,000
+      butterflies at n = 8192.
 
 - [ ] **The six-step AVX2 drivers are worth a second look, but not now.**
       `dit_8192_sixstep_64x128_amd64_avx2.go` (deleted in `1f7977b`, recoverable
