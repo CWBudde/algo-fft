@@ -1,13 +1,22 @@
 # PLAN.md — algofft Roadmap
 
 This roadmap is the source of truth for status and direction. It carries the
-**open work**; everything already shipped lives in `docs/`.
+**open work**; everything already shipped lives in
+[`docs/HISTORY.md`](docs/HISTORY.md).
 
 - **§1** — where the library stands today.
 - **§2** — the working method every item below is held to.
-- **§3–§9** — the open work, in execution order. §3 is closed; §4–§8 are the
-  performance and coverage rounds, and the v1.0 tag in §9 comes after them.
-- **§10** — post-v1.0 wishlist.
+- **§3–§7** — the open work as five phases, in execution order:
+
+  | Phase                                              | What it is                                                                     |
+  | -------------------------------------------------- | ------------------------------------------------------------------------------ |
+  | [**Phase 1**](#phase-1--powers-of-two) (§3)        | Powers of two: algorithm _coverage_, honest implementations, retunable ranking |
+  | [**Phase 2**](#phase-2--non-powers-of-two) (§4)    | Non-powers-of-two: route quality across mixed-radix, Rader, Bluestein          |
+  | [**Phase 3**](#phase-3--throughput-and-scale) (§5) | Throughput and scale: parallelism, layout, transpose, large-n decompositions   |
+  | [**Phase 4**](#phase-4--dsp-and-plan-layer) (§6)   | DSP and plan layer: streaming convolution, buffer reuse, real-input gaps       |
+  | [**Phase 5**](#phase-5--ship-v10) (§7)             | Ship v1.0                                                                      |
+
+- **§8** — post-v1.0 wishlist.
 
 | Topic                                                             | Document                                                               |
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -29,16 +38,16 @@ never hand-edit it.
 
 ## 1. Status
 
-The v1.0 engineering work is **complete** — the API is settled and nothing in
-the remaining backlog changes a signature. The correctness debt that gated the
-tag is closed (§3). What the tag now waits on is §4–§8; the reasoning is in §9.
+The v1.0 **API** work is complete — nothing in the backlog below changes a
+signature — and the correctness debt that once gated the tag is closed. What the
+tag waits on is Phases 1–4; the reasoning is in §7.
 
 Core transforms (DIT, Stockham, split-radix, mixed-radix, Rader, Bluestein,
 six/eight/four-step), real FFT, 2D/3D/N-D, both precisions, zero-allocation
-transforms, the Wisdom cache and the WASM target all ship. SIMD coverage is
-AVX2 broad in both precisions, an SSE2/SSE3 tier to 32768, a size-specific NEON
-ladder 4–32768, and a first AVX-512 tier. [`docs/HISTORY.md`](docs/HISTORY.md)
-has the round-by-round record.
+transforms, the Wisdom cache and the WASM target all ship. SIMD coverage is AVX2
+broad in both precisions, an SSE2/SSE3 tier to 32768, a size-specific NEON ladder
+4–32768, and a first AVX-512 tier. [`docs/HISTORY.md`](docs/HISTORY.md) has the
+round-by-round record.
 
 **Where the library sits against others** (i7-1255U, `go-fft-bench`, **tag
 v0.7.4**, measured 2026-07-29):
@@ -65,7 +74,16 @@ Two caveats worth carrying:
   mixed-radix engine on composite smooth lengths is the disaster zone, and the
   worst cells are exactly the shapes whose power-of-two part is too shallow to
   reach a tuned codelet leaf — 2205 at 0.16×, 96 at 0.20×, 1000 at 0.23×, 44100
-  at 0.25×, 1920 at 0.26×. §5 is the whole of the remaining external gap.
+  at 0.25×, 1920 at 0.26×. Phase 2 is the whole of the remaining external gap.
+
+**The one-machine problem.** Every number above and nearly every ranking in
+[`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md) comes from one
+i7-1255U. Power-of-two performance is dominated by cache geometry, so a ranking
+taken here is a ranking for this cache hierarchy — the Skylake-SP sweep already
+refuted an i7-1255U stride rule outright. This is the premise of Phase 1: the
+deliverable is not "the fastest kernel on this laptop" but **a broad, correct,
+honestly-implemented set of candidates plus the machinery to rank them per
+host**.
 
 ---
 
@@ -84,16 +102,43 @@ Every item below is held to these:
    guards extended to any new path.
 4. **No regressions on the purego build** — algorithm-level wins must land in
    the generic code path too, not only in assembly.
-5. Only land a per-size codelet if it **beats the incumbent in `benchstat`** on
-   the target hardware tier.
-6. Conversely, **do not leave a beaten codelet registered at a lower priority.**
-   A registry carrying permanent losers is dead weight: it clutters the
-   generated inventory, every candidate gets timed during wisdom measurement,
-   and thousands of lines of assembly that will never run must still be
-   maintained and cross-checked. Registering alongside is only right while the
-   new kernel is unproven.
+5. Only give a codelet a **selectable** priority if it beats the incumbent in
+   `benchstat` on the target hardware tier.
 
-### 2.2 Measurement protocol
+### 2.2 Disposition of a kernel that loses — the three-way rule
+
+This replaces the older "unregister everything that loses" rule, which optimised
+the registry for one laptop. A kernel that loses gets one of three dispositions,
+and picking the right one is part of the task that measured it:
+
+| Disposition                   | When                                                                                                                                      | Cost                                                        |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Registered, low priority**  | Loses by **< 1.5×** here _and_ has a plausible reason to win elsewhere (different cache size, different vector width, different ISA tier) | A row in the registry and one arm in a wisdom measurement   |
+| **In-tree, `-tags fftprobe`** | Loses by ≥ 1.5× here, or is a research kernel, but the loss is **measured**, not structural — it stays re-measurable on another host      | Zero at runtime; a correctness test and a compare benchmark |
+| **Deleted**                   | **Structural** loss only: it cannot win anywhere for a reason visible without a benchmark                                                 | —                                                           |
+
+"Structural" means, concretely: it is XMM-width where a 256-bit peer exists; it
+rebuilds a constant table per call; it makes strictly more passes doing strictly
+more work per pass. A mechanistic argument that a loss _must_ generalise is
+**not** structural — pass-count and `Y`-operand-census arguments of exactly that
+form have each predicted the wrong winner in this tree. See `AGENTS.md`,
+"Losing on one machine is not grounds for deletion".
+
+Corollaries that have each cost a round:
+
+- **A poor implementation disqualifies the file, not the algorithm.** Three
+  separate "radix-N loses" conclusions turned out to be measurements of broken
+  kernels (an X-register-only file whose header promised 256-bit lanes; a
+  half-vectorised two-stage decomposition; a butterfly recomputing its own
+  rotations). Before writing off a radix, check that the thing you measured
+  implements it.
+- **Deleting the file is what makes the second measurement impossible.** The
+  sanctioned route to the Xeon is commit + push then `git pull` there.
+- **Registered-but-losing is not free**, which is why the < 1.5× bar exists: every
+  candidate is timed during wisdom measurement, and every `.s` file must still be
+  maintained and cross-checked. Phase 1.6 adds the knob that keeps this bounded.
+
+### 2.3 Measurement protocol
 
 Full protocol, the three hardware tiers and the lessons behind them:
 [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md). The rules that most often decide
@@ -108,7 +153,7 @@ whether a result is real:
   invert an ordering rather than merely inflate it. Include a null control.
 - Ratios are taken **within** a group, never as a ratio of medians.
 
-### 2.3 Standing lessons
+### 2.4 Standing lessons
 
 Design and correctness lessons that each cost a real investigation. Assembly and
 registry lessons are in [`AGENTS.md`](AGENTS.md); measurement ones in
@@ -130,6 +175,15 @@ registry lessons are in [`AGENTS.md`](AGENTS.md); measurement ones in
   `TestRadix4AVX2Ranking` fails radix-4 above 1.5× the fastest codelet at that
   size, so speeding the runner-up up tightened radix-4's headroom without a line
   of the test changing. It re-measures before failing (`rankingAttempts = 3`).
+- **Speeding up a kernel invalidates every ratio measured against it.** When two
+  changes land in one round, re-measure the ranking after the one that moves the
+  baseline — or promote only on the direction the other change cannot touch.
+- **A single FFT stage has no reuse to capture.** Each element is read once and
+  written once, so blocking cannot remove traffic and can only add the tile's
+  extra read and write. Blocking is for repeated traversals of a large working
+  set; a stage is one traversal. (Where a stage's streams exceed L1 _capacity_,
+  the fix is a decomposition that shrinks the span — four-step, six-step — not a
+  tile.)
 - **Go's compiler widens scalar `complex64 * complex64` to float64** — twelve
   instructions against six for the same expression on complex128. Any FFT stage
   written as scalar Go is structurally more expensive in complex64; use
@@ -137,17 +191,9 @@ registry lessons are in [`AGENTS.md`](AGENTS.md); measurement ones in
 - **Scaling by a real factor must never be written as a complex multiply** — it
   spends two dead products per element, and folding one into a fully-unrolled
   stage can cross the inliner's big-function threshold and silently un-inline
-  _every_ helper in the function. Recording a lesson is not the same as
-  enforcing it: this one sat here while **28 kernel files** still ended the
-  inverse with a whole extra pass doing
-  `dst[i] = MulComplex64(dst[i], complex(1/n, 0))`, swept out on 2026-07-30.
-  Grep for the pattern when the lesson is added, not only when it is written up.
-- **Speeding up a kernel invalidates every ratio measured against it.** The
-  `1/n` sweep above made the inverse incumbents faster, which retroactively
-  voided the inverse column of a radix-8 ranking taken the same morning and cost
-  four promotions that had rested on it. When two changes land in one round,
-  re-measure the ranking after the one that moves the baseline — or promote only
-  on the direction the other change cannot touch.
+  _every_ helper in the function. Grep for the pattern when the lesson is added,
+  not only when it is written up: this one sat in the file while **28 kernel
+  files** still ended the inverse with a whole extra pass.
 - **A type switch inside a generic body is concrete-typed code reachable
   without monomorphizing** — Go compiles _every_ branch into _every_ shape
   instantiation, so a `complex64` branch charges its cost to the `complex128`
@@ -155,506 +201,309 @@ registry lessons are in [`AGENTS.md`](AGENTS.md); measurement ones in
 
 ---
 
-## 3. Correctness and honesty debt
+## Phase 1 — Powers of two
 
-**Closed.** Both items were the same bug twice — a fast path that existed, was
-correct, and was unreachable, in both cases behind a dispatch decision whose
-stated justification had never been re-derived (the Bluestein sub-FFT and packed
-Stockham; see [`docs/HISTORY.md`](docs/HISTORY.md)). Nothing here blocks §9.
+**Goal: breadth of honestly-implemented, correctly-registered algorithm
+candidates, and a ranking that can be re-derived per host.** Not "make this
+laptop faster" — the laptop is already at 1.36× FFTW3 forward, and the ranking
+that produced that number does not transfer.
 
----
+Phase 1 is done when:
 
-## 4. amd64: finish the radix-4 round and the remaining soft spots
+1. Every algorithm family in the tree has a **verdict** — wins / candidate /
+   implementation-limited / structurally closed / untested — recorded per
+   (algorithm × precision × ISA) cell, with the evidence linked.
+2. `docs/IMPLEMENTATION_INVENTORY.md` shows **all** of that, not only the
+   registered subset it shows today.
+3. Nothing that could plausibly win on another cache geometry is unreachable:
+   it is either registered at a low priority or probe-gated with a live test.
+4. The per-host retuning path (wisdom) can actually pick a different winner,
+   and has been shown to do so on a second machine.
 
-The 256-bit radix-4 kernels ([`docs/AVX2_RADIX4.md`](docs/AVX2_RADIX4.md))
-changed the cost of every power-of-two size, which invalidates several constants
-and leaves a few threads hanging.
+### 1.1 Make the inventory complete
 
-**Closed in this section** (detail in [`docs/HISTORY.md`](docs/HISTORY.md) and the linked docs): the size-384
-sub-FFT binding and the six-step row FFTs, both geomean −58% / −33% with no new
-assembly; the re-measurement of the plan-level c64/c128 ratio and the FFTW
-comparison; making the last ten mixed VEX/SSE functions uniformly VEX; and the
-incumbent audit, which now covers every registered power-of-two size.
+`docs/IMPLEMENTATION_INVENTORY.md` today lists only registered codelet rows, so
+it cannot answer any Phase 1 question. It is generated — every item here is a
+change to `cmd/gencodelets`, not to the Markdown.
 
-Two live consequences of those rounds, recorded because they are not obvious
-from the outcome:
+- [ ] **Add an `internal/asm` symbol census to the generator.** One table of
+      every `.s` file per architecture with its symbol count, the Go declaration
+      that binds it, and whether that declaration has a non-test caller. This is
+      the reachability pass that reclassified nine files in the last round, run
+      as a build artifact instead of by hand.
+- [ ] **List the probe-gated kernels.** Everything behind `-tags fftprobe`
+      (`radix8_generic_probe.go`, `radix16_generic_probe.go`,
+      `radix8_avx2_probe_amd64.go`, `radix8_avx512_probe_amd64.go`,
+      `radix4_avx2_tail_probe_amd64.go`, `internal/fft/radix4_c128_probe_amd64.go`)
+      with its verdict and a link to the sweep that produced it. A probe not
+      listed here is folklore in waiting.
+- [ ] **Add a per-cell verdict column to the codelet tables.** `✓` today means
+      "registered"; split it into `✓` selectable, `·` registered candidate (low
+      priority, wisdom-reachable), `p` probe-only, `—` never existed, `✗`
+      structurally closed. The generator has `Priority` already; the verdict for
+      unregistered kernels needs a new field on `codeletSpec` or a sibling table.
+- [ ] **Emit the size × ISA coverage gaps explicitly.** A short "not covered"
+      section derived from the table — e.g. AVX-512 has 6 complex128
+      registrations against AVX2's 21; SSE2 and NEON stop at 32768 where AVX2
+      reaches 65536 — so a gap is a generated fact rather than something
+      re-noticed each round.
+- [ ] **Cover the non-codelet tiers by name, not by prose.** The "Beyond the
+      Codelet Registry" section lists tiers in a paragraph; make it a table of
+      (family, entry point, precisions, ISAs, size rule) so a reader can tell
+      whether a given `n` reaches a size-generic AVX2 radix-4 or a pure-Go
+      Stockham.
 
-- `avx2_f32_size128_radix4_then2.s` is **not** deletable as a side effect of the
-  six-step fix — the `KernelStrategy` dispatch below is now its only non-test
-  caller, so that item alone gates the deletion.
-- The plan-level c64/c128 ratio now tracks the codelet-level one (1.57–1.96
-  forward at 1024…16384 against 1.64–2.43 at codelet level). It sits just below
-  because ~100 ns of per-call dispatch is precision-independent and dilutes the
-  ratio — most where the transform is cheapest. That dispatch cost is its own
-  open item below.
+### 1.2 The algorithm × ISA coverage matrix
 
-- [ ] **Retune the strategy thresholds around the new codelet.**
-      `ditAutoThreshold` and the six-step/four-step crossovers were calibrated
-      against kernels that are now 2–4× faster, so the size at which DIT stops
-      winning has moved. The Stockham comparison at n = 16384 that opened the
-      investigation is the clearest case: 94 µs against what is now 29 µs.
-- [ ] **Point the `KernelStrategy` dispatch at the generic radix-4 kernels, then
-      delete ~19,200 lines of assembly.** `internal/fft/kernels_amd64_size_specific.go`
-      selects by strategy rather than through the codelet registry, so it cannot
-      supply a prepared twiddle table. That single limitation is the only thing
-      keeping **twenty-five** per-size files alive, none of which has a spec row
-      any more — they are unreachable on a default plan and ranked by nothing.
+The inventory above records _what is there_. This subphase decides _what should
+be_. One task per algorithm family; each ends with a verdict row per precision ×
+ISA and, where a gap is worth closing, either a kernel or a probe.
 
-      | group | files | lines |
-      | --- | --- | ---: |
-      | never had a spec row | `avx2_f32_size{128_radix4_then2,256_radix4,512_radix4_then2,2048_radix4_then2,8192_radix4_then2}.s`, `avx2_f64_size{4_radix4,16_radix4,32_radix4_then2,64_radix4,512_radix4_then2}.s` | ~19,200 |
-      | spec row deleted 2026-07-30 | `avx2_f32_size{16_radix4,32_radix4_then2,64_radix4,128_radix2,256_radix2,256_radix16,512_radix2,512_radix8,512_radix16x32}.s`, `avx2_f64_size{16_radix2,32_radix2,64_radix2,128_radix2,256_radix2,512_radix2}.s` | 19,815 |
+Families in the tree today: radix-2, radix-4 (plain / `-then-2` tail / fused
+tail), radix-8 ladder, mixed-2/4, radix-16, radix-32 and the `32×32` / `16×32`
+decompositions, split-radix (conjugate-pair), Stockham (plain and packed),
+six-step, eight-step, four-step, recursive-with-codelet-leaves.
 
-      `avx2_f32_size8192_radix4_then2.s` alone is 9,427 lines; the whole set is
-      ~39,000, more than half of the amd64 AVX2 assembly in the tree. (An
-      earlier version of this item listed only c64 256/512/2048/8192 and c128
-      4/8/16/32/64/512, and contradicted a neighbouring note about size 128. The
-      table above is from the tree.)
+- [ ] **Write the matrix down first, from the tree, before touching a kernel.**
+      A single table in `docs/CODELET_BENCHMARKS.md`: family × precision × ISA →
+      verdict + evidence link. Most cells already have an answer scattered across
+      that document and `docs/HISTORY.md`; the work is collecting them and
+      marking the blanks. Deliverable is the table with every cell filled or
+      explicitly marked `untested`.
+- [ ] **Close out the two settled families in the matrix.** Radix-16 is closed
+      for every ISA (pass advantage real, entirely consumed by the butterfly;
+      AVX-512's 32 ZMM leave it structurally where AVX2 radix-8 already lost) and
+      `*_radix2_avx2` at n ≥ 16 is structurally dominated. Record both as `✗`
+      with the link, so neither gets re-attempted.
+- [ ] **Re-derive the six-step / eight-step / four-step crossovers.** Their
+      registry rows were pulled as a _stale crossover_, not a bad kernel —
+      radix-4 got 2–4× faster and moved the crossing point up. Find where each
+      decomposition now overtakes the flat ladder (it is above 16384 on this
+      host; the interesting question is where it lands on a machine with a larger
+      L2/L3), and re-register the winning cells. This also feeds Phase 3's
+      large-n work.
+- [ ] **Give split-radix a fair measurement.** It is implemented pure-Go only
+      (`internal/kernels/splitradix.go`), has full strategy plumbing, beat the
+      auto path at every power of two ≥ 256 on purego (+11–34%, 2.1× at 262144),
+      and is now auto-selected nowhere. It has **no codelet rows and no SIMD
+      kernel at any ISA** — the single largest untested cell in the matrix. Run
+      it through the radix-8 protocol (canary-gated, both precisions, both
+      directions) against the current incumbents and record the verdict before
+      deciding whether it deserves assembly.
+- [ ] **Decide the `32×32` / `16×32` decomposition family on merit.**
+      `dit1024_radix32x32` and `dit512_radix16x32` lost as _implementation_-limited
+      (only one of two stages vectorised; the pure-Go 32×32 also loses 7.2×/5.2×
+      to `dit1024_radix4_generic`). Either fix the unvectorised stage and
+      re-measure, or close the family as `✗` with that reasoning — but do not
+      leave it as a registered loser. It is the last family whose verdict rests
+      on a kernel nobody defends.
+- [ ] **Fill the `-then-2` tail row of the matrix.** The tail costs 6.7–13.3%
+      (`dit<N>_radix4_notail_avx2` measures 0.867–0.933 across all six groups),
+      fusion recovers 4–6% at 128 and 2048 c64 and _loses_ 11% at 2048 c128. The
+      matrix should carry per-cell whether the plain, fused, or radix-8 form is
+      the candidate, since that choice is cache-geometry-dependent and is exactly
+      what wisdom needs to be able to flip.
 
-      The fix is not new machinery: build the prepared tables once at package
-      load, the pattern already proven twice here —
+### 1.3 Resolve the unreachable assembly
+
+Sixteen size-specific AVX2 `.s` files (~26,000 lines) are in limbo: no spec row,
+so the registry cannot pick them, but still called from
+`internal/fft/kernels_amd64_size_specific.go`, which selects by `KernelStrategy`
+and passes the plan's **raw** twiddle table straight through. The size-generic
+radix-4 kernels want `prepareTwiddleRadix4AVX2` layout — that mismatch, not the
+registry, is the gate. This path only executes when no codelet bound, which for
+power-of-two sizes is close to never; so these files are simultaneously
+unmeasured and unmaintainable.
+
+- [ ] **Measure the cheap alternative first: drop the size-specific cases
+      outright.** The switch already has a raw-twiddle generic fallback at every
+      size (`forwardAVX2Complex64Asm`). If the fallback is within noise, the whole
+      question dissolves and ~26,000 lines go with it. One benchmark, and it
+      gates the two items below.
+- [ ] **If the fallback loses: build the prepared tables once at package load.**
+      The pattern is proven twice in-tree —
       `dit_384_decomp_128x3_amd64_asm.go` builds four (two precisions × two
       directions) and the six-step files build `sixStepRow128{Fwd,Inv}TwiddleC64`.
       Forward and inverse must stay separate because `prepareTwiddleRadix4AVX2`
-      conjugates at prepare time. **Do not touch `avx2_f{32,64}_size384_mixed.s`**:
-      they also carry no spec row but are reached through the Go
-      `forwardDIT384MixedComplex64/128` codelet.
+      conjugates at prepare time. This converts the sixteen files from
+      unreachable to registry-rankable, which is the Phase 1 outcome.
+- [ ] **Relocate the two shared `GLOBL` tables before any deletion.**
+      `bitrev8192_m24` in `avx2_f32_size8192_radix4_then2.s` is needed by
+      `sse2_f64_size8192_radix4_then2.s` and `sse3_f32_size8192_radix4_then2.s`;
+      `bitrev256_r2` in `avx2_f32_size256_radix2.s` by
+      `sse3_f32_size256_radix2.s`. Shared tables belong in
+      `internal/asm/amd64/bitrev_radix4_tables.s`. This has broken the build
+      once. Do this **first** — it is independent of which way the measurement
+      above goes.
+- [ ] **Keep `avx2_f{32,64}_size384_mixed.s` out of every sweep here.** They also
+      carry no spec row but are reached through the Go
+      `forwardDIT384MixedComplex64/128` codelet. Add a comment in each file
+      saying so, so the next reachability pass does not have to re-derive it.
+- [ ] **Record the deletion mechanics as a checklist in `AGENTS.md`.** Per file:
+      the `.s`, its `decl.go` declaration, the wrappers in
+      `internal/fft/asm_amd64.go`, the test/bench tables, any `plan_api_test.go`
+      signature allowlist entry. `internal/asm/decl_text_test.go` catches an
+      orphaned declaration and the linker catches an orphaned `TEXT`. Written
+      once, it stops being re-derived per round.
 
+### 1.4 amd64 AVX2: the remaining soft spots
+
+- [ ] **Retune the strategy thresholds around the new codelets.**
+      `ditAutoThreshold` and the six-step/four-step crossovers were calibrated
+      against kernels that are now 2–4× faster, so the size at which DIT stops
+      winning has moved. The Stockham comparison at n = 16384 that opened the
+      investigation is the clearest case: 94 µs against what is now 29 µs. Pairs
+      with the crossover item in §1.2.
+- [ ] **Attack the radix-4 tail combine, not the radix.** The odd-exponent
+      question is settled — `n = 2·4^k` is also `8·4^(k-1)`, the radix-8 ladder is
+      the principled specialisation, and it promotes nothing. What is left is the
+      6.7–13.3% the separate tail pass costs, of which fusion currently recovers
+      4–6% at two cells and loses at one. The named candidate is a **twiddle-free
+      radix-8 first stage** (permutation + radix-2 + radix-4 in the pass that
+      already touches everything), which does not meet the 4 KiB stride the fused
+      loop collides on; it needs the `±(1±i)/√2` rotations and its own stage-1
+      permutation table. The `±(1±i)/√2` derivation is already written out from
+      the AVX2 radix-8 work.
+- [ ] **Explain the n = 2048 cell specifically.** The tail tax is uniform across
+      512/2048/8192 (0.97/0.91/1.24 vs FFTW3 at v0.7.4), so it explains why every
+      odd power of two is ~13% below where it could be, **not** why 2048 alone is
+      under parity. Note 1024 sits at 0.97 with no tail at all, so part of the
+      mid-band softness is not the tail either. This is a diagnosis task, not a
+      kernel task: find the mechanism before writing anything.
 - [ ] **Re-check the gather balance on AMD.** The stage-1 fusion assumes
       `VPGATHERDQ` throughput comparable to Alder Lake's. Gather is historically
-      much weaker on Zen, and the fused path has no fallback, so the
-      13.9 → 9.7 µs result should be reproduced on a Zen part before it is
-      treated as universal. If it inverts there, the separate permutation pass
-      is still in git history and the two differ only in this one block.
-- [ ] **Plan-level overhead now dominates small transforms.** With the size-64
-      codelet at 55 ns, `BenchmarkPlanForward_64` still reports ~155 ns — about
-      100 ns of dispatch/validation per call that used to hide behind a 137 ns
-      codelet. The same overhead sits on every size; it is simply invisible
-      above ~1024. Profile the path from `Plan.Forward` to the codelet call.
-- [ ] **The n = 2048 local minimum.** Worked, partly ([`docs/AVX2_RADIX4.md`](docs/AVX2_RADIX4.md)), and the item is
-      sharper than it was. The route hypothesis was right: `n = 2*4^k` pays a
-      **separate full pass** over the buffer for its radix-2 tail, and a probe
-      that skips the pass outright measures that at **9–15% of the kernel**.
-      But that tax is uniform across 512/2048/8192, which sit at 0.97/0.91/1.24
-      against FFTW3 (tag v0.7.4) — so it explains why every odd power of two is
-      ~13% below where it could be, **not** why 2048 in particular is the one
-      under parity. Fusing the tail into the last radix-4 stage is implemented
-      and now selected at n = 128 (both precisions) and n = 2048 complex64,
-      worth 4–6%; it is **11% worse** at n = 2048 complex128, where the
-      last-stage stride is exactly 4 KiB and the fused loop's eight live streams
-      collide in L1. So the target cell is unchanged. What remains: a shape with
-      a different access pattern, the candidate being a **twiddle-free radix-8
-      first stage** (permutation + radix-2 + radix-4 in the pass that already
-      touches everything), which would not meet the 4 KiB stride at all — it
-      needs the `±(1±i)/√2` rotations and its own stage-1 permutation table.
-      Note also that 1024 sits at 0.97 with no tail at all, so some of the
-      mid-band softness is not the tail. The AVX-512 item in §6 mentions
-      reclaiming 2048; this is the AVX2 tier and independent of it.
-- [x] **Prune the shadowed AVX2 codelet surplus — registry side** (2026-07-30).
-      The incumbent audit is complete, and it showed a large tail of AVX2 rows
-      that nothing could ever select. Per §2.1 rule 6, **22 rows are gone**: the
-      AVX2 tier went from 33 + 27 to 20 + 18 registrations, and the inventory
-      total from 229 to 207. The bar was **1.5× the size's winner**; the full
-      ranking is in
-      [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md).
-
-      Three groups, and they were not the same problem:
-
-      1. **`*_radix2_avx2` at n ≥ 16 is structurally dominated.** Radix-2 makes
-         `log2 n` full passes where radix-4 makes half as many, and at
-         complex128 a 256-bit register holds only two elements, so there is no
-         width left to recover the difference. That the complex128 rows at
-         16/32/64/128 lose to their own SSE2 twins — and at n = 16 to *pure Go* —
-         is the symptom, not a second bug. Deleted; no rewrite is worth doing.
-      2. **The higher-radix rows are implementation-limited.**
-         `dit1024_radix32x32_avx2` is the slowest candidate at its size in both
-         directions (8.1×/9.7× `dit1024_radix4_avx2`, and slower than its own
-         pure-Go twin) because only one of its two stages is vectorised;
-         `dit512_radix16x32_avx2`, `dit512_radix8_avx2` and
-         `dit256_radix16_avx2` are the same shape of kernel. Deleted — but see
-         the radix-8 item below, which is the hypothesis they fail to test.
-      3. **The `sixstep` rows were a stale crossover, not a bad kernel.**
-         Six-step should only win far above 4096/8192/16384; radix-4 got 2–4×
-         faster and moved the crossover up. The registry rows are gone; the
-         kernels stay for the forced-`KernelSixStep` route, and re-deriving the
-         crossover is the first item in this section.
-
-      Still open: the pure-Go `dit1024_radix32x32_generic` also loses to
-      `dit1024_radix4_generic` (7.2×/5.2×) and should go in a follow-up, and the
-      **assembly** for most of these rows cannot be deleted yet — see below.
-
-- [ ] **Delete the assembly the pruned rows leave behind.** Removing a spec row
-      makes a codelet unselectable but does not remove its kernel, and the
-      audit turned up why: of the ~19 size-specific `.s` files behind the 22
-      deleted rows, only **four** were reachable from tests alone.
-      Those are gone (`avx2_f{32,64}_size1024_radix32x32.s`,
-      `avx2_f64_size512_radix8.s`, `avx2_f64_size256_radix16.s` — 4,854 lines of
-      assembly, plus `internal/kernels/params_avx2.go` and the two test files
-      that were the only remaining users of its twiddle-preparation helpers).
-
-      **Tier 1 is done (2026-08-01): 15,191 lines, 24 files, no insertions.** A
-      second-order reachability pass — for each 1:1 thunk in
-      `internal/fft/asm_amd64.go`, is the *thunk* called from non-test code? —
-      reclassified nine `.s` files (12,983 lines) from "still called" to
-      test-only, and they needed no dispatch change at all:
-      `avx2_f32_size{512_radix16x32,256_radix16,512_radix8}.s`,
-      `avx2_f64_size{256_radix2,128_radix2}.s`,
-      `avx2_f64_generic_radix4_{even,odd}.s` and
-      `avx2_f32_transpose{64x64,128x128}.s`. With them went
-      `internal/kernels/avx2_wrappers.go` (all four functions test-only), the
-      three unregistered AVX2 six-step files and their tests, and 20 `decl.go`
-      declarations.
-
-      Two findings the earlier audit missed. **The c128 generic radix-4 pair
-      (2,779 lines) is unreachable**: unlike its c64 twin,
-      `forwardAVX2Complex128Asm` calls `ForwardAVX2Complex128Asm` directly with
-      no radix cascade, so `…Complex128Radix4{,Mixed}Asm` had no production
-      caller. And **the AVX2 six-step files were never the forced-six-step
-      route** — `simdTierServesStrategy` sends a forced `KernelSixStep` to the
-      size-generic *pure-Go* `kernels.ForwardSixStepComplex64`, so deleting the
-      AVX2 ones cost no reachable path. `InverseAVX2Size128Radix2Complex128Asm`
-      was declared and called by nothing at all, not even a test.
-
-      **What remains — the other sixteen, ~26,000 lines — are still called from
-      `internal/fft/kernels_amd64_size_specific.go` via the `asm_amd64.go`
-      thunks.** That file passes the plan's *raw* twiddle table straight through
-      and the size-specific asm indexes it directly (`twiddle[j]`,
-      `twiddle[2j]`, `twiddle[3j]`), whereas the size-generic radix-4 kernels
-      need `prepareTwiddleRadix4AVX2` layout — that mismatch is the actual gate,
-      not the registry. Note the switch already has a raw-twiddle generic
-      fallback at every size (`forwardAVX2Complex64Asm`), so dropping the
-      size-specific cases outright is a cheaper alternative to building prepared
-      tables at load time; it needs a measurement first. This path only executes
-      when no codelet bound, which for power-of-two sizes is close to never.
-
-      Mechanics per file: delete the `.s`, its `decl.go` declaration, the
-      wrappers in `internal/kernels/avx2_wrappers.go` and
-      `internal/fft/asm_amd64.go`, the test/bench tables, and any signature
-      allowlist entry in `plan_api_test.go`. `internal/asm/decl_text_test.go`
-      catches an orphaned declaration and the linker catches an orphaned `TEXT`.
-      **Check `GLOBL ·bitrev*` before deleting any complex64 `.s`** — those DATA
-      tables are referenced by symbol from the SSE3 c64 and AVX2/SSE2 c128
-      kernels, and this has broken the build once; shared ones belong in
-      `internal/asm/amd64/bitrev_radix4_tables.s`. Tier 1 was verified
-      `GLOBL`-clean before deletion, but **tier 2 is not**: `bitrev8192_m24` in
-      `avx2_f32_size8192_radix4_then2.s` is needed by
-      `sse2_f64_size8192_radix4_then2.s` and `sse3_f32_size8192_radix4_then2.s`,
-      and `bitrev256_r2` in `avx2_f32_size256_radix2.s` by
-      `sse3_f32_size256_radix2.s`. Both must be relocated first. Note commit `628486b` is
-      titled as if the 32×32 removal already shipped — it removed only dead
-      assembly *inside* those files.
-
-- [x] **Audit the `1f7977b` deletions — two restored, the rest closed**
-      (2026-08-01). `1f7977b` deleted ~15,200 lines of AVX2 assembly alongside
-      adding the pure-Go radix-16 ladder below; nine of those `.s` files were
-      the Tier 1 "test-only" set from the item above. Two are restored and
-      wired up: `avx2_f32_transpose{64x64,128x128}.s` (plain transpose plus
-      fused transpose+twiddle and transpose+conj-twiddle), now reachable
-      through the out-of-place transpose API in `internal/math` and covered by
-      direct tests for the first time — all six symbols verified correct, the
-      plain transpose bit-exact against a naive reference.
-
-      `avx2_f64_generic_radix4_{even,odd}.s` (complex128 generic AVX2 radix-4)
-      was also restored and wired, then measured — it lost on this host, so it
-      is **unregistered but kept in-tree** behind `-tags fftprobe`
-      (`internal/fft/radix4_c128_probe_amd64.go`), with its own correctness
-      tests and comparison benchmark. See "complex128 generic AVX2 on the
-      i7-1255U" below. The other five
-      are closed dead:
-      `avx2_f32_size{512_radix16x32,512_radix8,256_radix16}.s` and
-      `avx2_f64_size{128_radix2,256_radix2}.s` — none was a working 256-bit
-      kernel (`Y`-vs-`X` operand census in
-      [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md#ruled-out-kernels-deleted-in-1f7977b-and-why)),
-      and radix-16 itself is independently ruled out by the item below. The
-      three AVX2 six-step drivers deleted in the same commit are **not** part
-      of this closed set — see the next item.
-
-- [x] **complex128 generic AVX2: radix-2 beats radix-4 _on this host_**
-      (2026-08-01). The restored `avx2_f64_generic_radix4_{even,odd}.s`
-      were wired into `forwardAVX2Complex128Asm`/`inverseAVX2Complex128Asm` with
-      the same radix-4 → radix-4-mixed → radix-2 preamble the complex64 twins
-      use, verified correct against `reference.NaiveDFT128`, and confirmed by an
-      instrumented run to actually fire (pure radix-4 at 64/256/1024, mixed at
-      128/512/32768). They then lost every size. Ratios to the radix-2 kernel,
-      median of 3, same process, core 0:
-
-      |         |   64 |  128 |  256 |  512 |   1K |   2K |   4K |   8K |
-      | ------- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-      | forward | 1.08 | 1.12 | 1.56 | 1.54 | 1.30 | 1.24 | 1.32 | 1.16 |
-      | inverse | 1.15 | 1.10 | 1.19 | 0.90 | 1.70 | 2.71 | 2.76 | 2.61 |
-
-      The same harness run against the **complex64** pair shows radix-4 winning
-      decisively — 0.87 / 0.72 / 0.71 / 0.59 / 0.58 / 0.54 at 256…8192 — so the
-      protocol is not insensitive and the existing complex64 dispatch is
-      confirmed correct. The difference is register width, not the algorithm: a
-      YMM holds four complex64 but only **two** complex128, so radix-4's 4-way
-      butterfly has no width left to exploit at double precision while radix-2
-      keeps its lanes full. Two candidate confounders were ruled out — both
-      precisions pass `nil` for `bitrev` (so the radix-2 path's cached
-      permutation is not the cause), and the inverse penalty survives
-      independently of the `1/n` scaling pass the complex128 radix-4 asm omits.
-
-      The dispatch is back to radix-2 only and no production build reaches the
-      kernels, but the `.s` files stay: a **structural** loss (XMM-width against
-      a 256-bit peer) justifies deletion, a **measured** loss on one host does
-      not — §2.1 rule 6 says do not leave a beaten codelet _registered_, which
-      is a different action from deleting it. complex128 on AVX2 is exactly
-      where this project has already caught a result failing to transfer
-      between the i7-1255U and the Xeon ("the stride rule failing to transfer").
-      The mechanistic argument for deleting anyway is the same species as the
-      pass-count and `Y`-operand arguments that both predicted a win here and
-      were both wrong. A Xeon sweep closes it; deleting the files is what would
-      prevent that sweep.
-
-- [x] **The odd-exponent question is settled: it is the tail, not the radix**
-      (2026-08-01). An odd-exponent length n = 2\*4^k is also 8\*4^(k-1), so the
-      principled "specialise the odd exponent" kernel is the existing radix-8
-      ladder, which removes the radix-2 tail where radix-4 can at best fuse it.
-      Swept at the last unmeasured cells (128 both precisions, plus a re-derive
-      of 8192/32768): `GOOD=5216`, 16 passes, 42 C, **95 accepted + 1 drift =
-      96**. Nothing promotes — 128 complex128 loses at 1.026/1.037, and 128
-      complex64's 0.984/0.989 is 1.1–1.6% in the one drift-affected group,
-      against a bar that has been 11–22% for every prior radix-8 promotion. The
-      complex64 8192/32768 losses re-derive inside their 2026-07-30 range, and
-      the complex128 32768 group confirms that radix-8 spec row from the other
-      side. Full table in
-      [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md#n--128-closed-and-the-odd-exponent-question-settled-2026-08-01).
-
-      Two things worth carrying forward. **The tail is the whole remaining
-      prize**: `dit<N>_radix4_notail_avx2` measures 0.867–0.933 across all six
-      groups, a 6.7–13.3% cost that neither fusion nor radix-8 recovers, and at
-      n = 128 the fused variant is already the incumbent with 9–13% still on the
-      table. Attack the combine, not the radix. And **deriving an even/odd split
-      of the general radix-4 is not the lever**: `inverse` is tested once per
-      call in the prologue, `r4End`/`fuse` once per stage, and the hot loops
-      (`r4_group_loop`, `r4_fused_loop`) carry no knob branches at all, so a
-      specialised variant would remove ~8 predicted branches against ~26,000
-      butterflies at n = 8192.
-
-- [ ] **The six-step AVX2 drivers are worth a second look, but not now.**
-      `dit_8192_sixstep_64x128_amd64_avx2.go` (deleted in `1f7977b`, recoverable
-      at `git show bd87b0e:internal/kernels/dit_8192_sixstep_64x128_amd64_avx2.go`)
-      used a rectangular 64×128 split that appears nowhere else in the tree.
-      `dit_16384_sixstep_amd64_avx2.go` built its prepared twiddle tables
-      (`sixStepRow128{Fwd,Inv}TwiddleC64`) at package load — exactly the
-      "build the prepared tables once at package load" fix the "Point the
-      `KernelStrategy` dispatch at the generic radix-4 kernels" item above
-      proposes for the size-specific files, already proven out here. Two
-      caveats before trusting either as a template: `dit_4096_sixstep_amd64_avx2.go`
-      carried the comment "Step 0: Bit-reversal permutation into work (remap
-      dynamic bitrev onto radix-4 order)" directly over a plain copy loop
-      (`for i := range n { work[i] = src[i] }`) — the comment describes work
-      that was never done, tests passed anyway, and why they passed is not
-      understood — that must be understood before this structure is trusted;
-      and the pure-Go six-step lost by 1.44–2.19x across 4096/8192/16384 in the
-      2026-08-01 sweep — not a verdict on these AVX2 versions, but evidence
-      the decomposition itself carries a handicap the assembly would have to
-      overcome, not merely a slow inner loop.
-
-- [x] **Test the radix-8 hypothesis in pure Go first** (2026-07-30). It was
-      never tested. Every kernel that said radix-8 loses is broken somewhere
-      unrelated to the algorithm: `avx2_f32_size512_radix8.s` has **1,905
-      X-register operands and zero Y instructions** — its header promises
-      "Y0–Y7: 8 complex64 vectors … 4 parallel 8-pt butterflies" and that design
-      was never written (the file's only four `Y` mentions are that promise, in
-      the comment); `avx2_f32_size512_radix16x32.s` is the same (3,862 X,
-      zero Y); `avx2_f32_size256_radix16.s` _is_ 256-bit but is a 16×16 matrix
-      factorisation with two full transposes through scratch, so it tests
-      four-step, not high radix; and the pure-Go `dit512_radix8_generic` spends
-      a full complex multiply on `W_8^2 = −i` and computes each internal
-      rotation twice per butterfly.
-
-      `internal/kernels/radix8_generic.go` is the honest test: one size-generic
-      ladder per precision over `8^k`, `2·8^k` and `4·8^k` (so every power of
-      two from 8 to 65536), every stage in place, arch-neutral so the AVX2
-      driver can share its twiddle layout and group-index table. **Forward
-      geomean 0.87 against the pure-Go incumbents**, best where the pass ratio
-      is best: 0.790 at 16384 c64, 0.807 at 512 c64, 0.792 at 4096 c128. Nine
-      rows promoted; the full table and the four cells held back are in
-      [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md).
-
-- [x] **Re-measure the four held-back generic rows on a quiet machine**
-      (2026-07-30). 256 and 2048 complex64, 256 and 512 complex128 — held back
-      because the ladder tied them on forward and won them only on an inverse
-      margin measured against incumbents that were still paying a separate
-      `MulComplex64(dst[i], complex(1/n, 0))` pass. Re-run after that pass was
-      gone, so both sides were current: `GOOD=1700`, `GATE=1.15`, `PASSES=8`,
-      46 of 48 groups accepted. All four still win — forward 0.968–1.014,
-      inverse 0.764–0.888 — and all four are promoted, bringing the ladder to
-      thirteen production rows. The contended partial re-sweep that had put
-      `dit512_radix4_then2_generic` back in front at n = 512 c128 is
-      contradicted and should never have been read. Still on probe: 64 and 128
-      (both precisions), 1024 c128, 32768 (both precisions).
-
-- [x] **A size-generic AVX2 radix-8 stage** (2026-07-30). Written:
-      `internal/asm/amd64/avx2_f{32,64}_radix8.s`, ~1,000 lines rather than the
-      4–5k estimated, because Phase 1 was built arch-neutral and the assembly
-      therefore derives no permutation table, no twiddle layout and no shape
-      classifier of its own — it consumes `radix8Limit`, `twiddleSizeRadix8`,
-      `prepareTwiddleRadix8Complex{64,128}` and `radix8GroupIndices` unchanged.
-      Correct at every supported size in both precisions on the first run,
-      against the naive DFT, against Stockham, in-place, and pinned per-size
-      against the pure-Go ladder.
-
-      Both anticipated risks turned out to be non-issues. Register pressure
-      closes exactly: eight live streams plus two rotation masks plus the
-      `√2/2` broadcast is 11, leaving five scratch YMM, which is precisely a
-      butterfly's peak and precisely a twiddle multiply's broadcast pair — at
-      the cost of re-broadcasting the planes from memory each iteration rather
-      than hoisting them. And stage 1 is not an 8×8 transpose: the outputs
-      split into two independent 4×4 transposes of 64-bit lanes, one for
-      digits 0–3 and one for 4–7, interleaved 32 bytes apart at the store.
-
-      The eighth-root multiplies also collapse into the rotation the butterfly
-      already does — `W_8^1·p = c(p + (−i)p)`, `W_8^3·q = c((−i)q − q)`, and
-      conjugating both is all the inverse is — so they reuse the same mask as
-      the first ±i rotation, cost 4 ops each, need no second constant, and let
-      one loop body serve both directions.
-
-      **Result: seven of sixteen cells won**; see `docs/CODELET_BENCHMARKS.md`.
-      The pure-Go result did not transfer wholesale, which is the expected
-      outcome of swapping a weak opponent for a strong one. The complex64
-      column is decided entirely by the last stage's stride — every cell at
-      ≤ 512 B wins, every cell at ≥ 4 KiB loses, no exceptions — confirming the
-      L1-set collision predicted below before the sweep ran.
-
-- [x] **Block the wide radix-8 stages — tried, measured, reverted (2026-07-30).**
-      This looked like the sharpest remaining lever: eight streams a multiple of
-      4 KiB apart map to one L1 set, which correlated perfectly with every AVX2
-      complex64 loss and with the pure-Go ladder's n = 32768 loss. The tiled
-      version gathers 64 butterflies at a time into a contiguous stack tile,
-      twiddling on the way in (a stage really interleaves fifteen streams, not
-      eight — the seven twiddle planes are m apart too), butterflies inside the
-      tile and copies back, bit-identically.
-
-      It loses **every cell by 6.5–14%** — 8 groups × 12 passes, 96 accepted, 0
-      rejected — and loses worst at n = 32768, the cell the collision story
-      predicted it would rescue. Numbers in `docs/CODELET_BENCHMARKS.md`.
-
-      The lesson is general enough to keep: **a single FFT stage has no reuse to
-      capture.** Each element is read once and written once, so blocking cannot
-      remove traffic and can only add the tile's extra read and write. Blocking
-      is for repeated traversals of a large working set; a stage is one
-      traversal.
-
-      What survives is that the stride rule is an empirical correlation whose
-      *explanation* is still open. Capacity is now the better guess than
-      conflicts: at a 4 KiB element stride the stage's eight streams span 32 KiB,
-      the whole of L1, where at 512 B they span 4 KiB and stay resident. A
-      capacity limit wants a decomposition that shrinks the span — four-step and
-      six-step already do that — not a tile. Anyone returning to the AVX2
-      radix-8 losses should start there and not re-derive the collision story.
-
-      The `±(1±i)/√2` derivation shares its shape with the twiddle-free radix-8
-      first stage proposed in the n = 2048 item above; the two should still be
-      attempted together.
-
-- [x] **Radix-16: measured in pure Go, and closed (2026-08-01).** The same
-      protocol that vindicated radix-8, applied one radix further up, to decide
-      whether to spend assembly on it. The answer is no, and it cost a day
-      instead of the ~4–5k lines an AVX-512 attempt would have.
-
-      `internal/kernels/radix16_generic.go` is the honest test: one size-generic
-      ladder per precision over `16^k`, `2·16^k`, `4·16^k` and `8·16^k` (so
-      every power of two from 16 to 65536), built to mirror
-      `radix8_generic.go` stage for stage so the comparison measures the radix
-      and not the scaffolding. The butterfly is factored 4×4 — 9 complex
-      multiplies rather than the flat form's 120, of which `W_16^4 = −i` is
-      free, `W_16^{2,6}` are two real multiplies each, and `W_16^9 = −W_16^1`
-      — and all four unrolled copies are pinned against the readable original
-      by `TestRadix16LadderMatchesButterfly`.
-
-      Sweep of 2026-08-01, `-tags fftprobe,purego`, `GOOD=5216` recalibrated on
-      an idle machine at 46 °C, 18 groups × 16 passes, **282 accepted + 6 over
-      gate = 288, full accounting**. Ratios taken within a group:
-
-      | n | passes 16:8 | c64 fwd | c64 inv | c128 fwd | c128 inv |
-      | ---: | ---: | ---: | ---: | ---: | ---: |
-      | 256 | 2:3 | 1.158 | 1.221 | 1.163 | 1.225 |
-      | 512 | 3:3 | 1.138 | 1.166 | 1.163 | 1.158 |
-      | 1024 | 3:4 | 1.024 | 1.101 | 1.018 | 1.029 |
-      | 2048 | 3:4 | 1.114 | 1.115 | 1.107 | 1.110 |
-      | 4096 | 3:4 | 1.139 | 1.166 | 1.305 | 1.356 |
-      | 8192 | 4:5 | 1.128 | 1.197 | 1.298 | 1.332 |
-      | 16384 | 4:5 | 1.122 | 1.138 | 1.294 | 1.303 |
-      | 32768 | 4:5 | 1.126 | 1.128 | 1.253 | 1.278 |
-
-      **Not one cell wins**, in either precision or either direction — while
-      making 25–33% fewer passes at every size except 512. That is the whole
-      finding: the pass advantage is real, is delivered, and is still entirely
-      consumed by the butterfly. Radix-8's pure-Go run won 0.87 geomean on the
-      same harness, so the protocol is not insensitive; the radix is.
-
-      Where it goes is worth recording, because it is the shape of a curve
-      flattening rather than an implementation defect:
-
-      - **Diminishing passes.** log2(n)/4 against radix-8's log2(n)/3 is 25%
-        fewer, where radix-8 bought 33% over radix-4. Each rung buys less.
-      - **Growing twiddle cost.** 15 planes per stage against 7 — the table
-        streamed per stage roughly doubles while the passes saved shrink.
-      - **Growing gather cost.** Stage 1 is a 16×16 digit-reversed transpose
-        against 8×8, quadratic in the radix.
-
-      The near-parity at n = 1024 (1.018–1.024 forward) is the ceiling, not a
-      lead worth chasing: it is the one size where radix-16's shape is maximally
-      favourable, and it still loses the inverse.
-
-      This closes radix-16 for **every** instruction set, not just the pure-Go
-      tier. AVX2 has 16 YMM against radix-16's 16 live streams, which is
-      hopeless outright; AVX-512's 32 ZMM leave ~12 scratch, structurally the
-      same losing position AVX2 radix-8 was measured in (1.24–1.56× per pass).
-      A radix that cannot win where registers are free will not win where they
-      are scarce. The `docs/CODELET_BENCHMARKS.md` note that
-      `dit256_radix16_avx2` is "implementation-limited" is now settled the other
-      way: the implementation was bad *and* the algorithm does not pay.
-
-      The ladder and its probe registration stay in the tree behind
-      `-tags fftprobe`, unregistered in any production build — the same
-      disposition as the radix-8 probe's losing sizes, so the result stays
-      re-measurable rather than becoming folklore. n = 65536 is the one
-      uncompared cell: no radix-8 or radix-4 row is registered there, so the
-      probe is its own incumbent and its 1.000 means nothing.
-
-- [ ] **`VZEROUPPER` on the early-return paths.** This item used to read "134
-      YMM/ZMM-using functions never execute `VZEROUPPER`; 57 of the 151 amd64 asm
-      files contain none at all". Re-counted against the tree (2026-07-30), that
-      is no longer the shape of the problem. Of **142** functions that touch a
-      `Y`/`Z` register, only **2** contain no `VZEROUPPER`; of the **58** of
-      **141** `.s` files with none, 52 are `sse2_*`/`sse3_*` and do not need one.
-
-      What is real is narrower: **51 of the 142 have at least one `RET` that is
-      not preceded by a `VZEROUPPER`**, and in the ones inspected that path is
-      the length-check bail — which returns before any vector work, so it is
-      arguably correct as-is. Confirm that reading across all 51 before adding
-      instructions; if they are all bails, close this item rather than "fixing"
-      it. Only then measure a kernel-then-SSE2-kernel sequence. (One data point
-      already: an AVX2 n = 64 codelet followed by an SSE2 n = 16 codelet was, if
-      anything, _cheaper_ than followed by the AVX2 one — so this does not block
-      cross-tier selection.)
-
-- [ ] **Finish the FMA audit.** Two pieces remain from the second pass ([`docs/HISTORY.md`](docs/HISTORY.md)):
-      (a) the non-codelet AVX2 dispatch sites
-      (`internal/fft/complex_mul_amd64.go`, `kernels_amd64_asm.go`,
-      `scale_amd64.go`, `internal/kernels/radix5_avx2.go`) still gate on
-      `HasAVX2` alone and need the `HasAVX2 && HasFMA` sweep;
-      (b) the FMA-less files that no size currently selects
-      (`avx2_f32_size512_radix16x32.s` with 128 muls,
-      `avx2_f{32,64}_size1024_radix32x32.s`, `avx2_f32_size256_radix16.s`,
+      much weaker on Zen and the fused path has no fallback, so the 13.9 → 9.7 µs
+      result should be reproduced on a Zen part before it is treated as
+      universal. If it inverts there, the separate permutation pass is in git
+      history and the two differ only in this one block.
+- [ ] **Close or fix `VZEROUPPER` on the early-return paths.** Of 142 functions
+      touching a `Y`/`Z` register, only 2 contain no `VZEROUPPER` at all; the real
+      number is that **51 of the 142 have at least one `RET` not preceded by
+      one**, and every path inspected so far is the length-check bail, which
+      returns before any vector work and is arguably correct as-is. Confirm that
+      reading across all 51. If they are all bails, **close this item** rather
+      than adding instructions. (Data point already in hand: an AVX2 n = 64
+      codelet followed by an SSE2 n = 16 codelet was, if anything, cheaper than
+      followed by the AVX2 one.)
+- [ ] **Finish the FMA audit — dispatch sites.** `internal/fft/complex_mul_amd64.go`,
+      `kernels_amd64_asm.go`, `scale_amd64.go` and `internal/kernels/radix5_avx2.go`
+      still gate on `HasAVX2` alone and need the `HasAVX2 && HasFMA` sweep.
+- [ ] **Finish the FMA audit — the unselected files.** `avx2_f32_size512_radix16x32.s`
+      (128 muls), `avx2_f{32,64}_size1024_radix32x32.s`, `avx2_f32_size256_radix16.s`,
       `avx2_f32_size128_radix2.s`, `avx2_f32_size32_radix4_then2.s`,
-      `avx2_f{32,64}_size4_radix4.s`) — fusing those only matters if a priority
-      retune brings them back into play. The generic radix-4/Stockham kernels
-      need no pass; they are already fused.
+      `avx2_f{32,64}_size4_radix4.s`. Only worth doing for files that §1.2 keeps
+      as candidates — do this **after** the matrix, and skip anything it closes.
+      The generic radix-4/Stockham kernels need no pass; they are already fused.
+
+### 1.5 The other ISA tiers
+
+The AVX2 tier is the tuned one. The rest are where "good coverage of available
+algorithms" is actually missing.
+
+- [ ] **AVX-512: add complex128 spec rows.** `cmd/gencodelets/specs.go` has
+      **no `Target: "avx512"` rows for complex128** at all, against 21 for AVX2.
+      That is the single largest ISA gap in the inventory.
+- [ ] **AVX-512: a radix-4 kernel.** The shipped tier is generic **radix-2**
+      while every AVX2 winner at those sizes is radix-4, so the existing
+      comparison table measures an algorithm gap, not a vector-width gap. This is
+      the highest-prior item on the tier. No longer blocked on hardware: the Xeon
+      Gold 5218 is reachable and the whole AVX-512 test set passes there with
+      zero skips.
+- [ ] **AVX-512: fix the priority inversion on inverse.** The AVX-512 codelets
+      are registered at Priority 10 against 24–28 for AVX2, so the registry never
+      selects them even on an AVX-512 CPU. For _forward_ that is currently
+      correct; it discards a real 5–9% on _inverse_ at n ≥ 4096. Split the
+      priorities by direction or re-rank, and re-measure first — the numbers
+      predate the 256-bit AVX2 radix-4 kernels.
+- [ ] **AVX-512: re-measure the whole tier post-radix-4.** One canary-gated sweep
+      on the Xeon against the current AVX2 winners, both precisions, both
+      directions. Do **not** retune shipped priorities from that host alone
+      ([`docs/BENCHMARKING.md`](docs/BENCHMARKING.md)) — feed it into §1.6
+      instead.
+- [ ] **SSE2/SSE3: validate on genuine SSE-only hardware.** All the
+      2048/4096/8192/16384/32768 measurements forced the SSE path on an
+      AVX2-capable i7-1255U. Spot-check the speedups and the DIT-vs-six-step
+      crossover on a real pre-AVX2 machine or a VM with AVX masked. (Not planned:
+      a complex64 tier for SSE2-without-SSE3 hardware — the complex multiply idiom
+      needs `ADDSUBPS`, and SSE3 has been universal since ~2005; such machines
+      keep the generic Go path.)
+- [ ] **SSE2/SSE3 and NEON: extend the ladder to 65536.** Both tiers stop at
+      32768 where AVX2 reaches 65536, so their uncovered range is one octave
+      wider — which also widens what the packed-Stockham item below is worth.
+- [ ] **NEON: priority tuning on real arm64 hardware.** The ladder runs 4 → 32768
+      in both precisions, but every priority from 512 up was **mirrored from
+      smaller sizes, not measured** — QEMU timing is meaningless and CI has no
+      native runner. Above ~8192 the DIT codelets also compete with the Go
+      six-step path on real hardware. Needs Apple Silicon / Graviton, or the
+      native ARM64 CI runner on the community backlog.
+- [ ] **NEON: ARMv8.3 `FCMLA` kernels.** `internal/cpu` detects only `HasNEON`;
+      `FCMLA`/`FCADD` do a full complex multiply-accumulate in two instructions
+      against 4 mul + 2 add today (`internal/asm/arm64/neon_complex_mul.s`). Add
+      `HasFCMA` detection (HWCAP on Linux, sysctl on darwin), an `FCMLA` variant
+      of the generic NEON butterfly, and runtime-dispatch it above plain NEON.
+      Apple Silicon and Neoverse both support it.
+- [ ] **Measure the packed-Stockham crossover on SSE, NEON and AVX-512.** The
+      packed-Stockham round filled in only the AVX2 row of
+      `packedStockhamMinSize`; the other three are `packedOff`, forgoing a win
+      worth up to 2.7× on AVX2. The harness needs no porting: run
+      `BenchmarkPackedGate64`/`128` on the target host and read the median
+      within-round packed/kernel ratio. Do not extrapolate the AVX2 thresholds —
+      the competing kernel is different on each tier, which is why the table has a
+      tier axis.
+- [ ] **WASM SIMD** — blocked on toolchain. Go's `GOEXPERIMENT=simd` intrinsics
+      (golang/go#73787) reached amd64 in Go 1.26 and Wasm/ARM64 in the 1.27 RC,
+      but remain experimental and this module targets Go 1.25. Revisit when the
+      experiment graduates or the toolchain floor moves. Current state and build
+      instructions: [`docs/WASM_SIMD.md`](docs/WASM_SIMD.md).
+
+### 1.6 Per-host retuning — make the breadth pay off
+
+Registering candidates is only useful if something can pick them per machine.
+This subphase is what converts Phase 1's breadth into performance on hardware
+nobody here owns.
+
+- [ ] **Bound wisdom measurement cost.** With low-priority candidates registered
+      on purpose, the number of arms per size grows. Add a candidate cap or a
+      tier filter to the measurement path so tuning time stays bounded, and
+      record the measured tuning wall-clock for a full power-of-two sweep as the
+      budget to hold.
+- [ ] **Offline tuning entry point.** A `cmd/` tool (or a documented
+      `just tune` recipe) that sweeps every registered size × precision on the
+      current host, writes a Wisdom file, and prints the per-size winner. Today
+      the same work is a hand-assembled `bench_gated.sh` invocation per round.
+- [ ] **Ship pre-tuned wisdom profiles for named cache geometries.** At minimum
+      the i7-1255U and the Xeon Gold 5218, both already reachable; loadable by
+      name so a user on similar hardware skips tuning. This is what makes the
+      "the ranking does not transfer" problem a shipped feature rather than a
+      caveat.
+- [ ] **Prove a per-host flip end-to-end.** Tune on the Xeon, confirm the wisdom
+      file selects a _different_ codelet at some size than the compiled-in
+      priority does, and that the plan actually runs it. Until this is
+      demonstrated once, the whole retuning story is untested.
+- [ ] **Document the tuning workflow in `docs/BENCHMARKING.md`.** How to tune, what
+      the file contains, how to check which codelet a plan chose, and what to do
+      when a tuned choice regresses.
+
+### 1.7 Per-call overhead
+
+- [ ] **Profile `Plan.Forward` → codelet.** With the size-64 codelet at 55 ns,
+      `BenchmarkPlanForward_64` still reports ~155 ns — about 100 ns of
+      dispatch/validation per call that used to hide behind a 137 ns codelet. The
+      same overhead sits on every size; it is simply invisible above ~1024. It
+      also dilutes the plan-level c64/c128 ratio (1.57–1.96 forward at 1024…16384
+      against 1.64–2.43 at codelet level), most where the transform is cheapest.
+- [ ] **Cut the identified overhead.** Split from the profiling task on purpose:
+      the fix is unknown until the profile exists, and a 100 ns budget at n = 64
+      is worth ~2× on the smallest sizes.
 
 ---
 
-## 5. The mixed-radix engine
+## Phase 2 — Non-powers-of-two
 
-Still the weak link against FFTW3 despite the −30% rounds recorded in
-[`docs/MIXED_RADIX.md`](docs/MIXED_RADIX.md): 44100 sits at 786 µs against
-185 µs, and the non-power-of-two geomean is 0.60× where powers of two now run
-1.36× (§1). **This is the whole of the remaining external gap**, and it is worth
-being precise about where it comes from, because "the mixed-radix engine is
-slow" is not actionable and is also not quite true.
+**This is the whole of the remaining external gap.** 44100 sits at 786 µs
+against FFTW3's 185 µs; the non-power-of-two geomean is 0.60× where powers of two
+run 1.36×. No new size-specific codelet ladder is wanted here — what is wanted is
+that each of the three routes performs respectably across its whole domain.
 
 Per-route, from the `go-fft-bench` sweep (complex128, v0.7.3):
 
@@ -664,9 +513,9 @@ Per-route, from the `go-fft-bench` sweep (complex128, v0.7.3):
 | Bluestein                               | 0.42–0.62×     | mediocre; structural, it does 2.3–4× the logical work |
 | mixed-radix on composite smooth lengths | 0.16–0.62×     | **the disaster zone**                                 |
 
-And within that last row the pattern is sharp: the loss tracks how _shallow_ the
-power-of-two part of the factorisation is, because that is what decides whether
-the schedule ever reaches a tuned codelet leaf.
+Within that last row the loss tracks how _shallow_ the power-of-two part of the
+factorisation is, because that is what decides whether the schedule ever reaches
+a tuned leaf:
 
 | n                   | factors     |   vs FFTW3 |
 | ------------------- | ----------- | ---------: |
@@ -677,218 +526,156 @@ the schedule ever reaches a tuned codelet leaf.
 | 1920                | 2⁷·3·5      |      0.26× |
 | 448, 704, 768, 1344 | deep 2-part | 0.40–0.62× |
 
-Four structural causes, in the order they should be attacked:
+Four structural causes, in the order they should be attacked: (1) there is
+exactly **one** non-power-of-two codelet in the whole inventory (384 = 128×3), so
+every odd factor runs as a generic strided recursion stage, where FFTW ships
+straight-line codelets for 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 20, 25 — that
+difference _is_ the 0.16× column; (2) radix-7 and radix-11 butterflies evaluate
+the full r×r DFT matrix with no butterfly-level SIMD; (3) the recursion is a
+strided ping-pong, so a leaf codelet's input must be gathered whenever
+stride ≠ 1; (4) Bluestein pads to a power of two (or one of two whitelisted
+shapes).
 
-1. **There is exactly one non-power-of-two codelet in the whole inventory**
-   (384 = 128×3). Every odd factor runs as a generic strided recursion stage.
-   FFTW ships straight-line codelets for 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15,
-   20, 25 — that difference _is_ the 0.16× column.
-2. **Radix-7 and radix-11 butterflies evaluate the full r×r DFT matrix**
-   (`internal/kernels/radix7.go`, `radix11.go`) with no butterfly-level SIMD.
-   The fused AVX2 stage kernels rescue them, but only on amd64+AVX2 and only for
-   `span ≥ 4`; everything else — SSE2, NEON, WASM, purego, and the fused
-   kernels' own Go tails — pays O(r²) complex multiplies.
-3. **The recursion is a strided ping-pong**, not a contiguous Stockham-style
-   mixed-radix, so a leaf codelet's input must be gathered whenever stride ≠ 1.
-4. **Bluestein pads to a power of two** (or one of two whitelisted shapes),
-   i.e. 2.3–4× the logical length, plus two length-n complex multiplies.
+### 2.1 Odd-radix leaves — the single biggest structural lever
 
-The fused stage kernels already closed the dispatch and butterfly-call costs;
-what follows is the arithmetic and the missing leaves.
+- [ ] **Check the codelet machinery's non-power-of-two assumptions first.** 384
+      is the only precedent; verify `GetAvailableSizes` and the scheduler's
+      leaf-resolution before assuming a spec row is enough for radix 3. This is a
+      half-day gate on everything below it, and finding it late invalidates the
+      kernels' shape.
+- [ ] **Pure-Go leaf codelets for 3, 5 and 7**, both precisions, registered like
+      any other codelet. Start with three, not eight: they cover the worst cells
+      (2205, 44100, 1000, 96) and they prove the machinery.
+- [ ] **Pure-Go leaf codelets for 6, 9, 10, 12 and 15**, both precisions. Same
+      pattern, and they only make sense once the first three are landed and
+      measured.
+- [ ] **Measure the leaves end-to-end on the disaster-zone lengths** (96, 1000,
+      1920, 2205, 44100) before writing any assembly for them. Pure-Go leaves
+      benefit purego, WASM, 386 and arm64 immediately and are what the AVX2
+      kernels' tails will call; assembly is only worth it where the Go version is
+      measurably the bottleneck.
+- [ ] **AVX2 leaf codelets for whichever radices the measurement singles out.**
+      Deliberately scoped by the previous item rather than by ambition.
 
-- [ ] **Small odd-radix leaf codelets — the single biggest structural lever.**
-      Straight-line kernels for 3, 5, 6, 7, 9, 10, 12 and 15 in both precisions,
-      registered like any other codelet so the scheduler can end a schedule on
-      one. This is what turns the 0.16–0.26× cells around, because those shapes
-      currently have no leaf to land on at all. Write the **pure-Go versions
-      first**: they benefit purego, WASM, 386 and arm64 immediately, they are
-      what the AVX2 kernels' tails will call, and the registry-driven reference
-      tests cover them the moment they are registered. AVX2 after, and only
-      where the Go version is measurably the bottleneck. Note this is the first
-      time the codelet machinery is used for a non-power-of-two size other than
-      384 — check `GetAvailableSizes` and the scheduler's leaf-resolution
-      assumptions before assuming a row is enough.
-- [ ] **Give `Butterfly11` the conjugate-pair form.**
-      `kernels.Butterfly11ForwardComplex64` and its three siblings evaluate the
-      full 11×11 DFT matrix — the only radix in the set still doing O(r²)
-      complex multiplies, where radix 3/5/7 all have hand-written butterflies.
-      The fused AVX2 kernel now sidesteps it, so this is dead weight on amd64,
-      but it is still what runs every radix-11 stage on SSE2, NEON, WASM and
-      purego, and what the fused kernels' own Go tails call. A throwaway
-      pair-form implementation measured 113.6 → 72.1 ns against it (−37%)
-      without being tuned; the derivation and the index tables are written out
-      in the header of `avx2_f32_mixedradix_stage11.s`. Cheap,
-      arch-independent, and the registry-driven reference tests already cover
-      it.
-- [ ] **Give `Butterfly7` the same treatment.** `internal/kernels/radix7.go` is
-      in exactly the state `Butterfly11` is in — a full 7×7 DFT matrix
-      (`butterfly7Complex64(a *[7]complex64, table *[49]complex64)`) — and it
-      was simply never listed here. Radix 7 appears in 2205, 44100 and 12000,
-      three of the five worst cells above, so it is the higher-value of the two.
-      Same derivation shape, same test coverage.
-- [ ] **Bind Rader's sub-FFT.** `plan_exec_rader.go:44–48,67` passes `nil` for
-      the sub-FFT, so the length-`p−1` cyclic convolution takes the _unbound_
-      route — the hardcoded size switch in `internal/kernels/dit.go` that
-      consults no registry and has no build tags — whenever `p−1` is a power of
-      two. That is exactly the case Rader wins 4–5× on, running a pure-Go kernel
-      for the bulk of the work on a SIMD build. This is the same defect as the
-      Bluestein sub-FFT binding ([`docs/HISTORY.md`](docs/HISTORY.md)) and the same fix; it was recorded in that
-      round's write-up as "not done" and never became a tracked item. Needs its
-      own measurement.
+### 2.2 Odd-radix butterflies
+
+- [ ] **Give `Butterfly7` the conjugate-pair form.** `internal/kernels/radix7.go`
+      evaluates a full 7×7 DFT matrix
+      (`butterfly7Complex64(a *[7]complex64, table *[49]complex64)`). Radix 7
+      appears in 2205, 44100 and 12000 — three of the five worst cells — so it is
+      the higher-value of the two. Arch-independent, and the registry-driven
+      reference tests already cover it.
+- [ ] **Give `Butterfly11` the conjugate-pair form.** Same state, same fix. A
+      throwaway pair-form implementation measured 113.6 → 72.1 ns (−37%) untuned;
+      the derivation and index tables are written out in the header of
+      `avx2_f32_mixedradix_stage11.s`. The fused AVX2 kernel sidesteps it on
+      amd64, but it is still what runs every radix-11 stage on SSE2, NEON, WASM
+      and purego, and what the fused kernels' own Go tails call.
+- [ ] **Audit radix 3/5 butterflies for the same defect** while the derivation is
+      fresh — they have hand-written forms, but nobody has checked whether they
+      recompute rotations the way `dit512_radix8_generic` did.
+
+### 2.3 Rader and Bluestein
+
+- [ ] **Bind Rader's sub-FFT.** `plan_exec_rader.go:44–48,67` passes `nil`, so the
+      length-`p−1` cyclic convolution takes the _unbound_ route — the hardcoded
+      size switch in `internal/kernels/dit.go`, which consults no registry and has
+      no build tags — whenever `p−1` is a power of two. That is exactly the case
+      Rader wins 4–5× on, running a pure-Go kernel for the bulk of the work on a
+      SIMD build. Same defect and same fix as the Bluestein sub-FFT binding
+      ([`docs/HISTORY.md`](docs/HISTORY.md)).
+- [ ] **Measure Rader after the binding.** Its gates were fitted against the
+      unbound cost; the binding changes the arm they were fitted on.
 - [ ] **Widen the Bluestein pad whitelist.** `plan_padsize.go` admits only
       `3·2^(k−2)` (from 2^9) and `15·2^(k−4)` (from 2^13); everything else falls
       back to the next power of two, so n = 1009 → `2n−1 = 2017` → pad 3072 at
       best. The two shapes were calibrated before the fused mixed-radix stage
-      kernels landed and before the -30% rounds, so the shapes that lost then
-      (`7·2^k` was "dominated outright") deserve a re-run; `5·2^k` and `9·2^k`
-      were never evaluated. The calibration table in that file's header records
-      the method — extend it rather than replacing it.
+      kernels and before the −30% rounds, so `7·2^k` ("dominated outright" then)
+      deserves a re-run, and `5·2^k` / `9·2^k` were never evaluated. The
+      calibration table in that file's header records the method — extend it
+      rather than replacing it.
+- [ ] **Real-input Bluestein.** Exploit conjugate symmetry in the padded
+      convolution to close the ~2× gap against a hypothetical packed odd-length
+      method. Sequenced here rather than in Phase 4 because it is a Bluestein
+      change, not a real-FFT-API change.
+
+### 2.4 Route selection
+
 - [ ] **Re-derive the radix-7/11 win gates over a wider range.**
-      `mixedRadix7And11Wins` and `rader7Or11Wins` were both fitted on the shapes
+      `mixedRadix7And11Wins` and `rader7Or11Wins` were fitted on the shapes
       measured at the time; the 44100 result showed at least one extrapolation
-      failing outside that range. Re-run
-      `BenchmarkMixedRadix7And11VsBluestein` with the practical lengths included
-      and check whether the "power-of-two part ≥ 8" rule holds at large n or
-      needs an n-dependent term. The routing report this used to depend on has
-      shipped — `Algorithm()` now always names the route that executes — so
-      `go-fft-bench` already annotates every length with the route it took.
+      failing outside that range. Re-run `BenchmarkMixedRadix7And11VsBluestein`
+      with the practical lengths included and check whether the "power-of-two part
+      ≥ 8" rule holds at large n or needs an n-dependent term. `Algorithm()` now
+      always names the route that executes, so `go-fft-bench` already annotates
+      every length with the route it took.
+- [ ] **Re-derive the gates once more after §2.1 lands.** Leaf codelets move the
+      mixed-radix arm specifically, which is the arm every gate is measured
+      against — a gate fitted before them is stale by construction. Listed as its
+      own task so it does not get skipped as "already done".
+
+### 2.5 Engine structure
+
 - [ ] **Explain the +6.8%/+4.4% regression at n = 768.** Left open by the
-      leaf-hoist round. 768 = `[3 256]` has 3 leaves so no win was available,
-      but the loss reproduced across three independent builds. Ruled out:
-      allocations (0 B/op both sides) and the added hook parameter (a variant
-      carrying the signature change but keeping the per-node lookup is neutral
-      there). Remaining candidates are the `len(radices) == 1` guard and code
-      layout, and they could not be separated because each variant is a
-      different binary. A `perf stat` comparison (branch misses, I-cache) on a
-      quiet machine would settle it without needing a third build.
+      leaf-hoist round. 768 = `[3 256]` has 3 leaves so no win was available, but
+      the loss reproduced across three independent builds. Ruled out: allocations
+      (0 B/op both sides) and the added hook parameter. Remaining candidates are
+      the `len(radices) == 1` guard and code layout, which could not be separated
+      because each variant is a different binary. A `perf stat` comparison (branch
+      misses, I-cache) on a quiet machine settles it without a third build.
 - [ ] **A radix-r stage kernel that keeps the streams in registers across both
-      the multiply and the butterfly.** The fused kernels already do this for
-      the stage as a whole; what is left is the observation from the
-      vectorization round that even after fusion, beating the scalar path
-      properly at the smaller spans needs the r streams held across the whole
-      stage rather than two passes over memory. Lower priority than the items
-      above — it is the last few percent of a path that has already absorbed
-      −30%.
-- [ ] **A contiguous, Stockham-style mixed-radix recursion.** The largest item
-      here and the last one to attempt: replace the strided ping-pong with a
+      the multiply and the butterfly.** The fused kernels do this for the stage as
+      a whole; what is left is that beating the scalar path properly at the
+      smaller spans needs the r streams held across the whole stage rather than
+      two passes over memory. Lower priority than everything above — it is the
+      last few percent of a path that has already absorbed −30%.
+- [ ] **A contiguous, Stockham-style mixed-radix recursion.** The largest item in
+      Phase 2 and the last one to attempt: replace the strided ping-pong with a
       form that keeps each stage's operands contiguous, so a leaf codelet never
-      needs a gather. It subsumes part of the item above and would change the
-      shape of every non-power-of-two route, so it is only worth designing after
-      the leaf codelets and the odd-radix butterflies have been measured — those
-      may move the cells far enough that the gather stops being the bottleneck.
+      needs a gather. It subsumes part of the item above and changes the shape of
+      every non-power-of-two route, so design it only after §2.1 and §2.2 are
+      measured — they may move the cells far enough that the gather stops being
+      the bottleneck.
 
 ---
 
-## 6. Coverage on other ISAs
-
-- [ ] **NEON priority tuning on real arm64 hardware.** The size-specific ladder
-      now runs 4 → 32768 in both precisions, but every priority from 512 up was
-      **mirrored from smaller sizes, not measured** — QEMU timing is meaningless
-      and CI has no native runner. Above ~8192 the DIT codelets also compete
-      with the Go six-step path on real hardware (cache behavior differs from
-      QEMU), so measure before trusting the 24/28 priorities there. Needs Apple
-      Silicon / Graviton, or the native ARM64 CI runner on the community
-      backlog. This supersedes the older "NEON sizes 512+" item: the kernels
-      exist; only the tuning is blocked.
-- [ ] **ARMv8.3 FCMLA complex-arithmetic kernels.** `internal/cpu` detects only
-      `HasNEON`; ARMv8.3's `FCMLA`/`FCADD` do a full complex multiply-accumulate
-      in two instructions against 4 mul + 2 add today
-      (`internal/asm/arm64/neon_complex_mul.s`). Add `HasFCMA` detection (HWCAP
-      on Linux, sysctl on darwin), an `FCMLA` variant of the generic NEON
-      butterfly, and runtime-dispatch it above plain NEON. Apple Silicon and
-      Neoverse both support it. Blocked for benchmarking on the same hardware
-      item as above.
-- [ ] **AVX-512 higher-radix / per-size-tuned variants.** The shipped tier is
-      generic radix-2; a radix-4 AVX-512 kernel should widen the 1.2–2.4× gap
-      and could reclaim size 2048 and the complex128 sizes where AVX2 codelets
-      still win.
-
-      **No longer blocked on hardware.** The Xeon Gold 5218 is reachable and the
-      AVX-512 assembly ran there for the first time in 2026-07 — until then
-      every AVX-512 test had been skipping at runtime, so
-      `internal/asm/amd64/avx512_f{32,64}_generic.s` had **never executed**, on
-      any machine. The whole AVX-512 test set passes with zero skips: the
-      assembly is correct, and what follows is purely a tuning question.
-
-      Measured against the best AVX2 codelet at each registered size, the
-      table is in [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md).
-      Three things follow. (1) The AVX-512 codelets are registered at
-      **Priority 10** against 24–28 for AVX2, so the registry never selects them
-      even on an AVX-512 CPU — for _forward_ that is currently the right call,
-      but it discards a real 5–9% on _inverse_ at ≥ 4096. (2) The AVX-512
-      codelet is **radix-2** while every AVX2 winner there is **radix-4**, so
-      that table measures an algorithm gap, not a vector width gap — which is
-      exactly what the radix-4 work is for, and raises the prior that it will
-      pay off. (3) Coverage is complex64 only, at 1024/4096/8192/16384;
-      `cmd/gencodelets/specs.go` has **no `Target: "avx512"` rows for
-      complex128** at all. The numbers predate the 256-bit AVX2 radix-4 kernels,
-      which moved the AVX2 column substantially — re-measure before acting, and
-      do not retune priorities from that host alone ([`docs/BENCHMARKING.md`](docs/BENCHMARKING.md)).
-
-- [ ] **Measure the packed-Stockham crossover on the SSE, NEON and AVX-512
-      tiers.** The packed-Stockham round filled in only the AVX2 row of
-      `packedStockhamMinSize`; the other three are `packedOff`, i.e. those tiers
-      keep today's behaviour and forgo a win worth up to 2.7× on AVX2. Their
-      uncovered range is **one octave wider**, since their codelet ladder stops
-      at 32768 against AVX2's 65536. The harness is already in place and needs
-      no porting: run `BenchmarkPackedGate64`/`128` on the target host and read
-      the median within-round packed/kernel ratio. Do not extrapolate the AVX2
-      thresholds — the competing kernel is a different one on each tier, which
-      is the whole reason the table has a tier axis.
-- [ ] **Validate the SSE2/SSE3 tier on genuine SSE-only hardware.** All the
-      2048/4096/8192/16384/32768 measurements forced the SSE path on an
-      AVX2-capable i7-1255U. Spot-check the speedups — and the
-      DIT-vs-six-step crossover — on a real pre-AVX2 machine or a VM with AVX
-      masked before calling the tier done. (Not planned: a complex64 tier for
-      SSE2-without-SSE3 hardware — the complex multiply idiom needs `ADDSUBPS`,
-      and SSE3 has been universal since ~2005; such machines keep the generic Go
-      path.)
-- [ ] **WASM SIMD** — blocked on toolchain. Go's `GOEXPERIMENT=simd`
-      intrinsics (golang/go#73787) reached amd64 in Go 1.26 and Wasm/ARM64 in
-      the 1.27 RC, but remain experimental and this module targets Go 1.25.
-      Revisit when the experiment graduates or the toolchain floor moves.
-      Current state and build instructions:
-      [`docs/WASM_SIMD.md`](docs/WASM_SIMD.md).
-
----
-
-## 7. Throughput and scale
+## Phase 3 — Throughput and scale
 
 Opt-in parallelism and layout work. All of it keeps the single-threaded,
 zero-allocation default.
 
-- [ ] **Parallel batch execution.** `Plan.ForwardBatch`/`InverseBatch` run
-      count transforms sequentially. Add `PlanOptions.Parallel`/`MaxWorkers`
-      (default 1 = today's behavior): the batch loop fans out over a
-      pre-created worker set with per-worker scratch from the existing
-      resident-cache pattern, preserving zero-alloc-in-steady-state. Batch is
-      embarrassingly parallel — the highest-value, lowest-risk parallel item.
+- [ ] **Parallel batch execution.** `Plan.ForwardBatch`/`InverseBatch` run count
+      transforms sequentially. Add `PlanOptions.Parallel`/`MaxWorkers` (default
+      1 = today's behaviour): the batch loop fans out over a pre-created worker
+      set with per-worker scratch from the existing resident-cache pattern,
+      preserving zero-alloc-in-steady-state. Batch is embarrassingly parallel —
+      the highest-value, lowest-risk parallel item, and the one the two below
+      reuse.
 - [ ] **Parallel 2D/3D/ND row-column passes.** Each axis pass is an independent
-      batch of 1D transforms over rows/columns — reuse the worker
-      infrastructure above. The transpose/gather steps stay serial initially.
-      Gate on plan size (parallelism below ~256×256 is overhead-dominated);
-      verify with the existing `-race` concurrent tests plus new
-      parallel-enabled ones.
-- [ ] **Parallel six-step for very large 1D.** Six-step is already a
-      (transpose, batch-FFT, twiddle, transpose, batch-FFT) pipeline; run the
-      inner batch-FFT stages on the worker pool for n ≳ 2²⁰. Depends on the
-      cache-blocked transpose so the serial transpose doesn't dominate.
-- [ ] **SoA (split real/imag) layout exploration.** Prototype internal SoA for
-      one kernel family (e.g. the AVX-512 generic path, which currently spends
-      shuffle uops de-interleaving) and measure; decide whether a v2 `PlanSoA`
-      API is warranted before designing it.
+      batch of 1D transforms over rows/columns — reuse the worker infrastructure
+      above; transpose/gather stays serial initially. Gate on plan size
+      (parallelism below ~256×256 is overhead-dominated); verify with the existing
+      `-race` concurrent tests plus new parallel-enabled ones.
+- [ ] **Parallel six-step for very large 1D.** Six-step is already a (transpose,
+      batch-FFT, twiddle, transpose, batch-FFT) pipeline; run the inner batch-FFT
+      stages on the worker pool for n ≳ 2²⁰. Depends on the cache-blocked
+      transpose so the serial transpose does not dominate.
 - [ ] **SIMD 8×8 complex tile kernel for the transpose** (AVX2
-      `VPERM2F128`/`VUNPCK`, NEON `TRN1`/`TRN2`). The tiled walk removed the
-      index table and its O(n²) cache; this is the remaining constant factor,
-      and it is also what the SIMD transpose kernels stopping at 128×128 cost
-      the six-step path.
+      `VPERM2F128`/`VUNPCK`, NEON `TRN1`/`TRN2`). The tiled walk removed the index
+      table and its O(n²) cache; this is the remaining constant factor, and it is
+      what the SIMD transpose kernels stopping at 128×128 cost the six-step path.
 - [ ] **SIMD row FFTs inside four-step.** The rows are contiguous, but the row
-      passes still use the scalar Stockham butterflies — the main handicap
-      against the monolithic kernels.
+      passes still use the scalar Stockham butterflies — the main handicap against
+      the monolithic kernels.
+- [ ] **SoA (split real/imag) layout exploration.** Prototype internal SoA for one
+      kernel family (e.g. the AVX-512 generic path, which currently spends shuffle
+      uops de-interleaving) and measure; decide whether a v2 `PlanSoA` API is
+      warranted **before** designing it. Explicitly a measurement task with a
+      go/no-go, not an implementation task.
 
 ---
 
-## 8. DSP layer
+## Phase 4 — DSP and plan layer
 
 - [ ] **Buffer reuse in one-shot DSP helpers.** The one-shots allocate 5
       temporaries per call; route them through the pooled resident-cache scratch
@@ -897,57 +684,60 @@ zero-allocation default.
 - [ ] **Overlap-add/overlap-save streaming convolution.** For long-signal /
       short-kernel filtering (`len(b) ≪ len(a)`), one big FFT is asymptotically
       worse than block convolution with a plan of size ~4×len(b). Add
-      `StreamingConvolver` (fixed kernel, chunked input) — both an API feature
-      and the standard algorithmic fix for the current "FFT the whole signal"
-      cost profile.
+      `StreamingConvolver` (fixed kernel, chunked input) — both an API feature and
+      the standard algorithmic fix for the current "FFT the whole signal" cost
+      profile.
 - [ ] **Let recursive leaves use prepared-twiddle codelets.** `leafCodelet`
-      declines any codelet declaring `TwiddleSize`/`PrepareTwiddle` and falls
-      back to the generic DIT, which costs the best leaf on some size/precision
-      pairs — on this laptop, complex128 at n = 256. Binding them needs per-leaf
-      forward _and_ inverse tables built at plan time, since `PrepareTwiddle`
-      takes an `inverse` flag while the recursive executor shares one table
-      across both directions. Worth measuring before building: the leaf is one
-      of two levels, so the ceiling is modest.
-- [ ] **Real-input Bluestein.** Exploit conjugate symmetry in the padded
-      convolution to close the ~2× gap against a hypothetical packed
-      odd-length method. The 2D/3D real plans also still require even width
-      (their row/column packing is a separate piece of work).
+      declines any codelet declaring `TwiddleSize`/`PrepareTwiddle` and falls back
+      to the generic DIT, which costs the best leaf on some size/precision pairs —
+      on this laptop, complex128 at n = 256. Binding them needs per-leaf forward
+      _and_ inverse tables built at plan time, since `PrepareTwiddle` takes an
+      `inverse` flag while the recursive executor shares one table across both
+      directions. Measure the ceiling first: the leaf is one of two levels.
+- [ ] **Even-width restriction on 2D/3D real plans.** They still require even
+      width; the row/column packing that would lift it is a separate piece of
+      work from the 1D real-input path.
 
 ---
 
-## 9. Ship v1.0
+## Phase 5 — Ship v1.0
 
-The API-shape work that actually gated the tag landed in [`docs/HISTORY.md`](docs/HISTORY.md) and the
-correctness debt closed in §3, so nothing here is blocked on code that changes
-a signature. What this section now waits on is §4–§8: none of it changes the
-API, but the mixed-radix gap against FFTW3 (§5) and the open power-of-two soft
-spots (§4) are wide enough that tagging over them would ship a v1.0 whose
-performance story needs an asterisk.
+Nothing here is blocked on code that changes a signature — the API-shape work
+landed and the correctness debt closed. What this phase waits on is Phases 1–4:
+none of it changes the API, but the mixed-radix gap against FFTW3 (Phase 2) and
+the open power-of-two soft spots (Phase 1) are wide enough that tagging over them
+would ship a v1.0 whose performance story needs an asterisk.
 
+- [ ] **Re-run `go-fft-bench` against `main` and refresh §1.** The headline
+      figures are from tag v0.7.4 and several rounds have landed since. Do this
+      before writing any release copy, not after.
+- [ ] **Put an external comparison in the release checklist.** Every finding in
+      [`docs/HISTORY.md`](docs/HISTORY.md) was invisible to the internal suite,
+      because "faster than last week" and "faster than FFTW3" are different
+      questions, and only the second notices that a whole class of lengths never
+      got the attention the power-of-two ladder did. The harness refuses to start
+      on a loaded machine, so the results are at least not accidentally measuring
+      a compile storm.
+- [ ] **Freeze the API surface explicitly.** One pass over the exported symbols
+      confirming each is intended for v1.0, with a note in `CHANGELOG.md` for
+      anything deprecated rather than removed.
+- [ ] **Refresh `README.md` and `BENCHMARKS.md`** against the re-run figures,
+      including the "no complex64 external comparison exists" caveat.
 - [ ] **Tag `v1.0.0`** with GitHub release notes. Issue/PR templates are in
       place.
-- [ ] **Put an external comparison in the release checklist.** Every finding in
-      [`docs/HISTORY.md`](docs/HISTORY.md) was invisible to the internal suite, because "faster than last
-      week" and "faster than FFTW3" are different questions, and only the second
-      notices that a whole class of lengths never got the attention the
-      power-of-two ladder did. Running `go-fft-bench` before a tag — even
-      manually, even on one laptop — is cheap next to shipping another release
-      in which 44100 loses to gonum. The harness refuses to start on a loaded
-      machine, so the results are at least not accidentally measuring a compile
-      storm.
 
 ---
 
-## 10. Post-v1.0 future
+## 8. Post-v1.0 future
 
 **Features**: DCT, Hilbert transform, STFT/spectrograms, audio/image examples,
 Gonum ecosystem integration, optional GPU backends (kept out of the pure-Go
 core).
 
 **Community**: `CODE_OF_CONDUCT.md`, Dependabot, native ARM64 CI runner
-(unblocks the NEON benchmarking items in §6).
+(unblocks the NEON tuning items in Phase 1.5).
 
 **Explicitly kept as-is** (reviewed, deliberate): the benchmark-cited selection
-thresholds in `internal/planner` (compile-time constants are fine
-pre-wisdom-tuning), the asm build-tag triples, the wisdom cache design, the
-root-package black-box test strategy, and hand-written SIMD assembly.
+thresholds in `internal/planner` (compile-time constants are fine pre-wisdom-
+tuning), the asm build-tag triples, the wisdom cache design, the root-package
+black-box test strategy, and hand-written SIMD assembly.

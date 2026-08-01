@@ -153,24 +153,32 @@ The library uses multiple testing layers:
 ### Losing on one machine is not grounds for deletion
 
 A kernel that measures slower **here** may still win on another host. Only
-delete on evidence that cannot be host-specific.
+delete on evidence that cannot be host-specific. `PLAN.md` §2.2 is the
+authoritative three-way rule; in short:
 
-- **Structural loss — delete.** The kernel cannot win anywhere, for a reason
-  visible without a benchmark: it is XMM-width where a 256-bit peer exists, it
-  rebuilds a constant table per call, it makes strictly more passes doing
-  strictly more work. This is what
-  PLAN.md §2.1 rule 6 is about —
-  a registry of permanent losers is dead weight.
-- **Measured loss on one host — keep, unregistered.** Move it behind
-  `//go:build fftprobe` with its own correctness test and a comparison
+- **Loses by < 1.5× here, plausible reason to win elsewhere — keep registered at
+  a low priority.** It is never selected by the compiled-in ranking, but the
+  wisdom tuner can pick it on a host with a different cache geometry or vector
+  width. That is the point of carrying it.
+- **Measured loss ≥ 1.5×, or a research kernel — keep, unregistered.** Move it
+  behind `//go:build fftprobe` with its own correctness test and a comparison
   benchmark, exactly as `radix8_avx2_probe_amd64.go`, `radix16_generic_probe.go`
   and `radix4_c128_probe_amd64.go` do. It leaves every production build and
   every registry lookup, so it costs nothing at runtime, and the question stays
   re-measurable instead of becoming folklore.
+- **Structural loss — delete.** The kernel cannot win anywhere, for a reason
+  visible without a benchmark: it is XMM-width where a 256-bit peer exists, it
+  rebuilds a constant table per call, it makes strictly more passes doing
+  strictly more work.
 
-Rule 6 says do not leave a beaten codelet **registered**. It does not say
-delete the code. Unregistering and deleting are different actions, and only the
-first is justified by a one-machine number.
+Never leave a beaten codelet registered at a **selectable** priority. That is a
+different action from deleting it, and only the first is justified by a
+one-machine number.
+
+**A poor implementation disqualifies the file, not the algorithm.** Three
+separate "radix-N loses" conclusions here turned out to be measurements of
+broken kernels. Before writing off a radix, check that the thing you measured
+implements it.
 
 **This project has already been burned by assuming a result transfers.** The
 Skylake-SP sweep has the radix-8 ladder winning complex128 at every size by

@@ -425,7 +425,9 @@ fused transpose+twiddle and transpose+conj-twiddle), now reachable through
 `avx2_f64_generic_radix4_{even,odd}.s` was restored too, measured, and **kept
 in-tree behind `-tags fftprobe`** rather than deleted — it lost on the
 i7-1255U, which is a one-host result in the one precision this project has
-caught failing to transfer. See "complex128 generic AVX2 on the i7-1255U"
+caught failing to transfer. Keeping it was vindicated on 2026-08-01: the same
+kernel wins forward by 8-17% on the Xeon at every odd-exponent size. See
+"complex128 generic AVX2: radix-2 wins on the i7-1255U, loses on the Xeon"
 below. The rest were audited on 2026-08-01 and stay dead; nothing below should
 be revived without re-running the same census.
 
@@ -471,7 +473,7 @@ anyone ever needs to re-examine them — for example
 the last commit before the `1f7977b` deletion, so its content is
 byte-identical to what `1f7977b` removed.
 
-### complex128 generic AVX2 on the i7-1255U: radix-2 beats radix-4
+### complex128 generic AVX2: radix-2 wins on the i7-1255U, loses on the Xeon
 
 A sixth file, `avx2_f64_generic_radix4_{even,odd}.s`, was restored on the
 strength of two arguments that both turned out to be wrong, and is recorded
@@ -499,17 +501,20 @@ shape, gives 0.87 / 0.72 / 0.71 / 0.59 / 0.58 / 0.54 at 256…8192 — radix-4
 winning by up to 1.9x. So the protocol is not insensitive, and the existing
 complex64 dispatch is confirmed correct as a side effect.
 
-The cause is register width, not the algorithm. A YMM holds four complex64 but
-only **two** complex128, so radix-4's 4-way butterfly has no width left to
-exploit at double precision while radix-2 keeps its lanes full. The same
-mechanism that makes radix-2 structurally hopeless for complex128 in the table
-above works _for_ it here, once the competitor needs four elements per lane.
+The cause was thought to be register width, not the algorithm: a YMM holds four
+complex64 but only **two** complex128, so radix-4's 4-way butterfly has no width
+left to exploit at double precision while radix-2 keeps its lanes full.
+**The Xeon sweep below refutes this** — the same kernel wins forward by 8-17% on
+Skylake-SP at every odd-exponent size. Register width is identical on both
+hosts, so whatever drives the i7-1255U loss, it is not width.
 
 Two confounders were ruled out before accepting the result: both precisions
 pass `nil` for `bitrev`, so the radix-2 path's `cachedBitReversalIndices` is
 not the source of the gap; and the inverse penalty survives independently of
 the trailing `1/n` scaling pass that the complex128 radix-4 asm — unlike its
 complex64 twin's `inv_r4_scale` loop — omits and the Go wrapper had to supply.
+(The second of those is stated too strongly: radix-2 runs its own scaling pass
+in asm, so both sides pay one. See the Xeon subsection below.)
 
 Caveat on precision: the host was thermally noisy (package 76–100 °C at load
 ~2.0), so these ratios are not trustworthy at the few-percent level. They do
@@ -539,6 +544,59 @@ it does not get to close the question alone.
 What closes it: a sweep on the Xeon. Deleting the files is precisely what would
 prevent that, since the sanctioned route to that host is commit + push then
 `git pull` there.
+
+#### The Xeon answers it: the mixed kernel wins forward by 8-17% (2026-08-01)
+
+The width argument was wrong, and the deletion would have destroyed a kernel
+that is the fastest thing available on Skylake-SP at half its sizes.
+
+Both hosts, same compiled `-tags fftprobe` binary, `taskset -c 0`,
+`-benchtime=200ms`, 7 reps. Ratios are radix-4 over radix-2, **median of the
+per-rep ratios**, `s` is the spread (max - min) across the 7 reps. Under 1.00
+means radix-4 wins.
+
+|  size | fwd Xeon         | fwd i7-1255U | inv Xeon     | inv i7-1255U |
+| ----: | :--------------- | :----------- | :----------- | :----------- |
+|    64 | 0.989 (s0.08)    | 1.084 (s0.21) | 1.129 (s0.03) | 1.249 (s0.22) |
+|   128 | **0.834** (s0.09) | 1.138 (s0.17) | 0.991 (s0.11) | 1.224 (s0.08) |
+|   256 | 1.045 (s0.14)    | 1.543 (s0.33) | 1.233 (s0.01) | 1.538 (s0.27) |
+|   512 | **0.892** (s0.13) | 1.331 (s0.31) | 1.111 (s0.03) | 1.280 (s0.12) |
+|    1K | 1.042 (s0.03)    | 1.335 (s0.29) | 1.264 (s0.09) | 1.368 (s0.31) |
+|    2K | **0.904** (s0.02) | 1.203 (s0.45) | 1.143 (s0.02) | 1.303 (s0.30) |
+|    4K | 1.018 (s0.04)    | 1.267 (s0.30) | 1.264 (s0.03) | 1.286 (s0.14) |
+|    8K | **0.918** (s0.06) | 1.209 (s0.28) | 1.164 (s0.02) | 1.254 (s0.22) |
+
+The forward column splits **exactly by shape**, which is why this is a result
+and not noise. 128 / 512 / 2K / 8K are the odd exponents — the `_mixed`
+radix-4-then-2 entry point — and all four win by 8-17% with spreads of 0.02-0.13.
+64 / 256 / 1K / 4K are the powers of four taking the pure radix-4 entry point,
+and all four tie or lose slightly (0.989-1.045). One kernel of the pair wins on
+this host; the other does not. On the i7-1255U the same mixed kernel loses those
+same four cells by 14-33%.
+
+So the two entry points want different verdicts on different hosts, and no
+static registry ordering expresses that. The Wisdom cache is the mechanism that
+does — it is keyed by size + precision + CPU features and is already how
+per-host tuning is persisted.
+
+Inverse loses on both hosts at every size but n=128. That is not the scaling
+pass: `InverseAVX2Complex128Asm` runs its own `inv_scale_loop_128` over the
+buffer, so both sides of the ratio pay one, and the earlier note above (that the
+Go wrapper "had to supply" the pass radix-2 omits) is wrong about radix-2. The
+inverse gap is unexplained and is the open part of this question.
+
+Two method notes, both of which changed the numbers:
+
+- `go test -bench ... -count=7` repeats each sub-benchmark **consecutively**, so
+  it puts radix-4/8K and radix-2/8K ~30 s apart — the same back-to-back shape
+  that reversed the sign of the pure-Go n=512 result. The table above comes from
+  one process invocation per (direction, size) cell, which runs the pair ~0.4 s
+  apart, repeated 7 times.
+- The i7-1255U column was re-measured with that harness rather than reused, and
+  it reproduced the older back-to-back medians to within a few percent
+  (1.084/1.138/1.543/1.331 against 1.08/1.12/1.56/1.54). Its spreads are
+  0.17-0.45 against the Xeon's 0.02-0.14 — the package hit 100 °C during the run
+  — so the laptop column supports a "loses by 20%+" claim and nothing finer.
 
 ## Generic tier — the radix-16 ladder, and where the radix ladder stops
 

@@ -183,3 +183,130 @@ decision whose stated justification had never been re-derived.
   under the canary-gated sweep. Results, including the one mis-tuned row it
   found (complex128 at n = 8), are in
   [`CODELET_BENCHMARKS.md`](CODELET_BENCHMARKS.md).
+
+**The radix sweep (2026-07-30 … 08-01).** Everything below closed while the
+roadmap was being reorganised into phases; the open consequences carried
+forward into `../PLAN.md` Phase 1.
+
+- **Pruned the shadowed AVX2 codelet surplus — registry side (2026-07-30).**
+  The incumbent audit turned up a large tail of AVX2 rows that nothing could
+  ever select; **22 rows** were unregistered at a bar of 1.5× the size's winner
+  (AVX2 tier 33 + 27 → 20 + 18 registrations; inventory 229 → 207). Three
+  distinct causes. (1) `*_radix2_avx2` at n ≥ 16 is _structurally_ dominated —
+  radix-2 makes `log2 n` passes to radix-4's half, and at complex128 a YMM holds
+  only two elements, so there is no width left to recover; the complex128 rows
+  at 16/32/64/128 losing to their own SSE2 twins, and n = 16 losing to pure Go,
+  is the symptom. (2) The higher-radix rows were _implementation_-limited:
+  `dit1024_radix32x32_avx2` is the slowest candidate at its size in both
+  directions (8.1×/9.7× `dit1024_radix4_avx2`, slower even than its own pure-Go
+  twin) because only one of its two stages is vectorised;
+  `dit512_radix16x32_avx2`, `dit512_radix8_avx2` and `dit256_radix16_avx2` are
+  the same shape of kernel. (3) The `sixstep` rows were a **stale crossover, not
+  a bad kernel** — radix-4 got 2–4× faster and pushed the crossover up; the
+  kernels stay for the forced-`KernelSixStep` route.
+- **Tier-1 assembly deletion (2026-08-01): 15,191 lines, 24 files, no
+  insertions.** A second-order reachability pass — for each 1:1 thunk in
+  `internal/fft/asm_amd64.go`, is the _thunk_ called from non-test code? —
+  reclassified nine `.s` files (12,983 lines) from "still called" to test-only.
+  With them went `internal/kernels/avx2_wrappers.go`, the three unregistered
+  AVX2 six-step files and their tests, and 20 `decl.go` declarations. Two
+  findings the earlier audit had missed: the c128 generic radix-4 pair was
+  unreachable because `forwardAVX2Complex128Asm` calls
+  `ForwardAVX2Complex128Asm` directly with no radix cascade; and the AVX2
+  six-step files were **never** the forced-six-step route —
+  `simdTierServesStrategy` sends a forced `KernelSixStep` to the size-generic
+  pure-Go `kernels.ForwardSixStepComplex64`.
+- **Audited the `1f7977b` deletions (2026-08-01).** That commit removed ~15,200
+  lines of AVX2 assembly alongside the pure-Go radix-16 ladder. Two files were
+  restored and wired up: `avx2_f32_transpose{64x64,128x128}.s` (plain, fused
+  transpose+twiddle, fused transpose+conj-twiddle), now reachable through the
+  out-of-place transpose API in `internal/math` and covered by direct tests for
+  the first time — all six symbols verified, the plain transpose bit-exact
+  against a naive reference. `avx2_f64_generic_radix4_{even,odd}.s` was restored,
+  measured, and kept unregistered behind `-tags fftprobe`. The other five are
+  closed dead: `avx2_f32_size{512_radix16x32,512_radix8,256_radix16}.s` and
+  `avx2_f64_size{128_radix2,256_radix2}.s`, none of which was a working 256-bit
+  kernel (`Y`-vs-`X` operand census in
+  [`CODELET_BENCHMARKS.md`](CODELET_BENCHMARKS.md#ruled-out-kernels-deleted-in-1f7977b-and-why)).
+- **complex128 generic AVX2: radix-2 beats radix-4 _on this host_
+  (2026-08-01).** The restored radix-4 pair was wired into
+  `forwardAVX2Complex128Asm`/`inverseAVX2Complex128Asm` with the same
+  radix-4 → radix-4-mixed → radix-2 preamble the complex64 twins use, verified
+  against `reference.NaiveDFT128`, and confirmed by an instrumented run to
+  actually fire. It then lost every size (forward 1.08–1.56, inverse 0.90–2.76
+  at 64…8192). The same harness has complex64 radix-4 winning decisively
+  (0.87 → 0.54 at 256…8192), so the protocol is not insensitive. Confounders
+  ruled out: both precisions pass `nil` for `bitrev`, and the inverse penalty
+  survives independently of the `1/n` pass the c128 radix-4 asm omits. Dispatch
+  is back to radix-2; the `.s` files stay behind `-tags fftprobe`
+  (`internal/fft/radix4_c128_probe_amd64.go`) pending a Xeon sweep.
+- **Radix-8, pure Go first (2026-07-30).** Every kernel that had "shown" radix-8
+  losing was broken somewhere unrelated to the algorithm:
+  `avx2_f32_size512_radix8.s` has **1,905 X-register operands and zero Y
+  instructions** despite a header promising 256-bit lanes;
+  `avx2_f32_size512_radix16x32.s` likewise (3,862 X, zero Y);
+  `avx2_f32_size256_radix16.s` is 256-bit but is a 16×16 matrix factorisation
+  with two transposes through scratch, so it tests four-step; and
+  `dit512_radix8_generic` spent a full complex multiply on `W_8^2 = −i`.
+  `internal/kernels/radix8_generic.go` is the honest test — one size-generic
+  ladder per precision over `8^k`, `2·8^k`, `4·8^k`, arch-neutral so the AVX2
+  driver shares its twiddle layout and group-index table. **Forward geomean 0.87
+  against the pure-Go incumbents**; thirteen rows promoted after the four
+  held-back cells were re-measured against `1/n`-free incumbents (2026-07-30,
+  46 of 48 groups accepted).
+- **A size-generic AVX2 radix-8 stage (2026-07-30).**
+  `internal/asm/amd64/avx2_f{32,64}_radix8.s`, ~1,000 lines rather than the 4–5k
+  estimated, precisely because Phase 1 was built arch-neutral: the assembly
+  derives no permutation table, no twiddle layout and no shape classifier of its
+  own. Correct at every supported size in both precisions on the first run. Both
+  anticipated risks were non-issues — register pressure closes exactly at 11
+  live YMM, and stage 1 is not an 8×8 transpose but two independent 4×4
+  transposes of 64-bit lanes interleaved 32 bytes apart. The eighth-root
+  multiplies collapse into the rotation the butterfly already does
+  (`W_8^1·p = c(p + (−i)p)`, `W_8^3·q = c((−i)q − q)`), so one loop body serves
+  both directions. **Seven of sixteen cells won**; the complex64 column is
+  decided entirely by the last stage's stride — every cell at ≤ 512 B wins,
+  every cell at ≥ 4 KiB loses, no exceptions.
+- **Blocking the wide radix-8 stages — tried, measured, reverted (2026-07-30).**
+  Eight streams a multiple of 4 KiB apart map to one L1 set, which correlated
+  perfectly with every AVX2 complex64 loss. The tiled version (gather 64
+  butterflies into a contiguous stack tile, twiddling on the way in, butterfly
+  in-tile, copy back, bit-identically) loses **every cell by 6.5–14%**, worst at
+  n = 32768 — the cell the collision story predicted it would rescue. The
+  general lesson: **a single FFT stage has no reuse to capture.** Each element is
+  read once and written once, so blocking cannot remove traffic, only add the
+  tile's extra read and write. What survives is that the stride rule is an
+  empirical correlation whose _explanation_ is still open, and **capacity is now
+  the better guess than conflicts**: at a 4 KiB element stride the stage's eight
+  streams span 32 KiB — the whole of L1 — where at 512 B they span 4 KiB and stay
+  resident. A capacity limit wants a decomposition that shrinks the span, not a
+  tile.
+- **The odd-exponent question is settled: it is the tail, not the radix
+  (2026-08-01).** An odd-exponent length `n = 2·4^k` is also `8·4^(k-1)`, so the
+  principled "specialise the odd exponent" kernel is the existing radix-8 ladder,
+  which removes the radix-2 tail where radix-4 can at best fuse it. Swept at the
+  last unmeasured cells (`GOOD=5216`, 16 passes, 42 °C, 95 accepted + 1 drift):
+  nothing promotes. Two things carry forward. **The tail is the whole remaining
+  prize** — `dit<N>_radix4_notail_avx2` measures 0.867–0.933 across all six
+  groups, a 6.7–13.3% cost that neither fusion nor radix-8 recovers. And
+  **deriving an even/odd split of the general radix-4 is not the lever**:
+  `inverse` is tested once per call, `r4End`/`fuse` once per stage, and the hot
+  loops carry no knob branches at all.
+- **Radix-16: measured in pure Go, and closed (2026-08-01).** The same protocol
+  that vindicated radix-8, one radix further up, to decide whether to spend
+  assembly on it. `internal/kernels/radix16_generic.go` mirrors
+  `radix8_generic.go` stage for stage so the comparison measures the radix and
+  not the scaffolding; the butterfly is factored 4×4 (9 complex multiplies
+  against the flat form's 120) and all four unrolled copies are pinned against
+  the readable original by `TestRadix16LadderMatchesButterfly`. Sweep of
+  2026-08-01, 18 groups × 16 passes, 282 accepted + 6 over gate: **not one cell
+  wins**, ratios 1.018–1.356, while making 25–33% fewer passes at every size
+  except 512. The pass advantage is real, is delivered, and is entirely consumed
+  by the butterfly — diminishing passes (log2(n)/4 vs log2(n)/3 is 25% fewer,
+  where radix-8 bought 33% over radix-4), growing twiddle cost (15 planes per
+  stage against 7), growing gather cost (a 16×16 digit-reversed transpose against
+  8×8, quadratic in the radix). This closes radix-16 for **every** instruction
+  set: AVX2 has 16 YMM against 16 live streams, and AVX-512's 32 ZMM leave ~12
+  scratch — structurally the losing position AVX2 radix-8 was measured in. A
+  radix that cannot win where registers are free will not win where they are
+  scarce. The ladder stays behind `-tags fftprobe`.
