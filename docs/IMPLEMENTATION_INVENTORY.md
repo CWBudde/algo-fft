@@ -5,7 +5,8 @@
 
 This document inventories the size-specific FFT codelets registered by
 `internal/kernels` (source of truth: the declarative table in
-`cmd/gencodelets/specs.go`) and summarizes the non-codelet kernel tiers.
+`cmd/gencodelets/specs.go`), censuses every assembly symbol under
+`internal/asm` for reachability, and summarizes the non-codelet kernel tiers.
 SIMD kernels are part of the **default build** and are selected at runtime
 via `internal/cpu.DetectFeatures()`; build with `-tags purego` for the
 pure-Go fallback.
@@ -136,6 +137,366 @@ pure-Go fallback.
 | neon    | `arm64 && !purego` |        22 |         22 |    44 |
 
 Total registered codelets: **241**.
+
+## Assembly Symbol Census
+
+Every `TEXT` symbol under internal/asm, with the bodyless Go declaration
+that binds it and whether anything in a production build reaches it. The
+reference graph is matched by identifier name across all build tags and
+ignores shadowing, so it **over-approximates reachability**: a symbol listed
+as reachable may still be dead, but one listed unreachable is referenced by no
+live non-test code.
+
+Reachability is computed from these roots: every exported func and method of
+the root package `algofft`, every `init`, every package-level var/const
+initializer, and every func under cmd/. A verdict is only as good as that
+list — if a genuine entry point is missing from it, whole subtrees read as
+unreachable.
+
+- **live** — reachable from the root package's exported API, an `init`, or a
+  package-level initializer.
+- **unreachable** — referenced only from non-test Go code that is itself
+  unreachable (the second-order case: a live-looking thunk with no live caller).
+- **test-only** — referenced only from \_test.go files. Declared-but-uncalled
+  assembly is untested assembly; these run only when a test names them.
+- **orphan** — declared and referenced by nothing at all.
+
+### amd64 — 136 files, 255 symbols, 241 live
+
+| File                                      | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                                                 |
+| ----------------------------------------- | ------: | ---: | --------: | ----------: | -----: | ----------------------------------------------------------- |
+| `amd64/avx2_f32_complex_mul.s`            |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_generic.s`                |       4 |    4 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_generic_radix4_even.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_generic_radix4_odd.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_mixedradix_stage11.s`     |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_mixedradix_stage3.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_mixedradix_stage5.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_mixedradix_stage7.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_radix3.s`                 |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_radix4.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_radix5.s`                 |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_radix8.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size128_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size128_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size16_radix16.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size16_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size16_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size2048_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size256_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size256_radix4.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size32_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size32_radix32.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size32_radix4_then2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size384_mixed.s`          |       4 |    4 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size4_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size512_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size512_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size64_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size64_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size8192_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size8_radix2.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size8_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_transpose128x128.s`       |       3 |    0 |         0 |           3 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_transpose64x64.s`         |       3 |    0 |         0 |           3 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_complex_mul.s`            |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_generic.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_generic_radix4_even.s`    |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_generic_radix4_odd.s`     |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_mixedradix_stage11.s`     |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_mixedradix_stage3.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_mixedradix_stage5.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_mixedradix_stage7.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_radix4.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_radix8.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size16_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size16_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size32_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size32_radix4_then2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size384_mixed.s`          |       4 |    4 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size4_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size512_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size512_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size64_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size64_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size8_radix2.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size8_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_stockham.s`               |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_real_recombine.s`             |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_real_repack.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_scale.s`                      |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx512_f32_generic.s`              |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512.go`                         |
+| `amd64/avx512_f32_radix8.s`               |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_radix8.go`                  |
+| `amd64/avx512_f32_radix8_twiddle_const.s` |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/avx512_f32_size128_radix8_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_c64s128.go`                 |
+| `amd64/avx512_f32_size16_radix16.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size16_f32.go`              |
+| `amd64/avx512_f32_size256_radix8_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_c64s128.go`                 |
+| `amd64/avx512_f32_size32_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size32_radix4_then2_f32.go` |
+| `amd64/avx512_f32_size64_radix2.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size64_f32.go`              |
+| `amd64/avx512_f32_size64_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size64_f32.go`              |
+| `amd64/avx512_f32_size64_tables.s`        |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/avx512_f32_size8_radix8.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size8_f32.go`               |
+| `amd64/avx512_f64_generic.s`              |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512.go`                         |
+| `amd64/avx512_f64_radix8.s`               |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_radix8.go`                  |
+| `amd64/avx512_f64_size128_radix4_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_c128_size64_128.go`         |
+| `amd64/avx512_f64_size16_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size16_size32_f64.go`       |
+| `amd64/avx512_f64_size32_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size16_size32_f64.go`       |
+| `amd64/avx512_f64_size4_radix4.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size4_size8_f64.go`         |
+| `amd64/avx512_f64_size64_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_c128_size64_128.go`         |
+| `amd64/avx512_f64_size8_radix8.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size4_size8_f64.go`         |
+| `amd64/bitrev_f64_tables.s`               |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/bitrev_radix4_tables.s`            |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/core.s`                            |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/sse2_f32_generic.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f32_size4_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f64_generic.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size1024_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size128_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size128_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size16384_radix4.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size16_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size16_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f64_size2048_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size256_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size256_radix4.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size32768_radix4_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size32_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size32_radix4_then2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size4096_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size4_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f64_size512_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size512_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size64_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size64_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size8192_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size8_radix2.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f64_size8_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_real_repack.s`                |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_scale.s`                      |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_generic.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size1024_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size128_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size128_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size16384_radix4.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size16_radix16.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse3_f32_size16_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size16_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse3_f32_size2048_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size256_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size256_radix4.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size32768_radix4_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size32_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size32_radix32.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size32_radix4_then2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size4096_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size512_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size512_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size64_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size64_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size8192_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size8_radix2.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse3_f32_size8_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_real_recombine.s`             |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+
+### arm64 — 46 files, 91 symbols, 91 live
+
+| File                                 | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                  |
+| ------------------------------------ | ------: | ---: | --------: | ----------: | -----: | ---------------------------- |
+| `arm64/core.s`                       |       0 |    0 |         0 |           0 |      0 | —                            |
+| `arm64/neon_complex_mul.s`           |       4 |    4 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size1024_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size16384_radix4.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size256_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size4096_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size64_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size8_radix8.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size1024_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size16384_radix4.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size256_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size4096_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size64_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size64_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_real_repack.s`           |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_scale.s`                 |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+
+### internal/asm (arch-neutral) — 2 files, 2 symbols, 0 live
+
+| File           | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                  |
+| -------------- | ------: | ---: | --------: | ----------: | -----: | ---------------------------- |
+| `stub_amd64.s` |       1 |    0 |         0 |           1 |      0 | `internal/asm/stub_arm64.go` |
+| `stub_arm64.s` |       1 |    0 |         0 |           1 |      0 | `internal/asm/stub_arm64.go` |
+
+### x86 — 16 files, 30 symbols, 26 live
+
+| File                              | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                |
+| --------------------------------- | ------: | ---: | --------: | ----------: | -----: | -------------------------- |
+| `x86/core.s`                      |       0 |    0 |         0 |           0 |      0 | —                          |
+| `x86/sse2_f32_size2_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f32_size4_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f64_size16_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f64_size2_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f64_size4_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f64_size8_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_generic.s`              |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse3_f32_size16_radix16.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse3_f32_size16_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse3_f32_size8_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_f32_size16_radix4_386.s` |       2 |    0 |         0 |           2 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_f32_size2_radix2_386.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_f32_size4_radix4_386.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_f32_size8_radix2_386.s`  |       2 |    0 |         0 |           2 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_generic.s`               |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+
+### Files with no live symbol
+
+- `internal/asm/amd64/avx2_f32_radix3.s` — 2 symbols, none reachable
+- `internal/asm/amd64/avx2_f32_radix5.s` — 2 symbols, none reachable
+- `internal/asm/amd64/avx2_f32_transpose128x128.s` — 3 symbols, none reachable
+- `internal/asm/amd64/avx2_f32_transpose64x64.s` — 3 symbols, none reachable
+- `internal/asm/amd64/avx2_f64_generic_radix4_even.s` — 2 symbols, none reachable
+- `internal/asm/amd64/avx2_f64_generic_radix4_odd.s` — 2 symbols, none reachable
+- `internal/asm/stub_amd64.s` — 1 symbols, none reachable
+- `internal/asm/stub_arm64.s` — 1 symbols, none reachable
+- `internal/asm/x86/sse_f32_size16_radix4_386.s` — 2 symbols, none reachable
+- `internal/asm/x86/sse_f32_size8_radix2_386.s` — 2 symbols, none reachable
+
+Do not delete on this list alone — check the shared data symbols below,
+and see PLAN.md §2.2 for when an unreachable kernel should be probe-gated
+(`-tags fftprobe`) rather than removed.
+
+### Symbols not reachable from a production build
+
+| Symbol                                        | Status      | Defined in                             | Declared in                  |
+| --------------------------------------------- | ----------- | -------------------------------------- | ---------------------------- |
+| `Butterfly3ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` |
+| `Butterfly3InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` |
+| `Butterfly5ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` |
+| `Butterfly5InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` |
+| `Transpose128x128Complex64AVX2Asm`            | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` |
+| `TransposeTwiddle128x128Complex64AVX2Asm`     | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` |
+| `TransposeTwiddleConj128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` |
+| `Transpose64x64Complex64AVX2Asm`              | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` |
+| `TransposeTwiddle64x64Complex64AVX2Asm`       | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` |
+| `TransposeTwiddleConj64x64Complex64AVX2Asm`   | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` |
+| `ForwardAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` |
+| `InverseAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` |
+| `ForwardAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` |
+| `InverseAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` |
+| `stubAsm`                                     | unreachable | `stub_amd64.s`                         | `internal/asm/stub_arm64.go` |
+| `stubAsm`                                     | unreachable | `stub_arm64.s`                         | `internal/asm/stub_arm64.go` |
+| `ForwardSSESize16Radix4Complex64Asm`          | unreachable | `x86/sse_f32_size16_radix4_386.s`      | `internal/asm/x86/decl.go`   |
+| `InverseSSESize16Radix4Complex64Asm`          | unreachable | `x86/sse_f32_size16_radix4_386.s`      | `internal/asm/x86/decl.go`   |
+| `ForwardSSESize8Radix2Complex64Asm`           | unreachable | `x86/sse_f32_size8_radix2_386.s`       | `internal/asm/x86/decl.go`   |
+| `InverseSSESize8Radix2Complex64Asm`           | unreachable | `x86/sse_f32_size8_radix2_386.s`       | `internal/asm/x86/decl.go`   |
+
+### Data symbols shared across files
+
+Relocate these into a shared table file before deleting the file that
+defines them (internal/asm/amd64/bitrev_radix4_tables.s is the
+established home).
+
+| Data symbol                                     | Defined in                                | Used from                                                                                                                      |
+| ----------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `avx512F32Size64CrossTw`                        | `amd64/avx512_f32_size64_tables.s`        | `amd64/avx512_f32_size64_radix2.s`, `amd64/avx512_f32_size64_radix4.s`                                                         |
+| `avx512F32Size64TransIdx`                       | `amd64/avx512_f32_size64_tables.s`        | `amd64/avx512_f32_size64_radix2.s`, `amd64/avx512_f32_size64_radix4.s`                                                         |
+| `avx512f32Radix8W128`                           | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size256_radix8_then2.s`                                                                                      |
+| `avx512f32Radix8W16`                            | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `avx512f32Radix8W32`                            | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `avx512f32Radix8W4`                             | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `avx512f32Radix8W64`                            | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `avx512f32Radix8W8`                             | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `bitrev16384_r4`                                | `amd64/bitrev_radix4_tables.s`            | `amd64/sse2_f64_size16384_radix4.s`, `amd64/sse3_f32_size16384_radix4.s`                                                       |
+| `bitrev256_r2`                                  | `amd64/avx2_f32_size256_radix2.s`         | `amd64/sse3_f32_size256_radix2.s`                                                                                              |
+| `bitrev4096_r4`                                 | `amd64/bitrev_radix4_tables.s`            | `amd64/sse2_f64_size4096_radix4.s`, `amd64/sse3_f32_size4096_radix4.s`                                                         |
+| `bitrev512_m24`                                 | `amd64/avx2_f32_size512_radix4_then2.s`   | `amd64/avx2_f64_size512_radix4_then2.s`                                                                                        |
+| `bitrev512_r2`                                  | `amd64/bitrev_f64_tables.s`               | `amd64/avx2_f32_size512_radix2.s`                                                                                              |
+| `bitrev8192_m24`                                | `amd64/avx2_f32_size8192_radix4_then2.s`  | `amd64/sse2_f64_size8192_radix4_then2.s`, `amd64/sse3_f32_size8192_radix4_then2.s`                                             |
+| `complex64ImagSignMaskY`                        | `amd64/avx2_real_repack.s`                | `amd64/avx2_real_recombine.s`, `amd64/sse3_real_recombine.s`                                                                   |
+| `eightThousandOneHundredThirtySecond32`         | `amd64/core.s`                            | `amd64/avx2_f32_size8192_radix4_then2.s`, `amd64/sse3_f32_size8192_radix4_then2.s`                                             |
+| `eightThousandOneHundredThirtySecond64`         | `amd64/core.s`                            | `amd64/sse2_f64_size8192_radix4_then2.s`                                                                                       |
+| `eighth32`                                      | `x86/core.s`                              | `amd64/avx2_f32_size8_radix2.s`, `amd64/avx2_f32_size8_radix4.s`, `amd64/avx2_f32_size8_radix8.s` + 7 more                     |
+| `eighth64`                                      | `x86/core.s`                              | `amd64/avx2_f64_size8_radix2.s`, `amd64/avx2_f64_size8_radix4.s`, `amd64/avx2_f64_size8_radix8.s` + 6 more                     |
+| `fiveHundredTwelfth32`                          | `amd64/core.s`                            | `amd64/avx2_f32_size512_radix2.s`, `amd64/avx2_f32_size512_radix4_then2.s`, `amd64/sse3_f32_size512_radix2.s` + 1 more         |
+| `fiveHundredTwelfth64`                          | `amd64/core.s`                            | `amd64/avx2_f64_size512_radix2.s`, `amd64/avx2_f64_size512_radix4_then2.s`, `amd64/sse2_f64_size512_radix2.s` + 1 more         |
+| `half32`                                        | `x86/core.s`                              | `amd64/core.s`, `x86/sse2_f32_size2_radix2.s`, `x86/sse_f32_size2_radix2_386.s`                                                |
+| `half64`                                        | `x86/core.s`                              | `amd64/core.s`, `x86/sse2_f64_size2_radix2.s`                                                                                  |
+| `maskNegHiPD`                                   | `x86/core.s`                              | `amd64/avx2_f64_size16_radix4.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx2_f64_size4_radix4.s` + 28 more            |
+| `maskNegHiPD_YMM`                               | `amd64/core.s`                            | `amd64/avx2_real_recombine.s`, `amd64/avx2_real_repack.s`                                                                      |
+| `maskNegHiPS`                                   | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 35 more              |
+| `maskNegLoPD`                                   | `x86/core.s`                              | `amd64/avx2_f64_size16_radix4.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx2_f64_size4_radix4.s` + 27 more            |
+| `maskNegLoPS`                                   | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 34 more              |
+| `neonInv128`                                    | `arm64/neon_f32_size128_radix2.s`         | `arm64/neon_f32_size128_mixed24.s`                                                                                             |
+| `neonInv128F64`                                 | `arm64/neon_f64_size128_radix2.s`         | `arm64/neon_f64_size128_mixed24.s`                                                                                             |
+| `neonInv16`                                     | `arm64/neon_f32_size16_radix4.s`          | `arm64/neon_f32_size16_radix2.s`                                                                                               |
+| `neonInv16F64`                                  | `arm64/neon_f64_size16_radix4.s`          | `arm64/neon_f64_size16_radix2.s`                                                                                               |
+| `neonInv32`                                     | `arm64/neon_f32_size32_radix2.s`          | `arm64/neon_f32_size32_mixed24.s`                                                                                              |
+| `neonInv32F64`                                  | `arm64/neon_f64_size32_radix2.s`          | `arm64/neon_f64_size32_mixed24.s`                                                                                              |
+| `neonInv4`                                      | `arm64/core.s`                            | `arm64/neon_f32_size4_radix4.s`                                                                                                |
+| `neonInv8`                                      | `arm64/core.s`                            | `arm64/neon_f32_size8_radix2.s`, `arm64/neon_f32_size8_radix4.s`, `arm64/neon_f32_size8_radix8.s`                              |
+| `neonInv8F64`                                   | `arm64/neon_f64_size8_radix2.s`           | `arm64/neon_f64_size8_radix4.s`                                                                                                |
+| `neonOne64`                                     | `arm64/core.s`                            | `arm64/neon_f64_generic.s`                                                                                                     |
+| `neonOnes`                                      | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
+| `neonSignImag`                                  | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
+| `one32`                                         | `x86/core.s`                              | `amd64/avx2_f32_generic.s`, `amd64/avx2_f32_generic_radix4_even.s`, `amd64/avx2_f32_generic_radix4_odd.s` + 6 more             |
+| `one64`                                         | `x86/core.s`                              | `amd64/avx2_f64_generic.s`, `amd64/avx2_f64_stockham.s`, `amd64/avx512_f64_generic.s` + 1 more                                 |
+| `oneFourThousandNinetySixth32`                  | `amd64/core.s`                            | `amd64/sse3_f32_size4096_radix4.s`                                                                                             |
+| `oneFourThousandNinetySixth64`                  | `amd64/core.s`                            | `amd64/sse2_f64_size4096_radix4.s`                                                                                             |
+| `oneSixteenThousandThreeHundredEightyFourth32`  | `amd64/core.s`                            | `amd64/sse3_f32_size16384_radix4.s`                                                                                            |
+| `oneSixteenThousandThreeHundredEightyFourth64`  | `amd64/core.s`                            | `amd64/sse2_f64_size16384_radix4.s`                                                                                            |
+| `oneThirtyTwoThousandSevenHundredSixtyEighth32` | `amd64/core.s`                            | `amd64/sse3_f32_size32768_radix4_then2.s`                                                                                      |
+| `oneThirtyTwoThousandSevenHundredSixtyEighth64` | `amd64/core.s`                            | `amd64/sse2_f64_size32768_radix4_then2.s`                                                                                      |
+| `oneThousandTwentyFourth32`                     | `amd64/core.s`                            | `amd64/sse3_f32_size1024_radix4.s`                                                                                             |
+| `oneThousandTwentyFourth64`                     | `amd64/core.s`                            | `amd64/sse2_f64_size1024_radix4.s`                                                                                             |
+| `oneTwentyEighth32`                             | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size128_radix4_then2.s`, `amd64/avx512_f32_size128_radix8_then2.s` + 2 more |
+| `oneTwentyEighth64`                             | `x86/core.s`                              | `amd64/avx512_f64_size128_radix4_then2.s`, `amd64/core.s`, `amd64/sse2_f64_size128_radix2.s` + 1 more                          |
+| `quarter32`                                     | `x86/core.s`                              | `amd64/avx2_f32_size4_radix4.s`, `amd64/core.s`, `amd64/sse2_f32_size4_radix4.s` + 2 more                                      |
+| `quarter64`                                     | `x86/core.s`                              | `amd64/avx2_f64_size4_radix4.s`, `amd64/avx512_f64_size4_radix4.s`, `amd64/core.s` + 2 more                                    |
+| `signbit32`                                     | `x86/core.s`                              | `amd64/avx2_f32_size4_radix4.s`, `amd64/avx2_f32_size8_radix4.s`, `amd64/avx2_f32_size8_radix8.s` + 1 more                     |
+| `signbit64`                                     | `x86/core.s`                              | `amd64/avx2_f64_generic_radix4_even.s`, `amd64/avx2_f64_generic_radix4_odd.s`, `amd64/avx2_f64_size64_radix4.s` + 3 more       |
+| `sixteenth32`                                   | `x86/core.s`                              | `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size16_radix2.s`, `amd64/avx2_f32_size16_radix4.s` + 7 more                 |
+| `sixteenth64`                                   | `x86/core.s`                              | `amd64/avx2_f64_size16_radix2.s`, `amd64/avx2_f64_size16_radix4.s`, `amd64/avx512_f64_size16_radix4.s` + 4 more                |
+| `sixtyFourth32`                                 | `x86/core.s`                              | `amd64/avx2_f32_size64_radix2.s`, `amd64/avx2_f32_size64_radix4.s`, `amd64/avx512_f32_size64_radix2.s` + 3 more                |
+| `sixtyFourth64`                                 | `x86/core.s`                              | `amd64/avx2_f64_size64_radix2.s`, `amd64/avx2_f64_size64_radix4.s`, `amd64/avx512_f64_size64_radix4.s` + 3 more                |
+| `thirtySecond32`                                | `x86/core.s`                              | `amd64/avx2_f32_size32_radix2.s`, `amd64/avx2_f32_size32_radix32.s`, `amd64/avx2_f32_size32_radix4_then2.s` + 5 more           |
+| `thirtySecond64`                                | `x86/core.s`                              | `amd64/avx2_f64_size32_radix2.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx512_f64_size32_radix4_then2.s` + 3 more    |
+| `twoFiftySixth32`                               | `amd64/core.s`                            | `amd64/avx2_f32_size256_radix2.s`, `amd64/avx2_f32_size256_radix4.s`, `amd64/avx512_f32_size256_radix8_then2.s` + 2 more       |
+| `twoFiftySixth64`                               | `amd64/core.s`                            | `amd64/sse2_f64_size256_radix2.s`, `amd64/sse2_f64_size256_radix4.s`                                                           |
+| `twoThousandFortyEighth32`                      | `amd64/core.s`                            | `amd64/avx2_f32_size2048_radix4_then2.s`, `amd64/sse3_f32_size2048_radix4_then2.s`                                             |
+| `twoThousandFortyEighth64`                      | `amd64/core.s`                            | `amd64/sse2_f64_size2048_radix4_then2.s`                                                                                       |
 
 ## Beyond the Codelet Registry
 

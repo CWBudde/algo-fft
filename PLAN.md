@@ -226,11 +226,32 @@ Phase 1 is done when:
 it cannot answer any Phase 1 question. It is generated — every item here is a
 change to `cmd/gencodelets`, not to the Markdown.
 
-- [ ] **Add an `internal/asm` symbol census to the generator.** One table of
-      every `.s` file per architecture with its symbol count, the Go declaration
-      that binds it, and whether that declaration has a non-test caller. This is
-      the reachability pass that reclassified nine files in the last round, run
-      as a build artifact instead of by hand.
+- [x] **Add an `internal/asm` symbol census to the generator** (2026-08-01).
+      `cmd/gencodelets/census.go` parses every `.s` file for `TEXT` symbols and
+      every `.go` file for the identifier reference graph, then classifies each
+      symbol **live / unreachable / test-only / orphan** by transitive
+      reachability from the root package's exported API, every `init`, every
+      package-level initializer and `cmd/`. It is deliberately
+      over-approximating (name-matched, all build tags, no shadowing), so a
+      symbol reported unreachable really is referenced by no live non-test
+      code — the safe direction when the consequence is deletion. Rendered into
+      the inventory as per-arch tables plus three actionable lists: files with
+      no live symbol, every non-live symbol, and the cross-file `GLOBL` data
+      dependencies (it independently rediscovers both `bitrev8192_m24` and
+      `bitrev256_r2`, the trap §1.3 warns about).
+
+      **First findings.** amd64: 136 files, 255 symbols, **241 live**; arm64
+      91/91; x86 26/30. Fourteen amd64 symbols are unreachable, in three
+      groups — the transposes restored in the last round
+      (`avx2_f32_transpose{64x64,128x128}.s`, 6 symbols) are still not reached
+      by any production path because nothing outside tests calls
+      `math.TransposeSquareOutOfPlaceComplex64`; the AVX2 radix-3/radix-5
+      butterflies are dark because `{forward,inverse}Radix3Complex64` has no
+      caller at all; and the c128 generic radix-4 pair is the known
+      probe-gated case. On 386, `sse_f32_size{8_radix2,16_radix4}_386.s` are
+      reached only through thunks in `internal/fft/asm_386.go` that nothing
+      calls. Each needs a §2.2 disposition — none is a deletion yet.
+
 - [ ] **List the probe-gated kernels.** Everything behind `-tags fftprobe`
       (`radix8_generic_probe.go`, `radix16_generic_probe.go`,
       `radix8_avx2_probe_amd64.go`, `radix8_avx512_probe_amd64.go`,

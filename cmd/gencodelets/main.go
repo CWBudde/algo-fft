@@ -48,7 +48,21 @@ func main() {
 	flag.Parse()
 
 	if *inventoryPath != "" {
-		err := os.WriteFile(*inventoryPath, renderInventory(), 0o644) //nolint:gosec
+		// The census reads the tree, not the spec table, so it needs the
+		// module root; go:generate runs this from internal/kernels.
+		root, err := findModuleRoot(".")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "gencodelets: %v\n", err)
+			os.Exit(1)
+		}
+
+		c, err := runCensus(root)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "gencodelets: census: %v\n", err)
+			os.Exit(1)
+		}
+
+		err = os.WriteFile(*inventoryPath, renderInventory(c), 0o644) //nolint:gosec
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "gencodelets: write %s: %v\n", *inventoryPath, err)
 			os.Exit(1)

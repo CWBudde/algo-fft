@@ -72,7 +72,7 @@ type gridKey struct {
 	variant string
 }
 
-func renderInventory() []byte {
+func renderInventory(c *census) []byte {
 	var b bytes.Buffer
 
 	b.WriteString("# FFT Implementation Inventory\n\n")
@@ -80,7 +80,8 @@ func renderInventory() []byte {
 	b.WriteString("     Regenerate with: go generate ./internal/kernels/... -->\n\n")
 	b.WriteString("This document inventories the size-specific FFT codelets registered by\n")
 	b.WriteString("`internal/kernels` (source of truth: the declarative table in\n")
-	b.WriteString("`cmd/gencodelets/specs.go`) and summarizes the non-codelet kernel tiers.\n")
+	b.WriteString("`cmd/gencodelets/specs.go`), censuses every assembly symbol under\n")
+	b.WriteString("`internal/asm` for reachability, and summarizes the non-codelet kernel tiers.\n")
 	b.WriteString("SIMD kernels are part of the **default build** and are selected at runtime\n")
 	b.WriteString("via `internal/cpu.DetectFeatures()`; build with `-tags purego` for the\n")
 	b.WriteString("pure-Go fallback.\n\n")
@@ -91,9 +92,181 @@ func renderInventory() []byte {
 	}
 
 	renderCounts(&b)
+	renderCensus(&b, c)
 	renderStaticSections(&b)
 
 	return b.Bytes()
+}
+
+// renderCensus writes the assembly symbol census: one row per .s file per
+// architecture, plus the actionable lists (symbols nothing reaches, and data
+// symbols shared across files).
+func renderCensus(b *bytes.Buffer, c *census) {
+	if c == nil {
+		return
+	}
+
+	b.WriteString(strings.TrimLeft(`
+## Assembly Symbol Census
+
+Every `+"`TEXT`"+` symbol under internal/asm, with the bodyless Go declaration
+that binds it and whether anything in a production build reaches it. The
+reference graph is matched by identifier name across all build tags and
+ignores shadowing, so it **over-approximates reachability**: a symbol listed
+as reachable may still be dead, but one listed unreachable is referenced by no
+live non-test code.
+
+Reachability is computed from these roots: every exported func and method of
+the root package `+"`algofft`"+`, every `+"`init`"+`, every package-level var/const
+initializer, and every func under cmd/. A verdict is only as good as that
+list — if a genuine entry point is missing from it, whole subtrees read as
+unreachable.
+
+- **live** — reachable from the root package's exported API, an `+"`init`"+`, or a
+  package-level initializer.
+- **unreachable** — referenced only from non-test Go code that is itself
+  unreachable (the second-order case: a live-looking thunk with no live caller).
+- **test-only** — referenced only from _test.go files. Declared-but-uncalled
+  assembly is untested assembly; these run only when a test names them.
+- **orphan** — declared and referenced by nothing at all.
+
+`, "\n"))
+
+	for _, group := range c.Groups {
+		renderCensusGroup(b, c, group)
+	}
+
+	renderCensusUnreached(b, c)
+	renderCensusShared(b, c)
+}
+
+// renderCensusGroup writes the per-file table for one architecture directory.
+func renderCensusGroup(b *bytes.Buffer, c *census, group string) {
+	files := 0
+	syms := 0
+	live := 0
+
+	for _, f := range c.Files {
+		if f.Group == group {
+			files++
+			syms += len(f.Symbols)
+			live += f.Live()
+		}
+	}
+
+	fmt.Fprintf(b, "### %s — %d files, %d symbols, %d live\n\n", group, files, syms, live)
+	b.WriteString("| File | Symbols | Live | Test-only | Unreachable | Orphan | Declared in |\n")
+	b.WriteString("|---|---:|---:|---:|---:|---:|---|\n")
+
+	for _, f := range c.Files {
+		if f.Group != group {
+			continue
+		}
+
+		decls := "—"
+		if len(f.DeclFiles) > 0 {
+			decls = "`" + strings.Join(f.DeclFiles, "`, `") + "`"
+		}
+
+		fmt.Fprintf(b, "| `%s` | %d | %d | %d | %d | %d | %s |\n",
+			strings.TrimPrefix(f.Path, "internal/asm/"),
+			len(f.Symbols), f.Live(), f.count(symTestOnly),
+			f.count(symUnreachable), f.count(symOrphan), decls)
+	}
+
+	b.WriteString("\n")
+}
+
+// renderCensusUnreached lists the files no production build reaches at all —
+// the deletion / probe-gating candidates — and then every individual symbol
+// that is not live.
+func renderCensusUnreached(b *bytes.Buffer, c *census) {
+	b.WriteString("### Files with no live symbol\n\n")
+
+	dead := 0
+
+	for _, f := range c.Files {
+		if len(f.Symbols) == 0 || f.Live() > 0 {
+			continue
+		}
+
+		dead++
+
+		fmt.Fprintf(b, "- `%s` — %d symbols, none reachable\n", f.Path, len(f.Symbols))
+	}
+
+	if dead == 0 {
+		b.WriteString("None: every .s file has at least one reachable symbol.\n")
+	}
+
+	b.WriteString("\nDo not delete on this list alone — check the shared data symbols below,\n")
+	b.WriteString("and see PLAN.md §2.2 for when an unreachable kernel should be probe-gated\n")
+	b.WriteString("(`-tags fftprobe`) rather than removed.\n\n")
+
+	b.WriteString("### Symbols not reachable from a production build\n\n")
+	b.WriteString("| Symbol | Status | Defined in | Declared in |\n")
+	b.WriteString("|---|---|---|---|\n")
+
+	for _, f := range c.Files {
+		for _, s := range f.Symbols {
+			if s.Status == symLive {
+				continue
+			}
+
+			decl := "—"
+			if s.DeclFile != "" {
+				decl = "`" + s.DeclFile + "`"
+			}
+
+			fmt.Fprintf(b, "| `%s` | %s | `%s` | %s |\n",
+				s.Name, s.Status, strings.TrimPrefix(s.File, "internal/asm/"), decl)
+		}
+	}
+
+	b.WriteString("\n")
+}
+
+// renderCensusShared lists package-visible GLOBL data symbols used from a file
+// other than the one defining them. Deleting a defining file breaks the build;
+// this has happened once.
+func renderCensusShared(b *bytes.Buffer, c *census) {
+	b.WriteString("### Data symbols shared across files\n\n")
+
+	if len(c.Shared) == 0 {
+		b.WriteString("None.\n\n")
+
+		return
+	}
+
+	b.WriteString("Relocate these into a shared table file before deleting the file that\n")
+	b.WriteString("defines them (internal/asm/amd64/bitrev_radix4_tables.s is the\n")
+	b.WriteString("established home).\n\n")
+	b.WriteString("| Data symbol | Defined in | Used from |\n")
+	b.WriteString("|---|---|---|\n")
+
+	// A widely-shared constant (the 1/n scale factors) would otherwise make
+	// this table hundreds of columns wide, so the list is capped.
+	const maxUsers = 3
+
+	for _, s := range c.Shared {
+		users := make([]string, 0, len(s.UsedFrom))
+		for _, u := range s.UsedFrom {
+			users = append(users, "`"+strings.TrimPrefix(u, "internal/asm/")+"`")
+		}
+
+		more := ""
+		if len(users) > maxUsers {
+			more = fmt.Sprintf(" + %d more", len(users)-maxUsers)
+			users = users[:maxUsers]
+		}
+
+		fmt.Fprintf(b, "| `%s` | `%s` | %s%s |\n",
+			s.Name,
+			strings.TrimPrefix(s.DefFile, "internal/asm/"),
+			strings.Join(users, ", "), more)
+	}
+
+	b.WriteString("\n")
 }
 
 // renderGrid writes the size × SIMD-level grid for one precision.
