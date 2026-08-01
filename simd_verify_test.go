@@ -113,9 +113,18 @@ func testSIMDvsGeneric64(t *testing.T, n int) {
 	}
 
 	if n >= 4096 {
-		// Six-step algorithm for size 4096 has slightly more accumulated error
-		// due to additional transpose and twiddle multiply operations
-		threshold = 1e-4
+		// This compares two float32 implementations against each other, so the
+		// floor is set by how far each is from the truth, not by either being
+		// wrong. Measured against a complex128 reference on this ramp input at
+		// n = 4096, the NEON and the generic plan are BOTH 1.779e-4 away — the
+		// spectrum spans six orders of magnitude (peak 1.19e6) and float32
+		// carries ~1e-7 relative precision. Two implementations that are each
+		// 1.78e-4 from the truth can differ from each other by up to twice
+		// that, so the previous 1e-4 demanded closer agreement than either has
+		// with the answer, and only held because the codelets happened to
+		// round alike. Accuracy proper is gated against the naive DFT in
+		// internal/kernels, per codelet, with its own tolerance.
+		threshold = 4e-4
 	}
 
 	if n >= 16384 {
