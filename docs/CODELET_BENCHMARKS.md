@@ -1188,6 +1188,49 @@ of exactly the mechanistic kind §2.2 warns about, so it wants a second host
 before anyone acts on it — but unlike the usual case it is corroborated by the
 measurement rather than substituting for one.
 
+### Sizes 64–16384, complex64 — one looped core replaces five unrolled files
+
+`neon_f32_size{64,256,1024,4096,16384}_*.s` were 28,503 lines of fully-unrolled
+scalar code (18,399 of them in the size-16384 file alone) plus 175 KB of
+bit-reversal tables, and all five lost. They are now one 586-line looped radix-4
+Stockham core (`neon_f32_radix4_loop.s`) with ten thin Go wrappers keeping the
+old exported names — a 48x reduction. Stage 0 (m=1) vectorizes along j with
+strided twiddle gathers and a 4x4 transpose before the store; every later stage
+(m>=4) vectorizes along k with scalar twiddles broadcast by `VLD1R`, which is
+where most of the work is.
+
+Every one of the ten cells now wins, and every one previously lost:
+
+| cell      | best pure-Go |     NEON | verdict       |
+| --------- | -----------: | -------: | ------------- |
+| 64 fwd    |        85.19 |    52.21 | **win 1.63x** |
+| 64 inv    |        99.31 |    54.60 | **win 1.82x** |
+| 256 fwd   |       398.65 |   204.99 | **win 1.94x** |
+| 256 inv   |       408.70 |   214.74 | **win 1.90x** |
+| 1024 fwd  |      2085.00 |  1046.38 | **win 1.99x** |
+| 1024 inv  |      2174.38 |  1077.88 | **win 2.02x** |
+| 4096 fwd  |      9520.62 |  4638.25 | **win 2.05x** |
+| 4096 inv  |      9899.62 |  4754.12 | **win 2.08x** |
+| 16384 fwd |     47629.25 | 24926.00 | **win 1.91x** |
+| 16384 inv |     48000.75 | 24984.50 | **win 1.92x** |
+
+Same host, same benchmark, size 4096 before and after:
+
+| direction | unrolled scalar | looped NEON | kernel speedup | ratio swing            |
+| --------- | --------------: | ----------: | -------------: | ---------------------- |
+| forward   |        15807.88 |     4638.25 |      **3.41x** | 1.62x loss → 2.05x win |
+| inverse   |        17779.50 |     4754.12 |      **3.74x** | 1.80x loss → 2.08x win |
+
+Part of that is vectorization and part is simply not executing an 18,000-line
+straight-line body: the unrolled files were almost certainly I-cache hostile,
+which is why the largest sizes improved as much as the middle ones rather than
+less.
+
+Note what is still registered and still losing at these sizes:
+`dit256_radix2_neon` (2.67x/2.86x), `dit1024_radix2_neon` (2.85x/3.13x). They
+rank below the converted radix-4 codelets so they are not selected, but they are
+dead weight.
+
 ### The selection problem this exposes
 
 Registry ordering is **SIMD-level major**, so a NEON codelet is selected over a
