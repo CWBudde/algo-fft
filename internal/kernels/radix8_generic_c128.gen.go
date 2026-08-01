@@ -3,9 +3,8 @@
 package kernels
 
 import (
-	"math"
-
 	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+	"math"
 )
 
 // prepareTwiddleRadix8Complex128 fills dst with the per-stage twiddle planes
