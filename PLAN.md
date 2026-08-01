@@ -304,11 +304,41 @@ change to `cmd/gencodelets`, not to the Markdown.
       an allowlist entry naming its disposition. Deferred on purpose: a ratchet
       installed over 14 known violations is an allowlist, not a gate. This is
       what stops the class of defect from regrowing between audits.
-- [ ] **Emit the size × ISA coverage gaps explicitly.** A short "not covered"
-      section derived from the table — e.g. AVX-512 has 6 complex128
-      registrations against AVX2's 21; SSE2 and NEON stop at 32768 where AVX2
-      reaches 65536 — so a gap is a generated fact rather than something
-      re-noticed each round.
+- [x] **Emit the size × ISA coverage gaps explicitly** (2026-08-01).
+      `cmd/gencodelets/gaps.go` renders a "Size × ISA Coverage Gaps" section by
+      **replaying `registry.Lookup` from the spec table**, which is the only way
+      to state a gap correctly: the lookup orders by rank level and priority but
+      gates on `SIMDLevel`, so a size with no AVX2 row is not uncovered — it
+      walks down to the widest tier the host can execute. The symptom of a gap
+      is an AVX-512 machine running an SSE2 codelet, and a per-tier tick cannot
+      show that. Three tables: what each of six host profiles resolves to
+      (served / at its own top ISA / fallback / top-ISA ceiling), what each tier
+      does not cover split into holes below its ceiling and sizes above it, and
+      the sizes a tier covers at one precision only.
+
+      `TestResolveMatchesLiveRegistry` imports the real registry and compares
+      the replay against `Lookup` for every registered size and every host
+      profile matching `GOARCH`, restricted to the tiers this build actually
+      registers (read from the registry, not assumed from `GOARCH`, so it holds
+      under `-tags purego` and on arm64). Inverting the priority comparison in
+      the replay fails it on seven sizes, so it bites. Plus
+      `TestEveryTierHasAHostProfile` (a new SIMD column with no host that tops
+      out there would be silently omitted from the table),
+      `TestGapsAreRelativeToRealCoverage` and
+      `TestRankedSpecsSkipsDisabledRows`.
+
+      **What it says, and the old numbers were stale.** AVX-512 has 13
+      complex128 rows, not 6. The real findings are different ones: (a) the
+      SSE2/SSE3 split is **precision-partitioned** — SSE2 carries 22 complex128
+      rows and exactly one complex64 row (size 4), SSE3 carries 21 complex64
+      rows and *zero* complex128 — so an SSE2-only amd64 host falls back to
+      pure Go at 14 of 15 sizes for complex64, and an SSE3 host falls back for
+      **every** complex128 size. (b) AVX2 is the only tier with no gap at all
+      and the only one reaching 65536; AVX-512, SSE3, SSE2-c128 and NEON all
+      stop at 32768 and all four miss 384. (c) AVX-512 falls back at 3 of 16
+      sizes per precision. Each of these is now a generated number that moves
+      when the specs move, which is what §1.2 needs as input.
+
 - [ ] **Cover the non-codelet tiers by name, not by prose.** The "Beyond the
       Codelet Registry" section lists tiers in a paragraph; make it a table of
       (family, entry point, precisions, ISAs, size rule) so a reader can tell

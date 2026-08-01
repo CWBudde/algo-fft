@@ -302,7 +302,7 @@ func renderPrecisionGaps(b *bytes.Buffer) {
 	b.WriteString("algorithm is already implemented and measured at that tier, so these are the\n")
 	b.WriteString("gaps with a known answer rather than an open question.\n\n")
 
-	any := false
+	found := false
 
 	for _, level := range simdColumns {
 		only64 := precOnly(level, 64, 128)
@@ -312,13 +312,13 @@ func renderPrecisionGaps(b *bytes.Buffer) {
 			continue
 		}
 
-		any = true
+		found = true
 
 		fmt.Fprintf(b, "- **%s** — complex64 only: %s; complex128 only: %s\n",
 			simdColumnNames[level], sizeList(only64), sizeList(only128))
 	}
 
-	if !any {
+	if !found {
 		b.WriteString("None: every tier covers the same sizes at both precisions.\n")
 	}
 

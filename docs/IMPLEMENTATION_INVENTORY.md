@@ -13,82 +13,83 @@ pure-Go fallback.
 
 ## Codelet Quick Reference — complex64
 
-| Size | Algorithm | Go | SSE2 | SSE3 | AVX2 | AVX-512 | NEON |
-|---:|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| 4 | Radix-4 | ✓ | ✓ | — | ✓ | — | ✓ |
-| 8 | Mixed-2/4 | · | — | — | — | — | — |
-| 8 | Radix-2 | · | — | · | ✓ | — | · |
-| 8 | Radix-4 | — | — | — | · | — | · |
-| 8 | Radix-8 | ✓ | — | ✓ | · | ✓ | ✓ |
-| 16 | Radix-16 | ✓ | — | ✓ | · | ✓ | — |
-| 16 | Radix-2 | · | — | · | ✓ | — | · |
-| 16 | Radix-4 | · | — | · | — | — | ✓ |
-| 32 | Mixed-2/4 | ✓ | — | ✓ | — | ✓ | ✓ |
-| 32 | Radix-2 | · | — | · | ✓ | — | · |
-| 32 | Radix-32 | · | — | — | · | — | — |
-| 32 | Radix-8 (ladder) | — | — | — | p | — | — |
-| 64 | Radix-2 | · | — | · | ✓ | ✓ | ✓ |
-| 64 | Radix-4 | ✓ | — | ✓ | — | · | — |
-| 64 | Radix-8 (ladder) | p | — | — | p | p | — |
-| 128 | Mixed-2/4 | ✓ | — | ✓ | — | — | ✓ |
-| 128 | Mixed-8/2 | — | — | — | — | ✓ | — |
-| 128 | Radix-2 | · | — | ✓ | — | — | · |
-| 128 | Radix-4 | — | — | — | p | — | — |
-| 128 | Radix-4 (fused tail) | — | — | — | ✓ | — | — |
-| 128 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 128 | Radix-8 (ladder) | p | — | — | p | p | — |
-| 256 | Mixed-8/2 | — | — | — | — | · | — |
-| 256 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 256 | Radix-2 | · | — | · | — | — | · |
-| 256 | Radix-4 | · | — | ✓ | · | — | ✓ |
-| 256 | Radix-8 (ladder) | ✓ | — | — | ✓ | ✓ | — |
-| 384 | Mixed 128×3 | ✓ | — | — | ✓ | — | — |
-| 512 | Mixed-2/4 | · | — | ✓ | — | — | ✓ |
-| 512 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 512 | Radix-16×32 | · | — | — | — | — | — |
-| 512 | Radix-2 | · | — | · | — | — | · |
-| 512 | Radix-4 | — | — | — | · | — | — |
-| 512 | Radix-4 (fused tail) | — | — | — | p | — | — |
-| 512 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 512 | Radix-8 | · | — | — | — | — | — |
-| 512 | Radix-8 (ladder) | ✓ | — | — | ✓ | ✓ | — |
-| 1024 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 1024 | Radix-2 | — | — | — | — | · | · |
-| 1024 | Radix-32×32 | · | — | — | — | — | — |
-| 1024 | Radix-4 | · | — | ✓ | · | — | ✓ |
-| 1024 | Radix-8 (ladder) | ✓ | — | — | ✓ | ✓ | — |
-| 2048 | Mixed-2/4 | · | — | ✓ | — | — | ✓ |
-| 2048 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 2048 | Radix-4 | — | — | — | p | — | — |
-| 2048 | Radix-4 (fused tail) | — | — | — | · | — | — |
-| 2048 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 2048 | Radix-8 (ladder) | ✓ | — | — | ✓ | ✓ | — |
-| 4096 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 4096 | Radix-2 | — | — | — | — | · | — |
-| 4096 | Radix-4 | · | — | ✓ | ✓ | — | ✓ |
-| 4096 | Radix-8 (ladder) | ✓ | — | — | p | ✓ | — |
-| 4096 | Six-step | · | — | — | — | — | — |
-| 8192 | Mixed-2/4 | · | — | ✓ | — | — | ✓ |
-| 8192 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 8192 | Radix-2 | — | — | — | — | · | — |
-| 8192 | Radix-4 | — | — | — | ✓ | — | — |
-| 8192 | Radix-4 (fused tail) | — | — | — | p | — | — |
-| 8192 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 8192 | Radix-8 (ladder) | ✓ | — | — | p | ✓ | — |
-| 8192 | Six-step 64×128 | · | — | — | — | — | — |
-| 16384 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 16384 | Radix-2 | — | — | — | — | · | — |
-| 16384 | Radix-4 | · | — | ✓ | ✓ | — | ✓ |
-| 16384 | Radix-8 (ladder) | ✓ | — | — | p | ✓ | — |
-| 16384 | Six-step | · | — | — | — | — | — |
-| 32768 | Mixed-2/4 | ✓ | — | ✓ | — | — | ✓ |
-| 32768 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 32768 | Radix-4 | — | — | — | ✓ | — | — |
-| 32768 | Radix-4 (fused tail) | — | — | — | p | — | — |
-| 32768 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 32768 | Radix-8 (ladder) | p | — | — | p | ✓ | — |
-| 65536 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 65536 | Radix-4 | — | — | — | ✓ | — | — |
+|  Size | Algorithm                                  | Go  | SSE2 | SSE3 | AVX2 | AVX-512 | NEON |
+| ----: | ------------------------------------------ | :-: | :--: | :--: | :--: | :-----: | :--: |
+|     4 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    —    |  ✓   |
+|     8 | Mixed-2/4                                  |  ·  |  —   |  —   |  —   |    —    |  —   |
+|     8 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    —    |  ·   |
+|     8 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  ·   |
+|     8 | Radix-8                                    |  ✓  |  —   |  ✓   |  ·   |    ✓    |  ✓   |
+|    16 | Radix-16                                   |  ✓  |  —   |  ✓   |  ·   |    ✓    |  —   |
+|    16 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    —    |  ·   |
+|    16 | Radix-4                                    |  ·  |  —   |  ·   |  —   |    —    |  ✓   |
+|    32 | Mixed-2/4                                  |  ✓  |  —   |  ✓   |  —   |    ✓    |  ✓   |
+|    32 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    —    |  ·   |
+|    32 | Radix-32                                   |  ·  |  —   |  —   |  ·   |    —    |  —   |
+|    32 | Radix-8 (ladder)                           |  —  |  —   |  —   |  p   |    —    |  —   |
+|    64 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    ✓    |  ✓   |
+|    64 | Radix-4                                    |  ✓  |  —   |  ✓   |  —   |    ·    |  —   |
+|    64 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
+|   128 | Mixed-2/4                                  |  ✓  |  —   |  ✓   |  —   |    —    |  ✓   |
+|   128 | Mixed-8/2                                  |  —  |  —   |  —   |  —   |    ✓    |  —   |
+|   128 | Radix-2                                    |  ·  |  —   |  ✓   |  —   |    —    |  ·   |
+|   128 | Radix-4                                    |  —  |  —   |  —   |  p   |    —    |  —   |
+|   128 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  ✓   |    —    |  —   |
+|   128 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+|   128 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
+|   256 | Mixed-8/2                                  |  —  |  —   |  —   |  —   |    ·    |  —   |
+|   256 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|   256 | Radix-2                                    |  ·  |  —   |  ·   |  —   |    —    |  ·   |
+|   256 | Radix-4                                    |  ·  |  —   |  ✓   |  ·   |    —    |  ✓   |
+|   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|   384 | Mixed 128×3                                |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
+|   512 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ✓   |
+|   512 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|   512 | Radix-16×32                                |  ·  |  —   |  —   |  —   |    —    |  —   |
+|   512 | Radix-2                                    |  ·  |  —   |  ·   |  —   |    —    |  ·   |
+|   512 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  —   |
+|   512 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
+|   512 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+|   512 | Radix-8                                    |  ·  |  —   |  —   |  —   |    —    |  —   |
+|   512 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  1024 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|  1024 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  ·   |
+|  1024 | Radix-32×32                                |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  1024 | Radix-4                                    |  ·  |  —   |  ✓   |  ·   |    —    |  ✓   |
+|  1024 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  2048 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ✓   |
+|  2048 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|  2048 | Radix-4                                    |  —  |  —   |  —   |  p   |    —    |  —   |
+|  2048 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  ·   |    —    |  —   |
+|  2048 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+|  2048 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  4096 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|  4096 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
+|  4096 | Radix-4                                    |  ·  |  —   |  ✓   |  ✓   |    —    |  ✓   |
+|  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|  4096 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  8192 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ✓   |
+|  8192 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|  8192 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
+|  8192 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+|  8192 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
+|  8192 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+|  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|  8192 | Six-step 64×128                            |  ·  |  —   |  —   |  —   |    —    |  —   |
+| 16384 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+| 16384 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
+| 16384 | Radix-4                                    |  ·  |  —   |  ✓   |  ✓   |    —    |  ✓   |
+| 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+| 16384 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+| 32768 | Mixed-2/4                                  |  ✓  |  —   |  ✓   |  —   |    —    |  ✓   |
+| 32768 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+| 32768 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+| 32768 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
+| 32768 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+| 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  —   |
+| 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+| 65536 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+
 ✓ selectable — the highest-ranked codelet for its size within its own rank
 tier, so `registry.Lookup` returns it on any host whose top supported tier is
 that one.
@@ -110,79 +111,80 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 
 ## Codelet Quick Reference — complex128
 
-| Size | Algorithm | Go | SSE2 | SSE3 | AVX2 | AVX-512 | NEON |
-|---:|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| 4 | Radix-4 | ✓ | ✓ | — | ✓ | ✗ | ✓ |
-| 8 | Mixed-2/4 | · | — | — | — | — | — |
-| 8 | Radix-2 | · | · | — | · | — | · |
-| 8 | Radix-4 | — | · | — | · | — | ✓ |
-| 8 | Radix-8 | ✓ | ✓ | — | ✓ | ✓ | — |
-| 16 | Radix-16 | ✓ | — | — | — | — | — |
-| 16 | Radix-2 | · | · | — | — | — | · |
-| 16 | Radix-4 | · | ✓ | — | ✓ | ✓ | ✓ |
-| 32 | Generic radix-2 | — | — | — | — | — | · |
-| 32 | Mixed-2/4 | ✓ | ✓ | — | — | ✓ | ✓ |
-| 32 | Radix-2 | · | · | — | — | — | · |
-| 32 | Radix-32 | · | — | — | — | — | — |
-| 32 | Radix-4 | — | — | — | ✓ | — | — |
-| 32 | Radix-8 (ladder) | — | — | — | p | p | — |
-| 64 | Radix-2 | · | · | — | — | — | · |
-| 64 | Radix-4 | ✓ | ✓ | — | ✓ | ✓ | ✓ |
-| 64 | Radix-8 (ladder) | p | — | — | p | p | — |
-| 128 | Mixed-2/4 | ✓ | ✓ | — | — | ✓ | ✓ |
-| 128 | Radix-2 | · | · | — | — | — | · |
-| 128 | Radix-4 | — | — | — | p | — | — |
-| 128 | Radix-4 (fused tail) | — | — | — | ✓ | — | — |
-| 128 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 128 | Radix-8 (ladder) | p | — | — | p | p | — |
-| 256 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 256 | Radix-2 | · | · | — | — | — | · |
-| 256 | Radix-4 | · | ✓ | — | ✓ | — | ✓ |
-| 256 | Radix-8 (ladder) | ✓ | — | — | p | ✓ | — |
-| 384 | Mixed 128×3 | ✓ | — | — | ✓ | — | — |
-| 512 | Generic radix-2 | — | — | — | — | — | · |
-| 512 | Mixed-2/4 | · | ✓ | — | — | — | ✓ |
-| 512 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 512 | Radix-16×32 | · | — | — | — | — | — |
-| 512 | Radix-2 | · | · | — | — | — | — |
-| 512 | Radix-4 | — | — | — | · | — | — |
-| 512 | Radix-4 (fused tail) | — | — | — | p | — | — |
-| 512 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 512 | Radix-8 | · | — | — | — | — | — |
-| 512 | Radix-8 (ladder) | ✓ | — | — | ✓ | ✓ | — |
-| 1024 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 1024 | Radix-32×32 | · | — | — | — | — | — |
-| 1024 | Radix-4 | ✓ | ✓ | — | ✓ | — | ✓ |
-| 1024 | Radix-8 (ladder) | p | — | — | p | ✓ | — |
-| 2048 | Mixed-2/4 | · | ✓ | — | — | — | ✓ |
-| 2048 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 2048 | Radix-4 | — | — | — | · | — | — |
-| 2048 | Radix-4 (fused tail) | — | — | — | p | — | — |
-| 2048 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 2048 | Radix-8 (ladder) | ✓ | — | — | ✓ | ✓ | — |
-| 4096 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 4096 | Radix-4 | · | ✓ | — | ✓ | — | ✓ |
-| 4096 | Radix-8 (ladder) | ✓ | — | — | p | ✓ | — |
-| 4096 | Six-step | · | — | — | — | — | — |
-| 8192 | Mixed-2/4 | · | ✓ | — | — | — | ✓ |
-| 8192 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 8192 | Radix-4 | — | — | — | ✓ | — | — |
-| 8192 | Radix-4 (fused tail) | — | — | — | p | — | — |
-| 8192 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 8192 | Radix-8 (ladder) | ✓ | — | — | p | ✓ | — |
-| 8192 | Six-step 64×128 | · | — | — | — | — | — |
-| 16384 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 16384 | Radix-4 | · | ✓ | — | ✓ | — | ✓ |
-| 16384 | Radix-8 (ladder) | ✓ | — | — | p | ✓ | — |
-| 16384 | Six-step | · | — | — | — | — | — |
-| 32768 | Mixed-2/4 | ✓ | ✓ | — | — | — | ✓ |
-| 32768 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 32768 | Radix-4 | — | — | — | · | — | — |
-| 32768 | Radix-4 (fused tail) | — | — | — | p | — | — |
-| 32768 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
-| 32768 | Radix-8 (ladder) | p | — | — | ✓ | ✓ | — |
-| 65536 | Radix-16 (ladder) | p | — | — | — | — | — |
-| 65536 | Radix-4 | — | — | — | ✓ | — | — |
+|  Size | Algorithm                                  | Go  | SSE2 | SSE3 | AVX2 | AVX-512 | NEON |
+| ----: | ------------------------------------------ | :-: | :--: | :--: | :--: | :-----: | :--: |
+|     4 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    ✗    |  ✓   |
+|     8 | Mixed-2/4                                  |  ·  |  —   |  —   |  —   |    —    |  —   |
+|     8 | Radix-2                                    |  ·  |  ·   |  —   |  ·   |    —    |  ·   |
+|     8 | Radix-4                                    |  —  |  ·   |  —   |  ·   |    —    |  ✓   |
+|     8 | Radix-8                                    |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  —   |
+|    16 | Radix-16                                   |  ✓  |  —   |  —   |  —   |    —    |  —   |
+|    16 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ·   |
+|    16 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |
+|    32 | Generic radix-2                            |  —  |  —   |  —   |  —   |    —    |  ·   |
+|    32 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    ✓    |  ✓   |
+|    32 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ·   |
+|    32 | Radix-32                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+|    32 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+|    32 | Radix-8 (ladder)                           |  —  |  —   |  —   |  p   |    p    |  —   |
+|    64 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ·   |
+|    64 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |
+|    64 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
+|   128 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    ✓    |  ✓   |
+|   128 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ·   |
+|   128 | Radix-4                                    |  —  |  —   |  —   |  p   |    —    |  —   |
+|   128 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  ✓   |    —    |  —   |
+|   128 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+|   128 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
+|   256 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|   256 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ·   |
+|   256 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
+|   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|   384 | Mixed 128×3                                |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
+|   512 | Generic radix-2                            |  —  |  —   |  —   |  —   |    —    |  ·   |
+|   512 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ✓   |
+|   512 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|   512 | Radix-16×32                                |  ·  |  —   |  —   |  —   |    —    |  —   |
+|   512 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  —   |
+|   512 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  —   |
+|   512 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
+|   512 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+|   512 | Radix-8                                    |  ·  |  —   |  —   |  —   |    —    |  —   |
+|   512 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  1024 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|  1024 | Radix-32×32                                |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  1024 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    —    |  ✓   |
+|  1024 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  —   |
+|  2048 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ✓   |
+|  2048 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|  2048 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  —   |
+|  2048 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
+|  2048 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+|  2048 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  4096 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|  4096 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
+|  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|  4096 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  8192 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ✓   |
+|  8192 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+|  8192 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+|  8192 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
+|  8192 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+|  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|  8192 | Six-step 64×128                            |  ·  |  —   |  —   |  —   |    —    |  —   |
+| 16384 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+| 16384 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
+| 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+| 16384 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+| 32768 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    —    |  ✓   |
+| 32768 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+| 32768 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  —   |
+| 32768 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
+| 32768 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
+| 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  ✓   |    ✓    |  —   |
+| 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
+| 65536 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+
 ✓ selectable — the highest-ranked codelet for its size within its own rank
 tier, so `registry.Lookup` returns it on any host whose top supported tier is
 that one.
@@ -204,13 +206,13 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 
 ## Registration Counts
 
-| Target | Build constraint | complex64 | complex128 | Total |
-|---|---|---:|---:|---:|
-| generic | `(all builds)` | 38 | 37 | 75 |
-| avx2 | `amd64 && !purego` | 24 | 21 | 45 |
-| avx512 | `amd64 && !purego` | 19 | 14 | 33 |
-| sse2 | `amd64 && !purego` | 22 | 22 | 44 |
-| neon | `arm64 && !purego` | 22 | 22 | 44 |
+| Target  | Build constraint   | complex64 | complex128 | Total |
+| ------- | ------------------ | --------: | ---------: | ----: |
+| generic | `(all builds)`     |        38 |         37 |    75 |
+| avx2    | `amd64 && !purego` |        24 |         21 |    45 |
+| avx512  | `amd64 && !purego` |        19 |         14 |    33 |
+| sse2    | `amd64 && !purego` |        22 |         22 |    44 |
+| neon    | `arm64 && !purego` |        22 |         22 |    44 |
 
 Total registered codelets: **241**.
 
@@ -227,20 +229,20 @@ codelet and a narrower one answers instead. _Ceiling_ is the largest size with
 a codelet at the host's own top ISA; above it every size falls back, whatever
 the grids show.
 
-| Host | complex | Sizes served | At top ISA | Fallback | Top-ISA ceiling |
-|---|---:|---:|---:|---:|---:|
-| pure Go | 64 | 15 | 15 | 0 | 32768 |
-| pure Go | 128 | 15 | 15 | 0 | 32768 |
-| amd64 SSE2 | 64 | 15 | 1 | 14 | 4 |
-| amd64 SSE2 | 128 | 15 | 14 | 1 | 32768 |
-| amd64 SSE3 | 64 | 15 | 13 | 2 | 32768 |
-| amd64 SSE3 | 128 | 15 | 0 | 15 | — |
-| amd64 AVX2+FMA | 64 | 16 | 16 | 0 | 65536 |
-| amd64 AVX2+FMA | 128 | 16 | 16 | 0 | 65536 |
-| amd64 AVX-512 | 64 | 16 | 13 | 3 | 32768 |
-| amd64 AVX-512 | 128 | 16 | 13 | 3 | 32768 |
-| arm64 NEON | 64 | 15 | 14 | 1 | 32768 |
-| arm64 NEON | 128 | 15 | 14 | 1 | 32768 |
+| Host           | complex | Sizes served | At top ISA | Fallback | Top-ISA ceiling |
+| -------------- | ------: | -----------: | ---------: | -------: | --------------: |
+| pure Go        |      64 |           15 |         15 |        0 |           32768 |
+| pure Go        |     128 |           15 |         15 |        0 |           32768 |
+| amd64 SSE2     |      64 |           15 |          1 |       14 |               4 |
+| amd64 SSE2     |     128 |           15 |         14 |        1 |           32768 |
+| amd64 SSE3     |      64 |           15 |         13 |        2 |           32768 |
+| amd64 SSE3     |     128 |           15 |          0 |       15 |               — |
+| amd64 AVX2+FMA |      64 |           16 |         16 |        0 |           65536 |
+| amd64 AVX2+FMA |     128 |           16 |         16 |        0 |           65536 |
+| amd64 AVX-512  |      64 |           16 |         13 |        3 |           32768 |
+| amd64 AVX-512  |     128 |           16 |         13 |        3 |           32768 |
+| arm64 NEON     |      64 |           15 |         14 |        1 |           32768 |
+| arm64 NEON     |     128 |           15 |         14 |        1 |           32768 |
 
 ### Not covered, by tier
 
@@ -248,20 +250,20 @@ A size counts as a gap when some tier at the same precision has a codelet
 for it and this one does not. Sizes nothing covers are not gaps; they are
 served by the size-generic kernels listed under Beyond the Codelet Registry.
 
-| Tier | complex | Rows | Sizes | Range | Holes below ceiling | Above ceiling |
-|---|---:|---:|---:|---|---|---|
-| Go | 64 | 38 | 15 | 4–32768 | — | 65536 |
-| Go | 128 | 37 | 15 | 4–32768 | — | 65536 |
-| SSE2 | 64 | 1 | 1 | 4–4 | — | 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 |
-| SSE2 | 128 | 22 | 14 | 4–32768 | 384 | 65536 |
-| SSE3 | 64 | 21 | 13 | 8–32768 | 384 | 65536 |
-| SSE3 | 128 | 0 | 0 | — | — | — |
-| AVX2 | 64 | 24 | 16 | 4–65536 | — | — |
-| AVX2 | 128 | 21 | 16 | 4–65536 | — | — |
-| AVX-512 | 64 | 19 | 13 | 8–32768 | 384 | 65536 |
-| AVX-512 | 128 | 13 | 13 | 8–32768 | 384 | 65536 |
-| NEON | 64 | 22 | 14 | 4–32768 | 384 | 65536 |
-| NEON | 128 | 22 | 14 | 4–32768 | 384 | 65536 |
+| Tier    | complex | Rows | Sizes | Range   | Holes below ceiling | Above ceiling                                                                  |
+| ------- | ------: | ---: | ----: | ------- | ------------------- | ------------------------------------------------------------------------------ |
+| Go      |      64 |   38 |    15 | 4–32768 | —                   | 65536                                                                          |
+| Go      |     128 |   37 |    15 | 4–32768 | —                   | 65536                                                                          |
+| SSE2    |      64 |    1 |     1 | 4–4     | —                   | 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 |
+| SSE2    |     128 |   22 |    14 | 4–32768 | 384                 | 65536                                                                          |
+| SSE3    |      64 |   21 |    13 | 8–32768 | 384                 | 65536                                                                          |
+| SSE3    |     128 |    0 |     0 | —       | —                   | —                                                                              |
+| AVX2    |      64 |   24 |    16 | 4–65536 | —                   | —                                                                              |
+| AVX2    |     128 |   21 |    16 | 4–65536 | —                   | —                                                                              |
+| AVX-512 |      64 |   19 |    13 | 8–32768 | 384                 | 65536                                                                          |
+| AVX-512 |     128 |   13 |    13 | 8–32768 | 384                 | 65536                                                                          |
+| NEON    |      64 |   22 |    14 | 4–32768 | 384                 | 65536                                                                          |
+| NEON    |     128 |   22 |    14 | 4–32768 | 384                 | 65536                                                                          |
 
 ### Covered at one precision only
 
@@ -297,223 +299,223 @@ unreachable.
 
 ### amd64 — 136 files, 255 symbols, 241 live
 
-| File | Symbols | Live | Test-only | Unreachable | Orphan | Declared in |
-|---|---:|---:|---:|---:|---:|---|
-| `amd64/avx2_f32_complex_mul.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_generic.s` | 4 | 4 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_generic_radix4_even.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_generic_radix4_odd.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_mixedradix_stage11.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_mixedradix_stage3.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_mixedradix_stage5.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_mixedradix_stage7.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_radix3.s` | 2 | 0 | 0 | 2 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_radix4.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_radix5.s` | 2 | 0 | 0 | 2 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_radix8.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size128_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size128_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size16_radix16.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size16_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size16_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size2048_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size256_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size256_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size32_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size32_radix32.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size32_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size384_mixed.s` | 4 | 4 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size4_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size512_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size512_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size64_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size64_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size8192_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size8_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size8_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_size8_radix8.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_transpose128x128.s` | 3 | 0 | 0 | 3 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f32_transpose64x64.s` | 3 | 0 | 0 | 3 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_complex_mul.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_generic_radix4_even.s` | 2 | 0 | 0 | 2 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_generic_radix4_odd.s` | 2 | 0 | 0 | 2 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_mixedradix_stage11.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_mixedradix_stage3.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_mixedradix_stage5.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_mixedradix_stage7.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_radix4.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_radix8.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size16_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size16_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size32_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size32_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size384_mixed.s` | 4 | 4 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size4_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size512_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size512_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size64_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size64_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size8_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size8_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_size8_radix8.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_f64_stockham.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_real_recombine.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_real_repack.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx2_scale.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/avx512_f32_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512.go` |
-| `amd64/avx512_f32_radix8.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_radix8.go` |
-| `amd64/avx512_f32_radix8_twiddle_const.s` | 0 | 0 | 0 | 0 | 0 | — |
-| `amd64/avx512_f32_size128_radix8_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_c64s128.go` |
-| `amd64/avx512_f32_size16_radix16.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_size16_f32.go` |
-| `amd64/avx512_f32_size256_radix8_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_c64s128.go` |
-| `amd64/avx512_f32_size32_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_size32_radix4_then2_f32.go` |
-| `amd64/avx512_f32_size64_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_size64_f32.go` |
-| `amd64/avx512_f32_size64_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_size64_f32.go` |
-| `amd64/avx512_f32_size64_tables.s` | 0 | 0 | 0 | 0 | 0 | — |
-| `amd64/avx512_f32_size8_radix8.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_size8_f32.go` |
-| `amd64/avx512_f64_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512.go` |
-| `amd64/avx512_f64_radix8.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_radix8.go` |
-| `amd64/avx512_f64_size128_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_c128_size64_128.go` |
-| `amd64/avx512_f64_size16_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_size16_size32_f64.go` |
-| `amd64/avx512_f64_size32_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_size16_size32_f64.go` |
-| `amd64/avx512_f64_size4_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_size4_size8_f64.go` |
-| `amd64/avx512_f64_size64_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_c128_size64_128.go` |
-| `amd64/avx512_f64_size8_radix8.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl_avx512_size4_size8_f64.go` |
-| `amd64/bitrev_f64_tables.s` | 0 | 0 | 0 | 0 | 0 | — |
-| `amd64/bitrev_radix4_tables.s` | 0 | 0 | 0 | 0 | 0 | — |
-| `amd64/core.s` | 0 | 0 | 0 | 0 | 0 | — |
-| `amd64/sse2_f32_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `amd64/sse2_f32_size4_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `amd64/sse2_f64_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size1024_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size128_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size128_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size16384_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size16_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size16_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `amd64/sse2_f64_size2048_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size256_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size256_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size32768_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size32_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size32_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size4096_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size4_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `amd64/sse2_f64_size512_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size512_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size64_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size64_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size8192_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size8_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `amd64/sse2_f64_size8_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_f64_size8_radix8.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_real_repack.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse2_scale.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size1024_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size128_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size128_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size16384_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size16_radix16.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `amd64/sse3_f32_size16_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size16_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `amd64/sse3_f32_size2048_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size256_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size256_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size32768_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size32_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size32_radix32.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size32_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size4096_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size512_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size512_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size64_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size64_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size8192_radix4_then2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size8_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `amd64/sse3_f32_size8_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_f32_size8_radix8.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
-| `amd64/sse3_real_recombine.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/amd64/decl.go` |
+| File                                      | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                                                 |
+| ----------------------------------------- | ------: | ---: | --------: | ----------: | -----: | ----------------------------------------------------------- |
+| `amd64/avx2_f32_complex_mul.s`            |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_generic.s`                |       4 |    4 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_generic_radix4_even.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_generic_radix4_odd.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_mixedradix_stage11.s`     |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_mixedradix_stage3.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_mixedradix_stage5.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_mixedradix_stage7.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_radix3.s`                 |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_radix4.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_radix5.s`                 |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_radix8.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size128_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size128_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size16_radix16.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size16_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size16_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size2048_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size256_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size256_radix4.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size32_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size32_radix32.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size32_radix4_then2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size384_mixed.s`          |       4 |    4 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size4_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size512_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size512_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size64_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size64_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size8192_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size8_radix2.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size8_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_transpose128x128.s`       |       3 |    0 |         0 |           3 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_transpose64x64.s`         |       3 |    0 |         0 |           3 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_complex_mul.s`            |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_generic.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_generic_radix4_even.s`    |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_generic_radix4_odd.s`     |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_mixedradix_stage11.s`     |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_mixedradix_stage3.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_mixedradix_stage5.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_mixedradix_stage7.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_radix4.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_radix8.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size16_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size16_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size32_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size32_radix4_then2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size384_mixed.s`          |       4 |    4 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size4_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size512_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size512_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size64_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size64_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size8_radix2.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size8_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_stockham.s`               |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_real_recombine.s`             |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_real_repack.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_scale.s`                      |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx512_f32_generic.s`              |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512.go`                         |
+| `amd64/avx512_f32_radix8.s`               |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_radix8.go`                  |
+| `amd64/avx512_f32_radix8_twiddle_const.s` |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/avx512_f32_size128_radix8_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_c64s128.go`                 |
+| `amd64/avx512_f32_size16_radix16.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size16_f32.go`              |
+| `amd64/avx512_f32_size256_radix8_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_c64s128.go`                 |
+| `amd64/avx512_f32_size32_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size32_radix4_then2_f32.go` |
+| `amd64/avx512_f32_size64_radix2.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size64_f32.go`              |
+| `amd64/avx512_f32_size64_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size64_f32.go`              |
+| `amd64/avx512_f32_size64_tables.s`        |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/avx512_f32_size8_radix8.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size8_f32.go`               |
+| `amd64/avx512_f64_generic.s`              |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512.go`                         |
+| `amd64/avx512_f64_radix8.s`               |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_radix8.go`                  |
+| `amd64/avx512_f64_size128_radix4_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_c128_size64_128.go`         |
+| `amd64/avx512_f64_size16_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size16_size32_f64.go`       |
+| `amd64/avx512_f64_size32_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size16_size32_f64.go`       |
+| `amd64/avx512_f64_size4_radix4.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size4_size8_f64.go`         |
+| `amd64/avx512_f64_size64_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_c128_size64_128.go`         |
+| `amd64/avx512_f64_size8_radix8.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl_avx512_size4_size8_f64.go`         |
+| `amd64/bitrev_f64_tables.s`               |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/bitrev_radix4_tables.s`            |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/core.s`                            |       0 |    0 |         0 |           0 |      0 | —                                                           |
+| `amd64/sse2_f32_generic.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f32_size4_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f64_generic.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size1024_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size128_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size128_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size16384_radix4.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size16_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size16_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f64_size2048_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size256_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size256_radix4.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size32768_radix4_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size32_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size32_radix4_then2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size4096_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size4_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f64_size512_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size512_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size64_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size64_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size8192_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size8_radix2.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse2_f64_size8_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_f64_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_real_repack.s`                |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse2_scale.s`                      |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_generic.s`                |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size1024_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size128_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size128_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size16384_radix4.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size16_radix16.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse3_f32_size16_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size16_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse3_f32_size2048_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size256_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size256_radix4.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size32768_radix4_then2.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size32_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size32_radix32.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size32_radix4_then2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size4096_radix4.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size512_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size512_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size64_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size64_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size8192_radix4_then2.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size8_radix2.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go`                                  |
+| `amd64/sse3_f32_size8_radix4.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_f32_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/sse3_real_recombine.s`             |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 
 ### arm64 — 46 files, 91 symbols, 91 live
 
-| File | Symbols | Live | Test-only | Unreachable | Orphan | Declared in |
-|---|---:|---:|---:|---:|---:|---|
-| `arm64/core.s` | 0 | 0 | 0 | 0 | 0 | — |
-| `arm64/neon_complex_mul.s` | 4 | 4 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size1024_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size128_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size128_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size16384_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size16_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size16_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size2048_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size256_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size256_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size32768_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size32_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size32_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size4096_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size4_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size512_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size64_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size8192_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size8_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size8_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size8_radix8.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size1024_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size128_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size128_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size16384_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size16_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size16_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size2048_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size256_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size256_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size32768_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size32_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size32_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size4096_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size4_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size512_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size64_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size64_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size8192_mixed24.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size8_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size8_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_real_repack.s` | 1 | 1 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_scale.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/arm64/decl.go` |
+| File                                 | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                  |
+| ------------------------------------ | ------: | ---: | --------: | ----------: | -----: | ---------------------------- |
+| `arm64/core.s`                       |       0 |    0 |         0 |           0 |      0 | —                            |
+| `arm64/neon_complex_mul.s`           |       4 |    4 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size1024_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size16384_radix4.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size256_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size4096_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size64_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f32_size8_radix8.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size1024_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size16384_radix4.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size256_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size4096_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size64_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size64_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_f64_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_real_repack.s`           |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| `arm64/neon_scale.s`                 |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
 
 ### internal/asm (arch-neutral) — 2 files, 2 symbols, 0 live
 
-| File | Symbols | Live | Test-only | Unreachable | Orphan | Declared in |
-|---|---:|---:|---:|---:|---:|---|
-| `stub_amd64.s` | 1 | 0 | 0 | 1 | 0 | `internal/asm/stub_arm64.go` |
-| `stub_arm64.s` | 1 | 0 | 0 | 1 | 0 | `internal/asm/stub_arm64.go` |
+| File           | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                  |
+| -------------- | ------: | ---: | --------: | ----------: | -----: | ---------------------------- |
+| `stub_amd64.s` |       1 |    0 |         0 |           1 |      0 | `internal/asm/stub_arm64.go` |
+| `stub_arm64.s` |       1 |    0 |         0 |           1 |      0 | `internal/asm/stub_arm64.go` |
 
 ### x86 — 16 files, 30 symbols, 26 live
 
-| File | Symbols | Live | Test-only | Unreachable | Orphan | Declared in |
-|---|---:|---:|---:|---:|---:|---|
-| `x86/core.s` | 0 | 0 | 0 | 0 | 0 | — |
-| `x86/sse2_f32_size2_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse2_f32_size4_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse2_f64_size16_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse2_f64_size2_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse2_f64_size4_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse2_f64_size8_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse2_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse3_f32_size16_radix16.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse3_f32_size16_radix4.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse3_f32_size8_radix2.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse_f32_size16_radix4_386.s` | 2 | 0 | 0 | 2 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse_f32_size2_radix2_386.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse_f32_size4_radix4_386.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse_f32_size8_radix2_386.s` | 2 | 0 | 0 | 2 | 0 | `internal/asm/x86/decl.go` |
-| `x86/sse_generic.s` | 2 | 2 | 0 | 0 | 0 | `internal/asm/x86/decl.go` |
+| File                              | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                |
+| --------------------------------- | ------: | ---: | --------: | ----------: | -----: | -------------------------- |
+| `x86/core.s`                      |       0 |    0 |         0 |           0 |      0 | —                          |
+| `x86/sse2_f32_size2_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f32_size4_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f64_size16_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f64_size2_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f64_size4_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_f64_size8_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse2_generic.s`              |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse3_f32_size16_radix16.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse3_f32_size16_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse3_f32_size8_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_f32_size16_radix4_386.s` |       2 |    0 |         0 |           2 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_f32_size2_radix2_386.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_f32_size4_radix4_386.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_f32_size8_radix2_386.s`  |       2 |    0 |         0 |           2 |      0 | `internal/asm/x86/decl.go` |
+| `x86/sse_generic.s`               |       2 |    2 |         0 |           0 |      0 | `internal/asm/x86/decl.go` |
 
 ### Files with no live symbol
 
@@ -534,28 +536,28 @@ and see PLAN.md §2.2 for when an unreachable kernel should be probe-gated
 
 ### Symbols not reachable from a production build
 
-| Symbol | Status | Defined in | Declared in |
-|---|---|---|---|
-| `Butterfly3ForwardAVX2Complex64` | unreachable | `amd64/avx2_f32_radix3.s` | `internal/asm/amd64/decl.go` |
-| `Butterfly3InverseAVX2Complex64` | unreachable | `amd64/avx2_f32_radix3.s` | `internal/asm/amd64/decl.go` |
-| `Butterfly5ForwardAVX2Complex64` | unreachable | `amd64/avx2_f32_radix5.s` | `internal/asm/amd64/decl.go` |
-| `Butterfly5InverseAVX2Complex64` | unreachable | `amd64/avx2_f32_radix5.s` | `internal/asm/amd64/decl.go` |
-| `Transpose128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s` | `internal/asm/amd64/decl.go` |
-| `TransposeTwiddle128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s` | `internal/asm/amd64/decl.go` |
-| `TransposeTwiddleConj128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s` | `internal/asm/amd64/decl.go` |
-| `Transpose64x64Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose64x64.s` | `internal/asm/amd64/decl.go` |
-| `TransposeTwiddle64x64Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose64x64.s` | `internal/asm/amd64/decl.go` |
-| `TransposeTwiddleConj64x64Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose64x64.s` | `internal/asm/amd64/decl.go` |
-| `ForwardAVX2Complex128Radix4Asm` | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` |
-| `InverseAVX2Complex128Radix4Asm` | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` |
-| `ForwardAVX2Complex128Radix4MixedAsm` | unreachable | `amd64/avx2_f64_generic_radix4_odd.s` | `internal/asm/amd64/decl.go` |
-| `InverseAVX2Complex128Radix4MixedAsm` | unreachable | `amd64/avx2_f64_generic_radix4_odd.s` | `internal/asm/amd64/decl.go` |
-| `stubAsm` | unreachable | `stub_amd64.s` | `internal/asm/stub_arm64.go` |
-| `stubAsm` | unreachable | `stub_arm64.s` | `internal/asm/stub_arm64.go` |
-| `ForwardSSESize16Radix4Complex64Asm` | unreachable | `x86/sse_f32_size16_radix4_386.s` | `internal/asm/x86/decl.go` |
-| `InverseSSESize16Radix4Complex64Asm` | unreachable | `x86/sse_f32_size16_radix4_386.s` | `internal/asm/x86/decl.go` |
-| `ForwardSSESize8Radix2Complex64Asm` | unreachable | `x86/sse_f32_size8_radix2_386.s` | `internal/asm/x86/decl.go` |
-| `InverseSSESize8Radix2Complex64Asm` | unreachable | `x86/sse_f32_size8_radix2_386.s` | `internal/asm/x86/decl.go` |
+| Symbol                                        | Status      | Defined in                             | Declared in                  |
+| --------------------------------------------- | ----------- | -------------------------------------- | ---------------------------- |
+| `Butterfly3ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` |
+| `Butterfly3InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` |
+| `Butterfly5ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` |
+| `Butterfly5InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` |
+| `Transpose128x128Complex64AVX2Asm`            | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` |
+| `TransposeTwiddle128x128Complex64AVX2Asm`     | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` |
+| `TransposeTwiddleConj128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` |
+| `Transpose64x64Complex64AVX2Asm`              | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` |
+| `TransposeTwiddle64x64Complex64AVX2Asm`       | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` |
+| `TransposeTwiddleConj64x64Complex64AVX2Asm`   | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` |
+| `ForwardAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` |
+| `InverseAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` |
+| `ForwardAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` |
+| `InverseAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` |
+| `stubAsm`                                     | unreachable | `stub_amd64.s`                         | `internal/asm/stub_arm64.go` |
+| `stubAsm`                                     | unreachable | `stub_arm64.s`                         | `internal/asm/stub_arm64.go` |
+| `ForwardSSESize16Radix4Complex64Asm`          | unreachable | `x86/sse_f32_size16_radix4_386.s`      | `internal/asm/x86/decl.go`   |
+| `InverseSSESize16Radix4Complex64Asm`          | unreachable | `x86/sse_f32_size16_radix4_386.s`      | `internal/asm/x86/decl.go`   |
+| `ForwardSSESize8Radix2Complex64Asm`           | unreachable | `x86/sse_f32_size8_radix2_386.s`       | `internal/asm/x86/decl.go`   |
+| `InverseSSESize8Radix2Complex64Asm`           | unreachable | `x86/sse_f32_size8_radix2_386.s`       | `internal/asm/x86/decl.go`   |
 
 ### Data symbols shared across files
 
@@ -563,74 +565,74 @@ Relocate these into a shared table file before deleting the file that
 defines them (internal/asm/amd64/bitrev_radix4_tables.s is the
 established home).
 
-| Data symbol | Defined in | Used from |
-|---|---|---|
-| `avx512F32Size64CrossTw` | `amd64/avx512_f32_size64_tables.s` | `amd64/avx512_f32_size64_radix2.s`, `amd64/avx512_f32_size64_radix4.s` |
-| `avx512F32Size64TransIdx` | `amd64/avx512_f32_size64_tables.s` | `amd64/avx512_f32_size64_radix2.s`, `amd64/avx512_f32_size64_radix4.s` |
-| `avx512f32Radix8W128` | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size256_radix8_then2.s` |
-| `avx512f32Radix8W16` | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s` |
-| `avx512f32Radix8W32` | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s` |
-| `avx512f32Radix8W4` | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s` |
-| `avx512f32Radix8W64` | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s` |
-| `avx512f32Radix8W8` | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s` |
-| `bitrev16384_r4` | `amd64/bitrev_radix4_tables.s` | `amd64/sse2_f64_size16384_radix4.s`, `amd64/sse3_f32_size16384_radix4.s` |
-| `bitrev256_r2` | `amd64/avx2_f32_size256_radix2.s` | `amd64/sse3_f32_size256_radix2.s` |
-| `bitrev4096_r4` | `amd64/bitrev_radix4_tables.s` | `amd64/sse2_f64_size4096_radix4.s`, `amd64/sse3_f32_size4096_radix4.s` |
-| `bitrev512_m24` | `amd64/avx2_f32_size512_radix4_then2.s` | `amd64/avx2_f64_size512_radix4_then2.s` |
-| `bitrev512_r2` | `amd64/bitrev_f64_tables.s` | `amd64/avx2_f32_size512_radix2.s` |
-| `bitrev8192_m24` | `amd64/avx2_f32_size8192_radix4_then2.s` | `amd64/sse2_f64_size8192_radix4_then2.s`, `amd64/sse3_f32_size8192_radix4_then2.s` |
-| `complex64ImagSignMaskY` | `amd64/avx2_real_repack.s` | `amd64/avx2_real_recombine.s`, `amd64/sse3_real_recombine.s` |
-| `eightThousandOneHundredThirtySecond32` | `amd64/core.s` | `amd64/avx2_f32_size8192_radix4_then2.s`, `amd64/sse3_f32_size8192_radix4_then2.s` |
-| `eightThousandOneHundredThirtySecond64` | `amd64/core.s` | `amd64/sse2_f64_size8192_radix4_then2.s` |
-| `eighth32` | `x86/core.s` | `amd64/avx2_f32_size8_radix2.s`, `amd64/avx2_f32_size8_radix4.s`, `amd64/avx2_f32_size8_radix8.s` + 7 more |
-| `eighth64` | `x86/core.s` | `amd64/avx2_f64_size8_radix2.s`, `amd64/avx2_f64_size8_radix4.s`, `amd64/avx2_f64_size8_radix8.s` + 6 more |
-| `fiveHundredTwelfth32` | `amd64/core.s` | `amd64/avx2_f32_size512_radix2.s`, `amd64/avx2_f32_size512_radix4_then2.s`, `amd64/sse3_f32_size512_radix2.s` + 1 more |
-| `fiveHundredTwelfth64` | `amd64/core.s` | `amd64/avx2_f64_size512_radix2.s`, `amd64/avx2_f64_size512_radix4_then2.s`, `amd64/sse2_f64_size512_radix2.s` + 1 more |
-| `half32` | `x86/core.s` | `amd64/core.s`, `x86/sse2_f32_size2_radix2.s`, `x86/sse_f32_size2_radix2_386.s` |
-| `half64` | `x86/core.s` | `amd64/core.s`, `x86/sse2_f64_size2_radix2.s` |
-| `maskNegHiPD` | `x86/core.s` | `amd64/avx2_f64_size16_radix4.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx2_f64_size4_radix4.s` + 28 more |
-| `maskNegHiPD_YMM` | `amd64/core.s` | `amd64/avx2_real_recombine.s`, `amd64/avx2_real_repack.s` |
-| `maskNegHiPS` | `x86/core.s` | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 35 more |
-| `maskNegLoPD` | `x86/core.s` | `amd64/avx2_f64_size16_radix4.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx2_f64_size4_radix4.s` + 27 more |
-| `maskNegLoPS` | `x86/core.s` | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 34 more |
-| `neonInv128` | `arm64/neon_f32_size128_radix2.s` | `arm64/neon_f32_size128_mixed24.s` |
-| `neonInv128F64` | `arm64/neon_f64_size128_radix2.s` | `arm64/neon_f64_size128_mixed24.s` |
-| `neonInv16` | `arm64/neon_f32_size16_radix4.s` | `arm64/neon_f32_size16_radix2.s` |
-| `neonInv16F64` | `arm64/neon_f64_size16_radix4.s` | `arm64/neon_f64_size16_radix2.s` |
-| `neonInv32` | `arm64/neon_f32_size32_radix2.s` | `arm64/neon_f32_size32_mixed24.s` |
-| `neonInv32F64` | `arm64/neon_f64_size32_radix2.s` | `arm64/neon_f64_size32_mixed24.s` |
-| `neonInv4` | `arm64/core.s` | `arm64/neon_f32_size4_radix4.s` |
-| `neonInv8` | `arm64/core.s` | `arm64/neon_f32_size8_radix2.s`, `arm64/neon_f32_size8_radix4.s`, `arm64/neon_f32_size8_radix8.s` |
-| `neonInv8F64` | `arm64/neon_f64_size8_radix2.s` | `arm64/neon_f64_size8_radix4.s` |
-| `neonOne64` | `arm64/core.s` | `arm64/neon_f64_generic.s` |
-| `neonOnes` | `arm64/core.s` | `arm64/neon_f32_generic.s` |
-| `neonSignImag` | `arm64/core.s` | `arm64/neon_f32_generic.s` |
-| `one32` | `x86/core.s` | `amd64/avx2_f32_generic.s`, `amd64/avx2_f32_generic_radix4_even.s`, `amd64/avx2_f32_generic_radix4_odd.s` + 6 more |
-| `one64` | `x86/core.s` | `amd64/avx2_f64_generic.s`, `amd64/avx2_f64_stockham.s`, `amd64/avx512_f64_generic.s` + 1 more |
-| `oneFourThousandNinetySixth32` | `amd64/core.s` | `amd64/sse3_f32_size4096_radix4.s` |
-| `oneFourThousandNinetySixth64` | `amd64/core.s` | `amd64/sse2_f64_size4096_radix4.s` |
-| `oneSixteenThousandThreeHundredEightyFourth32` | `amd64/core.s` | `amd64/sse3_f32_size16384_radix4.s` |
-| `oneSixteenThousandThreeHundredEightyFourth64` | `amd64/core.s` | `amd64/sse2_f64_size16384_radix4.s` |
-| `oneThirtyTwoThousandSevenHundredSixtyEighth32` | `amd64/core.s` | `amd64/sse3_f32_size32768_radix4_then2.s` |
-| `oneThirtyTwoThousandSevenHundredSixtyEighth64` | `amd64/core.s` | `amd64/sse2_f64_size32768_radix4_then2.s` |
-| `oneThousandTwentyFourth32` | `amd64/core.s` | `amd64/sse3_f32_size1024_radix4.s` |
-| `oneThousandTwentyFourth64` | `amd64/core.s` | `amd64/sse2_f64_size1024_radix4.s` |
-| `oneTwentyEighth32` | `x86/core.s` | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size128_radix4_then2.s`, `amd64/avx512_f32_size128_radix8_then2.s` + 2 more |
-| `oneTwentyEighth64` | `x86/core.s` | `amd64/avx512_f64_size128_radix4_then2.s`, `amd64/core.s`, `amd64/sse2_f64_size128_radix2.s` + 1 more |
-| `quarter32` | `x86/core.s` | `amd64/avx2_f32_size4_radix4.s`, `amd64/core.s`, `amd64/sse2_f32_size4_radix4.s` + 2 more |
-| `quarter64` | `x86/core.s` | `amd64/avx2_f64_size4_radix4.s`, `amd64/avx512_f64_size4_radix4.s`, `amd64/core.s` + 2 more |
-| `signbit32` | `x86/core.s` | `amd64/avx2_f32_size4_radix4.s`, `amd64/avx2_f32_size8_radix4.s`, `amd64/avx2_f32_size8_radix8.s` + 1 more |
-| `signbit64` | `x86/core.s` | `amd64/avx2_f64_generic_radix4_even.s`, `amd64/avx2_f64_generic_radix4_odd.s`, `amd64/avx2_f64_size64_radix4.s` + 3 more |
-| `sixteenth32` | `x86/core.s` | `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size16_radix2.s`, `amd64/avx2_f32_size16_radix4.s` + 7 more |
-| `sixteenth64` | `x86/core.s` | `amd64/avx2_f64_size16_radix2.s`, `amd64/avx2_f64_size16_radix4.s`, `amd64/avx512_f64_size16_radix4.s` + 4 more |
-| `sixtyFourth32` | `x86/core.s` | `amd64/avx2_f32_size64_radix2.s`, `amd64/avx2_f32_size64_radix4.s`, `amd64/avx512_f32_size64_radix2.s` + 3 more |
-| `sixtyFourth64` | `x86/core.s` | `amd64/avx2_f64_size64_radix2.s`, `amd64/avx2_f64_size64_radix4.s`, `amd64/avx512_f64_size64_radix4.s` + 3 more |
-| `thirtySecond32` | `x86/core.s` | `amd64/avx2_f32_size32_radix2.s`, `amd64/avx2_f32_size32_radix32.s`, `amd64/avx2_f32_size32_radix4_then2.s` + 5 more |
-| `thirtySecond64` | `x86/core.s` | `amd64/avx2_f64_size32_radix2.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx512_f64_size32_radix4_then2.s` + 3 more |
-| `twoFiftySixth32` | `amd64/core.s` | `amd64/avx2_f32_size256_radix2.s`, `amd64/avx2_f32_size256_radix4.s`, `amd64/avx512_f32_size256_radix8_then2.s` + 2 more |
-| `twoFiftySixth64` | `amd64/core.s` | `amd64/sse2_f64_size256_radix2.s`, `amd64/sse2_f64_size256_radix4.s` |
-| `twoThousandFortyEighth32` | `amd64/core.s` | `amd64/avx2_f32_size2048_radix4_then2.s`, `amd64/sse3_f32_size2048_radix4_then2.s` |
-| `twoThousandFortyEighth64` | `amd64/core.s` | `amd64/sse2_f64_size2048_radix4_then2.s` |
+| Data symbol                                     | Defined in                                | Used from                                                                                                                      |
+| ----------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `avx512F32Size64CrossTw`                        | `amd64/avx512_f32_size64_tables.s`        | `amd64/avx512_f32_size64_radix2.s`, `amd64/avx512_f32_size64_radix4.s`                                                         |
+| `avx512F32Size64TransIdx`                       | `amd64/avx512_f32_size64_tables.s`        | `amd64/avx512_f32_size64_radix2.s`, `amd64/avx512_f32_size64_radix4.s`                                                         |
+| `avx512f32Radix8W128`                           | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size256_radix8_then2.s`                                                                                      |
+| `avx512f32Radix8W16`                            | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `avx512f32Radix8W32`                            | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `avx512f32Radix8W4`                             | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `avx512f32Radix8W64`                            | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `avx512f32Radix8W8`                             | `amd64/avx512_f32_radix8_twiddle_const.s` | `amd64/avx512_f32_size128_radix8_then2.s`, `amd64/avx512_f32_size256_radix8_then2.s`                                           |
+| `bitrev16384_r4`                                | `amd64/bitrev_radix4_tables.s`            | `amd64/sse2_f64_size16384_radix4.s`, `amd64/sse3_f32_size16384_radix4.s`                                                       |
+| `bitrev256_r2`                                  | `amd64/avx2_f32_size256_radix2.s`         | `amd64/sse3_f32_size256_radix2.s`                                                                                              |
+| `bitrev4096_r4`                                 | `amd64/bitrev_radix4_tables.s`            | `amd64/sse2_f64_size4096_radix4.s`, `amd64/sse3_f32_size4096_radix4.s`                                                         |
+| `bitrev512_m24`                                 | `amd64/avx2_f32_size512_radix4_then2.s`   | `amd64/avx2_f64_size512_radix4_then2.s`                                                                                        |
+| `bitrev512_r2`                                  | `amd64/bitrev_f64_tables.s`               | `amd64/avx2_f32_size512_radix2.s`                                                                                              |
+| `bitrev8192_m24`                                | `amd64/avx2_f32_size8192_radix4_then2.s`  | `amd64/sse2_f64_size8192_radix4_then2.s`, `amd64/sse3_f32_size8192_radix4_then2.s`                                             |
+| `complex64ImagSignMaskY`                        | `amd64/avx2_real_repack.s`                | `amd64/avx2_real_recombine.s`, `amd64/sse3_real_recombine.s`                                                                   |
+| `eightThousandOneHundredThirtySecond32`         | `amd64/core.s`                            | `amd64/avx2_f32_size8192_radix4_then2.s`, `amd64/sse3_f32_size8192_radix4_then2.s`                                             |
+| `eightThousandOneHundredThirtySecond64`         | `amd64/core.s`                            | `amd64/sse2_f64_size8192_radix4_then2.s`                                                                                       |
+| `eighth32`                                      | `x86/core.s`                              | `amd64/avx2_f32_size8_radix2.s`, `amd64/avx2_f32_size8_radix4.s`, `amd64/avx2_f32_size8_radix8.s` + 7 more                     |
+| `eighth64`                                      | `x86/core.s`                              | `amd64/avx2_f64_size8_radix2.s`, `amd64/avx2_f64_size8_radix4.s`, `amd64/avx2_f64_size8_radix8.s` + 6 more                     |
+| `fiveHundredTwelfth32`                          | `amd64/core.s`                            | `amd64/avx2_f32_size512_radix2.s`, `amd64/avx2_f32_size512_radix4_then2.s`, `amd64/sse3_f32_size512_radix2.s` + 1 more         |
+| `fiveHundredTwelfth64`                          | `amd64/core.s`                            | `amd64/avx2_f64_size512_radix2.s`, `amd64/avx2_f64_size512_radix4_then2.s`, `amd64/sse2_f64_size512_radix2.s` + 1 more         |
+| `half32`                                        | `x86/core.s`                              | `amd64/core.s`, `x86/sse2_f32_size2_radix2.s`, `x86/sse_f32_size2_radix2_386.s`                                                |
+| `half64`                                        | `x86/core.s`                              | `amd64/core.s`, `x86/sse2_f64_size2_radix2.s`                                                                                  |
+| `maskNegHiPD`                                   | `x86/core.s`                              | `amd64/avx2_f64_size16_radix4.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx2_f64_size4_radix4.s` + 28 more            |
+| `maskNegHiPD_YMM`                               | `amd64/core.s`                            | `amd64/avx2_real_recombine.s`, `amd64/avx2_real_repack.s`                                                                      |
+| `maskNegHiPS`                                   | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 35 more              |
+| `maskNegLoPD`                                   | `x86/core.s`                              | `amd64/avx2_f64_size16_radix4.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx2_f64_size4_radix4.s` + 27 more            |
+| `maskNegLoPS`                                   | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 34 more              |
+| `neonInv128`                                    | `arm64/neon_f32_size128_radix2.s`         | `arm64/neon_f32_size128_mixed24.s`                                                                                             |
+| `neonInv128F64`                                 | `arm64/neon_f64_size128_radix2.s`         | `arm64/neon_f64_size128_mixed24.s`                                                                                             |
+| `neonInv16`                                     | `arm64/neon_f32_size16_radix4.s`          | `arm64/neon_f32_size16_radix2.s`                                                                                               |
+| `neonInv16F64`                                  | `arm64/neon_f64_size16_radix4.s`          | `arm64/neon_f64_size16_radix2.s`                                                                                               |
+| `neonInv32`                                     | `arm64/neon_f32_size32_radix2.s`          | `arm64/neon_f32_size32_mixed24.s`                                                                                              |
+| `neonInv32F64`                                  | `arm64/neon_f64_size32_radix2.s`          | `arm64/neon_f64_size32_mixed24.s`                                                                                              |
+| `neonInv4`                                      | `arm64/core.s`                            | `arm64/neon_f32_size4_radix4.s`                                                                                                |
+| `neonInv8`                                      | `arm64/core.s`                            | `arm64/neon_f32_size8_radix2.s`, `arm64/neon_f32_size8_radix4.s`, `arm64/neon_f32_size8_radix8.s`                              |
+| `neonInv8F64`                                   | `arm64/neon_f64_size8_radix2.s`           | `arm64/neon_f64_size8_radix4.s`                                                                                                |
+| `neonOne64`                                     | `arm64/core.s`                            | `arm64/neon_f64_generic.s`                                                                                                     |
+| `neonOnes`                                      | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
+| `neonSignImag`                                  | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
+| `one32`                                         | `x86/core.s`                              | `amd64/avx2_f32_generic.s`, `amd64/avx2_f32_generic_radix4_even.s`, `amd64/avx2_f32_generic_radix4_odd.s` + 6 more             |
+| `one64`                                         | `x86/core.s`                              | `amd64/avx2_f64_generic.s`, `amd64/avx2_f64_stockham.s`, `amd64/avx512_f64_generic.s` + 1 more                                 |
+| `oneFourThousandNinetySixth32`                  | `amd64/core.s`                            | `amd64/sse3_f32_size4096_radix4.s`                                                                                             |
+| `oneFourThousandNinetySixth64`                  | `amd64/core.s`                            | `amd64/sse2_f64_size4096_radix4.s`                                                                                             |
+| `oneSixteenThousandThreeHundredEightyFourth32`  | `amd64/core.s`                            | `amd64/sse3_f32_size16384_radix4.s`                                                                                            |
+| `oneSixteenThousandThreeHundredEightyFourth64`  | `amd64/core.s`                            | `amd64/sse2_f64_size16384_radix4.s`                                                                                            |
+| `oneThirtyTwoThousandSevenHundredSixtyEighth32` | `amd64/core.s`                            | `amd64/sse3_f32_size32768_radix4_then2.s`                                                                                      |
+| `oneThirtyTwoThousandSevenHundredSixtyEighth64` | `amd64/core.s`                            | `amd64/sse2_f64_size32768_radix4_then2.s`                                                                                      |
+| `oneThousandTwentyFourth32`                     | `amd64/core.s`                            | `amd64/sse3_f32_size1024_radix4.s`                                                                                             |
+| `oneThousandTwentyFourth64`                     | `amd64/core.s`                            | `amd64/sse2_f64_size1024_radix4.s`                                                                                             |
+| `oneTwentyEighth32`                             | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size128_radix4_then2.s`, `amd64/avx512_f32_size128_radix8_then2.s` + 2 more |
+| `oneTwentyEighth64`                             | `x86/core.s`                              | `amd64/avx512_f64_size128_radix4_then2.s`, `amd64/core.s`, `amd64/sse2_f64_size128_radix2.s` + 1 more                          |
+| `quarter32`                                     | `x86/core.s`                              | `amd64/avx2_f32_size4_radix4.s`, `amd64/core.s`, `amd64/sse2_f32_size4_radix4.s` + 2 more                                      |
+| `quarter64`                                     | `x86/core.s`                              | `amd64/avx2_f64_size4_radix4.s`, `amd64/avx512_f64_size4_radix4.s`, `amd64/core.s` + 2 more                                    |
+| `signbit32`                                     | `x86/core.s`                              | `amd64/avx2_f32_size4_radix4.s`, `amd64/avx2_f32_size8_radix4.s`, `amd64/avx2_f32_size8_radix8.s` + 1 more                     |
+| `signbit64`                                     | `x86/core.s`                              | `amd64/avx2_f64_generic_radix4_even.s`, `amd64/avx2_f64_generic_radix4_odd.s`, `amd64/avx2_f64_size64_radix4.s` + 3 more       |
+| `sixteenth32`                                   | `x86/core.s`                              | `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size16_radix2.s`, `amd64/avx2_f32_size16_radix4.s` + 7 more                 |
+| `sixteenth64`                                   | `x86/core.s`                              | `amd64/avx2_f64_size16_radix2.s`, `amd64/avx2_f64_size16_radix4.s`, `amd64/avx512_f64_size16_radix4.s` + 4 more                |
+| `sixtyFourth32`                                 | `x86/core.s`                              | `amd64/avx2_f32_size64_radix2.s`, `amd64/avx2_f32_size64_radix4.s`, `amd64/avx512_f32_size64_radix2.s` + 3 more                |
+| `sixtyFourth64`                                 | `x86/core.s`                              | `amd64/avx2_f64_size64_radix2.s`, `amd64/avx2_f64_size64_radix4.s`, `amd64/avx512_f64_size64_radix4.s` + 3 more                |
+| `thirtySecond32`                                | `x86/core.s`                              | `amd64/avx2_f32_size32_radix2.s`, `amd64/avx2_f32_size32_radix32.s`, `amd64/avx2_f32_size32_radix4_then2.s` + 5 more           |
+| `thirtySecond64`                                | `x86/core.s`                              | `amd64/avx2_f64_size32_radix2.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx512_f64_size32_radix4_then2.s` + 3 more    |
+| `twoFiftySixth32`                               | `amd64/core.s`                            | `amd64/avx2_f32_size256_radix2.s`, `amd64/avx2_f32_size256_radix4.s`, `amd64/avx512_f32_size256_radix8_then2.s` + 2 more       |
+| `twoFiftySixth64`                               | `amd64/core.s`                            | `amd64/sse2_f64_size256_radix2.s`, `amd64/sse2_f64_size256_radix4.s`                                                           |
+| `twoThousandFortyEighth32`                      | `amd64/core.s`                            | `amd64/avx2_f32_size2048_radix4_then2.s`, `amd64/sse3_f32_size2048_radix4_then2.s`                                             |
+| `twoThousandFortyEighth64`                      | `amd64/core.s`                            | `amd64/sse2_f64_size2048_radix4_then2.s`                                                                                       |
 
 ## Probe-Gated Kernels
 
@@ -644,15 +646,15 @@ The file list is scanned from the build constraints; the verdicts are authored
 in `cmd/gencodelets/probes.go`, and a probe file with no verdict fails the
 generator's tests.
 
-| File | Build tag | Measures | Status |
-|---|---|---|---|
-| `internal/fft/radix4_c128_probe_amd64.go` | `amd64 && !purego && fftprobe` | complex128 generic AVX2 radix-4 / radix-4-then-2 against the generic AVX2 radix-2 dispatch | open |
-| `internal/kernels/probe_util.go` | `fftprobe` | shared helpers for the harnesses in this section (no kernel of its own) | support |
-| `internal/kernels/radix16_generic_probe.go` | `fftprobe` | size-generic pure-Go radix-16 ladder against the pure-Go radix-8 ladder | closed |
-| `internal/kernels/radix4_avx2_tail_probe_amd64.go` | `amd64 && !purego && fftprobe` | the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass | open |
-| `internal/kernels/radix8_avx2_probe_amd64.go` | `amd64 && !purego && fftprobe` | size-generic AVX2 radix-8 ladder against the AVX2 radix-4 rows | partly promoted |
-| `internal/kernels/radix8_avx512_probe_amd64.go` | `amd64 && !purego && fftprobe` | size-generic AVX-512 radix-8 ladder against the AVX2 radix-4 rows | partly promoted |
-| `internal/kernels/radix8_generic_probe.go` | `fftprobe` | size-generic pure-Go radix-8 ladder against the pure-Go radix-4 ladder | partly promoted |
+| File                                               | Build tag                      | Measures                                                                                   | Status          |
+| -------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ | --------------- |
+| `internal/fft/radix4_c128_probe_amd64.go`          | `amd64 && !purego && fftprobe` | complex128 generic AVX2 radix-4 / radix-4-then-2 against the generic AVX2 radix-2 dispatch | open            |
+| `internal/kernels/probe_util.go`                   | `fftprobe`                     | shared helpers for the harnesses in this section (no kernel of its own)                    | support         |
+| `internal/kernels/radix16_generic_probe.go`        | `fftprobe`                     | size-generic pure-Go radix-16 ladder against the pure-Go radix-8 ladder                    | closed          |
+| `internal/kernels/radix4_avx2_tail_probe_amd64.go` | `amd64 && !purego && fftprobe` | the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass          | open            |
+| `internal/kernels/radix8_avx2_probe_amd64.go`      | `amd64 && !purego && fftprobe` | size-generic AVX2 radix-8 ladder against the AVX2 radix-4 rows                             | partly promoted |
+| `internal/kernels/radix8_avx512_probe_amd64.go`    | `amd64 && !purego && fftprobe` | size-generic AVX-512 radix-8 ladder against the AVX2 radix-4 rows                          | partly promoted |
+| `internal/kernels/radix8_generic_probe.go`         | `fftprobe`                     | size-generic pure-Go radix-8 ladder against the pure-Go radix-4 ladder                     | partly promoted |
 
 **`internal/fft/radix4_c128_probe_amd64.go`** — open
 
