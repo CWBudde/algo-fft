@@ -368,6 +368,59 @@ radix-16 ladder loses every cell (see below), so `dit256_radix16_avx2` was a bad
 implementation _of an algorithm that also does not pay_. The two defects were
 independent, and fixing the first would not have rescued it.
 
+## Ruled out: kernels deleted in 1f7977b, and why
+
+Commit `1f7977b` ("feat: Add radix-16 FFT implementation and associated
+tests") deleted ~15,200 lines out of the AVX2 tier alongside adding the
+pure-Go radix-16 ladder below. Four of those files were restored afterward for
+reuse elsewhere and are **not** part of this record: `avx2_f32_transpose{64x64,128x128}.s`
+(six symbols — plain transpose plus fused transpose+twiddle and
+transpose+conj-twiddle) and `avx2_f64_generic_radix4_{even,odd}.s` (complex128
+generic AVX2 radix-4). The rest were audited on 2026-08-01 and stay dead;
+nothing below should be revived without re-running the same census.
+
+| file                                                                                                                                     | evidence                                                                                                                                                                                                                                                                                                                        | verdict  |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `avx2_f32_size512_radix16x32.s`                                                                                                          | 0 `Y` operands, 3,862 `X` operands. Header promised a 256-bit design that was never written. Also four-step-shaped, not high-radix.                                                                                                                                                                                             | dead     |
+| `avx2_f32_size512_radix8.s`                                                                                                              | 4 `Y` vs 1,905 `X`, and **all four `Y` hits are the header comment itself** ("Y0-Y7: 8 complex64 vectors … 4 parallel 8-pt butterflies") — the body has zero. The same unwritten-design defect, in its purest form. Superseded by the size-generic `avx2_f32_radix8.s` (see "The size-generic AVX2 radix-8 ladder" above).      | dead     |
+| `avx2_f32_size256_radix16.s`                                                                                                             | Genuinely 256-bit (2,023 `Y` operands), but it is a 16×16 matrix factorisation with two full transposes through scratch plus a per-call `W_16` table rebuilt on the stack — it tests four-step, not high-radix. Radix-16 is independently ruled out for every instruction set (see "Generic tier — the radix-16 ladder" below). | dead     |
+| `avx2_f64_size128_radix2.s`                                                                                                              | 4 `Y` vs 951 `X`, and the four `Y` are a `VMOVUPS` load/store pair in a copy loop — no 256-bit compute at all.                                                                                                                                                                                                                  | dead     |
+| `avx2_f64_size256_radix2.s`                                                                                                              | 4 `Y` vs 1,641 `X`. Radix-2 at complex128 is structurally dominated regardless: a 256-bit register holds only two complex128 elements, so there is no vector width left to recover the log2(n) passes.                                                                                                                          | dead     |
+| the six-step AVX2 drivers (`dit_4096_sixstep_amd64_avx2.go`, `dit_8192_sixstep_64x128_amd64_avx2.go`, `dit_16384_sixstep_amd64_avx2.go`) | not fully dead — see `PLAN.md` §4, "The six-step AVX2 drivers are worth a second look, but not now"                                                                                                                                                                                                                             | deferred |
+
+**A file named `avx2_*.s` is not necessarily a 256-bit kernel.** Several of the
+files above carried headers describing a `Y`-register design that was never
+implemented; the body was XMM-width throughout. Run a one-line census before
+ever trusting such a header or benchmarking such a kernel:
+
+```
+grep -o 'Y[0-9]\+' file.s | wc -l   # 256-bit (YMM) operand count
+grep -o 'X[0-9]\+' file.s | wc -l   # 128-bit (XMM) operand count
+```
+
+A real 256-bit implementation has the bulk of its operands in `Y`; an
+aspirational header leaves them all in `X`.
+
+Two refinements, both of which this audit hit. The raw count above scans
+comments as well as code, and in `avx2_f32_size512_radix8.s` **every** `Y` it
+finds is the header comment promising the design — so strip comments before
+believing a small non-zero count:
+
+```
+grep -o 'Y[0-9]\+' <(sed 's://.*::' file.s) | wc -l
+```
+
+And a small non-zero count that survives comment-stripping still is not
+evidence of vector compute: in `avx2_f64_size128_radix2.s` the four remaining
+`Y` are one `VMOVUPS` load/store pair in a copy loop. Read the hits when there
+are few enough to read; the ratio only means something at scale.
+
+All five dead `.s` files are recoverable at `git show bd87b0e:<path>` if
+anyone ever needs to re-examine them — for example
+`git show bd87b0e:internal/asm/amd64/avx2_f32_size512_radix8.s`. `bd87b0e` is
+the last commit before the `1f7977b` deletion, so its content is
+byte-identical to what `1f7977b` removed.
+
 ## Generic tier — the radix-16 ladder, and where the radix ladder stops
 
 Sweep of 2026-08-01, `-tags fftprobe,purego`, `GOOD=5216` recalibrated on an

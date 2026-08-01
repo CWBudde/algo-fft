@@ -344,12 +344,49 @@ from the outcome:
       titled as if the 32×32 removal already shipped — it removed only dead
       assembly *inside* those files.
 
+- [x] **Audit the `1f7977b` deletions — four restored, the rest closed**
+      (2026-08-01). `1f7977b` deleted ~15,200 lines of AVX2 assembly alongside
+      adding the pure-Go radix-16 ladder below; nine of those `.s` files were
+      the Tier 1 "test-only" set from the item above. Four are restored and
+      being wired back up: `avx2_f32_transpose{64x64,128x128}.s` (plain
+      transpose plus fused transpose+twiddle and transpose+conj-twiddle) and
+      `avx2_f64_generic_radix4_{even,odd}.s` (complex128 generic AVX2
+      radix-4). The other five are closed dead:
+      `avx2_f32_size{512_radix16x32,512_radix8,256_radix16}.s` and
+      `avx2_f64_size{128_radix2,256_radix2}.s` — none was a working 256-bit
+      kernel (`Y`-vs-`X` operand census in
+      [`docs/CODELET_BENCHMARKS.md`](docs/CODELET_BENCHMARKS.md#ruled-out-kernels-deleted-in-1f7977b-and-why)),
+      and radix-16 itself is independently ruled out by the item below. The
+      three AVX2 six-step drivers deleted in the same commit are **not** part
+      of this closed set — see the next item.
+
+- [ ] **The six-step AVX2 drivers are worth a second look, but not now.**
+      `dit_8192_sixstep_64x128_amd64_avx2.go` (deleted in `1f7977b`, recoverable
+      at `git show bd87b0e:internal/kernels/dit_8192_sixstep_64x128_amd64_avx2.go`)
+      used a rectangular 64×128 split that appears nowhere else in the tree.
+      `dit_16384_sixstep_amd64_avx2.go` built its prepared twiddle tables
+      (`sixStepRow128{Fwd,Inv}TwiddleC64`) at package load — exactly the
+      "build the prepared tables once at package load" fix the "Point the
+      `KernelStrategy` dispatch at the generic radix-4 kernels" item above
+      proposes for the size-specific files, already proven out here. Two
+      caveats before trusting either as a template: `dit_4096_sixstep_amd64_avx2.go`
+      carried the comment "Step 0: Bit-reversal permutation into work (remap
+      dynamic bitrev onto radix-4 order)" directly over a plain copy loop
+      (`for i := range n { work[i] = src[i] }`) — the comment describes work
+      that was never done, tests passed anyway, and why they passed is not
+      understood — that must be understood before this structure is trusted;
+      and the pure-Go six-step lost by 1.44–2.19x across 4096/8192/16384 in the
+      2026-08-01 sweep — not a verdict on these AVX2 versions, but evidence
+      the decomposition itself carries a handicap the assembly would have to
+      overcome, not merely a slow inner loop.
+
 - [x] **Test the radix-8 hypothesis in pure Go first** (2026-07-30). It was
       never tested. Every kernel that said radix-8 loses is broken somewhere
-      unrelated to the algorithm: `avx2_f32_size512_radix8.s` has **1,902
+      unrelated to the algorithm: `avx2_f32_size512_radix8.s` has **1,905
       X-register operands and zero Y instructions** — its header promises
       "Y0–Y7: 8 complex64 vectors … 4 parallel 8-pt butterflies" and that design
-      was never written; `avx2_f32_size512_radix16x32.s` is the same (3,858 X,
+      was never written (the file's only four `Y` mentions are that promise, in
+      the comment); `avx2_f32_size512_radix16x32.s` is the same (3,862 X,
       zero Y); `avx2_f32_size256_radix16.s` _is_ 256-bit but is a 16×16 matrix
       factorisation with two full transposes through scratch, so it tests
       four-step, not high radix; and the pure-Go `dit512_radix8_generic` spends
