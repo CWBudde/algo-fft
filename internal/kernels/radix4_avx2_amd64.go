@@ -233,12 +233,29 @@ func inverseRadix4AVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 //	32768  32K/64K  1.004 / 1.013  1.020 / 1.000
 //
 // (stride is the last stage's m*sizeof(T), the distance between the eight
-// streams.) The worst cell is complex128 at n = 2048, where the stride is
-// exactly 4 KiB and every stream lands on one L1 set -- which is the size the
-// fusion was written for. It is therefore selected per size from this table
-// rather than applied wherever the shape allows: see the Priority rows in
+// streams.) It is therefore selected per size from this table rather than
+// applied wherever the shape allows: see the Priority rows in
 // cmd/gencodelets/specs.go, which is where every other per-size measured fact
 // in this library lives. Sizes not listed there keep the separate tail.
+//
+// The L1-set reading of that table -- worst at complex128 n = 2048 because the
+// stride is exactly 4 KiB and every stream lands on one set -- was tested on a
+// second machine on 2026-08-01 and does not survive. A Xeon Gold 5218 has 8-way
+// L1d against this laptop's 12-way with the same 4 KiB aliasing, so conflict
+// misses should get worse there. complex64 does get worse (+0.07 to +0.10 at
+// 2048/8192/32768); complex128, which has twice the byte stride and identical
+// set-aliasing, gets *better* (-0.13 at 512, -0.08 at 2048). A way-count
+// mechanism cannot produce that sign split.
+//
+// What survives is the register budget described in the r4_fused_loop header:
+// Y0..Y7 are pinned across group 1's whole computation, leaving six scratch
+// registers and forcing group 1 to re-load its twiddle broadcasts every
+// iteration. Do not re-derive the cache story from this table.
+//
+// Fusion is closed as a way to recover the tail. Across ten cells on two hosts
+// it never captures more than 2.4%, while the dit<N>_radix4_notail_avx2 probe
+// puts the tail's cost at 6.7-13.3% here and 7.7-23.4% on the Xeon. See
+// docs/CODELET_BENCHMARKS.md, "The radix-4 tail on the Xeon".
 //
 // Re-measure with `just bench-gated <sizes>` after building the candidate
 // sweep with -tags fftprobe, which registers both variants side by side.

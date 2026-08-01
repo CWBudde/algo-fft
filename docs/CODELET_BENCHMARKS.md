@@ -821,6 +821,63 @@ read as covering:
   predicted, and 2048 c128 (0.884) and 32768 (0.869/0.883) are visibly weaker
   than the ~0.70 the rest of the c128 column holds — unexplained.
 
+#### The radix-4 tail on the Xeon: headroom confirmed, fusion closed (2026-08-01)
+
+Sweep at the five odd-exponent sizes, `-tags fftprobe`, `PASSES=10`,
+`GOOD=11298`, **100 accepted / 0 rejected**, `benchmarks/gated-tail`. Ratios are
+within group, against `dit<N>_radix4_avx2` (the unfused kernel) rather than
+against the incumbent — on this host the incumbent at 512 and up is now the
+AVX-512 radix-8 ladder, so an incumbent-relative number would not be about the
+tail at all.
+
+| prec |     n | notail/plain | fused/plain | fused/plain (i7-1255U) |
+| ---- | ----: | -----------: | ----------: | ---------------------: |
+| c64  |   128 |        0.876 |       0.976 |                  0.955 |
+| c64  |   512 |        0.884 |       0.980 |                  0.971 |
+| c64  |  2048 |        0.869 |       1.040 |                  0.943 |
+| c64  |  8192 |        0.899 |       1.117 |                  1.034 |
+| c64  | 32768 |        0.923 |       1.072 |                  1.004 |
+| c128 |   128 |        0.849 |       0.966 |                  0.935 |
+| c128 |   512 |    **0.766** |       0.870 |                  1.002 |
+| c128 |  2048 |        0.829 |       1.035 |                  1.110 |
+| c128 |  8192 |        0.875 |       1.026 |                  1.006 |
+| c128 | 32768 |        0.879 |       1.012 |                  1.020 |
+
+**The headroom transfers and is larger here**: the tail costs 7.7-23.4% on the
+Xeon against 6.7-13.3% on the laptop, in every cell of both precisions. That is
+now a two-microarchitecture result and the strongest reason to keep attacking it.
+
+**Fusion is closed as the lever.** It recovers at most 2.4% (c64 128/512, c128
+128), and from n = 2048 up it is a net loss in both precisions on both hosts.
+Ten cells, two hosts, no cell where it captures even a third of what `notail`
+says is available.
+
+**An L1-associativity explanation was predicted and is refuted.** Both hosts
+alias at 4 KB (64 sets × 64 B), but the Xeon has 8 ways against the laptop's 12,
+and the fused loop holds ~11 mutually-aliasing streams — 8 data plus 3 twiddle.
+That predicts fusion degrading distinctly on the Xeon at the large sizes. It
+does for c64 (+0.068 to +0.097 at 2048/8192/32768) and **fails for c128**, which
+has twice the byte stride and identical set-aliasing yet gets _better_: -0.132 at
+512, -0.075 at 2048, -0.008 at 32768. A way-count mechanism cannot produce that
+sign split. Whatever fusion costs, it is not L1 conflict misses.
+
+The surviving explanation is the register budget, the same one that explains the
+AVX2 radix-8 ladder: fusion pins Y0-Y7 across group 1's whole computation and
+leaves only Y8-Y13 scratch, so group 1 re-loads its twiddle broadcasts every
+iteration (the loop comment in `avx2_f32_radix4.s` says so outright). That is a
+prediction about ZMM, not about cache, and it is untested.
+
+One figure worth carrying: at n = 8192 complex64 the tail-free probe scores
+**0.998 against the AVX-512 radix-8 ladder** while the real AVX2 kernel scores
+1.110. A radix-4 AVX2 kernel that did not pay the tail would match an AVX-512
+kernel at that size.
+
+For complex128 the Xeon has already routed around the problem — the AVX2
+radix-8 ladder, which removes the tail structurally rather than fusing it, beats
+`radix4_avx2` here by 25% at 512 (1.225 vs 1.629), 28% at 2048 (1.135 vs 1.584)
+and 16% at 32768 (1.156 vs 1.374). The open cell is complex64, where the ladder
+did not win on either host.
+
 ### Measurement setup
 
 |            |                                                                                                                            |
@@ -1041,27 +1098,32 @@ register lists must be **contiguous** (`[V0,V1]`, never `[V0,V4]`), and
 
 ### Size 16, complex64 — first vectorized rewrite
 
-`neon_f32_size16_radix4_v2.s` (`dit16_radix4_neon_v2`) replaces the scalar v1
-with a 4×4 Cooley-Tukey decomposition: `VLD2` deinterleaves four complex per
-register, two rounds of vertical DFT4 sandwich a `VTRN1/VTRN2` + `VZIP1/VZIP2`
-4×4 transpose, and each store is a single `VST2` of four consecutive outputs.
-It needs no bit-reversal pass and no scratch buffer — every input is in
-registers before the first store, so `dst` may alias `src`.
+`neon_f32_size16_radix4.s` (`dit16_radix4_neon`) was rewritten as a 4x4
+Cooley-Tukey decomposition: `VLD2` deinterleaves four complex per register, two
+rounds of vertical DFT4 sandwich a `VTRN1/VTRN2` + `VZIP1/VZIP2` 4x4 transpose,
+and each store is a single `VST2` of four consecutive outputs. It needs no
+bit-reversal pass and no scratch buffer — every input is in registers before the
+first store, so `dst` may alias `src`. The scalar implementation it replaced was
+deleted rather than shadowed; note that `·neonInv16` had to move into this file,
+because `neon_f32_size16_radix2.s` references it.
 
-`count=8`, same process, mean ns/op:
+A/B against the scalar version while both were registered (`count=8`, same
+process, mean ns/op):
 
 | candidate                |  forward |   inverse |
 | ------------------------ | -------: | --------: |
-| **dit16_radix4_neon_v2** | **9.50** | **10.44** |
+| **vectorized (kept)**    | **9.50** | **10.44** |
 | dit16_radix16_generic    |    16.23 |     17.74 |
 | dit16_radix4_generic     |    16.25 |     20.49 |
-| dit16_radix4_neon (v1)   |    35.68 |     38.53 |
+| scalar dit16_radix4_neon |    35.68 |     38.53 |
 | dit16_radix2_neon        |    61.78 |     68.84 |
 
-v2 is **3.76× / 3.69×** faster than v1 and **1.71× / 1.70×** faster than the
-best pure-Go candidate — the same size v1 lost by 1.83× / 2.19×. v2 is now
-Priority 28; v1 drops to Priority 1, keeping it under the reference tests and
-re-measurable on other arm64 hosts rather than deleted on one machine's number.
+**3.76x / 3.69x** faster than the scalar version and **1.71x / 1.70x** faster
+than the best pure-Go candidate — a size the scalar version had lost by
+1.83x / 2.19x. After deleting the scalar file, re-measured on a quieter machine:
+7.24 / 7.92 ns against 12.01 / 13.44 for the best pure-Go candidate, i.e.
+1.66x / 1.70x — the absolute numbers are lower with fewer candidates in the
+process, the ratio is unchanged. Only ratios travel.
 
 Correctness: naive-DFT cross-check, round-trip and in-place all pass under both
 QEMU and the M5. The remaining 41 files are unconverted and still lose.
