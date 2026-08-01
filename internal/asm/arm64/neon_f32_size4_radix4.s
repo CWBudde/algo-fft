@@ -35,26 +35,16 @@
 // dst may alias src: both source vectors are loaded into registers before
 // the first store, so nothing needs a scratch copy-back.
 //
-// Go's arm64 assembler has NO vector FADD/FSUB/FMUL — VFMLA and VFMLS are
-// the only vector FP arithmetic mnemonics it accepts. Addition and
-// subtraction are synthesized against a vector of 1.0 (·neonOnes), exactly
-// as neon_f32_generic.s and neon_f32_size16_radix4.s do.
+// Go's assembler has no mnemonic for vector FADD/FSUB/FMUL; the real
+// encodings are emitted directly with WORD via the macros in neon_fp.h
+// (VADDF_S4/VSUBF_S4/VMULF_S4), which take register NUMBERS rather than
+// names because the assembler's preprocessor has no token pasting. See
+// neon_fp.h for the full rationale and the encoding table.
 //
 // ===========================================================================
 
 #include "textflag.h"
-
-// V31 permanently holds [1.0, 1.0, 1.0, 1.0]; the add/sub macros depend on it.
-#define ONES V31
-
-// d = a + b, d = a - b (a, b, d are V-register names without arrangement).
-#define VADDF(a, b, d) \
-	VMOV  a.B16, d.B16    \
-	VFMLA b.S4, ONES.S4, d.S4
-
-#define VSUBF(a, b, d) \
-	VMOV  a.B16, d.B16    \
-	VFMLS b.S4, ONES.S4, d.S4
+#include "neon_fp.h"
 
 // ---------------------------------------------------------------------------
 // func ForwardNEONSize4Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
@@ -79,15 +69,12 @@ TEXT ·ForwardNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $4, R0
 	BLT  neon4r4_return_false
 
-	MOVD $·neonOnes(SB), R0
-	VLD1 (R0), [ONES.S4]
-
 	// Raw interleaved load: V0 = x0,x1  V1 = x2,x3.
 	VLD1 (R9), [V0.S4, V1.S4]
 
 	// A = [t0, t2] = x0+x2, x1+x3.  B = [t1, t3] = x0-x2, x1-x3.
-	VADDF(V0, V1, V2)
-	VSUBF(V0, V1, V3)
+	VADDF_S4(0, 1, 2)
+	VSUBF_S4(0, 1, 3)
 
 	// C = [t0, t1]  D = [t2, t3].
 	VZIP1 V3.D2, V2.D2, V4.D2
@@ -105,8 +92,8 @@ TEXT ·ForwardNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	VEOR V16.B16, V7.B16, V7.B16
 
 	// X_lo = C+Dp = [X0, X1]   X_hi = C-Dp = [X2, X3].
-	VADDF(V4, V7, V8)
-	VSUBF(V4, V7, V9)
+	VADDF_S4(4, 7, 8)
+	VSUBF_S4(4, 7, 9)
 
 	VST1 [V8.S4, V9.S4], (R8)
 
@@ -142,15 +129,12 @@ TEXT ·InverseNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $4, R0
 	BLT  neon4r4_inv_return_false
 
-	MOVD $·neonOnes(SB), R0
-	VLD1 (R0), [ONES.S4]
-
 	// Raw interleaved load: V0 = x0,x1  V1 = x2,x3.
 	VLD1 (R9), [V0.S4, V1.S4]
 
 	// A = [t0, t2] = x0+x2, x1+x3.  B = [t1, t3] = x0-x2, x1-x3.
-	VADDF(V0, V1, V2)
-	VSUBF(V0, V1, V3)
+	VADDF_S4(0, 1, 2)
+	VSUBF_S4(0, 1, 3)
 
 	// C = [t0, t1]  D = [t2, t3].
 	VZIP1 V3.D2, V2.D2, V4.D2
@@ -168,8 +152,8 @@ TEXT ·InverseNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	VEOR V16.B16, V7.B16, V7.B16
 
 	// X_lo = C+Dp = [X0, X1]   X_hi = C-Dp = [X2, X3].
-	VADDF(V4, V7, V8)
-	VSUBF(V4, V7, V9)
+	VADDF_S4(4, 7, 8)
+	VSUBF_S4(4, 7, 9)
 
 	// Scale by 1/4. Broadcast from memory — a register broadcast of a
 	// scalar constant costs a fixed ~100ns and would dominate a kernel
@@ -177,10 +161,8 @@ TEXT ·InverseNEONSize4Radix4Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD  $·neonInv4(SB), R0
 	VLD1R (R0), [V17.S4]
 
-	VEOR  V10.B16, V10.B16, V10.B16
-	VFMLA V8.S4, V17.S4, V10.S4
-	VEOR  V11.B16, V11.B16, V11.B16
-	VFMLA V9.S4, V17.S4, V11.S4
+	VMULF_S4(8, 17, 10)
+	VMULF_S4(9, 17, 11)
 
 	VST1 [V10.S4, V11.S4], (R8)
 

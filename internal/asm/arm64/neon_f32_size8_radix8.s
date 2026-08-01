@@ -27,11 +27,12 @@
 // of vectors (s0,s1) and (s2,s3) collect into four consecutive outputs via a
 // D2 zip, and the two stores are VST2.
 //
-// Go's arm64 assembler has NO vector FADD/FSUB/FMUL — VFMLA and VFMLS are the
-// only vector FP arithmetic mnemonics it accepts. Addition and subtraction are
-// therefore synthesized against a vector of 1.0 (·neonOnes, core.s) and
-// multiplication against a VEOR-zeroed accumulator, exactly as
-// neon_f32_size16_radix4.s does.
+// Go's assembler has no mnemonic for vector FADD/FSUB/FMUL; the real
+// encodings are emitted directly with WORD via the macros in neon_fp.h
+// (VADDF_S4/VSUBF_S4/VMULF_S4/VFMAF_S4/VFMSF_S4), which take register
+// NUMBERS rather than names because the assembler's preprocessor has no
+// token pasting. See neon_fp.h for the full rationale and the encoding
+// table.
 //
 // dst may alias src: every input is loaded into registers before the first
 // store, so no scratch buffer or copy-back is needed.
@@ -39,80 +40,66 @@
 // ===========================================================================
 
 #include "textflag.h"
-
-// V31 permanently holds [1.0, 1.0, 1.0, 1.0]; the add/sub macros depend on it.
-#define ONES V31
-
-// d = a + b, d = a - b (a, b, d are V-register names without arrangement).
-#define VADDF(a, b, d) \
-	VMOV  a.B16, d.B16    \
-	VFMLA b.S4, ONES.S4, d.S4
-
-#define VSUBF(a, b, d) \
-	VMOV  a.B16, d.B16    \
-	VFMLS b.S4, ONES.S4, d.S4
+#include "neon_fp.h"
 
 // Forward DFT4 across four vectors (W4 = -i):
 //   X0 = t0+t2   X2 = t0-t2   X1 = t1 - i*t3   X3 = t1 + i*t3
 // where t0 = a0+a2, t1 = a0-a2, t2 = a1+a3, t3 = a1-a3.
+// Register NUMBERS.
 #define VDFT4_FWD(ar0, ar1, ar2, ar3, ai0, ai1, ai2, ai3, t0r, t1r, t2r, t3r, t0i, t1i, t2i, t3i) \
-	VADDF(ar0, ar2, t0r) \
-	VSUBF(ar0, ar2, t1r) \
-	VADDF(ar1, ar3, t2r) \
-	VSUBF(ar1, ar3, t3r) \
-	VADDF(ai0, ai2, t0i) \
-	VSUBF(ai0, ai2, t1i) \
-	VADDF(ai1, ai3, t2i) \
-	VSUBF(ai1, ai3, t3i) \
-	VADDF(t0r, t2r, ar0) \
-	VADDF(t0i, t2i, ai0) \
-	VSUBF(t0r, t2r, ar2) \
-	VSUBF(t0i, t2i, ai2) \
-	VADDF(t1r, t3i, ar1) \
-	VSUBF(t1i, t3r, ai1) \
-	VSUBF(t1r, t3i, ar3) \
-	VADDF(t1i, t3r, ai3)
+	VADDF_S4(ar0, ar2, t0r) \
+	VSUBF_S4(ar0, ar2, t1r) \
+	VADDF_S4(ar1, ar3, t2r) \
+	VSUBF_S4(ar1, ar3, t3r) \
+	VADDF_S4(ai0, ai2, t0i) \
+	VSUBF_S4(ai0, ai2, t1i) \
+	VADDF_S4(ai1, ai3, t2i) \
+	VSUBF_S4(ai1, ai3, t3i) \
+	VADDF_S4(t0r, t2r, ar0) \
+	VADDF_S4(t0i, t2i, ai0) \
+	VSUBF_S4(t0r, t2r, ar2) \
+	VSUBF_S4(t0i, t2i, ai2) \
+	VADDF_S4(t1r, t3i, ar1) \
+	VSUBF_S4(t1i, t3r, ai1) \
+	VSUBF_S4(t1r, t3i, ar3) \
+	VADDF_S4(t1i, t3r, ai3)
 
 // Inverse DFT4 across four vectors (W4 = +i): X1 and X3 swap relative to fwd.
 #define VDFT4_INV(ar0, ar1, ar2, ar3, ai0, ai1, ai2, ai3, t0r, t1r, t2r, t3r, t0i, t1i, t2i, t3i) \
-	VADDF(ar0, ar2, t0r) \
-	VSUBF(ar0, ar2, t1r) \
-	VADDF(ar1, ar3, t2r) \
-	VSUBF(ar1, ar3, t3r) \
-	VADDF(ai0, ai2, t0i) \
-	VSUBF(ai0, ai2, t1i) \
-	VADDF(ai1, ai3, t2i) \
-	VSUBF(ai1, ai3, t3i) \
-	VADDF(t0r, t2r, ar0) \
-	VADDF(t0i, t2i, ai0) \
-	VSUBF(t0r, t2r, ar2) \
-	VSUBF(t0i, t2i, ai2) \
-	VSUBF(t1r, t3i, ar1) \
-	VADDF(t1i, t3r, ai1) \
-	VADDF(t1r, t3i, ar3) \
-	VSUBF(t1i, t3r, ai3)
+	VADDF_S4(ar0, ar2, t0r) \
+	VSUBF_S4(ar0, ar2, t1r) \
+	VADDF_S4(ar1, ar3, t2r) \
+	VSUBF_S4(ar1, ar3, t3r) \
+	VADDF_S4(ai0, ai2, t0i) \
+	VSUBF_S4(ai0, ai2, t1i) \
+	VADDF_S4(ai1, ai3, t2i) \
+	VSUBF_S4(ai1, ai3, t3i) \
+	VADDF_S4(t0r, t2r, ar0) \
+	VADDF_S4(t0i, t2i, ai0) \
+	VSUBF_S4(t0r, t2r, ar2) \
+	VSUBF_S4(t0i, t2i, ai2) \
+	VSUBF_S4(t1r, t3i, ar1) \
+	VADDF_S4(t1i, t3r, ai1) \
+	VADDF_S4(t1r, t3i, ar3) \
+	VSUBF_S4(t1i, t3r, ai3)
 
-// dr,di *= (wr + i*wi), result back in dr,di; clobbers p, q.
+// dr,di *= (wr + i*wi), result back in dr,di; clobbers p, q. Register NUMBERS.
 #define VCMUL_FWD(dr, di, wr, wi, p, q) \
-	VEOR  p.B16, p.B16, p.B16 \
-	VFMLA dr.S4, wr.S4, p.S4  \
-	VFMLS di.S4, wi.S4, p.S4  \
-	VEOR  q.B16, q.B16, q.B16 \
-	VFMLA dr.S4, wi.S4, q.S4  \
-	VFMLA di.S4, wr.S4, q.S4  \
-	VMOV  p.B16, dr.B16       \
-	VMOV  q.B16, di.B16
+	VMULF_S4(dr, wr, p) \
+	VFMSF_S4(di, wi, p) \
+	VMULF_S4(dr, wi, q) \
+	VFMAF_S4(di, wr, q) \
+	VMOVR(p, dr)        \
+	VMOVR(q, di)
 
 // dr,di *= conj(wr + i*wi) — the inverse twiddle.
 #define VCMUL_INV(dr, di, wr, wi, p, q) \
-	VEOR  p.B16, p.B16, p.B16 \
-	VFMLA dr.S4, wr.S4, p.S4  \
-	VFMLA di.S4, wi.S4, p.S4  \
-	VEOR  q.B16, q.B16, q.B16 \
-	VFMLA di.S4, wr.S4, q.S4  \
-	VFMLS dr.S4, wi.S4, q.S4  \
-	VMOV  p.B16, dr.B16       \
-	VMOV  q.B16, di.B16
+	VMULF_S4(dr, wr, p) \
+	VFMAF_S4(di, wi, p) \
+	VMULF_S4(di, wr, q) \
+	VFMSF_S4(dr, wi, q) \
+	VMOVR(p, dr)        \
+	VMOVR(q, di)
 
 // (A) DFT2 over n2 + (B) twiddle + (C) re-lane, shared by forward and inverse
 // (the twiddle multiply macro CMUL is passed in). Inputs V0/V1 = re/im of
@@ -120,12 +107,12 @@
 // (real) and their imaginary twins in the *i registers named below, ready for
 // VDFT4_*. Clobbers V4..V9, V16..V19.
 #define VSTAGE_AB(CMUL) \
-	VADDF(V0, V2, V4)                  \
-	VADDF(V1, V3, V5)                  \
-	VSUBF(V0, V2, V6)                  \
-	VSUBF(V1, V3, V7)                  \
+	VADDF_S4(0, 2, 4)                  \
+	VADDF_S4(1, 3, 5)                  \
+	VSUBF_S4(0, 2, 6)                  \
+	VSUBF_S4(1, 3, 7)                  \
 	VLD2  (R10), [V16.S4, V17.S4]      \
-	CMUL(V6, V7, V16, V17, V8, V9)     \
+	CMUL(6, 7, 16, 17, 8, 9)           \
 	VZIP1 V6.S4, V4.S4, V18.S4         \
 	VZIP2 V6.S4, V4.S4, V19.S4         \
 	VMOV  V18.B16, V0.B16              \
@@ -159,9 +146,6 @@ TEXT ·ForwardNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $8, R0
 	BLT  neon8r8_return_false
 
-	MOVD $·neonOnes(SB), R0
-	VLD1 (R0), [ONES.S4]
-
 	// Load x[n1 + 4*n2]: vector n2, lane n1.
 	VLD2 (R9), [V0.S4, V1.S4]
 	ADD  $32, R9, R1
@@ -172,7 +156,7 @@ TEXT ·ForwardNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	VSTAGE_AB(VCMUL_FWD)
 
 	// (D) DFT4 over n1. Vector index becomes k1, lanes(0,1) stay k2.
-	VDFT4_FWD(V0, V1, V2, V3, V20, V21, V22, V23, V4, V5, V6, V7, V8, V9, V16, V17)
+	VDFT4_FWD(0, 1, 2, 3, 20, 21, 22, 23, 4, 5, 6, 7, 8, 9, 16, 17)
 
 	// Vector k1 holds [X[2k1+0], X[2k1+1]] in its low 64 bits (D0). Pairs of
 	// consecutive k1 collect into four consecutive outputs via a D2 zip.
@@ -213,9 +197,6 @@ TEXT ·InverseNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	CMP  $8, R0
 	BLT  neon8r8_inv_return_false
 
-	MOVD $·neonOnes(SB), R0
-	VLD1 (R0), [ONES.S4]
-
 	// Load x[n1 + 4*n2]: vector n2, lane n1.
 	VLD2 (R9), [V0.S4, V1.S4]
 	ADD  $32, R9, R1
@@ -226,34 +207,26 @@ TEXT ·InverseNEONSize8Radix8Complex64Asm(SB), NOSPLIT, $0-97
 	VSTAGE_AB(VCMUL_INV)
 
 	// (D) DFT4 over n1. Vector index becomes k1, lanes(0,1) stay k2.
-	VDFT4_INV(V0, V1, V2, V3, V20, V21, V22, V23, V4, V5, V6, V7, V8, V9, V16, V17)
+	VDFT4_INV(0, 1, 2, 3, 20, 21, 22, 23, 4, 5, 6, 7, 8, 9, 16, 17)
 
 	// Scale by 1/8. Broadcast from memory — a register broadcast of a scalar
 	// constant costs a fixed ~100ns and would dominate a kernel this small.
 	MOVD  $·neonInv8(SB), R0
 	VLD1R (R0), [V28.S4]
 
-	VEOR  V24.B16, V24.B16, V24.B16
-	VFMLA V0.S4, V28.S4, V24.S4
-	VEOR  V25.B16, V25.B16, V25.B16
-	VFMLA V20.S4, V28.S4, V25.S4
-	VEOR  V26.B16, V26.B16, V26.B16
-	VFMLA V1.S4, V28.S4, V26.S4
-	VEOR  V27.B16, V27.B16, V27.B16
-	VFMLA V21.S4, V28.S4, V27.S4
+	VMULF_S4(0, 28, 24)
+	VMULF_S4(20, 28, 25)
+	VMULF_S4(1, 28, 26)
+	VMULF_S4(21, 28, 27)
 
 	VZIP1 V26.D2, V24.D2, V4.D2
 	VZIP1 V27.D2, V25.D2, V5.D2
 	VST2  [V4.S4, V5.S4], (R8)
 
-	VEOR  V24.B16, V24.B16, V24.B16
-	VFMLA V2.S4, V28.S4, V24.S4
-	VEOR  V25.B16, V25.B16, V25.B16
-	VFMLA V22.S4, V28.S4, V25.S4
-	VEOR  V26.B16, V26.B16, V26.B16
-	VFMLA V3.S4, V28.S4, V26.S4
-	VEOR  V27.B16, V27.B16, V27.B16
-	VFMLA V23.S4, V28.S4, V27.S4
+	VMULF_S4(2, 28, 24)
+	VMULF_S4(22, 28, 25)
+	VMULF_S4(3, 28, 26)
+	VMULF_S4(23, 28, 27)
 
 	VZIP1 V26.D2, V24.D2, V6.D2
 	VZIP1 V27.D2, V25.D2, V7.D2

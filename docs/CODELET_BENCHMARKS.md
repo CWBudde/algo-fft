@@ -1084,17 +1084,35 @@ dead weight like 281 register-to-register `FMOVS` in `neon_f32_size1024_radix4.s
 and a scalar bit-reversal loop. Only `neon_f32_generic.s` is genuinely
 vectorized; `neon_f64_generic.s` is scalar too.
 
-The reason the files came out that way is a real toolchain constraint worth
-recording: **Go's arm64 assembler has no vector FP add, subtract or multiply.**
-`VFADD`/`VFSUB`/`VFMUL` are "unrecognized instruction"; `VFMLA` and `VFMLS` are
-the only vector FP arithmetic mnemonics it accepts, and `VADD`/`VSUB` are
-integer-only. The workaround is the one `neon_f32_generic.s` already uses:
-synthesize multiply as `VEOR`-zero + `VFMLA`, and add/sub against a vector of
-1.0 (`·neonOnes`) with `VFMLA`/`VFMLS`. On Apple cores FMA has the same
-throughput as FADD, so this costs nothing. Two further traps: `VLD2`/`VST2`
-register lists must be **contiguous** (`[V0,V1]`, never `[V0,V4]`), and
-`RankLevel` cannot demote below the generic tier because the registry reads
-`RankLevel == SIMDNone` as unset.
+The reason the files came out that way is a toolchain constraint worth recording:
+**Go's arm64 assembler has no mnemonic for vector FP add, subtract or multiply.**
+`VFADD`/`VFSUB`/`VFMUL`, and bare `FADD`, are all "unrecognized instruction";
+`VFMLA` and `VFMLS` are the only vector FP arithmetic mnemonics it accepts, and
+`VADD`/`VSUB` are integer-only.
+
+**That is a gap in the assembler's instruction table, not in the hardware, and
+treating it as a hard limit was a mistake that cost a factor of two.** The
+encodings can be emitted directly with `WORD`; `internal/asm/arm64/neon_fp.h`
+now provides verified macros for `FADD`/`FSUB`/`FMUL`/`FMLA`/`FMLS` plus
+register move and xor, in both `.4S` and `.2D`. The workaround this file
+originally recommended — the one `neon_f32_generic.s` uses, synthesizing add and
+subtract against a vector of 1.0 (`·neonOnes`) with `VFMLA`/`VFMLS` — costs
+**two instructions per add or subtract**, a register for the constant, and two
+prologue instructions to load it. The claim that "on Apple cores FMA has the
+same throughput as FADD, so this costs nothing" was wrong: the throughput claim
+is true, but it is not the issue — the instruction *count* is. A radix-4
+butterfly is sixteen adds and subtracts.
+
+The macros take register **numbers**, not names, because the encoding embeds the
+number and Go's asm preprocessor has no token pasting (`##` fails with "'#' must
+be first item on line"). So a converted file carries two macro families: numeric
+ones for arithmetic and name-taking ones for the shuffles and loads that do have
+mnemonics. Nothing checks the `V<n>` ↔ `n` correspondence; the registry-driven
+reference tests are what catch a wrong number.
+
+Two further traps: `VLD2`/`VST2` register lists must be **contiguous**
+(`[V0,V1]`, never `[V0,V4]`), and `RankLevel` cannot demote below the generic
+tier because the registry reads `RankLevel == SIMDNone` as unset.
 
 ### Size 16, complex64 — first vectorized rewrite
 
@@ -1126,4 +1144,49 @@ than the best pure-Go candidate — a size the scalar version had lost by
 process, the ratio is unchanged. Only ratios travel.
 
 Correctness: naive-DFT cross-check, round-trip and in-place all pass under both
-QEMU and the M5. The remaining 41 files are unconverted and still lose.
+QEMU and the M5.
+
+Converting this kernel to the `WORD`-encoded arithmetic described above — same
+algorithm, only the instruction idiom changed — took it to **6.22 / 6.76 ns**,
+i.e. **1.95x / 1.99x** vs the best pure-Go candidate. That is ~15% off an
+already-winning kernel purely from not synthesizing adds.
+
+### Sizes 4 and 8 — vectorized, and mostly still losing
+
+Four more kernels were rewritten the same way (`neon_f32_size4_radix4.s`,
+`neon_f32_size8_radix8.s`, `neon_f64_size4_radix4.s`,
+`neon_f64_size8_radix4.s`). Each is dramatically faster than the scalar code it
+replaced — c128 size 8 forward went from a 3.76x loss to 1.61x, c64 size 4
+inverse from 3.23x to 1.41x — but **only one of the eight cells actually wins**:
+
+| cell            | best pure-Go | NEON | verdict       |
+| --------------- | -----------: | ---: | ------------- |
+| c64 size 4 fwd  |         1.87 | 2.93 | loss 1.56x    |
+| c64 size 4 inv  |         2.13 | 3.00 | loss 1.41x    |
+| c64 size 8 fwd  |         3.62 | 4.29 | loss 1.19x    |
+| c64 size 8 inv  |         5.78 | 4.84 | **win 1.20x** |
+| c128 size 4 fwd |         1.77 | 3.80 | loss 2.15x    |
+| c128 size 4 inv |         2.09 | 4.00 | loss 1.91x    |
+| c128 size 8 fwd |         3.62 | 5.84 | loss 1.61x    |
+| c128 size 8 inv |         5.82 | 6.38 | loss 1.10x    |
+
+(Measured before the `WORD` conversion reached these four, so they still carry
+the 2x add/subtract penalty; expect them to improve.)
+
+The structural point stands regardless: at n=4 the whole transform is sixteen
+real adds, which the pure-Go codelet does in 1.8 ns with **no call boundary** —
+the Go compiler inlines it. An assembly codelet pays a call, a length-validation
+preamble, and its prologue before doing any arithmetic. There is a size below
+which asm cannot win no matter how good the kernel is, and on this host it is
+somewhere between 8 and 16.
+
+### The selection problem this exposes
+
+Registry ordering is **SIMD-level major**, so a NEON codelet is selected over a
+faster pure-Go one at the same size. Every losing cell above is therefore not a
+missed opportunity but an active regression for arm64 users: the library picks
+the slower kernel. With ~50 of 56 NEON cells still losing, that is the largest
+single arm64 performance issue in the tree — larger than any individual kernel
+rewrite. `RankLevel` cannot express the fix (it cannot demote below the generic
+tier), and `Priority < 0` removes the codelet from the correctness tests as well
+as from lookup, so neither existing mechanism is a clean answer.

@@ -31,95 +31,83 @@
 // Every input is loaded into registers before the first store, so dst may
 // alias src and no scratch buffer or copy-back is needed.
 //
-// Go's arm64 assembler has NO vector FADD/FSUB/FMUL — VFMLA and VFMLS are the
-// only vector FP arithmetic mnemonics it accepts. Addition and subtraction are
-// therefore synthesized against a vector of 1.0 and multiplication against a
-// VEOR-zeroed accumulator, exactly as neon_f64_size4_radix4.s does. There is
-// no float64 ·neonOnes; ·neonOne64 (core.s) is one 8-byte 1.0, broadcast to
-// both lanes with VLD1R.
+// Go's assembler has no mnemonic for vector FADD/FSUB/FMUL; the real
+// encodings are emitted directly with WORD via the macros in neon_fp.h
+// (VADDF_D2/VSUBF_D2/VMULF_D2/VFMAF_D2/VFMSF_D2), which take register
+// NUMBERS rather than names because the assembler's preprocessor has no
+// token pasting. See neon_fp.h for the full rationale and the encoding
+// table. V31 still holds a broadcast [1.0, 1.0] (·neonOne64) here, but only
+// as a data constant used to build the twiddle vector wr = [1.0, W8^k] via
+// VZIP1 (lane n1=0 always carries factor 1) — it is no longer used for
+// synthesizing add/sub.
 //
 // ===========================================================================
 
 #include "textflag.h"
+#include "neon_fp.h"
 
 // Note: neonInv8F64 is defined in neon_f64_size8_radix2.s to avoid duplicate
 // symbols.
-
-// V31 permanently holds [1.0, 1.0]; the add/sub macros depend on it.
-#define ONES V31
-
-// d = a + b, d = a - b (a, b, d are V-register names without arrangement).
-#define VADDF(a, b, d) \
-	VMOV  a.B16, d.B16    \
-	VFMLA b.D2, ONES.D2, d.D2
-
-#define VSUBF(a, b, d) \
-	VMOV  a.B16, d.B16    \
-	VFMLS b.D2, ONES.D2, d.D2
 
 // Forward DFT4 across four vectors (W4 = -i):
 //   X0 = t0+t2   X2 = t0-t2   X1 = t1 - i*t3   X3 = t1 + i*t3
 // where t0 = a0+a2, t1 = a0-a2, t2 = a1+a3, t3 = a1-a3.
 // Operates on real parts ar0..ar3 and imaginary parts ai0..ai3 in place,
-// clobbering the eight temporaries.
+// clobbering the eight temporaries. Register NUMBERS.
 #define VDFT4_FWD(ar0, ar1, ar2, ar3, ai0, ai1, ai2, ai3, t0r, t1r, t2r, t3r, t0i, t1i, t2i, t3i) \
-	VADDF(ar0, ar2, t0r) \
-	VSUBF(ar0, ar2, t1r) \
-	VADDF(ar1, ar3, t2r) \
-	VSUBF(ar1, ar3, t3r) \
-	VADDF(ai0, ai2, t0i) \
-	VSUBF(ai0, ai2, t1i) \
-	VADDF(ai1, ai3, t2i) \
-	VSUBF(ai1, ai3, t3i) \
-	VADDF(t0r, t2r, ar0) \
-	VADDF(t0i, t2i, ai0) \
-	VSUBF(t0r, t2r, ar2) \
-	VSUBF(t0i, t2i, ai2) \
-	VADDF(t1r, t3i, ar1) \
-	VSUBF(t1i, t3r, ai1) \
-	VSUBF(t1r, t3i, ar3) \
-	VADDF(t1i, t3r, ai3)
+	VADDF_D2(ar0, ar2, t0r) \
+	VSUBF_D2(ar0, ar2, t1r) \
+	VADDF_D2(ar1, ar3, t2r) \
+	VSUBF_D2(ar1, ar3, t3r) \
+	VADDF_D2(ai0, ai2, t0i) \
+	VSUBF_D2(ai0, ai2, t1i) \
+	VADDF_D2(ai1, ai3, t2i) \
+	VSUBF_D2(ai1, ai3, t3i) \
+	VADDF_D2(t0r, t2r, ar0) \
+	VADDF_D2(t0i, t2i, ai0) \
+	VSUBF_D2(t0r, t2r, ar2) \
+	VSUBF_D2(t0i, t2i, ai2) \
+	VADDF_D2(t1r, t3i, ar1) \
+	VSUBF_D2(t1i, t3r, ai1) \
+	VSUBF_D2(t1r, t3i, ar3) \
+	VADDF_D2(t1i, t3r, ai3)
 
 // Inverse DFT4 across four vectors (W4 = +i): X1 and X3 swap relative to fwd.
 #define VDFT4_INV(ar0, ar1, ar2, ar3, ai0, ai1, ai2, ai3, t0r, t1r, t2r, t3r, t0i, t1i, t2i, t3i) \
-	VADDF(ar0, ar2, t0r) \
-	VSUBF(ar0, ar2, t1r) \
-	VADDF(ar1, ar3, t2r) \
-	VSUBF(ar1, ar3, t3r) \
-	VADDF(ai0, ai2, t0i) \
-	VSUBF(ai0, ai2, t1i) \
-	VADDF(ai1, ai3, t2i) \
-	VSUBF(ai1, ai3, t3i) \
-	VADDF(t0r, t2r, ar0) \
-	VADDF(t0i, t2i, ai0) \
-	VSUBF(t0r, t2r, ar2) \
-	VSUBF(t0i, t2i, ai2) \
-	VSUBF(t1r, t3i, ar1) \
-	VADDF(t1i, t3r, ai1) \
-	VADDF(t1r, t3i, ar3) \
-	VSUBF(t1i, t3r, ai3)
+	VADDF_D2(ar0, ar2, t0r) \
+	VSUBF_D2(ar0, ar2, t1r) \
+	VADDF_D2(ar1, ar3, t2r) \
+	VSUBF_D2(ar1, ar3, t3r) \
+	VADDF_D2(ai0, ai2, t0i) \
+	VSUBF_D2(ai0, ai2, t1i) \
+	VADDF_D2(ai1, ai3, t2i) \
+	VSUBF_D2(ai1, ai3, t3i) \
+	VADDF_D2(t0r, t2r, ar0) \
+	VADDF_D2(t0i, t2i, ai0) \
+	VSUBF_D2(t0r, t2r, ar2) \
+	VSUBF_D2(t0i, t2i, ai2) \
+	VSUBF_D2(t1r, t3i, ar1) \
+	VADDF_D2(t1i, t3r, ai1) \
+	VADDF_D2(t1r, t3i, ar3) \
+	VSUBF_D2(t1i, t3r, ai3)
 
-// dr,di *= (wr + i*wi), result back in dr,di; clobbers p, q.
+// dr,di *= (wr + i*wi), result back in dr,di; clobbers p, q. Register NUMBERS.
 #define VCMUL_FWD(dr, di, wr, wi, p, q) \
-	VEOR  p.B16, p.B16, p.B16 \
-	VFMLA dr.D2, wr.D2, p.D2  \
-	VFMLS di.D2, wi.D2, p.D2  \
-	VEOR  q.B16, q.B16, q.B16 \
-	VFMLA dr.D2, wi.D2, q.D2  \
-	VFMLA di.D2, wr.D2, q.D2  \
-	VMOV  p.B16, dr.B16       \
-	VMOV  q.B16, di.B16
+	VMULF_D2(dr, wr, p) \
+	VFMSF_D2(di, wi, p) \
+	VMULF_D2(dr, wi, q) \
+	VFMAF_D2(di, wr, q) \
+	VMOVR(p, dr)        \
+	VMOVR(q, di)
 
 // dr,di *= conj(wr + i*wi) — the inverse twiddle.
 #define VCMUL_INV(dr, di, wr, wi, p, q) \
-	VEOR  p.B16, p.B16, p.B16 \
-	VFMLA dr.D2, wr.D2, p.D2  \
-	VFMLA di.D2, wi.D2, p.D2  \
-	VEOR  q.B16, q.B16, q.B16 \
-	VFMLA di.D2, wr.D2, q.D2  \
-	VFMLS dr.D2, wi.D2, q.D2  \
-	VMOV  p.B16, dr.B16       \
-	VMOV  q.B16, di.B16
+	VMULF_D2(dr, wr, p) \
+	VFMAF_D2(di, wi, p) \
+	VMULF_D2(di, wr, q) \
+	VFMSF_D2(dr, wi, q) \
+	VMOVR(p, dr)        \
+	VMOVR(q, di)
 
 // ---------------------------------------------------------------------------
 // func ForwardNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
@@ -142,7 +130,7 @@ TEXT ·ForwardNEONSize8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	BLT  neon8r4f64_return_false
 
 	MOVD  $·neonOne64(SB), R0
-	VLD1R (R0), [ONES.D2]
+	VLD1R (R0), [V31.D2]
 	VEOR  V30.B16, V30.B16, V30.B16 // V30 = [0.0, 0.0], used to build wi
 
 	// Load x[n1 + 2*n2]: vector n2, lane n1. VLD2 deinterleaves re/im, and its
@@ -157,42 +145,42 @@ TEXT ·ForwardNEONSize8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	VLD2 (R1), [V6.D2, V7.D2]
 
 	// (A) DFT4 over n2. Vector index becomes k2.
-	VDFT4_FWD(V0, V2, V4, V6, V1, V3, V5, V7, V8, V9, V10, V11, V12, V13, V14, V15)
+	VDFT4_FWD(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 
 	// (B) twiddle by W8^(n1*k2). k2 = 0 is all-ones, so it is skipped.
 	ADD  $16, R10, R2
 	VLD1R (R2), [V16.D2]     // t = Re(W8^1)
-	VZIP1 V16.D2, ONES.D2, V17.D2 // wr = [1.0, Re(W8^1)]
+	VZIP1 V16.D2, V31.D2, V17.D2 // wr = [1.0, Re(W8^1)]
 	ADD  $8, R2, R3
 	VLD1R (R3), [V16.D2]     // t = Im(W8^1)
 	VZIP1 V16.D2, V30.D2, V18.D2  // wi = [0.0, Im(W8^1)]
-	VCMUL_FWD(V2, V3, V17, V18, V8, V9)
+	VCMUL_FWD(2, 3, 17, 18, 8, 9)
 
 	ADD  $32, R10, R2
 	VLD1R (R2), [V16.D2]     // t = Re(W8^2)
-	VZIP1 V16.D2, ONES.D2, V17.D2 // wr = [1.0, Re(W8^2)]
+	VZIP1 V16.D2, V31.D2, V17.D2 // wr = [1.0, Re(W8^2)]
 	ADD  $8, R2, R3
 	VLD1R (R3), [V16.D2]     // t = Im(W8^2)
 	VZIP1 V16.D2, V30.D2, V18.D2  // wi = [0.0, Im(W8^2)]
-	VCMUL_FWD(V4, V5, V17, V18, V8, V9)
+	VCMUL_FWD(4, 5, 17, 18, 8, 9)
 
 	ADD  $48, R10, R2
 	VLD1R (R2), [V16.D2]     // t = Re(W8^3)
-	VZIP1 V16.D2, ONES.D2, V17.D2 // wr = [1.0, Re(W8^3)]
+	VZIP1 V16.D2, V31.D2, V17.D2 // wr = [1.0, Re(W8^3)]
 	ADD  $8, R2, R3
 	VLD1R (R3), [V16.D2]     // t = Im(W8^3)
 	VZIP1 V16.D2, V30.D2, V18.D2  // wi = [0.0, Im(W8^3)]
-	VCMUL_FWD(V6, V7, V17, V18, V8, V9)
+	VCMUL_FWD(6, 7, 17, 18, 8, 9)
 
 	// (C) pair k2=0,1 -> DFT2 over n1 (the lane index). p = n1=0, q = n1=1.
 	VZIP1 V2.D2, V0.D2, V20.D2 // p_re = [A0(n1=0), A1(n1=0)]
 	VZIP2 V2.D2, V0.D2, V21.D2 // q_re = [A0(n1=1), A1(n1=1)]
 	VZIP1 V3.D2, V1.D2, V22.D2 // p_im
 	VZIP2 V3.D2, V1.D2, V23.D2 // q_im
-	VADDF(V20, V21, V24)       // X0,X1 (k1=0) real
-	VADDF(V22, V23, V25)       // X0,X1 imag
-	VSUBF(V20, V21, V26)       // X4,X5 (k1=1) real
-	VSUBF(V22, V23, V27)       // X4,X5 imag
+	VADDF_D2(20, 21, 24)       // X0,X1 (k1=0) real
+	VADDF_D2(22, 23, 25)       // X0,X1 imag
+	VSUBF_D2(20, 21, 26)       // X4,X5 (k1=1) real
+	VSUBF_D2(22, 23, 27)       // X4,X5 imag
 
 	VST2 [V24.D2, V25.D2], (R8)
 	ADD  $64, R8, R1
@@ -203,10 +191,10 @@ TEXT ·ForwardNEONSize8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	VZIP2 V6.D2, V4.D2, V21.D2
 	VZIP1 V7.D2, V5.D2, V22.D2
 	VZIP2 V7.D2, V5.D2, V23.D2
-	VADDF(V20, V21, V24)
-	VADDF(V22, V23, V25)
-	VSUBF(V20, V21, V26)
-	VSUBF(V22, V23, V27)
+	VADDF_D2(20, 21, 24)
+	VADDF_D2(22, 23, 25)
+	VSUBF_D2(20, 21, 26)
+	VSUBF_D2(22, 23, 27)
 
 	ADD  $32, R8, R1
 	VST2 [V24.D2, V25.D2], (R1)
@@ -242,7 +230,7 @@ TEXT ·InverseNEONSize8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	BLT  neon8r4f64_inv_return_false
 
 	MOVD  $·neonOne64(SB), R0
-	VLD1R (R0), [ONES.D2]
+	VLD1R (R0), [V31.D2]
 	VEOR  V30.B16, V30.B16, V30.B16 // V30 = [0.0, 0.0], used to build wi
 
 	// Load x[n1 + 2*n2]: vector n2, lane n1.
@@ -255,82 +243,74 @@ TEXT ·InverseNEONSize8Radix4Complex128Asm(SB), NOSPLIT, $0-97
 	VLD2 (R1), [V6.D2, V7.D2]
 
 	// (A) DFT4 over n2. Vector index becomes k2.
-	VDFT4_INV(V0, V2, V4, V6, V1, V3, V5, V7, V8, V9, V10, V11, V12, V13, V14, V15)
+	VDFT4_INV(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 
 	// (B) twiddle by W8^(n1*k2), conjugated by VCMUL_INV. k2 = 0 skipped.
 	ADD  $16, R10, R2
 	VLD1R (R2), [V16.D2]
-	VZIP1 V16.D2, ONES.D2, V17.D2
+	VZIP1 V16.D2, V31.D2, V17.D2
 	ADD  $8, R2, R3
 	VLD1R (R3), [V16.D2]
 	VZIP1 V16.D2, V30.D2, V18.D2
-	VCMUL_INV(V2, V3, V17, V18, V8, V9)
+	VCMUL_INV(2, 3, 17, 18, 8, 9)
 
 	ADD  $32, R10, R2
 	VLD1R (R2), [V16.D2]
-	VZIP1 V16.D2, ONES.D2, V17.D2
+	VZIP1 V16.D2, V31.D2, V17.D2
 	ADD  $8, R2, R3
 	VLD1R (R3), [V16.D2]
 	VZIP1 V16.D2, V30.D2, V18.D2
-	VCMUL_INV(V4, V5, V17, V18, V8, V9)
+	VCMUL_INV(4, 5, 17, 18, 8, 9)
 
 	ADD  $48, R10, R2
 	VLD1R (R2), [V16.D2]
-	VZIP1 V16.D2, ONES.D2, V17.D2
+	VZIP1 V16.D2, V31.D2, V17.D2
 	ADD  $8, R2, R3
 	VLD1R (R3), [V16.D2]
 	VZIP1 V16.D2, V30.D2, V18.D2
-	VCMUL_INV(V6, V7, V17, V18, V8, V9)
+	VCMUL_INV(6, 7, 17, 18, 8, 9)
 
 	// (C) pair k2=0,1 -> DFT2 over n1.
 	VZIP1 V2.D2, V0.D2, V20.D2
 	VZIP2 V2.D2, V0.D2, V21.D2
 	VZIP1 V3.D2, V1.D2, V22.D2
 	VZIP2 V3.D2, V1.D2, V23.D2
-	VADDF(V20, V21, V24) // X0,X1 real
-	VADDF(V22, V23, V25) // X0,X1 imag
-	VSUBF(V20, V21, V26) // X4,X5 real
-	VSUBF(V22, V23, V27) // X4,X5 imag
+	VADDF_D2(20, 21, 24) // X0,X1 real
+	VADDF_D2(22, 23, 25) // X0,X1 imag
+	VSUBF_D2(20, 21, 26) // X4,X5 real
+	VSUBF_D2(22, 23, 27) // X4,X5 imag
 
 	// pair k2=2,3 -> DFT2 over n1.
 	VZIP1 V6.D2, V4.D2, V0.D2
 	VZIP2 V6.D2, V4.D2, V1.D2
 	VZIP1 V7.D2, V5.D2, V2.D2
 	VZIP2 V7.D2, V5.D2, V3.D2
-	VADDF(V0, V1, V4) // X2,X3 real
-	VADDF(V2, V3, V5) // X2,X3 imag
-	VSUBF(V0, V1, V6) // X6,X7 real
-	VSUBF(V2, V3, V7) // X6,X7 imag
+	VADDF_D2(0, 1, 4) // X2,X3 real
+	VADDF_D2(2, 3, 5) // X2,X3 imag
+	VSUBF_D2(0, 1, 6) // X6,X7 real
+	VSUBF_D2(2, 3, 7) // X6,X7 imag
 
 	// Scale by 1/8. Broadcast from memory — a register broadcast of a scalar
 	// constant costs a fixed ~100ns and would dominate a kernel this small.
 	MOVD  $·neonInv8F64(SB), R0
 	VLD1R (R0), [V29.D2]
 
-	VEOR  V8.B16, V8.B16, V8.B16
-	VFMLA V24.D2, V29.D2, V8.D2
-	VEOR  V9.B16, V9.B16, V9.B16
-	VFMLA V25.D2, V29.D2, V9.D2
+	VMULF_D2(24, 29, 8)
+	VMULF_D2(25, 29, 9)
 	VST2  [V8.D2, V9.D2], (R8) // X0,X1
 
-	VEOR  V10.B16, V10.B16, V10.B16
-	VFMLA V4.D2, V29.D2, V10.D2
-	VEOR  V11.B16, V11.B16, V11.B16
-	VFMLA V5.D2, V29.D2, V11.D2
+	VMULF_D2(4, 29, 10)
+	VMULF_D2(5, 29, 11)
 	ADD   $32, R8, R1
 	VST2  [V10.D2, V11.D2], (R1) // X2,X3
 
-	VEOR  V12.B16, V12.B16, V12.B16
-	VFMLA V26.D2, V29.D2, V12.D2
-	VEOR  V13.B16, V13.B16, V13.B16
-	VFMLA V27.D2, V29.D2, V13.D2
+	VMULF_D2(26, 29, 12)
+	VMULF_D2(27, 29, 13)
 	ADD   $64, R8, R1
 	VST2  [V12.D2, V13.D2], (R1) // X4,X5
 
-	VEOR  V14.B16, V14.B16, V14.B16
-	VFMLA V6.D2, V29.D2, V14.D2
-	VEOR  V15.B16, V15.B16, V15.B16
-	VFMLA V7.D2, V29.D2, V15.D2
+	VMULF_D2(6, 29, 14)
+	VMULF_D2(7, 29, 15)
 	ADD   $96, R8, R1
 	VST2  [V14.D2, V15.D2], (R1) // X6,X7
 
