@@ -153,18 +153,6 @@ func ForwardNEONSize128Radix2Complex128Asm(dst, src, twiddle, scratch []complex1
 func InverseNEONSize128Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardNEONSize256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize256Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardNEONSize1024Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize1024Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
 func ForwardNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
@@ -175,12 +163,6 @@ func ForwardNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch []com
 
 //go:noescape
 func InverseNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardNEONSize64Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize64Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
 func ForwardNEONSize128MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
@@ -207,22 +189,10 @@ func ForwardNEONSize2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []co
 func InverseNEONSize2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
-func ForwardNEONSize4096Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize4096Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
 func ForwardNEONSize8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
 func InverseNEONSize8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardNEONSize16384Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize16384Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
 //go:noescape
 func ForwardNEONSize32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
