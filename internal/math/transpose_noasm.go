@@ -1,6 +1,14 @@
-//go:build !amd64 || purego
+//go:build !amd64 || purego || !fftprobe
+
+// The pure-Go transpose dispatch. This is what every ordinary build gets,
+// including amd64: the AVX2 path in transpose_amd64.go is probe-gated until
+// Phase 3 gives it a caller. See that file's header for why.
 
 package math
+
+// transposeAVX2Linked reports whether this build contains the AVX2 transpose
+// dispatch at all; see transpose_amd64.go.
+const transposeAVX2Linked = false
 
 // TransposeSquareOutOfPlaceComplex64 is the pure-Go fallback used on builds
 // without the amd64 AVX2 transpose asm; see transpose_amd64.go for the SIMD

@@ -214,6 +214,25 @@ var probeNotes = map[string]probeNote{
 		Rederiv: "taskset -c 0 go test -tags fftprobe -run '^$' -bench 'BenchmarkC128Radix[24]' " +
 			"-benchtime=0.5s -count=5 ./internal/fft/",
 	},
+	"internal/math/transpose_amd64.go": {
+		Subject: "the AVX2 64x64/128x128 transposes — plain, fused twiddle, fused conjugate " +
+			"twiddle — against the pure-Go blocked transpose they would displace",
+		Status: probeOpen,
+		Verdict: "**Unmeasured, and gated for reachability rather than for a result** " +
+			"(2026-08-02). The six asm symbols are correct — `transpose_oop_test.go` checks all " +
+			"three variants against a naive reference and against the pure-Go path at n = 64, " +
+			"96 and 128 — but nothing in the library called them: the six-step and four-step " +
+			"routes that want a square transpose are Phase 3. Correct-but-uncalled assembly is " +
+			"the standing failure mode here, where a green suite proves nothing because the " +
+			"registry-driven tests never reach the symbol, so the dispatch moved behind the tag " +
+			"instead of staying nominally live. n = 96 is in the benchmark as a control: the " +
+			"dispatch does not handle it, so both columns run identical code there and any gap " +
+			"is noise. Phase 3 closes this by deleting the tag, not by a sweep — the sweep only " +
+			"decides whether the asm is worth calling once something can.",
+		Record: "PLAN.md, \"1.3 Resolve the unreachable assembly\"",
+		Rederiv: "taskset -c 0 go test -tags fftprobe -run '^$' -bench BenchmarkTransposeProbe " +
+			"-benchtime=0.5s -count=5 ./internal/math/",
+	},
 	"internal/kernels/probe_util.go": {
 		Subject: "shared helpers for the harnesses in this section (no kernel of its own)",
 		Status:  probeSupport,
@@ -248,7 +267,7 @@ func scanProbeFiles(root string) ([]probeEntry, error) {
 			return err
 		}
 
-		if !strings.Contains(constraint, "fftprobe") {
+		if !constraintSelectsProbe(constraint) {
 			return nil
 		}
 
@@ -268,6 +287,17 @@ func scanProbeFiles(root string) ([]probeEntry, error) {
 	sort.Slice(found, func(i, j int) bool { return found[i].Path < found[j].Path })
 
 	return found, nil
+}
+
+// constraintSelectsProbe reports whether a //go:build line puts its file in
+// probe builds. Mentioning the tag is not enough: a file gated on `!fftprobe`
+// is the *fallback* that ordinary builds take, the exact opposite of a probe,
+// and counting it as one demands a verdict for code that has no measurement to
+// record. That is not hypothetical — internal/math/transpose_noasm.go took
+// that constraint when the AVX2 transposes were probe-gated, and a substring
+// test flagged it.
+func constraintSelectsProbe(constraint string) bool {
+	return strings.Contains(strings.ReplaceAll(constraint, "!fftprobe", ""), "fftprobe")
 }
 
 // buildConstraint returns the //go:build line of a Go file, or "" if it has

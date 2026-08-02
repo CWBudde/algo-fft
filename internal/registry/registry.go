@@ -55,21 +55,46 @@ type CodeletEntry[T fftypes.Complex] struct {
 	// own tier's siblings on CPUs that have nothing better.
 	RankLevel fftypes.SIMDLevel
 
+	// RankBelowGeneric orders this codelet below *every* pure-Go codelet,
+	// which RankLevel cannot express: SIMDLevel is unsigned and its zero value
+	// already means "RankLevel unset", so there is no level below SIMDNone and
+	// no way to tie-break under a generic sibling whose Priority is 0.
+	//
+	// It is the correct disposition for a codelet that a real measurement found
+	// slower than pure Go on the only host it has been run on. Priority < 0
+	// would also stop it being selected, but it additionally drops the codelet
+	// from LookupBySignature and from the registry-driven reference tests —
+	// i.e. it stops being verified, which is not what "measured slower here"
+	// warrants. A RankBelowGeneric codelet stays compiled, stays correctness-
+	// tested, stays reachable by wisdom (LookupBySignature ignores ordering),
+	// and simply never wins the compiled-in ranking on a host that has a
+	// pure-Go codelet for the size. That is what makes it re-measurable on a
+	// different microarchitecture instead of becoming folklore.
+	//
+	// It is not a substitute for deletion: a codelet that cannot win anywhere
+	// for a structural reason should still go, per AGENTS.md.
+	RankBelowGeneric bool
+
 	// Codelet twiddle preparation (nil = use standard twiddle layout)
 	TwiddleSize    TwiddleSizeFunc       // Returns element count for codelet twiddles
 	PrepareTwiddle PrepareTwiddleFunc[T] // Prepares twiddle layout for the codelet
 }
 
-// rank returns the SIMD level this entry is ordered by. An unset RankLevel
+// rank returns the tier this entry is ordered by, as a signed value so that
+// RankBelowGeneric can sit strictly under the generic tier. An unset RankLevel
 // (fftypes.SIMDNone, the zero value) means "rank at SIMDLevel"; ranking a
-// codelet explicitly into the generic tier is therefore not expressible, which
-// is fine because a generic codelet already ranks there.
-func (e *CodeletEntry[T]) rank() fftypes.SIMDLevel {
-	if e.RankLevel == fftypes.SIMDNone {
-		return e.SIMDLevel
+// codelet explicitly *into* the generic tier is therefore still not
+// expressible, which is fine because a generic codelet already ranks there.
+func (e *CodeletEntry[T]) rank() int {
+	if e.RankBelowGeneric {
+		return -1
 	}
 
-	return e.RankLevel
+	if e.RankLevel == fftypes.SIMDNone {
+		return int(e.SIMDLevel)
+	}
+
+	return int(e.RankLevel)
 }
 
 // CodeletRegistry provides size-indexed codelet lookup.

@@ -13,6 +13,7 @@ package main
 const (
 	cellSelectable = "✓" // top of its (precision, size, rank tier) — what Lookup returns
 	cellCandidate  = "·" // registered but outranked in its own tier; wisdom-reachable only
+	cellBelow      = "▽" // ranked below every pure-Go codelet; wisdom-reachable only
 	cellProbe      = "p" // registered only under -tags fftprobe
 	cellAbsent     = "—" // no kernel
 	cellDisabled   = "✗" // registered with a negative priority: kept for the record, never run
@@ -23,7 +24,14 @@ const (
 // of RankLevel: an AVX2-encoded but XMM-width codelet is demoted into the SSE2
 // tier so its priority is comparable with the codelets it actually competes
 // with, while still requiring AVX2 to execute.
+// A RankBelowGeneric row competes in its own tier under the generic one, so it
+// gets a synthetic level rather than being grouped with the SIMD tier whose
+// instructions it happens to use.
 func rankLevelOf(s codeletSpec) string {
+	if s.RankBelowGeneric {
+		return "belowGeneric"
+	}
+
 	if s.RankLevel != "" {
 		return s.RankLevel
 	}
@@ -56,6 +64,10 @@ func cellVerdicts(prec int) map[gridKey]map[string]string {
 		switch {
 		case s.Priority < 0:
 			verdict = cellDisabled
+		case s.RankBelowGeneric:
+			// Top of the below-generic tier is still not selectable: every size
+			// with a NEON row also has a pure-Go row, and that one wins.
+			verdict = cellBelow
 		case s.Priority == best[rankGroup{prec: s.Prec, size: s.Size, level: rankLevelOf(s)}]:
 			verdict = cellSelectable
 		}
@@ -94,8 +106,10 @@ func setCell(out map[gridKey]map[string]string, key gridKey, level, verdict stri
 func rankVerdict(v string) int {
 	switch v {
 	case cellSelectable:
-		return 4
+		return 5
 	case cellCandidate:
+		return 4
+	case cellBelow:
 		return 3
 	case cellDisabled:
 		return 2

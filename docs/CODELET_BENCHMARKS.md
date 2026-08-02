@@ -1110,9 +1110,14 @@ ones for arithmetic and name-taking ones for the shuffles and loads that do have
 mnemonics. Nothing checks the `V<n>` ↔ `n` correspondence; the registry-driven
 reference tests are what catch a wrong number.
 
-Two further traps: `VLD2`/`VST2` register lists must be **contiguous**
-(`[V0,V1]`, never `[V0,V4]`), and `RankLevel` cannot demote below the generic
-tier because the registry reads `RankLevel == SIMDNone` as unset.
+One further trap: `VLD2`/`VST2` register lists must be **contiguous**
+(`[V0,V1]`, never `[V0,V4]`).
+
+`RankLevel` could not demote below the generic tier — the registry reads
+`RankLevel == SIMDNone` as unset, and `SIMDLevel` is unsigned, so there was no
+level under `SIMDNone` and no way to tie-break beneath a generic sibling at
+priority 0. `CodeletEntry.RankBelowGeneric` now expresses exactly that; see
+"The selection problem this exposes" below.
 
 ### Size 16, complex64 — first vectorized rewrite
 
@@ -1238,6 +1243,31 @@ faster pure-Go one at the same size. Every losing cell above is therefore not a
 missed opportunity but an active regression for arm64 users: the library picks
 the slower kernel. With ~50 of 56 NEON cells still losing, that is the largest
 single arm64 performance issue in the tree — larger than any individual kernel
-rewrite. `RankLevel` cannot express the fix (it cannot demote below the generic
-tier), and `Priority < 0` removes the codelet from the correctness tests as well
-as from lookup, so neither existing mechanism is a clean answer.
+rewrite.
+
+Neither existing mechanism could express the fix. `RankLevel` cannot demote
+below the generic tier, and `Priority < 0` removes the codelet from
+`LookupBySignature` and from the registry-driven correctness tests as well as
+from lookup — it stops being _verified_, which is far more than "measured slower
+on one host" warrants, and it also puts the row out of the wisdom tuner's reach
+on the very machines where it might win.
+
+**Fixed by `CodeletEntry.RankBelowGeneric`** (2026-08-02), a third disposition
+between "registered candidate" and "disabled": the entry ranks under every
+pure-Go codelet, so `Lookup` never returns it while a generic sibling exists —
+and one exists at every NEON size — but it stays compiled, stays covered by the
+reference tests, and stays reachable by signature, so the wisdom tuner can still
+select it on a different microarchitecture. That is what keeps the M5 result
+re-measurable instead of turning it into folklore, per PLAN.md §2.2.
+
+Applied to the **36 NEON spec rows** the sweep measured as losing — every NEON
+row except the nine that now win: c64 `dit8_radix8`, c64/c128 `dit16_radix4`,
+c128 `dit8_radix4`, and c64 `dit{64,256,1024,4096,16384}_radix4`. Those nine
+keep normal NEON rank. Sizes 8 (both precisions) are the judgement call: each
+loses forward and wins inverse, and one entry carries both directions, so they
+are kept at NEON rank on the ≤1.5x arm of §2.2.
+
+The demotions are recorded as a **verdict, not a deletion**. Re-measure and lift
+`RankBelowGeneric` as each kernel is vectorized — the c64 sizes 64–16384 rows
+above are exactly what that looks like, and they were demoted-equivalent losses
+one round earlier.

@@ -160,6 +160,15 @@ authoritative three-way rule; in short:
   a low priority.** It is never selected by the compiled-in ranking, but the
   wisdom tuner can pick it on a host with a different cache geometry or vector
   width. That is the point of carrying it.
+
+  A low priority only demotes it **within its own SIMD tier**, because ranking
+  is SIMD-level major. If the codelet lost to a codelet in a _lower_ tier —
+  most importantly, to pure Go — set `RankBelowGeneric: true` on its spec row
+  instead. That ranks it under every generic codelet while keeping it compiled,
+  correctness-tested and wisdom-reachable. `Priority < 0` is not the tool for
+  this: it also drops the row from `LookupBySignature` and from the
+  registry-driven reference tests, so the kernel stops being verified.
+
 - **Measured loss ≥ 1.5×, or a research kernel — keep, unregistered.** Move it
   behind `//go:build fftprobe` with its own correctness test and a comparison
   benchmark, exactly as `radix8_avx2_probe_amd64.go`, `radix16_generic_probe.go`

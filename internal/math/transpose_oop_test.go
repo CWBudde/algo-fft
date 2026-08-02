@@ -217,11 +217,18 @@ func TestTransposeDispatch_ZeroAlloc(t *testing.T) {
 	}
 }
 
-// TestTransposeDispatch_AVX2AvailableOnThisMachine is a sanity check that
-// the correctness tests above are actually meaningful on this CI/dev
-// machine: if AVX2 is unavailable, the dispatch tests above only exercise
-// the pure-Go fallback for n=64/128 too, which is worth knowing.
+// TestTransposeDispatch_AVX2AvailableOnThisMachine reports whether the tests
+// above exercised the asm at all, which now takes two conditions rather than
+// one: the AVX2 dispatch is compiled in only under `-tags fftprobe` (see
+// transpose_amd64.go), and the CPU has to support AVX2. Without both, every
+// dispatch test above is a test of the pure-Go fallback — worth stating,
+// because those tests pass either way.
 func TestTransposeDispatch_AVX2AvailableOnThisMachine(t *testing.T) {
 	features := cpu.DetectFeatures()
-	t.Logf("AVX2 available on this machine: %v", features.HasAVX2)
+	t.Logf("AVX2 transpose dispatch linked (-tags fftprobe): %v; AVX2 available on this machine: %v",
+		transposeAVX2Linked, features.HasAVX2)
+
+	if transposeAVX2Linked && !features.HasAVX2 {
+		t.Log("probe build on a non-AVX2 host: the asm was not executed")
+	}
 }

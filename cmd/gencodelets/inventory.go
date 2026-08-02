@@ -404,6 +404,10 @@ that one.
 compiled ranking never selects it. It is carried because the wisdom tuner can
 still pick it on a host with different cache geometry (PLAN.md §2.2), and it
 costs one arm of a wisdom measurement.
+`+cellBelow+` below generic — measured slower than pure Go on the only host it has run
+on, so it is ranked under every pure-Go codelet and never selected. It stays
+compiled and correctness-tested, and the wisdom tuner can still pick it on a
+different microarchitecture, which is what keeps the result re-measurable.
 `+cellProbe+` probe-only — registered exclusively under `+"`-tags fftprobe`"+`; absent from
 every production build. See the probe section for the verdict.
 `+cellDisabled+` disabled — a row kept for the record at a negative priority. Never

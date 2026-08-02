@@ -82,32 +82,36 @@ var dispositions = []disposition{
 		Kind: dispTracked, Tracked: "Give the AVX2 radix-3/radix-5 butterflies a disposition.",
 	},
 
-	// The AVX2 transposes: restored, tested and verified correct, but the only
-	// route in (math.TransposeSquareOutOfPlaceComplex64) has no non-test caller.
-	// Closed by the Phase 3 six-step/four-step work or by probe-gating.
+	// The AVX2 transposes: correct and tested, but their only route in —
+	// math.TransposeSquareOutOfPlaceComplex64 and the two fused-twiddle
+	// dispatchers beside it — has no non-test caller, because the six-step and
+	// four-step work that would use them is Phase 3. Probe-gated on 2026-08-02
+	// (PLAN.md §1.3): internal/math/transpose_amd64.go now carries `fftprobe`,
+	// so an ordinary amd64 build takes the pure-Go fallbacks and never links a
+	// path it cannot exercise. Phase 3 closes this by removing the tag.
 	{
 		Symbol: "Transpose128x128Complex64AVX2Asm", File: "internal/asm/amd64/avx2_f32_transpose128x128.s",
-		Kind: dispTracked, Tracked: "Wire or probe-gate the AVX2 transposes.",
+		Kind: dispProbed, Reason: "called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it",
 	},
 	{
 		Symbol: "TransposeTwiddle128x128Complex64AVX2Asm", File: "internal/asm/amd64/avx2_f32_transpose128x128.s",
-		Kind: dispTracked, Tracked: "Wire or probe-gate the AVX2 transposes.",
+		Kind: dispProbed, Reason: "called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it",
 	},
 	{
 		Symbol: "TransposeTwiddleConj128x128Complex64AVX2Asm", File: "internal/asm/amd64/avx2_f32_transpose128x128.s",
-		Kind: dispTracked, Tracked: "Wire or probe-gate the AVX2 transposes.",
+		Kind: dispProbed, Reason: "called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it",
 	},
 	{
 		Symbol: "Transpose64x64Complex64AVX2Asm", File: "internal/asm/amd64/avx2_f32_transpose64x64.s",
-		Kind: dispTracked, Tracked: "Wire or probe-gate the AVX2 transposes.",
+		Kind: dispProbed, Reason: "called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it",
 	},
 	{
 		Symbol: "TransposeTwiddle64x64Complex64AVX2Asm", File: "internal/asm/amd64/avx2_f32_transpose64x64.s",
-		Kind: dispTracked, Tracked: "Wire or probe-gate the AVX2 transposes.",
+		Kind: dispProbed, Reason: "called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it",
 	},
 	{
 		Symbol: "TransposeTwiddleConj64x64Complex64AVX2Asm", File: "internal/asm/amd64/avx2_f32_transpose64x64.s",
-		Kind: dispTracked, Tracked: "Wire or probe-gate the AVX2 transposes.",
+		Kind: dispProbed, Reason: "called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it",
 	},
 
 	// The complex128 generic AVX2 radix-4 pair: already probe-gated. Their only
@@ -143,26 +147,12 @@ var dispositions = []disposition{
 		Kind: dispKeep, Reason: "assembly-linkage smoke test for package asm; unreachable by construction",
 	},
 
-	// The 386 size-8/16 SSE1 kernels: reached only through 1:1 thunks in
-	// internal/fft/asm_386.go that nothing calls, and the 386 SSE1 dispatch
-	// switch covers only n = 2 and 4 (see the tier table). Their SSE2/SSE3
-	// twins at the same sizes are live, so the likely answer is superseded.
-	{
-		Symbol: "ForwardSSESize16Radix4Complex64Asm", File: "internal/asm/x86/sse_f32_size16_radix4_386.s",
-		Kind: dispTracked, Tracked: "Give the 386 size-8/16 kernels a disposition.",
-	},
-	{
-		Symbol: "InverseSSESize16Radix4Complex64Asm", File: "internal/asm/x86/sse_f32_size16_radix4_386.s",
-		Kind: dispTracked, Tracked: "Give the 386 size-8/16 kernels a disposition.",
-	},
-	{
-		Symbol: "ForwardSSESize8Radix2Complex64Asm", File: "internal/asm/x86/sse_f32_size8_radix2_386.s",
-		Kind: dispTracked, Tracked: "Give the 386 size-8/16 kernels a disposition.",
-	},
-	{
-		Symbol: "InverseSSESize8Radix2Complex64Asm", File: "internal/asm/x86/sse_f32_size8_radix2_386.s",
-		Kind: dispTracked, Tracked: "Give the 386 size-8/16 kernels a disposition.",
-	},
+	// The 386 size-8/16 SSE1 kernels were deleted on 2026-08-02 (PLAN.md §1.3):
+	// the SSE1 dispatch in internal/fft/kernels_386_asm.go special-cases only
+	// n = 2 and 4, so nothing could reach them whatever their 1:1 thunks said.
+	// Their entries are gone rather than converted to dispKeep, because a
+	// disposition for a symbol that no longer exists fails the census tests
+	// exactly as a dark symbol without one does.
 }
 
 // dispositionKey identifies an entry. The same symbol name is defined once per

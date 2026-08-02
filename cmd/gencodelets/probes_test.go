@@ -62,6 +62,29 @@ func TestProbeNotesAreComplete(t *testing.T) {
 	}
 }
 
+// TestConstraintSelectsProbe guards the other half of "is this a probe file":
+// the tag has to be *required*, not merely mentioned. A negated `!fftprobe`
+// marks the fallback an ordinary build takes, and reading it as a probe asks
+// for a verdict on a file that measures nothing.
+func TestConstraintSelectsProbe(t *testing.T) {
+	cases := map[string]bool{
+		"fftprobe":                          true,
+		"amd64 && !purego && fftprobe":      true,
+		"fftprobe && purego":                true,
+		"!amd64 || purego || !fftprobe":     false,
+		"!fftprobe":                         false,
+		"amd64 && !purego":                  false,
+		"":                                  false,
+		"amd64 && fftprobe && !fftprobe386": true,
+	}
+
+	for constraint, want := range cases {
+		if got := constraintSelectsProbe(constraint); got != want {
+			t.Errorf("constraintSelectsProbe(%q) = %v, want %v", constraint, got, want)
+		}
+	}
+}
+
 // TestBuildConstraintReadsOnlyThePrologue: a //go:build comment below the
 // package clause is documentation, not a constraint, and must not be read as
 // one.

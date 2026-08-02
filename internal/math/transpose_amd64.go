@@ -1,4 +1,16 @@
-//go:build amd64 && !purego
+//go:build amd64 && !purego && fftprobe
+
+// Probe-gated AVX2 transposes. The six asm symbols behind this file are
+// correct and tested, but nothing in the library calls the three dispatch
+// entry points below: the six-step and four-step routes that would use them
+// are Phase 3 work. Rather than leave assembly that only a test can reach —
+// which is how a wrong kernel survives a green suite — the whole dispatch
+// layer sits behind `-tags fftprobe`, so an ordinary build gets the pure-Go
+// fallbacks in transpose_noasm.go and never links a path it cannot exercise.
+//
+// Removing the tag is exactly the Phase 3 wiring step; the correctness tests
+// in transpose_oop_test.go pass in both configurations and only exercise the
+// asm in this one, so run them with `-tags fftprobe` when changing it.
 
 package math
 
@@ -6,6 +18,12 @@ import (
 	amd64 "github.com/cwbudde/algo-fft/internal/asm/amd64"
 	"github.com/cwbudde/algo-fft/internal/cpu"
 )
+
+// transposeAVX2Linked reports whether this build contains the AVX2 transpose
+// dispatch at all. It exists so a test can say which of the two files it is
+// exercising, rather than reporting CPU support for a path that is not
+// compiled in.
+const transposeAVX2Linked = true
 
 // TransposeSquareOutOfPlaceComplex64 dispatches to the AVX2 64×64/128×128
 // transpose asm when n matches one of those sizes and AVX2 is available,

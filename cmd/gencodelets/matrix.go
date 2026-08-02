@@ -260,6 +260,8 @@ func familyMatrix() []familyCells {
 		switch {
 		case s.Priority < 0:
 			verdict = cellDisabled
+		case s.RankBelowGeneric:
+			verdict = cellBelow
 		case s.Priority == best[rankGroup{prec: s.Prec, size: s.Size, level: rankLevelOf(s)}]:
 			verdict = cellSelectable
 		}

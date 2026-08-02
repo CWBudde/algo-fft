@@ -645,14 +645,31 @@ unmeasured and unmaintainable.
       `forwardDIT384MixedComplex64/128` codelet rather than the `KernelStrategy`
       switch, that the §1.3 measurement therefore says nothing about them, and
       that the census reports their symbols live for that reason.
-- [ ] **Wire or probe-gate the AVX2 transposes.** `avx2_f32_transpose{64x64,128x128}.s`
-      were restored, tested and verified correct last round, and the census says
-      no production path reaches them: the only route in,
-      `math.TransposeSquareOutOfPlaceComplex64`, has no non-test caller. The
-      substantive task is in Phase 3 (use them in six-step/four-step); this item
-      is closed either by that landing or by moving them behind `-tags fftprobe`.
-      Until one of the two happens they are, by the standing lesson, untested
-      assembly with a passing test suite.
+- [x] **Wire or probe-gate the AVX2 transposes** (2026-08-02): probe-gated.
+      `internal/math/transpose_amd64.go` now builds under
+      `amd64 && !purego && fftprobe`, and `transpose_noasm.go` widened to
+      `!amd64 || purego || !fftprobe` to cover the complement, so an ordinary
+      amd64 build takes the pure-Go transpose and never links a path it cannot
+      exercise. The six symbols in `avx2_f32_transpose{64x64,128x128}.s` move
+      from `tracked` to `probe-gated` in `dispositions.go`. Phase 3 closes this
+      for real by deleting the tag. - The gate is on the **caller**, not the `.s` files, following the
+      `radix4_c128_probe_amd64.go` precedent: the census reads callers and
+      ignores build tags, so tagging the Go dispatch is what makes the
+      symbols probe-only, and the assembly needs no edit. - The audit was wider than the item said. All **three** entry points are
+      test-only, not just `TransposeSquareOutOfPlaceComplex64` — the two
+      fused-twiddle dispatchers beside it have no non-test caller either, so
+      all six asm symbols were dark, not two. - Correctness needed no new test: `transpose_oop_test.go` calls the
+      exported dispatch names, which exist in both configurations, so it
+      passes either way and exercises the asm under the tag. That is also its
+      weakness, so `TestTransposeDispatch_AVX2AvailableOnThisMachine` now
+      reports the two conditions that have to hold —
+      `transposeAVX2Linked && HasAVX2` — instead of CPU support alone, which
+      would have read as "the asm ran" in a build that does not contain it. - The comparison half of §2.2's probe requirement is new:
+      `transpose_probe_bench_test.go` puts the dispatch against the pure-Go
+      implementation for all three variants at n = 64 and 128, with n = 96 as
+      a control — the dispatch declines that size, so both columns run the
+      same code and any gap there is noise. Written, not run; the machine was
+      at load 9.7 and this number is Phase 3's to take.
 - [ ] **Give the AVX2 radix-3/radix-5 butterflies a disposition.**
       `avx2_f32_radix{3,5}.s` are unreachable, and not because of a dispatch
       toggle: `{forward,inverse}Radix3Complex64` in `internal/kernels/radix3.go`
@@ -663,19 +680,29 @@ unmeasured and unmaintainable.
       stage kernels, not through these — and then either wire them or drop them.
       Relevant to Phase 2, which assumes radix 3/5 have a working butterfly path
       on every tier.
-- [ ] **Give the 386 size-8/16 kernels a disposition.**
-      `x86/sse_f32_size{8_radix2,16_radix4}_386.s` are reached only through
-      `forwardSSESize{8,16}…Asm` thunks in `internal/fft/asm_386.go` that nothing
-      calls — the same 1:1-thunk shape as the nine files reclassified in the last
-      round. Their SSE2/SSE3 twins at the same sizes are live, so the likely
-      answer is that these are superseded. **The confirmation this asked for is
-      now generated**: the tier table reports the 386 SSE1 dispatch switch
-      covering only n = 2 and 4, so nothing can reach n = 8 or 16 on that tier
-      whatever the thunks say. This is a deletion task, not an investigation —
-      run the deletion checklist below. Note the census ratchet keeps it honest:
-      the four symbols carry `tracked` dispositions quoting this checkbox, so
-      ticking it while the files remain fails
-      `TestTrackedDispositionsNameAnOpenPlanTask`.
+- [x] **Give the 386 size-8/16 kernels a disposition** (2026-08-02): deleted.
+      `x86/sse_f32_size{8_radix2,16_radix4}_386.s` (1179 lines) are gone, with
+      their four `decl.go` declarations, their four 1:1 thunks in
+      `internal/fft/asm_386.go`, their two rows in the `asm_386_test.go` table
+      and their four `dispositions.go` entries. The reachability finding held up
+      at the source: `forward/inverseSSEComplex64` in
+      `internal/fft/kernels_386_asm.go` special-cases `n = 2` and `n = 4` and
+      falls through to the size-generic `forwardSSEComplex64Asm` for everything
+      else, so no value of `n` reached the deleted symbols — the thunks were the
+      only callers and nothing called the thunks. - Neither file hosted a `DATA`/`GLOBL` table, so step 1 of the deletion
+      checklist (relocate shared tables first) was a no-op here — checked
+      rather than assumed, since that step is what broke the build once. - The `dispositions.go` entries were **removed, not converted to
+      `dispKeep`**: an entry naming a symbol that no longer exists fails the
+      census tests just as a dark symbol without an entry does, so the
+      allowlist has to shrink with the tree. - Deletion rather than probe-gating, and this is the narrow case where
+      §2.2 permits it without a measurement: the loss is not a timing at all.
+      Nothing can execute the code on any host, so there is no host on which
+      the answer could come out differently, and the alternative — wiring the
+      SSE1 switch to n = 8/16 — would need a benchmark on SSE1-only hardware
+      that this project has no access to and does not target. The kernels stay
+      in git history if that ever changes. - The two remaining SSE1 sizes now match the switch exactly, and
+      `TestSSESizeSpecificComplex64_386` says so in a comment, so the next
+      reader does not have to re-derive why the table stops at 4.
 - [ ] **Record the deletion mechanics as a checklist in `AGENTS.md`.** Per file:
       the `.s`, its `decl.go` declaration, the wrappers in
       `internal/fft/asm_amd64.go`, the test/bench tables, any `plan_api_test.go`

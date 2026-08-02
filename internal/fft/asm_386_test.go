@@ -90,6 +90,11 @@ func TestSSE2SizeSpecificComplex64_386(t *testing.T) {
 	}
 }
 
+// TestSSESizeSpecificComplex64_386 covers n = 2 and 4 because those are the
+// only sizes the SSE1 dispatch in kernels_386_asm.go special-cases; everything
+// above falls through to the size-generic kernel. The size-8/16 SSE1 kernels
+// that used to be listed here were deleted (PLAN.md §1.3) — they were never
+// wired into that switch, so testing them tested nothing the library runs.
 func TestSSESizeSpecificComplex64_386(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -110,20 +115,6 @@ func TestSSESizeSpecificComplex64_386(t *testing.T) {
 			size:    4,
 			forward: forwardSSESize4Radix4Complex64Asm,
 			inverse: inverseSSESize4Radix4Complex64Asm,
-			radix:   4,
-		},
-		{
-			name:    "Size8_Radix2",
-			size:    8,
-			forward: forwardSSESize8Radix2Complex64Asm,
-			inverse: inverseSSESize8Radix2Complex64Asm,
-			radix:   2,
-		},
-		{
-			name:    "Size16_Radix4",
-			size:    16,
-			forward: forwardSSESize16Radix4Complex64Asm,
-			inverse: inverseSSESize16Radix4Complex64Asm,
 			radix:   4,
 		},
 	}

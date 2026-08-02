@@ -646,3 +646,83 @@ func TestCodeletRegistryRankLevelUnsetKeepsSIMDOrder(t *testing.T) {
 		t.Fatalf("got %v, want avx2 (SIMD level still dominates priority)", got)
 	}
 }
+
+// TestCodeletRegistryRankBelowGeneric verifies the disposition for a codelet
+// that measured slower than pure Go: it must lose to the generic sibling even
+// though its SIMD level is higher and its priority is larger, because
+// SIMD-level-major ordering otherwise makes a slow SIMD codelet unbeatable.
+// Crucially it must remain wisdom-reachable and visible to GetAllForSize, which
+// is what distinguishes this from Priority < 0.
+func TestCodeletRegistryRankBelowGeneric(t *testing.T) {
+	t.Parallel()
+
+	reg := NewCodeletRegistry[complex64]()
+
+	reg.Register(CodeletEntry[complex64]{
+		Size:             64,
+		Forward:          dummyCodelet[complex64],
+		Inverse:          dummyCodelet[complex64],
+		Algorithm:        fftypes.KernelDIT,
+		SIMDLevel:        fftypes.SIMDNEON,
+		RankBelowGeneric: true,
+		Signature:        "slow_neon",
+		Priority:         100,
+	})
+	reg.Register(CodeletEntry[complex64]{
+		Size:      64,
+		Forward:   dummyCodelet[complex64],
+		Inverse:   dummyCodelet[complex64],
+		Algorithm: fftypes.KernelDIT,
+		SIMDLevel: fftypes.SIMDNone,
+		Signature: "generic",
+		Priority:  0,
+	})
+
+	neon := cpu.Features{HasNEON: true}
+	if got := reg.Lookup(64, neon); got == nil || got.Signature != "generic" {
+		t.Fatalf("NEON host: got %v, want generic", got)
+	}
+
+	// Still selectable by wisdom, which addresses it by signature and ignores
+	// ordering entirely — the point of demoting rather than disabling.
+	if got := reg.LookupBySignature(64, "slow_neon"); got == nil {
+		t.Fatal("LookupBySignature must still resolve a below-generic codelet")
+	}
+
+	// Still enumerated, so the registry-driven reference tests keep covering it.
+	found := false
+
+	for _, e := range reg.GetAllForSize(64) {
+		if e.Signature == "slow_neon" {
+			found = true
+		}
+	}
+
+	if !found {
+		t.Fatal("GetAllForSize must still list a below-generic codelet")
+	}
+}
+
+// TestCodeletRegistryRankBelowGenericStillRunsWhenAlone pins the fallback: the
+// demotion is relative, so a size with no pure-Go codelet still gets the SIMD
+// one rather than nothing.
+func TestCodeletRegistryRankBelowGenericStillRunsWhenAlone(t *testing.T) {
+	t.Parallel()
+
+	reg := NewCodeletRegistry[complex64]()
+
+	reg.Register(CodeletEntry[complex64]{
+		Size:             64,
+		Forward:          dummyCodelet[complex64],
+		Inverse:          dummyCodelet[complex64],
+		Algorithm:        fftypes.KernelDIT,
+		SIMDLevel:        fftypes.SIMDNEON,
+		RankBelowGeneric: true,
+		Signature:        "slow_neon",
+		Priority:         1,
+	})
+
+	if got := reg.Lookup(64, cpu.Features{HasNEON: true}); got == nil || got.Signature != "slow_neon" {
+		t.Fatalf("got %v, want slow_neon (no generic sibling to lose to)", got)
+	}
+}

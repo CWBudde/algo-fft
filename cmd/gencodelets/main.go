@@ -176,6 +176,10 @@ func renderRegister(b *bytes.Buffer, s codeletSpec) {
 		fmt.Fprintf(b, "RankLevel: fftypes.%s,\n", s.RankLevel)
 	}
 
+	if s.RankBelowGeneric {
+		b.WriteString("RankBelowGeneric: true,\n")
+	}
+
 	if s.TwiddleSize != "" {
 		fmt.Fprintf(b, "TwiddleSize: %s,\n", s.TwiddleSize)
 	}
