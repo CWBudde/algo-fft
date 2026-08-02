@@ -918,6 +918,120 @@ is recorded here because it is precisely the class of result a single host
 cannot produce — the same reason `PLAN.md` §2.2 keeps losing kernels
 re-measurable instead of deleting them.
 
+## Split-radix, and the 32×32 / 16×32 decompositions (2026-08-02)
+
+Evidence behind the `Split-radix`, `Radix-32×32` and `Radix-16×32` family
+verdicts. Split-radix was the matrix's largest untested cell: full strategy
+plumbing, a pure-Go kernel, no codelet row at any ISA, and auto-selected
+nowhere.
+
+**It had to be registered before it could be measured.** The canary-gated
+harness only ranks candidates the registry knows about — `bench_gated.sh` drives
+`BenchmarkCodeletCandidates<prec>` and the analyzer parses that name shape — so
+a family with no rows is invisible to the protocol `PLAN.md` §1.2 asks for. Rows
+were added at priority 1 (last in the pure-Go tier, ranked by nothing, but
+visible to the sweep and to the registry-driven reference tests) at 256…32768.
+The ladder stops there deliberately: **n = 65536 has no generic row at all**, so
+a row there would have made an unmeasured kernel the selected purego route. That
+band is measured at plan level instead.
+
+### The gated sweep: split-radix loses every codelet-sized cell
+
+Xeon Gold 5218, `-tags purego`, `GOOD=11298`, 16 groups × 8 passes,
+**128 accepted + 0 rejected = 128** (full accounting), `benchmarks/gated-sr-purego`.
+Ratios against the group incumbent, taken **within** each group.
+
+|     n | incumbent           | c64 fwd | c64 inv | c128 fwd | c128 inv |
+| ----: | ------------------- | ------: | ------: | -------: | -------: |
+|   256 | radix8ladder        |   1.338 |   1.401 |    1.347 |    1.513 |
+|   512 | radix8ladder        |   1.205 |   1.292 |    1.259 |    1.328 |
+|  1024 | radix8ladder/radix4 |   1.176 |   1.251 |    1.254 |    1.251 |
+|  2048 | radix8ladder        |   1.190 |   1.274 |    1.206 |    1.322 |
+|  4096 | radix8ladder        |   1.155 |   1.180 |    1.143 |    1.246 |
+|  8192 | radix8ladder        |   1.113 |   1.153 |    1.149 |    1.221 |
+| 16384 | radix8ladder        |   1.173 |   1.173 |    1.186 |    1.300 |
+| 32768 | radix4_then2        |   1.235 |   1.197 |    1.274 |    1.234 |
+
+Thirty-two cells, no win. But the loss is **shallow and bounded** — only one cell
+(256 complex128 inverse, 1.513) reaches §2.2's 1.5× bar, and the curve has a
+clear minimum at n = 8192 (1.11) before widening again. Split-radix also _beats_
+`dit16384_radix4_generic` in both precisions (1.173 vs 1.246 complex64) and ties
+`dit4096_radix4_generic`, so it is mid-pack rather than dominated: it loses to
+the tuned radix-8 ladder, not to everything.
+
+That is §2.2's "registered, low priority" case exactly, and the rows are already
+there — priority 1, never selected, timed by the wisdom tuner, correctness-tested
+for the first time.
+
+### The band above the codelets: split-radix wins where the ladder stops
+
+`BenchmarkStepCrossover`, Xeon, `taskset -c 0`, `-benchtime=0.5s -count=5`,
+medians of five. Two builds. Ratios are split-radix against each named arm.
+
+| n (purego)  | split-radix | vs Stockham |    vs DIT |
+| ----------- | ----------: | ----------: | --------: |
+| 16384 c64   |      316 µs |   **0.748** |     1.159 |
+| 32768 c64   |      704 µs |   **0.750** |     1.215 |
+| 65536 c64   |     1662 µs |   **0.840** | **0.686** |
+| 131072 c64  |     3744 µs |   **0.899** | **0.630** |
+| 16384 c128  |      338 µs |   **0.819** |     1.221 |
+| 32768 c128  |      813 µs |   **0.889** |     1.282 |
+| 65536 c128  |     1833 µs |   **0.897** | **0.526** |
+| 131072 c128 |     4201 µs |       1.037 | **0.596** |
+
+**The two harnesses cross-validate.** At 16384 and 32768 the plan-level DIT arm
+binds the same codelet the gated sweep ranks, and the two independent
+measurements agree to within 2%: 1.159/1.215 here against 1.173/1.235 there.
+That is worth more than either number alone — it says the plan-level arms are
+measuring the kernel and not the plan.
+
+**And it locates the crossover precisely.** Split-radix loses to the bound
+codelet at every size that has one, and beats everything at every size that does
+not. The flip is at n = 65536, and it is a large flip: 0.686 against the DIT
+route and 0.840 against Stockham, which is what auto actually picks there.
+
+### Why that is a coverage gap, not an algorithmic win
+
+The honest reading of the flip is not "split-radix is the best large-n pure-Go
+kernel". It is that **the generic codelet tier stops at 32768**. At 65536 the
+DIT arm falls off the registry onto `internal/kernels/dit.go`'s size switch and
+costs 2422 µs where the registered 32768 row costs 580 µs for half the work —
+the route gets worse per point, and split-radix wins by comparison rather than
+on merit. Extrapolating the `radix4_then2` row's cost per point puts a
+registered 65536 ladder codelet near 1250–1400 µs, which would beat split-radix
+outright.
+
+So there are two separable actions, and only the first is this item's:
+
+- Split-radix at 65536 is a **measured 16% win over the route auto takes today**
+  on purego, available for one spec row. §2.1 gate 5 is satisfied on this host.
+- Extending the generic ladder past 32768 is probably the larger win, and it is
+  a Phase 3 sizing question rather than a §1.2 family verdict.
+
+### The 32×32 / 16×32 decompositions
+
+`PLAN.md` §1.2 blamed this family's loss on "only one of two stages vectorised".
+**That defect is in files that no longer exist**: `avx2_f32_size1024_radix32x32.s`
+and `avx2_f64_size1024_radix32x32.s` were deleted in `08c8e7b`,
+`avx2_f32_size512_radix16x32.s` in `1f7977b`. What survives is four pure-Go rows,
+and the item's other figure — the pure-Go 32×32 "loses 7.2×/5.2× to
+`dit1024_radix4_generic`" — does not reproduce either. Same sweep, same
+accounting:
+
+| row                          |    n | c64 fwd | c64 inv | c128 fwd | c128 inv |
+| ---------------------------- | ---: | ------: | ------: | -------: | -------: |
+| `dit1024_radix32x32_generic` | 1024 |   1.264 |   1.794 |    1.522 |    1.979 |
+| `dit512_radix16x32_generic`  |  512 |   1.230 |   1.339 |    1.470 |    1.527 |
+
+Against `dit1024_radix4_generic` specifically, 32×32 measures **1.255×**, not
+7.2×. Whatever produced that figure was measuring something else.
+
+The shape that survives is a **forward/inverse asymmetry**, and it is the whole
+story for 32×32: forward loses 1.26–1.52 while inverse loses 1.79–1.98. A gap
+that large between two directions of the same decomposition is an inverse-path
+defect, not a decomposition verdict — the same class of finding as the scaling
+pass that AGENTS.md records sitting in 28 kernel files.
+
 ## AVX-512 tier (Xeon Gold 5218)
 
 Evidence behind the `SIMDAVX512` rows, including the one deliberately disabled
