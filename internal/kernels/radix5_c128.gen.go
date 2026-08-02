@@ -2,38 +2,62 @@
 
 package kernels
 
-import (
-	m "github.com/cwbudde/algo-fft/internal/math"
-)
+// Type-specific butterfly functions to avoid generic overhead.
+//
+// Conjugate-pair form: with w1 = W^1, w4 = conj(w1), w2 = W^2, w3 = conj(w2),
+// the direct 5x5 matrix product (20 complex multiplies) collapses to 4
+// real-by-complex multiplies (8 real multiplies) plus adds. c1, c2, s1, s2
+// are real scalars, so c*t is computed component-wise rather than through a
+// complex-by-complex multiply. See avx2_f32_mixedradix_stage5.s.
+//
+// butterfly5CoreComplex128 computes the direction-independent half: y0 and
+// the two (m, q) pairs, with q formed via the forward -i factor. The
+// direction only changes which of m+q / m-q lands on which output index (see
+// butterfly5ForwardComplex128 / butterfly5InverseComplex128), so both
+// directions share this one arithmetic body.
+func butterfly5CoreComplex128(a0, a1, a2, a3, a4 complex128) (y0, m1, q1, m2, q2 complex128) {
+	c1, c2 := radix5Cos128[0], radix5Cos128[1]
+	s1, s2 := radix5Sin128[0], radix5Sin128[1]
+
+	t1 := a1 + a4
+	t2 := a2 + a3
+	t3 := a1 - a4
+	t4 := a2 - a3
+
+	y0 = a0 + t1 + t2
+
+	t1r, t1i := real(t1), imag(t1)
+	t2r, t2i := real(t2), imag(t2)
+	t3r, t3i := real(t3), imag(t3)
+	t4r, t4i := real(t4), imag(t4)
+
+	m1 = a0 + complex(c1*t1r+c2*t2r, c1*t1i+c2*t2i)
+	m2 = a0 + complex(c2*t1r+c1*t2r, c2*t1i+c1*t2i)
+
+	// q = -i * (s1*t3 + s2*t4): -i*(x+iy) = y - i*x.
+	sum1r := s1*t3r + s2*t4r
+	sum1i := s1*t3i + s2*t4i
+	q1 = complex(sum1i, -sum1r)
+
+	sum2r := s2*t3r - s1*t4r
+	sum2i := s2*t3i - s1*t4i
+	q2 = complex(sum2i, -sum2r)
+
+	return y0, m1, q1, m2, q2
+}
 
 func butterfly5ForwardComplex128(a0, a1, a2, a3, a4 complex128) (complex128, complex128, complex128, complex128, complex128) {
-	w1 := radix5Twiddles128[0]
-	w2 := radix5Twiddles128[1]
-	w3 := radix5Twiddles128[2]
-	w4 := radix5Twiddles128[3]
+	y0, m1, q1, m2, q2 := butterfly5CoreComplex128(a0, a1, a2, a3, a4)
 
-	y0 := a0 + a1 + a2 + a3 + a4
-	y1 := a0 + m.MulComplex128(a1, w1) + m.MulComplex128(a2, w2) + m.MulComplex128(a3, w3) + m.MulComplex128(a4, w4)
-	y2 := a0 + m.MulComplex128(a1, w2) + m.MulComplex128(a2, w4) + m.MulComplex128(a3, w1) + m.MulComplex128(a4, w3)
-	y3 := a0 + m.MulComplex128(a1, w3) + m.MulComplex128(a2, w1) + m.MulComplex128(a3, w4) + m.MulComplex128(a4, w2)
-	y4 := a0 + m.MulComplex128(a1, w4) + m.MulComplex128(a2, w3) + m.MulComplex128(a3, w2) + m.MulComplex128(a4, w1)
-
-	return y0, y1, y2, y3, y4
+	return y0, m1 + q1, m2 + q2, m2 - q2, m1 - q1
 }
 
 func butterfly5InverseComplex128(a0, a1, a2, a3, a4 complex128) (complex128, complex128, complex128, complex128, complex128) {
-	w1 := conj(radix5Twiddles128[0])
-	w2 := conj(radix5Twiddles128[1])
-	w3 := conj(radix5Twiddles128[2])
-	w4 := conj(radix5Twiddles128[3])
+	// The inverse butterfly replaces every -i with +i, i.e. q_inv = -q_fwd,
+	// so it is the forward core with the +q/-q outputs swapped.
+	y0, m1, q1, m2, q2 := butterfly5CoreComplex128(a0, a1, a2, a3, a4)
 
-	y0 := a0 + a1 + a2 + a3 + a4
-	y1 := a0 + m.MulComplex128(a1, w1) + m.MulComplex128(a2, w2) + m.MulComplex128(a3, w3) + m.MulComplex128(a4, w4)
-	y2 := a0 + m.MulComplex128(a1, w2) + m.MulComplex128(a2, w4) + m.MulComplex128(a3, w1) + m.MulComplex128(a4, w3)
-	y3 := a0 + m.MulComplex128(a1, w3) + m.MulComplex128(a2, w1) + m.MulComplex128(a3, w4) + m.MulComplex128(a4, w2)
-	y4 := a0 + m.MulComplex128(a1, w4) + m.MulComplex128(a2, w3) + m.MulComplex128(a3, w2) + m.MulComplex128(a4, w1)
-
-	return y0, y1, y2, y3, y4
+	return y0, m1 - q1, m2 - q2, m2 + q2, m1 + q1
 }
 
 // Public exports for internal/fft - type-specific functions for direct calls.

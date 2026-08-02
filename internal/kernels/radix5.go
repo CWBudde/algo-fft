@@ -1,25 +1,31 @@
 package kernels
 
-import (
-	"math"
+import "math"
 
-	m "github.com/cwbudde/algo-fft/internal/math"
-)
-
+// radix5Cos64/128 and radix5Sin64/128 hold the two conjugate-pair
+// coefficients c1 = cos(2*pi/5), c2 = cos(4*pi/5), s1 = sin(2*pi/5),
+// s2 = sin(4*pi/5) used by the pair-form butterfly below. See the derivation
+// in internal/asm/amd64/avx2_f32_mixedradix_stage5.s ("RADIX-5 BUTTERFLY"),
+// which this Go implementation mirrors term for term.
+//
 //nolint:gochecknoglobals
 var (
-	radix5Twiddles64  [4]complex64
-	radix5Twiddles128 [4]complex128
+	radix5Cos64  [2]float32
+	radix5Sin64  [2]float32
+	radix5Cos128 [2]float64
+	radix5Sin128 [2]float64
 )
 
 //nolint:gochecknoinits
 func init() {
-	for k := 1; k <= 4; k++ {
-		angle := -2 * math.Pi * float64(k) / 5
-		re := math.Cos(angle)
-		im := math.Sin(angle)
-		radix5Twiddles128[k-1] = complex(re, im)
-		radix5Twiddles64[k-1] = complex(float32(re), float32(im))
+	for k := 1; k <= 2; k++ {
+		angle := 2 * math.Pi * float64(k) / 5
+		c := math.Cos(angle)
+		s := math.Sin(angle)
+		radix5Cos128[k-1] = c
+		radix5Sin128[k-1] = s
+		radix5Cos64[k-1] = float32(c)
+		radix5Sin64[k-1] = float32(s)
 	}
 }
 
@@ -139,36 +145,62 @@ func radix5Transform[T Complex](dst, src, twiddle, scratch []T, bitrev []int, in
 	return true
 }
 
-// Type-specific butterfly functions to avoid generic overhead
+// Type-specific butterfly functions to avoid generic overhead.
+//
+// Conjugate-pair form: with w1 = W^1, w4 = conj(w1), w2 = W^2, w3 = conj(w2),
+// the direct 5x5 matrix product (20 complex multiplies) collapses to 4
+// real-by-complex multiplies (8 real multiplies) plus adds. c1, c2, s1, s2
+// are real scalars, so c*t is computed component-wise rather than through a
+// complex-by-complex multiply. See avx2_f32_mixedradix_stage5.s.
+//
+// butterfly5CoreComplex64 computes the direction-independent half: y0 and
+// the two (m, q) pairs, with q formed via the forward -i factor. The
+// direction only changes which of m+q / m-q lands on which output index (see
+// butterfly5ForwardComplex64 / butterfly5InverseComplex64), so both
+// directions share this one arithmetic body.
+func butterfly5CoreComplex64(a0, a1, a2, a3, a4 complex64) (y0, m1, q1, m2, q2 complex64) {
+	c1, c2 := radix5Cos64[0], radix5Cos64[1]
+	s1, s2 := radix5Sin64[0], radix5Sin64[1]
+
+	t1 := a1 + a4
+	t2 := a2 + a3
+	t3 := a1 - a4
+	t4 := a2 - a3
+
+	y0 = a0 + t1 + t2
+
+	t1r, t1i := real(t1), imag(t1)
+	t2r, t2i := real(t2), imag(t2)
+	t3r, t3i := real(t3), imag(t3)
+	t4r, t4i := real(t4), imag(t4)
+
+	m1 = a0 + complex(c1*t1r+c2*t2r, c1*t1i+c2*t2i)
+	m2 = a0 + complex(c2*t1r+c1*t2r, c2*t1i+c1*t2i)
+
+	// q = -i * (s1*t3 + s2*t4): -i*(x+iy) = y - i*x.
+	sum1r := s1*t3r + s2*t4r
+	sum1i := s1*t3i + s2*t4i
+	q1 = complex(sum1i, -sum1r)
+
+	sum2r := s2*t3r - s1*t4r
+	sum2i := s2*t3i - s1*t4i
+	q2 = complex(sum2i, -sum2r)
+
+	return y0, m1, q1, m2, q2
+}
 
 func butterfly5ForwardComplex64(a0, a1, a2, a3, a4 complex64) (complex64, complex64, complex64, complex64, complex64) {
-	w1 := radix5Twiddles64[0]
-	w2 := radix5Twiddles64[1]
-	w3 := radix5Twiddles64[2]
-	w4 := radix5Twiddles64[3]
+	y0, m1, q1, m2, q2 := butterfly5CoreComplex64(a0, a1, a2, a3, a4)
 
-	y0 := a0 + a1 + a2 + a3 + a4
-	y1 := a0 + m.MulComplex64(a1, w1) + m.MulComplex64(a2, w2) + m.MulComplex64(a3, w3) + m.MulComplex64(a4, w4)
-	y2 := a0 + m.MulComplex64(a1, w2) + m.MulComplex64(a2, w4) + m.MulComplex64(a3, w1) + m.MulComplex64(a4, w3)
-	y3 := a0 + m.MulComplex64(a1, w3) + m.MulComplex64(a2, w1) + m.MulComplex64(a3, w4) + m.MulComplex64(a4, w2)
-	y4 := a0 + m.MulComplex64(a1, w4) + m.MulComplex64(a2, w3) + m.MulComplex64(a3, w2) + m.MulComplex64(a4, w1)
-
-	return y0, y1, y2, y3, y4
+	return y0, m1 + q1, m2 + q2, m2 - q2, m1 - q1
 }
 
 func butterfly5InverseComplex64(a0, a1, a2, a3, a4 complex64) (complex64, complex64, complex64, complex64, complex64) {
-	w1 := conj(radix5Twiddles64[0])
-	w2 := conj(radix5Twiddles64[1])
-	w3 := conj(radix5Twiddles64[2])
-	w4 := conj(radix5Twiddles64[3])
+	// The inverse butterfly replaces every -i with +i, i.e. q_inv = -q_fwd,
+	// so it is the forward core with the +q/-q outputs swapped.
+	y0, m1, q1, m2, q2 := butterfly5CoreComplex64(a0, a1, a2, a3, a4)
 
-	y0 := a0 + a1 + a2 + a3 + a4
-	y1 := a0 + m.MulComplex64(a1, w1) + m.MulComplex64(a2, w2) + m.MulComplex64(a3, w3) + m.MulComplex64(a4, w4)
-	y2 := a0 + m.MulComplex64(a1, w2) + m.MulComplex64(a2, w4) + m.MulComplex64(a3, w1) + m.MulComplex64(a4, w3)
-	y3 := a0 + m.MulComplex64(a1, w3) + m.MulComplex64(a2, w1) + m.MulComplex64(a3, w4) + m.MulComplex64(a4, w2)
-	y4 := a0 + m.MulComplex64(a1, w4) + m.MulComplex64(a2, w3) + m.MulComplex64(a3, w2) + m.MulComplex64(a4, w1)
-
-	return y0, y1, y2, y3, y4
+	return y0, m1 - q1, m2 - q2, m2 + q2, m1 + q1
 }
 
 // Generic wrapper that dispatches to type-specific implementations.
