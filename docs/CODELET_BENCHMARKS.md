@@ -1534,12 +1534,50 @@ reference tests, and stays reachable by signature, so the wisdom tuner can still
 select it on a different microarchitecture. That is what keeps the M5 result
 re-measurable instead of turning it into folklore, per PLAN.md §2.2.
 
-Applied to the **36 NEON spec rows** the sweep measured as losing — every NEON
-row except the nine that now win: c64 `dit8_radix8`, c64/c128 `dit16_radix4`,
-c128 `dit8_radix4`, and c64 `dit{64,256,1024,4096,16384}_radix4`. Those nine
-keep normal NEON rank. Sizes 8 (both precisions) are the judgement call: each
-loses forward and wins inverse, and one entry carries both directions, so they
-are kept at NEON rank on the ≤1.5x arm of §2.2.
+Applied to the **35 NEON spec rows** measured as losing — every NEON row except
+the nine that win: c64 `dit8_radix8`, c64/c128 `dit16_radix4`, c128
+`dit8_radix4`, c64 `dit64_radix2` and c64
+`dit{256,1024,4096,16384}_radix4`. Those nine keep normal NEON rank. Sizes 8
+(both precisions) are the judgement call: each loses forward and wins inverse,
+and one entry carries both directions, so they are kept at NEON rank on the
+≤1.5x arm of §2.2.
+
+**`dit64_radix2_neon` is the trap in that list.** For complex64 it is served by
+the looped radix-4 core (`neon_f32_radix4_loop.s`) — the signature and the
+`…Size64Radix2Complex64Asm` symbol are historical, kept when the unrolled
+radix-2 file was deleted so that no spec/dispatch row had to change. Keying the
+demotion off signatures demoted it, throwing away a 1.57x / 1.79x win, and only
+the confirmation sweep caught it. For complex128 the same signature really is
+the scalar radix-2 kernel and loses 2.96x. **A NEON signature does not identify
+the algorithm; check the symbol's definition.**
+
+### Confirmation sweep (2026-08-02)
+
+Re-measured after the demotions, same host and parameters as the baseline
+(M5, `count=6`, `benchtime=500ms`, 238 cells). Every demotion is confirmed a
+loss, most by more than the baseline recorded:
+
+| row                           | c64 fwd/inv | c128 fwd/inv |
+| ----------------------------- | ----------: | -----------: |
+| `dit4_radix4_neon`            | 1.62 / 1.36 |  2.06 / 1.81 |
+| `dit8_radix2_neon`            | 4.52 / 3.63 |  5.61 / 4.24 |
+| `dit16_radix2_neon`           | 4.05 / 4.02 |  3.99 / 3.96 |
+| `dit32_radix4_then2_neon`     | 1.17 / 1.17 |  1.27 / 1.29 |
+| `dit128_radix4_then2_neon`    | 1.56 / 1.47 |  1.59 / 1.57 |
+| `dit256_radix2_neon`          | 2.72 / 2.85 |  2.85 / 2.99 |
+| `dit512_radix4_then2_neon`    | 1.51 / 1.70 |  1.71 / 1.86 |
+| `dit1024_radix4_neon` (c128)  |           — |  1.27 / 1.13 |
+| `dit2048_radix4_then2_neon`   |           — |  1.53 / 1.71 |
+| `dit4096_radix4_neon` (c128)  |           — |  1.47 / 1.51 |
+| `dit8192_radix4_then2_neon`   |           — |  1.25 / 1.37 |
+| `dit16384_radix4_neon` (c128) |           — |  1.31 / 1.42 |
+| `dit32768_radix4_then2_neon`  |           — |  1.10 / 1.11 |
+
+Two notes on the margins. `dit32_radix4_then2_neon` loses only 1.17x / 1.27x,
+inside §2.2's keep-registered band — demoting it is stricter than the rule
+requires and is the one row worth arguing about. And the baseline's lone NEON
+win, c128/size32/inverse at 0.92, **did not reproduce**: that cell now loses
+1.29x, so it was noise, and no NEON row wins at size 32 in either precision.
 
 The demotions are recorded as a **verdict, not a deletion**. Re-measure and lift
 `RankBelowGeneric` as each kernel is vectorized — the c64 sizes 64–16384 rows

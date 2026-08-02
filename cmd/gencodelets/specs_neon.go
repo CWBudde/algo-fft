@@ -76,8 +76,11 @@ var codeletSpecsNEON = []codeletSpec{
 		Forward:   "arm64.ForwardNEONSize64Radix2Complex64Asm",
 		Inverse:   "arm64.InverseNEONSize64Radix2Complex64Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		// Despite the signature, this row is served by the looped radix-4
+		// Stockham core (neon_f32_radix4_loop.s); the historical symbol name was
+		// kept when the unrolled radix-2 file was deleted. Wins 1.57x / 1.79x on
+		// the M5, so it is NOT demoted.
 		Signature: "dit64_radix2_neon", Priority: 22,
-		RankBelowGeneric: true,
 	},
 	{
 		Target: "neon", Prec: 64, Size: 128,
