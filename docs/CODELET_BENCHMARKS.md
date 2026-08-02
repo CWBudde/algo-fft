@@ -1735,7 +1735,168 @@ keep normal NEON rank. Sizes 8 (both precisions) are the judgement call: each
 loses forward and wins inverse, and one entry carries both directions, so they
 are kept at NEON rank on the ≤1.5x arm of §2.2.
 
+### Confirmation sweep (2026-08-02)
+
+Re-measured after the demotions, same host and parameters as the baseline
+(M5, `count=6`, `benchtime=500ms`, 238 cells). Every demotion is confirmed a
+loss, most by more than the baseline recorded:
+
+| row                           | c64 fwd/inv | c128 fwd/inv |
+| ----------------------------- | ----------: | -----------: |
+| `dit4_radix4_neon`            | 1.62 / 1.36 |  2.06 / 1.81 |
+| `dit8_radix2_neon`            | 4.52 / 3.63 |  5.61 / 4.24 |
+| `dit16_radix2_neon`           | 4.05 / 4.02 |  3.99 / 3.96 |
+| `dit32_radix4_then2_neon`     | 1.17 / 1.17 |  1.27 / 1.29 |
+| `dit128_radix4_then2_neon`    | 1.56 / 1.47 |  1.59 / 1.57 |
+| `dit256_radix2_neon`          | 2.72 / 2.85 |  2.85 / 2.99 |
+| `dit512_radix4_then2_neon`    | 1.51 / 1.70 |  1.71 / 1.86 |
+| `dit1024_radix4_neon` (c128)  |           — |  1.27 / 1.13 |
+| `dit2048_radix4_then2_neon`   |           — |  1.53 / 1.71 |
+| `dit4096_radix4_neon` (c128)  |           — |  1.47 / 1.51 |
+| `dit8192_radix4_then2_neon`   |           — |  1.25 / 1.37 |
+| `dit16384_radix4_neon` (c128) |           — |  1.31 / 1.42 |
+| `dit32768_radix4_then2_neon`  |           — |  1.10 / 1.11 |
+
+Two notes on the margins. `dit32_radix4_then2_neon` loses only 1.17x / 1.27x,
+inside §2.2's keep-registered band — demoting it is stricter than the rule
+requires and is the one row worth arguing about. And the baseline's lone NEON
+win, c128/size32/inverse at 0.92, **did not reproduce**: that cell now loses
+1.29x, so it was noise, and no NEON row wins at size 32 in either precision.
+
 The demotions are recorded as a **verdict, not a deletion**. Re-measure and lift
 `RankBelowGeneric` as each kernel is vectorized — the c64 sizes 64–16384 rows
 above are exactly what that looks like, and they were demoted-equivalent losses
 one round earlier.
+
+### Sizes 64–16384, complex128 — the looped core ports, and every cell wins (2026-08-02)
+
+The complex64 looped radix-4 Stockham core (`neon_f32_radix4_loop.s`) was ported
+to `.2D` lanes as `neon_f64_radix4_loop.s`, replacing five unrolled
+`neon_f64_size*_radix4.s` files and 175 KB of bit-reversal tables — 29,146 lines
+deleted for 683 added. Same host and parameters as the confirmation sweep above.
+
+| cell               |      best pure-Go |                  NEON |        gain |
+| ------------------ | ----------------: | --------------------: | ----------: |
+| `size64` fwd/inv   |   122.78 / 144.52 |   **105.80 / 110.80** | 1.16 / 1.30 |
+| `size256` fwd/inv  |   529.67 / 557.45 |   **453.70 / 471.47** | 1.17 / 1.18 |
+| `size1024` fwd/inv | 3347.17 / 4376.00 | **2474.33 / 2540.67** | 1.35 / 1.72 |
+| `size4096` fwd/inv | 14835.7 / 15697.2 | **11996.5 / 12091.0** | 1.24 / 1.30 |
+| `size16384` f/i    | 96185.7 / 97615.0 | **69715.7 / 68345.0** | 1.38 / 1.43 |
+
+Every one of these cells was a **loss** of 1.27–1.63x in the confirmation sweep,
+so the swing per cell is roughly 1.5–2.3x. `RankBelowGeneric` was lifted from all
+five rows (35 demotions → 30). The gains are smaller than complex64's ~2x, which
+is what the half-lane-width argument predicts — but note that the argument
+predicted only the _magnitude_; the direction is what had to be measured, and on
+this project a mechanistic complex128 prediction has been wrong before.
+
+The complex64 control rows re-measured at 1.66–2.15x against the previous
+round's 1.57–2.08x, so the port did not disturb them. Absolutes in that run ran
+~30% high because the host was busier and the split-radix merge had added
+candidates to each process; only the within-size ratios are quotable.
+
+### The generic complex128 NEON kernel: vectorized, and it changed nothing (2026-08-02)
+
+`neon_f64_generic.s` was rewritten from 0 to 68 vector ops across three inner
+paths (contiguous / gather / scalar tail), 532 → 733 lines. It is registered at
+exactly two cells, so those are the only places the rewrite can show up:
+
+| cell (c128)           |    best pure-Go |    generic NEON |      before |       after |
+| --------------------- | --------------: | --------------: | ----------: | ----------: |
+| `dit32_generic_neon`  |     57.6 / 69.8 |   177.1 / 186.6 | 3.11 / 2.14 | 3.07 / 2.67 |
+| `dit512_generic_neon` | 1856.2 / 1590.0 | 6590.9 / 7766.8 | 3.79 / 3.89 | 3.55 / 4.88 |
+
+Ratios only — the two runs sat at different host loads. Within that noise the
+verdict is flat: still losing 2.7–4.9x, exactly as before it was vectorized.
+
+**This is not the dead-assembly failure mode**, which is what a null result
+should be checked against first. The vector paths are guarded by
+`CMP $2, R5 / BLT f128_scalar_butterfly` on `half = m/2`, so only the `m == 2`
+stage falls to scalar — 8 of 9 stages at n=512 do run the vector code.
+
+Two structural costs swamp the butterflies:
+
+- **The bit-reversal is computed at runtime, bit-serially.** `f128_bitrev_bits`
+  loops once per bit per element — 4,608 iterations at n=512 — where every
+  size-specific codelet indexes a precomputed table. Vectorizing the butterflies
+  cannot touch this.
+- **The gather path assembles each twiddle lane-by-lane**, `MOVD` + `VMOV` per
+  half, four scalar ops to fill `V4`/`V5`. `step == 1` only on the final stage,
+  so the genuinely contiguous path runs once out of nine.
+
+So the algorithm is not disqualified — this file is, and for a reason visible in
+the source rather than only in a number. The honest reading is that a generic
+any-size kernel carrying a runtime bit-reversal cannot reach the size-specific
+codelets, and effort belongs in the remaining unvectorized _sized_ rows. Both
+rows are already `RankBelowGeneric`, so nothing selects them; by §2.2's ≥1.5x
+threshold they are also candidates for an `fftprobe` migration alongside the
+`then2` rows.
+
+### The real-FFT repack: the NEON path was a pessimization (2026-08-02)
+
+`neon_real_repack.s` sits on the real-FFT inverse path and is not a codelet — it
+has no spec row, so no candidate benchmark and none of the 238 matrix cells ever
+covered it. It was also the last NEON file in the tree with **zero vector
+instructions** while being dispatched as the SIMD path.
+
+Measured on the M5 through `RepackInverseComplex64`, `count=8`,
+`benchtime=500ms`. "before" is the scalar assembly, "after" the vectorized
+rewrite; the generic column is the pure-Go loop over the same bins:
+
+| half | generic Go | NEON before | NEON after | before vs Go | after vs Go |
+| ---- | ---------: | ----------: | ---------: | -----------: | ----------: |
+| 128  |      185.4 |       240.1 |  **128.0** |    **0.77x** |       1.45x |
+| 512  |      788.4 |       983.4 |  **523.1** |    **0.80x** |       1.51x |
+| 2048 |     3004.1 |      3921.1 | **1973.4** |    **0.77x** |       1.52x |
+| 8192 |    12238.9 |     15156.9 | **8242.5** |    **0.81x** |       1.48x |
+
+The first result is the one that matters: **the old "SIMD" repack was 1.24-1.30x
+slower than the pure-Go loop it was overriding**, at every size. Production
+arm64 real-FFT inverse transforms were paying to use it. Vectorizing it is worth
+1.84-1.99x against itself and turns a 0.77x loss into a 1.48x win.
+
+This is the same class of defect as the codelet registry ordering bug, arriving
+by a different route. There the demotion mechanism was missing; here the kernel
+was simply never benchmarked, because "is it faster than Go?" is a question the
+candidate sweep only asks about rows in the codelet registry. **A hand-written
+SIMD path outside the registry has nothing checking that it earns its place.**
+
+`complex128` was a stub returning `1` (no SIMD, use generic) on arm64, while
+amd64 has had `InverseRepackComplex128AVX2Asm` for some time. Implementing
+`InverseRepackComplex128NEONAsm` closes that asymmetry:
+
+| half | generic Go | NEON (new) |  gain |
+| ---- | ---------: | ---------: | ----: |
+| 128  |      196.2 |  **141.4** | 1.39x |
+| 512  |      785.8 |  **569.6** | 1.38x |
+| 2048 |     3021.1 | **2245.1** | 1.35x |
+| 8192 |    12428.9 | **9059.2** | 1.37x |
+
+The generic column re-measured within ~1% across the two runs at three of four
+sizes (9% at `half=8192`), so the before/after comparison is not a load artifact.
+
+`BenchmarkRepackInverseComplex64` did not exist before this round — only the
+`*Generic` variants — which is why the regression was invisible. It now exists
+for both precisions.
+
+### The twelve scalar radix-2 NEON codelets, retired to `fftprobe` (2026-08-02)
+
+Twelve rows losing 2.7-5.6x, all zero-vector-op scalar assembly, moved behind
+`//go:build fftprobe` with correctness tests and comparison benchmarks per §2.2's
+"measured loss >= 1.5x — keep, unregistered". `RankBelowGeneric` drops from 30
+rows to 18. Sizes 8/16/32/128/256 in both precisions, plus c128 size 64 and the
+c64 size-8 radix-4.
+
+Two traps, both of which would have broken the build:
+
+- **`dit512_radix2_neon` and `dit1024_radix2_neon` (c64) are not radix-2
+  kernels.** Both are served by `ForwardNEONComplex64Asm`, the _generic_ any-size
+  kernel, which is vectorized and is also called from `internal/fft/asm_arm64.go`.
+  This is the third time a NEON signature has misidentified its own algorithm
+  here. Scope retirements by **symbol**, never by signature.
+- **Five package-level `·neonInv*` constants** were defined in retiring files and
+  referenced from surviving ones (`neon_f64_size8_radix4.s`, the size-32 and
+  size-128 `mixed24` files). A `<>`-scoped grep does **not** find these — `<>`
+  symbols are file-local by construction, so only the `·`-prefixed package-level
+  tables can be shared, and those are exactly the ones checklist step 1 is about.
+  They were relocated into their surviving consumers first, as its own step.
