@@ -15,11 +15,9 @@
 
 #include "textflag.h"
 
-// ·neonInv32F64 used to be defined in neon_f64_size32_radix2.s; relocated
-// here per AGENTS.md "Retiring a kernel" step 1 when that file moved
-// behind //go:build fftprobe, since this file is the surviving consumer.
-DATA ·neonInv32F64+0(SB)/8, $0x3fa0000000000000 // 1/32
-GLOBL ·neonInv32F64(SB), RODATA, $8
+// ·neonInv32F64 has been relocated back to neon_f64_size32_radix2.s (the
+// probe file), which is again its sole consumer now that this file is being
+// retired. See AGENTS.md "Retiring a kernel" step 1.
 
 // Forward transform, size 32, complex128, mixed radix (radix-4, radix-4, radix-2)
 // func ForwardNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool

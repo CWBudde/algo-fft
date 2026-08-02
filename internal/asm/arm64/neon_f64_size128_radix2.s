@@ -24,6 +24,13 @@
 
 #include "textflag.h"
 
+// ·neonInv128F64 was relocated to neon_f64_size128_mixed24.s when this file
+// moved behind //go:build fftprobe; it is relocated back here now that
+// neon_f64_size128_mixed24.s is retired (see AGENTS.md "Retiring a kernel"
+// step 1) and this file is again the sole consumer.
+DATA ·neonInv128F64+0(SB)/8, $0x3f80000000000000 // 1/128 = 0.0078125
+GLOBL ·neonInv128F64(SB), RODATA, $8
+
 // Forward transform, size 128, complex128, radix-2
 // func ForwardNEONSize128Radix2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 TEXT ·ForwardNEONSize128Radix2Complex128Asm(SB), NOSPLIT, $0-97

@@ -6,6 +6,13 @@
 
 #include "textflag.h"
 
+// ·neonInv32F64 was relocated to neon_f64_size32_mixed24.s when this file
+// moved behind //go:build fftprobe; it is relocated back here now that
+// neon_f64_size32_mixed24.s is retired (see AGENTS.md "Retiring a kernel"
+// step 1) and this file is again the sole consumer.
+DATA ·neonInv32F64+0(SB)/8, $0x3fa0000000000000 // 1/32
+GLOBL ·neonInv32F64(SB), RODATA, $8
+
 // Forward transform, size 32, complex128, radix-2
 TEXT ·ForwardNEONSize32Complex128Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
