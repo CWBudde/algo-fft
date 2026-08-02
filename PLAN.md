@@ -571,21 +571,35 @@ outlives its family.
       not merely the finding, it was the obstacle. Sixteen rows now exist at
       256…32768, both precisions, at a non-selectable priority 1.
 
-      - **Below 65536 it loses every cell, shallowly.** Xeon, `-tags purego`,
-        16 groups × 8 passes, 128 accepted + 0 rejected: 1.11–1.35 forward and
-        1.15–1.51 inverse against the group incumbent across all eight sizes and
-        both precisions. Only one cell of thirty-two reaches §2.2's 1.5× bar,
-        and it beats `dit16384_radix4_generic` outright, so it is mid-pack
-        rather than dominated — §2.2's "registered, low priority" case, which is
-        where the new rows already sit.
-      - **At and above 65536 it beats everything** — 0.840 against the Stockham
-        the auto heuristic picks and 0.686 against the DIT route at 65536,
-        0.899 at 131072. **But that is a coverage gap, not an algorithmic win**:
-        the generic ladder stops at 32768, so above it the DIT arm falls onto
-        `dit.go`'s size switch and gets *worse per point*. Split-radix loses to
-        every tuned codelet that exists and beats every size that has none — the
-        crossover is exactly the registry boundary. Handed to Phase 3's
-        "Extend the generic codelet ladder past 32768", which owns the verdict.
+      - **Below 65536 it loses every cell, shallowly, on both hosts.** Xeon
+        (16 groups × 8 passes, 128 accepted + 0 rejected) and i7-1255U (stopped
+        during pass 9, 86 accepted + 44 over gate + 1 incomplete): 1.06–1.35
+        forward and 1.10–1.44 inverse against the group incumbent across all
+        eight sizes and both precisions. **Sixty-four cells, no win**, and the
+        two machines agree cell by cell to within about 0.1. Exactly one cell
+        reaches §2.2's 1.5× bar on the Xeon and the laptop puts that same cell
+        at 1.367, so not one survives as a two-host result; it also beats
+        `dit16384_radix4_generic` outright, so it is mid-pack rather than
+        dominated — §2.2's "registered, low priority" case, which is where the
+        new rows already sit.
+      - **Above 32768 it beats everything on the Xeon** — 0.840 against the
+        Stockham the auto heuristic picks and 0.686 against the DIT route at
+        65536, 0.899 at 131072. **But that is a coverage gap, not an algorithmic
+        win**: the generic ladder stops at 32768, so above it the DIT arm falls
+        onto `dit.go`'s size switch and gets *worse per point*. Split-radix
+        loses to every tuned codelet that exists and beats every size that has
+        none — the crossover is exactly the registry boundary. Handed to Phase
+        3's "Extend the generic codelet ladder past 32768", which owns the
+        verdict.
+      - **And the second host refuses the obvious shortcut.** A shorter,
+        ungated laptop run at 65536 reproduces the forward win (0.926 / 0.941)
+        and *reverses* the inverse (1.113 / 1.238) — split-radix pays for a
+        separate `1/n` scaling pass the other arms do not have. So "just
+        register split-radix at 65536" would help forward and hurt inverse on
+        one of the two machines, and is not the free win the Xeon column alone
+        makes it look. Treat that run as indicative only: three counts, no
+        canary gate, and its 131072 arm was discarded outright for reporting
+        inverse medians 6× its forward ones.
 
       **Two harnesses cross-validated**, which is what makes the boundary
       claim trustworthy: at 16384 and 32768 the plan-level DIT arm binds the
@@ -613,18 +627,23 @@ outlives its family.
       - **The 7.2×/5.2× figure does not reproduce.** Against
         `dit1024_radix4_generic` specifically, the pure-Go 32×32 measures
         **1.255×**. Whatever produced 7.2× was measuring something else.
-      - **What is real is a forward/inverse asymmetry.** 32×32: 1.264 fwd /
-        1.794 inv (complex64), 1.522 / 1.979 (complex128). 16×32: 1.230 / 1.339
-        and 1.470 / 1.527. A decomposition losing 1.26× one direction and 1.79×
-        the other is an inverse-path defect, not a decomposition verdict — the
-        same shape as the scaling-pass bug that sat in 28 kernel files.
+      - **What is real is a forward/inverse asymmetry**, on both machines.
+        32×32: 1.264 fwd / 1.794 inv (complex64) and 1.522 / 1.979 (complex128)
+        on the Xeon, 1.161 / 1.410 and 1.443 / 1.403 on the i7-1255U. 16×32:
+        1.230 / 1.339 and 1.470 / 1.527, against 1.293 / 1.263 and 1.363 /
+        1.464. A decomposition losing 1.26× one direction and 1.79× the other
+        is an inverse-path defect, not a decomposition verdict — the same shape
+        as the scaling-pass bug that sat in 28 kernel files.
 
       **Disposition applied**: both rows demoted to priority 1, which is the
       "do not leave it as a registered loser" the item asked for. Neither was
       *selectable* before (the ladder holds 50), but 25/35 read as contenders.
-      Not probe-gated: §2.2 forbids writing off an algorithm on an
-      implementation defect, and the asymmetry names one. The new item below
-      owns finding it.
+      **Not probe-gated, for two independent reasons.** Every Xeon 32×32 inverse
+      cell clears §2.2's ≥ 1.5× bar and **no laptop cell of either row does** in
+      either direction, so probe-gating would be a one-machine eviction from the
+      registry — the exact move §2.2 exists to prevent. And §2.2 separately
+      forbids writing off an algorithm on an implementation defect, which the
+      asymmetry names. The new item below owns finding it.
 
 - [ ] **Find the 32×32 / 16×32 inverse-path defect.** Both decompositions lose
       roughly 1.25× forward and 1.34–1.98× inverse in pure Go (Xeon, canary-gated,

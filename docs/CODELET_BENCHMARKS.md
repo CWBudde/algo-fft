@@ -935,33 +935,50 @@ The ladder stops there deliberately: **n = 65536 has no generic row at all**, so
 a row there would have made an unmeasured kernel the selected purego route. That
 band is measured at plan level instead.
 
-### The gated sweep: split-radix loses every codelet-sized cell
+### The gated sweep: split-radix loses every codelet-sized cell, on both hosts
 
-Xeon Gold 5218, `-tags purego`, `GOOD=11298`, 16 groups × 8 passes,
-**128 accepted + 0 rejected = 128** (full accounting), `benchmarks/gated-sr-purego`.
-Ratios against the group incumbent, taken **within** each group.
+Two canary-gated pure-Go sweeps, `benchmarks/gated-sr-purego`. Ratios against
+the group incumbent, taken **within** each group; each cell is `Xeon · i7-1255U`.
 
-|     n | incumbent           | c64 fwd | c64 inv | c128 fwd | c128 inv |
-| ----: | ------------------- | ------: | ------: | -------: | -------: |
-|   256 | radix8ladder        |   1.338 |   1.401 |    1.347 |    1.513 |
-|   512 | radix8ladder        |   1.205 |   1.292 |    1.259 |    1.328 |
-|  1024 | radix8ladder/radix4 |   1.176 |   1.251 |    1.254 |    1.251 |
-|  2048 | radix8ladder        |   1.190 |   1.274 |    1.206 |    1.322 |
-|  4096 | radix8ladder        |   1.155 |   1.180 |    1.143 |    1.246 |
-|  8192 | radix8ladder        |   1.113 |   1.153 |    1.149 |    1.221 |
-| 16384 | radix8ladder        |   1.173 |   1.173 |    1.186 |    1.300 |
-| 32768 | radix4_then2        |   1.235 |   1.197 |    1.274 |    1.234 |
+- **Xeon Gold 5218**, `GOOD=11298`, 16 groups × 8 passes, **128 accepted + 0
+  rejected = 128** (full accounting), load 0.4, 122 cells.
+- **i7-1255U**, `GOOD=5216`, 12 passes requested, stopped during pass 9:
+  **86 accepted + 44 over gate + 1 incomplete = 131** (full accounting), 110
+  cells. The 34% rejection rate and the early stop have one cause — another
+  workload held the machine at loads of 5–65 and 89–100 °C throughout. Accepted
+  groups are by construction within `GATE` at both canary brackets, but the
+  medians below rest on 3–7 groups per cell rather than 12.
 
-Thirty-two cells, no win. But the loss is **shallow and bounded** — only one cell
-(256 complex128 inverse, 1.513) reaches §2.2's 1.5× bar, and the curve has a
-clear minimum at n = 8192 (1.11) before widening again. Split-radix also _beats_
-`dit16384_radix4_generic` in both precisions (1.173 vs 1.246 complex64) and ties
+  (The cell-count difference is not a discrepancy: the Xeon sweep ran before the
+  six-step codelets moved behind `-tags fftprobe`, and 122 − 110 = 12 is exactly
+  those three sizes × two precisions × two directions.)
+
+|     n | incumbent           |       c64 fwd |       c64 inv |      c128 fwd |          c128 inv |
+| ----: | ------------------- | ------------: | ------------: | ------------: | ----------------: |
+|   256 | radix8ladder        | 1.338 · 1.269 | 1.401 · 1.444 | 1.347 · 1.239 | **1.513** · 1.367 |
+|   512 | radix8ladder        | 1.205 · 1.292 | 1.292 · 1.372 | 1.259 · 1.265 |     1.328 · 1.409 |
+|  1024 | radix8ladder/radix4 | 1.176 · 1.140 | 1.251 · 1.262 | 1.254 · 1.301 |     1.251 · 1.190 |
+|  2048 | radix8ladder        | 1.190 · 1.163 | 1.274 · 1.215 | 1.206 · 1.151 |     1.322 · 1.337 |
+|  4096 | radix8ladder        | 1.155 · 1.069 | 1.180 · 1.227 | 1.143 · 1.161 |     1.246 · 1.268 |
+|  8192 | radix8ladder        | 1.113 · 1.063 | 1.153 · 1.218 | 1.149 · 1.069 |     1.221 · 1.181 |
+| 16384 | radix8ladder        | 1.173 · 1.145 | 1.173 · 1.240 | 1.186 · 1.253 |     1.300 · 1.233 |
+| 32768 | radix4_then2        | 1.235 · 1.164 | 1.197 · 1.145 | 1.274 · 1.138 |     1.234 · 1.097 |
+
+**Sixty-four cells, no win on either machine**, and the two hosts agree cell by
+cell to within about 0.1 — unusually close for this pair, which has inverted an
+ordering outright before.
+
+The loss is **shallow and bounded**. Exactly one cell of sixty-four reaches
+§2.2's 1.5× bar (Xeon, 256 complex128 inverse, 1.513), and the laptop puts that
+same cell at 1.367 — so not even that one survives as a two-host result. Both
+curves bottom out at n = 4096–8192 (1.06–1.15) and widen at either end.
+Split-radix also _beats_ `dit16384_radix4_generic` and ties
 `dit4096_radix4_generic`, so it is mid-pack rather than dominated: it loses to
 the tuned radix-8 ladder, not to everything.
 
-That is §2.2's "registered, low priority" case exactly, and the rows are already
-there — priority 1, never selected, timed by the wisdom tuner, correctness-tested
-for the first time.
+That is §2.2's "registered, low priority" case as cleanly as it ever presents,
+and the rows are already there — priority 1, never selected, timed by the wisdom
+tuner, and correctness-tested for the first time.
 
 ### The band above the codelets: split-radix wins where the ladder stops
 
@@ -985,7 +1002,28 @@ measurements agree to within 2%: 1.159/1.215 here against 1.173/1.235 there.
 That is worth more than either number alone — it says the plan-level arms are
 measuring the kernel and not the plan.
 
-**And it locates the crossover precisely.** Split-radix loses to the bound
+**But the second host splits the 65536 result by direction, and that is the one
+number here not to build on.** A shorter laptop run at 65536 (purego,
+`-benchtime=0.5s -count=3`, **not** canary-gated, machine at 97 °C under another
+workload) reproduces the forward win and reverses the inverse:
+
+| n = 65536, purego, vs Stockham |      Xeon | i7-1255U  |
+| ------------------------------ | --------: | --------- |
+| complex64 forward              | **0.840** | **0.926** |
+| complex64 inverse              | **0.847** | 1.113     |
+| complex128 forward             | **0.897** | **0.941** |
+| complex128 inverse             | **0.904** | 1.238     |
+
+Split-radix scales its inverse by `1/n` in a separate pass the other arms do not
+have, so an inverse penalty is expected; what differs is whether it is affordable.
+Treat the laptop column as indicative only — three counts, no gate, and the
+131072 arm of the same run was **discarded outright** because its inverse
+medians came out 6× its forward medians, which is not physical. What the column
+is good for is refusing a conclusion: a 65536 registration justified on the Xeon
+alone would help forward and hurt inverse on the laptop, so it is not the free
+win the Xeon column alone suggests.
+
+**With that caveat, the crossover still locates precisely.** Split-radix loses to the bound
 codelet at every size that has one, and beats everything at every size that does
 not. The flip is at n = 65536, and it is a large flip: 0.686 against the DIT
 route and 0.840 against Stockham, which is what auto actually picks there.
@@ -1018,40 +1056,53 @@ and the item's other figure — the pure-Go 32×32 "loses 7.2×/5.2× to
 `dit1024_radix4_generic`" — does not reproduce either. Same sweep, same
 accounting:
 
-| row                          |    n | c64 fwd | c64 inv | c128 fwd | c128 inv |
-| ---------------------------- | ---: | ------: | ------: | -------: | -------: |
-| `dit1024_radix32x32_generic` | 1024 |   1.264 |   1.794 |    1.522 |    1.979 |
-| `dit512_radix16x32_generic`  |  512 |   1.230 |   1.339 |    1.470 |    1.527 |
+| row                          |    n |       c64 fwd |       c64 inv |      c128 fwd |      c128 inv |
+| ---------------------------- | ---: | ------------: | ------------: | ------------: | ------------: |
+| `dit1024_radix32x32_generic` | 1024 | 1.264 · 1.161 | 1.794 · 1.410 | 1.522 · 1.443 | 1.979 · 1.403 |
+| `dit512_radix16x32_generic`  |  512 | 1.230 · 1.293 | 1.339 · 1.263 | 1.470 · 1.363 | 1.527 · 1.464 |
 
 Against `dit1024_radix4_generic` specifically, 32×32 measures **1.255×**, not
 7.2×. Whatever produced that figure was measuring something else.
 
-The shape that survives is a **forward/inverse asymmetry**, and it is the whole
-story for 32×32: forward loses 1.26–1.52 while inverse loses 1.79–1.98. A gap
-that large between two directions of the same decomposition is an inverse-path
-defect, not a decomposition verdict — the same class of finding as the scaling
-pass that AGENTS.md records sitting in 28 kernel files.
+The shape that survives is a **forward/inverse asymmetry**, present on both
+machines and steepest for 32×32: on the Xeon, forward loses 1.26–1.52 while
+inverse loses 1.79–1.98. A gap that large between two directions of the same
+decomposition is an inverse-path defect, not a decomposition verdict — the same
+class of finding as the scaling pass that AGENTS.md records sitting in 28 kernel
+files.
+
+**The two hosts disagree on magnitude, and that decides the disposition.** Every
+Xeon 32×32 inverse cell clears §2.2's 1.5× bar; **no laptop cell of either row
+does**, in either direction (worst: 1.464). A probe-gating justified on the Xeon
+column alone would be a one-machine deletion from the registry — precisely what
+§2.2 exists to prevent.
 
 **Disposition: both rows demoted to priority 1**, not probe-gated. Neither was
 selectable before — the radix-8 ladder holds 50 at both sizes — but 25 and 35
-read as contender priorities for kernels that lose every cell. Probe-gating is
-what the ≥ 1.5× inverse cells would otherwise call for, and §2.2 forbids it
-here for the same reason it forbids closing the family: the loss has a named,
-plausible implementation cause, and retiring the file behind a tag is how that
-cause stops being investigated. `PLAN.md` §1.2's "Find the 32×32 / 16×32
-inverse-path defect" owns it, with the fallback written in: if the gap does not
-close, the rows have a measured ≥ 1.5× loss with no excuse left and go behind
-`-tags fftprobe` then.
+read as contender priorities for kernels that lose every cell on both machines.
+Two independent reasons keep them registered rather than tagged: the bar is not
+met on the second host, and the loss has a named, plausible implementation cause
+that retiring the file behind a tag is how you stop investigating. `PLAN.md`
+§1.2's "Find the 32×32 / 16×32 inverse-path defect" owns it, with the fallback
+written in: if the gap does not close, the rows have a measured loss with no
+excuse left and go behind `-tags fftprobe` then.
 
 ### What this does not establish
 
-- **One host.** Every number above is the Xeon Gold 5218. The laptop arm of this
-  sweep did not complete — the machine was running another workload throughout,
-  at loads of 20–65 and 100 °C, and contention inverts orderings here rather
-  than merely inflating them. The split-radix ranking is consistent across
-  thirty-two cells and cross-validated by a second harness, so its _shape_ is
-  not in doubt; the exact ratios and the 65536 crossover point are provisional
-  until a second machine confirms them, per §2.2.
+- **The laptop arm is weaker than the Xeon arm and must not be weighted
+  equally.** It was stopped during pass 9 of 12 with a 34% gate-rejection rate,
+  on a machine another workload held at 89–100 °C throughout. It is strong
+  enough to corroborate a ranking that agrees cell by cell across sixty-four
+  cells; it is not strong enough to settle a single ratio sitting near a
+  threshold.
+- **The 65536 plan-level cells are the weakest measurement here**, and the only
+  place the two hosts disagree in direction: three counts, no canary gate, and
+  the 131072 arm of that same laptop run discarded as non-physical. They are
+  quoted in order to _withhold_ a conclusion, not to support one.
+- **Nothing here establishes where the crossover lands on a third machine.** The
+  claim that survives both hosts is ordinal — split-radix loses at every size
+  that has a tuned codelet — not the location of the flip, which is a property
+  of where the registry stops and therefore moves when the registry does.
 - **Nothing here measures split-radix on a SIMD build**, and the SIMD figures
   should not be read as a family verdict for the same reason six-step's were
   not: split-radix is pure Go, so against AVX2 codelets it is a scalar kernel in
