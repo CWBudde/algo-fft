@@ -7,7 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-08-02
+
 ### Fixed
+
+- **The arm64 real-FFT inverse repack was slower than the pure-Go loop it
+  replaced.** `neon_real_repack.s` was dispatched as the NEON path while
+  containing zero vector instructions, and measured **1.24–1.30× slower than
+  generic Go** at every size on an Apple M5 — so every arm64 real-FFT inverse
+  transform paid to use it. Vectorizing it is worth 1.84–1.99× against itself
+  and turns that loss into a **1.45–1.52× win** over Go. The regression was
+  invisible because the repack sits outside the codelet registry, so no
+  candidate sweep covered it and no `BenchmarkRepackInverseComplex64` existed —
+  only the `*Generic` variant. Both now exist.
+- **NEON codelets could not be ranked below a faster pure-Go sibling.**
+  Registry ordering is SIMD-level major, so a slow NEON codelet outranked every
+  generic codelet regardless of priority, and `Priority < 0` was the only
+  alternative — which also drops the row from `LookupBySignature` and from the
+  registry-driven reference tests, so the kernel stops being verified. The new
+  `RankBelowGeneric` flag orders a codelet below every generic one while keeping
+  it compiled, correctness-tested and reachable by wisdom. **70 arm64 cells were
+  selecting a 1.1–5.6× loss.**
+
+### Added
+
+- **A vectorized complex128 NEON radix-4 Stockham core**, replacing five
+  unrolled `neon_f64_size*_radix4.s` files and 175 KB of bit-reversal tables —
+  29,146 lines deleted for 683 added. Wins every cell at sizes 64–16384
+  (1.16–1.72×); all five rows were losses before.
+- **`InverseRepackComplex128NEONAsm`.** complex128 real-FFT repack on arm64 was
+  a stub returning "no SIMD" while amd64 has had an AVX2 repack; the NEON
+  implementation is worth 1.35–1.39× over generic Go.
+
+### Removed
+
+- **Twelve scalar radix-2 NEON codelets, retired behind `-tags fftprobe`.**
+  All contained zero vector instructions and lost 2.7–5.6× to pure Go. They keep
+  correctness tests and comparison benchmarks under the tag, so the question
+  stays re-measurable rather than becoming folklore.
 
 - **The race-detector test run could not finish, and now takes a tenth as
   long.** `internal/kernels` took **1499.7 s** under `-race` against Go's
