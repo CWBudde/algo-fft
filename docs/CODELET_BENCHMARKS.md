@@ -1697,3 +1697,67 @@ The demotions are recorded as a **verdict, not a deletion**. Re-measure and lift
 `RankBelowGeneric` as each kernel is vectorized — the c64 sizes 64–16384 rows
 above are exactly what that looks like, and they were demoted-equivalent losses
 one round earlier.
+
+### Sizes 64–16384, complex128 — the looped core ports, and every cell wins (2026-08-02)
+
+The complex64 looped radix-4 Stockham core (`neon_f32_radix4_loop.s`) was ported
+to `.2D` lanes as `neon_f64_radix4_loop.s`, replacing five unrolled
+`neon_f64_size*_radix4.s` files and 175 KB of bit-reversal tables — 29,146 lines
+deleted for 683 added. Same host and parameters as the confirmation sweep above.
+
+| cell               |      best pure-Go |                  NEON |        gain |
+| ------------------ | ----------------: | --------------------: | ----------: |
+| `size64` fwd/inv   |   122.78 / 144.52 |   **105.80 / 110.80** | 1.16 / 1.30 |
+| `size256` fwd/inv  |   529.67 / 557.45 |   **453.70 / 471.47** | 1.17 / 1.18 |
+| `size1024` fwd/inv | 3347.17 / 4376.00 | **2474.33 / 2540.67** | 1.35 / 1.72 |
+| `size4096` fwd/inv | 14835.7 / 15697.2 | **11996.5 / 12091.0** | 1.24 / 1.30 |
+| `size16384` f/i    | 96185.7 / 97615.0 | **69715.7 / 68345.0** | 1.38 / 1.43 |
+
+Every one of these cells was a **loss** of 1.27–1.63x in the confirmation sweep,
+so the swing per cell is roughly 1.5–2.3x. `RankBelowGeneric` was lifted from all
+five rows (35 demotions → 30). The gains are smaller than complex64's ~2x, which
+is what the half-lane-width argument predicts — but note that the argument
+predicted only the _magnitude_; the direction is what had to be measured, and on
+this project a mechanistic complex128 prediction has been wrong before.
+
+The complex64 control rows re-measured at 1.66–2.15x against the previous
+round's 1.57–2.08x, so the port did not disturb them. Absolutes in that run ran
+~30% high because the host was busier and the split-radix merge had added
+candidates to each process; only the within-size ratios are quotable.
+
+### The generic complex128 NEON kernel: vectorized, and it changed nothing (2026-08-02)
+
+`neon_f64_generic.s` was rewritten from 0 to 68 vector ops across three inner
+paths (contiguous / gather / scalar tail), 532 → 733 lines. It is registered at
+exactly two cells, so those are the only places the rewrite can show up:
+
+| cell (c128)           |    best pure-Go |    generic NEON |      before |       after |
+| --------------------- | --------------: | --------------: | ----------: | ----------: |
+| `dit32_generic_neon`  |     57.6 / 69.8 |   177.1 / 186.6 | 3.11 / 2.14 | 3.07 / 2.67 |
+| `dit512_generic_neon` | 1856.2 / 1590.0 | 6590.9 / 7766.8 | 3.79 / 3.89 | 3.55 / 4.88 |
+
+Ratios only — the two runs sat at different host loads. Within that noise the
+verdict is flat: still losing 2.7–4.9x, exactly as before it was vectorized.
+
+**This is not the dead-assembly failure mode**, which is what a null result
+should be checked against first. The vector paths are guarded by
+`CMP $2, R5 / BLT f128_scalar_butterfly` on `half = m/2`, so only the `m == 2`
+stage falls to scalar — 8 of 9 stages at n=512 do run the vector code.
+
+Two structural costs swamp the butterflies:
+
+- **The bit-reversal is computed at runtime, bit-serially.** `f128_bitrev_bits`
+  loops once per bit per element — 4,608 iterations at n=512 — where every
+  size-specific codelet indexes a precomputed table. Vectorizing the butterflies
+  cannot touch this.
+- **The gather path assembles each twiddle lane-by-lane**, `MOVD` + `VMOV` per
+  half, four scalar ops to fill `V4`/`V5`. `step == 1` only on the final stage,
+  so the genuinely contiguous path runs once out of nine.
+
+So the algorithm is not disqualified — this file is, and for a reason visible in
+the source rather than only in a number. The honest reading is that a generic
+any-size kernel carrying a runtime bit-reversal cannot reach the size-specific
+codelets, and effort belongs in the remaining unvectorized _sized_ rows. Both
+rows are already `RankBelowGeneric`, so nothing selects them; by §2.2's ≥1.5x
+threshold they are also candidates for an `fftprobe` migration alongside the
+`then2` rows.
