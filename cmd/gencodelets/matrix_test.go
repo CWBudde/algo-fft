@@ -168,9 +168,16 @@ func TestUntestedFamiliesAreNotInTheRegistry(t *testing.T) {
 }
 
 // TestMatrixUnionIncludesTierOnlyFamilies is the point of deriving the family
-// axis from two sources. Split-radix, four-step, Rader, Bluestein
-// and the recursive decomposition have no codelet rows at all, so a
-// specs-only scan omits precisely the families whose emptiness is the finding.
+// axis from two sources. Four-step, Rader, Bluestein and the recursive
+// decomposition have no codelet rows at all, so a specs-only scan omits
+// precisely the families whose emptiness is the finding.
+//
+// Split-radix was on this list until 2026-08-02. It came off it the moment
+// §1.2's split-radix item gave the family codelet rows so the canary-gated
+// sweep could rank it — which is the union doing its job rather than the test
+// weakening: the family stayed visible while it had nothing, and left the
+// tier-only list the moment it had something. Do not re-add it, and do not
+// treat the shrinking list as a reason to drop the second source.
 func TestMatrixUnionIncludesTierOnlyFamilies(t *testing.T) {
 	fromSpecs := map[string]bool{}
 	for _, s := range codeletSpecs {
@@ -182,7 +189,7 @@ func TestMatrixUnionIncludesTierOnlyFamilies(t *testing.T) {
 		inMatrix[row.Family] = true
 	}
 
-	for _, family := range []string{"Split-radix", "Four-step", "Rader", "Bluestein", "Recursive"} {
+	for _, family := range []string{"Four-step", "Rader", "Bluestein", "Recursive"} {
 		if fromSpecs[family] {
 			t.Errorf("%s now has codelet rows; this test's premise needs revisiting", family)
 		}

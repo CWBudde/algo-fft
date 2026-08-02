@@ -50,8 +50,13 @@ var variantNames = map[string]string{
 	"radix32x32":          "Radix-32×32",
 	"mixed":               "Mixed 128×3",
 	"sixstep":             "Six-step",
-	"sixstep64x128":       "Six-step 64×128",
-	"generic":             "Generic radix-2",
+	// Must match the tier table's Algo for split-radix exactly. The family axis
+	// is the union of the codelet families and the tier families, so a codelet
+	// row spelled "splitradix" against a tier row spelled "Split-radix" would
+	// split one family into two — one of which would then have no verdict.
+	"splitradix":    "Split-radix",
+	"sixstep64x128": "Six-step 64×128",
+	"generic":       "Generic radix-2",
 }
 
 var signatureRe = regexp.MustCompile(`^dit[0-9]+_(.+)_(generic|avx2|avx512|sse2|sse3|neon)$`)
