@@ -258,7 +258,6 @@ var codeletSpecsNEON = []codeletSpec{
 		Inverse:   "arm64.InverseNEONSize64Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
 		Signature: "dit64_radix4_neon", Priority: 24,
-		RankBelowGeneric: true,
 	},
 	{
 		Target: "neon", Prec: 128, Size: 128,
@@ -290,7 +289,6 @@ var codeletSpecsNEON = []codeletSpec{
 		Inverse:   "arm64.InverseNEONSize256Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
 		Signature: "dit256_radix4_neon", Priority: 28,
-		RankBelowGeneric: true,
 	},
 	{
 		Target: "neon", Prec: 128, Size: 512,
@@ -314,7 +312,6 @@ var codeletSpecsNEON = []codeletSpec{
 		Inverse:   "arm64.InverseNEONSize1024Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
 		Signature: "dit1024_radix4_neon", Priority: 28,
-		RankBelowGeneric: true,
 	},
 	{
 		Target: "neon", Prec: 128, Size: 2048,
@@ -330,7 +327,6 @@ var codeletSpecsNEON = []codeletSpec{
 		Inverse:   "arm64.InverseNEONSize4096Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
 		Signature: "dit4096_radix4_neon", Priority: 28,
-		RankBelowGeneric: true,
 	},
 	{
 		Target: "neon", Prec: 128, Size: 8192,
@@ -346,7 +342,6 @@ var codeletSpecsNEON = []codeletSpec{
 		Inverse:   "arm64.InverseNEONSize16384Radix4Complex128Asm",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_radix4_neon", Priority: 28,
-		RankBelowGeneric: true,
 	},
 	{
 		Target: "neon", Prec: 128, Size: 32768,

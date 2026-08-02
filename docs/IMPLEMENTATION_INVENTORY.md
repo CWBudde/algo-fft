@@ -140,7 +140,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |    32 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
 |    32 | Radix-8 (ladder)                           |  —  |  —   |  —   |  p   |    p    |  —   |
 |    64 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ▽   |
-|    64 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ▽   |
+|    64 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |
 |    64 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
 |   128 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    ✓    |  ▽   |
 |   128 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ▽   |
@@ -150,7 +150,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |   128 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
 |   256 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |   256 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ▽   |
-|   256 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ▽   |
+|   256 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
 |   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 |   256 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |   384 | Mixed 128×3                                |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
@@ -167,7 +167,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |   512 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-32×32                                |  ·  |  —   |  —   |  —   |    —    |  —   |
-|  1024 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    —    |  ▽   |
+|  1024 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    —    |  ✓   |
 |  1024 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  —   |
 |  1024 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  2048 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ▽   |
@@ -178,7 +178,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |  2048 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
 |  2048 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-|  4096 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ▽   |
+|  4096 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
 |  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 |  4096 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
@@ -191,7 +191,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |  8192 | Six-step 64×128                            |  p  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-| 16384 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ▽   |
+| 16384 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
 | 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 | 16384 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
@@ -266,7 +266,7 @@ the grids show.
 | amd64 AVX-512  |      64 |           16 |         13 |        3 |           32768 |
 | amd64 AVX-512  |     128 |           16 |         13 |        3 |           32768 |
 | arm64 NEON     |      64 |           15 |          7 |        8 |           16384 |
-| arm64 NEON     |     128 |           15 |          2 |       13 |              16 |
+| arm64 NEON     |     128 |           15 |          7 |        8 |           16384 |
 
 ### Not covered, by tier
 
