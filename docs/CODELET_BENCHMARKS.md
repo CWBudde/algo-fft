@@ -935,33 +935,50 @@ The ladder stops there deliberately: **n = 65536 has no generic row at all**, so
 a row there would have made an unmeasured kernel the selected purego route. That
 band is measured at plan level instead.
 
-### The gated sweep: split-radix loses every codelet-sized cell
+### The gated sweep: split-radix loses every codelet-sized cell, on both hosts
 
-Xeon Gold 5218, `-tags purego`, `GOOD=11298`, 16 groups × 8 passes,
-**128 accepted + 0 rejected = 128** (full accounting), `benchmarks/gated-sr-purego`.
-Ratios against the group incumbent, taken **within** each group.
+Two canary-gated pure-Go sweeps, `benchmarks/gated-sr-purego`. Ratios against
+the group incumbent, taken **within** each group; each cell is `Xeon · i7-1255U`.
 
-|     n | incumbent           | c64 fwd | c64 inv | c128 fwd | c128 inv |
-| ----: | ------------------- | ------: | ------: | -------: | -------: |
-|   256 | radix8ladder        |   1.338 |   1.401 |    1.347 |    1.513 |
-|   512 | radix8ladder        |   1.205 |   1.292 |    1.259 |    1.328 |
-|  1024 | radix8ladder/radix4 |   1.176 |   1.251 |    1.254 |    1.251 |
-|  2048 | radix8ladder        |   1.190 |   1.274 |    1.206 |    1.322 |
-|  4096 | radix8ladder        |   1.155 |   1.180 |    1.143 |    1.246 |
-|  8192 | radix8ladder        |   1.113 |   1.153 |    1.149 |    1.221 |
-| 16384 | radix8ladder        |   1.173 |   1.173 |    1.186 |    1.300 |
-| 32768 | radix4_then2        |   1.235 |   1.197 |    1.274 |    1.234 |
+- **Xeon Gold 5218**, `GOOD=11298`, 16 groups × 8 passes, **128 accepted + 0
+  rejected = 128** (full accounting), load 0.4, 122 cells.
+- **i7-1255U**, `GOOD=5216`, 12 passes requested, stopped during pass 9:
+  **86 accepted + 44 over gate + 1 incomplete = 131** (full accounting), 110
+  cells. The 34% rejection rate and the early stop have one cause — another
+  workload held the machine at loads of 5–65 and 89–100 °C throughout. Accepted
+  groups are by construction within `GATE` at both canary brackets, but the
+  medians below rest on 3–7 groups per cell rather than 12.
 
-Thirty-two cells, no win. But the loss is **shallow and bounded** — only one cell
-(256 complex128 inverse, 1.513) reaches §2.2's 1.5× bar, and the curve has a
-clear minimum at n = 8192 (1.11) before widening again. Split-radix also _beats_
-`dit16384_radix4_generic` in both precisions (1.173 vs 1.246 complex64) and ties
+  (The cell-count difference is not a discrepancy: the Xeon sweep ran before the
+  six-step codelets moved behind `-tags fftprobe`, and 122 − 110 = 12 is exactly
+  those three sizes × two precisions × two directions.)
+
+|     n | incumbent           |       c64 fwd |       c64 inv |      c128 fwd |          c128 inv |
+| ----: | ------------------- | ------------: | ------------: | ------------: | ----------------: |
+|   256 | radix8ladder        | 1.338 · 1.269 | 1.401 · 1.444 | 1.347 · 1.239 | **1.513** · 1.367 |
+|   512 | radix8ladder        | 1.205 · 1.292 | 1.292 · 1.372 | 1.259 · 1.265 |     1.328 · 1.409 |
+|  1024 | radix8ladder/radix4 | 1.176 · 1.140 | 1.251 · 1.262 | 1.254 · 1.301 |     1.251 · 1.190 |
+|  2048 | radix8ladder        | 1.190 · 1.163 | 1.274 · 1.215 | 1.206 · 1.151 |     1.322 · 1.337 |
+|  4096 | radix8ladder        | 1.155 · 1.069 | 1.180 · 1.227 | 1.143 · 1.161 |     1.246 · 1.268 |
+|  8192 | radix8ladder        | 1.113 · 1.063 | 1.153 · 1.218 | 1.149 · 1.069 |     1.221 · 1.181 |
+| 16384 | radix8ladder        | 1.173 · 1.145 | 1.173 · 1.240 | 1.186 · 1.253 |     1.300 · 1.233 |
+| 32768 | radix4_then2        | 1.235 · 1.164 | 1.197 · 1.145 | 1.274 · 1.138 |     1.234 · 1.097 |
+
+**Sixty-four cells, no win on either machine**, and the two hosts agree cell by
+cell to within about 0.1 — unusually close for this pair, which has inverted an
+ordering outright before.
+
+The loss is **shallow and bounded**. Exactly one cell of sixty-four reaches
+§2.2's 1.5× bar (Xeon, 256 complex128 inverse, 1.513), and the laptop puts that
+same cell at 1.367 — so not even that one survives as a two-host result. Both
+curves bottom out at n = 4096–8192 (1.06–1.15) and widen at either end.
+Split-radix also _beats_ `dit16384_radix4_generic` and ties
 `dit4096_radix4_generic`, so it is mid-pack rather than dominated: it loses to
 the tuned radix-8 ladder, not to everything.
 
-That is §2.2's "registered, low priority" case exactly, and the rows are already
-there — priority 1, never selected, timed by the wisdom tuner, correctness-tested
-for the first time.
+That is §2.2's "registered, low priority" case as cleanly as it ever presents,
+and the rows are already there — priority 1, never selected, timed by the wisdom
+tuner, and correctness-tested for the first time.
 
 ### The band above the codelets: split-radix wins where the ladder stops
 
@@ -985,7 +1002,28 @@ measurements agree to within 2%: 1.159/1.215 here against 1.173/1.235 there.
 That is worth more than either number alone — it says the plan-level arms are
 measuring the kernel and not the plan.
 
-**And it locates the crossover precisely.** Split-radix loses to the bound
+**But the second host splits the 65536 result by direction, and that is the one
+number here not to build on.** A shorter laptop run at 65536 (purego,
+`-benchtime=0.5s -count=3`, **not** canary-gated, machine at 97 °C under another
+workload) reproduces the forward win and reverses the inverse:
+
+| n = 65536, purego, vs Stockham |      Xeon | i7-1255U  |
+| ------------------------------ | --------: | --------- |
+| complex64 forward              | **0.840** | **0.926** |
+| complex64 inverse              | **0.847** | 1.113     |
+| complex128 forward             | **0.897** | **0.941** |
+| complex128 inverse             | **0.904** | 1.238     |
+
+Split-radix scales its inverse by `1/n` in a separate pass the other arms do not
+have, so an inverse penalty is expected; what differs is whether it is affordable.
+Treat the laptop column as indicative only — three counts, no gate, and the
+131072 arm of the same run was **discarded outright** because its inverse
+medians came out 6× its forward medians, which is not physical. What the column
+is good for is refusing a conclusion: a 65536 registration justified on the Xeon
+alone would help forward and hurt inverse on the laptop, so it is not the free
+win the Xeon column alone suggests.
+
+**With that caveat, the crossover still locates precisely.** Split-radix loses to the bound
 codelet at every size that has one, and beats everything at every size that does
 not. The flip is at n = 65536, and it is a large flip: 0.686 against the DIT
 route and 0.840 against Stockham, which is what auto actually picks there.
@@ -1018,19 +1056,61 @@ and the item's other figure — the pure-Go 32×32 "loses 7.2×/5.2× to
 `dit1024_radix4_generic`" — does not reproduce either. Same sweep, same
 accounting:
 
-| row                          |    n | c64 fwd | c64 inv | c128 fwd | c128 inv |
-| ---------------------------- | ---: | ------: | ------: | -------: | -------: |
-| `dit1024_radix32x32_generic` | 1024 |   1.264 |   1.794 |    1.522 |    1.979 |
-| `dit512_radix16x32_generic`  |  512 |   1.230 |   1.339 |    1.470 |    1.527 |
+| row                          |    n |       c64 fwd |       c64 inv |      c128 fwd |      c128 inv |
+| ---------------------------- | ---: | ------------: | ------------: | ------------: | ------------: |
+| `dit1024_radix32x32_generic` | 1024 | 1.264 · 1.161 | 1.794 · 1.410 | 1.522 · 1.443 | 1.979 · 1.403 |
+| `dit512_radix16x32_generic`  |  512 | 1.230 · 1.293 | 1.339 · 1.263 | 1.470 · 1.363 | 1.527 · 1.464 |
 
 Against `dit1024_radix4_generic` specifically, 32×32 measures **1.255×**, not
 7.2×. Whatever produced that figure was measuring something else.
 
-The shape that survives is a **forward/inverse asymmetry**, and it is the whole
-story for 32×32: forward loses 1.26–1.52 while inverse loses 1.79–1.98. A gap
-that large between two directions of the same decomposition is an inverse-path
-defect, not a decomposition verdict — the same class of finding as the scaling
-pass that AGENTS.md records sitting in 28 kernel files.
+The shape that survives is a **forward/inverse asymmetry**, present on both
+machines and steepest for 32×32: on the Xeon, forward loses 1.26–1.52 while
+inverse loses 1.79–1.98. A gap that large between two directions of the same
+decomposition is an inverse-path defect, not a decomposition verdict — the same
+class of finding as the scaling pass that AGENTS.md records sitting in 28 kernel
+files.
+
+**The two hosts disagree on magnitude, and that decides the disposition.** Every
+Xeon 32×32 inverse cell clears §2.2's 1.5× bar; **no laptop cell of either row
+does**, in either direction (worst: 1.464). A probe-gating justified on the Xeon
+column alone would be a one-machine deletion from the registry — precisely what
+§2.2 exists to prevent.
+
+**Disposition: both rows demoted to priority 1**, not probe-gated. Neither was
+selectable before — the radix-8 ladder holds 50 at both sizes — but 25 and 35
+read as contender priorities for kernels that lose every cell on both machines.
+Two independent reasons keep them registered rather than tagged: the bar is not
+met on the second host, and the loss has a named, plausible implementation cause
+that retiring the file behind a tag is how you stop investigating. `PLAN.md`
+§1.2's "Find the 32×32 / 16×32 inverse-path defect" owns it, with the fallback
+written in: if the gap does not close, the rows have a measured loss with no
+excuse left and go behind `-tags fftprobe` then.
+
+### What this does not establish
+
+- **The laptop arm is weaker than the Xeon arm and must not be weighted
+  equally.** It was stopped during pass 9 of 12 with a 34% gate-rejection rate,
+  on a machine another workload held at 89–100 °C throughout. It is strong
+  enough to corroborate a ranking that agrees cell by cell across sixty-four
+  cells; it is not strong enough to settle a single ratio sitting near a
+  threshold.
+- **The 65536 plan-level cells are the weakest measurement here**, and the only
+  place the two hosts disagree in direction: three counts, no canary gate, and
+  the 131072 arm of that same laptop run discarded as non-physical. They are
+  quoted in order to _withhold_ a conclusion, not to support one.
+- **Nothing here establishes where the crossover lands on a third machine.** The
+  claim that survives both hosts is ordinal — split-radix loses at every size
+  that has a tuned codelet — not the location of the flip, which is a property
+  of where the registry stops and therefore moves when the registry does.
+- **Nothing here measures split-radix on a SIMD build**, and the SIMD figures
+  should not be read as a family verdict for the same reason six-step's were
+  not: split-radix is pure Go, so against AVX2 codelets it is a scalar kernel in
+  a vector fight. The purego arm is the fair one and is what is quoted.
+- **The 65536 and 131072 rows are plan-level, not codelet-level.** They measure
+  a forced `PlanOptions.Strategy`, so they include plan dispatch that the gated
+  rows do not. The 16384/32768 overlap is what licenses comparing them: there
+  the two harnesses agree within 2%.
 
 ## AVX-512 tier (Xeon Gold 5218)
 
@@ -1648,185 +1728,14 @@ reference tests, and stays reachable by signature, so the wisdom tuner can still
 select it on a different microarchitecture. That is what keeps the M5 result
 re-measurable instead of turning it into folklore, per PLAN.md §2.2.
 
-Applied to the **35 NEON spec rows** measured as losing — every NEON row except
-the nine that win: c64 `dit8_radix8`, c64/c128 `dit16_radix4`, c128
-`dit8_radix4`, c64 `dit64_radix2` and c64
-`dit{256,1024,4096,16384}_radix4`. Those nine keep normal NEON rank. Sizes 8
-(both precisions) are the judgement call: each loses forward and wins inverse,
-and one entry carries both directions, so they are kept at NEON rank on the
-≤1.5x arm of §2.2.
-
-**`dit64_radix2_neon` is the trap in that list.** For complex64 it is served by
-the looped radix-4 core (`neon_f32_radix4_loop.s`) — the signature and the
-`…Size64Radix2Complex64Asm` symbol are historical, kept when the unrolled
-radix-2 file was deleted so that no spec/dispatch row had to change. Keying the
-demotion off signatures demoted it, throwing away a 1.57x / 1.79x win, and only
-the confirmation sweep caught it. For complex128 the same signature really is
-the scalar radix-2 kernel and loses 2.96x. **A NEON signature does not identify
-the algorithm; check the symbol's definition.**
-
-### Confirmation sweep (2026-08-02)
-
-Re-measured after the demotions, same host and parameters as the baseline
-(M5, `count=6`, `benchtime=500ms`, 238 cells). Every demotion is confirmed a
-loss, most by more than the baseline recorded:
-
-| row                           | c64 fwd/inv | c128 fwd/inv |
-| ----------------------------- | ----------: | -----------: |
-| `dit4_radix4_neon`            | 1.62 / 1.36 |  2.06 / 1.81 |
-| `dit8_radix2_neon`            | 4.52 / 3.63 |  5.61 / 4.24 |
-| `dit16_radix2_neon`           | 4.05 / 4.02 |  3.99 / 3.96 |
-| `dit32_radix4_then2_neon`     | 1.17 / 1.17 |  1.27 / 1.29 |
-| `dit128_radix4_then2_neon`    | 1.56 / 1.47 |  1.59 / 1.57 |
-| `dit256_radix2_neon`          | 2.72 / 2.85 |  2.85 / 2.99 |
-| `dit512_radix4_then2_neon`    | 1.51 / 1.70 |  1.71 / 1.86 |
-| `dit1024_radix4_neon` (c128)  |           — |  1.27 / 1.13 |
-| `dit2048_radix4_then2_neon`   |           — |  1.53 / 1.71 |
-| `dit4096_radix4_neon` (c128)  |           — |  1.47 / 1.51 |
-| `dit8192_radix4_then2_neon`   |           — |  1.25 / 1.37 |
-| `dit16384_radix4_neon` (c128) |           — |  1.31 / 1.42 |
-| `dit32768_radix4_then2_neon`  |           — |  1.10 / 1.11 |
-
-Two notes on the margins. `dit32_radix4_then2_neon` loses only 1.17x / 1.27x,
-inside §2.2's keep-registered band — demoting it is stricter than the rule
-requires and is the one row worth arguing about. And the baseline's lone NEON
-win, c128/size32/inverse at 0.92, **did not reproduce**: that cell now loses
-1.29x, so it was noise, and no NEON row wins at size 32 in either precision.
+Applied to the **36 NEON spec rows** the sweep measured as losing — every NEON
+row except the nine that now win: c64 `dit8_radix8`, c64/c128 `dit16_radix4`,
+c128 `dit8_radix4`, and c64 `dit{64,256,1024,4096,16384}_radix4`. Those nine
+keep normal NEON rank. Sizes 8 (both precisions) are the judgement call: each
+loses forward and wins inverse, and one entry carries both directions, so they
+are kept at NEON rank on the ≤1.5x arm of §2.2.
 
 The demotions are recorded as a **verdict, not a deletion**. Re-measure and lift
 `RankBelowGeneric` as each kernel is vectorized — the c64 sizes 64–16384 rows
 above are exactly what that looks like, and they were demoted-equivalent losses
 one round earlier.
-
-### Sizes 64–16384, complex128 — the looped core ports, and every cell wins (2026-08-02)
-
-The complex64 looped radix-4 Stockham core (`neon_f32_radix4_loop.s`) was ported
-to `.2D` lanes as `neon_f64_radix4_loop.s`, replacing five unrolled
-`neon_f64_size*_radix4.s` files and 175 KB of bit-reversal tables — 29,146 lines
-deleted for 683 added. Same host and parameters as the confirmation sweep above.
-
-| cell               |      best pure-Go |                  NEON |        gain |
-| ------------------ | ----------------: | --------------------: | ----------: |
-| `size64` fwd/inv   |   122.78 / 144.52 |   **105.80 / 110.80** | 1.16 / 1.30 |
-| `size256` fwd/inv  |   529.67 / 557.45 |   **453.70 / 471.47** | 1.17 / 1.18 |
-| `size1024` fwd/inv | 3347.17 / 4376.00 | **2474.33 / 2540.67** | 1.35 / 1.72 |
-| `size4096` fwd/inv | 14835.7 / 15697.2 | **11996.5 / 12091.0** | 1.24 / 1.30 |
-| `size16384` f/i    | 96185.7 / 97615.0 | **69715.7 / 68345.0** | 1.38 / 1.43 |
-
-Every one of these cells was a **loss** of 1.27–1.63x in the confirmation sweep,
-so the swing per cell is roughly 1.5–2.3x. `RankBelowGeneric` was lifted from all
-five rows (35 demotions → 30). The gains are smaller than complex64's ~2x, which
-is what the half-lane-width argument predicts — but note that the argument
-predicted only the _magnitude_; the direction is what had to be measured, and on
-this project a mechanistic complex128 prediction has been wrong before.
-
-The complex64 control rows re-measured at 1.66–2.15x against the previous
-round's 1.57–2.08x, so the port did not disturb them. Absolutes in that run ran
-~30% high because the host was busier and the split-radix merge had added
-candidates to each process; only the within-size ratios are quotable.
-
-### The generic complex128 NEON kernel: vectorized, and it changed nothing (2026-08-02)
-
-`neon_f64_generic.s` was rewritten from 0 to 68 vector ops across three inner
-paths (contiguous / gather / scalar tail), 532 → 733 lines. It is registered at
-exactly two cells, so those are the only places the rewrite can show up:
-
-| cell (c128)           |    best pure-Go |    generic NEON |      before |       after |
-| --------------------- | --------------: | --------------: | ----------: | ----------: |
-| `dit32_generic_neon`  |     57.6 / 69.8 |   177.1 / 186.6 | 3.11 / 2.14 | 3.07 / 2.67 |
-| `dit512_generic_neon` | 1856.2 / 1590.0 | 6590.9 / 7766.8 | 3.79 / 3.89 | 3.55 / 4.88 |
-
-Ratios only — the two runs sat at different host loads. Within that noise the
-verdict is flat: still losing 2.7–4.9x, exactly as before it was vectorized.
-
-**This is not the dead-assembly failure mode**, which is what a null result
-should be checked against first. The vector paths are guarded by
-`CMP $2, R5 / BLT f128_scalar_butterfly` on `half = m/2`, so only the `m == 2`
-stage falls to scalar — 8 of 9 stages at n=512 do run the vector code.
-
-Two structural costs swamp the butterflies:
-
-- **The bit-reversal is computed at runtime, bit-serially.** `f128_bitrev_bits`
-  loops once per bit per element — 4,608 iterations at n=512 — where every
-  size-specific codelet indexes a precomputed table. Vectorizing the butterflies
-  cannot touch this.
-- **The gather path assembles each twiddle lane-by-lane**, `MOVD` + `VMOV` per
-  half, four scalar ops to fill `V4`/`V5`. `step == 1` only on the final stage,
-  so the genuinely contiguous path runs once out of nine.
-
-So the algorithm is not disqualified — this file is, and for a reason visible in
-the source rather than only in a number. The honest reading is that a generic
-any-size kernel carrying a runtime bit-reversal cannot reach the size-specific
-codelets, and effort belongs in the remaining unvectorized _sized_ rows. Both
-rows are already `RankBelowGeneric`, so nothing selects them; by §2.2's ≥1.5x
-threshold they are also candidates for an `fftprobe` migration alongside the
-`then2` rows.
-
-### The real-FFT repack: the NEON path was a pessimization (2026-08-02)
-
-`neon_real_repack.s` sits on the real-FFT inverse path and is not a codelet — it
-has no spec row, so no candidate benchmark and none of the 238 matrix cells ever
-covered it. It was also the last NEON file in the tree with **zero vector
-instructions** while being dispatched as the SIMD path.
-
-Measured on the M5 through `RepackInverseComplex64`, `count=8`,
-`benchtime=500ms`. "before" is the scalar assembly, "after" the vectorized
-rewrite; the generic column is the pure-Go loop over the same bins:
-
-| half | generic Go | NEON before | NEON after | before vs Go | after vs Go |
-| ---- | ---------: | ----------: | ---------: | -----------: | ----------: |
-| 128  |      185.4 |       240.1 |  **128.0** |    **0.77x** |       1.45x |
-| 512  |      788.4 |       983.4 |  **523.1** |    **0.80x** |       1.51x |
-| 2048 |     3004.1 |      3921.1 | **1973.4** |    **0.77x** |       1.52x |
-| 8192 |    12238.9 |     15156.9 | **8242.5** |    **0.81x** |       1.48x |
-
-The first result is the one that matters: **the old "SIMD" repack was 1.24-1.30x
-slower than the pure-Go loop it was overriding**, at every size. Production
-arm64 real-FFT inverse transforms were paying to use it. Vectorizing it is worth
-1.84-1.99x against itself and turns a 0.77x loss into a 1.48x win.
-
-This is the same class of defect as the codelet registry ordering bug, arriving
-by a different route. There the demotion mechanism was missing; here the kernel
-was simply never benchmarked, because "is it faster than Go?" is a question the
-candidate sweep only asks about rows in the codelet registry. **A hand-written
-SIMD path outside the registry has nothing checking that it earns its place.**
-
-`complex128` was a stub returning `1` (no SIMD, use generic) on arm64, while
-amd64 has had `InverseRepackComplex128AVX2Asm` for some time. Implementing
-`InverseRepackComplex128NEONAsm` closes that asymmetry:
-
-| half | generic Go | NEON (new) |  gain |
-| ---- | ---------: | ---------: | ----: |
-| 128  |      196.2 |  **141.4** | 1.39x |
-| 512  |      785.8 |  **569.6** | 1.38x |
-| 2048 |     3021.1 | **2245.1** | 1.35x |
-| 8192 |    12428.9 | **9059.2** | 1.37x |
-
-The generic column re-measured within ~1% across the two runs at three of four
-sizes (9% at `half=8192`), so the before/after comparison is not a load artifact.
-
-`BenchmarkRepackInverseComplex64` did not exist before this round — only the
-`*Generic` variants — which is why the regression was invisible. It now exists
-for both precisions.
-
-### The twelve scalar radix-2 NEON codelets, retired to `fftprobe` (2026-08-02)
-
-Twelve rows losing 2.7-5.6x, all zero-vector-op scalar assembly, moved behind
-`//go:build fftprobe` with correctness tests and comparison benchmarks per §2.2's
-"measured loss >= 1.5x — keep, unregistered". `RankBelowGeneric` drops from 30
-rows to 18. Sizes 8/16/32/128/256 in both precisions, plus c128 size 64 and the
-c64 size-8 radix-4.
-
-Two traps, both of which would have broken the build:
-
-- **`dit512_radix2_neon` and `dit1024_radix2_neon` (c64) are not radix-2
-  kernels.** Both are served by `ForwardNEONComplex64Asm`, the _generic_ any-size
-  kernel, which is vectorized and is also called from `internal/fft/asm_arm64.go`.
-  This is the third time a NEON signature has misidentified its own algorithm
-  here. Scope retirements by **symbol**, never by signature.
-- **Five package-level `·neonInv*` constants** were defined in retiring files and
-  referenced from surviving ones (`neon_f64_size8_radix4.s`, the size-32 and
-  size-128 `mixed24` files). A `<>`-scoped grep does **not** find these — `<>`
-  symbols are file-local by construction, so only the `·`-prefixed package-level
-  tables can be shared, and those are exactly the ones checklist step 1 is about.
-  They were relocated into their surviving consumers first, as its own step.

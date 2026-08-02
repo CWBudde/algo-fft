@@ -43,7 +43,7 @@ signature — and the correctness debt that once gated the tag is closed. What t
 tag waits on is Phases 1–4; the reasoning is in §7.
 
 Core transforms (DIT, Stockham, split-radix, mixed-radix, Rader, Bluestein,
-six/eight/four-step), real FFT, 2D/3D/N-D, both precisions, zero-allocation
+six-step and four-step), real FFT, 2D/3D/N-D, both precisions, zero-allocation
 transforms, the Wisdom cache and the WASM target all ship. SIMD coverage is AVX2
 broad in both precisions, an SSE2/SSE3 tier to 32768, a size-specific NEON ladder
 4–32768, and a first AVX-512 tier. [`docs/HISTORY.md`](docs/HISTORY.md) has the
@@ -571,21 +571,35 @@ outlives its family.
       not merely the finding, it was the obstacle. Sixteen rows now exist at
       256…32768, both precisions, at a non-selectable priority 1.
 
-      - **Below 65536 it loses every cell, shallowly.** Xeon, `-tags purego`,
-        16 groups × 8 passes, 128 accepted + 0 rejected: 1.11–1.35 forward and
-        1.15–1.51 inverse against the group incumbent across all eight sizes and
-        both precisions. Only one cell of thirty-two reaches §2.2's 1.5× bar,
-        and it beats `dit16384_radix4_generic` outright, so it is mid-pack
-        rather than dominated — §2.2's "registered, low priority" case, which is
-        where the new rows already sit.
-      - **At and above 65536 it beats everything** — 0.840 against the Stockham
-        the auto heuristic picks and 0.686 against the DIT route at 65536,
-        0.899 at 131072. **But that is a coverage gap, not an algorithmic win**:
-        the generic ladder stops at 32768, so above it the DIT arm falls onto
-        `dit.go`'s size switch and gets *worse per point*. Split-radix loses to
-        every tuned codelet that exists and beats every size that has none — the
-        crossover is exactly the registry boundary. Handed to Phase 3's
-        "Extend the generic codelet ladder past 32768", which owns the verdict.
+      - **Below 65536 it loses every cell, shallowly, on both hosts.** Xeon
+        (16 groups × 8 passes, 128 accepted + 0 rejected) and i7-1255U (stopped
+        during pass 9, 86 accepted + 44 over gate + 1 incomplete): 1.06–1.35
+        forward and 1.10–1.44 inverse against the group incumbent across all
+        eight sizes and both precisions. **Sixty-four cells, no win**, and the
+        two machines agree cell by cell to within about 0.1. Exactly one cell
+        reaches §2.2's 1.5× bar on the Xeon and the laptop puts that same cell
+        at 1.367, so not one survives as a two-host result; it also beats
+        `dit16384_radix4_generic` outright, so it is mid-pack rather than
+        dominated — §2.2's "registered, low priority" case, which is where the
+        new rows already sit.
+      - **Above 32768 it beats everything on the Xeon** — 0.840 against the
+        Stockham the auto heuristic picks and 0.686 against the DIT route at
+        65536, 0.899 at 131072. **But that is a coverage gap, not an algorithmic
+        win**: the generic ladder stops at 32768, so above it the DIT arm falls
+        onto `dit.go`'s size switch and gets *worse per point*. Split-radix
+        loses to every tuned codelet that exists and beats every size that has
+        none — the crossover is exactly the registry boundary. Handed to Phase
+        3's "Extend the generic codelet ladder past 32768", which owns the
+        verdict.
+      - **And the second host refuses the obvious shortcut.** A shorter,
+        ungated laptop run at 65536 reproduces the forward win (0.926 / 0.941)
+        and *reverses* the inverse (1.113 / 1.238) — split-radix pays for a
+        separate `1/n` scaling pass the other arms do not have. So "just
+        register split-radix at 65536" would help forward and hurt inverse on
+        one of the two machines, and is not the free win the Xeon column alone
+        makes it look. Treat that run as indicative only: three counts, no
+        canary gate, and its 131072 arm was discarded outright for reporting
+        inverse medians 6× its forward ones.
 
       **Two harnesses cross-validated**, which is what makes the boundary
       claim trustworthy: at 16384 and 32768 the plan-level DIT arm binds the
@@ -599,13 +613,51 @@ outlives its family.
       re-measurement is the large-n half of the claim, and only because the
       ladder never reached that far.
 
-- [ ] **Decide the `32×32` / `16×32` decomposition family on merit.**
-      `dit1024_radix32x32` and `dit512_radix16x32` lost as _implementation_-limited
-      (only one of two stages vectorised; the pure-Go 32×32 also loses 7.2×/5.2×
-      to `dit1024_radix4_generic`). Either fix the unvectorised stage and
-      re-measure, or close the family as `✗` with that reasoning — but do not
-      leave it as a registered loser. It is the last family whose verdict rests
-      on a kernel nobody defends.
+- [x] **Decide the `32×32` / `16×32` decomposition family on merit**
+      (2026-08-02) — **decided, and both halves of the premise were stale.**
+      Evidence: `docs/CODELET_BENCHMARKS.md`, "Split-radix, and the 32×32 /
+      16×32 decompositions".
+
+      - **The blamed defect is in files that no longer exist.** "Only one of two
+        stages vectorised" described the AVX2 kernels, and those were deleted —
+        `avx2_f{32,64}_size1024_radix32x32.s` in `08c8e7b`,
+        `avx2_f32_size512_radix16x32.s` in `1f7977b`. The family has been
+        pure-Go-only for two commits. "Fix the unvectorised stage" was not an
+        available action.
+      - **The 7.2×/5.2× figure does not reproduce.** Against
+        `dit1024_radix4_generic` specifically, the pure-Go 32×32 measures
+        **1.255×**. Whatever produced 7.2× was measuring something else.
+      - **What is real is a forward/inverse asymmetry**, on both machines.
+        32×32: 1.264 fwd / 1.794 inv (complex64) and 1.522 / 1.979 (complex128)
+        on the Xeon, 1.161 / 1.410 and 1.443 / 1.403 on the i7-1255U. 16×32:
+        1.230 / 1.339 and 1.470 / 1.527, against 1.293 / 1.263 and 1.363 /
+        1.464. A decomposition losing 1.26× one direction and 1.79× the other
+        is an inverse-path defect, not a decomposition verdict — the same shape
+        as the scaling-pass bug that sat in 28 kernel files.
+
+      **Disposition applied**: both rows demoted to priority 1, which is the
+      "do not leave it as a registered loser" the item asked for. Neither was
+      *selectable* before (the ladder holds 50), but 25/35 read as contenders.
+      **Not probe-gated, for two independent reasons.** Every Xeon 32×32 inverse
+      cell clears §2.2's ≥ 1.5× bar and **no laptop cell of either row does** in
+      either direction, so probe-gating would be a one-machine eviction from the
+      registry — the exact move §2.2 exists to prevent. And §2.2 separately
+      forbids writing off an algorithm on an implementation defect, which the
+      asymmetry names. The new item below owns finding it.
+
+- [ ] **Find the 32×32 / 16×32 inverse-path defect.** Both decompositions lose
+      roughly 1.25× forward and 1.34–1.98× inverse in pure Go (Xeon, canary-gated,
+      2026-08-02). The forward numbers are ordinary for an untuned kernel; the
+      inverse ones are not, and the gap between them is the whole finding. The
+      two files share `stage2Inverse*` shapes, so one defect plausibly explains
+      all four rows. Start by diffing the inverse against the forward in
+      `dit_1024_decomp_32x32.go` for the two patterns this tree has been bitten
+      by before: a `1/n` scale written as a complex multiply (two dead products
+      per element, and it can un-inline the whole function), and a conjugated
+      twiddle recomputed per element rather than read from the table. If the gap
+      closes, re-measure and re-rank; if it does not, the rows have a _measured_
+      ≥ 1.5× loss with no implementation excuse left and move behind
+      `-tags fftprobe`. Owns both decomposition matrix verdicts.
 - [x] **Give the unowned power-of-two families a verdict** (2026-08-01) — seven
       families that had **no §1.2 item at all**, answered without a benchmark
       from the registry and the sweeps already recorded. Four of them turned out
@@ -806,12 +858,17 @@ unmeasured and unmaintainable.
       in git history if that ever changes. - The two remaining SSE1 sizes now match the switch exactly, and
       `TestSSESizeSpecificComplex64_386` says so in a comment, so the next
       reader does not have to re-derive why the table stops at 4.
-- [ ] **Record the deletion mechanics as a checklist in `AGENTS.md`.** Per file:
-      the `.s`, its `decl.go` declaration, the wrappers in
-      `internal/fft/asm_amd64.go`, the test/bench tables, any `plan_api_test.go`
-      signature allowlist entry. `internal/asm/decl_text_test.go` catches an
-      orphaned declaration and the linker catches an orphaned `TEXT`. Written
-      once, it stops being re-derived per round.
+- [x] **Record the deletion mechanics as a checklist in `AGENTS.md`**
+      (2026-08-02). "Retiring a kernel: the mechanical checklist" now carries the
+      seven steps in the order that matters, and it grew past what this item
+      asked for as later rounds found the rest of the couplings: relocating a
+      shared `GLOBL` table is step 1 **in its own commit**, because the failure
+      is at link time and a package that compiles proves nothing; the spec row
+      must be retired through `go generate`, never by hand-editing a `.gen.go`;
+      and a `dispositions.go` entry naming a vanished symbol fails the census
+      tests exactly as a dark symbol without one does. Both later deletions (the
+      386 size-8/16 kernels, the eight-step file) followed it without
+      re-deriving anything.
 
 ### 1.4 amd64 AVX2: the remaining soft spots
 
@@ -864,12 +921,36 @@ unmeasured and unmaintainable.
 - [ ] **Finish the FMA audit — dispatch sites.** `internal/fft/complex_mul_amd64.go`,
       `kernels_amd64_asm.go`, `scale_amd64.go` and `internal/kernels/radix5_avx2.go`
       still gate on `HasAVX2` alone and need the `HasAVX2 && HasFMA` sweep.
-- [ ] **Finish the FMA audit — the unselected files.** `avx2_f32_size512_radix16x32.s`
-      (128 muls), `avx2_f{32,64}_size1024_radix32x32.s`, `avx2_f32_size256_radix16.s`,
-      `avx2_f32_size128_radix2.s`, `avx2_f32_size32_radix4_then2.s`,
-      `avx2_f{32,64}_size4_radix4.s`. Only worth doing for files that §1.2 keeps
-      as candidates — do this **after** the matrix, and skip anything it closes.
-      The generic radix-4/Stockham kernels need no pass; they are already fused.
+- [ ] **Finish the FMA audit — the unselected files.** **Re-scoped 2026-08-02,
+      when §1.2 closed and the list was checked against the tree: four of the
+      seven files this item named no longer exist.**
+      `avx2_f{32,64}_size1024_radix32x32.s` went in `08c8e7b`,
+      `avx2_f32_size512_radix16x32.s` and `avx2_f64_size256_radix16.s` in
+      `1f7977b`. What is left is `avx2_f32_size128_radix2.s`,
+      `avx2_f32_size32_radix4_then2.s` and `avx2_f{32,64}_size4_radix4.s`.
+      **The gate also moved.** The old text said "do this after the matrix
+      (§1.2)", but none of the three survivors has a spec row — they are reached
+      only through the size-specific `KernelStrategy` switch, which makes them
+      part of §1.3's sixteen-file question, not §1.2's. So the real gate is
+      §1.3's first item: if the raw-twiddle generic fallback is within noise,
+      these files are deleted and the FMA pass is moot; only if the fallback
+      loses do they become registry-rankable and worth fusing. Do not start this
+      before that measurement. The generic radix-4/Stockham kernels need no pass;
+      they are already fused.
+- [ ] **Decide what `TestRadix4AVX2Complex128Ranking` is asserting.** It is a
+      **timing** assertion — "no codelet may take more than 1.5× the fastest at
+      this size" — living in the default `go test ./...` suite, and it fails
+      under parallel load. Three rounds have now had to stop, re-run it in
+      isolation and prove the red was not theirs; on 2026-08-02 it fired at
+      n = 32, naming `dit32_radix4_avx2` against `dit32_radix4_then2_sse2`, in a
+      round that added nothing below n = 256. A gate that cannot distinguish "a
+      codelet regressed" from "the machine was busy" costs a real investigation
+      every time it goes off and, worse, trains the next reader to assume the
+      red is spurious. Either move it behind `-short`/a tag so it runs on an
+      idle machine on purpose, or give it the canary bracket the sweep harness
+      already has (`scripts/bench_gated.sh`) so it can reject its own sample
+      instead of failing. **Not a licence to delete it** — the ranking inversion
+      it guards is real, and CI gates PRs on this suite.
 
 ### 1.5 The other ISA tiers
 
@@ -927,6 +1008,14 @@ algorithms" is actually missing.
       this one item, not three: SSE2-c128, SSE3, NEON **and AVX-512** all stop at
       32768 where AVX2 reaches 65536, so four tiers share one uncovered octave —
       which also widens what the packed-Stockham item below is worth.
+      **Five tiers, as of 2026-08-02**: the split-radix sweep found the pure-Go
+      generic tier stops at 32768 too, and the purego/WASM builds have no other
+      tier to fall back to, so that hole costs 16% today and is the one place
+      where the missing octave is a shipped regression rather than a coverage
+      gap. It is tracked separately as a Phase 3 item (the generic ladder past
+      32768), because the evidence and the fallback route are different; do that
+      one first — it is also the cheapest, and it decides whether split-radix
+      gets a 65536 row.
 - [ ] **Decide n = 384 once, for all four tiers.** 384 is the only size AVX2
       covers that **no other tier does** — SSE2, SSE3, AVX-512 and NEON each show
       it as their single hole below their own ceiling. It is also the only
@@ -973,6 +1062,19 @@ nobody here owns.
       tier filter to the measurement path so tuning time stays bounded, and
       record the measured tuning wall-clock for a full power-of-two sweep as the
       budget to hold.
+
+      **§1.2 made this concrete rather than hypothetical** (2026-08-02): it added
+      **16** `dit<N>_splitradix_generic` rows (8 sizes × 2 precisions, 256 →
+      32768) and demoted four 32×32/16×32 rows to priority 1, none of which the
+      compiled-in ranking will ever select. That is the rule working as designed
+      — every one of them is there so wisdom can reach it on a host with a
+      different cache geometry — but it is also the first round to add arms that
+      exist **only** for the tuner, and the split-radix rows lost all 64 measured
+      cells on both hosts. A cap that is purely count-based would therefore
+      discard them first on the machines where they are cheapest to prove wrong;
+      prefer a bound that measures the whole candidate set once per host over one
+      that guesses which arms are worth an arm.
+
 - [ ] **Offline tuning entry point.** A `cmd/` tool (or a documented
       `just tune` recipe) that sweeps every registered size × precision on the
       current host, writes a Wisdom file, and prints the per-size winner. Today
@@ -1248,6 +1350,31 @@ zero-allocation default.
       if the ladder row does not materialise, and it is worth 16% to purego and
       WASM today. Evidence: `docs/CODELET_BENCHMARKS.md`, "Split-radix, and the
       32×32 / 16×32 decompositions". Owns the `Split-radix` matrix verdict.
+
+      **The ladder row is written** (2026-08-02): `dit65536_radix4_generic`,
+      both precisions, registered at priority 20 —
+      `internal/kernels/dit_65536_radix4.go`, 65536 = 4^8. It could not copy its
+      16384 sibling, which holds every stage in a `[16384]complex64` stack
+      array: at 65536 that is 512 KiB per stage as complex64 and 1 MiB as
+      complex128, both far over the compiler's 128 KiB limit, so it would have
+      heap-allocated on every call. It ping-pongs `scratch`↔`dst` instead, and
+      the eight-stage parity lands on `dst` without the template's final copy.
+      Zero-alloc confirmed by `TestCodeletsZeroAlloc{64,128}/size65536`.
+
+      **What remains open is the re-measurement, which is the point of the
+      item.** A provisional A/B on the i7-1255U puts the codelet at ~1109 µs
+      against ~2075 µs for the fallback route it displaces (**1.87×**, medians
+      of 5×0.4 s, non-overlapping ranges) — comfortably inside the 1250–1400 µs
+      the extrapolation predicted, and below the 1662 µs split-radix took on the
+      Xeon. Treat that as indicative only: the machine was at load 10.4 and
+      94 °C, the arms are consecutive rather than canary-bracketed, and the two
+      figures it is being compared against are from the *other* host. The
+      priority of 20 is therefore ahead of §2.1 gate 5 and rests on a margin
+      wide enough to survive the noise, not on a gated number. Owed: one gated
+      sweep on an idle box, both hosts, and only then the split-radix 65536
+      decision — `cmd/gencodelets/specs.go` records why that row is still
+      absent.
+
 - [ ] **SoA (split real/imag) layout exploration.** Prototype internal SoA for one
       kernel family (e.g. the AVX-512 generic path, which currently spends shuffle
       uops de-interleaving) and measure; decide whether a v2 `PlanSoA` API is

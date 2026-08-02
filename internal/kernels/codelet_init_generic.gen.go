@@ -250,7 +250,7 @@ func registerDITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDNone,
 		Signature:  "dit512_radix16x32_generic",
-		Priority:   35,
+		Priority:   1,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -285,7 +285,7 @@ func registerDITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDNone,
 		Signature:  "dit1024_radix32x32_generic",
-		Priority:   25,
+		Priority:   1,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -405,6 +405,17 @@ func registerDITCodelets64() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDNone,
 		Signature:  "dit32768_radix4_then2_generic",
+		Priority:   20,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       65536,
+		Forward:    forwardDIT65536Radix4Complex64,
+		Inverse:    inverseDIT65536Radix4Complex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit65536_radix4_generic",
 		Priority:   20,
 		KernelType: fftypes.KernelTypeDIT,
 	})
@@ -740,7 +751,7 @@ func registerDITCodelets128() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDNone,
 		Signature:  "dit512_radix16x32_generic",
-		Priority:   30,
+		Priority:   1,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -775,7 +786,7 @@ func registerDITCodelets128() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDNone,
 		Signature:  "dit1024_radix32x32_generic",
-		Priority:   25,
+		Priority:   1,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 
@@ -882,6 +893,17 @@ func registerDITCodelets128() {
 		Algorithm:  fftypes.KernelDIT,
 		SIMDLevel:  fftypes.SIMDNone,
 		Signature:  "dit32768_radix4_then2_generic",
+		Priority:   20,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       65536,
+		Forward:    forwardDIT65536Radix4Complex128,
+		Inverse:    inverseDIT65536Radix4Complex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit65536_radix4_generic",
 		Priority:   20,
 		KernelType: fftypes.KernelTypeDIT,
 	})

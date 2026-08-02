@@ -200,11 +200,18 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit512_radix4_then2_generic", Priority: 45,
 	},
 	{
+		// Demoted 35 -> 1 on 2026-08-02. Measured 1.230 fwd / 1.339 inv
+		// (complex64) and 1.470 / 1.527 (complex128) against
+		// dit512_radix8ladder_generic; Xeon, purego, canary-gated. It was never
+		// selected at 35 either -- the ladder holds 50 -- but 35 read as a
+		// contender, and PLAN.md §2.2 keeps a beaten kernel registered only at a
+		// priority that says so. See the sibling 32x32 row for the shared
+		// forward/inverse asymmetry that is the real finding.
 		Target: "generic", Prec: 64, Size: 512,
 		Forward:   "forwardDIT512Mixed16x32Complex64",
 		Inverse:   "inverseDIT512Mixed16x32Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix16x32_generic", Priority: 35,
+		Signature: "dit512_radix16x32_generic", Priority: 1,
 	},
 	{
 		// Measured 0.807 forward / 0.823 inverse against dit512_radix4_then2_generic
@@ -224,11 +231,26 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit1024_radix4_generic", Priority: 30,
 	},
 	{
+		// Demoted 25 -> 1 on 2026-08-02. Measured 1.264 fwd / 1.794 inv
+		// (complex64) and 1.522 / 1.979 (complex128) against the group
+		// incumbent; Xeon, purego, canary-gated.
+		//
+		// The forward/inverse asymmetry is the finding, and it is why this row
+		// is demoted rather than probe-gated: a decomposition that loses 1.26x
+		// forward and 1.79x inverse has an inverse-path defect, not a bad
+		// decomposition. PLAN.md §2.2 -- a poor implementation disqualifies the
+		// file, not the algorithm.
+		//
+		// Note also what this row is NOT: PLAN.md long blamed the family for
+		// having "only one of two stages vectorised" and losing 7.2x/5.2x to
+		// dit1024_radix4_generic. The vectorised files were deleted (08c8e7b,
+		// 1f7977b) and the surviving pure-Go row measures 1.255x against
+		// radix4, not 7.2x. Both halves of that premise were stale.
 		Target: "generic", Prec: 64, Size: 1024,
 		Forward:   "forwardDIT1024Mixed32x32Complex64",
 		Inverse:   "inverseDIT1024Mixed32x32Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix32x32_generic", Priority: 25,
+		Signature: "dit1024_radix32x32_generic", Priority: 1,
 	},
 	{
 		// Measured 0.900 forward / 0.933 inverse against dit1024_radix4_generic
@@ -316,6 +338,14 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit32768_radix4_then2_generic", Priority: 20,
 	},
 
+	{
+		Target: "generic", Prec: 64, Size: 65536,
+		Forward:   "forwardDIT65536Radix4Complex64",
+		Inverse:   "inverseDIT65536Radix4Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit65536_radix4_generic", Priority: 20,
+	},
+
 	// Split-radix (PLAN.md §1.2, "Give split-radix a fair measurement").
 	//
 	// These rows exist so the family can be *measured*. Split-radix is the
@@ -336,11 +366,19 @@ var codeletSpecs = []codeletSpec{
 	// kernel has never had. §2.1 gate 5 forbids a selectable priority before a
 	// measurement; the numbers set the final value.
 	//
-	// The ladder stops at 32768 on purpose. n = 65536 has *no* generic codelet
-	// row at all, so a split-radix row there would be the only pure-Go
-	// candidate and would become the selected purego route for an unmeasured
-	// kernel. The 16384–131072 band is measured at plan level instead, by the
-	// KernelSplitRadix arm in BenchmarkStepCrossover.
+	// The split-radix ladder stops at 32768, and the reason has changed.
+	// It used to be a safety property: n = 65536 had no generic row at all,
+	// so a split-radix row there would have been the only pure-Go candidate
+	// and would have become the selected purego route for a kernel nobody
+	// had measured. `dit65536_radix4_generic` above removes that hazard — a
+	// priority-1 row now ranks below it and cannot be selected.
+	//
+	// What remains is simply that split-radix has not been measured at
+	// 65536 against a real opponent. Its apparent win there was against the
+	// coverage hole the row above just filled, so the comparison has to be
+	// re-run before a row is added; PLAN.md's Phase 3 ladder item owns that
+	// order of operations. Meanwhile the 16384-131072 band is measured at
+	// plan level by the KernelSplitRadix arm in BenchmarkStepCrossover.
 	{
 		Target: "generic", Prec: 64, Size: 256,
 		Forward:   "ForwardSplitRadixComplex64",
@@ -553,7 +591,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT512Mixed16x32Complex128",
 		Inverse:   "inverseDIT512Mixed16x32Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix16x32_generic", Priority: 30,
+		Signature: "dit512_radix16x32_generic", Priority: 1,
 	},
 	{
 		// Measured 1.002 forward / 0.886 inverse against dit512_radix4_then2_generic
@@ -579,7 +617,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT1024Mixed32x32Complex128",
 		Inverse:   "inverseDIT1024Mixed32x32Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix32x32_generic", Priority: 25,
+		Signature: "dit1024_radix32x32_generic", Priority: 1,
 	},
 	{
 		Target: "generic", Prec: 128, Size: 2048,
@@ -655,6 +693,14 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT32768Radix4Then2Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit32768_radix4_then2_generic", Priority: 20,
+	},
+
+	{
+		Target: "generic", Prec: 128, Size: 65536,
+		Forward:   "forwardDIT65536Radix4Complex128",
+		Inverse:   "inverseDIT65536Radix4Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit65536_radix4_generic", Priority: 20,
 	},
 
 	// Split-radix, complex128 — see the complex64 block above for why these

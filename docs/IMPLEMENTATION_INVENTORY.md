@@ -96,7 +96,7 @@ pure-Go fallback.
 | 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  —   |
 | 32768 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-| 65536 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+| 65536 | Radix-4                                    |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
 
 ✓ selectable — the highest-ranked codelet for its size within its own rank
 tier, so `registry.Lookup` returns it on any host whose top supported tier is
@@ -203,7 +203,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  ✓   |    ✓    |  —   |
 | 32768 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-| 65536 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+| 65536 | Radix-4                                    |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
 
 ✓ selectable — the highest-ranked codelet for its size within its own rank
 tier, so `registry.Lookup` returns it on any host whose top supported tier is
@@ -232,13 +232,13 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 
 | Target  | Build constraint   | complex64 | complex128 | Total |
 | ------- | ------------------ | --------: | ---------: | ----: |
-| generic | `(all builds)`     |        43 |         42 |    85 |
+| generic | `(all builds)`     |        44 |         43 |    87 |
 | avx2    | `amd64 && !purego` |        24 |         21 |    45 |
 | avx512  | `amd64 && !purego` |        19 |         14 |    33 |
 | sse2    | `amd64 && !purego` |        22 |         22 |    44 |
 | neon    | `arm64 && !purego` |        16 |         16 |    32 |
 
-Total registered codelets: **239**.
+Total registered codelets: **241**.
 
 ## Size × ISA Coverage Gaps
 
@@ -255,18 +255,18 @@ the grids show.
 
 | Host           | complex | Sizes served | At top ISA | Fallback | Top-ISA ceiling |
 | -------------- | ------: | -----------: | ---------: | -------: | --------------: |
-| pure Go        |      64 |           15 |         15 |        0 |           32768 |
-| pure Go        |     128 |           15 |         15 |        0 |           32768 |
-| amd64 SSE2     |      64 |           15 |          1 |       14 |               4 |
-| amd64 SSE2     |     128 |           15 |         14 |        1 |           32768 |
-| amd64 SSE3     |      64 |           15 |         13 |        2 |           32768 |
-| amd64 SSE3     |     128 |           15 |          0 |       15 |               — |
+| pure Go        |      64 |           16 |         16 |        0 |           65536 |
+| pure Go        |     128 |           16 |         16 |        0 |           65536 |
+| amd64 SSE2     |      64 |           16 |          1 |       15 |               4 |
+| amd64 SSE2     |     128 |           16 |         14 |        2 |           32768 |
+| amd64 SSE3     |      64 |           16 |         13 |        3 |           32768 |
+| amd64 SSE3     |     128 |           16 |          0 |       16 |               — |
 | amd64 AVX2+FMA |      64 |           16 |         16 |        0 |           65536 |
 | amd64 AVX2+FMA |     128 |           16 |         16 |        0 |           65536 |
 | amd64 AVX-512  |      64 |           16 |         13 |        3 |           32768 |
 | amd64 AVX-512  |     128 |           16 |         13 |        3 |           32768 |
-| arm64 NEON     |      64 |           15 |          7 |        8 |           16384 |
-| arm64 NEON     |     128 |           15 |          7 |        8 |           16384 |
+| arm64 NEON     |      64 |           16 |          7 |        9 |           16384 |
+| arm64 NEON     |     128 |           16 |          7 |        9 |           16384 |
 
 ### Not covered, by tier
 
@@ -276,8 +276,8 @@ served by the size-generic kernels listed under Beyond the Codelet Registry.
 
 | Tier    | complex | Rows | Sizes | Range   | Holes below ceiling | Above ceiling                                                                  |
 | ------- | ------: | ---: | ----: | ------- | ------------------- | ------------------------------------------------------------------------------ |
-| Go      |      64 |   43 |    15 | 4–32768 | —                   | 65536                                                                          |
-| Go      |     128 |   42 |    15 | 4–32768 | —                   | 65536                                                                          |
+| Go      |      64 |   44 |    16 | 4–65536 | —                   | —                                                                              |
+| Go      |     128 |   43 |    16 | 4–65536 | —                   | —                                                                              |
 | SSE2    |      64 |    1 |     1 | 4–4     | —                   | 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 |
 | SSE2    |     128 |   22 |    14 | 4–32768 | 384                 | 65536                                                                          |
 | SSE3    |      64 |   21 |    13 | 8–32768 | 384                 | 65536                                                                          |
@@ -462,7 +462,7 @@ unreachable.
 | `amd64/sse3_f32_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/sse3_real_recombine.s`             |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 
-### arm64 — 38 files, 75 symbols, 69 live
+### arm64 — 38 files, 76 symbols, 52 live
 
 | File                                 | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                                  |
 | ------------------------------------ | ------: | ---: | --------: | ----------: | -----: | -------------------------------------------- |
@@ -471,38 +471,38 @@ unreachable.
 | `arm64/neon_f32_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_radix4_loop.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/neon_radix4_loop.go`     |
 | `arm64/neon_f32_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
-| `arm64/neon_f32_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f32_size128_radix2.s`    |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f32_size16_radix2.s`     |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f32_size256_radix2.s`    |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f32_size32_radix2.s`     |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
-| `arm64/neon_f32_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f32_size8_radix2.s`      |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f32_size8_radix4.s`      |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size8_radix8.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_radix4_loop.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/neon_radix4_loop_f64.go` |
 | `arm64/neon_f64_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size128_radix2.s`    |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
-| `arm64/neon_f64_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f64_size16_radix2.s`     |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size256_radix2.s`    |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f64_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f64_size32_radix2.s`     |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size64_radix2.s`     |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f64_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f64_size8_radix2.s`      |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_real_repack.s`           |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_real_repack.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_scale.s`                 |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 
 ### internal/asm (arch-neutral) — 2 files, 2 symbols, 0 live
@@ -539,9 +539,18 @@ unreachable.
 - `internal/asm/amd64/avx2_f32_transpose64x64.s` — 3 symbols, none reachable
 - `internal/asm/amd64/avx2_f64_generic_radix4_even.s` — 2 symbols, none reachable
 - `internal/asm/amd64/avx2_f64_generic_radix4_odd.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f32_size128_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f32_size16_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f32_size256_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f32_size32_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f32_size8_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f32_size8_radix4.s` — 2 symbols, none reachable
 - `internal/asm/arm64/neon_f64_size128_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f64_size16_radix2.s` — 2 symbols, none reachable
 - `internal/asm/arm64/neon_f64_size256_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f64_size32_radix2.s` — 2 symbols, none reachable
 - `internal/asm/arm64/neon_f64_size64_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f64_size8_radix2.s` — 2 symbols, none reachable
 - `internal/asm/stub_amd64.s` — 1 symbols, none reachable
 - `internal/asm/stub_arm64.s` — 1 symbols, none reachable
 
@@ -557,30 +566,48 @@ entry fails the build's tests, a _tracked_ entry must quote an **open**
 PLAN.md checkbox, and an entry whose symbol became live again is a failure
 too.
 
-| Symbol                                        | Status      | Defined in                             | Declared in                        | Disposition                                                                                        |
-| --------------------------------------------- | ----------- | -------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `Butterfly3ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
-| `Butterfly3InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
-| `Butterfly5ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
-| `Butterfly5InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
-| `Transpose128x128Complex64AVX2Asm`            | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `TransposeTwiddle128x128Complex64AVX2Asm`     | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `TransposeTwiddleConj128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `Transpose64x64Complex64AVX2Asm`              | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `TransposeTwiddle64x64Complex64AVX2Asm`       | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `TransposeTwiddleConj64x64Complex64AVX2Asm`   | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `ForwardAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
-| `InverseAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
-| `ForwardAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
-| `InverseAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
-| `ForwardNEONSize128Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size128_radix2.s`      | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
-| `InverseNEONSize128Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size128_radix2.s`      | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
-| `ForwardNEONSize256Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size256_radix2.s`      | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
-| `InverseNEONSize256Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size256_radix2.s`      | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
-| `ForwardNEONSize64Radix2Complex128Asm`        | test-only   | `arm64/neon_f64_size64_radix2.s`       | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
-| `InverseNEONSize64Radix2Complex128Asm`        | test-only   | `arm64/neon_f64_size64_radix2.s`       | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
-| `stubAsm`                                     | unreachable | `stub_amd64.s`                         | `internal/asm/stub_arm64.go`       | keep: assembly-linkage smoke test for package asm; unreachable by construction                     |
-| `stubAsm`                                     | unreachable | `stub_arm64.s`                         | `internal/asm/stub_arm64.go`       | keep: assembly-linkage smoke test for package asm; unreachable by construction                     |
+| Symbol                                        | Status      | Defined in                             | Declared in                        | Disposition                                                                                                                     |
+| --------------------------------------------- | ----------- | -------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `Butterfly3ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                                                |
+| `Butterfly3InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                                                |
+| `Butterfly5ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                                                |
+| `Butterfly5InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                                                |
+| `Transpose128x128Complex64AVX2Asm`            | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it                               |
+| `TransposeTwiddle128x128Complex64AVX2Asm`     | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it                               |
+| `TransposeTwiddleConj128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it                               |
+| `Transpose64x64Complex64AVX2Asm`              | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it                               |
+| `TransposeTwiddle64x64Complex64AVX2Asm`       | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it                               |
+| `TransposeTwiddleConj64x64Complex64AVX2Asm`   | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it                               |
+| `ForwardAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep                              |
+| `InverseAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep                              |
+| `ForwardAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep                              |
+| `InverseAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep                              |
+| `ForwardNEONSize128Radix2Complex64Asm`        | test-only   | `arm64/neon_f32_size128_radix2.s`      | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize128Radix2Complex64Asm`        | test-only   | `arm64/neon_f32_size128_radix2.s`      | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize16Radix2Complex64Asm`         | test-only   | `arm64/neon_f32_size16_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize16Radix2Complex64Asm`         | test-only   | `arm64/neon_f32_size16_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize256Radix2Complex64Asm`        | test-only   | `arm64/neon_f32_size256_radix2.s`      | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize256Radix2Complex64Asm`        | test-only   | `arm64/neon_f32_size256_radix2.s`      | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize32Radix2Complex64Asm`         | test-only   | `arm64/neon_f32_size32_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize32Radix2Complex64Asm`         | test-only   | `arm64/neon_f32_size32_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize8Radix2Complex64Asm`          | test-only   | `arm64/neon_f32_size8_radix2.s`        | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize8Radix2Complex64Asm`          | test-only   | `arm64/neon_f32_size8_radix2.s`        | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize8Radix4Complex64Asm`          | test-only   | `arm64/neon_f32_size8_radix4.s`        | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize8Radix4Complex64Asm`          | test-only   | `arm64/neon_f32_size8_radix4.s`        | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize128Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size128_radix2.s`      | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize128Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size128_radix2.s`      | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize16Complex128Asm`              | test-only   | `arm64/neon_f64_size16_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize16Complex128Asm`              | test-only   | `arm64/neon_f64_size16_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize256Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size256_radix2.s`      | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize256Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size256_radix2.s`      | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize32Complex128Asm`              | test-only   | `arm64/neon_f64_size32_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize32Complex128Asm`              | test-only   | `arm64/neon_f64_size32_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize64Radix2Complex128Asm`        | test-only   | `arm64/neon_f64_size64_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize64Radix2Complex128Asm`        | test-only   | `arm64/neon_f64_size64_radix2.s`       | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `ForwardNEONSize8Radix2Complex128Asm`         | test-only   | `arm64/neon_f64_size8_radix2.s`        | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `InverseNEONSize8Radix2Complex128Asm`         | test-only   | `arm64/neon_f64_size8_radix2.s`        | `internal/asm/arm64/decl_probe.go` | probe-gated: called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5 |
+| `stubAsm`                                     | unreachable | `stub_amd64.s`                         | `internal/asm/stub_arm64.go`       | keep: assembly-linkage smoke test for package asm; unreachable by construction                                                  |
+| `stubAsm`                                     | unreachable | `stub_arm64.s`                         | `internal/asm/stub_arm64.go`       | keep: assembly-linkage smoke test for package asm; unreachable by construction                                                  |
 
 ### Data symbols shared across files
 
@@ -669,21 +696,26 @@ The file list is scanned from the build constraints; the verdicts are authored
 in `cmd/gencodelets/probes.go`, and a probe file with no verdict fails the
 generator's tests.
 
-| File                                                 | Build tag                      | Measures                                                                                                                                      | Status          |
-| ---------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| `internal/asm/arm64/decl_probe.go`                   | `arm64 && !purego && fftprobe` | no entry in cmd/gencodelets/probes.go                                                                                                         | UNDOCUMENTED    |
-| `internal/fft/radix4_c128_probe_amd64.go`            | `amd64 && !purego && fftprobe` | complex128 generic AVX2 radix-4 / radix-4-then-2 against the generic AVX2 radix-2 dispatch                                                    | open            |
-| `internal/kernels/avx2_size_specific_probe_amd64.go` | `amd64 && !purego && fftprobe` | the sixteen size-specific AVX2 `.s` files against the generic AVX2 fallback that would replace them                                           | open            |
-| `internal/kernels/probe_util.go`                     | `fftprobe`                     | shared helpers for the harnesses in this section (no kernel of its own)                                                                       | support         |
-| `internal/kernels/radix16_generic_probe.go`          | `fftprobe`                     | size-generic pure-Go radix-16 ladder against the pure-Go radix-8 ladder                                                                       | closed          |
-| `internal/kernels/radix4_avx2_tail_probe_amd64.go`   | `amd64 && !purego && fftprobe` | the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass                                                             | open            |
-| `internal/kernels/radix8_avx2_probe_amd64.go`        | `amd64 && !purego && fftprobe` | size-generic AVX2 radix-8 ladder against the AVX2 radix-4 rows                                                                                | partly promoted |
-| `internal/kernels/radix8_avx512_probe_amd64.go`      | `amd64 && !purego && fftprobe` | size-generic AVX-512 radix-8 ladder against the AVX2 radix-4 rows                                                                             | partly promoted |
-| `internal/kernels/radix8_generic_probe.go`           | `fftprobe`                     | size-generic pure-Go radix-8 ladder against the pure-Go radix-4 ladder                                                                        | partly promoted |
-| `internal/kernels/sixstep_codelet_probe.go`          | `fftprobe`                     | the three six-step codelets against the pure-Go radix-8 ladder that replaced them                                                             | closed          |
-| `internal/math/transpose_amd64.go`                   | `amd64 && !purego && fftprobe` | the AVX2 64x64/128x128 transposes — plain, fused twiddle, fused conjugate twiddle — against the pure-Go blocked transpose they would displace | open            |
+| File                                                 | Build tag                      | Measures                                                                                                                                        | Status          |
+| ---------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `internal/asm/arm64/decl_probe.go`                   | `arm64 && !purego && fftprobe` | 12 retired scalar-NEON DIT codelets (sizes 8/16/32/64/128/256, both precisions) against the vectorized generic NEON kernel that supersedes them | closed          |
+| `internal/fft/radix4_c128_probe_amd64.go`            | `amd64 && !purego && fftprobe` | complex128 generic AVX2 radix-4 / radix-4-then-2 against the generic AVX2 radix-2 dispatch                                                      | open            |
+| `internal/kernels/avx2_size_specific_probe_amd64.go` | `amd64 && !purego && fftprobe` | the sixteen size-specific AVX2 `.s` files against the generic AVX2 fallback that would replace them                                             | open            |
+| `internal/kernels/probe_util.go`                     | `fftprobe`                     | shared helpers for the harnesses in this section (no kernel of its own)                                                                         | support         |
+| `internal/kernels/radix16_generic_probe.go`          | `fftprobe`                     | size-generic pure-Go radix-16 ladder against the pure-Go radix-8 ladder                                                                         | closed          |
+| `internal/kernels/radix4_avx2_tail_probe_amd64.go`   | `amd64 && !purego && fftprobe` | the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass                                                               | open            |
+| `internal/kernels/radix8_avx2_probe_amd64.go`        | `amd64 && !purego && fftprobe` | size-generic AVX2 radix-8 ladder against the AVX2 radix-4 rows                                                                                  | partly promoted |
+| `internal/kernels/radix8_avx512_probe_amd64.go`      | `amd64 && !purego && fftprobe` | size-generic AVX-512 radix-8 ladder against the AVX2 radix-4 rows                                                                               | partly promoted |
+| `internal/kernels/radix8_generic_probe.go`           | `fftprobe`                     | size-generic pure-Go radix-8 ladder against the pure-Go radix-4 ladder                                                                          | partly promoted |
+| `internal/kernels/sixstep_codelet_probe.go`          | `fftprobe`                     | the three six-step codelets against the pure-Go radix-8 ladder that replaced them                                                               | closed          |
+| `internal/math/transpose_amd64.go`                   | `amd64 && !purego && fftprobe` | the AVX2 64x64/128x128 transposes — plain, fused twiddle, fused conjugate twiddle — against the pure-Go blocked transpose they would displace   | open            |
 
-**`internal/asm/arm64/decl_probe.go`** — UNDOCUMENTED
+**`internal/asm/arm64/decl_probe.go`** — closed
+
+**Loses every cell, decisively** (Apple M5, 2026-08): each kernel contains zero vector instructions — plain FMOVD/FADDD/FMULD scalar arithmetic under a "NEON" name — and measured 2.7x-5.6x slower than the pure-Go codelet, well past the 1.5x bar for "keep, unregistered" rather than "keep at low priority". Twelve rows across `neon_f32_size{8,16,32,128,256}_radix2.s`, `neon_f32_size8_radix4.s`, and `neon_f64_size{8,16,32,64,128,256}_radix2.s` moved behind this tag together; the generic NEON kernel (`ForwardNEONComplex64Asm` / `ForwardNEONComplex128Asm`) already covers every one of these sizes in production dispatch (`internal/fft/kernels_arm64_size_specific.go`), so nothing regresses. Kept compiled and correctness-tested — see `internal/asm/arm64/neon_retired_scalar_probe_test.go` — because a scalar loss on one host is still not a structural one under AGENTS.md §2.2: nothing here rules out a future ARM core where these particular instruction sequences pipeline better than the vector path.
+
+- Recorded in: docs/CODELET_BENCHMARKS.md
+- Re-derive: `PATH=/usr/local/go/bin:$PATH GOARCH=arm64 GOOS=linux go test -tags fftprobe -run '^$' -bench BenchmarkRetiredScalarNEON -benchtime=1s ./internal/asm/arm64/`
 
 **`internal/fft/radix4_c128_probe_amd64.go`** — open
 
@@ -776,7 +808,7 @@ to a registry codelet never enters it. Higher plan-level features (real FFT,
 | SSE3 size-specific DIT      | `internal/fft.sse3TrySizeSpecificForwardComplex64`    | complex64  | SSE3       | size-specific: 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384                                                                                                                                    |
 | SSE2 generic radix-2 DIT    | `internal/fft.forwardSSE2Complex64`                   | both       | SSE2       | any power of two. This is the whole complex128 SSE tier — amd64 has no SSE3 complex128 dispatch at all.                                                                                                          |
 | NEON size-specific DIT      | `internal/fft.neonSizeSpecificOrGenericDITComplex64`  | complex64  | NEON       | size-specific: 4, 8, 16, 32, 64, 128, 256                                                                                                                                                                        |
-| NEON size-specific DIT      | `internal/fft.neonSizeSpecificOrGenericDITComplex128` | complex128 | NEON       | size-specific: 4, 8, 16, 32                                                                                                                                                                                      |
+| NEON size-specific DIT      | `internal/fft.neonSizeSpecificOrGenericDITComplex128` | complex128 | NEON       | size-specific: 4, 16                                                                                                                                                                                             |
 | NEON generic DIT            | `internal/fft.forwardNEONComplex64`                   | both       | NEON       | any power of two; the complex128 side delegates to pure Go.                                                                                                                                                      |
 | 386 SSE3 dispatch           | `internal/fft.forwardSSE3Complex64`                   | complex64  | SSE3 (386) | size-specific: 2, 4, 8, 16; larger powers of two fall through to the generic SSE2 kernel.                                                                                                                        |
 | 386 SSE2 dispatch           | `internal/fft.forwardSSE2Complex128`                  | complex128 | SSE2 (386) | size-specific: 2, 4, 8, 16; no generic SSE2 complex128 kernel: every other size declines.                                                                                                                        |
@@ -839,8 +871,8 @@ is not a `✓`).
 | Radix-32                                   |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-32×32                                |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-32×32                                |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
-| Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   31 | tuned      |
-| Radix-4                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |   40 | tuned      |
+| Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   32 | tuned      |
+| Radix-4                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |   41 | tuned      |
 | Radix-4 (fused tail)                       |      64 |  —  |  —   |  —   |  ✓   |    —    |  —   |    2 | tuned      |
 | Radix-4 (fused tail)                       |     128 |  —  |  —   |  —   |  ✓   |    —    |  —   |    1 | tuned      |
 | Radix-4 (no tail — wrong result by design) |      64 |  —  |  —   |  —   |  p   |    —    |  —   |    0 | instrument |
@@ -878,19 +910,19 @@ task, so the question has an owner rather than a shrug.
 - **Rader** (deferred) — healthy at 0.78–1.58× vs FFTW3 with outright wins at 641, 4001 and 12289. Owned by Phase 2
 - **Radix-16** (tuned) — not closed — the flat n = 16 leaf is the selected row in the pure-Go, SSE3 and AVX-512 complex64 tiers and in pure-Go complex128; it is outranked only on AVX2, where the 2026-07-30 audit ranked every n = 16 candidate and radix-2 took the row. What is closed is the size-generic radix-16 ladder, which is a different family. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
 - **Radix-16 (ladder)** (closed) — swept and lost every cell; the pass advantage is real and entirely consumed by the butterfly, and AVX-512's 32 ZMM leave it where AVX2 radix-8 already lost. Evidence: docs/CODELET_BENCHMARKS.md, Generic tier — the radix-16 ladder, and where the radix ladder stops
-- **Radix-16×32** (open) — same unvectorised second stage as its 32×32 sibling; same open question. Tracked by PLAN.md: Decide the 32×32 / 16×32 decomposition family on merit
+- **Radix-16×32** (open) — the same asymmetry as its 32×32 sibling, milder and more consistent across hosts: 1.230 fwd / 1.339 inv (complex64) and 1.470 / 1.527 (complex128) on the Xeon, 1.293 / 1.263 and 1.363 / 1.464 on the i7-1255U (purego, canary-gated, 2026-08-02) — no cell reaching 1.5 on either machine except one Xeon inverse. Its AVX2 file went the same way (`1f7977b`), so it too is now a pure-Go-only family, and it is demoted 35 → 1 on the same reasoning. It is the cheaper of the two to diagnose: one stage smaller, and the forward loss is under the 1.5× bar in both precisions. Tracked by PLAN.md: Find the 32×32 / 16×32 inverse-path defect
 - **Radix-2** (tuned) — splits by precision, and not the way §1.2 assumed. complex64: it is the _incumbent_ at n = 16, 32 and 64 on AVX2 (54.6 vs 124.6 ns at 64 — the only genuinely 256-bit size-64 codelet) and at n = 64 on AVX-512 and NEON. complex128: never selected at any n ≥ 16 in any tier, so it is dominated there. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
 - **Radix-32** (open) — the registry half is decided: n = 32 was in the 2026-07-30 AVX2 audit and radix-32 took no cell — 25 against radix-2's 30 on AVX2 complex64, 5 against `radix4_then2`'s 10/15 in pure Go — losing by under 1.5× everywhere, which is §2.2's keep-at-low-priority case and is what the table already does. What is _not_ decided is the SSE3 cell, and it is not merely uncovered: `sse3_f32_size32_radix32.s` is live and tried **first** at n = 32 by the `KernelStrategy` switch in `internal/fft/kernels_amd64_size_specific.go`, while the registry has no SSE3 radix-32 row and selects `dit32_radix4_then2_sse3` there. The two selection paths disagree at one cell, and the task below owns that whole switch. Tracked by PLAN.md: Measure the cheap alternative first: drop the size-specific cases outright
-- **Radix-32×32** (open) — lost as implementation-limited — only one of two stages vectorised — which per AGENTS.md disqualifies the file, not the algorithm. Tracked by PLAN.md: Decide the 32×32 / 16×32 decomposition family on merit
+- **Radix-32×32** (open) — measured 2026-08-02 and **both halves of the old premise were stale**. The "only one of two stages vectorised" defect is in files that no longer exist — `avx2_f{32,64}_size1024_radix32x32.s` were deleted in `08c8e7b` — and the surviving pure-Go row measures **1.255×** against `dit1024_radix4_generic`, not the 7.2×/5.2× the task recorded. What the sweep does show is a forward/inverse asymmetry, on both hosts: 1.264 fwd / 1.794 inv (complex64) and 1.522 / 1.979 (complex128) on the Xeon, 1.161 / 1.410 and 1.443 / 1.403 on the i7-1255U. A decomposition that loses 1.26× one way and 1.79× the other has an inverse-path defect, so §2.2 keeps the family open rather than closing it on the number. Nor is it probe-gated: every Xeon inverse cell clears the 1.5× bar but **no laptop cell of either row does**, and a one-machine number is not grounds for leaving the registry. Demoted 25 → 1 instead, which is the disposition both hosts do justify. Tracked by PLAN.md: Find the 32×32 / 16×32 inverse-path defect
 - **Radix-4** (tuned) — the incumbent at nearly every size and ISA; the 256-bit AVX2 rewrite made it 2–4× faster and moved every crossover above it. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
 - **Radix-4 (fused tail)** (tuned) — decided per cell, and every cell now has a number. It wins n = 128 in **both** precisions (0.955/0.979 complex64, 0.935/0.934 complex128 — the largest fusion win in either) and is the registered incumbent there. At 512 and 2048 the radix-8 ladder beats it directly (0.952/0.987 and 0.940/0.961 at 512), so neither plain nor fused is the answer at those sizes. At 2048 complex128 fusing _costs_ 11% where the stride is exactly 4 KiB. Above that the fused rows are probe-only. The mechanism is why this must stay per-cell rather than becoming a default: the fused loop keeps eight live streams instead of four and loses that trade at larger strides, which is a cache-geometry property and therefore exactly what the wisdom tuner has to be able to flip per host. Evidence: docs/CODELET_BENCHMARKS.md, What the audit changed
 - **Radix-4 (no tail — wrong result by design)** (instrument) — measures what the separate `-then-2` tail pass costs by omitting it; 0.867–0.933 across all six groups. It is the _bound_ the fused-tail row is judged against — the gap between 0.87 and the fused form's 0.94 is what fusion still leaves on the table — and it can never be a candidate itself. Owned by the Radix-4 (fused tail) family, as its measuring instrument
 - **Radix-8** (tuned) — the flat n = 8 leaf, and it _has_ been ranked against radix-2 and radix-4 there: the 2026-07-30 AVX2 audit covers n = 8 in both precisions and moved the complex128 AVX2 row to it (0.970 forward / 0.859 inverse over `dit8_radix4_avx2`). It is the selected row in seven of its nine registered cells — pure-Go, SSE3, SSE2, AVX-512 and NEON complex64, plus AVX2 complex128 — and is outranked in exactly two: AVX2 complex64, where `dit8_radix2_avx2` holds 12 against 11 and the loss is under 1.5× (it is absent from the shadowed-candidates table, which lists everything above that bar), and NEON complex128, which has no radix-8 row at all and is held by radix-4. The unrelated `dit512_radix8_generic` rows sit under the radix-8 ladder at the same size. Evidence: docs/CODELET_BENCHMARKS.md, What the audit changed
 - **Radix-8 (ladder)** (tuned) — wins the generic tier and, on Skylake-SP, 16 AVX-512 cells; loses to radix-4 at the small sizes and on the i7-1255U above 2048 for complex128. Evidence: docs/CODELET_BENCHMARKS.md, The AVX-512 radix-8 ladder: prediction half right, 16 rows promoted
 - **Recursive** (untested) — recursive decomposition bottoming out in registered codelet leaves. Never measured against the flat ladders, and — unlike every other family here — nothing routes to it by default: `resolveKernelStrategy` returns `KernelRecursive` only when it is forced, so no plan runs it unmeasured. That is what makes untested an honest answer rather than a shrug. Owned by nobody, deliberately. It becomes a real question only if Phase 3 wants a recursive route for large n, or if a codelet-leaf ladder beats the flat one somewhere
-- **Six-step** (open) — swept on two hosts 2026-08-02 and it loses everywhere. The codelet half is a fair pure-Go fight — its rows are the tuned `forwardDIT64Radix4…` leaves, the incumbent is the pure-Go radix-8 ladder — and it loses 1.43–2.20× (i7-1255U) and 1.59–2.34× (Xeon) at 4096/8192/16384, behind even the radix-4 row the ladder replaced. The strategy half loses 17–35× across 16384–131072, but that number is confounded and must not be cited: `ForwardSixStepComplex64` hardwires its rows to the generic `stockhamForward` (87% of its cost), so on a SIMD build it is a scalar kernel racing AVX2. §2.2 keeps the family open on the second point; on the first, the ≥1.5× rows are due an fftprobe migration this round did not carry out, and stay at their existing non-selectable priorities meanwhile. Tracked by PLAN.md: Give the six-step and four-step row passes the registry's kernels
-- **Six-step 64×128** (open) — the rectangular split of the same family, and the worst cell of the fair comparison: 1.71/1.91 (c64) and 2.06/2.09 (c128) against `dit8192_radix8ladder_generic` on the i7-1255U, 2.00/2.17 and 2.16/2.35 on the Xeon — behind the radix-4-then-2 row the ladder replaced on both. Its rows are 64- and 128-point and both have codelets at every ISA, so it is also the cheapest place to demonstrate whether SIMD row binding changes the answer. Tracked by PLAN.md: Give the six-step and four-step row passes the registry's kernels
-- **Split-radix** (open) — measured 2026-08-02, and the answer splits at exactly the registry boundary. Below 65536 it loses every cell shallowly — 1.11–1.35 forward, 1.15–1.51 inverse across 256…32768 in both precisions (Xeon, purego, 128 of 128 groups accepted) — with one cell of thirty-two at the 1.5× bar, and it beats `dit16384_radix4_generic`, so it is mid-pack rather than dominated: §2.2's registered-low-priority case, which is where its sixteen new rows sit at priority 1. At and above 65536 it beats everything (0.840 vs the Stockham auto picks, 0.686 vs the DIT route; 0.899 at 131072) — but the generic ladder _stops_ at 32768, so above it the DIT arm falls onto `dit.go`'s size switch and gets worse per point. It loses to every tuned codelet that exists and wins at every size that has none, which is a coverage gap and not an algorithmic win. It had no rows until this sweep because the gated harness can only rank registered candidates — having none was both the finding and the obstacle. Tracked by PLAN.md: Extend the generic codelet ladder past 32768
+- **Six-step** (open) — swept on two hosts 2026-08-02 and it loses everywhere. The codelet half is a fair pure-Go fight — its rows are the tuned `forwardDIT64Radix4…` leaves, the incumbent is the pure-Go radix-8 ladder — and it loses 1.43–2.20× (i7-1255U) and 1.59–2.34× (Xeon) at 4096/8192/16384, behind even the radix-4 row the ladder replaced. The strategy half loses 17–35× across 16384–131072, but that number is confounded and must not be cited: `ForwardSixStepComplex64` hardwires its rows to the generic `stockhamForward` (87% of its cost), so on a SIMD build it is a scalar kernel racing AVX2. §2.2 keeps the family open on the second point; on the first, the migration was carried out 2026-08-02 — the six rows left `specs.go` and now register only under `-tags fftprobe`, from `internal/kernels/sixstep_codelet_probe.go`. The deferral's reason -- binding the rows may move the number -- did not apply to them: these codelets call the tuned radix-4 leaves, so the Phase 3 row-binding work cannot change their result. Three codelets retired; the decomposition not. Tracked by PLAN.md: Give the six-step and four-step row passes the registry's kernels
+- **Six-step 64×128** (open) — the rectangular split of the same family, and the worst cell of the fair comparison: 1.71/1.91 (c64) and 2.06/2.09 (c128) against `dit8192_radix8ladder_generic` on the i7-1255U, 2.00/2.17 and 2.16/2.35 on the Xeon — behind the radix-4-then-2 row the ladder replaced on both. Its rows are 64- and 128-point and both have codelets at every ISA, so it is also the cheapest place to demonstrate whether SIMD row binding changes the answer. Its two codelet rows moved behind `-tags fftprobe` with the rest of the family's on 2026-08-02. Tracked by PLAN.md: Give the six-step and four-step row passes the registry's kernels
+- **Split-radix** (open) — measured on two hosts 2026-08-02, and the answer splits at exactly the registry boundary. Below 65536 it loses **all sixty-four cells** — 1.06–1.35 forward, 1.10–1.44 inverse across 256…32768, both precisions, Xeon and i7-1255U agreeing cell by cell to within about 0.1. Exactly one cell reaches §2.2's 1.5× bar on the Xeon and the laptop puts that same cell at 1.367, so not even one survives as a two-host result; it also beats `dit16384_radix4_generic`, so it is mid-pack rather than dominated. That is the registered-low-priority case, and its sixteen new rows sit at priority 1. Above 32768 it beats everything on the Xeon (0.840 vs the Stockham auto picks, 0.686 vs the DIT route) — but the generic ladder _stops_ at 32768, so above it the DIT arm falls onto `dit.go`'s size switch and gets worse per point: it loses to every tuned codelet that exists and wins wherever none does, which is a coverage gap, not an algorithmic win. The laptop then splits that win by direction (forward 0.926/0.941, inverse 1.113/1.238), so registering it at 65536 is explicitly _not_ the free win the Xeon column suggests. It had no rows until this sweep because the gated harness can only rank registered candidates — having none was both the finding and the obstacle. Tracked by PLAN.md: Extend the generic codelet ladder past 32768
 - **Stockham** (open) — what auto selects above the DIT threshold, so its verdict is the same threshold question; the packed variant is a separate axis whose gate is filled for AVX2 only. Tracked by PLAN.md: Retune the strategy thresholds around the new codelets
 
 ## Testing
