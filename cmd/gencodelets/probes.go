@@ -233,6 +233,50 @@ var probeNotes = map[string]probeNote{
 		Rederiv: "taskset -c 0 go test -tags fftprobe -run '^$' -bench BenchmarkTransposeProbe " +
 			"-benchtime=0.5s -count=5 ./internal/math/",
 	},
+	"internal/kernels/sixstep_codelet_probe.go": {
+		Subject: "the three six-step codelets against the pure-Go radix-8 ladder that replaced them",
+		Status:  probeClosed,
+		Verdict: "**Loses all twenty-four cells on two hosts** (2026-08-02). Against the group " +
+			"incumbent `dit<N>_radix8ladder_generic`: 1.428-2.202 forward / 1.489-2.111 inverse " +
+			"on the i7-1255U, 1.594-2.191 / 1.719-2.348 on the Xeon Gold 5218 — behind even the " +
+			"`radix4`/`radix4_then2` rows the ladder replaced. This is a **fair** comparison and " +
+			"the reason the rows left the registry: these codelets call the tuned pure-Go " +
+			"radix-4 leaves, so on a purego sweep both arms are scalar. It is a verdict on the " +
+			"three codelets, **not** on six-step — the separate *strategy* kernel " +
+			"`ForwardSixStepComplex64` hardwires its row passes to the generic `stockhamForward` " +
+			"(87% of its cost at n = 65536), and its 17-35x plan-level loss is confounded by " +
+			"that and must not be cited. The family stays open under the Phase 3 row-binding " +
+			"item.",
+		Record: "docs/CODELET_BENCHMARKS.md, \"The six-step / four-step crossovers\"",
+		Rederiv: "GOFLAGS=-tags=fftprobe,purego GOOD=<canary floor> " +
+			"taskset -c 0 ./scripts/bench_gated.sh 4096 8192 16384",
+		Cells: concatCells(
+			probeCells(64, "SIMDNone", "sixstep", 4096, 16384),
+			probeCells(64, "SIMDNone", "sixstep64x128", 8192),
+			probeCells(128, "SIMDNone", "sixstep", 4096, 16384),
+			probeCells(128, "SIMDNone", "sixstep64x128", 8192),
+		),
+	},
+	"internal/kernels/avx2_size_specific_probe_amd64.go": {
+		Subject: "the sixteen size-specific AVX2 `.s` files against the generic AVX2 fallback " +
+			"that would replace them",
+		Status: probeOpen,
+		Verdict: "**No sweep has been taken.** The file registers both arms and documents the " +
+			"protocol; the number is what PLAN.md §1.3's first item exists to produce, and that " +
+			"item gates the other two — if the fallback is within noise the whole question " +
+			"dissolves and ~26,000 lines go with it. Read the ratio between the two `sizespec` " +
+			"rows in each group, never either row against the group incumbent, which is a tuned " +
+			"codelet neither arm is competing with. Both arms are RankLevel-demoted to SIMDSSE2 " +
+			"so that neither becomes the incumbent it is supposed to be measured against.",
+		Record: "PLAN.md, \"1.3 Resolve the unreachable assembly\"",
+		Rederiv: "GOFLAGS=-tags=fftprobe GOOD=<canary floor> " +
+			"taskset -c 0 ./scripts/bench_gated.sh 4 8 16 32 64 128 256 512 2048 8192",
+		// Cells is deliberately empty even though this file registers 20 codelets.
+		// Its signatures are "sizespec<N>_<name>_avx2", not "dit<N>_<variant>_<isa>",
+		// so probeCell.signature() cannot name them and the quick-reference grids
+		// have no cell to mark `p`. Listing them here would mean inventing
+		// signatures the registry never uses.
+	},
 	"internal/kernels/probe_util.go": {
 		Subject: "shared helpers for the harnesses in this section (no kernel of its own)",
 		Status:  probeSupport,
