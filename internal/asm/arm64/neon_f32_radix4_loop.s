@@ -2,7 +2,8 @@
 
 // ===========================================================================
 // NEON Stockham radix-4 core for complex64, ARM64 — one looped kernel for
-// every power-of-four length n >= 64.
+// every power-of-four length n >= 64, extended below to also serve every
+// n = 2*4^k (32, 128, 512, 2048, 8192, 32768).
 // ===========================================================================
 //
 // This replaces five fully-unrolled "NEON" codelets (sizes 64, 256, 1024,
@@ -70,6 +71,52 @@
 // linear, so it commutes with every stage, 1/n is an exact power of two so
 // nothing is lost, and doing it on the input costs eight VMULs per stage-0
 // iteration instead of needing a scaled variant of the final butterfly.
+//
+// EXTENSION TO n = 2*4^k (sizes 32, 128, 512, 2048, 8192, 32768). Put the
+// radix-2 factor LAST rather than first: the radix schedule becomes
+// [4, 4, ..., 4, 2] with k radix-4 stages followed by one radix-2 stage, so
+// every m before the final stage stays a power of four and both existing
+// vectorization regimes above are reused unchanged. Putting the 2 first
+// instead would force an m = 2 stage — half the width a VLD2 pair holds for
+// complex64 — wasting half the vector lanes in a hot stage.
+//
+// The invariant l*m*radix = n still holds every stage. For n = 2*4^k, the
+// last RADIX-4 stage lands at l = 2 (not l = 1: the trailing factor of 2
+// still has to come out of l somewhere), so it is NOT the trivial one-
+// twiddle stage — j ranges over 0 and 1, so w1 = tw[m] is a real, non-unity
+// twiddle. It runs through the ordinary k-vectorized middle-stage path
+// unchanged. Only the stage after it — the final radix-2 stage proper, at
+// l = 1, m = n/2 — is genuinely new code: j = 0 only, so w = 1, and it is a
+// pure add/subtract butterfly over m = n/2 lanes with no complex multiply at
+// all, k-vectorized exactly like the radix-4 final stage it sits after:
+//
+//   for k = 0 .. m-1:
+//      a0 = x[k] ; a1 = x[k + m]
+//      y[k]     = a0 + a1
+//      y[k + m] = a0 - a1
+//
+// For a pure power of four, l descends through powers of four (4, 16, ...)
+// and is never 2, so checking "was this stage's l exactly 2" cleanly
+// distinguishes the two families with no size whitelist: the core stays a
+// general "any n = 4^s" / "any n = 2*4^s" implementation, matching every
+// existing Go wrapper without the wrappers needing to say which family they
+// are.
+//
+// BUFFER PARITY reasoning for the extended family: stage 0 always writes
+// scratch (dst may alias src). Every subsequent radix-4 stage — including
+// the l = 2 one — swaps the two buffers exactly as before. The new radix-2
+// stage is simply one more stage that swaps again: it reads whatever stage
+// 0's opposite-parity chain left as input (R11) and writes the other buffer
+// (R12), using the same "compare the final output pointer against dst and
+// copy if they differ" logic already in place for the trivial radix-4 last
+// stage — the copy-or-not decision was already computed at runtime rather
+// than baked in per size, so adding one more stage to the chain needs no
+// new parity bookkeeping at all, only that the new stage participates in
+// the same buffer hand-off. Concretely: for n = 32 there are 3 total stages
+// (stage 0, one radix-4 middle stage, one radix-2 final stage) — odd, so a
+// copy is needed, matching the pattern already documented below for s odd.
+// For n = 128 there are 4 stages — even, no copy. This alternates with k
+// exactly as the s-odd/even rule already does for pure powers of four.
 //
 // TWO MACRO FAMILIES, and the difference is load-bearing:
 //
@@ -142,6 +189,16 @@
 	VADDF_S4(t1i, t3r, ai1) \
 	VADDF_S4(t1r, t3i, ar3) \
 	VSUBF_S4(t1i, t3r, ai3)
+
+// Radix-2 final-stage butterfly (W2 = 1, so no twiddle multiply at all):
+// or0/oi0 = a0+a1, or1/oi1 = a0-a1. Same for forward and inverse — there is
+// no sign difference, since j = 0 is the only lane and w = 1 either way.
+// Register NUMBERS.
+#define VBFLY2(ar0, ai0, ar1, ai1, or0, oi0, or1, oi1) \
+	VADDF_S4(ar0, ar1, or0) \
+	VADDF_S4(ai0, ai1, oi0) \
+	VSUBF_S4(ar0, ar1, or1) \
+	VSUBF_S4(ai0, ai1, oi1)
 
 // dr,di *= (wr + i*wi), result back in dr,di; clobbers p, q. Register NUMBERS.
 #define VCMUL_FWD(dr, di, wr, wi, p, q) \
@@ -254,6 +311,8 @@
 //   R11       stage input ptr   R15  j counter
 //   R12       stage output ptr  R13  m
 //   R1        32*m (stages>=1)  R14  l
+//   R26       saved l, to detect the n = 2*4^k family's last radix-4 stage
+//             (l == 2) after the stage runs and l/m have been updated
 
 // ---------------------------------------------------------------------------
 // func neonRadix4ForwardC64(dst, src, twiddle, scratch []complex64, n int) bool
@@ -329,6 +388,7 @@ r4fwd_st0:
 r4fwd_stage:
 	CMP $1, R14
 	BEQ r4fwd_last
+	MOVD R14, R26 // remember this stage's l, to spot the n = 2*4^k family's last radix-4 stage (l == 2) once l/m are updated below
 
 	LSL  $3, R13, R23 // 8*m
 	LSL  $5, R13, R1  // 32*m
@@ -369,6 +429,13 @@ r4fwd_kloop:
 
 	LSL $2, R13, R13
 	LSR $2, R14, R14
+
+	// n = 2*4^k: l == 2 was this stage's l (saved above), so it was the
+	// last radix-4 stage (full twiddles, not the trivial l == 1 case
+	// below). m has already been updated to n/2; go straight to the new
+	// radix-2 final stage instead of looping (l/4 from 2 is not valid).
+	CMP $2, R26
+	BEQ r4fwd_final_radix2
 	B   r4fwd_stage
 
 	// --- stage s-1 (m = n/4, l = 1): j = 0, so every twiddle is 1 --------
@@ -388,11 +455,44 @@ r4fwd_lastk:
 	SUBS $1, R3, R3
 	BNE  r4fwd_lastk
 
+	B r4fwd_finish
+
+	// n = 2*4^k only: final radix-2 stage (l = 1, m = n/2). j = 0, so
+	// w = 1 and there is no complex multiply — a pure add/subtract
+	// butterfly, k-vectorized four lanes at a time exactly like the
+	// radix-4 final stage above.
+r4fwd_final_radix2:
+	LSL  $3, R13, R23 // 8*m = byte offset between x[k] and x[k+m]
+	MOVD R11, R4
+	MOVD R12, R5
+	LSR  $2, R13, R3 // m/4 iterations
+
+r4fwd_radix2k:
+	VLD2 (R4), [V0.S4, V1.S4] // a0 = x[k..k+3]
+	ADD  R23, R4, R0
+	VLD2 (R0), [V2.S4, V3.S4] // a1 = x[k+m..k+m+3]
+
+	VBFLY2(0, 1, 2, 3, 4, 5, 6, 7)
+
+	VST2 [V4.S4, V5.S4], (R5)
+	ADD  R23, R5, R0
+	VST2 [V6.S4, V7.S4], (R0)
+
+	ADD  $32, R4, R4
+	ADD  $32, R5, R5
+	SUBS $1, R3, R3
+	BNE  r4fwd_radix2k
+
+r4fwd_finish:
 	MOVD R12, R11 // the result is wherever the last stage wrote
 
-	// The number of stages, s = log4(n), is odd for n = 64, 1024 and 16384,
-	// and stage 0 must write scratch because dst may alias src. For those
-	// sizes the result ends up in scratch and has to be copied out.
+	// The number of stages is odd (copy needed) for n = 64, 1024, 16384,
+	// 32, 512 and 8192; even (no copy) for n = 256, 4096, 128, 2048 and
+	// 32768. Stage 0 must write scratch because dst may alias src, so an
+	// odd total lands in scratch and has to be copied out; this is a
+	// runtime comparison rather than a per-size special case, so the new
+	// radix-2 final stage (one more link in the same swap chain) needs no
+	// separate parity bookkeeping.
 	CMP R19, R11
 	BEQ r4fwd_done
 
@@ -502,6 +602,7 @@ r4inv_st0:
 r4inv_stage:
 	CMP $1, R14
 	BEQ r4inv_last
+	MOVD R14, R26 // remember this stage's l (see r4fwd_stage)
 
 	LSL  $3, R13, R23
 	LSL  $5, R13, R1
@@ -542,6 +643,11 @@ r4inv_kloop:
 
 	LSL $2, R13, R13
 	LSR $2, R14, R14
+
+	// n = 2*4^k: see r4fwd_stage for why l == 2 here means "go straight to
+	// the final radix-2 stage".
+	CMP $2, R26
+	BEQ r4inv_final_radix2
 	B   r4inv_stage
 
 	// --- stage s-1 (l = 1): every twiddle is 1 ---------------------------
@@ -561,6 +667,34 @@ r4inv_lastk:
 	SUBS $1, R3, R3
 	BNE  r4inv_lastk
 
+	B r4inv_finish
+
+	// n = 2*4^k only: final radix-2 stage. The 1/n scaling was already
+	// folded into stage 0's inputs (see the header), and scaling commutes
+	// with a linear butterfly, so no extra scale multiply is needed here.
+r4inv_final_radix2:
+	LSL  $3, R13, R23
+	MOVD R11, R4
+	MOVD R12, R5
+	LSR  $2, R13, R3
+
+r4inv_radix2k:
+	VLD2 (R4), [V0.S4, V1.S4]
+	ADD  R23, R4, R0
+	VLD2 (R0), [V2.S4, V3.S4]
+
+	VBFLY2(0, 1, 2, 3, 4, 5, 6, 7)
+
+	VST2 [V4.S4, V5.S4], (R5)
+	ADD  R23, R5, R0
+	VST2 [V6.S4, V7.S4], (R0)
+
+	ADD  $32, R4, R4
+	ADD  $32, R5, R5
+	SUBS $1, R3, R3
+	BNE  r4inv_radix2k
+
+r4inv_finish:
 	MOVD R12, R11
 
 	CMP R19, R11
