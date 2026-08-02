@@ -142,13 +142,13 @@ var familyVerdicts = []familyVerdict{
 	},
 	{
 		Family: "Radix-32×32", Status: famOpen,
-		Verdict: "lost as implementation-limited — only one of two stages vectorised — which per AGENTS.md disqualifies the file, not the algorithm",
-		Tracked: "Decide the 32×32 / 16×32 decomposition family on merit.",
+		Verdict: "measured 2026-08-02 and **both halves of the old premise were stale**. The \"only one of two stages vectorised\" defect is in files that no longer exist — `avx2_f{32,64}_size1024_radix32x32.s` were deleted in `08c8e7b` — and the surviving pure-Go row measures **1.255×** against `dit1024_radix4_generic`, not the 7.2×/5.2× the task recorded. What the sweep does show is a forward/inverse asymmetry: 1.264 fwd / 1.794 inv (complex64) and 1.522 / 1.979 (complex128) against the group incumbent. A decomposition that loses 1.26× one way and 1.79× the other has an inverse-path defect, so §2.2 keeps the family open rather than closing it on the number; the row is demoted 25 → 1 meanwhile, which is the disposition the loss does justify",
+		Tracked: "Find the 32×32 / 16×32 inverse-path defect.",
 	},
 	{
 		Family: "Radix-16×32", Status: famOpen,
-		Verdict: "same unvectorised second stage as its 32×32 sibling; same open question",
-		Tracked: "Decide the 32×32 / 16×32 decomposition family on merit.",
+		Verdict: "the same asymmetry as its 32×32 sibling, milder: 1.230 fwd / 1.339 inv (complex64) and 1.470 / 1.527 (complex128) against `dit512_radix8ladder_generic` (Xeon, purego, canary-gated, 2026-08-02). Its AVX2 file went the same way (`1f7977b`), so it too is now a pure-Go-only family, and it is demoted 35 → 1 on the same reasoning. It is the cheaper of the two to diagnose: one stage smaller, and the forward loss is under the 1.5× bar in both precisions",
+		Tracked: "Find the 32×32 / 16×32 inverse-path defect.",
 	},
 	{
 		Family: "Mixed-2/4", Status: famTuned,

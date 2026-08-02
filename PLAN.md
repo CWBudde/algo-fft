@@ -599,13 +599,46 @@ outlives its family.
       re-measurement is the large-n half of the claim, and only because the
       ladder never reached that far.
 
-- [ ] **Decide the `32×32` / `16×32` decomposition family on merit.**
-      `dit1024_radix32x32` and `dit512_radix16x32` lost as _implementation_-limited
-      (only one of two stages vectorised; the pure-Go 32×32 also loses 7.2×/5.2×
-      to `dit1024_radix4_generic`). Either fix the unvectorised stage and
-      re-measure, or close the family as `✗` with that reasoning — but do not
-      leave it as a registered loser. It is the last family whose verdict rests
-      on a kernel nobody defends.
+- [x] **Decide the `32×32` / `16×32` decomposition family on merit**
+      (2026-08-02) — **decided, and both halves of the premise were stale.**
+      Evidence: `docs/CODELET_BENCHMARKS.md`, "Split-radix, and the 32×32 /
+      16×32 decompositions".
+
+      - **The blamed defect is in files that no longer exist.** "Only one of two
+        stages vectorised" described the AVX2 kernels, and those were deleted —
+        `avx2_f{32,64}_size1024_radix32x32.s` in `08c8e7b`,
+        `avx2_f32_size512_radix16x32.s` in `1f7977b`. The family has been
+        pure-Go-only for two commits. "Fix the unvectorised stage" was not an
+        available action.
+      - **The 7.2×/5.2× figure does not reproduce.** Against
+        `dit1024_radix4_generic` specifically, the pure-Go 32×32 measures
+        **1.255×**. Whatever produced 7.2× was measuring something else.
+      - **What is real is a forward/inverse asymmetry.** 32×32: 1.264 fwd /
+        1.794 inv (complex64), 1.522 / 1.979 (complex128). 16×32: 1.230 / 1.339
+        and 1.470 / 1.527. A decomposition losing 1.26× one direction and 1.79×
+        the other is an inverse-path defect, not a decomposition verdict — the
+        same shape as the scaling-pass bug that sat in 28 kernel files.
+
+      **Disposition applied**: both rows demoted to priority 1, which is the
+      "do not leave it as a registered loser" the item asked for. Neither was
+      *selectable* before (the ladder holds 50), but 25/35 read as contenders.
+      Not probe-gated: §2.2 forbids writing off an algorithm on an
+      implementation defect, and the asymmetry names one. The new item below
+      owns finding it.
+
+- [ ] **Find the 32×32 / 16×32 inverse-path defect.** Both decompositions lose
+      roughly 1.25× forward and 1.34–1.98× inverse in pure Go (Xeon, canary-gated,
+      2026-08-02). The forward numbers are ordinary for an untuned kernel; the
+      inverse ones are not, and the gap between them is the whole finding. The
+      two files share `stage2Inverse*` shapes, so one defect plausibly explains
+      all four rows. Start by diffing the inverse against the forward in
+      `dit_1024_decomp_32x32.go` for the two patterns this tree has been bitten
+      by before: a `1/n` scale written as a complex multiply (two dead products
+      per element, and it can un-inline the whole function), and a conjugated
+      twiddle recomputed per element rather than read from the table. If the gap
+      closes, re-measure and re-rank; if it does not, the rows have a _measured_
+      ≥ 1.5× loss with no implementation excuse left and move behind
+      `-tags fftprobe`. Owns both decomposition matrix verdicts.
 - [x] **Give the unowned power-of-two families a verdict** (2026-08-01) — seven
       families that had **no §1.2 item at all**, answered without a benchmark
       from the registry and the sweeps already recorded. Four of them turned out

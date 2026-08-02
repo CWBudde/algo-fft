@@ -1032,6 +1032,35 @@ that large between two directions of the same decomposition is an inverse-path
 defect, not a decomposition verdict — the same class of finding as the scaling
 pass that AGENTS.md records sitting in 28 kernel files.
 
+**Disposition: both rows demoted to priority 1**, not probe-gated. Neither was
+selectable before — the radix-8 ladder holds 50 at both sizes — but 25 and 35
+read as contender priorities for kernels that lose every cell. Probe-gating is
+what the ≥ 1.5× inverse cells would otherwise call for, and §2.2 forbids it
+here for the same reason it forbids closing the family: the loss has a named,
+plausible implementation cause, and retiring the file behind a tag is how that
+cause stops being investigated. `PLAN.md` §1.2's "Find the 32×32 / 16×32
+inverse-path defect" owns it, with the fallback written in: if the gap does not
+close, the rows have a measured ≥ 1.5× loss with no excuse left and go behind
+`-tags fftprobe` then.
+
+### What this does not establish
+
+- **One host.** Every number above is the Xeon Gold 5218. The laptop arm of this
+  sweep did not complete — the machine was running another workload throughout,
+  at loads of 20–65 and 100 °C, and contention inverts orderings here rather
+  than merely inflating them. The split-radix ranking is consistent across
+  thirty-two cells and cross-validated by a second harness, so its _shape_ is
+  not in doubt; the exact ratios and the 65536 crossover point are provisional
+  until a second machine confirms them, per §2.2.
+- **Nothing here measures split-radix on a SIMD build**, and the SIMD figures
+  should not be read as a family verdict for the same reason six-step's were
+  not: split-radix is pure Go, so against AVX2 codelets it is a scalar kernel in
+  a vector fight. The purego arm is the fair one and is what is quoted.
+- **The 65536 and 131072 rows are plan-level, not codelet-level.** They measure
+  a forced `PlanOptions.Strategy`, so they include plan dispatch that the gated
+  rows do not. The 16384/32768 overlap is what licenses comparing them: there
+  the two harnesses agree within 2%.
+
 ## AVX-512 tier (Xeon Gold 5218)
 
 Evidence behind the `SIMDAVX512` rows, including the one deliberately disabled

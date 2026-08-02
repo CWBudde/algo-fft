@@ -200,11 +200,18 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit512_radix4_then2_generic", Priority: 45,
 	},
 	{
+		// Demoted 35 -> 1 on 2026-08-02. Measured 1.230 fwd / 1.339 inv
+		// (complex64) and 1.470 / 1.527 (complex128) against
+		// dit512_radix8ladder_generic; Xeon, purego, canary-gated. It was never
+		// selected at 35 either -- the ladder holds 50 -- but 35 read as a
+		// contender, and PLAN.md §2.2 keeps a beaten kernel registered only at a
+		// priority that says so. See the sibling 32x32 row for the shared
+		// forward/inverse asymmetry that is the real finding.
 		Target: "generic", Prec: 64, Size: 512,
 		Forward:   "forwardDIT512Mixed16x32Complex64",
 		Inverse:   "inverseDIT512Mixed16x32Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix16x32_generic", Priority: 35,
+		Signature: "dit512_radix16x32_generic", Priority: 1,
 	},
 	{
 		// Measured 0.807 forward / 0.823 inverse against dit512_radix4_then2_generic
@@ -224,11 +231,26 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit1024_radix4_generic", Priority: 30,
 	},
 	{
+		// Demoted 25 -> 1 on 2026-08-02. Measured 1.264 fwd / 1.794 inv
+		// (complex64) and 1.522 / 1.979 (complex128) against the group
+		// incumbent; Xeon, purego, canary-gated.
+		//
+		// The forward/inverse asymmetry is the finding, and it is why this row
+		// is demoted rather than probe-gated: a decomposition that loses 1.26x
+		// forward and 1.79x inverse has an inverse-path defect, not a bad
+		// decomposition. PLAN.md §2.2 -- a poor implementation disqualifies the
+		// file, not the algorithm.
+		//
+		// Note also what this row is NOT: PLAN.md long blamed the family for
+		// having "only one of two stages vectorised" and losing 7.2x/5.2x to
+		// dit1024_radix4_generic. The vectorised files were deleted (08c8e7b,
+		// 1f7977b) and the surviving pure-Go row measures 1.255x against
+		// radix4, not 7.2x. Both halves of that premise were stale.
 		Target: "generic", Prec: 64, Size: 1024,
 		Forward:   "forwardDIT1024Mixed32x32Complex64",
 		Inverse:   "inverseDIT1024Mixed32x32Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix32x32_generic", Priority: 25,
+		Signature: "dit1024_radix32x32_generic", Priority: 1,
 	},
 	{
 		// Measured 0.900 forward / 0.933 inverse against dit1024_radix4_generic
@@ -553,7 +575,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT512Mixed16x32Complex128",
 		Inverse:   "inverseDIT512Mixed16x32Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit512_radix16x32_generic", Priority: 30,
+		Signature: "dit512_radix16x32_generic", Priority: 1,
 	},
 	{
 		// Measured 1.002 forward / 0.886 inverse against dit512_radix4_then2_generic
@@ -579,7 +601,7 @@ var codeletSpecs = []codeletSpec{
 		Forward:   "forwardDIT1024Mixed32x32Complex128",
 		Inverse:   "inverseDIT1024Mixed32x32Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit1024_radix32x32_generic", Priority: 25,
+		Signature: "dit1024_radix32x32_generic", Priority: 1,
 	},
 	{
 		Target: "generic", Prec: 128, Size: 2048,
