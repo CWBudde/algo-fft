@@ -533,25 +533,72 @@ outlives its family.
       opposite sides of it — auto is right on the laptop and costs the Xeon
       15%/26%. Handed to §1.4, which owns the threshold.
 
-- [ ] **Decide what `KernelEightStep` is for.** `internal/kernels/eightstep.go`
-      is `sixstep.go` with the names changed — same perfect-square rejection,
-      same two `TransposeSquare`-bracketed Stockham row passes, no eighth step
-      anywhere (normalised diff, 2026-08-02). So the enum is a second name for
-      `KernelSixStep`, and the family's matrix verdict is `untested` because
-      there is nothing there to have measured. Three ways out, in increasing
-      cost: retire the strategy value; alias it to six-step explicitly so the
-      duplication is intentional rather than accidental; or write the real
-      thing — an eight-step splits n = n1·n2 with **both** factors transformed
-      by six-step, which is a decomposition six-step does not perform. Pick one
-      before anything else registers against this family.
-- [ ] **Give split-radix a fair measurement.** It is implemented pure-Go only
-      (`internal/kernels/splitradix.go`), has full strategy plumbing, beat the
-      auto path at every power of two ≥ 256 on purego (+11–34%, 2.1× at 262144),
-      and is now auto-selected nowhere. It has **no codelet rows and no SIMD
-      kernel at any ISA** — the single largest untested cell in the matrix. Run
-      it through the radix-8 protocol (canary-gated, both precisions, both
-      directions) against the current incumbents and record the verdict before
-      deciding whether it deserves assembly.
+- [x] **Decide what `KernelEightStep` is for** (2026-08-02) — **retired.** The
+      strategy, the kernel file, its generated twin and its tests are gone; the
+      `Eight-step` family left the matrix and the tier table with them.
+
+      The three options were not equally defensible. **Aliasing** breaks
+      `TestStrategyAlgorithmNameRoundTrip` on both its distinct-name and its
+      round-trip assertions, and would turn an honest `untested` verdict into a
+      verdict about a deliberate duplicate. **Writing the real thing** means
+      building a decomposition out of six-step — the thing that currently loses
+      with a diagnosed, unfixed defect — so it would measure that defect twice;
+      the Phase 3 row-binding item has to land first. **Retiring** loses
+      nothing, because the file was a byte-duplicate: what it cost was a public
+      enum value, four dispatch cases, a tier row, a matrix row, and one real
+      bug — `PlannerExhaustive` was measuring six-step twice under two names
+      (`internal/fft/measure.go`).
+
+      **The enum numbering was preserved rather than closed up.** Both
+      `KernelStrategy` blocks (the public one in `strategy.go` and
+      `internal/fftypes`) moved from `iota` to explicit values, leaving **4** a
+      documented gap, so `KernelBluestein` through `KernelMixedRadix` keep the
+      numbers a caller may have persisted; `strategy_numbering_test.go` makes
+      that a gate. On-disk wisdom was never at risk — it stores the algorithm
+      *name*, not the enum (`internal/planner/wisdom.go`) — but a wisdom file
+      naming `eightstep` will now fail to resolve, which is the existing
+      behaviour for an unknown name and is recorded in `CHANGELOG.md`.
+
+- [x] **Give split-radix a fair measurement** (2026-08-02) — **measured, and it
+      is not one answer but two, split at n = 65536.** Evidence:
+      `docs/CODELET_BENCHMARKS.md`, "Split-radix, and the 32×32 / 16×32
+      decompositions".
+
+      **It had to be registered before it could be measured**, which is why this
+      item sat open. The canary-gated harness only ranks candidates the registry
+      knows about — `bench_gated.sh` drives `BenchmarkCodeletCandidates<prec>`
+      and the analyzer parses that exact name shape — so "no codelet rows" was
+      not merely the finding, it was the obstacle. Sixteen rows now exist at
+      256…32768, both precisions, at a non-selectable priority 1.
+
+      - **Below 65536 it loses every cell, shallowly.** Xeon, `-tags purego`,
+        16 groups × 8 passes, 128 accepted + 0 rejected: 1.11–1.35 forward and
+        1.15–1.51 inverse against the group incumbent across all eight sizes and
+        both precisions. Only one cell of thirty-two reaches §2.2's 1.5× bar,
+        and it beats `dit16384_radix4_generic` outright, so it is mid-pack
+        rather than dominated — §2.2's "registered, low priority" case, which is
+        where the new rows already sit.
+      - **At and above 65536 it beats everything** — 0.840 against the Stockham
+        the auto heuristic picks and 0.686 against the DIT route at 65536,
+        0.899 at 131072. **But that is a coverage gap, not an algorithmic win**:
+        the generic ladder stops at 32768, so above it the DIT arm falls onto
+        `dit.go`'s size switch and gets *worse per point*. Split-radix loses to
+        every tuned codelet that exists and beats every size that has none — the
+        crossover is exactly the registry boundary. Handed to Phase 3's
+        "Extend the generic codelet ladder past 32768", which owns the verdict.
+
+      **Two harnesses cross-validated**, which is what makes the boundary
+      claim trustworthy: at 16384 and 32768 the plan-level DIT arm binds the
+      same codelet the gated sweep ranks, and the two independent measurements
+      agree within 2% (1.159/1.215 against 1.173/1.235).
+
+      **The item's own premise was stale, in the way §1.2 keeps being stale.**
+      "Beat the auto path at every power of two ≥ 256 on purego (+11–34%)" was
+      measured against an incumbent that no longer exists — the radix-8 ladder
+      landed afterwards and took every one of those sizes back. What survived
+      re-measurement is the large-n half of the claim, and only because the
+      ladder never reached that far.
+
 - [ ] **Decide the `32×32` / `16×32` decomposition family on merit.**
       `dit1024_radix32x32` and `dit512_radix16x32` lost as _implementation_-limited
       (only one of two stages vectorised; the pure-Go 32×32 also loses 7.2×/5.2×
@@ -1172,17 +1219,35 @@ zero-allocation default.
       `fourStepSplit` derives the balanced √n×√n split at every size measured,
       which was the slowest of eleven at 2^20.
 
-      **One disposition is outstanding and deliberately deferred to here.** The
-      six `dit<N>_sixstep*_generic` rows lost a *fair* pure-Go comparison on
-      both hosts (1.43–2.35×; their rows are the tuned radix-4/radix-2 leaves,
-      not the generic Stockham, so that half is not confounded). Every Xeon cell
-      and eight of twelve laptop cells clear §2.2's ≥ 1.5× bar, which calls for
-      `-tags fftprobe` rather than a registry row. They were left registered at
-      their existing **non-selectable** priorities (25/30 vs the ladder's 50)
-      because the migration is a code change, and because binding the rows may
-      change the number that justifies it — do the binding first, re-measure,
-      then probe-gate or promote once instead of twice.
+      **The disposition deferred here has been carried out** (2026-08-02). The
+      six `dit<N>_sixstep*_generic` rows are gone from `cmd/gencodelets/specs.go`
+      and now register only under `-tags fftprobe`, from
+      `internal/kernels/sixstep_codelet_probe.go`. The deferral's stated reason
+      — "binding the rows may change the number that justifies it" — turned out
+      **not to apply to these rows**: `dit_4096_sixstep.go` and its siblings call
+      the tuned pure-Go `forwardDIT64Radix4…` leaves, not the generic
+      `stockhamForward`, so the row-binding work below cannot move their number.
+      Only the *strategy* kernel is confounded, and it keeps this item open.
+      Note what that separation does and does not settle: the three codelets are
+      retired, six-step as a decomposition is not.
 
+- [ ] **Extend the generic codelet ladder past 32768.** The pure-Go tier stops
+      at `dit32768_radix4_then2_generic`; **n = 65536 has no generic row at all**
+      and nothing in any tier goes above it. On a purego build the plan therefore
+      falls off the registry at 65536 onto `internal/kernels/dit.go`'s size
+      switch, and the cost per point gets _worse_: the registered 32768 row runs
+      580 µs where the 65536 route takes 2422 µs for twice the work (Xeon,
+      2026-08-02). That gap is what makes split-radix look like a win there —
+      it takes 1662 µs, beating both the DIT route (0.686) and the Stockham the
+      auto heuristic actually picks (0.840), while _losing_ every cell from 256
+      to 32768 where a tuned codelet exists. Split-radix is winning a comparison
+      against a coverage hole, not against a kernel. Extrapolating the
+      `radix4_then2` row's cost per point puts a registered 65536 ladder codelet
+      near 1250–1400 µs, which would beat split-radix outright. Do that first,
+      then re-measure — registering split-radix at 65536 is the cheap fallback
+      if the ladder row does not materialise, and it is worth 16% to purego and
+      WASM today. Evidence: `docs/CODELET_BENCHMARKS.md`, "Split-radix, and the
+      32×32 / 16×32 decompositions". Owns the `Split-radix` matrix verdict.
 - [ ] **SoA (split real/imag) layout exploration.** Prototype internal SoA for one
       kernel family (e.g. the AVX-512 generic path, which currently spends shuffle
       uops de-interleaving) and measure; decide whether a v2 `PlanSoA` API is

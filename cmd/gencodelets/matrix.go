@@ -137,8 +137,8 @@ var familyVerdicts = []familyVerdict{
 	},
 	{
 		Family: "Split-radix", Status: famOpen,
-		Verdict: "the largest untested cell in the matrix: beat the auto path at every power of two ≥ 256 on purego, has no codelet row and no SIMD kernel at any ISA, and is auto-selected nowhere",
-		Tracked: "Give split-radix a fair measurement.",
+		Verdict: "measured 2026-08-02, and the answer splits at exactly the registry boundary. Below 65536 it loses every cell shallowly — 1.11–1.35 forward, 1.15–1.51 inverse across 256…32768 in both precisions (Xeon, purego, 128 of 128 groups accepted) — with one cell of thirty-two at the 1.5× bar, and it beats `dit16384_radix4_generic`, so it is mid-pack rather than dominated: §2.2's registered-low-priority case, which is where its sixteen new rows sit at priority 1. At and above 65536 it beats everything (0.840 vs the Stockham auto picks, 0.686 vs the DIT route; 0.899 at 131072) — but the generic ladder *stops* at 32768, so above it the DIT arm falls onto `dit.go`'s size switch and gets worse per point. It loses to every tuned codelet that exists and wins at every size that has none, which is a coverage gap and not an algorithmic win. It had no rows until this sweep because the gated harness can only rank registered candidates — having none was both the finding and the obstacle",
+		Tracked: "Extend the generic codelet ladder past 32768.",
 	},
 	{
 		Family: "Radix-32×32", Status: famOpen,
