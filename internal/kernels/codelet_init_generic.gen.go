@@ -441,6 +441,94 @@ func registerDITCodelets64() {
 		Priority:   20,
 		KernelType: fftypes.KernelTypeDIT,
 	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       256,
+		Forward:    ForwardSplitRadixComplex64,
+		Inverse:    InverseSplitRadixComplex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit256_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       512,
+		Forward:    ForwardSplitRadixComplex64,
+		Inverse:    InverseSplitRadixComplex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit512_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       1024,
+		Forward:    ForwardSplitRadixComplex64,
+		Inverse:    InverseSplitRadixComplex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit1024_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       2048,
+		Forward:    ForwardSplitRadixComplex64,
+		Inverse:    InverseSplitRadixComplex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit2048_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       4096,
+		Forward:    ForwardSplitRadixComplex64,
+		Inverse:    InverseSplitRadixComplex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit4096_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       8192,
+		Forward:    ForwardSplitRadixComplex64,
+		Inverse:    InverseSplitRadixComplex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit8192_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       16384,
+		Forward:    ForwardSplitRadixComplex64,
+		Inverse:    InverseSplitRadixComplex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit16384_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       32768,
+		Forward:    ForwardSplitRadixComplex64,
+		Inverse:    InverseSplitRadixComplex64,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit32768_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
 }
 
 // registerDITCodelets128 registers the generic complex128 DIT codelets.
@@ -861,6 +949,94 @@ func registerDITCodelets128() {
 		SIMDLevel:  fftypes.SIMDNone,
 		Signature:  "dit32768_radix4_then2_generic",
 		Priority:   20,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       256,
+		Forward:    ForwardSplitRadixComplex128,
+		Inverse:    InverseSplitRadixComplex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit256_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       512,
+		Forward:    ForwardSplitRadixComplex128,
+		Inverse:    InverseSplitRadixComplex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit512_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       1024,
+		Forward:    ForwardSplitRadixComplex128,
+		Inverse:    InverseSplitRadixComplex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit1024_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       2048,
+		Forward:    ForwardSplitRadixComplex128,
+		Inverse:    InverseSplitRadixComplex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit2048_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       4096,
+		Forward:    ForwardSplitRadixComplex128,
+		Inverse:    InverseSplitRadixComplex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit4096_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       8192,
+		Forward:    ForwardSplitRadixComplex128,
+		Inverse:    InverseSplitRadixComplex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit8192_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       16384,
+		Forward:    ForwardSplitRadixComplex128,
+		Inverse:    InverseSplitRadixComplex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit16384_splitradix_generic",
+		Priority:   1,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       32768,
+		Forward:    ForwardSplitRadixComplex128,
+		Inverse:    InverseSplitRadixComplex128,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNone,
+		Signature:  "dit32768_splitradix_generic",
+		Priority:   1,
 		KernelType: fftypes.KernelTypeDIT,
 	})
 }

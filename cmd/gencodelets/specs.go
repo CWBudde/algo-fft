@@ -336,6 +336,89 @@ var codeletSpecs = []codeletSpec{
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit32768_radix4_then2_generic", Priority: 20,
 	},
+
+	// Split-radix (PLAN.md §1.2, "Give split-radix a fair measurement").
+	//
+	// These rows exist so the family can be *measured*. Split-radix is the
+	// largest untested cell in the algorithm × ISA matrix: it has a full
+	// strategy plumbing and a pure-Go kernel, but no codelet row anywhere, and
+	// the canary-gated sweep can only see registered candidates
+	// (scripts/bench_gated.sh drives BenchmarkCodeletCandidates<prec>). No row,
+	// no measurement.
+	//
+	// One function serves every size — ForwardSplitRadixComplex64 is
+	// size-generic and declines any non-power-of-two via splitRadixValid — so
+	// the rows differ only in Size and Signature.
+	//
+	// Priority 1 is deliberately non-selectable: every size below has a generic
+	// row at 20 or above, so these are ranked last in the pure-Go tier while
+	// staying visible to the sweep (the bench skips Priority < 0, not 1) and to
+	// the registry-driven reference tests, which is correctness coverage this
+	// kernel has never had. §2.1 gate 5 forbids a selectable priority before a
+	// measurement; the numbers set the final value.
+	//
+	// The ladder stops at 32768 on purpose. n = 65536 has *no* generic codelet
+	// row at all, so a split-radix row there would be the only pure-Go
+	// candidate and would become the selected purego route for an unmeasured
+	// kernel. The 16384–131072 band is measured at plan level instead, by the
+	// KernelSplitRadix arm in BenchmarkStepCrossover.
+	{
+		Target: "generic", Prec: 64, Size: 256,
+		Forward:   "ForwardSplitRadixComplex64",
+		Inverse:   "InverseSplitRadixComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit256_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 64, Size: 512,
+		Forward:   "ForwardSplitRadixComplex64",
+		Inverse:   "InverseSplitRadixComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit512_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 64, Size: 1024,
+		Forward:   "ForwardSplitRadixComplex64",
+		Inverse:   "InverseSplitRadixComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit1024_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 64, Size: 2048,
+		Forward:   "ForwardSplitRadixComplex64",
+		Inverse:   "InverseSplitRadixComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit2048_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 64, Size: 4096,
+		Forward:   "ForwardSplitRadixComplex64",
+		Inverse:   "InverseSplitRadixComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit4096_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 64, Size: 8192,
+		Forward:   "ForwardSplitRadixComplex64",
+		Inverse:   "InverseSplitRadixComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit8192_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 64, Size: 16384,
+		Forward:   "ForwardSplitRadixComplex64",
+		Inverse:   "InverseSplitRadixComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit16384_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 64, Size: 32768,
+		Forward:   "ForwardSplitRadixComplex64",
+		Inverse:   "InverseSplitRadixComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_splitradix_generic", Priority: 1,
+	},
+
 	{
 		Target: "generic", Prec: 128, Size: 4,
 		Forward:   "forwardDIT4Radix4Complex128",
@@ -615,6 +698,66 @@ var codeletSpecs = []codeletSpec{
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit32768_radix4_then2_generic", Priority: 20,
 	},
+
+	// Split-radix, complex128 — see the complex64 block above for why these
+	// rows exist, why the priority is 1 and why the ladder stops at 32768.
+	{
+		Target: "generic", Prec: 128, Size: 256,
+		Forward:   "ForwardSplitRadixComplex128",
+		Inverse:   "InverseSplitRadixComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit256_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 128, Size: 512,
+		Forward:   "ForwardSplitRadixComplex128",
+		Inverse:   "InverseSplitRadixComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit512_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 128, Size: 1024,
+		Forward:   "ForwardSplitRadixComplex128",
+		Inverse:   "InverseSplitRadixComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit1024_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 128, Size: 2048,
+		Forward:   "ForwardSplitRadixComplex128",
+		Inverse:   "InverseSplitRadixComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit2048_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 128, Size: 4096,
+		Forward:   "ForwardSplitRadixComplex128",
+		Inverse:   "InverseSplitRadixComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit4096_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 128, Size: 8192,
+		Forward:   "ForwardSplitRadixComplex128",
+		Inverse:   "InverseSplitRadixComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit8192_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 128, Size: 16384,
+		Forward:   "ForwardSplitRadixComplex128",
+		Inverse:   "InverseSplitRadixComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit16384_splitradix_generic", Priority: 1,
+	},
+	{
+		Target: "generic", Prec: 128, Size: 32768,
+		Forward:   "ForwardSplitRadixComplex128",
+		Inverse:   "InverseSplitRadixComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_splitradix_generic", Priority: 1,
+	},
+
 	{
 		Target: "avx2", Prec: 64, Size: 4,
 		Forward:   "amd64.ForwardAVX2Size4Radix4Complex64Asm",
