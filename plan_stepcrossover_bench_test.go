@@ -27,6 +27,12 @@ import "testing"
 // table look like it covers a family it does not; the family's verdict rests
 // on that diff rather than on a measurement.
 //
+// KernelSplitRadix runs at every size. It is here because §1.2's split-radix
+// item needs the same band and cannot use the registry sweep for all of it:
+// split-radix has codelet rows only up to 32768 (n = 65536 has no generic row
+// at all, so a row there would silently become the selected purego route for an
+// unmeasured kernel), and this is the arm that covers 65536 and 131072.
+//
 // The KernelDIT arm is measured for information only. Retuning
 // ditAutoThreshold against it is PLAN.md §1.4's item, not this one.
 //
@@ -56,7 +62,7 @@ var stepCrossoverSizes = []struct {
 // medians, and again with -tags purego.
 func BenchmarkStepCrossover(b *testing.B) {
 	for _, tc := range stepCrossoverSizes {
-		arms := []KernelStrategy{KernelDIT, KernelStockham, KernelFourStep}
+		arms := []KernelStrategy{KernelDIT, KernelStockham, KernelFourStep, KernelSplitRadix}
 		if tc.square {
 			arms = append(arms, KernelSixStep)
 		}

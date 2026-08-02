@@ -42,6 +42,7 @@ pure-Go fallback.
 |   256 | Radix-2                                    |  ·  |  —   |  ·   |  —   |    —    |  ▽   |
 |   256 | Radix-4                                    |  ·  |  —   |  ✓   |  ·   |    —    |  ✓   |
 |   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|   256 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |   384 | Mixed 128×3                                |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
 |   512 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ▽   |
 |   512 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
@@ -52,22 +53,26 @@ pure-Go fallback.
 |   512 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |   512 | Radix-8                                    |  ·  |  —   |  —   |  —   |    —    |  —   |
 |   512 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|   512 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  ▽   |
 |  1024 | Radix-32×32                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-4                                    |  ·  |  —   |  ✓   |  ·   |    —    |  ✓   |
 |  1024 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  1024 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  2048 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ▽   |
 |  2048 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  2048 | Radix-4                                    |  —  |  —   |  —   |  p   |    —    |  —   |
 |  2048 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  ·   |    —    |  —   |
 |  2048 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |  2048 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  2048 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
 |  4096 | Radix-4                                    |  ·  |  —   |  ✓   |  ✓   |    —    |  ✓   |
 |  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 |  4096 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  4096 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ▽   |
 |  8192 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
@@ -76,17 +81,20 @@ pure-Go fallback.
 |  8192 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 |  8192 | Six-step 64×128                            |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  8192 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
 | 16384 | Radix-4                                    |  ·  |  —   |  ✓   |  ✓   |    —    |  ✓   |
 | 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 | 16384 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+| 16384 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 32768 | Mixed-2/4                                  |  ✓  |  —   |  ✓   |  —   |    —    |  ▽   |
 | 32768 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 32768 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
 | 32768 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 | 32768 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 | 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  —   |
+| 32768 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
 
@@ -144,6 +152,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |   256 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ▽   |
 |   256 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ▽   |
 |   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|   256 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |   384 | Mixed 128×3                                |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
 |   512 | Generic radix-2                            |  —  |  —   |  —   |  —   |    —    |  ▽   |
 |   512 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ▽   |
@@ -155,20 +164,24 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |   512 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |   512 | Radix-8                                    |  ·  |  —   |  —   |  —   |    —    |  —   |
 |   512 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|   512 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-32×32                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    —    |  ▽   |
 |  1024 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  —   |
+|  1024 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  2048 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ▽   |
 |  2048 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  2048 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  —   |
 |  2048 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 |  2048 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |  2048 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  2048 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ▽   |
 |  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 |  4096 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  4096 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ▽   |
 |  8192 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
@@ -176,16 +189,19 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |  8192 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 |  8192 | Six-step 64×128                            |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  8192 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ▽   |
 | 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 | 16384 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+| 16384 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 32768 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    —    |  ▽   |
 | 32768 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 32768 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  —   |
 | 32768 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 | 32768 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 | 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  ✓   |    ✓    |  —   |
+| 32768 | splitradix                                 |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
 
@@ -216,13 +232,13 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 
 | Target  | Build constraint   | complex64 | complex128 | Total |
 | ------- | ------------------ | --------: | ---------: | ----: |
-| generic | `(all builds)`     |        38 |         37 |    75 |
+| generic | `(all builds)`     |        46 |         45 |    91 |
 | avx2    | `amd64 && !purego` |        24 |         21 |    45 |
 | avx512  | `amd64 && !purego` |        19 |         14 |    33 |
 | sse2    | `amd64 && !purego` |        22 |         22 |    44 |
 | neon    | `arm64 && !purego` |        22 |         22 |    44 |
 
-Total registered codelets: **241**.
+Total registered codelets: **257**.
 
 ## Size × ISA Coverage Gaps
 
@@ -260,8 +276,8 @@ served by the size-generic kernels listed under Beyond the Codelet Registry.
 
 | Tier    | complex | Rows | Sizes | Range   | Holes below ceiling | Above ceiling                                                                  |
 | ------- | ------: | ---: | ----: | ------- | ------------------- | ------------------------------------------------------------------------------ |
-| Go      |      64 |   38 |    15 | 4–32768 | —                   | 65536                                                                          |
-| Go      |     128 |   37 |    15 | 4–32768 | —                   | 65536                                                                          |
+| Go      |      64 |   46 |    15 | 4–32768 | —                   | 65536                                                                          |
+| Go      |     128 |   45 |    15 | 4–32768 | —                   | 65536                                                                          |
 | SSE2    |      64 |    1 |     1 | 4–4     | —                   | 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 |
 | SSE2    |     128 |   22 |    14 | 4–32768 | 384                 | 65536                                                                          |
 | SSE3    |      64 |   21 |    13 | 8–32768 | 384                 | 65536                                                                          |
@@ -825,6 +841,8 @@ is not a `✓`).
 | Split-radix                                |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
 | Stockham                                   |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
 | Stockham                                   |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| splitradix                                 |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    8 |            |
+| splitradix                                 |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    8 |            |
 
 ### Family verdicts
 
@@ -859,6 +877,7 @@ task, so the question has an owner rather than a shrug.
 - **Six-step 64×128** (open) — the rectangular split of the same family, and the worst cell of the fair comparison: 1.71/1.91 (c64) and 2.06/2.09 (c128) against `dit8192_radix8ladder_generic` on the i7-1255U, 2.00/2.17 and 2.16/2.35 on the Xeon — behind the radix-4-then-2 row the ladder replaced on both. Its rows are 64- and 128-point and both have codelets at every ISA, so it is also the cheapest place to demonstrate whether SIMD row binding changes the answer. Tracked by PLAN.md: Give the six-step and four-step row passes the registry's kernels
 - **Split-radix** (open) — the largest untested cell in the matrix: beat the auto path at every power of two ≥ 256 on purego, has no codelet row and no SIMD kernel at any ISA, and is auto-selected nowhere. Tracked by PLAN.md: Give split-radix a fair measurement
 - **Stockham** (open) — what auto selects above the DIT threshold, so its verdict is the same threshold question; the packed variant is a separate axis whose gate is filled for AVX2 only. Tracked by PLAN.md: Retune the strategy thresholds around the new codelets
+- **splitradix** — **no verdict; see cmd/gencodelets/matrix.go**
 
 ## Testing
 
