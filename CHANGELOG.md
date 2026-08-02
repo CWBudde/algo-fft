@@ -27,6 +27,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Split-radix is registered, and measured for the first time.** Sixteen
+  `dit<N>_splitradix_generic` rows at 256…32768, both precisions, at a
+  deliberately non-selectable priority 1. The rows exist so the family can be
+  _ranked_: the canary-gated harness only sees registered candidates, so having
+  no rows was both the finding and the obstacle. They also bring the kernel
+  under the registry-driven reference and zero-alloc sweeps, which it had never
+  been subject to. **No routing changes** — every size below 65536 already has a
+  faster registered codelet, and the ladder deliberately stops at 32768 because
+  n = 65536 has no generic row at all, where a new row would silently become the
+  selected pure-Go route. Split-radix loses all sixty-four measured cells
+  (1.06–1.44× on two hosts); see `docs/CODELET_BENCHMARKS.md`.
+- **Direct tests for the n = 16384 six-step codelet**, which its 4096 and 8192
+  siblings always had and it never did. The gap was invisible while a spec row
+  kept the registry sweep reaching it.
+
+### Changed
+
+- **The three six-step codelets moved behind `-tags fftprobe`.** They lose all
+  twenty-four cells on two hosts (1.43–2.35× against the pure-Go radix-8
+  ladder), and the comparison is fair — these codelets call the tuned radix-4
+  leaves, so both arms are scalar. They stay compiled, correctness-tested and
+  reachable by wisdom, out of every production build. This retires three
+  codelets, **not** the six-step decomposition: the separate strategy kernel is
+  a different implementation whose loss is confounded by a known defect.
+- **`dit1024_radix32x32_generic` and `dit512_radix16x32_generic` demoted to
+  priority 1** (from 25 and 35). Neither was selectable before, but both read as
+  contenders while losing every cell on both hosts. Not probe-gated: no laptop
+  cell of either row reaches the 1.5× bar, and the forward/inverse asymmetry
+  (1.26× forward against 1.79× inverse for 32×32) names an inverse-path defect
+  worth finding rather than a decomposition worth retiring.
+
 - **`TestRadix4AVX2MatchesStockham`, a large-size cross-check for complex64.**
   The complex128 kernel had been cross-validated against Stockham — an
   independent algorithm with no shared permutation table — at 8192…65536 for
