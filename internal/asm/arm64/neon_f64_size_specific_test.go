@@ -33,17 +33,11 @@ func TestNEONComplex128SizeSpecificKernels(t *testing.T) {
 		inverse func(dst, src, twiddle, scratch []complex128) bool
 	}{
 		{"Size4_Radix4", 4, ForwardNEONSize4Radix4Complex128Asm, InverseNEONSize4Radix4Complex128Asm},
-		{"Size8_Radix2", 8, ForwardNEONSize8Radix2Complex128Asm, InverseNEONSize8Radix2Complex128Asm},
 		{"Size8_Radix4", 8, ForwardNEONSize8Radix4Complex128Asm, InverseNEONSize8Radix4Complex128Asm},
-		{"Size16_Radix2", 16, ForwardNEONSize16Complex128Asm, InverseNEONSize16Complex128Asm},
 		{"Size16_Radix4", 16, ForwardNEONSize16Radix4Complex128Asm, InverseNEONSize16Radix4Complex128Asm},
-		{"Size32_Radix2", 32, ForwardNEONSize32Complex128Asm, InverseNEONSize32Complex128Asm},
 		{"Size32_Radix4Then2", 32, ForwardNEONSize32Radix4Then2Complex128Asm, InverseNEONSize32Radix4Then2Complex128Asm},
-		{"Size64_Radix2", 64, ForwardNEONSize64Radix2Complex128Asm, InverseNEONSize64Radix2Complex128Asm},
 		{"Size64_Radix4", 64, ForwardNEONSize64Radix4Complex128Asm, InverseNEONSize64Radix4Complex128Asm},
-		{"Size128_Radix2", 128, ForwardNEONSize128Radix2Complex128Asm, InverseNEONSize128Radix2Complex128Asm},
 		{"Size128_Radix4Then2", 128, ForwardNEONSize128Radix4Then2Complex128Asm, InverseNEONSize128Radix4Then2Complex128Asm},
-		{"Size256_Radix2", 256, ForwardNEONSize256Radix2Complex128Asm, InverseNEONSize256Radix2Complex128Asm},
 		{"Size256_Radix4", 256, ForwardNEONSize256Radix4Complex128Asm, InverseNEONSize256Radix4Complex128Asm},
 		{"Size1024_Radix4", 1024, ForwardNEONSize1024Radix4Complex128Asm, InverseNEONSize1024Radix4Complex128Asm},
 		{"Size2048_Radix4Then2", 2048, ForwardNEONSize2048Radix4Then2Complex128Asm, InverseNEONSize2048Radix4Then2Complex128Asm},

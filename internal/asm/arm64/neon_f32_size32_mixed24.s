@@ -6,6 +6,12 @@
 
 #include "textflag.h"
 
+// Shared with neon_f32_size32_radix2.s (fftprobe-only): relocated here
+// per AGENTS.md "Retiring a kernel" step 1 because this file is the
+// surviving consumer of ·neonInv32.
+DATA ·neonInv32+0(SB)/4, $0x3d000000 // 1/32
+GLOBL ·neonInv32(SB), RODATA, $4
+
 // Forward transform, size 32, mixed radix (radix-4, radix-4, radix-2).
 TEXT ·ForwardNEONSize32MixedRadix24Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8

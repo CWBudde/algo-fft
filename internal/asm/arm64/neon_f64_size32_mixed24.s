@@ -15,7 +15,11 @@
 
 #include "textflag.h"
 
-// Note: neonInv32F64 is defined in neon_f64_size32_radix2.s to avoid duplicate symbols
+// ·neonInv32F64 used to be defined in neon_f64_size32_radix2.s; relocated
+// here per AGENTS.md "Retiring a kernel" step 1 when that file moved
+// behind //go:build fftprobe, since this file is the surviving consumer.
+DATA ·neonInv32F64+0(SB)/8, $0x3fa0000000000000 // 1/32
+GLOBL ·neonInv32F64(SB), RODATA, $8
 
 // Forward transform, size 32, complex128, mixed radix (radix-4, radix-4, radix-2)
 // func ForwardNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool

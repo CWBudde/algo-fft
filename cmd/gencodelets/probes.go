@@ -284,6 +284,28 @@ var probeNotes = map[string]probeNote{
 			"pulling `strconv` into a probe file.",
 		Record: "—",
 	},
+	"internal/asm/arm64/decl_probe.go": {
+		Subject: "12 retired scalar-NEON DIT codelets (sizes 8/16/32/64/128/256, both " +
+			"precisions) against the vectorized generic NEON kernel that supersedes them",
+		Status: probeClosed,
+		Verdict: "**Loses every cell, decisively** (Apple M5, 2026-08): each kernel contains " +
+			"zero vector instructions — plain FMOVD/FADDD/FMULD scalar arithmetic under a " +
+			"\"NEON\" name — and measured 2.7x-5.6x slower than the pure-Go codelet, well past " +
+			"the 1.5x bar for \"keep, unregistered\" rather than \"keep at low priority\". " +
+			"Twelve rows across `neon_f32_size{8,16,32,128,256}_radix2.s`, " +
+			"`neon_f32_size8_radix4.s`, and `neon_f64_size{8,16,32,64,128,256}_radix2.s` moved " +
+			"behind this tag together; the generic NEON kernel (`ForwardNEONComplex64Asm` / " +
+			"`ForwardNEONComplex128Asm`) already covers every one of these sizes in production " +
+			"dispatch (`internal/fft/kernels_arm64_size_specific.go`), so nothing regresses. " +
+			"Kept compiled and correctness-tested — see " +
+			"`internal/asm/arm64/neon_retired_scalar_probe_test.go` — because a scalar loss on " +
+			"one host is still not a structural one under AGENTS.md §2.2: nothing here rules " +
+			"out a future ARM core where these particular instruction sequences pipeline " +
+			"better than the vector path.",
+		Record: "docs/CODELET_BENCHMARKS.md",
+		Rederiv: "GOARCH=arm64 GOOS=linux go test -tags fftprobe -run '^$' " +
+			"-bench BenchmarkRetiredScalarNEON -benchtime=1s ./internal/asm/arm64/",
+	},
 }
 
 // probeEntry pairs a probe file found in the tree with its authored note.

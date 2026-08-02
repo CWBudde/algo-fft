@@ -6,6 +6,12 @@
 
 #include "textflag.h"
 
+// ·neonInv128 used to be defined in neon_f32_size128_radix2.s; relocated
+// here per AGENTS.md "Retiring a kernel" step 1 when that file moved
+// behind //go:build fftprobe, since this file is the surviving consumer.
+DATA ·neonInv128+0(SB)/4, $0x3c000000 // 1/128
+GLOBL ·neonInv128(SB), RODATA, $4
+
 // Forward transform, size 128, mixed radix (radix-4, radix-4, radix-4, radix-2).
 TEXT ·ForwardNEONSize128MixedRadix24Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8

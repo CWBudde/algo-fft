@@ -17,14 +17,14 @@ pure-Go fallback.
 | ----: | ------------------------------------------ | :-: | :--: | :--: | :--: | :-----: | :--: |
 |     4 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    —    |  ▽   |
 |     8 | Mixed-2/4                                  |  ·  |  —   |  —   |  —   |    —    |  —   |
-|     8 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    —    |  ▽   |
-|     8 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  ▽   |
+|     8 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    —    |  —   |
+|     8 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  —   |
 |     8 | Radix-8                                    |  ✓  |  —   |  ✓   |  ·   |    ✓    |  ✓   |
 |    16 | Radix-16                                   |  ✓  |  —   |  ✓   |  ·   |    ✓    |  —   |
-|    16 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    —    |  ▽   |
+|    16 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    —    |  —   |
 |    16 | Radix-4                                    |  ·  |  —   |  ·   |  —   |    —    |  ✓   |
 |    32 | Mixed-2/4                                  |  ✓  |  —   |  ✓   |  —   |    ✓    |  ▽   |
-|    32 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    —    |  ▽   |
+|    32 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    —    |  —   |
 |    32 | Radix-32                                   |  ·  |  —   |  —   |  ·   |    —    |  —   |
 |    32 | Radix-8 (ladder)                           |  —  |  —   |  —   |  p   |    —    |  —   |
 |    64 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    ✓    |  ✓   |
@@ -32,14 +32,14 @@ pure-Go fallback.
 |    64 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
 |   128 | Mixed-2/4                                  |  ✓  |  —   |  ✓   |  —   |    —    |  ▽   |
 |   128 | Mixed-8/2                                  |  —  |  —   |  —   |  —   |    ✓    |  —   |
-|   128 | Radix-2                                    |  ·  |  —   |  ✓   |  —   |    —    |  ▽   |
+|   128 | Radix-2                                    |  ·  |  —   |  ✓   |  —   |    —    |  —   |
 |   128 | Radix-4                                    |  —  |  —   |  —   |  p   |    —    |  —   |
 |   128 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  ✓   |    —    |  —   |
 |   128 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |   128 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
 |   256 | Mixed-8/2                                  |  —  |  —   |  —   |  —   |    ·    |  —   |
 |   256 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-|   256 | Radix-2                                    |  ·  |  —   |  ·   |  —   |    —    |  ▽   |
+|   256 | Radix-2                                    |  ·  |  —   |  ·   |  —   |    —    |  —   |
 |   256 | Radix-4                                    |  ·  |  —   |  ✓   |  ·   |    —    |  ✓   |
 |   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
 |   256 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
@@ -127,29 +127,29 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | ----: | ------------------------------------------ | :-: | :--: | :--: | :--: | :-----: | :--: |
 |     4 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    ✗    |  ▽   |
 |     8 | Mixed-2/4                                  |  ·  |  —   |  —   |  —   |    —    |  —   |
-|     8 | Radix-2                                    |  ·  |  ·   |  —   |  ·   |    —    |  ▽   |
+|     8 | Radix-2                                    |  ·  |  ·   |  —   |  ·   |    —    |  —   |
 |     8 | Radix-4                                    |  —  |  ·   |  —   |  ·   |    —    |  ✓   |
 |     8 | Radix-8                                    |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  —   |
 |    16 | Radix-16                                   |  ✓  |  —   |  —   |  —   |    —    |  —   |
-|    16 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ▽   |
+|    16 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  —   |
 |    16 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |
 |    32 | Generic radix-2                            |  —  |  —   |  —   |  —   |    —    |  ▽   |
 |    32 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    ✓    |  ▽   |
-|    32 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ▽   |
+|    32 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  —   |
 |    32 | Radix-32                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
 |    32 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
 |    32 | Radix-8 (ladder)                           |  —  |  —   |  —   |  p   |    p    |  —   |
-|    64 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ▽   |
+|    64 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  —   |
 |    64 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |
 |    64 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
 |   128 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    ✓    |  ▽   |
-|   128 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ▽   |
+|   128 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  —   |
 |   128 | Radix-4                                    |  —  |  —   |  —   |  p   |    —    |  —   |
 |   128 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  ✓   |    —    |  —   |
 |   128 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |   128 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
 |   256 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-|   256 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  ▽   |
+|   256 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  —   |
 |   256 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
 |   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
 |   256 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
@@ -236,9 +236,9 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | avx2    | `amd64 && !purego` |        24 |         21 |    45 |
 | avx512  | `amd64 && !purego` |        19 |         14 |    33 |
 | sse2    | `amd64 && !purego` |        22 |         22 |    44 |
-| neon    | `arm64 && !purego` |        22 |         22 |    44 |
+| neon    | `arm64 && !purego` |        16 |         16 |    32 |
 
-Total registered codelets: **251**.
+Total registered codelets: **239**.
 
 ## Size × ISA Coverage Gaps
 
@@ -286,8 +286,8 @@ served by the size-generic kernels listed under Beyond the Codelet Registry.
 | AVX2    |     128 |   21 |    16 | 4–65536 | —                   | —                                                                              |
 | AVX-512 |      64 |   19 |    13 | 8–32768 | 384                 | 65536                                                                          |
 | AVX-512 |     128 |   13 |    13 | 8–32768 | 384                 | 65536                                                                          |
-| NEON    |      64 |   22 |    14 | 4–32768 | 384                 | 65536                                                                          |
-| NEON    |     128 |   22 |    14 | 4–32768 | 384                 | 65536                                                                          |
+| NEON    |      64 |   16 |    14 | 4–32768 | 384                 | 65536                                                                          |
+| NEON    |     128 |   16 |    14 | 4–32768 | 384                 | 65536                                                                          |
 
 ### Covered at one precision only
 
@@ -462,7 +462,7 @@ unreachable.
 | `amd64/sse3_f32_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/sse3_real_recombine.s`             |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 
-### arm64 — 38 files, 75 symbols, 75 live
+### arm64 — 38 files, 75 symbols, 69 live
 
 | File                                 | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                                  |
 | ------------------------------------ | ------: | ---: | --------: | ----------: | -----: | -------------------------------------------- |
@@ -471,36 +471,36 @@ unreachable.
 | `arm64/neon_f32_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_radix4_loop.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/neon_radix4_loop.go`     |
 | `arm64/neon_f32_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_f32_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f32_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_f32_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_f32_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_f32_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f32_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size8_radix8.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_radix4_loop.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/neon_radix4_loop_f64.go` |
 | `arm64/neon_f64_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f64_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f64_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_f64_size128_radix2.s`    |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
+| `arm64/neon_f64_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f64_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_f64_size256_radix2.s`    |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f64_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_f64_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f64_size64_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_f64_size64_radix2.s`     |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f64_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
+| `arm64/neon_f64_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_real_repack.s`           |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_scale.s`                 |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
@@ -539,6 +539,9 @@ unreachable.
 - `internal/asm/amd64/avx2_f32_transpose64x64.s` — 3 symbols, none reachable
 - `internal/asm/amd64/avx2_f64_generic_radix4_even.s` — 2 symbols, none reachable
 - `internal/asm/amd64/avx2_f64_generic_radix4_odd.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f64_size128_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f64_size256_radix2.s` — 2 symbols, none reachable
+- `internal/asm/arm64/neon_f64_size64_radix2.s` — 2 symbols, none reachable
 - `internal/asm/stub_amd64.s` — 1 symbols, none reachable
 - `internal/asm/stub_arm64.s` — 1 symbols, none reachable
 
@@ -554,24 +557,30 @@ entry fails the build's tests, a _tracked_ entry must quote an **open**
 PLAN.md checkbox, and an entry whose symbol became live again is a failure
 too.
 
-| Symbol                                        | Status      | Defined in                             | Declared in                  | Disposition                                                                                        |
-| --------------------------------------------- | ----------- | -------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- |
-| `Butterfly3ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
-| `Butterfly3InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go` | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
-| `Butterfly5ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
-| `Butterfly5InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go` | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
-| `Transpose128x128Complex64AVX2Asm`            | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `TransposeTwiddle128x128Complex64AVX2Asm`     | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `TransposeTwiddleConj128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go` | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `Transpose64x64Complex64AVX2Asm`              | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `TransposeTwiddle64x64Complex64AVX2Asm`       | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `TransposeTwiddleConj64x64Complex64AVX2Asm`   | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go` | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
-| `ForwardAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
-| `InverseAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go` | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
-| `ForwardAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
-| `InverseAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go` | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
-| `stubAsm`                                     | unreachable | `stub_amd64.s`                         | `internal/asm/stub_arm64.go` | keep: assembly-linkage smoke test for package asm; unreachable by construction                     |
-| `stubAsm`                                     | unreachable | `stub_arm64.s`                         | `internal/asm/stub_arm64.go` | keep: assembly-linkage smoke test for package asm; unreachable by construction                     |
+| Symbol                                        | Status      | Defined in                             | Declared in                        | Disposition                                                                                        |
+| --------------------------------------------- | ----------- | -------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `Butterfly3ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
+| `Butterfly3InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix3.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
+| `Butterfly5ForwardAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
+| `Butterfly5InverseAVX2Complex64`              | unreachable | `amd64/avx2_f32_radix5.s`              | `internal/asm/amd64/decl.go`       | tracked: Give the AVX2 radix-3/radix-5 butterflies a disposition                                   |
+| `Transpose128x128Complex64AVX2Asm`            | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
+| `TransposeTwiddle128x128Complex64AVX2Asm`     | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
+| `TransposeTwiddleConj128x128Complex64AVX2Asm` | unreachable | `amd64/avx2_f32_transpose128x128.s`    | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
+| `Transpose64x64Complex64AVX2Asm`              | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
+| `TransposeTwiddle64x64Complex64AVX2Asm`       | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
+| `TransposeTwiddleConj64x64Complex64AVX2Asm`   | unreachable | `amd64/avx2_f32_transpose64x64.s`      | `internal/asm/amd64/decl.go`       | probe-gated: called only from internal/math/transpose_amd64.go (-tags fftprobe); Phase 3 wires it  |
+| `ForwardAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
+| `InverseAVX2Complex128Radix4Asm`              | unreachable | `amd64/avx2_f64_generic_radix4_even.s` | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
+| `ForwardAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
+| `InverseAVX2Complex128Radix4MixedAsm`         | unreachable | `amd64/avx2_f64_generic_radix4_odd.s`  | `internal/asm/amd64/decl.go`       | probe-gated: called only from radix4_c128_probe_amd64.go (-tags fftprobe); awaiting the Xeon sweep |
+| `ForwardNEONSize128Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size128_radix2.s`      | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
+| `InverseNEONSize128Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size128_radix2.s`      | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
+| `ForwardNEONSize256Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size256_radix2.s`      | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
+| `InverseNEONSize256Radix2Complex128Asm`       | test-only   | `arm64/neon_f64_size256_radix2.s`      | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
+| `ForwardNEONSize64Radix2Complex128Asm`        | test-only   | `arm64/neon_f64_size64_radix2.s`       | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
+| `InverseNEONSize64Radix2Complex128Asm`        | test-only   | `arm64/neon_f64_size64_radix2.s`       | `internal/asm/arm64/decl_probe.go` | **none — see dispositions.go**                                                                     |
+| `stubAsm`                                     | unreachable | `stub_amd64.s`                         | `internal/asm/stub_arm64.go`       | keep: assembly-linkage smoke test for package asm; unreachable by construction                     |
+| `stubAsm`                                     | unreachable | `stub_arm64.s`                         | `internal/asm/stub_arm64.go`       | keep: assembly-linkage smoke test for package asm; unreachable by construction                     |
 
 ### Data symbols shared across files
 
@@ -609,15 +618,15 @@ established home).
 | `maskNegHiPS`                                   | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 33 more              |
 | `maskNegLoPD`                                   | `x86/core.s`                              | `amd64/avx2_f64_size16_radix4.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx2_f64_size4_radix4.s` + 27 more            |
 | `maskNegLoPS`                                   | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 32 more              |
-| `neonInv128`                                    | `arm64/neon_f32_size128_radix2.s`         | `arm64/neon_f32_size128_mixed24.s`                                                                                             |
-| `neonInv128F64`                                 | `arm64/neon_f64_size128_radix2.s`         | `arm64/neon_f64_size128_mixed24.s`                                                                                             |
+| `neonInv128`                                    | `arm64/neon_f32_size128_mixed24.s`        | `arm64/neon_f32_size128_radix2.s`                                                                                              |
+| `neonInv128F64`                                 | `arm64/neon_f64_size128_mixed24.s`        | `arm64/neon_f64_size128_radix2.s`                                                                                              |
 | `neonInv16`                                     | `arm64/neon_f32_size16_radix4.s`          | `arm64/neon_f32_size16_radix2.s`                                                                                               |
 | `neonInv16F64`                                  | `arm64/neon_f64_size16_radix4.s`          | `arm64/neon_f64_size16_radix2.s`                                                                                               |
-| `neonInv32`                                     | `arm64/neon_f32_size32_radix2.s`          | `arm64/neon_f32_size32_mixed24.s`                                                                                              |
-| `neonInv32F64`                                  | `arm64/neon_f64_size32_radix2.s`          | `arm64/neon_f64_size32_mixed24.s`                                                                                              |
+| `neonInv32`                                     | `arm64/neon_f32_size32_mixed24.s`         | `arm64/neon_f32_size32_radix2.s`                                                                                               |
+| `neonInv32F64`                                  | `arm64/neon_f64_size32_mixed24.s`         | `arm64/neon_f64_size32_radix2.s`                                                                                               |
 | `neonInv4`                                      | `arm64/core.s`                            | `arm64/neon_f32_size4_radix4.s`                                                                                                |
 | `neonInv8`                                      | `arm64/core.s`                            | `arm64/neon_f32_size8_radix2.s`, `arm64/neon_f32_size8_radix4.s`, `arm64/neon_f32_size8_radix8.s`                              |
-| `neonInv8F64`                                   | `arm64/neon_f64_size8_radix2.s`           | `arm64/neon_f64_size8_radix4.s`                                                                                                |
+| `neonInv8F64`                                   | `arm64/neon_f64_size8_radix4.s`           | `arm64/neon_f64_size8_radix2.s`                                                                                                |
 | `neonOne64`                                     | `arm64/core.s`                            | `arm64/neon_f64_generic.s`, `arm64/neon_f64_size16_radix4.s`, `arm64/neon_f64_size8_radix4.s`                                  |
 | `neonOnes`                                      | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
 | `neonSignImag`                                  | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
@@ -662,6 +671,7 @@ generator's tests.
 
 | File                                                 | Build tag                      | Measures                                                                                                                                      | Status          |
 | ---------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `internal/asm/arm64/decl_probe.go`                   | `arm64 && !purego && fftprobe` | no entry in cmd/gencodelets/probes.go                                                                                                         | UNDOCUMENTED    |
 | `internal/fft/radix4_c128_probe_amd64.go`            | `amd64 && !purego && fftprobe` | complex128 generic AVX2 radix-4 / radix-4-then-2 against the generic AVX2 radix-2 dispatch                                                    | open            |
 | `internal/kernels/avx2_size_specific_probe_amd64.go` | `amd64 && !purego && fftprobe` | the sixteen size-specific AVX2 `.s` files against the generic AVX2 fallback that would replace them                                           | open            |
 | `internal/kernels/probe_util.go`                     | `fftprobe`                     | shared helpers for the harnesses in this section (no kernel of its own)                                                                       | support         |
@@ -672,6 +682,8 @@ generator's tests.
 | `internal/kernels/radix8_generic_probe.go`           | `fftprobe`                     | size-generic pure-Go radix-8 ladder against the pure-Go radix-4 ladder                                                                        | partly promoted |
 | `internal/kernels/sixstep_codelet_probe.go`          | `fftprobe`                     | the three six-step codelets against the pure-Go radix-8 ladder that replaced them                                                             | closed          |
 | `internal/math/transpose_amd64.go`                   | `amd64 && !purego && fftprobe` | the AVX2 64x64/128x128 transposes — plain, fused twiddle, fused conjugate twiddle — against the pure-Go blocked transpose they would displace | open            |
+
+**`internal/asm/arm64/decl_probe.go`** — UNDOCUMENTED
 
 **`internal/fft/radix4_c128_probe_amd64.go`** — open
 
@@ -821,13 +833,13 @@ is not a `✓`).
 | Radix-16 (ladder)                          |     128 |  p  |  —   |  —   |  —   |    —    |  —   |    0 | closed     |
 | Radix-16×32                                |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-16×32                                |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
-| Radix-2                                    |      64 |  ·  |  —   |  ✓   |  ✓   |    ✓    |  ✓   |   31 | tuned      |
-| Radix-2                                    |     128 |  ·  |  ·   |  —   |  ·   |    —    |  ▽   |   21 | tuned      |
+| Radix-2                                    |      64 |  ·  |  —   |  ✓   |  ✓   |    ✓    |  ✓   |   26 | tuned      |
+| Radix-2                                    |     128 |  ·  |  ·   |  —   |  ·   |    —    |  —   |   15 | tuned      |
 | Radix-32                                   |      64 |  ·  |  —   |  —   |  ·   |    —    |  —   |    2 | open       |
 | Radix-32                                   |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-32×32                                |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-32×32                                |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
-| Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   32 | tuned      |
+| Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   31 | tuned      |
 | Radix-4                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |   40 | tuned      |
 | Radix-4 (fused tail)                       |      64 |  —  |  —   |  —   |  ✓   |    —    |  —   |    2 | tuned      |
 | Radix-4 (fused tail)                       |     128 |  —  |  —   |  —   |  ✓   |    —    |  —   |    1 | tuned      |

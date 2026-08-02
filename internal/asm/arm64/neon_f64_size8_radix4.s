@@ -46,8 +46,12 @@
 #include "textflag.h"
 #include "neon_fp.h"
 
-// Note: neonInv8F64 is defined in neon_f64_size8_radix2.s to avoid duplicate
-// symbols.
+// ·neonInv8F64 used to be defined in neon_f64_size8_radix2.s; relocated
+// here per AGENTS.md "Retiring a kernel" step 1 when that file moved
+// behind //go:build fftprobe (its own scalar-with-a-NEON-name defect,
+// see above), since this file is the surviving consumer.
+DATA ·neonInv8F64+0(SB)/8, $0x3fc0000000000000 // 1/8 = 0.125
+GLOBL ·neonInv8F64(SB), RODATA, $8
 
 // Forward DFT4 across four vectors (W4 = -i):
 //   X0 = t0+t2   X2 = t0-t2   X1 = t1 - i*t3   X3 = t1 + i*t3

@@ -1761,3 +1761,72 @@ codelets, and effort belongs in the remaining unvectorized _sized_ rows. Both
 rows are already `RankBelowGeneric`, so nothing selects them; by §2.2's ≥1.5x
 threshold they are also candidates for an `fftprobe` migration alongside the
 `then2` rows.
+
+### The real-FFT repack: the NEON path was a pessimization (2026-08-02)
+
+`neon_real_repack.s` sits on the real-FFT inverse path and is not a codelet — it
+has no spec row, so no candidate benchmark and none of the 238 matrix cells ever
+covered it. It was also the last NEON file in the tree with **zero vector
+instructions** while being dispatched as the SIMD path.
+
+Measured on the M5 through `RepackInverseComplex64`, `count=8`,
+`benchtime=500ms`. "before" is the scalar assembly, "after" the vectorized
+rewrite; the generic column is the pure-Go loop over the same bins:
+
+| half | generic Go | NEON before | NEON after | before vs Go | after vs Go |
+| ---- | ---------: | ----------: | ---------: | -----------: | ----------: |
+| 128  |      185.4 |       240.1 |  **128.0** |    **0.77x** |       1.45x |
+| 512  |      788.4 |       983.4 |  **523.1** |    **0.80x** |       1.51x |
+| 2048 |     3004.1 |      3921.1 | **1973.4** |    **0.77x** |       1.52x |
+| 8192 |    12238.9 |     15156.9 | **8242.5** |    **0.81x** |       1.48x |
+
+The first result is the one that matters: **the old "SIMD" repack was 1.24-1.30x
+slower than the pure-Go loop it was overriding**, at every size. Production
+arm64 real-FFT inverse transforms were paying to use it. Vectorizing it is worth
+1.84-1.99x against itself and turns a 0.77x loss into a 1.48x win.
+
+This is the same class of defect as the codelet registry ordering bug, arriving
+by a different route. There the demotion mechanism was missing; here the kernel
+was simply never benchmarked, because "is it faster than Go?" is a question the
+candidate sweep only asks about rows in the codelet registry. **A hand-written
+SIMD path outside the registry has nothing checking that it earns its place.**
+
+`complex128` was a stub returning `1` (no SIMD, use generic) on arm64, while
+amd64 has had `InverseRepackComplex128AVX2Asm` for some time. Implementing
+`InverseRepackComplex128NEONAsm` closes that asymmetry:
+
+| half | generic Go | NEON (new) |  gain |
+| ---- | ---------: | ---------: | ----: |
+| 128  |      196.2 |  **141.4** | 1.39x |
+| 512  |      785.8 |  **569.6** | 1.38x |
+| 2048 |     3021.1 | **2245.1** | 1.35x |
+| 8192 |    12428.9 | **9059.2** | 1.37x |
+
+The generic column re-measured within ~1% across the two runs at three of four
+sizes (9% at `half=8192`), so the before/after comparison is not a load artifact.
+
+`BenchmarkRepackInverseComplex64` did not exist before this round — only the
+`*Generic` variants — which is why the regression was invisible. It now exists
+for both precisions.
+
+### The twelve scalar radix-2 NEON codelets, retired to `fftprobe` (2026-08-02)
+
+Twelve rows losing 2.7-5.6x, all zero-vector-op scalar assembly, moved behind
+`//go:build fftprobe` with correctness tests and comparison benchmarks per §2.2's
+"measured loss >= 1.5x — keep, unregistered". `RankBelowGeneric` drops from 30
+rows to 18. Sizes 8/16/32/128/256 in both precisions, plus c128 size 64 and the
+c64 size-8 radix-4.
+
+Two traps, both of which would have broken the build:
+
+- **`dit512_radix2_neon` and `dit1024_radix2_neon` (c64) are not radix-2
+  kernels.** Both are served by `ForwardNEONComplex64Asm`, the _generic_ any-size
+  kernel, which is vectorized and is also called from `internal/fft/asm_arm64.go`.
+  This is the third time a NEON signature has misidentified its own algorithm
+  here. Scope retirements by **symbol**, never by signature.
+- **Five package-level `·neonInv*` constants** were defined in retiring files and
+  referenced from surviving ones (`neon_f64_size8_radix4.s`, the size-32 and
+  size-128 `mixed24` files). A `<>`-scoped grep does **not** find these — `<>`
+  symbols are file-local by construction, so only the `·`-prefixed package-level
+  tables can be shared, and those are exactly the ones checklist step 1 is about.
+  They were relocated into their surviving consumers first, as its own step.

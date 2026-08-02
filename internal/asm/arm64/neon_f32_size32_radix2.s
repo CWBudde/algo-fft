@@ -1,13 +1,10 @@
-//go:build arm64 && !purego
+//go:build arm64 && !purego && fftprobe
 
 // ===========================================================================
 // NEON Size-32 Radix-2 FFT Kernels for ARM64
 // ===========================================================================
 
 #include "textflag.h"
-
-DATA ·neonInv32+0(SB)/4, $0x3d000000 // 1/32
-GLOBL ·neonInv32(SB), RODATA, $4
 
 // Forward transform, size 32, complex64, radix-2
 TEXT ·ForwardNEONSize32Radix2Complex64Asm(SB), NOSPLIT, $0-97

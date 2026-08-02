@@ -153,6 +153,111 @@ var dispositions = []disposition{
 	// Their entries are gone rather than converted to dispKeep, because a
 	// disposition for a symbol that no longer exists fails the census tests
 	// exactly as a dark symbol without one does.
+
+	// The 12 retired scalar-NEON DIT codelets (2026-08-02, PLAN.md §2.2): each
+	// contains zero vector instructions and measured 2.7x-5.6x slower than the
+	// pure-Go codelet on an Apple M5, so they moved behind `-tags fftprobe`
+	// rather than staying at a selectable priority. See
+	// cmd/gencodelets/probes.go's internal/asm/arm64/decl_probe.go entry for the
+	// full verdict; internal/asm/arm64/neon_retired_scalar_probe_test.go is the
+	// correctness test and comparison benchmark that keeps the question
+	// re-measurable.
+	{
+		Symbol: "ForwardNEONSize8Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size8_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize8Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size8_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize8Radix2Complex128Asm", File: "internal/asm/arm64/neon_f64_size8_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize8Radix2Complex128Asm", File: "internal/asm/arm64/neon_f64_size8_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize8Radix4Complex64Asm", File: "internal/asm/arm64/neon_f32_size8_radix4.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize8Radix4Complex64Asm", File: "internal/asm/arm64/neon_f32_size8_radix4.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize16Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size16_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize16Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size16_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize16Complex128Asm", File: "internal/asm/arm64/neon_f64_size16_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize16Complex128Asm", File: "internal/asm/arm64/neon_f64_size16_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize32Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size32_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize32Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size32_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize32Complex128Asm", File: "internal/asm/arm64/neon_f64_size32_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize32Complex128Asm", File: "internal/asm/arm64/neon_f64_size32_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize64Radix2Complex128Asm", File: "internal/asm/arm64/neon_f64_size64_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize64Radix2Complex128Asm", File: "internal/asm/arm64/neon_f64_size64_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize128Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size128_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize128Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size128_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize128Radix2Complex128Asm", File: "internal/asm/arm64/neon_f64_size128_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize128Radix2Complex128Asm", File: "internal/asm/arm64/neon_f64_size128_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize256Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size256_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize256Radix2Complex64Asm", File: "internal/asm/arm64/neon_f32_size256_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "ForwardNEONSize256Radix2Complex128Asm", File: "internal/asm/arm64/neon_f64_size256_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
+	{
+		Symbol: "InverseNEONSize256Radix2Complex128Asm", File: "internal/asm/arm64/neon_f64_size256_radix2.s",
+		Kind: dispProbed, Reason: "called only from neon_retired_scalar_probe_test.go (-tags fftprobe); scalar, lost to pure Go 2.7x-5.6x on Apple M5",
+	},
 }
 
 // dispositionKey identifies an entry. The same symbol name is defined once per

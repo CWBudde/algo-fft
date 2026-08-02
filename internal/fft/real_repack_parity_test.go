@@ -183,3 +183,33 @@ func BenchmarkRepackInverseComplex128Generic(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkRepackInverseComplex64 measures the dispatched path, so on a SIMD
+// build it measures the vector pre-pass plus whatever tail the generic loop
+// still owns. Compare against BenchmarkRepackInverseComplex64Generic, which
+// covers the same bins with the scalar loop alone; its complex128 twin above
+// is the model for this pairing.
+func BenchmarkRepackInverseComplex64(b *testing.B) {
+	for _, half := range []int{128, 512, 2048, 8192} {
+		b.Run(fmt.Sprintf("half=%d", half), func(b *testing.B) {
+			src := make([]complex64, half+1)
+			for i := range src {
+				src[i] = complex(float32(i%17)-8, float32(i%13)-6)
+			}
+
+			src[0] = complex(real(src[0]), 0)
+			src[half] = complex(real(src[half]), 0)
+
+			weight := recombineWeights64(half)
+			dst := make([]complex64, half)
+
+			b.ReportAllocs()
+			b.SetBytes(int64(half * 8))
+			b.ResetTimer()
+
+			for range b.N {
+				RepackInverseComplex64(dst, src, weight)
+			}
+		})
+	}
+}

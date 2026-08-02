@@ -32,14 +32,8 @@ func neonSizeSpecificOrGenericDITComplex64(strategy fftypes.KernelStrategy) kern
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 8:
-			// Prefer radix-8; fall back to radix-2/mixed-radix.
+			// Prefer radix-8; fall back to generic NEON.
 			if forwardNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
@@ -48,16 +42,10 @@ func neonSizeSpecificOrGenericDITComplex64(strategy fftypes.KernelStrategy) kern
 			if forwardNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
-			if forwardNEONSize16Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 32:
 			if forwardNEONSize32Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardNEONSize32Radix2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
@@ -72,16 +60,10 @@ func neonSizeSpecificOrGenericDITComplex64(strategy fftypes.KernelStrategy) kern
 			if forwardNEONSize128Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
-			if forwardNEONSize128Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 256:
 			if forwardNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			return forwardNEONComplex64Asm(dst, src, twiddle, scratch)
@@ -115,14 +97,8 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy fftypes.KernelStrateg
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 8:
-			// Prefer radix-8; fall back to radix-2/mixed-radix.
+			// Prefer radix-8; fall back to generic NEON.
 			if inverseNEONSize8Radix8Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseNEONSize8Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseNEONSize8Radix4Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch)
@@ -131,16 +107,10 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy fftypes.KernelStrateg
 			if inverseNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
-			if inverseNEONSize16Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 32:
 			if inverseNEONSize32Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseNEONSize32Radix2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch)
@@ -155,16 +125,10 @@ func neonSizeSpecificOrGenericDITInverseComplex64(strategy fftypes.KernelStrateg
 			if inverseNEONSize128Radix4Then2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
-			if inverseNEONSize128Radix2Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch)
 
 		case 256:
 			if inverseNEONSize256Radix4Complex64Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseNEONSize256Radix2Complex64Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			return inverseNEONComplex64Asm(dst, src, twiddle, scratch)
@@ -203,21 +167,8 @@ func neonSizeSpecificOrGenericDITComplex128(strategy fftypes.KernelStrategy) ker
 				return true
 			}
 			return forwardNEONComplex128Asm(dst, src, twiddle, scratch)
-		case 8:
-			if forwardNEONSize8Radix2Complex128Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardNEONComplex128Asm(dst, src, twiddle, scratch)
 		case 16:
 			if forwardNEONSize16Radix4Complex128Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if forwardNEONSize16Complex128Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return forwardNEONComplex128Asm(dst, src, twiddle, scratch)
-		case 32:
-			if forwardNEONSize32Complex128Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			return forwardNEONComplex128Asm(dst, src, twiddle, scratch)
@@ -242,21 +193,8 @@ func neonSizeSpecificOrGenericDITInverseComplex128(strategy fftypes.KernelStrate
 				return true
 			}
 			return inverseNEONComplex128Asm(dst, src, twiddle, scratch)
-		case 8:
-			if inverseNEONSize8Radix2Complex128Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseNEONComplex128Asm(dst, src, twiddle, scratch)
 		case 16:
 			if inverseNEONSize16Radix4Complex128Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			if inverseNEONSize16Complex128Asm(dst, src, twiddle, scratch) {
-				return true
-			}
-			return inverseNEONComplex128Asm(dst, src, twiddle, scratch)
-		case 32:
-			if inverseNEONSize32Complex128Asm(dst, src, twiddle, scratch) {
 				return true
 			}
 			return inverseNEONComplex128Asm(dst, src, twiddle, scratch)
