@@ -168,7 +168,7 @@ func TestUntestedFamiliesAreNotInTheRegistry(t *testing.T) {
 }
 
 // TestMatrixUnionIncludesTierOnlyFamilies is the point of deriving the family
-// axis from two sources. Split-radix, eight-step, four-step, Rader, Bluestein
+// axis from two sources. Split-radix, four-step, Rader, Bluestein
 // and the recursive decomposition have no codelet rows at all, so a
 // specs-only scan omits precisely the families whose emptiness is the finding.
 func TestMatrixUnionIncludesTierOnlyFamilies(t *testing.T) {
@@ -182,7 +182,7 @@ func TestMatrixUnionIncludesTierOnlyFamilies(t *testing.T) {
 		inMatrix[row.Family] = true
 	}
 
-	for _, family := range []string{"Split-radix", "Eight-step", "Four-step", "Rader", "Bluestein", "Recursive"} {
+	for _, family := range []string{"Split-radix", "Four-step", "Rader", "Bluestein", "Recursive"} {
 		if fromSpecs[family] {
 			t.Errorf("%s now has codelet rows; this test's premise needs revisiting", family)
 		}

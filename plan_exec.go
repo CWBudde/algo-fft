@@ -40,7 +40,7 @@ var (
 )
 
 // kernelExecutor runs the codelet/kernel strategy family (DIT, Stockham,
-// six-step, eight-step, split-radix, mixed-radix): a zero-dispatch codelet
+// six-step, split-radix, mixed-radix): a zero-dispatch codelet
 // when one is bound, the pure-Go packed Stockham route when enabled, and the
 // strategy-dispatched fallback kernel otherwise.
 type kernelExecutor[T Complex] struct {

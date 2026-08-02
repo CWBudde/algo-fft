@@ -25,7 +25,6 @@ const (
 	strategyNameDIT        = "DIT"
 	strategyNameStockham   = "Stockham"
 	strategyNameSixStep    = "SixStep"
-	strategyNameEightStep  = "EightStep"
 	strategyNameBluestein  = "Bluestein"
 	strategyNameRecursive  = "Recursive"
 	strategyNameSplitRadix = "SplitRadix"
@@ -63,8 +62,6 @@ func (p *Plan[T]) String() string {
 		strategyName = strategyNameStockham
 	case fftypes.KernelSixStep:
 		strategyName = strategyNameSixStep
-	case fftypes.KernelEightStep:
-		strategyName = strategyNameEightStep
 	case fftypes.KernelBluestein:
 		strategyName = strategyNameBluestein
 	case fftypes.KernelRecursive:

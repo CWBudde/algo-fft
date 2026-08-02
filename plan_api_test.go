@@ -120,7 +120,6 @@ func TestKernelStrategy(t *testing.T) {
 		{"DIT", 128, KernelDIT},
 		{"Stockham", 256, KernelStockham},
 		{"SixStep", 4096, KernelSixStep},
-		{"EightStep", 16384, KernelEightStep},
 	}
 
 	for _, tt := range tests {
@@ -360,7 +359,6 @@ func TestString_AllStrategies(t *testing.T) {
 		{KernelDIT, "DIT", 64},
 		{KernelStockham, "Stockham", 256},
 		{KernelSixStep, "SixStep", 4096},
-		{KernelEightStep, "EightStep", 8192},
 		{KernelAuto, "auto", 128}, // Auto might resolve to DIT or Stockham
 	}
 

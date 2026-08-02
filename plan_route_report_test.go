@@ -52,7 +52,7 @@ func TestForcedStrategyAtMixedRadixLengthReportsRoute(t *testing.T) {
 	t.Parallel()
 
 	forced := []KernelStrategy{
-		KernelDIT, KernelStockham, KernelSixStep, KernelEightStep,
+		KernelDIT, KernelStockham, KernelSixStep,
 		KernelSplitRadix, KernelFourStep,
 	}
 

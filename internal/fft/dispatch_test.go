@@ -48,7 +48,6 @@ func TestSelectKernelsWithStrategy(t *testing.T) {
 		fftypes.KernelDIT,
 		fftypes.KernelStockham,
 		fftypes.KernelSixStep,
-		fftypes.KernelEightStep,
 	}
 
 	strategyNames := []string{
@@ -56,7 +55,6 @@ func TestSelectKernelsWithStrategy(t *testing.T) {
 		"DIT",
 		"Stockham",
 		"SixStep",
-		"EightStep",
 	}
 
 	for i, strategy := range strategies {

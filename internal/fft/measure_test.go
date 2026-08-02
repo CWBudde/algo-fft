@@ -53,7 +53,7 @@ func TestSelectStrategiesToTest(t *testing.T) {
 			name:     "Exhaustive mode power-of-two",
 			mode:     PlannerExhaustive,
 			n:        1024,
-			expected: []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep, fftypes.KernelEightStep, fftypes.KernelSplitRadix, fftypes.KernelFourStep},
+			expected: []fftypes.KernelStrategy{fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep, fftypes.KernelSplitRadix, fftypes.KernelFourStep},
 		},
 		{
 			name:     "Prime size uses Bluestein only",

@@ -9,7 +9,7 @@ func TestStrategyAlgorithmNameRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	strategies := []KernelStrategy{
-		KernelDIT, KernelStockham, KernelSixStep, KernelEightStep,
+		KernelDIT, KernelStockham, KernelSixStep,
 		KernelBluestein, KernelSplitRadix, KernelRecursive,
 		KernelFourStep, KernelMixedRadix,
 	}

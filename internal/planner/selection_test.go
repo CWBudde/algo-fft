@@ -143,13 +143,13 @@ func TestFallbackKernelStrategy(t *testing.T) {
 	}
 }
 
-// TestSixStepEightStepSquareSizes tests strategy selection for square sizes
+// TestSixStepSquareSizes tests strategy selection for square sizes
 // under the auto heuristic. No square size is special-cased any more: the
-// power-of-two ones measured no better under six/eight-step than under the
+// power-of-two ones measured no better under six-step than under the
 // plain size heuristic (Stockham), and the non-power-of-two ones run on the
 // mixed-radix engine whatever the strategy says. See the rationale in
 // resolveKernelStrategy.
-func TestSixStepEightStepSquareSizes(t *testing.T) {
+func TestSixStepSquareSizes(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -175,14 +175,14 @@ func TestSixStepEightStepSquareSizes(t *testing.T) {
 	}
 }
 
-// TestForcedSixStepOnNonSquare tests that six/eight-step forced on a non-square size
+// TestForcedSixStepOnNonSquare tests that six-step forced on a non-square size
 // falls back to a size-appropriate strategy.
 func TestForcedSixStepOnNonSquare(t *testing.T) {
 	t.Parallel()
 
 	// Non-square size forced to sixstep should fall back.
 	got := ResolveKernelStrategyWithDefault(1000, KernelSixStep)
-	if got == KernelSixStep || got == KernelEightStep {
+	if got == KernelSixStep {
 		t.Errorf("ResolveKernelStrategyWithDefault(1000, SixStep) = %v, should fall back for non-square", got)
 	}
 

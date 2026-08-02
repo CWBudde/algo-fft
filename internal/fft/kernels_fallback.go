@@ -51,8 +51,6 @@ func autoKernelComplex64(strategy fftypes.KernelStrategy) kernels.Kernels[comple
 				return kernels.ForwardStockhamComplex64(dst, src, twiddle, scratch)
 			case fftypes.KernelSixStep:
 				return kernels.ForwardSixStepComplex64(dst, src, twiddle, scratch)
-			case fftypes.KernelEightStep:
-				return kernels.ForwardEightStepComplex64(dst, src, twiddle, scratch)
 			case fftypes.KernelSplitRadix:
 				return kernels.ForwardSplitRadixComplex64(dst, src, twiddle, scratch)
 			case fftypes.KernelFourStep:
@@ -77,8 +75,6 @@ func autoKernelComplex64(strategy fftypes.KernelStrategy) kernels.Kernels[comple
 				return kernels.InverseStockhamComplex64(dst, src, twiddle, scratch)
 			case fftypes.KernelSixStep:
 				return kernels.InverseSixStepComplex64(dst, src, twiddle, scratch)
-			case fftypes.KernelEightStep:
-				return kernels.InverseEightStepComplex64(dst, src, twiddle, scratch)
 			case fftypes.KernelSplitRadix:
 				return kernels.InverseSplitRadixComplex64(dst, src, twiddle, scratch)
 			case fftypes.KernelFourStep:
@@ -108,8 +104,6 @@ func autoKernelComplex128(strategy fftypes.KernelStrategy) kernels.Kernels[compl
 				return kernels.ForwardStockhamComplex128(dst, src, twiddle, scratch)
 			case fftypes.KernelSixStep:
 				return kernels.ForwardSixStepComplex128(dst, src, twiddle, scratch)
-			case fftypes.KernelEightStep:
-				return kernels.ForwardEightStepComplex128(dst, src, twiddle, scratch)
 			case fftypes.KernelSplitRadix:
 				return kernels.ForwardSplitRadixComplex128(dst, src, twiddle, scratch)
 			case fftypes.KernelFourStep:
@@ -134,8 +128,6 @@ func autoKernelComplex128(strategy fftypes.KernelStrategy) kernels.Kernels[compl
 				return kernels.InverseStockhamComplex128(dst, src, twiddle, scratch)
 			case fftypes.KernelSixStep:
 				return kernels.InverseSixStepComplex128(dst, src, twiddle, scratch)
-			case fftypes.KernelEightStep:
-				return kernels.InverseEightStepComplex128(dst, src, twiddle, scratch)
 			case fftypes.KernelSplitRadix:
 				return kernels.InverseSplitRadixComplex128(dst, src, twiddle, scratch)
 			case fftypes.KernelFourStep:
