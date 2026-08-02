@@ -337,6 +337,13 @@ var codeletSpecs = []codeletSpec{
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit32768_radix4_then2_generic", Priority: 20,
 	},
+	{
+		Target: "generic", Prec: 64, Size: 65536,
+		Forward:   "forwardDIT65536Radix4Complex64",
+		Inverse:   "inverseDIT65536Radix4Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit65536_radix4_generic", Priority: 20,
+	},
 
 	// Split-radix (PLAN.md §1.2, "Give split-radix a fair measurement").
 	//
@@ -358,11 +365,19 @@ var codeletSpecs = []codeletSpec{
 	// kernel has never had. §2.1 gate 5 forbids a selectable priority before a
 	// measurement; the numbers set the final value.
 	//
-	// The ladder stops at 32768 on purpose. n = 65536 has *no* generic codelet
-	// row at all, so a split-radix row there would be the only pure-Go
-	// candidate and would become the selected purego route for an unmeasured
-	// kernel. The 16384–131072 band is measured at plan level instead, by the
-	// KernelSplitRadix arm in BenchmarkStepCrossover.
+	// The split-radix ladder stops at 32768, and the reason has changed.
+	// It used to be a safety property: n = 65536 had no generic row at all,
+	// so a split-radix row there would have been the only pure-Go candidate
+	// and would have become the selected purego route for a kernel nobody
+	// had measured. `dit65536_radix4_generic` above removes that hazard — a
+	// priority-1 row now ranks below it and cannot be selected.
+	//
+	// What remains is simply that split-radix has not been measured at
+	// 65536 against a real opponent. Its apparent win there was against the
+	// coverage hole the row above just filled, so the comparison has to be
+	// re-run before a row is added; PLAN.md's Phase 3 ladder item owns that
+	// order of operations. Meanwhile the 16384-131072 band is measured at
+	// plan level by the KernelSplitRadix arm in BenchmarkStepCrossover.
 	{
 		Target: "generic", Prec: 64, Size: 256,
 		Forward:   "ForwardSplitRadixComplex64",
@@ -677,6 +692,13 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT32768Radix4Then2Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit32768_radix4_then2_generic", Priority: 20,
+	},
+	{
+		Target: "generic", Prec: 128, Size: 65536,
+		Forward:   "forwardDIT65536Radix4Complex128",
+		Inverse:   "inverseDIT65536Radix4Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
+		Signature: "dit65536_radix4_generic", Priority: 20,
 	},
 
 	// Split-radix, complex128 — see the complex64 block above for why these

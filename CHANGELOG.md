@@ -27,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A pure-Go codelet for n = 65536**, both precisions —
+  `dit65536_radix4_generic`. The generic ladder previously stopped at 32768, so
+  a purego or WASM build fell off the registry at 65536 onto the size-generic
+  radix-4 route; a provisional A/B on the i7-1255U puts the new codelet at
+  ~1109 µs against ~2075 µs for that route (**1.87×**, machine under load — a
+  gated sweep is still owed). It could not reuse the 16384 sibling's structure,
+  which keeps each stage in a stack array: at 65536 those are 512 KiB
+  (complex64) and 1 MiB (complex128), over the compiler's stack-allocation
+  limit, so the kernel ping-pongs between the caller's `scratch` and `dst`
+  instead and stays zero-allocation.
 - **Split-radix is registered, and measured for the first time.** Sixteen
   `dit<N>_splitradix_generic` rows at 256…32768, both precisions, at a
   deliberately non-selectable priority 1. The rows exist so the family can be

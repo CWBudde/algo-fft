@@ -19,6 +19,12 @@ var (
 	bitrevSize8192Radix4Then2  = mathpkg.ComputeBitReversalIndicesRadix4Then2(8192)
 	bitrevSize16384Radix4      = mathpkg.ComputeBitReversalIndicesRadix4(16384)
 	bitrevSize32768Radix4Then2 = mathpkg.ComputeBitReversalIndicesRadix4Then2(32768)
+	// bitrevSize65536Radix4 is a 65536-entry []int: 512 KiB resident at
+	// package init (on a 64-bit int build) for every user of the library,
+	// more than every other table in this block combined. Added anyway to
+	// extend the generic codelet ladder past 32768 (PLAN.md Phase 3); flag
+	// this cost if it ever needs revisiting.
+	bitrevSize65536Radix4 = mathpkg.ComputeBitReversalIndicesRadix4(65536)
 )
 
 func forwardDITComplex64(dst, src, twiddle, scratch []complex64) bool {
@@ -53,6 +59,8 @@ func forwardDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 		}
 
 		return forwardDIT4096Radix4Complex64(dst, src, twiddle, scratch)
+	case 65536:
+		return forwardDIT65536Radix4Complex64(dst, src, twiddle, scratch)
 	}
 
 	n := len(src)
@@ -101,6 +109,8 @@ func inverseDITComplex64(dst, src, twiddle, scratch []complex64) bool {
 		}
 
 		return inverseDIT4096Radix4Complex64(dst, src, twiddle, scratch)
+	case 65536:
+		return inverseDIT65536Radix4Complex64(dst, src, twiddle, scratch)
 	}
 
 	n := len(src)

@@ -96,7 +96,7 @@ pure-Go fallback.
 | 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  —   |
 | 32768 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-| 65536 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+| 65536 | Radix-4                                    |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
 
 ✓ selectable — the highest-ranked codelet for its size within its own rank
 tier, so `registry.Lookup` returns it on any host whose top supported tier is
@@ -203,7 +203,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  ✓   |    ✓    |  —   |
 | 32768 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-| 65536 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
+| 65536 | Radix-4                                    |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
 
 ✓ selectable — the highest-ranked codelet for its size within its own rank
 tier, so `registry.Lookup` returns it on any host whose top supported tier is
@@ -232,13 +232,13 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 
 | Target  | Build constraint   | complex64 | complex128 | Total |
 | ------- | ------------------ | --------: | ---------: | ----: |
-| generic | `(all builds)`     |        43 |         42 |    85 |
+| generic | `(all builds)`     |        44 |         43 |    87 |
 | avx2    | `amd64 && !purego` |        24 |         21 |    45 |
 | avx512  | `amd64 && !purego` |        19 |         14 |    33 |
 | sse2    | `amd64 && !purego` |        22 |         22 |    44 |
 | neon    | `arm64 && !purego` |        22 |         22 |    44 |
 
-Total registered codelets: **251**.
+Total registered codelets: **253**.
 
 ## Size × ISA Coverage Gaps
 
@@ -255,18 +255,18 @@ the grids show.
 
 | Host           | complex | Sizes served | At top ISA | Fallback | Top-ISA ceiling |
 | -------------- | ------: | -----------: | ---------: | -------: | --------------: |
-| pure Go        |      64 |           15 |         15 |        0 |           32768 |
-| pure Go        |     128 |           15 |         15 |        0 |           32768 |
-| amd64 SSE2     |      64 |           15 |          1 |       14 |               4 |
-| amd64 SSE2     |     128 |           15 |         14 |        1 |           32768 |
-| amd64 SSE3     |      64 |           15 |         13 |        2 |           32768 |
-| amd64 SSE3     |     128 |           15 |          0 |       15 |               — |
+| pure Go        |      64 |           16 |         16 |        0 |           65536 |
+| pure Go        |     128 |           16 |         16 |        0 |           65536 |
+| amd64 SSE2     |      64 |           16 |          1 |       15 |               4 |
+| amd64 SSE2     |     128 |           16 |         14 |        2 |           32768 |
+| amd64 SSE3     |      64 |           16 |         13 |        3 |           32768 |
+| amd64 SSE3     |     128 |           16 |          0 |       16 |               — |
 | amd64 AVX2+FMA |      64 |           16 |         16 |        0 |           65536 |
 | amd64 AVX2+FMA |     128 |           16 |         16 |        0 |           65536 |
 | amd64 AVX-512  |      64 |           16 |         13 |        3 |           32768 |
 | amd64 AVX-512  |     128 |           16 |         13 |        3 |           32768 |
-| arm64 NEON     |      64 |           15 |          6 |        9 |           16384 |
-| arm64 NEON     |     128 |           15 |          2 |       13 |              16 |
+| arm64 NEON     |      64 |           16 |          6 |       10 |           16384 |
+| arm64 NEON     |     128 |           16 |          2 |       14 |              16 |
 
 ### Not covered, by tier
 
@@ -276,8 +276,8 @@ served by the size-generic kernels listed under Beyond the Codelet Registry.
 
 | Tier    | complex | Rows | Sizes | Range   | Holes below ceiling | Above ceiling                                                                  |
 | ------- | ------: | ---: | ----: | ------- | ------------------- | ------------------------------------------------------------------------------ |
-| Go      |      64 |   43 |    15 | 4–32768 | —                   | 65536                                                                          |
-| Go      |     128 |   42 |    15 | 4–32768 | —                   | 65536                                                                          |
+| Go      |      64 |   44 |    16 | 4–65536 | —                   | —                                                                              |
+| Go      |     128 |   43 |    16 | 4–65536 | —                   | —                                                                              |
 | SSE2    |      64 |    1 |     1 | 4–4     | —                   | 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 |
 | SSE2    |     128 |   22 |    14 | 4–32768 | 384                 | 65536                                                                          |
 | SSE3    |      64 |   21 |    13 | 8–32768 | 384                 | 65536                                                                          |
@@ -831,8 +831,8 @@ is not a `✓`).
 | Radix-32                                   |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-32×32                                |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-32×32                                |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
-| Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   32 | tuned      |
-| Radix-4                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |   40 | tuned      |
+| Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   33 | tuned      |
+| Radix-4                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |   41 | tuned      |
 | Radix-4 (fused tail)                       |      64 |  —  |  —   |  —   |  ✓   |    —    |  —   |    2 | tuned      |
 | Radix-4 (fused tail)                       |     128 |  —  |  —   |  —   |  ✓   |    —    |  —   |    1 | tuned      |
 | Radix-4 (no tail — wrong result by design) |      64 |  —  |  —   |  —   |  p   |    —    |  —   |    0 | instrument |

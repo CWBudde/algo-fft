@@ -1350,6 +1350,31 @@ zero-allocation default.
       if the ladder row does not materialise, and it is worth 16% to purego and
       WASM today. Evidence: `docs/CODELET_BENCHMARKS.md`, "Split-radix, and the
       32×32 / 16×32 decompositions". Owns the `Split-radix` matrix verdict.
+
+      **The ladder row is written** (2026-08-02): `dit65536_radix4_generic`,
+      both precisions, registered at priority 20 —
+      `internal/kernels/dit_65536_radix4.go`, 65536 = 4^8. It could not copy its
+      16384 sibling, which holds every stage in a `[16384]complex64` stack
+      array: at 65536 that is 512 KiB per stage as complex64 and 1 MiB as
+      complex128, both far over the compiler's 128 KiB limit, so it would have
+      heap-allocated on every call. It ping-pongs `scratch`↔`dst` instead, and
+      the eight-stage parity lands on `dst` without the template's final copy.
+      Zero-alloc confirmed by `TestCodeletsZeroAlloc{64,128}/size65536`.
+
+      **What remains open is the re-measurement, which is the point of the
+      item.** A provisional A/B on the i7-1255U puts the codelet at ~1109 µs
+      against ~2075 µs for the fallback route it displaces (**1.87×**, medians
+      of 5×0.4 s, non-overlapping ranges) — comfortably inside the 1250–1400 µs
+      the extrapolation predicted, and below the 1662 µs split-radix took on the
+      Xeon. Treat that as indicative only: the machine was at load 10.4 and
+      94 °C, the arms are consecutive rather than canary-bracketed, and the two
+      figures it is being compared against are from the *other* host. The
+      priority of 20 is therefore ahead of §2.1 gate 5 and rests on a margin
+      wide enough to survive the noise, not on a gated number. Owed: one gated
+      sweep on an idle box, both hosts, and only then the split-radix 65536
+      decision — `cmd/gencodelets/specs.go` records why that row is still
+      absent.
+
 - [ ] **SoA (split real/imag) layout exploration.** Prototype internal SoA for one
       kernel family (e.g. the AVX-512 generic path, which currently spends shuffle
       uops de-interleaving) and measure; decide whether a v2 `PlanSoA` API is

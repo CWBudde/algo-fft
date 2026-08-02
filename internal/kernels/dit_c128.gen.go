@@ -38,6 +38,8 @@ func forwardDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 		}
 
 		return forwardDIT4096Radix4Complex128(dst, src, twiddle, scratch)
+	case 65536:
+		return forwardDIT65536Radix4Complex128(dst, src, twiddle, scratch)
 	}
 
 	n := len(src)
@@ -86,6 +88,8 @@ func inverseDITComplex128(dst, src, twiddle, scratch []complex128) bool {
 		}
 
 		return inverseDIT4096Radix4Complex128(dst, src, twiddle, scratch)
+	case 65536:
+		return inverseDIT65536Radix4Complex128(dst, src, twiddle, scratch)
 	}
 
 	n := len(src)

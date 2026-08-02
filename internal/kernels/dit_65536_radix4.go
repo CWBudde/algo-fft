@@ -1,0 +1,281 @@
+package kernels
+
+import (
+	mathpkg "github.com/cwbudde/algo-fft/internal/math"
+)
+
+// forwardDIT65536Radix4Complex64 computes a 65536-point forward FFT using the
+// radix-4 Decimation-in-Time (DIT) algorithm for complex64 data.
+// 65536 = 4^8, so this uses 8 radix-4 stages.
+//
+// Unlike the smaller radix-4 codelets (e.g. dit_16384_radix4.go, which is
+// 4^7 = 7 stages), this size cannot hold each intermediate stage in its own
+// [65536]complex64 stack array the way the template does: that array alone
+// is 512 KiB, and the template needs six of them (one per intermediate
+// stage) simultaneously in scope. That is far past the compiler's 128 KiB
+// stack-allocation limit for `var x [n]T`; past that limit the array
+// silently moves to the heap and the codelet allocates on every call (see
+// codelet_alloc_norace_test.go, which is the test that would catch this).
+//
+// Instead this codelet ping-pongs between the two buffers the Kernel
+// signature already provides, dst and scratch, using no other storage:
+//
+//	stage 1 (fused bit-reversal, no twiddles): src     -> scratch
+//	stage 2:                                   scratch -> dst
+//	stage 3:                                   dst     -> scratch
+//	stage 4:                                   scratch -> dst
+//	stage 5:                                   dst     -> scratch
+//	stage 6:                                   scratch -> dst
+//	stage 7:                                   dst     -> scratch
+//	stage 8 (final):                           scratch -> dst
+//
+// That is 1 (bit-reversal) + 6 (middle, ping-ponged) + 1 (final) = 8 stages
+// for 4^8. Six middle stages is an even number of swaps starting and ending
+// on the scratch->dst orientation, so stage 8 always reads scratch and
+// writes directly into dst.
+//
+// This scheme is alias-safe even when dst and src are the same slice:
+// stage 1 is the only stage that ever reads src, and it writes to scratch,
+// never touching dst. Every later stage reads and writes only dst/scratch,
+// which by then no longer hold anything read from src. Stage 8 can
+// therefore write straight into dst without the template's
+// work/copy-if-aliased dance — there is nothing left in dst that stage 8,
+// or any stage before it, still needs to read.
+func forwardDIT65536Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
+	const n = 65536
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
+		return false
+	}
+
+	br := bitrevSize65536Radix4
+	s := src[:n]
+	tw := twiddle[:n]
+	d := dst[:n]
+	sc := scratch[:n]
+
+	// Stage 1: 16384 radix-4 butterflies with fused bit-reversal.
+	// No twiddle multiplies (all W^0 = 1). src -> scratch.
+	for base := 0; base < n; base += 4 {
+		a0 := s[br[base]]
+		a1 := s[br[base+1]]
+		a2 := s[br[base+2]]
+		a3 := s[br[base+3]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		sc[base] = t0 + t2
+		sc[base+2] = t0 - t2
+		sc[base+1] = t1 + complex(imag(t3), -real(t3))
+		sc[base+3] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	// Stages 2-7: ping-pong between scratch and dst (6 middle stages).
+	current := sc
+	next := d
+
+	sizes := [...]int{16, 64, 256, 1024, 4096, 16384}
+	steps := [...]int{4096, 1024, 256, 64, 16, 4}
+
+	for stage := range sizes {
+		size := sizes[stage]
+		step := steps[stage]
+
+		quarter := size / 4
+		for base := 0; base < n; base += size {
+			for j := range quarter {
+				w1 := tw[j*step]
+				w2 := tw[2*j*step]
+				w3 := tw[3*j*step]
+
+				idx0 := base + j
+				idx1 := idx0 + quarter
+				idx2 := idx1 + quarter
+				idx3 := idx2 + quarter
+
+				a0 := current[idx0]
+				a1 := mathpkg.MulComplex64(w1, current[idx1])
+				a2 := mathpkg.MulComplex64(w2, current[idx2])
+				a3 := mathpkg.MulComplex64(w3, current[idx3])
+
+				t0 := a0 + a2
+				t1 := a0 - a2
+				t2 := a1 + a3
+				t3 := a1 - a3
+
+				next[idx0] = t0 + t2
+				next[idx2] = t0 - t2
+				next[idx1] = t1 + complex(imag(t3), -real(t3))
+				next[idx3] = t1 + complex(-imag(t3), real(t3))
+			}
+		}
+
+		current, next = next, current
+	}
+
+	// Six swaps is even, so current is back on scratch here, holding stage
+	// 7's output, exactly as the header comment lays out.
+
+	// Stage 8: final stage (1 group x 16384 butterflies). scratch -> dst,
+	// written directly (see header comment for why no work buffer is
+	// needed).
+	quarter := 16384
+	for j := range quarter {
+		w1 := tw[j]
+		w2 := tw[2*j]
+		w3 := tw[3*j]
+
+		idx0 := j
+		idx1 := idx0 + quarter
+		idx2 := idx1 + quarter
+		idx3 := idx2 + quarter
+
+		a0 := current[idx0]
+		a1 := mathpkg.MulComplex64(w1, current[idx1])
+		a2 := mathpkg.MulComplex64(w2, current[idx2])
+		a3 := mathpkg.MulComplex64(w3, current[idx3])
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		d[idx0] = t0 + t2
+		d[idx2] = t0 - t2
+		d[idx1] = t1 + complex(imag(t3), -real(t3))
+		d[idx3] = t1 + complex(-imag(t3), real(t3))
+	}
+
+	return true
+}
+
+// inverseDIT65536Radix4Complex64 computes a 65536-point inverse FFT using the
+// radix-4 Decimation-in-Time (DIT) algorithm for complex64 data. See
+// forwardDIT65536Radix4Complex64 for the stage ping-pong scheme; this
+// mirrors it with conjugated twiddles, the inverse butterfly sign
+// convention, and 1/n scaling folded into the final stage.
+func inverseDIT65536Radix4Complex64(dst, src, twiddle, scratch []complex64) bool {
+	const n = 65536
+
+	if len(dst) < n || len(twiddle) < n || len(scratch) < n || len(src) < n {
+		return false
+	}
+
+	br := bitrevSize65536Radix4
+	s := src[:n]
+	tw := twiddle[:n]
+	d := dst[:n]
+	sc := scratch[:n]
+
+	// Stage 1: 16384 radix-4 butterflies with fused bit-reversal.
+	// src -> scratch.
+	for base := 0; base < n; base += 4 {
+		a0 := s[br[base]]
+		a1 := s[br[base+1]]
+		a2 := s[br[base+2]]
+		a3 := s[br[base+3]]
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		sc[base] = t0 + t2
+		sc[base+2] = t0 - t2
+		sc[base+1] = t1 + complex(-imag(t3), real(t3))
+		sc[base+3] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	// Stages 2-7: ping-pong between scratch and dst with conjugated
+	// twiddles (6 middle stages).
+	current := sc
+	next := d
+
+	sizes := [...]int{16, 64, 256, 1024, 4096, 16384}
+	steps := [...]int{4096, 1024, 256, 64, 16, 4}
+
+	for stage := range sizes {
+		size := sizes[stage]
+		step := steps[stage]
+
+		quarter := size / 4
+		for base := 0; base < n; base += size {
+			for j := range quarter {
+				w1 := complex(real(tw[j*step]), -imag(tw[j*step]))
+				w2 := complex(real(tw[2*j*step]), -imag(tw[2*j*step]))
+				w3 := complex(real(tw[3*j*step]), -imag(tw[3*j*step]))
+
+				idx0 := base + j
+				idx1 := idx0 + quarter
+				idx2 := idx1 + quarter
+				idx3 := idx2 + quarter
+
+				a0 := current[idx0]
+				a1 := mathpkg.MulComplex64(w1, current[idx1])
+				a2 := mathpkg.MulComplex64(w2, current[idx2])
+				a3 := mathpkg.MulComplex64(w3, current[idx3])
+
+				t0 := a0 + a2
+				t1 := a0 - a2
+				t2 := a1 + a3
+				t3 := a1 - a3
+
+				next[idx0] = t0 + t2
+				next[idx2] = t0 - t2
+				next[idx1] = t1 + complex(-imag(t3), real(t3))
+				next[idx3] = t1 + complex(imag(t3), -real(t3))
+			}
+		}
+
+		current, next = next, current
+	}
+
+	// Six swaps is even, so current is back on scratch here, holding stage
+	// 7's output.
+
+	// Stage 8: final stage with conjugated twiddles and 1/n normalization.
+	// scratch -> dst, written directly (see forward twin's header comment
+	// for why no work buffer is needed).
+	scale := float32(1.0 / float64(n))
+
+	quarter := 16384
+	for j := range quarter {
+		w1 := complex(real(tw[j]), -imag(tw[j]))
+		w2 := complex(real(tw[2*j]), -imag(tw[2*j]))
+		w3 := complex(real(tw[3*j]), -imag(tw[3*j]))
+
+		idx0 := j
+		idx1 := idx0 + quarter
+		idx2 := idx1 + quarter
+		idx3 := idx2 + quarter
+
+		a0 := current[idx0]
+		a1 := mathpkg.MulComplex64(w1, current[idx1])
+		a2 := mathpkg.MulComplex64(w2, current[idx2])
+		a3 := mathpkg.MulComplex64(w3, current[idx3])
+
+		// 1/n folded in on the way into the butterfly rather than as four
+		// multiplies on the way out: scaling these four by a real factor is
+		// eight real multiplies where a complex multiply on the four results
+		// is sixteen plus eight adds. 1/n is a power of two, so this is exact.
+		a0 = complex(real(a0)*scale, imag(a0)*scale)
+		a1 = complex(real(a1)*scale, imag(a1)*scale)
+		a2 = complex(real(a2)*scale, imag(a2)*scale)
+		a3 = complex(real(a3)*scale, imag(a3)*scale)
+
+		t0 := a0 + a2
+		t1 := a0 - a2
+		t2 := a1 + a3
+		t3 := a1 - a3
+
+		d[idx0] = t0 + t2
+		d[idx2] = t0 - t2
+		d[idx1] = t1 + complex(-imag(t3), real(t3))
+		d[idx3] = t1 + complex(imag(t3), -real(t3))
+	}
+
+	return true
+}
