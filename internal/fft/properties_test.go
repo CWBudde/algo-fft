@@ -507,19 +507,21 @@ func testRealInputSymmetry64(t *testing.T, n int) {
 		t.Skip("kernels.Kernel not available")
 	}
 
-	// Verify conjugate symmetry: FFT[k] = conj(FFT[n-k]). n = 128 goes
-	// through one more Stockham stage than n = 64 (the NEON path's radix-4
-	// ladder plus a trailing radix-2 stage), which accumulates a bit more
-	// float32 rounding on this unbounded 0..n-1 ramp; testTol64 is tuned
-	// for the O(1)-magnitude inputs the rest of this file uses, so widen
-	// it here rather than loosening it globally.
-	tol := testTol64
-	if n >= 128 {
-		tol = 3 * testTol64
-	}
-
+	// Verify conjugate symmetry: FFT[k] = conj(FFT[n-k]).
+	//
+	// The bound has to scale with the bin. src is the 0..n-1 ramp, so the
+	// low bins grow like n^2, and at n = 128 a single float32 ULP there is
+	// already ~3e-4 — three times testTol64's *absolute* 1e-4. So this
+	// check was never measuring the kernel at the top of its size range; it
+	// passed only while the rounding happened to cancel, and any change to
+	// the float32 path that reorders the summation trips it. Scaling by the
+	// bin magnitude measures the kernel instead of the exponent, and does
+	// not go slack on the small bins the way a flat multiple of testTol64
+	// would. symRelTol64 is ~8 float32 ULP.
 	for k := 1; k < n/2; k++ {
 		conjSym := complex(real(dst[n-k]), -imag(dst[n-k]))
+
+		tol := testTol64 + symRelTol64*cmplx.Abs(complex128(dst[k]))
 		if cmplx.Abs(complex128(dst[k]-conjSym)) > tol {
 			t.Errorf("Symmetry violation at k=%d: FFT[%d]=%v, conj(FFT[%d])=%v",
 				k, k, dst[k], n-k, conjSym)

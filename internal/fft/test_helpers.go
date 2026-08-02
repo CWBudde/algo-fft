@@ -9,6 +9,12 @@ import (
 const (
 	testTol64  = 1e-4
 	testTol128 = 1e-10
+
+	// symRelTol64 is the magnitude-proportional part of a float32 bound,
+	// roughly 8 ULP. Pair it with testTol64 wherever the compared values are
+	// not O(1): an absolute bound alone silently stops testing the kernel
+	// once the bins outgrow it.
+	symRelTol64 = 1e-6
 )
 
 func randomComplex64(n int, seed uint64) []complex64 {
