@@ -505,22 +505,98 @@ outlives its family.
       re-measure, or close the family as `✗` with that reasoning — but do not
       leave it as a registered loser. It is the last family whose verdict rests
       on a kernel nobody defends.
-- [ ] **Give the unowned power-of-two families a verdict.** The generated
-      skeleton's finding: seven families had **no §1.2 item at all** — flat
-      `radix8` (the size-8 leaf, distinct from the ladder, six ISAs, never
-      compared against radix-2 or radix-4 at that size), `radix32`, the two NEON
-      `generic` rows that register the size-generic kernel _as_ a codelet,
-      `mixed` (n = 384, the only non-power-of-two in the codelet table), and the
-      pure-Go DIT, Stockham and recursive-with-codelet-leaves families. None is
-      likely to be a large win; the point is that each was undecided without
-      anyone having decided it, which is the whole failure mode §1.2 exists to
-      close. One verdict each, `untested` allowed as an answer.
-- [ ] **Fill the `-then-2` tail row of the matrix.** The tail costs 6.7–13.3%
-      (`dit<N>_radix4_notail_avx2` measures 0.867–0.933 across all six groups),
-      fusion recovers 4–6% at 128 and 2048 c64 and _loses_ 11% at 2048 c128. The
-      matrix should carry per-cell whether the plain, fused, or radix-8 form is
-      the candidate, since that choice is cache-geometry-dependent and is exactly
-      what wisdom needs to be able to flip.
+- [x] **Give the unowned power-of-two families a verdict** (2026-08-01) — seven
+      families that had **no §1.2 item at all**, answered without a benchmark
+      from the registry and the sweeps already recorded. Four of them turned out
+      to have an owner elsewhere in this PLAN, which is a better answer than a
+      new item; one is genuinely settled; one is genuinely nobody's.
+
+      - **`radix8` (the flat n = 8 leaf) — tuned, and the premise was wrong
+        again.** "Never compared against radix-2 or radix-4 at that size" is not
+        what happened: the 2026-07-30 AVX2 audit covers n = 8 in **both**
+        precisions and moved the complex128 row _to_ radix-8 (0.970 fwd / 0.859
+        inv over `dit8_radix4_avx2`). It is the selected row in seven of its
+        nine registered cells, and outranked in two — AVX2 complex64, where
+        `dit8_radix2_avx2` holds 12 against 11 and the loss is under 1.5× (it is
+        absent from the shadowed-candidates table, which lists everything above
+        that bar, so §2.2's keep-at-low-priority is already the right state),
+        and NEON complex128, which has **no radix-8 row at all**. That last one
+        is the only actual coverage hole the family has.
+      - **`radix32` — the registry half is decided, and the other half is a
+        disagreement between two selection paths.** It took no cell at n = 32
+        and loses by under 1.5× everywhere, which is the low-priority hold the
+        table already implements. But `sse3_f32_size32_radix32.s` is **live**
+        and tried _first_ at n = 32 by the `KernelStrategy` switch in
+        `internal/fft/kernels_amd64_size_specific.go`, while the registry has no
+        SSE3 radix-32 row and selects `dit32_radix4_then2_sse3` there. Two paths,
+        two different kernels, one cell. Handed to §1.3's "drop the
+        size-specific cases outright", which owns that entire switch.
+      - **The two NEON `generic` rows — a radix-2 ladder, and the argument that
+        would close it is the one AGENTS.md forbids.** They register the
+        size-generic NEON kernel (a radix-2 DIT, per its own header) as a
+        complex128 codelet at n = 32 and 512, priority 1 against 24. The
+        structural case that closed radix-2 on AVX2 complex128 transfers
+        verbatim — and transferring it verbatim is exactly the move this repo
+        has been burned by. **No arm64 sweep has covered complex128 at any
+        size.** Priority 1 holds it meanwhile; §1.5's NEON-hardware item owns it.
+      - **`mixed` (n = 384) — uncontested, not best.** It wins all four of its
+        cells because it is the only row at that size, so the `✓` says nothing
+        about ranking. The real question is whether the other four tiers want
+        the same 128×3 decomposition or none, and §1.5 already carries that as
+        one verdict for all four.
+      - **DIT and Stockham — one question, not two.** Both are the auto
+        heuristic's answer on either side of `ditAutoThreshold`, which was
+        calibrated against kernels now 2–4× faster. That is §1.4's threshold
+        item; a separate §1.2 verdict for each would have been the same task
+        counted three times.
+      - **Recursive — `untested`, and the status had to be built.** Nothing
+        routes to it without a forced `KernelRecursive`
+        (`resolveKernelStrategy` never returns it from auto), so it is the one
+        family where "nobody measured it and nobody will" is honest rather than
+        a shrug.
+
+      **The new status is gated so it cannot spread.** `untested` requires a
+      Note _and_ `TestUntestedFamiliesAreNotInTheRegistry` requires zero
+      registered codelet rows: a family with rows is reachable by default, and
+      shipping something unmeasured on a default path is the thing this status
+      must never be able to describe. Recursive is its only user.
+
+- [x] **Fill the `-then-2` tail row of the matrix** (2026-08-01) — and the row
+      turned out to be already filled, cell by cell, in the spec comments; what
+      was missing was anywhere that read it as one picture. Three families carry
+      it now:
+
+      - **Outside AVX2 the question does not exist.** Plain `radix4_then2` is the
+        selected row at every odd-exponent size (32, 128, 512, 2048, 8192,
+        32768) on generic, SSE2, SSE3 and NEON in **both** precisions, and it is
+        uncontested there because no fused and no radix-8-then-2 kernel is built
+        for those tiers at all. Where it is outranked it is by the radix-8
+        _ladder_, not by a different tail. On AVX2 the family has no rows
+        whatsoever — the tail is inside `dit<N>_radix4_avx2`.
+      - **On AVX2 every cell has a number, and they disagree with each other.**
+        Fused wins n = 128 in both precisions (0.955/0.979 c64, 0.935/0.934
+        c128, the largest fusion win in either). At 512 and 2048 the radix-8
+        ladder beats fused *directly* (0.952/0.987 and 0.940/0.961 at 512), so
+        the answer there is neither plain nor fused. At 2048 c128 fusing costs
+        **11%** where the stride is exactly 4 KiB. Above 2048 the fused rows are
+        probe-only. Note the item's own text was stale again: fusion is no
+        longer the incumbent at 2048 c64 — `dit2048_radix8ladder_avx2` took that
+        row at 0.953/0.946 _against the fused row_.
+      - **The radix-8 tail is one tier's kernel, not a third option.**
+        `radix8_then2` exists on AVX-512 complex64 only, at two sizes. It holds
+        n = 128, where the ladder measured parity (1.039/0.997) and stayed
+        probe-only, and lost n = 256 to that ladder. It is a register-resident
+        radix-2 DIT with a fused in-register radix-8 leaf keeping all 16 ZMM
+        live from load to store — there is no AVX2 register file to port it to,
+        so its absence elsewhere is structural rather than a gap.
+
+      **The mechanism is the reason this stays per-cell.** The fused loop keeps
+      eight live streams instead of four and loses that trade at larger strides.
+      That is cache geometry, so the right form is a per-host answer and the
+      value of carrying all three as registered rows is precisely that wisdom
+      can flip between them. The `notail` probe keeps its role as the *bound*:
+      the distance from its 0.867–0.933 to fusion's ~0.94 is what fusion still
+      leaves unrecovered.
 
 ### 1.3 Resolve the unreachable assembly
 

@@ -66,7 +66,7 @@ func TestFamilyVerdictsAreWellFormed(t *testing.T) {
 			if v.Tracked == "" {
 				t.Errorf("%s: an open family must name the PLAN.md task that owns it", v.Family)
 			}
-		case famDeferred, famInstrument:
+		case famDeferred, famInstrument, famUntested:
 			if v.Note == "" {
 				t.Errorf("%s: a %s family must name what owns it", v.Family, v.Status)
 			}
@@ -139,6 +139,30 @@ func TestOpenFamiliesNameAnOpenPlanTask(t *testing.T) {
 		case !matches[0].Open:
 			t.Errorf("%s: PLAN.md:%d %q is checked off — write the verdict",
 				v.Family, matches[0].Line, v.Tracked)
+		}
+	}
+}
+
+// TestUntestedFamiliesAreNotInTheRegistry is the gate that keeps `untested`
+// from becoming the bucket everything undecided falls into. The status admits
+// that nobody has measured a family and nobody is going to; that is only
+// defensible when nothing can reach the family without being asked for it by
+// name, and a registered codelet row is exactly the kind of reachability that
+// makes a default plan run something unmeasured.
+func TestUntestedFamiliesAreNotInTheRegistry(t *testing.T) {
+	rows := map[string]int{}
+	for _, s := range codeletSpecs {
+		rows[variantOf(s.Signature)]++
+	}
+
+	for _, v := range familyVerdicts {
+		if v.Status != famUntested {
+			continue
+		}
+
+		if n := rows[v.Family]; n > 0 {
+			t.Errorf("%s: %d registered codelet rows, so a default plan can reach it — "+
+				"%q is not an available answer", v.Family, n, famUntested)
 		}
 	}
 }

@@ -438,56 +438,52 @@ unreachable.
 | `amd64/sse3_f32_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/sse3_real_recombine.s`             |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 
-### arm64 — 46 files, 91 symbols, 91 live
+### arm64 — 42 files, 83 symbols, 83 live
 
-| File                                 | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                  |
-| ------------------------------------ | ------: | ---: | --------: | ----------: | -----: | ---------------------------- |
-| `arm64/core.s`                       |       0 |    0 |         0 |           0 |      0 | —                            |
-| `arm64/neon_complex_mul.s`           |       4 |    4 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size1024_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size16384_radix4.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size256_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size4096_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size64_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f32_size8_radix8.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size1024_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size16384_radix4.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size256_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size4096_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size64_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size64_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_f64_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_real_repack.s`           |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
-| `arm64/neon_scale.s`                 |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go` |
+| File                                 | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                              |
+| ------------------------------------ | ------: | ---: | --------: | ----------: | -----: | ---------------------------------------- |
+| `arm64/core.s`                       |       0 |    0 |         0 |           0 |      0 | —                                        |
+| `arm64/neon_complex_mul.s`           |       4 |    4 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_radix4_loop.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/neon_radix4_loop.go` |
+| `arm64/neon_f32_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f32_size8_radix8.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size1024_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size128_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size16384_radix4.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size16_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size256_radix2.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size256_radix4.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size32_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size4096_radix4.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size64_radix2.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size64_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size8_radix2.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_f64_size8_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_real_repack.s`           |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
+| `arm64/neon_scale.s`                 |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`             |
 
 ### internal/asm (arch-neutral) — 2 files, 2 symbols, 0 live
 
@@ -610,8 +606,8 @@ established home).
 | `neonInv4`                                      | `arm64/core.s`                            | `arm64/neon_f32_size4_radix4.s`                                                                                                |
 | `neonInv8`                                      | `arm64/core.s`                            | `arm64/neon_f32_size8_radix2.s`, `arm64/neon_f32_size8_radix4.s`, `arm64/neon_f32_size8_radix8.s`                              |
 | `neonInv8F64`                                   | `arm64/neon_f64_size8_radix2.s`           | `arm64/neon_f64_size8_radix4.s`                                                                                                |
-| `neonOne64`                                     | `arm64/core.s`                            | `arm64/neon_f64_generic.s`, `arm64/neon_f64_size4_radix4.s`, `arm64/neon_f64_size8_radix4.s`                                   |
-| `neonOnes`                                      | `arm64/core.s`                            | `arm64/neon_f32_generic.s`, `arm64/neon_f32_size4_radix4.s`, `arm64/neon_f32_size8_radix8.s`                                   |
+| `neonOne64`                                     | `arm64/core.s`                            | `arm64/neon_f64_generic.s`, `arm64/neon_f64_size16_radix4.s`, `arm64/neon_f64_size8_radix4.s`                                  |
+| `neonOnes`                                      | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
 | `neonSignImag`                                  | `arm64/core.s`                            | `arm64/neon_f32_generic.s`                                                                                                     |
 | `one32`                                         | `x86/core.s`                              | `amd64/avx2_f32_generic.s`, `amd64/avx2_f32_generic_radix4_even.s`, `amd64/avx2_f32_generic_radix4_odd.s` + 6 more             |
 | `one64`                                         | `x86/core.s`                              | `amd64/avx2_f64_generic.s`, `amd64/avx2_f64_stockham.s`, `amd64/avx512_f64_generic.s` + 1 more                                 |
@@ -781,10 +777,10 @@ is not a `✓`).
 | Generic radix-2                            |     128 |  —  |  —   |  —   |  —   |    —    |  ·   |    2 | open       |
 | Mixed 128×3                                |      64 |  ✓  |  —   |  —   |  ✓   |    —    |  —   |    2 | open       |
 | Mixed 128×3                                |     128 |  ✓  |  —   |  —   |  ✓   |    —    |  —   |    2 | open       |
-| Mixed-2/4                                  |      64 |  ✓  |  —   |  ✓   |  —   |    ✓    |  ✓   |   20 | open       |
-| Mixed-2/4                                  |     128 |  ✓  |  ✓   |  —   |  —   |    ✓    |  ✓   |   21 | open       |
-| Mixed-8/2                                  |      64 |  —  |  —   |  —   |  —   |    ✓    |  —   |    2 | open       |
-| Mixed-8/2                                  |     128 |  —  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Mixed-2/4                                  |      64 |  ✓  |  —   |  ✓   |  —   |    ✓    |  ✓   |   20 | tuned      |
+| Mixed-2/4                                  |     128 |  ✓  |  ✓   |  —   |  —   |    ✓    |  ✓   |   21 | tuned      |
+| Mixed-8/2                                  |      64 |  —  |  —   |  —   |  —   |    ✓    |  —   |    2 | tuned      |
+| Mixed-8/2                                  |     128 |  —  |  —   |  —   |  —   |    —    |  —   |    0 | tuned      |
 | Mixed-radix engine                         |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | deferred   |
 | Mixed-radix engine                         |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | deferred   |
 | Rader                                      |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | deferred   |
@@ -803,16 +799,16 @@ is not a `✓`).
 | Radix-32×32                                |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   32 | tuned      |
 | Radix-4                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |   40 | tuned      |
-| Radix-4 (fused tail)                       |      64 |  —  |  —   |  —   |  ✓   |    —    |  —   |    2 | open       |
-| Radix-4 (fused tail)                       |     128 |  —  |  —   |  —   |  ✓   |    —    |  —   |    1 | open       |
+| Radix-4 (fused tail)                       |      64 |  —  |  —   |  —   |  ✓   |    —    |  —   |    2 | tuned      |
+| Radix-4 (fused tail)                       |     128 |  —  |  —   |  —   |  ✓   |    —    |  —   |    1 | tuned      |
 | Radix-4 (no tail — wrong result by design) |      64 |  —  |  —   |  —   |  p   |    —    |  —   |    0 | instrument |
 | Radix-4 (no tail — wrong result by design) |     128 |  —  |  —   |  —   |  p   |    —    |  —   |    0 | instrument |
-| Radix-8                                    |      64 |  ✓  |  —   |  ✓   |  ·   |    ✓    |  ✓   |    6 | open       |
-| Radix-8                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  —   |    5 | open       |
+| Radix-8                                    |      64 |  ✓  |  —   |  ✓   |  ·   |    ✓    |  ✓   |    6 | tuned      |
+| Radix-8                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  —   |    5 | tuned      |
 | Radix-8 (ladder)                           |      64 |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |   19 | tuned      |
 | Radix-8 (ladder)                           |     128 |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |   17 | tuned      |
-| Recursive                                  |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
-| Recursive                                  |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Recursive                                  |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | untested   |
+| Recursive                                  |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | untested   |
 | Six-step                                   |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    2 | open       |
 | Six-step                                   |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    2 | open       |
 | Six-step 64×128                            |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
@@ -830,31 +826,31 @@ no longer there fails too. An `open` family must quote an **open** PLAN.md
 task, so the question has an owner rather than a shrug.
 
 - **Bluestein** (deferred) — mediocre at 0.42–0.62× vs FFTW3; the pad model is the lever. Owned by Phase 2
-- **DIT** (open) — the engine the codelet leaves hang off; `ditAutoThreshold` was calibrated against kernels now 2–4× faster. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **DIT** (open) — the engine the codelet leaves hang off, reached whenever the auto heuristic stays below `ditAutoThreshold` — a threshold calibrated against kernels now 2–4× faster, so where it should sit is the same question §1.4 asks. Tracked by PLAN.md: Retune the strategy thresholds around the new codelets
 - **Eight-step** (open) — pure-Go only, no codelet rows at any ISA; crossover never re-derived after the radix-4 rewrite. Tracked by PLAN.md: Re-derive the six-step / eight-step / four-step crossovers
 - **Four-step** (open) — pure-Go only; splits n1×n2 from detected cache sizes, which is exactly the parameter a second host would move. Tracked by PLAN.md: Re-derive the six-step / eight-step / four-step crossovers
-- **Generic radix-2** (open) — two NEON rows using the size-generic kernel as a codelet; whether that is a win or a placeholder is unmeasured, and NEON priorities above 512 were mirrored rather than taken. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
-- **Mixed 128×3** (open) — the only non-power-of-two in the codelet table (n = 384, 128×3) and the only size AVX2 covers that no other tier does. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
-- **Mixed-2/4** (open) — the `-then-2` tail costs 6.7–13.3%; whether plain, fused or radix-8 is the candidate is cache-geometry-dependent and therefore a per-cell answer. Tracked by PLAN.md: Fill the -then-2 tail row of the matrix
-- **Mixed-8/2** (open) — the radix-8 spelling of the same tail question, registered at two cells only. Tracked by PLAN.md: Fill the -then-2 tail row of the matrix
+- **Generic radix-2** (open) — not a codelet family so much as two rows (n = 32 and n = 512, complex128 only) that register the size-generic NEON kernel — a radix-2 DIT ladder, per its own header — as a codelet at priority 1, under `radix4_then2` at 24. The structural argument that closed radix-2 on AVX2 complex128 applies unchanged here (log2 n full passes against half as many, at a width that holds one complex128 per register), but AGENTS.md is explicit that such an argument is not a substitute for the second measurement, and **no arm64 sweep has covered complex128 at any size**. Priority 1 is the right hold meanwhile; the task below is the one that needs the hardware. Tracked by PLAN.md: NEON: priority tuning on real arm64 hardware
+- **Mixed 128×3** (open) — n = 384, the only non-power-of-two in the codelet table, and uncontested in all four cells it occupies — its `✓` means "the only row at that size", not "the best". Which makes the open question not how it ranks but whether the other four tiers want the same 128×3 decomposition or none, and §1.5 already has that as one verdict for all four. Tracked by PLAN.md: Decide n = 384 once, for all four tiers
+- **Mixed-2/4** (tuned) — the plain separate-tail form, and outside AVX2 it is the _only_ form that exists: it is the selected row at every odd-exponent size (32, 128, 512, 2048, 8192, 32768) on generic, SSE2, SSE3 and NEON in both precisions, uncontested because no fused or radix-8-then-2 kernel is built for those tiers. Where it is outranked it is by the radix-8 ladder, not by a different tail (generic 512/2048/8192). On AVX2 the family has no rows at all — the tail is absorbed into `dit<N>_radix4_avx2` there. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
+- **Mixed-8/2** (tuned) — the radix-8 spelling of the tail, and it exists on **AVX-512 complex64 only** — two cells, no other tier builds it. It holds n = 128, where the radix-8 ladder measured parity (1.039/0.997) and stayed probe-only; it lost n = 256 to that ladder, which was registered at 50 specifically to clear this row's 30. Its shape is why it is tier-bound: a register-resident radix-2 DIT with a fused in-register radix-8 leaf, keeping all 16 ZMM live from load to store — there is no AVX2 register file to port it to. Evidence: docs/CODELET_BENCHMARKS.md, The AVX-512 radix-8 ladder: prediction half right, 16 rows promoted
 - **Mixed-radix engine** (deferred) — the route every smooth non-power-of-two takes, and the worst external cells (2205 at 0.16×, 96 at 0.20×). Owned by Phase 2
 - **Rader** (deferred) — healthy at 0.78–1.58× vs FFTW3 with outright wins at 641, 4001 and 12289. Owned by Phase 2
 - **Radix-16** (tuned) — not closed — the flat n = 16 leaf is the selected row in the pure-Go, SSE3 and AVX-512 complex64 tiers and in pure-Go complex128; it is outranked only on AVX2, where the 2026-07-30 audit ranked every n = 16 candidate and radix-2 took the row. What is closed is the size-generic radix-16 ladder, which is a different family. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
 - **Radix-16 (ladder)** (closed) — swept and lost every cell; the pass advantage is real and entirely consumed by the butterfly, and AVX-512's 32 ZMM leave it where AVX2 radix-8 already lost. Evidence: docs/CODELET_BENCHMARKS.md, Generic tier — the radix-16 ladder, and where the radix ladder stops
 - **Radix-16×32** (open) — same unvectorised second stage as its 32×32 sibling; same open question. Tracked by PLAN.md: Decide the 32×32 / 16×32 decomposition family on merit
 - **Radix-2** (tuned) — splits by precision, and not the way §1.2 assumed. complex64: it is the _incumbent_ at n = 16, 32 and 64 on AVX2 (54.6 vs 124.6 ns at 64 — the only genuinely 256-bit size-64 codelet) and at n = 64 on AVX-512 and NEON. complex128: never selected at any n ≥ 16 in any tier, so it is dominated there. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
-- **Radix-32** (open) — three rows at n = 32 and no measurement distinguishing it from radix-4 there. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Radix-32** (open) — the registry half is decided: n = 32 was in the 2026-07-30 AVX2 audit and radix-32 took no cell — 25 against radix-2's 30 on AVX2 complex64, 5 against `radix4_then2`'s 10/15 in pure Go — losing by under 1.5× everywhere, which is §2.2's keep-at-low-priority case and is what the table already does. What is _not_ decided is the SSE3 cell, and it is not merely uncovered: `sse3_f32_size32_radix32.s` is live and tried **first** at n = 32 by the `KernelStrategy` switch in `internal/fft/kernels_amd64_size_specific.go`, while the registry has no SSE3 radix-32 row and selects `dit32_radix4_then2_sse3` there. The two selection paths disagree at one cell, and the task below owns that whole switch. Tracked by PLAN.md: Measure the cheap alternative first: drop the size-specific cases outright
 - **Radix-32×32** (open) — lost as implementation-limited — only one of two stages vectorised — which per AGENTS.md disqualifies the file, not the algorithm. Tracked by PLAN.md: Decide the 32×32 / 16×32 decomposition family on merit
 - **Radix-4** (tuned) — the incumbent at nearly every size and ISA; the 256-bit AVX2 rewrite made it 2–4× faster and moved every crossover above it. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
-- **Radix-4 (fused tail)** (open) — recovers 4–6% at 128 and 2048 complex64 and loses 11% at 2048 complex128 — the clearest evidence that this row is per-cell, not per-family. Tracked by PLAN.md: Fill the -then-2 tail row of the matrix
-- **Radix-4 (no tail — wrong result by design)** (instrument) — measures what the separate `-then-2` tail pass costs by omitting it; 0.867–0.933 across all six groups. Owned by the -then-2 tail item, as its measuring instrument
-- **Radix-8** (open) — the flat size-8 leaf, distinct from the ladder, registered at six ISAs and never compared against radix-2 or radix-4 at that size. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Radix-4 (fused tail)** (tuned) — decided per cell, and every cell now has a number. It wins n = 128 in **both** precisions (0.955/0.979 complex64, 0.935/0.934 complex128 — the largest fusion win in either) and is the registered incumbent there. At 512 and 2048 the radix-8 ladder beats it directly (0.952/0.987 and 0.940/0.961 at 512), so neither plain nor fused is the answer at those sizes. At 2048 complex128 fusing _costs_ 11% where the stride is exactly 4 KiB. Above that the fused rows are probe-only. The mechanism is why this must stay per-cell rather than becoming a default: the fused loop keeps eight live streams instead of four and loses that trade at larger strides, which is a cache-geometry property and therefore exactly what the wisdom tuner has to be able to flip per host. Evidence: docs/CODELET_BENCHMARKS.md, What the audit changed
+- **Radix-4 (no tail — wrong result by design)** (instrument) — measures what the separate `-then-2` tail pass costs by omitting it; 0.867–0.933 across all six groups. It is the _bound_ the fused-tail row is judged against — the gap between 0.87 and the fused form's 0.94 is what fusion still leaves on the table — and it can never be a candidate itself. Owned by the Radix-4 (fused tail) family, as its measuring instrument
+- **Radix-8** (tuned) — the flat n = 8 leaf, and it _has_ been ranked against radix-2 and radix-4 there: the 2026-07-30 AVX2 audit covers n = 8 in both precisions and moved the complex128 AVX2 row to it (0.970 forward / 0.859 inverse over `dit8_radix4_avx2`). It is the selected row in seven of its nine registered cells — pure-Go, SSE3, SSE2, AVX-512 and NEON complex64, plus AVX2 complex128 — and is outranked in exactly two: AVX2 complex64, where `dit8_radix2_avx2` holds 12 against 11 and the loss is under 1.5× (it is absent from the shadowed-candidates table, which lists everything above that bar), and NEON complex128, which has no radix-8 row at all and is held by radix-4. The unrelated `dit512_radix8_generic` rows sit under the radix-8 ladder at the same size. Evidence: docs/CODELET_BENCHMARKS.md, What the audit changed
 - **Radix-8 (ladder)** (tuned) — wins the generic tier and, on Skylake-SP, 16 AVX-512 cells; loses to radix-4 at the small sizes and on the i7-1255U above 2048 for complex128. Evidence: docs/CODELET_BENCHMARKS.md, The AVX-512 radix-8 ladder: prediction half right, 16 rows promoted
-- **Recursive** (open) — recursive decomposition with codelet leaves; listed as a Phase 1 family and never measured against the flat ladders. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Recursive** (untested) — recursive decomposition bottoming out in registered codelet leaves. Never measured against the flat ladders, and — unlike every other family here — nothing routes to it by default: `resolveKernelStrategy` returns `KernelRecursive` only when it is forced, so no plan runs it unmeasured. That is what makes untested an honest answer rather than a shrug. Owned by nobody, deliberately. It becomes a real question only if Phase 3 wants a recursive route for large n, or if a codelet-leaf ladder beats the flat one somewhere
 - **Six-step** (open) — rows pulled as a stale crossover, not a bad kernel; the crossing point moved up when radix-4 got faster. Tracked by PLAN.md: Re-derive the six-step / eight-step / four-step crossovers
 - **Six-step 64×128** (open) — the rectangular split of the same family; shares the crossover question. Tracked by PLAN.md: Re-derive the six-step / eight-step / four-step crossovers
 - **Split-radix** (open) — the largest untested cell in the matrix: beat the auto path at every power of two ≥ 256 on purego, has no codelet row and no SIMD kernel at any ISA, and is auto-selected nowhere. Tracked by PLAN.md: Give split-radix a fair measurement
-- **Stockham** (open) — pure Go plus a packed variant; the packed gate is filled for AVX2 only, and the plain form's crossover against DIT predates the radix-4 rewrite. Tracked by PLAN.md: Give the unowned power-of-two families a verdict
+- **Stockham** (open) — what auto selects above the DIT threshold, so its verdict is the same threshold question; the packed variant is a separate axis whose gate is filled for AVX2 only. Tracked by PLAN.md: Retune the strategy thresholds around the new codelets
 
 ## Testing
 

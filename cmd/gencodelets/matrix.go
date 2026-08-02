@@ -42,6 +42,15 @@ const (
 	famClosed   = "closed"   // measured and lost everywhere; do not re-attempt
 	famOpen     = "open"     // no sweep has answered it; a PLAN task owns the question
 	famDeferred = "deferred" // decided outside Phase 1, in the phase named by Note
+	// famUntested — nobody has measured it and no task claims it, on purpose.
+	// This is the one status that admits an absence rather than asserting a
+	// result, so it is deliberately narrow: it is legitimate only for a family
+	// nothing routes to without a *forced* strategy, which is what stops it
+	// from meaning "we ship this unmeasured". The reachable half is enforced
+	// mechanically in matrix_test.go — a family with registered codelet rows is
+	// reachable by default and may not use this status — and Note must say what
+	// would change the answer.
+	famUntested = "untested"
 	// famInstrument — not a candidate at all. A probe that computes a wrong
 	// result by design, kept to price something; it must never acquire a
 	// verdict that reads as "this kernel lost".
@@ -61,7 +70,8 @@ type familyVerdict struct {
 	// Tracked is a verbatim fragment of the open PLAN.md task that owns an
 	// famOpen family, checked exactly as the census ratchet checks its own.
 	Tracked string
-	// Note names the phase that owns an famDeferred family.
+	// Note names the phase that owns an famDeferred family, or — for
+	// famUntested — what would turn the absence back into a question.
 	Note string
 }
 
@@ -88,8 +98,8 @@ var familyVerdicts = []familyVerdict{
 	},
 	{
 		Family: "Radix-4 (no tail — wrong result by design)", Status: famInstrument,
-		Verdict: "measures what the separate `-then-2` tail pass costs by omitting it; 0.867–0.933 across all six groups",
-		Note:    "the -then-2 tail item, as its measuring instrument",
+		Verdict: "measures what the separate `-then-2` tail pass costs by omitting it; 0.867–0.933 across all six groups. It is the *bound* the fused-tail row is judged against — the gap between 0.87 and the fused form's 0.94 is what fusion still leaves on the table — and it can never be a candidate itself",
+		Note:    "the Radix-4 (fused tail) family, as its measuring instrument",
 	},
 
 	// Families a §1.2 item already owns. These are open on purpose: the
@@ -140,57 +150,59 @@ var familyVerdicts = []familyVerdict{
 		Tracked: "Decide the 32×32 / 16×32 decomposition family on merit.",
 	},
 	{
-		Family: "Mixed-2/4", Status: famOpen,
-		Verdict: "the `-then-2` tail costs 6.7–13.3%; whether plain, fused or radix-8 is the candidate is cache-geometry-dependent and therefore a per-cell answer",
-		Tracked: "Fill the -then-2 tail row of the matrix.",
+		Family: "Mixed-2/4", Status: famTuned,
+		Verdict:  "the plain separate-tail form, and outside AVX2 it is the *only* form that exists: it is the selected row at every odd-exponent size (32, 128, 512, 2048, 8192, 32768) on generic, SSE2, SSE3 and NEON in both precisions, uncontested because no fused or radix-8-then-2 kernel is built for those tiers. Where it is outranked it is by the radix-8 ladder, not by a different tail (generic 512/2048/8192). On AVX2 the family has no rows at all — the tail is absorbed into `dit<N>_radix4_avx2` there",
+		Evidence: "docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit",
 	},
 	{
-		Family: "Radix-4 (fused tail)", Status: famOpen,
-		Verdict: "recovers 4–6% at 128 and 2048 complex64 and loses 11% at 2048 complex128 — the clearest evidence that this row is per-cell, not per-family",
-		Tracked: "Fill the -then-2 tail row of the matrix.",
+		Family: "Radix-4 (fused tail)", Status: famTuned,
+		Verdict:  "decided per cell, and every cell now has a number. It wins n = 128 in **both** precisions (0.955/0.979 complex64, 0.935/0.934 complex128 — the largest fusion win in either) and is the registered incumbent there. At 512 and 2048 the radix-8 ladder beats it directly (0.952/0.987 and 0.940/0.961 at 512), so neither plain nor fused is the answer at those sizes. At 2048 complex128 fusing *costs* 11% where the stride is exactly 4 KiB. Above that the fused rows are probe-only. The mechanism is why this must stay per-cell rather than becoming a default: the fused loop keeps eight live streams instead of four and loses that trade at larger strides, which is a cache-geometry property and therefore exactly what the wisdom tuner has to be able to flip per host",
+		Evidence: "docs/CODELET_BENCHMARKS.md, What the audit changed",
 	},
 	{
-		Family: "Mixed-8/2", Status: famOpen,
-		Verdict: "the radix-8 spelling of the same tail question, registered at two cells only",
-		Tracked: "Fill the -then-2 tail row of the matrix.",
+		Family: "Mixed-8/2", Status: famTuned,
+		Verdict:  "the radix-8 spelling of the tail, and it exists on **AVX-512 complex64 only** — two cells, no other tier builds it. It holds n = 128, where the radix-8 ladder measured parity (1.039/0.997) and stayed probe-only; it lost n = 256 to that ladder, which was registered at 50 specifically to clear this row's 30. Its shape is why it is tier-bound: a register-resident radix-2 DIT with a fused in-register radix-8 leaf, keeping all 16 ZMM live from load to store — there is no AVX2 register file to port it to",
+		Evidence: "docs/CODELET_BENCHMARKS.md, The AVX-512 radix-8 ladder: prediction half right, 16 rows promoted",
 	},
 
-	// Families the skeleton surfaced with no owner at all. One §1.2 item now
-	// covers them; that item existing is this task's finding, not a follow-up.
+	// Families the skeleton surfaced with no owner at all. Answered 2026-08-01
+	// from the registry and the recorded sweeps; four turned out to have an
+	// owner already — a task elsewhere in the PLAN that genuinely covers the
+	// remaining question — which is a better answer than a new item.
 	{
-		Family: "Radix-8", Status: famOpen,
-		Verdict: "the flat size-8 leaf, distinct from the ladder, registered at six ISAs and never compared against radix-2 or radix-4 at that size",
-		Tracked: "Give the unowned power-of-two families a verdict.",
+		Family: "Radix-8", Status: famTuned,
+		Verdict:  "the flat n = 8 leaf, and it *has* been ranked against radix-2 and radix-4 there: the 2026-07-30 AVX2 audit covers n = 8 in both precisions and moved the complex128 AVX2 row to it (0.970 forward / 0.859 inverse over `dit8_radix4_avx2`). It is the selected row in seven of its nine registered cells — pure-Go, SSE3, SSE2, AVX-512 and NEON complex64, plus AVX2 complex128 — and is outranked in exactly two: AVX2 complex64, where `dit8_radix2_avx2` holds 12 against 11 and the loss is under 1.5× (it is absent from the shadowed-candidates table, which lists everything above that bar), and NEON complex128, which has no radix-8 row at all and is held by radix-4. The unrelated `dit512_radix8_generic` rows sit under the radix-8 ladder at the same size",
+		Evidence: "docs/CODELET_BENCHMARKS.md, What the audit changed",
 	},
 	{
 		Family: "Radix-32", Status: famOpen,
-		Verdict: "three rows at n = 32 and no measurement distinguishing it from radix-4 there",
-		Tracked: "Give the unowned power-of-two families a verdict.",
+		Verdict: "the registry half is decided: n = 32 was in the 2026-07-30 AVX2 audit and radix-32 took no cell — 25 against radix-2's 30 on AVX2 complex64, 5 against `radix4_then2`'s 10/15 in pure Go — losing by under 1.5× everywhere, which is §2.2's keep-at-low-priority case and is what the table already does. What is *not* decided is the SSE3 cell, and it is not merely uncovered: `sse3_f32_size32_radix32.s` is live and tried **first** at n = 32 by the `KernelStrategy` switch in `internal/fft/kernels_amd64_size_specific.go`, while the registry has no SSE3 radix-32 row and selects `dit32_radix4_then2_sse3` there. The two selection paths disagree at one cell, and the task below owns that whole switch",
+		Tracked: "Measure the cheap alternative first: drop the size-specific cases outright.",
 	},
 	{
 		Family: "Generic radix-2", Status: famOpen,
-		Verdict: "two NEON rows using the size-generic kernel as a codelet; whether that is a win or a placeholder is unmeasured, and NEON priorities above 512 were mirrored rather than taken",
-		Tracked: "Give the unowned power-of-two families a verdict.",
+		Verdict: "not a codelet family so much as two rows (n = 32 and n = 512, complex128 only) that register the size-generic NEON kernel — a radix-2 DIT ladder, per its own header — as a codelet at priority 1, under `radix4_then2` at 24. The structural argument that closed radix-2 on AVX2 complex128 applies unchanged here (log2 n full passes against half as many, at a width that holds one complex128 per register), but AGENTS.md is explicit that such an argument is not a substitute for the second measurement, and **no arm64 sweep has covered complex128 at any size**. Priority 1 is the right hold meanwhile; the task below is the one that needs the hardware",
+		Tracked: "NEON: priority tuning on real arm64 hardware.",
 	},
 	{
 		Family: "Mixed 128×3", Status: famOpen,
-		Verdict: "the only non-power-of-two in the codelet table (n = 384, 128×3) and the only size AVX2 covers that no other tier does",
-		Tracked: "Give the unowned power-of-two families a verdict.",
+		Verdict: "n = 384, the only non-power-of-two in the codelet table, and uncontested in all four cells it occupies — its `✓` means \"the only row at that size\", not \"the best\". Which makes the open question not how it ranks but whether the other four tiers want the same 128×3 decomposition or none, and §1.5 already has that as one verdict for all four",
+		Tracked: "Decide n = 384 once, for all four tiers.",
 	},
 	{
 		Family: "DIT", Status: famOpen,
-		Verdict: "the engine the codelet leaves hang off; `ditAutoThreshold` was calibrated against kernels now 2–4× faster",
-		Tracked: "Give the unowned power-of-two families a verdict.",
+		Verdict: "the engine the codelet leaves hang off, reached whenever the auto heuristic stays below `ditAutoThreshold` — a threshold calibrated against kernels now 2–4× faster, so where it should sit is the same question §1.4 asks",
+		Tracked: "Retune the strategy thresholds around the new codelets.",
 	},
 	{
 		Family: "Stockham", Status: famOpen,
-		Verdict: "pure Go plus a packed variant; the packed gate is filled for AVX2 only, and the plain form's crossover against DIT predates the radix-4 rewrite",
-		Tracked: "Give the unowned power-of-two families a verdict.",
+		Verdict: "what auto selects above the DIT threshold, so its verdict is the same threshold question; the packed variant is a separate axis whose gate is filled for AVX2 only",
+		Tracked: "Retune the strategy thresholds around the new codelets.",
 	},
 	{
-		Family: "Recursive", Status: famOpen,
-		Verdict: "recursive decomposition with codelet leaves; listed as a Phase 1 family and never measured against the flat ladders",
-		Tracked: "Give the unowned power-of-two families a verdict.",
+		Family: "Recursive", Status: famUntested,
+		Verdict: "recursive decomposition bottoming out in registered codelet leaves. Never measured against the flat ladders, and — unlike every other family here — nothing routes to it by default: `resolveKernelStrategy` returns `KernelRecursive` only when it is forced, so no plan runs it unmeasured. That is what makes untested an honest answer rather than a shrug",
+		Note:    "nobody, deliberately. It becomes a real question only if Phase 3 wants a recursive route for large n, or if a codelet-leaf ladder beats the flat one somewhere",
 	},
 
 	// Non-power-of-two routes. In the tree, and deliberately not Phase 1's call.
