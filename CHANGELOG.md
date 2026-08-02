@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The NEON radix-4 Stockham cores now serve `n = 2·4^k` as well as the powers
+  of four**, i.e. sizes 32, 128, 512, 2048, 8192 and 32768 in both precisions.
+  The schedule appends a radix-2 stage at `l = 1`, which keeps every earlier
+  stage's `m` a power of four so both existing vectorization regimes apply
+  unchanged; that final stage has `j = 0`, so it carries no twiddles and is a
+  pure add/subtract butterfly. This retires all twelve `neon_f*_size*_mixed24.s`
+  codelets — **104,070 lines of scalar assembly deleted**, taking the arm64 tree
+  from 38 files / 115,019 lines to 26 / 10,949. Those files contained zero
+  vector instructions and every one of their spec rows was already demoted below
+  pure Go.
+
+### Performance
+
+- **`Butterfly5`, `Butterfly7` and `Butterfly11` rewritten in conjugate-pair
+  form.** All three were the naive DFT-matrix product; the pair form uses
+  `W^(r-k) = conj(W^k)` to halve the multiplies and makes the surviving ones
+  real-by-complex. Radix 11 goes from 96.4 → 31.9 ns, radix 7 from 41.1 → 12.9,
+  radix 5 from 14.1 → 6.6 (contended host; ratios only). This is what runs every
+  radix-5/7/11 stage on NEON, SSE2, WASM and purego — the fused AVX2 stage
+  kernels sidestep it on amd64, but their Go tails call it too.
+
+### Fixed
+
+- **`TestFFTRealInputSymmetry` had stopped testing the kernel at n = 128.** It
+  compares bins of the `0..n-1` ramp against a flat _absolute_ 1e-4, but those
+  bins grow like `n²`, and one float32 ULP there is already ~3e-4 — so the check
+  passed only while the rounding happened to cancel. The bound now scales with
+  the bin magnitude.
+
 ## [0.7.5] - 2026-08-02
 
 ### Fixed

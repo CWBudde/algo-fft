@@ -1184,24 +1184,27 @@ shapes).
 
 ### 2.2 Odd-radix butterflies
 
-- [ ] **Give `Butterfly7` the conjugate-pair form.** `internal/kernels/radix7.go`
-      evaluates a full 7×7 DFT matrix
-      (`butterfly7Complex64(a *[7]complex64, table *[49]complex64)`). Radix 7
-      appears in 2205, 44100 and 12000 — three of the five worst cells — so it is
-      the higher-value of the two. Arch-independent, and the registry-driven
-      reference tests already cover it.
-- [ ] **Give `Butterfly11` the conjugate-pair form.** Same state, same fix. A
-      throwaway pair-form implementation measured 113.6 → 72.1 ns (−37%) untuned;
-      the derivation and index tables are written out in the header of
-      `avx2_f32_mixedradix_stage11.s`. The fused AVX2 kernel sidesteps it on
-      amd64, but it is still what runs every radix-11 stage on SSE2, NEON, WASM
-      and purego, and what the fused kernels' own Go tails call.
-- [ ] **Audit radix 3/5 butterflies for the same defect** while the derivation is
-      fresh — they have hand-written forms, but nobody has checked whether they
-      recompute rotations the way `dit512_radix8_generic` did. Audit what the
-      engine actually calls: the whole-transform entry points in `radix3.go` /
-      `radix5.go` and the AVX2 butterflies under them are unreachable
-      (§1.3), so measuring those would measure code no length runs.
+- [x] **Give `Butterfly7` and `Butterfly11` the conjugate-pair form.**
+      _(2026-08-02.)_ Both evaluated a full r×r DFT matrix. Done together with
+      radix 5 below, copying the derivations already written out in the headers
+      of `avx2_f32_mixedradix_stage{5,7,11}.s` rather than re-deriving them.
+      Radix 11 measured 96.4 → 31.9 ns, radix 7 41.1 → 12.9 ns — well past the
+      −37% the throwaway prototype had predicted for radix 11, because the pair
+      form also drops the per-call conjugation the matrix form needed for its
+      inverse table. Contended host, so ratios only.
+- [x] **Audit radix 3/5 butterflies for the same defect.** _(2026-08-02.)_
+      **Radix 3 is clean** — `butterfly3ForwardComplex64` was already in pair
+      form (`t1 = a1+a2`, `t2 = a1-a2`). **Radix 5 had the defect**, in its
+      hand-written form rather than a table: `butterfly5ForwardComplex64`
+      spelled out all sixteen `MulComplex64` products of the 5×5 matrix. Fixed
+      the same way, 14.1 → 6.6 ns, and it no longer needs separate
+      forward/inverse twiddle tables at all. Note this was the higher-traffic
+      of the three despite being the smallest radix: 5 appears in 1000, 3600,
+      12000 and 44100.
+      The §1.3 caveat still holds and was respected — the audit targeted
+      `butterfly5*Complex64` as called from `internal/fft/mixedradix.go`, not
+      the unreachable whole-transform entry points in `radix5.go` or the AVX2
+      butterflies under them.
 
 ### 2.3 Rader and Bluestein
 

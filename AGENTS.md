@@ -430,6 +430,26 @@ Process notes that mattered more than model tier:
 - Agents tend to background long QEMU runs and then stop to "wait" for them,
   which stalls the round; instruct them to run all verification in the
   foreground with generous timeouts.
+- **`ALGOFFT_QEMU=1 go test ./...` does not test arm64.** It is only a skip
+  flag — `internal/kernels/test_helpers.go` uses it to skip the naive-DFT
+  reference, and `neon_f64_size_specific_test.go` to skip sizes ≥ 8192. With no
+  `GOOS`/`GOARCH` the binary is built for the host, so on an amd64 box it
+  exercises AVX2 with the _strongest_ correctness checks switched off. The arm64
+  assembly is never even assembled. The real gate is what `just test-arm64`
+  runs:
+
+  ```
+  GOOS=linux GOARCH=arm64 go test -exec=qemu-aarch64-static -count=1 ./...
+  ```
+
+  Add `ALGOFFT_QEMU=1` on top of that only to trade coverage for speed (~70 s
+  vs ~40 min). For a new arm64 kernel, leave it off and pay the 40 minutes —
+  running it properly is what surfaced two real float32 tolerance failures the
+  shorthand had hidden. Treat any older "QEMU-verified" claim as unverified
+  until you know which command produced it.
+
+- `go build` fails with `error obtaining VCS status` inside a `git worktree`
+  here. It is an environment quirk, not a code defect; use `-buildvcs=false`.
 - **Commit your own uncommitted work before dispatching a round, and forbid
   `git checkout`/`git restore`/`git stash` in the brief.** An agent whose
   `just fmt-check` reformatted a doc outside its scope "tidied up" with
@@ -438,6 +458,14 @@ Process notes that mattered more than model tier:
   changes it did not create; it reverted them anyway, reasoning that the file
   was outside its scope. Treat the rule as unenforceable and remove the
   opportunity instead — anything uncommitted when a round starts is at risk.
+- **A brief-level prohibition on reaching the benchmark host is not reliable
+  either.** Round 5 forbade touching the M5 in all three briefs; a `go test`
+  still turned up on it within minutes, launched over a non-interactive ssh
+  session, contending with the one machine the round's measurements depend on.
+  This is the same shape as the `git checkout` incident: the agent had the
+  capability and a plausible local reason to use it. Assume any host an agent
+  can reach may be touched, and schedule the serial benchmark window for after
+  the round rather than during it.
 - Have agents generate repetitive asm with a throwaway Go generator and
   validate it by byte-reproducing the existing template size first — this
   caught every would-be bug in rounds 3–4 before a single test ran. Tell
