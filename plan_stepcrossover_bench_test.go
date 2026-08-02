@@ -20,12 +20,11 @@ import "testing"
 // a forced six-step back to the size heuristic at every other length, and
 // squareArm's assertion that the force took would fire.
 //
-// There is deliberately no KernelEightStep arm. internal/kernels/eightstep.go
-// is internal/kernels/sixstep.go with the names changed — same perfect-square
-// rejection, same two TransposeSquare-bracketed Stockham row passes, no eighth
-// step anywhere. An arm that is a renamed copy of another arm would make this
-// table look like it covers a family it does not; the family's verdict rests
-// on that diff rather than on a measurement.
+// There is deliberately no KernelEightStep arm: the strategy was removed
+// 2026-08-02 as a duplicate of KernelSixStep (internal/kernels/eightstep.go
+// was internal/kernels/sixstep.go with the names changed — same
+// perfect-square rejection, same two TransposeSquare-bracketed Stockham row
+// passes, no eighth step anywhere) and no longer exists.
 //
 // The KernelDIT arm is measured for information only. Retuning
 // ditAutoThreshold against it is PLAN.md §1.4's item, not this one.

@@ -93,7 +93,6 @@ func TestAutoKernelComplex64_PowerOf2(t *testing.T) {
 		{"Auto_Small", 32, planner.KernelAuto},
 		{"Auto_Large", 2048, planner.KernelAuto},
 		{"SixStep_1024", 1024, planner.KernelSixStep},
-		{"EightStep_1024", 1024, planner.KernelEightStep},
 	}
 
 	for _, tt := range tests {
@@ -214,7 +213,6 @@ func TestAutoKernelComplex128(t *testing.T) {
 		{"Stockham_1024", 1024, planner.KernelStockham},
 		{"MixedRadix_12", 12, planner.KernelAuto},
 		{"SixStep_1024", 1024, planner.KernelSixStep},
-		{"EightStep_1024", 1024, planner.KernelEightStep},
 	}
 
 	for _, tt := range tests {

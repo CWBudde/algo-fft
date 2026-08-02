@@ -16,7 +16,6 @@ const (
 	KernelDIT        = fftypes.KernelDIT
 	KernelStockham   = fftypes.KernelStockham
 	KernelSixStep    = fftypes.KernelSixStep
-	KernelEightStep  = fftypes.KernelEightStep
 	KernelBluestein  = fftypes.KernelBluestein
 	KernelRecursive  = fftypes.KernelRecursive
 	KernelSplitRadix = fftypes.KernelSplitRadix

@@ -35,7 +35,7 @@ const (
 	PlannerPatient
 
 	// PlannerExhaustive runs thorough micro-benchmarks (warmup=10, iters=100)
-	// testing all available strategies including EightStep.
+	// testing all available power-of-two strategies.
 	PlannerExhaustive
 )
 

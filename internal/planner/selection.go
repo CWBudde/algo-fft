@@ -40,7 +40,7 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 	}
 
 	if strategy != KernelAuto {
-		if !isSquareSize(n) && (strategy == KernelSixStep || strategy == KernelEightStep) {
+		if !isSquareSize(n) && strategy == KernelSixStep {
 			return fallbackKernelStrategy(n)
 		}
 
@@ -61,7 +61,7 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 	// Power-of-two squares are deliberately NOT special-cased: measured over
 	// every candidate strategy at the only sizes the square branch can reach
 	// (2^18, 2^20, and 2^22), the plain size heuristic below — Stockham — wins
-	// or ties against six-step, eight-step, four-step and split-radix on both
+	// or ties against six-step, four-step and split-radix on both
 	// the SIMD and purego builds, at both precisions and in both directions
 	// (BenchmarkSquareAutoRule, i7-1255U/AVX2).
 	//
@@ -70,9 +70,12 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 	//     purego 2^18 complex64 forward, where it trails by 3% (noise). At the
 	//     other extreme split-radix costs 2x — 2^20 complex128 forward is
 	//     80.3 ms vs six-step's 39.3 ms and Stockham's 49.7 ms.
-	//   - eight-step for powers of two >= 2^22: at 2^22 complex64 Stockham runs
-	//     157/171 ms (fwd/inv) against eight-step's 201/269 ms on the SIMD
-	//     build, and 102/113 vs 203/247 ms on purego.
+	//   - six-step for powers of two >= 2^22: at 2^22 complex64 Stockham runs
+	//     157/171 ms (fwd/inv) against six-step's 201/269 ms on the SIMD
+	//     build, and 102/113 vs 203/247 ms on purego. (These numbers were
+	//     originally attributed to the now-removed KernelEightStep, which was
+	//     a duplicate of six-step's implementation and always measured
+	//     identically to it.)
 	//
 	// One arm dissents and is accepted knowingly: 2^20 complex128 forward
 	// prefers six-step (39.3 ms) over Stockham (49.7 ms) on the SIMD build.
@@ -81,9 +84,9 @@ func resolveKernelStrategy(n int, defaultStrategy KernelStrategy) KernelStrategy
 	// split-radix it replaces there by 1.6x. Wisdom/measure modes pick per
 	// machine where it matters (see selectStrategiesToTest in internal/fft).
 	//
-	// A non-power-of-two square rule used to live here, returning six/eight-step
-	// above 2^18 on the grounds that "they execute through the mixed-radix
-	// engine". They do — which is exactly why the rule was a label and never a
+	// A non-power-of-two square rule used to live here, returning six-step
+	// above 2^18 on the grounds that "it executes through the mixed-radix
+	// engine". It did — which is exactly why the rule was a label and never a
 	// route: the six-step kernel was never called for those lengths. Every
 	// square it could reach is either mixed-radix executable (returned above)
 	// or Bluestein-bound (EstimatePlan answers before asking here), so the rule

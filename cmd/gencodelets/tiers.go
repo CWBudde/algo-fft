@@ -139,11 +139,6 @@ var tierRows = []tierRow{
 		Rule: "perfect squares only (even exponent); declines every other length.",
 	},
 	{
-		Family: "Eight-step (pure Go)", Algo: "Eight-step", Pkg: "internal/kernels",
-		Entry: "ForwardEightStepComplex64", Prec: "both", ISA: "any",
-		Rule: "perfect squares only, as six-step.",
-	},
-	{
 		Family: "Four-step (pure Go)", Algo: "Four-step", Pkg: "internal/kernels",
 		Entry: "ForwardFourStepComplex64", Prec: "both", ISA: "any",
 		Rule: "any power of two — the rectangular n1×n2 split covers the odd " +
