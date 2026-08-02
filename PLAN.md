@@ -43,7 +43,7 @@ signature — and the correctness debt that once gated the tag is closed. What t
 tag waits on is Phases 1–4; the reasoning is in §7.
 
 Core transforms (DIT, Stockham, split-radix, mixed-radix, Rader, Bluestein,
-six/eight/four-step), real FFT, 2D/3D/N-D, both precisions, zero-allocation
+six-step and four-step), real FFT, 2D/3D/N-D, both precisions, zero-allocation
 transforms, the Wisdom cache and the WASM target all ship. SIMD coverage is AVX2
 broad in both precisions, an SSE2/SSE3 tier to 32768, a size-specific NEON ladder
 4–32768, and a first AVX-512 tier. [`docs/HISTORY.md`](docs/HISTORY.md) has the
@@ -858,12 +858,17 @@ unmeasured and unmaintainable.
       in git history if that ever changes. - The two remaining SSE1 sizes now match the switch exactly, and
       `TestSSESizeSpecificComplex64_386` says so in a comment, so the next
       reader does not have to re-derive why the table stops at 4.
-- [ ] **Record the deletion mechanics as a checklist in `AGENTS.md`.** Per file:
-      the `.s`, its `decl.go` declaration, the wrappers in
-      `internal/fft/asm_amd64.go`, the test/bench tables, any `plan_api_test.go`
-      signature allowlist entry. `internal/asm/decl_text_test.go` catches an
-      orphaned declaration and the linker catches an orphaned `TEXT`. Written
-      once, it stops being re-derived per round.
+- [x] **Record the deletion mechanics as a checklist in `AGENTS.md`**
+      (2026-08-02). "Retiring a kernel: the mechanical checklist" now carries the
+      seven steps in the order that matters, and it grew past what this item
+      asked for as later rounds found the rest of the couplings: relocating a
+      shared `GLOBL` table is step 1 **in its own commit**, because the failure
+      is at link time and a package that compiles proves nothing; the spec row
+      must be retired through `go generate`, never by hand-editing a `.gen.go`;
+      and a `dispositions.go` entry naming a vanished symbol fails the census
+      tests exactly as a dark symbol without one does. Both later deletions (the
+      386 size-8/16 kernels, the eight-step file) followed it without
+      re-deriving anything.
 
 ### 1.4 amd64 AVX2: the remaining soft spots
 
@@ -916,12 +921,36 @@ unmeasured and unmaintainable.
 - [ ] **Finish the FMA audit — dispatch sites.** `internal/fft/complex_mul_amd64.go`,
       `kernels_amd64_asm.go`, `scale_amd64.go` and `internal/kernels/radix5_avx2.go`
       still gate on `HasAVX2` alone and need the `HasAVX2 && HasFMA` sweep.
-- [ ] **Finish the FMA audit — the unselected files.** `avx2_f32_size512_radix16x32.s`
-      (128 muls), `avx2_f{32,64}_size1024_radix32x32.s`, `avx2_f32_size256_radix16.s`,
-      `avx2_f32_size128_radix2.s`, `avx2_f32_size32_radix4_then2.s`,
-      `avx2_f{32,64}_size4_radix4.s`. Only worth doing for files that §1.2 keeps
-      as candidates — do this **after** the matrix, and skip anything it closes.
-      The generic radix-4/Stockham kernels need no pass; they are already fused.
+- [ ] **Finish the FMA audit — the unselected files.** **Re-scoped 2026-08-02,
+      when §1.2 closed and the list was checked against the tree: four of the
+      seven files this item named no longer exist.**
+      `avx2_f{32,64}_size1024_radix32x32.s` went in `08c8e7b`,
+      `avx2_f32_size512_radix16x32.s` and `avx2_f64_size256_radix16.s` in
+      `1f7977b`. What is left is `avx2_f32_size128_radix2.s`,
+      `avx2_f32_size32_radix4_then2.s` and `avx2_f{32,64}_size4_radix4.s`.
+      **The gate also moved.** The old text said "do this after the matrix
+      (§1.2)", but none of the three survivors has a spec row — they are reached
+      only through the size-specific `KernelStrategy` switch, which makes them
+      part of §1.3's sixteen-file question, not §1.2's. So the real gate is
+      §1.3's first item: if the raw-twiddle generic fallback is within noise,
+      these files are deleted and the FMA pass is moot; only if the fallback
+      loses do they become registry-rankable and worth fusing. Do not start this
+      before that measurement. The generic radix-4/Stockham kernels need no pass;
+      they are already fused.
+- [ ] **Decide what `TestRadix4AVX2Complex128Ranking` is asserting.** It is a
+      **timing** assertion — "no codelet may take more than 1.5× the fastest at
+      this size" — living in the default `go test ./...` suite, and it fails
+      under parallel load. Three rounds have now had to stop, re-run it in
+      isolation and prove the red was not theirs; on 2026-08-02 it fired at
+      n = 32, naming `dit32_radix4_avx2` against `dit32_radix4_then2_sse2`, in a
+      round that added nothing below n = 256. A gate that cannot distinguish "a
+      codelet regressed" from "the machine was busy" costs a real investigation
+      every time it goes off and, worse, trains the next reader to assume the
+      red is spurious. Either move it behind `-short`/a tag so it runs on an
+      idle machine on purpose, or give it the canary bracket the sweep harness
+      already has (`scripts/bench_gated.sh`) so it can reject its own sample
+      instead of failing. **Not a licence to delete it** — the ranking inversion
+      it guards is real, and CI gates PRs on this suite.
 
 ### 1.5 The other ISA tiers
 
@@ -979,6 +1008,14 @@ algorithms" is actually missing.
       this one item, not three: SSE2-c128, SSE3, NEON **and AVX-512** all stop at
       32768 where AVX2 reaches 65536, so four tiers share one uncovered octave —
       which also widens what the packed-Stockham item below is worth.
+      **Five tiers, as of 2026-08-02**: the split-radix sweep found the pure-Go
+      generic tier stops at 32768 too, and the purego/WASM builds have no other
+      tier to fall back to, so that hole costs 16% today and is the one place
+      where the missing octave is a shipped regression rather than a coverage
+      gap. It is tracked separately as a Phase 3 item (the generic ladder past
+      32768), because the evidence and the fallback route are different; do that
+      one first — it is also the cheapest, and it decides whether split-radix
+      gets a 65536 row.
 - [ ] **Decide n = 384 once, for all four tiers.** 384 is the only size AVX2
       covers that **no other tier does** — SSE2, SSE3, AVX-512 and NEON each show
       it as their single hole below their own ceiling. It is also the only
@@ -1025,6 +1062,19 @@ nobody here owns.
       tier filter to the measurement path so tuning time stays bounded, and
       record the measured tuning wall-clock for a full power-of-two sweep as the
       budget to hold.
+
+      **§1.2 made this concrete rather than hypothetical** (2026-08-02): it added
+      **16** `dit<N>_splitradix_generic` rows (8 sizes × 2 precisions, 256 →
+      32768) and demoted four 32×32/16×32 rows to priority 1, none of which the
+      compiled-in ranking will ever select. That is the rule working as designed
+      — every one of them is there so wisdom can reach it on a host with a
+      different cache geometry — but it is also the first round to add arms that
+      exist **only** for the tuner, and the split-radix rows lost all 64 measured
+      cells on both hosts. A cap that is purely count-based would therefore
+      discard them first on the machines where they are cheapest to prove wrong;
+      prefer a bound that measures the whole candidate set once per host over one
+      that guesses which arms are worth an arm.
+
 - [ ] **Offline tuning entry point.** A `cmd/` tool (or a documented
       `just tune` recipe) that sweeps every registered size × precision on the
       current host, writes a Wisdom file, and prints the per-size winner. Today
