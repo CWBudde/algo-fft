@@ -122,12 +122,12 @@ var familyVerdicts = []familyVerdict{
 	},
 	{
 		Family: "Six-step", Status: famOpen,
-		Verdict: "swept 2026-08-02 and it loses everywhere — 1.43/1.49 (c64) and 1.49/1.90 (c128) against `dit4096_radix8ladder_generic`, 1.89–2.20 at 16384, and 17–35× against the bound codelet across 16384–131072 — but the loss is the file and not the decomposition: 87% of it is row passes hardwired to the pure-Go `stockhamForward`, so on a SIMD build it is a scalar kernel racing AVX2 codelets. §2.2 forbids closing a family on an implementation defect, so the rows stay registered at their existing non-selectable priority until the rows are bound to the registry",
+		Verdict: "swept on two hosts 2026-08-02 and it loses everywhere. The codelet half is a fair pure-Go fight — its rows are the tuned `forwardDIT64Radix4…` leaves, the incumbent is the pure-Go radix-8 ladder — and it loses 1.43–2.20× (i7-1255U) and 1.59–2.34× (Xeon) at 4096/8192/16384, behind even the radix-4 row the ladder replaced. The strategy half loses 17–35× across 16384–131072, but that number is confounded and must not be cited: `ForwardSixStepComplex64` hardwires its rows to the generic `stockhamForward` (87% of its cost), so on a SIMD build it is a scalar kernel racing AVX2. §2.2 keeps the family open on the second point; on the first, the ≥1.5× rows are due an fftprobe migration this round did not carry out, and stay at their existing non-selectable priorities meanwhile",
 		Tracked: "Give the six-step and four-step row passes the registry's kernels.",
 	},
 	{
 		Family: "Six-step 64×128", Status: famOpen,
-		Verdict: "the rectangular split of the same family and the same defect: 1.71/1.91 (c64) and 2.06/2.09 (c128) against `dit8192_radix8ladder_generic`, which is also behind the radix-4-then-2 row the ladder replaced. Its rows are 64- and 128-point — both have codelets — so it is the cheapest place to demonstrate the row binding",
+		Verdict: "the rectangular split of the same family, and the worst cell of the fair comparison: 1.71/1.91 (c64) and 2.06/2.09 (c128) against `dit8192_radix8ladder_generic` on the i7-1255U, 2.00/2.17 and 2.16/2.35 on the Xeon — behind the radix-4-then-2 row the ladder replaced on both. Its rows are 64- and 128-point and both have codelets at every ISA, so it is also the cheapest place to demonstrate whether SIMD row binding changes the answer",
 		Tracked: "Give the six-step and four-step row passes the registry's kernels.",
 	},
 	{

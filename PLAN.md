@@ -494,28 +494,44 @@ outlives its family.
         (normalised diff). So the family had nothing to measure, its verdict is
         `untested`, and the "eight-step loses at 2^22" figure inherited by
         `planner/selection.go` is six-step's. A separate item now owns the enum.
-      - **Six-step and four-step lose everywhere, and the loss is the file.**
-        Canary-gated purego sweep (60 of 72 groups accepted): the six-step rows
-        run 1.43–2.20× the radix-8 ladder at 4096/8192/16384 — behind even the
-        radix-4 row the ladder replaced, in all twelve cells. Plan-level across
+      - **Six-step and four-step lose everywhere — on merit at the codelet
+        sizes, and confoundedly above them.** Canary-gated purego sweeps on both
+        hosts (60 of 72 groups accepted on the laptop, 48 of 48 on the Xeon):
+        the six-step rows run 1.43–2.20× the radix-8 ladder at 4096/8192/16384
+        and 1.59–2.35× on the Xeon — behind even the radix-4 row the ladder
+        replaced, in all twenty-four cells. That half is a **fair** comparison:
+        the codelets' rows are the tuned pure-Go leaves, not the generic
+        Stockham, so both arms are scalar. Plan-level across
         16384–131072: 17–35× behind the bound codelet on the SIMD build. One
-        cell of twenty-four goes to six-step (purego 65536 c64 forward, 0.88×),
-        which is a 12% claim on a host whose floor is ~15%, and whose inverse
-        goes the other way by 3.3×. Nothing was re-registered.
-      - **The mechanism, which is why nothing is `closed`.** Row passes are
-        **87%** of six-step's cost at n = 65536 and are hardwired to the pure-Go
-        `stockhamForward`, so on a SIMD build it is a scalar kernel racing AVX2
-        codelets. Two row passes even cost more than one flat pure-Go Stockham
-        over the whole array. §2.2: a poor implementation disqualifies the file,
-        not the algorithm — so the three families stay open under the Phase 3
-        item that owns the row binding, rather than being written off on a
-        number that measures `stockhamForward`.
+        cell of twenty-four went to six-step on the laptop (purego 65536 c64
+        forward, 0.88×) — and **the Xeon inverts it to 2.7× the other way**, so
+        across two hosts, four builds, both precisions and both directions
+        there is no cell anywhere in which either family beats the route the
+        planner already takes. Nothing was re-registered.
+      - **The mechanism, which is why nothing is `closed`.** The *strategy*
+        kernel is a different implementation from the codelets, and it is the
+        confounded one: row passes are **87%** of `ForwardSixStepComplex64`'s
+        cost at n = 65536 and are hardwired to the generic `stockhamForward`, so
+        on a SIMD build it is a scalar kernel racing AVX2 codelets. Two row
+        passes even cost more than one flat pure-Go Stockham over the whole
+        array. §2.2: a poor implementation disqualifies the file, not the
+        algorithm — so the three families stay open under the Phase 3 item that
+        owns the row binding, rather than being written off on a number that
+        measures `stockhamForward`. Keeping the two halves apart is the
+        difference between "six-step loses" and "this six-step file loses", and
+        only the codelet half supports the first.
 
       **The premise was stale in both directions, again.** "Registry rows were
       pulled" was true only of AVX2 (`08c8e7b`); six generic rows were still
       registered and had never been re-measured. And "it is above 16384 on this
       host" put the crossing point in a band that turned out to contain no
       crossing at all.
+
+      **The second host earned its keep on a question this item did not ask.**
+      At n = 131072 nothing is registered in any tier, both machines fall
+      through to `ditAutoThreshold`, and the DIT/Stockham crossover lands on
+      opposite sides of it — auto is right on the laptop and costs the Xeon
+      15%/26%. Handed to §1.4, which owns the threshold.
 
 - [ ] **Decide what `KernelEightStep` is for.** `internal/kernels/eightstep.go`
       is `sixstep.go` with the names changed — same perfect-square rejection,
@@ -756,8 +772,17 @@ unmeasured and unmaintainable.
       `ditAutoThreshold` and the six-step/four-step crossovers were calibrated
       against kernels that are now 2–4× faster, so the size at which DIT stops
       winning has moved. The Stockham comparison at n = 16384 that opened the
-      investigation is the clearest case: 94 µs against what is now 29 µs. Pairs
-      with the crossover item in §1.2.
+      investigation is the clearest case: 94 µs against what is now 29 µs.
+      Paired with the crossover item in §1.2, **which has now handed it a
+      concrete cell.** At n = 131072 no codelet is registered in any tier, so
+      both hosts fall through to `ditAutoThreshold`, which answers Stockham —
+      and the DIT/Stockham crossover sits on opposite sides of that size on the
+      two machines. Forced DIT loses to Stockham on the i7-1255U (2300 vs
+      1373 µs, c64 forward) and **wins** on the Xeon (2422 vs 2785), where auto
+      therefore costs 15% at complex64 and 26% at complex128. One global
+      threshold cannot be right on both, so treat this as a wisdom-shaped
+      question rather than a constant to re-fit. Numbers in
+      `docs/CODELET_BENCHMARKS.md`, "The six-step / four-step crossovers".
 - [ ] **Attack the radix-4 tail combine, not the radix.** The odd-exponent
       question is settled — `n = 2·4^k` is also `8·4^(k-1)`, the radix-8 ladder is
       the principled specialisation, and it promotes nothing. What is left is the
@@ -1146,6 +1171,18 @@ zero-allocation default.
       integer `%n` per element where `fourstep.go` already subtract-wraps, and
       `fourStepSplit` derives the balanced √n×√n split at every size measured,
       which was the slowest of eleven at 2^20.
+
+      **One disposition is outstanding and deliberately deferred to here.** The
+      six `dit<N>_sixstep*_generic` rows lost a *fair* pure-Go comparison on
+      both hosts (1.43–2.35×; their rows are the tuned radix-4/radix-2 leaves,
+      not the generic Stockham, so that half is not confounded). Every Xeon cell
+      and eight of twelve laptop cells clear §2.2's ≥ 1.5× bar, which calls for
+      `-tags fftprobe` rather than a registry row. They were left registered at
+      their existing **non-selectable** priorities (25/30 vs the ladder's 50)
+      because the migration is a code change, and because binding the rows may
+      change the number that justifies it — do the binding first, re-measure,
+      then probe-gate or promote once instead of twice.
+
 - [ ] **SoA (split real/imag) layout exploration.** Prototype internal SoA for one
       kernel family (e.g. the AVX-512 generic path, which currently spends shuffle
       uops de-interleaving) and measure; decide whether a v2 `PlanSoA` API is

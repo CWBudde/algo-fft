@@ -732,8 +732,38 @@ these rows' priorities answer.
 | 16384 | `dit16384_sixstep_generic`      |   1.892 |   2.111 |    2.202 |    2.063 |
 
 For scale, the middle row of each group — `dit<N>_radix4[_then2]_generic`, the
-ladder's own predecessor — sits at 1.10–1.36. Six-step is not merely behind the
+ladder's own predecessor — sits at 1.09–1.36. Six-step is not merely behind the
 best row; it is behind the row the best row replaced, in all twelve cells.
+
+Re-run on the Xeon Gold 5218, `PASSES=8`, **48 accepted + 0 rejected = 48**,
+load average 0.66, `taskset -c 0`. Same incumbent, same direction, slightly
+harder:
+
+|     n | row                             | c64 fwd | c64 inv | c128 fwd | c128 inv |
+| ----: | ------------------------------- | ------: | ------: | -------: | -------: |
+|  4096 | `dit4096_sixstep_generic`       |   1.594 |   1.719 |    1.736 |    1.833 |
+|  8192 | `dit8192_sixstep64x128_generic` |   2.003 |   2.173 |    2.162 |    2.351 |
+| 16384 | `dit16384_sixstep_generic`      |   2.069 |   1.809 |    2.141 |    2.339 |
+
+**This pair of sweeps is a fair fight, and it is the one result here that is a
+loss on merit.** The six-step _codelets_ do not share the scalar-row defect
+described below: `dit_4096_sixstep.go` and its siblings run their rows through
+`forwardDIT64Radix4Complex64` / `forwardDIT128Radix2Complex64` — the tuned
+pure-Go leaves — and the incumbent they are measured against is the pure-Go
+radix-8 ladder. Both arms are scalar, at the same sizes, in the same build. So
+the 64×64, 64×128 and 128×128 decompositions genuinely lose to the flat ladder
+at 4096/8192/16384, on two hosts, in both precisions and both directions.
+
+**The disposition that follows, and which this round did not carry out.**
+Under `PLAN.md` §2.2 a measured, non-structural loss of ≥ 1.5× belongs behind
+`-tags fftprobe`: every Xeon cell and eight of twelve laptop cells clear that
+bar, and the second host that would justify keeping them registered has now
+been measured. The six rows are left registered at their existing
+**non-selectable** priorities (25/30 against the ladder's 50) because that part
+of the rule — never leave a beaten codelet at a _selectable_ priority — is
+already satisfied, and because the migration is a code change rather than the
+priority adjustment this round was scoped to. It is carried as an explicit
+action on the row-binding item in `PLAN.md`, not as a silent omission.
 
 ### And no decomposition overtakes the incumbent route anywhere in 16384–131072
 
@@ -803,6 +833,15 @@ Even inside pure Go the implementation does not pay: two row passes cost
 the transposes and twiddles are added. A six-step whose rows are the same
 scalar Stockham it is competing against cannot win — it can only add stages.
 
+**This applies to the strategy kernel, not to the codelets.** The two are
+different implementations of the same decomposition and only the strategy form
+has scalar rows: `ForwardSixStepComplex64` calls the generic `stockhamForward`,
+while `forwardDIT4096SixStepComplex64` calls the tuned `forwardDIT64Radix4…`
+leaf. So the 17–35× figures here are confounded and prove nothing about the
+decomposition, whereas the 1.43–2.35× codelet figures above are a fair
+pure-Go comparison and do. Keeping the two apart is the whole difference
+between "six-step loses" and "this six-step file loses".
+
 So under PLAN.md §2.2 this is an implementation loss, not an algorithm loss,
 and none of the three families may be recorded as `closed`. What the AVX2
 six-step drivers deleted in `1f7977b` did — call `ForwardAVX2Size64Radix4…` for
@@ -836,6 +875,48 @@ whose only distinguishing feature it thereby discards.
 
 This is the parameter a second host moves, and it is now known to be
 mis-derived on the first one.
+
+### The Xeon: the one favourable cell does not reproduce, and the DIT/Stockham crossover moves
+
+`BenchmarkStepCrossover` re-run on the Xeon Gold 5218 (Skylake-SP, AVX-512,
+22 MiB L3 against the laptop's 12), `taskset -c 0`, `-count=5`, both builds,
+load average 0.66 at start. Per the standing rule these numbers are **not**
+folded into the i7-1255U tables above — only the orderings travel.
+
+This host was worth the trip twice over.
+
+**First, it kills the one cell that went to a decomposition.** The laptop's
+purego / 65536 / complex64 / forward result — six-step 1846.6 µs against
+Stockham's 2094.2, the 12% edge already discounted as below the noise floor —
+inverts completely:
+
+| purego, 65536, c64, fwd   |   i7-1255U | Xeon Gold 5218 |
+| ------------------------- | ---------: | -------------: |
+| six-step                  | **1846.6** |         5404.3 |
+| Stockham (the auto route) |     2094.2 |     **1977.5** |
+
+2.7× the other way. So across two hosts, four builds, two precisions, two
+directions and four sizes there is **no cell anywhere** in which six-step or
+four-step beats the route the planner already takes. The families lose on both
+machines and the verdicts do not rest on one.
+
+**Second, and not a six-step result at all: the DIT/Stockham crossover sits on
+opposite sides of n = 131072 on the two hosts.** No codelet is registered at
+that size in any tier, so both machines fall through to the `ditAutoThreshold`
+heuristic, which answers Stockham:
+
+| n = 131072, SIMD build, forward |   i7-1255U | Xeon Gold 5218 |
+| ------------------------------- | ---------: | -------------: |
+| DIT, complex64                  |     2300.6 |     **2422.2** |
+| Stockham, complex64 (auto)      | **1373.4** |         2785.3 |
+| DIT, complex128                 |     2903.6 |     **3683.8** |
+| Stockham, complex128 (auto)     | **2452.8** |         4979.7 |
+
+Auto is right on the laptop and costs the Xeon 15% at complex64 and **26%** at
+complex128. That belongs to §1.4's threshold item rather than this one, and it
+is recorded here because it is precisely the class of result a single host
+cannot produce — the same reason `PLAN.md` §2.2 keeps losing kernels
+re-measurable instead of deleting them.
 
 ## AVX-512 tier (Xeon Gold 5218)
 
