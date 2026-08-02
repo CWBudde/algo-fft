@@ -130,12 +130,15 @@ func leafTwiddleUsable(n, step, tableLen int) bool {
 // Radix 11 needs no gate change for it: the size threshold already admitted it,
 // and the fused kernel simply takes over where AVX2 is present.
 //
-// Note what that measurement is not. Roughly a 1.6x of the 3.9x is the
-// conjugate-pair butterfly rather than the fusion — kernels.Butterfly11* is the
-// full 11x11 matrix (100 complex multiplies against the pair form's 50 real-by-
-// complex ones), and the same swap written in plain Go benchmarks 113.6 -> 72.1
-// ns. That half is still on the table for every tier without a fused kernel;
-// see PLAN.md P5.1.
+// Note what that measurement is not. Roughly a 1.6x of the 3.9x was the
+// conjugate-pair butterfly rather than the fusion — kernels.Butterfly11* used
+// to be the full 11x11 matrix (100 complex multiplies against the pair form's
+// 50 real-by-complex ones), and the same swap written in plain Go benchmarked
+// 113.6 -> 72.1 ns. That win has since landed for kernels.Butterfly5*,
+// Butterfly7* and Butterfly11* alike (all three now share the conjugate-pair
+// form Butterfly3 already had, see internal/kernels/radix{5,7,11}.go), so it
+// is on the table for every tier without a fused kernel, not merely still on
+// the table. See PLAN.md P5.1 for the accounting.
 const mixedRadixStageMinMuls = 64
 
 // mixedRadixStageVectorizable reports whether the butterfly loop below can
