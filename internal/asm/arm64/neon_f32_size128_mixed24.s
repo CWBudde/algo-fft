@@ -6,11 +6,13 @@
 
 #include "textflag.h"
 
-// ·neonInv128 used to be defined in neon_f32_size128_radix2.s; relocated
-// here per AGENTS.md "Retiring a kernel" step 1 when that file moved
-// behind //go:build fftprobe, since this file is the surviving consumer.
-DATA ·neonInv128+0(SB)/4, $0x3c000000 // 1/128
-GLOBL ·neonInv128(SB), RODATA, $4
+// ·neonInv128 has been relocated back to neon_f32_size128_radix2.s (its
+// only remaining consumer, per AGENTS.md "Retiring a kernel" step 1 — this
+// file is being retired in favor of the shared radix4_loop core). This
+// file keeps its own private copy so its inverse path is unaffected until
+// the rest of the retirement checklist removes it.
+DATA neon128m24Inv<>+0(SB)/4, $0x3c000000 // 1/128
+GLOBL neon128m24Inv<>(SB), RODATA, $4
 
 // Forward transform, size 128, mixed radix (radix-4, radix-4, radix-4, radix-2).
 TEXT ·ForwardNEONSize128MixedRadix24Complex64Asm(SB), NOSPLIT, $0-97
@@ -919,7 +921,7 @@ neon128m24_inv_copy_loop:
 	B    neon128m24_inv_copy_loop
 
 neon128m24_inv_scale_apply:
-	MOVD $·neonInv128(SB), R1
+	MOVD $neon128m24Inv<>(SB), R1
 	FMOVS (R1), F0
 	MOVD $0, R0
 

@@ -6,6 +6,14 @@
 
 #include "textflag.h"
 
+// ·neonInv32 was shared with neon_f32_size32_mixed24.s, which defined it
+// (per AGENTS.md "Retiring a kernel" step 1) because it was the surviving
+// non-fftprobe consumer. That file is retired (see
+// neon_f32_radix4_loop.s for size 32's replacement), so this file — its
+// only remaining consumer — now owns the constant directly.
+DATA ·neonInv32+0(SB)/4, $0x3d000000 // 1/32
+GLOBL ·neonInv32(SB), RODATA, $4
+
 // Forward transform, size 32, complex64, radix-2
 TEXT ·ForwardNEONSize32Radix2Complex64Asm(SB), NOSPLIT, $0-97
 	MOVD dst+0(FP), R8
