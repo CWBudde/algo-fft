@@ -431,14 +431,14 @@ kernel wins forward by 8-17% on the Xeon at every odd-exponent size. See
 below. The rest were audited on 2026-08-01 and stay dead; nothing below should
 be revived without re-running the same census.
 
-| file                                                                                                                                     | evidence                                                                                                                                                                                                                                                                                                                        | verdict  |
-| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `avx2_f32_size512_radix16x32.s`                                                                                                          | 0 `Y` operands, 3,862 `X` operands. Header promised a 256-bit design that was never written. Also four-step-shaped, not high-radix.                                                                                                                                                                                             | dead     |
-| `avx2_f32_size512_radix8.s`                                                                                                              | 4 `Y` vs 1,905 `X`, and **all four `Y` hits are the header comment itself** ("Y0-Y7: 8 complex64 vectors … 4 parallel 8-pt butterflies") — the body has zero. The same unwritten-design defect, in its purest form. Superseded by the size-generic `avx2_f32_radix8.s` (see "The size-generic AVX2 radix-8 ladder" above).      | dead     |
-| `avx2_f32_size256_radix16.s`                                                                                                             | Genuinely 256-bit (2,023 `Y` operands), but it is a 16×16 matrix factorisation with two full transposes through scratch plus a per-call `W_16` table rebuilt on the stack — it tests four-step, not high-radix. Radix-16 is independently ruled out for every instruction set (see "Generic tier — the radix-16 ladder" below). | dead     |
-| `avx2_f64_size128_radix2.s`                                                                                                              | 4 `Y` vs 951 `X`, and the four `Y` are a `VMOVUPS` load/store pair in a copy loop — no 256-bit compute at all.                                                                                                                                                                                                                  | dead     |
-| `avx2_f64_size256_radix2.s`                                                                                                              | 4 `Y` vs 1,641 `X`. Radix-2 at complex128 is structurally dominated regardless: a 256-bit register holds only two complex128 elements, so there is no vector width left to recover the log2(n) passes.                                                                                                                          | dead     |
-| the six-step AVX2 drivers (`dit_4096_sixstep_amd64_avx2.go`, `dit_8192_sixstep_64x128_amd64_avx2.go`, `dit_16384_sixstep_amd64_avx2.go`) | not fully dead — see `PLAN.md` §4, "The six-step AVX2 drivers are worth a second look, but not now"                                                                                                                                                                                                                             | deferred |
+| file                                                                                                                                     | evidence                                                                                                                                                                                                                                                                                                                                                                                       | verdict  |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `avx2_f32_size512_radix16x32.s`                                                                                                          | 0 `Y` operands, 3,862 `X` operands. Header promised a 256-bit design that was never written. Also four-step-shaped, not high-radix.                                                                                                                                                                                                                                                            | dead     |
+| `avx2_f32_size512_radix8.s`                                                                                                              | 4 `Y` vs 1,905 `X`, and **all four `Y` hits are the header comment itself** ("Y0-Y7: 8 complex64 vectors … 4 parallel 8-pt butterflies") — the body has zero. The same unwritten-design defect, in its purest form. Superseded by the size-generic `avx2_f32_radix8.s` (see "The size-generic AVX2 radix-8 ladder" above).                                                                     | dead     |
+| `avx2_f32_size256_radix16.s`                                                                                                             | Genuinely 256-bit (2,023 `Y` operands), but it is a 16×16 matrix factorisation with two full transposes through scratch plus a per-call `W_16` table rebuilt on the stack — it tests four-step, not high-radix. Radix-16 is independently ruled out for every instruction set (see "Generic tier — the radix-16 ladder" below).                                                                | dead     |
+| `avx2_f64_size128_radix2.s`                                                                                                              | 4 `Y` vs 951 `X`, and the four `Y` are a `VMOVUPS` load/store pair in a copy loop — no 256-bit compute at all.                                                                                                                                                                                                                                                                                 | dead     |
+| `avx2_f64_size256_radix2.s`                                                                                                              | 4 `Y` vs 1,641 `X`. Radix-2 at complex128 is structurally dominated regardless: a 256-bit register holds only two complex128 elements, so there is no vector width left to recover the log2(n) passes.                                                                                                                                                                                         | dead     |
+| the six-step AVX2 drivers (`dit_4096_sixstep_amd64_avx2.go`, `dit_8192_sixstep_64x128_amd64_avx2.go`, `dit_16384_sixstep_amd64_avx2.go`) | not fully dead — deferred to Phase 3's "Use the AVX2 transposes that already exist". They were the **only** callers of `Transpose{64x64,128x128}Complex64AVX2Asm`, which is why the §1.1 census now reports those six symbols orphaned; that item is a restore from `1f7977b^`, not the wiring change its text assumes. Their spec rows had already been unregistered separately in `08c8e7b`. | deferred |
 
 **A file named `avx2_*.s` is not necessarily a 256-bit kernel.** Several of the
 files above carried headers describing a `Y`-register design that was never
@@ -643,6 +643,199 @@ corroborating signal from the AVX-512 sweep is at n = 8192 complex64, where the
 _simplified_ `dit8192_radix4_notail_avx2` scored 0.906 against the AVX-512
 radix-8 ladder's 0.900 — a pure simplification within half a percent of an
 entire new ISA tier.
+
+## The six-step / four-step crossovers (2026-08-02)
+
+Evidence behind the `Six-step`, `Six-step 64×128`, `Eight-step` and `Four-step`
+family verdicts, and behind whatever `dit<N>_sixstep*_generic` priority
+`cmd/gencodelets/specs.go` now carries. The question PLAN.md §1.2 asked was
+where each decomposition overtakes the flat radix ladder, after radix-4 got
+2–4× faster and moved the crossing point up.
+
+Three separate things had to be established, and only one of them was a
+crossover:
+
+### Eight-step is six-step
+
+`internal/kernels/eightstep.go` does not implement an eight-step FFT. Its
+transform bodies are `sixstep.go`'s with the names changed: same
+`intSqrt(n); if m*m != n { return false }` perfect-square rejection, same two
+`math.TransposeSquare`-bracketed Stockham row passes, same twiddle stage. A
+diff of the two files with the family names normalised away leaves exactly two
+differences, both of them structural rather than algorithmic — the `stdmath`
+import, and the `fillRowTwiddle`/`intSqrt` helpers that `sixstep.go` hosts for
+both callers. There is no eighth step anywhere in the file.
+
+This is a source fact, not a measurement, and it settles the family without a
+benchmark: `KernelEightStep` is a second name for `KernelSixStep`, so any
+sweep pitting one against the other measures noise. The family's matrix verdict
+is therefore `untested` rather than a loss — PLAN.md §2.2, a poor
+implementation disqualifies the file and not the algorithm, and here there is
+not even an implementation to disqualify. `BenchmarkStepCrossover` carries no
+eight-step arm for the same reason.
+
+It also retires one inherited number. The eight-step loss recorded in
+`internal/planner/selection.go` ("at 2^22 complex64 Stockham runs 157/171 ms
+against eight-step's 201/269 ms") is a measurement of six-step at a
+non-square-friendly size, not of an eight-step algorithm. The rule it justified
+— removing the ≥ 2^22 eight-step branch — stands, because six-step lost there
+too; the label on it was wrong.
+
+### The ≥ 2^18 half was already answered, in a code comment
+
+`BenchmarkSquareAutoRule` (`plan_autosquare_bench_test.go`) measured every
+strategy the auto rule could pick at 2^18, 2^20 and 2^22 — the only power-of-two
+squares its branches could reach — on both the SIMD and purego builds, at both
+precisions and in both directions. Stockham won or tied against six-step,
+eight-step, four-step and split-radix in every arm but one. That result has been
+load-bearing since 2026-07-28: it is why `resolveKernelStrategy` has no square
+branch at all today. It had never been written down anywhere but
+`internal/planner/selection.go:61-90`, so it is recorded here:
+
+| arm                               | result                                                          |
+| --------------------------------- | --------------------------------------------------------------- |
+| split-radix, 2^18–2^22            | Stockham wins every arm except purego 2^18 c64 fwd (−3%, noise) |
+| split-radix, 2^20 c128 fwd        | 80.3 ms vs six-step 39.3 ms vs Stockham 49.7 ms — costs 2×      |
+| eight-step, 2^22 c64, SIMD        | 201/269 ms (fwd/inv) vs Stockham 157/171 ms                     |
+| eight-step, 2^22 c64, purego      | 203/247 ms vs Stockham 102/113 ms                               |
+| **six-step, 2^20 c128 fwd, SIMD** | **39.3 ms vs Stockham 49.7 ms — the one dissenting arm**        |
+
+The dissent is accepted knowingly rather than encoded: a precision- and
+direction-blind rule cannot express it, the same size's other three arms all
+favour Stockham, and wisdom/measure mode picks it per machine where it matters.
+
+**What this leaves open is the band below it.** `BenchmarkSquareAutoRule`'s
+floor is 2^18 and the six-step codelet sizes stop at 16384, so 32768–131072 had
+never been measured against anything — which is exactly where §1.2's own
+estimate ("it is above 16384 on this host") put the crossing point.
+`BenchmarkStepCrossover` covers it.
+
+### The six-step codelet rows lose to the radix-8 ladder in the generic tier
+
+Canary-gated sweep of 2026-08-02, i7-1255U pinned to core 0, `-tags purego`,
+`GOOD=5216`, `GATE=1.25`, 12 passes × 6 groups = 72, **60 accepted + 12 over
+gate + 0 drift + 0 incomplete = 72**, full accounting; 50–54 °C throughout;
+`benchmarks/gated-sixstep-purego`. Ratios are the six-step row against its
+group's incumbent, taken within each group and then medianed. The incumbent at
+all three sizes is `dit<N>_radix8ladder_generic` — the flat ladder §1.2 asked
+these decompositions to overtake.
+
+Purego is the decisive build rather than a fallback check: registry ordering is
+SIMD-level major, so on any AVX2 host the AVX2 row takes the cell whatever
+priority a `SIMDNone` row carries. The generic-tier ranking _is_ the question
+these rows' priorities answer.
+
+|     n | row                             | c64 fwd | c64 inv | c128 fwd | c128 inv |
+| ----: | ------------------------------- | ------: | ------: | -------: | -------: |
+|  4096 | `dit4096_sixstep_generic`       |   1.428 |   1.489 |    1.488 |    1.896 |
+|  8192 | `dit8192_sixstep64x128_generic` |   1.706 |   1.914 |    2.058 |    2.091 |
+| 16384 | `dit16384_sixstep_generic`      |   1.892 |   2.111 |    2.202 |    2.063 |
+
+For scale, the middle row of each group — `dit<N>_radix4[_then2]_generic`, the
+ladder's own predecessor — sits at 1.10–1.36. Six-step is not merely behind the
+best row; it is behind the row the best row replaced, in all twelve cells.
+
+### And no decomposition overtakes the incumbent route anywhere in 16384–131072
+
+`BenchmarkStepCrossover`, i7-1255U pinned to core 0, `-count=5`, medians of 5,
+both builds. Ungated — these are plan-level arms, not registry candidates, so
+the canary harness does not apply; the arms for one size run adjacent in one
+process, which is what makes the within-size ordering trustworthy even though
+the absolute numbers are not comparable across the two builds.
+
+Read against what a default plan actually binds, which had to be checked rather
+than inferred: codelets cover 4096–65536 on the SIMD build and 4096–32768 on
+purego, and `Stockham` is the auto route only above those.
+
+SIMD build, forward, µs (the DIT arm is the bound codelet, i.e. the default):
+
+|      n |    DIT |   Stockham | SixStep | FourStep |
+| -----: | -----: | ---------: | ------: | -------: |
+|  16384 |   24.6 |      174.0 |   846.7 |    862.7 |
+|  32768 |   86.3 |      217.7 |       — |   1006.0 |
+|  65536 |  125.8 |      748.3 |  3620.4 |   3646.9 |
+| 131072 | 2300.6 | **1373.4** |       — |   6070.1 |
+
+purego, forward, µs:
+
+|      n |    DIT |   Stockham |    SixStep | FourStep |
+| -----: | -----: | ---------: | ---------: | -------: |
+|  16384 |  224.3 |  **193.5** |     1006.4 |    462.6 |
+|  32768 |  496.8 |      726.4 |          — |   1726.4 |
+|  65536 | 2823.4 |     2094.2 | **1846.6** |   1973.1 |
+| 131072 | 2624.7 | **3700.3** |          — |   5332.6 |
+
+**One cell in the whole band goes to a decomposition, and it is not a result.**
+purego / 65536 / complex64 / forward: six-step 1846.6 µs against the auto
+route's 2094.2, a 12% edge. This host does not support a 12% cross-arm claim —
+`docs/BENCHMARKING.md` puts the believable floor near 15% even within one
+binary — and the same cell's inverse goes the other way by 3.3× (2710.5 vs
+820.9). Nothing is promoted on it.
+
+Every other cell loses, most of them enormously: 17–35× against the bound
+codelet on the SIMD build, 2–10× on purego.
+
+### Why — the row passes are scalar, and that disqualifies the file, not the algorithm
+
+The 17–35× figures are far too large to be a decomposition losing on merit, so
+they were attributed rather than recorded. Splitting `sixStepForward` at
+n = 65536 complex64 (SIMD build, core 0, `-count=3` medians):
+
+| stage                                   |    cost |
+| --------------------------------------- | ------: |
+| 3 × `math.TransposeSquare`              |  162 µs |
+| 2 × row passes (256 rows of 256)        | 3240 µs |
+| twiddle stage, as written (`(i*j)%n`)   |  286 µs |
+| twiddle stage, subtract-wrap instead    |  245 µs |
+| whole six-step                          | 3730 µs |
+| one flat pure-Go Stockham over all of n | 2870 µs |
+
+The row passes are 87% of it, and the reason is that `sixStepForward` calls the
+package-internal, pure-Go `stockhamForward` for them unconditionally. On a SIMD
+build it is therefore a scalar kernel racing AVX2 codelets, and the 17–35×
+measures that and not the decomposition. `fourStepForward` has the same shape
+via `rowStockham`; PLAN.md Phase 3 already names it — "the row passes still use
+the scalar Stockham butterflies, the main handicap against the monolithic
+kernels".
+
+Even inside pure Go the implementation does not pay: two row passes cost
+3240 µs where one flat Stockham over the whole array costs 2870 µs, before
+the transposes and twiddles are added. A six-step whose rows are the same
+scalar Stockham it is competing against cannot win — it can only add stages.
+
+So under PLAN.md §2.2 this is an implementation loss, not an algorithm loss,
+and none of the three families may be recorded as `closed`. What the AVX2
+six-step drivers deleted in `1f7977b` did — call `ForwardAVX2Size64Radix4…` for
+the rows and the AVX2 transposes for the shuffles — is exactly the missing
+piece, which is why that restore and this verdict are the same question.
+
+**A second, smaller defect, recorded so it is not re-found:** the twiddle stage
+indexes with `twiddle[(i*j)%n]`, an integer division per element, where
+`fourstep.go` already uses a subtract-wrap for the identical stage. It is worth
+14% of that stage and ~1% of the transform — real, but not the reason six-step
+loses, and specifically _not_ what the numbers above should be attributed to.
+
+### The four-step split model picks the worst split it is offered
+
+`BenchmarkFourStepSplitSweep`, same host and pinning, `-count=1`. `fourStepSplit`
+derives n1×n2 from `cpu.DetectCaches()`; the sweep times every split so the
+derived one can be checked against the measured optimum. It chose the balanced
+√n×√n split at every size, and the balanced split measured worst or near-worst:
+
+|       n | derived split | its cost | best measured |     cost | gap  |
+| ------: | ------------- | -------: | ------------- | -------: | ---- |
+|  262144 | 512×512       |  9290 µs | 256×1024      |  8769 µs | 5.9% |
+| 1048576 | 1024×1024     | 42962 µs | 32768×32      | 40749 µs | 5.4% |
+
+At 2^20 the derived split is the slowest of all eleven. The gaps are ~5%, so
+the individual numbers are at this host's noise floor, but the _pattern_ — the
+model degenerating to the balanced split, and the balanced split being the one
+to avoid — is consistent across both sizes and has a mechanism: √n×√n is
+six-step's shape, so the model is steering four-step onto the one decomposition
+whose only distinguishing feature it thereby discards.
+
+This is the parameter a second host moves, and it is now known to be
+mis-derived on the first one.
 
 ## AVX-512 tier (Xeon Gold 5218)
 

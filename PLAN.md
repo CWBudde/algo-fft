@@ -483,13 +483,51 @@ outlives its family.
       matrix being generated. It is also the argument for reading the grid
       before acting on a task that says "record this as closed".
 
-- [ ] **Re-derive the six-step / eight-step / four-step crossovers.** Their
-      registry rows were pulled as a _stale crossover_, not a bad kernel —
-      radix-4 got 2–4× faster and moved the crossing point up. Find where each
-      decomposition now overtakes the flat ladder (it is above 16384 on this
-      host; the interesting question is where it lands on a machine with a larger
-      L2/L3), and re-register the winning cells. This also feeds Phase 3's
-      large-n work.
+- [x] **Re-derive the six-step / eight-step / four-step crossovers**
+      (2026-08-02) — **there is no crossover to find, because two of the three
+      families are not what the item assumed they were.** Evidence:
+      `docs/CODELET_BENCHMARKS.md`, "The six-step / four-step crossovers".
+
+      - **Eight-step is six-step.** `internal/kernels/eightstep.go` is
+        `sixstep.go` with the names changed — same perfect-square rejection,
+        same two `TransposeSquare`-bracketed Stockham row passes, no eighth step
+        (normalised diff). So the family had nothing to measure, its verdict is
+        `untested`, and the "eight-step loses at 2^22" figure inherited by
+        `planner/selection.go` is six-step's. A separate item now owns the enum.
+      - **Six-step and four-step lose everywhere, and the loss is the file.**
+        Canary-gated purego sweep (60 of 72 groups accepted): the six-step rows
+        run 1.43–2.20× the radix-8 ladder at 4096/8192/16384 — behind even the
+        radix-4 row the ladder replaced, in all twelve cells. Plan-level across
+        16384–131072: 17–35× behind the bound codelet on the SIMD build. One
+        cell of twenty-four goes to six-step (purego 65536 c64 forward, 0.88×),
+        which is a 12% claim on a host whose floor is ~15%, and whose inverse
+        goes the other way by 3.3×. Nothing was re-registered.
+      - **The mechanism, which is why nothing is `closed`.** Row passes are
+        **87%** of six-step's cost at n = 65536 and are hardwired to the pure-Go
+        `stockhamForward`, so on a SIMD build it is a scalar kernel racing AVX2
+        codelets. Two row passes even cost more than one flat pure-Go Stockham
+        over the whole array. §2.2: a poor implementation disqualifies the file,
+        not the algorithm — so the three families stay open under the Phase 3
+        item that owns the row binding, rather than being written off on a
+        number that measures `stockhamForward`.
+
+      **The premise was stale in both directions, again.** "Registry rows were
+      pulled" was true only of AVX2 (`08c8e7b`); six generic rows were still
+      registered and had never been re-measured. And "it is above 16384 on this
+      host" put the crossing point in a band that turned out to contain no
+      crossing at all.
+
+- [ ] **Decide what `KernelEightStep` is for.** `internal/kernels/eightstep.go`
+      is `sixstep.go` with the names changed — same perfect-square rejection,
+      same two `TransposeSquare`-bracketed Stockham row passes, no eighth step
+      anywhere (normalised diff, 2026-08-02). So the enum is a second name for
+      `KernelSixStep`, and the family's matrix verdict is `untested` because
+      there is nothing there to have measured. Three ways out, in increasing
+      cost: retire the strategy value; alias it to six-step explicitly so the
+      duplication is intentional rather than accidental; or write the real
+      thing — an eight-step splits n = n1·n2 with **both** factors transformed
+      by six-step, which is a decomposition six-step does not perform. Pick one
+      before anything else registers against this family.
 - [ ] **Give split-radix a fair measurement.** It is implemented pure-Go only
       (`internal/kernels/splitradix.go`), has full strategy plumbing, beat the
       auto path at every power of two ≥ 256 on purego (+11–34%, 2.1× at 262144),
@@ -559,7 +597,9 @@ outlives its family.
       Note _and_ `TestUntestedFamiliesAreNotInTheRegistry` requires zero
       registered codelet rows: a family with rows is reachable by default, and
       shipping something unmeasured on a default path is the thing this status
-      must never be able to describe. Recursive is its only user.
+      must never be able to describe. Recursive was its only user until
+      2026-08-02, when the crossover item found eight-step had no kernel to have
+      measured either.
 
 - [x] **Fill the `-then-2` tail row of the matrix** (2026-08-01) — and the row
       turned out to be already filled, cell by cell, in the spec comments; what
@@ -1080,15 +1120,32 @@ zero-allocation default.
       `math.TransposeSquareOutOfPlaceComplex64` has no production caller
       (census, §1.1). Six-step at n = 4096 and 16384 transposes exactly 64×64 and
       128×128, which is the shape these kernels were written for. Measure the
-      six-step path with them bound; this is a wiring change, not a kernel, and
-      it should precede writing any new transpose assembly.
+      six-step path with them bound; it should precede writing any new transpose
+      assembly. **Not the pure wiring change this once was:** the drivers that
+      called them (`dit_{4096,8192,16384}_sixstep*_amd64_avx2.go`) were deleted
+      in `1f7977b`, so the first step is `git show 1f7977b^:<path>` — they are
+      the reason the census reports those six symbols orphaned at all.
 - [ ] **SIMD 8×8 complex tile kernel for the transpose** (AVX2
       `VPERM2F128`/`VUNPCK`, NEON `TRN1`/`TRN2`). The tiled walk removed the index
       table and its O(n²) cache; this is the remaining constant factor, and it is
       what the SIMD transpose kernels stopping at 128×128 cost the six-step path.
-- [ ] **SIMD row FFTs inside four-step.** The rows are contiguous, but the row
-      passes still use the scalar Stockham butterflies — the main handicap against
-      the monolithic kernels.
+- [ ] **Give the six-step and four-step row passes the registry's kernels.**
+      Both hardwire their rows to the package-internal, pure-Go
+      `stockhamForward`/`rowStockham`, so on a SIMD build they are scalar
+      kernels racing AVX2 codelets. Measured at n = 65536 complex64 on
+      2026-08-02, the row passes are **87%** of six-step's cost (3240 µs of
+      3730), and two of them cost more than one flat pure-Go Stockham over the
+      whole array (2870 µs) — so the decomposition cannot win even in pure Go
+      while its rows are the thing it is competing against. This is the single
+      handicap behind the 17–35× losses in `docs/CODELET_BENCHMARKS.md`, "The
+      six-step / four-step crossovers", and until it is lifted no measurement of
+      these families measures the algorithm. The rows are contiguous and
+      power-of-two, so the registry already has a codelet for every one of them;
+      the deleted AVX2 six-step drivers (`1f7977b^`) are a worked example of the
+      binding. Two smaller fixes belong with it: six-step's twiddle stage does an
+      integer `%n` per element where `fourstep.go` already subtract-wraps, and
+      `fourStepSplit` derives the balanced √n×√n split at every size measured,
+      which was the slowest of eleven at 2^20.
 - [ ] **SoA (split real/imag) layout exploration.** Prototype internal SoA for one
       kernel family (e.g. the AVX-512 generic path, which currently spends shuffle
       uops de-interleaving) and measure; decide whether a v2 `PlanSoA` API is

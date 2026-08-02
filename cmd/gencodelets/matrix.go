@@ -38,9 +38,15 @@ const cellTier = "t"
 // independent of how many rows it has: a family can be broadly registered and
 // still undecided, which is most of the table today.
 const (
-	famTuned    = "tuned"    // measured, the incumbent, rows carry the evidence
-	famClosed   = "closed"   // measured and lost everywhere; do not re-attempt
-	famOpen     = "open"     // no sweep has answered it; a PLAN task owns the question
+	famTuned  = "tuned"  // measured, the incumbent, rows carry the evidence
+	famClosed = "closed" // measured and lost everywhere; do not re-attempt
+	// famOpen — the family's disposition is not settled and a PLAN task owns
+	// it. Usually that is because no sweep has answered it. It also covers the
+	// case a sweep answers the *file* rather than the algorithm: §2.2 forbids
+	// closing a family on an implementation defect, so a measured-and-losing
+	// kernel whose loss is diagnosed as fixable stays open under the task that
+	// would fix it (six-step and four-step, 2026-08-02).
+	famOpen     = "open"
 	famDeferred = "deferred" // decided outside Phase 1, in the phase named by Note
 	// famUntested — nobody has measured it and no task claims it, on purpose.
 	// This is the one status that admits an absence rather than asserting a
@@ -116,23 +122,23 @@ var familyVerdicts = []familyVerdict{
 	},
 	{
 		Family: "Six-step", Status: famOpen,
-		Verdict: "rows pulled as a stale crossover, not a bad kernel; the crossing point moved up when radix-4 got faster",
-		Tracked: "Re-derive the six-step / eight-step / four-step crossovers.",
+		Verdict: "swept 2026-08-02 and it loses everywhere — 1.43/1.49 (c64) and 1.49/1.90 (c128) against `dit4096_radix8ladder_generic`, 1.89–2.20 at 16384, and 17–35× against the bound codelet across 16384–131072 — but the loss is the file and not the decomposition: 87% of it is row passes hardwired to the pure-Go `stockhamForward`, so on a SIMD build it is a scalar kernel racing AVX2 codelets. §2.2 forbids closing a family on an implementation defect, so the rows stay registered at their existing non-selectable priority until the rows are bound to the registry",
+		Tracked: "Give the six-step and four-step row passes the registry's kernels.",
 	},
 	{
 		Family: "Six-step 64×128", Status: famOpen,
-		Verdict: "the rectangular split of the same family; shares the crossover question",
-		Tracked: "Re-derive the six-step / eight-step / four-step crossovers.",
+		Verdict: "the rectangular split of the same family and the same defect: 1.71/1.91 (c64) and 2.06/2.09 (c128) against `dit8192_radix8ladder_generic`, which is also behind the radix-4-then-2 row the ladder replaced. Its rows are 64- and 128-point — both have codelets — so it is the cheapest place to demonstrate the row binding",
+		Tracked: "Give the six-step and four-step row passes the registry's kernels.",
 	},
 	{
-		Family: "Eight-step", Status: famOpen,
-		Verdict: "pure-Go only, no codelet rows at any ISA; crossover never re-derived after the radix-4 rewrite",
-		Tracked: "Re-derive the six-step / eight-step / four-step crossovers.",
+		Family: "Eight-step", Status: famUntested,
+		Verdict: "there is no eight-step kernel to have measured: `internal/kernels/eightstep.go` is `sixstep.go` with the names changed — same perfect-square rejection, same two `TransposeSquare`-bracketed Stockham row passes, no eighth step (normalised diff, 2026-08-02). `KernelEightStep` is a second name for `KernelSixStep`, so a sweep against six-step measures noise, and the 2^22 loss recorded in `planner/selection.go` is six-step's",
+		Note:    "PLAN.md §1.2, \"Decide what KernelEightStep is for\" — retiring the enum, aliasing it, or writing the real decomposition (both factors of n1·n2 transformed by six-step) each turn this back into a question",
 	},
 	{
 		Family: "Four-step", Status: famOpen,
-		Verdict: "pure-Go only; splits n1×n2 from detected cache sizes, which is exactly the parameter a second host would move",
-		Tracked: "Re-derive the six-step / eight-step / four-step crossovers.",
+		Verdict: "swept 2026-08-02 across 16384–131072 in both builds and both precisions; it is last or next-to-last in every cell, losing 3–35× to the bound codelet. Same scalar-row-pass defect as six-step, plus one of its own: `fourStepSplit` derives the balanced √n×√n split at every size measured, and that split was the slowest of eleven at 2^20 and 5.9% off the best at 2^18 — the cache model is steering four-step onto six-step's shape, discarding the rectangular split that is its only distinguishing feature",
+		Tracked: "Give the six-step and four-step row passes the registry's kernels.",
 	},
 	{
 		Family: "Split-radix", Status: famOpen,

@@ -3,11 +3,17 @@
 package kernels
 
 // ForwardEightStepComplex128 performs a forward eight-step FFT on complex128 data.
+//
+// It is currently six-step under another name — see the file comment in
+// eightstep.go.
 func ForwardEightStepComplex128(dst, src, twiddle, scratch []complex128) bool {
 	return eightStepForward[complex128](dst, src, twiddle, scratch)
 }
 
 // InverseEightStepComplex128 performs an inverse eight-step FFT on complex128 data.
+//
+// It is currently six-step under another name — see the file comment in
+// eightstep.go.
 func InverseEightStepComplex128(dst, src, twiddle, scratch []complex128) bool {
 	return eightStepInverse[complex128](dst, src, twiddle, scratch)
 }
