@@ -71,7 +71,7 @@ pure-Go fallback.
 |  4096 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
 |  4096 | Radix-4                                    |  ·  |  —   |  ✓   |  ✓   |    —    |  ✓   |
 |  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
-|  4096 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  4096 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ▽   |
 |  8192 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
@@ -80,13 +80,13 @@ pure-Go fallback.
 |  8192 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 |  8192 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
-|  8192 | Six-step 64×128                            |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  8192 | Six-step 64×128                            |  p  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
 | 16384 | Radix-4                                    |  ·  |  —   |  ✓   |  ✓   |    —    |  ✓   |
 | 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
-| 16384 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+| 16384 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 32768 | Mixed-2/4                                  |  ✓  |  —   |  ✓   |  —   |    —    |  ▽   |
 | 32768 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
@@ -180,7 +180,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |  4096 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ▽   |
 |  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
-|  4096 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  4096 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ▽   |
 |  8192 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
@@ -188,12 +188,12 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |  8192 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 |  8192 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
-|  8192 | Six-step 64×128                            |  ·  |  —   |  —   |  —   |    —    |  —   |
+|  8192 | Six-step 64×128                            |  p  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ▽   |
 | 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
-| 16384 | Six-step                                   |  ·  |  —   |  —   |  —   |    —    |  —   |
+| 16384 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 32768 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    —    |  ▽   |
 | 32768 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
@@ -232,13 +232,13 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 
 | Target  | Build constraint   | complex64 | complex128 | Total |
 | ------- | ------------------ | --------: | ---------: | ----: |
-| generic | `(all builds)`     |        46 |         45 |    91 |
+| generic | `(all builds)`     |        43 |         42 |    85 |
 | avx2    | `amd64 && !purego` |        24 |         21 |    45 |
 | avx512  | `amd64 && !purego` |        19 |         14 |    33 |
 | sse2    | `amd64 && !purego` |        22 |         22 |    44 |
 | neon    | `arm64 && !purego` |        22 |         22 |    44 |
 
-Total registered codelets: **257**.
+Total registered codelets: **251**.
 
 ## Size × ISA Coverage Gaps
 
@@ -276,8 +276,8 @@ served by the size-generic kernels listed under Beyond the Codelet Registry.
 
 | Tier    | complex | Rows | Sizes | Range   | Holes below ceiling | Above ceiling                                                                  |
 | ------- | ------: | ---: | ----: | ------- | ------------------- | ------------------------------------------------------------------------------ |
-| Go      |      64 |   46 |    15 | 4–32768 | —                   | 65536                                                                          |
-| Go      |     128 |   45 |    15 | 4–32768 | —                   | 65536                                                                          |
+| Go      |      64 |   43 |    15 | 4–32768 | —                   | 65536                                                                          |
+| Go      |     128 |   42 |    15 | 4–32768 | —                   | 65536                                                                          |
 | SSE2    |      64 |    1 |     1 | 4–4     | —                   | 8, 16, 32, 64, 128, 256, 384, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 |
 | SSE2    |     128 |   22 |    14 | 4–32768 | 384                 | 65536                                                                          |
 | SSE3    |      64 |   21 |    13 | 8–32768 | 384                 | 65536                                                                          |
@@ -667,13 +667,14 @@ generator's tests.
 | File                                                 | Build tag                      | Measures                                                                                                                                      | Status          |
 | ---------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
 | `internal/fft/radix4_c128_probe_amd64.go`            | `amd64 && !purego && fftprobe` | complex128 generic AVX2 radix-4 / radix-4-then-2 against the generic AVX2 radix-2 dispatch                                                    | open            |
-| `internal/kernels/avx2_size_specific_probe_amd64.go` | `amd64 && !purego && fftprobe` | no entry in cmd/gencodelets/probes.go                                                                                                         | UNDOCUMENTED    |
+| `internal/kernels/avx2_size_specific_probe_amd64.go` | `amd64 && !purego && fftprobe` | the sixteen size-specific AVX2 `.s` files against the generic AVX2 fallback that would replace them                                           | open            |
 | `internal/kernels/probe_util.go`                     | `fftprobe`                     | shared helpers for the harnesses in this section (no kernel of its own)                                                                       | support         |
 | `internal/kernels/radix16_generic_probe.go`          | `fftprobe`                     | size-generic pure-Go radix-16 ladder against the pure-Go radix-8 ladder                                                                       | closed          |
 | `internal/kernels/radix4_avx2_tail_probe_amd64.go`   | `amd64 && !purego && fftprobe` | the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass                                                             | open            |
 | `internal/kernels/radix8_avx2_probe_amd64.go`        | `amd64 && !purego && fftprobe` | size-generic AVX2 radix-8 ladder against the AVX2 radix-4 rows                                                                                | partly promoted |
 | `internal/kernels/radix8_avx512_probe_amd64.go`      | `amd64 && !purego && fftprobe` | size-generic AVX-512 radix-8 ladder against the AVX2 radix-4 rows                                                                             | partly promoted |
 | `internal/kernels/radix8_generic_probe.go`           | `fftprobe`                     | size-generic pure-Go radix-8 ladder against the pure-Go radix-4 ladder                                                                        | partly promoted |
+| `internal/kernels/sixstep_codelet_probe.go`          | `fftprobe`                     | the three six-step codelets against the pure-Go radix-8 ladder that replaced them                                                             | closed          |
 | `internal/math/transpose_amd64.go`                   | `amd64 && !purego && fftprobe` | the AVX2 64x64/128x128 transposes — plain, fused twiddle, fused conjugate twiddle — against the pure-Go blocked transpose they would displace | open            |
 
 **`internal/fft/radix4_c128_probe_amd64.go`** — open
@@ -683,7 +684,12 @@ Wired into the production dispatch on 2026-08-01, verified against `reference.Na
 - Recorded in: docs/CODELET_BENCHMARKS.md, "complex128 generic AVX2: radix-2 wins on the i7-1255U, loses on the Xeon"
 - Re-derive: `PATH=/usr/local/go/bin:$PATH taskset -c 0 go test -tags fftprobe -run '^$' -bench 'BenchmarkC128Radix[24]' -benchtime=0.5s -count=5 ./internal/fft/`
 
-**`internal/kernels/avx2_size_specific_probe_amd64.go`** — UNDOCUMENTED
+**`internal/kernels/avx2_size_specific_probe_amd64.go`** — open
+
+**No sweep has been taken.** The file registers both arms and documents the protocol; the number is what PLAN.md §1.3's first item exists to produce, and that item gates the other two — if the fallback is within noise the whole question dissolves and ~26,000 lines go with it. Read the ratio between the two `sizespec` rows in each group, never either row against the group incumbent, which is a tuned codelet neither arm is competing with. Both arms are RankLevel-demoted to SIMDSSE2 so that neither becomes the incumbent it is supposed to be measured against.
+
+- Recorded in: PLAN.md, "1.3 Resolve the unreachable assembly"
+- Re-derive: `PATH=/usr/local/go/bin:$PATH GOFLAGS=-tags=fftprobe GOOD=<canary floor> taskset -c 0 ./scripts/bench_gated.sh 4 8 16 32 64 128 256 512 2048 8192`
 
 **`internal/kernels/probe_util.go`** — support
 
@@ -725,6 +731,13 @@ Forward geomean **0.87** over n = 512..32768 (2026-07-30). Thirteen of twenty ce
 
 - Recorded in: docs/CODELET_BENCHMARKS.md, "Generic tier (i7-1255U, `-tags purego`) — the radix-8 ladder"
 - Re-derive: `PATH=/usr/local/go/bin:$PATH GOFLAGS=-tags=fftprobe,purego GOOD=<canary floor> taskset -c 0 ./scripts/bench_gated.sh 512 1024 2048 4096 8192 16384 32768`
+
+**`internal/kernels/sixstep_codelet_probe.go`** — closed
+
+**Loses all twenty-four cells on two hosts** (2026-08-02). Against the group incumbent `dit<N>_radix8ladder_generic`: 1.428-2.202 forward / 1.489-2.111 inverse on the i7-1255U, 1.594-2.191 / 1.719-2.348 on the Xeon Gold 5218 — behind even the `radix4`/`radix4_then2` rows the ladder replaced. This is a **fair** comparison and the reason the rows left the registry: these codelets call the tuned pure-Go radix-4 leaves, so on a purego sweep both arms are scalar. It is a verdict on the three codelets, **not** on six-step — the separate _strategy_ kernel `ForwardSixStepComplex64` hardwires its row passes to the generic `stockhamForward` (87% of its cost at n = 65536), and its 17-35x plan-level loss is confounded by that and must not be cited. The family stays open under the Phase 3 row-binding item.
+
+- Recorded in: docs/CODELET_BENCHMARKS.md, "The six-step / four-step crossovers"
+- Re-derive: `PATH=/usr/local/go/bin:$PATH GOFLAGS=-tags=fftprobe,purego GOOD=<canary floor> taskset -c 0 ./scripts/bench_gated.sh 4096 8192 16384`
 
 **`internal/math/transpose_amd64.go`** — open
 
@@ -830,10 +843,10 @@ is not a `✓`).
 | Radix-8 (ladder)                           |     128 |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |   17 | tuned      |
 | Recursive                                  |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | untested   |
 | Recursive                                  |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | untested   |
-| Six-step                                   |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    2 | open       |
-| Six-step                                   |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    2 | open       |
-| Six-step 64×128                            |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
-| Six-step 64×128                            |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
+| Six-step                                   |      64 |  p  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Six-step                                   |     128 |  p  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Six-step 64×128                            |      64 |  p  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
+| Six-step 64×128                            |     128 |  p  |  —   |  —   |  —   |    —    |  —   |    0 | open       |
 | Split-radix                                |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    8 | open       |
 | Split-radix                                |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    8 | open       |
 | Stockham                                   |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | open       |

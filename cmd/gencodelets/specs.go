@@ -265,13 +265,6 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit4096_radix4_generic", Priority: 30,
 	},
 	{
-		Target: "generic", Prec: 64, Size: 4096,
-		Forward:   "forwardDIT4096SixStepComplex64",
-		Inverse:   "inverseDIT4096SixStepComplex64",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit4096_sixstep_generic", Priority: 25,
-	},
-	{
 		// Measured 0.859 forward / 0.766 inverse against dit4096_radix4_generic
 		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
 		Target: "generic", Prec: 64, Size: 4096,
@@ -289,13 +282,6 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit8192_radix4_then2_generic", Priority: 35,
 	},
 	{
-		Target: "generic", Prec: 64, Size: 8192,
-		Forward:   "forwardDIT8192SixStep64x128Complex64",
-		Inverse:   "inverseDIT8192SixStep64x128Complex64",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit8192_sixstep64x128_generic", Priority: 30,
-	},
-	{
 		// Measured 0.889 forward / 0.882 inverse against dit8192_radix4_then2_generic
 		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
 		Target: "generic", Prec: 64, Size: 8192,
@@ -311,13 +297,6 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT16384Radix4Complex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_radix4_generic", Priority: 30,
-	},
-	{
-		Target: "generic", Prec: 64, Size: 16384,
-		Forward:   "forwardDIT16384SixStepComplex64",
-		Inverse:   "inverseDIT16384SixStepComplex64",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit16384_sixstep_generic", Priority: 25,
 	},
 	{
 		// Measured 0.790 forward / 0.773 inverse against dit16384_radix4_generic
@@ -627,13 +606,6 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit4096_radix4_generic", Priority: 30,
 	},
 	{
-		Target: "generic", Prec: 128, Size: 4096,
-		Forward:   "forwardDIT4096SixStepComplex128",
-		Inverse:   "inverseDIT4096SixStepComplex128",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit4096_sixstep_generic", Priority: 25,
-	},
-	{
 		// Measured 0.792 forward / 0.738 inverse against dit4096_radix4_generic
 		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
 		Target: "generic", Prec: 128, Size: 4096,
@@ -651,13 +623,6 @@ var codeletSpecs = []codeletSpec{
 		Signature: "dit8192_radix4_then2_generic", Priority: 35,
 	},
 	{
-		Target: "generic", Prec: 128, Size: 8192,
-		Forward:   "forwardDIT8192SixStep64x128Complex128",
-		Inverse:   "inverseDIT8192SixStep64x128Complex128",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit8192_sixstep64x128_generic", Priority: 30,
-	},
-	{
 		// Measured 0.934 forward / 0.835 inverse against dit8192_radix4_then2_generic
 		// in the 2026-07-30 canary-gated purego sweep; see docs/CODELET_BENCHMARKS.md.
 		Target: "generic", Prec: 128, Size: 8192,
@@ -673,13 +638,6 @@ var codeletSpecs = []codeletSpec{
 		Inverse:   "inverseDIT16384Radix4Complex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
 		Signature: "dit16384_radix4_generic", Priority: 30,
-	},
-	{
-		Target: "generic", Prec: 128, Size: 16384,
-		Forward:   "forwardDIT16384SixStepComplex128",
-		Inverse:   "inverseDIT16384SixStepComplex128",
-		Algorithm: "KernelDIT", SIMDLevel: "SIMDNone", KernelType: "KernelTypeDIT",
-		Signature: "dit16384_sixstep_generic", Priority: 25,
 	},
 	{
 		// Measured 0.834 forward / 0.807 inverse against dit16384_radix4_generic
