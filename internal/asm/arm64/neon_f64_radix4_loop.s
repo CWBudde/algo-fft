@@ -2,7 +2,8 @@
 
 // ===========================================================================
 // NEON Stockham radix-4 core for complex128, ARM64 — one looped kernel for
-// every power-of-four length n >= 64.
+// every power-of-four length n >= 64, AND for every n = 2*4^k, 32 <= n <=
+// 32768 (32, 128, 512, 2048, 8192, 32768).
 // ===========================================================================
 //
 // This replaces five fully-unrolled "NEON" codelets (sizes 64, 256, 1024,
@@ -92,6 +93,36 @@
 // linear, so it commutes with every stage, 1/n is an exact power of two so
 // nothing is lost, and doing it on the input costs eight VMULs per stage-0
 // iteration instead of needing a scaled variant of the final butterfly.
+//
+// n = 2*4^k EXTENSION. n = 32*4^(k-2) factors as 4^k * 2: k radix-4 stages
+// (stage 0 plus k-1 further m>=4 stages, both regimes unchanged from above)
+// followed by ONE final radix-2 stage at l = 1, m = n/2. j = 0 there too, so
+// w = 1 and it is the cheapest stage that exists: a pure add/sub butterfly,
+// k-vectorized two lanes at a time exactly like the radix-4 final stage it
+// replaces (VDFT2/VLOAD2/VSTORE2 below). The radix-2 stage is placed LAST,
+// not first, specifically so every m stays a power of four and both
+// vectorization regimes above apply unchanged; an m=2 first stage would be
+// exactly one .D2 vector wide and leave no room for the k-loop they are
+// built around.
+//
+// The l-sequence lets the transition be detected for free: for a
+// power-of-four n, l walks 1, 4, 16, ... down to a final l = 1 (caught by
+// the existing "CMP $1" check at the top of the stage loop). For n = 2*4^k,
+// l instead walks down to l = 2 (never 1) after the last radix-4 stage —
+// the one middle-loop iteration whose l was 2 is detected at the BOTTOM of
+// the loop (after that stage has executed as an ordinary radix-4 stage) and
+// branches directly to the radix-2 final stage instead of back to the top,
+// with m already correctly carried forward (m *= 4, same as any radix-4
+// stage's contribution to the next stage's m).
+//
+// BUFFER PARITY across the extra stage. The stage count is now k+1 (k
+// radix-4 + 1 radix-2) instead of s = log4(n); whether that is odd or even
+// depends on k, and does not need to be reasoned about separately, because
+// the runtime pointer-identity compare in the BUFFERING paragraph above
+// already generalizes: the radix-2 final stage sets the "result location"
+// register exactly as the radix-4 final stage does, and the CMP against dst
+// decides whether a copy is needed regardless of how many stages preceded
+// it or what the last one was.
 //
 // TWO MACRO FAMILIES, and the difference is load-bearing:
 //
@@ -260,6 +291,30 @@
 	ADD $96, R25, R25 \
 	ADD $128, R5, R5
 
+// Radix-2 final-stage butterfly (n = 2*4^k family: l = 1, j = 0, so the only
+// twiddle is 1 — pure add/sub, no complex multiply). Register NUMBERS.
+// Inputs: ar0/ai0 = a0 re/im, ar1/ai1 = a1 re/im. Outputs: or0/oi0 = y0
+// re/im, or1/oi1 = y1 re/im.
+#define VDFT2(ar0, ai0, ar1, ai1, or0, oi0, or1, oi1) \
+	VADDF_D2(ar0, ar1, or0) \
+	VADDF_D2(ai0, ai1, oi0) \
+	VSUBF_D2(ar0, ar1, or1) \
+	VSUBF_D2(ai0, ai1, oi1)
+
+// Load the two radix-2 final-stage inputs from `from`, stride `stride`
+// bytes, into V0/V1 (a0 re/im) and V2/V3 (a1 re/im). Clobbers R0.
+#define VLOAD2(from, stride) \
+	VLD2 (from), [V0.D2, V1.D2] \
+	ADD  stride, from, R0       \
+	VLD2 (R0), [V2.D2, V3.D2]
+
+// Store V4/V5 (y0) and V6/V7 (y1) to `to`, stride `stride` bytes. Clobbers
+// R0.
+#define VSTORE2(to, stride) \
+	VST2 [V4.D2, V5.D2], (to) \
+	ADD  stride, to, R0       \
+	VST2 [V6.D2, V7.D2], (R0)
+
 // Register map, both kernels:
 //
 //   R0        temporary          R19  dst base (original)
@@ -373,6 +428,9 @@ r4fwd64_kloop:
 	MOVD R12, R11
 	MOVD R0, R12
 
+	CMP $2, R14           // was the stage we just finished l = 2?
+	BEQ r4fwd64_last2      // then the final stage is radix-2 (n = 2*4^k)
+
 	LSL $2, R13, R13
 	LSR $2, R14, R14
 	B   r4fwd64_stage
@@ -394,11 +452,33 @@ r4fwd64_lastk:
 	SUBS $1, R3, R3
 	BNE  r4fwd64_lastk
 
+	B r4fwd64_tail
+
+	// --- n = 2*4^k final stage (m = n/2, l = 1, radix 2): j = 0, so the
+	// only twiddle is 1 -- a pure add/sub butterfly, no complex multiply.
+r4fwd64_last2:
+	LSL  $2, R13, R13 // m *= 4 (the just-finished stage's radix): m = n/2
+	LSL  $4, R13, R23 // stride = m*16 bytes
+	MOVD R11, R4
+	MOVD R12, R5
+	LSR  $1, R13, R3  // m/2 iterations, two k each
+
+r4fwd64_last2k:
+	VLOAD2(R4, R23)
+	VDFT2(0, 1, 2, 3, 4, 5, 6, 7)
+	VSTORE2(R5, R23)
+
+	ADD  $32, R4, R4
+	ADD  $32, R5, R5
+	SUBS $1, R3, R3
+	BNE  r4fwd64_last2k
+
+r4fwd64_tail:
 	MOVD R12, R11 // the result is wherever the last stage wrote
 
-	// The number of stages, s = log4(n), is odd for n = 64, 1024 and 16384,
-	// and stage 0 must write scratch because dst may alias src. For those
-	// sizes the result ends up in scratch and has to be copied out.
+	// The stage count varies by family and size; rather than special-casing
+	// each one, track the pointers and compare at runtime, copying
+	// scratch -> dst when the result did not land there.
 	CMP R19, R11
 	BEQ r4fwd64_done
 
@@ -537,6 +617,9 @@ r4inv64_kloop:
 	MOVD R12, R11
 	MOVD R0, R12
 
+	CMP $2, R14           // was the stage we just finished l = 2?
+	BEQ r4inv64_last2      // then the final stage is radix-2 (n = 2*4^k)
+
 	LSL $2, R13, R13
 	LSR $2, R14, R14
 	B   r4inv64_stage
@@ -558,6 +641,29 @@ r4inv64_lastk:
 	SUBS $1, R3, R3
 	BNE  r4inv64_lastk
 
+	B r4inv64_tail
+
+	// --- n = 2*4^k final stage (m = n/2, l = 1, radix 2): every twiddle
+	// is 1, same butterfly as the forward path (no conjugation needed for
+	// a real add/sub).
+r4inv64_last2:
+	LSL  $2, R13, R13 // m *= 4: m = n/2
+	LSL  $4, R13, R23 // stride = m*16 bytes
+	MOVD R11, R4
+	MOVD R12, R5
+	LSR  $1, R13, R3  // m/2 iterations, two k each
+
+r4inv64_last2k:
+	VLOAD2(R4, R23)
+	VDFT2(0, 1, 2, 3, 4, 5, 6, 7)
+	VSTORE2(R5, R23)
+
+	ADD  $32, R4, R4
+	ADD  $32, R5, R5
+	SUBS $1, R3, R3
+	BNE  r4inv64_last2k
+
+r4inv64_tail:
 	MOVD R12, R11
 
 	CMP R19, R11

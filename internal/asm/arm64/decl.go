@@ -61,41 +61,10 @@ func ForwardNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128
 //go:noescape
 func InverseNEONSize8Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool
 
-//go:noescape
-func ForwardNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardNEONSize128MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize128MixedRadix24Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardNEONSize512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardNEONSize2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardNEONSize8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func ForwardNEONSize32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
-
-//go:noescape
-func InverseNEONSize32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool
+// Size-specific NEON kernels for n = 2*4^k (32, 128, 512, 2048, 8192, 32768)
+// are now thin Go wrappers over the shared radix-4 core in
+// neon_radix4_loop_f64.go (see neon_f64_radix4_loop.s's "n = 2*4^k
+// EXTENSION"), not standalone asm symbols, so they are not declared here.
 
 // Complex multiply helpers.
 

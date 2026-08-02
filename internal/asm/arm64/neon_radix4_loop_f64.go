@@ -98,3 +98,110 @@ func ForwardNEONSize16384Radix4Complex128Asm(dst, src, twiddle, scratch []comple
 func InverseNEONSize16384Radix4Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
 	return neonRadix4InverseC128(dst, src, twiddle, scratch, 16384, 1.0/16384.0)
 }
+
+// The wrappers below cover n = 2*4^k (32, 128, 512, 2048, 8192, 32768): the
+// same core with a final radix-2 stage appended after the k radix-4 stages
+// (see the "n = 2*4^k EXTENSION" section of neon_f64_radix4_loop.s). They
+// replace six scalar "mixed24" codelets containing zero vector instructions.
+
+// ForwardNEONSize32Radix4Then2Complex128Asm computes a size-32 forward
+// complex128 FFT with the shared NEON Stockham radix-4 core (one radix-4
+// stage followed by a radix-2 final stage). It requires src of exactly 32
+// elements and dst, twiddle and scratch of at least 32, and returns false
+// otherwise.
+func ForwardNEONSize32Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4ForwardC128(dst, src, twiddle, scratch, 32)
+}
+
+// InverseNEONSize32Radix4Then2Complex128Asm computes a size-32 inverse
+// complex128 FFT, normalized by 1/32, with the shared NEON Stockham radix-4
+// core. It requires src of exactly 32 elements and dst, twiddle and scratch
+// of at least 32, and returns false otherwise.
+func InverseNEONSize32Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4InverseC128(dst, src, twiddle, scratch, 32, 1.0/32.0)
+}
+
+// ForwardNEONSize128Radix4Then2Complex128Asm computes a size-128 forward
+// complex128 FFT with the shared NEON Stockham radix-4 core (two radix-4
+// stages followed by a radix-2 final stage). It requires src of exactly 128
+// elements and dst, twiddle and scratch of at least 128, and returns false
+// otherwise.
+func ForwardNEONSize128Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4ForwardC128(dst, src, twiddle, scratch, 128)
+}
+
+// InverseNEONSize128Radix4Then2Complex128Asm computes a size-128 inverse
+// complex128 FFT, normalized by 1/128, with the shared NEON Stockham radix-4
+// core. It requires src of exactly 128 elements and dst, twiddle and scratch
+// of at least 128, and returns false otherwise.
+func InverseNEONSize128Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4InverseC128(dst, src, twiddle, scratch, 128, 1.0/128.0)
+}
+
+// ForwardNEONSize512Radix4Then2Complex128Asm computes a size-512 forward
+// complex128 FFT with the shared NEON Stockham radix-4 core (three radix-4
+// stages followed by a radix-2 final stage). It requires src of exactly 512
+// elements and dst, twiddle and scratch of at least 512, and returns false
+// otherwise.
+func ForwardNEONSize512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4ForwardC128(dst, src, twiddle, scratch, 512)
+}
+
+// InverseNEONSize512Radix4Then2Complex128Asm computes a size-512 inverse
+// complex128 FFT, normalized by 1/512, with the shared NEON Stockham radix-4
+// core. It requires src of exactly 512 elements and dst, twiddle and scratch
+// of at least 512, and returns false otherwise.
+func InverseNEONSize512Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4InverseC128(dst, src, twiddle, scratch, 512, 1.0/512.0)
+}
+
+// ForwardNEONSize2048Radix4Then2Complex128Asm computes a size-2048 forward
+// complex128 FFT with the shared NEON Stockham radix-4 core (four radix-4
+// stages followed by a radix-2 final stage). It requires src of exactly
+// 2048 elements and dst, twiddle and scratch of at least 2048, and returns
+// false otherwise.
+func ForwardNEONSize2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4ForwardC128(dst, src, twiddle, scratch, 2048)
+}
+
+// InverseNEONSize2048Radix4Then2Complex128Asm computes a size-2048 inverse
+// complex128 FFT, normalized by 1/2048, with the shared NEON Stockham
+// radix-4 core. It requires src of exactly 2048 elements and dst, twiddle
+// and scratch of at least 2048, and returns false otherwise.
+func InverseNEONSize2048Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4InverseC128(dst, src, twiddle, scratch, 2048, 1.0/2048.0)
+}
+
+// ForwardNEONSize8192Radix4Then2Complex128Asm computes a size-8192 forward
+// complex128 FFT with the shared NEON Stockham radix-4 core (five radix-4
+// stages followed by a radix-2 final stage). It requires src of exactly
+// 8192 elements and dst, twiddle and scratch of at least 8192, and returns
+// false otherwise.
+func ForwardNEONSize8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4ForwardC128(dst, src, twiddle, scratch, 8192)
+}
+
+// InverseNEONSize8192Radix4Then2Complex128Asm computes a size-8192 inverse
+// complex128 FFT, normalized by 1/8192, with the shared NEON Stockham
+// radix-4 core. It requires src of exactly 8192 elements and dst, twiddle
+// and scratch of at least 8192, and returns false otherwise.
+func InverseNEONSize8192Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4InverseC128(dst, src, twiddle, scratch, 8192, 1.0/8192.0)
+}
+
+// ForwardNEONSize32768Radix4Then2Complex128Asm computes a size-32768 forward
+// complex128 FFT with the shared NEON Stockham radix-4 core (six radix-4
+// stages followed by a radix-2 final stage). It requires src of exactly
+// 32768 elements and dst, twiddle and scratch of at least 32768, and
+// returns false otherwise.
+func ForwardNEONSize32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4ForwardC128(dst, src, twiddle, scratch, 32768)
+}
+
+// InverseNEONSize32768Radix4Then2Complex128Asm computes a size-32768 inverse
+// complex128 FFT, normalized by 1/32768, with the shared NEON Stockham
+// radix-4 core. It requires src of exactly 32768 elements and dst, twiddle
+// and scratch of at least 32768, and returns false otherwise.
+func InverseNEONSize32768Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
+	return neonRadix4InverseC128(dst, src, twiddle, scratch, 32768, 1.0/32768.0)
+}

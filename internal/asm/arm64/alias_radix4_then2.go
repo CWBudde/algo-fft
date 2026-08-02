@@ -9,18 +9,8 @@ package arm64
 // than the retired size-specific mixed-radix asm, so they moved there with
 // their same-size Go-only siblings (512, 2048, 8192, 32768).
 
-func ForwardNEONSize32Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	return ForwardNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch)
-}
-
-func InverseNEONSize32Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	return InverseNEONSize32MixedRadix24Complex128Asm(dst, src, twiddle, scratch)
-}
-
-func ForwardNEONSize128Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	return ForwardNEONSize128MixedRadix24Complex128Asm(dst, src, twiddle, scratch)
-}
-
-func InverseNEONSize128Radix4Then2Complex128Asm(dst, src, twiddle, scratch []complex128) bool {
-	return InverseNEONSize128MixedRadix24Complex128Asm(dst, src, twiddle, scratch)
-}
+// The complex128 Size32/Size128 Radix4Then2 wrappers used to alias
+// MixedRadix24 asm symbols in neon_f64_size{32,128}_mixed24.s (scalar, no
+// vector instructions). They are now defined directly in
+// neon_radix4_loop_f64.go over the shared vectorized radix-4 core, so no
+// alias is needed here for complex128 any more.
