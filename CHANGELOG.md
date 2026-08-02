@@ -36,6 +36,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **`KernelStrategy` `KernelEightStep` (breaking).** It was never a real
+  eighth step: `internal/kernels/eightstep.go` was `sixstep.go` with the
+  names changed — same perfect-square rejection, same two
+  `TransposeSquare`-bracketed Stockham row passes — so it duplicated
+  `KernelSixStep` rather than implementing a distinct algorithm
+  (`docs/CODELET_BENCHMARKS.md`, "Eight-step is six-step"). The enum value 4
+  is retired and intentionally not reused, so every surviving
+  `KernelStrategy` constant (`KernelBluestein` and after) keeps the number it
+  already had — `strategy_numbering_test.go` pins the exact values. Wisdom
+  files that persisted the strategy name `eightstep` will fail to resolve on
+  reload, the same behavior as any other unknown wisdom name; use
+  `KernelSixStep`, which already implements what `KernelEightStep` ran.
 - **22 shadowed AVX2 codelet rows.** With the incumbent audit complete, every
   registered power-of-two size has a canary-gated ranking, and it showed a large
   tail of AVX2 candidates that the registry could never select on any amd64 CPU

@@ -99,7 +99,7 @@ func selectStrategiesToTest(mode PlannerMode, n int) []fftypes.KernelStrategy {
 		// Thorough: test all power-of-two strategies
 		return []fftypes.KernelStrategy{
 			fftypes.KernelDIT, fftypes.KernelStockham, fftypes.KernelSixStep,
-			fftypes.KernelEightStep, fftypes.KernelSplitRadix, fftypes.KernelFourStep,
+			fftypes.KernelSplitRadix, fftypes.KernelFourStep,
 		}
 	}
 

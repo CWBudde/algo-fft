@@ -63,7 +63,7 @@ func EstimatePlan[T Complex](
 ) PlanEstimate[T] {
 	// Resolve the forced strategy rather than adopting it verbatim: the kernel
 	// dispatch applies the same guards (mixed-radix for non-power-of-two
-	// lengths, the six/eight-step square rule, four-step's power-of-two
+	// lengths, the six-step square rule, four-step's power-of-two
 	// requirement), so a verbatim forced value would name a route that never
 	// executes.
 	strategy := ResolveKernelStrategyWithDefault(n, forcedStrategy)

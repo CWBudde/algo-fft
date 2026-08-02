@@ -23,7 +23,7 @@ The root package `algofft` exposes the user-facing API, grouped roughly by file:
 
 ### Internal Packages (`/internal/`)
 
-- `internal/kernels`: All FFT kernel implementations — DIT, Stockham, radix-2/3/4/5, six-step/eight-step, Bluestein, per-size codelets and their registration (`codelet_init*.go`); `types.go` defines `Kernel[T]`. The `complex128` twins of the monomorphized `*Complex64` kernels are generated (`*_c128.gen.go`, via `cmd/genkernels`) — edit only the `complex64` sources and regenerate
+- `internal/kernels`: All FFT kernel implementations — DIT, Stockham, radix-2/3/4/5, six-step, Bluestein, per-size codelets and their registration (`codelet_init*.go`); `types.go` defines `Kernel[T]`. The `complex128` twins of the monomorphized `*Complex64` kernels are generated (`*_c128.gen.go`, via `cmd/genkernels`) — edit only the `complex64` sources and regenerate
 - `internal/planner`: Strategy selection and wisdom (`selection.go`: `ResolveKernelStrategy`, `ditAutoThreshold`; `utils.go`: the strategy↔algorithm-name table). Kernel strategy is chosen per-plan (no process-global state); tuning decisions are persisted via the Wisdom cache.
 - `internal/registry`: Leaf codelet registry — `kernels` registers into it at init, `planner`/`transform` read from it
 - `internal/fft`: Architecture dispatch and engine glue (`dispatch.go`: `SelectKernels[T]`; mixed-radix engine, Rader/Bluestein glue, pooling, SIMD helper dispatch). Not a re-export façade: the root imports `planner`/`kernels`/`transform`/`fftypes` directly for their own symbols.
@@ -282,7 +282,7 @@ The library supports multiple FFT algorithms via `KernelStrategy` (defined in `i
 - `KernelAuto`: Automatically select based on size (DIT for ≤1024, Stockham for larger; see `ditAutoThreshold` in `internal/planner/selection.go`)
 - `KernelDIT`: Force Decimation-in-Time algorithm
 - `KernelStockham`: Force Stockham autosort algorithm
-- `KernelSixStep` / `KernelEightStep`: Cache-oblivious large-size algorithms
+- `KernelSixStep`: Cache-oblivious large-size algorithm
 - `KernelFourStep`: Rectangular six-step with the n1×n2 split chosen from detected L1d/L2 cache sizes (any power-of-two length)
 - `KernelBluestein`: Arbitrary-length transforms
 - `KernelRecursive`: Recursive decomposition with codelet leaves
@@ -475,4 +475,4 @@ From `docs/goal.md` and `README.md`:
 
 ## Current Implementation Status
 
-See `PLAN.md` for the roadmap and current status. In short: core transforms (DIT, Stockham, mixed-radix, Bluestein, six-step/eight-step), real FFT, 2D/3D/N-D transforms, complex128 support, convolution/correlation, and the WASM target are implemented; remaining work focuses on per-size tuning, broader SIMD coverage (SSE2, NEON), and v1.0 polish.
+See `PLAN.md` for the roadmap and current status. In short: core transforms (DIT, Stockham, mixed-radix, Bluestein, six-step), real FFT, 2D/3D/N-D transforms, complex128 support, convolution/correlation, and the WASM target are implemented; remaining work focuses on per-size tuning, broader SIMD coverage (SSE2, NEON), and v1.0 polish.

@@ -7,10 +7,10 @@ import (
 )
 
 // autoSquareSizes are the power-of-two square sizes the auto rule in
-// internal/planner.resolveKernelStrategy treats specially, plus the eight-step
-// boundary above them. 2^18 and 2^20 are the only power-of-two squares in
+// internal/planner.resolveKernelStrategy treats specially, plus the boundary
+// above them. 2^18 and 2^20 are the only power-of-two squares in
 // [2^18, 2^22), i.e. the only sizes the split-radix branch of the rule can
-// ever reach; 2^22 is the first size the eight-step branch takes.
+// ever reach; 2^22 is the first size the next branch takes.
 //
 //nolint:gochecknoglobals // benchmark input table
 var autoSquareSizes = []struct {
@@ -32,8 +32,11 @@ var autoSquareSizes = []struct {
 		label: "1024x1024",
 	},
 	{
-		n:     1 << 22,
-		arms:  []KernelStrategy{KernelEightStep, KernelStockham, KernelSixStep, KernelFourStep, KernelSplitRadix},
+		n: 1 << 22,
+		// KernelEightStep was removed 2026-08-02 as a duplicate of
+		// KernelSixStep; KernelSixStep (already in this list) covers what
+		// its arm used to measure, so no coverage is lost by dropping it.
+		arms:  []KernelStrategy{KernelStockham, KernelSixStep, KernelFourStep, KernelSplitRadix},
 		wide:  false, // 2^22 complex128 needs 64 MiB per buffer; complex64 settles the ordering
 		label: "2048x2048",
 	},

@@ -131,11 +131,6 @@ var familyVerdicts = []familyVerdict{
 		Tracked: "Give the six-step and four-step row passes the registry's kernels.",
 	},
 	{
-		Family: "Eight-step", Status: famUntested,
-		Verdict: "there is no eight-step kernel to have measured: `internal/kernels/eightstep.go` is `sixstep.go` with the names changed — same perfect-square rejection, same two `TransposeSquare`-bracketed Stockham row passes, no eighth step (normalised diff, 2026-08-02). `KernelEightStep` is a second name for `KernelSixStep`, so a sweep against six-step measures noise, and the 2^22 loss recorded in `planner/selection.go` is six-step's",
-		Note:    "PLAN.md §1.2, \"Decide what KernelEightStep is for\" — retiring the enum, aliasing it, or writing the real decomposition (both factors of n1·n2 transformed by six-step) each turn this back into a question",
-	},
-	{
 		Family: "Four-step", Status: famOpen,
 		Verdict: "swept 2026-08-02 across 16384–131072 in both builds and both precisions; it is last or next-to-last in every cell, losing 3–35× to the bound codelet. Same scalar-row-pass defect as six-step, plus one of its own: `fourStepSplit` derives the balanced √n×√n split at every size measured, and that split was the slowest of eleven at 2^20 and 5.9% off the best at 2^18 — the cache model is steering four-step onto six-step's shape, discarding the rectangular split that is its only distinguishing feature",
 		Tracked: "Give the six-step and four-step row passes the registry's kernels.",

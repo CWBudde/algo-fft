@@ -44,7 +44,7 @@
         #signalType          signal generator <select> (tone / chirp / impulse / square / saw / am / fm / close-tones)
         #window              window function <select> (rect / hann / hamming / blackman)
         #precision            precision toggle <select> (complex64 / complex128)
-        #strategy             kernel strategy <select> (auto / dit / stockham / six-step / eight-step / four-step / bluestein / recursive)
+        #strategy             kernel strategy <select> (auto / dit / stockham / six-step / four-step / bluestein / recursive)
         #customN               arbitrary-length <input type=number>
         #nPresets               preset chip container; buttons carry data-n="1024|1000|1009|4096"
         #reconstruction         inverse-transform reconstruction canvas
@@ -187,7 +187,6 @@
               <option value="stockham">Stockham</option>
               <option value="four-step">Four-step</option>
               <option value="six-step">Six-step</option>
-              <option value="eight-step">Eight-step</option>
               <option value="bluestein">Bluestein</option>
               <option value="recursive">Recursive</option>
             </select>

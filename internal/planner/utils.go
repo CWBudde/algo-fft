@@ -143,7 +143,6 @@ const (
 	algoDITFallback = "dit_fallback"
 	algoStockham    = "stockham"
 	algoSixStep     = "sixstep"
-	algoEightStep   = "eightstep"
 	algoBluestein   = "bluestein"
 	algoSplitRadix  = "splitradix"
 	algoRecursive   = "recursive"
@@ -164,7 +163,6 @@ var strategyAlgorithmNames = map[KernelStrategy]string{
 	KernelDIT:        algoDITFallback,
 	KernelStockham:   algoStockham,
 	KernelSixStep:    algoSixStep,
-	KernelEightStep:  algoEightStep,
 	KernelBluestein:  algoBluestein,
 	KernelSplitRadix: algoSplitRadix,
 	KernelRecursive:  algoRecursive,

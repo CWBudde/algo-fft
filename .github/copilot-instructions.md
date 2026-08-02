@@ -4,7 +4,7 @@
 
 - **Public API (root package `algofft/`)**: `Plan[T Complex]`, options, executors, N-D/real FFTs, convolution/correlation.
   - Start here: `plan.go`, `plan_options.go`, `plan_real*.go`, `plan_nd.go`, `convolve*.go`, `correlate.go`.
-- **Core engine (`internal/fft/`)**: DIT/Stockham/mixed-radix/split-radix FFTs, Bluestein (arbitrary lengths), six/eight-step, twiddles/transpose/strided.
+- **Core engine (`internal/fft/`)**: DIT/Stockham/mixed-radix/split-radix FFTs, Bluestein (arbitrary lengths), six-step, twiddles/transpose/strided.
   - Entry points: `internal/fft/dit.go`, `internal/fft/stockham.go`, `internal/fft/bluestein.go`, `internal/fft/fft.go`.
 - **CPU/SIMD + asm**: feature detection in `internal/cpu/`; arch dispatch + wrappers in `internal/fft/kernels_*` and `internal/fft/asm_*` / `.s`.
   - Size-specific code paths often live in `internal/fft/dit_size*.go` and are bound via the codelet registry.
@@ -19,7 +19,7 @@
 
 - Plan creation precomputes `twiddle`, `bitrev`, and aligned scratch so transforms are zero-allocation.
 - Planning order: **codelet registry → wisdom cache → heuristic strategy** (`internal/fft/planner.go`, `internal/fft/selection.go`).
-- Strategy selection: DIT/Stockham threshold, six/eight-step for large square sizes, Bluestein for lengths that aren’t power-of-two and not “highly composite”.
+- Strategy selection: DIT/Stockham threshold, six-step for large square sizes, Bluestein for lengths that aren’t power-of-two and not “highly composite”.
 
 ## Conventions for kernels/codelets
 
