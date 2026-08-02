@@ -462,7 +462,7 @@ unreachable.
 | `amd64/sse3_f32_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/sse3_real_recombine.s`             |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 
-### arm64 — 38 files, 76 symbols, 52 live
+### arm64 — 32 files, 64 symbols, 40 live
 
 | File                                 | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                                  |
 | ------------------------------------ | ------: | ---: | --------: | ----------: | -----: | -------------------------------------------- |
@@ -470,18 +470,12 @@ unreachable.
 | `arm64/neon_complex_mul.s`           |       4 |    4 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_generic.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_radix4_loop.s`       |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/neon_radix4_loop.go`     |
-| `arm64/neon_f32_size128_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size128_radix2.s`    |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size16_radix2.s`     |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size16_radix4.s`     |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size2048_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size256_radix2.s`    |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
-| `arm64/neon_f32_size32768_mixed24.s` |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size32_mixed24.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size32_radix2.s`     |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size4_radix4.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size512_mixed24.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
-| `arm64/neon_f32_size8192_mixed24.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size8_radix2.s`      |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size8_radix4.s`      |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size8_radix8.s`      |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
@@ -645,11 +639,9 @@ established home).
 | `maskNegHiPS`                                   | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 33 more              |
 | `maskNegLoPD`                                   | `x86/core.s`                              | `amd64/avx2_f64_size16_radix4.s`, `amd64/avx2_f64_size32_radix4_then2.s`, `amd64/avx2_f64_size4_radix4.s` + 27 more            |
 | `maskNegLoPS`                                   | `x86/core.s`                              | `amd64/avx2_f32_size128_radix2.s`, `amd64/avx2_f32_size16_radix16.s`, `amd64/avx2_f32_size32_radix32.s` + 32 more              |
-| `neonInv128`                                    | `arm64/neon_f32_size128_mixed24.s`        | `arm64/neon_f32_size128_radix2.s`                                                                                              |
 | `neonInv128F64`                                 | `arm64/neon_f64_size128_mixed24.s`        | `arm64/neon_f64_size128_radix2.s`                                                                                              |
 | `neonInv16`                                     | `arm64/neon_f32_size16_radix4.s`          | `arm64/neon_f32_size16_radix2.s`                                                                                               |
 | `neonInv16F64`                                  | `arm64/neon_f64_size16_radix4.s`          | `arm64/neon_f64_size16_radix2.s`                                                                                               |
-| `neonInv32`                                     | `arm64/neon_f32_size32_mixed24.s`         | `arm64/neon_f32_size32_radix2.s`                                                                                               |
 | `neonInv32F64`                                  | `arm64/neon_f64_size32_mixed24.s`         | `arm64/neon_f64_size32_radix2.s`                                                                                               |
 | `neonInv4`                                      | `arm64/core.s`                            | `arm64/neon_f32_size4_radix4.s`                                                                                                |
 | `neonInv8`                                      | `arm64/core.s`                            | `arm64/neon_f32_size8_radix2.s`, `arm64/neon_f32_size8_radix4.s`, `arm64/neon_f32_size8_radix8.s`                              |

@@ -36,41 +36,10 @@ func ForwardNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64)
 //go:noescape
 func InverseNEONSize16Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool
 
-//go:noescape
-func ForwardNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseNEONSize32MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func ForwardNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseNEONSize128MixedRadix24Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func ForwardNEONSize512Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseNEONSize512Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func ForwardNEONSize2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseNEONSize2048Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func ForwardNEONSize8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseNEONSize8192Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func ForwardNEONSize32768Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
-
-//go:noescape
-func InverseNEONSize32768Radix4Then2Complex64Asm(dst, src, twiddle, scratch []complex64) bool
+// NOTE: the complex64 32/128/512/2048/8192/32768 mixed-radix/radix-4-then-2
+// kernels used to be declared here (backed by size-specific asm). They are
+// now pure-Go wrappers over the shared NEON Stockham radix-4 core, extended
+// to serve n = 2*4^k; see neon_radix4_loop.go.
 
 // Size-specific complex128 NEON kernels.
 
