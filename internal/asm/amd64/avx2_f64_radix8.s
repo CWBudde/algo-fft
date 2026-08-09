@@ -15,9 +15,12 @@
 //   - Stage 1 processes two groups per iteration instead of four. There is no
 //     128-bit-element gather, so each group's eight inputs are XMM loads folded
 //     together with VINSERTF128. Eight streams would need eight base pointers
-//     and the register file has no room for them next to the loop state, so
-//     the two element offsets are stepped by q*16 between digits instead --
-//     fourteen ADDQ per iteration, which the load ports absorb.
+//     and the register file has no room for them next to the loop state. The
+//     even group's element offset is stepped by q*16 between digits; digit
+//     reversal makes the adjacent group's offset exactly q/8 elements later
+//     (one element for the n=32 single-digit floor), so that constant is folded
+//     into a second source base. This needs seven ADDQ per iteration rather
+//     than two dependent offset chains.
 //   - The output transpose is a 2x2 block of 128-bit lanes, so eight
 //     VPERM2F128 replace the f32 kernel's two 4x4 VUNPCK/VPERM2F128 sequences.
 //   - The stage bound is `AX <= 2*limit` rather than `AX <= limit`: AX is the
@@ -83,19 +86,19 @@ TEXT ·Radix8Complex128Asm(SB), NOSPLIT, $0-145
 	CMPQ AX, BX
 	JL   r8d_false
 
-	// Rotation masks. Forward: the first rotation is -i (negOdd) and the
-	// second +i (negEven); the inverse conjugates the butterfly, so they swap.
+	// Rotation mask. Forward uses -i (negOdd); inverse uses +i (negEven).
+	// The opposite rotation is its negation, so the butterfly forms that arm
+	// with subtraction instead of holding a second mask and issuing a second
+	// xor. This saves two vector instructions per radix-8 butterfly.
 	MOVBLZX inverse+128(FP), AX
 	TESTL   AX, AX
 	JNZ     r8d_inverse_masks
 
 	VMOVUPD ·r8dNegOdd<>(SB), Y13
-	VMOVUPD ·r8dNegEven<>(SB), Y14
 	JMP     r8d_masks_done
 
 r8d_inverse_masks:
 	VMOVUPD ·r8dNegEven<>(SB), Y13
-	VMOVUPD ·r8dNegOdd<>(SB), Y14
 
 r8d_masks_done:
 	VBROADCASTSD ·r8Root2f64<>(SB), Y15 // sqrt(2)/2
@@ -117,46 +120,48 @@ r8d_permute:
 	SHRQ $3, R10 // R10 = q = n/8 = the group count
 	MOVQ R10, SI
 	SHLQ $4, SI  // SI = q*16 bytes, the distance between streams
+	MOVQ R10, R14
+	SHRQ $3, R14
+	JNZ  r8d_adjacent_stride
+	INCQ R14 // n=32 has a single radix-8 digit, hence adjacent indices
+r8d_adjacent_stride:
+	SHLQ $4, R14
+	ADDQ R9, R14 // R14 = src + max(q/8, 1)*16, the adjacent-group base
 
 	XORQ CX, CX // group index
 	XORQ DX, DX // byte offset into work
 
 r8d_stage1_loop:
-	MOVLQZX (R12)(CX*4), AX  // idx[g]
-	MOVLQZX 4(R12)(CX*4), BX // idx[g+1]
-	SHLQ    $4, AX           // element index -> byte offset
-	SHLQ    $4, BX
+	// g is even. Digit reversal therefore increments its low unreversed digit
+	// without a carry, so idx[g+1] = idx[g] + max(q/8, 1) for every supported
+	// ladder shape. R14 folds that constant into the second load base, removing
+	// one table load, one shift and seven dependent pointer additions per pair.
+	MOVLQZX (R12)(CX*4), AX // idx[g]
+	SHLQ    $4, AX          // element index -> byte offset
 
 	VMOVUPD     (R9)(AX*1), X0
-	VINSERTF128 $1, (R9)(BX*1), Y0, Y0 // x0 = [src[i0], src[i1]]
+	VINSERTF128 $1, (R14)(AX*1), Y0, Y0 // x0 = [src[i0], src[i1]]
 	ADDQ        SI, AX
-	ADDQ        SI, BX
 	VMOVUPD     (R9)(AX*1), X1
-	VINSERTF128 $1, (R9)(BX*1), Y1, Y1 // x1
+	VINSERTF128 $1, (R14)(AX*1), Y1, Y1 // x1
 	ADDQ        SI, AX
-	ADDQ        SI, BX
 	VMOVUPD     (R9)(AX*1), X2
-	VINSERTF128 $1, (R9)(BX*1), Y2, Y2 // x2
+	VINSERTF128 $1, (R14)(AX*1), Y2, Y2 // x2
 	ADDQ        SI, AX
-	ADDQ        SI, BX
 	VMOVUPD     (R9)(AX*1), X3
-	VINSERTF128 $1, (R9)(BX*1), Y3, Y3 // x3
+	VINSERTF128 $1, (R14)(AX*1), Y3, Y3 // x3
 	ADDQ        SI, AX
-	ADDQ        SI, BX
 	VMOVUPD     (R9)(AX*1), X4
-	VINSERTF128 $1, (R9)(BX*1), Y4, Y4 // x4
+	VINSERTF128 $1, (R14)(AX*1), Y4, Y4 // x4
 	ADDQ        SI, AX
-	ADDQ        SI, BX
 	VMOVUPD     (R9)(AX*1), X5
-	VINSERTF128 $1, (R9)(BX*1), Y5, Y5 // x5
+	VINSERTF128 $1, (R14)(AX*1), Y5, Y5 // x5
 	ADDQ        SI, AX
-	ADDQ        SI, BX
 	VMOVUPD     (R9)(AX*1), X6
-	VINSERTF128 $1, (R9)(BX*1), Y6, Y6 // x6
+	VINSERTF128 $1, (R14)(AX*1), Y6, Y6 // x6
 	ADDQ        SI, AX
-	ADDQ        SI, BX
 	VMOVUPD     (R9)(AX*1), X7
-	VINSERTF128 $1, (R9)(BX*1), Y7, Y7 // x7
+	VINSERTF128 $1, (R14)(AX*1), Y7, Y7 // x7
 
 	// ---- the eight-point butterfly, x0..x7 in Y0..Y7 -------------------
 	VADDPD Y4, Y0, Y8  // a0 = x0 + x4
@@ -172,17 +177,15 @@ r8d_stage1_loop:
 	VSUBPD    Y10, Y8, Y3 // e2 = a0 - a2
 	VPERMILPD $0x5, Y11, Y5
 	VXORPD    Y13, Y5, Y7 // rot1(a3)
-	VXORPD    Y14, Y5, Y5 // rot2(a3)
+	VSUBPD    Y7, Y9, Y5  // e3 = a1 - rot1(a3)
 	VADDPD    Y9, Y7, Y7  // e1
-	VADDPD    Y9, Y5, Y5  // e3
 
 	VADDPD    Y4, Y0, Y8  // o0 = a4 + a6
 	VSUBPD    Y4, Y0, Y10 // o2 = a4 - a6
 	VPERMILPD $0x5, Y6, Y9
 	VXORPD    Y13, Y9, Y11 // rot1(a7)
-	VXORPD    Y14, Y9, Y9  // rot2(a7)
+	VSUBPD    Y11, Y2, Y9   // o3 = a5 - rot1(a7)
 	VADDPD    Y2, Y11, Y11 // o1
-	VADDPD    Y2, Y9, Y9   // o3
 
 	VPERMILPD $0x5, Y11, Y0
 	VXORPD    Y13, Y0, Y0
@@ -344,17 +347,15 @@ r8d_inner_loop:
 	VSUBPD    Y10, Y8, Y3 // e2
 	VPERMILPD $0x5, Y11, Y5
 	VXORPD    Y13, Y5, Y7
-	VXORPD    Y14, Y5, Y5
+	VSUBPD    Y7, Y9, Y5 // e3
 	VADDPD    Y9, Y7, Y7 // e1
-	VADDPD    Y9, Y5, Y5 // e3
 
 	VADDPD    Y4, Y0, Y8  // o0
 	VSUBPD    Y4, Y0, Y10 // o2
 	VPERMILPD $0x5, Y6, Y9
 	VXORPD    Y13, Y9, Y11
-	VXORPD    Y14, Y9, Y9
+	VSUBPD    Y11, Y2, Y9   // o3
 	VADDPD    Y2, Y11, Y11 // o1
-	VADDPD    Y2, Y9, Y9   // o3
 
 	VPERMILPD $0x5, Y11, Y0
 	VXORPD    Y13, Y0, Y0
@@ -497,12 +498,11 @@ r8d_tail4_loop:
 
 	VPERMILPD $0x5, Y7, Y10
 	VXORPD    Y13, Y10, Y11 // rot1(t3)
-	VXORPD    Y14, Y10, Y10 // rot2(t3)
 
 	VADDPD Y6, Y4, Y0
 	VADDPD Y11, Y5, Y1
 	VSUBPD Y6, Y4, Y2
-	VADDPD Y10, Y5, Y3
+	VSUBPD Y11, Y5, Y3
 
 	VMOVUPD Y0, (SI)
 	VMOVUPD Y1, (SI)(AX*1)

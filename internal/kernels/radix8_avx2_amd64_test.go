@@ -17,6 +17,24 @@ func radix8AVX2Sizes() []int {
 	return []int{32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768}
 }
 
+// TestRadix8AVX2AdjacentGroupStride pins the digit-reversal identity used by
+// the complex128 stage-1 gather: for an even group g, advancing to g+1 cannot
+// carry out of the low unreversed digit, so the source index advances by q/8
+// (or one at n=32, whose stage-1 subproblem has only one base-8 digit).
+func TestRadix8AVX2AdjacentGroupStride(t *testing.T) {
+	for _, n := range radix8AVX2Sizes() {
+		q := n / 8
+		idx := radix8GroupIndices(n)
+		want := max(int32(q/8), 1)
+
+		for g := 0; g < len(idx); g += 2 {
+			if got := idx[g+1] - idx[g]; got != want {
+				t.Fatalf("n=%d g=%d: adjacent stride %d, want %d", n, g, got, want)
+			}
+		}
+	}
+}
+
 func TestRadix8AVX2ForwardMatchesReference(t *testing.T) {
 	for _, n := range naiveReferenceSizes(t, radix8AVX2Sizes()) {
 		src := randomComplex64(n, uint64(n))
