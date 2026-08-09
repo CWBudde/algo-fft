@@ -317,11 +317,17 @@ func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecord
 		features.HasNEON,
 	)
 
+	cpuIdentifier := ""
+	if _, ok := wisdom.(planner.MicroarchitectureWisdomStore); ok {
+		cpuIdentifier = cpu.WisdomCPUIdentifier(features)
+	}
+
 	entry := planner.WisdomEntry{
 		Key: planner.WisdomKey{
-			Size:        n,
-			Precision:   precision,
-			CPUFeatures: cpuMask,
+			Size:          n,
+			Precision:     precision,
+			CPUFeatures:   cpuMask,
+			CPUIdentifier: cpuIdentifier,
 		},
 		Algorithm: algorithm,
 		Timestamp: time.Now(),

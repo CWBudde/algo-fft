@@ -10,13 +10,16 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cwbudde/algo-fft/internal/cpu"
 )
 
 // WisdomKey uniquely identifies a planning decision.
 type WisdomKey struct {
-	Size        int    // FFT size
-	Precision   uint8  // 0 = complex64, 1 = complex128
-	CPUFeatures uint64 // Bitmask of relevant CPU features
+	Size          int    // FFT size
+	Precision     uint8  // 0 = complex64, 1 = complex128
+	CPUFeatures   uint64 // Bitmask of relevant CPU features
+	CPUIdentifier string // Stable architecture, microarchitecture, and cache identity
 }
 
 // WisdomEntry stores a planning decision.
@@ -51,15 +54,46 @@ func (w *Wisdom) Lookup(key WisdomKey) (WisdomEntry, bool) {
 	return entry, ok
 }
 
-// LookupWisdom returns the algorithm name for a given FFT configuration.
-// This method provides a simplified interface for the planner.
+// LookupWisdom returns the algorithm name for a given FFT configuration. It
+// first checks the current CPU context, then an identifier-free legacy entry.
+// Context-aware planner code calls LookupWisdomForCPU directly.
 //
 //nolint:nonamedreturns
 func (w *Wisdom) LookupWisdom(size int, precision uint8, cpuFeatures uint64) (algorithm string, found bool) {
+	algorithm, found = w.LookupWisdomForCPU(
+		size,
+		precision,
+		cpuFeatures,
+		cpu.WisdomCPUIdentifier(cpu.DetectFeatures()),
+	)
+	if found {
+		return algorithm, true
+	}
+
 	key := WisdomKey{
 		Size:        size,
 		Precision:   precision,
 		CPUFeatures: cpuFeatures,
+	}
+
+	entry, ok := w.Lookup(key)
+	if !ok {
+		return "", false
+	}
+
+	return entry.Algorithm, true
+}
+
+// LookupWisdomForCPU returns the algorithm for an exact CPU context. Unlike
+// LookupWisdom, this distinguishes processors that expose the same SIMD bits.
+func (w *Wisdom) LookupWisdomForCPU(
+	size int, precision uint8, cpuFeatures uint64, cpuIdentifier string,
+) (algorithm string, found bool) {
+	key := WisdomKey{
+		Size:          size,
+		Precision:     precision,
+		CPUFeatures:   cpuFeatures,
+		CPUIdentifier: cpuIdentifier,
 	}
 
 	entry, ok := w.Lookup(key)
@@ -99,24 +133,27 @@ func (w *Wisdom) Len() int {
 // this exact line, so unversioned or future-format files fail loudly instead of
 // being mis-parsed.
 //
-// v3 has the same syntax as v2 but a different meaning, which is why v2 files
-// are rejected rather than read. A wisdom entry now outranks the codelet
+// v4 adds the CPU identifier to the key so results measured on different
+// microarchitectures are not silently shared merely because their SIMD feature
+// masks match. Older files cannot safely supply that field and are rejected.
+// A wisdom entry outranks the codelet
 // registry (see EstimatePlan), and that is only sound because
 // internal/fft.MeasureAndSelect times the registry's codelets as candidates.
 // It did not under v2, so a v2 strategy entry records a comparison that never
 // included the codelet it would now displace. Re-measure to regenerate.
-const wisdomMagic = "# algofft-wisdom v3"
+const wisdomMagic = "# algofft-wisdom v4"
 
 // wisdomLegend is a human-readable column legend written after the magic header.
-const wisdomLegend = "# size:precision:features:algorithm:timestamp"
+const wisdomLegend = "# size:precision:features:cpu:algorithm:timestamp"
 
 // maxWisdomSize is a sanity cap on the FFT size stored in a wisdom entry.
 const maxWisdomSize = 1 << 30
 
 // Export writes the wisdom cache to a writer in a portable, versioned text format.
 // The first line is the magic/version header (wisdomMagic), followed by a column
-// legend, then one entry per line as "size:precision:features:algorithm:timestamp".
-// Entries are sorted by size, precision, and CPU features for deterministic output.
+// legend, then one entry per line as
+// "size:precision:features:cpu:algorithm:timestamp". Entries are sorted by
+// size, precision, CPU features, and CPU identifier for deterministic output.
 func (w *Wisdom) Export(writer io.Writer) error {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -135,7 +172,7 @@ func (w *Wisdom) Export(writer io.Writer) error {
 		entries = append(entries, entry)
 	}
 
-	// Sort by size, then precision, then CPU features for deterministic output
+	// Sort by size, precision, CPU features, then CPU identifier.
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].Key.Size != entries[j].Key.Size {
 			return entries[i].Key.Size < entries[j].Key.Size
@@ -145,15 +182,25 @@ func (w *Wisdom) Export(writer io.Writer) error {
 			return entries[i].Key.Precision < entries[j].Key.Precision
 		}
 
-		return entries[i].Key.CPUFeatures < entries[j].Key.CPUFeatures
+		if entries[i].Key.CPUFeatures != entries[j].Key.CPUFeatures {
+			return entries[i].Key.CPUFeatures < entries[j].Key.CPUFeatures
+		}
+
+		return entries[i].Key.CPUIdentifier < entries[j].Key.CPUIdentifier
 	})
 
 	// Write sorted entries
 	for _, entry := range entries {
-		line := fmt.Sprintf("%d:%d:%d:%s:%d\n",
+		cpuIdentifier := entry.Key.CPUIdentifier
+		if cpuIdentifier == "" {
+			cpuIdentifier = "-"
+		}
+
+		line := fmt.Sprintf("%d:%d:%d:%s:%s:%d\n",
 			entry.Key.Size,
 			entry.Key.Precision,
 			entry.Key.CPUFeatures,
+			cpuIdentifier,
 			entry.Algorithm,
 			entry.Timestamp.Unix())
 
@@ -302,8 +349,8 @@ func stageWisdomLine(line string, dst map[WisdomKey]WisdomEntry, cutoff time.Tim
 // parseWisdomLine parses and validates a single line of wisdom format.
 func parseWisdomLine(line string) (WisdomEntry, error) {
 	parts := strings.Split(line, ":")
-	if len(parts) != 5 {
-		return WisdomEntry{}, fmt.Errorf("invalid format: expected 5 fields, got %d", len(parts))
+	if len(parts) != 6 {
+		return WisdomEntry{}, fmt.Errorf("invalid format: expected 6 fields, got %d", len(parts))
 	}
 
 	size, err := strconv.Atoi(parts[0])
@@ -321,18 +368,24 @@ func parseWisdomLine(line string) (WisdomEntry, error) {
 		return WisdomEntry{}, fmt.Errorf("invalid features: %w", err)
 	}
 
-	algorithm := parts[3]
+	cpuIdentifier := parts[3]
+	if cpuIdentifier == "-" {
+		cpuIdentifier = ""
+	}
 
-	timestamp, err := strconv.ParseInt(parts[4], 10, 64)
+	algorithm := parts[4]
+
+	timestamp, err := strconv.ParseInt(parts[5], 10, 64)
 	if err != nil {
 		return WisdomEntry{}, fmt.Errorf("invalid timestamp: %w", err)
 	}
 
 	entry := WisdomEntry{
 		Key: WisdomKey{
-			Size:        size,
-			Precision:   uint8(precision),
-			CPUFeatures: features,
+			Size:          size,
+			Precision:     uint8(precision),
+			CPUFeatures:   features,
+			CPUIdentifier: cpuIdentifier,
 		},
 		Algorithm: algorithm,
 		Timestamp: time.Unix(timestamp, 0),
@@ -363,11 +416,19 @@ func validateEntry(entry WisdomEntry) error {
 			entry.Key.CPUFeatures, featMaskAll)
 	}
 
+	if !isValidCPUIdentifier(entry.Key.CPUIdentifier) {
+		return fmt.Errorf("invalid CPU identifier %q: expected [A-Za-z0-9_]", entry.Key.CPUIdentifier)
+	}
+
 	if !isValidAlgorithmName(entry.Algorithm) {
 		return fmt.Errorf("invalid algorithm name %q: expected non-empty [A-Za-z0-9_]", entry.Algorithm)
 	}
 
 	return nil
+}
+
+func isValidCPUIdentifier(identifier string) bool {
+	return strings.IndexFunc(identifier, isNotAlgorithmNameRune) < 0
 }
 
 // isValidAlgorithmName reports whether s is a plausible algorithm/codelet name:
@@ -414,8 +475,9 @@ func MakeWisdomKey[T Complex](size int, hasSSE2, hasSSE3, hasAVX2, hasAVX512, ha
 	}
 
 	return WisdomKey{
-		Size:        size,
-		Precision:   precision,
-		CPUFeatures: CPUFeatureMask(hasSSE2, hasSSE3, hasAVX2, hasAVX512, hasNEON),
+		Size:          size,
+		Precision:     precision,
+		CPUFeatures:   CPUFeatureMask(hasSSE2, hasSSE3, hasAVX2, hasAVX512, hasNEON),
+		CPUIdentifier: cpu.WisdomCPUIdentifier(cpu.DetectFeatures()),
 	}
 }

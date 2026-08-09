@@ -24,6 +24,19 @@ func (m *mockWisdomRecorder) LookupWisdom(size int, precision uint8, cpuFeatures
 	return "", false
 }
 
+func (m *mockWisdomRecorder) LookupWisdomForCPU(
+	size int, precision uint8, cpuFeatures uint64, cpuIdentifier string,
+) (string, bool) {
+	for _, entry := range m.entries {
+		if entry.Key.Size == size && entry.Key.Precision == precision &&
+			entry.Key.CPUFeatures == cpuFeatures && entry.Key.CPUIdentifier == cpuIdentifier {
+			return entry.Algorithm, true
+		}
+	}
+
+	return "", false
+}
+
 func (m *mockWisdomRecorder) Store(entry planner.WisdomEntry) {
 	m.entries = append(m.entries, entry)
 }
@@ -185,6 +198,10 @@ func TestMeasureAndSelect_RecordsToWisdom(t *testing.T) {
 
 	if entry.Key.Precision != planner.PrecisionComplex64 {
 		t.Errorf("entry.Key.Precision = %d, want %d", entry.Key.Precision, planner.PrecisionComplex64)
+	}
+
+	if entry.Key.CPUIdentifier == "" {
+		t.Error("entry.Key.CPUIdentifier is empty")
 	}
 
 	if entry.Algorithm == "" {

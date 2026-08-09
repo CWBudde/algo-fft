@@ -40,6 +40,9 @@ type Features struct {
 
 	// Runtime information
 	Architecture string // runtime.GOARCH (e.g., "amd64", "arm64")
+	CPUVendor    string // x86 CPUID vendor or ARM implementer; empty when unavailable
+	CPUFamily    uint32 // x86 display family or ARM architecture value
+	CPUModel     uint32 // x86 display model or ARM part number
 }
 
 // The two caches below hold *immutable* Features values: a pointer is published

@@ -250,9 +250,10 @@ func exportWisdom(filename string, results []benchResult) error {
 	for _, res := range results {
 		entry := algofft.WisdomEntry{
 			Key: algofft.WisdomKey{
-				Size:        res.size,
-				Precision:   uint8(algofft.PrecisionComplex64), // benchkernels uses complex64
-				CPUFeatures: cpuMask,
+				Size:          res.size,
+				Precision:     uint8(algofft.PrecisionComplex64), // benchkernels uses complex64
+				CPUFeatures:   cpuMask,
+				CPUIdentifier: cpu.WisdomCPUIdentifier(features),
 			},
 			Algorithm: strategyToAlgorithmName(res.strategy),
 			Timestamp: time.Now(),

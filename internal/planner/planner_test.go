@@ -150,22 +150,22 @@ func TestEstimatePlanComplex128(t *testing.T) {
 // TestEstimatePlanWithWisdom tests EstimatePlan with wisdom cache fallback.
 func TestEstimatePlanWithWisdom(t *testing.T) {
 	t.Parallel()
-
-	wisdom := NewWisdom()
-	wisdom.Store(WisdomEntry{
-		Key: WisdomKey{
-			Size:        512,
-			Precision:   0,
-			CPUFeatures: CPUFeatureMask(true, false, true, false, false),
-		},
-		Algorithm: "stockham",
-	})
-
 	features := cpu.Features{
 		Architecture: "amd64",
 		HasSSE2:      true,
 		HasAVX2:      true,
 	}
+
+	wisdom := NewWisdom()
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
+			Size:          512,
+			Precision:     0,
+			CPUFeatures:   CPUFeatureMask(true, false, true, false, false),
+			CPUIdentifier: cpu.WisdomCPUIdentifier(features),
+		},
+		Algorithm: "stockham",
+	})
 
 	estimate := EstimatePlan[complex64](512, features, wisdom, KernelAuto)
 
@@ -175,25 +175,62 @@ func TestEstimatePlanWithWisdom(t *testing.T) {
 	}
 }
 
-// TestEstimatePlanWisdomOverriddenByForce tests that forced strategy overrides wisdom.
-func TestEstimatePlanWisdomOverriddenByForce(t *testing.T) {
+func TestWisdomDoesNotCrossMicroarchitectures(t *testing.T) {
 	t.Parallel()
+
+	zen2 := cpu.Features{
+		Architecture: "amd64",
+		CPUVendor:    "AuthenticAMD",
+		CPUFamily:    23,
+		CPUModel:     96,
+		HasSSE2:      true,
+		HasSSE3:      true,
+		HasAVX2:      true,
+	}
+	intel := zen2
+	intel.CPUVendor = "GenuineIntel"
+	intel.CPUFamily = 6
+	intel.CPUModel = 142
 
 	wisdom := NewWisdom()
 	wisdom.Store(WisdomEntry{
 		Key: WisdomKey{
-			Size:        512,
-			Precision:   0,
-			CPUFeatures: CPUFeatureMask(true, false, true, false, false),
+			Size:          2048,
+			Precision:     PrecisionComplex128,
+			CPUFeatures:   CPUFeatureMask(true, true, true, false, false),
+			CPUIdentifier: cpu.WisdomCPUIdentifier(zen2),
 		},
-		Algorithm: "stockham",
+		Algorithm: algoStockham,
 	})
 
+	if _, ok := wisdomAlgorithm[complex128](2048, zen2, wisdom); !ok {
+		t.Fatal("Zen 2 did not find its own wisdom entry")
+	}
+
+	if algorithm, ok := wisdomAlgorithm[complex128](2048, intel, wisdom); ok {
+		t.Errorf("Intel reused Zen 2 wisdom algorithm %q", algorithm)
+	}
+}
+
+// TestEstimatePlanWisdomOverriddenByForce tests that forced strategy overrides wisdom.
+func TestEstimatePlanWisdomOverriddenByForce(t *testing.T) {
+	t.Parallel()
 	features := cpu.Features{
 		Architecture: "amd64",
 		HasSSE2:      true,
 		HasAVX2:      true,
 	}
+
+	wisdom := NewWisdom()
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
+			Size:          512,
+			Precision:     0,
+			CPUFeatures:   CPUFeatureMask(true, false, true, false, false),
+			CPUIdentifier: cpu.WisdomCPUIdentifier(features),
+		},
+		Algorithm: "stockham",
+	})
 
 	estimate := EstimatePlan[complex64](512, features, wisdom, KernelDIT)
 
@@ -230,23 +267,24 @@ func TestResolveWisdomRejectsUnsupportedCodelet(t *testing.T) {
 		Priority:  1,
 	})
 
-	wisdom := NewWisdom()
-	wisdom.Store(WisdomEntry{
-		Key: WisdomKey{
-			Size:        size,
-			Precision:   0,
-			CPUFeatures: CPUFeatureMask(true, false, true, false, false),
-		},
-		Algorithm: sig,
-	})
-
-	// AVX2 present but FMA masked off: the AVX2 codelet must not be bound.
 	noFMA := cpu.Features{
 		Architecture: "amd64",
 		HasSSE2:      true,
 		HasAVX2:      true,
 	}
 
+	wisdom := NewWisdom()
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
+			Size:          size,
+			Precision:     0,
+			CPUFeatures:   CPUFeatureMask(true, false, true, false, false),
+			CPUIdentifier: cpu.WisdomCPUIdentifier(noFMA),
+		},
+		Algorithm: sig,
+	})
+
+	// AVX2 present but FMA masked off: the AVX2 codelet must not be bound.
 	algorithm, ok := wisdomAlgorithm[complex64](size, noFMA, wisdom)
 	if !ok {
 		t.Fatalf("wisdomAlgorithm did not find the stored entry")
@@ -312,9 +350,10 @@ func TestEstimatePlanWisdomOutranksRegistry(t *testing.T) {
 	wisdom := NewWisdom()
 	wisdom.Store(WisdomEntry{
 		Key: WisdomKey{
-			Size:        size,
-			Precision:   PrecisionComplex64,
-			CPUFeatures: CPUFeatureMask(true, false, false, false, false),
+			Size:          size,
+			Precision:     PrecisionComplex64,
+			CPUFeatures:   CPUFeatureMask(true, false, false, false, false),
+			CPUIdentifier: cpu.WisdomCPUIdentifier(features),
 		},
 		Algorithm: pinned,
 	})
@@ -352,17 +391,17 @@ func TestEstimatePlanStrategyWisdomOutranksCodelet(t *testing.T) {
 		Priority:  1,
 	})
 
+	features := cpu.Features{Architecture: "amd64", HasSSE2: true}
 	wisdom := NewWisdom()
 	wisdom.Store(WisdomEntry{
 		Key: WisdomKey{
-			Size:        size,
-			Precision:   PrecisionComplex64,
-			CPUFeatures: CPUFeatureMask(true, false, false, false, false),
+			Size:          size,
+			Precision:     PrecisionComplex64,
+			CPUFeatures:   CPUFeatureMask(true, false, false, false, false),
+			CPUIdentifier: cpu.WisdomCPUIdentifier(features),
 		},
 		Algorithm: algoStockham,
 	})
-
-	features := cpu.Features{Architecture: "amd64", HasSSE2: true}
 
 	got := EstimatePlan[complex64](size, features, wisdom, KernelAuto)
 	if got.Strategy != KernelStockham {
@@ -408,17 +447,17 @@ func TestEstimatePlanWisdomSkipsDisabledCodelet(t *testing.T) {
 		})
 	}
 
+	features := cpu.Features{Architecture: "amd64", HasSSE2: true}
 	wisdom := NewWisdom()
 	wisdom.Store(WisdomEntry{
 		Key: WisdomKey{
-			Size:        size,
-			Precision:   PrecisionComplex64,
-			CPUFeatures: CPUFeatureMask(true, false, false, false, false),
+			Size:          size,
+			Precision:     PrecisionComplex64,
+			CPUFeatures:   CPUFeatureMask(true, false, false, false, false),
+			CPUIdentifier: cpu.WisdomCPUIdentifier(features),
 		},
 		Algorithm: staleSig,
 	})
-
-	features := cpu.Features{Architecture: "amd64", HasSSE2: true}
 
 	got := EstimatePlan[complex64](size, features, wisdom, KernelAuto)
 	if got.Algorithm != enabledSig {

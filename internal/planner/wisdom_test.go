@@ -154,10 +154,10 @@ func TestWisdomImportComments(t *testing.T) {
 
 	data := wisdomMagic + `
 # This is a comment
-8:0:1:dit8_generic:1700000000
+8:0:1:cpu_a:dit8_generic:1700000000
 # Another comment
 
-16:1:3:dit16_avx2:1700000000
+16:1:3:cpu_a:dit16_avx2:1700000000
 `
 
 	err := w.Import(strings.NewReader(data))
@@ -177,17 +177,18 @@ func TestWisdomImportInvalid(t *testing.T) {
 		name string
 		data string
 	}{
-		{"wrong_field_count", "8:0:1:test"},
-		{"invalid_size", "abc:0:1:test:1700000000"},
-		{"invalid_precision", "8:xyz:1:test:1700000000"},
-		{"invalid_features", "8:0:xyz:test:1700000000"},
-		{"invalid_timestamp", "8:0:1:test:abc"},
-		{"size_zero", "0:0:1:test:1700000000"},
-		{"size_negative", "-8:0:1:test:1700000000"},
-		{"precision_out_of_range", "8:2:1:test:1700000000"},
-		{"feature_mask_too_wide", "8:0:64:test:1700000000"},
-		{"empty_algorithm", "8:0:1::1700000000"},
-		{"garbage_algorithm", "8:0:1:bad name:1700000000"},
+		{"wrong_field_count", "8:0:1:cpu:test"},
+		{"invalid_size", "abc:0:1:cpu:test:1700000000"},
+		{"invalid_precision", "8:xyz:1:cpu:test:1700000000"},
+		{"invalid_features", "8:0:xyz:cpu:test:1700000000"},
+		{"invalid_timestamp", "8:0:1:cpu:test:abc"},
+		{"size_zero", "0:0:1:cpu:test:1700000000"},
+		{"size_negative", "-8:0:1:cpu:test:1700000000"},
+		{"precision_out_of_range", "8:2:1:cpu:test:1700000000"},
+		{"feature_mask_too_wide", "8:0:64:cpu:test:1700000000"},
+		{"invalid_cpu", "8:0:1:bad cpu:test:1700000000"},
+		{"empty_algorithm", "8:0:1:cpu::1700000000"},
+		{"garbage_algorithm", "8:0:1:cpu:bad name:1700000000"},
 	}
 
 	for _, tt := range tests {
@@ -208,7 +209,7 @@ func TestWisdomImportInvalid(t *testing.T) {
 func TestWisdomImportHeader(t *testing.T) {
 	t.Parallel()
 
-	valid := "8:0:1:dit8_generic:1700000000\n"
+	valid := "8:0:1:cpu:dit8_generic:1700000000\n"
 
 	tests := []struct {
 		name    string
@@ -218,7 +219,8 @@ func TestWisdomImportHeader(t *testing.T) {
 		{"missing_header", valid, true},
 		{"wrong_header", "# algofft-wisdom v1\n" + valid, true},
 		{"superseded_header", "# algofft-wisdom v2\n" + valid, true},
-		{"future_header", "# algofft-wisdom v4\n" + valid, true},
+		{"v3_header", "# algofft-wisdom v3\n" + valid, true},
+		{"future_header", "# algofft-wisdom v5\n" + valid, true},
 		{"only_comments_no_magic", "# just a comment\n" + valid, true},
 		{"valid_header", wisdomMagic + "\n" + valid, false},
 		{"blank_lines_before_header", "\n\n" + wisdomMagic + "\n" + valid, false},
@@ -257,8 +259,8 @@ func TestWisdomImportAtomic(t *testing.T) {
 
 	// One good line followed by a bad one: nothing should be applied.
 	data := wisdomMagic + "\n" +
-		"8:0:1:dit8_generic:1700000000\n" +
-		"16:0:99:bad:1700000000\n" // feature mask too wide
+		"8:0:1:cpu:dit8_generic:1700000000\n" +
+		"16:0:99:cpu:bad:1700000000\n" // feature mask too wide
 
 	err := w.Import(strings.NewReader(data))
 	if err == nil {
@@ -323,8 +325,8 @@ func TestWisdomImportWithMaxAge(t *testing.T) {
 	stale := now.Add(-72 * time.Hour).Unix()
 
 	data := wisdomMagic + "\n" +
-		"8:0:1:fresh:" + strconv.FormatInt(fresh, 10) + "\n" +
-		"16:0:1:stale:" + strconv.FormatInt(stale, 10) + "\n"
+		"8:0:1:-:fresh:" + strconv.FormatInt(fresh, 10) + "\n" +
+		"16:0:1:-:stale:" + strconv.FormatInt(stale, 10) + "\n"
 
 	err := w.ImportWithMaxAge(strings.NewReader(data), 24*time.Hour)
 	if err != nil {
@@ -354,6 +356,10 @@ func TestMakeWisdomKey(t *testing.T) {
 
 	if key64.Size != 1024 {
 		t.Errorf("expected size 1024, got %d", key64.Size)
+	}
+
+	if key64.CPUIdentifier == "" {
+		t.Error("expected non-empty CPU identifier")
 	}
 
 	key128 := MakeWisdomKey[complex128](1024, true, false, true, false, false)

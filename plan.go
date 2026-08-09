@@ -91,12 +91,28 @@ func (a wisdomAdapter) LookupWisdom(size int, precision uint8, cpuFeatures uint6
 	return a.store.LookupWisdom(size, precision, cpuFeatures)
 }
 
+func (a wisdomAdapter) LookupWisdomForCPU(
+	size int, precision uint8, cpuFeatures uint64, cpuIdentifier string,
+) (string, bool) {
+	if contextual, ok := a.store.(MicroarchitectureWisdomStore); ok {
+		return contextual.LookupWisdomForCPU(size, precision, cpuFeatures, cpuIdentifier)
+	}
+
+	return a.store.LookupWisdom(size, precision, cpuFeatures)
+}
+
 func (a wisdomAdapter) Store(entry planner.WisdomEntry) {
+	cpuIdentifier := ""
+	if _, ok := a.store.(MicroarchitectureWisdomStore); ok {
+		cpuIdentifier = entry.Key.CPUIdentifier
+	}
+
 	a.store.Store(WisdomEntry{
 		Key: WisdomKey{
-			Size:        entry.Key.Size,
-			Precision:   entry.Key.Precision,
-			CPUFeatures: entry.Key.CPUFeatures,
+			Size:          entry.Key.Size,
+			Precision:     entry.Key.Precision,
+			CPUFeatures:   entry.Key.CPUFeatures,
+			CPUIdentifier: cpuIdentifier,
 		},
 		Algorithm: entry.Algorithm,
 		Timestamp: entry.Timestamp,

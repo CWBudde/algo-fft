@@ -191,23 +191,24 @@ if err != nil {
 }
 
 // Embed wisdom in your binary (the first line must be the version header)
-const embeddedWisdom = `# algofft-wisdom v3
-64:0:5:dit64_avx2:1234567890
-128:0:5:dit128_avx2:1234567890`
+const embeddedWisdom = `# algofft-wisdom v4
+64:0:7:amd64_AuthenticAMD_f23_m96_l1d32768_l2524288:dit64_avx2:1234567890
+128:0:7:amd64_AuthenticAMD_f23_m96_l1d32768_l2524288:dit128_avx2:1234567890`
 err = algofft.ImportWisdomFromString(embeddedWisdom)
 ```
 
-The wisdom format is text-based and portable across platforms with the same CPU features. The first line is a version header (`# algofft-wisdom v3`); files without a recognized header are rejected rather than mis-parsed. Each subsequent line contains:
+The wisdom format is text-based and portable across machines with the same CPU context. The first line is a version header (`# algofft-wisdom v4`); files without a recognized header are rejected rather than mis-parsed. Each subsequent line contains:
 
 - FFT size
 - Precision (0=complex64, 1=complex128)
 - CPU feature bitmask (bit0=SSE2, bit1=SSE3, bit2=AVX2, bit3=AVX512, bit4=NEON)
+- CPU identifier (architecture, vendor/family/model, L1d size, and L2 size)
 - Algorithm name
 - Timestamp
 
-An entry overrides the built-in preference order for its size, precision and CPU feature set: an algorithm field naming a codelet signature pins that codelet, and one naming a kernel strategy selects that strategy even where a codelet exists. Entries come from the measuring planner modes (`PlannerMeasure` and up), which benchmark the size's codelets alongside the kernel strategies and record whichever won.
+An entry overrides the built-in preference order for its size, precision and exact CPU context: an algorithm field naming a codelet signature pins that codelet, and one naming a kernel strategy selects that strategy even where a codelet exists. Entries come from the measuring planner modes (`PlannerMeasure` and up), which benchmark the size's codelets alongside the kernel strategies and record whichever won. On targets where vendor/family/model detection is unavailable (including wasm), the identifier says `unknown`; entries are still separated by architecture and reported cache geometry, but not by model within that context.
 
-The header moved from v2 to v3 when wisdom gained that override. The syntax is unchanged, but a v2 entry was recorded without ever being compared against the codelet it would now displace, so v2 files are rejected rather than reinterpreted — re-measure to regenerate them.
+The header moved to v4 when the CPU identifier became part of the key. v3 files have no safe way to infer which AVX2 or NEON microarchitecture produced their measurements, so they are rejected rather than silently broadened — re-measure to regenerate them. Third-party `WisdomStore` implementations retain their feature-only behavior unless they implement the optional `MicroarchitectureWisdomStore` extension.
 
 Import can also evict stale entries by age via `algofft.ImportWisdomWithMaxAge(path, maxAge)`.
 
@@ -215,7 +216,7 @@ Benefits:
 
 - Skip planning overhead on subsequent runs
 - Consistent algorithm selection across program restarts
-- Portable wisdom files for deployment
+- Portable wisdom files across matching deployment CPUs
 
 ## Performance Characteristics
 

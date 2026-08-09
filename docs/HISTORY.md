@@ -32,8 +32,9 @@ the reasoning behind each.
   the radix-3/5 c128 entry points and `dit_16384_radix4`'s c128 pair, whose
   `[16384]complex128` stage arrays exceed the compiler's 128 KiB stack limit.
 - **Kernel strategy is per-plan** (`PlanOptions.Strategy`), no process-global
-  state; tuning persists via the versioned Wisdom cache (v3; v2 files are
-  rejected, not reinterpreted). Zero-allocation parity across
+  state; tuning persists via the versioned Wisdom cache (now v4, keyed by
+  microarchitecture and cache geometry; older files are rejected, not
+  reinterpreted). Zero-allocation parity across
   1D/2D/3D/ND/real/mixed-radix on both default and SIMD paths, locked by
   `AllocsPerRun` guards.
 - **Testing & CI.** Every arch matrix leg builds, vets and tests both the

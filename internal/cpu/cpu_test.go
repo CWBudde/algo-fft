@@ -36,6 +36,38 @@ func TestDetectFeatures(t *testing.T) {
 	t.Logf("Detected features: %+v", features)
 }
 
+func TestWisdomCPUIdentifierSeparatesMicroarchitectures(t *testing.T) {
+	SetForcedCaches(CacheInfo{L1DataBytes: 32 * 1024, L2Bytes: 512 * 1024})
+	t.Cleanup(ResetCacheDetection)
+
+	zen2 := Features{
+		Architecture: "amd64",
+		CPUVendor:    "AuthenticAMD",
+		CPUFamily:    23,
+		CPUModel:     96,
+	}
+	intel := Features{
+		Architecture: "amd64",
+		CPUVendor:    "GenuineIntel",
+		CPUFamily:    6,
+		CPUModel:     142,
+	}
+
+	zenID := WisdomCPUIdentifier(zen2)
+	if zenID != "amd64_AuthenticAMD_f23_m96_l1d32768_l2524288" {
+		t.Errorf("WisdomCPUIdentifier(Zen 2) = %q", zenID)
+	}
+
+	if intelID := WisdomCPUIdentifier(intel); intelID == zenID {
+		t.Errorf("different microarchitectures produced the same identifier %q", zenID)
+	}
+
+	SetForcedCaches(CacheInfo{L1DataBytes: 32 * 1024, L2Bytes: 1024 * 1024})
+	if largerCacheID := WisdomCPUIdentifier(zen2); largerCacheID == zenID {
+		t.Errorf("different cache geometry produced the same identifier %q", zenID)
+	}
+}
+
 // TestQueryFunctions tests that query functions match struct fields.
 //
 //nolint:paralleltest // modifies global state via ResetDetection()

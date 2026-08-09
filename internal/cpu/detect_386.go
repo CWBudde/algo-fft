@@ -22,6 +22,8 @@ func detectFeaturesImpl() Features {
 		hasSSE = (edx & (1 << 25)) != 0
 	}
 
+	vendor, family, model := detectX86Identity()
+
 	return Features{
 		HasSSE:       hasSSE,
 		HasSSE2:      cpu.X86.HasSSE2,
@@ -33,5 +35,8 @@ func detectFeaturesImpl() Features {
 		HasFMA:       cpu.X86.HasFMA,
 		HasAVX512:    cpu.X86.HasAVX512,
 		Architecture: runtime.GOARCH,
+		CPUVendor:    vendor,
+		CPUFamily:    family,
+		CPUModel:     model,
 	}
 }

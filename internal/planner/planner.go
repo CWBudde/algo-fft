@@ -14,6 +14,15 @@ type WisdomStore interface {
 	LookupWisdom(size int, precision uint8, cpuFeatures uint64) (algorithm string, found bool)
 }
 
+// MicroarchitectureWisdomStore is implemented by wisdom stores that scope
+// measured decisions to a precise CPU/cache context. Legacy stores continue to
+// work through WisdomStore, with their original feature-only semantics.
+type MicroarchitectureWisdomStore interface {
+	LookupWisdomForCPU(
+		size int, precision uint8, cpuFeatures uint64, cpuIdentifier string,
+	) (algorithm string, found bool)
+}
+
 // PlanEstimate holds the result of estimating which kernel/codelet to use.
 type PlanEstimate[T Complex] struct {
 	// ForwardCodelet is the directly-bound forward codelet (nil if none)
@@ -139,9 +148,10 @@ func tryRegistry[T Complex](n int, features cpu.Features, forcedStrategy KernelS
 }
 
 // wisdomAlgorithm looks up the algorithm name wisdom recorded for this size,
-// precision and CPU feature set. The name is either a codelet signature or a
-// kernel strategy name; the two are resolved separately by bindWisdomCodelet
-// and wisdomStrategy.
+// precision and CPU context. Context-aware stores distinguish
+// microarchitecture and cache geometry in addition to the feature set. The
+// name is either a codelet signature or a kernel strategy name; the two are
+// resolved separately by bindWisdomCodelet and wisdomStrategy.
 func wisdomAlgorithm[T Complex](n int, features cpu.Features, wisdom WisdomStore) (string, bool) {
 	if wisdom == nil {
 		return "", false
@@ -162,6 +172,12 @@ func wisdomAlgorithm[T Complex](n int, features cpu.Features, wisdom WisdomStore
 	cpuFeatures := CPUFeatureMask(
 		features.HasSSE2, features.HasSSE3, features.HasAVX2, features.HasAVX512, features.HasNEON,
 	)
+
+	if contextual, ok := wisdom.(MicroarchitectureWisdomStore); ok {
+		return contextual.LookupWisdomForCPU(
+			n, precision, cpuFeatures, cpu.WisdomCPUIdentifier(features),
+		)
+	}
 
 	return wisdom.LookupWisdom(n, precision, cpuFeatures)
 }

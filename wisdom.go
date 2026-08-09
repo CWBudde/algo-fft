@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cwbudde/algo-fft/internal/cpu"
 	"github.com/cwbudde/algo-fft/internal/planner"
 )
 
@@ -24,18 +25,37 @@ func NewWisdom() *Wisdom {
 	return &Wisdom{inner: planner.NewWisdom()}
 }
 
-// LookupWisdom returns the algorithm name for a given FFT configuration.
-// Returns empty string and false if no wisdom is available.
+// CurrentCPUIdentifier returns the stable architecture, microarchitecture, and
+// cache identity used to scope built-in Wisdom decisions. It is primarily
+// useful to custom MicroarchitectureWisdomStore implementations and callers
+// that construct WisdomKey values directly.
+func CurrentCPUIdentifier() string {
+	return cpu.WisdomCPUIdentifier(cpu.DetectFeatures())
+}
+
+// LookupWisdom returns the algorithm name for a given FFT configuration on the
+// current CPU, falling back to an identifier-free entry stored through the
+// legacy API. Returns empty string and false if no wisdom is available.
 func (w *Wisdom) LookupWisdom(size int, precision uint8, cpuFeatures uint64) (string, bool) {
 	return w.inner.LookupWisdom(size, precision, cpuFeatures)
+}
+
+// LookupWisdomForCPU returns the algorithm for an exact CPU context. This is
+// the lookup path used by plans so measurements from different
+// microarchitectures do not collide.
+func (w *Wisdom) LookupWisdomForCPU(
+	size int, precision uint8, cpuFeatures uint64, cpuIdentifier string,
+) (string, bool) {
+	return w.inner.LookupWisdomForCPU(size, precision, cpuFeatures, cpuIdentifier)
 }
 
 // Lookup returns the full wisdom entry for a given key.
 func (w *Wisdom) Lookup(key WisdomKey) (WisdomEntry, bool) {
 	entry, found := w.inner.Lookup(planner.WisdomKey{
-		Size:        key.Size,
-		Precision:   key.Precision,
-		CPUFeatures: key.CPUFeatures,
+		Size:          key.Size,
+		Precision:     key.Precision,
+		CPUFeatures:   key.CPUFeatures,
+		CPUIdentifier: key.CPUIdentifier,
 	})
 	if !found {
 		return WisdomEntry{}, false
@@ -48,9 +68,10 @@ func (w *Wisdom) Lookup(key WisdomKey) (WisdomEntry, bool) {
 func (w *Wisdom) Store(entry WisdomEntry) {
 	w.inner.Store(planner.WisdomEntry{
 		Key: planner.WisdomKey{
-			Size:        entry.Key.Size,
-			Precision:   entry.Key.Precision,
-			CPUFeatures: entry.Key.CPUFeatures,
+			Size:          entry.Key.Size,
+			Precision:     entry.Key.Precision,
+			CPUFeatures:   entry.Key.CPUFeatures,
+			CPUIdentifier: entry.Key.CPUIdentifier,
 		},
 		Algorithm: entry.Algorithm,
 		Timestamp: entry.Timestamp,
@@ -111,9 +132,10 @@ func (w *Wisdom) EvictOlderThan(maxAge time.Duration) int {
 func wisdomEntryFromInternal(entry planner.WisdomEntry) WisdomEntry {
 	return WisdomEntry{
 		Key: WisdomKey{
-			Size:        entry.Key.Size,
-			Precision:   entry.Key.Precision,
-			CPUFeatures: entry.Key.CPUFeatures,
+			Size:          entry.Key.Size,
+			Precision:     entry.Key.Precision,
+			CPUFeatures:   entry.Key.CPUFeatures,
+			CPUIdentifier: entry.Key.CPUIdentifier,
 		},
 		Algorithm: entry.Algorithm,
 		Timestamp: entry.Timestamp,

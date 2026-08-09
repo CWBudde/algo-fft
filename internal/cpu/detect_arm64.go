@@ -14,8 +14,13 @@ import (
 // (NEON) support. On ARMv8 (arm64), NEON is mandatory, so HasNEON should
 // always be true on conforming implementations.
 func detectFeaturesImpl() Features {
+	vendor, family, model := detectARM64Identity()
+
 	return Features{
 		HasNEON:      cpu.ARM64.HasASIMD,
 		Architecture: runtime.GOARCH,
+		CPUVendor:    vendor,
+		CPUFamily:    family,
+		CPUModel:     model,
 	}
 }

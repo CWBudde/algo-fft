@@ -58,7 +58,7 @@ type PlanOptions struct {
 	// to skip benchmarking for previously-measured sizes.
 	//
 	// A wisdom entry overrides the built-in preference order for its size,
-	// precision and CPU feature set — naming a codelet signature (e.g.
+	// precision and CPU context — naming a codelet signature (e.g.
 	// "dit64_radix4_sse2") is the way to pin one codelet against another, and
 	// naming a kernel strategy (e.g. "stockham") selects that strategy even
 	// where a codelet exists. An entry is ignored when Strategy forces a
@@ -81,11 +81,25 @@ type WisdomStore interface {
 	Store(entry WisdomEntry)
 }
 
+// MicroarchitectureWisdomStore is an optional extension for WisdomStore
+// implementations that distinguish CPUs with identical feature masks. The
+// built-in Wisdom implements it. Stores that do not implement this interface
+// retain the feature-only lookup behavior used before wisdom format v4.
+type MicroarchitectureWisdomStore interface {
+	WisdomStore
+
+	// LookupWisdomForCPU returns the algorithm for an exact CPU context.
+	LookupWisdomForCPU(
+		size int, precision uint8, cpuFeatures uint64, cpuIdentifier string,
+	) (algorithm string, found bool)
+}
+
 // WisdomKey identifies a planning context for wisdom lookup.
 type WisdomKey struct {
-	Size        int    // FFT size
-	Precision   uint8  // 0 = complex64, 1 = complex128
-	CPUFeatures uint64 // Bitmask of CPU features
+	Size          int    // FFT size
+	Precision     uint8  // 0 = complex64, 1 = complex128
+	CPUFeatures   uint64 // Bitmask of CPU features
+	CPUIdentifier string // Architecture, microarchitecture, and cache identity
 }
 
 // WisdomEntry stores a planning decision.
