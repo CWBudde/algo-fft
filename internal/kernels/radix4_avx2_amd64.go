@@ -240,22 +240,31 @@ func inverseRadix4AVX2Complex64(dst, src, twiddle, scratch []complex64) bool {
 //
 // The L1-set reading of that table -- worst at complex128 n = 2048 because the
 // stride is exactly 4 KiB and every stream lands on one set -- was tested on a
-// second machine on 2026-08-01 and does not survive. A Xeon Gold 5218 has 8-way
-// L1d against this laptop's 12-way with the same 4 KiB aliasing, so conflict
-// misses should get worse there. complex64 does get worse (+0.07 to +0.10 at
-// 2048/8192/32768); complex128, which has twice the byte stride and identical
-// set-aliasing, gets *better* (-0.13 at 512, -0.08 at 2048). A way-count
-// mechanism cannot produce that sign split.
+// second Intel machine on 2026-08-01 and does not transfer there. A Xeon Gold
+// 5218 has 8-way L1d against this laptop's 12-way with the same 4 KiB aliasing,
+// so conflict misses should get worse there. complex64 does get worse (+0.07
+// to +0.10 at 2048/8192/32768); complex128, which has twice the byte stride and
+// identical set-aliasing, gets *better* (-0.13 at 512, -0.08 at 2048). A
+// way-count mechanism cannot produce that Intel sign split.
+//
+// A third, Zen 2 measurement on 2026-08-09 reverses all three selected fused
+// cells: fused/plain is 1.030/1.042 at c64 n=128, 0.992/1.042 at c64 n=2048,
+// and 1.033/1.023 at c128 n=128. At 4 KiB-multiple strides the loss then grows
+// to 1.72-3.48x, consistent with (but not proving) a Zen-specific 8-way L1
+// conflict. The Intel-tuned fused forms retain their priorities; their
+// separate counterparts are registered at priority 80 so Wisdom can choose
+// the Zen result.
 //
 // What survives is the register budget described in the r4_fused_loop header:
 // Y0..Y7 are pinned across group 1's whole computation, leaving six scratch
 // registers and forcing group 1 to re-load its twiddle broadcasts every
 // iteration. Do not re-derive the cache story from this table.
 //
-// Fusion is closed as a way to recover the tail. Across ten cells on two hosts
-// it never captures more than 2.4%, while the dit<N>_radix4_notail_avx2 probe
-// puts the tail's cost at 6.7-13.3% here and 7.7-23.4% on the Xeon. See
-// docs/CODELET_BENCHMARKS.md, "The radix-4 tail on the Xeon".
+// Fusion is closed as a general way to recover the tail. Across the two Intel
+// hosts it never captures more than 2.4%, while the
+// dit<N>_radix4_notail_avx2 probe puts the tail's cost at 6.7-13.3% here and
+// 7.7-23.4% on the Xeon. See docs/CODELET_BENCHMARKS.md, "The radix-4 tail on
+// the Xeon".
 //
 // Re-measure with `just bench-gated <sizes>` after building the candidate
 // sweep with -tags fftprobe, which registers both variants side by side.

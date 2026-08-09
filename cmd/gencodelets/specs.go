@@ -910,15 +910,25 @@ var codeletSpecs = []codeletSpec{
 	},
 	{
 		// Fused tail: measured 0.955/0.979 against the separate-tail variant
-		// (see forwardRadix4AVX2FusedComplex64 for the whole table). Only
-		// n = 128 and n = 2048 take it at this precision; the fused loop holds
-		// eight live streams instead of four and loses that trade at the
-		// larger strides.
+		// (see forwardRadix4AVX2FusedComplex64 for the whole table). The Intel
+		// default stays fused, but Zen 2 measured the separate tail 3.0/4.2%
+		// faster, so the next row keeps that form wisdom-reachable.
 		Target: "avx2", Prec: 64, Size: 128,
 		Forward:   "forwardRadix4AVX2FusedComplex64",
 		Inverse:   "inverseRadix4AVX2FusedComplex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit128_radix4fused_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
+	},
+	{
+		// Zen 2 measured this separate-tail form 3.0/4.2% faster than the
+		// Intel-selected fused row. Priority 80 preserves the compiled default
+		// while exposing the host split to Wisdom.
+		Target: "avx2", Prec: 64, Size: 128,
+		Forward:   "forwardRadix4AVX2Complex64",
+		Inverse:   "inverseRadix4AVX2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit128_radix4_avx2", Priority: 80,
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
 	},
 	{
@@ -942,12 +952,24 @@ var codeletSpecs = []codeletSpec{
 	{
 		// Fused tail: measured 0.943/0.974. The complex128 row at this size
 		// deliberately does NOT fuse -- there the stride is exactly 4 KiB and
-		// fusing costs 11%.
+		// fusing costs 11%. On Zen 2 the separate complex64 row is effectively
+		// tied forward and 4.2% faster inverse, so Wisdom also gets that form.
 		Target: "avx2", Prec: 64, Size: 2048,
 		Forward:   "forwardRadix4AVX2FusedComplex64",
 		Inverse:   "inverseRadix4AVX2FusedComplex64",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit2048_radix4fused_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
+	},
+	{
+		// Zen 2 measured fused/plain at 0.992 forward and 1.042 inverse. Keep
+		// the Intel-selected fused row above it, but retain the separate form
+		// as a production Wisdom candidate.
+		Target: "avx2", Prec: 64, Size: 2048,
+		Forward:   "forwardRadix4AVX2Complex64",
+		Inverse:   "inverseRadix4AVX2Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit2048_radix4_avx2", Priority: 80,
 		TwiddleSize: "twiddleSizeRadix4AVX2", PrepareTwiddle: "prepareTwiddleRadix4AVX2",
 	},
 	{
@@ -1223,13 +1245,26 @@ var codeletSpecs = []codeletSpec{
 		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{
-		// Fused tail: measured 0.935/0.934, the largest fusion win in either
-		// precision. n = 128 is the only complex128 size that takes it.
+		// Fused tail: measured 0.935/0.934 on the i7-1255U, the largest Intel
+		// fusion win in either precision. Zen 2 reverses it by 3.3/2.3%, so the
+		// next row retains the separate form for Wisdom without changing this
+		// compiled default.
 		Target: "avx2", Prec: 128, Size: 128,
 		Forward:   "forwardRadix4AVX2FusedComplex128",
 		Inverse:   "inverseRadix4AVX2FusedComplex128",
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
 		Signature: "dit128_radix4fused_avx2", Priority: 90,
+		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
+	},
+	{
+		// Zen 2 measured this separate-tail form 3.3/2.3% faster. Priority 80
+		// keeps the Intel-selected fused row first while making the alternative
+		// available to Wisdom on hosts with the opposite result.
+		Target: "avx2", Prec: 128, Size: 128,
+		Forward:   "forwardRadix4AVX2Complex128",
+		Inverse:   "inverseRadix4AVX2Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDAVX2", KernelType: "KernelTypeDIT",
+		Signature: "dit128_radix4_avx2", Priority: 80,
 		TwiddleSize: "twiddleSizeRadix4AVX2Complex128", PrepareTwiddle: "prepareTwiddleRadix4AVX2Complex128",
 	},
 	{

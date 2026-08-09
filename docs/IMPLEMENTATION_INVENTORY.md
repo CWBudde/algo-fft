@@ -40,7 +40,7 @@ pure-Go fallback.
 | 128 | Mixed-8/2 | — | — | — | — | ✓ | — |
 | 128 | Radix-2 | · | — | ✓ | — | — | — |
 | 128 | Radix-2 (ladder) | — | — | — | — | — | p |
-| 128 | Radix-4 | — | — | — | p | — | — |
+| 128 | Radix-4 | — | — | — | · | — | — |
 | 128 | Radix-4 (fused tail) | — | — | — | ✓ | — | ✓ |
 | 128 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
 | 128 | Radix-8 (ladder) | p | — | — | p | p | · |
@@ -73,7 +73,7 @@ pure-Go fallback.
 | 2048 | Mixed-2/4 | · | — | ✓ | — | — | · |
 | 2048 | Radix-16 (ladder) | p | — | — | — | — | — |
 | 2048 | Radix-2 (ladder) | — | — | — | — | — | p |
-| 2048 | Radix-4 | — | — | — | p | — | — |
+| 2048 | Radix-4 | — | — | — | · | — | — |
 | 2048 | Radix-4 (fused tail) | — | — | — | · | — | ✓ |
 | 2048 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
 | 2048 | Radix-8 (ladder) | ✓ | — | — | ✓ | ✓ | · |
@@ -167,7 +167,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | 128 | Mixed-2/4 | ✓ | ✓ | — | — | ✓ | · |
 | 128 | Radix-2 | · | · | — | — | — | — |
 | 128 | Radix-2 (ladder) | — | — | — | — | — | p |
-| 128 | Radix-4 | — | — | — | p | — | — |
+| 128 | Radix-4 | — | — | — | · | — | — |
 | 128 | Radix-4 (fused tail) | — | — | — | ✓ | — | ✓ |
 | 128 | Radix-4 (no tail — wrong result by design) | — | — | — | p | — | — |
 | 128 | Radix-8 (ladder) | p | — | — | p | p | · |
@@ -265,12 +265,12 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | Target | Build constraint | complex64 | complex128 | Total |
 |---|---|---:|---:|---:|
 | generic | `(all builds)` | 44 | 43 | 87 |
-| avx2 | `amd64 && !purego` | 24 | 21 | 45 |
+| avx2 | `amd64 && !purego` | 26 | 22 | 48 |
 | avx512 | `amd64 && !purego` | 19 | 14 | 33 |
 | sse2 | `amd64 && !purego` | 22 | 22 | 44 |
 | neon | `arm64 && !purego` | 33 | 33 | 66 |
 
-Total registered codelets: **275**.
+Total registered codelets: **278**.
 
 ## Size × ISA Coverage Gaps
 
@@ -314,8 +314,8 @@ served by the size-generic kernels listed under Beyond the Codelet Registry.
 | SSE2 | 128 | 22 | 14 | 4–32768 | 384 | 65536 |
 | SSE3 | 64 | 21 | 13 | 8–32768 | 384 | 65536 |
 | SSE3 | 128 | 0 | 0 | — | — | — |
-| AVX2 | 64 | 24 | 16 | 4–65536 | — | — |
-| AVX2 | 128 | 21 | 16 | 4–65536 | — | — |
+| AVX2 | 64 | 26 | 16 | 4–65536 | — | — |
+| AVX2 | 128 | 22 | 16 | 4–65536 | — | — |
 | AVX-512 | 64 | 19 | 13 | 8–32768 | 384 | 65536 |
 | AVX-512 | 128 | 13 | 13 | 8–32768 | 384 | 65536 |
 | NEON | 64 | 33 | 15 | 4–65536 | 384 | — |
@@ -773,7 +773,7 @@ Not a measurement. `itoa` builds the per-size signature strings without pulling 
 
 **`internal/kernels/radix4_avx2_tail_probe_amd64.go`** — open
 
-Standing harness rather than a one-shot question — the fused/unfused choice in `cmd/gencodelets/specs.go` is empirical, and an empirical constant with no way to re-derive it rots. At every 2·4^k size it registers the variant production does _not_ use, so the comparison is available in both directions, plus a no-tail probe that **computes the wrong answer on purpose**: the gap to the incumbent is the whole cost of the tail and therefore the most any fusion could ever recover — 9-15% measured, against the 4-6% the fusion actually gets where it wins.
+Standing harness rather than a one-shot question — the fused/unfused choice in `cmd/gencodelets/specs.go` is empirical, and an empirical constant with no way to re-derive it rots. Production carries both forms where the Intel-selected fused row wins, and this probe supplies fusion at the remaining sizes, so the comparison is available everywhere, plus a no-tail probe that **computes the wrong answer on purpose**: the gap to the incumbent is the whole cost of the tail and therefore the most any fusion could ever recover — 9-15% measured, against the 4-6% the fusion actually gets where it wins.
 
 - Recorded in: docs/CODELET_BENCHMARKS.md, "n = 128 closed, and the odd-exponent question settled (2026-08-01)"
 - Re-derive: `PATH=/usr/local/go/bin:$PATH GOFLAGS=-tags=fftprobe GOOD=<canary floor> taskset -c 0 ./scripts/bench_gated.sh 128 512 2048 8192 32768`
@@ -907,8 +907,8 @@ is not a `✓`).
 | Radix-32 | 128 | · | — | — | — | — | — | 1 | open |
 | Radix-32×32 | 64 | · | — | — | — | — | — | 1 | open |
 | Radix-32×32 | 128 | · | — | — | — | — | — | 1 | open |
-| Radix-4 | 64 | ✓ | ✓ | ✓ | ✓ | · | ✓ | 33 | tuned |
-| Radix-4 | 128 | ✓ | ✓ | — | ✓ | ✓ | ✓ | 42 | tuned |
+| Radix-4 | 64 | ✓ | ✓ | ✓ | ✓ | · | ✓ | 35 | tuned |
+| Radix-4 | 128 | ✓ | ✓ | — | ✓ | ✓ | ✓ | 43 | tuned |
 | Radix-4 (fused tail) | 64 | — | — | — | ✓ | — | ✓ | 8 | tuned |
 | Radix-4 (fused tail) | 128 | — | — | — | ✓ | — | ✓ | 7 | tuned |
 | Radix-4 (no tail — wrong result by design) | 64 | — | — | — | p | — | — | 0 | instrument |
@@ -952,7 +952,7 @@ task, so the question has an owner rather than a shrug.
 - **Radix-32** (open) — the registry half is decided: n = 32 was in the 2026-07-30 AVX2 audit and radix-32 took no cell — 25 against radix-2's 30 on AVX2 complex64, 5 against `radix4_then2`'s 10/15 in pure Go — losing by under 1.5× everywhere, which is §2.2's keep-at-low-priority case and is what the table already does. What is *not* decided is the SSE3 cell, and it is not merely uncovered: `sse3_f32_size32_radix32.s` is live and tried **first** at n = 32 by the `KernelStrategy` switch in `internal/fft/kernels_amd64_size_specific.go`, while the registry has no SSE3 radix-32 row and selects `dit32_radix4_then2_sse3` there. The two selection paths disagree at one cell, and the task below owns that whole switch. Tracked by PLAN.md: Measure the cheap alternative first: drop the size-specific cases outright
 - **Radix-32×32** (open) — measured 2026-08-02 and **both halves of the old premise were stale**. The "only one of two stages vectorised" defect is in files that no longer exist — `avx2_f{32,64}_size1024_radix32x32.s` were deleted in `08c8e7b` — and the surviving pure-Go row measures **1.255×** against `dit1024_radix4_generic`, not the 7.2×/5.2× the task recorded. What the sweep does show is a forward/inverse asymmetry, on both hosts: 1.264 fwd / 1.794 inv (complex64) and 1.522 / 1.979 (complex128) on the Xeon, 1.161 / 1.410 and 1.443 / 1.403 on the i7-1255U. A decomposition that loses 1.26× one way and 1.79× the other has an inverse-path defect, so §2.2 keeps the family open rather than closing it on the number. Nor is it probe-gated: every Xeon inverse cell clears the 1.5× bar but **no laptop cell of either row does**, and a one-machine number is not grounds for leaving the registry. Demoted 25 → 1 instead, which is the disposition both hosts do justify. Tracked by PLAN.md: Find the 32×32 / 16×32 inverse-path defect
 - **Radix-4** (tuned) — the incumbent at nearly every size and ISA; the 256-bit AVX2 rewrite made it 2–4× faster and moved every crossover above it. Evidence: docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit
-- **Radix-4 (fused tail)** (tuned) — decided per ISA and cell. AVX2 selects fusion only at n = 128; its larger fused variants remain probe-only. NEON's new vector-register fusion removes a complete store/reload pass and wins both precisions at 32/128/512/2048/8192 (0.60-1.00 forward, 0.63-0.98 inverse against the prior fastest candidate). At 32768 it loses 14-20%, remains registered at priority 20, and the separate tail is selected. This stays per-cell because keeping eight streams live trades memory traffic against register pressure and cache geometry. Evidence: docs/CODELET_BENCHMARKS.md, NEON fused radix-4/radix-2 tail on Apple M5
+- **Radix-4 (fused tail)** (tuned) — decided per ISA, cell and host. AVX2 keeps the two-Intel-host fused radix-4 forms at complex64 128/2048 and complex128 128, but Zen 2 reverses them by 2-4%; their separate counterparts are production Wisdom candidates at priority 80. Larger AVX2 fusion losses reach 1.72-3.48x on Zen 2 and stay probe-only. NEON fusion removes a complete store/reload pass and wins both precisions at 32/128/512/2048/8192; at 32768 it loses 14-20%, remains registered at priority 20, and the separate tail is selected. Evidence: docs/CODELET_BENCHMARKS.md, The radix-4 tail on Zen 2: the host split becomes actionable (2026-08-09)
 - **Radix-4 (no tail — wrong result by design)** (instrument) — measures what the separate `-then-2` tail pass costs by omitting it; 0.867–0.933 across all six groups. It is the *bound* the fused-tail row is judged against — the gap between 0.87 and the fused form's 0.94 is what fusion still leaves on the table — and it can never be a candidate itself. Owned by the Radix-4 (fused tail) family, as its measuring instrument
 - **Radix-8** (tuned) — the flat n = 8 leaf, and it *has* been ranked against radix-2 and radix-4 there: the 2026-07-30 AVX2 audit covers n = 8 in both precisions and moved the complex128 AVX2 row to it (0.970 forward / 0.859 inverse over `dit8_radix4_avx2`). It is the selected row in seven of its nine registered cells — pure-Go, SSE3, SSE2, AVX-512 and NEON complex64, plus AVX2 complex128 — and is outranked in exactly two: AVX2 complex64, where `dit8_radix2_avx2` holds 12 against 11 and the loss is under 1.5× (it is absent from the shadowed-candidates table, which lists everything above that bar), and NEON complex128, which has no radix-8 row at all and is held by radix-4. The unrelated `dit512_radix8_generic` rows sit under the radix-8 ladder at the same size. Evidence: docs/CODELET_BENCHMARKS.md, What the audit changed
 - **Radix-8 (ladder)** (tuned) — wins the generic tier and, on Skylake-SP, 16 AVX-512 cells; loses to radix-4 at the small sizes and on the i7-1255U above 2048 for complex128. Evidence: docs/CODELET_BENCHMARKS.md, The AVX-512 radix-8 ladder: prediction half right, 16 rows promoted

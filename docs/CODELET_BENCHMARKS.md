@@ -1320,14 +1320,17 @@ now a two-microarchitecture result and the strongest reason to keep attacking it
 Ten cells, two hosts, no cell where it captures even a third of what `notail`
 says is available.
 
-**An L1-associativity explanation was predicted and is refuted.** Both hosts
+**An L1-associativity explanation was predicted and is not universal on the two
+Intel hosts.** Both hosts
 alias at 4 KB (64 sets × 64 B), but the Xeon has 8 ways against the laptop's 12,
 and the fused loop holds ~11 mutually-aliasing streams — 8 data plus 3 twiddle.
 That predicts fusion degrading distinctly on the Xeon at the large sizes. It
 does for c64 (+0.068 to +0.097 at 2048/8192/32768) and **fails for c128**, which
 has twice the byte stride and identical set-aliasing yet gets _better_: -0.132 at
 512, -0.075 at 2048, -0.008 at 32768. A way-count mechanism cannot produce that
-sign split. Whatever fusion costs, it is not L1 conflict misses.
+sign split on those two CPUs. The later Zen 2 result below shows that cache
+geometry can still dominate on another microarchitecture; it is not a universal
+explanation for the Intel table.
 
 The surviving explanation is the register budget, the same one that explains the
 AVX2 radix-8 ladder: fusion pins Y0-Y7 across group 1's whole computation and
@@ -1345,6 +1348,40 @@ radix-8 ladder, which removes the tail structurally rather than fusing it, beats
 `radix4_avx2` here by 25% at 512 (1.225 vs 1.629), 28% at 2048 (1.135 vs 1.584)
 and 16% at 32768 (1.156 vs 1.374). The open cell is complex64, where the ladder
 did not win on either host.
+
+#### The radix-4 tail on Zen 2: the host split becomes actionable (2026-08-09)
+
+Ryzen 5 4600H sweep, pinned to core 0, `-tags fftprobe`, seven rotated passes at
+150 ms per cell. The frozen canary floor was 7795 ns with a 1.20 gate; **69 of
+70 groups were accepted**, with one rejected over gate and none rejected for
+drift. Ratios are fused divided by the separate-tail AVX2 radix-4 row, taken
+within each accepted group and then medianed.
+
+| prec |     n | fused/plain forward | fused/plain inverse |
+| ---- | ----: | ------------------: | ------------------: |
+| c64  |   128 |               1.030 |               1.042 |
+| c64  |   512 |               1.038 |               1.016 |
+| c64  |  2048 |               0.992 |               1.042 |
+| c64  |  8192 |               2.124 |               2.186 |
+| c64  | 32768 |               1.721 |               1.758 |
+| c128 |   128 |               1.033 |               1.023 |
+| c128 |   512 |               1.029 |               1.036 |
+| c128 |  2048 |               3.477 |               3.386 |
+| c128 |  8192 |               2.541 |               2.524 |
+| c128 | 32768 |               1.881 |               1.895 |
+
+Fusion has no convincing winning cell on this host. The large losses begin at
+exactly the shapes where the eight live data streams use a 4 KiB-multiple
+stride: complex128 at 2048 and both precisions at 8192 and 32768. That is
+consistent with the fused data streams plus twiddles exhausting Zen 2's 8-way
+L1 sets, but the Intel sign split above prevents promoting that correlation to
+a cross-microarchitecture mechanism.
+
+The compiled ranking remains unchanged: two Intel hosts favor the fused
+radix-4 forms at these small cells, while Zen 2 reverses them by only 2-4%.
+The separate rows they had displaced — complex64 128/2048 and complex128 128 —
+are now production-registered at priority 80. They remain unselected by the
+built-in ranking but are correctness-tested and available to per-host Wisdom.
 
 ### Measurement setup
 

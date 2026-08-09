@@ -897,6 +897,14 @@ unmeasured and unmaintainable.
       loop collides on; it needs the `±(1±i)/√2` rotations and its own stage-1
       permutation table. The `±(1±i)/√2` derivation is already written out from
       the AVX2 radix-8 work.
+
+      **Zen 2 follow-up (2026-08-09):** fusion has no convincing winning cell on
+      the Ryzen 5 4600H. It loses 2–4% at 128/512, splits complex64 2048
+      (0.992 forward / 1.042 inverse), and loses 1.72–3.48× at the larger
+      4 KiB-aliasing shapes. The two-Intel-host priorities remain unchanged,
+      but the separate rows displaced at complex64 128/2048 and complex128 128
+      are now production Wisdom candidates at priority 80. This makes the host
+      split tunable without imposing the Zen result on the Intel defaults.
 - [ ] **Explain the n = 2048 cell specifically.** The tail tax is uniform across
       512/2048/8192 (0.97/0.91/1.24 vs FFTW3 at v0.7.4), so it explains why every
       odd power of two is ~13% below where it could be, **not** why 2048 alone is

@@ -185,3 +185,45 @@ func TestRadix4AVX2FusedSelection(t *testing.T) {
 		}
 	}
 }
+
+// TestRadix4AVX2WisdomAlternates pins the separate-tail rows retained after
+// Zen 2 reversed the Intel fused-tail result. They deliberately remain below
+// the compiled-in defaults but must be present for per-host Wisdom tuning.
+func TestRadix4AVX2WisdomAlternates(t *testing.T) {
+	tests64 := map[int]string{
+		128:  "dit128_radix4_avx2",
+		2048: "dit2048_radix4_avx2",
+	}
+
+	for n, signature := range tests64 {
+		assertCodeletPriority64(t, n, signature, 80)
+	}
+
+	assertCodeletPriority128(t, 128, "dit128_radix4_avx2", 80)
+}
+
+func assertCodeletPriority64(t *testing.T, n int, signature string, priority int) {
+	t.Helper()
+
+	entry := registry.Registry64.LookupBySignature(n, signature)
+	if entry == nil {
+		t.Fatalf("complex64 n=%d: wisdom candidate %s is not registered", n, signature)
+	}
+
+	if entry.Priority != priority {
+		t.Fatalf("complex64 n=%d: %s priority %d, want %d", n, signature, entry.Priority, priority)
+	}
+}
+
+func assertCodeletPriority128(t *testing.T, n int, signature string, priority int) {
+	t.Helper()
+
+	entry := registry.Registry128.LookupBySignature(n, signature)
+	if entry == nil {
+		t.Fatalf("complex128 n=%d: wisdom candidate %s is not registered", n, signature)
+	}
+
+	if entry.Priority != priority {
+		t.Fatalf("complex128 n=%d: %s priority %d, want %d", n, signature, entry.Priority, priority)
+	}
+}

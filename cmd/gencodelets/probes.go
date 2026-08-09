@@ -220,21 +220,20 @@ var probeNotes = map[string]probeNote{
 		Status:  probeOpen,
 		Verdict: "Standing harness rather than a one-shot question — the fused/unfused choice in " +
 			"`cmd/gencodelets/specs.go` is empirical, and an empirical constant with no way to " +
-			"re-derive it rots. At every 2·4^k size it registers the variant production does " +
-			"_not_ use, so the comparison is available in both directions, plus a no-tail probe " +
+			"re-derive it rots. Production carries both forms where the Intel-selected fused row " +
+			"wins, and this probe supplies fusion at the remaining sizes, so the comparison is " +
+			"available everywhere, plus a no-tail probe " +
 			"that **computes the wrong answer on purpose**: the gap to the incumbent is the whole " +
 			"cost of the tail and therefore the most any fusion could ever recover — 9-15% " +
 			"measured, against the 4-6% the fusion actually gets where it wins.",
 		Record:  "docs/CODELET_BENCHMARKS.md, \"n = 128 closed, and the odd-exponent question settled (2026-08-01)\"",
 		Rederiv: "GOFLAGS=-tags=fftprobe GOOD=<canary floor> taskset -c 0 ./scripts/bench_gated.sh 128 512 2048 8192 32768",
-		// The alternate variant is the one production does NOT use at that
-		// size, so these never collide with a spec row —
-		// TestProbeCellsDoNotShadowSpecRows is what keeps that true.
+		// Plain alternatives at the fused-selected cells are production Wisdom
+		// candidates after the Zen 2 sweep, so only the still-probe-only fused
+		// cells belong here. TestProbeCellsDoNotShadowSpecRows guards the split.
 		Cells: concatCells(
-			probeCells(64, "SIMDAVX2", "radix4", 128, 2048),
 			probeCells(64, "SIMDAVX2", "radix4fused", 512, 8192, 32768),
 			probeCells(64, "SIMDAVX2", "radix4_notail", 128, 512, 2048, 8192, 32768),
-			probeCells(128, "SIMDAVX2", "radix4", 128),
 			probeCells(128, "SIMDAVX2", "radix4fused", 512, 2048, 8192, 32768),
 			probeCells(128, "SIMDAVX2", "radix4_notail", 128, 512, 2048, 8192, 32768),
 		),

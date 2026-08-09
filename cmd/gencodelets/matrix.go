@@ -162,8 +162,8 @@ var familyVerdicts = []familyVerdict{
 	},
 	{
 		Family: "Radix-4 (fused tail)", Status: famTuned,
-		Verdict:  "decided per ISA and cell. AVX2 selects fusion only at n = 128; its larger fused variants remain probe-only. NEON's new vector-register fusion removes a complete store/reload pass and wins both precisions at 32/128/512/2048/8192 (0.60-1.00 forward, 0.63-0.98 inverse against the prior fastest candidate). At 32768 it loses 14-20%, remains registered at priority 20, and the separate tail is selected. This stays per-cell because keeping eight streams live trades memory traffic against register pressure and cache geometry",
-		Evidence: "docs/CODELET_BENCHMARKS.md, NEON fused radix-4/radix-2 tail on Apple M5",
+		Verdict:  "decided per ISA, cell and host. AVX2 keeps the two-Intel-host fused radix-4 forms at complex64 128/2048 and complex128 128, but Zen 2 reverses them by 2-4%; their separate counterparts are production Wisdom candidates at priority 80. Larger AVX2 fusion losses reach 1.72-3.48x on Zen 2 and stay probe-only. NEON fusion removes a complete store/reload pass and wins both precisions at 32/128/512/2048/8192; at 32768 it loses 14-20%, remains registered at priority 20, and the separate tail is selected",
+		Evidence: "docs/CODELET_BENCHMARKS.md, The radix-4 tail on Zen 2: the host split becomes actionable (2026-08-09)",
 	},
 	{
 		Family: "Mixed-8/2", Status: famTuned,

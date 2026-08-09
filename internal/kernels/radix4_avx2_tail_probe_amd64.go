@@ -8,11 +8,12 @@ package kernels
 // It exists because the per-size choice recorded in cmd/gencodelets/specs.go --
 // which sizes fold the tail into the last radix-4 stage and which keep it as a
 // separate pass -- is empirical, and an empirical constant with no way to
-// re-derive it rots. Building the candidate sweep with this tag registers, at
-// every 2*4^k size:
+// re-derive it rots. Building the candidate sweep with this tag makes both
+// variants available at every 2*4^k size:
 //
-//   - the variant production does NOT use at that size, so the fused/unfused
-//     comparison is available in both directions at every size; and
+//   - production carries the Intel-selected fused row and the low-priority
+//     separate Wisdom candidate together where fusion is selected; this probe
+//     adds the fused variant at the remaining, separate-selected sizes; and
 //   - a no-tail probe, which skips the combine entirely.
 //
 // The no-tail probe computes the WRONG ANSWER on purpose. It is what bounds the
@@ -95,9 +96,9 @@ func inverseRadix4AVX2NoTailComplex128(dst, src, twiddle, scratch []complex128) 
 }
 
 // radix4FusedSizes64 and radix4FusedSizes128 mirror the specs.go rows that
-// select the fused variant. The probe registers the OTHER variant at each size,
-// so a sweep always has both to compare; keeping these in sync with specs.go is
-// what TestRadix4ProbeCoversBothVariants checks.
+// select the fused variant. Production now also registers the separate form at
+// low priority in those cells, so the probe only needs to add fused rows at the
+// remaining sizes.
 //
 //nolint:gochecknoglobals // probe-only tables
 var (
@@ -109,35 +110,25 @@ var (
 //nolint:gochecknoinits // matches the generated codelet registration files
 func init() {
 	for _, size := range radix4TailSizes {
-		fwd64, inv64 := forwardRadix4AVX2FusedComplex64, inverseRadix4AVX2FusedComplex64
-		name64 := "dit" + itoa(size) + "_radix4fused_avx2"
-
-		if radix4FusedSizes64[size] {
-			fwd64, inv64 = forwardRadix4AVX2Complex64, inverseRadix4AVX2Complex64
-			name64 = "dit" + itoa(size) + "_radix4_avx2"
+		if !radix4FusedSizes64[size] {
+			registry.Registry64.Register(registry.CodeletEntry[complex64]{
+				Size: size, Forward: forwardRadix4AVX2FusedComplex64, Inverse: inverseRadix4AVX2FusedComplex64,
+				Algorithm: fftypes.KernelDIT, SIMDLevel: fftypes.SIMDAVX2,
+				Signature: "dit" + itoa(size) + "_radix4fused_avx2", Priority: radix4AltPriority,
+				KernelType:  fftypes.KernelTypeDIT,
+				TwiddleSize: twiddleSizeRadix4AVX2, PrepareTwiddle: prepareTwiddleRadix4AVX2,
+			})
 		}
 
-		fwd128, inv128 := forwardRadix4AVX2FusedComplex128, inverseRadix4AVX2FusedComplex128
-		name128 := "dit" + itoa(size) + "_radix4fused_avx2"
-
-		if radix4FusedSizes128[size] {
-			fwd128, inv128 = forwardRadix4AVX2Complex128, inverseRadix4AVX2Complex128
-			name128 = "dit" + itoa(size) + "_radix4_avx2"
+		if !radix4FusedSizes128[size] {
+			registry.Registry128.Register(registry.CodeletEntry[complex128]{
+				Size: size, Forward: forwardRadix4AVX2FusedComplex128, Inverse: inverseRadix4AVX2FusedComplex128,
+				Algorithm: fftypes.KernelDIT, SIMDLevel: fftypes.SIMDAVX2,
+				Signature: "dit" + itoa(size) + "_radix4fused_avx2", Priority: radix4AltPriority,
+				KernelType:  fftypes.KernelTypeDIT,
+				TwiddleSize: twiddleSizeRadix4AVX2Complex128, PrepareTwiddle: prepareTwiddleRadix4AVX2Complex128,
+			})
 		}
-
-		registry.Registry64.Register(registry.CodeletEntry[complex64]{
-			Size: size, Forward: fwd64, Inverse: inv64,
-			Algorithm: fftypes.KernelDIT, SIMDLevel: fftypes.SIMDAVX2,
-			Signature: name64, Priority: radix4AltPriority, KernelType: fftypes.KernelTypeDIT,
-			TwiddleSize: twiddleSizeRadix4AVX2, PrepareTwiddle: prepareTwiddleRadix4AVX2,
-		})
-
-		registry.Registry128.Register(registry.CodeletEntry[complex128]{
-			Size: size, Forward: fwd128, Inverse: inv128,
-			Algorithm: fftypes.KernelDIT, SIMDLevel: fftypes.SIMDAVX2,
-			Signature: name128, Priority: radix4AltPriority, KernelType: fftypes.KernelTypeDIT,
-			TwiddleSize: twiddleSizeRadix4AVX2Complex128, PrepareTwiddle: prepareTwiddleRadix4AVX2Complex128,
-		})
 
 		registry.Registry64.Register(registry.CodeletEntry[complex64]{
 			Size:      size,
