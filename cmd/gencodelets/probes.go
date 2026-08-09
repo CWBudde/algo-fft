@@ -194,6 +194,28 @@ var probeNotes = map[string]probeNote{
 			probeCells(128, "SIMDNEON", "radix8ladder", 65536),
 		),
 	},
+	"internal/kernels/radix2_neon_probe_arm64.go": {
+		Subject: "the existing size-generic complex64/complex128 NEON radix-2 DIT kernel " +
+			"against the tuned NEON radix-4 and radix-8 ladders",
+		Status: probeOpen,
+		Verdict: "**No full ladder sweep has been taken.** This is not one of the retired " +
+			"scalar size-specific files: `ForwardNEONComplex64Asm` and " +
+			"`ForwardNEONComplex128Asm` process two butterflies per vector iteration. The " +
+			"production registry exposes those generic symbols at only four historical cells, " +
+			"so this probe registers a distinct radix-2 signature at every power of two from 4 " +
+			"through 65536. The Apple M5 sweep decides whether any cell deserves production " +
+			"registration; the 1.5x retention rule applies independently per precision and size.",
+		Record: "docs/CODELET_BENCHMARKS.md, \"NEON radix-2 ladder on Apple M5\"",
+		Rederiv: "GOFLAGS=-tags=fftprobe go test -run '^$' " +
+			"-bench 'BenchmarkCodeletCandidates(64|128)/.*/dit[0-9]+_radix2ladder_neon' " +
+			"-benchmem -benchtime=300ms -count=5 ./internal/kernels",
+		Cells: concatCells(
+			probeCells(64, "SIMDNEON", "radix2ladder", 4, 8, 16, 32, 64, 128, 256, 512,
+				1024, 2048, 4096, 8192, 16384, 32768, 65536),
+			probeCells(128, "SIMDNEON", "radix2ladder", 4, 8, 16, 32, 64, 128, 256, 512,
+				1024, 2048, 4096, 8192, 16384, 32768, 65536),
+		),
+	},
 	"internal/kernels/radix4_avx2_tail_probe_amd64.go": {
 		Subject: "the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass",
 		Status:  probeOpen,

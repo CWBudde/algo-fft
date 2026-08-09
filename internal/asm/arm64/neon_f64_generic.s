@@ -83,10 +83,9 @@ f128_check_power_of_2:
 	TST  R13, R0
 	BNE  f128_return_false
 
-	// Compute log2(n) -> R12 (number of bits for bit-reversal)
-	CLZ  R13, R0                 // R0 = leading zeros of n
-	MOVD $63, R12
-	SUB  R0, R12, R12            // R12 = 63 - clz(n) = log2(n)
+	// R12 = 64 - log2(n), the shift used after RBIT.
+	CLZ R13, R12
+	ADD $1, R12, R12
 
 	// -----------------------------------------------------------------------
 	// PHASE 2: Select working buffer
@@ -113,23 +112,8 @@ f128_bitrev_loop:
 	CMP  R13, R17
 	BGE  f128_bitrev_done
 
-	// Compute bit-reversed index of R17 using R12 bits
-	// rev = 0; for b=0; b<bits; b++ { rev = (rev<<1) | ((i>>b)&1) }
-	MOVD $0, R1                  // R1 = rev = 0
-	MOVD R17, R2                 // R2 = val = i
-	MOVD R12, R3                 // R3 = bits remaining
-
-f128_bitrev_bits:
-	CBZ  R3, f128_bitrev_bits_done
-	LSL  $1, R1, R1              // rev <<= 1
-	AND  $1, R2, R4              // R4 = val & 1
-	ORR  R4, R1, R1              // rev |= (val & 1)
-	LSR  $1, R2, R2              // val >>= 1
-	SUB  $1, R3, R3              // bits--
-	B    f128_bitrev_bits
-
-f128_bitrev_bits_done:
-	// R1 = bit-reversed index
+	RBIT R17, R1
+	LSR  R12, R1, R1             // reverse the low log2(n) bits
 	LSL  $4, R1, R0              // R0 = rev * 16 (byte offset)
 	ADD  R9, R0, R0              // R0 = &src[rev]
 	MOVD (R0), R2
@@ -206,12 +190,9 @@ f128_inner_loop:
 
 	// wb = w * b: wb.re = br*wr - bi*wi, wb.im = br*wi + bi*wr
 	VMULF_D2(2, 4, 6)  // V6 = br*wr
-	VMULF_D2(3, 5, 7)  // V7 = bi*wi
-	VSUBF_D2(6, 7, 6)  // V6 = wb.re
-
-	VMULF_D2(2, 5, 8)  // V8 = br*wi
-	VMULF_D2(3, 4, 9)  // V9 = bi*wr
-	VADDF_D2(8, 9, 7)  // V7 = wb.im
+	VFMSF_D2(3, 5, 6)  // V6 -= bi*wi
+	VMULF_D2(2, 5, 7)  // V7 = br*wi
+	VFMAF_D2(3, 4, 7)  // V7 += bi*wr
 
 	// a' = a + wb, b' = a - wb
 	VADDF_D2(0, 6, 10) // a'.re
@@ -246,12 +227,9 @@ f128_vector_contig:
 	VLD2 (R5), [V4.D2, V5.D2]    // w
 
 	VMULF_D2(2, 4, 6)
-	VMULF_D2(3, 5, 7)
-	VSUBF_D2(6, 7, 6)  // V6 = wb.re
-
-	VMULF_D2(2, 5, 8)
-	VMULF_D2(3, 4, 9)
-	VADDF_D2(8, 9, 7)  // V7 = wb.im
+	VFMSF_D2(3, 5, 6)  // V6 -= bi*wi
+	VMULF_D2(2, 5, 7)
+	VFMAF_D2(3, 4, 7)  // V7 += bi*wr
 
 	VADDF_D2(0, 6, 10)
 	VADDF_D2(1, 7, 11)
@@ -393,10 +371,9 @@ i128_check_power_of_2:
 	TST  R13, R0
 	BNE  i128_return_false
 
-	// Compute log2(n) -> R12 (number of bits for bit-reversal)
-	CLZ  R13, R0                 // R0 = leading zeros of n
-	MOVD $63, R12
-	SUB  R0, R12, R12            // R12 = 63 - clz(n) = log2(n)
+	// R12 = 64 - log2(n), the shift used after RBIT.
+	CLZ R13, R12
+	ADD $1, R12, R12
 
 	// -----------------------------------------------------------------------
 	// PHASE 2: Select working buffer
@@ -421,22 +398,8 @@ i128_bitrev_loop:
 	CMP  R13, R17
 	BGE  i128_bitrev_done
 
-	// Compute bit-reversed index of R17 using R12 bits
-	MOVD $0, R1                  // R1 = rev = 0
-	MOVD R17, R2                 // R2 = val = i
-	MOVD R12, R3                 // R3 = bits remaining
-
-i128_bitrev_bits:
-	CBZ  R3, i128_bitrev_bits_done
-	LSL  $1, R1, R1              // rev <<= 1
-	AND  $1, R2, R4              // R4 = val & 1
-	ORR  R4, R1, R1              // rev |= (val & 1)
-	LSR  $1, R2, R2              // val >>= 1
-	SUB  $1, R3, R3              // bits--
-	B    i128_bitrev_bits
-
-i128_bitrev_bits_done:
-	// R1 = bit-reversed index
+	RBIT R17, R1
+	LSR  R12, R1, R1             // reverse the low log2(n) bits
 	LSL  $4, R1, R0              // R0 = rev * 16 (byte offset)
 	ADD  R9, R0, R0              // R0 = &src[rev]
 	MOVD (R0), R2
@@ -512,12 +475,9 @@ i128_inner_loop:
 	VMOV R21, V5.D[1]            // V5 = wi = [wi0, wi1]
 
 	VMULF_D2(2, 4, 6)  // V6 = br*wr
-	VMULF_D2(3, 5, 7)  // V7 = bi*wi
-	VADDF_D2(6, 7, 6)  // V6 = wb.re = br*wr + bi*wi
-
-	VMULF_D2(3, 4, 8)  // V8 = bi*wr
-	VMULF_D2(2, 5, 9)  // V9 = br*wi
-	VSUBF_D2(8, 9, 7)  // V7 = wb.im = bi*wr - br*wi
+	VFMAF_D2(3, 5, 6)  // V6 += bi*wi
+	VMULF_D2(3, 4, 7)  // V7 = bi*wr
+	VFMSF_D2(2, 5, 7)  // V7 -= br*wi
 
 	VADDF_D2(0, 6, 10) // a'.re
 	VADDF_D2(1, 7, 11) // a'.im
@@ -547,12 +507,9 @@ i128_vector_contig:
 	VLD2 (R5), [V4.D2, V5.D2]
 
 	VMULF_D2(2, 4, 6)
-	VMULF_D2(3, 5, 7)
-	VADDF_D2(6, 7, 6)  // V6 = wb.re
-
-	VMULF_D2(3, 4, 8)
-	VMULF_D2(2, 5, 9)
-	VSUBF_D2(8, 9, 7)  // V7 = wb.im
+	VFMAF_D2(3, 5, 6)  // V6 += bi*wi
+	VMULF_D2(3, 4, 7)
+	VFMSF_D2(2, 5, 7)  // V7 -= br*wi
 
 	VADDF_D2(0, 6, 10)
 	VADDF_D2(1, 7, 11)

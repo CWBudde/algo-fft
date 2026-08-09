@@ -32,6 +32,7 @@
 // ===========================================================================
 
 #include "textflag.h"
+#include "neon_fp.h"
 
 
 // ===========================================================================
@@ -231,26 +232,18 @@ inner_loop:
 	VUZP1 V2.S4, V2.S4, V5.S4    // V5 = [wr0, wr1, wr0, wr1]
 	VUZP2 V2.S4, V2.S4, V6.S4    // V6 = [wi0, wi1, wi0, wi1]
 
-	// wb.real = br*wr - bi*wi
-	VEOR V7.B16, V7.B16, V7.B16
-	VFMLA V3.S4, V5.S4, V7.S4
-	VFMLS V4.S4, V6.S4, V7.S4
-
-	// wb.imag = br*wi + bi*wr
-	VEOR V8.B16, V8.B16, V8.B16
-	VFMLA V3.S4, V6.S4, V8.S4
-	VFMLA V4.S4, V5.S4, V8.S4
+	// wb.real = br*wr - bi*wi; wb.imag = br*wi + bi*wr.
+	VMULF_S4(3, 5, 7)
+	VFMSF_S4(4, 6, 7)
+	VMULF_S4(3, 6, 8)
+	VFMAF_S4(4, 5, 8)
 
 	// Pack wb and butterfly.
 	VZIP1 V8.S4, V7.S4, V9.S4   // V9 = [wb.r0, wb.i0, wb.r1, wb.i1]
 
-	// a' = a + wb, b' = a - wb (use ones vector + VFMLA/VFMLS)
-	MOVD $·neonOnes(SB), R6
-	VLD1 (R6), [V12.S4]
-	VMOV V0.B16, V10.B16
-	VFMLA V9.S4, V12.S4, V10.S4
-	VMOV V0.B16, V11.B16
-	VFMLS V9.S4, V12.S4, V11.S4
+	// a' = a + wb, b' = a - wb.
+	VADDF_S4(0, 9, 10)
+	VSUBF_S4(0, 9, 11)
 
 	VST1 [V10.S4], (R3)
 	VST1 [V11.S4], (R4)
@@ -284,26 +277,18 @@ vector_contig:
 	VUZP1 V2.S4, V2.S4, V5.S4    // V5 = [wr0, wr1, wr0, wr1]
 	VUZP2 V2.S4, V2.S4, V6.S4    // V6 = [wi0, wi1, wi0, wi1]
 
-	// wb.real = br*wr - bi*wi
-	VEOR V7.B16, V7.B16, V7.B16
-	VFMLA V3.S4, V5.S4, V7.S4
-	VFMLS V4.S4, V6.S4, V7.S4
-
-	// wb.imag = br*wi + bi*wr
-	VEOR V8.B16, V8.B16, V8.B16
-	VFMLA V3.S4, V6.S4, V8.S4
-	VFMLA V4.S4, V5.S4, V8.S4
+	// wb.real = br*wr - bi*wi; wb.imag = br*wi + bi*wr.
+	VMULF_S4(3, 5, 7)
+	VFMSF_S4(4, 6, 7)
+	VMULF_S4(3, 6, 8)
+	VFMAF_S4(4, 5, 8)
 
 	// Pack wb and butterfly.
 	VZIP1 V8.S4, V7.S4, V9.S4   // V9 = [wb.r0, wb.i0, wb.r1, wb.i1]
 
-	// a' = a + wb, b' = a - wb (use ones vector + VFMLA/VFMLS)
-	MOVD $·neonOnes(SB), R6
-	VLD1 (R6), [V12.S4]
-	VMOV V0.B16, V10.B16
-	VFMLA V9.S4, V12.S4, V10.S4
-	VMOV V0.B16, V11.B16
-	VFMLS V9.S4, V12.S4, V11.S4
+	// a' = a + wb, b' = a - wb.
+	VADDF_S4(0, 9, 10)
+	VSUBF_S4(0, 9, 11)
 
 	VST1 [V10.S4], (R3)
 	VST1 [V11.S4], (R4)
@@ -597,22 +582,15 @@ inv_inner_loop:
 	VUZP1 V2.S4, V2.S4, V5.S4
 	VUZP2 V2.S4, V2.S4, V6.S4
 
-	VEOR V7.B16, V7.B16, V7.B16
-	VFMLA V3.S4, V5.S4, V7.S4
-	VFMLS V4.S4, V6.S4, V7.S4
-
-	VEOR V8.B16, V8.B16, V8.B16
-	VFMLA V3.S4, V6.S4, V8.S4
-	VFMLA V4.S4, V5.S4, V8.S4
+	VMULF_S4(3, 5, 7)
+	VFMSF_S4(4, 6, 7)
+	VMULF_S4(3, 6, 8)
+	VFMAF_S4(4, 5, 8)
 
 	VZIP1 V8.S4, V7.S4, V9.S4
 
-	MOVD $·neonOnes(SB), R6
-	VLD1 (R6), [V12.S4]
-	VMOV V0.B16, V10.B16
-	VFMLA V9.S4, V12.S4, V10.S4
-	VMOV V0.B16, V11.B16
-	VFMLS V9.S4, V12.S4, V11.S4
+	VADDF_S4(0, 9, 10)
+	VSUBF_S4(0, 9, 11)
 
 	VST1 [V10.S4], (R3)
 	VST1 [V11.S4], (R4)
@@ -645,22 +623,15 @@ inv_vector_contig:
 	VUZP1 V2.S4, V2.S4, V5.S4
 	VUZP2 V2.S4, V2.S4, V6.S4
 
-	VEOR V7.B16, V7.B16, V7.B16
-	VFMLA V3.S4, V5.S4, V7.S4
-	VFMLS V4.S4, V6.S4, V7.S4
-
-	VEOR V8.B16, V8.B16, V8.B16
-	VFMLA V3.S4, V6.S4, V8.S4
-	VFMLA V4.S4, V5.S4, V8.S4
+	VMULF_S4(3, 5, 7)
+	VFMSF_S4(4, 6, 7)
+	VMULF_S4(3, 6, 8)
+	VFMAF_S4(4, 5, 8)
 
 	VZIP1 V8.S4, V7.S4, V9.S4
 
-	MOVD $·neonOnes(SB), R6
-	VLD1 (R6), [V12.S4]
-	VMOV V0.B16, V10.B16
-	VFMLA V9.S4, V12.S4, V10.S4
-	VMOV V0.B16, V11.B16
-	VFMLS V9.S4, V12.S4, V11.S4
+	VADDF_S4(0, 9, 10)
+	VSUBF_S4(0, 9, 11)
 
 	VST1 [V10.S4], (R3)
 	VST1 [V11.S4], (R4)
@@ -795,4 +766,3 @@ inv_return_false:
 // ===========================================================================
 // forwardNEONComplex128Asm - Forward FFT for complex128 using NEON
 // ===========================================================================
-

@@ -96,6 +96,11 @@ var familyVerdicts = []familyVerdict{
 		Verdict:  "wins the generic tier and, on Skylake-SP, 16 AVX-512 cells; loses to radix-4 at the small sizes and on the i7-1255U above 2048 for complex128",
 		Evidence: "docs/CODELET_BENCHMARKS.md, The AVX-512 radix-8 ladder: prediction half right, 16 rows promoted",
 	},
+	{
+		Family: "Radix-2 (ladder)", Status: famOpen,
+		Verdict: "the existing size-generic NEON radix-2 DIT assembly is genuinely vectorized but has never been ranked as a complete ladder against the tuned NEON radix-4 and radix-8 codelets; an Apple M5 probe now covers every power of two from 4 through 65536 in both precisions",
+		Tracked: "NEON: priority tuning on real arm64 hardware.",
+	},
 
 	{
 		Family: "Radix-16 (ladder)", Status: famClosed,

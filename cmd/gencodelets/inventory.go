@@ -34,6 +34,7 @@ var simdColumnNames = map[string]string{
 //nolint:gochecknoglobals // static configuration for the inventory renderer
 var variantNames = map[string]string{
 	"radix2":              "Radix-2",
+	"radix2ladder":        "Radix-2 (ladder)",
 	"radix4":              "Radix-4",
 	"radix4fused":         "Radix-4 (fused tail)",
 	"radix4_notail":       "Radix-4 (no tail — wrong result by design)",
