@@ -1850,6 +1850,49 @@ both precisions, and `radix4_then2` at 32768. The losing alternative remains at
 priority 20 in every cell, and the old `RankBelowGeneric` demotions were removed
 because both NEON variants beat the pure-Go rows on this host.
 
+#### Size 32 radix-8 follow-up (2026-08-10)
+
+The size-generic NEON radix-8 assembly originally rejected n = 32 even though
+the shared radix schedule already describes it: one radix-8 stage followed by
+a radix-4 tail. Lowering the Go and assembly minimum-size guards was sufficient;
+the packed twiddle and digit-reversal builders needed no special case. Native
+reference, round-trip, in-place and zero-allocation tests pass in both
+precisions on the same Apple M5.
+
+Seven isolated 500 ms runs compared it directly with the selected fused-tail
+row. The table reports medians and candidate/incumbent ratios, so values above
+one favor the incumbent:
+
+| precision  | direction | fused radix-4 | radix-8 | ratio |
+| ---------- | --------- | ------------: | ------: | ----: |
+| complex64  | forward   |      18.44 ns | 25.57 ns | 1.39x |
+| complex64  | inverse   |      19.40 ns | 27.24 ns | 1.40x |
+| complex128 | forward   |      26.80 ns | 27.67 ns | 1.03x |
+| complex128 | inverse   |      30.21 ns | 30.87 ns | 1.02x |
+
+Radix-8 does not replace the fused row on this host. All four losses remain
+inside the repository's 1.5x retention threshold, however, so both size-32
+radix-8 rows are production-registered at priority 20. The fused row remains
+selected at priority 34, while Wisdom can choose radix-8 on a different ARM
+microarchitecture.
+
+Because the complex128 margin was only 2–3%, a fixed-size follow-up removed two
+costs that do not belong to the transform: recalculating `radix8Limit(32)` and
+consulting the `sync.Once`-backed permutation cache on every call. The size-32
+wrappers now pass the constant limit and the four group bases `{0,1,2,3}`
+directly; a native test cross-checks those bases against
+`radix8GroupIndices(32)` so the embedded permutation cannot drift.
+
+The M5 changed frequency by roughly 25% during the follow-up's sequential
+groups, making another non-interleaved absolute table misleading. Short
+order-alternated trials still put complex64 behind by roughly 20–27%, while
+complex128 was near parity forward and sometimes about 4% faster inverse. That
+does not establish a whole-row winner: compiled registry ranking selects one
+entry for both directions, while measured Wisdom can already bind fused forward
+and radix-8 inverse independently. The priorities therefore remain 34/20. A
+larger fully unrolled radix-8 body is not justified until an idle paired run or
+a second ARM host shows a stable row-level win.
+
 ### Sizes 64–16384, complex64 — one looped core replaces five unrolled files
 
 `neon_f32_size{64,256,1024,4096,16384}_*.s` were 28,503 lines of fully-unrolled

@@ -8,8 +8,9 @@ import (
 )
 
 // Size 65536 exceeded the repository's 1.5x retention cutoff on the Apple M5
-// in both precisions. Smaller rows live in the generated production registry;
-// these two cells remain available only for cross-microarchitecture retesting.
+// in both precisions. Smaller rows, including the retained size-32 candidate,
+// live in the generated production registry; these two cells remain available
+// only for cross-microarchitecture retesting.
 //
 //nolint:gochecknoglobals // probe-only size table
 var radix8NEONProbeSizes64 = []int{65536}

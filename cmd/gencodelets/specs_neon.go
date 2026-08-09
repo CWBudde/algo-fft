@@ -361,11 +361,21 @@ var codeletSpecsNEONFusedTail = []codeletSpec{
 // that stayed within 1.5x of the incumbent on the Apple M5. After the fused-
 // tail re-sweep, only complex128 size 64 remains selected at priority 30;
 // every other row is wisdom-reachable at priority 20 below the radix-4 rows.
-// Size 65536 exceeded the cutoff in both precisions and remains in
-// radix8_neon_probe_arm64.go.
+// The size-32 extension loses 1.39x/1.40x in complex64 and 1.03x/1.02x in
+// complex128 against the fused-tail winner (M5 medians, 2026-08-10), so it is
+// retained here at priority 20. Size 65536 exceeded the cutoff in both
+// precisions and remains in radix8_neon_probe_arm64.go.
 //
 //nolint:gochecknoglobals // the codelet table is the generator's declarative input
 var codeletSpecsNEONRadix8 = []codeletSpec{
+	{
+		Target: "neon", Prec: 64, Size: 32,
+		Forward:   "forwardRadix8NEONSize32Complex64",
+		Inverse:   "inverseRadix8NEONSize32Complex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit32_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
 	{
 		Target: "neon", Prec: 64, Size: 64,
 		Forward:   "forwardRadix8NEONComplex64",
@@ -445,6 +455,14 @@ var codeletSpecsNEONRadix8 = []codeletSpec{
 		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
 		Signature: "dit32768_radix8ladder_neon", Priority: 20,
 		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 32,
+		Forward:   "forwardRadix8NEONSize32Complex128",
+		Inverse:   "inverseRadix8NEONSize32Complex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit32_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
 	},
 	{
 		Target: "neon", Prec: 128, Size: 64,

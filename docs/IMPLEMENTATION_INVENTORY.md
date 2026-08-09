@@ -31,7 +31,7 @@ pure-Go fallback.
 | 32 | Radix-2 (ladder) | — | — | — | — | — | p |
 | 32 | Radix-32 | · | — | — | · | — | — |
 | 32 | Radix-4 (fused tail) | — | — | — | — | — | ✓ |
-| 32 | Radix-8 (ladder) | — | — | — | p | — | — |
+| 32 | Radix-8 (ladder) | — | — | — | p | — | · |
 | 64 | Radix-2 | · | — | · | ✓ | ✓ | ✓ |
 | 64 | Radix-2 (ladder) | — | — | — | — | — | p |
 | 64 | Radix-4 | ✓ | — | ✓ | — | · | — |
@@ -159,7 +159,7 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | 32 | Radix-32 | · | — | — | — | — | — |
 | 32 | Radix-4 | — | — | — | ✓ | — | — |
 | 32 | Radix-4 (fused tail) | — | — | — | — | — | ✓ |
-| 32 | Radix-8 (ladder) | — | — | — | p | p | — |
+| 32 | Radix-8 (ladder) | — | — | — | p | p | · |
 | 64 | Radix-2 | · | · | — | — | — | — |
 | 64 | Radix-2 (ladder) | — | — | — | — | — | p |
 | 64 | Radix-4 | ✓ | ✓ | — | ✓ | ✓ | · |
@@ -268,9 +268,9 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | avx2 | `amd64 && !purego` | 26 | 22 | 48 |
 | avx512 | `amd64 && !purego` | 19 | 14 | 33 |
 | sse2 | `amd64 && !purego` | 22 | 22 | 44 |
-| neon | `arm64 && !purego` | 33 | 33 | 66 |
+| neon | `arm64 && !purego` | 34 | 34 | 68 |
 
-Total registered codelets: **278**.
+Total registered codelets: **280**.
 
 ## Size × ISA Coverage Gaps
 
@@ -318,8 +318,8 @@ served by the size-generic kernels listed under Beyond the Codelet Registry.
 | AVX2 | 128 | 22 | 16 | 4–65536 | — | — |
 | AVX-512 | 64 | 19 | 13 | 8–32768 | 384 | 65536 |
 | AVX-512 | 128 | 13 | 13 | 8–32768 | 384 | 65536 |
-| NEON | 64 | 33 | 15 | 4–65536 | 384 | — |
-| NEON | 128 | 33 | 15 | 4–65536 | 384 | — |
+| NEON | 64 | 34 | 15 | 4–65536 | 384 | — |
+| NEON | 128 | 34 | 15 | 4–65536 | 384 | — |
 
 ### Covered at one precision only
 
@@ -801,7 +801,7 @@ Forward geomean **0.87** over n = 512..32768 (2026-07-30). Thirteen of twenty ce
 
 **`internal/kernels/radix8_neon_probe_arm64.go`** — open
 
-Both precisions are correct and zero-allocation from 64 through 65536 on an Apple M5 (2026-08-09). The first sweep promoted odd-exponent cells after comparing against generic incumbents; the fused-tail follow-up exposed that `RankBelowGeneric` had hidden the faster NEON radix-4-then-2 rows. After the direct three-way sweep, only complex128 size 64 remains selected; every radix-8 row through 32768 stays registered at low priority. Size 65536 still loses 1.51x complex64 and 1.63x complex128 forward, so those two cells stay probe-only pending a second ARM microarchitecture.
+Both precisions are correct and zero-allocation from 32 through 65536 on an Apple M5 (2026-08-09). The first sweep promoted odd-exponent cells after comparing against generic incumbents; the fused-tail follow-up exposed that `RankBelowGeneric` had hidden the faster NEON radix-4-then-2 rows. After the direct three-way sweep, only complex128 size 64 remains selected; every radix-8 row through 32768 stays registered at low priority. The size-32 extension measured 1.39x/1.40x behind fused radix-4 for complex64 and 1.03x/1.02x behind for complex128 on 2026-08-10, so both rows joined production at low priority under the 1.5x rule. Size 65536 still loses 1.51x complex64 and 1.63x complex128 forward, so those two cells stay probe-only pending a second ARM microarchitecture.
 
 - Recorded in: docs/CODELET_BENCHMARKS.md, "NEON radix-8 ladder on Apple M5"
 - Re-derive: `PATH=/usr/local/go/bin:$PATH GOFLAGS=-tags=fftprobe go test -run '^$' -bench 'BenchmarkCodeletCandidates(64|128)/.*/dit[0-9]+_radix8ladder_neon' -benchmem -benchtime=300ms -count=5 ./internal/kernels`
@@ -915,8 +915,8 @@ is not a `✓`).
 | Radix-4 (no tail — wrong result by design) | 128 | — | — | — | p | — | — | 0 | instrument |
 | Radix-8 | 64 | ✓ | — | ✓ | · | ✓ | ✓ | 6 | tuned |
 | Radix-8 | 128 | ✓ | ✓ | — | ✓ | ✓ | — | 5 | tuned |
-| Radix-8 (ladder) | 64 | ✓ | — | — | ✓ | ✓ | · | 29 | tuned |
-| Radix-8 (ladder) | 128 | ✓ | — | — | ✓ | ✓ | ✓ | 27 | tuned |
+| Radix-8 (ladder) | 64 | ✓ | — | — | ✓ | ✓ | · | 30 | tuned |
+| Radix-8 (ladder) | 128 | ✓ | — | — | ✓ | ✓ | ✓ | 28 | tuned |
 | Recursive | 64 | t | — | — | — | — | — | 0 | untested |
 | Recursive | 128 | t | — | — | — | — | — | 0 | untested |
 | Six-step | 64 | p | — | — | — | — | — | 0 | open |

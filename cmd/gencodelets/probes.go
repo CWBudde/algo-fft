@@ -176,12 +176,15 @@ var probeNotes = map[string]probeNote{
 	"internal/kernels/radix8_neon_probe_arm64.go": {
 		Subject: "the complex64/complex128 NEON radix-8 cutoff cells at size 65536",
 		Status:  probeOpen,
-		Verdict: "Both precisions are correct and zero-allocation from 64 through 65536 on an " +
+		Verdict: "Both precisions are correct and zero-allocation from 32 through 65536 on an " +
 			"Apple M5 (2026-08-09). The first sweep promoted odd-exponent cells after comparing " +
 			"against generic incumbents; the fused-tail follow-up exposed that `RankBelowGeneric` " +
 			"had hidden the faster NEON radix-4-then-2 rows. After the direct three-way sweep, only " +
 			"complex128 size 64 remains selected; every radix-8 row through 32768 stays registered " +
-			"at low priority. Size 65536 still loses 1.51x complex64 and 1.63x complex128 forward, " +
+			"at low priority. The size-32 extension measured 1.39x/1.40x behind fused radix-4 for " +
+			"complex64 and 1.03x/1.02x behind for complex128 on 2026-08-10, so both rows joined " +
+			"production at low priority under the 1.5x rule. Size 65536 still loses 1.51x " +
+			"complex64 and 1.63x complex128 forward, " +
 			"so those two cells stay probe-only pending a second ARM microarchitecture.",
 		Record: "docs/CODELET_BENCHMARKS.md, \"NEON radix-8 ladder on Apple M5\"",
 		Rederiv: "GOFLAGS=-tags=fftprobe go test -run '^$' " +

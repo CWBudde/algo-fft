@@ -1,8 +1,9 @@
 //go:build arm64 && !purego
 
-// Size-generic NEON radix-8 DIT probe for complex64. The Go caller supplies
+// Size-generic NEON radix-8 DIT kernel for complex64. The Go caller supplies
 // the same packed twiddle planes and radix-8 digit-reversal group table used
 // by the generic and AVX2 ladders. Two butterflies are carried in each vector.
+// The minimum size is 32: one radix-8 stage followed by a radix-4 tail.
 
 #include "textflag.h"
 #include "neon_fp.h"
@@ -103,7 +104,7 @@ TEXT ·Radix8Complex64Asm(SB), NOSPLIT, $0-137
 	MOVD idx+96(FP), R12
 	MOVD src_len+32(FP), R13
 
-	CMP  $64, R13
+	CMP  $32, R13
 	BLT  r8n_false
 	MOVD dst_len+8(FP), R0
 	CMP  R13, R0

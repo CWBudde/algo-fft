@@ -1056,14 +1056,22 @@ algorithms" is actually missing.
       hardware. Needs a full Apple Silicon / Graviton sweep, or the native ARM64
       CI runner on the community backlog.
 
-      **Partial result (Apple M5, 2026-08-09):** a real size-generic complex64
-      NEON radix-8 probe now covers 64…65536. Its first sweep appeared to win
+      **Partial result (Apple M5, 2026-08-09; size-32 follow-up 2026-08-10):** a
+      real size-generic NEON radix-8 implementation now covers 32…65536 in both
+      precisions. Its first sweep appeared to win
       every odd-exponent size because the registered incumbents there were
       generic rows: `RankBelowGeneric` hid the existing NEON radix-4-then-2
       core. The fused-tail follow-up below corrected that comparison. Radix-8
       remains production-registered through 32768 so wisdom can retune it on a
       different ARM, but only complex128 size 64 is now selected; all other
-      production rows are priority 20. Size 65536 remains behind `fftprobe`,
+      production rows are priority 20. At size 32 it loses 1.39×/1.40× in
+      complex64 and 1.03×/1.02× in complex128 against the fused-tail winner,
+      so both rows are production Wisdom candidates at priority 20 under the
+      1.5× rule. Fixed-size wrappers now pass the limit and group bases
+      directly instead of recomputing them per transform; the follow-up still
+      found no stable whole-row win under substantial M5 frequency drift, so
+      the fused row remains selected while directional Wisdom can mix the two.
+      Size 65536 remains behind `fftprobe`,
       because its 1.51× complex64 and 1.63× complex128 forward losses meet the
       research-kernel cutoff. Full tables and re-derive command in
       `docs/CODELET_BENCHMARKS.md`.
