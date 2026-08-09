@@ -903,6 +903,20 @@ unmeasured and unmaintainable.
       under parity. Note 1024 sits at 0.97 with no tail at all, so part of the
       mid-band softness is not the tail either. This is a diagnosis task, not a
       kernel task: find the mechanism before writing anything.
+
+      **Partial result (Zen 2, 2026-08-09):** the radix-8 ladder is already the
+      fastest registered complex128 candidate, so the 0.88× forward / 0.91×
+      inverse result against FFTW is not a priority inversion. Its stage-1
+      gather did carry redundant work: deriving the adjacent digit-reversed
+      group removes one index load, one shift and seven dependent adds per pair,
+      while forming the opposite `±i` rotation by subtraction removes two vector
+      instructions per radix-8 butterfly. That is about 2,170 dynamic
+      instructions at n=2048, but a ten-round pinned A/B moved only 1.7% forward
+      and 0.9% inverse (512 was flat-to-0.7% better; 32768 stayed within 1%). The
+      cleanup ships, but it does **not** explain or close the remaining external
+      gap. Hardware counters were unavailable (`perf_event_paranoid=4`); the
+      next diagnosis must split stage-1, the two radix-8 stages and the tail into
+      independently timed probes rather than infer from whole-kernel counts.
 - [ ] **Re-check the gather balance on AMD.** The stage-1 fusion assumes
       `VPGATHERDQ` throughput comparable to Alder Lake's. Gather is historically
       much weaker on Zen and the fused path has no fallback, so the 13.9 → 9.7 µs
@@ -1066,9 +1080,9 @@ nobody here owns.
       directions cross strategy families, the forward winner remains bound for
       both so the existing singular `KernelStrategy()` stays truthful. Wisdom
       v5 persists and replays the pair and rejects older forward-only files.
-      This is the safe route for host-local findings such as complex128 n=32768
-      preferring the AVX2 radix-4 ladder forward and radix-8 inverse; it does not
-      globally retune either codelet's priority.
+      This is the safe route for host-local findings: a clean Zen 2 replay chose
+      the AVX2 radix-4 ladder forward and radix-8 inverse at complex128 n=2048,
+      without globally retuning either codelet's priority.
 
 - [ ] **Bound wisdom measurement cost.** With low-priority candidates registered
       on purpose, the number of arms per size grows. Add a candidate cap or a
@@ -1128,9 +1142,10 @@ nobody here owns.
       production dispatch on every amd64 host, so it is not a side effect of a
       measurement round.**
 
-- [ ] **Document the tuning workflow in `docs/BENCHMARKING.md`.** How to tune, what
-      the file contains, how to check which codelet a plan chose, and what to do
-      when a tuned choice regresses.
+- [x] **Document the tuning workflow in `docs/BENCHMARKING.md`.** _(2026-08-09.)_
+      Covers `just tune`/`cmd/tune`, Wisdom v5's host identity and directional
+      winner encoding, replay verification through the plan accessors, and the
+      re-measure/age-out procedure for regressions.
 
 ### 1.7 Per-call overhead
 

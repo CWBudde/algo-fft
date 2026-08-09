@@ -80,6 +80,67 @@ FFTW can be used on the servers without installing anything by shipping
 `CGO_CFLAGS`/`CGO_LDFLAGS`/`LD_LIBRARY_PATH` at them — but that needs a gcc on
 the target.
 
+## Host-specific Wisdom workflow
+
+Static registry priorities are a portable default, not a claim that one
+codelet wins on every CPU exposing the same ISA. To tune the power-of-two
+ladder on the current host:
+
+```bash
+just tune algofft-wisdom.txt 32768
+
+# Equivalent, with explicit controls:
+go run ./cmd/tune \
+  -min 8 -max 32768 \
+  -precision all -effort patient \
+  -output algofft-wisdom.txt
+```
+
+Use `-effort exhaustive` when tuning time is less important than trying every
+strategy arm. Both modes consider registered codelets; patient/exhaustive are
+required when a low-priority codelet must be allowed to beat the compiled-in
+ranking. Tune on an idle machine. The planner uses short microbenchmarks, so a
+busy host can persist a bad answer just as easily as a normal benchmark can.
+
+Wisdom v5 keys each decision by size, precision, SIMD feature mask, and a CPU
+identifier containing architecture, vendor/family/model, L1d and L2 geometry.
+The algorithm field is either one implementation name or a
+`forward/inverse` pair when the two directions prefer different codelets in
+the same strategy family. Files from v3/v4 are rejected: they respectively
+lack microarchitecture identity and inverse-direction evidence.
+
+Load and verify a tuned file before constructing production plans:
+
+```go
+if err := algofft.ImportWisdom("algofft-wisdom.txt"); err != nil {
+    log.Fatal(err)
+}
+
+plan, err := algofft.NewPlan64(32768)
+if err != nil {
+    log.Fatal(err)
+}
+defer plan.Close()
+
+log.Printf("forward=%s inverse=%s",
+    plan.ForwardAlgorithm(), plan.InverseAlgorithm())
+```
+
+`Algorithm()` remains convenient when both directions agree and returns the
+slash-pair when they differ. `ForwardAlgorithm()` and `InverseAlgorithm()` are
+the unambiguous verification path. A custom `WisdomStore` remains feature-only
+unless it implements `MicroarchitectureWisdomStore`; deployments that copy
+files between dissimilar CPUs should use the built-in store or implement the
+extended lookup.
+
+When a tuned choice regresses, do not patch the global registry priority from
+that one host. Re-run the tuner in a canary-verified idle window, compare the
+named candidates with `just bench-gated`, and replace the Wisdom file only when
+the ordering reproduces. `ImportWisdomWithMaxAge` can prevent old deployment
+profiles from being reused indefinitely. If the old winner is structurally
+invalid or consistently loses by at least the retirement threshold, follow the
+kernel disposition rules in `PLAN.md` §2.2.
+
 ## Standing lessons about measurement
 
 - **A number measured in another repository is not maintained by editing this

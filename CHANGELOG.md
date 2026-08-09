@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **An offline host-tuning command (`cmd/tune`, also exposed as `just tune`).**
+  It measures the power-of-two ladder in both precisions with patient or
+  exhaustive planning and exports a reusable Wisdom file. Plans now also expose
+  `ForwardAlgorithm()` and `InverseAlgorithm()` so deployments can verify each
+  replayed winner without parsing `Algorithm()`.
+
 ### Changed
 
+- **Wisdom v5 is scoped to the CPU that produced it and records both transform
+  directions.** Built-in entries include architecture, vendor/family/model, L1d
+  and L2 geometry in addition to the SIMD feature mask. Forward and inverse may
+  name separate codelets when both belong to the same strategy family; older v3
+  and v4 files are rejected because they lack required measurement context.
 - **The NEON radix-4 Stockham cores now serve `n = 2·4^k` as well as the powers
   of four**, i.e. sizes 32, 128, 512, 2048, 8192 and 32768 in both precisions.
   The schedule appends a radix-2 stage at `l = 1`, which keeps every earlier
@@ -22,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
+- **The complex128 AVX2 radix-8 ladder does less redundant stage-1 work.** It
+  derives the adjacent digit-reversed group and forms the opposite `±i` arm by
+  subtraction, removing about 2,170 dynamic instructions at n=2048. A pinned
+  ten-round Zen 2 A/B improved that cell by 1.7% forward and 0.9% inverse;
+  n=32768 remained within 1%, so the still-open external 2048 gap remains a
+  diagnosis item in `PLAN.md`.
 - **`Butterfly5`, `Butterfly7` and `Butterfly11` rewritten in conjugate-pair
   form.** All three were the naive DFT-matrix product; the pair form uses
   `W^(r-k) = conj(W^k)` to halve the multiplies and makes the surviving ones

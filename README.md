@@ -173,6 +173,11 @@ Batch processing uses an interleaved/sequential memory layout where FFT `i` occu
 
 The wisdom system caches optimal planning decisions for reuse across program runs:
 
+```bash
+# Measure both precisions through n=32768 on this host.
+just tune algofft-wisdom.txt 32768
+```
+
 ```go
 import "github.com/cwbudde/algo-fft"
 
