@@ -16,6 +16,12 @@ func ForwardNEONComplex128Asm(dst, src, twiddle, scratch []complex128) bool
 //go:noescape
 func InverseNEONComplex128Asm(dst, src, twiddle, scratch []complex128) bool
 
+//go:noescape
+func Radix8Complex64Asm(dst, src, twiddle, scratch []complex64, idx []int32, limit int, inverse bool, scale float32) bool
+
+//go:noescape
+func Radix8Complex128Asm(dst, src, twiddle, scratch []complex128, idx []int32, limit int, inverse bool, scale float64) bool
+
 // Size-specific complex64 NEON kernels.
 
 //go:noescape

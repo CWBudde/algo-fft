@@ -173,6 +173,27 @@ var probeNotes = map[string]probeNote{
 			probeCells(128, "SIMDAVX512", "radix8ladder", 32, 64, 128),
 		),
 	},
+	"internal/kernels/radix8_neon_probe_arm64.go": {
+		Subject: "the complex64/complex128 NEON radix-8 cutoff cells at size 65536",
+		Status:  probeOpen,
+		Verdict: "Both precisions are correct and zero-allocation at every size from 64 through " +
+			"65536 on an Apple M5 (2026-08-09). Complex64 wins 128/512/2048/8192/32768 by " +
+			"1.25x-1.93x, is at parity at 64, and loses 256/1024/4096/16384/65536 by " +
+			"1.13x-1.51x. Complex128 wins 64/128/512/2048/8192/32768 by 1.00x-1.30x " +
+			"forward and 1.00x-1.29x inverse, and loses 256/1024/4096/16384/65536; its " +
+			"worst loss is 1.63x at 65536 forward. Per the 1.5x retention rule, sizes through " +
+			"32768 are production-registered: winners are selected and losers remain low-priority " +
+			"wisdom candidates. Only the two 65536 cells stay probe-only pending a second ARM " +
+			"microarchitecture.",
+		Record: "docs/CODELET_BENCHMARKS.md, \"NEON radix-8 ladder on Apple M5\"",
+		Rederiv: "GOFLAGS=-tags=fftprobe go test -run '^$' " +
+			"-bench 'BenchmarkCodeletCandidates(64|128)/.*/dit[0-9]+_radix8ladder_neon' " +
+			"-benchmem -benchtime=300ms -count=5 ./internal/kernels",
+		Cells: concatCells(
+			probeCells(64, "SIMDNEON", "radix8ladder", 65536),
+			probeCells(128, "SIMDNEON", "radix8ladder", 65536),
+		),
+	},
 	"internal/kernels/radix4_avx2_tail_probe_amd64.go": {
 		Subject: "the n = 2·4^k radix-2 tail: fused into the last radix-4 stage, or a separate pass",
 		Status:  probeOpen,

@@ -917,6 +917,7 @@ unmeasured and unmaintainable.
       gap. Hardware counters were unavailable (`perf_event_paranoid=4`); the
       next diagnosis must split stage-1, the two radix-8 stages and the tail into
       independently timed probes rather than infer from whole-kernel counts.
+
 - [ ] **Re-check the gather balance on AMD.** The stage-1 fusion assumes
       `VPGATHERDQ` throughput comparable to Alder Lake's. Gather is historically
       much weaker on Zen and the fused path has no fallback, so the 13.9 → 9.7 µs
@@ -1039,12 +1040,28 @@ algorithms" is actually missing.
       verdict covering all four, not four separate items — and if the answer is
       "none", record it so the hole stops reading as an oversight in every future
       gap table.
-- [ ] **NEON: priority tuning on real arm64 hardware.** The ladder runs 4 → 32768
+- [ ] **NEON: priority tuning on real arm64 hardware.** The ladder runs 4 → 65536
       in both precisions, but every priority from 512 up was **mirrored from
-      smaller sizes, not measured** — QEMU timing is meaningless and CI has no
-      native runner. Above ~8192 the DIT codelets also compete with the Go
-      six-step path on real hardware. Needs Apple Silicon / Graviton, or the
-      native ARM64 CI runner on the community backlog.
+      smaller sizes, not measured**, except for the selectable 65536 rows measured
+      on an Apple M5 — QEMU timing is meaningless and CI has no native runner.
+      Above ~8192 the DIT codelets also compete with the Go six-step path on real
+      hardware. Needs a full Apple Silicon / Graviton sweep, or the native ARM64
+      CI runner on the community backlog.
+
+      **Partial result (Apple M5, 2026-08-09):** a real size-generic complex64
+      NEON radix-8 probe now covers 64…65536. It wins every odd-exponent size
+      128/512/2048/8192/32768 by 1.25–1.93×, is at parity at 64, and loses every
+      pure power-of-four size 256/1024/4096/16384/65536 by 1.13–1.51×. That
+      makes it a complement to the radix-4 ladder, not a replacement. It stays
+      is now production-registered through 32768: winners are selected and the
+      sub-1.5× losses remain low-priority wisdom candidates. Its complex128 twin
+      is also correct and zero-allocation across 64…65536. It wins or ties
+      64/128/512/2048/8192/32768 (up to 1.30×) and loses the five mature radix-4
+      cells. Only size 65536 remains behind `fftprobe`, because its 1.51×
+      complex64 and 1.63× complex128 forward losses meet the research-kernel
+      cutoff. Full tables and re-derive command in
+      `docs/CODELET_BENCHMARKS.md`.
+
 - [ ] **NEON: ARMv8.3 `FCMLA` kernels.** `internal/cpu` detects only `HasNEON`;
       `FCMLA`/`FCADD` do a full complex multiply-accumulate in two instructions
       against 4 mul + 2 add today (`internal/asm/arm64/neon_complex_mul.s`). Add

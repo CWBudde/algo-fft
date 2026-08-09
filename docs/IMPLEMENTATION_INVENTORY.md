@@ -29,19 +29,19 @@ pure-Go fallback.
 |    32 | Radix-8 (ladder)                           |  —  |  —   |  —   |  p   |    —    |  —   |
 |    64 | Radix-2                                    |  ·  |  —   |  ·   |  ✓   |    ✓    |  ✓   |
 |    64 | Radix-4                                    |  ✓  |  —   |  ✓   |  —   |    ·    |  —   |
-|    64 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
+|    64 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  ·   |
 |   128 | Mixed-2/4                                  |  ✓  |  —   |  ✓   |  —   |    —    |  ▽   |
 |   128 | Mixed-8/2                                  |  —  |  —   |  —   |  —   |    ✓    |  —   |
 |   128 | Radix-2                                    |  ·  |  —   |  ✓   |  —   |    —    |  —   |
 |   128 | Radix-4                                    |  —  |  —   |  —   |  p   |    —    |  —   |
 |   128 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  ✓   |    —    |  —   |
 |   128 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
-|   128 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
+|   128 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  ✓   |
 |   256 | Mixed-8/2                                  |  —  |  —   |  —   |  —   |    ·    |  —   |
 |   256 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |   256 | Radix-2                                    |  ·  |  —   |  ·   |  —   |    —    |  —   |
 |   256 | Radix-4                                    |  ·  |  —   |  ✓   |  ·   |    —    |  ✓   |
-|   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  ·   |
 |   256 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |   384 | Mixed 128×3                                |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
 |   512 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ▽   |
@@ -52,25 +52,25 @@ pure-Go fallback.
 |   512 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 |   512 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |   512 | Radix-8                                    |  ·  |  —   |  —   |  —   |    —    |  —   |
-|   512 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|   512 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  ✓   |
 |   512 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  ▽   |
 |  1024 | Radix-32×32                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-4                                    |  ·  |  —   |  ✓   |  ·   |    —    |  ✓   |
-|  1024 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  1024 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  ·   |
 |  1024 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  2048 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ▽   |
 |  2048 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  2048 | Radix-4                                    |  —  |  —   |  —   |  p   |    —    |  —   |
 |  2048 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  ·   |    —    |  —   |
 |  2048 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
-|  2048 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  2048 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  ✓   |
 |  2048 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
 |  4096 | Radix-4                                    |  ·  |  —   |  ✓   |  ✓   |    —    |  ✓   |
-|  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  ·   |
 |  4096 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Mixed-2/4                                  |  ·  |  —   |  ✓   |  —   |    —    |  ▽   |
@@ -79,13 +79,13 @@ pure-Go fallback.
 |  8192 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
 |  8192 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 |  8192 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
-|  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  ✓   |
 |  8192 | Six-step 64×128                            |  p  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-2                                    |  —  |  —   |  —   |  —   |    ·    |  —   |
 | 16384 | Radix-4                                    |  ·  |  —   |  ✓   |  ✓   |    —    |  ✓   |
-| 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+| 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  ·   |
 | 16384 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 32768 | Mixed-2/4                                  |  ✓  |  —   |  ✓   |  —   |    —    |  ▽   |
@@ -93,10 +93,11 @@ pure-Go fallback.
 | 32768 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
 | 32768 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 | 32768 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
-| 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  —   |
+| 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  ✓   |
 | 32768 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-| 65536 | Radix-4                                    |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
+| 65536 | Radix-4                                    |  ✓  |  —   |  —   |  ✓   |    —    |  ✓   |
+| 65536 | Radix-8 (ladder)                           |  —  |  —   |  —   |  —   |    —    |  p   |
 
 ✓ selectable — the highest-ranked codelet for its size within its own rank
 tier, so `registry.Lookup` returns it on any host whose top supported tier is
@@ -140,18 +141,18 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |    32 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
 |    32 | Radix-8 (ladder)                           |  —  |  —   |  —   |  p   |    p    |  —   |
 |    64 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  —   |
-|    64 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |
-|    64 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
+|    64 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ·   |
+|    64 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  ✓   |
 |   128 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    ✓    |  ▽   |
 |   128 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  —   |
 |   128 | Radix-4                                    |  —  |  —   |  —   |  p   |    —    |  —   |
 |   128 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  ✓   |    —    |  —   |
 |   128 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
-|   128 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  —   |
+|   128 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    p    |  ✓   |
 |   256 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |   256 | Radix-2                                    |  ·  |  ·   |  —   |  —   |    —    |  —   |
 |   256 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
-|   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|   256 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  ·   |
 |   256 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |   384 | Mixed 128×3                                |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
 |   512 | Generic radix-2                            |  —  |  —   |  —   |  —   |    —    |  ▽   |
@@ -163,23 +164,23 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |   512 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 |   512 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
 |   512 | Radix-8                                    |  ·  |  —   |  —   |  —   |    —    |  —   |
-|   512 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|   512 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  ✓   |
 |   512 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-32×32                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  1024 | Radix-4                                    |  ✓  |  ✓   |  —   |  ✓   |    —    |  ✓   |
-|  1024 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  —   |
+|  1024 | Radix-8 (ladder)                           |  p  |  —   |  —   |  p   |    ✓    |  ·   |
 |  1024 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  2048 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ▽   |
 |  2048 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  2048 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  —   |
 |  2048 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 |  2048 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
-|  2048 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |
+|  2048 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  ✓   |    ✓    |  ✓   |
 |  2048 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
-|  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|  4096 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  ·   |
 |  4096 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 |  4096 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Mixed-2/4                                  |  ·  |  ✓   |  —   |  —   |    —    |  ▽   |
@@ -187,12 +188,12 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 |  8192 | Radix-4                                    |  —  |  —   |  —   |  ✓   |    —    |  —   |
 |  8192 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 |  8192 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
-|  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+|  8192 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  ✓   |
 |  8192 | Six-step 64×128                            |  p  |  —   |  —   |  —   |    —    |  —   |
 |  8192 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Radix-4                                    |  ·  |  ✓   |  —   |  ✓   |    —    |  ✓   |
-| 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  —   |
+| 16384 | Radix-8 (ladder)                           |  ✓  |  —   |  —   |  p   |    ✓    |  ·   |
 | 16384 | Six-step                                   |  p  |  —   |  —   |  —   |    —    |  —   |
 | 16384 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 32768 | Mixed-2/4                                  |  ✓  |  ✓   |  —   |  —   |    —    |  ▽   |
@@ -200,10 +201,11 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | 32768 | Radix-4                                    |  —  |  —   |  —   |  ·   |    —    |  —   |
 | 32768 | Radix-4 (fused tail)                       |  —  |  —   |  —   |  p   |    —    |  —   |
 | 32768 | Radix-4 (no tail — wrong result by design) |  —  |  —   |  —   |  p   |    —    |  —   |
-| 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  ✓   |    ✓    |  —   |
+| 32768 | Radix-8 (ladder)                           |  p  |  —   |  —   |  ✓   |    ✓    |  ✓   |
 | 32768 | Split-radix                                |  ·  |  —   |  —   |  —   |    —    |  —   |
 | 65536 | Radix-16 (ladder)                          |  p  |  —   |  —   |  —   |    —    |  —   |
-| 65536 | Radix-4                                    |  ✓  |  —   |  —   |  ✓   |    —    |  —   |
+| 65536 | Radix-4                                    |  ✓  |  —   |  —   |  ✓   |    —    |  ✓   |
+| 65536 | Radix-8 (ladder)                           |  —  |  —   |  —   |  —   |    —    |  p   |
 
 ✓ selectable — the highest-ranked codelet for its size within its own rank
 tier, so `registry.Lookup` returns it on any host whose top supported tier is
@@ -236,9 +238,9 @@ codelet competes in the tier it was demoted into, not the one it executes in.
 | avx2    | `amd64 && !purego` |        24 |         21 |    45 |
 | avx512  | `amd64 && !purego` |        19 |         14 |    33 |
 | sse2    | `amd64 && !purego` |        22 |         22 |    44 |
-| neon    | `arm64 && !purego` |        16 |         16 |    32 |
+| neon    | `arm64 && !purego` |        27 |         27 |    54 |
 
-Total registered codelets: **241**.
+Total registered codelets: **263**.
 
 ## Size × ISA Coverage Gaps
 
@@ -265,8 +267,8 @@ the grids show.
 | amd64 AVX2+FMA |     128 |           16 |         16 |        0 |           65536 |
 | amd64 AVX-512  |      64 |           16 |         13 |        3 |           32768 |
 | amd64 AVX-512  |     128 |           16 |         13 |        3 |           32768 |
-| arm64 NEON     |      64 |           16 |          7 |        9 |           16384 |
-| arm64 NEON     |     128 |           16 |          7 |        9 |           16384 |
+| arm64 NEON     |      64 |           16 |         13 |        3 |           65536 |
+| arm64 NEON     |     128 |           16 |         13 |        3 |           65536 |
 
 ### Not covered, by tier
 
@@ -286,8 +288,8 @@ served by the size-generic kernels listed under Beyond the Codelet Registry.
 | AVX2    |     128 |   21 |    16 | 4–65536 | —                   | —                                                                              |
 | AVX-512 |      64 |   19 |    13 | 8–32768 | 384                 | 65536                                                                          |
 | AVX-512 |     128 |   13 |    13 | 8–32768 | 384                 | 65536                                                                          |
-| NEON    |      64 |   16 |    14 | 4–32768 | 384                 | 65536                                                                          |
-| NEON    |     128 |   16 |    14 | 4–32768 | 384                 | 65536                                                                          |
+| NEON    |      64 |   27 |    15 | 4–65536 | 384                 | —                                                                              |
+| NEON    |     128 |   27 |    15 | 4–65536 | 384                 | —                                                                              |
 
 ### Covered at one precision only
 
@@ -336,7 +338,7 @@ unreachable.
 | `amd64/avx2_f32_radix3.s`                 |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/avx2_f32_radix4.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/avx2_f32_radix5.s`                 |       2 |    0 |         0 |           2 |      0 | `internal/asm/amd64/decl.go`                                |
-| `amd64/avx2_f32_radix8.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f32_radix8.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                                |
 | `amd64/avx2_f32_size128_radix2.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/avx2_f32_size128_radix4_then2.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/avx2_f32_size16_radix16.s`         |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
@@ -369,7 +371,7 @@ unreachable.
 | `amd64/avx2_f64_mixedradix_stage5.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/avx2_f64_mixedradix_stage7.s`      |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/avx2_f64_radix4.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
-| `amd64/avx2_f64_radix8.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
+| `amd64/avx2_f64_radix8.s`                 |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                                |
 | `amd64/avx2_f64_size16_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/avx2_f64_size16_radix4.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/avx2_f64_size32_radix2.s`          |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
@@ -462,7 +464,7 @@ unreachable.
 | `amd64/sse3_f32_size8_radix8.s`           |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 | `amd64/sse3_real_recombine.s`             |       2 |    2 |         0 |           0 |      0 | `internal/asm/amd64/decl.go`                                |
 
-### arm64 — 26 files, 52 symbols, 28 live
+### arm64 — 28 files, 54 symbols, 30 live
 
 | File                              | Symbols | Live | Test-only | Unreachable | Orphan | Declared in                                  |
 | --------------------------------- | ------: | ---: | --------: | ----------: | -----: | -------------------------------------------- |
@@ -470,6 +472,7 @@ unreachable.
 | `arm64/neon_complex_mul.s`        |       4 |    4 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_generic.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_radix4_loop.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/neon_radix4_loop.go`     |
+| `arm64/neon_f32_radix8.s`         |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f32_size128_radix2.s` |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size16_radix2.s`  |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f32_size16_radix4.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
@@ -481,6 +484,7 @@ unreachable.
 | `arm64/neon_f32_size8_radix8.s`   |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_generic.s`        |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_radix4_loop.s`    |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/neon_radix4_loop_f64.go` |
+| `arm64/neon_f64_radix8.s`         |       1 |    1 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
 | `arm64/neon_f64_size128_radix2.s` |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size16_radix2.s`  |       2 |    0 |         2 |           0 |      0 | `internal/asm/arm64/decl_probe.go`           |
 | `arm64/neon_f64_size16_radix4.s`  |       2 |    2 |         0 |           0 |      0 | `internal/asm/arm64/decl.go`                 |
@@ -691,6 +695,7 @@ generator's tests.
 | `internal/kernels/radix8_avx2_probe_amd64.go`        | `amd64 && !purego && fftprobe` | size-generic AVX2 radix-8 ladder against the AVX2 radix-4 rows                                                                                  | partly promoted |
 | `internal/kernels/radix8_avx512_probe_amd64.go`      | `amd64 && !purego && fftprobe` | size-generic AVX-512 radix-8 ladder against the AVX2 radix-4 rows                                                                               | partly promoted |
 | `internal/kernels/radix8_generic_probe.go`           | `fftprobe`                     | size-generic pure-Go radix-8 ladder against the pure-Go radix-4 ladder                                                                          | partly promoted |
+| `internal/kernels/radix8_neon_probe_arm64.go`        | `arm64 && !purego && fftprobe` | the complex64/complex128 NEON radix-8 cutoff cells at size 65536                                                                                | open            |
 | `internal/kernels/sixstep_codelet_probe.go`          | `fftprobe`                     | the three six-step codelets against the pure-Go radix-8 ladder that replaced them                                                               | closed          |
 | `internal/math/transpose_amd64.go`                   | `amd64 && !purego && fftprobe` | the AVX2 64x64/128x128 transposes — plain, fused twiddle, fused conjugate twiddle — against the pure-Go blocked transpose they would displace   | open            |
 
@@ -755,6 +760,13 @@ Forward geomean **0.87** over n = 512..32768 (2026-07-30). Thirteen of twenty ce
 
 - Recorded in: docs/CODELET_BENCHMARKS.md, "Generic tier (i7-1255U, `-tags purego`) — the radix-8 ladder"
 - Re-derive: `PATH=/usr/local/go/bin:$PATH GOFLAGS=-tags=fftprobe,purego GOOD=<canary floor> taskset -c 0 ./scripts/bench_gated.sh 512 1024 2048 4096 8192 16384 32768`
+
+**`internal/kernels/radix8_neon_probe_arm64.go`** — open
+
+Both precisions are correct and zero-allocation at every size from 64 through 65536 on an Apple M5 (2026-08-09). Complex64 wins 128/512/2048/8192/32768 by 1.25x-1.93x, is at parity at 64, and loses 256/1024/4096/16384/65536 by 1.13x-1.51x. Complex128 wins 64/128/512/2048/8192/32768 by 1.00x-1.30x forward and 1.00x-1.29x inverse, and loses 256/1024/4096/16384/65536; its worst loss is 1.63x at 65536 forward. Per the 1.5x retention rule, sizes through 32768 are production-registered: winners are selected and losers remain low-priority wisdom candidates. Only the two 65536 cells stay probe-only pending a second ARM microarchitecture.
+
+- Recorded in: docs/CODELET_BENCHMARKS.md, "NEON radix-8 ladder on Apple M5"
+- Re-derive: `PATH=/usr/local/go/bin:$PATH GOFLAGS=-tags=fftprobe go test -run '^$' -bench 'BenchmarkCodeletCandidates(64|128)/.*/dit[0-9]+_radix8ladder_neon' -benchmem -benchtime=300ms -count=5 ./internal/kernels`
 
 **`internal/kernels/sixstep_codelet_probe.go`** — closed
 
@@ -855,16 +867,16 @@ is not a `✓`).
 | Radix-32                                   |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-32×32                                |      64 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
 | Radix-32×32                                |     128 |  ·  |  —   |  —   |  —   |    —    |  —   |    1 | open       |
-| Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   32 | tuned      |
-| Radix-4                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |   41 | tuned      |
+| Radix-4                                    |      64 |  ✓  |  ✓   |  ✓   |  ✓   |    ·    |  ✓   |   33 | tuned      |
+| Radix-4                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  ✓   |   42 | tuned      |
 | Radix-4 (fused tail)                       |      64 |  —  |  —   |  —   |  ✓   |    —    |  —   |    2 | tuned      |
 | Radix-4 (fused tail)                       |     128 |  —  |  —   |  —   |  ✓   |    —    |  —   |    1 | tuned      |
 | Radix-4 (no tail — wrong result by design) |      64 |  —  |  —   |  —   |  p   |    —    |  —   |    0 | instrument |
 | Radix-4 (no tail — wrong result by design) |     128 |  —  |  —   |  —   |  p   |    —    |  —   |    0 | instrument |
 | Radix-8                                    |      64 |  ✓  |  —   |  ✓   |  ·   |    ✓    |  ✓   |    6 | tuned      |
 | Radix-8                                    |     128 |  ✓  |  ✓   |  —   |  ✓   |    ✓    |  —   |    5 | tuned      |
-| Radix-8 (ladder)                           |      64 |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |   19 | tuned      |
-| Radix-8 (ladder)                           |     128 |  ✓  |  —   |  —   |  ✓   |    ✓    |  —   |   17 | tuned      |
+| Radix-8 (ladder)                           |      64 |  ✓  |  —   |  —   |  ✓   |    ✓    |  ✓   |   29 | tuned      |
+| Radix-8 (ladder)                           |     128 |  ✓  |  —   |  —   |  ✓   |    ✓    |  ✓   |   27 | tuned      |
 | Recursive                                  |      64 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | untested   |
 | Recursive                                  |     128 |  t  |  —   |  —   |  —   |    —    |  —   |    0 | untested   |
 | Six-step                                   |      64 |  p  |  —   |  —   |  —   |    —    |  —   |    0 | open       |

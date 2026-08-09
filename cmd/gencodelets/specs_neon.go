@@ -135,6 +135,15 @@ var codeletSpecsNEON = []codeletSpec{
 		RankBelowGeneric: true,
 	},
 	{
+		// Apple M5 medians at n=65536: 3.25x faster forward and 3.42x
+		// faster inverse than dit65536_radix4_generic (2026-08-09).
+		Target: "neon", Prec: 64, Size: 65536,
+		Forward:   "arm64.ForwardNEONSize65536Radix4Complex64Asm",
+		Inverse:   "arm64.InverseNEONSize65536Radix4Complex64Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit65536_radix4_neon", Priority: 28,
+	},
+	{
 		Target: "neon", Prec: 128, Size: 4,
 		Forward:   "arm64.ForwardNEONSize4Radix4Complex128Asm",
 		Inverse:   "arm64.InverseNEONSize4Radix4Complex128Asm",
@@ -255,8 +264,188 @@ var codeletSpecsNEON = []codeletSpec{
 		Signature: "dit32768_radix4_then2_neon", Priority: 24,
 		RankBelowGeneric: true,
 	},
+	{
+		// Apple M5 medians at n=65536: 1.95x faster forward and 1.87x
+		// faster inverse than dit65536_radix4_generic (2026-08-09).
+		Target: "neon", Prec: 128, Size: 65536,
+		Forward:   "arm64.ForwardNEONSize65536Radix4Complex128Asm",
+		Inverse:   "arm64.InverseNEONSize65536Radix4Complex128Asm",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit65536_radix4_neon", Priority: 28,
+	},
+}
+
+// The size-generic radix-8 ladder is deliberately registered at every cell
+// that stayed within 1.5x of the incumbent on the Apple M5. Winning cells use
+// priority 30; losing cells remain wisdom-reachable at priority 20, below the
+// radix-4 rows in their SIMD tier. Size 65536 exceeded the cutoff in both
+// precisions and remains in radix8_neon_probe_arm64.go.
+//
+//nolint:gochecknoglobals // the codelet table is the generator's declarative input
+var codeletSpecsNEONRadix8 = []codeletSpec{
+	{
+		Target: "neon", Prec: 64, Size: 64,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit64_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 64, Size: 128,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit128_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 64, Size: 256,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit256_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 64, Size: 512,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit512_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 64, Size: 1024,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit1024_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 64, Size: 2048,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit2048_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 64, Size: 4096,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit4096_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 64, Size: 8192,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit8192_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 64, Size: 16384,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit16384_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 64, Size: 32768,
+		Forward:   "forwardRadix8NEONComplex64",
+		Inverse:   "inverseRadix8NEONComplex64",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex64",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 64,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit64_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 128,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit128_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 256,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit256_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 512,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit512_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 1024,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit1024_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 2048,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit2048_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 4096,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit4096_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 8192,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit8192_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 16384,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit16384_radix8ladder_neon", Priority: 20,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
+	{
+		Target: "neon", Prec: 128, Size: 32768,
+		Forward:   "forwardRadix8NEONComplex128",
+		Inverse:   "inverseRadix8NEONComplex128",
+		Algorithm: "KernelDIT", SIMDLevel: "SIMDNEON", KernelType: "KernelTypeDIT",
+		Signature: "dit32768_radix8ladder_neon", Priority: 30,
+		TwiddleSize: "twiddleSizeRadix8", PrepareTwiddle: "prepareTwiddleRadix8Complex128",
+	},
 }
 
 func init() {
 	codeletSpecs = append(codeletSpecs, codeletSpecsNEON...)
+	codeletSpecs = append(codeletSpecs, codeletSpecsNEONRadix8...)
 }

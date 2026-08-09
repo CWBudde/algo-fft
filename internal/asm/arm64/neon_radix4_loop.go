@@ -99,6 +99,22 @@ func InverseNEONSize16384Radix4Complex64Asm(dst, src, twiddle, scratch []complex
 	return neonRadix4InverseC64(dst, src, twiddle, scratch, 16384, 1.0/16384.0)
 }
 
+// ForwardNEONSize65536Radix4Complex64Asm computes a size-65536 forward
+// complex64 FFT with the shared NEON Stockham radix-4 core. It requires src of
+// exactly 65536 elements and dst, twiddle and scratch of at least 65536, and
+// returns false otherwise.
+func ForwardNEONSize65536Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return neonRadix4ForwardC64(dst, src, twiddle, scratch, 65536)
+}
+
+// InverseNEONSize65536Radix4Complex64Asm computes a size-65536 inverse
+// complex64 FFT, normalized by 1/65536, with the shared NEON Stockham radix-4
+// core. It requires src of exactly 65536 elements and dst, twiddle and scratch
+// of at least 65536, and returns false otherwise.
+func InverseNEONSize65536Radix4Complex64Asm(dst, src, twiddle, scratch []complex64) bool {
+	return neonRadix4InverseC64(dst, src, twiddle, scratch, 65536, 1.0/65536.0)
+}
+
 // The functions below serve n = 2*4^k (32, 128, 512, 2048, 8192, 32768): the
 // core's radix schedule puts the trailing factor of 2 in a final stage
 // rather than first, so every m before that stage stays a power of four and

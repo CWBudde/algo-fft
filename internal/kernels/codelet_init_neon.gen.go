@@ -197,6 +197,147 @@ func registerNEONDITCodelets64() {
 		KernelType:       fftypes.KernelTypeDIT,
 		RankBelowGeneric: true,
 	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:       65536,
+		Forward:    arm64.ForwardNEONSize65536Radix4Complex64Asm,
+		Inverse:    arm64.InverseNEONSize65536Radix4Complex64Asm,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNEON,
+		Signature:  "dit65536_radix4_neon",
+		Priority:   28,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           64,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit64_radix8ladder_neon",
+		Priority:       20,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           128,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit128_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           256,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit256_radix8ladder_neon",
+		Priority:       20,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           512,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit512_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           1024,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit1024_radix8ladder_neon",
+		Priority:       20,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           2048,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit2048_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           4096,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit4096_radix8ladder_neon",
+		Priority:       20,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           8192,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit8192_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           16384,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit16384_radix8ladder_neon",
+		Priority:       20,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
+
+	registry.Registry64.Register(registry.CodeletEntry[complex64]{
+		Size:           32768,
+		Forward:        forwardRadix8NEONComplex64,
+		Inverse:        inverseRadix8NEONComplex64,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit32768_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex64,
+	})
 }
 
 // registerNEONDITCodelets128 registers the NEON complex128 DIT codelets.
@@ -384,5 +525,146 @@ func registerNEONDITCodelets128() {
 		Priority:         24,
 		KernelType:       fftypes.KernelTypeDIT,
 		RankBelowGeneric: true,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:       65536,
+		Forward:    arm64.ForwardNEONSize65536Radix4Complex128Asm,
+		Inverse:    arm64.InverseNEONSize65536Radix4Complex128Asm,
+		Algorithm:  fftypes.KernelDIT,
+		SIMDLevel:  fftypes.SIMDNEON,
+		Signature:  "dit65536_radix4_neon",
+		Priority:   28,
+		KernelType: fftypes.KernelTypeDIT,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           64,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit64_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           128,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit128_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           256,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit256_radix8ladder_neon",
+		Priority:       20,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           512,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit512_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           1024,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit1024_radix8ladder_neon",
+		Priority:       20,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           2048,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit2048_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           4096,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit4096_radix8ladder_neon",
+		Priority:       20,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           8192,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit8192_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           16384,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit16384_radix8ladder_neon",
+		Priority:       20,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
+	})
+
+	registry.Registry128.Register(registry.CodeletEntry[complex128]{
+		Size:           32768,
+		Forward:        forwardRadix8NEONComplex128,
+		Inverse:        inverseRadix8NEONComplex128,
+		Algorithm:      fftypes.KernelDIT,
+		SIMDLevel:      fftypes.SIMDNEON,
+		Signature:      "dit32768_radix8ladder_neon",
+		Priority:       30,
+		KernelType:     fftypes.KernelTypeDIT,
+		TwiddleSize:    twiddleSizeRadix8,
+		PrepareTwiddle: prepareTwiddleRadix8Complex128,
 	})
 }

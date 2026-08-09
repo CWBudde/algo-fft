@@ -1661,6 +1661,66 @@ of exactly the mechanistic kind §2.2 warns about, so it wants a second host
 before anyone acts on it — but unlike the usual case it is corroborated by the
 measurement rather than substituting for one.
 
+### NEON radix-8 ladder on Apple M5
+
+A size-generic complex64 NEON radix-8 ladder was added behind `-tags
+fftprobe` on 2026-08-09, followed by its complex128 twin. They share
+`radix8Limit`, the packed twiddle planes and the digit-reversal group table with
+the pure-Go and AVX2 implementations. NEON has no gather instruction, so the
+complex64 stage 1 loads two digit-reversed groups through scalar indexed loads
+into vector lanes; complex128 loads one complete complex value per vector.
+Every butterfly and every later stage remains vectorized. Registry-driven
+reference, round-trip, in-place and zero-allocation tests pass for both
+precisions at every registered size from 64 through 65536.
+
+Apple M5 comparison against the registered incumbent at each cell (medians
+where stable; short isolated runs at 128/256/2048/8192/16384/32768 after the
+long sweep thermally drifted):
+
+|     n | incumbent                       | forward | inverse | verdict           |
+| ----: | ------------------------------- | ------: | ------: | ----------------- |
+|    64 | `dit64_radix2_neon`             |  ~1.00x |  ~1.00x | parity            |
+|   128 | `dit128_radix4_then2_generic`   |   1.46x |   1.67x | radix-8 wins      |
+|   256 | `dit256_radix4_neon`            |   0.75x |   0.76x | radix-4 wins      |
+|   512 | `dit512_radix8ladder_generic`   |   1.26x |   1.67x | NEON radix-8 wins |
+|  1024 | `dit1024_radix4_neon`           |   0.89x |   0.82x | radix-4 wins      |
+|  2048 | `dit2048_radix8ladder_generic`  |   1.46x |   1.47x | NEON radix-8 wins |
+|  4096 | `dit4096_radix4_neon`           |   0.81x |   0.74x | radix-4 wins      |
+|  8192 | `dit8192_radix8ladder_generic`  |   1.49x |   1.56x | NEON radix-8 wins |
+| 16384 | `dit16384_radix4_neon`          |   0.75x |   0.77x | radix-4 wins      |
+| 32768 | `dit32768_radix4_then2_generic` |   1.54x |   1.93x | NEON radix-8 wins |
+| 65536 | `dit65536_radix4_neon`          |   0.66x |   0.67x | radix-4 wins      |
+
+The complex128 twin shows the same broad split. These are medians from isolated
+fixed-iteration runs on the same M5; the ratio is incumbent time divided by
+radix-8 time, so values above one favor radix-8:
+
+|     n | incumbent                       | forward | inverse | verdict           |
+| ----: | ------------------------------- | ------: | ------: | ----------------- |
+|    64 | `dit64_radix4_neon`             |   1.26x |   1.24x | radix-8 wins      |
+|   128 | `dit128_radix4_then2_generic`   |   1.07x |   1.22x | radix-8 wins      |
+|   256 | `dit256_radix4_neon`            |   0.86x |   0.88x | radix-4 wins      |
+|   512 | `dit512_radix8ladder_generic`   |  ~1.00x |   1.14x | parity / win      |
+|  1024 | `dit1024_radix4_neon`           |   0.96x |   0.96x | radix-4 wins      |
+|  2048 | `dit2048_radix8ladder_generic`  |   1.03x |  ~1.00x | slight win/parity |
+|  4096 | `dit4096_radix4_neon`           |   0.85x |   0.88x | radix-4 wins      |
+|  8192 | `dit8192_radix8ladder_generic`  |   1.20x |   1.21x | NEON radix-8 wins |
+| 16384 | `dit16384_radix4_neon`          |   0.83x |   0.86x | radix-4 wins      |
+| 32768 | `dit32768_radix4_then2_generic` |   1.30x |   1.29x | NEON radix-8 wins |
+| 65536 | `dit65536_radix4_neon`          |   0.62x |   0.74x | radix-4 wins      |
+
+The split is algorithmic rather than random: after the two smallest sizes,
+radix-8 wins or ties the odd-exponent sizes currently served by a generic
+incumbent, while the mature radix-4 NEON core wins every pure power-of-four
+size. This rejects both blanket conclusions. Radix-8 is a real NEON
+opportunity, but it should complement the radix-4 ladder rather than replace
+it. Applying the repository's 1.5× retention rule, sizes 64 through 32768 are
+now production-registered in both precisions. Winning cells have priority 30
+and are selected; losing cells remain wisdom-reachable at priority 20, below
+their radix-4 incumbent. Size 65536 exceeded the cutoff (1.51× slower for
+complex64 and 1.63× slower for complex128 forward), so those two rows alone
+remain behind `fftprobe` pending a second ARM microarchitecture.
+
 ### Sizes 64–16384, complex64 — one looped core replaces five unrolled files
 
 `neon_f32_size{64,256,1024,4096,16384}_*.s` were 28,503 lines of fully-unrolled
