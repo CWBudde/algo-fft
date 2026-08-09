@@ -176,15 +176,13 @@ var probeNotes = map[string]probeNote{
 	"internal/kernels/radix8_neon_probe_arm64.go": {
 		Subject: "the complex64/complex128 NEON radix-8 cutoff cells at size 65536",
 		Status:  probeOpen,
-		Verdict: "Both precisions are correct and zero-allocation at every size from 64 through " +
-			"65536 on an Apple M5 (2026-08-09). Complex64 wins 128/512/2048/8192/32768 by " +
-			"1.25x-1.93x, is at parity at 64, and loses 256/1024/4096/16384/65536 by " +
-			"1.13x-1.51x. Complex128 wins 64/128/512/2048/8192/32768 by 1.00x-1.30x " +
-			"forward and 1.00x-1.29x inverse, and loses 256/1024/4096/16384/65536; its " +
-			"worst loss is 1.63x at 65536 forward. Per the 1.5x retention rule, sizes through " +
-			"32768 are production-registered: winners are selected and losers remain low-priority " +
-			"wisdom candidates. Only the two 65536 cells stay probe-only pending a second ARM " +
-			"microarchitecture.",
+		Verdict: "Both precisions are correct and zero-allocation from 64 through 65536 on an " +
+			"Apple M5 (2026-08-09). The first sweep promoted odd-exponent cells after comparing " +
+			"against generic incumbents; the fused-tail follow-up exposed that `RankBelowGeneric` " +
+			"had hidden the faster NEON radix-4-then-2 rows. After the direct three-way sweep, only " +
+			"complex128 size 64 remains selected; every radix-8 row through 32768 stays registered " +
+			"at low priority. Size 65536 still loses 1.51x complex64 and 1.63x complex128 forward, " +
+			"so those two cells stay probe-only pending a second ARM microarchitecture.",
 		Record: "docs/CODELET_BENCHMARKS.md, \"NEON radix-8 ladder on Apple M5\"",
 		Rederiv: "GOFLAGS=-tags=fftprobe go test -run '^$' " +
 			"-bench 'BenchmarkCodeletCandidates(64|128)/.*/dit[0-9]+_radix8ladder_neon' " +
@@ -197,18 +195,19 @@ var probeNotes = map[string]probeNote{
 	"internal/kernels/radix2_neon_probe_arm64.go": {
 		Subject: "the existing size-generic complex64/complex128 NEON radix-2 DIT kernel " +
 			"against the tuned NEON radix-4 and radix-8 ladders",
-		Status: probeOpen,
-		Verdict: "**No full ladder sweep has been taken.** This is not one of the retired " +
-			"scalar size-specific files: `ForwardNEONComplex64Asm` and " +
-			"`ForwardNEONComplex128Asm` process two butterflies per vector iteration. The " +
-			"production registry exposes those generic symbols at only four historical cells, " +
-			"so this probe registers a distinct radix-2 signature at every power of two from 4 " +
-			"through 65536. The Apple M5 sweep decides whether any cell deserves production " +
-			"registration; the 1.5x retention rule applies independently per precision and size.",
+		Status: probeClosed,
+		Verdict: "**Loses every cell after fixing two implementation defects** (Apple M5, " +
+			"2026-08-09). The complex64 inner loop now uses direct vector add/sub and fused " +
+			"complex multiplies instead of reloading ones for FMLA/FMLS; complex128 now uses " +
+			"`RBIT` instead of reversing every index one bit at a time, plus fused multiplies. " +
+			"The corrected ladder still loses 2.65x-6.18x in complex64 and 1.45x-5.42x in " +
+			"complex128. Size 32768 complex128 forward is the lone direction below 1.5x, but " +
+			"inverse loses 1.69x and one registry row carries both. No cell qualifies for " +
+			"production; the complete ladder stays probe-only and correctness-tested.",
 		Record: "docs/CODELET_BENCHMARKS.md, \"NEON radix-2 ladder on Apple M5\"",
 		Rederiv: "GOFLAGS=-tags=fftprobe go test -run '^$' " +
 			"-bench 'BenchmarkCodeletCandidates(64|128)/.*/dit[0-9]+_radix2ladder_neon' " +
-			"-benchmem -benchtime=300ms -count=5 ./internal/kernels",
+			"-benchmem -benchtime=100ms -count=3 ./internal/kernels",
 		Cells: concatCells(
 			probeCells(64, "SIMDNEON", "radix2ladder", 4, 8, 16, 32, 64, 128, 256, 512,
 				1024, 2048, 4096, 8192, 16384, 32768, 65536),

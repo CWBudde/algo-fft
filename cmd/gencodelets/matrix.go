@@ -97,9 +97,9 @@ var familyVerdicts = []familyVerdict{
 		Evidence: "docs/CODELET_BENCHMARKS.md, The AVX-512 radix-8 ladder: prediction half right, 16 rows promoted",
 	},
 	{
-		Family: "Radix-2 (ladder)", Status: famOpen,
-		Verdict: "the existing size-generic NEON radix-2 DIT assembly is genuinely vectorized but has never been ranked as a complete ladder against the tuned NEON radix-4 and radix-8 codelets; an Apple M5 probe now covers every power of two from 4 through 65536 in both precisions",
-		Tracked: "NEON: priority tuning on real arm64 hardware.",
+		Family: "Radix-2 (ladder)", Status: famClosed,
+		Verdict:  "the corrected size-generic NEON radix-2 DIT ladder loses every size from 4 through 65536 on an Apple M5: 2.65–6.18× in complex64 and 1.45–5.42× in complex128. The one sub-1.5× direction is paired with a 1.69× inverse loss, so every row remains probe-only",
+		Evidence: "docs/CODELET_BENCHMARKS.md, NEON radix-2 ladder on Apple M5",
 	},
 
 	{
@@ -157,13 +157,13 @@ var familyVerdicts = []familyVerdict{
 	},
 	{
 		Family: "Mixed-2/4", Status: famTuned,
-		Verdict:  "the plain separate-tail form, and outside AVX2 it is the *only* form that exists: it is the selected row at every odd-exponent size (32, 128, 512, 2048, 8192, 32768) on generic, SSE2, SSE3 and NEON in both precisions, uncontested because no fused or radix-8-then-2 kernel is built for those tiers. Where it is outranked it is by the radix-8 ladder, not by a different tail (generic 512/2048/8192). On AVX2 the family has no rows at all — the tail is absorbed into `dit<N>_radix4_avx2` there",
-		Evidence: "docs/CODELET_BENCHMARKS.md, AVX2 tier (i7-1255U) — incumbent audit",
+		Verdict:  "the plain separate-tail form remains the selected odd-exponent row on generic, SSE2 and SSE3. NEON now has a directly measured fused peer: plain loses at 32/128/512/2048/8192 and stays low-priority, but wins at 32768 by 14-20% and is selected there in both precisions. On AVX2 the family has no rows at all — the tail is absorbed into `dit<N>_radix4_avx2` there",
+		Evidence: "docs/CODELET_BENCHMARKS.md, NEON fused radix-4/radix-2 tail on Apple M5",
 	},
 	{
 		Family: "Radix-4 (fused tail)", Status: famTuned,
-		Verdict:  "decided per cell, and every cell now has a number. It wins n = 128 in **both** precisions (0.955/0.979 complex64, 0.935/0.934 complex128 — the largest fusion win in either) and is the registered incumbent there. At 512 and 2048 the radix-8 ladder beats it directly (0.952/0.987 and 0.940/0.961 at 512), so neither plain nor fused is the answer at those sizes. At 2048 complex128 fusing *costs* 11% where the stride is exactly 4 KiB. Above that the fused rows are probe-only. The mechanism is why this must stay per-cell rather than becoming a default: the fused loop keeps eight live streams instead of four and loses that trade at larger strides, which is a cache-geometry property and therefore exactly what the wisdom tuner has to be able to flip per host",
-		Evidence: "docs/CODELET_BENCHMARKS.md, What the audit changed",
+		Verdict:  "decided per ISA and cell. AVX2 selects fusion only at n = 128; its larger fused variants remain probe-only. NEON's new vector-register fusion removes a complete store/reload pass and wins both precisions at 32/128/512/2048/8192 (0.60-1.00 forward, 0.63-0.98 inverse against the prior fastest candidate). At 32768 it loses 14-20%, remains registered at priority 20, and the separate tail is selected. This stays per-cell because keeping eight streams live trades memory traffic against register pressure and cache geometry",
+		Evidence: "docs/CODELET_BENCHMARKS.md, NEON fused radix-4/radix-2 tail on Apple M5",
 	},
 	{
 		Family: "Mixed-8/2", Status: famTuned,

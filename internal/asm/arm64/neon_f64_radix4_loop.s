@@ -124,6 +124,14 @@
 // decides whether a copy is needed regardless of how many stages preceded
 // it or what the last one was.
 //
+// FUSED TAIL. The size-specific fused wrappers pass a negative n as an
+// internal flag. The core takes its absolute value and records the flag in
+// R27. At l = 2 it computes both j branches together, keeps both DFT4 results
+// in V0..V23, applies the final radix-2 sums/differences, and writes all eight
+// output blocks directly. This removes the intermediate n-element
+// store/reload pass. The result lands in the opposite ping-pong buffer from
+// the two-pass form; the runtime pointer comparison handles either parity.
+//
 // TWO MACRO FAMILIES, and the difference is load-bearing:
 //
 //   * The arithmetic macros (VDFT4_*, VCMUL_*) take register NUMBERS. They
@@ -241,6 +249,24 @@
 	ADD   $8, R0, R0       \
 	VLD1R (R0), [V21.D2]
 
+// Broadcast the l=2 stage's j=1 twiddles into V24..V29 for the fused tail.
+// R23 = 16*m is both one complex128 block and the byte offset of tw[m].
+#define VBCAST_FUSED_TW \
+	ADD   R23, R21, R0     \
+	VLD1R (R0), [V24.D2]   \
+	ADD   $8, R0, R0       \
+	VLD1R (R0), [V25.D2]   \
+	LSL   $1, R23, R25     \
+	ADD   R25, R21, R0     \
+	VLD1R (R0), [V26.D2]   \
+	ADD   $8, R0, R0       \
+	VLD1R (R0), [V27.D2]   \
+	ADD   R23, R25, R25    \
+	ADD   R25, R21, R0     \
+	VLD1R (R0), [V28.D2]   \
+	ADD   $8, R0, R0       \
+	VLD1R (R0), [V29.D2]
+
 // Gather the three stage-0 twiddle vectors for the j-pair (j, j+1).
 // R10 = &tw[j], R24 = &tw[2j], R25 = &tw[3j].
 // Leaves w1 in V16/V17, w2 in V22/V23, w3 in V25/V26; clobbers V18..V21, R0.
@@ -327,12 +353,19 @@
 //   R11       stage input ptr    R15  j counter
 //   R12       stage output ptr   R13  m
 //   R1        64*m (stages>=1)   R14  l
+//   R27       fuse-tail flag (negative n from the fused-tail wrapper)
 
 // ---------------------------------------------------------------------------
 // func neonRadix4ForwardC128(dst, src, twiddle, scratch []complex128, n int) bool
 // ---------------------------------------------------------------------------
 TEXT ·neonRadix4ForwardC128(SB), NOSPLIT, $0-105
 	MOVD n+96(FP), R22
+	MOVD $0, R27
+	CMP  $0, R22
+	BGE  r4fwd64_size_ready
+	NEG  R22, R22
+	MOVD $1, R27
+r4fwd64_size_ready:
 
 	MOVD src_len+32(FP), R0
 	CMP  R22, R0
@@ -390,6 +423,11 @@ r4fwd64_st0:
 r4fwd64_stage:
 	CMP $1, R14
 	BEQ r4fwd64_last
+	CMP $2, R14
+	BNE r4fwd64_stage_regular
+	CMP $0, R27
+	BNE r4fwd64_fused_tail
+r4fwd64_stage_regular:
 
 	LSL  $4, R13, R23 // 16*m
 	LSL  $6, R13, R1  // 64*m
@@ -472,6 +510,72 @@ r4fwd64_last2k:
 	ADD  $32, R5, R5
 	SUBS $1, R3, R3
 	BNE  r4fwd64_last2k
+	B    r4fwd64_tail
+
+r4fwd64_fused_tail:
+	LSL  $4, R13, R23
+	VBCAST_FUSED_TW
+	MOVD R11, R4
+	MOVD R12, R5
+	LSR  $1, R13, R3
+
+r4fwd64_fused_k:
+	VLOAD4(R4)
+	VDFT4_FWD(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	VMOVR(0, 16)
+	VMOVR(1, 17)
+	VMOVR(2, 18)
+	VMOVR(3, 19)
+	VMOVR(4, 20)
+	VMOVR(5, 21)
+	VMOVR(6, 22)
+	VMOVR(7, 23)
+
+	ADD R23, R4, R0
+	VLOAD4(R0)
+	VDFT4_FWD(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	VCMUL_FWD(2, 3, 24, 25, 30, 31)
+	VCMUL_FWD(4, 5, 26, 27, 30, 31)
+	VCMUL_FWD(6, 7, 28, 29, 30, 31)
+
+	MOVD R5, R1
+	LSL  $2, R23, R25
+	ADD  R25, R5, R2
+	VADDF_D2(16, 0, 30)
+	VADDF_D2(17, 1, 31)
+	VST2 [V30.D2, V31.D2], (R1)
+	VSUBF_D2(16, 0, 30)
+	VSUBF_D2(17, 1, 31)
+	VST2 [V30.D2, V31.D2], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_D2(18, 2, 30)
+	VADDF_D2(19, 3, 31)
+	VST2 [V30.D2, V31.D2], (R1)
+	VSUBF_D2(18, 2, 30)
+	VSUBF_D2(19, 3, 31)
+	VST2 [V30.D2, V31.D2], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_D2(20, 4, 30)
+	VADDF_D2(21, 5, 31)
+	VST2 [V30.D2, V31.D2], (R1)
+	VSUBF_D2(20, 4, 30)
+	VSUBF_D2(21, 5, 31)
+	VST2 [V30.D2, V31.D2], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_D2(22, 6, 30)
+	VADDF_D2(23, 7, 31)
+	VST2 [V30.D2, V31.D2], (R1)
+	VSUBF_D2(22, 6, 30)
+	VSUBF_D2(23, 7, 31)
+	VST2 [V30.D2, V31.D2], (R2)
+
+	ADD  $32, R4, R4
+	ADD  $32, R5, R5
+	SUBS $1, R3, R3
+	BNE  r4fwd64_fused_k
 
 r4fwd64_tail:
 	MOVD R12, R11 // the result is wherever the last stage wrote
@@ -506,6 +610,12 @@ r4fwd64_false:
 // ---------------------------------------------------------------------------
 TEXT ·neonRadix4InverseC128(SB), NOSPLIT, $0-113
 	MOVD n+96(FP), R22
+	MOVD $0, R27
+	CMP  $0, R22
+	BGE  r4inv64_size_ready
+	NEG  R22, R22
+	MOVD $1, R27
+r4inv64_size_ready:
 
 	MOVD src_len+32(FP), R0
 	CMP  R22, R0
@@ -579,6 +689,11 @@ r4inv64_st0:
 r4inv64_stage:
 	CMP $1, R14
 	BEQ r4inv64_last
+	CMP $2, R14
+	BNE r4inv64_stage_regular
+	CMP $0, R27
+	BNE r4inv64_fused_tail
+r4inv64_stage_regular:
 
 	LSL  $4, R13, R23
 	LSL  $6, R13, R1
@@ -662,6 +777,72 @@ r4inv64_last2k:
 	ADD  $32, R5, R5
 	SUBS $1, R3, R3
 	BNE  r4inv64_last2k
+	B    r4inv64_tail
+
+r4inv64_fused_tail:
+	LSL  $4, R13, R23
+	VBCAST_FUSED_TW
+	MOVD R11, R4
+	MOVD R12, R5
+	LSR  $1, R13, R3
+
+r4inv64_fused_k:
+	VLOAD4(R4)
+	VDFT4_INV(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	VMOVR(0, 16)
+	VMOVR(1, 17)
+	VMOVR(2, 18)
+	VMOVR(3, 19)
+	VMOVR(4, 20)
+	VMOVR(5, 21)
+	VMOVR(6, 22)
+	VMOVR(7, 23)
+
+	ADD R23, R4, R0
+	VLOAD4(R0)
+	VDFT4_INV(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	VCMUL_INV(2, 3, 24, 25, 30, 31)
+	VCMUL_INV(4, 5, 26, 27, 30, 31)
+	VCMUL_INV(6, 7, 28, 29, 30, 31)
+
+	MOVD R5, R1
+	LSL  $2, R23, R25
+	ADD  R25, R5, R2
+	VADDF_D2(16, 0, 30)
+	VADDF_D2(17, 1, 31)
+	VST2 [V30.D2, V31.D2], (R1)
+	VSUBF_D2(16, 0, 30)
+	VSUBF_D2(17, 1, 31)
+	VST2 [V30.D2, V31.D2], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_D2(18, 2, 30)
+	VADDF_D2(19, 3, 31)
+	VST2 [V30.D2, V31.D2], (R1)
+	VSUBF_D2(18, 2, 30)
+	VSUBF_D2(19, 3, 31)
+	VST2 [V30.D2, V31.D2], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_D2(20, 4, 30)
+	VADDF_D2(21, 5, 31)
+	VST2 [V30.D2, V31.D2], (R1)
+	VSUBF_D2(20, 4, 30)
+	VSUBF_D2(21, 5, 31)
+	VST2 [V30.D2, V31.D2], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_D2(22, 6, 30)
+	VADDF_D2(23, 7, 31)
+	VST2 [V30.D2, V31.D2], (R1)
+	VSUBF_D2(22, 6, 30)
+	VSUBF_D2(23, 7, 31)
+	VST2 [V30.D2, V31.D2], (R2)
+
+	ADD  $32, R4, R4
+	ADD  $32, R5, R5
+	SUBS $1, R3, R3
+	BNE  r4inv64_fused_k
 
 r4inv64_tail:
 	MOVD R12, R11

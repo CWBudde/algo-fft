@@ -1721,6 +1721,98 @@ their radix-4 incumbent. Size 65536 exceeded the cutoff (1.51× slower for
 complex64 and 1.63× slower for complex128 forward), so those two rows alone
 remain behind `fftprobe` pending a second ARM microarchitecture.
 
+The fused-tail follow-up below supersedes the **selection** conclusion at the
+odd-exponent sizes. This table compared radix-8 with the incumbent the registry
+actually returned at the time; `RankBelowGeneric` hid the existing NEON
+radix-4-then-2 core beneath the generic rows. Re-measuring all three candidates
+side by side showed that the shared NEON radix-4 core was already faster than
+those generic incumbents, and fusing its tail improves it further.
+
+### NEON radix-2 ladder on Apple M5
+
+The existing `ForwardNEONComplex64Asm` / `ForwardNEONComplex128Asm` kernels are
+genuine size-generic radix-2 DIT implementations, not the retired scalar files
+whose old signatures also said radix-2. A probe registered those two symbols at
+every power of two from 4 through 65536 and compared them with the fastest
+registered codelet in each cell on an Apple M5 (2026-08-09).
+
+The first pass exposed two avoidable implementation costs before the verdict
+was taken. The complex64 butterfly reloaded a vector of ones in its inner loop
+and used multiply-add to synthesize ordinary vector addition/subtraction; it now
+uses the direct `VADDF_S4` / `VSUBF_S4` encodings and fused complex multiplies.
+The complex128 permutation reversed every index one bit at a time; it now uses
+ARM64 `RBIT`, and its complex multiply also uses FMA/FMS. Native reference,
+round-trip, in-place and zero-allocation tests pass after those changes.
+
+The optimized kernel still loses every cell. Values below are radix-2 time
+divided by the fastest incumbent time, using the median of three isolated runs;
+values above one are losses:
+
+|     n | c64 forward | c64 inverse | c128 forward | c128 inverse |
+| ----: | ----------: | ----------: | -----------: | -----------: |
+|     4 |       4.78x |       5.09x |        4.62x |        5.42x |
+|     8 |       5.40x |       5.67x |        4.78x |        3.74x |
+|    16 |       4.85x |       5.70x |        3.74x |        3.80x |
+|    32 |       2.65x |       3.67x |        2.03x |        2.05x |
+|    64 |       3.62x |       4.38x |        3.31x |        3.52x |
+|   128 |       3.07x |       3.68x |        2.84x |        3.16x |
+|   256 |       5.79x |       6.18x |        2.81x |        2.87x |
+|   512 |       3.35x |       4.11x |        2.63x |        1.81x |
+|  1024 |       4.50x |       5.60x |        2.63x |        2.68x |
+|  2048 |       3.72x |       4.47x |        3.21x |        3.57x |
+|  4096 |       5.07x |       6.18x |        2.70x |        2.66x |
+|  8192 |       3.61x |       4.41x |        2.73x |        2.21x |
+| 16384 |       3.98x |       5.24x |        2.50x |        2.48x |
+| 32768 |       2.98x |       4.26x |        1.45x |        1.69x |
+| 65536 |       4.89x |       4.92x |        3.14x |        3.04x |
+
+Size 32768 complex128 forward is the only direction within 1.5x, but its
+inverse is 1.69x slower and a registry entry carries both directions. Therefore
+no size meets the repository's retention rule. The complete ladder remains
+behind `fftprobe`: it costs nothing in production, stays correctness-tested,
+and leaves a reproducible candidate for another ARM microarchitecture. No
+production priority changed. The useful inner-loop and permutation fixes stay
+in the shared generic NEON implementation.
+
+### NEON fused radix-4/radix-2 tail on Apple M5
+
+For every `n = 2*4^k`, the shared NEON radix-4 Stockham core used to write the
+complete `l=2` radix-4 stage, swap buffers, reload all `n` values, and execute a
+unity-twiddle radix-2 pass. The fused variant computes the `j=0` and `j=1`
+radix-4 butterflies together, keeps their eight outputs in vector registers,
+and writes the final radix-2 sums and differences directly. It removes one
+full `n`-element store/reload pass without changing the stage-0 scaling or the
+runtime scratch/destination parity check.
+
+All twelve forward/inverse cells pass the registry-driven independent
+reference tests on the Apple M5. The table reports fused time divided by the
+fastest prior candidate; values below one favor fusion. Medians are from five
+200 ms runs, with alternating paired runs used for the two order-sensitive
+large cells.
+
+|     n | c64 forward | c64 inverse | c128 forward | c128 inverse | production choice |
+| ----: | ----------: | ----------: | -----------: | -----------: | ----------------- |
+|    32 |       0.81x |       0.74x |        0.60x |        0.63x | fused             |
+|   128 |       0.95x |       0.96x |        0.96x |        0.97x | fused             |
+|   512 |       0.84x |       0.83x |        0.90x |        0.90x | fused             |
+|  2048 |       0.96x |       0.96x |        0.81x |        0.84x | fused             |
+|  8192 |       0.84x |       0.84x |        1.00x |        0.98x | fused             |
+| 32768 |       1.20x |       1.18x |        1.14x |        1.14x | separate tail     |
+
+Complex128 at 8192 was the narrow cell: long sweeps flipped with benchmark
+order, so a 21-round paired test alternated the two kernels within one process.
+Its median fused/radix-8 ratios were 0.995 forward and 0.978 inverse, which is a
+small but repeatable combined win. At 32768, alternating runs instead confirmed
+the separate tail: fusion loses 18-20% in complex64 and about 14% in
+complex128. That is well inside the 1.5x retention band, so both variants stay
+production-registered there; the separate-tail row is selected and the fused
+row remains a low-priority wisdom candidate.
+
+The resulting ranking selects `radix4fused` at 32, 128, 512, 2048 and 8192 in
+both precisions, and `radix4_then2` at 32768. The losing alternative remains at
+priority 20 in every cell, and the old `RankBelowGeneric` demotions were removed
+because both NEON variants beat the pure-Go rows on this host.
+
 ### Sizes 64–16384, complex64 — one looped core replaces five unrolled files
 
 `neon_f32_size{64,256,1024,4096,16384}_*.s` were 28,503 lines of fully-unrolled

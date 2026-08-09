@@ -1049,18 +1049,43 @@ algorithms" is actually missing.
       CI runner on the community backlog.
 
       **Partial result (Apple M5, 2026-08-09):** a real size-generic complex64
-      NEON radix-8 probe now covers 64…65536. It wins every odd-exponent size
-      128/512/2048/8192/32768 by 1.25–1.93×, is at parity at 64, and loses every
-      pure power-of-four size 256/1024/4096/16384/65536 by 1.13–1.51×. That
-      makes it a complement to the radix-4 ladder, not a replacement. It stays
-      is now production-registered through 32768: winners are selected and the
-      sub-1.5× losses remain low-priority wisdom candidates. Its complex128 twin
-      is also correct and zero-allocation across 64…65536. It wins or ties
-      64/128/512/2048/8192/32768 (up to 1.30×) and loses the five mature radix-4
-      cells. Only size 65536 remains behind `fftprobe`, because its 1.51×
-      complex64 and 1.63× complex128 forward losses meet the research-kernel
-      cutoff. Full tables and re-derive command in
+      NEON radix-8 probe now covers 64…65536. Its first sweep appeared to win
+      every odd-exponent size because the registered incumbents there were
+      generic rows: `RankBelowGeneric` hid the existing NEON radix-4-then-2
+      core. The fused-tail follow-up below corrected that comparison. Radix-8
+      remains production-registered through 32768 so wisdom can retune it on a
+      different ARM, but only complex128 size 64 is now selected; all other
+      production rows are priority 20. Size 65536 remains behind `fftprobe`,
+      because its 1.51× complex64 and 1.63× complex128 forward losses meet the
+      research-kernel cutoff. Full tables and re-derive command in
       `docs/CODELET_BENCHMARKS.md`.
+
+      **Radix-2 result (Apple M5, 2026-08-09):** the existing size-generic,
+      vectorized NEON radix-2 DIT kernel was exposed as a probe ladder at every
+      power of two from 4 through 65536. Before measuring it, its complex64
+      butterfly was changed from reload-ones-plus-FMLA/FMLS to direct vector
+      add/sub and fused multiply arithmetic, and complex128's per-bit index
+      reversal was replaced by `RBIT`. The corrected implementation still
+      loses every cell: 2.65–6.18× for complex64 and 1.45–5.42× for complex128.
+      The lone sub-1.5× direction is complex128 forward at 32768 (1.45×), whose
+      inverse loses 1.69×; because one row carries both directions, no size
+      clears the retention rule. The ladder remains `fftprobe`-only and no
+      production priority changes. Full table in `docs/CODELET_BENCHMARKS.md`.
+
+      **Fused-tail result (Apple M5, 2026-08-09):** for `n = 2*4^k`, the last
+      `l=2` radix-4 stage now has a NEON variant that computes both j branches
+      together and applies the final radix-2 add/sub while all eight outputs
+      are live. It removes one complete n-element store/reload pass. Native
+      reference tests pass in both precisions. The fused row is fastest at
+      32/128/512/2048/8192 (about 0.6–40% depending on cell/direction) and is
+      selected there. At 32768 it loses 18–20% in complex64 and about 14% in
+      complex128, so the separate-tail row remains selected and fusion stays a
+      priority-20 wisdom candidate under the 1.5× rule. This follow-up also
+      corrected the earlier radix-8 disposition: the old sweep compared with
+      generic incumbents because `RankBelowGeneric` hid the existing NEON
+      radix-4-then-2 rows. Side-by-side measurement lifts those demotions and
+      selects radix-4 fused/separate over radix-8 at the affected sizes. Full
+      table and the paired 8192 tie-break are in `docs/CODELET_BENCHMARKS.md`.
 
 - [ ] **NEON: ARMv8.3 `FCMLA` kernels.** `internal/cpu` detects only `HasNEON`;
       `FCMLA`/`FCADD` do a full complex multiply-accumulate in two instructions

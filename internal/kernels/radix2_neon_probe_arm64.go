@@ -2,17 +2,16 @@
 
 package kernels
 
-// Measurement harness for the existing size-generic NEON radix-2 DIT kernel.
-// The assembly is already part of production dispatch, but the registry only
-// exposes it at a handful of historical cells. Registering a complete ladder
-// under a distinct signature makes it possible to compare the same genuine,
-// vectorized radix-2 implementation with the tuned radix-4/radix-8 codelets.
+// Probe for the existing size-generic NEON radix-2 DIT kernel. The corrected
+// implementation lost every size from 4 through 65536 on an Apple M5; the
+// nearest result was complex128 at 32768 (1.45x slower forward, 1.69x inverse).
+// It remains here so another ARM microarchitecture can reproduce the sweep.
 //
 // Take the number on native arm64 with:
 //
 //	GOFLAGS=-tags=fftprobe go test -run '^$' \
 //	  -bench 'BenchmarkCodeletCandidates(64|128)/.*/dit[0-9]+_radix2ladder_neon' \
-//	  -benchmem -benchtime=300ms -count=5 ./internal/kernels
+//	  -benchmem -benchtime=100ms -count=3 ./internal/kernels
 
 import (
 	"github.com/cwbudde/algo-fft/internal/asm/arm64"

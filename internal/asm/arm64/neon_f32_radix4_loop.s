@@ -118,6 +118,14 @@
 // For n = 128 there are 4 stages — even, no copy. This alternates with k
 // exactly as the s-odd/even rule already does for pure powers of four.
 //
+// FUSED TAIL. The size-specific fused wrappers pass n with its sign bit set;
+// the core takes the absolute size and records the sign in R27. At l = 2 that
+// path computes j = 0 and j = 1 together, keeps both DFT4 results in V0..V23,
+// applies the final radix-2 sums/differences, and writes the eight output
+// blocks directly. It removes the intermediate n-element store/reload pass.
+// The fused result lands in the opposite ping-pong buffer from the two-pass
+// form, but the existing runtime pointer comparison already handles that.
+//
 // TWO MACRO FAMILIES, and the difference is load-bearing:
 //
 //   * The arithmetic macros (VDFT4_*, VCMUL_*) take register NUMBERS. They
@@ -279,6 +287,25 @@
 	ADD   $4, R0, R0       \
 	VLD1R (R0), [V21.S4]
 
+// Broadcast the l=2 stage's non-unity j=1 twiddles into V24..V29 for the
+// fused radix-4/radix-2 tail. R23 = 8*m is both one complex64 block and the
+// byte offset of tw[m]. Clobbers R0 and R25.
+#define VBCAST_FUSED_TW \
+	ADD   R23, R21, R0     \
+	VLD1R (R0), [V24.S4]   \
+	ADD   $4, R0, R0       \
+	VLD1R (R0), [V25.S4]   \
+	LSL   $1, R23, R25     \
+	ADD   R25, R21, R0     \
+	VLD1R (R0), [V26.S4]   \
+	ADD   $4, R0, R0       \
+	VLD1R (R0), [V27.S4]   \
+	ADD   R23, R25, R25    \
+	ADD   R25, R21, R0     \
+	VLD1R (R0), [V28.S4]   \
+	ADD   $4, R0, R0       \
+	VLD1R (R0), [V29.S4]
+
 // Gather the three stage-0 twiddle vectors. R10 = &tw[j], R24 = &tw[2j],
 // R25 = &tw[3j]. Leaves w1 in V16/V17, w2 in V22/V23, w3 in V25/V26 and
 // clobbers V18..V21, R0, R1, R2.
@@ -313,12 +340,19 @@
 //   R1        32*m (stages>=1)  R14  l
 //   R26       saved l, to detect the n = 2*4^k family's last radix-4 stage
 //             (l == 2) after the stage runs and l/m have been updated
+//   R27       fuse-tail flag (negative n from the fused-tail wrapper)
 
 // ---------------------------------------------------------------------------
 // func neonRadix4ForwardC64(dst, src, twiddle, scratch []complex64, n int) bool
 // ---------------------------------------------------------------------------
 TEXT ·neonRadix4ForwardC64(SB), NOSPLIT, $0-105
 	MOVD n+96(FP), R22
+	MOVD $0, R27
+	CMP  $0, R22
+	BGE  r4fwd_size_ready
+	NEG  R22, R22
+	MOVD $1, R27
+r4fwd_size_ready:
 
 	MOVD src_len+32(FP), R0
 	CMP  R22, R0
@@ -388,6 +422,11 @@ r4fwd_st0:
 r4fwd_stage:
 	CMP $1, R14
 	BEQ r4fwd_last
+	CMP $2, R14
+	BNE r4fwd_stage_regular
+	CMP $0, R27
+	BNE r4fwd_fused_tail
+r4fwd_stage_regular:
 	MOVD R14, R26 // remember this stage's l, to spot the n = 2*4^k family's last radix-4 stage (l == 2) once l/m are updated below
 
 	LSL  $3, R13, R23 // 8*m
@@ -482,6 +521,80 @@ r4fwd_radix2k:
 	ADD  $32, R5, R5
 	SUBS $1, R3, R3
 	BNE  r4fwd_radix2k
+	B    r4fwd_finish
+
+	// Fused alternative for n = 2*4^k: compute both j values of the
+	// l=2 radix-4 stage together, then perform the radix-2 add/sub between
+	// corresponding outputs while all eight radix-4 results are live. This
+	// removes the intermediate n-element store/reload pass.
+r4fwd_fused_tail:
+	LSL  $3, R13, R23 // one m-element block, and tw[m], in bytes
+	VBCAST_FUSED_TW
+	MOVD R11, R4
+	MOVD R12, R5
+	LSR  $2, R13, R3
+
+r4fwd_fused_k:
+	// j=0 reads blocks 0,2,4,6 and has unity twiddles.
+	VLOAD4(R4)
+	VDFT4_FWD(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	VMOVR(0, 16)
+	VMOVR(1, 17)
+	VMOVR(2, 18)
+	VMOVR(3, 19)
+	VMOVR(4, 20)
+	VMOVR(5, 21)
+	VMOVR(6, 22)
+	VMOVR(7, 23)
+
+	// j=1 reads blocks 1,3,5,7 and uses tw[m], tw[2m], tw[3m].
+	ADD R23, R4, R0
+	VLOAD4(R0)
+	VDFT4_FWD(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	VCMUL_FWD(2, 3, 24, 25, 30, 31)
+	VCMUL_FWD(4, 5, 26, 27, 30, 31)
+	VCMUL_FWD(6, 7, 28, 29, 30, 31)
+
+	// Blocks 0..3 are the radix-2 sums, blocks 4..7 the differences. Store
+	// one output pair at a time so V24..V29 keep the twiddles across k.
+	MOVD R5, R1
+	LSL  $2, R23, R25
+	ADD  R25, R5, R2
+	VADDF_S4(16, 0, 30)
+	VADDF_S4(17, 1, 31)
+	VST2 [V30.S4, V31.S4], (R1)
+	VSUBF_S4(16, 0, 30)
+	VSUBF_S4(17, 1, 31)
+	VST2 [V30.S4, V31.S4], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_S4(18, 2, 30)
+	VADDF_S4(19, 3, 31)
+	VST2 [V30.S4, V31.S4], (R1)
+	VSUBF_S4(18, 2, 30)
+	VSUBF_S4(19, 3, 31)
+	VST2 [V30.S4, V31.S4], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_S4(20, 4, 30)
+	VADDF_S4(21, 5, 31)
+	VST2 [V30.S4, V31.S4], (R1)
+	VSUBF_S4(20, 4, 30)
+	VSUBF_S4(21, 5, 31)
+	VST2 [V30.S4, V31.S4], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_S4(22, 6, 30)
+	VADDF_S4(23, 7, 31)
+	VST2 [V30.S4, V31.S4], (R1)
+	VSUBF_S4(22, 6, 30)
+	VSUBF_S4(23, 7, 31)
+	VST2 [V30.S4, V31.S4], (R2)
+
+	ADD  $32, R4, R4
+	ADD  $32, R5, R5
+	SUBS $1, R3, R3
+	BNE  r4fwd_fused_k
 
 r4fwd_finish:
 	MOVD R12, R11 // the result is wherever the last stage wrote
@@ -520,6 +633,12 @@ r4fwd_false:
 // ---------------------------------------------------------------------------
 TEXT ·neonRadix4InverseC64(SB), NOSPLIT, $0-113
 	MOVD n+96(FP), R22
+	MOVD $0, R27
+	CMP  $0, R22
+	BGE  r4inv_size_ready
+	NEG  R22, R22
+	MOVD $1, R27
+r4inv_size_ready:
 
 	MOVD src_len+32(FP), R0
 	CMP  R22, R0
@@ -602,6 +721,11 @@ r4inv_st0:
 r4inv_stage:
 	CMP $1, R14
 	BEQ r4inv_last
+	CMP $2, R14
+	BNE r4inv_stage_regular
+	CMP $0, R27
+	BNE r4inv_fused_tail
+r4inv_stage_regular:
 	MOVD R14, R26 // remember this stage's l (see r4fwd_stage)
 
 	LSL  $3, R13, R23
@@ -693,6 +817,72 @@ r4inv_radix2k:
 	ADD  $32, R5, R5
 	SUBS $1, R3, R3
 	BNE  r4inv_radix2k
+	B    r4inv_finish
+
+r4inv_fused_tail:
+	LSL  $3, R13, R23
+	VBCAST_FUSED_TW
+	MOVD R11, R4
+	MOVD R12, R5
+	LSR  $2, R13, R3
+
+r4inv_fused_k:
+	VLOAD4(R4)
+	VDFT4_INV(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	VMOVR(0, 16)
+	VMOVR(1, 17)
+	VMOVR(2, 18)
+	VMOVR(3, 19)
+	VMOVR(4, 20)
+	VMOVR(5, 21)
+	VMOVR(6, 22)
+	VMOVR(7, 23)
+
+	ADD R23, R4, R0
+	VLOAD4(R0)
+	VDFT4_INV(0, 2, 4, 6, 1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	VCMUL_INV(2, 3, 24, 25, 30, 31)
+	VCMUL_INV(4, 5, 26, 27, 30, 31)
+	VCMUL_INV(6, 7, 28, 29, 30, 31)
+
+	MOVD R5, R1
+	LSL  $2, R23, R25
+	ADD  R25, R5, R2
+	VADDF_S4(16, 0, 30)
+	VADDF_S4(17, 1, 31)
+	VST2 [V30.S4, V31.S4], (R1)
+	VSUBF_S4(16, 0, 30)
+	VSUBF_S4(17, 1, 31)
+	VST2 [V30.S4, V31.S4], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_S4(18, 2, 30)
+	VADDF_S4(19, 3, 31)
+	VST2 [V30.S4, V31.S4], (R1)
+	VSUBF_S4(18, 2, 30)
+	VSUBF_S4(19, 3, 31)
+	VST2 [V30.S4, V31.S4], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_S4(20, 4, 30)
+	VADDF_S4(21, 5, 31)
+	VST2 [V30.S4, V31.S4], (R1)
+	VSUBF_S4(20, 4, 30)
+	VSUBF_S4(21, 5, 31)
+	VST2 [V30.S4, V31.S4], (R2)
+	ADD  R23, R1, R1
+	ADD  R23, R2, R2
+	VADDF_S4(22, 6, 30)
+	VADDF_S4(23, 7, 31)
+	VST2 [V30.S4, V31.S4], (R1)
+	VSUBF_S4(22, 6, 30)
+	VSUBF_S4(23, 7, 31)
+	VST2 [V30.S4, V31.S4], (R2)
+
+	ADD  $32, R4, R4
+	ADD  $32, R5, R5
+	SUBS $1, R3, R3
+	BNE  r4inv_fused_k
 
 r4inv_finish:
 	MOVD R12, R11
