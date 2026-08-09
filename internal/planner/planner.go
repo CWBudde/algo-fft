@@ -34,12 +34,21 @@ type PlanEstimate[T Complex] struct {
 	// Algorithm is the human-readable name of the chosen implementation
 	Algorithm string
 
+	// ForwardAlgorithm and InverseAlgorithm name the implementation bound in
+	// each direction. Algorithm is equal to both when they match, otherwise it
+	// is their slash-separated pair.
+	ForwardAlgorithm string
+	InverseAlgorithm string
+
 	// Strategy is the kernel strategy (DIT, Stockham, etc.)
 	Strategy KernelStrategy
 
-	// Codelet twiddle preparation callbacks (nil if codelet uses standard twiddles)
-	TwiddleSize    registry.TwiddleSizeFunc       // Returns element count for codelet twiddles
-	PrepareTwiddle registry.PrepareTwiddleFunc[T] // Prepares twiddle layout for the codelet
+	// Direction-specific codelet twiddle preparation callbacks (nil if that
+	// direction uses standard twiddles or a fallback kernel).
+	ForwardTwiddleSize    registry.TwiddleSizeFunc
+	ForwardPrepareTwiddle registry.PrepareTwiddleFunc[T]
+	InverseTwiddleSize    registry.TwiddleSizeFunc
+	InversePrepareTwiddle registry.PrepareTwiddleFunc[T]
 }
 
 // EstimatePlan determines the best kernel/codelet for the given size.
@@ -80,8 +89,10 @@ func EstimatePlan[T Complex](
 	// For Bluestein, there are no codelets
 	if !IsPowerOf2(n) && !MixedRadixEligible(n) {
 		return PlanEstimate[T]{
-			Strategy:  KernelBluestein,
-			Algorithm: algoBluestein,
+			Strategy:         KernelBluestein,
+			Algorithm:        algoBluestein,
+			ForwardAlgorithm: algoBluestein,
+			InverseAlgorithm: algoBluestein,
 		}
 	}
 
@@ -89,6 +100,12 @@ func EstimatePlan[T Complex](
 	haveStrategyWisdom := false
 
 	if algorithm, ok := wisdomAlgorithm[T](n, features, wisdom); ok {
+		if forward, inverse, split := SplitDirectionalAlgorithm(algorithm); split {
+			if est := bindDirectionalWisdom[T](n, features, forward, inverse, forcedStrategy); est != nil {
+				return *est
+			}
+		}
+
 		if est := bindWisdomCodelet[T](n, features, algorithm, forcedStrategy); est != nil {
 			return *est
 		}
@@ -117,8 +134,10 @@ func EstimatePlan[T Complex](
 	algorithmName := StrategyToAlgorithmName(strategy)
 
 	return PlanEstimate[T]{
-		Strategy:  strategy,
-		Algorithm: algorithmName,
+		Strategy:         strategy,
+		Algorithm:        algorithmName,
+		ForwardAlgorithm: algorithmName,
+		InverseAlgorithm: algorithmName,
 	}
 }
 
@@ -138,12 +157,16 @@ func tryRegistry[T Complex](n int, features cpu.Features, forcedStrategy KernelS
 	}
 
 	return &PlanEstimate[T]{
-		ForwardCodelet: entry.Forward,
-		InverseCodelet: entry.Inverse,
-		Algorithm:      entry.Signature,
-		Strategy:       entry.Algorithm,
-		TwiddleSize:    entry.TwiddleSize,
-		PrepareTwiddle: entry.PrepareTwiddle,
+		ForwardCodelet:        entry.Forward,
+		InverseCodelet:        entry.Inverse,
+		Algorithm:             entry.Signature,
+		ForwardAlgorithm:      entry.Signature,
+		InverseAlgorithm:      entry.Signature,
+		Strategy:              entry.Algorithm,
+		ForwardTwiddleSize:    entry.TwiddleSize,
+		ForwardPrepareTwiddle: entry.PrepareTwiddle,
+		InverseTwiddleSize:    entry.TwiddleSize,
+		InversePrepareTwiddle: entry.PrepareTwiddle,
 	}
 }
 
@@ -208,12 +231,106 @@ func bindWisdomCodelet[T Complex](
 	}
 
 	return &PlanEstimate[T]{
-		ForwardCodelet: codelet.Forward,
-		InverseCodelet: codelet.Inverse,
-		Algorithm:      codelet.Signature,
-		Strategy:       codelet.Algorithm,
-		TwiddleSize:    codelet.TwiddleSize,
-		PrepareTwiddle: codelet.PrepareTwiddle,
+		ForwardCodelet:        codelet.Forward,
+		InverseCodelet:        codelet.Inverse,
+		Algorithm:             codelet.Signature,
+		ForwardAlgorithm:      codelet.Signature,
+		InverseAlgorithm:      codelet.Signature,
+		Strategy:              codelet.Algorithm,
+		ForwardTwiddleSize:    codelet.TwiddleSize,
+		ForwardPrepareTwiddle: codelet.PrepareTwiddle,
+		InverseTwiddleSize:    codelet.TwiddleSize,
+		InversePrepareTwiddle: codelet.PrepareTwiddle,
+	}
+}
+
+// DirectionalAlgorithm joins distinct forward and inverse implementation names
+// for Wisdom and plan introspection. Matching names retain the legacy spelling.
+func DirectionalAlgorithm(forward, inverse string) string {
+	if forward == inverse {
+		return forward
+	}
+
+	return forward + "/" + inverse
+}
+
+// SplitDirectionalAlgorithm splits a direction-aware implementation name.
+func SplitDirectionalAlgorithm(algorithm string) (forward, inverse string, split bool) {
+	for i := range len(algorithm) {
+		if algorithm[i] == '/' {
+			if i == 0 || i == len(algorithm)-1 {
+				return "", "", false
+			}
+
+			return algorithm[:i], algorithm[i+1:], true
+		}
+	}
+
+	return algorithm, algorithm, false
+}
+
+type directionBinding[T Complex] struct {
+	codelet        fftypes.CodeletFunc[T]
+	algorithm      string
+	strategy       KernelStrategy
+	twiddleSize    registry.TwiddleSizeFunc
+	prepareTwiddle registry.PrepareTwiddleFunc[T]
+}
+
+func bindWisdomDirection[T Complex](
+	n int, features cpu.Features, algorithm string, forcedStrategy KernelStrategy, inverse bool,
+) (directionBinding[T], bool) {
+	reg := registry.GetRegistry[T]()
+	if reg != nil {
+		entry := reg.LookupBySignature(n, algorithm)
+		if entry != nil && registry.CPUSupports(features, entry.SIMDLevel) &&
+			(forcedStrategy == KernelAuto || entry.Algorithm == forcedStrategy) {
+			codelet := entry.Forward
+			if inverse {
+				codelet = entry.Inverse
+			}
+
+			return directionBinding[T]{
+				codelet: codelet, algorithm: entry.Signature, strategy: entry.Algorithm,
+				twiddleSize: entry.TwiddleSize, prepareTwiddle: entry.PrepareTwiddle,
+			}, true
+		}
+	}
+
+	strategy, ok := wisdomStrategy(algorithm, forcedStrategy)
+	if !ok {
+		return directionBinding[T]{}, false
+	}
+
+	strategy = ResolveKernelStrategyWithDefault(n, strategy)
+
+	return directionBinding[T]{algorithm: StrategyToAlgorithmName(strategy), strategy: strategy}, true
+}
+
+func bindDirectionalWisdom[T Complex](
+	n int, features cpu.Features, forwardAlgorithm, inverseAlgorithm string, forcedStrategy KernelStrategy,
+) *PlanEstimate[T] {
+	forward, ok := bindWisdomDirection[T](n, features, forwardAlgorithm, forcedStrategy, false)
+	if !ok {
+		return nil
+	}
+
+	inverse, ok := bindWisdomDirection[T](n, features, inverseAlgorithm, forcedStrategy, true)
+	if !ok || forward.strategy != inverse.strategy {
+		return nil
+	}
+
+	return &PlanEstimate[T]{
+		ForwardCodelet:        forward.codelet,
+		InverseCodelet:        inverse.codelet,
+		Algorithm:             DirectionalAlgorithm(forward.algorithm, inverse.algorithm),
+		ForwardAlgorithm:      forward.algorithm,
+		InverseAlgorithm:      inverse.algorithm,
+		Strategy:              forward.strategy,
+		ForwardTwiddleSize:    forward.twiddleSize,
+		ForwardPrepareTwiddle: forward.prepareTwiddle,
+		InverseTwiddleSize:    inverse.twiddleSize,
+		InversePrepareTwiddle: inverse.prepareTwiddle,
 	}
 }
 

@@ -191,13 +191,13 @@ if err != nil {
 }
 
 // Embed wisdom in your binary (the first line must be the version header)
-const embeddedWisdom = `# algofft-wisdom v4
+const embeddedWisdom = `# algofft-wisdom v5
 64:0:7:amd64_AuthenticAMD_f23_m96_l1d32768_l2524288:dit64_avx2:1234567890
-128:0:7:amd64_AuthenticAMD_f23_m96_l1d32768_l2524288:dit128_avx2:1234567890`
+128:0:7:amd64_AuthenticAMD_f23_m96_l1d32768_l2524288:dit128_radix4_avx2/dit128_radix8ladder_avx2:1234567890`
 err = algofft.ImportWisdomFromString(embeddedWisdom)
 ```
 
-The wisdom format is text-based and portable across machines with the same CPU context. The first line is a version header (`# algofft-wisdom v4`); files without a recognized header are rejected rather than mis-parsed. Each subsequent line contains:
+The wisdom format is text-based and portable across machines with the same CPU context. The first line is a version header (`# algofft-wisdom v5`); files without a recognized header are rejected rather than mis-parsed. Each subsequent line contains:
 
 - FFT size
 - Precision (0=complex64, 1=complex128)
@@ -206,9 +206,9 @@ The wisdom format is text-based and portable across machines with the same CPU c
 - Algorithm name
 - Timestamp
 
-An entry overrides the built-in preference order for its size, precision and exact CPU context: an algorithm field naming a codelet signature pins that codelet, and one naming a kernel strategy selects that strategy even where a codelet exists. Entries come from the measuring planner modes (`PlannerMeasure` and up), which benchmark the size's codelets alongside the kernel strategies and record whichever won. On targets where vendor/family/model detection is unavailable (including wasm), the identifier says `unknown`; entries are still separated by architecture and reported cache geometry, but not by model within that context.
+An entry overrides the built-in preference order for its size, precision and exact CPU context: an algorithm field naming a codelet signature pins that codelet, and one naming a kernel strategy selects that strategy even where a codelet exists. A slash-separated `forward/inverse` pair records different winners for the two directions when both use the same strategy family. Entries come from the measuring planner modes (`PlannerMeasure` and up), which benchmark both directions of the size's codelets and kernel strategies. On targets where vendor/family/model detection is unavailable (including wasm), the identifier says `unknown`; entries are still separated by architecture and reported cache geometry, but not by model within that context.
 
-The header moved to v4 when the CPU identifier became part of the key. v3 files have no safe way to infer which AVX2 or NEON microarchitecture produced their measurements, so they are rejected rather than silently broadened — re-measure to regenerate them. Third-party `WisdomStore` implementations retain their feature-only behavior unless they implement the optional `MicroarchitectureWisdomStore` extension.
+The header moved to v5 when direction-aware measurement was combined with the v4 CPU-context key. v3 files cannot identify their source microarchitecture, and v4 files contain only forward evidence, so both are rejected rather than silently broadened — re-measure to regenerate them. Third-party `WisdomStore` implementations retain their feature-only behavior unless they implement the optional `MicroarchitectureWisdomStore` extension.
 
 Import can also evict stale entries by age via `algofft.ImportWisdomWithMaxAge(path, maxAge)`.
 

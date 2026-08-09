@@ -1057,6 +1057,19 @@ Registering candidates is only useful if something can pick them per machine.
 This subphase is what converts Phase 1's breadth into performance on hardware
 nobody here owns.
 
+- [x] **Measure and replay direction-specific winners within one strategy**
+      (2026-08-09). Planner measurement now times every candidate's forward and
+      inverse entry points independently. When the winners share a strategy
+      family, the plan binds each direction directly, including distinct packed
+      twiddle layouts; `Algorithm()` reports `forward/inverse`, with explicit
+      `ForwardAlgorithm()` / `InverseAlgorithm()` accessors. If the fastest
+      directions cross strategy families, the forward winner remains bound for
+      both so the existing singular `KernelStrategy()` stays truthful. Wisdom
+      v5 persists and replays the pair and rejects older forward-only files.
+      This is the safe route for host-local findings such as complex128 n=32768
+      preferring the AVX2 radix-4 ladder forward and radix-8 inverse; it does not
+      globally retune either codelet's priority.
+
 - [ ] **Bound wisdom measurement cost.** With low-priority candidates registered
       on purpose, the number of arms per size grows. Add a candidate cap or a
       tier filter to the measurement path so tuning time stays bounded, and
@@ -1075,10 +1088,20 @@ nobody here owns.
       prefer a bound that measures the whole candidate set once per host over one
       that guesses which arms are worth an arm.
 
-- [ ] **Offline tuning entry point.** A `cmd/` tool (or a documented
-      `just tune` recipe) that sweeps every registered size × precision on the
-      current host, writes a Wisdom file, and prints the per-size winner. Today
-      the same work is a hand-assembled `bench_gated.sh` invocation per round.
+- [x] **Scope Wisdom to the measured microarchitecture.** _(2026-08-09.)_
+      The old key stopped at SIMD feature bits, so a Zen 2 result could silently
+      override an Alder Lake plan with the same AVX2 mask despite the project's
+      own cross-host radix-8 inversions. Wisdom v5 now keys the built-in store by
+      architecture, vendor/family/model and detected L1d/L2 geometry as well as
+      features. v3/v4 files are rejected rather than broadened; third-party
+      stores keep their legacy behavior unless they implement the optional
+      `MicroarchitectureWisdomStore` extension.
+- [x] **Offline tuning entry point.** _(2026-08-09.)_ `cmd/tune` and `just tune`
+      sweep the power-of-two ladder in both precisions with patient (or
+      exhaustive) measurement, print each winner and planning cost, and export
+      a host-scoped Wisdom file for replay. The command deliberately uses the
+      planner's full registered candidate set; bounding that cost remains the
+      separate item above.
 - [ ] **Ship pre-tuned wisdom profiles for named cache geometries.** At minimum
       the i7-1255U and the Xeon Gold 5218, both already reachable; loadable by
       name so a user on similar hardware skips tuning. This is what makes the

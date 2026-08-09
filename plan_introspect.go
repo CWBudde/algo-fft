@@ -42,10 +42,22 @@ func (p *Plan[T]) KernelStrategy() KernelStrategy {
 	return kernelStrategyFromInternal(p.kernelStrategy)
 }
 
-// Algorithm returns the name of the bound kernel or codelet (e.g., "dit8_generic").
-// Returns empty string if no specific algorithm is bound.
+// Algorithm returns the name of the bound kernel or codelet (e.g.,
+// "dit8_generic"). If measured planning chose different implementations for
+// forward and inverse transforms, it returns "forward/inverse"; use
+// ForwardAlgorithm and InverseAlgorithm to retrieve the components directly.
 func (p *Plan[T]) Algorithm() string {
 	return p.algorithm
+}
+
+// ForwardAlgorithm returns the implementation bound for forward transforms.
+func (p *Plan[T]) ForwardAlgorithm() string {
+	return p.forwardAlgorithm
+}
+
+// InverseAlgorithm returns the implementation bound for inverse transforms.
+func (p *Plan[T]) InverseAlgorithm() string {
+	return p.inverseAlgorithm
 }
 
 // String returns a human-readable description of the Plan for debugging.
@@ -185,6 +197,18 @@ func (p *PlanReal[F, C]) KernelStrategy() KernelStrategy {
 // fallback).
 func (p *PlanReal[F, C]) Algorithm() string {
 	return p.plan.Algorithm()
+}
+
+// ForwardAlgorithm returns the forward implementation of the underlying
+// complex plan.
+func (p *PlanReal[F, C]) ForwardAlgorithm() string {
+	return p.plan.ForwardAlgorithm()
+}
+
+// InverseAlgorithm returns the inverse implementation of the underlying
+// complex plan.
+func (p *PlanReal[F, C]) InverseAlgorithm() string {
+	return p.plan.InverseAlgorithm()
 }
 
 // KernelStrategies returns the resolved kernel strategy of the underlying

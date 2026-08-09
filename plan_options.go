@@ -11,11 +11,12 @@ import "time"
 //   - PlannerExhaustive: Thorough benchmark testing all strategies
 //
 // The measuring modes benchmark size-specific codelets alongside the kernel
-// strategies, so the plan they choose is never worse than PlannerEstimate's
-// without having measured it to be better. PlannerMeasure times the codelet
-// the estimate would have used; the deeper modes time every codelet available
-// for the size, which is what lets them disagree with the built-in preference
-// order — at roughly double the planning time of strategies alone.
+// strategies in both directions, so the plan they choose is never worse than
+// PlannerEstimate's without having measured it. PlannerMeasure times the
+// codelet the estimate would have used; the deeper modes time every codelet
+// available for the size, which lets them disagree with the built-in preference
+// order. Separate forward/inverse winners are retained when they use the same
+// strategy family; otherwise the forward winner is used for both directions.
 //
 // When using PlannerMeasure or higher with a WisdomStore, the planner
 // automatically records the winner for future plan creations.
@@ -61,7 +62,9 @@ type PlanOptions struct {
 	// precision and CPU context — naming a codelet signature (e.g.
 	// "dit64_radix4_sse2") is the way to pin one codelet against another, and
 	// naming a kernel strategy (e.g. "stockham") selects that strategy even
-	// where a codelet exists. An entry is ignored when Strategy forces a
+	// where a codelet exists. Measured stores may return a slash-separated
+	// "forward/inverse" pair when the two directions have different winners.
+	// An entry is ignored when Strategy forces a
 	// conflicting strategy, or when it names a codelet that has since been
 	// disabled or that this CPU cannot run.
 	Wisdom WisdomStore
@@ -105,7 +108,7 @@ type WisdomKey struct {
 // WisdomEntry stores a planning decision.
 type WisdomEntry struct {
 	Key       WisdomKey
-	Algorithm string    // e.g., "dit64_generic", "stockham"
+	Algorithm string    // e.g., "dit64_generic", "stockham", or "forward/inverse"
 	Timestamp time.Time // When this entry was recorded
 }
 

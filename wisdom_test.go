@@ -257,7 +257,7 @@ func TestExportWisdom(t *testing.T) {
 		t.Fatalf("Exported wisdom has %d lines, want 4 (header, legend, 2 entries)", len(lines))
 	}
 
-	if lines[0] != "# algofft-wisdom v4" {
+	if lines[0] != "# algofft-wisdom v5" {
 		t.Errorf("First line = %q, want the magic header", lines[0])
 	}
 
@@ -279,7 +279,7 @@ func TestImportWisdom(t *testing.T) {
 	filename := filepath.Join(tmpDir, "wisdom_import_test.txt")
 
 	// Create wisdom file
-	wisdomData := `# algofft-wisdom v4
+	wisdomData := `# algofft-wisdom v5
 128:0:0:-:dit64:1234567890
 256:1:5:-:stockham:1234567891
 # This is a comment
@@ -352,7 +352,7 @@ func TestImportWisdomFromString(t *testing.T) {
 	// Save initial state
 	initialLen := WisdomLen()
 
-	wisdomData := "# algofft-wisdom v4\n2048:0:0:-:test_algo:1234567890"
+	wisdomData := "# algofft-wisdom v5\n2048:0:0:-:test_algo:1234567890"
 
 	err := ImportWisdomFromString(wisdomData)
 	if err != nil {
@@ -377,7 +377,7 @@ func TestImportWisdom_InvalidFormat(t *testing.T) {
 	filename := filepath.Join(tmpDir, "invalid_wisdom.txt")
 
 	// Create wisdom file with invalid format (missing timestamp field)
-	invalidData := "# algofft-wisdom v4\n128:0:0:cpu:dit64"
+	invalidData := "# algofft-wisdom v5\n128:0:0:cpu:dit64"
 
 	err := os.WriteFile(filename, []byte(invalidData), 0o644)
 	if err != nil {
@@ -566,7 +566,7 @@ func TestExportWisdom_EmptyWisdom(t *testing.T) {
 	// Even with no entries, Export writes the versioned header and legend so the
 	// file is a valid, self-describing wisdom file. There must be no entry lines.
 	content := strings.TrimSpace(string(data))
-	want := "# algofft-wisdom v4\n# size:precision:features:cpu:algorithm:timestamp"
+	want := "# algofft-wisdom v5\n# size:precision:features:cpu:algorithm:timestamp"
 
 	if content != want {
 		t.Errorf("Empty wisdom exported content = %q, want %q", content, want)
@@ -609,7 +609,7 @@ func TestImportWisdom_GlobalFunction(t *testing.T) {
 	filename := filepath.Join(tmpDir, "global_import_test.txt")
 
 	// Create wisdom file
-	wisdomData := "# algofft-wisdom v4\n4096:0:0:-:global_test:1234567890"
+	wisdomData := "# algofft-wisdom v5\n4096:0:0:-:global_test:1234567890"
 
 	err := os.WriteFile(filename, []byte(wisdomData), 0o644)
 	if err != nil {
@@ -668,7 +668,7 @@ func TestClearWisdom_GlobalFunction(t *testing.T) {
 	// (This is the best we can do without being able to restore state)
 
 	// Add a known entry
-	err := ImportWisdomFromString("# algofft-wisdom v4\n8192:0:0:-:test_clear:1234567890")
+	err := ImportWisdomFromString("# algofft-wisdom v5\n8192:0:0:-:test_clear:1234567890")
 	if err != nil {
 		t.Fatalf("ImportWisdomFromString() failed: %v", err)
 	}

@@ -114,9 +114,11 @@ type measureCandidate[T Complex] struct {
 	strategy  fftypes.KernelStrategy
 }
 
-// MeasureAndSelect benchmarks the candidate implementations for a size and
-// returns the best one. It optionally records the result to the provided
-// wisdom recorder.
+// MeasureAndSelect benchmarks candidate implementations in both directions.
+// It binds separate winners when they belong to the same strategy family;
+// otherwise it preserves the forward winner for both directions so the plan's
+// singular strategy remains truthful. It optionally records the result to the
+// provided wisdom recorder.
 //
 // Codelets are timed alongside the kernel strategies, not assumed. Timing only
 // the strategies used to let measure mode return a plan worse than
@@ -156,42 +158,48 @@ func MeasureAndSelect[T Complex](
 
 	config := getMeasureConfig(mode)
 
-	best := -1
-	bestNsPerOp := 0.0
+	bestForward := -1
+	bestForwardNsPerOp := 0.0
+	bestInverse := -1
+	bestInverseNsPerOp := 0.0
 
 	for i := range candidates {
-		elapsed := benchmarkCandidate(n, features, candidates[i], config)
-		if elapsed <= 0 {
-			continue // Candidate declined this size (kernel or codelet returned false).
+		forwardElapsed := benchmarkCandidateDirection(n, features, candidates[i], config, false)
+		if forwardElapsed > 0 {
+			nsPerOp := float64(forwardElapsed.Nanoseconds()) / float64(config.iters)
+			if bestForward < 0 || nsPerOp < bestForwardNsPerOp {
+				bestForward, bestForwardNsPerOp = i, nsPerOp
+			}
 		}
 
-		nsPerOp := float64(elapsed.Nanoseconds()) / float64(config.iters)
-		if best < 0 || nsPerOp < bestNsPerOp {
-			best, bestNsPerOp = i, nsPerOp
+		inverseElapsed := benchmarkCandidateDirection(n, features, candidates[i], config, true)
+		if inverseElapsed > 0 {
+			nsPerOp := float64(inverseElapsed.Nanoseconds()) / float64(config.iters)
+			if bestInverse < 0 || nsPerOp < bestInverseNsPerOp {
+				bestInverse, bestInverseNsPerOp = i, nsPerOp
+			}
 		}
 	}
 
 	// If no candidate succeeded, fall back to heuristics
-	if best < 0 {
+	if bestForward < 0 {
 		return planner.EstimatePlan[T](n, features, nil, fftypes.KernelAuto)
 	}
 
-	winner := candidates[best]
+	forwardWinner := candidates[bestForward]
+	inverseWinner := forwardWinner
+	if bestInverse >= 0 && candidates[bestInverse].strategy == forwardWinner.strategy {
+		inverseWinner = candidates[bestInverse]
+	}
+
+	algorithm := planner.DirectionalAlgorithm(forwardWinner.algorithm, inverseWinner.algorithm)
 
 	// Record to wisdom if recorder is provided. The recorded name is the
-	// codelet signature when a codelet won, which planner.EstimatePlan binds
-	// directly on the next run — so a measured decision is reproduced rather
-	// than re-derived from the registry's static order.
-	recordToWisdom[T](n, features, wisdom, winner.algorithm)
+	// codelet signature (or direction pair) when a codelet won, which
+	// planner.EstimatePlan binds directly on replay.
+	recordToWisdom[T](n, features, wisdom, algorithm)
 
-	if winner.entry != nil {
-		return codeletEstimate(*winner.entry)
-	}
-
-	return planner.PlanEstimate[T]{
-		Strategy:  winner.strategy,
-		Algorithm: winner.algorithm,
-	}
+	return directionalEstimate(forwardWinner, inverseWinner)
 }
 
 // measureCandidates builds the candidate list: one entry per kernel strategy
@@ -265,16 +273,31 @@ func codeletCandidates[T Complex](mode PlannerMode, n int, features cpu.Features
 func candidateForward[T Complex](
 	n int, features cpu.Features, cand measureCandidate[T], twiddle []T,
 ) (kernels.Kernel[T], []T) {
+	return candidateTransform(n, features, cand, twiddle, false)
+}
+
+func candidateTransform[T Complex](
+	n int, features cpu.Features, cand measureCandidate[T], twiddle []T, inverse bool,
+) (kernels.Kernel[T], []T) {
 	if cand.entry == nil {
-		return SelectKernelsWithStrategy[T](features, cand.strategy).Forward, twiddle
+		selected := SelectKernelsWithStrategy[T](features, cand.strategy)
+		if inverse {
+			return selected.Inverse, twiddle
+		}
+
+		return selected.Forward, twiddle
 	}
 
 	if cand.entry.TwiddleSize != nil && cand.entry.PrepareTwiddle != nil {
 		if size := cand.entry.TwiddleSize(n); size > 0 {
 			packed, _ := mem.AllocAligned[T](size)
-			cand.entry.PrepareTwiddle(n, false, packed)
+			cand.entry.PrepareTwiddle(n, inverse, packed)
 			twiddle = packed
 		}
+	}
+
+	if inverse {
+		return kernels.Kernel[T](cand.entry.Inverse), twiddle
 	}
 
 	return kernels.Kernel[T](cand.entry.Forward), twiddle
@@ -283,13 +306,42 @@ func candidateForward[T Complex](
 // codeletEstimate builds a plan estimate bound directly to one codelet.
 func codeletEstimate[T Complex](entry registry.CodeletEntry[T]) planner.PlanEstimate[T] {
 	return planner.PlanEstimate[T]{
-		ForwardCodelet: entry.Forward,
-		InverseCodelet: entry.Inverse,
-		Algorithm:      entry.Signature,
-		Strategy:       entry.Algorithm,
-		TwiddleSize:    entry.TwiddleSize,
-		PrepareTwiddle: entry.PrepareTwiddle,
+		ForwardCodelet:        entry.Forward,
+		InverseCodelet:        entry.Inverse,
+		Algorithm:             entry.Signature,
+		ForwardAlgorithm:      entry.Signature,
+		InverseAlgorithm:      entry.Signature,
+		Strategy:              entry.Algorithm,
+		ForwardTwiddleSize:    entry.TwiddleSize,
+		ForwardPrepareTwiddle: entry.PrepareTwiddle,
+		InverseTwiddleSize:    entry.TwiddleSize,
+		InversePrepareTwiddle: entry.PrepareTwiddle,
 	}
+}
+
+func directionalEstimate[T Complex](
+	forward, inverse measureCandidate[T],
+) planner.PlanEstimate[T] {
+	estimate := planner.PlanEstimate[T]{
+		Algorithm:        planner.DirectionalAlgorithm(forward.algorithm, inverse.algorithm),
+		ForwardAlgorithm: forward.algorithm,
+		InverseAlgorithm: inverse.algorithm,
+		Strategy:         forward.strategy,
+	}
+
+	if forward.entry != nil {
+		estimate.ForwardCodelet = forward.entry.Forward
+		estimate.ForwardTwiddleSize = forward.entry.TwiddleSize
+		estimate.ForwardPrepareTwiddle = forward.entry.PrepareTwiddle
+	}
+
+	if inverse.entry != nil {
+		estimate.InverseCodelet = inverse.entry.Inverse
+		estimate.InverseTwiddleSize = inverse.entry.TwiddleSize
+		estimate.InversePrepareTwiddle = inverse.entry.PrepareTwiddle
+	}
+
+	return estimate
 }
 
 func recordToWisdom[T Complex](n int, features cpu.Features, wisdom WisdomRecorder, algorithm string) {
@@ -345,6 +397,16 @@ func benchmarkCandidate[T Complex](
 	cand measureCandidate[T],
 	config measureConfig,
 ) time.Duration {
+	return benchmarkCandidateDirection(n, features, cand, config, false)
+}
+
+func benchmarkCandidateDirection[T Complex](
+	n int,
+	features cpu.Features,
+	cand measureCandidate[T],
+	config measureConfig,
+	inverse bool,
+) time.Duration {
 	// Prepare data buffers
 	src := make([]T, n)
 	dst := make([]T, n)
@@ -356,11 +418,11 @@ func benchmarkCandidate[T Complex](
 		src[i] = complexFromFloat64[T](float64(i%16)/16.0, float64((i+1)%16)/16.0)
 	}
 
-	forward, twiddle := candidateForward(n, features, cand, twiddle)
+	transform, twiddle := candidateTransform(n, features, cand, twiddle, inverse)
 
 	// Warmup: verify the candidate works and warm up CPU caches
 	for range config.warmup {
-		ok := forward(dst, src, twiddle, scratch)
+		ok := transform(dst, src, twiddle, scratch)
 		if !ok {
 			return 0 // Not implemented for this size
 		}
@@ -377,7 +439,7 @@ func benchmarkCandidate[T Complex](
 		startCycles := cpu.ReadCycleCounter()
 
 		for range config.iters {
-			forward(dst, src, twiddle, scratch)
+			transform(dst, src, twiddle, scratch)
 		}
 
 		elapsedNanos := cpu.CyclesToNanoseconds(cpu.CyclesSince(startCycles))
@@ -417,12 +479,16 @@ func estimateWithStrategy[T Complex](
 			// without them, bails on its length check, and silently runs the
 			// fallback kernel while the plan still reports the codelet signature.
 			return planner.PlanEstimate[T]{
-				ForwardCodelet: entry.Forward,
-				InverseCodelet: entry.Inverse,
-				Algorithm:      entry.Signature,
-				Strategy:       entry.Algorithm,
-				TwiddleSize:    entry.TwiddleSize,
-				PrepareTwiddle: entry.PrepareTwiddle,
+				ForwardCodelet:        entry.Forward,
+				InverseCodelet:        entry.Inverse,
+				Algorithm:             entry.Signature,
+				ForwardAlgorithm:      entry.Signature,
+				InverseAlgorithm:      entry.Signature,
+				Strategy:              entry.Algorithm,
+				ForwardTwiddleSize:    entry.TwiddleSize,
+				ForwardPrepareTwiddle: entry.PrepareTwiddle,
+				InverseTwiddleSize:    entry.TwiddleSize,
+				InversePrepareTwiddle: entry.PrepareTwiddle,
 			}
 		}
 	}
@@ -434,9 +500,11 @@ func estimateWithStrategy[T Complex](
 	strategy = planner.ResolveKernelStrategyWithDefault(n, strategy)
 
 	return planner.PlanEstimate[T]{
-		ForwardCodelet: nil,
-		InverseCodelet: nil,
-		Strategy:       strategy,
-		Algorithm:      planner.StrategyToAlgorithmName(strategy),
+		ForwardCodelet:   nil,
+		InverseCodelet:   nil,
+		Strategy:         strategy,
+		Algorithm:        planner.StrategyToAlgorithmName(strategy),
+		ForwardAlgorithm: planner.StrategyToAlgorithmName(strategy),
+		InverseAlgorithm: planner.StrategyToAlgorithmName(strategy),
 	}
 }

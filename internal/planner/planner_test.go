@@ -368,6 +368,61 @@ func TestEstimatePlanWisdomOutranksRegistry(t *testing.T) {
 	}
 }
 
+func TestEstimatePlanBindsDirectionalWisdom(t *testing.T) {
+	t.Parallel()
+
+	const (
+		size       = 1 << 23
+		forwardSig = "wisdomdirection_forward"
+		inverseSig = "wisdomdirection_inverse"
+	)
+
+	reg := registry.GetRegistry[complex64]()
+	for _, sig := range []string{forwardSig, inverseSig} {
+		reg.Register(registry.CodeletEntry[complex64]{
+			Size:           size,
+			Forward:        dummyCodelet[complex64],
+			Inverse:        dummyCodelet[complex64],
+			Algorithm:      KernelDIT,
+			SIMDLevel:      fftypes.SIMDNone,
+			Signature:      sig,
+			Priority:       1,
+			TwiddleSize:    func(int) int { return 4 },
+			PrepareTwiddle: func(int, bool, []complex64) {},
+		})
+	}
+
+	features := cpu.Features{Architecture: "amd64", HasSSE2: true}
+	wisdom := NewWisdom()
+	wisdom.Store(WisdomEntry{
+		Key: WisdomKey{
+			Size:          size,
+			Precision:     PrecisionComplex64,
+			CPUFeatures:   CPUFeatureMask(true, false, false, false, false),
+			CPUIdentifier: cpu.WisdomCPUIdentifier(features),
+		},
+		Algorithm: DirectionalAlgorithm(forwardSig, inverseSig),
+	})
+
+	estimate := EstimatePlan[complex64](size, features, wisdom, KernelAuto)
+	if estimate.Algorithm != forwardSig+"/"+inverseSig {
+		t.Fatalf("algorithm = %q, want directional pair", estimate.Algorithm)
+	}
+
+	if estimate.ForwardAlgorithm != forwardSig || estimate.InverseAlgorithm != inverseSig {
+		t.Errorf("direction algorithms = (%q, %q), want (%q, %q)",
+			estimate.ForwardAlgorithm, estimate.InverseAlgorithm, forwardSig, inverseSig)
+	}
+
+	if estimate.Strategy != KernelDIT || estimate.ForwardCodelet == nil || estimate.InverseCodelet == nil {
+		t.Error("directional wisdom did not bind both DIT codelet directions")
+	}
+
+	if estimate.ForwardTwiddleSize == nil || estimate.InverseTwiddleSize == nil {
+		t.Error("directional wisdom did not retain each codelet's twiddle preparation")
+	}
+}
+
 // TestEstimatePlanStrategyWisdomOutranksCodelet covers the other kind of entry:
 // a wisdom entry naming a *strategy* also outranks a codelet, because
 // internal/fft.MeasureAndSelect times the registry's codelets as candidates, so

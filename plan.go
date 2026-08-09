@@ -39,8 +39,12 @@ type Plan[T Complex] struct {
 	codeletTwiddleForward []T
 	codeletTwiddleInverse []T
 
-	// algorithm describes which implementation is bound (e.g., "dit64_generic", "stockham").
-	algorithm string
+	// algorithm describes the bound implementation. When measurement selected
+	// different implementations by direction it is "forward/inverse"; the two
+	// component fields support unambiguous introspection.
+	algorithm        string
+	forwardAlgorithm string
+	inverseAlgorithm string
 
 	// kernelStrategy is the resolved strategy, reported by introspection and
 	// consulted by the strided fast-path gate.
@@ -587,8 +591,12 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	}
 
 	algorithm := estimate.Algorithm
+	forwardAlgorithm := estimate.ForwardAlgorithm
+	inverseAlgorithm := estimate.InverseAlgorithm
 	if useRader {
 		algorithm = algorithmRader
+		forwardAlgorithm = algorithmRader
+		inverseAlgorithm = algorithmRader
 	}
 
 	var (
@@ -621,16 +629,18 @@ func newPlanWithFeatures[T Complex](n int, features cpu.Features, opts PlanOptio
 	scratchPool.put(setupScratch)
 
 	p := &Plan[T]{
-		n:              n,
-		exec:           exec,
-		algorithm:      algorithm,
-		kernelStrategy: strategy,
-		twiddle:        twiddle,
-		bitrev:         planBitReversal(n, estimate),
-		twiddleBacking: twiddleBacking,
-		scratchLen:     scratchLen,
-		subScratchLen:  subScratchLen,
-		scratchPool:    scratchPool,
+		n:                n,
+		exec:             exec,
+		algorithm:        algorithm,
+		forwardAlgorithm: forwardAlgorithm,
+		inverseAlgorithm: inverseAlgorithm,
+		kernelStrategy:   strategy,
+		twiddle:          twiddle,
+		bitrev:           planBitReversal(n, estimate),
+		twiddleBacking:   twiddleBacking,
+		scratchLen:       scratchLen,
+		subScratchLen:    subScratchLen,
+		scratchPool:      scratchPool,
 	}
 
 	if ke != nil {
@@ -688,6 +698,8 @@ func newPlanFromPoolWithOptions[T Complex](n int, pool *fft.BufferPool, opts Pla
 		codeletTwiddleForward: ke.codeletTwiddleForward,
 		codeletTwiddleInverse: ke.codeletTwiddleInverse,
 		algorithm:             estimate.Algorithm,
+		forwardAlgorithm:      estimate.ForwardAlgorithm,
+		inverseAlgorithm:      estimate.InverseAlgorithm,
 		kernelStrategy:        strategy,
 		twiddle:               twiddle,
 		bitrev:                bitrev,

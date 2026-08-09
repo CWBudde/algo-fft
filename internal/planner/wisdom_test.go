@@ -147,6 +147,33 @@ func TestWisdomExportImport(t *testing.T) {
 	}
 }
 
+func TestWisdomExportImportDirectionalAlgorithm(t *testing.T) {
+	t.Parallel()
+
+	w := NewWisdom()
+	key := WisdomKey{Size: 32768, Precision: PrecisionComplex128, CPUFeatures: 7}
+	w.Store(WisdomEntry{
+		Key:       key,
+		Algorithm: "dit32768_radix4_avx2/dit32768_radix8_avx2",
+		Timestamp: time.Unix(1700000000, 0),
+	})
+
+	var buf bytes.Buffer
+	if err := w.Export(&buf); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+
+	replayed := NewWisdom()
+	if err := replayed.Import(&buf); err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+
+	entry, ok := replayed.Lookup(key)
+	if !ok || entry.Algorithm != "dit32768_radix4_avx2/dit32768_radix8_avx2" {
+		t.Fatalf("replayed entry = (%+v, %v), want directional algorithm", entry, ok)
+	}
+}
+
 func TestWisdomImportComments(t *testing.T) {
 	t.Parallel()
 
@@ -220,7 +247,8 @@ func TestWisdomImportHeader(t *testing.T) {
 		{"wrong_header", "# algofft-wisdom v1\n" + valid, true},
 		{"superseded_header", "# algofft-wisdom v2\n" + valid, true},
 		{"v3_header", "# algofft-wisdom v3\n" + valid, true},
-		{"future_header", "# algofft-wisdom v5\n" + valid, true},
+		{"v4_header", "# algofft-wisdom v4\n" + valid, true},
+		{"future_header", "# algofft-wisdom v6\n" + valid, true},
 		{"only_comments_no_magic", "# just a comment\n" + valid, true},
 		{"valid_header", wisdomMagic + "\n" + valid, false},
 		{"blank_lines_before_header", "\n\n" + wisdomMagic + "\n" + valid, false},

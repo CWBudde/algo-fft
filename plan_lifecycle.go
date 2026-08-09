@@ -96,13 +96,15 @@ func (p *Plan[T]) Clone() *Plan[T] {
 	}
 
 	return &Plan[T]{
-		n:              p.n,
-		exec:           p.exec,      // Shared (immutable after construction)
-		algorithm:      p.algorithm, // Shared (immutable string)
-		kernelStrategy: p.kernelStrategy,
-		twiddle:        p.twiddle,        // Shared (immutable)
-		bitrev:         p.bitrev,         // Shared (immutable)
-		twiddleBacking: p.twiddleBacking, // Shared reference (keeps original alive)
+		n:                p.n,
+		exec:             p.exec, // Shared (immutable after construction)
+		algorithm:        p.algorithm,
+		forwardAlgorithm: p.forwardAlgorithm,
+		inverseAlgorithm: p.inverseAlgorithm,
+		kernelStrategy:   p.kernelStrategy,
+		twiddle:          p.twiddle,        // Shared (immutable)
+		bitrev:           p.bitrev,         // Shared (immutable)
+		twiddleBacking:   p.twiddleBacking, // Shared reference (keeps original alive)
 
 		// Shared codelet fast-path cache (function pointers + immutable tables)
 		forwardCodelet:        p.forwardCodelet,

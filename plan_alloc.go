@@ -5,6 +5,7 @@ import (
 	m "github.com/cwbudde/algo-fft/internal/math"
 	mem "github.com/cwbudde/algo-fft/internal/memory"
 	"github.com/cwbudde/algo-fft/internal/planner"
+	"github.com/cwbudde/algo-fft/internal/registry"
 )
 
 // scratchSet groups the per-call scratch buffers a Plan hands out, together with
@@ -39,22 +40,36 @@ func prepareCodeletTwiddles[T Complex](
 	base []T,
 	estimate planner.PlanEstimate[T],
 ) ([]T, []T, []byte, []byte) {
-	if estimate.TwiddleSize == nil || estimate.PrepareTwiddle == nil {
-		return base, base, nil, nil
-	}
-
-	twiddleLen := estimate.TwiddleSize(n)
-	if twiddleLen <= 0 {
-		return base, base, nil, nil
-	}
-
-	forward, forwardBacking := mem.AllocAligned[T](twiddleLen)
-	inverse, inverseBacking := mem.AllocAligned[T](twiddleLen)
-
-	estimate.PrepareTwiddle(n, false, forward)
-	estimate.PrepareTwiddle(n, true, inverse)
+	forward, forwardBacking := prepareCodeletTwiddle(
+		n, false, base, estimate.ForwardTwiddleSize, estimate.ForwardPrepareTwiddle,
+	)
+	inverse, inverseBacking := prepareCodeletTwiddle(
+		n, true, base, estimate.InverseTwiddleSize, estimate.InversePrepareTwiddle,
+	)
 
 	return forward, inverse, forwardBacking, inverseBacking
+}
+
+func prepareCodeletTwiddle[T Complex](
+	n int,
+	inverse bool,
+	base []T,
+	twiddleSize registry.TwiddleSizeFunc,
+	prepare registry.PrepareTwiddleFunc[T],
+) ([]T, []byte) {
+	if twiddleSize == nil || prepare == nil {
+		return base, nil
+	}
+
+	twiddleLen := twiddleSize(n)
+	if twiddleLen <= 0 {
+		return base, nil
+	}
+
+	twiddle, backing := mem.AllocAligned[T](twiddleLen)
+	prepare(n, inverse, twiddle)
+
+	return twiddle, backing
 }
 
 // allocateScratchSet allocates the per-call scratch buffers for a plan of

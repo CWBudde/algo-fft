@@ -271,27 +271,26 @@
 //	}
 //
 //	// Or embed wisdom in your binary. The first line must be the version header.
-//	const wisdom = `# algofft-wisdom v3
-//	64:0:5:dit64_avx2:1234567890
-//	128:0:5:dit128_avx2:1234567890`
+//	const wisdom = `# algofft-wisdom v5
+//	64:0:7:amd64_AuthenticAMD_f23_m96_l1d32768_l2524288:dit64_avx2:1234567890
+//	128:0:7:amd64_AuthenticAMD_f23_m96_l1d32768_l2524288:dit128_radix4_avx2/dit128_radix8ladder_avx2:1234567890`
 //	if err := algofft.ImportWisdomFromString(wisdom); err != nil {
 //		log.Fatal(err)
 //	}
 //
-// The wisdom format is portable across platforms with the same CPU features.
-// The first line is a version header ("# algofft-wisdom v3"); each subsequent line
-// contains: size:precision:features:algorithm:timestamp. Files without a
+// The wisdom format is portable across machines with the same CPU context.
+// The first line is a version header ("# algofft-wisdom v5"); each subsequent line
+// contains: size:precision:features:cpu:algorithm:timestamp. Files without a
 // recognized header are rejected rather than mis-parsed.
 //
 // An entry overrides the built-in preference order for its size, precision and
-// CPU feature set: an algorithm field naming a codelet signature pins that
+// exact CPU context: an algorithm field naming a codelet signature pins that
 // codelet, and one naming a kernel strategy selects that strategy even where a
-// codelet exists. Entries come from the measuring planner modes
-// (PlannerMeasure and up), which benchmark the size's codelets alongside the
-// kernel strategies and record whichever won. The header moved from v2 to v3
-// when wisdom gained that override: the syntax is unchanged, but a v2 entry was
-// recorded without ever being compared against the codelet it would now
-// displace, so v2 files are rejected rather than reinterpreted.
+// codelet exists. A slash-separated "forward/inverse" pair records different
+// direction winners within one strategy family. Entries come from the measuring
+// planner modes (PlannerMeasure and up), which benchmark both directions. The
+// header moved to v5 when direction-aware measurement was combined with the v4
+// CPU-context key; older files are rejected rather than silently broadened.
 //
 // Wisdom management:
 //

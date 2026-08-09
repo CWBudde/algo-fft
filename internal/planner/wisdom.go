@@ -25,7 +25,7 @@ type WisdomKey struct {
 // WisdomEntry stores a planning decision.
 type WisdomEntry struct {
 	Key       WisdomKey
-	Algorithm string    // e.g., "dit64_generic", "stockham"
+	Algorithm string    // e.g., "dit64_generic", "stockham", or "forward/inverse"
 	Timestamp time.Time // When this entry was recorded
 }
 
@@ -133,15 +133,12 @@ func (w *Wisdom) Len() int {
 // this exact line, so unversioned or future-format files fail loudly instead of
 // being mis-parsed.
 //
-// v4 adds the CPU identifier to the key so results measured on different
-// microarchitectures are not silently shared merely because their SIMD feature
-// masks match. Older files cannot safely supply that field and are rejected.
-// A wisdom entry outranks the codelet
-// registry (see EstimatePlan), and that is only sound because
-// internal/fft.MeasureAndSelect times the registry's codelets as candidates.
-// It did not under v2, so a v2 strategy entry records a comparison that never
-// included the codelet it would now displace. Re-measure to regenerate.
-const wisdomMagic = "# algofft-wisdom v4"
+// v5 combines the CPU identifier introduced by v4 with direction-aware
+// choices: the algorithm field may be a "forward/inverse" pair. Older files
+// are rejected because v3 cannot identify the microarchitecture that produced
+// a measurement and v4 measured only the forward direction. Re-measure to
+// regenerate them.
+const wisdomMagic = "# algofft-wisdom v5"
 
 // wisdomLegend is a human-readable column legend written after the magic header.
 const wisdomLegend = "# size:precision:features:cpu:algorithm:timestamp"
@@ -431,16 +428,22 @@ func isValidCPUIdentifier(identifier string) bool {
 	return strings.IndexFunc(identifier, isNotAlgorithmNameRune) < 0
 }
 
-// isValidAlgorithmName reports whether s is a plausible algorithm/codelet name:
-// non-empty and restricted to a safe charset. Codelet signatures are
-// size-specific (e.g. "dit8_avx2"), so a closed enum is infeasible; this rejects
-// empty or garbage/injected values.
+// isValidAlgorithmName reports whether s is one plausible algorithm/codelet
+// name, or a forward/inverse pair separated by one slash. Codelet signatures
+// are size-specific (e.g. "dit8_avx2"), so a closed enum is infeasible.
 func isValidAlgorithmName(s string) bool {
 	if s == "" {
 		return false
 	}
 
-	return strings.IndexFunc(s, isNotAlgorithmNameRune) < 0
+	forward, inverse, split := SplitDirectionalAlgorithm(s)
+	if split {
+		return strings.IndexByte(inverse, '/') < 0 &&
+			strings.IndexFunc(forward, isNotAlgorithmNameRune) < 0 &&
+			strings.IndexFunc(inverse, isNotAlgorithmNameRune) < 0
+	}
+
+	return strings.IndexByte(s, '/') < 0 && strings.IndexFunc(s, isNotAlgorithmNameRune) < 0
 }
 
 // isNotAlgorithmNameRune reports whether r is outside the safe algorithm-name

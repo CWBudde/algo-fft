@@ -144,7 +144,37 @@ func TestMeasureAndSelectBindsCodeletTwiddles(t *testing.T) {
 		t.Fatalf("algorithm = %q, want the codelet %q", estimate.Algorithm, sig)
 	}
 
-	if estimate.TwiddleSize == nil || estimate.PrepareTwiddle == nil {
+	if estimate.ForwardTwiddleSize == nil || estimate.ForwardPrepareTwiddle == nil ||
+		estimate.InverseTwiddleSize == nil || estimate.InversePrepareTwiddle == nil {
 		t.Error("winning codelet was bound without its twiddle callbacks")
+	}
+}
+
+func TestDirectionalEstimateBindsSeparateCodelets(t *testing.T) {
+	t.Parallel()
+
+	forward := registry.CodeletEntry[complex64]{
+		Forward:        measureTestCodelet,
+		Inverse:        measureTestCodelet,
+		Algorithm:      fftypes.KernelDIT,
+		Signature:      "direction_forward",
+		TwiddleSize:    func(int) int { return 4 },
+		PrepareTwiddle: func(int, bool, []complex64) {},
+	}
+	inverse := forward
+	inverse.Signature = "direction_inverse"
+
+	estimate := directionalEstimate(
+		measureCandidate[complex64]{entry: &forward, algorithm: forward.Signature, strategy: fftypes.KernelDIT},
+		measureCandidate[complex64]{entry: &inverse, algorithm: inverse.Signature, strategy: fftypes.KernelDIT},
+	)
+
+	if estimate.Algorithm != "direction_forward/direction_inverse" {
+		t.Fatalf("algorithm = %q, want directional pair", estimate.Algorithm)
+	}
+
+	if estimate.ForwardCodelet == nil || estimate.InverseCodelet == nil ||
+		estimate.ForwardPrepareTwiddle == nil || estimate.InversePrepareTwiddle == nil {
+		t.Error("directional estimate did not bind both codelets and twiddle callbacks")
 	}
 }
