@@ -20,6 +20,11 @@ bench-gated *sizes:
     ./scripts/bench_gated.sh {{ sizes }}
     ./scripts/bench_gated_analyze.sh
 
+# Measure every registered power-of-two candidate on this host and persist the
+# winners. Import the resulting file before constructing estimate-mode plans.
+tune OUTPUT="algofft-wisdom.txt" MAX="32768":
+    go run ./cmd/tune -max {{ MAX }} -output {{ OUTPUT }}
+
 # Run linters
 lint:
     golangci-lint run
