@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-15
+
+### Breaking
+
+- **Nothing in this release is itself breaking, but the jump from `v0.7.4` is.**
+  `v0.7.5` was written up here on 2026-08-02 and never tagged; it removed the
+  `KernelEightStep` `KernelStrategy` constant (see the 0.7.5 "Removed" section
+  below). Both tags are being cut now — `v0.7.5` on the commit that wrote its
+  changelog entry, `v0.8.0` here — and the minor bump is the signal that
+  anything pinned at `v0.7.4` or earlier is crossing an exported-identifier
+  removal. Every other exported symbol in the root package is unchanged since
+  `v0.7.4`; `WisdomKey` gains a `CPUIdentifier` field, which only affects
+  unkeyed struct literals.
+
 ### Added
 
 - **An offline host-tuning command (`cmd/tune`, also exposed as `just tune`).**
