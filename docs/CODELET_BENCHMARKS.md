@@ -1863,8 +1863,8 @@ Seven isolated 500 ms runs compared it directly with the selected fused-tail
 row. The table reports medians and candidate/incumbent ratios, so values above
 one favor the incumbent:
 
-| precision  | direction | fused radix-4 | radix-8 | ratio |
-| ---------- | --------- | ------------: | ------: | ----: |
+| precision  | direction | fused radix-4 |  radix-8 | ratio |
+| ---------- | --------- | ------------: | -------: | ----: |
 | complex64  | forward   |      18.44 ns | 25.57 ns | 1.39x |
 | complex64  | inverse   |      19.40 ns | 27.24 ns | 1.40x |
 | complex128 | forward   |      26.80 ns | 27.67 ns | 1.03x |

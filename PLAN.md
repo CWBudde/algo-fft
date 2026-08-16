@@ -905,6 +905,7 @@ unmeasured and unmaintainable.
       but the separate rows displaced at complex64 128/2048 and complex128 128
       are now production Wisdom candidates at priority 80. This makes the host
       split tunable without imposing the Zen result on the Intel defaults.
+
 - [ ] **Explain the n = 2048 cell specifically.** The tail tax is uniform across
       512/2048/8192 (0.97/0.91/1.24 vs FFTW3 at v0.7.4), so it explains why every
       odd power of two is ~13% below where it could be, **not** why 2048 alone is
