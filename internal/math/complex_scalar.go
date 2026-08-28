@@ -40,3 +40,21 @@ func MulComplex64(a, b complex64) complex64 {
 func MulComplex128(a, b complex128) complex128 {
 	return a * b
 }
+
+// ScaleComplex64 multiplies val by a real scalar.
+//
+// It exists because writing the 1/n inverse scaling as a complex multiply by
+// (s, 0) spends two products against a zero imaginary part plus an add and a
+// subtract on every element, and the compiler does not fold them away — the
+// same observation splitradix.go records for its own final pass. Scaling a
+// 1024-point transform that way costs 2048 dead multiplies per call.
+func ScaleComplex64(val complex64, s float32) complex64 {
+	return complex(real(val)*s, imag(val)*s)
+}
+
+// ScaleComplex128 is the complex128 twin of ScaleComplex64, so that code
+// written against the latter survives the genkernels Complex64 -> Complex128
+// rewrite unchanged.
+func ScaleComplex128(val complex128, s float64) complex128 {
+	return complex(real(val)*s, imag(val)*s)
+}

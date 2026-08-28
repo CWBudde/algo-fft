@@ -209,6 +209,25 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bo
 		br16_15 = 15
 	)
 
+	// The fifteen conjugated W_32 twiddles are loop-invariant, but the
+	// compiler cannot prove tw does not alias out, so leaving them inline
+	// re-derives all fifteen on each of the 16 stage-2 iterations below.
+	cw1 := conj(tw[16])
+	cw2 := conj(tw[32])
+	cw3 := conj(tw[48])
+	cw4 := conj(tw[64])
+	cw5 := conj(tw[80])
+	cw6 := conj(tw[96])
+	cw7 := conj(tw[112])
+	cw8 := conj(tw[128])
+	cw9 := conj(tw[144])
+	cw10 := conj(tw[160])
+	cw11 := conj(tw[176])
+	cw12 := conj(tw[192])
+	cw13 := conj(tw[208])
+	cw14 := conj(tw[224])
+	cw15 := conj(tw[240])
+
 	// Stage 1: 32 IFFT-16s on rows using DIT ifft16 (bit-reversed input -> natural output).
 	// Input X[32*k1 + k2], output Y[k2, n1]
 	for k2 := range 32 {
@@ -222,7 +241,7 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bo
 
 		// Store with conjugate inter-stage twiddle W_512^{-k2*n1} = conj(tw[k2*n1])
 		base := k2 * 16
-		out[base+0] = mathpkg.MulComplex64(r0, conj(tw[k2*0]))
+		out[base+0] = r0 // tw[k2*0] is tw[0] = 1
 		out[base+1] = mathpkg.MulComplex64(r1, conj(tw[k2*1]))
 		out[base+2] = mathpkg.MulComplex64(r2, conj(tw[k2*2]))
 		out[base+3] = mathpkg.MulComplex64(r3, conj(tw[k2*3]))
@@ -268,83 +287,83 @@ func inverseDIT512Mixed16x32Complex64(dst, src, twiddle, scratch []complex64) bo
 		// Apply 1/512 scaling
 
 		// n2 = 0: W_32^0 = 1
-		dst[16*0+n1] = mathpkg.MulComplex64(e0+o0, complex(scale, 0))
-		dst[16*16+n1] = mathpkg.MulComplex64(e0-o0, complex(scale, 0))
+		dst[16*0+n1] = mathpkg.ScaleComplex64(e0+o0, scale)
+		dst[16*16+n1] = mathpkg.ScaleComplex64(e0-o0, scale)
 
 		// n2 = 1: W_32^{-1} = conj(tw[16])
-		t1 := mathpkg.MulComplex64(o1, conj(tw[16]))
-		dst[16*1+n1] = mathpkg.MulComplex64(e1+t1, complex(scale, 0))
-		dst[16*17+n1] = mathpkg.MulComplex64(e1-t1, complex(scale, 0))
+		t1 := mathpkg.MulComplex64(o1, cw1)
+		dst[16*1+n1] = mathpkg.ScaleComplex64(e1+t1, scale)
+		dst[16*17+n1] = mathpkg.ScaleComplex64(e1-t1, scale)
 
 		// n2 = 2: W_32^{-2} = conj(tw[32])
-		t2 := mathpkg.MulComplex64(o2, conj(tw[32]))
-		dst[16*2+n1] = mathpkg.MulComplex64(e2+t2, complex(scale, 0))
-		dst[16*18+n1] = mathpkg.MulComplex64(e2-t2, complex(scale, 0))
+		t2 := mathpkg.MulComplex64(o2, cw2)
+		dst[16*2+n1] = mathpkg.ScaleComplex64(e2+t2, scale)
+		dst[16*18+n1] = mathpkg.ScaleComplex64(e2-t2, scale)
 
 		// n2 = 3: W_32^{-3} = conj(tw[48])
-		t3 := mathpkg.MulComplex64(o3, conj(tw[48]))
-		dst[16*3+n1] = mathpkg.MulComplex64(e3+t3, complex(scale, 0))
-		dst[16*19+n1] = mathpkg.MulComplex64(e3-t3, complex(scale, 0))
+		t3 := mathpkg.MulComplex64(o3, cw3)
+		dst[16*3+n1] = mathpkg.ScaleComplex64(e3+t3, scale)
+		dst[16*19+n1] = mathpkg.ScaleComplex64(e3-t3, scale)
 
 		// n2 = 4: W_32^{-4} = conj(tw[64])
-		t4 := mathpkg.MulComplex64(o4, conj(tw[64]))
-		dst[16*4+n1] = mathpkg.MulComplex64(e4+t4, complex(scale, 0))
-		dst[16*20+n1] = mathpkg.MulComplex64(e4-t4, complex(scale, 0))
+		t4 := mathpkg.MulComplex64(o4, cw4)
+		dst[16*4+n1] = mathpkg.ScaleComplex64(e4+t4, scale)
+		dst[16*20+n1] = mathpkg.ScaleComplex64(e4-t4, scale)
 
 		// n2 = 5: W_32^{-5} = conj(tw[80])
-		t5 := mathpkg.MulComplex64(o5, conj(tw[80]))
-		dst[16*5+n1] = mathpkg.MulComplex64(e5+t5, complex(scale, 0))
-		dst[16*21+n1] = mathpkg.MulComplex64(e5-t5, complex(scale, 0))
+		t5 := mathpkg.MulComplex64(o5, cw5)
+		dst[16*5+n1] = mathpkg.ScaleComplex64(e5+t5, scale)
+		dst[16*21+n1] = mathpkg.ScaleComplex64(e5-t5, scale)
 
 		// n2 = 6: W_32^{-6} = conj(tw[96])
-		t6 := mathpkg.MulComplex64(o6, conj(tw[96]))
-		dst[16*6+n1] = mathpkg.MulComplex64(e6+t6, complex(scale, 0))
-		dst[16*22+n1] = mathpkg.MulComplex64(e6-t6, complex(scale, 0))
+		t6 := mathpkg.MulComplex64(o6, cw6)
+		dst[16*6+n1] = mathpkg.ScaleComplex64(e6+t6, scale)
+		dst[16*22+n1] = mathpkg.ScaleComplex64(e6-t6, scale)
 
 		// n2 = 7: W_32^{-7} = conj(tw[112])
-		t7 := mathpkg.MulComplex64(o7, conj(tw[112]))
-		dst[16*7+n1] = mathpkg.MulComplex64(e7+t7, complex(scale, 0))
-		dst[16*23+n1] = mathpkg.MulComplex64(e7-t7, complex(scale, 0))
+		t7 := mathpkg.MulComplex64(o7, cw7)
+		dst[16*7+n1] = mathpkg.ScaleComplex64(e7+t7, scale)
+		dst[16*23+n1] = mathpkg.ScaleComplex64(e7-t7, scale)
 
 		// n2 = 8: W_32^{-8} = conj(tw[128])
-		t8 := mathpkg.MulComplex64(o8, conj(tw[128]))
-		dst[16*8+n1] = mathpkg.MulComplex64(e8+t8, complex(scale, 0))
-		dst[16*24+n1] = mathpkg.MulComplex64(e8-t8, complex(scale, 0))
+		t8 := mathpkg.MulComplex64(o8, cw8)
+		dst[16*8+n1] = mathpkg.ScaleComplex64(e8+t8, scale)
+		dst[16*24+n1] = mathpkg.ScaleComplex64(e8-t8, scale)
 
 		// n2 = 9: W_32^{-9} = conj(tw[144])
-		t9 := mathpkg.MulComplex64(o9, conj(tw[144]))
-		dst[16*9+n1] = mathpkg.MulComplex64(e9+t9, complex(scale, 0))
-		dst[16*25+n1] = mathpkg.MulComplex64(e9-t9, complex(scale, 0))
+		t9 := mathpkg.MulComplex64(o9, cw9)
+		dst[16*9+n1] = mathpkg.ScaleComplex64(e9+t9, scale)
+		dst[16*25+n1] = mathpkg.ScaleComplex64(e9-t9, scale)
 
 		// n2 = 10: W_32^{-10} = conj(tw[160])
-		t10 := mathpkg.MulComplex64(o10, conj(tw[160]))
-		dst[16*10+n1] = mathpkg.MulComplex64(e10+t10, complex(scale, 0))
-		dst[16*26+n1] = mathpkg.MulComplex64(e10-t10, complex(scale, 0))
+		t10 := mathpkg.MulComplex64(o10, cw10)
+		dst[16*10+n1] = mathpkg.ScaleComplex64(e10+t10, scale)
+		dst[16*26+n1] = mathpkg.ScaleComplex64(e10-t10, scale)
 
 		// n2 = 11: W_32^{-11} = conj(tw[176])
-		t11 := mathpkg.MulComplex64(o11, conj(tw[176]))
-		dst[16*11+n1] = mathpkg.MulComplex64(e11+t11, complex(scale, 0))
-		dst[16*27+n1] = mathpkg.MulComplex64(e11-t11, complex(scale, 0))
+		t11 := mathpkg.MulComplex64(o11, cw11)
+		dst[16*11+n1] = mathpkg.ScaleComplex64(e11+t11, scale)
+		dst[16*27+n1] = mathpkg.ScaleComplex64(e11-t11, scale)
 
 		// n2 = 12: W_32^{-12} = conj(tw[192])
-		t12 := mathpkg.MulComplex64(o12, conj(tw[192]))
-		dst[16*12+n1] = mathpkg.MulComplex64(e12+t12, complex(scale, 0))
-		dst[16*28+n1] = mathpkg.MulComplex64(e12-t12, complex(scale, 0))
+		t12 := mathpkg.MulComplex64(o12, cw12)
+		dst[16*12+n1] = mathpkg.ScaleComplex64(e12+t12, scale)
+		dst[16*28+n1] = mathpkg.ScaleComplex64(e12-t12, scale)
 
 		// n2 = 13: W_32^{-13} = conj(tw[208])
-		t13 := mathpkg.MulComplex64(o13, conj(tw[208]))
-		dst[16*13+n1] = mathpkg.MulComplex64(e13+t13, complex(scale, 0))
-		dst[16*29+n1] = mathpkg.MulComplex64(e13-t13, complex(scale, 0))
+		t13 := mathpkg.MulComplex64(o13, cw13)
+		dst[16*13+n1] = mathpkg.ScaleComplex64(e13+t13, scale)
+		dst[16*29+n1] = mathpkg.ScaleComplex64(e13-t13, scale)
 
 		// n2 = 14: W_32^{-14} = conj(tw[224])
-		t14 := mathpkg.MulComplex64(o14, conj(tw[224]))
-		dst[16*14+n1] = mathpkg.MulComplex64(e14+t14, complex(scale, 0))
-		dst[16*30+n1] = mathpkg.MulComplex64(e14-t14, complex(scale, 0))
+		t14 := mathpkg.MulComplex64(o14, cw14)
+		dst[16*14+n1] = mathpkg.ScaleComplex64(e14+t14, scale)
+		dst[16*30+n1] = mathpkg.ScaleComplex64(e14-t14, scale)
 
 		// n2 = 15: W_32^{-15} = conj(tw[240])
-		t15 := mathpkg.MulComplex64(o15, conj(tw[240]))
-		dst[16*15+n1] = mathpkg.MulComplex64(e15+t15, complex(scale, 0))
-		dst[16*31+n1] = mathpkg.MulComplex64(e15-t15, complex(scale, 0))
+		t15 := mathpkg.MulComplex64(o15, cw15)
+		dst[16*15+n1] = mathpkg.ScaleComplex64(e15+t15, scale)
+		dst[16*31+n1] = mathpkg.ScaleComplex64(e15-t15, scale)
 	}
 
 	return true
