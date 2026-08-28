@@ -1,3 +1,4 @@
 # host	cpu	go	canary	floor_ns	date
 PLAPTOP2333002	12th Gen Intel(R) Core(TM) i7-1255U	go1.26.1	BenchmarkGateCanary	5216	2026-08-01
 server2210052	Intel(R) Xeon(R) Gold 5218 CPU @ 2.30GHz	go1.26.5	BenchmarkGateCanary	11298	2026-07-31
+PLAPTOP2333002	12th Gen Intel(R) Core(TM) i7-1255U	go1.26.5	BenchmarkGateCanary	4915	2026-08-29
